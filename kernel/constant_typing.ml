@@ -24,6 +24,12 @@ open UVars
 
 module NamedDecl = Context.Named.Declaration
 
+(** Use this function when typing terms where the precise value of the inferred
+    type from the equivalence class of conversion does not matter. It makes it
+    more efficient. *)
+let unset_let_expansion env =
+  Environ.set_typing_flags { (Environ.typing_flags env) with expand_let = false } env
+
 (* Checks the section variables for the body.
    Returns the closure of the union with the variables in the type.
 *)
@@ -174,7 +180,8 @@ let infer_primitive env { prim_entry_type = utyp; prim_entry_content = p; } =
 let infer_symbol env { symb_entry_universes; symb_entry_unfold_fix; symb_entry_type } =
   let env, usubst, _, univs = process_universes env symb_entry_universes in
   let symb_entry_type = Vars.subst_univs_level_constr usubst symb_entry_type in
-  let j = Typeops.infer env symb_entry_type in
+  (* Inferred type is not returned *)
+  let j = Typeops.infer (unset_let_expansion env) symb_entry_type in
   let r = Typeops.assumption_of_judgment env j in
   {
     const_hyps = [];
@@ -196,7 +203,8 @@ let make_univ_hyps = function
 let infer_parameter ~sec_univs env entry =
   let env, usubst, _, univs = process_universes env entry.parameter_entry_universes in
   let typ = Vars.subst_univs_level_constr usubst entry.parameter_entry_type in
-  let j = Typeops.infer env typ in
+  (* Inferred type is not returned *)
+  let j = Typeops.infer (unset_let_expansion env) typ in
   let r = Typeops.assumption_of_judgment env j in
   let typ = j.uj_val in
   let undef = Undef entry.parameter_entry_inline_code in
@@ -217,7 +225,9 @@ let infer_definition ~sec_univs env entry =
   let env, usubst, _, univs = process_universes env entry.definition_entry_universes in
   let body = Vars.subst_univs_level_constr usubst entry.definition_entry_body in
   let hbody = HConstr.of_constr env body in
-  let j = Typeops.infer_hconstr env hbody in
+  (* When the expected type is provided, don't care about the inferred type *)
+  let jenv = if Option.is_empty entry.definition_entry_type then env else unset_let_expansion env in
+  let j = Typeops.infer_hconstr jenv hbody in
   let typ = match entry.definition_entry_type with
     | None ->
       j.uj_type
@@ -284,7 +294,8 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
   (* Note: non-trivial trusted side-effects only in monomorphic case *)
   let () =
     let eff_body, eff_env = skip_trusted_seff valid_signatures hbody env in
-    let j = Typeops.infer_hconstr eff_env eff_body in
+    (* Inferred type is not returned *)
+    let j = Typeops.infer_hconstr (unset_let_expansion eff_env) eff_body in
     let () = assert (HConstr.self eff_body == j.uj_val) in
     let j = { uj_val = HConstr.self hbody; uj_type = j.uj_type } in
     Typeops.check_cast eff_env j DEFAULTcast tyj
@@ -302,12 +313,15 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
 (*s Global and local constant declaration. *)
 
 let infer_local_assum env t =
-  let j = Typeops.infer env t in
+  (* Inferred type is not returned *)
+  let j = Typeops.infer (unset_let_expansion env) t in
   let t = Typeops.assumption_of_judgment env j in
     j.uj_val, t
 
 let infer_local_def env _id { secdef_body; secdef_type; } =
-  let j = Typeops.infer env secdef_body in
+  (* When the expected type is provided, don't care about the inferred type *)
+  let jenv = if Option.is_empty secdef_type then env else unset_let_expansion env in
+  let j = Typeops.infer jenv secdef_body in
   let typ = match secdef_type with
     | None -> j.uj_type
     | Some typ ->
