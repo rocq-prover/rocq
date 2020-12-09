@@ -733,7 +733,7 @@ and execute_aux tbl env cstr =
       let () = check_cast env c1 c1t DEFAULTcast c2 in
       let env1 = push_rel (LocalDef (name,c1,c2)) env in
       let c3t = execute tbl env1 c3 in
-      subst1 c1 c3t
+      if (Environ.typing_flags env).expand_let then subst1 c1 c3t else mkLetIn (name, c1, c2, c3t)
 
     | Cast (c,k,t) ->
       let ct = execute tbl env c in
@@ -919,7 +919,9 @@ let infer_type env constr =
   let () = check_wellformed_universes env constr in
   let hconstr = HConstr.of_constr env constr in
   let constr = HConstr.self hconstr in
-  let t = execute env hconstr in
+  (* Returned j_type is not observable *)
+  let tenv = Environ.set_typing_flags { (Environ.typing_flags env) with expand_let = false } env in
+  let t = execute tenv hconstr in
   let s = check_type env constr t in
   {utj_val = constr; utj_type = s}
 
