@@ -32,27 +32,13 @@ let canonize ~separator_hack vAccu f =
     | (f,_) :: _ -> f
     | _ -> f
 
-type what = Library | External
-let str_of_what = function Library -> "library" | External -> "external file"
-
-let warning_module_notfound =
-  let warn (what, from, f, s) =
-    let open Pp in
-    str "in file " ++ str f ++ str ", " ++
-    str (str_of_what what) ++ spc () ++ str (String.concat "." s) ++ str " is required" ++
-    pr_opt (fun pth -> str "from root " ++ str (String.concat "." pth)) from ++
-    str " and has not been found in the loadpath!"
-  in
-  CWarnings.create ~name:"module-not-found"
-    ~category:CWarnings.CoreCategories.filesystem warn
-
-let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in function
+let warn_if_clash ?(what=Error.Library) exact file dir f1 = let open Format in function
   | f2::fl ->
       let f =
         match what with
         | Library -> Filename.basename f1 ^ ".v"
         | External -> Filename.basename f1 in
-      let what = str_of_what what in
+      let what = Error.str_of_what what in
       let d1 = Filename.dirname f1 in
       let d2 = Filename.dirname f2 in
       let dl = List.rev_map Filename.dirname fl in
@@ -74,7 +60,7 @@ let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in functio
         end
   | [] -> ()
 
-let safe_assoc ?(warn_clashes=true) st ?(what=Library) from file k =
+let safe_assoc ?(warn_clashes=true) st ?(what=Error.Library) from file k =
   let search =
     match what with
     | Library -> Loadpath.search_v_known st
@@ -198,7 +184,7 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
                   add_dep (Dep_info.Dep.Require file_str)) files
             | None ->
               if not (Loadpath.is_in_coqlib loadpath ?from str) then
-                warning_module_notfound (Library, from, f, str)
+                Error.filenotfound f Library from str
           end
         in
         List.iter decl strl;
@@ -244,7 +230,7 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
         begin match safe_assoc loadpath ~what:External (Some from) f [str] with
         | Some (file :: _) -> add_dep (Dep_info.Dep.Other (canonize ~separator_hack vAccu file))
         | Some [] -> assert false
-        | None -> warning_module_notfound (External, Some from, f, [str])
+        | None -> Error.mlnotfound f str
         end;
         loop ()
   in
