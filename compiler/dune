@@ -1,0 +1,13 @@
+(library
+ (name simple_compiler)
+ (public_name rocq-runtime.simple_compiler)
+ (modules :standard \ coqc_bin)
+ (libraries vernac sysinit))
+
+(executable
+ (name coqc_bin)
+ (modules coqc_bin)
+ (public_name coqc)
+ (package coq-core)
+ (libraries simple_compiler)
+ (link_flags -linkall))

@@ -925,6 +925,10 @@ let vernac_abort ~lemma:_ ~pm = pm
 let deprecated_exact_proof = CWarnings.create ~name:"deprecated-exact-proof" ~category:Deprecation.Version.v9_2
     Pp.(fun () -> str "\"Proof term.\" is deprecated. Use \"Proof. exact term. Qed.\" instead.")
 
+let pstate_hack = ref None
+
+let vernac_restart ~pstate : Declare.Proof.t = Option.cata (fun pstate -> pstate) pstate !pstate_hack
+
 let vernac_exact_proof ~lemma ~pm c =
   deprecated_exact_proof ();
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
@@ -2690,15 +2694,31 @@ let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
   (* Extensions *)
   | EVernacExtend f -> f
 
+module Vernactypes = struct
+  include Vernactypes
+
+  let vtopenproof fn =
+    Vernactypes.vtopenproof (fun () ->
+        let pf = fn () in pstate_hack := Some pf; pf)
+end
+
 let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacAbortAll
-  | VernacRestart
   | VernacUndo _
   | VernacUndoTo _
   | VernacResetName _
   | VernacResetInitial
   | VernacBack _ ->
     anomaly (str "type_vernac")
+
+  (* Just drop the proof, what to do about the obligations state tho? *)
+  | VernacAbort ->
+    unsupported_attributes atts;
+    vtcloseproof vernac_abort
+
+  | VernacRestart ->
+    unsupported_attributes atts;
+    vtmodifyproof vernac_restart
 
   (* Syntax *)
   | VernacDeclareScope sc ->
@@ -3005,10 +3025,6 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacEndProof pe ->
     unsupported_attributes atts;
     vtcloseproof (vernac_end_proof pe)
-
-  | VernacAbort ->
-    unsupported_attributes atts;
-    vtcloseproof vernac_abort
 
 let translate_vernac ?loc ~atts v =
   match v with
