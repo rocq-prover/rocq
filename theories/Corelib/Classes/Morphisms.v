@@ -19,6 +19,8 @@ Require Import Corelib.Program.Tactics.
 Require Import Corelib.Relations.Relation_Definitions.
 Require Export Corelib.Classes.RelationClasses.
 
+Declare ML Module "rocq-runtime.plugins.setoid".
+
 Generalizable Variables A eqA B C D R RA RB RC m f x y.
 Local Obligation Tactic := try solve [ simpl_relation ].
 
