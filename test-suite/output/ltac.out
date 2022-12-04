@@ -63,3 +63,11 @@ Ltac foo :=
 
 goal 2 is:
  forall a : nat, a = 0
+File "./output/ltac.v", line 94, characters 0-22:
+Warning: Interpretation of foo in toplevel definition
+is different from its interpretation in proof scripts:
+got @foo but in proof scripts foo would be produced.
+Use "Set Ltac Always Insert Implicits" to always get the later result.
+[ltac-non-inserted-implicits,deprecated-since-9.1,deprecated,default]
+Ltac tac2 := tac1 @foo
+Ltac tac3 := tac1 foo

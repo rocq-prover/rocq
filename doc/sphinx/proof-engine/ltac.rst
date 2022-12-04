@@ -1939,6 +1939,27 @@ Defining |Ltac| symbols
       - :n:`Ltac @qualid {+ @name } := @ltac_expr`
       - :n:`Ltac @qualid := fun {+ @name } => @ltac_expr`
 
+   By default, ltac applications to a :n:`@qualid` inside a toplevel
+   :cmd:`Ltac`'s body can behave differently from the same application in
+   proof scripts: in proof scripts the :n:`@qualid` is interpreted as
+   a term, but in toplevel :cmd:`Ltac` it is interpreted as a
+   reference. This typically produces different results when the
+   reference has maximally inserted arguments.
+
+   This separate interpretation is deprecated in favour of the proof script behaviour.
+
+.. warn:: Interpretation of @qualid in toplevel definition is different from its interpretation in proof scripts
+   :name: ltac-non-inserted-implicits
+
+   This warning is produced when the deprecated toplevel
+   interpretation is used and differs from the proof script
+   interpretation.
+
+.. flag:: Ltac Always Insert Implicits
+
+   Enable this flag to get the non-deprecated proof script
+   interpretation even in toplevel definitions.
+
 Printing |Ltac| tactics
 ~~~~~~~~~~~~~~~~~~~~~~~
 
