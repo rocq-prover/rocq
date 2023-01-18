@@ -41,6 +41,13 @@ let time_output ~time stm tstart tend =
     Feedback.msg_notice pp
   | Some (ToFile _file) -> ()
 
+let init_st = ref None
+
+let execute ~st (cmd : Vernacexpr.vernac_control) =
+  match cmd.v.expr with
+  | Vernacexpr.VernacSynPure VernacResetInitial -> Option.get !init_st
+  | _ -> execute ~st cmd
+
 let rec cloop ~time ~st pa =
   match parse ~st pa with
   | None ->
@@ -97,7 +104,7 @@ let rec process_extra args = match args with
     file, r :: extra
   | [] -> None,[]
 
-let compile ~args ~injections ~extra =
+let compile_files ~args ~injections ~extra =
   let out_file, extra = process_extra extra in
   let in_file = match extra with
     | [] -> exit 0
@@ -137,7 +144,7 @@ let main args =
     (* TODO *)
     (* let injections = Coqargs.injection_commands opts) in *)
     let injections = [] in
-    compile ~args:(opts.config) ~injections ~extra
+    compile_files ~args:(opts.config) ~injections ~extra
   with exn ->
     let exn, info = Exninfo.capture exn in
     let loc = Option.append (Loc.get_loc info) !error_loc in
