@@ -69,6 +69,7 @@ let constr_entry_key_visible_eq = constr_entry_key_eq_gen
     (fun _ _ -> true)
     (fun _ _ -> true)
 
+
 (** Entries level (left-hand side of grammar rules) *)
 
 type constr_entry_key =
@@ -78,6 +79,11 @@ type constr_entry_key =
 
 type simple_constr_prod_entry_key =
     production_level constr_entry_key_gen
+
+let simple_constr_entry_key_eq =
+  constr_entry_key_eq_gen
+    (Option.equal Notationextern.notation_binder_kind_eq)
+    production_level_eq
 
 (** Entries used in productions (in right-hand-side of grammar rules), to parse non-terminals *)
 
