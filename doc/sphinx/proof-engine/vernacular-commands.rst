@@ -939,6 +939,14 @@ Quitting and debugging
       for :cmd:`Timeout` commands themselves.  If unset, no timeout is
       applied.
 
+.. cmd:: AllocLimit @natural {| Mw | kw } @sentence
+
+   Executes :n:`@sentence`. If the operation allocates more than the specified limit
+   (`w` means machine words), then it is interrupted and an error message is displayed.
+
+.. tacn:: alloc_limit @natural {| Mw | kw } @ltac_expr
+
+   :cmd:`AllocLimit` as a tactical.
 
 .. cmd:: Fail @sentence
 
