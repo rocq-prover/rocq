@@ -1,6 +1,10 @@
 (* From memprof-limits *)
 val is_interrupted : unit -> bool
 
+val limit_allocations : limit:Int64.t -> (unit -> 'a) -> ('a * Int64.t, exn) result
+
+val start_memprof_limits : unit -> unit
+
 module Masking : sig
 
   val with_resource :

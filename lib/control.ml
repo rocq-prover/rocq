@@ -128,3 +128,10 @@ let protect_sigalrm f x =
       Exninfo.iraise e
   with Invalid_argument _ -> (* This happens on Windows, as handling SIGALRM does not seem supported *)
     f x
+
+type kilowords = { kilowords : Int64.t } [@@unboxed]
+
+let alloc_limit n f x =
+  match Memprof_coq.limit_allocations ~limit:n.kilowords (fun () -> f x) with
+  | Ok (v,kilowords) -> Ok (v,{kilowords})
+  | Error e -> Error (snd @@ Exninfo.capture e)

@@ -76,6 +76,8 @@ module NonLogical : sig
   val catch : 'a t -> (Exninfo.iexn -> 'a t) -> 'a t
   val timeout : float -> 'a t -> ('a, Exninfo.info) result t
 
+  val alloc_limit : Control.kilowords -> 'a t -> ('a * Control.kilowords, Exninfo.info) result t
+
   (** Construct a monadified side-effect. Exceptions raised by the argument are
       wrapped with {!Exception}. *)
   val make : (unit -> 'a) -> 'a t

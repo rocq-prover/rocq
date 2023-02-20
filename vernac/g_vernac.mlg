@@ -101,6 +101,8 @@ GRAMMAR EXTEND Gram
       | IDENT "Profile"; f = OPT STRING -> { CAst.make ~loc (ControlProfile f) }
       | IDENT "Redirect"; s = ne_string -> { CAst.make ~loc (ControlRedirect s) }
       | IDENT "Timeout"; n = natural -> { CAst.make ~loc (ControlTimeout n) }
+      | IDENT "AllocLimit"; n = natural; mult = [ IDENT "Mw" -> { 1000L } | IDENT "kw" -> { 1L } ] ->
+        { CAst.make ~loc (ControlAllocLimit { kilowords = Int64.(mul (of_int n) mult) }) }
       | IDENT "Fail" -> { CAst.make ~loc ControlFail }
       | IDENT "Succeed" -> { CAst.make ~loc ControlSucceed }
     ] ]

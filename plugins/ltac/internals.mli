@@ -67,3 +67,5 @@ val declare_equivalent_keys : Constrexpr.constr_expr -> Constrexpr.constr_expr -
 
 val infoH : pstate:Declare.Proof.t -> Tacexpr.raw_tactic_expr -> unit
 (** ProofGeneral command *)
+
+val alloc_limit : Tacinterp.interp_sign -> Control.kilowords -> Tacinterp.Value.t -> unit tactic

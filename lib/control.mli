@@ -29,6 +29,10 @@ val timeout : float -> ('a -> 'b) -> 'a -> ('b, Exninfo.info) result
     so before [n] seconds, returns [Error info] instead (where [info]
     contains the backtrace of the timeout exception). *)
 
+type kilowords = { kilowords : Int64.t } [@@unboxed]
+
+val alloc_limit : kilowords -> ('a -> 'b) -> 'a -> ('b * kilowords, Exninfo.info) result
+
 (** Set a particular timeout function; warning, this is an internal
    API and it is scheduled to go away. *)
 type timeout = { timeout : 'a 'b. float -> ('a -> 'b) -> 'a -> ('b,Exninfo.info) result }
