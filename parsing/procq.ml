@@ -46,7 +46,7 @@ type full_state = {
 }
 
 let empty_full_state =
-  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state } in
+  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state; recover = true } in
   {
     current_state = empty_gstate;
     base_state = empty_gstate;
@@ -81,7 +81,7 @@ let modify_state_unsync f state =
 let modify_state_unsync f () = state := modify_state_unsync f !state
 
 let modify_keyword_state f =
-  modify_state_unsync (fun {estate;kwstate} -> {estate; kwstate = f kwstate})
+  modify_state_unsync (fun {estate;kwstate;recover} -> {estate; kwstate = f kwstate; recover})
     ()
 
 let make_entry_unsync make remake state =
@@ -103,17 +103,17 @@ let add_kw = { add_kw = CLexer.add_keyword_tok }
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
-  let { GState.estate; kwstate } = gstate() in
+  let { GState.estate; kwstate; recover } = gstate() in
   let estate, entry = Entry.make "epsilon" estate in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [r]]) in
   let estate, kwstate = safe_extend add_kw estate kwstate entry ext in
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
-  try Some (Entry.parse entry strm {estate;kwstate}) with e when CErrors.noncritical e -> None
+  try Some (Entry.parse entry strm {estate;kwstate;recover}) with e when CErrors.noncritical e -> None
 
-let extend_gstate {GState.kwstate; estate} e ext =
+let extend_gstate {GState.kwstate; estate; recover} e ext =
   let estate, kwstate = safe_extend add_kw estate kwstate e ext in
-  {GState.kwstate; estate}
+  {GState.kwstate; estate; recover}
 
 (* XXX rename to grammar_extend_unsync? *)
 let grammar_extend e ext =
