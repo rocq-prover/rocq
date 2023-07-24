@@ -69,20 +69,21 @@ let find_rectype_a env sigma c =
 
 type env = {
   env : Environ.env;
+  norm_params : bool;
 }
 
 let push_rel decl env =
-  { env = Environ.push_rel decl env.env }
+  { env with env = Environ.push_rel decl env.env }
 
 let push_rel_context ctx env =
-  { env = Environ.push_rel_context ctx env.env }
+  { env with env = Environ.push_rel_context ctx env.env }
 
 let push_rels_assum ctx env =
   let fold (na, t) accu = Environ.push_rel (LocalAssum (na, t)) accu in
-  { env = List.fold_right fold ctx env.env }
+  { env with env = List.fold_right fold ctx env.env }
 
 let push_rec_types rdef env =
-  { env = Environ.push_rec_types rdef env.env }
+  { env with env = Environ.push_rec_types rdef env.env }
 
 let (!!) e = e.env
 
@@ -99,18 +100,22 @@ let type_constructor mind mib u (ctx, typ) params =
       ctyp
 
 let construct_of_constr const env sigma tag typ =
-  let env = !!env in
-  let t, allargs = app_type env sigma (EConstr.of_constr typ) in
+  let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
   match Constr.kind t with
   | Ind ((mind,_ as ind), u as indu) ->
-    let mib,mip = lookup_mind_specif env ind in
+    let mib,mip = lookup_mind_specif !!env ind in
     let nparams = mib.mind_nparams in
     let i = invert_tag const tag mip.mind_reloc_tbl in
     let params = Array.sub allargs 0 nparams in
     let ctyp = type_constructor mind mib u (mip.mind_nf_lc.(i-1)) params in
+    let params =
+      if env.norm_params then
+        Array.map (fun c -> EConstr.Unsafe.to_constr (Reductionops.nf_all !!env sigma (EConstr.of_constr c))) params
+      else params
+    in
     (mkApp(mkConstructUi(indu,i), params), ctyp)
   | _ ->
-     assert (Constr.equal t (Typeops.type_of_int env));
+     assert (Constr.equal t (Typeops.type_of_int !!env));
       (mkInt (Uint63.of_int tag), t)
 
 let construct_of_constr_const env sigma tag typ =
@@ -460,7 +465,15 @@ and nf_array env sigma t typ =
 let evars_of_evar_map sigma =
   { Genlambda.evars_val = Evd.evar_handler sigma }
 
-let cbv_vm env sigma c t  =
+type vm_flags = {
+  vm_normalize_params : bool;
+}
+
+let default_vm_flags = {
+  vm_normalize_params = false;
+}
+
+let cbv_vm ?(flags = default_vm_flags) env sigma c t  =
   if not (Environ.typing_flags env).enable_VM then
     CErrors.user_err Pp.(str "vm_compute reduction has been disabled.");
   if Termops.occur_meta sigma c then
@@ -469,5 +482,5 @@ let cbv_vm env sigma c t  =
   let c = EConstr.Unsafe.to_constr c in
   let t = EConstr.Unsafe.to_constr t in
   let v = Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c in
-  let env = { env } in
+  let env = { env; norm_params = flags.vm_normalize_params } in
   EConstr.of_constr (nf_val env sigma v t)
