@@ -819,20 +819,18 @@ let expand_table_key ~metas ts env sigma args = function
           | (args, appl) ->
             let args_red = Array.of_list @@ CPrimitives.kind op in
             assert (Array.length args_red <= Array.length args);
+            let flags = RedFlags.red_add_transparent RedFlags.all ts in
             let args =
               let open CPrimitives in
               let red arg = function
                 | Kparam | Karg -> arg
-                | Kwhnf ->
-                  let flags = RedFlags.all in
-                  let flags = RedFlags.red_add_transparent flags ts in
-                  Reductionops.clos_whd_flags flags env sigma arg
+                | Kwhnf -> Reductionops.clos_whd_flags flags env sigma arg
               in
               Array.map2 red args args_red
             in
-            begin match CredNative.(red_prim env sigma op (EInstance.make u) args) with
-              | Some v -> Some (v, appl)
-              | None -> None
+            begin match CredNative.red_prim env sigma (env, sigma, flags) op (EInstance.make u) args with
+              | CredNative.Result v -> Some (v, appl)
+              | CredNative.Progress _ | CredNative.Error -> None
               end
             | exception Failure _ -> None
           end

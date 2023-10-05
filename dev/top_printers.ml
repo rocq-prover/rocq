@@ -71,6 +71,8 @@ let get_current_context () =
 (* term printers *)
 let envpp pp = let sigma,env = get_current_context () in pp env sigma
 let ppevar evk = pp (Evar.print evk)
+let pr_fconstr c =
+  ignore c; str "..." (* TODO *)
 let pr_constr t =
   let sigma, env = get_current_context () in
   Printer.pr_constr_env env sigma t
@@ -86,7 +88,7 @@ let ppconstr_univ x = Flags.with_option PrintingFlags.print_universes ppconstr x
 let ppglob_constr = (fun x -> pp(with_env_evm pr_lglob_constr_env x))
 let pppattern = (fun x -> pp(envpp pr_constr_pattern_env x))
 let pptype = (fun x -> try pp(envpp (fun env evm t -> pr_ltype_env env evm t) x) with e -> pp (str (Printexc.to_string e)))
-let ppfconstr c = ppconstr (CClosure.term_of_fconstr c)
+let ppfconstr c = pp (pr_fconstr c)
 
 (* XXX we could also try to have a printer which shows which parts are
    shared, but this is probably better for most uses (ie stepping
@@ -101,7 +103,7 @@ let pp_parray pr a =
   pp (str "[|" ++ prlist_with_sep (fun () -> str ";" ++ spc()) pr a ++ spc() ++ str "|" ++ spc() ++ pr def ++ str "|]")
 
 let pp_constr_parray = pp_parray pr_constr
-let pp_fconstr_parray = pp_parray (fun f -> pr_constr (CClosure.term_of_fconstr f))
+let pp_fconstr_parray = pp_parray pr_fconstr
 
 let pplift el =
   pp @@ Esubst.Internal.pp_lift el
@@ -111,7 +113,7 @@ let ppfsubst s =
   let sep () = str ";" ++ spc () in
   let pr = function
   | Esubst.Internal.REL n -> str "<#" ++ int n ++ str ">"
-  | Esubst.Internal.VAL (k, x) -> pr_constr (Vars.lift k (CClosure.term_of_fconstr x))
+  | Esubst.Internal.VAL (k, x) -> pr_fconstr (CClosure.lift_fconstr k x)
   in
   pp @@ str "[" ++ prlist_with_sep sep pr s ++ str "| " ++ int k ++ str "]"
 
@@ -334,7 +336,7 @@ let ppaucontext auctx =
   pp (UContext.pr { pru = prlev; prq = { prvar = prqvar; prglobal = prqglobal } } (AbstractContext.repr auctx))
 
 let pp_partialfsubst psubst =
-  pp (Partial_subst.pr (fun f -> pr_constr (CClosure.term_of_fconstr f)) prquality (Universe.pr prlev) psubst)
+  pp (Partial_subst.pr pr_fconstr prquality (Universe.pr prlev) psubst)
 
 let pp_partialsubst psubst =
   pp (Partial_subst.pr pr_econstr prquality (Universe.pr prlev) psubst)

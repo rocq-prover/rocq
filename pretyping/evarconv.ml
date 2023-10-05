@@ -118,20 +118,18 @@ let eval_flexible_term ts env evd c sk =
           | (args, appl) ->
             let args_red = CPrimitives.kind op in
             assert (List.length args_red <= List.length args);
+            let flags = RedFlags.red_add_transparent RedFlags.all ts in
             let args =
               let open CPrimitives in
               let red arg = function
                 | Kparam | Karg -> arg
-                | Kwhnf ->
-                  let flags = RedFlags.all in
-                  let flags = RedFlags.red_add_transparent flags ts in
-                  Reductionops.clos_whd_flags flags env evd arg
+                | Kwhnf -> Reductionops.clos_whd_flags flags env evd arg
               in
               List.map2 red args args_red
             in
-            begin match CredNative.(red_prim env evd op u @@ Array.of_list args) with
-              | Some v -> Some (v, rest_sk)
-              | None -> None
+            begin match CredNative.red_prim env evd (env, evd, flags) op u (Array.of_list args) with
+              | CredNative.Result v -> Some (v, rest_sk)
+              | CredNative.Progress _ | CredNative.Error -> None
               end
             | exception Failure _ -> None
           end

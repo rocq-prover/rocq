@@ -56,21 +56,74 @@ type fterm =
   | FCLOS of constr * usubs
   | FIrrelevant
   | FLOCKED
+  | FPrimitive of CPrimitives.t * pconstant * fconstr * fconstr array
+    (* operator, constr def, primitive as an fconstr, full array of suitably evaluated arguments *)
+  | FBlock of constr * constr * constr * usubs
+    (* @block as a constr, its type as a constr, the contents of the block *)
+  | FEta of int * constr * constr array * int * usubs
+  (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
+  | FLAZY of fconstr Lazy.t
 
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by
    [append_stack] one array at a time *)
 type 'a next_native_args = (CPrimitives.arg_kind * 'a) list
 
+module [@ocaml.warning "-32"] RedState : sig
+  type [@ocaml.immediate] t
+  type [@ocaml.immediate] mode
+  type [@ocaml.immediate] red_state
+
+
+  val ntrl : red_state
+  val cstr : red_state
+  val red  : red_state
+
+  val normal_whnf : mode
+  val normal_full : mode
+  val full        : mode
+  val identity    : mode
+
+  val neutr : t -> t
+
+  val mk : red_state -> mode -> t
+  val red_state : t -> red_state
+  val mode : t -> mode
+
+  val is_red : t -> bool
+  val is_cstr : t -> bool
+  val is_ntrl : t -> bool
+  val set_red : t -> t
+  val set_cstr : t -> t
+  val set_ntrl : t -> t
+  val neutr : t -> t
+  val is_normal_whnf : t -> bool
+  val is_normal_full : t -> bool
+  val is_full : t -> bool
+  val is_identity : t -> bool
+  val set_normal_whnf : t -> t
+  val set_normal_full : t -> t
+  val set_full : t -> t
+  val set_identity : t -> t
+  val copy_red : t -> t -> t
+  val copy_mode : t -> t -> t
+end
+
+open RedState
+
 type stack_member =
   | Zapp of fconstr array
-  | ZcaseT of case_info * UVars.Instance.t * constr array * case_return * case_branch array * usubs
-  | Zproj of Projection.Repr.t * Sorts.relevance
+  | ZcaseT of case_info * UVars.Instance.t * constr array * case_return * case_branch array * usubs * mode
+  | Zproj of Projection.Repr.t * Sorts.relevance * mode
   | Zfix of fconstr * stack
-  | Zprimitive of CPrimitives.t * pconstant * fconstr list * fconstr next_native_args
-       (* operator, constr def, arguments already seen (in rev order), next arguments *)
+  | Zprimitive of CPrimitives.t * pconstant * fconstr * fconstr list * fconstr next_native_args
+       (* operator, constr def, primitive as an fconstr, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
+  | Zunblock of constr * constr * usubs * mode
+  (* unblock as a constr, its type argument, the substitution for both constrs, saved reduction flags *)
+  | Zrun of constr * constr * constr * constr * usubs * mode
+  (* run as a constr, its type argument, its continuation, the substitution for all constrs, saved reduction flags *)
 
 and stack = stack_member list
 
@@ -78,8 +131,6 @@ val empty_stack : stack
 val append_stack : fconstr array -> stack -> stack
 
 val check_native_args : CPrimitives.t -> stack -> bool
-val get_native_args1 : CPrimitives.t -> pconstant -> stack ->
-  fconstr list * fconstr * fconstr next_native_args * stack
 
 val get_invert : finvert -> fconstr array
 
@@ -111,8 +162,6 @@ val mk_clos_vect : usubs -> constr array -> fconstr array
 val zip : fconstr -> stack -> fconstr
 
 val fterm_of : fconstr -> fterm
-val term_of_fconstr : fconstr -> constr
-val term_of_process : fconstr -> stack -> constr
 val destFLambda :
   (usubs -> constr -> fconstr) -> fconstr -> Name.t binder_annot * fconstr * fconstr
 
@@ -161,13 +210,15 @@ val eq_quality : clos_infos -> Sorts.Quality.t -> Sorts.Quality.t -> bool
 
 val infos_with_reds : clos_infos -> reds -> clos_infos
 
+val term_of_fconstr : info:clos_infos -> tab:clos_tab -> fconstr -> constr
+
 (** Reduction function *)
 
 (** [norm_val] is for strong normalization *)
 val norm_val : clos_infos -> clos_tab -> fconstr -> constr
 
 (** Same as [norm_val] but for terms *)
-val norm_term : clos_infos -> clos_tab -> usubs -> Constr.constr -> Constr.constr
+val norm_term : ?mode:mode -> clos_infos -> clos_tab -> usubs -> Constr.constr -> Constr.constr
 
 (** [whd_val] is for weak head normalization *)
 val whd_val : clos_infos -> clos_tab -> fconstr -> constr
@@ -180,6 +231,9 @@ val whd_stack :
 val skip_irrelevant_stack : clos_infos -> stack -> stack
 
 val eta_expand_stack : clos_infos -> Name.t binder_annot -> stack -> stack
+
+val mk_eta_args : constr array -> int -> constr array
+val eta_reduce : fconstr -> fconstr
 
 (** [eta_expand_ind_stack env ind args t] computes stacks corresponding
     to the conversion of the eta expansion of t, considered as an inhabitant
@@ -210,3 +264,19 @@ val get_ref_mask : clos_infos -> clos_tab -> table_key -> bool array
 
 (** Hook for Reduction *)
 val set_conv : (clos_infos -> clos_tab -> fconstr -> fconstr -> bool) -> unit
+
+(***********************************************************************
+  i This is for lazy debug *)
+
+val lift_fconstr      : int -> fconstr -> fconstr
+val lift_fconstr_vect : int -> fconstr array -> fconstr array
+
+val kni: clos_infos -> clos_tab -> fconstr -> stack -> fconstr * stack
+val knr: clos_infos -> clos_tab -> fconstr -> stack -> fconstr * stack
+val kl : clos_infos -> clos_tab -> fconstr -> constr
+
+val term_of_process : info:clos_infos -> tab:clos_tab -> fconstr -> stack -> constr
+
+val to_constr : info:clos_infos -> tab:clos_tab -> lift UVars.puniverses -> fconstr -> constr
+
+(** End of cbn debug section i*)
