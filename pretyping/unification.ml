@@ -823,18 +823,16 @@ let expand_table_key ~metas ts env sigma args = function
           | (args, appl) ->
             let args_red = Array.of_list @@ CPrimitives.kind op in
             assert (Array.length args_red <= Array.length args);
+            let flags = RedFlags.red_add_transparent RedFlags.all ts in
             let args =
               let open CPrimitives in
               let red arg = function
                 | Kparam | Karg -> arg
-                | Kwhnf ->
-                  let flags = RedFlags.all in
-                  let flags = RedFlags.red_add_transparent flags ts in
-                  Reductionops.clos_whd_flags flags env sigma arg
+                | Kwhnf -> Reductionops.clos_whd_flags flags env sigma arg
               in
               Array.map2 red args args_red
             in
-            begin match CredNative.(red_prim env sigma op (EInstance.make u) args) with
+            begin match CredNative.red_prim env sigma (env, sigma, flags) op (EInstance.make u) args with
               | Some v -> Some (v, appl)
               | None -> None
               end
@@ -938,11 +936,11 @@ let is_rigid_head sigma flags t =
   match EConstr.kind sigma t with
   | Const (cst,u) -> not (Structures.PrimitiveProjections.is_transparent_constant flags.modulo_delta cst)
   | Ind (i,u) -> true
-  | Construct _ | Int _ | Float _ | String _ | Array _ -> true
+  | Construct _ | Int _ | Float _ | String _ | Array _ | PBlock _ -> true
   | Fix _ | CoFix _ -> true
   | Rel _ | Var _ | Meta _ | Evar _ | Sort _ | Cast (_, _, _) | Prod _
     | Lambda _ | LetIn _ | App (_, _) | Case _
-    | Proj _ -> false (* Why aren't Prod, Sort rigid heads ? *)
+    | Proj _ | PUnblock _ | PRun _ -> false (* Why aren't Prod, Sort rigid heads ? *)
 
 let constr_cmp pb env sigma flags ?nargs t u =
   let cstrs =
@@ -1041,7 +1039,8 @@ let rec is_neutral env sigma ts t =
     | Evar _ | Meta _ -> true
     | Case (_, _, _, _, _, c, _) -> is_neutral env sigma ts c
     | Proj (p, _, c) -> is_neutral env sigma ts c
-    | Lambda _ | LetIn _ | Construct _ | CoFix _ | Int _ | Float _ | String _ | Array _ -> false
+    | Lambda _ | LetIn _ | Construct _ | CoFix _ | Int _ | Float _ | String _ | Array _
+    | PBlock _ | PUnblock _ | PRun _ -> false
     | Sort _ | Cast (_, _, _) | Prod (_, _, _) | Ind _ -> false (* Really? *)
     | Fix _ -> false (* This is an approximation *)
     | App _ -> assert false
@@ -2375,9 +2374,11 @@ struct
     Glob_ops.cast_kind_eq k1 k2
   | Case (ci1, u1, pms1, (p1, _), iv1, c1, bl1), Case (ci2, u2, pms2, (p2, _), iv2, c2, bl2) ->
     Ind.UserOrd.equal ci1.ci_ind ci2.ci_ind && UVars.Instance.equal u1 u2
+  | PBlock (u1, _, _), PBlock (u2, _, _) -> UVars.Instance.equal u1 u2
+  | PUnblock _, PUnblock _ | PRun _, PRun _ -> true
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _ | Cast _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PUnblock _ | PRun _), _ -> false
 
   let equal_kind k1 k2 = match k1, k2 with
   | ACast c1, ACast c2 -> Int.equal c1.tuid c2.tuid
@@ -2395,7 +2396,7 @@ struct
     Constr.equal (snd p1) (snd p2) && Array.equal Constr.equal pms1 pms2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _ | Cast _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> true
+    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PUnblock _ | PRun _), _ -> true
 
   let equal c1 c2 =
     equal0 (EConstr.Unsafe.to_constr c1.proj) (EConstr.Unsafe.to_constr c2.proj) &&
@@ -2537,6 +2538,21 @@ let rec make0 table atyp sigma c0 = match EConstr.kind sigma c0 with
   let ty = make table sigma ty in
   let data = max td (max def.data ty.data) in
   node ~table ~proj:c0 ~self:(AOther (Array.append [|def;ty|] t)) ~data ~atyp
+| PBlock (_u,ty,t) ->
+  let ty = make table sigma ty in
+  let t = make table sigma t in
+  node ~table ~proj:c0 ~self:(AOther [|ty; t|]) ~data:(max ty.data t.data) ~atyp
+| PUnblock (ty,t) ->
+  let ty = make table sigma ty in
+  let t = make table sigma t in
+  node ~table ~proj:c0 ~self:(AOther [|ty; t|]) ~data:(max ty.data t.data) ~atyp
+| PRun (ty,k,b,cont) ->
+  let ty = make table sigma ty in
+  let k = make table sigma k in
+  let b = make table sigma b in
+  let cont = make table sigma cont in
+  let data = max ty.data (max k.data (max b.data cont.data)) in
+  node ~table ~proj:c0 ~self:(AOther [|ty; k; b; cont|]) ~data ~atyp
 
 and make_array table sigma v =
   let fold accu c =
@@ -2744,6 +2760,15 @@ let w_unify_to_subterm_all ~metas env evd ?(flags=default_unify_flags ()) (op,cl
 
             | Array(_u,t,def,ty) ->
               bind (bind (bind_iter matchrec t) (matchrec def)) (matchrec ty)
+
+            | PBlock (_u,ty,t) ->
+              bind (matchrec ty) (matchrec t)
+
+            | PUnblock (ty,t) ->
+              bind (matchrec ty) (matchrec t)
+
+            | PRun (ty,k,b,cont) ->
+              bind (bind (bind (matchrec ty) (matchrec k)) (matchrec b)) (matchrec cont)
 
           | Cast (_, _, _)  -> fail "Match_subterm" (* Is this expected? *)
 
