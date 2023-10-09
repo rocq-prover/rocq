@@ -1745,7 +1745,7 @@ let rec knh info m stk =
        FString _|FArray _|FPrimitive _ |FBlock _) -> (m, stk)
 
 and knht_app ~mode ~lexical info e h args stk =
-  let check_enabled c =
+  let [@ocaml.inline always]check_enabled c =
     (red_set mode info fDELTA) &&
     (TransparentState.is_transparent_constant (red_transparent mode info) c)
   in
