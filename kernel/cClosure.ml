@@ -165,6 +165,10 @@ and fterm =
     (* operator, constr def, primitive as an fconstr, full array of suitably evaluated arguments *)
   | FBlock of constr * constr * constr * usubs
     (* @block as a constr, its type as a constr, the contents of the block *)
+  | FUnblock of constr * constr * fconstr * usubs
+  (* [{term=Funblock(op, ty, m, e);mode=mode}] is a representation of [Zunblock(op,ty,e,mode)] zipped with [m] *)
+  | FRun of constr * constr * constr * fconstr * constr * usubs
+  (* [{term=FRun(op, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(op,ty1,ty2,cnt,e,mode)] zipped with [m] *)
   | FEta of int * constr * constr array * int * usubs
   (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
   | FLAZY of fconstr Lazy.t
@@ -362,7 +366,8 @@ let rec lft_fconstr n ft =
     | FConstruct (c,args) -> {mark=RedState.set_cstr ft.mark; term=FConstruct(c,Array.Fun1.map lft_fconstr n args)}
     | FLOCKED -> assert false
     | FFlex (RelKey _) | FAtom _ | FApp _ | FProj _ | FCaseT _ | FCaseInvert _ | FProd _
-      | FLetIn _ | FEvar _ | FCLOS _ | FEta _ | FArray _ | FPrimitive _ | FBlock _ | FLAZY _ -> {ft with term=FLIFT(n,ft)}
+    | FLetIn _ | FEvar _ | FCLOS _ | FEta _ | FArray _ | FPrimitive _ | FBlock _
+    | FUnblock _ | FRun _ | FLAZY _ -> {ft with term=FLIFT(n,ft)}
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
 let lift_fconstr_vect k v =
@@ -473,6 +478,7 @@ and el_fconstr (e : Esubst.lift * UVars.Instance.t) m =
   | FString _ -> m
   | FIrrelevant -> m
   | FLOCKED -> m
+  | FUnblock _ | FRun _ -> assert false
 
 
 (* since the head may be reducible, we might introduce lifts of 0 *)
@@ -908,6 +914,8 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
         let t = !klt_ref ~mode:identity info tab e t in
         Constr.mkApp (op, [|ty; t|])
 
+    | FUnblock _ | FRun _ -> assert false
+
     | FLAZY (lazy m) -> to_constr ulfts m
 
     | FIrrelevant -> assert (!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
@@ -1022,19 +1030,9 @@ let zip m stk =
       let f = {mark = RedState.mk red mode; term = FFlex (ConstKey c)} in
       zip {mark=RedState.neutr m.mark; term = FApp (f, Array.of_list args)} s
     | Zunblock (op,ty,e,mode) :: s ->
-      let op = mk_clos ~mode e op in
-      op.mark <- RedState.set_ntrl op.mark;
-      let ty = mk_clos ~mode e ty in
-      let m = { m with mark=RedState.set_ntrl m.mark } in
-      zip {mark=RedState.mk ntrl mode; term=FApp (op, [|ty; m|])} s
+      zip {mark=RedState.mk ntrl mode; term=FUnblock (op, ty, m, e)} s
     | Zrun (op,ty1,ty2,k,e,mode) :: s ->
-      let op = mk_clos ~mode e op in
-      op.mark <- RedState.set_ntrl op.mark;
-      let ty1 = mk_clos ~mode e ty1 in
-      let ty2 = mk_clos ~mode e ty2 in
-      let k = mk_clos ~mode e k in
-      let m = { m with mark=RedState.set_ntrl m.mark } in
-      zip {mark=RedState.mk ntrl mode; term=FApp (op, [|ty1; ty2; m; k|])} s
+      zip {mark=RedState.mk ntrl mode; term=FRun (op, ty1, ty2, m, k, e)} s
   in
   zip m stk
 
@@ -1735,6 +1733,12 @@ let rec knh info m stk =
        | Some s -> knh info c (s :: zupdate info m stk))
     | FConstruct _ -> strip_update_shift_absorb_app m stk
 
+    | FUnblock (op, ty, m1, e) ->
+      knh info m1 (Zunblock(op, ty, e, RedState.mode m.mark) :: stk)
+
+    | FRun (op, ty1, ty2, m1, k, e) ->
+      knh info m1 (Zrun(op, ty1, ty2, k, e, RedState.mode m.mark) :: stk)
+
 (* cases where knh stops *)
     | (FFlex _|FLetIn _|FEvar _|FCaseInvert _|FIrrelevant|
        FCoFix _|FLambda _|FEta _|FRel _|FAtom _|FInd _|FProd _|FInt _|FFloat _|
@@ -2391,7 +2395,8 @@ let rec knr info tab ~pat_state m stk =
   | FLambda _ | FFlex _ | FRel _
   | FLetIn _ ->
     knr_ret info tab ~pat_state (m, stk)
-  | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ | FLAZY _ ->
+  | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ | FUnblock _ | FRun _
+  | FLAZY _ ->
     assert false
 
 and knr_ret : type a. _ -> _ -> pat_state: a depth -> ?failed: _ -> _ -> a =
@@ -2464,7 +2469,8 @@ let is_val v = match v.term with
 | FAtom _ | FRel _ | FInd _ | FConstruct (_,[||]) | FInt _ | FFloat _ | FString _ | FBlock _ -> true
 | FFlex _ -> RedState.is_ntrl v.mark
 | FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _ | FEta _
-| FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _ | FPrimitive _ | FLAZY _ -> false
+| FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _ | FPrimitive _
+| FUnblock _ | FRun _ | FLAZY _ -> false
 | FIrrelevant | FLOCKED -> assert false
 
 let rec kl info tab m =
@@ -2589,6 +2595,7 @@ and norm_head info tab m =
       | FLAZY _ -> assert false
       | FIrrelevant -> assert false (* only introduced when converting *)
       | FPrimitive (_, _, _, _) -> assert false (* All other primitives should be fully reduced *)
+      | FUnblock _ | FRun _ -> assert false
 
 and zip_term info tab m stk =
   match stk with
@@ -2690,6 +2697,7 @@ let rec set_mode ~mode (m : fconstr) =
     make (FLAZY (lazy (set_mode (Lazy.force m))))
   | FPrimitive (_, _, _, _) ->
     assert false
+  | FUnblock _ | FRun _ -> assert false
 
 
 let eval_lazy ~mode info tab m =

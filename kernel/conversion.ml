@@ -855,7 +855,8 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
      (* Should not happen because both (hd1,v1) and (hd2,v2) are in whnf *)
      | ( (FLetIn _, _) | (FCaseT _,_) | (FApp _,_) | (FCLOS _,_) | (FLIFT _,_)
        | (_, FLetIn _) | (_,FCaseT _) | (_,FApp _) | (_,FCLOS _) | (_,FLIFT _)
-       | (FLOCKED,_) | (_,FLOCKED) | (FLAZY _, _) | (_, FLAZY _)) -> assert false
+       | (FLOCKED,_) | (_,FLOCKED) | (FLAZY _, _) | (_, FLAZY _)
+       | (FUnblock _,_) | (_,FUnblock _) | (FRun _, _) | (_, FRun _)) -> assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
        | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
