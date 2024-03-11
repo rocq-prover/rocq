@@ -1129,7 +1129,7 @@ let extract_prim env ml_of l =
     let params, args_ty, _ = CPrimitives.types p in
     List.length params, Array.of_list args_ty in
   let rec aux l =
-    match l with
+    match node l with
     | Lprim (kn, p, args) ->
       let prefix = env.env_const_prefix (fst kn) in
       let nparams, targs = type_args p in
@@ -1238,7 +1238,7 @@ let compile_prim env decl cond paux =
     add_decl decl (compile_cond cond paux)
 
  let rec ml_of_lam env l t =
-  match t with
+  match node t with
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
   | Levar(evk, args) ->

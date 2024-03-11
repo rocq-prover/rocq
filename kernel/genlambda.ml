@@ -20,7 +20,7 @@ type reloc_table = (int * int) array
 
 type case_annot = case_info * reloc_table * Declarations.recursivity_kind
 
-type 'v lambda =
+type 'v node =
 | Lrel          of Name.t * int
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
@@ -52,6 +52,8 @@ and 'v lam_branches =
 
 and 'v fix_decl = Name.t binder_annot array * 'v lambda array * 'v lambda array
 
+and 'v lambda = { node : 'v node }
+
 type evars =
   { evars_val : CClosure.evar_handler }
 
@@ -78,7 +80,7 @@ let pp_sort s =
 let pr_con sp = str(Names.Label.to_string (Constant.label sp))
 
 let rec pp_lam lam =
-  match lam with
+  match lam.node with
   | Lrel (id,n) -> pp_rel id n
   | Lvar id -> Id.print id
   | Levar (evk, args) ->
@@ -180,27 +182,47 @@ let rec pp_lam lam =
 
 (*s Constructors *)
 
+let mknode t = { node = t }
+
+let node t = t.node
+
 let mkLapp f args =
   if Array.is_empty args then f
   else
-    match f with
-    | Lapp(f', args') -> Lapp (f', Array.append args' args)
-    | _ -> Lapp(f, args)
+    match f.node  with
+    | Lapp(f', args') -> mknode @@ Lapp (f', Array.append args' args)
+    | _ -> mknode @@ Lapp(f, args)
 
 let mkLlam ids body =
   if Array.is_empty ids then body
   else
-    match body with
-    | Llam(ids', body) -> Llam(Array.append ids ids', body)
-    | _ -> Llam(ids, body)
+    match body.node with
+    | Llam(ids', body) -> mknode @@ Llam(Array.append ids ids', body)
+    | _ -> mknode @@ Llam(ids, body)
+
+(* Hack: brutally pierce through the abstraction of PArray *)
+let unsafe_mkPArray args def =
+  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
+  let dummy = (MutInd.make1 dummy, 0) in
+  let ar = mknode @@ Lmakeblock (dummy, 0, args) in
+  let kind = mknode @@ Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)
+  mknode @@ Lmakeblock (dummy, 0, [|kind|]) (* the reference *)
+
+(* Same as above but with a blob instead of a block *)
+let unsafe_mkPArray_val v def =
+  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
+  let dummy = (MutInd.make1 dummy, 0) in
+  let ar = mknode @@ Lval v in
+  let kind = mknode @@ Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)
+  mknode @@ Lmakeblock (dummy, 0, [|kind|]) (* the reference *)
 
 let decompose_Llam lam =
-  match lam with
+  match lam.node with
   | Llam(ids,body) -> ids, body
   | _ -> [||], lam
 
 let rec decompose_Llam_Llet lam =
-  match lam with
+  match lam.node with
   | Llam(ids,body) ->
       let vars, body = decompose_Llam_Llet body in
       Array.fold_right (fun x l -> (x, None) :: l) ids vars, body
@@ -216,23 +238,23 @@ let decompose_Llam_Llet lam =
 (* A generic map function *)
 
 let map_lam_with_binders g f n lam =
-  match lam with
+  match lam.node with
   | Lrel _ | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lint _ | Luint _
   | Lfloat _ | Lstring _ -> lam
   | Levar (evk, args) ->
     let args' = Array.Smart.map (f n) args in
-    if args == args' then lam else Levar (evk, args')
+    if args == args' then lam else mknode @@ Levar (evk, args')
   | Lprod(dom,codom) ->
     let dom' = f n dom in
     let codom' = f n codom in
-    if dom == dom' && codom == codom' then lam else Lprod(dom',codom')
+    if dom == dom' && codom == codom' then lam else mknode @@ Lprod(dom',codom')
   | Llam(ids,body) ->
     let body' = f (g (Array.length ids) n) body in
     if body == body' then lam else mkLlam ids body'
   | Llet(id,def,body) ->
     let def' = f n def in
     let body' = f (g 1 n) body in
-    if body == body' && def == def' then lam else Llet(id,def',body')
+    if body == body' && def == def' then lam else mknode @@ Llet(id,def',body')
   | Lapp(fct,args) ->
     let fct' = f n fct in
     let args' = Array.Smart.map (f n) args in
@@ -256,35 +278,35 @@ let map_lam_with_binders g f n lam =
           nonconstant_branches = nonconst' }
     in
     if t == t' && a == a' && branches == branches' then lam else
-      Lcase(annot, t', a', branches')
+      mknode @@ Lcase(annot, t', a', branches')
   | Lfix(init,(ids,ltypes,lbodies)) ->
     let ltypes' = Array.Smart.map (f n) ltypes in
     let lbodies' = Array.Smart.map (f (g (Array.length ids) n)) lbodies in
     if ltypes == ltypes' && lbodies == lbodies' then lam
-    else Lfix(init,(ids,ltypes',lbodies'))
+    else mknode @@ Lfix(init,(ids,ltypes',lbodies'))
   | Lcofix(init,(ids,ltypes,lbodies)) ->
     let ltypes' = Array.Smart.map (f n) ltypes in
     let lbodies' = Array.Smart.map (f (g (Array.length ids) n)) lbodies in
     if ltypes == ltypes' && lbodies == lbodies' then lam
-    else Lcofix(init,(ids,ltypes',lbodies'))
+    else mknode @@ Lcofix(init,(ids,ltypes',lbodies'))
   | Lparray (args, def) ->
     let args' = Array.Smart.map (f n) args in
     let def' = f n def in
-    if args == args' && def == def' then lam else Lparray (args', def')
+    if args == args' && def == def' then lam else mknode @@ Lparray (args', def')
   | Lmakeblock (inds, tag, args) ->
     let args' = Array.Smart.map (f n) args in
-    if args == args' then lam else Lmakeblock (inds, tag,args')
+    if args == args' then lam else mknode @@ Lmakeblock (inds, tag,args')
   | Lprim(kn,op,args) ->
     let args' = Array.Smart.map (f n) args in
-    if args == args' then lam else Lprim(kn,op,args')
+    if args == args' then lam else mknode @@ Lprim(kn,op,args')
   | Lproj(p,arg) ->
     let arg' = f n arg in
-    if arg == arg' then lam else Lproj(p,arg')
+    if arg == arg' then lam else mknode @@ Lproj(p,arg')
 
 (* Free rels *)
 
 let free_rels lam =
-  let rec aux k accu lam = match lam with
+  let rec aux k accu lam = match node lam with
   | Lrel (_, n) -> if n >= k then Int.Set.add (n - k + 1) accu else accu
   | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lint _ | Luint _
   | Lfloat _ | Lstring _ -> accu
@@ -332,10 +354,10 @@ let shift subst = subs_shft (1, subst)
 (*s Lift and substitution *)
 
 let rec lam_exlift el lam =
-  match lam with
+  match lam.node with
   | Lrel(id,i) ->
     let i' = reloc_rel i el in
-    if i == i' then lam else Lrel(id,i')
+    if i == i' then lam else mknode @@ Lrel(id,i')
   | _ -> map_lam_with_binders el_liftn lam_exlift el lam
 
 let lam_lift k lam =
@@ -347,10 +369,10 @@ let lam_subst_rel lam id n subst =
   | Inl(k,v) -> lam_lift k v
   | Inr(n',_) ->
       if n == n' then lam
-      else Lrel(id, n')
+      else mknode @@ Lrel(id, n')
 
 let rec lam_exsubst subst lam =
-  match lam with
+  match lam.node with
   | Lrel(id,i) -> lam_subst_rel lam id i subst
   | _ -> map_lam_with_binders liftn lam_exsubst subst lam
 
@@ -364,7 +386,7 @@ let lam_subst_args subst args =
 (* - Moving arguments under [let] *)
 (* Invariant: Terms in [subst] are already simplified and can be substituted *)
 
-let can_subst lam = match lam with
+let can_subst lam = match node lam with
 | Lrel _ | Lvar _ | Lconst _ | Luint _
 | Lval _ | Lsort _ | Lind _ -> true
 | Levar _ | Lprod _ | Llam _ | Llet _ | Lapp _ | Lcase _ | Lfix _ | Lcofix _
@@ -373,7 +395,7 @@ let can_subst lam = match lam with
 
 let simplify lam =
   let rec simplify subst lam =
-    match lam with
+    match lam.node with
     | Lrel(id,i) -> lam_subst_rel lam id i subst
 
     | Llet(id,def,body) ->
@@ -382,21 +404,21 @@ let simplify lam =
         else
           let body' = simplify (lift subst) body in
           if def == def' && body == body' then lam
-          else Llet(id,def',body')
+          else mknode @@ Llet(id,def',body')
 
     | Lapp(f,args) ->
         begin match simplify_app subst f subst args with
-        | Lapp(f',args') when f == f' && args == args' -> lam
+        | { node = Lapp(f',args') } when f == f' && args == args' -> lam
         | lam' -> lam'
         end
 
     | _ -> map_lam_with_binders liftn simplify subst lam
 
   and simplify_app substf f substa args =
-    match f with
+    match f.node with
     | Lrel(id, i) ->
       begin match lam_subst_rel f id i substf with
-        | Llam(ids, body) ->
+        | { node = Llam(ids, body) } ->
           reduce_lapp
             (subs_id 0) (Array.to_list ids) body
             substa (Array.to_list args)
@@ -409,7 +431,7 @@ let simplify lam =
       if can_subst def' then
         simplify_app (cons def' substf) body substa args
       else
-        Llet(id, def', simplify_app (lift substf) body (shift substa) args)
+        mknode @@ Llet(id, def', simplify_app (lift substf) body (shift substa) args)
     | Lapp(f, args') ->
       let args = Array.append
           (lam_subst_args substf args') (lam_subst_args substa args) in
@@ -426,10 +448,10 @@ let simplify lam =
         reduce_lapp (subs_cons a substf) lids body substa largs
       else
         let body = reduce_lapp (lift substf) lids body (shift substa) largs in
-        Llet(id, a, body)
+        mknode @@ Llet(id, a, body)
     | [], [] -> simplify substf body
     | _::_, _ ->
-      Llam(Array.of_list lids, simplify (liftn (List.length lids) substf) body)
+      mknode @@ Llam(Array.of_list lids, simplify (liftn (List.length lids) substf) body)
     | [], _ -> simplify_app substf body substa (Array.of_list largs)
   in
   simplify (subs_id 0) lam
@@ -443,7 +465,7 @@ let simplify lam =
 *)
 
 let rec occurrence k kind lam =
-  match lam with
+  match lam.node with
   | Lrel (_,n) ->
     if n = k then
       if kind then false else raise Not_found
@@ -492,21 +514,21 @@ let occur_once lam =
 (* used at most once time in the body, and does not appear under      *)
 (* a lambda or a fix or a cofix                                       *)
 
-let is_value lam = match lam with
+let is_value lam = match node lam with
 | Lrel _ | Lvar _ | Lconst _ | Luint _
 | Lval _ | Lsort _ | Lind _ | Lint _ | Llam _ | Lfix _ | Lcofix _ | Lfloat _ | Lstring _ -> true
 | Levar _ | Lprod _ | Llet _ | Lapp _ | Lcase _
 | Lparray _ | Lmakeblock _ | Lprim _ | Lproj _ -> false
 
 let rec remove_let subst lam =
-  match lam with
+  match lam.node with
   | Lrel(id,i) -> lam_subst_rel lam id i subst
   | Llet(id,def,body) ->
     let def' = remove_let subst def in
     if occur_once body && is_value body then remove_let (cons def' subst) body
     else
       let body' = remove_let (lift subst) body in
-      if def == def' && body == body' then lam else Llet(id,def',body')
+      if def == def' && body == body' then lam else mknode @@ Llet(id,def',body')
   | _ -> map_lam_with_binders liftn remove_let subst lam
 
 let optimize lam =
@@ -530,15 +552,15 @@ let rec get_alias env kn =
 (* Translation of constructors *)
 
 let make_args start _end =
-  Array.init (start - _end + 1) (fun i -> Lrel (Anonymous, start - i))
+  Array.init (start - _end + 1) (fun i -> mknode @@ Lrel (Anonymous, start - i))
 
 let expand_constructor ind tag nparams arity =
   let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
   let ids = Array.make (nparams + arity) anon in
-  if Int.equal arity 0 then mkLlam ids (Lint tag)
+  if Int.equal arity 0 then mkLlam ids (mknode @@ (Lint tag))
   else
   let args = make_args arity 1 in
-  Llam(ids, Lmakeblock (ind, tag, args))
+  mknode @@ Llam(ids, mknode @@ Lmakeblock (ind, tag, args))
 
 let makeblock as_val ind tag nparams arity args =
   let nargs = Array.length args in
@@ -546,21 +568,21 @@ let makeblock as_val ind tag nparams arity args =
     mkLapp (expand_constructor ind tag nparams arity) args
   else
     (* The constructor is fully applied *)
-  if arity = 0 then Lint tag
+  if arity = 0 then mknode @@ Lint tag
   else match as_val tag args with
-  | Some v -> Lval v
-  | None -> Lmakeblock (ind, tag, args)
+  | Some v -> mknode @@ Lval v
+  | None -> mknode @@ Lmakeblock (ind, tag, args)
 
 (* Compilation of primitive *)
 
 let prim _env kn p args =
-  Lprim (kn, p, args)
+  mknode @@ Lprim (kn, p, args)
 
 let expand_prim env kn op arity =
   (* primitives are always Relevant *)
   let ids = Array.make arity Context.anonR in
   let args = make_args arity 1 in
-  Llam(ids, prim env kn op args)
+  mknode @@ Llam(ids, prim env kn op args)
 
 let lambda_of_prim env kn op args =
   let arity = CPrimitives.arity op in
@@ -651,24 +673,24 @@ let rec lambda_of_constr cache env sigma c =
      (match evar_value sigma ev with
      | CClosure.EvarUndefined (evk, args) ->
         let args = Array.map_of_list (fun c -> lambda_of_constr cache env sigma c) args in
-        Levar(evk, args)
+        mknode @@ Levar(evk, args)
      | CClosure.EvarDefined t -> lambda_of_constr cache env sigma t)
 
   | Cast (c, _, _) -> lambda_of_constr cache env sigma c
 
-  | Rel i -> Lrel (RelDecl.get_name (Environ.lookup_rel i env), i)
+  | Rel i -> mknode @@ Lrel (RelDecl.get_name (Environ.lookup_rel i env), i)
 
-  | Var id -> Lvar id
+  | Var id -> mknode @@ Lvar id
 
-  | Sort s -> Lsort s
+  | Sort s -> mknode @@ Lsort s
 
-  | Ind pind -> Lind pind
+  | Ind pind -> mknode @@ Lind pind
 
   | Prod(id, dom, codom) ->
       let ld = lambda_of_constr cache env sigma dom in
       let env = Environ.push_rel (RelDecl.LocalAssum (id, dom)) env in
       let lc = lambda_of_constr cache env sigma codom in
-      Lprod(ld,  Llam([|id|], lc))
+      mknode @@ Lprod(ld,  mknode @@ Llam([|id|], lc))
 
   | Lambda _ ->
       let params, body = Term.decompose_lambda c in
@@ -682,7 +704,7 @@ let rec lambda_of_constr cache env sigma c =
       let ld = lambda_of_constr cache env sigma def in
       let env = Environ.push_rel (RelDecl.LocalDef (id, def, t)) env in
       let lb = lambda_of_constr cache env sigma body in
-      Llet(id, ld, lb)
+      mknode @@ Llet(id, ld, lb)
 
   | App(f, args) -> lambda_of_app cache env sigma f args
 
@@ -692,7 +714,7 @@ let rec lambda_of_constr cache env sigma c =
 
   | Proj (p, _, c) ->
     let c = lambda_of_constr cache env sigma c in
-    Lproj (Projection.repr p, c)
+    mknode @@ Lproj (Projection.repr p, c)
 
   | Case (ci, u, pms, t, iv, a, br) -> (* XXX handle iv *)
     let (ci, (t,_), _iv, a, branches) = Inductive.expand_case env (ci, u, pms, t, iv, a, br) in
@@ -707,7 +729,7 @@ let rec lambda_of_constr cache env sigma c =
     (* translation of the type *)
     let lt = lambda_of_constr cache env sigma t in
     (* translation of branches *)
-    let dummy = Lrel(Anonymous,0) in
+    let dummy = mknode @@ Lrel(Anonymous,0) in
     let consts = Array.make oib.mind_nb_constant dummy in
     let blocks = Array.make oib.mind_nb_args ([||],dummy) in
     let rtbl = oib.mind_reloc_tbl in
@@ -717,7 +739,7 @@ let rec lambda_of_constr cache env sigma c =
       if arity = 0 then consts.(tag) <- b
       else
         let b =
-          match b with
+          match b.node with
           | Llam(ids, body) when Array.length ids = arity -> (ids, body)
           | _ ->
             let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
@@ -731,7 +753,7 @@ let rec lambda_of_constr cache env sigma c =
       { constant_branches = consts;
         nonconstant_branches = blocks }
     in
-    Lcase(annot_sw, lt, la, branches)
+    mknode @@ Lcase(annot_sw, lt, la, branches)
 
   | Fix((pos, i), (names,type_bodies,rec_bodies)) ->
       let ltypes = lambda_of_args cache env sigma 0 type_bodies in
@@ -739,7 +761,7 @@ let rec lambda_of_constr cache env sigma c =
       let inds = Array.map2 map pos type_bodies in
       let env = Environ.push_rec_types (names, type_bodies, rec_bodies) env in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
-      Lfix((pos, inds, i), (names, ltypes, lbodies))
+      mknode @@ Lfix((pos, inds, i), (names, ltypes, lbodies))
 
   | CoFix(init,(names,type_bodies,rec_bodies)) ->
       let ltypes = lambda_of_args cache env sigma 0 type_bodies in
@@ -747,17 +769,17 @@ let rec lambda_of_constr cache env sigma c =
       let map c ty = Reduction.eta_expand env c (Vars.lift (Array.length type_bodies) ty) in
       let rec_bodies = Array.map2 map rec_bodies type_bodies in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
-      Lcofix(init, (names, ltypes, lbodies))
+      mknode @@ Lcofix(init, (names, ltypes, lbodies))
 
-  | Int i -> Luint i
+  | Int i -> mknode @@ Luint i
 
-  | Float f -> Lfloat f
+  | Float f -> mknode @@ Lfloat f
 
-  | String s -> Lstring s
+  | String s -> mknode @@ (Lstring s)
 
   | Array (_u, t, def, _ty) ->
     let def = lambda_of_constr cache env sigma def in
-    Lparray (lambda_of_args cache env sigma 0 t, def)
+    mknode @@ Lparray (lambda_of_args cache env sigma 0 t, def)
 
 and lambda_of_app cache env sigma f args =
   match kind f with
@@ -773,12 +795,12 @@ and lambda_of_app cache env sigma f args =
           let mapi i arg =
             let keep = if i < Array.length mask then mask.(i) else true in
             if keep then lambda_of_constr cache env sigma arg
-            else Lint 0 (* dummy *)
+            else mknode (Lint 0) (* dummy *)
           in
           let args = Array.mapi mapi args in
-          mkLapp (Lconst (kn, u)) args
+          mkLapp (mknode @@ Lconst (kn, u)) args
       | OpaqueDef _ | Undef _ | Symbol _ ->
-          mkLapp (Lconst (kn, u)) (lambda_of_args cache env sigma 0 args)
+          mkLapp (mknode @@ Lconst (kn, u)) (lambda_of_args cache env sigma 0 args)
       end
   | Construct ((ind,_ as c),_) ->
     let tag, nparams, arity = Cache.get_construct_info cache env c in
