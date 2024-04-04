@@ -1807,15 +1807,19 @@ let connect_hint_clenv h gl =
      below just replaces the metas of sigma by those coming from the clenv. *)
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  Clenv.clenv_refresh env sigma ctx clenv
+  let concl = Proofview.Goal.concl gl in
+  Clenv.clenv_refresh env sigma ~concl ctx clenv
 
-let fresh_hint env sigma h =
-  let { hint_term = c; hint_uctx = ctx } = h in
+let fresh_hint env sigma ?concl h =
+  let { hint_term = c; hint_uctx = ctx; hint_type = ty } = h in
   match h.hint_uctx with
   | None -> sigma, c
   | Some ctx ->
     (* Refresh the instance of the hint *)
-    let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
+    let (subst, ctx) = match concl with
+    | None -> UnivGen.fresh_sort_context_instance ctx
+    | Some concl -> Clenv.first_order_fresh_instance env sigma ~concl ctx ty
+    in
     let c = Vars.subst_univs_level_constr subst c in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible sigma ctx in
     sigma, c

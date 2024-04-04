@@ -28,7 +28,7 @@ val clenv_meta_list : clausenv -> Meta.t
 (* Ad-hoc primitives *)
 val update_clenv_evd : clausenv -> evar_map -> Meta.t -> clausenv
 val clenv_strip_proj_params : clausenv -> clausenv
-val clenv_refresh : env -> evar_map -> UnivGen.sort_context_set option -> clausenv -> clausenv
+val clenv_refresh : env -> evar_map -> concl:EConstr.t -> UnivGen.sort_context_set option -> clausenv -> clausenv
 val clenv_arguments : clausenv -> metavariable list
 
 (** subject of clenv (instantiated) *)
@@ -88,3 +88,6 @@ val refiner : clausenv -> unit Proofview.tactic
 [@@ocaml.deprecated]
 
 end
+
+val first_order_fresh_instance : env -> evar_map -> UnivGen.sort_context_set -> concl:types -> types ->
+  UVars.sort_level_subst * UnivGen.sort_context_set
