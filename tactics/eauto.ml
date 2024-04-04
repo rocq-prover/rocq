@@ -95,7 +95,8 @@ let e_exact flags h =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let sigma, c = Hints.fresh_hint env sigma h in
+    let concl = Proofview.Goal.concl gl in
+    let sigma, c = Hints.fresh_hint env sigma ~concl h in
     Proofview.Unsafe.tclEVARS sigma <*> e_give_exact c
   end
 

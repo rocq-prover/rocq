@@ -159,7 +159,8 @@ let e_give_exact flags h =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = project gl in
-  let sigma, c = Hints.fresh_hint env sigma h in
+  let concl = Proofview.Goal.concl gl in
+  let sigma, c = Hints.fresh_hint env sigma ~concl h in
   let (sigma, t1) = Typing.type_of (pf_env gl) sigma c in
   Proofview.Unsafe.tclEVARS sigma <*>
   Clenv.unify ~flags ~cv_pb:CUMUL t1 <*> exact_no_check c
@@ -173,7 +174,8 @@ let unify_resolve ~with_evars flags h diff = match diff with
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Tacmach.project gl in
-  let sigma, c = Hints.fresh_hint env sigma h in
+  let concl = Proofview.Goal.concl gl in
+  let sigma, c = Hints.fresh_hint env sigma ~concl h in
   let clenv = Clenv.mk_clenv_from_n env sigma diff (c, ty) in
   Clenv.res_pf ~with_evars ~with_classes:false ~flags clenv
   end

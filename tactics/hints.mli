@@ -222,7 +222,7 @@ val make_local_hint_db : env -> evar_map -> ?ts:TransparentState.t -> bool -> de
 
 val make_db_list : hint_db_name list -> hint_db list
 
-val fresh_hint : env -> evar_map -> hint -> evar_map * constr
+val fresh_hint : env -> evar_map -> ?concl:types -> hint -> evar_map * constr
 
 val hint_res_pf : ?with_evars:bool -> ?with_classes:bool ->
   ?flags:Unification.unify_flags -> hint -> unit Proofview.tactic

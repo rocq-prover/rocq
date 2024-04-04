@@ -135,10 +135,35 @@ let refresh_template_constraints ~metas env sigma ind c =
     let cstrs, _, _ = Inductive.instantiate_template_universes mib univs in
     Evd.add_constraints sigma cstrs
 
-let clenv_refresh env sigma ctx clenv =
+let get_head_ref sigma c =
+  let hd, args = EConstr.decompose_app sigma c in
+  match destRef sigma hd with
+  | (gr, u) -> Some (gr, u, args)
+  | exception DestKO -> None
+
+let rec first_order_match env sigma bound accu c1 c2 = match get_head_ref sigma c1, get_head_ref sigma c2 with
+| Some (gr1, u1, args1), Some (gr2, u2, args2) ->
+  if QGlobRef.equal env gr1 gr2 then
+    let _q1, u1 = UVars.Instance.to_array (EConstr.Unsafe.to_instance u1) in
+    let _q2, u2 = UVars.Instance.to_array (EConstr.Unsafe.to_instance u2) in
+    let accu = Array.fold_left2 (fun accu u u0 -> if Univ.Level.Set.mem u0 bound then Univ.Level.Map.add u0 u accu else accu) accu u1 u2 in
+    Array.fold_left2 (fun accu a1 a2 -> first_order_match env sigma bound accu a1 a2) accu args1 args2
+  else accu
+| None, None | (None, Some _) | (Some _, None) -> accu
+
+let first_order_fresh_instance env sigma ctx ~concl t =
+  let (qvars, uvars), cstrs = ctx in
+  let univ_subst = first_order_match env sigma uvars Univ.Level.Map.empty concl t in
+  let cstrs = Univ.subst_univs_level_constraints univ_subst cstrs in
+  (* TODO: unify qualities too *)
+  let uvars = Univ.Level.Map.fold (fun u _ accu -> Univ.Level.Set.remove u accu) univ_subst uvars in
+  let ((qsubst, usubst), cstrs) = UnivGen.fresh_sort_context_instance ((qvars, uvars), cstrs) in
+  (qsubst, Univ.Level.Map.fold Univ.Level.Map.add univ_subst usubst), cstrs
+
+let clenv_refresh env sigma ~concl ctx clenv =
   match ctx with
   | Some ctx ->
-    let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
+    let (subst, ctx) = first_order_fresh_instance env sigma ctx ~concl (fst clenv.templtyp) in
     let emap c = Vars.subst_univs_level_constr subst c in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible sigma ctx in
     (* Only metas are mentioning the old universes. *)
