@@ -69,7 +69,8 @@ let exact h =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let sigma, c = Hints.fresh_hint env sigma h in
+    let concl = Proofview.Goal.concl gl in
+    let sigma, c = Hints.fresh_hint env sigma ~concl h in
     let sigma, t = Typing.type_of env sigma c in
     let concl = Proofview.Goal.concl gl in
     if occur_existential sigma t || occur_existential sigma concl then
