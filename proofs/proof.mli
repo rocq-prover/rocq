@@ -147,7 +147,8 @@ val unfocus_all : t -> t
 
 type subproof_select =
   | SubproofNth of int
-  | SubproofId of Names.Id.t
+  | SubproofId of Libnames.qualid
+  | SubproofAbstract
 
 val start_subproof : subproof_select -> t -> t
 
@@ -229,3 +230,5 @@ val set_used_variables : Environ.env -> kept:Names.Id.Set.t -> t -> t
 (** Exposed for printing *)
 exception ProofUsingClearDependency of
     Environ.env * Evd.evar_map * Names.Id.t * Evarutil.clear_dependency_error * Names.GlobRef.t option
+
+val abstract_hook : (unit Proofview.tactic -> unit Proofview.tactic) Hook.t
