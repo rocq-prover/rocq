@@ -147,7 +147,8 @@ val unfocus_all : t -> t
 
 type subproof_select =
   | SubproofNth of int
-  | SubproofId of Names.Id.t
+  | SubproofId of Libnames.qualid
+  | SubproofAbstract
 
 val start_subproof : subproof_select -> t -> t
 
@@ -219,3 +220,5 @@ val get_goal_context_gen : t -> int -> Evd.evar_map * Environ.env
 val get_proof_context : t -> Evd.evar_map * Environ.env
 
 val purge_side_effects : t -> t * Evd.side_effects
+
+val abstract_hook : (unit Proofview.tactic -> unit Proofview.tactic) Hook.t
