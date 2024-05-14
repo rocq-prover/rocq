@@ -584,7 +584,7 @@ subgoals are also focused.  The two focusing constructs are
 Curly braces
 ~~~~~~~~~~~~
 
-.. tacn:: {? {| @natural | [ @qualid ] } : } %{
+.. tacn:: {? {| @natural | [ @qualid ] | abstract } : } %{
           %}
    :name: {; }
 
@@ -642,6 +642,13 @@ Curly braces
          reflexivity.
          [x]: exact 0.
          Qed.
+
+   :n:`abstract: %{`
+      Focuses on the first goal. The subproof is saved as an auxiliary
+      lemma, like with tactic :tacn:`abstract`. In other words, when
+      the subproof is a single tactic `tac`, `abstract:{ tac. }` is
+      equivalent to `{ abstract tac. }`, but `abstract:{` also allows
+      multi-command subproofs.
 
    .. exn:: This proof is focused, but cannot be unfocused this way.
 
