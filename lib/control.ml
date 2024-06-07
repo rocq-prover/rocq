@@ -47,20 +47,13 @@ let unix_timeout n f x =
       let _ = setitimer ITIMER_REAL { old_timer with it_value = old_timer_value } in
       Sys.set_signal Sys.sigalrm psh
     in
-    try
-      let _ = setitimer ITIMER_REAL {it_interval = 0.; it_value = n} in
-      let res = f x in
-      restore_timeout ();
-      Ok res
-    with
-    | Timeout ->
-      let _, info = Exninfo.capture Timeout in
-      restore_timeout ();
+    let open Memprof_coq.Resource_bind in
+    let& () = Memprof_coq.Masking.with_resource ~acquire:(fun () -> ()) () ~release:restore_timeout in
+    let _ = setitimer ITIMER_REAL {it_interval = 0.; it_value = n} in
+    try Ok (f x)
+    with Timeout as exn ->
+      let _, info = Exninfo.capture exn in
       Error info
-    | e ->
-      let e = Exninfo.capture e in
-      restore_timeout ();
-      Exninfo.iraise e
 
 let windows_timeout n f x =
   let killed = ref false in
