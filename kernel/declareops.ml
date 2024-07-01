@@ -402,12 +402,12 @@ let subst_machine_pattern subst p =
     let cstr' = subst_constructor subst cstr in
     if cstr'==cstr then p else PHConstr (cstr', mask)
   | PHLambda (tys, bod) ->
-    let tys' = Array.Smart.map on_arg_pat tys in
+    let tys' = Array.Smart.map (smart_on_snd on_arg_pat) tys in
     let bod' = on_pat bod in
     if tys' == tys && bod' == bod then p else
       PHLambda (tys', bod')
   | PHProd (doms, codom) ->
-    let doms' = Array.Smart.map on_arg_pat doms in
+    let doms' = Array.Smart.map (smart_on_snd on_arg_pat) doms in
     let codom' = on_arg_pat codom in
     if doms' == doms && codom' == codom then p else
       PHProd (doms', codom')

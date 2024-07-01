@@ -313,8 +313,8 @@ type pattern =
   | PInt     of Uint63.t
   | PFloat   of Float64.t
   | PString  of Pstring.t
-  | PLambda  of Name.t * arg_pattern * sort_annot * pattern
-  | PProd    of Name.t * arg_pattern * sort_annot * arg_pattern * sort_annot * Univ.Level.t
+  | PLambda  of (Name.t * bool) * arg_pattern * sort_annot * pattern
+  | PProd    of (Name.t * bool) * arg_pattern * sort_annot * arg_pattern * sort_annot * Univ.Level.t
   | PApp     of pattern * arg_pattern * evar_annot * evar_annot
   | PCase    of pattern * inductive * ind_annot * (arg_pattern name_annotated * sort_annot) * arg_pattern name_annotated array
   | PProj    of pattern * Projection.Repr.t * ind_annot
@@ -359,8 +359,8 @@ type head_pattern =
   | PHInt     of Uint63.t
   | PHFloat   of Float64.t
   | PHString  of Pstring.t
-  | PHLambda  of pattern_argument array * head_elimination
-  | PHProd    of pattern_argument array * pattern_argument
+  | PHLambda  of (int option * pattern_argument) array * head_elimination
+  | PHProd    of (int option * pattern_argument) array * pattern_argument
 
 and pattern_elimination =
   | PEApp     of pattern_argument array
