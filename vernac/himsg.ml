@@ -133,8 +133,8 @@ let display_eq ~flags env sigma t1 t2 =
   (* terms are canonized, then their externalisation is compared syntactically *)
   let t1 = canonize_constr sigma t1 in
   let t2 = canonize_constr sigma t2 in
-  let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () in
-  let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () in
+  let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () [@ocaml.warning "-3"] in
+  let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () [@ocaml.warning "-3"] in
   match ct1, ct2 with
   | None, None -> false
   | Some _, None | None, Some _ -> false
@@ -152,8 +152,8 @@ let rec pr_explicit_aux env sigma t1 t2 = function
     (* The two terms are the same from the user point of view *)
     pr_explicit_aux env sigma t1 t2 rem
   else
-    let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () in
-    let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () in
+    let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () [@ocaml.warning "-3"] in
+    let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () [@ocaml.warning "-3"] in
     let pr = function
     | None -> str "??"
     | Some c -> Ppconstr.pr_lconstr_expr env sigma c
@@ -230,7 +230,7 @@ let explain_elim_arity env sigma ind c okinds =
     | None | Some AlwaysSquashed -> pp ()
     | Some (SometimesSquashed _) ->
       (* universe instance matters, so print it regardless of Printing Universes *)
-      Flags.with_option Constrextern.print_universes pp ()
+      Flags.with_option Constrextern.print_universes pp () [@ocaml.warning "-3"]
   in
   let pc = Option.map (pr_leconstr_env env sigma) c in
   let msg = match okinds with
@@ -238,7 +238,7 @@ let explain_elim_arity env sigma ind c okinds =
     | Some sp ->
       let ppt ?(ppunivs=false) () =
         let pp () = pr_leconstr_env env sigma (mkSort (ESorts.make sp)) in
-        if ppunivs then Flags.with_option Constrextern.print_universes pp ()
+        if ppunivs then Flags.with_option Constrextern.print_universes pp () [@ocaml.warning "-3"]
         else pp ()
       in
       let squash = Option.get (Inductive.is_squashed (specif, snd ind)) in
@@ -549,7 +549,8 @@ let explain_ill_formed_fix_body env sigma names i = function
           | Anonymous -> str "the " ++ pr_nth i ++ str " definition" in
      str "Recursive call to " ++ called ++ str " has not enough arguments"
   | FixpointOnNonEliminable (s, s') ->
-  let pr_sort u = quote @@ Flags.with_option Constrextern.print_universes (Printer.pr_sort sigma) u in
+  let pr_sort u = quote @@
+    Flags.with_option Constrextern.print_universes (Printer.pr_sort sigma) u [@ocaml.warning "-3"] in
     fmt "Cannot define a fixpoint@ with principal argument living in sort %t@ \
          to produce a value in sort %t@ because %t does not eliminate to %t"
       (fun () -> pr_sort s)
@@ -1489,7 +1490,7 @@ let error_large_non_prop_inductive_not_in_type () =
 
 let error_inductive_missing_constraints env (us,ind_univ) =
   let sigma = Evd.from_env env in
-  let pr_sort u = Flags.with_option Constrextern.print_universes (Printer.pr_sort sigma) u in
+  let pr_sort u = Flags.with_option Constrextern.print_universes (Printer.pr_sort sigma) u [@ocaml.warning "-3"] in
   str "Missing universe constraint declared for inductive type:" ++ spc()
   ++ v 0 (prlist_with_sep spc (fun u ->
       hov 0 (pr_sort u ++ str " <= " ++ pr_sort ind_univ))
