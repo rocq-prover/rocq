@@ -646,6 +646,10 @@ val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> evar_map -> evar_map
 
 val fix_undefined_variables : evar_map -> evar_map
 
+val allow_failures : evar_map -> evar_map
+
+val recheck_failures : ?fail:(Pp.t -> unit) -> (UnivProblem.t -> bool) -> evar_map -> evar_map
+
 (** Universe minimization (collapse_sort_variables is true by default) *)
 val minimize_universes : ?collapse_sort_variables:bool -> evar_map -> evar_map
 
