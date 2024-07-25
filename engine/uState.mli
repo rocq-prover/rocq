@@ -235,6 +235,8 @@ val minimize : t -> t
 
 val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
 
+val freeze_sort_variables : t -> t
+
 val collapse_sort_variables : ?except:QVar.Set.t -> t -> t
 
 type ('a, 'b, 'c) gen_universe_decl = {

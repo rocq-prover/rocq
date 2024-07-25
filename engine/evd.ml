@@ -1303,6 +1303,10 @@ let nf_univ_variables evd =
   let uctx = UState.normalize_variables evd.universes in
   {evd with universes = uctx}
 
+let freeze_sort_variables evd =
+  let universes = UState.freeze_sort_variables evd.universes in
+  { evd with universes }
+
 let collapse_sort_variables ?except evd =
   let universes = UState.collapse_sort_variables ?except evd.universes in
   { evd with universes }

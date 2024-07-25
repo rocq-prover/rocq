@@ -70,6 +70,7 @@ module QState : sig
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> t -> t
+  val freeze : t -> t
   val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
   val of_set : QVar.Set.t -> t
   val of_elims : QGraph.t -> t
@@ -257,6 +258,9 @@ let collapse ?(except=QSet.empty) m =
                     else Option.get (set q qtype m))
          m.qmap m
 
+let freeze m =
+  { m with rigid = QSet.union m.rigid (undefined m) }
+
 let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   let open Pp in
   let prqvar q = match prqvar_opt q with
@@ -279,7 +283,6 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
     | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
   h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap))
-
 let elims m = m.elims
 
 end
@@ -1333,6 +1336,9 @@ let fix_undefined_variables uctx =
 
 let collapse_above_prop_sort_variables ~to_prop uctx =
   { uctx with sort_variables = QState.collapse_above_prop ~to_prop uctx.sort_variables }
+
+let freeze_sort_variables uctx =
+  { uctx with sort_variables = QState.freeze uctx.sort_variables }
 
 let collapse_sort_variables ?except uctx =
   { uctx with sort_variables = QState.collapse ?except uctx.sort_variables }
