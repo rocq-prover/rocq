@@ -109,7 +109,7 @@ let rewrite_rules_break_SR_msg = CWarnings.create_msg rewrite_rules_break_SR_war
 let warn_rewrite_rules_break_SR ~loc reason =
   CWarnings.warn rewrite_rules_break_SR_msg ?loc reason
 let () = CWarnings.register_printer rewrite_rules_break_SR_msg
-  (fun reason -> Pp.(str "This rewrite rule breaks subject reduction (" ++ reason ++ str ")."))
+  (fun reason -> Pp.(str "This rewrite rule breaks subject reduction " ++ reason))
 
 let interp_rule (pattern, rhs) =
   let env = Global.env () in
@@ -147,7 +147,7 @@ let interp_rule (pattern, rhs) =
     | ULub _ | UWeak _ -> assert false
   in
 
-  let fail pp = warn_rewrite_rules_break_SR ~loc:rhs_loc Pp.(str "universe inconsistency, missing constraints: " ++ pp) in
+  let fail pp = warn_rewrite_rules_break_SR ~loc:rhs_loc Pp.(str "(universe inconsistency)." ++ spc () ++ str"Missing constraints: " ++ pp) in
   let evd = Evd.recheck_failures ~fail checker evd in
 
   let evd = Evd.minimize_universes evd in
@@ -159,7 +159,6 @@ let interp_rule (pattern, rhs) =
   let rem_qvars, pattern = if Sorts.QVar.Set.is_empty rem_qvars then rem_qvars, pattern else find_qvars_pattern evd rem_qvars pattern in
 
   (* The pattern constraints must imply those of the rhs *)
-  let fail pp = warn_rewrite_rules_break_SR ~loc:rhs_loc Pp.(str "universe inconsistency, missing constraints: " ++ pp) in
   let () = UState.check_uctx_impl ~fail uctx_pre (Evd.ustate evd) in
 
   let rhs = EConstr.Unsafe.to_constr (Evarutil.nf_evar evd rhs) in
