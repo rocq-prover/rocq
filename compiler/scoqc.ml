@@ -7,7 +7,7 @@ let _print_st_stats
   (* Compact the heap, just in case. *)
   Gc.compact ();
   Format.eprintf "State stats:@\n%!";
-  Format.eprintf " [parsing] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic synterp));
+  Format.eprintf " [synterp] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic synterp));
   Format.eprintf " [system ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic system));
   Format.eprintf " [lemmas ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic lemmas));
   (* Diabled for now *)
