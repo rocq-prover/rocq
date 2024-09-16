@@ -7,7 +7,7 @@ let _print_st_stats
   (* Compact the heap, just in case. *)
   Gc.compact ();
   Format.eprintf "State stats:@\n%!";
-  Format.eprintf " [parsing] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic synterp));
+  Format.eprintf " [synterp] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic synterp));
   Format.eprintf " [system ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic system));
   Format.eprintf " [lemmas ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic lemmas));
   (* Diabled for now *)
@@ -143,15 +143,14 @@ let main args =
     ; extra_options = ""
     } in
   try
-    let parse_extra _args l = (l, []) in
-    let opts, extra = Coqinit.parse_arguments ~parse_extra args in
-    (* TODO *)
-    (* let () = Coqinit.init_document opts in *)
     ignore (Feedback.add_feeder Util.fb_handler);
+    let parse_extra _args l = (l, []) in
+    let initial_args = Coqargs.default in
+    let opts, extra = Coqinit.parse_arguments ~parse_extra ~initial_args args in
     let () = Coqinit.init_runtime ~usage opts in
+    let () = Coqinit.init_document opts in
     (* TODO *)
-    (* let injections = Coqargs.injection_commands opts) in *)
-    let injections = [] in
+    let injections = Coqargs.injection_commands opts in
     compile_files ~args:(opts.config) ~injections ~extra
   with exn ->
     let exn, info = Exninfo.capture exn in
