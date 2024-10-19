@@ -1,0 +1,31 @@
+##
+## Copyright (c) 2024 BedRock Systems, Inc.
+## This software is distributed under the terms of the BedRock Open-Source
+## License. See the LICENSE-BedRock file in the repository root for details.
+##
+
+trigger:
+  rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(merge_request_event|schedule|wep|api)$/
+      variables:
+        FM_CI_TRIGGER_KIND: mr
+    - if: $CI_PIPELINE_SOURCE == 'push' && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables:
+        FM_CI_TRIGGER_KIND: default
+  variables:
+    ORIGIN_CI_COMMIT_SHA: $CI_COMMIT_SHA
+    ORIGIN_CI_COMMIT_BRANCH: $CI_COMMIT_BRANCH
+    ORIGIN_CI_MERGE_REQUEST_IID: $CI_MERGE_REQUEST_IID
+    ORIGIN_CI_MERGE_REQUEST_LABELS: $CI_MERGE_REQUEST_LABELS
+    ORIGIN_CI_MERGE_REQUEST_PROJECT_ID: $CI_MERGE_REQUEST_PROJECT_ID
+    ORIGIN_CI_MERGE_REQUEST_SOURCE_BRANCH_NAME: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    ORIGIN_CI_MERGE_REQUEST_TARGET_BRANCH_NAME: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    ORIGIN_CI_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
+    ORIGIN_CI_PIPELINE_URL: $CI_PIPELINE_URL
+    ORIGIN_CI_PROJECT_PATH: $CI_PROJECT_PATH
+    ORIGIN_CI_PROJECT_TITLE: $CI_PROJECT_TITLE
+    FM_CI_TRIGGER_KIND: $FM_CI_TRIGGER_KIND
+  trigger:
+    project: bedrocksystems/formal-methods/fm-ci
+    branch: trigger-$FM_CI_TRIGGER_KIND
+    strategy: depend
