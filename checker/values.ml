@@ -498,13 +498,18 @@ let v_retroknowledge =
 let v_puniv = v_opt v_int
 
 let v_pqvar = v_opt v_int
-let v_quality_pattern = v_sum "quality_pattern" 0 [|[|v_pqvar|];[|v_constant_quality|]|]
+let v_quality_pattern = v_sum "quality_pattern" 0 [|
+  [|v_pqvar|];
+  [|v_constant_quality|];
+  [|v_qglobal|];
+|]
 
 let v_instance_mask = v_pair (v_array v_quality_pattern) (v_array v_puniv)
 
 let v_sort_pattern = v_sum_c ("sort_pattern", 3,
-  [|[|v_puniv|];         (* PSType *)
-    [|v_pqvar; v_puniv|] (* PSQSort *)
+  [|[|v_puniv|];             (* PSType *)
+    [|v_qglobal; v_puniv|];  (* PSGlobal *)
+    [|v_pqvar; v_puniv|];    (* PSQSort *)
   |])
 
 let [_v_hpattern;v_elimination;_v_head_elim;_v_patarg] : _ Vector.t =

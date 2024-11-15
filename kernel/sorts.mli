@@ -29,6 +29,7 @@ sig
   type t
 
   val var_index : t -> int option
+  val name : t -> QGlobal.t option
 
   val make_var : int -> t
   val make_unif : string -> int -> t
@@ -121,7 +122,7 @@ module Quality : sig
   module Map : CMap.ExtS with type key = t and module Set := Set
 
   type 'q pattern =
-    PQVar of 'q | PQConstant of constant
+    PQVar of 'q | PQConstant of constant | PQGlobal of QGlobal.t
 
   val pattern_match : int option pattern -> t -> ('t, t, 'u) Partial_subst.t -> ('t, t, 'u) Partial_subst.t option
 end
@@ -211,6 +212,6 @@ val pr : (QVar.t -> Pp.t) -> (Univ.Universe.t -> Pp.t) -> t -> Pp.t
 val raw_pr : t -> Pp.t
 
 type ('q, 'u) pattern =
-  | PSProp | PSSProp | PSSet | PSType of 'u | PSQSort of 'q * 'u
+  | PSProp | PSSProp | PSSet | PSType of 'u | PSGlobal of QGlobal.t * 'u | PSQSort of 'q * 'u
 
 val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t option
