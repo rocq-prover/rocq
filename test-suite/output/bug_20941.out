@@ -1,0 +1,36 @@
+File "./output/bug_20941.v", line 90, characters 58-64:
+The command has indeed failed with message:
+In environment
+n : nat
+p : nat
+Hp : p <= n
+frame'' : forall p : nat, p.+1 <= n.+1 -> Type
+painting'' : forall (p : nat) (Hp : p.+1 <= n.+1), frame'' p Hp -> Type
+restrFrames' : RestrFrameType'
+frame' :=
+  fun (p : nat) (Hp : p.+1 <= n.+1) =>
+  Frame' (take_head n.+1 p (leI_down Hp)) :
+  forall p : nat, p.+1 <= n.+1 -> Type
+restrFrame' :=
+  fun (p : nat) (Hp : p.+1 <= n.+1) => take_restrFrame' n.+1 p Hp :
+  forall (p : nat) (Hp : p.+1 <= n.+1), frame' p Hp -> frame'' p Hp
+E : frame' n (leI_refl n.+1) -> Type
+aux :
+  forall (p0 : nat) (Hp0 : p0 <= ?n0@{p0:=p; Hp0:=Hp}),
+  frame' p0 ?l@{p0:=p; Hp0:=Hp; p:=p0; Hp:=Hp0; y0:=p0; h0:=Hp0} ->
+  ?T@{y0:=p0} ?n@{y0:=p0} (leI_refl ?n@{y0:=p0}.+1) -> Type
+p0 : nat
+Hp0 : p0 <= ?n0@{p0:=p; Hp0:=Hp}
+p1 : nat
+Hp1 : p1.+1 <= ?n0@{p0:=p; Hp0:=Hp}
+d : frame' p1 ?l@{p0:=p; Hp0:=Hp; p:=p0; Hp:=Hp0; y0:=p1; h0:=leI_down Hp1}
+l :
+  painting'' p1 ?l@{p0:=p; Hp0:=Hp; p:=p0; Hp:=Hp0; y0:=p1; h0:=leI_down Hp1}
+    (restrFrame' p1
+       ?l@{p0:=p; Hp0:=Hp; p:=p0; Hp:=Hp0; y0:=p1; h0:=leI_down Hp1} d)
+The term "(d; l)" has type
+ "{x
+  : frame' p1 ?l@{p0:=p; Hp0:=Hp; p:=p0; Hp:=Hp0; y0:=p1; h0:=leI_down Hp1} &
+  ?P@{p0:=p; Hp0:=Hp; p1:=p0; Hp1:=Hp0; p:=p1; Hp:=Hp1} x}"
+while it is expected to have type
+ "frame' p1.+1 ?l@{p0:=p; Hp0:=Hp; p:=p1.+1; Hp:=Hp1; y0:=p1.+1; h0:=Hp1}".
