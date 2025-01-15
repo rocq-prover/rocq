@@ -129,24 +129,6 @@ which allows clients, such as RocqIDE, to interact with the Rocq Prover in a
 structured way."))
 
 (package
- (name rocqide)
- (depends
-  (ocamlfind :build)
-  (conf-findutils :build)
-  conf-adwaita-icon-theme
-  (coqide-server (= :version))
-  (cairo2 (>= 0.6.4))
-  (lablgtk3-sourceview3 (and (>= 3.1.2) (or (>= 3.1.5) (<> :os "windows")))))
- (synopsis "The Rocq Prover --- GTK3 IDE")
- (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
-a formal language to write mathematical definitions, executable
-algorithms and theorems together with an environment for
-semi-interactive development of machine-checked proofs.
-
-This package provides the RocqIDE, a graphical user interface for the
-development of interactive proofs."))
-
-(package
  (name rocq-test-suite)
  (depends
   (rocq-core (= :version))
