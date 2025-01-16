@@ -160,31 +160,28 @@ module Make (E : EqType) =
     let bucket = t.table.(index) in
     let hashes = t.hashes.(index) in
     let sz = Weak.length bucket in
-    let rec loop i =
-      if i >= sz then begin
-        let newsz = min (3 * sz / 2 + 3) (Sys.max_array_length - additional_values) in
-        if newsz <= sz then failwith "Weak.Make: hash bucket cannot grow more";
-        let newbucket = Weak.create newsz in
-        let newhashes = Array.make newsz 0 in
-        Weak.blit bucket 0 newbucket 0 sz;
-        Array.blit hashes 0 newhashes 0 sz;
-        setter newbucket sz d;
-        newhashes.(sz) <- h;
-        t.table.(index) <- newbucket;
-        t.hashes.(index) <- newhashes;
-        if sz <= t.limit && newsz > t.limit then begin
-          t.oversize <- t.oversize + 1;
-          for _i = 0 to over_limit do test_shrink_bucket t done;
-        end;
-        if t.oversize > Array.length t.table / over_limit then resize t
-      end else if Weak.check bucket i then begin
-        loop (i + 1)
-      end else begin
-        setter bucket i d;
-        hashes.(i) <- h
-      end
-    in
-    loop 0
+    let i = ref 0 in
+    while !i < sz && Weak.check bucket !i do incr i done;
+    if !i < sz then begin
+      setter bucket !i d;
+      Array.unsafe_set hashes !i h;
+    end else begin
+      let newsz = min (3 * sz / 2 + 3) (Sys.max_array_length - additional_values) in
+      if newsz <= sz then failwith "Weak.Make: hash bucket cannot grow more";
+      let newbucket = Weak.create newsz in
+      let newhashes = Array.make newsz 0 in
+      Weak.blit bucket 0 newbucket 0 sz;
+      Array.blit hashes 0 newhashes 0 sz;
+      setter newbucket sz d;
+      newhashes.(sz) <- h;
+      t.table.(index) <- newbucket;
+      t.hashes.(index) <- newhashes;
+      if sz <= t.limit && newsz > t.limit then begin
+        t.oversize <- t.oversize + 1;
+        for _i = 0 to over_limit do test_shrink_bucket t done;
+      end;
+      if t.oversize > Array.length t.table / over_limit then resize t;
+    end
 
   external unsafe_weak_get : 'a Weak.t -> int -> 'a option = "caml_weak_get"
 
