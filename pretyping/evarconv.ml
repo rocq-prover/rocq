@@ -682,7 +682,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
   (* Maybe convertible but since reducing can erase evars which [evar_apprec]
      could have found, we do it only if the terms are free of evar.
      Note: incomplete heuristic... *)
-  let ground_test =
+  try let ground_test =
     if is_ground_term evd term1 && is_ground_term evd term2 then
       infer_conv_noticing_evars ~pb:pbty ~ts:flags.closed_ts env evd term1 term2
     else None
@@ -741,6 +741,9 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
   in
   let () = debug_unification (fun () -> Pp.(v 0 (str "end evar_conv_x " ++ int t ++ str " with " ++ str (match r with Success _ -> "success" | _ -> "failure") ++ cut ()))) in
   r
+  with e ->
+    let () = debug_unification (fun () -> Pp.(v 0 (str "end evar_conv_x exploded " ++ int t ++ cut ()))) in
+    UnifFailure (evd, NotSameHead)
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     keys (* canonical structure keys cache *)
@@ -822,6 +825,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        2b. if E'=E'1[E'2] and E=E1[E2] and E=E'1 unifiable and E' contient app/fix/proj,
            recursively solve E2[?n[inst]] = E'2[redex]
        3.  reduce the redex into M and recursively solve E[?n[inst]] =? E'[M] *)
+    let () = debug_unification (fun () -> Pp.(v 0 (str "flex_maybeflex " ++ pr_state env evd apprF ++ cut () ++ pr_state env evd apprM ++ cut ()))) in
     let switch f a b = if l2r then f a b else f b a in
   let delta i =
       let vskM = Option.get (eval_flexible_term flags.open_ts env evd (fst vskM) (snd vskM)) in
@@ -879,6 +883,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        3b. if M a constructor C ..ui..: eta-expand and recursively solve proji[E[?n[inst]]]=ui
        4.  fail if E purely applicative and ?n occurs rigidly in E'[M]
        5.  absorb arguments if purely applicative and postpone *)
+    let () = debug_unification (fun () -> Pp.(v 0 (str "flex_rigid " ++ pr_state env evd apprF ++ cut () ++ pr_state env evd apprR ++ cut ()))) in
     let switch f a b = if l2r then f a b else f b a in
     let eta evd =
       match EConstr.kind evd termR with
@@ -1460,11 +1465,17 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
   let open Declarations in
   let mib = lookup_mind (fst ind) env in
     match get_projections env ind with
-    | Some projs when mib.mind_finite == BiFinite ->
+    | Some projs ->
+      if mib.mind_finite <> BiFinite then
+        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor not BiFinite" ++ cut ()))) in
+        UnifFailure (evd, NotSameHead) else
       let pars = mib.mind_nparams in
       begin match Stack.list_of_app_stack sk1 with
-      | None -> UnifFailure (evd,NotSameHead)
+      | None ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor stack not applicative" ++ cut ()))) in
+          UnifFailure (evd,NotSameHead)
       | Some l1 ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor" ++ cut ()))) in
         (try
            let l1' = List.skipn pars l1 in
            let l2' =
@@ -1481,7 +1492,9 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
            (* List.skipn: partially applied constructor *)
            UnifFailure(evd,NotSameHead))
       end
-    | _ -> UnifFailure (evd,NotSameHead)
+    | _ ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor could not get projections" ++ cut ()))) in
+        UnifFailure (evd,NotSameHead)
 
 let evar_conv_x flags = evar_conv_x flags
 
