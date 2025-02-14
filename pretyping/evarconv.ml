@@ -1005,6 +1005,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
   match (flex_kind_of_term flags env evd term1 sk1,
          flex_kind_of_term flags env evd term2 sk2) with
     | Flexible (sp1,al1), Flexible (sp2,al2) ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "flex flex" ++ cut ()))) in
         begin match ((if lastUnfolded = Some true then let (t, sk) = fst hds in flex_kind_of_term flags env evd t sk else Flexible (sp1, al1)),
           if lastUnfolded = Some false then let (t, sk) = snd hds in flex_kind_of_term flags env evd t sk else Flexible (sp2, al2)) with
         | Flexible ev1, MaybeFlexible v2 -> flex_maybeflex true ev1 appr1 (snd hds) (snd hds)
@@ -1053,9 +1054,11 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         end
 
     | Flexible ev1, MaybeFlexible v2 ->
+      let () = debug_unification (fun () -> Pp.(v 0 (str "flex maybeflex" ++ cut ()))) in
       flex_maybeflex true ev1 appr1 appr2 (snd hds)
 
     | MaybeFlexible vsk1, Flexible ev2 ->
+      let () = debug_unification (fun () -> Pp.(v 0 (str "maybeflex flex" ++ cut ()))) in
       flex_maybeflex false ev2 appr2 appr1 (fst hds)
 
     | MaybeFlexible (v1', sk1' as vsk1'), MaybeFlexible (v2', sk2' as vsk2') -> begin
@@ -1201,6 +1204,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
            (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
 
     | Flexible ev1, Rigid ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "flex rigid" ++ cut ()))) in
         let (t2, sk2) as appr2 = snd hds in
         begin match flex_kind_of_term flags env evd t2 sk2 with
         | Flexible ev2 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
@@ -1208,10 +1212,11 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | Rigid -> flex_rigid true ev1 appr1 appr2
         end
     | Rigid, Flexible ev2 ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "rigid flex" ++ cut ()))) in
         let (t1, sk1) as appr1 = fst hds in
         begin match flex_kind_of_term flags env evd t1 sk1 with
         | Flexible ev1 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
-        | MaybeFlexible v1 -> flex_maybeflex true ev2 appr2 appr1 appr1
+        | MaybeFlexible v1 -> flex_maybeflex false ev2 appr2 appr1 appr1
         | Rigid -> flex_rigid false ev2 appr2 appr1
         end
 
