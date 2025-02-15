@@ -21,6 +21,8 @@ open Environ
 open Reductionops
 open Context.Rel.Declaration
 
+let debug_inductiveops = CDebug.create ~name:"inductiveops" ()
+
 (* The following three functions are similar to the ones defined in
    Inductive, but they expect an env *)
 
@@ -720,8 +722,10 @@ let arity_of_case_predicate env (ind,params) dep k =
   let concl = if dep then mkArrow mind r (mkSort k) else mkSort k in
   it_mkProd_or_LetIn concl arsign
 
-let type_of_projection_constant env (p,u) =
+let type_of_projection_constant env sigma (p,u) =
+  let () = debug_inductiveops (fun () -> Pp.(v 0 (str "looking up of projection " ++ Names.Projection.print p ++ cut ()))) in
   let _, pty = lookup_projection p env in
+  let () = debug_inductiveops (fun () -> Pp.(v 0 (str "proj constant type is " ++ Termops.Internal.print_constr_env env sigma (EConstr.of_constr pty) ++ cut ()))) in
   EConstr.Vars.subst_instance_constr u (EConstr.of_constr pty)
 
 let type_of_projection_knowing_arg env sigma p c ty =
@@ -732,7 +736,10 @@ let type_of_projection_knowing_arg env sigma p c ty =
       raise (Invalid_argument "type_of_projection_knowing_arg_type: not an inductive type")
   in
   let (_,u), pars = dest_ind_family pars in
-  substl (c :: List.rev pars) (type_of_projection_constant env (p,u))
+  let ty' = type_of_projection_constant env sigma (p,u) in
+  let () = debug_inductiveops (fun () -> Pp.(v 0 (str "proj constant type is " ++ Termops.Internal.print_constr_env env sigma ty' ++ cut ()))) in
+  let () = debug_inductiveops (fun () -> Pp.(v 0 (List.fold_left (fun s x -> s ++ str " " ++ Termops.Internal.print_constr_env env sigma ty') (str "arguments are ") (c :: List.rev pars) ++ cut ()))) in
+  substl (c :: List.rev pars) ty'
 
 (***********************************************)
 (* Guard condition *)

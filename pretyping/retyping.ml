@@ -29,6 +29,8 @@ open Context.Rel.Declaration
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
 
+let debug_retyping = CDebug.create ~name:"retyping" ()
+
 type retype_error =
   | NotASort
   | NotAnArity
@@ -264,13 +266,16 @@ let retype ?metas ?(polyprop=true) sigma =
     | Fix ((_,i),(_,tys,_)) -> tys.(i)
     | CoFix (i,(_,tys,_)) -> tys.(i)
     | App(f,args) ->
+      let () = debug_retyping (fun () -> Pp.(v 0 (str "retype app " ++ cut ()))) in
       if Termops.is_template_polymorphic_ref env sigma f then
         substituted_type_of_global_reference_knowing_parameters env f args
       else
         strip_outer_cast sigma
           (subst_type env sigma (type_of env f) (Array.to_list args))
     | Proj (p,_,c) ->
+      let () = debug_retyping (fun () -> Pp.(v 0 (str "retype proj " ++ cut ()))) in
       let ty = type_of env c in
+      let () = debug_retyping (fun () -> Pp.(v 0 (str "arg type is " ++ Termops.Internal.print_constr_env env sigma ty ++ cut ()))) in
       (try Inductiveops.type_of_projection_knowing_arg env sigma p c ty
         with Invalid_argument _ -> retype_error BadRecursiveType)
     | Cast (c,_, t) -> t

@@ -905,6 +905,7 @@ let check_evar_instance_evi unify flags env evd evi body =
   let evenv = evar_env env evi in
   (* FIXME: The body might be ill-typed when this is called from w_merge *)
   (* This happens in practice, cf MathClasses build failure on 2013-3-15 *)
+  let () = debug_evarsolve (fun () -> Pp.(v 0 (str "check_evar_instance get type of " ++ Termops.Internal.print_constr_env env evd body ++ cut ()))) in
   match Retyping.get_type_of ~lax:true evenv evd body
   with
   | exception Retyping.RetypeError _ ->
