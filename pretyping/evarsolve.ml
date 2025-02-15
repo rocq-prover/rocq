@@ -25,6 +25,9 @@ open Reductionops
 open Evarutil
 open Pretype_errors
 
+
+let debug_evarsolve = CDebug.create ~name:"evarsolve" ()
+
 module AllowedEvars = struct
 
   type t =
@@ -906,6 +909,7 @@ let check_evar_instance_evi unify flags env evd evi body =
   with
   | exception Retyping.RetypeError _ ->
     let loc, _ = Evd.evar_source evi in
+    let () = debug_evarsolve (fun () -> Pp.(v 0 (str "check_evar_instance typing error" ++ cut ()))) in
     Loc.raise ?loc (IllTypedInstance (evenv,evd,None, Evd.evar_concl evi))
   | ty ->
     match unify flags TypeUnification evenv evd Conversion.CUMUL ty (Evd.evar_concl evi) with
@@ -1579,9 +1583,14 @@ let occur_evar_upto_types sigma n c =
 let instantiate_evar unify flags env evd evk body =
   (* Check instance freezing the evar to be defined, as
      checking could involve the same evar definition problem again otherwise *)
+  let () = debug_evarsolve (fun () -> Pp.(v 0 (str "instantiate evar" ++ cut ()))) in
   let allowed_evars = AllowedEvars.remove evk flags.allowed_evars in
   let flags = { flags with allowed_evars } in
-  let evd' = check_evar_instance unify flags env evd evk body in
+  let evd' = try check_evar_instance unify flags env evd evk body with
+   | e ->
+    let () = debug_evarsolve (fun () -> Pp.(v 0 (str "typing error while defining evar" ++ cut ()))) in
+    raise e
+  in
   Evd.define evk body evd'
 
 (* We try to instantiate the evar assuming the body won't depend
