@@ -766,10 +766,12 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     let not_only_app = Stack.not_purely_applicative skO in
     match switch (ise_stack2 not_only_app env evd (evar_conv_x flags)) skF skO with
     | Some (l,r), Success i' when l2r && (not_only_app || List.is_empty l) ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "l2r consume stack got " ++ pr_state env evd (termO, r) ++ cut ()))) in
         (* E[?n]=E'[redex] reduces to either l[?n]=r[redex] with
            case/fix/proj in E' (why?) or ?n=r[redex] *)
         switch (evar_conv_x flags env i' pbty) (Stack.zip evd (termF,l)) (Stack.zip evd (termO,r))
     | Some (r,l), Success i' when not l2r && (not_only_app || List.is_empty l) ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "r2l consume stack got " ++ pr_state env evd (termO, r) ++ cut ()))) in
         (* E'[redex]=E[?n] reduces to either r[redex]=l[?n] with
            case/fix/proj in E' (why?) or r[redex]=?n *)
         switch (evar_conv_x flags env i' pbty) (Stack.zip evd (termF,l)) (Stack.zip evd (termO,r))
