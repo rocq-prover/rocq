@@ -11,6 +11,7 @@ Prim.name: [
 
 global: [
 | Prim.reference
+| "libref" ":" "(" Prim.reference ")"
 ]
 
 constr_pattern: [
