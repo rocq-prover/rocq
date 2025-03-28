@@ -234,6 +234,6 @@ val error_not_allowed_dependent_analysis : Environ.env -> bool -> Names.inductiv
 
 module Internal : sig
   (* FIXME hack for the [QVar]s, see the implementation for more information. *)
-  val nf_relevance : env -> Sorts.relevance -> Sorts.relevance
+  val nf_relevance : Evd.evar_map -> Sorts.relevance -> Sorts.relevance
   val should_invert_case : env -> Evd.evar_map -> Sorts.relevance -> Constr.case_info -> bool
 end

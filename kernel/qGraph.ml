@@ -286,7 +286,7 @@ let qvar_domain g =
     (fun q acc -> match q with Quality.QVar q -> QVar.Set.add q acc | _ -> acc)
     (domain g) QVar.Set.empty
 
-let is_empty g = Quality.Set.is_empty (domain g)
+let is_empty g = QVar.Set.is_empty (qvar_domain g)
 
 let explain_quality_inconsistency defprv (prv, (k, q1, q2, r)) =
   let open Pp in

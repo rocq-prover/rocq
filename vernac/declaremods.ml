@@ -965,8 +965,8 @@ module Interp = struct
 let check_sub env mp sub_mtb_l =
   let fold sub_mtb (cst, env) =
     let state = ((Environ.universes env, cst), Reductionops.inferred_universes) in
-    let graph, cst = Subtyping.check_subtypes state env mp mp sub_mtb in
-    (cst, Environ.set_universes graph env)
+    let ugraph, cst = Subtyping.check_subtypes state env mp mp sub_mtb in
+    (cst, Environ.set_universes ugraph env)
   in
   let cst, _ = List.fold_right fold sub_mtb_l (Univ.Constraints.empty, env) in
   Global.add_constraints cst
