@@ -1512,7 +1512,7 @@ let glob_of_pat_under_context glob_of_pat avoid env sigma (nas, pat) =
 let rec glob_of_pat
   : 'a 'g 's. ('a -> 'g glob_constr_r) -> 's Namegen.Generator.input -> _ -> _ -> 'a constr_pattern_r -> 'g glob_constr_g
   = fun (type a g s) (of_extra:a -> g glob_constr_r) (avoid : s Namegen.Generator.t * s) env sigma (pat: a constr_pattern_r) ->
-  let open Sorts.Quality in
+  let open Quality in
     DAst.make @@ match pat with
   | PRef ref -> GRef (ref,None)
   | PVar id  -> GVar id

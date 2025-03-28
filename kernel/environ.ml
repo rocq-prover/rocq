@@ -484,14 +484,14 @@ let push_context_set ?(strict=false) ctx env =
   map_universes (add_universes_set ~strict ctx) env
 
 let push_qualities qs env =
-  assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities));
-  let g = Sorts.QVar.Set.fold
-            (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs env.env_qualities in
+  assert Quality.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities));
+  let g = Quality.QVar.Set.fold
+            (fun v -> QGraph.add_quality (Quality.QVar v)) qs env.env_qualities in
   set_qualities g env
 
 let set_qualities qs env =
   let g = QGraph.initial_graph in
-  let g = Sorts.QVar.Set.fold (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs g in
+  let g = Quality.QVar.Set.fold (fun v -> QGraph.add_quality (Quality.QVar v)) qs g in
   { env with env_qualities = g }
 
 let push_subgraph (levels,csts) env =
@@ -1072,7 +1072,7 @@ module Internal = struct
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;
-      env_qualities : Sorts.QVar.Set.t;
+      env_qualities : Quality.QVar.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;
       env_typing_flags  : typing_flags;
     }

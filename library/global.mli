@@ -22,7 +22,7 @@ val safe_env : unit -> Safe_typing.safe_environment
 val env : unit -> Environ.env
 
 val universes : unit -> UGraph.t
-val qualities : unit -> Sorts.QVar.Set.t
+val qualities : unit -> Quality.QVar.Set.t
 val elim_graph : unit -> QGraph.t
 val named_context_val : unit -> Environ.named_context_val
 val named_context : unit -> Constr.named_context
@@ -69,7 +69,7 @@ val add_constraints : Univ.Constraints.t -> unit
 val push_context_set : Univ.ContextSet.t -> unit
 
 (** Extra sort qualities *)
-val push_qualities : Sorts.QVar.Set.t -> unit
+val push_quality_set : Quality.QVar.Set.t -> unit
 
 (** Non-interactive modules and module types *)
 

@@ -201,7 +201,7 @@ let template_poly_variables env ind =
   | None -> assert false
   | Some { template_defaults; template_concl } ->
     let pseudo_poly = match template_concl with
-      | QSort (q, _) when Option.has_some (Sorts.QVar.var_index q) -> true
+      | QSort (q, _) when Option.has_some (Quality.QVar.var_index q) -> true
       | _ -> false
     in
     let _, vars = UVars.Instance.levels template_defaults in
@@ -263,7 +263,7 @@ let print_squash env ref udecl = match ref with
               str "(SProp <= Prop <= Type, and all variables <= Type)" ++ spc() ++
               str "than the instantiation of " ++ ppq
           in
-          let qs = Sorts.Quality.Set.elements qs in
+          let qs = Quality.Set.elements qs in
           let quality_s, is_s = match qs with
             | [_] -> "quality", "is"
             | _ -> "qualities", "are"
@@ -272,7 +272,7 @@ let print_squash env ref udecl = match ref with
              "quality Prop is equal to the instantiation of q" *)
           pr_comma () ++
           hov 0 (str "unless instantiated such that the " ++ str quality_s ++ str " " ++
-                 pr_enum (Sorts.Quality.pr (Termops.pr_evd_qvar sigma)) qs ++
+                 pr_enum (Quality.pr (Termops.pr_evd_qvar sigma)) qs ++
                  spc() ++ str is_s ++ str " " ++ target ++ str ".")
       in
       [hv 2 (hov 1 (pr_global ref ++ inst) ++ str " may only be eliminated to produce values whose type is " ++

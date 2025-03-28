@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Univ
-open Sorts
 
 type t =
   | QEq of Quality.t * Quality.t
@@ -105,7 +104,7 @@ let enforce_eq_instances_univs strict x y c =
   let xq, xu = UVars.Instance.to_array x and yq, yu = UVars.Instance.to_array y in
   let c = CArray.fold_left2
       (* TODO strict? *)
-      (fun c x y -> if Sorts.Quality.equal x y then c else Set.add (QEq (x,y)) c)
+      (fun c x y -> if Quality.equal x y then c else Set.add (QEq (x,y)) c)
       c xq yq
   in
   let c = CArray.fold_left2
@@ -116,7 +115,7 @@ let enforce_eq_instances_univs strict x y c =
 
 let enforce_eq_qualities qs qs' cstrs =
   CArray.fold_left2 (fun c a b ->
-      if Sorts.Quality.equal a b then c else Set.add (QEq (a, b)) c)
+      if Quality.equal a b then c else Set.add (QEq (a, b)) c)
     cstrs qs qs'
 
 let compare_cumulative_instances  cv_pb variances u u' cstrs =

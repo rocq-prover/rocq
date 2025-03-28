@@ -347,7 +347,7 @@ let elim_sort (mib,mip) =
      future. *)
   if Option.is_empty mip.mind_squashed &&
        not (is_record && has_args mip && Sorts.is_sprop mip.mind_sort)
-  then Sorts.Quality.qtype
+  then Quality.qtype
   else Sorts.quality mip.mind_sort
 
 let top_allowed_sort env (kn,i as ind) =

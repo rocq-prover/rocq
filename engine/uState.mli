@@ -78,7 +78,7 @@ val ugraph : t -> UGraph.t
 val elim_graph : t -> QGraph.t
 (** The elimination graph for above prop variables *)
 
-val is_above_prop : t -> Sorts.QVar.t -> bool
+val is_above_prop : t -> Quality.QVar.t -> bool
 
 val is_algebraic : Level.t -> t -> bool
 (** Can this universe be instantiated with an algebraic
@@ -100,7 +100,7 @@ val universe_binders : t -> UnivNames.universe_binders
 
 val compute_instance_binders : t -> UVars.Instance.t -> UVars.bound_names
 
-val nf_qvar : t -> QVar.t -> Quality.t
+val nf_qvar : t -> Quality.QVar.t -> Quality.t
 (** Returns the normal form of the sort variable. *)
 
 val nf_quality : t -> Quality.t -> Quality.t
@@ -130,9 +130,9 @@ val add_universe_constraints : t -> UnivProblem.Set.t -> t
   @raise UniversesDiffer when universes differ
 *)
 
-val check_qconstraints : t -> QCumulConstraints.t -> bool
+val check_qconstraints : t -> Quality.QCumulConstraints.t -> bool
 
-val check_elim_constraints : t -> ElimConstraints.t -> bool
+val check_elim_constraints : t -> Quality.ElimConstraints.t -> bool
 
 val check_universe_constraints : t -> UnivProblem.Set.t -> bool
 
@@ -140,7 +140,7 @@ val add_quconstraints : t -> QUConstraints.t -> t
 
 (** {5 Names} *)
 
-val quality_of_name : t -> Id.t -> Sorts.QVar.t
+val quality_of_name : t -> Id.t -> Quality.QVar.t
 
 val universe_of_name : t -> Id.t -> Univ.Level.t
 (** Retrieve the universe associated to the name. *)
@@ -180,7 +180,7 @@ val univ_flexible : rigid
 val univ_flexible_alg : rigid
 
 val merge : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
-val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> QVar.Set.t -> t
+val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> Quality.QVar.Set.t -> t
 val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
 
 val demote_global_univs : Univ.ContextSet.t -> t -> t
@@ -205,7 +205,7 @@ val demote_global_univ_entry : universes_entry -> t -> t
 val emit_side_effects : Safe_typing.private_constants -> t -> t
 (** Calls [demote_global_univs] for the private constant universes. *)
 
-val new_sort_variable : ?loc:Loc.t -> ?name:Id.t -> t -> t * QVar.t
+val new_sort_variable : ?loc:Loc.t -> ?name:Id.t -> t -> t * Quality.QVar.t
 (** Declare a new local sort. *)
 
 val new_univ_variable : ?loc:Loc.t -> rigid -> Id.t option -> t -> t * Univ.Level.t
@@ -235,7 +235,7 @@ val minimize : t -> t
 
 val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
 
-val collapse_sort_variables : ?except:QVar.Set.t -> t -> t
+val collapse_sort_variables : ?except:Quality.QVar.Set.t -> t -> t
 
 type ('a, 'b, 'c) gen_universe_decl = {
   univdecl_qualities : 'a;
@@ -246,7 +246,7 @@ type ('a, 'b, 'c) gen_universe_decl = {
   univdecl_extensible_constraints : bool (* Can new constraints be added *) }
 
 type universe_decl =
-  (QVar.t list, Level.t list, Univ.Constraints.t) gen_universe_decl
+  (Quality.QVar.t list, Level.t list, Univ.Constraints.t) gen_universe_decl
 
 val default_univ_decl : universe_decl
 
@@ -267,7 +267,7 @@ val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
 val check_mono_univ_decl : t -> universe_decl -> Univ.ContextSet.t
 
-val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> Univ.ContextSet.t
+val check_template_univ_decl : t -> template_qvars:Quality.QVar.Set.t -> universe_decl -> Univ.ContextSet.t
 
 (** {5 TODO: Document me} *)
 
@@ -276,15 +276,15 @@ val update_sigma_univs : t -> UGraph.t -> t
 (** {5 Pretty-printing} *)
 
 val pr_uctx_level : t -> Univ.Level.t -> Pp.t
-val pr_uctx_qvar : t -> Sorts.QVar.t -> Pp.t
+val pr_uctx_qvar : t -> Quality.QVar.t -> Pp.t
 val qualid_of_level : t -> Univ.Level.t -> Libnames.qualid option
 
 (** Only looks in the local names, not in the nametab. *)
 val id_of_level : t -> Univ.Level.t -> Id.t option
 
-val id_of_qvar : t -> Sorts.QVar.t -> Id.t option
+val id_of_qvar : t -> Quality.QVar.t -> Id.t option
 
-val is_rigid_qvar : t -> Sorts.QVar.t -> bool
+val is_rigid_qvar : t -> Quality.QVar.t -> bool
 
 val pr_weak : (Univ.Level.t -> Pp.t) -> t -> Pp.t
 

@@ -702,7 +702,7 @@ let print_universes { sort; subgraph; with_sources; file; } =
   end
 
 let print_sorts () =
-  let qualities = Sorts.QVar.Set.elements (Global.qualities ()) in
+  let qualities = Quality.QVar.Set.elements (Global.qualities ()) in
   let prq = UnivNames.pr_quality_with_global_universes in
   Pp.prlist_with_sep Pp.spc prq qualities
 

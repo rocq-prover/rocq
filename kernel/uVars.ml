@@ -12,8 +12,6 @@ open Pp
 open Util
 open Univ
 
-module Quality = Sorts.Quality
-
 module Variance =
 struct
   (** A universe position in the instance given to a cumulative
@@ -84,11 +82,11 @@ module Instance : sig
     val hcons : t -> int * t
     val hash : t -> int
 
-    val subst_qualities : (Sorts.QVar.t -> Quality.t) -> t -> t
+    val subst_qualities : (Quality.QVar.t -> Quality.t) -> t -> t
 
-    val subst_fn : (Sorts.QVar.t -> Quality.t) * (Level.t -> Level.t) -> t -> t
+    val subst_fn : (Quality.QVar.t -> Quality.t) * (Level.t -> Level.t) -> t -> t
 
-    val pr : (Sorts.QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+    val pr : (Quality.QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
     val levels : t -> Quality.Set.t * Level.Set.t
 
     type ('q, 'u) mask = 'q Quality.pattern array * 'u array
@@ -228,13 +226,13 @@ let subst_instance_level s l =
   | None -> l
 
 let subst_instance_qvar s v =
-  match Sorts.QVar.var_index v with
+  match Quality.QVar.var_index v with
   | Some n -> (fst (Instance.to_array s)).(n)
   | None -> Quality.QVar v
 
 let subst_instance_quality s l =
   match l with
-  | Quality.QVar v -> begin match Sorts.QVar.var_index v with
+  | Quality.QVar v -> begin match Quality.QVar.var_index v with
       | Some n -> (fst (Instance.to_array s)).(n)
       | None -> l
     end
@@ -336,7 +334,7 @@ struct
   let of_context_set f qctx (levels, csts) =
     let qctx = sort_qualities
         (Array.map_of_list (fun q -> Quality.QVar q)
-           (Sorts.QVar.Set.elements qctx))
+           (Quality.QVar.Set.elements qctx))
     in
     let levels = sort_levels (Array.of_list (Level.Set.elements levels)) in
     let inst = Instance.of_array (qctx, levels) in
@@ -346,9 +344,9 @@ struct
     let qs, us = Instance.to_array inst in
     let us = Array.fold_left (fun acc x -> Level.Set.add x acc) Level.Set.empty us in
     let qs = Array.fold_left (fun acc -> function
-        | Sorts.Quality.QVar x -> Sorts.QVar.Set.add x acc
-        | Sorts.Quality.QConstant _ -> assert false)
-        Sorts.QVar.Set.empty
+        | Quality.QVar x -> Quality.QVar.Set.add x acc
+        | Quality.QConstant _ -> assert false)
+        Quality.QVar.Set.empty
         qs
     in
     qs, (us, csts)
@@ -413,14 +411,14 @@ let hcons_abstract_universe_context = AbstractContext.hcons
 
 let pr_quality_level_subst prl l =
   let open Pp in
-  h (prlist_with_sep fnl (fun (u,v) -> prl u ++ str " := " ++ Sorts.Quality.pr prl v)
-       (Sorts.QVar.Map.bindings l))
+  h (prlist_with_sep fnl (fun (u,v) -> prl u ++ str " := " ++ Quality.pr prl v)
+       (Quality.QVar.Map.bindings l))
 
-type sort_level_subst = Quality.t Sorts.QVar.Map.t * universe_level_subst
+type sort_level_subst = Quality.t Quality.QVar.Map.t * universe_level_subst
 
-let is_empty_sort_subst (qsubst,usubst) = Sorts.QVar.Map.is_empty qsubst && is_empty_level_subst usubst
+let is_empty_sort_subst (qsubst,usubst) = Quality.QVar.Map.is_empty qsubst && is_empty_level_subst usubst
 
-let empty_sort_subst = Sorts.QVar.Map.empty, empty_level_subst
+let empty_sort_subst = Quality.QVar.Map.empty, empty_level_subst
 
 let subst_sort_level_instance (qsubst,usubst) i =
   let i' = Instance.subst_fn (Quality.subst_fn qsubst, subst_univs_level_level usubst) i in
@@ -429,7 +427,7 @@ let subst_sort_level_instance (qsubst,usubst) i =
 
 let subst_instance_sort_level_subst s (i : sort_level_subst) =
   let qs, us = i in
-  let qs' = Sorts.QVar.Map.map (fun l -> subst_instance_quality s l) qs in
+  let qs' = Quality.QVar.Map.map (fun l -> subst_instance_quality s l) qs in
   let us' = Level.Map.map (fun l -> subst_instance_level s l) us in
   if qs' == qs && us' == us then i else (qs', us')
 
@@ -437,13 +435,13 @@ let subst_univs_level_abstract_universe_context subst (inst, csts) =
   inst, subst_univs_level_constraints subst csts
 
 let subst_sort_level_qvar (qsubst,_) qv =
-  match Sorts.QVar.Map.find_opt qv qsubst with
+  match Quality.QVar.Map.find_opt qv qsubst with
   | None -> Quality.QVar qv
   | Some q -> q
 
 let subst_sort_level_quality subst = function
-  | Sorts.Quality.QConstant _ as q -> q
-  | Sorts.Quality.QVar q ->
+  | Quality.QConstant _ as q -> q
+  | Quality.QVar q ->
     subst_sort_level_qvar subst q
 
 let subst_sort_level_sort (_,usubst as subst) s =
@@ -459,8 +457,8 @@ let make_instance_subst i =
   let qsubst =
     Array.fold_left_i (fun i acc l ->
       let l = match l with Quality.QVar l -> l | _ -> assert false in
-      Sorts.QVar.Map.add l (Quality.var i) acc)
-      Sorts.QVar.Map.empty qarr
+      Quality.QVar.Map.add l (Quality.var i) acc)
+      Quality.QVar.Map.empty qarr
   in
   let usubst =
     Array.fold_left_i (fun i acc l ->

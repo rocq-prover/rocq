@@ -10,183 +10,18 @@
 
 (** {6 The sorts of CCI. } *)
 
-module QGlobal :
-sig
-
-  type t
-
-  val make : Names.DirPath.t -> Names.Id.t -> t
-  val repr : t -> Names.DirPath.t * Names.Id.t
-  val equal : t -> t -> bool
-  val hash : t -> int
-  val compare : t -> t -> int
-  val to_string : t -> string
-
-end
-
-module QVar :
-sig
-  type t
-
-  val var_index : t -> int option
-
-  val make_var : int -> t
-  val make_unif : string -> int -> t
-  val make_global : QGlobal.t -> t
-
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-
-  val hash : t -> int
-
-  val raw_pr : t -> Pp.t
-  (** Using this is incorrect when names are available, typically from an evar map. *)
-
-  val to_string : t -> string
-  (** Debug printing *)
-
-  type repr =
-    | Var of int
-    | Unif of string * int
-    | Global of QGlobal.t
-
-  val repr : t -> repr
-  val of_repr : repr -> t
-
-  val is_unif : t -> bool
-
-  module Set : CSig.SetS with type elt = t
-
-  module Map : CMap.ExtS with type key = t and module Set := Set
-end
-
-module Quality : sig
-  type constant = QProp | QSProp | QType
-  type t = QVar of QVar.t | QConstant of constant
-
-  module Constants : sig
-    val equal : constant -> constant -> bool
-    val compare : constant -> constant -> int
-    val pr : constant -> Pp.t
-  end
-
-  val qprop : t
-  val qsprop : t
-  val qtype : t
-  val is_qprop : t -> bool
-  val is_qsprop : t -> bool
-  val is_qtype : t -> bool
-  val is_qvar : t -> bool
-  val is_qconst : t -> bool
-  val is_qglobal : t -> bool
-
-  val var : int -> t
-  (** [var i] is [QVar (QVar.make_var i)] *)
-
-  val global : QGlobal.t -> t
-  (** [global i] is [QVar (QVar.make_global i)] *)
-
-  val is_var : t -> bool
-
-  val var_index : t -> int option
-
-  val equal : t -> t -> bool
-
-  val compare : t -> t -> int
-
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-
-  val raw_pr : t -> Pp.t
-
-  val all_constants : t list
-  val all : t list
-  (* Returns a dummy variable *)
-
-  val hash : t -> int
-
-  val hcons : t Hashcons.f
-
-  (* XXX Inconsistent naming: this one should be subst_fn *)
-  val subst : (QVar.t -> t) -> t -> t
-
-  val subst_fn : t QVar.Map.t -> QVar.t -> t
-
-  module Set : CSig.SetS with type elt = t
-
-  module Map : CMap.ExtS with type key = t and module Set := Set
-
-  type 'q pattern =
-    PQVar of 'q | PQConstant of constant
-
-  val pattern_match : int option pattern -> t -> ('t, t, 'u) Partial_subst.t -> ('t, t, 'u) Partial_subst.t option
-end
-
-module ElimConstraint : sig
-  type kind = Equal | ElimTo
-
-  val pr_kind : kind -> Pp.t
-
-  type t = Quality.t * kind * Quality.t
-
-  val equal : t -> t -> bool
-
-  val compare : t -> t -> int
-
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-
-  val raw_pr : t -> Pp.t
-end
-
-module ElimConstraints : sig include CSig.SetS with type elt = ElimConstraint.t
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-end
-
-val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
-
-val enforce_elim_to_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
-
-module QCumulConstraint : sig
-  type kind = Eq | Leq
-  type t = Quality.t * kind * Quality.t
-
-  val trivial : t -> bool
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-  val raw_pr : t -> Pp.t
-end
-
-module QCumulConstraints : sig
-  include CSig.SetS with type elt = QCumulConstraint.t
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-  val trivial : t -> bool
-end
-
-val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
-
-val enforce_leq_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
-
-module QUConstraints : sig
-
-  type t = QCumulConstraints.t * Univ.Constraints.t
-
-  val union : t -> t -> t
-
-  val empty : t
-end
-
 type t = private
   | SProp
   | Prop
   | Set
   | Type of Univ.Universe.t
-  | QSort of QVar.t * Univ.Universe.t
+  | QSort of Quality.QVar.t * Univ.Universe.t
 
 val sprop : t
 val set  : t
 val prop : t
 val type1  : t
-val qsort : QVar.t -> Univ.Universe.t -> t
+val qsort : Quality.QVar.t -> Univ.Universe.t -> t
 val make : Quality.t -> Univ.Universe.t -> t
 
 val equal : t -> t -> bool
@@ -208,28 +43,40 @@ val levels : t -> Univ.Level.Set.t
 
 val super : t -> t
 
-val subst_quality : (QVar.t -> Quality.t) -> t -> t
+val subst_quality : (Quality.QVar.t -> Quality.t) -> t -> t
 
-val subst_fn : (QVar.t -> Quality.t) * (Univ.Universe.t -> Univ.Universe.t)
+val subst_fn : (Quality.QVar.t -> Quality.t) * (Univ.Universe.t -> Univ.Universe.t)
   -> t -> t
 
 (** On binders: is this variable proof relevant *)
 (* TODO put in submodule or new file *)
-type relevance = Relevant | Irrelevant | RelevanceVar of QVar.t
+type relevance = Relevant | Irrelevant | RelevanceVar of Quality.QVar.t
 
 val relevance_hash : relevance -> int
 
 val relevance_equal : relevance -> relevance -> bool
 
-val relevance_subst_fn : (QVar.t -> Quality.t) -> relevance -> relevance
+val relevance_subst_fn : (Quality.QVar.t -> Quality.t) -> relevance -> relevance
 
 val relevance_of_sort : t -> relevance
 
 val debug_print : t -> Pp.t
-val pr : (QVar.t -> Pp.t) -> (Univ.Universe.t -> Pp.t) -> t -> Pp.t
+val pr : (Quality.QVar.t -> Pp.t) -> (Univ.Universe.t -> Pp.t) -> t -> Pp.t
 val raw_pr : t -> Pp.t
 
 type ('q, 'u) pattern =
   | PSProp | PSSProp | PSSet | PSType of 'u | PSQSort of 'q * 'u
 
 val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t option
+
+module QUConstraints : sig
+  type t = Quality.QCumulConstraints.t * Univ.Constraints.t
+
+  val empty : t
+
+  val union : t -> t -> t
+end
+
+val enforce_eq_cumul_quality : Quality.t -> Quality.t -> Quality.QCumulConstraints.t -> Quality.QCumulConstraints.t
+
+val enforce_leq_quality : Quality.t -> Quality.t -> Quality.QCumulConstraints.t -> Quality.QCumulConstraints.t

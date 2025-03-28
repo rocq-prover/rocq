@@ -395,7 +395,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
     | _ -> sigma
   in
   let add_levels c levels = EConstr.universes_of_constr sigma ~init:levels c in
-  let levels = Sorts.QVar.Set.empty, Univ.Level.Set.empty in
+  let levels = Quality.QVar.Set.empty, Univ.Level.Set.empty in
   let fold_params levels = function
     | LocalDef (_, b, t) -> add_levels b (add_levels t levels)
     | LocalAssum (_, t) ->
@@ -426,7 +426,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
   in
   qvars, ulevels
 
-type linearity = Linear of Sorts.QVar.t option | NonLinear
+type linearity = Linear of Quality.QVar.t option | NonLinear
 
 let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
   (* to be pseudo sort poly, every univ in the conclusion must be bound at a free quality *)
@@ -437,11 +437,11 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
     match ESorts.kind sigma s with
     | SProp | Prop | Set -> None
     | QSort (q,u) ->
-      if not (Sorts.QVar.Set.mem q non_template_qvars)
+      if not (Quality.QVar.Set.mem q non_template_qvars)
       && Univ.Universe.for_all (fun (u,_) ->
              match Univ.Level.Map.find_opt u template_univs with
              | None | Some None -> false
-             | Some (Some q') -> QVar.equal q q')
+             | Some (Some q') -> Quality.QVar.equal q q')
            u
       then Some q
       else None
@@ -524,11 +524,11 @@ let nontemplate_univ_entry ~poly sigma udecl =
 
 let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let template_qvars = match pseudo_sort_poly with
-    | Some q -> QVar.Set.singleton q
-    | None -> QVar.Set.empty
+    | Some q -> Quality.QVar.Set.singleton q
+    | None -> Quality.QVar.Set.empty
   in
   let sigma = Evd.collapse_sort_variables ~except:template_qvars sigma in
-  let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
+  let sigma = Quality.QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
       template_qvars sigma
   in
   let uctx =

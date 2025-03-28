@@ -880,8 +880,8 @@ let eq_constr_universes_proj env sigma m n =
 let add_universes_of_instance sigma (qs,us) u =
   let u = EInstance.kind sigma u in
   let qs', us' = UVars.Instance.levels u in
-  let qs = Sorts.Quality.(Set.fold (fun q qs -> match q with
-      | QVar q -> Sorts.QVar.Set.add q qs
+  let qs = Quality.(Set.fold (fun q qs -> match q with
+      | Quality.QVar q -> Quality.QVar.Set.add q qs
       | QConstant _ -> qs)
       qs' qs)
   in
@@ -892,7 +892,7 @@ let add_relevance sigma (qs,us as v) r =
   (* NB this normalizes above_prop to Relevant which makes it disappear *)
   match ERelevance.kind sigma r with
   | Irrelevant | Relevant -> v
-  | RelevanceVar q -> QVar.Set.add q qs, us
+  | RelevanceVar q -> Quality.QVar.Set.add q qs, us
 
 let univs_and_qvars_visitor sigma =
   let open Univ in
@@ -901,7 +901,7 @@ let univs_and_qvars_visitor sigma =
     | Sorts.Type u ->
       qs, Universe.levels ~init:us u
     | Sorts.QSort (q,u) ->
-      Sorts.QVar.Set.add q qs, Universe.levels ~init:us u
+      Quality.QVar.Set.add q qs, Universe.levels ~init:us u
     | Sorts.(SProp | Prop | Set) -> acc
   in
   let visit_instance acc u = add_universes_of_instance sigma acc u in
@@ -912,7 +912,7 @@ let univs_and_qvars_visitor sigma =
     visit_relevance = visit_relevance;
   }
 
-let universes_of_constr ?(init=Sorts.QVar.Set.empty,Univ.Level.Set.empty) sigma c =
+let universes_of_constr ?(init=Quality.QVar.Set.empty,Univ.Level.Set.empty) sigma c =
   let visit = univs_and_qvars_visitor sigma in
   let rec aux s c =
     let kc = kind sigma c in

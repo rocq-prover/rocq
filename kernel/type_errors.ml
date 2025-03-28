@@ -71,10 +71,10 @@ type ('constr, 'types, 'r) ptype_error =
   | IllFormedRecBody of 'constr pguard_error * (Name.t, 'r) Context.pbinder_annot array * int * env * ('constr, 'types) punsafe_judgment array
   | IllTypedRecBody of
       int * (Name.t, 'r) Context.pbinder_annot array * ('constr, 'types) punsafe_judgment array * 'types array
-  | UnsatisfiedElimConstraints of Sorts.ElimConstraints.t
+  | UnsatisfiedElimConstraints of Quality.ElimConstraints.t
   | UnsatisfiedConstraints of Constraints.t
-  | UnsatisfiedQCumulConstraints of Sorts.QCumulConstraints.t
-  | UndeclaredQualities of Sorts.QVar.Set.t
+  | UnsatisfiedQCumulConstraints of Quality.QCumulConstraints.t
+  | UndeclaredQualities of Quality.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
   | DisallowedSProp
   | BadBinderRelevance of 'r * ('constr, 'types, 'r) Context.Rel.Declaration.pt

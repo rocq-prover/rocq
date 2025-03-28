@@ -552,9 +552,9 @@ val restrict_universe_context : evar_map -> Univ.Level.Set.t -> evar_map
 
 (** Raises Not_found if not a name for a universe in this map. *)
 val universe_of_name : evar_map -> Id.t -> Univ.Level.t
-val quality_of_name : evar_map -> Id.t -> Sorts.QVar.t
+val quality_of_name : evar_map -> Id.t -> Quality.QVar.t
 
-val is_rigid_qvar : evar_map -> Sorts.QVar.t -> bool
+val is_rigid_qvar : evar_map -> Quality.QVar.t -> bool
 
 val is_relevance_irrelevant : evar_map -> erelevance -> bool
 (** Whether the relevance is irrelevant modulo qstate *)
@@ -563,7 +563,7 @@ val is_relevance_irrelevant : evar_map -> erelevance -> bool
 val universe_binders : evar_map -> UnivNames.universe_binders
 
 val new_univ_level_variable : ?loc:Loc.t -> ?name:Id.t -> rigid -> evar_map -> evar_map * Univ.Level.t
-val new_quality_variable : ?loc:Loc.t -> ?name:Id.t -> evar_map -> evar_map * Sorts.QVar.t
+val new_quality_variable : ?loc:Loc.t -> ?name:Id.t -> evar_map -> evar_map * Quality.QVar.t
 val new_sort_variable : ?loc:Loc.t -> rigid -> evar_map -> evar_map * esorts
 
 val add_forgotten_univ : evar_map -> Univ.Level.t -> evar_map
@@ -584,14 +584,14 @@ val set_leq_level : evar_map -> Univ.Level.t -> Univ.Level.t -> evar_map
 val set_eq_instances : ?flex:bool ->
   evar_map -> einstance -> einstance -> evar_map
 
-val set_eq_qualities : evar_map -> Sorts.Quality.t -> Sorts.Quality.t -> evar_map
-val set_above_prop : evar_map -> Sorts.Quality.t -> evar_map
+val set_eq_qualities : evar_map -> Quality.t -> Quality.t -> evar_map
+val set_above_prop : evar_map -> Quality.t -> evar_map
 
 val check_eq : evar_map -> esorts -> esorts -> bool
 val check_leq : evar_map -> esorts -> esorts -> bool
 
 val check_constraints : evar_map -> Univ.Constraints.t -> bool
-val check_elim_constraints : evar_map -> Sorts.ElimConstraints.t -> bool
+val check_elim_constraints : evar_map -> Quality.ElimConstraints.t -> bool
 val check_quconstraints : evar_map -> Sorts.QUConstraints.t -> bool
 
 val ustate : evar_map -> UState.t
@@ -623,7 +623,7 @@ val merge_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> UnivGen.sort_context_set -> evar_map
 
-val merge_sort_variables : ?loc:Loc.t -> ?sideff:bool -> evar_map -> Sorts.QVar.Set.t -> evar_map
+val merge_sort_variables : ?loc:Loc.t -> ?sideff:bool -> evar_map -> Quality.QVar.Set.t -> evar_map
 
 val with_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a Univ.in_universe_context_set -> evar_map * 'a
 
@@ -631,7 +631,7 @@ val with_sort_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a UnivGen.in_sor
 
 val nf_univ_variables : evar_map -> evar_map
 
-val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> evar_map -> evar_map
+val collapse_sort_variables : ?except:Quality.QVar.Set.t -> evar_map -> evar_map
 
 val fix_undefined_variables : evar_map -> evar_map
 

@@ -45,7 +45,7 @@ let check_constraints cst env =
   else error_unsatisfied_constraints env cst
 
 let check_qconstraints qcst env =
-  if Sorts.QCumulConstraints.trivial qcst then ()
+  if Quality.QCumulConstraints.trivial qcst then ()
   else error_unsatisfied_qcumul_constraints env qcst
 
 (* This should be a type (a priori without intention to be an assumption) *)
@@ -66,9 +66,9 @@ let infer_assumption env t ty =
 let nf_relevance env = function
   | Sorts.RelevanceVar q as r ->
      if Environ.Internal.is_above_prop env q ||
-          Inductive.eliminates_to (Environ.qualities env) (Sorts.Quality.QVar q) Sorts.Quality.qprop
+          Inductive.eliminates_to (Environ.qualities env) (Quality.QVar q) Quality.qprop
      then Sorts.Relevant
-     else if Inductive.eliminates_to (Environ.qualities env) Sorts.Quality.qsprop (Sorts.Quality.QVar q)
+     else if Inductive.eliminates_to (Environ.qualities env) Quality.qsprop (Quality.QVar q)
      then Sorts.Irrelevant
      else r
   | (Sorts.Irrelevant | Sorts.Relevant) as r -> r
@@ -880,7 +880,7 @@ let execute env c =
 (* Derived functions *)
 
 let check_declared_qualities env qualities =
-  let module S = Sorts.QVar.Set in
+  let module S = Quality.QVar.Set in
   let unknown = S.diff qualities (Environ.qvars env) in
   if S.is_empty unknown then ()
   else error_undeclared_qualities env unknown

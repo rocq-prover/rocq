@@ -449,7 +449,7 @@ type arity_error =
   | NonInformativeToInformative
 
 let error_elim_explain kp ki =
-  let open Sorts.Quality in
+  let open Quality in
   match kp,ki with
   | QConstant QType, QConstant QProp -> Some NonInformativeToInformative
   | _ -> None

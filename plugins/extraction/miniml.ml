@@ -42,10 +42,10 @@ struct
   let ground inst =
     let qvars, _ = UVars.Instance.to_array inst in
     let map q = match q with
-    | Sorts.Quality.QConstant (QProp | QSProp) -> false
-    | Sorts.Quality.QConstant QType -> true
-    | Sorts.Quality.QVar qv ->
-      match Sorts.QVar.repr qv with
+    | Quality.QConstant (QProp | QSProp) -> false
+    | Quality.QConstant QType -> true
+    | Quality.QVar qv ->
+      match Quality.QVar.repr qv with
       | Var _ -> CErrors.anomaly (Pp.str "Non-ground instance")
       | Unif _ | Global _ -> true (* informative by default *)
     in
@@ -54,11 +54,11 @@ struct
   let instantiate actx inst =
     let u = UVars.make_abstract_instance actx in
     let fl l = l in
-    let fq q = match Sorts.QVar.var_index q with
+    let fq q = match Quality.QVar.var_index q with
     | None -> assert false
     | Some i ->
-      if inst.(i) then Sorts.Quality.qtype
-      else Sorts.Quality.qsprop
+      if inst.(i) then Quality.qtype
+      else Quality.qsprop
     in
     UVars.Instance.subst_fn (fq, fl) u
 

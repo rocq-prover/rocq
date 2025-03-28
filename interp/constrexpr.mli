@@ -24,10 +24,10 @@ type univ_level_expr  = sort_name_expr Glob_term.glob_sort_gen
 type qvar_expr =
   | CQVar of qualid
   | CQAnon of Loc.t option
-  | CRawQVar of Sorts.QVar.t
+  | CRawQVar of Quality.QVar.t
 
 type quality_expr =
-  | CQConstant of Sorts.Quality.constant
+  | CQConstant of Quality.constant
   | CQualVar of qvar_expr
 
 type relevance_expr =

@@ -69,4 +69,4 @@ val declare_prop_but_default_dependent_elim : inductive -> unit
 
 val is_prop_but_default_dependent_elim : inductive -> bool
 
-val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body -> Sorts.Quality.t
+val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body -> Quality.t

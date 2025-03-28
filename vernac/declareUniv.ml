@@ -35,7 +35,7 @@ type sort_source =
 
 type sort_name_decl = {
   sdecl_src : sort_source; (* global sort introduced by some global value *)
-  sdecl_named : (Id.t * Sorts.QGlobal.t) list;
+  sdecl_named : (Id.t * Quality.QGlobal.t) list;
 }
 
 let check_exists_universe sp =
@@ -226,13 +226,13 @@ let do_sort ~poly l =
   let () = input_sort_names (src, l) in
   match poly with
   | false ->
-    let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
-      Sorts.QVar.Set.empty l
+    let qs = List.fold_left  (fun qs (_, qv) -> Quality.QVar.(Set.add (make_global qv) qs))
+      Quality.QVar.Set.empty l
     in
-    Global.push_qualities qs
+    Global.push_quality_set qs
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
-    let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in
+    let qs = CArray.map_of_list (fun (_,sg) -> Quality.global sg) l in
     let ctx =
       UVars.UContext.make {quals=names; univs=[||]}
         (UVars.Instance.of_array (qs,[||]), Constraints.empty)

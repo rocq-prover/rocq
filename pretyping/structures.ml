@@ -195,7 +195,7 @@ let print = function
   | Proj_cs p -> Nametab.pr_global_env Id.Set.empty (GlobRef.ConstRef (Names.Projection.Repr.constant p))
   | Prod_cs -> str "forall _, _"
   | Default_cs -> str "_"
-  | Sort_cs s -> UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s
+  | Sort_cs s -> UnivGen.QualityOrSet.pr Quality.QVar.raw_pr s
 
 end
 

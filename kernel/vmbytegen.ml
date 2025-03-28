@@ -322,12 +322,12 @@ let pos_instance r sz =
 let is_toplevel_inst env u =
   UVars.eq_sizes env.uinst_len (UVars.Instance.length u)
   && let qs, us = UVars.Instance.to_array u in
-  Array.for_all_i (fun i q -> Sorts.Quality.equal q (Sorts.Quality.var i)) 0 qs
+  Array.for_all_i (fun i q -> Quality.equal q (Quality.var i)) 0 qs
   && Array.for_all_i (fun i l -> Univ.Level.equal l (Univ.Level.var i)) 0 us
 
 let is_closed_inst u =
   let qs, us = UVars.Instance.to_array u in
-  Array.for_all (fun q -> Option.is_empty (Sorts.Quality.var_index q)) qs
+  Array.for_all (fun q -> Option.is_empty (Quality.var_index q)) qs
   && Array.for_all (fun l -> Option.is_empty (Univ.Level.var_index l)) us
 
 (*i  Examination of the continuation *)
@@ -579,7 +579,7 @@ let rec compile_lam env cenv lam sz cont =
     | Sorts.Type u ->
       Univ.Universe.exists (fun (l, _) -> Option.has_some (Univ.Level.var_index l)) u
     | Sorts.QSort (q, u) ->
-      Option.has_some (Sorts.QVar.var_index q)
+      Option.has_some (Quality.QVar.var_index q)
       || Univ.Universe.exists (fun (l, _) -> Option.has_some (Univ.Level.var_index l)) u
     in
     let compile_instance cenv () sz cont =
@@ -873,7 +873,7 @@ let is_univ_copy (maxq,maxu) u =
     Array.length a = max
     && Array.for_all_i (fun i x -> Option.equal Int.equal (var_index x) (Some i)) 0 a
   in
-  check_array maxq Sorts.Quality.var_index qs
+  check_array maxq Quality.var_index qs
   && check_array maxu Univ.Level.var_index us
 
 let dump_bytecode_flag, dump_bytecode = CDebug.create_full ~name:"vmbytecode" ()

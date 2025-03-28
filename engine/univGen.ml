@@ -68,27 +68,27 @@ module QualityOrSet = struct
     | Set -> Pp.str"Set"
     | Qual q -> Quality.pr prv q
 
-  let raw_pr = pr Sorts.QVar.raw_pr
+  let raw_pr = pr Quality.QVar.raw_pr
 
   let all_constants = Set :: List.map (fun q -> Qual q) Quality.all_constants
   let all = Set :: List.map (fun q -> Qual q) Quality.all
 end
 
 
-type sort_context_set = (Sorts.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
+type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 
-let empty_sort_context = (QVar.Set.empty, Level.Set.empty), Constraints.empty
+let empty_sort_context = (Quality.QVar.Set.empty, Level.Set.empty), Constraints.empty
 
 let is_empty_sort_context ((qs,us),csts) =
-  QVar.Set.is_empty qs && Level.Set.is_empty us && Constraints.is_empty csts
+  Quality.QVar.Set.is_empty qs && Level.Set.is_empty us && Constraints.is_empty csts
 
 let sort_context_union ((qs,us),csts) ((qs',us'),csts') =
-  ((QVar.Set.union qs qs', Level.Set.union us us'),Constraints.union csts csts')
+  ((Quality.QVar.Set.union qs qs', Level.Set.union us us'),Constraints.union csts csts')
 
 let diff_sort_context ((qs,us),csts) ((qs',us'),csts') =
-  (QVar.Set.diff qs qs', Level.Set.diff us us'), Constraints.diff csts csts'
+  (Quality.QVar.Set.diff qs qs', Level.Set.diff us us'), Constraints.diff csts csts'
 
 type univ_length_mismatch = {
   gref : GlobRef.t;
@@ -128,20 +128,20 @@ let new_sort_id =
   fun () -> incr cnt; !cnt
 
 let new_sort_global id =
-  Sorts.QGlobal.make (Global.current_dirpath ()) id
+  Quality.QGlobal.make (Global.current_dirpath ()) id
 
 let fresh_sort_quality () =
   let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
-  Sorts.QVar.make_unif s (new_sort_id ())
+  Quality.QVar.make_unif s (new_sort_id ())
 
 let fresh_instance auctx : _ in_sort_context_set =
   let qlen, ulen = AbstractContext.size auctx in
-  let qinst = Array.init qlen (fun _ -> Sorts.Quality.QVar (fresh_sort_quality ())) in
+  let qinst = Array.init qlen (fun _ -> Quality.QVar (fresh_sort_quality ())) in
   let uinst = Array.init ulen (fun _ -> fresh_level()) in
   let qctx = Array.fold_left (fun qctx q -> match q with
-      | Sorts.Quality.QVar q -> Sorts.QVar.Set.add q qctx
+      | Quality.QVar q -> Quality.QVar.Set.add q qctx
       | _ -> assert false)
-      Sorts.QVar.Set.empty
+      Quality.QVar.Set.empty
       qinst
   in
   let uctx = Array.fold_right Level.Set.add uinst Level.Set.empty in
@@ -156,7 +156,7 @@ let existing_instance ?loc ~gref auctx inst =
         Loc.raise ?loc (UniverseLengthMismatch { gref; actual; expect })
       else ()
   in
-  inst, ((Sorts.QVar.Set.empty,Level.Set.empty), AbstractContext.instantiate inst auctx)
+  inst, ((Quality.QVar.Set.empty,Level.Set.empty), AbstractContext.instantiate inst auctx)
 
 let fresh_instance_from ?loc ctx = function
   | Some (gref,inst) -> existing_instance ?loc ~gref ctx inst
@@ -206,7 +206,7 @@ let fresh_sort_in_quality =
   | Set -> Sorts.set, empty_sort_context
   | Qual (QConstant QType | QVar _ (* Treat as Type *)) ->
      let u = fresh_level () in
-     sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), Constraints.empty)
+     sort_of_univ (Univ.Universe.make u), ((Quality.QVar.Set.empty,Level.Set.singleton u), Constraints.empty)
 
 let new_global_univ () =
   let u = fresh_level () in
@@ -227,10 +227,10 @@ let fresh_universe_context_set_instance ctx =
 
 let fresh_sort_context_instance ((qs,us),csts) =
   let usubst, (us, csts) = fresh_universe_context_set_instance (us,csts) in
-  let qsubst, qs = QVar.Set.fold (fun q (qsubst,qs) ->
+  let qsubst, qs = Quality.QVar.Set.fold (fun q (qsubst,qs) ->
       let q' = fresh_sort_quality () in
-      QVar.Map.add q (Sorts.Quality.QVar q') qsubst, QVar.Set.add q' qs)
+      Quality.QVar.Map.add q (Quality.QVar q') qsubst, Quality.QVar.Set.add q' qs)
       qs
-      (QVar.Map.empty, QVar.Set.empty)
+      (Quality.QVar.Map.empty, Quality.QVar.Set.empty)
   in
   (qsubst, usubst), ((qs, us), csts)

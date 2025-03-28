@@ -485,7 +485,7 @@ module Search = struct
   (** Local hints *)
   let autogoal_cache = Summary.ref ~name:"autogoal_cache"
       (Libnames.dummy_full_path, true, Context.Named.empty, Hints.Modes.empty,
-       Hint_db.empty TransparentState.full true, Sorts.QVar.Set.empty)
+       Hint_db.empty TransparentState.full true, Quality.QVar.Set.empty)
 
   let make_autogoal_hints only_classes (modes,st as mst) gl =
     let env = Proofview.Goal.env gl in
@@ -497,7 +497,7 @@ module Search = struct
     let eq c1 c2 = EConstr.eq_constr sigma c1 c2 in
     if Libnames.eq_full_path cwd dir &&
          (onlyc == only_classes) &&
-           Sorts.QVar.Set.equal qvars qvars' &&
+           Quality.QVar.Set.equal qvars qvars' &&
              Context.Named.equal (ERelevance.equal sigma) eq sign sign' &&
                cached_modes == modes
     then cached_hints

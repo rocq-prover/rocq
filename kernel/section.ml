@@ -30,7 +30,7 @@ type 'a t = {
       with global declarations *)
   mono_universes : ContextSet.t;
   (** Global universes introduced in the section *)
-  mono_qualities : Sorts.QVar.Set.t;
+  mono_qualities : Quality.QVar.Set.t;
   (** Global universes introduced in the section *)
   poly_universes : UContext.t;
   (** Universes local to the section *)
@@ -81,14 +81,14 @@ let push_constraints uctx sec =
   { sec with mono_universes }
 
 let push_mono_qualities qs sec =
-  { sec with mono_qualities = Sorts.QVar.Set.union sec.mono_qualities qs }
+  { sec with mono_qualities = Quality.QVar.Set.union sec.mono_qualities qs }
 
 let open_section ~custom prev =
   {
     prev;
     context = [];
     mono_universes = ContextSet.empty;
-    mono_qualities = Sorts.QVar.Set.empty;
+    mono_qualities = Quality.QVar.Set.empty;
     poly_universes = UContext.empty;
     all_poly_univs = Option.cata (fun sec -> sec.all_poly_univs) Instance.empty prev;
     has_poly_univs = Option.cata has_poly_univs false prev;

@@ -1183,7 +1183,7 @@ let ml_of_instance instance u =
     let u_code = get_instance_code i in
     let has_variable =
       let qs, us = UVars.Instance.to_array u in
-      Array.exists (fun q -> Option.has_some (Sorts.Quality.var_index q)) qs
+      Array.exists (fun q -> Option.has_some (Quality.var_index q)) qs
       || Array.exists (fun u -> Option.has_some (Univ.Level.var_index u)) us
     in
     let u_code =

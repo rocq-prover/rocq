@@ -1214,7 +1214,7 @@ let set_eq_qualities evd q1 q2 =
 
 let set_above_prop evd q =
   add_universe_constraints evd @@
-    UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q))
+    UnivProblem.Set.singleton (QLeq (Quality.qprop, q))
 
 let check_eq evd s s' =
   let quals = elim_graph evd in

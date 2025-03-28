@@ -222,8 +222,8 @@ let universe_binders_with_opt_names orig names =
         })
   in
   let fold_qnamed i ((qbind,ubind),(revqbind,revubind) as o) = function
-    | Name id -> let ui = Sorts.QVar.make_var i in
-      (Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)
+    | Name id -> let ui = Quality.QVar.make_var i in
+      (Id.Map.add id ui qbind, ubind), (Quality.QVar.Map.add ui id revqbind, revubind)
     | Anonymous -> o
   in
   let fold_unamed i ((qbind,ubind),(revqbind,revubind) as o) = function
@@ -236,9 +236,9 @@ let universe_binders_with_opt_names orig names =
   let fold_qanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
     | Name _ -> o
     | Anonymous ->
-      let ui = Sorts.QVar.make_var i in
+      let ui = Quality.QVar.make_var i in
       let id = Namegen.next_ident_away_from u_ident (fun id -> Id.Map.mem id qbind) in
-      (id, ((Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)))
+      (id, ((Id.Map.add id ui qbind, ubind), (Quality.QVar.Map.add ui id revqbind, revubind)))
   in
   let fold_uanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
     | Name _ -> o
