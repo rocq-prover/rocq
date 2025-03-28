@@ -9,6 +9,24 @@
 (************************************************************************)
 open Sorts
 
+module ElimTable = struct
+  open Quality
+
+  let const_eliminates_to q q' =
+    match q, q' with
+    | QType, _ -> true
+    | QProp, (QProp | QSProp) -> true
+    | QSProp, QSProp -> true
+    | (QProp | QSProp), _ -> false
+
+  let eliminates_to q q' =
+    match q, q' with
+    | QConstant QType, _ -> true
+    | QConstant q, QConstant q' -> const_eliminates_to q q'
+    | QVar q, QVar q' -> QVar.equal q q'
+    | (QConstant _ | QVar _), _ -> false
+end
+
 module G = AcyclicGraph.Make(struct
     type t = Quality.t
     module Set = Quality.Set
@@ -51,7 +69,7 @@ type explanation =
   | Other of Pp.t
 
 type quality_inconsistency =
-  ((QVar.t -> Pp.t) option) * (QConstraint.kind * Quality.t * Quality.t * explanation option)
+  ((QVar.t -> Pp.t) option) * (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 let cached_graph = ref None
 
@@ -59,9 +77,9 @@ let cached_graph = ref None
    In the acyclic graph, it means setting s to be lower or equal than s'.
    This function ensures a uniform behaviour between [check] and [enforce]. *)
 let to_graph_cstr k =
-  let open QConstraint in
+  let open ElimConstraint in
   match k with
-    | Leq -> AcyclicGraph.Le
+    | ElimTo -> AcyclicGraph.Le
     | Equal -> AcyclicGraph.Eq
 
 let check_func k =
@@ -101,7 +119,7 @@ let get_new_rigid_path g p dom =
   if RigidPaths.cardinal p = n*(n+1)/2 then None
   else
     let forbidden = List.filter (fun u -> not (RigidPaths.mem u p)) @@ non_refl_pairs dom in
-    let witness = List.filter (fun (q,q') -> check_func QConstraint.Leq g q q') forbidden in
+    let witness = List.filter (fun (q,q') -> check_func ElimConstraint.ElimTo g q q') forbidden in
     match witness with
     | [] -> None
     | x :: _ -> Some x
@@ -116,8 +134,8 @@ let set_dominant g qv q =
 (* Set the dominant sort of qv to the minimum between q1 and q2 if they are related.
    [q1] is the dominant of qv in [g]. *)
 let update_dominant_if_related g qv q1 q2 =
-  if check_func QConstraint.Leq g.graph q1 q2 then Some (set_dominant g qv q2)
-  else if check_func QConstraint.Leq g.graph q2 q1 then Some g
+  if check_func ElimConstraint.ElimTo g.graph q1 q2 then Some (set_dominant g qv q2)
+  else if check_func ElimConstraint.ElimTo g.graph q2 q1 then Some g
   else None
 
 (* If [qv] is not dominated, set dominance to [q].
@@ -137,8 +155,8 @@ let rec update_dominance g q qv =
 
 let update_dominance_if_valid g (q1,k,q2) =
   match k with
-  | QConstraint.Equal -> Some g
-  | QConstraint.Leq ->
+  | ElimConstraint.Equal -> Some g
+  | ElimConstraint.ElimTo ->
      (* if the constraint is s ~> g, dominants are not modified. *)
      if Quality.is_qconst q2 then Some g
      else
@@ -194,17 +212,17 @@ let enforce_constraint src (q1,k,q2) g =
           | Some (q1,q2) -> raise (EliminationError (CreatesForbiddenPath (q1, q2))) in
      dominance_check g (q1,k,q2)
 
-let merge_constraints src csts g = QConstraints.fold (enforce_constraint src) csts g
+let merge_constraints src csts g = ElimConstraints.fold (enforce_constraint src) csts g
 
 let check_constraint g (q1, k, q2) = check_func k g.graph q1 q2
 
-let check_constraints csts g = QConstraints.for_all (check_constraint g) csts
+let check_constraints csts g = ElimConstraints.for_all (check_constraint g) csts
 
 exception AlreadyDeclared = G.AlreadyDeclared
 
 let add_quality q g =
   let graph = G.add q g.graph in
-  let g = enforce_constraint Static (Quality.qtype, QConstraint.Leq, q) { g with graph } in
+  let g = enforce_constraint Static (Quality.qtype, ElimConstraint.ElimTo, q) { g with graph } in
   let (paths,ground_and_global_sorts) =
     if Quality.is_qglobal q
     then (RigidPaths.add (Quality.qtype, q) g.rigid_paths, q :: g.ground_and_global_sorts)
@@ -216,10 +234,10 @@ let add_quality q g =
   { g with rigid_paths = paths; ground_and_global_sorts; dominant }
 
 let enforce_eliminates_to src s1 s2 g =
-  enforce_constraint src (s1, QConstraint.Leq, s2) g
+  enforce_constraint src (s1, ElimConstraint.ElimTo, s2) g
 
 let enforce_eq s1 s2 g =
-  enforce_constraint Internal (s1, QConstraint.Equal, s2) g
+  enforce_constraint Internal (s1, ElimConstraint.Equal, s2) g
 
 let initial_graph() =
   match !cached_graph with
@@ -231,7 +249,7 @@ let initial_graph() =
         [Constants.eliminates_to] without reflexivity (should be consistent,
         otherwise the [Option.get] will fail). *)
      let fold (g,p) (q,q') =
-       if Quality.eliminates_to q q'
+       if ElimTable.eliminates_to q q'
        then (Option.get @@ G.enforce_lt q q' g, RigidPaths.add (q', q) (RigidPaths.add (q, q') p))
        (* we also add (q', q) as this check is never needed: inserting in the graph
           with Lt ensures that a path between q' and q will be detected as forbidden *)
@@ -248,7 +266,7 @@ let initial_graph() =
      graph
 
 let eliminates_to g q q' =
-  check_func QConstraint.Leq g.graph q q'
+  check_func ElimConstraint.ElimTo g.graph q q'
 
 let sort_eliminates_to g s1 s2 =
   eliminates_to g (quality s1) (quality s2)
@@ -294,7 +312,7 @@ let explain_quality_inconsistency defprv (prv, (k, q1, q2, r)) =
           prlist (fun (r,v) -> spc() ++ pr_cst r ++ str" " ++ Quality.pr prv v) p
   in
   str "Cannot enforce" ++ spc() ++ Quality.pr prv q1 ++ spc() ++
-    QConstraint.pr_kind k ++ spc() ++ Quality.pr prv q2 ++ spc() ++ reason
+    ElimConstraint.pr_kind k ++ spc() ++ Quality.pr prv q2 ++ spc() ++ reason
 
 let explain_elimination_error defprv err =
   let open Pp in
@@ -310,13 +328,3 @@ let explain_elimination_error defprv err =
   | QualityInconsistency incon ->
      str"the quality constraints are inconsistent: " ++
        explain_quality_inconsistency defprv incon
-
-module Internal = struct
-  let add_template_qvars qvars =
-    let g = initial_graph() in
-    let fold qv g =
-      let g = add_quality (Quality.QVar qv) g in
-      enforce_eliminates_to Internal (Quality.QVar qv) Quality.qprop g
-    in
-    cached_graph := Some (QVar.Set.fold fold qvars g)
-end

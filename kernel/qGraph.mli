@@ -12,6 +12,16 @@ open Sorts
 
 (** {6 Graphs of quality elimination constraints. } *)
 
+(* *********************************************** *)
+(* "Raw" elimination table between constants.
+    Used to specify the elimination rules between constant sorts. *)
+
+module ElimTable : sig
+  val eliminates_to : Quality.t -> Quality.t -> bool
+end
+
+(* ************************************************ *)
+
 type t
 
 type path_explanation
@@ -21,7 +31,7 @@ type explanation =
   | Other of Pp.t
 
 type quality_inconsistency =
-  ((QVar.t -> Pp.t) option) * (QConstraint.kind * Quality.t * Quality.t * explanation option)
+  ((QVar.t -> Pp.t) option) * (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
   | IllegalConstraint
@@ -42,9 +52,9 @@ type constraint_source =
   | Rigid
   | Static
 
-val merge_constraints : constraint_source -> QConstraints.t -> t -> t
+val merge_constraints : constraint_source -> ElimConstraints.t -> t -> t
 
-val update_dominance_if_valid : t -> QConstraint.t -> t option
+val update_dominance_if_valid : t -> ElimConstraint.t -> t option
 (** Checks if the given constraint satisfies the dominance condition:
       Let q1 ~> q2 be the given constraint, with q2 a sort variable.
       Then q1 (or the dominant sort of q1) should be related to the dominant sort of q2,
@@ -53,8 +63,8 @@ val update_dominance_if_valid : t -> QConstraint.t -> t option
     Returns [None] if the dominance *is not valid*, i.e., if the dominant sorts
     are not related. Otherwise, returns [Some g] where [g] is the updated graph. *)
 
-val check_constraint : t -> QConstraint.t -> bool
-val check_constraints : QConstraints.t -> t -> bool
+val check_constraint : t -> ElimConstraint.t -> bool
+val check_constraints : ElimConstraints.t -> t -> bool
 
 val enforce_eliminates_to : constraint_source -> Quality.t -> Quality.t -> t -> t
 (** Set the first quality to eliminate to the second one in the graph.
@@ -77,7 +87,9 @@ val initial_graph : unit -> t
     [Quality.Constants.eliminates_to]. *)
 
 val eliminates_to : t -> Quality.t -> Quality.t -> bool
+
 val eliminates_to_prop : t -> Quality.t -> bool
+
 val sort_eliminates_to : t -> Sorts.t -> Sorts.t -> bool
 
 val check_eq : t -> Quality.t -> Quality.t -> bool
@@ -91,7 +103,3 @@ val is_empty : t -> bool
 val explain_quality_inconsistency : (QVar.t -> Pp.t) -> quality_inconsistency -> Pp.t
 
 val explain_elimination_error : (QVar.t -> Pp.t) -> elimination_error -> Pp.t
-
-module Internal : sig
-  val add_template_qvars : QVar.Set.t -> unit
-end
