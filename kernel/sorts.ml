@@ -241,6 +241,9 @@ module Quality = struct
   let is_qsprop = equal qsprop
   let is_qprop = equal qprop
   let is_qtype = equal qtype
+  let is_qvar q = match q with QVar _ -> true | _ -> false
+  let is_qconst q = match q with QConstant _ -> true | _ -> false
+  let is_qglobal q = match q with QVar (QVar.Global _) -> true | _ -> false
 
   module Self = struct type nonrec t = t let compare = compare end
   module Set = CSet.Make(Self)
@@ -264,7 +267,7 @@ module QConstraint = struct
 
   let pr_kind = function
     | Equal -> Pp.str "="
-    | Leq -> Pp.str "<="
+    | Leq -> Pp.str "->"
 
   type t = Quality.t * kind * Quality.t
 

@@ -1057,6 +1057,7 @@ module Internal = struct
     let env = push_context ~strict:false uctx env in
     let qvars, _ = UVars.UContext.to_context_set uctx in
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
+    let _ = QGraph.Internal.add_template_qvars qvars in
     env
 
   let is_above_prop env q = UGraph.Internal.is_above_prop env.env_universes q
