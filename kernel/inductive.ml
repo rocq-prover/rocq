@@ -388,7 +388,7 @@ let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t
 
 (** Elimination functions *)
 
-let eliminates_to = Quality.eliminates_to
+let eliminates_to q q' = QGraph.eliminates_to (QGraph.initial_graph()) q q'
 
 type squash = SquashToSet | SquashToQuality of Quality.t
 
@@ -452,11 +452,11 @@ let is_allowed_elimination specifu s =
     specifu s
 
 (* We always allow fixpoints on values in Prop (for the accessibility predicate for instance). *)
-let is_allowed_fixpoint sind star =
-  Sorts.equal sind Sorts.prop ||
-    eliminates_to
-      (Sorts.quality sind)
-      (Sorts.quality star)
+let is_allowed_fixpoint dom codom =
+  let open Sorts in
+  match Sorts.quality dom with
+  | QConstant (QType | QProp) -> true
+  | QConstant _ | QVar _ -> eliminates_to dom codom
 
 (************************************************************************)
 
