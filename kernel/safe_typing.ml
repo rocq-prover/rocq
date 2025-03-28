@@ -1596,6 +1596,9 @@ let close_section senv =
       senv (List.rev rev_reimport)
   in
   (* Third phase: replay the discharged section contents *)
+  let filtered_qualities =
+    Sorts.QVar.Set.filter (fun q -> not @@ Sorts.QVar.is_unif q) senv.qualities in
+  let senv = { senv with qualities = filtered_qualities } in
   let senv = push_context_set ~strict:true cstrs senv in
   let senv = push_qualities qs senv in
   let fold entry senv =

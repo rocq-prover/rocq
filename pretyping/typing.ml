@@ -249,14 +249,14 @@ let unify_relevance sigma r1 r2 =
   | Irrelevant, RelevanceVar q | RelevanceVar q, Irrelevant ->
     let sigma =
       Evd.add_quconstraints sigma
-        (Sorts.ElimConstraints.singleton (Sorts.Quality.qsprop, Equal, QVar q),
+        (Sorts.QCumulConstraints.singleton (Sorts.Quality.qsprop, Eq, QVar q),
          Univ.Constraints.empty)
     in
     Some sigma
   | Relevant, RelevanceVar q | RelevanceVar q, Relevant ->
     let sigma =
       Evd.add_quconstraints sigma
-        (Sorts.ElimConstraints.singleton (QVar q, ElimTo, Sorts.Quality.qprop),
+        (Sorts.QCumulConstraints.singleton (Sorts.Quality.qprop, Leq, QVar q),
          Univ.Constraints.empty)
     in
     Some sigma
@@ -265,7 +265,7 @@ let unify_relevance sigma r1 r2 =
     else
       let sigma =
         Evd.add_quconstraints sigma
-          (Sorts.ElimConstraints.singleton (QVar q1, Equal, QVar q2),
+          (Sorts.QCumulConstraints.singleton (QVar q1, Eq, QVar q2),
            Univ.Constraints.empty)
       in
       Some sigma
@@ -289,7 +289,7 @@ let judge_of_case env sigma case ci (pj,rp) iv cj lfj =
   let () = check_case_info env ind ci in
   let sigma = check_branch_types env sigma ind cj (lfj,bty) in
   let () = if (match iv with | NoInvert -> false | CaseInvert _ -> true)
-              != Typeops.should_invert_case env (ERelevance.kind sigma rp) ci
+              != Inductiveops.Internal.should_invert_case env sigma (ERelevance.kind sigma rp) ci
     then Type_errors.error_bad_invert env
   in
   sigma, { uj_val  = mkCase case;
@@ -335,7 +335,8 @@ let check_fix env sigma pfix =
   let inj c = EConstr.to_constr ~abort_on_undefined_evars:false sigma c in
   let (idx, (ids, cs, ts)) = pfix in
   let ids = Array.map EConstr.Unsafe.to_binder_annot ids in
-  check_fix ~evars:(Evd.evar_handler sigma) env (idx, (ids, Array.map inj cs, Array.map inj ts))
+  let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
+  check_fix ~evars:(Evd.evar_handler sigma) ~elim_to env (idx, (ids, Array.map inj cs, Array.map inj ts))
 
 let check_cofix env sigma pcofix =
   let inj c = EConstr.to_constr sigma c in

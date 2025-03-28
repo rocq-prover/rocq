@@ -1060,8 +1060,7 @@ module Internal = struct
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
     env
 
-  let is_above_prop env q =
-    UGraph.Internal.is_above_prop env.env_universes q
+  let is_above_prop env = UGraph.Internal.is_above_prop (universes env)
 
   module View =
   struct

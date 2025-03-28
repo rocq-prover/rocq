@@ -1052,6 +1052,8 @@ let univ_flexible_alg = UnivFlexible true
 
 let ustate d = d.universes
 
+let elim_graph d = UState.elim_graph d.universes
+
 let evar_universe_context d = ustate d
 
 let universe_context_set d = UState.context_set d.universes
@@ -1197,32 +1199,41 @@ let set_leq_sort evd s1 s2 =
   match is_eq_sort s1 s2 with
   | None -> evd
   | Some (u1, u2) ->
-    if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
-       add_universe_constraints evd (UnivProblem.Set.singleton (UnivProblem.ULe (u1,u2)))
+     if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
+       add_universe_constraints evd @@
+         UnivProblem.Set.singleton (UnivProblem.ULe (u1,u2))
      else evd
 
 let set_eq_qualities evd q1 q2 =
-  add_universe_constraints evd (UnivProblem.Set.singleton (QEq (q1, q2)))
+  add_universe_constraints evd @@ UnivProblem.Set.singleton (QEq (q1, q2))
 
 let set_above_prop evd q =
-  add_universe_constraints evd (UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q)))
+  add_universe_constraints evd @@
+    UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q))
 
 let check_eq evd s s' =
+  let quals = elim_graph evd in
   let ustate = evd.universes in
-  UGraph.check_eq_sort (UState.ugraph ustate) (UState.nf_sort ustate s) (UState.nf_sort ustate s')
+  let univs = UState.ugraph ustate in
+  UGraph.check_eq_sort quals univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
 
 let check_leq evd s s' =
+  let quals = elim_graph evd in
   let ustate = evd.universes in
-  UGraph.check_leq_sort (UState.ugraph ustate) (UState.nf_sort ustate s) (UState.nf_sort ustate s')
+  let univs = UState.ugraph ustate in
+  UGraph.check_leq_sort quals univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
 
 let check_constraints evd csts =
   UGraph.check_constraints csts (UState.ugraph evd.universes)
+
+let check_qconstraints evd csts =
+  UState.check_qconstraints evd.universes csts
 
 let check_elim_constraints evd csts =
   UState.check_elim_constraints evd.universes csts
 
 let check_quconstraints evd (qcsts,ucsts) =
-  check_elim_constraints evd qcsts && check_constraints evd ucsts
+  check_qconstraints evd qcsts && check_constraints evd ucsts
 
 let fix_undefined_variables evd =
   { evd with universes = UState.fix_undefined_variables evd.universes }

@@ -92,7 +92,8 @@ let check_conv_error error why state poly pb env a1 a2 =
   else match Conversion.generic_conv pb ~l2r:false TransparentState.full env state a1 a2 with
   | Result.Ok state -> state
   | Result.Error None -> error why
-  | Result.Error (Some e) -> error (IncompatibleUniverses e)
+  | Result.Error (Some (Univ e)) -> error (IncompatibleUniverses e)
+  | Result.Error (Some (Qual e)) -> error (IncompatibleQualities e)
 
 let check_universes error env u1 u2 =
   match u1, u2 with

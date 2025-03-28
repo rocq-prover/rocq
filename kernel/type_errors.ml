@@ -72,6 +72,7 @@ type ('constr, 'types, 'r) ptype_error =
       int * (Name.t, 'r) Context.pbinder_annot array * ('constr, 'types) punsafe_judgment array * 'types array
   | UnsatisfiedElimConstraints of Sorts.ElimConstraints.t
   | UnsatisfiedConstraints of Constraints.t
+  | UnsatisfiedQCumulConstraints of Sorts.QCumulConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
   | DisallowedSProp
@@ -159,6 +160,9 @@ let error_unsatisfied_elim_constraints env c =
 let error_unsatisfied_constraints env c =
   raise (TypeError (env, UnsatisfiedConstraints c))
 
+let error_unsatisfied_qcumul_constraints env c =
+  raise (TypeError (env, UnsatisfiedQCumulConstraints c))
+
 let error_undeclared_qualities env l =
   raise (TypeError (env, UndeclaredQualities l))
 
@@ -216,7 +220,7 @@ let map_pguard_error f = function
 let map_ptype_error fr f = function
 | UnboundRel _ | UnboundVar _ | CaseOnPrivateInd _ | IllFormedCaseParams
 | UndeclaredQualities _ | UndeclaredUniverses _ | DisallowedSProp
-| UnsatisfiedElimConstraints _ | UnsatisfiedConstraints _
+| UnsatisfiedElimConstraints _ | UnsatisfiedConstraints _ | UnsatisfiedQCumulConstraints _
 | ReferenceVariables _ | BadInvert | BadVariance _ | UndeclaredUsedVariables _ | IllFormedConstant _ | IllFormedInductive _ as e -> e
 | NotAType j -> NotAType (on_judgment f j)
 | BadAssumption j -> BadAssumption (on_judgment f j)
