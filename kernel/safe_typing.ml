@@ -1377,7 +1377,7 @@ let end_module l restype senv =
   let mbids = List.rev_map fst params in
   let mb = build_module_body params restype senv in
   let newenv = Environ.set_universes (Environ.universes senv.env) oldsenv.env in
-  let newenv = Environ.set_qualities (Environ.qualities senv.env) newenv in
+  let newenv = Environ.set_qualities (Environ.qvars senv.env) newenv in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
   let senv' = propagate_loads { senv with env = newenv } in
@@ -1495,6 +1495,9 @@ let start_library dir senv =
 
 let export ~output_native_objects senv dir =
   let () = check_current_library dir senv in
+  (* qualities are in the senv only during sections *)
+  let () = assert (Sorts.QVar.Set.is_empty @@
+                     Sorts.QVar.Set.diff (Environ.qvars senv.env) (senv.qualities)) in
   let mp = senv.modpath in
   let str = NoFunctor (List.rev senv.revstruct) in
   let mb = Mod_declarations.make_module_body str senv.modresolver senv.local_retroknowledge in
@@ -1514,7 +1517,7 @@ let export ~output_native_objects senv dir =
     comp_name = dir;
     comp_mod = mb;
     comp_univs = senv.univ;
-    comp_qualities = Environ.qualities senv.env;
+    comp_qualities = Environ.qvars senv.env;
     comp_deps = Array.of_list comp_deps;
     comp_flags = permanent_flags
   } in
