@@ -53,6 +53,8 @@ sig
   val repr : t -> repr
   val of_repr : repr -> t
 
+  val is_unif : t -> bool
+
   module Set : CSig.SetS with type elt = t
 
   module Map : CMap.ExtS with type key = t and module Set := Set
@@ -130,17 +132,12 @@ module ElimConstraint : sig
 
   val compare : t -> t -> int
 
-  val trivial : t -> bool
-
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
 
   val raw_pr : t -> Pp.t
 end
 
 module ElimConstraints : sig include CSig.SetS with type elt = ElimConstraint.t
-
-  val trivial : t -> bool
-
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
 end
 
@@ -148,9 +145,30 @@ val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimCons
 
 val enforce_elim_to_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
+module QCumulConstraint : sig
+  type kind = Eq | Leq
+  type t = Quality.t * kind * Quality.t
+
+  val trivial : t -> bool
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val raw_pr : t -> Pp.t
+end
+
+module QCumulConstraints : sig
+  include CSig.SetS with type elt = QCumulConstraint.t
+  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val trivial : t -> bool
+end
+
+val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
+
+val enforce_leq_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
+
 module QUConstraints : sig
 
-  type t = ElimConstraints.t * Univ.Constraints.t
+  type t = QCumulConstraints.t * Univ.Constraints.t
 
   val union : t -> t -> t
 

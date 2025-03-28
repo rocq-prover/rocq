@@ -301,6 +301,7 @@ let explain_exn = function
       | IllTypedRecBody _ -> str"IllTypedRecBody"
       | UnsatisfiedElimConstraints _ -> str"UnsatisfiedElimConstraints"
       | UnsatisfiedConstraints _ -> str"UnsatisfiedConstraints"
+      | UnsatisfiedQCumulConstraints _ -> str"UnsatisfiedQCumulConstraints"
       | DisallowedSProp -> str"DisallowedSProp"
       | BadBinderRelevance _ -> str"BadBinderRelevance"
       | BadCaseRelevance _ -> str"BadCaseRelevance"

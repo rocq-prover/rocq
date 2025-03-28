@@ -110,7 +110,8 @@ val is_squashed : env -> mind_specif puniverses -> squash option
 val is_allowed_elimination_actions : QGraph.t -> Sorts.t -> bool allow_elimination_actions
 
 val is_allowed_elimination : env -> mind_specif puniverses -> Sorts.t -> bool
-val is_allowed_fixpoint : QGraph.t -> Sorts.t -> Sorts.t -> bool
+val is_allowed_fixpoint : (Sorts.Quality.t -> Sorts.Quality.t -> bool)
+  -> Sorts.t -> Sorts.t -> bool
 
 (** End of elimination functions *)
 
@@ -194,7 +195,7 @@ val is_primitive_positive_container : env -> Constant.t -> bool
 
 (** When [chk] is false, the guard condition is not actually
     checked. *)
-val check_fix : ?evars:evar_handler -> env -> fixpoint -> unit
+val check_fix : ?evars:evar_handler -> ?elim_to:(Sorts.Quality.t -> Sorts.Quality.t -> bool) -> env -> fixpoint -> unit
 val check_cofix : ?evars:evar_handler -> env -> cofixpoint -> unit
 
 val abstract_mind_lc : int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
