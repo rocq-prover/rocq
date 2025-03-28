@@ -20,6 +20,8 @@ module type Point = sig
   val compare : t -> t -> int
 
   val raw_pr : t -> Pp.t
+
+  val anomaly_err : t -> Pp.t
 end
 
 module Make (Point:Point) = struct
@@ -184,8 +186,7 @@ module Make (Point:Point) = struct
   let repr_node g u =
     try repr g (Index.find u g.table)
     with Not_found ->
-      CErrors.anomaly ~label:"Univ.repr"
-        Pp.(str"Universe " ++ Point.raw_pr u ++ str" undefined.")
+      CErrors.anomaly (Point.anomaly_err u)
 
   exception AlreadyDeclared
 
