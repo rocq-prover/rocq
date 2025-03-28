@@ -104,15 +104,15 @@ let update_invtblq1 ~loc evd qold qvar (curvarq, tbl) =
     | Some k ->
         CErrors.user_err ?loc
           Pp.(str "Sort variable "
-            ++ Sorts.Quality.pr (Termops.pr_evd_qvar evd) qold
+            ++ Quality.pr (Termops.pr_evd_qvar evd) qold
             ++ str" is bound multiple times in the pattern (holes number "
             ++ int k ++ str" and " ++ int curvarq ++ str").")
 
 let safe_quality_pattern_of_quality ~loc evd qsubst stateq q =
-  match Sorts.Quality.(subst (subst_fn qsubst) q) with
+  match Quality.(subst (subst_fn qsubst) q) with
   | QConstant qc -> stateq, PQConstant qc
-  | QVar qv ->
-    let qio = Sorts.QVar.var_index qv in
+  | Quality.QVar qv ->
+    let qio = Quality.QVar.var_index qv in
     let stateq = Option.fold_right (update_invtblq1 ~loc evd q) qio stateq in
     stateq, PQVar qio
 
@@ -148,7 +148,7 @@ let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s 
   | Set -> state, PSSet
   | QSort (qold, u) ->
       let sq, bq =
-        match Sorts.Quality.(var_index @@ subst_fn qsubst qold) with
+        match Quality.(var_index @@ subst_fn qsubst qold) with
         | Some q -> update_invtblq1 ~loc evd (QVar qold) q sq, Some q
         | None -> sq, None
       in
@@ -496,14 +496,14 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs = Vars.subst_univs_level_constr usubst rhs in
 
   let test_qvar q =
-    match Sorts.QVar.var_index q with
+    match Quality.QVar.var_index q with
     | Some -1 ->
         CErrors.user_err ?loc:rhs_loc
           Pp.(str "Sort variable " ++ Termops.pr_evd_qvar evd q ++ str " appears in the replacement but does not appear in the pattern.")
     | Some n when n < 0 || n > nvarqs' -> CErrors.anomaly Pp.(str "Unknown sort variable in rewrite rule.")
     | Some _ -> ()
     | None ->
-        if not @@ Sorts.QVar.Set.mem q (evd |> Evd.sort_context_set |> fst |> fst) then
+        if not @@ Quality.QVar.Set.mem q (evd |> Evd.sort_context_set |> fst |> fst) then
           CErrors.user_err ?loc:rhs_loc
             Pp.(str "Sort variable " ++ Termops.pr_evd_qvar evd q ++ str " appears in the replacement but does not appear in the pattern.")
   in
@@ -528,7 +528,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   let () =
     let qs, us = Vars.sort_and_universes_of_constr rhs in
-    Sorts.QVar.Set.iter test_qvar qs;
+    Quality.QVar.Set.iter test_qvar qs;
     Univ.Level.Set.iter test_level us
   in
 

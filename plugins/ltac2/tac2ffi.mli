@@ -194,9 +194,9 @@ val of_projection : Projection.t -> valexpr
 val to_projection : valexpr -> Projection.t
 val projection : Projection.t repr
 
-val of_qvar : Sorts.QVar.t -> valexpr
-val to_qvar : valexpr -> Sorts.QVar.t
-val qvar : Sorts.QVar.t repr
+val of_qvar : Quality.QVar.t -> valexpr
+val to_qvar : valexpr -> Quality.QVar.t
+val qvar : Quality.QVar.t repr
 
 val of_case : Constr.case_info -> valexpr
 val to_case : valexpr -> Constr.case_info

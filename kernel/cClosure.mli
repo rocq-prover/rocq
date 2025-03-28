@@ -128,8 +128,8 @@ type evar_handler = {
   evar_expand : constr pexistential -> constr evar_expansion;
   evar_repack : Evar.t * constr list -> constr;
   evar_irrelevant : constr pexistential -> bool;
-  qnorm : Sorts.QVar.t -> Sorts.Quality.t;
-  qvar_irrelevant : Sorts.QVar.t -> bool;
+  qnorm : Quality.QVar.t -> Quality.t;
+  qvar_irrelevant : Quality.QVar.t -> bool;
 }
 
 val default_evar_handler : env -> evar_handler
@@ -144,7 +144,7 @@ val create_tab : unit -> clos_tab
 val info_env : clos_infos -> env
 val info_flags: clos_infos -> reds
 val info_univs : clos_infos -> UGraph.t
-val info_qnorm : clos_infos -> (Sorts.QVar.t -> Sorts.Quality.t)
+val info_qnorm : clos_infos -> (Quality.QVar.t -> Quality.t)
 val info_elims : clos_infos -> QGraph.t
 val unfold_projection : clos_infos -> Projection.t -> Sorts.relevance -> stack_member option
 

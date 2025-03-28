@@ -10,15 +10,14 @@
 
 open Constr
 open Univ
-open Sorts
 
 type 'a universe_map = 'a Level.Map.t
 type universe_subst = Universe.t universe_map
 type universe_subst_fn = Level.t -> Universe.t option
 type universe_level_subst_fn = Level.t -> Level.t
 
-type quality_subst = Quality.t QVar.Map.t
-type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst = Quality.t Quality.QVar.Map.t
+type quality_subst_fn = Quality.QVar.t -> Quality.t
 
 val level_subst_of : universe_subst_fn -> universe_level_subst_fn
 (** The resulting function must never be called on a level which would produce an algebraic. *)

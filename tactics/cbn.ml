@@ -215,7 +215,7 @@ struct
       | Cst_const (c, u) ->
         if UVars.Instance.is_empty u then Constant.debug_print c
         else str"(" ++ Constant.debug_print c ++ str ", " ++
-          UVars.Instance.pr Sorts.QVar.raw_pr Univ.Level.raw_pr u ++ str")"
+          UVars.Instance.pr Quality.QVar.raw_pr Univ.Level.raw_pr u ++ str")"
       | Cst_proj (p,r) ->
         str".(" ++ Projection.debug_print p ++ str")"
 
@@ -445,13 +445,13 @@ let magically_constant_of_fixbody env sigma (reference, params) bd = function
         let csts = EConstr.eq_constr_universes env sigma (Reductionops.beta_applist sigma (EConstr.of_constr t, params)) bd in
         begin match csts with
           | Some csts ->
-            let addqs l r (qs,us) = Sorts.QVar.Map.add l r qs, us in
+            let addqs l r (qs,us) = Quality.QVar.Map.add l r qs, us in
             let addus l r (qs,us) = qs, Univ.Level.Map.add l r us in
             let subst = Set.fold (fun cst acc ->
                 match cst with
                 | QEq (a,b) | QLeq (a,b) ->
                   let a = match a with
-                    | QVar q -> q
+                    | Quality.QVar q -> q
                     | _ -> assert false
                   in
                   addqs a b acc

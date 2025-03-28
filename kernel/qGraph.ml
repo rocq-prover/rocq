@@ -7,7 +7,7 @@
 (*         *     GNU Lesser General Public License Version 2.1          *)
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
-open Sorts
+open Quality
 
 module ElimTable = struct
   open Quality
@@ -49,7 +49,7 @@ module RigidPath = struct
     else i
 end
 
-module RigidPaths = Set.Make(RigidPath)
+module RigidPaths = CSet.Make(RigidPath)
 
 module QMap = QVar.Map
 module QSet = QVar.Set
@@ -256,13 +256,13 @@ let eliminates_to g q q' =
   check_func ElimConstraint.ElimTo g.graph q q'
 
 let sort_eliminates_to g s1 s2 =
-  eliminates_to g (quality s1) (quality s2)
+  eliminates_to g (Sorts.quality s1) (Sorts.quality s2)
 
 let check_eq g q1 q2 =
-  Sorts.Quality.equal q1 q2 ||
+  Quality.equal q1 q2 ||
     G.check_eq g.graph q1 q2
 
-let check_eq_sort g s s' = check_eq g (quality s) (quality s')
+let check_eq_sort g s s' = check_eq g (Sorts.quality s) (Sorts.quality s')
 
 let eliminates_to_prop g q = eliminates_to g q Quality.qprop
 
@@ -270,8 +270,8 @@ let domain g = G.domain g.graph
 
 let qvar_domain g =
   Quality.Set.fold
-    (fun q acc -> match q with Quality.QVar q -> QVar.Set.add q acc | _ -> acc)
-    (domain g) QVar.Set.empty
+    (fun q acc -> match q with Quality.QVar q -> Quality.QVar.Set.add q acc | _ -> acc)
+    (domain g) Quality.QVar.Set.empty
 
 let is_empty g = QVar.Set.is_empty (qvar_domain g)
 

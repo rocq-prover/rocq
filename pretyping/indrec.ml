@@ -651,7 +651,7 @@ let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_de
 let pseudo_sort_quality_for_elim ind mip =
   let s = mip.mind_sort in
   if Sorts.is_prop s && is_prop_but_default_dependent_elim ind
-  then Sorts.Quality.qtype
+  then Quality.qtype
   else Sorts.quality s
 
 let is_in_prop mip =

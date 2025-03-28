@@ -208,7 +208,7 @@ let glob_qvar ?loc evd : glob_qvar -> _ = function
     let evd, q = new_quality_variable ?loc evd in
     evd, q
   | GRawQVar q ->
-    let evd = Evd.merge_sort_variables ~sideff:true evd (Sorts.QVar.Set.singleton q) in
+    let evd = Evd.merge_sort_variables ~sideff:true evd (Quality.QVar.Set.singleton q) in
     evd, q
   | GLocalQVar {v=Name id; loc} ->
     try evd, (Evd.quality_of_name evd id)
@@ -218,11 +218,11 @@ let glob_qvar ?loc evd : glob_qvar -> _ = function
         evd, q
       else user_err ?loc Pp.(str "Undeclared quality: " ++ Id.print id ++ str".")
 
-let glob_quality ?loc evd = let open Sorts.Quality in function
+let glob_quality ?loc evd = let open Quality in function
   | GQConstant q -> evd, QConstant q
   | GQualVar (GQVar _ | GLocalQVar _ | GRawQVar _ as q) ->
     let evd, q = glob_qvar ?loc evd q in
-    evd, QVar q
+    evd, Quality.QVar q
 
 type inference_hook = env -> evar_map -> Evar.t -> (evar_map * constr) option
 
@@ -917,19 +917,19 @@ struct
     let max_quality_opt a b = match a with
       | None -> None
       | Some a ->
-        let open Sorts.Quality in
+        let open Quality in
         match a, b with
         | QConstant QSProp, _ | _, QConstant QSProp -> assert false
         | QConstant QProp, q | q, QConstant QProp -> Some q
         | (QConstant QType as q), _ | _, (QConstant QType as q) -> Some q
-        | QVar a', QVar b' ->
-          if Sorts.QVar.equal a' b' then Some a
+        | Quality.QVar a', Quality.QVar b' ->
+          if Quality.QVar.equal a' b' then Some a
           else None
     in
     let sigma = ref sigma in
     let gen_max_quality qs =
       let qs = List.map (UState.nf_quality (Evd.ustate !sigma)) qs in
-      match List.fold_left max_quality_opt (Some Sorts.Quality.qprop) qs with
+      match List.fold_left max_quality_opt (Some Quality.qprop) qs with
       | Some q -> q
       | None -> match qs with
         | [] -> assert false
@@ -938,7 +938,7 @@ struct
              (alternatively: return qtype?) *)
           let mk q = ESorts.make @@ Sorts.make q Univ.Universe.type0 in
           let unify sigma q' =
-            if Sorts.Quality.(equal qprop q') then sigma
+            if Quality.is_qprop q' then sigma
             else Evd.set_eq_sort sigma (mk q) (mk q')
           in
           let sigma' = List.fold_left unify !sigma rest in
@@ -1008,7 +1008,7 @@ struct
       let sigma, u = Evd.new_univ_level_variable UState.univ_flexible_alg sigma in
       sigma, ESorts.make (Sorts.sort_of_univ (Univ.Universe.make u))
     | QSort (q,u) ->
-      let sigma, q = match Sorts.QVar.var_index q with
+      let sigma, q = match Quality.QVar.var_index q with
         | None -> sigma, q
         | Some _ ->
           let sigma, q = Evd.new_quality_variable sigma in

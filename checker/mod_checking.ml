@@ -88,7 +88,7 @@ let check_constant_declaration env opac kn cb opacify =
   Environ.add_constant kn cb env, opac
 
 let check_quality_mask env qmask lincheck =
-  let open Sorts.Quality in
+  let open Quality in
   match qmask with
   | PQConstant QSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_disallowed_sprop env
   | PQConstant (QProp | QType) -> lincheck

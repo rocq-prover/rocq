@@ -65,7 +65,7 @@ sig
 
   val relevance_of_sort : t -> ERelevance.t
 
-  val quality : Evd.evar_map -> t -> Sorts.Quality.t
+  val quality : Evd.evar_map -> t -> Quality.t
   val quality_or_set : Evd.evar_map -> t -> UnivGen.QualityOrSet.t
 end
 
@@ -366,7 +366,7 @@ val fold_with_binders : Evd.evar_map -> ('a -> 'a) -> ('a -> 'b -> t -> 'b) -> '
 
 (** Gather the universes transitively used in the term, including in the
    type of evars appearing in it. *)
-val universes_of_constr : ?init:Sorts.QVar.Set.t * Univ.Level.Set.t -> Evd.evar_map -> t -> Sorts.QVar.Set.t * Univ.Level.Set.t
+val universes_of_constr : ?init:Quality.QVar.Set.t * Univ.Level.Set.t -> Evd.evar_map -> t -> Quality.QVar.Set.t * Univ.Level.Set.t
 
 (** {6 Substitutions} *)
 

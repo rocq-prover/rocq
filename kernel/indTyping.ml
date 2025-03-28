@@ -83,14 +83,14 @@ type univ_info =
 
 let add_squash q info =
   match info.ind_squashed with
-  | None -> { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.singleton q)) }
+  | None -> { info with ind_squashed = Some (SometimesSquashed (Quality.Set.singleton q)) }
   | Some AlwaysSquashed -> info
   | Some (SometimesSquashed qs) ->
     (* XXX dedup insertion *)
-    { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
+    { info with ind_squashed = Some (SometimesSquashed (Quality.Set.add q qs)) }
 
 let compute_elim_squash ?(is_real_arg=false) env u info =
-  let open Sorts.Quality in
+  let open Quality in
   let info = if not is_real_arg then info
     else match info.record_arg_info with
       | HasRelevantArg -> info
@@ -347,12 +347,12 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
      The inductive and binding parameter types must be syntactically arities. *)
   let check_not_appearing c =
     let qs, us = Vars.sort_and_universes_of_constr c in
-    let qappearing = Sorts.QVar.Set.inter qs template_qvars in
-    if not (Sorts.QVar.Set.is_empty qappearing) then
+    let qappearing = Quality.QVar.Set.inter qs template_qvars in
+    if not (Quality.QVar.Set.is_empty qappearing) then
       CErrors.user_err
         Pp.(str "Template " ++
-            str (if Int.equal 1 (Sorts.QVar.Set.cardinal qappearing) then "quality" else "qualities") ++
-            spc() ++ prlist_with_sep spc Sorts.QVar.raw_pr (Sorts.QVar.Set.elements qappearing) ++ spc() ++
+            str (if Int.equal 1 (Quality.QVar.Set.cardinal qappearing) then "quality" else "qualities") ++
+            spc() ++ prlist_with_sep spc Quality.QVar.raw_pr (Quality.QVar.Set.elements qappearing) ++ spc() ++
             str "appear in illegal positions.")
     else check_not_appearing_univs ~template_univs us
   in
@@ -390,17 +390,17 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
                 CErrors.user_err Pp.(str "Non-linear template level " ++ Level.raw_pr l)
               else Level.Set.add l ubound
           in
-          let qbound = Option.fold_right Sorts.QVar.Set.add qopt qbound in
+          let qbound = Option.fold_right Quality.QVar.Set.add qopt qbound in
           qbound, ubound)
-      (Sorts.QVar.Set.empty,Level.Set.empty)
+      (Quality.QVar.Set.empty,Level.Set.empty)
       template_params
   in
-  let q_unbound = Sorts.QVar.Set.diff template_qvars qbound in
-  let () = if not (Sorts.QVar.Set.is_empty q_unbound) then
+  let q_unbound = Quality.QVar.Set.diff template_qvars qbound in
+  let () = if not (Quality.QVar.Set.is_empty q_unbound) then
       CErrors.user_err
         Pp.(str "Template " ++
-            str (if Int.equal 1 (Sorts.QVar.Set.cardinal q_unbound) then "quality" else "qualities") ++ spc() ++
-            prlist_with_sep spc Sorts.QVar.raw_pr (Sorts.QVar.Set.elements q_unbound) ++ spc() ++
+            str (if Int.equal 1 (Quality.QVar.Set.cardinal q_unbound) then "quality" else "qualities") ++ spc() ++
+            prlist_with_sep spc Quality.QVar.raw_pr (Quality.QVar.Set.elements q_unbound) ++ spc() ++
             str "not bound by parameters.")
 
   in
@@ -458,13 +458,13 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     let bind_qs, bind_us = UVars.Instance.to_array bind_instance in
     let default_qs, default_us = UVars.Instance.to_array default_univs in
     let qsubst = Array.fold_left2 (fun qsubst bind_q default_q ->
-        let open Sorts.Quality in
+        let open Quality in
         match bind_q, default_q with
         | QConstant _, _ -> assert false
         | QVar bind_q, QConstant QType ->
-          Sorts.QVar.Map.add bind_q default_q qsubst
+          Quality.QVar.Map.add bind_q default_q qsubst
         | QVar _, _ -> CErrors.anomaly Pp.(str "Default template quality must be QType."))
-        Sorts.QVar.Map.empty
+        Quality.QVar.Map.empty
         bind_qs default_qs
     in
     let usubst = Array.fold_left2 (fun usubst bind_u default_u ->
@@ -502,10 +502,10 @@ let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
   let squashed = Option.map (function
       | AlwaysSquashed -> AlwaysSquashed
       | SometimesSquashed qs ->
-        let qs = Sorts.Quality.Set.fold (fun q qs ->
-            Sorts.Quality.Set.add (UVars.subst_sort_level_quality usubst q) qs)
+        let qs = Quality.Set.fold (fun q qs ->
+            Quality.Set.add (UVars.subst_sort_level_quality usubst q) qs)
             qs
-            Sorts.Quality.Set.empty
+            Quality.Set.empty
         in
         SometimesSquashed qs)
       univ_info.ind_squashed

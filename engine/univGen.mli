@@ -15,13 +15,13 @@ open Univ
 open UVars
 
 module QualityOrSet : sig
-  type t = Qual of Sorts.Quality.t | Set
+  type t = Qual of Quality.t | Set
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
-  val of_quality : Sorts.Quality.t -> t
+  val of_quality : Quality.t -> t
   val of_sort : Sorts.t -> t
-  val quality : t -> Sorts.Quality.t
+  val quality : t -> Quality.t
 
   val eliminates_to : t -> t -> bool
 
@@ -36,7 +36,7 @@ module QualityOrSet : sig
   val is_prop : t -> bool
   val is_sprop : t -> bool
 
-  val pr : (Sorts.QVar.t -> Pp.t) -> t -> Pp.t
+  val pr : (Quality.QVar.t -> Pp.t) -> t -> Pp.t
   val raw_pr : t -> Pp.t
 
   val all_constants : t list
@@ -55,16 +55,16 @@ exception UniverseLengthMismatch of univ_length_mismatch
 (** Side-effecting functions creating new universe levels. *)
 
 val new_univ_global : unit -> UGlobal.t
-val new_sort_global : Id.t -> Sorts.QGlobal.t
+val new_sort_global : Id.t -> Quality.QGlobal.t
 val fresh_level : unit -> Level.t
-val fresh_sort_quality : unit -> Sorts.QVar.t
+val fresh_sort_quality : unit -> Quality.QVar.t
 
 val new_global_univ : unit -> Universe.t in_universe_context_set
 
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
 
-type sort_context_set = (Sorts.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
+type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 

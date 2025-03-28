@@ -8,8 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Sorts
-
 (** {6 Graphs of quality elimination constraints. } *)
 
 (* *********************************************** *)
@@ -30,7 +28,7 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type quality_inconsistency = (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
+type quality_inconsistency = (Quality.ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
   | IllegalConstraint
@@ -51,9 +49,9 @@ type constraint_source =
   | Rigid
   | Static
 
-val merge_constraints : constraint_source -> ElimConstraints.t -> t -> t
+val merge_constraints : constraint_source -> Quality.ElimConstraints.t -> t -> t
 
-val update_dominance_if_valid : t -> ElimConstraint.t -> t option
+val update_dominance_if_valid : t -> Quality.ElimConstraint.t -> t option
 (** Checks if the given constraint satisfies the dominance condition:
       Let q1 ~> q2 be the given constraint, with q2 a sort variable.
       Then q1 (or the dominant sort of q1) should be related to the dominant sort of q2,
@@ -62,8 +60,8 @@ val update_dominance_if_valid : t -> ElimConstraint.t -> t option
     Returns [None] if the dominance *is not valid*, i.e., if the dominant sorts
     are not related. Otherwise, returns [Some g] where [g] is the updated graph. *)
 
-val check_constraint : t -> ElimConstraint.t -> bool
-val check_constraints : ElimConstraints.t -> t -> bool
+val check_constraint : t -> Quality.ElimConstraint.t -> bool
+val check_constraints : Quality.ElimConstraints.t -> t -> bool
 
 val enforce_eliminates_to : constraint_source -> Quality.t -> Quality.t -> t -> t
 (** Set the first quality to eliminate to the second one in the graph.
@@ -95,8 +93,8 @@ val check_eq : t -> Quality.t -> Quality.t -> bool
 val check_eq_sort : t -> Sorts.t -> Sorts.t -> bool
 
 val domain : t -> Quality.Set.t
-val qvar_domain : t -> QVar.Set.t
+val qvar_domain : t -> Quality.QVar.Set.t
 
 val is_empty : t -> bool
 
-val explain_quality_inconsistency : (QVar.t -> Pp.t) -> explanation option -> Pp.t
+val explain_quality_inconsistency : (Quality.QVar.t -> Pp.t) -> explanation option -> Pp.t

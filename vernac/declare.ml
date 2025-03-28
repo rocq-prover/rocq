@@ -767,7 +767,7 @@ let declare_variable ~name ~kind ~typing_flags d =
             {UVars.quals = Array.make (Array.length qs) Anonymous; UVars.univs = Array.make (Array.length us) Anonymous}
           in
           Global.push_section_context
-            (UVars.UContext.of_context_set mk_anon_names Sorts.QVar.Set.empty body_uctx);
+            (UVars.UContext.of_context_set mk_anon_names Quality.QVar.Set.empty body_uctx);
           UState.Polymorphic_entry UVars.UContext.empty, UnivNames.empty_binders
       in
       let se = if opaque then

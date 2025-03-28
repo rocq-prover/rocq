@@ -46,12 +46,12 @@ let map_glob_decl_left_to_right f (na,r,k,obd,ty) =
 
 let glob_qvar_eq g1 g2 = match g1, g2 with
   | GLocalQVar na1, GLocalQVar na2 -> CAst.eq Name.equal na1 na2
-  | GQVar q1, GQVar q2 -> Sorts.QVar.equal q1 q2
-  | GRawQVar q1, GRawQVar q2 -> Sorts.QVar.equal q1 q2
+  | GQVar q1, GQVar q2 -> Quality.QVar.equal q1 q2
+  | GRawQVar q1, GRawQVar q2 -> Quality.QVar.equal q1 q2
   | (GLocalQVar _ | GQVar _ | GRawQVar _), _ -> false
 
 let glob_quality_eq g1 g2 = match g1, g2 with
-  | GQConstant q1, GQConstant q2 -> Sorts.Quality.Constants.equal q1 q2
+  | GQConstant q1, GQConstant q2 -> Quality.Constants.equal q1 q2
   | GQualVar q1, GQualVar q2 -> glob_qvar_eq q1 q2
   | (GQConstant _ | GQualVar _), _ -> false
 

@@ -19,8 +19,8 @@ type universe_subst = Universe.t universe_map
 type universe_subst_fn = Level.t -> Universe.t option
 type universe_level_subst_fn = Level.t -> Level.t
 
-type quality_subst = Quality.t QVar.Map.t
-type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst = Quality.t Quality.QVar.Map.t
+type quality_subst_fn = Quality.QVar.t -> Quality.t
 
 let subst_univs_universe fn ul =
   let addn n u = iterate Universe.super n u in
@@ -96,7 +96,7 @@ let enforce_eq_sort s1 s2 cst = match s1, s2 with
 | (Set | Type _), (Set | Type _) ->
   enforce_eq (get_algebraic s1) (get_algebraic s2) cst
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_eq u1 u2 cst
+  if Quality.QVar.equal q1 q2 then enforce_eq u1 u2 cst
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
@@ -110,7 +110,7 @@ let enforce_leq_sort s1 s2 cst = match s1, s2 with
 | (Set | Type _), (Set | Type _) ->
   enforce_leq (get_algebraic s1) (get_algebraic s2) cst
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_leq u1 u2 cst
+  if Quality.QVar.equal q1 q2 then enforce_leq u1 u2 cst
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
@@ -124,7 +124,7 @@ let enforce_leq_alg_sort s1 s2 g = match s1, s2 with
 | (Set | Type _), (Set | Type _) ->
   UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then UGraph.enforce_leq_alg u1 u2 g
+  if Quality.QVar.equal q1 q2 then UGraph.enforce_leq_alg u1 u2 g
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))

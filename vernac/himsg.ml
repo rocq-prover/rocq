@@ -877,12 +877,12 @@ let explain_unsatisfied_constraints env sigma cst =
 
 let explain_unsatisfied_elim_constraints env sigma cst =
   strbrk "Unsatisfied elimination constraints: " ++
-  Sorts.ElimConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
+  Quality.ElimConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
   spc() ++ str "(maybe a bugged tactic)."
 
 let explain_unsatisfied_qcumul_constraints env sigma cst =
   strbrk "Unsatisfied quality cumulativity constraints: " ++
-  Sorts.QCumulConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
+  Quality.QCumulConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
   spc() ++ str "(maybe a bugged tactic)."
 
 let explain_undeclared_universes env sigma l =
@@ -892,9 +892,9 @@ let explain_undeclared_universes env sigma l =
   spc () ++ str "(maybe a bugged tactic)."
 
 let explain_undeclared_qualities env sigma l =
-  let n = Sorts.QVar.Set.cardinal l in
+  let n = Quality.QVar.Set.cardinal l in
   strbrk "Undeclared " ++ str (if n = 1 then "quality" else "qualities") ++ strbrk": " ++
-    prlist_with_sep spc (Termops.pr_evd_qvar sigma) (Sorts.QVar.Set.elements l) ++
+    prlist_with_sep spc (Termops.pr_evd_qvar sigma) (Quality.QVar.Set.elements l) ++
     spc () ++ str "(maybe a bugged tactic)."
 
 let explain_disallowed_sprop () =
@@ -907,7 +907,7 @@ let pr_relevance sigma r =
   match r with
   | Sorts.Relevant -> str "relevant"
   | Sorts.Irrelevant -> str "irrelevant"
-  | Sorts.RelevanceVar q -> str "a variable " ++ (* TODO names *) Sorts.QVar.raw_pr q
+  | Sorts.RelevanceVar q -> str "a variable " ++ (* TODO names *) Quality.QVar.raw_pr q
 
 let pr_binder env sigma = function
 | LocalAssum (na, t) ->
@@ -1154,15 +1154,15 @@ let explain_elimination_error defprv err =
   | QGraph.IllegalConstraint -> str "A constraint involving two constants or SProp ~> s is illegal."
   | QGraph.CreatesForbiddenPath (q1,q2) ->
      str "This expression would enforce a non-declared elimination constraint between" ++
-       spc() ++ Sorts.Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Sorts.Quality.pr defprv q2
+       spc() ++ Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Quality.pr defprv q2
   | QGraph.MultipleDominance (q1,qv,q2) ->
-     let pr_elim q = Sorts.Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Sorts.Quality.pr defprv qv in
+     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Quality.pr defprv qv in
      str "This expression enforces" ++ spc() ++ pr_elim q1 ++ spc() ++ str"and" ++ spc() ++
        pr_elim q2 ++ spc() ++ str"which might make type-checking undecidable"
   | QGraph.QualityInconsistency (k, q1, q2, r) ->
      str"The quality constraints are inconsistent: " ++
-       str "cannot enforce" ++ spc() ++ Sorts.Quality.pr defprv q1 ++ spc() ++
-       Sorts.ElimConstraint.pr_kind k ++ spc() ++ Sorts.Quality.pr defprv q2 ++ spc() ++
+       str "cannot enforce" ++ spc() ++ Quality.pr defprv q1 ++ spc() ++
+       Quality.ElimConstraint.pr_kind k ++ spc() ++ Quality.pr defprv q2 ++ spc() ++
        QGraph.explain_quality_inconsistency defprv r
 
 (* Module errors *)
@@ -1247,11 +1247,11 @@ let explain_not_match_error = function
   | IncompatibleUniverses incon ->
     str"the universe constraints are inconsistent: " ++
     UGraph.explain_universe_inconsistency
-      Sorts.QVar.raw_pr
+      Quality.QVar.raw_pr
       UnivNames.pr_level_with_global_universes
       incon
   | IncompatibleQualities incon ->
-     explain_elimination_error Sorts.QVar.raw_pr incon
+     explain_elimination_error Quality.QVar.raw_pr incon
   | IncompatiblePolymorphism (env, t1, t2) ->
     let t1, t2 = pr_explicit env (Evd.from_env env) (EConstr.of_constr t1) (EConstr.of_constr t2) in
     str "conversion of polymorphic values generates additional constraints: " ++

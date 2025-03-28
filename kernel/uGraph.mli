@@ -50,7 +50,7 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type univ_variable_printers = (Sorts.QVar.t -> Pp.t) * (Level.t -> Pp.t)
+type univ_variable_printers = (Quality.QVar.t -> Pp.t) * (Level.t -> Pp.t)
 type univ_inconsistency = univ_variable_printers option * (constraint_type * Sorts.t * Sorts.t * explanation option)
 
 exception UniverseInconsistency of univ_inconsistency
@@ -121,7 +121,7 @@ val repr : t -> node Level.Map.t
 
 val pr_universes : (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
 
-val explain_universe_inconsistency : (Sorts.QVar.t -> Pp.t) -> (Level.t -> Pp.t) ->
+val explain_universe_inconsistency : (Quality.QVar.t -> Pp.t) -> (Level.t -> Pp.t) ->
   univ_inconsistency -> Pp.t
 
 (** {6 Debugging} *)
@@ -130,7 +130,7 @@ val check_universes_invariants : t -> unit
 module Internal : sig
   (** Makes the qvars treated as above prop.
       Do not use outside kernel inductive typechecking. *)
-  val add_template_qvars : Sorts.QVar.Set.t -> t -> t
+  val add_template_qvars : Quality.QVar.Set.t -> t -> t
 
-  val is_above_prop : t -> Sorts.QVar.t -> bool
+  val is_above_prop : t -> Quality.QVar.t -> bool
 end
