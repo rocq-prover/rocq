@@ -32,10 +32,10 @@ type t
 
 val empty : t
 
-val make : qualities:QVar.Set.t -> UGraph.t -> t
+val make : qualities:QGraph.t -> UGraph.t -> t
 [@@ocaml.deprecated "(8.13) Use from_env"]
 
-val make_with_initial_binders : qualities:QVar.Set.t -> UGraph.t -> lident list -> t
+val make_with_initial_binders : qualities:QGraph.t -> UGraph.t -> lident list -> t
 [@@ocaml.deprecated "(8.13) Use from_env"]
 
 val from_env : ?binders:lident list -> Environ.env -> t
@@ -74,6 +74,8 @@ val nf_universes : t -> Constr.t -> Constr.t
 
 val ugraph : t -> UGraph.t
 (** The current graph extended with the local constraints *)
+
+val elim_graph : t -> QGraph.t
 
 val is_algebraic : Level.t -> t -> bool
 (** Can this universe be instantiated with an algebraic

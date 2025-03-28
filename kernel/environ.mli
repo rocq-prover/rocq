@@ -75,7 +75,8 @@ val named_context_val : env -> named_context_val
 
 val set_universes : UGraph.t -> env -> env
 
-val qualities : env -> Sorts.QVar.Set.t
+val qualities : env -> QGraph.t
+val qvars : env -> Sorts.QVar.Set.t
 val set_qualities : Sorts.QVar.Set.t -> env -> env
 
 val typing_flags    : env -> typing_flags
@@ -343,9 +344,6 @@ val push_context_set : ?strict:bool -> ContextSet.t -> env -> env
     context set to the environment. It does not fail even if one of the
     universes is already declared. *)
 
-val push_qualities : Sorts.QVar.Set.t -> env -> env
-(** Add the qualities to the environment. Only used in higher layers. *)
-
 val push_quality_set : Sorts.QVar.Set.t -> env -> env
 (** [push_quality_set qs env] pushes the set of quality variables in
     the environment. It does not fail even if a quality variable is
@@ -446,7 +444,7 @@ module Internal : sig
       Do not use outside kernel inductive typechecking. *)
   val push_template_context : UContext.t -> env -> env
 
-  val is_above_prop : env -> Sorts.QVar.t -> bool
+  val is_above_prop : cheat:bool -> env -> Sorts.QVar.t -> bool
 
   module View :
   sig

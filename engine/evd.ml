@@ -1032,6 +1032,8 @@ let univ_flexible_alg = UnivFlexible true
 
 let ustate d = d.universes
 
+let elim_graph d = UState.elim_graph d.universes
+
 let evar_universe_context d = ustate d
 
 let universe_context_set d = UState.context_set d.universes

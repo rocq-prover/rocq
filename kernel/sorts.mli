@@ -65,7 +65,6 @@ module Quality : sig
   module Constants : sig
     val equal : constant -> constant -> bool
     val compare : constant -> constant -> int
-    val eliminates_to : constant -> constant -> bool
     val pr : constant -> Pp.t
   end
 
@@ -91,8 +90,6 @@ module Quality : sig
   val equal : t -> t -> bool
 
   val compare : t -> t -> int
-
-  val eliminates_to : t -> t -> bool
 
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
 
@@ -175,7 +172,6 @@ val make : Quality.t -> Univ.Universe.t -> t
 
 val equal : t -> t -> bool
 val compare : t -> t -> int
-val eliminates_to : t -> t -> bool
 val hash : t -> int
 
 val is_sprop : t -> bool
