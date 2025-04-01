@@ -87,13 +87,13 @@ let nf_fix sigma (nas, cs, ts) =
   let inj c = EConstr.to_constr ~abort_on_undefined_evars:false sigma c in
   (Array.map EConstr.Unsafe.to_binder_annot nas, Array.map inj cs, Array.map inj ts)
 
-let search_guard ?loc ?evars env {possibly_cofix; possible_fix_indices} fixdefs =
+let search_guard ?loc ?evars ?elim_to env {possibly_cofix; possible_fix_indices} fixdefs =
   let is_singleton = function [_] -> true | _ -> false in
   let one_fix_possibility = List.for_all is_singleton possible_fix_indices in
   if one_fix_possibility && not possibly_cofix then
     let indexes = Array.of_list (List.map List.hd possible_fix_indices) in
     let fix = ((indexes, 0), fixdefs) in
-    try let () = check_fix ?evars env fix in Some indexes
+    try let () = check_fix ?evars ?elim_to env fix in Some indexes
     with reraise ->
       let (e, info) = Exninfo.capture reraise in
       let info = Option.cata (fun loc -> Loc.add_loc info loc) info loc in
@@ -125,7 +125,7 @@ let search_guard ?loc ?evars env {possibly_cofix; possible_fix_indices} fixdefs 
                error when totality is assumed but the strutural argument is
                not specified. *)
             try
-              let () = check_fix ?evars env fix in raise (Found (Some indexes))
+              let () = check_fix ?evars ?elim_to env fix in raise (Found (Some indexes))
             with TypeError _ -> ())
           combinations in
        let () =
@@ -147,7 +147,8 @@ let esearch_guard ?loc env sigma indexes fix =
      so we may as well upfront normalize *)
   let fix = nf_fix sigma fix in
   let evars = Evd.evar_handler sigma in
-  try search_guard ?loc ~evars env indexes fix
+  let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
+  try search_guard ?loc ~evars ~elim_to env indexes fix
   with TypeError (env,err) ->
     Loc.raise ?loc (PretypeError (env,sigma,TypingError (of_type_error err)))
 
@@ -1375,7 +1376,7 @@ struct
     let vars = VarSet.variables (Global.env ()) in
     let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
     let fsign,env_f = push_rel_context ~hypnaming sigma fsign env in
-    let obj indt rci p v f =
+    let obj sigma indt rci p v f =
       if not record then
         let f = it_mkLambda_or_LetIn f fsign in
         let ci = make_case_info !!env (ind_of_ind_type indt) LetStyle in
@@ -1406,7 +1407,7 @@ struct
             let sigma, v =
               let ind,_ = dest_ind_family indf in
                 let sigma, rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val p in
-                sigma, obj indty rci p cj.uj_val fj.uj_val
+                sigma, obj sigma indty rci p cj.uj_val fj.uj_val
             in
             sigma, { uj_val = v; uj_type = (substl (realargs@[cj.uj_val]) ccl) }
 
@@ -1425,7 +1426,7 @@ struct
             let sigma, v =
               let ind,_ = dest_ind_family indf in
                 let sigma, rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val p in
-                sigma, obj indty rci p cj.uj_val fj.uj_val
+                sigma, obj sigma indty rci p cj.uj_val fj.uj_val
             in sigma, { uj_val = v; uj_type = ccl })
 
   let pretype_cases self (sty, po, tml, eqns)  =

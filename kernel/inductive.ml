@@ -390,7 +390,7 @@ let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t
 
 let raw_eliminates_to = QGraph.ElimTable.eliminates_to
 
-let eliminates_to ?(cheat=false) g = QGraph.eliminates_to ~cheat g
+let eliminates_to g = QGraph.eliminates_to g
 
 let sort_eliminates_to g s s' = eliminates_to g (Sorts.quality s) (Sorts.quality s')
 
@@ -417,7 +417,7 @@ let is_squashed_gen g indsort_to_quality squashed_to_quality ((_,mip),u) =
         (* impredicative set squashes are always quashed,
            so here if inds=Set it is a sort poly squash (see "foo6" in test sort_poly.v) *)
         if Quality.Set.for_all
-             (fun q -> eliminates_to ~cheat:true g indq (squashed_to_quality u q))
+             (fun q -> eliminates_to g indq (squashed_to_quality u q))
              squash
         then None
         else Some (SquashToQuality indq)
@@ -458,9 +458,9 @@ let is_allowed_elimination env specifu s =
     specifu s
 
 (* We always allow fixpoints on values in Prop (for the accessibility predicate for instance). *)
-let is_allowed_fixpoint g sind star =
+let is_allowed_fixpoint elim_to sind star =
   Sorts.equal sind Sorts.prop ||
-    eliminates_to ~cheat:true g
+    elim_to
       (Sorts.quality sind)
       (Sorts.quality star)
 
@@ -1603,7 +1603,7 @@ let check_one_fix ?evars renv recpos trees def =
   | NeedReduce (env,err) -> raise (FixGuardError (env,err))
   | NoNeedReduce -> ()
 
-let inductive_of_mutfix ?evars env ((nvect,bodynum),(names,types,bodies as recdef)) =
+let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies as recdef)) =
   let nbfix = Array.length bodies in
   if Int.equal nbfix 0
     || not (Int.equal (Array.length nvect) nbfix)
@@ -1655,7 +1655,10 @@ let inductive_of_mutfix ?evars env ((nvect,bodynum),(names,types,bodies as recde
           | Relevant when Universe.is_type0 u -> Sorts.set
           | Relevant -> Sorts.make Sorts.Quality.qtype u
           | RelevanceVar q -> Sorts.qsort q u in
-        if not (is_allowed_fixpoint (Environ.qualities env) sind bsort) then
+        let elim_to = match elim_to with
+          | Some f -> f
+          | None -> eliminates_to (Environ.qualities env) in
+        if not (is_allowed_fixpoint elim_to sind bsort) then
           raise_err env i @@ FixpointOnNonEliminable (sind, bsort)
     in
     res
@@ -1665,8 +1668,8 @@ let inductive_of_mutfix ?evars env ((nvect,bodynum),(names,types,bodies as recde
   (Array.map fst rv, Array.map snd rv)
 
 
-let check_fix ?evars env ((nvect,_),(names,_,bodies as recdef) as fix) =
-  let (minds, rdef) = inductive_of_mutfix ?evars env fix in
+let check_fix ?evars ?elim_to env ((nvect,_),(names,_,bodies as recdef) as fix) =
+  let (minds, rdef) = inductive_of_mutfix ?evars ?elim_to env fix in
   let flags = Environ.typing_flags env in
   if flags.check_guarded then
     let get_tree (kn,i) =

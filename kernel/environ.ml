@@ -489,7 +489,7 @@ let push_quality_set qs env =
             (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs env.env_qualities in
   set_qualities g env
 
-let set_qualities qs env =
+let set_quality_set qs env =
   let g = QGraph.initial_graph in
   let g = Sorts.QVar.Set.fold (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs g in
   { env with env_qualities = g }
@@ -1043,8 +1043,8 @@ module Internal = struct
     let env = map_qualities (QGraph.Internal.add_template_qvars qvars) env in
     env
 
-  let is_above_prop ~cheat env q =
-    QGraph.eliminates_to_prop ~cheat env.env_qualities (Sorts.Quality.QVar q)
+  let is_above_prop env q =
+    QGraph.eliminates_to_prop env.env_qualities (Sorts.Quality.QVar q)
 
   module View =
   struct
