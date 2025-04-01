@@ -81,7 +81,7 @@ let rec repr q m = match QMap.find q m.qmap with
 | Some (QConstant _ as q) -> q
 | exception Not_found -> QVar q
 
-let is_above_prop q m = QGraph.eliminates_to_prop ~cheat:false m.elims (QVar q)
+let is_above_prop q m = QGraph.eliminates_to_prop m.elims (QVar q)
 
 let is_rigid m q = QSet.mem q m.rigid
 
@@ -433,6 +433,8 @@ let subst uctx = uctx.univ_variables
 let ugraph uctx = uctx.universes
 
 let elim_graph uctx = QState.elims uctx.sort_variables
+
+let is_above_prop uctx qv = QState.is_above_prop qv uctx.sort_variables
 
 let is_algebraic l uctx = UnivFlex.is_algebraic l uctx.univ_variables
 
