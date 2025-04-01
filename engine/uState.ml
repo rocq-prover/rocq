@@ -43,9 +43,9 @@ module QState : sig
   val repr : elt -> t -> Quality.t
   val is_rigid : t -> QVar.t -> bool
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
-  val is_above_prop : elt -> t -> bool
+  val eliminates_to_prop : elt -> t -> bool
   val undefined : t -> QVar.Set.t
-  val collapse_above_prop : to_prop:bool -> t -> t
+  val collapse_elim_to_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> t -> t
   val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
   val of_set : QVar.Set.t -> t
@@ -81,7 +81,7 @@ let rec repr q m = match QMap.find q m.qmap with
 | Some (QConstant _ as q) -> q
 | exception Not_found -> QVar q
 
-let is_above_prop q m = QGraph.eliminates_to_prop m.elims (QVar q)
+let eliminates_to_prop q m = QGraph.eliminates_to_prop m.elims (QVar q)
 
 let is_rigid m q = QSet.mem q m.rigid
 
@@ -96,21 +96,21 @@ let set q qv m =
     if QSet.mem q m.rigid then None
     else
       let elims =
-        if is_above_prop q m
+        if eliminates_to_prop q m
         then QGraph.enforce_eq (QVar qv) (QVar q) m.elims
         else m.elims
       in
       Some { rigid = m.rigid; qmap = QMap.add q (Some (QVar qv)) m.qmap; elims
              ; initial_elims = m.initial_elims }
   | q, (QConstant qc as qv) ->
-    if qc == QSProp && is_above_prop q m then None
+    if qc == QSProp && eliminates_to_prop q m then None
     else if QSet.mem q m.rigid then None
     else
       Some { rigid = m.rigid; qmap = QMap.add q (Some qv) m.qmap;
              elims = QGraph.enforce_eq qv (QVar q) m.elims;
              initial_elims = m.initial_elims }
 
-let set_above_prop q m =
+let set_elim_to_prop q m =
   let q = repr q m in
   let q = match q with QVar q -> q | QConstant _ -> assert false in
   if QSet.mem q m.rigid then None
@@ -124,7 +124,7 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
 | QConstant QProp, QConstant QProp
 | QConstant QSProp, QConstant QSProp -> local
 | QConstant QProp, QVar q when c == Conversion.CUMUL ->
-  begin match set_above_prop q local with
+  begin match set_elim_to_prop q local with
   | Some local -> local
   | None -> fail ()
   end
@@ -206,17 +206,17 @@ let of_elims elims =
     QVar.Set.fold (fun v -> QGraph.add_quality (QVar v)) qs QGraph.initial_graph in
   { empty with rigid = qs; elims; initial_elims }
 
-(* XXX what about [above]? *)
+(* XXX what about qvars in the elimination graph? *)
 let undefined m =
   let mq = QMap.filter (fun _ v -> Option.is_empty v) m.qmap in
   QMap.domain mq
 
-let collapse_above_prop ~to_prop m =
+let collapse_elim_to_prop ~to_prop m =
   QMap.fold (fun q v m ->
            match v with
            | Some _ -> m
            | None ->
-              if not @@ is_above_prop q m then m else
+              if not @@ eliminates_to_prop q m then m else
                 if to_prop then Option.get (set q qprop m)
                 else Option.get (set q qtype m)
          )
@@ -238,7 +238,7 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   in
   let prbody u = function
   | None ->
-    if is_above_prop u m then str " >= Prop"
+    if eliminates_to_prop u m then str " >= Prop"
     else if QSet.mem u rigid then
       str " (rigid)"
     else mt ()
@@ -434,7 +434,7 @@ let ugraph uctx = uctx.universes
 
 let elim_graph uctx = QState.elims uctx.sort_variables
 
-let is_above_prop uctx qv = QState.is_above_prop qv uctx.sort_variables
+let eliminates_to_prop uctx qv = QState.eliminates_to_prop qv uctx.sort_variables
 
 let is_algebraic l uctx = UnivFlex.is_algebraic l uctx.univ_variables
 
@@ -504,7 +504,7 @@ let nf_relevance uctx r = match r with
   | QVar q' ->
     (* XXX currently not used in nf_evars_and_universes_opt_subst
        does it matter? *)
-    if QState.is_above_prop q' uctx.sort_variables then Relevant
+    if QState.eliminates_to_prop q' uctx.sort_variables then Relevant
     else if QVar.equal q q' then r
     else Sorts.RelevanceVar q'
 
@@ -1258,8 +1258,8 @@ let normalize_variables uctx =
 let fix_undefined_variables uctx =
   { uctx with univ_variables = UnivFlex.fix_undefined_variables uctx.univ_variables }
 
-let collapse_above_prop_sort_variables ~to_prop uctx =
-  { uctx with sort_variables = QState.collapse_above_prop ~to_prop uctx.sort_variables }
+let collapse_elim_to_prop_sort_variables ~to_prop uctx =
+  { uctx with sort_variables = QState.collapse_elim_to_prop ~to_prop uctx.sort_variables }
 
 let collapse_sort_variables ?except uctx =
   { uctx with sort_variables = QState.collapse ?except uctx.sort_variables }
