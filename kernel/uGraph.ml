@@ -222,8 +222,8 @@ let check_subtype univs ctxT ctx =
   if eq_sizes (AbstractContext.size ctxT) (AbstractContext.size ctx) then
     let uctx = AbstractContext.repr ctx in
     let inst = UContext.instance uctx in
-    let cst = UContext.constraints uctx in
-    let cstT = UContext.constraints (AbstractContext.repr ctxT) in
+    let cst = UContext.univ_constraints uctx in
+    let cstT = UContext.univ_constraints (AbstractContext.repr ctxT) in
     let push accu v = add_universe v ~strict:false accu in
     let univs = Array.fold_left push univs (snd (Instance.to_array inst)) in
     let univs = merge_constraints cstT univs in

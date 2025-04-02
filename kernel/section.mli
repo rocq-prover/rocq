@@ -9,7 +9,7 @@
 (************************************************************************)
 
 open Names
-open Univ
+open PConstraints
 open UVars
 open Cooking
 

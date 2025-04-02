@@ -76,7 +76,7 @@ module Set = struct
 
   let pr_one = let open Pp in function
     | QEq (a, b) -> Quality.raw_pr a ++ str " = " ++ Quality.raw_pr b
-    | QLeq (a, b) -> Quality.raw_pr a ++ str " -> " ++ Quality.raw_pr b
+    | QLeq (a, b) -> Quality.raw_pr a ++ str " <= " ++ Quality.raw_pr b
     | ULe (u, v) -> Sorts.debug_print u ++ str " <= " ++ Sorts.debug_print v
     | UEq (u, v) -> Sorts.debug_print u ++ str " = " ++ Sorts.debug_print v
     | ULub (u, v) -> Level.raw_pr u ++ str " /\\ " ++ Level.raw_pr v

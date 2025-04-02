@@ -3126,14 +3126,14 @@ let constr_eq ~strict x y =
       match EConstr.eq_constr_universes env evd x y with
       | Some csts ->
         if strict then
-          if UState.check_universe_constraints (Evd.ustate evd) csts
+          if UState.check_constraints (Evd.ustate evd) csts
           then Proofview.tclUNIT ()
           else
             let info = Exninfo.reify () in
             fail_universes ~info
         else
         let csts = UnivProblem.Set.force csts in
-        begin match Evd.add_universe_constraints evd csts with
+        begin match Evd.add_constraints evd csts with
            | evd -> Proofview.Unsafe.tclEVARS evd
            | exception (UGraph.UniverseInconsistency _ as e) ->
              let _, info = Exninfo.capture e in

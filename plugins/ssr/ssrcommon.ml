@@ -779,7 +779,7 @@ let saturate ?(beta=false) ?(bi_types=false) env sigma c ?ty m =
               (specif,UVars.Instance.empty)
               univs
           in
-          let sigma = Evd.add_constraints sigma csts in
+          let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
           sigma, EConstr.of_constr typ
         | Construct ((ind,_ as ctor),_) ->
           let sigma, univs = Typing.get_template_parameters env sigma ind ~refresh_all:true [||] in
@@ -789,7 +789,7 @@ let saturate ?(beta=false) ?(bi_types=false) env sigma c ?ty m =
               specif
               univs
           in
-          let sigma = Evd.add_constraints sigma csts in
+          let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
           sigma, EConstr.of_constr typ
         | _ -> assert false
         end

@@ -13,6 +13,7 @@ open Names
 open Univ
 open UVars
 open Cooking
+open PConstraints
 
 module NamedDecl = Context.Named.Declaration
 
@@ -73,7 +74,7 @@ let push_constraints uctx sec =
   if sec.has_poly_univs &&
      UnivConstraints.exists
        (fun (l,_,r) -> is_polymorphic_univ l sec || is_polymorphic_univ r sec)
-       (snd uctx)
+       (PConstraints.ContextSet.univ_constraints uctx)
   then CErrors.user_err
       Pp.(str "Cannot add monomorphic constraints which refer to section polymorphic universes.");
   let uctx' = sec.mono_universes in
