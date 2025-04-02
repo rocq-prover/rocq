@@ -110,7 +110,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
 
 let check_abstract_uctx a b =
   eq_sizes (AbstractContext.size a) (AbstractContext.size b)
-  && Constraints.equal (UContext.constraints @@ AbstractContext.repr a)
+  && UnivConstraints.equal (UContext.constraints @@ AbstractContext.repr a)
     (UContext.constraints @@ AbstractContext.repr b)
 
 let check_template ar1 ar2 = match ar1, ar2 with

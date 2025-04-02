@@ -40,8 +40,8 @@ type sort_expr = (qvar_expr option * (sort_name_expr * int) list Glob_term.glob_
 
 type instance_expr = quality_expr list * univ_level_expr list
 
-(** Constraints don't have anonymous universes *)
-type univ_constraint_expr = sort_name_expr * Univ.constraint_type * sort_name_expr
+(** UnivConstraints don't have anonymous universes *)
+type univ_constraint_expr = sort_name_expr * Univ.UnivConstraint.kind * sort_name_expr
 
 type universe_decl_expr = (lident list, lident list, univ_constraint_expr list) UState.gen_universe_decl
 type cumul_univ_decl_expr =

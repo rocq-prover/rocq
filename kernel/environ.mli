@@ -207,7 +207,7 @@ exception NotEvaluableConst of const_evaluation_result
 val constant_type : env -> Constant.t puniverses -> types constrained
 
 val constant_value_and_type : env -> Constant.t puniverses ->
-  constr option * types * Constraints.t
+  constr option * types * UnivConstraints.t
 (** The universe context associated to the constant, empty if not
     polymorphic *)
 val constant_context : env -> Constant.t -> AbstractContext.t
@@ -371,11 +371,11 @@ val lookup_modtype : ModPath.t -> env -> module_type_body
 
 (** {5 Universe constraints } *)
 
-val add_constraints : Constraints.t -> env -> env
+val add_constraints : UnivConstraints.t -> env -> env
 (** Add universe constraints to the environment.
     @raise UniverseInconsistency. *)
 
-val check_constraints : Constraints.t -> env -> bool
+val check_constraints : UnivConstraints.t -> env -> bool
 (** Check constraints are satifiable in the environment. *)
 
 val push_context : ?strict:bool -> UContext.t -> env -> env

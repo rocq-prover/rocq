@@ -259,18 +259,18 @@ let check_record data =
    to problems when instantiated with algebraic universes
    (template_u < v can become w+1 < v which we cannot yet handle). *)
 let check_unbounded_from_below (univs,csts) =
-  Univ.Constraints.iter (fun (l,d,r) ->
+  Univ.UnivConstraints.iter (fun (l,d,r) ->
       let bad = match d with
-        | Eq | Lt ->
+        | UnivConstraint.Eq | UnivConstraint.Lt ->
           if Level.Set.mem l univs then Some l
           else if Level.Set.mem r univs then Some r
           else None
-        | Le -> if Level.Set.mem r univs then Some r else None
+        | UnivConstraint.Le -> if Level.Set.mem r univs then Some r else None
       in
       bad |> Option.iter (fun bad ->
           CErrors.user_err Pp.(str "Universe level " ++ Level.raw_pr bad ++
                                str " cannot be template because it appears in constraint " ++
-                               Level.raw_pr l ++ pr_constraint_type d ++ Level.raw_pr r)))
+                               Level.raw_pr l ++ UnivConstraint.pr_kind d ++ Level.raw_pr r)))
     csts
 
 let check_not_appearing_univs ~template_univs univs =
@@ -485,7 +485,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
 
 let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
   if not (List.is_empty univ_info.missing)
-  then raise (InductiveError (env, MissingConstraints (univ_info.missing,univ_info.ind_univ)));
+  then raise (InductiveError (env, MissingUnivConstraints (univ_info.missing,univ_info.ind_univ)));
   let arity = Vars.subst_univs_level_constr usubst arity in
   let lc = Array.map (Vars.subst_univs_level_constr usubst) lc in
   let indices = Vars.subst_univs_level_context usubst indices in

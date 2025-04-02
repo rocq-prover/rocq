@@ -51,16 +51,16 @@ type explanation =
   | Other of Pp.t
 
 type univ_variable_printers = (Quality.QVar.t -> Pp.t) * (Level.t -> Pp.t)
-type univ_inconsistency = univ_variable_printers option * (constraint_type * Sorts.t * Sorts.t * explanation option)
+type univ_inconsistency = univ_variable_printers option * (UnivConstraint.kind * Sorts.t * Sorts.t * explanation option)
 
 exception UniverseInconsistency of univ_inconsistency
 
-val enforce_constraint : univ_constraint -> t -> t
+val enforce_constraint : UnivConstraint.t -> t -> t
 
-val merge_constraints : Constraints.t -> t -> t
+val merge_constraints : UnivConstraints.t -> t -> t
 
-val check_constraint  : t -> univ_constraint -> bool
-val check_constraints : Constraints.t -> t -> bool
+val check_constraint  : t -> UnivConstraint.t -> bool
+val check_constraints : UnivConstraints.t -> t -> bool
 
 val check_eq_sort : QGraph.t -> t -> Sorts.t -> Sorts.t -> bool
 (** Checks whether (i) the first quality is equal to the second and (ii)
@@ -72,7 +72,7 @@ val check_leq_sort : QGraph.t -> t -> Sorts.t -> Sorts.t -> bool
     that the universe of the first one is below the universe of the second one.
     When [type_in_type], only checks relevance. *)
 
-val enforce_leq_alg : Univ.Universe.t -> Univ.Universe.t -> t -> Univ.Constraints.t * t
+val enforce_leq_alg : Univ.Universe.t -> Univ.Universe.t -> t -> Univ.UnivConstraints.t * t
 
 (** Adds a universe to the graph, ensuring it is >= or > Set.
    @raise AlreadyDeclared if the level is already declared in the graph. *)
@@ -90,7 +90,7 @@ val empty_universes : t
 (** [constraints_of_universes g] returns [csts] and [partition] where
    [csts] are the non-Eq constraints and [partition] is the partition
    of the universes into equivalence classes. *)
-val constraints_of_universes : t -> Constraints.t * Level.Set.t list
+val constraints_of_universes : t -> UnivConstraints.t * Level.Set.t list
 
 val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option
 (** [choose p g u] picks a universe verifying [p] and equal
@@ -100,7 +100,7 @@ val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option
    universes [kept] in [g] up to transitivity.
 
     eg if [g] is [a <= b <= c] then [constraints_for ~kept:{a, c} g] is [a <= c]. *)
-val constraints_for : kept:Level.Set.t -> t -> Constraints.t
+val constraints_for : kept:Level.Set.t -> t -> UnivConstraints.t
 
 val domain : t -> Level.Set.t
 (** Known universes *)

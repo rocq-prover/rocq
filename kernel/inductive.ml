@@ -279,14 +279,14 @@ let instantiate_template_constraints subst templ =
     in
     (* if qsort, it is above prop *)
     let fold accu (u, n) = match n, cst with
-      | 0, _ -> Constraints.add (u, cst, v) accu
-      | 1, Le -> Constraints.add (u, Lt, v) accu
-      | 1, (Eq | Lt) -> assert false (* FIXME? *)
+      | 0, _ -> UnivConstraints.add (u, cst, v) accu
+      | 1, UnivConstraint.Le -> UnivConstraints.add (u, UnivConstraint.Lt, v) accu
+      | 1, (UnivConstraint.Eq | UnivConstraint.Lt) -> assert false (* FIXME? *)
       | _ -> assert false
     in
     List.fold_left fold accu (Univ.Universe.repr u)
   in
-  Constraints.fold fold cstrs Constraints.empty
+  UnivConstraints.fold fold cstrs UnivConstraints.empty
 
 let instantiate_template_universes mib args =
   let templ = match mib.mind_template with

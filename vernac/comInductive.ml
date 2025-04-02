@@ -449,10 +449,10 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
 
 let unbounded_from_below u cstrs =
   let open Univ in
-  Univ.Constraints.for_all (fun (l, d, r) ->
+  UnivConstraints.for_all (fun (l, d, r) ->
       match d with
-      | Eq | Lt -> not (Univ.Level.equal l u) && not (Univ.Level.equal r u)
-      | Le -> not (Univ.Level.equal r u))
+      | UnivConstraint.Eq | UnivConstraint.Lt -> not (Level.equal l u) && not (Level.equal r u)
+      | UnivConstraint.Le -> not (Level.equal r u))
     cstrs
 
 (* Returns the list [x_1, ..., x_n] of levels contributing to template
@@ -502,7 +502,7 @@ let split_universe_context subset (univs, csts) =
     let () = assert (not @@ Univ.Level.Set.mem r subset) in
     Univ.Level.Set.mem l subset
   in
-  let subcst, remcst = Univ.Constraints.partition subfilter csts in
+  let subcst, remcst = Univ.UnivConstraints.partition subfilter csts in
   (subset, subcst), (rem, remcst)
 
 let warn_no_template_universe =

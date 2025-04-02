@@ -870,9 +870,9 @@ let explain_non_linear_unification env sigma m t =
   pr_leconstr_env env sigma t ++ str "."
 
 let explain_unsatisfied_constraints env sigma cst =
-  let cst = Univ.Constraints.filter (fun cst -> not @@ UGraph.check_constraint (Evd.universes sigma) cst) cst in
+  let cst = Univ.UnivConstraints.filter (fun cst -> not @@ UGraph.check_constraint (Evd.universes sigma) cst) cst in
   strbrk "Unsatisfied constraints: " ++
-    Univ.Constraints.pr (Termops.pr_evd_level sigma) cst ++
+    Univ.UnivConstraints.pr (Termops.pr_evd_level sigma) cst ++
     spc () ++ str "(maybe a bugged tactic)."
 
 let explain_unsatisfied_elim_constraints env sigma cst =
@@ -1013,7 +1013,7 @@ let explain_type_error env sigma err =
      explain_ill_typed_rec_body env sigma i lna vdefj vargs
   | WrongCaseInfo (ind,ci) ->
       explain_wrong_case_info env ind ci
-  | UnsatisfiedConstraints cst ->
+  | UnsatisfiedUnivConstraints cst ->
     explain_unsatisfied_constraints env sigma cst
   | UnsatisfiedElimConstraints cst ->
     explain_unsatisfied_elim_constraints env sigma cst
@@ -1258,7 +1258,7 @@ let explain_not_match_error = function
       quote t1 ++ spc () ++
       str "compared to " ++ spc () ++
       quote t2
-  | IncompatibleConstraints { got; expect } ->
+  | IncompatibleUnivConstraints { got; expect } ->
     let open UVars in
     let pr_auctx auctx =
       let sigma = Evd.from_ctx
@@ -1548,7 +1548,7 @@ let explain_inductive_error env = function
   | BadEntry -> error_bad_entry ()
   | LargeNonPropInductiveNotInType ->
     error_large_non_prop_inductive_not_in_type ()
-  | MissingConstraints csts -> error_inductive_missing_constraints env csts
+  | MissingUnivConstraints csts -> error_inductive_missing_constraints env csts
 
 (* Primitive errors *)
 

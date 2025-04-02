@@ -202,7 +202,7 @@ let do_universe ~poly l =
   match poly with
   | false ->
     let ctx = List.fold_left (fun ctx (_,qid) -> Level.Set.add (Level.make qid) ctx)
-        Level.Set.empty l, Constraints.empty
+        Level.Set.empty l, UnivConstraints.empty
     in
     Global.push_context_set ctx
   | true ->
@@ -210,7 +210,7 @@ let do_universe ~poly l =
     let us = CArray.map_of_list (fun (_,l) -> Level.make l) l in
     let ctx =
       UVars.UContext.make {quals = [||]; univs = names}
-        (UVars.Instance.of_array ([||],us), Constraints.empty)
+        (UVars.Instance.of_array ([||],us), UnivConstraints.empty)
     in
     Global.push_section_context ctx
 
@@ -235,7 +235,7 @@ let do_sort ~poly l =
     let qs = CArray.map_of_list (fun (_,sg) -> Quality.global sg) l in
     let ctx =
       UVars.UContext.make {quals=names; univs=[||]}
-        (UVars.Instance.of_array (qs,[||]), Constraints.empty)
+        (UVars.Instance.of_array (qs,[||]), UnivConstraints.empty)
     in
     Global.push_section_context ctx
 
@@ -244,8 +244,8 @@ let do_constraint ~poly l =
   let evd = Evd.from_env (Global.env ()) in
   let constraints = List.fold_left (fun acc cst ->
       let cst = Constrintern.interp_univ_constraint evd cst in
-      Constraints.add cst acc)
-      Constraints.empty l
+      UnivConstraints.add cst acc)
+      UnivConstraints.empty l
   in
   match poly with
   | false ->
@@ -277,7 +277,7 @@ let constraint_obj =
    main issue is the filtering or redundant constraints (needed for perf / smaller vo file sizes) *)
 let add_constraint_source x ctx =
   let _, csts = ctx in
-  if Univ.Constraints.is_empty csts then ()
+  if Univ.UnivConstraints.is_empty csts then ()
   else
     let v = x, csts in
     Lib.add_leaf (constraint_obj v)

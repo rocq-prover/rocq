@@ -674,7 +674,7 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       | Ok () -> not (UGraph.check_constraint before_univs c)
       | Error _ -> true
     in
-    let ctx = on_snd (Univ.Constraints.filter is_new_constraint) ctx in
+    let ctx = on_snd (Univ.UnivConstraints.filter is_new_constraint) ctx in
     DeclareUniv.add_constraint_source (ConstRef kn) ctx
   in
   let () = DeclareUniv.declare_univ_binders (GlobRef.ConstRef kn) ubinders in
