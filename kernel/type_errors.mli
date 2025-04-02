@@ -76,6 +76,8 @@ type ('constr, 'types, 'r) ptype_error =
   | UnsatisfiedElimConstraints of Sorts.ElimConstraints.t
   | UnsatisfiedQCumulConstraints of Sorts.QCumulConstraints.t
   | UnsatisfiedUnivConstraints of UnivConstraints.t
+  | UnsatisfiedQUConstraints of Sorts.QUConstraints.t
+  | UnsatisfiedPConstraints of PConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
   | DisallowedSProp
@@ -155,9 +157,13 @@ val error_ill_typed_rec_body  :
 
 val error_unsatisfied_elim_constraints : env -> Sorts.ElimConstraints.t -> 'a
 
-val error_unsatisfied_constraints : env -> UnivConstraints.t -> 'a
-
 val error_unsatisfied_qcumul_constraints : env -> Sorts.QCumulConstraints.t -> 'a
+
+val error_unsatisfied_univ_constraints : env -> Univ.UnivConstraints.t -> 'a
+
+val error_unsatisfied_quconstraints : env -> Sorts.QUConstraints.t -> 'a
+
+val error_unsatisfied_poly_constraints : env -> PConstraints.t -> 'a
 
 val error_undeclared_qualities : env -> Sorts.QVar.Set.t -> 'a
 

@@ -39,7 +39,7 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   let loc = id.CAst.loc in
   let id = id.CAst.v in
   let env = Global.env () in
-  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
+  let evd, udecl = Constrintern.interp_sort_poly_decl_opt env udecl in
   let evd, (typ, impls) =
     Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
       env evd typ
@@ -49,7 +49,7 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   let _qvars, uvars = EConstr.universes_of_constr evd typ in
   let evd = Evd.restrict_universe_context evd uvars in
   let typ = EConstr.to_constr evd typ in
-  let univs = Evd.check_univ_decl ~poly evd udecl in
+  let univs = Evd.check_sort_poly_decl ~poly evd udecl in
   let entry = Declare.symbol_entry ~univs ~unfold_fix typ in
   let kn = Declare.declare_constant ?loc ~name:id ~kind:Decls.IsSymbol (Declare.SymbolEntry entry) in
   let () = Impargs.maybe_declare_manual_implicits false (GlobRef.ConstRef kn) impls in
@@ -121,7 +121,7 @@ let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u :
   let stateq, maskq = Array.fold_left_map (safe_quality_pattern_of_quality ~loc evd qsubst) stateq q
   in
   let stateu, masku = Array.fold_left_map (fun stateu lvlold ->
-      let lvlnew = Univ.Level.var_index @@ Univ.subst_univs_level_level usubst lvlold in
+      let lvlnew = Univ.Level.var_index @@ UVars.subst_univs_level_level usubst lvlold in
       Option.fold_right (update_invtblu1 ~loc evd lvlold) lvlnew stateu, lvlnew
     ) stateu u
   in
@@ -131,7 +131,7 @@ let universe_level_subst_var_index usubst u =
   match Univ.Universe.level u with
     | None -> None
     | Some lvlold ->
-        let lvl = Univ.subst_univs_level_level usubst lvlold in
+        let lvl = UVars.subst_univs_level_level usubst lvlold in
         Option.map (fun lvl -> lvlold, lvl) @@ Univ.Level.var_index lvl
 
 let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s =
@@ -368,44 +368,50 @@ let warn_rewrite_rules_break_SR =
     Pp.(fun reason ->
         str "This rewrite rule breaks subject reduction" ++ spc() ++ reason)
 
-let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
+let interp_rule (udecl, lhs, rhs: Constrexpr.sort_poly_decl_expr option * _ * _) =
   let env = Global.env () in
   let evd = Evd.from_env env in
 
   (* 1. Read universe level binders, leaving out the constraints for now *)
-  (* Inlined the relevant part of Constrintern.interp_univ_decl *)
+  (* Inlined the relevant part of Constrintern.interp_poly_decl *)
   let evd, udecl =
     let open CAst in let open UState in
     match udecl with
-    | None -> evd, default_univ_decl
+    | None -> evd, default_sort_poly_decl
     | Some udecl ->
     let evd, qualities = List.fold_left_map (fun evd lid ->
         Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
         evd
-        udecl.univdecl_qualities
+        udecl.sort_poly_decl_qualities
     in
     let evd, instance = List.fold_left_map (fun evd lid ->
         Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
         evd
-        udecl.univdecl_instance
+        udecl.sort_poly_decl_instance
     in
-    let cstrs =
-      udecl.univdecl_constraints |> List.to_seq
+    let elim_cstrs =
+      udecl.sort_poly_decl_elim_constraints |> List.to_seq
+      |> Seq.map (Constrintern.interp_elim_constraint evd)
+      |> Sorts.ElimConstraints.of_seq
+    in
+    let univ_cstrs =
+      udecl.sort_poly_decl_univ_constraints |> List.to_seq
       |> Seq.map (Constrintern.interp_univ_constraint evd)
       |> Univ.UnivConstraints.of_seq
     in
     let decl = {
-      univdecl_qualities = qualities;
-      univdecl_extensible_qualities = udecl.univdecl_extensible_qualities;
-      univdecl_instance = instance;
-      univdecl_extensible_instance = udecl.univdecl_extensible_instance;
-      univdecl_constraints = cstrs;
-      univdecl_extensible_constraints = udecl.univdecl_extensible_constraints;
+      sort_poly_decl_qualities = qualities;
+      sort_poly_decl_extensible_qualities = udecl.sort_poly_decl_extensible_qualities;
+      sort_poly_decl_elim_constraints = elim_cstrs;
+      sort_poly_decl_instance = instance;
+      sort_poly_decl_extensible_instance = udecl.sort_poly_decl_extensible_instance;
+      sort_poly_decl_univ_constraints = univ_cstrs;
+      sort_poly_decl_extensible_constraints = udecl.sort_poly_decl_extensible_constraints;
     } in
     evd, decl
   in
-  let nvarqs = List.length udecl.univdecl_qualities in
-  let nvarus = List.length udecl.univdecl_instance in
+  let nvarqs = List.length udecl.sort_poly_decl_qualities in
+  let nvarus = List.length udecl.sort_poly_decl_instance in
 
 
   (* 2. Read left hand side, into a pattern *)
@@ -421,7 +427,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let evd = Evd.minimize_universes evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
   let evd = Evd.restrict_universe_context evd uvars in
-  let uctx, uctx' = UState.check_univ_decl_rev (Evd.ustate evd) udecl in
+  let uctx, uctx' = UState.check_sort_poly_decl_rev (Evd.ustate evd) udecl in
 
   let usubst =
     let inst, auctx = UVars.abstract_universes uctx' in

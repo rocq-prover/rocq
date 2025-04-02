@@ -425,7 +425,7 @@ let occurrence_test env sigma c1 c2 =
   match EConstr.eq_constr_universes env sigma c1 c2 with
   | None -> false, sigma
   | Some cstr ->
-     try true, Evd.add_universe_constraints sigma cstr
+     try true, Evd.add_constraints sigma cstr
      with UniversesDiffer | UGraph.UniverseInconsistency _ -> false, sigma
 
 let abstract_list_all_with_dependencies env evd typ c l =
@@ -924,11 +924,11 @@ let constr_cmp pb env sigma flags ?nargs t u =
   in
   match cstrs with
   | Some cstrs ->
-      begin try Some (Evd.add_universe_constraints sigma cstrs)
+      begin try Some (Evd.add_constraints sigma cstrs)
       with UGraph.UniverseInconsistency _ -> None
       | Evd.UniversesDiffer ->
         if is_rigid_head sigma flags t then
-          try Some (Evd.add_universe_constraints sigma (UnivProblem.Set.force cstrs))
+          try Some (Evd.add_constraints sigma (UnivProblem.Set.force cstrs))
           with UGraph.UniverseInconsistency _ -> None
         else None
       end
@@ -1460,7 +1460,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
          in
         match infer_conv_ustate ~pb ~ts:convflags curenv sigma m1 n1 with
         | Some uprob ->
-          begin match Evd.add_universe_constraints sigma uprob with
+          begin match Evd.add_constraints sigma uprob with
           | sigma -> Some (push_sigma sigma substn)
           | exception (UGraph.UniverseInconsistency _ | UniversesDiffer) -> None
           end

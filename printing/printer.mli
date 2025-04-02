@@ -147,10 +147,10 @@ val pr_universe_instance_binder : evar_map -> UVars.Instance.t -> Univ.UnivConst
 val pr_universe_ctx        : evar_map -> ?variance:UVars.Variance.t array ->
   UVars.UContext.t -> Pp.t
 val pr_abstract_universe_ctx : evar_map -> ?variance:UVars.Variance.t array ->
-  ?priv:Univ.ContextSet.t -> UVars.AbstractContext.t -> Pp.t
-val pr_universe_ctx_set    : evar_map -> Univ.ContextSet.t -> Pp.t
+  ?priv:PConstraints.ContextSet.t -> UVars.AbstractContext.t -> Pp.t
+val pr_universe_ctx_set    : evar_map -> PConstraints.ContextSet.t -> Pp.t
 val pr_universes  : evar_map ->
-  ?variance:UVars.Variance.t array -> ?priv:Univ.ContextSet.t ->
+  ?variance:UVars.Variance.t array -> ?priv:PConstraints.ContextSet.t ->
   Declarations.universes -> Pp.t
 
 (** [universe_binders_with_opt_names ref l]

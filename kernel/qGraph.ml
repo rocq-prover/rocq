@@ -68,7 +68,9 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type quality_inconsistency = (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
+type quality_inconsistency =
+  ((QVar.t -> Pp.t) option) *
+    (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 (* If s can eliminate to s', we want an edge between s and s'.
    In the acyclic graph, it means setting s to be lower or equal than s'.
@@ -190,7 +192,7 @@ let enforce_constraint src (q1,k,q2) g =
   match enforce_func k q1 q2 g.graph with
   | None ->
      let e = lazy (G.get_explanation (q1,to_graph_cstr k,q2) g.graph) in
-     raise @@ EliminationError (QualityInconsistency (k, q1, q2, Some (Path e)))
+     raise @@ EliminationError (QualityInconsistency (None, (k, q1, q2, Some (Path e))))
   | Some graph ->
      let g = match src with
        | Static -> { g with graph }
@@ -255,6 +257,9 @@ let initial_graph =
 let eliminates_to g q q' =
   check_func ElimConstraint.ElimTo g.graph q q'
 
+let update_rigids g g' =
+  { g' with rigid_paths = g.rigid_paths }
+
 let sort_eliminates_to g s1 s2 =
   eliminates_to g (quality s1) (quality s2)
 
@@ -272,6 +277,16 @@ let qvar_domain g =
   Quality.Set.fold
     (fun q acc -> match q with Quality.QVar q -> QVar.Set.add q acc | _ -> acc)
     (domain g) QVar.Set.empty
+
+let merge g g' =
+  let qs = domain g' in
+  let g = Quality.Set.fold
+             (fun q acc -> try add_quality q acc with _ -> acc) qs g in
+  Quality.Set.fold
+    (fun q -> Quality.Set.fold
+             (fun q' acc -> if eliminates_to g' q q'
+                         then enforce_eliminates_to Static q q' acc
+                         else acc) qs) qs g
 
 let is_empty g = QVar.Set.is_empty (qvar_domain g)
 
@@ -318,7 +333,25 @@ let explain_quality_inconsistency prv r =
        let qualities = pstart :: List.map snd p in
        let constants = List.filter Quality.is_qconst qualities in
        str "because it would identify" ++
-         prlist (fun q -> spc() ++ str"and" ++ spc() ++ Quality.pr prv q) constants ++
+         prlist_with_sep (fun() -> spc() ++ str"and" ++ spc()) (Quality.pr prv) constants ++
          spc() ++ str"which is inconsistent." ++ spc() ++
          str"This is introduced by the constraints" ++ spc() ++ Quality.pr prv pstart ++
          prlist (fun (r,v) -> spc() ++ pr_cst r ++ str" " ++ Quality.pr prv v) p
+
+let explain_elimination_error defprv err =
+  let open Pp in
+  match err with
+  | IllegalConstraint -> str "A constraint involving two constants or SProp ~> s is illegal."
+  | CreatesForbiddenPath (q1,q2) ->
+     str "This expression would enforce a non-declared elimination constraint between" ++
+       spc() ++ Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Quality.pr defprv q2
+  | MultipleDominance (q1,qv,q2) ->
+     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Quality.pr defprv qv in
+     str "This expression enforces" ++ spc() ++ pr_elim q1 ++ spc() ++ str"and" ++ spc() ++
+       pr_elim q2 ++ spc() ++ str"which might make type-checking undecidable"
+  | QualityInconsistency (prv, (k, q1, q2, r)) ->
+     let prv = match prv with Some prv -> prv | None -> defprv in
+     str"The quality constraints are inconsistent: " ++
+       str "cannot enforce" ++ spc() ++ Quality.pr prv q1 ++ spc() ++
+       ElimConstraint.pr_kind k ++ spc() ++ Quality.pr prv q2 ++ spc() ++
+       explain_quality_inconsistency prv r

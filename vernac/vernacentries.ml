@@ -171,7 +171,7 @@ let show_universes ~proof =
   let ctx = Evd.universe_context_set (Evd.minimize_universes sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
-       Univ.ContextSet.pr (Termops.pr_evd_level sigma) ctx)
+       PConstraints.ContextSet.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -553,13 +553,14 @@ let mk_sources () =
   let edges =
     let libs = Library.loaded_libraries () in
     List.fold_left (fun edges dp ->
-        let _, (_, csts) = Safe_typing.univs_of_library @@ Library.library_compiled dp in
+        let _, (_,(_,univ_csts)) =
+          Safe_typing.univs_of_library @@ Library.library_compiled dp in
         UnivConstraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
-          csts edges)
+          univ_csts edges)
       edges libs
   in
   let edges =
-    List.fold_left (fun edges (ref,csts) ->
+    List.fold_left (fun edges (ref,(_,csts)) ->
         UnivConstraints.fold (fun cst edges -> add_edge cst (GlobRef ref) edges)
           csts edges)
       edges srcs
@@ -1422,7 +1423,7 @@ let vernac_sort ~poly l =
 let vernac_constraint ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
     user_err
-                 (str"Polymorphic universe constraints can only be declared"
+                 (str"Polymorphic constraints can only be declared"
                   ++ str " inside sections, use Monomorphic Constraint instead.");
   DeclareUniv.do_constraint ~poly l
 
@@ -2129,7 +2130,7 @@ let check_may_eval env sigma redexp rc =
     else
       let env = Evarutil.nf_env_evar sigma env in
       let env = Environ.push_qualities qs env in
-      let env = Environ.push_context_set (us,csts) env in
+      let env = Environ.push_context_set QGraph.Static (us,csts) env in
       let c = EConstr.to_constr sigma c in
       let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
       (* OK to call kernel which does not support evars *)
@@ -2173,7 +2174,7 @@ let vernac_global_check c =
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let uctx = Evd.universe_context_set sigma in
-  let senv = Safe_typing.push_context_set ~strict:false uctx senv in
+  let senv = Safe_typing.push_context_set ~strict:false QGraph.Static uctx senv in
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
   Prettyp.print_safe_judgment j ++

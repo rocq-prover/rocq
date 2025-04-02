@@ -64,9 +64,11 @@ val add_mind :
   MutInd.t * IndTyping.NotPrimRecordReason.t option
 
 (** Extra universe constraints *)
-val add_constraints : Univ.UnivConstraints.t -> unit
+val add_constraints : QGraph.constraint_source -> PConstraints.t -> unit
+val add_univ_constraints : Univ.UnivConstraints.t -> unit
+val add_elim_constraints : QGraph.constraint_source -> Sorts.ElimConstraints.t -> unit
 
-val push_context_set : Univ.ContextSet.t -> unit
+val push_context_set : QGraph.constraint_source -> PConstraints.ContextSet.t -> unit
 
 (** Extra sort qualities *)
 val push_qualities : Sorts.QVar.Set.t -> unit

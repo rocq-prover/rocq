@@ -10,6 +10,7 @@
 
 open Univ
 open UnivSubst
+open PConstraints
 
 (* To disallow minimization to Set *)
 let { Goptions.get = get_set_minimization } =
@@ -307,7 +308,8 @@ let extra_union a b = {
 }
 
 let normalize_context_set g ctx (us:UnivFlex.t) {weak_constraints=weak;above_prop} =
-  let (ctx, csts) = ContextSet.levels ctx, ContextSet.constraints ctx in
+  let elim_csts = ContextSet.elim_constraints ctx in
+  let (ctx, csts) = ContextSet.levels ctx, ContextSet.univ_constraints ctx in
   (* Keep the Set <= i constraints separate *)
   let smallles, csts =
     UnivConstraints.partition (fun (l,d,r) -> d == Le && Level.is_set l) csts
@@ -427,4 +429,4 @@ let normalize_context_set g ctx (us:UnivFlex.t) {weak_constraints=weak;above_pro
     minimize_univ_variables ctx us ucstrsr ucstrsl noneqs
   in
   let us = UnivFlex.normalize us in
-  us, (ctx', UnivConstraints.union noneqs eqs)
+  us, (ctx', PConstraints.make elim_csts @@ UnivConstraints.union noneqs eqs)

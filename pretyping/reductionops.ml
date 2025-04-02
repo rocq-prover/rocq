@@ -1328,7 +1328,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
       let ans = match ans with
       | None -> None
       | Some cstr ->
-        try Some (Evd.add_universe_constraints sigma cstr)
+        try Some (Evd.add_constraints sigma cstr)
         with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
       in
       match ans with
@@ -1351,7 +1351,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
         match ans with
         | None -> None
         | Some cstr ->
-          match Evd.add_universe_constraints sigma cstr with
+          match Evd.add_constraints sigma cstr with
           | sigma -> Some sigma
           | exception UGraph.UniverseInconsistency _ | exception Evd.UniversesDiffer ->
             (* Retry with local universe checking, which may imply constant unfolding *)

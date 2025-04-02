@@ -3135,7 +3135,7 @@ let interp_univ_constraints env evd cstrs =
   let interp (evd,cstrs) cstr =
     let cstr = interp_univ_constraint evd cstr in
     try
-      let evd = Evd.add_constraints evd (Univ.UnivConstraints.singleton cstr) in
+      let evd = Evd.add_univ_constraints evd (Univ.UnivConstraints.singleton cstr) in
       evd, Univ.UnivConstraints.add cstr cstrs
     with UGraph.UniverseInconsistency e as exn ->
       let _, info = Exninfo.capture exn in
@@ -3144,67 +3144,99 @@ let interp_univ_constraints env evd cstrs =
   in
   List.fold_left interp (evd,Univ.UnivConstraints.empty) cstrs
 
-let interp_univ_decl env decl =
+let known_glob_quality evd q =
+  match q with
+  | GQConstant q -> Sorts.Quality.QConstant q
+  | GQualVar (GLocalQVar _) -> assert false
+  | GQualVar (GQVar q | GRawQVar q) -> Sorts.Quality.QVar q
+
+let interp_known_quality evd q =
+  let q = intern_quality ~local_univs:{bound = bound_univs evd; unb_univs=false} q in
+  known_glob_quality evd q
+
+let interp_elim_constraint evd (q1,k,q2) =
+  let q1 = interp_known_quality evd q1 in
+  let q2 = interp_known_quality evd q2 in
+  q1,k,q2
+
+let interp_elim_constraints env evd cstrs =
+  let interp (evd,cstrs) cstr =
+    let cstr = interp_elim_constraint evd cstr in
+    try let evd = Evd.add_poly_constraints QGraph.Rigid evd @@
+                    PConstraints.of_qualities (Sorts.ElimConstraints.singleton cstr) in
+        evd, Sorts.ElimConstraints.add cstr cstrs
+    with QGraph.EliminationError e as exn ->
+      let _, info = Exninfo.capture exn in
+      CErrors.user_err ~info @@
+        QGraph.explain_elimination_error (Termops.pr_evd_qvar evd) e
+  in
+  List.fold_left interp (evd, Sorts.ElimConstraints.empty) cstrs
+
+let interp_sort_poly_decl env decl =
   let open UState in
   let evd = Evd.from_env env in
   let evd, qualities = List.fold_left_map (fun evd lid ->
       Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
       evd
-      decl.univdecl_qualities
+      decl.sort_poly_decl_qualities
   in
   let evd, instance = List.fold_left_map (fun evd lid ->
       Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
       evd
-      decl.univdecl_instance
+      decl.sort_poly_decl_instance
   in
-  let evd, cstrs = interp_univ_constraints env evd decl.univdecl_constraints in
+  let evd, univ_cstrs = interp_univ_constraints env evd decl.sort_poly_decl_univ_constraints in
+  let evd, elim_cstrs = interp_elim_constraints env evd decl.sort_poly_decl_elim_constraints in
   let decl = {
-    univdecl_qualities = qualities;
-    univdecl_extensible_qualities = decl.univdecl_extensible_qualities;
-    univdecl_instance = instance;
-    univdecl_extensible_instance = decl.univdecl_extensible_instance;
-    univdecl_constraints = cstrs;
-    univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
+    sort_poly_decl_qualities = qualities;
+    sort_poly_decl_extensible_qualities = decl.sort_poly_decl_extensible_qualities;
+    sort_poly_decl_elim_constraints = elim_cstrs;
+    sort_poly_decl_instance = instance;
+    sort_poly_decl_extensible_instance = decl.sort_poly_decl_extensible_instance;
+    sort_poly_decl_univ_constraints = univ_cstrs;
+    sort_poly_decl_extensible_constraints = decl.sort_poly_decl_extensible_constraints;
   }
   in evd, decl
 
-let interp_cumul_univ_decl env decl =
+let interp_cumul_sort_poly_decl env decl =
   let open UState in
-  let binders = List.map fst decl.univdecl_instance in
-  let variances = Array.map_of_list snd decl.univdecl_instance in
+  let binders = List.map fst decl.sort_poly_decl_instance in
+  let variances = Array.map_of_list snd decl.sort_poly_decl_instance in
   let evd = Evd.from_env env in
   let evd, qualities = List.fold_left_map (fun evd lid ->
       Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
       evd
-      decl.univdecl_qualities
+      decl.sort_poly_decl_qualities
   in
   let evd, instance = List.fold_left_map (fun evd lid ->
       Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
       evd
       binders
   in
-  let evd, cstrs = interp_univ_constraints env evd decl.univdecl_constraints in
+  let evd, univ_cstrs = interp_univ_constraints env evd decl.sort_poly_decl_univ_constraints in
+  let evd, elim_cstrs = interp_elim_constraints env evd decl.sort_poly_decl_elim_constraints in
   let decl = {
-    univdecl_qualities = qualities;
-    univdecl_extensible_qualities = decl.univdecl_extensible_qualities;
-    univdecl_instance = instance;
-    univdecl_extensible_instance = decl.univdecl_extensible_instance;
-    univdecl_constraints = cstrs;
-    univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
+    sort_poly_decl_qualities = qualities;
+    sort_poly_decl_extensible_qualities = decl.sort_poly_decl_extensible_qualities;
+    sort_poly_decl_elim_constraints = elim_cstrs;
+    sort_poly_decl_instance = instance;
+    sort_poly_decl_extensible_instance = decl.sort_poly_decl_extensible_instance;
+    sort_poly_decl_univ_constraints = univ_cstrs;
+    sort_poly_decl_extensible_constraints = decl.sort_poly_decl_extensible_constraints;
   }
   in
   evd, decl, variances
 
-let interp_univ_decl_opt env l =
+let interp_sort_poly_decl_opt env l =
   match l with
-  | None -> Evd.from_env env, UState.default_univ_decl
-  | Some decl -> interp_univ_decl env decl
+  | None -> Evd.from_env env, UState.default_sort_poly_decl
+  | Some decl -> interp_sort_poly_decl env decl
 
-let interp_cumul_univ_decl_opt env = function
-  | None -> Evd.from_env env, UState.default_univ_decl, [| |]
-  | Some decl -> interp_cumul_univ_decl env decl
+let interp_cumul_sort_poly_decl_opt env = function
+  | None -> Evd.from_env env, UState.default_sort_poly_decl, [| |]
+  | Some decl -> interp_cumul_sort_poly_decl env decl
 
-let interp_mutual_univ_decl_opt env udecls =
+let interp_mutual_sort_poly_decl_opt env udecls =
   let udecl =
     List.fold_right (fun udecl acc ->
       match udecl , acc with
@@ -3212,9 +3244,9 @@ let interp_mutual_univ_decl_opt env udecls =
       | x , None -> x
       | Some ls , Some us ->
         let open UState in
-        let lsu = ls.univdecl_instance and usu = us.univdecl_instance in
+        let lsu = ls.sort_poly_decl_instance and usu = us.sort_poly_decl_instance in
         if not (CList.for_all2eq (fun x y -> Id.equal x.CAst.v y.CAst.v) lsu usu) then
           CErrors.user_err Pp.(str "Mutual definitions should all have the same universe binders.");
         Some us) udecls None
   in
-  interp_univ_decl_opt env udecl
+  interp_sort_poly_decl_opt env udecl

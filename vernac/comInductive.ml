@@ -481,8 +481,8 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
         | NonLinear -> false
         | Linear _ ->
           assert (not @@ Univ.Level.is_set u);
-          Univ.Level.Set.mem u (Univ.ContextSet.levels uctx) &&
-          unbounded_from_below u (Univ.ContextSet.constraints uctx) &&
+          Univ.Level.Set.mem u (PConstraints.ContextSet.levels uctx) &&
+          unbounded_from_below u (PConstraints.ContextSet.univ_constraints uctx) &&
           not (Univ.Level.Set.mem u non_template_levels))
       paramslevels
   in
@@ -497,14 +497,14 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
   let template_univs = Univ.Level.Map.domain template_univs in
   pseudo_sort_poly, template_univs
 
-let split_universe_context subset (univs, csts) =
+let split_universe_context subset (univs, (elim_csts,univ_csts)) =
   let rem = Univ.Level.Set.diff univs subset in
   let subfilter (l, _, r) =
     let () = assert (not @@ Univ.Level.Set.mem r subset) in
     Univ.Level.Set.mem l subset
   in
-  let subcst, remcst = Univ.UnivConstraints.partition subfilter csts in
-  (subset, subcst), (rem, remcst)
+  let subcst, remcst = Univ.UnivConstraints.partition subfilter univ_csts in
+  (subset, PConstraints.make elim_csts subcst), (rem, PConstraints.of_univs remcst)
 
 let warn_no_template_universe =
   CWarnings.create ~name:"no-template-universe"
@@ -516,9 +516,9 @@ type should_template =
 
 let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
-  let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
+  let uentry, _ as ubinders = Evd.check_sort_poly_decl ~poly sigma udecl in
   let uentry, global = match uentry with
-    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
+    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, PConstraints.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
   in
   sigma, uentry, ubinders, global
@@ -533,7 +533,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
       template_qvars sigma
   in
   let uctx =
-    UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
+    UState.check_template_sort_poly_decl (Evd.ustate sigma) ~template_qvars udecl
   in
   let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
@@ -683,7 +683,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
+  let sigma, udecl, variances = interp_cumul_sort_poly_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
@@ -892,7 +892,7 @@ type t = {
   nuparams : int option;
   univ_binders : UState.named_universes_entry;
   implicits : DeclareInd.one_inductive_impls list;
-  uctx : Univ.ContextSet.t;
+  uctx : PConstraints.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
   indlocs : DeclareInd.indlocs;
@@ -933,7 +933,7 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
-  Global.push_context_set uctx;
+  Global.push_context_set QGraph.Static uctx;
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)

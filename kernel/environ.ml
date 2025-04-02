@@ -345,12 +345,13 @@ let set_universes g env =
 let qualities env = env.env_qualities
 let qvars env = QGraph.qvar_domain @@ qualities env
 
+let set_qualities g env =
+  {env with env_qualities=g}
+
 let named_context env = env.env_named_context.env_named_ctx
 let named_context_val env = env.env_named_context
 let rel_context env = env.env_rel_context.env_rel_ctx
 let rel_context_val env = env.env_rel_context
-
-let qualities env = env.env_qualities
 
 let empty_context env =
   match env.env_rel_context.env_rel_ctx, env.env_named_context.env_named_ctx with
@@ -451,42 +452,57 @@ let fold_named_context_reverse f ~init env =
 
 let map_universes f env = set_universes (f env.env_universes) env
 
-let add_constraints c env =
-  if Univ.UnivConstraints.is_empty c then env
-  else map_universes (UGraph.merge_constraints c) env
+let map_qualities f env = set_qualities (f env.env_qualities) env
 
-let check_constraints c env =
-  UGraph.check_constraints c env.env_universes
+let add_constraints src (elim_csts,univ_csts as c) env =
+  if PConstraints.is_empty c
+  then env
+  else
+    map_qualities (QGraph.merge_constraints src elim_csts) @@
+      map_universes (UGraph.merge_constraints univ_csts) env
+
+let check_univ_constraints univ_csts env =
+  UGraph.check_constraints univ_csts env.env_universes
+
+let check_constraints (elim_csts,univ_csts) env =
+  check_univ_constraints univ_csts env &&
+    QGraph.check_constraints elim_csts env.env_qualities
 
 let add_universes ~strict ctx g =
-  let _qs, us = UVars.Instance.to_array (UVars.UContext.instance ctx) in
+  let _, us = UVars.Instance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_left
       (fun g v -> UGraph.add_universe ~strict v g)
       g us
   in
-  UGraph.merge_constraints (UVars.UContext.constraints ctx) g
+  UGraph.merge_constraints (UVars.UContext.univ_constraints ctx) g
 
 let set_qualities g env = {env with env_qualities = g}
 
 let map_qualities f env = set_qualities (f env.env_qualities) env
 
-let add_qualities qs g =
-  Array.fold_right QGraph.add_quality qs g
+let add_qualities src ctx g =
+  let qs, _ = UVars.Instance.to_array (UVars.UContext.instance ctx) in
+  let g = Array.fold_right QGraph.add_quality qs g in
+  QGraph.merge_constraints src (UVars.UContext.elim_constraints ctx) g
 
-let push_context ?(strict=false) ctx env =
-  let qs, _us = UVars.Instance.to_array (UVars.UContext.instance ctx) in
-  let env = map_qualities (add_qualities qs) env in
+let push_context ?(strict=false) src ctx env =
+  let env = map_qualities (add_qualities src ctx) env in
   map_universes (add_universes ~strict ctx) env
 
 let add_universes_set ~strict ctx g =
   let g = Univ.Level.Set.fold
             (* Be lenient, module typing reintroduces universes and constraints due to includes *)
             (fun v g -> try UGraph.add_universe ~strict v g with UGraph.AlreadyDeclared -> g)
-            (Univ.ContextSet.levels ctx) g
-  in UGraph.merge_constraints (Univ.ContextSet.constraints ctx) g
+            (PConstraints.ContextSet.levels ctx) g
+  in UGraph.merge_constraints (PConstraints.ContextSet.univ_constraints ctx) g
 
-let push_context_set ?(strict=false) ctx env =
-  map_universes (add_universes_set ~strict ctx) env
+let add_quality_set src ctx g =
+  let cstrs = PConstraints.ContextSet.elim_constraints ctx in
+  QGraph.merge_constraints src cstrs g
+
+let push_context_set ?(strict=false) src ctx env =
+  map_qualities (add_quality_set src ctx) @@
+    map_universes (add_universes_set ~strict ctx) env
 
 let push_qualities qs env =
   assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities));
@@ -494,11 +510,11 @@ let push_qualities qs env =
             (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs env.env_qualities in
   set_qualities g env
 
-let push_subgraph (levels,csts) env =
+let push_subgraph (levels,(_,univ_csts)) env =
   let add_subgraph g =
     let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
-    let newg = UGraph.merge_constraints csts newg in
-    (if not (Univ.UnivConstraints.is_empty csts) then
+    let newg = UGraph.merge_constraints univ_csts newg in
+    (if not (Univ.UnivConstraints.is_empty univ_csts) then
        let restricted = UGraph.constraints_for ~kept:(UGraph.domain g) newg in
        (if not (UGraph.check_constraints restricted g) then
           CErrors.anomaly Pp.(str "Local constraints imply new transitive constraints.")));
@@ -1055,7 +1071,7 @@ module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
 module Internal = struct
   let push_template_context uctx env =
-    let env = push_context ~strict:false uctx env in
+    let env = push_context ~strict:false QGraph.Internal uctx env in
     let qvars, _ = UVars.UContext.to_context_set uctx in
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
     env

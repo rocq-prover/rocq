@@ -687,7 +687,7 @@ module Env = struct
     match EConstr.eq_constr_universes_proj env sigma x y with
     | Some csts -> (
       let csts = UnivProblem.Set.force csts in
-      match Evd.add_universe_constraints sigma csts with
+      match Evd.add_constraints sigma csts with
       | sigma -> Some (env, sigma)
       | exception UGraph.UniverseInconsistency _ -> None )
     | None -> None

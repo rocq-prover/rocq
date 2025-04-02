@@ -828,8 +828,8 @@ let build_congr env (eq,refl,ctx) ind =
   let uni, ctx' = UnivGen.new_global_univ () in
   let ctx =
     let (qs,us),csts = ctx in
-    let us, csts = Univ.ContextSet.union (us,csts) ctx' in
-    ((qs, us), UnivSubst.enforce_leq uni (univ_of_eq env eq) csts) in
+    let us, (elim_csts,univ_csts) = PConstraints.ContextSet.union (us,csts) ctx' in
+    ((qs, us), (elim_csts,UnivSubst.enforce_leq uni (univ_of_eq env eq) univ_csts)) in
   let c =
   my_it_mkLambda_or_LetIn paramsctxt
      (mkNamedLambda (make_annot varB Sorts.Relevant) (mkType uni)

@@ -236,6 +236,7 @@ module Quality = struct
   let is_qvar q = match q with QVar _ -> true | _ -> false
   let is_qconst q = match q with QConstant _ -> true | _ -> false
   let is_qglobal q = match q with QVar (QVar.Global _) -> true | _ -> false
+  let is_impredicative q = is_qsprop q || is_qprop q
 
   module Self = struct type nonrec t = t let compare = compare end
   module Set = CSet.Make(Self)
@@ -256,6 +257,10 @@ module ElimConstraint = struct
 
   let eq_kind : kind -> kind -> bool = (=)
   let compare_kind : kind -> kind -> int = compare
+
+  let hash_kind = function
+    | Equal -> 0
+    | ElimTo -> 1
 
   let pr_kind = function
     | Equal -> Pp.str "="
@@ -280,15 +285,36 @@ module ElimConstraint = struct
 
   let raw_pr x = pr QVar.raw_pr x
 
+  module Hstruct = struct
+    type nonrec t = t
+
+    let hashcons (q1,k,q2) =
+      let hq1, q1 = Quality.hcons q1 in
+      let hq2, q2 = Quality.hcons q2 in
+      Hashset.Combine.(combinesmall (hash_kind k) (combine hq1 hq2)), (q1,k,q2)
+
+    let eq (q1,k,q2) (q1',k',q2') =
+      eq_kind k k' && q1 == q1' && q2 == q2'
+  end
+
+  module Hasher = Hashcons.Make(Hstruct)
+
+  let hcons = Hashcons.simple_hcons Hasher.generate Hasher.hcons ()
 end
 
-module ElimConstraints = struct include CSet.Make(ElimConstraint)
+module ElimConstraints = struct include Stdlib.Set.Make(ElimConstraint)
   let pr prq c =
     let open Pp in
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
       hov 0 (Quality.pr prq u1 ++ ElimConstraint.pr_kind op ++ Quality.pr prq u2))
        (elements c))
 
+  module HConstraints = CSet.Hashcons(ElimConstraint)(struct
+      type t = ElimConstraint.t
+      let hcons = ElimConstraint.hcons
+    end)
+
+  let hcons = Hashcons.simple_hcons HConstraints.generate HConstraints.hcons ()
 end
 
 let enforce_eq_quality a b csts =

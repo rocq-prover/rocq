@@ -496,7 +496,7 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
      other goals that were already present during its invocation, so that
      those goals rely on effects that are not present anymore. Hopefully,
      this hack will work in most cases. *)
-  let (ans, uctx) = Safe_typing.inline_private_constants env ((ans, Univ.ContextSet.empty), neff) in
+  let (ans, uctx) = Safe_typing.inline_private_constants env ((ans, PConstraints.ContextSet.empty), neff) in
   let sigma = Evd.merge_context_set ~sideff:true UState.UnivRigid sigma uctx in
   EConstr.of_constr ans, sigma
 

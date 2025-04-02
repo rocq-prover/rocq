@@ -290,12 +290,12 @@ let ppqvarset l = pp (hov 1 (str "{" ++ prlist_with_sep spc prqvar (QVar.Set.ele
 let ppuniverse_set l = pp (Level.Set.pr prlev l)
 let ppuniverse_instance l = pp (Instance.pr prqvar prlev l)
 let ppuniverse_einstance l = ppuniverse_instance (EConstr.Unsafe.to_instance l)
-let ppuniverse_context l = pp (pr_universe_context prqvar prlev l)
-let ppuniverse_context_set l = pp (ContextSet.pr prlev l)
+let ppuniverse_context l = pp (UVars.UContext.pr prqvar prlev l)
+let ppuniverse_context_set l = pp (PConstraints.ContextSet.pr prqvar prlev l)
 let ppuniverse_subst l = pp (UnivSubst.pr_universe_subst Level.raw_pr l)
 let ppuniverse_opt_subst l = pp (UnivFlex.pr Level.raw_pr l)
 let ppqvar_subst l = pp (UVars.pr_quality_level_subst QVar.raw_pr l)
-let ppuniverse_level_subst l = pp (Univ.pr_universe_level_subst Level.raw_pr l)
+let ppuniverse_level_subst l = pp (UVars.pr_universe_level_subst Level.raw_pr l)
 let ppustate l = pp (UState.pr l)
 let ppconstraints c = pp (UnivConstraints.pr Level.raw_pr c)
 let ppqconstraints c = pp (ElimConstraints.pr prqvar c)
@@ -320,7 +320,7 @@ let ppaucontext auctx =
   in
   let prqvar l = prgen prqvar Sorts.QVar.var_index qnas l in
   let prlev l = prgen prlev Level.var_index unas l in
-  pp (pr_universe_context prqvar prlev (AbstractContext.repr auctx))
+  pp (UContext.pr prqvar prlev (AbstractContext.repr auctx))
 
 let pp_partialfsubst psubst =
   pp (Partial_subst.pr (fun f -> pr_constr (CClosure.term_of_fconstr f)) (Quality.pr prqvar) (Universe.pr prlev) psubst)

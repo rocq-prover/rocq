@@ -274,8 +274,10 @@ val is_defined : evar_map -> Evar.t-> bool
 val is_undefined : evar_map -> Evar.t-> bool
 (** Whether an evar is not defined in an evarmap. *)
 
-val add_constraints : evar_map -> Univ.UnivConstraints.t -> evar_map
+val add_univ_constraints : evar_map -> Univ.UnivConstraints.t -> evar_map
 (** Add universe constraints in an evar map. *)
+
+val add_poly_constraints : QGraph.constraint_source -> evar_map -> PConstraints.t -> evar_map
 
 val add_quconstraints : evar_map -> Sorts.QUConstraints.t -> evar_map
 
@@ -414,7 +416,7 @@ val eval_side_effects : evar_map -> side_effects
 
 val push_side_effects :
   ?role:side_effect_role -> ?ts:Conv_oracle.oracle ->
-  Id.t -> Safe_typing.side_effect_declaration -> Univ.ContextSet.t ->
+  Id.t -> Safe_typing.side_effect_declaration -> PConstraints.ContextSet.t ->
   side_effects -> Constant.t * side_effects
 
 (** {6 Accessors} *)
@@ -483,7 +485,7 @@ val pr_shelf : evar_map -> Pp.t
 
 exception UniversesDiffer
 
-val add_universe_constraints : evar_map -> UnivProblem.Set.t -> evar_map
+val add_constraints : evar_map -> UnivProblem.Set.t -> evar_map
 (** Add the given universe unification constraints to the evar map.
     @raise UniversesDiffer in case a first-order unification fails.
     @raise UniverseInconsistency .
@@ -607,44 +609,45 @@ val set_above_prop : evar_map -> Sorts.Quality.t -> evar_map
 val check_eq : evar_map -> esorts -> esorts -> bool
 val check_leq : evar_map -> esorts -> esorts -> bool
 
-val check_constraints : evar_map -> Univ.UnivConstraints.t -> bool
+val check_univ_constraints : evar_map -> Univ.UnivConstraints.t -> bool
 val check_elim_constraints : evar_map -> Sorts.ElimConstraints.t -> bool
 val check_quconstraints : evar_map -> Sorts.QUConstraints.t -> bool
+val check_poly_constraints : evar_map -> PConstraints.t -> bool
 
 val ustate : evar_map -> UState.t
 val elim_graph : evar_map -> QGraph.t
 val evar_universe_context : evar_map -> UState.t [@@deprecated "(9.0) Use [Evd.ustate]"]
 
-val universe_context_set : evar_map -> Univ.ContextSet.t
+val universe_context_set : evar_map -> PConstraints.ContextSet.t
 val sort_context_set : evar_map -> UnivGen.sort_context_set
 val universe_subst : evar_map -> UnivFlex.t
 val universes : evar_map -> UGraph.t
 
 (** [to_universe_context evm] extracts the local universes and
     constraints of [evm] and orders the universes the same as
-    [Univ.ContextSet.to_context]. *)
+    [PConstraints.ContextSet.to_context]. *)
 val to_universe_context : evar_map -> UVars.UContext.t
 
 val univ_entry : poly:bool -> evar_map -> UState.named_universes_entry
 
-val check_univ_decl : poly:bool -> evar_map -> UState.universe_decl -> UState.named_universes_entry
+val check_sort_poly_decl : poly:bool -> evar_map -> UState.sort_poly_decl -> UState.named_universes_entry
 
 (** An early check of compatibility of the universe declaration before
     starting to build a declaration interactively *)
-val check_univ_decl_early : poly:bool -> with_obls:bool -> evar_map -> UState.universe_decl -> Constr.t list -> unit
+val check_sort_poly_decl_early : poly:bool -> with_obls:bool -> evar_map -> UState.sort_poly_decl -> Constr.t list -> unit
 
 val merge_universe_context : evar_map -> UState.t -> evar_map
 val set_universe_context : evar_map -> UState.t -> evar_map
 
-val merge_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
+val merge_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> PConstraints.ContextSet.t -> evar_map
 
-val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> UnivGen.sort_context_set -> evar_map
+val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> QGraph.constraint_source -> evar_map -> UnivGen.sort_context_set -> evar_map
 
 val merge_sort_variables : ?loc:Loc.t -> ?sideff:bool -> evar_map -> Sorts.QVar.Set.t -> evar_map
 
-val with_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a Univ.in_universe_context_set -> evar_map * 'a
+val with_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a PConstraints.in_poly_context_set -> evar_map * 'a
 
-val with_sort_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
+val with_sort_context_set : ?loc:Loc.t -> rigid -> QGraph.constraint_source -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
 
 val nf_univ_variables : evar_map -> evar_map
 

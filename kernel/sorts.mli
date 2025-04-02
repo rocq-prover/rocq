@@ -79,6 +79,7 @@ module Quality : sig
   val is_qvar : t -> bool
   val is_qconst : t -> bool
   val is_qglobal : t -> bool
+  val is_impredicative : t -> bool
 
   val var : int -> t
   (** [var i] is [QVar (QVar.make_var i)] *)
@@ -137,8 +138,10 @@ module ElimConstraint : sig
   val raw_pr : t -> Pp.t
 end
 
-module ElimConstraints : sig include CSig.SetS with type elt = ElimConstraint.t
+module ElimConstraints : sig include Stdlib.Set.S with type elt = ElimConstraint.t
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+
+  val hcons : t Hashcons.f
 end
 
 val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t

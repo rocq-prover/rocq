@@ -13,6 +13,7 @@ open Names
 open Constr
 open Univ
 open UVars
+open PConstraints
 
 module QualityOrSet = struct
   type t = Qual of Quality.t | Set
@@ -74,21 +75,20 @@ module QualityOrSet = struct
   let all = Set :: List.map (fun q -> Qual q) Quality.all
 end
 
-
-type sort_context_set = (QVar.Set.t * Univ.Level.Set.t) * Univ.UnivConstraints.t
+type sort_context_set = (QVar.Set.t * Univ.Level.Set.t) * PConstraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 
-let empty_sort_context = (QVar.Set.empty, Level.Set.empty), UnivConstraints.empty
+let empty_sort_context = (QVar.Set.empty, Level.Set.empty), PConstraints.empty
 
 let is_empty_sort_context ((qs,us),csts) =
-  QVar.Set.is_empty qs && Level.Set.is_empty us && UnivConstraints.is_empty csts
+  QVar.Set.is_empty qs && Level.Set.is_empty us && PConstraints.is_empty csts
 
 let sort_context_union ((qs,us),csts) ((qs',us'),csts') =
-  ((QVar.Set.union qs qs', Level.Set.union us us'),UnivConstraints.union csts csts')
+  ((QVar.Set.union qs qs', Level.Set.union us us'), PConstraints.union csts csts')
 
 let diff_sort_context ((qs,us),csts) ((qs',us'),csts') =
-  (QVar.Set.diff qs qs', Level.Set.diff us us'), UnivConstraints.diff csts csts'
+  (QVar.Set.diff qs qs', Level.Set.diff us us'), PConstraints.diff csts csts'
 
 type univ_length_mismatch = {
   gref : GlobRef.t;
@@ -206,11 +206,11 @@ let fresh_sort_in_quality =
   | Set -> Sorts.set, empty_sort_context
   | Qual (QConstant QType | QVar _ (* Treat as Type *)) ->
      let u = fresh_level () in
-     sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), UnivConstraints.empty)
+     sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
 
 let new_global_univ () =
   let u = fresh_level () in
-  (Univ.Universe.make u, ContextSet.singleton u)
+  (Univ.Universe.make u, ContextSet.singleton_lvl u)
 
 let fresh_universe_context_set_instance ctx =
   if ContextSet.is_empty ctx then Level.Map.empty, ctx
@@ -222,7 +222,7 @@ let fresh_universe_context_set_instance ctx =
           (Level.Set.add u' univs', Level.Map.add u u' subst))
       univs (Level.Set.empty, Level.Map.empty)
     in
-    let cst' = subst_univs_level_constraints subst cst in
+    let cst' = subst_univs_constraints (QVar.Map.empty,subst) cst in
       subst, (univs', cst')
 
 let fresh_sort_context_instance ((qs,us),csts) =

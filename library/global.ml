@@ -81,8 +81,10 @@ let globalize_with_summary fs f =
 let push_named_assum a = globalize0 (Safe_typing.push_named_assum a)
 let push_named_def d = globalize0 (Safe_typing.push_named_def d)
 let push_section_context c = globalize0 (Safe_typing.push_section_context c)
-let add_constraints c = globalize0 (Safe_typing.add_constraints c)
-let push_context_set c = globalize0 (Safe_typing.push_context_set ~strict:true c)
+let add_constraints src c = globalize0 (Safe_typing.add_constraints src c)
+let add_univ_constraints c = globalize0 (Safe_typing.add_constraints QGraph.Static (PConstraints.of_univs c))
+let add_elim_constraints src c = globalize0 (Safe_typing.add_constraints src (PConstraints.of_qualities c))
+let push_context_set src c = globalize0 (Safe_typing.push_context_set ~strict:true src c)
 let push_qualities c = globalize0 (Safe_typing.push_qualities c)
 
 let set_impredicative_set c = globalize0 (Safe_typing.set_impredicative_set c)
@@ -195,7 +197,7 @@ let body_of_constant_body access cb =
   | Def c ->
     let u = match cb.const_universes with
     | Monomorphic -> Opaqueproof.PrivateMonomorphic ()
-    | Polymorphic auctx -> Opaqueproof.PrivatePolymorphic Univ.ContextSet.empty
+    | Polymorphic auctx -> Opaqueproof.PrivatePolymorphic PConstraints.ContextSet.empty
     in
     Some (c, u, Declareops.constant_polymorphic_context cb)
   | OpaqueDef o ->

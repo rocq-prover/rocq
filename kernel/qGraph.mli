@@ -30,7 +30,9 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type quality_inconsistency = (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
+type quality_inconsistency =
+  ((QVar.t -> Pp.t) option) *
+    (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
   | IllegalConstraint
@@ -50,6 +52,8 @@ type constraint_source =
   | Internal
   | Rigid
   | Static
+
+val merge : t -> t -> t
 
 val merge_constraints : constraint_source -> ElimConstraints.t -> t -> t
 
@@ -85,6 +89,8 @@ val initial_graph : t
 (** Graph with the constant quality elimination constraints found in
     [Quality.Constants.eliminates_to]. *)
 
+val update_rigids : t -> t -> t
+
 val eliminates_to : t -> Quality.t -> Quality.t -> bool
 
 val eliminates_to_prop : t -> Quality.t -> bool
@@ -102,3 +108,5 @@ val is_empty : t -> bool
 val pr_qualities : (Quality.t -> Pp.t) -> t -> Pp.t
 
 val explain_quality_inconsistency : (QVar.t -> Pp.t) -> explanation option -> Pp.t
+
+val explain_elimination_error : (QVar.t -> Pp.t) -> elimination_error -> Pp.t

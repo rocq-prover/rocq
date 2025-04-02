@@ -771,7 +771,7 @@ let compare_cumulative_instances cv_pb variances u u' sigma =
   let qs, us = UVars.Instance.to_array u
   and qs', us' = UVars.Instance.to_array u' in
   let qcstrs = enforce_eq_qualities qs qs' Set.empty in
-  match Evd.add_universe_constraints sigma qcstrs with
+  match Evd.add_constraints sigma qcstrs with
   | exception UGraph.UniverseInconsistency p -> Inr p
   | sigma ->
   let cstrs, soft = Array.fold_left3 (fun (cstrs, soft) v u u' ->
@@ -783,9 +783,9 @@ let compare_cumulative_instances cv_pb variances u u' sigma =
       | Covariant | Invariant -> Univ.UnivConstraints.add (u,Univ.UnivConstraint.Eq,u') cstrs, soft)
       (cstrs,soft) variances us us'
   in
-  match Evd.add_constraints sigma cstrs with
+  match Evd.add_univ_constraints sigma cstrs with
   | sigma ->
-    Inl (Evd.add_universe_constraints sigma soft)
+    Inl (Evd.add_constraints sigma soft)
   | exception UGraph.UniverseInconsistency p -> Inr p
 
 let compare_constructor_instances evd u u' =
@@ -793,14 +793,14 @@ let compare_constructor_instances evd u u' =
   let qs, us = UVars.Instance.to_array u
   and qs', us' = UVars.Instance.to_array u' in
   let qcstrs = enforce_eq_qualities qs qs' Set.empty in
-  match Evd.add_universe_constraints evd qcstrs with
+  match Evd.add_constraints evd qcstrs with
   | exception UGraph.UniverseInconsistency p -> Inr p
   | evd ->
     let soft =
       Array.fold_left2 (fun cs u u' -> Set.add (UWeak (u,u')) cs)
         Set.empty us us'
     in
-    Inl (Evd.add_universe_constraints evd soft)
+    Inl (Evd.add_constraints evd soft)
 
 (** [eq_constr_univs_test ~evd ~extended_evd t u] tests equality of
     [t] and [u] up to existential variable instantiation and
@@ -821,7 +821,7 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   let eq_sorts s1 s2 =
     if Sorts.equal s1 s2 then true
     else
-      try sigma := add_universe_constraints !sigma UnivProblem.(Set.singleton (UEq (s1, s2))); true
+      try sigma := add_constraints !sigma UnivProblem.(Set.singleton (UEq (s1, s2))); true
       with UGraph.UniverseInconsistency _ | UniversesDiffer -> false
   in
   let eq_existential eq e1 e2 =

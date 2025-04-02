@@ -68,6 +68,14 @@ let pr_uconstraint (l, d, r) =
   pr_sort_name_expr l ++ spc () ++ Univ.UnivConstraint.pr_kind d ++ spc () ++
   pr_sort_name_expr r
 
+let pr_elim_constraint (l, d, r) =
+  pr_quality_expr l ++ spc () ++ Sorts.ElimConstraint.pr_kind d ++ spc () ++
+  pr_quality_expr r
+
+let pr_pconstraint = function
+  | UnivCst (l,d,r as c) -> pr_uconstraint c
+  | ElimCst (l,d,r as c) -> pr_elim_constraint c
+
 let pr_full_univ_name_list = function
   | None -> mt()
   | Some (ql, ul) ->
@@ -79,23 +87,24 @@ let pr_variance_lident (lid,v) =
   let v = Option.cata UVars.Variance.pr (mt()) v in
   v ++ pr_lident lid
 
-let pr_univdecl_qualities l extensible =
+let pr_sort_poly_decl_qualities l extensible =
   (* "extensible" not really supported in syntax currently *)
   if List.is_empty l then mt()
   else prlist_with_sep spc pr_lident l ++ strbrk " ; "
 
-let pr_univdecl_instance l extensible =
+let pr_sort_poly_decl_instance l extensible =
   prlist_with_sep spc pr_lident l ++
   (if extensible then str"+" else mt ())
 
-let pr_cumul_univdecl_instance l extensible =
+let pr_cumul_sort_poly_decl_instance l extensible =
   prlist_with_sep spc pr_variance_lident l ++
   (if extensible then str"+" else mt ())
 
-let pr_univdecl_constraints l extensible =
-  if List.is_empty l && extensible then mt ()
-  else pr_spcbar () ++ prlist_with_sep pr_comma pr_uconstraint l ++
-       (if extensible then str"+" else mt())
+let pr_sort_poly_decl_constraints elims univs extensible =
+  if List.is_empty elims && List.is_empty univs && extensible then mt ()
+  else pr_spcbar () ++ prlist_with_sep pr_comma pr_elim_constraint elims ++
+         prlist_with_sep pr_comma pr_uconstraint univs ++
+         (if extensible then str"+" else mt())
 
 let pr_universe_decl l =
   let open UState in
@@ -103,9 +112,9 @@ let pr_universe_decl l =
   | None -> mt ()
   | Some l ->
     str"@{" ++
-    pr_univdecl_qualities l.univdecl_qualities l.univdecl_extensible_qualities ++
-    pr_univdecl_instance l.univdecl_instance l.univdecl_extensible_instance ++
-    pr_univdecl_constraints l.univdecl_constraints l.univdecl_extensible_constraints ++
+    pr_sort_poly_decl_qualities l.sort_poly_decl_qualities l.sort_poly_decl_extensible_qualities ++
+    pr_sort_poly_decl_instance l.sort_poly_decl_instance l.sort_poly_decl_extensible_instance ++
+    pr_sort_poly_decl_constraints l.sort_poly_decl_elim_constraints l.sort_poly_decl_univ_constraints l.sort_poly_decl_extensible_constraints ++
     str "}"
 
 let pr_cumul_univ_decl l =
@@ -114,9 +123,9 @@ let pr_cumul_univ_decl l =
   | None -> mt ()
   | Some l ->
     str"@{" ++
-    pr_univdecl_qualities l.univdecl_qualities l.univdecl_extensible_qualities ++
-    pr_cumul_univdecl_instance l.univdecl_instance l.univdecl_extensible_instance ++
-    pr_univdecl_constraints l.univdecl_constraints l.univdecl_extensible_constraints ++
+    pr_sort_poly_decl_qualities l.sort_poly_decl_qualities l.sort_poly_decl_extensible_qualities ++
+    pr_cumul_sort_poly_decl_instance l.sort_poly_decl_instance l.sort_poly_decl_extensible_instance ++
+    pr_sort_poly_decl_constraints l.sort_poly_decl_elim_constraints l.sort_poly_decl_univ_constraints l.sort_poly_decl_extensible_constraints ++
     str "}"
 
 let pr_ident_decl (lid, l) =
@@ -998,7 +1007,7 @@ let pr_synpure_vernac_expr v =
   | VernacConstraint v ->
     return (
       hov 2 (keyword "Constraint" ++ spc () ++
-             prlist_with_sep (fun _ -> str",") pr_uconstraint v)
+             prlist_with_sep (fun _ -> str",") pr_pconstraint v)
     )
 
   (* Gallina extensions *)

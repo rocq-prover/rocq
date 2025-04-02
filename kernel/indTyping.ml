@@ -111,9 +111,15 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       then f info
       else { info with missing = u :: info.missing } in
     if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-      check_univ_consistency (fun x -> x)
-        (Sorts.univ_of_sort indu)
-        (Sorts.univ_of_sort u)
+          if Sorts.Quality.is_impredicative (Sorts.quality indu)
+          then
+            match u with
+            | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
+            | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
+            | SProp | Prop -> info
+          else check_univ_consistency (fun x -> x)
+                 (Sorts.univ_of_sort indu)
+                 (Sorts.univ_of_sort u)
     else
       let check_univ_consistency_squash quality =
         check_univ_consistency (add_squash quality) in
@@ -258,7 +264,7 @@ let check_record data =
    We also forbid strict bounds from above because they lead
    to problems when instantiated with algebraic universes
    (template_u < v can become w+1 < v which we cannot yet handle). *)
-let check_unbounded_from_below (univs,csts) =
+let check_unbounded_from_below (univs,(_,csts)) =
   Univ.UnivConstraints.iter (fun (l,d,r) ->
       let bad = match d with
         | UnivConstraint.Eq | UnivConstraint.Lt ->
@@ -530,7 +536,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Template_ind_entry {uctx; default_univs=_} ->
       Environ.Internal.push_template_context uctx env
     | Monomorphic_ind_entry -> env
-    | Polymorphic_ind_entry ctx -> push_context ctx env
+    | Polymorphic_ind_entry ctx -> push_context QGraph.Internal ctx env
   in
 
   let has_template_poly = match mie.mind_entry_universes with

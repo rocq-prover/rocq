@@ -11,6 +11,7 @@
 open Pp
 open Util
 open Univ
+open PConstraints
 
 module Quality = Sorts.Quality
 
@@ -192,7 +193,7 @@ end
 
 let eq_sizes (a,b) (a',b') = Int.equal a a' && Int.equal b b'
 
-type 'a quconstraint_function = 'a -> 'a -> Sorts.QUConstraints.t -> Sorts.QUConstraints.t
+type 'a quconstraints_function = 'a -> 'a -> Sorts.QUConstraints.t -> Sorts.QUConstraints.t
 
 let enforce_eq_instances x y (qcs, ucs as orig) =
   let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
@@ -257,16 +258,23 @@ let subst_instance_sort u s =
 let subst_instance_relevance u r =
   Sorts.relevance_subst_fn (subst_instance_qvar u) r
 
-let subst_instance_constraint s (u,d,v as c) =
-  let u' = subst_instance_level s u in
-  let v' = subst_instance_level s v in
+let subst_instance_constraint subst_instance s (u, d, v as c) =
+  let u' = subst_instance s u in
+  let v' = subst_instance s v in
     if u' == u && v' == v then c
-    else (u',d,v')
+    else (u', d, v')
+
+let subst_instance_elim_constraint =
+  subst_instance_constraint subst_instance_quality
+
+let subst_instance_univ_constraint =
+  subst_instance_constraint subst_instance_level
 
 let subst_instance_constraints s csts =
-  UnivConstraints.fold
-    (fun c csts -> UnivConstraints.add (subst_instance_constraint s c) csts)
-    csts UnivConstraints.empty
+  PConstraints.fold
+    ((fun q csts -> Sorts.ElimConstraints.add (subst_instance_elim_constraint s q) csts),
+     (fun u csts -> UnivConstraints.add (subst_instance_univ_constraint s u) csts))
+    csts PConstraints.empty
 
 type 'a puniverses = 'a * Instance.t
 let out_punivs (x, _y) = x
@@ -294,26 +302,28 @@ struct
     (names, x)
 
   (** Universe contexts (variables as a list) *)
-  let empty = (empty_bound_names, (Instance.empty, UnivConstraints.empty))
-  let is_empty (_, (univs, csts)) = Instance.is_empty univs && UnivConstraints.is_empty csts
+  let empty = (empty_bound_names, (Instance.empty, PConstraints.empty))
+  let is_empty (_, (univs, csts)) = Instance.is_empty univs && PConstraints.is_empty csts
 
   let pr prq prl ?variance (_, (univs, csts) as uctx) =
     if is_empty uctx then mt() else
-      h (Instance.pr prq prl ?variance univs ++ str " |= ") ++ h (v 0 (UnivConstraints.pr prl csts))
+      h (Instance.pr prq prl ?variance univs ++ str " |= ") ++ h (v 0 (PConstraints.pr prq prl csts))
 
   let hcons ({quals = qnames; univs = unames}, (univs, csts)) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in
     let hunames, unames = Hashcons.hashcons_array Names.Name.hcons unames in
     let hunivs, univs = Instance.hcons univs in
-    let hcsts, csts = UnivConstraints.hcons csts in
+    let hcsts, csts = PConstraints.hcons csts in
     Hashset.Combine.combine4 hqnames hunames hunivs hcsts, ({quals = qnames; univs = unames}, (univs, csts))
 
   let names ((names, _) : t) = names
   let instance (_, (univs, _csts)) = univs
   let constraints (_, (_univs, csts)) = csts
+  let univ_constraints (_, (_, (_,univs))) = univs
+  let elim_constraints (_, (_, (elims,_))) = elims
 
   let union (names, (univs, csts)) (names', (univs', csts')) =
-    append_bound_names names names', (Instance.append univs univs', UnivConstraints.union csts csts')
+    append_bound_names names names', (Instance.append univs univs', PConstraints.union csts csts')
 
   let size (_,(x,_)) = Instance.length x
 
@@ -352,8 +362,6 @@ end
 type universe_context = UContext.t
 type 'a in_universe_context = 'a * universe_context
 
-let hcons_universe_context = UContext.hcons
-
 module AbstractContext =
 struct
   type t = bound_names constrained
@@ -370,19 +378,19 @@ struct
   let hcons ({quals = qnames; univs = unames}, cst) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in
     let hunames, unames = Hashcons.hashcons_array Names.Name.hcons unames in
-    let hcst, cst = UnivConstraints.hcons cst in
+    let hcst, cst = PConstraints.hcons cst in
     Hashset.Combine.combine3 hqnames hunames hcst, ({quals = qnames; univs = unames}, cst)
 
-  let empty = (empty_bound_names, UnivConstraints.empty)
+  let empty = (empty_bound_names, PConstraints.empty)
 
   let is_constant (names,_) =
     Array.is_empty names.quals && Array.is_empty names.univs
 
   let is_empty (_, cst as ctx) =
-    is_constant ctx && UnivConstraints.is_empty cst
+    is_constant ctx && PConstraints.is_empty cst
 
   let union (names, cst) (names', cst') =
-    (append_bound_names names names', UnivConstraints.union cst cst')
+    (append_bound_names names names', PConstraints.union cst cst')
 
   let size (names, _) = Array.length names.quals, Array.length names.univs
 
@@ -403,7 +411,62 @@ let map_univ_abstracted f {univ_abstracted_value;univ_abstracted_binder} =
   let univ_abstracted_value = f univ_abstracted_value in
   {univ_abstracted_value;univ_abstracted_binder}
 
-let hcons_abstract_universe_context = AbstractContext.hcons
+
+(**********************************************************************)
+(** Universe polymorphism                                             *)
+(**********************************************************************)
+
+(** A universe level substitution, note that no algebraic universes are
+    involved *)
+
+type universe_level_subst = Level.t Level.Map.t
+
+(** Substitutions. *)
+
+let empty_level_subst = Level.Map.empty
+let is_empty_level_subst = Level.Map.is_empty
+
+(** Substitution functions *)
+
+(** With level to level substitutions. *)
+let subst_univs_level_level subst l =
+  try Level.Map.find l subst
+  with Not_found -> l
+
+let subst_univs_level_universe subst =
+  Universe.map (fun u -> subst_univs_level_level subst u)
+
+let subst_univs_level_constraint subst (u,d,v) =
+  let u' = subst_univs_level_level subst u
+  and v' = subst_univs_level_level subst v in
+    if d != UnivConstraint.Lt && Level.equal u' v' then None
+    else Some (u',d,v')
+
+let subst_sort_level_qvar subst qv =
+  match Sorts.QVar.Map.find_opt qv subst with
+  | None -> Quality.QVar qv
+  | Some q -> q
+
+let subst_sort_level_quality subst = function
+  | Quality.QConstant _ as q -> q
+  | Quality.QVar q ->
+    subst_sort_level_qvar subst q
+
+let subst_univs_elim_constraint subst (q1,k,q2) =
+  let q1 = subst_sort_level_quality subst q1 in
+  let q2 = subst_sort_level_quality subst q2 in
+  (q1,k,q2)
+
+let subst_univs_constraints (qsubst,usubst) csts =
+  PConstraints.fold
+    ( (fun c -> Sorts.ElimConstraints.add (subst_univs_elim_constraint qsubst c))
+    , (fun c -> Option.fold_right UnivConstraints.add (subst_univs_level_constraint usubst c)))
+    csts PConstraints.empty
+
+(** Pretty-printing *)
+
+let pr_universe_level_subst prl =
+  Level.Map.pr prl (fun u -> str" := " ++ prl u ++ spc ())
 
 let pr_quality_level_subst prl l =
   let open Pp in
@@ -428,7 +491,7 @@ let subst_instance_sort_level_subst s (i : sort_level_subst) =
   if qs' == qs && us' == us then i else (qs', us')
 
 let subst_univs_level_abstract_universe_context subst (inst, csts) =
-  inst, subst_univs_level_constraints subst csts
+  inst, subst_univs_constraints subst csts
 
 let subst_sort_level_qvar (qsubst,_) qv =
   match Sorts.QVar.Map.find_opt qv qsubst with
@@ -470,12 +533,7 @@ let abstract_universes uctx =
   let nas = UContext.names uctx in
   let instance = UContext.instance uctx in
   let subst = make_instance_subst instance in
-  let cstrs = subst_univs_level_constraints (snd subst)
-      (UContext.constraints uctx)
+  let cstrs = subst_univs_constraints subst (UContext.constraints uctx)
   in
   let ctx = (nas, cstrs) in
   instance, ctx
-
-let pr_universe_context = UContext.pr
-
-let pr_abstract_universe_context = AbstractContext.pr

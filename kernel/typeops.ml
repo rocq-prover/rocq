@@ -40,13 +40,15 @@ let conv_leq_vecti env v1 v2 =
     v1
     v2
 
-let check_constraints cst env =
-  if Environ.check_constraints cst env then ()
-  else error_unsatisfied_constraints env cst
+let check_qconstraints qcst = Sorts.QCumulConstraints.trivial qcst
 
-let check_qconstraints qcst env =
-  if Sorts.QCumulConstraints.trivial qcst then ()
-  else error_unsatisfied_qcumul_constraints env qcst
+let check_quconstraints (qcst,ucst) env =
+  if Environ.check_univ_constraints ucst env && check_qconstraints qcst then ()
+  else error_unsatisfied_quconstraints env (qcst,ucst)
+
+let check_poly_constraints cst env =
+  if Environ.check_constraints cst env then ()
+  else error_unsatisfied_poly_constraints env cst
 
 (* This should be a type (a priori without intention to be an assumption) *)
 let check_type env c t =
@@ -203,7 +205,7 @@ let type_of_constant env (kn,_u as cst) =
   let cb = lookup_constant kn env in
   let () = check_hyps_inclusion env (GlobRef.ConstRef kn) cb.const_hyps in
   let ty, cu = constant_type env cst in
-  let () = check_constraints cu env in
+  let () = check_poly_constraints cu env in
     ty
 
 let type_of_constant_in env (kn,_u as cst) =
@@ -431,7 +433,7 @@ let type_of_inductive_knowing_parameters env (ind,u as indu) args argst =
   let () = check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps in
   let param_univs = make_param_univs env indu spec args argst in
   let t, cst = Inductive.type_of_inductive_knowing_parameters (spec,u) param_univs in
-  let () = check_constraints cst env in
+  let () = check_poly_constraints cst env in
   t
 
 let type_of_inductive env (ind,u) =
@@ -439,7 +441,7 @@ let type_of_inductive env (ind,u) =
   let (mib,mip) = lookup_mind_specif env ind in
   check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps;
   let t,cst = Inductive.constrained_type_of_inductive ((mib,mip),u) in
-  check_constraints cst env;
+  check_poly_constraints cst env;
   t
 
 (* Constructors. *)
@@ -452,7 +454,7 @@ let type_of_constructor_knowing_parameters env (c, u as cu) args argst =
   let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
   let param_univs = make_param_univs env (ind, u) spec args argst in
   let t, cst = Inductive.type_of_constructor_knowing_parameters cu spec param_univs in
-  let () = check_constraints cst env in
+  let () = check_poly_constraints cst env in
   t
 
 let type_of_constructor env (c,_u as cu) =
@@ -461,7 +463,7 @@ let type_of_constructor env (c,_u as cu) =
   let (mib, _ as specif) = lookup_mind_specif env ind in
   let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
   let t,cst = constrained_type_of_constructor cu specif in
-  let () = check_constraints cst env in
+  let () = check_poly_constraints cst env in
   t
 
 (* Case. *)
@@ -534,8 +536,7 @@ let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
   | None -> UVars.enforce_eq_instances u u' Sorts.QUConstraints.empty
   | Some variance -> UVars.enforce_leq_variance_instances variance u' u Sorts.QUConstraints.empty
   in
-  let () = check_qconstraints qcst env in
-  let () = check_constraints ucst env in
+  let () = check_quconstraints (qcst,ucst) env in
   let subst = Vars.subst_of_rel_context_instance_list pctx (realargs @ [c]) in
   Vars.substl subst p
 
@@ -771,7 +772,7 @@ and execute_aux tbl env cstr =
           let (cst, params, _) = instantiate_template_universes mib args in
           cst, params
         in
-        let () = check_constraints cst env in
+        let () = check_poly_constraints cst env in
         let paramsubst =
           try type_of_parameters env params u pms pmst
           with ArgumentsMismatch -> error_elim_arity env (ci.ci_ind, u) (self c) None

@@ -74,6 +74,8 @@ type ('constr, 'types, 'r) ptype_error =
   | UnsatisfiedElimConstraints of Sorts.ElimConstraints.t
   | UnsatisfiedQCumulConstraints of Sorts.QCumulConstraints.t
   | UnsatisfiedUnivConstraints of UnivConstraints.t
+  | UnsatisfiedQUConstraints of Sorts.QUConstraints.t
+  | UnsatisfiedPConstraints of PConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
   | DisallowedSProp
@@ -161,11 +163,17 @@ let error_ill_typed_rec_body env i lna vdefj vargs =
 let error_unsatisfied_elim_constraints env c =
   raise (TypeError (env, UnsatisfiedElimConstraints c))
 
-let error_unsatisfied_constraints env c =
+let error_unsatisfied_univ_constraints env c =
   raise (TypeError (env, UnsatisfiedUnivConstraints c))
 
 let error_unsatisfied_qcumul_constraints env c =
   raise (TypeError (env, UnsatisfiedQCumulConstraints c))
+
+let error_unsatisfied_quconstraints env c =
+  raise (TypeError (env, UnsatisfiedQUConstraints c))
+
+let error_unsatisfied_poly_constraints env c =
+  raise (TypeError (env, UnsatisfiedPConstraints c))
 
 let error_undeclared_qualities env l =
   raise (TypeError (env, UndeclaredQualities l))
@@ -224,6 +232,7 @@ let map_ptype_error fr f = function
 | UnboundRel _ | UnboundVar _ | CaseOnPrivateInd _ | IllFormedCaseParams
 | UndeclaredQualities _ | UndeclaredUniverses _ | DisallowedSProp
 | UnsatisfiedElimConstraints _ | UnsatisfiedUnivConstraints _ | UnsatisfiedQCumulConstraints _
+| UnsatisfiedQUConstraints _ | UnsatisfiedPConstraints _
 | ReferenceVariables _ | BadInvert | BadVariance _ | UndeclaredUsedVariables _ | IllFormedConstant _ | IllFormedInductive _ as e -> e
 | NotAType j -> NotAType (on_judgment f j)
 | BadAssumption j -> BadAssumption (on_judgment f j)
