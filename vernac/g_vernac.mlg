@@ -331,7 +331,7 @@ GRAMMAR EXTEND Gram
       | -> { NoInline } ] ]
   ;
   univ_constraint:
-    [ [ l = universe_name; ord = [ "<" -> { Univ.Lt } | "=" -> { Univ.Eq } | "<=" -> { Univ.Le } ];
+    [ [ l = universe_name; ord = [ "<" -> { Univ.UnivConstraint.Lt } | "=" -> { Univ.UnivConstraint.Eq } | "<=" -> { Univ.UnivConstraint.Le } ];
         r = universe_name -> { (l, ord, r) } ] ]
   ;
   univ_decl_constraints:

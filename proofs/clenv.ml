@@ -67,7 +67,7 @@ let merge_fsorts evd clenv =
   in
   let fsorts = List.fold_left fold Univ.Level.Set.empty clenv.metas in
   let fsorts = Univ.Level.Set.filter filter fsorts in
-  let uctx = (fsorts, Univ.Constraints.empty) in
+  let uctx = (fsorts, Univ.UnivConstraints.empty) in
   Evd.merge_context_set Evd.univ_flexible evd uctx
 
 let update_clenv_evd clenv evd metam =
@@ -126,7 +126,7 @@ let refresh_template_constraints ~metas env sigma ind c =
   let mib = Environ.lookup_mind (fst ind) env in
   let ctx = (Option.get mib.mind_template).template_context in
   let cstrs0 = UVars.UContext.constraints @@ UVars.AbstractContext.repr ctx in
-  if Univ.Constraints.is_empty cstrs0 then sigma
+  if Univ.UnivConstraints.is_empty cstrs0 then sigma
   else
     let _, allargs = decompose_app sigma c in
     let map c = { uj_val = c; uj_type = get_type_of_with_metas ~metas env sigma c } in

@@ -154,7 +154,7 @@ val push_context_set :
   strict:bool -> Univ.ContextSet.t -> safe_transformer0
 
 val add_constraints :
-  Univ.Constraints.t -> safe_transformer0
+  Univ.UnivConstraints.t -> safe_transformer0
 
 (** Adding global sort qualities *)
 

@@ -84,7 +84,7 @@ val is_algebraic : Level.t -> t -> bool
 (** Can this universe be instantiated with an algebraic
     universe (ie it appears in inferred types only). *)
 
-val constraints : t -> Univ.Constraints.t
+val constraints : t -> Univ.UnivConstraints.t
 (** Shorthand for {!context_set} composed with {!ContextSet.constraints}. *)
 
 val context : t -> UVars.UContext.t
@@ -118,9 +118,9 @@ val nf_sort : t -> Sorts.t -> Sorts.t
 val nf_relevance : t -> relevance -> relevance
 (** Returns the normal form of the relevance. *)
 
-(** {5 Constraints handling} *)
+(** {5 UnivConstraints handling} *)
 
-val add_constraints : t -> Univ.Constraints.t -> t
+val add_constraints : t -> Univ.UnivConstraints.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)
@@ -246,7 +246,7 @@ type ('a, 'b, 'c) gen_universe_decl = {
   univdecl_extensible_constraints : bool (* Can new constraints be added *) }
 
 type universe_decl =
-  (Quality.QVar.t list, Level.t list, Univ.Constraints.t) gen_universe_decl
+  (Quality.QVar.t list, Level.t list, Univ.UnivConstraints.t) gen_universe_decl
 
 val default_univ_decl : universe_decl
 

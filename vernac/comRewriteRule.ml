@@ -392,7 +392,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
     let cstrs =
       udecl.univdecl_constraints |> List.to_seq
       |> Seq.map (Constrintern.interp_univ_constraint evd)
-      |> Univ.Constraints.of_seq
+      |> Univ.UnivConstraints.of_seq
     in
     let decl = {
       univdecl_qualities = qualities;

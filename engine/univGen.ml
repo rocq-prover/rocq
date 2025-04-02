@@ -75,20 +75,20 @@ module QualityOrSet = struct
 end
 
 
-type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
+type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.UnivConstraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 
-let empty_sort_context = (Quality.QVar.Set.empty, Level.Set.empty), Constraints.empty
+let empty_sort_context = (Quality.QVar.Set.empty, Level.Set.empty), UnivConstraints.empty
 
 let is_empty_sort_context ((qs,us),csts) =
-  Quality.QVar.Set.is_empty qs && Level.Set.is_empty us && Constraints.is_empty csts
+  Quality.QVar.Set.is_empty qs && Level.Set.is_empty us && UnivConstraints.is_empty csts
 
 let sort_context_union ((qs,us),csts) ((qs',us'),csts') =
-  ((Quality.QVar.Set.union qs qs', Level.Set.union us us'),Constraints.union csts csts')
+  ((Quality.QVar.Set.union qs qs', Level.Set.union us us'),UnivConstraints.union csts csts')
 
 let diff_sort_context ((qs,us),csts) ((qs',us'),csts') =
-  (Quality.QVar.Set.diff qs qs', Level.Set.diff us us'), Constraints.diff csts csts'
+  (Quality.QVar.Set.diff qs qs', Level.Set.diff us us'), UnivConstraints.diff csts csts'
 
 type univ_length_mismatch = {
   gref : GlobRef.t;
@@ -206,7 +206,7 @@ let fresh_sort_in_quality =
   | Set -> Sorts.set, empty_sort_context
   | Qual (QConstant QType | QVar _ (* Treat as Type *)) ->
      let u = fresh_level () in
-     sort_of_univ (Univ.Universe.make u), ((Quality.QVar.Set.empty,Level.Set.singleton u), Constraints.empty)
+     sort_of_univ (Univ.Universe.make u), ((Quality.QVar.Set.empty,Level.Set.singleton u), UnivConstraints.empty)
 
 let new_global_univ () =
   let u = fresh_level () in

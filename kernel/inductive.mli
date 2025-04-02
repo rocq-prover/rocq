@@ -46,7 +46,7 @@ val inductive_nonrec_rec_paramdecls : mutual_inductive_body puniverses -> Constr
 val inductive_nnonrecparams : mutual_inductive_body -> int
 
 val instantiate_inductive_constraints :
-  mutual_inductive_body -> Instance.t -> Constraints.t
+  mutual_inductive_body -> Instance.t -> UnivConstraints.t
 
 type template_univ =
   | TemplateProp
@@ -60,10 +60,10 @@ type template_subst = Quality.t Int.Map.t * Universe.t Int.Map.t
 val instantiate_template_constraints
   : template_subst
   -> Declarations.template_universes
-  -> Univ.Constraints.t
+  -> Univ.UnivConstraints.t
 
 val instantiate_template_universes : mutual_inductive_body -> param_univs ->
-  Constraints.t * rel_context * template_subst
+  UnivConstraints.t * rel_context * template_subst
 
 val constrained_type_of_inductive : mind_specif puniverses -> types constrained
 

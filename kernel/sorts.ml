@@ -227,12 +227,12 @@ let pattern_match ps s qusubst =
   | (PSProp | PSSProp | PSSet | PSType _), _ -> None
 
 module QUConstraints = struct
-  type t = Quality.QCumulConstraints.t * Univ.Constraints.t
+  type t = Quality.QCumulConstraints.t * Univ.UnivConstraints.t
 
-  let empty = Quality.QCumulConstraints.empty, Univ.Constraints.empty
+  let empty = Quality.QCumulConstraints.empty, Univ.UnivConstraints.empty
 
   let union (qcsts,ucsts) (qcsts',ucsts') =
-    QCumulConstraints.union qcsts qcsts', Univ.Constraints.union ucsts ucsts'
+    QCumulConstraints.union qcsts qcsts', Univ.UnivConstraints.union ucsts ucsts'
 end
 
 let enforce_eq_cumul_quality a b csts =

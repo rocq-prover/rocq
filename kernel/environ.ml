@@ -447,7 +447,7 @@ let fold_named_context_reverse f ~init env =
 let map_universes f env = set_universes (f env.env_universes) env
 
 let add_constraints c env =
-  if Univ.Constraints.is_empty c then env
+  if Univ.UnivConstraints.is_empty c then env
   else map_universes (UGraph.merge_constraints c) env
 
 let check_constraints c env =
@@ -498,7 +498,7 @@ let push_subgraph (levels,csts) env =
   let add_subgraph g =
     let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
     let newg = UGraph.merge_constraints csts newg in
-    (if not (Univ.Constraints.is_empty csts) then
+    (if not (Univ.UnivConstraints.is_empty csts) then
        let restricted = UGraph.constraints_for ~kept:(UGraph.domain g) newg in
        (if not (UGraph.check_constraints restricted g) then
           CErrors.anomaly Pp.(str "Local constraints imply new transitive constraints.")));

@@ -64,7 +64,7 @@ val new_global_univ : unit -> Universe.t in_universe_context_set
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
 
-type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.Constraints.t
+type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.UnivConstraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 

@@ -70,7 +70,7 @@ type ('q, 'u) pattern =
 val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t option
 
 module QUConstraints : sig
-  type t = Quality.QCumulConstraints.t * Univ.Constraints.t
+  type t = Quality.QCumulConstraints.t * Univ.UnivConstraints.t
 
   val empty : t
 

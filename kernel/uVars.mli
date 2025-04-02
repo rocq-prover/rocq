@@ -105,8 +105,8 @@ type bound_names = {
 }
 val empty_bound_names : bound_names
 
-(** A vector of universe levels with universe Constraints.t,
-    representing local universe variables and associated Constraints.t;
+(** A vector of universe levels with universe UnivConstraints.t,
+    representing local universe variables and associated UnivConstraints.t;
     the names are user-facing names for printing *)
 
 module UContext :
@@ -119,7 +119,7 @@ sig
   val is_empty : t -> bool
 
   val instance : t -> Instance.t
-  val constraints : t -> Constraints.t
+  val constraints : t -> UnivConstraints.t
 
   val union : t -> t -> t
   (** Keeps the order of the instances *)
@@ -161,13 +161,13 @@ sig
                                                             use de Bruijn indices
   *)
 
-  val make : bound_names -> Constraints.t -> t
-  (** Build an abstract context. Constraints may be between universe
+  val make : bound_names -> UnivConstraints.t -> t
+  (** Build an abstract context. UnivConstraints may be between universe
      variables. *)
 
   val repr : t -> UContext.t
   (** [repr ctx] is [(Var(0), ... Var(n-1) |= cstr] where [n] is the length of
-      the context and [cstr] the abstracted Constraints.t. *)
+      the context and [cstr] the abstracted UnivConstraints.t. *)
 
   val empty : t
   val is_empty : t -> bool
@@ -180,8 +180,8 @@ sig
   val union : t -> t -> t
   (** The constraints are expected to be relative to the concatenated set of universes *)
 
-  val instantiate : Instance.t -> t -> Constraints.t
-  (** Generate the set of instantiated Constraints.t **)
+  val instantiate : Instance.t -> t -> UnivConstraints.t
+  (** Generate the set of instantiated UnivConstraints.t **)
 
   val names : t -> bound_names
   (** Return the names of the bound universe variables *)

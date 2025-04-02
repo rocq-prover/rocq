@@ -433,93 +433,97 @@ struct
     List.fold_right (fun a acc -> sup [a] acc) l []
 end
 
-type constraint_type = AcyclicGraph.constraint_type = Lt | Le | Eq
+module UnivConstraint = struct
+  type kind = AcyclicGraph.constraint_type = Lt | Le | Eq
 
-let constraint_type_ord c1 c2 = match c1, c2 with
-| Lt, Lt -> 0
-| Lt, _ -> -1
-| Le, Lt -> 1
-| Le, Le -> 0
-| Le, Eq -> -1
-| Eq, Eq -> 0
-| Eq, _ -> 1
+  let eq_kind c1 c2 =
+    match c1, c2 with
+    | Lt, Lt | Le, Le | Eq, Eq -> true
+    | _ -> false
 
-(* Constraints and sets of constraints. *)
+  let compare_kind c1 c2 =
+    match c1, c2 with
+    | Lt, Lt -> 0
+    | Lt, _ -> -1
+    | Le, Lt -> 1
+    | Le, Le -> 0
+    | Le, Eq -> -1
+    | Eq, Eq -> 0
+    | Eq, _ -> 1
 
-type univ_constraint = Level.t * constraint_type * Level.t
+  let pr_kind op =
+    let op_str = match op with
+      | Lt -> " < "
+      | Le -> " <= "
+      | Eq -> " = "
+    in str op_str
 
-let pr_constraint_type op =
-  let op_str = match op with
-    | Lt -> " < "
-    | Le -> " <= "
-    | Eq -> " = "
-  in str op_str
+  let hash_kind = function
+    | Lt -> 0
+    | Le -> 1
+    | Eq -> 2
 
-let hash_constraint_type = function
-  | Lt -> 0
-  | Le -> 1
-  | Eq -> 2
+  type t = Level.t * kind * Level.t
 
-module UConstraintOrd =
-struct
-  type t = univ_constraint
-  let compare (u,c,v) (u',c',v') =
-    let i = constraint_type_ord c c' in
+  let compare (u, c, v) (u', c', v') =
+    let i = compare_kind c c' in
     if not (Int.equal i 0) then i
     else
       let i' = Level.compare u u' in
       if not (Int.equal i' 0) then i'
       else Level.compare v v'
+
+  module Hstruct = struct
+    type nonrec t = t
+
+    let hashcons (l1,k,l2) =
+      let hl1, l1 = Level.hcons l1 in
+      let hl2, l2 = Level.hcons l2 in
+      Hashset.Combine.(combinesmall (hash_kind k) (combine hl1 hl2)), (l1,k,l2)
+
+    let eq (l1,k,l2) (l1',k',l2') =
+      eq_kind k k' && l1 == l1' && l2 == l2'
+  end
+
+  module Hasher = Hashcons.Make(Hstruct)
+
+  let hcons = Hashcons.simple_hcons Hasher.generate Hasher.hcons ()
 end
 
-module Hconstraint =
-  Hashcons.Make(
-    struct
-      type t = univ_constraint
-      let hashcons (l1,k,l2) =
-        let hl1, l1 = Level.hcons l1 in
-        let hl2, l2 = Level.hcons l2 in
-        Hashset.Combine.(combinesmall (hash_constraint_type k) (combine hl1 hl2)), (l1, k, l2)
-      let eq (l1,k,l2) (l1',k',l2') =
-        l1 == l1' && k == k' && l2 == l2'
-    end)
-
-let hcons_constraint = Hashcons.simple_hcons Hconstraint.generate Hconstraint.hcons ()
-
-module Constraints =
+module UnivConstraints =
 struct
-  module S = Set.Make(UConstraintOrd)
+  module S = Set.Make(UnivConstraint)
   include S
 
   let pr prl c =
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
-      hov 0 (prl u1 ++ pr_constraint_type op ++ prl u2))
+      hov 0 (prl u1 ++ UnivConstraint.pr_kind op ++ prl u2))
         (elements c))
 
-  module Hconstraints = CSet.Hashcons(UConstraintOrd)(struct
-      type t = UConstraintOrd.t
-      let hcons = hcons_constraint
+  module Hconstraints = CSet.Hashcons(UnivConstraint)(struct
+      type t = UnivConstraint.t
+      let hcons = UnivConstraint.hcons
     end)
 
   let hcons = Hashcons.simple_hcons Hconstraints.generate Hconstraints.hcons ()
 end
 
 (** A value with universe constraints. *)
-type 'a constrained = 'a * Constraints.t
+type 'a constrained = 'a * UnivConstraints.t
 
 let constraints_of (_, cst) = cst
 
-(** Constraints functions. *)
+(** UnivConstraints functions. *)
 
-type 'a constraint_function = 'a -> 'a -> Constraints.t -> Constraints.t
+type 'a constraint_function = 'a -> 'a -> UnivConstraints.t -> UnivConstraints.t
 
 let enforce_eq_level u v c =
   (* We discard trivial constraints like u=u *)
   if Level.equal u v then c
-  else Constraints.add (u,Eq,v) c
+  else UnivConstraints.add (u,UnivConstraint.Eq,v) c
 
 let enforce_leq_level u v c =
-  if Level.equal u v then c else Constraints.add (u,Le,v) c
+  if Level.equal u v then c else UnivConstraints.add (u,UnivConstraint.Le,v) c
 
 (* Miscellaneous functions to remove or test local univ assumed to
    occur in a universe *)
@@ -553,36 +557,36 @@ module ContextSet =
 struct
   type t = Level.Set.t constrained
 
-  let empty = (Level.Set.empty, Constraints.empty)
-  let is_empty (univs, cst) = Level.Set.is_empty univs && Constraints.is_empty cst
+  let empty = (Level.Set.empty, UnivConstraints.empty)
+  let is_empty (univs, cst) = Level.Set.is_empty univs && UnivConstraints.is_empty cst
 
   let equal (univs, cst as x) (univs', cst' as y) =
-    x == y || (Level.Set.equal univs univs' && Constraints.equal cst cst')
+    x == y || (Level.Set.equal univs univs' && UnivConstraints.equal cst cst')
 
-  let of_set s = (s, Constraints.empty)
+  let of_set s = (s, UnivConstraints.empty)
   let singleton l = of_set (Level.Set.singleton l)
 
   let union (univs, cst as x) (univs', cst' as y) =
     if x == y then x
-    else Level.Set.union univs univs', Constraints.union cst cst'
+    else Level.Set.union univs univs', UnivConstraints.union cst cst'
 
   let append (univs, cst) (univs', cst') =
     let univs = Level.Set.fold Level.Set.add univs univs' in
-    let cst = Constraints.fold Constraints.add cst cst' in
+    let cst = UnivConstraints.fold UnivConstraints.add cst cst' in
     (univs, cst)
 
   let diff (univs, cst) (univs', cst') =
-    Level.Set.diff univs univs', Constraints.diff cst cst'
+    Level.Set.diff univs univs', UnivConstraints.diff cst cst'
 
   let add_universe u (univs, cst) =
     Level.Set.add u univs, cst
 
   let add_constraints cst' (univs, cst) =
-    univs, Constraints.union cst cst'
+    univs, UnivConstraints.union cst cst'
 
   let pr prl (univs, cst as ctx) =
     if is_empty ctx then mt() else
-      hov 0 (h (Level.Set.pr prl univs ++ str " |=") ++ brk(1,2) ++ h (Constraints.pr prl cst))
+      hov 0 (h (Level.Set.pr prl univs ++ str " |=") ++ brk(1,2) ++ h (UnivConstraints.pr prl cst))
 
   let constraints (_univs, cst) = cst
   let levels (univs, _cst) = univs
@@ -591,7 +595,7 @@ struct
 
   let hcons (v,c) =
     let hv, v = Level.Set.hcons v in
-    let hc, c = Constraints.hcons c in
+    let hc, c = UnivConstraints.hcons c in
     Hashset.Combine.combine hv hc, (v, c)
 
 end
@@ -620,13 +624,13 @@ let subst_univs_level_universe subst u =
 let subst_univs_level_constraint subst (u,d,v) =
   let u' = subst_univs_level_level subst u
   and v' = subst_univs_level_level subst v in
-    if d != Lt && Level.equal u' v' then None
+    if d != UnivConstraint.Lt && Level.equal u' v' then None
     else Some (u',d,v')
 
 let subst_univs_level_constraints subst csts =
-  Constraints.fold
-    (fun c -> Option.fold_right Constraints.add (subst_univs_level_constraint subst c))
-    csts Constraints.empty
+  UnivConstraints.fold
+    (fun c -> Option.fold_right UnivConstraints.add (subst_univs_level_constraint subst c))
+    csts UnivConstraints.empty
 
 (** Pretty-printing *)
 

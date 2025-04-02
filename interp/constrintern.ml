@@ -2960,14 +2960,14 @@ let interp_univ_constraints env evd cstrs =
   let interp (evd,cstrs) cstr =
     let cstr = interp_univ_constraint evd cstr in
     try
-      let evd = Evd.add_constraints evd (Univ.Constraints.singleton cstr) in
-      evd, Univ.Constraints.add cstr cstrs
+      let evd = Evd.add_constraints evd (Univ.UnivConstraints.singleton cstr) in
+      evd, Univ.UnivConstraints.add cstr cstrs
     with UGraph.UniverseInconsistency e as exn ->
       let _, info = Exninfo.capture exn in
       CErrors.user_err ~info
         (UGraph.explain_universe_inconsistency (Termops.pr_evd_qvar evd) (Termops.pr_evd_level evd) e)
   in
-  List.fold_left interp (evd,Univ.Constraints.empty) cstrs
+  List.fold_left interp (evd,Univ.UnivConstraints.empty) cstrs
 
 let interp_univ_decl env decl =
   let open UState in

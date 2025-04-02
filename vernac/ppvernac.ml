@@ -60,7 +60,7 @@ let pr_red_expr =
     keyword
 
 let pr_uconstraint (l, d, r) =
-  pr_sort_name_expr l ++ spc () ++ Univ.pr_constraint_type d ++ spc () ++
+  pr_sort_name_expr l ++ spc () ++ Univ.UnivConstraint.pr_kind d ++ spc () ++
   pr_sort_name_expr r
 
 let pr_full_univ_name_list = function
