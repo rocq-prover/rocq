@@ -25,7 +25,7 @@ exception ModuleInternalizationError of module_internalization_error
 
 type module_kind = Module | ModType | ModAny
 
-type module_struct_expr = (universe_decl_expr option * constr_expr) Declarations.module_alg_expr
+type module_struct_expr = (poly_decl_expr option * constr_expr) Declarations.module_alg_expr
 
 let error_not_a_module_loc ~info kind loc qid =
   let e = match kind with
@@ -131,17 +131,17 @@ let rec intern_module_ast kind m = match m with
       (MEwith(me,decl), base, kind)
 
 let interp_with_decl env base kind = function
-  | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
+  | WithMod (fqid,mp) -> WithMod (fqid,mp), PolyConstraints.ContextSet.empty
   | WithDef(fqid,(udecl,c)) ->
-    let sigma, udecl = interp_univ_decl_opt env udecl in
+    let sigma, udecl = interp_poly_decl_opt env udecl in
     let c, ectx = interp_constr env sigma c in
     let poly = lookup_polymorphism env base kind fqid in
-    begin match fst (UState.check_univ_decl ~poly ectx udecl) with
+    begin match fst (UState.check_poly_decl ~poly ectx udecl) with
       | UState.Polymorphic_entry ctx ->
         let inst, ctx = UVars.abstract_universes ctx in
         let c = EConstr.Vars.subst_univs_level_constr (UVars.make_instance_subst inst) c in
         let c = EConstr.to_constr sigma c in
-        WithDef (fqid,(c, Some ctx)), Univ.ContextSet.empty
+        WithDef (fqid,(c, Some ctx)), PolyConstraints.ContextSet.empty
       | UState.Monomorphic_entry ctx ->
         let c = EConstr.to_constr sigma c in
         WithDef (fqid,(c, None)), ctx
@@ -156,8 +156,8 @@ let rec interp_module_ast env kind base m cst = match m with
 | MEwith(me,decl) ->
   let me, cst = interp_module_ast env kind base me cst in
   let decl, cst' = interp_with_decl env base kind decl in
-  let cst = Univ.ContextSet.union cst cst' in
+  let cst = PolyConstraints.ContextSet.union cst cst' in
   MEwith(me,decl), cst
 
 let interp_module_ast env kind base m =
-  interp_module_ast env kind base m Univ.ContextSet.empty
+  interp_module_ast env kind base m PolyConstraints.ContextSet.empty

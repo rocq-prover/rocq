@@ -58,13 +58,13 @@ val concat_private : private_constants -> private_constants -> private_constants
     [e1] must be more recent than those of [e2]. *)
 
 val inline_private_constants :
-  Environ.env -> private_constants Entries.proof_output -> Constr.constr Univ.in_universe_context_set
+  Environ.env -> private_constants Entries.proof_output -> Constr.constr PolyConstraints.in_poly_context_set
 (** Abstract the private constants of a proof over the proof output *)
 
 val push_private_constants : Environ.env -> private_constants -> Environ.env
 (** Push the constants in the environment if not already there. *)
 
-val universes_of_private : private_constants -> Univ.ContextSet.t
+val universes_of_private : private_constants -> PolyConstraints.ContextSet.t
 
 val constants_of_private : private_constants -> Constant.t list
 
@@ -95,7 +95,7 @@ val add_constant :
 
 (** Similar to add_constant but also returns a certificate *)
 val add_private_constant :
-  Label.t -> Univ.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
+  Label.t -> PolyConstraints.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
 
 (** {5 Delayed proofs} *)
 
@@ -123,7 +123,7 @@ val is_filled_opaque : Opaqueproof.opaque_handle -> safe_environment -> bool
 
 (** Get the proof term that was checked by the kernel. *)
 val repr_certificate : opaque_certificate ->
-  Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes
+  Constr.t * PolyConstraints.ContextSet.t Opaqueproof.delayed_universes
 
 (** {5 Rewrite rules} *)
 
@@ -151,10 +151,10 @@ val add_modtype :
 (** Adding universe constraints *)
 
 val push_context_set :
-  strict:bool -> Univ.ContextSet.t -> safe_transformer0
+  strict:bool -> QGraph.constraint_source -> PolyConstraints.ContextSet.t -> safe_transformer0
 
 val add_constraints :
-  Univ.UnivConstraints.t -> safe_transformer0
+  QGraph.constraint_source -> PolyConstraints.t -> safe_transformer0
 
 (** Adding global sort qualities *)
 
@@ -240,7 +240,7 @@ type compiled_library
 
 val dirpath_of_library : compiled_library -> DirPath.t
 val module_of_library : compiled_library -> Mod_declarations.module_body
-val univs_of_library : compiled_library -> Quality.QVar.Set.t * Univ.ContextSet.t
+val univs_of_library : compiled_library -> Quality.QVar.Set.t * PolyConstraints.ContextSet.t
 val check_flags_for_library : compiled_library -> safe_transformer0
 
 val start_library : DirPath.t -> ModPath.t safe_transformer

@@ -20,7 +20,7 @@ open Entries
     the set of additional global constraints that need to be added for the term
     to be well typed. *)
 type 'a effect_handler =
-  env -> Constr.t -> 'a -> (Constr.t * Univ.ContextSet.t * int)
+  env -> Constr.t -> 'a -> (Constr.t * PolyConstraints.ContextSet.t * int)
 
 type typing_context
 
@@ -46,4 +46,4 @@ val infer_opaque :
     (unit, unit) pconstant_body * typing_context
 
 val check_delayed : 'a effect_handler -> typing_context -> 'a proof_output ->
-  HConstr.t option * Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes
+  HConstr.t option * Constr.t * PolyConstraints.ContextSet.t Opaqueproof.delayed_universes

@@ -17,7 +17,7 @@ open Univ
 open Sorts
 
 type universes_entry =
-| Monomorphic_entry of Univ.ContextSet.t
+| Monomorphic_entry of PolyConstraints.ContextSet.t
 | Polymorphic_entry of UVars.UContext.t
 
 exception UniversesDiffer
@@ -57,7 +57,7 @@ val union : t -> t -> t
 
 (** {5 Projections and other destructors} *)
 
-val context_set : t -> Univ.ContextSet.t
+val context_set : t -> PolyConstraints.ContextSet.t
 (** The local context of the state, i.e. a set of bound variables together
     with their associated constraints. *)
 
@@ -84,7 +84,7 @@ val is_algebraic : Level.t -> t -> bool
 (** Can this universe be instantiated with an algebraic
     universe (ie it appears in inferred types only). *)
 
-val constraints : t -> Univ.UnivConstraints.t
+val constraints : t -> PolyConstraints.t
 (** Shorthand for {!context_set} composed with {!ContextSet.constraints}. *)
 
 val context : t -> UVars.UContext.t
@@ -120,12 +120,16 @@ val nf_relevance : t -> relevance -> relevance
 
 (** {5 UnivConstraints handling} *)
 
-val add_constraints : t -> Univ.UnivConstraints.t -> t
+val add_univ_constraints : t -> Univ.UnivConstraints.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)
 
-val add_universe_constraints : t -> UnivProblem.Set.t -> t
+val add_poly_constraints : QGraph.constraint_source -> t -> PolyConstraints.t -> t
+
+val add_quconstraints : t -> Sorts.QUConstraints.t -> t
+
+val add_constraints : QGraph.constraint_source -> t -> UnivProblem.Set.t -> Quality.ElimConstraints.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)
@@ -134,9 +138,7 @@ val check_qconstraints : t -> Quality.QCumulConstraints.t -> bool
 
 val check_elim_constraints : t -> Quality.ElimConstraints.t -> bool
 
-val check_universe_constraints : t -> UnivProblem.Set.t -> bool
-
-val add_quconstraints : t -> QUConstraints.t -> t
+val check_constraints : t -> UnivProblem.Set.t -> bool
 
 (** {5 Names} *)
 
@@ -156,7 +158,7 @@ val name_level : Univ.Level.t -> Id.t -> t -> t
    the universes in [keep]. The constraints [csts] are adjusted so
    that transitive constraints between remaining universes (those in
    [keep] and those not in [univs]) are preserved. *)
-val restrict_universe_context : ContextSet.t -> Level.Set.t -> ContextSet.t
+val restrict_universe_context : PolyConstraints.ContextSet.t -> Level.Set.t -> PolyConstraints.ContextSet.t
 
 (** [restrict uctx ctx] restricts the local universes of [uctx] to
    [ctx] extended by local named universes and side effect universes
@@ -179,11 +181,11 @@ val univ_rigid : rigid
 val univ_flexible : rigid
 val univ_flexible_alg : rigid
 
-val merge : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
-val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> Quality.QVar.Set.t -> t
-val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
+val merge : ?loc:Loc.t -> sideff:bool -> rigid -> t -> PolyConstraints.ContextSet.t -> t
+val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> QGraph.constraint_source -> Quality.QVar.Set.t -> Quality.ElimConstraints.t -> t
+val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> QGraph.constraint_source -> t -> UnivGen.sort_context_set -> t
 
-val demote_global_univs : Univ.ContextSet.t -> t -> t
+val demote_global_univs : PolyConstraints.ContextSet.t -> t -> t
 (** After declaring global universes, call this if you want to keep using the UState.
 
     Removes from the uctx_local part of the UState the universes
@@ -237,20 +239,23 @@ val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
 
 val collapse_sort_variables : ?except:Quality.QVar.Set.t -> t -> t
 
-type ('a, 'b, 'c) gen_universe_decl = {
-  univdecl_qualities : 'a;
-  univdecl_extensible_qualities : bool;
-  univdecl_instance : 'b; (* Declared universes *)
-  univdecl_extensible_instance : bool; (* Can new universes be added *)
-  univdecl_constraints : 'c; (* Declared constraints *)
-  univdecl_extensible_constraints : bool (* Can new constraints be added *) }
+type ('a, 'b, 'c, 'd) gen_poly_decl = {
+  polydecl_qualities : 'a;
+  polydecl_extensible_qualities : bool;
+  polydecl_elim_constraints : 'b;
+  polydecl_instance : 'c; (* Declared universes *)
+  polydecl_extensible_instance : bool; (* Can new universes be added *)
+  polydecl_univ_constraints : 'd; (* Declared univ constraints *)
+  polydecl_extensible_constraints : bool; (* Can new constraints (elim or univ) be added *) }
 
-type universe_decl =
-  (Quality.QVar.t list, Level.t list, Univ.UnivConstraints.t) gen_universe_decl
+type poly_decl =
+  (Quality.QVar.t list, Quality.ElimConstraints.t, Level.t list, Univ.UnivConstraints.t) gen_poly_decl
 
-val default_univ_decl : universe_decl
+val default_poly_decl : poly_decl
 
-(** [check_univ_decl ctx decl]
+val poly_decl_csts : poly_decl -> PolyConstraints.t
+
+(** [check_poly_decl ctx decl]
 
    If non extensible in [decl], check that the local universes (resp.
    universe constraints) in [ctx] are implied by [decl].
@@ -261,13 +266,13 @@ val default_univ_decl : universe_decl
    When polymorphic, the universes corresponding to
    [decl.univdecl_instance] come first in the order defined by that
    list. *)
-val check_univ_decl : poly:bool -> t -> universe_decl -> named_universes_entry
-val check_univ_decl_rev : t -> universe_decl -> t * UVars.UContext.t
+val check_poly_decl : poly:bool -> t -> poly_decl -> named_universes_entry
+val check_poly_decl_rev : t -> poly_decl -> t * UVars.UContext.t
 val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
-val check_mono_univ_decl : t -> universe_decl -> Univ.ContextSet.t
+val check_mono_poly_decl : t -> poly_decl -> PolyConstraints.ContextSet.t
 
-val check_template_univ_decl : t -> template_qvars:Quality.QVar.Set.t -> universe_decl -> Univ.ContextSet.t
+val check_template_poly_decl : t -> template_qvars:Quality.QVar.Set.t -> poly_decl -> PolyConstraints.ContextSet.t
 
 (** {5 TODO: Document me} *)
 

@@ -20,7 +20,7 @@ val get_opaque_disk : Opaqueproof.opaque_handle -> opaque_disk -> Opaqueproof.op
 val set_opaque_disk : Opaqueproof.opaque_handle -> Opaqueproof.opaque_proofterm -> opaque_disk -> unit
 
 val get_current_opaque : Opaqueproof.opaque_handle -> Opaqueproof.opaque_proofterm option
-val get_current_constraints : Opaqueproof.opaque_handle -> Univ.ContextSet.t option
+val get_current_constraints : Opaqueproof.opaque_handle -> PolyConstraints.ContextSet.t option
 
 val dump : ?except:Future.UUIDSet.t -> unit -> opaque_disk * Opaqueproof.opaque_handle Future.UUIDMap.t
 

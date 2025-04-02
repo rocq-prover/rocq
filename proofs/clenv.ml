@@ -67,7 +67,7 @@ let merge_fsorts evd clenv =
   in
   let fsorts = List.fold_left fold Univ.Level.Set.empty clenv.metas in
   let fsorts = Univ.Level.Set.filter filter fsorts in
-  let uctx = (fsorts, Univ.UnivConstraints.empty) in
+  let uctx = (fsorts, PolyConstraints.empty) in
   Evd.merge_context_set Evd.univ_flexible evd uctx
 
 let update_clenv_evd clenv evd metam =
@@ -126,21 +126,21 @@ let refresh_template_constraints ~metas env sigma ind c =
   let mib = Environ.lookup_mind (fst ind) env in
   let ctx = (Option.get mib.mind_template).template_context in
   let cstrs0 = UVars.UContext.constraints @@ UVars.AbstractContext.repr ctx in
-  if Univ.UnivConstraints.is_empty cstrs0 then sigma
+  if PolyConstraints.is_empty cstrs0 then sigma
   else
     let _, allargs = decompose_app sigma c in
     let map c = { uj_val = c; uj_type = get_type_of_with_metas ~metas env sigma c } in
     let allargs = Array.map map allargs in
     let sigma, univs = Typing.get_template_parameters env sigma ind allargs in
     let cstrs, _, _ = Inductive.instantiate_template_universes mib univs in
-    Evd.add_constraints sigma cstrs
+    Evd.add_univ_constraints sigma (PolyConstraints.univs cstrs)
 
 let clenv_refresh env sigma ctx clenv =
   match ctx with
   | Some ctx ->
     let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
     let emap c = Vars.subst_univs_level_constr subst c in
-    let sigma = Evd.merge_sort_context_set Evd.univ_flexible sigma ctx in
+    let sigma = Evd.merge_sort_context_set Evd.univ_flexible QGraph.Internal sigma ctx in
     (* Only metas are mentioning the old universes. *)
     mk_clausenv env sigma (Unification.Meta.map_metas emap clenv.metam) clenv.metas
       (emap clenv.templval)

@@ -102,7 +102,7 @@ let check_universes error env u1 u2 =
     if not (UGraph.check_subtype (Environ.universes env) auctx2 auctx1) then
       error (IncompatibleUnivConstraints { got = auctx1; expect = auctx2; } )
     else
-      Environ.push_context ~strict:false (UVars.AbstractContext.repr auctx2) env
+      Environ.push_context ~strict:false QGraph.Internal (UVars.AbstractContext.repr auctx2) env
   | Monomorphic, Polymorphic _ -> error (PolymorphicStatusExpected true)
   | Polymorphic _, Monomorphic -> error (PolymorphicStatusExpected false)
 

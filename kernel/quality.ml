@@ -175,6 +175,7 @@ let is_qtype s = equal s (QConstant QType)
 let is_qvar s = match s with QVar _ -> true | _ -> false
 let is_qconst s = match s with QConstant _ -> true | _ -> false
 let is_qglobal s = match s with QVar (QVar.Global _) -> true | _ -> false
+let is_impredicative s = is_qprop s || is_qsprop s
 
 let compare a b = match a, b with
   | QVar a, QVar b -> QVar.compare a b

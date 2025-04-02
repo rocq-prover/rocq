@@ -14,7 +14,7 @@ open Cooking
 
 type 'a delayed_universes =
 | PrivateMonomorphic of 'a
-| PrivatePolymorphic of Univ.ContextSet.t
+| PrivatePolymorphic of PolyConstraints.ContextSet.t
 
 type opaque_proofterm = Constr.t * unit delayed_universes
 

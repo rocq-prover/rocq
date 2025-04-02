@@ -20,7 +20,7 @@ open Constr
 open Declarations
 open Environ
 open Entries
-open Univ
+open PolyConstraints
 open UVars
 
 module NamedDecl = Context.Named.Declaration
@@ -103,7 +103,7 @@ let process_universes env = function
   | Entries.Polymorphic_entry uctx ->
     (** [ctx] must contain local universes, such that it has no impact
         on the rest of the graph (up to transitivity). *)
-    let env = Environ.push_context ~strict:false uctx env in
+    let env = Environ.push_context ~strict:false QGraph.Rigid uctx env in
     let inst, auctx = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
     env, usubst, inst, Polymorphic auctx
@@ -125,7 +125,7 @@ let adjust_primitive_univ_entry p auctx = function
        the instance so comparing the sizes works. No polymorphic
        primitive uses constraints currently. *)
     if not (AbstractContext.size auctx = UContext.size uctx
-            && UnivConstraints.is_empty (UContext.constraints uctx))
+            && PolyConstraints.is_empty (UContext.constraints uctx))
     then CErrors.user_err Pp.(str "Incorrect universes for primitive " ++
                                 str (CPrimitives.op_or_type_to_string p));
     Polymorphic_entry (UContext.refine_names (AbstractContext.names auctx) uctx)
@@ -267,11 +267,11 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
   let env, univs = match univs with
     | Monomorphic ->
        assert (UVars.is_empty_sort_subst usubst);
-       push_context_set uctx env, Opaqueproof.PrivateMonomorphic uctx
+       push_context_set QGraph.Static uctx env, Opaqueproof.PrivateMonomorphic uctx
     | Polymorphic _ ->
        assert (Int.equal valid_signatures 0);
        push_subgraph uctx env,
-       let private_univs = on_snd (subst_univs_level_constraints (snd usubst)) uctx in
+       let private_univs = on_snd (subst_univs_constraints usubst) uctx in
        Opaqueproof.PrivatePolymorphic private_univs
   in
   (* Note: non-trivial trusted side-effects only in monomorphic case *)

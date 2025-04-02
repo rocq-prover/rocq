@@ -25,11 +25,11 @@ val name_mono_section_univs : Univ.Level.Set.t -> unit
 val do_universe : poly:bool -> lident list -> unit
 
 (** Command [Constraint]. *)
-val do_constraint : poly:bool -> Constrexpr.univ_constraint_expr list -> unit
+val do_constraint : poly:bool -> Constrexpr.poly_constraint_expr list -> unit
 
-val add_constraint_source : GlobRef.t -> Univ.ContextSet.t -> unit
+val add_constraint_source : GlobRef.t -> PolyConstraints.ContextSet.t -> unit
 
-val constraint_sources : unit -> (GlobRef.t * Univ.UnivConstraints.t) list
+val constraint_sources : unit -> (GlobRef.t * PolyConstraints.t) list
 (** Returns constraints associated to globrefs, newest first. *)
 
 (** Command [Sort]. *)

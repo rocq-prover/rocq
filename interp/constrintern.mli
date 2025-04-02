@@ -218,19 +218,24 @@ val interp_univ_constraint
   -> sort_name_expr * Univ.UnivConstraint.kind * sort_name_expr
   -> Univ.UnivConstraint.t
 
+val interp_elim_constraint
+  : Evd.evar_map
+  -> quality_expr * Quality.ElimConstraint.kind * quality_expr
+  -> Quality.ElimConstraint.t
+
 (** Local universe and constraint declarations. *)
-val interp_univ_decl : Environ.env -> universe_decl_expr ->
-                       Evd.evar_map * UState.universe_decl
+val interp_poly_decl : Environ.env -> poly_decl_expr ->
+                       Evd.evar_map * UState.poly_decl
 
-val interp_univ_decl_opt : Environ.env -> universe_decl_expr option ->
-                       Evd.evar_map * UState.universe_decl
+val interp_poly_decl_opt : Environ.env -> poly_decl_expr option ->
+                       Evd.evar_map * UState.poly_decl
 
-val interp_cumul_univ_decl_opt : Environ.env -> cumul_univ_decl_expr option ->
-  Evd.evar_map * UState.universe_decl * Entries.variance_entry
+val interp_cumul_poly_decl_opt : Environ.env -> cumul_univ_decl_expr option ->
+  Evd.evar_map * UState.poly_decl * Entries.variance_entry
 (** BEWARE the variance entry needs to be adjusted by
    [ComInductive.variance_of_entry] if the instance is extensible. *)
 
-val interp_mutual_univ_decl_opt : Environ.env -> universe_decl_expr option list ->
-  Evd.evar_map * UState.universe_decl
+val interp_mutual_poly_decl_opt : Environ.env -> poly_decl_expr option list ->
+  Evd.evar_map * UState.poly_decl
 (** Check that all defined udecls of a list of udecls associated to a mutual definition
     are the same and interpret this common udecl *)

@@ -64,9 +64,11 @@ val add_mind :
   MutInd.t * IndTyping.NotPrimRecordReason.t option
 
 (** Extra universe constraints *)
-val add_constraints : Univ.UnivConstraints.t -> unit
+val add_constraints : QGraph.constraint_source -> PolyConstraints.t -> unit
+val add_univ_constraints : Univ.UnivConstraints.t -> unit
+val add_elim_constraints : QGraph.constraint_source -> Quality.ElimConstraints.t -> unit
 
-val push_context_set : Univ.ContextSet.t -> unit
+val push_context_set : QGraph.constraint_source -> PolyConstraints.ContextSet.t -> unit
 
 (** Extra sort qualities *)
 val push_quality_set : Quality.QVar.Set.t -> unit
@@ -201,7 +203,7 @@ val current_modpath : unit -> ModPath.t
 
 val current_dirpath : unit -> DirPath.t
 
-val with_global : (Environ.env -> DirPath.t -> 'a Univ.in_universe_context_set) -> 'a
+val with_global : QGraph.constraint_source -> (Environ.env -> DirPath.t -> 'a PolyConstraints.in_poly_context_set) -> 'a
 
 val global_env_summary_tag : Safe_typing.safe_environment Summary.Dyn.tag
 

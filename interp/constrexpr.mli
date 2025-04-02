@@ -42,14 +42,19 @@ type instance_expr = quality_expr list * univ_level_expr list
 
 (** UnivConstraints don't have anonymous universes *)
 type univ_constraint_expr = sort_name_expr * Univ.UnivConstraint.kind * sort_name_expr
+type elim_constraint_expr = quality_expr * Quality.ElimConstraint.kind * quality_expr
 
-type universe_decl_expr = (lident list, lident list, univ_constraint_expr list) UState.gen_universe_decl
+type poly_constraint_expr =
+  | UnivCst of univ_constraint_expr
+  | ElimCst of elim_constraint_expr
+
+type poly_decl_expr = (lident list, elim_constraint_expr list, lident list, univ_constraint_expr list) UState.gen_poly_decl
 type cumul_univ_decl_expr =
-  (lident list, (lident * UVars.Variance.t option) list, univ_constraint_expr list) UState.gen_universe_decl
+  (lident list, elim_constraint_expr list, (lident * UVars.Variance.t option) list, univ_constraint_expr list) UState.gen_poly_decl
 
-type ident_decl = lident * universe_decl_expr option
+type ident_decl = lident * poly_decl_expr option
 type cumul_ident_decl = lident * cumul_univ_decl_expr option
-type name_decl = lname * universe_decl_expr option
+type name_decl = lname * poly_decl_expr option
 
 type notation_with_optional_scope = LastLonelyNotation | NotationInScope of string
 
@@ -214,7 +219,7 @@ type constr_pattern_expr = constr_expr
 
 type with_declaration_ast =
   | CWith_Module of Id.t list CAst.t * qualid
-  | CWith_Definition of Id.t list CAst.t * universe_decl_expr option * constr_expr
+  | CWith_Definition of Id.t list CAst.t * poly_decl_expr option * constr_expr
 
 type module_ast_r =
   | CMident of qualid

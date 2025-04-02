@@ -112,7 +112,7 @@ type symbol_entry = {
   symb_entry_universes : universes_entry;
 }
 
-type 'a proof_output = constr Univ.in_universe_context_set * 'a
+type 'a proof_output = constr PolyConstraints.in_poly_context_set * 'a
 
 type constant_entry =
   | DefinitionEntry : definition_entry -> constant_entry

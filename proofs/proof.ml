@@ -498,7 +498,7 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
      those goals rely on effects that are not present anymore. Hopefully,
      this hack will work in most cases. *)
   let neff = neff.Evd.seff_private in
-  let (ans, _) = Safe_typing.inline_private_constants env ((ans, Univ.ContextSet.empty), neff) in
+  let (ans, _) = Safe_typing.inline_private_constants env ((ans, PolyConstraints.ContextSet.empty), neff) in
   EConstr.of_constr ans, sigma
 
 let get_goal_context_gen pf i =

@@ -13,6 +13,7 @@ open Constr
 open Environ
 open Univ
 open UVars
+open PolyConstraints
 
 module QualityOrSet : sig
   type t = Qual of Quality.t | Set
@@ -59,12 +60,12 @@ val new_sort_global : Id.t -> Quality.QGlobal.t
 val fresh_level : unit -> Level.t
 val fresh_sort_quality : unit -> Quality.QVar.t
 
-val new_global_univ : unit -> Universe.t in_universe_context_set
+val new_global_univ : unit -> Universe.t in_poly_context_set
 
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
 
-type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * Univ.UnivConstraints.t
+type sort_context_set = (Quality.QVar.Set.t * Univ.Level.Set.t) * PolyConstraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
 

@@ -65,7 +65,7 @@ module RecordEntry : sig
   }
 
   type t = {
-    global_univs : Univ.ContextSet.t;
+    global_univs : PolyConstraints.ContextSet.t;
     ubinders : UState.named_universes_entry;
     mie : Entries.mutual_inductive_entry;
     ind_infos : one_ind_info list;

@@ -55,7 +55,7 @@ type t = {
   nuparams : int option;
   univ_binders : UState.named_universes_entry;
   implicits : DeclareInd.one_inductive_impls list;
-  uctx : Univ.ContextSet.t;
+  uctx : PolyConstraints.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
   indlocs : DeclareInd.indlocs;
@@ -81,7 +81,7 @@ type syntax_allows_template_poly = SyntaxAllowsTemplatePoly | SyntaxNoTemplatePo
 val interp_mutual_inductive_constr
   :  sigma:Evd.evar_map
   -> flags:flags
-  -> udecl:UState.universe_decl
+  -> udecl:UState.poly_decl
   -> variances:Entries.variance_entry
   -> ctx_params:EConstr.rel_context
   -> indnames:Names.Id.t list
@@ -98,7 +98,7 @@ val interp_mutual_inductive_constr
      * (* for global universe names, used by DeclareInd *)
      UState.named_universes_entry
      * (* global universes to declare before the inductive (ie without the template univs) *)
-     Univ.ContextSet.t
+     PolyConstraints.ContextSet.t
 
 (************************************************************************)
 (** Internal API, exported for Record                                   *)
