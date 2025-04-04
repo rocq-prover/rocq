@@ -7,7 +7,38 @@ permissions:
 
 jobs:
   Windows:
-    name: Windows
+    name: Windows (Native OPAM)
+    runs-on: windows-latest
+    steps:
+      - name: 🔭 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 😈 Evil hack
+        run: rm rocq-doc.opam
+
+      - name: 🐫 Setup OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14
+          dune-cache: true
+          opam-local-packages: |
+            coqide-server.opam
+            rocq-*.opam
+
+      - name: 🐫🐪🐫 Get Rocq dependencies
+        run: opam install --deps-only ./coqide-server.opam ./rocq-*.opam
+
+      - name: 🧱 Build Rocq
+        run: opam exec -- make world
+
+      - name: 🐫 Get test suite deps
+        run: opam install ounit2 conf-python-3 conf-time
+
+      - name: 🐛 Test Rocq
+        run: opam exec -- make -j 4 -C test-suite
+
+  Windows-platform:
+    name: Windows (Coq Platform)
     runs-on: windows-latest
     strategy:
       fail-fast: false
