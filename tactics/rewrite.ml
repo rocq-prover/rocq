@@ -1078,20 +1078,37 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
             else rewrite_args state None
 
       | Proj (p, r, arg) ->
-          let unfold_compat_constant sigma t =
-            match EConstr.kind sigma t with
-            | App (id, arr) -> mkProj (p, r, Array.last arr)
-            | _ -> assert false in
-            let expanded = Retyping.expand_projection env (fst evars) p arg [] in
-            let state, res = s.strategy { state ; env ; unfresh ;
-                                 term1 = expanded ; ty1 = ty ;
-                                 cstr = (prop,cstr) ; evars = evars } in
-          let res =
-            match res with
-            | Success r -> Success { r with rew_to = unfold_compat_constant (goalevars r.rew_evars) r.rew_to }
-            | Fail | Identity -> res
-          in state, res
-
+        let expanded = Retyping.expand_projection env (fst evars) p arg [] in
+        let hd, args = EConstr.destApp (fst evars) expanded in
+        let arg = Array.last args in
+        let evars, argty = get_type_of_refresh env evars arg in
+        let input = {
+          state; env; unfresh;
+          term1 = arg; ty1 = argty;
+          cstr = (prop, None); evars }
+        in
+        let state, res = s.strategy input in
+        let res = match res with
+        | Fail -> Fail
+        | Identity -> Identity
+        | Success res ->
+          let evars = res.rew_evars in
+          if is_rew_cast res.rew_prf then
+            Success { rew_car = ty; rew_from = t;
+              rew_to = mkProj (p, r, res.rew_to); rew_prf = RewCast DEFAULTcast;
+              rew_evars = evars }
+          else
+            let args' = Array.make (Array.length args) None in
+            let () = args'.(Array.length args - 1) <- Some res in
+            let evars, prf, _, rel, c2 =
+              resolve_morphism env hd args args' (prop, cstr') evars
+            in
+            let (_, args) = EConstr.destApp (goalevars evars) c2 in
+            Success { rew_car = ty; rew_from = t;
+              rew_to = mkProj (p, r, Array.last args); rew_prf = RewPrf (rel, prf);
+              rew_evars = evars }
+        in
+        state, res
 
       | Prod (n, x, b) when noccurn (goalevars evars) 1 b ->
           let b = subst1 mkProp b in
