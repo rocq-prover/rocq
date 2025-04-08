@@ -259,7 +259,15 @@ let explain_exn = function
           UGraph.explain_universe_inconsistency Sorts.QVar.raw_pr Univ.Level.raw_pr i
       else
         mt() in
-      hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")
+    hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")
+  | QGraph.EliminationError e ->
+    let msg =
+      if CDebug.(get_flag misc) then
+        str "." ++ spc() ++
+          QGraph.explain_elimination_error Sorts.QVar.raw_pr e
+      else
+        mt() in
+    hov 0 (str "Error: Elimination error" ++ msg ++ str ".")
   | TypeError(ctx,te) ->
       hov 0 (str "Type error: " ++
       (match te with
