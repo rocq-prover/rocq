@@ -45,7 +45,7 @@ let check_constant_declaration env opac kn cb opacify =
     | Polymorphic auctx ->
       let ctx = UVars.AbstractContext.repr auctx in
       (* [env] contains De Bruijn universe variables *)
-      let env = push_context ~strict:false QGraph.Internal ctx env in
+      let env = push_context ~strict:false QGraph.Rigid ctx env in
       true, env
   in
   let ty = cb.const_type in
