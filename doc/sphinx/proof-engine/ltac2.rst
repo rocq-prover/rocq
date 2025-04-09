@@ -555,14 +555,14 @@ represent several goals, including none. Thus, there is no such thing as
 *the current goal*. Goals are naturally ordered, though.
 
 It is natural to do the same in Ltac2, but we must provide a way to get access
-to a given goal. This is the role of the `enter` primitive, which applies a
+to a given goal. This is the role of the `independent` primitive, which applies a
 tactic to each currently focused goal in turn::
 
-  val enter : (unit -> unit) -> unit
+  val independent : (unit -> unit) -> unit
 
-It is guaranteed that when evaluating `enter f`, `f` is called with exactly one
+It is guaranteed that when evaluating `independent f`, `f` is called with exactly one
 goal under focus. Note that `f` may be called several times, or never, depending
-on the number of goals under focus before the call to `enter`.
+on the number of goals under focus before the call to `independent`.
 
 Accessing the goal data is then implicit in the Ltac2 primitives, and may panic
 if the invariants are not respected. The two essential functions for observing
