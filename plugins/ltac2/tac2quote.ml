@@ -591,3 +591,38 @@ let of_format { v = fmt; loc } =
   in
   let stop = global_ref (kername format_prefix "stop") in
   List.fold_left of_format stop fmt
+
+let of_rewstrategy_unary ?loc = function
+  | Rewrite.Subterms   -> std_constructor ?loc "Subterms" []
+  | Rewrite.Subterm    -> std_constructor ?loc "Subterm" []
+  | Rewrite.Innermost  -> std_constructor ?loc "Innermost" []
+  | Rewrite.Outermost  -> std_constructor ?loc "Outermost" []
+  | Rewrite.Bottomup   -> std_constructor ?loc "Bottomup" []
+  | Rewrite.Topdown    -> std_constructor ?loc "Topdown" []
+  | Rewrite.Progress   -> std_constructor ?loc "Progress" []
+  | Rewrite.Try        -> std_constructor ?loc "Try" []
+  | Rewrite.Any        -> std_constructor ?loc "Any" []
+  | Rewrite.Repeat     -> std_constructor ?loc "Repeat" []
+
+let of_rewstrategy_binary ?loc = function
+  | Rewrite.Compose -> std_constructor ?loc "Compose" []
+
+let of_rewstrategy_nary ?loc = function
+  | Rewrite.Choice -> std_constructor ?loc "Choice" []
+
+(* TODO @radrow: Do we want ?loc here? *)
+let rec of_rewstrategy ?loc = function
+  | Rewrite.StratId -> std_constructor ?loc "StratId" []
+  | Rewrite.StratFail -> std_constructor ?loc "StratFail" []
+  | Rewrite.StratRefl -> std_constructor ?loc "StratRefl" []
+  | Rewrite.StratUnary (op, s) -> std_constructor ?loc "StratUnary" [of_rewstrategy_unary op; of_rewstrategy ?loc s]
+  | Rewrite.StratBinary (op, s0, s1) -> std_constructor ?loc "StratBinary" [of_rewstrategy_binary op; of_rewstrategy s0; of_rewstrategy s1]
+  | Rewrite.StratNAry (op, ss) -> std_constructor ?loc "StratNAry" [of_rewstrategy_nary op; of_list ?loc of_rewstrategy ss]
+  | Rewrite.StratConstr (c, b) -> std_constructor ?loc "StratConstr" [of_constr c; of_bool b]
+  | Rewrite.StratTerms (ts) -> std_constructor ?loc "StratTerms" [of_list ?loc of_constr ts]
+  | Rewrite.StratHints (old, db) -> std_constructor ?loc "StratHints" [of_bool ?loc old;
+                                                                       of_ident (CAst.make ?loc @@ Id.of_string_soft db)]
+  | Rewrite.StratEval (red : red_flag) -> assert false (* TODO *)
+  | Rewrite.StratFold (c) -> std_constructor ?loc "StratFold" [of_constr c]
+  | Rewrite.StratVar (v) -> std_constructor ?loc "StratVar" [of_ident v]
+  | Rewrite.StratFix (v, s) -> std_constructor ?loc "StratFix" [of_ident v; of_rewstrategy s]

@@ -48,6 +48,7 @@ let q_hintdb = Procq.Entry.make "q_hintdb"
 let q_move_location = Procq.Entry.make "q_move_location"
 let q_pose = Procq.Entry.make "q_pose"
 let q_assert = Procq.Entry.make "q_assert"
+let q_rewstrategy = Procq.Entry.make "q_rewstrategy"
 end
 
 let () =

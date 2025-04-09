@@ -176,3 +176,7 @@ type assertion_r =
 | QAssertValue of Id.t CAst.t or_anti * Constrexpr.constr_expr
 
 type assertion = assertion_r CAst.t
+
+(* TODO @radrow: This parameterization is a mock. Maybe it would make sense to separate this so `bottomup` and friends can be covered here? *)
+type rewstrategy =
+  (Constrexpr.constr_expr, red_flag, Names.Id.t CAst.t) Rewrite.strategy_ast

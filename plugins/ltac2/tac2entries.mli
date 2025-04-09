@@ -106,4 +106,5 @@ val q_hintdb : hintdb Procq.Entry.t
 val q_move_location : move_location Procq.Entry.t
 val q_pose : pose Procq.Entry.t
 val q_assert : assertion Procq.Entry.t
+val q_rewstrategy : rewstrategy Procq.Entry.t
 end

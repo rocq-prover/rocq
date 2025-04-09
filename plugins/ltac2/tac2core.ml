@@ -2153,6 +2153,7 @@ let () = add_expr_scope "assert" q_assert Tac2quote.of_assertion
 let () = add_expr_scope "constr_matching" q_constr_matching Tac2quote.of_constr_matching
 let () = add_expr_scope "goal_matching" q_goal_matching Tac2quote.of_goal_matching
 let () = add_expr_scope "format" Procq.Prim.lstring Tac2quote.of_format
+let () = add_expr_scope "rewstrategy" q_rewstrategy Tac2quote.of_rewstrategy
 
 let () = add_generic_scope "pattern" Procq.Constr.constr Tac2quote.wit_pattern
 
