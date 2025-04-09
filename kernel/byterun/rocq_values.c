@@ -107,13 +107,39 @@ value rocq_tcode_array(value tcodes) {
   CAMLreturn(res);
 }
 
-CAMLprim value rocq_obj_set_tag (value arg, value new_tag)
-{
-#if OCAML_VERSION >= 50000
-// Placeholder used by native_compute
-  abort();
+/* The rocq_curry2_1 function returns a pointer to some code that
+   immediately branches to caml_curry2_1. It can be used as field 0 of
+   an OCaml closure, as long as field 3 contains a closure whose code
+   pointer accepts exactly two arguments (the first argument is stored
+   in field 2).
+
+   Since the word before the branch indicates to the garbage collector
+   that this block should be ignored, the code pointer can be used
+   inside blocks that do not have tag 247. */
+
+#if defined(__GNUC__) && defined(__amd64__)
+
+asm(".align 8\n\t"
+    ".quad 3067\n"
+    "rocq_curry2_1:\n\t"
+    "jmp caml_curry2_1\n");
+
+#elif defined(__GNUC__) && defined(__i386__)
+
+asm(".align 4\n\t"
+    ".long 3067\n"
+    "rocq_curry2_1:\n\t"
+    "jmp caml_curry2_1\n");
+
 #else
-  Tag_val (arg) = Int_val (new_tag);
+
+void rocq_curry2_1() {
+  abort();
+}
+
 #endif
-  return Val_unit;
+
+value rocq_curry2_1_addr(value) {
+  extern void rocq_curry2_1();
+  return (value)&rocq_curry2_1;
 }

@@ -109,23 +109,23 @@ let ret_accu = Obj.repr (ref ())
 
 type accu_val = { acc_atm : atom; acc_arg : t list }
 
-external set_tag : Obj.t -> int -> unit = "rocq_obj_set_tag"
+(** Return a pointer to [caml_curry2_1] that is also recognized as an unscannable block *)
+external get_curry2_1 : unit -> Obj.t = "rocq_curry2_1_addr"
 
-let mk_accu (a : atom) : t =
+type _ curry2_1_clos = Curry2_1 : Obj.t * int * 'a * ('a -> 'b -> 'c) -> ('b -> 'c) curry2_1_clos
+
+let mk_accu =
+  let curry2_1 = get_curry2_1 () in
   let rec accumulate data x =
     if Obj.repr x == ret_accu then Obj.repr data
     else
       let data = { data with acc_arg = x :: data.acc_arg } in
-      let ans = Obj.repr (accumulate data) in
-      let () = set_tag ans accumulate_tag in
-      ans
-  in
-  let acc = { acc_atm = a; acc_arg = [] } in
-  let ans = Obj.repr (accumulate acc) in
-  (** FIXME: use another representation for accumulators, this causes naked
-      pointers. *)
-  let () = set_tag ans accumulate_tag in
-  (Obj.obj ans : t)
+      let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
+      Obj.repr ans in
+  fun (a : atom) ->
+  let data = { acc_atm = a; acc_arg = [] } in
+  let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
+  (Obj.magic ans : t)
 
 let get_accu (k : accumulator) =
   (Obj.magic k : Obj.t -> accu_val) ret_accu
