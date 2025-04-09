@@ -177,6 +177,19 @@ type assertion_r =
 
 type assertion = assertion_r CAst.t
 
-(* TODO @radrow: This parameterization is a mock. Maybe it would make sense to separate this so `bottomup` and friends can be covered here? *)
-type rewstrategy =
-  (Constrexpr.constr_expr, red_flag, Names.Id.t CAst.t) Rewrite.strategy_ast
+type rewstrategy_r =
+| QStratId | QStratFail | QStratRefl
+| QStratUnary of rewstrategy_unary * rewstrategy
+| QStratBinary of rewstrategy_binary * rewstrategy * rewstrategy
+| QStratNAry of rewstrategy_nary * rewstrategy list
+| QStratConstr of Constrexpr.constr_expr * orientation
+| QStratTerms of Constrexpr.constr_expr list
+| QStratHints of bool * hintdb
+| QStratEval of strategy_flag
+| QStratFold of Constrexpr.constr_expr
+| QStratVar of Id.t CAst.t or_anti
+| QStratFix of Id.t CAst.t * rewstrategy
+and rewstrategy_unary = Rewrite.unary_strategy CAst.t
+and rewstrategy_binary = Rewrite.binary_strategy CAst.t
+and rewstrategy_nary = Rewrite.nary_strategy CAst.t
+and rewstrategy = rewstrategy_r CAst.t

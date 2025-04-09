@@ -94,6 +94,8 @@ let t_option = rocq_core "option"
 let t_exn = rocq_core "exn"
 let t_reference = std_core "reference"
 
+let t_rewstrategy = rocq_core "rewstrategy"
+
 let c_nil = rocq_core "[]"
 let c_cons = rocq_core "::"
 
@@ -1782,6 +1784,23 @@ let () =
   } in
   define_ml_object Tac2quote.wit_reference obj
 
+let () =
+  let intern ist s = GlbVal (Rewrite.Strategies.fail), gtypref t_rewstrategy (* TODO @radrow*)
+  in
+  let interp ist s = return (Tac2ffi.of_rewstrategy s)
+  in
+  let print env sigma s = str "TEST RIPE" in (* TODO @radrow*)
+  let raw_print env sigma s = str "TEST RAW" in
+  let subst _subst s = s in (* TODO @radrow subst in StratConstr! *)
+  let obj = {
+    ml_intern = intern;
+    ml_subst = subst;
+    ml_interp = interp;
+    ml_print = print;
+    ml_raw_print = raw_print;
+  } in
+  define_ml_object Tac2quote.wit_rewstrategy obj
+
 (** Ltac2 in terms *)
 
 let () =
@@ -2153,7 +2172,8 @@ let () = add_expr_scope "assert" q_assert Tac2quote.of_assertion
 let () = add_expr_scope "constr_matching" q_constr_matching Tac2quote.of_constr_matching
 let () = add_expr_scope "goal_matching" q_goal_matching Tac2quote.of_goal_matching
 let () = add_expr_scope "format" Procq.Prim.lstring Tac2quote.of_format
-let () = add_expr_scope "rewstrategy" q_rewstrategy Tac2quote.of_rewstrategy
+
+let () = add_generic_scope "rewstrategy" q_rewstrategy Tac2quote.wit_rewstrategy
 
 let () = add_generic_scope "pattern" Procq.Constr.constr Tac2quote.wit_pattern
 

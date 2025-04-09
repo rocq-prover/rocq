@@ -1225,8 +1225,8 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
       | _ -> state, Fail
   in { strategy = aux }
 
-let all_subterms = subterm true default_flags
-let one_subterm = subterm false default_flags
+let all_subterms : 'a pure_strategy -> 'a pure_strategy = subterm true default_flags
+let one_subterm : 'a pure_strategy -> 'a pure_strategy = subterm false default_flags
 
 (** Requires transitivity of the rewrite step, if not a reduction.
     Not tail-recursive. *)
@@ -1308,6 +1308,9 @@ module Strategies =
         in state, res
       }
 
+    let one_lemma l l2r by : strategy =
+      apply_lemma l2r rewrite_unif_flags l by AllOccurrences
+
     let progress (s : 'a pure_strategy) : 'a pure_strategy = { strategy =
       fun input ->
         let state, res = s.strategy input in
@@ -1334,11 +1337,11 @@ module Strategies =
           | Identity | Success _ -> state, res
                                             }
 
-    let try_ str : 'a pure_strategy = choice str id
+    let try_ strat : 'a pure_strategy = choice strat id
 
-    let check_interrupt str input =
+    let check_interrupt strat input =
       Control.check_for_interrupt ();
-      str input
+      strat input
 
     let fix (f : 'a pure_strategy -> 'a pure_strategy) : 'a pure_strategy =
       let rec aux input = (f { strategy = fun input -> check_interrupt aux input }).strategy input in
@@ -1350,22 +1353,20 @@ module Strategies =
     let repeat (s : 'a pure_strategy) : 'a pure_strategy =
       seq s (any s)
 
-    let bu (s : 'a pure_strategy) : 'a pure_strategy =
+    let bottomup (s : strategy) : strategy =
       fix (fun s' -> seq (choice (progress (all_subterms s')) s) (try_ s'))
 
-    let td (s : 'a pure_strategy) : 'a pure_strategy =
+    let topdown (s : strategy) : strategy =
       fix (fun s' -> seq (choice s (progress (all_subterms s'))) (try_ s'))
 
-    let innermost (s : 'a pure_strategy) : 'a pure_strategy =
+    let innermost (s : strategy) : strategy =
       fix (fun ins -> choice (one_subterm ins) s)
 
-    let outermost (s : 'a pure_strategy) : 'a pure_strategy =
+    let outermost (s : strategy) : strategy =
       fix (fun out -> choice s (one_subterm out))
 
-    let lemmas cs : 'a pure_strategy =
-      List.fold_left (fun tac (l,l2r,by) ->
-        choice tac (apply_lemma l2r rewrite_unif_flags l by AllOccurrences))
-        fail cs
+    let lemmas cs : strategy =
+      List.fold_left (fun tac (l,l2r,by) -> choice tac (one_lemma l l2r by)) fail cs
 
     let inj_open hint = (); fun sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
@@ -1421,7 +1422,9 @@ module Strategies =
           with e when CErrors.noncritical e -> state, Fail
                                          }
 
+    let subterm : 'a pure_strategy -> 'a pure_strategy = one_subterm
 
+    let subterms : 'a pure_strategy -> 'a pure_strategy = all_subterms
 end
 
 (** The strategy for a single rewrite, dealing with occurrences. *)
@@ -1738,8 +1741,8 @@ let rec strategy_of_ast bindings = function
       | Subterm -> one_subterm
       | Innermost -> Strategies.innermost
       | Outermost -> Strategies.outermost
-      | Bottomup -> Strategies.bu
-      | Topdown -> Strategies.td
+      | Bottomup -> Strategies.bottomup
+      | Topdown -> Strategies.topdown
       | Progress -> Strategies.progress
       | Try -> Strategies.try_
       | Any -> Strategies.any

@@ -24,6 +24,7 @@ let wit_ident = Arg.create "ident"
 let wit_constr = Arg.create "constr"
 let wit_open_constr = Arg.create "open_constr"
 let wit_preterm = Arg.create "preterm"
+let wit_rewstrategy = Arg.create "rewstrategy"
 
 (** Syntactic quoting of expressions. *)
 
@@ -592,37 +593,40 @@ let of_format { v = fmt; loc } =
   let stop = global_ref (kername format_prefix "stop") in
   List.fold_left of_format stop fmt
 
-let of_rewstrategy_unary ?loc = function
-  | Rewrite.Subterms   -> std_constructor ?loc "Subterms" []
-  | Rewrite.Subterm    -> std_constructor ?loc "Subterm" []
-  | Rewrite.Innermost  -> std_constructor ?loc "Innermost" []
-  | Rewrite.Outermost  -> std_constructor ?loc "Outermost" []
-  | Rewrite.Bottomup   -> std_constructor ?loc "Bottomup" []
-  | Rewrite.Topdown    -> std_constructor ?loc "Topdown" []
-  | Rewrite.Progress   -> std_constructor ?loc "Progress" []
-  | Rewrite.Try        -> std_constructor ?loc "Try" []
-  | Rewrite.Any        -> std_constructor ?loc "Any" []
-  | Rewrite.Repeat     -> std_constructor ?loc "Repeat" []
 
-let of_rewstrategy_binary ?loc = function
-  | Rewrite.Compose -> std_constructor ?loc "Compose" []
+(* TODO @radrow clean this *)
+(* let of_strat_id loc str = inj_wit ?loc wit_rewstrategy str *)
 
-let of_rewstrategy_nary ?loc = function
-  | Rewrite.Choice -> std_constructor ?loc "Choice" []
+(* let of_rewstrategy_unary {loc;v} = match v with *)
+(*   | Rewrite.Subterms   -> of_strat_id loc "subterms" *)
+(*   | Rewrite.Subterm    -> of_strat_id loc "subterm" *)
+(*   | Rewrite.Innermost  -> of_strat_id loc "innermost" *)
+(*   | Rewrite.Outermost  -> of_strat_id loc "outermost" *)
+(*   | Rewrite.Bottomup   -> of_strat_id loc "bottomup" *)
+(*   | Rewrite.Topdown    -> of_strat_id loc "topdown" *)
+(*   | Rewrite.Progress   -> of_strat_id loc "progress" *)
+(*   | Rewrite.Try        -> of_strat_id loc "try" *)
+(*   | Rewrite.Any        -> of_strat_id loc "any" *)
+(*   | Rewrite.Repeat     -> of_strat_id loc "repeat" *)
 
-(* TODO @radrow: Do we want ?loc here? *)
-let rec of_rewstrategy ?loc = function
-  | Rewrite.StratId -> std_constructor ?loc "StratId" []
-  | Rewrite.StratFail -> std_constructor ?loc "StratFail" []
-  | Rewrite.StratRefl -> std_constructor ?loc "StratRefl" []
-  | Rewrite.StratUnary (op, s) -> std_constructor ?loc "StratUnary" [of_rewstrategy_unary op; of_rewstrategy ?loc s]
-  | Rewrite.StratBinary (op, s0, s1) -> std_constructor ?loc "StratBinary" [of_rewstrategy_binary op; of_rewstrategy s0; of_rewstrategy s1]
-  | Rewrite.StratNAry (op, ss) -> std_constructor ?loc "StratNAry" [of_rewstrategy_nary op; of_list ?loc of_rewstrategy ss]
-  | Rewrite.StratConstr (c, b) -> std_constructor ?loc "StratConstr" [of_constr c; of_bool b]
-  | Rewrite.StratTerms (ts) -> std_constructor ?loc "StratTerms" [of_list ?loc of_constr ts]
-  | Rewrite.StratHints (old, db) -> std_constructor ?loc "StratHints" [of_bool ?loc old;
-                                                                       of_ident (CAst.make ?loc @@ Id.of_string_soft db)]
-  | Rewrite.StratEval (red : red_flag) -> assert false (* TODO *)
-  | Rewrite.StratFold (c) -> std_constructor ?loc "StratFold" [of_constr c]
-  | Rewrite.StratVar (v) -> std_constructor ?loc "StratVar" [of_ident v]
-  | Rewrite.StratFix (v, s) -> std_constructor ?loc "StratFix" [of_ident v; of_rewstrategy s]
+(* let of_rewstrategy_binary {loc;v} = match v with *)
+(*   | Rewrite.Compose -> of_strat_id loc "" *)
+
+(* let of_rewstrategy_nary {loc;v} = match v with *)
+(*   | Rewrite.Choice -> of_strat_id loc "subterms" *)
+
+(* let rec of_rewstrategy {loc;v} = match v with *)
+(* | QStratId -> std_constructor ?loc "StratId" [] *)
+(* | QStratFail -> std_constructor ?loc "StratFail" [] *)
+(* | QStratRefl -> std_constructor ?loc "StratRefl" [] *)
+(* | QStratUnary (op, s) -> *)
+(*   std_constructor ?loc "StratUnary" [of_rewstrategy_unary op; of_rewstrategy s] *)
+(* | QStratBinary (op, s0, s1) -> std_constructor ?loc "StratBinary" [of_rewstrategy_binary op; of_rewstrategy s0; of_rewstrategy s1] *)
+(* | QStratNAry (op, ss) -> std_constructor ?loc "StratNAry" [of_rewstrategy_nary op; of_list ?loc of_rewstrategy ss] *)
+(* | QStratConstr (c, ori) -> std_constructor ?loc "StratConstr" [of_constr c; of_orient ori] *)
+(* | QStratTerms (ts) -> std_constructor ?loc "StratTerms" [of_list ?loc of_constr ts] *)
+(* | QStratHints (old, db) -> std_constructor ?loc "StratHints" [of_bool ?loc old; of_hintdb db] *)
+(* | QStratEval red -> std_constructor ?loc "StratEval" [of_strategy_flag red] *)
+(* | QStratFold (c) -> std_constructor ?loc "StratFold" [of_constr c] *)
+(* | QStratVar (v) -> std_constructor ?loc "StratVar" [of_anti of_ident v] *)
+(* | QStratFix (v, s) -> std_constructor ?loc "StratFix" [of_ident v; of_rewstrategy s] *)

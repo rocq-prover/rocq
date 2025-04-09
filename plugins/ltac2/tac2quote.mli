@@ -93,8 +93,6 @@ val of_goal_matching : goal_matching -> raw_tacexpr
 
 val of_format : lstring -> raw_tacexpr
 
-val of_rewstrategy : ?loc:Loc.t -> rewstrategy -> raw_tacexpr
-
 (** {5 Generic arguments} *)
 
 val wit_pattern : (Constrexpr.constr_expr, [`uninstantiated] Pattern.constr_pattern_r) Arg.tag
@@ -108,3 +106,5 @@ val wit_constr : (Constrexpr.constr_expr, Glob_term.glob_constr) Arg.tag
 val wit_open_constr : (Constrexpr.constr_expr, Glob_term.glob_constr) Arg.tag
 
 val wit_preterm : (Constrexpr.constr_expr, Id.Set.t * Glob_term.glob_constr) Arg.tag
+
+val wit_rewstrategy : (rewstrategy, Rewrite.strategy) Arg.tag

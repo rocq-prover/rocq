@@ -293,8 +293,9 @@ Ltac2 Type rew_strat_binary :=
 Ltac2 Type rew_strat_nary :=
   [ Choice ].
 
-Ltac2 Type rew_strat_red :=
-  [ ].
+Ltac2 Type rew_strat_red.
+
+Ltac2 Type rew_strat_var.
 
 Ltac2 Type rec rew_strat := [
   | StratId
@@ -308,11 +309,11 @@ Ltac2 Type rec rew_strat := [
   | StratHints (bool, ident)
   | StratEval (rew_strat_red)
   | StratFold (preterm)
-  | StratVar (ident)
-  | StratFix (ident, rew_strat)
+  | StratVar (rew_strat_var)
+  | StratFix (rew_strat_var -> rew_strat)
   ].
 
-Ltac2 @external rewrite_strat0 : rew_strat -> ident option -> unit :=
+Ltac2 @external rewrite_strat0 : rewstrategy -> ident option -> unit :=
   "rocq-runtime.plugins.ltac2" "tac_rewrite_strat".
 
 Ltac2 Notation "rewrite_strat" s(rewstrategy) h(opt(seq("in", ident))) := rewrite_strat0 s h.

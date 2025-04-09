@@ -134,6 +134,7 @@ let rec to_rew_strat = function
   | ValBlk (5, [| old; db |]) -> (* hints *)
     Rewrite.StratHints (Value.to_bool old, Id.to_string (Value.to_ident db))
   | ValBlk (6, [| red |]) -> (* eval *)
+    (* TODO @radrow *)
     (* Rewrite.StratEval (Value.to_redexpr red) *)
     assert false
   | ValBlk (7, [| c |]) -> (* fold *)
