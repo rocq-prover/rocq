@@ -60,8 +60,7 @@ type rewrite_result =
 | Identity
 | Success of rewrite_result_info
 
-type 'a pure_strategy
-type strategy = unit pure_strategy
+type strategy
 
 val strategy_of_ast : (Glob_term.glob_constr * constr delayed_open, Redexpr.red_expr delayed_open, Id.t) strategy_ast -> strategy
 
@@ -96,55 +95,6 @@ val setoid_reflexivity : unit Proofview.tactic
 
 val setoid_transitivity : constr option -> unit Proofview.tactic
 
-module Strategies :
-sig
-  val fail : 'a pure_strategy
-
-  val id : 'a pure_strategy
-
-  val refl : 'a pure_strategy
-
-  val one_lemma :
-    (Evd.evar_map -> Evd.evar_map * (EConstr.constr * EConstr.constr Tactypes.bindings))
-    -> bool -> Genarg.glob_generic_argument option -> strategy
-
-  val progress : 'a pure_strategy -> 'a pure_strategy
-
-  val seq : 'a pure_strategy -> 'a pure_strategy -> 'a pure_strategy
-
-  val choice : 'a pure_strategy -> 'a pure_strategy -> 'a pure_strategy
-
-  val try_ : 'a pure_strategy -> 'a pure_strategy
-
-  val fix : ('a pure_strategy -> 'a pure_strategy) -> 'a pure_strategy
-
-  val any : 'a pure_strategy -> 'a pure_strategy
-
-  val repeat : 'a pure_strategy -> 'a pure_strategy
-
-  val bottomup : strategy -> strategy
-
-  val topdown : strategy -> strategy
-
-  val innermost : strategy -> strategy
-
-  val outermost : strategy -> strategy
-
-  val lemmas : ((Evd.evar_map -> Evd.evar_map * (EConstr.constr * EConstr.constr Tactypes.bindings))
-    * bool * Genarg.glob_generic_argument option) list -> strategy
-
-  val old_hints : string -> strategy
-
-  val hints : string -> strategy
-
-  val reduce : Redexpr.red_expr -> strategy
-
-  val fold_glob : Glob_term.glob_constr -> strategy
-
-  val subterm : strategy -> strategy
-
-  val subterms : strategy -> strategy
-end
 
 val apply_strategy :
   strategy ->
