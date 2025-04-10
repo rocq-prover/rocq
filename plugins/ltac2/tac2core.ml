@@ -1786,7 +1786,7 @@ let () =
 
 let () =
   let open CAst in
-  let intern is s =
+  let intern is s = (* TODO @radrow don't forget the StratVar*)
     let s = Rewrite.map_strategy (intern_constr is) (fun x -> x) (fun x -> x) s
     in GlbVal s, gtypref t_rewstrategy
   in
