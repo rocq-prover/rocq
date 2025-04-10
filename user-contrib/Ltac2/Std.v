@@ -282,37 +282,6 @@ Ltac2 @ external simple_congruence : int option -> constr list option -> unit :=
 Ltac2 @external f_equal : unit -> unit :=
   "rocq-runtime.plugins.ltac2" "f_equal".
 
-
-Ltac2 Type rew_strat_unary :=
-  [ Subterms | Subterm | Innermost | Outermost
-  | Bottomup | Topdown | Progress | Try | Any | Repeat ].
-
-Ltac2 Type rew_strat_binary :=
-  [ Compose ].
-
-Ltac2 Type rew_strat_nary :=
-  [ Choice ].
-
-Ltac2 Type rew_strat_red.
-
-Ltac2 Type rew_strat_var.
-
-Ltac2 Type rec rew_strat := [
-  | StratId
-  | StratFail
-  | StratRefl
-  | StratUnary (rew_strat_unary, rew_strat)
-  | StratBinary (rew_strat_binary, rew_strat, rew_strat)
-  | StratNAry (rew_strat_nary, rew_strat list)
-  | StratConstr (preterm, bool)
-  | StratTerms (preterm list)
-  | StratHints (bool, ident)
-  | StratEval (rew_strat_red)
-  | StratFold (preterm)
-  | StratVar (rew_strat_var)
-  | StratFix (rew_strat_var -> rew_strat)
-  ].
-
 Ltac2 @external rewrite_strat0 : rewstrategy -> ident option -> unit :=
   "rocq-runtime.plugins.ltac2" "tac_rewrite_strat".
 
