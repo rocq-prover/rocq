@@ -484,7 +484,7 @@ GRAMMAR EXTEND Gram
   GLOBAL: q_ident q_bindings q_intropattern q_intropatterns q_induction_clause
           q_conversion q_orient q_rewriting q_clause q_dispatch q_occurrences q_strategy_flag
           q_destruction_arg q_reference q_with_bindings q_constr_matching
-          q_goal_matching q_hintdb q_move_location q_pose q_assert q_rewstrategy;
+          q_goal_matching q_hintdb q_move_location q_pose q_assert;
   anti:
     [ [ "$"; id = Prim.ident -> { QAnti (CAst.make ~loc id) } ] ]
   ;
@@ -902,43 +902,47 @@ GRAMMAR EXTEND Gram
   q_assert:
     [ [ a = assertion -> { a } ] ]
   ;
-  q_rewstrategy: [ [ r = rewstrategy -> { r } ] ];
+END
+
+GRAMMAR EXTEND Gram
+  GLOBAL: rewstrategy;
   rewstrategy:
     [ NONA
-      [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { CAst.make ~loc @@ QStratFix (id, s) }
+      [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { Rewrite.StratFix (id, s) }
       | h = ne_rewstrategy1_list_sep_semicolon -> { h } ] ]
   ;
   ne_rewstrategy1_list_sep_semicolon:
     [ LEFTA
-      [ h = SELF; semi = ";"; h' = rewstrategy1 -> { CAst.make ~loc @@ QStratBinary (CAst.make ~loc Rewrite.Compose, h, h') }
+      [ h = SELF; ";"; h' = rewstrategy1 -> { Rewrite.StratBinary (Rewrite.Compose, h, h') }
       | h = rewstrategy1 -> { h } ] ]
   ;
   rewstrategy1:
     [ RIGHTA
-      [ IDENT "subterms"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Subterms, h) }
-      | IDENT "subterm"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Subterm, h) }
-      | IDENT "innermost"; h = SELF -> { CAst.make ~loc @@ QStratUnary(CAst.make ~loc Rewrite.Innermost, h) }
-      | IDENT "outermost"; h = SELF -> { CAst.make ~loc @@ QStratUnary(CAst.make ~loc Rewrite.Outermost, h) }
-      | IDENT "bottomup"; h = SELF -> { CAst.make ~loc @@ QStratUnary(CAst.make ~loc Rewrite.Bottomup, h) }
-      | IDENT "topdown"; h = SELF -> { CAst.make ~loc @@ QStratUnary(CAst.make ~loc Rewrite.Topdown, h) }
-      | IDENT "progress"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Progress, h) }
-      | IDENT "try"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Try, h) }
-      | IDENT "any"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Any, h) }
-      | IDENT "repeat"; h = SELF -> { CAst.make ~loc @@ QStratUnary (CAst.make ~loc Rewrite.Repeat, h) }
-      | IDENT "choice"; h = LIST1 rewstrategy0 -> { CAst.make ~loc @@ QStratNAry (CAst.make ~loc Rewrite.Choice, h) }
-      | IDENT "old_hints"; h = hintdb -> { CAst.make ~loc @@ QStratHints (true, h) }
-      | IDENT "hints"; h = hintdb -> { CAst.make ~loc @@ QStratHints (false, h) }
-      | IDENT "terms"; h = LIST0 Constr.constr -> { CAst.make ~loc @@ QStratTerms h }
-      | IDENT "eval"; r = strategy_flag -> { CAst.make ~loc @@ QStratEval r }
-      | IDENT "fold"; c = Constr.constr -> { CAst.make ~loc @@ QStratFold c }
+      [ "<-"; c = Constr.lconstr -> { Rewrite.StratConstr (c, false) }
+      | IDENT "subterms"; h = SELF -> { Rewrite.StratUnary (Rewrite.Subterms, h) }
+      | IDENT "subterm"; h = SELF -> { Rewrite.StratUnary (Rewrite.Subterm, h) }
+      | IDENT "innermost"; h = SELF -> { Rewrite.StratUnary(Rewrite.Innermost, h) }
+      | IDENT "outermost"; h = SELF -> { Rewrite.StratUnary(Rewrite.Outermost, h) }
+      | IDENT "bottomup"; h = SELF -> { Rewrite.StratUnary(Rewrite.Bottomup, h) }
+      | IDENT "topdown"; h = SELF -> { Rewrite.StratUnary(Rewrite.Topdown, h) }
+      | IDENT "progress"; h = SELF -> { Rewrite.StratUnary (Rewrite.Progress, h) }
+      | IDENT "try"; h = SELF -> { Rewrite.StratUnary (Rewrite.Try, h) }
+      | IDENT "any"; h = SELF -> { Rewrite.StratUnary (Rewrite.Any, h) }
+      | IDENT "repeat"; h = SELF -> { Rewrite.StratUnary (Rewrite.Repeat, h) }
+      | IDENT "choice"; h = LIST1 rewstrategy0 -> { Rewrite.StratNAry (Rewrite.Choice, h) }
+      | IDENT "old_hints"; h = preident -> { Rewrite.StratHints (true, h) }
+      | IDENT "hints"; h = preident -> { Rewrite.StratHints (false, h) }
+      | IDENT "terms"; h = LIST0 Constr.constr -> { Rewrite.StratTerms h }
+      | IDENT "eval"; r = q_strategy_flag -> { Rewrite.StratEval r }
+      | IDENT "fold"; c = Constr.constr -> { Rewrite.StratFold c }
       | h = rewstrategy0 -> { h } ] ]
   ;
   rewstrategy0:
     [ NONA
-      [ ori = q_orient; c = Constr.lconstr -> { CAst.make ~loc @@ QStratConstr (c, ori) }
-      | IDENT "id" -> { CAst.make ~loc @@ QStratId }
-      | IDENT "fail" -> { CAst.make ~loc @@ QStratFail }
-      | IDENT "refl" -> { CAst.make ~loc @@ QStratRefl }
+      [ c = Constr.lconstr -> { Rewrite.StratConstr (c, true) }
+      | IDENT "id" -> { Rewrite.StratId }
+      | IDENT "fail" -> { Rewrite.StratFail }
+      | IDENT "refl" -> { Rewrite.StratRefl }
       | "("; h = rewstrategy; ")" -> { h } ] ]
   ;
 END

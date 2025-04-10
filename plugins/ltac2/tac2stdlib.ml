@@ -88,68 +88,6 @@ let constr_with_occs = pair constr occurrences
 
 let reference_with_occs = pair reference occurrences
 
-let to_rew_strat_unary = function
-  | ValInt 0 -> Rewrite.Subterms
-  | ValInt 1 -> Rewrite.Subterm
-  | ValInt 2 -> Rewrite.Innermost
-  | ValInt 3 -> Rewrite.Outermost
-  | ValInt 4 -> Rewrite.Bottomup
-  | ValInt 5 -> Rewrite.Topdown
-  | ValInt 6 -> Rewrite.Progress
-  | ValInt 7 -> Rewrite.Try
-  | ValInt 8 -> Rewrite.Any
-  | ValInt 9 -> Rewrite.Repeat
-  | _ -> assert false
-
-let to_rew_strat_binary = function
-  | ValInt 0 -> Rewrite.Compose
-  | _ -> assert false
-
-let to_rew_strat_nary = function
-  | ValInt 0 -> Rewrite.Choice
-  | _ -> assert false
-
-let to_rew_term v =
-    let c = Value.to_preterm v in
-    (* let c_entype e em = Pretyping.understand_tcc e em c.term in *)
-    (c.term, fun e em -> Pretyping.understand_uconstr e em c)
-
-let rec to_rew_strat = function
-  | ValInt 0 -> (* id *)
-    Rewrite.StratId
-  | ValInt 1 -> (* fail *)
-    Rewrite.StratFail
-  | ValInt 2 -> (* refl *)
-    Rewrite.StratRefl
-  | ValBlk (0, [| op; s |]) -> (* unary *)
-    Rewrite.StratUnary (to_rew_strat_unary op, to_rew_strat s)
-  | ValBlk (1, [| op; s0; s1 |]) -> (* binary *)
-    Rewrite.StratBinary (to_rew_strat_binary op, to_rew_strat s0, to_rew_strat s1)
-  | ValBlk (2, [| op; ss |]) -> (* nary *)
-    Rewrite.StratNAry (to_rew_strat_nary op, Value.to_list to_rew_strat ss)
-  | ValBlk (3, [| c; b |]) -> (* constr *)
-    Rewrite.StratConstr (to_rew_term c, Value.to_bool b)
-  | ValBlk (4, [| ts |]) -> (* terms *)
-    Rewrite.StratTerms (Value.to_list (fun t -> to_rew_term t) ts)
-  | ValBlk (5, [| old; db |]) -> (* hints *)
-    Rewrite.StratHints (Value.to_bool old, Id.to_string (Value.to_ident db))
-  | ValBlk (6, [| red |]) -> (* eval *)
-    (* TODO @radrow *)
-    (* Rewrite.StratEval (Value.to_redexpr red) *)
-    assert false
-  | ValBlk (7, [| c |]) -> (* fold *)
-    Rewrite.StratFold (to_rew_term c)
-  | ValBlk (8, [| v |]) -> (* var *)
-    Rewrite.StratVar (Value.to_ident v)
-  | ValBlk (9, [| v; s |]) -> (* fix *)
-    Rewrite.StratFix ((Value.to_ident v, to_rew_strat s))
-  | _ ->
-    assert false
-
-let to_rew_strat v = Rewrite.strategy_of_ast (to_rew_strat v)
-
-let rew_strat = make_to_repr to_rew_strat
-
 let rec to_intro_pattern v = match Value.to_block v with
 | (0, [| b |]) -> IntroForthcoming (Value.to_bool b)
 | (1, [| pat |]) -> IntroNaming (to_intro_pattern_naming pat)
@@ -501,7 +439,7 @@ let () =
 
 let () =
   define "tac_rewrite_strat"
-    (rew_strat @-> option ident @-> tac unit)
+    (rewstrategy @-> option ident @-> tac unit)
     Tac2tactics.rewrite_strat
 
 let () =

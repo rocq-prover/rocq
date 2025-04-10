@@ -176,20 +176,3 @@ type assertion_r =
 | QAssertValue of Id.t CAst.t or_anti * Constrexpr.constr_expr
 
 type assertion = assertion_r CAst.t
-
-type rewstrategy_r =
-| QStratId | QStratFail | QStratRefl
-| QStratUnary of rewstrategy_unary * rewstrategy
-| QStratBinary of rewstrategy_binary * rewstrategy * rewstrategy
-| QStratNAry of rewstrategy_nary * rewstrategy list
-| QStratConstr of Constrexpr.constr_expr * orientation
-| QStratTerms of Constrexpr.constr_expr list
-| QStratHints of bool * hintdb
-| QStratEval of strategy_flag
-| QStratFold of Constrexpr.constr_expr
-| QStratVar of Id.t CAst.t or_anti
-| QStratFix of Id.t CAst.t * rewstrategy
-and rewstrategy_unary = Rewrite.unary_strategy CAst.t
-and rewstrategy_binary = Rewrite.binary_strategy CAst.t
-and rewstrategy_nary = Rewrite.nary_strategy CAst.t
-and rewstrategy = rewstrategy_r CAst.t
