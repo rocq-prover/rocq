@@ -468,6 +468,11 @@ Ltac2 Notation "erewrite"
   tac(opt(seq("by", thunk(tactic)))) :=
   rewrite0 true rw cl tac.
 
+Ltac2 Notation "rewrite_strat"
+  s(rewstrategy)
+  h(opt(seq("in", ident))) :=
+  rewrite_strat0 s h.
+
 (** coretactics *)
 
 (** Provided for backwards compat *)

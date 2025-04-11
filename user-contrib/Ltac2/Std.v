@@ -281,3 +281,6 @@ Ltac2 @ external simple_congruence : int option -> constr list option -> unit :=
 
 Ltac2 @external f_equal : unit -> unit :=
   "rocq-runtime.plugins.ltac2" "f_equal".
+
+Ltac2 @external rewrite_strat0 : rewstrategy -> ident option -> unit :=
+  "rocq-runtime.plugins.ltac2" "tac_rewrite_strat".

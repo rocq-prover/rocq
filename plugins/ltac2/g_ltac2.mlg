@@ -904,6 +904,50 @@ GRAMMAR EXTEND Gram
   ;
 END
 
+GRAMMAR EXTEND Gram
+  GLOBAL: rewstrategy;
+  rewstrategy:
+    [ NONA
+      [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { Rewrite.StratFix (id, s) }
+      | h = ne_rewstrategy1_list_sep_semicolon -> { h } ] ]
+  ;
+  ne_rewstrategy1_list_sep_semicolon:
+    [ LEFTA
+      [ h = SELF; ";"; h' = rewstrategy1 -> { Rewrite.StratBinary (Rewrite.Compose, h, h') }
+      | h = rewstrategy1 -> { h } ] ]
+  ;
+  rewstrategy1:
+    [ RIGHTA
+      [ "<-"; c = Constr.lconstr -> { Rewrite.StratConstr (c, false) }
+      | IDENT "subterms"; h = SELF -> { Rewrite.StratUnary (Rewrite.Subterms, h) }
+      | IDENT "subterm"; h = SELF -> { Rewrite.StratUnary (Rewrite.Subterm, h) }
+      | IDENT "innermost"; h = SELF -> { Rewrite.StratUnary(Rewrite.Innermost, h) }
+      | IDENT "outermost"; h = SELF -> { Rewrite.StratUnary(Rewrite.Outermost, h) }
+      | IDENT "bottomup"; h = SELF -> { Rewrite.StratUnary(Rewrite.Bottomup, h) }
+      | IDENT "topdown"; h = SELF -> { Rewrite.StratUnary(Rewrite.Topdown, h) }
+      | IDENT "progress"; h = SELF -> { Rewrite.StratUnary (Rewrite.Progress, h) }
+      | IDENT "try"; h = SELF -> { Rewrite.StratUnary (Rewrite.Try, h) }
+      | IDENT "any"; h = SELF -> { Rewrite.StratUnary (Rewrite.Any, h) }
+      | IDENT "repeat"; h = SELF -> { Rewrite.StratUnary (Rewrite.Repeat, h) }
+      | IDENT "choice"; h = LIST1 rewstrategy0 -> { Rewrite.StratNAry (Rewrite.Choice, h) }
+      | IDENT "old_hints"; h = preident -> { Rewrite.StratHints (true, h) }
+      | IDENT "hints"; h = preident -> { Rewrite.StratHints (false, h) }
+      | IDENT "terms"; h = LIST0 Constr.constr -> { Rewrite.StratTerms h }
+      | IDENT "eval"; r = q_strategy_flag -> { Rewrite.StratEval r }
+      | IDENT "fold"; c = Constr.constr -> { Rewrite.StratFold c }
+      | h = rewstrategy0 -> { h } ] ]
+  ;
+  rewstrategy0:
+    [ NONA
+      [ c = Constr.lconstr -> { Rewrite.StratConstr (c, true) }
+      | IDENT "id" -> { Rewrite.StratId }
+      | IDENT "fail" -> { Rewrite.StratFail }
+      | IDENT "refl" -> { Rewrite.StratRefl }
+      | "("; h = rewstrategy; ")" -> { h } ] ]
+  ;
+END
+
+
 (** Extension of constr syntax *)
 
 (*

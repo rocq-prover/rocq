@@ -106,3 +106,7 @@ val wit_constr : (Constrexpr.constr_expr, Glob_term.glob_constr) Arg.tag
 val wit_open_constr : (Constrexpr.constr_expr, Glob_term.glob_constr) Arg.tag
 
 val wit_preterm : (Constrexpr.constr_expr, Id.Set.t * Glob_term.glob_constr) Arg.tag
+
+val wit_rewstrategy : ( (Constrexpr.constr_expr, strategy_flag, Id.t CAst.t) Rewrite.strategy_ast
+                      , (Glob_term.glob_constr,  strategy_flag, Id.t CAst.t) Rewrite.strategy_ast
+                      ) Arg.tag

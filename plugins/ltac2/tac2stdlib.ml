@@ -438,6 +438,11 @@ let () =
     Tac2tactics.setoid_rewrite
 
 let () =
+  define "tac_rewrite_strat"
+    (rewstrategy @-> option ident @-> tac unit)
+    Tac2tactics.rewrite_strat
+
+let () =
   define "tac_inversion"
     (inversion_kind @-> destruction_arg @-> option intro_pattern @->
       option (list ident) @-> tac unit)
