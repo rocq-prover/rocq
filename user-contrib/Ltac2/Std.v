@@ -284,5 +284,3 @@ Ltac2 @external f_equal : unit -> unit :=
 
 Ltac2 @external rewrite_strat0 : rewstrategy -> ident option -> unit :=
   "rocq-runtime.plugins.ltac2" "tac_rewrite_strat".
-
-Ltac2 Notation "rewrite_strat" s(rewstrategy) h(opt(seq("in", ident))) := rewrite_strat0 s h.
