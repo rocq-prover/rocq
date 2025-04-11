@@ -75,6 +75,11 @@ val nf_universes : t -> Constr.t -> Constr.t
 val ugraph : t -> UGraph.t
 (** The current graph extended with the local constraints *)
 
+val elim_graph : t -> QGraph.t
+(** The elimination graph for above prop variables *)
+
+val eliminates_to_prop : t -> Sorts.QVar.t -> bool
+
 val is_algebraic : Level.t -> t -> bool
 (** Can this universe be instantiated with an algebraic
     universe (ie it appears in inferred types only). *)
@@ -125,7 +130,7 @@ val add_universe_constraints : t -> UnivProblem.Set.t -> t
   @raise UniversesDiffer when universes differ
 *)
 
-val check_qconstraints : t -> QConstraints.t -> bool
+val check_elim_constraints : t -> ElimConstraints.t -> bool
 
 val check_universe_constraints : t -> UnivProblem.Set.t -> bool
 
@@ -226,7 +231,7 @@ val fix_undefined_variables : t -> t
 (** Universe minimization *)
 val minimize : t -> t
 
-val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
+val collapse_elim_to_prop_sort_variables : to_prop:bool -> t -> t
 
 val collapse_sort_variables : ?except:QVar.Set.t -> t -> t
 
