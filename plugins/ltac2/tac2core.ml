@@ -69,41 +69,7 @@ let preterm_flags =
 
 (** Standard values *)
 
-let core_prefix path n = KerName.make path (Label.of_id (Id.of_string_soft n))
-
-let std_core n = core_prefix Tac2env.std_prefix n
-let rocq_core n = core_prefix Tac2env.rocq_prefix n
-
-module Core =
-struct
-
-let t_unit = rocq_core "unit"
-let v_unit = Tac2ffi.of_unit ()
-
-let t_int = rocq_core "int"
-let t_string = rocq_core "string"
-let t_array = rocq_core "array"
-let t_list = rocq_core "list"
-let t_constr = rocq_core "constr"
-let t_preterm = rocq_core "preterm"
-let t_pattern = rocq_core "pattern"
-let t_ident = rocq_core "ident"
-let t_option = rocq_core "option"
-let t_exn = rocq_core "exn"
-let t_reference = std_core "reference"
-
-let c_nil = rocq_core "[]"
-let c_cons = rocq_core "::"
-
-let c_none = rocq_core "None"
-let c_some = rocq_core "Some"
-
-let c_true = rocq_core "true"
-let c_false = rocq_core "false"
-
-end
-
-open Core
+open Tac2quote.Refs
 
 let v_blk = Valexpr.make_block
 
@@ -150,23 +116,6 @@ let to_case_invert = let open Constr in function
 let of_result f = function
 | Inl c -> v_blk 0 [|f c|]
 | Inr e -> v_blk 1 [|Tac2ffi.of_exn e|]
-
-(** Stdlib exceptions *)
-
-let err_notfocussed =
-  Tac2interp.LtacError (rocq_core "Not_focussed", [||])
-
-let err_outofbounds =
-  Tac2interp.LtacError (rocq_core "Out_of_bounds", [||])
-
-let err_notfound =
-  Tac2interp.LtacError (rocq_core "Not_found", [||])
-
-let err_matchfailure =
-  Tac2interp.LtacError (rocq_core "Match_failure", [||])
-
-let err_division_by_zero =
-  Tac2interp.LtacError (rocq_core "Division_by_zero", [||])
 
 (** Helper functions *)
 
@@ -219,7 +168,7 @@ let assert_focussed =
   Proofview.Goal.goals >>= fun gls ->
   match gls with
   | [_] -> Proofview.tclUNIT ()
-  | [] | _ :: _ :: _ -> throw err_notfocussed
+  | [] | _ :: _ :: _ -> throw Tac2ffi.err_notfocussed
 
 let pf_apply ?(catch_exceptions=false) f =
   let f env sigma = wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f env sigma) in
@@ -232,7 +181,7 @@ let pf_apply ?(catch_exceptions=false) f =
     gl >>= fun gl ->
     f (Proofview.Goal.env gl) (Tacmach.project gl)
   | _ :: _ :: _ ->
-    throw err_notfocussed
+    throw Tac2ffi.err_notfocussed
 
 open Tac2externals
 
@@ -258,7 +207,7 @@ let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
 let () =
   define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
-  Tac2print.pr_valexpr env sigma v (GTypRef (Other Core.t_exn, []))
+  Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
 
 let () = define "message_concat" (pp @-> pp @-> ret pp) Pp.app
 
@@ -380,29 +329,29 @@ let () = define "array_empty" (ret valexpr) (v_blk 0 [||])
 
 let () =
   define "array_make" (int @-> valexpr @-> tac valexpr) @@ fun n x ->
-  try return (v_blk 0 (Array.make n x)) with Invalid_argument _ -> throw err_outofbounds
+  try return (v_blk 0 (Array.make n x)) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () =
   define "array_length" (block @-> ret int) @@ fun (_, v) -> Array.length v
 
 let () =
   define "array_set" (block @-> int @-> valexpr @-> tac unit) @@ fun (_, v) n x ->
-  try Array.set v n x; return () with Invalid_argument _ -> throw err_outofbounds
+  try Array.set v n x; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () =
   define "array_get" (block @-> int @-> tac valexpr) @@ fun (_, v) n ->
-  try return (Array.get v n) with Invalid_argument _ -> throw err_outofbounds
+  try return (Array.get v n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () =
   define "array_blit"
     (block @-> int @-> block @-> int @-> int @-> tac unit)
     @@ fun (_, v0) s0 (_, v1) s1 l ->
   try Array.blit v0 s0 v1 s1 l; return () with Invalid_argument _ ->
-  throw err_outofbounds
+  throw Tac2ffi.err_outofbounds
 
 let () =
   define "array_fill" (block @-> int @-> int @-> valexpr @-> tac unit) @@ fun (_, d) s l v ->
-  try Array.fill d s l v; return () with Invalid_argument _ -> throw err_outofbounds
+  try Array.fill d s l v; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () =
   define "array_concat" (list block @-> ret valexpr) @@ fun l ->
@@ -431,9 +380,9 @@ let () = define "int_sub" (int @-> int @-> ret int) (-)
 let () = define "int_mul" (int @-> int @-> ret int) ( * )
 
 let () = define "int_div" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw err_division_by_zero else return (m / n)
+  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m / n)
 let () = define "int_mod" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw err_division_by_zero else return (m mod n)
+  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m mod n)
 
 let () = define "int_asr" (int @-> int @-> ret int) (asr)
 let () = define "int_lsl" (int @-> int @-> ret int) (lsl)
@@ -457,17 +406,17 @@ let () = define "char_to_int" (char @-> ret int) Char.code
 
 let () =
   define "string_make" (int @-> char @-> tac bytes) @@ fun n c ->
-  try return (Bytes.make n c) with Invalid_argument _ -> throw err_outofbounds
+  try return (Bytes.make n c) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () = define "string_length" (bytes @-> ret int) Bytes.length
 
 let () =
   define "string_set" (bytes @-> int @-> char @-> tac unit) @@ fun s n c ->
-  try Bytes.set s n c; return () with Invalid_argument _ -> throw err_outofbounds
+  try Bytes.set s n c; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () =
   define "string_get" (bytes @-> int @-> tac char) @@ fun s n ->
-  try return (Bytes.get s n) with Invalid_argument _ -> throw err_outofbounds
+  try return (Bytes.get s n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () = define "string_concat" (bytes @-> list bytes @-> ret bytes) Bytes.concat
 
@@ -477,7 +426,7 @@ let () =
 
 let () =
   define "string_sub" (bytes @-> int @-> int @-> tac bytes) @@ fun s off len ->
-  try return (Bytes.sub s off len) with Invalid_argument _ -> throw err_outofbounds
+  try return (Bytes.sub s off len) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
 
 let () = define "string_equal" (bytes @-> bytes @-> ret bool) Bytes.equal
 
@@ -754,7 +703,7 @@ let () =
     let ans = Inductiveops.make_case_info env ind Constr.RegularStyle in
     return (Tac2ffi.of_case ans)
   with e when CErrors.noncritical e ->
-    throw err_notfound
+    throw Tac2ffi.err_notfound
 
 let () =
   define "case_to_inductive" (case @-> ret inductive) @@ fun case ->
@@ -800,7 +749,7 @@ let () =
       let ans = EConstr.mkEvar (evk, args) in
       return (EConstr.mkLambda (Context.make_annot (Name id) t_rel, t, ans))
   | _ ->
-    throw err_notfocussed
+    throw Tac2ffi.err_notfocussed
 
 (** preterm -> constr *)
 
@@ -919,7 +868,7 @@ let () =
     with Constr_matching.PatternMatchingFailure -> None
   in
   begin match ans with
-  | None -> fail err_matchfailure
+  | None -> fail Tac2ffi.err_matchfailure
   | Some ans ->
     let ans = Id.Map.bindings ans in
     let of_pair (id, c) = Tac2ffi.of_tuple [| Tac2ffi.of_ident id; Tac2ffi.of_constr c |] in
@@ -930,7 +879,7 @@ let () =
   define "pattern_matches_subterm" (pattern @-> constr @-> tac (pair matching_context (list (pair ident constr)))) @@ fun pat c ->
   let open Constr_matching in
   let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail err_matchfailure
+  | IStream.Nil -> fail Tac2ffi.err_matchfailure
   | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
     let ans = Id.Map.bindings sub in
     Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
@@ -948,7 +897,7 @@ let () =
     with Constr_matching.PatternMatchingFailure -> None
   in
   match ans with
-  | None -> fail err_matchfailure
+  | None -> fail Tac2ffi.err_matchfailure
   | Some ans ->
     let ans = Id.Map.bindings ans in
     let ans = Array.map_of_list snd ans in
@@ -958,7 +907,7 @@ let () =
   define "pattern_matches_subterm_vect" (pattern @-> constr @-> tac (pair matching_context (array constr))) @@ fun pat c ->
   let open Constr_matching in
   let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail err_matchfailure
+  | IStream.Nil -> fail Tac2ffi.err_matchfailure
   | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
     let ans = Id.Map.bindings sub in
     let ans = Array.map_of_list snd ans in
@@ -1098,7 +1047,7 @@ let () =
     Proofview.Unsafe.tclEVARS sigma <*>
     Proofview.Unsafe.tclNEWGOALS [Proofview.with_empty_state ev] <*>
     Proofview.tclUNIT ()
-  else throw err_notfound
+  else throw Tac2ffi.err_notfound
 
 let () =
   define "unshelve" (thunk valexpr @-> tac valexpr) @@ fun t ->
@@ -1257,7 +1206,7 @@ let () =
     let path = DirPath.repr path in
     return (List.rev_append path [id])
   | exception Not_found ->
-    throw err_notfound
+    throw Tac2ffi.err_notfound
 
 let () =
   define "env_instantiate" (reference @-> tac constr) @@ fun r ->
@@ -1280,7 +1229,7 @@ let () =
   if Environ.mem_mind (fst ind) env then
     return (ind, Environ.lookup_mind (fst ind) env)
   else
-    throw err_notfound
+    throw Tac2ffi.err_notfound
 
 let () = define "ind_repr" (ind_data @-> ret inductive) fst
 let () = define "ind_index" (inductive @-> ret int) snd
@@ -1299,7 +1248,7 @@ let () =
     @@ fun (ind, mib) n ->
   if 0 <= n && n < Array.length mib.Declarations.mind_packets then
     return ((fst ind, n), mib)
-  else throw err_notfound
+  else throw Tac2ffi.err_notfound
 
 let () =
   define "ind_get_constructor"
@@ -1311,7 +1260,7 @@ let () =
     (* WARNING: In the ML API constructors are indexed from 1 for historical
        reasons, but Ltac2 uses 0-indexing instead. *)
     return ((mind, n), i + 1)
-  else throw err_notfound
+  else throw Tac2ffi.err_notfound
 
 let () =
   define "ind_get_nparams"
@@ -2054,9 +2003,9 @@ let () = add_syntax_class "opt" begin function
   let syntax_class = Procq.Symbol.opt syntax_class in
   let act opt = match opt with
   | None ->
-    CAst.make @@ CTacCst (AbsKn (Other Core.c_none))
+    CAst.make @@ CTacCst (AbsKn (Other c_none))
   | Some x ->
-    CAst.make @@ CTacApp (CAst.make @@ CTacCst (AbsKn (Other Core.c_some)), [act x])
+    CAst.make @@ CTacApp (CAst.make @@ CTacCst (AbsKn (Other c_some)), [act x])
   in
   Tac2entries.SyntaxRule (syntax_class, act)
 | arg -> syntax_class_fail "opt" arg
