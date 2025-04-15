@@ -1637,8 +1637,11 @@ module Entry = struct
     in
     estate, e
 
+  let file =
+    open_out "foo.ast" (* FIXME: set this at the command line somehow *)
+
   let print_asts k ast: unit =
-    printf "(%s%s)\n" k (ast_to_string_list ast);
+    Printf.fprintf file "(%s%s)\n" k (ast_to_string_list ast);
     ()
 
   let parse (e : 'a t) p gstate : 'a =
