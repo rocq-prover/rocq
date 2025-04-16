@@ -695,6 +695,7 @@ command: [
 | "Number" "Notation" reference reference reference OPT number_options ":" preident
 | "String" "Notation" reference reference reference OPT string_option ":" preident
 | "Ltac2" ltac2_entry      (* ltac2 plugin *)
+| "Ltac2" "Custom" "Entry" identref      (* ltac2 plugin *)
 | "Ltac2" "Notation" ltac2def_syn      (* ltac2 plugin *)
 | "Ltac2" "Eval" ltac2_expr6      (* ltac2 plugin *)
 | "Print" test_ltac2_ident "Ltac2" reference      (* ltac2 plugin *)
@@ -2934,6 +2935,7 @@ ltac2_syntax_class: [
 syn_level: [
 |      (* ltac2 plugin *)
 | ":" Prim.natural      (* ltac2 plugin *)
+| ":" identref OPT [ "(" Prim.natural ")" ]      (* ltac2 plugin *)
 ]
 
 tac2def_syn: [
