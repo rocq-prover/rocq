@@ -60,6 +60,7 @@ let val_transparent_state : TransparentState.t Val.tag = Val.create "transparent
 let val_pretype_flags = Val.create "pretype_flags"
 let val_expected_type = Val.create "expected_type"
 let val_reduction = Val.create "reduction"
+let val_rewstrategy = Val.create "rewstrategy"
 
 let extract_val (type a) (type b) (tag : a Val.tag) (tag' : b Val.tag) (v : b) : a =
 match Val.eq tag tag' with
@@ -241,6 +242,10 @@ let sort = repr_ext val_sort
 let of_reduction ev = of_ext val_reduction ev
 let to_reduction ev = to_ext val_reduction ev
 let reduction = repr_ext val_reduction
+
+let of_rewstrategy ev = of_ext val_rewstrategy ev
+let to_rewstrategy ev = to_ext val_rewstrategy ev
+let rewstrategy = repr_ext val_rewstrategy
 
 let internal_err =
   let open Names in
