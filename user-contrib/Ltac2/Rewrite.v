@@ -14,11 +14,11 @@ Ltac2 Type t.
 
 
 (** Failure. *)
-Ltac2 @external fail : unit -> t :=
+Ltac2 @external fail : t :=
   "rocq-runtime.plugins.ltac2" "rewstrat_fail".
 
 (** Success without progress. *)
-Ltac2 @external id : unit -> t :=
+Ltac2 @external id : t :=
   "rocq-runtime.plugins.ltac2" "rewstrat_id".
 
 (** Success with progress. *)
