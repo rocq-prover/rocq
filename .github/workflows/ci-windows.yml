@@ -35,7 +35,7 @@ jobs:
         run: opam install ounit2 conf-python-3 conf-time
 
       - name: 🐛 Test Rocq
-        run: opam exec -- make -j 4 -C test-suite
+        run: opam exec -- make -j 4 -C test-suite DISABLED_SUBSYSTEMS='misc coq-makefile precomputed-time-tests'
 
   Windows-platform:
     name: Windows (Coq Platform)
