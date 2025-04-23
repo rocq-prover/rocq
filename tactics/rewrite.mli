@@ -111,7 +111,9 @@ sig
   val refl : strategy
   val progress : strategy -> strategy
   val seq : strategy -> strategy -> strategy
+  val seqs : strategy list -> strategy
   val choice : strategy -> strategy -> strategy
+  val choices : strategy list -> strategy
   val try_ : strategy -> strategy
 
   val fix_tac : (strategy -> strategy Proofview.tactic) -> strategy Proofview.tactic
