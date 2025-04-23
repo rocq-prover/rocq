@@ -1669,6 +1669,7 @@ simple_tactic: [
 | "intuition" OPT ltac_expr
 | "now" ltac_expr
 | "nsatz" OPT ( "with" "radicalmax" ":=" one_term "strategy" ":=" one_term "parameters" ":=" one_term "variables" ":=" one_term )
+| "ensatz" OPT ( "with" "strategy" ":=" one_term )
 | "psatz" one_term OPT nat_or_var
 | "revert" "dependent" ident
 | "ring" OPT ( "[" LIST1 one_term "]" )

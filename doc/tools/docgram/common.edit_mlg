@@ -1881,6 +1881,7 @@ tactic_notation_tactics: [
 | "intuition" OPT ltac_expr5  (* todo: Not too keen on things like "with_power_flags" in tauto.ml, not easy to follow *)
 | "now" ltac_expr5
 | "nsatz" OPT ( "with" "radicalmax" ":=" constr "strategy" ":=" constr "parameters" ":=" constr "variables" ":=" constr )
+| "ensatz" OPT ( "with" "strategy" ":=" constr )
 | "psatz" constr OPT nat_or_var
 | "revert" "dependent" hyp
 | "ring" OPT ( "[" LIST1 constr "]" )
