@@ -267,9 +267,6 @@ let tclBIND = Proof.(>>=)
     it's a specialized "bind". *)
 let tclTHEN = Proof.(>>)
 
-(** Maps a tactic over its result. *)
-let tclFMAP = Proof.map
-
 (** [tclIGNORE t] has the same operational content as [t], but drops
     the returned value. *)
 let tclIGNORE = Proof.ignore

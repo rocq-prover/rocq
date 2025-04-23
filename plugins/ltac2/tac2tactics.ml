@@ -196,7 +196,7 @@ let rewrite_strat strat clause =
 module RewriteStrats =
 struct
   let fix f =
-    let f s = Proofview.tclFMAP Tac2ffi.to_rewstrategy (Tac2val.apply f [Tac2ffi.of_rewstrategy s]) in
+    let f s = Proofview.Monad.map Tac2ffi.to_rewstrategy (Tac2val.apply f [Tac2ffi.of_rewstrategy s]) in
     Rewrite.Strategies.fix_tac f
 
   let hints i =
