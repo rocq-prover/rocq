@@ -1465,7 +1465,7 @@ module Strategies =
                          rew_evars = (sigma, cstrevars evars) }
       with e when CErrors.noncritical e -> Fail
 
-    let fold c : 'a pure_strategy =
+    let fold (c : Evd.econstr) : 'a pure_strategy =
       { strategy = fun { state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
             state, run_fold_in env evars c t ty
       }
