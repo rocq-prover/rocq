@@ -1322,6 +1322,8 @@ module Strategies =
           | Success res -> transitivity state env unfresh cstr res snd
                                            }
 
+    let seqs strs = List.fold_left seq id strs
+
     let choice fst snd : 'a pure_strategy = { strategy =
       fun input ->
         let state, res = fst.strategy input in
@@ -1329,6 +1331,8 @@ module Strategies =
           | Fail -> snd.strategy { input with state }
           | Identity | Success _ -> state, res
                                             }
+
+    let choices strs = List.fold_left choice fail strs
 
     let try_ str : 'a pure_strategy = choice str id
 
@@ -1422,11 +1426,11 @@ module Strategies =
                                                            }
 
     let run_fold_in env evars c term typ : rewrite_result =
-      let c = match Tacred.red_product env (goalevars evars) c with
+      let unfolded = match Tacred.red_product env (goalevars evars) c with
         | None -> user_err Pp.(str "fold: the term is not unfoldable!")
         | Some c -> c
       in try
-        let _, sigma = Unification.w_unify env (goalevars evars) CONV ~flags:(Unification.elim_flags ()) c term in
+        let _, sigma = Unification.w_unify env (goalevars evars) CONV ~flags:(Unification.elim_flags ()) unfolded term in
         let c' = Reductionops.nf_evar sigma c in
         Success { rew_car = typ; rew_from = term; rew_to = c';
                          rew_prf = RewCast DEFAULTcast;
