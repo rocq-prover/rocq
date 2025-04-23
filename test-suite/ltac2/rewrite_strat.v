@@ -19,88 +19,89 @@ Parameter lem3 : forall x, h 0 x = x.
 
 Goal forall x, h 6 x = f x.
   intros.
-  time (rewrite_strat (Rewrite.topdown (Rewrite.term preterm:(lem2) true)) None).
-  time (rewrite_strat (Rewrite.topdown (Rewrite.term preterm:(lem1) true)) None).
-  time (rewrite_strat (Rewrite.topdown (Rewrite.term preterm:(lem0) true)) None).
-  time (rewrite_strat (Rewrite.topdown (Rewrite.term preterm:(lem3) true)) None).
+  time (rewrite_strat (topdown (term preterm:(lem2) true)) None).
+  time (rewrite_strat (topdown (term preterm:(lem1) true)) None).
+  time (rewrite_strat (topdown (term preterm:(lem0) true)) None).
+  time (rewrite_strat (topdown (term preterm:(lem3) true)) None).
+  time (rewrite_strat id None).
   reflexivity ().
-Undo 5.
-  time (rewrite_strat (Rewrite.topdown
-          (Rewrite.choice
-             (Rewrite.term preterm:(lem2) true)
-             (Rewrite.term preterm:(lem1) true)
+Undo 6.
+  time (rewrite_strat (topdown
+          (choice
+             (term preterm:(lem2) true)
+             (term preterm:(lem1) true)
        )) None).
-  time (rewrite_strat (Rewrite.topdown
-          (Rewrite.choice
-             (Rewrite.term preterm:(lem0) true)
-             (Rewrite.term preterm:(lem3) true)
+  time (rewrite_strat (topdown
+          (choice
+             (term preterm:(lem0) true)
+             (term preterm:(lem3) true)
        )) None).
   reflexivity ().
 Undo 3.
-time (rewrite_strat (Rewrite.seq
-                       (Rewrite.topdown
-                          (Rewrite.choice
-                             (Rewrite.term preterm:(lem2) true)
-                             (Rewrite.term preterm:(lem1) true)
+time (rewrite_strat (seq
+                       (topdown
+                          (choice
+                             (term preterm:(lem2) true)
+                             (term preterm:(lem1) true)
                        ))
-                       (Rewrite.topdown
-                          (Rewrite.choice
-                             (Rewrite.term preterm:(lem0) true)
-                             (Rewrite.term preterm:(lem3) true)
+                       (topdown
+                          (choice
+                             (term preterm:(lem0) true)
+                             (term preterm:(lem3) true)
                           ))
        ) None).
   reflexivity ().
 Undo 2.
-  time (rewrite_strat (Rewrite.topdown
-                         (Rewrite.choice
-                              (Rewrite.choice
-                                 (Rewrite.term preterm:(lem2) true)
-                                 (Rewrite.term preterm:(lem1) true)
+  time (rewrite_strat (topdown
+                         (choice
+                              (choice
+                                 (term preterm:(lem2) true)
+                                 (term preterm:(lem1) true)
                               )
-                              (Rewrite.choice
-                                 (Rewrite.term preterm:(lem0) true)
-                                 (Rewrite.term preterm:(lem3) true)
+                              (choice
+                                 (term preterm:(lem0) true)
+                                 (term preterm:(lem3) true)
                               )
                          )
           ) None).
   reflexivity ().
 Undo 2.
-  time (rewrite_strat (Rewrite.topdown
-                         (Rewrite.choice
-                              (Rewrite.term preterm:(lem2) true)
-                              (Rewrite.choice
-                                 (Rewrite.term preterm:(lem1) true)
-                                 (Rewrite.choice
-                                    (Rewrite.term preterm:(lem0) true)
-                                    (Rewrite.term preterm:(lem3) true)
+  time (rewrite_strat (topdown
+                         (choice
+                              (term preterm:(lem2) true)
+                              (choice
+                                 (term preterm:(lem1) true)
+                                 (choice
+                                    (term preterm:(lem0) true)
+                                    (term preterm:(lem3) true)
                                  )
                             )
                          )
        ) None).
   reflexivity ().
 Undo 2.
-  time (rewrite_strat (Rewrite.topdown
-                         (Rewrite.choices [
-                              (Rewrite.term preterm:(lem2) true);
-                              (Rewrite.term preterm:(lem1) true);
-                              (Rewrite.term preterm:(lem0) true);
-                              (Rewrite.term preterm:(lem3) true)
+  time (rewrite_strat (topdown
+                         (choices [
+                              (term preterm:(lem2) true);
+                              (term preterm:(lem1) true);
+                              (term preterm:(lem0) true);
+                              (term preterm:(lem3) true)
                             ]
                          )
           ) None).
   reflexivity ().
 Undo 2.
-  time (rewrite_strat (Rewrite.fix_
+  time (rewrite_strat (fix_
                          (fun f =>
-                            Rewrite.seq
-                              (Rewrite.choices [
-                                   (Rewrite.term preterm:(lem2) true);
-                                   (Rewrite.term preterm:(lem1) true);
-                                   (Rewrite.term preterm:(lem0) true);
-                                   (Rewrite.term preterm:(lem3) true);
-                                   (Rewrite.progress (Rewrite.subterms f))
+                            seq
+                              (choices [
+                                   (term preterm:(lem2) true);
+                                   (term preterm:(lem1) true);
+                                   (term preterm:(lem0) true);
+                                   (term preterm:(lem3) true);
+                                   (progress (subterms f))
                                  ])
-                            (Rewrite.try f)
+                            (try f)
                          )
        ) None).
   reflexivity ().
@@ -109,14 +110,14 @@ Qed.
 Goal forall x, h 10 x = f x.
 Proof.
   intros.
-  time (rewrite_strat (Rewrite.topdown (hints @rew)) None).
+  time (rewrite_strat (topdown (hints @rew)) None).
   reflexivity ().
 Qed.
 
 Set Printing All.
 Set Printing Depth 100000.
 
-Ltac2 Notation "my_rewrite_strat" x(preterm) := rewrite_strat (Rewrite.topdown (Rewrite.term x true)) None.
+Ltac2 Notation "my_rewrite_strat" x(preterm) := rewrite_strat (topdown (term x true)) None.
 Goal (forall x, S x = 0) -> 1 = 0.
 intro H.
 my_rewrite_strat H.
