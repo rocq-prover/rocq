@@ -423,18 +423,18 @@ let () =
 
 let () =
   define "rewstrat_id"
-    (unit @-> tac rewstrategy)
-    (fun _ -> return Rewrite.Strategies.id)
+    (ret rewstrategy)
+    Rewrite.Strategies.id
 
 let () =
   define "rewstrat_fail"
-    (unit @-> tac rewstrategy)
-    (fun _ -> return Rewrite.Strategies.fail)
+    (ret rewstrategy)
+    Rewrite.Strategies.fail
 
 let () =
   define "rewstrat_refl"
-    (unit @-> tac rewstrategy)
-    (fun _ -> return Rewrite.Strategies.refl)
+    (ret rewstrategy)
+    Rewrite.Strategies.refl
 
 let () =
   define "rewstrat_progress"
