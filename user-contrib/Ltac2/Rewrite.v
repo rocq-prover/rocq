@@ -104,7 +104,7 @@ Ltac2 @external hints : ident -> t :=
   "rocq-runtime.plugins.ltac2" "rewstrat_hints".
 
 (** Replaces the term under consideration with the argument if they unify. *)
-Ltac2 @external fold : preterm -> t :=
+Ltac2 @external fold : constr -> t :=
   "rocq-runtime.plugins.ltac2" "rewstrat_fold".
 
 (** Fixed point operation for recursive strategies. [fix (fun f => s)] evaluates to

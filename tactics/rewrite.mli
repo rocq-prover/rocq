@@ -135,7 +135,7 @@ sig
   val hints : string -> strategy
   val reduce : Redexpr.red_expr -> strategy
 
-  val fold : constr -> strategy
+  val fold : Evd.econstr -> strategy
   val fold_glob : Glob_term.glob_constr -> strategy
 end
 
