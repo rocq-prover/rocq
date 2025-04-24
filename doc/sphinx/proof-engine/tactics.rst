@@ -676,7 +676,19 @@ Applying theorems
 
    Setting :opt:`Debug` ``"unification"`` enables printing traces of
    unification steps used during elaboration/typechecking and the
-   :tacn:`refine` tactic. ``"ho-unification"`` prints information
+   :tacn:`refine` tactic. Each ``Debug: [unification]`` output block
+   is a snapshot of the current problem the unification problem is
+   trying to solve. Given two terms :term:`term1`, :term:`term2`, the
+   state of the unification algorithm at each point in time contains
+   (among other things) distinguished locations :term:`s1`, :term:`s2`
+   of :term:`term1`, :term:`term2` respectively; each term
+   :term:`term_i` is printed as the pair :term:`s_i` `|` `nk; ...
+   ; n1; n0`, where the `n_j` are the sequence of syntax tree
+   nodes from the root of :term:`term_i` to :term:`s_i` presented in
+   reverse order, i.e., `n0` is the root node of :term:`term_i` and
+   `nk` is the node immediately above `s_i`.
+
+   Similarly, :opt:`Debug` ``"ho-unification"`` prints information
    about higher order heuristics.
 
 .. tacn:: apply {+, @one_term_with_bindings } {? @in_hyp_as }
