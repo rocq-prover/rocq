@@ -1373,7 +1373,10 @@ module Strategies =
       { strategy = aux }
 
     let fix_tac (f : 'a pure_strategy -> 'a pure_strategy Proofview.tactic) : 'a pure_strategy Proofview.tactic =
-      let forward_def = ref (fun _ -> assert false) in
+      (* The error below happens if you do
+         [rewrite_strat (fix (fun s => rewrite_strat s None; s)) None]
+      *)
+      let forward_def = ref (fun _ -> user_err Pp.(str "Rewrite strategy fixed-point variables cannot be executed by rewite_strat inside of fix.")) in
       f {strategy = fun input -> check_interrupt !forward_def input} >>= fun f ->
       forward_def := f.strategy;
       Proofview.tclUNIT f
