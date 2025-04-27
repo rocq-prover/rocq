@@ -442,8 +442,8 @@ Rewriting with ``Type`` valued relations
 
 Definitions in ``Classes.Relations``, ``Classes.Morphisms`` and
 ``Classes.Equivalence`` are based on ``Prop``. Analogous definitions with the
-same names based on ``Type`` are in ``Classes.CRelations``,
-``Classes.CMorphisms`` and ``Classes.CEquivalence``. The ``C`` identifies the
+same names based on ``Type`` are in ``Classes.CRelations`` and
+``Classes.CMorphisms``. The ``C`` identifies the
 "computational" versions.
 
 Importing these modules allows for generalized rewriting with relations of the
