@@ -1756,36 +1756,36 @@ let vernac_identity_coercion ~atts id qids qidt =
 
 let vernac_instance_program ~atts ~pm name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
-  let locality, poly =
-    Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
+  let (locality, poly), cumulative =
+    Attributes.(parse (Notations.(hint_locality ++ polymorphic ++ cumulative UVars.Definition))) atts
   in
-  let pm, _id = Classes.new_instance_program ~pm ~locality ~poly name bl t props info in
+  let pm, _id = Classes.new_instance_program ~pm ~locality ~poly ~cumulative name bl t props info in
   pm
 
 let vernac_instance_interactive ~atts name bl t info props =
   Dumpglob.dump_constraint (fst name) false "inst";
-  let locality, poly =
-    Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
+  let (locality, poly), cumulative =
+    Attributes.(parse (Notations.(hint_locality ++ polymorphic ++ cumulative UVars.Definition))) atts
   in
   let _id, pstate =
-    Classes.new_instance_interactive ~locality ~poly name bl t info props in
+    Classes.new_instance_interactive ~locality ~poly ~cumulative name bl t info props in
   pstate
 
 let vernac_instance ~atts name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
-  let locality, poly =
-    Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
+  let (locality, poly), cumulative =
+    Attributes.(parse (Notations.(hint_locality ++ polymorphic ++ cumulative UVars.Definition))) atts
   in
   let _id : lident =
-    Classes.new_instance ~locality ~poly name bl t props info in
+    Classes.new_instance ~locality ~poly ~cumulative name bl t props info in
   ()
 
 let vernac_declare_instance ~atts id bl inst pri =
   Dumpglob.dump_definition (fst id) false "inst";
-  let (program, locality), poly =
-    Attributes.(parse (Notations.(program ++ hint_locality ++ polymorphic))) atts
+  let (((program, locality), poly), cumulative) =
+    Attributes.(parse (Notations.(program ++ hint_locality ++ polymorphic ++ cumulative UVars.Definition))) atts
   in
-  Classes.declare_new_instance ~program_mode:program ~locality ~poly id bl inst pri
+  Classes.declare_new_instance ~program_mode:program ~locality ~poly ~cumulative id bl inst pri
 
 let vernac_context ~atts ctx =
   let program_mode, poly = Attributes.(parse (Notations.(program ++ polymorphic))) atts in
