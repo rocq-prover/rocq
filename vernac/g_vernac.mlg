@@ -229,24 +229,31 @@ let test_variance_ident =
     lk_kws ["=";"+";"-";"*"] >> lk_ident
   end
 
+let sort_univ_sep = 
+  let open Procq.Lookahead in
+  lk_kw "|" <+> lk_kw ";"
+
 let test_univ_decl_nocstrs =
   let open Procq.Lookahead in
-  to_entry "test_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> lk_kw "}")
+  to_entry "test_univ_decl" (lk_ident_list >> sort_univ_sep >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> lk_kw "}")
 
 let test_univ_decl =
   let open Procq.Lookahead in
-  to_entry "test_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_univ_decl" (lk_ident_list >> sort_univ_sep >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
 let test_cumul_univ_decl_nocstrs =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_kw "-" <+> lk_ident) in
-  to_entry "test_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> lk_kw "}")
+  to_entry "test_cumul_univ_decl" (lk_ident_list >> sort_univ_sep >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> lk_kw "}")
 
 let test_cumul_univ_decl =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_kw "-" <+> lk_ident) in
-  to_entry "test_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_cumul_univ_decl" (lk_ident_list >> sort_univ_sep >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
+let warn_old_separator =
+  CWarnings.create ~name:"deprecated-sort-binder-syntax" ~category:Deprecation.Version.v9_1
+    Pp.(fun () -> str "Use ';' instead of '|' to separate sort and universe binders.")
 }
 
 (* Gallina declarations *)
@@ -363,8 +370,12 @@ GRAMMAR EXTEND Gram
         ext = [ "?" -> { true } | -> { false } ]; "}" -> { (l',ext) }
       | ext = [ "}" -> { true } | bar_cbrace -> { false } ] -> { ([], ext) } ] ]
   ;
+  sort_univ_sep: 
+    [ [ "|" -> { warn_old_separator () }
+      | ";" -> { () } ] ]
+  ;
   univ_decl:
-    [ [ "@{" ; test_univ_decl_nocstrs; l0 = LIST0 identref; "|";  l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ]; "}"
+    [ [ "@{" ; test_univ_decl_nocstrs; l0 = LIST0 identref; sep = sort_univ_sep;  l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ]; "}"
          ->
          { let open UState in
          { univdecl_qualities = l0;
@@ -374,7 +385,7 @@ GRAMMAR EXTEND Gram
            univdecl_variances = ();
            univdecl_constraints = [];
            univdecl_extensible_constraints = false } }
-    | "@{" ; test_univ_decl; l0 = LIST0 identref; "|";  l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ];
+    | "@{" ; test_univ_decl; l0 = LIST0 identref; sep = sort_univ_sep; l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
@@ -412,10 +423,10 @@ GRAMMAR EXTEND Gram
   ;
   cumul_univ_decl:
     [ [
-        "@{" ; test_cumul_univ_decl_nocstrs; l0 = LIST0 identref; "|";
-        l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ]; "}"
+        "@{" ; test_cumul_univ_decl_nocstrs; l0 = LIST0 identref; sep = sort_univ_sep;  l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ]; "}"
          ->
-         { let open UState in
+         { 
+          let open UState in
          { univdecl_qualities = l0;
            univdecl_extensible_qualities = false;
            univdecl_instance = l;
@@ -424,8 +435,7 @@ GRAMMAR EXTEND Gram
            univdecl_constraints = [];
            univdecl_extensible_constraints = false } }
 
-      | "@{" ; test_cumul_univ_decl; l0 = LIST0 identref; "|";
-        l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ];
+      | "@{" ; test_cumul_univ_decl; l0 = LIST0 identref; sep = sort_univ_sep; l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
