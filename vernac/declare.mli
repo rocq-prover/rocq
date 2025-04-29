@@ -437,6 +437,7 @@ type constant_entry =
 
 val prepare_parameter
   : poly:bool
+  -> cumulative:bool
   -> udecl:UState.universe_decl
   -> types:EConstr.types
   -> Evd.evar_map
