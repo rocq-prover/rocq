@@ -216,10 +216,13 @@ let extra_union a b = {
   above_prop = Level.Set.union a.above_prop b.above_prop;
 }
 
+let pr_level_expr_set prl s = 
+  let open Pp in
+  str "{" ++ LevelExpr.Set.fold (fun lk acc -> LevelExpr.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}" 
+
 let _pr_partition prl m =
   let open Pp in
-  prlist_with_sep spc (fun s ->
-    str "{" ++ LevelExpr.Set.fold (fun lk acc -> LevelExpr.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}" ++ fnl ())
+  prlist_with_sep spc (fun s -> pr_level_expr_set prl s ++ fnl ())
     m
 
 (** Turn max(l, l') <= u constraints into { l <= u, l' <= u } constraints *)
@@ -306,6 +309,7 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
       Feedback.msg_debug Pp.(str"normalize_context_set called with empty variance information");
   let (ctx, csts) = ContextSet.levels ctx, ContextSet.constraints ctx in
   (* Keep the Prop/Set <= i constraints separate for minimization *)
+  let csts = UnivFlex.normalize_constraints us csts in
   let csts = decompose_constraints csts in
   let smallles, csts =
     Constraints.partition (fun (l,d,r) -> d == Le && Universe.is_type0 l) csts
@@ -357,7 +361,7 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
   let locals, cstrs, partition = UGraph.constraints_of_universes ~only_local:true graph in
   (* debug Pp.(fun () -> str "Local universes: " ++ pr_universe_context_set prl (locals, cstrs)); *)
   (* debug Pp.(fun () -> str "New universe context: " ++ pr_universe_context_set prl (ctx, cstrs)); *)
-  (* debug Pp.(fun () -> str "Partition: " ++ pr_partition prl partition); *)
+  debug Pp.(fun () -> str "Partition: " ++ _pr_partition prl partition);
 (* Ignore constraints from lbound:Set *)
   let noneqs =
     Constraints.filter
@@ -369,6 +373,12 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
   let flex x = UnivFlex.mem x us in
   let ctx, us, variances, eqs = List.fold_left (fun (ctx, us, variances, cstrs) eqs ->
       let canon, (global, rigid, flexible) = choose_canonical ctx flex eqs in
+      debug Pp.(fun () -> fmt "Choose canonical: canon = %a@, global = %a, rigid = %a, flexible = %a" 
+        (fun () -> LevelExpr.pr prl) canon
+        (fun () -> pr_level_expr_set prl) global
+        (fun () -> pr_level_expr_set prl) rigid
+        (fun () -> pr_level_expr_set prl) flexible 
+        );
       (* Add equalities for globals which can't be merged anymore. *)
       let canonu = Universe.of_expr canon in
       let cstrs = LevelExpr.Set.fold (fun g cst ->
@@ -420,7 +430,8 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
   in
   (* Now we construct the instantiation of each variable. *)
   debug Pp.(fun () -> str "Starting minimization with: " ++ ContextSet.pr prl (ctx, noneqs) ++
-    UnivFlex.pr Level.raw_pr us);
+    UnivFlex.pr Level.raw_pr us ++ 
+    str "Leftover eqs:: " ++ Constraints.pr prl eqs);
   let ctx', us, variances, noneqs =
     let smalllesu = Constraints.fold (fun (l, d, r) acc ->
       match Universe.level r with Some r -> Level.Set.add r acc | None -> acc) smallles Level.Set.empty in
