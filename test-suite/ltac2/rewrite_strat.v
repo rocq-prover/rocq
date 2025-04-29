@@ -38,7 +38,7 @@ Undo 6.
        )) None).
   reflexivity ().
 Undo 3.
-time (rewrite_strat (seq
+  time (rewrite_strat (seq
                        (topdown
                           (choice
                              (term preterm:(lem2) true)
@@ -107,10 +107,42 @@ Undo 2.
   reflexivity ().
 Qed.
 
+Parameter breaker : forall x y, h x y = f y <-> False.
+
 Goal forall x, h 10 x = f x.
 Proof.
   intros.
   time (rewrite_strat (topdown (hints @rew)) None).
+  reflexivity ().
+Undo 2.
+  time (rewrite_strat (any (outermost (hints @rew))) None).
+  reflexivity ().
+Undo 2.
+  time (rewrite_strat (repeat (outermost (hints @rew))) None).
+  reflexivity ().
+Undo 2.
+  time (rewrite_strat (seqs [outermost (Rewrite.fold '(6 + ?[?four]))]) None).
+  match! goal with
+  | [|- h (6 + 4) ?x = f ?x] => ()
+  | [|- _] => Control.throw Assertion_failure
+  end.
+Undo 2.
+  time (rewrite_strat (
+            choices [
+                seqs [fail; term preterm:(breaker) true]; (* fail *)
+                seqs [repeat fail; term preterm:(breaker) true];  (* fail *)
+                seqs [progress fail; term preterm:(breaker) true];  (* fail *)
+                seqs [progress id; term preterm:(breaker) true];  (* fail *)
+
+                seqs [id;
+                      progress refl;
+                      any fail;
+                      try fail;
+                      topdown (hints @rew)
+                  ];  (* success *)
+
+                term preterm:(breaker) true  (* unreachable *)
+       ]) None).
   reflexivity ().
 Qed.
 
