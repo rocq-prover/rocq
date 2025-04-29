@@ -33,7 +33,7 @@ Ltac2 @external progress : strategy -> strategy :=
 Ltac2 @external seq : strategy -> strategy -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_seq".
 
-(** Equivalent to [List.fold_left seq (id ())]. *)
+(** Equivalent to [List.fold_left seq id]. *)
 Ltac2 @external seqs : strategy list -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_seqs".
 
@@ -41,11 +41,11 @@ Ltac2 @external seqs : strategy list -> strategy :=
 Ltac2 @external choice : strategy -> strategy -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_choice".
 
-(** Equivalent to [List.fold_left choice (fail ())]. *)
+(** Equivalent to [List.fold_left choice fail]. *)
 Ltac2 @external choices : strategy list -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_choices".
 
-(** Equivalent to [choice s (id ())]. *)
+(** Equivalent to [choice s id]. *)
 Ltac2 @external try : strategy -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_try".
 
@@ -95,7 +95,7 @@ Ltac2 @external term : preterm -> bool -> strategy :=
 Ltac2 @external terms : preterm list -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_lemmas".
 
-(* TODO @radrow this needs documentation *)
+(* TODO this needs documentation *)
 Ltac2 @external old_hints : ident -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_old_hints".
 
