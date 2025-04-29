@@ -230,6 +230,9 @@ let test_semicolon_cumul_univ_decl =
   let open Procq.Lookahead in
   to_entry "test_semicolon_cumul_univ_decl" (lk_ident_list >> lk_kw ";")
 
+let warn_old_separator =
+  CWarnings.create ~name:"deprecated-sort-binder-syntax" ~category:Deprecation.Version.v9_1
+    Pp.(fun () -> str "Use ';' instead of '|' to separate sort and universe binders.")
 }
 
 (* Gallina declarations *)
@@ -345,6 +348,10 @@ GRAMMAR EXTEND Gram
     [ [ "|"; l' = LIST0 univ_constraint SEP ",";
         ext = [ "?" -> { true } | -> { false } ]; "}" -> { (l',ext) }
       | ext = [ "}" -> { true } | bar_cbrace -> { false } ] -> { ([], ext) } ] ]
+  ;
+  sort_univ_sep: 
+    [ [ "|" -> { warn_old_separator () }
+      | ";" -> { () } ] ]
   ;
   univ_decl:
     [ [ "@{" ; test_doublepipe_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];  l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ];
