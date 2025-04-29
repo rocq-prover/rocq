@@ -602,7 +602,12 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
   | FCaseInvert (_, _, _, p, _, _, br, e) ->
     infer_case cv_pb variance infos variances p br e
   (* Removed by whnf *)
-  | FLOCKED | FCaseT _ | FLetIn _ | FApp _ | FLIFT _ | FCLOS _ -> assert false
+  | FLOCKED -> assert false
+  | FCaseT _ -> assert false
+  | FLetIn _ -> assert false
+  | FApp _ -> assert false
+  | FLIFT _ -> assert false
+  | FCLOS _ -> assert false
   | FIrrelevant -> assert false (* TODO: use create_conv_infos below and use it? *)
 
 and infer_case cv_pb variance infos variances p br e =
@@ -670,11 +675,11 @@ let infer_term cv_pb env ~evars variances c =
   let infos = infer_infos env ~evars in
   let variance = variance_of_cv_pb cv_pb in
   let is_type = if Inf.get_position variances == Position.InTerm then IsTerm else IsType in
-  let status = infer_fterm cv_pb (is_type, variance) infos variances (CClosure.inject c) [] in
-  debug_infer_term Pp.(fun () -> pr_mode (if Inf.get_infer_mode variances then Infer else Check) ++ spc () ++ str"at position " ++ Position.pr (Inf.get_position variances) ++ str", cv_pb = " ++ pr_cumul_pb cv_pb ++
+  let () = debug_infer_term Pp.(fun () -> pr_mode (if Inf.get_infer_mode variances then Infer else Check) ++ spc () ++ str"at position " ++ Position.pr (Inf.get_position variances) ++ str", cv_pb = " ++ pr_cumul_pb cv_pb ++
     str", variance = " ++ Variance.pr variance ++ spc () ++
-    str" term: " ++ Constr.debug_print c ++ fnl () ++
-    Inf.pr Level.raw_pr variances ++ fnl () ++ str" -> " ++ fnl () ++ Inf.pr Level.raw_pr status);
+    str" term: " ++ Constr.debug_print c ++ fnl ()) in
+  let status = infer_fterm cv_pb (is_type, variance) infos variances (CClosure.inject c) [] in
+  debug_infer_term Pp.(fun () -> Inf.pr Level.raw_pr variances ++ fnl () ++ str" -> " ++ fnl () ++ Inf.pr Level.raw_pr status);
   status
 
 let infer_named_context env ~evars variances ctx =

@@ -619,29 +619,6 @@ let restrict_inductive_universes sigma ctx_params arities constructors =
   let uvars = List.fold_right (fun (_,ctypes) -> List.fold_right merge_universes_of_constr ctypes) constructors uvars in
   Evd.restrict_universe_context sigma uvars
 
-let check_trivial_variances = function
-  | None -> ()
-  | Some variances ->
-    Array.iter (function occ ->
-      match UVars.VarianceOccurrence.term_variance_pos occ with
-      | UVars.Variance.Irrelevant, _ | UVars.Variance.Invariant, _ -> ()
-      | _ ->
-        CErrors.user_err
-          Pp.(strbrk "Universe variance was specified but this inductive will not be cumulative."))
-    variances
-
-let variance_of_entry ~cumulative ctx variances =
-  let ivariances = Option.map UVars.Variances.repr variances in
-  if not cumulative then begin check_trivial_variances ivariances; variances end
-  else variances
-    (* match ivariances with
-    | None -> variances
-    | Some variances ->
-      let lvs = Array.length variances in
-      let _, lus = UVars.UContext.size ctx in
-      assert (lvs <= lus);
-      Some (UVars.Variances.of_array (Array.append variances (Array.make (lus - lvs) UVars.(VariancePos.make Variance.Invariant Position.InTerm)))) *)
-
 let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar_params ~private_ind =
   let {
     poly;
@@ -688,8 +665,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~a
       })
       indnames arities constructors
   in
-  
-  (* let variance = variance_of_entry ~cumulative ~variances univ_entry in *)
+    
   (* Build the mutual inductive entry *)
   let mind_ent =
     { mind_entry_params = ctx_params;
