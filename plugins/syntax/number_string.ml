@@ -378,7 +378,7 @@ let elaborate_to_post_via env sigma ty_name ty_ind l =
 
 type target_type =
   | TargetInd of (inductive * Constr.t option list)
-  | TargetPrim of GlobRef.t * GlobRef.t list * required_module
+  | TargetPrim of GlobRef.t * GlobRef.t list
 
 let locate_global_inductive_with_params allow_params qid =
   if not allow_params then raise Not_found else
@@ -410,12 +410,10 @@ let locate_global_inductive_or_int63_or_float env allow_params qid =
     let floatw = "num.float.float_wrapper" in
     if allow_params && Rocqlib.has_ref int63n
        && Environ.QGlobRef.equal env (Smartlocate.global_with_alias qid) (Rocqlib.lib_ref int63n)
-    then TargetPrim (Rocqlib.lib_ref int63w, [Rocqlib.lib_ref int63c],
-                     (Nametab.path_of_global (Rocqlib.lib_ref int63n), []))
+    then TargetPrim (Rocqlib.lib_ref int63w, [Rocqlib.lib_ref int63c])
     else if allow_params && Rocqlib.has_ref floatn
        && Environ.QGlobRef.equal env (Smartlocate.global_with_alias qid) (Rocqlib.lib_ref floatn)
-    then TargetPrim (Rocqlib.lib_ref floatw, [Rocqlib.lib_ref floatc],
-                     (Nametab.path_of_global (Rocqlib.lib_ref floatn), []))
+    then TargetPrim (Rocqlib.lib_ref floatw, [Rocqlib.lib_ref floatc])
     else TargetInd (Smartlocate.global_inductive_with_alias qid, [])
 
 let intern_cref env sigma r =
@@ -481,7 +479,7 @@ let vernac_number_notation local ty f g opts scope =
     | _ -> type_error_to f_name ty
   in
   (* Check the type of g *)
-  let cty = match tyc_params with TargetPrim (c, _, _) -> gref c | TargetInd _ -> cty in
+  let cty = match tyc_params with TargetPrim (c, _) -> gref c | TargetInd _ -> cty in
   let of_kind =
     match num_ty with
     | Some (int_ty, cint, _, _, _, _, _, _) when has_type env sigma g (arrow cty cint) -> Int int_ty, Direct
@@ -504,14 +502,14 @@ let vernac_number_notation local ty f g opts scope =
     | Some cfloat when has_type env sigma g (arrow cty (opt cfloat)) -> Float64, Option
     | _ -> type_error_of g_name ty
   in
-  let to_post, pt_required, pt_refs = match tyc_params with
-    | TargetPrim (_, refs, path) -> [||], path, refs
+  let to_post, pt_refs = match tyc_params with
+    | TargetPrim (_, refs) -> [||], refs
     | TargetInd (tyc, params) ->
        let to_post, pt_refs =
          match via with
          | None -> elaborate_to_post_params env sigma tyc params
          | Some (ty, l) -> elaborate_to_post_via env sigma ty tyc l in
-       to_post, (Nametab.path_of_global (GlobRef.IndRef tyc), []), pt_refs in
+       to_post, pt_refs in
   let o = { to_kind; to_ty; to_post; of_kind; of_ty; ty_name;
             warning = opts }
   in
@@ -522,7 +520,6 @@ let vernac_number_notation local ty f g opts scope =
        { pt_local = local;
          pt_scope = scope;
          pt_interp_info = NumberNotation o;
-         pt_required;
          pt_refs;
          pt_in_match = true }
   in
@@ -538,8 +535,7 @@ let locate_global_inductive_or_pstring env allow_params qid =
     let pstringw = "strings.pstring.string_wrapper" in
     if allow_params && Rocqlib.has_ref pstringn
        && Environ.QGlobRef.equal env (Smartlocate.global_with_alias qid) (Rocqlib.lib_ref pstringn)
-    then TargetPrim (Rocqlib.lib_ref pstringw, [Rocqlib.lib_ref pstringc],
-                     (Nametab.path_of_global (Rocqlib.lib_ref pstringn), []))
+    then TargetPrim (Rocqlib.lib_ref pstringw, [Rocqlib.lib_ref pstringc])
     else TargetInd (Smartlocate.global_inductive_with_alias qid, [])
 
 let q_list () = Rocqlib.lib_ref "core.list.type"
@@ -603,20 +599,19 @@ let vernac_string_notation local ty f g via scope =
     else if has_type env sigma g (arrow cty (opt cbyte)) then Byte, Option
     else type_error_of g_name ty
   in
-  let to_post, pt_required, pt_refs = match tyc_params with
-    | TargetPrim (_, refs, path) -> [||], path, refs
+  let to_post, pt_refs = match tyc_params with
+    | TargetPrim (_, refs) -> [||], refs
     | TargetInd (tyc, params) ->
        let to_post, pt_refs =
          match via with
          | None -> elaborate_to_post_params env sigma tyc params
          | Some (ty, l) -> elaborate_to_post_via env sigma ty tyc l in
-       to_post, (Nametab.path_of_global (GlobRef.IndRef tyc), []), pt_refs in
+       to_post, pt_refs in
   let o = { to_kind; to_ty; to_post; of_kind; of_ty; ty_name; warning = () } in
   let i =
        { pt_local = local;
          pt_scope = scope;
          pt_interp_info = StringNotation o;
-         pt_required;
          pt_refs;
          pt_in_match = true }
   in

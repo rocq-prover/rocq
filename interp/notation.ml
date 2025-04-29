@@ -1220,7 +1220,6 @@ type prim_token_infos = {
   pt_local : bool; (** Is this interpretation local? *)
   pt_scope : scope_name; (** Concerned scope *)
   pt_interp_info : prim_token_interp_info; (** Unique id "pointing" to (un)interp functions, OR a number notation object describing (un)interp functions *)
-  pt_required : required_module; (** Module that should be loaded first *)
   pt_refs : GlobRef.t list; (** Entry points during uninterpretation *)
   pt_in_match : bool (** Is this prim token legal in match patterns ? *)
 }
@@ -1228,7 +1227,7 @@ type prim_token_infos = {
 (* Table from scope_name to backtrack-able informations about interpreters
    (in particular interpreter unique id). *)
 let prim_token_interp_infos =
-  ref (String.Map.empty : (required_module * prim_token_interp_info) String.Map.t)
+  ref (String.Map.empty : prim_token_interp_info String.Map.t)
 
 (* Table from global_reference to backtrack-able informations about
    prim_token uninterpretation (in particular uninterpreter unique id). *)
@@ -1268,7 +1267,7 @@ let cache_prim_token_interpretation infos =
   let sc = infos.pt_scope in
   check_scope ~tolerant:true sc;
   prim_token_interp_infos :=
-    String.Map.add sc (infos.pt_required,ptii) !prim_token_interp_infos;
+    String.Map.add sc ptii !prim_token_interp_infos;
   let add_uninterp r =
     let l = try GlobRef.Map.find r !prim_token_uninterp_infos with Not_found -> [] in
     prim_token_uninterp_infos :=
@@ -1309,20 +1308,6 @@ let glob_prim_constr_key c = match DAst.get c with
     end
   | GProj ((cst,_), _, _) -> Some (canonical_gr (GlobRef.ConstRef cst))
   | _ -> None
-
-let check_required_module ?loc sc (sp,d) =
-  try let _ = Nametab.global_of_path sp in ()
-  with Not_found as exn ->
-    let _, info = Exninfo.capture exn in
-    match d with
-    | [] ->
-      user_err ?loc ~info
-        (str "Cannot interpret in " ++ str sc ++ str " because " ++ pr_path sp ++
-         str " could not be found in the current environment.")
-    | _ ->
-      user_err ?loc ~info
-        (str "Cannot interpret in " ++ str sc ++ str " without requiring first module " ++
-         str (List.last d) ++ str ".")
 
 (* Look if some notation or number printer in [scope] can be used in
    the scope stack [scopes], and if yes, using delimiters or not *)
@@ -1488,8 +1473,7 @@ let find_prim_token check_allowed ?loc p sc =
     pat
   with Not_found ->
   (* Try for a primitive numerical notation *)
-  let (spdir,info) = String.Map.find sc !prim_token_interp_infos in
-  check_required_module ?loc sc spdir;
+  let info = String.Map.find sc !prim_token_interp_infos in
   let interp = match info with
     | Uid uid -> Hashtbl.find prim_token_interpreters uid
     | NumberNotation o -> InnerPrimToken.RawNumInterp (Numbers.interp o)
@@ -1752,7 +1736,7 @@ let declare_notation (scopt,ntn) pat df ~use coe user_warns =
 let availability_of_prim_token n printer_scope local_scopes =
   let f scope =
     try
-      let uid = snd (String.Map.find scope !prim_token_interp_infos) in
+      let uid = String.Map.find scope !prim_token_interp_infos in
       let open InnerPrimToken in
       match n, uid with
       | Constrexpr.Number _, NumberNotation _ -> true
