@@ -1142,14 +1142,14 @@ let prepare_obligations ~name ?types ~body env sigma =
   let uctx = Evd.ustate sigma in
   body, cty, uctx, evmap, obls
 
-let prepare_parameter ~poly ~udecl ~types sigma =
+let prepare_parameter ~poly ~cumulative ~udecl ~types sigma =
   let env = Global.env () in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
   let sigma = UnivVariances.register_universe_variances_of_type env sigma types in
   let sigma, typ = Evarutil.finalize ~abort_on_undefined_evars:true
       sigma (fun nf -> nf types)
   in
-  let univs = Evd.check_univ_decl ~poly ~kind:UVars.Assumption sigma udecl in
+  let univs = Evd.check_univ_decl ~poly ~cumulative ~kind:UVars.Assumption sigma udecl in
   let pe = {
       parameter_entry_secctx = None;
       parameter_entry_type = typ;

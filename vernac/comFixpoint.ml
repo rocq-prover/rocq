@@ -577,7 +577,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
   | Some pm ->
     (* Program Fixpoint struct *)
     let bodies = List.map Option.get bodies in
-    Evd.check_univ_decl_early ~poly ~with_obls:true sigma udecl (bodies @ fixtypes);
+    Evd.check_univ_decl_early ~poly ~cumulative ~with_obls:true sigma udecl (bodies @ fixtypes);
     let sigma = if poly then sigma else Evd.fix_undefined_variables sigma in
     let uctx = Evd.ustate sigma in
     (match fixwfs, bodies, cinfo, obls with
@@ -600,7 +600,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
       None, None
     with Option.IsNone ->
       (* At least one undefined body *)
-      Evd.check_univ_decl_early ~poly ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
+      Evd.check_univ_decl_early ~poly ~cumulative ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
       let possible_guard = (possible_guard, fixrs) in
       let lemma = Declare.Proof.start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma in
       None, Some lemma

@@ -520,7 +520,7 @@ type should_template =
 let nontemplate_univ_entry ~poly ~cumulative sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
   let UState.{ universes_entry_universes = univ_entry; universes_entry_binders = ubinders } = 
-    Evd.check_univ_decl ~poly sigma ~kind:UVars.Definition udecl in
+    Evd.check_univ_decl ~poly ~cumulative sigma ~kind:UVars.Definition udecl in
   let uentry, global = match univ_entry with
     | UState.Polymorphic_entry (uctx, variances) -> Polymorphic_ind_entry (uctx, variances), Univ.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx

@@ -53,6 +53,7 @@ let do_primitive id udecl prim typopt =
     let typ = EConstr.to_constr evd typ in
     (* TODO check variances *)
     let univ_entry = Evd.check_univ_decl ~poly:(not (UVars.AbstractContext.is_empty auctx))
+      ~cumulative:true (* FIXME *)
       ~kind:UVars.Assumption evd udecl in
     let entry = Declare.primitive_entry ~types:(typ, univ_entry) prim in
     declare ?loc id entry

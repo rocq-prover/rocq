@@ -1179,7 +1179,7 @@ let check_poly_univ_decl ~cumulative ~kind uctx decl =
   let uctx = UContext.make nas (inst, csts) in
   uctx, variances
 
-let check_univ_decl ~poly ?(cumulative=true) ~kind uctx decl =
+let check_univ_decl ~poly ~cumulative ~kind uctx decl =
   let (binders, _) = uctx.names in
   let entry =
     if poly then
