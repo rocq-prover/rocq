@@ -2346,10 +2346,9 @@ let save_admitted ~pm ~proof =
   let Proof.{ entry } = Proof.data iproof in
   let typs = List.map pi3 (Proofview.initial_goals entry) in
   let sigma = Evd.from_ctx proof.initial_euctx in
-  let env = Global.env () in
-  List.iter (check_type_evars_solved env sigma) typs;
+  List.iter (check_type_evars_solved (Global.env ()) sigma) typs;
   let sec_vars = compute_proof_using_for_admitted proof.pinfo proof typs iproof in
-  let sigma = UnivVariances.register_universe_variances_of_proof_statements env sigma typs in
+  let sigma = UnivVariances.register_universe_variances_of_proof_statements (Global.env ()) sigma typs in
   let sigma = Evd.minimize_universes sigma in
   let uctx = Evd.ustate sigma in
   let typs = List.map (fun typ -> (EConstr.to_constr sigma typ, uctx)) typs in
@@ -2649,10 +2648,10 @@ let solve_obligation ?check_final prg num tac =
     let name = Internal.get_name prg in
     Proof_ending.End_obligation {name; num; auto; check_final}
   in
-  let typ = EConstr.of_constr obl.obl_type in
-  let evd = UnivVariances.register_universe_variances_of_type (Global.env ()) evd typ in
+  let etyp = EConstr.of_constr obl.obl_type in
+  let evd = UnivVariances.register_universe_variances_of_type (Global.env ()) evd etyp in
   let cinfo = CInfo.make ?loc:(fallback_loc ~warn:false obl.obl_name None)
-      ~name:obl.obl_name ~typ ()
+      ~name:obl.obl_name ~typ:etyp ()
   in
   let using =
     let using = Internal.get_using prg in

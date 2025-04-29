@@ -69,9 +69,10 @@ let declare_an_instance {CAst.v=n; loc} s args =
 let declare_instance a aeq n s = declare_an_instance n s [a;aeq]
 
 let anew_instance atts binders (name,t) fields =
-  let _id = Classes.new_instance ~poly:atts.polymorphic
+  let _id = Classes.new_instance ~locality:atts.locality
+     ~poly:atts.polymorphic ~cumulative:atts.cumulative
       name binders t (true, CAst.make @@ CRecord (fields))
-      ~locality:atts.locality Hints.empty_hint_info
+      Hints.empty_hint_info
   in
   ()
 

@@ -1185,7 +1185,11 @@ let check_univ_decl ~poly ~cumulative ~kind uctx decl =
     if poly then
       let uctx, variances = check_poly_univ_decl ~cumulative ~kind uctx decl in
       Polymorphic_entry (uctx, Option.map (fun v -> Entries.Check_variances v) variances)
-    else Monomorphic_entry (check_mono_univ_decl uctx decl) in
+    else
+      if not (Option.is_empty decl.univdecl_variances) then
+        CErrors.user_err
+          Pp.(strbrk "Universe variance was specified but this definition will not be cumulative.")
+      else Monomorphic_entry (check_mono_univ_decl uctx decl) in
   { universes_entry_universes = entry;
     universes_entry_binders = binders }
 

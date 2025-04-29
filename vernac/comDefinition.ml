@@ -159,12 +159,13 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
     let inference_hook = if program_mode then Some Declare.Obls.program_inference_hook else None in
     Pretyping.solve_remaining_evars ?hook:inference_hook flags env evd in
   let evd = UnivVariances.register_universe_variances_of_type env evd typ in
-  Pretyping.check_evars_are_solved ~program_mode env evd;
   let evd = Evd.minimize_universes ~partial:udecl.univdecl_extensible_instance evd in
-  let info = Declare.Info.make ?hook ~poly ~cumulative ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
-  let cinfo = Declare.CInfo.make ~name ~typ ~args ~impargs () in
+  Pretyping.check_evars_are_solved ~program_mode env evd;
   let typ = EConstr.to_constr evd typ in
   Evd.check_univ_decl_early ~poly ~cumulative ~with_obls:false evd udecl [typ];
+  let typ = EConstr.of_constr typ in
+let info = Declare.Info.make ?hook ~poly ~cumulative ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
+  let cinfo = Declare.CInfo.make ~name ~typ ~args ~impargs () in
   let evd = if poly then evd else Evd.fix_undefined_variables evd in
   Declare.Proof.start_definition ~info ~cinfo ?using evd
 
