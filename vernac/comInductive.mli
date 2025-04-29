@@ -109,15 +109,6 @@ val maybe_unify_params_in : Environ.env -> Evd.evar_map -> ninds:int -> nparams:
     uniform, ie the length of params (including letins) where the env
     is [uniform params, inductives, params, binders]. *)
 
-val variance_of_entry
-  : cumulative:bool
-  -> UVars.UContext.t
-  -> UVars.variances option -> UVars.variances option
-(** The identity if non-cumulative, and resize if there are more
-    universes than originally specified.
-    If monomorphic, [cumulative] is treated as [false].
-*)
-
 module Internal :
 sig
   val error_differing_params
