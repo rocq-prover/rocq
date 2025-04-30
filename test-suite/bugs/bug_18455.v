@@ -1,10 +1,10 @@
 Set Universe Polymorphism.
 Set Implicit Arguments.
-Cumulative Record prod@{s| -a|} (A : Type@{s|a}) (B : Type@{s|a}) : Type@{s|a} := pair {
+Cumulative Record prod@{s;a} (A : Type@{s|a}) (B : Type@{s|a}) : Type@{s|a} := pair {
   fst : A;
   snd : B
   }.
-Definition flip_prod@{s|a b|} [A : Type@{s|a}] [B : Type@{s|b}] (v : prod A B) : prod B A
+Definition flip_prod@{s;a b} [A : Type@{s|a}] [B : Type@{s|b}] (v : prod A B) : prod B A
   := {| fst := snd v; snd := fst v |}.
 
 Definition and@{|} : Prop -> Prop -> Prop := prod.
