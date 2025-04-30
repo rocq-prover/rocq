@@ -3,6 +3,1127 @@ UNIVERSES:
             v <= w
 FLEXIBLE UNIVERSES:
  
+GRAPH:
+ 0 <= u
+   <= v
+   <= w 0 < True_rect.u0
+          < False_rect.u0
+          < notT.u0
+          < and_rect.u0
+          < Empty_set_rect.u0
+          < ex.u0
+          < unit_rect.u0
+          < bool_rect.u0
+          < ex_ind.u0
+          < reflect_rect.u0
+          < ex_sind.u0
+          < sig.u0
+          < Well_founded.u0
+          < ex2.u0
+          < Acc_rect.u0
+          < sig_rect.u0
+          < well_founded_induction_type.u0
+          < ex2_ind.u0
+          < Well_founded.FixPoint.u0
+          < sig_rect.u1
+          < ex2_sind.u0
+          < sig_ind.u0
+          < sig_sind.u0
+          < sig2.u0
+          < all.u0
+          < Well_founded_2.u0
+          < universal_quantification.u0
+          < sig2_rect.u0
+          < Well_founded_2.u1
+          < eq.u0
+          < eq_true_rect.u0
+          < eq_rect.u0
+          < sig2_rect.u1
+          < eq_rect.u1
+          < sig2_ind.u0
+          < Well_founded_2.u2
+          < eq_true_rect_r.u0
+          < eq_ind.u0
+          < sig2_sind.u0
+          < nat_rect.u0
+          < sigT.u0
+          < option.u0
+          < eq_sind.u0
+          < sigT.u1
+          < option_rect.u0
+          < Decimal.uint_rect.u0
+          < sigT_rect.u0
+          < option_rect.u1
+          < sigT_rect.u1
+          < option_ind.u0
+          < sigT_rect.u2
+          < Logic_lemmas.equality.u0
+          < option_sind.u0
+          < Hexadecimal.uint_rect.u0
+          < Logic_lemmas.equality.u1
+          < option_map.u0
+          < sigT_ind.u0
+          < option_map.u1
+          < sigT_ind.u1
+          < sigT_sind.u0
+          < sigT_sind.u1
+          < Acc_generator.u0
+          < sigT2.u0
+          < sum.u0
+          < sigT2.u1
+          < sum.u1
+          < sigT2.u2
+          < sum_rect.u0
+          < sigT2_rect.u0
+          < sum_rect.u1
+          < sum_rect.u2
+          < sigT2_rect.u1
+          < eq_sind_r.u0
+          < sigT2_rect.u2
+          < sigT2_rect.u3
+          < sum_ind.u0
+          < eq_ind_r.u0
+          < sum_ind.u1
+          < eq_rec_r.u0
+          < sigT2_ind.u0
+          < sum_sind.u0
+          < eq_rect_r.u0
+          < sigT2_ind.u1
+          < sum_sind.u1
+          < eq_rect_r.u1
+          < sigT2_ind.u2
+          < prod.u0
+          < prod.u1
+          < equality_dep.u0
+          < equality_dep.u1
+          < prod_rect.u0
+          < sigT2_sind.u0
+          < sigT2_sind.u1
+          < sigT2_sind.u2
+          < prod_rect.u1
+          < Subset_projections.u0
+          < prod_rect.u2
+          < prod_ind.u0
+          < prod_ind.u1
+          < f_equal_dep2.u0
+          < sig_of_sig2.u0
+          < f_equal_dep2.u1
+          < prod_sind.u0
+          < prod_sind.u1
+          < projections.u0
+          < f_equal_dep2.u2
+          < Subset_projections2.u0
+          < projections.u1
+          < Projections.u0
+          < f_equal_dep2.u3
+          < Projections.u1
+          < sigT_of_sigT2.u0
+          < rew_opp_r.u0
+          < sigT_of_sigT2.u1
+          < rew_opp_r.u1
+          < sigT_of_sigT2.u2
+          < nat_rect_succ_r.u0
+          < rew_opp_l.u0
+          < rew_opp_l.u1
+          < nat_rect_plus.u0
+          < Projections2.u0
+          < Projections2.u1
+          < surjective_pairing.u0
+          < Projections2.u2
+          < surjective_pairing.u1
+          < f_equal2.u0
+          < f_equal2.u1
+          < f_equal2.u2
+          < injective_projections.u0
+          < injective_projections.u1
+          < f_equal3.u0
+          < f_equal3.u1
+          < f_equal3.u2
+          < f_equal3.u3
+          < sig2_of_sigT2.u0
+          < pair_equal_spec.u0
+          < f_equal4.u0
+          < pair_equal_spec.u1
+          < f_equal4.u1
+          < f_equal4.u2
+          < f_equal4.u3
+          < sigT2_of_sig2.u0
+          < f_equal4.u4
+          < f_equal5.u0
+          < f_equal5.u1
+          < f_equal5.u2
+          < f_equal5.u3
+          < f_equal5.u4
+          < ex_of_sigT.u0
+          < f_equal5.u5
+          < ex2_of_sig2.u0
+          < ex2_of_sigT2.u0
+          < f_equal_compose.u0
+          < f_equal_compose.u1
+          < f_equal_compose.u2
+          < sigT_eta.u0
+          < sigT_eta.u1
+          < curry.u0
+          < eq_trans_refl_l.u0
+          < curry.u1
+          < curry.u2
+          < sig_eta.u0
+          < uncurry.u0
+          < eq_trans_refl_r.u0
+          < uncurry.u1
+          < uncurry.u2
+          < eq_sym_involutive.u0
+          < rew_pair.u0
+          < rew_pair.u1
+          < sigT2_eta.u0
+          < rew_pair.u2
+          < sigT2_eta.u1
+          < eq_trans_sym_inv_l.u0
+          < sigT2_eta.u2
+          < eq_trans_sym_inv_r.u0
+          < list.u0
+          < eq_trans_assoc.u0
+          < sig2_eta.u0
+          < list_rect.u0
+          < list_rect.u1
+          < list_ind.u0
+          < list_sind.u0
+          < length.u0
+          < rew_map.u0
+          < rew_map.u1
+          < app.u0
+          < rew_map.u2
+          < exists_to_inhabited_sig.u0
+          < comparison_rect.u0
+          < eq_trans_map.u0
+          < inhabited_sig_to_exists.u0
+          < eq_trans_map.u1
+          < ProdSigT.u0
+          < ProdSigT.u1
+          < map_subst.u0
+          < map_subst.u1
+          < map_subst.u2
+          < projT1_eq.u0
+          < projT1_eq.u1
+          < map_subst_map.u0
+          < map_subst_map.u1
+          < map_subst_map.u2
+          < map_subst_map.u3
+          < projT2_eq.u0
+          < projT2_eq.u1
+          < CompareSpecT_rect.u0
+          < rew_swap.u0
+          < rew_swap.u1
+          < eq_existT_uncurried.u0
+          < CompSpec.u0
+          < eq_existT_uncurried.u1
+          < CompSpecT.u0
+          < CompSpec2Type.u0
+          < rew_compose.u0
+          < rew_compose.u1
+          < ID.u0
+          < eq_sigT_uncurried.u0
+          < eq_sigT_uncurried.u1
+          < eq_id_comm_l.u0
+          < eq_existT_curried.u0
+          < eq_existT_curried.u1
+          < Byte.byte_rect.u0
+          < eq_id_comm_r.u0
+          < eq_refl_map_distr.u0
+          < eq_refl_map_distr.u1
+          < eq_existT_curried_map.u0
+          < eq_existT_curried_map.u1
+          < eq_existT_curried_map.u2
+          < eq_existT_curried_map.u3
+          < eq_trans_map_distr.u0
+          < eq_trans_map_distr.u1
+          < eq_existT_curried_trans.u0
+          < eq_sym_map_distr.u0
+          < eq_existT_curried_trans.u1
+          < eq_sym_map_distr.u1
+          < eq_trans_sym_distr.u0
+          < eq_existT_curried_congr.u0
+          < eq_trans_rew_distr.u0
+          < eq_trans_rew_distr.u1
+          < eq_existT_curried_congr.u1
+          < rew_const.u0
+          < rew_const.u1
+          < subrelation.u0
+          < subrelation.u1
+          < eq_sigT.u0
+          < eq_sigT.u1
+          < unique.u0
+          < uniqueness.u0
+          < unique_existence.u0
+          < eq_existT_l.u0
+          < eq_existT_l.u1
+          < forall_exists_unique_domain_coincide.u0
+          < forall_exists_coincide_unique_domain.u0
+          < eq_existT_r.u0
+          < eq_existT_r.u1
+          < inhabited.u0
+          < inhabited_ind.u0
+          < inhabited_sind.u0
+          < exists_inhabited.u0
+          < eq_sigT_hprop.u0
+          < eq_sigT_hprop.u1
+          < inhabited_covariant.u0
+          < inhabited_covariant.u1
+          < eq_stepl.u0
+          < eq_sigT_uncurried_iff.u0
+          < eq_sigT_uncurried_iff.u1
+          < eq_sigT_rect.u0
+          < eq_sigT_rect.u1
+          < eq_sigT_rect.u2
+          < eq_ex_intro_uncurried.u0
+          < eq_ex_intro.u0
+          < eq_sigT_rect_existT_l.u0
+          < eq_sigT_rect_existT_l.u1
+          < eq_sigT_rect_existT_r.u0
+          < eq_sigT_rect_existT_r.u1
+          < eq_sigT_rect_existT.u0
+          < eq_sigT_rect_existT.u1
+          < eq_sigT_rect_uncurried.u0
+          < eq_sigT_rect_uncurried.u1
+          < eq_sigT_hprop_iff.u0
+          < eq_sigT_hprop_iff.u1
+          < eq_sigT_nondep.u0
+          < eq_sigT_nondep.u1
+          < rew_sigT.u0
+          < rew_sigT.u1
+          < eq_ex_intro_hprop.u0
+          < proj1_sig_eq.u0
+          < proj2_sig_eq.u0
+          < rew_ex.u0
+          < eq_exist_uncurried.u0
+          < eq_sig_uncurried.u0
+          < eq_exist_curried.u0
+          < eq_sig.u0
+          < eq_exist_l.u0
+          < eq_exist_r.u0
+          < eq_ex_intro2_uncurried.u0
+          < eq_sig_rect.u0
+          < eq_sig_rect.u1
+          < eq_ex_intro2.u0
+          < eq_sig_rect_exist_l.u0
+          < eq_sig_rect_exist_r.u0
+          < eq_sig_rect_exist.u0
+          < eq_ex_intro2_hprop_nondep.u0
+          < eq_sig_rect_uncurried.u0
+          < eq_ex_intro2_hprop.u0
+          < eq_sig_hprop.u0
+          < eq_sig_uncurried_iff.u0
+          < eq_sig_hprop_iff.u0
+          < rew_sig.u0
+          < rew_sig.u1
+          < sigT_of_sigT2_eq.u0
+          < sigT_of_sigT2_eq.u1
+          < sigT_of_sigT2_eq.u2
+          < projT1_of_sigT2_eq.u0
+          < projT1_of_sigT2_eq.u1
+          < projT1_of_sigT2_eq.u2
+          < projT2_of_sigT2_eq.u0
+          < projT2_of_sigT2_eq.u1
+          < projT2_of_sigT2_eq.u2
+          < projT3_eq.u0
+          < projT3_eq.u1
+          < projT3_eq.u2
+          < eq_existT2_uncurried.u0
+          < eq_existT2_uncurried.u1
+          < eq_existT2_uncurried.u2
+          < rew_ex2.u0
+          < eq_sigT2_uncurried.u0
+          < eq_sigT2_uncurried.u1
+          < eq_sigT2_uncurried.u2
+          < eq_existT2_curried.u0
+          < eq_existT2_curried.u1
+          < eq_existT2_curried.u2
+          < eq_sigT2.u0
+          < eq_sigT2.u1
+          < eq_sigT2.u2
+          < eq_existT2_l.u0
+          < eq_existT2_l.u1
+          < eq_existT2_l.u2
+          < eq_existT2_r.u0
+          < eq_existT2_r.u1
+          < eq_existT2_r.u2
+          < eq_sigT2_hprop.u0
+          < eq_sigT2_hprop.u1
+          < eq_sigT2_hprop.u2
+          < eq_sigT2_uncurried_iff.u0
+          < eq_sigT2_uncurried_iff.u1
+          < eq_sigT2_uncurried_iff.u2
+          < eq_sigT2_rect.u0
+          < eq_sigT2_rect.u1
+          < eq_sigT2_rect.u2
+          < eq_sigT2_rect.u3
+          < eq_sigT2_rect_existT2_l.u0
+          < eq_sigT2_rect_existT2_l.u1
+          < eq_sigT2_rect_existT2_l.u2
+          < eq_sigT2_rect_existT2_r.u0
+          < eq_sigT2_rect_existT2_r.u1
+          < eq_sigT2_rect_existT2_r.u2
+          < eq_sigT2_rect_existT2.u0
+          < eq_sigT2_rect_existT2.u1
+          < eq_sigT2_rect_existT2.u2
+          < eq_sigT2_rect_uncurried.u0
+          < eq_sigT2_rect_uncurried.u1
+          < eq_sigT2_rect_uncurried.u2
+          < eq_sigT2_hprop_iff.u0
+          < eq_sigT2_hprop_iff.u1
+          < eq_sigT2_hprop_iff.u2
+          < eq_sigT2_nondep.u0
+          < eq_sigT2_nondep.u1
+          < eq_sigT2_nondep.u2
+          < rew_sigT2.u0
+          < rew_sigT2.u1
+          < sig_of_sig2_eq.u0
+          < proj1_sig_of_sig2_eq.u0
+          < proj2_sig_of_sig2_eq.u0
+          < proj3_sig_eq.u0
+          < eq_exist2_uncurried.u0
+          < eq_sig2_uncurried.u0
+          < eq_exist2_curried.u0
+          < eq_sig2.u0
+          < eq_exist2_l.u0
+          < eq_exist2_r.u0
+          < eq_sig2_hprop.u0
+          < eq_sig2_uncurried_iff.u0
+          < eq_sig2_rect.u0
+          < eq_sig2_rect.u1
+          < eq_sig2_rect_exist2_l.u0
+          < eq_sig2_rect_exist2_r.u0
+          < eq_sig2_rect_exist2.u0
+          < eq_sig2_rect_uncurried.u0
+          < eq_sig2_hprop_iff.u0
+          < eq_sig2_nondep.u0
+          < rew_sig2.u0
+          < rew_sig2.u1
+          < sumbool_rect.u0
+          < sumor.u0
+          < sumor_rect.u0
+          < sumor_rect.u1
+          < sumor_ind.u0
+          < sumor_sind.u0
+          < Dependent_choice_lemmas.u0
+          < Exc.u0
+ well_founded_induction_type.u0 <= Acc_rect.u0
+ Well_founded.FixPoint.u0 <= eq_ind.u0
+ u <= v
+ Well_founded_2.u0 <= Well_founded.u0
+ universal_quantification.u0 <= all.u0
+ v <= w
+ Well_founded_2.u1 <= Well_founded.u0
+ Acc_generator.u0 <= Well_founded.u0
+ eq_sind_r.u0 <= eq_sind.u0
+              <= Logic_lemmas.equality.u0
+ eq_ind_r.u0 <= eq_ind.u0
+             <= Logic_lemmas.equality.u0
+ eq_rec_r.u0 <= eq_rect.u1
+             <= Logic_lemmas.equality.u0
+ eq_rect_r.u0 <= eq_rect.u1
+              <= Logic_lemmas.equality.u0
+ eq_rect_r.u1 <= eq_rect.u0
+ equality_dep.u0 <= eq_rect.u1
+ equality_dep.u1 <= eq_rect.u0
+ f_equal_dep2.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+ f_equal_dep2.u1 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u1
+ f_equal_dep2.u2 <= eq_rect.u0
+ Subset_projections2.u0 <= Subset_projections.u0
+                        <= sig_of_sig2.u0
+ f_equal_dep2.u3 <= eq_rect.u0
+ rew_opp_r.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+ rew_opp_r.u1 <= eq_rect.u0
+              <= eq_rect_r.u1
+ nat_rect_succ_r.u0 <= eq_ind.u0
+                    <= nat_rect.u0
+ rew_opp_l.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+ rew_opp_l.u1 <= eq_rect_r.u1
+ nat_rect_plus.u0 <= nat_rect.u0
+                  <= eq_ind_r.u0
+ Projections2.u0 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+ Projections2.u1 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+ surjective_pairing.u0 <= projections.u0
+ Projections2.u2 <= sigT_of_sigT2.u2
+ surjective_pairing.u1 <= projections.u1
+ injective_projections.u0 <= eq_ind_r.u0
+                          <= projections.u0
+ injective_projections.u1 <= eq_ind_r.u0
+                          <= projections.u1
+ sig2_of_sigT2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+ pair_equal_spec.u0 <= eq_ind.u0
+                    <= eq_ind_r.u0
+                    <= projections.u0
+ pair_equal_spec.u1 <= eq_ind.u0
+                    <= eq_ind_r.u0
+                    <= projections.u1
+ sigT2_of_sig2.u0 <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+ ex_of_sigT.u0 <= Subset_projections.u0
+               <= Projections.u0
+ ex2_of_sig2.u0 <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+ ex2_of_sigT2.u0 <= sig2_of_sigT2.u0
+                 <= ex2_of_sig2.u0
+ f_equal_compose.u0 <= Logic_lemmas.equality.u0
+ f_equal_compose.u1 <= Logic_lemmas.equality.u0
+                    <= Logic_lemmas.equality.u1
+ f_equal_compose.u2 <= Logic_lemmas.equality.u1
+ sigT_eta.u0 <= Projections.u0
+ sigT_eta.u1 <= Projections.u1
+ eq_trans_refl_l.u0 <= Logic_lemmas.equality.u0
+ sig_eta.u0 <= Subset_projections.u0
+ eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
+ eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
+ rew_pair.u0 <= eq_rect.u1
+ rew_pair.u1 <= eq_rect.u0
+ sigT2_eta.u0 <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+ rew_pair.u2 <= eq_rect.u0
+ sigT2_eta.u1 <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+ eq_trans_sym_inv_l.u0 <= Logic_lemmas.equality.u0
+ sigT2_eta.u2 <= sigT_of_sigT2.u2
+              <= Projections2.u2
+ eq_trans_sym_inv_r.u0 <= Logic_lemmas.equality.u0
+ eq_trans_assoc.u0 <= Logic_lemmas.equality.u0
+ sig2_eta.u0 <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+ rew_map.u0 <= eq_rect.u1
+            <= Logic_lemmas.equality.u1
+ rew_map.u1 <= eq_rect.u0
+ rew_map.u2 <= eq_rect.u1
+            <= Logic_lemmas.equality.u0
+ eq_trans_map.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+ eq_trans_map.u1 <= eq_rect.u0
+                 <= Logic_lemmas.equality.u0
+ ProdSigT.u0 <= projections.u0
+             <= Projections.u0
+ ProdSigT.u1 <= projections.u1
+             <= Projections.u1
+ map_subst.u0 <= eq_rect.u1
+ map_subst.u1 <= eq_rect.u0
+ map_subst.u2 <= eq_rect.u0
+ projT1_eq.u0 <= Logic_lemmas.equality.u0
+              <= Logic_lemmas.equality.u1
+              <= Projections.u0
+ projT1_eq.u1 <= Logic_lemmas.equality.u0
+              <= Projections.u1
+ map_subst_map.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+ map_subst_map.u1 <= eq_rect.u0
+ map_subst_map.u2 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u1
+ map_subst_map.u3 <= eq_rect.u0
+ projT2_eq.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= projT1_eq.u0
+ projT2_eq.u1 <= eq_rect.u0
+              <= Projections.u1
+              <= projT1_eq.u1
+ rew_swap.u0 <= eq_rect.u1
+             <= eq_rect_r.u0
+ rew_swap.u1 <= eq_rect.u0
+             <= eq_rect_r.u1
+ eq_existT_uncurried.u0 <= eq_rect.u1
+ eq_existT_uncurried.u1 <= eq_rect.u0
+ CompSpec2Type.u0 <= CompSpec.u0
+                  <= CompSpecT.u0
+ rew_compose.u0 <= eq_rect.u1
+                <= Logic_lemmas.equality.u0
+ rew_compose.u1 <= eq_rect.u0
+ eq_sigT_uncurried.u0 <= eq_rect.u1
+                      <= Projections.u0
+                      <= eq_existT_uncurried.u0
+ eq_sigT_uncurried.u1 <= eq_rect.u0
+                      <= Projections.u1
+                      <= eq_existT_uncurried.u1
+ eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= eq_trans_sym_inv_l.u0
+ eq_existT_curried.u0 <= eq_rect.u1
+                      <= eq_sigT_uncurried.u0
+ eq_existT_curried.u1 <= eq_rect.u0
+                      <= eq_sigT_uncurried.u1
+ eq_id_comm_r.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= eq_trans_refl_l.u0
+                 <= eq_trans_sym_inv_l.u0
+                 <= eq_id_comm_l.u0
+ eq_refl_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_refl_map_distr.u1 <= Logic_lemmas.equality.u1
+ eq_existT_curried_map.u0 <= eq_rect.u1
+                          <= Logic_lemmas.equality.u0
+                          <= f_equal_dep2.u0
+                          <= Projections.u0
+                          <= eq_existT_curried.u0
+ eq_existT_curried_map.u1 <= Logic_lemmas.equality.u1
+                          <= f_equal_dep2.u1
+                          <= eq_existT_curried.u0
+ eq_existT_curried_map.u2 <= eq_rect.u0
+                          <= Logic_lemmas.equality.u0
+                          <= f_equal_dep2.u2
+                          <= Projections.u1
+                          <= eq_existT_curried.u1
+ eq_existT_curried_map.u3 <= Logic_lemmas.equality.u1
+                          <= f_equal_dep2.u3
+                          <= eq_existT_curried.u1
+ eq_trans_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_trans_map_distr.u1 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+ eq_existT_curried_trans.u0 <= eq_rect.u1
+                            <= Logic_lemmas.equality.u0
+                            <= eq_trans_map.u0
+                            <= eq_existT_curried.u0
+ eq_sym_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_existT_curried_trans.u1 <= eq_rect.u0
+                            <= Logic_lemmas.equality.u0
+                            <= eq_trans_map.u1
+                            <= eq_existT_curried.u1
+ eq_sym_map_distr.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+ eq_trans_sym_distr.u0 <= Logic_lemmas.equality.u0
+ eq_existT_curried_congr.u0 <= eq_rect.u1
+                            <= eq_existT_curried.u0
+ eq_trans_rew_distr.u0 <= eq_rect.u1
+                       <= Logic_lemmas.equality.u0
+ eq_trans_rew_distr.u1 <= eq_rect.u0
+ eq_existT_curried_congr.u1 <= eq_rect.u0
+                            <= eq_existT_curried.u1
+ rew_const.u0 <= eq_rect.u1
+ rew_const.u1 <= eq_rect.u0
+ eq_sigT.u0 <= eq_rect.u1
+            <= Projections.u0
+            <= eq_sigT_uncurried.u0
+ eq_sigT.u1 <= eq_rect.u0
+            <= Projections.u1
+            <= eq_sigT_uncurried.u1
+ unique_existence.u0 <= Logic_lemmas.equality.u0
+                     <= unique.u0
+                     <= uniqueness.u0
+ eq_existT_l.u0 <= eq_rect.u1
+                <= Projections.u0
+                <= eq_sigT.u0
+ eq_existT_l.u1 <= eq_rect.u0
+                <= Projections.u1
+                <= eq_sigT.u1
+ forall_exists_unique_domain_coincide.u0 <= Logic_lemmas.equality.u0
+                                         <= unique.u0
+ forall_exists_coincide_unique_domain.u0 <= unique.u0
+ eq_existT_r.u0 <= eq_rect.u1
+                <= Projections.u0
+                <= eq_sigT.u0
+ eq_existT_r.u1 <= eq_rect.u0
+                <= Projections.u1
+                <= eq_sigT.u1
+ eq_sigT_hprop.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= eq_sigT.u0
+ eq_sigT_hprop.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= eq_sigT.u1
+ eq_stepl.u0 <= eq_ind.u0
+ eq_sigT_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Projections.u0
+                          <= eq_sigT_uncurried.u0
+ eq_sigT_uncurried_iff.u1 <= eq_rect.u0
+                          <= eq_ind_r.u0
+                          <= Projections.u1
+                          <= eq_sigT_uncurried.u1
+ eq_sigT_rect.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= projT1_eq.u0
+                 <= projT2_eq.u0
+                 <= eq_sigT.u0
+ eq_sigT_rect.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= projT1_eq.u1
+                 <= projT2_eq.u1
+                 <= eq_sigT.u1
+ eq_ex_intro_uncurried.u0 <= eq_rect.u1
+ eq_ex_intro.u0 <= eq_rect.u1
+                <= eq_ex_intro_uncurried.u0
+ eq_sigT_rect_existT_l.u0 <= eq_rect.u1
+                          <= Projections.u0
+                          <= eq_existT_l.u0
+                          <= eq_sigT_rect.u0
+ eq_sigT_rect_existT_l.u1 <= eq_rect.u0
+                          <= Projections.u1
+                          <= eq_existT_l.u1
+                          <= eq_sigT_rect.u1
+ eq_sigT_rect_existT_r.u0 <= eq_rect.u1
+                          <= Projections.u0
+                          <= eq_existT_r.u0
+                          <= eq_sigT_rect.u0
+ eq_sigT_rect_existT_r.u1 <= eq_rect.u0
+                          <= Projections.u1
+                          <= eq_existT_r.u1
+                          <= eq_sigT_rect.u1
+ eq_sigT_rect_existT.u0 <= eq_rect.u1
+                        <= eq_existT_curried.u0
+                        <= eq_sigT_rect.u0
+ eq_sigT_rect_existT.u1 <= eq_rect.u0
+                        <= eq_existT_curried.u1
+                        <= eq_sigT_rect.u1
+ eq_sigT_rect_uncurried.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_sigT.u0
+                           <= eq_sigT_rect.u0
+ eq_sigT_rect_uncurried.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_sigT.u1
+                           <= eq_sigT_rect.u1
+ eq_sigT_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= Projections.u0
+                      <= eq_sigT_hprop.u0
+ eq_sigT_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                      <= Projections.u1
+                      <= eq_sigT_hprop.u1
+ eq_sigT_nondep.u0 <= Projections.u0
+                   <= rew_const.u0
+                   <= eq_sigT.u0
+ eq_sigT_nondep.u1 <= eq_rect.u0
+                   <= Logic_lemmas.equality.u0
+                   <= Projections.u1
+                   <= rew_const.u1
+                   <= eq_sigT.u1
+ rew_sigT.u0 <= eq_rect.u1
+ rew_sigT.u1 <= eq_rect.u0
+             <= Projections.u0
+ eq_ex_intro_hprop.u0 <= eq_rect.u1
+                      <= eq_ex_intro.u0
+ proj1_sig_eq.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= Subset_projections.u0
+ proj2_sig_eq.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= proj1_sig_eq.u0
+ rew_ex.u0 <= eq_rect.u1
+ eq_exist_uncurried.u0 <= eq_rect.u1
+ eq_sig_uncurried.u0 <= eq_rect.u1
+                     <= Subset_projections.u0
+                     <= eq_exist_uncurried.u0
+ eq_exist_curried.u0 <= eq_rect.u1
+                     <= eq_sig_uncurried.u0
+ eq_sig.u0 <= eq_rect.u1
+           <= Subset_projections.u0
+           <= eq_sig_uncurried.u0
+ eq_exist_l.u0 <= eq_rect.u1
+               <= Subset_projections.u0
+               <= eq_sig.u0
+ eq_exist_r.u0 <= eq_rect.u1
+               <= Subset_projections.u0
+               <= eq_sig.u0
+ eq_ex_intro2_uncurried.u0 <= eq_rect.u1
+ eq_sig_rect.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= proj1_sig_eq.u0
+                <= proj2_sig_eq.u0
+                <= eq_sig.u0
+ eq_ex_intro2.u0 <= eq_rect.u1
+                 <= eq_ex_intro2_uncurried.u0
+ eq_sig_rect_exist_l.u0 <= eq_rect.u1
+                        <= Subset_projections.u0
+                        <= eq_exist_l.u0
+                        <= eq_sig_rect.u0
+ eq_sig_rect_exist_r.u0 <= eq_rect.u1
+                        <= Subset_projections.u0
+                        <= eq_exist_r.u0
+                        <= eq_sig_rect.u0
+ eq_sig_rect_exist.u0 <= eq_rect.u1
+                      <= eq_exist_curried.u0
+                      <= eq_sig_rect.u0
+ eq_sig_rect_uncurried.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= eq_sig.u0
+                          <= eq_sig_rect.u0
+ eq_ex_intro2_hprop.u0 <= eq_rect.u1
+                       <= eq_ex_intro2.u0
+ eq_sig_hprop.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= eq_sig.u0
+ eq_sig_uncurried_iff.u0 <= eq_rect.u1
+                         <= eq_ind_r.u0
+                         <= Subset_projections.u0
+                         <= eq_sig_uncurried.u0
+ eq_sig_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= Subset_projections.u0
+                     <= eq_sig_hprop.u0
+ rew_sig.u0 <= eq_rect.u1
+ rew_sig.u1 <= eq_rect.u0
+            <= Subset_projections.u0
+ sigT_of_sigT2_eq.u0 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= sigT_of_sigT2.u0
+ sigT_of_sigT2_eq.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= sigT_of_sigT2.u1
+ sigT_of_sigT2_eq.u2 <= Logic_lemmas.equality.u0
+                     <= sigT_of_sigT2.u2
+ projT1_of_sigT2_eq.u0 <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= projT1_eq.u0
+                       <= sigT_of_sigT2_eq.u0
+ projT1_of_sigT2_eq.u1 <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= projT1_eq.u1
+                       <= sigT_of_sigT2_eq.u1
+ projT1_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                       <= sigT_of_sigT2_eq.u2
+ projT2_of_sigT2_eq.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= projT1_of_sigT2_eq.u0
+ projT2_of_sigT2_eq.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= projT1_of_sigT2_eq.u1
+ projT2_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                       <= projT1_of_sigT2_eq.u2
+ projT3_eq.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+              <= projT1_of_sigT2_eq.u0
+ projT3_eq.u1 <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+              <= projT1_of_sigT2_eq.u1
+ projT3_eq.u2 <= eq_rect.u0
+              <= sigT_of_sigT2.u2
+              <= Projections2.u2
+              <= projT1_of_sigT2_eq.u2
+ eq_existT2_uncurried.u0 <= eq_rect.u1
+ eq_existT2_uncurried.u1 <= eq_rect.u0
+ eq_existT2_uncurried.u2 <= eq_rect.u0
+ rew_ex2.u0 <= eq_rect.u1
+ eq_sigT2_uncurried.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= Projections2.u0
+                       <= eq_existT2_uncurried.u0
+ eq_sigT2_uncurried.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= Projections2.u1
+                       <= eq_existT2_uncurried.u1
+ eq_sigT2_uncurried.u2 <= eq_rect.u0
+                       <= sigT_of_sigT2.u2
+                       <= Projections2.u2
+                       <= eq_existT2_uncurried.u2
+ eq_existT2_curried.u0 <= eq_rect.u1
+                       <= eq_sigT2_uncurried.u0
+ eq_existT2_curried.u1 <= eq_rect.u0
+                       <= eq_sigT2_uncurried.u1
+ eq_existT2_curried.u2 <= eq_rect.u0
+                       <= eq_sigT2_uncurried.u2
+ eq_sigT2.u0 <= eq_rect.u1
+             <= Projections.u0
+             <= sigT_of_sigT2.u0
+             <= Projections2.u0
+             <= eq_sigT2_uncurried.u0
+ eq_sigT2.u1 <= eq_rect.u0
+             <= Projections.u1
+             <= sigT_of_sigT2.u1
+             <= Projections2.u1
+             <= eq_sigT2_uncurried.u1
+ eq_sigT2.u2 <= eq_rect.u0
+             <= sigT_of_sigT2.u2
+             <= Projections2.u2
+             <= eq_sigT2_uncurried.u2
+ eq_existT2_l.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+                 <= Projections2.u0
+                 <= eq_sigT2.u0
+ eq_existT2_l.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+                 <= Projections2.u1
+                 <= eq_sigT2.u1
+ eq_existT2_l.u2 <= eq_rect.u0
+                 <= sigT_of_sigT2.u2
+                 <= Projections2.u2
+                 <= eq_sigT2.u2
+ eq_existT2_r.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+                 <= Projections2.u0
+                 <= eq_sigT2.u0
+ eq_existT2_r.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+                 <= Projections2.u1
+                 <= eq_sigT2.u1
+ eq_existT2_r.u2 <= eq_rect.u0
+                 <= sigT_of_sigT2.u2
+                 <= Projections2.u2
+                 <= eq_sigT2.u2
+ eq_sigT2_hprop.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+                   <= projT1_eq.u0
+                   <= projT2_eq.u0
+                   <= eq_sigT2.u0
+ eq_sigT2_hprop.u1 <= eq_rect.u0
+                   <= sigT_of_sigT2.u2
+                   <= Projections2.u2
+                   <= eq_sigT2.u2
+ eq_sigT2_hprop.u2 <= Projections.u1
+                   <= sigT_of_sigT2.u1
+                   <= Projections2.u1
+                   <= projT1_eq.u1
+                   <= projT2_eq.u1
+                   <= eq_sigT2.u1
+ eq_sigT2_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Projections.u0
+                           <= sigT_of_sigT2.u0
+                           <= Projections2.u0
+                           <= eq_sigT2_uncurried.u0
+ eq_sigT2_uncurried_iff.u1 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= Projections.u1
+                           <= sigT_of_sigT2.u1
+                           <= Projections2.u1
+                           <= eq_sigT2_uncurried.u1
+ eq_sigT2_uncurried_iff.u2 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= sigT_of_sigT2.u2
+                           <= Projections2.u2
+                           <= eq_sigT2_uncurried.u2
+ eq_sigT2_rect.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= projT1_of_sigT2_eq.u0
+                  <= projT2_of_sigT2_eq.u0
+                  <= projT3_eq.u0
+                  <= eq_sigT2.u0
+ eq_sigT2_rect.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= projT1_of_sigT2_eq.u1
+                  <= projT2_of_sigT2_eq.u1
+                  <= projT3_eq.u1
+                  <= eq_sigT2.u1
+ eq_sigT2_rect.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= projT1_of_sigT2_eq.u2
+                  <= projT2_of_sigT2_eq.u2
+                  <= projT3_eq.u2
+                  <= eq_sigT2.u2
+ eq_sigT2_rect_existT2_l.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_existT2_l.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2_l.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_existT2_l.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2_l.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_existT2_l.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_rect_existT2_r.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_existT2_r.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2_r.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_existT2_r.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2_r.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_existT2_r.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_rect_existT2.u0 <= eq_rect.u1
+                          <= eq_existT2_curried.u0
+                          <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2.u1 <= eq_rect.u0
+                          <= eq_existT2_curried.u1
+                          <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2.u2 <= eq_rect.u0
+                          <= eq_existT2_curried.u2
+                          <= eq_sigT2_rect.u2
+ eq_sigT2_rect_uncurried.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_sigT2.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_uncurried.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_sigT2.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_uncurried.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_sigT2.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sigT_of_sigT2.u0
+                       <= eq_sigT2_hprop.u0
+ eq_sigT2_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                       <= sigT_of_sigT2.u2
+                       <= eq_sigT2_hprop.u1
+ eq_sigT2_hprop_iff.u2 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sigT_of_sigT2.u1
+                       <= eq_sigT2_hprop.u2
+ eq_sigT2_nondep.u0 <= Projections.u0
+                    <= sigT_of_sigT2.u0
+                    <= Projections2.u0
+                    <= rew_const.u0
+                    <= eq_sigT2.u0
+ eq_sigT2_nondep.u1 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= Projections.u1
+                    <= sigT_of_sigT2.u1
+                    <= Projections2.u1
+                    <= rew_const.u1
+                    <= eq_sigT2.u1
+ eq_sigT2_nondep.u2 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= sigT_of_sigT2.u2
+                    <= Projections2.u2
+                    <= rew_const.u1
+                    <= eq_sigT2.u2
+ rew_sigT2.u0 <= eq_rect.u1
+ rew_sigT2.u1 <= eq_rect.u0
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+ sig_of_sig2_eq.u0 <= Logic_lemmas.equality.u0
+                   <= Logic_lemmas.equality.u1
+                   <= sig_of_sig2.u0
+ proj1_sig_of_sig2_eq.u0 <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+                         <= proj1_sig_eq.u0
+                         <= sig_of_sig2_eq.u0
+ proj2_sig_of_sig2_eq.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+                         <= proj1_sig_of_sig2_eq.u0
+ proj3_sig_eq.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= proj1_sig_of_sig2_eq.u0
+ eq_exist2_uncurried.u0 <= eq_rect.u1
+ eq_sig2_uncurried.u0 <= eq_rect.u1
+                      <= Subset_projections.u0
+                      <= sig_of_sig2.u0
+                      <= Subset_projections2.u0
+                      <= eq_exist2_uncurried.u0
+ eq_exist2_curried.u0 <= eq_rect.u1
+                      <= eq_sig2_uncurried.u0
+ eq_sig2.u0 <= eq_rect.u1
+            <= Subset_projections.u0
+            <= sig_of_sig2.u0
+            <= Subset_projections2.u0
+            <= eq_sig2_uncurried.u0
+ eq_exist2_l.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+                <= eq_sig2.u0
+ eq_exist2_r.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+                <= eq_sig2.u0
+ eq_sig2_hprop.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_eq.u0
+                  <= proj2_sig_eq.u0
+                  <= eq_sig2.u0
+ eq_sig2_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_sig2_uncurried.u0
+ eq_sig2_rect.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= proj1_sig_of_sig2_eq.u0
+                 <= proj2_sig_of_sig2_eq.u0
+                 <= proj3_sig_eq.u0
+                 <= eq_sig2.u0
+ eq_sig2_rect_exist2_l.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_exist2_l.u0
+                          <= eq_sig2_rect.u0
+ eq_sig2_rect_exist2_r.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_exist2_r.u0
+                          <= eq_sig2_rect.u0
+ eq_sig2_rect_exist2.u0 <= eq_rect.u1
+                        <= eq_exist2_curried.u0
+                        <= eq_sig2_rect.u0
+ eq_sig2_rect_uncurried.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_sig2.u0
+                           <= eq_sig2_rect.u0
+ eq_sig2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sig_of_sig2.u0
+                      <= eq_sig2_hprop.u0
+ eq_sig2_nondep.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+                   <= rew_const.u0
+                   <= eq_sig2.u0
+ rew_sig2.u0 <= eq_rect.u1
+ rew_sig2.u1 <= eq_rect.u0
+             <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+ Dependent_choice_lemmas.u0 <= Subset_projections.u0
+ 
 SORTS:
  
 
@@ -18,6 +1139,1127 @@ Normalized constraints:
   {w v u} |= u <= v
              v <= w
  FLEXIBLE UNIVERSES:
+  
+ GRAPH:
+  0 <= u
+    <= v
+    <= w 0 < True_rect.u0
+           < False_rect.u0
+           < notT.u0
+           < and_rect.u0
+           < Empty_set_rect.u0
+           < ex.u0
+           < unit_rect.u0
+           < bool_rect.u0
+           < ex_ind.u0
+           < reflect_rect.u0
+           < ex_sind.u0
+           < sig.u0
+           < Well_founded.u0
+           < ex2.u0
+           < Acc_rect.u0
+           < sig_rect.u0
+           < well_founded_induction_type.u0
+           < ex2_ind.u0
+           < Well_founded.FixPoint.u0
+           < sig_rect.u1
+           < ex2_sind.u0
+           < sig_ind.u0
+           < sig_sind.u0
+           < sig2.u0
+           < all.u0
+           < Well_founded_2.u0
+           < universal_quantification.u0
+           < sig2_rect.u0
+           < Well_founded_2.u1
+           < eq.u0
+           < eq_true_rect.u0
+           < eq_rect.u0
+           < sig2_rect.u1
+           < eq_rect.u1
+           < sig2_ind.u0
+           < Well_founded_2.u2
+           < eq_true_rect_r.u0
+           < eq_ind.u0
+           < sig2_sind.u0
+           < nat_rect.u0
+           < sigT.u0
+           < option.u0
+           < eq_sind.u0
+           < sigT.u1
+           < option_rect.u0
+           < Decimal.uint_rect.u0
+           < sigT_rect.u0
+           < option_rect.u1
+           < sigT_rect.u1
+           < option_ind.u0
+           < sigT_rect.u2
+           < Logic_lemmas.equality.u0
+           < option_sind.u0
+           < Hexadecimal.uint_rect.u0
+           < Logic_lemmas.equality.u1
+           < option_map.u0
+           < sigT_ind.u0
+           < option_map.u1
+           < sigT_ind.u1
+           < sigT_sind.u0
+           < sigT_sind.u1
+           < Acc_generator.u0
+           < sigT2.u0
+           < sum.u0
+           < sigT2.u1
+           < sum.u1
+           < sigT2.u2
+           < sum_rect.u0
+           < sigT2_rect.u0
+           < sum_rect.u1
+           < sum_rect.u2
+           < sigT2_rect.u1
+           < eq_sind_r.u0
+           < sigT2_rect.u2
+           < sigT2_rect.u3
+           < sum_ind.u0
+           < eq_ind_r.u0
+           < sum_ind.u1
+           < eq_rec_r.u0
+           < sigT2_ind.u0
+           < sum_sind.u0
+           < eq_rect_r.u0
+           < sigT2_ind.u1
+           < sum_sind.u1
+           < eq_rect_r.u1
+           < sigT2_ind.u2
+           < prod.u0
+           < prod.u1
+           < equality_dep.u0
+           < equality_dep.u1
+           < prod_rect.u0
+           < sigT2_sind.u0
+           < sigT2_sind.u1
+           < sigT2_sind.u2
+           < prod_rect.u1
+           < Subset_projections.u0
+           < prod_rect.u2
+           < prod_ind.u0
+           < prod_ind.u1
+           < f_equal_dep2.u0
+           < sig_of_sig2.u0
+           < f_equal_dep2.u1
+           < prod_sind.u0
+           < prod_sind.u1
+           < projections.u0
+           < f_equal_dep2.u2
+           < Subset_projections2.u0
+           < projections.u1
+           < Projections.u0
+           < f_equal_dep2.u3
+           < Projections.u1
+           < sigT_of_sigT2.u0
+           < rew_opp_r.u0
+           < sigT_of_sigT2.u1
+           < rew_opp_r.u1
+           < sigT_of_sigT2.u2
+           < nat_rect_succ_r.u0
+           < rew_opp_l.u0
+           < rew_opp_l.u1
+           < nat_rect_plus.u0
+           < Projections2.u0
+           < Projections2.u1
+           < surjective_pairing.u0
+           < Projections2.u2
+           < surjective_pairing.u1
+           < f_equal2.u0
+           < f_equal2.u1
+           < f_equal2.u2
+           < injective_projections.u0
+           < injective_projections.u1
+           < f_equal3.u0
+           < f_equal3.u1
+           < f_equal3.u2
+           < f_equal3.u3
+           < sig2_of_sigT2.u0
+           < pair_equal_spec.u0
+           < f_equal4.u0
+           < pair_equal_spec.u1
+           < f_equal4.u1
+           < f_equal4.u2
+           < f_equal4.u3
+           < sigT2_of_sig2.u0
+           < f_equal4.u4
+           < f_equal5.u0
+           < f_equal5.u1
+           < f_equal5.u2
+           < f_equal5.u3
+           < f_equal5.u4
+           < ex_of_sigT.u0
+           < f_equal5.u5
+           < ex2_of_sig2.u0
+           < ex2_of_sigT2.u0
+           < f_equal_compose.u0
+           < f_equal_compose.u1
+           < f_equal_compose.u2
+           < sigT_eta.u0
+           < sigT_eta.u1
+           < curry.u0
+           < eq_trans_refl_l.u0
+           < curry.u1
+           < curry.u2
+           < sig_eta.u0
+           < uncurry.u0
+           < eq_trans_refl_r.u0
+           < uncurry.u1
+           < uncurry.u2
+           < eq_sym_involutive.u0
+           < rew_pair.u0
+           < rew_pair.u1
+           < sigT2_eta.u0
+           < rew_pair.u2
+           < sigT2_eta.u1
+           < eq_trans_sym_inv_l.u0
+           < sigT2_eta.u2
+           < eq_trans_sym_inv_r.u0
+           < list.u0
+           < eq_trans_assoc.u0
+           < sig2_eta.u0
+           < list_rect.u0
+           < list_rect.u1
+           < list_ind.u0
+           < list_sind.u0
+           < length.u0
+           < rew_map.u0
+           < rew_map.u1
+           < app.u0
+           < rew_map.u2
+           < exists_to_inhabited_sig.u0
+           < comparison_rect.u0
+           < eq_trans_map.u0
+           < inhabited_sig_to_exists.u0
+           < eq_trans_map.u1
+           < ProdSigT.u0
+           < ProdSigT.u1
+           < map_subst.u0
+           < map_subst.u1
+           < map_subst.u2
+           < projT1_eq.u0
+           < projT1_eq.u1
+           < map_subst_map.u0
+           < map_subst_map.u1
+           < map_subst_map.u2
+           < map_subst_map.u3
+           < projT2_eq.u0
+           < projT2_eq.u1
+           < CompareSpecT_rect.u0
+           < rew_swap.u0
+           < rew_swap.u1
+           < eq_existT_uncurried.u0
+           < CompSpec.u0
+           < eq_existT_uncurried.u1
+           < CompSpecT.u0
+           < CompSpec2Type.u0
+           < rew_compose.u0
+           < rew_compose.u1
+           < ID.u0
+           < eq_sigT_uncurried.u0
+           < eq_sigT_uncurried.u1
+           < eq_id_comm_l.u0
+           < eq_existT_curried.u0
+           < eq_existT_curried.u1
+           < Byte.byte_rect.u0
+           < eq_id_comm_r.u0
+           < eq_refl_map_distr.u0
+           < eq_refl_map_distr.u1
+           < eq_existT_curried_map.u0
+           < eq_existT_curried_map.u1
+           < eq_existT_curried_map.u2
+           < eq_existT_curried_map.u3
+           < eq_trans_map_distr.u0
+           < eq_trans_map_distr.u1
+           < eq_existT_curried_trans.u0
+           < eq_sym_map_distr.u0
+           < eq_existT_curried_trans.u1
+           < eq_sym_map_distr.u1
+           < eq_trans_sym_distr.u0
+           < eq_existT_curried_congr.u0
+           < eq_trans_rew_distr.u0
+           < eq_trans_rew_distr.u1
+           < eq_existT_curried_congr.u1
+           < rew_const.u0
+           < rew_const.u1
+           < subrelation.u0
+           < subrelation.u1
+           < eq_sigT.u0
+           < eq_sigT.u1
+           < unique.u0
+           < uniqueness.u0
+           < unique_existence.u0
+           < eq_existT_l.u0
+           < eq_existT_l.u1
+           < forall_exists_unique_domain_coincide.u0
+           < forall_exists_coincide_unique_domain.u0
+           < eq_existT_r.u0
+           < eq_existT_r.u1
+           < inhabited.u0
+           < inhabited_ind.u0
+           < inhabited_sind.u0
+           < exists_inhabited.u0
+           < eq_sigT_hprop.u0
+           < eq_sigT_hprop.u1
+           < inhabited_covariant.u0
+           < inhabited_covariant.u1
+           < eq_stepl.u0
+           < eq_sigT_uncurried_iff.u0
+           < eq_sigT_uncurried_iff.u1
+           < eq_sigT_rect.u0
+           < eq_sigT_rect.u1
+           < eq_sigT_rect.u2
+           < eq_ex_intro_uncurried.u0
+           < eq_ex_intro.u0
+           < eq_sigT_rect_existT_l.u0
+           < eq_sigT_rect_existT_l.u1
+           < eq_sigT_rect_existT_r.u0
+           < eq_sigT_rect_existT_r.u1
+           < eq_sigT_rect_existT.u0
+           < eq_sigT_rect_existT.u1
+           < eq_sigT_rect_uncurried.u0
+           < eq_sigT_rect_uncurried.u1
+           < eq_sigT_hprop_iff.u0
+           < eq_sigT_hprop_iff.u1
+           < eq_sigT_nondep.u0
+           < eq_sigT_nondep.u1
+           < rew_sigT.u0
+           < rew_sigT.u1
+           < eq_ex_intro_hprop.u0
+           < proj1_sig_eq.u0
+           < proj2_sig_eq.u0
+           < rew_ex.u0
+           < eq_exist_uncurried.u0
+           < eq_sig_uncurried.u0
+           < eq_exist_curried.u0
+           < eq_sig.u0
+           < eq_exist_l.u0
+           < eq_exist_r.u0
+           < eq_ex_intro2_uncurried.u0
+           < eq_sig_rect.u0
+           < eq_sig_rect.u1
+           < eq_ex_intro2.u0
+           < eq_sig_rect_exist_l.u0
+           < eq_sig_rect_exist_r.u0
+           < eq_sig_rect_exist.u0
+           < eq_ex_intro2_hprop_nondep.u0
+           < eq_sig_rect_uncurried.u0
+           < eq_ex_intro2_hprop.u0
+           < eq_sig_hprop.u0
+           < eq_sig_uncurried_iff.u0
+           < eq_sig_hprop_iff.u0
+           < rew_sig.u0
+           < rew_sig.u1
+           < sigT_of_sigT2_eq.u0
+           < sigT_of_sigT2_eq.u1
+           < sigT_of_sigT2_eq.u2
+           < projT1_of_sigT2_eq.u0
+           < projT1_of_sigT2_eq.u1
+           < projT1_of_sigT2_eq.u2
+           < projT2_of_sigT2_eq.u0
+           < projT2_of_sigT2_eq.u1
+           < projT2_of_sigT2_eq.u2
+           < projT3_eq.u0
+           < projT3_eq.u1
+           < projT3_eq.u2
+           < eq_existT2_uncurried.u0
+           < eq_existT2_uncurried.u1
+           < eq_existT2_uncurried.u2
+           < rew_ex2.u0
+           < eq_sigT2_uncurried.u0
+           < eq_sigT2_uncurried.u1
+           < eq_sigT2_uncurried.u2
+           < eq_existT2_curried.u0
+           < eq_existT2_curried.u1
+           < eq_existT2_curried.u2
+           < eq_sigT2.u0
+           < eq_sigT2.u1
+           < eq_sigT2.u2
+           < eq_existT2_l.u0
+           < eq_existT2_l.u1
+           < eq_existT2_l.u2
+           < eq_existT2_r.u0
+           < eq_existT2_r.u1
+           < eq_existT2_r.u2
+           < eq_sigT2_hprop.u0
+           < eq_sigT2_hprop.u1
+           < eq_sigT2_hprop.u2
+           < eq_sigT2_uncurried_iff.u0
+           < eq_sigT2_uncurried_iff.u1
+           < eq_sigT2_uncurried_iff.u2
+           < eq_sigT2_rect.u0
+           < eq_sigT2_rect.u1
+           < eq_sigT2_rect.u2
+           < eq_sigT2_rect.u3
+           < eq_sigT2_rect_existT2_l.u0
+           < eq_sigT2_rect_existT2_l.u1
+           < eq_sigT2_rect_existT2_l.u2
+           < eq_sigT2_rect_existT2_r.u0
+           < eq_sigT2_rect_existT2_r.u1
+           < eq_sigT2_rect_existT2_r.u2
+           < eq_sigT2_rect_existT2.u0
+           < eq_sigT2_rect_existT2.u1
+           < eq_sigT2_rect_existT2.u2
+           < eq_sigT2_rect_uncurried.u0
+           < eq_sigT2_rect_uncurried.u1
+           < eq_sigT2_rect_uncurried.u2
+           < eq_sigT2_hprop_iff.u0
+           < eq_sigT2_hprop_iff.u1
+           < eq_sigT2_hprop_iff.u2
+           < eq_sigT2_nondep.u0
+           < eq_sigT2_nondep.u1
+           < eq_sigT2_nondep.u2
+           < rew_sigT2.u0
+           < rew_sigT2.u1
+           < sig_of_sig2_eq.u0
+           < proj1_sig_of_sig2_eq.u0
+           < proj2_sig_of_sig2_eq.u0
+           < proj3_sig_eq.u0
+           < eq_exist2_uncurried.u0
+           < eq_sig2_uncurried.u0
+           < eq_exist2_curried.u0
+           < eq_sig2.u0
+           < eq_exist2_l.u0
+           < eq_exist2_r.u0
+           < eq_sig2_hprop.u0
+           < eq_sig2_uncurried_iff.u0
+           < eq_sig2_rect.u0
+           < eq_sig2_rect.u1
+           < eq_sig2_rect_exist2_l.u0
+           < eq_sig2_rect_exist2_r.u0
+           < eq_sig2_rect_exist2.u0
+           < eq_sig2_rect_uncurried.u0
+           < eq_sig2_hprop_iff.u0
+           < eq_sig2_nondep.u0
+           < rew_sig2.u0
+           < rew_sig2.u1
+           < sumbool_rect.u0
+           < sumor.u0
+           < sumor_rect.u0
+           < sumor_rect.u1
+           < sumor_ind.u0
+           < sumor_sind.u0
+           < Dependent_choice_lemmas.u0
+           < Exc.u0
+  well_founded_induction_type.u0 <= Acc_rect.u0
+  Well_founded.FixPoint.u0 <= eq_ind.u0
+  u <= v
+  Well_founded_2.u0 <= Well_founded.u0
+  universal_quantification.u0 <= all.u0
+  v <= w
+  Well_founded_2.u1 <= Well_founded.u0
+  Acc_generator.u0 <= Well_founded.u0
+  eq_sind_r.u0 <= eq_sind.u0
+               <= Logic_lemmas.equality.u0
+  eq_ind_r.u0 <= eq_ind.u0
+              <= Logic_lemmas.equality.u0
+  eq_rec_r.u0 <= eq_rect.u1
+              <= Logic_lemmas.equality.u0
+  eq_rect_r.u0 <= eq_rect.u1
+               <= Logic_lemmas.equality.u0
+  eq_rect_r.u1 <= eq_rect.u0
+  equality_dep.u0 <= eq_rect.u1
+  equality_dep.u1 <= eq_rect.u0
+  f_equal_dep2.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+  f_equal_dep2.u1 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u1
+  f_equal_dep2.u2 <= eq_rect.u0
+  Subset_projections2.u0 <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+  f_equal_dep2.u3 <= eq_rect.u0
+  rew_opp_r.u0 <= eq_rect.u1
+               <= eq_rect_r.u0
+  rew_opp_r.u1 <= eq_rect.u0
+               <= eq_rect_r.u1
+  nat_rect_succ_r.u0 <= eq_ind.u0
+                     <= nat_rect.u0
+  rew_opp_l.u0 <= eq_rect.u1
+               <= eq_rect_r.u0
+  rew_opp_l.u1 <= eq_rect_r.u1
+  nat_rect_plus.u0 <= nat_rect.u0
+                   <= eq_ind_r.u0
+  Projections2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+  Projections2.u1 <= Projections.u1
+                  <= sigT_of_sigT2.u1
+  surjective_pairing.u0 <= projections.u0
+  Projections2.u2 <= sigT_of_sigT2.u2
+  surjective_pairing.u1 <= projections.u1
+  injective_projections.u0 <= eq_ind_r.u0
+                           <= projections.u0
+  injective_projections.u1 <= eq_ind_r.u0
+                           <= projections.u1
+  sig2_of_sigT2.u0 <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+  pair_equal_spec.u0 <= eq_ind.u0
+                     <= eq_ind_r.u0
+                     <= projections.u0
+  pair_equal_spec.u1 <= eq_ind.u0
+                     <= eq_ind_r.u0
+                     <= projections.u1
+  sigT2_of_sig2.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+  ex_of_sigT.u0 <= Subset_projections.u0
+                <= Projections.u0
+  ex2_of_sig2.u0 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+  ex2_of_sigT2.u0 <= sig2_of_sigT2.u0
+                  <= ex2_of_sig2.u0
+  f_equal_compose.u0 <= Logic_lemmas.equality.u0
+  f_equal_compose.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+  f_equal_compose.u2 <= Logic_lemmas.equality.u1
+  sigT_eta.u0 <= Projections.u0
+  sigT_eta.u1 <= Projections.u1
+  eq_trans_refl_l.u0 <= Logic_lemmas.equality.u0
+  sig_eta.u0 <= Subset_projections.u0
+  eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
+  eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
+  rew_pair.u0 <= eq_rect.u1
+  rew_pair.u1 <= eq_rect.u0
+  sigT2_eta.u0 <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+  rew_pair.u2 <= eq_rect.u0
+  sigT2_eta.u1 <= Projections.u1
+               <= sigT_of_sigT2.u1
+               <= Projections2.u1
+  eq_trans_sym_inv_l.u0 <= Logic_lemmas.equality.u0
+  sigT2_eta.u2 <= sigT_of_sigT2.u2
+               <= Projections2.u2
+  eq_trans_sym_inv_r.u0 <= Logic_lemmas.equality.u0
+  eq_trans_assoc.u0 <= Logic_lemmas.equality.u0
+  sig2_eta.u0 <= Subset_projections.u0
+              <= sig_of_sig2.u0
+              <= Subset_projections2.u0
+  rew_map.u0 <= eq_rect.u1
+             <= Logic_lemmas.equality.u1
+  rew_map.u1 <= eq_rect.u0
+  rew_map.u2 <= eq_rect.u1
+             <= Logic_lemmas.equality.u0
+  eq_trans_map.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+  eq_trans_map.u1 <= eq_rect.u0
+                  <= Logic_lemmas.equality.u0
+  ProdSigT.u0 <= projections.u0
+              <= Projections.u0
+  ProdSigT.u1 <= projections.u1
+              <= Projections.u1
+  map_subst.u0 <= eq_rect.u1
+  map_subst.u1 <= eq_rect.u0
+  map_subst.u2 <= eq_rect.u0
+  projT1_eq.u0 <= Logic_lemmas.equality.u0
+               <= Logic_lemmas.equality.u1
+               <= Projections.u0
+  projT1_eq.u1 <= Logic_lemmas.equality.u0
+               <= Projections.u1
+  map_subst_map.u0 <= eq_rect.u1
+                   <= Logic_lemmas.equality.u0
+  map_subst_map.u1 <= eq_rect.u0
+  map_subst_map.u2 <= eq_rect.u1
+                   <= Logic_lemmas.equality.u1
+  map_subst_map.u3 <= eq_rect.u0
+  projT2_eq.u0 <= eq_rect.u1
+               <= Projections.u0
+               <= projT1_eq.u0
+  projT2_eq.u1 <= eq_rect.u0
+               <= Projections.u1
+               <= projT1_eq.u1
+  rew_swap.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+  rew_swap.u1 <= eq_rect.u0
+              <= eq_rect_r.u1
+  eq_existT_uncurried.u0 <= eq_rect.u1
+  eq_existT_uncurried.u1 <= eq_rect.u0
+  CompSpec2Type.u0 <= CompSpec.u0
+                   <= CompSpecT.u0
+  rew_compose.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+  rew_compose.u1 <= eq_rect.u0
+  eq_sigT_uncurried.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= eq_existT_uncurried.u0
+  eq_sigT_uncurried.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= eq_existT_uncurried.u1
+  eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= eq_trans_sym_inv_l.u0
+  eq_existT_curried.u0 <= eq_rect.u1
+                       <= eq_sigT_uncurried.u0
+  eq_existT_curried.u1 <= eq_rect.u0
+                       <= eq_sigT_uncurried.u1
+  eq_id_comm_r.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= eq_trans_refl_l.u0
+                  <= eq_trans_sym_inv_l.u0
+                  <= eq_id_comm_l.u0
+  eq_refl_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_refl_map_distr.u1 <= Logic_lemmas.equality.u1
+  eq_existT_curried_map.u0 <= eq_rect.u1
+                           <= Logic_lemmas.equality.u0
+                           <= f_equal_dep2.u0
+                           <= Projections.u0
+                           <= eq_existT_curried.u0
+  eq_existT_curried_map.u1 <= Logic_lemmas.equality.u1
+                           <= f_equal_dep2.u1
+                           <= eq_existT_curried.u0
+  eq_existT_curried_map.u2 <= eq_rect.u0
+                           <= Logic_lemmas.equality.u0
+                           <= f_equal_dep2.u2
+                           <= Projections.u1
+                           <= eq_existT_curried.u1
+  eq_existT_curried_map.u3 <= Logic_lemmas.equality.u1
+                           <= f_equal_dep2.u3
+                           <= eq_existT_curried.u1
+  eq_trans_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_trans_map_distr.u1 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+  eq_existT_curried_trans.u0 <= eq_rect.u1
+                             <= Logic_lemmas.equality.u0
+                             <= eq_trans_map.u0
+                             <= eq_existT_curried.u0
+  eq_sym_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_existT_curried_trans.u1 <= eq_rect.u0
+                             <= Logic_lemmas.equality.u0
+                             <= eq_trans_map.u1
+                             <= eq_existT_curried.u1
+  eq_sym_map_distr.u1 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+  eq_trans_sym_distr.u0 <= Logic_lemmas.equality.u0
+  eq_existT_curried_congr.u0 <= eq_rect.u1
+                             <= eq_existT_curried.u0
+  eq_trans_rew_distr.u0 <= eq_rect.u1
+                        <= Logic_lemmas.equality.u0
+  eq_trans_rew_distr.u1 <= eq_rect.u0
+  eq_existT_curried_congr.u1 <= eq_rect.u0
+                             <= eq_existT_curried.u1
+  rew_const.u0 <= eq_rect.u1
+  rew_const.u1 <= eq_rect.u0
+  eq_sigT.u0 <= eq_rect.u1
+             <= Projections.u0
+             <= eq_sigT_uncurried.u0
+  eq_sigT.u1 <= eq_rect.u0
+             <= Projections.u1
+             <= eq_sigT_uncurried.u1
+  unique_existence.u0 <= Logic_lemmas.equality.u0
+                      <= unique.u0
+                      <= uniqueness.u0
+  eq_existT_l.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= eq_sigT.u0
+  eq_existT_l.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= eq_sigT.u1
+  forall_exists_unique_domain_coincide.u0 <= Logic_lemmas.equality.u0
+                                          <= unique.u0
+  forall_exists_coincide_unique_domain.u0 <= unique.u0
+  eq_existT_r.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= eq_sigT.u0
+  eq_existT_r.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= eq_sigT.u1
+  eq_sigT_hprop.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= eq_sigT.u0
+  eq_sigT_hprop.u1 <= eq_rect.u0
+                   <= Projections.u1
+                   <= eq_sigT.u1
+  eq_stepl.u0 <= eq_ind.u0
+  eq_sigT_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Projections.u0
+                           <= eq_sigT_uncurried.u0
+  eq_sigT_uncurried_iff.u1 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= Projections.u1
+                           <= eq_sigT_uncurried.u1
+  eq_sigT_rect.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= projT1_eq.u0
+                  <= projT2_eq.u0
+                  <= eq_sigT.u0
+  eq_sigT_rect.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= projT1_eq.u1
+                  <= projT2_eq.u1
+                  <= eq_sigT.u1
+  eq_ex_intro_uncurried.u0 <= eq_rect.u1
+  eq_ex_intro.u0 <= eq_rect.u1
+                 <= eq_ex_intro_uncurried.u0
+  eq_sigT_rect_existT_l.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_existT_l.u0
+                           <= eq_sigT_rect.u0
+  eq_sigT_rect_existT_l.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_existT_l.u1
+                           <= eq_sigT_rect.u1
+  eq_sigT_rect_existT_r.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_existT_r.u0
+                           <= eq_sigT_rect.u0
+  eq_sigT_rect_existT_r.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_existT_r.u1
+                           <= eq_sigT_rect.u1
+  eq_sigT_rect_existT.u0 <= eq_rect.u1
+                         <= eq_existT_curried.u0
+                         <= eq_sigT_rect.u0
+  eq_sigT_rect_existT.u1 <= eq_rect.u0
+                         <= eq_existT_curried.u1
+                         <= eq_sigT_rect.u1
+  eq_sigT_rect_uncurried.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= eq_sigT.u0
+                            <= eq_sigT_rect.u0
+  eq_sigT_rect_uncurried.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= eq_sigT.u1
+                            <= eq_sigT_rect.u1
+  eq_sigT_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= Projections.u0
+                       <= eq_sigT_hprop.u0
+  eq_sigT_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                       <= Projections.u1
+                       <= eq_sigT_hprop.u1
+  eq_sigT_nondep.u0 <= Projections.u0
+                    <= rew_const.u0
+                    <= eq_sigT.u0
+  eq_sigT_nondep.u1 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= Projections.u1
+                    <= rew_const.u1
+                    <= eq_sigT.u1
+  rew_sigT.u0 <= eq_rect.u1
+  rew_sigT.u1 <= eq_rect.u0
+              <= Projections.u0
+  eq_ex_intro_hprop.u0 <= eq_rect.u1
+                       <= eq_ex_intro.u0
+  proj1_sig_eq.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= Subset_projections.u0
+  proj2_sig_eq.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= proj1_sig_eq.u0
+  rew_ex.u0 <= eq_rect.u1
+  eq_exist_uncurried.u0 <= eq_rect.u1
+  eq_sig_uncurried.u0 <= eq_rect.u1
+                      <= Subset_projections.u0
+                      <= eq_exist_uncurried.u0
+  eq_exist_curried.u0 <= eq_rect.u1
+                      <= eq_sig_uncurried.u0
+  eq_sig.u0 <= eq_rect.u1
+            <= Subset_projections.u0
+            <= eq_sig_uncurried.u0
+  eq_exist_l.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= eq_sig.u0
+  eq_exist_r.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= eq_sig.u0
+  eq_ex_intro2_uncurried.u0 <= eq_rect.u1
+  eq_sig_rect.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= proj1_sig_eq.u0
+                 <= proj2_sig_eq.u0
+                 <= eq_sig.u0
+  eq_ex_intro2.u0 <= eq_rect.u1
+                  <= eq_ex_intro2_uncurried.u0
+  eq_sig_rect_exist_l.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= eq_exist_l.u0
+                         <= eq_sig_rect.u0
+  eq_sig_rect_exist_r.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= eq_exist_r.u0
+                         <= eq_sig_rect.u0
+  eq_sig_rect_exist.u0 <= eq_rect.u1
+                       <= eq_exist_curried.u0
+                       <= eq_sig_rect.u0
+  eq_sig_rect_uncurried.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= eq_sig.u0
+                           <= eq_sig_rect.u0
+  eq_ex_intro2_hprop.u0 <= eq_rect.u1
+                        <= eq_ex_intro2.u0
+  eq_sig_hprop.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= eq_sig.u0
+  eq_sig_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Subset_projections.u0
+                          <= eq_sig_uncurried.u0
+  eq_sig_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= Subset_projections.u0
+                      <= eq_sig_hprop.u0
+  rew_sig.u0 <= eq_rect.u1
+  rew_sig.u1 <= eq_rect.u0
+             <= Subset_projections.u0
+  sigT_of_sigT2_eq.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sigT_of_sigT2.u0
+  sigT_of_sigT2_eq.u1 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sigT_of_sigT2.u1
+  sigT_of_sigT2_eq.u2 <= Logic_lemmas.equality.u0
+                      <= sigT_of_sigT2.u2
+  projT1_of_sigT2_eq.u0 <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= projT1_eq.u0
+                        <= sigT_of_sigT2_eq.u0
+  projT1_of_sigT2_eq.u1 <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= projT1_eq.u1
+                        <= sigT_of_sigT2_eq.u1
+  projT1_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                        <= sigT_of_sigT2_eq.u2
+  projT2_of_sigT2_eq.u0 <= eq_rect.u1
+                        <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= projT1_of_sigT2_eq.u0
+  projT2_of_sigT2_eq.u1 <= eq_rect.u0
+                        <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= projT1_of_sigT2_eq.u1
+  projT2_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                        <= projT1_of_sigT2_eq.u2
+  projT3_eq.u0 <= eq_rect.u1
+               <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+               <= projT1_of_sigT2_eq.u0
+  projT3_eq.u1 <= Projections.u1
+               <= sigT_of_sigT2.u1
+               <= Projections2.u1
+               <= projT1_of_sigT2_eq.u1
+  projT3_eq.u2 <= eq_rect.u0
+               <= sigT_of_sigT2.u2
+               <= Projections2.u2
+               <= projT1_of_sigT2_eq.u2
+  eq_existT2_uncurried.u0 <= eq_rect.u1
+  eq_existT2_uncurried.u1 <= eq_rect.u0
+  eq_existT2_uncurried.u2 <= eq_rect.u0
+  rew_ex2.u0 <= eq_rect.u1
+  eq_sigT2_uncurried.u0 <= eq_rect.u1
+                        <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= Projections2.u0
+                        <= eq_existT2_uncurried.u0
+  eq_sigT2_uncurried.u1 <= eq_rect.u0
+                        <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= Projections2.u1
+                        <= eq_existT2_uncurried.u1
+  eq_sigT2_uncurried.u2 <= eq_rect.u0
+                        <= sigT_of_sigT2.u2
+                        <= Projections2.u2
+                        <= eq_existT2_uncurried.u2
+  eq_existT2_curried.u0 <= eq_rect.u1
+                        <= eq_sigT2_uncurried.u0
+  eq_existT2_curried.u1 <= eq_rect.u0
+                        <= eq_sigT2_uncurried.u1
+  eq_existT2_curried.u2 <= eq_rect.u0
+                        <= eq_sigT2_uncurried.u2
+  eq_sigT2.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+              <= eq_sigT2_uncurried.u0
+  eq_sigT2.u1 <= eq_rect.u0
+              <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+              <= eq_sigT2_uncurried.u1
+  eq_sigT2.u2 <= eq_rect.u0
+              <= sigT_of_sigT2.u2
+              <= Projections2.u2
+              <= eq_sigT2_uncurried.u2
+  eq_existT2_l.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= eq_sigT2.u0
+  eq_existT2_l.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= eq_sigT2.u1
+  eq_existT2_l.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= eq_sigT2.u2
+  eq_existT2_r.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= eq_sigT2.u0
+  eq_existT2_r.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= eq_sigT2.u1
+  eq_existT2_r.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= eq_sigT2.u2
+  eq_sigT2_hprop.u0 <= eq_rect.u1
+                    <= Projections.u0
+                    <= sigT_of_sigT2.u0
+                    <= Projections2.u0
+                    <= projT1_eq.u0
+                    <= projT2_eq.u0
+                    <= eq_sigT2.u0
+  eq_sigT2_hprop.u1 <= eq_rect.u0
+                    <= sigT_of_sigT2.u2
+                    <= Projections2.u2
+                    <= eq_sigT2.u2
+  eq_sigT2_hprop.u2 <= Projections.u1
+                    <= sigT_of_sigT2.u1
+                    <= Projections2.u1
+                    <= projT1_eq.u1
+                    <= projT2_eq.u1
+                    <= eq_sigT2.u1
+  eq_sigT2_uncurried_iff.u0 <= eq_rect.u1
+                            <= eq_ind_r.u0
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_sigT2_uncurried.u0
+  eq_sigT2_uncurried_iff.u1 <= eq_rect.u0
+                            <= eq_ind_r.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_sigT2_uncurried.u1
+  eq_sigT2_uncurried_iff.u2 <= eq_rect.u0
+                            <= eq_ind_r.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_sigT2_uncurried.u2
+  eq_sigT2_rect.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+                   <= projT1_of_sigT2_eq.u0
+                   <= projT2_of_sigT2_eq.u0
+                   <= projT3_eq.u0
+                   <= eq_sigT2.u0
+  eq_sigT2_rect.u1 <= eq_rect.u0
+                   <= Projections.u1
+                   <= sigT_of_sigT2.u1
+                   <= Projections2.u1
+                   <= projT1_of_sigT2_eq.u1
+                   <= projT2_of_sigT2_eq.u1
+                   <= projT3_eq.u1
+                   <= eq_sigT2.u1
+  eq_sigT2_rect.u2 <= eq_rect.u0
+                   <= sigT_of_sigT2.u2
+                   <= Projections2.u2
+                   <= projT1_of_sigT2_eq.u2
+                   <= projT2_of_sigT2_eq.u2
+                   <= projT3_eq.u2
+                   <= eq_sigT2.u2
+  eq_sigT2_rect_existT2_l.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_existT2_l.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2_l.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_existT2_l.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2_l.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_existT2_l.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_rect_existT2_r.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_existT2_r.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2_r.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_existT2_r.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2_r.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_existT2_r.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_rect_existT2.u0 <= eq_rect.u1
+                           <= eq_existT2_curried.u0
+                           <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2.u1 <= eq_rect.u0
+                           <= eq_existT2_curried.u1
+                           <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2.u2 <= eq_rect.u0
+                           <= eq_existT2_curried.u2
+                           <= eq_sigT2_rect.u2
+  eq_sigT2_rect_uncurried.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_sigT2.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_uncurried.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_sigT2.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_uncurried.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_sigT2.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+                        <= sigT_of_sigT2.u0
+                        <= eq_sigT2_hprop.u0
+  eq_sigT2_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                        <= sigT_of_sigT2.u2
+                        <= eq_sigT2_hprop.u1
+  eq_sigT2_hprop_iff.u2 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+                        <= sigT_of_sigT2.u1
+                        <= eq_sigT2_hprop.u2
+  eq_sigT2_nondep.u0 <= Projections.u0
+                     <= sigT_of_sigT2.u0
+                     <= Projections2.u0
+                     <= rew_const.u0
+                     <= eq_sigT2.u0
+  eq_sigT2_nondep.u1 <= eq_rect.u0
+                     <= Logic_lemmas.equality.u0
+                     <= Projections.u1
+                     <= sigT_of_sigT2.u1
+                     <= Projections2.u1
+                     <= rew_const.u1
+                     <= eq_sigT2.u1
+  eq_sigT2_nondep.u2 <= eq_rect.u0
+                     <= Logic_lemmas.equality.u0
+                     <= sigT_of_sigT2.u2
+                     <= Projections2.u2
+                     <= rew_const.u1
+                     <= eq_sigT2.u2
+  rew_sigT2.u0 <= eq_rect.u1
+  rew_sigT2.u1 <= eq_rect.u0
+               <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+  sig_of_sig2_eq.u0 <= Logic_lemmas.equality.u0
+                    <= Logic_lemmas.equality.u1
+                    <= sig_of_sig2.u0
+  proj1_sig_of_sig2_eq.u0 <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= proj1_sig_eq.u0
+                          <= sig_of_sig2_eq.u0
+  proj2_sig_of_sig2_eq.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= proj1_sig_of_sig2_eq.u0
+  proj3_sig_eq.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_of_sig2_eq.u0
+  eq_exist2_uncurried.u0 <= eq_rect.u1
+  eq_sig2_uncurried.u0 <= eq_rect.u1
+                       <= Subset_projections.u0
+                       <= sig_of_sig2.u0
+                       <= Subset_projections2.u0
+                       <= eq_exist2_uncurried.u0
+  eq_exist2_curried.u0 <= eq_rect.u1
+                       <= eq_sig2_uncurried.u0
+  eq_sig2.u0 <= eq_rect.u1
+             <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+             <= eq_sig2_uncurried.u0
+  eq_exist2_l.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= eq_sig2.u0
+  eq_exist2_r.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= eq_sig2.u0
+  eq_sig2_hprop.u0 <= eq_rect.u1
+                   <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+                   <= proj1_sig_eq.u0
+                   <= proj2_sig_eq.u0
+                   <= eq_sig2.u0
+  eq_sig2_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_sig2_uncurried.u0
+  eq_sig2_rect.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_of_sig2_eq.u0
+                  <= proj2_sig_of_sig2_eq.u0
+                  <= proj3_sig_eq.u0
+                  <= eq_sig2.u0
+  eq_sig2_rect_exist2_l.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_exist2_l.u0
+                           <= eq_sig2_rect.u0
+  eq_sig2_rect_exist2_r.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_exist2_r.u0
+                           <= eq_sig2_rect.u0
+  eq_sig2_rect_exist2.u0 <= eq_rect.u1
+                         <= eq_exist2_curried.u0
+                         <= eq_sig2_rect.u0
+  eq_sig2_rect_uncurried.u0 <= eq_rect.u1
+                            <= Subset_projections.u0
+                            <= sig_of_sig2.u0
+                            <= Subset_projections2.u0
+                            <= eq_sig2.u0
+                            <= eq_sig2_rect.u0
+  eq_sig2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sig_of_sig2.u0
+                       <= eq_sig2_hprop.u0
+  eq_sig2_nondep.u0 <= Subset_projections.u0
+                    <= sig_of_sig2.u0
+                    <= Subset_projections2.u0
+                    <= rew_const.u0
+                    <= eq_sig2.u0
+  rew_sig2.u0 <= eq_rect.u1
+  rew_sig2.u1 <= eq_rect.u0
+              <= Subset_projections.u0
+              <= sig_of_sig2.u0
+              <= Subset_projections2.u0
+  Dependent_choice_lemmas.u0 <= Subset_projections.u0
   
  SORTS:
   
@@ -41,6 +2283,1131 @@ FLEXIBLE UNIVERSES:
  ShowUnivs.26
  ShowUnivs.25
  ShowUnivs.24
+GRAPH:
+ 0 <= ShowUnivs.24
+   <= ShowUnivs.25
+   <= ShowUnivs.26
+   <= ShowUnivs.27
+   <= ShowUnivs.28 0 < True_rect.u0
+                     < False_rect.u0
+                     < notT.u0
+                     < and_rect.u0
+                     < Empty_set_rect.u0
+                     < ex.u0
+                     < unit_rect.u0
+                     < bool_rect.u0
+                     < ex_ind.u0
+                     < reflect_rect.u0
+                     < ex_sind.u0
+                     < sig.u0
+                     < Well_founded.u0
+                     < ex2.u0
+                     < Acc_rect.u0
+                     < sig_rect.u0
+                     < well_founded_induction_type.u0
+                     < ex2_ind.u0
+                     < Well_founded.FixPoint.u0
+                     < sig_rect.u1
+                     < ex2_sind.u0
+                     < sig_ind.u0
+                     < sig_sind.u0
+                     < sig2.u0
+                     < all.u0
+                     < Well_founded_2.u0
+                     < universal_quantification.u0
+                     < sig2_rect.u0
+                     < Well_founded_2.u1
+                     < eq.u0
+                     < eq_true_rect.u0
+                     < eq_rect.u0
+                     < sig2_rect.u1
+                     < eq_rect.u1
+                     < sig2_ind.u0
+                     < Well_founded_2.u2
+                     < eq_true_rect_r.u0
+                     < eq_ind.u0
+                     < sig2_sind.u0
+                     < nat_rect.u0
+                     < sigT.u0
+                     < option.u0
+                     < eq_sind.u0
+                     < sigT.u1
+                     < option_rect.u0
+                     < Decimal.uint_rect.u0
+                     < sigT_rect.u0
+                     < option_rect.u1
+                     < sigT_rect.u1
+                     < option_ind.u0
+                     < sigT_rect.u2
+                     < Logic_lemmas.equality.u0
+                     < option_sind.u0
+                     < Hexadecimal.uint_rect.u0
+                     < Logic_lemmas.equality.u1
+                     < option_map.u0
+                     < sigT_ind.u0
+                     < option_map.u1
+                     < sigT_ind.u1
+                     < sigT_sind.u0
+                     < sigT_sind.u1
+                     < Acc_generator.u0
+                     < sigT2.u0
+                     < sum.u0
+                     < sigT2.u1
+                     < sum.u1
+                     < sigT2.u2
+                     < sum_rect.u0
+                     < sigT2_rect.u0
+                     < sum_rect.u1
+                     < sum_rect.u2
+                     < sigT2_rect.u1
+                     < eq_sind_r.u0
+                     < sigT2_rect.u2
+                     < sigT2_rect.u3
+                     < sum_ind.u0
+                     < eq_ind_r.u0
+                     < sum_ind.u1
+                     < eq_rec_r.u0
+                     < sigT2_ind.u0
+                     < sum_sind.u0
+                     < eq_rect_r.u0
+                     < sigT2_ind.u1
+                     < sum_sind.u1
+                     < eq_rect_r.u1
+                     < sigT2_ind.u2
+                     < prod.u0
+                     < prod.u1
+                     < equality_dep.u0
+                     < equality_dep.u1
+                     < prod_rect.u0
+                     < sigT2_sind.u0
+                     < sigT2_sind.u1
+                     < sigT2_sind.u2
+                     < prod_rect.u1
+                     < Subset_projections.u0
+                     < prod_rect.u2
+                     < prod_ind.u0
+                     < prod_ind.u1
+                     < f_equal_dep2.u0
+                     < sig_of_sig2.u0
+                     < f_equal_dep2.u1
+                     < prod_sind.u0
+                     < prod_sind.u1
+                     < projections.u0
+                     < f_equal_dep2.u2
+                     < Subset_projections2.u0
+                     < projections.u1
+                     < Projections.u0
+                     < f_equal_dep2.u3
+                     < Projections.u1
+                     < sigT_of_sigT2.u0
+                     < rew_opp_r.u0
+                     < sigT_of_sigT2.u1
+                     < rew_opp_r.u1
+                     < sigT_of_sigT2.u2
+                     < nat_rect_succ_r.u0
+                     < rew_opp_l.u0
+                     < rew_opp_l.u1
+                     < nat_rect_plus.u0
+                     < Projections2.u0
+                     < Projections2.u1
+                     < surjective_pairing.u0
+                     < Projections2.u2
+                     < surjective_pairing.u1
+                     < f_equal2.u0
+                     < f_equal2.u1
+                     < f_equal2.u2
+                     < injective_projections.u0
+                     < injective_projections.u1
+                     < f_equal3.u0
+                     < f_equal3.u1
+                     < f_equal3.u2
+                     < f_equal3.u3
+                     < sig2_of_sigT2.u0
+                     < pair_equal_spec.u0
+                     < f_equal4.u0
+                     < pair_equal_spec.u1
+                     < f_equal4.u1
+                     < f_equal4.u2
+                     < f_equal4.u3
+                     < sigT2_of_sig2.u0
+                     < f_equal4.u4
+                     < f_equal5.u0
+                     < f_equal5.u1
+                     < f_equal5.u2
+                     < f_equal5.u3
+                     < f_equal5.u4
+                     < ex_of_sigT.u0
+                     < f_equal5.u5
+                     < ex2_of_sig2.u0
+                     < ex2_of_sigT2.u0
+                     < f_equal_compose.u0
+                     < f_equal_compose.u1
+                     < f_equal_compose.u2
+                     < sigT_eta.u0
+                     < sigT_eta.u1
+                     < curry.u0
+                     < eq_trans_refl_l.u0
+                     < curry.u1
+                     < curry.u2
+                     < sig_eta.u0
+                     < uncurry.u0
+                     < eq_trans_refl_r.u0
+                     < uncurry.u1
+                     < uncurry.u2
+                     < eq_sym_involutive.u0
+                     < rew_pair.u0
+                     < rew_pair.u1
+                     < sigT2_eta.u0
+                     < rew_pair.u2
+                     < sigT2_eta.u1
+                     < eq_trans_sym_inv_l.u0
+                     < sigT2_eta.u2
+                     < eq_trans_sym_inv_r.u0
+                     < list.u0
+                     < eq_trans_assoc.u0
+                     < sig2_eta.u0
+                     < list_rect.u0
+                     < list_rect.u1
+                     < list_ind.u0
+                     < list_sind.u0
+                     < length.u0
+                     < rew_map.u0
+                     < rew_map.u1
+                     < app.u0
+                     < rew_map.u2
+                     < exists_to_inhabited_sig.u0
+                     < comparison_rect.u0
+                     < eq_trans_map.u0
+                     < inhabited_sig_to_exists.u0
+                     < eq_trans_map.u1
+                     < ProdSigT.u0
+                     < ProdSigT.u1
+                     < map_subst.u0
+                     < map_subst.u1
+                     < map_subst.u2
+                     < projT1_eq.u0
+                     < projT1_eq.u1
+                     < map_subst_map.u0
+                     < map_subst_map.u1
+                     < map_subst_map.u2
+                     < map_subst_map.u3
+                     < projT2_eq.u0
+                     < projT2_eq.u1
+                     < CompareSpecT_rect.u0
+                     < rew_swap.u0
+                     < rew_swap.u1
+                     < eq_existT_uncurried.u0
+                     < CompSpec.u0
+                     < eq_existT_uncurried.u1
+                     < CompSpecT.u0
+                     < CompSpec2Type.u0
+                     < rew_compose.u0
+                     < rew_compose.u1
+                     < ID.u0
+                     < eq_sigT_uncurried.u0
+                     < eq_sigT_uncurried.u1
+                     < eq_id_comm_l.u0
+                     < eq_existT_curried.u0
+                     < eq_existT_curried.u1
+                     < Byte.byte_rect.u0
+                     < eq_id_comm_r.u0
+                     < eq_refl_map_distr.u0
+                     < eq_refl_map_distr.u1
+                     < eq_existT_curried_map.u0
+                     < eq_existT_curried_map.u1
+                     < eq_existT_curried_map.u2
+                     < eq_existT_curried_map.u3
+                     < eq_trans_map_distr.u0
+                     < eq_trans_map_distr.u1
+                     < eq_existT_curried_trans.u0
+                     < eq_sym_map_distr.u0
+                     < eq_existT_curried_trans.u1
+                     < eq_sym_map_distr.u1
+                     < eq_trans_sym_distr.u0
+                     < eq_existT_curried_congr.u0
+                     < eq_trans_rew_distr.u0
+                     < eq_trans_rew_distr.u1
+                     < eq_existT_curried_congr.u1
+                     < rew_const.u0
+                     < rew_const.u1
+                     < subrelation.u0
+                     < subrelation.u1
+                     < eq_sigT.u0
+                     < eq_sigT.u1
+                     < unique.u0
+                     < uniqueness.u0
+                     < unique_existence.u0
+                     < eq_existT_l.u0
+                     < eq_existT_l.u1
+                     < forall_exists_unique_domain_coincide.u0
+                     < forall_exists_coincide_unique_domain.u0
+                     < eq_existT_r.u0
+                     < eq_existT_r.u1
+                     < inhabited.u0
+                     < inhabited_ind.u0
+                     < inhabited_sind.u0
+                     < exists_inhabited.u0
+                     < eq_sigT_hprop.u0
+                     < eq_sigT_hprop.u1
+                     < inhabited_covariant.u0
+                     < inhabited_covariant.u1
+                     < eq_stepl.u0
+                     < eq_sigT_uncurried_iff.u0
+                     < eq_sigT_uncurried_iff.u1
+                     < eq_sigT_rect.u0
+                     < eq_sigT_rect.u1
+                     < eq_sigT_rect.u2
+                     < eq_ex_intro_uncurried.u0
+                     < eq_ex_intro.u0
+                     < eq_sigT_rect_existT_l.u0
+                     < eq_sigT_rect_existT_l.u1
+                     < eq_sigT_rect_existT_r.u0
+                     < eq_sigT_rect_existT_r.u1
+                     < eq_sigT_rect_existT.u0
+                     < eq_sigT_rect_existT.u1
+                     < eq_sigT_rect_uncurried.u0
+                     < eq_sigT_rect_uncurried.u1
+                     < eq_sigT_hprop_iff.u0
+                     < eq_sigT_hprop_iff.u1
+                     < eq_sigT_nondep.u0
+                     < eq_sigT_nondep.u1
+                     < rew_sigT.u0
+                     < rew_sigT.u1
+                     < eq_ex_intro_hprop.u0
+                     < proj1_sig_eq.u0
+                     < proj2_sig_eq.u0
+                     < rew_ex.u0
+                     < eq_exist_uncurried.u0
+                     < eq_sig_uncurried.u0
+                     < eq_exist_curried.u0
+                     < eq_sig.u0
+                     < eq_exist_l.u0
+                     < eq_exist_r.u0
+                     < eq_ex_intro2_uncurried.u0
+                     < eq_sig_rect.u0
+                     < eq_sig_rect.u1
+                     < eq_ex_intro2.u0
+                     < eq_sig_rect_exist_l.u0
+                     < eq_sig_rect_exist_r.u0
+                     < eq_sig_rect_exist.u0
+                     < eq_ex_intro2_hprop_nondep.u0
+                     < eq_sig_rect_uncurried.u0
+                     < eq_ex_intro2_hprop.u0
+                     < eq_sig_hprop.u0
+                     < eq_sig_uncurried_iff.u0
+                     < eq_sig_hprop_iff.u0
+                     < rew_sig.u0
+                     < rew_sig.u1
+                     < sigT_of_sigT2_eq.u0
+                     < sigT_of_sigT2_eq.u1
+                     < sigT_of_sigT2_eq.u2
+                     < projT1_of_sigT2_eq.u0
+                     < projT1_of_sigT2_eq.u1
+                     < projT1_of_sigT2_eq.u2
+                     < projT2_of_sigT2_eq.u0
+                     < projT2_of_sigT2_eq.u1
+                     < projT2_of_sigT2_eq.u2
+                     < projT3_eq.u0
+                     < projT3_eq.u1
+                     < projT3_eq.u2
+                     < eq_existT2_uncurried.u0
+                     < eq_existT2_uncurried.u1
+                     < eq_existT2_uncurried.u2
+                     < rew_ex2.u0
+                     < eq_sigT2_uncurried.u0
+                     < eq_sigT2_uncurried.u1
+                     < eq_sigT2_uncurried.u2
+                     < eq_existT2_curried.u0
+                     < eq_existT2_curried.u1
+                     < eq_existT2_curried.u2
+                     < eq_sigT2.u0
+                     < eq_sigT2.u1
+                     < eq_sigT2.u2
+                     < eq_existT2_l.u0
+                     < eq_existT2_l.u1
+                     < eq_existT2_l.u2
+                     < eq_existT2_r.u0
+                     < eq_existT2_r.u1
+                     < eq_existT2_r.u2
+                     < eq_sigT2_hprop.u0
+                     < eq_sigT2_hprop.u1
+                     < eq_sigT2_hprop.u2
+                     < eq_sigT2_uncurried_iff.u0
+                     < eq_sigT2_uncurried_iff.u1
+                     < eq_sigT2_uncurried_iff.u2
+                     < eq_sigT2_rect.u0
+                     < eq_sigT2_rect.u1
+                     < eq_sigT2_rect.u2
+                     < eq_sigT2_rect.u3
+                     < eq_sigT2_rect_existT2_l.u0
+                     < eq_sigT2_rect_existT2_l.u1
+                     < eq_sigT2_rect_existT2_l.u2
+                     < eq_sigT2_rect_existT2_r.u0
+                     < eq_sigT2_rect_existT2_r.u1
+                     < eq_sigT2_rect_existT2_r.u2
+                     < eq_sigT2_rect_existT2.u0
+                     < eq_sigT2_rect_existT2.u1
+                     < eq_sigT2_rect_existT2.u2
+                     < eq_sigT2_rect_uncurried.u0
+                     < eq_sigT2_rect_uncurried.u1
+                     < eq_sigT2_rect_uncurried.u2
+                     < eq_sigT2_hprop_iff.u0
+                     < eq_sigT2_hprop_iff.u1
+                     < eq_sigT2_hprop_iff.u2
+                     < eq_sigT2_nondep.u0
+                     < eq_sigT2_nondep.u1
+                     < eq_sigT2_nondep.u2
+                     < rew_sigT2.u0
+                     < rew_sigT2.u1
+                     < sig_of_sig2_eq.u0
+                     < proj1_sig_of_sig2_eq.u0
+                     < proj2_sig_of_sig2_eq.u0
+                     < proj3_sig_eq.u0
+                     < eq_exist2_uncurried.u0
+                     < eq_sig2_uncurried.u0
+                     < eq_exist2_curried.u0
+                     < eq_sig2.u0
+                     < eq_exist2_l.u0
+                     < eq_exist2_r.u0
+                     < eq_sig2_hprop.u0
+                     < eq_sig2_uncurried_iff.u0
+                     < eq_sig2_rect.u0
+                     < eq_sig2_rect.u1
+                     < eq_sig2_rect_exist2_l.u0
+                     < eq_sig2_rect_exist2_r.u0
+                     < eq_sig2_rect_exist2.u0
+                     < eq_sig2_rect_uncurried.u0
+                     < eq_sig2_hprop_iff.u0
+                     < eq_sig2_nondep.u0
+                     < rew_sig2.u0
+                     < rew_sig2.u1
+                     < sumbool_rect.u0
+                     < sumor.u0
+                     < sumor_rect.u0
+                     < sumor_rect.u1
+                     < sumor_ind.u0
+                     < sumor_sind.u0
+                     < Dependent_choice_lemmas.u0
+                     < Exc.u0
+ well_founded_induction_type.u0 <= Acc_rect.u0
+ Well_founded.FixPoint.u0 <= eq_ind.u0
+ Well_founded_2.u0 <= Well_founded.u0
+ universal_quantification.u0 <= all.u0
+ Well_founded_2.u1 <= Well_founded.u0
+ ShowUnivs.25 < ShowUnivs.28
+ ShowUnivs.26 <= ShowUnivs.24
+ ShowUnivs.27 <= ShowUnivs.24
+ ShowUnivs.28 <= ShowUnivs.27 ShowUnivs.28 < ShowUnivs.26
+ Acc_generator.u0 <= Well_founded.u0
+ eq_sind_r.u0 <= eq_sind.u0
+              <= Logic_lemmas.equality.u0
+ eq_ind_r.u0 <= eq_ind.u0
+             <= Logic_lemmas.equality.u0
+ eq_rec_r.u0 <= eq_rect.u1
+             <= Logic_lemmas.equality.u0
+ eq_rect_r.u0 <= eq_rect.u1
+              <= Logic_lemmas.equality.u0
+ eq_rect_r.u1 <= eq_rect.u0
+ equality_dep.u0 <= eq_rect.u1
+ equality_dep.u1 <= eq_rect.u0
+ f_equal_dep2.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+ f_equal_dep2.u1 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u1
+ f_equal_dep2.u2 <= eq_rect.u0
+ Subset_projections2.u0 <= Subset_projections.u0
+                        <= sig_of_sig2.u0
+ f_equal_dep2.u3 <= eq_rect.u0
+ rew_opp_r.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+ rew_opp_r.u1 <= eq_rect.u0
+              <= eq_rect_r.u1
+ nat_rect_succ_r.u0 <= eq_ind.u0
+                    <= nat_rect.u0
+ rew_opp_l.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+ rew_opp_l.u1 <= eq_rect_r.u1
+ nat_rect_plus.u0 <= nat_rect.u0
+                  <= eq_ind_r.u0
+ Projections2.u0 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+ Projections2.u1 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+ surjective_pairing.u0 <= projections.u0
+ Projections2.u2 <= sigT_of_sigT2.u2
+ surjective_pairing.u1 <= projections.u1
+ injective_projections.u0 <= eq_ind_r.u0
+                          <= projections.u0
+ injective_projections.u1 <= eq_ind_r.u0
+                          <= projections.u1
+ sig2_of_sigT2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+ pair_equal_spec.u0 <= eq_ind.u0
+                    <= eq_ind_r.u0
+                    <= projections.u0
+ pair_equal_spec.u1 <= eq_ind.u0
+                    <= eq_ind_r.u0
+                    <= projections.u1
+ sigT2_of_sig2.u0 <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+ ex_of_sigT.u0 <= Subset_projections.u0
+               <= Projections.u0
+ ex2_of_sig2.u0 <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+ ex2_of_sigT2.u0 <= sig2_of_sigT2.u0
+                 <= ex2_of_sig2.u0
+ f_equal_compose.u0 <= Logic_lemmas.equality.u0
+ f_equal_compose.u1 <= Logic_lemmas.equality.u0
+                    <= Logic_lemmas.equality.u1
+ f_equal_compose.u2 <= Logic_lemmas.equality.u1
+ sigT_eta.u0 <= Projections.u0
+ sigT_eta.u1 <= Projections.u1
+ eq_trans_refl_l.u0 <= Logic_lemmas.equality.u0
+ sig_eta.u0 <= Subset_projections.u0
+ eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
+ eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
+ rew_pair.u0 <= eq_rect.u1
+ rew_pair.u1 <= eq_rect.u0
+ sigT2_eta.u0 <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+ rew_pair.u2 <= eq_rect.u0
+ sigT2_eta.u1 <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+ eq_trans_sym_inv_l.u0 <= Logic_lemmas.equality.u0
+ sigT2_eta.u2 <= sigT_of_sigT2.u2
+              <= Projections2.u2
+ eq_trans_sym_inv_r.u0 <= Logic_lemmas.equality.u0
+ eq_trans_assoc.u0 <= Logic_lemmas.equality.u0
+ sig2_eta.u0 <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+ rew_map.u0 <= eq_rect.u1
+            <= Logic_lemmas.equality.u1
+ rew_map.u1 <= eq_rect.u0
+ rew_map.u2 <= eq_rect.u1
+            <= Logic_lemmas.equality.u0
+ eq_trans_map.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+ eq_trans_map.u1 <= eq_rect.u0
+                 <= Logic_lemmas.equality.u0
+ ProdSigT.u0 <= projections.u0
+             <= Projections.u0
+ ProdSigT.u1 <= projections.u1
+             <= Projections.u1
+ map_subst.u0 <= eq_rect.u1
+ map_subst.u1 <= eq_rect.u0
+ map_subst.u2 <= eq_rect.u0
+ projT1_eq.u0 <= Logic_lemmas.equality.u0
+              <= Logic_lemmas.equality.u1
+              <= Projections.u0
+ projT1_eq.u1 <= Logic_lemmas.equality.u0
+              <= Projections.u1
+ map_subst_map.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+ map_subst_map.u1 <= eq_rect.u0
+ map_subst_map.u2 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u1
+ map_subst_map.u3 <= eq_rect.u0
+ projT2_eq.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= projT1_eq.u0
+ projT2_eq.u1 <= eq_rect.u0
+              <= Projections.u1
+              <= projT1_eq.u1
+ rew_swap.u0 <= eq_rect.u1
+             <= eq_rect_r.u0
+ rew_swap.u1 <= eq_rect.u0
+             <= eq_rect_r.u1
+ eq_existT_uncurried.u0 <= eq_rect.u1
+ eq_existT_uncurried.u1 <= eq_rect.u0
+ CompSpec2Type.u0 <= CompSpec.u0
+                  <= CompSpecT.u0
+ rew_compose.u0 <= eq_rect.u1
+                <= Logic_lemmas.equality.u0
+ rew_compose.u1 <= eq_rect.u0
+ eq_sigT_uncurried.u0 <= eq_rect.u1
+                      <= Projections.u0
+                      <= eq_existT_uncurried.u0
+ eq_sigT_uncurried.u1 <= eq_rect.u0
+                      <= Projections.u1
+                      <= eq_existT_uncurried.u1
+ eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= eq_trans_sym_inv_l.u0
+ eq_existT_curried.u0 <= eq_rect.u1
+                      <= eq_sigT_uncurried.u0
+ eq_existT_curried.u1 <= eq_rect.u0
+                      <= eq_sigT_uncurried.u1
+ eq_id_comm_r.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= eq_trans_refl_l.u0
+                 <= eq_trans_sym_inv_l.u0
+                 <= eq_id_comm_l.u0
+ eq_refl_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_refl_map_distr.u1 <= Logic_lemmas.equality.u1
+ eq_existT_curried_map.u0 <= eq_rect.u1
+                          <= Logic_lemmas.equality.u0
+                          <= f_equal_dep2.u0
+                          <= Projections.u0
+                          <= eq_existT_curried.u0
+ eq_existT_curried_map.u1 <= Logic_lemmas.equality.u1
+                          <= f_equal_dep2.u1
+                          <= eq_existT_curried.u0
+ eq_existT_curried_map.u2 <= eq_rect.u0
+                          <= Logic_lemmas.equality.u0
+                          <= f_equal_dep2.u2
+                          <= Projections.u1
+                          <= eq_existT_curried.u1
+ eq_existT_curried_map.u3 <= Logic_lemmas.equality.u1
+                          <= f_equal_dep2.u3
+                          <= eq_existT_curried.u1
+ eq_trans_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_trans_map_distr.u1 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+ eq_existT_curried_trans.u0 <= eq_rect.u1
+                            <= Logic_lemmas.equality.u0
+                            <= eq_trans_map.u0
+                            <= eq_existT_curried.u0
+ eq_sym_map_distr.u0 <= Logic_lemmas.equality.u0
+ eq_existT_curried_trans.u1 <= eq_rect.u0
+                            <= Logic_lemmas.equality.u0
+                            <= eq_trans_map.u1
+                            <= eq_existT_curried.u1
+ eq_sym_map_distr.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+ eq_trans_sym_distr.u0 <= Logic_lemmas.equality.u0
+ eq_existT_curried_congr.u0 <= eq_rect.u1
+                            <= eq_existT_curried.u0
+ eq_trans_rew_distr.u0 <= eq_rect.u1
+                       <= Logic_lemmas.equality.u0
+ eq_trans_rew_distr.u1 <= eq_rect.u0
+ eq_existT_curried_congr.u1 <= eq_rect.u0
+                            <= eq_existT_curried.u1
+ rew_const.u0 <= eq_rect.u1
+ rew_const.u1 <= eq_rect.u0
+ eq_sigT.u0 <= eq_rect.u1
+            <= Projections.u0
+            <= eq_sigT_uncurried.u0
+ eq_sigT.u1 <= eq_rect.u0
+            <= Projections.u1
+            <= eq_sigT_uncurried.u1
+ unique_existence.u0 <= Logic_lemmas.equality.u0
+                     <= unique.u0
+                     <= uniqueness.u0
+ eq_existT_l.u0 <= eq_rect.u1
+                <= Projections.u0
+                <= eq_sigT.u0
+ eq_existT_l.u1 <= eq_rect.u0
+                <= Projections.u1
+                <= eq_sigT.u1
+ forall_exists_unique_domain_coincide.u0 <= Logic_lemmas.equality.u0
+                                         <= unique.u0
+ forall_exists_coincide_unique_domain.u0 <= unique.u0
+ eq_existT_r.u0 <= eq_rect.u1
+                <= Projections.u0
+                <= eq_sigT.u0
+ eq_existT_r.u1 <= eq_rect.u0
+                <= Projections.u1
+                <= eq_sigT.u1
+ eq_sigT_hprop.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= eq_sigT.u0
+ eq_sigT_hprop.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= eq_sigT.u1
+ eq_stepl.u0 <= eq_ind.u0
+ eq_sigT_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Projections.u0
+                          <= eq_sigT_uncurried.u0
+ eq_sigT_uncurried_iff.u1 <= eq_rect.u0
+                          <= eq_ind_r.u0
+                          <= Projections.u1
+                          <= eq_sigT_uncurried.u1
+ eq_sigT_rect.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= projT1_eq.u0
+                 <= projT2_eq.u0
+                 <= eq_sigT.u0
+ eq_sigT_rect.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= projT1_eq.u1
+                 <= projT2_eq.u1
+                 <= eq_sigT.u1
+ eq_ex_intro_uncurried.u0 <= eq_rect.u1
+ eq_ex_intro.u0 <= eq_rect.u1
+                <= eq_ex_intro_uncurried.u0
+ eq_sigT_rect_existT_l.u0 <= eq_rect.u1
+                          <= Projections.u0
+                          <= eq_existT_l.u0
+                          <= eq_sigT_rect.u0
+ eq_sigT_rect_existT_l.u1 <= eq_rect.u0
+                          <= Projections.u1
+                          <= eq_existT_l.u1
+                          <= eq_sigT_rect.u1
+ eq_sigT_rect_existT_r.u0 <= eq_rect.u1
+                          <= Projections.u0
+                          <= eq_existT_r.u0
+                          <= eq_sigT_rect.u0
+ eq_sigT_rect_existT_r.u1 <= eq_rect.u0
+                          <= Projections.u1
+                          <= eq_existT_r.u1
+                          <= eq_sigT_rect.u1
+ eq_sigT_rect_existT.u0 <= eq_rect.u1
+                        <= eq_existT_curried.u0
+                        <= eq_sigT_rect.u0
+ eq_sigT_rect_existT.u1 <= eq_rect.u0
+                        <= eq_existT_curried.u1
+                        <= eq_sigT_rect.u1
+ eq_sigT_rect_uncurried.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_sigT.u0
+                           <= eq_sigT_rect.u0
+ eq_sigT_rect_uncurried.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_sigT.u1
+                           <= eq_sigT_rect.u1
+ eq_sigT_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= Projections.u0
+                      <= eq_sigT_hprop.u0
+ eq_sigT_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                      <= Projections.u1
+                      <= eq_sigT_hprop.u1
+ eq_sigT_nondep.u0 <= Projections.u0
+                   <= rew_const.u0
+                   <= eq_sigT.u0
+ eq_sigT_nondep.u1 <= eq_rect.u0
+                   <= Logic_lemmas.equality.u0
+                   <= Projections.u1
+                   <= rew_const.u1
+                   <= eq_sigT.u1
+ rew_sigT.u0 <= eq_rect.u1
+ rew_sigT.u1 <= eq_rect.u0
+             <= Projections.u0
+ eq_ex_intro_hprop.u0 <= eq_rect.u1
+                      <= eq_ex_intro.u0
+ proj1_sig_eq.u0 <= Logic_lemmas.equality.u0
+                 <= Logic_lemmas.equality.u1
+                 <= Subset_projections.u0
+ proj2_sig_eq.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= proj1_sig_eq.u0
+ rew_ex.u0 <= eq_rect.u1
+ eq_exist_uncurried.u0 <= eq_rect.u1
+ eq_sig_uncurried.u0 <= eq_rect.u1
+                     <= Subset_projections.u0
+                     <= eq_exist_uncurried.u0
+ eq_exist_curried.u0 <= eq_rect.u1
+                     <= eq_sig_uncurried.u0
+ eq_sig.u0 <= eq_rect.u1
+           <= Subset_projections.u0
+           <= eq_sig_uncurried.u0
+ eq_exist_l.u0 <= eq_rect.u1
+               <= Subset_projections.u0
+               <= eq_sig.u0
+ eq_exist_r.u0 <= eq_rect.u1
+               <= Subset_projections.u0
+               <= eq_sig.u0
+ eq_ex_intro2_uncurried.u0 <= eq_rect.u1
+ eq_sig_rect.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= proj1_sig_eq.u0
+                <= proj2_sig_eq.u0
+                <= eq_sig.u0
+ eq_ex_intro2.u0 <= eq_rect.u1
+                 <= eq_ex_intro2_uncurried.u0
+ eq_sig_rect_exist_l.u0 <= eq_rect.u1
+                        <= Subset_projections.u0
+                        <= eq_exist_l.u0
+                        <= eq_sig_rect.u0
+ eq_sig_rect_exist_r.u0 <= eq_rect.u1
+                        <= Subset_projections.u0
+                        <= eq_exist_r.u0
+                        <= eq_sig_rect.u0
+ eq_sig_rect_exist.u0 <= eq_rect.u1
+                      <= eq_exist_curried.u0
+                      <= eq_sig_rect.u0
+ eq_sig_rect_uncurried.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= eq_sig.u0
+                          <= eq_sig_rect.u0
+ eq_ex_intro2_hprop.u0 <= eq_rect.u1
+                       <= eq_ex_intro2.u0
+ eq_sig_hprop.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= eq_sig.u0
+ eq_sig_uncurried_iff.u0 <= eq_rect.u1
+                         <= eq_ind_r.u0
+                         <= Subset_projections.u0
+                         <= eq_sig_uncurried.u0
+ eq_sig_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= Subset_projections.u0
+                     <= eq_sig_hprop.u0
+ rew_sig.u0 <= eq_rect.u1
+ rew_sig.u1 <= eq_rect.u0
+            <= Subset_projections.u0
+ sigT_of_sigT2_eq.u0 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= sigT_of_sigT2.u0
+ sigT_of_sigT2_eq.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+                     <= sigT_of_sigT2.u1
+ sigT_of_sigT2_eq.u2 <= Logic_lemmas.equality.u0
+                     <= sigT_of_sigT2.u2
+ projT1_of_sigT2_eq.u0 <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= projT1_eq.u0
+                       <= sigT_of_sigT2_eq.u0
+ projT1_of_sigT2_eq.u1 <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= projT1_eq.u1
+                       <= sigT_of_sigT2_eq.u1
+ projT1_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                       <= sigT_of_sigT2_eq.u2
+ projT2_of_sigT2_eq.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= projT1_of_sigT2_eq.u0
+ projT2_of_sigT2_eq.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= projT1_of_sigT2_eq.u1
+ projT2_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                       <= projT1_of_sigT2_eq.u2
+ projT3_eq.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+              <= projT1_of_sigT2_eq.u0
+ projT3_eq.u1 <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+              <= projT1_of_sigT2_eq.u1
+ projT3_eq.u2 <= eq_rect.u0
+              <= sigT_of_sigT2.u2
+              <= Projections2.u2
+              <= projT1_of_sigT2_eq.u2
+ eq_existT2_uncurried.u0 <= eq_rect.u1
+ eq_existT2_uncurried.u1 <= eq_rect.u0
+ eq_existT2_uncurried.u2 <= eq_rect.u0
+ rew_ex2.u0 <= eq_rect.u1
+ eq_sigT2_uncurried.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= sigT_of_sigT2.u0
+                       <= Projections2.u0
+                       <= eq_existT2_uncurried.u0
+ eq_sigT2_uncurried.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= sigT_of_sigT2.u1
+                       <= Projections2.u1
+                       <= eq_existT2_uncurried.u1
+ eq_sigT2_uncurried.u2 <= eq_rect.u0
+                       <= sigT_of_sigT2.u2
+                       <= Projections2.u2
+                       <= eq_existT2_uncurried.u2
+ eq_existT2_curried.u0 <= eq_rect.u1
+                       <= eq_sigT2_uncurried.u0
+ eq_existT2_curried.u1 <= eq_rect.u0
+                       <= eq_sigT2_uncurried.u1
+ eq_existT2_curried.u2 <= eq_rect.u0
+                       <= eq_sigT2_uncurried.u2
+ eq_sigT2.u0 <= eq_rect.u1
+             <= Projections.u0
+             <= sigT_of_sigT2.u0
+             <= Projections2.u0
+             <= eq_sigT2_uncurried.u0
+ eq_sigT2.u1 <= eq_rect.u0
+             <= Projections.u1
+             <= sigT_of_sigT2.u1
+             <= Projections2.u1
+             <= eq_sigT2_uncurried.u1
+ eq_sigT2.u2 <= eq_rect.u0
+             <= sigT_of_sigT2.u2
+             <= Projections2.u2
+             <= eq_sigT2_uncurried.u2
+ eq_existT2_l.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+                 <= Projections2.u0
+                 <= eq_sigT2.u0
+ eq_existT2_l.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+                 <= Projections2.u1
+                 <= eq_sigT2.u1
+ eq_existT2_l.u2 <= eq_rect.u0
+                 <= sigT_of_sigT2.u2
+                 <= Projections2.u2
+                 <= eq_sigT2.u2
+ eq_existT2_r.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= sigT_of_sigT2.u0
+                 <= Projections2.u0
+                 <= eq_sigT2.u0
+ eq_existT2_r.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= sigT_of_sigT2.u1
+                 <= Projections2.u1
+                 <= eq_sigT2.u1
+ eq_existT2_r.u2 <= eq_rect.u0
+                 <= sigT_of_sigT2.u2
+                 <= Projections2.u2
+                 <= eq_sigT2.u2
+ eq_sigT2_hprop.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+                   <= projT1_eq.u0
+                   <= projT2_eq.u0
+                   <= eq_sigT2.u0
+ eq_sigT2_hprop.u1 <= eq_rect.u0
+                   <= sigT_of_sigT2.u2
+                   <= Projections2.u2
+                   <= eq_sigT2.u2
+ eq_sigT2_hprop.u2 <= Projections.u1
+                   <= sigT_of_sigT2.u1
+                   <= Projections2.u1
+                   <= projT1_eq.u1
+                   <= projT2_eq.u1
+                   <= eq_sigT2.u1
+ eq_sigT2_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Projections.u0
+                           <= sigT_of_sigT2.u0
+                           <= Projections2.u0
+                           <= eq_sigT2_uncurried.u0
+ eq_sigT2_uncurried_iff.u1 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= Projections.u1
+                           <= sigT_of_sigT2.u1
+                           <= Projections2.u1
+                           <= eq_sigT2_uncurried.u1
+ eq_sigT2_uncurried_iff.u2 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= sigT_of_sigT2.u2
+                           <= Projections2.u2
+                           <= eq_sigT2_uncurried.u2
+ eq_sigT2_rect.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= projT1_of_sigT2_eq.u0
+                  <= projT2_of_sigT2_eq.u0
+                  <= projT3_eq.u0
+                  <= eq_sigT2.u0
+ eq_sigT2_rect.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= projT1_of_sigT2_eq.u1
+                  <= projT2_of_sigT2_eq.u1
+                  <= projT3_eq.u1
+                  <= eq_sigT2.u1
+ eq_sigT2_rect.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= projT1_of_sigT2_eq.u2
+                  <= projT2_of_sigT2_eq.u2
+                  <= projT3_eq.u2
+                  <= eq_sigT2.u2
+ eq_sigT2_rect_existT2_l.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_existT2_l.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2_l.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_existT2_l.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2_l.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_existT2_l.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_rect_existT2_r.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_existT2_r.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2_r.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_existT2_r.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2_r.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_existT2_r.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_rect_existT2.u0 <= eq_rect.u1
+                          <= eq_existT2_curried.u0
+                          <= eq_sigT2_rect.u0
+ eq_sigT2_rect_existT2.u1 <= eq_rect.u0
+                          <= eq_existT2_curried.u1
+                          <= eq_sigT2_rect.u1
+ eq_sigT2_rect_existT2.u2 <= eq_rect.u0
+                          <= eq_existT2_curried.u2
+                          <= eq_sigT2_rect.u2
+ eq_sigT2_rect_uncurried.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_sigT2.u0
+                            <= eq_sigT2_rect.u0
+ eq_sigT2_rect_uncurried.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_sigT2.u1
+                            <= eq_sigT2_rect.u1
+ eq_sigT2_rect_uncurried.u2 <= eq_rect.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_sigT2.u2
+                            <= eq_sigT2_rect.u2
+ eq_sigT2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sigT_of_sigT2.u0
+                       <= eq_sigT2_hprop.u0
+ eq_sigT2_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                       <= sigT_of_sigT2.u2
+                       <= eq_sigT2_hprop.u1
+ eq_sigT2_hprop_iff.u2 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sigT_of_sigT2.u1
+                       <= eq_sigT2_hprop.u2
+ eq_sigT2_nondep.u0 <= Projections.u0
+                    <= sigT_of_sigT2.u0
+                    <= Projections2.u0
+                    <= rew_const.u0
+                    <= eq_sigT2.u0
+ eq_sigT2_nondep.u1 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= Projections.u1
+                    <= sigT_of_sigT2.u1
+                    <= Projections2.u1
+                    <= rew_const.u1
+                    <= eq_sigT2.u1
+ eq_sigT2_nondep.u2 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= sigT_of_sigT2.u2
+                    <= Projections2.u2
+                    <= rew_const.u1
+                    <= eq_sigT2.u2
+ rew_sigT2.u0 <= eq_rect.u1
+ rew_sigT2.u1 <= eq_rect.u0
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+ sig_of_sig2_eq.u0 <= Logic_lemmas.equality.u0
+                   <= Logic_lemmas.equality.u1
+                   <= sig_of_sig2.u0
+ proj1_sig_of_sig2_eq.u0 <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+                         <= proj1_sig_eq.u0
+                         <= sig_of_sig2_eq.u0
+ proj2_sig_of_sig2_eq.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+                         <= proj1_sig_of_sig2_eq.u0
+ proj3_sig_eq.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= proj1_sig_of_sig2_eq.u0
+ eq_exist2_uncurried.u0 <= eq_rect.u1
+ eq_sig2_uncurried.u0 <= eq_rect.u1
+                      <= Subset_projections.u0
+                      <= sig_of_sig2.u0
+                      <= Subset_projections2.u0
+                      <= eq_exist2_uncurried.u0
+ eq_exist2_curried.u0 <= eq_rect.u1
+                      <= eq_sig2_uncurried.u0
+ eq_sig2.u0 <= eq_rect.u1
+            <= Subset_projections.u0
+            <= sig_of_sig2.u0
+            <= Subset_projections2.u0
+            <= eq_sig2_uncurried.u0
+ eq_exist2_l.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+                <= eq_sig2.u0
+ eq_exist2_r.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= sig_of_sig2.u0
+                <= Subset_projections2.u0
+                <= eq_sig2.u0
+ eq_sig2_hprop.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_eq.u0
+                  <= proj2_sig_eq.u0
+                  <= eq_sig2.u0
+ eq_sig2_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_sig2_uncurried.u0
+ eq_sig2_rect.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= proj1_sig_of_sig2_eq.u0
+                 <= proj2_sig_of_sig2_eq.u0
+                 <= proj3_sig_eq.u0
+                 <= eq_sig2.u0
+ eq_sig2_rect_exist2_l.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_exist2_l.u0
+                          <= eq_sig2_rect.u0
+ eq_sig2_rect_exist2_r.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= Subset_projections2.u0
+                          <= eq_exist2_r.u0
+                          <= eq_sig2_rect.u0
+ eq_sig2_rect_exist2.u0 <= eq_rect.u1
+                        <= eq_exist2_curried.u0
+                        <= eq_sig2_rect.u0
+ eq_sig2_rect_uncurried.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_sig2.u0
+                           <= eq_sig2_rect.u0
+ eq_sig2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sig_of_sig2.u0
+                      <= eq_sig2_hprop.u0
+ eq_sig2_nondep.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+                   <= rew_const.u0
+                   <= eq_sig2.u0
+ rew_sig2.u0 <= eq_rect.u1
+ rew_sig2.u1 <= eq_rect.u0
+             <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+ Dependent_choice_lemmas.u0 <= Subset_projections.u0
+ 
 SORTS:
  α1 := Type
  α2 := Type
@@ -64,6 +3431,1127 @@ Normalized constraints:
   ShowUnivs.26 := 2
   ShowUnivs.25 := 0
   ShowUnivs.24 := 2
+ GRAPH:
+  0 <= ShowUnivs.24
+    <= ShowUnivs.25
+    <= ShowUnivs.26
+    <= ShowUnivs.27
+    <= ShowUnivs.28 0 < True_rect.u0
+                      < False_rect.u0
+                      < notT.u0
+                      < and_rect.u0
+                      < Empty_set_rect.u0
+                      < ex.u0
+                      < unit_rect.u0
+                      < bool_rect.u0
+                      < ex_ind.u0
+                      < reflect_rect.u0
+                      < ex_sind.u0
+                      < sig.u0
+                      < Well_founded.u0
+                      < ex2.u0
+                      < Acc_rect.u0
+                      < sig_rect.u0
+                      < well_founded_induction_type.u0
+                      < ex2_ind.u0
+                      < Well_founded.FixPoint.u0
+                      < sig_rect.u1
+                      < ex2_sind.u0
+                      < sig_ind.u0
+                      < sig_sind.u0
+                      < sig2.u0
+                      < all.u0
+                      < Well_founded_2.u0
+                      < universal_quantification.u0
+                      < sig2_rect.u0
+                      < Well_founded_2.u1
+                      < eq.u0
+                      < eq_true_rect.u0
+                      < eq_rect.u0
+                      < sig2_rect.u1
+                      < eq_rect.u1
+                      < sig2_ind.u0
+                      < Well_founded_2.u2
+                      < eq_true_rect_r.u0
+                      < eq_ind.u0
+                      < sig2_sind.u0
+                      < nat_rect.u0
+                      < sigT.u0
+                      < option.u0
+                      < eq_sind.u0
+                      < sigT.u1
+                      < option_rect.u0
+                      < Decimal.uint_rect.u0
+                      < sigT_rect.u0
+                      < option_rect.u1
+                      < sigT_rect.u1
+                      < option_ind.u0
+                      < sigT_rect.u2
+                      < Logic_lemmas.equality.u0
+                      < option_sind.u0
+                      < Hexadecimal.uint_rect.u0
+                      < Logic_lemmas.equality.u1
+                      < option_map.u0
+                      < sigT_ind.u0
+                      < option_map.u1
+                      < sigT_ind.u1
+                      < sigT_sind.u0
+                      < sigT_sind.u1
+                      < Acc_generator.u0
+                      < sigT2.u0
+                      < sum.u0
+                      < sigT2.u1
+                      < sum.u1
+                      < sigT2.u2
+                      < sum_rect.u0
+                      < sigT2_rect.u0
+                      < sum_rect.u1
+                      < sum_rect.u2
+                      < sigT2_rect.u1
+                      < eq_sind_r.u0
+                      < sigT2_rect.u2
+                      < sigT2_rect.u3
+                      < sum_ind.u0
+                      < eq_ind_r.u0
+                      < sum_ind.u1
+                      < eq_rec_r.u0
+                      < sigT2_ind.u0
+                      < sum_sind.u0
+                      < eq_rect_r.u0
+                      < sigT2_ind.u1
+                      < sum_sind.u1
+                      < eq_rect_r.u1
+                      < sigT2_ind.u2
+                      < prod.u0
+                      < prod.u1
+                      < equality_dep.u0
+                      < equality_dep.u1
+                      < prod_rect.u0
+                      < sigT2_sind.u0
+                      < sigT2_sind.u1
+                      < sigT2_sind.u2
+                      < prod_rect.u1
+                      < Subset_projections.u0
+                      < prod_rect.u2
+                      < prod_ind.u0
+                      < prod_ind.u1
+                      < f_equal_dep2.u0
+                      < sig_of_sig2.u0
+                      < f_equal_dep2.u1
+                      < prod_sind.u0
+                      < prod_sind.u1
+                      < projections.u0
+                      < f_equal_dep2.u2
+                      < Subset_projections2.u0
+                      < projections.u1
+                      < Projections.u0
+                      < f_equal_dep2.u3
+                      < Projections.u1
+                      < sigT_of_sigT2.u0
+                      < rew_opp_r.u0
+                      < sigT_of_sigT2.u1
+                      < rew_opp_r.u1
+                      < sigT_of_sigT2.u2
+                      < nat_rect_succ_r.u0
+                      < rew_opp_l.u0
+                      < rew_opp_l.u1
+                      < nat_rect_plus.u0
+                      < Projections2.u0
+                      < Projections2.u1
+                      < surjective_pairing.u0
+                      < Projections2.u2
+                      < surjective_pairing.u1
+                      < f_equal2.u0
+                      < f_equal2.u1
+                      < f_equal2.u2
+                      < injective_projections.u0
+                      < injective_projections.u1
+                      < f_equal3.u0
+                      < f_equal3.u1
+                      < f_equal3.u2
+                      < f_equal3.u3
+                      < sig2_of_sigT2.u0
+                      < pair_equal_spec.u0
+                      < f_equal4.u0
+                      < pair_equal_spec.u1
+                      < f_equal4.u1
+                      < f_equal4.u2
+                      < f_equal4.u3
+                      < sigT2_of_sig2.u0
+                      < f_equal4.u4
+                      < f_equal5.u0
+                      < f_equal5.u1
+                      < f_equal5.u2
+                      < f_equal5.u3
+                      < f_equal5.u4
+                      < ex_of_sigT.u0
+                      < f_equal5.u5
+                      < ex2_of_sig2.u0
+                      < ex2_of_sigT2.u0
+                      < f_equal_compose.u0
+                      < f_equal_compose.u1
+                      < f_equal_compose.u2
+                      < sigT_eta.u0
+                      < sigT_eta.u1
+                      < curry.u0
+                      < eq_trans_refl_l.u0
+                      < curry.u1
+                      < curry.u2
+                      < sig_eta.u0
+                      < uncurry.u0
+                      < eq_trans_refl_r.u0
+                      < uncurry.u1
+                      < uncurry.u2
+                      < eq_sym_involutive.u0
+                      < rew_pair.u0
+                      < rew_pair.u1
+                      < sigT2_eta.u0
+                      < rew_pair.u2
+                      < sigT2_eta.u1
+                      < eq_trans_sym_inv_l.u0
+                      < sigT2_eta.u2
+                      < eq_trans_sym_inv_r.u0
+                      < list.u0
+                      < eq_trans_assoc.u0
+                      < sig2_eta.u0
+                      < list_rect.u0
+                      < list_rect.u1
+                      < list_ind.u0
+                      < list_sind.u0
+                      < length.u0
+                      < rew_map.u0
+                      < rew_map.u1
+                      < app.u0
+                      < rew_map.u2
+                      < exists_to_inhabited_sig.u0
+                      < comparison_rect.u0
+                      < eq_trans_map.u0
+                      < inhabited_sig_to_exists.u0
+                      < eq_trans_map.u1
+                      < ProdSigT.u0
+                      < ProdSigT.u1
+                      < map_subst.u0
+                      < map_subst.u1
+                      < map_subst.u2
+                      < projT1_eq.u0
+                      < projT1_eq.u1
+                      < map_subst_map.u0
+                      < map_subst_map.u1
+                      < map_subst_map.u2
+                      < map_subst_map.u3
+                      < projT2_eq.u0
+                      < projT2_eq.u1
+                      < CompareSpecT_rect.u0
+                      < rew_swap.u0
+                      < rew_swap.u1
+                      < eq_existT_uncurried.u0
+                      < CompSpec.u0
+                      < eq_existT_uncurried.u1
+                      < CompSpecT.u0
+                      < CompSpec2Type.u0
+                      < rew_compose.u0
+                      < rew_compose.u1
+                      < ID.u0
+                      < eq_sigT_uncurried.u0
+                      < eq_sigT_uncurried.u1
+                      < eq_id_comm_l.u0
+                      < eq_existT_curried.u0
+                      < eq_existT_curried.u1
+                      < Byte.byte_rect.u0
+                      < eq_id_comm_r.u0
+                      < eq_refl_map_distr.u0
+                      < eq_refl_map_distr.u1
+                      < eq_existT_curried_map.u0
+                      < eq_existT_curried_map.u1
+                      < eq_existT_curried_map.u2
+                      < eq_existT_curried_map.u3
+                      < eq_trans_map_distr.u0
+                      < eq_trans_map_distr.u1
+                      < eq_existT_curried_trans.u0
+                      < eq_sym_map_distr.u0
+                      < eq_existT_curried_trans.u1
+                      < eq_sym_map_distr.u1
+                      < eq_trans_sym_distr.u0
+                      < eq_existT_curried_congr.u0
+                      < eq_trans_rew_distr.u0
+                      < eq_trans_rew_distr.u1
+                      < eq_existT_curried_congr.u1
+                      < rew_const.u0
+                      < rew_const.u1
+                      < subrelation.u0
+                      < subrelation.u1
+                      < eq_sigT.u0
+                      < eq_sigT.u1
+                      < unique.u0
+                      < uniqueness.u0
+                      < unique_existence.u0
+                      < eq_existT_l.u0
+                      < eq_existT_l.u1
+                      < forall_exists_unique_domain_coincide.u0
+                      < forall_exists_coincide_unique_domain.u0
+                      < eq_existT_r.u0
+                      < eq_existT_r.u1
+                      < inhabited.u0
+                      < inhabited_ind.u0
+                      < inhabited_sind.u0
+                      < exists_inhabited.u0
+                      < eq_sigT_hprop.u0
+                      < eq_sigT_hprop.u1
+                      < inhabited_covariant.u0
+                      < inhabited_covariant.u1
+                      < eq_stepl.u0
+                      < eq_sigT_uncurried_iff.u0
+                      < eq_sigT_uncurried_iff.u1
+                      < eq_sigT_rect.u0
+                      < eq_sigT_rect.u1
+                      < eq_sigT_rect.u2
+                      < eq_ex_intro_uncurried.u0
+                      < eq_ex_intro.u0
+                      < eq_sigT_rect_existT_l.u0
+                      < eq_sigT_rect_existT_l.u1
+                      < eq_sigT_rect_existT_r.u0
+                      < eq_sigT_rect_existT_r.u1
+                      < eq_sigT_rect_existT.u0
+                      < eq_sigT_rect_existT.u1
+                      < eq_sigT_rect_uncurried.u0
+                      < eq_sigT_rect_uncurried.u1
+                      < eq_sigT_hprop_iff.u0
+                      < eq_sigT_hprop_iff.u1
+                      < eq_sigT_nondep.u0
+                      < eq_sigT_nondep.u1
+                      < rew_sigT.u0
+                      < rew_sigT.u1
+                      < eq_ex_intro_hprop.u0
+                      < proj1_sig_eq.u0
+                      < proj2_sig_eq.u0
+                      < rew_ex.u0
+                      < eq_exist_uncurried.u0
+                      < eq_sig_uncurried.u0
+                      < eq_exist_curried.u0
+                      < eq_sig.u0
+                      < eq_exist_l.u0
+                      < eq_exist_r.u0
+                      < eq_ex_intro2_uncurried.u0
+                      < eq_sig_rect.u0
+                      < eq_sig_rect.u1
+                      < eq_ex_intro2.u0
+                      < eq_sig_rect_exist_l.u0
+                      < eq_sig_rect_exist_r.u0
+                      < eq_sig_rect_exist.u0
+                      < eq_ex_intro2_hprop_nondep.u0
+                      < eq_sig_rect_uncurried.u0
+                      < eq_ex_intro2_hprop.u0
+                      < eq_sig_hprop.u0
+                      < eq_sig_uncurried_iff.u0
+                      < eq_sig_hprop_iff.u0
+                      < rew_sig.u0
+                      < rew_sig.u1
+                      < sigT_of_sigT2_eq.u0
+                      < sigT_of_sigT2_eq.u1
+                      < sigT_of_sigT2_eq.u2
+                      < projT1_of_sigT2_eq.u0
+                      < projT1_of_sigT2_eq.u1
+                      < projT1_of_sigT2_eq.u2
+                      < projT2_of_sigT2_eq.u0
+                      < projT2_of_sigT2_eq.u1
+                      < projT2_of_sigT2_eq.u2
+                      < projT3_eq.u0
+                      < projT3_eq.u1
+                      < projT3_eq.u2
+                      < eq_existT2_uncurried.u0
+                      < eq_existT2_uncurried.u1
+                      < eq_existT2_uncurried.u2
+                      < rew_ex2.u0
+                      < eq_sigT2_uncurried.u0
+                      < eq_sigT2_uncurried.u1
+                      < eq_sigT2_uncurried.u2
+                      < eq_existT2_curried.u0
+                      < eq_existT2_curried.u1
+                      < eq_existT2_curried.u2
+                      < eq_sigT2.u0
+                      < eq_sigT2.u1
+                      < eq_sigT2.u2
+                      < eq_existT2_l.u0
+                      < eq_existT2_l.u1
+                      < eq_existT2_l.u2
+                      < eq_existT2_r.u0
+                      < eq_existT2_r.u1
+                      < eq_existT2_r.u2
+                      < eq_sigT2_hprop.u0
+                      < eq_sigT2_hprop.u1
+                      < eq_sigT2_hprop.u2
+                      < eq_sigT2_uncurried_iff.u0
+                      < eq_sigT2_uncurried_iff.u1
+                      < eq_sigT2_uncurried_iff.u2
+                      < eq_sigT2_rect.u0
+                      < eq_sigT2_rect.u1
+                      < eq_sigT2_rect.u2
+                      < eq_sigT2_rect.u3
+                      < eq_sigT2_rect_existT2_l.u0
+                      < eq_sigT2_rect_existT2_l.u1
+                      < eq_sigT2_rect_existT2_l.u2
+                      < eq_sigT2_rect_existT2_r.u0
+                      < eq_sigT2_rect_existT2_r.u1
+                      < eq_sigT2_rect_existT2_r.u2
+                      < eq_sigT2_rect_existT2.u0
+                      < eq_sigT2_rect_existT2.u1
+                      < eq_sigT2_rect_existT2.u2
+                      < eq_sigT2_rect_uncurried.u0
+                      < eq_sigT2_rect_uncurried.u1
+                      < eq_sigT2_rect_uncurried.u2
+                      < eq_sigT2_hprop_iff.u0
+                      < eq_sigT2_hprop_iff.u1
+                      < eq_sigT2_hprop_iff.u2
+                      < eq_sigT2_nondep.u0
+                      < eq_sigT2_nondep.u1
+                      < eq_sigT2_nondep.u2
+                      < rew_sigT2.u0
+                      < rew_sigT2.u1
+                      < sig_of_sig2_eq.u0
+                      < proj1_sig_of_sig2_eq.u0
+                      < proj2_sig_of_sig2_eq.u0
+                      < proj3_sig_eq.u0
+                      < eq_exist2_uncurried.u0
+                      < eq_sig2_uncurried.u0
+                      < eq_exist2_curried.u0
+                      < eq_sig2.u0
+                      < eq_exist2_l.u0
+                      < eq_exist2_r.u0
+                      < eq_sig2_hprop.u0
+                      < eq_sig2_uncurried_iff.u0
+                      < eq_sig2_rect.u0
+                      < eq_sig2_rect.u1
+                      < eq_sig2_rect_exist2_l.u0
+                      < eq_sig2_rect_exist2_r.u0
+                      < eq_sig2_rect_exist2.u0
+                      < eq_sig2_rect_uncurried.u0
+                      < eq_sig2_hprop_iff.u0
+                      < eq_sig2_nondep.u0
+                      < rew_sig2.u0
+                      < rew_sig2.u1
+                      < sumbool_rect.u0
+                      < sumor.u0
+                      < sumor_rect.u0
+                      < sumor_rect.u1
+                      < sumor_ind.u0
+                      < sumor_sind.u0
+                      < Dependent_choice_lemmas.u0
+                      < Exc.u0
+  well_founded_induction_type.u0 <= Acc_rect.u0
+  Well_founded.FixPoint.u0 <= eq_ind.u0
+  Well_founded_2.u0 <= Well_founded.u0
+  universal_quantification.u0 <= all.u0
+  Well_founded_2.u1 <= Well_founded.u0
+  Acc_generator.u0 <= Well_founded.u0
+  eq_sind_r.u0 <= eq_sind.u0
+               <= Logic_lemmas.equality.u0
+  eq_ind_r.u0 <= eq_ind.u0
+              <= Logic_lemmas.equality.u0
+  eq_rec_r.u0 <= eq_rect.u1
+              <= Logic_lemmas.equality.u0
+  eq_rect_r.u0 <= eq_rect.u1
+               <= Logic_lemmas.equality.u0
+  eq_rect_r.u1 <= eq_rect.u0
+  equality_dep.u0 <= eq_rect.u1
+  equality_dep.u1 <= eq_rect.u0
+  f_equal_dep2.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+  f_equal_dep2.u1 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u1
+  f_equal_dep2.u2 <= eq_rect.u0
+  Subset_projections2.u0 <= Subset_projections.u0
+                         <= sig_of_sig2.u0
+  f_equal_dep2.u3 <= eq_rect.u0
+  rew_opp_r.u0 <= eq_rect.u1
+               <= eq_rect_r.u0
+  rew_opp_r.u1 <= eq_rect.u0
+               <= eq_rect_r.u1
+  nat_rect_succ_r.u0 <= eq_ind.u0
+                     <= nat_rect.u0
+  rew_opp_l.u0 <= eq_rect.u1
+               <= eq_rect_r.u0
+  rew_opp_l.u1 <= eq_rect_r.u1
+  nat_rect_plus.u0 <= nat_rect.u0
+                   <= eq_ind_r.u0
+  Projections2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+  Projections2.u1 <= Projections.u1
+                  <= sigT_of_sigT2.u1
+  surjective_pairing.u0 <= projections.u0
+  Projections2.u2 <= sigT_of_sigT2.u2
+  surjective_pairing.u1 <= projections.u1
+  injective_projections.u0 <= eq_ind_r.u0
+                           <= projections.u0
+  injective_projections.u1 <= eq_ind_r.u0
+                           <= projections.u1
+  sig2_of_sigT2.u0 <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+  pair_equal_spec.u0 <= eq_ind.u0
+                     <= eq_ind_r.u0
+                     <= projections.u0
+  pair_equal_spec.u1 <= eq_ind.u0
+                     <= eq_ind_r.u0
+                     <= projections.u1
+  sigT2_of_sig2.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+  ex_of_sigT.u0 <= Subset_projections.u0
+                <= Projections.u0
+  ex2_of_sig2.u0 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+  ex2_of_sigT2.u0 <= sig2_of_sigT2.u0
+                  <= ex2_of_sig2.u0
+  f_equal_compose.u0 <= Logic_lemmas.equality.u0
+  f_equal_compose.u1 <= Logic_lemmas.equality.u0
+                     <= Logic_lemmas.equality.u1
+  f_equal_compose.u2 <= Logic_lemmas.equality.u1
+  sigT_eta.u0 <= Projections.u0
+  sigT_eta.u1 <= Projections.u1
+  eq_trans_refl_l.u0 <= Logic_lemmas.equality.u0
+  sig_eta.u0 <= Subset_projections.u0
+  eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
+  eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
+  rew_pair.u0 <= eq_rect.u1
+  rew_pair.u1 <= eq_rect.u0
+  sigT2_eta.u0 <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+  rew_pair.u2 <= eq_rect.u0
+  sigT2_eta.u1 <= Projections.u1
+               <= sigT_of_sigT2.u1
+               <= Projections2.u1
+  eq_trans_sym_inv_l.u0 <= Logic_lemmas.equality.u0
+  sigT2_eta.u2 <= sigT_of_sigT2.u2
+               <= Projections2.u2
+  eq_trans_sym_inv_r.u0 <= Logic_lemmas.equality.u0
+  eq_trans_assoc.u0 <= Logic_lemmas.equality.u0
+  sig2_eta.u0 <= Subset_projections.u0
+              <= sig_of_sig2.u0
+              <= Subset_projections2.u0
+  rew_map.u0 <= eq_rect.u1
+             <= Logic_lemmas.equality.u1
+  rew_map.u1 <= eq_rect.u0
+  rew_map.u2 <= eq_rect.u1
+             <= Logic_lemmas.equality.u0
+  eq_trans_map.u0 <= eq_rect.u1
+                  <= Logic_lemmas.equality.u0
+  eq_trans_map.u1 <= eq_rect.u0
+                  <= Logic_lemmas.equality.u0
+  ProdSigT.u0 <= projections.u0
+              <= Projections.u0
+  ProdSigT.u1 <= projections.u1
+              <= Projections.u1
+  map_subst.u0 <= eq_rect.u1
+  map_subst.u1 <= eq_rect.u0
+  map_subst.u2 <= eq_rect.u0
+  projT1_eq.u0 <= Logic_lemmas.equality.u0
+               <= Logic_lemmas.equality.u1
+               <= Projections.u0
+  projT1_eq.u1 <= Logic_lemmas.equality.u0
+               <= Projections.u1
+  map_subst_map.u0 <= eq_rect.u1
+                   <= Logic_lemmas.equality.u0
+  map_subst_map.u1 <= eq_rect.u0
+  map_subst_map.u2 <= eq_rect.u1
+                   <= Logic_lemmas.equality.u1
+  map_subst_map.u3 <= eq_rect.u0
+  projT2_eq.u0 <= eq_rect.u1
+               <= Projections.u0
+               <= projT1_eq.u0
+  projT2_eq.u1 <= eq_rect.u0
+               <= Projections.u1
+               <= projT1_eq.u1
+  rew_swap.u0 <= eq_rect.u1
+              <= eq_rect_r.u0
+  rew_swap.u1 <= eq_rect.u0
+              <= eq_rect_r.u1
+  eq_existT_uncurried.u0 <= eq_rect.u1
+  eq_existT_uncurried.u1 <= eq_rect.u0
+  CompSpec2Type.u0 <= CompSpec.u0
+                   <= CompSpecT.u0
+  rew_compose.u0 <= eq_rect.u1
+                 <= Logic_lemmas.equality.u0
+  rew_compose.u1 <= eq_rect.u0
+  eq_sigT_uncurried.u0 <= eq_rect.u1
+                       <= Projections.u0
+                       <= eq_existT_uncurried.u0
+  eq_sigT_uncurried.u1 <= eq_rect.u0
+                       <= Projections.u1
+                       <= eq_existT_uncurried.u1
+  eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= eq_trans_sym_inv_l.u0
+  eq_existT_curried.u0 <= eq_rect.u1
+                       <= eq_sigT_uncurried.u0
+  eq_existT_curried.u1 <= eq_rect.u0
+                       <= eq_sigT_uncurried.u1
+  eq_id_comm_r.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= eq_trans_refl_l.u0
+                  <= eq_trans_sym_inv_l.u0
+                  <= eq_id_comm_l.u0
+  eq_refl_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_refl_map_distr.u1 <= Logic_lemmas.equality.u1
+  eq_existT_curried_map.u0 <= eq_rect.u1
+                           <= Logic_lemmas.equality.u0
+                           <= f_equal_dep2.u0
+                           <= Projections.u0
+                           <= eq_existT_curried.u0
+  eq_existT_curried_map.u1 <= Logic_lemmas.equality.u1
+                           <= f_equal_dep2.u1
+                           <= eq_existT_curried.u0
+  eq_existT_curried_map.u2 <= eq_rect.u0
+                           <= Logic_lemmas.equality.u0
+                           <= f_equal_dep2.u2
+                           <= Projections.u1
+                           <= eq_existT_curried.u1
+  eq_existT_curried_map.u3 <= Logic_lemmas.equality.u1
+                           <= f_equal_dep2.u3
+                           <= eq_existT_curried.u1
+  eq_trans_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_trans_map_distr.u1 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+  eq_existT_curried_trans.u0 <= eq_rect.u1
+                             <= Logic_lemmas.equality.u0
+                             <= eq_trans_map.u0
+                             <= eq_existT_curried.u0
+  eq_sym_map_distr.u0 <= Logic_lemmas.equality.u0
+  eq_existT_curried_trans.u1 <= eq_rect.u0
+                             <= Logic_lemmas.equality.u0
+                             <= eq_trans_map.u1
+                             <= eq_existT_curried.u1
+  eq_sym_map_distr.u1 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+  eq_trans_sym_distr.u0 <= Logic_lemmas.equality.u0
+  eq_existT_curried_congr.u0 <= eq_rect.u1
+                             <= eq_existT_curried.u0
+  eq_trans_rew_distr.u0 <= eq_rect.u1
+                        <= Logic_lemmas.equality.u0
+  eq_trans_rew_distr.u1 <= eq_rect.u0
+  eq_existT_curried_congr.u1 <= eq_rect.u0
+                             <= eq_existT_curried.u1
+  rew_const.u0 <= eq_rect.u1
+  rew_const.u1 <= eq_rect.u0
+  eq_sigT.u0 <= eq_rect.u1
+             <= Projections.u0
+             <= eq_sigT_uncurried.u0
+  eq_sigT.u1 <= eq_rect.u0
+             <= Projections.u1
+             <= eq_sigT_uncurried.u1
+  unique_existence.u0 <= Logic_lemmas.equality.u0
+                      <= unique.u0
+                      <= uniqueness.u0
+  eq_existT_l.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= eq_sigT.u0
+  eq_existT_l.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= eq_sigT.u1
+  forall_exists_unique_domain_coincide.u0 <= Logic_lemmas.equality.u0
+                                          <= unique.u0
+  forall_exists_coincide_unique_domain.u0 <= unique.u0
+  eq_existT_r.u0 <= eq_rect.u1
+                 <= Projections.u0
+                 <= eq_sigT.u0
+  eq_existT_r.u1 <= eq_rect.u0
+                 <= Projections.u1
+                 <= eq_sigT.u1
+  eq_sigT_hprop.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= eq_sigT.u0
+  eq_sigT_hprop.u1 <= eq_rect.u0
+                   <= Projections.u1
+                   <= eq_sigT.u1
+  eq_stepl.u0 <= eq_ind.u0
+  eq_sigT_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Projections.u0
+                           <= eq_sigT_uncurried.u0
+  eq_sigT_uncurried_iff.u1 <= eq_rect.u0
+                           <= eq_ind_r.u0
+                           <= Projections.u1
+                           <= eq_sigT_uncurried.u1
+  eq_sigT_rect.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= projT1_eq.u0
+                  <= projT2_eq.u0
+                  <= eq_sigT.u0
+  eq_sigT_rect.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= projT1_eq.u1
+                  <= projT2_eq.u1
+                  <= eq_sigT.u1
+  eq_ex_intro_uncurried.u0 <= eq_rect.u1
+  eq_ex_intro.u0 <= eq_rect.u1
+                 <= eq_ex_intro_uncurried.u0
+  eq_sigT_rect_existT_l.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_existT_l.u0
+                           <= eq_sigT_rect.u0
+  eq_sigT_rect_existT_l.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_existT_l.u1
+                           <= eq_sigT_rect.u1
+  eq_sigT_rect_existT_r.u0 <= eq_rect.u1
+                           <= Projections.u0
+                           <= eq_existT_r.u0
+                           <= eq_sigT_rect.u0
+  eq_sigT_rect_existT_r.u1 <= eq_rect.u0
+                           <= Projections.u1
+                           <= eq_existT_r.u1
+                           <= eq_sigT_rect.u1
+  eq_sigT_rect_existT.u0 <= eq_rect.u1
+                         <= eq_existT_curried.u0
+                         <= eq_sigT_rect.u0
+  eq_sigT_rect_existT.u1 <= eq_rect.u0
+                         <= eq_existT_curried.u1
+                         <= eq_sigT_rect.u1
+  eq_sigT_rect_uncurried.u0 <= eq_rect.u1
+                            <= Projections.u0
+                            <= eq_sigT.u0
+                            <= eq_sigT_rect.u0
+  eq_sigT_rect_uncurried.u1 <= eq_rect.u0
+                            <= Projections.u1
+                            <= eq_sigT.u1
+                            <= eq_sigT_rect.u1
+  eq_sigT_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= Projections.u0
+                       <= eq_sigT_hprop.u0
+  eq_sigT_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                       <= Projections.u1
+                       <= eq_sigT_hprop.u1
+  eq_sigT_nondep.u0 <= Projections.u0
+                    <= rew_const.u0
+                    <= eq_sigT.u0
+  eq_sigT_nondep.u1 <= eq_rect.u0
+                    <= Logic_lemmas.equality.u0
+                    <= Projections.u1
+                    <= rew_const.u1
+                    <= eq_sigT.u1
+  rew_sigT.u0 <= eq_rect.u1
+  rew_sigT.u1 <= eq_rect.u0
+              <= Projections.u0
+  eq_ex_intro_hprop.u0 <= eq_rect.u1
+                       <= eq_ex_intro.u0
+  proj1_sig_eq.u0 <= Logic_lemmas.equality.u0
+                  <= Logic_lemmas.equality.u1
+                  <= Subset_projections.u0
+  proj2_sig_eq.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= proj1_sig_eq.u0
+  rew_ex.u0 <= eq_rect.u1
+  eq_exist_uncurried.u0 <= eq_rect.u1
+  eq_sig_uncurried.u0 <= eq_rect.u1
+                      <= Subset_projections.u0
+                      <= eq_exist_uncurried.u0
+  eq_exist_curried.u0 <= eq_rect.u1
+                      <= eq_sig_uncurried.u0
+  eq_sig.u0 <= eq_rect.u1
+            <= Subset_projections.u0
+            <= eq_sig_uncurried.u0
+  eq_exist_l.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= eq_sig.u0
+  eq_exist_r.u0 <= eq_rect.u1
+                <= Subset_projections.u0
+                <= eq_sig.u0
+  eq_ex_intro2_uncurried.u0 <= eq_rect.u1
+  eq_sig_rect.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= proj1_sig_eq.u0
+                 <= proj2_sig_eq.u0
+                 <= eq_sig.u0
+  eq_ex_intro2.u0 <= eq_rect.u1
+                  <= eq_ex_intro2_uncurried.u0
+  eq_sig_rect_exist_l.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= eq_exist_l.u0
+                         <= eq_sig_rect.u0
+  eq_sig_rect_exist_r.u0 <= eq_rect.u1
+                         <= Subset_projections.u0
+                         <= eq_exist_r.u0
+                         <= eq_sig_rect.u0
+  eq_sig_rect_exist.u0 <= eq_rect.u1
+                       <= eq_exist_curried.u0
+                       <= eq_sig_rect.u0
+  eq_sig_rect_uncurried.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= eq_sig.u0
+                           <= eq_sig_rect.u0
+  eq_ex_intro2_hprop.u0 <= eq_rect.u1
+                        <= eq_ex_intro2.u0
+  eq_sig_hprop.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= eq_sig.u0
+  eq_sig_uncurried_iff.u0 <= eq_rect.u1
+                          <= eq_ind_r.u0
+                          <= Subset_projections.u0
+                          <= eq_sig_uncurried.u0
+  eq_sig_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= Subset_projections.u0
+                      <= eq_sig_hprop.u0
+  rew_sig.u0 <= eq_rect.u1
+  rew_sig.u1 <= eq_rect.u0
+             <= Subset_projections.u0
+  sigT_of_sigT2_eq.u0 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sigT_of_sigT2.u0
+  sigT_of_sigT2_eq.u1 <= Logic_lemmas.equality.u0
+                      <= Logic_lemmas.equality.u1
+                      <= sigT_of_sigT2.u1
+  sigT_of_sigT2_eq.u2 <= Logic_lemmas.equality.u0
+                      <= sigT_of_sigT2.u2
+  projT1_of_sigT2_eq.u0 <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= projT1_eq.u0
+                        <= sigT_of_sigT2_eq.u0
+  projT1_of_sigT2_eq.u1 <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= projT1_eq.u1
+                        <= sigT_of_sigT2_eq.u1
+  projT1_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                        <= sigT_of_sigT2_eq.u2
+  projT2_of_sigT2_eq.u0 <= eq_rect.u1
+                        <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= projT1_of_sigT2_eq.u0
+  projT2_of_sigT2_eq.u1 <= eq_rect.u0
+                        <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= projT1_of_sigT2_eq.u1
+  projT2_of_sigT2_eq.u2 <= sigT_of_sigT2.u2
+                        <= projT1_of_sigT2_eq.u2
+  projT3_eq.u0 <= eq_rect.u1
+               <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+               <= projT1_of_sigT2_eq.u0
+  projT3_eq.u1 <= Projections.u1
+               <= sigT_of_sigT2.u1
+               <= Projections2.u1
+               <= projT1_of_sigT2_eq.u1
+  projT3_eq.u2 <= eq_rect.u0
+               <= sigT_of_sigT2.u2
+               <= Projections2.u2
+               <= projT1_of_sigT2_eq.u2
+  eq_existT2_uncurried.u0 <= eq_rect.u1
+  eq_existT2_uncurried.u1 <= eq_rect.u0
+  eq_existT2_uncurried.u2 <= eq_rect.u0
+  rew_ex2.u0 <= eq_rect.u1
+  eq_sigT2_uncurried.u0 <= eq_rect.u1
+                        <= Projections.u0
+                        <= sigT_of_sigT2.u0
+                        <= Projections2.u0
+                        <= eq_existT2_uncurried.u0
+  eq_sigT2_uncurried.u1 <= eq_rect.u0
+                        <= Projections.u1
+                        <= sigT_of_sigT2.u1
+                        <= Projections2.u1
+                        <= eq_existT2_uncurried.u1
+  eq_sigT2_uncurried.u2 <= eq_rect.u0
+                        <= sigT_of_sigT2.u2
+                        <= Projections2.u2
+                        <= eq_existT2_uncurried.u2
+  eq_existT2_curried.u0 <= eq_rect.u1
+                        <= eq_sigT2_uncurried.u0
+  eq_existT2_curried.u1 <= eq_rect.u0
+                        <= eq_sigT2_uncurried.u1
+  eq_existT2_curried.u2 <= eq_rect.u0
+                        <= eq_sigT2_uncurried.u2
+  eq_sigT2.u0 <= eq_rect.u1
+              <= Projections.u0
+              <= sigT_of_sigT2.u0
+              <= Projections2.u0
+              <= eq_sigT2_uncurried.u0
+  eq_sigT2.u1 <= eq_rect.u0
+              <= Projections.u1
+              <= sigT_of_sigT2.u1
+              <= Projections2.u1
+              <= eq_sigT2_uncurried.u1
+  eq_sigT2.u2 <= eq_rect.u0
+              <= sigT_of_sigT2.u2
+              <= Projections2.u2
+              <= eq_sigT2_uncurried.u2
+  eq_existT2_l.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= eq_sigT2.u0
+  eq_existT2_l.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= eq_sigT2.u1
+  eq_existT2_l.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= eq_sigT2.u2
+  eq_existT2_r.u0 <= eq_rect.u1
+                  <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+                  <= eq_sigT2.u0
+  eq_existT2_r.u1 <= eq_rect.u0
+                  <= Projections.u1
+                  <= sigT_of_sigT2.u1
+                  <= Projections2.u1
+                  <= eq_sigT2.u1
+  eq_existT2_r.u2 <= eq_rect.u0
+                  <= sigT_of_sigT2.u2
+                  <= Projections2.u2
+                  <= eq_sigT2.u2
+  eq_sigT2_hprop.u0 <= eq_rect.u1
+                    <= Projections.u0
+                    <= sigT_of_sigT2.u0
+                    <= Projections2.u0
+                    <= projT1_eq.u0
+                    <= projT2_eq.u0
+                    <= eq_sigT2.u0
+  eq_sigT2_hprop.u1 <= eq_rect.u0
+                    <= sigT_of_sigT2.u2
+                    <= Projections2.u2
+                    <= eq_sigT2.u2
+  eq_sigT2_hprop.u2 <= Projections.u1
+                    <= sigT_of_sigT2.u1
+                    <= Projections2.u1
+                    <= projT1_eq.u1
+                    <= projT2_eq.u1
+                    <= eq_sigT2.u1
+  eq_sigT2_uncurried_iff.u0 <= eq_rect.u1
+                            <= eq_ind_r.u0
+                            <= Projections.u0
+                            <= sigT_of_sigT2.u0
+                            <= Projections2.u0
+                            <= eq_sigT2_uncurried.u0
+  eq_sigT2_uncurried_iff.u1 <= eq_rect.u0
+                            <= eq_ind_r.u0
+                            <= Projections.u1
+                            <= sigT_of_sigT2.u1
+                            <= Projections2.u1
+                            <= eq_sigT2_uncurried.u1
+  eq_sigT2_uncurried_iff.u2 <= eq_rect.u0
+                            <= eq_ind_r.u0
+                            <= sigT_of_sigT2.u2
+                            <= Projections2.u2
+                            <= eq_sigT2_uncurried.u2
+  eq_sigT2_rect.u0 <= eq_rect.u1
+                   <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+                   <= projT1_of_sigT2_eq.u0
+                   <= projT2_of_sigT2_eq.u0
+                   <= projT3_eq.u0
+                   <= eq_sigT2.u0
+  eq_sigT2_rect.u1 <= eq_rect.u0
+                   <= Projections.u1
+                   <= sigT_of_sigT2.u1
+                   <= Projections2.u1
+                   <= projT1_of_sigT2_eq.u1
+                   <= projT2_of_sigT2_eq.u1
+                   <= projT3_eq.u1
+                   <= eq_sigT2.u1
+  eq_sigT2_rect.u2 <= eq_rect.u0
+                   <= sigT_of_sigT2.u2
+                   <= Projections2.u2
+                   <= projT1_of_sigT2_eq.u2
+                   <= projT2_of_sigT2_eq.u2
+                   <= projT3_eq.u2
+                   <= eq_sigT2.u2
+  eq_sigT2_rect_existT2_l.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_existT2_l.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2_l.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_existT2_l.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2_l.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_existT2_l.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_rect_existT2_r.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_existT2_r.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2_r.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_existT2_r.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2_r.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_existT2_r.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_rect_existT2.u0 <= eq_rect.u1
+                           <= eq_existT2_curried.u0
+                           <= eq_sigT2_rect.u0
+  eq_sigT2_rect_existT2.u1 <= eq_rect.u0
+                           <= eq_existT2_curried.u1
+                           <= eq_sigT2_rect.u1
+  eq_sigT2_rect_existT2.u2 <= eq_rect.u0
+                           <= eq_existT2_curried.u2
+                           <= eq_sigT2_rect.u2
+  eq_sigT2_rect_uncurried.u0 <= eq_rect.u1
+                             <= Projections.u0
+                             <= sigT_of_sigT2.u0
+                             <= Projections2.u0
+                             <= eq_sigT2.u0
+                             <= eq_sigT2_rect.u0
+  eq_sigT2_rect_uncurried.u1 <= eq_rect.u0
+                             <= Projections.u1
+                             <= sigT_of_sigT2.u1
+                             <= Projections2.u1
+                             <= eq_sigT2.u1
+                             <= eq_sigT2_rect.u1
+  eq_sigT2_rect_uncurried.u2 <= eq_rect.u0
+                             <= sigT_of_sigT2.u2
+                             <= Projections2.u2
+                             <= eq_sigT2.u2
+                             <= eq_sigT2_rect.u2
+  eq_sigT2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+                        <= sigT_of_sigT2.u0
+                        <= eq_sigT2_hprop.u0
+  eq_sigT2_hprop_iff.u1 <= Logic_lemmas.equality.u0
+                        <= sigT_of_sigT2.u2
+                        <= eq_sigT2_hprop.u1
+  eq_sigT2_hprop_iff.u2 <= Logic_lemmas.equality.u0
+                        <= Logic_lemmas.equality.u1
+                        <= sigT_of_sigT2.u1
+                        <= eq_sigT2_hprop.u2
+  eq_sigT2_nondep.u0 <= Projections.u0
+                     <= sigT_of_sigT2.u0
+                     <= Projections2.u0
+                     <= rew_const.u0
+                     <= eq_sigT2.u0
+  eq_sigT2_nondep.u1 <= eq_rect.u0
+                     <= Logic_lemmas.equality.u0
+                     <= Projections.u1
+                     <= sigT_of_sigT2.u1
+                     <= Projections2.u1
+                     <= rew_const.u1
+                     <= eq_sigT2.u1
+  eq_sigT2_nondep.u2 <= eq_rect.u0
+                     <= Logic_lemmas.equality.u0
+                     <= sigT_of_sigT2.u2
+                     <= Projections2.u2
+                     <= rew_const.u1
+                     <= eq_sigT2.u2
+  rew_sigT2.u0 <= eq_rect.u1
+  rew_sigT2.u1 <= eq_rect.u0
+               <= Projections.u0
+               <= sigT_of_sigT2.u0
+               <= Projections2.u0
+  sig_of_sig2_eq.u0 <= Logic_lemmas.equality.u0
+                    <= Logic_lemmas.equality.u1
+                    <= sig_of_sig2.u0
+  proj1_sig_of_sig2_eq.u0 <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= proj1_sig_eq.u0
+                          <= sig_of_sig2_eq.u0
+  proj2_sig_of_sig2_eq.u0 <= eq_rect.u1
+                          <= Subset_projections.u0
+                          <= sig_of_sig2.u0
+                          <= proj1_sig_of_sig2_eq.u0
+  proj3_sig_eq.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_of_sig2_eq.u0
+  eq_exist2_uncurried.u0 <= eq_rect.u1
+  eq_sig2_uncurried.u0 <= eq_rect.u1
+                       <= Subset_projections.u0
+                       <= sig_of_sig2.u0
+                       <= Subset_projections2.u0
+                       <= eq_exist2_uncurried.u0
+  eq_exist2_curried.u0 <= eq_rect.u1
+                       <= eq_sig2_uncurried.u0
+  eq_sig2.u0 <= eq_rect.u1
+             <= Subset_projections.u0
+             <= sig_of_sig2.u0
+             <= Subset_projections2.u0
+             <= eq_sig2_uncurried.u0
+  eq_exist2_l.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= eq_sig2.u0
+  eq_exist2_r.u0 <= eq_rect.u1
+                 <= Subset_projections.u0
+                 <= sig_of_sig2.u0
+                 <= Subset_projections2.u0
+                 <= eq_sig2.u0
+  eq_sig2_hprop.u0 <= eq_rect.u1
+                   <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
+                   <= proj1_sig_eq.u0
+                   <= proj2_sig_eq.u0
+                   <= eq_sig2.u0
+  eq_sig2_uncurried_iff.u0 <= eq_rect.u1
+                           <= eq_ind_r.u0
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_sig2_uncurried.u0
+  eq_sig2_rect.u0 <= eq_rect.u1
+                  <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
+                  <= proj1_sig_of_sig2_eq.u0
+                  <= proj2_sig_of_sig2_eq.u0
+                  <= proj3_sig_eq.u0
+                  <= eq_sig2.u0
+  eq_sig2_rect_exist2_l.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_exist2_l.u0
+                           <= eq_sig2_rect.u0
+  eq_sig2_rect_exist2_r.u0 <= eq_rect.u1
+                           <= Subset_projections.u0
+                           <= sig_of_sig2.u0
+                           <= Subset_projections2.u0
+                           <= eq_exist2_r.u0
+                           <= eq_sig2_rect.u0
+  eq_sig2_rect_exist2.u0 <= eq_rect.u1
+                         <= eq_exist2_curried.u0
+                         <= eq_sig2_rect.u0
+  eq_sig2_rect_uncurried.u0 <= eq_rect.u1
+                            <= Subset_projections.u0
+                            <= sig_of_sig2.u0
+                            <= Subset_projections2.u0
+                            <= eq_sig2.u0
+                            <= eq_sig2_rect.u0
+  eq_sig2_hprop_iff.u0 <= Logic_lemmas.equality.u0
+                       <= Logic_lemmas.equality.u1
+                       <= sig_of_sig2.u0
+                       <= eq_sig2_hprop.u0
+  eq_sig2_nondep.u0 <= Subset_projections.u0
+                    <= sig_of_sig2.u0
+                    <= Subset_projections2.u0
+                    <= rew_const.u0
+                    <= eq_sig2.u0
+  rew_sig2.u0 <= eq_rect.u1
+  rew_sig2.u1 <= eq_rect.u0
+              <= Subset_projections.u0
+              <= sig_of_sig2.u0
+              <= Subset_projections2.u0
+  Dependent_choice_lemmas.u0 <= Subset_projections.u0
+  
  SORTS:
   α1 := Type
   α2 := Type
