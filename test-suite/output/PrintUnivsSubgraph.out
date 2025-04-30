@@ -6,7 +6,7 @@ i < j
   < k
 i+2 < k
 
-Set < u
-    < v
-v < u (because v <(from PrintUnivsSubgraph.T.foo) u)
+0 < u
+  < v
+v < u
 
