@@ -181,3 +181,48 @@ formalization of mathematics (e.g. the full formalization of the
 Feit-Thompson theorem or homotopy type theory) and teaching.
 
 This package runs the test suite."))
+
+(package
+ (name rocq-native)
+ (conflicts base-nnp ocaml-option-nnpchecker)
+ (synopsis "Package flag enabling rocq's native-compiler flag")
+ (description "This package acts as a package flag for the ambient switch, taken into
+account by rocq (and possibly any rocq library) to enable native_compute
+at configure time, triggering the installation of .coq-native/* files
+for the rocq libraries.
+
+This implements item 1 of CEP #48 <https://github.com/coq/ceps/pull/48>.
+
+Remarks:
+
+1. you might face with issues installing this package flag under macOS,
+   see <https://github.com/coq/coq/issues/11178>.
+2. this package is not intended to be used as a dependency of other
+   packages (notably as installing or uninstalling this package may
+   trigger a rebuild of all rocq packages in the ambient switch).
+3. the option set by this package will be automatically propagated to
+   rocq compile."))
+
+(package
+ (name coq-native)
+ (conflicts (coq (< 8.5)))
+ (synopsis "Package flag enabling coq's native-compiler flag")
+ (description "This package acts as a package flag for the ambient switch, taken into
+account by coq (and possibly any coq library) to enable native_compute
+at configure time, triggering the installation of .coq-native/* files
+for the coq standard library and subsequent coq libraries.
+
+This implements item 1 of CEP #48 <https://github.com/coq/ceps/pull/48>.
+
+Remarks:
+
+1. you might face with issues installing this package flag under macOS,
+   see <https://github.com/coq/coq/issues/11178>.
+2. this package is not intended to be used as a dependency of other
+   packages (notably as installing or uninstalling this package may
+   trigger a rebuild of all coq packages in the ambient switch).
+3. the option set by this package will be automatically propagated to
+   coqc for coq >= 8.13 (but the packaging of coq libraries for
+   earlier versions of coq may need an update: for details, see item 3
+   of CEP #48 <https://github.com/coq/ceps/pull/48>).
+"))
