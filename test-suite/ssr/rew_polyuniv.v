@@ -4,14 +4,14 @@ Set Default Proof Using "Type".
 Local Set Universe Polymorphism.
 
 (** Telescopes *)
-#[universes(cumulative)] Inductive tele : Type :=
+Inductive tele : Type :=
   | TeleO : tele
   | TeleS {X} (binder : X -> tele) : tele.
 
 Arguments TeleS {_} _.
 
 (** The telescope version of Coq's function type *)
-Fixpoint tele_fun@{u v} (TT : tele@{u}) (T : Type@{v}) : Type@{max(u,v)} :=
+Fixpoint tele_fun (TT : tele) (T : Type) : Type :=
   match TT with
   | TeleO => T
   | TeleS b => forall x, tele_fun (b x) T
@@ -22,11 +22,10 @@ Notation "TT -t> A" :=
 
 (** A sigma-like type for an "element" of a telescope, i.e. the data it
   takes to get a [T] from a [TT -t> T]. *)
-
-Inductive tele_arg@{i} : tele@{i} → Type@{i+1} :=
+Inductive tele_arg : tele -> Type :=
 | TargO : tele_arg TeleO
 (* the [x] is the only relevant data here *)
-| TargS {X : Type@{i}} {binder} (x : X) : tele_arg (binder x) → tele_arg (TeleS binder).
+| TargS {X} {binder} (x : X) : tele_arg (binder x) -> tele_arg (TeleS binder).
 
 Definition tele_app {TT : tele} {T} (f : TT -t> T) : tele_arg TT -> T :=
   fun a => (fix rec {TT} (a : tele_arg TT) : (TT -t> T) -> T :=
@@ -53,20 +52,12 @@ Lemma tele_arg_S_inv {X} {f : X -> tele} (a : TeleS f) :
 Proof. exact (tele_arg_inv a). Qed.
 
 (** Operate below [tele_fun]s with argument telescope [TT]. *)
-
-Fixpoint tele_bind {U : Type} {TT : tele} : (TT → U) → tele_fun TT U :=
-  match TT as TT return (TT → U) → TT -t> U with
-  | TeleO => λ F, F TargO
-  | @TeleS X b => λ (F : TeleS b → U) (x : X), (* b x -t> U *)
-                  tele_bind (λ a, F (TargS x a))
+Fixpoint tele_bind {U} {TT : tele} : (TT -> U) -> TT -t> U :=
+  match TT as TT return (TT -> U) -> TT -t> U with
+  | TeleO => fun F => F TargO
+  | @TeleS X b => fun (F : TeleS b -> U) (x : X) => (* b x -t> U *)
+                  tele_bind (fun a => F (TargS x a))
   end.
-
-(* Fixpoint tele_bind@{u v} {U : Type@{u}} {TT : tele@{v}} : (TT → U) → tele_fun@{v u} TT U :=
-  match TT as TT return (TT → U) → TT -t> U with
-  | TeleO => λ F, F TargO
-  | @TeleS X b => λ (F : TeleS b → U) (x : X), (* b x -t> U *)
-                  tele_bind (λ a, F (TargS x a))
-  end. *)
 Arguments tele_bind {_ !_} _ /.
 
 (* Show that tele_app ∘ tele_bind is the identity. *)
