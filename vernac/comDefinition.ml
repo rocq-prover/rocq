@@ -165,7 +165,7 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   Evd.check_univ_decl_early ~poly ~cumulative ~with_obls:false evd udecl [typ];
   let typ = EConstr.of_constr typ in
 let info = Declare.Info.make ?hook ~poly ~cumulative ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
-  let cinfo = Declare.CInfo.make ~name ~typ ~args ~impargs () in
+  let cinfo = Declare.CInfo.make ?loc ~name ~typ ~args ~impargs () in
   let evd = if poly then evd else Evd.fix_undefined_variables evd in
   Declare.Proof.start_definition ~info ~cinfo ?using evd
 
