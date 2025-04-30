@@ -314,8 +314,8 @@ Module QvarInCtor.
 
   Fail Check Foo True : Prop.
   Fail Check Foo nat : Set.
-  Polymorphic Definition test@{|} : Type@{Foo.u0+1} := Foo nat.
-  Polymorphic Definition test'@{u|} (A:Type@{u}) : Type@{max(u,Foo.u0+1)} := Foo A.
+  Polymorphic Definition test@{|} : Type@{Foo.u1+1} := Foo nat.
+  Polymorphic Definition test'@{u|} (A:Type@{u}) : Type@{max(u,Foo.u1+1)} := Foo A.
 End QvarInCtor.
 
 Module SemiPoly.
