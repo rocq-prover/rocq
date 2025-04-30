@@ -110,12 +110,13 @@ punwrap is a primitive projection of PWrap
 Arguments punwrap A%_type_scope p
 punwrap is transparent
 Expands to: Constant UnivBinders.punwrap
+Declared in library UnivBinders, line 13, characters 43-50
 File "./output/UnivBinders.v", line 105, characters 0-19:
 The command has indeed failed with message:
-Universe instance length is 3 but should be 1.
+Universe instance length for foo is 3 but should be 1.
 File "./output/UnivBinders.v", line 106, characters 0-20:
 The command has indeed failed with message:
-Universe instance length is 0 but should be 1.
+Universe instance length for mono is 0 but should be 1.
 File "./output/UnivBinders.v", line 109, characters 0-33:
 The command has indeed failed with message:
 This object does not support universe names.
@@ -161,26 +162,26 @@ axfoo@{i u u0} : Type@{u} -> Type@{i}
 axfoo is universe polymorphic
 Arguments axfoo _%_type_scope
 Expands to: Constant UnivBinders.axfoo
-Declared in library UnivBinders, line 151, characters 6-11
+Declared in library UnivBinders, line 152, characters 6-11
 axbar@{i u u0} : Type@{u0} -> Type@{i}
 (* i u u0 |=  *)
 
 axbar is universe polymorphic
 Arguments axbar _%_type_scope
 Expands to: Constant UnivBinders.axbar
-Declared in library UnivBinders, line 151, characters 17-22
+Declared in library UnivBinders, line 152, characters 17-22
 axfoo' : Type@{axfoo'.u0} -> Type@{axfoo'.i}
 
 axfoo' is not universe polymorphic
 Arguments axfoo' _%_type_scope
 Expands to: Constant UnivBinders.axfoo'
-Declared in library UnivBinders, line 152, characters 18-24
+Declared in library UnivBinders, line 153, characters 18-24
 axbar' : Type@{axfoo'.u1} -> Type@{axfoo'.i}
 
 axbar' is not universe polymorphic
 Arguments axbar' _%_type_scope
 Expands to: Constant UnivBinders.axbar'
-Declared in library UnivBinders, line 152, characters 30-36
+Declared in library UnivBinders, line 153, characters 30-36
 *** [ axfoo@{i u u0} : Type@{u} -> Type@{i} ]
 (* i u u0 |=  *)
 
@@ -194,7 +195,7 @@ Arguments axbar _%_type_scope
 Arguments axfoo' _%_type_scope
 *** [ axbar' : Type@{axfoo'.u1} -> Type@{axfoo'.i} ]
 
-Arguments axbar' _%type_scope
+Arguments axbar' _%_type_scope
 File "./output/UnivBinders.v", line 159, characters 19-26:
 The command has indeed failed with message:
 When declaring multiple assumptions in one command, only the first name is
@@ -251,10 +252,10 @@ CoInductive MutualI1'@{u u0} (A : Type@{u}) : Type@{u0} :=
     C2' : MutualI1'@{u u0} A -> MutualI2'@{u u0} A.
 (* u u0 |=  *)
 
-Arguments MutualI1' A%type_scope
-Arguments C1' A%type_scope p1
-Arguments MutualI2' A%type_scope
-Arguments C2' A%type_scope p2
+Arguments MutualI1' A%_type_scope
+Arguments C1' A%_type_scope p1
+Arguments MutualI2' A%_type_scope
+Arguments C2' A%_type_scope p2
 File "./output/UnivBinders.v", line 210, characters 0-33:
 The command has indeed failed with message:
 Universe inconsistency. Cannot enforce a+1 ≤ a because a < a+1.
@@ -262,7 +263,7 @@ JMeq :
 forall [A : Type@{JMeq.u0}], A -> forall [B : Type@{JMeq.u0}], B -> Prop
 
 JMeq is not universe polymorphic
-Arguments JMeq [A]%type_scope x [B]%type_scope _
+Arguments JMeq [A]%_type_scope x [B]%_type_scope _
 Expands to: Inductive UnivBinders.PartialTemplate.JMeq
 Declared in library UnivBinders, line 220, characters 10-14
 File "./output/UnivBinders.v", line 235, characters 2-38:
