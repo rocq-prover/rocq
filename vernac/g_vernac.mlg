@@ -244,16 +244,15 @@ let test_univ_decl =
 let test_cumul_univ_decl_nocstrs =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_kw "-" <+> lk_ident) in
-  to_entry "test_cumul_univ_decl_nocstrs" (lk_ident_list >> 
-    ((lk_kw ";" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> lk_kw "}") <+>
-     (lk_kw "|" >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))))
+  to_entry "test_cumul_univ_decl_nocstrs" 
+    (lk_ident_list >> lk_kw ";" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> lk_kw "}")
 
 let test_cumul_univ_decl =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_kw "-" <+> lk_ident) in
   to_entry "test_cumul_univ_decl" (lk_ident_list >> 
     ((lk_kw ";" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty)) <+>
-     (lk_kw "|" >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))))
+     (lk_kw "|" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))))
 
 let warn_old_separator =
   CWarnings.create ~name:"deprecated-sort-binder-syntax" ~category:Deprecation.Version.v9_1
