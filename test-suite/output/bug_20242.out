@@ -1,3 +1,5 @@
+Warning: Use ';' instead of '|' to separate sort and universe binders.
+[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
 File "./output/bug_20242.v", line 5, characters 49-60:
 The command has indeed failed with message:
 Signature components for field B do not match: expected type
