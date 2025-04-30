@@ -459,7 +459,8 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
   in
   let us = UnivFlex.normalize us in
   let noneqs = UnivSubst.subst_univs_constraints (UnivFlex.normalize_univ_variable us) noneqs in
-  let ctx = (ctx', Constraints.union noneqs eqs) in
+  let cstrs = Constraints.filter (fun (l, d, r) -> not (d == Le && Universe.is_type0 l)) (Constraints.union noneqs eqs) in
+  let ctx = (ctx', cstrs) in
   debug Pp.(fun () -> str "After minimization: " ++ ContextSet.pr prl ctx ++ fnl () ++
     UnivFlex.pr Level.raw_pr us ++ fnl () ++
     str"VARIANCES: " ++ InferCumulativity.pr_variances Level.raw_pr variances);

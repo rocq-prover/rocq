@@ -119,7 +119,7 @@ let rec check_type_conclusion ind =
 let rec make_anonymous_conclusion_flexible ind =
   let open Glob_term in
   match DAst.get ind with
-  | GSort (None, UAnonymous {rigid=UnivRigid}) ->
+  | GSort (None, UAnonymous {rigid=UnivFlexible}) ->
     Some (DAst.make ?loc:ind.loc (GSort (None, UAnonymous {rigid=UnivFlexible})))
   | GSort _ -> None
   | GProd (a, b, c, d, e) -> begin match make_anonymous_conclusion_flexible e with
@@ -545,7 +545,6 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
-  let gctx = uctx in
   let ubinders = Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
@@ -559,9 +558,9 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     let qs, us = UVars.LevelInstance.to_array inst in
     UVars.LevelInstance.of_array (Array.map (fun _ -> Quality.qtype) qs, us)
   in
-  (* Slightly hackish global universe declaration due to template types. *)
+  (* Global universe declaration for the non-template universes. *)
   let univ_entry =
-    UState.{ universes_entry_universes = UState.Monomorphic_entry gctx; 
+    UState.{ universes_entry_universes = UState.Monomorphic_entry global; 
     universes_entry_binders = ubinders }
   in
   sigma, Template_ind_entry {uctx; default_univs}, univ_entry, global
