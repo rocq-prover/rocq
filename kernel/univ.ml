@@ -441,8 +441,21 @@ struct
       then h1 :: (sup t1 l2)
       else h2 :: (sup l1 t2)
 
+  let all_above n u =
+    List.for_all (fun (_l, k) -> k >= n) u
+
+  let canonize u = 
+    match u with
+    | [] | [_] -> u
+    | (l, n) :: u' ->
+      if Level.is_zero l then
+        if Int.equal n 0 then u'
+        else if all_above n u' then u'
+        else u
+      else u
+
   let sort u =
-    List.fold_right (fun a acc -> sup [a] acc) u []
+    canonize (List.fold_right (fun a acc -> sup [a] acc) u [])
   
   let exists = List.exists
 
