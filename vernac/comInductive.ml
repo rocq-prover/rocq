@@ -546,6 +546,11 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
   let ubinders = Evd.universe_binders sigma in
+  (* Global universe declaration for the non-template universes. *)
+  let univ_entry =
+    UState.{ universes_entry_universes = UState.Monomorphic_entry uctx; 
+    universes_entry_binders = ubinders }
+  in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
@@ -557,11 +562,6 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     let inst = UVars.UContext.instance uctx in
     let qs, us = UVars.LevelInstance.to_array inst in
     UVars.LevelInstance.of_array (Array.map (fun _ -> Quality.qtype) qs, us)
-  in
-  (* Global universe declaration for the non-template universes. *)
-  let univ_entry =
-    UState.{ universes_entry_universes = UState.Monomorphic_entry global; 
-    universes_entry_binders = ubinders }
   in
   sigma, Template_ind_entry {uctx; default_univs}, univ_entry, global
 
