@@ -312,9 +312,11 @@ struct
       if Int.equal k 0 then e
       else (u, k + n)
 
-    let pr f (v, n) =
-      if Int.equal n 0 then f v
-      else f v ++ str"+" ++ int n
+    let pr f (l, n) =
+      if Int.equal n 0 then f l
+      else match Level.data l with
+      | RawLevel.Zero -> int n
+      | _ -> f l ++ str"+" ++ int n
 
     let is_level = function
       | (_v, 0) -> true
