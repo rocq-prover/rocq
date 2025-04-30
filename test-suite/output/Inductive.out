@@ -71,7 +71,7 @@ ssig@{q1 q2 q3 | a b} may only be eliminated to produce values whose type is in 
 Arguments ssig A%_type_scope B%_function_scope
 Expands to: Inductive Inductive.ssig
 Declared in library Inductive, line 47, characters 22-26
-BoxP@{q | a} : Type@{q | a} -> Prop
+BoxP@{q | a |} : Type@{q | a} -> Prop
 (* q | a |=  *)
 
 BoxP is universe polymorphic
