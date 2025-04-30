@@ -192,7 +192,6 @@ Type@{i}),
 Type@{i}),
                    T -> O_reflector@{u a i} O T.
 
-  Set Debug "univMinim".
   Parameter inO_equiv_inO@{u a i j k} :
       forall (O : ReflectiveSubuniverse@{u a}) (T : Type@{i}) (U : Type@{j})
              (T_inO : In@{u a i} O T) (f : T -> U) (feq : IsEquiv@{i j} f),
@@ -218,8 +217,6 @@ Existing Class In.
 Arguments inO_equiv_inO {O} T {U} {_} f {_}.
 Global Existing Instance O_inO.
 
-Unset Universe Minimization ToSet.
-
 Section ORecursion.
   Universes Ou Oa.
   Context {O : ReflectiveSubuniverse@{Ou Oa}}.
@@ -240,9 +237,17 @@ Section Reflective_Subuniverse.
   Universes Ou Oa.
   Context (O : ReflectiveSubuniverse@{Ou Oa}).
 
-    Definition inO_isequiv_to_O (T:Type)
-    : IsEquiv (to O T) -> In O T
-    := fun _ => inO_equiv_inO (O T) (to O T)^-1.
+  (* FIXME, regression or improvement from before? I think the minimization was too eager before *)
+  Definition inO_isequiv_to_O@{u u0} (T:Type@{u})
+    : IsEquiv@{u0 u0} (to@{Ou Oa u0} O T) -> In@{Ou Oa u0} O T
+    := fun H =>
+    @inO_equiv_inO@{Ou Oa u0 u0 u0} O (O_reflector@{Ou Oa u0} O T) T
+  (O_inO@{Ou Oa u0} O T)
+  (@equiv_inv@{u0 u0} T (O_reflector@{Ou Oa u0} O T) (to@{Ou Oa u0} O T) H)
+  (@isequiv_inverse@{u0 u0} T (O_reflector@{Ou Oa u0} O T)
+	 (to@{Ou Oa u0} O T) H).
+    
+    (* fun _ => inO_equiv_inO@{Ou Oa u0 u0 u0} (O T) (equiv_inv@{u0 u0} (to@{Ou Oa u0} O T)). *)
 
     Definition inO_to_O_retract (T:Type) (mu : O T -> T)
     : Sect (to O T) mu -> In O T.
@@ -259,7 +264,7 @@ Section Reflective_Subuniverse.
     Definition inO_paths@{i | Oa <= i} (S : Type@{i}) {S_inO : In@{Ou Oa i} O S} (x y :
 S)    : In@{Ou Oa i} O (x=y).
     Proof.
-      simple refine (inO_to_O_retract@{i i i i i} _ _ _); intro u.
+      simple refine (inO_to_O_retract@{i i} _ _ _); intro u.
       -
  assert (p : (fun _ : O (x=y) => x) == (fun _=> y)).
         {
