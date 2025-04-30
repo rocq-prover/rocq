@@ -31,9 +31,7 @@ Module Inconsistent.
   Inductive CMP (x:array (unit -> nat)) := C.
 
   Definition F (x:nat) := fun _:unit => x.
-  Set Debug "inferCumul".
-  Set Debug "inferCumul_infer_term".
-  Set Debug "backtrace".
+
   Definition TARGET := let m := [| F 0; F 0 | F 0 |] in
                        let m := set m 0 (fun _ => get (set m 1 (F 1)) 0 tt) in
                        CMP m.
