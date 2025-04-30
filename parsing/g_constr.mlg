@@ -140,7 +140,7 @@ GRAMMAR EXTEND Gram
       | "SProp" -> { None, UNamed [CSProp, 0] }
       | "Type" -> { None, UAnonymous {rigid=UnivFlexible} }
       | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivRigid} }
-      | "Type"; "@{"; test_sort_qvar; q = reference; "|"; u = universe_opt; "}" ->
+      | "Type"; "@{"; test_sort_qvar; q = reference; _ = [ "|" -> { () } | ";" -> { () } ];  u = universe_opt; "}" ->
         { Some (CQVar q), u }
       | "Type"; "@{"; u = universe; "}" -> { None, UNamed u } ] ]
   ;
@@ -317,7 +317,7 @@ GRAMMAR EXTEND Gram
       | -> { [] } ] ]
   ;
   univ_annot:
-    [ [ "@{"; l = LIST0 univ_or_quality; l' = OPT [ "|"; l' = LIST0 univ_or_quality -> { l' } ]; "}" ->
+    [ [ "@{"; l = LIST0 univ_or_quality; l' = OPT [ _ = [ "|" -> { () } | ";" -> { () } ]; l' = LIST0 univ_or_quality -> { l' } ]; "}" ->
         {
           let l, l' = match l' with
             | None -> [], List.map (force_univ ~loc) l
