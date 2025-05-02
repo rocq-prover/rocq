@@ -12,7 +12,12 @@ open Names
 
 val throw : ?info:Exninfo.info -> exn -> 'a Proofview.tactic
 
+(** [catch_exceptions] default false *)
 val pf_apply : ?catch_exceptions:bool -> (Environ.env -> Evd.evar_map -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+(** Adds ltac2 backtrace. With [passthrough:false] (default), acts
+    like [Proofview.wrap_exceptions] + Ltac2 backtrace handling. *)
+val wrap_exceptions : ?passthrough:bool -> (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
 
 val constr_flags : Pretyping.inference_flags
 val open_constr_no_classes_flags : Pretyping.inference_flags
