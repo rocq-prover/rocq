@@ -503,11 +503,22 @@ let get_section = function
 let push_context_set ~strict cst senv =
   if Univ.ContextSet.is_empty cst then senv
   else
-    let sections = Option.map (Section.push_constraints cst) senv.sections
+    let sections = Option.map (Section.push_constraints cst) senv.sections in
+    let lvls = Univ.ContextSet.levels cst in
+    (* Be lenient, module typing reintroduces universes and constraints due to includes *)
+    let fold l g = try UGraph.add_universe ~strict l g with UGraph.AlreadyDeclared -> g in
+    let ugraph = Univ.Level.Set.fold fold lvls (Environ.universes senv.env) in
+    let nlvls = (Univ.Level.Set.union lvls (fst senv.univ)) in
+    let fold cst (ugraph, univs) =
+      let ugraph' = UGraph.enforce_constraint cst ugraph in
+      if ugraph == ugraph' then (ugraph, univs)
+      else if UGraph.check_constraint ugraph cst then (ugraph, univs)
+      else (ugraph', Univ.Constraints.add cst univs)
     in
+    let ugraph, ncsts = Univ.Constraints.fold fold (snd cst) (ugraph, snd senv.univ) in
     { senv with
-      env = Environ.push_context_set ~strict cst senv.env;
-      univ = Univ.ContextSet.union cst senv.univ;
+      env = Environ.set_universes ugraph senv.env;
+      univ = (nlvls, ncsts);
       sections }
 
 let add_constraints cst senv =
