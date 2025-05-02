@@ -35,7 +35,12 @@ end
 
 val throw : ?info:Exninfo.info -> exn -> 'a Proofview.tactic
 
+(** [catch_exceptions] default false *)
 val pf_apply : ?catch_exceptions:bool -> (Environ.env -> Evd.evar_map -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+(** Adds ltac2 backtrace. With [passthrough:false] (default), acts
+    like [Proofview.wrap_exceptions] + Ltac2 backtrace handling. *)
+val wrap_exceptions : ?passthrough:bool -> (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
 
 module type MapType = sig
   (** to have less boilerplate we use S.elt rather than declaring a toplevel type t *)
