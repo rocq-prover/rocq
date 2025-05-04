@@ -650,17 +650,38 @@ let pr_constraint_source = function
     end
   | Library dp -> str "library " ++ pr_qualid (Nametab.shortest_qualid_of_module (MPfile dp))
 
+let to_source_path u p = 
+  let rec aux decomp_ok u p =
+    match p with
+    | [] -> u, []
+    | (k, v, ref) :: p ->
+      match k with
+      | Univ.Le ->
+        if decomp_ok then
+          match Univ.Universe.decompose_succ u with
+          | None -> let v', p' = aux decomp_ok v p in
+            u, (Le, v', ref) :: p'
+          | Some u' -> 
+            let v', p' = aux decomp_ok v p in
+            u', (Lt, v', ref) :: p'
+        else let v', p' = aux decomp_ok v p in
+          (u, (Le, v', ref) :: p')
+      | Univ.Eq -> let v', p' = aux false v p in
+        u, (Eq, v', ref) :: p'
+    in aux true u p
+
 let pr_source_path prl u src =
   if CList.is_empty src then mt()
   else
     let pr_rel = function
-      | Univ.Eq -> str"=" | Le -> str"<="
+      | Eq -> str"=" | Le -> str"<=" | Lt -> str"<"
     in
     let pr_one (k,v,ref) =
       spc() ++
       h (pr_rel k ++ surround (str "from " ++ pr_constraint_source ref) ++
          spc() ++ prl v)
     in
+    let u, src = to_source_path u src in
     spc() ++ surround (str"because" ++ spc() ++ prl u ++ prlist_with_sep mt pr_one src)
 
 let pr_pmap sep pr map =
@@ -678,14 +699,15 @@ function
     let l = List.sort (fun (i, _) (i', _) -> Int.compare i i') l in
     let l = CList.factorize_left Int.equal l in
     let pr_cstrs (i, l) =
+      let ui = Universe.of_expr (u, i) in
       let l = List.sort Universe.compare l in
       let k, is_lt = if i >= 1 then pred i, true else 0, false in
-      let u = (u, k) in
+      let u' = (u, k) in
       let prv v =
-        let src = find_source (Universe.of_expr u, Univ.Le, v) srcs in
-        str (if is_lt then "< " else "<= ") ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) (Universe.of_expr u) src
+        let src = find_source (ui, Univ.Le, v) srcs in
+        str (if is_lt then "< " else "<= ") ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) ui src
       in
-      LevelExpr.pr prl u ++ spc () ++ v 0 (prlist_with_sep spc prv l)
+      LevelExpr.pr prl u' ++ spc () ++ v 0 (prlist_with_sep spc prv l)
     in
     prlist_with_sep spc pr_cstrs l ++ fnl ()
 | u, UGraph.Alias v ->
