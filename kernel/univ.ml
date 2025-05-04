@@ -465,6 +465,11 @@ struct
     assert (not (List.is_empty l));
     sort l
 
+  let decompose_succ (x : t) : t option =
+    if List.for_all (fun (_, k) -> k > 0) x then
+      Some (List.map (fun (l, k) -> (l, pred k)) x)
+    else None
+
   let make_subst_fn (m : t Level.Map.t) =
     fun l ->
       match Level.Map.find_opt l m with
