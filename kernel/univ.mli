@@ -193,6 +193,9 @@ sig
   val repr : t -> LevelExpr.t list
   val unrepr : LevelExpr.t list -> t
 
+  val decompose_succ : t -> t option
+  (** [decompose_succ u] returns [Some v] if [u = v + 1], otherwise [None] *)
+
   val make_subst_fn : t Level.Map.t -> (Level.t -> t)
 
   val subst_fn : (Level.t -> t) -> t -> t
