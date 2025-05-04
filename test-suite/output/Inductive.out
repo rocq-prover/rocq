@@ -18,7 +18,7 @@ option is template universe polymorphic
 Arguments option A%_type_scope
 Expands to: Inductive Corelib.Init.Datatypes.option
 Declared in library Corelib.Init.Datatypes, line 202, characters 10-16
-option : Type@{option.u0} -> Type@{max(Set,option.u0)}
+option : Type@{option.u0} -> Type@{option.u0}
 
 option is template universe polymorphic on option.u0 (cannot be instantiated to Prop)
 Arguments option A%_type_scope
@@ -47,7 +47,10 @@ sunit is not universe polymorphic
 sunit may only be eliminated to produce values whose type is SProp.
 Expands to: Inductive Inductive.sunit
 Declared in library Inductive, line 38, characters 10-15
-sempty@{q |  |} : Type@{q | Set}
+File "./output/Inductive.v", line 42, characters 0-26:
+Warning: Use ';' instead of '|' to separate sort and universe binders.
+[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
+sempty@{q |  |} : Type@{q | 0}
 (* q |  |=  *)
 
 sempty is universe polymorphic
@@ -58,6 +61,9 @@ sempty@{q | } may only be eliminated to produce values whose type is in sort qua
   than the instantiation of q.
 Expands to: Inductive Inductive.sempty
 Declared in library Inductive, line 44, characters 22-28
+File "./output/Inductive.v", line 46, characters 0-13:
+Warning: Use ';' instead of '|' to separate sort and universe binders.
+[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
 ssig@{q1 q2 q3 | a b |} :
 forall A : Type@{q1 | a}, (A -> Type@{q2 | b}) -> Type@{q3 | max(a,b)}
 (* q1 q2 q3 | a b |=  *)
@@ -70,7 +76,10 @@ ssig@{q1 q2 q3 | a b} may only be eliminated to produce values whose type is in 
   than the instantiation of q3.
 Arguments ssig A%_type_scope B%_function_scope
 Expands to: Inductive Inductive.ssig
-Declared in library Inductive, line 48, characters 22-26
+Declared in library Inductive, line 47, characters 22-26
+File "./output/Inductive.v", line 53, characters 0-11:
+Warning: Use ';' instead of '|' to separate sort and universe binders.
+[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
 BoxP@{q | a |} : Type@{q | a} -> Prop
 (* q | a |=  *)
 
@@ -79,4 +88,4 @@ BoxP@{q | a} may only be eliminated to produce values whose type is SProp or Pro
   unless instantiated such that the quality q is SProp or Prop.
 Arguments BoxP A%_type_scope
 Expands to: Inductive Inductive.BoxP
-Declared in library Inductive, line 56, characters 22-26
+Declared in library Inductive, line 55, characters 22-26
