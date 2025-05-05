@@ -405,23 +405,34 @@ let extended_mind_variance mind =
   | None, Some _ -> assert false
   | Some variance, Some sec_variance -> Some (UVars.Variances.append sec_variance variance)
 
-let extended_const_variance cb =
+let extend_application nargs hyps =
+  match nargs with
+  | FullyApplied -> FullyApplied
+  | NumArgs n -> NumArgs (Context.Named.nhyps hyps + n)
+
+let extended_const_variance cb nargs =
   match Declareops.universes_variances cb.const_universes, cb.const_sec_variance with
   | None, None -> None
-  | Some _ as variance, None -> variance
+  | Some variance, None -> Some (variance, nargs)
   | None, Some _ -> assert false
-  | Some variance, Some sec_variance -> Some (UVars.Variances.append sec_variance variance)
+  | Some variance, Some sec_variance -> 
+    Some (UVars.Variances.append sec_variance variance, 
+      extend_application nargs cb.const_hyps)
 
 let compute_impred_qvars qs vocc =
   let vars = UVars.VarianceOccurrence.under_impred_qvars vocc in
   update_impred_qvars (fun qv -> Option.map (fun idx -> qs.(idx)) (Sorts.QVar.var_index qv)) vars
 
 (** Compute variances from f@{u1 ... un} knowing f@{l1(vn) ... ln(vn)} variance information *)
-let infer_cumulative_instance cv_pb (is_type, _appvariance) nargs gvariances variances u =
+let infer_cumulative_instance gr cv_pb (is_type, _appvariance) nargs gvariances variances u =
   let qs, us = Instance.to_array u in
-  debug_infer_term Pp.(fun () -> str"infer_cumulative_instance: " ++ Variances.pr gvariances);
+  debug_infer_term Pp.(fun () -> str"infer_cumulative_instance: " ++ Variances.pr gvariances ++ str " for " ++ 
+    Names.GlobRef.print gr ++ (match nargs with FullyApplied -> str"fully applied" | NumArgs n -> str" applied to " ++ int n ++ str" arguments"));
   Array.fold_left2 (fun variances vocc u ->
     let typing_variance, cumul_variance = VarianceOccurrence.typing_and_cumul_variance_app ~with_type:(is_type == IsTerm) nargs vocc in
+    debug_infer_term Pp.(fun () -> str"infer_cumulative_instance, for: " ++ Universe.raw_pr u ++
+      str" typing variance " ++ Variance.pr typing_variance ++ 
+      str" cumul variance " ++ Variance.pr cumul_variance);
     let q = compute_impred_qvars qs vocc in
     let typing_variance = match cv_pb with Conv | Cumul -> typing_variance | InvCumul -> Variance.opp typing_variance in
     match cv_pb, cumul_variance with
@@ -455,7 +466,7 @@ let infer_inductive_instance cv_pb variance env variances ind nargs u =
   let u = extend_ind_instance mind u in
   match extended_mind_variance mind with
   | None -> infer_generic_instance_eq variances u
-  | Some mind_variance -> infer_cumulative_instance cv_pb variance (UVars.NumArgs nargs) mind_variance variances u
+  | Some mind_variance -> infer_cumulative_instance (Names.GlobRef.IndRef ind) cv_pb variance (UVars.NumArgs nargs) mind_variance variances u
 
 let constructor_variances _mind _ind _ctor variance =
   (* let npars = mind.Declarations.mind_nparams in *)
@@ -464,7 +475,7 @@ let constructor_variances _mind _ind _ctor variance =
   let map vocc = { vocc with in_type = vocc.in_term; in_term = None } in
   Variances.make (Array.map map (Variances.repr variance))
 
-let infer_constructor_instance_eq env variance variances ((mi,ind),ctor) nargs u =
+let infer_constructor_instance_eq env variance variances ((mi,ind),ctor as c) nargs u =
   if not (Environ.mem_mind mi env) then
     infer_generic_instance_eq variances u
   else
@@ -474,7 +485,7 @@ let infer_constructor_instance_eq env variance variances ((mi,ind),ctor) nargs u
   | None -> infer_generic_instance_eq variances u
   | Some mind_variance ->
     let cstr_variance = constructor_variances mind ind ctor mind_variance in
-    infer_cumulative_instance Cumul variance (UVars.NumArgs nargs) cstr_variance variances u
+    infer_cumulative_instance (Names.GlobRef.ConstructRef c) Cumul variance (UVars.NumArgs nargs) cstr_variance variances u
 
     (*if not (Int.equal (UCompare.constructor_cumulativity_arguments (mind, ind, ctor)) nargs)
     then infer_generic_instance_eq variances u
@@ -494,11 +505,11 @@ let infer_sort cv_pb (_is_type, typing_variance) variances s =
 let infer_constant cv_pb variance env nargs variances has_def (con,u) =
   let cb = Environ.lookup_constant con env in
   let u = extend_con_instance cb u in
-  match extended_const_variance cb with
+  match extended_const_variance cb nargs with
   | None ->
     let variances = if has_def then set_infer_mode false variances else variances in
     infer_generic_instance_eq variances u
-  | Some cst_variance -> infer_cumulative_instance cv_pb variance nargs cst_variance variances u
+  | Some (cst_variance, nargs) -> infer_cumulative_instance (Names.GlobRef.ConstRef con) cv_pb variance nargs cst_variance variances u
 
 let whd_stack (infos, tab) hd stk = CClosure.whd_stack infos tab hd stk
 
@@ -591,7 +602,7 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     infer_stack variance infos variances stk
   | FArray (u,elemsdef,ty) ->
     let variances =
-      infer_cumulative_instance cv_pb (IsType, snd variance) FullyApplied CPrimitives.array_variances variances u
+      infer_cumulative_instance (Names.GlobRef.VarRef (Names.Id.of_string "array")) cv_pb (IsType, snd variance) FullyApplied CPrimitives.array_variances variances u
     in
     let variances = infer_fterm cv_pb (IsType, Covariant) infos variances ty [] in
     let elems, def = Parray.to_array elemsdef in
