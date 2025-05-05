@@ -703,24 +703,3 @@ let subst_univs_level_constraints subst csts =
 
 let pr_universe_level_subst prl =
   Level.Map.pr prl (fun u -> str" := " ++ Universe.pr prl u ++ spc ())
-
-(* FIXME removed?
-module Huniverse_set =
-  Hashcons.Make(
-    struct
-      type t = universe_set
-      type u = universe_level -> universe_level
-      let hashcons huc s =
-        Level.Set.fold (fun x -> Level.Set.add (huc x)) s Level.Set.empty
-      let eq s s' =
-        Level.Set.equal s s'
-      let hash = Hashtbl.hash
-    end)
-
-let hcons_universe_set =
-  Hashcons.simple_hcons Huniverse_set.generate Huniverse_set.hcons Level.hcons
-
-let hcons_universe_context_set (v, c) =
-  (hcons_universe_set v, hcons_constraints c)
-
-let hcons_univ x = Universe.hcons x *)
