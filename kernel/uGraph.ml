@@ -55,9 +55,9 @@ let type_in_type g = g.type_in_type
 let check_smaller_expr g (u,n) (v,m) =
   let diff = n - m in
     match diff with
-    | 0 -> G.check_leq g.graph u v
+    | 0 -> Level.is_set u || G.check_leq g.graph u v
     | 1 -> G.check_lt g.graph u v
-    | x when x < 0 -> G.check_leq g.graph u v
+    | x when x < 0 -> Level.is_set u || G.check_leq g.graph u v
     | _ -> false
 
 let exists_bigger g ul l =
@@ -118,7 +118,7 @@ let merge_constraints csts g = Constraints.fold enforce_constraint csts g
 let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
   type_in_type
   || match d with
-  | Le -> G.check_leq g u v
+  | Le -> Level.is_set u || G.check_leq g u v
   | Lt -> G.check_lt g u v
   | Eq -> G.check_eq g u v
 
