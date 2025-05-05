@@ -53,7 +53,11 @@ let constant_is_polymorphic cb =
   | Monomorphic -> false
   | Polymorphic _ -> true
 
-
+let constant_is_cumulative cb =
+  match cb.const_universes with
+  | Monomorphic -> false
+  | Polymorphic (_, variances) -> not (Option.is_empty variances)
+  
 let constant_has_body cb = match cb.const_body with
   | Undef _ | Primitive _ | Symbol _ -> false
   | Def _ | OpaqueDef _ -> true

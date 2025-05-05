@@ -152,7 +152,7 @@ let simplify_variables partial ctx us variances graph =
   let simplify_impred u acc = function
     | None -> (* Unused variable *) acc
     | Some UVars.Predicative -> (* Used in some predicative contexts *) acc
-  |   Some (UVars.Impredicative qs) ->
+    | Some (UVars.Impredicative qs) ->
       if not partial && Sorts.QVar.Set.is_empty qs then collapse_to_zero u acc
       else acc
   in

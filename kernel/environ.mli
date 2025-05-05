@@ -424,6 +424,7 @@ val apply_to_hyp : named_context_val -> variable ->
 val remove_hyps : Id.Set.t -> (Constr.named_declaration -> Constr.named_declaration) -> named_context_val -> named_context_val
 
 val is_polymorphic : env -> Names.GlobRef.t -> bool
+val is_cumulative : env -> Names.GlobRef.t -> bool
 val is_template_polymorphic : env -> GlobRef.t -> bool
 val is_type_in_type : env -> GlobRef.t -> bool
 

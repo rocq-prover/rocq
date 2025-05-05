@@ -95,8 +95,8 @@ let () =
       optwrite = (fun b -> rewriting_flag := b) }
 
 (* Util *)
-let define ~poly ?loc name sigma c types =
-  let univs = Evd.univ_entry ~poly sigma in
+let define ~poly ~cumulative ?loc name sigma c types =
+  let univs = Evd.univ_entry ~poly ?variances:(if cumulative then Some Infer_variances else None) sigma in
   let entry = Declare.definition_entry ~univs ?types c in
   let kind = Decls.(IsDefinition Scheme) in
   let kn = Declare.declare_constant ?loc ~kind ~name (Declare.DefinitionEntry entry) in
@@ -403,17 +403,18 @@ let do_mutual_induction_scheme ?(force_mutual=false) env ?(isrec=true) l =
           sigma, c)
         sigma lrecspec
   in
-  let poly =
+  let poly, cumulative =
     (* NB: build_mutual_induction_scheme forces nonempty list of mutual inductives
        (force_mutual is about the generated schemes) *)
     let _,_,ind,_ = List.hd l in
-    Global.is_polymorphic (Names.GlobRef.IndRef ind)
+    Global.is_polymorphic (Names.GlobRef.IndRef ind),
+    Global.is_cumulative (Names.GlobRef.IndRef ind)
   in
   let declare decl ({CAst.v=fi; loc},dep,ind, sort) =
     let decltype = Retyping.get_type_of env sigma decl in
     let decltype = EConstr.to_constr sigma decltype in
     let decl = EConstr.to_constr sigma decl in
-    let cst = define ?loc ~poly fi sigma decl (Some decltype) in
+    let cst = define ?loc ~poly ~cumulative fi sigma decl (Some decltype) in
     let kind =
       let open Elimschemes in
       let open UnivGen.QualityOrSet in
@@ -537,8 +538,10 @@ let do_combined_scheme name csts =
      polymorphism of the inductive block). In that case if they want
      some other polymorphism they can also manually define the
      combined scheme. *)
-  let poly = Global.is_polymorphic (Names.GlobRef.ConstRef (List.hd csts)) in
-  ignore (define ~poly ?loc:name.loc name.v sigma body (Some typ));
+  let gr = Names.GlobRef.ConstRef (List.hd csts) in
+  let poly = Global.is_polymorphic gr in
+  let cumulative = Global.is_cumulative gr in
+  ignore (define ~poly ~cumulative ?loc:name.loc name.v sigma body (Some typ));
   Declare.fixpoint_message None [name.v]
 
 (**********************************************************************)
