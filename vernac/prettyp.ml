@@ -219,8 +219,10 @@ let pr_template_variables env ref =
 let print_polymorphism env ref =
   let poly = Environ.is_polymorphic env ref in
   let template_poly = Environ.is_template_polymorphic env ref in
+  let cumulative = Environ.is_cumulative env ref in
   [ pr_global ref ++ str " is " ++
-      (if poly then str "universe polymorphic"
+      (if poly then str "universe polymorphic" ++ 
+          (if cumulative then str" and cumulative" else mt())
        else if template_poly then
          str "template universe polymorphic"
          ++ if !Detyping.print_universes then h (pr_template_variables env ref) else mt()

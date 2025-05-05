@@ -725,6 +725,9 @@ let polymorphic_pconstant (cst,u) env =
   if UVars.Instance.is_empty u then false
   else polymorphic_constant cst env
 
+let cumulative_constant cst env =
+  Declareops.constant_is_cumulative (lookup_constant cst env)
+
 let type_in_type_constant cst env =
   not (lookup_constant cst env).const_typing_flags.check_universes
 
@@ -755,6 +758,9 @@ let polymorphic_ind (mind,_i) env =
 let polymorphic_pind (ind,u) env =
   if UVars.Instance.is_empty u then false
   else polymorphic_ind ind env
+
+let cumulative_ind (mind,_i) env =
+  Declareops.inductive_is_cumulative (lookup_mind mind env)  
 
 let type_in_type_ind (mind,_i) env =
   not (lookup_mind mind env).mind_typing_flags.check_universes
@@ -945,6 +951,14 @@ let is_polymorphic env r =
   | IndRef ind -> polymorphic_ind ind env
   | ConstructRef cstr -> polymorphic_ind (inductive_of_constructor cstr) env
 
+let is_cumulative env r =
+  let open Names.GlobRef in
+  match r with
+  | VarRef _id -> false
+  | ConstRef c -> cumulative_constant c env
+  | IndRef ind -> cumulative_ind ind env
+  | ConstructRef cstr -> cumulative_ind (inductive_of_constructor cstr) env
+  
 let is_template_polymorphic env r =
   let open Names.GlobRef in
   match r with
