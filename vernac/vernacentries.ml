@@ -292,7 +292,6 @@ let print_namespace ~pstate ns =
     print_list Id.print qn
   in
   let print_constant ~pstate k body =
-    (* FIXME: universes *)
     let t = body.Declarations.const_type in
     let sigma, env = get_current_or_global_context ~pstate in
     print_kn k ++ str":" ++ spc() ++ Printer.pr_type_env env sigma t

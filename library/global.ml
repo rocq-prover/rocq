@@ -230,6 +230,9 @@ let env_of_context hyps =
 let is_polymorphic r =
   Environ.is_polymorphic (env()) r
 
+let is_cumulative r =
+  Environ.is_cumulative (env()) r
+  
 let is_template_polymorphic r =
   Environ.is_template_polymorphic (env ()) r
 
