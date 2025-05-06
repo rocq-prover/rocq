@@ -81,9 +81,6 @@ val set_inline_level : int -> unit
 val get_inline_level : unit -> int
 val default_inline_level : int
 
-(** Default output directory *)
-val output_directory : CUnix.physical_path option ref
-
 (** Flag set when the test-suite is called.
     - display verbose information for [Fail]
     - print quickfix info in error printers *)
