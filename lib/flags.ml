@@ -68,10 +68,6 @@ let verbosely f x = without_option quiet f x
 let if_silent f x = if !quiet then f x
 let if_verbose f x = if not !quiet then f x
 
-let warn = ref true
-let make_warn flag = warn := flag;  ()
-let if_warn f x = if !warn then f x
-
 (* Level of inlining during a functor application *)
 
 let default_inline_level = 100
