@@ -76,11 +76,6 @@ val with_options : bool ref list -> ('a -> 'b) -> 'a -> 'b
 (** Temporarily deactivate an option *)
 val without_option : bool ref -> ('a -> 'b) -> 'a -> 'b
 
-(** Level of inlining during a functor application *)
-val set_inline_level : int -> unit
-val get_inline_level : unit -> int
-val default_inline_level : int
-
 (** Flag set when the test-suite is called.
     - display verbose information for [Fail]
     - print quickfix info in error printers *)
