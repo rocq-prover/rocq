@@ -35,10 +35,6 @@
 val async_proofs_worker_id : string ref
 val async_proofs_is_worker : unit -> bool
 
-(** Flag to indicate that .vos files should be loaded for dependencies
-    instead of .vo files. Used by -vos and -vok options. *)
-val load_vos_libraries : bool ref
-
 (** Debug flags *)
 val in_debugger : bool ref
 val in_ml_toplevel : bool ref
