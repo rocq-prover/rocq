@@ -187,7 +187,7 @@ let init_document opts =
   Nativelib.output_dir := opts.config.native_output_dir;
 
   (* Default output dir *)
-  Flags.output_directory := opts.config.output_directory;
+  System.output_directory := opts.config.output_directory;
 
   (* Test mode *)
   Flags.test_mode := opts.config.test_mode;

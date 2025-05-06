@@ -62,6 +62,10 @@ val where_in_path :
     default output directory if [fname] is not absolute *)
 val get_output_path : CUnix.physical_path -> CUnix.physical_path
 
+(** Default output directory. Make sure to emit a warning if using
+    this directly (cf extraction Table.output_directory) *)
+val output_directory : CUnix.physical_path option ref
+
 (** [find_file_in_path ?warn loadpath filename] returns the directory
     name and long name of the first physical occurrence [filename] in
     one of the directory of the [loadpath];
