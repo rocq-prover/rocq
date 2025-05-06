@@ -189,7 +189,7 @@ let vm_state =
   ((), { Mod_typing.vm_handler })
 
 let expand_mexpr env mp me =
-  let inl = Some (Flags.get_inline_level()) in
+  let inl = Declaremods.default_inline_level() in
   (* hack: in order not to overwrite the module binding mp, we first give it a
      name that should not be part of the env and then substitute it away *)
   let mp0 = ModPath.dummy in
@@ -200,7 +200,7 @@ let expand_mexpr env mp me =
   Modops.subst_modtype_signature_and_resolver mp0 mp sign reso
 
 let expand_modtype env mp me =
-  let inl = Some (Flags.get_inline_level()) in
+  let inl = Declaremods.default_inline_level () in
   let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
   let mtb, _cst, _ = Mod_typing.translate_modtype state vm_state env mp inl ([],me) in
   mtb
