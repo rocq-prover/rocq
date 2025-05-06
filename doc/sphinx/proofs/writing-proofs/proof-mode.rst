@@ -432,6 +432,17 @@ The following options modify the behavior of ``Proof using``.
    When this :term:`flag` is on, :cmd:`Qed` suggests
    a ``using`` annotation if the user did not provide one.
 
+.. flag:: Keep Admitted Variables
+
+   When on, proofs terminated with :cmd:`Admitted` use the section
+   variables from `Proof using` if one was provided (including through
+   `Default Proof Using`), otherwise the variables used in the partial
+   proof (including any variables visible from the still open goals).
+
+   When off, only the section variables used in the type are used.
+
+   On by default.
+
 ..  _`nameaset`:
 
 Name a set of section hypotheses for ``Proof using``
