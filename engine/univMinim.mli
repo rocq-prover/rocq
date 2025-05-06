@@ -41,7 +41,11 @@ val set_variance : InferCumulativity.variances -> Level.t -> InferCumulativity.i
     [normalize_context_set ctx us]
 
     - Instantiate the variables in [us] with their most precise
-    universe levels respecting the constraints.
+      universe levels respecting the constraints, depending on 
+      their variance. If [solve_flexibles] is true, arbitrary 
+      instantiations respecting the constraints on rigid universes
+      are performed. Otherwise only instantiations that preserve 
+      the principality of typing are allowed.
 
     - Normalizes the context [ctx] w.r.t. equality constraints,
     choosing a canonical universe in each equivalence class
@@ -49,6 +53,7 @@ val set_variance : InferCumulativity.variances -> Level.t -> InferCumulativity.i
     the constraints w.r.t to the equalities. *)
 
 val normalize_context_set : 
+  solve_flexibles:bool ->
   variances:InferCumulativity.variances ->
   partial:bool ->
   UGraph.t -> ContextSet.t ->
