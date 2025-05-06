@@ -2474,6 +2474,13 @@ performance issue.
 
    This :term:`flag` enables and disables the profiler.
 
+.. opt:: Ltac Profiling Cutoff @string
+
+   Reading the string as a floating point number, ltac profiles are
+   printed without entries faster than the cutoff (in seconds).
+
+   `2.0` by default.
+
 .. cmd:: Show Ltac Profile {? {| CutOff @integer | @string } }
 
    Prints the profile.

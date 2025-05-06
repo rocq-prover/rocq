@@ -892,6 +892,14 @@ However elimination to `Type` or to a polymorphic sort with `s := Prop` is allow
         : Type@{s|max(u,v)}
         := pair { pr1 : A; pr2 : B pr1 }.
 
+.. flag:: Printing Sort Qualities
+
+   By default when :flag:`Printing Universes` is on, sorts at floating
+   sort qualities will print their quality. Turning this flag off will
+   instead print them as though the quality was `Type` (which it will
+   become at the end of the definition unless it is unified with
+   another rigid quality).
+
 Explicit Sorts
 ---------------
 

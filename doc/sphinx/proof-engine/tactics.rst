@@ -598,6 +598,15 @@ one or more of its hypotheses.
    :ref:`Managingthelocalcontext`, :ref:`caseanalysisandinduction`,
    :ref:`printing_constructions_full`.
 
+Automatic clearing of hypotheses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. flag:: Default Clearing Used Hypotheses
+
+   When this :term:`flag` is on (it is off by default), some tactics
+   will automatically clear their hypothesis arguments.
+
+   For instance when `H` is an hypothesis, `apply H` will clear `H`.
 
 .. _applyingtheorems:
 
