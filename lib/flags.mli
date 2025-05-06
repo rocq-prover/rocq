@@ -63,10 +63,6 @@ val verbosely : ('a -> 'b) -> 'a -> 'b
 val if_silent : ('a -> unit) -> 'a -> unit
 val if_verbose : ('a -> unit) -> 'a -> unit
 
-val warn : bool ref
-val make_warn : bool -> unit
-val if_warn : ('a -> unit) -> 'a -> unit
-
 (** [with_modified_ref r nf f x] Temporarily modify a reference in the
     call to [f x] . Be very careful with these functions, it is very
     easy to fall in the typical problem with effects:
