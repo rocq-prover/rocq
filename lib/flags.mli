@@ -53,7 +53,6 @@ val raw_print : bool ref
 (* Beautify command line flags, should move to printing? *)
 val beautify : bool ref
 val beautify_file : bool ref
-val record_comments : bool ref
 
 (* Rocq quiet mode. Note that normal mode is called "verbose" here,
    whereas [quiet] suppresses normal output such as goals in rocq repl *)
