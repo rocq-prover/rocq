@@ -62,11 +62,4 @@ let verbosely f x = without_option quiet f x
 let if_silent f x = if !quiet then f x
 let if_verbose f x = if not !quiet then f x
 
-(* Level of inlining during a functor application *)
-
-let default_inline_level = 100
-let inline_level = ref default_inline_level
-let set_inline_level = (:=) inline_level
-let get_inline_level () = !inline_level
-
 let test_mode = ref false

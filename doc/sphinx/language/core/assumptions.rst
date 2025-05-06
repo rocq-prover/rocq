@@ -195,7 +195,7 @@ has type :n:`@type`.
      If specified, :token:`ident_decl` is automatically
      declared as a coercion to the class of its type.  See :ref:`coercions`.
 
-   The :n:`Inline` clause is only relevant inside functors.  See :cmd:`Module`.
+   The :n:`Inline` clause is only relevant inside module types used for functor arguments.  See :cmd:`Module`.
 
 .. example:: Simple assumptions
 
