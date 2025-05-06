@@ -597,7 +597,7 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     let variances =
       let na = Array.map (usubst_binder e) na in
       let infos = push_relevances infos na in
-      infer_vect  Conv variance infos variances (Array.map (mk_clos le) cl)
+      infer_vect Conv variance infos variances (Array.map (mk_clos le) cl)
     in
     infer_stack variance infos variances stk
   | FArray (u,elemsdef,ty) ->
