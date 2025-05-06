@@ -69,8 +69,4 @@ let inline_level = ref default_inline_level
 let set_inline_level = (:=) inline_level
 let get_inline_level () = !inline_level
 
-(* Default output directory *)
-
-let output_directory = ref None
-
 let test_mode = ref false

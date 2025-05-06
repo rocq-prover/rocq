@@ -228,9 +228,11 @@ let warn_using_current_directory =
            strbrk "Output directory is unset, using \"" ++ str s ++ str "\"." ++ spc () ++
            strbrk "Use command line option \"-output-directory to set a default directory.")
 
+let output_directory = ref None
+
 let get_output_path filename =
   if not (Filename.is_relative filename) then filename
-  else match !Flags.output_directory with
+  else match !output_directory with
   | None ->
     let pwd = Sys.getcwd () in
     warn_using_current_directory pwd;
