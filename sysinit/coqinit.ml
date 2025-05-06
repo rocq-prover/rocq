@@ -200,7 +200,6 @@ let init_document opts =
 
   if opts.config.quiet then begin
     Flags.quiet := true;
-    Flags.make_warn false;
   end;
 
   ()
