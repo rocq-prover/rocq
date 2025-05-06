@@ -44,8 +44,6 @@ let with_options ol f x =
 let async_proofs_worker_id = ref "master"
 let async_proofs_is_worker () = !async_proofs_worker_id <> "master"
 
-let load_vos_libraries = ref false
-
 let in_debugger = ref false
 let in_ml_toplevel = ref false
 
