@@ -84,7 +84,7 @@ val default_inline_level : int
 (** Default output directory *)
 val output_directory : CUnix.physical_path option ref
 
-
-(** Flag set when the test-suite is called. Its only effect to display
-    verbose information for [Fail] *)
+(** Flag set when the test-suite is called.
+    - display verbose information for [Fail]
+    - print quickfix info in error printers *)
 val test_mode : bool ref
