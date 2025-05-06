@@ -239,6 +239,8 @@ type t =
    local : ContextSet.t; (** The local graph of universes (variables and constraints) *)
    univ_variables : UnivFlex.t;
    (** The local universes that are unification variables *)
+   solve_flexibles : bool; 
+   (** Should all the flexible variables be instantiated during minimization *)
    sort_variables : QState.t;
    (** Local quality variables. *)
    universes : UGraph.t; (** The current graph extended with the local constraints *)
@@ -252,15 +254,17 @@ let empty =
   { names = UnivNames.empty_binders, (QVar.Map.empty, Level.Map.empty);
     local = ContextSet.empty;
     univ_variables = UnivFlex.empty;
+    solve_flexibles = false;
     sort_variables = QState.empty;
     universes = UGraph.initial_universes;
     initial_universes = UGraph.initial_universes;
     variances = None;
     minim_extra = UnivMinim.empty_extra; }
 
-let make ~qualities univs =
+let make ~solve_flexibles ~qualities univs =
   { empty with
     universes = univs;
+    solve_flexibles;
     initial_universes = univs ;
     sort_variables = QState.of_global qualities
   }
@@ -380,6 +384,7 @@ let union uctx uctx' =
       { names;
         local;
         univ_variables;
+        solve_flexibles = uctx.solve_flexibles;
         sort_variables = QState.union ~fail:fail_union uctx.sort_variables uctx'.sort_variables;
         initial_universes = declarenew uctx.initial_universes;
         universes;
@@ -1417,15 +1422,15 @@ let new_univ_variable ?loc rigid name uctx =
 
 let add_forgotten_univ uctx u = add_universe None true uctx u
 
-let make_with_initial_binders ~qualities univs binders =
-  let uctx = make ~qualities univs in
+let make_with_initial_binders ~solve_flexibles ~qualities univs binders =
+  let uctx = make ~solve_flexibles ~qualities univs in
   List.fold_left
     (fun uctx { CAst.loc; v = id } ->
        fst (new_univ_variable ?loc univ_rigid (Some id) uctx))
     uctx binders
 
-let from_env ?(binders=[]) env =
-  make_with_initial_binders ~qualities:(Environ.qualities env) (UGraph.set_local (Environ.universes env)) binders
+let from_env ?(binders=[]) ?(solve_flexibles=false) env =
+  make_with_initial_binders ~solve_flexibles ~qualities:(Environ.qualities env) (UGraph.set_local (Environ.universes env)) binders
 
 let subst_univs_context_with_def def usubst (uctx, cst) =
   (Level.Set.diff uctx def, UnivSubst.subst_univs_constraints usubst cst)
@@ -1473,7 +1478,7 @@ let minimize
   | Some variances ->
     let variances = update_variances_qvars uctx.sort_variables variances in
     let (vars', variances), us' =
-      normalize_context_set ~variances ~partial uctx.universes
+      normalize_context_set ~solve_flexibles:uctx.solve_flexibles ~variances ~partial uctx.universes
         uctx.local uctx.univ_variables ~binders:(fst uctx.names) uctx.minim_extra
     in
     if ContextSet.equal us' uctx.local then { uctx with variances = Some variances; univ_variables = vars' }
@@ -1482,6 +1487,7 @@ let minimize
         { names = uctx.names;
           local = us';
           univ_variables = vars';
+          solve_flexibles = uctx.solve_flexibles;
           sort_variables = uctx.sort_variables;
           universes = uctx.initial_universes;
           initial_universes = uctx.initial_universes;

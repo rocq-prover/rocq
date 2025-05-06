@@ -921,7 +921,7 @@ let empty = {
   extras = Store.empty;
 }
 
-let from_env ?binders e = { empty with universes = UState.from_env ?binders e }
+let from_env ?binders ?(solve_flexibles=false) e = { empty with universes = UState.from_env ?binders ~solve_flexibles e }
 
 let from_ctx uctx = { empty with universes = uctx }
 

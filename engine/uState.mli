@@ -32,15 +32,17 @@ type t
 
 val empty : t
 
-val make : qualities:QVar.Set.t -> UGraph.t -> t
+val make : solve_flexibles:bool -> qualities:QVar.Set.t -> UGraph.t -> t
 [@@ocaml.deprecated "(8.13) Use from_env"]
 
-val make_with_initial_binders : qualities:QVar.Set.t -> UGraph.t -> lident list -> t
+val make_with_initial_binders : solve_flexibles:bool -> qualities:QVar.Set.t -> UGraph.t -> lident list -> t
 [@@ocaml.deprecated "(8.13) Use from_env"]
 
-val from_env : ?binders:lident list -> Environ.env -> t
+val from_env : ?binders:lident list -> ?solve_flexibles:bool -> Environ.env -> t
 (** Main entry point at the beginning of a declaration declaring the
-    binding names as rigid universes. *)
+  binding names as rigid universes. The [solve_flexibles] flag forces 
+  instantiation of the flexible universes during minimization, so 
+  that no flexible universes remain after it has been performed. *)
 
 val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
 (** Main entry point when only names matter, e.g. for printing. *)
