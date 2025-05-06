@@ -58,7 +58,6 @@ let in_synterp_phase = ref false
 (* Translate *)
 let beautify = ref false
 let beautify_file = ref false
-let record_comments = ref false
 
 (* Silent / Verbose *)
 let quiet = ref false
