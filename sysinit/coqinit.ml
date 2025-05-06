@@ -195,7 +195,7 @@ let init_document opts =
   (* beautify *)
   if opts.config.beautify then begin
     Flags.beautify := true;
-    Flags.record_comments := true;
+    CLexer.record_comments := true;
   end;
 
   if opts.config.quiet then begin
