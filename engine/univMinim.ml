@@ -118,7 +118,7 @@ let instantiate_variable l (b : Universe.t) (ctx, us, variances, graph) =
 let update_equivs_bound (_, us, _, _ as acc) l u equivs =
   update_univ_subst acc ((l, u) :: subst_of_equivalences us equivs)
 
-let simplify_variables partial ctx us variances graph =
+let simplify_variables solve_flexibles partial ctx us variances graph =
   let open UVars.Variance in
   let dom = UnivFlex.domain us in
   debug_each Pp.(fun () -> str"Simplifying variables with " ++ (if partial then str"partial" else str"non-partial") ++ str" information about the definition");
@@ -133,6 +133,13 @@ let simplify_variables partial ctx us variances graph =
     try instantiate_variable u Universe.type0 acc
     with UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
   in
+  let maximize u (ctx, us, variances, graph as acc) =
+    match UGraph.maximize u graph with
+    | HasSubst (graph, equivs, ubound) ->
+      debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound ++ str" and graph " ++ UGraph.pr_model graph);
+      update_equivs_bound (ctx, us, variances, graph) u ubound equivs
+    | NoBound | CannotSimplify -> acc
+  in
   let arbitrary u (ctx, us, variances, graph as acc) =
     match UGraph.minimize u graph with
     | HasSubst (graph, equivs, lbound) ->
@@ -140,14 +147,7 @@ let simplify_variables partial ctx us variances graph =
       update_equivs_bound (ctx, us, variances, graph) u lbound equivs
     | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
       collapse_to_zero u acc
-    | CannotSimplify -> acc
-  in
-  let maximize u (ctx, us, variances, graph as acc) =
-    match UGraph.maximize u graph with
-    | HasSubst (graph, equivs, ubound) ->
-      debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound ++ str" and graph " ++ UGraph.pr_model graph);
-      update_equivs_bound (ctx, us, variances, graph) u ubound equivs
-    | NoBound | CannotSimplify -> acc
+    | CannotSimplify -> maximize u acc
   in
   let simplify_impred u acc = function
     | None -> (* Unused variable *) acc
@@ -195,7 +195,14 @@ let simplify_variables partial ctx us variances graph =
     if UnivFlex.is_defined u us then acc
     else simplify_max u acc
   in
-  Level.Set.fold fold_max dom acc
+  let acc = Level.Set.fold fold_max dom acc in
+  if solve_flexibles then
+    let fold_arbitrary u (ctx, us, variances, graph as acc) =
+      if UnivFlex.is_defined u us then acc
+      else arbitrary u acc
+    in
+    Level.Set.fold fold_arbitrary dom acc
+  else acc
 
 
 module UPairs = OrderedType.UnorderedPair(Universe)
@@ -293,7 +300,7 @@ let new_minimize_weak ctx us weak (g, variances) =
     weak (ctx, us, variances, g)
 
 
-let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {weak_constraints=weak;above_prop} =
+let normalize_context_set ~solve_flexibles ~variances ~partial g ctx (us:UnivFlex.t) ?binders {weak_constraints=weak;above_prop} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
   debug Pp.(fun () -> str "Minimizing context: " ++ ContextSet.pr prl ctx ++ spc () ++
     UnivFlex.pr Level.raw_pr us ++ fnl () ++
@@ -429,9 +436,10 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
     Constraints.fold fold noneqs Constraints.empty
   in
   (* Now we construct the instantiation of each variable. *)
-  debug Pp.(fun () -> str "Starting minimization with: " ++ ContextSet.pr prl (ctx, noneqs) ++
-    UnivFlex.pr Level.raw_pr us ++ 
-    str "Leftover eqs:: " ++ Constraints.pr prl eqs);
+  debug Pp.(fun () -> str "Starting minimization with: " ++ ContextSet.pr prl (ctx, noneqs) ++ spc () ++
+    UnivFlex.pr Level.raw_pr us ++ spc () ++
+    str "Leftover eqs:: " ++ Constraints.pr prl eqs ++ spc () ++
+    if solve_flexibles then str "solving all flexibles" else str" solving flexibles respecting variances information");
   let ctx', us, variances, noneqs =
     let smalllesu = Constraints.fold (fun (l, d, r) acc ->
       match Universe.level r with Some r -> Level.Set.add r acc | None -> acc) smallles Level.Set.empty in
@@ -444,7 +452,7 @@ let normalize_context_set ~variances ~partial g ctx (us:UnivFlex.t) ?binders {we
       us graph
     in
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
-    let ctx', us, variances, graph = simplify_variables partial ctx us variances graph in
+    let ctx', us, variances, graph = simplify_variables solve_flexibles partial ctx us variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ UnivFlex.pr Level.raw_pr us);
     let ctx', us, variances, graph = new_minimize_weak ctx' us weak (graph, variances) in
     let locals, cstrs, partition = UGraph.constraints_of_universes ~only_local:true graph in
