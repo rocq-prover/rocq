@@ -190,6 +190,19 @@ let lookup_eliminator_by_name env ind_sp s =
             strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
             strbrk " is probably not allowed.")
 
+let deprecated_lookup_by_name =
+  CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
+    Pp.(fun (env,ind,r) ->
+        fmt "Found unregistered eliminator %t for %t by name.@ \
+             Use \"Register Scheme\" with it instead."
+          (fun () -> Termops.pr_global_env env r)
+          (fun () -> Termops.pr_global_env env (IndRef ind)))
+
+let lookup_eliminator_by_name env ind s =
+  let r = lookup_eliminator_by_name env ind s in
+  deprecated_lookup_by_name (env,ind,r);
+  r
+
 let lookup_eliminator env ind s =
   match lookup_scheme (elim_scheme ~dep:true ~to_kind:s) ind with
   | Some c -> Names.GlobRef.ConstRef c
