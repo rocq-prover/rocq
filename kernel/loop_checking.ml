@@ -30,7 +30,6 @@ let _debug_enforce_eq, debug_enforce_eq = CDebug.create_full ~name:"loop-checkin
 let _debug_find_to_merge_global_flag, debug_find_to_merge_global = CDebug.create_full ~name:"loop-checking-find-to-merge-global" ()
 
 let _debug_find_to_merge_flag, debug_find_to_merge = CDebug.create_full ~name:"loop-checking-find-to-merge" ()
-let debug_switch_union_upto, _debug_switch_union_upto = CDebug.create_full ~name:"loop-checking-switch-union-upto" ()
 
 (* let _ = CDebug.set_flag debug_loop_checking_check true *)
 
@@ -109,7 +108,7 @@ sig
   type t
   val equal : t -> t -> bool
   val compare : t -> t -> int
-  module Set : CSig.SetS with type elt = t
+  module Set : Set.S with type elt = t
   module Map : CMap.ExtS with type key = t and module Set := Set
   type table
   val empty : table
@@ -386,7 +385,7 @@ struct
 
 end
 
-module SetWithCardinal (O:OrderedType.S) (S : CSig.SetS with type elt = O.t) =
+module SetWithCardinal (O:OrderedType.S) (S : Set.S with type elt = O.t) =
 struct
 
   type t = { set : S.t; cardinal : int }
@@ -415,10 +414,10 @@ struct
 
   let elements s = S.elements s.set
 
-  let smap f s = S.fold (fun x acc -> S.add (f x) acc) s S.empty
-  let map f {set; _} =
-    let s' = smap f set in
-    { set = s'; cardinal = S.cardinal s'}
+  let map f s =
+    let s' = S.map f s.set in
+    if s' == s.set then s
+    else { set = s'; cardinal = S.cardinal s' } (* Cardinal might change if f maps two elements to the same *)
 
   let for_all p s = S.for_all p s.set
   let exists p s = S.exists p s.set
@@ -438,6 +437,11 @@ struct
   let choose s = S.choose s.set
 
   let of_set s = { set = s; cardinal = S.cardinal s }
+
+  let filter_map f s =
+    let s' = S.filter_map f s.set in
+    if s' == s.set then s
+    else { set = s'; cardinal = S.cardinal s' }
 end
 
 module type TypeWithCardinal =
@@ -702,13 +706,6 @@ module ClausesOf = struct
     let open Pp in
     v 0 (prlist_with_sep spc (ClauseInfo.pr pr_index_point concl) (elements cls))
 
-  (* Ocaml >= 4.11 has a more efficient version. *)
-  let filter_map p l =
-    fold (fun x acc ->
-      match p x with
-      | None -> remove x acc
-      | Some x' -> if x' == x then acc else add x' (remove x acc)) l l
-
   let shift n cls = if Int.equal n 0 then cls else map (fun (k, local, prems) -> (k + n, local, prems)) cls
 
   let add cl cls =
@@ -755,13 +752,6 @@ module PartialClausesOf = struct
     let open Pp in
     v 0 (prlist_with_sep spc (ClauseInfo.pr pr_index_point prem concl) (elements cls))
 
-  (* Ocaml >= 4.11 has a more efficient version. *)
-  let filter_map p l =
-    fold (fun x acc ->
-      match p x with
-      | None -> remove x acc
-      | Some x' -> if x' == x then acc else add x' (remove x acc)) l l
-
   let shift n cls = if Int.equal n 0 then cls else map (fun (k, prems) -> (k + n, prems)) cls
 
 end
@@ -800,14 +790,14 @@ struct
           cls))
       clauses
 
-    let replace (cl : fwd_clause) (clauses : t) : t =
-      IntMap.update cl.kprem
-        (fun cls ->
-          match cls with
-          | None -> Some (PMap.singleton cl.concl cl.prems)
-          | Some cls ->
-            Some (PMap.add cl.concl cl.prems cls))
-        clauses
+  let replace (cl : fwd_clause) (clauses : t) : t =
+    IntMap.update cl.kprem
+      (fun cls ->
+        match cls with
+        | None -> Some (PMap.singleton cl.concl cl.prems)
+        | Some cls ->
+          Some (PMap.add cl.concl cl.prems cls))
+      clauses
 
 
   (* let union (clauses : t) (clauses' : t) : t = *)
@@ -853,19 +843,20 @@ struct
         f ~kprem ~concl ~prems acc) cls acc)
       cls
 
-  (* let union clauses clauses' =
-    let merge _idx cls cls' =
-      match cls, cls' with
-      | None, None -> cls
-      | None, Some _ -> cls'
-      | Some _, None -> cls
-      | Some cls, Some cls' ->
-        Some (ClausesOf.union cls cls')
-    in
-    PMap.merge merge clauses clauses' *)
+  let iter (f : kprem:int -> concl:Index.t -> prems:PartialClausesOf.t -> unit) (cls : t) : unit =
+    IntMap.iter (fun kprem cls ->
+      PMap.iter (fun concl prems -> f ~kprem ~concl ~prems) cls)
+      cls
 
-  (* let _partition (p : Index.t -> ClausesOf.t -> bool) (cls : t) : t * t = PMap.partition p cls *)
-  (* let _filter (p : Index.t -> ClausesOf.t -> bool) (cls : t) : t = PMap.filter p cls *)
+  let map f clauses =
+    let f ~kprem ~concl ~prems cls = 
+      let f (kconcl, prems) cls =
+        let kprem, concl, kconcl, prems = f ~kprem ~concl ~kconcl ~prems in
+        add { kprem; concl; prems = PartialClausesOf.singleton (kconcl, prems) } cls
+      in
+      PartialClausesOf.fold f prems cls
+    in
+    fold f clauses empty
 
   let pr_clauses pr prem (cls : PMap.t) =
     let open Pp in
@@ -1028,10 +1019,10 @@ let remove_node m n =
       | Canonical _ -> entries
       | Equiv (_, idx', k) ->
         let idx', _k = repr_expr m (idx', k) in
-        if Index.equal idx' n.canon then
+        if Index.equal idx' n then
           PMap.remove idx entries
         else entries) m.entries m.entries in
-  let entries = PMap.remove n.canon entries in
+  let entries = PMap.remove n entries in
   { m with entries }
 
 let repr_node_expr m (u, k) =
@@ -1928,6 +1919,96 @@ let infer_clauses_extension cans m =
 let pr_incr pr (x, k) =
   Pp.(pr x ++ if k == 0 then mt() else str"+" ++ int k)
 
+
+(** Substitution in forward and backward clauses *)
+
+let subst_prem idx (idx', k') (prem, k as x) =
+  if Index.equal prem idx then (idx', k + k') else x
+
+let subst_prems idx u prems =
+  NeList.smart_map (subst_prem idx u) prems 
+
+let subst_fwd_clauses idx (idx', k' as u) fwd =
+  ForwardClauses.map 
+    (fun ~kprem ~concl ~kconcl ~prems -> 
+      let prems' = Option.Smart.map (subst_prems idx u) prems in
+      if Index.equal concl idx then (kprem, idx', kconcl + k', prems')
+      else (kprem, concl, kconcl, prems')) fwd
+
+let subst_bwd_clauses idx u bwd  =
+  ClausesOf.map (fun (kconcl, local, prems as cli) ->
+    let prems' = subst_prems idx u prems in
+    if prems' == prems then cli else (kconcl, local, prems')) bwd
+
+let subst_fwd_of_bwd idx u bwd model =
+  ClausesOf.fold (fun (_kconcl, _local, prems) model ->
+    let f (prem, _) model =
+      let can, _ = repr model prem in
+      let can = { can with clauses_fwd = subst_fwd_clauses idx u can.clauses_fwd } in
+      change_node model can
+    in
+    Premises._fold f prems model) bwd model
+
+let subst_bwd_of_fwd idx u fwd model =
+  let f ~kprem:_ ~concl ~prems:_ model = 
+    let can, _ = repr model concl in
+    let bwd' = subst_bwd_clauses idx u can.clauses_bwd in
+    if bwd' == can.clauses_bwd then model
+    else 
+      let can = { can with clauses_bwd = bwd' } in
+      change_node model can
+  in
+  ForwardClauses.fold f fwd model
+
+type index_clause = Premises.t * (Index.t * int)
+
+exception FoundInClause of index_clause
+
+let in_premises idx prems =
+  Premises._exists (fun (idx', _) -> Index.equal idx idx') prems 
+
+let absent_from_fwd idx prem fwd =
+  let f ~kprem ~concl ~prems =
+    if Index.equal idx concl then
+      let (kconcl, prems) = PartialClausesOf.choose prems in
+      raise (FoundInClause (Premises.add_opt (prem, kprem) prems, (concl, kconcl)))
+    else 
+      PartialClausesOf.iter (fun (kconcl, prems) ->
+        match prems with
+        | None -> ()
+        | Some prems ->
+          if in_premises idx prems then
+            raise (FoundInClause (Premises.add (prem, kprem) prems, (concl, kconcl)))
+          else ()) prems
+  in  
+  ForwardClauses.iter f fwd
+
+let absent_from_bwd idx concl bwd =
+  let f (kconcl, _local, prems) = 
+    if in_premises idx prems then 
+      raise (FoundInClause (prems, (concl, kconcl)))
+    else ()
+  in
+  ClausesOf.iter f bwd
+
+let absent_from_model model idx =
+  let f idx' can =
+    if Index.equal idx idx' then 
+      match can with 
+      | Canonical _ -> assert false
+      | Equiv _ -> ()
+    else 
+      match can with
+      | Canonical can -> 
+        absent_from_fwd idx can.canon can.clauses_fwd;
+        absent_from_bwd idx can.canon can.clauses_bwd
+      | Equiv _ -> ()
+  in
+  try PMap.iter f model.entries; true
+  with FoundInClause cl ->
+    CErrors.anomaly Pp.(str "Index " ++ pr_raw_index_point model idx ++ str" appears in clause " ++ 
+      pr_clause (pr_raw_index_point_expr model) cl) 
+
 (* Precondition: canu.value = canv.value, so no new model needs to be computed.
   Returns the chosen (can + k') universe, the new [other = level + k] binding
   and the new model
@@ -1980,17 +2061,23 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
       debug_enforce_eq Pp.(fun () -> str"Other forward clauses for " ++
         pr_can model0 other ++ str": " ++ spc () ++
         pr_fwd_clause modeln can.canon other.clauses_fwd); *)
-    let bwd =
-      if CDebug.get_flag debug_switch_union_upto then
-        ClausesOf.union can.clauses_bwd (ClausesOf.shift diff other.clauses_bwd)
-      else
-        ClausesOfRepr._union_upto model can.canon can.clauses_bwd (ClausesOf.shift diff other.clauses_bwd)
-    in
-    let fwd =
-      if CDebug.get_flag debug_switch_union_upto then
-        ForwardClauses._union can.clauses_fwd (ForwardClauses.shift diff other.clauses_fwd)
-      else
-        ForwardClausesRepr._union_upto model can.canon can.clauses_fwd (ForwardClauses.shift diff other.clauses_fwd)
+    let cank = (can.canon, diff) in
+    let model, bwd, fwd =
+      let newbwd = ClausesOf.union (subst_bwd_clauses other.canon cank can.clauses_bwd) 
+        (subst_bwd_clauses other.canon cank (ClausesOf.shift diff other.clauses_bwd))
+      in
+      (* prems -> other + k clauses are reindexed to become prems -> can + k clauses, 
+        but the forward clauses for each premise in prems still mentions the now equivalent universe *)
+      let newfwd = ForwardClauses._union 
+        (subst_fwd_clauses other.canon cank can.clauses_fwd)
+        (subst_fwd_clauses other.canon cank (ForwardClauses.shift diff other.clauses_fwd))
+      in
+      (* other, prems -> u + k clauses are reindexed to become can, prems -> u + k clauses, 
+        but the backward clauses for each u still mention other.
+        We substitute to make all clauses canonical again *)
+      let model = subst_fwd_of_bwd other.canon cank newbwd model in
+      let model = subst_bwd_of_fwd other.canon cank newfwd model in
+      model, newbwd, newfwd
     in
     (* debug_enforce_eq Pp.(fun () -> str"New backward clauses for " ++
     pr_can model can ++ str": " ++ spc () ++
@@ -2002,6 +2089,7 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
     let can = { can with clauses_bwd = bwd; clauses_fwd = fwd } in
     can, change_node model can
   in
+  assert (absent_from_model model other.canon);
   debug_check_invariants model;
   (can, k), (other.canon, (can.canon, diff)), model
 
@@ -3018,6 +3106,49 @@ let pr_clause model cl =
   pr_clause (pr_index_point model) cl
 
 exception InconsistentEquality
+let find_equivs model idx =
+  let equivs =
+    PMap.fold (fun idx a equivs ->
+      match a with
+      | Canonical _ -> equivs
+      | Equiv (_, idx', k) ->
+        let idx', _k = repr_expr model (idx', k) in
+        if Index.equal idx' idx then Index.Set.add idx equivs
+        else equivs) model.entries (Index.Set.singleton idx) in
+  equivs
+
+let remove_node_constraints model idx =
+  let equivs = find_equivs model idx in
+  let model = remove_node model idx in
+  let map_entry a =
+    match a with
+    | Equiv _ -> a
+    | Canonical can -> 
+      let fwd' = ForwardClauses.filter_map 
+        (fun _kprem concl clauses -> 
+          if Index.Set.mem concl equivs then None
+          else 
+            let filter ((_, prems) as cl) =
+              match prems with
+              | None -> Some cl
+              | Some prems ->
+                if Premises._exists (fun (idx, _) ->
+                  Index.Set.mem idx equivs) prems then None
+                else Some cl
+            in
+            let clauses = PartialClausesOf.filter_map filter clauses in
+            if PartialClausesOf.is_empty clauses then None
+            else Some clauses) can.clauses_fwd 
+      in
+      let bwd' = ClausesOf.filter_map (fun (_, _local, prems as cli) ->
+        if Premises._exists (fun (prem', _) -> Index.Set.mem prem' equivs) prems then
+          None
+        else Some cli) can.clauses_bwd
+      in
+      if fwd' == can.clauses_fwd && bwd'= can.clauses_bwd then a
+      else Canonical { can with clauses_fwd = fwd'; clauses_bwd = bwd' }
+  in
+  { model with entries = PMap.Smart.map map_entry model.entries }
 
 (** [set idx u model] substitutes universe [u] for all occurrences of [idx] in model, resulting
   in a set of constraints that no longer mentions [idx]. This is a stronger than [enforce_eq idx u],
@@ -3079,7 +3210,7 @@ let set_can (can,k) u model =
         model, cls @ newclauses)
     bwd (model, newclauses)
   in
-  let model = remove_node model can in
+  let model = remove_node_constraints model can.canon in
   _debug_set Pp.(fun () ->
     str"After removals, model is " ++ pr_clauses_all ~local:true model ++
     str"Adding constraints" ++ prlist_with_sep spc (pr_clause model) newclauses);
@@ -3166,7 +3297,7 @@ let minimize_can can k model =
     if Universe.for_all (fun (_, k) -> k >= 0) glb
     then
       (_debug_minim Pp.(fun () -> str"Removing: " ++ pr_can model can ++ str " in " ++ pr_clauses_all model);
-      let model = remove_node model can in
+      let model = remove_node model can.canon in
       debug_check_invariants model;
       _debug_minim Pp.(fun () -> str"Removed " ++ pr_can model can ++ str ", new model: " ++ pr_clauses_all model);
       HasSubst (model, [], glb))
