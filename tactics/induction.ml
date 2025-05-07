@@ -1007,7 +1007,7 @@ let guess_elim_shape env sigma isrec s hyp0 =
         if QGlobRef.equal env ref (IndRef mind) then ()
         else error_cannot_recognize mind
       in
-      sigma, Some elim, scheme.nparams
+      sigma, Some (elim,scheme), scheme.nparams
     else
       let mib = Environ.lookup_mind (fst mind) env in
       sigma, None, mib.mind_nparams
@@ -1026,7 +1026,7 @@ type scheme_signature = (Id.Set.t * branch_argument list) array
 
 type eliminator_source =
   | CaseOver of Id.t * (inductive * EInstance.t)
-  | ElimOver of Id.t * (inductive * EInstance.t) * EConstr.t
+  | ElimOver of Id.t * (inductive * EInstance.t) * (EConstr.t * elim_scheme)
   | ElimUsing of Id.t * (Evd.econstr with_bindings * EConstr.types * scheme_signature)
   | ElimUsingList of (Evd.econstr with_bindings * EConstr.types * scheme_signature) * Id.t list * Id.t list * EConstr.t list
 
@@ -1139,13 +1139,10 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
       let indsign = compute_case_signature env mind dep id in
       let tac = destruct_tac with_evars id dep in
       sigma, false, tac, indsign
-    | ElimOver (id, (mind, u), elim) ->
-       (* FIXME: we should store this instead of recomputing it *)
-       let elimt = Retyping.get_type_of env sigma elim in
-       let scheme = compute_elim_sig sigma elimt in
-       let indsign = compute_scheme_signature sigma scheme id (mkIndU (mind, u)) in
-       let tac = induction_tac with_evars [] [id] (ElimConstant elim, elimt) in
-       sigma, true, tac, indsign
+    | ElimOver (id, (mind, u), (elim,scheme)) ->
+      let indsign = compute_scheme_signature sigma scheme id (mkIndU (mind, u)) in
+      let tac = induction_tac with_evars [] [id] (ElimConstant elim, scheme.elimt) in
+      sigma, true, tac, indsign
     | ElimUsing (hyp0, (elim, elimt, indsign)) ->
       let tac = induction_tac with_evars [] [hyp0] (ElimClause elim, elimt) in
       sigma, (* bugged, should be computed *) true, tac, indsign
