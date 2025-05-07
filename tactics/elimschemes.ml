@@ -163,7 +163,7 @@ let make_elimination_ident id s = Nameops.add_suffix id (elimination_suffix s)
 
 (* Look up function for the default elimination constant *)
 
-let lookup_eliminator env ind_sp s =
+let lookup_eliminator_by_name env ind_sp s =
   let open Names in
   let open Environ in
   let kn,i = ind_sp in
@@ -189,6 +189,15 @@ let lookup_eliminator env ind_sp s =
             Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
             strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
             strbrk " is probably not allowed.")
+
+let lookup_eliminator env ind s =
+  match lookup_scheme (elim_scheme ~dep:true ~to_kind:s) ind with
+  | Some c -> Names.GlobRef.ConstRef c
+  | None -> match lookup_scheme (elim_scheme ~dep:false ~to_kind:s) ind with
+    | Some c -> Names.GlobRef.ConstRef c
+    | None ->
+      (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
+      lookup_eliminator_by_name env ind s
 
 (* Case analysis *)
 
