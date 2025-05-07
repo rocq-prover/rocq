@@ -150,6 +150,46 @@ let elim_scheme ~dep ~to_kind =
      end
   | Set -> if dep then rec_dep else rec_nodep
 
+let elimination_suffix =
+  let open UnivGen.QualityOrSet in
+  let open Sorts.Quality in
+  function
+  | Qual (QConstant QSProp) -> "_sind"
+  | Qual (QConstant QProp) -> "_ind"
+  | Qual (QConstant QType) | Qual (QVar _) -> "_rect"
+  | Set -> "_rec"
+
+let make_elimination_ident id s = Nameops.add_suffix id (elimination_suffix s)
+
+(* Look up function for the default elimination constant *)
+
+let lookup_eliminator env ind_sp s =
+  let open Names in
+  let open Environ in
+  let kn,i = ind_sp in
+  let mpu = KerName.modpath @@ MutInd.user kn in
+  let mpc = KerName.modpath @@ MutInd.canonical kn in
+  let ind_id = (lookup_mind kn env).mind_packets.(i).mind_typename in
+  let id = make_elimination_ident ind_id s in
+  let l = Label.of_id id in
+  let knu = KerName.make mpu l in
+  let knc = KerName.make mpc l in
+  (* Try first to get an eliminator defined in the same section as the *)
+  (* inductive type *)
+  let cst = Constant.make knu knc in
+  if mem_constant cst env then GlobRef.ConstRef cst
+  else
+    (* Then try to get a user-defined eliminator in some other places *)
+    (* using short name (e.g. for "eq_rec") *)
+    try Nametab.locate (Libnames.qualid_of_ident id)
+    with Not_found ->
+      CErrors.user_err
+        Pp.(strbrk "Cannot find the elimination combinator " ++
+            Id.print id ++ strbrk ", the elimination of the inductive definition " ++
+            Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
+            strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
+            strbrk " is probably not allowed.")
+
 (* Case analysis *)
 
 let build_case_analysis_scheme_in_type env dep sort ind =

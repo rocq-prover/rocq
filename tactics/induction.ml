@@ -202,7 +202,7 @@ type eliminator =
 let is_nonrec env mind = (Environ.lookup_mind (fst mind) env).mind_finite == Declarations.BiFinite
 
 let find_ind_eliminator env sigma ind s =
-  let c = lookup_eliminator env ind s in
+  let c = Elimschemes.lookup_eliminator env ind s in
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
@@ -985,7 +985,7 @@ let guess_elim_shape env sigma isrec s hyp0 =
   let is_elim = isrec && not (is_nonrec env mind) in
   let nparams =
     if is_elim then
-      let gr = lookup_eliminator env mind s in
+      let gr = Elimschemes.lookup_eliminator env mind s in
       let sigma, ind = Evd.fresh_global env sigma gr in
       let elimt = Retyping.get_type_of env sigma ind in
       let scheme = compute_elim_sig sigma elimt in
