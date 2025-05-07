@@ -641,7 +641,8 @@ Displaying information about notations
 .. flag:: Printing Parentheses
 
    When this :term:`flag` is on, parentheses are printed even if
-   implied by associativity and precedence. Default is off.
+   implied by associativity and precedence (applications are still printed without parentheses, i.e. `(f x) y`
+   is printed as `f x y` regardless of this flag). Default is off.
 
 .. seealso::
 
