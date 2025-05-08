@@ -77,14 +77,15 @@ type 'a constraint_fold = univ_constraint -> 'a -> 'a
   If [only_local] is [true] (default is [false]), [levels] is the set of universes that were declared locally
   (since the last and only possible [set_local] call on the graph).
   The [Le] constraints are passed to a folding function starting with [acc] whose result is returned as [acc'].
-  Finally [equivs] containts equivalence classes of level expressions, i.e. equality ([Eq]) constraints. *)
-val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a -> Level.Set.t * 'a * LevelExpr.Set.t list
+  Finally [equivs] containts equivalence classes of universe, i.e. equality ([Eq]) constraints. *)
+val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a -> 
+  Level.Set.t * 'a * Universe.Set.t list
 
 val constraints_for : kept:Level.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
 
 val domain : t -> Level.Set.t
 
-val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option
+(* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 
 type 'a simplification_result =
   | HasSubst of 'a * level_equivalences * Universe.t

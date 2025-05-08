@@ -101,7 +101,7 @@ val empty_universes : t
    on the graph. *)
 val constraints_of_universes : ?only_local:bool -> t -> Level.Set.t * Constraints.t * LevelExpr.Set.t list
 
-val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option
+(* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 (** [choose p g u] picks a universe verifying [p] and equal
    to [u] in [g]. *)
 

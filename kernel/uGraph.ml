@@ -174,7 +174,7 @@ let check_eq_instances g t1 t2 =
   && CArray.equal (check_eq g) ut1 ut2
 
 let domain g = G.domain g.graph
-let choose p g u = G.choose p g.graph u
+(* let choose p g u = G.choose p g.graph u *)
 
 let check_universes_invariants g = G.check_invariants ~required_canonical:Level.is_set g.graph
 
