@@ -101,6 +101,33 @@ let return_constr { solution = defs } c = Evarutil.nf_evar defs c
 
 let partial_proof entry pv = CList.map (return_constr pv) (CList.map pi2 entry)
 
+(** {6 Normalizing evars} *)
+
+let cleared_alias evd g =
+  let evk = drop_state g in
+  let state = get_state g in
+  Option.map (fun g -> goal_with_state g state) (Evarutil.advance evd evk)
+
+(** [undefined defs l] is the list of goals in [l] which are still
+    unsolved (after advancing cleared goals). Note that order matters. *)
+let undefined_evars defs l =
+  let fold evk (seen, ans as accu) = match Evarutil.advance defs evk with
+  | None -> accu
+  | Some evk ->
+    if Evar.Set.mem evk seen then accu
+    else (Evar.Set.add evk seen, evk :: ans)
+  in
+  snd @@ List.fold_right fold l (Evar.Set.empty, [])
+
+let undefined defs l =
+  let fold gl (seen, ans as accu) = match cleared_alias defs gl with
+  | None -> accu
+  | Some gl ->
+    let evk = drop_state gl in
+    if Evar.Set.mem evk seen then accu
+    else (Evar.Set.add evk seen, gl :: ans)
+  in
+  snd @@ List.fold_right fold l (Evar.Set.empty, [])
 
 (** {6 Focusing commands} *)
 
@@ -120,8 +147,8 @@ type focus_context = goal_with_state list * goal_with_state list
    new nearly identical function every time. Hence the generic name. *)
 (* In this version: the goals in the context, as a "zipper" (the first
    list is in reversed order). *)
-let focus_context (left,right) =
-  (List.map drop_state left, List.map drop_state right)
+let focus_context sigma (left,right) =
+  (undefined_evars sigma (List.map drop_state left), undefined_evars sigma (List.map drop_state right))
 
 (** This (internal) function extracts a sublist between two indices,
     and returns this sublist together with its context: if it returns
@@ -153,11 +180,6 @@ let focus i j sp =
   let (new_comb, (left, right)) = focus_sublist i j sp.comb in
   ( { sp with comb = new_comb } , (left, right) )
 
-let cleared_alias evd g =
-  let evk = drop_state g in
-  let state = get_state g in
-  Option.map (fun g -> goal_with_state g state) (Evarutil.advance evd evk)
-
 (* Returns [ev, Some n] if [n] is the index of evar [ev] with name [id] in the
    list of currently focused goals, or [ev, None] if [ev] is shelved.
    Raises [Not_found] if the evar does not exist. *)
@@ -166,27 +188,6 @@ let find_evar_in_pv id pv =
   let comb = CList.map drop_state pv.comb in
   try ev, Some (CList.index Evar.equal ev comb)
   with Not_found -> ev, None
-
-(** [undefined defs l] is the list of goals in [l] which are still
-    unsolved (after advancing cleared goals). Note that order matters. *)
-let undefined_evars defs l =
-  let fold evk (seen, ans as accu) = match Evarutil.advance defs evk with
-  | None -> accu
-  | Some evk ->
-    if Evar.Set.mem evk seen then accu
-    else (Evar.Set.add evk seen, evk :: ans)
-  in
-  snd @@ List.fold_right fold l (Evar.Set.empty, [])
-
-let undefined defs l =
-  let fold gl (seen, ans as accu) = match cleared_alias defs gl with
-  | None -> accu
-  | Some gl ->
-    let evk = drop_state gl in
-    if Evar.Set.mem evk seen then accu
-    else (Evar.Set.add evk seen, gl :: ans)
-  in
-  snd @@ List.fold_right fold l (Evar.Set.empty, [])
 
 (** Unfocuses a proofview with respect to a context. *)
 let unfocus (left, right) sp =

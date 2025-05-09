@@ -224,9 +224,13 @@ let process_goal_diffs ~short diff_goal_map oldp nsigma ng =
   { Interface.goal_hyp = hyps_pp_list; Interface.goal_ccl = concl_pp;
     Interface.goal_id = Proof.goal_uid ng; Interface.goal_name = name }
 
-let export_pre_goals flags Proof.{ sigma; goals; stack } process =
+let export_pre_goals flags Proof.{ sigma; goals; stack } ~short diff =
   let open Interface in
-  let process x = List.map (process sigma) x in
+  let process x = match diff with
+  | None -> process_goal short sigma x
+  | Some (diff_goal_map, oldp) -> process_goal_diffs ~short diff_goal_map oldp sigma x
+  in
+  let process x = List.map process x in
   let fg_goals = if flags.gf_fg then process goals else [] in
   let bg_goals =
     if flags.gf_bg then List.(map (fun (lg,rg) -> process lg, process rg)) stack
@@ -251,6 +255,7 @@ let subgoals flags =
   in
   try
     let newp = Vernacstate.Declare.give_me_the_proof () in
+    let sigma = Proof.data newp in
     if Proof_diffs.show_diffs () then begin
       let oldp = Stm.get_prev_proof ~doc (Stm.get_current_state ~doc) in
       (try
@@ -258,12 +263,12 @@ let subgoals flags =
         | None -> None
         | Some oldp -> Some (Proof_diffs.make_goal_map oldp newp)
         in
-        Some (export_pre_goals flags Proof.(data newp) (process_goal_diffs ~short diff_goal_map oldp))
+        Some (export_pre_goals flags sigma ~short (Some (diff_goal_map, oldp)))
        with Pp_diff.Diff_Failure msg ->
          Proof_diffs.notify_proof_diff_failure msg;
-         Some (export_pre_goals flags Proof.(data newp) (process_goal short)))
+         Some (export_pre_goals flags sigma ~short None))
     end else
-      Some (export_pre_goals flags Proof.(data newp) (process_goal short))
+      Some (export_pre_goals flags sigma ~short None)
   with Vernacstate.Declare.NoCurrentProof -> None
   [@@ocaml.warning "-3"]
 

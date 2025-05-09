@@ -34,7 +34,7 @@
 (* Type of a proof. *)
 type t
 
-type data =
+type data = private
   { sigma : Evd.evar_map
   (** A representation of the evar_map [EJGA wouldn't it better to just return the proofview?] *)
   ; goals : Evar.t list

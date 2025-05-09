@@ -97,7 +97,7 @@ type focus_context
    new nearly identical function every time. Hence the generic name. *)
 (* In this version: the goals in the context, as a "zipper" (the first
    list is in reversed order). *)
-val focus_context : focus_context -> Evar.t list * Evar.t list
+val focus_context : Evd.evar_map -> focus_context -> Evar.t list * Evar.t list
 
 (** [focus i j] focuses a proofview on the goals from index [i] to
     index [j] (inclusive, goals are indexed from [1]). I.e. goals

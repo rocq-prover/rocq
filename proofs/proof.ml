@@ -130,7 +130,7 @@ let proof p =
     | [_] -> []
     | a::l -> f a :: (map_minus_one f l)
   in
-  let map (FocusElt (_, _, c)) = Proofview.focus_context c in
+  let map (FocusElt (_, _, c)) = Proofview.focus_context sigma c in
   let stack = map_minus_one map p.focus_stack in
   (goals,stack,sigma)
 
@@ -377,7 +377,7 @@ let data { proofview; focus_stack; entry; name; poly } =
     | [_] -> []
     | a::l -> f a :: (map_minus_one f l)
   in
-  let map (FocusElt (_, _, c)) = Proofview.focus_context c in
+  let map (FocusElt (_, _, c)) = Proofview.focus_context sigma c in
   let stack = map_minus_one map focus_stack in
   { sigma; goals; entry; stack; name; poly }
 
