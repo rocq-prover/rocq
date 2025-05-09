@@ -1514,7 +1514,7 @@ let export ~output_native_objects senv dir =
     comp_name = dir;
     comp_mod = mb;
     comp_univs = senv.univ;
-    comp_qualities = Environ.qualities senv.env;
+    comp_qualities = senv.qualities;
     comp_deps = Array.of_list comp_deps;
     comp_flags = permanent_flags
   } in

@@ -492,6 +492,7 @@ let push_qualities ctx env =
   { env with env_qualities = Sorts.QVar.Set.union env.env_qualities ctx }
 
 let push_quality_set qs env =
+  assert Sorts.QVar.Set.(is_empty @@ inter qs env.env_qualities);
   { env with
     env_qualities = Sorts.QVar.Set.union qs env.env_qualities }
 
