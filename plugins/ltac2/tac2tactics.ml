@@ -190,6 +190,32 @@ let setoid_rewrite orient c occs id =
   let occs = mk_occurrences occs in
   Rewrite.cl_rewrite_clause (delayed_of_tactic c) orient occs id
 
+let rewrite_strat strat clause =
+  Rewrite.cl_rewrite_clause_strat strat clause
+
+module RewriteStrats =
+struct
+  let fix f =
+    let f s = Proofview.Monad.map Tac2ffi.to_rewstrategy (Tac2val.apply f [Tac2ffi.of_rewstrategy s]) in
+    Rewrite.Strategies.fix_tac f
+
+  let hints i =
+    Rewrite.Strategies.hints (Id.to_string i)
+
+  let old_hints i =
+    Rewrite.Strategies.old_hints (Id.to_string i)
+
+  let one_lemma c l2r =
+    let c env sigma = Pretyping.understand_uconstr env sigma c in
+    Rewrite.Strategies.one_lemma c l2r None AllOccurrences
+
+  let lemmas cs =
+    let mk_c c = (); fun env sigma -> Pretyping.understand_uconstr env sigma c in
+    let mk_c c = (mk_c c, true, None) in
+    let cs = List.map mk_c cs in
+    Rewrite.Strategies.lemmas cs
+end
+
 let symmetry cl =
   let cl = mk_clause cl in
   Tactics.intros_symmetry cl

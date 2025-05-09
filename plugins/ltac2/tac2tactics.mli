@@ -49,6 +49,21 @@ val rewrite :
 val setoid_rewrite :
   orientation -> constr_with_bindings tactic -> occurrences -> Id.t option -> unit tactic
 
+val rewrite_strat : Rewrite.strategy -> Id.t option -> unit tactic
+
+module RewriteStrats :
+sig
+  val fix : Tac2val.closure -> Rewrite.strategy tactic
+
+  val hints : Id.t -> Rewrite.strategy
+
+  val old_hints : Id.t -> Rewrite.strategy
+
+  val one_lemma : Ltac_pretype.closed_glob_constr -> bool -> Rewrite.strategy
+
+  val lemmas : Ltac_pretype.closed_glob_constr list -> Rewrite.strategy
+end
+
 val symmetry : clause -> unit tactic
 
 val forward : bool -> unit tactic option option ->
