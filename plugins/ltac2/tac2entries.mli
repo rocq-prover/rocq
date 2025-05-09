@@ -27,12 +27,16 @@ val register_struct : Attributes.vernac_flags -> strexpr -> unit
 
 type notation_interpretation_data
 
-val pr_register_notation : sexpr list -> int option -> raw_tacexpr -> Pp.t
+type notation_target = lident option * int option
+
+val pr_register_notation : sexpr list -> notation_target -> raw_tacexpr -> Pp.t
 
 val register_notation : Attributes.vernac_flags -> sexpr list ->
-  int option -> raw_tacexpr -> notation_interpretation_data
+  notation_target -> raw_tacexpr -> notation_interpretation_data
 
 val register_notation_interpretation : notation_interpretation_data -> unit
+
+val register_custom_entry : lident -> unit
 
 val perform_eval : pstate:Declare.Proof.t option -> raw_tacexpr -> unit
 
