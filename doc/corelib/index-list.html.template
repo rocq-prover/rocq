@@ -142,6 +142,7 @@ through the <tt>Require Import</tt> command.</p>
     user-contrib/Ltac2/Lazy.v
     user-contrib/Ltac2/List.v
     user-contrib/Ltac2/Ltac1.v
+    user-contrib/Ltac2/Ltac1CompatNotations.v
     user-contrib/Ltac2/Message.v
     user-contrib/Ltac2/Meta.v
     user-contrib/Ltac2/Notations.v
