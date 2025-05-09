@@ -614,7 +614,7 @@ struct
 
   let iter = NeList.iter
   let for_all = NeList.for_all
-  let _exists = NeList.exists
+  let exists = NeList.exists
   (* let _add prem (x : t) : t = CList.merge_set Premise.compare [prem] x *)
   (* let _union (x : t) (y : t) : t = CList.merge_set Premise.compare x y *)
   let compare : t -> t -> int = NeList.compare Premise.compare
@@ -879,8 +879,7 @@ struct
 
   let cardinal (cls : t) : int = IntMap.cardinal cls
   let empty = IntMap.empty
-  (* let is_empty x = IntMap.is_empty x *)
-
+  let is_empty x = IntMap.is_empty x
   let singleton cl = add cl empty
 
   let fold (f : kprem:int -> concl:Index.t -> prems:PartialClausesOf.t -> 'a -> 'a) (cls : t) : 'a -> 'a =
@@ -1040,9 +1039,10 @@ let pr_raw_index_point_expr m (idx, n) =
   with Not_found -> Pp.str"<point not in table>"
 
 let pr_raw_premises m p =
-  try NeList.concat_map_with Pp.(++) (pr_raw_index_point_expr m) p
+  try match p with
+    | NeList.Tip e -> pr_raw_index_point_expr m e
+    | NeList.Cons _ -> Pp.(str"max(" ++ prlist_with_sep (fun () -> str ", ") (pr_raw_index_point_expr m) (NeList.to_list p) ++ str")")
   with Not_found -> Pp.str"<point not in table>"
-  
 
 let pr_index_point m (idx, n) =
   let (idx, k) = try let can = repr m idx in (can.canon, n) with Not_found -> (idx, n) in
@@ -1209,8 +1209,10 @@ let pr_can m can =
 
 let pr_can_clauses m ?(local=false) can =
   if not local || (local && can.local == Local) then
-    Pp.(str"For " ++ pr_can m can ++ fnl () ++ pr_clauses_of m can.canon can.clauses_bwd ++ fnl () ++
-        str"Forward" ++ spc () ++ pr_fwd_clause m can.canon can.clauses_fwd ++ fnl ())
+    if ClausesOf.is_empty can.clauses_bwd && ForwardClauses.is_empty can.clauses_fwd then Pp.mt ()
+    else
+      Pp.(str"For " ++ pr_can m can ++ fnl () ++ pr_clauses_of m can.canon can.clauses_bwd ++ fnl () ++
+          str"Forward" ++ spc () ++ pr_fwd_clause m can.canon can.clauses_fwd ++ fnl ())
   else Pp.mt ()
 
 let pr_clauses_all ?(local=false) m =
@@ -1261,7 +1263,9 @@ let add_opt o k =
 let model_value m l =
   let canon =
     try repr m l
-    with Not_found -> raise (Undeclared (Index.repr l m.table))
+    with Not_found ->
+      debug Pp.(fun () -> str "Universe " ++ Level.raw_pr (Index.repr l m.table) ++ str" is not canonical");
+      raise (Undeclared (Index.repr l m.table))
   in (canonical_value m canon)
 
 exception VacuouslyTrue
@@ -1367,6 +1371,10 @@ let update_value prem premk premv concl m (clause : PartialClausesOf.ClauseInfo.
 let check_model_clauses_of_aux m prem premk premv concl cls =
   PartialClausesOf.fold (fun cls m ->
     match update_value prem premk premv concl m cls with
+    | exception (Undeclared l) -> 
+      debug Pp.(fun () -> str "Undeclared level " ++ Level.raw_pr l ++ str" found in clause " ++
+        pr_clause (pr_raw_index_point_expr m) (Premises.add_opt (prem, premk) (snd cls), (concl.canon, fst cls)));
+        raise (Undeclared l)
     | None -> m
     | Some newk -> set_canonical_value m concl newk)
     cls m
@@ -1713,7 +1721,9 @@ let infer_clauses_extension cans m =
 let pr_incr pr (x, k) =
   Pp.(pr x ++ if k == 0 then mt() else str"+" ++ int k)
 
-
+let in_premises idx prems =
+  Premises.exists (fun (idx', _) -> Index.equal idx idx') prems 
+  
 (** Substitution in forward and backward clauses
   of a level by an expression. *)
 
@@ -1772,20 +1782,17 @@ let subst_fwd_clauses idx u fwd =
       else ForwardClauses.add { kprem; concl; prems = prems' } fwd') 
       fwd ForwardClauses.empty
 
-let appears_in_prem idx prems = 
-  Premises._exists (fun (prem, _) -> Index.equal prem idx) prems
-
 let remove_fwd_clauses idx fwd =
   ForwardClauses.fold 
     (fun ~kprem ~concl ~prems fwd' -> 
-      let prems' = 
-        PartialClausesOf.filter (fun (_kconcl, prems) ->
-          Option.cata (appears_in_prem idx) false prems) prems
-      in
       if Index.equal concl idx then fwd'
-      else ForwardClauses.add { kprem; concl; prems = prems' } fwd') 
+      else 
+        let prems' = 
+          PartialClausesOf.filter (fun (_kconcl, prems) ->
+            Option.cata (fun p -> not (in_premises idx p)) true prems) prems
+        in
+        ForwardClauses.add { kprem; concl; prems = prems' } fwd') 
       fwd ForwardClauses.empty
-
 
 let subst_bwd_clauses idx u bwd  =
   ClausesOf.map (fun (kconcl, local, prems as cli) ->
@@ -1793,20 +1800,27 @@ let subst_bwd_clauses idx u bwd  =
     if prems' == prems then cli else (kconcl, local, prems')) bwd
 
 let remove_bwd_clauses idx bwd  =
-  ClausesOf.filter (fun (_kconcl, _local, prems) -> appears_in_prem idx prems) bwd
+  ClausesOf.filter (fun (_kconcl, _local, prems) -> not (in_premises idx prems)) bwd
+
+let remove_from_fwd_clauses_of idx prem model =
+  let can = repr model prem in
+  let fwd' = remove_fwd_clauses idx can.clauses_fwd in
+  let can = { can with clauses_fwd = fwd' } in
+  change_node model can
 
 let remove_fwd_of_bwd idx bwd model =
   ClausesOf.fold (fun (_kconcl, _local, prems) model ->
-    let f (prem, _) model =
-      let can = repr model prem in
-      let fwd' = remove_fwd_clauses idx can.clauses_fwd in
-      let can = { can with clauses_fwd = fwd' } in
-      change_node model can
-    in
+    let f (prem, _) model = remove_from_fwd_clauses_of idx prem model in
     Premises._fold f prems model) bwd model
 
-let remove_bwd_of_fwd idx fwd model : t =
-  let f ~kprem:_ ~concl ~prems:_ model = 
+let remove_bwd_of_fwd_and_duplicates idx fwd model : t =
+  let f ~kprem:_ ~concl ~prems model =
+    let model = 
+      PartialClausesOf.fold (fun (_, prems) model -> 
+        Option.fold_left (fun model prems -> 
+          Premises._fold (fun (prem, _) -> remove_from_fwd_clauses_of idx prem) prems model) model prems)
+      prems model
+    in
     let can = repr model concl in
     let bwd' = remove_bwd_clauses idx can.clauses_bwd in
     if bwd' == can.clauses_bwd then model
@@ -1819,9 +1833,6 @@ let remove_bwd_of_fwd idx fwd model : t =
 end
 
 exception FoundInClause of clause
-
-let in_premises idx prems =
-  Premises._exists (fun (idx', _) -> Index.equal idx idx') prems 
 
 let absent_from_fwd idx prem fwd =
   let f ~kprem ~concl ~prems =
@@ -1953,9 +1964,15 @@ let _pr_can_constraints m can =
   pr_clauses_of m can.canon can.clauses_bwd ++ spc () ++
   str"Forward clauses: " ++ pr_fwd_clause m can.canon can.clauses_fwd
 
+
+let refresh_can_expr_can m (can, k) =
+  match canonical_repr m (can.canon, k) with
+  | NeList.Tip cank -> cank
+  | NeList.Cons _ -> assert false (* We are only equating level expressions here. *)
+
 let enforce_eq_can m can can' equivs =
-  let can = refresh_can_expr m can in
-  let can' = refresh_can_expr m can' in
+  let can = refresh_can_expr_can m can in
+  let can' = refresh_can_expr_can m can' in
   if fst can == fst can' then (can, equivs, m)
   else let can, other, m = enforce_eq_can m can can' in
     (can, other :: equivs, m)
@@ -2227,7 +2244,7 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
       | Status.NonMerged -> status, PathSet.empty)
     | exception Not_found ->
       let isv = can == canv && Int.equal k kv in
-      let domerge = isv || Premises._exists (fun (canu, ku) -> (can == canu && Int.equal k ku)) prems in
+      let domerge = isv || Premises.exists (fun (canu, ku) -> (can == canu && Int.equal k ku)) prems in
       let path = ((can, k) :: path) in
       let merge = if domerge then PathSet.singleton path else PathSet.empty in
       if isv then status, merge else
@@ -2326,7 +2343,7 @@ let get_explanation model prems (canv, kv) =
       | Status.NonMerged -> status, PathSet.empty)
     | exception Not_found ->
       let isv = can == canv && k <= kv in
-      let domerge = isv || Premises._exists (fun (canu, ku) -> (can == canu && Int.equal k ku)) prems in
+      let domerge = isv || Premises.exists (fun (canu, ku) -> (can == canu && Int.equal k ku)) prems in
       let path = ((can, k) :: path) in
       let path = if (k < kv) then (can, kv) :: path else path in
       let merge = if domerge then PathSet.singleton path else PathSet.empty in
@@ -2936,7 +2953,7 @@ let set_can (can,k) u model =
     str"Looking at forward clauses " ++ pr_fwd_clause model can.canon fwd);
   let newfwd = UnivSubst.subst_fwd_clauses can.canon uprems fwd in
   let newbwd = UnivSubst.subst_bwd_clauses can.canon uprems bwd in
-  let model = UnivSubst.remove_bwd_of_fwd can.canon newfwd model in
+  let model = UnivSubst.remove_bwd_of_fwd_and_duplicates can.canon newfwd model in
   let model = UnivSubst.remove_fwd_of_bwd can.canon newbwd model in
   let model = enter_equiv model can.canon uprems in
   let fwdcls = ForwardClauses.to_clauses uprems newfwd in
