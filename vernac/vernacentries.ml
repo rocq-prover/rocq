@@ -1910,6 +1910,15 @@ let () =
       optread  = (fun () -> !Flags.raw_print);
       optwrite = (fun b -> Flags.raw_print := b) }
 
+
+let () =
+  declare_bool_option
+    { optstage = Summary.Stage.Interp;
+      optdepr  = None;
+      optkey   = ["Printing";"FullyQualifiedNames"];
+      optread  = (fun () -> !Flags.fqn_print);
+      optwrite = (fun b ->  Flags.fqn_print := b) }
+
 let () =
   declare_int_option
     { optstage = Summary.Stage.Interp;
