@@ -29,23 +29,24 @@ let { Goptions.get = get_set_minimization } =
 
 (** Precondition: flexible <= ctx *)
 
-let choose_expr s = LevelExpr.Set.max_elt s
+let choose_univ s = Universe.Set.max_elt s
 
-let choose_canonical ctx flexible s =
-  let local, global = LevelExpr.Set.partition (fun (l, _k) -> Level.Set.mem l ctx) s in
-  let flexible, rigid = LevelExpr.Set.partition (fun (l, _k) -> flexible l) local in
+let choose_canonical ctx flexible (l, u) =
+  let s = Universe.Set.of_list [Universe.make l; u] in
+  let local, global = Universe.Set.partition (fun u -> Universe.for_all (fun (l, _k) -> Level.Set.mem l ctx) u) s in
+  let flexible, rigid = Universe.Set.partition (fun u -> Universe.for_all (fun (l, _k) -> flexible l) u) local in
     (* If there is a global universe in the set, choose it *)
-    if not (LevelExpr.Set.is_empty global) then
-      let canon = choose_expr global in
-        canon, (LevelExpr.Set.remove canon global, rigid, flexible)
+    if not (Universe.Set.is_empty global) then
+      let canon = choose_univ global in
+        canon, (Universe.Set.remove canon global, rigid, flexible)
     else (* No global in the equivalence class, choose a rigid one *)
-        if not (LevelExpr.Set.is_empty rigid) then
-          let canon = choose_expr rigid in
-            canon, (global, LevelExpr.Set.remove canon rigid, flexible)
+        if not (Universe.Set.is_empty rigid) then
+          let canon = choose_univ rigid in
+            canon, (global, Universe.Set.remove canon rigid, flexible)
         else (* There are only flexible universes in the equivalence
                  class, choose an arbitrary one. *)
-          let canon = choose_expr flexible in
-          canon, (global, rigid, LevelExpr.Set.remove canon flexible)
+          let canon = choose_univ flexible in
+          canon, (global, rigid, Universe.Set.remove canon flexible)
 
 let variance_info u us (variances : InferCumulativity.variances) =
   let open UVars.Variance in
@@ -223,15 +224,22 @@ let extra_union a b = {
   above_prop = Level.Set.union a.above_prop b.above_prop;
 }
 
-let pr_level_expr_set prl s = 
+(* let pr_universe_set prl s = 
   let open Pp in
-  str "{" ++ LevelExpr.Set.fold (fun lk acc -> LevelExpr.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}" 
+  str "{" ++ LevelExpr.Set.fold (fun lk acc -> LevelExpr.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}"  *)
 
+let pr_universe_set prl s = 
+  let open Pp in
+  str "{" ++ Universe.Set.fold (fun lk acc -> Universe.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}" 
+  
 let _pr_partition prl m =
   let open Pp in
-  prlist_with_sep spc (fun s -> pr_level_expr_set prl s ++ fnl ())
-    m
+  prlist_with_sep spc (fun s -> pr_universe_set prl s ++ fnl ()) m
 
+let pr_substitution prl m =
+  let open Pp in
+  prlist_with_sep spc (fun (l, u) -> prl l ++ str" := " ++ Universe.pr prl u ++ fnl ()) (Level.Map.bindings m)
+  
 (** Turn max(l, l') <= u constraints into { l <= u, l' <= u } constraints *)
 let decompose_constraints cstrs =
   let fold (l, d, r as cstr) acc =
@@ -247,13 +255,9 @@ let decompose_constraints cstrs =
 let simplify_cstr (l, d, r) =
   (Universe.unrepr (Universe.repr l), d, Universe.unrepr (Universe.repr r))
 
-
-let partition_to_constraints partition cstrs =
-  let fold le le' cstrs = Constraints.add (Universe.of_expr le, Eq, Universe.of_expr le') cstrs in
-  List.fold_left (fun cstrs eqs ->
-    let canon = LevelExpr.Set.choose eqs in
-    let rest = LevelExpr.Set.remove canon eqs in
-    LevelExpr.Set.fold (fold canon) rest cstrs) cstrs partition
+let constraints_of_substitution substitution cstrs =
+  Level.Map.fold (fun l u cstrs ->
+    Constraints.add (Universe.make l, Eq, u) cstrs) substitution cstrs
 
 let new_minimize_weak_pre us weak smallles =
   UPairSet.fold (fun (u,v) smallles ->
@@ -365,10 +369,10 @@ let normalize_context_set ~solve_flexibles ~variances ~partial g ctx (us:UnivFle
       nonatomic g
   in
   (* debug Pp.(fun () -> str "Local graph: " ++ UGraph.pr_model graph); *)
-  let locals, cstrs, partition = UGraph.constraints_of_universes ~only_local:true graph in
+  let locals, cstrs, lsubst = UGraph.constraints_of_universes ~only_local:true graph in
   (* debug Pp.(fun () -> str "Local universes: " ++ pr_universe_context_set prl (locals, cstrs)); *)
   (* debug Pp.(fun () -> str "New universe context: " ++ pr_universe_context_set prl (ctx, cstrs)); *)
-  debug Pp.(fun () -> str "Partition: " ++ _pr_partition prl partition);
+  debug Pp.(fun () -> str "Substitution: " ++ pr_substitution prl lsubst);
 (* Ignore constraints from lbound:Set *)
   let noneqs =
     Constraints.filter
@@ -378,51 +382,27 @@ let normalize_context_set ~solve_flexibles ~variances ~partial g ctx (us:UnivFle
   (* Put back constraints [Set <= u] from type inference *)
   let noneqs = Constraints.union noneqs smallles in
   let flex x = UnivFlex.mem x us in
-  let ctx, us, variances, eqs = List.fold_left (fun (ctx, us, variances, cstrs) eqs ->
-      let canon, (global, rigid, flexible) = choose_canonical ctx flex eqs in
+  let eqs = Level.Map.fold (fun l u cstrs ->
+      let canon, (global, rigid, flexible) = choose_canonical ctx flex (l, u) in
       debug Pp.(fun () -> fmt "Choose canonical: canon = %a@, global = %a, rigid = %a, flexible = %a" 
-        (fun () -> LevelExpr.pr prl) canon
-        (fun () -> pr_level_expr_set prl) global
-        (fun () -> pr_level_expr_set prl) rigid
-        (fun () -> pr_level_expr_set prl) flexible 
+        (fun () -> Universe.pr prl) canon
+        (fun () -> pr_universe_set prl) global
+        (fun () -> pr_universe_set prl) rigid
+        (fun () -> pr_universe_set prl) flexible 
         );
       (* Add equalities for globals which can't be merged anymore. *)
-      let canonu = Universe.of_expr canon in
-      let cstrs = LevelExpr.Set.fold (fun g cst ->
-          enforce_eq canonu (Universe.of_expr g) cst) global
-          cstrs
-      in
+      let cstrs = Universe.Set.fold (fun g cst -> enforce_eq canon g cst) global cstrs in
       (* Also add equalities for rigid variables *)
-      let cstrs = LevelExpr.Set.fold (fun g cst ->
-          enforce_eq canonu (Universe.of_expr g) cst) rigid cstrs
-      in
-      if UnivFlex.mem (fst canon) us then
-        (* canon + k = l + k' ... <-> l = canon + k - k' (k' <= k by invariant of choose_canonical) *)
-        let fold (f, k') (ctx, us, variances) =
-          (Level.Set.remove f ctx, UnivFlex.define f (Universe.addn canonu (-k')) us,
-           Level.Map.remove f (update_variance variances f (fst canon)))
-        in
-        let ctx, us, variances = LevelExpr.Set.fold fold flexible (ctx, us, variances) in
-        ctx, us, variances, cstrs
+      let cstrs = Universe.Set.fold (fun g cst -> enforce_eq canon g cst) rigid cstrs in
+      if UnivFlex.mem l us then
+        (* If the level is flexible, then u should already be defined *)
+        (assert (UnivFlex.is_defined l us);
+         cstrs)
       else
-        if LevelExpr.Set.is_empty flexible then (ctx, us, variances, cstrs) else
-        (* We need to find the max of canon and flexibles *)
-        let (canon', canonk' as can') = LevelExpr.Set.max_elt flexible in
-        let ctx, us, variances =
-          let fold (f, k') (ctx, us, variances) =
-            (Level.Set.remove f ctx, UnivFlex.define f (Universe.addn (Universe.of_expr can') (-k')) us,
-             Level.Map.remove f (update_variance variances f (fst can')))
-          in
-          LevelExpr.Set.fold fold (LevelExpr.Set.remove (canon', canonk') flexible) (ctx, us, variances)
-        in
-        if snd canon < canonk' then
-          ctx, us, variances, enforce_eq canonu (Universe.of_expr can') cstrs
-        else
-          let ctx, us = Level.Set.remove canon' ctx, UnivFlex.define canon' (Universe.addn canonu (-canonk')) us in
-          let variances = update_variance variances canon' (fst canon) in
-          ctx, us, Level.Map.remove canon' variances, cstrs)
-      (ctx, us, variances, Constraints.empty)
-      partition
+        if Universe.Set.is_empty flexible then cstrs else
+        enforce_eq canon (Universe.make l) cstrs)
+      lsubst
+      Constraints.empty
   in
   (* Noneqs is now in canonical form w.r.t. equality constraints,
      and contains only inequality constraints. *)
@@ -455,8 +435,8 @@ let normalize_context_set ~solve_flexibles ~variances ~partial g ctx (us:UnivFle
     let ctx', us, variances, graph = simplify_variables solve_flexibles partial ctx us variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ UnivFlex.pr Level.raw_pr us);
     let ctx', us, variances, graph = new_minimize_weak ctx' us weak (graph, variances) in
-    let locals, cstrs, partition = UGraph.constraints_of_universes ~only_local:true graph in
-    let cstrs = partition_to_constraints partition cstrs in
+    let locals, cstrs, substitution = UGraph.constraints_of_universes ~only_local:true graph in
+    let cstrs = constraints_of_substitution substitution cstrs in
     let cstrs =
       Constraints.filter
         (fun (l,d,r) -> not (d == Le && Universe.is_type0 l))
