@@ -35,12 +35,7 @@
 val async_proofs_worker_id : string ref
 val async_proofs_is_worker : unit -> bool
 
-(** Flag to indicate that .vos files should be loaded for dependencies
-    instead of .vo files. Used by -vos and -vok options. *)
-val load_vos_libraries : bool ref
-
 (** Debug flags *)
-val xml_debug : bool ref
 val in_debugger : bool ref
 val in_ml_toplevel : bool ref
 
@@ -53,7 +48,6 @@ val raw_print : bool ref
 (* Beautify command line flags, should move to printing? *)
 val beautify : bool ref
 val beautify_file : bool ref
-val record_comments : bool ref
 
 (* Rocq quiet mode. Note that normal mode is called "verbose" here,
    whereas [quiet] suppresses normal output such as goals in rocq repl *)
@@ -62,10 +56,6 @@ val silently : ('a -> 'b) -> 'a -> 'b
 val verbosely : ('a -> 'b) -> 'a -> 'b
 val if_silent : ('a -> unit) -> 'a -> unit
 val if_verbose : ('a -> unit) -> 'a -> unit
-
-val warn : bool ref
-val make_warn : bool -> unit
-val if_warn : ('a -> unit) -> 'a -> unit
 
 (** [with_modified_ref r nf f x] Temporarily modify a reference in the
     call to [f x] . Be very careful with these functions, it is very
@@ -86,18 +76,7 @@ val with_options : bool ref list -> ('a -> 'b) -> 'a -> 'b
 (** Temporarily deactivate an option *)
 val without_option : bool ref -> ('a -> 'b) -> 'a -> 'b
 
-(** Temporarily extends the reference to a list *)
-val with_extra_values : 'c list ref -> 'c list -> ('a -> 'b) -> 'a -> 'b
-
-(** Level of inlining during a functor application *)
-val set_inline_level : int -> unit
-val get_inline_level : unit -> int
-val default_inline_level : int
-
-(** Default output directory *)
-val output_directory : CUnix.physical_path option ref
-
-
-(** Flag set when the test-suite is called. Its only effect to display
-    verbose information for [Fail] *)
+(** Flag set when the test-suite is called.
+    - display verbose information for [Fail]
+    - print quickfix info in error printers *)
 val test_mode : bool ref
