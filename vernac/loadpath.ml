@@ -256,15 +256,8 @@ let locate_qualified_library ?root qid :
       match select_vo_file ~find:(find_first full_matches) base with
       | Ok _ as x -> x
       | Error _ ->
-         (* Looking otherwise in -R/-Q blocks of partial matches *)
-        let rec aux = function
-          | [] -> Error Error.LibUnmappedDir
-          | block :: rest ->
-            match select_vo_file ~find:(find_unique qid block) base with
-            | Ok _ as x -> x
-            | Error _ -> aux rest
-        in
-        aux others
+        (* Looking otherwise in -R/-Q blocks of partial matches *)
+        select_vo_file ~find:(find_unique qid (List.concat others)) base
     in
     match result with
     | Ok (dir,file) ->
