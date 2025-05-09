@@ -13,12 +13,32 @@ open Vernacexpr
 open Constrexpr
 open Structures
 
+module Data : sig
+  type coercion_flags = {
+    coe_local : bool;
+    coe_reversible : bool;
+  }
+  type instance_flags = {
+    inst_locality : Hints.hint_locality;
+    inst_priority : int option;
+  }
+  type projection_flags = {
+    pf_coercion: coercion_flags option;
+    pf_instance: instance_flags option;
+    pf_canonical: bool;
+  }
+  type t = {
+    is_coercion : Vernacexpr.coercion_flag;
+    proj_flags : projection_flags list;
+  }
+end
+
 module Ast : sig
   type t =
     { name : Names.lident
     ; is_coercion : coercion_flag
     ; binders: local_binder_expr list
-    ; cfs : (local_decl_expr * record_field_attr) list
+    ; cfs : (local_decl_expr * Data.projection_flags * notation_declaration list) list
     ; idbuild : lident
     ; sort : constr_expr option
     ; default_inhabitant_id : Id.t option
@@ -32,21 +52,6 @@ val definition_structure
   -> primitive_proj:bool
   -> Ast.t list
   -> GlobRef.t list
-
-module Data : sig
-  type projection_flags = {
-    pf_coercion: bool;
-    pf_reversible: bool;
-    pf_instance: bool;
-    pf_priority: int option;
-    pf_locality: Goptions.option_locality;
-    pf_canonical: bool;
-  }
-  type t =
-    { is_coercion : Vernacexpr.coercion_flag
-    ; proj_flags : projection_flags list
-    }
-end
 
 module RecordEntry : sig
 
@@ -96,20 +101,11 @@ val canonical_inhabitant_id : isclass:bool -> Id.t -> Id.t
 (* Implementation internals, consult Rocq developers before using;
    current user Elpi, see https://github.com/LPCIC/coq-elpi/pull/151 *)
 module Internal : sig
-  type projection_flags = {
-    pf_coercion: bool;
-    pf_reversible: bool;
-    pf_instance: bool;
-    pf_priority: int option;
-    pf_locality: Goptions.option_locality;
-    pf_canonical: bool;
-  }
-
   val declare_projections
     : Names.inductive
     -> kind:Decls.definition_object_kind
     -> inhabitant_id:Names.Id.t
-    -> projection_flags list
+    -> Data.projection_flags list
     -> ?fieldlocs:Loc.t option list
     -> Impargs.manual_implicits list
     -> Structure.projection list

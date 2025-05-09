@@ -209,16 +209,6 @@ type simple_binder = lident list  * constr_expr
 type class_binder = lident * constr_expr list
 type 'a with_coercion = coercion_flag * 'a
 type 'a with_coercion_instance = (Attributes.vernac_flags * coercion_flag * instance_flag) * 'a
-(* Attributes of a record field declaration *)
-type record_field_attr = {
-  rf_coercion: coercion_flag; (* the projection is an implicit coercion *)
-  rf_reversible: bool option; (* coercion is reversible, if relevant *)
-  rf_instance: instance_flag; (* the projection is an instance *)
-  rf_priority: int option; (* priority of the instance, if relevant *)
-  rf_locality: Goptions.option_locality; (* locality of coercion and instance *)
-  rf_notation: notation_declaration list;
-  rf_canonical: bool; (* use this projection in the search for canonical instances *)
-  }
 (* Same before parsing the attributes *)
 type record_field_attr_unparsed = {
   rfu_attrs: Attributes.vernac_flags;

@@ -1076,6 +1076,64 @@ module Preprocessed_Mind_decl = struct
     | Inductive of inductive
 end
 
+(* Intermediate type while parsing record field flags *)
+type record_field_attr = {
+  rf_coercion: coercion_flag; (* the projection is an implicit coercion *)
+  rf_reversible: bool option; (* coercion is reversible, if relevant *)
+  rf_instance: instance_flag; (* the projection is an instance *)
+  rf_priority: int option; (* priority of the instance, if relevant *)
+  rf_locality: Goptions.option_locality; (* locality of coercion and instance *)
+  rf_canonical: bool; (* use this projection in the search for canonical instances *)
+}
+
+let check_proj_flags rf =
+  let open Vernacexpr in
+  let open Record.Data in
+  let () = match rf.rf_coercion, rf.rf_instance with
+    | NoCoercion, NoInstance ->
+      if rf.rf_locality <> Goptions.OptDefault then
+        Attributes.(unsupported_attributes
+                      [CAst.make ("locality (without :> or ::)",VernacFlagEmpty)])
+    | AddCoercion, NoInstance ->
+      if rf.rf_locality = Goptions.OptExport then
+        Attributes.(unsupported_attributes
+                      [CAst.make ("export (without ::)",VernacFlagEmpty)])
+    | _ -> ()
+  in
+  let pf_coercion =
+    match rf.rf_coercion with
+    | AddCoercion ->
+      Some {
+        coe_local = rf.rf_locality = OptLocal;
+        coe_reversible = Option.default true rf.rf_reversible;
+      }
+    | NoCoercion ->
+      if rf.rf_reversible <> None then
+        Attributes.(unsupported_attributes
+                      [CAst.make ("reversible (without :>)",VernacFlagEmpty)]);
+      None
+  in
+  let pf_instance =
+    match rf.rf_instance with
+    | NoInstance ->
+      let () = if Option.has_some rf.rf_priority then
+          CErrors.user_err Pp.(str "Priority not allowed without \"::\".")
+      in
+      None
+    | BackInstance ->
+      let local =
+        match rf.rf_locality with
+        | Goptions.OptLocal -> Hints.Local
+        | Goptions.(OptDefault | OptExport) -> Hints.Export
+        | Goptions.OptGlobal -> Hints.SuperGlobal
+      in
+      Some {
+        inst_locality = local;
+        inst_priority = rf.rf_priority;
+      }
+  in
+  { pf_coercion; pf_instance; pf_canonical = rf.rf_canonical }
+
 let preprocess_defclass ~atts udecl (id, bl, c, l) =
   let poly, mode =
     Attributes.(parse Notations.(polymorphic ++ mode_attr) atts)
@@ -1096,10 +1154,14 @@ let preprocess_defclass ~atts udecl (id, bl, c, l) =
   let ((attr, rf_coercion, rf_instance), (lid, ce)) = l in
   let rf_locality = match rf_coercion, rf_instance with
     | AddCoercion, _ | _, BackInstance -> parse option_locality attr
-    | _ -> let () = unsupported_attributes attr in Goptions.OptDefault in
+    | _ -> let () = unsupported_attributes attr in Goptions.OptDefault
+  in
   let f = AssumExpr ((make ?loc:lid.loc @@ Name lid.v), [], ce),
-          { rf_coercion ; rf_reversible = None ; rf_instance ; rf_priority = None ;
-            rf_locality ; rf_notation = [] ; rf_canonical = true } in
+          check_proj_flags
+            { rf_coercion ; rf_reversible = None ; rf_instance ; rf_priority = None ;
+              rf_locality ; rf_canonical = true },
+          []
+  in
   let recordl = [id, bl, c, None, [f], None] in
   let kind = Class true in
   let records = vernac_record recordl in
@@ -1142,14 +1204,17 @@ let preprocess_record ~atts udecl kind indl =
         | _ -> Notations.return Goptions.OptDefault in
       Notations.(rev ++ loc ++ canonical_field) in
     let (rf_reversible, rf_locality), rf_canonical = parse attr f.rfu_attrs in
-    x,
-    { rf_coercion = f.rfu_coercion;
-      rf_reversible;
-      rf_instance = f.rfu_instance;
-      rf_priority = f.rfu_priority;
-      rf_locality;
-      rf_notation = f.rfu_notation;
-      rf_canonical } in
+    let flags = check_proj_flags {
+        rf_coercion = f.rfu_coercion;
+        rf_reversible;
+        rf_instance = f.rfu_instance;
+        rf_priority = f.rfu_priority;
+        rf_locality;
+        rf_canonical;
+      }
+    in
+    x, flags, f.rfu_notation
+  in
   let unpack ((id, bl, c, decl), _) = match decl with
     | RecordDecl (oc, fs, ido) ->
       let bl = match bl with
@@ -1234,7 +1299,7 @@ let dump_inductive indl_for_glob decl =
       indl_for_glob;
     match decl with
     | Record { records } ->
-      let dump_glob_proj (x, _) = match x with
+      let dump_glob_proj (x, _, _) = match x with
         | Vernacexpr.(AssumExpr ({loc;v=Name id}, _, _) | DefExpr ({loc;v=Name id}, _, _, _)) ->
           Dumpglob.dump_definition (make ?loc id) false "proj"
         | _ -> () in
