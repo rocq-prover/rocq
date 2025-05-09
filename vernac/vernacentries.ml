@@ -381,8 +381,8 @@ let dump_universes output g =
         else
           output Le (Universe.of_expr (u, k)) v)
         ltle;
-    | UGraph.Alias (v, k) ->
-      output Eq (Universe.make u) (Universe.of_expr (v, k))
+    | UGraph.Alias v ->
+      output Eq (Universe.make u) v
   in
   Univ.Level.Map.iter dump_arc g
 
@@ -463,11 +463,7 @@ let universe_subgraph kept univ =
   fst (UGraph.merge_constraints csts univ)
 
 let sort_universes g =
-  let open Univ in
-  let rec normalize (u, ku as l) = match Level.Map.find u g with
-  | UGraph.Alias (u, k) -> normalize (u, ku + k)
-  | UGraph.Node _ -> l
-  in
+  let open Univ in  
   let get_next u = match Level.Map.find u g with
   | UGraph.Alias u -> assert false (* nodes are normalized *)
   | UGraph.Node ltle -> ltle
@@ -476,7 +472,6 @@ let sort_universes g =
   let rec traverse accu todo = match todo with
   | [] -> accu
   | (u, n) :: todo ->
-    let () = assert (LevelExpr.equal (normalize (u, n)) (u, n)) in
     let n = match Level.Map.find u accu with
     | m -> if m < n then Some n else None
     | exception Not_found -> Some n
@@ -488,14 +483,14 @@ let sort_universes g =
       let next = get_next u in
       let fold (k, u) todo =
         let u = Universe.repr u in
-        let v = List.map (fun (v, kv) -> normalize (v, k + n - kv)) u in
+        let v = List.map (fun (v, kv) -> (v, k + n - kv)) u in
         v @ todo
       in
       let todo = List.fold_right fold next todo in
       traverse accu todo
   in
   (* Only contains normalized nodes *)
-  let levels = traverse Level.Map.empty [normalize (Level.set, 0)] in
+  let levels = traverse Level.Map.empty [(Level.set, 0)] in
   let max_level = Level.Map.fold (fun _ n accu -> max n accu) levels 0 in
   let dummy_mp = Names.DirPath.make [Names.Id.of_string "Type"] in
   let ulevels = Array.init max_level (fun i -> Level.(make (UGlobal.make dummy_mp "" i))) in
@@ -507,15 +502,24 @@ let sort_universes g =
   let _, ans = Array.fold_left fold (Level.set, Level.Map.empty) ulevels in
   let ulevels = Array.cons Level.set ulevels in
   (* Add alias pointers *)
-  let fold u _ ans =
+  let fold u n ans =
     if Level.is_set u then ans
     else
-      let v, k = normalize (u, 0) in
-      let n = Level.Map.find v levels in
-      Level.Map.add u (UGraph.Alias (ulevels.(n), k)) ans
+      match n with
+      | UGraph.Node _ ->
+        let v, k = (u, 0) in
+        let n = Level.Map.find v levels in
+        Level.Map.add u (UGraph.Alias (Universe.of_expr (ulevels.(n), k))) ans
+      | UGraph.Alias v ->
+        let interp (v, k) = 
+          let n = Level.Map.find v levels in 
+          ulevels.(n), k 
+        in
+        let v' = Universe.of_list (List.map interp (Universe.repr v)) in
+        Level.Map.add u (UGraph.Alias v') ans
   in
   Level.Map.fold fold g ans
-
+  
 type constraint_source = GlobRef of GlobRef.t | Library of DirPath.t
 
 (* The [edges] fields give the edges of the graph.
@@ -711,9 +715,8 @@ function
     prlist_with_sep spc pr_cstrs l ++ fnl ()
 | u, UGraph.Alias v ->
   let uu = Universe.make u in
-  let vu = Universe.of_expr v in
-  let src = find_source (uu,Eq,vu) srcs in
-  prl u  ++ str " = " ++ LevelExpr.pr prl v ++ pr_source_path (Universe.pr prl) uu src ++ fnl  ()
+  let src = find_source (uu,Eq,v) srcs in
+  prl u  ++ str " = " ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) uu src ++ fnl  ()
 
 let pr_universes srcs prl g = pr_pmap Pp.mt (pr_arc srcs prl) g
 

@@ -241,11 +241,11 @@ let pr_arc prl = let open Pp in
         (prlist_with_sep spc (fun v -> str (if is_lt then "< " else "<= ") ++ Universe.pr prl v) l)
       in
       prlist_with_sep spc pr_cstrs l ++ fnl ()
-  | u, G.Alias v ->
-    prl u  ++ str " = " ++ LevelExpr.pr prl v ++ fnl  ()
+  | u, G.Alias u' ->
+    prl u  ++ str " = " ++ Universe.pr prl u' ++ fnl  ()
 
 type node = G.node =
-| Alias of LevelExpr.t
+| Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
 let repr g = G.repr g.graph

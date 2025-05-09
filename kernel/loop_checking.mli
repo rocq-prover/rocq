@@ -77,9 +77,9 @@ type 'a constraint_fold = univ_constraint -> 'a -> 'a
   If [only_local] is [true] (default is [false]), [levels] is the set of universes that were declared locally
   (since the last and only possible [set_local] call on the graph).
   The [Le] constraints are passed to a folding function starting with [acc] whose result is returned as [acc'].
-  Finally [equivs] containts equivalence classes of universe, i.e. equality ([Eq]) constraints. *)
+  Finally [equivs] contains a level substitution corresponding to [Eq] constraints. *)
 val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a -> 
-  Level.Set.t * 'a * Universe.Set.t list
+  Level.Set.t * 'a * Universe.t Level.Map.t
 
 val constraints_for : kept:Level.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
 
@@ -101,7 +101,7 @@ val remove_set_clauses : Level.t -> t -> t
 (** {5 High-level representation} *)
 
 type node =
-| Alias of LevelExpr.t
+| Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
 type repr = node Level.Map.t
