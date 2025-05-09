@@ -8,4 +8,4 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-val scheme_descr : Table.t Miniml.language_descr
+val scheme_descr : Common.State.t Miniml.language_descr

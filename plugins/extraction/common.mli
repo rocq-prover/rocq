@@ -37,41 +37,58 @@ val pr_binding : Id.t list -> Pp.t
 
 val rename_id : Id.t -> Id.Set.t -> Id.t
 
+type phase = Pre | Impl | Intf
+
+module State :
+sig
+  type t
+  val make : modular:bool -> library:bool -> extrcompute:bool -> keywords:Id.Set.t -> unit -> t
+
+  (** Getters *)
+
+  val get_table : t -> Table.t
+  val get_modular : t -> bool
+  val get_library : t -> bool
+  val get_extrcompute : t -> bool
+  val get_keywords : t -> Id.Set.t
+  val get_phase : t -> phase
+  val get_duplicate : t -> ModPath.t -> Label.t -> string option
+
+  (** Setters *)
+  val set_phase : t -> phase -> t
+
+  (** Reader-like *)
+
+  val with_visibility : t -> ModPath.t -> ModPath.t list -> (t -> 'a) -> 'a
+  (* the [module_path list] corresponds to module parameters, the innermost one
+    coming first in the list *)
+
+  val get_top_visible_mp : t -> ModPath.t
+
+  (** Cleanup *)
+
+  val reset : t -> unit
+
+end
+
 type env = Id.t list * Id.Set.t
-val empty_env : unit -> env
+val empty_env : State.t -> unit -> env
 
 val rename_vars: Id.Set.t -> Id.t list -> env
 val rename_tvars: Id.Set.t -> Id.t list -> Id.t list
 val push_vars : Id.t list -> env -> Id.t list * env
 val get_db_name : int -> env -> Id.t
 
-type phase = Pre | Impl | Intf
-
-val set_phase : phase -> unit
-val get_phase : unit -> phase
-
-val opened_libraries : Table.t -> ModPath.t list
+val opened_libraries : State.t -> ModPath.t list
 
 type kind = Term | Type | Cons | Mod
 
-val pp_global_with_key : Table.t -> kind -> KerName.t -> GlobRef.t -> string
-val pp_global : Table.t -> kind -> GlobRef.t -> string
-val pp_global_name : Table.t -> kind -> GlobRef.t -> string
-val pp_module : Table.t -> ModPath.t -> string
+val pp_global_with_key : State.t -> kind -> KerName.t -> GlobRef.t -> string
+val pp_global : State.t -> kind -> GlobRef.t -> string
+val pp_global_name : State.t -> kind -> GlobRef.t -> string
+val pp_module : State.t -> ModPath.t -> string
 
-val top_visible_mp : unit -> ModPath.t
-(* In [push_visible], the [module_path list] corresponds to
-   module parameters, the innermost one coming first in the list *)
-val push_visible : ModPath.t -> ModPath.t list -> unit
-val pop_visible : unit -> unit
-
-val get_duplicate : ModPath.t -> Label.t -> string option
-
-type reset_kind = AllButExternal | Everything
-
-val reset_renaming_tables : reset_kind -> unit
-
-val set_keywords : Id.Set.t -> unit
+(* val clear_mpfiles_content : unit -> unit *)
 
 (** Special hack for constants of type Ascii.ascii : if an
     [Extract Inductive ascii => char] has been declared, then

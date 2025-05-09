@@ -38,5 +38,5 @@ val get_decl_in_structure : GlobRef.t -> ml_structure -> ml_decl
    optimizations. The first argument is the list of objects we want to appear.
 *)
 
-val optimize_struct : Table.t -> GlobRef.t list * ModPath.t list ->
+val optimize_struct : Common.State.t -> GlobRef.t list * ModPath.t list ->
   ml_structure -> ml_structure

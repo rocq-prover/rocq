@@ -179,85 +179,21 @@ let push_vars ids (db,avoid) =
 
 let get_db_name n (db,_) = List.nth db (pred n)
 
-(*S Renamings of global objects. *)
-
-(*s Tables of global renamings *)
-
-let register_cleanup, do_cleanup =
-  let funs = ref [] in
-  (fun f -> funs:=f::!funs), (fun () -> List.iter (fun f -> f ()) !funs)
-
 type phase = Pre | Impl | Intf
 
-let set_phase, get_phase =
-  let ph = ref Impl in ((:=) ph), (fun () -> !ph)
+module DupOrd =
+struct
+  type t = ModPath.t * Label.t
+  let compare (mp1, l1) (mp2, l2) =
+    let c = Label.compare l1 l2 in
+    if Int.equal c 0 then ModPath.compare mp1 mp2 else c
+end
 
-let set_keywords, get_keywords =
-  let k = ref Id.Set.empty in
-  ((:=) k), (fun () -> !k)
-
-let add_global_ids, get_global_ids =
-  let ids = ref Id.Set.empty in
-  register_cleanup (fun () -> ids := get_keywords ());
-  let add s = ids := Id.Set.add s !ids
-  and get () = !ids
-  in (add,get)
-
-let empty_env () = [], get_global_ids ()
+module DupMap = Map.Make(DupOrd)
 
 (* We might have built [global_reference] whose canonical part is
    inaccurate. We must hence compare only the user part,
    hence using a Hashtbl might be incorrect *)
-
-let mktable_id autoclean =
-  let m = ref Id.Map.empty in
-  let clear () = m := Id.Map.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := Id.Map.add r v !m), (fun r -> Id.Map.find r !m), clear
-
-let mktable_ref autoclean =
-  let m = ref Refmap'.empty in
-  let clear () = m := Refmap'.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := Refmap'.add r v !m), (fun r -> Refmap'.find r !m), clear
-
-let mktable_modpath autoclean =
-  let m = ref MPmap.empty in
-  let clear () = m := MPmap.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
-
-(* A table recording objects in the first level of all MPfile *)
-
-let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
-  mktable_modpath false
-
-let get_mpfiles_content mp =
-  try get_mpfiles_content mp
-  with Not_found -> failwith "get_mpfiles_content"
-
-(*s The list of external modules that will be opened initially *)
-
-let mpfiles_add, mpfiles_mem, mpfiles_list, mpfiles_clear =
-  let m = ref MPset.empty in
-  let add mp = m:=MPset.add mp !m
-  and mem mp = MPset.mem mp !m
-  and list () = MPset.elements !m
-  and clear () = m:=MPset.empty
-  in
-  register_cleanup clear;
-  (add,mem,list,clear)
-
-(*s List of module parameters that we should alpha-rename *)
-
-let params_ren_add, params_ren_mem =
-  let m = ref MPset.empty in
-  let add mp = m:=MPset.add mp !m
-  and mem mp = MPset.mem mp !m
-  and clear () = m:=MPset.empty
-  in
-  register_cleanup clear;
-  (add,mem)
 
 (*s table indicating the visible horizon at a precise moment,
     i.e. the stack of structures we are inside.
@@ -276,59 +212,193 @@ let params_ren_add, params_ren_mem =
 
 type visible_layer = { mp : ModPath.t;
                        params : ModPath.t list;
-                       mutable content : Label.t KMap.t; }
+                       content : Label.t KMap.t; }
 
-let pop_visible, push_visible, get_visible =
-  let vis = ref [] in
-  register_cleanup (fun () -> vis := []);
-  let pop () =
-    match !vis with
-      | [] -> assert false
-      | v :: vl ->
-          vis := vl;
-          (* we save the 1st-level-content of MPfile for later use *)
-          if get_phase () == Impl && modular () && is_modfile v.mp
-          then add_mpfiles_content v.mp v.content
-  and push mp mps =
-    vis := { mp = mp; params = mps; content = KMap.empty } :: !vis
-  and get () = !vis
-  in (pop,push,get)
-
-let get_visible_mps () = List.map (function v -> v.mp) (get_visible ())
-let top_visible () = match get_visible () with [] -> assert false | v::_ -> v
-let top_visible_mp () = (top_visible ()).mp
-let add_visible ks l =
-  let visible = top_visible () in
-  visible.content <- KMap.add ks l visible.content
-
-(* table of local module wrappers used to provide non-ambiguous names *)
-
-module DupOrd =
+module State =
 struct
-  type t = ModPath.t * Label.t
-  let compare (mp1, l1) (mp2, l2) =
-    let c = Label.compare l1 l2 in
-    if Int.equal c 0 then ModPath.compare mp1 mp2 else c
+
+type state = {
+  global_ids : Id.Set.t;
+  mod_index : int Id.Map.t;
+  ref_renaming : pp_tag list Refmap'.t;
+  mp_renaming : pp_tag list MPmap.t;
+  params_ren : MPset.t; (* List of module parameters that we should alpha-rename *)
+  mpfiles : MPset.t; (* List of external modules that will be opened initially *)
+  duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
+  mpfiles_content : Label.t KMap.t MPmap.t; (* table recording objects in the first level of all MPfile *)
+}
+
+type t = {
+  table : Table.t;
+  state : state ref;
+  visibility : visible_layer ref list;
+  (* fields below are read-only *)
+  modular : bool;
+  library : bool;
+  extrcompute : bool;
+  (*s Extraction modes: modular or monolithic, library or minimal ?
+
+  Nota:
+  - Recursive Extraction : monolithic, minimal
+  - Separate Extraction : modular, minimal
+  - Extraction Library : modular, library
+  *)
+  keywords : Id.Set.t;
+  phase : phase;
+}
+
+let make_state kw = {
+  global_ids = kw;
+  mod_index = Id.Map.empty;
+  ref_renaming = Refmap'.empty;
+  mp_renaming = MPmap.empty;
+  params_ren = MPset.empty;
+  mpfiles = MPset.empty;
+  duplicates = (0, DupMap.empty);
+  mpfiles_content = MPmap.empty;
+}
+
+let make ~modular ~library ~extrcompute ~keywords () = {
+  table = Table.make_table ();
+  state = ref (make_state keywords);
+  modular;
+  library;
+  extrcompute;
+  keywords;
+  phase = Impl;
+  visibility = [];
+}
+
+let get_table s = s.table
+
+let get_modular s = s.modular
+
+let get_library s = s.library
+
+let get_extrcompute s = s.extrcompute
+
+let get_keywords s = s.keywords
+
+let get_phase s = s.phase
+
+let set_phase s phase = { s with phase }
+
+(* Reader-like *)
+
+let with_visibility s mp mps k =
+  let v = ref { mp = mp; params = mps; content = KMap.empty } in
+  let ans = k { s with visibility = v :: s.visibility } in
+  (* we save the 1st-level-content of MPfile for later use *)
+  let () =
+    if s.phase == Impl && s.modular && is_modfile !v.mp
+    then
+      let state = s.state.contents in
+      s.state := { state with mpfiles_content = MPmap.add !v.mp !v.content state.mpfiles_content }
+  in
+  ans
+
+let add_visible s ks l = match s.visibility with
+| [] -> assert false
+| v :: r -> v := { !v with content = KMap.add ks l !v.content }
+
+let get_visible s =
+  List.map (!) s.visibility
+
+let get_visible_mps s =
+  List.map (function v -> !v.mp) s.visibility
+
+let get_top_visible_mp s = match s.visibility with
+| [] -> assert false
+| v :: _ -> !v.mp
+
+(* Mutable primitives *)
+
+let add_global_ids s id =
+  let state = s.state.contents in
+  s.state := { state with global_ids = Id.Set.add id state.global_ids }
+
+let get_global_ids s =
+  s.state.contents.global_ids
+
+let add_mod_index s id i =
+  let state = s.state.contents in
+  s.state := { state with mod_index = Id.Map.add id i state.mod_index }
+
+let get_mod_index s id =
+  Id.Map.find id s.state.contents.mod_index
+
+let add_ref_renaming s r l =
+  let state = s.state.contents in
+  s.state := { state with ref_renaming = Refmap'.add r l state.ref_renaming }
+
+let get_ref_renaming s r =
+  Refmap'.find r s.state.contents.ref_renaming
+
+let get_mp_renaming s mp =
+  MPmap.find mp s.state.contents.mp_renaming
+
+let add_mp_renaming s mp l =
+  let state = s.state.contents in
+  s.state := { state with mp_renaming = MPmap.add mp l state.mp_renaming }
+
+let add_params_ren s mp =
+  let state = s.state.contents in
+  s.state := { state with params_ren = MPset.add mp state.params_ren }
+
+let mem_params_ren s mp =
+  MPset.mem mp s.state.contents.params_ren
+
+let get_mpfiles s =
+  s.state.contents.mpfiles
+
+let add_mpfiles s mp =
+  let state = s.state.contents in
+  s.state := { state with mpfiles = MPset.add mp state.mpfiles }
+
+let clear_mpfiles s =
+  let state = s.state.contents in
+  s.state := { state with mpfiles = MPset.empty }
+
+let add_duplicate s mp l =
+  let state = s.state.contents in
+  let (index, dups) = state.duplicates in
+  let ren = "Coq__" ^ string_of_int (index + 1) in
+  let dups = DupMap.add (mp, l) ren dups in
+  s.state := { state with duplicates = (index + 1, dups) }
+
+let get_duplicate s mp l =
+  DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
+
+let get_mpfiles_content s mp =
+  MPmap.find mp s.state.contents.mpfiles_content
+
+(* Reset *)
+
+let reset s =
+  let () = assert (List.is_empty s.visibility) in
+  let state = {
+    global_ids = s.keywords;
+    mod_index = Id.Map.empty;
+    ref_renaming = Refmap'.empty;
+    mp_renaming = MPmap.empty;
+    params_ren = MPset.empty;
+    mpfiles = MPset.empty;
+    duplicates = (0, DupMap.empty);
+    mpfiles_content = s.state.contents.mpfiles_content; (* don't reset! *)
+  } in
+  s.state := state
+
 end
 
-module DupMap = Map.Make(DupOrd)
+(*S Renamings of global objects. *)
 
-let add_duplicate, get_duplicate =
-  let index = ref 0 and dups = ref DupMap.empty in
-  register_cleanup (fun () -> index := 0; dups := DupMap.empty);
-  let add mp l =
-     incr index;
-     let ren = "Coq__" ^ string_of_int !index in
-     dups := DupMap.add (mp,l) ren !dups
-  and get mp l =
-    try Some (DupMap.find (mp, l) !dups) with Not_found -> None
-  in (add,get)
+(*s Tables of global renamings *)
 
-type reset_kind = AllButExternal | Everything
+let empty_env state () = [], State.get_global_ids state
 
-let reset_renaming_tables flag =
-  do_cleanup ();
-  if flag == Everything then clear_mpfiles_content ()
+let get_mpfiles_content s mp =
+  try State.get_mpfiles_content s mp
+  with Not_found -> failwith "get_mpfiles_content"
 
 (*S Renaming functions *)
 
@@ -337,62 +407,60 @@ let reset_renaming_tables flag =
    with previous [Coq_id] variable, these prefixes are duplicated if already
    existing. *)
 
-let modular_rename k id =
+let modular_rename table k id =
   let s = ascii_of_id id in
   let prefix,is_ok = if upperkind k then "Coq_",is_upper else "coq_",is_lower
   in
-  if not (is_ok s) || Id.Set.mem id (get_keywords ()) || begins_with s prefix
+  if not (is_ok s) || Id.Set.mem id (State.get_keywords table) || begins_with s prefix
   then prefix ^ s
   else s
 
 (*s For monolithic extraction, first-level modules might have to be renamed
     with unique numbers *)
 
-let modfstlev_rename =
-  let add_index,get_index,_ = mktable_id true in
-  fun l ->
-    let id = Label.to_id l in
-    try
-      let n = get_index id in
-      add_index id (n+1);
-      let s = if n == 0 then "" else string_of_int (n-1) in
-      "Coq"^s^"_"^(ascii_of_id id)
-    with Not_found ->
-      let s = ascii_of_id id in
-      if is_lower s || begins_with_CoqXX s then
-        (add_index id 1; "Coq_"^s)
-      else
-        (add_index id 0; s)
+let modfstlev_rename table l =
+  let id = Label.to_id l in
+  try
+    let n = State.get_mod_index table id in
+    let () = State.add_mod_index table id (n+1) in
+    let s = if n == 0 then "" else string_of_int (n-1) in
+    "Coq"^s^"_"^(ascii_of_id id)
+  with Not_found ->
+    let s = ascii_of_id id in
+    if is_lower s || begins_with_CoqXX s then
+      let () = State.add_mod_index table id 1 in
+      "Coq_" ^ s
+    else
+      let () = State.add_mod_index table id 0 in
+      s
 
 (*s Creating renaming for a [module_path] : first, the real function ... *)
 
 let rec mp_renaming_fun table mp = match mp with
-  | _ when not (modular ()) && at_toplevel mp -> [""]
+  | _ when not (State.get_modular table) && at_toplevel mp -> [""]
   | MPdot (mp,l) ->
       let lmp = mp_renaming table mp in
       let mp = match lmp with
-      | [""] -> modfstlev_rename l
-      | _ -> modular_rename Mod (Label.to_id l)
+      | [""] -> modfstlev_rename table l
+      | _ -> modular_rename table Mod (Label.to_id l)
       in
       mp ::lmp
   | MPbound mbid ->
-      let s = modular_rename Mod (MBId.to_id mbid) in
-      if not (params_ren_mem mp) then [s]
+      let s = modular_rename table Mod (MBId.to_id mbid) in
+      if not (State.mem_params_ren table mp) then [s]
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
   | MPfile _ ->
-      assert (modular ()); (* see [at_toplevel] above *)
-      assert (get_phase () == Pre);
-      let current_mpfile = (List.last (get_visible ())).mp in
-      if not (ModPath.equal mp current_mpfile) then mpfiles_add mp;
-      [string_of_modfile table mp]
+      assert (State.get_modular table); (* see [at_toplevel] above *)
+      assert (State.get_phase table == Pre);
+      let current_mpfile = (List.last (State.get_visible table)).mp in
+      if not (ModPath.equal mp current_mpfile) then State.add_mpfiles table mp;
+      [string_of_modfile (State.get_table table) mp]
 
 (* ... and its version using a cache *)
 
-and mp_renaming =
-  let add,get,_ = mktable_modpath true in
-  fun table x ->
-    try if is_mp_bound (base_mp x) then raise Not_found; get x
-    with Not_found -> let y = mp_renaming_fun table x in add x y; y
+and mp_renaming table x =
+  try if is_mp_bound (base_mp x) then raise Not_found; State.get_mp_renaming table x
+  with Not_found -> let y = mp_renaming_fun table x in State.add_mp_renaming table x y; y
 
 (*s Renamings creation for a [global_reference]: we build its fully-qualified
     name in a [string list] form (head is the short name). *)
@@ -400,26 +468,24 @@ and mp_renaming =
 let ref_renaming_fun table (k,r) =
   let mp = modpath_of_r r in
   let l = mp_renaming table mp in
-  let l = if lang () != Ocaml && not (modular ()) then [""] else l in
+  let l = if lang () != Ocaml && not (State.get_modular table) then [""] else l in
   let s =
-    let idg = safe_basename_of_global table r in
+    let idg = safe_basename_of_global (State.get_table table) r in
     match l with
     | [""] -> (* this happens only at toplevel of the monolithic case *)
-      let globs = get_global_ids () in
+      let globs = State.get_global_ids table in
       let id = next_ident_away (kindcase_id k idg) globs in
       Id.to_string id
-    | _ -> modular_rename k idg
+    | _ -> modular_rename table k idg
   in
-  add_global_ids (Id.of_string s);
+  let () = State.add_global_ids table (Id.of_string s) in
   s::l
 
 (* Cached version of the last function *)
 
-let ref_renaming =
-  let add,get,_ = mktable_ref true in
-  fun table ((k,r) as x) ->
-    try if is_mp_bound (base_mp (modpath_of_r r)) then raise Not_found; get r
-    with Not_found -> let y = ref_renaming_fun table x in add r y; y
+let ref_renaming table ((k,r) as x) =
+  try if is_mp_bound (base_mp (modpath_of_r r)) then raise Not_found; State.get_ref_renaming table r
+  with Not_found -> let y = ref_renaming_fun table x in State.add_ref_renaming table r y; y
 
 (* [visible_clash mp0 (k,s)] checks if [mp0-s] of kind [k]
    can be printed as [s] in the current context of visible
@@ -433,16 +499,16 @@ let rec clash mem mp0 ks = function
   | mp :: _ when mem mp ks -> true
   | _ :: mpl -> clash mem mp0 ks mpl
 
-let mpfiles_clash mp0 ks =
-  clash (fun mp k -> KMap.mem k (get_mpfiles_content mp)) mp0 ks
-    (List.rev (mpfiles_list ()))
+let mpfiles_clash table mp0 ks =
+  clash (fun mp k -> KMap.mem k (get_mpfiles_content table mp)) mp0 ks
+    (List.rev (MPset.elements (State.get_mpfiles table)))
 
 let rec params_lookup table mp0 ks = function
   | [] -> false
   | param :: _ when ModPath.equal mp0 param -> true
   | param :: params ->
       let () = match ks with
-      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> params_ren_add param
+      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> State.add_params_ren table param
       | _ -> ()
       in
       params_lookup table mp0 ks params
@@ -455,11 +521,11 @@ let visible_clash table mp0 ks =
         let b = KMap.mem ks v.content in
         if b && not (is_mp_bound mp0) then true
         else begin
-          if b then params_ren_add mp0;
+          if b then State.add_params_ren table mp0;
           if params_lookup table mp0 ks v.params then false
           else clash vis
         end
-  in clash (get_visible ())
+  in clash (State.get_visible table)
 
 (* Same, but with verbose output (and mp0 shouldn't be a MPbound) *)
 
@@ -472,15 +538,15 @@ let visible_clash_dbg table mp0 ks =
         with Not_found ->
           if params_lookup table mp0 ks v.params then None
           else clash vis
-  in clash (get_visible ())
+  in clash (State.get_visible table)
 
 (* After the 1st pass, we can decide which modules will be opened initially *)
 
 let opened_libraries table =
-  if not (modular ()) then []
+  if not (State.get_modular table) then []
   else
-    let used_files = mpfiles_list () in
-    let used_ks = List.map (fun mp -> Mod,string_of_modfile table mp) used_files in
+    let used_files = MPset.elements (State.get_mpfiles table) in
+    let used_ks = List.map (fun mp -> Mod,string_of_modfile (State.get_table table) mp) used_files in
     (* By default, we open all used files. Ambiguities will be resolved later
        by using qualified names. Nonetheless, we don't open any file A that
        contains an immediate submodule A.B hiding another file B : otherwise,
@@ -488,12 +554,12 @@ let opened_libraries table =
     let to_open =
       List.filter
         (fun mp ->
-           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content mp)) used_ks))
+           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content table mp)) used_ks))
         used_files
     in
-    mpfiles_clear ();
-    List.iter mpfiles_add to_open;
-    mpfiles_list ()
+    let () = State.clear_mpfiles table in
+    let () = List.iter (fun mp -> State.add_mpfiles table mp) to_open in
+    MPset.elements (State.get_mpfiles table)
 
 (*s On-the-fly qualification issues for both monolithic or modular extraction. *)
 
@@ -507,7 +573,7 @@ let opened_libraries table =
    we duplicate the _definition_ of t in a Coq__XXX module, and similarly
    for a sub-module [M.N] *)
 
-let pp_duplicate k' prefix mp rls olab =
+let pp_duplicate table k' prefix mp rls olab =
   let rls', lbl =
     if k' != Mod then
       (* Here rls=[s], the ref to print is <prefix>.<s>, and olab<>None *)
@@ -516,11 +582,11 @@ let pp_duplicate k' prefix mp rls olab =
       (* Here rls=s::rls', we search the label for s inside mp *)
       List.tl rls, get_nth_label_mp (mp_length mp - mp_length prefix) mp
   in
-  match get_duplicate prefix lbl with
+  match State.get_duplicate table prefix lbl with
   | Some ren -> dottify (ren :: rls')
   | None ->
-     assert (get_phase () == Pre); (* otherwise it's too late *)
-     add_duplicate prefix lbl; dottify rls
+     assert (State.get_phase table == Pre); (* otherwise it's too late *)
+     State.add_duplicate table prefix lbl; dottify rls
 
 let fstlev_ks k = function
   | [] -> assert false
@@ -537,14 +603,14 @@ let pp_ocaml_local table k prefix mp rls olab =
   let k's = fstlev_ks k rls' in
   (* Reference r / module path mp is of the form [<prefix>.s.<...>]. *)
   if not (visible_clash table prefix k's) then dottify rls'
-  else pp_duplicate (fst k's) prefix mp rls' olab
+  else pp_duplicate table (fst k's) prefix mp rls' olab
 
 (* [pp_ocaml_bound] : [mp] starts with a [MPbound], and we are not inside
    (i.e. we are not printing the type of the module parameter) *)
 
 let pp_ocaml_bound table base rls =
   (* clash with a MPbound will be detected and fixed by renaming this MPbound *)
-  if get_phase () == Pre then ignore (visible_clash table base (Mod,List.hd rls));
+  if State.get_phase table == Pre then ignore (visible_clash table base (Mod,List.hd rls));
   dottify rls
 
 (* [pp_ocaml_extern] : [mp] isn't local, it is defined in another [MPfile]. *)
@@ -552,10 +618,10 @@ let pp_ocaml_bound table base rls =
 let pp_ocaml_extern table k base rls = match rls with
   | [] -> assert false
   | base_s :: rls' ->
-      if (not (modular ())) (* Pseudo qualification with "" *)
+      if (not (State.get_modular table)) (* Pseudo qualification with "" *)
         || (List.is_empty rls')  (* Case of a file A.v used as a module later *)
-        || (not (mpfiles_mem base)) (* Module not opened *)
-        || (mpfiles_clash base (fstlev_ks k rls')) (* Conflict in opened files *)
+        || (not (MPset.mem base (State.get_mpfiles table))) (* Module not opened *)
+        || (mpfiles_clash table base (fstlev_ks k rls')) (* Conflict in opened files *)
         || (visible_clash table base (fstlev_ks k rls')) (* Local conflict *)
       then
         (* We need to fully qualify. Last clash situation is unsupported *)
@@ -569,7 +635,7 @@ let pp_ocaml_extern table k base rls = match rls with
 (* [pp_ocaml_gen] : choosing between [pp_ocaml_local] or [pp_ocaml_extern] *)
 
 let pp_ocaml_gen table k mp rls olab =
-  match common_prefix_from_list mp (get_visible_mps ()) with
+  match common_prefix_from_list mp (State.get_visible_mps table) with
     | Some prefix -> pp_ocaml_local table k prefix mp rls olab
     | None ->
         let base = base_mp mp in
@@ -578,12 +644,12 @@ let pp_ocaml_gen table k mp rls olab =
 
 (* For Haskell, things are simpler: we have removed (almost) all structures *)
 
-let pp_haskell_gen k mp rls = match rls with
+let pp_haskell_gen table k mp rls = match rls with
   | [] -> assert false
   | s::rls' ->
     let str = pseudo_qualify rls' in
     let str = if is_upper str && not (upperkind k) then ("_"^str) else str in
-    if ModPath.equal (base_mp mp) (top_visible_mp ()) then str else s^"."^str
+    if ModPath.equal (base_mp mp) (State.get_top_visible_mp table) then str else s^"."^str
 
 (* Main name printing function for a reference *)
 
@@ -592,16 +658,17 @@ let pp_global_with_key table k key r =
   assert (List.length ls > 1);
   let s = List.hd ls in
   let mp,l = KerName.repr key in
-  if ModPath.equal mp (top_visible_mp ()) then
+  if ModPath.equal mp (State.get_top_visible_mp table) then
     (* simplest situation: definition of r (or use in the same context) *)
     (* we update the visible environment *)
-    (add_visible (k,s) l; unquote s)
+    let () = State.add_visible table (k, s) l in
+    unquote s
   else
     let rls = List.rev ls in (* for what come next it's easier this way *)
     match lang () with
       | Scheme -> unquote s (* no modular Scheme extraction... *)
       | JSON -> dottify (List.map unquote rls)
-      | Haskell -> if modular () then pp_haskell_gen k mp rls else s
+      | Haskell -> if State.get_modular table then pp_haskell_gen table k mp rls else s
       | Ocaml -> pp_ocaml_gen table k mp rls (Some l)
 
 let pp_global table k r =
@@ -619,11 +686,12 @@ let pp_global_name table k r =
 let pp_module table mp =
   let ls = mp_renaming table mp in
   match mp with
-    | MPdot (mp0,l) when ModPath.equal mp0 (top_visible_mp ()) ->
+    | MPdot (mp0,l) when ModPath.equal mp0 (State.get_top_visible_mp table) ->
         (* simplest situation: definition of mp (or use in the same context) *)
         (* we update the visible environment *)
         let s = List.hd ls in
-        add_visible (Mod,s) l; s
+        let () = State.add_visible table (Mod, s) l in
+        s
     | _ -> pp_ocaml_gen table Mod mp (List.rev ls) None
 
 (** Special hack for constants of type Ascii.ascii : if an

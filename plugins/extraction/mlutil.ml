@@ -129,15 +129,15 @@ let rec mgu = function
   | Taxiom, Taxiom -> ()
   | _ -> raise Impossible
 
-let skip_typing () = lang () == Scheme || is_extrcompute ()
+let skip_typing ~compute () = lang () == Scheme || compute
 
-let needs_magic p =
-  if skip_typing () then false
+let needs_magic ~compute p =
+  if skip_typing ~compute () then false
   else try mgu p; false with Impossible -> true
 
 let put_magic_if b a = if b then MLmagic a else a
 
-let put_magic p a = if needs_magic p then MLmagic a else a
+let put_magic ~compute p a = if needs_magic ~compute p then MLmagic a else a
 
 let generalizable a =
   lang () != Ocaml ||

@@ -8,4 +8,4 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-val json_descr : Table.t Miniml.language_descr
+val json_descr : Common.State.t Miniml.language_descr

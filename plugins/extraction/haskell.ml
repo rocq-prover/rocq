@@ -38,7 +38,7 @@ let pp_bracket_comment s = str"{- " ++ hov 0 s ++ str" -}"
    the '\n' character interacts badly with the Format boxing mechanism *)
 
 let preamble table mod_name comment used_modules usf =
-  let pp_import mp = str ("import qualified "^ string_of_modfile table mp) ++ fnl ()
+  let pp_import mp = str ("import qualified "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
   in
   (if not (usf.magic || usf.tunknown) then mt ()
    else
@@ -364,7 +364,7 @@ let pp_decl table = function
             (if is_custom r then
                 (names.(i) ++ str " = " ++ str (find_custom r))
              else
-                (pp_function table (empty_env ()) names.(i) defs.(i)))
+                (pp_function table (empty_env table ()) names.(i) defs.(i)))
             ++ fnl2 ())
         rv
   | Dterm (r, a, t) ->
@@ -375,7 +375,7 @@ let pp_decl table = function
           if is_custom r then
             hov 0 (e ++ str " = " ++ str (find_custom r) ++ fnl2 ())
           else
-            hov 0 (pp_function table (empty_env ()) e a ++ fnl2 ())
+            hov 0 (pp_function table (empty_env table ()) e a ++ fnl2 ())
 
 let rec pp_structure_elem table = function
   | (l,SEdecl d) -> pp_decl table d
@@ -391,18 +391,17 @@ and pp_module_expr table = function
       (* should be expanded in extract_env *)
 
 let pp_struct table =
-  let pp_sel (mp,sel) =
-    push_visible mp [];
-    let p = prlist_strict (fun e -> pp_structure_elem table e) sel in
-    pop_visible (); p
-  in
+  let pp_sel (mp,sel) = State.with_visibility table mp [] begin fun table ->
+    prlist_strict (fun e -> pp_structure_elem table e) sel
+  end in
   prlist_strict pp_sel
 
+let file_naming state mp = file_of_modfile (State.get_table state) mp
 
 let haskell_descr = {
   keywords = keywords;
   file_suffix = ".hs";
-  file_naming = string_of_modfile;
+  file_naming = file_naming;
   preamble = preamble;
   pp_struct = pp_struct;
   sig_suffix = None;

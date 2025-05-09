@@ -159,23 +159,6 @@ val file_comment : unit -> string
 type lang = Ocaml | Haskell | Scheme | JSON
 val lang : unit -> lang
 
-(*s Extraction modes: modular or monolithic, library or minimal ?
-
-Nota:
- - Recursive Extraction : monolithic, minimal
- - Separate Extraction : modular, minimal
- - Extraction Library : modular, library
-*)
-
-val set_modular : bool -> unit
-val modular : unit -> bool
-
-val set_library : bool -> unit
-val library : unit -> bool
-
-val set_extrcompute : bool -> unit
-val is_extrcompute : unit -> bool
-
 (*s Table for custom inlining *)
 
 val to_inline : GlobRef.t -> bool

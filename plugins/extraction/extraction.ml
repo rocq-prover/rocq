@@ -334,7 +334,7 @@ let fake_match_projection env p =
    generate ML type var anymore (in subterms for example). *)
 
 
-let rec extract_type table env sg db j c args =
+let rec extract_type (table : Common.State.t) env sg db j c args =
   match EConstr.kind sg (whd_betaiotazeta env sg c) with
     | App (d, args') ->
         (* We just accumulate the arguments. *)
@@ -464,7 +464,7 @@ and extract_type_scheme table env sg db c p =
 
 and extract_ind table env kn = (* kn is supposed to be in long form *)
   let mib = Environ.lookup_mind kn env in
-  match lookup_ind table kn mib with
+  match lookup_ind (Common.State.get_table table) kn mib with
   | Some ml_ind -> ml_ind
   | None ->
      try
@@ -481,7 +481,7 @@ and extract_really_ind table env kn mib =
        (cf Vector and bug #2570) *)
     let equiv =
       if lang () != Ocaml ||
-         (not (modular ()) && at_toplevel (MutInd.modpath kn)) ||
+         (not (Common.State.get_modular table) && at_toplevel (MutInd.modpath kn)) ||
          KerName.equal (MutInd.canonical kn) (MutInd.user kn)
       then
         NoEquiv
@@ -518,7 +518,7 @@ and extract_really_ind table env kn mib =
         mib.mind_packets
     in
 
-    add_ind table kn mib
+    add_ind (Common.State.get_table table) kn mib
       {ind_kind = Standard;
        ind_nparams = npar;
        ind_packets = Array.map fst packets;
@@ -586,7 +586,7 @@ and extract_really_ind table env kn mib =
               let knp = Constant.make2 mp (Label.of_id id) in
               (* Is it safe to use [id] for projections [foo.id] ? *)
               if List.for_all ((==) Keep) (type2signature table env typ)
-              then (* for OCaml inlining: *) add_projection table nparams knp ip;
+              then (* for OCaml inlining: *) add_projection (Common.State.get_table table) nparams knp ip;
               Some (GlobRef.ConstRef knp) :: (select_fields (i+1) l typs)
           | _ -> assert false
         in
@@ -601,8 +601,8 @@ and extract_really_ind table env kn mib =
              ind_packets = Array.map fst packets;
              ind_equiv = equiv }
     in
-    add_ind table kn mib i;
-    add_inductive_kind table kn i.ind_kind;
+    add_ind (Common.State.get_table table) kn mib i;
+    add_inductive_kind (Common.State.get_table table) kn i.ind_kind;
     i
 
 (*s [extract_type_cons] extracts the type of an inductive
@@ -631,7 +631,7 @@ and mlt_env table env r = let open GlobRef in match r with
      match cb.const_body with
      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> None
      | Def l_body ->
-        match lookup_typedef table kn cb with
+        match lookup_typedef (Common.State.get_table table) kn cb with
         | Some _ as o -> o
         | None ->
            let sg = Evd.from_env env in
@@ -643,7 +643,7 @@ and mlt_env table env r = let open GlobRef in match r with
               let s = type_sign env sg typ in
               let db = db_from_sign s in
               let t = extract_type_scheme table env sg db body (List.length s)
-              in add_typedef table kn cb t; Some t
+              in add_typedef (Common.State.get_table table) kn cb t; Some t
            | _ -> None
 
 and expand table env = type_expand (mlt_env table env)
@@ -656,7 +656,7 @@ let type_expunge_from_sign table env = type_expunge_from_sign (mlt_env table env
 
 let record_constant_type table env sg kn opt_typ =
   let cb = lookup_constant kn env in
-  match lookup_cst_type table kn cb with
+  match lookup_cst_type (Common.State.get_table table) kn cb with
   | Some schema -> schema
   | None ->
      let typ = match opt_typ with
@@ -665,7 +665,7 @@ let record_constant_type table env sg kn opt_typ =
      in
      let mlt = extract_type table env sg [] 1 typ [] in
      let schema = (type_maxvar mlt, mlt) in
-     let () = add_cst_type table kn cb schema in
+     let () = add_cst_type (Common.State.get_table table) kn cb schema in
      schema
 
 (*S Extraction of a term. *)
@@ -696,7 +696,7 @@ let rec extract_term table env sg mle mlt c args =
                in
                let b = new_meta () in
                (* If [mlt] cannot be unified with an arrow type, then magic! *)
-               let magic = needs_magic (mlt, Tarr (a, b)) in
+               let magic = needs_magic ~compute:(Common.State.get_extrcompute table) (mlt, Tarr (a, b)) in
                let d' = extract_term table env' sg (Mlenv.push_type mle a) b d [] in
                put_magic_if magic (MLlam (id, d')))
     | LetIn (n, c1, t1, c2) ->
@@ -735,7 +735,7 @@ let rec extract_term table env sg mle mlt c args =
     | Rel n ->
         (* As soon as the expected [mlt] for the head is known, *)
         (* we unify it with an fresh copy of the stored type of [Rel n]. *)
-        let extract_rel mlt = put_magic (mlt, Mlenv.get mle n) (MLrel n)
+        let extract_rel mlt = put_magic ~compute:(Common.State.get_extrcompute table) (mlt, Mlenv.get mle n) (MLrel n)
         in extract_app table env sg mle mlt extract_rel args
     | Case (ci, u, pms, r, iv, c0, br) ->
         (* If invert_case then this is a match that will get erased later, but right now we don't care. *)
@@ -756,7 +756,7 @@ let rec extract_term table env sg mle mlt c args =
          | LocalDef (_,_,ty) -> ty
        in
        let vty = extract_type table env sg [] 0 ty [] in
-       let extract_var mlt = put_magic (mlt,vty) (MLglob (GlobRef.VarRef v)) in
+       let extract_var mlt = put_magic ~compute:(Common.State.get_extrcompute table) (mlt,vty) (MLglob (GlobRef.VarRef v)) in
        extract_app table env sg mle mlt extract_var args
     | Int i -> assert (args = []); MLuint i
     | Float f -> assert (args = []); MLfloat f
@@ -775,7 +775,7 @@ and extract_maybe_term table env sg mle mlt c =
   try check_default env sg (type_of env sg c);
     extract_term table env sg mle mlt c []
   with NotDefault d ->
-    put_magic (mlt, Tdummy d) (MLdummy d)
+    put_magic ~compute:(Common.State.get_extrcompute table) (mlt, Tdummy d) (MLdummy d)
 
 (*s Generic way to deal with an application. *)
 
@@ -818,9 +818,9 @@ and extract_cst_app table env sg mle mlt kn args =
   (* We compare stored and expected types in two steps. *)
   (* First, can [kn] be applied to all args ? *)
   let metas = List.map new_meta args in
-  let magic1 = needs_magic (type_recomp (metas, a), instantiated) in
+  let magic1 = needs_magic ~compute:(Common.State.get_extrcompute table) (type_recomp (metas, a), instantiated) in
   (* Second, is the resulting type compatible with the expected type [mlt] ? *)
-  let magic2 = needs_magic (a, mlt) in
+  let magic2 = needs_magic ~compute:(Common.State.get_extrcompute table) (a, mlt) in
   (* The internal head receives a magic if [magic1] *)
   let head = put_magic_if magic1 (MLglob (GlobRef.ConstRef kn)) in
   (* Now, the extraction of the arguments. *)
@@ -885,8 +885,8 @@ and extract_cons_app table env sg mle mlt (((kn,i) as ip,j) as cp) args =
   let metas = List.map new_meta args' in
   (* If stored and expected types differ, then magic! *)
   let a = new_meta () in
-  let magic1 = needs_magic (type_cons, type_recomp (metas, a)) in
-  let magic2 = needs_magic (a, mlt) in
+  let magic1 = needs_magic ~compute:(Common.State.get_extrcompute table) (type_cons, type_recomp (metas, a)) in
+  let magic2 = needs_magic ~compute:(Common.State.get_extrcompute table) (a, mlt) in
   let head mla =
     if mi.ind_kind == Singleton then
       put_magic_if magic1 (List.hd mla) (* assert (List.length mla = 1) *)
@@ -922,7 +922,7 @@ and extract_case table env sg mle ((kn,i) as ip,c,br) mlt =
   let br_size = Array.length br in
   assert (Int.equal (Array.length ni) br_size);
   if Int.equal br_size 0 then begin
-    add_recursors table env kn; (* May have passed unseen if logical ... *)
+    add_recursors (Common.State.get_table table) env kn; (* May have passed unseen if logical ... *)
     MLexn "absurd case"
   end else
     (* [c] has an inductive type, and is not a type scheme type. *)
@@ -930,7 +930,7 @@ and extract_case table env sg mle ((kn,i) as ip,c,br) mlt =
     (* The only non-informative case: [c] is of sort [Prop]/[SProp] *)
     if info_of_quality (sort_of env sg t) == Logic then
       begin
-        add_recursors table env kn; (* May have passed unseen if logical ... *)
+        add_recursors (Common.State.get_table table) env kn; (* May have passed unseen if logical ... *)
         (* Logical singleton case: *)
         (* [match c with C i j k -> t] becomes [t'] *)
         assert (Int.equal br_size 1);
@@ -1110,8 +1110,8 @@ let extract_constant table access env kn cb =
   let sg = Evd.from_env env in
   let r = GlobRef.ConstRef kn in
   let typ = EConstr.of_constr cb.const_type in
-  let warn_info () = if not (is_custom r) then add_info_axiom table r in
-  let warn_log () = if not (constant_has_body cb) then add_log_axiom table r
+  let warn_info () = if not (is_custom r) then add_info_axiom (Common.State.get_table table) r in
+  let warn_log () = if not (constant_has_body cb) then add_log_axiom (Common.State.get_table table) r
   in
   let mk_typ_ax () =
     let n = type_scheme_nb_args env sg typ in
@@ -1140,7 +1140,7 @@ let extract_constant table access env kn cb =
     | (Logic,Default) -> warn_log (); Dterm (r, MLdummy Kprop, Tdummy Kprop)
     | (Info,TypeScheme) ->
         (match cb.const_body with
-          | Symbol _ -> add_symbol table r; mk_typ_ax ()
+          | Symbol _ -> add_symbol (Common.State.get_table table) r; mk_typ_ax ()
           | Primitive _ | Undef _ -> warn_info (); mk_typ_ax ()
           | Def c ->
              (match Structures.PrimitiveProjections.find_opt kn with
@@ -1149,12 +1149,12 @@ let extract_constant table access env kn cb =
                 let body = fake_match_projection env p in
                 mk_typ (EConstr.of_constr body))
           | OpaqueDef c ->
-            add_opaque table r;
+            add_opaque (Common.State.get_table table) r;
             if access_opaque () then mk_typ (get_opaque access env c)
             else mk_typ_ax ())
     | (Info,Default) ->
         (match cb.const_body with
-          | Symbol _ -> add_symbol table r; mk_ax ()
+          | Symbol _ -> add_symbol (Common.State.get_table table) r; mk_ax ()
           | Primitive _ | Undef _ -> warn_info (); mk_ax ()
           | Def c ->
              (match Structures.PrimitiveProjections.find_opt kn with
@@ -1163,7 +1163,7 @@ let extract_constant table access env kn cb =
                 let body = fake_match_projection env p in
                 mk_def (EConstr.of_constr body))
           | OpaqueDef c ->
-            add_opaque table r;
+            add_opaque (Common.State.get_table table) r;
             if access_opaque () then mk_def (get_opaque access env c)
             else mk_ax ())
   with SingletonInductiveBecomesProp ind ->
@@ -1222,7 +1222,7 @@ let extract_constr table env sg c =
 
 let extract_inductive table env kn =
   let ind = extract_ind table env kn in
-  add_recursors table env kn;
+  add_recursors (Common.State.get_table table) env kn;
   let f i j l =
     let implicits = implicits_of_global (GlobRef.ConstructRef ((kn,i),j+1)) in
     let rec filter i = function

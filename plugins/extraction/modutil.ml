@@ -404,18 +404,18 @@ let check_for_remaining_implicits struc =
 let optimize_struct table to_appear struc =
   let subst = ref (Refmap'.empty : ml_ast Refmap'.t) in
   let opt_struc =
-    List.map (fun (mp,lse) -> (mp, optim_se table true (fst to_appear) subst lse))
+    List.map (fun (mp,lse) -> (mp, optim_se (Common.State.get_table table) true (fst to_appear) subst lse))
       struc
   in
   let mini_struc =
-    if library () then
+    if Common.State.get_library table then
       List.filter (fun (_,lse) -> not (List.is_empty lse)) opt_struc
     else
       begin
         reset_needed ();
         List.iter add_needed (fst to_appear);
         List.iter add_needed_mp (snd to_appear);
-        depcheck_struct table opt_struc
+        depcheck_struct (Common.State.get_table table) opt_struc
       end
   in
   let () = check_for_remaining_implicits mini_struc in

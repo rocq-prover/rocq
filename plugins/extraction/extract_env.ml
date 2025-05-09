@@ -286,7 +286,7 @@ and extract_msignature_spec table venv env mp1 reso = function
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
                 extract_msignature_spec table venv env' mp1 reso me)
 
-and extract_mbody_spec : 'a. _ -> _ -> _ -> _ -> 'a generic_module_body -> _ =
+and extract_mbody_spec : 'a. State.t -> _ -> _ -> _ -> 'a generic_module_body -> _ =
   fun table venv env mp mb -> match mod_type_alg mb with
   | Some ty -> extract_mexpression_spec table venv env mp (mod_type mb, ty)
   | None -> extract_msignature_spec table venv env mp (mod_delta mb) (mod_type mb)
@@ -340,7 +340,7 @@ let rec extract_structure table access venv env mp reso ~all = function
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst) rrb.rewrules_rules in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule table (ConstRef cst) l) rrb.rewrules_rules;
+        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->
@@ -361,14 +361,14 @@ let rec extract_structure table access venv env mp reso ~all = function
 
 and extract_mexpr table access venv env mp = function
   | MEwith _ -> assert false (* no 'with' syntax for modules *)
-  | me when lang () != Ocaml || Table.is_extrcompute () ->
+  | me when lang () != Ocaml || State.get_extrcompute table ->
       (* In Haskell/Scheme, we expand everything.
          For now, we also extract everything, dead code will be removed later
          (see [Modutil.optimize_struct]. *)
       let sign, delta = expand_mexpr env mp me in
       extract_msignature table access venv env mp delta ~all:true sign
   | MEident mp ->
-      if is_modfile mp && not (modular ()) then error_MPfile_as_mod mp false;
+      if is_modfile mp && not (State.get_modular table) then error_MPfile_as_mod mp false;
       Visit.add_mp_all venv mp; Miniml.MEident mp
   | MEapply (me, arg) ->
       Miniml.MEapply (extract_mexpr table access venv env mp me,
@@ -483,7 +483,7 @@ let mono_filename f =
 (* Builds a suitable filename from a module id *)
 
 let module_filename table mp =
-  let f = file_of_modfile table mp in
+  let f = file_of_modfile (State.get_table table) mp in
   let id = Id.of_string f in
   let f = Filename.concat (output_directory ()) f in
   let d = descr () in
@@ -495,13 +495,13 @@ let module_filename table mp =
 
 let print_one_decl table struc mp decl =
   let d = descr () in
-  reset_renaming_tables AllButExternal;
-  set_phase Pre;
+  let () = State.reset table in
+  let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
-  set_phase Impl;
-  push_visible mp [];
-  let ans = d.pp_decl table decl in
-  pop_visible ();
+  let table = State.set_phase table Impl in
+  let ans = State.with_visibility table mp [] begin fun table ->
+    d.pp_decl table decl
+  end in
   v 0 ans
 
 (*s Extraction of a ml struct to a file. *)
@@ -541,7 +541,7 @@ let get_comment () =
 let print_structure_to_file table (fn,si,mo) dry struc =
   Buffer.clear buf;
   let d = descr () in
-  reset_renaming_tables AllButExternal;
+  let () = State.reset table in
   let unsafe_needs = {
     mldummy = struct_ast_search Mlutil.isMLdummy struc;
     tdummy = struct_type_search Mlutil.isTdummy struc;
@@ -551,7 +551,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
       else struct_ast_search (function MLmagic _ -> true | _ -> false) struc }
   in
   (* First, a dry run, for computing objects to rename or duplicate *)
-  set_phase Pre;
+  let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
   let opened = opened_libraries table in
   (* Print the implementation *)
@@ -560,7 +560,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
   let comment = get_comment () in
   begin try
     (* The real printing of the implementation *)
-    set_phase Impl;
+    let table = State.set_phase table Impl in
     pp_with ft (d.preamble table mo comment opened unsafe_needs);
     pp_with ft (d.pp_struct table struc);
     Format.pp_print_flush ft ();
@@ -576,7 +576,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
        let cout = open_out si in
        let ft = formatter false (Some cout) in
        begin try
-         set_phase Intf;
+         let table = State.set_phase table Intf in
          pp_with ft (d.sig_preamble table mo comment opened unsafe_needs);
          pp_with ft (d.pp_sig table (signature_of_structure struc));
          Format.pp_print_flush ft ();
@@ -598,21 +598,15 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*s Part III: the actual extraction commands *)
 (*********************************************)
 
-
-let reset () =
-  reset_renaming_tables Everything
-
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
-  set_keywords (descr ()).keywords;
-  set_modular modular;
-  set_library library;
-  set_extrcompute compute;
-  reset ();
+  let keywords = (descr ()).keywords in
+  let state = State.make ~modular ~library ~extrcompute:compute ~keywords () in
   if modular && lang () == Scheme then error_scheme ();
-  Table.make_table ()
+  state
 
 let warns table =
+  let table = State.get_table table in
   warning_opaques table (access_opaque ());
   warning_axioms table
 
@@ -645,8 +639,7 @@ let full_extr opaque_access f (refs,mps) =
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
-  print_structure_to_file table (mono_filename f) false struc;
-  reset ()
+  print_structure_to_file table (mono_filename f) false struc
 
 let full_extraction ~opaque_access f lr =
   full_extr opaque_access f (locate_ref lr)
@@ -670,8 +663,8 @@ let separate_extraction ~opaque_access lr =
         print_structure_to_file table (module_filename table mp) false [e]
     | (MPdot _ | MPbound _), _ -> assert false
   in
-  List.iter print struc;
-  reset ()
+  let () = List.iter print struc in
+  ()
 
 (*s Simple extraction in the Rocq toplevel. The vernacular command
     is \verb!Extraction! [qualid]. *)
@@ -689,7 +682,6 @@ let simple_extraction ~opaque_access r =
         else mt ()
       in
       let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
-      reset ();
       Feedback.msg_notice ans
   | _ -> assert false
 
@@ -723,8 +715,8 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
         print_structure_to_file table (module_filename table mp) dry [e]
     | _ -> assert false
   in
-  List.iter print struc;
-  reset ()
+  let () = List.iter print struc in
+  ()
 
 (** For extraction compute, we flatten all the module structure,
     getting rid of module types or unapplied functors *)
