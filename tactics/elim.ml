@@ -100,7 +100,7 @@ let rec general_decompose_aux recognizer id =
   let rec_flag, mkelim =
     match (Environ.lookup_mind (fst ind) env).mind_record with
     | NotRecord -> true, Elim
-    | FakeRecord | PrimRecord _ -> false, Case true
+    | FakeRecord | PrimRecord _ -> false, Case false
   in
   let branchsigns = Tacticals.compute_constructor_signatures env ~rec_flag (ind, u) in
   let next_tac bas =
