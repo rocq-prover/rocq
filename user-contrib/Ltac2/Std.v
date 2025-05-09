@@ -155,31 +155,144 @@ Ltac2 @ external destruct : evar_flag -> induction_clause list ->
 Ltac2 @ external induction : evar_flag -> induction_clause list ->
   constr_with_bindings option -> unit := "rocq-runtime.plugins.ltac2" "tac_induction".
 
-Ltac2 @external exfalso : unit -> unit := "rocq-runtime.plugins.ltac2" "tac_exfalso".
+Ltac2 @ external exfalso : unit -> unit := "rocq-runtime.plugins.ltac2" "tac_exfalso".
 
-Ltac2 @ external red : clause -> unit := "rocq-runtime.plugins.ltac2" "tac_red".
-Ltac2 @ external hnf : clause -> unit := "rocq-runtime.plugins.ltac2" "tac_hnf".
-Ltac2 @ external simpl : red_flags -> (pattern * occurrences) option -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_simpl".
-Ltac2 @ external cbv : red_flags -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_cbv".
-Ltac2 @ external cbn : red_flags -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_cbn".
-Ltac2 @ external lazy : red_flags -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_lazy".
-Ltac2 @ external unfold : (reference * occurrences) list -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_unfold".
-Ltac2 @ external fold : constr list -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_fold".
-Ltac2 @ external pattern : (constr * occurrences) list -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_pattern".
-Ltac2 @ external vm : (pattern * occurrences) option -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_vm".
-Ltac2 @ external native : (pattern * occurrences) option -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_native".
 
-Ltac2 @ external eval_red : constr -> constr := "rocq-runtime.plugins.ltac2" "eval_red".
-Ltac2 @ external eval_hnf : constr -> constr := "rocq-runtime.plugins.ltac2" "eval_hnf".
-Ltac2 @ external eval_simpl : red_flags -> (pattern * occurrences) option -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_simpl".
-Ltac2 @ external eval_cbv : red_flags -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_cbv".
-Ltac2 @ external eval_cbn : red_flags -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_cbn".
-Ltac2 @ external eval_lazy : red_flags -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_lazy".
-Ltac2 @ external eval_unfold : (reference * occurrences) list -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_unfold".
-Ltac2 @ external eval_fold : constr list -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_fold".
-Ltac2 @ external eval_pattern : (constr * occurrences) list -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_pattern".
-Ltac2 @ external eval_vm : (pattern * occurrences) option -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_vm".
-Ltac2 @ external eval_native : (pattern * occurrences) option -> constr -> constr := "rocq-runtime.plugins.ltac2" "eval_native".
+(** Constructors for reduction/expansion strategies *)
+
+Module Red.
+  Ltac2 Type conversion_strategy.
+
+  (** βιζ-reduction of the _head constant_ of a term. Fails if there is no
+  reducible head constant. *)
+  Ltac2 @external red : conversion_strategy := "rocq-runtime.plugins.ltac2" "red".
+
+  (** Full βδιζ-reduction the head of a term. Does not recurse into subterms. *)
+  Ltac2 @external hnf : conversion_strategy := "rocq-runtime.plugins.ltac2" "hnf".
+
+  (** Strong normalization except two key differences:
+
+  - It unfolds constants only if they lead to an ι-reduction, i.e. reducing a
+    match or unfolding a fixpoint.
+
+  - When reducing a constant unfolding to (co)fixpoints, uses the name of the
+    constant the (co)fixpoint comes from instead of the (co)fixpoint definition
+    in recursive calls.
+
+  Can unfold transparent constants as well as those designated by [Arguments]
+  commands. The second parameter can limit the application of [simpl] to
+  specific subterms matching. If the pattern resolves into a global reference,
+  it will be treated as such.
+
+  Only the following [red_flags] are relevant: [head], [delta]. *)
+  Ltac2 @external simpl : red_flags -> (pattern * occurrences) option -> conversion_strategy := "rocq-runtime.plugins.ltac2" "simpl".
+
+  (** Full normalization using provided reduction flags by first evaluating the
+  head of the expression into weak-head normal form in _call-by-value_ order.
+  Once a weak-head normal form is obtained, subterms are recursively reduced
+  using the same strategy. *)
+  Ltac2 @external cbv : red_flags -> conversion_strategy := "rocq-runtime.plugins.ltac2" "cbv".
+
+  (** [cbn] was intended to be a more principled, faster and more predictable
+  replacement for [simpl]. The main difference is that cbn may unfold constants
+  even when they cannot be reused in recursive calls. Certain modifiers are also
+  not treated the same. See the respective Ltac1 tactic documentation for more
+  details. Setting [Debug "RAKAM"] makes [cbn] print various debugging
+  information.. *)
+  Ltac2 @external cbn : red_flags -> conversion_strategy := "rocq-runtime.plugins.ltac2" "cbn".
+
+  (** Full normalization using provided reduction flags by first evaluating the
+  head of the expression into weak-head normal form in _call-by-need_ order.
+  Once a weak-head normal form is obtained, subterms are recursively reduced
+  using the same strategy. *)
+  Ltac2 @external lazy : red_flags -> conversion_strategy := "rocq-runtime.plugins.ltac2" "lazy".
+
+  (** Applies delta-reduction to the constants specified by each [reference *
+  occurrences] and then reduces to βιζ-normal form. Use the general reductions
+  if you want to only apply the δ rule, for example [cbv] with [delta]. *)
+  Ltac2 @external unfold : (reference * occurrences) list -> conversion_strategy := "rocq-runtime.plugins.ltac2" "unfold".
+
+  (** First, reduces each [constr] using [red]. Then, every occurrence of the
+  resulting terms will be replaced by its associated [constr]. *)
+  Ltac2 @external fold : constr list -> conversion_strategy := "rocq-runtime.plugins.ltac2" "fold".
+
+  (** Performs beta-expansion (the inverse of beta-reduction). The [constr]s
+  must be free subterms in the subject of reduction. The expansion is done by:
+
+  1. Replacing all selected occurrences of the [constr]s in the term with fresh
+  variables
+
+  2. Abstracting these variables
+
+  3. Applying the abstracted term to the [constr]s *)
+  Ltac2 @external pattern : (constr * occurrences) list -> conversion_strategy := "rocq-runtime.plugins.ltac2" "pattern".
+
+  (** Optimized _call-by-value_ evaluation on a bytecode-based virtual machine.
+  This algorithm is dramatically more efficient than the algorithm used for
+  [cbv], but it cannot be fine-tuned. It is especially useful for full
+  evaluation of algebraic objects. This includes the case of reflection-based
+  tactics. *)
+  Ltac2 @external vm : (pattern * occurrences) option -> conversion_strategy := "rocq-runtime.plugins.ltac2" "vm".
+
+  (** Evaluates the goal by compilation to OCaml. Depending on the
+  configuration, it can either default to [vm], recompile dependencies or fail
+  due to some missing precompiled dependencies. See the [native-compiler] option
+  for details. *)
+  Ltac2 @external native : (pattern * occurrences) option -> conversion_strategy := "rocq-runtime.plugins.ltac2" "native".
+End Red.
+
+(** Reduction/expansion tactics *)
+
+Ltac2 @external eval_in : Red.conversion_strategy -> clause -> unit := "rocq-runtime.plugins.ltac2" "reduce_in".
+
+Ltac2 red (c : clause) : unit := eval_in Red.red c.
+
+Ltac2 hnf (c : clause) : unit := eval_in Red.hnf c.
+
+Ltac2 simpl (flags : red_flags) (occs : (pattern * occurrences) option) (c : clause) := eval_in (Red.simpl flags occs) c.
+
+Ltac2 cbv (flags : red_flags) (c : clause) : unit := eval_in (Red.cbv flags) c.
+
+Ltac2 cbn (flags : red_flags) (c : clause) : unit := eval_in (Red.cbn flags) c.
+
+Ltac2 lazy (flags : red_flags) (c : clause) : unit := eval_in (Red.lazy flags) c.
+
+Ltac2 unfold (occs : (reference * occurrences) list) (c : clause) : unit := eval_in (Red.unfold occs) c.
+
+Ltac2 fold (cs : constr list) (c : clause) : unit := eval_in (Red.fold cs) c.
+
+Ltac2 pattern (occs : (constr * occurrences) list) (c : clause) : unit := eval_in (Red.pattern occs) c.
+
+Ltac2 vm (ctx : (pattern * occurrences) option) (c : clause) : unit := eval_in (Red.vm ctx) c.
+
+Ltac2 native (ctx : (pattern * occurrences) option) (c : clause) : unit := eval_in (Red.native ctx) c.
+
+(** Constr reduction/expansion functions *)
+
+Ltac2 @external eval : Red.conversion_strategy -> constr -> constr := "rocq-runtime.plugins.ltac2" "reduce_constr".
+
+Ltac2 eval_red (c : constr) : constr := eval Red.red c.
+
+Ltac2 eval_hnf (c : constr) : constr := eval Red.hnf c.
+
+Ltac2 eval_simpl (flags : red_flags) (occs : (pattern * occurrences) option) (c : constr) := eval (Red.simpl flags occs) c.
+
+Ltac2 eval_cbv (flags : red_flags) (c : constr) : constr := eval (Red.cbv flags) c.
+
+Ltac2 eval_cbn (flags : red_flags) (c : constr) : constr := eval (Red.cbn flags) c.
+
+Ltac2 eval_lazy (flags : red_flags) (c : constr) : constr := eval (Red.lazy flags) c.
+
+Ltac2 eval_unfold (occs : (reference * occurrences) list) (c : constr) : constr := eval (Red.unfold occs) c.
+
+Ltac2 eval_fold (cs : constr list) (c : constr) : constr := eval (Red.fold cs) c.
+
+Ltac2 eval_pattern (occs : (constr * occurrences) list) (c : constr) : constr := eval (Red.pattern occs) c.
+
+Ltac2 eval_vm (ctx : (pattern * occurrences) option) (c : constr) : constr := eval (Red.vm ctx) c.
+
+Ltac2 eval_native (ctx : (pattern * occurrences) option) (c : constr) : constr := eval (Red.native ctx) c.
+
 
 Ltac2 @ external change : pattern option -> (constr array -> constr) -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_change".
 
