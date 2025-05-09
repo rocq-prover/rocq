@@ -61,8 +61,11 @@ Ltac2 @ external extend : (unit -> unit) list -> (unit -> unit) -> (unit -> unit
     [e] to all tactics in between. Raises Internal err if [length b + length r]
     is greater than the number of goals under focus.*)
 
-Ltac2 @ external enter : (unit -> unit) -> unit := "rocq-runtime.plugins.ltac2" "enter".
-(** [enter] takes a single tactic [t] and applies [t] in each goal under focus independently. *)
+Ltac2 @external independent : (unit -> unit) -> unit := "rocq-runtime.plugins.ltac2" "independent".
+(** [independent] takes a single tactic [t] and applies [t] in each goal under focus independently. *)
+
+Ltac2 enter := independent.
+(** Alias for [independent]. *)
 
 Ltac2 @ external focus : int -> int -> (unit -> 'a) -> 'a := "rocq-runtime.plugins.ltac2" "focus".
 (** [focus i j tac] focuses a proofview on the goals from index [i] to
