@@ -1538,7 +1538,7 @@ let rec match_ inner u alp metas sigma a1 a2 =
      match_extended_binders false u alp metas na1 na2 Explicit t1
        (match_in u alp metas (match_in u alp metas sigma b1 b2) t1 t2) c1 c2
   | GCases (sty1,rtno1,tml1,eqnl1), NCases (sty2,rtno2,tml2,eqnl2)
-      when sty1 == sty2 && Int.equal (List.length tml1) (List.length tml2) ->
+      when Int.equal (List.length tml1) (List.length tml2) ->
       let rtno1' = abstract_return_type_context_glob_constr tml1 rtno1 in
       let rtno2' = abstract_return_type_context_notation_constr tml2 rtno2 in
       let sigma =

@@ -19,7 +19,5 @@ a : coAcc P x
 The codomain is "f x"
 which should be a coinductive type.
 Recursive definition is:
-"fun (x : A) (a : coAcc R x) =>
- match a with
- | coAcc_intro _ _ g => f x g (fun (y : A) (r : R x y) => F y (g y r))
- end".
+"fun (x : A) '(coAcc_intro _ _ g) =>
+ f x g (fun (y : A) (r : R x y) => F y (g y r))".

@@ -719,6 +719,8 @@ let detype_case computable detype detype_eqns avoid env sigma (ci, univs, params
         LetStyle
       else if PrintingIf.active ci.ci_ind then
         IfStyle
+      else if st == RegularStyle && Array.length bl = 1 then
+        LetPatternStyle
       else
         st
     with Not_found -> st
