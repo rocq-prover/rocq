@@ -1026,6 +1026,11 @@ let rec canonical_premise m (u, k) : Premises.t =
 and canonical_premises m p = 
   NeList.Smart.concat_map (canonical_premise m) p
 
+let normalize_subst model =
+  let subst = 
+    PMap.map (fun (u, locality) -> canonical_premises model u, locality) model.subst
+  in { model with subst }
+
 let refresh_can_expr m (u, k) = repr_expr m (u.canon, k)
 
 let pr_expr = LevelExpr.pr debug_pr_level
@@ -1164,10 +1169,6 @@ let clauses_cardinal (m : model) : int =
   PMap.fold (fun _ can acc -> acc + ClausesOf.cardinal can.clauses_bwd)
     m.entries 0
 
-let canonical_universes (m : model) : int =
-  PMap.fold (fun _ _ acc -> succ acc)
-    m.entries 0
-
 let without_bound (m : model) : int =
   PMap.fold (fun _ can acc ->
       let cls = can.clauses_bwd in
@@ -1193,11 +1194,10 @@ and maximal_premises_path m p =
   Premises._fold (fun (idx, _) acc -> 
     max (length_path_from m idx) acc) p 0
 
-
 let statistics model =
   let open Pp in
-  str" " ++ int (PMap.cardinal model.entries) ++ str" universes" ++
-  str", " ++ int (canonical_universes model) ++ str" canonical universes" ++
+  str" " ++ int (PMap.cardinal model.entries) ++ str" canonical universes" ++
+  str", " ++ int (PMap.cardinal model.subst) ++ str" defined universes" ++
   str ", maximal value in the model is " ++ pr_opt int (model_max model) ++
   str ", minimal value is " ++ pr_opt int (model_min model) ++
   str", " ++ int (clauses_cardinal model) ++ str" clauses." ++ spc () ++
@@ -1453,9 +1453,6 @@ let partition_clauses_of w cls =
 let add_bwd prems kprem concl clsof =
   if PartialClausesOf.is_empty prems then clsof
   else ForwardClauses.add { prems; kprem; concl } clsof
-
-let replace_bwd prems kprem concl clsof =
-  ForwardClauses.replace { prems; kprem; concl } clsof
 
 let add_canset idx (clauses : ForwardClauses.t) canset =
   if ForwardClauses.IntMap.is_empty clauses then canset
@@ -1721,18 +1718,23 @@ let infer_clauses_extension cans m =
 let pr_incr pr (x, k) =
   Pp.(pr x ++ if k == 0 then mt() else str"+" ++ int k)
 
+(** [in_premises idx prems] is [true] iff [idx] appears in [prems] *)
 let in_premises idx prems =
   Premises.exists (fun (idx', _) -> Index.equal idx idx') prems 
   
-(** Substitution in forward and backward clauses
+(** 3 Substitution in forward and backward clauses
   of a level by an expression. *)
 
+(** [subst_prem idx u prem] substitutes [idx] by [u] in a single premise [prem]. *)
 let subst_prem idx (idx', k') (prem, k as x) =
   if Index.equal prem idx then (idx', k + k') else x
 
+(** [subst_prems idx u prems] substitutes [idx] by [u] in all premises of [prems]. *)
 let subst_prems idx u prems =
   Premises.smart_map (subst_prem idx u) prems 
 
+(** [subst_fwd_clauses idx u fwd] substitutes [idx] by [u] in the premises and conclusions of the forward clauses [fwd].
+ @param fwd A set of forward clauses of shape [_, prems -> concl + k]. *)
 let subst_fwd_clauses idx (idx', k' as u) fwd =
   ForwardClauses.map 
     (fun ~kprem ~concl ~kconcl ~prems -> 
@@ -1740,22 +1742,48 @@ let subst_fwd_clauses idx (idx', k' as u) fwd =
       if Index.equal concl idx then (kprem, idx', kconcl + k', prems')
       else (kprem, concl, kconcl, prems')) fwd
 
+(** [subst_bwd_clauses idx u bwd] substitute [idx] by [u] in the premises of the backward clauses [bwd].
+  @param bwd A set of backward clauses of shape [prems -> _ + k]
+  @return A set of backward clauses of shape [prems[idx/u] -> _ + k] *)
 let subst_bwd_clauses idx u bwd  =
   ClausesOf.map (fun (kconcl, local, prems as cli) ->
     let prems' = subst_prems idx u prems in
     if prems' == prems then cli else (kconcl, local, prems')) bwd
 
+(** [subst_fwd_of_prem idx u prem model] For a given premise [prem] substitute [idx] by [u] 
+  in the forward clauses of its canonical representative.
+  @return An updated model. *)
+let subst_fwd_of_prem idx u prem model =
+  let can = repr model prem in
+  let can = { can with clauses_fwd = subst_fwd_clauses idx u can.clauses_fwd } in
+  change_node model can
+
+
+(** [subst_fwd_of_bwd idx u bwd model] For a set of backward clauses [prems -> _ + kconcl] substitute 
+  [idx] by [u] in the forward clauses of [prems].
+  @return An updated model. *)
 let subst_fwd_of_bwd idx u bwd model =
   ClausesOf.fold (fun (_kconcl, _local, prems) model ->
-    let f (prem, _) model =
-      let can = repr model prem in
-      let can = { can with clauses_fwd = subst_fwd_clauses idx u can.clauses_fwd } in
-      change_node model can
-    in
+    let f (prem, _) model = subst_fwd_of_prem idx u prem model in
     Premises._fold f prems model) bwd model
 
-let subst_bwd_of_fwd idx u fwd model =
-  let f ~kprem:_ ~concl ~prems:_ model = 
+(** [subst_partial_clauses_of idx u cls model] For partial clauses [cls] of shape [(_, prems -> _)] 
+  substitute [idx] by [u] in the forward clauses of [prems]
+  @return An updated model *)
+let subst_partial_clauses_of idx u cls model =
+  PartialClausesOf.fold (fun (_, prems) model -> 
+    Option.fold_left (fun model prems -> 
+      Premises._fold (fun (prem, _) -> subst_fwd_of_prem idx u prem) prems model) model prems)
+    cls model
+
+(** [subst_bwd_of_fwd_and_duplicates idx u fwd model] For forward clauses 
+  [_, prems -> concl + k], this substitutes [idx] by [u] in the backward clauses
+  from [concl] and the forward clauses from [prems] in the model.
+  @return An updated model *)
+let subst_bwd_of_fwd_and_duplicates idx u fwd model =
+  let f ~kprem:_ ~concl ~prems model =
+    (* This s *)
+    let model = subst_partial_clauses_of idx u prems model in
     let can = repr model concl in
     let bwd' = subst_bwd_clauses idx u can.clauses_bwd in
     if bwd' == can.clauses_bwd then model
@@ -1768,6 +1796,11 @@ let subst_bwd_of_fwd idx u fwd model =
 module UnivSubst =
 struct
 
+(** [subst_fwd_clauses idx u fwd] substitutes [idx] by [u] in the premises and conclusions of the forward clauses [fwd].
+ @param fwd A set of forward clauses [fwd] of shape [_, prems -> concl + k].
+ @return A set of forward clauses representing [_, prems[idx/u] -> concl[idx/u] + k]. 
+  Note that substituting in a single forward clause can produce multiple forward clauses, 
+  if [u] is a [max]. *)
 let subst_fwd_clauses idx u fwd =
   ForwardClauses.fold 
     (fun ~kprem ~concl ~prems fwd' -> 
@@ -1782,7 +1815,9 @@ let subst_fwd_clauses idx u fwd =
       else ForwardClauses.add { kprem; concl; prems = prems' } fwd') 
       fwd ForwardClauses.empty
 
-let remove_fwd_clauses idx fwd =
+(** [remove_fwd_clauses idx fwd] removes forward clauses from [fwd] mentionning [idx] in either their premises or conclusions.
+ @param fwd A set of forward clauses [fwd] of shape [_, prems -> concl + k]. *)
+ let remove_fwd_clauses idx fwd =
   ForwardClauses.fold 
     (fun ~kprem ~concl ~prems fwd' -> 
       if Index.equal concl idx then fwd'
@@ -1794,25 +1829,43 @@ let remove_fwd_clauses idx fwd =
         ForwardClauses.add { kprem; concl; prems = prems' } fwd') 
       fwd ForwardClauses.empty
 
+(** [subst_bwd_clauses idx u bwd] substitute [idx] by [u] in the premises of the backward clauses [bwd].
+  @param bwd A set of backward clauses of shape [prems -> _ + k]
+  @return A set of backward clauses of shape [prems[idx/u] -> _ + k] *)
 let subst_bwd_clauses idx u bwd  =
   ClausesOf.map (fun (kconcl, local, prems as cli) ->
     let prems' = Premises.subst idx u prems in
     if prems' == prems then cli else (kconcl, local, prems')) bwd
 
+(** [remove_bwd_clauses idx bwd] removes from the backward clauses [bwd] those that mention [idx] in one of their premises.
+  @param bwd A set of backward clauses of shape [prems -> _ + k] *)
 let remove_bwd_clauses idx bwd  =
   ClausesOf.filter (fun (_kconcl, _local, prems) -> not (in_premises idx prems)) bwd
 
+(** [remove_from_fwd_clauses_of idx prem bwd] removes from the forward clauses of the canonical
+  representative of [prem] those that mention [idx] in one of their premises or conclusion.
+  @return An updated model *)
 let remove_from_fwd_clauses_of idx prem model =
   let can = repr model prem in
   let fwd' = remove_fwd_clauses idx can.clauses_fwd in
   let can = { can with clauses_fwd = fwd' } in
   change_node model can
 
+(** [remove_fwd_of_bwd idx bwd model] removes from the forward clauses of the canonical
+  representatives in the premises of the backward clauses [bwd] those that mention [idx] 
+  in one of their premises or conclusion. 
+  @return An updated model *)
 let remove_fwd_of_bwd idx bwd model =
   ClausesOf.fold (fun (_kconcl, _local, prems) model ->
     let f (prem, _) model = remove_from_fwd_clauses_of idx prem model in
     Premises._fold f prems model) bwd model
 
+(** [remove_bwd_of_fwd_and_duplicates idx fwd model] for each forward clause [_, prems -> concl + k] in 
+  [fwd]: remove from the forward clauses of the canonical
+  representatives of the premises [prems] those that mention [idx] 
+  in one of their premises or conclusion. Also removes the backward clauses of the canonical 
+  representative of [concl] mentionning [idx]. 
+  @return An updated model *)
 let remove_bwd_of_fwd_and_duplicates idx fwd model : t =
   let f ~kprem:_ ~concl ~prems model =
     let model = 
@@ -1858,6 +1911,8 @@ let absent_from_bwd idx concl bwd =
   in
   ClausesOf.iter f bwd
 
+(** [absent_from_model model idx] Checks that [idx] does not appear in the canonical part of the model. 
+  It can still appear in the substitution. *)
 let absent_from_model model idx =
   let f idx' can =
     assert (not (Index.equal idx idx'));
@@ -1940,7 +1995,7 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
         but the backward clauses for each u still mention other.
         We substitute to make all clauses canonical again *)
       let model = subst_fwd_of_bwd other.canon cank newbwd model in
-      let model = subst_bwd_of_fwd other.canon cank newfwd model in
+      let model = subst_bwd_of_fwd_and_duplicates other.canon cank newfwd model in
       model, newbwd, newfwd
     in
     (* debug_enforce_eq Pp.(fun () -> str"New backward clauses for " ++
@@ -3078,6 +3133,9 @@ let remove_bwd_clauses_from model idx other =
   in
   change_node model { can with clauses_bwd = bwd' }
 
+let replace_bwd prems kprem concl clsof =
+  ForwardClauses.replace { prems; kprem; concl } clsof
+  
 let remove_set_clauses_can can model =
   let setidx = Index.find Level.set model.table in
   let fwd = can.clauses_fwd in
@@ -3307,11 +3365,6 @@ let universe_of_premise model prem =
   | NeList.Tip (l, k) -> univ_of_expr model (l, k)
   | NeList.Cons (e, xs) ->
     NeList.fold (fun (l, k) acc -> Universe.sup (univ_of_expr model (l, k)) acc) xs (univ_of_expr model e)
-
-let normalize_subst model =
-  let subst = 
-    PMap.map (fun (u, locality) -> canonical_premises model u, locality) model.subst
-  in { model with subst }
 
 let repr model =
   let model = normalize_subst model in
