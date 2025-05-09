@@ -95,11 +95,10 @@ val empty_universes : t
 
 (** [constraints_of_universes only_local g] returns [csts] and [partition] where
    [csts] are the non-Eq constraints and [partition] is the partition
-   of the universes into equivalence classes mapping a level to its equivalent
-   level expressions (i.e. l = l' + k).
+   of the universes into equivalence classes.
    The [only_local] option only returns the constraints added since [set_local] was performed
    on the graph. *)
-val constraints_of_universes : ?only_local:bool -> t -> Level.Set.t * Constraints.t * LevelExpr.Set.t list
+val constraints_of_universes : ?only_local:bool -> t -> Level.Set.t * Constraints.t * Universe.t Level.Map.t
 
 (* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 (** [choose p g u] picks a universe verifying [p] and equal
@@ -129,7 +128,7 @@ val check_subtype : AbstractContext.t check_function
 (** {6 Dumping} *)
 
 type node =
-| Alias of LevelExpr.t
+| Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
 val repr : t -> node Level.Map.t

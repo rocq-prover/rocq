@@ -454,7 +454,7 @@ struct
     if s' == s.set then s
     else { set = s'; cardinal = S.cardinal s' } (* Cardinal might change if f maps two elements to the same *)
 
-  let for_all p s = S.for_all p s.set
+  let _for_all p s = S.for_all p s.set
   let exists p s = S.exists p s.set
 
   let iter f s = S.iter f s.set
@@ -504,7 +504,7 @@ struct
 
   let singleton x k = add x k empty
 
-  let remove x m =
+  let _remove x m =
     let m' = M.remove x m.map in
     if m' == m.map then m
     else { map = m'; cardinal = m.cardinal - 1}
@@ -544,7 +544,7 @@ struct
   let compute_cardinal m' =
     M.fold (fun _ v acc -> acc + T.cardinal v) m' 0
 
-  let map f m =
+  let _map f m =
     let m' = M.map f m.map in
     if m' == m.map then m
     else { map = m'; cardinal = compute_cardinal m' }
@@ -638,7 +638,7 @@ struct
     match o with
     | None -> NeList.tip p
     | Some l -> add p l
-  let sort : t -> t = NeList.sort Premise.incl
+  let _sort : t -> t = NeList.sort Premise.incl
 
   let filter f l =
     NeList.filter f l
@@ -812,8 +812,7 @@ struct
   module PMap = MapWithCardinal (Index) (PartialClausesOf)
   (** This type represents a map from conclusions to increments + premises,
      e.g [other -> concl + n] *)
-  type fwd_clauses = PMap.t
-
+  
   module IntMap = MapWithCardinal (Int) (PMap)
   (** [t] This type represents forward clauses [(_ + k, other -> concl + n)].
     The premises are necessarily non-empty, and the [(_ + k)] one is singled out.
@@ -866,13 +865,13 @@ struct
       IntMap.add (k + n) fwd acc)
       clauses IntMap.empty
 
-  let filter (f : int -> Index.t -> PartialClausesOf.t -> bool) clauses =
+  let _filter (f : int -> Index.t -> PartialClausesOf.t -> bool) clauses =
     IntMap.fold (fun k fwd acc ->
       let fwd = PMap.filter (f k) fwd in
       IntMap.add k fwd acc)
       clauses IntMap.empty
 
-  let filter_map (f : int -> Index.t -> PartialClausesOf.t -> PartialClausesOf.t option) clauses =
+  let _filter_map (f : int -> Index.t -> PartialClausesOf.t -> PartialClausesOf.t option) clauses =
     IntMap.fold (fun k fwd acc ->
       let fwd = PMap.filter_map (f k) fwd in
       if PMap.is_empty fwd then acc else IntMap.add k fwd acc)
@@ -930,20 +929,14 @@ end
 
 module PSet = SetWithCardinal(Index)(Index.Set)
 
-(* Comparison on this type is pointer equality *)
+(* Beware, do not use pointer equality, rather use the [canon] Index.t equality, 
+  as canonical nodes get updated clauses and values throughout the algorithms. *)
 type canonical_node =
   { canon: Index.t;
     local: locality;
     value : int;
     clauses_bwd : ClausesOf.t; (* premises -> canon + k *)
     clauses_fwd : ForwardClauses.t (* canon + k, ... ->  concl + k' *) }
-
-(* A Level.t is either an alias for another one, or a canonical one,
-    for which we know the points that are above *)
-
-type entry =
-  | Canonical of canonical_node
-  | Equiv of locality * Index.t * int
 
 type model = {
   locality : locality;
@@ -988,7 +981,6 @@ module CN = struct
   (* let hash x = Index.hash x.canon *)
   let compare x y = Index.compare x.canon y.canon
 end
-(* module CSet = CSet.Make(CN) *)
 
 let enter_equiv m u v =
   { locality = m.locality;
@@ -998,12 +990,6 @@ let enter_equiv m u v =
     canonical = m.canonical - 1;
     values = Option.map (PMap.remove u) m.values;
     table = m.table }
-
-let change_equiv entries u (local, v, i) =
-  PMap.modify u (fun _ a ->
-      match a with
-      | Canonical _ -> assert false
-      | Equiv _ -> Equiv (local, v, i)) entries
 
 let change_node m n =
   { m with entries = PMap.set n.canon n m.entries }
@@ -1039,13 +1025,9 @@ let rec canonical_premise m (u, k) : Premises.t =
     | (p, _local) -> canonical_premises m (Premises.shift k p)
     | exception Not_found -> raise (Undeclared (Index.repr u m.table))
 and canonical_premises m p = 
-  NeList.concat_map (canonical_premise m) p
+  NeList.Smart.concat_map (canonical_premise m) p
 
 let refresh_can_expr m (u, k) = repr_expr m (u.canon, k)
-
-let remove_node m n =
-  let entries = PMap.remove n m.entries in
-  { m with entries }
 
 let pr_expr = LevelExpr.pr debug_pr_level
 
@@ -1739,7 +1721,7 @@ let subst_prem idx (idx', k') (prem, k as x) =
   if Index.equal prem idx then (idx', k + k') else x
 
 let subst_prems idx u prems =
-  NeList.smart_map (subst_prem idx u) prems 
+  Premises.smart_map (subst_prem idx u) prems 
 
 let subst_fwd_clauses idx (idx', k' as u) fwd =
   ForwardClauses.map 
@@ -1776,18 +1758,12 @@ let subst_bwd_of_fwd idx u fwd model =
 module UnivSubst =
 struct
 
-let subst_prem idx prems (prem, k as x) =
-  if Index.equal prem idx then Premises.shift k prems else NeList.Tip x
-
-let subst_prems idx (u : Premises.t) (prems : Premises.t) : Premises.t =
-  NeList.concat_map (subst_prem idx u) prems 
-
 let subst_fwd_clauses idx u fwd =
   ForwardClauses.fold 
     (fun ~kprem ~concl ~prems fwd' -> 
       let prems' = 
         PartialClausesOf.map (fun (kconcl, prems) ->
-          let prems' = Option.Smart.map (subst_prems idx u) prems in
+          let prems' = Option.Smart.map (Premises.subst idx u) prems in
           kconcl, prems') prems
       in
       if Index.equal concl idx then
@@ -1813,7 +1789,7 @@ let remove_fwd_clauses idx fwd =
 
 let subst_bwd_clauses idx u bwd  =
   ClausesOf.map (fun (kconcl, local, prems as cli) ->
-    let prems' = subst_prems idx u prems in
+    let prems' = Premises.subst idx u prems in
     if prems' == prems then cli else (kconcl, local, prems')) bwd
 
 let remove_bwd_clauses idx bwd  =
@@ -2444,13 +2420,6 @@ let simplify_clauses_between model (canu, _ as u) prems : t * equivalences =
     in
     List.fold_left make_equiv (model,[]) equiv
 
-type nat = int
-type can_constraint = (canonical_node * nat) * (canonical_node * nat)
-
-let can_clause_of_can_constraint (cstr : can_constraint) : can_clause =
-  let (l, r) = cstr in (* l + k <= r *)
-  (NeList.tip r, l)
-
 type 'a check_function = t -> 'a -> 'a -> bool
 
 let update_model_value (m : model) can k' : model =
@@ -2656,43 +2625,16 @@ let rec enforce_leq_premises (u : Premises.t) (v : Premises.t) m =
         | Some (m, equivs') -> Some (m, equivs @ equivs'))
       | _ -> enforce_leq_premises (canonical_can_premises canu) v m) u (Some (m, []))
 
-let enforce_leq_level u v m =
-  let canu = level_expr_premises m u in
-  let canv = level_expr_premises m v in
-  enforce_leq_premises canu canv m
-
 let _get_proper_value m can =
   match canonical_value m can with
   | Some v -> v
   | None -> raise (Undeclared (Index.repr can.canon m.table))
-
-let enforce_eq_level u v m =
-  let uv = v in debug_enforce_eq Pp.(fun () -> str"enforce_eq: " ++ pr_can_expr m u ++ str" = " ++ pr_can_expr m uv);
-  match enforce_leq_can v (NeList.Tip u) m with
-  | None -> None
-  | Some (m', equivs) ->
-    let canu' = refresh_can_expr m' u in
-    let canv' = refresh_can_expr m' v in
-    match enforce_leq_can canu' (NeList.Tip canv') m' with
-    | None -> None
-    | Some (m', equivs') -> Some (m', equivs @ equivs')
-
-let enforce_eq_level = time3 (Pp.str "enforce_eq_level") enforce_eq_level
 
 let check_eq_level_expr u v m =
   let vl = v in debug_global Pp.(fun () -> str"Checking equality of representatives " ++ LevelExpr.pr debug_pr_level u ++ str " and " ++ LevelExpr.pr debug_pr_level vl);
   let u = canonical_repr_level_expr m u in
   let v = canonical_repr_level_expr m v in
   NeList.equal eq_can_expr u v (* FIXME if not Tips *)
-
-(* max u_i <= v <-> ∧_i u_i <= v *)
-let clauses_of_le_constraint u v cls =
-  List.fold_right (fun (u, k) cls -> (Universe.repr v, (u, k)) :: cls) (Universe.repr u) cls
-
-let clauses_of_constraint (u : Universe.t) k (v : Universe.t) cls =
-  match k with
-  | Le -> clauses_of_le_constraint u v cls
-  | Eq -> clauses_of_le_constraint u v (clauses_of_le_constraint v u cls)
 
 let _repr_can_clause m (prems, conclk) =
   let concl = refresh_can_expr m conclk in
@@ -2707,11 +2649,6 @@ let premises_of_universe m u =
   let prems = NeList.of_list ur in
   NeList.concat_map (level_expr_premises m) prems
 
-let can_clause_of_clause m (prems, concl) =
-  let prems = NeList.of_list (List.map (fun prem -> canonical_repr_level_expr m prem) prems) in
-  let concl = canonical_repr_level_expr m concl in
-  (prems, concl)
-  
 let decompose_eq_constraints u k v =
   match k with
   | Le -> [(u, v)]
@@ -2851,9 +2788,6 @@ let canonical_repr_level_expr_eq m (u, k) =
 
 let unrepr_can_premise m (can, k) = 
   (Index.repr can.canon m.table, k)
-  
-let unrepr_can_premises m prems =
-  List.map (fun (can, k) -> (Index.repr can.canon m.table, k)) (NeList.to_list prems)
 
 let can_clause_of_clause_eqs m (prems, concl) =
   let prems = NeList.of_list prems in
@@ -2942,8 +2876,6 @@ let merge_clauses premsfwd can cank premsbwd concl conclk =
 let repr_clause model (prems, concl) =
   (NeList.concat_map (canonical_repr model) prems, canonical_repr model concl)
 
-let clauses_of_univ_constraint u v cls =
-  NeList.fold (fun e cls -> (u, e) :: cls) v cls
 let unrepr_univ model u = Universe.unrepr (List.map (to_expr model) u)
 
 let level_expr_of_premise model (idx, k) = (Index.repr idx model.table, k)
@@ -3010,13 +2942,13 @@ let set_can (can,k) u model =
   let fwdcls = ForwardClauses.to_clauses uprems newfwd in
   let bwdcls = ClausesOf.to_clauses uprems newbwd in
   let newcls = fwdcls @ List.map snd bwdcls in
-
   _debug_set Pp.(fun () ->
     str"New forward clauses: " ++ prlist_with_sep spc (pr_clause model) fwdcls ++ fnl () ++
     str"New backward clauses " ++ prlist_with_sep spc (pr_clause model) (List.map snd bwdcls));
+  let newcls = List.filter_map (filter_trivial_clause model) newcls in
   _debug_set Pp.(fun () ->
     str"After removals, model is " ++ pr_clauses_all ~local:true model ++
-    str"Adding constraints" ++ prlist_with_sep spc (pr_clause model) newcls);
+    str"Adding simplified constraints" ++ prlist_with_sep spc (pr_clause model) newcls);
   let enforce_clause (model, equivs) cl =
     match enforce_clause cl model with
     | Some (model, equivs') -> (model, equivs' @ equivs)
@@ -3210,8 +3142,6 @@ let constraints_of_clauses ?(only_local = false) m clauses =
     clauses Constraints.empty
 
 let constraints_of model ?(only_local = false) fold acc =
-  let module UF = Unionfind.Make (Universe.Set) (Universe.Map) in
-  let equiv = UF.create () in
   let bwd = ref PMap.empty in
   let locals = ref Level.Set.empty in
   let constraints_of _u can =
@@ -3219,15 +3149,15 @@ let constraints_of model ?(only_local = false) fold acc =
     bwd := PMap.add can.canon can.clauses_bwd !bwd
   in
   let () = PMap.iter constraints_of model.entries in
-  let equivs_of u (v, local) =
-    if only_local && local == Global then () else
+  let equivs_of u (v, local) equiv =
+    if only_local && local == Global then equiv else
     let u = Index.repr u model.table in
     let v = univ_of_premises model v in
-    UF.union (Universe.make u) v equiv
+    Level.Map.add u v equiv
   in
-  let () = PMap.iter equivs_of model.subst in
+  let equiv = PMap.fold equivs_of model.subst Level.Map.empty in
   let cstrs = constraints_of_clauses model !bwd in
-  !locals, Constraints.fold fold cstrs acc, UF.partition equiv
+  !locals, Constraints.fold fold cstrs acc, equiv
 
 type 'a constraint_fold = univ_constraint -> 'a -> 'a
 
@@ -3361,7 +3291,13 @@ let universe_of_premise model prem =
   | NeList.Cons (e, xs) ->
     NeList.fold (fun (l, k) acc -> Universe.sup (univ_of_expr model (l, k)) acc) xs (univ_of_expr model e)
 
+let normalize_subst model =
+  let subst = 
+    PMap.map (fun (u, locality) -> canonical_premises model u, locality) model.subst
+  in { model with subst }
+
 let repr model =
+  let model = normalize_subst model in
   let acc =
     PMap.fold (fun idx can acc ->
       let conclp = Index.repr idx model.table in
@@ -3396,7 +3332,7 @@ let valuation_of_model (m : model) =
     let value = NeList.fold (fun (e, k) acc -> max (Option.get (canonical_value m e) - k) acc) v 0 in
     mmax - value) m.subst
   in
-  Level.Map.union (fun l x y -> Some (max x y))
+  Level.Map.union (fun _ x y -> Some (max x y))
     (pmap_to_point_map m.table valm)
     (pmap_to_point_map m.table equivsm)
 
