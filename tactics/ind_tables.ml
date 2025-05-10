@@ -20,7 +20,6 @@ open Declarations
 open Constr
 open Util
 
-
 (**********************************************************************)
 (* Registering schemes in the environment *)
 
@@ -32,14 +31,25 @@ let push_handle eff =
   let sigma = Evd.emit_side_effects eff sigma in
   Proofview.Unsafe.tclEVARS sigma
 
+(* Scheme builders. [bool] = is_dep. [None] = silent failure. *)
 type mutual_scheme_object_function =
-  Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
+  Environ.env -> handle -> inductive list -> bool -> constr array Evd.in_ustate option
 type individual_scheme_object_function =
-  Environ.env -> handle -> inductive -> constr Evd.in_ustate
+  Environ.env -> handle -> inductive -> bool -> constr Evd.in_ustate option
 
-type 'a scheme_kind = string
+module Key = DeclareScheme.Key
 
-let pr_scheme_kind = Pp.str
+(* scheme_name * sort * is_mutual *)
+type 'a scheme_kind = Key.t
+
+let pr_scheme_kind (kind : Key.t) =
+  let (str_list, opt_str,b) = kind in
+  let pr_list = Pp.prlist Pp.str str_list in
+  let pr_option = match opt_str with
+    | Some s -> Pp.str (" (" ^ (UnivGen.family_to_str s) ^ ")")
+    | None -> Pp.str " (None)"
+  in
+  Pp.(pr_list ++ pr_option)
 
 (**********************************************************************)
 (* The table of scheme building functions *)
@@ -47,39 +57,70 @@ let pr_scheme_kind = Pp.str
 type individual
 type mutual
 
+(* Dependency of a scheme on another scheme: (inductive, kind, internal) *)
 type scheme_dependency =
-| SchemeMutualDep of MutInd.t * mutual scheme_kind
-| SchemeIndividualDep of inductive * individual scheme_kind
+  | SchemeMutualDep of Names.MutInd.t * mutual scheme_kind * bool
+  | SchemeIndividualDep of inductive * individual scheme_kind * bool
 
 type scheme_object_function =
-  | MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> MutInd.t -> scheme_dependency list) option
-  | IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> scheme_dependency list) option
+  | MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> Names.MutInd.t -> bool -> scheme_dependency list) option
+  | IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> bool -> scheme_dependency list) option
 
 let scheme_object_table =
-  (Hashtbl.create 17 : (string, string * scheme_object_function) Hashtbl.t)
+  (Hashtbl.create 17 :
+     (Key.t, (one_inductive_body option -> string) * scheme_object_function)
+  Hashtbl.t)
 
-let declare_scheme_object key ?(suff=key) f =
+let key_str key =
+  let (str_list, opt_str,b) = key in
+  let str_list = String.concat " " str_list in
+  let str_option = match opt_str with
+    | Some s -> " (" ^ (UnivGen.family_to_str s) ^ ")"
+    | None -> " (None)"
+  in
+  str_list ^ str_option
+
+let declare_scheme_object key suff f =
   let () =
-    if not (Id.is_valid ("ind_" ^ suff)) then
-      CErrors.user_err Pp.(str ("Illegal induction scheme suffix: " ^ suff))
+    if not (Id.is_valid ("ind_" ^ suff None)) then
+      CErrors.user_err Pp.(str ("Illegal induction scheme suffix: " ^ suff None))
   in
   if Hashtbl.mem scheme_object_table key then
     CErrors.user_err
-      Pp.(str "Scheme object " ++ str key ++ str " already declared.")
+      Pp.(str "Scheme object " ++ str (key_str key) ++ str " already declared.")
   else begin
     Hashtbl.add scheme_object_table key (suff,f);
     key
   end
 
-let declare_mutual_scheme_object key ?suff ?deps f =
-  declare_scheme_object key ?suff (MutualSchemeFunction (f, deps))
+let declare_mutual_scheme_object key suff ?deps f =
+  let (strl,sortf) = key in
+  let key = (strl,sortf,true) in
+  declare_scheme_object key suff (MutualSchemeFunction (f, deps))
 
-let declare_individual_scheme_object key ?suff ?deps f =
-  declare_scheme_object key ?suff (IndividualSchemeFunction (f, deps))
+let declare_individual_scheme_object key suff ?deps f =
+  let (strl,sortf) = key in
+  let key = (strl,sortf,false) in
+  declare_scheme_object key suff (IndividualSchemeFunction (f, deps))
 
 let is_declared_scheme_object key = Hashtbl.mem scheme_object_table key
 
-let scheme_kind_name (key : _ scheme_kind) : string = key
+let scheme_kind_name (key : _ scheme_kind) : Key.t = key
+
+let scheme_key (key : Key.t) : _ scheme_kind  = key
+
+let get_suff sch_type sch_sort =
+  try
+    fst (
+      match sch_sort with
+      | Some st -> Hashtbl.find scheme_object_table (sch_type,sch_sort,true)
+      | None -> Hashtbl.find scheme_object_table (sch_type,Some UnivGen.QualityOrSet.qtype,true)
+      )
+  with Not_found ->
+    fst (match sch_sort with
+      | Some st -> Hashtbl.find scheme_object_table (sch_type,sch_sort,false)
+      | None -> Hashtbl.find scheme_object_table (sch_type,Some UnivGen.QualityOrSet.qtype,false)
+       )
 
 (**********************************************************************)
 (* Defining/retrieving schemes *)
@@ -123,20 +164,20 @@ let redeclare_schemes { sch_eff = eff } =
       let _ = DeclareScheme.lookup_scheme kind ind in
       accu
     with Not_found ->
-      let old = try String.Map.find kind accu with Not_found -> [] in
-      String.Map.add kind ((ind, GlobRef.ConstRef c) :: old) accu
+      let old = try Key.Map.find kind accu with Not_found -> [] in
+      Key.Map.add kind ((ind, GlobRef.ConstRef c) :: old) accu
   in
-  let schemes = Cmap_env.fold fold (Evd.seff_roles eff) String.Map.empty in
+  let schemes = Cmap_env.fold fold (Evd.seff_roles eff) Key.Map.empty in
   let iter kind defs = List.iter (DeclareScheme.declare_scheme SuperGlobal kind) defs in
-  String.Map.iter iter schemes
+  Key.Map.iter iter schemes
 
 let local_lookup_scheme eff kind ind = match lookup_scheme kind ind with
 | Some _ as ans -> ans
 | None ->
   let exception Found of Constant.t in
   let iter c role = match role with
-  | Evd.Schema (i, k) ->
-    if String.equal k kind && Ind.UserOrd.equal i ind then raise (Found c)
+    | Evd.Schema (i, k) ->
+      if Key.equal k kind && Ind.UserOrd.equal i ind then raise (Found c)
   in
   (* Inefficient O(n), but the number of locally declared schemes is small and
      this is very rarely called *)
@@ -209,64 +250,85 @@ let globally_declare_schemes sch =
 (* Assumes that dependencies are already defined *)
 let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i as ind) eff =
   let env = get_env eff in
-  let (c, ctx) = f env eff.sch_eff ind in
-  let mib = Environ.lookup_mind mind env in
-  let id = match idopt with
-    | Some id -> id
-    | None -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff) in
-  let role = Evd.Schema (ind, kind) in
-  let poly, cumulative = Declareops.inductive_is_polymorphic mib, Declareops.inductive_is_cumulative mib in
-  let poly = PolyFlags.make ~univ_poly:poly ~cumulative ~collapse_sort_variables:true in
-  let const, eff = define ?loc internal role id c poly ctx eff in
-  const, eff
+  match f env eff.sch_eff ind internal with
+    | None -> None
+    | Some (c, ctx) -> 
+      let mib = Environ.lookup_mind mind env in
+      let id = match idopt with
+        | Some id -> id
+        | None -> Id.of_string (suff (Some mib.mind_packets.(i))) in
+      let role = Evd.Schema (ind, kind) in
+      let poly, cumulative = Declareops.inductive_is_polymorphic mib, Declareops.inductive_is_cumulative mib in
+      let poly = PolyFlags.make ~univ_poly:poly ~cumulative ~collapse_sort_variables:true in
+      let const, eff = define ?loc internal role id c poly ctx eff in
+      Some (const, eff)
 
 and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
   match Hashtbl.find scheme_object_table kind with
   | _,MutualSchemeFunction _ -> assert false
   | s,IndividualSchemeFunction (f, deps) ->
     let env = get_env eff in
-    let deps = match deps with None -> [] | Some deps -> deps env ind in
-    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
-    let _, eff = define_individual_scheme_base ?loc kind s f ~internal names ind eff in
-    eff
+    let deps = match deps with None -> [] | Some deps -> deps env ind true in
+    match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps with
+    | None -> CErrors.user_err Pp.(str "Problems were found during definition of scheme dependences.")
+    | Some eff -> define_individual_scheme_base ?loc kind s f ~internal names ind eff
 
 (* Assumes that dependencies are already defined *)
-and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
+and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names inds eff =
   let env = get_env eff in
-  let (cl, ctx) = f env eff.sch_eff mind in
-  let mib = Environ.lookup_mind mind env in
-  let ids = Array.init (Array.length mib.mind_packets) (fun i ->
-      try Int.List.assoc i names
-      with Not_found -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff)) in
-  let fold i effs id cl =
-    let role = Evd.Schema ((mind, i), kind)in
-    let loc = Locmap.lookup ~locmap (mind,i) in
-    (* FIXME cumulativity not supported? *)
-    let poly = PolyFlags.of_univ_poly (Declareops.inductive_is_polymorphic mib) in
-    let cst, effs = define ?loc internal role id cl poly ctx effs in
-    (effs, cst)
-  in
-  let (eff, consts) = Array.fold_left2_map_i fold eff ids cl in
-  consts, eff
-
-and define_mutual_scheme ?locmap kind ~internal names mind eff =
+  let mind = (fst (List.hd inds)) in
+  match f env eff.sch_eff inds internal with
+    | None -> None
+    | Some (cl, ctx) -> 
+      let mib = Environ.lookup_mind mind env in
+      let ids =
+        if Array.length cl <> List.length names then
+          Array.init (Array.length mib.mind_packets) (fun i ->
+              try (i,Int.List.assoc i names)
+              with Not_found -> (i,Id.of_string (suff (Some mib.mind_packets.(i)))))
+        else
+          Array.of_list names
+      in
+      let fold i effs id cl =
+        let role = Evd.Schema ((mind, i), kind)in
+        let loc = Locmap.lookup ~locmap (mind,i) in
+        (* FIXME cumulativity not supported? *)
+        let poly = PolyFlags.of_univ_poly (Declareops.inductive_is_polymorphic mib) in
+        let cst, effs = define ?loc internal role id cl poly ctx effs in
+        (effs, cst)
+      in
+      let (eff, consts) = Array.fold_left2_map_i fold eff ids cl in
+      Some (consts, eff)
+    
+and define_mutual_scheme ?locmap kind ~internal names inds eff =
+  let (strl,sortf,mutual) = kind in
+  let kind = match sortf with Some k -> (strl,sortf,true) | None -> (strl,Some UnivGen.QualityOrSet.qtype,true) in 
   match Hashtbl.find scheme_object_table kind with
   | _,IndividualSchemeFunction _ -> assert false
   | s,MutualSchemeFunction (f, deps) ->
     let env = get_env eff in
-    let deps = match deps with None -> [] | Some deps -> deps env mind in
-    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
-    let _, eff = define_mutual_scheme_base ?locmap kind s f ~internal names mind eff in
-    eff
+    let mind = (fst (List.hd inds)) in
+    let deps = match deps with None -> [] | Some deps -> deps env mind internal in
+    match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps with
+    | None -> CErrors.user_err Pp.(str "Problems were found during definition of scheme dependences.")
+    | Some eff -> define_mutual_scheme_base ?locmap kind s f ~internal names inds eff
 
 and declare_scheme_dependence eff sd =
 match sd with
-| SchemeIndividualDep (ind, kind) ->
-  if local_check_scheme kind ind eff then eff
-  else define_individual_scheme kind ~internal:true None ind eff
-| SchemeMutualDep (mind, kind) ->
-  if local_check_scheme kind (mind, 0) eff then eff
-  else define_mutual_scheme kind ~internal:true [] mind eff
+| SchemeIndividualDep (ind, kind, intern) ->
+  if local_check_scheme kind ind eff then Some eff
+  else
+    begin match define_individual_scheme kind ~internal:intern None ind eff with
+      | None -> None
+      | Some (_, eff') -> Some eff'
+    end
+| SchemeMutualDep (ind, kind, intern) ->
+  if local_check_scheme kind (ind,0) eff then Some eff
+  else
+    begin match define_mutual_scheme kind ~internal:intern [] [(ind,0)] eff with
+      | None -> None
+      | Some (_, eff') -> Some eff'
+    end
 
 let find_scheme kind (mind,i as ind) =
   let open Proofview.Notations in
@@ -287,18 +349,30 @@ let force_find_scheme kind (mind,i as ind) =
       let eff, ans = match Hashtbl.find scheme_object_table kind with
       | s,IndividualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env ind in
+        let deps = match deps with None -> [] | Some deps -> deps env ind true in (* /!\ true *)
         let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
-        eff, c
+        begin match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps with
+          | None -> assert false
+          | Some eff -> 
+            begin match define_individual_scheme_base kind s f ~internal:true None ind eff with
+              | None -> assert false
+              | Some (c, eff) -> 
+                eff, c
+            end
+        end
       | s,MutualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env mind in
-        let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
-        eff, ca.(i)
+        let deps = match deps with None -> [] | Some deps -> deps env mind true in (* /!\ true *)
+        let sch = empty_schemes senv in
+        begin match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps with
+          | None -> assert false
+          | Some eff -> 
+            begin match define_mutual_scheme_base kind s f ~internal:true [] [mind,i] eff with
+              | None -> assert false
+              | Some (ca, eff) -> 
+                eff, ca.(i)
+            end
+        end
       in
       let sigma = Evd.emit_side_effects eff.sch_eff sigma in
       Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (GlobRef.ConstRef ans)
@@ -312,16 +386,20 @@ let register_schemes sch =
   in
   List.iter iter (List.rev sch.sch_reg)
 
-let define_individual_scheme ?loc kind names ind =
+let define_individual_scheme ?loc ?(intern=false) kind names ind =
   let sch = empty_schemes Evd.empty_side_effects in
-  let eff = define_individual_scheme ?loc kind ~internal:false names ind sch in
-  let () = globally_declare_schemes eff in
-  let () = register_schemes eff in
-  redeclare_schemes eff
+  match define_individual_scheme ?loc kind ~internal:intern names ind sch with
+    | None -> ()
+    | Some (_ , eff) ->
+       let () = globally_declare_schemes eff in
+       let () = register_schemes eff in
+       redeclare_schemes eff
 
-let define_mutual_scheme ?locmap kind names mind =
+let define_mutual_scheme ?locmap ?(intern=false) kind names inds =
   let sch = empty_schemes Evd.empty_side_effects in
-  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind sch in
-  let () = globally_declare_schemes eff in
-  let () = register_schemes eff in
-  redeclare_schemes eff
+  match define_mutual_scheme ?locmap kind ~internal:intern names inds sch with
+    | None -> ()
+    | Some (_ , eff) ->
+       let () = globally_declare_schemes eff in
+       let () = register_schemes eff in
+       redeclare_schemes eff

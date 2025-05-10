@@ -240,6 +240,12 @@ let rec univ_constraints = function
   | UnivCst (l1,k,l2) :: t -> (l1,k,l2) :: univ_constraints t
   | h :: t -> univ_constraints t
 
+let test_scheme_ident =
+  let open Procq.Lookahead in
+  to_entry "test_scheme_ident" begin
+    lk_ident >> lk_kw ":="
+  end
+  
 }
 
 (* Gallina declarations *)
@@ -282,18 +288,14 @@ GRAMMAR EXTEND Gram
           { VernacCoFixpoint (NoDischarge, corecs) }
       | IDENT "Let"; "CoFixpoint"; corecs = LIST1 cofix_definition SEP "with" ->
           { VernacCoFixpoint (DoDischarge, corecs) }
-      | IDENT "Scheme"; l = LIST1 scheme SEP "with" -> { VernacScheme l }
-      | IDENT "Scheme"; IDENT "Equality"; IDENT "for" ; id = smart_global ->
-          { VernacSchemeEquality (SchemeEquality,id) }
-      | IDENT "Scheme"; IDENT "Boolean"; IDENT "Equality"; IDENT "for" ; id = smart_global ->
-          { VernacSchemeEquality (SchemeBooleanEquality,id) }
       | IDENT "Scheme"; IDENT "Rewriting"; IDENT "for" ; id = smart_global ->
-        { VernacSchemeEquality (SchemeRewriting,id) }
+        { VernacSchemeRewriting id }
+      | IDENT "Scheme"; l = LIST1 scheme SEP "with" -> { VernacScheme l }
       | IDENT "Combined"; IDENT "Scheme"; id = identref; IDENT "from";
               l = LIST1 identref SEP "," -> { VernacCombinedScheme (id, l) }
       | IDENT "Register"; g = global; "as"; quid = qualid ->
           { VernacRegister(g, RegisterCoqlib quid) }
-      | IDENT "Register"; IDENT "Scheme"; g = global; "as"; qid = qualid; IDENT "for"; g' = global ->
+      | IDENT "Register"; IDENT "Scheme"; g = global; "as"; qid = ident_list; IDENT "for"; g' = global ->
         { VernacRegister(g, RegisterScheme {inductive = g'; scheme_kind = qid}) }
       | IDENT "Register"; IDENT "Inline"; g = global ->
           { VernacRegister(g, RegisterInline) }
@@ -565,20 +567,15 @@ GRAMMAR EXTEND Gram
   ;
   (* Inductive schemes *)
   scheme:
-    [ [ kind = scheme_kind -> { (None,kind) }
-      | id = identref; ":="; kind = scheme_kind -> { (Some id,kind) } ] ]
+    [ [ test_scheme_ident; id = identref; ":="; kind = scheme_kind -> { (Some id,kind) }
+      | kind = scheme_kind -> { (None,kind) } ] ]
   ;
   scheme_kind:
-    [ [sch_type = scheme_type; "for"; sch_qualid = smart_global; IDENT "Sort"; sch_sort = sort_quality_or_set
-      -> { {sch_type; sch_qualid; sch_sort} }
-    ] ]
+    [ [ sch_type = ident_list; "for"; sch_qualid = smart_global; IDENT "Sort"; sf = sort_quality_or_set -> { {sch_type; sch_qualid; sch_sort = Some sf } }
+      | sch_type = ident_list; "for"; sch_qualid = smart_global -> { {sch_type; sch_qualid; sch_sort = None } } ] ]
   ;
-  scheme_type:
-    [ [ IDENT "Induction" -> { SchemeInduction }
-      | IDENT "Minimality" -> { SchemeMinimality }
-      | IDENT "Elimination" -> { SchemeElimination }
-      | IDENT "Case" -> { SchemeCase }
-    ] ]
+  ident_list:
+    [ [ ids = LIST1 IDENT -> {ids} ] ]
   ;
   (* Various Binders *)
 (*

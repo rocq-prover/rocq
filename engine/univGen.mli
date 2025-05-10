@@ -109,3 +109,5 @@ val fresh_sort_context_instance : sort_context_set ->
     See Evd.fresh_global, Evarutil.new_global, and pf_constr_of_global for
     the proper way to get a fresh copy of a polymorphic global reference. *)
 val constr_of_monomorphic_global : env -> GlobRef.t -> constr
+
+val family_to_str : QualityOrSet.t -> string 

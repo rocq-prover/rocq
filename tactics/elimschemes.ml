@@ -58,39 +58,134 @@ let build_induction_scheme_in_type env dep sort ind =
   let sigma, pind = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
   let sigma, c = build_induction_scheme env sigma pind dep sort in
-  EConstr.to_constr sigma c, Evd.ustate sigma
+  Some (EConstr.to_constr sigma c, Evd.ustate sigma)
+
+let build_mutual_induction_scheme_in_type env dep sort isrec l =
+  let ind,_ = match l with | x::_ -> x | [] -> assert false in
+  let sigma, inst =
+    let _, ctx = Typeops.type_of_global_in_context env (Names.GlobRef.IndRef (ind,0)) in
+    let u, ctx = UnivGen.fresh_instance_from ctx None in
+    let u = EConstr.EInstance.make u in
+    let sigma = Evd.from_ctx (UState.of_context_set ctx) in
+    sigma, u
+  in
+  let n = List.length l in
+  let sigma, lrecspec =
+    let rec loop i n sigma ll =
+      if i>=n then (sigma,ll)
+      else
+        let new_sigma, new_sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
+        let (indd,ii) = List.nth l i in
+        let new_l = List.append ll [(((indd,ii),inst),dep,new_sort)] in
+        loop (i + 1) n new_sigma new_l
+    in
+    loop 0 n sigma []
+  in
+  let sigma, listdecl =
+    if isrec then Indrec.build_mutual_induction_scheme env sigma ~force_mutual:false lrecspec
+    else
+      List.fold_left_map (fun sigma (ind,dep,sort) ->
+          let sigma, c = Indrec.build_case_analysis_scheme env sigma ind dep sort in
+          let c, _ = Indrec.eval_case_analysis c in
+          sigma, c)
+        sigma lrecspec
+  in
+  let array = Array.of_list listdecl in
+  let l = Array.map (fun x -> EConstr.to_constr sigma x) array in
+  Some (l, Evd.ustate sigma)
+
+let make_suff_sort one_ind suff dep =
+  match one_ind with
+  | None -> suff
+  | Some i ->
+    let sort = i.mind_sort
+    in
+    match sort with
+    | Prop -> if dep then (Names.Id.to_string i.mind_typename) ^ "_" ^ suff ^ "_dep"
+      else (Names.Id.to_string i.mind_typename) ^ "_" ^ suff
+    | Type _ | SProp | Set -> if dep then (Names.Id.to_string i.mind_typename) ^ "_" ^ suff
+      else (Names.Id.to_string i.mind_typename) ^ "_" ^ suff ^ "_nodep"
+    | QSort _ -> (Names.Id.to_string i.mind_typename) ^ "_" ^ suff
 
 let rect_dep =
-  declare_individual_scheme_object "rect_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.qtype x)
+  declare_individual_scheme_object (["Induction"], Some QualityOrSet.qtype)
+    (fun id -> make_suff_sort id "rect" true)
+    (fun env _ x _ -> build_induction_scheme_in_type env true QualityOrSet.qtype x)
+
+let mutual_rect_dep =
+  declare_mutual_scheme_object (["Induction"], Some QualityOrSet.qtype)
+    (fun id -> make_suff_sort id "rect" true)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env true QualityOrSet.qtype true x)
 
 let rec_dep =
-  declare_individual_scheme_object "rec_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.set x)
+  declare_individual_scheme_object (["Induction"], Some QualityOrSet.set)
+    (fun id -> make_suff_sort id "rec" true)
+    (fun env _ x _ -> build_induction_scheme_in_type env true QualityOrSet.set x)
+
+let mutual_rec_dep =
+  declare_mutual_scheme_object (["Induction"], Some QualityOrSet.set)
+    (fun id -> make_suff_sort id "rec" true)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env true QualityOrSet.set true x)
 
 let ind_dep =
-  declare_individual_scheme_object "ind_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.prop x)
+  declare_individual_scheme_object (["Induction"], Some QualityOrSet.prop)
+    (fun id -> make_suff_sort id "ind" true)
+    (fun env _ x _ -> build_induction_scheme_in_type env true QualityOrSet.prop x)
+
+let mutual_ind_dep =
+  declare_mutual_scheme_object (["Induction"], Some QualityOrSet.prop)
+    (fun id -> make_suff_sort id "ind" true)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env true QualityOrSet.prop true x)
 
 let sind_dep =
-  declare_individual_scheme_object "sind_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.sprop x)
+  declare_individual_scheme_object (["Induction"], Some QualityOrSet.sprop)
+    (fun id -> make_suff_sort id "inds" true)
+    (fun env _ x _ -> build_induction_scheme_in_type env true QualityOrSet.sprop x)
+
+let mutual_sind_dep =
+  declare_mutual_scheme_object (["Induction"], Some QualityOrSet.sprop)
+    (fun id -> make_suff_sort id "inds" true)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env true QualityOrSet.sprop true x)
 
 let rect_nodep =
-  declare_individual_scheme_object "rect_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.qtype x)
+  declare_individual_scheme_object (["Minimality"], Some QualityOrSet.qtype)
+    (fun id -> make_suff_sort id "rect" false)
+    (fun env _ x _ -> build_induction_scheme_in_type env false QualityOrSet.qtype x)
+
+let mutual_rect_nodep =
+  declare_mutual_scheme_object (["Minimality"], Some QualityOrSet.qtype)
+    (fun id -> make_suff_sort id "rect" false)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env false QualityOrSet.qtype true x)
 
 let rec_nodep =
-  declare_individual_scheme_object "rec_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.set x)
+  declare_individual_scheme_object (["Minimality"], Some QualityOrSet.set)
+    (fun id -> make_suff_sort id "rec" false)
+    (fun env _ x _ -> build_induction_scheme_in_type env false QualityOrSet.set x)
+
+let mutual_rec_nodep =
+  declare_mutual_scheme_object (["Minimality"], Some QualityOrSet.set)
+    (fun id -> make_suff_sort id "rec" false)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env false QualityOrSet.set true x)
 
 let ind_nodep =
-  declare_individual_scheme_object "ind_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.prop x)
+  declare_individual_scheme_object (["Minimality"], Some QualityOrSet.prop)
+    (fun id -> make_suff_sort id "ind" false)
+    (fun env _ x _ -> build_induction_scheme_in_type env false QualityOrSet.prop x)
+
+let mutual_ind_nodep =
+  declare_mutual_scheme_object (["Minimality"], Some QualityOrSet.prop)
+    (fun id -> make_suff_sort id "ind" false)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env false QualityOrSet.prop true x)
 
 let sind_nodep =
-  declare_individual_scheme_object "sind_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.sprop x)
+  declare_individual_scheme_object (["Minimality"], Some QualityOrSet.sprop)
+    (fun id -> make_suff_sort id "inds" false)
+    (fun env _ x _ -> build_induction_scheme_in_type env false QualityOrSet.sprop x)
+
+let mutual_sind_nodep =
+  declare_mutual_scheme_object (["Minimality"], Some QualityOrSet.sprop)
+    (fun id -> make_suff_sort id "inds" false)
+    (fun env _ x _ -> build_mutual_induction_scheme_in_type env false QualityOrSet.sprop true x)
 
 let elim_scheme ~dep ~to_kind =
   let open QualityOrSet in
@@ -149,7 +244,7 @@ let lookup_eliminator_by_name env ind_sp s =
 let deprecated_lookup_by_name =
   CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
     Pp.(fun (env,ind,to_kind,r) ->
-        let pp_scheme () s = str (scheme_kind_name s) in
+        let pp_scheme () s = str (match scheme_kind_name s with (ss,_,_) -> String.concat " " ss) in
         fmt "Found unregistered eliminator %t for %t by name.@ \
              Use \"Register Scheme\" with it instead@ \
              (\"as %a\" if dependent or \"as %a\" if non dependent)."
@@ -189,20 +284,44 @@ let build_case_analysis_scheme_in_type env dep sort ind =
   let (sigma, indu) = Evd.fresh_inductive_instance env sigma ind in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
   let (sigma, c, _) = build_case_analysis_scheme env sigma indu dep sort in
-  EConstr.Unsafe.to_constr c, Evd.ustate sigma
+  Some (EConstr.Unsafe.to_constr c, Evd.ustate sigma)
 
 let case_dep =
-  declare_individual_scheme_object "case_dep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.qtype x)
-
-let case_nodep =
-  declare_individual_scheme_object "case_nodep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.qtype x)
+    declare_individual_scheme_object (["Elimination"], Some QualityOrSet.qtype)
+      (fun id -> make_suff_sort id "caset" true)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env true QualityOrSet.qtype x)
 
 let casep_dep =
-  declare_individual_scheme_object "casep_dep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.prop x)
+    declare_individual_scheme_object (["Elimination"], Some QualityOrSet.prop)
+      (fun id -> make_suff_sort id "case" true)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env true QualityOrSet.prop x)
+
+let cases_dep =
+    declare_individual_scheme_object (["Elimination"], Some QualityOrSet.sprop)
+      (fun id -> make_suff_sort id "cases" true)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env true QualityOrSet.sprop x)
+
+let casep_dep_set =
+    declare_individual_scheme_object (["Elimination"], Some QualityOrSet.set)
+      (fun id -> make_suff_sort id "case" true)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env true QualityOrSet.set x)
+
+let case_nodep =
+    declare_individual_scheme_object (["Case"], Some QualityOrSet.qtype)
+      (fun id -> make_suff_sort id "caset" false)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env false QualityOrSet.qtype x)
 
 let casep_nodep =
-  declare_individual_scheme_object "casep_nodep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.prop x)
+    declare_individual_scheme_object (["Case"], Some QualityOrSet.prop)
+      (fun id -> make_suff_sort id "case" false)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env false QualityOrSet.prop x)
+
+let cases_nodep =
+    declare_individual_scheme_object (["Case"], Some QualityOrSet.sprop)
+      (fun id -> make_suff_sort id "cases" false)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env false QualityOrSet.sprop x)
+
+let case_nodep_set =
+    declare_individual_scheme_object (["Case"], Some QualityOrSet.set)
+      (fun id -> make_suff_sort id "case" false)
+      (fun env _ x _ -> build_case_analysis_scheme_in_type env false QualityOrSet.set x)      

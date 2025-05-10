@@ -31,12 +31,26 @@ val default_case_analysis_dependence : env -> inductive -> bool
 (** Induction/recursion schemes *)
 val elim_scheme : dep:bool -> to_kind:UnivGen.QualityOrSet.t -> individual scheme_kind
 
+val mutual_rect_dep : mutual scheme_kind
+val mutual_rec_dep : mutual scheme_kind
+val mutual_ind_dep : mutual scheme_kind
+val mutual_sind_dep : mutual scheme_kind
+val mutual_rect_nodep : mutual scheme_kind
+val mutual_rec_nodep : mutual scheme_kind
+val mutual_ind_nodep : mutual scheme_kind
+val mutual_sind_nodep : mutual scheme_kind
+
 (** Case analysis schemes *)
 
 val case_dep : individual scheme_kind
 val case_nodep : individual scheme_kind
 val casep_dep : individual scheme_kind
 val casep_nodep : individual scheme_kind
+
+val cases_dep : individual scheme_kind
+val cases_nodep : individual scheme_kind
+val casep_dep_set : individual scheme_kind
+val case_nodep_set : individual scheme_kind
 
 (** Recursor names utilities *)
 

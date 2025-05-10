@@ -6,7 +6,7 @@ Definition paths_rew_r_dep (A : Type) (x y : A) (P : forall y0 : A, y0 = y -> Ty
 Proof. destruct H;assumption. Defined.
 
 Module TestLocal.
-  Local Register Scheme paths_rew_r_dep as rew_r_dep for eq.
+  Local Register Scheme paths_rew_r_dep as Left2Right Dependent Rewrite for eq.
 
   Section GenMem.
     Variable A : Type.
@@ -21,7 +21,7 @@ Module TestLocal.
 End TestLocal.
 
 Module TestExport.
-  #[export] Register Scheme paths_rew_r_dep as rew_r_dep for eq.
+  #[export] Register Scheme paths_rew_r_dep as Left2Right Dependent Rewrite for eq.
 
   Section GenMem.
     Variable A : Type.
@@ -64,7 +64,7 @@ End GenMem.
 
 
 Module TestGlobal.
-  Global Register Scheme paths_rew_r_dep as rew_r_dep for eq.
+  Global Register Scheme paths_rew_r_dep as Left2Right Dependent Rewrite for eq.
 
   Section GenMem.
     Variable A : Type.
