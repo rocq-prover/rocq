@@ -126,4 +126,9 @@ module List : sig
       [None] if, for at least one i, [f ai] is [None]. *)
   val map : ('a -> 'b option) -> 'a list -> 'b list option
 
+  (** [List.fold_left f acc [a1;...;an]] is [Some f (...(f (f init a1) a2)...)an] if
+      for all i, there is a [bi] such that [f acc ai] is [Some bi]; it is
+      [None] if, for at least one i, [f acc ai] is [None]. *)
+  val fold_left : ('acc -> 'b -> 'acc option) -> 'acc -> 'b list -> 'acc option
+
 end
