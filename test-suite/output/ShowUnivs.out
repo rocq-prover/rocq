@@ -92,63 +92,70 @@ GRAPH:
           < sum_sind.u1
           < eq_rect_r.u1
           < sigT2_ind.u2
-          < prod.u0
-          < prod.u1
+          < result.u0
+          < result.u1
           < equality_dep.u0
           < equality_dep.u1
-          < prod_rect.u0
           < sigT2_sind.u0
           < sigT2_sind.u1
+          < result_rect.u0
           < sigT2_sind.u2
-          < prod_rect.u1
           < Subset_projections.u0
-          < prod_rect.u2
-          < prod_ind.u0
-          < prod_ind.u1
+          < result_rect.u1
+          < result_rect.u2
+          < result_ind.u0
           < f_equal_dep2.u0
           < sig_of_sig2.u0
+          < result_ind.u1
           < f_equal_dep2.u1
-          < prod_sind.u0
-          < prod_sind.u1
-          < projections.u0
+          < result_sind.u0
           < f_equal_dep2.u2
           < Subset_projections2.u0
-          < projections.u1
+          < result_sind.u1
+          < prod.u0
           < Projections.u0
+          < prod.u1
           < f_equal_dep2.u3
           < Projections.u1
+          < prod_rect.u0
+          < prod_rect.u1
+          < prod_rect.u2
           < sigT_of_sigT2.u0
           < rew_opp_r.u0
           < sigT_of_sigT2.u1
+          < prod_ind.u0
           < rew_opp_r.u1
           < sigT_of_sigT2.u2
+          < prod_ind.u1
           < nat_rect_succ_r.u0
+          < prod_sind.u0
+          < prod_sind.u1
+          < projections.u0
           < rew_opp_l.u0
+          < projections.u1
           < rew_opp_l.u1
           < nat_rect_plus.u0
           < Projections2.u0
           < Projections2.u1
-          < surjective_pairing.u0
           < Projections2.u2
-          < surjective_pairing.u1
           < f_equal2.u0
           < f_equal2.u1
           < f_equal2.u2
-          < injective_projections.u0
-          < injective_projections.u1
           < f_equal3.u0
           < f_equal3.u1
           < f_equal3.u2
           < f_equal3.u3
           < sig2_of_sigT2.u0
-          < pair_equal_spec.u0
+          < surjective_pairing.u0
           < f_equal4.u0
-          < pair_equal_spec.u1
+          < surjective_pairing.u1
           < f_equal4.u1
           < f_equal4.u2
           < f_equal4.u3
           < sigT2_of_sig2.u0
           < f_equal4.u4
+          < injective_projections.u0
+          < injective_projections.u1
           < f_equal5.u0
           < f_equal5.u1
           < f_equal5.u2
@@ -156,6 +163,8 @@ GRAPH:
           < f_equal5.u4
           < ex_of_sigT.u0
           < f_equal5.u5
+          < pair_equal_spec.u0
+          < pair_equal_spec.u1
           < ex2_of_sig2.u0
           < ex2_of_sigT2.u0
           < f_equal_compose.u0
@@ -163,46 +172,46 @@ GRAPH:
           < f_equal_compose.u2
           < sigT_eta.u0
           < sigT_eta.u1
-          < curry.u0
           < eq_trans_refl_l.u0
-          < curry.u1
-          < curry.u2
           < sig_eta.u0
-          < uncurry.u0
           < eq_trans_refl_r.u0
+          < eq_sym_involutive.u0
+          < sigT2_eta.u0
+          < sigT2_eta.u1
+          < curry.u0
+          < eq_trans_sym_inv_l.u0
+          < curry.u1
+          < sigT2_eta.u2
+          < curry.u2
+          < eq_trans_sym_inv_r.u0
+          < uncurry.u0
           < uncurry.u1
           < uncurry.u2
-          < eq_sym_involutive.u0
-          < rew_pair.u0
-          < rew_pair.u1
-          < sigT2_eta.u0
-          < rew_pair.u2
-          < sigT2_eta.u1
-          < eq_trans_sym_inv_l.u0
-          < sigT2_eta.u2
-          < eq_trans_sym_inv_r.u0
-          < list.u0
           < eq_trans_assoc.u0
           < sig2_eta.u0
-          < list_rect.u0
-          < list_rect.u1
-          < list_ind.u0
-          < list_sind.u0
-          < length.u0
+          < rew_pair.u0
+          < rew_pair.u1
+          < rew_pair.u2
           < rew_map.u0
           < rew_map.u1
-          < app.u0
           < rew_map.u2
           < exists_to_inhabited_sig.u0
-          < comparison_rect.u0
+          < list.u0
+          < list_rect.u0
           < eq_trans_map.u0
+          < list_rect.u1
           < inhabited_sig_to_exists.u0
+          < list_ind.u0
+          < list_sind.u0
           < eq_trans_map.u1
+          < length.u0
           < ProdSigT.u0
           < ProdSigT.u1
+          < app.u0
           < map_subst.u0
           < map_subst.u1
           < map_subst.u2
+          < comparison_rect.u0
           < projT1_eq.u0
           < projT1_eq.u1
           < map_subst_map.u0
@@ -211,22 +220,22 @@ GRAPH:
           < map_subst_map.u3
           < projT2_eq.u0
           < projT2_eq.u1
-          < CompareSpecT_rect.u0
           < rew_swap.u0
           < rew_swap.u1
           < eq_existT_uncurried.u0
-          < CompSpec.u0
           < eq_existT_uncurried.u1
-          < CompSpecT.u0
-          < CompSpec2Type.u0
           < rew_compose.u0
           < rew_compose.u1
-          < ID.u0
+          < CompareSpecT_rect.u0
           < eq_sigT_uncurried.u0
           < eq_sigT_uncurried.u1
+          < CompSpec.u0
+          < CompSpecT.u0
           < eq_id_comm_l.u0
+          < CompSpec2Type.u0
           < eq_existT_curried.u0
           < eq_existT_curried.u1
+          < ID.u0
           < Byte.byte_rect.u0
           < eq_id_comm_r.u0
           < eq_refl_map_distr.u0
@@ -449,27 +458,27 @@ GRAPH:
                  <= sigT_of_sigT2.u0
  Projections2.u1 <= Projections.u1
                  <= sigT_of_sigT2.u1
- surjective_pairing.u0 <= projections.u0
  Projections2.u2 <= sigT_of_sigT2.u2
+ sig2_of_sigT2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+ surjective_pairing.u0 <= projections.u0
  surjective_pairing.u1 <= projections.u1
+ sigT2_of_sig2.u0 <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
  injective_projections.u0 <= eq_ind_r.u0
                           <= projections.u0
  injective_projections.u1 <= eq_ind_r.u0
                           <= projections.u1
- sig2_of_sigT2.u0 <= Projections.u0
-                  <= sigT_of_sigT2.u0
-                  <= Projections2.u0
+ ex_of_sigT.u0 <= Subset_projections.u0
+               <= Projections.u0
  pair_equal_spec.u0 <= eq_ind.u0
                     <= eq_ind_r.u0
                     <= projections.u0
  pair_equal_spec.u1 <= eq_ind.u0
                     <= eq_ind_r.u0
                     <= projections.u1
- sigT2_of_sig2.u0 <= Subset_projections.u0
-                  <= sig_of_sig2.u0
-                  <= Subset_projections2.u0
- ex_of_sigT.u0 <= Subset_projections.u0
-               <= Projections.u0
  ex2_of_sig2.u0 <= Subset_projections.u0
                 <= sig_of_sig2.u0
                 <= Subset_projections2.u0
@@ -485,12 +494,9 @@ GRAPH:
  sig_eta.u0 <= Subset_projections.u0
  eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
  eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
- rew_pair.u0 <= eq_rect.u1
- rew_pair.u1 <= eq_rect.u0
  sigT2_eta.u0 <= Projections.u0
               <= sigT_of_sigT2.u0
               <= Projections2.u0
- rew_pair.u2 <= eq_rect.u0
  sigT2_eta.u1 <= Projections.u1
               <= sigT_of_sigT2.u1
               <= Projections2.u1
@@ -502,6 +508,9 @@ GRAPH:
  sig2_eta.u0 <= Subset_projections.u0
              <= sig_of_sig2.u0
              <= Subset_projections2.u0
+ rew_pair.u0 <= eq_rect.u1
+ rew_pair.u1 <= eq_rect.u0
+ rew_pair.u2 <= eq_rect.u0
  rew_map.u0 <= eq_rect.u1
             <= Logic_lemmas.equality.u1
  rew_map.u1 <= eq_rect.u0
@@ -511,10 +520,10 @@ GRAPH:
                  <= Logic_lemmas.equality.u0
  eq_trans_map.u1 <= eq_rect.u0
                  <= Logic_lemmas.equality.u0
- ProdSigT.u0 <= projections.u0
-             <= Projections.u0
- ProdSigT.u1 <= projections.u1
-             <= Projections.u1
+ ProdSigT.u0 <= Projections.u0
+             <= projections.u0
+ ProdSigT.u1 <= Projections.u1
+             <= projections.u1
  map_subst.u0 <= eq_rect.u1
  map_subst.u1 <= eq_rect.u0
  map_subst.u2 <= eq_rect.u0
@@ -541,8 +550,6 @@ GRAPH:
              <= eq_rect_r.u1
  eq_existT_uncurried.u0 <= eq_rect.u1
  eq_existT_uncurried.u1 <= eq_rect.u0
- CompSpec2Type.u0 <= CompSpec.u0
-                  <= CompSpecT.u0
  rew_compose.u0 <= eq_rect.u1
                 <= Logic_lemmas.equality.u0
  rew_compose.u1 <= eq_rect.u0
@@ -555,6 +562,8 @@ GRAPH:
  eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
                  <= Logic_lemmas.equality.u1
                  <= eq_trans_sym_inv_l.u0
+ CompSpec2Type.u0 <= CompSpec.u0
+                  <= CompSpecT.u0
  eq_existT_curried.u0 <= eq_rect.u1
                       <= eq_sigT_uncurried.u0
  eq_existT_curried.u1 <= eq_rect.u0
@@ -1229,63 +1238,70 @@ Normalized constraints:
            < sum_sind.u1
            < eq_rect_r.u1
            < sigT2_ind.u2
-           < prod.u0
-           < prod.u1
+           < result.u0
+           < result.u1
            < equality_dep.u0
            < equality_dep.u1
-           < prod_rect.u0
            < sigT2_sind.u0
            < sigT2_sind.u1
+           < result_rect.u0
            < sigT2_sind.u2
-           < prod_rect.u1
            < Subset_projections.u0
-           < prod_rect.u2
-           < prod_ind.u0
-           < prod_ind.u1
+           < result_rect.u1
+           < result_rect.u2
+           < result_ind.u0
            < f_equal_dep2.u0
            < sig_of_sig2.u0
+           < result_ind.u1
            < f_equal_dep2.u1
-           < prod_sind.u0
-           < prod_sind.u1
-           < projections.u0
+           < result_sind.u0
            < f_equal_dep2.u2
            < Subset_projections2.u0
-           < projections.u1
+           < result_sind.u1
+           < prod.u0
            < Projections.u0
+           < prod.u1
            < f_equal_dep2.u3
            < Projections.u1
+           < prod_rect.u0
+           < prod_rect.u1
+           < prod_rect.u2
            < sigT_of_sigT2.u0
            < rew_opp_r.u0
            < sigT_of_sigT2.u1
+           < prod_ind.u0
            < rew_opp_r.u1
            < sigT_of_sigT2.u2
+           < prod_ind.u1
            < nat_rect_succ_r.u0
+           < prod_sind.u0
+           < prod_sind.u1
+           < projections.u0
            < rew_opp_l.u0
+           < projections.u1
            < rew_opp_l.u1
            < nat_rect_plus.u0
            < Projections2.u0
            < Projections2.u1
-           < surjective_pairing.u0
            < Projections2.u2
-           < surjective_pairing.u1
            < f_equal2.u0
            < f_equal2.u1
            < f_equal2.u2
-           < injective_projections.u0
-           < injective_projections.u1
            < f_equal3.u0
            < f_equal3.u1
            < f_equal3.u2
            < f_equal3.u3
            < sig2_of_sigT2.u0
-           < pair_equal_spec.u0
+           < surjective_pairing.u0
            < f_equal4.u0
-           < pair_equal_spec.u1
+           < surjective_pairing.u1
            < f_equal4.u1
            < f_equal4.u2
            < f_equal4.u3
            < sigT2_of_sig2.u0
            < f_equal4.u4
+           < injective_projections.u0
+           < injective_projections.u1
            < f_equal5.u0
            < f_equal5.u1
            < f_equal5.u2
@@ -1293,6 +1309,8 @@ Normalized constraints:
            < f_equal5.u4
            < ex_of_sigT.u0
            < f_equal5.u5
+           < pair_equal_spec.u0
+           < pair_equal_spec.u1
            < ex2_of_sig2.u0
            < ex2_of_sigT2.u0
            < f_equal_compose.u0
@@ -1300,46 +1318,46 @@ Normalized constraints:
            < f_equal_compose.u2
            < sigT_eta.u0
            < sigT_eta.u1
-           < curry.u0
            < eq_trans_refl_l.u0
-           < curry.u1
-           < curry.u2
            < sig_eta.u0
-           < uncurry.u0
            < eq_trans_refl_r.u0
+           < eq_sym_involutive.u0
+           < sigT2_eta.u0
+           < sigT2_eta.u1
+           < curry.u0
+           < eq_trans_sym_inv_l.u0
+           < curry.u1
+           < sigT2_eta.u2
+           < curry.u2
+           < eq_trans_sym_inv_r.u0
+           < uncurry.u0
            < uncurry.u1
            < uncurry.u2
-           < eq_sym_involutive.u0
-           < rew_pair.u0
-           < rew_pair.u1
-           < sigT2_eta.u0
-           < rew_pair.u2
-           < sigT2_eta.u1
-           < eq_trans_sym_inv_l.u0
-           < sigT2_eta.u2
-           < eq_trans_sym_inv_r.u0
-           < list.u0
            < eq_trans_assoc.u0
            < sig2_eta.u0
-           < list_rect.u0
-           < list_rect.u1
-           < list_ind.u0
-           < list_sind.u0
-           < length.u0
+           < rew_pair.u0
+           < rew_pair.u1
+           < rew_pair.u2
            < rew_map.u0
            < rew_map.u1
-           < app.u0
            < rew_map.u2
            < exists_to_inhabited_sig.u0
-           < comparison_rect.u0
+           < list.u0
+           < list_rect.u0
            < eq_trans_map.u0
+           < list_rect.u1
            < inhabited_sig_to_exists.u0
+           < list_ind.u0
+           < list_sind.u0
            < eq_trans_map.u1
+           < length.u0
            < ProdSigT.u0
            < ProdSigT.u1
+           < app.u0
            < map_subst.u0
            < map_subst.u1
            < map_subst.u2
+           < comparison_rect.u0
            < projT1_eq.u0
            < projT1_eq.u1
            < map_subst_map.u0
@@ -1348,22 +1366,22 @@ Normalized constraints:
            < map_subst_map.u3
            < projT2_eq.u0
            < projT2_eq.u1
-           < CompareSpecT_rect.u0
            < rew_swap.u0
            < rew_swap.u1
            < eq_existT_uncurried.u0
-           < CompSpec.u0
            < eq_existT_uncurried.u1
-           < CompSpecT.u0
-           < CompSpec2Type.u0
            < rew_compose.u0
            < rew_compose.u1
-           < ID.u0
+           < CompareSpecT_rect.u0
            < eq_sigT_uncurried.u0
            < eq_sigT_uncurried.u1
+           < CompSpec.u0
+           < CompSpecT.u0
            < eq_id_comm_l.u0
+           < CompSpec2Type.u0
            < eq_existT_curried.u0
            < eq_existT_curried.u1
+           < ID.u0
            < Byte.byte_rect.u0
            < eq_id_comm_r.u0
            < eq_refl_map_distr.u0
@@ -1586,27 +1604,27 @@ Normalized constraints:
                   <= sigT_of_sigT2.u0
   Projections2.u1 <= Projections.u1
                   <= sigT_of_sigT2.u1
-  surjective_pairing.u0 <= projections.u0
   Projections2.u2 <= sigT_of_sigT2.u2
+  sig2_of_sigT2.u0 <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+  surjective_pairing.u0 <= projections.u0
   surjective_pairing.u1 <= projections.u1
+  sigT2_of_sig2.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
   injective_projections.u0 <= eq_ind_r.u0
                            <= projections.u0
   injective_projections.u1 <= eq_ind_r.u0
                            <= projections.u1
-  sig2_of_sigT2.u0 <= Projections.u0
-                   <= sigT_of_sigT2.u0
-                   <= Projections2.u0
+  ex_of_sigT.u0 <= Subset_projections.u0
+                <= Projections.u0
   pair_equal_spec.u0 <= eq_ind.u0
                      <= eq_ind_r.u0
                      <= projections.u0
   pair_equal_spec.u1 <= eq_ind.u0
                      <= eq_ind_r.u0
                      <= projections.u1
-  sigT2_of_sig2.u0 <= Subset_projections.u0
-                   <= sig_of_sig2.u0
-                   <= Subset_projections2.u0
-  ex_of_sigT.u0 <= Subset_projections.u0
-                <= Projections.u0
   ex2_of_sig2.u0 <= Subset_projections.u0
                  <= sig_of_sig2.u0
                  <= Subset_projections2.u0
@@ -1622,12 +1640,9 @@ Normalized constraints:
   sig_eta.u0 <= Subset_projections.u0
   eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
   eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
-  rew_pair.u0 <= eq_rect.u1
-  rew_pair.u1 <= eq_rect.u0
   sigT2_eta.u0 <= Projections.u0
                <= sigT_of_sigT2.u0
                <= Projections2.u0
-  rew_pair.u2 <= eq_rect.u0
   sigT2_eta.u1 <= Projections.u1
                <= sigT_of_sigT2.u1
                <= Projections2.u1
@@ -1639,6 +1654,9 @@ Normalized constraints:
   sig2_eta.u0 <= Subset_projections.u0
               <= sig_of_sig2.u0
               <= Subset_projections2.u0
+  rew_pair.u0 <= eq_rect.u1
+  rew_pair.u1 <= eq_rect.u0
+  rew_pair.u2 <= eq_rect.u0
   rew_map.u0 <= eq_rect.u1
              <= Logic_lemmas.equality.u1
   rew_map.u1 <= eq_rect.u0
@@ -1648,10 +1666,10 @@ Normalized constraints:
                   <= Logic_lemmas.equality.u0
   eq_trans_map.u1 <= eq_rect.u0
                   <= Logic_lemmas.equality.u0
-  ProdSigT.u0 <= projections.u0
-              <= Projections.u0
-  ProdSigT.u1 <= projections.u1
-              <= Projections.u1
+  ProdSigT.u0 <= Projections.u0
+              <= projections.u0
+  ProdSigT.u1 <= Projections.u1
+              <= projections.u1
   map_subst.u0 <= eq_rect.u1
   map_subst.u1 <= eq_rect.u0
   map_subst.u2 <= eq_rect.u0
@@ -1678,8 +1696,6 @@ Normalized constraints:
               <= eq_rect_r.u1
   eq_existT_uncurried.u0 <= eq_rect.u1
   eq_existT_uncurried.u1 <= eq_rect.u0
-  CompSpec2Type.u0 <= CompSpec.u0
-                   <= CompSpecT.u0
   rew_compose.u0 <= eq_rect.u1
                  <= Logic_lemmas.equality.u0
   rew_compose.u1 <= eq_rect.u0
@@ -1692,6 +1708,8 @@ Normalized constraints:
   eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
                   <= Logic_lemmas.equality.u1
                   <= eq_trans_sym_inv_l.u0
+  CompSpec2Type.u0 <= CompSpec.u0
+                   <= CompSpecT.u0
   eq_existT_curried.u0 <= eq_rect.u1
                        <= eq_sigT_uncurried.u0
   eq_existT_curried.u1 <= eq_rect.u0
@@ -2374,63 +2392,70 @@ GRAPH:
                      < sum_sind.u1
                      < eq_rect_r.u1
                      < sigT2_ind.u2
-                     < prod.u0
-                     < prod.u1
+                     < result.u0
+                     < result.u1
                      < equality_dep.u0
                      < equality_dep.u1
-                     < prod_rect.u0
                      < sigT2_sind.u0
                      < sigT2_sind.u1
+                     < result_rect.u0
                      < sigT2_sind.u2
-                     < prod_rect.u1
                      < Subset_projections.u0
-                     < prod_rect.u2
-                     < prod_ind.u0
-                     < prod_ind.u1
+                     < result_rect.u1
+                     < result_rect.u2
+                     < result_ind.u0
                      < f_equal_dep2.u0
                      < sig_of_sig2.u0
+                     < result_ind.u1
                      < f_equal_dep2.u1
-                     < prod_sind.u0
-                     < prod_sind.u1
-                     < projections.u0
+                     < result_sind.u0
                      < f_equal_dep2.u2
                      < Subset_projections2.u0
-                     < projections.u1
+                     < result_sind.u1
+                     < prod.u0
                      < Projections.u0
+                     < prod.u1
                      < f_equal_dep2.u3
                      < Projections.u1
+                     < prod_rect.u0
+                     < prod_rect.u1
+                     < prod_rect.u2
                      < sigT_of_sigT2.u0
                      < rew_opp_r.u0
                      < sigT_of_sigT2.u1
+                     < prod_ind.u0
                      < rew_opp_r.u1
                      < sigT_of_sigT2.u2
+                     < prod_ind.u1
                      < nat_rect_succ_r.u0
+                     < prod_sind.u0
+                     < prod_sind.u1
+                     < projections.u0
                      < rew_opp_l.u0
+                     < projections.u1
                      < rew_opp_l.u1
                      < nat_rect_plus.u0
                      < Projections2.u0
                      < Projections2.u1
-                     < surjective_pairing.u0
                      < Projections2.u2
-                     < surjective_pairing.u1
                      < f_equal2.u0
                      < f_equal2.u1
                      < f_equal2.u2
-                     < injective_projections.u0
-                     < injective_projections.u1
                      < f_equal3.u0
                      < f_equal3.u1
                      < f_equal3.u2
                      < f_equal3.u3
                      < sig2_of_sigT2.u0
-                     < pair_equal_spec.u0
+                     < surjective_pairing.u0
                      < f_equal4.u0
-                     < pair_equal_spec.u1
+                     < surjective_pairing.u1
                      < f_equal4.u1
                      < f_equal4.u2
                      < f_equal4.u3
                      < sigT2_of_sig2.u0
                      < f_equal4.u4
+                     < injective_projections.u0
+                     < injective_projections.u1
                      < f_equal5.u0
                      < f_equal5.u1
                      < f_equal5.u2
@@ -2438,6 +2463,8 @@ GRAPH:
                      < f_equal5.u4
                      < ex_of_sigT.u0
                      < f_equal5.u5
+                     < pair_equal_spec.u0
+                     < pair_equal_spec.u1
                      < ex2_of_sig2.u0
                      < ex2_of_sigT2.u0
                      < f_equal_compose.u0
@@ -2445,46 +2472,46 @@ GRAPH:
                      < f_equal_compose.u2
                      < sigT_eta.u0
                      < sigT_eta.u1
-                     < curry.u0
                      < eq_trans_refl_l.u0
-                     < curry.u1
-                     < curry.u2
                      < sig_eta.u0
-                     < uncurry.u0
                      < eq_trans_refl_r.u0
+                     < eq_sym_involutive.u0
+                     < sigT2_eta.u0
+                     < sigT2_eta.u1
+                     < curry.u0
+                     < eq_trans_sym_inv_l.u0
+                     < curry.u1
+                     < sigT2_eta.u2
+                     < curry.u2
+                     < eq_trans_sym_inv_r.u0
+                     < uncurry.u0
                      < uncurry.u1
                      < uncurry.u2
-                     < eq_sym_involutive.u0
-                     < rew_pair.u0
-                     < rew_pair.u1
-                     < sigT2_eta.u0
-                     < rew_pair.u2
-                     < sigT2_eta.u1
-                     < eq_trans_sym_inv_l.u0
-                     < sigT2_eta.u2
-                     < eq_trans_sym_inv_r.u0
-                     < list.u0
                      < eq_trans_assoc.u0
                      < sig2_eta.u0
-                     < list_rect.u0
-                     < list_rect.u1
-                     < list_ind.u0
-                     < list_sind.u0
-                     < length.u0
+                     < rew_pair.u0
+                     < rew_pair.u1
+                     < rew_pair.u2
                      < rew_map.u0
                      < rew_map.u1
-                     < app.u0
                      < rew_map.u2
                      < exists_to_inhabited_sig.u0
-                     < comparison_rect.u0
+                     < list.u0
+                     < list_rect.u0
                      < eq_trans_map.u0
+                     < list_rect.u1
                      < inhabited_sig_to_exists.u0
+                     < list_ind.u0
+                     < list_sind.u0
                      < eq_trans_map.u1
+                     < length.u0
                      < ProdSigT.u0
                      < ProdSigT.u1
+                     < app.u0
                      < map_subst.u0
                      < map_subst.u1
                      < map_subst.u2
+                     < comparison_rect.u0
                      < projT1_eq.u0
                      < projT1_eq.u1
                      < map_subst_map.u0
@@ -2493,22 +2520,22 @@ GRAPH:
                      < map_subst_map.u3
                      < projT2_eq.u0
                      < projT2_eq.u1
-                     < CompareSpecT_rect.u0
                      < rew_swap.u0
                      < rew_swap.u1
                      < eq_existT_uncurried.u0
-                     < CompSpec.u0
                      < eq_existT_uncurried.u1
-                     < CompSpecT.u0
-                     < CompSpec2Type.u0
                      < rew_compose.u0
                      < rew_compose.u1
-                     < ID.u0
+                     < CompareSpecT_rect.u0
                      < eq_sigT_uncurried.u0
                      < eq_sigT_uncurried.u1
+                     < CompSpec.u0
+                     < CompSpecT.u0
                      < eq_id_comm_l.u0
+                     < CompSpec2Type.u0
                      < eq_existT_curried.u0
                      < eq_existT_curried.u1
+                     < ID.u0
                      < Byte.byte_rect.u0
                      < eq_id_comm_r.u0
                      < eq_refl_map_distr.u0
@@ -2733,27 +2760,27 @@ GRAPH:
                  <= sigT_of_sigT2.u0
  Projections2.u1 <= Projections.u1
                  <= sigT_of_sigT2.u1
- surjective_pairing.u0 <= projections.u0
  Projections2.u2 <= sigT_of_sigT2.u2
+ sig2_of_sigT2.u0 <= Projections.u0
+                  <= sigT_of_sigT2.u0
+                  <= Projections2.u0
+ surjective_pairing.u0 <= projections.u0
  surjective_pairing.u1 <= projections.u1
+ sigT2_of_sig2.u0 <= Subset_projections.u0
+                  <= sig_of_sig2.u0
+                  <= Subset_projections2.u0
  injective_projections.u0 <= eq_ind_r.u0
                           <= projections.u0
  injective_projections.u1 <= eq_ind_r.u0
                           <= projections.u1
- sig2_of_sigT2.u0 <= Projections.u0
-                  <= sigT_of_sigT2.u0
-                  <= Projections2.u0
+ ex_of_sigT.u0 <= Subset_projections.u0
+               <= Projections.u0
  pair_equal_spec.u0 <= eq_ind.u0
                     <= eq_ind_r.u0
                     <= projections.u0
  pair_equal_spec.u1 <= eq_ind.u0
                     <= eq_ind_r.u0
                     <= projections.u1
- sigT2_of_sig2.u0 <= Subset_projections.u0
-                  <= sig_of_sig2.u0
-                  <= Subset_projections2.u0
- ex_of_sigT.u0 <= Subset_projections.u0
-               <= Projections.u0
  ex2_of_sig2.u0 <= Subset_projections.u0
                 <= sig_of_sig2.u0
                 <= Subset_projections2.u0
@@ -2769,12 +2796,9 @@ GRAPH:
  sig_eta.u0 <= Subset_projections.u0
  eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
  eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
- rew_pair.u0 <= eq_rect.u1
- rew_pair.u1 <= eq_rect.u0
  sigT2_eta.u0 <= Projections.u0
               <= sigT_of_sigT2.u0
               <= Projections2.u0
- rew_pair.u2 <= eq_rect.u0
  sigT2_eta.u1 <= Projections.u1
               <= sigT_of_sigT2.u1
               <= Projections2.u1
@@ -2786,6 +2810,9 @@ GRAPH:
  sig2_eta.u0 <= Subset_projections.u0
              <= sig_of_sig2.u0
              <= Subset_projections2.u0
+ rew_pair.u0 <= eq_rect.u1
+ rew_pair.u1 <= eq_rect.u0
+ rew_pair.u2 <= eq_rect.u0
  rew_map.u0 <= eq_rect.u1
             <= Logic_lemmas.equality.u1
  rew_map.u1 <= eq_rect.u0
@@ -2795,10 +2822,10 @@ GRAPH:
                  <= Logic_lemmas.equality.u0
  eq_trans_map.u1 <= eq_rect.u0
                  <= Logic_lemmas.equality.u0
- ProdSigT.u0 <= projections.u0
-             <= Projections.u0
- ProdSigT.u1 <= projections.u1
-             <= Projections.u1
+ ProdSigT.u0 <= Projections.u0
+             <= projections.u0
+ ProdSigT.u1 <= Projections.u1
+             <= projections.u1
  map_subst.u0 <= eq_rect.u1
  map_subst.u1 <= eq_rect.u0
  map_subst.u2 <= eq_rect.u0
@@ -2825,8 +2852,6 @@ GRAPH:
              <= eq_rect_r.u1
  eq_existT_uncurried.u0 <= eq_rect.u1
  eq_existT_uncurried.u1 <= eq_rect.u0
- CompSpec2Type.u0 <= CompSpec.u0
-                  <= CompSpecT.u0
  rew_compose.u0 <= eq_rect.u1
                 <= Logic_lemmas.equality.u0
  rew_compose.u1 <= eq_rect.u0
@@ -2839,6 +2864,8 @@ GRAPH:
  eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
                  <= Logic_lemmas.equality.u1
                  <= eq_trans_sym_inv_l.u0
+ CompSpec2Type.u0 <= CompSpec.u0
+                  <= CompSpecT.u0
  eq_existT_curried.u0 <= eq_rect.u1
                       <= eq_sigT_uncurried.u0
  eq_existT_curried.u1 <= eq_rect.u0
@@ -3522,63 +3549,70 @@ Normalized constraints:
                       < sum_sind.u1
                       < eq_rect_r.u1
                       < sigT2_ind.u2
-                      < prod.u0
-                      < prod.u1
+                      < result.u0
+                      < result.u1
                       < equality_dep.u0
                       < equality_dep.u1
-                      < prod_rect.u0
                       < sigT2_sind.u0
                       < sigT2_sind.u1
+                      < result_rect.u0
                       < sigT2_sind.u2
-                      < prod_rect.u1
                       < Subset_projections.u0
-                      < prod_rect.u2
-                      < prod_ind.u0
-                      < prod_ind.u1
+                      < result_rect.u1
+                      < result_rect.u2
+                      < result_ind.u0
                       < f_equal_dep2.u0
                       < sig_of_sig2.u0
+                      < result_ind.u1
                       < f_equal_dep2.u1
-                      < prod_sind.u0
-                      < prod_sind.u1
-                      < projections.u0
+                      < result_sind.u0
                       < f_equal_dep2.u2
                       < Subset_projections2.u0
-                      < projections.u1
+                      < result_sind.u1
+                      < prod.u0
                       < Projections.u0
+                      < prod.u1
                       < f_equal_dep2.u3
                       < Projections.u1
+                      < prod_rect.u0
+                      < prod_rect.u1
+                      < prod_rect.u2
                       < sigT_of_sigT2.u0
                       < rew_opp_r.u0
                       < sigT_of_sigT2.u1
+                      < prod_ind.u0
                       < rew_opp_r.u1
                       < sigT_of_sigT2.u2
+                      < prod_ind.u1
                       < nat_rect_succ_r.u0
+                      < prod_sind.u0
+                      < prod_sind.u1
+                      < projections.u0
                       < rew_opp_l.u0
+                      < projections.u1
                       < rew_opp_l.u1
                       < nat_rect_plus.u0
                       < Projections2.u0
                       < Projections2.u1
-                      < surjective_pairing.u0
                       < Projections2.u2
-                      < surjective_pairing.u1
                       < f_equal2.u0
                       < f_equal2.u1
                       < f_equal2.u2
-                      < injective_projections.u0
-                      < injective_projections.u1
                       < f_equal3.u0
                       < f_equal3.u1
                       < f_equal3.u2
                       < f_equal3.u3
                       < sig2_of_sigT2.u0
-                      < pair_equal_spec.u0
+                      < surjective_pairing.u0
                       < f_equal4.u0
-                      < pair_equal_spec.u1
+                      < surjective_pairing.u1
                       < f_equal4.u1
                       < f_equal4.u2
                       < f_equal4.u3
                       < sigT2_of_sig2.u0
                       < f_equal4.u4
+                      < injective_projections.u0
+                      < injective_projections.u1
                       < f_equal5.u0
                       < f_equal5.u1
                       < f_equal5.u2
@@ -3586,6 +3620,8 @@ Normalized constraints:
                       < f_equal5.u4
                       < ex_of_sigT.u0
                       < f_equal5.u5
+                      < pair_equal_spec.u0
+                      < pair_equal_spec.u1
                       < ex2_of_sig2.u0
                       < ex2_of_sigT2.u0
                       < f_equal_compose.u0
@@ -3593,46 +3629,46 @@ Normalized constraints:
                       < f_equal_compose.u2
                       < sigT_eta.u0
                       < sigT_eta.u1
-                      < curry.u0
                       < eq_trans_refl_l.u0
-                      < curry.u1
-                      < curry.u2
                       < sig_eta.u0
-                      < uncurry.u0
                       < eq_trans_refl_r.u0
+                      < eq_sym_involutive.u0
+                      < sigT2_eta.u0
+                      < sigT2_eta.u1
+                      < curry.u0
+                      < eq_trans_sym_inv_l.u0
+                      < curry.u1
+                      < sigT2_eta.u2
+                      < curry.u2
+                      < eq_trans_sym_inv_r.u0
+                      < uncurry.u0
                       < uncurry.u1
                       < uncurry.u2
-                      < eq_sym_involutive.u0
-                      < rew_pair.u0
-                      < rew_pair.u1
-                      < sigT2_eta.u0
-                      < rew_pair.u2
-                      < sigT2_eta.u1
-                      < eq_trans_sym_inv_l.u0
-                      < sigT2_eta.u2
-                      < eq_trans_sym_inv_r.u0
-                      < list.u0
                       < eq_trans_assoc.u0
                       < sig2_eta.u0
-                      < list_rect.u0
-                      < list_rect.u1
-                      < list_ind.u0
-                      < list_sind.u0
-                      < length.u0
+                      < rew_pair.u0
+                      < rew_pair.u1
+                      < rew_pair.u2
                       < rew_map.u0
                       < rew_map.u1
-                      < app.u0
                       < rew_map.u2
                       < exists_to_inhabited_sig.u0
-                      < comparison_rect.u0
+                      < list.u0
+                      < list_rect.u0
                       < eq_trans_map.u0
+                      < list_rect.u1
                       < inhabited_sig_to_exists.u0
+                      < list_ind.u0
+                      < list_sind.u0
                       < eq_trans_map.u1
+                      < length.u0
                       < ProdSigT.u0
                       < ProdSigT.u1
+                      < app.u0
                       < map_subst.u0
                       < map_subst.u1
                       < map_subst.u2
+                      < comparison_rect.u0
                       < projT1_eq.u0
                       < projT1_eq.u1
                       < map_subst_map.u0
@@ -3641,22 +3677,22 @@ Normalized constraints:
                       < map_subst_map.u3
                       < projT2_eq.u0
                       < projT2_eq.u1
-                      < CompareSpecT_rect.u0
                       < rew_swap.u0
                       < rew_swap.u1
                       < eq_existT_uncurried.u0
-                      < CompSpec.u0
                       < eq_existT_uncurried.u1
-                      < CompSpecT.u0
-                      < CompSpec2Type.u0
                       < rew_compose.u0
                       < rew_compose.u1
-                      < ID.u0
+                      < CompareSpecT_rect.u0
                       < eq_sigT_uncurried.u0
                       < eq_sigT_uncurried.u1
+                      < CompSpec.u0
+                      < CompSpecT.u0
                       < eq_id_comm_l.u0
+                      < CompSpec2Type.u0
                       < eq_existT_curried.u0
                       < eq_existT_curried.u1
+                      < ID.u0
                       < Byte.byte_rect.u0
                       < eq_id_comm_r.u0
                       < eq_refl_map_distr.u0
@@ -3877,27 +3913,27 @@ Normalized constraints:
                   <= sigT_of_sigT2.u0
   Projections2.u1 <= Projections.u1
                   <= sigT_of_sigT2.u1
-  surjective_pairing.u0 <= projections.u0
   Projections2.u2 <= sigT_of_sigT2.u2
+  sig2_of_sigT2.u0 <= Projections.u0
+                   <= sigT_of_sigT2.u0
+                   <= Projections2.u0
+  surjective_pairing.u0 <= projections.u0
   surjective_pairing.u1 <= projections.u1
+  sigT2_of_sig2.u0 <= Subset_projections.u0
+                   <= sig_of_sig2.u0
+                   <= Subset_projections2.u0
   injective_projections.u0 <= eq_ind_r.u0
                            <= projections.u0
   injective_projections.u1 <= eq_ind_r.u0
                            <= projections.u1
-  sig2_of_sigT2.u0 <= Projections.u0
-                   <= sigT_of_sigT2.u0
-                   <= Projections2.u0
+  ex_of_sigT.u0 <= Subset_projections.u0
+                <= Projections.u0
   pair_equal_spec.u0 <= eq_ind.u0
                      <= eq_ind_r.u0
                      <= projections.u0
   pair_equal_spec.u1 <= eq_ind.u0
                      <= eq_ind_r.u0
                      <= projections.u1
-  sigT2_of_sig2.u0 <= Subset_projections.u0
-                   <= sig_of_sig2.u0
-                   <= Subset_projections2.u0
-  ex_of_sigT.u0 <= Subset_projections.u0
-                <= Projections.u0
   ex2_of_sig2.u0 <= Subset_projections.u0
                  <= sig_of_sig2.u0
                  <= Subset_projections2.u0
@@ -3913,12 +3949,9 @@ Normalized constraints:
   sig_eta.u0 <= Subset_projections.u0
   eq_trans_refl_r.u0 <= Logic_lemmas.equality.u0
   eq_sym_involutive.u0 <= Logic_lemmas.equality.u0
-  rew_pair.u0 <= eq_rect.u1
-  rew_pair.u1 <= eq_rect.u0
   sigT2_eta.u0 <= Projections.u0
                <= sigT_of_sigT2.u0
                <= Projections2.u0
-  rew_pair.u2 <= eq_rect.u0
   sigT2_eta.u1 <= Projections.u1
                <= sigT_of_sigT2.u1
                <= Projections2.u1
@@ -3930,6 +3963,9 @@ Normalized constraints:
   sig2_eta.u0 <= Subset_projections.u0
               <= sig_of_sig2.u0
               <= Subset_projections2.u0
+  rew_pair.u0 <= eq_rect.u1
+  rew_pair.u1 <= eq_rect.u0
+  rew_pair.u2 <= eq_rect.u0
   rew_map.u0 <= eq_rect.u1
              <= Logic_lemmas.equality.u1
   rew_map.u1 <= eq_rect.u0
@@ -3939,10 +3975,10 @@ Normalized constraints:
                   <= Logic_lemmas.equality.u0
   eq_trans_map.u1 <= eq_rect.u0
                   <= Logic_lemmas.equality.u0
-  ProdSigT.u0 <= projections.u0
-              <= Projections.u0
-  ProdSigT.u1 <= projections.u1
-              <= Projections.u1
+  ProdSigT.u0 <= Projections.u0
+              <= projections.u0
+  ProdSigT.u1 <= Projections.u1
+              <= projections.u1
   map_subst.u0 <= eq_rect.u1
   map_subst.u1 <= eq_rect.u0
   map_subst.u2 <= eq_rect.u0
@@ -3969,8 +4005,6 @@ Normalized constraints:
               <= eq_rect_r.u1
   eq_existT_uncurried.u0 <= eq_rect.u1
   eq_existT_uncurried.u1 <= eq_rect.u0
-  CompSpec2Type.u0 <= CompSpec.u0
-                   <= CompSpecT.u0
   rew_compose.u0 <= eq_rect.u1
                  <= Logic_lemmas.equality.u0
   rew_compose.u1 <= eq_rect.u0
@@ -3983,6 +4017,8 @@ Normalized constraints:
   eq_id_comm_l.u0 <= Logic_lemmas.equality.u0
                   <= Logic_lemmas.equality.u1
                   <= eq_trans_sym_inv_l.u0
+  CompSpec2Type.u0 <= CompSpec.u0
+                   <= CompSpecT.u0
   eq_existT_curried.u0 <= eq_rect.u1
                        <= eq_sigT_uncurried.u0
   eq_existT_curried.u1 <= eq_rect.u0
