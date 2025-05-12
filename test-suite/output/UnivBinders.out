@@ -159,14 +159,14 @@ inmod@{uu} -> Type@{v}
 axfoo@{i u u0} : Type@{u} -> Type@{i}
 (* i u u0 |=  *)
 
-axfoo is universe polymorphic
+axfoo is universe polymorphic and cumulative
 Arguments axfoo _%_type_scope
 Expands to: Constant UnivBinders.axfoo
 Declared in library UnivBinders, line 152, characters 6-11
 axbar@{i u u0} : Type@{u0} -> Type@{i}
 (* i u u0 |=  *)
 
-axbar is universe polymorphic
+axbar is universe polymorphic and cumulative
 Arguments axbar _%_type_scope
 Expands to: Constant UnivBinders.axbar
 Declared in library UnivBinders, line 152, characters 17-22
