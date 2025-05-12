@@ -68,7 +68,7 @@ ssig@{q1 q2 q3 | a b |} :
 forall A : Type@{q1 | a}, (A -> Type@{q2 | b}) -> Type@{q3 | max(a,b)}
 (* q1 q2 q3 | a b |=  *)
 
-ssig is universe polymorphic
+ssig is universe polymorphic and cumulative
 ssig@{q1 q2 q3 | a b} may only be eliminated to produce values whose type is in sort quality q3,
   unless instantiated such that the qualities q1, q2 and Prop
   are equal to the instantiation of q3, or to qualities smaller
@@ -83,7 +83,7 @@ Warning: Use ';' instead of '|' to separate sort and universe binders.
 BoxP@{q | a |} : Type@{q | a} -> Prop
 (* q | a |=  *)
 
-BoxP is universe polymorphic
+BoxP is universe polymorphic and cumulative
 BoxP@{q | a} may only be eliminated to produce values whose type is SProp or Prop,
   unless instantiated such that the quality q is SProp or Prop.
 Arguments BoxP A%_type_scope
