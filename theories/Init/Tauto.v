@@ -33,11 +33,10 @@ Local Ltac axioms flags :=
 Local Ltac simplif flags :=
   not_dep_intros;
   repeat
-     (match reverse goal with
+     (axioms flags || match reverse goal with
       | id: ?X1 |- _ => is_conj flags X1; elim id; do 2 intro; clear id
       | id: (Corelib.Init.Logic.iff _ _) |- _ => elim id; do 2 intro; clear id
       | id: (Corelib.Init.Logic.not _) |- _ => red in id
-      | id: ?X1 |- _ => is_disj flags X1; elim id; intro; clear id
       | _ =>
         (* behaves as matching [ id0: ?X1 -> ?X2, id1: ?X1 |- _ ] with
            universe-aware conversion *)
@@ -64,6 +63,7 @@ Local Ltac simplif flags :=
         flatten_contravariant_disj flags X1 X2 id
   (* moved from "id:(?A\/?B)->?X2|-" to "?A->?X2,?B->?X2|-" *)
       | |- ?X1 => is_conj flags X1; split
+      | id: ?X1 |- _ => is_disj flags X1; elim id; intro; clear id
       | |- (Corelib.Init.Logic.iff _ _) => split
       | |- (Corelib.Init.Logic.not _) => red
       end;
