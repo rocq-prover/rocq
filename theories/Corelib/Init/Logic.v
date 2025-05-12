@@ -278,6 +278,7 @@ Register ex as core.ex.type.
 Register ex_intro as core.ex.intro.
 
 Section Projections.
+  Set Debug "backtrace".
 
   Variables (A:Prop) (P:A->Prop).
 
