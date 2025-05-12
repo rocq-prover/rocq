@@ -235,7 +235,7 @@ let do_sort ~poly l =
     let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in
     let ctx =
       UVars.UContext.make {quals=names; univs=[||]}
-        (UVars.Instance.of_array (qs,[||]), Constraints.empty)
+        (UVars.LevelInstance.of_array (qs,[||]), Constraints.empty)
     in
     Global.push_section_context ctx
 
