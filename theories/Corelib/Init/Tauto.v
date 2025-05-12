@@ -25,15 +25,23 @@ Local Ltac not_dep_intros :=
 
 Local Ltac axioms flags :=
   match reverse goal with
-    | |- ?X1 => is_unit_or_eq flags X1; constructor 1
+    | |- ?X1 => is_unit_or_eq flags X1; is_ground X1; constructor 1
+    | H:?X1 |- _ => is_empty flags X1; elim H
+    | H:?X1 |- ?X1 => exact H
+  end.
+
+Local Ltac eaxioms flags :=
+  match reverse goal with
+    | |- ?X1 => is_unit_or_eq flags X1 ;constructor 1
     | H:?X1 |- _ => is_empty flags X1; elim H
     | _ => assumption
   end.
 
+
 Local Ltac simplif flags :=
   not_dep_intros;
   repeat
-     (match reverse goal with
+     (axioms flags || match reverse goal with
       | id: ?X1 |- _ => is_conj flags X1; elim id; do 2 intro; clear id
       | id: (Corelib.Init.Logic.iff _ _) |- _ => elim id; do 2 intro; clear id
       | id: (Corelib.Init.Logic.not _) |- _ => red in id
@@ -71,7 +79,7 @@ Local Ltac simplif flags :=
 
 Local Ltac tauto_intuit flags t_reduce t_solver :=
  let rec t_tauto_intuit :=
- (simplif flags; axioms flags
+ (simplif flags; eaxioms flags
  || match reverse goal with
     | id:forall(_: forall (_: ?X1), ?X2), ?X3|- _ =>
   cut X3;

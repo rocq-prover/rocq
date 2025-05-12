@@ -242,3 +242,18 @@ Proof.
    intuition.
 Qed.
 
+(** Useless hypotheses
+(https://rocq-prover.zulipchat.com/#narrow/channel/237977-Rocq-users/topic/tauto.20hangs.20even.20though.20goal.20is.20an.20assumption) *)
+
+Lemma tauto_hang_nor_more
+  (P1 P2 P3 Q : Prop)
+  (H1 : ~ P1 -> ~ ~ P2 /\ ~ ~ P3)
+  (H2 : ~ P2 -> ~ ~ P1 /\ ~ ~ P3)
+  (H3 : ~ P3 -> ~ ~ P1 /\ ~ ~ P2)
+  (H'1 : ~ ~ P1 -> ~ ~ Q \/ ~ Q)
+  (H'2 : ~ ~ P2 -> ~ ~ Q \/ ~ Q)
+  (H'3 : ~ ~ P3 -> ~ ~ Q \/ ~ Q)
+  : ~ ~ P1 -> ~ ~ Q \/ ~ Q.
+Proof.
+  Timeout 1 tauto.
+Qed.
