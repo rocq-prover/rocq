@@ -1195,6 +1195,9 @@ let explain_not_match_error = function
       Sorts.QVar.raw_pr
       UnivNames.pr_level_with_global_universes
       incon
+  | IncompatibleQualities incon ->
+    str"the quality constraints are inconsistent: " ++
+    QGraph.explain_quality_inconsistency Sorts.QVar.raw_pr incon
   | IncompatiblePolymorphism (env, t1, t2) ->
     let t1, t2 = pr_explicit env (Evd.from_env env) (EConstr.of_constr t1) (EConstr.of_constr t2) in
     str "conversion of polymorphic values generates additional constraints: " ++

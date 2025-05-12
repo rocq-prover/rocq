@@ -129,17 +129,12 @@ module ElimConstraint : sig
 
   val compare : t -> t -> int
 
-  val trivial : t -> bool
-
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
 
   val raw_pr : t -> Pp.t
 end
 
 module ElimConstraints : sig include CSig.SetS with type elt = ElimConstraint.t
-
-  val trivial : t -> bool
-
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
 end
 

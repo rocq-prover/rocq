@@ -316,7 +316,7 @@ val is_head_evar : env -> evar_map -> constr -> bool
 exception AnomalyInConversion of exn
 
 (* inferred_universes just gathers the constraints. *)
-val inferred_universes : (UGraph.t * Univ.Constraints.t, UGraph.univ_inconsistency) Conversion.universe_compare
+val inferred_universes : (UGraph.t * QGraph.t * Univ.Constraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
 
 (** Deprecated *)
 

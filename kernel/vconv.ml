@@ -240,20 +240,20 @@ let vm_conv_gen (type err) cv_pb sigma env univs t1 t2 =
 
 let vm_conv cv_pb env t1 t2 =
   let univs = Environ.universes env in
-  let quals = Environ.qualities env in
+  let elims = Environ.qualities env in
   let b =
-    if cv_pb = CUMUL then Constr.leq_constr_univs quals univs t1 t2
-    else Constr.eq_constr_univs quals univs t1 t2
+    if cv_pb = CUMUL then Constr.leq_constr_univs elims univs t1 t2
+    else Constr.eq_constr_univs elims univs t1 t2
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
-    let ans : (UGraph.t, 'a option) result =
+    let state = ((univs, elims), checked_universes) in
+    let ans : (UGraph.t * QGraph.t, 'a option) result =
       NewProfile.profile "vm_conv" (fun () ->
           vm_conv_gen cv_pb (Genlambda.empty_evars env) env state t1 t2)
         ()
     in
     match ans with
-    | Result.Ok (_ : UGraph.t)-> Result.Ok ()
+    | Result.Ok (_ : UGraph.t * QGraph.t)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e

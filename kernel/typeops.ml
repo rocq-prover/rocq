@@ -45,7 +45,7 @@ let check_constraints cst env =
   else error_unsatisfied_constraints env cst
 
 let check_elim_constraints qcst env =
-  if Sorts.ElimConstraints.trivial qcst then ()
+  if QGraph.check_constraints qcst (Environ.qualities env) then ()
   else error_unsatisfied_elim_constraints env qcst
 
 (* This should be a type (a priori without intention to be an assumption) *)

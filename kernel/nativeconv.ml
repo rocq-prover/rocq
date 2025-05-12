@@ -200,18 +200,18 @@ let native_conv_gen pb sigma env univs t1 t2 =
 (* Wrapper for [native_conv] above *)
 let native_conv cv_pb sigma env t1 t2 =
   let univs = Environ.universes env in
-  let quals = Environ.qualities env in
+  let elims = Environ.qualities env in
   let b =
-    if cv_pb = CUMUL then Constr.leq_constr_univs quals univs t1 t2
-    else Constr.eq_constr_univs quals univs t1 t2
+    if cv_pb = CUMUL then Constr.leq_constr_univs elims univs t1 t2
+    else Constr.eq_constr_univs elims univs t1 t2
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
+    let state = ((univs, elims), checked_universes) in
     let t1 = Term.it_mkLambda_or_LetIn t1 (Environ.rel_context env) in
     let t2 = Term.it_mkLambda_or_LetIn t2 (Environ.rel_context env) in
     match native_conv_gen cv_pb sigma env state t1 t2 with
-    | Result.Ok (_ : UGraph.t) -> Result.Ok ()
+    | Result.Ok (_ : UGraph.t * QGraph.t) -> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some _) ->
       (* checked_universes cannot raise this *)

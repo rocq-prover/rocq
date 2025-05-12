@@ -48,7 +48,7 @@ val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
   'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)
-val checked_universes : (UGraph.t, 'err) universe_compare
+val checked_universes : (UGraph.t * QGraph.t, 'err) universe_compare
 
 (** These two functions can only fail with unit *)
 val conv : constr extended_conversion_function
@@ -63,3 +63,5 @@ val generic_conv : conv_pb -> l2r:bool
 
 val default_conv     : conv_pb -> types kernel_conversion_function
 val default_conv_leq : types kernel_conversion_function
+
+type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.quality_inconsistency

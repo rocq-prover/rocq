@@ -269,8 +269,6 @@ module ElimConstraint = struct
       if c <> 0 then c
       else Quality.compare b b'
 
-  let trivial (a,_,b) = Quality.equal a b
-
   let pr prq (a,k,b) =
     let open Pp in
     hov 1 (Quality.pr prq a ++ spc() ++ pr_kind k ++ spc() ++ Quality.pr prq b)
@@ -280,8 +278,6 @@ module ElimConstraint = struct
 end
 
 module ElimConstraints = struct include CSet.Make(ElimConstraint)
-  let trivial = for_all ElimConstraint.trivial
-
   let pr prq c =
     let open Pp in
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->

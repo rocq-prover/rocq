@@ -951,27 +951,31 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
       | NotConvertibleTrace _ -> assert false
   end ()
 
-let check_eq env univs u u' =
-  let quals = Environ.qualities env in
-  if UGraph.check_eq_sort quals univs u u' then Result.Ok univs else Result.Error None
+let check_eq univs elims u u' =
+  if UGraph.check_eq_sort elims univs u u'
+  then Result.Ok (univs,elims)
+  else Result.Error None
 
-let check_leq env univs u u' =
-  let quals = Environ.qualities env in
-  if UGraph.check_leq_sort quals univs u u' then Result.Ok univs else Result.Error None
+let check_leq univs elims u u' =
+  if UGraph.check_leq_sort elims univs u u'
+  then Result.Ok (univs,elims)
+  else Result.Error None
 
-let checked_sort_cmp_universes env pb s0 s1 univs =
+let checked_sort_cmp_universes _env pb s0 s1 (univs,elims) =
   match pb with
-  | CUMUL -> check_leq env univs s0 s1
-  | CONV -> check_eq env univs s0 s1
+  | CUMUL -> check_leq univs elims s0 s1
+  | CONV -> check_eq univs elims s0 s1
 
-let check_convert_instances ~flex:_ u u' univs =
-  if UGraph.check_eq_instances univs u u' then Result.Ok univs
+let check_convert_instances ~flex:_ u u' (univs,elims) =
+  if UGraph.check_eq_instances univs u u'
+  then Result.Ok (univs,elims)
   else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances cv_pb variance u1 u2 univs =
+let check_inductive_instances cv_pb variance u1 u2 (univs, elims) =
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.ElimConstraints.trivial qcsts && (UGraph.check_constraints ucsts univs) then Result.Ok univs
+  if QGraph.check_constraints qcsts elims && UGraph.check_constraints ucsts univs
+  then Result.Ok (univs, elims)
   else Result.Error None
 
 let checked_universes =
@@ -984,11 +988,13 @@ let () =
     try
       let box = Empty.abort in
       let univs = info_univs infos in
+      let elims = info_elims infos in
       let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box } in
-      let univs', _ = ccnv CONV false infos el_id el_id a b
-          (univs, checked_universes)
+      let (univs', elims'), _ = ccnv CONV false infos el_id el_id a b
+          ((univs, elims), checked_universes)
       in
       assert (univs==univs');
+      assert (elims==elims');
       true
     with
     | NotConvertible -> false
@@ -998,14 +1004,14 @@ let () =
 
 let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in
-  let quals = Environ.qualities env in
+  let elims = Environ.qualities env in
   let b =
-    if cv_pb = CUMUL then leq_constr_univs quals univs t1 t2
-    else eq_constr_univs quals univs t1 t2
+    if cv_pb = CUMUL then leq_constr_univs elims univs t1 t2
+    else eq_constr_univs elims univs t1 t2
   in
     if b then Result.Ok ()
-    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (univs, checked_universes) t1 t2 with
-    | Result.Ok (_ : UGraph.t * (UGraph.t, Empty.t) universe_compare)-> Result.Ok ()
+    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs ((univs, elims), checked_universes) t1 t2 with
+    | Result.Ok (_ : (UGraph.t * QGraph.t) * (UGraph.t * QGraph.t, Empty.t) universe_compare)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e
 
@@ -1022,3 +1028,5 @@ let default_conv cv_pb env t1 t2 =
     gen_conv ~typed:true cv_pb env t1 t2
 
 let default_conv_leq = default_conv CUMUL
+
+type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.quality_inconsistency
