@@ -48,16 +48,22 @@ val enforce_leq : Universe.t -> Universe.t -> t -> (t * level_equivalences) opti
 val enforce_lt : Universe.t -> Universe.t -> t -> (t * level_equivalences) option
 val enforce_constraint : univ_constraint -> t -> (t * level_equivalences) option
 
-exception InconsistentEquality
+(** Normalize a level to its canonical representative. 
+  This uses the internally maintained substitution from levels to universes.
+  @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
+val normalize : t -> Level.t -> Universe.t
 
+exception InconsistentEquality
 exception OccurCheck
+exception NotCanonical
 
 (** [set idx u model] substitutes universe [u] for all occurrences of [idx] in model, resulting
 in a set of constraints that no longer mentions [idx]. This is a stronger than [enforce_eq idx u],
 as the [idx] universe is dropped from the constraints altogether. Returns a list of universes
 that are also made equal by the new constraint and are also substituted by [u] in the resulting graph.
   @raise InconsistentEquality if setting [l = u] results in an unsatisfiable constraint
-  @raise OccurCheck if the universe contains the level, up to equivalence in the graph *)
+  @raise OccurCheck if the universe contains the level, up to equivalence in the graph
+  @raise NotCanonical if the given level to set is not canonical *)
 val set : Level.t -> Universe.t -> t -> t * level_equivalences
 
 type extended_constraint_type =

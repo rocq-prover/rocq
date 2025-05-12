@@ -1016,6 +1016,15 @@ let rec canonical_repr m (u, k) =
 and canonical_premises_repr m p = 
   NeList.concat_map (canonical_repr m) p
 
+let expr_of_can_premise m (can, k) = (Index.repr can.canon m.table, k)  
+let expr_of_premise m (idx, k) = (Index.repr idx m.table, k)  
+
+let univ_of_can_expr_list model u = Universe.unrepr (List.map (expr_of_can_premise model) u)
+
+let univ_of_can_premises model u = Universe.unrepr (NeList.to_list (NeList.map (expr_of_can_premise model) u))
+
+let univ_of_premises model u = Universe.unrepr (NeList.to_list (NeList.map (expr_of_premise model) u))
+
 let rec canonical_premise m (u, k) : Premises.t =
   match PMap.find u m.entries with
   | can -> NeList.Tip (can.canon, k)
@@ -1025,6 +1034,13 @@ let rec canonical_premise m (u, k) : Premises.t =
     | exception Not_found -> raise (Undeclared (Index.repr u m.table))
 and canonical_premises m p = 
   NeList.Smart.concat_map (canonical_premise m) p
+
+let normalize m l =
+  let idx = Index.find l m.table in
+  let prems = canonical_premise m (idx, 0) in
+  match prems with
+  | NeList.Tip (can, _k) -> if Index.equal can idx then Universe.make l else univ_of_premises m prems
+  | _ -> univ_of_premises m prems
 
 let normalize_subst model =
   let subst = 
@@ -2655,14 +2671,18 @@ let filter_trivial_can_clause m ((prems, (concl, k as conclk)) : can_clause) : c
   if NeList.exists (fun (prem, k') -> prem == concl && k' >= k) prems then
     None
   else
-    (* Filter out `Set` from max(Set, u) -> v constraints *)
-    let canset = Index.find Level.set m.table in
-    let prems =
-      match NeList.filter (fun (prem, k) -> not (Index.equal prem.canon canset && Int.equal k 0)) prems with
-      | Some prems -> prems (* There were at least two premises in the rule *)
-      | None -> prems
-    in
-    Some (prems, conclk)
+    let filter (prem, k') = not (prem == concl && k' >= k) in
+    match Premises.filter filter prems with
+    | None -> (* We removed the only trivial premise (concl, k') -> concl, k *) None
+    | Some prems ->    
+      (* Filter out `Set` from max(Set, u) -> v constraints *)
+      let canset = Index.find Level.set m.table in
+      let prems =
+        match NeList.filter (fun (prem, k) -> not (Index.equal prem.canon canset && Int.equal k 0)) prems with
+        | Some prems -> prems (* There were at least two premises in the rule *)
+        | None -> prems
+      in
+      Some (prems, conclk)
 
 let enforce_leq_can u v m =
   match filter_trivial_can_clause m (v, u) with
@@ -2820,10 +2840,8 @@ type extended_constraint_type =
 
 type explanation = Universe.t * (extended_constraint_type * Universe.t) list
 
-let to_expr model (can, k) = (Index.repr can.canon model.table, k)
-
-let to_exprs model (hd, p) =
-  (Universe.of_expr (to_expr model hd), List.map (fun (d, e) -> (d, Universe.of_expr (to_expr model e))) p)
+let univs_of_can_premises model (hd, p) =
+  (Universe.of_expr (expr_of_can_premise model hd), List.map (fun (d, e) -> (d, Universe.of_expr (expr_of_can_premise model e))) p)
 
 let normalize_path p =
   let min = List.fold_left (fun k (_, k') -> min k k') 0 p in
@@ -2858,9 +2876,6 @@ let canonical_repr_level_expr_eq m (u, k) =
     else NeList.Tip (None, e)
   | e -> NeList.map (fun x -> (None, x)) e
 
-let unrepr_can_premise m (can, k) = 
-  (Index.repr can.canon m.table, k)
-
 let can_clause_of_clause_eqs m (prems, concl) =
   let prems = NeList.of_list prems in
   let prems = NeList.concat_map (fun prem -> canonical_repr_level_expr_eq m prem) prems in
@@ -2869,7 +2884,7 @@ let can_clause_of_clause_eqs m (prems, concl) =
       let gete (premeq, (can, k)) =
         match premeq with
         | Some e -> e
-        | None -> unrepr_can_premise m (can, k)
+        | None -> expr_of_can_premise m (can, k)
       in
       Some (NeList.map gete prems)
     else None
@@ -2890,11 +2905,11 @@ let get_explanation ((l, k, r) : univ_constraint) model : explanation =
     match expl with
     | [] -> None
     | p :: _ps ->
-      match (to_exprs model (normalize_path (List.rev p))) with
+      match (univs_of_can_premises model (normalize_path (List.rev p))) with
       | (preme, []) -> (* Self loop *)
         let concleqs = match eqconcl with
-          | Some e -> [ULe, Universe.of_expr (to_expr model concl); UEq, Universe.of_expr e]
-          | None -> [ULe, Universe.of_expr (to_expr model concl)]
+          | Some e -> [ULe, Universe.of_expr (expr_of_can_premise model concl); UEq, Universe.of_expr e]
+          | None -> [ULe, Universe.of_expr (expr_of_can_premise model concl)]
         in
         let prem, premeqs = match eqprems with
           | Some e -> (Universe.of_list (NeList.to_list e), [ULe, preme])
@@ -2948,8 +2963,6 @@ let merge_clauses premsfwd can cank premsbwd concl conclk =
 let repr_clause model (prems, concl) =
   (NeList.concat_map (canonical_repr model) prems, canonical_repr model concl)
 
-let unrepr_univ model u = Universe.unrepr (List.map (to_expr model) u)
-
 let level_expr_of_premise model (idx, k) = (Index.repr idx model.table, k)
 
 let level_exprs_of_premises model prems = 
@@ -2961,17 +2974,17 @@ let univ_of_premises model u =
 let repr_univ model u = 
   NeList.concat_map (canonical_repr_level_expr model) (NeList.of_list (Universe.repr u))
 
-(** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid *)
+(** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid. *)
 let filter_trivial_clause m (prems, (concl, k as conclk)) =
   (* Trivial ... u + k + n ... -> u + k clause *)
   if NeList.exists (fun (prem, k') -> Index.equal prem concl && k' >= k) prems then None
   else
-    let canset = Index.find Level.set m.table in
-    let filter (prem, _k') = not (Index.equal prem concl (* k' < k *)) in
+    let filter (prem, k') = not (Index.equal prem concl && k' >= k) in
     match Premises.filter filter prems with
     | None -> (* We removed the only trivial premise (concl, k') -> concl, k *) None
     | Some prems ->
       (* Filter out `Set` from max(Set, u) -> v constraints *)
+      let canset = Index.find Level.set m.table in
       let prems =
         match NeList.filter (fun (prem, k) -> not (Index.equal prem canset && Int.equal k 0)) prems with
         | Some prems -> prems (* There were at least two premises in the rule *)
@@ -3090,7 +3103,7 @@ let minimize_can can k model =
         let model, equivs = set_can (can,k) u model in
         debug_check_invariants model;
         _debug_minim Pp.(fun () -> str"Removed " ++ pr_can model can ++ str ", new model: " ++ pr_clauses_all model);
-        HasSubst (model, equivs, unrepr_univ model glb)
+        HasSubst (model, equivs, univ_of_can_expr_list model glb)
       with InconsistentEquality -> CannotSimplify
     else CannotSimplify
 
@@ -3114,7 +3127,7 @@ let maximize_can can model =
       let ubound = repr_premises model ubound in
       try 
         let model, equivs = set_can (can, 0) ubound model in
-        HasSubst (model, equivs, unrepr_univ model (NeList.to_list ubound))
+        HasSubst (model, equivs, univ_of_can_premises model ubound)
       with InconsistentEquality -> CannotSimplify
     else CannotSimplify
 
@@ -3123,10 +3136,11 @@ let maximize level model =
   | exception Not_found -> CannotSimplify
   | can -> maximize_can can model
 
-let remove_bwd_clauses_from model idx other =
+let remove_bwd_clauses_from model idx k other =
   let can = repr model idx in
   let bwd = can.clauses_bwd in
-  let bwd' = ClausesOf.filter (fun (_, _, prems) ->
+  let bwd' = ClausesOf.filter (fun (kconcl, _, prems) ->
+    not (Int.equal kconcl k) ||
     match prems with
     | NeList.Tip (prem, 0) -> not (Index.equal prem other)
     | _ -> true) bwd
@@ -3153,7 +3167,7 @@ let remove_set_clauses_can can model =
       let fwd = replace_bwd prems 0 setidx fwd in
       let model = change_node model { can with clauses_fwd = fwd } in
       (* Filter out u -> Set + 0 constraints *)
-      remove_bwd_clauses_from model setidx can.canon
+      remove_bwd_clauses_from model setidx 0 can.canon
 
 let remove_set_clauses l model =
   match repr model (Index.find l model.table) with
@@ -3247,17 +3261,21 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
   let keptp = Level.Set.fold (fun u accu -> PSet.add (Index.find u model.table) accu) kept PSet.empty in
   (* rmap: partial map from canonical points to kept points *)
   let rmap, csts = PSet.fold (fun u (rmap,csts) ->
-    let arcu = repr model u in
+    let arcu = canonical_repr model (u, 0) in
+    let arcu, k = match arcu with 
+      | NeList.Tip cank -> cank
+      | NeList.Cons _ -> raise NotCanonical
+    in
     if PSet.mem arcu.canon keptp then
       let csts =
         if Index.equal u arcu.canon then csts
         else
-          add_cst (NeList.tip (u, 0)) Eq (NeList.tip (arcu.canon, 0)) csts
+          add_cst (NeList.tip (u, 0)) Eq (NeList.tip (arcu.canon, k)) csts
       in
       PMap.add arcu.canon arcu.canon rmap, csts
     else
       match PMap.find arcu.canon rmap with
-      | v -> rmap, add_cst (NeList.tip (u, 0)) Eq (NeList.tip (v, 0)) csts
+      | v -> rmap, add_cst (NeList.tip (u, 0)) Eq (NeList.tip (v, k)) csts
       | exception Not_found -> PMap.add arcu.canon u rmap, csts)
     keptp (PMap.empty, accu)
   in

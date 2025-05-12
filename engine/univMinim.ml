@@ -141,13 +141,14 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
       update_equivs_bound (ctx, us, variances, graph) u ubound equivs
     | NoBound | CannotSimplify -> acc
   in
-  let arbitrary u (ctx, us, variances, graph as acc) =
+  let arbitrary ~allow_collapse u (ctx, us, variances, graph as acc) =
     match UGraph.minimize u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound ++ str" and graph " ++ UGraph.pr_model graph);
       update_equivs_bound (ctx, us, variances, graph) u lbound equivs
     | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
-      collapse_to_zero u acc
+      if allow_collapse then collapse_to_zero u acc
+      else maximize u acc
     | CannotSimplify -> maximize u acc
   in
   let simplify_impred u acc = function
@@ -163,7 +164,7 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
     if typing_variance == Irrelevant then
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
       match type_variance with
-      | Irrelevant -> arbitrary u acc
+      | Irrelevant -> arbitrary ~allow_collapse:true u acc
       | Covariant -> minimize u acc
       | Contravariant -> acc (* Do not maximize at first, as it would break the template hacks with max (0, ...) *)
       | Invariant -> acc
@@ -200,7 +201,7 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
   if solve_flexibles then
     let fold_arbitrary u (ctx, us, variances, graph as acc) =
       if UnivFlex.is_defined u us then acc
-      else arbitrary u acc
+      else arbitrary ~allow_collapse:false u acc
     in
     Level.Set.fold fold_arbitrary dom acc
   else acc

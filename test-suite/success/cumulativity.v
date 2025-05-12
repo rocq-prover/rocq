@@ -120,10 +120,6 @@ Fail Definition checkcumul' :=
 (* An inductive type with an irrelevant universe *)
 Inductive foo@{i} : Type@{i} := mkfoo { }.
 
-
-Set Debug "UnivVariances".
-Set Debug "univMinim".
-
 Definition bar := foo.
 
 (* The universe on mkfoo is flexible and should be unified with i. *)

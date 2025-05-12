@@ -596,10 +596,13 @@ let pretype_ref ?loc sigma env ref us tycon =
   | ref ->
     let inst =
       match ref with
-      | GlobRef.ConstructRef c ->
+      | GlobRef.ConstructRef (ind, c) ->
         (match tycon with
         | Some ty ->
-          (try let ((ind, u), pars) = find_mrectype !!env sigma ty in Inferred (EInstance.kind sigma u)
+          (try let ((ind', u), pars) = find_mrectype !!env sigma ty in
+            if Names.eq_ind_chk ind ind' then (* Only applies if no coercion is needed *)
+              Inferred (EInstance.kind sigma u)
+            else Global us
            with Not_found -> Global us)
         | None -> Global us)
       | _ -> Global us

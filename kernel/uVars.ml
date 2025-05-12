@@ -391,7 +391,7 @@ struct
     let binders_term_variance = Variance.sup variance_in_binders (Option.default Irrelevant vocc.in_term) in
     let typing_variance =
       if binders_term_variance == Irrelevant then Irrelevant
-      else if with_type then Variance.sup variance_in_binders (Option.default Irrelevant vocc.in_type)
+      else if with_type then Variance.sup binders_term_variance (Option.default Irrelevant vocc.in_type)
       else binders_term_variance
     in
     let cumul_variance =
