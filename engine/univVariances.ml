@@ -79,10 +79,14 @@ let compute_variances_context env sigma ?(position = fun x -> Position.InBinder 
   debug Pp.(fun () -> str"Variances in context: " ++ Inf.pr (Termops.pr_evd_level sigma) variances);
   variances
 
-let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.InBinder i)  ?(ctx_cumul_pb=InvCumul) ?(cumul_pb=Cumul) status c =
+let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=InvCumul) ?(cumul_pb=Cumul) status c =
   let ctx, c = Term.decompose_lambda_decls c in
   let status = compute_variances_context_constr env sigma ~position:ctx_position ~cumul_pb:ctx_cumul_pb status (Vars.smash_rel_context ctx) in
-  compute_variances_constr (Environ.push_rel_context ctx env) sigma status InTerm cumul_pb c
+  let status = Inf.set_position Position.InTerm status in
+  try infer_body cumul_pb (Environ.push_rel_context ctx env) ~evars:(Evd.evar_handler sigma) ~shift:(Context.Rel.nhyps ctx) status c
+  with
+  | InferCumulativity.BadVariance (lev, expected, actual) ->
+    Type_errors.error_bad_variance env ~lev ~expected ~actual
 
 let compute_variances_body env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=InvCumul) ?(cumul_pb=Cumul) status c =
   compute_variances_body_constr env sigma ~ctx_position ~ctx_cumul_pb ~cumul_pb status (EConstr.to_constr ~abort_on_undefined_evars:false sigma c)
@@ -199,10 +203,12 @@ let register_universe_variances_of_fix env sigma types bodies =
   let status = List.fold_left2 (fun status typ body ->
     let status = compute_variances_type env sigma status typ in
     (* The universes in the fixpoint will end up in the term *)
-    Option.fold_left (compute_variances_body env sigma ~ctx_position:(fun _ -> Position.InTerm) ~ctx_cumul_pb:Conv ~cumul_pb:Conv) status body)
-    status types bodies in
-    (* let status = compute_variances_type env sigma status typ in *)
-    (* Option.fold_left (compute_variances_body env sigma) status body) status types bodies in *)
+    Option.fold_left (fun status b -> 
+      debug Pp.(fun () -> str"register_universe_variances_of_fix, body: " ++ Termops.Internal.print_constr_env env sigma b);
+      compute_variances_body env sigma ~ctx_position:(fun i -> Position.InTopFixBinder i) ~ctx_cumul_pb:InvCumul ~cumul_pb:Conv status b) status body)
+    status types bodies 
+  in
+  debug Pp.(fun () -> str"register_universe_variances_of_fix finished with: " ++ Inf.pr Level.raw_pr status);
   finalize sigma status
 
 let register_universe_variances_of_proofs env sigma proofs =

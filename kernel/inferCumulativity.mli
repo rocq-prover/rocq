@@ -23,6 +23,7 @@ type infer_binders = (mode * (Variance.t option * int list))
 
 type infer_variance_occurrence =
   { infer_binders : infer_binders;
+    infer_topfix_binders : infer_binders;
     infer_term : mode * UVars.Variance.t option;
     infer_type : mode * UVars.Variance.t option;
     infer_variance : Variance.t;
@@ -61,9 +62,6 @@ val union_variances : variances -> variances -> variances
 val term_type_variances : infer_variance_occurrence ->
     Variance.t option * Variance.t option * Variance.t
 
-(* Compute the variance in the binders and term and separately, the variance in the type *)
-val binders_term_and_type_variances : infer_variance_occurrence -> Variance.t option * Variance.t option * bool
-
 val of_variance_occurrences : infer_in_type:bool -> pre_variances -> variances
 
 module Inf : sig
@@ -94,6 +92,16 @@ val infer_term
   -> Environ.env
   (** Environment containing the polymorphic universes *)
   -> evars:CClosure.evar_handler
+  -> Inf.status
+  -> Constr.t
+  -> Inf.status
+
+val infer_body
+  : cumul_pb
+  -> Environ.env
+  (** Environment containing the polymorphic universes *)
+  -> evars:CClosure.evar_handler
+  -> shift:int (* Shifting for binder indices in variances *)
   -> Inf.status
   -> Constr.t
   -> Inf.status

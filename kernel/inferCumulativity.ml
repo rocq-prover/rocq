@@ -63,7 +63,7 @@ let default_occ =
     infer_under_impred_qvars = None }
 
 let make_checked_occ ~infer_in_type
-  UVars.VarianceOccurrence.{ in_binders; in_term; in_type; under_impred_qvars } =
+  UVars.VarianceOccurrence.{ in_binders; in_topfix_binders; in_term; in_type; under_impred_qvars } =
   { infer_binders = ((if infer_in_type then Infer else Check), in_binders);
     infer_topfix_binders = Check, in_topfix_binders;
     infer_term = Check, in_term;
@@ -72,9 +72,10 @@ let make_checked_occ ~infer_in_type
     infer_under_impred_qvars = under_impred_qvars }
 
 let forget_infer_variance_occurrence
-  { infer_binders; infer_term; infer_type;
+  { infer_binders; infer_topfix_binders; infer_term; infer_type;
     infer_variance = _; infer_under_impred_qvars = impred_qvars } =
   UVars.VarianceOccurrence.{ in_binders = snd infer_binders;
+    in_topfix_binders = snd infer_topfix_binders;
     in_term = (snd infer_term);
     in_type = snd infer_type;
     under_impred_qvars = impred_qvars }
@@ -85,10 +86,10 @@ let of_variance_occurrences ~infer_in_type (vs : (Level.t * UVars.VarianceOccurr
 
 let pr_variance_occurrence (occ : infer_variance_occurrence) =
   let open Pp in
-  let pr_binders (m, (v, bs)) =
+  let pr_binders is_fix (m, (v, bs)) =
     if List.is_empty bs then [] else
     [spc () ++ pr_mode m ++ str":" ++ pr_opt Variance.pr v ++ spc () ++ str "in" ++ spc () ++
-      prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) bs ++ str (String.plural (List.length bs) " binder")] in
+      prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) bs ++ (if is_fix then str" fix " else mt()) ++ str (String.plural (List.length bs) " binder")] in
   let pr_term (m, v) = [spc () ++ pr_mode m ++ str": " ++ pr_opt Variance.pr v ++ str" in term"] in
   let pr_type (m, v) = [spc () ++ pr_mode m ++ str": " ++ pr_opt Variance.pr v ++ str" in type"] in
   let pr_infer_variance = [str"in " ++ Variance.pr occ.infer_variance ++ str" position for typing"] in
@@ -97,7 +98,7 @@ let pr_variance_occurrence (occ : infer_variance_occurrence) =
     | Some _ as x -> [UVars.pr_impred_qvars x]
     | None -> []
   in
-  let variances = pr_infer_variance @ pr_binders occ.infer_binders @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred in
+  let variances = pr_infer_variance @ pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred in
     if List.is_empty variances then mt ()
     else hov 0 (str"(" ++ prlist_with_sep pr_comma identity variances ++ str")")
 
@@ -106,6 +107,8 @@ let make_infer_occ (variance, position) =
   match position with
   | InBinder i ->
     { default_occ with infer_binders = (Check, (Some variance, [i])) }
+  | InTopFixBinder i ->
+    { default_occ with infer_topfix_binders = (Check, (Some variance, [i])) }
   | InType ->
     { default_occ with infer_type = Check, Some variance }
   | InTerm ->
@@ -139,19 +142,24 @@ let rec union_binders l1 l2 =
     then i1 :: union_binders t1 l2
     else i2 :: union_binders l1 t2
 
-let sup_occs { infer_binders = (mode, (bindersv, binders)); infer_term; infer_type;
+
+let sup_binders (mode, (bindersv, binders)) (mode', (bindersv', binders')) =
+  (mode_sup mode mode', (Option.union Variance.sup bindersv bindersv', union_binders binders binders'))
+
+let sup_occs { infer_binders; infer_topfix_binders; infer_term; infer_type;
    infer_variance; infer_under_impred_qvars }
-  { infer_binders = (mode', (bindersv', binders')); infer_term = infer_term';
+  { infer_binders = infer_binders'; infer_topfix_binders = infer_topfix_binders'; infer_term = infer_term';
     infer_type = infer_type';
     infer_variance = infer_variance';
     infer_under_impred_qvars = infer_under_impred_qvars' } =
-  let infer_binders = (mode_sup mode mode', (Option.union Variance.sup bindersv bindersv', union_binders binders binders')) in
+  let infer_binders = sup_binders infer_binders infer_binders' in
+  let infer_topfix_binders = sup_binders infer_topfix_binders infer_topfix_binders' in
   let mode_var_sup (mode, v) (mode', v') = (mode_sup mode mode', Option.union Variance.sup v v') in
   let infer_term = mode_var_sup infer_term infer_term' in
   let infer_type = mode_var_sup infer_type infer_type' in
   let infer_variance = Variance.sup infer_variance infer_variance' in
   let infer_under_impred_qvars = union_impred_qvars infer_under_impred_qvars infer_under_impred_qvars' in
-  { infer_binders; infer_term; infer_type;
+  { infer_binders; infer_topfix_binders; infer_term; infer_type;
     infer_variance; infer_under_impred_qvars }
 
 let union_variances : variances -> variances -> variances =
@@ -177,41 +185,28 @@ let binder_pos (infer_binders, pos) =
     | Some i -> Some (i, v)
 
 let occurrence_to_variance_pos
-  ({ infer_binders = (modeb, infer_binders); infer_term = (modet, infer_term);
+  ({ infer_binders = (modeb, infer_binders); 
+     infer_topfix_binders = (modef, infer_fix_binders);
+     infer_term = (modet, infer_term);
      infer_type = (modety, infer_type); infer_variance = _;
      infer_under_impred_qvars = _ } : infer_variance_occurrence) =
   let open Position in
+  let infer_binders = 
+    let (v, b) = infer_binders in
+    let (v', b') = infer_fix_binders in
+    sup_vopt v (Option.map (fun _ -> Invariant) v'), b @ b'
+  in
   let binders = binder_pos infer_binders in
   match binders, infer_term, infer_type with
   | in_binder, Some v, _ when (v <> Variance.Irrelevant) ->
-     (mode_sup modeb modet, (Option.get (sup_vopt (Option.map snd in_binder) (Some v)), InTerm))
+     (mode_sup (mode_sup modeb modef) modet, (Option.get (sup_vopt (Option.map snd in_binder) (Some v)), InTerm))
   | Some (i, v), _, _ when v <> Irrelevant -> (modeb, (v, InBinder i))
   | _, _, infer_type -> (modety, (Option.default Irrelevant infer_type, InType))
 
 let term_type_variances
-  ({ infer_binders = (_, (infer_binders, _)); infer_term = (_, infer_term); infer_type = (_, infer_type);
+  ({ infer_binders = (_, (infer_binders, _)); infer_topfix_binders = (_, (infer_fix_binders, _)); infer_term = (_, infer_term); infer_type = (_, infer_type);
      infer_variance; infer_under_impred_qvars = _ } : infer_variance_occurrence) =
-  let sup_opt x y =
-    match x, y with
-    | None, None -> x
-    | Some _, None -> x
-    | None, Some _ -> y
-    | Some v, Some v' -> Some (UVars.Variance.sup v v')
-  in
-  infer_term, sup_opt infer_binders infer_type, infer_variance
-
-let binders_term_and_type_variances ({ infer_binders = (_, (infer_binders, _)); infer_term = (_, infer_term);
-  infer_type = (_, infer_type);
-  infer_variance; infer_under_impred_qvars = _ } : infer_variance_occurrence) =
-  let sup_opt x y =
-    match x, y with
-    | None, None -> x
-    | Some _, None -> x
-    | None, Some _ -> y
-    | Some v, Some v' -> Some (UVars.Variance.sup v v')
-  in
-  sup_opt infer_binders infer_term, infer_type, infer_variance != Irrelevant
-
+  sup_vopt (Option.map (fun _ -> Invariant) infer_fix_binders) infer_term, sup_vopt infer_binders infer_type, infer_variance
 
 type pre_variances = (Univ.Level.t * VarianceOccurrence.t option) array
 type infer_variance_occurrences = infer_variance_occurrence array
@@ -272,6 +267,9 @@ end = struct
       | InBinder _ ->
         let (mode, (v, _)) = occ.infer_binders in
         Some (mode, Option.default Irrelevant v)
+      | InTopFixBinder _ ->
+        let (mode, (v, _)) = occ.infer_topfix_binders in
+        Some (mode, Option.default Irrelevant v)
       | InTerm -> let (mode, v) = occ.infer_term in
         Some (mode, Option.default Irrelevant v)
       | InType -> let (mode, v) = occ.infer_type in
@@ -300,6 +298,10 @@ end = struct
           let (mode, binders) = occs.infer_binders in
           { occs with infer_binders = (mode, update_binder_variance binders i variance);
             infer_variance; infer_under_impred_qvars }
+        | InTopFixBinder i ->
+          let (mode, binders) = occs.infer_topfix_binders in
+          { occs with infer_topfix_binders = (mode, update_binder_variance binders i variance);
+            infer_variance; infer_under_impred_qvars }            
         | InTerm ->
           let (mode, _) = occs.infer_term in
           { occs with infer_term = (mode, Some variance);
@@ -344,9 +346,13 @@ end = struct
     let univs = Level.Set.fold (fun level -> Level.Map.add level default_occ) levels Level.Map.empty in
     { univs; orig_array = [||]; infer_mode=true; position}
 
-let variance_occurrence_to_variance_pos VarianceOccurrence.{ in_binders; in_term; in_type; under_impred_qvars = _ } =
+let variance_occurrence_to_variance_pos VarianceOccurrence.{ in_binders; in_topfix_binders; in_term; in_type; under_impred_qvars = _ } =
   let open Position in
   let binders = binder_pos in_binders in
+  let in_term = 
+    let (v, _b) = in_topfix_binders in
+    sup_vopt (Option.map (fun _ -> Invariant) v) in_term
+  in
   match binders, in_term, in_type with
   | in_binder, Some v, _ when (v <> Variance.Irrelevant) -> (Option.get (sup_vopt (Option.map snd in_binder) (Some v)), InTerm)
   | Some (i, v), _, _ when v <> Irrelevant -> (v, InBinder i)
@@ -710,9 +716,9 @@ let infer_named_context env ~evars variances ctx =
   let _env, sec_binders, variances = Context.Named.fold_outside infer_typ ctx ~init:(env, 0, variances) in
   sec_binders, variances
 
-let infer_context env ~evars ?(shift = 0) variances ctx =
+let infer_context env ~evars ?(shift = 0) ?(binder_pos = fun i -> Position.InBinder i) variances ctx =
   let infer_typ typ (env, i, variances) =
-    let variances = Inf.set_position (Position.InBinder i) variances in
+    let variances = Inf.set_position (binder_pos i) variances in
     match typ with
     | Context.Rel.Declaration.LocalAssum (_, typ') ->
       (Environ.push_rel typ env, succ i,
@@ -748,11 +754,37 @@ let whd_decompose_prod env ?(evars = CClosure.default_evar_handler env) c =
   in
   decrec env Context.Rel.empty c
 
-let infer_body env ~evars ~shift variances body =
+let whd_decompose_fix env ?(evars = CClosure.default_evar_handler env) c =
+  let infos = infer_infos env ~evars in
+  let t = CClosure.whd_val (fst infos) (snd infos) (CClosure.inject c) in
+  match kind t with
+  | Fix (recinfo, defs) -> Some (recinfo, defs)
+  | _ -> None
+
+let infer_body cumul_pb env ~evars ~shift variances body =
   let ctx, body = whd_decompose_lambda ~evars env body in
   let env, variances = infer_context env ~evars ~shift variances ctx in
-  let variances = Inf.set_position Position.InTerm variances in
-  infer_term Cumul env ~evars variances body
+  let shift = Context.Rel.nhyps ctx + shift in
+  match whd_decompose_fix env ~evars body with
+  | Some (_, (_, tys, bodies as defs)) ->
+    debug Pp.(fun () -> str"Fix decomposition in infer_body");
+    let fixenv = Environ.push_rec_types defs env in
+    let one_fix variances ty body =
+      let fixctx, fixty = whd_decompose_prod ~evars env ty in
+      let onefixenv, variances = infer_context env ~evars ~shift ~binder_pos:(fun i -> Position.InTopFixBinder i) variances fixctx in
+      let variances = Inf.set_position Position.InType variances in
+      let variances = infer_term Cumul onefixenv ~evars variances fixty in
+      let fixlamctx, body = whd_decompose_lambda ~evars env body in
+      let bodyenv, variances = infer_context fixenv ~evars ~shift ~binder_pos:(fun i -> Position.InTopFixBinder i) variances fixlamctx in
+      let variances = Inf.set_position Position.InTerm variances in
+      infer_term Conv bodyenv ~evars variances body
+    in
+    let variances = Array.fold_left2 one_fix variances tys bodies in
+    debug Pp.(fun () -> str"infer_body finished with " ++ Inf.pr Level.raw_pr variances);
+    variances
+  | None -> 
+    let variances = Inf.set_position Position.InTerm variances in
+    infer_term cumul_pb env ~evars variances body
 
 let infer_type env ~evars ?(shift = 0) variances arcn =
   let ctx, codom = whd_decompose_prod ~evars env arcn in
@@ -774,7 +806,7 @@ let infer_definition_core env ?(evars = CClosure.default_evar_handler env) ~infe
     str " and body; " ++ pr_opt Constr.debug_print body);
   let variances = infer_type env ~evars ~shift variances typ in
   debug Pp.(fun () -> str"infer_definition after type: " ++ Inf.pr Level.raw_pr variances);
-  let variances = Option.cata (infer_body env ~evars ~shift variances) variances body in
+  let variances = Option.cata (infer_body Cumul env ~evars ~shift variances) variances body in
   debug Pp.(fun () -> str"infer_definition finished with: " ++ Inf.pr Level.raw_pr variances);
   shift, Inf.finish env variances
 

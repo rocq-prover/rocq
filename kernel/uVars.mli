@@ -57,6 +57,7 @@ module Position :
 sig
   type t =
   | InBinder of int
+  | InTopFixBinder of int
   | InTerm | InType
 
   val equal : t -> t -> bool
@@ -104,7 +105,7 @@ sig
   (** Irrelevance and not appearing are represented both by [None] *)
   type t =
     { in_binders : Variance.t option * int list;
-      in_fix_binders : Variance.t option * int list;
+      in_topfix_binders : Variance.t option * int list;
       (** Supremum of the variances, binders where the level occurs *)
       in_term : Variance.t option;
       in_type : Variance.t option;
@@ -121,9 +122,7 @@ sig
   val equal : t -> t -> bool
 
   val term_variance : t -> Variance.t
-
-  (* val term_variance_pos : t -> VariancePos.t *)
-
+  
   val typing_and_cumul_variance : nargs:int -> t -> Variance.t * Variance.t
 
   val typing_and_cumul_variance_app : ?with_type:bool -> application -> t -> Variance.t * Variance.t

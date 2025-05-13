@@ -310,12 +310,12 @@ and ind_or_type =
 let array_variances : UVars.variances =
   let open VarianceOccurrence in
   UVars.(Variances.make
-    [| { in_binders = Some Variance.Irrelevant, [0]; in_fix_binders = None, []; in_term = None; in_type = None; under_impred_qvars = Some Predicative } |])
+    [| { in_binders = Some Variance.Irrelevant, [0]; in_topfix_binders = None, []; in_term = None; in_type = None; under_impred_qvars = Some Predicative } |])
 
 let array_univs : AbstractContext.t * Variances.t option =
   let open VarianceOccurrence in
   AbstractContext.make { quals = [||]; univs = Names.[|Name (Id.of_string "u")|]} Constraints.empty,
-  Some (Variances.make [| { in_binders = Some Variance.Contravariant, [0]; in_fix_binders = None, []; in_term = None; in_type = Some Variance.Covariant;
+  Some (Variances.make [| { in_binders = Some Variance.Contravariant, [0]; in_topfix_binders = None, []; in_term = None; in_type = Some Variance.Covariant;
     under_impred_qvars = Some Predicative } |])
 
 let typ_univs (type a) (t : a prim_type) = match t with
@@ -478,7 +478,8 @@ let nparams x = List.length (params x)
 let array_ops_univs : AbstractContext.t * Variances.t option =
   let open VarianceOccurrence in
   AbstractContext.make { quals = [||]; univs = Names.[|Name (Id.of_string "u")|] } Constraints.empty,
-  Some (Variances.make [| { in_binders = Some Variance.Contravariant, [0]; in_term = None; in_type = None;
+  Some (Variances.make [| { in_binders = Some Variance.Contravariant, [0];
+    in_topfix_binders = None, []; in_term = None; in_type = None;
     under_impred_qvars = Some Predicative } |])
 
 let univs = function
