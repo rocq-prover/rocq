@@ -375,8 +375,8 @@ let variance_occurrence_to_variance_pos VarianceOccurrence.{ in_binders; in_term
             to_variance_opt u expected occ)
           variances.orig_array
       in
-      let vs, apps = Array.split arr in
-      Variances.make_full vs (ApplicationVariances.of_array apps)
+      let vs, _apps = Array.split arr in
+      Variances.make vs
   with BadVariance (lev, expected, actual) ->
     Type_errors.error_bad_variance env ~lev ~expected ~actual
 
