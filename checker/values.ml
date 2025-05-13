@@ -342,17 +342,13 @@ let v_typing_flags =
       v_bool; v_bool; v_bool; v_bool; v_bool|]
 
 let v_variance = v_enum "variance" 4
-let v_position = v_sum "position" 2 [| [| v_int |]  |]
-
-let v_application_variances = v_array (v_pair v_variance v_position)
-
 let v_impred_qvars = v_opt (v_sum "impred_qvar_status" 1 [| [| v_set v_qvar |] |])
 let v_variance_occurrence =
   v_tuple "variance_occurrence"
     [| v_tuple "binders" [| v_opt v_variance; v_list v_int |];
        v_opt v_variance; v_opt v_variance; v_impred_qvars  |]
 
-let v_variances = v_pair (v_array v_variance_occurrence) v_application_variances
+let v_variances = v_array v_variance_occurrence
 
 let v_univs = v_sum "universes" 1 [|[|v_abs_context; v_opt v_variances|]|]
 
