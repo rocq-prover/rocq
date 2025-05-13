@@ -317,16 +317,6 @@ struct
   let term_variance { in_binders = (bindersv, _); in_fix_binders = (fix_bindersv, _); in_term; in_type = _; under_impred_qvars = _ } =
     Option.default Variance.Irrelevant (Option.union Variance.sup (Option.map (fun _ -> Variance.Invariant) fix_bindersv) (Option.union Variance.sup bindersv in_term))
 
-  let term_variance_pos { in_binders; in_fix_binders; in_term; in_type = _; under_impred_qvars = _ }  =
-    let in_binders = binders_variance in_binders in
-    match in_term with
-    | None ->
-      Option.default (Variance.Irrelevant, Position.InType) in_binders
-    | Some vterm ->
-      match in_binders with
-      | None -> (vterm, Position.InTerm)
-      | Some (vb, bp)  -> (Variance.sup vterm vb, bp)
-
   let variance_app nargs vocc =
     let open Variance in
     let binderv =
@@ -658,7 +648,7 @@ let levels (xq,xu) =
 let pr prq prl ?variances (q,u) =
   let ppu i u =
     let v = Option.map (fun v -> v.(i)) variances in
-    pr_opt_no_spc (fun x -> VariancePos.pr (VarianceOccurrence.term_variance_pos x)) v ++ prl u
+    pr_opt_no_spc VarianceOccurrence.pr v ++ prl u
   in
   (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " | ")
   ++ prvecti_with_sep spc ppu u
