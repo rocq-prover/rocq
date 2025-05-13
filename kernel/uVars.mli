@@ -104,7 +104,7 @@ sig
   (** Irrelevance and not appearing are represented both by [None] *)
   type t =
     { in_binders : Variance.t option * int list;
-      in_term_topfix_binders : Variance.t option * int list;
+      in_fix_binders : Variance.t option * int list;
       (** Supremum of the variances, binders where the level occurs *)
       in_term : Variance.t option;
       in_type : Variance.t option;
