@@ -116,7 +116,7 @@ let set_elim_to_prop q m =
   if QSet.mem q m.rigid then None
   else
     Some { rigid = m.rigid; qmap = m.qmap;
-           elims = QGraph.enforce_eliminates_to (QVar q) qprop m.elims;
+           elims = QGraph.enforce_eliminates_to QGraph.Internal (QVar q) qprop m.elims;
            initial_elims = m.initial_elims }
 
 let unify_quality ~fail c q1 q2 local = match q1, q2 with
@@ -162,7 +162,7 @@ let add_qvars m qmap qs =
      simply enforcing equality may lead to inconsistencies after it *)
   let qs = QVar.Set.filter filter qs in
   let fold v g = try QGraph.add_quality (QVar v) g with QGraph.AlreadyDeclared -> g in
-  let fold' v = QGraph.enforce_eliminates_to (QVar v) qprop in
+  let fold' v = QGraph.enforce_eliminates_to QGraph.Internal (QVar v) qprop in
   let g = QVar.Set.fold fold qs g in
   (g, QVar.Set.fold fold' qs g)
 

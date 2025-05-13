@@ -64,4 +64,4 @@ val generic_conv : conv_pb -> l2r:bool
 val default_conv     : conv_pb -> types kernel_conversion_function
 val default_conv_leq : types kernel_conversion_function
 
-type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.quality_inconsistency
+type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.elimination_error
