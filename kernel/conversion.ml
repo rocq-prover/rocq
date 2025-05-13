@@ -1029,4 +1029,4 @@ let default_conv cv_pb env t1 t2 =
 
 let default_conv_leq = default_conv CUMUL
 
-type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.quality_inconsistency
+type graph_inconsistency = Univ of UGraph.univ_inconsistency | Qual of QGraph.elimination_error

@@ -76,6 +76,7 @@ module Quality : sig
   val is_qtype : t -> bool
   val is_qvar : t -> bool
   val is_qconst : t -> bool
+  val is_qglobal : t -> bool
 
   val var : int -> t
   (** [var i] is [QVar (QVar.make_var i)] *)

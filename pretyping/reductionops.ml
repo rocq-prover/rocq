@@ -1330,7 +1330,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
       | None -> None
       | Some cstr ->
         try Some (Evd.add_universe_constraints sigma cstr)
-        with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer -> None
+        with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
       in
       match ans with
       | Some sigma -> ans
@@ -1361,6 +1361,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
             | Result.Error (Some e) -> raise (UGraph.UniverseInconsistency e)
   with
   | UGraph.UniverseInconsistency _ when catch_incon -> None
+  | QGraph.EliminationError _ when catch_incon -> None
   | e ->
     let e = Exninfo.capture e in
     report_anomaly e
@@ -1715,14 +1716,14 @@ let infer_convert_instances ~flex u u' (univs,elims,cstrs as cuniv) =
 
 let infer_inductive_instances cv_pb variance u1 u2 (univs,elims,csts) =
   let qcsts, csts' = get_cumulativity_constraints cv_pb variance u1 u2 in
-  match QGraph.merge_constraints qcsts elims with
+  match QGraph.merge_constraints QGraph.Internal qcsts elims with
   | elims ->
      begin
        match UGraph.merge_constraints csts' univs with
        | univs -> Result.Ok (univs, elims, Univ.Constraints.union csts csts')
        | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))
      end
-  | exception (QGraph.QualityInconsistency err) -> Result.Error (Some (Qual err))
+  | exception (QGraph.EliminationError err) -> Result.Error (Some (Qual err))
 
 let inferred_universes =
   { compare_sorts = infer_cmp_universes;

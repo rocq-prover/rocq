@@ -33,7 +33,12 @@ type explanation =
 type quality_inconsistency =
   ((QVar.t -> Pp.t) option) * (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
-exception QualityInconsistency of quality_inconsistency
+type elimination_error =
+  | IllegalConstraint
+  | CreatesForbiddenPath of Quality.t * Quality.t
+  | QualityInconsistency of quality_inconsistency
+
+exception EliminationError of elimination_error
 
 exception AlreadyDeclared
 val add_quality : Quality.t -> t -> t
@@ -41,14 +46,27 @@ val add_quality : Quality.t -> t -> t
     a constraint or calling [eliminates_to].
     Forces [Type] to eliminate to this quality. *)
 
-val merge_constraints : ElimConstraints.t -> t -> t
+type constraint_source =
+  | Internal
+  | Rigid
+  | Static
+
+val merge_constraints : constraint_source -> ElimConstraints.t -> t -> t
 
 val check_constraint : t -> ElimConstraint.t -> bool
 val check_constraints : ElimConstraints.t -> t -> bool
 
-val enforce_eliminates_to : Quality.t -> Quality.t -> t -> t
+val enforce_eliminates_to : constraint_source -> Quality.t -> Quality.t -> t -> t
 (** Set the first quality to eliminate to the second one in the graph.
-    If it's impossible, raise [QualityInconsistency]. *)
+
+    If this constraint creates a cycle that violates the constraints,
+    [QualityInconsistency] is raised.
+    On an [Internal] enforcement, it also checks whether a path is created
+    between two ground/global sorts.
+    The [Rigid] [constraint_source] should be used for constraints entered by
+    the user. It allows to create paths between ground/global sorts, but
+    disables path creation between two ground sorts.
+    No additional check is performed on a [Static] constraint. *)
 
 val enforce_eq : Quality.t -> Quality.t -> t -> t
 (** Set the first quality equal to the second one in the graph.
@@ -71,6 +89,8 @@ val qvar_domain : t -> QVar.Set.t
 val is_empty : t -> bool
 
 val explain_quality_inconsistency : (QVar.t -> Pp.t) -> quality_inconsistency -> Pp.t
+
+val explain_elimination_error : (QVar.t -> Pp.t) -> elimination_error -> Pp.t
 
 module Internal : sig
   val add_template_qvars : QVar.Set.t -> t -> t
