@@ -296,14 +296,19 @@ let extract_pattern_type ({loc;v=p} as pat) = match p with
 
 (** Mangle recursive tactics *)
 let inline_rec_tactic tactics =
-  let map (id, e) = match e.v with
-  | CTacFun (pat, _) -> (id, List.map extract_pattern_type pat, e)
-  | _ ->
-    user_err ?loc:id.loc (str "Recursive tactic definitions must be functions")
+  let map id_e =
+    let rec map tys (id, e) =
+      match e.v with
+      | CTacFun (pat, _) -> (id, List.map extract_pattern_type pat, e, tys)
+      | CTacCnv (e, ty) -> map (ty :: tys) (id, e)
+      | _ ->
+        user_err ?loc:id.loc (str "Recursive tactic definitions must be functions")
+    in
+    map [] id_e
   in
   let tactics = List.map map tactics in
-  let map (id, pat, e) =
-    let map_body ({loc;v=id}, _, e) = CAst.(make ?loc @@ CPatVar (Name id)), e in
+  let map (id, pat, e, tys) =
+    let map_body ({loc;v=id}, _, e, _) = CAst.(make ?loc @@ CPatVar (Name id)), e in
     let bnd = List.map map_body tactics in
     let var_of_id {loc;v=id} =
       let qid = qualid_of_ident ?loc id in
@@ -311,6 +316,10 @@ let inline_rec_tactic tactics =
     in
     let loc0 = e.loc in
     let e = CAst.make ?loc:loc0 @@ CTacLet (true, bnd, var_of_id id) in
+    let e =
+      let add_ty e ty = CAst.make ?loc:loc0 @@ CTacCnv (e, ty) in
+      List.fold_left add_ty e tys
+    in
     (id, e)
   in
   List.map map tactics
