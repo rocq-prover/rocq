@@ -149,53 +149,7 @@ struct
         | Irrelevant -> v) *)
       else v
 
-  let eq_constraint nargs csts vp =
-    Variance.eq_constraint csts (variance nargs vp)
-
-  let leq_constraint nargs csts vp =
-    Variance.leq_constraint csts (variance nargs vp)
-
-  let pr (v, pos) =
-    Variance.pr v ++ Position.pr pos
-
-end
-
-module ApplicationVariances =
-struct
-  type t = VariancePos.t array
-
-  let of_array x = x
-  let repr x = x
-
-  let length = Array.length
-  let append = Array.append
-
-  let pr var =
-    let open Pp in
-    prvect_with_sep spc VariancePos.pr var
-
-  let equal vs vs' =
-    Array.equal VariancePos.equal vs vs'
-
-  let le inf exp =
-    Array.equal VariancePos.le inf exp
-
-  let eq_sizes v v' = Int.equal (Array.length v) (Array.length v')
-
-  let make n default : t =
-    Array.make n default
-
-  let lift k = Array.map (VariancePos.lift k)
-
-  let _leq_constraints ~nargs variances u u' csts =
-    let len = Array.length u in
-    assert (len = Array.length u' && len = Array.length variances);
-    Array.fold_left3 (VariancePos.leq_constraint nargs) csts variances u u'
-
-  let _eq_constraints ~nargs variances u u' csts =
-    let len = Array.length u in
-    assert (len = Array.length u' && len = Array.length variances);
-    Array.fold_left3 (VariancePos.eq_constraint nargs) csts variances u u'
+  let pr (v, pos) = Variance.pr v ++ Position.pr pos
 
 end
 
@@ -433,49 +387,40 @@ end
 
 module Variances =
 struct
-  type t = VarianceOccurrence.t array * ApplicationVariances.t
+  type t = VarianceOccurrence.t array
 
-  let make_application_variances (vs : VarianceOccurrence.t array) : ApplicationVariances.t =
-    Array.map VarianceOccurrence.term_variance_pos vs
+  let lift n vs : t =
+    if Int.equal n 0 then vs
+    else Array.map (VarianceOccurrence.lift n) vs
 
-  let application_variances (x : t) = snd x
+  let make vocc : t = vocc
 
-  let lift n (vs, apps as x : t) : t =
-    if Int.equal n 0 then x
-    else (Array.map (VarianceOccurrence.lift n) vs, Array.map (VariancePos.lift n) apps)
+  let repr (vs : t) : VarianceOccurrence.t array = vs
 
-  let make vocc : t = (vocc, make_application_variances vocc)
-
-  let make_full vocc apps = (vocc, apps)
-
-  let repr (vs : t) : VarianceOccurrence.t array = (fst vs)
-
-  let split n ((vs, apps) : t) : t * t =
+  let split n (vs : t) : t * t =
     assert (n <= Array.length vs);
-    let vs, vs' = Array.chop n vs in
-    let apps, apps' = Array.chop n apps in
-    (vs, apps), (vs', apps')
+    Array.chop n vs
 
-  let append ((vs,apps) : t) ((vs', apps') : t) : t =
-    (Array.append vs vs', Array.append apps apps')
+  let append vs vs' : t =
+    Array.append vs vs'
 
-  let pr ((vs, _apps) : t) : Pp.t = prvect_with_sep spc VarianceOccurrence.pr vs
+  let pr (vs : t) : Pp.t = prvect_with_sep spc VarianceOccurrence.pr vs
 
   let equal (x : t) (y : t) : bool =
-    Array.equal VarianceOccurrence.equal (fst x) (fst y)
+    Array.equal VarianceOccurrence.equal x y
 
   let eq_sizes x y =
-    Int.equal (Array.length (fst x)) (Array.length (fst y))
+    Int.equal (Array.length x) (Array.length y)
 
   let le x y =
-    Array.equal VarianceOccurrence.le (fst x) (fst y)
+    Array.equal VarianceOccurrence.le x y
 
-  let leq_constraints ~nargs (variances, _) u u' csts =
+  let leq_constraints ~nargs variances u u' csts =
     let len = Array.length u in
     assert (len = Array.length u' && len = Array.length variances);
     Array.fold_left3 (VarianceOccurrence.leq_constraint nargs) csts variances u u'
 
-  let eq_constraints ~nargs (variances, _) u u' csts =
+  let eq_constraints ~nargs variances u u' csts =
     let len = Array.length u in
     assert (len = Array.length u' && len = Array.length variances);
     Array.fold_left3 (VarianceOccurrence.eq_constraint nargs) csts variances u u'
@@ -627,7 +572,7 @@ module Instance : sig
 
   val subst_fn : (Sorts.QVar.t -> Quality.t) * (Level.t -> Universe.t) -> t -> t
 
-  val pr : (Sorts.QVar.t -> Pp.t) -> (Universe.t -> Pp.t) -> ?variances:ApplicationVariances.t -> t -> Pp.t
+  val pr : (Sorts.QVar.t -> Pp.t) -> (Universe.t -> Pp.t) -> ?variances:Variances.t -> t -> Pp.t
   val levels : t -> Quality.Set.t * Level.Set.t
   type mask = Quality.pattern array * int option array
 
@@ -712,7 +657,7 @@ let levels (xq,xu) =
 let pr prq prl ?variances (q,u) =
   let ppu i u =
     let v = Option.map (fun v -> v.(i)) variances in
-    pr_opt_no_spc VariancePos.pr v ++ prl u
+    pr_opt_no_spc (fun x -> VariancePos.pr (VarianceOccurrence.term_variance_pos x)) v ++ prl u
   in
   (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " | ")
   ++ prvecti_with_sep spc ppu u
@@ -1055,8 +1000,8 @@ let subst_sort_level_variance_occurrence usubst b =
   let under_impred_qvars = update_impred_qvars upd b.under_impred_qvars in
   { b with under_impred_qvars }
 
-let subst_sort_level_variances usubst (vs, apps) =
-  Array.map (subst_sort_level_variance_occurrence usubst) vs, apps
+let subst_sort_level_variances usubst vs =
+  Array.map (subst_sort_level_variance_occurrence usubst) vs
 
 let make_instance_subst i =
   let qarr, uarr = LevelInstance.to_array i in

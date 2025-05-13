@@ -81,28 +81,6 @@ sig
   val variance : application -> t -> Variance.t
 end
 
-module ApplicationVariances :
-sig
-  type t
-
-  val length : t -> int
-  val pr : t -> Pp.t
-  val equal : t -> t -> bool
-  val le : t -> t -> bool
-
-  val lift : int -> t -> t
-
-  val eq_sizes : t -> t -> bool
-
-  (* Invariant variances *)
-  val make : int -> VariancePos.t -> t
-
-  val of_array : VariancePos.t array -> t
-  val repr : t -> VariancePos.t array
-
-  val append : t -> t -> t
-end
-
 (** {6 Variance occurrences} *)
 
 type impred_qvars_status =
@@ -161,8 +139,6 @@ sig
 
   val make : VarianceOccurrence.t array -> t
 
-  val make_full : VarianceOccurrence.t array -> ApplicationVariances.t -> t
-
   val repr : t -> VarianceOccurrence.t array
 
   val lift : int -> t -> t
@@ -176,7 +152,6 @@ sig
   val equal : t -> t -> bool
   val eq_sizes : t -> t -> bool
 
-  val application_variances : t -> ApplicationVariances.t
 end
 
 type variances = Variances.t
@@ -259,7 +234,7 @@ sig
   val hash : t -> int
   (** Hash value *)
 
-  val pr : (QVar.t -> Pp.t) -> (Universe.t -> Pp.t) -> ?variances:ApplicationVariances.t -> t -> Pp.t
+  val pr : (QVar.t -> Pp.t) -> (Universe.t -> Pp.t) -> ?variances:Variances.t -> t -> Pp.t
   (** Pretty-printing, no comments *)
 
   val levels : t -> Quality.Set.t * Level.Set.t
