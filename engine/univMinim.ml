@@ -201,7 +201,7 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
   if solve_flexibles then
     let fold_arbitrary u (ctx, us, variances, graph as acc) =
       if UnivFlex.is_defined u us then acc
-      else arbitrary ~allow_collapse:false u acc
+      else arbitrary ~allow_collapse:(get_set_minimization ()) u acc
     in
     Level.Set.fold fold_arbitrary dom acc
   else acc
