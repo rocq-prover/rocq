@@ -47,6 +47,7 @@ type impred_qvars = UVars.impred_qvars
 
 type infer_variance_occurrence =
   { infer_binders : infer_binders;
+    infer_topfix_binders : infer_binders; (* Variances in the term's toplevel fixpoint binders treated as lambdas (contravariance allowed)  *)
     infer_term : mode * UVars.Variance.t option;
     infer_type : mode * UVars.Variance.t option;
     infer_variance : Variance.t;
@@ -55,6 +56,7 @@ type infer_variance_occurrence =
 type variances = infer_variance_occurrence Univ.Level.Map.t
 let default_occ =
   { infer_binders = (Infer, (None, []));
+    infer_topfix_binders = (Infer, (None, []));
     infer_term = (Infer, None);
     infer_type = (Infer, None);
     infer_variance = Irrelevant;
@@ -63,6 +65,7 @@ let default_occ =
 let make_checked_occ ~infer_in_type
   UVars.VarianceOccurrence.{ in_binders; in_term; in_type; under_impred_qvars } =
   { infer_binders = ((if infer_in_type then Infer else Check), in_binders);
+    infer_topfix_binders = Check, in_topfix_binders;
     infer_term = Check, in_term;
     infer_type = (if infer_in_type then Infer else Check), in_type;
     infer_variance = Irrelevant; (* ignored when checking *)

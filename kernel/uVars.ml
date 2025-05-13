@@ -223,19 +223,21 @@ module VarianceOccurrence =
 struct
   type t =
     { in_binders : Variance.t option * int list; (* Max variance, binders where the level occurs *)
+      in_fix_binders : Variance.t option * int list; (* Occurrences in toplevel fix binders *)
       in_term : Variance.t option;
       in_type : Variance.t option;
       under_impred_qvars : impred_qvars }
   let default_occ =
-    { in_binders = None, []; in_term = None; in_type = None; under_impred_qvars = None }
+    { in_binders = None, []; in_fix_binders = None, []; in_term = None; in_type = None; under_impred_qvars = None }
 
   let lift n occ =
     let v, pos = occ.in_binders in
     { occ with in_binders = v, List.map (fun i -> (i + n)) pos }
 
-  let pr_variance_occurrence fa fterm ftype { in_binders; in_term; in_type; under_impred_qvars = _ } =
+  let pr_variance_occurrence fa fterm ftype { in_binders; in_fix_binders; in_term; in_type; under_impred_qvars = _ } =
     let open Pp in
-    let pr_binders = fa in_binders in
+    let pr_binders = fa false in_binders in
+    let pr_binders = List.append pr_binders (fa true in_fix_binders) in
     let pr_in_term = fterm in_term in
     let pr_in_type = ftype in_type in
     let variances = List.append pr_binders pr_in_term in
@@ -247,10 +249,11 @@ struct
       str"(" ++ prlist_with_sep pr_comma identity variances ++ str")"
 
   let pr occ =
-    let pr_binders (bindersv, binders) =
+    let pr_binders in_fix (bindersv, binders) =
       match bindersv with
       | None -> []
       | Some b -> [Variance.pr b ++ str " in " ++ prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) binders ++
+        (if in_fix then str" fix " else mt()) ++
         str (String.plural (List.length binders) " binder")]
     in
     let pr_in_type = function
@@ -263,11 +266,15 @@ struct
     in
     pr_variance_occurrence pr_binders pr_in_term pr_in_type occ
 
-  let equal ({ in_binders = (bindersv, in_binders); in_term; in_type; under_impred_qvars } as x)
-    ({ in_binders = (bindersv', in_binders'); in_term = in_term'; in_type = in_type'; under_impred_qvars = under_impred_qvars' } as y) =
+  let eq_binders (bindersv, in_binders) (bindersv', in_binders') =
+    Option.equal Variance.equal bindersv bindersv' &&
+    List.equal Int.equal in_binders in_binders'
+
+  let equal ({ in_binders; in_fix_binders; in_term; in_type; under_impred_qvars } as x)
+    ({ in_binders = in_binders'; in_fix_binders = in_fix_binders'; in_term = in_term'; in_type = in_type'; under_impred_qvars = under_impred_qvars' } as y) =
     x == y ||
-    (Option.equal Variance.equal bindersv bindersv' &&
-    List.equal Int.equal in_binders in_binders' &&
+    (eq_binders in_binders in_binders' &&
+    eq_binders in_fix_binders in_fix_binders' &&
     Option.equal Variance.equal in_term in_term' &&
     Option.equal Variance.equal in_type in_type' &&
     equal_qvars under_impred_qvars under_impred_qvars')
@@ -279,11 +286,15 @@ struct
     | Some v, None -> Variance.is_irrelevant v
     | None, None -> true
 
-  let le ({ in_binders = (in_binders, pos); in_term; in_type; under_impred_qvars = _ } as x)
-    ({ in_binders = (in_binders', pos'); in_term = in_term'; in_type = in_type';
+  let le_binders (in_binders, pos) (in_binders', pos') =
+    option_le Variance.le in_binders in_binders' && List.subset pos pos'
+
+  let le ({ in_binders; in_fix_binders; in_term; in_type; under_impred_qvars = _ } as x)
+    ({ in_binders = in_binders'; in_fix_binders = in_fix_binders'; in_term = in_term'; in_type = in_type';
        under_impred_qvars = _under_impred_qvars' } as y) =
     x == y ||
-    (option_le Variance.le in_binders in_binders' && List.subset pos pos' &&
+    (le_binders in_binders in_binders' &&
+     le_binders in_fix_binders in_fix_binders' &&
      option_le Variance.le in_term in_term' &&
      option_le Variance.le in_type in_type')
     (* Option.equal Sorts.QVar.Set.equal under_impred_qvars under_impred_qvars') Does not matter for subtyping *)
@@ -303,10 +314,10 @@ struct
       | None -> None
       | Some i -> Some (v, Position.InBinder i)
 
-  let term_variance { in_binders = (bindersv, _); in_term; in_type = _; under_impred_qvars = _ } =
-    Option.default Variance.Irrelevant (Option.union Variance.sup bindersv in_term)
+  let term_variance { in_binders = (bindersv, _); in_fix_binders = (fix_bindersv, _); in_term; in_type = _; under_impred_qvars = _ } =
+    Option.default Variance.Irrelevant (Option.union Variance.sup (Option.map (fun _ -> Variance.Invariant) fix_bindersv) (Option.union Variance.sup bindersv in_term))
 
-  let term_variance_pos { in_binders; in_term; in_type = _; under_impred_qvars = _ }  =
+  let term_variance_pos { in_binders; in_fix_binders; in_term; in_type = _; under_impred_qvars = _ }  =
     let in_binders = binders_variance in_binders in
     match in_term with
     | None ->
@@ -370,16 +381,6 @@ struct
   let leq_constraint nargs csts vocc =
     let variance = variance_app nargs vocc in
     Variance.leq_constraint csts variance
-
-  (* let term_variance_pos { in_binders; in_term; in_type }  =
-    let in_binders = binders_variance in_binders in
-    let open Variance in
-    let open Position in
-    match to_variance in_term, to_variance in_type, in_binders with
-    | Irrelevant, Irrelevant, inb -> inb
-    | Irrelevant, in_type, (bv, _) -> (Variance.sup in_type bv, InType)
-    | v, Irrelevant, (bv, bp) -> (Variance.sup v bv, bp)
-    | v, v', (bv, _) -> (Variance.sup v (Variance.sup v' bv), InTerm) *)
 
   let under_impred_qvars vocc = vocc.under_impred_qvars
 
