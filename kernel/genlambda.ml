@@ -243,6 +243,76 @@ let mkhash = function
 | Lind (ind, u) ->
   combinesmall 22 (combine (Ind.UserOrd.hash ind) (UVars.Instance.hash u))
 
+let eq_annot na1 na2 =
+  (* ignore bound names *)
+  Context.eq_annot (fun _ _ -> true) Sorts.relevance_equal na1 na2
+
+let eq_annots nas1 nas2 =
+  Array.equal eq_annot nas1 nas2
+
+let rec equal eqval t1 t2 = match t1.node, t2.node with
+| Lrel (_, n1), Lrel (_, n2) ->
+  Int.equal n1 n2 (* name is only for printing *)
+| Lvar id1, Lvar id2 ->
+  Id.equal id1 id2
+| Levar (ev1, args1), Levar (ev2, args2) ->
+  Evar.equal ev1 ev2 && array_equal eqval args1 args2
+| Lprod (d1, c1), Lprod (d2, c2) ->
+  equal eqval d1 d2 && equal eqval c1 c2
+| Llam (ids1, t1), Llam (ids2, t2) ->
+  eq_annots ids1 ids2 && equal eqval t1 t2
+| Llet (id1, t1, u1), Llet (id2, t2, u2) ->
+  eq_annot id1 id2 && equal eqval t1 t2 && equal eqval u1 u2
+| Lapp (t1, a1), Lapp (t2, a2) ->
+  equal eqval t1 t2 && array_equal eqval a1 a2
+| Lconst (c1, u1), Lconst (c2, u2) ->
+  Constant.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2
+| Lproj (p1, t1), Lproj (p2, t2) ->
+  Projection.Repr.UserOrd.equal p1 p2 && equal eqval t1 t2
+| Lprim ((c1, u1), p1, a1), Lprim ((c2, u2), p2, a2) ->
+  Constant.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2 &&
+  CPrimitives.equal p1 p2 && array_equal eqval a1 a2
+| Lcase (ci1, t1, p1, br1), Lcase (ci2, t2, p2, br2) ->
+  Ind.UserOrd.equal (pi1 ci1).ci_ind (pi1 ci2).ci_ind && equal eqval t1 t2 &&
+  equal eqval p1 p2 && lam_branches_equal eqval br1 br2
+| Lfix ((l1, ind1, i1), f1), Lfix ((l2, ind2, i2), f2) ->
+  Array.equal Int.equal l1 l2 && Array.equal Ind.UserOrd.equal ind1 ind2 &&
+  Int.equal i1 i2 && fix_decl_equal eqval f1 f2
+| Lcofix (i1, f1), Lcofix (i2, f2) ->
+  Int.equal i1 i2 && fix_decl_equal eqval f1 f2
+| Lint i1, Lint i2 ->
+  Int.equal i1 i2
+| Lparray (a1, def1), Lparray (a2, def2) ->
+  array_equal eqval a1 a2 && equal eqval def1 def2
+| Lmakeblock (ind1, tag1, a1), Lmakeblock (ind2, tag2, a2) ->
+  Ind.UserOrd.equal ind1 ind2 && Int.equal tag1 tag2 && array_equal eqval a1 a2
+| Luint i1, Luint i2 ->
+  Uint63.equal i1 i2
+| Lfloat f1, Lfloat f2 ->
+  Float64.equal f1 f2
+| Lstring s1, Lstring s2 ->
+  Pstring.equal s1 s2
+| Lval v1, Lval v2 ->
+  eqval v1 v2
+| Lsort s1, Lsort s2 ->
+  Sorts.equal s1 s2
+| Lind (ind1, u1), Lind (ind2, u2) ->
+  Ind.UserOrd.equal ind1 ind2 && UVars.Instance.equal u1 u2
+| (Lrel _ | Lvar _ | Levar _ | Lprod _ | Llam _ | Llet _ | Lapp _ | Lconst _ | Lproj _
+  | Lprim _ | Lcase _ | Lfix _ | Lcofix _ | Lint _ | Lparray _ | Lmakeblock _ | Luint _
+  | Lfloat _ | Lstring _ | Lval _ | Lsort _ | Lind _), _ -> false
+
+and array_equal eqval a1 a2 =
+  Array.equal (fun t1 t2 -> equal eqval t1 t2) a1 a2
+
+and fix_decl_equal eqval (nas1, ty1, bd1) (nas2, ty2, bd2) =
+  eq_annots nas1 nas2 && array_equal eqval ty1 ty2 && array_equal eqval bd1 bd2
+
+and lam_branches_equal eqval br1 br2 =
+  array_equal eqval br1.constant_branches br2.constant_branches &&
+  Array.equal (fun (nas1, t1) (nas2, t2) -> eq_annots nas1 nas2 && equal eqval t1 t2)
+    br1.nonconstant_branches br2.nonconstant_branches
+
 let mknode t =
   { node = t; hash = mkhash t }
 
