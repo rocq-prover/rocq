@@ -60,6 +60,7 @@ val empty_evars : Environ.env -> evars
 
 val node : 'v lambda -> 'v node
 val hash : 'v lambda -> int
+val equal : ('v -> 'v -> bool) -> 'v lambda -> 'v lambda -> bool
 
 val mkLapp : 'v lambda -> 'v lambda array -> 'v lambda
 val mkLlam : Name.t binder_annot array -> 'v lambda -> 'v lambda
