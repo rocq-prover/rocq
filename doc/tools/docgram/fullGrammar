@@ -27,7 +27,8 @@ sort: [
 | "SProp"
 | "Type"
 | "Type" "@{" "_" "}"
-| "Type" "@{" test_sort_qvar reference "|" universe "}"
+| "Type" "@{" test_old_sort_qvar reference "|" universe "}"
+| "Type" "@{" test_sort_qvar reference ";" universe "}"
 | "Type" "@{" universe "}"
 ]
 
@@ -184,7 +185,7 @@ evar_instance: [
 ]
 
 univ_annot: [
-| "@{" LIST0 univ_level_or_quality OPT [ "|" LIST0 univ_level_or_quality ] "}"
+| "@{" LIST0 univ_level_or_quality OPT [ [ "|" | ";" ] LIST0 univ_level_or_quality ] "}"
 |
 ]
 
@@ -954,7 +955,8 @@ univ_decl_constraints: [
 ]
 
 univ_decl: [
-| "@{" test_univ_decl LIST0 identref "|" LIST0 identref [ "+" | ] univ_decl_constraints
+| "@{" test_doublepipe_univ_decl LIST0 identref "|" LIST0 identref [ "+" | ] univ_decl_constraints
+| "@{" LIST0 identref ";" LIST0 identref [ "+" | ] univ_decl_constraints
 | "@{" LIST0 identref [ "+" | ] univ_decl_constraints
 ]
 
@@ -970,7 +972,8 @@ variance_identref: [
 ]
 
 cumul_univ_decl: [
-| "@{" test_cumul_univ_decl LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" test_doublepipe_cumul_univ_decl LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" test_semicolon_cumul_univ_decl LIST0 identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 | "@{" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 ]
 
