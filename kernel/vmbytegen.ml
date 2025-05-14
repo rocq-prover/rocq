@@ -139,10 +139,20 @@ type comp_env = {
        reallocate the stack if we lack space. *)
   }
 
+module ClosTyp =
+struct
+  type t = lambda
+  let equal = Vmlambda.lambda_equal
+  let hash = Genlambda.hash
+end
+
+module ClosTable = Hashtbl.Make (ClosTyp)
+
 type glob_env = {
   env : Environ.env;
   uinst_len : int * int; (** Size of the toplevel universe instance *)
   mutable fun_code : instruction list; (** Code of closures *)
+  fun_cache : (vm_env * Label.t) ClosTable.t; (** Sharing of closures with the same body *)
 }
 
 let push_fun env c =
@@ -603,14 +613,21 @@ let rec compile_lam env cenv lam sz cont =
      compile_lam env cenv codom sz cont1
 
   | Llam (ids,body) ->
-     let arity = Array.length ids in
-     let r_fun = comp_env_fun arity in
-     let lbl_fun = Label.create() in
-     let cont_fun = compile_lam env r_fun body arity [Kreturn arity] in
-     let cont_fun = ensure_stack_capacity r_fun cont_fun in
-     let () = push_fun env (add_grab arity lbl_fun cont_fun) in
-     let fv = fv r_fun in
-     compile_fv cenv fv.fv_rev sz (Kclosure(lbl_fun,fv.size) :: cont)
+    let arity = Array.length ids in
+    let fv, lbl_fun = match ClosTable.find_opt env.fun_cache lam with
+    | None ->
+      let r_fun = comp_env_fun arity in
+      let lbl_fun = Label.create() in
+      let cont_fun = compile_lam env r_fun body arity [Kreturn arity] in
+      let cont_fun = ensure_stack_capacity r_fun cont_fun in
+      let () = push_fun env (add_grab arity lbl_fun cont_fun) in
+      let fv = fv r_fun in
+      let () = ClosTable.add env.fun_cache lam (fv, lbl_fun) in
+      fv, lbl_fun
+    | Some (fv, lbl) ->
+      fv, lbl
+    in
+    compile_fv cenv fv.fv_rev sz (Kclosure(lbl_fun,fv.size) :: cont)
 
   | Lapp (f, args) ->
     begin match node f with
@@ -909,10 +926,11 @@ let compile ?universes:(universes=(0,0)) env sigma c =
     Array.of_list @@ skip_suffix mask
   in
   let cont = [Kstop] in
+    let fun_cache = ClosTable.create 17 in
     let cenv, init_code, fun_code =
       if UVars.eq_sizes universes (0,0) then
         let cenv = empty_comp_env () in
-        let env = { env; fun_code = []; uinst_len = (0,0) } in
+        let env = { env; fun_code = []; uinst_len = (0,0); fun_cache } in
         let cont = compile_lam env cenv lam 0 cont in
         let cont = ensure_stack_capacity cenv cont in
         cenv, cont, env.fun_code
@@ -924,7 +942,7 @@ let compile ?universes:(universes=(0,0)) env sigma c =
         let full_arity = arity + 1 in
         let r_fun = comp_env_fun ~univs:true arity in
         let lbl_fun = Label.create () in
-        let env = { env; fun_code = []; uinst_len = universes } in
+        let env = { env; fun_code = []; uinst_len = universes; fun_cache } in
         let cont_fun = compile_lam env r_fun body full_arity [Kreturn full_arity] in
         let cont_fun = ensure_stack_capacity r_fun cont_fun in
         let () = push_fun env (add_grab full_arity lbl_fun cont_fun) in
