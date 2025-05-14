@@ -59,6 +59,8 @@ val empty_evars : Environ.env -> evars
 (** {5 Manipulation functions} *)
 
 val node : 'v lambda -> 'v node
+val hash : 'v lambda -> int
+
 val mkLapp : 'v lambda -> 'v lambda array -> 'v lambda
 val mkLlam : Name.t binder_annot array -> 'v lambda -> 'v lambda
 val unsafe_mkPArray : 'v lambda array -> 'v lambda -> 'v lambda

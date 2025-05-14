@@ -52,7 +52,7 @@ and 'v lam_branches =
 
 and 'v fix_decl = Name.t binder_annot array * 'v lambda array * 'v lambda array
 
-and 'v lambda = { node : 'v node }
+and 'v lambda = { node : 'v node; hash : int }
 
 type evars =
   { evars_val : CClosure.evar_handler }
@@ -182,9 +182,69 @@ let rec pp_lam lam =
 
 (*s Constructors *)
 
-let mknode t = { node = t }
+open Hashset.Combine
 
 let node t = t.node
+let hash t = t.hash
+
+let hash_array t =
+  Array.fold_left (fun acc t -> combine acc (hash t)) 0 t
+
+let hash_fix_decl (nas, tys, bod) =
+  combine (Array.length nas) (combine (hash_array tys) (hash_array bod))
+
+let hash_branches br =
+  combine (hash_array br.constant_branches)
+    (Array.fold_left (fun acc (_nas, t) -> combine acc (hash t)) 0 br.nonconstant_branches)
+
+let mkhash = function
+| Lrel (_, n) ->
+  combinesmall 1 n
+| Lvar id ->
+  combinesmall 2 (Id.hash id)
+| Levar (ev, args) ->
+  combinesmall 3 (combine (Evar.hash ev) (hash_array args))
+| Lprod (dom, cod) ->
+  combinesmall 4 (combine (hash dom) (hash cod))
+| Llam (ids, body) ->
+  combinesmall 5 (combine (Array.length ids) (hash body))
+| Llet (_id, t, u) ->
+  combinesmall 6 (combine (hash t) (hash u))
+| Lapp (t, args) ->
+  combinesmall 7 (combine (hash t) (hash_array args))
+| Lconst (c, u) ->
+  combinesmall 8 (combine (Constant.UserOrd.hash c) (UVars.Instance.hash u))
+| Lproj (p, arg) ->
+  combinesmall 9 (combine (Projection.Repr.UserOrd.hash p) (hash arg))
+| Lprim ((c, u), _, args) ->
+  combinesmall 10 (combine (Constant.UserOrd.hash c) (combine (UVars.Instance.hash u) (hash_array args)))
+| Lcase (_annot, c, p, br) ->
+  combinesmall 11 (combine (hash c) (combine (hash p) (hash_branches br)))
+| Lfix ((_, _, i), fix) ->
+  combinesmall 12 (combine (Int.hash i) (hash_fix_decl fix))
+| Lcofix (n, cofix) ->
+  combinesmall 13 (combine (Int.hash n) (hash_fix_decl cofix))
+| Lint n ->
+  combinesmall 14 (Int.hash n)
+| Lparray (args, def) ->
+  combinesmall 15 (combine (hash_array args) (hash def))
+| Lmakeblock (ind, tag, args) ->
+  combinesmall 16 (combine (Ind.UserOrd.hash ind) (combine (Int.hash tag) (hash_array args)))
+| Luint i ->
+  combinesmall 17 (Uint63.hash i)
+| Lfloat f ->
+  combinesmall 18 (Float64.hash f)
+| Lstring s ->
+  combinesmall 19 (Pstring.hash s)
+| Lval _ ->
+  combinesmall 20 0 (* FIXME? *)
+| Lsort s ->
+  combinesmall 21 (Sorts.hash s)
+| Lind (ind, u) ->
+  combinesmall 22 (combine (Ind.UserOrd.hash ind) (UVars.Instance.hash u))
+
+let mknode t =
+  { node = t; hash = mkhash t }
 
 let mkLapp f args =
   if Array.is_empty args then f
@@ -408,7 +468,7 @@ let simplify lam =
 
     | Lapp(f,args) ->
         begin match simplify_app subst f subst args with
-        | { node = Lapp(f',args') } when f == f' && args == args' -> lam
+        | { node = Lapp(f',args'); _ } when f == f' && args == args' -> lam
         | lam' -> lam'
         end
 
@@ -418,7 +478,7 @@ let simplify lam =
     match f.node with
     | Lrel(id, i) ->
       begin match lam_subst_rel f id i substf with
-        | { node = Llam(ids, body) } ->
+        | { node = Llam(ids, body); _ } ->
           reduce_lapp
             (subs_id 0) (Array.to_list ids) body
             substa (Array.to_list args)
