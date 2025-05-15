@@ -106,7 +106,7 @@ type showable =
   | ShowGoal of goal_reference
   | ShowProof
   | ShowExistentials
-  | ShowUniverses
+  | ShowUniverses of bool
   | ShowProofNames
   | ShowIntros of bool
   | ShowMatch of qualid
