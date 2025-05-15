@@ -378,7 +378,7 @@ struct
   let typing_variances { in_binders = (bindersv, _); in_topfix_binders = (fix_bindersv, _); in_term; in_type = _; under_impred_qvars = _ } =
     Option.default Variance.Irrelevant 
       (Option.union Variance.sup (Option.map (fun x -> x.typing_variance) fix_bindersv) 
-      (opt_union_proj typing_variance VariancePair.sup_cumul_variances bindersv in_term))
+      (opt_union_proj typing_variance VariancePair.sup_typing_variances bindersv in_term))
 
 
   let variance_app nargs vocc =

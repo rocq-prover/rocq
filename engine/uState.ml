@@ -1162,9 +1162,9 @@ let check_variances ~cumulative ~kind names ivariances inst variances =
               let ivariance = UVars.VarianceOccurrence.typing_variances iv in
               (* FIXME should we force only the cumulativity variance ? *)
               if UVars.Variance.le ivariance variance then force_variance ~force_in_term:false variance iv
-              else CErrors.user_err Pp.(str"Variance annotation " ++ UVars.Variance.pr variance ++ str" for universe binder " ++
-                (pr_uctx_level_names names level) ++ str" is incorrect, inferred variance is " ++
-                  VarianceOccurrence.pr iv)
+              else CErrors.user_err Pp.(str"Variance annotation " ++ Variance.pr variance ++ str" for universe binder " ++
+                (pr_uctx_level_names names level) ++ str" is incorrect, inferred variances are " ++
+                  VarianceOccurrence.pr iv ++ str" and typing variance is hence " ++ Variance.pr ivariance)
         in
         Some (UVars.Variances.make (Array.map2 check_var (snd (LevelInstance.to_array inst)) variances))
 
