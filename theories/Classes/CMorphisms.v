@@ -36,7 +36,7 @@ Set Polymorphic Definitions Cumulativity.
    The relation [R] will be instantiated by [respectful] and [A] by an arrow
    type for usual morphisms. *)
 
-Class Proper@{-a -ra} {A : Type@{a}} (R : crelation@{a ra} A) (m : A) :=
+Class Proper@{a ra} {A : Type@{a}} (R : crelation@{a ra} A) (m : A) :=
   proper_prf : R m m.
 
 Class ProperProxy@{-a -ra} {A : Type@{a}} (R : crelation@{a ra} A) (m : A) :=

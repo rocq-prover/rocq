@@ -10,6 +10,8 @@ Set Printing Universes.
 
 Inductive List (A: Type) := nil | cons : A -> List A -> List A.
 
+Check eq_refl : List@{1} nat = List@{0} nat.
+
 Definition LiftL@{k i j|k <= i, k <= j} {A:Type@{k}} : List@{i} A -> List@{j} A := fun x => x.
 
 Lemma LiftL_Lem A (l : List A) : l = LiftL l.
@@ -23,7 +25,7 @@ Fail Definition LowerTp@{i j|j < i} : Tp@{i} -> Tp@{j} := fun x => x.
 
 Record Tp' := { tp' : Tp }.
 
-Definition CTp@{u} := Tp@{u}. (* FIXME? *)
+Definition CTp := Tp.
 (* here we have to reduce a constant to infer the correct subtyping. *)
 Record Tp''@{+u} := { tp'' : CTp@{u} }.
 
