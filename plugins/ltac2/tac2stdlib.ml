@@ -536,6 +536,11 @@ let () =
     (constr @-> ret rewstrategy)
     Rewrite.Strategies.fold
 
+let () =
+  define "rewstrat_eval"
+    (reduction @-> ret rewstrategy)
+    Rewrite.Strategies.reduce
+
 
 let () =
   define "tac_inversion"

@@ -9,6 +9,7 @@
 (************************************************************************)
 
 From Ltac2 Require Import Init.
+From Ltac2 Require Std.
 
 Ltac2 Type strategy.
 
@@ -106,6 +107,10 @@ Ltac2 @external hints : ident -> strategy :=
 (** Replaces the term under consideration with the argument if they unify. *)
 Ltac2 @external fold : constr -> strategy :=
   "rocq-runtime.plugins.ltac2" "rewstrat_fold".
+
+(** Converts the term under consideration. *)
+Ltac2 @external eval : Std.Red.t -> strategy :=
+  "rocq-runtime.plugins.ltac2" "rewstrat_eval".
 
 (** Fixed point operation for recursive strategies. [fix (fun f => s)] evaluates to
 [s[f / fix (fun f => s)]]. The function provided in the argument is executed only
