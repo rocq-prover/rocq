@@ -99,7 +99,7 @@ let clear_term_variances vs =
   UVars.Variances.(make (Array.map (fun vocc -> { vocc with in_term = None }) (repr vs)))
 let clear_type_variances vs =
   let open VarianceOccurrence in
-  UVars.Variances.(make (Array.map (fun vocc -> { vocc with in_type = None }) (repr vs)))
+  UVars.Variances.(make (Array.map (fun vocc -> { vocc with in_type = None; in_term_typing = None }) (repr vs)))
 
 let check_variance error env ~term_variances v1 v2 =
   match v1, v2 with

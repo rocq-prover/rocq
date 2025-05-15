@@ -168,14 +168,14 @@ let show_top_evars ~proof =
   let given_up = Evar.Set.elements @@ Evd.given_up sigma in
   pr_evars_int sigma ~shelf ~given_up 1 (Evd.undefined_map sigma)
 
-let show_universes ~proof =
+let show_universes ~proof ~local =
   let Proof.{goals;sigma} = Proof.data proof in
   let env = Global.env () in
   let sigma = UnivVariances.register_universe_variances_of_partial_proofs env sigma (Proof.partial_proof proof) in
   let sigma' = Evd.minimize_universes sigma in
-  UState.pr (Evd.ustate sigma) ++ fnl () ++
+  UState.pr ~local (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
-       UState.pr (Evd.ustate sigma'))
+       UState.pr ~local (Evd.ustate sigma'))
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -2576,7 +2576,7 @@ let vernac_show ~pstate =
         | GoalId id -> pr_goal_by_id ~proof id
       end
     | ShowExistentials -> show_top_evars ~proof
-    | ShowUniverses -> show_universes ~proof
+    | ShowUniverses local -> show_universes ~proof ~local
     (* Deprecate *)
     | ShowProofNames ->
       Id.print (Declare.Proof.get_name pstate)

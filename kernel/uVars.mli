@@ -58,7 +58,7 @@ sig
   type t =
   | InBinder of int
   | InTopFixBinder of int
-  | InTerm | InType
+  | InTerm | InTermTyping | InType
 
   val equal : t -> t -> bool
   val le : t -> t -> bool
@@ -109,6 +109,7 @@ sig
       (** Supremum of the variances, binders where the level occurs *)
       in_term : Variance.t option;
       in_type : Variance.t option;
+      in_term_typing: Variance.t option;
       under_impred_qvars : impred_qvars }
 
   val default_occ : t

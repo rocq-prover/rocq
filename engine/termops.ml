@@ -269,7 +269,7 @@ let pr_evd_qvar sigma = UState.pr_uctx_qvar (Evd.ustate sigma)
 
 let reference_of_level sigma l = UState.qualid_of_level (Evd.ustate sigma) l
 
-let pr_evar_universe_context = UState.pr
+let pr_evar_universe_context = UState.pr ~local:false
 
 let print_env_short env sigma =
   let print_constr = Internal.print_kconstr in
