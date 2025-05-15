@@ -58,7 +58,7 @@ sig
   type t =
   | InBinder of int
   | InTopFixBinder of int
-  | InTerm | InTermTyping | InType
+  | InTerm | InType
 
   val equal : t -> t -> bool
   val le : t -> t -> bool
@@ -67,19 +67,6 @@ sig
 
   (* Lifting for binder positions *)
   val lift : int -> t -> t
-end
-
-module VariancePos :
-sig
-  type t = Variance.t * Position.t
-
-  val make : Variance.t -> Position.t -> t
-  val pr : t -> Pp.t
-  val equal : t -> t -> bool
-  val le : t -> t -> bool
-  val lift : int -> t -> t
-
-  val variance : application -> t -> Variance.t
 end
 
 (** {6 Variance occurrences} *)
@@ -100,16 +87,53 @@ val union_impred_qvars : impred_qvars -> impred_qvars -> impred_qvars
 type assumption_or_definition =
   Assumption | Definition
 
+module VariancePair :
+sig
+
+  type t = 
+  { cumul_variance : Variance.t;
+    typing_variance : Variance.t }
+
+  val cumul_variance : t -> Variance.t
+  val typing_variance : t -> Variance.t
+
+  val irrelevant_pair : t
+  
+  val equal : t -> t -> bool
+  val le : t -> t -> bool
+  
+  val sup : t -> t -> t
+
+  val pr : t -> Pp.t
+
+  val sup_cumul_variances : t -> t -> Variance.t
+  val sup_typing_variances : t -> t -> Variance.t
+
+end
+
+module VariancePos :
+sig
+  type t = Variance.t * Position.t
+
+  val make : Variance.t -> Position.t -> t
+  val pr : t -> Pp.t
+  val equal : t -> t -> bool
+  val le : t -> t -> bool
+  val lift : int -> t -> t
+
+  val variance : application -> t -> Variance.t
+end
+
 module VarianceOccurrence :
 sig
+
   (** Irrelevance and not appearing are represented both by [None] *)
   type t =
-    { in_binders : Variance.t option * int list;
-      in_topfix_binders : Variance.t option * int list;
+    { in_binders : VariancePair.t option * int list;
+      in_topfix_binders : VariancePair.t option * int list;
       (** Supremum of the variances, binders where the level occurs *)
-      in_term : Variance.t option;
-      in_type : Variance.t option;
-      in_term_typing: Variance.t option;
+      in_term : VariancePair.t option;
+      in_type : VariancePair.t option;
       under_impred_qvars : impred_qvars }
 
   val default_occ : t
@@ -122,13 +146,13 @@ sig
   val le : t -> t -> bool
   val equal : t -> t -> bool
 
-  val term_variance : t -> Variance.t
+  val typing_variances : t -> Variance.t
   
-  val typing_and_cumul_variance : nargs:int -> t -> Variance.t * Variance.t
+  val typing_and_cumul_variance : nargs:int -> t -> VariancePair.t
 
-  val typing_and_cumul_variance_app : ?with_type:bool -> application -> t -> Variance.t * Variance.t
+  val typing_and_cumul_variance_app : ?with_type:bool -> application -> t -> VariancePair.t
 
-  val variance_app : application -> t -> Variance.t
+  val variance_app : application -> t -> VariancePair.t
 
   val under_impred_qvars : t -> impred_qvars
 
@@ -151,6 +175,9 @@ sig
 
   val le : t -> t -> bool
   val equal : t -> t -> bool
+
+  val equal_cumul : t -> t -> bool
+
   val eq_sizes : t -> t -> bool
 
 end

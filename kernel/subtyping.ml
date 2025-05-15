@@ -98,8 +98,15 @@ let clear_term_variances vs =
   let open VarianceOccurrence in
   UVars.Variances.(make (Array.map (fun vocc -> { vocc with in_term = None }) (repr vs)))
 let clear_type_variances vs =
+  let open Variance in
+  let open VariancePair in
   let open VarianceOccurrence in
-  UVars.Variances.(make (Array.map (fun vocc -> { vocc with in_type = None; in_term_typing = None }) (repr vs)))
+  let clear_typing vopt = Option.map (fun v -> { v with typing_variance = Irrelevant }) vopt in
+  let clear_binders_typing (vopt, occ) = clear_typing vopt, occ in
+  UVars.Variances.(make (Array.map (fun vocc -> { vocc with 
+    in_binders = clear_binders_typing vocc.in_binders;
+    in_topfix_binders = clear_binders_typing vocc.in_topfix_binders;
+    in_term = clear_typing vocc.in_term; in_type = None }) (repr vs)))
 
 let check_variance error env ~term_variances v1 v2 =
   match v1, v2 with
