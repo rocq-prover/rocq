@@ -1107,7 +1107,7 @@ let force_variance ~force_in_term v (VarianceOccurrence.{ in_binders = (binder_m
     if force_in_term then Some v
     else Option.map (fun _ -> v) in_term
   in
-  { vocc with in_binders = bindersv, occs; in_term; in_type = in_type }
+  { vocc with in_binders = bindersv, occs; in_term; in_term_typing = in_term; in_type = in_type }
 
 let computed_variances cumulative kind ivariances inst =
   let inferred_variance level =
@@ -1563,7 +1563,7 @@ let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop}} =
 
 let pr_sort_opt_subst uctx = QState.pr (qualid_of_qvar_names uctx.names) uctx.sort_variables
 
-let pr ctx =
+let pr ?(local=false) ctx =
   let open Pp in
   let prl = pr_uctx_level ctx in
   if is_empty ctx then mt ()
@@ -1573,7 +1573,7 @@ let pr ctx =
        h (Univ.ContextSet.pr prl (context_set ctx)) ++ fnl () ++
        UnivFlex.pr prl (subst ctx) ++ fnl() ++
        str"GRAPH:" ++ brk(0,1) ++
-       h (UGraph.pr_universes prl (UGraph.repr (ugraph ctx))) ++ fnl () ++
+       h (UGraph.pr_model ~local (ugraph ctx)) ++ fnl () ++
        str"SORTS:"++brk(0,1)++
        h (pr_sort_opt_subst ctx) ++ fnl() ++
        (pr_opt (fun variances -> str"VARIANCES:"++brk(0,1)++

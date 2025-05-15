@@ -24,9 +24,9 @@ type infer_binders = (mode * (Variance.t option * int list))
 type infer_variance_occurrence =
   { infer_binders : infer_binders;
     infer_topfix_binders : infer_binders;
-    infer_term : mode * UVars.Variance.t option;
-    infer_type : mode * UVars.Variance.t option;
-    infer_variance : Variance.t;
+    infer_term : mode * Variance.t option;
+    infer_type : mode * Variance.t option;
+    infer_term_typing : mode * Variance.t option;
     infer_under_impred_qvars : impred_qvars }
 
 val default_occ : infer_variance_occurrence
@@ -60,7 +60,7 @@ val union_variances : variances -> variances -> variances
    of the level within the term, useful for determining if a level can be minimized without
   affecting the principal type of the subexpressions. *)
 val term_type_variances : infer_variance_occurrence ->
-    Variance.t option * Variance.t option * Variance.t
+    Variance.t option * Variance.t option * Variance.t option
 
 val of_variance_occurrences : infer_in_type:bool -> pre_variances -> variances
 

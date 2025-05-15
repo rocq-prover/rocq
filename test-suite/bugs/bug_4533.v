@@ -185,10 +185,10 @@ Module ReflectiveSubuniverses_Theory (Os : ReflectiveSubuniverses).
 IsEquiv@{i i} (to O T).
     Proof.
 
-      pose (g := O_rec@{u a i i i} idmap).
+      pose (g := O_rec@{u a i i} idmap).
       refine (isequiv_adjointify (to O T) g _ _).
       -
-        refine (O_indpaths@{u a i i i} (to O T o g) idmap _).
+        refine (O_indpaths@{u a i i} (to O T o g) idmap _).
         intros x.
         apply ap.
         apply O_rec_beta.
