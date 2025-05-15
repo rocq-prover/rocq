@@ -49,14 +49,6 @@ let { Goptions.get = lra_proof_depth } =
     ~value:max_depth
     ()
 
-(* Search limit for provers over Z *)
-let { Goptions.get = lia_enum } =
-  declare_bool_option_and_ref
-    ~depr:since_8_14
-    ~key:["Lia"; "Enum"]
-    ~value:true
-    ()
-
 let { Goptions.get = lia_proof_depth } =
   declare_int_option_and_ref
     ~depr:since_8_14
@@ -64,8 +56,7 @@ let { Goptions.get = lia_proof_depth } =
     ~value:max_depth
     ()
 
-let get_lia_option () =
-  (true, lia_enum (), lia_proof_depth ())
+let get_lia_option () = lia_proof_depth ()
 
 (* Enable/disable caches *)
 
@@ -2325,7 +2316,7 @@ let compact_pt pt f =
 let lift_pexpr_prover p l = p (List.map (fun (e, o) -> (Mc.denorm e, o)) l)
 
 module CacheZ = MakeCache (struct
-  type prover_option = bool * bool * int
+  type prover_option = int
   type coeff = Mc.z
 
   let hash_prover_option : int -> prover_option -> int =
@@ -2347,11 +2338,11 @@ module CacheQ = MakeCache (struct
 end)
 
 let memo_lia =
-  CacheZ.memo_opt use_lia_cache ".lia.cache" (fun ((_, _, b), s) ->
+  CacheZ.memo_opt use_lia_cache ".lia.cache" (fun (b, s) ->
       lift_pexpr_prover (Certificate.lia b) s)
 
 let memo_nlia =
-  CacheZ.memo_opt use_nia_cache ".nia.cache" (fun ((_, _, b), s) ->
+  CacheZ.memo_opt use_nia_cache ".nia.cache" (fun (b, s) ->
       lift_pexpr_prover (Certificate.nlia b) s)
 
 let memo_nra =
