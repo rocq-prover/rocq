@@ -750,7 +750,7 @@ let compare_cumulative_instances cv_pb ~nargs variances u u' sigma =
   let cstrs, soft = Array.fold_left3 (fun (cstrs, soft) v u u' ->
       let open UVars.Variance in
       let v = UVars.VarianceOccurrence.variance_app nargs v in
-      match v with
+      match v.cumul_variance with
       | Irrelevant -> cstrs, Set.add (UWeak (u,u')) soft
       | Covariant when cv_pb == Conversion.CUMUL ->
         Univ.Constraints.add (u,Univ.Le,u') cstrs, soft

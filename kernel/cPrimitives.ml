@@ -308,15 +308,17 @@ and ind_or_type =
   | PITT_param : int -> ind_or_type (* DeBruijn index referring to prenex type quantifiers *)
 
 let array_variances : UVars.variances =
+  let open VariancePair in
   let open VarianceOccurrence in
   UVars.(Variances.make
-    [| { VarianceOccurrence.default_occ with in_binders = Some Variance.Irrelevant, [0]; under_impred_qvars = Some Predicative } |])
+    [| { VarianceOccurrence.default_occ with in_binders = Some { cumul_variance = Variance.Irrelevant; typing_variance = Variance.Irrelevant }, [0]; under_impred_qvars = Some Predicative } |])
 
 let array_univs : AbstractContext.t * Variances.t option =
+  let open VariancePair in
   let open VarianceOccurrence in
   AbstractContext.make { quals = [||]; univs = Names.[|Name (Id.of_string "u")|]} Constraints.empty,
-  Some (Variances.make [| { default_occ with in_binders = Some Variance.Contravariant, [0];
-    in_type = Some Variance.Covariant;
+  Some (Variances.make [| { default_occ with in_binders = Some { cumul_variance = Variance.Invariant; typing_variance = Variance.Contravariant }, [0];
+    in_type = Some { cumul_variance = Variance.Covariant; typing_variance = Variance.Covariant };
     under_impred_qvars = Some Predicative } |])
 
 let typ_univs (type a) (t : a prim_type) = match t with
@@ -477,9 +479,10 @@ let params = function
 let nparams x = List.length (params x)
 
 let array_ops_univs : AbstractContext.t * Variances.t option =
+  let open VariancePair in
   let open VarianceOccurrence in
   AbstractContext.make { quals = [||]; univs = Names.[|Name (Id.of_string "u")|] } Constraints.empty,
-  Some (Variances.make [| { default_occ with in_binders = Some Variance.Contravariant, [0];
+  Some (Variances.make [| { default_occ with in_binders = Some { cumul_variance = Variance.Invariant; typing_variance = Variance.Contravariant }, [0];
     under_impred_qvars = Some Predicative } |])
 
 let univs = function

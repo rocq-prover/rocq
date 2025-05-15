@@ -934,34 +934,6 @@ let () =
     | NotConvertibleTrace _ -> assert false
   in
   CClosure.set_conv conv
-(*
-let fail_env univs b =
-  if b then Result.Ok (univs) else Result.Error None
-
-let compare_sorts_env _env cv_pb s1 s2 univs =
-  match cv_pb with
-  | CONV -> fail_env univs (s1 == s2 || UGraph.check_eq_sort univs s1 s2)
-  | CUMUL -> fail_env univs (s1 == s2 || UGraph.check_leq_sort univs s1 s2)
-
-let compare_instances_env ~flex u1 u2 univs =
-  let _ = flex in (* TODO use flex? *)
-  fail_env univs (UGraph.check_eq_instances univs u1 u2)
-
-let compare_cumul_instances_env ~flex cv_pb variance u1 u2 univs =
-  let _ = flex in (* TODO use flex? *)
-  match cv_pb with
-  | CONV -> fail_env univs (UGraph.check_eq_instances univs u1 u2)
-  | CUMUL ->
-    let qcstrs, ucstrs = get_cumulativity_constraints cv_pb variance u1 u2 in
-    if Sorts.QConstraints.trivial qcstrs then
-      fail_env univs (UGraph.check_constraints ucstrs univs)
-    else Result.Error None
-
-let leq_constr_univs_cmp =
-  let open UCompare in
-  { compare_sorts = compare_sorts_env;
-    compare_instances = compare_instances_env;
-    compare_cumul_instances = compare_cumul_instances_env; }   *)
 
 let to_bool = function
   Result.Ok _ -> true | Result.Error () -> false

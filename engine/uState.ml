@@ -1102,12 +1102,13 @@ let extend_variances inst variances =
   else Array.append variances (Array.make (ulen - vlen) None)
 
 let force_variance ~force_in_term v (VarianceOccurrence.{ in_binders = (binder_mode, occs); in_term; in_type; _ } as vocc) =
-  let bindersv = Option.map (fun _ -> v) binder_mode in
+  let open VariancePair in
+  let bindersv = Option.map (fun var -> { var with typing_variance = v }) binder_mode in
   let in_term =
-    if force_in_term then Some v
-    else Option.map (fun _ -> v) in_term
+    if force_in_term then Some { cumul_variance = Invariant; typing_variance = v }
+    else Option.map (fun var -> { var with typing_variance = v }) in_term
   in
-  { vocc with in_binders = bindersv, occs; in_term; in_term_typing = in_term; in_type = in_type }
+  { vocc with in_binders = bindersv, occs; in_term; in_type = in_type }
 
 let computed_variances cumulative kind ivariances inst =
   let inferred_variance level =
@@ -1116,7 +1117,7 @@ let computed_variances cumulative kind ivariances inst =
     | Some o ->
       let occ = InferCumulativity.forget_infer_variance_occurrence o in
       if cumulative then Some occ
-      else Some (force_variance ~force_in_term:(kind = UVars.Assumption) Variance.Invariant occ)
+      else Some (force_variance ~force_in_term:(kind = UVars.Assumption) Invariant occ)
   in
   let arr = Array.map inferred_variance (snd (LevelInstance.to_array inst)) in
   if not cumulative && Array.for_all Option.is_empty arr then None
@@ -1158,7 +1159,8 @@ let check_variances ~cumulative ~kind names ivariances inst variances =
             match variance with
             | None -> iv
             | Some variance ->
-              let ivariance = UVars.VarianceOccurrence.term_variance iv in
+              let ivariance = UVars.VarianceOccurrence.typing_variances iv in
+              (* FIXME should we force only the cumulativity variance ? *)
               if UVars.Variance.le ivariance variance then force_variance ~force_in_term:false variance iv
               else CErrors.user_err Pp.(str"Variance annotation " ++ UVars.Variance.pr variance ++ str" for universe binder " ++
                 (pr_uctx_level_names names level) ++ str" is incorrect, inferred variance is " ++

@@ -147,9 +147,13 @@ let compatible_variance_entry v e =
   match v, e with
   | None, None -> true
   | Some _, Some Infer_variances -> true
-  | Some v, Some (Check_variances v') -> UVars.Variances.equal v v'
+  | Some v, Some (Check_variances v') -> UVars.Variances.equal_cumul v v'
   | None, Some _ -> false
   | Some _, None -> false
+
+let pr_infv = function
+  | Infer_variances -> Pp.str "inferred variances"
+  | Check_variances v -> Variances.pr v
 
 let adjust_primitive_univ_entry p auctx variances = function
   | Monomorphic_entry ->
@@ -166,7 +170,9 @@ let adjust_primitive_univ_entry p auctx variances = function
                                 str (CPrimitives.op_or_type_to_string p));
     if not (compatible_variance_entry variances variances') then
       CErrors.user_err Pp.(str "Incorrect universe variances for primitive " ++
-        str (CPrimitives.op_or_type_to_string p));
+        str (CPrimitives.op_or_type_to_string p) ++ str", inferred: " ++ 
+        (match variances' with None -> str" None" | Some e -> pr_infv e) ++ str " expected: " ++
+        (match variances with None -> str" None" | Some e -> Variances.pr e));
     Polymorphic_entry (UContext.refine_names (AbstractContext.names auctx) uctx, Option.map (fun x -> Check_variances x) variances)
 
 let on_variances fn = function

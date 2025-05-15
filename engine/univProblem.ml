@@ -131,7 +131,7 @@ let compare_cumulative_instances cv_pb ~nargs variances u u' cstrs =
     (fun cstrs v u u' ->
        let open UVars.Variance in
        let v = UVars.VarianceOccurrence.variance_app nargs v in
-       match v with
+       match v.cumul_variance with
        | Irrelevant -> Set.add (UWeak (u,u')) cstrs
        | Covariant ->
          (match cv_pb with

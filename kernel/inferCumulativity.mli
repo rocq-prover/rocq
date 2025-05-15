@@ -19,18 +19,17 @@ val mode_sup : mode -> mode -> mode
 (** Not the same as Type_errors.BadVariance because we don't have the env where we raise. *)
 exception BadVariance of Level.t * VariancePos.t * VariancePos.t
 
-type infer_binders = (mode * (Variance.t option * int list))
+type infer_binders = (mode * (VariancePair.t option * int list))
 
 type infer_variance_occurrence =
   { infer_binders : infer_binders;
     infer_topfix_binders : infer_binders;
-    infer_term : mode * Variance.t option;
-    infer_type : mode * Variance.t option;
-    infer_term_typing : mode * Variance.t option;
+    infer_term : mode * VariancePair.t option;
+    infer_type : mode * VariancePair.t option;
     infer_under_impred_qvars : impred_qvars }
 
 val default_occ : infer_variance_occurrence
-val make_infer_occ : VariancePos.t -> infer_variance_occurrence
+val make_checked_occ : VariancePos.t -> infer_variance_occurrence
 
 val sup_occs : infer_variance_occurrence -> infer_variance_occurrence -> infer_variance_occurrence
 
@@ -88,7 +87,7 @@ type cumul_pb =
   | InvCumul (* Contravariance *)
 
 val infer_term
-  : cumul_pb
+  : cumul_pb * cumul_pb
   -> Environ.env
   (** Environment containing the polymorphic universes *)
   -> evars:CClosure.evar_handler
@@ -97,7 +96,7 @@ val infer_term
   -> Inf.status
 
 val infer_body
-  : cumul_pb
+  : cumul_pb * cumul_pb
   -> Environ.env
   (** Environment containing the polymorphic universes *)
   -> evars:CClosure.evar_handler
