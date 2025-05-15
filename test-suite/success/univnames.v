@@ -1,5 +1,5 @@
 Set Universe Polymorphism.
-
+Test Universe Minimization ToSet.
 Definition foo@{i j} (A : Type@{i}) (B : Type@{j}) := A.
 
 Set Printing Universes.

@@ -284,7 +284,7 @@ val is_rigid_qvar : t -> Sorts.QVar.t -> bool
 
 val pr_weak : (Univ.Level.t -> Pp.t) -> t -> Pp.t
 
-val pr : t -> Pp.t
+val pr : ?local:bool -> t -> Pp.t
 
 val pr_sort_opt_subst : t -> Pp.t
 
