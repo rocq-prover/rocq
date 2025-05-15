@@ -3,7 +3,7 @@ Require Import TestSuite.admit.
 Set Universe Polymorphism.
 Generalizable All Variables.
 Reserved Notation "g 'o' f" (at level 40, left associativity).
-Inductive paths {A : Type} (a : A) : A -> Type :=
+Inductive paths@{i} {A : Type@{i}} (a : A) : A -> Type@{i} :=
   idpath : paths a a.
 Arguments idpath {A a} , [A] a.
 Notation "x = y" := (@paths _ x y) : type_scope.
@@ -26,7 +26,6 @@ Fixpoint nat_to_trunc_index (n : nat) : trunc_index
      end.
 
 Coercion nat_to_trunc_index : nat >-> trunc_index.
-
 Fixpoint IsTrunc_internal (n : trunc_index) (A : Type) : Type :=
   match n with
     | minus_two => Contr_internal A
@@ -44,7 +43,7 @@ Notation IsHSet := (IsTrunc 0).
 Class Funext := {}.
 Inductive Unit : Set := tt.
 
-#[export] Instance contr_unit : Contr Unit | 0 := let x := {|
+#[export] Instance contr_unit@{u} : IsTrunc@{u} minus_two Unit | 0 := let x := {|
                                               center := tt;
                                               contr := fun t : Unit => match t with tt => idpath end
                                             |} in x.
@@ -52,7 +51,7 @@ Inductive Unit : Set := tt.
 admit.
 Defined.
 Record hProp := hp { hproptype :> Type ; isp : IsHProp hproptype}.
-Definition Unit_hp:hProp:=(hp Unit _).
+Definition Unit_hp@{u}:hProp@{u}:=(hp Unit _).
 Record hSet := BuildhSet {setT:> Type; iss :> IsHSet setT}.
 Canonical Structure default_HSet:= fun T P => (@BuildhSet T P).
 Definition ismono {X Y} (f : X -> Y)
@@ -95,17 +94,17 @@ Definition hexists {X} (P:X->Type):Type:= minus1Trunc (sigT  P).
 Definition isepi {X Y} `(f:X->Y) := forall Z: hSet,
                                     forall g h: Y -> Z, (fun x => g (f x)) = (fun x => h (f x)) -> g = h.
 Definition issurj {X Y} (f:X->Y) := forall y:Y , hexists (fun x => (f x) = y).
-Lemma isepi_issurj `{fs:Funext} `{ua:Univalence} `{fs' : Funext} {X Y} (f:X->Y): isepi f -> issurj f.
+Lemma isepi_issurj@{u v ?} `{fs:Funext} `{ua:Univalence} `{fs' : Funext} {X : Type@{u}} {Y : Type@{v}} (f:X->Y): isepi f -> issurj f.
 Proof.
   intros epif y.
   set (g :=fun _:Y => Unit_hp).
   set (h:=(fun y:Y => (hp (hexists (fun _ : Unit => {x:X & y = (f x)})) _ ))).
   clear fs'.
   hnf in epif.
-  specialize (epif (BuildhSet hProp _) g h).
+  specialize (epif (BuildhSet hProp@{u} _) g h).
   admit.
 Defined.
-Definition isequiv_isepi_ismono `{Univalence, fs0 : Funext} (X Y : hSet) (f : X -> Y) (epif : isepi f) (monof : ismono f)
+Definition isequiv_isepi_ismono@{u ?} `{Univalence, fs0 : Funext} (X Y : hSet@{u}) (f : X -> Y) (epif : isepi f) (monof : ismono f)
 : IsEquiv f.
 Proof.
   pose proof (@isepi_issurj _ _ _ _ _ f epif) as surjf.

@@ -354,7 +354,7 @@ Module Export Trunc.
 Generalizable Variables A B m n f.
 Set Debug "univMinim".
 Definition trunc_equiv@{u u0} (A : Type@{u}) {B : Type@{u0}} (f : A -> B)
-  `{IsTrunc n A} `{IsEquiv A B f}
+  `{IsTrunc@{u} n A} `{IsEquiv A B f}
   : IsTrunc@{u0} n B.
 admit.
 Defined.
@@ -842,7 +842,7 @@ Module Truncation_Modalities <: Modalities.
   : let gei := ((fun x => x) : Type@{i} -> Type@{k}) in
     let gej := ((fun x => x) : Type@{j} -> Type@{k}) in
     In@{u a j} n B
-  := @trunc_equiv@{j i} A B f n Atr feq.
+  := @trunc_equiv@{i j} A B f n Atr feq.
 
   Definition hprop_inO@{u a i} `{Funext} (n : Modality@{u a}) (A : Type@{i})
   : IsHProp@{i} (In n A).
