@@ -49,6 +49,7 @@ val in_synterp_phase : bool ref
 
 (* Set Printing All flag. For some reason it is a global flag *)
 val raw_print : bool ref
+val fqn_print : bool ref
 
 (* Beautify command line flags, should move to printing? *)
 val beautify : bool ref
