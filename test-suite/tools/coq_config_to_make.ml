@@ -46,6 +46,9 @@ let canonical_path_name p =
     Filename.concat current p
 
 let find_in_PATH f =
+  let f = if Coq_config.arch_is_win32 && Filename.extension f <> ".exe" then f^".exe"
+    else f
+  in
   if Filename.basename f <> f then Some f
   else match Sys.getenv_opt "PATH" with
   | None -> None
