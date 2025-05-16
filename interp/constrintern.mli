@@ -142,7 +142,7 @@ val interp_type_evars_impls : ?flags:inference_flags -> env -> evar_map ->
 (** Without typing *)
 val intern_constr_pattern :
   env -> evar_map -> ?as_type:bool -> ?strict_check:bool -> ?ltacvars:ltac_sign ->
-    constr_pattern_expr -> Id.Set.t * [`uninstantiated] constr_pattern_r
+    constr_pattern_expr -> Id.Set.t * uninstantiated_pattern
 
 val interp_constr_pattern :
   env -> evar_map -> ?as_type:bool -> ?strict_check:bool ->
