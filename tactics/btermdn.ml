@@ -63,7 +63,7 @@ let rec eta_reduce_pat (p:constr_pattern) = match p with
 | PRef _ | PVar _ | PEvar _ | PRel _ | PApp _ | PSoApp _ | PProj _ | PProd _
 | PLetIn _ | PSort _ | PMeta _ | PIf _ | PCase _ | PFix _ | PCoFix _ | PInt _
 | PFloat _ | PString _ | PArray _ -> p
-| PUninstantiated _ -> .
+| PExtra e -> Util.Empty.abort e
 
 let evaluable_constant c env ts =
   (* This is a hack to work around a broken Print Module implementation, see
