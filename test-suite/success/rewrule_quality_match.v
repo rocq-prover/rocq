@@ -1,6 +1,6 @@
 (* -*- mode: coq; coq-prog-args: ("-allow-rewrite-rules") -*- *)
 
-#[universes(polymorphic)] Symbol irrel@{q|u|} : forall {A : Type@{q|u}}, A -> bool.
+#[universes(polymorphic)] Symbol irrel@{q;u} : forall {A : Type@{q;u}}, A -> bool.
 
 Rewrite Rule id_rew :=
 | irrel@{SProp|_} _ => true
