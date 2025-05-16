@@ -261,7 +261,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
       | Some {CAst.v=id; loc} -> (id, id, loc)
       | None ->
         let id_of_f = Label.to_id (Constant.label (fst f)) in
-        (id_of_f, Indrec.make_elimination_ident id_of_f (EConstr.ESorts.quality_or_set !evd type_sort), None)
+        (id_of_f, Elimschemes.make_elimination_ident id_of_f (EConstr.ESorts.quality_or_set !evd type_sort), None)
     in
     let names = ref [new_princ_name] in
     let hook new_principle_type _ =
@@ -271,7 +271,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
           let evd' = Evd.from_env (Global.env ()) in
           let evd', s = Evd.fresh_sort_in_quality evd' sort in
           let name =
-            Indrec.make_elimination_ident base_new_princ_name sort
+            Elimschemes.make_elimination_ident base_new_princ_name sort
           in
           let evd', value =
             change_property_sort evd' s new_principle_type new_princ_name
@@ -354,7 +354,7 @@ let generate_principle (evd : Evd.evar_map ref) pconstants on_error is_general
         List.map_i
           (fun i _x ->
             let env = Global.env () in
-            let princ = Indrec.lookup_eliminator env (ind_kn, i) UnivGen.QualityOrSet.prop in
+            let princ = Elimschemes.lookup_eliminator env (ind_kn, i) UnivGen.QualityOrSet.prop in
             let evd = ref (Evd.from_env env) in
             let evd', uprinc = Evd.fresh_global env !evd princ in
             let _ = evd := evd' in
