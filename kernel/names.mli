@@ -362,9 +362,6 @@ sig
   module UserOrd : EqType with type t = t
   (** Equality functions over the user name. *)
 
-  module SyntacticOrd : EqType with type t = t
-  (** Equality functions using both names, for low-level uses. *)
-
   val canonize : t -> t
   (** Returns the canonical version of the name *)
 end
