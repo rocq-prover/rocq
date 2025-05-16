@@ -41,7 +41,7 @@ val empty_glob_sign : strict:bool -> Environ.env -> glob_sign
    in the environment by the effective calls to Intro, Inversion, etc
    The [constr_expr] field is [None] in TacDef though *)
 type glob_constr_and_expr = Glob_term.glob_constr * Constrexpr.constr_expr option
-type glob_constr_pattern_and_expr = Id.Set.t * glob_constr_and_expr * Pattern.constr_pattern
+type glob_constr_pattern_and_expr = Id.Set.t * glob_constr_and_expr * [`uninstantiated] Pattern.constr_pattern_r
 
 (** {5 Internalization functions} *)
 

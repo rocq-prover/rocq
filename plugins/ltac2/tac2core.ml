@@ -936,7 +936,6 @@ let () =
     Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
   in
   pf_apply @@ fun env sigma ->
-  let pat = Constr_matching.instantiate_pattern env sigma Id.Map.empty pat in
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
@@ -965,7 +964,6 @@ let () =
     Proofview.tclOR (return (m_ctx,ans)) (fun _ -> of_ans s)
   in
   pf_apply @@ fun env sigma ->
-  let pat = Constr_matching.instantiate_pattern env sigma Id.Map.empty pat in
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
@@ -1724,7 +1722,7 @@ let () =
       ltac_extra = extra;
     }
     in
-    let _, pat = Constrintern.intern_uninstantiated_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
+    let _, pat = Constrintern.intern_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
     GlbVal pat, gtypref t_pattern
   in
   let subst subst c =

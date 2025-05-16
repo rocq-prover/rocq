@@ -352,7 +352,7 @@ let pattern_of_string ?env s =
     | Some e -> e
   in
   let constr = Procq.parse_string Procq.Constr.cpattern s in
-  let (_, pat) = Constrintern.intern_constr_pattern env (Evd.from_env env) constr in
+  let (_, pat) = Constrintern.interp_constr_pattern env (Evd.from_env env) constr in
   pat
 
 let dirpath_of_string_list s =

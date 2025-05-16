@@ -2775,16 +2775,14 @@ let interp_type_evars ?program_mode env sigma ?(impls=empty_internalization_env)
   interp_constr_evars_gen ?program_mode env sigma IsType ~impls c
 
 (* Miscellaneous *)
-
 let intern_constr_pattern env sigma ?(as_type=false) ?strict_check ?(ltacvars=empty_ltac_sign) c =
   let c = intern_gen (if as_type then IsType else WithoutTypeConstraint)
             ?strict_check ~pattern_mode:true ~ltacvars env sigma c in
   pattern_of_glob_constr env c
 
-let intern_uninstantiated_constr_pattern env sigma ?(as_type=false) ?strict_check ?(ltacvars=empty_ltac_sign) c =
-  let c = intern_gen (if as_type then IsType else WithoutTypeConstraint)
-            ?strict_check ~pattern_mode:true ~ltacvars env sigma c in
-  uninstantiated_pattern_of_glob_constr env c
+let interp_constr_pattern env sigma ?as_type ?strict_check c =
+  let ids, pat = intern_constr_pattern env sigma ?as_type ?strict_check c in
+  ids, Patternops.interp_pattern env sigma Glob_ops.empty_lvar pat
 
 let intern_core kind env sigma ?strict_check ?(pattern_mode=false) ?(ltacvars=empty_ltac_sign)
       { Genintern.intern_ids = ids; Genintern.notation_variable_status = vl } c =
