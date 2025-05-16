@@ -1006,8 +1006,19 @@ PRINTED BY { pr_ltac2expr }
 END
 
 VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
-| #[ raw_attributes ] [ "Ltac2" ltac2_entry(e) ] => { Vernacextend.classify_as_sideeff } -> {
-  Tac2entries.register_struct raw_attributes e
+| #[ raw_attributes ] [ "Ltac2" ltac2_entry(e) ] => {
+  VtSideff (
+    (match e with
+      | StrVal(_, _, l) ->
+        List.concat_map (function
+          | ({CAst.v=na}, _) -> match na with Anonymous -> [] | Name id -> [id]) l
+      | StrTyp(_, l) ->
+        List.map (function
+          | (qid, _, _) -> Libnames.qualid_basename qid) l
+      | _ -> []),
+      VtLater)
+  } -> {
+    Tac2entries.register_struct raw_attributes e
   }
 | #[ raw_attributes ] [ "Ltac2" "Notation" ltac2def_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
     let (toks, n, body) = e in
