@@ -68,7 +68,7 @@ let rec constr_pattern_eq env (p1:constr_pattern) p2 = match p1, p2 with
 | PArray (t1, def1, ty1), PArray (t2, def2, ty2) ->
   Array.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) t1 t2 && constr_pattern_eq env def1 def2
   && constr_pattern_eq env ty1 ty2
-| PUninstantiated _, _ -> .
+| PExtra e, _ -> Util.Empty.abort e
 | (PRef _ | PVar _ | PEvar _ | PRel _ | PApp _ | PSoApp _
    | PLambda _ | PProd _ | PLetIn _ | PSort _ | PMeta _
    | PIf _ | PCase _ | PFix _ | PCoFix _ | PProj _ | PInt _
@@ -110,7 +110,7 @@ let rec occurn_pattern : 'a. _ -> 'a constr_pattern_r -> _
      Array.exists (occurn_pattern n) tl || Array.exists (occurn_pattern (n+Array.length tl)) bl
   | PArray (t,def,ty) ->
     Array.exists (occurn_pattern n) t || occurn_pattern n def || occurn_pattern n ty
-  | PUninstantiated (PGenarg _) -> false
+  | PExtra _ -> false (* XXX dubious behaviour *)
 
 let noccurn_pattern n c = not (occurn_pattern n c)
 
@@ -131,7 +131,7 @@ let rec head_pattern_bound (t:constr_pattern) =
     | PLambda _ -> raise BoundPattern
     | PCoFix _ | PInt _ | PFloat _ | PString _ | PArray _ ->
       anomaly ~label:"head_pattern_bound" (Pp.str "not a type.")
-    | PUninstantiated _ -> .
+    | PExtra e -> Util.Empty.abort e
 
 let head_of_constr_reference sigma c = match EConstr.kind sigma c with
   | Const (sp,_) -> GlobRef.ConstRef sp
@@ -261,14 +261,14 @@ let map_pattern_with_binders_gen (type a b) g f fgen l : a constr_pattern_r -> b
      PCoFix (ln,(lna,Array.map (f l) tl,Array.map (f l') bl))
   | PArray (t,def,ty) -> PArray (Array.map (f l) t, f l def, f l ty)
   | PEvar (ev,ps) -> PEvar (ev, List.map (f l) ps)
-  | PUninstantiated (PGenarg _ as x) -> fgen l (x:a uninstantiated_pattern)
+  | PExtra x -> fgen l x
   (* Non recursive *)
   | (PVar _ | PRel _ | PRef _  | PSort _  | PMeta _ | PInt _
     | PFloat _ | PString _ as x) -> x
 
 let map_pattern_with_binders (type a) g f l (p:a constr_pattern_r) : a constr_pattern_r =
-  let fgen _ : a uninstantiated_pattern -> a constr_pattern_r = function
-    | PGenarg _ as x -> PUninstantiated x
+  let fgen _ : a -> a constr_pattern_r = function
+    | x -> PExtra x
   in
   map_pattern_with_binders_gen g f fgen l p
 
@@ -278,9 +278,9 @@ let rec liftn_pattern k n = function
 
 let lift_pattern k = liftn_pattern k 1
 
-let rec subst_pattern
-  : 'a. _ -> _ -> _ -> 'a constr_pattern_r -> 'a constr_pattern_r
-  = fun (type a) env sigma subst (pat: a constr_pattern_r) ->
+let rec subst_pattern_gen
+  : 'a. (_ -> 'a -> 'a) -> _ -> _ -> _ -> 'a constr_pattern_r -> 'a constr_pattern_r
+  = fun (type a) gsubst env sigma subst (pat: a constr_pattern_r) ->
   match pat with
   | PRef ref ->
     let ref',t = subst_global subst ref in
@@ -294,43 +294,43 @@ let rec subst_pattern
   | PInt _
   | PFloat _
   | PString _ -> pat
-  | PUninstantiated (PGenarg g) -> PUninstantiated (PGenarg (Gensubst.generic_substitute subst g))
+  | PExtra g -> PExtra (gsubst subst g)
   | PProj (p,c) ->
       let p' = Projection.map (subst_mind subst) p in
-      let c' = subst_pattern env sigma subst c in
+      let c' = subst_pattern_gen gsubst env sigma subst c in
         if p' == p && c' == c then pat else
           PProj(p',c')
   | PApp (f,args) ->
-      let f' = subst_pattern env sigma subst f in
-      let args' = Array.Smart.map (subst_pattern env sigma subst) args in
+      let f' = subst_pattern_gen gsubst env sigma subst f in
+      let args' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) args in
         if f' == f && args' == args then pat else
           PApp (f',args')
   | PSoApp (i,args) ->
-      let args' = List.Smart.map (subst_pattern env sigma subst) args in
+      let args' = List.Smart.map (subst_pattern_gen gsubst env sigma subst) args in
         if args' == args then pat else
           PSoApp (i,args')
   | PLambda (name,c1,c2) ->
-      let c1' = subst_pattern env sigma subst c1 in
-      let c2' = subst_pattern env sigma subst c2 in
+      let c1' = subst_pattern_gen gsubst env sigma subst c1 in
+      let c2' = subst_pattern_gen gsubst env sigma subst c2 in
         if c1' == c1 && c2' == c2 then pat else
           PLambda (name,c1',c2')
   | PProd (name,c1,c2) ->
-      let c1' = subst_pattern env sigma subst c1 in
-      let c2' = subst_pattern env sigma subst c2 in
+      let c1' = subst_pattern_gen gsubst env sigma subst c1 in
+      let c2' = subst_pattern_gen gsubst env sigma subst c2 in
         if c1' == c1 && c2' == c2 then pat else
           PProd (name,c1',c2')
   | PLetIn (name,c1,t,c2) ->
-      let c1' = subst_pattern env sigma subst c1 in
-      let t' = Option.Smart.map (subst_pattern env sigma subst) t in
-      let c2' = subst_pattern env sigma subst c2 in
+      let c1' = subst_pattern_gen gsubst env sigma subst c1 in
+      let t' = Option.Smart.map (subst_pattern_gen gsubst env sigma subst) t in
+      let c2' = subst_pattern_gen gsubst env sigma subst c2 in
         if c1' == c1 && t' == t && c2' == c2 then pat else
           PLetIn (name,c1',t',c2')
   | PSort _
   | PMeta _ -> pat
   | PIf (c,c1,c2) ->
-      let c' = subst_pattern env sigma subst c in
-      let c1' = subst_pattern env sigma subst c1 in
-      let c2' = subst_pattern env sigma subst c2 in
+      let c' = subst_pattern_gen gsubst env sigma subst c in
+      let c1' = subst_pattern_gen gsubst env sigma subst c1 in
+      let c2' = subst_pattern_gen gsubst env sigma subst c2 in
         if c' == c && c1' == c1 && c2' == c2 then pat else
           PIf (c',c1',c2')
   | PCase (cip,typ,c,branches) ->
@@ -338,13 +338,13 @@ let rec subst_pattern
       let ind' = Option.Smart.map (subst_ind subst) ind in
       let cip' = if ind' == ind then cip else { cip with cip_ind = ind' } in
       let map ((nas, typ) as t) =
-        let typ' = subst_pattern env sigma subst typ in
+        let typ' = subst_pattern_gen gsubst env sigma subst typ in
         if typ' == typ then t else (nas, typ')
       in
       let typ' = Option.Smart.map map typ in
-      let c' = subst_pattern env sigma subst c in
+      let c' = subst_pattern_gen gsubst env sigma subst c in
       let subst_branch ((i,n,c) as br) =
-        let c' = subst_pattern env sigma subst c in
+        let c' = subst_pattern_gen gsubst env sigma subst c in
         if c' == c then br else (i,n,c')
       in
       let branches' = List.Smart.map subst_branch branches in
@@ -352,21 +352,27 @@ let rec subst_pattern
       then pat
       else PCase(cip', typ', c', branches')
   | PFix (lni,(lna,tl,bl)) ->
-      let tl' = Array.Smart.map (subst_pattern env sigma subst) tl in
-      let bl' = Array.Smart.map (subst_pattern env sigma subst) bl in
+      let tl' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) tl in
+      let bl' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) bl in
       if bl' == bl && tl' == tl then pat
       else PFix (lni,(lna,tl',bl'))
   | PCoFix (ln,(lna,tl,bl)) ->
-      let tl' = Array.Smart.map (subst_pattern env sigma subst) tl in
-      let bl' = Array.Smart.map (subst_pattern env sigma subst) bl in
+      let tl' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) tl in
+      let bl' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) bl in
       if bl' == bl && tl' == tl then pat
       else PCoFix (ln,(lna,tl',bl'))
   | PArray (t,def,ty) ->
-      let t' = Array.Smart.map (subst_pattern env sigma subst) t in
-      let def' = subst_pattern env sigma subst def in
-      let ty' = subst_pattern env sigma subst ty in
+      let t' = Array.Smart.map (subst_pattern_gen gsubst env sigma subst) t in
+      let def' = subst_pattern_gen gsubst env sigma subst def in
+      let ty' = subst_pattern_gen gsubst env sigma subst ty in
       if def' == def && t' == t && ty' == ty then pat
       else PArray (t',def',ty')
+
+let subst_pattern env sigma subst p =
+  subst_pattern_gen (fun _ e -> Util.Empty.abort e) env sigma subst p
+
+let subst_uninstantiated_pattern env sigma subst p =
+  subst_pattern_gen Gensubst.generic_substitute env sigma subst p
 
 let mkPLetIn na b t c = PLetIn(na,b,t,c)
 let mkPProd na t u = PProd(na,t,u)
@@ -412,7 +418,7 @@ let error_instantiate_pattern id l =
 
 let interp_pattern env sigma ist p =
   let fgen vars = function
-    | PGenarg (GenArg (Glbwit tag,g)) -> interp_pat tag env sigma ist g
+    | Genarg.GenArg (Glbwit tag,g) -> interp_pat tag env sigma ist g
   in
   let rec aux vars = function
     | PVar id as x ->
@@ -509,7 +515,7 @@ let rec pat_of_raw metas vars : _ -> _ constr_pattern_r = DAst.with_loc_val (fun
         let name = Genarg.(ArgT.repr (get_arg_tag tag)) in
         user_err ?loc (str "This quotation is not supported in patterns (" ++ str name ++ str ").")
     in
-    PUninstantiated (PGenarg g)
+    PExtra g
   | GCast (c,_,t) ->
       let () =
         (* Checks that there are no pattern variables in the type *)
