@@ -266,7 +266,7 @@ let constr_custom_entry : Constrexpr.constr_expr entry_command =
 let pattern_custom_entry : Constrexpr.cases_pattern_expr entry_command =
   create_entry_command "pattern"
 
-let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" String.Set.empty
+let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" ~stage:Synterp String.Set.empty
 (** If the entry is present then local *)
 
 let create_custom_entry ~local s =
