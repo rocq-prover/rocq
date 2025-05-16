@@ -139,10 +139,20 @@ type comp_env = {
        reallocate the stack if we lack space. *)
   }
 
+module ClosTyp =
+struct
+  type t = lambda
+  let equal = Vmlambda.lambda_equal
+  let hash = Genlambda.hash
+end
+
+module ClosTable = Hashtbl.Make (ClosTyp)
+
 type glob_env = {
   env : Environ.env;
   uinst_len : int * int; (** Size of the toplevel universe instance *)
   mutable fun_code : instruction list; (** Code of closures *)
+  fun_cache : (vm_env * Label.t) ClosTable.t; (** Sharing of closures with the same body *)
 }
 
 let push_fun env c =
@@ -535,7 +545,7 @@ let get_caml_prim = let open CPrimitives in function
 (* sz is the size of the local stack *)
 let rec compile_lam env cenv lam sz cont =
   let () = set_max_stack_size cenv sz in
-  match lam with
+  match node lam with
   | Lrel(_, i) -> pos_rel i cenv sz :: cont
 
   | Lint i -> compile_structured_constant cenv (Const_b0 i) sz cont
@@ -603,17 +613,24 @@ let rec compile_lam env cenv lam sz cont =
      compile_lam env cenv codom sz cont1
 
   | Llam (ids,body) ->
-     let arity = Array.length ids in
-     let r_fun = comp_env_fun arity in
-     let lbl_fun = Label.create() in
-     let cont_fun = compile_lam env r_fun body arity [Kreturn arity] in
-     let cont_fun = ensure_stack_capacity r_fun cont_fun in
-     let () = push_fun env (add_grab arity lbl_fun cont_fun) in
-     let fv = fv r_fun in
-     compile_fv cenv fv.fv_rev sz (Kclosure(lbl_fun,fv.size) :: cont)
+    let arity = Array.length ids in
+    let fv, lbl_fun = match ClosTable.find_opt env.fun_cache lam with
+    | None ->
+      let r_fun = comp_env_fun arity in
+      let lbl_fun = Label.create() in
+      let cont_fun = compile_lam env r_fun body arity [Kreturn arity] in
+      let cont_fun = ensure_stack_capacity r_fun cont_fun in
+      let () = push_fun env (add_grab arity lbl_fun cont_fun) in
+      let fv = fv r_fun in
+      let () = ClosTable.add env.fun_cache lam (fv, lbl_fun) in
+      fv, lbl_fun
+    | Some (fv, lbl) ->
+      fv, lbl
+    in
+    compile_fv cenv fv.fv_rev sz (Kclosure(lbl_fun,fv.size) :: cont)
 
   | Lapp (f, args) ->
-    begin match f with
+    begin match node f with
     | Lconst (kn,u) -> compile_constant env cenv kn u args sz cont
     | _ -> comp_app (compile_lam env) (compile_lam env) cenv f args sz cont
     end
@@ -783,22 +800,18 @@ let rec compile_lam env cenv lam sz cont =
     else comp_args (compile_lam env) cenv args sz cont
 
   | Lparray (args, def) ->
-    (* Hack: brutally pierce through the abstraction of PArray *)
-    let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
-    let dummy = (MutInd.make1 dummy, 0) in
-    let ar, cont = match Vmlambda.as_value 0 args with
+    let v, cont = match as_value 0 args with
     | None ->
       (* build the ocaml array *)
-      Lmakeblock (dummy, 0, args), cont
+      unsafe_mkPArray args def, cont
     | Some v ->
       (* dump the blob as is, but copy the resulting parray afterwards so that
          the blob is left untouched by modifications to the resulting parray *)
       let lbl = Label.create () in
+      let v = unsafe_mkPArray_val v def in
       (* dummy label, the array will never be an accumulator *)
-      Lval v, Klabel lbl :: Kcamlprim (CAML_Arraycopy, lbl) :: cont
+      v, Klabel lbl :: Kcamlprim (CAML_Arraycopy, lbl) :: cont
     in
-    let kind = Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)
-    let v = Lmakeblock (dummy, 0, [|kind|]) (* the reference *) in
     compile_lam env cenv v sz cont
 
   | Lprim (kn, op, args) ->
@@ -913,10 +926,11 @@ let compile ?universes:(universes=(0,0)) env sigma c =
     Array.of_list @@ skip_suffix mask
   in
   let cont = [Kstop] in
+    let fun_cache = ClosTable.create 17 in
     let cenv, init_code, fun_code =
       if UVars.eq_sizes universes (0,0) then
         let cenv = empty_comp_env () in
-        let env = { env; fun_code = []; uinst_len = (0,0) } in
+        let env = { env; fun_code = []; uinst_len = (0,0); fun_cache } in
         let cont = compile_lam env cenv lam 0 cont in
         let cont = ensure_stack_capacity cenv cont in
         cenv, cont, env.fun_code
@@ -928,7 +942,7 @@ let compile ?universes:(universes=(0,0)) env sigma c =
         let full_arity = arity + 1 in
         let r_fun = comp_env_fun ~univs:true arity in
         let lbl_fun = Label.create () in
-        let env = { env; fun_code = []; uinst_len = universes } in
+        let env = { env; fun_code = []; uinst_len = universes; fun_cache } in
         let cont_fun = compile_lam env r_fun body full_arity [Kreturn full_arity] in
         let cont_fun = ensure_stack_capacity r_fun cont_fun in
         let () = push_fun env (add_grab full_arity lbl_fun cont_fun) in

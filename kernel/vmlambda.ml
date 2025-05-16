@@ -15,12 +15,12 @@ let get_lval (_, v) = v
 (* Translation of constructor *)
 
 let is_value lc =
-  match lc with
+  match node lc with
   | Lval _ | Lint _ | Luint _ | Lfloat _ | Lstring _ -> true
   | _ -> false
 
 let get_value lc =
-  match lc with
+  match node lc with
   | Luint i -> val_of_uint i
   | Lval (_, v) -> v
   | Lint i -> val_of_int i
@@ -31,7 +31,7 @@ let get_value lc =
 let hash_block tag args =
   let open Hashset.Combine in
   let fold accu v =
-    let h = match v with
+    let h = match node v with
     | Luint i -> Uint63.hash i
     | Lint i -> Hashtbl.hash (i : int)
     | Lfloat f -> Float64.hash f
@@ -85,6 +85,10 @@ struct
 end
 
 module Lambda = Genlambda.Make(Val)
+
+let lambda_equal t1 t2 =
+  let eqval (h1, v1) (h2, v2) = Int.equal h1 h2 && eq_structured_constant (Const_val v1) (Const_val v2) in
+  Genlambda.equal eqval t1 t2
 
 (*********************************)
 let dump_lambda_flag, dump_lambda = CDebug.create_full ~name:"vmlambda" ()
