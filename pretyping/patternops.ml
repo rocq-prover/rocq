@@ -461,9 +461,9 @@ let in_cast_type loc = function
        Alternatively we could use the loc of the meta, or the loc of the innermost cast. *)
     v
 
-let pat_of_raw env (type pkind) (kind:pkind pattern_kind) metas vars p =
+let pat_of_raw env metas vars p =
 
-let rec pat_of_raw metas vars : _ -> pkind constr_pattern_r = DAst.with_loc_val (fun ?loc -> function
+let rec pat_of_raw metas vars : _ -> _ constr_pattern_r = DAst.with_loc_val (fun ?loc -> function
   | GVar id ->
       (try PRel (List.index Name.equal (Name id) vars)
        with Not_found -> PVar id)
@@ -504,19 +504,16 @@ let rec pat_of_raw metas vars : _ -> pkind constr_pattern_r = DAst.with_loc_val 
      (try PSort (Glob_ops.glob_sort_quality gs)
       with Glob_ops.ComplexSort -> user_err ?loc (str "Unexpected universe in pattern."))
   | GHole _ -> PMeta None
-  | GGenarg (GenArg (Glbwit tag, _) as g) -> begin match kind with
-      | Uninstantiated ->
-        let () = if not (InterpPat.mem tag) then
-            let name = Genarg.(ArgT.repr (get_arg_tag tag)) in
-            user_err ?loc (str "This quotation is not supported in patterns (" ++ str name ++ str ").")
-        in
-        PUninstantiated (PGenarg g)
-      | Any -> user_err ?loc (str "Quotations not allowed in this pattern.")
-    end
+  | GGenarg (GenArg (Glbwit tag, _) as g) ->
+    let () = if not (InterpPat.mem tag) then
+        let name = Genarg.(ArgT.repr (get_arg_tag tag)) in
+        user_err ?loc (str "This quotation is not supported in patterns (" ++ str name ++ str ").")
+    in
+    PUninstantiated (PGenarg g)
   | GCast (c,_,t) ->
       let () =
         (* Checks that there are no pattern variables in the type *)
-        let _ : pkind constr_pattern_r = pat_of_raw (in_cast_type t.loc metas) vars t in
+        let _ : _ constr_pattern_r = pat_of_raw (in_cast_type t.loc metas) vars t in
         ()
       in
       warn_cast_in_pattern ?loc ();
@@ -647,5 +644,5 @@ in pat_of_raw metas vars p
 
 let pattern_of_glob_constr env c =
   let metas = ref Id.Set.empty in
-  let p = pat_of_raw env Uninstantiated (Metas metas) [] c in
+  let p = pat_of_raw env (Metas metas) [] c in
   (!metas, p)
