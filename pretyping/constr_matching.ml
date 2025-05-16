@@ -437,7 +437,7 @@ let matches_core env sigma allow_bound_rels
          | PFix _ | PCoFix _| PEvar _ | PInt _ | PFloat _
          | PString _ | PArray _), _ -> raise PatternMatchingFailure
 
-      | PUninstantiated _, _ -> .
+      | PExtra e, _ -> Util.Empty.abort e
 
   in
   sorec [] env ((Id.Map.empty,Id.Set.empty), Id.Map.empty) pat c

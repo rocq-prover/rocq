@@ -128,9 +128,9 @@ let () =
   let subst subst c =
     let env = Global.env () in
     let sigma = Evd.from_env env in
-    Patternops.subst_pattern env sigma subst c
+    Patternops.subst_uninstantiated_pattern env sigma subst c
   in
-  let print env sigma pat = str "pat:(" ++ Printer.pr_lconstr_pattern_env env sigma pat ++ str ")" in
+  let print env sigma pat = str "pat:(" ++ Printer.pr_uninstantiated_lconstr_pattern_env env sigma pat ++ str ")" in
   let raw_print env sigma pat = str "pat:(" ++ Ppconstr.pr_constr_pattern_expr env sigma pat ++ str ")" in
   let interp env c =
     let ist = to_lvar env in
