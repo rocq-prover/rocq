@@ -44,11 +44,5 @@ jobs:
           ocaml-compiler: 4.14
           dune-cache: true
 
-      - name: 🐫🐪🐫 Get Rocq dependencies
-        run: opam install --deps-only ${{ matrix.packages }}
-
-      - name: 🧱 Build Rocq
-        run: opam exec -- make world
-
-      - name: 🐛 Test Rocq
-        run: opam exec -- make -j 4 -C test-suite DISABLED_SUBSYSTEMS='${{ matrix.test_disabled }}'
+      - name: 🧱 Build & test Rocq
+        run: opam install ${{ matrix.packages }}
