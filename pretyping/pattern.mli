@@ -20,9 +20,6 @@ type case_info_pattern =
       cip_ind : inductive option;
       cip_extensible : bool (** does this match end with _ => _ ? *) }
 
-type 'i uninstantiated_pattern =
-  | PGenarg : Genarg.glob_generic_argument -> [ `uninstantiated ] uninstantiated_pattern
-
 type 'i constr_pattern_r =
   | PRef of GlobRef.t
   | PVar of Id.t
@@ -45,13 +42,11 @@ type 'i constr_pattern_r =
   | PFloat of Float64.t
   | PString of Pstring.t
   | PArray of 'i constr_pattern_r array * 'i constr_pattern_r * 'i constr_pattern_r
-  | PUninstantiated of 'i uninstantiated_pattern
+  | PExtra of 'i
 
-type constr_pattern = [ `any ] constr_pattern_r
+type constr_pattern = Util.Empty.t constr_pattern_r
+
+type uninstantiated_pattern = Genarg.glob_generic_argument constr_pattern_r
 
 (** Nota : in a [PCase], the array of branches might be shorter than
     expected, denoting the use of a final "_ => _" branch *)
-
-type _ pattern_kind =
-  | Any
-  | Uninstantiated : [`uninstantiated] pattern_kind

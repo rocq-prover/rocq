@@ -115,6 +115,10 @@ let pr_lconstr_pattern_env env sigma c =
   pr_lconstr_pattern_expr env sigma (extern_constr_pattern (Termops.names_of_rel_context env) sigma c)
 let pr_constr_pattern_env env sigma c =
   pr_constr_pattern_expr env sigma (extern_constr_pattern (Termops.names_of_rel_context env) sigma c)
+let pr_uninstantiated_lconstr_pattern_env env sigma c =
+  pr_lconstr_pattern_expr env sigma (extern_uninstantiated_pattern (Termops.names_of_rel_context env) sigma c)
+let pr_uninstantiated_constr_pattern_env env sigma c =
+  pr_constr_pattern_expr env sigma (extern_uninstantiated_pattern (Termops.names_of_rel_context env) sigma c)
 
 let pr_cases_pattern t =
   pr_cases_pattern_expr (extern_cases_pattern Names.Id.Set.empty t)
