@@ -33,16 +33,17 @@ let init_setoid () =
 
 type rewrite_attributes = {
   polymorphic : bool;
+  cumulative: bool;
   locality : Hints.hint_locality;
 }
 
 let rewrite_attributes =
   let open Attributes.Notations in
-  Attributes.(polymorphic ++ locality) >>= fun (polymorphic, locality) ->
+  Attributes.(polymorphic ++ cumulative UVars.Definition ++ locality) >>= fun ((polymorphic, cumulative), locality) ->
   let locality =
     if Locality.make_section_locality locality then Hints.Local else SuperGlobal
   in
-  Attributes.Notations.return { polymorphic; locality }
+  Attributes.Notations.return { polymorphic; cumulative; locality }
 
 (** Utility functions *)
 
@@ -68,9 +69,10 @@ let declare_an_instance {CAst.v=n; loc} s args =
 let declare_instance a aeq n s = declare_an_instance n s [a;aeq]
 
 let anew_instance atts binders (name,t) fields =
-  let _id = Classes.new_instance ~poly:atts.polymorphic
+  let _id = Classes.new_instance ~locality:atts.locality
+     ~poly:atts.polymorphic ~cumulative:atts.cumulative
       name binders t (true, CAst.make @@ CRecord (fields))
-      ~locality:atts.locality Hints.empty_hint_info
+      Hints.empty_hint_info
   in
   ()
 
@@ -200,7 +202,7 @@ let add_morphism_as_parameter atts m n : unit =
   let kind = Decls.(IsAssumption Logical) in
   let impargs, udecl = [], UState.default_univ_decl in
   let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
-  let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
+  let evd, pe = Declare.prepare_parameter ~poly ~cumulative:atts.cumulative ~udecl ~types evd in
   let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
   Classes.Internal.add_instance
@@ -226,7 +228,7 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   Flags.silently
     (fun () ->
        let cinfo = Declare.CInfo.make ?loc:instance_id.loc ~name:instance_id.v ~typ:morph () in
-       let info = Declare.Info.make ~poly ~hook ~kind () in
+       let info = Declare.Info.make ~poly ~cumulative:atts.cumulative ~hook ~kind () in
        let lemma = Declare.Proof.start ~cinfo ~info evd in
        fst (Declare.Proof.by tactic lemma)) ()
 
@@ -241,6 +243,7 @@ let add_morphism atts ~tactic binders m s n =
   in
   let _id, lemma = Classes.new_instance_interactive
       ~locality:atts.locality ~poly:atts.polymorphic
+      ~cumulative:atts.cumulative
       instance_name binders instance_t
       ~tac:tactic ~hook:(declare_projection n instance_id)
       Hints.empty_hint_info None
