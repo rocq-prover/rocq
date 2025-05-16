@@ -85,10 +85,17 @@ let pr_variance_occurrence (occ : infer_variance_occurrence) =
   let open Pp in
   let pr_binders is_fix (m, (v, bs)) =
     if List.is_empty bs then [] else
-    [spc () ++ pr_mode m ++ str":" ++ pr_opt VariancePair.pr v ++ spc () ++ str "in" ++ spc () ++
+    [pr_mode m ++ str":" ++ pr_opt VariancePair.pr v ++ spc () ++ str "in" ++ spc () ++
       prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) bs ++ (if is_fix then str" fix " else mt()) ++ str (String.plural (List.length bs) " binder")] in
-  let pr_term (m, v) = [spc () ++ pr_mode m ++ str": " ++ pr_opt VariancePair.pr v ++ str" in term"] in
-  let pr_type (m, v) = [spc () ++ pr_mode m ++ str": " ++ pr_opt VariancePair.pr v ++ str" in type"] in
+  let pr_term (m, v) = match v with
+    | None -> []
+    | Some v -> [pr_mode m ++ str": " ++ VariancePair.pr v ++ str" in term"] 
+  in
+  let pr_type (m, v) = 
+    match v with
+    | None -> []
+    | Some v -> [pr_mode m ++ str": " ++ VariancePair.pr v ++ str" in type"] 
+  in
   let pr_impred =
     match occ.infer_under_impred_qvars with
     | Some _ as x -> [UVars.pr_impred_qvars x]
@@ -97,7 +104,7 @@ let pr_variance_occurrence (occ : infer_variance_occurrence) =
   let variances = pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders 
     @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred in
     if List.is_empty variances then mt ()
-    else hov 0 (str"(" ++ prlist_with_sep pr_comma identity variances ++ str")")
+    else hov 0 (str": " ++ prlist_with_sep pr_comma identity variances)
 
 let make_checked_occ (variance, position) =
   let open Position in
@@ -797,7 +804,7 @@ let infer_body cumul_pb env ~evars ~shift variances body =
       let fixlamctx, body = whd_decompose_lambda ~evars env body in
       let bodyenv, variances = infer_context fixenv ~evars ~shift ~binder_pos:(fun i -> Position.InTopFixBinder i) variances fixlamctx in
       let variances = Inf.set_position Position.InTerm variances in
-      infer_term (Conv, Conv) bodyenv ~evars variances body
+      infer_term (Conv, Cumul) bodyenv ~evars variances body
     in
     let variances = Array.fold_left2 one_fix variances tys bodies in
     debug Pp.(fun () -> str"infer_body finished with " ++ Inf.pr Level.raw_pr variances);
