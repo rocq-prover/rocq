@@ -261,13 +261,13 @@ let map_pattern_with_binders_gen (type a b) g f fgen l : a constr_pattern_r -> b
      PCoFix (ln,(lna,Array.map (f l) tl,Array.map (f l') bl))
   | PArray (t,def,ty) -> PArray (Array.map (f l) t, f l def, f l ty)
   | PEvar (ev,ps) -> PEvar (ev, List.map (f l) ps)
-  | PUninstantiated (PGenarg _ as x) -> fgen (x:a uninstantiated_pattern)
+  | PUninstantiated (PGenarg _ as x) -> fgen l (x:a uninstantiated_pattern)
   (* Non recursive *)
   | (PVar _ | PRel _ | PRef _  | PSort _  | PMeta _ | PInt _
     | PFloat _ | PString _ as x) -> x
 
 let map_pattern_with_binders (type a) g f l (p:a constr_pattern_r) : a constr_pattern_r =
-  let fgen : a uninstantiated_pattern -> a constr_pattern_r = function
+  let fgen _ : a uninstantiated_pattern -> a constr_pattern_r = function
     | PGenarg _ as x -> PUninstantiated x
   in
   map_pattern_with_binders_gen g f fgen l p
@@ -401,14 +401,41 @@ let interp_pat = InterpPat.obj
 
 let register_interp_pat = InterpPat.register0
 
+let error_instantiate_pattern id l =
+  let is = match l with
+  | [_] -> "is"
+  | _ -> "are"
+  in
+  user_err  (str "Cannot substitute the term bound to " ++ Id.print id
+    ++ strbrk " in pattern because the term refers to " ++ pr_enum Id.print l
+    ++ strbrk " which " ++ str is ++ strbrk " not bound in the pattern.")
+
 let interp_pattern env sigma ist p =
-  let fgen = function
+  let fgen vars = function
     | PGenarg (GenArg (Glbwit tag,g)) -> interp_pat tag env sigma ist g
   in
-  let rec aux p =
-    map_pattern_with_binders_gen (fun _ () -> ()) (fun () p -> aux p) fgen () p
+  let rec aux vars = function
+    | PVar id as x ->
+      (try
+         let ctx,c = Id.Map.find id ist.Ltac_pretype.ltac_constrs in
+         try
+           let inst =
+             List.map
+               (fun id -> EConstr.mkRel (List.index Name.equal (Name id) vars))
+               ctx
+           in
+           let c = EConstr.Vars.substl inst c in
+           pattern_of_constr env sigma c
+         with Not_found (* List.index failed *) ->
+           let vars =
+             List.map_filter (function Name id -> Some id | _ -> None) vars in
+           error_instantiate_pattern id (List.subtract Id.equal ctx vars)
+       with Not_found (* Map.find failed *) ->
+         x)
+    | p ->
+      map_pattern_with_binders_gen (fun id vars -> id :: vars) (fun vars p -> aux vars p) fgen vars p
   in
-  aux p
+  aux [] p
 
 let err ?loc pp = user_err ?loc pp
 
@@ -619,11 +646,6 @@ and pats_of_glob_branches loc metas vars ind brs =
 in pat_of_raw metas vars p
 
 let pattern_of_glob_constr env c =
-  let metas = ref Id.Set.empty in
-  let p = pat_of_raw env Any (Metas metas) [] c in
-  (!metas, p)
-
-let uninstantiated_pattern_of_glob_constr env c =
   let metas = ref Id.Set.empty in
   let p = pat_of_raw env Uninstantiated (Metas metas) [] c in
   (!metas, p)
