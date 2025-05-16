@@ -251,4 +251,17 @@ Class IsTrunc (n : trunc_index) (A : Type) : Type :=
 
 Definition unit_trunc := IsTrunc minus_two unit.
 Check unit_trunc@{}.
+
+Record TruncType (n : trunc_index) := {
+  trunctype_type : Type ;
+  trunctype_istrunc :: IsTrunc n trunctype_type
+}.
+
+Set Primitive Projections.
+
+Record TruncType' (n : trunc_index) := {
+  trunctype_type' : Type ;
+  trunctype_istrunc' :: IsTrunc n trunctype_type'
+}.
+
 End IsTrunc_inference.
