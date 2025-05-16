@@ -578,9 +578,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
   let univs = match univs.UState.universes_entry_universes with
   | UState.Monomorphic_entry _ ->
     { univs with universes_entry_universes = UState.Monomorphic_entry Univ.ContextSet.empty }
-  | UState.Polymorphic_entry (uctx, variances) ->
-    (* let variances = make_projection_variances (Context.Rel.nhyps paramdecls) variances in *)
-    UState.{ univs with universes_entry_universes = UState.Polymorphic_entry (uctx, None) }
+  | UState.Polymorphic_entry (uctx, variances) -> univs
   in
   let entry = Declare.definition_entry ~univs ~types:projtyp proj in
   let kind = Decls.IsDefinition kind in
@@ -647,7 +645,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   in
   let univs = match mib.mind_universes with
     | Monomorphic -> UState.Monomorphic_entry Univ.ContextSet.empty
-    | Polymorphic (auctx, _variances) -> UState.Polymorphic_entry (UVars.AbstractContext.repr auctx, None)
+    | Polymorphic (auctx, variances) -> UState.Polymorphic_entry (UVars.AbstractContext.repr auctx, Option.map (fun _ -> Infer_variances) variances)
   in
   let univs = UState.{ universes_entry_universes = univs;
     universes_entry_binders = UnivNames.empty_binders } in
