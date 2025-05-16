@@ -6070,7 +6070,7 @@ Commands and options
   fixes `#13562 <https://github.com/coq/coq/issues/13562>`_,
   by Pierre-Marie Pédrot).
 - **Deprecated:**
-  the :flag:`Regular Subst Tactic` flag
+  the `Regular Subst Tactic` flag
   (`#14336 <https://github.com/coq/coq/pull/14336>`_,
   by Pierre-Marie Pédrot).
 - **Added:**
