@@ -831,7 +831,7 @@ let compute_elim_sig sigma elimt =
   let preds,params = List.chop (List.length params_preds - nparams) params_preds in
 
   (* A first approximation, further analysis will tweak it *)
-  let res = ref { empty_scheme with
+  let res = { empty_scheme with
     (* This fields are ok: *)
     elimt = elimt; concl = conclusion;
     predicates = preds; npredicates = List.length preds;
@@ -840,52 +840,41 @@ let compute_elim_sig sigma elimt =
     params = params; nparams = nparams;
     (* all other fields are unsure at this point. Including these:*)
     args = args_indargs; nargs = List.length args_indargs; } in
-  try
-    (* Order of tests below is important. Each of them exits if successful. *)
-    (* 1- First see if (f x...) is in the conclusion. *)
-    if !res.farg_in_concl
-    then begin
-      res := { !res with
-        indarg = None;
-        indarg_in_concl = false; farg_in_concl = true };
-      raise_notrace Exit
-    end;
-    (* 2- If no args_indargs (=!res.nargs at this point) then no indarg *)
-    if Int.equal !res.nargs 0 then raise_notrace Exit;
-    (* 3- Look at last arg: is it the indarg? *)
-    ignore (
-      match List.hd args_indargs with
-        | LocalDef (hiname,_,hi) -> error_ind_scheme ""
-        | LocalAssum (hiname,hi) ->
-            let hi_ind, hi_args = decompose_app sigma hi in
-            let hi_is_ind = (* hi est d'un type globalisable *)
-              match EConstr.kind sigma hi_ind with
-                | Ind (mind,_)  -> true
-                | Var _ -> true
-                | Const _ -> true
-                | Construct _ -> true
-                | _ -> false in
-            let hi_args_enough = (* hi a le bon nbre d'arguments *)
-              Int.equal (Array.length hi_args) (List.length params + !res.nargs -1) in
-            (* FIXME: Ces deux tests ne sont pas suffisants. *)
-            if not (hi_is_ind && hi_args_enough) then raise_notrace Exit (* No indarg *)
-            else (* Last arg is the indarg *)
-              res := {!res with
-                indarg = Some (List.hd !res.args);
-                indarg_in_concl = occur_rel sigma 1 ccl;
-                args = List.tl !res.args; nargs = !res.nargs - 1;
-              };
-            raise_notrace Exit);
-    raise_notrace Exit(* exit anyway *)
-  with Exit -> (* Ending by computing indref: *)
-    match !res.indarg with
-      | None -> !res (* No indref *)
-      | Some (LocalDef _) -> error_ind_scheme ""
-      | Some (LocalAssum (_,ind)) ->
-          let indhd,indargs = decompose_app sigma ind in
-          try {!res with indref = Some (fst (destRef sigma indhd)) }
-          with DestKO ->
-            error CannotFindInductiveArgument
+  (* 1- First see if (f x...) is in the conclusion. *)
+  if res.farg_in_concl then res
+  (* 2- If no args_indargs (=!res.nargs at this point) then no indarg *)
+  else if Int.equal res.nargs 0 then res
+  (* 3- Look at last arg: is it the indarg? *)
+  else match List.hd args_indargs with
+  | LocalDef (hiname, _, hi) -> error_ind_scheme ""
+  | LocalAssum (hiname, hi) ->
+    let hi_ind, hi_args = decompose_app sigma hi in
+    (* has hi a globalizable type? *)
+    let hi_is_ind = match EConstr.kind sigma hi_ind with
+    | Ind _ | Var _ | Const _ | Construct _ -> true
+    | _ -> false
+    in
+    (* has hi the right number of arguments? *)
+    let hi_args_enough = Int.equal (Array.length hi_args) (List.length params + res.nargs -1) in
+    (* FIXME: these two tests are not enough *)
+    if not (hi_is_ind && hi_args_enough) then res (* No indarg *)
+    else
+      let ind, indarg, args = match res.args with
+      | [] -> failwith "hd"
+      | LocalDef _ :: _ -> error_ind_scheme ""
+      | LocalAssum (_, ind) as indarg :: args -> ind, indarg, args
+      in
+      let indhd, indargs = decompose_app sigma ind in
+      let indref = match destRef sigma indhd with
+      | (indref, _) -> indref
+      | exception DestKO -> error CannotFindInductiveArgument
+      in
+      { res with
+        indarg = Some indarg;
+        indarg_in_concl = occur_rel sigma 1 ccl;
+        args = args; nargs = res.nargs - 1;
+        indref = Some indref;
+      }
 
 let compute_scheme_signature evd scheme names_info ind_type_guess =
   let open Context.Rel.Declaration in
