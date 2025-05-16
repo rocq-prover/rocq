@@ -122,7 +122,7 @@ let () =
       ltac_extra = extra;
     }
     in
-    let _, pat = Constrintern.intern_uninstantiated_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
+    let _, pat = Constrintern.intern_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
     GlbVal pat, gtypref t_pattern
   in
   let subst subst c =

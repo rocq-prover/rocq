@@ -255,7 +255,7 @@ let add_class cl =
 let intern_info {hint_priority;hint_pattern} =
   let env = Global.env() in
   let sigma = Evd.from_env env in
-  let hint_pattern = Option.map (Constrintern.intern_constr_pattern env sigma) hint_pattern in
+  let hint_pattern = Option.map (Constrintern.interp_constr_pattern env sigma) hint_pattern in
   {hint_priority;hint_pattern}
 
 (** TODO: add subinstances *)
