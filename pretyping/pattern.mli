@@ -51,7 +51,3 @@ type constr_pattern = [ `any ] constr_pattern_r
 
 (** Nota : in a [PCase], the array of branches might be shorter than
     expected, denoting the use of a final "_ => _" branch *)
-
-type _ pattern_kind =
-  | Any
-  | Uninstantiated : [`uninstantiated] pattern_kind
