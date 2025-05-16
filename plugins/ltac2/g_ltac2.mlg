@@ -1076,10 +1076,20 @@ END
 
 open Stdarg
 
+let test_ltac2_ident_aux =
+  let open Procq.Lookahead in
+  to_entry "test_ltac2_ident" begin
+    lk_kw "Ltac2" >> lk_ident
+  end
+
 }
 
+VERNAC ARGUMENT EXTEND test_ltac2_ident PRINTED BY { fun _ -> Pp.mt() }
+| [ test_ltac2_ident_aux(x) ] -> { x }
+END
+
 VERNAC COMMAND EXTEND Ltac2Printers CLASSIFIED AS QUERY
-| [ "Print" "Ltac2" reference(tac) ] -> { Tac2entries.print_ltac2 tac }
+| [ "Print" test_ltac2_ident(_test) "Ltac2" reference(tac) ] -> { Tac2entries.print_ltac2 tac }
 | [ "Print" "Ltac2" "Type" reference(tac) ] -> { Tac2entries.print_ltac2_type tac }
 | [ "Locate" "Ltac2" reference(r) ] -> { Tac2entries.print_located_tactic r }
 | [ "Print" "Ltac2" "Signatures" ] -> { Tac2entries.print_signatures () }

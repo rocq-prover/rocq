@@ -696,7 +696,7 @@ command: [
 | "Ltac2" ltac2_entry      (* ltac2 plugin *)
 | "Ltac2" "Notation" ltac2def_syn      (* ltac2 plugin *)
 | "Ltac2" "Eval" ltac2_expr6      (* ltac2 plugin *)
-| "Print" "Ltac2" reference      (* ltac2 plugin *)
+| "Print" test_ltac2_ident "Ltac2" reference      (* ltac2 plugin *)
 | "Print" "Ltac2" "Type" reference      (* ltac2 plugin *)
 | "Locate" "Ltac2" reference      (* ltac2 plugin *)
 | "Print" "Ltac2" "Signatures"      (* ltac2 plugin *)
@@ -3330,6 +3330,10 @@ tac2mode: [
 | "par" ":" ltac2_expr6 ltac2_use_default      (* ltac2 plugin *)
 | subprf      (* ltac2 plugin *)
 | OPT toplevel_selector subprf_with_selector      (* ltac2 plugin *)
+]
+
+test_ltac2_ident: [
+| test_ltac2_ident_aux      (* ltac2 plugin *)
 ]
 
 ltac1_expr_in_env: [

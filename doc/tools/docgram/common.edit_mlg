@@ -167,6 +167,7 @@ DELETE: [
 | test_qualid_with_or_lpar_or_rbrac
 | test_leftsquarebracket_equal
 | test_sort_qvar
+| test_ltac2_ident
 ]
 
 (* additional nts to be spliced *)
