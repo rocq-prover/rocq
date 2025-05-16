@@ -39,7 +39,7 @@ let pr_level_with_global_universes ?(binders=empty_binders) l =
 let qualid_of_quality (ctx,_) q =
   match Sorts.QVar.repr q with
   | Global qid ->
-    (try Some (Nametab.shortest_qualid_of_quality ctx qid)
+    (try Some (Nametab.Quality.shortest_qualid_gen (fun id -> Id.Map.mem id ctx) qid)
      with Not_found -> None)
   | _ -> None
 

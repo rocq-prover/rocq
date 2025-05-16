@@ -43,7 +43,6 @@ type alias_data = {
 
 type ltac_state = {
   ltac_tactics : global_data KNmap.t;
-  constructors_warn : UserWarn.t KNmap.t;
   ltac_constructors : constructor_data KNmap.t;
   ltac_projections : projection_data KNmap.t;
   ltac_types : glb_quant_typedef KNmap.t;
@@ -52,7 +51,6 @@ type ltac_state = {
 
 let empty_state = {
   ltac_tactics = KNmap.empty;
-  constructors_warn = KNmap.empty;
   ltac_constructors = KNmap.empty;
   ltac_projections = KNmap.empty;
   ltac_types = KNmap.empty;
@@ -94,15 +92,11 @@ let get_compiled_global kn = KNmap.find_opt kn !compiled_tacs
 
 let globals () = (!ltac_state).ltac_tactics
 
-let define_constructor ?warn kn t =
+let define_constructor kn t =
   let state = !ltac_state in
   ltac_state := {
     state with
     ltac_constructors = KNmap.add kn t state.ltac_constructors;
-    constructors_warn = Option.fold_left (fun ctorwarn warn ->
-        KNmap.add kn warn ctorwarn)
-        state.constructors_warn
-        warn;
   }
 
 let interp_constructor kn = KNmap.find kn ltac_state.contents.ltac_constructors
@@ -171,129 +165,87 @@ let compare r1 r2 = match r1, r2 with
 | TacAlias _, TacConstant _ -> 1
 
 let equal r1 r2 = compare r1 r2 == 0
-
 end
 
-module KnTab = Nametab.Make(KerName)
-module RfTab = Nametab.Make(TacRef)
-module RfMap = Map.Make(TacRef)
+module DefV = struct
+  include TacRef
+  let is_var _ = None
+  let stage = Summary.Stage.Interp
+  let summary_name = "ltac2-deftab"
+  module Map = Map.Make(TacRef)
+end
+module DefTab = Nametab.EasyNoWarn(DefV)()
 
-type nametab = {
-  tab_ltac : RfTab.t;
-  tab_ltac_rev : full_path RfMap.t;
-  tab_cstr : KnTab.t;
-  tab_cstr_rev : full_path KNmap.t;
-  tab_type : KnTab.t;
-  tab_type_rev : full_path KNmap.t;
-  tab_proj : KnTab.t;
-  tab_proj_rev : full_path KNmap.t;
-}
+module CtorV = struct
+  include KerName
+  let is_var _ = None
+  module Map = KNmap
+  let stage = Summary.Stage.Interp
+  let summary_name = "ltac2-ctortab"
+  let object_name = "Ltac2 constructor"
+  let warning_name_base = "ltac2-constructor"
+end
+module CtorTab = Nametab.Easy(CtorV)()
 
-let empty_nametab = {
-  tab_ltac = RfTab.empty;
-  tab_ltac_rev = RfMap.empty;
-  tab_cstr = KnTab.empty;
-  tab_cstr_rev = KNmap.empty;
-  tab_type = KnTab.empty;
-  tab_type_rev = KNmap.empty;
-  tab_proj = KnTab.empty;
-  tab_proj_rev = KNmap.empty;
-}
+module TypV = struct
+  include KerName
+  let is_var _ = None
+  let stage = Summary.Stage.Interp
+  let summary_name = "ltac2-typtab"
+  module Map = KNmap
+end
+module TypTab = Nametab.EasyNoWarn(TypV)()
 
-let nametab = Summary.ref empty_nametab ~name:"ltac2-nametab"
+module ProjV = struct
+  include KerName
+  let is_var _ = None
+  let stage = Summary.Stage.Interp
+  let summary_name = "ltac2-projtab"
+  module Map = KNmap
+end
+module ProjTab = Nametab.EasyNoWarn(ProjV)()
 
-let push_ltac vis sp kn =
-  let tab = !nametab in
-  let tab_ltac = RfTab.push vis sp kn tab.tab_ltac in
-  let tab_ltac_rev = RfMap.add kn sp tab.tab_ltac_rev in
-  nametab := { tab with tab_ltac; tab_ltac_rev }
+let push_ltac = DefTab.push
 
-let locate_ltac qid =
-  let tab = !nametab in
-  RfTab.locate qid tab.tab_ltac
+let locate_ltac = DefTab.locate
 
-let locate_extended_all_ltac qid =
-  let tab = !nametab in
-  RfTab.find_prefixes qid tab.tab_ltac
+let locate_extended_all_ltac = DefTab.locate_all
 
-let path_of_ltac kn = RfMap.find kn (!nametab).tab_ltac_rev
+let path_of_ltac = DefTab.to_path
 
-let shortest_qualid_of_ltac avoid kn =
-  let tab = !nametab in
-  let sp = RfMap.find kn tab.tab_ltac_rev in
-  RfTab.shortest_qualid avoid sp tab.tab_ltac
+let shortest_qualid_of_ltac = DefTab.shortest_qualid
 
-let push_constructor vis sp kn =
-  let tab = !nametab in
-  let tab_cstr = KnTab.push vis sp kn tab.tab_cstr in
-  let tab_cstr_rev = KNmap.add kn sp tab.tab_cstr_rev in
-  nametab := { tab with tab_cstr; tab_cstr_rev }
+let push_constructor ?user_warns vis sp kn =
+  (* XXX support qf *)
+  let user_warns = Option.map UserWarn.with_empty_qf user_warns in
+  CtorTab.push ?wdata:user_warns vis sp kn
 
-let locate_constructor qid =
-  let tab = !nametab in
-  KnTab.locate qid tab.tab_cstr
+(* XXX expose nowarn argument? *)
+let locate_constructor qid = CtorTab.locate qid
 
-let locate_extended_all_constructor qid =
-  let tab = !nametab in
-  KnTab.find_prefixes qid tab.tab_cstr
+let locate_extended_all_constructor = CtorTab.locate_all
 
-let path_of_constructor kn = KNmap.find kn (!nametab).tab_cstr_rev
+let path_of_constructor = CtorTab.to_path
 
-let shortest_qualid_of_constructor kn =
-  let tab = !nametab in
-  let sp = KNmap.find kn tab.tab_cstr_rev in
-  KnTab.shortest_qualid Id.Set.empty sp tab.tab_cstr
+let shortest_qualid_of_constructor kn = CtorTab.shortest_qualid Id.Set.empty kn
 
-let constructor_user_warning =
-  UserWarn.create_depr_and_user_warnings
-    ~object_name:"Ltac2 constructor"
-    ~warning_name_base:"ltac2-constructor"
-    (fun kn -> pr_qualid (shortest_qualid_of_constructor kn))
-    ()
+let push_type = TypTab.push
 
-let constructor_user_warn ?loc kn =
-  let warn = KNmap.find_opt kn (!ltac_state).constructors_warn in
-  Option.iter (constructor_user_warning ?loc kn) warn
+let locate_type = TypTab.locate
 
-let push_type vis sp kn =
-  let tab = !nametab in
-  let tab_type = KnTab.push vis sp kn tab.tab_type in
-  let tab_type_rev = KNmap.add kn sp tab.tab_type_rev in
-  nametab := { tab with tab_type; tab_type_rev }
+let locate_extended_all_type = TypTab.locate_all
 
-let locate_type qid =
-  let tab = !nametab in
-  KnTab.locate qid tab.tab_type
+let path_of_type = TypTab.to_path
 
-let locate_extended_all_type qid =
-  let tab = !nametab in
-  KnTab.find_prefixes qid tab.tab_type
+let shortest_qualid_of_type ?loc kn = TypTab.shortest_qualid Id.Set.empty ?loc kn
 
-let path_of_type kn = KNmap.find kn (!nametab).tab_type_rev
+let push_projection = ProjTab.push
 
-let shortest_qualid_of_type ?loc kn =
-  let tab = !nametab in
-  let sp = KNmap.find kn tab.tab_type_rev in
-  KnTab.shortest_qualid ?loc Id.Set.empty sp tab.tab_type
+let locate_projection = ProjTab.locate
 
-let push_projection vis sp kn =
-  let tab = !nametab in
-  let tab_proj = KnTab.push vis sp kn tab.tab_proj in
-  let tab_proj_rev = KNmap.add kn sp tab.tab_proj_rev in
-  nametab := { tab with tab_proj; tab_proj_rev }
+let locate_extended_all_projection = ProjTab.locate_all
 
-let locate_projection qid =
-  let tab = !nametab in
-  KnTab.locate qid tab.tab_proj
-
-let locate_extended_all_projection qid =
-  let tab = !nametab in
-  KnTab.find_prefixes qid tab.tab_proj
-
-let shortest_qualid_of_projection kn =
-  let tab = !nametab in
-  let sp = KNmap.find kn tab.tab_proj_rev in
-  KnTab.shortest_qualid Id.Set.empty sp tab.tab_proj
+let shortest_qualid_of_projection kn = ProjTab.shortest_qualid Id.Set.empty kn
 
 type 'a or_glb_tacexpr =
 | GlbVal of 'a

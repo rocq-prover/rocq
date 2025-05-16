@@ -95,7 +95,7 @@ let invent_name prefix (named,cnt) u =
   aux cnt
 
 let check_exists_sort sp =
-  if Nametab.exists_sort sp then
+  if Nametab.Quality.exists sp then
     raise (AlreadyDeclared (Some "Sort", Libnames.basename sp))
   else ()
 
@@ -105,7 +105,7 @@ let qualify_sort i dp id =
 let do_sort_name ~check i dp (id,quality) =
   let i, sp = qualify_sort i dp id in
   if check then check_exists_sort sp;
-  Nametab.push_sort i sp quality
+  Nametab.Quality.push i sp quality
 
 let cache_sort_names (prefix, decl) =
   let depth = Lib.sections_depth () in

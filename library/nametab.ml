@@ -25,6 +25,15 @@ module GlobDirRef = struct
     | DirOpenSection op1, DirOpenSection op2 -> eq_full_path op1 op2
     | (DirOpenModule _ | DirOpenModtype _ | DirOpenSection _), _ -> false
 
+  let compare r1 r2 = match r1, r2 with
+    | DirOpenModule op1, DirOpenModule op2 -> ModPath.compare op1 op2
+    | DirOpenModule _, _ -> -1
+    | _, DirOpenModule _ -> 1
+    | DirOpenModtype op1, DirOpenModtype op2 -> ModPath.compare op1 op2
+    | DirOpenModtype _, _ -> -1
+    | _, DirOpenModtype _ -> 1
+    | DirOpenSection op1, DirOpenSection op2 -> compare_full_path op1 op2
+
 end
 
 exception GlobalizationError of qualid
@@ -73,9 +82,7 @@ module type NAMETREE = sig
   val find : full_path -> t -> elt
   val remove : full_path -> t -> t
   val exists : full_path -> t -> bool
-  val full_path : qualid -> t -> full_path
   val shortest_qualid_gen : ?loc:Loc.t -> (Id.t -> bool) -> full_path -> t -> qualid
-  val shortest_qualid : ?loc:Loc.t -> Id.Set.t -> full_path -> t -> qualid
   val find_prefixes : qualid -> t -> elt list
 
   (** Matches a prefix of [qualid], useful for completion *)
@@ -313,13 +320,6 @@ let locate qid tab =
   in
     o
 
-let full_path qid tab =
-  let uname = match find_node qid tab with
-    | (Absolute (uname,o) | Relative (uname,o)) :: _ -> uname
-    | [] -> raise Not_found
-  in
-    uname
-
 let find uname tab =
   let l,id = repr_path uname in
   let l = DirPath.repr l in
@@ -351,9 +351,6 @@ let shortest_qualid_gen ?loc hidden uname tab =
   let ptab = Id.Map.find id tab in
   let found_dir = find_uname [] dir ptab in
     make_qualid ?loc (DirPath.make found_dir) id
-
-let shortest_qualid ?loc ctx uname tab =
-  shortest_qualid_gen ?loc (fun id -> Id.Set.mem id ctx) uname tab
 
 let push_node node l =
   match node with
@@ -389,147 +386,348 @@ let match_prefixes =
 
 end
 
-(* Global name tables *************************************************)
+module type NAMETAB_gen = sig
+  type 'a read_tab
+  type write_tab
 
-module ExtRefEqual = ExtRefOrdered
-module MPEqual = Names.ModPath
+  type elt
 
-module ExtRefTab = Make(ExtRefEqual)
-module MPTab = Make(MPEqual)
+  val push : visibility -> full_path -> elt -> write_tab
 
-type ccitab = ExtRefTab.t
-let the_ccitab = Summary.ref ~name:"ccitab" (ExtRefTab.empty : ccitab)
+  val remove : full_path -> elt -> write_tab
 
-module MPDTab = Make(MPEqual)
-module DirTab = Make(GlobDirRef)
+  val shortest_qualid_gen : ?loc:Loc.t -> (Id.t -> bool) -> elt -> qualid read_tab
 
-module UnivTab = Make(Univ.UGlobal)
-type univtab = UnivTab.t
-let the_univtab = Summary.ref ~name:"univtab" (UnivTab.empty : univtab)
+  val shortest_qualid : ?loc:Loc.t -> Id.Set.t -> elt -> qualid read_tab
 
-module QualityTab = Make(Sorts.QGlobal)
-type qualitytab = QualityTab.t
-let the_qualitytab = Summary.ref ~name:"qualitytab" (QualityTab.empty : qualitytab)
+  val pr : elt -> Pp.t read_tab
 
-(* Reversed name tables ***************************************************)
+  val locate : qualid -> elt read_tab
 
-(* This table translates extended_global_references back to section paths *)
-type globrevtab = full_path ExtRefMap.t
-let the_globrevtab =
-  Summary.ref ~name:"globrevtab" (ExtRefMap.empty : globrevtab)
+  val locate_all : qualid -> elt list read_tab
 
-let the_globwarntab = Summary.ref ~name:"globwarntag" ExtRefMap.empty
+  val completion_candidates : qualid -> elt list read_tab
 
-type mprevtab = full_path MPmap.t
+  val to_path : elt -> full_path read_tab
 
-type mptrevtab = full_path MPmap.t
+  val of_path : full_path -> elt read_tab
 
-module UnivIdMap = HMap.Make(Univ.UGlobal)
+  val exists : full_path -> bool read_tab
 
-type univrevtab = full_path UnivIdMap.t
-let the_univrevtab = Summary.ref ~name:"univrevtab" (UnivIdMap.empty : univrevtab)
+  (* XXX add src_loc table? *)
+end
 
-module QualityIdMap = HMap.Make(Sorts.QGlobal)
-type qualityrevtab = full_path QualityIdMap.t
-let the_qualityrevtab = Summary.ref ~name:"qualityrevtab" (QualityIdMap.empty : qualityrevtab)
+module type ValueType = sig
+  include EqualityType
 
-(** Module-related nametab *)
-module Modules = struct
+  val is_var : t -> Id.t option
+
+  module Map : CSig.UMapS with type key = t
+end
+
+module type WarnInfo = sig
+  type elt
+  type data
+
+  module Map : CSig.UMapS with type key = elt
+
+  val stage : Summary.Stage.t
+  val summary_name : string
+
+  val warn : ?loc:Loc.t -> elt -> data -> unit
+end
+
+module type Functional_NAMETAB = sig
+  type t
+  val empty : t
+  include NAMETAB_gen with type 'a read_tab := t -> 'a and type write_tab := t -> t
+end
+
+module MakeTab (E:ValueType) : Functional_NAMETAB with type elt = E.t = struct
+  type elt = E.t
+
+  module Tab = Make(E)
 
   type t = {
-    modtypetab : MPTab.t;
-    modtab : MPDTab.t;
-    dirtab : DirTab.t;
-    modrevtab : mprevtab;
-    modtyperevtab : mptrevtab;
+    tab : Tab.t;
+    revtab : full_path E.Map.t;
   }
 
-  let initial = {
-    modtypetab = MPTab.empty;
-    modtab = MPDTab.empty;
-    dirtab = DirTab.empty;
-    modrevtab = MPmap.empty;
-    modtyperevtab = MPmap.empty
+  let empty = {
+    tab = Tab.empty;
+    revtab = E.Map.empty;
   }
 
-  let nametab = Summary.ref ~stage:Summary.Stage.Synterp ~name:"MODULES-NAMETAB" initial
+  let push vis sp v { tab; revtab } =
+    match vis with
+    | Until _ ->
+      {
+        tab = Tab.push vis sp v tab;
+        revtab = E.Map.add v sp revtab;
+      }
+    | Exactly _ ->
+      {
+        tab = Tab.push vis sp v tab;
+        revtab;
+      }
+
+  let remove sp v { tab; revtab } =
+    {
+      tab = Tab.remove sp tab;
+      revtab = E.Map.remove v revtab;
+    }
+
+  let shortest_qualid_gen ?loc avoid v { tab; revtab } =
+    match E.is_var v with
+    | Some id -> make_qualid ?loc DirPath.empty id
+    | None ->
+      let sp = E.Map.find v revtab in
+      Tab.shortest_qualid_gen ?loc avoid sp tab
+
+  let shortest_qualid ?loc avoid v tabs =
+    shortest_qualid_gen ?loc (fun id -> Id.Set.mem id avoid) v tabs
+
+  let pr v tab = pr_qualid (shortest_qualid Id.Set.empty v tab)
+
+  let locate qid { tab } = Tab.locate qid tab
+
+  let locate_all qid { tab } = Tab.find_prefixes qid tab
+
+  let completion_candidates qid { tab } = Tab.match_prefixes qid tab
+
+  let to_path v { revtab } = match E.is_var v with
+    | Some id -> make_path DirPath.empty id
+    | None -> E.Map.find v revtab
+
+  let of_path sp { tab } = Tab.find sp tab
+
+  let exists sp { tab } = Tab.exists sp tab
 
 end
 
+module type NAMETAB = NAMETAB_gen with type 'a read_tab := 'a and type write_tab := unit
+
+module type StateInfo = sig
+  val stage : Summary.Stage.t
+  val summary_name : string
+end
+
+module MakeImperative (Tab:Functional_NAMETAB) (SI:StateInfo) ()
+    : NAMETAB with type elt = Tab.elt
+= struct
+  type elt = Tab.elt
+
+  let the_tab = Summary.ref ~stage:SI.stage ~name:SI.summary_name Tab.empty
+
+  let push vis sp v = the_tab := Tab.push vis sp v !the_tab
+
+  let remove sp v = the_tab := Tab.remove sp v !the_tab
+
+  let shortest_qualid_gen ?loc f v = Tab.shortest_qualid_gen ?loc f v !the_tab
+
+  let shortest_qualid ?loc avoid v = Tab.shortest_qualid ?loc avoid v !the_tab
+
+  let pr v = Tab.pr v !the_tab
+
+  let locate qid = Tab.locate qid !the_tab
+
+  let locate_all qid = Tab.locate_all qid !the_tab
+
+  let completion_candidates qid = Tab.completion_candidates qid !the_tab
+
+  let to_path v = Tab.to_path v !the_tab
+
+  let of_path v = Tab.of_path v !the_tab
+
+  let exists v = Tab.exists v !the_tab
+end
+
+module type WarnedTab = sig
+  include NAMETAB
+
+  type warning_data
+
+  val push : ?wdata:warning_data -> visibility -> full_path -> elt -> unit
+  val is_warned : elt -> warning_data option
+  val warn : ?loc:Loc.t -> elt -> warning_data -> unit
+  val locate : ?nowarn:bool -> qualid -> elt
+end
+
+module MakeWarned (M:NAMETAB)
+    (W:WarnInfo with type elt = M.elt)
+    ()
+    : WarnedTab with type elt = M.elt and type warning_data := W.data
+= struct
+  include M
+
+  let warntab = Summary.ref ~stage:W.stage ~name:W.summary_name W.Map.empty
+
+  let push ?wdata vis sp elt =
+    M.push vis sp elt;
+    match wdata with
+    | None -> ()
+    | Some wdata ->
+      let () = match vis with
+        | Until _ -> ()
+        | Exactly _ -> assert false
+      in
+      warntab := W.Map.add elt wdata !warntab
+
+  let remove sp elt =
+    M.remove sp elt;
+    warntab := W.Map.remove elt !warntab
+
+  let is_warned elt = W.Map.find_opt elt !warntab
+
+  let warn = W.warn
+
+  let locate ?(nowarn=false) qid =
+    let elt = M.locate qid in
+    let () = if nowarn then ()
+      else match is_warned elt with
+        | None -> ()
+        | Some wdata -> warn ?loc:qid.loc elt wdata
+    in
+    elt
+end
+
+module EasyNoWarn (M:sig include ValueType include StateInfo end) () =
+  MakeImperative(MakeTab(M))(M)()
+
+module type SimpleWarnS = sig
+  val object_name : string
+  val warning_name_base : string
+end
+
+module Easy (M:sig include ValueType include StateInfo include SimpleWarnS end) () = struct
+  module I = EasyNoWarn(M)()
+
+  module WInfo = struct
+    type elt = M.t
+    type data = elt UserWarn.with_qf
+
+    module Map = M.Map
+
+    let stage = M.stage
+    let summary_name = M.summary_name ^ "-warnings"
+
+    let warn = UserWarn.create_depr_and_user_warnings_qf
+        ~object_name:M.object_name ~warning_name_base:M.warning_name_base
+        ~pp_qf:I.pr I.pr
+        ()
+  end
+
+  include MakeWarned(I)(WInfo)()
+end
+
+(* Global name tables *************************************************)
+
+module XRefV = struct
+  include ExtRefOrdered
+  let is_var = function
+    | TrueGlobal (VarRef id) -> Some id
+    | _ -> None
+
+  module Map = ExtRefMap
+
+  let stage = Summary.Stage.Interp
+  let summary_name = "xreftab"
+end
+module XRefNoWarn = EasyNoWarn(XRefV)()
+
+module XRefWarn = struct
+  type elt = extended_global_reference
+  type data = elt UserWarn.with_qf
+
+  module Map = ExtRefMap
+
+  let pp = XRefNoWarn.pr
+
+  let depr_ref = Deprecation.create_warning_with_qf ~object_name:"Reference" ~warning_name_if_no_since:"deprecated-reference" ~pp_qf:pp pp
+  let depr_abbrev = Deprecation.create_warning_with_qf ~object_name:"Notation" ~warning_name_if_no_since:"deprecated-syntactic-definition" ~pp_qf:pp pp
+  let user_warn = UserWarn.create_warning ~warning_name_if_no_cats:"warn-reference" ()
+
+  let depr_xref ?loc depr xref =
+    match xref with
+    | TrueGlobal _ -> depr_ref ?loc (xref,depr)
+    | Abbrev _ -> depr_abbrev ?loc (xref,depr)
+
+  let warn ?loc xref uwarns =
+      uwarns.UserWarn.depr_qf |> Option.iter (fun depr -> depr_xref ?loc depr xref);
+      uwarns.UserWarn.warn_qf |> List.iter (user_warn ?loc)
+
+  let stage = Summary.Stage.Interp
+  let summary_name = "xrefwarntab"
+end
+
+module XRefs = MakeWarned(XRefNoWarn)(XRefWarn)()
+
+module UnivsV = struct
+  include Univ.UGlobal
+  let is_var _ = None
+  module Map = HMap.Make(Univ.UGlobal)
+  let stage = Summary.Stage.Interp
+  let summary_name = "univtab"
+end
+module Univs = EasyNoWarn(UnivsV)()
+
+module QualityV = struct
+  include Sorts.QGlobal
+  let is_var _ = None
+  module Map = HMap.Make(Sorts.QGlobal)
+  let stage = Summary.Stage.Interp
+  let summary_name = "sorttab"
+end
+module Quality = EasyNoWarn(QualityV)()
+
+module ModTypeV = struct
+  include ModPath
+  let is_var _ = None
+  module Map = MPmap
+  let stage = Summary.Stage.Synterp
+  let summary_name = "modtypetab"
+end
+module ModTypes = EasyNoWarn(ModTypeV)()
+
+module ModuleV = struct
+  include ModPath
+  let is_var _ = None
+  module Map = MPmap
+  let stage = Summary.Stage.Synterp
+  let summary_name = "moduletab"
+end
+module Modules = EasyNoWarn(ModuleV)()
+
+module OpenModV = struct
+  include GlobDirRef
+  let is_var _ = None
+  module Map = Map.Make(GlobDirRef)
+  let stage = Summary.Stage.Synterp
+  let summary_name = "openmodtab"
+end
+module OpenMods = EasyNoWarn(OpenModV)()
+
 (* Push functions *********************************************************)
 
-(* This is for permanent constructions (never discharged -- but with
-   possibly limited visibility, i.e. Theorem, Lemma, Definition, Axiom,
-   Parameter but also Remark and Fact) *)
-
-let push_xref ?user_warns visibility sp xref =
-  match visibility with
-    | Until _ ->
-        the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
-        the_globrevtab := ExtRefMap.add xref sp !the_globrevtab;
-        user_warns |> Option.iter (fun warn ->
-            the_globwarntab := ExtRefMap.add xref warn !the_globwarntab)
-    | Exactly _ ->
-      begin
-        assert (Option.is_empty user_warns);
-        the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab
-      end
-
-let remove_xref sp xref =
-  the_ccitab := ExtRefTab.remove sp !the_ccitab;
-  the_globrevtab := ExtRefMap.remove xref !the_globrevtab;
-  the_globwarntab := ExtRefMap.remove xref !the_globwarntab
-
-let push_cci ?user_warns visibility sp ref =
-  push_xref ?user_warns visibility sp (TrueGlobal ref)
-
-(* This is for Syntactic Definitions *)
 let push_abbreviation ?user_warns visibility sp kn =
-  push_xref ?user_warns visibility sp (Abbrev kn)
+  XRefs.push ?wdata:user_warns visibility sp (Abbrev kn)
 
 let remove_abbreviation sp kn =
-  remove_xref sp (Abbrev kn)
+  XRefs.remove sp (Abbrev kn)
 
-let push = push_cci
+let push ?user_warns vis sp kn = XRefs.push ?wdata:user_warns vis sp (TrueGlobal kn)
 
-let push_modtype vis sp kn =
-  let open Modules in
-  nametab := { !nametab with
-    modtypetab = MPTab.push vis sp kn !nametab.modtypetab;
-    modtyperevtab = MPmap.add kn sp !nametab.modtyperevtab;
-  }
+let push_modtype vis sp kn = ModTypes.push vis sp kn
 
-let push_module vis dir mp =
-  let open Modules in
-  nametab := { !nametab with
-    modtab = MPDTab.push vis dir mp !nametab.modtab;
-    modrevtab = MPmap.add mp dir !nametab.modrevtab;
-  }
+let push_module vis dir mp = Modules.push vis dir mp
 
-(* This is to remember absolute Section/Module names and to avoid redundancy *)
-let push_dir vis dir dir_ref =
-  let open Modules in
-  nametab := { !nametab with
-    dirtab = DirTab.push vis dir dir_ref !Modules.nametab.dirtab;
-  }
+let push_dir vis dir dir_ref = OpenMods.push vis dir dir_ref
 
-(* This is for global universe names *)
-
-let push_universe vis sp univ =
-  the_univtab := UnivTab.push vis sp univ !the_univtab;
-  the_univrevtab := UnivIdMap.add univ sp !the_univrevtab
-
-let push_sort vis sp quality =
-  the_qualitytab := QualityTab.push vis sp quality !the_qualitytab;
-  the_qualityrevtab := QualityIdMap.add quality sp !the_qualityrevtab
+let push_universe vis sp univ = Univs.push vis sp univ
 
 (* Reverse locate functions ***********************************************)
 
-let path_of_global ref =
-  let open GlobRef in
-  match ref with
-    | VarRef id -> make_path DirPath.empty id
-    | _ -> ExtRefMap.find (TrueGlobal ref) !the_globrevtab
+let path_of_global ref = XRefs.to_path (TrueGlobal ref)
 
 let dirpath_of_global ref =
   fst (repr_path (path_of_global ref))
@@ -537,50 +735,28 @@ let dirpath_of_global ref =
 let basename_of_global ref =
   snd (repr_path (path_of_global ref))
 
-let path_of_abbreviation kn =
-  ExtRefMap.find (Abbrev kn) !the_globrevtab
+let path_of_abbreviation kn = XRefs.to_path (Abbrev kn)
 
-let path_of_module mp =
-  MPmap.find mp Modules.(!nametab.modrevtab)
+let path_of_module mp = Modules.to_path mp
 
-let path_of_modtype mp =
-  MPmap.find mp Modules.(!nametab.modtyperevtab)
+let path_of_modtype mp = ModTypes.to_path mp
 
-let path_of_universe mp =
-  UnivIdMap.find mp !the_univrevtab
+let path_of_universe mp = Univs.to_path mp
 
 (* Shortest qualid functions **********************************************)
 
-let shortest_qualid_of_global ?loc ctx ref =
-  let open GlobRef in
-  match ref with
-    | VarRef id -> make_qualid ?loc DirPath.empty id
-    | _ ->
-        let sp =  ExtRefMap.find (TrueGlobal ref) !the_globrevtab in
-        ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
+let shortest_qualid_of_global ?loc ctx ref = XRefs.shortest_qualid ?loc ctx (TrueGlobal ref)
 
-let shortest_qualid_of_abbreviation ?loc ctx kn =
-  let sp = path_of_abbreviation kn in
-    ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
+let shortest_qualid_of_abbreviation ?loc ctx kn = XRefs.shortest_qualid ?loc ctx (Abbrev kn)
 
-let shortest_qualid_of_module ?loc mp =
-  let dir = MPmap.find mp Modules.(!nametab.modrevtab) in
-  MPDTab.shortest_qualid ?loc Id.Set.empty dir Modules.(!nametab.modtab)
+let shortest_qualid_of_module ?loc mp = Modules.shortest_qualid ?loc Id.Set.empty mp
 
-let shortest_qualid_of_modtype ?loc kn =
-  let sp = MPmap.find kn Modules.(!nametab.modtyperevtab) in
-    MPTab.shortest_qualid ?loc Id.Set.empty sp Modules.(!nametab.modtypetab)
+let shortest_qualid_of_modtype ?loc kn = ModTypes.shortest_qualid ?loc Id.Set.empty kn
 
-let shortest_qualid_of_dir ?loc sp =
-  DirTab.shortest_qualid ?loc Id.Set.empty sp Modules.(!nametab.dirtab)
+let shortest_qualid_of_dir ?loc sp = OpenMods.shortest_qualid ?loc Id.Set.empty sp
 
-let shortest_qualid_of_universe ?loc ctx kn =
-  let sp = UnivIdMap.find kn !the_univrevtab in
-  UnivTab.shortest_qualid_gen ?loc (fun id -> Id.Map.mem id ctx) sp !the_univtab
-
-let shortest_qualid_of_quality ?loc ctx kn =
-  let sp = QualityIdMap.find kn !the_qualityrevtab in
-  QualityTab.shortest_qualid_gen ?loc (fun id -> Id.Map.mem id ctx) sp !the_qualitytab
+let shortest_qualid_of_universe ?loc avoid u =
+  Univs.shortest_qualid_gen ?loc (fun id -> Id.Map.mem id avoid) u
 
 let pr_global_env env ref =
   try pr_qualid (shortest_qualid_of_global env ref)
@@ -594,51 +770,14 @@ let pr_global_env env ref =
       Exninfo.iraise (exn, info)
     end
 
-(* Locate functions *******************************************************)
+let is_warned_xref = XRefs.is_warned
 
-let pr_depr_xref xref =
-  let sp = ExtRefMap.get xref !the_globrevtab in
-  pr_qualid (ExtRefTab.shortest_qualid Id.Set.empty sp !the_ccitab)
+let warn_user_warn_xref ?loc wdata x = XRefs.warn ?loc x wdata
 
-let pr_depr_ref ref = pr_depr_xref (TrueGlobal ref)
+let locate_extended_nowarn qid = XRefs.locate ~nowarn:true qid
 
-let warn_deprecated_ref =
-  Deprecation.create_warning_with_qf ~object_name:"Reference" ~warning_name_if_no_since:"deprecated-reference"
-  ~pp_qf:pr_depr_xref pr_depr_ref
+let locate_extended qid = XRefs.locate qid
 
-let pr_depr_abbrev a = pr_depr_xref (Abbrev a)
-
-let warn_deprecated_abbreviation =
-  Deprecation.create_warning_with_qf ~object_name:"Notation" ~warning_name_if_no_since:"deprecated-syntactic-definition"
-  ~pp_qf:pr_depr_xref pr_depr_abbrev
-
-let warn_deprecated_xref ?loc depr = function
-  | TrueGlobal ref -> warn_deprecated_ref ?loc (ref, depr)
-  | Abbrev a -> warn_deprecated_abbreviation ?loc (a, depr)
-
-let warn_user_warn =
-  UserWarn.create_warning ~warning_name_if_no_cats:"warn-reference" ()
-
-let is_warned_xref xref : extended_global_reference UserWarn.with_qf option = ExtRefMap.find_opt xref !the_globwarntab
-
-let warn_user_warn_xref ?loc user_warns xref =
-  user_warns.UserWarn.depr_qf
-    |> Option.iter (fun depr -> warn_deprecated_xref ?loc depr xref);
-  user_warns.UserWarn.warn_qf |> List.iter (warn_user_warn ?loc)
-
-let locate_extended_nowarn qid =
-  let xref = ExtRefTab.locate qid !the_ccitab in
-  xref
-
-(* This should be used when abbreviations are allowed *)
-let locate_extended qid =
-  let xref = locate_extended_nowarn qid in
-  let warn = is_warned_xref xref in
-  let () = warn |> Option.iter (fun warn ->
-      warn_user_warn_xref ?loc:qid.loc warn xref) in
-  xref
-
-(* This should be used when no abbreviations are expected *)
 let locate qid = match locate_extended qid with
   | TrueGlobal ref -> ref
   | Abbrev _ -> raise Not_found
@@ -647,43 +786,36 @@ let locate_abbreviation qid = match locate_extended qid with
   | TrueGlobal _ -> raise Not_found
   | Abbrev kn -> kn
 
-let locate_modtype qid = MPTab.locate qid Modules.(!nametab.modtypetab)
-let full_name_modtype qid = MPTab.full_path qid Modules.(!nametab.modtypetab)
+let locate_modtype qid = ModTypes.locate qid
+let full_name_modtype qid = ModTypes.to_path (locate_modtype qid)
 
-let locate_universe qid = UnivTab.locate qid !the_univtab
+let locate_universe qid = Univs.locate qid
 
-let locate_quality qid = QualityTab.locate qid !the_qualitytab
+let locate_dir qid = OpenMods.locate qid
 
-let locate_dir qid = DirTab.locate qid Modules.(!nametab.dirtab)
+let locate_module qid = Modules.locate qid
 
-let locate_module qid = MPDTab.locate qid Modules.(!nametab.modtab)
-
-let full_name_module qid = MPDTab.full_path qid Modules.(!nametab.modtab)
+let full_name_module qid = Modules.to_path (locate_module qid)
 
 let locate_section qid =
   match locate_dir qid with
     | GlobDirRef.DirOpenSection dir -> dir
     | _ -> raise Not_found
 
-(* Users of locate_all don't seem to need deprecation info *)
+let locate_extended_all qid = XRefs.locate_all qid
+
 let locate_all qid =
-  List.fold_right (fun a l ->
-    match a with
-    | TrueGlobal a -> a::l
-    | _ -> l)
-    (ExtRefTab.find_prefixes qid !the_ccitab) []
+  let l = locate_extended_all qid in
+  CList.filter_map (function TrueGlobal a -> Some a | Abbrev _ -> None) l
 
-let locate_extended_all qid = ExtRefTab.find_prefixes qid !the_ccitab
+let locate_extended_all_dir qid = OpenMods.locate_all qid
 
-let locate_extended_all_dir qid = DirTab.find_prefixes qid Modules.(!nametab.dirtab)
+let locate_extended_all_modtype qid = ModTypes.locate_all qid
 
-let locate_extended_all_modtype qid = MPTab.find_prefixes qid Modules.(!nametab.modtypetab)
-
-let locate_extended_all_module qid = MPDTab.find_prefixes qid Modules.(!nametab.modtab)
+let locate_extended_all_module qid = Modules.locate_all qid
 
 (* Completion *)
-let completion_canditates qualid =
-  ExtRefTab.match_prefixes qualid !the_ccitab
+let completion_canditates qualid = XRefs.completion_candidates qualid
 
 (* Derived functions *)
 
@@ -694,11 +826,11 @@ let locate_constant qid =
     | _ -> raise Not_found
 
 let global_of_path sp =
-  match ExtRefTab.find sp !the_ccitab with
-    | TrueGlobal ref -> ref
-    | _ -> raise Not_found
+  match XRefs.of_path sp with
+  | TrueGlobal ref -> ref
+  | _ -> raise Not_found
 
-let extended_global_of_path sp = ExtRefTab.find sp !the_ccitab
+let extended_global_of_path = XRefs.of_path
 
 let global qid =
   try match locate_extended qid with
@@ -721,17 +853,15 @@ let global_inductive qid =
 
 (* Exists functions ********************************************************)
 
-let exists_cci sp = ExtRefTab.exists sp !the_ccitab
+let exists_cci = XRefs.exists
 
-let exists_dir dir = DirTab.exists dir Modules.(!nametab.dirtab)
+let exists_dir = OpenMods.exists
 
-let exists_module dir = MPDTab.exists dir Modules.(!nametab.modtab)
+let exists_module = Modules.exists
 
-let exists_modtype sp = MPTab.exists sp Modules.(!nametab.modtypetab)
+let exists_modtype = ModTypes.exists
 
-let exists_universe kn = UnivTab.exists kn !the_univtab
-
-let exists_sort kn = QualityTab.exists kn !the_qualitytab
+let exists_universe = Univs.exists
 
 (* Source locations *)
 
