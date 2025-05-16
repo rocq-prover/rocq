@@ -276,15 +276,6 @@ let merge_binding sigma allow_bound_rels ctx n cT subst =
 let matches_core env sigma allow_bound_rels
     (binding_vars,pat) c =
   let open EConstr in
-  let convref ref c =
-    let open GlobRef in
-    match ref, EConstr.kind sigma c with
-    | VarRef id, Var id' -> Names.Id.equal id id'
-    | ConstRef c, Const (c',_) -> Environ.QConstant.equal env c c'
-    | IndRef i, Ind (i', _) -> Environ.QInd.equal env i i'
-    | ConstructRef c, Construct (c',u) -> Environ.QConstruct.equal env c c'
-    | _, _ -> false
-  in
   let rec sorec ctx env subst (p:constr_pattern) t =
     let cT = strip_outer_cast sigma t in
     match p, EConstr.kind sigma cT with
@@ -310,7 +301,7 @@ let matches_core env sigma allow_bound_rels
 
       | PVar v1, Var v2 when Id.equal v1 v2 -> subst
 
-      | PRef ref, _ when convref ref cT -> subst
+      | PRef ref, _ when EConstr.isRefX env sigma ref cT -> subst
 
       | PRel n1, Rel n2 when Int.equal n1 n2 -> subst
 
