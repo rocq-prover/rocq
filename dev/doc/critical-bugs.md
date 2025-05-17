@@ -255,6 +255,17 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit / GH issue: [#20455](https://github.com/rocq-prover/rocq/issues/20455)
 - risk: unknown (no development in CI was affected)
 
+#### guard checker does incorrect reduction across inner fixpoint, accepting wrong fixpoints
+
+- component: guard checking
+- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
+- impacted released versions: V8.16 to V9.0.0
+- impacted coqchk versions: Same
+- fixed in: V9.0.1, V9.1.0
+- found by: Yann Leray
+- exploit / GH issue: [#20555](https://github.com/rocq-prover/rocq/issues/20555)
+- risk: unknown (no development in CI was affected)
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
