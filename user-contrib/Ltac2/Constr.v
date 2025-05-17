@@ -17,6 +17,11 @@ Ltac2 @ external type : constr -> constr := "rocq-runtime.plugins.ltac2" "constr
 Ltac2 @ external equal : constr -> constr -> bool := "rocq-runtime.plugins.ltac2" "constr_equal".
 (** Strict syntactic equality: only up to α-conversion and evar expansion *)
 
+Ltac2 @ external conv : constr -> constr -> bool := "rocq-runtime.plugins.ltac2" "constr_conv".
+(** Default conversion: Reductionops.infer_conv with default values
+    Fails if there is not exactly one goal under focus.
+*)
+
 Module Binder.
 
 Ltac2 Type relevance_var.
