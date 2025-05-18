@@ -34,4 +34,3 @@ Extract Inductive sumor => option [ Some None ].
 
 Extract Inlined Constant andb => "(&&)".
 Extract Inlined Constant orb => "(||)".
-

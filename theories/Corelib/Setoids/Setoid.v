@@ -67,4 +67,3 @@ Definition gen_st : forall A : Set, Setoid_Theory _ (@eq A).
 Proof.
   constructor; congruence.
 Qed.
-

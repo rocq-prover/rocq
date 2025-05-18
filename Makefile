@@ -81,7 +81,7 @@ dev-targets:
 	@echo "However, This is often inconvenient for developers, due to the large amount of"
 	@echo "files that world will build. We provide some useful subtargets here:"
 	@echo ""
-	@echo "  - theories-foo: for each directory theories/Foo, build the vo files for it and set them up in _build/install/default."
+	@echo "  - theories-foo: for each directory theories/Corelib/Foo, build the vo files for it and set them up in _build/install/default."
 	@echo "    For instance the init target builds the prelude, combined with rocq-runtime.install it produces a fully functional layout in _build/install/default."
 
 help-install:
@@ -131,30 +131,30 @@ DUNESTRAPOPT=--root .
 # We regenerate always as to correctly track deps, can do better
 # We do a single call to dune as to avoid races and locking
 ifneq ($(COQ_SPLIT),) # avoid depending on local rocq-runtime
-_build/default/theories_dune_split _build/default/ltac2_dune_split .dune-stamp: FORCE
-	dune build $(DUNEOPT) $(DUNESTRAPOPT) theories_dune_split ltac2_dune_split
+_build/default/corelib_dune_split _build/default/ltac2_dune_split .dune-stamp: FORCE
+	dune build $(DUNEOPT) $(DUNESTRAPOPT) corelib_dune_split ltac2_dune_split
 	touch .dune-stamp
 
-theories/dune: .dune-stamp
-	cp -a _build/default/theories_dune_split $@ && chmod +w $@
+theories/Corelib/dune: .dune-stamp
+	cp -a _build/default/corelib_dune_split $@ && chmod +w $@
 
-user-contrib/Ltac2/dune: .dune-stamp
+theories/Ltac2/dune: .dune-stamp
 	cp -a _build/default/ltac2_dune_split $@ && chmod +w $@
 else
-_build/default/theories_dune _build/default/ltac2_dune .dune-stamp: FORCE
-	dune build $(DUNEOPT) $(DUNESTRAPOPT) theories_dune ltac2_dune
+_build/default/corelib_dune _build/default/ltac2_dune .dune-stamp: FORCE
+	dune build $(DUNEOPT) $(DUNESTRAPOPT) corelib_dune ltac2_dune
 	touch .dune-stamp
 
-theories/dune: .dune-stamp
-	cp -a _build/default/theories_dune $@ && chmod +w $@
+theories/Corelib/dune: .dune-stamp
+	cp -a _build/default/corelib_dune $@ && chmod +w $@
 
-user-contrib/Ltac2/dune: .dune-stamp
+theories/Ltac2/dune: .dune-stamp
 	cp -a _build/default/ltac2_dune $@ && chmod +w $@
 endif
 
 FORCE: ;
 
-DUNE_FILES=theories/dune user-contrib/Ltac2/dune
+DUNE_FILES=theories/Corelib/dune theories/Ltac2/dune
 
 dunestrap: $(DUNE_FILES)
 
@@ -191,10 +191,6 @@ corelib-html: dunestrap
 apidoc:
 	dune build $(DUNEOPT) @doc
 
-release: theories/dune
-	@echo "release target is deprecated, use dune directly"
-	dune build $(DUNEOPT) -p coq
-
 # We define this target as to override Make's built-in one
 install:
 	@echo "To install Rocq using dune, use 'dune build -p P && dune install P'"
@@ -215,7 +211,7 @@ ireport:
 	dune build $(DUNEOPT) @install --profile=ireport
 
 clean:
-	rm -f .dune-stamp theories/dune user-contrib/Ltac2/dune
+	rm -f .dune-stamp theories/Corelib/dune theories/Ltac2/dune
 	dune clean
 
 # docgram
@@ -258,11 +254,11 @@ include Makefile.ci
 #
 # Unfortunately, Dune still lacks the capability to refer to install
 # targets in rules, see https://github.com/ocaml/dune/issues/3192 ;
-# thus we can't simply yet use `%{pkg:coq:theories/Arith/Arith.vo` to
+# thus we can't simply yet use `%{pkg:coq:theories/Corelib/Arith/Arith.vo` to
 # have the rule install the target, we thus imitate such behavior
 # using make as a helper.
 
-# $(1) is the directory (theories/Foo/)
+# $(1) is the directory (theories/Corelib/Foo/)
 # $(2) is the name (foo)
 define subtarget =
   .PHONY: theories-$(2)
@@ -275,7 +271,7 @@ define subtarget =
 	@dune build $$($(2)_FILES_PATH)
 endef
 
-$(foreach subdir,$(wildcard theories/*/),$(eval $(call subtarget,$(subdir),$(shell echo $(subst /,,$(subst theories/,,$(subdir))) | tr A-Z a-z))))
+$(foreach subdir,$(wildcard theories/Corelib/*/),$(eval $(call subtarget,$(subdir),$(shell echo $(subst /,,$(subst theories/Corelib/,,$(subdir))) | tr A-Z a-z))))
 
 # Other common dev targets:
 #

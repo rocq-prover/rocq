@@ -199,7 +199,7 @@ let boot_module_setup ~cctx coq_module =
   | Corelib ->
     (match Coq_module.prefix coq_module with
      | ["Init"] -> [ Arg.A "-noinit" ], []
-     | _ -> [ ], [ Path.relative (Path.make "theories") prelude_path ]
+     | _ -> [ ], [ Path.relative (Path.relative (Path.make "theories") "Corelib") prelude_path ]
     )
   | Regular { corelib; noinit } ->
     if noinit then [ Arg.A "-noinit" ], []
@@ -276,8 +276,11 @@ let coqnative_module_rule ~(cctx: Context.t) coq_module =
 let coqnative_rules ~dir_info ~cctx = gen_rules ~dir_info ~cctx ~f:coqnative_module_rule
 
 let install_rule ~(cctx : Context.t) coq_module =
-  let tname, rule, package = cctx.theory.dirname, cctx.rule, cctx.theory.directory in
-  let dst_base = Filename.concat "coq" (Path.to_string package) in
+  let tname, rule = cctx.theory.dirname, cctx.rule in
+  let dst_base = match tname with
+    | ["Corelib"] -> Filename.concat "coq" "theories"
+    | _ -> Filename.concat "coq" @@ Filename.concat "user-contrib" @@ (String.concat "." tname)
+  in
   let files =
     Coq_module.install_files ~tname ~rule coq_module
     |> List.map (fun (src,dst) -> src, Filename.concat dst_base dst) in
