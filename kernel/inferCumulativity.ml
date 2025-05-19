@@ -455,7 +455,10 @@ let compute_impred_qvars qs vocc =
 let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances variances u =
   let qs, us = Instance.to_array u in
   debug_infer_term Pp.(fun () -> str"infer_cumulative_instance: " ++ Variances.pr gvariances ++ str " for " ++ 
-    Names.GlobRef.print gr ++ (match nargs with FullyApplied -> str"fully applied" | NumArgs n -> str" applied to " ++ int n ++ str" arguments"));
+    Names.GlobRef.print gr ++ (match nargs with FullyApplied -> str"fully applied" | NumArgs n -> str" applied to " ++ int n ++ str" arguments:") ++
+    Instance.pr Sorts.QVar.raw_pr (Universe.pr Level.raw_pr) u ++ 
+    str" in typing variance position " ++ Variance.pr typing_v ++ 
+    str " is_type = " ++ if is_type == IsType then str "IsType" else str "IsTerm");
   Array.fold_left2 (fun variances vocc u ->
     let VariancePair.{ cumul_variance; typing_variance } = VarianceOccurrence.typing_and_cumul_variance_app ~with_type:(is_type == IsTerm) nargs vocc in
     debug_infer_term Pp.(fun () -> str"infer_cumulative_instance, for: " ++ Universe.raw_pr u ++
@@ -463,7 +466,7 @@ let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances vari
       str" cumul variance " ++ Variance.pr cumul_variance);
     let q = compute_impred_qvars qs vocc in
     let typing_variance = match typing_v with 
-      | Invariant -> typing_variance 
+      | Invariant -> if typing_variance == Irrelevant then Irrelevant else Invariant 
       | Irrelevant -> assert false 
       | Covariant -> typing_variance 
       | Contravariant -> Variance.opp typing_variance 
@@ -491,15 +494,20 @@ let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances vari
     (Variances.repr gvariances)
     us
 
-let infer_inductive_instance cv_pb variance env variances ind nargs u =
+let inductive_variances env ind u =
   if not (Environ.mem_mind (fst ind) env) then
-    infer_generic_instance_eq variances u
-  else
-  let mind = Environ.lookup_mind (fst ind) env in
-  let u = extend_ind_instance mind u in
-  match extended_mind_variance mind with
+    None
+  else 
+    let mind = Environ.lookup_mind (fst ind) env in
+    let u = extend_ind_instance mind u in
+    match extended_mind_variance mind with
+    | None -> None
+    | Some mind_variance -> Some (mind_variance, u)
+
+let infer_inductive_instance cv_pb variance env variances ind nargs u =
+  match inductive_variances env ind u with
   | None -> infer_generic_instance_eq variances u
-  | Some mind_variance -> infer_cumulative_instance (Names.GlobRef.IndRef ind) cv_pb variance (UVars.NumArgs nargs) mind_variance variances u
+  | Some (mind_variance, u) -> infer_cumulative_instance (Names.GlobRef.IndRef ind) cv_pb variance (UVars.NumArgs nargs) mind_variance variances u
 
 let constructor_variances _mind _ind _ctor variance =
   (* let npars = mind.Declarations.mind_nparams in *)
@@ -546,10 +554,10 @@ let infer_constant cv_pb variance env nargs variances has_def (con,u) =
 
 let whd_stack (infos, tab) hd stk = CClosure.whd_stack infos tab hd stk
 
-let flip_pb = function
+(* let flip_pb = function
   | Conv -> Conv
   | Cumul -> InvCumul
-  | InvCumul -> Cumul
+  | InvCumul -> Cumul *)
 
 let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd stk =
   Control.check_for_interrupt ();
@@ -557,6 +565,8 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
   let open CClosure in
   let push_relevance (infos, tab) n = (push_relevance infos n, tab) in
   let push_relevances (infos, tab) n = (push_relevances infos n, tab) in
+  (* debug_infer_term Pp.(fun () -> str"infer_term of: " ++ debug_print (CClosure.term_of_fconstr (zip hd stk))); *)
+  (* debug_infer_term Pp.(fun () -> str"infer_term of head: " ++ debug_print (CClosure.term_of_fconstr hd)); *)
   match fterm_of hd with
   | FAtom a ->
     begin match kind a with
@@ -604,11 +614,11 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     infer_stack variance infos variances stk
   | FLambda _ ->
     let (na,ty,bd) = destFLambda mk_clos hd in
-    let variances = infer_fterm (flip_pb cv_pb) (IsType, Variance.opp (snd variance)) infos variances ty [] in
+    let variances = infer_fterm Conv (IsType, Variance.opp (snd variance)) infos variances ty [] in
     infer_fterm cv_pb variance (push_relevance infos na) variances bd []
   | FProd (na,dom,codom,e) ->
     let na = usubst_binder e na in
-    let variances = infer_fterm (flip_pb cv_pb) (IsType, Variance.opp (snd variance)) infos variances dom [] in
+    let variances = infer_fterm Conv (IsType, Variance.opp (snd variance)) infos variances dom [] in
     infer_fterm cv_pb variance (push_relevance infos na) variances (mk_clos (CClosure.usubs_lift e) codom) []
   | FInd (ind, u) ->
     let variances =
@@ -643,8 +653,8 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     let variances = infer_vect Conv (IsTerm, Invariant) infos variances elems in
     infer_stack variance infos variances stk
 
-  | FCaseInvert (_, _, _, p, _, _, br, e) ->
-    infer_case cv_pb variance infos variances p br e
+  | FCaseInvert (ci, u, _, p, _, _, br, e) ->
+    infer_case cv_pb variance infos variances ci u p br e
   (* Removed by whnf *)
   | FLOCKED -> assert false
   | FCaseT _ -> assert false
@@ -654,7 +664,16 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
   | FCLOS _ -> assert false
   | FIrrelevant -> assert false (* TODO: use create_conv_infos below and use it? *)
 
-and infer_case cv_pb variance infos variances p br e =
+and infer_case cv_pb variance infos variances ci u p br e =
+  let ind = ci.ci_ind in
+  let variances = 
+    debug Pp.(fun () -> str"infer_case instance: = " ++ Instance.pr Sorts.QVar.raw_pr (Universe.pr Level.raw_pr) u);
+    match inductive_variances (CClosure.info_env (fst infos)) ind (CClosure.usubst_instance e u) with
+    | None -> infer_generic_instance_eq variances u
+    | Some (mind_variances, u) -> 
+      debug Pp.(fun () -> str"infer_case instance: = " ++ Instance.pr Sorts.QVar.raw_pr (Universe.pr Level.raw_pr) u);
+      infer_cumulative_instance (Names.GlobRef.IndRef ind) cv_pb (IsType, snd variance) FullyApplied mind_variances variances u
+  in  
   let open CClosure in
   let push_relevances (infos, tab) n = (push_relevances infos n, tab) in
   let orig_pos = get_position variances in
@@ -692,8 +711,8 @@ and infer_stack variance infos variances (stk:CClosure.stack) =
       | Zfix (fx,par) ->
         let variances = infer_fterm Conv variance infos variances fx [] in
         infer_stack variance infos variances par
-      | ZcaseT (_,_,_,p,br,e) ->
-        infer_case Conv variance infos variances p br e
+      | ZcaseT (ci,u,_,p,br,e) ->
+        infer_case Conv variance infos variances ci u p br e
       | Zshift _ -> variances
       | Zupdate _ -> variances
       | Zprimitive (_,_,rargs,kargs) ->
