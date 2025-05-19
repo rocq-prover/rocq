@@ -490,7 +490,7 @@ Module EarlyPolyUniverseDeclarationCheck.
   Next Obligation. exact nat. Defined.
 
   Fail Program Fixpoint f''@{u} (A:Type@{u}) (n:nat) {measure n} : Type@{u} :=
-    match n with 0 => _ | S n => f'' (Type->A) n end.
+    match n with 0 => _ | S n => f'' (Type@{u}->A) n end.
 
   Local Set Universe Polymorphism.
   Program Fixpoint f''@{u} (A:Type@{u}) (n:nat) {measure n} : Type@{u} :=
