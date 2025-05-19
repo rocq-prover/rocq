@@ -180,6 +180,9 @@ sig
 
   val eq_sizes : t -> t -> bool
 
+  (** True if at least one cumulativity variance is not [Invariant] *)
+  val cumulative : t -> bool
+
 end
 
 type variances = Variances.t

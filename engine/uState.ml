@@ -1101,12 +1101,13 @@ let extend_variances inst variances =
   else if vlen > ulen then CErrors.user_err Pp.(str"More variance annotations than bound universes")
   else Array.append variances (Array.make (ulen - vlen) None)
 
-let force_variance ~force_in_term v (VarianceOccurrence.{ in_binders = (binder_mode, occs); in_term; in_type; _ } as vocc) =
+let force_variance ~force_in_term ?(kind=UVars.Definition) fv (VarianceOccurrence.{ in_binders = (binder_mode, occs); in_term; in_type; _ } as vocc) =
   let open VariancePair in
-  let bindersv = Option.map (fun var -> { cumul_variance = Variance.sup var.cumul_variance v; typing_variance = v }) binder_mode in
+  let bindersv = Option.map (fun var -> { var with cumul_variance = Variance.sup var.cumul_variance fv }) binder_mode in
   let in_term =
-    if force_in_term then Some { cumul_variance = Invariant; typing_variance = v }
-    else Option.map (fun var -> { cumul_variance = Variance.sup var.cumul_variance v; typing_variance = v }) in_term
+    if force_in_term then Some { cumul_variance = Invariant; 
+      typing_variance = if kind == UVars.Assumption then fv else Option.default Variance.Irrelevant (Option.map typing_variance in_term) }
+    else Option.map (fun var -> { cumul_variance = Variance.sup var.cumul_variance fv; typing_variance = fv }) in_term
   in
   { vocc with in_binders = bindersv, occs; in_term; in_type = in_type }
 
@@ -1117,7 +1118,7 @@ let computed_variances cumulative kind ivariances inst =
     | Some o ->
       let occ = InferCumulativity.forget_infer_variance_occurrence o in
       if cumulative then Some occ
-      else Some (force_variance ~force_in_term:(kind = UVars.Assumption) Invariant occ)
+      else Some (force_variance ~force_in_term:true ~kind Invariant occ)
   in
   let arr = Array.map inferred_variance (snd (LevelInstance.to_array inst)) in
   if not cumulative && Array.for_all Option.is_empty arr then None
@@ -1171,6 +1172,9 @@ let check_variances ~cumulative ~kind names ivariances inst variances =
 let check_poly_univ_decl ~cumulative ~kind uctx decl =
   (* Note: if [decl] is [default_univ_decl], behave like [context uctx] *)
   let levels, csts = uctx.local in
+  debug Pp.(fun () -> str"Checking universe declaration: cumulative = " ++ bool cumulative ++ 
+    str", extensible instance? " ++ bool decl.univdecl_extensible_instance ++
+    str", extensible constraints? " ++ bool decl.univdecl_extensible_constraints);
   let qvars = QState.undefined uctx.sort_variables in
   let inst = universe_context_inst decl qvars levels uctx.names in
   let nas = compute_instance_binders uctx inst in
