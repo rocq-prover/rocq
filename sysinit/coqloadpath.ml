@@ -14,7 +14,7 @@ open Pp
 (* Recursively puts `.v` files in the LoadPath *)
 let build_stdlib_vo_path ~unix_path ~rocq_path =
   let open Loadpath in
-  { unix_path; coq_path = rocq_path; implicit = true; recursive = true }
+  { unix_path; coq_path = rocq_path; implicit = true; recursive = true; installed = true }
 
 let build_userlib_path ~unix_path =
   let open Loadpath in
@@ -24,6 +24,7 @@ let build_userlib_path ~unix_path =
       ; coq_path = Libnames.default_root_prefix
       ; implicit = false
       ; recursive = true
+      ; installed = true
       } in
     [vo_path]
   else []
@@ -57,6 +58,7 @@ let init_load_path ~coqenv =
       ; coq_path = Libnames.default_root_prefix
       ; implicit = false
       ; recursive = false
+      ; installed = false (* not considered "installed" *)
       } ] @
 
     (* then standard library *)
