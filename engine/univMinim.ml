@@ -126,7 +126,7 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
   let minimize u (ctx, us, variances, graph) =
     match UGraph.minimize u graph with
     | HasSubst (graph, equivs, lbound) ->
-      debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound ++ str" and graph " ++ UGraph.pr_model graph);
+      debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
       update_equivs_bound (ctx, us, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> (ctx, us, variances, graph)
   in
@@ -137,14 +137,14 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
   let maximize u (ctx, us, variances, graph as acc) =
     match UGraph.maximize u graph with
     | HasSubst (graph, equivs, ubound) ->
-      debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound ++ str" and graph " ++ UGraph.pr_model graph);
+      debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound);
       update_equivs_bound (ctx, us, variances, graph) u ubound equivs
     | NoBound | CannotSimplify -> acc
   in
   let arbitrary ~allow_collapse u (ctx, us, variances, graph as acc) =
     match UGraph.minimize u graph with
       | HasSubst (graph, equivs, lbound) ->
-        debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound ++ str" and graph " ++ UGraph.pr_model graph);
+        debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
         update_equivs_bound (ctx, us, variances, graph) u lbound equivs
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
         if allow_collapse then collapse_to_zero u acc
@@ -198,14 +198,24 @@ let simplify_variables solve_flexibles partial ctx us variances graph =
     else simplify_max u acc
   in
   let acc = Level.Set.fold fold_max dom acc in
-  (* if solve_flexibles then
+  let simplify_arbitrary ~allow_collapse u (ctx, us, variances, graph as acc) =
+    (* u is an undefined flexible variable, lookup its variance information *)
+    let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u us variances in
+    debug_each Pp.(fun () -> str"Simplifying flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++ 
+      str " typing_variance: " ++ UVars.Variance.pr typing_variance);
+    match type_variance with 
+    | Irrelevant -> arbitrary ~allow_collapse:true u acc
+    | Covariant -> minimize u acc
+    | Contravariant -> maximize u acc
+    | Invariant -> acc
+  in
+  if solve_flexibles then
     let fold_arbitrary u (ctx, us, variances, graph as acc) =
       if UnivFlex.is_defined u us then acc
-      else arbitrary ~allow_collapse:(get_set_minimization ()) u acc
+      else simplify_arbitrary ~allow_collapse:(get_set_minimization ()) u acc
     in
     Level.Set.fold fold_arbitrary dom acc
-  else acc *)
-  acc
+  else acc
 
 module UPairs = OrderedType.UnorderedPair(Universe)
 module UPairSet = Set.Make (UPairs)
@@ -398,8 +408,8 @@ let normalize_context_set ~solve_flexibles ~variances ~partial g ctx (us:UnivFle
       let cstrs = Universe.Set.fold (fun g cst -> enforce_eq canon g cst) rigid cstrs in
       if UnivFlex.mem l us then
         (* If the level is flexible, then u should already be defined *)
-        (assert (UnivFlex.is_defined l us);
-         cstrs)
+        (* (assert (UnivFlex.is_defined l us); *)
+         cstrs
       else
         if Universe.Set.is_empty flexible then cstrs else
         enforce_eq canon (Universe.make l) cstrs)

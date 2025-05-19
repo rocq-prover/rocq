@@ -3094,6 +3094,7 @@ let minimize_can can k model =
     | n -> n
   in
   let glb = List.sort_uniq sort glb in
+  let glb = List.remove_assq can glb in
   if CList.is_empty glb then NoBound
   else
     if List.for_all (fun (_, k) -> k >= 0) glb
@@ -3104,7 +3105,7 @@ let minimize_can can k model =
         debug_check_invariants model;
         _debug_minim Pp.(fun () -> str"Removed " ++ pr_can model can ++ str ", new model: " ++ pr_clauses_all model);
         HasSubst (model, equivs, univ_of_can_expr_list model glb)
-      with InconsistentEquality -> CannotSimplify
+      with InconsistentEquality | OccurCheck -> CannotSimplify
     else CannotSimplify
 
 
@@ -3128,7 +3129,7 @@ let maximize_can can model =
       try 
         let model, equivs = set_can (can, 0) ubound model in
         HasSubst (model, equivs, univ_of_can_premises model ubound)
-      with InconsistentEquality -> CannotSimplify
+      with InconsistentEquality | OccurCheck -> CannotSimplify
     else CannotSimplify
 
 let maximize level model =

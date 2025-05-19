@@ -46,6 +46,10 @@ let universes_context = function
   | Monomorphic -> UVars.AbstractContext.empty
   | Polymorphic (ctx, _) -> ctx
 
+let has_cumulative_variance = function
+  | Some v -> UVars.Variances.cumulative v
+  | None -> false
+
 (** {6 Constants } *)
 
 let constant_is_polymorphic cb =
@@ -56,7 +60,7 @@ let constant_is_polymorphic cb =
 let constant_is_cumulative cb =
   match cb.const_universes with
   | Monomorphic -> false
-  | Polymorphic (_, variances) -> not (Option.is_empty variances)
+  | Polymorphic (_, variances) -> has_cumulative_variance variances
   
 let constant_has_body cb = match cb.const_body with
   | Undef _ | Primitive _ | Symbol _ -> false
@@ -271,8 +275,8 @@ let inductive_is_polymorphic mib =
   | Polymorphic _ -> true
 
 let inductive_is_cumulative mib =
-  Option.has_some (universes_variances mib.mind_universes)
-
+  has_cumulative_variance (universes_variances mib.mind_universes)
+  
 let inductive_make_projection ind mib ~proj_arg =
   match mib.mind_record with
   | NotRecord | FakeRecord ->

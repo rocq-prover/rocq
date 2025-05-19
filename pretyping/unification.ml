@@ -1094,7 +1094,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     and cN = Evarutil.whd_head_evar sigma curn in
     let () =
       debug_tactic_unification (fun () ->
-          Termops.Internal.print_constr_env curenv sigma cM ++ strbrk" ~= " ++
+          Termops.Internal.print_constr_env curenv sigma cM ++ (if pb == CONV then strbrk" ~= " else strbrk " ~<= ")  ++
           Termops.Internal.print_constr_env curenv sigma cN)
     in
       match (EConstr.kind sigma cM, EConstr.kind sigma cN) with
@@ -1152,7 +1152,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         | Evar (evk,_ as ev), Evar (evk',_)
             when is_evar_allowed flags evk
               && Evar.equal evk evk' ->
-            begin match constr_cmp cv_pb env sigma flags cM cN with
+            begin match constr_cmp pb env sigma flags cM cN with
             | Some sigma ->
               push_sigma sigma substn
             | None ->
@@ -1194,7 +1194,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         (* Fast path for projections. *)
         | Proj (p1,_,c1), Proj (p2,_,c2) when Environ.QConstant.equal env
             (Projection.constant p1) (Projection.constant p2) ->
-          (try unify_same_proj curenvnb cv_pb {opt with at_top = true}
+          (try unify_same_proj curenvnb pb {opt with at_top = true}
                substn c1 c2
            with ex when precatchable_exception ex ->
              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
@@ -1393,7 +1393,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     let sigma = substn.subst_sigma in
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
-    match constr_cmp cv_pb env sigma flags ~nargs cM cN with
+    match constr_cmp pb env sigma flags ~nargs cM cN with
     | Some sigma -> push_sigma sigma substn
     | None ->
         try reduce curenvnb pb opt substn cM cN
