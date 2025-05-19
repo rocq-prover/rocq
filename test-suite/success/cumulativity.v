@@ -72,8 +72,8 @@ End down.
 
 Record Arrow@{i j} := { arrow : Type@{i} -> Type@{j} }.
 
-Definition arrow_lift@{i i' j j' | i' < i, j < j'}
-  : Arrow@{i j} -> Arrow@{i' j'}
+Definition arrow_lift@{i j j' | j < j'}
+  : Arrow@{i j} -> Arrow@{i j'}
   := fun x => x.
 
 Definition arrow_lift_inv@{i i' j j' | i' = i, j <= j'}
@@ -227,7 +227,7 @@ Notation "n .+1" := (trunc_S n) : trunc_scope.
 Local Open Scope trunc_scope.
 Local Set Asymmetric Patterns.
 
-Inductive paths {A : Type} (a : A) : A -> Type :=
+Inductive paths@{i} {A : Type@{i}} (a : A) : A -> Type@{i} :=
   idpath : paths a a.
 
 Notation "x = y :> A" := (@paths A x y) : type_scope.
