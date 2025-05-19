@@ -26,7 +26,7 @@ Fixpoint nat_to_trunc_index (n : nat) : trunc_index
      end.
 
 Coercion nat_to_trunc_index : nat >-> trunc_index.
-Fixpoint IsTrunc_internal (n : trunc_index) (A : Type) : Type :=
+Fixpoint IsTrunc_internal@{u} (n : trunc_index) (A : Type@{u}) : Type@{u} :=
   match n with
     | minus_two => Contr_internal A
     | trunc_S n' => forall (x y : A), IsTrunc_internal n' (x = y)
@@ -50,9 +50,9 @@ Inductive Unit : Set := tt.
 #[export] Instance trunc_succ `{IsTrunc n A} : IsTrunc (trunc_S n) A | 1000.
 admit.
 Defined.
-Record hProp := hp { hproptype :> Type ; isp : IsHProp hproptype}.
+Record hProp@{u} := hp { hproptype :> Type@{u} ; isp : IsHProp@{u} hproptype}.
 Definition Unit_hp@{u}:hProp@{u}:=(hp Unit _).
-Record hSet := BuildhSet {setT:> Type; iss :> IsHSet setT}.
+Record hSet@{u} := BuildhSet {setT:> Type@{u}; iss :> IsHSet@{u} setT}.
 Canonical Structure default_HSet:= fun T P => (@BuildhSet T P).
 Definition ismono {X Y} (f : X -> Y)
   := forall Z : hSet,
