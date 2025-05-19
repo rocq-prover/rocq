@@ -1591,7 +1591,9 @@ let rec debug_print c =
         debug_print c)
     in
     v 0 (hv 0 (str"Case" ++ brk (1,1) ++
-             debug_print c ++ spc () ++ str "params" ++ brk (1,1) ++ prvect (fun x -> spc () ++ debug_print x) pms ++
+             debug_print c ++ spc () ++ 
+             str "instance" ++ brk (1,1) ++ Instance.pr Sorts.QVar.raw_pr Univ.(Universe.pr Level.raw_pr) _u ++ spc () ++
+             str "params" ++ brk (1,1) ++ prvect (fun x -> spc () ++ debug_print x) pms ++
              spc () ++ str"return"++ brk (1,1) ++ pr_ctx p ++ debug_invert iv ++ spc () ++ str"with") ++
        prvect (fun b -> spc () ++ pr_ctx b) bl ++
        spc () ++ str"end")

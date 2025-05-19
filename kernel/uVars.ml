@@ -476,6 +476,14 @@ struct
     assert (len = Array.length u' && len = Array.length variances);
     Array.fold_left3 (VarianceOccurrence.eq_constraint nargs) csts variances u u'
 
+  let cumulative variances = 
+    let not_cumul_invariant v = 
+      match v.VarianceOccurrence.in_term with
+      | None -> true
+      | Some { VariancePair.cumul_variance = v; _ }  -> v != Variance.Invariant 
+    in
+    Array.exists not_cumul_invariant variances
+
 end
 
 type variances = Variances.t
