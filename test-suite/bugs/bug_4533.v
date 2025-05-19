@@ -114,7 +114,7 @@ Fixpoint ExtendableAlong@{i j k l}
   := match n with
      | O => Unit@{l}
      | S n => (forall (g : forall a, C (f a)),
-                  ExtensionAlong@{i j k} f C g) *
+                  ExtensionAlong@{i j k l} f C g) *
               forall (h k : forall b, C b),
                 ExtendableAlong n f (fun b => h b = k b)
      end.
@@ -182,13 +182,13 @@ Module ReflectiveSubuniverses_Theory (Os : ReflectiveSubuniverses).
     Context (O : ReflectiveSubuniverse@{Ou Oa}).
 
     Definition isequiv_to_O_inO@{u a i} (T : Type@{i}) `{In@{u a i} O T} :
-IsEquiv@{i i} (to O T).
+      IsEquiv@{i i i} (to O T).
     Proof.
 
-      pose (g := O_rec@{u a i i i} idmap).
+      pose (g := O_rec@{u a i i i i} idmap).
       refine (isequiv_adjointify (to O T) g _ _).
       -
-        refine (O_indpaths@{u a u i i} (to O T o g) idmap _).
+        refine (O_indpaths@{u a i i i i} (to O T o g) idmap _).
         intros x.
         apply ap.
         apply O_rec_beta.
