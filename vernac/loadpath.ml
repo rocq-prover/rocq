@@ -17,7 +17,7 @@ type t = {
   path_physical : CUnix.physical_path;
   path_logical : DP.t;
   path_implicit : bool;  (* true for -R, false for -Q in command line *)
-  path_root : (CUnix.physical_path * DP.t);
+  path_installed : bool; (* true for automatically added paths (assumed installed), false for command line paths *)
 }
 
 let load_paths = Summary.ref ([] : t list) ~stage:Summary.Stage.Synterp ~name:"LOADPATHS"
@@ -94,14 +94,14 @@ let warn_overriding_logical_loadpath =
                ; DP.print old_path; strbrk "; it is remapped to "
                ; DP.print rocq_path]))
 
-let add_load_path root phys_path rocq_path ~implicit =
+let add_load_path ~installed phys_path rocq_path ~implicit =
   let phys_path = CUnix.canonical_path_name phys_path in
   let filter p = String.equal p.path_physical phys_path in
   let binding = {
     path_logical = rocq_path;
     path_physical = phys_path;
     path_implicit = implicit;
-    path_root = root;
+    path_installed = installed;
   } in
   match List.filter filter !load_paths with
   | [] ->
@@ -133,19 +133,13 @@ let filter_path f =
   in
   aux !load_paths
 
-let eq_root (phys,log_path) (phys',log_path') =
-  String.equal phys phys' && Names.DirPath.equal log_path log_path'
-
-let add_path root file = function
-  | [] -> [root,[file]]
-  | (root',l) :: l' as l'' -> if eq_root root root' then (root', file::l) :: l' else (root,[file]) :: l''
+let add_path ~is_installed file (installed, local) =
+  if is_installed then file :: installed, local
+  else installed, file::local
 
 let expand_path ?root dir =
   let exact_path = match root with None -> dir | Some root -> Libnames.append_dirpath root dir in
-  let rec aux = function
-  | [] -> [], []
-  | { path_physical = ph; path_logical = lg; path_implicit = implicit; path_root } :: l ->
-    let full, others = aux l in
+  let aux { path_physical = ph; path_logical = lg; path_implicit = implicit; path_installed } (full, others) =
     if DP.equal exact_path lg then
       (* Most recent full match comes first *)
       (ph, lg) :: full, others
@@ -158,14 +152,13 @@ let expand_path ?root dir =
                   is_dirpath_suffix_of dir (drop_dirpath_prefix root lg))
     in
     if success then
-      (* Only keep partial path in the same "-R" block *)
-      full, add_path path_root (ph, lg) others
+      full, add_path ~is_installed:path_installed (ph, lg) others
     else
       full, others in
-  let full, others = aux !load_paths in
+  let full, others = List.fold_right aux !load_paths ([], ([], [])) in
   (* Returns the dirpath matching exactly and the ordered list of
      -R/-Q blocks with subdirectories that matches *)
-  full, List.map snd others
+  full, others
 
 let locate_file fname =
   let paths = List.map physical !load_paths in
@@ -249,15 +242,16 @@ let locate_qualified_library ?root qid :
   (* Search library in loadpath *)
   let dir, base = Libnames.repr_qualid qid in
   match expand_path ?root dir with
-  | [], [] -> Error LibUnmappedDir
-  | full_matches, others ->
+  | [], ([], []) -> Error LibUnmappedDir
+  | full_matches, (installed, local) ->
     let result =
       (* Priority to exact matches *)
+      (* XXX why find_first instead of find_unique? *)
       match select_vo_file ~find:(find_first full_matches) base with
       | Some _ as x -> x
       | None ->
-         (* Looking otherwise in -R/-Q blocks of partial matches *)
-        List.find_map (fun block -> select_vo_file ~find:(find_unique qid block) base) others
+         (* Priority to local matches *)
+        List.find_map (fun block -> select_vo_file ~find:(find_unique qid block) base) [local; installed]
     in
     match result with
     | Some (dir,file) ->
@@ -290,14 +284,10 @@ let locate_qualified_library ?root qid =
 
 type vo_path =
   { unix_path : string
-  (** Filesystem path containing vo/ml files *)
   ; coq_path  : DP.t
-  (** Coq prefix for the path *)
   ; implicit  : bool
-  (** [implicit = true] avoids having to qualify with [coq_path]
-      true for -R, false for -Q in command line *)
   ; recursive : bool
-  (** [recursive] will determine whether we explore sub-directories  *)
+  ; installed : bool
   }
 
 let warn_cannot_open_path =
@@ -322,6 +312,7 @@ let add_vo_path lp =
   let unix_path = lp.unix_path in
   let implicit = lp.implicit in
   let recursive = lp.recursive in
+  let installed = lp.installed in
   if System.exists_dir unix_path then
     let dirs = if recursive then System.all_subdirs ~unix_path else [] in
     let dirs = List.sort (fun a b -> String.compare (fst a) (fst b)) dirs in
@@ -333,11 +324,10 @@ let add_vo_path lp =
       with Exit -> None
     in
     let dirs = List.map_filter convert_dirs dirs in
-    let root = (unix_path,lp.coq_path) in
-    let add (path, dir) = add_load_path root path ~implicit dir in
+    let add (path, dir) = add_load_path ~installed path ~implicit dir in
     (* deeper dirs registered first and thus be found last *)
     let dirs = List.rev dirs in
     let () = List.iter add dirs in
-    add_load_path root unix_path ~implicit lp.coq_path
+    add_load_path ~installed unix_path ~implicit lp.coq_path
   else
     warn_cannot_open_path unix_path
