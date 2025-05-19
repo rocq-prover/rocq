@@ -210,12 +210,12 @@ let select_vo_file ~find base =
     try
       let name = Names.Id.to_string base ^ ext in
       let lpath, file = find name in
-      Ok (lpath, file)
-    with Not_found -> Error Error.LibNotFound in
+      Some (lpath, file)
+    with Not_found -> None in
   if !Flags.load_vos_libraries
   then begin
     match find ".vos" with
-    | Ok (_, vos as resvos) when (Unix.stat vos).Unix.st_size > 0 -> Ok resvos
+    | Some (_, vos) as resvos when (Unix.stat vos).Unix.st_size > 0 -> resvos
     | _ -> find ".vo"
   end
   else find ".vo"
@@ -241,8 +241,8 @@ let locate_absolute_library dir : (CUnix.physical_path, Error.t) Result.t =
   | [] -> Error LibUnmappedDir
   | _ ->
     match select_vo_file ~find:(find_first loadpath) base with
-    | Ok (_, file) -> Ok file
-    | Error fail -> Error fail
+    | Some (_, file) -> Ok file
+    | None -> Error Error.LibNotFound
 
 let locate_qualified_library ?root qid :
   (DP.t * CUnix.physical_path, Error.t) Result.t =
@@ -254,23 +254,16 @@ let locate_qualified_library ?root qid :
     let result =
       (* Priority to exact matches *)
       match select_vo_file ~find:(find_first full_matches) base with
-      | Ok _ as x -> x
-      | Error _ ->
+      | Some _ as x -> x
+      | None ->
          (* Looking otherwise in -R/-Q blocks of partial matches *)
-        let rec aux = function
-          | [] -> Error Error.LibUnmappedDir
-          | block :: rest ->
-            match select_vo_file ~find:(find_unique qid block) base with
-            | Ok _ as x -> x
-            | Error _ -> aux rest
-        in
-        aux others
+        List.find_map (fun block -> select_vo_file ~find:(find_unique qid block) base) others
     in
     match result with
-    | Ok (dir,file) ->
+    | Some (dir,file) ->
       let library = Libnames.add_dirpath_suffix dir base in
       Ok (library, file)
-    | Error _ as e -> e
+    | None -> Error Error.LibNotFound
 
 let warn_deprecated_missing_stdlib =
   CWarnings.create ~name:"deprecated-missing-stdlib"
