@@ -178,6 +178,16 @@ let interp_ltac_variable ?loc typing_fun env sigma id : Evd.evar_map * unsafe_ju
 
 let interp_ltac_id env id = ltac_interp_id env.lvar id
 
+let lookup_renamed globenv id =
+  let env = renamed_env globenv in
+  (* optimization: if id is in the original named context it will
+     be the same in the extended context *)
+  match EConstr.lookup_named id env with
+  | d -> EConstr.mkVar id
+  | exception Not_found ->
+    let (_, _, sign) as ext = Lazy.force globenv.extra in
+    Evarutil.ext_rev_subst ext id
+
 type 'a obj_interp_fun =
   ?loc:Loc.t -> poly:bool -> t -> Evd.evar_map -> Evardefine.type_constraint ->
   'a -> unsafe_judgment * Evd.evar_map
