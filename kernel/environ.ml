@@ -456,6 +456,7 @@ let check_constraints c env =
 let _debug_environ, debug = CDebug.create_full ~name:"environ" ()
 
 let add_universes ~strict ctx g =
+  debug Pp.(fun () -> str"Adding universe context" ++ UVars.pr_universe_context Sorts.QVar.raw_pr Univ.Level.raw_pr ctx);
   let _qs, us = UVars.LevelInstance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_left
       (fun g v -> UGraph.add_universe ~strict v g)
