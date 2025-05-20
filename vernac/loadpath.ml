@@ -142,7 +142,12 @@ let expand_path ?root dir =
   let aux { path_physical = ph; path_logical = lg; path_implicit = implicit; path_installed } (full, others) =
     if DP.equal exact_path lg then
       (* Most recent full match comes first *)
-      (ph, lg) :: full, others
+      let full_installed, full_local = full in
+      let v = (ph, lg) in
+      let full = if path_installed then v :: full_installed, full_local
+        else full_installed, v :: full_local
+      in
+      full, others
     else
     let success =
       match root with
@@ -155,7 +160,7 @@ let expand_path ?root dir =
       full, add_path ~is_installed:path_installed (ph, lg) others
     else
       full, others in
-  let full, others = List.fold_right aux !load_paths ([], ([], [])) in
+  let full, others = List.fold_right aux !load_paths (([],[]), ([], [])) in
   (* Returns the dirpath matching exactly and the ordered list of
      -R/-Q blocks with subdirectories that matches *)
   full, others
@@ -242,16 +247,12 @@ let locate_qualified_library ?root qid :
   (* Search library in loadpath *)
   let dir, base = Libnames.repr_qualid qid in
   match expand_path ?root dir with
-  | [], ([], []) -> Error LibUnmappedDir
-  | full_matches, (installed, local) ->
+  | ([], []), ([], []) -> Error LibUnmappedDir
+  | (full_installed, full_local), (installed, local) ->
     let result =
-      (* Priority to exact matches *)
-      (* XXX why find_first instead of find_unique? *)
-      match select_vo_file ~find:(find_first full_matches) base with
-      | Some _ as x -> x
-      | None ->
-         (* Priority to local matches *)
-        List.find_map (fun block -> select_vo_file ~find:(find_unique qid block) base) [local; installed]
+      (* Priority to exact matches, then priority to local matches *)
+      List.find_map (fun block -> select_vo_file ~find:(find_unique qid block) base)
+        [full_local; full_installed; local; installed]
     in
     match result with
     | Some (dir,file) ->
