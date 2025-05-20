@@ -250,6 +250,11 @@ type t =
    minim_extra : UnivMinim.extra;
  }
 
+(** 3 Projections *)
+let subst uctx = uctx.univ_variables
+let ugraph uctx = uctx.universes
+let context_set uctx = uctx.local
+
 let empty =
   { names = UnivNames.empty_binders, (QVar.Map.empty, Level.Map.empty);
     local = ContextSet.empty;
@@ -309,6 +314,33 @@ let pr_uctx_level uctx l = pr_uctx_level_names uctx.names l
 
 let pr_uctx_qvar uctx l = pr_uctx_qvar_names uctx.names l
 
+let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop}} =
+  let open Pp in
+  v 0 (
+    prlist_with_sep cut (fun (u,v) -> h (Universe.pr prl u ++ str " ~ " ++ Universe.pr prl v)) (UPairSet.elements weak)
+    ++ if UPairSet.is_empty weak || Level.Set.is_empty above_prop then mt() else cut () ++
+    prlist_with_sep cut (fun u -> h (str "Prop <= " ++ prl u)) (Level.Set.elements above_prop))
+
+let pr_sort_opt_subst uctx = QState.pr (qualid_of_qvar_names uctx.names) uctx.sort_variables
+
+let pr ?(local=false) ctx =
+  let open Pp in
+  let prl = pr_uctx_level ctx in
+  if is_empty ctx then mt ()
+  else
+    v 0
+      (str"UNIVERSES:"++brk(0,1)++
+       h (Univ.ContextSet.pr prl (context_set ctx)) ++ fnl () ++
+       UnivFlex.pr prl (subst ctx) ++ fnl() ++
+       str"GRAPH:" ++ brk(0,1) ++
+       h (UGraph.pr_model ~local (ugraph ctx)) ++ fnl () ++
+       str"SORTS:"++brk(0,1)++
+       h (pr_sort_opt_subst ctx) ++ fnl() ++
+       (pr_opt (fun variances -> str"VARIANCES:"++brk(0,1)++
+       h (InferCumulativity.pr_variances Univ.Level.raw_pr variances) ++ fnl ()) ctx.variances) ++
+       str "WEAK CONSTRAINTS:"++brk(0,1)++
+       h (pr_weak prl ctx) ++ fnl ())
+
 let merge_constraints_graph uctx cstrs g =
   try UGraph.merge_constraints cstrs g
   with UGraph.UniverseInconsistency (_, i) ->
@@ -336,7 +368,7 @@ let update_univ_subst ctx cst us variances (subst, eqcstrs) =
   let variances = Option.map (fun variances -> List.fold_right (fun (l, u) variances -> Level.Map.remove l (UnivMinim.update_variances variances l (Univ.Universe.levels u))) subst variances) variances in
   (* These equalities are modelled in the graph already *)
   let cst = Constraints.union eqcstrs cst in
-  (ctx, cst), us, variances
+  (ctx, UnivFlex.normalize_constraints us cst), us, variances
 
 let subst_of_equivalences us equivs =
   List.fold_right (fun (l, (l', k as e)) (subst, cstrs) ->
@@ -390,8 +422,6 @@ let union uctx uctx' =
         universes;
         variances;
         minim_extra = extra}
-
-let context_set uctx = uctx.local
 
 let sort_context_set uctx =
   let us, csts = uctx.local in
@@ -459,8 +489,10 @@ let merge_constraints uctx cstrs =
 let merge_context_universes ~strict uctx (us, csts)  =
   let declarenew g = Level.Set.fold (fun v g -> if Level.is_set v then g else
     try UGraph.add_universe v ~strict g with UGraph.AlreadyDeclared -> g) us g in
-  merge_constraints { uctx with universes = declarenew uctx.universes;
-    initial_universes = declarenew uctx.initial_universes } csts
+  let uctx = merge_constraints { uctx with universes = declarenew uctx.universes;
+    initial_universes = declarenew uctx.initial_universes } csts in
+  debug Pp.(fun () -> str"After merge of context set" ++ pr uctx);
+  uctx
 
 let of_context_set env ((qs,us),csts) =
   debug Pp.(fun () -> str"of_context_set: " ++ ContextSet.pr Level.raw_pr (us, csts));
@@ -470,10 +502,6 @@ let of_context_set env ((qs,us),csts) =
   merge_context_universes uctx ~strict:false (us, csts)
 
 type universe_opt_subst = UnivFlex.t
-
-let subst uctx = uctx.univ_variables
-
-let ugraph uctx = uctx.universes
 
 let of_names (ubind,(revqbind,revubind)) =
   let revqbind = QVar.Map.map (fun id -> { uname = Some id; uloc = None }) revqbind in
@@ -1499,7 +1527,7 @@ let minimize
           initial_universes = uctx.initial_universes;
           variances = Some variances;
           minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
-      in merge_constraints uctx (snd us')
+      in merge_context_universes ~strict:false uctx us'
 
 let universe_context_inst_decl decl qvars levels names =
   let leftqs = List.fold_left (fun acc l -> QVar.Set.remove l acc) qvars decl.univdecl_qualities in
@@ -1558,34 +1586,6 @@ let disable_minim, _ = CDebug.create_full ~name:"minimization" ()
 let minimize ~partial uctx =
   if CDebug.get_flag disable_minim then uctx
   else minimize ~partial uctx
-
-(* XXX print above_prop too *)
-let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop}} =
-  let open Pp in
-  v 0 (
-    prlist_with_sep cut (fun (u,v) -> h (Universe.pr prl u ++ str " ~ " ++ Universe.pr prl v)) (UPairSet.elements weak)
-    ++ if UPairSet.is_empty weak || Level.Set.is_empty above_prop then mt() else cut () ++
-    prlist_with_sep cut (fun u -> h (str "Prop <= " ++ prl u)) (Level.Set.elements above_prop))
-
-let pr_sort_opt_subst uctx = QState.pr (qualid_of_qvar_names uctx.names) uctx.sort_variables
-
-let pr ?(local=false) ctx =
-  let open Pp in
-  let prl = pr_uctx_level ctx in
-  if is_empty ctx then mt ()
-  else
-    v 0
-      (str"UNIVERSES:"++brk(0,1)++
-       h (Univ.ContextSet.pr prl (context_set ctx)) ++ fnl () ++
-       UnivFlex.pr prl (subst ctx) ++ fnl() ++
-       str"GRAPH:" ++ brk(0,1) ++
-       h (UGraph.pr_model ~local (ugraph ctx)) ++ fnl () ++
-       str"SORTS:"++brk(0,1)++
-       h (pr_sort_opt_subst ctx) ++ fnl() ++
-       (pr_opt (fun variances -> str"VARIANCES:"++brk(0,1)++
-       h (InferCumulativity.pr_variances Univ.Level.raw_pr variances) ++ fnl ()) ctx.variances) ++
-       str "WEAK CONSTRAINTS:"++brk(0,1)++
-       h (pr_weak prl ctx) ++ fnl ())
 
 module Internal =
 struct
