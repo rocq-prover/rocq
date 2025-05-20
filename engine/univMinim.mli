@@ -56,8 +56,10 @@ val normalize_context_set :
   solve_flexibles:bool ->
   variances:InferCumulativity.variances ->
   partial:bool ->
-  UGraph.t -> ContextSet.t ->
-  UnivFlex.t (* The defined and undefined variables *) ->
+  UGraph.t -> (* The graph representing constraints and a level to universe substitution *)
+  local_variables:Level.Set.t -> (* Local variables *)
+  flexible_variables:Level.Set.t (* Subset of undefined flexible variables *) ->
   ?binders:UnivNames.universe_binders ->
   extra ->
-  (UnivFlex.t * InferCumulativity.variances) in_universe_context_set
+  (Level.Set.t * (* Remaining flexible variables *) 
+   InferCumulativity.variances) in_universe_context_set
