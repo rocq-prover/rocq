@@ -11,6 +11,7 @@
 open Names
 open Libnames
 open Globnames
+open Flags
 
 (* to this type are mapped DirPath.t's in the nametab *)
 module GlobDirRef = struct
@@ -550,17 +551,23 @@ let path_of_universe mp =
   UnivIdMap.find mp !the_univrevtab
 
 (* Shortest qualid functions **********************************************)
-
+(* Names.GlobRef.t -> Libnames.qualid *)
 let shortest_qualid_of_global ?loc ctx ref =
   let open GlobRef in
-  match ref with
+  if !Flags.fqn_print then
+    Libnames.qualid_of_path ?loc (path_of_global ref)
+  else
+    match ref with
     | VarRef id -> make_qualid ?loc DirPath.empty id
     | _ ->
-        let sp =  ExtRefMap.find (TrueGlobal ref) !the_globrevtab in
-        ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
+       let sp =  ExtRefMap.find (TrueGlobal ref) !the_globrevtab in
+       ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
 
 let shortest_qualid_of_abbreviation ?loc ctx kn =
-  let sp = path_of_abbreviation kn in
+  if !Flags.fqn_print then
+    Libnames.qualid_of_path ?loc (path_of_abbreviation kn)
+  else
+    let sp = path_of_abbreviation kn in
     ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
 
 let shortest_qualid_of_module ?loc mp =
@@ -568,15 +575,23 @@ let shortest_qualid_of_module ?loc mp =
   MPDTab.shortest_qualid ?loc Id.Set.empty dir Modules.(!nametab.modtab)
 
 let shortest_qualid_of_modtype ?loc kn =
-  let sp = MPmap.find kn Modules.(!nametab.modtyperevtab) in
+  if !Flags.fqn_print
+  then
+    Libnames.qualid_of_path ?loc (path_of_modtype kn)
+  else
+    let sp = MPmap.find kn Modules.(!nametab.modtyperevtab) in
     MPTab.shortest_qualid ?loc Id.Set.empty sp Modules.(!nametab.modtypetab)
 
 let shortest_qualid_of_dir ?loc sp =
   DirTab.shortest_qualid ?loc Id.Set.empty sp Modules.(!nametab.dirtab)
 
 let shortest_qualid_of_universe ?loc ctx kn =
-  let sp = UnivIdMap.find kn !the_univrevtab in
-  UnivTab.shortest_qualid_gen ?loc (fun id -> Id.Map.mem id ctx) sp !the_univtab
+  if !Flags.fqn_print
+  then
+    Libnames.qualid_of_path ?loc (path_of_universe kn)
+  else
+    let sp = UnivIdMap.find kn !the_univrevtab in
+    UnivTab.shortest_qualid_gen ?loc (fun id -> Id.Map.mem id ctx) sp !the_univtab
 
 let shortest_qualid_of_quality ?loc ctx kn =
   let sp = QualityIdMap.find kn !the_qualityrevtab in
