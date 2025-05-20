@@ -307,6 +307,13 @@ andb_true_intro:
   forall [b1 b2 : bool], b1 = true /\ b2 = true -> (b1 && b2)%bool = true
 andb_prop: forall a b : bool, (a && b)%bool = true -> a = true /\ b = true
 andb_prop: forall a b : bool, (a && b)%bool = true -> a = true /\ b = true
+and_comm: forall A B : Prop, A /\ B <-> B /\ A
+eq_id_comm_r:
+  forall [A : Type] (f : A -> A) (Hf : forall a : A, f a = a) (a : A),
+  f_equal f (Hf a) = Hf (f a)
+eq_id_comm_l:
+  forall [A : Type] (f : A -> A) (Hf : forall a : A, a = f a) (a : A),
+  f_equal f (Hf a) = Hf (f a)
 h: n <> newdef n
 h': newdef n <> n
 h: n <> newdef n
@@ -315,13 +322,13 @@ h: n <> newdef n
 h: n <> newdef n
 h: n <> newdef n
 h': newdef n <> n
-File "./output/Search.v", line 23, characters 2-23:
+File "./output/Search.v", line 31, characters 2-23:
 The command has indeed failed with message:
 [Focus] No such goal.
-File "./output/Search.v", line 24, characters 2-25:
+File "./output/Search.v", line 32, characters 2-25:
 The command has indeed failed with message:
 Query commands only support the single numbered goal selector.
-File "./output/Search.v", line 25, characters 2-25:
+File "./output/Search.v", line 33, characters 2-25:
 The command has indeed failed with message:
 Query commands only support the single numbered goal selector.
 h: P n

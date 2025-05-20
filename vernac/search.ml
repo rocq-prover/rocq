@@ -212,6 +212,13 @@ let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
 
 let name_of_reference ref = Id.to_string (Nametab.basename_of_global ref)
 
+let string_contains_upto ?(limit=2) ~pattern s =
+  (* for small patterns, allowing edits produces bad results *)
+  if String.length pattern <= 4 then String.string_contains ~where:s ~what:pattern
+  else
+    let d = CString.edit_distance_substring ~limit:(limit+1) ~pattern s in
+     d <= limit
+
 let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> match query with
 | GlobSearchSubPattern (where,head,pat) ->
   let open Context.Rel.Declaration in
@@ -229,8 +236,7 @@ let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> ma
         if head then Constr_matching.is_matching_head
         else Constr_matching.is_matching_appsubterm ~closed:false in
       f env sigma pat (EConstr.of_constr typ)) typl
-| GlobSearchString s ->
-  String.string_contains ~where:(name_of_reference gr) ~what:s
+| GlobSearchString s -> string_contains_upto ~pattern:s (name_of_reference gr)
 | GlobSearchKind k -> (match kind with None -> false | Some k' -> k = k')
 | GlobSearchFilter f -> f gr
 
