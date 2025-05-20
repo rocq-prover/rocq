@@ -51,7 +51,7 @@ val enforce_constraint : univ_constraint -> t -> (t * level_equivalences) option
 (** Normalize a level to its canonical representative. 
   This uses the internally maintained substitution from levels to universes.
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
-val normalize : t -> Level.t -> Universe.t
+val normalize : t -> Level.t -> Universe.t option
 
 exception InconsistentEquality
 exception OccurCheck
@@ -90,6 +90,18 @@ val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a ->
 val constraints_for : kept:Level.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
 
 val domain : t -> Level.Set.t
+(** Return the set of registered universe variables *)
+
+val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
+(** Computes the set of registered variables, optionally restricted to local ones, and 
+  optionally including the substituted variables. *)
+
+val subst : local:bool -> t -> Universe.t Level.Map.t
+
+(** Remove a binding from the substitution: use with care *)
+val remove_subst : Level.t -> t -> t
+
+val switch_locality : Level.t -> t -> t
 
 (* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 
@@ -112,7 +124,8 @@ type node =
 
 type repr = node Level.Map.t
 
-val repr : t -> repr
+(** Get a representation of the model, optionally selecting only local universes and constraints. *)
+val repr : local:bool -> t -> repr
 
 (* Print the model. Optionally print only the local universes and constraints. *)
 val pr_model : ?local:bool -> t -> Pp.t

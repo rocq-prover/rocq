@@ -1037,10 +1037,11 @@ and canonical_premises m p =
 
 let normalize m l =
   let idx = Index.find l m.table in
-  let prems = canonical_premise m (idx, 0) in
-  match prems with
-  | NeList.Tip (can, _k) -> if Index.equal can idx then Universe.make l else univ_of_premises m prems
-  | _ -> univ_of_premises m prems
+  match PMap.find idx m.entries with
+  | _can -> None (* Already in canonical form *)
+  | exception Not_found ->
+    let prems = canonical_premise m (idx, 0) in
+    Some (univ_of_premises m prems)
 
 let normalize_subst model =
   let subst = 
@@ -3214,6 +3215,18 @@ struct
        (elements c))
 end
 
+let subst ~local model =
+  PMap.fold (fun idx (v, locality) acc ->
+    if not local || (local && locality == Local) then 
+      let conclp = Index.repr idx model.table in
+      let node = univ_of_premises model v in
+      Level.Map.add conclp node acc
+    else acc)
+  model.subst Level.Map.empty
+
+let remove_subst l model =
+  { model with subst = PMap.remove (Index.find l model.table) model.subst }
+
 let constraints_of_clauses ?(only_local = false) m clauses =
   PMap.fold (fun concl bwd cstrs ->
     ClausesOf.fold (fun (k, local, prems) cstrs ->
@@ -3350,31 +3363,33 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
 
 let domain model = Index.dom model.table
 
-(* let choose p model p' =
-  let canp' = canonical_repr_level_expr model p' in
-  let pointp' = Index.repr (fst canp').canon model.table in
-  if p pointp' then Some pointp'
-  else PMap.fold (fun idx e acc ->
-      match acc with
-      | Some _ -> acc
-      | None ->
-        match e with
-        | Equiv (_local, idx', k) ->
-          let canp'' = canonical_repr model (idx', k) in
-          if fst canp' == fst canp'' && Int.equal (snd canp') (snd canp'') then
-            let pointp' = Index.repr idx model.table in
-            if p pointp' then Some pointp'
-            else acc
-          else acc
-        | Canonical _ -> acc)
-      model.entries None
- *)
+let variables ~local ~with_subst model =
+  let entries = if local then PMap.filter (fun _ can -> can.local == Local) model.entries else model.entries in
+  let canon =
+    let add idx _ = Level.Set.add (Index.repr idx model.table) in
+    Index.Map.fold add entries Level.Set.empty
+  in
+  if with_subst then
+    let add idx (_, locality) acc = 
+      if not local || locality == Local then 
+        Level.Set.add (Index.repr idx model.table) acc
+      else acc
+    in
+    PMap.fold add model.subst canon
+  else canon
+
+let flip_locality = function Global -> Local | Local -> Global
+
+let switch_locality l model = 
+  let can = repr model (Index.find l model.table) in
+  change_node model { can with local = flip_locality can.local }
 
 type node =
 | Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
 type repr = node Level.Map.t
+
 
 let univ_of_expr model (l, k) =
   Universe.of_expr (Index.repr l model.table, k)
@@ -3385,7 +3400,7 @@ let universe_of_premise model prem =
   | NeList.Cons (e, xs) ->
     NeList.fold (fun (l, k) acc -> Universe.sup (univ_of_expr model (l, k)) acc) xs (univ_of_expr model e)
 
-let repr model =
+let repr ~local model =
   let model = normalize_subst model in
   let acc =
     PMap.fold (fun idx can acc ->
@@ -3393,19 +3408,22 @@ let repr model =
       let prems = can.clauses_bwd in
       let cls =
         ClausesOf.fold (fun cli l ->
-          let (k, _local, prem) = cli in
-          let u = universe_of_premise model prem in
-          (k, u) :: l) prems []
+          let (k, locality, prem) = cli in
+          if not local || (local && locality == Local) then
+            let u = universe_of_premise model prem in
+            (k, u) :: l
+          else l) prems []
         in
         Level.Map.add conclp (Node cls) acc)
     model.entries Level.Map.empty
   in
-  PMap.fold (fun idx (v, _local) acc ->
-    let conclp = Index.repr idx model.table in
-    let node = Alias (univ_of_premises model v) in
-    Level.Map.add conclp node acc)
+  PMap.fold (fun idx (v, locality) acc ->
+    if not local || (local && locality == Local) then 
+      let conclp = Index.repr idx model.table in
+      let node = Alias (univ_of_premises model v) in
+      Level.Map.add conclp node acc
+    else acc)
   model.subst acc
-
 
 let pmap_to_point_map table pmap =
   PMap.fold (fun idx v acc ->

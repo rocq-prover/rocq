@@ -109,6 +109,8 @@ let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
 
 let check_constraints csts g = Constraints.for_all (check_constraint g) csts
 
+let normalize { graph = g; _ } l = G.normalize g l
+
 exception InconsistentEquality = G.InconsistentEquality
 exception OccurCheck = G.OccurCheck
 
@@ -121,6 +123,8 @@ let add_universe u ~strict g =
   let graph = G.add u g.graph in
   let b = if strict then Universe.type1 else Universe.type0 in
   fst (enforce_constraint (b, Le, Universe.make u) { g with graph })
+
+let switch_locality u g = { g with graph = G.switch_locality u g.graph }
 
 let check_declared_universes g l =
   G.check_declared g.graph l
@@ -141,6 +145,10 @@ let remove_set_clauses l g =
   let graph = G.remove_set_clauses l g.graph in
   { g with graph }
 
+let remove_subst l g =
+  let graph = G.remove_subst l g.graph in
+  { g with graph }
+
 let pr_model ?local g = G.pr_model ?local g.graph
 
 let constraints_of_universes ?(only_local=false) g =
@@ -149,6 +157,9 @@ let constraints_of_universes ?(only_local=false) g =
 let constraints_for ~kept g =
   let add cst accu = Constraints.add cst accu in
   G.constraints_for ~kept g.graph add Constraints.empty
+
+let subst ?(local=false) g =
+  G.subst ~local g
 
 (** Subtyping of polymorphic contexts *)
 
@@ -174,7 +185,8 @@ let check_eq_instances g t1 t2 =
   && CArray.equal (check_eq g) ut1 ut2
 
 let domain g = G.domain g.graph
-(* let choose p g u = G.choose p g.graph u *)
+
+let variables ~local ~with_subst g = G.variables ~local ~with_subst
 
 let check_universes_invariants g = G.check_invariants ~required_canonical:Level.is_set g.graph
 
@@ -248,7 +260,7 @@ type node = G.node =
 | Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
-let repr g = G.repr g.graph
+let repr ?(local=false) g = G.repr ~local g.graph
 
 let pr_universes prl g = pr_pmap Pp.mt (pr_arc prl) g
 

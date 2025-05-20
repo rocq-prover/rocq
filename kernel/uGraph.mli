@@ -32,7 +32,7 @@ val check_eq : Universe.t check_function
 val initial_universes : t
 
 (** In the resulting graph, additions of universes and constraints are considered local,
-   and they can be retrieved using the only_local option of constraints. *)
+   and they can be retrieved using the only_local/local options of accessort functions below. *)
 val set_local : t -> t
 
 (** Initial universes, but keeping options such as type in type from the argument. *)
@@ -68,6 +68,8 @@ val check_constraint  : t -> univ_constraint -> bool
 val check_constraints : Constraints.t -> t -> bool
 val check_eq_sort : t -> Sorts.t  -> Sorts.t -> bool
 val check_leq_sort : t -> Sorts.t -> Sorts.t -> bool
+
+val normalize : t -> Level.t -> Universe.t option
 
 exception InconsistentEquality
 exception OccurCheck
@@ -115,15 +117,28 @@ val maximize : Level.t -> t -> t Loop_checking.simplification_result
 (* Hack for template polymorphism *)
 val remove_set_clauses : Level.t -> t -> t
 
+val remove_subst : Level.t -> t -> t
+
+
 (* Print the model. Optionally print only the local universes and constraints. *)
 val pr_model : ?local:bool -> t -> Pp.t
 
 val domain : t -> Level.Set.t
-(** Known universes *)
+(** Known universes. *)
+
+val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
+(** Computes the set of registered variables, optionally restricted to local ones, and 
+  optionally including the substituted variables. *)
+
+val subst : ?local:bool -> t -> Universe.t Level.Map.t
+(** Substitution from (local) levels to universes *)
 
 val check_subtype : AbstractContext.t check_function
 (** [check_subtype univ ctx1 ctx2] checks whether [ctx2] is an instance of
     [ctx1]. *)
+
+val switch_locality : Level.t -> t -> t
+(** Turn a local universe into a non-local one and conversely. *)
 
 (** {6 Dumping} *)
 
@@ -131,7 +146,7 @@ type node =
 | Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
-val repr : t -> node Level.Map.t
+val repr : ?local:bool -> t -> node Level.Map.t
 
 (** {6 Pretty-printing of universes. } *)
 
