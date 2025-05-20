@@ -235,30 +235,73 @@ type univ_names = UnivNames.universe_binders * (uinfo QVar.Map.t * uinfo Level.M
 
 (* 2nd part used to check consistency on the fly. *)
 type t =
- { names : univ_names; (** Printing/location information *)
-   local : ContextSet.t; (** The local graph of universes (variables and constraints) *)
-   univ_variables : UnivFlex.t;
-   (** The local universes that are unification variables *)
+ { names : univ_names; 
+   (** Printing/location information *)
+  
+   local_variables : Level.Set.t;
+   (** The rigid variables: those that must stay in the universe context. *)
+   
+   flexible_variables : Level.Set.t;
+   (** The remaining flexible variables: local universes that are unification variables *)
+   
    solve_flexibles : bool; 
    (** Should all the flexible variables be instantiated during minimization *)
-   sort_variables : QState.t;
+   
+   sort_variables : QState.t; 
    (** Local quality variables. *)
-   universes : UGraph.t; (** The current graph extended with the local constraints *)
-   initial_universes : UGraph.t; (** The graph at the creation of the evar_map + local universes
+   
+   universes : UGraph.t; 
+   (** The current graph extended with the local constraints *)
+   
+   initial_universes : UGraph.t; 
+   (** The graph at the creation of the evar_map + local universes
                                      (but not local constraints) *)
+   
    variances : InferCumulativity.variances option;
    minim_extra : UnivMinim.extra;
  }
 
 (** 3 Projections *)
-let subst uctx = uctx.univ_variables
+
+let subst uctx = UGraph.subst ~local:true uctx.universes
 let ugraph uctx = uctx.universes
-let context_set uctx = uctx.local
+
+let constraints_of_substitution substitution cstrs =
+  Level.Map.fold (fun l u cstrs ->
+    Constraints.add (Universe.make l, Eq, u) cstrs) substitution cstrs
+
+let context_set_of_graph g =
+  UGraph.constraints_of_universes ~only_local:true g
+
+let levels_constraints_of_substitution substitution ctx =
+  Level.Map.fold (fun l u (levels, cstrs) ->
+    Level.Set.add l levels,
+    Constraints.add (Universe.make l, Eq, u) cstrs) substitution ctx
+
+let context_set uctx : ContextSet.t =
+  let levels, cstrs, eqs = UGraph.constraints_of_universes ~only_local:true uctx.universes in
+  (* let cstrs = constraints_of_substitution eqs cstrs in *)
+  (levels, cstrs)
+
+let full_context_set uctx : ContextSet.t =
+  let levels, cstrs, eqs = UGraph.constraints_of_universes ~only_local:true uctx.universes in
+  levels_constraints_of_substitution eqs (levels, cstrs)
+
+let rigid_levels_constraints_of_substitution flexibles substitution ctx =
+  Level.Map.fold (fun l u (levels, cstrs) ->
+    if not (Level.Set.mem l flexibles) then
+      Level.Set.add l levels,
+      Constraints.add (Universe.make l, Eq, u) cstrs
+    else (levels, cstrs)) substitution ctx
+
+let rigid_context_set uctx : ContextSet.t =
+  let levels, cstrs, eqs = UGraph.constraints_of_universes ~only_local:true uctx.universes in
+  rigid_levels_constraints_of_substitution uctx.flexible_variables eqs (levels, cstrs)
 
 let empty =
   { names = UnivNames.empty_binders, (QVar.Map.empty, Level.Map.empty);
-    local = ContextSet.empty;
-    univ_variables = UnivFlex.empty;
+    local_variables = Level.Set.empty;
+    flexible_variables = Level.Set.empty;
     solve_flexibles = false;
     sort_variables = QState.empty;
     universes = UGraph.initial_universes;
@@ -273,10 +316,6 @@ let make ~solve_flexibles ~qualities univs =
     initial_universes = univs ;
     sort_variables = QState.of_global qualities
   }
-
-let is_empty uctx =
-  ContextSet.is_empty uctx.local &&
-  UnivFlex.is_empty uctx.univ_variables
 
 let id_of_level uctx l =
   try (Level.Map.find l (snd (snd uctx.names))).uname
@@ -323,6 +362,10 @@ let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop}} =
 
 let pr_sort_opt_subst uctx = QState.pr (qualid_of_qvar_names uctx.names) uctx.sort_variables
 
+let is_empty uctx =
+  ContextSet.is_empty (context_set uctx) &&
+  Level.Set.is_empty uctx.flexible_variables
+
 let pr ?(local=false) ctx =
   let open Pp in
   let prl = pr_uctx_level ctx in
@@ -331,9 +374,7 @@ let pr ?(local=false) ctx =
     v 0
       (str"UNIVERSES:"++brk(0,1)++
        h (Univ.ContextSet.pr prl (context_set ctx)) ++ fnl () ++
-       UnivFlex.pr prl (subst ctx) ++ fnl() ++
-       str"GRAPH:" ++ brk(0,1) ++
-       h (UGraph.pr_model ~local (ugraph ctx)) ++ fnl () ++
+       pr_universe_level_subst prl (subst ctx) ++ fnl() ++
        str"SORTS:"++brk(0,1)++
        h (pr_sort_opt_subst ctx) ++ fnl() ++
        (pr_opt (fun variances -> str"VARIANCES:"++brk(0,1)++
@@ -362,41 +403,25 @@ let names_union ((qbind,ubind),(qrev,urev)) ((qbind',ubind'),(qrev',urev')) =
   and urev = Level.Map.lunion urev urev' in
   ((qbind,ubind),(qrev,urev))
 
-let update_univ_subst ctx cst us variances (subst, eqcstrs) =
-  let us = List.fold_left (fun us (l, u) -> UnivFlex.define l u us) us subst in
-  let ctx = List.fold_right (fun (l, _) -> Level.Set.remove l) subst ctx in
-  let variances = Option.map (fun variances -> List.fold_right (fun (l, u) variances -> Level.Map.remove l (UnivMinim.update_variances variances l (Univ.Universe.levels u))) subst variances) variances in
-  (* These equalities are modelled in the graph already *)
-  let cst = Constraints.union eqcstrs cst in
-  (ctx, UnivFlex.normalize_constraints us cst), us, variances
-
-let subst_of_equivalences us equivs =
-  List.fold_right (fun (l, (l', k as e)) (subst, cstrs) ->
-    if UnivFlex.mem l us && not (UnivFlex.is_defined l us) && not (CList.mem_assoc_f Level.equal l subst) then
-      ((l, Universe.of_expr e) :: subst, cstrs)
-    else if UnivFlex.mem l' us && not (UnivFlex.is_defined l' us) && Int.equal k 0 && not (CList.mem_assoc_f Level.equal l' subst) then
-      ((l', Universe.make l) :: subst, cstrs)
-    else (subst, Constraints.add (Universe.make l, Eq, Universe.of_expr e) cstrs))
-    equivs ([], Constraints.empty)
-
-let update_equivalences (ctx, cst) us variances equivs =
-  update_univ_subst ctx cst us variances (subst_of_equivalences us equivs)
+let update_univ_subst us variances subst =
+  let us = List.fold_left (fun ls (l, u) -> Level.Set.remove l ls) us subst in
+  let variances = Option.map (fun variances -> List.fold_right (fun (l, u) variances -> 
+    Level.Map.remove l (UnivMinim.update_variances variances l (Univ.Universe.levels (Univ.Universe.of_expr u)))) subst variances) variances in
+  us, variances
 
 let union uctx uctx' =
   if uctx == uctx' then uctx
   else if is_empty uctx' then uctx
   else
-    let local = ContextSet.union uctx.local uctx'.local in
+    let levelsr, cstrsr = full_context_set uctx' in
     let names = names_union uctx.names uctx'.names in
-    let newus = Level.Set.diff (ContextSet.levels uctx'.local)
-                               (ContextSet.levels uctx.local) in
-    let newus = Level.Set.diff newus (UnivFlex.domain uctx.univ_variables) in
     let variances = Option.union InferCumulativity.union_variances uctx.variances uctx'.variances in
     let extra = UnivMinim.extra_union uctx.minim_extra uctx'.minim_extra in
-    let declarenew g =
-      Level.Set.fold (fun u g -> UGraph.add_universe u ~strict:false g) newus g
+    let declarenew levels g =
+      Level.Set.fold (fun u g -> UGraph.add_universe u ~strict:false g) levels g
     in
-    let univ_variables = UnivFlex.biased_union uctx.univ_variables uctx'.univ_variables in
+    let local_variables = Level.Set.union uctx.local_variables uctx'.local_variables in
+    let flexible_variables = Level.Set.union uctx.flexible_variables uctx'.flexible_variables in
     let fail_union s q1 q2 =
       if UGraph.type_in_type uctx.universes then s
       else CErrors.user_err
@@ -404,30 +429,27 @@ let union uctx uctx' =
              Quality.raw_pr q1 ++ strbrk " and " ++ Quality.raw_pr q2 ++ str ".")
     in
     let universes, equivs =
-      (if local == uctx.local then uctx.universes, []
-      else
-        let cstrsr = ContextSet.constraints uctx'.local in
-        let cstrsr = UnivFlex.normalize_constraints univ_variables cstrsr in
-        merge_constraints_graph uctx cstrsr (declarenew uctx.universes));
+      let cstrsr = subst_univs_level_constraints (subst uctx) cstrsr in
+      merge_constraints_graph uctx cstrsr (declarenew levelsr uctx.universes);
     in
-    let local, univ_variables, variances =
-      update_equivalences local univ_variables variances equivs
+    let flexible_variables, variances =
+      update_univ_subst flexible_variables variances equivs
     in
-      { names;
-        local;
-        univ_variables;
+      { names;      
+        local_variables;
+        flexible_variables;
         solve_flexibles = uctx.solve_flexibles;
         sort_variables = QState.union ~fail:fail_union uctx.sort_variables uctx'.sort_variables;
-        initial_universes = declarenew uctx.initial_universes;
+        initial_universes = declarenew levelsr uctx.initial_universes;
         universes;
         variances;
         minim_extra = extra}
 
 let sort_context_set uctx =
-  let us, csts = uctx.local in
+  let us, csts = context_set uctx in
   (QState.undefined uctx.sort_variables, us), csts
 
-let constraints uctx = snd uctx.local
+let constraints uctx = snd (context_set uctx)
 
 let compute_instance_binders uctx inst =
   let (qrev, urev) = snd uctx.names in
@@ -447,7 +469,7 @@ let compute_instance_binders uctx inst =
 
 let context uctx =
   let qvars = QState.undefined uctx.sort_variables in
-  UContext.of_context_set (compute_instance_binders uctx) qvars uctx.local
+  UContext.of_context_set (compute_instance_binders uctx) qvars (context_set uctx)
 
 type named_universes_entry =
   { universes_entry_universes : universes_entry;
@@ -471,16 +493,12 @@ let merge_graph_context g (us, csts) =
 (** Merge the given constraint set in the universe context. Assumes the universes
   from the constraints are already declared. *)
 let merge_constraints uctx cstrs =
-  let universes, equivs =
-    let cstrs = UnivFlex.normalize_constraints uctx.univ_variables cstrs in
-    merge_constraints_graph uctx cstrs uctx.universes
-  in
-  let local, univ_variables, variances =
-    update_equivalences uctx.local uctx.univ_variables uctx.variances equivs
+  let universes, equivs = merge_constraints_graph uctx cstrs uctx.universes in
+  let flexible_variables, variances =
+    update_univ_subst uctx.flexible_variables uctx.variances equivs
   in
     { uctx with
-      local;
-      univ_variables;
+      flexible_variables;
       universes;
       variances; }
 
@@ -498,7 +516,7 @@ let of_context_set env ((qs,us),csts) =
   debug Pp.(fun () -> str"of_context_set: " ++ ContextSet.pr Level.raw_pr (us, csts));
   let sort_variables = QState.of_set qs in
   let universes = UGraph.set_local (Environ.universes env) in
-  let uctx = { empty with local = (us,csts); initial_universes = universes; universes; sort_variables;} in
+  let uctx = { empty with local_variables = us; initial_universes = universes; universes; sort_variables;} in
   merge_context_universes uctx ~strict:false (us, csts)
 
 type universe_opt_subst = UnivFlex.t
@@ -541,10 +559,10 @@ let level_inconsistency cst l r =
   raise (UGraph.UniverseInconsistency (None, (cst, mk l, mk r, None)))
 
 let nf_universe uctx u =
-  UnivSubst.(subst_univs_universe (UnivFlex.normalize_univ_variable uctx.univ_variables)) u
+  UnivSubst.(subst_univs_universe (UGraph.normalize uctx.universes)) u
 
 let nf_level uctx u =
-  UnivSubst.(level_subst_of (UnivFlex.normalize_univ_variable uctx.univ_variables)) u
+  UnivSubst.(level_subst_of (UGraph.normalize uctx.universes)) u
 
 let nf_instance uctx u = Instance.subst_fn (nf_qvar uctx, nf_level uctx) u
 
@@ -569,8 +587,7 @@ let nf_relevance uctx r = match r with
     else Sorts.RelevanceVar q'
 
 let nf_universes uctx c =
-  let lsubst = uctx.univ_variables in
-  let nf_univ u = UnivFlex.normalize_univ_variable lsubst u in
+  let nf_univ u = UGraph.normalize uctx.universes u in
   let rec self () c = match Constr.kind c with
   | Evar (evk, args) ->
     let args' = SList.Smart.map (self ()) args in
@@ -598,8 +615,6 @@ let classify s = match s with
   | Some l -> ULevel (l, u)
 
 type local = {
-  local_ctx : Level.Set.t;
-  local_cst : Constraints.t;
   local_univs : UGraph.t;
   local_above_prop : Level.Set.t;
   local_weak : UPairSet.t;
@@ -608,16 +623,16 @@ type local = {
 }
 
 let update_local_equivalences local us equivs =
-  let (local_ctx, local_cst), local_variables, local_variances =
-    update_univ_subst local.local_ctx local.local_cst !us local.local_variances equivs
+  let local_variables, local_variances =
+    update_univ_subst !us local.local_variances equivs
   in
   us := local_variables;
-  { local with local_ctx; local_cst; local_variances }
+  { local with local_variances }
 
 let add_local_univ us cstr local =
   let local_univs, equivs = UGraph.enforce_constraint cstr local.local_univs in
-  let local = update_local_equivalences local us (subst_of_equivalences !us equivs) in
-  { local with local_cst = Constraints.add cstr local.local_cst; local_univs }
+  let local = update_local_equivalences local us equivs in
+  { local with local_univs }
 
 let add_local us (l, d, r) local =
   let cstr = (Universe.make l, d, Universe.make r) in
@@ -637,10 +652,13 @@ let pr_level_equiv =
   let pr_subst (l, u) = Level.raw_pr l ++ str " := " ++ Universe.pr Level.raw_pr (Universe.of_expr u) in
   prlist_with_sep spc pr_subst
 
+let pr_graph g = 
+  let repr = UGraph.repr ~local:true g in
+  UGraph.pr_universes Level.raw_pr repr
+
 let instantiate_variable l (b : Universe.t) us local =
   debug Pp.(fun () -> str"Instantiating " ++ Level.raw_pr l ++ str " with " ++ Universe.pr Level.raw_pr b ++ str" variances? " ++ bool (not (Option.is_empty local.local_variances)));
-  debug Pp.(fun () -> str"Context: " ++ Level.Set.pr Level.raw_pr local.local_ctx);
-  debug_model Pp.(fun () -> str"Model: " ++ UGraph.pr_model ~local:true local.local_univs);
+  debug Pp.(fun () -> str"Context: " ++ pr_graph local.local_univs);
   let local_univs, equivs =
     try UGraph.set l b local.local_univs
     with UGraph.InconsistentEquality ->
@@ -648,12 +666,9 @@ let instantiate_variable l (b : Universe.t) us local =
       sort_inconsistency Eq (Sorts.sort_of_univ (Universe.make l)) (Sorts.sort_of_univ b)
   in
   debug Pp.(fun () -> str"Equivalences from set: " ++ pr_level_equiv equivs);
-  let subst, eqcstrs = subst_of_equivalences !us equivs in
-  let subst = (l, b) :: subst in
-  debug Pp.(fun () ->  str " equivalent universes: " ++ pr_subst subst);
-  debug_model Pp.(fun () -> str"Model after set: " ++ UGraph.pr_model ~local:true local_univs);
-  let local = update_local_equivalences { local with local_univs } us (subst, eqcstrs) in
-  debug Pp.(fun () -> str"Substitution after set: " ++ UnivFlex.pr Level.raw_pr !us);
+  debug_model Pp.(fun () -> str"Model after set: " ++ pr_graph local_univs);
+  let local = update_local_equivalences { local with local_univs } us equivs in
+  debug Pp.(fun () -> str"Substitution after set: " ++ Level.Set.pr Level.raw_pr !us);
   local
 
 let get_constraint = function
@@ -669,13 +684,15 @@ let unify_quality c s1 s2 l =
         c (Sorts.quality s1) (Sorts.quality s2) l.local_sorts;
   }
 
+let normalize_universe graph u = UnivSubst.(subst_univs_universe (UGraph.normalize graph)) u
+
 let process_universe_constraints uctx cstrs =
   let open UnivProblem in
-  let _variables = Univ.ContextSet.levels uctx.local in
-  let vars = ref uctx.univ_variables in
-  let normalize u = UnivFlex.normalize_univ_variable !vars u in
+  let vars = ref uctx.flexible_variables in
+  let graph = ref uctx.universes in
+  let normalize u = UGraph.normalize !graph u in
   let qnormalize sorts q = QState.repr q sorts in
-  let normalize_univ u = UnivFlex.normalize_universe !vars u in
+  let normalize_univ u = normalize_universe !graph u in
   let normalize_sort sorts s =
     Sorts.subst_fn ((qnormalize sorts), UnivSubst.subst_univs_level normalize) s
   in
@@ -687,7 +704,7 @@ let process_universe_constraints uctx cstrs =
     | UEq (u, v) -> UEq (normalize_sort sorts u, normalize_sort sorts v)
     | ULe (u, v) -> ULe (normalize_sort sorts u, normalize_sort sorts v)
   in
-  let is_flexible l = UnivFlex.mem l !vars in
+  let is_flexible l = Level.Set.mem l !vars in
   let equalize_small l s local =
     let ls = match l with
     | USProp -> sprop
@@ -849,8 +866,6 @@ let process_universe_constraints uctx cstrs =
     else unify_universes cst local
   in
   let local = {
-    local_cst = Constraints.empty;
-    local_ctx = fst uctx.local;
     local_univs = uctx.universes;
     local_weak = uctx.minim_extra.UnivMinim.weak_constraints;
     local_above_prop = uctx.minim_extra.UnivMinim.above_prop;
@@ -859,7 +874,7 @@ let process_universe_constraints uctx cstrs =
   } in
   let local = UnivProblem.Set.fold unify_universes cstrs local in
   let extra = { UnivMinim.above_prop = local.local_above_prop; UnivMinim.weak_constraints = local.local_weak } in
-  !vars, extra, local.local_ctx, local.local_cst, local.local_univs, local.local_variances, local.local_sorts
+  !vars, extra, local.local_univs, local.local_variances, local.local_sorts
 
 let process_universe_constraints uctx cstrs =
   debug Pp.(fun () -> str"Calling process_universe_constraints with: " ++ UnivProblem.Set.pr cstrs);
@@ -873,11 +888,9 @@ let process_universe_constraints uctx cstrs =
       ++ UGraph.explain_universe_inconsistency QVar.raw_pr (pr_uctx_level uctx) incon); raise e
 
 let add_universe_constraints uctx cstrs =
-  let univs, local = uctx.local in
-  let vars, extra, univs, local', ugraph, variances, sorts = process_universe_constraints uctx cstrs in
+  let vars, extra, ugraph, variances, sorts = process_universe_constraints uctx cstrs in
   { uctx with
-    local = (univs, Constraints.union local local');
-    univ_variables = vars;
+    flexible_variables = vars;
     universes = ugraph;
     variances;
     sort_variables = sorts;
@@ -943,9 +956,24 @@ let check_universe_constraints uctx csts =
   debug Pp.(fun () -> str"Calling check_universe_constraints with: " ++ UnivProblem.Set.pr csts);
   UnivProblem.Set.for_all (check_universe_constraint uctx) csts
 
+let constrain_variables diff uvars us graph =
+  (* XXX update algs? *)
+  Level.Set.fold (fun l ((univs,cstrs), uvars, subst, graph as acc) ->
+      match Level.Map.find_opt l subst with
+      | None -> acc
+      | Some u -> match Universe.level u with
+        | None -> acc
+        | Some u ->
+          ((Level.Set.add l univs, enforce_eq_level l u cstrs),
+            Level.Set.remove l uvars, 
+            subst,
+            UGraph.remove_subst l graph))
+    diff
+    (ContextSet.empty,uvars,us,graph)
+
 let constrain_variables diff uctx =
-  let local, vars = UnivFlex.constrain_variables diff uctx.univ_variables uctx.local in
-  { uctx with local; univ_variables = vars }
+  let local, vars, us, universes = constrain_variables diff uctx.flexible_variables (subst uctx) uctx.universes in
+  local, { uctx with flexible_variables = vars; universes }
 
 type ('a, 'b, 'c, 'd) gen_universe_decl = {
   univdecl_qualities : 'a;
@@ -1086,13 +1114,13 @@ let check_template_univ_decl uctx ~template_qvars decl =
       if not (QVar.Set.equal template_qvars (QState.undefined uctx.sort_variables))
       then CErrors.anomaly Pp.(str "Bugged template univ declaration.")
   in
-  let levels, csts = uctx.local in
+  let levels, csts = rigid_context_set uctx in
   let () =
     let prefix = decl.univdecl_instance in
     if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.univdecl_extensible_constraints then uctx.local
+  if decl.univdecl_extensible_constraints then (levels, csts)
   else begin
     check_implication uctx
       decl.univdecl_constraints
@@ -1107,13 +1135,13 @@ let check_mono_univ_decl uctx decl =
     || not (QVar.Set.is_empty (QState.undefined uctx.sort_variables))
     then CErrors.user_err Pp.(str "Monomorphic declarations may not have sort variables.")
   in
-  let levels, csts = uctx.local in
+  let levels, csts as ctx = rigid_context_set uctx in
   let () =
     let prefix = decl.univdecl_instance in
     if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.univdecl_extensible_constraints then uctx.local
+  if decl.univdecl_extensible_constraints then ctx
   else begin
     check_implication uctx
       decl.univdecl_constraints
@@ -1199,7 +1227,7 @@ let check_variances ~cumulative ~kind names ivariances inst variances =
 
 let check_poly_univ_decl ~cumulative ~kind uctx decl =
   (* Note: if [decl] is [default_univ_decl], behave like [context uctx] *)
-  let levels, csts = uctx.local in
+  let levels, csts = rigid_context_set uctx in
   debug Pp.(fun () -> str"Checking universe declaration: cumulative = " ++ bool cumulative ++ 
     str", extensible instance? " ++ bool decl.univdecl_extensible_instance ++
     str", extensible constraints? " ++ bool decl.univdecl_extensible_constraints);
@@ -1254,17 +1282,16 @@ let restrict uctx vars =
   let vars = Id.Map.fold (fun na l vars -> Level.Set.add l vars)
       (snd (fst uctx.names)) vars
   in
-  let uctx' = restrict_universe_context uctx.local vars in
-  { uctx with local = uctx' }
+  let uctx' = restrict_universe_context (full_context_set uctx) vars in
+  merge_context_universes { uctx with universes = uctx.initial_universes } ~strict:false uctx'
 
 let restrict_even_binders uctx vars =
-  let uctx' = restrict_universe_context uctx.local vars in
-  { uctx with local = uctx' }
+  let uctx' = restrict_universe_context (full_context_set uctx) vars in
+  merge_context_universes { uctx with universes = uctx.initial_universes } ~strict:false uctx'
 
 let restrict_constraints uctx csts =
-  let levels, _ = uctx.local in
-  let uctx' = { uctx with local = ContextSet.of_set levels; universes = uctx.initial_universes } in
-  add_constraints uctx' csts
+  let levels = UGraph.variables ~local:true ~with_subst:false uctx.universes in
+  merge_context_universes { uctx with universes = uctx.initial_universes } ~strict:false (levels, csts)
 
 type rigid =
   | UnivRigid
@@ -1278,7 +1305,6 @@ let univ_flexible = UnivFlexible
     and not only in the graph. *)
 let merge ?loc ~sideff rigid uctx uctx' =
   let levels = ContextSet.levels uctx' in
-  let local = ContextSet.append uctx' uctx.local in
   let declare g =
     Level.Set.fold (fun u g ->
         try UGraph.add_universe ~strict:false u g
@@ -1304,8 +1330,8 @@ let merge ?loc ~sideff rigid uctx uctx' =
     | UnivRigid -> uctx
     | UnivFlexible ->
       assert (not sideff);
-      let uvars' = UnivFlex.add_levels levels uctx.univ_variables in
-      { uctx with univ_variables = uvars' }
+      let uvars' = Level.Set.union levels uctx.flexible_variables in
+      { uctx with flexible_variables = uvars' }
   in
   let variances =
     match uctx.variances with
@@ -1316,7 +1342,7 @@ let merge ?loc ~sideff rigid uctx uctx' =
       in
       Some (Level.Set.fold fold levels variances)
   in
-  let uctx = { uctx with names; local; universes; variances; initial_universes = initial } in
+  let uctx = { uctx with names; universes; variances; initial_universes = initial } in
   merge_constraints uctx (ContextSet.constraints uctx')
 
 
@@ -1346,13 +1372,9 @@ let merge_sort_context ?loc ~sideff rigid uctx ((qvars,levels),csts) =
   merge ?loc ~sideff rigid uctx (levels,csts)
 
 let demote_global_univs (lvl_set,csts_set) uctx =
-  let (local_univs, local_constraints) = uctx.local in
-  let local_univs = Level.Set.diff local_univs lvl_set in
-  let univ_variables = Level.Set.fold UnivFlex.remove lvl_set uctx.univ_variables in
+  let flexible_variables = Level.Set.fold Level.Set.remove lvl_set uctx.flexible_variables in
   let update_ugraph g =
-    let g = Level.Set.fold (fun u g ->
-        try UGraph.add_universe u ~strict:true g
-        with UGraph.AlreadyDeclared -> g)
+    let g = Level.Set.fold (fun u g -> UGraph.switch_locality u g)
         lvl_set
         g
     in
@@ -1360,7 +1382,7 @@ let demote_global_univs (lvl_set,csts_set) uctx =
   in
   let initial_universes, _equivs = update_ugraph uctx.initial_universes in
   let universes, _equivs' = update_ugraph uctx.universes in
-  { uctx with local = (local_univs, local_constraints); univ_variables; universes; initial_universes }
+  { uctx with flexible_variables; universes; initial_universes }
 
 let demote_global_univ_entry entry uctx = match entry with
   | Monomorphic_entry entry -> demote_global_univs entry uctx
@@ -1387,12 +1409,13 @@ let merge_seff uctx uctx' =
   merge_constraints uctx (ContextSet.constraints uctx')
   
 let update_sigma_univs uctx univs =
+  let ctx = full_context_set uctx in
   let eunivs =
     { uctx with
       initial_universes = univs;
       universes = univs }
   in
-  merge_seff eunivs eunivs.local
+  merge_seff eunivs ctx
 
 let add_qnames ?loc s l ((qnames,unames), (qnames_rev,unames_rev)) =
   if Id.Map.mem s qnames
@@ -1421,14 +1444,14 @@ let add_loc l loc (names, (qnames_rev,unames_rev) as orig) =
 let add_universe ?loc name strict uctx u =
   let initial_universes = UGraph.add_universe ~strict u uctx.initial_universes in
   let universes = UGraph.add_universe ~strict u uctx.universes in
-  let local = ContextSet.add_universe u uctx.local in
+  let local_variables = Level.Set.add u uctx.local_variables in
   let variances = Option.map (Level.Map.add u InferCumulativity.default_occ) uctx.variances in
   let names =
     match name with
     | Some n -> add_names ?loc n u uctx.names
     | None -> add_loc u loc uctx.names
   in
-  { uctx with names; local; initial_universes; universes; variances }
+  { uctx with names; local_variables; initial_universes; universes; variances }
 
 let new_sort_variable ?loc ?name uctx =
   let q = UnivGen.fresh_sort_quality () in
@@ -1448,8 +1471,8 @@ let new_univ_variable ?loc rigid name uctx =
     match rigid with
     | UnivRigid -> uctx
     | UnivFlexible ->
-      let univ_variables = UnivFlex.add u uctx.univ_variables in
-      { uctx with univ_variables }
+      let flexible_variables = Level.Set.add u uctx.flexible_variables in
+      { uctx with flexible_variables }
   in
   let uctx = add_universe ?loc name false uctx u in
   uctx, u
@@ -1469,17 +1492,8 @@ let from_env ?(binders=[]) ?(solve_flexibles=false) env =
 let subst_univs_context_with_def def usubst (uctx, cst) =
   (Level.Set.diff uctx def, UnivSubst.subst_univs_constraints usubst cst)
 
-let normalize_variables uctx =
-  let normalized_variables, def, subst =
-    UnivFlex.normalize_univ_variables uctx.univ_variables
-  in
-  let uctx_local = subst_univs_context_with_def def subst uctx.local in
-  debug Pp.(fun () -> str"Merging constraints " ++ Constraints.pr Level.raw_pr (snd uctx_local));
-  let uctx = { uctx with local = uctx_local; univ_variables = normalized_variables; universes = uctx.initial_universes } in
-  merge_constraints uctx (snd uctx_local)
-
 let fix_undefined_variables uctx =
-  { uctx with univ_variables = UnivFlex.fix_undefined_variables uctx.univ_variables }
+  { uctx with flexible_variables = Level.Set.empty }
 
 let collapse_above_prop_sort_variables ~to_prop uctx =
   { uctx with sort_variables = QState.collapse_above_prop ~to_prop uctx.sort_variables }
@@ -1511,23 +1525,21 @@ let minimize
   | None -> warn_no_variances (); uctx
   | Some variances ->
     let variances = update_variances_qvars uctx.sort_variables variances in
-    let (vars', variances), us' =
+    let (flexible_variables, variances), (local_variables, _ as us') =
       normalize_context_set ~solve_flexibles:uctx.solve_flexibles ~variances ~partial uctx.universes
-        uctx.local uctx.univ_variables ~binders:(fst uctx.names) uctx.minim_extra
+        uctx.local_variables uctx.flexible_variables ~binders:(fst uctx.names) uctx.minim_extra
     in
-    if ContextSet.equal us' uctx.local then { uctx with variances = Some variances; univ_variables = vars' }
-    else
-      let uctx =
-        { names = uctx.names;
-          local = us';
-          univ_variables = vars';
-          solve_flexibles = uctx.solve_flexibles;
-          sort_variables = uctx.sort_variables;
-          universes = uctx.initial_universes;
-          initial_universes = uctx.initial_universes;
-          variances = Some variances;
-          minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
-      in merge_context_universes ~strict:false uctx us'
+    let uctx =
+      { names = uctx.names;
+        local_variables = local_variables;
+        flexible_variables = flexible_variables;
+        solve_flexibles = uctx.solve_flexibles;
+        sort_variables = uctx.sort_variables;
+        universes = uctx.initial_universes;
+        initial_universes = uctx.initial_universes;
+        variances = Some variances;
+        minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
+    in merge_context_universes ~strict:false uctx us'
 
 let universe_context_inst_decl decl qvars levels names =
   let leftqs = List.fold_left (fun acc l -> QVar.Set.remove l acc) qvars decl.univdecl_qualities in
@@ -1544,7 +1556,7 @@ let universe_context_inst_decl decl qvars levels names =
   inst
 
 let check_univ_decl_rev uctx decl =
-  let levels, csts = uctx.local in
+  let levels, csts = rigid_context_set uctx in
   let qvars = QState.undefined uctx.sort_variables in
   let inst = universe_context_inst_decl decl qvars levels uctx.names in
   let nas = compute_instance_binders uctx inst in
@@ -1592,7 +1604,7 @@ struct
 
 let reboot env uctx =
   let uctx_global = from_env env in
-  { uctx_global with univ_variables = UnivFlex.fix_undefined_variables uctx.univ_variables;
+  { uctx_global with flexible_variables = UnivFlex.fix_undefined_variables uctx.flexible_variables;
     sort_variables = uctx.sort_variables; }
 
 end
