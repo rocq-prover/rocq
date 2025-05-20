@@ -449,6 +449,12 @@ let count f l =
 
 (** {6 Finding position} *)
 
+let rec find_index_f f l n = match l with
+  | [] -> None
+  | x :: l -> if f x then Some n else find_index_f f l (succ n)
+
+let find_index_opt f l = find_index_f f l 1
+
 let rec index_f f x l n = match l with
   | [] -> raise Not_found
   | y :: l -> if f x y then n else index_f f x l (succ n)
