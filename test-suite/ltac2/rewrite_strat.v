@@ -4,6 +4,8 @@ From Ltac2 Require Import Ltac2.
 From Ltac2 Require Import Std.
 From Ltac2 Require Import Rewrite.
 
+Import Strategy.
+
 Parameter X : Set.
 
 Parameter f : X -> X.
@@ -121,7 +123,7 @@ Undo 2.
   time (rewrite_strat (repeat (outermost (hints @rew))) None).
   reflexivity ().
 Undo 2.
-  time (rewrite_strat (seqs [outermost (Rewrite.fold '(6 + ?[?four]))]) None).
+  time (rewrite_strat (seqs [outermost (Strategy.fold '(6 + ?[?four]))]) None).
   match! goal with
   | [|- h (6 + 4) ?x = f ?x] => ()
   | [|- _] => Control.throw Assertion_failure
