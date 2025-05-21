@@ -186,7 +186,7 @@ let register_universe_variances_of_inductive env sigma ~udecl ~cumulative ~param
   let status = List.fold_left (compute_variances_type ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status arities in
   let status = List.fold_left (fun status (_nas, tys) ->
     List.fold_left (fun status ty ->
-      compute_variances_type env sigma status ~position:InTerm ~ctx_position:(fun _ -> InTerm) ~ctx_cumul_pb:Cumul ~ctx_typing_pb:Cumul ty) status tys) status constructors in
+      compute_variances_type env sigma status ~position:InTerm ~ctx_position:(fun _ -> InTerm) ~ctx_cumul_pb:Cumul ~ctx_typing_pb:InvCumul ty) status tys) status constructors in
   finalize sigma status
 
 let register_universe_variances_of_record env sigma ~env_ar_pars ~params ~fields ~types =
