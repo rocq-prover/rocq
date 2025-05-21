@@ -584,7 +584,6 @@ val evar_universe_context : evar_map -> UState.t [@@deprecated "(9.0) Use [Evd.u
 
 val universe_context_set : evar_map -> Univ.ContextSet.t
 val sort_context_set : evar_map -> UnivGen.sort_context_set
-val universe_subst : evar_map -> UnivFlex.t
 val universes : evar_map -> UGraph.t
 
 (** [to_universe_context evm] extracts the local universes and

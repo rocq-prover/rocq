@@ -31,6 +31,10 @@ val check_eq : Universe.t check_function
 (** The initial graph of universes: Prop < Set *)
 val initial_universes : t
 
+type locality = Loop_checking.locality =
+  | Global
+  | Local
+  
 (** In the resulting graph, additions of universes and constraints are considered local,
    and they can be retrieved using the only_local/local options of accessort functions below. *)
 val set_local : t -> t
@@ -100,25 +104,24 @@ val empty_universes : t
    of the universes into equivalence classes.
    The [only_local] option only returns the constraints added since [set_local] was performed
    on the graph. *)
-val constraints_of_universes : ?only_local:bool -> t -> Level.Set.t * Constraints.t * Universe.t Level.Map.t
-
-(* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
-(** [choose p g u] picks a universe verifying [p] and equal
-   to [u] in [g]. *)
+val constraints_of_universes : ?only_local:bool -> t -> 
+   Level.Set.t * Constraints.t * (locality * Universe.t) Level.Map.t
 
 (** [constraints_for ~kept g] returns the constraints about the
    universes [kept] in [g] up to transitivity.
    e.g. if [g] is [a <= b <= c] then [constraints_for ~kept:{a, c} g] is [a <= c]. *)
 val constraints_for : kept:Level.Set.t -> t -> Constraints.t
 
+(** [remove l g] returns the graph [g] where the [l] universes have been removed, 
+   keeping the existing constraints between kept universes.
+   e.g. if [g] is [a <= b <= c] then [remove {b} g] is [a <= c]. *)
+val remove : Level.Set.t -> t -> t
+
 val minimize : Level.t -> t -> t Loop_checking.simplification_result
 val maximize : Level.t -> t -> t Loop_checking.simplification_result
 
 (* Hack for template polymorphism *)
 val remove_set_clauses : Level.t -> t -> t
-
-val remove_subst : Level.t -> t -> t
-
 
 (* Print the model. Optionally print only the local universes and constraints. *)
 val pr_model : ?local:bool -> t -> Pp.t
@@ -130,8 +133,9 @@ val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
 (** Computes the set of registered variables, optionally restricted to local ones, and 
   optionally including the substituted variables. *)
 
-val subst : ?local:bool -> t -> Universe.t Level.Map.t
-(** Substitution from (local) levels to universes *)
+val subst : ?local:bool -> t -> (locality * Universe.t) Level.Map.t
+(** Substitution from (local) levels to universes.
+   N.B.: slighty expensive to compute, better use [normalize] below. *)
 
 val check_subtype : AbstractContext.t check_function
 (** [check_subtype univ ctx1 ctx2] checks whether [ctx2] is an instance of
@@ -154,6 +158,9 @@ val pr_universes : (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
 
 val explain_universe_inconsistency : (Sorts.QVar.t -> Pp.t) -> (Level.t -> Pp.t) ->
   univ_inconsistency -> Pp.t
+
+val pr : ?local:bool -> (Level.t -> Pp.t) -> t -> Pp.t
+(** [pr_universes] of [repr] *)
 
 (** {6 Debugging} *)
 val check_universes_invariants : t -> unit

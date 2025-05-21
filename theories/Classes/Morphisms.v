@@ -30,8 +30,9 @@ Local Obligation Tactic := try solve [ simpl_relation ].
 (** A morphism for a relation [R] is a proper element of the relation.
    The relation [R] will be instantiated by [respectful] and [A] by an arrow
    type for usual morphisms. *)
+
 Section Proper.
-  Let U := Type.
+  Let U := Type@{_}.
   Context {A B : U}.
 
   Class Proper (R : relation A) (m : A) : Prop :=
@@ -225,7 +226,7 @@ Ltac f_equiv :=
  end.
 
 Section Relations.
-  Let U := Type.
+  Let U := Type@{_}.
   Context {A B : U} (P : A -> U).
 
   (** [forall_def] reifies the dependent product as a definition. *)
@@ -331,7 +332,7 @@ Hint Extern 4 (subrelation (@forall_relation ?A ?B ?R) (@forall_relation _ _ ?S)
 
 Section GenericInstances.
   (* Share universes *)
-  Let U := Type.
+  Let U := Type@{_}.
   Context {A B C : U}.
 
   (** We can build a PER on the Rocq function space if we have PERs on the domain and
