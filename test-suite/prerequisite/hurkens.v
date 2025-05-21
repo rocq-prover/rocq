@@ -286,8 +286,8 @@ Module NoRetractToImpredicativeUniverse.
 
 Section Paradox.
 
-Let      U2    := Type.
-Let      U1:U2 := Type.
+Let      U2    := Type@{_}.
+Let      U1:U2 := Type@{_}.
 Variable U0:U1.
 
 (** *** [U1] is impredicative *)
@@ -636,7 +636,7 @@ Section Paradox.
 
 (** ** Universe [U] is equal to one of its elements. *)
 
-Let U := Type.
+Let U := Type@{_}.
 Variable A:U.
 Hypothesis h : U=A.
 
