@@ -85,9 +85,12 @@ type 'a constraint_fold = univ_constraint -> 'a -> 'a
   The [Le] constraints are passed to a folding function starting with [acc] whose result is returned as [acc'].
   Finally [equivs] contains a level substitution corresponding to [Eq] constraints. *)
 val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a -> 
-  Level.Set.t * 'a * Universe.t Level.Map.t
+  Level.Set.t * 'a * (locality * Universe.t) Level.Map.t
 
 val constraints_for : kept:Level.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
+
+val remove : Level.Set.t -> t -> t
+(** [remove l m] Remove the [l] nodes and constraints mentionning [l] from [m] *)
 
 val domain : t -> Level.Set.t
 (** Return the set of registered universe variables *)
@@ -96,12 +99,13 @@ val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
 (** Computes the set of registered variables, optionally restricted to local ones, and 
   optionally including the substituted variables. *)
 
-val subst : local:bool -> t -> Universe.t Level.Map.t
-
-(** Remove a binding from the substitution: use with care *)
-val remove_subst : Level.t -> t -> t
+val subst : local:bool -> t -> (locality * Universe.t) Level.Map.t
+(** Substitution from (local) levels to universes.
+   N.B.: slighty expensive to compute, better use [normalize] below. *)
 
 val switch_locality : Level.t -> t -> t
+
+val is_local : Level.t -> t -> bool
 
 (* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 

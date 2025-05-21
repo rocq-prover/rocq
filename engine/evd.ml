@@ -1063,9 +1063,6 @@ let check_univ_decl_early ~poly ~cumulative ~with_obls sigma udecl terms =
 let restrict_universe_context evd vars =
   { evd with universes = UState.restrict evd.universes vars }
 
-let universe_subst evd =
-  UState.subst evd.universes
-
 let merge_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
 
@@ -1126,7 +1123,7 @@ let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
 
 let is_flexible_level evd l =
   let uctx = evd.universes in
-  UnivFlex.mem l (UState.subst uctx)
+  UState.is_flexible l uctx
 
 let is_eq_sort s1 s2 =
   if Sorts.equal s1 s2 then None
@@ -1722,10 +1719,7 @@ module MiniEConstr = struct
 
   let to_constr_gen ~expand ~ignore_missing sigma c =
     let saw_evar = ref false in
-    let lsubst = universe_subst sigma in
-    let univ_value l =
-      UnivFlex.normalize_univ_variable lsubst l
-    in
+    let univ_value l = UState.subst_fn sigma.universes l in
     let relevance_value r = UState.nf_relevance sigma.universes r in
     let qvar_value q = UState.nf_qvar sigma.universes q in
     let next s = { s with evc_lift = s.evc_lift + 1 } in
