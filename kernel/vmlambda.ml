@@ -86,10 +86,6 @@ end
 
 module Lambda = Genlambda.Make(Val)
 
-let lambda_equal t1 t2 =
-  let eqval (h1, v1) (h2, v2) = Int.equal h1 h2 && eq_structured_constant (Const_val v1) (Const_val v2) in
-  Genlambda.equal eqval t1 t2
-
 (*********************************)
 let dump_lambda_flag, dump_lambda = CDebug.create_full ~name:"vmlambda" ()
 
