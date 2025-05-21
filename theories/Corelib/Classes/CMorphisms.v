@@ -287,7 +287,7 @@ Section GenericInstances.
 
   (** We can build a PER on the Rocq function space if we have PERs on the domain and
    codomain. *)
-  
+
   Program Instance respectful_per `(PER A R, PER B R') : PER (R ==> R').
 
   Next Obligation.

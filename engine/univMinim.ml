@@ -98,15 +98,16 @@ let instantiate_variable l (b : Universe.t) (ctx, flex, variances, graph) =
 let update_equivs_bound (_, us, _, _ as acc) l u equivs =
   update_univ_subst acc ((l, u) :: subst_of_equivalences us equivs)
 
-let simplify_variables solve_flexibles partial ctx flex variances graph =
+let simplify_variables solve_flexibles above_prop partial ctx flex variances graph =
   let open UVars.Variance in
   debug_each Pp.(fun () -> str"Simplifying variables with " ++ (if partial then str"partial" else str"non-partial") ++ str" information about the definition");
-  let minimize u (ctx, flex, variances, graph) =
+  let minimize u (ctx, flex, variances, graph as acc) =
     match UGraph.minimize u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-      update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
-    | NoBound | CannotSimplify -> (ctx, flex, variances, graph)
+      if Level.Set.mem u above_prop && Universe.is_type0 lbound then acc
+      else update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
+    | NoBound | CannotSimplify -> acc
   in
   let collapse_to_zero u acc =
     try instantiate_variable u Universe.type0 acc
@@ -123,9 +124,10 @@ let simplify_variables solve_flexibles partial ctx flex variances graph =
     match UGraph.minimize u graph with
       | HasSubst (graph, equivs, lbound) ->
         debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-        update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
+        if Level.Set.mem u above_prop && Universe.is_type0 lbound then acc
+        else update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
-        if allow_collapse then collapse_to_zero u acc
+        if allow_collapse && not (Level.Set.mem u above_prop) then collapse_to_zero u acc
         else maximize u acc
       | CannotSimplify -> maximize u acc
   in
@@ -217,40 +219,9 @@ let _pr_partition prl m =
   let open Pp in
   prlist_with_sep spc (fun s -> pr_universe_set prl s ++ fnl ()) m
 
-let pr_substitution prl m =
+let _pr_substitution prl m =
   let open Pp in
   prlist_with_sep spc (fun (l, u) -> prl l ++ str" := " ++ Universe.pr prl u ++ fnl ()) (Level.Map.bindings m)
-  
-(** Turn max(l, l') <= u constraints into { l <= u, l' <= u } constraints *)
-let decompose_constraints cstrs =
-  let fold (l, d, r as cstr) acc =
-    match d with
-    | Eq -> Constraints.add cstr acc
-    | Le ->
-      match Universe.repr l with
-      | [] -> assert false
-      | [_] -> Constraints.add cstr acc
-      | l -> List.fold_left (fun acc le -> enforce (Universe.of_list [le]) d r acc) acc l
-  in Constraints.fold fold cstrs Constraints.empty
-
-let simplify_cstr (l, d, r) =
-  (Universe.unrepr (Universe.repr l), d, Universe.unrepr (Universe.repr r))
-
-let constraints_of_substitution substitution cstrs =
-  Level.Map.fold (fun l u cstrs ->
-    Constraints.add (Universe.make l, Eq, u) cstrs) substitution cstrs
-
-let new_minimize_weak_pre g weak smallles =
-  UPairSet.fold (fun (u,v) smallles ->
-    let norm = Universe.subst_fn (level_subst_of (UGraph.normalize g)) in
-    let u = norm u and v = norm v in
-    if (Universe.is_type0 u || Universe.is_type0 v) then begin
-      if get_set_minimization() then begin
-        if Universe.is_type0 u then (Constraints.add (u,Le,v) smallles)
-        else (Constraints.add (v,Le,u) smallles)
-      end else smallles
-    end else smallles)
-    weak smallles
 
 let new_minimize_weak ctx flex weak (g, variances) =
   UPairSet.fold (fun (u,v) (ctx, flex, variances, g as acc) ->
@@ -285,106 +256,33 @@ let new_minimize_weak ctx flex weak (g, variances) =
         | _ -> acc)
     weak (ctx, flex, variances, g)
 
-
-
-let levels_constraints_of_substitution substitution ctx =
-  Level.Map.fold (fun l u (levels, cstrs) ->
-    Level.Set.add l levels,
-    Constraints.add (Universe.make l, Eq, u) cstrs) substitution ctx
-
-let graph_ctx g = 
-  let (levels, cstrs, eqs) = UGraph.constraints_of_universes ~only_local:true g in
-  levels_constraints_of_substitution eqs (levels, cstrs)
-
-let normalize_context_set ~solve_flexibles ~variances ~partial g ~local_variables ~flexible_variables ?binders {weak_constraints=weak;above_prop} =
+let normalize_context_set ~solve_flexibles ~variances ~partial graph ~local_variables ~flexible_variables ?binders {weak_constraints=weak;above_prop} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
-  let gctx = graph_ctx g in
-  debug Pp.(fun () -> str "Minimizing context: " ++ ContextSet.pr prl gctx ++ spc () ++
+  debug Pp.(fun () -> str "Minimizing context: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
     str"Local variables: " ++ Level.Set.pr Level.raw_pr local_variables ++ fnl () ++
     str"Flexible variables: " ++ Level.Set.pr Level.raw_pr flexible_variables ++ fnl () ++
     str"Variances: " ++ pr_variances prl variances ++ fnl () ++
+    str"Above prop: " ++ Level.Set.pr Level.raw_pr above_prop ++ fnl () ++ 
     str"Weak constraints " ++
     prlist_with_sep spc (fun (u,v) -> Universe.pr Level.raw_pr u ++ str" ~ " ++ Universe.pr Level.raw_pr v)
-     (UPairSet.elements weak) ++
-     (if partial then str"In partial mode" else str"In non-partial mode") );
+     (UPairSet.elements weak) ++ spc () ++
+     (if partial then str"In partial mode" else str"In non-partial mode") ++ spc () ++ 
+    if solve_flexibles then str "solving all flexibles" else str" solving flexibles respecting variances information");
   debug_graph Pp.(fun () ->
-     str"Graph: " ++ UGraph.pr_model g);
+     str"Graph: " ++ UGraph.pr_model graph);
   if CDebug.get_flag _debug_minim then
     if not (Level.Set.is_empty local_variables) && InferCumulativity.is_empty_variances variances then
       Feedback.msg_debug Pp.(str"normalize_context_set called with empty variance information");
-  let (ctx, csts) = gctx in
-  (* Keep the Prop/Set <= i constraints separate for minimization *)
-  let csts = decompose_constraints csts in
-  let smallles, csts =
-    Constraints.partition (fun (l,d,r) -> d == Le && Universe.is_type0 l) csts
-  in
-  (* Process weak constraints: when one side is flexible and the 2
-     universes are unrelated unify them. *)
-  let smallles = new_minimize_weak_pre g weak smallles in
-  let smallles = if get_set_minimization () then
-      Constraints.filter (fun (l,d,r) -> match Universe.level r with Some r -> Level.Set.mem r flexible_variables | None -> false) smallles
-    else Constraints.empty (* constraints Set <= u may be dropped *)
-  in
-  let smallles = if get_set_minimization() then
-      let fold u accu = if Level.Set.mem u flexible_variables then enforce_leq Universe.type0 (Universe.make u) accu else accu in
-      Level.Set.fold fold above_prop smallles
-    else smallles
-  in
-  let graph = g in
-  (* debug Pp.(fun () -> str "Local graph: " ++ UGraph.pr_model graph); *)
-  let locals, cstrs, lsubst = UGraph.constraints_of_universes ~only_local:true g in
-  (* debug Pp.(fun () -> str "Local universes: " ++ pr_universe_context_set prl (locals, cstrs)); *)
-  (* debug Pp.(fun () -> str "New universe context: " ++ pr_universe_context_set prl (ctx, cstrs)); *)
-  debug Pp.(fun () -> str "Substitution: " ++ pr_substitution prl lsubst);
-(* Ignore constraints from lbound:Set *)
-  let noneqs =
-    Constraints.filter
-      (fun (l,d,r) -> not (d == Le && Universe.is_type0 l))
-      cstrs
-  in
-  (* Put back constraints [Set <= u] from type inference *)
-  let noneqs = Constraints.union noneqs smallles in
-  (* Noneqs is now in canonical form w.r.t. equality constraints,
-     and contains only inequality constraints. *)
-  let noneqs =
-    let fold (u,d,v) noneqs =
-      if Universe.equal u v then noneqs
-      else Constraints.add (u,d,v) noneqs
-    in
-    Constraints.fold fold noneqs Constraints.empty
-  in
   (* Now we construct the instantiation of each variable. *)
-  debug Pp.(fun () -> str "Starting minimization with: " ++ ContextSet.pr prl (ctx, noneqs) ++ spc () ++
-    Level.Set.pr Level.raw_pr flexible_variables ++ spc () ++
-    if solve_flexibles then str "solving all flexibles" else str" solving flexibles respecting variances information");
-  let ctx', flex, variances, noneqs, graph =
-    let smalllesu = Constraints.fold (fun (l, d, r) acc ->
-      match Universe.level r with Some r -> Level.Set.add r acc | None -> acc) smallles Level.Set.empty in
-    (* debug Pp.(fun () -> str"Model before removal: " ++ UGraph.pr_model graph); *)
-    let graph = Level.Set.fold (fun l graph ->
-      if not (Level.Set.mem l smalllesu) then
-        (debug Pp.(fun () -> str"Removing " ++ Level.raw_pr l ++ str" -> Set constraints");
-          UGraph.remove_set_clauses l graph)
-      else graph)
-      flexible_variables graph
-    in
+  let local_variables, flexible_variables, variances, graph =
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
-    let ctx', flex, variances, graph = simplify_variables solve_flexibles partial ctx flexible_variables variances graph in
+    let ctx', flex, variances, graph = simplify_variables solve_flexibles above_prop partial local_variables flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
-    let ctx', us, variances, graph = new_minimize_weak ctx' flex weak (graph, variances) in
-    let locals, cstrs, substitution = UGraph.constraints_of_universes ~only_local:true graph in
-    let cstrs = constraints_of_substitution substitution cstrs in
-    let cstrs =
-      Constraints.filter
-        (fun (l,d,r) -> not (d == Le && Universe.is_type0 l))
-        cstrs
-    in
-    let cstrs = Constraints.union smallles cstrs in
-    ctx', us, variances, cstrs, graph
+    new_minimize_weak ctx' flex weak (graph, variances)
   in
-  let cstrs = Constraints.filter (fun (l, d, r) -> not (d == Le && Universe.is_type0 l)) noneqs in
-  let ctx = (ctx', cstrs) in
-  debug Pp.(fun () -> str "After minimization: " ++ ContextSet.pr prl ctx ++ fnl () ++
-    Level.Set.pr Level.raw_pr flex ++ fnl () ++
-    str"VARIANCES: " ++ InferCumulativity.pr_variances Level.raw_pr variances);
-  (flex, variances), ctx
+  debug Pp.(fun () ->
+    str "After minimization: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
+    str"Local variables: " ++ Level.Set.pr Level.raw_pr local_variables ++ fnl () ++
+    str"Flexible variables: " ++ Level.Set.pr Level.raw_pr flexible_variables ++ fnl () ++
+    str"Variances: " ++ pr_variances prl variances);
+  local_variables, flexible_variables, variances, graph

@@ -214,22 +214,22 @@ let universes_of_body_type ~used_univs body typ =
 
 let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl body typ =
   let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body typ in
-  let extctx, uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+  let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
   (* For vi2vo compilation proofs are computed now but we need to
      complement the univ constraints of the typ with the ones of
      the body.  So we keep the two sets distinct. *)
-  let uctx_body = UState.restrict extctx uctx used_univs in
+  let uctx_body = UState.restrict uctx used_univs in
   UState.check_mono_univ_decl uctx_body udecl
 
 let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ =
   let utyp = UState.univ_entry ~poly:false initial_euctx in
   let _, used_univs = universes_of_body_type ~used_univs body typ in
   let ubody =
-    let extctx, uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+    let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
     (* For vi2vo compilation proofs are computed now but we need to
        complement the univ constraints of the typ with the ones of
        the body.  So we keep the two sets distinct. *)
-    let uctx_body = UState.restrict extctx uctx used_univs in
+    let uctx_body = UState.restrict uctx used_univs in
     UState.check_mono_univ_decl uctx_body udecl in
   initial_euctx, utyp, used_univs, Default { body = (body, eff); opaque = Opaque ubody }
 

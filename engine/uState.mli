@@ -65,11 +65,11 @@ val context_set : t -> Univ.ContextSet.t
 
 val sort_context_set : t -> UnivGen.sort_context_set
 
-type universe_opt_subst = UnivFlex.t
-(* Reexport because UnivSubst is private *)
-
-val subst : t -> UnivFlex.t
+val subst_fn : t -> UnivSubst.universe_subst_fn
 (** The local universes that are unification variables *)
+
+val is_flexible : Level.t -> t -> bool
+(** Is a universe level considered flexible? *)
 
 val nf_universes : t -> Constr.t -> Constr.t
 (** Apply the local substitution [subst] *)
@@ -209,10 +209,10 @@ val add_forgotten_univ : t -> Univ.Level.t -> t
 
 val normalize_variables : t -> t
 
-val constrain_variables : Univ.Level.Set.t -> t -> ContextSet.t * t
+val constrain_variables : Univ.Level.Set.t -> t -> t
 
 val fix_undefined_variables : t -> t
-(** cf UnivFlex *)
+(** All remaining variables are rigid after this *)
 
 (** Variances *)
 

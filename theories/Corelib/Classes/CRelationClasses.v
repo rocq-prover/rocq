@@ -314,7 +314,7 @@ Instance iff_Transitive : Transitive iff := iff_trans.
 (** Logical equivalence [iff] is an equivalence crelation. *)
 
 #[global]
-Program Instance iff_equivalence : Equivalence iff. 
+Program Instance iff_equivalence : Equivalence iff.
 #[global]
 Program Instance arrow_Reflexive : Reflexive arrow.
 #[global]

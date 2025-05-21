@@ -25,6 +25,8 @@ type t = {
   above_prop_qvars : Sorts.QVar.Set.t;
 }
 
+type locality = Loop_checking.locality = Global | Local
+
 (* Universe inconsistency: error raised when trying to enforce a relation
    that would create a cycle in the graph of universes. *)
 
@@ -145,10 +147,6 @@ let remove_set_clauses l g =
   let graph = G.remove_set_clauses l g.graph in
   { g with graph }
 
-let remove_subst l g =
-  let graph = G.remove_subst l g.graph in
-  { g with graph }
-
 let pr_model ?local g = G.pr_model ?local g.graph
 
 let constraints_of_universes ?(only_local=false) g =
@@ -158,8 +156,10 @@ let constraints_for ~kept g =
   let add cst accu = Constraints.add cst accu in
   G.constraints_for ~kept g.graph add Constraints.empty
 
-let subst ?(local=false) g =
-  G.subst ~local g
+let remove removed g =
+  { g with graph = G.remove removed g.graph }
+
+let subst ?(local=false) g = G.subst ~local g.graph
 
 (** Subtyping of polymorphic contexts *)
 
@@ -186,7 +186,7 @@ let check_eq_instances g t1 t2 =
 
 let domain g = G.domain g.graph
 
-let variables ~local ~with_subst g = G.variables ~local ~with_subst
+let variables ~local ~with_subst g = G.variables ~local ~with_subst g.graph
 
 let check_universes_invariants g = G.check_invariants ~required_canonical:Level.is_set g.graph
 
@@ -263,6 +263,8 @@ type node = G.node =
 let repr ?(local=false) g = G.repr ~local g.graph
 
 let pr_universes prl g = pr_pmap Pp.mt (pr_arc prl) g
+
+let pr ?(local=false) prl g = pr_universes prl (repr ~local g)
 
 open Pp
 
