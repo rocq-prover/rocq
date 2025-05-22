@@ -1,0 +1,10 @@
+src/META.rocq-plugin-tutorial
+-R theories Tuto4
+-I src
+
+theories/Loader.v
+theories/Demo.v
+
+src/myexternals.ml
+src/myexternals.mli
+src/tuto4_plugin.mlpack
