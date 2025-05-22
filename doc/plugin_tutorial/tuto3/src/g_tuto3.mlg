@@ -1,3 +1,5 @@
+(** See dev/doc/parsing.md for mlg doc *)
+
 DECLARE PLUGIN "rocq-plugin-tutorial.tuto3"
 
 {
