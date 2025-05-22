@@ -1,6 +1,4 @@
-ifeq "$(COQBIN)" ""
-  COQBIN=$(dir $(shell which rocq))/
-endif
+COQBIN?=
 
 %: Makefile.rocq
 
