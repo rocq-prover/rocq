@@ -1,7 +1,7 @@
-How to write plugins in Coq
+How to write plugins in Rocq
 ===========================
 
-This document describes how to extend Coq by writing plugins in the
+This document describes how to extend Rocq by writing plugins in the
 [OCaml](https://ocaml.org/) functional programming language.
 Before writing a plugin, you should consider whether easier approaches
 can achieve your goal. It is often easier to use an
@@ -13,12 +13,12 @@ development is harder due to the lower level OCaml API it uses.
 It is also more maintenance intensive because the OCaml API can
 change from release to release without any backward compatibility
 (it's not uncommon for plugins to only work with a given
-version of Coq).
+version of Rocq).
 
 # Working environment
 
-In addition to installing OCaml and Coq, you need to make sure that you also have the development
-headers for Coq, because you will need them to compile extensions. If you installed Coq from source or
+In addition to installing OCaml and Rocq, you need to make sure that you also have the development
+headers for Rocq, because you will need them to compile extensions. If you installed Rocq from source or
 from [OPAM](http://opam.ocaml.org/doc/Install.html), you already have the required headers. If you
 installed them from your system package manager, there may be a separate package
 which contains the development headers (for example, in Ubuntu they are contained in the package
@@ -65,22 +65,22 @@ package an mlg file in a plugin, organize a `Makefile`, `_CoqProject`
 
 ```bash
   cd tuto0; make
-  coqtop -I src -R theories Tuto0
+  rocq top -I src -R theories Tuto0
 ```
 
-In the Coq session type:
+In the Rocq session type:
 ```coq
   Require Import Tuto0.Loader. HelloWorld.
 ```
 
 You can also modify and run `theories/Demo.v`.
 
-# tuto1 : OCaml to Coq communication
-Explore the memory of Coq, modify it
+# tuto1 : OCaml to Rocq communication
+Explore the memory of Rocq, modify it
 - Commands that take arguments: strings, integers, symbols, expressions of the calculus of constructions
 - Examples of using environments correctly
 - Examples of using state (the evar_map) correctly
-- Commands that interact with type-checking in Coq
+- Commands that interact with type-checking in Rocq
 - A command that checks convertibility between two terms
 - A command that adds a new definition or theorem
 - A command that uses a name and exploits the existing definitions or theorems
@@ -89,7 +89,7 @@ Explore the memory of Coq, modify it
 
 Compilation and loading must be performed as for `tuto0`.
 
-# tuto2 : OCaml to Coq communication
+# tuto2 : OCaml to Rocq communication
 A more step by step introduction to writing commands
 - Explanation of the syntax of entries
 - Adding a new type to and parsing to the available choices
