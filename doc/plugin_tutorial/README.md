@@ -113,4 +113,11 @@ Manipulating terms, inside commands and tactics.
 - Using these terms in tactics
 - Automatic proofs without tactics using type classes and canonical structures
 
-compilation and loading must be performed as for `tuto0`.
+Compilation and loading must be performed as for `tuto0`.
+
+# tuto4: extending Ltac2
+Define new primitives ("externals") for Ltac2.
+
+Note that in this case we have no `.mlg` file, but the `Loader.v` is less trivial.
+
+Compilation and loading must be performed as for `tuto0`.
