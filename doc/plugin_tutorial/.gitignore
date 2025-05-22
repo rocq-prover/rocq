@@ -1,6 +1,6 @@
 *.ml*.d
 *.cm[ixt]*
-Makefile.coq*
+Makefile.rocq*
 *~
 *.[ao]
 .coqdeps.d
