@@ -39,9 +39,6 @@ type locality = Loop_checking.locality =
    and they can be retrieved using the only_local/local options of accessort functions below. *)
 val set_local : t -> t
 
-(** Initial universes, but keeping options such as type in type from the argument. *)
-val clear_constraints : t -> t
-
 (** Check equality of instances w.r.t. a universe graph *)
 val check_eq_instances : Instance.t check_function
 
@@ -86,15 +83,17 @@ exception OccurCheck
    *)
 val set : Level.t -> Universe.t -> t -> t * level_equivalences
 
-(** Adds a universe to the graph, ensuring it is >= or > Set.
+exception AlreadyDeclared
+val add_universe : Level.t -> strict:bool -> rigid:bool -> t -> t
+(** Adds a universe to the graph, ensuring it is >= or > (if [strict = true]) Set.
+   A [rigid] level is kept canonical when it is made equal to a non-rigid expression.
    @raise AlreadyDeclared if the level is already declared in the graph. *)
 
-exception AlreadyDeclared
-
-val add_universe : Level.t -> strict:bool -> t -> t
 
 (** Check that the universe levels are declared. *)
 val check_declared_universes : t -> Univ.Level.Set.t -> (unit, Univ.Level.Set.t) result
+
+val is_declared : t -> Level.t -> bool
 
 (** The empty graph of universes *)
 val empty_universes : t
