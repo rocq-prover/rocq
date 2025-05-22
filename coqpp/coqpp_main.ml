@@ -477,6 +477,9 @@ let print_rules state fmt rules =
   print_list fmt (fun fmt r -> fprintf fmt "(%a)" (print_rule state) r) rules
 
 let print_classifier fmt = function
+(* error could be interesting but would need to check that not all of the rules have a classifier,
+   if we do that we could also check that at least 1 rule has no classifier
+   when the block level classifier is specified *)
 | ClassifDefault -> fprintf fmt ""
 | ClassifName "QUERY" ->
   fprintf fmt "~classifier:(fun _ -> Vernacextend.classify_as_query)"
