@@ -102,18 +102,17 @@ let update_equivs_bound (_, us, _, _ as acc) l u equivs =
 let simplify_variables solve_flexibles above_prop above_zero partial ctx flex variances graph =
   let open UVars.Variance in
   debug_each Pp.(fun () -> str"Simplifying variables with " ++ (if partial then str"partial" else str"non-partial") ++ str" information about the definition");
-  let disallowed_instance ~allow_collapse_to_zero u lbound =
+  let allowed_instance ~allow_collapse_to_zero u lbound =
     if Universe.is_type0 lbound then 
-      not (get_set_minimization ()) ||
-      ((not allow_collapse_to_zero) &&
-        (Level.Set.mem u above_prop || not (Level.Set.mem u above_zero)))
-    else false
+      get_set_minimization () &&
+      (allow_collapse_to_zero || Level.Set.mem u above_prop || Level.Set.mem u above_zero)
+    else true
   in
   let minimize ~allow_collapse_to_zero u (ctx, flex, variances, graph as acc) =
     match UGraph.minimize u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-      if disallowed_instance ~allow_collapse_to_zero u lbound then acc
+      if not (allowed_instance ~allow_collapse_to_zero u lbound) then acc
       else update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
@@ -132,7 +131,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
     match UGraph.minimize u graph with
       | HasSubst (graph, equivs, lbound) ->
         debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-        if disallowed_instance ~allow_collapse_to_zero u lbound then acc
+        if not (allowed_instance ~allow_collapse_to_zero u lbound) then acc
         else update_equivs_bound (ctx, flex, variances, graph) u lbound equivs
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
         if allow_collapse_to_zero && not (Level.Set.mem u above_prop) then collapse_to_zero u acc
