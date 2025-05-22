@@ -194,7 +194,7 @@ let register_universe_variances_of_record env sigma ~env_ar_pars ~params ~fields
   let status = compute_variances_context env sigma status params in
   let paramlen = Context.Rel.length params in
   let status = List.fold_left (compute_variances_type ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status types in
-  let status = List.fold_left (compute_variances_context env_ar_pars sigma ~position:(fun _ -> InTerm) ~cumul_pb:Cumul ~typing_pb:Cumul) status fields in
+  let status = List.fold_left (compute_variances_context env_ar_pars sigma ~position:(fun _ -> InTerm) ~cumul_pb:Cumul ~typing_pb:InvCumul) status fields in
   finalize sigma status
 
 let register_universe_variances_of_fix env sigma types bodies =
