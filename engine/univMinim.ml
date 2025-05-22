@@ -153,7 +153,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
       match type_variance with
       | Irrelevant -> arbitrary ~allow_collapse_to_zero:true u acc
-      | Covariant -> minimize ~allow_collapse_to_zero:(not partial) u acc
+      | Covariant -> minimize ~allow_collapse_to_zero:false u acc
       | Contravariant -> acc (* Do not maximize at first, as it would break the template hacks with max (0, ...) *)
       | Invariant -> acc
     else

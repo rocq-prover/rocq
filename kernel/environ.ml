@@ -459,7 +459,7 @@ let add_universes ~strict ctx g =
   debug Pp.(fun () -> str"Adding universe context" ++ UVars.pr_universe_context Sorts.QVar.raw_pr Univ.Level.raw_pr ctx);
   let _qs, us = UVars.LevelInstance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_left
-      (fun g v -> UGraph.add_universe ~strict v g)
+      (fun g v -> UGraph.add_universe ~strict ~rigid:true v g)
       g us
   in
   fst (UGraph.merge_constraints (UVars.UContext.constraints ctx) g)
@@ -485,7 +485,7 @@ let add_universes_set ~strict ctx g =
   debug Pp.(fun () -> str"Adding universes context" ++ Univ.ContextSet.pr Univ.Level.raw_pr ctx);
   let g = Univ.Level.Set.fold
             (* Be lenient, module typing reintroduces universes and constraints due to includes *)
-            (fun v g -> try UGraph.add_universe ~strict v g with UGraph.AlreadyDeclared -> g)
+            (fun v g -> try UGraph.add_universe ~strict ~rigid:true v g with UGraph.AlreadyDeclared -> g)
             (Univ.ContextSet.levels ctx) g
   in fst (UGraph.merge_constraints (Univ.ContextSet.constraints ctx) g)
 
@@ -506,7 +506,7 @@ let gather_new_constraints restricted g =
 
 let push_subgraph (levels,csts) env =
   let add_subgraph g =
-    let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
+    let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false ~rigid:true v g) levels g in
     let newg, _equivs = UGraph.merge_constraints csts newg in
     (if not (Univ.Constraints.is_empty csts) then
        let restricted = UGraph.constraints_for ~kept:(UGraph.domain g) newg in
