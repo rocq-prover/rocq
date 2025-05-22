@@ -389,8 +389,10 @@ let rigid_levels_constraints_of_substitution variables substitution (levels, cst
     else levels, cstrs) substitution (levels, cstrs)
 
 let context_set uctx : ContextSet.t =
-  let levels, cstrs, eqs = UGraph.constraints_of_universes ~only_local:true uctx.universes in
+  let levels, cstrs, eqs = 
+    UGraph.constraints_of_universes ~only_local:true uctx.universes in
   let cstrs = filter_set_constraints cstrs in
+  let levels = Level.Set.union uctx.local_variables levels in
   rigid_levels_constraints_of_substitution uctx.local_variables eqs 
     (Level.Set.diff levels uctx.demoted_local_variables, cstrs)
 
@@ -1336,7 +1338,7 @@ let univ_flexible = UnivFlexible
 let merge ?loc ~sideff rigid uctx uctx' =
   if ContextSet.is_empty uctx' then uctx 
   else 
-    let () = debug Pp.(fun () -> str"merge: " ++ ContextSet.pr (pr_uctx_level uctx) uctx' ++ 
+    let () = debug Pp.(fun () -> str"merge (sideff: " ++ bool sideff ++ str"):  " ++ ContextSet.pr (pr_uctx_level uctx) uctx' ++ 
       str " in " ++ fnl () ++ pr ~local:true uctx) in  
     let levels = ContextSet.levels uctx' in
     let declare g =
@@ -1377,7 +1379,10 @@ let merge ?loc ~sideff rigid uctx uctx' =
         in
         Some (Level.Set.fold fold levels variances)
     in
-    let uctx = { uctx with names; universes; variances; initial_universes = initial } in
+    let demoted_local_variables = 
+       Level.Set.diff uctx.demoted_local_variables levels
+    in
+    let uctx = { uctx with names; demoted_local_variables; universes; variances; initial_universes = initial } in
     let uctx = 
       merge_constraints uctx (ContextSet.constraints uctx')
       (* with Loop_checking.Undeclared u ->
