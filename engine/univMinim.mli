@@ -16,6 +16,7 @@ module UPairSet : CSet.S with type elt = (Universe.t * Universe.t)
 type extra = {
   weak_constraints : UPairSet.t; (* weak equality constraints *)
   above_prop : Level.Set.t;
+  above_zero : Level.Set.t;
 }
 
 val empty_extra : extra
