@@ -88,7 +88,7 @@ Module Test4.
   Universe u.
   Constraint Set < u.
   Check let v := 0%ppps in v : punit@{u}. (* Check that universes are refreshed *)
-  Check let v := 1%ppps in v : punit@{u}. (* Note that universes are not refreshed here *)
+  Fail Check let v := 1%ppps in v : punit@{u}. (* Note that universes are not refreshed here *)
 End Test4.
 
 Module Test5.
