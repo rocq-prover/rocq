@@ -1,0 +1,29 @@
+# Comments in META start with # and end with newline
+
+# our plugin is called rocq-plugin-tutorial.tuto1
+# rocq-plugin-tutorial from the META filename
+# tuto1 from this "package" name
+package "tuto1" (
+    # the plugin files are in "src"
+    directory = "src"
+
+    version = "dev"
+    description = "A tuto1 plugin"
+
+    # we define ltac1 tactics so we depend on ltac
+    # otherwise we would depend only on rocq-runtime.vernac
+    # (it contains the APIs for declaring new commands)
+    # (ltac depends on vernac so if we depend on ltac, vernac is also implicitly depended on)
+    requires = "rocq-runtime.plugins.ltac"
+
+    # the compiled plugin files (rocq makefile bases these filenames on the .mlpack filename)
+    # (only the "plugin" keys are used by rocq,
+    # "archive" is for packages which depend on this package)
+    archive(byte) = "tuto1_plugin.cma"
+    archive(native) = "tuto1_plugin.cmxa"
+    plugin(byte) = "tuto1_plugin.cma"
+    plugin(native) = "tuto1_plugin.cmxs"
+)
+
+# paths in this file are relative to this directory
+directory = "."

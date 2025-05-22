@@ -54,7 +54,7 @@ make                        # build
 ```
 
 # tuto0 : basics of project organization
-package an mlg file in a plugin, organize a `Makefile`, `_CoqProject`
+package an mlg file in a plugin, organize a `Makefile`, `_CoqProject` (note comments in those files)
 - Example of syntax to add a new toplevel command
 - Example of function call to print a simple message
 - Example of function call to print a simple warning

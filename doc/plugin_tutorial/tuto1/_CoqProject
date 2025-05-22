@@ -1,6 +1,14 @@
-src/META.rocq-plugin-tutorial
+META.rocq-plugin-tutorial
 -R theories Tuto1
+
+# rocq makefile uses -I in 2 ways:
+# to tell rocq where the META file is located
+-I .
+# and to tell the ocaml compiler where previously compiled files are located
+# (eg g_tuto1 depends on inspector)
 -I src
+# in tuto0 with -generate-meta-for-package, the META was generated next to the mlpack
+# so -I src did both jobs
 
 theories/Loader.v
 theories/Demo.v
