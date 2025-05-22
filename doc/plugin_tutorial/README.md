@@ -75,6 +75,13 @@ In the Rocq session type:
 
 You can also modify and run `theories/Demo.v`.
 
+Because the `.mlpack` file format does not support comments, we
+explain it here: this file is used by `rocq makefile` to compile the
+plugin. It lists the OCaml modules used in the plugin in dependency
+order. From `foo.mlpack`, `rocq makefile` will build `foo.cma`
+(bytecode plugin) and `foo.cmxs` (native plugin), so the file names in
+the `META` file must match this.
+
 # tuto1 : OCaml to Rocq communication
 Explore the memory of Rocq, modify it
 - Commands that take arguments: strings, integers, symbols, expressions of the calculus of constructions
