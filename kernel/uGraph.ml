@@ -65,15 +65,12 @@ let check_eq g u v =
 let empty_universes = {graph=G.empty; type_in_type=false; above_prop_qvars=Sorts.QVar.Set.empty}
 
 let initial_universes =
-  let big_rank = 1000000 in
   let g = G.empty in
-  let g = G.add ~rank:big_rank Level.set g in
+  let g = G.add ~rigid:true Level.set g in
   {empty_universes with graph=g }
 
 let set_local g =
   { g with graph = G.set_local g.graph }
-
-let clear_constraints g = {g with graph=G.clear_constraints g.graph}
 
 type level_equivalences = (Level.t * (Level.t * int)) list
 
@@ -121,8 +118,8 @@ let set l u g =
   { g with graph = g' }, equivs
 
 exception AlreadyDeclared = G.AlreadyDeclared
-let add_universe u ~strict g =
-  let graph = G.add u g.graph in
+let add_universe u ~strict ~rigid g =
+  let graph = G.add ~rigid u g.graph in
   let b = if strict then Universe.type1 else Universe.type0 in
   fst (enforce_constraint (b, Le, Universe.make u) { g with graph })
 
@@ -130,6 +127,9 @@ let switch_locality u g = { g with graph = G.switch_locality u g.graph }
 
 let check_declared_universes g l =
   G.check_declared g.graph l
+
+let is_declared g l =
+  G.is_declared g.graph l
 
 let minimize l g =
   match G.minimize l g.graph with
@@ -170,7 +170,7 @@ let check_subtype univs ctxT ctx =
     let inst = UContext.instance uctx in
     let cst = UContext.constraints uctx in
     let cstT = UContext.constraints (AbstractContext.repr ctxT) in
-    let push accu v = add_universe v ~strict:false accu in
+    let push accu v = add_universe v ~strict:false ~rigid:true accu in
     let univs = Array.fold_left push univs (snd (LevelInstance.to_array inst)) in
     let univs, _equivs = merge_constraints cstT univs in
     check_constraints cst univs
@@ -249,10 +249,10 @@ let pr_arc prl = let open Pp in
         let l = List.sort Universe.compare l in
         let k, is_lt = if i >= 1 then pred i, true else 0, false in
         let u = (u, k) in
-        LevelExpr.pr prl u ++ spc () ++ v 0
+        LevelExpr.pr prl u ++ str " " ++ v 0
         (prlist_with_sep spc (fun v -> str (if is_lt then "< " else "<= ") ++ Universe.pr prl v) l)
       in
-      prlist_with_sep spc pr_cstrs l ++ fnl ()
+      prlist_with_sep fnl pr_cstrs l ++ fnl ()
   | u, G.Alias u' ->
     prl u  ++ str " = " ++ Universe.pr prl u' ++ fnl  ()
 

@@ -55,11 +55,7 @@ let mk_clausenv env evd metam metas templval metaset templtyp = {
 }
 
 let merge_fsorts evd clenv =
-  (* Hackish check: the level is considered to be already fresh when it is not
-     part of the evarmap substitution. Other heuristics are more broken because
-     some parts of the UState API are not very clear about their invariants and
-     this is relied upon by e.g. Program. *)
-  let filter l = not (Evd.is_flexible_level evd l) in
+  let filter l = not (Evd.is_declared_level evd l) in
   let fold accu marg = match marg.marg_templ with
   | None -> accu
   | Some (ctx, l) -> Univ.Level.Set.add l accu

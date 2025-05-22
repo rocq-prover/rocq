@@ -71,6 +71,9 @@ val subst_fn : t -> UnivSubst.universe_subst_fn
 val is_flexible : Level.t -> t -> bool
 (** Is a universe level considered flexible? *)
 
+val is_declared : t -> Level.t -> bool
+(** Is a universe level declared already? *)
+
 val nf_universes : t -> Constr.t -> Constr.t
 (** Apply the local substitution [subst] *)
 
