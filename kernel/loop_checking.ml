@@ -471,8 +471,6 @@ struct
 
   let choose s = S.choose s.set
 
-  let of_set s = { set = s; cardinal = S.cardinal s }
-
   let filter_map f s =
     let s' = S.filter_map f s.set in
     if s' == s.set then s
@@ -933,6 +931,7 @@ module PSet = SetWithCardinal(Index)(Index.Set)
 type canonical_node =
   { canon: Index.t;
     local: locality;
+    rigid : bool; (* Prefer to maintain this canonical node when equating it with another *)
     value : int;
     clauses_bwd : ClausesOf.t; (* premises -> canon + k *)
     clauses_fwd : ForwardClauses.t (* canon + k, ... ->  concl + k' *) }
@@ -942,7 +941,6 @@ type model = {
   entries : canonical_node PMap.t; (* The canonical nodes *)
   subst : (Premises.t * locality * locality) PMap.t; (* The substitution from levels to universes: 
     localities of the substituted universe and the constraints are recorded *)
-  canentries : PSet.t; (* subset of entries that are Canonical *)
   values : int PMap.t option; (* values, superseding the ones attached to canonical nodes if present *)
   canonical : int; (* Number of canonical nodes *)
   table : Index.table }
@@ -953,27 +951,12 @@ let empty_model = {
   locality = Global;
   entries = PMap.empty;
   subst = PMap.empty;
-  canentries = PSet.empty;
   values = None;
   canonical = 0;
   table = Index.empty
 }
 
 let empty = empty_model
-
-let clear_constraints m =
-  let entries =
-    let map can =
-      { can with value = 0; clauses_bwd = ClausesOf.empty; clauses_fwd = ForwardClauses.empty }
-    in
-    PMap.map map m.entries
-  in
-  let entries =
-    let subst l (_u, local, _) =
-      PMap.add l { canon = l; value = 0; local; clauses_bwd = ClausesOf.empty; clauses_fwd = ForwardClauses.empty }
-    in PMap.fold subst m.subst entries
-  in
-  { m with canentries = (PSet.of_set (PMap.domain entries)); entries; subst = PMap.empty; values = None; canonical = 0 }
 
 module CN = struct
   type t = canonical_node
@@ -985,7 +968,6 @@ end
 let enter_equiv m u local v =
   { locality = m.locality;
     entries = PMap.remove u m.entries;
-    canentries = PSet.remove u m.canentries;
     subst = PMap.add u (v, local, m.locality) m.subst;
     canonical = m.canonical - 1;
     values = Option.map (PMap.remove u) m.values;
@@ -1515,8 +1497,6 @@ let partition_clauses_fwd = time2 (Pp.str"partition clauses fwd") partition_clau
 (* If early_stop is given, check raises FoundImplication as soon as
    it finds that the given atom is true *)
 
-let model_points model = model.canentries
-
 let _pr_w m w =
   let open Pp in
   PSet.fold (fun idx pp ->
@@ -1540,7 +1520,6 @@ let pr_clauses m = pr_clauses_all ~local:false m
 
 (* model is a model for the clauses outside cls *)
 let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
-  let v = model_points model in
   let cV = canonical_cardinal model in
   debug_loop Pp.(fun () -> str"All model clauses: " ++ pr_clauses model);
 (*   assert (cV = PSet.cardinal v); *)
@@ -1555,7 +1534,7 @@ let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
     let rec inner_loop_partition w cardW premconclw conclw m =
       debug_loop Pp.(fun () -> str "inner_loop_partition on #|premconclw| = " ++ int (CanSet.cardinal premconclw) ++ str" cardW = " ++ int cardW);
       (* debug_loop Pp.(fun () -> str "cls = " ++ pr_w m cls); *)
-      match loop w cardW PSet.empty premconclw m with
+      match loop cardW PSet.empty premconclw m with
       | Loop -> Loop
       | Model (wr, mr) ->
         debug_loop Pp.(fun () -> str "inner_loop_partition call to loop results in a model with wr of size " ++ int (CanSet.cardinal wr) );
@@ -1575,7 +1554,7 @@ let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
       (* assert (PSet.cardinal (w_of_canset premconclw) <= cardW); *)
       (* assert (PSet.cardinal (target_of_canset conclw) <= cardW); *)
       inner_loop_partition w cardW premconclw conclw m
-  and loop v cV winit (cls : CanSet.t) m =
+  and loop cV winit (cls : CanSet.t) m =
     debug_loop Pp.(fun () -> str "loop on winit = " ++ pr_w m winit ++ str", #|cls| = " ++ int (cardinal_fwd cls) ++ str" bound is " ++ int cV);
     (* debug_loop Pp.(fun () -> str" cls = : " ++ pr_w m u); *)
     debug_loop_partition Pp.(fun () -> str"initial clauses: " ++ CanSet.pr_clauses m cls);
@@ -1624,10 +1603,10 @@ let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
             (debug_loop Pp.(fun () -> str"Resulted in an update of #|w| = " ++ int (PSet.cardinal w') ++
               str" universes, launching back loop. w = " ++ pr_w mcls w ++ spc () ++ str" w' = " ++ pr_w mcls w');
             let cls = add_fwd_clause mcls w' cls in
-            loop v cV (PSet.union w w') cls mcls)))
+            loop cV (PSet.union w w') cls mcls)))
       end
   in
-  loop v cV w cls model
+  loop cV w cls model
 
 let check ?early_stop model w =
   let cls = add_fwd_clause model w CanSet.empty in
@@ -1955,51 +1934,35 @@ let enter_equiv_expr m idx local idx' k =
 let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * int) * (Index.t * (Index.t * int)) * t =
   (* assert (expr_value model u = expr_value model v); *)
   (* assert (canu != canv); *)
-  (* v := u or u := v, depending on Level.is_source (for Set) *)
+  (* v := u or u := v, depending on Level.is_set (for Set), and the [rigid] flags *)
   debug_check_invariants model;
   (* let model0 = model in *)
-  let can, k, other, diff, model =
+  let direction = (* true: canv := canu + k. false: canu := canv + k. *)
     if Level.is_set (Index.repr canu.canon model.table) then
       (* Set + k = l + k' -> k' < k
         -> l = Set + (k - k') *)
-      (assert (kv <= ku);
-       (canu, ku, canv, ku - kv, enter_equiv_expr model canv.canon canv.local canu.canon (ku - kv)))
+      (assert (kv <= ku); true)
     else if Level.is_set (Index.repr canv.canon model.table) then
-      (assert (ku <= kv);
-       (canv, kv, canu, kv - ku, enter_equiv_expr model canu.canon canu.local canv.canon (kv - ku)))
+      (assert (ku <= kv); false)
     else if Int.equal ku kv then
-      (* This heuristic choice has real performance impact in e.g. math_classes/dyadics.v *)
-      if ForwardClauses.cardinal canu.clauses_fwd <= ForwardClauses.cardinal canv.clauses_fwd then
-        (canv, kv, canu, 0, enter_equiv_expr model canu.canon canu.local canv.canon 0)
-      else (canu, ku, canv, 0, enter_equiv_expr model canv.canon canv.local canu.canon 0)
-    else if ku <= kv then
-      (canv, kv, canu, kv - ku, enter_equiv_expr model canu.canon canu.local canv.canon (kv - ku))
-    else
-      (* canu + ku = canv + kv /\ kv < ku ->
-        canv = canu + (ku - kv)
-        *)
+      if canu.rigid then true
+      else if canv.rigid then false
+      (* This heuristic choice seems to have real performance impact in e.g. math_classes/dyadics.v *)
+      else if ForwardClauses.cardinal canu.clauses_fwd <= ForwardClauses.cardinal canv.clauses_fwd then
+        false
+      else true
+    else if ku <= kv then false
+    else (* canu + ku = canv + kv /\ kv < ku -> canv = canu + (ku - kv) *)
+      true
+  in
+  let can, k, other, diff, model =
+    if direction then
       (canu, ku, canv, ku - kv, enter_equiv_expr model canv.canon canv.local canu.canon (ku - kv))
+    else
+      (canv, kv, canu, kv - ku, enter_equiv_expr model canu.canon canu.local canv.canon (kv - ku))
   in
   (* other = can + diff *)
   let can, model =
-    (* let bwd = ClausesOf.union can.clauses_bwd (ClausesOf.shift diff other.clauses_bwd) in *)
-    (* let fwd = ForwardClauses.union can.clauses_fwd other.clauses_fwd in *)
-    (* let modeln = { model with entries = PMap.empty; canentries = PSet.empty; } in *)
-      (* debug_enforce_eq Pp.(fun () ->
-        str"enforcing " ++ pr_raw_index_point modeln can.canon ++ str" = " ++
-        pr_incr (pr_raw_index_point model) (other.canon, diff));
-      debug_enforce_eq Pp.(fun () -> str"Backward clauses for " ++
-      pr_can model can ++ str": " ++ spc () ++
-      pr_clauses_of modeln can.canon can.clauses_bwd);
-      debug_enforce_eq Pp.(fun () -> str"Backward clauses for " ++
-      pr_can model0 other ++ str": " ++ spc () ++
-      pr_clauses_of modeln other.canon other.clauses_bwd);
-      debug_enforce_eq Pp.(fun () -> str"Previous forward clauses for " ++
-        pr_can model can ++ str": " ++ spc () ++
-        pr_fwd_clause modeln can.canon can.clauses_fwd);
-      debug_enforce_eq Pp.(fun () -> str"Other forward clauses for " ++
-        pr_can model0 other ++ str": " ++ spc () ++
-        pr_fwd_clause modeln can.canon other.clauses_fwd); *)
     let cank = (can.canon, diff) in
     let model, bwd, fwd =
       let newbwd = ClausesOf.union (subst_bwd_clauses other.canon cank can.clauses_bwd) 
@@ -2018,13 +1981,6 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
       let model = subst_bwd_of_fwd_and_duplicates other.canon cank newfwd model in
       model, newbwd, newfwd
     in
-    (* debug_enforce_eq Pp.(fun () -> str"New backward clauses for " ++
-    pr_can model can ++ str": " ++ spc () ++
-    pr_clauses_of modeln can.canon bwd);
-    debug_enforce_eq Pp.(fun () -> str"Add forward clauses for " ++
-    pr_can model can ++ str": " ++ spc () ++
-    pr_fwd_clause modeln can.canon fwd); *)
-
     let can = { can with clauses_bwd = bwd; clauses_fwd = fwd } in
     can, change_node model can
   in
@@ -2038,7 +1994,6 @@ let _pr_can_constraints m can =
   let open Pp in
   pr_clauses_of m can.canon can.clauses_bwd ++ spc () ++
   str"Forward clauses: " ++ pr_fwd_clause m can.canon can.clauses_fwd
-
 
 let refresh_can_expr_can m (can, k) =
   match canonical_repr m (can.canon, k) with
@@ -2117,65 +2072,8 @@ module Status = struct
   let add c s m = M.add c s m
   let remove c m = M.remove c m
 
-  (* let intersection (x : t) (y : t) : t =
-    let filter can (merge, k) =
-      match find y can with
-      | exception Not_found -> Some (false, k)
-      | (merge', _k') -> Some (merge && merge', k)
-    in
-    Internal.filter_map_inplace filter x;
-    x
-  let merge (x : t) (y : t) : t =
-    Internal.iter (fun can (merge, k) ->
-      if merge then
-        match find x can with
-        | exception Not_found ->
-          Internal.add x can (merge, k)
-        | (merge', _) ->
-          if not merge' then
-            Internal.add x can (merge, k))
-      y;
-    x *)
 end
 
-(*
-module Status = struct
-  module Merged = Map.Make(CN)
-  module NonMerged = Set.Make(CN)
-
-  type merge_info = int Merged.t
-  type merged = merge_info Merged.t
-  type t = {
-    merged : merged;
-    (* can -> (k, m) records (can, k) as being merged, as well as all expressions in m *)
-    nonmerged : NonMerged.t
-  }
-
-
-  let inter_merged m m' =
-    let merge _ mi mi' =
-      match mi, mi' with
-      | Some _, Some _ -> mi
-      | _, _ -> None
-    in
-    Merged.merge merge m m'
-
-
-  (** we could experiment with creation size based on the size of [g] *)
-  let create (_m:model) =
-    { merged = Merged.empty; nonmerged = NonMerged.empty }
-
-  let find s c =
-    try Merged.find c s.merged
-    with Not_found ->
-      if NonMerged.mem c s.nonmerged then Merged.empty
-      else raise Not_found
-  let replace s can merge =
-    if not (Merged.is_empty merge) then
-      { merged = Merged.add can merge s.merged; nonmerged = NonMerged.remove can s.nonmerged }
-    else { s with nonmerged = NonMerged.add can s.nonmerged }
-
-end*)
 
 (** [shrink_premises prems] Simplifies the clause [prems -> concl + conclk]
   by removing redundant hypotheses [l + k] when [l + k'] with [k' > k] is also present in [prems],
@@ -2500,12 +2398,7 @@ let simplify_clauses_between model (canu, _ as u) prems : t * equivalences =
   else
     let status = Status.empty in
     let () = debug_enforce_eq Pp.(fun () -> str"simplify_clauses_between calling find_to_merge") in
-    let equiv =
-      (* if CDebug.get_flag debug_switch_find_to_merge then *)
-        (* find_to_merge_fwd model status u v *)
-      (* else  *)
-        find_to_merge_bwd model status prems u
-    in
+    let equiv = find_to_merge_bwd model status prems u in
     let make_equiv (model, equivs) path =
       let m, equivs' = make_equiv model path in
       m, equivs' @ equivs
@@ -2816,21 +2709,22 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 
 exception AlreadyDeclared
 
-let add_model u { locality; entries; subst; table; values; canonical; canentries } =
-  if Index.mem u table then
-   (debug_global Pp.(fun () -> str"Already declared level: " ++ debug_pr_level u);
-    raise AlreadyDeclared)
-  else
-    let idx, table = Index.fresh u table in
-    let can = { canon = idx; value = 0; local = locality;
-      clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty } in
-    let entries = PMap.add idx can entries in
-    idx, { locality; entries; subst; table; values; canonical = canonical + 1; canentries = PSet.add idx canentries }
+let add_model ?(rigid=false) u { locality; entries; subst; table; values; canonical } =
+  let idx, table =
+    if Index.mem u table then
+      let idx = Index.find u table in
+      if PMap.mem idx entries || PMap.mem idx subst then raise AlreadyDeclared
+      else (* Allow reuse *) idx, table
+    else Index.fresh u table
+  in
+  let can = { canon = idx; value = 0; local = locality; rigid;
+    clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty } in
+  let entries = PMap.add idx can entries in
+  idx, { locality; entries; subst; table; values; canonical = canonical + 1; }
 
-let add ?(rank:int option) u model =
-  let _r = rank in
+let add ?rigid u model =
   debug_global Pp.(fun () -> str"Declaring level " ++ debug_pr_level u ++ pr_local model.locality);
-  let _idx, model = add_model u model in
+  let _idx, model = add_model ?rigid u model in
   model
 
 let check_declared model us =
@@ -2838,6 +2732,8 @@ let check_declared model us =
   let undeclared = Level.Set.filter check us in
   if Level.Set.is_empty undeclared then Ok ()
   else Error undeclared
+
+let is_declared model l = Index.mem l model.table
 
 type extended_constraint_type =
   | ULe | ULt | UEq
@@ -3255,6 +3151,7 @@ let constraints_of model ?(only_local = false) fold acc =
   let equivs_of u (v, local, local_eq) equiv =
     if only_local && local_eq == Global then equiv else
     let u = Index.repr u model.table in
+    let v = canonical_premises model v in
     let v = univ_of_premises model v in
     Level.Map.add u (local, v) equiv
   in
@@ -3382,8 +3279,9 @@ let remove_from_bwd idxs bwd =
   let f (_kconcl, _local, prems) = not (occurs_in_premises idxs prems) in
   ClausesOf.filter f bwd
 
-(** [remove_from_model model idxs] Removes all clauses mentionning [idxs] and the canonical nodes for [idxs] from the model. 
-  It can still appear in the substitution. *)
+(** [remove_from_model model idxs] Removes all clauses mentionning [idxs] and 
+  the canonical nodes for [idxs] from the model. The substitution is also filtered to not mention [idxs].
+  The levels are still registered in the [Index] table, for possible reuse (see [add_model]) *)
 let remove_from_model idxs model =
   let f idx' can =
     if PSet.mem idx' idxs then None 
@@ -3392,7 +3290,14 @@ let remove_from_model idxs model =
       let clauses_bwd = remove_from_bwd idxs can.clauses_bwd in
       Some { can with clauses_fwd; clauses_bwd }
   in
-  { model with entries = PMap.filter_map f model.entries }
+  let feq idx (u, _local, _local_eq as eq) =
+    if PSet.mem idx idxs then None
+    else if occurs_in_premises idxs u then None
+    else Some eq
+  in
+  let entries = PMap.filter_map f model.entries in
+  let subst = PMap.filter_map feq model.subst in
+  { model with entries; subst; canonical = PMap.cardinal entries }
 
 let remove removed model =
   debug_constraints_for Pp.(fun () -> str"remove: " ++ Level.Set.pr debug_pr_level removed ++ pr_clauses model);
@@ -3500,7 +3405,8 @@ let repr ~local model =
             (k, u) :: l
           else l) prems []
         in
-        Level.Map.add conclp (Node cls) acc)
+      if local && can.local == Global && CList.is_empty cls then acc
+      else Level.Map.add conclp (Node cls) acc)
     model.entries Level.Map.empty
   in
   PMap.fold (fun idx (v, _, locality_eq) acc ->

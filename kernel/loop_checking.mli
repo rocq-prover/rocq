@@ -22,19 +22,23 @@ val set_local : t -> t
 
 val empty : t
 
-val clear_constraints : t -> t
-
 val check_invariants : required_canonical:(Level.t -> bool) -> t -> unit
 
 exception AlreadyDeclared
-val add : ?rank:int -> Level.t -> t -> t
+val add : ?rigid:bool -> Level.t -> t -> t
 (** All points must be pre-declared through this function before
-    they can be mentioned in the others. NB: use a large [rank] to
-    keep the node canonical *)
+    they can be mentioned in the others. NB: use [rigid] to
+    prefer to keep the node canonical if it is made equal to another *)
 
 exception Undeclared of Level.t
+(** This exception can be raised by any of the functions below taking a Level.t/Universe.t input
+  that contains an undeclared level. *)
+
+val is_declared : t -> Level.t -> bool
+(** Check if a level was previously delared in the graph *)
+
 val check_declared : t -> Level.Set.t -> (unit, Univ.Level.Set.t) result
-(** @raise Undeclared if one of the points is not present in the graph. *)
+(** Check if a set of levels are declared and return the undeclared ones on error. *)
 
 type 'a check_function = t -> 'a -> 'a -> bool
 
@@ -52,6 +56,8 @@ val enforce_constraint : univ_constraint -> t -> (t * level_equivalences) option
   This uses the internally maintained substitution from levels to universes.
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
 val normalize : t -> Level.t -> Universe.t option
+
+val normalize_subst : t -> t
 
 exception InconsistentEquality
 exception OccurCheck

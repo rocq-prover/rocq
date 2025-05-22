@@ -560,6 +560,8 @@ val universe_rigidity : evar_map -> Univ.Level.t -> rigid
 
 val is_flexible_level : evar_map -> Univ.Level.t -> bool
 
+val is_declared_level : evar_map -> Univ.Level.t -> bool
+
 val normalize_universe_instance : evar_map -> UVars.Instance.t -> UVars.Instance.t
 
 val set_leq_sort : evar_map -> esorts -> esorts -> evar_map

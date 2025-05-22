@@ -457,7 +457,7 @@ let universe_subgraph kept univ =
   let csts = UGraph.constraints_for ~kept univ in
   let add u newgraph =
     let strict = UGraph.check_constraint univ (Universe.type1,Le,Universe.make u) in
-    UGraph.add_universe u ~strict newgraph
+    UGraph.add_universe u ~strict ~rigid:true newgraph
   in
   let univ = Level.Set.fold add kept UGraph.initial_universes in
   fst (UGraph.merge_constraints csts univ)

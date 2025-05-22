@@ -1125,6 +1125,10 @@ let is_flexible_level evd l =
   let uctx = evd.universes in
   UState.is_flexible l uctx
 
+let is_declared_level evd l =
+  let uctx = evd.universes in
+  UState.is_declared uctx l
+
 let is_eq_sort s1 s2 =
   if Sorts.equal s1 s2 then None
   else Some (s1, s2)
