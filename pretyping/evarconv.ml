@@ -674,20 +674,17 @@ module Cs_keys_cache = struct
 end
 
 let rec evar_conv_x flags env evd pbty term1 term2 =
-  let t = Random.int 1073741823 in
-  let () = debug_unification (fun () -> Pp.(v 0 (str "evar_conv_x: " ++ int t ++ cut () ++ Termops.Internal.print_constr_env env evd term1 ++ cut () ++ Termops.Internal.print_constr_env env evd term2 ++ cut ()))) in
   let term1 = whd_head_evar evd term1 in
   let term2 = whd_head_evar evd term2 in
-  let () = debug_unification (fun () -> Pp.(v 0 (str "evar_conv_x after whd_head_evar " ++ int t ++ cut () ++ Termops.Internal.print_constr_env env evd term1 ++ cut () ++ Termops.Internal.print_constr_env env evd term2 ++ cut ()))) in
   (* Maybe convertible but since reducing can erase evars which [evar_apprec]
      could have found, we do it only if the terms are free of evar.
      Note: incomplete heuristic... *)
-  try let ground_test =
+  let ground_test =
     if is_ground_term evd term1 && is_ground_term evd term2 then
       infer_conv_noticing_evars ~pb:pbty ~ts:flags.closed_ts env evd term1 term2
     else None
   in
-  let r = match ground_test with
+  match ground_test with
     | Some result -> result
     | None ->
       (* Until pattern-unification is used consistently, use nohdbeta to not
@@ -719,9 +716,6 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                    NotClean: pruning in solve_simple_eqn is incomplete wrt
                      Miller patterns *)
                 default ()
-              | UnifFailure (_, CannotSolveConstraint _) as x ->
-                let () = debug_unification (fun () -> Pp.(v 0 (str "cannot solve constraint" ++ cut ()))) in
-                x
               | x -> x)
           | _, Evar ev when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
             (match solve_simple_eqn (conv_fun evar_conv_x) flags env evd
@@ -732,18 +726,9 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                    NotClean: pruning in solve_simple_eqn is incomplete wrt
                      Miller patterns *)
                 default ()
-              | UnifFailure (_, CannotSolveConstraint _) as x ->
-                let () = debug_unification (fun () -> Pp.(v 0 (str "cannot solve constraint" ++ cut ()))) in
-                x
               | x -> x)
           | _ -> default ()
         end
-  in
-  let () = debug_unification (fun () -> Pp.(v 0 (str "end evar_conv_x " ++ int t ++ str " with " ++ str (match r with Success _ -> "success" | _ -> "failure") ++ cut ()))) in
-  r
-  with e ->
-    let () = debug_unification (fun () -> Pp.(v 0 (str "end evar_conv_x exploded " ++ int t ++ cut ()))) in
-    UnifFailure (evd, NotSameHead)
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     keys (* canonical structure keys cache *)
@@ -766,12 +751,10 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     let not_only_app = Stack.not_purely_applicative skO in
     match switch (ise_stack2 not_only_app env evd (evar_conv_x flags)) skF skO with
     | Some (l,r), Success i' when l2r && (not_only_app || List.is_empty l) ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "l2r consume stack got " ++ pr_state env evd (termO, r) ++ cut ()))) in
         (* E[?n]=E'[redex] reduces to either l[?n]=r[redex] with
            case/fix/proj in E' (why?) or ?n=r[redex] *)
         switch (evar_conv_x flags env i' pbty) (Stack.zip evd (termF,l)) (Stack.zip evd (termO,r))
     | Some (r,l), Success i' when not l2r && (not_only_app || List.is_empty l) ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "r2l consume stack got " ++ pr_state env evd (termO, r) ++ cut ()))) in
         (* E'[redex]=E[?n] reduces to either r[redex]=l[?n] with
            case/fix/proj in E' (why?) or r[redex]=?n *)
         switch (evar_conv_x flags env i' pbty) (Stack.zip evd (termF,l)) (Stack.zip evd (termO,r))
@@ -814,7 +797,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         let tM = Stack.zip evd apprM in
           miller_pfenning l2r
             (fun () -> if not_only_app then (* Postpone the use of an heuristic *)
-              let () = debug_unification (fun () -> Pp.(v 0 (str "postpone in miller" ++ cut ()))) in
               switch (fun x y -> Success (Evarutil.add_unification_pb (pbty,env,x,y) i)) (Stack.zip evd apprF) tM
             else quick_fail i)
             ev lF tM i
@@ -827,9 +809,8 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        2b. if E'=E'1[E'2] and E=E1[E2] and E=E'1 unifiable and E' contient app/fix/proj,
            recursively solve E2[?n[inst]] = E'2[redex]
        3.  reduce the redex into M and recursively solve E[?n[inst]] =? E'[M] *)
-    let () = debug_unification (fun () -> Pp.(v 0 (str "flex_maybeflex " ++ pr_state env evd apprF ++ cut () ++ pr_state env evd apprM ++ cut ()))) in
     let switch f a b = if l2r then f a b else f b a in
-  let delta i =
+    let delta i =
       let vskM = Option.get (eval_flexible_term flags.open_ts env evd (fst vskM) (snd vskM)) in
       let apprM' = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vskM in
       (* We cheat here. Unfolding here means that we should not go back to the heads
@@ -885,7 +866,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        3b. if M a constructor C ..ui..: eta-expand and recursively solve proji[E[?n[inst]]]=ui
        4.  fail if E purely applicative and ?n occurs rigidly in E'[M]
        5.  absorb arguments if purely applicative and postpone *)
-    let () = debug_unification (fun () -> Pp.(v 0 (str "flex_rigid " ++ pr_state env evd apprF ++ cut () ++ pr_state env evd apprR ++ cut ()))) in
     let switch f a b = if l2r then f a b else f b a in
     let eta evd =
       match EConstr.kind evd termR with
@@ -912,7 +892,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                          i,mkEvar ev
                        else
                          i,Stack.zip evd apprF in
-                    let () = debug_unification (fun () -> Pp.(v 0 (str "postpone" ++ cut ()))) in
                      switch (fun x y -> Success (Evarutil.add_unification_pb (pbty,env,x,y) i))
                        tF tR
                    else
@@ -1026,7 +1005,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
   match (flex_kind_of_term flags env evd term1 sk1,
          flex_kind_of_term flags env evd term2 sk2) with
     | Flexible (sp1,al1), Flexible (sp2,al2) ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "flex flex" ++ cut ()))) in
         begin match ((if lastUnfolded = Some true then let (t, sk) = fst hds in flex_kind_of_term flags env evd t sk else Flexible (sp1, al1)),
           if lastUnfolded = Some false then let (t, sk) = snd hds in flex_kind_of_term flags env evd t sk else Flexible (sp2, al2)) with
         | Flexible ev1, MaybeFlexible v2 -> flex_maybeflex true ev1 appr1 (snd hds) (snd hds)
@@ -1075,11 +1053,9 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         end
 
     | Flexible ev1, MaybeFlexible v2 ->
-      let () = debug_unification (fun () -> Pp.(v 0 (str "flex maybeflex" ++ cut ()))) in
       flex_maybeflex true ev1 appr1 appr2 (snd hds)
 
     | MaybeFlexible vsk1, Flexible ev2 ->
-      let () = debug_unification (fun () -> Pp.(v 0 (str "maybeflex flex" ++ cut ()))) in
       flex_maybeflex false ev2 appr2 appr1 (fst hds)
 
     | MaybeFlexible (v1', sk1' as vsk1'), MaybeFlexible (v2', sk2' as vsk2') -> begin
@@ -1225,7 +1201,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
            (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
 
     | Flexible ev1, Rigid ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "flex rigid" ++ cut ()))) in
         let (t2, sk2) as appr2 = snd hds in
         begin match flex_kind_of_term flags env evd t2 sk2 with
         | Flexible ev2 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
@@ -1233,7 +1208,6 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | Rigid -> flex_rigid true ev1 appr1 appr2
         end
     | Rigid, Flexible ev2 ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "rigid flex" ++ cut ()))) in
         let (t1, sk1) as appr1 = fst hds in
         begin match flex_kind_of_term flags env evd t1 sk1 with
         | Flexible ev1 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
@@ -1467,17 +1441,11 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
   let open Declarations in
   let mib = lookup_mind (fst ind) env in
     match get_projections env ind with
-    | Some projs ->
-      if mib.mind_finite <> BiFinite then
-        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor not BiFinite" ++ cut ()))) in
-        UnifFailure (evd, NotSameHead) else
+    | Some projs when mib.mind_finite == BiFinite ->
       let pars = mib.mind_nparams in
       begin match Stack.list_of_app_stack sk1 with
-      | None ->
-          let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor stack not applicative" ++ cut ()))) in
-          UnifFailure (evd,NotSameHead)
+      | None -> UnifFailure (evd,NotSameHead)
       | Some l1 ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor" ++ cut ()))) in
         (try
           let t2 = Stack.zip evd (term2, sk2) in
           let l1' = List.skipn pars l1 in
@@ -1494,9 +1462,7 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
            (* List.skipn: partially applied constructor *)
            UnifFailure(evd,NotSameHead))
       end
-    | _ ->
-        let () = debug_unification (fun () -> Pp.(v 0 (str "eta_constructor could not get projections" ++ cut ()))) in
-        UnifFailure (evd,NotSameHead)
+    | _ -> UnifFailure (evd,NotSameHead)
 
 let evar_conv_x flags = evar_conv_x flags
 
@@ -1718,7 +1684,6 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
   if not (noccur_evar env_rhs evd evk rhs) then raise (TypingFailed evd);
   (* Ensure that any progress made by Typing.e_solve_evars will not contradict
       the solution we are trying to build here by adding the problem as a constraint. *)
-  let () = debug_unification (fun () -> Pp.(v 0 (str "postpone in 2nd order matching" ++ cut ()))) in
   let evd = Evarutil.add_unification_pb (CONV,env_rhs,mkLEvar evd (evk, args),rhs) evd in
   let prc env evd c = Termops.Internal.print_constr_env env evd c in
   let rec make_subst i = function
@@ -2093,7 +2058,6 @@ exception UnableToUnify of evar_map * unification_error
 
 let evar_conv_x flags env evd pb x1 x2 : unification_result =
   NewProfile.profile "unification" (fun () ->
-      let () = debug_unification (fun () -> Pp.(v 0 (str "toplevel evar_conv_x: " ++ cut ()))) in
       evar_conv_x flags env evd pb x1 x2)
     ()
 
