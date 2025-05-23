@@ -266,6 +266,8 @@ end = struct
   let get_position v = v.position
   let set_position p v = if v.position == p then v else {v with position=p}
 
+  let pr prl (status : status) = pr_variances prl status.univs
+
   let get_variance_at_position variances u =
     let open VariancePair in 
     let get_variances v = Option.default irrelevant_pair v in
@@ -322,7 +324,7 @@ end = struct
         in Some occs'
     in {variances with univs = Level.Map.update u upd variances.univs}
 
-  let infer_level_cmp ~typing_variance:tq q variance u variances =    
+  let infer_level_cmp ~typing_variance:tq q variance u variances =
     let open VariancePair in
     match get_variance_at_position variances u with
     | None -> variances
@@ -390,8 +392,6 @@ let variance_occurrence_to_variance_pos VarianceOccurrence.{ in_binders; in_topf
     Option.cata (fun occ -> variance_of_occ u expected occ) (Irrelevant,Position.InTerm) o
 
   let inferred (variances : status) = variances.univs
-
-  let pr prl (status : status) = pr_variances prl status.univs
 
   let finish env (variances : status) =
     try
@@ -667,11 +667,10 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
 and infer_case cv_pb variance infos variances ci u p br e =
   let ind = ci.ci_ind in
   let variances = 
-    debug Pp.(fun () -> str"infer_case instance: = " ++ Instance.pr Sorts.QVar.raw_pr (Universe.pr Level.raw_pr) u);
-    match inductive_variances (CClosure.info_env (fst infos)) ind (CClosure.usubst_instance e u) with
+    let u = CClosure.usubst_instance e u in
+    match inductive_variances (CClosure.info_env (fst infos)) ind u with
     | None -> infer_generic_instance_eq variances u
     | Some (mind_variances, u) -> 
-      debug Pp.(fun () -> str"infer_case instance: = " ++ Instance.pr Sorts.QVar.raw_pr (Universe.pr Level.raw_pr) u);
       infer_cumulative_instance (Names.GlobRef.IndRef ind) cv_pb (IsType, snd variance) FullyApplied mind_variances variances u
   in  
   let open CClosure in
