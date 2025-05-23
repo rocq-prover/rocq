@@ -402,7 +402,7 @@ end = struct (* {{{ *)
 
        In case you are hitting the race enable stm_debug.
     *)
-    if !stm_debug then Flags.in_synterp_phase := false;
+    Flags.in_synterp_phase := Some false;
 
     let fname =
       "stm_" ^ Str.global_replace (Str.regexp " ") "_" (Spawned.process_id ()) in

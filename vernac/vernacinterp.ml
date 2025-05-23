@@ -37,7 +37,7 @@ let interp_control_gen ~loc ~st ~unfreeze_transient control f =
       ~with_local_state:(with_interp_state ~unfreeze_transient st)
       control
       ~noop
-      f
+      (Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some false) f)
   in
   if VernacControl.after_last_phase ~loc control
   then noop
