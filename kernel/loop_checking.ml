@@ -2296,6 +2296,7 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
   (* time4 (Pp.str "find_to_merge_bwd") find_to_merge_bwd *)
 
 (** [get_explanation model prems concl] computes the path [concl -> prems] backward from prems, that make [prems -> concl] inconsistent
+
     @requires prems -> concl is inconsistent
 *)
 let get_explanation model prems (canv, kv) =
@@ -2800,7 +2801,9 @@ let can_clause_of_clause_eqs m (prems, concl) =
 let get_explanation ((l, k, r) : univ_constraint) model : explanation =
   let get_explanation cl =
     let (eqprems, eqconcl), (prems, concl) = can_clause_of_clause_eqs model cl in
-    debug_find_to_merge Pp.(fun () -> str "get_explanation for " ++ pr_can_clause model (prems, concl));
+    debug_find_to_merge Pp.(fun () -> str "get_explanation for " ++ pr_can_clause model (prems, concl) ++ 
+      pr_opt (fun e -> Universe.pr Level.raw_pr @@ Universe.of_expr e) eqconcl ++
+      str " eqprems: " ++ pr_opt (fun e -> Universe.pr Level.raw_pr @@ Universe.of_list (NeList.to_list e)) eqprems);
     let expl = get_explanation model prems concl in
     match expl with
     | [] -> None
@@ -2818,8 +2821,8 @@ let get_explanation ((l, k, r) : univ_constraint) model : explanation =
         Some (prem, premeqs @ concleqs)
       | (r, rs) ->
         let eqconcl = match eqconcl with
-          | Some e -> [(UEq, Universe.of_expr e)]
-          | None -> []
+          | Some e -> [ULe, Universe.of_expr (expr_of_can_premise model concl); (UEq, Universe.of_expr e)]
+          | None -> [ULe, Universe.of_expr (expr_of_can_premise model concl)]
         in
         let rs = rs @ eqconcl in
         let expl =
