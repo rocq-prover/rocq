@@ -53,7 +53,7 @@ let in_ml_toplevel = ref false
 
 let raw_print = ref false
 
-let in_synterp_phase = ref false
+let in_synterp_phase = ref None
 
 (* Translate *)
 let beautify = ref false
