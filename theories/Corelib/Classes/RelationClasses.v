@@ -38,7 +38,7 @@ Section Defs.
 
   (** Opaque for proof-search. *)
   Typeclasses Opaque complement.
-  
+
   (** These are convertible. *)
   Lemma complement_inverse R : complement (flip R) = flip (complement R).
   Proof. reflexivity. Qed.
@@ -48,17 +48,17 @@ Section Defs.
 
   Class Symmetric (R : relation A) :=
     symmetry : forall {x y}, R x y -> R y x.
-  
+
   Class Asymmetric (R : relation A) :=
     asymmetry : forall {x y}, R x y -> R y x -> False.
-  
+
   Class Transitive (R : relation A) :=
     transitivity : forall {x y z}, R x y -> R y z -> R x z.
 
   (** Various combinations of reflexivity, symmetry and transitivity. *)
-  
+
   (** A [PreOrder] is both Reflexive and Transitive. *)
-  
+
   Class PreOrder (R : relation A) : Prop := {
     #[global] PreOrder_Reflexive :: Reflexive R | 2 ;
     #[global] PreOrder_Transitive :: Transitive R | 2 }.
@@ -74,7 +74,7 @@ Section Defs.
   Proof. firstorder. Qed.
 
   (** A partial equivalence relation is Symmetric and Transitive. *)
-  
+
   Class PER (R : relation A) : Prop := {
     #[global] PER_Symmetric :: Symmetric R | 3 ;
     #[global] PER_Transitive :: Transitive R | 3 }.
@@ -87,9 +87,9 @@ Section Defs.
     #[global] Equivalence_Transitive :: Transitive R }.
 
   (** An Equivalence is a PER plus reflexivity. *)
-  
+
   Global Instance Equivalence_PER {R} `(E:Equivalence R) : PER R | 10 :=
-    { }. 
+    { }.
 
   (** An Equivalence is a PreOrder plus symmetry. *)
 
@@ -97,32 +97,32 @@ Section Defs.
     { }.
 
   (** We can now define antisymmetry w.r.t. an equivalence relation on the carrier. *)
-  
+
   Class Antisymmetric eqA `{equ : Equivalence eqA} (R : relation A) :=
     antisymmetry : forall {x y}, R x y -> R y x -> eqA x y.
 
   Class subrelation (R R' : relation A) : Prop :=
     is_subrelation : forall {x y}, R x y -> R' x y.
-  
+
   (** Any symmetric relation is equal to its inverse. *)
-  
+
   Lemma subrelation_symmetric R `(Symmetric R) : subrelation (flip R) R.
   Proof. hnf. intros x y H0. red in H0. apply symmetry. assumption. Qed.
 
   Section flip.
-  
+
     Lemma flip_Reflexive `{Reflexive R} : Reflexive (flip R).
     Proof. tauto. Qed.
-    
+
     Program Definition flip_Irreflexive `(Irreflexive R) : Irreflexive (flip R) :=
       irreflexivity (R:=R).
-    
+
     Program Definition flip_Symmetric `(Symmetric R) : Symmetric (flip R) :=
       fun x y H => symmetry (R:=R) H.
-    
+
     Program Definition flip_Asymmetric `(Asymmetric R) : Asymmetric (flip R) :=
       fun x y H H' => asymmetry (R:=R) H H'.
-    
+
     Program Definition flip_Transitive `(Transitive R) : Transitive (flip R) :=
       fun x y z H H' => transitivity (R:=R) H' H.
 
@@ -174,14 +174,14 @@ Section Defs.
     Global Instance eq_Reflexive : Reflexive (@eq A) := @eq_refl A.
     Global Instance eq_Symmetric : Symmetric (@eq A) := @eq_sym A.
     Global Instance eq_Transitive : Transitive (@eq A) := @eq_trans A.
-    
+
     (** Leibinz equality [eq] is an equivalence relation.
         The instance has low priority as it is always applicable
         if only the type is constrained. *)
-    
+
     Global Program Instance eq_equivalence : Equivalence (@eq A) | 10.
   End Leibniz.
-  
+
   (** Leibniz disequality. *)
   Section LeibnizNot.
     (** Disequality is symmetric. *)
@@ -238,7 +238,7 @@ Hint Extern 3 (StrictOrder (flip _)) => class_apply flip_StrictOrder : typeclass
 Hint Extern 3 (PreOrder (flip _)) => class_apply flip_PreOrder : typeclass_instances.
 
 #[global]
-Hint Extern 4 (subrelation (flip _) _) => 
+Hint Extern 4 (subrelation (flip _) _) =>
   class_apply @subrelation_symmetric : typeclass_instances.
 
 Arguments irreflexivity {A R Irreflexive} [x] _ : rename.
@@ -472,19 +472,19 @@ Section Binary.
     @predicate_equivalence (_::_::Tnil).
 
   Global Instance relation_equivalence_rewrite_relation: RewriteRelation relation_equivalence := {}.
-  
+
   Definition relation_conjunction (R : relation A) (R' : relation A) : relation A :=
     @predicate_intersection (A::A::Tnil) R R'.
 
   Definition relation_disjunction (R : relation A) (R' : relation A) : relation A :=
     @predicate_union (A::A::Tnil) R R'.
-  
+
   (** Relation equivalence is an equivalence, and subrelation defines a partial order. *)
 
   Global Instance relation_equivalence_equivalence :
     Equivalence relation_equivalence.
   Proof. exact (@predicate_equivalence_equivalence (A::A::Tnil)). Qed.
-  
+
   Global Instance relation_implication_preorder : PreOrder (@subrelation A).
   Proof. exact (@predicate_implication_preorder (A::A::Tnil)). Qed.
 
@@ -495,7 +495,7 @@ Section Binary.
 
   Class PartialOrder eqA `{equ : Equivalence A eqA} R `{preo : PreOrder A R} :=
     partial_order_equivalence : relation_equivalence eqA (relation_conjunction R (flip R)).
-  
+
   (** The equivalence proof is sufficient for proving that [R] must be a
    morphism for equivalence (see Morphisms).  It is also sufficient to
    show that [R] is antisymmetric w.r.t. [eqA] *)
