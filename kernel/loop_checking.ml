@@ -2777,7 +2777,7 @@ let canonical_repr_level_expr_eq m (u, k) =
     else NeList.Tip (None, e)
   | e -> NeList.map (fun x -> (None, x)) e
 
-let can_clause_of_clause_eqs m (prems, concl) =
+let _can_clause_of_clause_eqs m (prems, concl) =
   let prems = NeList.of_list prems in
   let prems = NeList.concat_map (fun prem -> canonical_repr_level_expr_eq m prem) prems in
   let premeqs =
@@ -2799,43 +2799,31 @@ let can_clause_of_clause_eqs m (prems, concl) =
   (premeqs, concleq), (prems, concl)
 
 let get_explanation ((l, k, r) : univ_constraint) model : explanation =
-  let get_explanation cl =
-    let (eqprems, eqconcl), (prems, concl) = can_clause_of_clause_eqs model cl in
-    debug_find_to_merge Pp.(fun () -> str "get_explanation for " ++ pr_can_clause model (prems, concl) ++ 
-      pr_opt (fun e -> Universe.pr Level.raw_pr @@ Universe.of_expr e) eqconcl ++
-      str " eqprems: " ++ pr_opt (fun e -> Universe.pr Level.raw_pr @@ Universe.of_list (NeList.to_list e)) eqprems);
-    let expl = get_explanation model prems concl in
+  let get_explanation (prems, concl) =
+    let head = Universe.super prems in
+    let conclcan = canonical_repr_level_expr model concl in
+    let eqconcl = 
+      let canu = univ_of_can_premises model conclcan in  
+      if Universe.equal canu (Universe.of_expr concl) then None
+      else Some canu
+    in
+    let canprems = repr_premises model (premises_of_universe model head) in
+    let expl = NeList.fold (fun concl acc -> 
+      debug_find_to_merge Pp.(fun () -> str "get_explanation for " ++ pr_can_clause model (canprems, concl));
+      match get_explanation model canprems concl with
+        | [] -> acc
+        | l -> List.find_opt (fun p -> List.exists (fun (can, _) -> can == fst concl) p) l) conclcan None in
     match expl with
-    | [] -> None
-    | p :: _ps ->
-      match (univs_of_can_premises model (normalize_path (List.rev p))) with
-      | (preme, []) -> (* Self loop *)
-        let concleqs = match eqconcl with
-          | Some e -> [ULe, Universe.of_expr (expr_of_can_premise model concl); UEq, Universe.of_expr e]
-          | None -> [ULe, Universe.of_expr (expr_of_can_premise model concl)]
-        in
-        let prem, premeqs = match eqprems with
-          | Some e -> (Universe.of_list (NeList.to_list e), [ULe, preme])
-          | None -> (preme, [])
-        in
-        Some (prem, premeqs @ concleqs)
-      | (r, rs) ->
-        let eqconcl = match eqconcl with
-          | Some e -> [ULe, Universe.of_expr (expr_of_can_premise model concl); (UEq, Universe.of_expr e)]
-          | None -> [ULe, Universe.of_expr (expr_of_can_premise model concl)]
-        in
-        let rs = rs @ eqconcl in
-        let expl =
-          match eqprems with
-          | Some l -> (Universe.of_list (NeList.to_list l), (UEq, r) :: rs)
-          | None -> (r, rs)
-        in
-        Some expl
+    | None -> None
+    | Some p ->
+      let (hd, path) = univs_of_can_premises model (normalize_path (List.rev p)) in
+      let path = match eqconcl with None -> path | Some e -> path @ [UEq, e] in
+      Some (prems, (ULt, hd) :: path)
   in
   let get_explanation_le u v =
     let res = List.fold_left (fun acc l ->
       match acc with
-      | None -> get_explanation (Universe.repr v, l)
+      | None -> get_explanation (v, l)
       | Some _ -> acc) None (Universe.repr u)
     in
     match res with
