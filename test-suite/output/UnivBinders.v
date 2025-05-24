@@ -249,3 +249,21 @@ End Collision.
 Module Schemes.
   Check eq_rect.
 End Schemes.
+
+Module SortPoly.
+
+  Set Warnings "deprecated-sort-poly-syntax".
+
+  Definition idu@{u} (A:Type@{u}) (a:A) := a.
+
+  Definition id@{s|u|} (A:Type@{s|u}) (a:A) := a.
+
+  Definition id2@{s;u} (A:Type@{s;u}) (a:A) := a.
+
+  Definition id3@{s ; u | Set < u} (A:Type@{s;u}) (a:A) := a.
+
+  Check id@{Prop|Set}.
+  Check id@{SProp;Set}.
+  Print id3.
+
+End SortPoly.

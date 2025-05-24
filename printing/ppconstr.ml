@@ -220,7 +220,7 @@ let pr_quality_expr q = match q with
 
 let pr_quality_univ (q, l) = match q with
   | None -> pr_univ l
-  | Some q ->  pr_qvar_expr q ++ spc() ++ str "|" ++ spc () ++ pr_univ l
+  | Some q ->  pr_qvar_expr q ++ spc() ++ str ";" ++ spc () ++ pr_univ l
 
 let pr_univ_annot pr x = str "@{" ++ pr x ++ str "}"
 
@@ -248,7 +248,7 @@ let pr_patvar = pr_id
 
 let pr_inside_universe_instance (ql,ul) =
   (if List.is_empty ql then mt()
-   else prlist_with_sep spc pr_quality_expr ql ++ strbrk " | ")
+   else prlist_with_sep spc pr_quality_expr ql ++ strbrk " ; ")
   ++ prlist_with_sep spc pr_univ_level_expr ul
 
 let pr_universe_instance l =

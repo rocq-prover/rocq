@@ -288,10 +288,7 @@ let pr_universe_instance_binder evd inst csts =
   let open Univ in
   let prqvar = Termops.pr_evd_qvar evd in
   let prlev = Termops.pr_evd_level evd in
-  let pcsts = if Constraints.is_empty csts then begin
-      if fst (UVars.Instance.length inst) = 0 then mt()
-      else str " |"
-    end
+  let pcsts = if Constraints.is_empty csts then mt()
     else strbrk " | " ++
          prlist_with_sep pr_comma
            (fun (u,d,v) -> hov 0 (prlev u ++ pr_constraint_type d ++ prlev v))
