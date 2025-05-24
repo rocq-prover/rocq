@@ -156,6 +156,10 @@ val count : ('a -> bool) -> 'a list -> int
 
 (** {6 Finding position} *)
 
+val find_index_opt : ('a -> bool) -> 'a list -> int option
+(** [find_index_opt] returns the 1st index of an element in a list
+    matching the predicate (counting from 1). *)
+
 val index : 'a eq -> 'a -> 'a list -> int
 (** [index] returns the 1st index of an element in a list (counting from 1). *)
 
