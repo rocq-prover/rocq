@@ -320,16 +320,23 @@ let base_r r = let open GlobRef in match r.glob with
   | ConstructRef ((kn,_),_) -> { glob = IndRef (kn, 0); inst = r.inst }
   | _ -> assert false
 
-let reset_needed, add_needed, add_needed_mp, found_needed, is_needed =
-  let needed = ref Refset'.empty
-  and needed_mps = ref MPset.empty in
-  ((fun () -> needed := Refset'.empty; needed_mps := MPset.empty),
-   (fun r -> needed := Refset'.add (base_r r) !needed),
-   (fun mp -> needed_mps := MPset.add mp !needed_mps),
-   (fun r -> needed := Refset'.remove (base_r r) !needed),
-   (fun r ->
-     let r = base_r r in
-     Refset'.mem r !needed || MPset.mem (modpath_of_r r) !needed_mps))
+type needed = {
+  needed_mp : MPset.t;
+  needed_rf : Refset'.t;
+}
+
+let add_needed nd r =
+  nd := { !nd with needed_rf = Refset'.add (base_r r) !nd.needed_rf }
+
+let add_needed_mp nd mp =
+  nd := { !nd with needed_mp = MPset.add mp !nd.needed_mp }
+
+let found_needed nd r =
+  nd := { !nd with needed_rf = Refset'.remove (base_r r) !nd.needed_rf }
+
+let is_needed nd r =
+  let r = base_r r in
+  Refset'.mem r nd.needed_rf || MPset.mem (modpath_of_r r) nd.needed_mp
 
 let declared_refs = function
   | Dind p -> [p.ind_packets.(0).ip_typename_ref]
@@ -340,7 +347,9 @@ let declared_refs = function
 (* Computes the dependencies of a declaration, except in case
    of custom extraction. *)
 
-let compute_deps_decl = function
+let compute_deps_decl nd decl =
+  let add_needed r = add_needed nd r in
+  match decl with
   | Dind ind ->
       (* Todo Later : avoid dependencies when Extract Inductive *)
       ind_iter_references add_needed add_needed add_needed ind
@@ -353,7 +362,9 @@ let compute_deps_decl = function
   | Dfix _ as d ->
       decl_iter_references add_needed add_needed add_needed d
 
-let compute_deps_spec = function
+let compute_deps_spec nd spc =
+  let add_needed r = add_needed nd r in
+  match spc with
   | Sind ind ->
       (* Todo Later : avoid dependencies when Extract Inductive *)
       ind_iter_references add_needed add_needed add_needed ind
@@ -362,35 +373,40 @@ let compute_deps_spec = function
   | Sval (r,t) ->
       type_iter_references add_needed t
 
-let rec depcheck_se table = function
+let rec depcheck_se table nd = function
   | [] -> []
   | ((l,SEdecl d) as t) :: se ->
-    let se' = depcheck_se table se in
+    let se' = depcheck_se table nd se in
     let refs = declared_refs d in
-    let refs' = List.filter is_needed refs in
+    let refs' = List.filter (fun r -> is_needed !nd r) refs in
     if List.is_empty refs' then
       (List.iter (fun r -> remove_info_axiom table r) refs;
        List.iter (fun r -> remove_opaque table r) refs;
        se')
-    else begin
-      List.iter found_needed refs';
+    else
+      let () = List.iter (fun r -> found_needed nd r) refs' in
       (* Hack to avoid extracting unused part of a Dfix *)
-      match d with
+      begin match d with
         | Dfix (rv,trms,tys) when (List.for_all is_custom refs') ->
           let trms' =  Array.make (Array.length rv) (MLexn "UNUSED") in
           ((l,SEdecl (Dfix (rv,trms',tys))) :: se')
-        | _ -> (compute_deps_decl d; t::se')
-    end
+        | _ ->
+          let () = compute_deps_decl nd d in
+          t :: se'
+      end
   | t :: se ->
-    let se' = depcheck_se table se in
-    se_iter compute_deps_decl compute_deps_spec add_needed_mp t;
+    let se' = depcheck_se table nd se in
+    let iter_decl d = compute_deps_decl nd d in
+    let iter_spec s = compute_deps_spec nd s in
+    let iter_mp mp = add_needed_mp nd mp in
+    let () = se_iter iter_decl iter_spec iter_mp t in
     t :: se'
 
-let rec depcheck_struct table = function
+let rec depcheck_struct table nd = function
   | [] -> []
   | (mp,lse)::struc ->
-      let struc' = depcheck_struct table struc in
-      let lse' = depcheck_se table lse in
+      let struc' = depcheck_struct table nd struc in
+      let lse' = depcheck_se table nd lse in
       if List.is_empty lse' then struc' else (mp,lse')::struc'
 
 exception RemainingImplicit of kill_reason
@@ -413,12 +429,10 @@ let optimize_struct table to_appear struc =
     if Common.State.get_library table then
       List.filter (fun (_,lse) -> not (List.is_empty lse)) opt_struc
     else
-      begin
-        reset_needed ();
-        List.iter add_needed (fst to_appear);
-        List.iter add_needed_mp (snd to_appear);
-        depcheck_struct (Common.State.get_table table) opt_struc
-      end
+      let nd = ref { needed_mp = MPset.empty; needed_rf = Refset'.empty } in
+      let () = List.iter (fun r -> add_needed nd r) (fst to_appear) in
+      let () = List.iter (fun mp -> add_needed_mp nd mp) (snd to_appear) in
+      depcheck_struct (Common.State.get_table table) nd opt_struc
   in
   let () = check_for_remaining_implicits mini_struc in
   mini_struc

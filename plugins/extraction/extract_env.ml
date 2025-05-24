@@ -564,9 +564,7 @@ let print_one_decl table struc mp decl =
 (** For Recursive Extraction, writing directly on stdout
     won't work with rocqide, we use a buffer instead *)
 
-let buf = Buffer.create 1000
-
-let formatter dry file =
+let formatter buf dry file =
   let ft =
     if dry then Format.make_formatter (fun _ _ _ -> ()) (fun _ -> ())
     else
@@ -594,7 +592,7 @@ let get_comment () =
     Some (prlist_with_sep spc str split_comment)
 
 let print_structure_to_file table (fn,si,mo) dry struc =
-  Buffer.clear buf;
+  let buf = Buffer.create 1000 in
   let d = descr () in
   let () = State.reset table in
   let unsafe_needs = {
@@ -611,7 +609,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
   let opened = opened_libraries table in
   (* Print the implementation *)
   let cout = if dry then None else Option.map open_out fn in
-  let ft = formatter dry cout in
+  let ft = formatter buf dry cout in
   let comment = get_comment () in
   begin try
     (* The real printing of the implementation *)
@@ -629,7 +627,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
   Option.iter
     (fun si ->
        let cout = open_out si in
-       let ft = formatter false (Some cout) in
+       let ft = formatter buf false (Some cout) in
        begin try
          let table = State.set_phase table Intf in
          pp_with ft (d.sig_preamble table mo comment opened unsafe_needs);
@@ -645,7 +643,6 @@ let print_structure_to_file table (fn,si,mo) dry struc =
   (* Print the buffer content via Rocq standard formatter (ok with rocqide). *)
   if not (Int.equal (Buffer.length buf) 0) then begin
     Feedback.msg_notice (str (Buffer.contents buf));
-    Buffer.reset buf
   end
 
 
