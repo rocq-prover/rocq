@@ -106,7 +106,7 @@ CI_TARGETS= \
     ci-trakt \
     ci-unimath \
     ci-verdi_raft \
-    ci-vscoq \
+    ci-vsrocq \
     ci-vst \
     ci-waterproof
 

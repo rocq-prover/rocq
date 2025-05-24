@@ -472,9 +472,9 @@ project deriving "https://github.com/arthuraa/deriving" "master"
 # Contact @arthuraa on github
 
 ########################################################################
-# VsCoq
+# VsRocq
 ########################################################################
-project vscoq "https://github.com/coq-community/vscoq" "main"
+project vsrocq "https://github.com/rocq-prover/vsrocq" "main"
 # Contact @rtetley, @gares on github
 
 ########################################################################

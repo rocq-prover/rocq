@@ -1304,7 +1304,7 @@ plugin:ci-coq_lsp:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
-plugin:ci-vscoq:
+plugin:ci-vsrocq:
   extends: .ci-template-flambda
 
 plugin:ci-smtcoq:
