@@ -51,7 +51,7 @@ let empty_glob_sign ~strict env = {
    in the environment by the effective calls to Intro, Inversion, etc
    The [constr_expr] field is [None] in TacDef though *)
 type glob_constr_and_expr = Glob_term.glob_constr * Constrexpr.constr_expr option
-type glob_constr_pattern_and_expr = Id.Set.t * glob_constr_and_expr * Pattern.constr_pattern
+type glob_constr_pattern_and_expr = Id.Set.t * glob_constr_and_expr * Pattern.uninstantiated_pattern
 
 type ('raw, 'glb) intern_fun = glob_sign -> 'raw -> glob_sign * 'glb
 type 'glb ntn_subst_fun = ntnvar_status Id.Map.t -> (Id.t -> Glob_term.glob_constr option) -> 'glb -> 'glb
