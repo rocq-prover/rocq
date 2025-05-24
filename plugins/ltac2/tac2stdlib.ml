@@ -595,6 +595,20 @@ let () =
 
 (** Tactics around Evarconv unification (in [Ltac2/Unification.v]). *)
 
+let to_conv_pbv v = match Tac2ffi.to_int v with
+| 0 -> Conversion.CONV
+| 1 -> Conversion.CUMUL
+| _ -> assert false
+
+let conv_pb = Tac2ffi.make_repr (fun _ -> assert false) to_conv_pbv
+
+let () =
+  define "infer_conv" (conv_pb @-> transparent_state @-> constr @-> constr @-> tac bool) @@ fun pb ts c1 c2 ->
+  Tac2core.pf_apply @@ fun env sigma ->
+  match (Reductionops.infer_conv ~pb:pb ~ts:ts env sigma c1 c2) with
+  | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
+  | None -> return false
+
 let () =
   define "evarconv_unify"
     (transparent_state @-> constr @-> constr @-> tac unit)
