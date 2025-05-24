@@ -399,6 +399,8 @@ let () =
     Tac2tactics.native
 
 
+(** Rewritings *)
+
 let () =
   define "tac_change"
     (option pattern @-> fun1 (array constr) constr @-> clause @-> tac unit)
@@ -413,6 +415,132 @@ let () =
   define "tac_setoid_rewrite"
     (bool @-> uthaw constr_with_bindings @--> occurrences @-> option ident @-> tac unit)
     Tac2tactics.setoid_rewrite
+
+let () =
+  define "tac_rewrite_strat"
+    (rewstrategy @-> option ident @-> tac unit)
+    Tac2tactics.rewrite_strat
+
+let () =
+  define "rewstrat_id"
+    (ret rewstrategy)
+    Rewrite.Strategies.id
+
+let () =
+  define "rewstrat_fail"
+    (ret rewstrategy)
+    Rewrite.Strategies.fail
+
+let () =
+  define "rewstrat_refl"
+    (ret rewstrategy)
+    Rewrite.Strategies.refl
+
+let () =
+  define "rewstrat_progress"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.progress
+
+let () =
+  define "rewstrat_seq"
+    (rewstrategy @-> rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.seq
+
+let () =
+  define "rewstrat_seqs"
+    (list rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.seqs
+
+let () =
+  define "rewstrat_choice"
+    (rewstrategy @-> rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.choice
+
+let () =
+  define "rewstrat_choices"
+    (list rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.choices
+
+let () =
+  define "rewstrat_try"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.try_
+
+let () =
+  define "rewstrat_fix"
+    (closure @-> tac rewstrategy)
+    Tac2tactics.RewriteStrats.fix
+
+let () =
+  define "rewstrat_any"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.any
+
+let () =
+  define "rewstrat_repeat"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.repeat
+
+let () =
+  define "rewstrat_one_subterm"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.one_subterm
+
+let () =
+  define "rewstrat_all_subterms"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.all_subterms
+
+let () =
+  define "rewstrat_bottomup"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.bottomup
+
+let () =
+  define "rewstrat_topdown"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.topdown
+
+let () =
+  define "rewstrat_innermost"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.innermost
+
+let () =
+  define "rewstrat_outermost"
+    (rewstrategy @-> ret rewstrategy)
+    Rewrite.Strategies.outermost
+
+let () =
+  define "rewstrat_hints"
+    (ident @-> ret rewstrategy)
+    Tac2tactics.RewriteStrats.hints
+
+let () =
+  define "rewstrat_old_hints"
+    (ident @-> ret rewstrategy)
+    Tac2tactics.RewriteStrats.old_hints
+
+let () =
+  define "rewstrat_one_lemma"
+    (preterm @-> bool @-> ret rewstrategy)
+    Tac2tactics.RewriteStrats.one_lemma
+
+let () =
+  define "rewstrat_lemmas"
+    (list preterm @-> ret rewstrategy)
+    Tac2tactics.RewriteStrats.lemmas
+
+let () =
+  define "rewstrat_fold"
+    (constr @-> ret rewstrategy)
+    Rewrite.Strategies.fold
+
+let () =
+  define "rewstrat_eval"
+    (reduction @-> ret rewstrategy)
+    Rewrite.Strategies.reduce
+
 
 let () =
   define "tac_inversion"
