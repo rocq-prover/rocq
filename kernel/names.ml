@@ -455,7 +455,6 @@ sig
   type t
   module CanOrd : EqType with type t = t
   module UserOrd : EqType with type t = t
-  module SyntacticOrd : EqType with type t = t
   val canonize : t -> t
 end
 
@@ -541,23 +540,6 @@ module KerPair = struct
     let compare x y = KerName.compare (canonical x) (canonical y)
     let equal x y = x == y || KerName.equal (canonical x) (canonical y)
     let hash x = KerName.hash (canonical x)
-  end
-
-  module SyntacticOrd = struct
-    type t = kernel_pair
-    let compare x y = match x, y with
-      | Same knx, Same kny -> KerName.compare knx kny
-      | Dual (knux,kncx), Dual (knuy,kncy) ->
-        let c = KerName.compare knux knuy in
-        if not (Int.equal c 0) then c
-        else KerName.compare kncx kncy
-      | Same _, _ -> -1
-      | Dual _, _ -> 1
-    let equal x y = x == y || compare x y = 0
-    let hash = function
-      | Same kn -> KerName.hash kn
-      | Dual (knu, knc) ->
-        Hashset.Combine.combine (KerName.hash knu) (KerName.hash knc)
   end
 
   (** Default (logical) comparison and hash is on the canonical part *)
@@ -649,20 +631,6 @@ struct
       Hashset.Combine.combine (MutInd.UserOrd.hash m) (Int.hash i)
   end
 
-  module SyntacticOrd =
-  struct
-    type nonrec t = t
-    let equal (m1, i1) (m2, i2) =
-      Int.equal i1 i2 && MutInd.SyntacticOrd.equal m1 m2
-
-    let compare (m1, i1) (m2, i2) =
-      let c = Int.compare i1 i2 in
-      if Int.equal c 0 then MutInd.SyntacticOrd.compare m1 m2 else c
-
-    let hash (m, i) =
-      Hashset.Combine.combine (MutInd.SyntacticOrd.hash m) (Int.hash i)
-  end
-
   let canonize ((mind, i) as ind) =
     let mind' = MutInd.canonize mind in
     if mind' == mind then ind else (mind', i)
@@ -699,18 +667,6 @@ struct
       if Int.equal c 0 then Ind.UserOrd.compare ind1 ind2 else c
     let hash (ind, i) =
       Hashset.Combine.combine (Ind.UserOrd.hash ind) (Int.hash i)
-  end
-
-  module SyntacticOrd =
-  struct
-    type nonrec t = t
-    let equal (ind1, j1) (ind2, j2) =
-      Int.equal j1 j2 && Ind.SyntacticOrd.equal ind1 ind2
-    let compare (ind1, j1) (ind2, j2) =
-      let c = Int.compare j1 j2 in
-      if Int.equal c 0 then Ind.SyntacticOrd.compare ind1 ind2 else c
-    let hash (ind, i) =
-      Hashset.Combine.combine (Ind.SyntacticOrd.hash ind) (Int.hash i)
   end
 
   let canonize ((ind, i) as cstr) =
@@ -849,19 +805,6 @@ struct
         else
           Label.compare (Constant.label a.proj_name) (Constant.label b.proj_name)
 
-    module SyntacticOrd = struct
-      type nonrec t = t
-
-      let compare a b =
-        let c = Ind.SyntacticOrd.compare a.proj_ind b.proj_ind in
-        if c <> 0 then c
-        else compare_gen a b
-
-      let equal a b = compare a b == 0
-
-      let hash p =
-        Hashset.Combine.combinesmall p.proj_arg (Ind.CanOrd.hash p.proj_ind)
-    end
     module CanOrd = struct
       type nonrec t = t
 
@@ -954,15 +897,6 @@ struct
 
   let hash (c, b) = (if b then 1 else 0) + Repr.hash c
 
-  module SyntacticOrd = struct
-    type nonrec t = t
-    let compare (p, b) (p', b') =
-      let c = Bool.compare b b' in
-      if c <> 0 then c else Repr.SyntacticOrd.compare p p'
-    let equal (c, b as x) (c', b' as x') =
-      x == x' || b = b' && Repr.SyntacticOrd.equal c c'
-    let hash (c, b) = (if b then 1 else 0) + Repr.SyntacticOrd.hash c
-  end
   module CanOrd = struct
     type nonrec t = t
     let compare (p, b) (p', b') =
@@ -1102,14 +1036,6 @@ module GlobRef = struct
       GlobRefInternal.global_ord_gen Constant.UserOrd.compare Ind.UserOrd.compare Construct.UserOrd.compare gr1 gr2
     let equal gr1 gr2 = GlobRefInternal.global_eq_gen Constant.UserOrd.equal Ind.UserOrd.equal Construct.UserOrd.equal gr1 gr2
     let hash gr = GlobRefInternal.global_hash_gen Constant.UserOrd.hash Ind.UserOrd.hash Construct.UserOrd.hash gr
-  end
-
-  module SyntacticOrd = struct
-    type t = GlobRefInternal.t
-    let compare gr1 gr2 =
-      GlobRefInternal.global_ord_gen Constant.SyntacticOrd.compare Ind.SyntacticOrd.compare Construct.SyntacticOrd.compare gr1 gr2
-    let equal gr1 gr2 = GlobRefInternal.global_eq_gen Constant.SyntacticOrd.equal Ind.SyntacticOrd.equal Construct.SyntacticOrd.equal gr1 gr2
-    let hash gr = GlobRefInternal.global_hash_gen Constant.SyntacticOrd.hash Ind.SyntacticOrd.hash Construct.SyntacticOrd.hash gr
   end
 
   let canonize gr = match gr with
