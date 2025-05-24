@@ -155,10 +155,7 @@ let file_exists_respecting_case path f =
     && exists_in_dir_respecting_case (Filename.concat path df) bf
   in (!trust_file_cache || Sys.file_exists (Filename.concat path f)) && aux f
 
-let rec search paths test =
-  match paths with
-  | [] -> []
-  | lpe :: rem -> test lpe @ search rem test
+let search paths test = List.concat_map test paths
 
 let warn_ambiguous_file_name =
   CWarnings.create ~name:"ambiguous-file-name" ~category:CWarnings.CoreCategories.filesystem

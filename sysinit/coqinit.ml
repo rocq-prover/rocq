@@ -125,6 +125,7 @@ let to_vo_path (x:Coqargs.vo_path) : Loadpath.vo_path = {
   unix_path = x.unix_path;
   coq_path = Libnames.dirpath_of_string x.rocq_path;
   recursive = true;
+  installed = false;
   }
 
 let boot_env usage opts =
