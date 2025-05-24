@@ -87,7 +87,7 @@ let is_incompatible_eq env sigma t =
       | _ -> false
     with e when CErrors.noncritical e -> false
   in
-  if res then observe (str "is_incompatible_eq " ++ pr_leconstr_env env sigma t);
+  if res then observe (fun () -> str "is_incompatible_eq " ++ pr_leconstr_env env sigma t);
   res
 
 let pf_get_new_id id env =
@@ -138,7 +138,7 @@ let isAppConstruct env sigma t =
   try
     let t', l = find_rectype env sigma t in
     observe
-      ( str "isAppConstruct : "
+      (fun () -> str "isAppConstruct : "
       ++ Printer.pr_leconstr_env env sigma t
       ++ str " -> "
       ++ Printer.pr_leconstr_env env sigma (applist (t', l)) );
@@ -150,7 +150,7 @@ exception NoChange
 let change_eq env sigma hyp_id (context : rel_context) x t end_of_type =
   let nochange ?t' msg =
     observe
-      ( str ("Not treating ( " ^ msg ^ " )")
+      (fun () -> str ("Not treating ( " ^ msg ^ " )")
       ++ pr_leconstr_env env sigma t
       ++ str "    "
       ++
@@ -521,7 +521,7 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
                            | App (f, [|_; _; args2|]) -> args2
                            | _ ->
                              observe
-                               ( str "cannot compute new term value : "
+                               (fun () -> str "cannot compute new term value : "
                                ++ Tacmach.pr_gls g' ++ fnl ()
                                ++ str "last hyp is"
                                ++ pr_leconstr_env env sigma new_term_value_eq );
@@ -1033,17 +1033,17 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
               f_body )
       in
       observe
-        ( str "full_params := "
+        (fun () -> str "full_params := "
         ++ prlist_with_sep spc
              (RelDecl.get_name %> Nameops.Name.get_id %> Ppconstr.pr_id)
              full_params );
       observe
-        ( str "princ_params := "
+        (fun () -> str "princ_params := "
         ++ prlist_with_sep spc
              (RelDecl.get_name %> Nameops.Name.get_id %> Ppconstr.pr_id)
              princ_params );
       observe
-        ( str "fbody_with_full_params := "
+        (fun () -> str "fbody_with_full_params := "
         ++ pr_leconstr_env (Global.env ()) !evd fbody_with_full_params );
       let all_funs_with_full_params =
         Array.map

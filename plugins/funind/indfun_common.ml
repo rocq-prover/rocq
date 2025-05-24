@@ -307,13 +307,10 @@ let { Goptions.get = do_rewrite_dependent } =
     ~value:true
     ()
 
-let { Goptions.get = do_observe } =
-  Goptions.declare_bool_option_and_ref
-    ~key:["Function_debug"]
-    ~value:false
-    ()
+let observe_flag, observe = CDebug.create_full ~name:"funind" ()
 
-let observe strm = if do_observe () then Feedback.msg_debug strm else ()
+let do_observe () = CDebug.get_flag observe_flag
+
 let debug_queue = Stack.create ()
 
 let print_debug_queue b e =
