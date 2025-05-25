@@ -1212,7 +1212,7 @@ Notations
 
    :cmd:`Ltac2 Notation` provides a way to extend the syntax of Ltac2 tactics.  The left-hand
    side (before the `:=`) defines the syntax to recognize and gives formal parameter
-   names for the syntactic values.  :n:`@integer` is the level of the notation.
+   names for the syntactic values.  :n:`@natural` is the level of the notation.
    When the notation is used, the values are substituted
    into the right-hand side.  In the following example, `x` is the formal parameter name and
    `constr` is its :ref:`syntactic class<syntactic_classes>`.  `print` and `of_constr` are
