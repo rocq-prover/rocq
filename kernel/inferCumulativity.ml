@@ -189,14 +189,14 @@ let rec infer_fterm cv_pb infos variances hd stk =
   | FInt _ -> infer_stack infos variances stk
   | FFloat _ -> infer_stack infos variances stk
   | FString _ -> infer_stack infos variances stk
-  | FFlex Names.(RelKey _ | VarKey _ as fl) ->
+  | FFlex { flex = Names.(RelKey _ | VarKey _ as fl); _ } ->
     (* We could try to lazily unfold but then we have to analyse the
        universes in the bodies, not worth coding at least for now. *)
     begin match unfold_ref_with_args (fst infos) (snd infos) fl stk with
     | Some (hd,stk) -> infer_fterm cv_pb infos variances hd stk
     | None -> infer_stack infos variances stk
     end
-  | FFlex (Names.ConstKey con as fl) ->
+  | FFlex { flex = (Names.ConstKey con as fl); _ } ->
     begin
       let def = unfold_ref_with_args (fst infos) (snd infos) fl stk in
       try
@@ -210,7 +210,7 @@ let rec infer_fterm cv_pb infos variances hd stk =
       | None -> raise e
       | Some (hd,stk) -> infer_fterm cv_pb infos variances hd stk
     end
-  | FProj (_,_,c) ->
+  | FThunk { term = FProj (_,_,c); _ } ->
     let variances = infer_fterm CONV infos variances c [] in
     infer_stack infos variances stk
   | FLambda _ ->
@@ -262,7 +262,7 @@ let rec infer_fterm cv_pb infos variances hd stk =
     Array.fold_right infer br variances
 
   (* Removed by whnf *)
-  | FLOCKED | FCaseT _ | FLetIn _ | FApp _ | FLIFT _ | FCLOS _ -> assert false
+  | FLetIn _ | FLIFT _ | FThunk { term = (FLOCKED | FCaseT _ | FApp _ | FCLOS _ | FValue _); _ } -> assert false
   | FIrrelevant -> assert false (* TODO: use create_conv_infos below and use it? *)
 
 and infer_stack infos variances (stk:CClosure.stack) =

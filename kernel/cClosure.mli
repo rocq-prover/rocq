@@ -24,6 +24,8 @@ type fconstr
 
 type finvert
 
+type red_state
+
 type evar_repack
 
 type usubs = fconstr subs UVars.puniverses
@@ -32,17 +34,14 @@ type table_key = Constant.t UVars.puniverses tableKey
 
 (** Relevances (eg in binder_annot or case_info) have NOT been substituted
     when there is a usubs field *)
-type fterm =
+type fterm = private
   | FRel of int
-  | FAtom of constr (** Metas and Sorts *)
-  | FFlex of table_key
+  | FAtom of constr (* Metas and Sorts *)
+  | FFlex of { mutable mark : red_state; flex : table_key }
   | FInd of pinductive
   | FConstruct of pconstructor * fconstr array
-  | FApp of fconstr * fconstr array
-  | FProj of Projection.t * Sorts.relevance * fconstr
   | FFix of fixpoint * usubs
   | FCoFix of cofixpoint * usubs
-  | FCaseT of case_info * UVars.Instance.t * constr array * case_return * fconstr * case_branch array * usubs (* predicate and branches are closures *)
   | FCaseInvert of case_info * UVars.Instance.t * constr array * case_return * finvert * fconstr * case_branch array * usubs
   | FLambda of int * (Name.t binder_annot * constr) list * constr * usubs
   | FProd of Name.t binder_annot * fconstr * constr * usubs
@@ -53,8 +52,15 @@ type fterm =
   | FString of Pstring.t
   | FArray of UVars.Instance.t * fconstr Parray.t * fconstr
   | FLIFT of int * fconstr
-  | FCLOS of constr * usubs
   | FIrrelevant
+  | FThunk of { mutable mark : red_state; mutable term: fhead; }
+
+and fhead = private
+  | FApp of fconstr * fconstr array
+  | FProj of Projection.t * Sorts.relevance * fconstr
+  | FCaseT of case_info * UVars.Instance.t * constr array * case_return * fconstr * case_branch array * usubs (* predicate and branches are closures *)
+  | FCLOS of constr * usubs
+  | FValue of fconstr
   | FLOCKED
 
 (***********************************************************************

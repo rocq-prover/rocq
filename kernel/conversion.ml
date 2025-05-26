@@ -363,9 +363,9 @@ let rec compare_under e1 c1 e2 c2 =
 
 
 let rec fast_test lft1 term1 lft2 term2 = match fterm_of term1, fterm_of term2 with
-  | FLIFT (i, term1), (FLIFT _ | FCLOS _) -> fast_test (el_shft i lft1) term1 lft2 term2
-  | FCLOS _, FLIFT (j, term2) -> fast_test lft1 term1 (el_shft j lft2) term2
-  | FCLOS (c1, (e1,u1)), FCLOS (c2, (e2,u2)) ->
+  | FLIFT (i, term1), (FLIFT _ | FThunk { term = FCLOS _; _ }) -> fast_test (el_shft i lft1) term1 lft2 term2
+  | FThunk { term = FCLOS _; _ }, FLIFT (j, term2) -> fast_test lft1 term1 (el_shft j lft2) term2
+  | FThunk { term = FCLOS (c1, (e1,u1)); _ }, FThunk { term = FCLOS (c2, (e2,u2)); _ } ->
     eq_lift lft1 lft2 &&
     compare_under (e1, u1) c1 (e2, u2) c2
   | _ -> false
@@ -438,7 +438,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           raise NotConvertible
 
     (* 2 constants, 2 local defined vars or 2 defined rels *)
-    | (FFlex fl1, FFlex fl2) ->
+    | (FFlex { flex = fl1; _ }, FFlex { flex = fl2; _ }) ->
       (try
          let nargs = same_args_size v1 v2 in
          let cuniv = conv_table_key infos ~nargs fl1 fl2 cuniv in
@@ -481,7 +481,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           eqwhnf cv_pb l2r infos appr1 (lft2, t2) cuniv
         )
 
-    | (FProj (p1,r1,c1), FProj (p2, r2, c2)) ->
+    | (FThunk { term = FProj (p1,r1,c1); _}, FThunk { term = FProj (p2, r2, c2); _ }) ->
       (* Projections: prefer unfolding to first-order unification,
          which will happen naturally if the terms c1, c2 are not in constructor
          form *)
@@ -502,13 +502,13 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           else (* Two projections in WHNF: unfold *)
             raise NotConvertible)
 
-    | (FProj (p1,r1,c1), t2) ->
+    | (FThunk { term = FProj (p1,r1,c1); _ }, t2) ->
       begin match unfold_projection infos.cnv_inf p1 r1 with
        | Some s1 ->
          eqappr cv_pb l2r infos (lft1, (c1, (s1 :: v1))) appr2 cuniv
        | None ->
          begin match t2 with
-          | FFlex fl2 ->
+          | FFlex { flex = fl2; _ } ->
             begin match unfold_ref_with_args infos.cnv_inf infos.rgt_tab fl2 v2 with
              | Some t2 ->
                eqappr cv_pb l2r infos appr1 (lft2, t2) cuniv
@@ -518,13 +518,13 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
          end
       end
 
-    | (t1, FProj (p2,r2,c2)) ->
+    | (t1, FThunk { term = FProj (p2,r2,c2); _ }) ->
       begin match unfold_projection infos.cnv_inf p2 r2 with
        | Some s2 ->
          eqappr cv_pb l2r infos appr1 (lft2, (c2, (s2 :: v2))) cuniv
        | None ->
          begin match t1 with
-          | FFlex fl1 ->
+          | FFlex { flex = fl1; _ } ->
             begin match unfold_ref_with_args infos.cnv_inf infos.lft_tab fl1 v1 with
              | Some t1 ->
                eqappr cv_pb l2r infos (lft1, t1) appr2 cuniv
@@ -581,7 +581,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           (el_lift lft1, (hd1, eta_expand_stack infos.cnv_inf x2 v1)) (el_lift lft2, (bd2, [])) cuniv
 
     (* only one constant, defined var or defined rel *)
-    | (FFlex fl1, c2)      ->
+    | (FFlex { flex = fl1; _ }, c2)      ->
       begin match unfold_ref_with_args infos.cnv_inf infos.lft_tab fl1 v1 with
         | Some (def1,v1) ->
           (** By virtue of the previous case analyses, we know [c2] is rigid.
@@ -603,7 +603,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
            | _ -> raise NotConvertible)
       end
 
-    | (c1, FFlex fl2)      ->
+    | (c1, FFlex { flex = fl2; _ })      ->
        begin match unfold_ref_with_args infos.cnv_inf infos.rgt_tab fl2 v2 with
         | Some (def2, v2) ->
           (** Symmetrical case of above. *)
@@ -785,9 +785,9 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
 
      (* Should not happen because both (hd1,v1) and (hd2,v2) are in whnf *)
-     | ( (FLetIn _, _) | (FCaseT _,_) | (FApp _,_) | (FCLOS _,_) | (FLIFT _,_)
-       | (_, FLetIn _) | (_,FCaseT _) | (_,FApp _) | (_,FCLOS _) | (_,FLIFT _)
-       | (FLOCKED,_) | (_,FLOCKED) ) -> assert false
+     | ( (FLetIn _, _) | (FThunk { term = (FCaseT _ | FApp _ | FCLOS _ | FValue _ | FLOCKED); _ },_) | (FLIFT _,_)
+       | (_, FLetIn _) | (_, FThunk { term = (FCaseT _ | FApp _ | FCLOS _ | FValue _ | FLOCKED); _ }) | (_,FLIFT _)) ->
+        assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
        | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
