@@ -9,7 +9,7 @@ through the <tt>Require Import</tt> command.</p>
 <p>The core library is composed of the following subdirectories:</p>
 
 <dl>
-  <dt> <a id="Init"><b>Init</b></a>:
+  <dt id="Init"> <b>Init</b>:
     The prelude (automatically loaded when starting Coq)
   </dt>
   <dd>
@@ -31,7 +31,7 @@ through the <tt>Require Import</tt> command.</p>
     (theories/Init/Prelude.v)
   </dd>
 
-  <dt> <a id="Binary-numbers"><b>Binary numbers</b></a>:
+  <dt id="Binary-numbers"> <b>Binary numbers</b>:
     Basic definitions of binary arithmetic
   </dt>
   <dd>
@@ -41,7 +41,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/BinNums/IntDef.v
   </dd>
 
-  <dt> <a id="Cyclic"><b>Cyclic</b></a>:
+  <dt id="Cyclic"> <b>Cyclic</b>:
     63-bits-based cyclic arithmetic
   </dt>
   <dd>
@@ -51,7 +51,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Numbers/Cyclic/Int63/Sint63Axioms.v
   </dd>
 
-  <dt> <a id="Floats"><b>Floats</b></a>:
+  <dt id="Floats"> <b>Floats</b>:
     Floating-point arithmetic
   </dt>
   <dd>
@@ -62,14 +62,14 @@ through the <tt>Require Import</tt> command.</p>
     theories/Floats/FloatAxioms.v
   </dd>
 
-  <dt> <a id="Relations"><b>Relations</b></a>:
+  <dt id="Relations"> <b>Relations</b>:
        Relations (definitions)
   </dt>
   <dd>
     theories/Relations/Relation_Definitions.v
   </dd>
 
-  <dt> <a id="Classes"><b>Classes</b></a>:
+  <dt id="Classes"> <b>Classes</b>:
   </dt>
   <dd>
     theories/Classes/Init.v
@@ -82,20 +82,20 @@ through the <tt>Require Import</tt> command.</p>
     theories/Classes/SetoidTactics.v
   </dd>
 
-  <dt> <a id="Setoids"><b>Setoids</b></a>:
+  <dt id="Setoids"> <b>Setoids</b>:
   </dt>
   <dd>
     theories/Setoids/Setoid.v
   </dd>
 
-  <dt> <a id="Lists"><b>Lists</b></a>:
+  <dt id="Lists"> <b>Lists</b>:
     Polymorphic lists
   </dt>
   <dd>
     theories/Lists/ListDef.v
   </dd>
 
-  <dt> <a id="Program"><b>Program</b></a>:
+  <dt id="Program"> <b>Program</b>:
     Support for dependently-typed programming
   </dt>
   <dd>
@@ -105,7 +105,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Program/Utils.v
   </dd>
 
-  <dt> <a id="SSReflect"><b>SSReflect</b></a>:
+  <dt id="SSReflect"> <b>SSReflect</b>:
     Base libraries for the SSReflect proof language and the
     small scale reflection formalization technique
   </dt>
@@ -117,7 +117,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/ssr/ssrfun.v
   </dd>
 
-  <dt> <a id="Ltac2"><b>Ltac2</b></a>:
+  <dt id="Ltac2"> <b>Ltac2</b>:
     The Ltac2 tactic programming language
   </dt>
   <dd>
@@ -159,7 +159,7 @@ through the <tt>Require Import</tt> command.</p>
     user-contrib/Ltac2/Unification.v
   </dd>
 
-  <dt> <a id="Compat"><b>Compat</b></a>:
+  <dt id="Compat"> <b>Compat</b>:
     Compatibility wrappers for previous versions of Coq
   </dt>
   <dd>
@@ -170,7 +170,7 @@ through the <tt>Require Import</tt> command.</p>
     user-contrib/Ltac2/Compat/Coq819.v
   </dd>
 
-  <dt> <a id="Array"><b>Array</b></a>:
+  <dt id="Array"> <b>Array</b>:
     Persistent native arrays
   </dt>
   <dd>
@@ -178,7 +178,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Array/ArrayAxioms.v
   </dd>
 
-  <dt> <a id="Primitive-strings><b>Primitive strings</b></a>:
+  <dt id="Primitive-strings> <b>Primitive strings</b>:
     Native string type
   </dt>
   <dd>
