@@ -725,7 +725,7 @@ module ClausesOf = struct
         let find (l, k) =
            match NeList._assq l prems' with
            | exception Not_found -> false
-           | k' -> k' <= k
+           | k' -> k <= k'
         in
         NeList.for_all find prems
       else false
@@ -2441,8 +2441,10 @@ let infer_clause_extension cl minit =
   match add_can_clause_model minit cl with
   | None ->
     (* The clause was already present in the model *)
+     debug Pp.(fun () -> str "already in the model");
      Some minit
   | Some (cl, m) ->
+    debug Pp.(fun () -> str "extending the model");
     let cans, m = update_model cl m in
     if PSet.is_empty cans then begin
       (* The clause is already true in the current model,
