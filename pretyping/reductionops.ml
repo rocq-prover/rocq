@@ -1217,7 +1217,7 @@ let checked_sort_cmp_universes _env pb s0 s1 univs =
   | CONV -> check_eq univs s0 s1
 
 let check_convert_instances ~flex:_ u u' univs =
-  let csts = UVars.enforce_eq_instances u u' (Sorts.QConstraints.empty,Constraints.empty) in
+  let csts = UVars.enforce_eq_instances u u' (Sorts.ElimConstraints.empty,Constraints.empty) in
   if Evd.check_quconstraints univs csts then Result.Ok univs else Result.Error None
 
 (* general conversion and inference functions *)
@@ -1235,11 +1235,12 @@ end
 
 let is_fconv ?(reds=TransparentState.full) pb env sigma t1 t2 =
   let univs = Evd.universes sigma in
+  let quals = Evd.elim_graph sigma in
   let t1 = EConstr.Unsafe.to_constr t1 in
   let t2 = EConstr.Unsafe.to_constr t2 in
   let b = match pb with
-  | Conversion.CUMUL -> leq_constr_univs univs t1 t2
-  | Conversion.CONV -> eq_constr_univs univs t1 t2
+  | Conversion.CUMUL -> leq_constr_univs quals univs t1 t2
+  | Conversion.CONV -> eq_constr_univs quals univs t1 t2
   in
   if b then true
   else
@@ -1329,7 +1330,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
       | None -> None
       | Some cstr ->
         try Some (Evd.add_universe_constraints sigma cstr)
-        with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer -> None
+        with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
       in
       match ans with
       | Some sigma -> ans
@@ -1360,6 +1361,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
             | Result.Error (Some e) -> raise (UGraph.UniverseInconsistency e)
   with
   | UGraph.UniverseInconsistency _ when catch_incon -> None
+  | QGraph.EliminationError _ when catch_incon -> None
   | e ->
     let e = Exninfo.capture e in
     report_anomaly e
@@ -1682,43 +1684,46 @@ module Infer = struct
 
 open Conversion
 
-let infer_eq (univs, cstrs as cuniv) u u' =
-  if UGraph.check_eq_sort univs u u' then Result.Ok cuniv
+let infer_eq (univs, elims, cstrs as cuniv) s s' =
+  if UGraph.check_eq_sort elims univs s s' then Result.Ok cuniv
   else try
-    let cstrs' = UnivSubst.enforce_eq_sort u u' Constraints.empty in
-    Result.Ok (UGraph.merge_constraints cstrs' univs, Constraints.union cstrs cstrs')
-  with UGraph.UniverseInconsistency err -> Result.Error (Some err)
+    let cstrs' = UnivSubst.enforce_eq_sort s s' Constraints.empty in
+    Result.Ok (UGraph.merge_constraints cstrs' univs, elims, Constraints.union cstrs cstrs')
+  with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
-let infer_leq (univs, cstrs as cuniv) u u' =
-  if UGraph.check_leq_sort univs u u' then Result.Ok cuniv
-  else match UnivSubst.enforce_leq_alg_sort u u' univs with
+let infer_leq (univs, elims, cstrs as cuniv) s s' =
+  if UGraph.check_leq_sort elims univs s s' then Result.Ok cuniv
+  else match UnivSubst.enforce_leq_alg_sort s s' univs with
   | cstrs', univs ->
-    Result.Ok (univs, Univ.Constraints.union cstrs cstrs')
-  | exception UGraph.UniverseInconsistency err -> Result.Error (Some err)
+    Result.Ok (univs, elims, Univ.Constraints.union cstrs cstrs')
+  | exception UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
-let infer_cmp_universes _env pb s0 s1 univs =
+let infer_cmp_universes _env pb s0 s1 cuniv =
   match pb with
-  | CUMUL -> infer_leq univs s0 s1
-  | CONV -> infer_eq univs s0 s1
+  | CUMUL -> infer_leq cuniv s0 s1
+  | CONV -> infer_eq cuniv s0 s1
 
-let infer_convert_instances ~flex u u' (univs,cstrs as cuniv) =
+let infer_convert_instances ~flex u u' (univs,elims,cstrs as cuniv) =
   if flex then
     if UGraph.check_eq_instances univs u u' then Result.Ok cuniv
     else Result.Error None
   else
     let qcstrs, cstrs' = UVars.enforce_eq_instances u u' Sorts.QUConstraints.empty in
-    if Sorts.QConstraints.trivial qcstrs then
-      Result.Ok (univs, Constraints.union cstrs cstrs')
+    if QGraph.check_constraints qcstrs elims then
+      Result.Ok (univs, elims, Constraints.union cstrs cstrs')
     else
       Result.Error None
 
-let infer_inductive_instances cv_pb variance u1 u2 (univs,csts) =
+let infer_inductive_instances cv_pb variance u1 u2 (univs,elims,csts) =
   let qcsts, csts' = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.QConstraints.trivial qcsts then
-    match UGraph.merge_constraints csts' univs with
-    | univs -> Result.Ok (univs, Univ.Constraints.union csts csts')
-    | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some err)
-  else Result.Error None
+  match QGraph.merge_constraints QGraph.Internal qcsts elims with
+  | elims ->
+     begin
+       match UGraph.merge_constraints csts' univs with
+       | univs -> Result.Ok (univs, elims, Univ.Constraints.union csts csts')
+       | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))
+     end
+  | exception (QGraph.EliminationError err) -> Result.Error (Some (Qual err))
 
 let inferred_universes =
   { compare_sorts = infer_cmp_universes;
