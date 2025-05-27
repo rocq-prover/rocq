@@ -4,9 +4,7 @@
      : nat
 forall (A : Set) (le : A -> A -> Prop) (x y : A), le x y \/ le y x
      : Prop
-match (0, 0, 0) with
-| (x, y, z) => x + y + z
-end
+let '(x, y, z) := (0, 0, 0) in x + y + z
      : nat
 let '(a, _, _) := (2, 3, 4) in a
      : nat
