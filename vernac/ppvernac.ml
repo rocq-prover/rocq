@@ -67,7 +67,7 @@ let pr_full_univ_name_list = function
   | None -> mt()
   | Some (ql, ul) ->
     str "@{" ++ prlist_with_sep spc pr_lname ql ++
-    (if List.is_empty ql then mt() else strbrk " | ") ++
+    (if List.is_empty ql then mt() else strbrk " ; ") ++
     prlist_with_sep spc pr_lname ul ++ str "}"
 
 let pr_variance_lident (lid,v) =
@@ -77,7 +77,7 @@ let pr_variance_lident (lid,v) =
 let pr_univdecl_qualities l extensible =
   (* "extensible" not really supported in syntax currently *)
   if List.is_empty l then mt()
-  else prlist_with_sep spc pr_lident l ++ strbrk " | "
+  else prlist_with_sep spc pr_lident l ++ strbrk " ; "
 
 let pr_univdecl_instance l extensible =
   prlist_with_sep spc pr_lident l ++

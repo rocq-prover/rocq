@@ -14,3 +14,5 @@ val ensure_fixannot : unit Procq.Entry.t
 val test_name_colon : unit Procq.Entry.t
 val test_array_opening : unit Procq.Entry.t
 val test_array_closing : unit Procq.Entry.t
+
+val warn_old_sort_syntax : ?loc:Loc.t -> unit -> unit

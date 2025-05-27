@@ -174,7 +174,7 @@ struct
       let v = Option.map (fun v -> v.(i)) variance in
       pr_opt_no_spc Variance.pr v ++ prl u
     in
-    (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " | ")
+    (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " ; ")
     ++ prvecti_with_sep spc ppu u
 
   let equal (xq,xu) (yq,yu) =
