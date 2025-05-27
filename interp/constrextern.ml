@@ -1470,7 +1470,8 @@ let extern_closed_glob ?(goal_concl_style=false) ?(inctx=false) ?scope env sigma
 (******************************************************************)
 (* Main translation function from pattern -> constr_expr *)
 
-let any_any_branch =
+(* thunk for value restriction *)
+let any_any_branch () =
   (* | _ => _ *)
   CAst.make ([],[DAst.make @@ PatVar Anonymous], DAst.make @@ GHole (GInternalHole))
 
@@ -1503,8 +1504,8 @@ let glob_of_pat_under_context glob_of_pat avoid env sigma (nas, pat) =
   (Array.rev_of_list nas, pat)
 
 let rec glob_of_pat
-  : 'a 's. 's Namegen.Generator.input -> _ -> _ -> 'a constr_pattern_r -> _
-  = fun (type a s) (avoid : s Namegen.Generator.t * s) env sigma (pat: a constr_pattern_r) ->
+  : 'a 'g 's. ('a -> 'g glob_constr_r) -> 's Namegen.Generator.input -> _ -> _ -> 'a constr_pattern_r -> 'g glob_constr_g
+  = fun (type a g s) (of_extra:a -> g glob_constr_r) (avoid : s Namegen.Generator.t * s) env sigma (pat: a constr_pattern_r) ->
   let open Sorts.Quality in
     DAst.make @@ match pat with
   | PRef ref -> GRef (ref,None)
@@ -1519,7 +1520,7 @@ let rec glob_of_pat
       | None -> Id.of_string "__"
       | Some id -> id
       in
-      GEvar (CAst.make id,List.map (fun (id,c) -> (CAst.make id, glob_of_pat avoid env sigma c)) l)
+      GEvar (CAst.make id,List.map (fun (id,c) -> (CAst.make id, glob_of_pat of_extra avoid env sigma c)) l)
   | PRel n ->
       let id = try match lookup_name_of_rel n env with
         | Name id   -> id
@@ -1529,40 +1530,40 @@ let rec glob_of_pat
       GVar id
   | PMeta None -> GHole (GInternalHole)
   | PMeta (Some n) -> GPatVar (Evar_kinds.FirstOrderPatVar n)
-  | PUninstantiated (PGenarg g) -> GGenarg g
+  | PExtra g -> of_extra g
   | PProj (p,c) -> GApp (DAst.make @@ GRef (GlobRef.ConstRef (Projection.constant p),None),
-                         [glob_of_pat avoid env sigma c])
+                         [glob_of_pat of_extra avoid env sigma c])
   | PApp (f,args) ->
-      GApp (glob_of_pat avoid env sigma f,Array.map_to_list (glob_of_pat avoid env sigma) args)
+      GApp (glob_of_pat of_extra avoid env sigma f,Array.map_to_list (glob_of_pat of_extra avoid env sigma) args)
   | PSoApp (n,args) ->
       GApp (DAst.make @@ GPatVar (Evar_kinds.SecondOrderPatVar n),
-        List.map (glob_of_pat avoid env sigma) args)
+        List.map (glob_of_pat of_extra avoid env sigma) args)
   | PProd (na,t,c) ->
       let na',avoid' = compute_displayed_name_in_pattern (Global.env ()) sigma avoid na c in
       let env' = Termops.add_name na' env in
-      GProd (na',None,Explicit,glob_of_pat avoid env sigma t,glob_of_pat avoid' env' sigma c)
+      GProd (na',None,Explicit,glob_of_pat of_extra avoid env sigma t,glob_of_pat of_extra avoid' env' sigma c)
   | PLetIn (na,b,t,c) ->
       let na',avoid' = compute_displayed_let_name_in (Global.env ()) sigma Namegen.RenamingForGoal avoid na in
       let env' = Termops.add_name na' env in
-      GLetIn (na',None,glob_of_pat avoid env sigma b, Option.map (glob_of_pat avoid env sigma) t,
-              glob_of_pat avoid' env' sigma c)
+      GLetIn (na',None,glob_of_pat of_extra avoid env sigma b, Option.map (glob_of_pat of_extra avoid env sigma) t,
+              glob_of_pat of_extra avoid' env' sigma c)
   | PLambda (na,t,c) ->
       let na',avoid' = compute_displayed_name_in_pattern (Global.env ()) sigma avoid na c in
       let env' = Termops.add_name na' env in
-      GLambda (na',None,Explicit,glob_of_pat avoid env sigma t, glob_of_pat avoid' env' sigma c)
+      GLambda (na',None,Explicit,glob_of_pat of_extra avoid env sigma t, glob_of_pat of_extra avoid' env' sigma c)
   | PIf (c,b1,b2) ->
-      GIf (glob_of_pat avoid env sigma c, (Anonymous,None),
-           glob_of_pat avoid env sigma b1, glob_of_pat avoid env sigma b2)
+      GIf (glob_of_pat of_extra avoid env sigma c, (Anonymous,None),
+           glob_of_pat of_extra avoid env sigma b1, glob_of_pat of_extra avoid env sigma b2)
   | PCase ({cip_style=Constr.LetStyle},None,tm,[(0,n,b)]) ->
-      let n, b = glob_of_pat_under_context glob_of_pat avoid env sigma (n, b) in
+      let n, b = glob_of_pat_under_context (glob_of_pat of_extra) avoid env sigma (n, b) in
       let nal = Array.to_list n in
-      GLetTuple (nal,(Anonymous,None),glob_of_pat avoid env sigma tm,b)
+      GLetTuple (nal,(Anonymous,None),glob_of_pat of_extra avoid env sigma tm,b)
   | PCase (info,p,tm,bl) ->
       let mat = match bl, info.cip_ind with
         | [], _ -> []
         | _, Some ind ->
           let map (i, n, c) =
-            let n, c = glob_of_pat_under_context glob_of_pat avoid env sigma (n, c) in
+            let n, c = glob_of_pat_under_context (glob_of_pat of_extra) avoid env sigma (n, c) in
             let nal = Array.to_list n in
             let mkPatVar na = DAst.make @@ PatVar na in
             let p = DAst.make @@ PatCstr ((ind,i+1),List.map mkPatVar nal,Anonymous) in
@@ -1572,17 +1573,17 @@ let rec glob_of_pat
           List.map map bl
         | _, None -> anomaly (Pp.str "PCase with some branches but unknown inductive.")
       in
-      let mat = if info.cip_extensible then mat @ [any_any_branch] else mat
+      let mat = if info.cip_extensible then mat @ [any_any_branch ()] else mat
       in
       let indnames,rtn = match p, info.cip_ind with
         | None, _ -> (Anonymous,None),None
         | Some p, Some ind ->
-          let nas, p = glob_of_pat_under_context glob_of_pat avoid env sigma p in
+          let nas, p = glob_of_pat_under_context (glob_of_pat of_extra) avoid env sigma p in
           let nas = Array.rev_to_list nas in
           ((List.hd nas, Some (CAst.make (ind, List.tl nas))), Some p)
         | _ -> anomaly (Pp.str "PCase with non-trivial predicate but unknown inductive.")
       in
-      GCases (Constr.RegularStyle,rtn,[glob_of_pat avoid env sigma tm,indnames],mat)
+      GCases (Constr.RegularStyle,rtn,[glob_of_pat of_extra avoid env sigma tm,indnames],mat)
   | PFix ((ln,i),(lna,tl,bl)) ->
      let def_avoid, def_env, lfi =
        Array.fold_left
@@ -1592,7 +1593,7 @@ let rec glob_of_pat
       (avoid, env, []) lna in
      let n = Array.length tl in
      let v = Array.map3
-               (fun c t i -> Detyping.share_pattern_names glob_of_pat (i+1) [] def_avoid def_env sigma c (Patternops.lift_pattern n t))
+               (fun c t i -> Detyping.share_pattern_names (glob_of_pat of_extra) (i+1) [] def_avoid def_env sigma c (Patternops.lift_pattern n t))
     bl tl ln in
      GRec(GFix (Array.map (fun i -> Some i) ln,i),Array.of_list (List.rev lfi),
        Array.map (fun (bl,_,_) -> bl) v,
@@ -1607,7 +1608,7 @@ let rec glob_of_pat
          (avoid, env, []) lna in
      let ntys = Array.length tl in
      let v = Array.map2
-               (fun c t -> share_pattern_names glob_of_pat 0 [] def_avoid def_env sigma c (Patternops.lift_pattern ntys t))
+               (fun c t -> share_pattern_names (glob_of_pat of_extra) 0 [] def_avoid def_env sigma c (Patternops.lift_pattern ntys t))
                bl tl in
      GRec(GCoFix ln,Array.of_list (List.rev lfi),
           Array.map (fun (bl,_,_) -> bl) v,
@@ -1621,14 +1622,22 @@ let rec glob_of_pat
   | PFloat f -> GFloat f
   | PString s -> GString s
   | PArray(t,def,ty) ->
-    let glob_of = glob_of_pat avoid env sigma in
+    let glob_of = glob_of_pat of_extra avoid env sigma in
     GArray (None, Array.map glob_of t, glob_of def, glob_of ty)
 
-let extern_constr_pattern env sigma pat =
+let extern_constr_pattern_gen of_extra env sigma pat =
   extern true ((constr_some_level,None),([],[]))
     (* XXX no vars? *)
     (Id.Set.empty, Evd.universe_binders sigma)
-    (glob_of_pat (genset, Id.Set.empty) env sigma pat)
+    (glob_of_pat of_extra (genset, Id.Set.empty) env sigma pat)
+
+let extern_constr_pattern env sigma pat =
+  let of_extra e = Util.Empty.abort e in
+  extern_constr_pattern_gen of_extra env sigma pat
+
+let extern_uninstantiated_pattern env sigma pat =
+  let of_extra g = GGenarg g in
+  extern_constr_pattern_gen of_extra env sigma pat
 
 let extern_rel_context where env sigma sign =
   let a = detype_rel_context Detyping.Later where ([],env) sigma sign in
