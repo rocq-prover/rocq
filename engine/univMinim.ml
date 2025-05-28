@@ -104,8 +104,8 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
   debug_each Pp.(fun () -> str"Simplifying variables with " ++ (if partial then str"partial" else str"non-partial") ++ str" information about the definition");
   let allowed_instance ~allow_collapse_to_zero u lbound =
     if Universe.is_type0 lbound then 
-      get_set_minimization () &&
-      (allow_collapse_to_zero || Level.Set.mem u above_prop || Level.Set.mem u above_zero)
+      solve_flexibles || (get_set_minimization () &&
+      (allow_collapse_to_zero || Level.Set.mem u above_prop || Level.Set.mem u above_zero))
     else true
   in
   let minimize ~allow_collapse_to_zero u (ctx, flex, variances, graph as acc) =
@@ -148,6 +148,8 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
   let simplify_min u (ctx, flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, impred = variance_info u flex variances in
+    debug_each Pp.(fun () -> str"Simplifying flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++ 
+      str " typing_variance: " ++ UVars.Variance.pr typing_variance);
     if typing_variance == Irrelevant then
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
       match type_variance with
@@ -177,7 +179,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
       | _, _, _ -> acc
   in
   let (_, flex, _, _ as acc) = Level.Set.fold simplify_max flex acc in
-  let simplify_arbitrary ~allow_collapse u (ctx, flex, variances, graph as acc) =
+  let simplify_arbitrary u (ctx, flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
     debug_each Pp.(fun () -> str"Simplifying flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++ 
@@ -191,7 +193,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
   if solve_flexibles then
     let fold_arbitrary u (ctx, flex, variances, graph as acc) =
       if not (Level.Set.mem u flex) then acc
-      else simplify_arbitrary ~allow_collapse:(get_set_minimization ()) u acc
+      else simplify_arbitrary u acc
     in
     Level.Set.fold fold_arbitrary flex acc
   else acc
@@ -240,7 +242,6 @@ let new_minimize_weak ctx flex weak (g, variances) =
     if (Universe.is_type0 u || Universe.is_type0 v) then acc
     else
       let set_to a b =
-        debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
         let levels = Universe.levels b in
         let sup_variances = sup_variances variances (Level.Set.add a levels) in
         match InferCumulativity.term_type_variances sup_variances with
@@ -249,7 +250,9 @@ let new_minimize_weak ctx flex weak (g, variances) =
           let variances =
             Level.Set.fold (fun bl variances -> set_variance variances bl sup_variances) levels variances
           in
-          (try let g, equivs = UGraph.set a b g in
+          (try
+            let g, equivs = UGraph.set a b g in
+            debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);        
             update_equivs_bound (ctx, flex, variances, g) a b equivs
           with UGraph.InconsistentEquality | UGraph.OccurCheck -> acc)
         | _, _, _ -> (* One universe is not irrelevant *)
