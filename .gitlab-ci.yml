@@ -123,8 +123,8 @@ before_script:
     paths:
       - _build/log
       - _build.tar.bz2
-      - theories/dune
-      - user-contrib/Ltac2/dune
+      - theories/Corelib/dune
+      - theories/Ltac2/dune
     expire_in: 1 day
 
 .doc-template:
@@ -351,8 +351,8 @@ build:base:dev:dune:
   interruptible: true
   extends: .auto-use-tags
   script:
-    - cp theories/dune.disabled theories/dune
-    - cp user-contrib/Ltac2/dune.disabled user-contrib/Ltac2/dune
+    - cp theories/Corelib/dune.disabled theories/Corelib/dune
+    - cp theories/Ltac2/dune.disabled theories/Ltac2/dune
     - dune build -p rocq-runtime,coq-core,rocq-core,coqide-server
     - ls _build/install/default/lib/coq/theories/Init/Prelude.vo
     - ls _build/install/default/lib/coq/user-contrib/Ltac2/Ltac2.vo

@@ -81,7 +81,7 @@ let main () =
   let root_lvl = List.length (String.split_on_char '/' base_dir) in
 
   let corelib =
-    let directory = Path.make "theories" in
+    let directory = Path.relative (Path.make "theories") "Corelib" in
     Coq_rules.Theory.{ directory; dirname = ["Corelib"]; implicit = true; deps = [] }
   in
 

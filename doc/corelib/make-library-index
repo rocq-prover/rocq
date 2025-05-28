@@ -12,15 +12,11 @@ tmp2=$(mktemp)
 cp -f "$FILE.template" "$tmp"
 echo -n "Building file index-list.prehtml... "
 
-LIBDIRS=$(find theories/* user-contrib/* -type d ! -name .coq-native)
+LIBDIRS=$(find theories -type d ! -name .coq-native)
 
 for k in $LIBDIRS; do
-    if [[ $k =~ "user-contrib" ]]; then
-        BASE_PREFIX=""
-    else
-        BASE_PREFIX="Corelib."
-    fi
     d=$(basename "$k")
+    p=$(echo "$k" | sed 's:^[^/]*/::' | sed 's:/:.:g')
     for j in "$k"/*.v; do
         if ! [ -e "$j" ]; then break; fi
         b=$(basename "$j" .v)
@@ -32,8 +28,7 @@ for k in $LIBDIRS; do
                 echo "Error: $FILE and $HIDDEN both mention $k/$b.v" >&2
                 exit 1
             else
-                p=$(echo "$k" | sed 's:^[^/]*/::' | sed 's:/:.:g')
-                sed -e "s:$k/$b.v:<a href=\"$BASE_PREFIX$p.$b.html\">$b</a>:g" "$tmp" > "$tmp2"
+                sed -e "s:$k/$b.v:<a href=\"$p.$b.html\">$b</a>:g" "$tmp" > "$tmp2"
                 mv -f "$tmp2" "$tmp"
             fi
         else
