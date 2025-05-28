@@ -20,12 +20,12 @@ type lambda = Nativevalues.t Genlambda.lambda
 (** Simplification of lambda expression *)
 
 let is_value lc =
-  match lc with
+  match node lc with
   | Lval _ | Lint _ | Luint _ | Lfloat _ | Lstring _ -> true
   | _ -> false
 
 let get_value lc =
-  match lc with
+  match node lc with
   | Lval v -> v
   | Lint tag -> Nativevalues.mk_int tag
   | Luint i -> Nativevalues.mk_uint i

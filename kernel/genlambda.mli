@@ -17,7 +17,9 @@ type reloc_table = (int * int) array
 
 type case_annot = case_info * reloc_table * Declarations.recursivity_kind
 
-type 'v lambda =
+type 'v lambda
+
+type 'v node =
 | Lrel          of Name.t * int
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
@@ -56,8 +58,11 @@ val empty_evars : Environ.env -> evars
 
 (** {5 Manipulation functions} *)
 
+val node : 'v lambda -> 'v node
 val mkLapp : 'v lambda -> 'v lambda array -> 'v lambda
 val mkLlam : Name.t binder_annot array -> 'v lambda -> 'v lambda
+val unsafe_mkPArray : 'v lambda array -> 'v lambda -> 'v lambda
+val unsafe_mkPArray_val : 'v -> 'v lambda -> 'v lambda
 val decompose_Llam : 'v lambda -> Name.t binder_annot array * 'v lambda
 val decompose_Llam_Llet : 'v lambda -> (Name.t binder_annot * 'v lambda option) array * 'v lambda
 

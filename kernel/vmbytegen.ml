@@ -535,7 +535,7 @@ let get_caml_prim = let open CPrimitives in function
 (* sz is the size of the local stack *)
 let rec compile_lam env cenv lam sz cont =
   let () = set_max_stack_size cenv sz in
-  match lam with
+  match node lam with
   | Lrel(_, i) -> pos_rel i cenv sz :: cont
 
   | Lint i -> compile_structured_constant cenv (Const_b0 i) sz cont
@@ -613,7 +613,7 @@ let rec compile_lam env cenv lam sz cont =
      compile_fv cenv fv.fv_rev sz (Kclosure(lbl_fun,fv.size) :: cont)
 
   | Lapp (f, args) ->
-    begin match f with
+    begin match node f with
     | Lconst (kn,u) -> compile_constant env cenv kn u args sz cont
     | _ -> comp_app (compile_lam env) (compile_lam env) cenv f args sz cont
     end
@@ -783,22 +783,18 @@ let rec compile_lam env cenv lam sz cont =
     else comp_args (compile_lam env) cenv args sz cont
 
   | Lparray (args, def) ->
-    (* Hack: brutally pierce through the abstraction of PArray *)
-    let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
-    let dummy = (MutInd.make1 dummy, 0) in
-    let ar, cont = match Vmlambda.as_value 0 args with
+    let v, cont = match as_value 0 args with
     | None ->
       (* build the ocaml array *)
-      Lmakeblock (dummy, 0, args), cont
+      unsafe_mkPArray args def, cont
     | Some v ->
       (* dump the blob as is, but copy the resulting parray afterwards so that
          the blob is left untouched by modifications to the resulting parray *)
       let lbl = Label.create () in
+      let v = unsafe_mkPArray_val v def in
       (* dummy label, the array will never be an accumulator *)
-      Lval v, Klabel lbl :: Kcamlprim (CAML_Arraycopy, lbl) :: cont
+      v, Klabel lbl :: Kcamlprim (CAML_Arraycopy, lbl) :: cont
     in
-    let kind = Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)
-    let v = Lmakeblock (dummy, 0, [|kind|]) (* the reference *) in
     compile_lam env cenv v sz cont
 
   | Lprim (kn, op, args) ->
