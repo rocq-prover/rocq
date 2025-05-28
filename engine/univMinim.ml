@@ -148,7 +148,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
   let simplify_min u (ctx, flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, impred = variance_info u flex variances in
-    debug_each Pp.(fun () -> str"Simplifying flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++ 
+    debug_each Pp.(fun () -> str"Trying to minimize flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++ 
       str " typing_variance: " ++ UVars.Variance.pr typing_variance);
     if typing_variance == Irrelevant then
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
