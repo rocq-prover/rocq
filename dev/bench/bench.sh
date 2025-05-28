@@ -115,12 +115,10 @@ echo "DEBUG: coq_native = $coq_native"
 # We put local binaries such as opam in .bin and extend PATH
 BIN=$(pwd)/.bin
 mkdir "$BIN"
-wget https://github.com/ocaml/opam/releases/download/2.1.3/opam-2.1.3-x86_64-linux -O "$BIN"/opam
+wget https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux -O "$BIN"/opam
 chmod +x "$BIN"/opam
 
 export OPAMSKIPUPDATE=1 # stop opam from messing with our pin edits
-
-export NJOBS=1 # used by the test suite through dune
 
 # generate per file info in test suite and coq_makefile devs
 export TIMED=1
@@ -365,7 +363,7 @@ create_opam() {
     export OPAMROOT="$OPAM_DIR"
     export COQ_RUNNER="$RUNNER"
 
-    opam init --disable-sandboxing -qn -j$number_of_processors --bare
+    opam init --disable-sandboxing -qn -j "$number_of_processors" --bare
     # Allow beta compiler switches
     opam repo add -q --set-default beta https://github.com/ocaml/ocaml-beta-repository.git
     # Allow experimental compiler switches
@@ -378,12 +376,9 @@ create_opam() {
     else flambda=
     fi
 
-    opam switch create -qy -j$number_of_processors "ocaml-$RUNNER" "$OPAM_COMP" $flambda
+    opam switch create -qy -j "$number_of_processors" "ocaml-$RUNNER" "$OPAM_COMP" $flambda
     eval $(opam env)
 
-    # For some reason opam guesses an incorrect upper bound on the
-    # number of jobs available on Travis, so we set it here manually:
-    opam var --global jobs=$number_of_processors >/dev/null
     if [ ! -z "$BENCH_DEBUG" ]; then opam config list; fi
 
     opam repo add -q --this-switch coq-core-dev "$OPAM_COQ_DIR/core-dev"  # For rocq-stdlib
@@ -409,7 +404,7 @@ create_opam() {
       exit 1
     fi
 
-    opam install -qy -j$number_of_processors $initial_opam_packages
+    opam install -qy -j "$number_of_processors" $initial_opam_packages
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
     cd "$coq_dir"
@@ -548,11 +543,7 @@ $coq_opam_package (dependency $dep failed)"
             fi
         done
 
-        # OPAM 2.0 likes to ignore the -j when it feels like :S so we
-        # workaround that here.
-        opam var --global jobs=$number_of_processors >/dev/null
-
-        opam install $coq_opam_package -v -b -j$number_of_processors --deps-only -y \
+        opam install $coq_opam_package -v -b -j "$number_of_processors" --deps-only -y \
              3>$log_dir/$coq_opam_package.$RUNNER.opam_install.deps_only.stdout.log 1>&3 \
              4>$log_dir/$coq_opam_package.$RUNNER.opam_install.deps_only.stderr.log 2>&4 || {
             failed_packages="$failed_packages
@@ -560,14 +551,12 @@ $coq_opam_package (dependency install failed in $RUNNER)"
             continue 2
             }
 
-        opam var --global jobs=1 >/dev/null
-
         if [ ! -z "$BENCH_DEBUG" ]; then ls -l $working_dir; fi
 
         for iteration in $(seq $num_of_iterations); do
             export COQ_ITERATION=$iteration
             _RES=0
-            timeout "$timeout" opam install -v -b -j1 $coq_opam_package \
+            timeout "$timeout" opam install -v -b -j 1 $coq_opam_package \
                  3>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stdout.log 1>&3 \
                  4>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stderr.log 2>&4 || \
                 _RES=$?
