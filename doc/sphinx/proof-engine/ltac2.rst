@@ -11,7 +11,7 @@ General design
 Ltac2 is a tactics metalanguage for Rocq. It is mostly used to write new
 tactics using a mix of :cmd:`Ltac2` definitions and :cmd:`Ltac2 Notation`\s.
 Ltac2 provides an API in the various modules of the Ltac2 library, see
-`<https://rocq-prover.org/doc/V9.0.0/corelib/index.html#Ltac2>`_.
+`<https://rocq-prover.org/corelib/index.html#Ltac2>`_.
 
 Ltac2 is designed to be as close as reasonably possible to Ltac1, while fixing its
 :ref:`defects <ltac_defects>`.
