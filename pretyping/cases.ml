@@ -505,8 +505,7 @@ let remove_current_pattern eqn =
     | [] -> anomaly (Pp.str "Empty list of patterns.")
 
 let push_current_pattern ~program_mode sigma (cur,ty) eqn =
-  let vars = VarSet.variables (Global.env ()) in
-  let hypnaming = if program_mode then ProgramNaming vars else RenameExistingBut vars in
+  let hypnaming = VarSet.variables (Global.env ()) in
   match eqn.patterns with
     | pat::pats ->
         let r = ERelevance.relevant in (* TODO relevance *)
@@ -1358,8 +1357,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
   let typs' =
     List.map_i (fun i d -> (mkRel i, map_constr (lift i) d)) 1 typs in
 
-  let vars = VarSet.variables (Global.env ()) in
-  let hypnaming = if program_mode then ProgramNaming vars else RenameExistingBut vars in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let typs,extenv = push_rel_context ~hypnaming sigma typs pb.env in
 
   let typs' =
@@ -1455,8 +1453,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
 (**********************************************************************)
 (* Main compiling descent *)
 let compile ~program_mode sigma pb =
-  let vars = VarSet.variables (Global.env ()) in
-  let hypnaming = if program_mode then ProgramNaming vars else RenameExistingBut vars in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let rec compile sigma pb =
     match pb.tomatch with
       | Pushed cur :: rest -> match_current sigma { pb with tomatch = rest } cur
@@ -1722,7 +1719,7 @@ let adjust_to_extended_env_and_remove_deps env extenv sigma subst t =
   (subst0, t0)
 
 let push_binder sigma d (k,env,subst) =
-  let hypnaming = RenameExistingBut (VarSet.variables (Global.env ())) in
+  let hypnaming = VarSet.variables (Global.env ()) in
   (k+1,snd (push_rel ~hypnaming sigma d env),List.map (fun (na,u,d) -> (na,lift 1 u,d)) subst)
 
 let rec list_assoc_in_triple x = function
@@ -1846,7 +1843,7 @@ let build_tycon ?loc env tycon_env s subst tycon extenv sigma t =
  *)
 
 let build_inversion_problem ~program_mode loc env sigma tms t =
-  let hypnaming = RenameExistingBut (VarSet.variables (Global.env ())) in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let make_patvar t (subst,avoid) =
     let id = next_name_away (named_hd !!env sigma t Anonymous) avoid in
     DAst.make @@ PatVar (Name id), ((id,t)::subst, Id.Set.add id avoid) in
@@ -2106,8 +2103,7 @@ let prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs ars
   in
   assert (len == 0);
   let p = predicate 0 c in
-  let vars = VarSet.variables (Global.env ()) in
-  let hypnaming = if program_mode then ProgramNaming vars else RenameExistingBut vars in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let arsign,env' = List.fold_right_map (push_rel_context ~hypnaming sigma) arsign env in
   try let sigma' = fst (Typing.type_of !!env' sigma p) in
         Some (sigma', p, arsign)
@@ -2170,7 +2166,7 @@ let prepare_predicate ?loc ~program_mode typing_fun env sigma tomatchs arsign ty
     (* Some type annotation *)
     | Some rtntyp ->
       (* We extract the signature of the arity *)
-      let hypnaming = RenameExistingBut (VarSet.variables (Global.env ())) in
+      let hypnaming = VarSet.variables (Global.env ()) in
       let building_arsign,envar = List.fold_right_map (push_rel_context ~hypnaming sigma) arsign env in
       let sigma, rtnsort = Evd.new_sort_variable univ_flexible sigma in
       let sigma, predcclj = typing_fun (Some (mkSort rtnsort)) envar sigma rtntyp in
@@ -2425,7 +2421,7 @@ let build_ineqs env sigma prevpatterns curpats curpat_sign_len =
 
 let constrs_of_pats typing_fun env sigma eqns tomatchs sign neqs arity =
   let i = ref 0 in
-  let hypnaming = ProgramNaming (VarSet.variables (Global.env ())) in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let (sigma, x, y, z) =
     List.fold_left
       (fun (sigma, branches, eqns, prevpatterns) eqn ->
@@ -2702,7 +2698,7 @@ let context_of_arsign l =
 
 let compile_program_cases ?loc style (typing_function, sigma) tycon env
     (predopt, tomatchl, eqns) =
-  let hypnaming = ProgramNaming (VarSet.variables (Global.env ())) in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let typing_fun tycon env sigma = function
     | Some t ->	typing_function tycon env sigma t
     | None -> coq_unit_judge !!env sigma in

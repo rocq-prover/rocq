@@ -824,8 +824,7 @@ struct
     let open Context.Rel.Declaration in
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
     let pretype_type tycon env sigma c = eval_type_pretyper self ~flags tycon env sigma c in
-    let vars = VarSet.variables (Global.env ()) in
-    let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+    let hypnaming = VarSet.variables (Global.env ()) in
     let rec type_bl env sigma ctxt = function
       | [] -> sigma, ctxt
       | (na,_,bk,None,ty)::bl ->
@@ -1272,8 +1271,7 @@ struct
     let sigma, j = eval_type_pretyper self ~flags dom_valcon env sigma c1 in
     let name = {binder_name=name; binder_relevance=ESorts.relevance_of_sort j.utj_type} in
     let var = LocalAssum (name, j.utj_val) in
-    let vars = VarSet.variables (Global.env ()) in
-    let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+    let hypnaming = VarSet.variables (Global.env ()) in
     let var',env' = push_rel ~hypnaming sigma var env in
     let sigma, j' = eval_pretyper self ~flags rng env' sigma c2 in
     let name = get_name var' in
@@ -1285,8 +1283,7 @@ struct
     let open Context.Rel.Declaration in
     let pretype_type tycon env sigma c = eval_type_pretyper self ~flags tycon env sigma c in
     let sigma, j = pretype_type empty_valcon env sigma c1 in
-    let vars = VarSet.variables (Global.env ()) in
-    let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+    let hypnaming = VarSet.variables (Global.env ()) in
     let sigma, name, j' = match name with
       | Anonymous ->
         let sigma, j = pretype_type empty_valcon env sigma c2 in
@@ -1325,8 +1322,7 @@ struct
     let r = Retyping.relevance_of_term !!env sigma j.uj_val in
     let var = LocalDef (make_annot name r, j.uj_val, t) in
     let tycon = lift_tycon 1 tycon in
-    let vars = VarSet.variables (Global.env ()) in
-    let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+    let hypnaming = VarSet.variables (Global.env ()) in
     let var, env = push_rel ~hypnaming sigma var env in
     let sigma, j' = pretype tycon env sigma c2 in
     let name = get_name var in
@@ -1372,8 +1368,7 @@ struct
           | _ -> assert false
         in aux 1 1 (List.rev nal) cs.cs_args, true in
     let fsign = Context.Rel.map (whd_betaiota !!env sigma) fsign in
-    let vars = VarSet.variables (Global.env ()) in
-    let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+    let hypnaming = VarSet.variables (Global.env ()) in
     let fsign,env_f = push_rel_context ~hypnaming sigma fsign env in
     let obj indt rci p v f =
       if not record then
@@ -1457,8 +1452,7 @@ struct
       let indt = build_dependent_inductive !!env indf in
       let psign = LocalAssum (make_annot na indr, indt) :: arsgn in (* For locating names in [po] *)
       let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
-      let vars = VarSet.variables (Global.env ()) in
-      let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+      let hypnaming = VarSet.variables (Global.env ()) in
       let psign,env_p = push_rel_context ~hypnaming sigma psign predenv in
       let sigma, pred, p = match po with
         | Some p ->
@@ -1703,8 +1697,7 @@ let ise_pretype_gen (flags : inference_flags) env sigma lvar kind c =
       | NoUseTC -> false
       | UseTC | UseTCForConv -> true
   } in
-  let vars = VarSet.variables (Global.env ()) in
-  let hypnaming = if flags.program_mode then ProgramNaming vars else RenameExistingBut vars in
+  let hypnaming = VarSet.variables (Global.env ()) in
   let env = GlobEnv.make ~hypnaming env sigma lvar in
   let sigma', c', c'_ty = match kind with
     | WithoutTypeConstraint ->

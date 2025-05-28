@@ -559,7 +559,6 @@ let resolve_and_replace_implicits exptyp env sigma rt =
   let binder_holes = ref [] in
   let ctx =
     let open Pretyping in
-    let open Evarutil in
     (* Intercept the pretyper for holes and record the generated evar *)
     let register_evar kind loc evk = match kind with
     | GImplicitArg (grk, pk, bk) -> implicit_holes := ((loc, grk, pk, bk), evk) :: !implicit_holes
@@ -591,8 +590,7 @@ let resolve_and_replace_implicits exptyp env sigma rt =
       patvars_abstract = false;
       unconstrained_sorts = false;
     } in
-    let vars = Evarutil.VarSet.variables (Global.env ()) in
-    let hypnaming = RenameExistingBut vars in
+    let hypnaming = Evarutil.VarSet.variables (Global.env ()) in
     let genv = GlobEnv.make ~hypnaming env sigma Glob_ops.empty_lvar in
     let pretyper = { default_pretyper with pretype_hole; pretype_type } in
     let sigma', _ = eval_pretyper pretyper ~flags:pretype_flags (Some exptyp) genv sigma rt in

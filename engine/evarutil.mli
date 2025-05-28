@@ -34,10 +34,7 @@ sig
   val variables : Environ.env -> t
 end
 
-type naming_mode =
-  | RenameExistingBut of VarSet.t
-  | FailIfConflict
-  | ProgramNaming of VarSet.t
+type naming_mode = VarSet.t
 
 val new_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
