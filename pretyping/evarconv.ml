@@ -1116,7 +1116,10 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
              allow this identification (first-order unification of universes). Otherwise
              fallback to unfolding.
           *)
-          let univs = EConstr.eq_constr_universes env evd term1 term2 in
+          debug_unification Pp.(fun () -> str"eq_constr_universes " ++ Termops.Internal.print_constr_env env evd term1 ++ 
+            str" ~= " ++ Termops.Internal.print_constr_env env evd term2);
+          let nargs = 0 (* Stack.args_size sk1 *) in
+          let univs = EConstr.eq_constr_universes env evd ~nargs term1 term2 in
           match univs with
           | Some univs ->
               ise_and i [(fun i ->

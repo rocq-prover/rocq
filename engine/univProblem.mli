@@ -25,7 +25,7 @@ type t =
   | QLeq of Sorts.Quality.t * Sorts.Quality.t
   | ULe of Sorts.t * Sorts.t
   | UEq of Sorts.t * Sorts.t
-  | ULub of Universe.t * Universe.t
+  | ULub of constraint_type * Universe.t * Universe.t
   | UWeak of Universe.t * Universe.t
 
 val is_trivial : t -> bool
@@ -48,4 +48,4 @@ val enforce_eq_instances_univs : bool -> Instance.t constraint_function
 
 val enforce_eq_qualities : Sorts.Quality.t array constraint_function
 
-val compare_cumulative_instances : Conversion.conv_pb -> nargs:application -> Variances.t -> Instance.t constraint_function
+val compare_cumulative_instances : ?flex:bool -> Conversion.conv_pb -> nargs:application -> Variances.t -> Instance.t constraint_function
