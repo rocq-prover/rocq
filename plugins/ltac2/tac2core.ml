@@ -1838,6 +1838,18 @@ let () =
   in
   GlobEnv.register_constr_interp0 wit_ltac2_constr interp
 
+let check_judge ?loc env sigma tycon j =
+  match tycon with
+  | None ->
+    j, sigma
+  | Some ty ->
+    let sigma =
+      try Evarconv.unify_leq_delay env sigma j.Environ.uj_type ty
+      with Evarconv.UnableToUnify (sigma,e) ->
+        Pretype_errors.error_actual_type ?loc env sigma j ty e
+    in
+    {j with Environ.uj_type = ty}, sigma
+
 let interp_constr_var_as_constr ?loc env sigma tycon id =
   let ist = Tac2interp.get_env @@ GlobEnv.lfun env in
   let env = GlobEnv.renamed_env env in
@@ -1845,16 +1857,7 @@ let interp_constr_var_as_constr ?loc env sigma tycon id =
   let c = Tac2ffi.to_constr c in
   let t = Retyping.get_type_of env sigma c in
   let j = { Environ.uj_val = c; uj_type = t } in
-  match tycon with
-  | None ->
-    j, sigma
-  | Some ty ->
-    let sigma =
-      try Evarconv.unify_leq_delay env sigma t ty
-      with Evarconv.UnableToUnify (sigma,e) ->
-        Pretype_errors.error_actual_type ?loc env sigma j ty e
-    in
-    {j with Environ.uj_type = ty}, sigma
+  check_judge ?loc env sigma tycon j
 
 let interp_preterm_var_as_constr ?loc env sigma tycon id =
   let open Ltac_pretype in
@@ -1877,11 +1880,40 @@ let interp_preterm_var_as_constr ?loc env sigma tycon id =
   let sigma, t, ty = Pretyping.understand_ltac_ty flags env sigma vars tycon term in
   Environ.make_judge t ty, sigma
 
+let interp_hyp_var_as_constr ?loc globenv sigma tycon id0 =
+  let module NamedDecl = Context.Named.Declaration in
+  let ist = Tac2interp.get_env @@ GlobEnv.lfun globenv in
+  let env = GlobEnv.renamed_env globenv in
+  let v = Id.Map.find id0 ist.env_ist in
+  let id = Tac2ffi.to_ident v in
+  let j = match EConstr.lookup_named id env with
+    | d ->
+      (* optimization: if id is in the original named context it will
+         be the same in the extended context *)
+      Environ.make_judge (EConstr.mkVar id) (NamedDecl.get_type d)
+    | exception Not_found ->
+      let (_, _, sign) as ext = GlobEnv.ext_named_context globenv in
+      match EConstr.lookup_named_val id sign with
+      | d ->
+        let subst = Evarutil.ext_rev_subst ext in
+        let subst_f c = EConstr.Vars.replace_vars sigma subst c in
+        let c = subst_f (EConstr.mkVar (NamedDecl.get_id d)) in
+        let t = subst_f (NamedDecl.get_type d) in
+        Environ.make_judge c t
+      | exception Not_found ->
+        CErrors.user_err
+          Pp.(fmt "Hypothesis %t (value of ltac2 variable %t) not found."
+                (fun () -> quote (Id.print id))
+                (fun () -> quote (Id.print id0)))
+  in
+  check_judge ?loc env sigma tycon j
+
 let () =
   let interp ?loc ~poly env sigma tycon (kind,id) =
     let f = match kind with
       | ConstrVar -> interp_constr_var_as_constr
       | PretermVar -> interp_preterm_var_as_constr
+      | HypVar -> interp_hyp_var_as_constr
       | PatternVar -> assert false
     in
     f ?loc env sigma tycon id
@@ -1902,6 +1934,7 @@ let () =
     let () = match kind with
       | ConstrVar -> assert false (* checked at intern time *)
       | PretermVar -> assert false
+      | HypVar -> assert false
       | PatternVar -> ()
     in
     let ist = Tac2interp.get_env ist.Ltac_pretype.ltac_genargs in
@@ -1925,6 +1958,7 @@ let () =
         | ConstrVar -> mt()
         | PretermVar -> str "preterm:"
         | PatternVar -> str "pattern:"
+        | HypVar -> str "hyp:"
       in
       str "$" ++ ppkind ++ Id.print id) in
   Genprint.register_noval_print0 wit_ltac2_var_quotation pr_raw pr_glb

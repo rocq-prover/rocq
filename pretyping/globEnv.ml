@@ -97,8 +97,10 @@ let push_rec_types ~hypnaming sigma (lna,typarray) env =
   let env,ctx = Array.fold_left_map (fun e assum -> let (d,e) = push_rel sigma assum e ~hypnaming in (e,d)) env ctxt in
   Array.map get_annot ctx, env
 
+let ext_named_context env = Lazy.force env.extra
+
 let new_evar env sigma ?src ?(naming = Namegen.IntroAnonymous) ?relevance typ =
-  let (subst, _, sign) as ext = Lazy.force env.extra in
+  let (subst, _, sign) as ext = ext_named_context env in
   let instance = Evarutil.default_ext_instance ext in
   let typ' = csubst_subst sigma subst typ in
   let name = Evarutil.next_evar_name sigma naming in

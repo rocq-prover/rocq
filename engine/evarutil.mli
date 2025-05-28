@@ -240,6 +240,8 @@ type ext_named_context =
 
 val default_ext_instance : ext_named_context -> constr SList.t
 
+val ext_rev_subst : ext_named_context -> (Id.t * constr) list
+
 val push_rel_decl_to_named_context : hypnaming:naming_mode ->
   evar_map -> rel_declaration -> ext_named_context -> ext_named_context
 

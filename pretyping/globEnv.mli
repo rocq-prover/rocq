@@ -65,6 +65,10 @@ val new_evar : t -> evar_map -> ?src:Evar_kinds.t Loc.located ->
 
 val new_type_evar : t -> evar_map -> src:Evar_kinds.t Loc.located -> evar_map * constr
 
+(** Get the info needed to find the expected context of an evar in this environment.
+    May be costly (but lazily cached so only costly when first forced). *)
+val ext_named_context : t -> ext_named_context
+
 (** [hide_variable env id] tells to hide the binding of [id] in
     the ltac environment part of [env]. It is useful e.g.
     for the dual status of [y] as term and binder. This is the case
