@@ -268,6 +268,15 @@ This behavior can be relaxed via the following flag:
    Note that this extracted code might not compile or run properly,
    depending of the use of these remaining implicit arguments.
 
+Accessing opaque proofs
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. flag:: Extraction AccessOpaque
+
+   By default extraction will treat opaque proofs (concluded with
+   :cmd:`Qed`) as though they were transparent. Turning this flag off
+   will instead treat them as axioms.
+
 Realizing axioms
 ~~~~~~~~~~~~~~~~
 

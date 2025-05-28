@@ -75,7 +75,7 @@ val observe_tac :
   -> unit Proofview.tactic
 
 (* val function_debug : bool ref  *)
-val observe : Pp.t -> unit
+val observe : CDebug.t
 val do_observe : unit -> bool
 val do_rewrite_dependent : unit -> bool
 

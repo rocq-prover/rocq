@@ -305,30 +305,6 @@ Rewriting with Leibniz and setoid equality
       If the hypothesis is itself dependent in the goal, it is replaced by the proof of
       reflexivity of equality.
 
-   .. flag:: Regular Subst Tactic
-
-      This :term:`flag` controls the behavior of :tacn:`subst`. When it is
-      activated (it is by default), :tacn:`subst` also deals with the following corner cases:
-
-      + A context with ordered hypotheses :n:`@ident__1 = @ident__2`
-        and :n:`@ident__1 = t`, or :n:`t′ = @ident__1` with `t′` not
-        a variable, and no other hypotheses of the form :n:`@ident__2 = u`
-        or :n:`u = @ident__2`; without the flag, a second call to
-        subst would be necessary to replace :n:`@ident__2` by `t` or
-        `t′` respectively.
-      + The presence of a recursive equation which without the flag would
-        be a cause of failure of :tacn:`subst`.
-      + A context with cyclic dependencies as with hypotheses :n:`@ident__1 = f @ident__2`
-        and :n:`@ident__2 = g @ident__1` which without the
-        flag would be a cause of failure of :tacn:`subst`.
-
-      Additionally, it prevents a :term:`local definition <context-local definition>`
-      such as :n:`@ident := t` from being
-      unfolded which otherwise would exceptionally unfold in configurations
-      containing hypotheses of the form :n:`@ident = u`, or :n:`u′ = @ident`
-      with `u′` not a variable. Finally, it preserves the initial order of
-      hypotheses, which without the flag it may break.
-
    .. exn:: Cannot find any non-recursive equality over @ident.
       :undocumented:
 
@@ -634,6 +610,11 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
      constant :n:`@qualid` or is the constant used
      in the notation :n:`@string` (see :n:`@reference`)
    - subterms matching a pattern :n:`@one_term`
+
+   .. flag:: SimplIsCbn
+
+      When this flag is on, :tacn:`simpl` and `simpl` in
+      :n:`@red_expr` behave as :tacn:`cbn`. Off by default.
 
 .. tacn:: cbn {? @reductions } @simple_occurrences
 

@@ -412,3 +412,19 @@ Generation of induction principles with ``Functional`` ``Scheme``
          Generate graph for @qualid
 
    Internal debugging commands.
+
+Flags
+-----
+
+.. flag:: Functional Induction Rewrite Dependent
+
+   Makes FunInd use dependent :tacn:`subst`  instead of :tacn:`simple subst`.
+   On by default.
+
+.. flag:: Function_raw_tcc
+
+   When Function is using a well-founded relation, this flag (when
+   set) prevents the post-processing of the tcc generated for
+   termination. (The post-processing is basically conjunction
+   splitting + auto.)
+   Off by default.

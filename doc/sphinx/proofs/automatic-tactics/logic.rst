@@ -111,6 +111,20 @@ Solvers for logic and equality
 
    Note that this tactic is only available after a ``Require Import Rtauto``.
 
+   .. flag:: Rtauto Check
+
+      Turning this flag on checks the produced proof term at tactic
+      time instead of just proof closing (:cmd:`Qed`) time. Mostly
+      useful for debugging failures at proof closing time. Off by default.
+
+   .. flag:: Rtauto Verbose
+
+      Make :tacn:`rtauto` print some debug info while running when on. Off by default.
+
+   .. flag:: Rtauto Pruning
+
+      .. TODO document this
+
 .. tacn:: firstorder {? @ltac_expr } {? using {+, @qualid } } {? with {+ @ident } }
 
    An experimental extension of :tacn:`tauto` to

@@ -1370,7 +1370,7 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
       List.map (* we can now compute the other principles *)
         (fun scheme_type ->
           incr i;
-          observe (Printer.pr_lconstr_env env sigma scheme_type);
+          observe (fun () -> Printer.pr_lconstr_env env sigma scheme_type);
           let type_concl = Term.strip_prod_decls scheme_type in
           let applied_f =
             List.hd (List.rev (snd (Constr.decompose_app_list type_concl)))
@@ -1387,7 +1387,7 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
                 let g = fst (Constr.decompose_app applied_g) in
                 if Constr.equal f g then raise (Found_type j);
                 observe
-                  Pp.(
+                  Pp.(fun () ->
                     Printer.pr_lconstr_env env sigma f
                     ++ str " <> "
                     ++ Printer.pr_lconstr_env env sigma g))
@@ -1450,7 +1450,7 @@ let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
               Reductionops.nf_zeta env !evd type_of_lemma
             in
             observe
-              Pp.(
+              Pp.(fun () ->
                 str "type_of_lemma := "
                 ++ Printer.pr_leconstr_env env !evd type_of_lemma);
             (type_of_lemma, type_info))
@@ -1517,7 +1517,7 @@ let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
             in
             let type_of_lemma = Reductionops.nf_zeta env !evd type_of_lemma in
             observe
-              Pp.(
+              Pp.(fun () ->
                 str "type_of_lemma := "
                 ++ Printer.pr_leconstr_env env !evd type_of_lemma);
             (type_of_lemma, type_info))
