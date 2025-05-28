@@ -737,7 +737,7 @@ let process_universe_constraints uctx cstrs =
   let nf_constraint local = function
     | QLeq (a, b) -> QLeq (Quality.subst (qnormalize local) a, Quality.subst (qnormalize local) b)
     | QEq (a, b) -> QEq (Quality.subst (qnormalize local) a, Quality.subst (qnormalize local) b)
-    | ULub (u, v) -> ULub (normalize_univ local u, normalize_univ local v)
+    | ULub (c, u, v) -> ULub (c, normalize_univ local u, normalize_univ local v)
     | UWeak (u, v) -> UWeak (normalize_univ local u, normalize_univ local v)
     | UEq (u, v) -> UEq (normalize_sort local u, normalize_sort local v)
     | ULe (u, v) -> ULe (normalize_sort local u, normalize_sort local v)
@@ -895,7 +895,7 @@ let process_universe_constraints uctx cstrs =
         | ULevel (_, l') | UAlgebraic l' ->
           add_local_univ (l', Le, r') local
       end
-    | ULub (l, r) ->
+    | ULub (c, l, r) ->
       (match Universe.level l, Universe.level r with
       | Some l, Some r -> equalize_variables true l r local
       | _, _ -> equalize_universes (Sorts.sort_of_univ l) (Sorts.sort_of_univ r) local)
@@ -987,7 +987,8 @@ let check_universe_constraint uctx (c:UnivProblem.t) =
     end
   | ULe (u,v) -> UGraph.check_leq_sort uctx.universes u v
   | UEq (u,v) -> UGraph.check_eq_sort uctx.universes u v
-  | ULub (u,v) -> UGraph.check_eq uctx.universes u v
+  | ULub (Eq,u,v) -> UGraph.check_eq uctx.universes u v
+  | ULub (Le,u,v) -> UGraph.check_leq uctx.universes u v
   | UWeak _ -> true
 
 let check_universe_constraints uctx csts =

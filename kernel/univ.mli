@@ -219,6 +219,8 @@ val univ_level_rem : Level.t -> Universe.t -> Universe.t -> Universe.t
 type constraint_type = Le | Eq
 type univ_constraint = Universe.t * constraint_type * Universe.t
 
+val constraint_type_ord : constraint_type -> constraint_type -> int
+
 module Constraints : sig
   include CSet.ExtS with type elt = univ_constraint
 
