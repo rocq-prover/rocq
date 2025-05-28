@@ -456,7 +456,7 @@ let magically_constant_of_fixbody env sigma (reference, params) bd = function
                     | _ -> assert false
                   in
                   addqs a b acc
-                | ULub (u, v) | UWeak (u, v) -> addus (Option.get (Universe.level u)) v acc
+                | ULub (_, u, v) | UWeak (u, v) -> addus (Option.get (Universe.level u)) v acc
                 | UEq (u, v) | ULe (u, v) ->
                   (* XXX add something when qsort? *)
                   let get u = match u with
