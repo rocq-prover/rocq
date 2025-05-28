@@ -762,9 +762,16 @@ let process_universe_constraints uctx cstrs =
       let inst = univ_level_rem Level.set u u in
       let repr = Univ.Universe.repr inst in
       if List.for_all (fun (l, k) -> Int.equal k 0 && is_flexible local l) repr then (* No n+k expression, we can just unify set with each expression *)
-        List.fold_left (fun local (l, _) ->
-          try instantiate_variable l Universe.type0 local
-          with UGraph.OccurCheck -> assert false) local repr
+        let rec instantiate_univ local repr =
+          List.fold_left (fun local (l, _) ->
+            try
+              match normalize local l with
+              | None -> 
+                if is_flexible local l then instantiate_variable l Universe.type0 local
+                else add_local_univ (Universe.make l, Eq, Universe.type0) local
+              | Some u -> instantiate_univ local (Univ.Universe.repr u)
+            with UGraph.OccurCheck -> assert false) local repr
+        in instantiate_univ local repr
       else sort_inconsistency Eq ls s
     else sort_inconsistency Eq ls s
   in
