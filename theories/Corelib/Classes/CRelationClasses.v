@@ -27,12 +27,12 @@ Set Universe Polymorphism.
 Set Polymorphic Inductive Cumulativity.
 Set Polymorphic Definitions Cumulativity.
 
-Definition crelation@{-a +ra} (A : Type@{a}) := A -> A -> Type@{ra}.
-Definition arrow@{-a -b} (A : Type@{a}) (B : Type@{b}) := A -> B.
+Definition crelation@{=a +ra} (A : Type@{a}) := A -> A -> Type@{ra}.
+Definition arrow@{=a =b} (A : Type@{a}) (B : Type@{b}) := A -> B.
 
-Definition flip@{-a -b -c} {A : Type@{a}} {B : Type@{b}} {C : Type@{c}} (f : A -> B -> C) := fun x y => f y x.
+Definition flip@{=a =b =c} {A : Type@{a}} {B : Type@{b}} {C : Type@{c}} (f : A -> B -> C) := fun x y => f y x.
 
-Class subrelation@{-a -ra -ra'} {A : Type@{a}} (R : crelation@{a ra} A) (R' : crelation@{a ra'} A) :=
+Class subrelation@{=a =ra =ra'} {A : Type@{a}} (R : crelation@{a ra} A) (R' : crelation@{a ra'} A) :=
   is_subrelation : forall {x y}, R x y -> R' x y.
 
 Module Import TypeProduct.
@@ -44,7 +44,7 @@ Arguments snd {A B}.
 
 End TypeProduct.
 
-Definition iffT@{-a -b} (A : Type@{a}) (B : Type@{b}) := (prodT@{max(a,b) max(a,b)} (A -> B) (B -> A))%type.
+Definition iffT@{=a =b} (A : Type@{a}) (B : Type@{b}) := (prodT@{max(a,b) max(a,b)} (A -> B) (B -> A))%type.
 
 Cumulative Inductive sumT A B :=
 | inlt : A -> sumT A B

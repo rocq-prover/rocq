@@ -1,5 +1,5 @@
 Unset Universe Minimization ToSet.
-Cumulative Polymorphic Axiom tuple@{-i} : Type@{i} -> nat -> Type@{i}.
+Cumulative Polymorphic Axiom tuple@{i} : Type@{i} -> nat -> Type@{i}.
 
 Record box := mkBox {
   elimBox: forall n: nat, tuple unit n -> bool;
