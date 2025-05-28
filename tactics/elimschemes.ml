@@ -82,7 +82,16 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
     (* in case the inductive has a type elimination, generates only one
        induction scheme, the other ones share the same code with the
        appropriate type *)
-    let sigma, cte = Evd.fresh_constant_instance env sigma ~rigid:Evd.UnivFlexible cte in
+    let sigma, cte = 
+      if Global.is_polymorphic (ConstRef cte) then 
+        (* Make the last universe variable for the predicates sort flexible *)
+        let cte, ((sorts, levels), cstrs) = fresh_constant_instance env cte in
+        let _, univs = UVars.Instance.to_array (snd cte) in
+        let last = Option.get (Univ.Universe.level (CArray.last univs)) in
+        let rigidctx = (sorts, Univ.Level.Set.remove last levels), cstrs in
+        let sigma = Evd.merge_context_set Evd.UnivFlexible sigma (Univ.Level.Set.singleton last, Univ.Constraints.empty) in
+        Evd.merge_sort_context_set Evd.UnivRigid sigma rigidctx, cte
+      else Evd.fresh_constant_instance env sigma ~rigid:Evd.UnivRigid cte in
     let c = mkConstU cte in
     let t = Typeops.type_of_constant_in env cte in
     let (mib,mip) = Inductive.lookup_mind_specif env ind in
@@ -98,7 +107,7 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
        we optimise non-[Type] schemes *)
     let sigma, sort = Evd.fresh_sort_in_quality sigma ~rigid:Evd.UnivRigid sort in
     let sigma, t', c' = weaken_sort_scheme env sigma sort npars c t in
-    let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:(EConstr.of_constr t') (EConstr.of_constr c) in
+    let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:(EConstr.of_constr t') (EConstr.of_constr c') in
     let sigma = Evd.minimize_universes sigma in
     (Evarutil.nf_evars_universes sigma c', Evd.ustate sigma)
   | None ->
