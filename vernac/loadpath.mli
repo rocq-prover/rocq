@@ -88,6 +88,10 @@ type vo_path =
       true for -R, false for -Q in command line *)
   ; recursive : bool
   (** [recursive] will determine whether we explore sub-directories  *)
+  ; installed : bool
+  (** [installed] is true for automatically added paths (eg
+      user-contrib), which are assumed to be installed files.
+      False is assumed to be local files (ie current development). *)
   }
 
 val add_vo_path : vo_path -> unit
