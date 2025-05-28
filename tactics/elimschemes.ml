@@ -82,7 +82,7 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
     (* in case the inductive has a type elimination, generates only one
        induction scheme, the other ones share the same code with the
        appropriate type *)
-    let sigma, cte = Evd.fresh_constant_instance env sigma ~rigid:Evd.UnivRigid cte in
+    let sigma, cte = Evd.fresh_constant_instance env sigma ~rigid:Evd.UnivFlexible cte in
     let c = mkConstU cte in
     let t = Typeops.type_of_constant_in env cte in
     let (mib,mip) = Inductive.lookup_mind_specif env ind in
