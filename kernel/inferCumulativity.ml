@@ -460,16 +460,28 @@ let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances vari
     str" in typing variance position " ++ Variance.pr typing_v ++ 
     str " is_type = " ++ if is_type == IsType then str "IsType" else str "IsTerm");
   Array.fold_left2 (fun variances vocc u ->
-    let VariancePair.{ cumul_variance; typing_variance } = VarianceOccurrence.typing_and_cumul_variance_app ~with_type:(is_type == IsTerm) nargs vocc in
+    let input_univ, VariancePair.{ cumul_variance; typing_variance } = VarianceOccurrence.typing_and_cumul_variance_app ~with_type:false nargs vocc in
     debug_infer_term Pp.(fun () -> str"infer_cumulative_instance, for: " ++ Universe.raw_pr u ++
       str" typing variance " ++ Variance.pr typing_variance ++ 
       str" cumul variance " ++ Variance.pr cumul_variance);
     let q = compute_impred_qvars qs vocc in
-    let typing_variance = match typing_v with 
+    let typing_variance =
+      if input_univ then (* The level is an input of the application 
+          and can hence be determined by the arguments types *)
+        Irrelevant
+      else if cv_pb == Cumul then
+        (* The level is an output of the application *)
+        cumul_variance
+      else (* cv_pb == Conv *)
+        if cumul_variance == Irrelevant then Irrelevant 
+        else Invariant
+(*         
+      else        
+        match typing_v with 
       | Invariant -> if typing_variance == Irrelevant then Irrelevant else Invariant 
       | Irrelevant -> assert false 
       | Covariant -> typing_variance 
-      | Contravariant -> Variance.opp typing_variance 
+      | Contravariant -> Variance.opp typing_variance  *)
     in
     match cv_pb, cumul_variance with
     | _, Irrelevant ->
@@ -614,11 +626,11 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     infer_stack variance infos variances stk
   | FLambda _ ->
     let (na,ty,bd) = destFLambda mk_clos hd in
-    let variances = infer_fterm Conv (IsType, Variance.opp (snd variance)) infos variances ty [] in
+    let variances = infer_fterm Conv (IsType, Invariant) infos variances ty [] in
     infer_fterm cv_pb variance (push_relevance infos na) variances bd []
   | FProd (na,dom,codom,e) ->
     let na = usubst_binder e na in
-    let variances = infer_fterm Conv (IsType, Variance.opp (snd variance)) infos variances dom [] in
+    let variances = infer_fterm Conv (IsType, Invariant) infos variances dom [] in
     infer_fterm cv_pb variance (push_relevance infos na) variances (mk_clos (CClosure.usubs_lift e) codom) []
   | FInd (ind, u) ->
     let variances =
@@ -677,11 +689,6 @@ and infer_case cv_pb variance infos variances ci u p br e =
   let push_relevances (infos, tab) n = (push_relevances infos n, tab) in
   let orig_pos = get_position variances in
   debug Pp.(fun () -> str"computing variance of case with conv_pb = " ++ pr_cumul_pb cv_pb ++ str " and position " ++ Position.pr orig_pos);
-  (* let variances =
-    if cv_pb == Cumul && orig_pos == Position.InTerm then
-      set_position Position.InType variances
-    else variances
-   *)
   let variances =
     let (ctx, arity), _r = p in
     let ctx = Array.map (usubst_binder e) ctx in
@@ -753,7 +760,7 @@ let infer_named_context env ~evars variances ctx =
     match typ with
     | Context.Named.Declaration.LocalAssum (_, typ') ->
       (Environ.push_named typ env, succ i,
-       infer_term (Conv, InvCumul) env ~evars variances typ')
+       infer_term (Conv, Conv) env ~evars variances typ')
     | Context.Named.Declaration.LocalDef _ ->
       (Environ.push_named typ env, i, variances)
       (* Skip let-bound variables *)
@@ -767,7 +774,7 @@ let infer_context env ~evars ?(shift = 0) ?(binder_pos = fun i -> Position.InBin
     match typ with
     | Context.Rel.Declaration.LocalAssum (_, typ') ->
       (Environ.push_rel typ env, succ i,
-       infer_term (Conv, InvCumul) env ~evars variances typ')
+       infer_term (Conv, Conv) env ~evars variances typ')
     | Context.Rel.Declaration.LocalDef _ -> assert false
   in
   let env, _, variances = Context.Rel.fold_outside infer_typ ctx ~init:(env, shift, variances) in
@@ -866,7 +873,7 @@ let infer_arity_constructor is_arity env ~evars ?(shift = 0) variances arcn =
     match typ with
     | Context.Rel.Declaration.LocalAssum (_, typ') ->
       (Environ.push_rel typ env, succ i,
-       infer_term (if is_arity then (Conv, InvCumul) else (Cumul,Cumul)) env ~evars variances typ')
+       infer_term (if is_arity then (Conv, Conv) else (Cumul,Conv)) env ~evars variances typ')
     | Context.Rel.Declaration.LocalDef _ -> assert false
   in
   let typs, codom = Reduction.whd_decompose_prod ~evars env arcn in
