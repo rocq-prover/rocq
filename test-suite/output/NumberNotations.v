@@ -81,8 +81,8 @@ Module Test4.
   Check let v := 0%utp in v : unit.
   Check let v := 0%upp in v : unit.
 
-  Polymorphic Definition pto_punits := pto_punit_all@{}.
-  Polymorphic Definition pof_punits := pof_punit@{}.
+  Polymorphic Definition pto_punits := pto_punit_all@{0}.
+  Polymorphic Definition pof_punits := pof_punit@{0}.
   Number Notation punit pto_punits pof_punits (abstract after 0) : ppps.
   Delimit Scope ppps with ppps.
   Universe u.

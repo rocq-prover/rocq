@@ -246,7 +246,7 @@ Fixpoint IsTrunc_internal (n : trunc_index) (A : Type) : Type :=
     | trunc_S n' => forall (x y : A), IsTrunc_internal n' (x = y)
   end.
 
-Class IsTrunc (n : trunc_index) (A : Type) : Type :=
+Class IsTrunc (n : trunc_index) (A : Type) :=
   Trunc_is_trunc : IsTrunc_internal n A.
 
 Definition unit_trunc := IsTrunc minus_two unit.
