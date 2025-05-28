@@ -213,8 +213,8 @@ let interp_context_gen scope ~program_mode ~kind ~autoimp_enable ~coercions env 
   let sigma =
     let as_types, cumul_pb =
       match scope with
-      | Locality.Discharge -> false, InferCumulativity.InvCumul
-      | Locality.Global _ -> true, InferCumulativity.Cumul
+      | Locality.Discharge -> false, InferCumulativity.Conv
+      | Locality.Global _ -> true, InferCumulativity.Conv
     in
     UnivVariances.register_universe_variances_of_named_context env sigma ~as_types ~cumul_pb ctx in
   let sigma, ctx = Evarutil.finalize ~partial:true sigma @@ fun nf ->
