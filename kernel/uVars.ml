@@ -396,6 +396,8 @@ struct
 
   let variances_of_opt_pair = Option.default irrelevant_pair
 
+  type input_universe = bool
+  
   let typing_and_cumul_variance_app ?(with_type=true) nargs vocc =
     let open Variance in
     let is_applied_enough, variance_in_binders =
@@ -418,7 +420,7 @@ struct
     let topfix_variance = variances_of_opt_pair (fst vocc.in_topfix_binders) in
     let binders_cumul_variance = VariancePair.sup binders_variance topfix_variance in
     let cumul_variance = VariancePair.sup binders_cumul_variance (variances_of_opt_pair vocc.in_term) in      
-    { cumul_variance = cumul_variance.cumul_variance; typing_variance = typing_variance.typing_variance }
+    is_applied_enough, { cumul_variance = cumul_variance.cumul_variance; typing_variance = typing_variance.typing_variance }
 
   let typing_and_cumul_variance ~nargs vocc = typing_and_cumul_variance_app (NumArgs nargs) vocc
 

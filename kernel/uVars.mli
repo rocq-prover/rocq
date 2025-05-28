@@ -148,9 +148,13 @@ sig
 
   val typing_variances : t -> Variance.t
   
-  val typing_and_cumul_variance : nargs:int -> t -> VariancePair.t
+  type input_universe = bool
 
-  val typing_and_cumul_variance_app : ?with_type:bool -> application -> t -> VariancePair.t
+  val typing_and_cumul_variance : nargs:int -> t -> 
+    input_universe * VariancePair.t
+
+  val typing_and_cumul_variance_app : ?with_type:bool -> application -> t -> 
+    input_universe * VariancePair.t
 
   val variance_app : application -> t -> VariancePair.t
 
