@@ -373,7 +373,7 @@ Module Anonymous.
   Definition collapseid := defaultid@{_ _}.
   Check collapseid@{_}.
 
-  Definition anonid := (fun x => x) : Type -> Type@{_}.
+  Definition anonid := (fun x => x) : Type -> Type.
   Check anonid@{_}.
 
   Definition defaultalg := (fun x : Type@{_} => x) (Type@{_} : Type@{_}).

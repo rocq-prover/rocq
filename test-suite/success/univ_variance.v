@@ -4,11 +4,11 @@ Definition foo@{+i} := Type@{i}.
 
 Definition bar := foo.
 
-Definition contra@{-i} := Type@{i} -> False.
+Definition contra@{i} := Type@{i} -> False.
 
-Definition contra_pos@{+i} := (contra@{i} -> False).
+Definition contra_pos@{i} := (contra@{i} -> False).
 
-Definition sid@{s | -i |} (A : Type@{s|i}) (a : A) := a.
+Definition sid@{s | i |} (A : Type@{s|i}) (a : A) := a.
 
 Definition foobar (P : Prop) := sid@{Prop|_} P.
 
