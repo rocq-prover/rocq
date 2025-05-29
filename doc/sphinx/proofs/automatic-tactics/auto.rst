@@ -369,16 +369,16 @@ implicitly, but this behavior is deprecated as of Rocq 9.2.  Implicitly
 created databases have the `Opaque` setting for `Constants`, `Projections`
 and `Variables`.
 
-Use :cmd:`Hint Opaque` and :cmd:`Hint Transparent` to control the opacity of
-individual items.  Hint opacity settings influence which hints the search tactics
-try, but they may or may not affect how the selected tactic is executed.
-(Usually not, except for :tacn:`typeclasses eauto`, which uses the equivalent of
-:tacn:`autoapply`, which explicitly uses the hint opacity settings when
-applying a :cmd:`Hint Resolve` hint.)
 The proof search tactics use unification to choose which tactics to try, for example
 whether the goal unifies with a theorem given by :cmd:`Hint Resolve`.
-These settings are distinct from the non-hint :cmd:`Opaque` and :cmd:`Transparent`
-settings.
+
+Use :cmd:`Hint Opaque` and :cmd:`Hint Transparent` to control the opacity of
+individual items during this initial unification.  These settings are distinct from the
+non-hint :cmd:`Opaque` and :cmd:`Transparent` settings.  Hint opacity settings
+influence which hints the search tactics try, but in some cases they also affect how
+selected tactics are executed.  (In particular, :tacn:`typeclasses eauto` uses the equivalent of
+:tacn:`autoapply` when applying :cmd:`Hint Resolve` hints, which explicitly use the hint
+opacity settings.  :tacn:`auto` and :tacn:`eauto` don't do this.)
 
 .. cmd:: Create HintDb @ident {? discriminated }
 
@@ -630,7 +630,7 @@ Creating Hints
       :ref:`here <hint_performance_considerations>` for a description of how
       opaque and transparent affect which hints are tried.
       Note that transparency hints are independent of the non-hint :cmd:`Opaque`
-      and :n:`Transparent` settings.
+      and :cmd:`Transparent` settings.
 
       .. example:: Transparency with Multiple Hint Databases
 
