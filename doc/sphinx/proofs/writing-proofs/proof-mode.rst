@@ -471,6 +471,7 @@ Name a set of section hypotheses for ``Proof using``
       are deprecated. See the warnings below and in the :cmd:`Proof using` command.
 
    .. exn:: "All" is a predefined collection containing all variables. It can't be redefined.
+      :name: All is a predefined collection containing all variables. It can't be redefined.
 
       When issuing a :cmd:`Proof using` command, **All** used as a collection name always means
       "use all variables".

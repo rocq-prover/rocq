@@ -192,6 +192,7 @@ The basic assertion command is:
 
    .. exn:: Nested proofs are discouraged and not allowed by default. This error probably means that you forgot to close the last "Proof." with "Qed." or "Defined.". \
             If you really intended to use nested proofs, you can do so by turning the "Nested Proofs Allowed" flag on.
+      :name: Nested proofs are discouraged and not allowed by default
 
       You are asserting a new statement when you're already in proof mode.
       This feature, called nested proofs, is disabled by default.

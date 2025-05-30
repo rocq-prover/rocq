@@ -594,6 +594,7 @@ Enabling and disabling notations
       No previously defined notation satisfies the given constraints.
 
    .. exn:: More than one interpretation bound to this notation, confirm with the "all" modifier.
+      :name: More than one interpretation bound to this notation, confirm with the all modifier
 
       Use :n:`all` to allow enabling or disabling multiple
       notations in a single command.
