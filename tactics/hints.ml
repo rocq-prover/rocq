@@ -1765,64 +1765,6 @@ let pr_searchtable env sigma =
   in
   Hintdbmap.fold fold !searchtable (mt ())
 
-let print_mp mp =
-  try
-    let qid = Nametab.shortest_qualid_of_module mp in
-    str " from "  ++ pr_qualid qid
-  with Not_found -> mt ()
-
-let hint_trace = Evd.Store.field "hint_trace"
-
-let warn_non_imported_hint =
-  CWarnings.create ~name:"non-imported-hint" ~category:CWarnings.CoreCategories.automation
-         (fun (hint,mp) ->
-          strbrk "Hint used but not imported: " ++ hint ++ print_mp mp)
-
-let warn env sigma h =
-  let hint = pr_hint env sigma h in
-  let mp = KerName.modpath h.uid in
-  warn_non_imported_hint (hint,mp)
-
-let wrap_hint_warning t =
-  let open Proofview.Notations in
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let store = get_extra_data sigma in
-  let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KNmap.empty in
-  Proofview.Unsafe.tclEVARS (set_extra_data store sigma) >>= fun () ->
-  t >>= fun ans ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let store = get_extra_data sigma in
-  let hints = match Store.get store hint_trace with
-  | None -> assert false
-  | Some hints -> hints
-  in
-  let () = KNmap.iter (fun _ h -> warn env sigma h) hints in
-  let store = match old with
-  | None -> Store.remove store hint_trace
-  | Some v -> Store.set store hint_trace v
-  in
-  Proofview.Unsafe.tclEVARS (set_extra_data store sigma) >>= fun () ->
-  Proofview.tclUNIT ans
-
-let wrap_hint_warning_fun env sigma t =
-  let store = get_extra_data sigma in
-  let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KNmap.empty in
-  let (ans, sigma) = t (set_extra_data store sigma) in
-  let store = get_extra_data sigma in
-  let hints = match Store.get store hint_trace with
-  | None -> assert false
-  | Some hints -> hints
-  in
-  let () = KNmap.iter (fun _ h -> warn env sigma h) hints in
-  let store = match old with
-  | None -> Store.remove store hint_trace
-  | Some v -> Store.set store hint_trace v
-  in
-  (ans, set_extra_data store sigma)
-
 module FullHint =
 struct
   type t = full_hint
