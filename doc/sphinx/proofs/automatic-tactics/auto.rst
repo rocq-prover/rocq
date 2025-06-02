@@ -411,8 +411,9 @@ Creating Hints
    + :attr:`export` hints are visible from other modules when they :cmd:`Import` the current
      module, but not when they only :cmd:`Require` it.
 
-   + :attr:`global` hints are visible from other modules when they :cmd:`Import` or
-     :cmd:`Require` the current module.
+   + :attr:`global` hints are visible from other modules when they
+     :cmd:`Require` the current module (submodules of the current module
+     are considered "required" after their :cmd:`End`).
 
    .. versionchanged:: 8.18
 
