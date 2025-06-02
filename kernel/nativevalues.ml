@@ -81,7 +81,9 @@ type rec_pos = int array
 
 let eq_rec_pos = Array.equal Int.equal
 
-type vcofix = CofixLazy of t | CofixValue of t
+type vcofix0 = CofixLazy of t | CofixValue of t
+
+type vcofix = vcofix0 ref
 
 type atom =
   | Arel of int
@@ -119,7 +121,7 @@ let accumulate_tag = 0
 (** Unique pointer used to drive the accumulator function *)
 let ret_accu = Obj.repr (ref ())
 
-type accu_val = { mutable acc_atm : atom; acc_arg : t list }
+type accu_val = { acc_atm : atom; acc_arg : t list }
 
 external set_tag : Obj.t -> int -> unit = "rocq_obj_set_tag"
 
@@ -205,9 +207,6 @@ let mk_proj_accu kn c =
 let atom_of_accu (k:accumulator) =
   (get_accu k).acc_atm
 
-let set_atom_of_accu (k:accumulator) (a:atom) =
-  (get_accu k).acc_atm <- a
-
 let accu_nargs (k:accumulator) =
   List.length (get_accu k).acc_arg
 
@@ -218,26 +217,29 @@ let mk_fix_accu rec_pos pos types bodies =
   mk_accu (Afix(types,bodies,rec_pos, pos))
 
 let mk_cofix_accu pos types norm =
-  mk_accu (Acofix (types, norm, pos, CofixLazy (Obj.magic 0 : t)))
+  mk_accu (Acofix (types, norm, pos, ref (CofixLazy (Obj.magic 0 : t))))
 
 let upd_cofix (cofix :t) (cofix_fun : t) =
   let atom = atom_of_accu (Obj.magic cofix) in
   match atom with
-  | Acofix (typ,norm,pos,_) ->
-    set_atom_of_accu (Obj.magic cofix) (Acofix (typ, norm, pos, CofixLazy cofix_fun))
+  | Acofix (_,_,_,vref) ->
+    vref := CofixLazy cofix_fun
   | _ -> assert false
 
 let force_cofix (cofix : t) =
   let accu = (Obj.magic cofix : accumulator) in
   let atom = atom_of_accu accu in
   match atom with
-  | Acofix (typ, norm, pos, CofixLazy f) ->
+  | Acofix (_, _, _, vref) ->
+    begin match !vref with
+    | CofixLazy f ->
     let args = args_of_accu accu in
     let f = List.fold_right (fun arg f -> apply f arg) args f in
     let v = apply f (Obj.magic ()) in
-    let () = set_atom_of_accu accu (Acofix (typ, norm, pos, CofixValue v)) in
+    let () = vref := CofixValue v in
       v
-  | Acofix (_, _, _, CofixValue v) -> v
+    | CofixValue v -> v
+    end
   | _ -> cofix
 
 let mk_const tag = Obj.magic tag
