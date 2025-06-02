@@ -9,7 +9,7 @@ through the <tt>Require Import</tt> command.</p>
 <p>The core library is composed of the following subdirectories:</p>
 
 <dl>
-  <dt id="Init"> <b>Init</b>:
+  <dt id="Init"> <a href="#Init"><b>Init</b></a>:
     The prelude (automatically loaded when starting Coq)
   </dt>
   <dd>
