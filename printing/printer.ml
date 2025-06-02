@@ -251,32 +251,33 @@ let pr_universe_ctx_set sigma c =
   else
     mt()
 
-let pr_universe_ctx sigma ?variance c =
+let pr_universe_ctx sigma ?variances c =
   if !Detyping.print_universes && not (UVars.UContext.is_empty c) then
     fnl()++
     pr_in_comment
       (v 0
          (UVars.pr_universe_context (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma)
-            ?variance c))
+            ?variances c))
   else
     mt()
 
-let pr_abstract_universe_ctx sigma ?variance ?priv c =
+let pr_abstract_universe_ctx sigma ?variances ?priv c =
   let open Univ in
   let priv = Option.default Univ.ContextSet.empty priv in
   let has_priv = not (ContextSet.is_empty priv) in
   if !Detyping.print_universes && (not (UVars.AbstractContext.is_empty c) || has_priv) then
     let prqvar u = Termops.pr_evd_qvar sigma u in
     let prlev u = Termops.pr_evd_level sigma u in
-    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.pr_abstract_universe_context prqvar prlev ?variance c) in
+    let variances = if Detyping.print_variances () then variances else None in
+    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.pr_abstract_universe_context prqvar prlev ?variances c) in
     let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (Univ.ContextSet.pr prlev priv) else mt() in
     fnl()++pr_in_comment (pub ++ priv)
   else
     mt()
 
-let pr_universes sigma ?variance ?priv = function
+let pr_universes sigma ?priv = function
   | Declarations.Monomorphic -> mt ()
-  | Declarations.Polymorphic ctx -> pr_abstract_universe_ctx sigma ?variance ?priv ctx
+  | Declarations.Polymorphic (ctx, variances) -> pr_abstract_universe_ctx sigma ?variances ?priv ctx
 
 (**********************************************************************)
 (* Global references *)
@@ -289,19 +290,19 @@ let pr_universe_instance_binder evd inst csts =
   let prqvar = Termops.pr_evd_qvar evd in
   let prlev = Termops.pr_evd_level evd in
   let pcsts = if Constraints.is_empty csts then begin
-      if fst (UVars.Instance.length inst) = 0 then mt()
+      if fst (UVars.LevelInstance.length inst) = 0 then mt()
       else str " |"
     end
     else strbrk " | " ++
          prlist_with_sep pr_comma
-           (fun (u,d,v) -> hov 0 (prlev u ++ pr_constraint_type d ++ prlev v))
+           (fun (u,d,v) -> hov 0 (Universe.pr prlev u ++ pr_constraint_type d ++ Universe.pr prlev v))
            (Constraints.elements csts)
   in
-  str"@{" ++ UVars.Instance.pr prqvar prlev inst ++ pcsts ++ str"}"
+  str"@{" ++ UVars.LevelInstance.pr prqvar prlev inst ++ pcsts ++ str"}"
 
 let pr_universe_instance evd inst =
   let prqvar = Termops.pr_evd_qvar evd in
-  let prlev = Termops.pr_evd_level evd in
+  let prlev = Termops.pr_evd_universe evd in
   str "@{" ++ UVars.Instance.pr prqvar prlev inst ++ str "}"
 
 let pr_puniverses f env sigma (c,u) =

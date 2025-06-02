@@ -254,23 +254,28 @@ let check_record data =
 
 (* Template univs must be unbounded from below for subject reduction
    (with partially applied template poly, cf RFC 90).
-
-   We also forbid strict bounds from above because they lead
-   to problems when instantiated with algebraic universes
-   (template_u < v can become w+1 < v which we cannot yet handle). *)
+*)
 let check_unbounded_from_below (univs,csts) =
+  let check_univ u =
+    Level.Set.fold (fun l accu -> 
+      match accu with 
+      | None -> 
+        if Level.Set.mem l univs then Some l
+        else None
+      | _ -> accu) (Universe.levels u) None
+  in
   Univ.Constraints.iter (fun (l,d,r) ->
       let bad = match d with
-        | Eq | Lt ->
-          if Level.Set.mem l univs then Some l
-          else if Level.Set.mem r univs then Some r
-          else None
-        | Le -> if Level.Set.mem r univs then Some r else None
+        | Eq ->
+          (match check_univ l with 
+          | None -> check_univ r
+          | Some _ as x -> x)          
+        | Le -> check_univ r
       in
       bad |> Option.iter (fun bad ->
           CErrors.user_err Pp.(str "Universe level " ++ Level.raw_pr bad ++
                                str " cannot be template because it appears in constraint " ++
-                               Level.raw_pr l ++ pr_constraint_type d ++ Level.raw_pr r)))
+                               Universe.raw_pr l ++ pr_constraint_type d ++ Universe.raw_pr r)))
     csts
 
 let check_not_appearing_univs ~template_univs univs =
@@ -313,8 +318,8 @@ let check_no_increment ~template_univs u =
     CErrors.user_err
       Pp.(str "Template polymorphism with conclusion strictly larger than a bound universe not supported.")
 
-let make_template_univ_names (u:UVars.Instance.t) : UVars.bound_names =
-  let qlen, ulen = UVars.Instance.length u in
+let make_template_univ_names (u:UVars.LevelInstance.t) : UVars.bound_names =
+  let qlen, ulen = UVars.LevelInstance.length u in
   {quals = Array.make qlen Anonymous; univs = Array.make ulen Anonymous}
 
 let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
@@ -452,11 +457,11 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
      don't forget to check the default_univs qualities are all QType if so *)
   let template_usubst : UVars.sort_level_subst =
     let bind_instance = UVars.UContext.instance uctx in
-    let () = if not UVars.(eq_sizes (Instance.length bind_instance) (Instance.length default_univs))
+    let () = if not UVars.(eq_sizes (LevelInstance.length bind_instance) (LevelInstance.length default_univs))
       then CErrors.anomaly Pp.(str "Inorrect default template universes declaration.")
     in
-    let bind_qs, bind_us = UVars.Instance.to_array bind_instance in
-    let default_qs, default_us = UVars.Instance.to_array default_univs in
+    let bind_qs, bind_us = UVars.LevelInstance.to_array bind_instance in
+    let default_qs, default_us = UVars.LevelInstance.to_array default_univs in
     let qsubst = Array.fold_left2 (fun qsubst bind_q default_q ->
         let open Sorts.Quality in
         match bind_q, default_q with
@@ -469,7 +474,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     in
     let usubst = Array.fold_left2 (fun usubst bind_u default_u ->
         assert (not @@ Level.is_set bind_u);
-        Level.Map.add bind_u default_u usubst)
+        Level.Map.add bind_u (Universe.make default_u) usubst)
         Level.Map.empty
         bind_us default_us
     in
@@ -530,7 +535,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Template_ind_entry {uctx; default_univs=_} ->
       Environ.Internal.push_template_context uctx env
     | Monomorphic_ind_entry -> env
-    | Polymorphic_ind_entry ctx -> push_context ctx env
+    | Polymorphic_ind_entry (ctx, _variance) -> push_context ctx env
   in
 
   let has_template_poly = match mie.mind_entry_universes with
@@ -571,44 +576,48 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
         data, Some None, reason
   in
 
-  let variance = match mie.mind_entry_variance with
-    | None -> None
-    | Some variances ->
+  let usubst, univs =
       match mie.mind_entry_universes with
-      | Monomorphic_ind_entry | Template_ind_entry _ ->
-        CErrors.user_err Pp.(str "Inductive cannot be both monomorphic and universe cumulative.")
-      | Polymorphic_ind_entry uctx ->
-        (* no variance for qualities *)
-        let _qualities, univs = Instance.to_array @@ UContext.instance uctx in
-        let univs = Array.map2 (fun a b -> a,b) univs variances in
-        let univs = match sec_univs with
-          | None -> univs
-          | Some sec_univs ->
-            (* no variance for qualities *)
-            let _, sec_univs = UVars.Instance.to_array sec_univs in
-            let sec_univs = Array.map (fun u -> u, None) sec_univs in
-            Array.append sec_univs univs
+      | Monomorphic_ind_entry ->
+        UVars.empty_sort_subst, Monomorphic
+      | Template_ind_entry _ ->
+        let usubst = Option.get template_usubst in
+        usubst, Monomorphic
+      | Polymorphic_ind_entry (uctx, variance) ->
+        let variance = match variance with
+        | None -> None
+        | Some variances ->
+          (* no variance for qualities *)
+          let _qualities, univs = LevelInstance.to_array @@ UContext.instance uctx in
+          let univs =
+            match variances with
+            | Infer_variances -> Array.map (fun a -> a, None) univs
+            | Check_variances variances -> Array.map2 (fun a b -> a,Some b) univs (UVars.Variances.repr variances)
+          in
+          let univs = match sec_univs with
+            | None -> univs
+            | Some sec_univs ->
+              (* no variance for qualities *)
+              let _, sec_univs = UVars.LevelInstance.to_array sec_univs in
+              let sec_univs = Array.map (fun u -> u, None) sec_univs in
+              Array.append sec_univs univs
+          in
+          let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
+              ~evars:(CClosure.default_evar_handler env)
+              ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
+              ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
+              univs
+          in
+          Some variances
         in
-        let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
-            ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
-            ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
-            univs
-        in
-        Some variances
+        (* Abstract universes *)
+        let (inst, auctx) = UVars.abstract_universes uctx in
+        let inst = UVars.make_instance_subst inst in
+        let variance = Option.map (UVars.subst_sort_level_variances inst) variance in
+        (inst, Polymorphic (auctx, variance))
+
   in
 
-  (* Abstract universes *)
-  let usubst, univs = match mie.mind_entry_universes with
-  | Monomorphic_ind_entry ->
-    UVars.empty_sort_subst, Monomorphic
-  | Template_ind_entry _ ->
-    let usubst = Option.get template_usubst in
-    usubst, Monomorphic
-  | Polymorphic_ind_entry uctx ->
-    let (inst, auctx) = UVars.abstract_universes uctx in
-    let inst = UVars.make_instance_subst inst in
-    (inst, Polymorphic auctx)
-  in
   let params = Vars.subst_univs_level_context usubst params in
   let data = List.map (abstract_packets env usubst) data in
 
@@ -619,4 +628,4 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     Environ.push_rel_context ctx env
   in
 
-  env_ar_par, univs, template, variance, record, why_not_prim_record, params, Array.of_list data
+  env_ar_par, univs, template, record, why_not_prim_record, params, Array.of_list data
