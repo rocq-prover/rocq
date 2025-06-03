@@ -413,7 +413,7 @@ Creating Hints
 
    + :attr:`global` hints are visible from other modules when they
      :cmd:`Require` the current module (submodules of the current module
-     are considered "required" after their :cmd:`End`).
+     are considered :cmd:`Require`\d after their :cmd:`End`).
 
    .. versionchanged:: 8.18
 
