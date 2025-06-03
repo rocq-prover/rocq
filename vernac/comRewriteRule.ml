@@ -34,7 +34,7 @@ let preprocess_symbols l =
   List.iter (function AddCoercion, (({CAst.loc; _}, _) :: _, _) -> CErrors.user_err ?loc no_coercion_msg | AddCoercion, _ -> assert false | _ -> ()) l;
   udecl, List.concat_map (fun (coe, (idl, c)) -> List.map (fun (id, _) -> id, c) idl) l
 
-let do_symbol ~poly ~unfold_fix udecl (id, typ) =
+let do_symbol ~cumulative ~poly ~unfold_fix udecl (id, typ) =
   if Dumpglob.dump () then Dumpglob.dump_definition id false "symb";
   let loc = id.CAst.loc in
   let id = id.CAst.v in
@@ -50,18 +50,18 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   let _qvars, uvars = EConstr.universes_of_constr evd typ in
   let evd = Evd.restrict_universe_context evd uvars in
   let typ = EConstr.to_constr evd typ in
-  let univs = Evd.check_univ_decl ~poly ~cumulative:false ~kind:UVars.Assumption evd udecl in
+  let univs = Evd.check_univ_decl ~poly ~cumulative ~kind:UVars.Assumption evd udecl in
   let entry = Declare.symbol_entry ~univs ~unfold_fix typ in
   let kn = Declare.declare_constant ?loc ~name:id ~kind:Decls.IsSymbol (Declare.SymbolEntry entry) in
   let () = Impargs.maybe_declare_manual_implicits false (GlobRef.ConstRef kn) impls in
   let () = Declare.assumption_message id in
   ()
 
-let do_symbols ~poly ~unfold_fix l =
+let do_symbols ~cumulative ~poly ~unfold_fix l =
   let env = Global.env () in
   if not @@ Environ.rewrite_rules_allowed env then raise Environ.(RewriteRulesNotAllowed Symb);
   let udecl, l = preprocess_symbols l in
-  List.iter (do_symbol ~poly ~unfold_fix udecl) l
+  List.iter (do_symbol ~cumulative ~poly ~unfold_fix udecl) l
 
 
 

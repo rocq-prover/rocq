@@ -1,4 +1,4 @@
-val do_symbols : poly:bool -> unfold_fix:bool ->
+val do_symbols : cumulative:bool -> poly:bool -> unfold_fix:bool ->
   (Vernacexpr.coercion_flag * ((Names.lident * Constrexpr.cumul_univ_decl_expr option) list * Constrexpr.constr_expr)) list
   -> unit
 

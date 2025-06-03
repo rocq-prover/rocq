@@ -2768,10 +2768,10 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacSymbol l ->
     vtdefault (fun () ->
-      let unfold_fix, poly =
-        Attributes.(parse Notations.(unfold_fix ++ polymorphic)) atts
+      let (unfold_fix, poly), cumulative =
+        Attributes.(parse Notations.(unfold_fix ++ polymorphic ++ cumulative UVars.Assumption)) atts
       in
-        ComRewriteRule.do_symbols ~poly ~unfold_fix l)
+        ComRewriteRule.do_symbols ~cumulative ~poly ~unfold_fix l)
 
   | VernacInductive (finite, l) ->
     vtdefault(fun () -> vernac_inductive ~atts finite l)
