@@ -24,8 +24,8 @@ type 'v node =
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
 | Lprod         of 'v lambda * 'v lambda
-| Llam          of Name.t binder_annot array * 'v lambda
-| Llet          of Name.t binder_annot * 'v lambda * 'v lambda
+| Llam          of Name.t array * 'v lambda
+| Llet          of Name.t * 'v lambda * 'v lambda
 | Lapp          of 'v lambda * 'v lambda array
 | Lconst        of pconstant
 | Lproj         of Projection.Repr.t * 'v lambda
@@ -47,9 +47,9 @@ type 'v node =
 
 and 'v lam_branches =
   { constant_branches : 'v lambda array;
-    nonconstant_branches : (Name.t binder_annot array * 'v lambda) array }
+    nonconstant_branches : (Name.t array * 'v lambda) array }
 
-and 'v fix_decl = Name.t binder_annot array * 'v lambda array * 'v lambda array
+and 'v fix_decl = Name.t array * 'v lambda array * 'v lambda array
 
 type evars =
   { evars_val : CClosure.evar_handler }
@@ -60,11 +60,11 @@ val empty_evars : Environ.env -> evars
 
 val node : 'v lambda -> 'v node
 val mkLapp : 'v lambda -> 'v lambda array -> 'v lambda
-val mkLlam : Name.t binder_annot array -> 'v lambda -> 'v lambda
+val mkLlam : Name.t array -> 'v lambda -> 'v lambda
 val unsafe_mkPArray : 'v lambda array -> 'v lambda -> 'v lambda
 val unsafe_mkPArray_val : 'v -> 'v lambda -> 'v lambda
-val decompose_Llam : 'v lambda -> Name.t binder_annot array * 'v lambda
-val decompose_Llam_Llet : 'v lambda -> (Name.t binder_annot * 'v lambda option) array * 'v lambda
+val decompose_Llam : 'v lambda -> Name.t array * 'v lambda
+val decompose_Llam_Llet : 'v lambda -> (Name.t * 'v lambda option) array * 'v lambda
 
 val free_rels : 'v lambda -> Int.Set.t
 

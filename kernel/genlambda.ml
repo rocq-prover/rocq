@@ -25,8 +25,8 @@ type 'v node =
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
 | Lprod         of 'v lambda * 'v lambda
-| Llam          of Name.t binder_annot array * 'v lambda
-| Llet          of Name.t binder_annot * 'v lambda * 'v lambda
+| Llam          of Name.t array * 'v lambda
+| Llet          of Name.t * 'v lambda * 'v lambda
 | Lapp          of 'v lambda * 'v lambda array
 | Lconst        of pconstant
 | Lproj         of Projection.Repr.t * 'v lambda
@@ -48,9 +48,9 @@ type 'v node =
 
 and 'v lam_branches =
   { constant_branches : 'v lambda array;
-    nonconstant_branches : (Name.t binder_annot array * 'v lambda) array }
+    nonconstant_branches : (Name.t array * 'v lambda) array }
 
-and 'v fix_decl = Name.t binder_annot array * 'v lambda array * 'v lambda array
+and 'v fix_decl = Name.t array * 'v lambda array * 'v lambda array
 
 and 'v lambda = { node : 'v node }
 
@@ -62,10 +62,8 @@ let empty_evars env =
 
 (** Printing **)
 
-let pr_annot x = Name.print x.Context.binder_name
-
 let pp_names ids =
-  prlist_with_sep (fun _ -> brk(1,1)) pr_annot (Array.to_list ids)
+  prlist_with_sep (fun _ -> brk(1,1)) Name.print (Array.to_list ids)
 
 let pp_rel name n =
   Name.print name ++  str "##" ++ int n
@@ -101,7 +99,7 @@ let rec pp_lam lam =
                          str ")")
   | Llet(id,def,body) -> hov 0
                            (str "let " ++
-                            pr_annot id ++
+                            Name.print id ++
                             str ":=" ++
                             pp_lam def  ++
                             str " in" ++
@@ -137,7 +135,7 @@ let rec pp_lam lam =
        v 0
          (prlist_with_sep spc
             (fun (na,i,ty,bd) ->
-               pr_annot na ++ str"/" ++ int i ++ str":" ++
+               Name.print na ++ str"/" ++ int i ++ str":" ++
                pp_lam ty ++ cut() ++ str":=" ++
                pp_lam bd) (Array.to_list fixl)) ++
        str"}")
@@ -149,7 +147,7 @@ let rec pp_lam lam =
        v 0
          (prlist_with_sep spc
             (fun (na,ty,bd) ->
-               pr_annot na ++ str":" ++ pp_lam ty ++
+               Name.print na ++ str":" ++ pp_lam ty ++
                cut() ++ str":=" ++ pp_lam bd) (Array.to_list fixl)) ++
        str"}")
   | Lparray (args, def) ->
@@ -555,8 +553,7 @@ let make_args start _end =
   Array.init (start - _end + 1) (fun i -> mknode @@ Lrel (Anonymous, start - i))
 
 let expand_constructor ind tag nparams arity =
-  let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
-  let ids = Array.make (nparams + arity) anon in
+  let ids = Array.make (nparams + arity) Anonymous in
   if Int.equal arity 0 then mkLlam ids (mknode @@ (Lint tag))
   else
   let args = make_args arity 1 in
@@ -579,8 +576,7 @@ let prim _env kn p args =
   mknode @@ Lprim (kn, p, args)
 
 let expand_prim env kn op arity =
-  (* primitives are always Relevant *)
-  let ids = Array.make arity Context.anonR in
+  let ids = Array.make arity Anonymous in
   let args = make_args arity 1 in
   mknode @@ Llam(ids, prim env kn op args)
 
@@ -616,7 +612,7 @@ let makeblock _env ind tag nparams arity args =
 
 let get_names decl =
   let decl = Array.of_list decl in
-  Array.map fst decl
+  Array.map (fun x -> (fst x).Context.binder_name) decl
 
 let empty_args = [||]
 
@@ -690,7 +686,7 @@ let rec lambda_of_constr cache env sigma c =
       let ld = lambda_of_constr cache env sigma dom in
       let env = Environ.push_rel (RelDecl.LocalAssum (id, dom)) env in
       let lc = lambda_of_constr cache env sigma codom in
-      mknode @@ Lprod(ld,  mknode @@ Llam([|id|], lc))
+      mknode @@ Lprod(ld,  mknode @@ Llam([|id.Context.binder_name|], lc))
 
   | Lambda _ ->
       let params, body = Term.decompose_lambda c in
@@ -704,7 +700,7 @@ let rec lambda_of_constr cache env sigma c =
       let ld = lambda_of_constr cache env sigma def in
       let env = Environ.push_rel (RelDecl.LocalDef (id, def, t)) env in
       let lb = lambda_of_constr cache env sigma body in
-      mknode @@ Llet(id, ld, lb)
+      mknode @@ Llet(id.Context.binder_name, ld, lb)
 
   | App(f, args) -> lambda_of_app cache env sigma f args
 
@@ -742,8 +738,7 @@ let rec lambda_of_constr cache env sigma c =
           match b.node with
           | Llam(ids, body) when Array.length ids = arity -> (ids, body)
           | _ ->
-            let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
-            let ids = Array.make arity anon in
+            let ids = Array.make arity Anonymous in
             let args = make_args arity 1 in
             let ll = lam_lift arity b in
             (ids, mkLapp  ll args)
@@ -761,6 +756,7 @@ let rec lambda_of_constr cache env sigma c =
       let inds = Array.map2 map pos type_bodies in
       let env = Environ.push_rec_types (names, type_bodies, rec_bodies) env in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
+      let names = Array.map Context.binder_name names in
       mknode @@ Lfix((pos, inds, i), (names, ltypes, lbodies))
 
   | CoFix(init,(names,type_bodies,rec_bodies)) ->
@@ -769,6 +765,7 @@ let rec lambda_of_constr cache env sigma c =
       let map c ty = Reduction.eta_expand env c (Vars.lift (Array.length type_bodies) ty) in
       let rec_bodies = Array.map2 map rec_bodies type_bodies in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
+      let names = Array.map Context.binder_name names in
       mknode @@ Lcofix(init, (names, ltypes, lbodies))
 
   | Int i -> mknode @@ Luint i

@@ -11,7 +11,6 @@
 open CErrors
 open Names
 open Constr
-open Context
 open Declarations
 open Util
 open Nativevalues
@@ -918,7 +917,7 @@ let empty_env univ get_const const_lazy get_mind =
   }
 
 let push_rel env id =
-  let local = fresh_lname id.binder_name in
+  let local = fresh_lname id in
   local, { env with
            env_rel = MLlocal local :: env.env_rel;
            env_bound = env.env_bound + 1
@@ -927,7 +926,7 @@ let push_rel env id =
 let push_rels env ids =
   let lnames, env_rel =
     Array.fold_left (fun (names,env_rel) id ->
-      let local = fresh_lname id.binder_name in
+      let local = fresh_lname id in
       (local::names, MLlocal local::env_rel)) ([],env.env_rel) ids in
   Array.of_list (List.rev lnames), { env with
                           env_rel = env_rel;
