@@ -27,7 +27,7 @@ type 'a vm_state = 'a * 'a vm_handler
 *)
 
 val translate_module :
-  ('a, UGraph.univ_inconsistency) Conversion.universe_state ->
+  ('a, Conversion.graph_inconsistency) Conversion.universe_state ->
   'b vm_state ->
   env -> ModPath.t -> inline -> module_entry -> module_body * 'a * 'b
 
@@ -35,7 +35,7 @@ val translate_module :
     cannot be [None] (and of course [mod_expr] is [Abstract]). *)
 
 val translate_modtype :
-  ('a, UGraph.univ_inconsistency) Conversion.universe_state ->
+  ('a, Conversion.graph_inconsistency) Conversion.universe_state ->
   'b vm_state ->
   env -> ModPath.t -> inline -> module_type_entry -> module_type_body * 'a * 'b
 
@@ -43,7 +43,7 @@ val translate_modtype :
     an (optional) signature entry, produces a final [module_body] *)
 
 val finalize_module :
-  ('a, UGraph.univ_inconsistency) Conversion.universe_state ->
+  ('a, Conversion.graph_inconsistency) Conversion.universe_state ->
   'b vm_state ->
   env -> ModPath.t -> module_signature * delta_resolver ->
   (module_type_entry * inline) option ->
@@ -53,5 +53,5 @@ val finalize_module :
     module type given to an Include *)
 
 val translate_mse_include :
-  bool -> ('a, UGraph.univ_inconsistency) Conversion.universe_state -> 'b vm_state -> Environ.env -> ModPath.t -> inline ->
+  bool -> ('a, Conversion.graph_inconsistency) Conversion.universe_state -> 'b vm_state -> Environ.env -> ModPath.t -> inline ->
   module_struct_entry -> module_signature * unit * delta_resolver * 'a * 'b
