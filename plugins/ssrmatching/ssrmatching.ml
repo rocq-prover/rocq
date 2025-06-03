@@ -55,6 +55,8 @@ let _ =
       optread  = (fun _ -> !pp_ref == ssr_pp);
       optwrite = debug }
 let pp s = !pp_ref s
+let { Goptions.get = option_LegacyFoUnif } =
+  Goptions.declare_bool_option_and_ref ~key:["SsrMatching";"LegacyFoUnif"] ~value:false ()
 
 (** Utils *)(* {{{ *****************************************************************)
 let env_size env = List.length (Environ.named_context env)
@@ -214,11 +216,87 @@ let flags_FO env =
     Unification.resolve_evars =
       (Unification.default_no_delta_unify_flags ts).Unification.resolve_evars
   }
+let legacy_unif_FO env ise metas p c =
+  let _ : _ * Evd.evar_map = Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) p c in
+  ()
+
+type hd_comparison = CompareArgs of evar_map * Unification.Meta.t * Impargs.implicit_status list | CanonicalInfRequired | Different
+
+let implicits_for_rewrite_of gr =
+  Impargs.implicits_of_global gr |> List.last |> snd
+
+let rec same_hd env ise metas p c =
+  match EConstr.kind ise p, EConstr.kind ise c with
+  | Const(c1,_), Const(c2,_) when Constant.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstRef c1))
+  | Ind(c1,_), Ind(c2,_) when Ind.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.IndRef c1))
+  | Construct(c1,_), Construct(c2,_) when Construct.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstructRef c1))
+  | Const(c1,_), _ when Structures.Structure.is_projection c1 -> CanonicalInfRequired
+  | _, Const(c1,_) when Structures.Structure.is_projection c1 -> CanonicalInfRequired
+  | Rel c1,Rel c2 when c1 == c2 -> CompareArgs (ise,metas,[])
+  | Var c1,Var c2 when Id.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.VarRef c1))
+  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
+    let metas, ise = unif_FO_skip_impl env ise metas x y in
+    CompareArgs (ise,metas,[])
+  | _ -> Different
+and unif_FO_skip_impl env ise metas p c =
+  match EConstr.kind ise p, EConstr.kind ise c with
+  | Meta i, _ when Unification.Meta.meta_opt_fvalue metas i = None ->
+      let ise,metas = Unification.Meta.meta_assign i (c,TypeNotProcessed) metas ise in metas, ise
+  | Meta i, _ ->
+      begin match Unification.Meta.meta_opt_fvalue metas i with
+      | None -> assert false
+      | Some { Unification.rebus = p } -> unif_FO_skip_impl env ise metas p c
+      end
+  | App(hd,_), _ when EConstr.isMeta ise hd -> metas, ise
+  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
+    unif_FO_skip_impl3 env ise metas [x] [y] []
+  | App(hd1,args1), App(hd2,args2) ->
+    begin match same_hd env ise metas hd1 hd2 with
+    | CanonicalInfRequired ->
+
+      metas, ise
+      (* raise (CErrors.user_err Pp.(mt ())) *)
+      (* pp(lazy(str"ho "));
+      metas, unif_HO env ise p c *)
+    | Different -> raise (CErrors.user_err Pp.(mt ()))
+    | CompareArgs(ise,metas,imp) -> unif_FO_skip_impl3 env ise metas (Array.to_list args1) (Array.to_list args2) imp
+    end
+  | _ -> Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) p c
+and unif_FO_skip_impl3 env ise metas args1 args2 imp =
+  match args1, args2, imp with
+  | a1::args1, a2::args2, Some _ :: imp ->
+    pp(lazy(str"skip impl " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+    unif_FO_skip_impl3 env ise metas args1 args2 imp
+  | a1::args1, a2::args2, None :: imp ->
+  pp(lazy(str"do " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+
+      let metas, ise = unif_FO_skip_impl env ise metas a1 a2 in
+      unif_FO_skip_impl3 env ise metas args1 args2 imp
+  | a1::args1, a2::args2, [] ->
+  pp(lazy(str"do " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+  let metas, ise = unif_FO_skip_impl env ise metas a1 a2 in
+    unif_FO_skip_impl3 env ise metas args1 args2 []
+  | [], [], _ ->
+    pp(lazy(str"good"));
+        metas, ise
+  | _ ->
+    pp(lazy(str"bad"));
+        raise (CErrors.user_err Pp.(mt ()))
+
+let new_unif_FO env ise metas p c =
+  pp(lazy(str"NEW FO " ++ pr_econstr_env env ise p ++ str " = " ++ pr_econstr_env env ise c));
+  let _ : _ * Evd.evar_map = unif_FO_skip_impl env ise metas p c in
+  ()
 
 let unif_FO env ise metas p c =
   let metas = Unification.Metamap.fold (fun mv t accu -> Unification.Meta.meta_declare mv t accu) metas Unification.Meta.empty in
-  let _ : _ * Evd.evar_map = Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) p c in
-  ()
+  if option_LegacyFoUnif () then legacy_unif_FO env ise metas p c
+  else new_unif_FO env ise metas p c
+
 
 (* Perform evar substitution in main term and prune substitution. *)
 let nf_open_term sigma0 ise c =
@@ -566,7 +644,11 @@ let match_upats_FO upats env sigma0 ise orig_c =
            raise (FoundUnif (ungen_upat lhs pt' u))
        with FoundUnif (_, s,_,_) as sig_u when dont_impact_evars s -> raise sig_u
        | Not_found -> CErrors.anomaly (str"incomplete ise in match_upats_FO.")
-       | e when CErrors.noncritical e -> () in
+       | e when CErrors.noncritical e ->
+    pp(lazy(str"FO fail: " ++ CErrors.print e));
+
+
+        () in
     List.iter one_match fpats
   done;
   iter_constr_LR ise loop f; Array.iter loop a in
@@ -617,6 +699,7 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
                let tfa = Retyping.get_type_of ~lax:true env ise fa in
                unif_HO env ise tuf tfa
             | _ -> ise in
+          pp(lazy(str"FLEX " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise fa));
           unif_HO env ise u.up_f fa
         | _ -> unif_HO env ise u.up_f f in
         let ise'' = unif_HO_args env ise' u.up_a (i - Array.length u.up_a) a in
