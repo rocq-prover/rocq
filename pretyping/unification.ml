@@ -1533,29 +1533,31 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     let metas = substn.subst_metam in
     let f1l1 = whd_nored_state ~metas:(Meta.meta_handler metas) (fst curenvnb) sigma (cM,Stack.empty) in
     let f2l2 = whd_nored_state ~metas:(Meta.meta_handler metas) (fst curenvnb) sigma (cN,Stack.empty) in
-    let (sigma,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
-      let metas mv = match Metamap.find mv metas with
+    let metasfn substn mv = match Metamap.find mv substn.subst_metam with
       | Cltyp (_, b) -> Some b.rebus
       | Clval (_, _, b) -> Some b.rebus
       | exception Not_found -> None
-      in
-      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas (fst curenvnb) sigma f1l1) f2l2
+    in  
+    let (sigma,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
+      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas:(metasfn substn) (fst curenvnb) sigma f1l1) f2l2        
       with Not_found -> error_cannot_unify (fst curenvnb) sigma (cM,cN)
     in
     if Reductionops.Stack.compare_shape ts ts1 then
-      let (metas,ks,_) =
+      let substn = push_sigma sigma substn in
+      let (substn,ks,_,test) =
         List.fold_left
-          (fun (metas,ks,m) b ->
+          (fun (substn,ks,m,test) b ->
             if match n with Some n -> Int.equal m n | None -> false then
-                (metas,t2::ks, m-1)
+              (* Enforce unification of type of the projected parameter and the projection's argument type *)
+              let t2ty = Retyping.get_type_of ~metas:(metasfn substn) (fst curenvnb) sigma t2 in
+              let test substn = unirec_rec curenvnb CUMUL opt substn t2ty (substl ks b) in
+              (substn,t2::ks, m-1, test)
             else
               let mv = new_meta () in
-              let metas = Meta.meta_declare mv (substl ks b) metas in
-              (metas, mkMeta mv :: ks, m - 1))
-          (metas,[],List.length bs) bs
-      in
-      let substn = push_sigma sigma substn in
-      let substn = { substn with subst_metam = metas } in
+              let metas = Meta.meta_declare mv (substl ks b) substn.subst_metam in
+              ({ substn with subst_metam = metas }, mkMeta mv :: ks, m - 1, test))
+          (substn,[],List.length bs, fun s -> s) bs
+      in      
       try
       let opt' = {opt with with_types = false} in
       let fold u1 u s = unirec_rec curenvnb pb opt' s u1 (substl ks u) in
@@ -1567,8 +1569,9 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
       let substn = match params1 with None -> substn | Some params1 -> foldl substn params1 params in
       let substn = Reductionops.Stack.fold2 (fun s u1 u2 -> unirec_rec curenvnb pb opt' s u1 u2) substn ts ts1 in
       let app = mkApp (c, Array.rev_of_list ks) in
-      (* let substn = unirec_rec curenvnb pb b false substn t cN in *)
-        unirec_rec curenvnb pb opt' substn c1 app
+      let substn = unirec_rec curenvnb pb opt' substn c1 app in
+      let substn = test substn in
+      unirec_rec curenvnb pb opt' substn (snd t) (fst (decompose_app substn.subst_sigma (substl ks (fst t))))
       with Reductionops.Stack.IncompatibleFold2 ->
         error_cannot_unify (fst curenvnb) sigma (cM,cN)
     else error_cannot_unify (fst curenvnb) sigma (cM,cN)
