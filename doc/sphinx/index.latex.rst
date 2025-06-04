@@ -46,3 +46,11 @@ Appendix
 
    appendix/history-and-changes/index
    zebibliography
+
+-------------------
+The refman's refman
+-------------------
+
+.. toctree::
+
+   README.rst
