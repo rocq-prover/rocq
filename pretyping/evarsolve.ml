@@ -1460,6 +1460,10 @@ let solve_evar_evar ?(force=false) f unify flags env evd pbty (evk1,args1 as ev1
   let downcast evk t evd = downcast evk t evd in
   let evd =
     try
+      if Evd.is_typeclass_evar evd evk1 || Evd.is_typeclass_evar evd evk2 then 
+        (* Do not allow piercing through the typeclass abstraction *)
+        evd 
+      else
       (* ?X : Π Δ. Type i = ?Y : Π Δ'. Type j.
          The body of ?X and ?Y just has to be of type Π Δ. Type k for some k <= i, j. *)
       let evienv = Evd.evar_env env evi in
