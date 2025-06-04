@@ -735,9 +735,13 @@ let subterm_source evk ?where (loc,k) =
     | _ -> evk in
   (loc,Evar_kinds.SubEvar (where,evk))
 
+type compare_result = 
+  | UnivInconsistency of UGraph.univ_inconsistency
+  | UniversesDiffer
+
 (* Add equality constraints for covariant/invariant positions. For
    irrelevant positions, unify universes when flexible. *)
-let compare_cumulative_instances cv_pb ~nargs variances u u' sigma =
+let compare_cumulative_instances ~flex cv_pb ~nargs variances u u' sigma =
   let open UnivProblem in
   let cstrs = Univ.Constraints.empty in
   let soft = Set.empty in
@@ -745,7 +749,7 @@ let compare_cumulative_instances cv_pb ~nargs variances u u' sigma =
   and qs', us' = UVars.Instance.to_array u' in
   let qcstrs = enforce_eq_qualities qs qs' Set.empty in
   match Evd.add_universe_constraints sigma qcstrs with
-  | exception UGraph.UniverseInconsistency p -> Inr p
+  | exception UGraph.UniverseInconsistency p -> Inr (UnivInconsistency p)
   | sigma ->
   let cstrs, soft = Array.fold_left3 (fun (cstrs, soft) v u u' ->
       let open UVars.Variance in
@@ -753,16 +757,21 @@ let compare_cumulative_instances cv_pb ~nargs variances u u' sigma =
       match v.cumul_variance with
       | Irrelevant -> cstrs, Set.add (UWeak (u,u')) soft
       | Covariant when cv_pb == Conversion.CUMUL ->
-        Univ.Constraints.add (u,Univ.Le,u') cstrs, soft
+        if flex then cstrs, Set.add (ULub (Le,u,u')) soft
+        else Univ.Constraints.add (u,Univ.Le,u') cstrs, soft
       | Contravariant when cv_pb == Conversion.CUMUL ->
-        Univ.Constraints.add (u',Univ.Le,u) cstrs, soft
-      | Covariant | Contravariant | Invariant -> Univ.Constraints.add (u,Univ.Eq,u') cstrs, soft)
+        if flex then cstrs, Set.add (ULub (Le,u',u)) soft
+        else Univ.Constraints.add (u',Univ.Le,u) cstrs, soft
+      | Covariant | Contravariant | Invariant -> 
+        if flex then cstrs, Set.add (ULub (Eq,u,u')) soft
+        else Univ.Constraints.add (u,Univ.Eq,u') cstrs, soft)
       (cstrs,soft) (UVars.Variances.repr variances) us us'
   in
-  match Evd.add_constraints sigma cstrs with
-  | sigma ->
+  try 
+    let sigma = Evd.add_constraints sigma cstrs in
     Inl (Evd.add_universe_constraints sigma soft)
-  | exception UGraph.UniverseInconsistency p -> Inr p
+  with UGraph.UniverseInconsistency p -> Inr (UnivInconsistency p)
+    | UniversesDiffer -> Inr (UniversesDiffer)
 
 let compare_constructor_instances evd u u' =
   let open UnivProblem in
