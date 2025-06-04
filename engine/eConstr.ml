@@ -777,11 +777,9 @@ let cmp_constants cv_pb cb nargs u1 u2 cstrs =
   let open UnivProblem in
   match Declareops.universes_variances cb.Declarations.const_universes with
   | None -> enforce_eq_instances_univs true u1 u2 cstrs
-  | Some variance ->
-    (* FIXME check that enough args are applied (a variance should contain an int for the min number of applied args) *)
-    (* if not (Array.length variance <= nargs) then enforce_eq_instances_univs true u1 u2 cstrs
-    else  *)
-    compare_cumulative_instances ~flex:true ~nargs:(NumArgs nargs) cv_pb variance u1 u2 cstrs
+  | Some variance ->    
+    compare_cumulative_instances ~flex:(Declareops.constant_has_body cb)
+      ~nargs:(NumArgs nargs) cv_pb variance u1 u2 cstrs
 
 let eq_universes env sigma cstrs cv_pb refargs l l' =
   if EInstance.is_empty l then (assert (EInstance.is_empty l'); true)
