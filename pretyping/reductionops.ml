@@ -1285,9 +1285,10 @@ let sigma_compare_instances ~flex i0 i1 sigma =
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some err)
 
 let sigma_check_inductive_instances ~flex ~nargs cv_pb variance u1 u2 sigma =
-  match Evarutil.compare_cumulative_instances cv_pb ~nargs variance u1 u2 sigma with
+  match Evarutil.compare_cumulative_instances ~flex cv_pb ~nargs variance u1 u2 sigma with
   | Inl sigma -> Result.Ok sigma
-  | Inr err -> Result.Error (Some err)
+  | Inr (UnivInconsistency err) -> Result.Error (Some err)
+  | Inr UniversesDiffer -> Result.Error None
 
 let sigma_univ_state =
   let open UCompare in
@@ -1305,7 +1306,7 @@ let univproblem_compare_instances ~flex i0 i1 uset =
   Result.Ok (UnivProblem.enforce_eq_instances_univs flex i0 i1 uset)
 
 let univproblem_check_cumul_instances ~flex ~nargs cv_pb variance u1 u2 sigma =
-  Result.Ok (UnivProblem.compare_cumulative_instances cv_pb ~nargs variance u1 u2 sigma)
+  Result.Ok (UnivProblem.compare_cumulative_instances ~flex cv_pb ~nargs variance u1 u2 sigma)
 
 let univproblem_univ_state =
   let open UCompare in
