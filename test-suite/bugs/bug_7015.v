@@ -2,6 +2,11 @@ Set Universe Polymorphism.
 Set Polymorphic Inductive Cumulativity.
 Set Printing Universes.
 
+(* Contrarily to the original report, now the Simple test succeeds as i is seen
+  as irrelevant even for a partial application. The second example still 
+  has a failing case because one needs to eta-expand it before i is considered
+  irrelevant.  *)
+
 Module Simple.
 
   (* in the real world foo@{i} might be [@paths@{i} nat] I guess *)
@@ -29,8 +34,8 @@ Module Simple.
     Definition five : foo@{i} = foo@{j} := eq_refl.
   End univs.
 
-  (* inference tries and succeeds with syntactic equality which doesn't eta expand *)
-  Fail Definition infer@{i j k|i < k, j < k, k < eq.u0}
+  (* inference tries and succeeds with syntactic equality but doesn't need eta expansion here *)
+  Definition infer@{i j k|i < k, j < k, k < eq.u0}
     : foo@{i} = foo@{j} :> (nat -> Type@{k})
     := eq_refl.
 
