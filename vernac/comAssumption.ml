@@ -118,7 +118,8 @@ let empty_univ_entry poly = if poly then empty_poly_univ_entry else empty_mono_u
 
 let clear_univs scope univs =
   match scope, univs.UState.universes_entry_universes with
-  | Locality.Global _, UState.Polymorphic_entry _ -> univs
+  | Locality.Global _, UState.Polymorphic_entry (uctx, variances) -> 
+    UState.{ univs with universes_entry_universes = Polymorphic_entry (uctx, None) }
   | _, (UState.Monomorphic_entry _) -> empty_univ_entry false
   | Locality.Discharge, (UState.Polymorphic_entry _) -> empty_univ_entry true
 
