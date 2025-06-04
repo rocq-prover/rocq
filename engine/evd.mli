@@ -159,7 +159,7 @@ type evar_map
 val empty : evar_map
 (** The empty evar map. *)
 
-val from_env : ?binders:lident list -> ?solve_flexibles:bool -> env -> evar_map
+val from_env : ?binders:lident list -> env -> evar_map
 (** The empty evar map with given universe context, taking its initial
     universes from env, possibly with initial universe binders. This
     is the main entry point at the beginning of the process of
@@ -620,6 +620,11 @@ val nf_univ_variables : evar_map -> evar_map
 val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> evar_map -> evar_map
 
 val fix_undefined_variables : evar_map -> evar_map
+
+(** New rigid universes unsolved flexible universes are not allowed in the resulting evar_map.
+  In or constraints between them and
+  This ensures that the [universe context] of the [evar_map] cannot change anymore. *)
+val disable_universe_extension : evar_map -> with_cstrs:bool -> evar_map
 
 (** Variances *)
 

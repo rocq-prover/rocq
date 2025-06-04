@@ -921,7 +921,7 @@ let empty = {
   extras = Store.empty;
 }
 
-let from_env ?binders ?(solve_flexibles=false) e = { empty with universes = UState.from_env ?binders ~solve_flexibles e }
+let from_env ?binders e = { empty with universes = UState.from_env ?binders e }
 
 let from_ctx uctx = { empty with universes = uctx }
 
@@ -1204,6 +1204,9 @@ let check_quconstraints evd (qcsts,ucsts) =
 
 let fix_undefined_variables evd =
   { evd with universes = UState.fix_undefined_variables evd.universes }
+
+let disable_universe_extension evd ~with_cstrs =
+  { evd with universes = UState.disable_universe_extension evd.universes ~with_cstrs }
 
 let nf_univ_variables evd =
   let uctx = UState.normalize_variables evd.universes in
