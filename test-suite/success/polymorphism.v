@@ -175,8 +175,7 @@ Module binders.
 
   (* Handled in proofs as well *)
   Lemma bar@{i j | } : Type@{i}.
-    exact Type@{j}.
-    Fail Defined.
+    Fail exact Type@{j}.
   Abort.
 
   Fail Lemma bar@{u v | } : let x := (fun x => x) : Type@{u} -> Type@{v} in nat.
