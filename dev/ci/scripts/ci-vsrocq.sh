@@ -18,4 +18,5 @@ fi
   make dune-files
   dune build --root . --only-packages=vsrocq-language-server @install
   dune runtest --root .
+  dune install --root . vsrocq-language-server --prefix="$CI_INSTALL_DIR"
 )
