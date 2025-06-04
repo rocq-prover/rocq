@@ -3009,7 +3009,7 @@ let interp_cumul_univ_decl env decl =
   let open UState in
   let binders = List.map fst decl.univdecl_instance in
   let variances = Array.map_of_list snd decl.univdecl_instance in
-  let evd = Evd.from_env ~solve_flexibles:(not decl.univdecl_extensible_instance) env in
+  let evd = Evd.from_env env in
   let evd, qualities = List.fold_left_map (fun evd lid ->
       Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
       evd
@@ -3030,6 +3030,11 @@ let interp_cumul_univ_decl env decl =
     univdecl_constraints = cstrs;
     univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
   }
+  in
+  let evd = 
+    if not decl.univdecl_extensible_instance then
+      Evd.disable_universe_extension evd ~with_cstrs:(not decl.univdecl_extensible_constraints)
+    else evd
   in
   Loop_checking.set_debug_pr_level (UState.pr_uctx_level (Evd.ustate evd));
   evd, decl

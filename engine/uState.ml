@@ -249,8 +249,12 @@ type t =
    flexible_variables : Level.Set.t;
    (** The remaining flexible variables: local universes that are unification variables *)
    
-   solve_flexibles : bool; 
-   (** Should all the flexible variables be instantiated during minimization *)
+   fixed_rigid_universes : bool; 
+   (** Are the rigid universes fixed. In this case, all the flexible variables will be instantiated during minimization *)
+   
+   fixed_rigid_constraints : bool; 
+  (** Are the (rigid) constraints fixed. In this case, at each constraint addition, we check that no new constraint on rigid universes 
+    are implied. *)
    
    sort_variables : QState.t; 
    (** Local quality variables. *)
@@ -282,17 +286,17 @@ let empty =
     local_variables = Level.Set.empty;
     demoted_local_variables = Level.Set.empty;
     flexible_variables = Level.Set.empty;
-    solve_flexibles = false;
+    fixed_rigid_universes = false;
+    fixed_rigid_constraints = false;
     sort_variables = QState.empty;
     universes = UGraph.initial_universes;
     initial_universes = UGraph.initial_universes;
     variances = None;
     minim_extra = UnivMinim.empty_extra; }
 
-let make ~solve_flexibles ~qualities univs =
+let make ~qualities univs =
   { empty with
     universes = univs;
-    solve_flexibles;
     initial_universes = univs ;
     sort_variables = QState.of_global qualities
   }
@@ -487,7 +491,8 @@ let union uctx uctx' =
         local_variables;
         demoted_local_variables = Level.Set.union uctx.demoted_local_variables uctx'.demoted_local_variables;
         flexible_variables;
-        solve_flexibles = uctx.solve_flexibles;
+        fixed_rigid_universes = uctx.fixed_rigid_universes;
+        fixed_rigid_constraints = uctx.fixed_rigid_constraints;
         sort_variables = QState.union ~fail:fail_union uctx.sort_variables uctx'.sort_variables;
         initial_universes = declarenew levelsr uctx.initial_universes;
         universes;
@@ -677,10 +682,6 @@ let add_local_univ cstr local =
   let local = update_local_expr_equivalences local equivs in
   { local with universes }
 
-let add_local (l, d, r) local =
-  let cstr = (Universe.make l, d, Universe.make r) in
-  add_local_univ cstr local
-
 (* Constraint with algebraic on the left and a single level on the right *)
 let enforce_leq_up u v local =
   add_local_univ (u, Le, Universe.make v) local
@@ -726,6 +727,24 @@ let unify_quality c s1 s2 l =
 
 let normalize_universe graph u = UnivSubst.(subst_univs_universe (UGraph.normalize graph)) u
 
+let add_local_univ fo c local =
+  if fo then 
+    if UGraph.check_constraint local.universes c then local
+    else raise UniversesDiffer
+  else if local.fixed_rigid_constraints then
+    (* Check that we don't add a constraint that is too strict w.r.t. rigid universes *)
+    if UGraph.check_constraint local.universes c then local
+    else
+    let local' = add_local_univ c local in
+    let newcstrs = UGraph.constraints_for ~kept:(Level.Set.diff local.local_variables local.flexible_variables) local'.universes in
+    if Constraints.for_all (fun c -> UGraph.check_constraint local.universes c) newcstrs then
+      local'
+    else
+      (* The constraint is too strict *)
+      let (l, cst, r) = c in
+      raise (UGraph.UniverseInconsistency (None, (cst, Sorts.sort_of_univ l, Sorts.sort_of_univ r, None)))
+  else add_local_univ c local
+
 let process_universe_constraints uctx cstrs =
   let open UnivProblem in
   let normalize local u = UGraph.normalize local.universes u in
@@ -743,7 +762,8 @@ let process_universe_constraints uctx cstrs =
     | ULe (u, v) -> ULe (normalize_sort local u, normalize_sort local v)
   in
   let is_flexible local l = Level.Set.mem l local.flexible_variables in
-  let equalize_small l s local =
+  let all_flexible local = Universe.for_all (fun (l,k) -> is_flexible local l) in
+  let equalize_small fo l s local =
     let ls = match l with
     | USProp -> sprop
     | UProp -> prop
@@ -768,7 +788,7 @@ let process_universe_constraints uctx cstrs =
               match normalize local l with
               | None -> 
                 if is_flexible local l then instantiate_variable l Universe.type0 local
-                else add_local_univ (Universe.make l, Eq, Universe.type0) local
+                else add_local_univ fo (Universe.make l, Eq, Universe.type0) local
               | Some u -> instantiate_univ local (Univ.Universe.repr u)
             with UGraph.OccurCheck -> assert false) local repr
         in instantiate_univ local repr
@@ -786,39 +806,99 @@ let process_universe_constraints uctx cstrs =
         if (Level.is_set l') || (Level.is_set r') then
           level_inconsistency Eq l' r'
         else
-          if fo then
-            if not (UnivProblem.check_eq local.universes (Universe.make l') (Universe.make r')) then
-              raise UniversesDiffer
-            else local
-          else add_local (l', Eq, r') local
+          add_local_univ fo (Universe.make l', Eq, Universe.make r') local
   in
   let equalize_variables fo l r local =
     try equalize_variables fo l r local
-    with UGraph.OccurCheck -> add_local_univ (Universe.make l, Eq, Universe.make r) local
+    with UGraph.OccurCheck -> add_local_univ fo (Universe.make l, Eq, Universe.make r) local
   in
-  let equalize_algebraic l ru local =
+  let equalize_algebraic fo l ru local =
     let inst = univ_level_rem l ru ru in
     if not (Level.Set.mem l (Universe.levels inst)) then
       if is_flexible local l then
         (try instantiate_variable l inst local
          with UGraph.OccurCheck -> assert false)
-      else add_local_univ (Universe.make l, Eq, ru) local
+      else
+        add_local_univ fo (Universe.make l, Eq, ru) local
     else
       if univ_level_mem l ru then
         enforce_leq_up inst l local
       else sort_inconsistency Eq (sort_of_univ (Universe.make l)) (sort_of_univ ru)
   in
-  let equalize_universes l r local = match classify l, classify r with
+  let equalize_universes fo l r local = match classify l, classify r with
   | USmall l', (USmall _ | ULevel _ | UAlgebraic _) ->
-    equalize_small l' r local
+    equalize_small fo l' r local
   | (ULevel _ | UAlgebraic _), USmall r' ->
-    equalize_small r' l local
+    equalize_small fo r' l local
   | ULevel (l', _), ULevel (r', _) ->
-    equalize_variables false l' r' local
+    equalize_variables fo l' r' local
   | ULevel (l', _), UAlgebraic r | UAlgebraic r, ULevel (l', _) ->
-    equalize_algebraic l' r local
+    equalize_algebraic fo l' r local
   | UAlgebraic l', UAlgebraic r' ->
-    add_local_univ (l', Eq, r') local
+    let fo = fo && (not (all_flexible local l') && not (all_flexible local r')) in
+    add_local_univ fo (l', Eq, r') local
+  in
+  let enforce_le fo local l r =
+    let local = unify_quality CUMUL l r local in
+    let l = normalize_sort local l in
+    let r = normalize_sort local r in
+    begin match classify r with
+    | USmall r' ->
+      (* Invariant: there are no universes u <= Set in the graph. Except for
+          template levels, Set <= u anyways. Otherwise, for template
+          levels, any constraint u <= Set is turned into u := Set. *)
+      if UGraph.type_in_type local.universes then local
+      else begin match classify l with
+      | UAlgebraic ul ->
+        if Universe.is_levels ul then
+          if is_uset r' then
+            let fold l' local =
+              if Level.is_set l' || is_flexible local l' then
+                equalize_variables false l' Level.set local
+              else
+                let l = Sorts.sort_of_univ @@ Universe.make l' in
+                sort_inconsistency Le l r
+            in
+            Level.Set.fold fold (Universe.levels ul) local
+          else
+            sort_inconsistency Le l r
+        else
+          (* l contains a +1 and r=r' small so l <= r impossible *)
+          sort_inconsistency Le l r
+      | USmall l' ->
+        if UGraph.check_leq_sort local.universes l r then local
+        else sort_inconsistency Le l r
+      | ULevel (l', _) ->
+        if is_uset r' && is_flexible local l' then
+          (* Unbounded universe constrained from above, we equalize it *)
+          (try instantiate_variable l' Universe.type0 local
+            with UGraph.OccurCheck -> assert false)
+        else
+          sort_inconsistency Le l r
+      end
+    | ULevel (_, r') | UAlgebraic r' ->
+      (* We insert the constraint in the graph even if the graph
+          already contains it.  Indeed, checking the existence of the
+          constraint is costly when the constraint does not already
+          exist directly as a single edge in the graph, but adding an
+          edge in the graph which is implied by others is cheap.
+          Hence, by doing this, we avoid a costly check here, and
+          make further checks of this constraint easier since it will
+          exist directly in the graph. *)
+      match classify l with
+      | USmall UProp ->
+        let minim_extra = UnivMinim.{ local.minim_extra with above_prop = Level.Set.union (Universe.levels r') local.minim_extra.above_prop } in
+        { local with minim_extra }
+      | USmall USProp ->
+        if UGraph.type_in_type local.universes then local
+        else sort_inconsistency Le l r
+      | USmall USet ->
+        let minim_extra = UnivMinim.{ local.minim_extra with above_zero = Level.Set.union (Universe.levels r') local.minim_extra.above_zero } in
+        let local = { local with minim_extra } in
+        add_local_univ fo (Universe.type0, Le, r') local
+      | ULevel (_, l') | UAlgebraic l' ->
+        add_local_univ fo (l', Le, r') local
+    end
   in
   let unify_universes cst local =
     let cst = nf_constraint local cst in
@@ -834,71 +914,19 @@ let process_universe_constraints uctx cstrs =
          qualities instead of having to make a dummy sort *)
       let mk q = Sorts.make q Universe.type0 in
       unify_quality CUMUL (mk a) (mk b) local
-    | ULe (l, r) ->
-      let local = unify_quality CUMUL l r local in
-      let l = normalize_sort local l in
-      let r = normalize_sort local r in
-      begin match classify r with
-      | USmall r' ->
-        (* Invariant: there are no universes u <= Set in the graph. Except for
-           template levels, Set <= u anyways. Otherwise, for template
-           levels, any constraint u <= Set is turned into u := Set. *)
-        if UGraph.type_in_type local.universes then local
-        else begin match classify l with
-        | UAlgebraic ul ->
-          if Universe.is_levels ul then
-            if is_uset r' then
-              let fold l' local =
-                if Level.is_set l' || is_flexible local l' then
-                  equalize_variables false l' Level.set local
-                else
-                  let l = Sorts.sort_of_univ @@ Universe.make l' in
-                  sort_inconsistency Le l r
-              in
-              Level.Set.fold fold (Universe.levels ul) local
-            else
-              sort_inconsistency Le l r
-          else
-            (* l contains a +1 and r=r' small so l <= r impossible *)
-            sort_inconsistency Le l r
-        | USmall l' ->
-          if UGraph.check_leq_sort local.universes l r then local
-          else sort_inconsistency Le l r
-        | ULevel (l', _) ->
-          if is_uset r' && is_flexible local l' then
-            (* Unbounded universe constrained from above, we equalize it *)
-            (try instantiate_variable l' Universe.type0 local
-             with UGraph.OccurCheck -> assert false)
-          else
-            sort_inconsistency Le l r
-        end
-      | ULevel (_, r') | UAlgebraic r' ->
-        (* We insert the constraint in the graph even if the graph
-            already contains it.  Indeed, checking the existence of the
-            constraint is costly when the constraint does not already
-            exist directly as a single edge in the graph, but adding an
-            edge in the graph which is implied by others is cheap.
-            Hence, by doing this, we avoid a costly check here, and
-            make further checks of this constraint easier since it will
-            exist directly in the graph. *)
-        match classify l with
-        | USmall UProp ->
-          let minim_extra = UnivMinim.{ local.minim_extra with above_prop = Level.Set.union (Universe.levels r') local.minim_extra.above_prop } in
-          { local with minim_extra }
-        | USmall USProp ->
-          if UGraph.type_in_type local.universes then local
-          else sort_inconsistency Le l r
-        | USmall USet ->
-          let minim_extra = UnivMinim.{ local.minim_extra with above_zero = Level.Set.union (Universe.levels r') local.minim_extra.above_zero } in
-          let local = { local with minim_extra } in
-          add_local_univ (Universe.type0, Le, r') local
-        | ULevel (_, l') | UAlgebraic l' ->
-          add_local_univ (l', Le, r') local
-      end
+    | ULe (l, r) -> enforce_le false local l r 
     | ULub (c, l, r) ->
-      (match Universe.level l, Universe.level r with
-      | Some l, Some r -> equalize_variables true l r local
-      | _, _ -> equalize_universes (Sorts.sort_of_univ l) (Sorts.sort_of_univ r) local)
+      if all_flexible local l || all_flexible local r then 
+        match c with
+        | Eq -> equalize_universes false (Sorts.sort_of_univ l) (Sorts.sort_of_univ r) local
+        | Le -> enforce_le false local (Sorts.sort_of_univ l) (Sorts.sort_of_univ r)
+      else 
+      (match Universe.level l, c, Universe.level r with
+      | Some l, Eq, Some r -> equalize_variables true l r local
+      | _, _, _ ->
+        match c with 
+        | Eq -> equalize_universes true (Sorts.sort_of_univ l) (Sorts.sort_of_univ r) local
+        | Le -> enforce_le true local (Sorts.sort_of_univ l) (Sorts.sort_of_univ r))
     | UWeak (l, r) ->
       if weak_constraints ()
       then 
@@ -910,7 +938,7 @@ let process_universe_constraints uctx cstrs =
       let local = unify_quality CONV l r local in
       let l = normalize_sort local l in
       let r = normalize_sort local r in
-      equalize_universes l r local
+      equalize_universes false l r local
   in
   let unify_universes cst local =
     if not (UGraph.type_in_type local.universes) then unify_universes cst local
@@ -1553,18 +1581,21 @@ let new_univ_variable ?loc rigid name uctx =
 
 let add_forgotten_univ uctx u = add_universe None ~strict:true ~rigid:true uctx u
 
-let make_with_initial_binders ~solve_flexibles ~qualities univs binders =
-  let uctx = make ~solve_flexibles ~qualities univs in
+let make_with_initial_binders ~qualities univs binders =
+  let uctx = make ~qualities univs in
   List.fold_left
     (fun uctx { CAst.loc; v = id } ->
        fst (new_univ_variable ?loc univ_rigid (Some id) uctx))
     uctx binders
 
-let from_env ?(binders=[]) ?(solve_flexibles=false) env =
-  make_with_initial_binders ~solve_flexibles ~qualities:(Environ.qualities env) (UGraph.set_local (Environ.universes env)) binders
+let from_env ?(binders=[]) env =
+  make_with_initial_binders ~qualities:(Environ.qualities env) (UGraph.set_local (Environ.universes env)) binders
 
 let fix_undefined_variables uctx =
   { uctx with flexible_variables = Level.Set.empty }
+
+let disable_universe_extension uctx ~with_cstrs = 
+  { uctx with fixed_rigid_universes = true; fixed_rigid_constraints = with_cstrs }
 
 let normalize_variables uctx = uctx
 
@@ -1599,7 +1630,7 @@ let minimize
   | Some variances ->
     let variances = update_variances_qvars uctx.sort_variables variances in
     let local_variables, flexible_variables, variances, universes =
-      normalize_context_set ~solve_flexibles:uctx.solve_flexibles ~variances ~partial uctx.universes
+      normalize_context_set ~solve_flexibles:uctx.fixed_rigid_universes ~variances ~partial uctx.universes
         ~local_variables:uctx.local_variables 
         ~flexible_variables:uctx.flexible_variables 
         ~binders:(fst uctx.names) uctx.minim_extra
@@ -1608,7 +1639,8 @@ let minimize
       local_variables = local_variables;
       demoted_local_variables = uctx.demoted_local_variables;
       flexible_variables = flexible_variables;
-      solve_flexibles = uctx.solve_flexibles;
+      fixed_rigid_universes = uctx.fixed_rigid_universes;
+      fixed_rigid_constraints = uctx.fixed_rigid_constraints;
       sort_variables = uctx.sort_variables;
       universes;
       initial_universes = uctx.initial_universes;
