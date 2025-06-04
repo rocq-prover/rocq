@@ -61,7 +61,6 @@ module Set = struct
         if Int.equal i 0 then
           let i = Universe.compare u u' in
           if Int.equal i 0 then Universe.compare v v'
-          else if Universe.equal u v' && Universe.equal v u' then 0
           else i
         else i
       | UWeak (u, v), UWeak (u', v') ->
