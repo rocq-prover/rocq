@@ -554,21 +554,8 @@ let rec get_alias env kn =
 let make_args start _end =
   Array.init (start - _end + 1) (fun i -> mknode @@ Lrel (Anonymous, start - i))
 
-let expand_constructor ind tag nparams arity =
-  let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
-  let ids = Array.make (nparams + arity) anon in
-  if Int.equal arity 0 then mkLlam ids (mknode @@ (Lint tag))
-  else
-  let args = make_args arity 1 in
-  mknode @@ Llam(ids, mknode @@ Lmakeblock (ind, tag, args))
-
-let makeblock as_val ind tag nparams arity args =
-  let nargs = Array.length args in
-  if nparams > 0 || nargs < arity then
-    mkLapp (expand_constructor ind tag nparams arity) args
-  else
-    (* The constructor is fully applied *)
-  if arity = 0 then mknode @@ Lint tag
+let makeblock as_val ind tag args =
+  if Array.is_empty args then mknode @@ Lint tag
   else match as_val tag args with
   | Some v -> mknode @@ Lval v
   | None -> mknode @@ Lmakeblock (ind, tag, args)
@@ -609,8 +596,8 @@ module Make (Val : S) =
 struct
 
 (* [nparams] is the number of parameters still expected *)
-let makeblock _env ind tag nparams arity args =
-  makeblock Val.as_value ind tag nparams arity args
+let makeblock _env ind tag args =
+  makeblock Val.as_value ind tag args
 
 (*i Global environment *)
 
@@ -802,13 +789,19 @@ and lambda_of_app cache env sigma f args =
       | OpaqueDef _ | Undef _ | Symbol _ ->
           mkLapp (mknode @@ Lconst (kn, u)) (lambda_of_args cache env sigma 0 args)
       end
-  | Construct ((ind,_ as c),_) ->
-    let tag, nparams, arity = Cache.get_construct_info cache env c in
+  | Construct ((ind,j as ctor),_) ->
+    let tag, nparams, arity = Cache.get_construct_info cache env ctor in
     let nargs = Array.length args in
-    if nparams < nargs then (* got all parameters *)
+    assert (nargs <= nparams + arity);
+    if nargs < nparams + arity then
+      (* eta expand then try again *)
+      let _, mip = Inductive.lookup_mind_specif env ind in
+      let ctx, _ = mip.mind_nf_lc.(j - 1) in
+      let c = Term.it_mkLambda_or_LetIn (mkApp (f, Context.Rel.instance mkRel 0 ctx)) ctx in
+      lambda_of_constr cache env sigma (Reduction.beta_appvect c args)
+    else
       let args = lambda_of_args cache env sigma nparams args in
-      makeblock env ind tag 0 arity args
-    else makeblock env ind tag (nparams - nargs) arity empty_args
+      makeblock env ind tag args
   | _ ->
       let f = lambda_of_constr cache env sigma f in
       let args = lambda_of_args cache env sigma 0 args in
