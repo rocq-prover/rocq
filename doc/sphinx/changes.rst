@@ -176,7 +176,7 @@ renamed in the future. The Rocq Development Team's official position on renaming
 projects *it does not officially maintain* is to let their authors do as they wish.
 We just note that the new identity is quite compatible with existing
 Rooster references. However, we encourage existing and forthcoming projects to
-adopt the new logo, its colors and fonts, see the `ìdentity guidelines
+adopt the new logo, its colors and fonts, see the `identity guidelines
 <https://rocq-prover.org/logo>`_ for more information.
 
 The Rocq Prover Website
