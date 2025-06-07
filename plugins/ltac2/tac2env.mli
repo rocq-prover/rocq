@@ -190,6 +190,7 @@ type var_quotation_kind =
   | ConstrVar
   | PretermVar
   | PatternVar
+  | HypVar
 
 val wit_ltac2_var_quotation : (lident option * lident, var_quotation_kind * Id.t, Util.Empty.t) genarg_type
 (** Ltac2 quotations for variables "$x" or "$kind:foo" in Gallina terms.

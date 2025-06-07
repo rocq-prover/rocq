@@ -29,6 +29,7 @@ let t_string = rocq_type "string"
 let t_constr = rocq_type "constr"
 let t_preterm = rocq_type "preterm"
 let t_pattern = rocq_type "pattern"
+let t_ident = rocq_type "ident"
 let t_bool = rocq_type "bool"
 
 let ltac2_env : Tac2typing_env.t Genintern.Store.field =
@@ -2145,6 +2146,7 @@ let intern_var_quotation_gen ~ispat ist (kind, { CAst.v = id; loc }) =
       | "constr" -> ConstrVar
       | "preterm" -> PretermVar
       | "pattern" -> PatternVar
+      | "hyp" -> HypVar
       | _ ->
         CErrors.user_err ?loc:kind.loc
           Pp.(str "Unknown Ltac2 variable quotation kind" ++ spc() ++ Id.print kind.v)
@@ -2162,6 +2164,11 @@ let intern_var_quotation_gen ~ispat ist (kind, { CAst.v = id; loc }) =
       if not ispat
       then CErrors.user_err ?loc Pp.(str "pattern quotations not supported outside tactic patterns.")
       else t_pattern
+    | HypVar ->
+      (* XXX allow this? *)
+      if ispat
+      then CErrors.user_err ?loc Pp.(str "hyp quotations not supported in tactic patterns.")
+      else t_ident
   in
   let env = match Genintern.Store.get ist.extra ltac2_env with
     | None ->

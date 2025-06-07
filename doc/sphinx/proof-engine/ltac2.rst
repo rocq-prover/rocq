@@ -823,6 +823,14 @@ Similarly variables of type `preterm` have an antiquotation
 
 It is equivalent to pretyping the preterm with the appropriate typing constraint.
 
+Variables of type `ident` have an antiquotation
+
+.. prodn:: term += $preterm:@lident
+
+interpreting the ident as an hypothesis. This is for dynamically-named
+hypotheses where `&` is for statically-named hypotheses, in other
+words `let x := @y in constr:($hyp:x)` is equivalent to `constr:(&y)`.
+
 Variables of type `pattern` have an antiquotation
 
 .. prodn:: term += $pattern:@lident

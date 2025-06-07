@@ -349,6 +349,16 @@ let csubst_instance subst ctx =
   in
   List.fold_right fold ctx SList.empty
 
+let ext_rev_subst (subst, _, ctx) =
+  let fold decl accu =
+    let id0 = NamedDecl.get_id decl in
+    match Id.Map.find id0 subst.csubst_rev with
+    | SRel n -> (id0, EConstr.mkRel (subst.csubst_len - n)) :: accu
+    | SVar id -> (id0, EConstr.mkVar id) :: accu
+    | exception Not_found -> accu
+  in
+  List.fold_right fold (named_context_of_val ctx) []
+
 let default_ext_instance (subst, _, ctx) =
   csubst_instance subst (named_context_of_val ctx)
 
