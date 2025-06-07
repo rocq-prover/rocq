@@ -3,7 +3,8 @@ TUTOS:= \
   tuto0 \
   tuto1 \
   tuto2 \
-  tuto3
+  tuto3 \
+  tuto4
 
 all: $(TUTOS)
 
