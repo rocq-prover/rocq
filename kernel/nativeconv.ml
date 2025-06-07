@@ -135,12 +135,13 @@ and conv_atom env pb lvl a1 a2 cu =
         if not (Int.equal s1 s2) || not (Array.equal Int.equal rp1 rp2) then raise NotConvertible;
         if f1 == f2 then cu
         else conv_fix env lvl t1 f1 t2 f2 cu
-    | Acofix (t1, f1, s1, _), Acofix (t2, f2, s2, _) ->
+    | Acofix (t1, f1, s1, args1, _), Acofix (t2, f2, s2, args2, _) ->
         if not (Int.equal s1 s2) then raise NotConvertible;
-        if f1 == f2 then cu
+        if f1 == f2 && args1 == args2 then cu
+        else if not (Int.equal (Array.length f1) (Array.length f2) && Int.equal (Array.length args1) (Array.length args2)) then
+          raise NotConvertible
         else
-          if not (Int.equal (Array.length f1) (Array.length f2)) then raise NotConvertible
-          else conv_fix env lvl t1 f1 t2 f2 cu
+          Array.fold_left2 (fun cu v1 v2 -> conv_val env CONV lvl v1 v2 cu) (conv_fix env lvl t1 f1 t2 f2 cu) args1 args2
     | Aproj((ind1, i1), ac1), Aproj((ind2, i2), ac2) ->
        if not (Ind.CanOrd.equal ind1 ind2 && Int.equal i1 i2) then raise NotConvertible
        else conv_accu env CONV lvl ac1 ac2 cu

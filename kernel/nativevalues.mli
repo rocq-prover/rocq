@@ -60,7 +60,7 @@ type atom =
   | Avar of Id.t
   | Acase of annot_sw * accumulator * t * t
   | Afix of t array * t array * rec_pos * int
-  | Acofix of t array * t array * int * vcofix
+  | Acofix of t array * t array * int * t array * vcofix
   | Aevar of Evar.t * t array (* arguments *)
   | Aproj of (inductive * int) * accumulator
 
@@ -90,10 +90,9 @@ val mk_sort_accu : Sorts.t -> UVars.Instance.t -> t
 val mk_var_accu : Id.t -> t
 val mk_sw_accu : annot_sw -> accumulator -> t -> (t -> t)
 val mk_fix_accu : rec_pos  -> int -> t array -> t array -> t
-val mk_cofix_accu : int -> t array -> t array -> t
+val mk_cofix_accu : int -> t array -> t array -> t -> t array -> t
 val mk_evar_accu : Evar.t -> t array -> t
 val mk_proj_accu : (inductive * int) -> accumulator -> t
-val upd_cofix : t -> t -> unit
 val force_cofix : t -> t
 val mk_const : tag -> t
 val mk_block : tag -> t array -> t

@@ -362,16 +362,17 @@ and nf_atom_type env sigma atom =
       let norm_body i v = nf_val env sigma (napply v fargs) (lift nbfix tt.(i)) in
       let ft = Array.mapi norm_body ft in
       mkFix((rp,s),(names,tt,ft)), tt.(s)
-  | Acofix(tt,ft,s,_) ->
+  | Acofix (tt, ft, s, args, _) ->
       let tt = Array.map (fun t -> nf_type_sort env sigma t) tt in
       let tt = Array.map fst tt and rt = Array.map snd tt in
       let name = Name (Id.of_string "Fcofix") in
       let lvl = nb_rel env in
       let names = Array.map (fun s -> make_annot name (Sorts.relevance_of_sort s)) rt in
       let fargs = mk_rels_accu lvl (Array.length ft) in
+      let _, args = nf_args env sigma (Array.rev_to_list args) tt.(s) in
       let env = push_rec_types (names,tt,[||]) env in
       let ft = Array.mapi (fun i v -> nf_val env sigma (napply v fargs) tt.(i)) ft in
-      mkCoFix(s,(names,tt,ft)), tt.(s)
+      mkApp (mkCoFix(s,(names,tt,ft)), Array.of_list args), tt.(s)
   | Aevar(evk,args) ->
     nf_evar env sigma evk args
   | Aproj(p,c) ->

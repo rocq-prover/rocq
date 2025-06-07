@@ -310,7 +310,7 @@ type primitive =
   | Is_string
   | Is_parray
   | Cast_accu
-  | Upd_cofix
+  | Array_get
   | Force_cofix
   | Mk_uint
   | Mk_float
@@ -351,7 +351,7 @@ let eq_primitive p1 p2 =
   | Is_string, Is_string
   | Is_parray, Is_parray
   | Cast_accu, Cast_accu
-  | Upd_cofix, Upd_cofix
+  | Array_get, Array_get
   | Force_cofix, Force_cofix
   | Mk_uint, Mk_uint
   | Mk_float, Mk_float
@@ -401,7 +401,7 @@ let eq_primitive p1 p2 =
     | Is_string
     | Is_parray
     | Cast_accu
-    | Upd_cofix
+    | Array_get
     | Force_cofix
     | Mk_uint
     | Mk_float
@@ -447,7 +447,7 @@ let primitive_hash = function
      combinesmall 9 (Id.hash id)
   | Is_int -> 11
   | Cast_accu -> 12
-  | Upd_cofix -> 13
+  | Array_get -> 13
   | Force_cofix -> 14
   | Mk_uint -> 15
   | Mk_int -> 16
@@ -792,6 +792,7 @@ let decompose_MLlam c =
 type global =
 (*  | Gtblname of gname * Id.t array *)
   | Gtblnorm of gname * lname array * mllambda array
+  | Gtblcofix of gname * lname array * mllambda array
   | Gtblfixtype of gname * lname array * mllambda array
   | Glet of gname * mllambda
   | Gletcase of
@@ -805,6 +806,7 @@ type global =
 let eq_global g1 g2 =
   match g1, g2 with
   | Gtblnorm (gn1,lns1,mls1), Gtblnorm (gn2,lns2,mls2)
+  | Gtblcofix (gn1,lns1,mls1), Gtblcofix (gn2,lns2,mls2)
   | Gtblfixtype (gn1,lns1,mls1), Gtblfixtype (gn2,lns2,mls2) ->
       Int.equal (Array.length lns1) (Array.length lns2) &&
       Int.equal (Array.length mls1) (Array.length mls2) &&
@@ -836,26 +838,32 @@ let hash_global g =
       let env = push_lnames 0 LNmap.empty lns in
       let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
       combinesmall 1 hmls
-  | Gtblfixtype (gn,lns,mls) ->
+  | Gtblcofix (gn,lns,mls) ->
       let nlns = Array.length lns in
       let nmls = Array.length mls in
       let env = push_lnames 0 LNmap.empty lns in
       let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
       combinesmall 2 hmls
+  | Gtblfixtype (gn,lns,mls) ->
+      let nlns = Array.length lns in
+      let nmls = Array.length mls in
+      let env = push_lnames 0 LNmap.empty lns in
+      let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
+      combinesmall 3 hmls
   | Glet (gn, def) ->
-      combinesmall 3 (hash_mllambda gn 0 LNmap.empty def)
+      combinesmall 4 (hash_mllambda gn 0 LNmap.empty def)
   | Gletcase (gn,lns,annot,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch (annot,c,accu,br) in
-      combinesmall 4 (combine nlns (hash_mllambda gn nlns env t))
+      combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
   | Gopen s -> combinesmall 5 (String.hash s)
   | Gtype (ind, arr) ->
     let hash_aux acc (tag,ar) =
       combine3 acc (Int.hash tag) (Int.hash ar)
     in
-    combinesmall 6 (combine (Ind.CanOrd.hash ind) (Array.fold_left hash_aux 0 arr))
-  | Gcomment s -> combinesmall 7 (String.hash s)
+    combinesmall 7 (combine (Ind.CanOrd.hash ind) (Array.fold_left hash_aux 0 arr))
+  | Gcomment s -> combinesmall 8 (String.hash s)
 
 let global_stack = ref ([] : global list)
 
@@ -885,6 +893,9 @@ let push_global_fixtype gn params body =
 
 let push_global_norm gn params body =
   push_global gn (Gtblnorm (gn, params, body))
+
+let push_global_cofix gn params self =
+  push_global gn (Gtblcofix (gn, params, self))
 
 let push_global_case gn params annot a accu bs =
   push_global gn (Gletcase (gn, params, annot, a, accu, bs))
@@ -1430,22 +1441,22 @@ let compile_prim env decl cond paux =
       let env_t = restart_env env in
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
-      let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
+      let args_t = Array.map (fun id -> MLlocal id) params_t in
       let gft = fresh_gfixtype l in
       let gft = push_global_fixtype gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
-      let lf,env_n = push_rels (restart_env env) ids in
+      let lf,env_n = push_rels env_t ids in
       let t_params = Array.make ndef [||] in
-      let t_norm_f = Array.make ndef (Gnorm (l,-1)) in
+      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm l) in
       let ml_of_fix i body =
         let idsi,bodyi = decompose_Llam body in
         let paramsi, envi = push_rels env_n idsi in
-        t_norm_f.(i) <- fresh_gnorm l;
         let bodyi = ml_of_lam envi l bodyi in
         t_params.(i) <- paramsi;
-        mkMLlam paramsi bodyi in
+        mkMLlam paramsi bodyi
+      in
       let tnorm = Array.mapi ml_of_fix tb in
       let fvn,fvr = !(env_n.env_named), !(env_n.env_urel) in
       let fv_params = fv_params env_n in
@@ -1456,43 +1467,28 @@ let compile_prim env decl cond paux =
       let norm = fresh_gnormtbl l in
       let norm = push_global_norm norm fv_params
         (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
-      (* Compilation of fix *)
+      (* Compilation of cofix *)
       let fv_args = fv_args env fvn fvr in
-      let mk_norm = MLapp(MLglobal norm, fv_args) in
-      let lnorm = fresh_lname Anonymous in
-      let ltype = fresh_lname Anonymous in
-      let lf, _env = push_rels env ids in
-      let lf_args = Array.map (fun id -> MLlocal id) lf in
-      let upd i _lname cont =
-        let paramsi = t_params.(i) in
-        let pargsi = Array.map (fun id -> MLlocal id) paramsi in
-        let uniti = fresh_lname Anonymous in
-        let body =
-          MLlam(Array.append paramsi [|uniti|],
-                MLapp(MLglobal t_norm_f.(i),
-                      Array.concat [fv_args;lf_args;pargsi])) in
-        MLsequence(MLprimitive (Upd_cofix, [|lf_args.(i);body|]),
-                   cont) in
-      let upd = Array.fold_right_i upd lf lf_args.(start) in
-      let mk_let i lname cont =
-        MLlet(lname,
-              MLprimitive ((Mk_cofix i),[| MLlocal ltype; MLlocal lnorm|]),
-              cont) in
-      let init = Array.fold_right_i mk_let lf upd in
-      MLlet(lnorm, mk_norm, MLlet(ltype, mk_type, init))
-  (*
-      let mkrec i lname =
-        let paramsi = t_params.(i) in
-        let pargsi = Array.map (fun id -> MLlocal id) paramsi in
-        let uniti = fresh_lname Anonymous in
-        let body =
-          MLapp( MLprimitive(Mk_cofix i),
-                 [|mk_type;mk_norm;
-                   MLlam([|uniti|],
-                         MLapp(MLglobal t_norm_f.(i),
-                               Array.concat [fv_args;lf_args;pargsi]))|]) in
-        (lname, paramsi, body) in
-      MLletrec(Array.mapi mkrec lf, lf_args.(start)) *)
+      let mk_norm = MLapp(MLglobal norm, fv_args') in
+
+      let knot = fresh_gnormtbl l in
+      let map i g =
+        (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
+        let unit = fresh_lname Anonymous in
+        let args = Array.map (fun id -> MLlocal id) t_params.(i) in
+        let mk_let i lname cont =
+          MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
+        in
+        let self = Array.map (fun id -> MLlocal id) lf in
+        let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
+        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
+        let typs = mk_type in
+        let self = mk_norm in
+        mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
+      in
+      (* Tie the knot *)
+      let knot = push_global_cofix knot fv_params (Array.mapi map t_norm_f) in
+      MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
 
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
 
@@ -1965,7 +1961,7 @@ let pp_mllam fmt l =
     | Is_string -> Format.fprintf fmt "is_string"
     | Is_parray -> Format.fprintf fmt "is_parray"
     | Cast_accu -> Format.fprintf fmt "cast_accu"
-    | Upd_cofix -> Format.fprintf fmt "upd_cofix"
+    | Array_get -> Format.fprintf fmt "Array.get"
     | Force_cofix -> Format.fprintf fmt "force_cofix"
     | Mk_uint -> Format.fprintf fmt "mk_uint"
     | Mk_float -> Format.fprintf fmt "mk_float"
@@ -2005,6 +2001,19 @@ let pp_array fmt t =
   if len > 0 then
     Format.fprintf fmt "%a" pp_mllam t.(len - 1);
   Format.fprintf fmt "|]@]"
+
+let pp_cofix fmt (gn, s) =
+  let pp_dummy fmt len =
+    let dummy = String.concat "; " (List.make len "0") in
+    Format.fprintf fmt "@[(Obj.magic [|%s|] : Nativevalues.t array)@]" dummy
+  in
+  let pp_knot fmt n =
+    for i = 0 to n - 1 do
+      Format.fprintf fmt "let () = (%a).(%i) <- Obj.magic (%a) in@\n" pp_gname gn i pp_mllam s.(i)
+    done
+  in
+  let len = Array.length s in
+  Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
 
 let type_of_global gn c = match gn with
   | Ginternal "symbols_tbl" -> ""
@@ -2047,6 +2056,9 @@ let pp_global fmt g =
   | Gtblnorm (g, params, t) ->
       Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
         pp_ldecls params pp_array t
+  | Gtblcofix (g, params, s) ->
+      Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
+        pp_ldecls params pp_cofix (g, s);
   | Gletcase(gn,params,annot,a,accu,bs) ->
       Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a : Nativevalues.t = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@."
       (hash_global g)
