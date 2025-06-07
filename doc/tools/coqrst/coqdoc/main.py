@@ -8,19 +8,20 @@
 ##         #     (see LICENSE file for the text of the license)         ##
 ##########################################################################
 """
-Use CoqDoc to highlight Coq snippets
+Use rocq doc to highlight Rocq snippets
 ====================================
 
-Pygment's Coq parser isn't the best; instead, use coqdoc to highlight snippets.
-Only works for full, syntactically valid sentences; on shorter snippets, coqdoc
+Pygment's Rocq parser isn't the best; instead, use rocq doc to highlight snippets.
+Only works for full, syntactically valid sentences; on shorter snippets, rocq doc
 swallows parts of the input.
 
-Works by reparsing coqdoc's output into the output that Sphinx expects from a
+Works by reparsing rocq doc's output into the output that Sphinx expects from a
 lexer.
 """
 
 import os
 import platform
+import pexpect
 from tempfile import mkstemp
 from subprocess import check_output
 
@@ -33,9 +34,12 @@ COQDOC_OPTIONS = ['--body-only', '--no-glob', '--no-index', '--no-externals',
 COQDOC_SYMBOLS = ["->", "<-", "<->", "=>", "<=", ">=", "<>", "~", "/\\", "\\/", "|-", "*", "forall", "exists"]
 COQDOC_HEADER = "".join("(** remove printing {} *)".format(s) for s in COQDOC_SYMBOLS)
 
-def coqdoc(coq_code, coqdoc_bin=None):
-    """Get the output of coqdoc on coq_code."""
-    coqdoc_bin = coqdoc_bin or os.path.join(os.getenv("COQBIN", ""), "coqdoc")
+def coqdoc(coq_code, rocqbin=None):
+    """Get the output of rocq doc on coq_code."""
+    rocqbin = rocqbin or os.path.join(os.getenv("COQBIN", ""), "rocq")
+    if not pexpect.utils.which(rocqbin):
+        raise ValueError("'{}: not found".format(rocqbin))
+    args = [rocqbin, "doc"]
     fd, filename = mkstemp(prefix="coqdoc_", suffix=".v")
     if platform.system().startswith("CYGWIN"):
         # coqdoc currently doesn't accept cygwin style paths in the form "/cygdrive/c/..."
@@ -44,7 +48,7 @@ def coqdoc(coq_code, coqdoc_bin=None):
         os.write(fd, COQDOC_HEADER.encode("utf-8"))
         os.write(fd, coq_code.encode("utf-8"))
         os.close(fd)
-        return check_output([coqdoc_bin] + COQDOC_OPTIONS + [filename], timeout = 10).decode("utf-8")
+        return check_output(args + COQDOC_OPTIONS + [filename], timeout = 10).decode("utf-8")
     finally:
         os.remove(filename)
 
