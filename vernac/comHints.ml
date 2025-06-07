@@ -98,7 +98,7 @@ let interp_hints ~poly h =
         "Declaring arbitrary terms as hints is forbidden. You must declare a \
         toplevel constant instead.")
   in
-  let fp = Constrintern.intern_constr_pattern env sigma in
+  let fp = Constrintern.interp_constr_pattern env sigma in
   let fres (info, b, r) =
     let gr = fi r in
     let info =
@@ -116,7 +116,7 @@ let interp_hints ~poly h =
     | HintsProjections -> HintsProjections
     | HintsReferences lhints -> HintsReferences (List.map fr lhints)
   in
-  let fp = Constrintern.intern_constr_pattern (Global.env ()) in
+  let fp = Constrintern.interp_constr_pattern (Global.env ()) in
   match h with
   | HintsResolve lhints -> HintsResolveEntry (List.map fres lhints)
   | HintsResolveIFF (l2r, lc, n) ->

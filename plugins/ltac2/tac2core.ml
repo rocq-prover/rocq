@@ -936,7 +936,6 @@ let () =
     Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
   in
   pf_apply @@ fun env sigma ->
-  let pat = Constr_matching.instantiate_pattern env sigma Id.Map.empty pat in
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
@@ -965,7 +964,6 @@ let () =
     Proofview.tclOR (return (m_ctx,ans)) (fun _ -> of_ans s)
   in
   pf_apply @@ fun env sigma ->
-  let pat = Constr_matching.instantiate_pattern env sigma Id.Map.empty pat in
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
@@ -1724,15 +1722,15 @@ let () =
       ltac_extra = extra;
     }
     in
-    let _, pat = Constrintern.intern_uninstantiated_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
+    let _, pat = Constrintern.intern_constr_pattern env sigma ~strict_check ~as_type:false ~ltacvars c in
     GlbVal pat, gtypref t_pattern
   in
   let subst subst c =
     let env = Global.env () in
     let sigma = Evd.from_env env in
-    Patternops.subst_pattern env sigma subst c
+    Patternops.subst_uninstantiated_pattern env sigma subst c
   in
-  let print env sigma pat = str "pat:(" ++ Printer.pr_lconstr_pattern_env env sigma pat ++ str ")" in
+  let print env sigma pat = str "pat:(" ++ Printer.pr_uninstantiated_lconstr_pattern_env env sigma pat ++ str ")" in
   let raw_print env sigma pat = str "pat:(" ++ Ppconstr.pr_constr_pattern_expr env sigma pat ++ str ")" in
   let interp env c =
     let ist = to_lvar env in
