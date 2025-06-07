@@ -36,7 +36,6 @@ type reloc_table = (tag * arity) array
 type annot_sw = {
     asw_ind : inductive;
     asw_reloc : reloc_table;
-    asw_finite : bool;
     asw_prefix : string
   }
 

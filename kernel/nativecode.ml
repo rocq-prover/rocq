@@ -1292,13 +1292,12 @@ let compile_prim env decl cond paux =
          (* Remark: if we do not want to compile the predicate we
             should a least compute the fv, then store the lambda representation
             of the predicate (not the mllambda) *)
-      let annot =
-        let (ci, tbl, knd) = annot in {
+      let annot, finite =
+        let (ci, tbl, finite) = annot in {
           asw_ind = ci.ci_ind;
           asw_reloc = tbl;
-          asw_finite = knd <> CoFinite;
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
-      } in
+      }, finite in
       let env_p = restart_env env in
       let pn = fresh_gpred l in
       let mlp = ml_of_lam env_p l p in
@@ -1340,7 +1339,7 @@ let compile_prim env decl cond paux =
       (* Final result *)
       let arg = ml_of_lam env l a in
       let force =
-        if annot.asw_finite then arg
+        if finite <> CoFinite then arg
         else mkForceCofix annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
@@ -2185,7 +2184,7 @@ let compile_mind mb mind stack =
       let tbl = ob.mind_reloc_tbl in
       (* Building info *)
       let asw = { asw_ind = ind; asw_prefix = "";
-                  asw_reloc = tbl; asw_finite = true } in
+                  asw_reloc = tbl } in
       let c_uid = fresh_lname Anonymous in
       let cf_uid = fresh_lname Anonymous in
       let tag, arity = tbl.(0) in
@@ -2198,7 +2197,12 @@ let compile_mind mb mind stack =
       let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
       let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
       let code = MLmatch(asw,MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
-      let code = MLlet(cf_uid, mkForceCofix "" ind (MLlocal c_uid), code) in
+      let force_c =
+        if mb.mind_finite <> CoFinite
+        then MLlocal c_uid
+        else mkForceCofix "" ind (MLlocal c_uid)
+      in
+      let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
       Glet (gn, mkMLlam [|c_uid|] code) :: acc
     in
