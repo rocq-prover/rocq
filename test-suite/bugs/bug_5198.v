@@ -29,7 +29,7 @@ Definition SRepAdd : forall (_ _ : SRep), SRep
   := let v := (fun x y => barrett_reduce_function_bundled (CarryAdd x y)) in
      v.
 Definition SRepAdd' : forall (_ _ : SRep), SRep
-  := (fun x y => barrett_reduce_function_bundled (CarryAdd x y)).
+  := (fun x y => barrett_reduce_function_bundled (@CarryAdd (f (S O) O) _ x y)).
 (* Error:
 In environment
 x : SRep

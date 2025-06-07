@@ -283,6 +283,9 @@ let decompose_proj ?metas env sigma (t1, sk1) =
   (* Given a ConstRef projection, I obtain the structure it is a projection from. *)
   let structure = try Structures.Structure.find_from_projection proji
     with _ -> raise Not_found in
+  let iproj = try Structures.Structure.projection_number env proji
+    with _ -> raise Not_found in
+  let () = if (List.nth structure.projections iproj).proj_true then () else raise Not_found in
   (* Knowing the structure and hence its number of arguments, I can cut sk1 into pieces. *)
   let params1, c1, extra_args1 =
     match arg with
@@ -647,44 +650,6 @@ let infer_conv_noticing_evars ~pb ~ts env sigma t1 t2 =
     if !has_evar then None
     else Some (UnifFailure (sigma, UnifUnivInconsistency e))
 
-module Cs_keys_cache :
-sig
-  type t
-  val empty : unit -> t
-  val flip : t -> t
-  val add : env -> evar_map -> bool -> state -> t -> t
-  val fold : bool -> ('a -> state -> 'a) -> 'a -> t -> 'a
-  val clear : bool -> t -> unit
-end =
-struct
-  type t = (Names.GlobRef.t Queue.t * state Names.GlobRef.Map_env.t) * (Names.GlobRef.t Queue.t * state Names.GlobRef.Map_env.t)
-
-  let empty () : t = ((Queue.create (), Names.GlobRef.Map_env.empty), (Queue.create (), Names.GlobRef.Map_env.empty))
-
-  let flip (c1, c2) = (c2, c1)
-
-  let add_left env sigma appr (((c1, m1), c2) as c) =
-    match fst @@ EConstr.destRef sigma (fst appr) with
-    | k ->
-      let k = QGlobRef.canonize env k in
-      if not (Names.GlobRef.Map_env.mem k m1) then
-        let () = Queue.push k c1 in
-        ((c1, Names.GlobRef.Map_env.add k appr m1), c2)
-      else c
-    | exception DestKO -> c
-
-  let add env sigma l2r appr c =
-    if l2r then add_left env sigma appr c else flip (add_left env sigma appr (flip c))
-
-  let fold_left f acc ((c, m), _) = Queue.fold (fun acc k -> f acc (Names.GlobRef.Map_env.find k m)) acc c
-  let fold l2r f acc c = fold_left f acc (if l2r then c else flip c)
-
-  let clear_left ((c, _), _) = Queue.clear c
-
-  let clear l2r c =
-    if l2r then clear_left c else clear_left (flip c)
-end
-
 let rec evar_conv_x flags env evd pbty term1 term2 =
   let term1 = whd_head_evar evd term1 in
   let term2 = whd_head_evar evd term2 in
@@ -704,17 +669,17 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
         let term1 = apprec_nohdbeta flags env evd term1 in
         let term2 = apprec_nohdbeta flags env evd term2 in
         let default () =
-        match
-          evar_eqappr_x flags env evd pbty (Cs_keys_cache.empty ()) None
-            (whd_nored_state env evd (term1,Stack.empty))
-            (whd_nored_state env evd (term2,Stack.empty))
-        with
-        | UnifFailure _ as x ->
-           if Retyping.is_term_irrelevant env evd term1 ||
-              Retyping.is_term_irrelevant env evd term2
-           then Success evd
-           else x
-        | Success _ as x -> x
+          let appr1 = whd_nored_state env evd (term1,Stack.empty) in
+          let appr2 = whd_nored_state env evd (term2,Stack.empty) in
+          match
+            evar_eqappr_x flags env evd pbty (appr1, appr2) None appr1 appr2
+          with
+          | UnifFailure _ as x ->
+             if Retyping.is_term_irrelevant env evd term1 ||
+                Retyping.is_term_irrelevant env evd term2
+             then Success evd
+             else x
+          | Success _ as x -> x
         in
           begin match EConstr.kind evd term1, EConstr.kind evd term2 with
           | Evar ev, _ when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
@@ -742,7 +707,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
         end
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
-    keys (* canonical structure keys cache *)
+    hds (* Copy of the never-reduced appr1 and appr2 *)
     lastUnfolded (* tells which side was last unfolded, if any *)
     (term1, sk1 as appr1) (term2, sk2 as appr2) =
   let quick_fail i = (* not costly, loses info *)
@@ -781,8 +746,8 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
       flags.open_ts env' evd (c'1, Stack.empty) in
     let out2 = whd_nored_state env' evd
       (lift 1 (Stack.zip evd (term', sk')), Stack.append_app [|EConstr.mkRel 1|] Stack.empty) in
-    if onleft then evar_eqappr_x flags env' evd CONV keys None out1 out2
-    else evar_eqappr_x flags env' evd CONV (Cs_keys_cache.flip keys) None out2 out1
+    if onleft then evar_eqappr_x flags env' evd CONV hds None out1 out2
+    else evar_eqappr_x flags env' evd CONV (snd hds, fst hds) None out2 out1
   in
   let rigids env evd sk term sk' term' =
     let nargs = Stack.args_size sk in
@@ -822,7 +787,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        3.  reduce the redex into M and recursively solve E[?n[inst]] =? E'[M] *)
     let switch f a b = if l2r then f a b else f b a in
     let delta i =
-      switch (evar_eqappr_x flags env i pbty keys None) apprF
+      switch (evar_eqappr_x flags env i pbty hds None) apprF
         (whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vskM)
     in
     let default i = ise_try i [miller l2r ev apprF apprM;
@@ -845,7 +810,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                     whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd (termM',skM)
                   in
                   let delta' i =
-                    switch (evar_eqappr_x flags env i pbty keys None) apprF apprM'
+                    switch (evar_eqappr_x flags env i pbty hds None) apprF apprM'
                   in
                   fun i -> ise_try i [miller l2r ev apprF apprM';
                                    consume l2r apprF apprM'; delta']
@@ -912,7 +877,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                           (position_problem true pbty,destEvar i' ev1',term2)
        else
          (* HH: Why not to drop sk1 and sk2 since they unified *)
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty hds None
                        (ev1', sk1) (term2, sk2)
     | Some (r,[]), Success i' ->
        (* We have sk1'[] = sk2[] for some sk1' s.t. sk1[]=sk1'[r[]] *)
@@ -922,7 +887,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
          solve_simple_eqn (conv_fun evar_conv_x) flags env i'
                           (position_problem false pbty,destEvar i' ev2',Stack.zip i' (term1,r))
        else
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty hds None
                        (ev2', sk1) (term2, sk2)
     | Some ([],r), Success i' ->
        (* Symmetrically *)
@@ -934,7 +899,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                           (position_problem true pbty,destEvar i' ev1',Stack.zip i' (term2,r))
        else
          (* HH: Why not to drop sk1 and sk2 since they unified *)
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty hds None
                           (ev1', sk1) (term2, sk2)
     | None, (UnifFailure _ as x) ->
        (* sk1 and sk2 have no common outer part *)
@@ -967,42 +932,81 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     | _, _ -> anomaly (Pp.str "Unexpected result from ise_stack2.")
   in
   let app_empty = match sk1, sk2 with [], [] -> true | _ -> false in
+  (* Checks whether two terms with the same head unify (without unfolding) *)
+  let eq_head appr1 appr2 evd =
+    (* Gather the universe constraints that would make term1 and term2 equal.
+       If these only involve unifications of flexible universes to other universes,
+       allow this identification (first-order unification of universes). Otherwise
+       fallback to unfolding.
+    *)
+    let (term1, sk1) = appr1 in
+    let (term2, sk2) = appr2 in
+    let check_univs univs i =
+      match univs with
+      | None -> UnifFailure (i,NotSameHead)
+      | Some univs ->
+        try Success (Evd.add_universe_constraints i univs)
+        with UniversesDiffer -> UnifFailure (i,NotSameHead)
+        | UGraph.UniverseInconsistency p -> UnifFailure (i, UnifUnivInconsistency p) in
+    match kind evd term1, kind evd term2 with
+    | Proj (p1, _, c1), Proj (p2, _, c2) ->
+      if not (QProjection.Repr.equal env (Projection.repr p1) (Projection.repr p2))
+      then UnifFailure (evd,NotSameHead)
+      else ise_and evd [
+        (fun i -> evar_conv_x flags env i CONV c1 c2);
+        (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
+    | Proj (p1, _, c1), Const (p2, u2) ->
+      if not (QConstant.equal env (Projection.constant p1) p2)
+      then UnifFailure (evd,NotSameHead)
+      else (match destApp evd (Retyping.expand_projection env evd p1 c1 []) with
+      | exception Retyping.RetypeError _ -> UnifFailure (evd,NotSameHead)
+      | term1, args1 -> ise_and evd [
+        check_univs (EConstr.eq_constr_universes env evd term1 term2);
+        (fun i -> exact_ise_stack2 env i (evar_conv_x flags) (Stack.append_app args1 sk1) sk2)])
+    | Const (p1, u1), Proj (p2, _, c2) ->
+      if not (QConstant.equal env p1 (Projection.constant p2))
+      then UnifFailure (evd,NotSameHead)
+      else (match destApp evd (Retyping.expand_projection env evd p2 c2 []) with
+      | exception Retyping.RetypeError _ -> UnifFailure (evd,NotSameHead)
+      | term2, args2 -> ise_and evd [
+        check_univs (EConstr.eq_constr_universes env evd term1 term2);
+        (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 (Stack.append_app args2 sk2))])
+    | _, _ ->
+      ise_and evd [
+        check_univs (EConstr.eq_constr_universes env evd term1 term2);
+        (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)] in
+  let module Proj = struct
+    type t =
+      | None
+      | Reducible of Names.Constant.t
+      | CS of ((Names.Constant.t * EConstr.EInstance.t) * (EConstr.constr list option * EConstr.constr * Reductionops.Stack.t))
+    end in
+  let get_proj_case appr =
+    match decompose_proj env evd appr with
+    | exception Not_found -> Proj.None
+    | ((n, _), (_, c, _)) as p ->
+    let c = whd_all env evd c in
+    match kind evd c with
+    | App (h, _) when isConstruct evd h -> Proj.Reducible n
+    | Construct _ -> Reducible n
+    | _ when is_ground_term evd c -> Proj.None
+    | _ -> Proj.CS p in
   (* Evar must be undefined since we have flushed evars *)
-  let keys = Cs_keys_cache.add env evd true appr1 keys in
-  let keys = Cs_keys_cache.add env evd false appr2 keys in
-  let get_cs env sigma l2r keys nokey appr1 appr2 =
-    let appr1, appr2 = if l2r then appr1, appr2 else appr2, appr1 in
-    try
-      let (_, (_, c1, _)) as p1 = decompose_proj env sigma appr1 in
-      let kill, reduce =
-        (* TOTHINK: Should I keep c1 simplified? *)
-        let c1 = whd_all env sigma c1 in
-        (* [proj (ctor ...)]: don't use CS *)
-        match kind sigma c1 with
-        | App (h,_) when isConstruct sigma h -> true, true
-        | Construct _ -> true, true
-        | _ -> not (has_undefined_evars_or_metas sigma c1), false in
-      let x =
-        let check_key default appr =
-          try
-            let s = check_conv_record env sigma p1 appr in
-            if kill then quick_fail sigma else conv_record flags env s
-          with Not_found -> default in
-        if nokey then check_key (UnifFailure (sigma, NoCanonicalStructure)) appr2
-        else
-          let x = Cs_keys_cache.fold (not l2r) (fun r appr ->
-            match r with
-            | Success _ -> r
-            | _ -> check_key r appr) (UnifFailure (sigma, NoCanonicalStructure)) keys in
-          (* If t is not a reference, it was not added to the keys cache, so we take care of it now. *)
-          match x with
-          | UnifFailure _ when not (EConstr.isRef sigma (fst appr2)) -> check_key x appr2
-          | _ -> x in
-      if kill then Inr (reduce && (match x with | UnifFailure (_, NoCanonicalStructure) -> false | _ -> true)) else
-      (* The projection constant will not change, so there is no point in keeping the keys anymore. *)
-      let () = Cs_keys_cache.clear (not l2r) keys in
-      match x with | Success _ -> Inl x | _ -> Inr false
-    with _ -> Inr false in
+  let rec get_cs flags env sigma p1 appr1 appr2 =
+    let () = debug_unification (fun () -> Pp.(v 0 (str "Search for CS on " ++ pr_state env evd appr1 ++ cut () ++ pr_state env evd appr2 ++ cut ()))) in
+    let cs sigma =
+      try
+        let s = check_conv_record env sigma p1 appr2 in
+        conv_record flags env s
+      with Not_found -> UnifFailure (sigma, NoCanonicalStructure) in
+    let red sigma =
+      let (term2, sk2) = appr2 in
+      match flex_kind_of_term flags env sigma term2 sk2 with
+      | Flexible _ | Rigid -> UnifFailure (sigma, NoCanonicalStructure)
+      | MaybeFlexible vsk2' ->
+        let appr2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env sigma vsk2' in
+        get_cs flags env sigma p1 appr1 appr2 in
+    ise_try sigma [eq_head appr1 appr2; cs; red] in
   let () = debug_unification (fun () -> Pp.(v 0 (pr_state env evd appr1 ++ cut () ++ pr_state env evd appr2 ++ cut ()))) in
   match (flex_kind_of_term flags env evd term1 sk1,
          flex_kind_of_term flags env evd term2 sk2) with
@@ -1071,74 +1075,64 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         and f2 i =
           let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
           and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2'
-          in evar_eqappr_x flags env i pbty keys None out1 out2
+          in evar_eqappr_x flags env i pbty hds None out1 out2
         in
         ise_try evd [f1; f2]
 
-        | Proj (p, _, c), Proj (p', _, c') when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p') ->
-          let f1 i =
-            ise_and i
-            [(fun i -> evar_conv_x flags env i CONV c c');
-             (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
-          and f2 i =
-            let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
-            and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2'
-            in evar_eqappr_x flags env i pbty keys None out1 out2
-          in
-            ise_try evd [f1; f2]
-
-        (* Catch the p.c ~= p c' cases *)
-        | Proj (p,_,c), Const (p',u) when QConstant.equal env (Projection.constant p) p' ->
-          let res =
-            try Some (destApp evd (Retyping.expand_projection env evd p c []))
-            with Retyping.RetypeError _ -> None
-          in
-            (match res with
-            | Some (f1,args1) ->
-              evar_eqappr_x flags env evd pbty keys None (f1,Stack.append_app args1 sk1)
-                appr2
-            | None -> UnifFailure (evd,NotSameHead))
-
-        | Const (p,u), Proj (p',_,c') when QConstant.equal env p (Projection.constant p') ->
-          let res =
-            try Some (destApp evd (Retyping.expand_projection env evd p' c' []))
-            with Retyping.RetypeError _ -> None
-          in
-            (match res with
-            | Some (f2,args2) ->
-              evar_eqappr_x flags env evd pbty keys None appr1 (f2,Stack.append_app args2 sk2)
-            | None -> UnifFailure (evd,NotSameHead))
 
         | _, _ ->
+        let p1 = if lastUnfolded = Some true then Proj.None else get_proj_case appr1 in
+        let p2 = if lastUnfolded = Some false then Proj.None else get_proj_case appr2 in
+        (match p1, p2 with
+        | Proj.CS p1, Proj.CS p2 when flags.with_cs ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "both sides are CS" ++ cut ()))) in
+          ise_try evd [
+            (fun i -> get_cs flags env i p1 appr1 (snd hds));
+            (fun i -> get_cs flags env i p2 appr2 (fst hds));
+            (fun i ->
+              evar_eqappr_x flags env evd pbty hds None
+                (whd_betaiota_deltazeta_for_iota_state
+                   flags.open_ts env evd vsk1')
+                (whd_betaiota_deltazeta_for_iota_state
+                   flags.open_ts env evd vsk2'))]
+        | Proj.CS p1, _ ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "LHS is CS" ++ cut ()))) in
+          ise_try evd [
+            (fun i -> get_cs flags env i p1 appr1 (snd hds));
+            (fun i ->
+              evar_eqappr_x flags env evd pbty hds (Some true) appr1
+                (whd_betaiota_deltazeta_for_iota_state
+                   flags.open_ts env evd vsk2'))]
+        | _, Proj.CS p2 ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "RHS is CS" ++ cut ()))) in
+          ise_try evd [
+            (fun i -> get_cs flags env i p2 appr2 (fst hds));
+            (fun i ->
+              evar_eqappr_x flags env evd pbty hds (Some false)
+                (whd_betaiota_deltazeta_for_iota_state
+                   flags.open_ts env evd vsk1')
+                appr2)]
+        | Proj.Reducible n1, Proj.Reducible n2 ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "both sides are reducible" ++ cut ()))) in
+          let appr1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd vsk1' in
+          let appr2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd vsk2' in
+          evar_eqappr_x flags env evd pbty (if n1 = n2 then (appr1, appr2) else hds) None appr1 appr2
+        | Proj.Reducible _, _ ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "LHS is reducible" ++ cut ()))) in
+          evar_eqappr_x flags env evd pbty hds (Some false)
+            (whd_betaiota_deltazeta_for_iota_state
+               flags.open_ts env evd vsk1')
+            appr2
+        | _, Proj.Reducible _ ->
+          let () = debug_unification (fun () -> Pp.(v 0 (str "RHS is reducible" ++ cut ()))) in
+          evar_eqappr_x flags env evd pbty hds (Some true) appr1
+            (whd_betaiota_deltazeta_for_iota_state
+               flags.open_ts env evd vsk2')
+        | _, _ ->
+        let () = debug_unification (fun () -> Pp.(v 0 (str "no proj or stuck" ++ cut ()))) in
         (* We remember if the LHS is a reducible projection to decide if we unfold left first. *)
-        let no_cs1 = ref false in
-        let f1 i =
-          (* Gather the universe constraints that would make term1 and term2 equal.
-             If these only involve unifications of flexible universes to other universes,
-             allow this identification (first-order unification of universes). Otherwise
-             fallback to unfolding.
-          *)
-          let univs = EConstr.eq_constr_universes env evd term1 term2 in
-          match univs with
-          | Some univs ->
-              ise_and i [(fun i ->
-                try Success (Evd.add_universe_constraints i univs)
-                with UniversesDiffer -> UnifFailure (i,NotSameHead)
-                | UGraph.UniverseInconsistency p -> UnifFailure (i, UnifUnivInconsistency p));
-                         (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
-          | None ->
-            UnifFailure (i,NotSameHead)
+        let f1 i = eq_head appr1 appr2 i
         and f2 i =
-           if not flags.with_cs then UnifFailure (i,NoCanonicalStructure)
-           else
-             (match get_cs env i true keys (lastUnfolded = Some true) appr1 appr2 with
-             | Inl x -> x
-             | Inr b ->
-                let () = no_cs1 := b in
-                (match get_cs env i false keys (lastUnfolded = Some false) appr1 appr2 with
-                | Inl x -> x
-                | Inr _ -> UnifFailure (i,NoCanonicalStructure)))
-        and f3 i =
           (* heuristic: unfold second argument first, exception made
              if the first argument is a beta-redex (expand a constant
              only if necessary) or the second argument is potentially
@@ -1166,21 +1160,17 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
 
           let b = EConstr.isLambda i term1 || rhs_is_already_stuck
             && (not (Stack.not_purely_applicative sk1')) in
-          ise_try i [
-            (fun i ->
-              if b || !no_cs1 then
-                evar_eqappr_x flags env i pbty keys (Some false)
-                  (whd_betaiota_deltazeta_for_iota_state
-                     flags.open_ts env i vsk1')
-                  appr2
-              else quick_fail i);
-            fun i ->
-              if b then quick_fail i else
-              evar_eqappr_x flags env i pbty keys (Some true) appr1
-                (whd_betaiota_deltazeta_for_iota_state
-                   flags.open_ts env i vsk2')]
+          if b then
+            evar_eqappr_x flags env i pbty hds (Some false)
+              (whd_betaiota_deltazeta_for_iota_state
+                 flags.open_ts env i vsk1')
+              appr2
+          else
+            evar_eqappr_x flags env i pbty hds (Some true) appr1
+              (whd_betaiota_deltazeta_for_iota_state
+                 flags.open_ts env i vsk2')
         in
-        ise_try evd [f1; f2; f3]
+        ise_try evd [f1; f2])
     end
 
     | Rigid, Rigid when EConstr.isLambda evd term1 && EConstr.isLambda evd term2 ->
@@ -1200,13 +1190,15 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
 
     | MaybeFlexible vsk1', Rigid ->
         let f3 i =
-           if not flags.with_cs then UnifFailure (i,NoCanonicalStructure)
+           if (not flags.with_cs) || lastUnfolded = Some true then UnifFailure (i,NoCanonicalStructure)
            else
-             match get_cs env i true keys false appr1 appr2 with
-             | Inl x -> x
-             | Inr _ -> UnifFailure (i,NoCanonicalStructure)
+             (match get_proj_case appr1 with
+             | Proj.CS p1 when flags.with_cs ->
+               let () = debug_unification (fun () -> Pp.(v 0 (str "CS with rigid RHS" ++ cut ()))) in
+               get_cs flags env evd p1 appr1 (snd hds)
+             | _ -> quick_fail i)
         and f4 i =
-          evar_eqappr_x flags env i pbty keys (Some false)
+          evar_eqappr_x flags env i pbty hds (Some false)
             (whd_betaiota_deltazeta_for_iota_state
                flags.open_ts env i vsk1')
             appr2
@@ -1215,13 +1207,15 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
 
     | Rigid, MaybeFlexible vsk2' ->
         let f3 i =
-           if not flags.with_cs then UnifFailure (i,NoCanonicalStructure)
+           if (not flags.with_cs) || lastUnfolded = Some false then UnifFailure (i,NoCanonicalStructure)
            else
-             match get_cs env i false keys false appr1 appr2 with
-             | Inl x -> x
-             | Inr _ -> UnifFailure (i,NoCanonicalStructure)
+             (match get_proj_case appr2 with
+             | Proj.CS p2 ->
+               let () = debug_unification (fun () -> Pp.(v 0 (str "CS with rigid LHS" ++ cut ()))) in
+               get_cs flags env evd p2 appr2 (fst hds)
+             | _ -> quick_fail i)
         and f4 i =
-          evar_eqappr_x flags env i pbty keys (Some true) appr1
+          evar_eqappr_x flags env i pbty hds (Some true) appr1
             (whd_betaiota_deltazeta_for_iota_state
                flags.open_ts env i vsk2')
         in
