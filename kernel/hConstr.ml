@@ -261,9 +261,9 @@ let hash_kind = let open Hashset.Combine in function
   | LetIn (na,b,t,c) -> combinesmall 6 (combine4 (hash_annot na) b.hash t.hash c.hash)
   | App (h,args) -> combinesmall 7 (Array.fold_left (fun hash c -> combine hash c.hash) h.hash args)
   | Evar _ -> assert false
-  | Const (c,u) -> combinesmall 9 (combine (Constant.SyntacticOrd.hash c) (UVars.Instance.hash u))
-  | Ind (ind,u) -> combinesmall 10 (combine (Ind.SyntacticOrd.hash ind) (UVars.Instance.hash u))
-  | Construct (c,u) -> combinesmall 11 (combine (Construct.SyntacticOrd.hash c) (UVars.Instance.hash u))
+  | Const (c,u) -> combinesmall 9 (combine (Constant.UserOrd.hash c) (UVars.Instance.hash u))
+  | Ind (ind,u) -> combinesmall 10 (combine (Ind.UserOrd.hash ind) (UVars.Instance.hash u))
+  | Construct (c,u) -> combinesmall 11 (combine (Construct.UserOrd.hash c) (UVars.Instance.hash u))
   | Case (_,u,pms,(p,_),_,c,bl) ->
     let hash_ctx (bnd,c) =
       Array.fold_left (fun hash na -> combine (hash_annot na) hash) c.hash bnd
@@ -280,7 +280,7 @@ let hash_kind = let open Hashset.Combine in function
     combinesmall 14 (combine3 (hash_array hash_annot lna) (hash_array hash tl) (hash_array hash bl))
   | Meta _ -> assert false
   | Rel n -> combinesmall 16 n
-  | Proj (p,_,c) -> combinesmall 17 (combine (Projection.SyntacticOrd.hash p) c.hash)
+  | Proj (p,_,c) -> combinesmall 17 (combine (Projection.UserOrd.hash p) c.hash)
   | Int i -> combinesmall 18 (Uint63.hash i)
   | Float f -> combinesmall 19 (Float64.hash f)
   | String s -> combinesmall 20 (Pstring.hash s)
@@ -329,9 +329,9 @@ let of_kind_nohashcons = function
 
 let eq_leaf c c' = match kind c, c'.kind with
   | Var i, Var i' -> Id.equal i i'
-  | Const (c,u), Const (c',u') -> Constant.SyntacticOrd.equal c c' && UVars.Instance.equal u u'
-  | Ind (i,u), Ind (i',u') -> Ind.SyntacticOrd.equal i i' && UVars.Instance.equal u u'
-  | Construct (c,u), Construct (c',u') -> Construct.SyntacticOrd.equal c c' && UVars.Instance.equal u u'
+  | Const (c,u), Const (c',u') -> Constant.UserOrd.equal c c' && UVars.Instance.equal u u'
+  | Ind (i,u), Ind (i',u') -> Ind.UserOrd.equal i i' && UVars.Instance.equal u u'
+  | Construct (c,u), Construct (c',u') -> Construct.UserOrd.equal c c' && UVars.Instance.equal u u'
   | _ -> false
 
 let nonrel_leaf tbl c = match kind c with
