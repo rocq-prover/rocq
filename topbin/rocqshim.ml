@@ -108,7 +108,7 @@ let make_ocamlpath envopt opts =
   let boot_ml_path = match envopt with
     | Boot.Env.Boot -> []
     | Boot.Env.Env coqenv ->
-      Boot.Env.Path.[to_string (relative (Boot.Env.corelib coqenv) "..")]
+      Boot.Env.Path.[to_string (relative (Boot.Env.runtimelib coqenv) "..")]
   in
   let env_ocamlpath =
     try [Sys.getenv "OCAMLPATH"]

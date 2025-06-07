@@ -72,7 +72,7 @@ module Path : sig
 
 end
 
-(** Rocq runtime enviroment, including location of Rocq's stdlib *)
+(** Rocq runtime enviroment, including location of Rocq's Corelib *)
 type t
 
 type maybe_env =
@@ -106,8 +106,8 @@ val print_queries_maybe_init : warn_ignored_coqlib:(unit -> unit) ->
   boot:bool -> coqlib:string option ->
   Usage.specific_usage option -> Usage.query list -> (maybe_env, string) result
 
-(** [stdlib directory] *)
-val stdlib : t -> Path.t
+(** [Corelib directory] *)
+val corelib : t -> Path.t
 
 (** [plugins directory] *)
 val plugins : t -> Path.t
@@ -125,7 +125,7 @@ val native_cmi : t -> string -> Path.t
 val revision : t -> Path.t
 
 (** rocq-runtime/lib directory, not sure if to keep this *)
-val corelib : t -> Path.t
+val runtimelib : t -> Path.t
 
 (** coq/lib directory, not sure if to keep this *)
 val coqlib : t -> Path.t

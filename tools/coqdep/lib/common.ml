@@ -347,7 +347,7 @@ let init ~make_separator_hack args =
   let ml_path = match rocqenv with
     | Boot -> ml_path
     | Env env ->
-      ml_path @ Boot.Env.Path.[to_string @@ relative (Boot.Env.corelib env) ".."]
+      ml_path @ Boot.Env.Path.[to_string @@ relative (Boot.Env.runtimelib env) ".."]
   in
   findlib_init ml_path;
   List.iter (add_include loadpath) args.Args.vo_path;

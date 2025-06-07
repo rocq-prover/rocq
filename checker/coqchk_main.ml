@@ -108,7 +108,7 @@ let init_load_path rocqenv =
   (* the to_string casting won't be necessary once Boot handles
      include paths *)
   let plugins = Boot.Env.plugins rocqenv |> Boot.Path.to_string in
-  let theories = Boot.Env.stdlib rocqenv |> Boot.Path.to_string in
+  let theories = Boot.Env.corelib rocqenv |> Boot.Path.to_string in
   let user_contrib = Boot.Env.user_contrib rocqenv |> Boot.Path.to_string in
   let xdg_dirs = Envars.xdg_dirs in
   let rocqpath = Envars.coqpath in

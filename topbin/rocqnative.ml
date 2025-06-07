@@ -227,14 +227,14 @@ let add_rec_path ~unix_path ~rocq_root =
     Feedback.msg_warning (str "Cannot open " ++ str unix_path)
 
 let init_load_path_std env ~default_ml () =
-  let stdlib = Boot.Env.stdlib env |> Boot.Path.to_string in
+  let corelib = Boot.Env.corelib env |> Boot.Path.to_string in
   let user_contrib = Boot.Env.user_contrib env |> Boot.Path.to_string in
   let xdg_dirs = Envars.xdg_dirs in
   let rocqpath = Envars.coqpath in
   let () = if default_ml then Nativelib.(include_dirs := default_include_dirs env) in
   (* NOTE: These directories are searched from last to first *)
   (* first standard library *)
-  add_rec_path ~unix_path:stdlib ~rocq_root:(Names.DirPath.make[rocq_root]);
+  add_rec_path ~unix_path:corelib ~rocq_root:(Names.DirPath.make[rocq_root]);
   (* then user-contrib *)
   if Sys.file_exists user_contrib then
     add_rec_path ~unix_path:user_contrib ~rocq_root:Loadpath.default_root_prefix;

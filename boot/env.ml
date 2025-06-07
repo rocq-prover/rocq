@@ -20,8 +20,8 @@ end
 
 (* For now just a pointer to coq/lib (for .vo) and rocq-runtime/lib (for plugins)  *)
 type t =
-  { core: Path.t
-  ; lib : Path.t
+  { runtimelib: Path.t
+  ; coqlib : Path.t
   }
 
 (* This code needs to be refactored, for now it is just what used to be in envvars  *)
@@ -131,10 +131,10 @@ let fail_core plugin =
   eprintf "Please check the ROCQRUNTIMELIB env variable.\n";
   exit 1
 
-let validate_env ({ core; lib } as env) =
-  let lib = Filename.concat lib prelude in
-  if not (Sys.file_exists lib) then fail_lib lib;
-  let plugin = Filename.concat core plugins_dir in
+let validate_env ({ runtimelib; coqlib } as env) =
+  let coqlib = Filename.concat coqlib prelude in
+  if not (Sys.file_exists coqlib) then fail_lib coqlib;
+  let plugin = Filename.concat runtimelib plugins_dir in
   if not (Sys.file_exists plugin) then fail_core plugin;
   env
 
@@ -147,11 +147,11 @@ let env_ref = ref None
 (* Should we fail on double initialization? That seems a way to avoid
    mis-use for example when we pass command line arguments *)
 let init_with ~coqlib =
-  let lib = match coqlib with
+  let coqlib = match coqlib with
     | None -> guess_coqlib ()
-    | Some lib -> lib
+    | Some coqlib -> coqlib
   in
-  let env = validate_env { lib; core = guess_coqcorelib lib } in
+  let env = validate_env { coqlib; runtimelib = guess_coqcorelib coqlib } in
   env_ref := Some (Env env);
   env
 
@@ -168,22 +168,22 @@ let maybe_init ~warn_ignored_coqlib ~boot ~coqlib =
     warn_ignored_coqlib ();
     Boot
 
-let coqlib { lib; _ } = lib
-let corelib { core; _ } = core
-let plugins { core; _ } = Path.relative core plugins_dir
-let stdlib { lib; _ } = Path.relative lib theories_dir
-let user_contrib { lib; _ } = Path.relative lib "user-contrib"
-let tool { core; _ } tool = Path.(relative (relative core "tools") tool)
-let revision { core; _ } = Path.relative core "revision"
+let coqlib { coqlib; _ } = coqlib
+let runtimelib { runtimelib; _ } = runtimelib
+let plugins { runtimelib; _ } = Path.relative runtimelib plugins_dir
+let corelib { coqlib; _ } = Path.relative coqlib theories_dir
+let user_contrib { coqlib; _ } = Path.relative coqlib "user-contrib"
+let tool { runtimelib; _ } tool = Path.(relative (relative runtimelib "tools") tool)
+let revision { runtimelib; _ } = Path.relative runtimelib "revision"
 
-let native_cmi { core; _ } lib =
-  let install_path = Path.relative core lib in
+let native_cmi { runtimelib; _ } lib =
+  let install_path = Path.relative runtimelib lib in
   if Sys.file_exists install_path then
     install_path
   else
     (* Dune build layout, we need to improve this *)
     let obj_dir = Format.asprintf ".%s.objs" lib in
-    Filename.(concat (concat (concat core lib) obj_dir) "byte")
+    Filename.(concat (concat (concat runtimelib lib) obj_dir) "byte")
 
 (** {2 Caml paths} *)
 
@@ -200,10 +200,10 @@ let docdir () =
 
 let print_config ?(prefix_var_name="") env f =
   let coqlib = coqlib env |> Path.to_string in
-  let corelib = corelib env |> Path.to_string in
+  let runtimelib = runtimelib env |> Path.to_string in
   let open Printf in
   fprintf f "%sCOQLIB=%s/\n" prefix_var_name coqlib;
-  fprintf f "%sCOQCORELIB=%s/\n" prefix_var_name corelib;
+  fprintf f "%sCOQCORELIB=%s/\n" prefix_var_name runtimelib;
   fprintf f "%sDOCDIR=%s/\n" prefix_var_name (docdir ());
   fprintf f "%sOCAMLFIND=%s\n" prefix_var_name (ocamlfind ());
   fprintf f "%sCAMLFLAGS=%s\n" prefix_var_name Coq_config.caml_flags;
