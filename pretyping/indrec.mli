@@ -63,14 +63,6 @@ val build_mutual_induction_scheme :
   env -> evar_map -> ?force_mutual:bool ->
   (inductive puniverses * dep_flag * EConstr.ESorts.t) list -> evar_map * constr list
 
-(** Recursor names utilities *)
-
-val lookup_eliminator : env -> inductive -> UnivGen.QualityOrSet.t -> GlobRef.t
-val elimination_suffix : UnivGen.QualityOrSet.t -> string
-val make_elimination_ident : Id.t -> UnivGen.QualityOrSet.t -> Id.t
-
-val case_suffix : string
-
 (** Default dependence of eliminations for Prop inductives *)
 
 val declare_prop_but_default_dependent_elim : inductive -> unit
