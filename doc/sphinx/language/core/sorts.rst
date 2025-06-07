@@ -67,7 +67,7 @@ Formally, we call :math:`\Sort` the set of sorts which is defined by:
 
 .. math::
 
-   \Sort \equiv \{\SProp,\Prop,\Set,\Type(i)\;|\; i~∈ ℕ\}
+   \Sort \equiv \{\SProp,\Prop,\Set,\Type(i)\;|\; i~∈ ℕ^*\}
 
 Their properties, such as :math:`\Prop:\Type(1)`, :math:`\Set:\Type(1)`, and
 :math:`\Type(i):\Type(i+1)`, are described in :ref:`subtyping-rules`.
