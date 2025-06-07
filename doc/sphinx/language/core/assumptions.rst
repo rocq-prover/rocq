@@ -185,9 +185,6 @@ has type :n:`@type`.
    qualified names, even if :cmd:`Import` or its variants has been used on the
    current module.
 
-   which makes the defined :n:`@ident`\s accessible by :cmd:`Import` and its variants
-   only through their fully qualified names.
-
    Similarly, :cmd:`Hypothesis`, :cmd:`Variable` and their plural forms are equivalent.
    They should only be used inside :ref:`section-mechanism`. The
    :n:`@ident`\s defined are only accessible within the section.  When the current section
