@@ -9,7 +9,7 @@
 ## About one month before the branching date ##
 
 - [ ] Create both the upcoming final release (`X.X.0`) and the following major release (`Y.Y+rc1`) milestones if they do not already exist.
-- [ ] Send an announcement of the upcoming branching date on Coqdev + the Coq development category on Discourse (coqdev@inria.fr + coq+coq-development@discoursemail.com) and ask people to remove from the `X.X+rc1` milestone any feature and clean up PRs that they already know won't be ready on time.
+- [ ] Send an announcement of the upcoming branching date on the Rocq development category on Discourse (rocq+rocq-development@discoursemail.com) and ask people to remove from the `X.X+rc1` milestone any feature and clean up PRs that they already know won't be ready on time.
 - [ ] Prepare a PR on `master` (not yet to be merged) changing the version name to the next major version and both magic numbers in [`tools/configure/configure.ml`](../../tools/configure/configure.ml). For example, for `8.5`, the version name will be `8.5+alpha` while the magic numbers will end with `80490`.
   This PR should be opened before the branching date to have time to deal with CI issues, but should not be merged until branching.
 
@@ -59,8 +59,8 @@ Be sure the PR is not draft for better visibility and ask everyone in the dev te
 - [ ] If pinged by opam package providers in pull requests to [ocaml/opam-repository](https://github.com/ocaml/opam-repository), transfer any changes to opam packages required by opam-repository CI (such as missing dependencies) to the corresponding package definitions in the Coq repository.
 - [ ] Cc `@proux01` to ensure that a `coq-bignums` opam package is available in [`extra-dev`](https://github.com/coq/opam-coq-archive/tree/master/extra-dev) or [`released`](https://github.com/coq/opam-coq-archive/tree/master/released), respectively.
 - [ ] Cc `@erikmd` to ensure that the necessary configuration is ready to release the Docker images in [`coqorg/coq`](https://hub.docker.com/r/coqorg/coq) (gathering `coq` and `coq-bignums` opam packages).
-- [ ] For X.Y+rc1, send an e-mail on coqdev + coq-club + the Coq announcement category on Discourse (coqdev@inria.fr + coq-club@inria.fr + coq+announcements@discoursemail.com) announcing that the tag has been set so that package managers can start preparing package updates and library authors can safely start preparing compatible releases.
-- [ ] For X.Y.0, once opam and Nix packages are ready (and ideally Docker images), announce the release to Coq-Club and Discourse (coq-club@inria.fr + coq+announcements@discoursemail.com).
+- [ ] For X.Y+rc1, send an e-mail on the Rocq announcement category on Discourse (rocq+announcements@discoursemail.com) announcing that the tag has been set so that package managers can start preparing package updates and library authors can safely start preparing compatible releases.
+- [ ] For X.Y.0, once opam and Nix packages are ready (and ideally Docker images), announce the release to Discourse (rocq+announcements@discoursemail.com).
 
 ## For each non-preview release ##
 
