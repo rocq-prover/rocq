@@ -1,12 +1,3 @@
-File "./output/DebugRelevances.v", line 7, characters 0-36:
-Warning: Use ';' instead of '|' to separate sort and universe binders.
-[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/DebugRelevances.v", line 8, characters 0-48:
-Warning: Use ';' instead of '|' to separate sort and universe binders.
-[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/DebugRelevances.v", line 10, characters 0-43:
-Warning: Use ';' instead of '|' to separate sort and universe binders.
-[deprecated-sort-binder-syntax,deprecated-since-9.1,deprecated,default]
 foo@{u} =
 fun (A : (* Relevant *) Type) (a : (* Relevant *) A) => a
      : forall A : (* Relevant *) Type, A -> A
