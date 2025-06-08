@@ -275,25 +275,25 @@ Tactic failure: Not equal (due to universes).
 eq_rect
      : forall (A : Type@{eq_rect.u1}) (x : A) (P : A -> Type@{eq_rect.u0}),
        P x -> forall y : A, x = y -> P y
-File "./output/UnivBinders.v", line 259, characters 18-19:
+File "./output/UnivBinders.v", line 260, characters 18-19:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 259, characters 33-34:
+File "./output/UnivBinders.v", line 260, characters 33-34:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 265, characters 16-17:
+File "./output/UnivBinders.v", line 266, characters 16-17:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-id@{Prop ; Set}
+id@{Prop ; 0}
      : forall A : Prop, A -> A
-id@{SProp ; Set}
+id@{SProp ; 0}
      : forall A : SProp, A -> A
 id3@{s ; u} =
 fun (A : Type@{s ; u}) (a : A) => a
      : forall A : Type@{s ; u}, A -> A
-(* s ; u |= Set < u *)
+(* s ; u |= 1 <= u *)
 
 Arguments id3 A%_type_scope a
