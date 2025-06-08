@@ -242,8 +242,8 @@ type t =
    local_variables : Level.Set.t;
    (** The rigid variables: those that must stay in the universe context. *)
    
-   demoted_local_variables : Level.Set.t;
-   (** Variables that appear local in the graph but are actually already declared globally 
+   demoted_local_context : ContextSet.t;
+   (** Variables and constraints that appear local in the graph but are actually already declared globally 
       (due to a side effect). *)
 
    flexible_variables : Level.Set.t;
@@ -284,7 +284,7 @@ let is_declared uctx l = UGraph.is_declared uctx.universes l
 let empty =
   { names = UnivNames.empty_binders, (QVar.Map.empty, Level.Map.empty);
     local_variables = Level.Set.empty;
-    demoted_local_variables = Level.Set.empty;
+    demoted_local_context = ContextSet.empty;
     flexible_variables = Level.Set.empty;
     fixed_rigid_universes = false;
     fixed_rigid_constraints = false;
@@ -368,7 +368,7 @@ let pr ?(local=false) ctx =
       (str"UNIVERSE VARIABLES:" ++ brk(0,1) ++ 
        h (Level.Set.pr prl ctx.local_variables) ++ fnl () ++
        str"DEMOTED (GLOBAL) UNIVERSE VARIABLES:" ++ brk(0,1) ++ 
-       h (Level.Set.pr prl ctx.demoted_local_variables) ++ fnl () ++
+       h (ContextSet.pr prl ctx.demoted_local_context) ++ fnl () ++
        str"FLEXIBLE UNIVERSE VARIABLES:" ++ brk(0,1) ++ 
        h (Level.Set.pr prl ctx.flexible_variables) ++ fnl () ++
        str"UNIVERSES:"++brk(0,1)++
@@ -397,8 +397,9 @@ let context_set uctx : ContextSet.t =
     UGraph.constraints_of_universes ~only_local:true uctx.universes in
   let cstrs = filter_set_constraints cstrs in
   let levels = Level.Set.union uctx.local_variables levels in
+  let dlevels, dcstrs = uctx.demoted_local_context in
   rigid_levels_constraints_of_substitution uctx.local_variables eqs 
-    (Level.Set.diff levels uctx.demoted_local_variables, cstrs)
+    (Level.Set.diff levels dlevels, Constraints.union dcstrs cstrs)
 
 let context_set uctx = 
   let ctx = context_set uctx in
@@ -489,7 +490,7 @@ let union uctx uctx' =
     in
     let uctx = { names;
         local_variables;
-        demoted_local_variables = Level.Set.union uctx.demoted_local_variables uctx'.demoted_local_variables;
+        demoted_local_context = ContextSet.union uctx.demoted_local_context uctx'.demoted_local_context;
         flexible_variables;
         fixed_rigid_universes = uctx.fixed_rigid_universes;
         fixed_rigid_constraints = uctx.fixed_rigid_constraints;
@@ -1415,12 +1416,14 @@ let merge ?loc ~sideff rigid uctx uctx' =
         in
         Some (Level.Set.fold fold levels variances)
     in
-    let demoted_local_variables = 
-       Level.Set.diff uctx.demoted_local_variables levels
+    let cstrs' = ContextSet.constraints uctx' in
+    let demoted_local_context = 
+      let dlevels, dcstrs = uctx.demoted_local_context in
+       Level.Set.diff dlevels levels, (if sideff then Constraints.union dcstrs cstrs' else dcstrs)
     in
-    let uctx = { uctx with names; demoted_local_variables; universes; variances; initial_universes = initial } in
+    let uctx = { uctx with names; demoted_local_context; universes; variances; initial_universes = initial } in
     let uctx = 
-      merge_constraints uctx (ContextSet.constraints uctx')
+      merge_constraints uctx cstrs'
       (* with Loop_checking.Undeclared u ->
         CErrors.user_err Pp.(str"Undeclared universe " ++ Level.raw_pr u ++ str" during UState.merge" ++ 
           bool (UGraph.is_declared uctx.universes u)) in *)
@@ -1469,7 +1472,11 @@ let demote_global_univs (lvl_set,csts_set) (uctx : t) =
   in
   let initial_universes, _equivs = update_ugraph uctx.initial_universes in
   let universes, _equivs' = update_ugraph uctx.universes in
-  { uctx with local_variables; demoted_local_variables = Level.Set.union lvl_set uctx.demoted_local_variables; flexible_variables; universes; initial_universes }
+  let demoted_local_context = 
+    let lvls, cstrs = uctx.demoted_local_context in
+     Level.Set.union lvl_set lvls, Constraints.union cstrs csts_set
+  in
+  { uctx with local_variables; demoted_local_context; flexible_variables; universes; initial_universes }
 
 let demote_global_univ_entry entry uctx = match entry with
   | Monomorphic_entry entry -> demote_global_univs entry uctx
@@ -1493,6 +1500,7 @@ let merge_seff (uctx : t) (uctx' : t) =
     str " in " ++ Level.Set.pr Level.raw_pr uctx.local_variables ++ pr ~local:true uctx);
   let (levels, constraints, subst) = UGraph.constraints_of_universes ~only_local:true uctx'.universes in
   (* Declare all levels: we are going to [set] the defined ones *)
+  debug Pp.(fun () -> str"merge_seff constraints: " ++ Constraints.pr Level.raw_pr constraints);
   let levels = Level.Set.union levels (Level.Map.domain subst) in
   let declare g =
     Level.Set.fold (fun u g ->
@@ -1637,7 +1645,7 @@ let minimize
     in
     { names = uctx.names;      
       local_variables = local_variables;
-      demoted_local_variables = uctx.demoted_local_variables;
+      demoted_local_context = uctx.demoted_local_context;
       flexible_variables = flexible_variables;
       fixed_rigid_universes = uctx.fixed_rigid_universes;
       fixed_rigid_constraints = uctx.fixed_rigid_constraints;
