@@ -79,4 +79,4 @@ BoxP@{q ; a} may only be eliminated to produce values whose type is SProp or Pro
   unless instantiated such that the quality q is SProp or Prop.
 Arguments BoxP A%_type_scope
 Expands to: Inductive Inductive.BoxP
-Declared in library Inductive, line 55, characters 22-26
+Declared in library Inductive, line 56, characters 22-26

@@ -720,7 +720,7 @@ let pr prq prl ?variances (q,u) =
     let v = Option.map (fun v -> v.(i)) variances in
     pr_opt_no_spc VarianceOccurrence.pr v ++ prl u
   in
-  (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " | ")
+  (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " ; ")
   ++ prvecti_with_sep spc ppu u
 
 let equal (xq,xu) (yq,yu) =

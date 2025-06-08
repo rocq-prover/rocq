@@ -504,7 +504,7 @@ let pr prv pru = function
   | Prop -> Pp.(str "Prop")
   | Set -> Pp.(str "Set")
   | Type u -> Pp.(str "Type@{" ++ pru u ++ str "}")
-  | QSort (q, u) -> Pp.(str "Type@{" ++ prv q ++ str "|"
+  | QSort (q, u) -> Pp.(str "Type@{" ++ prv q ++ str ";"
                         ++ spc() ++ pru u ++ str "}")
 
 let raw_pr = pr QVar.raw_pr Univ.Universe.raw_pr
