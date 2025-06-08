@@ -363,6 +363,7 @@ GRAMMAR EXTEND Gram
            univdecl_extensible_qualities = false;
            univdecl_instance = l;
            univdecl_extensible_instance = ext;
+           univdecl_variances = ();
            univdecl_constraints = fst cs;
            univdecl_extensible_constraints = snd cs } }
     | "@{" ; l0 = LIST0 identref; ";";  l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
