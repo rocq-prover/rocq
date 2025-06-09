@@ -510,7 +510,7 @@ type univ_constraint = Universe.t * constraint_type * Universe.t
 
 let pr_constraint_type op =
   let op_str = match op with
-    | Le -> " <= "
+    | Le -> " ≤ "
     | Eq -> " = "
   in str op_str
 
@@ -543,14 +543,20 @@ module Hconstraint =
 
 let hcons_constraint = Hashcons.simple_hcons Hconstraint.generate Hconstraint.hcons ()
 
+let pr_constraint pru (u1, op, u2) = 
+  match op with
+  | Le -> 
+    (match Universe.decompose_succ u1 with
+    | Some u -> pru u ++ str " < " ++ pru u2
+    | None -> pru u1 ++ pr_constraint_type op ++ pru u2)
+  | Eq -> pru u1 ++ str" = " ++ pru u2
 module Constraints =
 struct
   module S = Set.Make(UConstraintOrd)
   include S
 
   let pr prl c =
-    v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
-      hov 0 (Universe.pr prl u1 ++ pr_constraint_type op ++ Universe.pr prl u2))
+    v 0 (prlist_with_sep spc (fun c -> hov 0 (pr_constraint (Universe.pr prl) c))
        (elements c))
 
   module Hconstraints = CSet.Hashcons(UConstraintOrd)(struct
