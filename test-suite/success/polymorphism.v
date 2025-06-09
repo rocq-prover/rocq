@@ -186,7 +186,7 @@ Module binders.
     exact Type@{i}.
   Qed.
 
-  Lemma barext@{i j|?} : Type@{j}.
+  Lemma barext@{i j|+} : Type@{j}.
   Proof.
     exact Type@{i}.
   Qed.
@@ -512,7 +512,7 @@ Module EarlyMonoUniverseDeclarationCheck.
   Fail Program Fixpoint f'@{u} (A:Type@{u}) (n:nat) : Type@{u} := (* By convention, we require extensibility for Program *)
     match n with 0 => _ | S n => f' (A->A) n end.
 
-  Program Fixpoint f'@{u ?} (A:Type@{u}) (n:nat) : Type@{u} :=
+  Program Fixpoint f'@{u +} (A:Type@{u}) (n:nat) : Type@{u} :=
     match n with 0 => _ | S n => f' (A->A) n end.
   Next Obligation. exact nat. Defined.
 
@@ -522,7 +522,7 @@ Module EarlyMonoUniverseDeclarationCheck.
   Fail Program Fixpoint f''@{u} (A:Type@{u}) (n:nat) {measure n} : Type@{u} := (* By convention, we require extensibility for Program *)
     match n with 0 => _ | S n => f'' (A->A) n end.
 
-  Program Fixpoint f''@{u ?} (A:Type@{u}) (n:nat) {measure n} : Type@{u} :=
+  Program Fixpoint f''@{u +} (A:Type@{u}) (n:nat) {measure n} : Type@{u} :=
     match n with 0 => _ | S n => f'' (A->A) n end.
   Next Obligation. Show. exact nat. Defined.
   Next Obligation. Show. Admitted.

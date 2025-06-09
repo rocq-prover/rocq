@@ -219,12 +219,12 @@ let test_variance_ident =
 
 let test_doublepipe_univ_decl =
   let open Procq.Lookahead in
-  to_entry "test_doublepipe_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_doublepipe_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
 let test_doublepipe_cumul_univ_decl =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_kw "-" <+> lk_ident) in
-  to_entry "test_doublepipe_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "?" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_doublepipe_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
 let test_semicolon_cumul_univ_decl =
   let open Procq.Lookahead in
@@ -346,7 +346,7 @@ GRAMMAR EXTEND Gram
   ;
   univ_decl_constraints:
     [ [ "|"; l' = LIST0 univ_constraint SEP ",";
-        ext = [ "?" -> { true } | -> { false } ]; "}" -> { (l',ext) }
+        ext = [ "+" -> { true } | -> { false } ]; "}" -> { (l',ext) }
       | ext = [ "}" -> { true } | bar_cbrace -> { false } ] -> { ([], ext) } ] ]
   ;
   sort_univ_sep: 
@@ -354,7 +354,7 @@ GRAMMAR EXTEND Gram
       | ";" -> { () } ] ]
   ;
   univ_decl:
-    [ [ "@{" ; test_doublepipe_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];  l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ];
+    [ [ "@{" ; test_doublepipe_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];  l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
@@ -377,7 +377,7 @@ GRAMMAR EXTEND Gram
            univdecl_variances = ();
            univdecl_constraints = fst cs;
            univdecl_extensible_constraints = snd cs } }
-    | "@{" ; l = LIST0 identref; ext = [ "?" -> { true } | -> { false } ];
+    | "@{" ; l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
@@ -398,13 +398,15 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   variance_identref:
-    [ [ v = variance; id = identref -> { (id, Some v) }
-      | id = identref -> { (id, None) }
+    [ [ id = identref -> { (id, None) }
+      | test_variance_ident; v = variance; id = identref -> { (id, Some v) }
+        (* We need this test to help the parser avoid the conflict
+           between "+" before ident (covariance) and trailing "+" (extra univs allowed) *)
     ] ]
   ;
   cumul_univ_decl:
     [ [ "@{" ; test_doublepipe_cumul_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];
-        l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ];
+        l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
@@ -418,7 +420,7 @@ GRAMMAR EXTEND Gram
            univdecl_extensible_constraints = snd cs } }
 
        | "@{" ; test_semicolon_cumul_univ_decl; l0 = LIST0 identref; ";";
-        l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ];
+        l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in
@@ -430,7 +432,7 @@ GRAMMAR EXTEND Gram
            univdecl_constraints = fst cs;
            univdecl_extensible_constraints = snd cs } }
 
-       | "@{" ; l = LIST0 variance_identref; ext = [ "?" -> { true } | -> { false } ];
+       | "@{" ; l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
          { let open UState in

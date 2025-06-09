@@ -72,7 +72,12 @@ Module WithRed.
   End univs.
 
   (* inference tries and succeeds with syntactic equality which doesn't eta expand *)
-  Fail Definition infer@{i j ?|i < eq.u0, j < eq.u0}
+  Fail Definition infer@{i j +|i < eq.u0, j < eq.u0}
+    : foo@{i} false = foo@{j} false :> (nat -> Type@{max(i,j)})
+    := eq_refl.
+
+  (* inference backtracks on syntactic equality *)
+  Definition infer@{i j|i < eq.u0, j < eq.u0}
     : foo@{i} false = foo@{j} false :> (nat -> Type@{max(i,j)})
     := eq_refl.
 

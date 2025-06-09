@@ -265,3 +265,10 @@ Record TruncType' (n : trunc_index) := {
 }.
 
 End IsTrunc_inference.
+
+Module Decl.
+  Definition foo@{i j| i < j + 1} : Type@{j+1} := Type@{i}.
+  Definition foo'@{i j| i < j +} : Type@{j} := Type@{i}.
+  Definition foo_ext@{i j| i < j+1} : Type@{j+1} := Type@{i}.
+  Definition foo_ext'@{i j| i <= j +1 +} : Type@{j+1} := Type@{i}.
+End Decl.

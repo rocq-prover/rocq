@@ -92,6 +92,12 @@ let test_sort_qvar =
     lk_ident >> lk_list lk_field >> lk_kw ";"
   end
 
+let test_level_expr =
+  let open Procq.Lookahead in
+  to_entry "test_level_expr" begin
+    lk_kw "+" >> lk_nat
+  end
+
 let warn_old_sort_syntax =
   CWarnings.create ~name:"deprecated-sort-poly-syntax" ~category:Deprecation.Version.v9_1
     Pp.(fun () -> fmt "Separating sorts from universes with \"|\" is deprecated.@ Use \";\" instead.")
@@ -174,8 +180,11 @@ GRAMMAR EXTEND Gram
       | u = universe_expr -> { [u] } ] ]
   ;
   universe_increment:
-    [ [ "+"; n = natural -> { n }
-      | -> { 0 } ] ]
+    [ [ test_level_expr; "+"; n = natural -> { n }
+      (* We need this test to help the parser avoid the conflict
+        between "+ n" after ident (level expression) and trailing "+" 
+        (extra constraints allowed) *)
+    | -> { 0 } ] ]
   ;
   universe_name:
     [ [ id = global -> { CType id }

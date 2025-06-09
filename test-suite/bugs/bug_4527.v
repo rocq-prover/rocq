@@ -221,7 +221,7 @@ Section ORecursion.
   Universes Ou Oa.
   Context {O : ReflectiveSubuniverse@{Ou Oa}}.
 
-  Definition O_indpaths@{i j ?} {P : Type@{i}} {Q : Type@{j}} {Q_inO : In O Q}
+  Definition O_indpaths@{i j +} {P : Type@{i}} {Q : Type@{j}} {Q_inO : In O Q}
              (g h : O P -> Q) (p : g o to O P == h o to O P)
   : g == h
   := (fst (snd (extendable_to_O O two) g h) p).1.

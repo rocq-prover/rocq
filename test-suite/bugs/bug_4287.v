@@ -48,7 +48,7 @@ Definition le (i:U -> Type@{_}) (x:U) : Type := x (fun A r a => i (fun v => sb v
 Definition le' (i:up (down U) -> Type@{_}) (x:up (down U)) : Type := le (fun a:U => i (forth _ a)) (back _ x).
 Definition induct (i:U -> Type@{_}) : Type := forall x:U, up (le i x) -> up (i x).
 Definition WF : U := fun z => down (induct (fun a => z (down U) le' (forth _ a))).
-Definition I@{i?} (x:U) : Prop :=
+Definition I@{i+} (x:U) : Prop :=
   (forall i:U -> Type@{i}, up (le i x) -> up (i (fun v => sb v (down U) le' (forth _ x)))) -> False.
 
 Lemma Omega : forall i:U -> Type, induct i -> up (i WF).

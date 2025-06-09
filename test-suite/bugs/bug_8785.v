@@ -17,7 +17,7 @@ Axiom a : False.
 (* Set Debug "univMinim". *)
 (* Set Debug "ustate". *)
 (* Set Debug "minimization". *)
-Lemma finite_subtype@{ux ?}: forall (X:Type@{ux}) (P:X->Prop),
+Lemma finite_subtype@{ux +}: forall (X:Type@{ux}) (P:X->Prop),
   FiniteT X -> (forall x:X, P x \/ ~ P x) ->
   FiniteT {x:X | P x}.
 Proof.
