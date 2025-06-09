@@ -75,6 +75,8 @@ be defined using :cmd:`Variant`.
 
       Fail Variant my_nat := zero | succ (n : my_nat).
 
+  To define this type, use the :cmd:`Inductive` keyword instead.
+
 .. example::
 
   *Boolean reflection* is a relation reflecting under the form of a
