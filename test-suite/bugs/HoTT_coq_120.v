@@ -94,7 +94,7 @@ Definition hexists {X} (P:X->Type):Type:= minus1Trunc (sigT  P).
 Definition isepi {X Y} `(f:X->Y) := forall Z: hSet,
                                     forall g h: Y -> Z, (fun x => g (f x)) = (fun x => h (f x)) -> g = h.
 Definition issurj {X Y} (f:X->Y) := forall y:Y , hexists (fun x => (f x) = y).
-Lemma isepi_issurj@{u v ?} `{fs:Funext} `{ua:Univalence} `{fs' : Funext} {X : Type@{u}} {Y : Type@{v}} (f:X->Y): isepi f -> issurj f.
+Lemma isepi_issurj@{u v +} `{fs:Funext} `{ua:Univalence} `{fs' : Funext} {X : Type@{u}} {Y : Type@{v}} (f:X->Y): isepi f -> issurj f.
 Proof.
   intros epif y.
   set (g :=fun _:Y => Unit_hp).
@@ -104,7 +104,7 @@ Proof.
   specialize (epif (BuildhSet hProp@{u} _) g h).
   admit.
 Defined.
-Definition isequiv_isepi_ismono@{u ?} `{Univalence, fs0 : Funext} (X Y : hSet@{u}) (f : X -> Y) (epif : isepi f) (monof : ismono f)
+Definition isequiv_isepi_ismono@{u +} `{Univalence, fs0 : Funext} (X Y : hSet@{u}) (f : X -> Y) (epif : isepi f) (monof : ismono f)
 : IsEquiv f.
 Proof.
   pose proof (@isepi_issurj _ _ _ _ _ f epif) as surjf.
