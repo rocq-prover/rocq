@@ -666,8 +666,8 @@ let lookup_reversible_path_to_common_point env sigma ~src_expected ~src_inferred
   | [] -> raise Not_found
   | c :: cs ->
       let reversible = lookup_path_between_class_reflexive (c_expected,c) in
-      if path_is_reversible reversible then
-        let direct = lookup_path_between_class_reflexive (c_inferred,c) in
+      let direct = lookup_path_between_class_reflexive (c_inferred,c) in
+      if path_is_reversible reversible && not (path_is_identity reversible && path_is_identity direct) then
         class_has_args c_expected, class_has_args c_inferred, reversible, direct
       else
         aux cs
