@@ -299,6 +299,9 @@ let lookup_pattern_path_between env (s,t) =
 let path_is_reversible p =
   List.for_all (fun c -> c.coe_reversible) p
 
+let path_is_identity p =
+  List.for_all (fun c -> c.coe_is_identity) p
+
 (* rajouter une coercion dans le graphe *)
 
 let path_printer : ((cl_typ * cl_typ) * inheritance_path -> Pp.t) ref =
