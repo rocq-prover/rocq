@@ -73,4 +73,6 @@ val print_err_exn : exn -> unit
     [truncate:true], otherwise appending if it already exists). *)
 val with_output_to_file : truncate:bool -> string -> ('a -> 'b) -> 'a -> 'b
 
+val with_output_to_buffer : Buffer.t -> ('a -> 'b) -> 'a -> 'b
+
 val pr_cmd_header : Vernacexpr.vernac_control -> Pp.t

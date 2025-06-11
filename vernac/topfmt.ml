@@ -410,6 +410,27 @@ let print_err_exn any =
   let msg = CErrors.iprint (e, info) ++ fnl () in
   std_logger ?pre_hdr Feedback.Error msg
 
+let with_output_to_fts ?(std=(!std_ft)) ?(err=(!err_ft)) ?(deep=(!deep_ft)) ?(finally=fun () -> ()) =
+  (); fun func input ->
+    let old_fmt = !std_ft, !err_ft, !deep_ft in
+    set_gp std (get_gp !std_ft);
+    std_ft := std;
+    err_ft := err;
+    deep_ft := deep;
+    Fun.protect
+      (fun () ->
+         try func input
+         with reraise ->
+           let reraise = Exninfo.capture reraise in
+           Exninfo.iraise reraise
+      )
+      ~finally:(fun () ->
+          std_ft := Util.pi1 old_fmt;
+          err_ft := Util.pi2 old_fmt;
+          deep_ft := Util.pi3 old_fmt;
+          finally ();
+        )
+
 let with_output_to_file ~truncate fname func input =
   let fname = String.concat "." [fname; "out"] in
   let fullfname = System.get_output_path fname in
@@ -419,28 +440,17 @@ let with_output_to_file ~truncate fname func input =
     let flags = if truncate then Open_trunc :: flags else flags in
     open_out_gen flags 0o666 fullfname
   in
-  let old_fmt = !std_ft, !err_ft, !deep_ft in
-  let new_ft = Format.formatter_of_out_channel channel in
-  set_gp new_ft (get_gp !std_ft);
-  std_ft := new_ft;
-  err_ft := new_ft;
-  deep_ft := new_ft;
-  try
-    let output = func input in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
-    Format.pp_print_flush new_ft ();
-    close_out channel;
-    output
-  with reraise ->
-    let reraise = Exninfo.capture reraise in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
-    Format.pp_print_flush new_ft ();
-    close_out channel;
-    Exninfo.iraise reraise
+  let fmt = Format.formatter_of_out_channel channel in
+  with_output_to_fts ~std:fmt ~err:fmt ~deep:fmt func input ~finally:(fun () ->
+      Format.pp_print_flush fmt ();
+      close_out channel
+    )
+
+let with_output_to_buffer buffer func input =
+  let fmt = Format.formatter_of_buffer buffer in
+  with_output_to_fts ~std:fmt func input ~finally:(fun () ->
+      Format.pp_print_flush fmt ()
+    )
 
 (* For coqtop -time, we display the position in the file,
    and a glimpse of the executed command *)
