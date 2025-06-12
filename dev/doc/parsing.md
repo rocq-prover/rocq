@@ -77,7 +77,7 @@ OCaml code enclosed in curly braces, which is copied verbatim to the generated `
 
 ### Comments
 
-Comments in the `*.mlg` file in the form `(* … *)`, which are not copied
+Comments in the `*.mlg` file are in the form `(* … *)`. They are not copied
 to the generated `*.ml` file.  Comments in OCaml code are preserved.
 
 ### DECLARE PLUGIN
@@ -130,7 +130,7 @@ VERNAC COMMAND EXTEND CmdName CLASSIFIED AS SIDEFF
 END
 ```
 defines a command composed of the string `Cmd` followed by argument `wit_arg`.
-Running the command runs `do_interp a` where `a` is the result of parsing `arg`.
+Running the command calls `do_interp a` where `a` is the result of parsing `arg`.
 
 Example with all optional elements:
 ```
@@ -159,10 +159,11 @@ not).
 
 #### Classification
 
-Commands must be "classified" for the STM. This means generating a
+Commands must be "classified" for the STM.
+Classifying a command is generating a
 `Vernacextend.vernac_classification` (see comments on its
-declaration for the meaning of the different values), which can be
-done with
+declaration for the meaning of the different values).
+This is done by appending one of the following annotations to the `VERNAC COMMAND EXTEND CmdName` grammar extension:
 - `CLASSIFIED AS QUERY` for `VtQuery`
 - `CLASSIFIED AS SIDEFF` for `VtSideff ([], VtLater)` (most commands are in this case)
 - `CLASSIFIED BY { code }` where code is the classification, when it is static
@@ -242,7 +243,7 @@ TACTIC EXTEND field_lookup
 END
 ```
 
-adds a new nonterminal `btauto`.
+adds a new tactic `field_lookup`.
 
 New tactics should be added using this construct rather than `GRAMMAR EXTEND`.
 
