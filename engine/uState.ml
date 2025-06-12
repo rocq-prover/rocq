@@ -384,11 +384,11 @@ let pr ?(local=false) ctx =
 let filter_set_constraints cstrs = 
   Constraints.filter (fun (l, d, r) -> not (Universe.is_type0 l && d == Le)) cstrs
 
-let rigid_levels_constraints_of_substitution variables substitution (levels, cstrs) =
+let rigid_levels_constraints_of_substitution variables gvariables substitution (levels, cstrs) =
   Level.Map.fold (fun l (locality, u) (levels, cstrs) ->
     if Level.Set.mem l variables then
       Level.Set.add l levels, Constraints.add (Universe.make l, Eq, u) cstrs
-    else if locality == UGraph.Global then
+    else if locality == UGraph.Global || Level.Set.mem l gvariables then
       levels, Constraints.add (Universe.make l, Eq, u) cstrs
     else levels, cstrs) substitution (levels, cstrs)
 
@@ -398,7 +398,7 @@ let context_set uctx : ContextSet.t =
   let cstrs = filter_set_constraints cstrs in
   let levels = Level.Set.union uctx.local_variables levels in
   let dlevels, dcstrs = uctx.demoted_local_context in
-  rigid_levels_constraints_of_substitution uctx.local_variables eqs 
+  rigid_levels_constraints_of_substitution uctx.local_variables dlevels eqs 
     (Level.Set.diff levels dlevels, Constraints.union dcstrs cstrs)
 
 let context_set uctx = 
@@ -467,7 +467,9 @@ let union uctx uctx' =
     let variances = Option.union InferCumulativity.union_variances uctx.variances uctx'.variances in
     let extra = UnivMinim.extra_union uctx.minim_extra uctx'.minim_extra in
     let declarenew levels g =
-      Level.Set.fold (fun u g -> UGraph.add_universe u ~strict:false 
+      Level.Set.fold (fun u g -> 
+        if UGraph.is_declared g u then g
+        else UGraph.add_universe u ~strict:false 
         ~rigid:(Level.Set.mem u uctx'.local_variables) g) levels g
     in
     let local_variables = Level.Set.union uctx.local_variables uctx'.local_variables in
