@@ -1025,8 +1025,11 @@ let normalize m l =
     match PMap.find idx m.entries with
     | _can -> None (* Already in canonical form *)
     | exception Not_found ->
-      let prems = canonical_premise m (idx, 0) in
-      Some (univ_of_premises m prems)
+      match PMap.find idx m.subst with
+      | (p, _local, _localeq) -> 
+        let prems =  canonical_premises m p in
+        Some (univ_of_premises m prems)
+      | exception Not_found -> None
 
 let normalize_subst model =
   let subst = 
