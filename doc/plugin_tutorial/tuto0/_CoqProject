@@ -1,11 +1,28 @@
-src/META.rocq-plugin-tutorial
+# Comments in _CoqProject start with # and end with newline
+
+# .v files in theories/ are modules whose name starts with "Tuto0"
 -R theories/ Tuto0
+
+# META (an ocamlfind library specification) is necessary for rocq to find the plugin
+# in tuto0 we use rocq makefile's "-generate-meta-for-package"
+# it assumes that the plugin is called rocq-plugin-tutorial.plugin
+# and depends on ltac1 (rocq-runtime.plugins.ltac)
+# see tuto1 for an example of a custom META file
+-generate-meta-for-package rocq-plugin-tutorial
+
+# rocq makefile uses -I to tell the ocaml compiler where previously compiled files are located
+# (in our case g_tuto0 depends on tuto0_main)
 -I src
 
+# list our .v files
 theories/Loader.v
 theories/Demo.v
 
+# list our ocaml files
 src/tuto0_main.ml
 src/tuto0_main.mli
 src/g_tuto0.mlg
+
+# mlpack is a "rocq makefile" specific file
+# cf plugin tutorial README
 src/tuto0_plugin.mlpack
