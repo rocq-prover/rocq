@@ -613,16 +613,17 @@ let subst_context env ctx =
     let subs = comp_subs el_id env in
     subst_context subs ctx
 
-let it_mkLambda_or_LetIn ctx t =
+let it_mkLambda_or_LetIn infos ctx t =
+  let l = Range.length (info_relevances infos) in
   let open Context.Rel.Declaration in
   match List.rev ctx with
   | [] -> t
   | LocalAssum (n, ty) :: ctx ->
       let assums, ctx = List.map_until (function LocalAssum (n, ty) -> Some (n, ty) | LocalDef _ -> None) ctx in
       let assums = (n, ty) :: assums in
-      { term = FLambda(List.length assums, assums, Term.it_mkLambda_or_LetIn (term_of_fconstr t) (List.rev ctx), (subs_id 0, UVars.Instance.empty)); mark = t.mark }
+      { term = FLambda(List.length assums, assums, Term.it_mkLambda_or_LetIn (term_of_fconstr t) (List.rev ctx), (subs_id l, UVars.Instance.empty)); mark = t.mark }
   | LocalDef _ :: _ ->
-      mk_clos (subs_id 0, UVars.Instance.empty) (Term.it_mkLambda_or_LetIn (term_of_fconstr t) ctx)
+      mk_clos (subs_id l, UVars.Instance.empty) (Term.it_mkLambda_or_LetIn (term_of_fconstr t) ctx)
 
 (* fstrong applies unfreeze_fun recursively on the (freeze) term and
  * yields a term.  Assumes that the unfreeze_fun never returns a
@@ -1648,7 +1649,7 @@ and match_elim : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr
 and match_arg : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, 'a) depth -> _ -> _ -> _ -> _ -> _ -> 'a =
   fun red info tab ~pat_state next context states patterns t ->
   let match_deeper = ref false in
-  let t' = it_mkLambda_or_LetIn context t in
+  let t' = it_mkLambda_or_LetIn info context t in
   let patterns, states = Array.split @@ Array.map2
     (function Dead -> fun _ -> Ignore, Dead | (Live ({ subst; _ } as psubst) as state) -> function
       | Ignore -> Ignore, state
