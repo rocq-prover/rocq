@@ -541,10 +541,13 @@ let explain_ill_formed_fix_body env sigma names i = function
           | Anonymous -> str "the " ++ pr_nth i ++ str " definition" in
      str "Recursive call to " ++ called ++ str " has not enough arguments"
   | FixpointOnNonEliminable (s, s') ->
-     str "Cannot define a fixpoint on " ++ Printer.pr_sort sigma s ++
-       strbrk " on a value living in " ++ Printer.pr_sort sigma s' ++
-       str ": " ++ Printer.pr_sort sigma s ++ str " does not eliminate in " ++
-       Printer.pr_sort sigma s'
+  let pr_sort u = quote @@ Flags.with_option Constrextern.print_universes (Printer.pr_sort sigma) u in
+    fmt "Cannot define a fixpoint@ with principal argument living in sort %t@ \
+         to produce a value in sort %t@ because %t does not eliminate to %t"
+      (fun () -> pr_sort s)
+      (fun () -> pr_sort s')
+      (fun () -> pr_sort s)
+      (fun () -> pr_sort s')
 
 let explain_ill_formed_cofix_body env sigma = function
   (* CoFixpoint guard errors *)
