@@ -24,7 +24,7 @@ fun A : Type@{s ; _} => A : Type@{s ; _}
      : Type@{s ; _} -> Type@{s ; _}
 foo
      : Type@{S1 ; _} -> Type@{S2 ; _}
-foo@{S2 ; } : Type -> Type
+foo@{S2 ; } : Type@{S1 ; _} -> Type@{S2 ; _}
 
 foo is universe polymorphic
 Arguments foo _%_type_scope

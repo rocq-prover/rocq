@@ -78,7 +78,7 @@ let rec repr q m = match QMap.find q m.qmap with
 
 let is_above_prop q m = QSet.mem q m.above
 
-let is_rigid m q = QSet.mem q m.rigid
+let is_rigid m q = QSet.mem q m.rigid || not (QMap.mem q m.qmap)
 
 let set q qv m =
   let q = repr q m in
