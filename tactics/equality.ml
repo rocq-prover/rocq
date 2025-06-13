@@ -34,7 +34,6 @@ open Tactics
 open Tacred
 open Rocqlib
 open Declarations
-open Indrec
 open Ind_tables
 open Eqschemes
 open Locus
@@ -362,7 +361,7 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
           begin match if is_eq then eq_elimination_ref true sort else None with
           | Some r -> destConstRef r
           | None ->
-             let c1 = destConstRef (lookup_eliminator env ind_sp sort) in
+             let c1 = destConstRef (Elimschemes.lookup_eliminator env ind_sp sort) in
              let mp,l = KerName.repr (Constant.canonical c1) in
              let l' = Label.of_id (add_suffix (Label.to_id l) "_r")  in
              let c1' = Global.constant_of_delta_kn (KerName.make mp l') in
@@ -374,7 +373,7 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
         | _ ->
            begin match if is_eq then eq_elimination_ref false sort else None with
            | Some r -> destConstRef r
-           | None -> destConstRef (lookup_eliminator env ind_sp sort)
+           | None -> destConstRef (Elimschemes.lookup_eliminator env ind_sp sort)
            end
         end
       | _ ->
