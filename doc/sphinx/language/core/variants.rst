@@ -40,6 +40,9 @@ be defined using :cmd:`Variant`.
    :attr:`universes(template)`, :attr:`universes(cumulative)`, and
    :attr:`private(matching)` attributes.
 
+   .. exn:: Types declared with the keyword Variant cannot be recursive. Recursive types are defined with the Inductive and CoInductive command.
+      :undocumented:
+
    .. exn:: The @natural th argument of @ident must be @ident in @type.
       :undocumented:
 
@@ -63,6 +66,18 @@ be defined using :cmd:`Variant`.
 
       Variant option (A : Type) : Type := None : option A | Some : A -> option A.
       Variant sum (A B : Type) : Type := inl : A -> sum A B | inr : B -> sum A B.
+
+.. example::
+
+  :cmd:`Variant` cannot be used to define recursive types.
+
+   .. rocqtop:: all
+
+      Fail Variant my_nat := zero | succ (n : my_nat).
+
+  To define this type, use the :cmd:`Inductive` keyword instead.
+
+.. example::
 
   *Boolean reflection* is a relation reflecting under the form of a
   Boolean value when a given proposition :n:`P` holds. It can be
