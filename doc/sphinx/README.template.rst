@@ -16,6 +16,8 @@ Coq objects
 
 Our Coq domain define multiple `objects`_.  Each object has a *signature* (think *type signature*), followed by an optional body (a description of that object).  The following example defines two objects: a variant of the ``simpl`` tactic, and an error that it may raise::
 
+.. code-block:: RST
+
    .. tacv:: simpl @pattern at {+ @natural}
       :name: simpl_at
 
@@ -34,6 +36,8 @@ Names (link targets) are auto-generated for most simple objects, though they can
 - Vernac variants, tactic notations, and tactic variants do not have a default name.
 
 Most objects should have a body (i.e. a block of indented text following the signature, called “contents” in Sphinx terms).  Undocumented objects should have the ``:undocumented:`` flag instead, as shown above.  When multiple objects have a single description, they can be grouped into a single object, like this (semicolons can be used to separate the names of the objects; names starting with ``_`` will be omitted from the indexes)::
+
+.. code-block:: RST
 
    .. cmdv:: Lemma @ident {* @binder } : @type
              Remark @ident {* @binder } : @type
@@ -113,7 +117,7 @@ Improper nesting
 ----------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      .. cmd:: Foo @bar
 
@@ -125,7 +129,7 @@ DO
            the current context
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      .. cmd:: Foo @bar
 
@@ -142,25 +146,25 @@ Overusing ``:token:``
 ---------------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      This is equivalent to :n:`Axiom @ident : @term`.
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      This is equivalent to ``Axiom`` :token:`ident` : :token:`term`.
 
 ..
 
 DO
-  .. code::
+  .. code-block:: RST
 
      :n:`power_tac @term [@ltac]`
        allows :tacn:`ring` and :tacn:`ring_simplify` to recognize …
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      power_tac :n:`@term` [:n:`@ltac`]
        allows :tacn:`ring` and :tacn:`ring_simplify` to recognize …
@@ -168,12 +172,12 @@ DON'T
 ..
 
 DO
-  .. code::
+  .. code-block:: RST
 
      :n:`name={*; attr}`
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      ``name=``:n:`{*; attr}`
 
@@ -181,12 +185,12 @@ Omitting annotations
 --------------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      .. tacv:: assert @form as @simple_intropattern
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      .. tacv:: assert form as simple_intropattern
 
@@ -194,7 +198,7 @@ Using the ``.. rocqtop::`` directive for syntax highlighting
 -----------------------------------------------------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      A tactic of the form:
 
@@ -209,7 +213,7 @@ DO
         first [ t1 | … | tn ].
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      A tactic of the form:
 
@@ -227,13 +231,13 @@ Overusing plain quotes
 ----------------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      The :tacn:`refine` tactic can raise the :exn:`Invalid argument` exception.
      The term :g:`let a = 1 in a a` is ill-typed.
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      The ``refine`` tactic can raise the ``Invalid argument`` exception.
      The term ``let a = 1 in a a`` is ill-typed.
@@ -244,7 +248,7 @@ Overusing the ``example`` directive
 -----------------------------------
 
 DO
-  .. code::
+  .. code-block:: RST
 
      Here is a useful axiom:
 
@@ -253,14 +257,14 @@ DO
         Axiom proof_irrelevance : forall (P : Prop) (x y : P), x=y.
 
 DO
-  .. code::
+  .. code-block:: RST
 
      .. example:: Using proof-irrelevance
 
         If you assume the axiom above, …
 
 DON'T
-  .. code::
+  .. code-block:: RST
 
      Here is a useful axiom:
 
