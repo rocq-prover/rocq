@@ -3,9 +3,12 @@
 set -e
 set -o pipefail
 
-API=https://api.github.com/repos/coq/coq
-OFFICIAL_REMOTE_GIT_URL="git@github.com:coq/coq"
-OFFICIAL_REMOTE_HTTPS_URL="github.com/coq/coq"
+ORG=rocq-prover
+REPO=rocq
+
+API=https://api.github.com/repos/$ORG/$REPO
+OFFICIAL_REMOTE_GIT_URL="git@github.com:$ORG/$REPO"
+OFFICIAL_REMOTE_HTTPS_URL="github.com/$ORG/$REPO"
 
 # This script depends (at least) on git (>= 2.7) and jq.
 # It should be used like this: dev/tools/merge-pr.sh /PR number/
@@ -133,7 +136,7 @@ info "commit for PR $PR is $COMMIT"
 
 # Sanity check: merge to a different branch
 
-if [ "$BASE_BRANCH" != "coq:$CURRENT_LOCAL_BRANCH" ]; then
+if [ "$BASE_BRANCH" != "$ORG:$CURRENT_LOCAL_BRANCH" ]; then
   error "PR requests merge in $BASE_BRANCH but you are merging in $CURRENT_LOCAL_BRANCH"
   ask_confirmation
 fi;
