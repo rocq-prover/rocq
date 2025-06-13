@@ -96,7 +96,7 @@ PRDATA=$(curl -s "$API/pulls/$PR")
 TITLE=$(echo "$PRDATA" | jq -r '.title')
 info "title for PR $PR is $TITLE"
 
-BASE_BRANCH=$(echo "$PRDATA" | jq -r '.base.label')
+BASE_BRANCH=$(echo "$PRDATA" | jq -r '.base.ref')
 info "PR $PR targets branch $BASE_BRANCH"
 
 CURRENT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -136,7 +136,7 @@ info "commit for PR $PR is $COMMIT"
 
 # Sanity check: merge to a different branch
 
-if [ "$BASE_BRANCH" != "$ORG:$CURRENT_LOCAL_BRANCH" ]; then
+if [ "$BASE_BRANCH" != "$CURRENT_LOCAL_BRANCH" ]; then
   error "PR requests merge in $BASE_BRANCH but you are merging in $CURRENT_LOCAL_BRANCH"
   ask_confirmation
 fi;
@@ -150,7 +150,8 @@ if [ "$LOCAL_BRANCH_COMMIT" != "$UPSTREAM_COMMIT" ]; then
     # Is it just that the upstream branch is behind?
     # It could just be that we merged other PRs and we didn't push yet
 
-    if git merge-base --is-ancestor -- "$UPSTREAM_COMMIT" "$LOCAL_BRANCH_COMMIT"; then
+  if [ "$BASE_BRANCH" = master ] \
+     && git merge-base --is-ancestor -- "$UPSTREAM_COMMIT" "$LOCAL_BRANCH_COMMIT"; then
         warning "Your branch is ahead of ${REMOTE}."
         warning "On master, GitHub's branch protection rule prevents merging several PRs at once."
         warning "You should run [git push ${REMOTE}] between each call to the merge script."
