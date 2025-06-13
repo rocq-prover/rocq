@@ -22,14 +22,14 @@ import tempfile
 import pexpect
 
 
-class CoqTopError(Exception):
+class RocqTopError(Exception):
     def __init__(self, err, last_sentence, before):
         super().__init__()
         self.err = err
         self.before = before
         self.last_sentence = last_sentence
 
-class CoqTop:
+class RocqTop:
     """Create an instance of rocq top.
 
     Use this as a context manager: no instance of rocq top is created until
@@ -39,11 +39,11 @@ class CoqTop:
     Sentence parsing is very basic for now (a "." in a quoted string will
     confuse it).
 
-    When environment variable COQ_DEBUG_REFMAN is set, all the input
-    we send to rocq top is copied to a temporary file "/tmp/coqdomainXXXX.v".
+    When environment variable ROCQ_DEBUG_REFMAN is set, all the input
+    we send to rocq top is copied to a temporary file "/tmp/rocqdomainXXXX.v".
     """
 
-    COQTOP_PROMPT = re.compile("\r\n[^< \r\n]+ < ")
+    ROCQTOP_PROMPT = re.compile("\r\n[^< \r\n]+ < ")
 
     def __init__(self, rocqbin=None, color=False, args=None) -> str:
         """Configure a rocq top instance (but don't start it yet).
@@ -67,8 +67,8 @@ class CoqTop:
         self.rocqtop = pexpect.spawn(self.rocqbin, args=self.args, echo=False, encoding="utf-8")
         # Disable delays (http://pexpect.readthedocs.io/en/stable/commonissues.html?highlight=delaybeforesend)
         self.rocqtop.delaybeforesend = 0
-        if os.getenv ("COQ_DEBUG_REFMAN"):
-            self.debugfile = tempfile.NamedTemporaryFile(mode="w+", prefix="coqdomain", suffix=".v", delete=False, dir="/tmp/")
+        if os.getenv ("ROCQ_DEBUG_REFMAN"):
+            self.debugfile = tempfile.NamedTemporaryFile(mode="w+", prefix="rocqdomain", suffix=".v", delete=False, dir="/tmp/")
         self.next_prompt()
         return self
 
@@ -80,7 +80,7 @@ class CoqTop:
 
     def next_prompt(self):
         """Wait for the next rocq top prompt, and return the output preceding it."""
-        self.rocqtop.expect(CoqTop.COQTOP_PROMPT, timeout = 10)
+        self.rocqtop.expect(RocqTop.ROCQTOP_PROMPT, timeout = 10)
         return self.rocqtop.before
 
     def sendone(self, sentence):
@@ -97,17 +97,17 @@ class CoqTop:
             self.rocqtop.sendline(sentence)
             output = self.next_prompt()
         except Exception as err:
-            raise CoqTopError(err, sentence, self.rocqtop.before)
+            raise RocqTopError(err, sentence, self.rocqtop.before)
         return output
 
     def send_initial_options(self):
         """Options to send when starting the toplevel and after a Reset Initial."""
-        self.sendone('Set Coqtop Exit On Error.')
+        self.sendone('Set Rocqtop Exit On Error.')
         self.sendone('Set Warnings "+default".')
 
 def sendmany(*sentences):
     """A small demo: send each sentence in sentences and print the output"""
-    with CoqTop() as rocqtop:
+    with RocqTop() as rocqtop:
         for sentence in sentences:
             print("=====================================")
             print(sentence)
@@ -117,7 +117,7 @@ def sendmany(*sentences):
 
 def main():
     """Run a simple performance test and demo `sendmany`"""
-    with CoqTop() as rocqtop:
+    with RocqTop() as rocqtop:
         for _ in range(200):
             print(repr(rocqtop.sendone("Check nat.")))
         sendmany("Goal False -> True.", "Proof.", "intros H.",

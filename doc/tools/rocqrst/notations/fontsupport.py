@@ -14,7 +14,7 @@
 See https://stackoverflow.com/questions/37377476/ for background information.
 
 This script is here for reference. It was used to generate the modified
-font CoqNotations.ttf from UbuntuMono-B.ttf.
+font RocqNotations.ttf from UbuntuMono-B.ttf.
 """
 
 from collections import Counter
@@ -79,5 +79,5 @@ if __name__ == '__main__':
     from os.path import dirname, join, abspath
     curdir = dirname(abspath(__file__))
     ubuntumono_path = join(curdir, "UbuntuMono-B.ttf")
-    ubuntumono_mod_path = join(curdir, "CoqNotations.ttf")
-    center_glyphs(ubuntumono_path, ubuntumono_mod_path, "CoqNotations")
+    ubuntumono_mod_path = join(curdir, "RocqNotations.ttf")
+    center_glyphs(ubuntumono_path, ubuntumono_mod_path, "RocqNotations")

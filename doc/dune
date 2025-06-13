@@ -15,10 +15,10 @@
   ;   + tools/coqdoc/coqdoc.css
   (package rocq-runtime)
   (source_tree sphinx)
-  (source_tree tools/coqrst)
+  (source_tree tools/rocqrst)
   unreleased.rst
   (env_var SPHINXWARNOPT)
-  (env_var COQRST_EXTRA)))
+  (env_var ROCQRST_EXTRA)))
 
 (rule
  (targets
@@ -30,11 +30,11 @@
  (deps
   (package rocq-runtime)
   (source_tree sphinx)
-  (source_tree tools/coqrst)
+  (source_tree tools/rocqrst)
   ../config/coq_config.py
   unreleased.rst
   (env_var SPHINXWARNOPT)
-  (env_var COQRST_EXTRA))
+  (env_var ROCQRST_EXTRA))
  (action
   (run env sphinx-build -q %{env:SPHINXWARNOPT=-W} -b html sphinx %{targets})))
 
@@ -48,12 +48,12 @@
  (deps
   (package rocq-runtime)
   (source_tree sphinx)
-  (source_tree tools/coqrst)
+  (source_tree tools/rocqrst)
   ../config/coq_config.py
   ../ide/rocqide/coq.png
   unreleased.rst
   (env_var SPHINXWARNOPT)
-  (env_var COQRST_EXTRA))
+  (env_var ROCQRST_EXTRA))
  (action
   (progn
    (run env sphinx-build -q %{env:SPHINXWARNOPT=-W} -b latex sphinx %{targets})
