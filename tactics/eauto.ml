@@ -372,7 +372,7 @@ let e_search_auto ?(debug = Off) ?depth lems db_list =
   end
 
 let eauto_with_bases ?debug ?depth lems db_list =
-  Hints.wrap_hint_warning (e_search_auto ?debug ?depth lems db_list)
+  e_search_auto ?debug ?depth lems db_list
 
 let gen_eauto ?debug ?depth lems dbs =
   Proofview.wrap_exceptions @@ fun () ->
