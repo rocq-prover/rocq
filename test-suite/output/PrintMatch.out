@@ -1,9 +1,7 @@
 eqT_rect@{u u0} =
 fun (A : Type@{u}) (a : A) (P : forall a0 : A, eqT@{u} a a0 -> Type@{u0})
   (f : P a (reflT@{u} a)) (a0 : A) (e : eqT@{u} a a0) =>
-match e :> eqT@{u} a _ as e0 in (eqT _ a1) return (P a1 e0) with
-| reflT _ => f
-end
+let 'reflT _ as e0 in (eqT _ a1) := e :> eqT@{u} a _ return (P a1 e0) in f
      : forall (A : Type@{u}) (a : A)
          (P : forall a0 : A, eqT@{u} a a0 -> Type@{u0}),
        P a (reflT@{u} a) -> forall (a0 : A) (e : eqT@{u} a a0), P a0 e
@@ -14,9 +12,7 @@ seq_rect =
 fun (A : Type@{seq_rect.u1}) (a : A)
   (P : forall a0 : A, seq a a0 -> Type@{seq_rect.u0}) 
   (f : P a (srefl a)) (a0 : A) (s : seq a a0) =>
-match s :> seq a a0 as s0 in (seq _ a1) return (P a1 s0) with
-| srefl _ => f
-end
+let 'srefl _ as s0 in (seq _ a1) := s :> seq a a0 return (P a1 s0) in f
      : forall (A : Type@{seq_rect.u1}) (a : A)
          (P : forall a0 : A, seq a a0 -> Type@{seq_rect.u0}),
        P a (srefl a) -> forall (a0 : A) (s : seq a a0), P a0 s
@@ -32,17 +28,13 @@ end
 Arguments eq_sym [A]%_type_scope [x y] _
 eq_sym =
 fun (A : Type) (x y : A) (H : x = y) =>
-match H in (_ = a) return (a = x) with
-| @eq_refl _ _ => @eq_refl A x
-end
+let '@eq_refl _ _ in (_ = a) := H return (a = x) in @eq_refl A x
      : forall [A : Type] [x y : A], x = y -> y = x
 
 Arguments eq_sym [A]%_type_scope [x y] _
 eq_sym =
 fun (A : Type) (x y : A) (H : x = y) =>
-match H in (_ = a) return (a = x) with
-| @eq_refl _ _ => @eq_refl A x
-end
+let '@eq_refl _ _ in (_ = a) := H return (a = x) in @eq_refl A x
      : forall [A : Type] [x y : A], x = y -> y = x
 
 Arguments eq_sym [A]%_type_scope [x y] _
