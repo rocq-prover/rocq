@@ -623,12 +623,6 @@ constructors_or_record: [
 | DELETENT
 ]
 
-(* decl_notations not allowed for Record, Structure or Class *)
-record_field: [
-| REPLACE quoted_attributes record_binder OPT [ "|" natural ] decl_notations
-| WITH quoted_attributes record_binder OPT [ "|" natural ]
-]
-
 record_fields: [
 | REPLACE record_field ";" record_fields
 | WITH OPT [ LIST1 record_field SEP ";" OPT ";" ]
