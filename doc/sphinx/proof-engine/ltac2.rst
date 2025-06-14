@@ -473,13 +473,13 @@ Ltac2 models backtracking computations using streams of values: the head of a no
 
 Backtracking failures (empty streams) are moreover decorated with exceptions to inform the reason of failure. These exceptions are then passed to the tail of a non-empty backtracking computation. The following Ltac2 type summarizes the model for backtracking computations
 
-  .. rocqtop:: in
+.. rocqtop:: in
 
-    Ltac2 Type rec 'a backtracking_stream :=
-      [ EmptyStream(exn)
-      | ConsStream('a, (exn -> 'a backtracking_stream)) ].
+  Ltac2 Type rec 'a backtracking_stream :=
+    [ EmptyStream(exn) (* backtracking failure holding an exception *)
+    | ConsStream('a, (exn -> 'a backtracking_stream)) ] (* backtracking success *).
 
-where `EmptyStream` is a backtracking failure holding an exception and `ConsStream` is a backtracking success with a value `'a` as its head and a backtracking handler parameterized by an exception. When sequenced with additional backtracking computations, a backtracking success may lead to a failure with an exception that will be passed to the handler.
+where `ConsStream` is a backtracking success with a value of type `'a` as its head and a backtracking handler parameterized by an exception. When sequenced with additional backtracking computations, a backtracking success may lead to a failure with an exception that will be passed to the handler.
 
 
 In practice, the backtracking aspects of Ltac2's computations can be accessed through the following primitives, defined in the `Control` module::

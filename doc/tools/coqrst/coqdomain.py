@@ -756,35 +756,48 @@ class CoqtopBlocksTransform(Transform):
         multi-line comments.  Nested comments are not supported.
 
         A chunk is a minimal sequence of consecutive lines of the input that
-        ends with a '.' or '*)'
+        ends with a '.', possibly followed by blanks and/or comments.
 
         >>> split_lines('A.\nB.''')
-        ['A.', 'B.']
+        ['A.\n', 'B.']
 
         >>> split_lines('A.\n\nB.''')
-        ['A.', '\nB.']
+        ['A.\n\n', 'B.']
 
         >>> split_lines('A.\n\nB.\n''')
-        ['A.', '\nB.']
+        ['A.\n\n', 'B.']
 
         >>> split_lines("SearchPattern (_ + _ = _ + _).\n"
         ...             "SearchPattern (nat -> bool).\n"
         ...             "SearchPattern (forall l : list _, _ l l).")
         ... # doctest: +NORMALIZE_WHITESPACE
-        ['SearchPattern (_ + _ = _ + _).',
-         'SearchPattern (nat -> bool).',
+        ['SearchPattern (_ + _ = _ + _).\n',
+         'SearchPattern (nat -> bool).\n',
          'SearchPattern (forall l : list _, _ l l).']
 
         >>> split_lines('SearchHead le.\nSearchHead (@eq bool).')
-        ['SearchHead le.', 'SearchHead (@eq bool).']
+        ['SearchHead le.\n', 'SearchHead (@eq bool).']
 
         >>> split_lines("(* *) x. (* *)\ny.\n")
-        ['(* *) x. (* *)', 'y.']
+        ['(* *) x. (* *)\n', 'y.']
 
         >>> split_lines("(* *) x (* \n *)\ny.\n")
-        ['(* *) x (* \n *)', 'y.']
+        ['(* *) x (* \n *)\ny.']
+
+        >>> split_lines("Check (* check *) list (* comment *)\n"
+        ...             "nat. (* another *) (*and another *)"))
+        ['Check (* check *) list (* comment *)\nnat. (* another *) (*and another *)']
         """
-        return re.split(r"(?:(?<=(?<!\.)\.)|(?<=\*\)))\n", source.strip())
+        comment = r"\(\*.*\*\)"
+        # the end of a chunk is marked by
+        # a period (\.)
+        # optional blanks or comments (?:\s*|{comment})*
+        # followed by a newline \n
+        # We capture everything starting from the '.' to recover it afterwards
+        end_of_chunk = fr"(\.(?:\s*|{comment})*\n)"
+        splits = re.split(end_of_chunk, source.strip())
+        chunks = [splits[i:i+2] for i in range(0, len(splits), 2)]
+        return list(map(lambda e : ''.join(e), chunks))
 
     @staticmethod
     def parse_options(node):
