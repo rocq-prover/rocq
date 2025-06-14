@@ -177,6 +177,37 @@ Defining record types
          Class MyClass := { myfield2 : nat }.
          About myfield2. (* Argument name defaults to the class name and is marked implicit *)
 
+.. _record_where_clause:
+
+   .. example:: Using a :g:`where` clause in a record field
+
+      Records themselves do not support a :g:`where` clause, but record fields do,
+      with a somewhat unintuitive behaviour: the notation defined in the where clause
+      is active after the field where it appears, not in the field itself.
+
+      .. rocqtop:: all
+
+         Reserved Notation "a & b" (at level 40).
+         Record foo (op : nat -> nat -> nat) := mkfoo
+         {
+           point: nat where "a & b" := (op a b);
+           cond: forall a b, a & b = b & a
+         }.
+
+      However, it is not possible to add a :g:`where` clause for the record itself:
+
+      .. rocqtop:: all
+
+         Reserved Notation "a & b" (at level 40).
+         Fail Record foo (op : nat -> nat -> nat) := mkfoo
+         {
+           point: nat;
+           cond: forall a b, a & b = b & a
+         } where "a & b" := (op a b).
+
+   .. exn:: Error: "where" clause not supported for records.
+      :undocumented:
+
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
       The record name :token:`ident` appears in the type of its fields, but uses
