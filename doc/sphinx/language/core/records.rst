@@ -22,7 +22,7 @@ Defining record types
 
    .. prodn::
       record_definition ::= {? > } @ident_decl {* @binder } {? : @sort } {? := {? @ident } %{ {? {+; @record_field } {? ; } } %} {? as @ident } }
-      record_field ::= {* #[ {+, @attribute } ] } @name {? @field_spec } {? %| @natural }
+      record_field ::= {* #[ {+, @attribute } ] } @name {? @field_spec } {? %| @natural } {? @decl_notations }
       field_spec ::= {* @binder } @of_type_inst
       | {* @binder } := @term
       | {* @binder } @of_type_inst := @term
@@ -113,6 +113,13 @@ Defining record types
      on the fields that appear before it.  Since their values are already defined,
      such fields cannot be specified when constructing a record.
 
+     :n:`{? @decl_notations }`
+     If present, a :g:`where` clause attached to a :cmd:`Record` field
+     defines notations which are active after this field, not in the field
+     itself and only until the end of the :cmd:`Record`
+     (see :ref:`example <record_where_clause>`).
+     Note that :g:`where` clauses cannot be added at the record level.
+
    The :cmd:`Record` command supports the :attr:`universes(polymorphic)`,
    :attr:`universes(template)`, :attr:`universes(cumulative)`,
    :attr:`private(matching)` and :attr:`projections(primitive)` attributes.
@@ -176,6 +183,26 @@ Defining record types
 
          Class MyClass := { myfield2 : nat }.
          About myfield2. (* Argument name defaults to the class name and is marked implicit *)
+
+.. _record_where_clause:
+
+   .. example:: Using a :g:`where` clause in a record field
+
+      .. rocqtop:: all
+
+         Reserved Notation "a & b" (at level 40, left associativity).
+         Record nat_comoid :=
+         {
+           op : nat -> nat -> nat where "a & b" := (op a b);
+           neutral : nat;
+           neutral_cond : forall n, neutral & n = n;
+           comm: forall a b, a & b = b & a;
+           assoc: forall a b c, a & (b & c) = a & b & c
+         }.
+
+   .. exn:: Error: "where" clause not supported for records.
+
+      A :g:`where` clause appears at the :cmd:`Record` level.
 
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
