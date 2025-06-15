@@ -113,6 +113,13 @@ Defining record types
      on the fields that appear before it.  Since their values are already defined,
      such fields cannot be specified when constructing a record.
 
+     :n:`{? @decl_notations }`
+     If present, a :g:`where` clause attached to a :cmd:`Record` field
+     defines notations which are active after this field, not in the field
+     itself and only until the end of the :cmd:`Record`
+     (see :ref:`example <record_where_clause>`).
+     Note that :g:`where` clauses cannot be added at the record level.
+
    The :cmd:`Record` command supports the :attr:`universes(polymorphic)`,
    :attr:`universes(template)`, :attr:`universes(cumulative)`,
    :attr:`private(matching)` and :attr:`projections(primitive)` attributes.
@@ -181,32 +188,21 @@ Defining record types
 
    .. example:: Using a :g:`where` clause in a record field
 
-      Records themselves do not support a :g:`where` clause, but record fields do,
-      with a somewhat unintuitive behaviour: the notation defined in the where clause
-      is active after the field where it appears, not in the field itself.
-
       .. rocqtop:: all
 
-         Reserved Notation "a & b" (at level 40).
-         Record foo (op : nat -> nat -> nat) := mkfoo
+         Reserved Notation "a & b" (at level 40, left associativity).
+         Record nat_comoid :=
          {
-           point: nat where "a & b" := (op a b);
-           cond: forall a b, a & b = b & a
+           op : nat -> nat -> nat where "a & b" := (op a b);
+           neutral : nat;
+           neutral_cond : forall n, neutral & n = n;
+           comm: forall a b, a & b = b & a;
+           assoc: forall a b c, a & (b & c) = a & b & c
          }.
 
-      However, it is not possible to add a :g:`where` clause for the record itself:
-
-      .. rocqtop:: all
-
-         Reserved Notation "a & b" (at level 40).
-         Fail Record foo (op : nat -> nat -> nat) := mkfoo
-         {
-           point: nat;
-           cond: forall a b, a & b = b & a
-         } where "a & b" := (op a b).
-
    .. exn:: Error: "where" clause not supported for records.
-      :undocumented:
+
+      A :g:`where` clause appears at the :cmd:`Record` level.
 
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
