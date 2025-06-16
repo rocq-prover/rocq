@@ -422,7 +422,7 @@ project verdi_raft 'https://github.com/uwplse/verdi-raft' 'a3375e867326a82225e72
 ########################################################################
 # Stdlib
 ########################################################################
-project stdlib 'https://github.com/coq/stdlib' '5c65f97a657b80adf8ffd8a5bdb1e733ed1417c5'
+project stdlib 'https://github.com/coq/stdlib' '2b23d2d3b313d5fe8b54a649a4aca6977a144648'
 # Contact TODO on github
 
 ########################################################################
@@ -504,7 +504,7 @@ project jasmin 'https://github.com/jasmin-lang/jasmin' 'c8188deeedf67e7633b4fbda
 ########################################################################
 # Lean Importer
 ########################################################################
-project lean_importer 'https://github.com/coq-community/rocq-lean-import' '21b80484d616d963deff26e1912d67c64f91dea6'
+project lean_importer 'https://github.com/coq-community/rocq-lean-import' 'c3546102f242aaa1e9af921c78bdb1132522e444'
 # Contact @SkySkimmer on github
 
 ########################################################################
