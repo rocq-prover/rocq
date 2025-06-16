@@ -144,6 +144,7 @@ module type ExtS = sig
       estate : EState.t;
       kwstate : keyword_state;
       recover : bool;
+      has_non_assoc : bool;
     }
   end
 
