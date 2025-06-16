@@ -141,6 +141,7 @@ module type ExtS = sig
       estate : EState.t;
       kwstate : keyword_state;
       recover : bool;
+      has_non_assoc : bool;
     }
   end
 
@@ -259,12 +260,14 @@ and GState : sig
     estate : EState.t;
     kwstate : L.keyword_state;
     recover : bool;
+    has_non_assoc : bool;
   }
 end = struct
   type t = {
     estate : EState.t;
     kwstate : L.keyword_state;
     recover : bool;
+    has_non_assoc : bool;
   }
 end
 open GState
@@ -1514,7 +1517,13 @@ let rec continue_parser_of_levels entry clevn =
                   let act = p2 gstate strm__ in
                   let ep = LStream.count strm__ in
                   let a = act a (LStream.interval_loc bp ep strm__) in
-                  continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
+                  if gstate.has_non_assoc && lev.assoc = NonA then
+                    if clevn = levn then
+                      a
+                    else
+                      continue_parser_of_entry gstate entry (Some (clevn-1)) levn bp a strm
+                  else
+                    continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
               let () =
                 if match levfrom with Some levfrom -> levfrom < clevn | None -> false then
                   warn_recover_continuation bp ep strm__ in
