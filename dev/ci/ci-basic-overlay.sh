@@ -110,7 +110,7 @@ project mtac2 'https://github.com/Mtac2/Mtac2' 'bcbefa79406fc113f878eb5f89758de2
 project math_classes 'https://github.com/coq-community/math-classes' '40de430909768abae6ed34be818ecfad809342e3'
 # Contact @Lysxia and @spitters on github
 
-project corn 'https://github.com/coq-community/corn' 'a75b14fad50313d615881713d4703e6c9cd6e111'
+project corn 'https://github.com/coq-community/corn' '138bc18c32561b03f184c5cc2ab2ed7a7f363d78'
 # Contact @Lysxia and @spitters on github
 
 ########################################################################
