@@ -114,11 +114,10 @@ Defining record types
      such fields cannot be specified when constructing a record.
 
      :n:`{? @decl_notations }`
-     If present, a :g:`where` clause attached to a :cmd:`Record` field
-     defines notations which are active after this field, not in the field
-     itself and only until the end of the :cmd:`Record`
-     (see :ref:`example <record_where_clause>`).
-     Note that :g:`where` clauses cannot be added at the record level.
+       Defines notations that are active in subsequent fields, not in the field
+       itself, until the end of the :cmd:`Record` (see :ref:`example
+       <record_where_clause>`). Note that :g:`where` clauses cannot be added at
+       the record level.
 
    The :cmd:`Record` command supports the :attr:`universes(polymorphic)`,
    :attr:`universes(template)`, :attr:`universes(cumulative)`,
@@ -194,15 +193,16 @@ Defining record types
          Record nat_comoid :=
          {
            op : nat -> nat -> nat where "a & b" := (op a b);
-           neutral : nat;
-           neutral_cond : forall n, neutral & n = n;
+           identity : nat;
+           identity_cond : forall n, identity & n = n;
            comm: forall a b, a & b = b & a;
            assoc: forall a b c, a & (b & c) = a & b & c
          }.
 
    .. exn:: Error: "where" clause not supported for records.
 
-      A :g:`where` clause appears at the :cmd:`Record` level.
+      :g:`where` clauses are only supported for :n:`@record_field`\s, not for the overall
+      :cmd:`Record` definition.
 
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
