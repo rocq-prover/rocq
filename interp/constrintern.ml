@@ -2997,7 +2997,6 @@ let interp_univ_decl env decl =
     univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
   }
   in
-  Loop_checking.set_debug_pr_level (UState.pr_uctx_level (Evd.ustate evd));
   evd, decl
 
 let variance_of_entry arr =
@@ -3036,7 +3035,6 @@ let interp_cumul_univ_decl env decl =
       Evd.disable_universe_extension evd ~with_cstrs:(not decl.univdecl_extensible_constraints)
     else evd
   in
-  Loop_checking.set_debug_pr_level (UState.pr_uctx_level (Evd.ustate evd));
   evd, decl
 
 let interp_univ_decl_opt env l =

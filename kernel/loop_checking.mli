@@ -141,8 +141,3 @@ val repr : local:bool -> t -> repr
 val pr_model : ?local:bool -> t -> Pp.t
 
 val valuation : t -> int Level.Map.t
-
-(* Hook for more readable debug ouput, call it to set a function for printing levels (e.g. using their stable
-  names rather than automatically generated unique identifiers).  *)
-
-val set_debug_pr_level : (Level.t -> Pp.t) -> unit

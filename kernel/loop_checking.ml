@@ -1,107 +1,6 @@
 open Univ
 
-let _, debug_updates = CDebug.create_full ~name:"loop-checking-updates" ()
-
-(* let debug_check_fwd, _ = CDebug.create_full ~name:"loop-checking-fix-check" () *)
-
-let _debug_loop_checking_partition, debug_loop_partition = CDebug.create_full ~name:"loop-checking-partition" ()
-let debug_loop_checking_invariants, _debug_invariants = CDebug.create_full ~name:"loop-checking-invariants" ()
-let _debug_loop_checking_invariants_all, debug_invariants_all = CDebug.create_full ~name:"loop-checking-invariants-all" ()
-let _debug_loop_checking_model, debug_model = CDebug.create_full ~name:"loop-checking-model" ()
-let _debug_loop_checking_clauses, _debug_clauses = CDebug.create_full ~name:"loop-checking-clauses" ()
-(* let _debug_loop_checking_bwdclauses, debug_bwdclauses = CDebug.create_full ~name:"loop-checking-bwdclauses" () *)
-let _debug_loop_checking_flag, debug = CDebug.create_full ~name:"loop-checking" ()
-let debug_loop_checking_timing_flag, debug_timing = CDebug.create_full ~name:"loop-checking-timing" ()
-let _debug_loop_checking_loop, debug_loop = CDebug.create_full ~name:"loop-checking-loop" ()
-let _debug_loop_checking_check_model, debug_check_model = CDebug.create_full ~name:"loop-checking-check-model" ()
-let _debug_loop_checking_check, _debug_check = CDebug.create_full ~name:"loop-checking-check" ()
-let _debug_loop_checking_set, _debug_set = CDebug.create_full ~name:"loop-checking-set" ()
-
-let _debug_loop_checking_global_flag, debug_global = CDebug.create_full ~name:"loop-checking-global" ()
-let _debug_loop_checking_constraints_for_flag, debug_constraints_for =
-  CDebug.create_full ~name:"loop-checking-constraints-for" ()
-
-let _debug_loop_checking_minim, _debug_minim =
-  CDebug.create_full ~name:"loop-checking-minim" ()
-
-(* let _debug_loop_checking_remove, debug_remove = CDebug.create_full ~name:"loop-checking-remove" () *)
-
-let _debug_enforce_eq, debug_enforce_eq = CDebug.create_full ~name:"loop-checking-enforce-eq" ()
-let _debug_find_to_merge_global_flag, debug_find_to_merge_global = CDebug.create_full ~name:"loop-checking-find-to-merge-global" ()
-
-let _debug_find_to_merge_flag, debug_find_to_merge = CDebug.create_full ~name:"loop-checking-find-to-merge" ()
-
-(* let _ = CDebug.set_flag debug_loop_checking_check true *)
-
-let debug_pr_level_ref = ref Level.raw_pr
-let set_debug_pr_level fn =
-  debug_global Pp.(fun _ -> str"resetting pr_level function");
-  debug_pr_level_ref := fn
-
-let debug_pr_level l = !debug_pr_level_ref l
-
-let _time prefix =
-  let accum = ref 0. in
-  fun f x ->
-  if CDebug.(get_flag debug_loop_checking_timing_flag) then
-    let start = Unix.gettimeofday () in
-    let res = f x in
-    let stop = Unix.gettimeofday () in
-    let time = stop -. start in
-    let () = accum := time +. !accum in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " executed in: " ++ Pp.real time ++ str "s") in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " total execution time is: " ++ Pp.real !accum ++ str "s") in
-    res
-  else f x
-
-let time2 prefix f =
-  let accum = ref 0. in
-  let calls = ref 0 in
-  fun x y ->
-  if CDebug.(get_flag debug_loop_checking_timing_flag) then
-    let start = Unix.gettimeofday () in
-    let res = f x y in
-    let stop = Unix.gettimeofday () in
-    let time = stop -. start in
-    let () = accum := time +. !accum in
-    incr calls;
-    let () = debug_timing Pp.(fun () -> prefix ++ str " executed in: " ++ Pp.real time ++ str "s") in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " total execution time is: " ++ Pp.real !accum ++ str "s" ++
-      str " in " ++ int !calls ++ str " calls") in
-    res
-  else f x y
-
-let time3 prefix f =
-  let accum = ref 0. in
-  fun x y z ->
-  if CDebug.(get_flag debug_loop_checking_timing_flag) then
-    let start = Unix.gettimeofday () in
-    let res = f x y z in
-    let stop = Unix.gettimeofday () in
-    let time = stop -. start in
-    let () = accum := time +. !accum in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " executed in: " ++ Pp.real time ++ str "s") in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " total execution time is: " ++ Pp.real !accum ++ str "s") in
-    res
-  else f x y z
-
-let _time4 prefix f =
-  let accum = ref 0. in
-  let calls = ref 0 in
-  fun x y z w ->
-  if CDebug.(get_flag debug_loop_checking_timing_flag) then
-    let start = Unix.gettimeofday () in
-    let res = f x y z w in
-    let stop = Unix.gettimeofday () in
-    let time = stop -. start in
-    let () = accum := time +. !accum in
-    incr calls;
-    let () = debug_timing Pp.(fun () -> prefix ++ str " executed in: " ++ Pp.real time ++ str "s") in
-    let () = debug_timing Pp.(fun () -> prefix ++ str " total execution time is: " ++ Pp.real !accum ++ str "s" ++
-      str " in " ++ int !calls ++ str " calls") in
-    res
-  else f x y z w
-
+let debug_loop_checking_invariants_flag, debug_loop_checking_invariants = CDebug.create_full ~name:"loop-checking-invariants" ()
 
 module Index :
 sig
@@ -632,10 +531,6 @@ struct
 
   let add : Premise.t -> t -> t = NeList.add Premise.incl
 
-  let add_opt p o =
-    match o with
-    | None -> NeList.tip p
-    | Some l -> add p l
   let _sort : t -> t = NeList.sort Premise.incl
 
   let filter f l =
@@ -729,8 +624,6 @@ module ClausesOf = struct
         in
         NeList.for_all find prems
       else false
-
-    (* let of_list (k, prems) = (k, Premises.of_list prems) *)
 
     let pr pr_index_point concl (k, local, prem) =
       let open Pp in
@@ -886,11 +779,6 @@ struct
         f ~kprem ~concl ~prems acc) cls acc)
       cls
 
-  let iter (f : kprem:int -> concl:Index.t -> prems:PartialClausesOf.t -> unit) (cls : t) : unit =
-    IntMap.iter (fun kprem cls ->
-      PMap.iter (fun concl prems -> f ~kprem ~concl ~prems) cls)
-      cls
-
   let map f clauses =
     let f ~kprem ~concl ~prems cls = 
       let f (kconcl, prems) cls =
@@ -957,13 +845,6 @@ let empty_model = {
 }
 
 let empty = empty_model
-
-module CN = struct
-  type t = canonical_node
-  (* let equal x y = x == y *)
-  (* let hash x = Index.hash x.canon *)
-  let compare x y = Index.compare x.canon y.canon
-end
 
 let enter_equiv m u local v =
   { locality = m.locality;
@@ -1038,7 +919,7 @@ let normalize_subst model =
 
 let refresh_can_expr m (u, k) = repr_expr m (u.canon, k)
 
-let pr_expr = LevelExpr.pr debug_pr_level
+let pr_expr = LevelExpr.pr Level.raw_pr
 
 let pr_raw_index_point m idx =
   try pr_expr (Index.repr idx m.table, 0)
@@ -1182,7 +1063,7 @@ let without_bound (m : model) : int =
 
 let _pr_updates m s =
   let open Pp in
-  prlist_with_sep spc (fun idx -> debug_pr_level (Index.repr idx m.table)) (PSet.elements s)
+  prlist_with_sep spc (fun idx -> Level.raw_pr (Index.repr idx m.table)) (PSet.elements s)
 
 let length_path_from m idx =
   let rec aux = function
@@ -1199,7 +1080,7 @@ and maximal_premises_path m p =
   Premises._fold (fun (idx, _) acc -> 
     max (length_path_from m idx) acc) p 0
 
-let statistics model =
+let _statistics model =
   let open Pp in
   str" " ++ int (PMap.cardinal model.entries) ++ str" canonical universes" ++
   str", " ++ int (PMap.cardinal model.subst) ++ str" defined universes" ++
@@ -1210,7 +1091,7 @@ let statistics model =
   str", " ++ int (maximal_path model) ++ str" maximal path length in equiv nodes"
 
 let pr_can m can =
-  debug_pr_level (Index.repr can.canon m.table)
+  Level.raw_pr (Index.repr can.canon m.table)
 
 let pr_can_clauses m ?(local=false) can =
   if not local || (local && can.local == Local) then
@@ -1231,12 +1112,10 @@ let pr_clauses_all ?(local=false) m =
     m.subst (Pp.mt ())
 
 let debug_check_invariants m =
-  if CDebug.get_flag debug_loop_checking_invariants then
-    (debug_invariants_all Pp.(fun () -> str"Checking invariants, " ++ statistics m);
-     debug_invariants_all (fun () -> pr_clauses_all m);
-     try check_invariants ~required_canonical:(fun _ -> false) m
+  if CDebug.get_flag debug_loop_checking_invariants_flag then
+    (try check_invariants ~required_canonical:(fun _ -> false) m
      with e ->
-      debug_invariants_all Pp.(fun () -> str "Broken invariants on: " ++ pr_clauses_all m ++ CErrors.print e);
+      debug_loop_checking_invariants Pp.(fun () -> str "Broken invariants on: " ++ pr_clauses_all m ++ CErrors.print e);
       raise e)
 
 (* PMaps are purely functional hashmaps *)
@@ -1268,9 +1147,7 @@ let add_opt o k =
 let model_value m l =
   let canon =
     try repr m l
-    with Not_found ->
-      debug Pp.(fun () -> str "Universe " ++ Level.raw_pr (Index.repr l m.table) ++ str" is not canonical");
-      raise (Undeclared (Index.repr l m.table))
+    with Not_found -> raise (Undeclared (Index.repr l m.table))
   in (canonical_value m canon)
 
 exception VacuouslyTrue
@@ -1298,39 +1175,16 @@ struct
 
   let _is_empty (w, _cw) = PMap.is_empty w
 
-  let cardinal (_w, cw : t) = cw
-
-  (* let update idx f (w, cw as x) =
-    let cwr = ref cw in
-    let w' =
-      PMap.update idx (fun old ->
-        let n = f old in
-        match old, n with
-        | None, None -> n
-        | None, Some _ -> incr cwr; n
-        | Some _, None -> cwr := !cwr - 1; n
-        | Some _, Some _ -> n)
-        w
-    in
-    if w == w' then x else (w', !cwr) *)
-
   let _pr m (w, _) =
     let open Pp in
-    prlist_with_sep spc (fun (idx, _) -> debug_pr_level (Index.repr idx m.table)) (PMap.bindings w)
+    prlist_with_sep spc (fun (idx, _) -> Level.raw_pr (Index.repr idx m.table)) (PMap.bindings w)
 
-  let pr_clauses m (w, _) =
+  let _pr_clauses m (w, _) =
     let open Pp in
     prlist_with_sep spc (fun (idx, fwd) ->
-      debug_pr_level (Index.repr idx m.table) ++ str": " ++ spc () ++
+      Level.raw_pr (Index.repr idx m.table) ++ str": " ++ spc () ++
       str" Forward clauses " ++ pr_fwd_clause m idx fwd)
       (PMap.bindings w)
-
-
-  let domain (w, _) = PMap.domain w
-
-  (* let _of_pset model w = PSet.fold (fun idx -> *)
-    (* let can = repr model idx in *)
-    (* add can.canon (can.clauses_bwd, can.clauses_fwd)) w empty *)
 
   (* Right-biased union *)
   let _union (w, c) (w', _) =
@@ -1358,7 +1212,7 @@ let min_premise (m : model) (premv : int) (prem : Premises.t option) : int =
   | None -> premv
   | Some prems -> min premv (Premises.fold_ne f g prems)
 
-let update_value prem premk premv concl m (clause : PartialClausesOf.ClauseInfo.t) : int option =
+let update_value premv concl m (clause : PartialClausesOf.ClauseInfo.t) : int option =
   let (conclk, premises) = clause in
   match min_premise m premv premises with
   | exception VacuouslyTrue -> None
@@ -1367,19 +1221,11 @@ let update_value prem premk premv concl m (clause : PartialClausesOf.ClauseInfo.
     let newk = conclk + k0 in
     match canonical_value m concl with
     | Some v when newk <= v -> None
-    | _ ->
-      debug_updates Pp.(fun () -> str"Updated value of " ++ pr_can m concl ++ str " to " ++ int newk);
-      debug_updates Pp.(fun () -> str" due to clause " ++
-        pr_clause (pr_index_point m) (cons_opt_nelist (prem, premk) premises, (concl.canon, conclk)));
-      Some newk
+    | _ -> Some newk
 
-let check_model_clauses_of_aux m prem premk premv concl cls =
+let check_model_clauses_of_aux m premv concl cls =
   PartialClausesOf.fold (fun cls m ->
-    match update_value prem premk premv concl m cls with
-    | exception (Undeclared l) -> 
-      debug Pp.(fun () -> str "Undeclared level " ++ Level.raw_pr l ++ str" found in clause " ++
-        pr_clause (pr_raw_index_point_expr m) (Premises.add_opt (prem, premk) (snd cls), (concl.canon, fst cls)));
-        raise (Undeclared l)
+    match update_value premv concl m cls with
     | None -> m
     | Some newk -> set_canonical_value m concl newk)
     cls m
@@ -1394,7 +1240,7 @@ let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : 
       let premv = get_model_value (snd acc) prem premk in
       PMap.fold (fun concl fwd (* (prem + premk), premises -> concl + k *) (wcls, m as acc) ->
         let can = repr m concl in
-        let m' = check_model_clauses_of_aux m prem premk premv can fwd in
+        let m' = check_model_clauses_of_aux m premv can fwd in
         if m == m' then (* not modifed *) acc
         else (PSet.add can.canon wcls, m')) fwd acc)
       fwd acc
@@ -1409,7 +1255,7 @@ let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : 
         | Some cls ->
           let premv = get_model_value (snd acc) prem premk in
           PartialClausesOf.iter (fun cls ->
-            match update_value prem premk premv can m cls with
+            match update_value premv can m cls with
             | None -> ()
             | Some newk -> if k <= newk then raise FoundImplication)
             cls) fwd;
@@ -1418,32 +1264,11 @@ let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : 
 let check_model_fwd_aux ?early_stop (cls, m) : PSet.t * model =
   CanSet.fold (fun can fwd m -> check_model_fwd_clause_aux ?early_stop can fwd m) cls (PSet.empty, m)
 
-(* let check_model_fwd_aux ?early_stop (cls, m) =
-  (* if CDebug.get_flag debug_check_fwd then
-    CanSet.fold (fun _ fwd acc -> check_model_fwd_clause_aux ?early_stop fwd acc) cls
-    (PSet.empty, m)
-  else  *)
-    check_model_fwd_aux ?early_stop (cls, m) *)
-
 let check_clauses_with_premises ?early_stop (cls : CanSet.t) model : (PSet.t * model) option =
   let (updates, model') = check_model_fwd_aux ?early_stop (cls, model) in
-  if model == model' then (debug Pp.(fun () -> str"Found a model"); None)
+  if model == model' then None
   else Some (updates, model')
-
-(* let _check_model_bwd = check_model *)
-let cardinal_fwd w =
-  CanSet.fold (fun _idx fwd acc -> ForwardClauses.cardinal fwd + acc) w 0
-
-let check_clauses_with_premises ?early_stop (updates : CanSet.t) model : (PSet.t * model) option =
-  let open Pp in
-  debug_check_model (fun () -> str"check_model on " ++ int (CanSet.cardinal updates) ++ str" universes, " ++
-  int (cardinal_fwd updates) ++ str " clauses");
-  check_clauses_with_premises ?early_stop updates model
-
-(*let check_clauses_with_premises = time3 (Pp.str"check_clauses_with_premises") check_clauses_with_premises*)
-
-(* let check_model = time3 (Pp.str "check_model") check_model *)
-
+  
 type 'a result = Loop | Model of 'a * model
 
 let canonical_cardinal m = m.canonical
@@ -1490,12 +1315,8 @@ let add_fwd_clause m w cls =
     if CanSet.mem idx cls then cls
     else
       let can = repr m idx in
-      debug_loop_partition Pp.(fun () -> str"Adding forward clauses of " ++ pr_can m can ++
-        pr_fwd_clause m can.canon can.clauses_fwd);
       CanSet.add idx can.clauses_fwd cls)
  w cls
-
-let partition_clauses_fwd = time2 (Pp.str"partition clauses fwd") partition_clauses_fwd
 
 (* If early_stop is given, check raises FoundImplication as soon as
    it finds that the given atom is true *)
@@ -1505,13 +1326,7 @@ let _pr_w m w =
   PSet.fold (fun idx pp ->
     pr_index_point m (idx,0) ++ spc () ++ pp) w (mt())
 
-let w_of_canset (c : CanSet.t) = CanSet.domain c
-
-(* let _target_of_canset (c : CanSet.t) =
-  CanSet.fold (fun _idx fwd acc ->
-    PSet.union (PMap.domain fwd) acc) c PSet.empty *)
-
-let pr_w m w = let open Pp in prlist_with_sep spc (fun x -> pr_index_point m (x,0)) (PSet.elements w)
+let _pr_w m w = let open Pp in prlist_with_sep spc (fun x -> pr_index_point m (x,0)) (PSet.elements w)
 
 let _pr_canset m (cls : CanSet.t) : Pp.t =
   let open Pp in
@@ -1519,94 +1334,48 @@ let _pr_canset m (cls : CanSet.t) : Pp.t =
     hov 1 (str "For " ++ pr_index_point m (idx,0) ++ str": " ++
       pr_fwd_clause m idx fwd) ++ fnl () ++ acc) cls (Pp.mt())
 
-let pr_clauses m = pr_clauses_all ~local:false m
+let _pr_clauses m = pr_clauses_all ~local:false m
 
 (* model is a model for the clauses outside cls *)
 let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
   let cV = canonical_cardinal model in
-  debug_loop Pp.(fun () -> str"All model clauses: " ++ pr_clauses model);
-(*   assert (cV = PSet.cardinal v); *)
   debug_check_invariants model;
   let rec inner_loop w cardW premconclw conclw m =
     (* Should consider only clauses with conclusions in w *)
     (* Partition the clauses acscording to the presence of w in the premises *)
-    debug_loop Pp.(fun () -> str "Inner loop on " ++ int cardW ++ str" universes: " ++ spc () ++
-      hov 2 (str " Premises and conclusions in w: " ++ int (Index.Set.cardinal (w_of_canset premconclw))) ++ fnl () ++
-      hov 2 (str " Conclusions in w: " ++ int (Index.Set.cardinal (w_of_canset conclw))));
     (* Warning: m is not necessarily a model for w *)
     let rec inner_loop_partition w cardW premconclw conclw m =
-      debug_loop Pp.(fun () -> str "inner_loop_partition on #|premconclw| = " ++ int (CanSet.cardinal premconclw) ++ str" cardW = " ++ int cardW);
-      (* debug_loop Pp.(fun () -> str "cls = " ++ pr_w m cls); *)
       match loop cardW PSet.empty premconclw m with
       | Loop -> Loop
       | Model (wr, mr) ->
-        debug_loop Pp.(fun () -> str "inner_loop_partition call to loop results in a model with wr of size " ++ int (CanSet.cardinal wr) );
-        (* debug_loop Pp.(fun () -> str "wr = " ++ pr_w mr wr); *)
         (* This is only necessary when clauses do have multiple premises,
            otherwise each clause is either in premconclw and already considered
            or in conclw but then the premise cannot be updated and this is useless work *)
         (match check_clauses_with_premises ?early_stop conclw mr with
         | Some (_wconcl, mconcl) ->
-          (* debug_loop Pp.(fun () -> str "clsconcl = " ++ pr_w mconcl clsconcl); *)
-          debug_loop Pp.(fun () -> str"Found an update in conclw after finding a model of premconclw in inner loop");
           inner_loop_partition w cardW premconclw conclw mconcl
-        | None ->
-          debug_loop Pp.(fun () -> str"Inner loop found a model");
-          Model (wr, mr))
+        | None -> Model (wr, mr))
       in
-      (* assert (PSet.cardinal (w_of_canset premconclw) <= cardW); *)
-      (* assert (PSet.cardinal (target_of_canset conclw) <= cardW); *)
       inner_loop_partition w cardW premconclw conclw m
   and loop cV winit (cls : CanSet.t) m =
-    debug_loop Pp.(fun () -> str "loop on winit = " ++ pr_w m winit ++ str", #|cls| = " ++ int (cardinal_fwd cls) ++ str" bound is " ++ int cV);
-    (* debug_loop Pp.(fun () -> str" cls = : " ++ pr_w m u); *)
-    debug_loop_partition Pp.(fun () -> str"initial clauses: " ++ CanSet.pr_clauses m cls);
-    (* debug_loop Pp.(fun () -> str"loop iteration on " ++ CanSet.pr_clauses m cls ++ str" with bound " ++ int cV); *)
     match check_clauses_with_premises ?early_stop cls m with
-    | None -> debug_loop Pp.(fun () -> str "loop on #|w| = " ++ int (CanSet.cardinal cls) ++ str" found a model, bound is " ++ int cV);
-      Model (cls, m)
+    | None -> Model (cls, m)
     | Some (wupd, m) ->
       let w = PSet.union winit wupd in
-      debug_loop Pp.(fun () -> str"check_clauses_with_premises updated " ++ int (PSet.cardinal w) ++ str" universes, bound is " ++ int cV);
-      (* debug_loop Pp.(fun () -> str"diff between w and cls: " ++ pr_w m (PSet.diff w u)); *)
-      (* debug_loop Pp.(fun () -> str"diff between w and cls domain: " ++ pr_w m (PSet.diff w (CanSet.domain cls))); *)
-      (* debug_loop Pp.(fun () -> str"diff between cls domain and w: " ++ pr_w m (PSet.diff (CanSet.domain cls) w)); *)
-      (* debug_loop Pp.(fun () -> str"cls domain is: " ++ pr_w m (CanSet.domain cls))); *)
-      (* debug_loop Pp.(fun () -> str"Updated universes: " ++ pr_w m w ++ str", bound is " ++ int cV); *)
-      let cardW = (PSet.cardinal w) in
-      if Int.equal cardW cV
-      then (debug_loop Pp.(fun () -> str"Found a loop on " ++ int cV ++ str" universes" ); Loop)
+      let cardW = PSet.cardinal w in
+      if Int.equal cardW cV then Loop
       else begin
-        (* (if cardW > cV then
-          let diff = (PSet.diff w v) in
-          if PSet.is_empty diff then assert false;
-          Feedback.msg_warning Pp.(str"Cardinal of w > V: " ++ pr_w m diff)); *)
-
         let cls = add_fwd_clause m wupd cls in
         let (premconclw, conclw, premw) = partition_clauses_fwd m w cls in
-        debug_loop_partition Pp.(fun () -> str"partitioning clauses: " ++ CanSet.pr_clauses m cls);
-        debug_loop_partition Pp.(fun () -> str"partitioned clauses: from and to w " ++ spc () ++
-          CanSet.pr_clauses { m with entries = PMap.empty } premconclw);
-        debug_loop_partition Pp.(fun () -> str"partitioned clauses: to w, not from w: " ++ spc () ++
-          CanSet.pr_clauses { m with entries = PMap.empty } conclw);
-        debug_loop_partition Pp.(fun () -> str"partitioned clauses: from w, not to w " ++ spc () ++
-          CanSet.pr_clauses { m with entries = PMap.empty } premw);
-
         (match inner_loop w cardW premconclw conclw m with
         | Loop -> Loop
         | Model (wc, mc) ->
-          (* debug_loop Pp.(fun () -> str "wc = " ++ pr_w mc wc); *)
-          debug_loop Pp.(fun () -> str"Checking clauses with premises in w, concl not in w, bound is " ++ int cV);
           (* wc is a subset of w *)
-          (* TODO check weird Loop behavior in cumulativity.v without early stop *)
           (match check_clauses_with_premises ?early_stop premw mc with
           | None -> Model (wc, mc)
           | Some (w', mcls) ->
-            (* if Int.equal (PSet.cardinal w') cV then Loop else *)
-            (debug_loop Pp.(fun () -> str"Resulted in an update of #|w| = " ++ int (PSet.cardinal w') ++
-              str" universes, launching back loop. w = " ++ pr_w mcls w ++ spc () ++ str" w' = " ++ pr_w mcls w');
             let cls = add_fwd_clause mcls w' cls in
-            loop cV (PSet.union w w') cls mcls)))
+            loop cV (PSet.union w w') cls mcls))
       end
   in
   loop cV w cls model
@@ -1618,35 +1387,26 @@ let check ?early_stop model w =
 let expr_value m (can, k) = add_opt (canonical_value m can) (- k)
 
 let defined_expr_value m (can, k) = get_canonical_value m can - k
-(* 
-let entry_value m e =
-  match e with
-  | Equiv (_local, idx, k) -> expr_value m (canonical_repr m (idx, k))
-  | Canonical can -> canonical_value m can *)
 
-let pr_levelmap (m : model) : Pp.t =
+let _pr_levelmap (m : model) : Pp.t =
   let open Pp in
   h (prlist_with_sep fnl (fun (u, can) ->
     let value = canonical_value m can in
     let point = Index.repr u m.table in
-    debug_pr_level point ++ str" -> " ++ pr_opt int value) (PMap.bindings m.entries)) ++ fnl () ++
+    Level.raw_pr point ++ str" -> " ++ pr_opt int value) (PMap.bindings m.entries)) ++ fnl () ++
   h (prlist_with_sep fnl (fun (u, (e, _, _)) ->
     let value = NeList.concat_map_with max (expr_value m) (canonical_premises_repr m e) in
     let point = Index.repr u m.table in
-    debug_pr_level point ++ str" -> " ++ pr_opt int value) (PMap.bindings m.subst))
+    Level.raw_pr point ++ str" -> " ++ pr_opt int value) (PMap.bindings m.subst))
   
 let pr_model ?(local=false) model =
-  (* Pp.(str "model: " ++ pr_levelmap model) *)
   Pp.(str"clauses: " ++ pr_local model.locality ++ fnl () ++ pr_clauses_all ~local model)
-
-let debug_model m =
-  debug_model Pp.(fun () -> str"Model is " ++ pr_levelmap m)
 
 type can_premises = (canonical_node * int) NeList.t
 type can_expr = canonical_node * int
 type can_clause = can_premises * can_expr
 
-let pr_can_clause m (prems, conclk) =
+let _pr_can_clause m (prems, conclk) =
   let open Pp in
   pr_with (pr_can m) conclk ++ str" ≤ " ++ NeList.pr_with_sep (fun () -> str", ") (pr_with (pr_can m)) prems
 
@@ -1694,31 +1454,11 @@ let _clauses_levels cls =
     cls PSet.empty
 
 let infer_clauses_extension cans m =
-  debug_check_invariants m;
-  (* debug_check_invariants model clauses; *)
-  debug Pp.(fun () -> str"Calling loop-checking" ++ statistics m);
-  (* debug Pp.(fun () -> str"Filtered clauses " ++ int (Clauses.cardinal filtered_clauses)); *)
-  (* Clauses.mark m.clauses ClausesOf.ClauseInfo.Skip;  *)
-  (* match check_model clauses (clauses_levels model clauses) model with
-  | None -> Some m
-  | Some (w, m') ->
-    let inw = clauses_forward m' m.clauses w in
-    debug Pp.(fun () -> str"After one check model: " ++ int (Clauses.cardinal inw) ++ str" having premises in w");*)
-  (* let levels = PSet.union w (clauses_levels clauses.Clauses.clauses_fwd) in *)
   match check m cans with
-  | Loop ->
-    debug Pp.(fun () -> str"loop-checking found a loop");
-    None
+  | Loop -> None
   | Model (_updates, model) ->
     debug_check_invariants model;
-    debug_model model;
-    debug Pp.(fun () -> str"loop-checking found a model");
     Some model
-
-(* let infer_clauses_extension ?w = time2 Pp.(str"infer_clauses_extension") (infer_clauses_extension ?w) *)
-
-let pr_incr pr (x, k) =
-  Pp.(pr x ++ if k == 0 then mt() else str"+" ++ int k)
 
 (** [in_premises idx prems] is [true] iff [idx] appears in [prems] *)
 let in_premises idx prems =
@@ -1887,53 +1627,14 @@ let remove_bwd_of_fwd_and_duplicates idx fwd model : t =
 
 end
 
-exception FoundInClause of clause
-
-let absent_from_fwd idx prem fwd =
-  let f ~kprem ~concl ~prems =
-    if Index.equal idx concl then
-      let (kconcl, prems) = PartialClausesOf.choose prems in
-      raise (FoundInClause (Premises.add_opt (prem, kprem) prems, (concl, kconcl)))
-    else 
-      PartialClausesOf.iter (fun (kconcl, prems) ->
-        match prems with
-        | None -> ()
-        | Some prems ->
-          if in_premises idx prems then
-            raise (FoundInClause (Premises.add (prem, kprem) prems, (concl, kconcl)))
-          else ()) prems
-  in  
-  ForwardClauses.iter f fwd
-
-let absent_from_bwd idx concl bwd =
-  let f (kconcl, _local, prems) = 
-    if in_premises idx prems then 
-      raise (FoundInClause (prems, (concl, kconcl)))
-    else ()
-  in
-  ClausesOf.iter f bwd
-
-(** [absent_from_model model idx] Checks that [idx] does not appear in the canonical part of the model. 
-  It can still appear in the substitution. *)
-let absent_from_model model idx =
-  let f idx' can =
-    assert (not (Index.equal idx idx'));
-    absent_from_fwd idx can.canon can.clauses_fwd;
-    absent_from_bwd idx can.canon can.clauses_bwd
-  in
-  try PMap.iter f model.entries; true
-  with FoundInClause cl ->
-    CErrors.anomaly Pp.(str "Index " ++ pr_raw_index_point model idx ++ str" appears in clause " ++ 
-      pr_clause (pr_raw_index_point_expr model) cl) 
-
-(* Precondition: canu.value = canv.value, so no new model needs to be computed.
-  Returns the chosen (can + k') universe, the new [other = level + k] binding
-  and the new model
-*)
-
 let enter_equiv_expr m idx local idx' k =
   enter_equiv m idx local (NeList.Tip (idx', k))
 
+(** [enforce_eq_can model canu canv] 
+  
+  @requires canu.value = canv.value, so no new model needs to be computed.
+  @returns the chosen (can + k') universe, the new [other = level + k] binding and the new model
+*)
 let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * int) * (Index.t * (Index.t * int)) * t =
   (* assert (expr_value model u = expr_value model v); *)
   (* assert (canu != canv); *)
@@ -1987,11 +1688,8 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
     let can = { can with clauses_bwd = bwd; clauses_fwd = fwd } in
     can, change_node model can
   in
-  assert (absent_from_model model other.canon);
   debug_check_invariants model;
   (can, k), (other.canon, (can.canon, diff)), model
-
-let enforce_eq_can = time3 (Pp.str"enforce_eq_can") enforce_eq_can
 
 let _pr_can_constraints m can =
   let open Pp in
@@ -2013,22 +1711,16 @@ let enforce_eq_can m can can' equivs =
 let make_equiv m equiv =
   match equiv with
   | can :: can' :: tl ->
-    debug_enforce_eq Pp.(fun () -> str"Unifying universes: " ++
-      prlist_with_sep spc (fun can -> pr_incr (pr_can m) can) equiv);
     (* We are about to merge all these universes as they should be equal in the model,
       they should hence have the same values *)
-    if CDebug.(get_flag debug_loop_checking_invariants) then
+    if CDebug.(get_flag debug_loop_checking_invariants_flag) then
       assert (List.for_all (fun x -> expr_value m x = expr_value m can) (can' :: tl));
-    let can, equivs, m =
+    let _can, equivs, m =
       List.fold_left (fun (can, equivs, m) can' -> enforce_eq_can m can can' equivs)
         (enforce_eq_can m can can' []) tl
     in
-    debug_enforce_eq Pp.(fun () -> str"Chosen canonical universe: " ++ pr_incr (pr_can m) can);
     m, equivs
   | _ -> m, []
-
-
-let make_equiv = time2 (Pp.str"make_equiv") make_equiv
 
 type path = (canonical_node * int) list
 
@@ -2055,8 +1747,13 @@ struct
 
 end
 
+module CN = struct
+  type t = canonical_node
+  let compare x y = Index.compare x.canon y.canon
+end
+
 module Status = struct
-  (* module Internal = Hashtbl.Make(CN) *)
+  
   module M = Map.Make(CN)
 
   type status =
@@ -2122,8 +1819,6 @@ let refresh_can_premises model prems =
 
 let pr_can_expr m (c, n) = pr_index_point m (c.canon, n)
 
-let pr_can_prems m = Premises.pr (pr_can_expr m)
-
 let pr_path model path =
   let open Pp in
   prlist_with_sep spc (pr_can_expr model) path
@@ -2133,7 +1828,7 @@ let pr_paths model paths =
   if PathSet.is_empty paths then str"∅"
   else str"{ " ++ Pp.prlist_with_sep (fun () -> Pp.str ", ") (pr_path model) (PathSet.elements paths) ++ str" }"
 
-let pr_status model s =
+let _pr_status model s =
   let open Pp in
   match s with
   | Status.Processing -> str "being processed"
@@ -2193,15 +1888,10 @@ let replace_prefix_if_included can path ps =
   @assumes u -> v is consistent *)
 let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
   (* let nb_univs = ref 0 and nb_cstrs = ref 0 in *)
-  debug_find_to_merge_global Pp.(fun () -> str"Searching from " ++ Premises.pr (pr_can_expr model) prems ++ str" to " ++
-    pr_can_expr model (canv, kv));
   let canvalue = defined_expr_value model (canv, kv) in
   let rec backward status path (can, k) : Status.t * PathSet.t =
-    debug_find_to_merge Pp.(fun () -> str"visiting " ++ pr_can_expr model (can, k) ++ str" from path " ++ pr_path model path);
     match Status.find status can with
     | cstatus ->
-      debug_find_to_merge Pp.(fun () -> str"Found " ++ pr_can_expr model (can, k) ++ str" to be " ++
-        pr_status model cstatus);
       (match cstatus with
       | Status.Processing ->
         (match find_loop can path with
@@ -2225,12 +1915,8 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
       let merge = if domerge then PathSet.singleton path else PathSet.empty in
       if isv then status, merge else
       let status = Status.replace status can Status.Processing in
-      (* let () = incr nb_univs in *)
       let cls = can.clauses_bwd in
-      debug_find_to_merge Pp.(fun () -> if domerge then pr_can_expr model (can,k) ++ str " is marked as merged already" else str" is not merged yet");
       if ClausesOf.is_empty cls then status, merge else begin
-        debug_find_to_merge Pp.(fun () -> str"Searching through " ++ int (ClausesOf.cardinal cls) ++ str" backward clauses of " ++ pr_can model can);
-          (* str " Canonical: " ++ int (PSet.cardinal (clauses_bwd_univs model cls))); *)
         let merge_fn (clk, _local, prems) (status, merge as acc) =
           (* Ensure there is indeed a backward clause of shape canv -> can *)
           (* prems -> can + clk *)
@@ -2257,19 +1943,8 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
           backward status path p
       else status, PathSet.empty
     in
-    let merge_prem status p =
-      let status, merge = merge_prem status p in
-      debug_find_to_merge Pp.(fun () -> str"Paths to premise " ++ pr_can_expr model p ++ str" = " ++
-        pr_paths model merge);
-      status, merge
-    in
-    debug_find_to_merge Pp.(fun () -> str"Searching through the premises " ++ Premises.pr (pr_can_expr model) prems);
     match prems with
-    | NeList.Tip p ->
-      let status, mergep = merge_prem status p in
-      debug_find_to_merge Pp.(fun () -> str"Paths to premises " ++ Premises.pr (pr_can_expr model) prems ++ str" are " ++
-        pr_paths model mergep);
-      status, mergep
+    | NeList.Tip p -> merge_prem status p
     | NeList.Cons (p, ps) ->
       (* Multiple premises: we will merge the intersection of merged universes in each possible path,
          if all premises are mergeable. *)
@@ -2283,34 +1958,22 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
             status, mergeprem
         else status, merge
       in
-      let status', mergemax = NeList.fold fold ps (merge_prem status p) in
-      debug_find_to_merge Pp.(fun () -> str"Paths from premises " ++ Premises.pr (pr_can_expr model) prems ++ str" are " ++
-        pr_paths model mergemax);
-      status', mergemax
+      NeList.fold fold ps (merge_prem status p)
   in
   let _status, merge = backward_premises 0 0 prems (status, []) in
-  debug_find_to_merge_global Pp.(fun () -> str"Backward search terminated with paths " ++ pr_paths model merge);
-  if PathSet.is_empty merge then [] else
+  if PathSet.is_empty merge then [] 
+  else
     let merge_fn p acc = if List.length p > 1 then p :: acc else acc in
     PathSet.fold merge_fn merge []
-
-(** [find_to_merge_bwd model status u v] Search for an equivalence class of universes backward from u to v *)
-(* let find_to_merge_bwd = *)
-  (* time4 (Pp.str "find_to_merge_bwd") find_to_merge_bwd *)
 
 (** [get_explanation model prems concl] computes the path [concl -> prems] backward from prems, that make [prems -> concl] inconsistent
 
     @requires prems -> concl is inconsistent
 *)
 let get_explanation model prems (canv, kv) =
-  debug_find_to_merge Pp.(fun () -> str"Searching from " ++ Premises.pr (pr_can_expr model) prems ++ str" to " ++
-    pr_can_expr model (canv, kv));
   let rec backward status path (can, k) : Status.t * PathSet.t =
-    debug_find_to_merge Pp.(fun () -> str"visiting " ++ pr_can model can ++ str" from path " ++ pr_path model path);
     match Status.find status can with
     | cstatus ->
-      debug_find_to_merge Pp.(fun () -> str"Found " ++ pr_can model can ++ str" to be " ++
-        pr_status model cstatus);
       (match cstatus with
       | Status.Processing ->
         (match find_loop can path with
@@ -2328,10 +1991,8 @@ let get_explanation model prems (canv, kv) =
       let status = Status.replace status can Status.Processing in
       (* let () = incr nb_univs in *)
       let cls = can.clauses_bwd in
-      debug_find_to_merge Pp.(fun () -> if domerge then pr_can model can ++ str " is marked as merged already" else str" is not merged yet");
-      if ClausesOf.is_empty cls then status, merge else begin
-        debug_find_to_merge Pp.(fun () -> str"Searching through " ++ int (ClausesOf.cardinal cls) ++ str" backward clauses of " ++ pr_can model can);
-          (* str " Canonical: " ++ int (PSet.cardinal (clauses_bwd_univs model cls))); *)
+      if ClausesOf.is_empty cls then status, merge 
+      else begin
         let merge_fn (clk, _local, prems) (status, merge) =
           (* prems -> can + clk *)
           let status, mergeprem = backward_premises k clk (repr_premises model prems) (status, path) in
@@ -2352,13 +2013,8 @@ let get_explanation model prems (canv, kv) =
          prem + kprem + (k - clk) -> can + k by upwards closure with shifting *)
       backward status path p
     in
-    debug_find_to_merge Pp.(fun () -> str"Searching through the premises " ++ Premises.pr (pr_can_expr model) prems);
     match prems with
-    | NeList.Tip p ->
-      let status, mergep = merge_prem status p in
-      debug_find_to_merge Pp.(fun () -> str"Paths from premises " ++ Premises.pr (pr_can_expr model) prems ++ str" are " ++
-        pr_paths model mergep);
-      status, mergep
+    | NeList.Tip p -> merge_prem status p
     | NeList.Cons (p, ps) ->
       (* Multiple premises: we will merge the intersection of merged universes in each possible path,
          if all premises are mergeable. *)
@@ -2372,14 +2028,11 @@ let get_explanation model prems (canv, kv) =
             status, mergeprem
         else status, merge
       in
-      let status', mergemax = NeList.fold fold ps (merge_prem status p) in
-      debug_find_to_merge Pp.(fun () -> str"Paths from premises " ++ Premises.pr (pr_can_expr model) prems ++ str" are " ++
-        pr_paths model mergemax);
-      status', mergemax
+      NeList.fold fold ps (merge_prem status p)
   in
   let _status, merge = backward_premises 0 0 prems (Status.empty, []) in
-  debug_find_to_merge Pp.(fun () -> str"Backward search terminated with paths " ++ pr_paths model merge);
-  if PathSet.is_empty merge then [] else
+  if PathSet.is_empty merge then [] 
+  else
     let merge_fn p acc = p :: acc in
     PathSet.fold merge_fn merge []
 
@@ -2390,18 +2043,14 @@ type equivalences = (Index.t * (Index.t * int)) list
   of [v1..vn], they might not be merged while other universes between [u] and [v] are merged.
     @param model Assumes [u <= v] holds already
     @return a potentially modified model, without changing any values *)
-let simplify_clauses_between model (canu, _ as u) prems : t * equivalences =
+let simplify_clauses_between model u prems : t * equivalences =
   let premsmax = (Premises._fold (fun u m -> max_opt (expr_value model u) m) prems None) in
   if not (Option.equal Int.equal premsmax (expr_value model u)) then
-      (* We know v -> u and check for u -> v, this can only be true if both levels
+      (* We know v -> u and check for u -> v, this can only be true if both expressions
         already have the same value *)
-    (debug_enforce_eq Pp.(fun () -> pr_can_prems model prems ++ str"'s value =  " ++
-        pr_opt int premsmax ++ str" and " ++ pr_can model canu ++ str "'s value = "
-      ++ pr_opt int (canonical_value model canu) ++ str", no simplification possible");
-    model, [])
+    model, []
   else
     let status = Status.empty in
-    let () = debug_enforce_eq Pp.(fun () -> str"simplify_clauses_between calling find_to_merge") in
     let equiv = find_to_merge_bwd model status prems u in
     let make_equiv (model, equivs) path =
       let m, equivs' = make_equiv model path in
@@ -2415,9 +2064,7 @@ let update_model_value (m : model) can k' : model =
   let v = canonical_value m can in
   let k' = max_opt v k' in
   if Option.equal Int.equal k' v then m
-  else
-    (debug Pp.(fun () -> str"Updated value of " ++ pr_can m can ++ str " to " ++ pr_opt int k');
-    set_canonical_value m can (Option.get k'))
+  else set_canonical_value m can (Option.get k')
 
 (** [min_can_premise model prem]
     @raises VacuouslyTrue if there is an undefined level in the premises *)
@@ -2439,36 +2086,19 @@ let update_model ((prems, (can, k)) : can_clause) (m : model) : PSet.t * model =
     else (PSet.empty, m)
 
 let infer_clause_extension cl minit =
-  (* debug Pp.(fun () -> str "current model is: " ++ pr_levelmap model); *)
-  (* debug_check_invariants minit; *)
   match add_can_clause_model minit cl with
-  | None ->
-    (* The clause was already present in the model *)
-     debug Pp.(fun () -> str "already in the model");
+  | None -> (* The clause was already present in the model *)
      Some minit
   | Some (cl, m) ->
-    debug Pp.(fun () -> str "extending the model");
     let cans, m = update_model cl m in
     if PSet.is_empty cans then begin
       (* The clause is already true in the current model,
         but might not be in an extension, so we keep it *)
-      (* debug Pp.(fun () -> str"Clause is valid in the current model"); *)
-      (* debug_clauses Pp.(fun () -> str"Clauses: " ++ pr_clauses model m.clauses); *)
       Some m
     end else
       (* The clauses are not valid in the current model, we have to find a new one *)
       (* debug Pp.(fun () -> str"Enforcing clauses requires a new inference"); *)
       infer_clauses_extension cans m
-
-let infer_clause_extension cl m =
-  debug_global Pp.(fun () -> str"Enforcing clause " ++ pr_can_clause m cl);
-  let res = infer_clause_extension cl m in
-  match res with
-  | None -> debug_global Pp.(fun () -> str"Resulted in a loop"); res
-  | Some m ->
-    debug_check_invariants m;
-    debug_global Pp.(fun () -> str" is consistent"); res
-
 
 (* A clause premises -> concl + k might hold in the current minimal model without being valid in all
    its extensions.
@@ -2477,10 +2107,6 @@ let infer_clause_extension cl m =
    Then we check that the conclusion holds in this minimal model.  *)
 
 let check_one_clause model prems concl k =
-  (* premise -> concl + k ? *)
-  (* debug Pp.(fun () -> str"Checking entailment: " ++ prlist_with_sep (fun () -> str",") (pr_can_expr model) (NeList.to_list prems) ++ *)
-    (* str " -> " ++ pr_can_expr model (concl, k)); *)
-  (* if (Level.is_set (Index.repr concl.canon model.table)) && k == 0 then true else *)
   let model = NeList.fold (fun prem values ->
     let x, k = refresh_can_expr model prem in
     update_model_value values x (Some k)) prems
@@ -2488,84 +2114,26 @@ let check_one_clause model prems concl k =
   in
   let w, cls = NeList.fold (fun (prem, _k) (w, cls) -> (PSet.add prem.canon w, CanSet.add prem.canon prem.clauses_fwd cls)) prems (PSet.empty, CanSet.empty) in
   (* We have a model where only the premise is true, check if the conclusion follows *)
-  (* debug Pp.(fun () -> str"Launching loop-checking to check for entailment"); *)
   match check_canset ~early_stop:(concl, k) model ~w cls with
-  | exception FoundImplication ->
-    (* debug Pp.(fun () -> str"loop-checking found the implication early"); *)
-    true
-  | Loop ->
-    (* debug Pp.(fun () -> str"loop-checking found a loop"); *)
-    false
+  | exception FoundImplication -> true
+  | Loop -> false
   | Model (_updates, model') ->
-    (* debug Pp.(fun () -> str"loop-checking found a model"); *)
-    (* debug_check_invariants model'; *)
-    (* debug_model model'; *)
     match canonical_value model' concl with
-    | None ->
-      (* debug Pp.(fun () -> str"Conclusion has no value in the minimal model, not implied"); *)
-      false
-    | Some value ->
-      (* debug Pp.(fun () -> str"Conclusion has value " ++ int value ++ *)
-        (* str" in the minimal model, expecting conclusion + " ++ int k ++ str " to hold"); *)
-      k <= value
-
-let _check_one_clause = check_one_clause
-(* 
-let check_one_clause_loop model prems concl conclk =
-  (* premises -> concl + k ?.
-
-    Add concl + k -> p + 1 for all p ∈ premises and check for consistency.
-    If there is a loop the clause holds, otherwise the clause doesn't
-
-  *)
-  debug Pp.(fun () -> str"Checking entailment: " ++ prlist_with_sep (fun () -> str",") (pr_can_expr model) (NeList.to_list prems) ++
-    str " -> " ++ pr_can_expr model (concl, conclk));
-  (* if (Level.is_set (Index.repr concl.canon model.table)) && k == 0 then true else *)
-  debug Pp.(fun () -> str"Checking consistency of adding negation of the clause");
-  let _, holds =
-    NeList.fold (fun (prem, k) (m, result) ->
-      if result then (m, result)
-      else
-        let cl = can_clause_of_can_constraint (canonical_repr m (prem.canon, k + 1), canonical_repr m (concl.canon, conclk)) in
-        let res = infer_clause_extension cl m in
-        match res with
-        | None -> (m, true)
-        | Some m -> (m, false))
-      prems (model, false) in
-  if holds then
-    (debug Pp.(fun () -> str"The clause does hold"); holds)
-  else
-    (debug Pp.(fun () -> str"The clause does not hold, its negation is consistent"); holds)
-
-let _check_one_clause_loop = check_one_clause_loop *)
-
-(* (* [infer_extension u v m] enforces [u <= v] in [m] *)
-let infer_extension x y m =
-  let cl = can_clause_of_can_constraint (x, y) in (* x <= y *)
-  infer_clause_extension cl m
-
-(** [infer_extension u v m] enforces [u <= v] in [m] *)
-let infer_extension =
-  time3 Pp.(str "infer_extension") infer_extension *)
+    | None -> false
+    | Some value -> k <= value
 
 (** Enforce u <= v and check if v <= u already held, in that case, enforce u = v *)
-let enforce_leq_can_internal (v, u as cl) m =
-  (* let vcan = v in *)
-  (* debug_global Pp.(fun () -> str"enforce_leq " ++ pr_can_clause m cl); *)
-  debug_enforce_eq Pp.(fun () -> str"enforce_leq " ++ pr_can_clause m cl);
-   (* ++ spc () ++
-    pr_can_clauses m (fst vcan) ++ pr_can_clauses m (fst u)); *)
-  if (match v with NeList.Tip v -> eq_can_expr u v | _ -> false) then
-    (debug_enforce_eq Pp.(fun () -> str"already equal"); Some (m, []))
+let enforce_leq_can_internal (v, u) m =
+  if (match v with NeList.Tip v -> eq_can_expr u v | _ -> false) then Some (m, [])
   else
   match infer_clause_extension (v, u) m with
   | None -> None
   | Some m' ->
     if m' != m then
-      (debug_enforce_eq Pp.(fun () -> str"enforce_leq did modify the model, looking for inverse clause");
+      (* Looking for inverse clause and merging *)
       let u = refresh_can_expr m' u in
       let v = refresh_can_premises m' v in
-      Some (simplify_clauses_between m' u v))
+      Some (simplify_clauses_between m' u v)
     else Some (m, [])
 
 (** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid *)
@@ -2596,15 +2164,15 @@ let canonical_repr_level_expr m (u, k) : can_premises =
   try canonical_repr m (Index.find u m.table, k)
   with Not_found ->
     CErrors.anomaly ~label:"Univ.repr"
-      Pp.(str"Universe " ++ debug_pr_level u ++ str" undefined" ++
-      (if Index.mem u m.table then str" (index found)" else str " (index not found in " ++ Level.Set.pr debug_pr_level (Index.dom m.table) ++ str")") ++ str".")
+      Pp.(str"Universe " ++ Level.raw_pr u ++ str" undefined" ++
+      (if Index.mem u m.table then str" (index found)" else str " (index not found in " ++ Level.Set.pr Level.raw_pr (Index.dom m.table) ++ str")") ++ str".")
       
 let level_expr_premises m (u, k) : Premises.t =
   try NeList.Tip (Index.find u m.table, k)
   with Not_found ->
     CErrors.anomaly ~label:"Univ.repr"
-      Pp.(str"Universe " ++ debug_pr_level u ++ str" undefined" ++
-      (if Index.mem u m.table then str" (index found)" else str " (index not found in " ++ Level.Set.pr debug_pr_level (Index.dom m.table) ++ str")") ++ str".")
+      Pp.(str"Universe " ++ Level.raw_pr u ++ str" undefined" ++
+      (if Index.mem u m.table then str" (index found)" else str " (index not found in " ++ Level.Set.pr Level.raw_pr (Index.dom m.table) ++ str")") ++ str".")
 
 let rec enforce_leq_premises (u : Premises.t) (v : Premises.t) m =
   NeList.fold (fun (u, k) res -> 
@@ -2626,10 +2194,9 @@ let _get_proper_value m can =
   | None -> raise (Undeclared (Index.repr can.canon m.table))
 
 let check_eq_level_expr u v m =
-  let vl = v in debug_global Pp.(fun () -> str"Checking equality of representatives " ++ LevelExpr.pr debug_pr_level u ++ str " and " ++ LevelExpr.pr debug_pr_level vl);
   let u = canonical_repr_level_expr m u in
   let v = canonical_repr_level_expr m v in
-  NeList.equal eq_can_expr u v (* FIXME if not Tips *)
+  NeList.equal eq_can_expr u v
 
 let _repr_can_clause m (prems, conclk) =
   let concl = refresh_can_expr m conclk in
@@ -2661,22 +2228,12 @@ let enforce_constraint u k v (m : t) =
       | None -> None
       | Some (m, equivs') -> Some (m, equivs @ equivs')) (Some (m, [])) cls
 
-let enforce u k v m = enforce_constraint u k v m
-  (* match Universe.repr u, k, Universe.repr v with
-  | [(u, 0)], Eq, [(v, 0)] -> enforce_eq_level u v m
-  | [(u, 0)], Le, [(v, 0)] -> enforce_leq_level u v m
-  | _, _, _ -> enforce_constraint u k v m *)
-
 let enforce u k v m =
-  let res = enforce u k v m in
+  let res = enforce_constraint u k v m in
   Option.map (fun (m, equivs) -> m, unrepr_equivalences m equivs) res
 
-let enforce_eq u v m =
-  debug_enforce_eq (let vc = v in Pp.(fun () -> Universe.pr debug_pr_level u ++ str" = " ++ Universe.pr debug_pr_level vc ++ pr_local m.locality));
-  enforce u Eq v m
-let enforce_leq u v m =
-  debug_enforce_eq (let vc = v in Pp.(fun () -> Universe.pr debug_pr_level u ++ str" ≤ " ++ Universe.pr debug_pr_level vc ++ pr_local m.locality));
-  enforce u Le v m
+let enforce_eq u v m = enforce u Eq v m
+let enforce_leq u v m = enforce u Le v m
 let enforce_lt u v m = enforce_leq (Universe.addn u 1) v m
 
 let check_leq_can canu canv model =
@@ -2696,13 +2253,10 @@ let rec check_leq_premises m (u, v) =
     else res) u true
 
 let check_constraint (m : t) u k u' =
-  debug_global Pp.(fun () -> str"Checking " ++ Constraints.pr debug_pr_level (Constraints.singleton (u,k,u')));
   let pu = premises_of_universe m u in
   let pu' = premises_of_universe m u' in
   let cls = decompose_eq_constraints pu k pu' in 
-  let res = List.fold_left (fun check cl -> check && check_leq_premises m cl) true cls in
-  if res then (debug_global Pp.(fun () -> str" Clause holds"); res)
-  else (debug_global Pp.(fun () -> str" Clause does not hold"); res)
+  List.fold_left (fun check cl -> check && check_leq_premises m cl) true cls
 
 let check_leq m u v = check_constraint m u Le v
 let check_eq m u v =
@@ -2729,7 +2283,6 @@ let add_model ?(rigid=false) u { locality; entries; subst; table; values; canoni
   idx, { locality; entries; subst; table; values; canonical = canonical + 1; }
 
 let add ?rigid u model =
-  debug_global Pp.(fun () -> str"Declaring level " ++ debug_pr_level u ++ pr_local model.locality);
   let _idx, model = add_model ?rigid u model in
   model
 
@@ -2773,12 +2326,10 @@ let normalize_path p =
 
 let canonical_repr_level_expr_eq m (u, k) =
   match canonical_repr_level_expr m (u, k) with
-  | NeList.Tip (can, k' as e) ->
+  | NeList.Tip (can, _k' as e) ->
     let canl = Index.repr can.canon m.table in
     if not (Level.equal canl u) then
-      (debug_find_to_merge Pp.(fun () -> str "canonical_repr_level_expr " ++  LevelExpr.pr debug_pr_level (u,k) ++ str " = "
-        ++ LevelExpr.pr debug_pr_level (canl, k'));
-      NeList.Tip (Some (u, k), e))
+      NeList.Tip (Some (u, k), e)
     else NeList.Tip (None, e)
   | e -> NeList.map (fun x -> (None, x)) e
 
@@ -2814,7 +2365,6 @@ let get_explanation ((l, k, r) : univ_constraint) model : explanation =
     in
     let canprems = repr_premises model (premises_of_universe model head) in
     let expl = NeList.fold (fun concl acc -> 
-      debug_find_to_merge Pp.(fun () -> str "get_explanation for " ++ pr_can_clause model (canprems, concl));
       match get_explanation model canprems concl with
         | [] -> acc
         | l -> List.find_opt (fun p -> List.exists (fun (can, _) -> can == fst concl) p) l) conclcan None in
@@ -2891,9 +2441,6 @@ let filter_trivial_clause m (prems, (concl, k as conclk)) =
 let enforce_clause (prems, concl) model =
   enforce_leq_premises (NeList.Tip concl) prems model
 
-let pr_clause model cl =
-  pr_clause (pr_index_point model) cl
-
 exception InconsistentEquality
 
 (** [set idx u model] substitutes universe [u] for all occurrences of [idx] in model, resulting
@@ -2913,8 +2460,6 @@ let set_can (can,k) u model =
   let fwd = can.clauses_fwd in
   let bwd = can.clauses_bwd in
   let uprems = NeList.map (fun (can, k) -> can.canon, k) u in
-  _debug_set Pp.(fun () ->
-    str"Looking at forward clauses " ++ pr_fwd_clause model can.canon fwd);
   let newfwd = UnivSubst.subst_fwd_clauses can.canon uprems fwd in
   let newbwd = UnivSubst.subst_bwd_clauses can.canon uprems bwd in
   let model = UnivSubst.remove_bwd_of_fwd_and_duplicates can.canon newfwd model in
@@ -2923,13 +2468,7 @@ let set_can (can,k) u model =
   let fwdcls = ForwardClauses.to_clauses uprems newfwd in
   let bwdcls = ClausesOf.to_clauses uprems newbwd in
   let newcls = fwdcls @ List.map snd bwdcls in
-  _debug_set Pp.(fun () ->
-    str"New forward clauses: " ++ prlist_with_sep spc (pr_clause model) fwdcls ++ fnl () ++
-    str"New backward clauses " ++ prlist_with_sep spc (pr_clause model) (List.map snd bwdcls));
   let newcls = List.filter_map (filter_trivial_clause model) newcls in
-  _debug_set Pp.(fun () ->
-    str"After removals, model is " ++ pr_clauses_all ~local:true model ++
-    str"Adding simplified constraints" ++ prlist_with_sep spc (pr_clause model) newcls);
   let enforce_clause (model, equivs) cl =
     match enforce_clause cl model with
     | Some (model, equivs') -> (model, equivs' @ equivs)
@@ -2950,7 +2489,6 @@ let set_can cank u model =
       model, equivs
 
 let set lvl u model =
-  _debug_set Pp.(fun () -> str"Setting " ++ debug_pr_level lvl ++ str" := " ++ Universe.pr debug_pr_level u);
   let cank = canonical_repr_level_expr model (lvl, 0) in
   let cank = 
     match cank with
@@ -2958,7 +2496,6 @@ let set lvl u model =
     | _ -> raise NotCanonical
   in
   let u = repr_univ model u in
-  _debug_set Pp.(fun () -> str"Canonical representatives: " ++ pr_can_expr model cank ++ str" = " ++ pr_can_prems model u);
   set_can cank u model
 
 type level_equivalences = (Level.t * (Level.t * int)) list
@@ -2974,7 +2511,6 @@ type 'a simplification_result =
   E.g. minimizing k when the only constraint is l + 1 <= k + 2 would result in k = l - 1 which is not a valid universe.  *)
 let minimize_can can k model =
   let fwd = can.clauses_fwd in
-  _debug_minim Pp.(fun () -> str"Minimizing " ++ pr_can model can ++ str" in graph: " ++ pr_clauses_all model);
   let glb =
     ForwardClauses.fold (fun ~kprem ~concl ~prems glb ->
       let concl = repr model concl in
@@ -2999,7 +2535,6 @@ let minimize_can can k model =
       try 
         let model, equivs = set_can (can,k) u model in
         debug_check_invariants model;
-        _debug_minim Pp.(fun () -> str"Removed " ++ pr_can model can ++ str ", new model: " ++ pr_clauses_all model);
         HasSubst (model, equivs, univ_of_can_expr_list model glb)
       with InconsistentEquality | OccurCheck -> CannotSimplify
     else CannotSimplify
@@ -3012,7 +2547,6 @@ let minimize level model =
 
 let maximize_can can model =
   let bwd = can.clauses_bwd in
-  _debug_minim Pp.(fun () -> str"Maximizing " ++ pr_can model can ++ str" in graph: " ++ pr_clauses_all model);
   let card = ClausesOf.cardinal bwd in
   match card with
   | 0 -> NoBound
@@ -3164,7 +2698,6 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
   let add_cst u knd v (cst : 'a) : 'a =
     fold (interp_univ model u, knd, interp_univ model v) cst
   in
-  debug_constraints_for Pp.(fun () -> str"constraints_for kept: " ++ Level.Set.pr debug_pr_level kept ++ pr_clauses model);
   let keptp = Level.Set.fold (fun u accu -> PSet.add (Index.find u model.table) accu) kept PSet.empty in
   (* rmap: partial map from canonical points to kept points *)
   let rmap, csts = PSet.fold (fun u (rmap,csts) ->
@@ -3198,7 +2731,6 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
             PSet.add can.canon removed)
     model.entries PSet.empty
   in
-  debug_constraints_for Pp.(fun () -> str"constraints_for removed: " ++ _pr_w model removed);
   let remove_can idx model =
     let can = repr model idx in
     assert (Index.equal can.canon idx);
@@ -3217,7 +2749,6 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
             | (prems, NeList.Tip concl) -> (prems, concl)
             | _ -> assert false (* The conclusion was already canonical, cannot expand to a list of universes *)
           in
-          debug_constraints_for Pp.(fun () -> str"constraints_for adding: " ++ pr_can_clause model cl);
           match add_can_clause_model model cl with
           | Some (_, m) -> m
           | None -> model)
@@ -3234,12 +2765,10 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
     | exception Not_found -> assert false
   in
   let can_prem_to_prem l = NeList.map (fun (x, k) -> (canon_repr x, k)) l in
-  let add_from uprev u csts prems k =
+  let add_from u csts prems k =
     let cprems = repr_premises model prems in
     if not (NeList.exists (fun (v, _) -> PSet.mem v.canon removed) cprems) then
-      (let cl = (prems, (u.canon,k)) in
-      debug_constraints_for Pp.(fun () -> str"constraints_for adding (from " ++ pr_raw_index_point model uprev ++ str"): " ++ pr_clause model cl);
-       add_cst (NeList.tip (canon_repr u, k)) Le (can_prem_to_prem cprems) csts)
+      (add_cst (NeList.tip (canon_repr u, k)) Le (can_prem_to_prem cprems) csts)
     else csts
   in
   let fold u acc =
@@ -3250,7 +2779,7 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
     in
     if not (Index.equal arc.canon u) then acc else
     let cls = arc.clauses_bwd in
-    ClausesOf.fold (fun (k, _local, prems) csts -> add_from u arc csts prems (k + uk)) cls acc
+    ClausesOf.fold (fun (k, _local, prems) csts -> add_from arc csts prems (k + uk)) cls acc
   in
   PSet.fold fold keptp csts
 
@@ -3275,7 +2804,7 @@ let remove_from_bwd idxs bwd =
   let f (_kconcl, _local, prems) = not (occurs_in_premises idxs prems) in
   ClausesOf.filter f bwd
 
-(** [remove_from_model model idxs] Removes all clauses mentionning [idxs] and 
+(** [remove_from_model idxs model] Removes all clauses mentionning [idxs] and 
   the canonical nodes for [idxs] from the model. The substitution is also filtered to not mention [idxs].
   The levels are still registered in the [Index] table, for possible reuse (see [add_model]) *)
 let remove_from_model idxs model =
@@ -3296,9 +2825,7 @@ let remove_from_model idxs model =
   { model with entries; subst; canonical = PMap.cardinal entries }
 
 let remove removed model =
-  debug_constraints_for Pp.(fun () -> str"remove: " ++ Level.Set.pr debug_pr_level removed ++ pr_clauses model);
   let removed = Level.Set.fold (fun u accu -> PSet.add (Index.find u model.table) accu) removed PSet.empty in  
-  debug_constraints_for Pp.(fun () -> str"constraints_for removed: " ++ _pr_w model removed);
   (** Ensure the substitution goes to canonical universes *)
   let model = normalize_subst model in
   let remove_can idx model =
@@ -3319,7 +2846,6 @@ let remove removed model =
             | (prems, NeList.Tip concl) -> (prems, concl)
             | _ -> assert false (* The conclusion was already canonical, cannot expand to a list of universes *)
           in
-          debug_constraints_for Pp.(fun () -> str"constraints_for adding: " ++ pr_can_clause model cl);
           match add_can_clause_model model cl with
           | Some (_, m) -> m
           | None -> model)
