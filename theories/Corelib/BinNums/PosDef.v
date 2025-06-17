@@ -28,10 +28,8 @@ Local Open Scope positive_scope.
     for the number 6 (which is 110 in binary notation).
 *)
 
-Notation "p ~ 1" := (xI p)
- (at level 7, left associativity, format "p '~' '1'") : positive_scope.
-Notation "p ~ 0" := (xO p)
- (at level 7, left associativity, format "p '~' '0'") : positive_scope.
+Notation "p ~ 1" := (xI p) (format "p '~' '1'") : positive_scope.
+Notation "p ~ 0" := (xO p) (format "p '~' '0'") : positive_scope.
 
 Notation "1" := xH : positive_scope.
 Notation "2" := 1~0 : positive_scope.
