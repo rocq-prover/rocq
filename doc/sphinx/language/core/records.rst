@@ -202,7 +202,7 @@ Defining record types
    .. exn:: Error: "where" clause not supported for records.
 
       :g:`where` clauses are only supported for :n:`@record_field`\s, not for the overall
-      :cmd:`Record` definition.
+      record definition.
 
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
