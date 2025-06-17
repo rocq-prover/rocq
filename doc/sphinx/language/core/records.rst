@@ -86,19 +86,11 @@ Defining record types
      :n:`| @natural`
        Specifies the priority of the field.  It is only allowed in :cmd:`Class` commands.
 
-     :n:`:`
-       Specifies the type of the field.
-
-     :n:`:>`
-       If specified, the field is declared as a coercion from the record name
-       to the class of the field type. See :ref:`coercions`.
-
-     :n:`::`
-       If specified, the field is declared a typeclass instance of the class
-       of the field type. See :ref:`typeclasses`.
-
-     :n:`::>`
-       Acts as a combination of :n:`::` and :n:`:>`.
+     :n:`{? @decl_notations }`
+       Defines notations that are active in subsequent fields, not in the field
+       itself, until the end of the :cmd:`Record` (see :ref:`example
+       <record_where_clause>`). Note that :g:`where` clauses cannot be added at
+       the record level.
 
      - :n:`{+ @binder } : @of_type_inst` is equivalent to
        :n:`: forall {+ @binder } , @of_type_inst`
@@ -113,11 +105,19 @@ Defining record types
      on the fields that appear before it.  Since their values are already defined,
      such fields cannot be specified when constructing a record.
 
-     :n:`{? @decl_notations }`
-       Defines notations that are active in subsequent fields, not in the field
-       itself, until the end of the :cmd:`Record` (see :ref:`example
-       <record_where_clause>`). Note that :g:`where` clauses cannot be added at
-       the record level.
+     :n:`:`
+       Specifies the type of the field.
+
+     :n:`:>`
+       If specified, the field is declared as a coercion from the record name
+       to the class of the field type. See :ref:`coercions`.
+
+     :n:`::`
+       If specified, the field is declared a typeclass instance of the class
+       of the field type. See :ref:`typeclasses`.
+
+     :n:`::>`
+       Acts as a combination of :n:`::` and :n:`:>`.
 
    The :cmd:`Record` command supports the :attr:`universes(polymorphic)`,
    :attr:`universes(template)`, :attr:`universes(cumulative)`,
