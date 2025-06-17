@@ -128,7 +128,7 @@ Universe polymorphic rules
 --------------------------
 
 Rewrite rules support universe and sort quality polymorphism.
-Universe levels and sort quality variables must be declared with the notation :n:`@{q1 q2|u1 u2+|+}`
+Universe levels and sort quality variables must be declared with the notation :n:`@{q1 q2;u1 u2+|+}`
 (the same notation as universe instance declarations);
 each variable must appear exactly once in the pattern.
 If any universe level isn't bound in the rule,
@@ -141,9 +141,9 @@ so all inferred constraints from the left-hand side are used for the replacement
 
    .. rocqtop:: reset all warn
 
-      #[universes(polymorphic)] Symbol raise@{q|u|} : forall (A : Type@{q|u}), A.
+      #[universes(polymorphic)] Symbol raise@{q;u} : forall (A : Type@{q;u}), A.
       Rewrite Rule raise_nat :=
-        @{q|u+|+} |- raise@{q|u} (forall (x : ?A), ?P) => fun (x : ?A) => raise@{q|u} ?P.
+        @{q;u+|+} |- raise@{q;u} (forall (x : ?A), ?P) => fun (x : ?A) => raise@{q;u} ?P.
 
 Rewrite rules, type preservation, confluence and termination
 ------------------------------------------------------------
