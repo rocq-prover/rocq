@@ -4,7 +4,7 @@ Declare Custom Entry expr.
 Module A.
 
 Notation "expr0:( s )" := s (s custom expr at level 0).
-Notation "#" := 0 (in custom expr at level 1).
+Notation "#" := 0 (in custom expr at level 0).
 Check expr0:(#). (* Should not be an anomaly "unknown level 0" *)
 
 End A.
