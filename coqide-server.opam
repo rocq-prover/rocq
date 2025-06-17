@@ -12,7 +12,7 @@ This package provides the `coqidetop` language server, an
 implementation of Rocq's [XML protocol](https://github.com/rocq-prover/rocq/blob/master/dev/doc/xml-protocol.md)
 which allows clients, such as RocqIDE, to interact with the Rocq Prover in a
 structured way."""
-maintainer: ["The Rocq development team <coqdev@inria.fr>"]
+maintainer: ["The Rocq development team <rocq+rocq-development@discoursemail.com>"]
 authors: ["The Rocq development team, INRIA, CNRS, and contributors"]
 license: "LGPL-2.1-only"
 homepage: "https://rocq-prover.org/"
