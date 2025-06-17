@@ -23,12 +23,12 @@ Qed.
 
 Goal True /\ True.
 Proof.
-Fail split > [ split | |].
-split > [split | split].
+Fail (split) > [ split | |].
+(split) > [split | split].
 Qed.
 
 Goal True /\ (True -> True) /\ True.
 Proof.
-split > [ | split] > [split | .. | split].
+(split) > [ | split] > [split | .. | split].
 intros H; refine &H.
 Qed.

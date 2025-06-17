@@ -55,5 +55,5 @@ Ltac2 fprintf fmt := Format.kfprintf (fun x => x) fmt.
 
 *)
 
-Ltac2 Notation "printf" fmt(format) := printf fmt.
-Ltac2 Notation "fprintf" fmt(format) := fprintf fmt.
+Ltac2 Notation "printf" fmt(format) : 1 := printf fmt.
+Ltac2 Notation "fprintf" fmt(format) : 1 := fprintf fmt.

@@ -51,7 +51,7 @@ Ltac2 print_if b fmt :=
   if b then Format.kfprintf Message.to_string fmt
   else Format.ikfprintf Message.to_string (Message.of_string "") fmt.
 
-Ltac2 Notation "print_if" b(tactic(0)) fmt(format) := print_if b fmt.
+Ltac2 Notation "print_if" b(tactic(0)) fmt(format) : 0 := print_if b fmt.
 
 Ltac2 Eval Control.assert_true (String.equal "hello friend" (print_if true "hello %s" "friend")).
 
