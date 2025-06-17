@@ -84,7 +84,7 @@ Goal True /\ False.
   split.
   let r := ref 0 in
   enter (fun () =>
-           if Int.equal (get r) 0 then incr r; exact I
+           if Int.equal (get r) 0 then (incr r; exact I)
            else ()).
   all: if Int.equal (numgoals()) 1 then () else throw Error.
 Abort.
