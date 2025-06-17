@@ -1,0 +1,22 @@
+File "./output/ltac2_hyp_var.v", line 3, characters 16-18:
+The command has indeed failed with message:
+Unbound value id
+- : constr = constr:(fun (_ : nat) (x : bool) => eq_refl : (x, x) = (x, x))
+File "./output/ltac2_hyp_var.v", line 7, characters 33-40:
+The command has indeed failed with message:
+Hypothesis "x" (value of ltac2 variable "id") not found.
+File "./output/ltac2_hyp_var.v", line 8, characters 49-56:
+The command has indeed failed with message:
+In environment
+x : nat
+The term "x" has type "nat" while it is expected to have type "bool".
+- : constr = constr:(fun x : nat => x : nat)
+- : constr = constr:(fun x0 : bool => eq_refl : (x0, x) = (x0, x))
+- : constr = constr:(x : nat)
+File "./output/ltac2_hyp_var.v", line 18, characters 36-43:
+The command has indeed failed with message:
+In environment
+x : nat
+The term "x" has type "nat" while it is expected to have type "bool".
+- : constr = constr:(fun (_ : nat) (_0 : bool) => eq_refl : _0 = _0)
+- : constr = constr:(fun (_0 : nat) (_ : bool) => eq_refl : _0 = _0)

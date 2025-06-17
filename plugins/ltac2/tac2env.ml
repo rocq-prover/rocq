@@ -303,6 +303,7 @@ type var_quotation_kind =
   | ConstrVar
   | PretermVar
   | PatternVar
+  | HypVar
 
 let wit_ltac2_constr = Genarg.make0 "ltac2:in-constr"
 let wit_ltac2_var_quotation = Genarg.make0 "ltac2:quotation"
