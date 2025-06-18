@@ -144,7 +144,7 @@ let  err_hdr = tag Tag.error   (str "Error:")   ++ spc ()
 let make_body quoter info ?pre_hdr ?(qf=[]) s =
   let main = hov 0 (info ++ s) in
   let main = match qf with
-    | (_ :: _ as qf) when !Flags.test_mode -> v 0 (main ++ cut () ++ Quickfix.print qf)
+    | (_ :: _ as qf) when CRef.(!Flags.test_mode) -> v 0 (main ++ cut () ++ Quickfix.print qf)
     | _ -> main in
   pr_opt_no_spc (fun x -> x ++ fnl ()) pre_hdr ++ quoter main
 

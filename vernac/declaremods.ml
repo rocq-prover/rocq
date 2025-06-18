@@ -318,6 +318,7 @@ module ModSubstObjs :
    val set_missing_handler : (ModPath.t -> substitutive_objects) -> unit
  end =
  struct
+   open CRef
    let table =
      Summary.ref ~stage:Actions.stage (ModPath.Map.empty : substitutive_objects ModPath.Map.t)
        ~name:Actions.substobjs_table_name
@@ -405,6 +406,7 @@ module ModObjs :
    val all : unit -> module_objects ModPath.Map.t
  end =
  struct
+   open CRef
    let table =
      Summary.ref ~stage:Actions.stage (ModPath.Map.empty : module_objects ModPath.Map.t)
        ~name:Actions.modobjs_table_name
@@ -803,16 +805,21 @@ let default_module_info = { cur_typ = None; cur_typs = [] }
 let openmod_info = Summary.ref default_module_info ~name:"MODULE-INFO"
 
 let start_library dir =
+  let open CRef in
   let mp = Global.start_library dir in
   openmod_info := default_module_info;
   openmod_syntax_info := Some (default_module_syntax_info mp);
   Lib.start_compilation dir mp
 
-let set_openmod_syntax_info info = match !openmod_syntax_info with
+let set_openmod_syntax_info info =
+  let open CRef in
+  match !openmod_syntax_info with
   | None -> anomaly Pp.(str "bad init of openmod_syntax_info")
   | Some _ -> openmod_syntax_info := Some info
 
-let openmod_syntax_info () = match !openmod_syntax_info with
+let openmod_syntax_info () =
+  let open CRef in
+  match !openmod_syntax_info with
   | None -> anomaly Pp.(str "missing init of openmod_syntax_info")
   | Some v -> v
 
@@ -1091,7 +1098,7 @@ let start_module_core id args res =
 let start_module export id args res =
   let fs = Summary.Interp.freeze_summaries () in
   let mp, res_entry_o, subtyps, _, _ = start_module_core id args res in
-  openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps };
+  CRef.(openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps });
   let _ : object_prefix = Lib.Interp.start_module export id mp fs in
   mp
 
@@ -1137,7 +1144,7 @@ let end_module_core id m_info objects fs =
 
 let end_module () =
   let oldprefix,fs,objects = Lib.Interp.end_module () in
-  let m_info = !openmod_info in
+  let m_info = CRef.(!openmod_info) in
   let _olddp, id = pop_path oldprefix.obj_path in
   let mp,objects = end_module_core id m_info objects fs in
 
@@ -1277,7 +1284,7 @@ let start_modtype_core id args mtys =
 let start_modtype id args mtys =
   let fs = Summary.Interp.freeze_summaries () in
   let mp, _, sub_mty_l, _ = start_modtype_core id args mtys in
-  openmodtype_info := sub_mty_l;
+  CRef.(openmodtype_info := sub_mty_l);
   let prefix = Lib.Interp.start_modtype id mp fs in
   Nametab.(push_dir (Until 1) (prefix.obj_path) (GlobDirRef.DirOpenModtype mp));
   mp
@@ -1293,7 +1300,7 @@ let end_modtype_core id sub_mty_l objects fs =
 let end_modtype () =
   let oldprefix,fs,objects = Lib.Interp.end_modtype () in
   let olddp, id = pop_path oldprefix.obj_path in
-  let sub_mty_l = !openmodtype_info in
+  let sub_mty_l = CRef.(!openmodtype_info) in
   let mp, objects = end_modtype_core id sub_mty_l objects fs in
   let () = InterpVisitor.add_leaves objects in
   (* Check name consistence : start_ vs. end_modtype, kernel vs. library *)
@@ -1662,11 +1669,13 @@ let close_section = InterpVisitor.close_section
 
 end
 
-let end_library_hook = ref []
+let end_library_hook = CRef.ref []
 let append_end_library_hook f =
+  let open CRef in
   end_library_hook := f :: !end_library_hook
 
 let end_library_hook () =
+  let open CRef in
   List.iter (fun f -> f ()) (List.rev !end_library_hook)
 
 let end_library ~output_native_objects dir =

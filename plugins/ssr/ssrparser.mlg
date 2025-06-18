@@ -53,6 +53,7 @@ open Libobject
 (* ssr_have would ultimately be a better choice.                        *)
 let ssr_loaded = Summary.ref ~name:"SSR:loaded" false
 let is_ssr_loaded () =
+  let open CRef in
   !ssr_loaded ||
   (if CLexer.is_keyword (Procq.get_keyword_state()) "SsrSyntax_is_Imported" then ssr_loaded:=true;
    !ssr_loaded)

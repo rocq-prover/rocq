@@ -39,6 +39,7 @@ let () = CErrors.register_handler @@ function
 let compat_custom_names = Summary.ref ~stage:Synterp ~name:"compat-custom-names" Id.Map.empty
 
 let add_custom_compat kn =
+  let open CRef in
   let id = CustomName.label kn |> Label.to_id in
   compat_custom_names :=
     Id.Map.update id (fun existing -> Some (kn :: Option.default [] existing))
@@ -56,7 +57,7 @@ let intern_custom_name qid =
   | exception Not_found ->
     let compat =
       if qualid_is_ident qid then
-        Id.Map.find_opt (qualid_basename qid) !compat_custom_names
+        Id.Map.find_opt (qualid_basename qid) CRef.(!compat_custom_names)
       else None
     in
     match compat with
@@ -1506,7 +1507,7 @@ let find_subentry_types from n assoc etyps symbols =
 let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" CustomName.Set.empty
 (** If the entry is present then local *)
 
-let locality_of_custom_entry s = CustomName.Set.mem s !custom_entry_locality
+let locality_of_custom_entry s = CustomName.Set.mem s CRef.(!custom_entry_locality)
 
 let check_locality_compatibility local custom i_typs =
   if not local then
@@ -2095,7 +2096,7 @@ let add_abbreviation ~local user_warns env ident (vars,c) modl =
 let cache_notation_toggle (local,(on,all,pat)) =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  toggle_notations ~on ~all ~verbose:(not !Flags.quiet) (Constrextern.without_symbols (Printer.pr_glob_constr_env env sigma)) pat
+  toggle_notations ~on ~all ~verbose:(not CRef.(!Flags.quiet)) (Constrextern.without_symbols (Printer.pr_glob_constr_env env sigma)) pat
 
 let subst_notation_toggle (subst,(local,(on,all,pat))) =
   let {notation_entry_pattern; interp_rule_key_pattern; use_pattern;
@@ -2126,7 +2127,7 @@ let load_custom_entry i ((sp,kn),local) =
   add_custom_compat kn;
   Egramrocq.create_custom_entry kn;
   let () = if local then
-      custom_entry_locality := CustomName.Set.add kn !custom_entry_locality
+      CRef.(custom_entry_locality := CustomName.Set.add kn !custom_entry_locality)
   in
   ()
 

@@ -50,7 +50,7 @@ let empty_full_state =
   }
 
 let assert_synterp () =
-  if !Flags.in_synterp_phase = Some false then
+  if CRef.(!Flags.in_synterp_phase = Some false) then
     CErrors.anomaly Pp.(str "The grammar cannot be modified during the interp phase.")
 
 (** Not marshallable! *)

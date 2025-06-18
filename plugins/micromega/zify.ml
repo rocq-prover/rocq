@@ -374,7 +374,7 @@ module type Elt = sig
   val name : string
 
   val gref : GlobRef.t Lazy.t
-  val table : (term_kind * decl_kind) ConstrMap.t ref
+  val table : (term_kind * decl_kind) ConstrMap.t CRef.ref
   val cast : elt decl -> decl_kind
   val dest : decl_kind -> elt decl option
 
@@ -392,9 +392,9 @@ end
 let table = Summary.ref ~name:"zify_table" ConstrMap.empty
 let saturate = Summary.ref ~name:"zify_saturate" ConstrMap.empty
 let specs = Summary.ref ~name:"zify_specs" ConstrMap.empty
-let table_cache = ref ConstrMap.empty
-let saturate_cache = ref ConstrMap.empty
-let specs_cache = ref ConstrMap.empty
+let table_cache = CRef.ref ConstrMap.empty
+let saturate_cache = CRef.ref ConstrMap.empty
+let specs_cache = CRef.ref ConstrMap.empty
 
 (** Each type-class gives rise to a different table.
     They only differ on how projections are extracted.  *)
@@ -646,10 +646,10 @@ module MakeTable (E : Elt) : S = struct
     match EConstr.kind evd t with
     | App (c, _) ->
        let gr = safe_ref evd c in
-       E.table := ConstrMap.add gr (Application t, E.cast elt) !E.table
+       CRef.(E.table := ConstrMap.add gr (Application t, E.cast elt) !E.table)
     | _ ->
        let gr = safe_ref evd t in
-       E.table := ConstrMap.add gr (OtherTerm t, E.cast elt) !E.table
+       CRef.(E.table := ConstrMap.add gr (OtherTerm t, E.cast elt) !E.table)
 
   let register_constr env evd c =
     let c = EConstr.of_constr c in
@@ -706,7 +706,7 @@ module MakeTable (E : Elt) : S = struct
         | None -> acc
         | Some _ ->
           Pp.(pr_constr env evd (constr_of_term_kind k) ++ str " " ++ acc))
-      !E.table (Pp.str "")
+      CRef.(!E.table) (Pp.str "")
 
   let print () = Feedback.msg_info (pp_keys ())
 end
@@ -766,6 +766,7 @@ module UnOpSpec = MakeTable (EUnopSpec)
 module BinOpSpec = MakeTable (EBinOpSpec)
 
 let init_cache () =
+  let open CRef in
   table_cache := !table;
   saturate_cache := !saturate;
   specs_cache := !specs
@@ -1156,7 +1157,7 @@ let rec trans_expr env evd e =
       let k, t =
         find_option
           (match_operator env evd c a (Some inj))
-          (ConstrMap.find_all evd c !table_cache)
+          (ConstrMap.find_all evd c CRef.(!table_cache))
       in
       let n = Array.length a in
       match k with
@@ -1300,7 +1301,7 @@ let rec trans_prop env evd e =
       let k, t =
         find_option
           (match_operator env evd c a None)
-          (ConstrMap.find_all evd c !table_cache)
+          (ConstrMap.find_all evd c CRef.(!table_cache))
       in
       let n = Array.length a in
       match k with
@@ -1416,7 +1417,7 @@ let do_let tac (h : Constr.named_declaration) =
              find_option
                (match_operator env evd eq
                   [|EConstr.of_constr ty; EConstr.mkVar x; EConstr.of_constr t|] None)
-               (ConstrMap.find_all evd eq !table_cache));
+               (ConstrMap.find_all evd eq CRef.(!table_cache)));
           tac x (EConstr.of_constr t) (EConstr.of_constr ty)
         with Not_found -> Tacticals.tclIDTAC)
 
@@ -1511,7 +1512,7 @@ let rec spec_of_term env evd (senv : spec_env) t =
     try (EConstr.mkVar (HConstr.find t' senv'.map), senv')
     with Not_found -> (
       try
-        match snd (ConstrMap.find evd c !specs_cache) with
+        match snd (ConstrMap.find evd c CRef.(!specs_cache)) with
         | UnOpSpec s | BinOpSpec s ->
           let thm = EConstr.mkApp (s.deriv.ESpecT.spec, a') in
           register_constr senv' t' thm
@@ -1601,7 +1602,7 @@ let get_all_sat env evd c =
   List.fold_left
     (fun acc e -> match e with _, Saturate s -> s :: acc | _ -> acc)
     []
-    ( try ConstrMap.find_all evd c !saturate_cache
+    ( try ConstrMap.find_all evd c CRef.(!saturate_cache)
       with DestKO | Not_found -> [] )
 
 let saturate =

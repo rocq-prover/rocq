@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 (** Global options of the system. *)
 
 (** WARNING: don't add new entries to this file!

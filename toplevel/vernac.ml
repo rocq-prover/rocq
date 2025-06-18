@@ -73,7 +73,7 @@ let emit_time state com tstart tend =
 let interp_vernac ~check ~state ({CAst.loc;_} as com) =
   let open State in
     try
-      let doc, nsid, ntip = Stm.add ~doc:state.doc ~ontop:state.sid (not !Flags.quiet) com in
+      let doc, nsid, ntip = Stm.add ~doc:state.doc ~ontop:state.sid (not CRef.(!Flags.quiet)) com in
 
       (* Main STM interaction *)
       if ntip <> Stm.NewAddTip then
@@ -196,7 +196,7 @@ let pr_new_syntax ?loc ft_beautify ocom =
   let before = comment (Pputils.extract_comments (fst loc)) in
   let com = Option.cata (fun com -> Ppvernac.pr_vernac com ++ fnl()) (mt ()) ocom in
   let after = comment (Pputils.extract_comments (snd loc)) in
-  if !Flags.beautify_file then
+  if CRef.(!Flags.beautify_file) then
     (Pp.pp_with ft_beautify (hov 0 (before ++ com ++ after));
      Format.pp_print_flush ft_beautify ())
   else
@@ -205,7 +205,7 @@ let pr_new_syntax ?loc ft_beautify ocom =
 (* load_vernac with beautify *)
 let beautify_pass ~doc ~comments ~ids ~filename =
   let ft_beautify, close_beautify =
-    if !Flags.beautify_file then
+    if CRef.(!Flags.beautify_file) then
       let chan_beautify = open_out (filename^beautify_suffix) in
       set_formatter_translator chan_beautify, fun () -> close_out chan_beautify;
     else
@@ -226,6 +226,6 @@ let beautify_pass ~doc ~comments ~ids ~filename =
 let load_vernac ~echo ~check ~state ?source filename =
   let ostate, ids, comments = load_vernac_core ~echo ~check ~state ?source filename in
   (* Pass for beautify *)
-  if !Flags.beautify then beautify_pass ~doc:ostate.State.doc ~comments ~ids:(List.rev ids) ~filename;
+  if CRef.(!Flags.beautify) then beautify_pass ~doc:ostate.State.doc ~comments ~ids:(List.rev ids) ~filename;
   (* End pass *)
   ostate

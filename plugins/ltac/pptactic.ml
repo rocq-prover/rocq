@@ -65,6 +65,7 @@ type pp_tactic = {
 let prnotation_tab = Summary.ref ~name:"pptactic-notation" KerName.Map.empty
 
 let declare_notation_tactic_pprule kn pt =
+  let open CRef in
   prnotation_tab := KerName.Map.add kn pt !prnotation_tab
 
 type 'a raw_extra_genarg_printer =
@@ -259,6 +260,7 @@ let string_of_genarg_arg (ArgumentType arg) =
 
   let pr_alias_key key =
     try
+      let open CRef in
       let prods = (KerName.Map.find key !prnotation_tab).pptac_prods in
       let pr = function
       | TacTerm s -> primitive s
@@ -272,6 +274,7 @@ let string_of_genarg_arg (ArgumentType arg) =
 
   let pr_alias_gen pr_gen lev key l =
     try
+      let open CRef in
       let pp = KerName.Map.find key !prnotation_tab in
       let rec pack prods args = match prods, args with
       | [], [] -> []
@@ -369,6 +372,7 @@ let string_of_genarg_arg (ArgumentType arg) =
     | ArgVar {CAst.loc;v=id} -> pr_with_comments ?loc (pr_id id)
 
   let pr_ltac_constant kn =
+    let open CRef in
     if !Flags.in_debugger then KerName.print kn
     else try
            pr_qualid (Tacenv.shortest_qualid_of_tactic kn)
@@ -493,10 +497,10 @@ let string_of_genarg_arg (ArgumentType arg) =
      in reduced compatibility mode. During printing, we try to account for
      this when this module is imported. See [plugins/ssr/ssrparser.mlg] for
      the code that enables the reduced compatibility mode. *)
-  let ssr_loaded = ref (fun () -> false)
-  let ssr_loaded_hook f = ssr_loaded := f
+  let ssr_loaded = CRef.ref (fun () -> false)
+  let ssr_loaded_hook f = CRef.(ssr_loaded := f)
 
-  let pr_orient b = if b then if !ssr_loaded () then str "-> " else mt () else str "<- "
+  let pr_orient b = if b then if CRef.(!ssr_loaded) () then str "-> " else mt () else str "<- "
 
   let pr_multi = let open Equality in function
     | Precisely 1 -> mt ()

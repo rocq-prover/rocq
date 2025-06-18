@@ -165,8 +165,8 @@ let with_fail ~loc ~with_local_state st0 f =
   | Error v ->
     Some (ControlFail { st = transient_st }, v)
   | Ok (eloc, msg) ->
-    let loc = if !Flags.test_mode then real_error_loc ~cmdloc:loc ~eloc else None in
-    if not !Flags.quiet || !Flags.test_mode
+    let loc = if CRef.(!Flags.test_mode) then real_error_loc ~cmdloc:loc ~eloc else None in
+    if CRef.(not !Flags.quiet) || CRef.(!Flags.test_mode)
     then Feedback.msg_notice ?loc Pp.(str "The command has indeed failed with message:" ++ fnl () ++ msg);
     None
 
@@ -235,12 +235,13 @@ let rec after_last_phase ~loc = function
 (** A global default timeout, controlled by option "Set Default Timeout n".
     Use "Unset Default Timeout" to deactivate it. *)
 
-let default_timeout = ref None
+let default_timeout = CRef.ref None
 
 let check_timeout n =
   if n <= 0 then CErrors.user_err Pp.(str "Timeout must be > 0.")
 
 let () = let open Goptions in
+  let open CRef in
   declare_int_option
     { optstage = Summary.Stage.Synterp;
       optdepr  = None;
@@ -253,7 +254,7 @@ let has_timeout ctrl = ctrl |> List.exists (function
     | _ -> false)
 
 let add_default_timeout control =
-  match !default_timeout with
+  match CRef.(!default_timeout) with
   | None -> control
   | Some n ->
     if has_timeout control then control

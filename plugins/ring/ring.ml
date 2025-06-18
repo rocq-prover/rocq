@@ -343,9 +343,9 @@ let print_rings () =
            (Ppconstr.pr_id ring.ring_name ++ spc() ++
             str"with carrier "++ pr_constr_env env sigma ring.ring_carrier++spc()++
             str"and equivalence relation "++ pr_constr_env env sigma ring.ring_req))
-    ) !from_carrier
+    ) CRef.(!from_carrier)
 
-let ring_for_carrier r = Cmap.find r !from_carrier
+let ring_for_carrier r = Cmap.find r CRef.(!from_carrier)
 
 let find_ring_structure env sigma l =
   match l with
@@ -366,7 +366,7 @@ let find_ring_structure env sigma l =
     | [] -> assert false
 
 let add_entry e =
-  from_carrier := Cmap.add e.ring_carrier e !from_carrier
+  CRef.(from_carrier := Cmap.add e.ring_carrier e !from_carrier)
 
 let subst_th (subst,th) =
   let c' = subst_mps subst th.ring_carrier in
@@ -776,9 +776,9 @@ let print_fields () =
            (Id.print fi.field_name ++ spc() ++
             str"with carrier "++ pr_constr_env env sigma fi.field_carrier++spc()++
             str"and equivalence relation "++ pr_constr_env env sigma fi.field_req))
-    ) !field_from_carrier
+    ) CRef.(!field_from_carrier)
 
-let field_for_carrier r = Cmap.find r !field_from_carrier
+let field_for_carrier r = Cmap.find r CRef.(!field_from_carrier)
 
 let find_field_structure env sigma l =
   check_required_library (cdir@["Field_tac"]);
@@ -800,7 +800,7 @@ let find_field_structure env sigma l =
     | [] -> assert false
 
 let add_field_entry e =
-  field_from_carrier := Cmap.add e.field_carrier e !field_from_carrier
+  CRef.(field_from_carrier := Cmap.add e.field_carrier e !field_from_carrier)
 
 let subst_th (subst,th) =
   let c' = subst_mps subst th.field_carrier in

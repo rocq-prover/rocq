@@ -49,11 +49,11 @@ let warn_default_locality =
          are fine with the change of semantics, disable this warning.")
 
 let declare_tactic_option ?default name =
-  let current_tactic : Gentactic.glob_generic_tactic option ref =
+  let current_tactic : Gentactic.glob_generic_tactic option CRef.ref =
     Summary.ref default ~name:(name^"-default-tactic")
   in
   let set_current_tactic t =
-    current_tactic := t
+    CRef.(current_tactic := t)
   in
   let cache (_, tac) = set_current_tactic tac in
   let load _ (local, tac) = match local with
@@ -94,11 +94,11 @@ let declare_tactic_option ?default name =
     in
     Lib.add_leaf (input (local, Some tac))
   in
-  let get () = match !current_tactic with
+  let get () = match CRef.(!current_tactic) with
     | None -> Proofview.tclUNIT ()
     | Some tac -> Gentactic.interp tac
   in
-  let print () = match !current_tactic with
+  let print () = match CRef.(!current_tactic) with
     | None -> Pp.str "<unset>"
     | Some tac ->
       let env = Global.env () in

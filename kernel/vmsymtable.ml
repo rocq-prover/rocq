@@ -181,7 +181,7 @@ let set_global v rtable =
 exception NotEvaluated
 
 let key rk =
-  match !rk with
+  match CRef.(!rk) with
   | None -> raise NotEvaluated
   | Some k ->
       try CEphemeron.get k
@@ -284,7 +284,7 @@ let rec slot_for_getglobal env sigma kn envcache table =
         | BCconstant -> set_global (val_of_constant kn) table
     in
 (*Pp.msgnl(str"value stored at: "++int pos);*)
-    rk := Some (CEphemeron.create pos);
+    CRef.(rk := Some (CEphemeron.create pos));
     pos
 
 and slot_for_fv env sigma fv envcache table =

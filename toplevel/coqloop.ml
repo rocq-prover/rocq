@@ -405,7 +405,7 @@ let top_goal_print ~doc c oldp newp =
     let proof_changed = not (Option.equal cproof oldp (Some newp)) in
     let print_goals = proof_changed && Vernacstate.Declare.there_are_pending_proofs () ||
                       print_anyway c in
-    if not !Flags.quiet && print_goals then begin
+    if not CRef.(!Flags.quiet) && print_goals then begin
       let dproof = Stm.get_prev_proof ~doc (Stm.get_current_state ~doc) in
       print_and_diff dproof newp
     end

@@ -201,6 +201,7 @@ let hint_as_term h = (h.hint_uctx, h.hint_term)
 let fresh_key =
   let id = Summary.ref ~name:"HINT-COUNTER" 0 in
   fun () ->
+    let open CRef in
     let cur = incr id; !id in
     let lbl = Id.of_string ("_" ^ string_of_int cur) in
     let kn = Lib.make_kn lbl in
@@ -263,6 +264,8 @@ sig
   val lookup : Environ.env -> Evd.evar_map -> t -> EConstr.constr -> stored_data list
 end =
 struct
+  open CRef
+
   module Bnet = Btermdn.Make(Stored)
 
   type diff = hint_pattern * stored_data
@@ -840,16 +843,24 @@ type hint_db = Hint_db.t
 let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
 
 let searchtable_map name =
+  let open CRef in
   Hintdbmap.find name !searchtable
+
 let searchtable_add (name, db) =
   (* XXX see #21114 *)
 (*   let () = assert (Hintdbmap.mem name !searchtable) in *)
+  let open CRef in
   searchtable := Hintdbmap.add name db !searchtable
+
 let searchtable_create (name, db) =
 (*   let () = assert (not @@ Hintdbmap.mem name !searchtable) in *)
-  searchtable := Hintdbmap.add name db !searchtable
-let current_db_names () = Hintdbmap.domain !searchtable
-let current_db () = Hintdbmap.bindings !searchtable
+  CRef.(searchtable := Hintdbmap.add name db !searchtable)
+
+let current_db_names () =
+  let open CRef in
+  Hintdbmap.domain !searchtable
+
+let current_db () = Hintdbmap.bindings CRef.(!searchtable)
 
 let current_pure_db () = List.map snd (current_db ())
 
@@ -1403,7 +1414,7 @@ let add_resolves env sigma clist ~locality dbnames =
         )
       | _ -> ()
       in
-      let () = if not !Flags.quiet then List.iter check r in
+      let () = if not CRef.(!Flags.quiet) then List.iter check r in
       let hint = make_hint ~locality dbname (AddHints r) in
       Lib.add_leaf (inAutoHint hint))
     dbnames
@@ -1776,7 +1787,7 @@ let pr_searchtable env sigma =
     accu ++ str "In the database " ++ str name ++ str ":" ++ fnl () ++
     pr_hint_db_env env sigma db ++ fnl ()
   in
-  Hintdbmap.fold fold !searchtable (mt ())
+  Hintdbmap.fold fold CRef.(!searchtable) (mt ())
 
 module FullHint =
 struct

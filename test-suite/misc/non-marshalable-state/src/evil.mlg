@@ -10,6 +10,6 @@ let state = Summary.ref
 
 VERNAC COMMAND EXTEND magic CLASSIFIED AS SIDEFF
 | [ "magic" ] -> {
-    state := Some (fun () -> ())
+    CRef.(state := Some (fun () -> ()))
 }
 END

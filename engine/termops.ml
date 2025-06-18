@@ -90,7 +90,7 @@ module Internal = struct
     try f x
     with e when
         (* maybe should be just "not is_interrupted"? *)
-        CErrors.noncritical e || !Flags.in_debugger ->
+        CErrors.noncritical e || CRef.(!Flags.in_debugger) ->
       str "EXCEPTION: " ++ str (Printexc.to_string e)
 
   let print_kconstr env sigma a =
@@ -858,7 +858,7 @@ let free_rels_and_unqualified_refs sigma t =
           let dir, id = Libnames.repr_qualid short in
           let ids = if DirPath.is_empty dir then Id.Set.add id ids else ids in
           (gseen, vseen, ids)
-        with Not_found when !Flags.in_debugger || !Flags.in_ml_toplevel ->
+        with Not_found when CRef.(!Flags.in_debugger || !Flags.in_ml_toplevel) ->
           accu
       end else
         accu

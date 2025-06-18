@@ -33,6 +33,7 @@ depends: [
   "ocaml" {>= "4.14.0"}
   "ocamlfind" {>= "1.9.1" & (>= "1.9.8" | os != "windows")}
   "zarith" {>= "1.11"}
+  "thread-local-storage" {>= "0.2"}
   "conf-linux-libc-dev" {os = "linux"}
   "odoc" {with-doc}
 ]

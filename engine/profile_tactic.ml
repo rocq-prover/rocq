@@ -10,6 +10,7 @@
 
 open Unicode
 open Pp
+open CRef
 open Util
 
 module M = CString.Map

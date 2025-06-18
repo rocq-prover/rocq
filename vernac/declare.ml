@@ -390,7 +390,7 @@ end
 
 let local_csts = Summary.ref ~name:"local-csts" Cset_env.empty
 
-let is_local_constant c = Cset_env.mem c !local_csts
+let is_local_constant c = Cset_env.mem c CRef.(!local_csts)
 
 type constant_obj = {
   cst_kind : Decls.logical_kind;
@@ -408,7 +408,7 @@ let load_constant i ((sp,kn), obj) =
   Dumpglob.add_constant_kind con obj.cst_kind;
   obj.cst_loc |> Option.iter (fun loc -> Nametab.set_cci_src_loc (TrueGlobal gr) loc);
   begin match obj.cst_locl with
-    | Locality.ImportNeedQualified -> local_csts := Cset_env.add con !local_csts
+    | Locality.ImportNeedQualified -> CRef.(local_csts := Cset_env.add con !local_csts)
     | Locality.ImportDefaultBehavior -> ()
   end
 
@@ -2468,7 +2468,7 @@ module Error = struct
 
 end
 
-let default_tactic = ref (Proofview.tclUNIT ())
+let default_tactic = CRef.ref (Proofview.tclUNIT ())
 
 let subst_deps expand obls deps t =
   let osubst = Obls_.obl_substitution expand obls deps in
@@ -2509,7 +2509,7 @@ let warn_solve_errored =
 let solve_by_tac prg obls i tac =
   let obl = obls.(i) in
   let obl = subst_deps_obl obls obl in
-  let tac = Option.(default !default_tactic (append tac obl.obl_tac)) in
+  let tac = Option.(default CRef.(!default_tactic) (append tac obl.obl_tac)) in
   let uctx = Internal.get_uctx prg in
   let uctx = UState.update_sigma_univs uctx (Global.universes ()) in
   let poly = Internal.get_poly prg in
@@ -2624,7 +2624,7 @@ let solve_obligation ?check_final prg num tac =
   let poly = Internal.get_poly prg in
   let info = Info.make ~kind ~poly () in
   let lemma = Proof.start_core ~cinfo ~info ~proof_ending ?using evd  in
-  let lemma = fst @@ Proof.by (Global.env ()) !default_tactic lemma in
+  let lemma = fst @@ Proof.by (Global.env ()) CRef.(!default_tactic) lemma in
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
 
@@ -2823,7 +2823,7 @@ let check_program_libraries () =
   Rocqlib.check_required_library ["Corelib";"Init";"Specif"]
 
 let program_inference_hook env sigma ev =
-  let tac = !default_tactic in
+  let tac = CRef.(!default_tactic) in
   let evi = Evd.find_undefined sigma ev in
   let evi = Evarutil.nf_evar_info sigma evi in
   let env = Evd.evar_filtered_env env evi in

@@ -15,7 +15,7 @@ let fatal_error exn =
 
 let set_worker_id opt s =
   assert (s <> "master");
-  Flags.async_proofs_worker_id := s
+  CRef.(Flags.async_proofs_worker_id := s)
 
 let get_host_port opt s =
   match String.split_on_char ':' s with

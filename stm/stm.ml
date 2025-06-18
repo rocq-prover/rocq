@@ -89,7 +89,7 @@ open AsyncOpts
 
 let async_proofs_is_master opt =
   opt.async_proofs_mode = APon &&
-  !Flags.async_proofs_worker_id = "master"
+  CRef.(!Flags.async_proofs_worker_id = "master")
 
 let execution_error ?loc state_id msg =
     feedback ~id:state_id (Message (Error, loc, [], msg))
@@ -402,7 +402,7 @@ end = struct (* {{{ *)
 
        In case you are hitting the race enable stm_debug.
     *)
-    Flags.in_synterp_phase := Some false;
+    CRef.(Flags.in_synterp_phase := Some false);
 
     let fname =
       "stm_" ^ Str.global_replace (Str.regexp " ") "_" (Spawned.process_id ()) in
@@ -953,7 +953,7 @@ end = struct (* {{{ *)
   let define ~doc ?safe_id ?(redefine=false) ?(cache=false) ?(feedback_processed=true)
         f id
   =
-    feedback ~id:id (ProcessingIn !Flags.async_proofs_worker_id);
+    feedback ~id:id (ProcessingIn CRef.(!Flags.async_proofs_worker_id));
     let str_id = Stateid.to_string id in
     if is_cached id && not redefine then
       anomaly Pp.(str"defining state "++str str_id++str" twice.");
@@ -2230,7 +2230,7 @@ let init_process stm_flags =
   set_cur_opt stm_flags;
   CoqworkmgrApi.(init stm_flags.AsyncOpts.async_proofs_worker_priority);
   if (cur_opt()).async_proofs_mode = APon then Control.enable_thread_delay := true;
-  if !Flags.async_proofs_worker_id = "master" && (cur_opt()).async_proofs_n_tacworkers > 0 then
+  if CRef.(!Flags.async_proofs_worker_id = "master") && (cur_opt()).async_proofs_n_tacworkers > 0 then
     Partac.enable_par ~spawn_args:stm_flags.spawn_args ~nworkers:(cur_opt()).async_proofs_n_tacworkers
 
 let init_core () =

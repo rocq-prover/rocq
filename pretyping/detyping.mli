@@ -22,10 +22,10 @@ type _ delay =
 | Later : [ `thunk ] delay
 
 (** Should we keep details of universes during detyping ? *)
-val print_universes : bool ref
+val print_universes : bool CRef.ref
 
 (** If true, prints full local context of evars *)
-val print_evar_arguments : bool ref
+val print_evar_arguments : bool CRef.ref
 
 (** If true, contract branches with same r.h.s. and same matching
     variables in a disjunctive pattern *)

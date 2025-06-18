@@ -9,7 +9,7 @@
 (************************************************************************)
 
 let coqc_init ((_,color_mode),_) injections ~opts =
-  Flags.quiet := true;
+  CRef.(Flags.quiet := true);
   System.trust_file_cache := true;
   Colors.init_color color_mode;
   DebugHook.Intf.(set

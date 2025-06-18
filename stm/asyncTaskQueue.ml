@@ -96,7 +96,7 @@ module Make(T : Task) () = struct
     with Failure s | Invalid_argument s | Sys_error s ->
       marshal_err ("unmarshal_response: "^s)
 
-  let report_status ?(id = !Flags.async_proofs_worker_id) s =
+  let report_status ?(id = CRef.(!Flags.async_proofs_worker_id)) s =
     let open Feedback in
     feedback ~id:Stateid.initial (WorkerStatus(id, s))
 

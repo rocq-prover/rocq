@@ -226,8 +226,8 @@ let ppmetamap metas =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   pp (Unification.Meta.pr_metamap env sigma metas)
-let ppevm evd = pp(Termops.pr_evar_map ~with_univs:!Detyping.print_universes (Some 2) (Global.env ()) evd)
-let ppevmall evd = pp(Termops.pr_evar_map ~with_univs:!Detyping.print_universes None (Global.env ()) evd)
+let ppevm evd = pp(Termops.pr_evar_map ~with_univs:CRef.(!Detyping.print_universes) (Some 2) (Global.env ()) evd)
+let ppevmall evd = pp(Termops.pr_evar_map ~with_univs:CRef.(!Detyping.print_universes) None (Global.env ()) evd)
 let pr_existentialset evars =
   prlist_with_sep spc pr_evar (Evar.Set.elements evars)
 let ppexistentialset evars =

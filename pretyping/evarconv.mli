@@ -78,11 +78,11 @@ val check_problems_are_solved : ?evars:Evar.Set.t -> env -> evar_map -> unit
 
 type hook = Environ.env -> Evd.evar_map -> ((Names.Constant.t * EConstr.EInstance.t) * EConstr.t list option * EConstr.t) -> (EConstr.t * EConstr.t list) -> (Evd.evar_map * Structures.CanonicalSolution.t) option
 
-val all_hooks : hook CString.Map.t ref
+val all_hooks : hook CString.Map.t CRef.ref
 
 val register_hook : name:CString.Map.key -> ?override:bool -> hook -> unit
 
-val active_hooks : string list ref
+val active_hooks : string list CRef.ref
 
 val deactivate_hook : name:Util.String.t -> unit
 

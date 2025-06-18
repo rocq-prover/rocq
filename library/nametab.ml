@@ -522,6 +522,8 @@ module MakeImperative (Tab:Functional_NAMETAB) (SI:StateInfo) ()
 = struct
   type elt = Tab.elt
 
+  open CRef
+
   let the_tab = Summary.ref ~stage:SI.stage ~name:SI.summary_name Tab.empty
 
   let push vis sp v = the_tab := Tab.push vis sp v !the_tab
@@ -564,6 +566,8 @@ module MakeWarned (M:NAMETAB)
     : WarnedTab with type elt = M.elt and type warning_data := W.data
 = struct
   include M
+
+  open CRef
 
   let warntab = Summary.ref ~stage:W.stage ~name:W.summary_name W.Map.empty
 
@@ -775,7 +779,7 @@ let pr_global_env env ref =
   try pr_qualid (shortest_qualid_of_global env ref)
   with Not_found as exn ->
     let exn, info = Exninfo.capture exn in
-    if !Flags.in_debugger then GlobRef.print ref
+    if CRef.(!Flags.in_debugger) then GlobRef.print ref
     else begin
       let () = if CDebug.(get_flag misc)
         then Feedback.msg_debug (Pp.str "pr_global_env not found")
@@ -882,8 +886,8 @@ let exists_universe = Univs.exists
 
 open Globnames
 
-let cci_loc_table : Loc.t ExtRefMap.t ref = Summary.ref ~name:"constant-loc-table" ExtRefMap.empty
+let cci_loc_table : Loc.t ExtRefMap.t CRef.ref = Summary.ref ~name:"constant-loc-table" ExtRefMap.empty
 
-let set_cci_src_loc kn loc = cci_loc_table := ExtRefMap.add kn loc !cci_loc_table
+let set_cci_src_loc kn loc = CRef.(cci_loc_table := ExtRefMap.add kn loc !cci_loc_table)
 
-let cci_src_loc kn = ExtRefMap.find_opt kn !cci_loc_table
+let cci_src_loc kn = ExtRefMap.find_opt kn CRef.(!cci_loc_table)

@@ -204,7 +204,7 @@ val intern_core : typing_constraint ->
   glob_constr
 
 (** Globalization options *)
-val parsing_explicit : bool ref
+val parsing_explicit : bool CRef.ref
 
 (** Placeholder for global option, should be moved to a parameter *)
 val get_asymmetric_patterns : unit -> bool

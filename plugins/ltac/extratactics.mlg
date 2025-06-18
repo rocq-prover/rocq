@@ -382,7 +382,7 @@ let step left x tac =
       Tacticals.tclTHENLAST
         (apply_with_bindings (lem, ImplicitBindings [x]))
         tac)
-      !(if left then transitivity_left_table else transitivity_right_table)
+      CRef.(if left then !transitivity_left_table else !transitivity_right_table)
   in
   Tacticals.tclFIRST l
 
@@ -390,9 +390,9 @@ let step left x tac =
 
 let cache_transitivity_lemma (left,lem) =
   if left then
-    transitivity_left_table  := lem :: !transitivity_left_table
+    CRef.(transitivity_left_table:= lem :: !transitivity_left_table)
   else
-    transitivity_right_table := lem :: !transitivity_right_table
+    CRef.(transitivity_right_table := lem :: !transitivity_right_table)
 
 let subst_transitivity_lemma (subst,(b,ref)) = (b,subst_mps subst ref)
 

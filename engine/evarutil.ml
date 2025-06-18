@@ -149,7 +149,7 @@ let meta_counter_summary_name = "meta counter"
 let meta_ctr, meta_counter_summary_tag =
   Summary.ref_tag 0 ~name:meta_counter_summary_name
 
-let new_meta () = incr meta_ctr; !meta_ctr
+let new_meta () = CRef.(incr meta_ctr; !meta_ctr)
 
 (* The list of non-instantiated existential declarations (order is important) *)
 
@@ -662,10 +662,10 @@ let undefined_evars_of_named_context evd nc =
     ~init:Evar.Set.empty
 
 type undefined_evars_cache = {
-  mutable cache : (EConstr.named_declaration * Evar.Set.t) ref Id.Map.t;
+  cache : (EConstr.named_declaration * Evar.Set.t) ref Id.Map.t CRef.ref;
 }
 
-let create_undefined_evars_cache () = { cache = Id.Map.empty; }
+let create_undefined_evars_cache () = { cache = CRef.ref Id.Map.empty; }
 
 let cached_evar_of_hyp cache sigma decl accu = match cache with
 | None ->
@@ -677,11 +677,11 @@ let cached_evar_of_hyp cache sigma decl accu = match cache with
 | Some cache ->
   let id = NamedDecl.get_annot decl in
   let r =
-    try Id.Map.find id.binder_name cache.cache
+    try Id.Map.find id.binder_name CRef.(!(cache.cache))
     with Not_found ->
       (* Dummy value *)
       let r = ref (NamedDecl.LocalAssum (id, EConstr.mkProp), Evar.Set.empty) in
-      let () = cache.cache <- Id.Map.add id.binder_name r cache.cache in
+      let () = CRef.(cache.cache := Id.Map.add id.binder_name r !(cache.cache)) in
       r
   in
   let (decl', evs) = !r in

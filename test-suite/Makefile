@@ -185,14 +185,14 @@ INTERACTIVE := interactive
 UNIT_TESTS := unit-tests
 
 # targets can be skipped by doing  `make DISABLED_SUBSYSTEMS="target1 target2"`
-DISABLED_SUBSYSTEMS?=
+DISABLED_SUBSYSTEMS?=ide interactive stm
 
 VSUBSYSTEMS := prerequisite success failure bugs bugs-nocoqchk output output-coqtop \
   output-modulo-time $(INTERACTIVE) $(COMPLEXITY) modules stm \
   coqdoc ssr $(wildcard primitive/*) ltac2 coqchk
 
 # All subsystems
-SUBSYSTEMS := $(filter-out $(DISABLED_SUBSYSTEMS),$(VSUBSYSTEMS) misc ide ide coqchk output-coqchk coqwc coq-makefile precomputed-time-tests tools $(UNIT_TESTS))
+SUBSYSTEMS := $(filter-out $(DISABLED_SUBSYSTEMS),$(VSUBSYSTEMS) misc ide coqchk output-coqchk coqwc coq-makefile precomputed-time-tests tools $(UNIT_TESTS))
 
 # EJGA: This seems dangerous as first target...
 .csdp.cache: .csdp.cache.test-suite

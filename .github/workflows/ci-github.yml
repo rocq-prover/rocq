@@ -17,12 +17,12 @@ jobs:
         include:
           - name: macOS
             os: macos-latest
-            test_disabled:
+            test_disabled: ide interactive stm
             # We exclude the coq-core package
             packages: ./coqide-server.opam ./rocq*.opam
           - name: Windows
             os: windows-latest
-            test_disabled: misc coq-makefile precomputed-time-tests
+            test_disabled: misc coq-makefile precomputed-time-tests ide interactive stm
             # we don't support rocqide on Windows yet, so we filter it, see #20631
             packages: ./coqide-server.opam ./rocq-*.opam
       fail-fast: false

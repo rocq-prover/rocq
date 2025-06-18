@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 module MiniJson = struct
   type t =[
     | `Intlit of string

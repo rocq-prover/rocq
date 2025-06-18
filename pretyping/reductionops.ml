@@ -38,17 +38,19 @@ type effect_name = string
 let constant_effect_table = Summary.ref ~name:"reduction-side-effect" Cmap.empty
 
 (* Table bindings function key to effective functions *)
-let effect_table = ref String.Map.empty
+let effect_table = CRef.ref String.Map.empty
 
 (** a test to know whether a constant is actually the effect function *)
 let reduction_effect_hook env sigma con c =
   try
+    let open CRef in
     let funkey = Cmap.find con !constant_effect_table in
     let effect_function = String.Map.find funkey !effect_table in
     effect_function env sigma (Lazy.force c)
   with Not_found -> ()
 
 let cache_reduction_effect (con,funkey) =
+  let open CRef in
   constant_effect_table := Cmap.add con funkey !constant_effect_table
 
 let subst_reduction_effect (subst,(con,funkey)) =
@@ -61,6 +63,7 @@ let inReductionEffect : Libobject.locality * (Constant.t * string) -> obj =
     ~discharge:(fun x -> x)
 
 let declare_reduction_effect funkey f =
+  let open CRef in
   if String.Map.mem funkey !effect_table then
     CErrors.anomaly Pp.(str "Cannot redeclare effect function " ++ qstring funkey ++ str ".");
   effect_table := String.Map.add funkey f !effect_table
@@ -97,6 +100,7 @@ module ReductionBehaviour = struct
     Summary.ref ((Cpred.empty, Cmap.empty)) ~name:"reductionbehaviour"
 
   let load _ (_,(r, b)) =
+    let open CRef in
     table := (match b with
                 | None -> Cpred.remove r (fst !table), Cmap.remove r (snd !table)
                 | Some NeverUnfold -> Cpred.add r (fst !table), Cmap.remove r (snd !table)
@@ -177,7 +181,7 @@ module ReductionBehaviour = struct
 
   module Db = struct
     type t = table
-    let get () = !table
+    let get () = CRef.(!table)
     let empty = (Cpred.empty, Cmap.empty)
     let print = print_from_db
     let all_never_unfold table = fst table

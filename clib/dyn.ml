@@ -81,6 +81,9 @@ module Make () = struct
 module Self : PreS = struct
   (* Dynamics, programmed with DANGER !!! *)
 
+  (* We use per-thread references *)
+  open CRef
+
   type 'a tag = int
 
   type t = Dyn : 'a tag * 'a -> t

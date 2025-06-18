@@ -8,14 +8,10 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-let rawdebug = ref false
+(* Per-thread references, based on the thread-local-storage package *)
 
-let () =
-  CRef.(Flags.in_debugger := true);
-  Goptions.set_bool_option_value ["Printing";"Existential";"Instances"] true;
-  CRef.(Detyping.print_universes := true);
-  Goptions.set_bool_option_value ["Printing";"Matching"] false;
-  Goptions.set_bool_option_value ["Printing";"Sort";"Qualities"] true;
-  (* When printers are used from ocamldebug, they should not make calls to the global env
-     since ocamldebug runs in a different process and does not have the proper env at hand *)
-  Constrextern.set_extern_reference (if !rawdebug then Top_printers.raw_string_of_ref else Top_printers.short_string_of_ref)
+type 'a ref
+val ref : 'a -> 'a ref
+val (!) : 'a ref -> 'a
+val (:=) : 'a ref -> 'a -> unit
+val incr : int ref -> unit

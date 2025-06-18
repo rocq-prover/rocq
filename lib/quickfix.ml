@@ -9,6 +9,7 @@
 (************************************************************************)
 
 (* Quickfix management *)
+open CRef
 
 type t = Loc.t * Pp.t
 let make ~loc txt = loc, txt

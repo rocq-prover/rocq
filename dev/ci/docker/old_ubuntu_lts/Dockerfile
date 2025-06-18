@@ -48,7 +48,7 @@ RUN mkdir -p ~/.config/dune && printf '(lang dune 2.1)\n(jobs %s)\n' $NJOBS > ~/
 ENV COMPILER="4.14.0"
 
 # Common OPAM packages
-ENV BASE_OPAM="zarith.1.11 ounit2.2.2.6 yojson.1.7.0 camlzip.1.10" \
+ENV BASE_OPAM="zarith.1.11 ounit2.2.2.6 yojson.1.7.0 camlzip.1.10 thread-local-storage.0.2" \
     CI_OPAM="ocamlgraph.2.0.0 cppo.1.6.9" \
     BASE_ONLY_OPAM="dune.3.8.3 stdlib-shims.0.1.0 ocamlfind.1.9.1 odoc.2.0.2 num.1.4"
 

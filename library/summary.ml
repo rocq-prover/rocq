@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 module Dyn = Dyn.Make ()
 
 module Stage = struct

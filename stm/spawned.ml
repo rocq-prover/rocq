@@ -76,6 +76,6 @@ let get_channels () =
 
 let process_id () =
   Printf.sprintf "%d:%s:%d" (Unix.getpid ())
-    (if Flags.async_proofs_is_worker () then !Flags.async_proofs_worker_id
+    (if Flags.async_proofs_is_worker () then CRef.(!Flags.async_proofs_worker_id)
      else "master")
     (Thread.id (Thread.self ()))

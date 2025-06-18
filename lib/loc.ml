@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 type source =
   (* OCaml won't allow using DirPath.t in InFile *)
   | InFile of { dirpath : string option; file : string }

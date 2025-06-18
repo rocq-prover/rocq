@@ -167,13 +167,14 @@ let make_flag env f =
 
 (* table of custom reductino fonctions, not synchronized,
    filled via ML calls to [declare_reduction] *)
-let reduction_tab = ref String.Map.empty
+let reduction_tab = CRef.ref String.Map.empty
 
 (* table of custom reduction expressions, synchronized,
    filled by command Declare Reduction *)
 let red_expr_tab = Summary.ref String.Map.empty ~name:"Declare Reduction"
 
 let declare_reduction s f =
+  let open CRef in
   if String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab
   then user_err
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
@@ -181,11 +182,13 @@ let declare_reduction s f =
 
 let check_custom = function
   | ExtraRedExpr s ->
+      let open CRef in
       if not (String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab)
       then user_err (str "Reference to undefined reduction expression " ++ str s ++ str ".")
   |_ -> ()
 
 let decl_red_expr s e =
+  let open CRef in
   if String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab
   then user_err
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
@@ -241,7 +244,7 @@ let rec eval_red_expr env = function
 | Cbn f -> Cbn (make_flag env f)
 | Lazy f -> Lazy (make_flag env f)
 | ExtraRedExpr s ->
-  begin match String.Map.find s !red_expr_tab with
+  begin match String.Map.find s CRef.(!red_expr_tab) with
   | e -> eval_red_expr env e
   | exception Not_found -> ExtraRedExpr s (* delay to runtime interpretation *)
   end
@@ -278,7 +281,7 @@ let reduction_of_red_expr_val = function
   | Fold cl -> (e_red (fold_commands cl),DEFAULTcast)
   | Pattern lp -> (pattern_occs (List.map (on_fst check_occurrences) lp),DEFAULTcast)
   | ExtraRedExpr s ->
-      (try (e_red (String.Map.find s !reduction_tab),DEFAULTcast)
+      (try (e_red (String.Map.find s CRef.(!reduction_tab)),DEFAULTcast)
       with Not_found ->
            user_err
              (str "Unknown user-defined reduction \"" ++ str s ++ str "\"."))

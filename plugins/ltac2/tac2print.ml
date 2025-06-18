@@ -17,10 +17,10 @@ open Pputils
 
 let pr_tacref avoid kn =
   try Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid (TacConstant kn))
-  with Not_found when !Flags.in_debugger || KerName.Map.mem kn (Tac2env.globals()) ->
+  with Not_found when CRef.(!Flags.in_debugger) || KerName.Map.mem kn (Tac2env.globals()) ->
     str (ModPath.to_string (KerName.modpath kn))
     ++ str"." ++ Label.print (KerName.label kn)
-    ++ if !Flags.in_debugger then mt() else str " (* local *)"
+    ++ if CRef.(!Flags.in_debugger) then mt() else str " (* local *)"
 
 (** Utils *)
 
@@ -848,9 +848,10 @@ let rec kind t = match t with
 type val_printer =
   { val_printer : 'a. Environ.env -> Evd.evar_map -> Tac2val.valexpr -> 'a glb_typexpr list -> Pp.t }
 
-let printers = ref KerName.Map.empty
+let printers = CRef.ref KerName.Map.empty
 
 let register_val_printer kn pr =
+  let open CRef in
   printers := KerName.Map.add kn pr !printers
 
 open Tac2ffi
@@ -858,6 +859,7 @@ open Tac2ffi
 let rec pr_valexpr_gen env sigma lvl v t = match kind t with
 | GTypVar _ -> str "<poly>"
 | GTypRef (Other kn, params) ->
+  let open CRef in
   let pr = try Some (KerName.Map.find kn !printers) with Not_found -> None in
   begin match pr with
   | Some pr ->

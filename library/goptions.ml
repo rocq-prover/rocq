@@ -99,8 +99,8 @@ module MakeTable =
 
     let inGo : Libobject.locality * (option_mark * A.t) -> Libobject.obj =
       let cache (f,p) = match f with
-        | GOadd -> t := MySet.add p !t
-        | GOrmv -> t := MySet.remove p !t in
+        | GOadd -> CRef.(t := MySet.add p !t)
+        | GOrmv -> CRef.(t := MySet.remove p !t) in
       let subst (subst,(f,p as obj)) =
         let p' = A.subst subst p in
         if p' == p then obj else
@@ -133,15 +133,15 @@ module MakeTable =
        remove = (fun env local x -> remove_option local (A.encode env x));
        mem = (fun env x ->
         let y = A.encode env x in
-        let answer = MySet.mem y !t in
+        let answer = MySet.mem y CRef.(!t) in
         Feedback.msg_info (A.member_message y answer));
-       print = (fun () -> print_table A.title A.printer !t);
+       print = (fun () -> print_table A.title A.printer CRef.(!t));
      }
 
     let () = A.table := (nick, table_of_A)::!A.table
 
-    let v () = !t
-    let active x = A.Set.mem x !t
+    let v () = CRef.(!t)
+    let active x = A.Set.mem x CRef.(!t)
     let set local x b = if b then add_option local x else remove_option local x
   end
 

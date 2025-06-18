@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 (* If [restore] is false, whenever [f] modifies the ref, we will
    preserve the modification. *)
 let with_modified_ref ?(restore=true) r nf f x =
