@@ -358,6 +358,8 @@ rest of the Rocq Prover manual: :term:`terms <term>` and :term:`types
      :term:`tactics <tactic>`.  For example: ``split`` is a simple
      tactic while ``split; auto`` combines two simple tactics.
 
+     For more information, see :ref:`compil-steps`.
+
    command
 
      A :production:`command` can be used to modify the state of a Rocq
