@@ -379,8 +379,8 @@ begin fun env sigma ->
   let rec nat_of_n n =
     if n = 0 then zero
     else EConstr.mkApp (succ, [|nat_of_n (n-1)|]) in
-  incr ssr_abstract_id;
-  sigma, nat_of_n !ssr_abstract_id
+  CRef.(incr ssr_abstract_id);
+  sigma, nat_of_n CRef.(!ssr_abstract_id)
 end
 
 let tclMK_ABSTRACT_VAR id = Goal.enter begin fun gl ->

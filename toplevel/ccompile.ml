@@ -109,7 +109,7 @@ let compile opts stm_opts copts injections ~echo ~f_in ~f_out =
 
 let compile_file opts stm_opts copts injections (f_in, echo) =
   let f_out = copts.compilation_output_name in
-  if !Flags.beautify then
+  if CRef.(!Flags.beautify) then
     Flags.with_option Flags.beautify_file
       (fun f_in -> compile opts stm_opts copts injections ~echo ~f_in ~f_out) f_in
   else

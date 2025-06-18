@@ -30,7 +30,7 @@ let load_vernacular opts ~state =
       let s = Loadpath.locate_file f_in in
       (* Should make the beautify logic clearer *)
       let load_vernac f = Vernac.load_vernac ~echo ~check:true ~state f in
-      if !Flags.beautify
+      if CRef.(!Flags.beautify)
       then Flags.with_option Flags.beautify_file load_vernac f_in
       else load_vernac s
     ) state opts.pre.load_vernacular_list

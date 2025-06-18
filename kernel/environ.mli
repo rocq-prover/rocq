@@ -35,11 +35,11 @@ type link_info =
   | Linked of string
   | NotLinked
 
-type key = int CEphemeron.key option ref
+type key = int CEphemeron.key option CRef.ref
 
-type constant_key = constant_body * (link_info ref * key)
+type constant_key = constant_body * (link_info CRef.ref * key)
 
-type mind_key = mutual_inductive_body * link_info ref
+type mind_key = mutual_inductive_body * link_info CRef.ref
 
 type named_context_val = private {
   env_named_ctx : Constr.named_context;

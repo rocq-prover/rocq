@@ -89,9 +89,9 @@ let () =
   Goptions.(declare_bool_option
     { optstage = Summary.Stage.Interp;
       optkey   = ["SsrHave";"NoTCResolution"];
-      optread  = (fun _ -> !ssrhaveNOtcresolution);
+      optread  = (fun _ -> CRef.(!ssrhaveNOtcresolution));
       optdepr  = None;
-      optwrite = (fun b -> ssrhaveNOtcresolution := b);
+      optwrite = (fun b -> CRef.(ssrhaveNOtcresolution := b));
     })
 
 
@@ -251,7 +251,7 @@ let havetac ist
      (introstac binders) in
  let simpltac = introstac simpl in
  let fixtc =
-   not !ssrhaveNOtcresolution &&
+   not CRef.(!ssrhaveNOtcresolution) &&
    match fk with FwdHint(_,true) -> false | _ -> true in
  let hint = hinttac ist true hint in
  let cuttac t = basecuttac (if transp then HaveTransp else Have) t in

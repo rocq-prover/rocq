@@ -1579,6 +1579,7 @@ let do_build_inductive evd (funconstants : pconstant list)
     observe msg; raise reraise
 
 let build_inductive evd funconstants funsargs returned_types rtl =
+  let open CRef in
   let pu = !Detyping.print_universes in
   let cu = !Constrextern.print_universes in
   try

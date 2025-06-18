@@ -155,7 +155,7 @@ let pr_mutual_inductive_body env mind mib udecl =
     | CoFinite -> "CoInductive", false, default_as
     | BiFinite ->
        match mib.mind_record with
-       | FakeRecord when not !Flags.raw_print -> "Record", true, default_as
+       | FakeRecord when not CRef.(!Flags.raw_print) -> "Record", true, default_as
        | PrimRecord l -> "Record", true, Array.map_to_list (fun (id,_,_,_) -> Name id) l
        | FakeRecord | NotRecord -> "Variant", false, default_as
   in

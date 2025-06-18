@@ -10,6 +10,7 @@
 
 (* Reserved names *)
 
+open CRef
 open CErrors
 open Util
 open Pp

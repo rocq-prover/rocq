@@ -11,6 +11,7 @@
 (** This module registers tables for some non-logical informations
      associated declarations *)
 
+open CRef
 open Names
 open Libnames
 

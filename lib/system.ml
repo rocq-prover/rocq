@@ -230,7 +230,7 @@ let warn_using_current_directory =
 
 let get_output_path filename =
   if not (Filename.is_relative filename) then filename
-  else match !Flags.output_directory with
+  else match CRef.(!Flags.output_directory) with
   | None ->
     let pwd = Sys.getcwd () in
     warn_using_current_directory pwd;

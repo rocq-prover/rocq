@@ -62,6 +62,7 @@ let projection_table =
   Summary.ref (Cmap.empty : t Cmap.t) ~name:"record-projs"
 
 let register ({ name; projections; nparams } as s) =
+  let open CRef in
   structure_table := Indmap.add name s !structure_table;
   projection_table :=
     List.fold_right (fun { proj_body } m ->
@@ -85,17 +86,17 @@ let rebuild env s =
   let nparams = mib.Declarations.mind_nparams in
   { s with nparams }
 
-let find indsp = Indmap.find indsp !structure_table
+let find indsp = CRef.(Indmap.find indsp !structure_table)
 
 let find_projections indsp =
   (find indsp).projections |>
   List.map (fun { proj_body } -> proj_body)
 
-let find_from_projection cst = Cmap.find cst !projection_table
+let find_from_projection cst = Cmap.find cst CRef.(!projection_table)
 
-let projection_nparams cst = (Cmap.find cst !projection_table).nparams
+let projection_nparams cst = (Cmap.find cst CRef.(!projection_table)).nparams
 
-let is_projection cst = Cmap.mem cst !projection_table
+let is_projection cst = Cmap.mem cst CRef.(!projection_table)
 
 let projection_number env cst =
   let s = find_from_projection cst in
@@ -313,6 +314,7 @@ let make env sigma ref =
   (ref,indsp)
 
 let register ~warn env sigma o =
+    let open CRef in
     compute_canonical_projections env sigma ~warn o |>
     List.iter (fun ((proj, (cs_pat, t)), s) ->
       let l = try GlobRef.Map.find proj !object_table with Not_found -> PatMap.empty in
@@ -353,7 +355,7 @@ type t = {
 
 let find env sigma (proj,pat) =
   let t', { o_DEF = c; o_CTX = ctx; o_INJ=n; o_TABS = bs;
-        o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find pat (GlobRef.Map.find proj !object_table) in
+        o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find pat (GlobRef.Map.find proj CRef.(!object_table)) in
   let us = List.map EConstr.of_constr us in
   let params = List.map EConstr.of_constr params in
   let u, ctx' = UnivGen.fresh_instance_from ctx None in
@@ -391,10 +393,10 @@ let rec decompose_projection ?metas sigma c args =
   | Const (c, u) ->
      let n = Structure.projection_nparams c in
      (* Check if there is some canonical projection attached to this structure *)
-     let _ = GlobRef.Map.find (GlobRef.ConstRef c) !object_table in
+     let _ = GlobRef.Map.find (GlobRef.ConstRef c) CRef.(!object_table) in
      get_nth n args
   | Proj (p, _, c) ->
-     let _ = GlobRef.Map.find (GlobRef.ConstRef (Names.Projection.constant p)) !object_table in
+     let _ = GlobRef.Map.find (GlobRef.ConstRef (Names.Projection.constant p)) CRef.(!object_table) in
      c
   | _ -> raise Not_found
 
@@ -437,11 +439,11 @@ let canonical_entry_of_object projection value (_, { o_ORIGIN = solution }) =
 let entries () =
   GlobRef.Map.fold (fun p ol acc ->
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
-    !object_table []
+    CRef.(!object_table) []
 
 let entries_for ~projection:p =
   try
-    GlobRef.Map.find p !object_table |>
+    GlobRef.Map.find p CRef.(!object_table) |>
     PatMap.bindings |>
     List.map (fun (pat, o) -> canonical_entry_of_object p pat o)
   with Not_found -> []
@@ -454,12 +456,13 @@ let prim_table =
   Summary.ref (Cmap_env.empty : Names.Projection.Repr.t Cmap_env.t) ~name:"record-prim-projs"
 
 let register p c =
+  let open CRef in
   prim_table := Cmap_env.add c p !prim_table
 
-let mem c = Cmap_env.mem c !prim_table
+let mem c = Cmap_env.mem c CRef.(!prim_table)
 
 let find_opt c =
-  try Some (Cmap_env.find c !prim_table) with Not_found -> None
+  try Some (Cmap_env.find c CRef.(!prim_table)) with Not_found -> None
 
 let find_opt_with_relevance (c,u) =
   find_opt c |>

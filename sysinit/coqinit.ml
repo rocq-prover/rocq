@@ -128,7 +128,7 @@ let init_load_paths (coqenv:Boot.Env.maybe_env) opts =
       in
       Coqloadpath.init_load_path ~coqenv, nI
   in
-  let () = Nativelib.include_dirs := native_ml_path in
+  let () = CRef.(Nativelib.include_dirs := native_ml_path) in
   let ml_path = opts.pre.ml_includes @ boot_ml_path in
   List.iter Mltop.add_ml_dir (List.rev ml_path);
   List.iter Loadpath.add_vo_path boot_vo_path;
@@ -181,6 +181,8 @@ let init_document opts =
   Global.set_VM opts.config.enable_VM;
   Global.set_native_compiler (match opts.config.native_compiler with NativeOff -> false | NativeOn _ -> true);
   Global.set_rewrite_rules_allowed opts.config.logic.rewrite_rules;
+
+  let open CRef in
 
   (* XXX these flags should probably be in the summary *)
   (* Native output dir *)
@@ -264,6 +266,7 @@ let handle_injection ~intern = let open Coqargs in function
   | WarnNativeDeprecated -> warn_deprecated_native_compiler ()
 
 let start_library ~intern ~top injections =
+  let open CRef in
   Flags.verbosely Declaremods.start_library top;
   CWarnings.override_unknown_warning[@ocaml.warning "-3"] := true;
   List.iter (handle_injection ~intern) injections;
