@@ -2,6 +2,9 @@
 (env
  (dev     (flags :standard -w -9-27@60-69@70 \ -short-paths)
           (coq (flags :standard -w +default)))
+ (br_timing
+          (flags :standard)
+          (ocamlopt_flags :standard -O3 -unbox-closures))
  (release (flags :standard)
           (ocamlopt_flags :standard -O3 -unbox-closures))
  (ireport (flags :standard -w -9-27+60-70)
