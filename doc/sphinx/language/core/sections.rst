@@ -246,7 +246,7 @@ A similar table for :cmd:`Module` can be found
 
 .. [#note1] For :cmd:`Definition`, :cmd:`Lemma`, ... the default visibility is
    to be available outside the section and available with a short name when the
-   current :cmd:`Module` is imported (with :cmd:`Import` or cmd:`Export`)
+   current :cmd:`Module` is imported (with :cmd:`Import` or :cmd:`Export`)
    outside the current :cmd:`Module`.
    The :attr:`local` attribute make the corresponding identifiers available in
    the current :cmd:`Module` but only with a fully qualified name outside the
@@ -255,14 +255,14 @@ A similar table for :cmd:`Module` can be found
 .. [#note2] For :cmd:`Coercion` and :cmd:`Canonical Structure`, the
    :attr:`global` visibility, which is the default, makes them available outside
    the section, in the current :cmd:`Module`, and outside the current
-   :cmd:`Module` when it is imported (with :cmd:`Import` or cmd:`Export`).
+   :cmd:`Module` when it is imported (with :cmd:`Import` or :cmd:`Export`).
 
 .. [#note3] For :cmd:`Set` and :cmd:`Unset`, the :attr:`export` and
    :attr:`global` attributes both make the command's effects persist outside the
    current section, in the current :cmd:`Module`.
    It will also persist outside the current :cmd:`Module` with the
    :attr:`global` attribute, or with the :attr:`export` attribute, when the
-   :cmd:`Module` is imported (with :cmd:`Import` or cmd:`Export`).
+   :cmd:`Module` is imported (with :cmd:`Import` or :cmd:`Export`).
    The default behaviour (no attribute) is to make the setting persist outside
    the section in the current :cmd:`Module`, but not outside the current
    :cmd:`Module`.
