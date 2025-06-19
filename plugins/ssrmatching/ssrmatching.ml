@@ -603,9 +603,11 @@ let dont_impact_evars_in sigma0 cl =
 (*    head is an evar or meta (e.g., it fails on ?1 = nat when ?1 : Type).  *)
 (*  - w_unify expands let-in (zeta conversion) eagerly, whereas we want to  *)
 (*    match a head let rigidly.                                             *)
-let match_upats_FO upats env sigma0 ise orig_c =
+let match_upats_FO ~fail_cache upats env sigma0 ise orig_c =
+  let nupats = List.length upats in
   let dont_impact_evars = dont_impact_evars_in sigma0 orig_c in
   let rec loop c =
+    let ho_unif_performed = ref false in
     let f, a = splay_app ise c in let i0 = ref (-1) in
     let fpats =
       List.fold_right (filter_upat_FO env ise i0 f (Array.length a)) upats [] in
@@ -636,6 +638,7 @@ let match_upats_FO upats env sigma0 ise orig_c =
              let (metas, p_FO) = u.up_FO in
              unif_FO env ise metas p_FO c'
            in
+           if nupats = 1 && i = Array.length a && u.up_k = KpatConst then ho_unif_performed := true;
            let ise' = (* Unify again using HO to assign evars *)
              let p = mkApp (u.up_f, u.up_a) in
              try unif_HO env ise p c' with e when CErrors.noncritical e -> raise NoMatch in
@@ -644,18 +647,17 @@ let match_upats_FO upats env sigma0 ise orig_c =
            raise (FoundUnif (ungen_upat lhs pt' u))
        with FoundUnif (_, s,_,_) as sig_u when dont_impact_evars s -> raise sig_u
        | Not_found -> CErrors.anomaly (str"incomplete ise in match_upats_FO.")
-       | e when CErrors.noncritical e ->
-    pp(lazy(str"FO fail: " ++ CErrors.print e));
-
-
-        () in
-    List.iter one_match fpats
+       | e when CErrors.noncritical e -> pp(lazy(str"FO fail: " ++ CErrors.print e));
+       () in
+    List.iter one_match fpats;
+    if !ho_unif_performed then
+      fail_cache := c :: !fail_cache;
   done;
   iter_constr_LR ise loop f; Array.iter loop a in
   try loop orig_c with Invalid_argument _ -> CErrors.anomaly (str"IN FO.")
 
 
-let match_upats_HO ~on_instance upats env sigma0 ise c =
+let match_upats_HO ~on_instance ~fail_cache upats env sigma0 ise c =
  let dont_impact_evars = dont_impact_evars_in sigma0 c in
  let it_did_match = ref false in
  let failed_because_of_TC = ref false in
@@ -667,6 +669,7 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
   while !i0 >= 0 do
     let i = !i0 in i0 := -1;
     let one_match (u, np) =
+      if i = Array.length a && List.memq c fail_cache then () else
       let skip =
         if i <= np then i < np else
         if u.up_k == KpatFlex then begin i0 := i - 1; false end else
@@ -856,16 +859,17 @@ let find_tpattern ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~up
   fun env c h ~k ->
   do_once upat_that_matched (fun () ->
     let failed_because_of_TC = ref false in
+    let fail_cache = ref [] in
     try
       let () = match instances with
-      | None -> match_upats_FO upats env sigma0 ise c
+      | None -> match_upats_FO ~fail_cache upats env sigma0 ise c
       | Some _ -> ()
       in
       let on_instance = match instances with
       | None -> fun x -> raise (FoundUnif x)
       | Some r -> fun x -> r := !r @ [x]
       in
-      failed_because_of_TC:=match_upats_HO ~on_instance upats env sigma0 ise c;
+      failed_because_of_TC:=match_upats_HO ~on_instance ~fail_cache:!fail_cache upats env sigma0 ise c;
       raise NoMatch
     with FoundUnif sigma_u -> env,0,[sigma_u]
     | (NoMatch|NoProgress) when has_instances instances ->
