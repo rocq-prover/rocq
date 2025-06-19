@@ -17,4 +17,4 @@
 
 Require Import Ltac2.Init Ltac2.Std.
 
-Ltac2 Notation "transitivity" c(constr) := Std.transitivity c.
+Ltac2 Notation "transitivity" c(constr) : 1 := Std.transitivity c.
