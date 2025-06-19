@@ -22,7 +22,7 @@ Defining record types
 
    .. prodn::
       record_definition ::= {? > } @ident_decl {* @binder } {? : @sort } {? := {? @ident } %{ {? {+; @record_field } {? ; } } %} {? as @ident } }
-      record_field ::= {* #[ {+, @attribute } ] } @name {? @field_spec } {? %| @natural }
+      record_field ::= {* #[ {+, @attribute } ] } @name {? @field_spec } {? %| @natural } {? @decl_notations }
       field_spec ::= {* @binder } @of_type_inst
       | {* @binder } := @term
       | {* @binder } @of_type_inst := @term
@@ -86,19 +86,11 @@ Defining record types
      :n:`| @natural`
        Specifies the priority of the field.  It is only allowed in :cmd:`Class` commands.
 
-     :n:`:`
-       Specifies the type of the field.
-
-     :n:`:>`
-       If specified, the field is declared as a coercion from the record name
-       to the class of the field type. See :ref:`coercions`.
-
-     :n:`::`
-       If specified, the field is declared a typeclass instance of the class
-       of the field type. See :ref:`typeclasses`.
-
-     :n:`::>`
-       Acts as a combination of :n:`::` and :n:`:>`.
+     :n:`{? @decl_notations }`
+       Defines notations that are active in subsequent fields, not in the field
+       itself, until the end of the :cmd:`Record` (see :ref:`example
+       <record_where_clause>`). Note that :g:`where` clauses cannot be added at
+       the record level.
 
      - :n:`{+ @binder } : @of_type_inst` is equivalent to
        :n:`: forall {+ @binder } , @of_type_inst`
@@ -112,6 +104,20 @@ Defining record types
      :n:`:= @term`, if present, gives the value of the field, which may depend
      on the fields that appear before it.  Since their values are already defined,
      such fields cannot be specified when constructing a record.
+
+     :n:`:`
+       Specifies the type of the field.
+
+     :n:`:>`
+       If specified, the field is declared as a coercion from the record name
+       to the class of the field type. See :ref:`coercions`.
+
+     :n:`::`
+       If specified, the field is declared a typeclass instance of the class
+       of the field type. See :ref:`typeclasses`.
+
+     :n:`::>`
+       Acts as a combination of :n:`::` and :n:`:>`.
 
    The :cmd:`Record` command supports the :attr:`universes(polymorphic)`,
    :attr:`universes(template)`, :attr:`universes(cumulative)`,
@@ -176,6 +182,27 @@ Defining record types
 
          Class MyClass := { myfield2 : nat }.
          About myfield2. (* Argument name defaults to the class name and is marked implicit *)
+
+.. _record_where_clause:
+
+   .. example:: Using a :g:`where` clause in a record field
+
+      .. rocqtop:: all
+
+         Reserved Notation "a & b" (at level 40, left associativity).
+         Record nat_comoid :=
+         {
+           op : nat -> nat -> nat where "a & b" := (op a b);
+           identity : nat;
+           identity_cond : forall n, identity & n = n;
+           comm: forall a b, a & b = b & a;
+           assoc: forall a b c, a & (b & c) = a & b & c
+         }.
+
+   .. exn:: Error: "where" clause not supported for records.
+
+      :g:`where` clauses are only supported for :n:`@record_field`\s, not for the overall
+      record definition.
 
    .. exn:: Records declared with the keyword Record or Structure cannot be recursive.
 
