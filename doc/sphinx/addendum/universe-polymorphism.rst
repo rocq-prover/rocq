@@ -537,8 +537,8 @@ Explicit Universes
    | Type
    | _
    | @qualid
-   univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* @ident } {? ? } {? %| {*, @univ_constraint } {? + } } %}
-   cumul_univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* {? {| + | = | * } } @ident } {? ? } {? %| {*, @univ_constraint } {? + } } %}
+   univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* @ident } {? + } {? %| {*, @univ_constraint } {? + } } %}
+   cumul_univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @univ_constraint } {? + } } %}
    univ_constraint ::= @universe_name {| < | = | <= } @universe_name
 
 The syntax has been extended to allow users to explicitly bind names
@@ -683,8 +683,8 @@ by adding a :g:`+` in the list of bound universe levels:
 
 .. rocqtop:: all
 
-   Fail Definition foobar@{u} : Type@{u} := Type.
-   Definition foobar@{u ?} : Type@{u} := Type.
+   Fail Definition foobar@{u} : Type@{u} := Type@{_}.
+   Definition foobar@{u +} : Type@{u} := Type.
    Set Printing Universes.
    Print foobar.
 
@@ -734,7 +734,7 @@ underscore or by omitting the annotation to a polymorphic definition.
    .. rocqtop:: in
 
       Lemma foo@{i} : Type@{i}.
-      Proof. exact Type. Qed.
+      Proof. exact Type@{_}. Qed.
 
    .. rocqtop:: all
 
@@ -766,7 +766,7 @@ underscore or by omitting the annotation to a polymorphic definition.
 
       Unset Private Polymorphic Universes.
 
-      Lemma bar : Type. Proof. exact Type. Qed.
+      Lemma bar : Type@{_}. Proof. exact Type@{_}. Qed.
 
    .. rocqtop:: all
 
@@ -891,7 +891,7 @@ However elimination to `Type` or to a polymorphic sort with `s := Prop` is allow
      : forall s, P s
      := fun s => match s with squash _ x => H x end.
 
-   Definition Squash_Prop_srect@{s;u ?} A (P:Squash@{Prop;_} A -> Type@{s;u})
+   Definition Squash_Prop_srect@{s;u +} A (P:Squash@{Prop;_} A -> Type@{s;u})
      (H:forall x, P (squash _ x))
      : forall s, P s
      := fun s => match s with squash _ x => H x end.
@@ -1021,8 +1021,8 @@ sections, except in the following ways:
 
   .. rocqtop:: all
 
-     Fail Variable A : (Type@{i} : Type).
-     Polymorphic Variable A : (Type@{i} : Type).
+     Fail Variable A : (Type@{i} : Type@{_}).
+     Polymorphic Variable A : (Type@{i} : Type@{_}).
 
   (in the above example the anonymous :g:`Type` constrains polymorphic
   universe :g:`i` to be strictly smaller.)
