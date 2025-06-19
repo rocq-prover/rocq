@@ -988,7 +988,7 @@ unfolding.  Rocq has multiple notions of opaque:
   constants.  Tactics that
   use unification, such as :tacn:`reflexivity` and :tacn:`apply` may unfold
   changeably opaque constants, as can :tacn:`vm_compute` and :tacn:`native_compute`
-  (see `#4476 <https://github.com/coq/coq/issues/4476>`_).
+  (see `#4476 <https://github.com/rocq-prover/rocq/issues/4476>`_).
 - The :cmd:`Strategy` command provides some additional refinements (all changeable).
 
 .. cmd:: Opaque {? ! } {+ @reference }

@@ -387,7 +387,9 @@ opacity settings.  :tacn:`auto` and :tacn:`eauto` don't do this.)
 
    All constants, variables and projections are set to default to unfoldable (use
    :cmd:`Hint Constants`, :cmd:`Hint Projections` and :cmd:`Hint Variables`
-   to change this).
+   to change this).  For better performance, we recommend setting each of these
+   to :n:`Opaque` and then using :cmd:`Hint Transparent` for specific items
+   when necessary.
 
    By default, hint databases are undiscriminated.  We recommend using `discriminated`
    because it generally performs better.
@@ -696,7 +698,10 @@ Creating Hints
 
       Sets the default transparency for constants, projections or variables for
       the specified hint databases.  Existing transparency settings for individual
-      items (e.g., set with :cmd:`Hint Opaque`) are dropped.
+      items (e.g., set with :cmd:`Hint Opaque`) are dropped.  Making items opaque
+      can make proof search commands run faster (fewer unfoldings) but it can also
+      prevent matching some hints.  We recommend setting each of these
+      to :n:`Opaque` and then using :cmd:`Hint Transparent` for specific items as needed.
       We advise using this command just after a :cmd:`Create HintDb` command.
 
    .. cmd:: Hint Extern @natural {? @one_pattern } => @generic_tactic {? : {+ @ident } }
