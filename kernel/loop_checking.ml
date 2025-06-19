@@ -1922,7 +1922,7 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
           (* prems -> can + clk *)
           if clk > k then acc (* Looking at prems -> can + k + S k' clause, not applicable to find a loop with canv *)
           else (* k >= clk *)
-            let status, mergeprem = backward_premises k clk (canonical_premises_repr model prems) (status, path) in
+            let status, mergeprem = backward_premises k clk (repr_premises model prems) (status, path) in
             status, PathSet.union merge mergeprem
         in
         let status, merge = ClausesOf.fold merge_fn cls (status, merge) in
@@ -1934,7 +1934,7 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
       end
   and backward_premises k clk prems (status, path) =
     let merge_prem status (prem, kprem) =
-      let p = refresh_can_expr model (prem, kprem + (k - clk)) in
+      let p = (prem, kprem + (k - clk)) in
       (* Stay in the same equivalence class *)
       let premvalue = defined_expr_value model p in
       if Int.equal premvalue canvalue then
@@ -2007,7 +2007,7 @@ let get_explanation model prems (canv, kv) =
       end
   and backward_premises k clk prems (status, path) =
     let merge_prem status (prem, kprem) =
-      let p = refresh_can_expr model (prem, kprem + (k - clk)) in
+      let p = (prem, kprem + (k - clk)) in
       (* Stay in the same equivalence class *)
       (* prem + kprem -> can + clk      , with k >= clk implies
          prem + kprem + (k - clk) -> can + k by upwards closure with shifting *)
