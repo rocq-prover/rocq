@@ -13,7 +13,7 @@
 (generate_opam_files true)
 
 (license LGPL-2.1-only)
-(maintainers "The Rocq development team <coqdev@inria.fr>")
+(maintainers "The Rocq development team <rocq+rocq-development@discoursemail.com>")
 (authors "The Rocq development team, INRIA, CNRS, and contributors")
 ; This generates bug-reports and dev-repo
 (source (github rocq-prover/rocq))
