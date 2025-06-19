@@ -218,7 +218,7 @@ let rec check_mexpr env opac mse mp_mse res = match mse with
     let sign, delta = check_mexpr env opac f mp_mse res in
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
     let mtb = Modops.module_type_of_module (lookup_module mp env) in
-    let state = (Environ.universes env, Conversion.checked_universes) in
+    let state = (Environ.universes env, Conversion.checked_universes ()) in
     let _ : UGraph.t = Subtyping.check_subtypes state env mp mtb (MPbound farg_id) farg_b in
     let subst = Mod_subst.map_mbid farg_id mp (Mod_subst.empty_delta_resolver mp) in
     Modops.subst_signature subst mp_mse fbody_b, Mod_subst.subst_codom_delta_resolver subst delta
@@ -254,7 +254,7 @@ let rec check_module env opac mp mb opacify =
   | Some (sign,delta) ->
     let mtb1 = mk_mtb sign delta
     and mtb2 = mk_mtb (mod_type mb) delta_mb in
-    let state = (Environ.universes env, Conversion.checked_universes) in
+    let state = (Environ.universes env, Conversion.checked_universes ()) in
     let _ : UGraph.t = Subtyping.check_subtypes state env mp mtb1 mp mtb2 in
     ()
   in

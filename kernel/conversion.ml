@@ -119,6 +119,28 @@ let pure_stack lfts stk =
 (*                         Conversion                               *)
 (********************************************************************)
 
+module SortOrd =
+struct
+  type t = Sorts.t * Sorts.t
+  let compare (p1, q1) (p2, q2) =
+    let c = Sorts.compare p1 p2 in
+    if c <> 0 then c
+    else Sorts.compare q1 q2
+end
+
+module SortMap = Map.Make(SortOrd)
+
+type cache =
+| DummyCache
+| Cache of {
+    cache_ug : UGraph.t;
+    mutable cache_le : bool SortMap.t;
+    mutable cache_eq : bool SortMap.t;
+  }
+
+let make_cache ug =
+  Cache { cache_ug = ug; cache_eq = SortMap.empty; cache_le = SortMap.empty }
+
 (* Conversion utility functions *)
 
 (* functions of this type are called from the kernel *)
@@ -126,7 +148,7 @@ type 'a kernel_conversion_function = env -> 'a -> 'a -> (unit, unit) result
 
 (* functions of this type can be called from outside the kernel *)
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
+  ?cache:cache -> ?l2r:bool -> ?reds:TransparentState.t -> env ->
   ?evars:evar_handler ->
   'a -> 'a -> (unit, unit) result
 
@@ -951,16 +973,42 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
       | NotConvertibleTrace _ -> assert false
   end ()
 
-let check_eq univs u u' =
-  if UGraph.check_eq_sort univs u u' then Result.Ok univs else Result.Error None
+let get_cache = function
+| None -> DummyCache
+| Some c -> c
 
-let check_leq univs u u' =
-  if UGraph.check_leq_sort univs u u' then Result.Ok univs else Result.Error None
+let check_eq cache univs u u' =
+  let ans = match cache with
+  | DummyCache -> UGraph.check_eq_sort univs u u'
+  | Cache cache ->
+    let () = assert (univs == cache.cache_ug) in
+    match SortMap.find_opt (u, u') cache.cache_eq with
+    | Some ans -> ans
+    | None ->
+      let ans = UGraph.check_eq_sort univs u u' in
+      let () = cache.cache_eq <- SortMap.add (u, u') ans cache.cache_eq in
+      ans
+  in
+  if ans then Result.Ok univs else Result.Error None
 
-let checked_sort_cmp_universes _env pb s0 s1 univs =
+let check_leq cache univs u u' =
+  let ans = match cache with
+  | DummyCache -> UGraph.check_leq_sort univs u u'
+  | Cache cache ->
+    let () = assert (univs == cache.cache_ug) in
+    match SortMap.find_opt (u, u') cache.cache_le with
+    | Some ans -> ans
+    | None ->
+      let ans = UGraph.check_leq_sort univs u u' in
+      let () = cache.cache_le <- SortMap.add (u, u') ans cache.cache_le in
+      ans
+  in
+  if ans then Result.Ok univs else Result.Error None
+
+let checked_sort_cmp_universes cache _env pb s0 s1 univs =
   match pb with
-  | CUMUL -> check_leq univs s0 s1
-  | CONV -> check_eq univs s0 s1
+  | CUMUL -> check_leq cache univs s0 s1
+  | CONV -> check_eq cache univs s0 s1
 
 let check_convert_instances ~flex:_ u u' univs =
   if UGraph.check_eq_instances univs u u' then Result.Ok univs
@@ -972,8 +1020,10 @@ let check_inductive_instances cv_pb variance u1 u2 univs =
   if Sorts.QConstraints.trivial qcsts && (UGraph.check_constraints ucsts univs) then Result.Ok univs
   else Result.Error None
 
-let checked_universes =
-  { compare_sorts = checked_sort_cmp_universes;
+let checked_universes ?cache  () =
+  let cache = get_cache cache in
+  let compare_sorts env pb s0 s1 univs = checked_sort_cmp_universes cache env pb s0 s1 univs in
+  { compare_sorts;
     compare_instances = check_convert_instances;
     compare_cumul_instances = check_inductive_instances; }
 
@@ -984,7 +1034,7 @@ let () =
       let univs = info_univs infos in
       let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box } in
       let univs', _ = ccnv CONV false infos el_id el_id a b
-          (univs, checked_universes)
+          (univs, checked_universes ())
       in
       assert (univs==univs');
       true
@@ -994,14 +1044,14 @@ let () =
   in
   CClosure.set_conv conv
 
-let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
+let gen_conv ~typed cv_pb ?cache ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in
   let b =
     if cv_pb = CUMUL then leq_constr_univs univs t1 t2
     else eq_constr_univs univs t1 t2
   in
     if b then Result.Ok ()
-    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (univs, checked_universes) t1 t2 with
+    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (univs, checked_universes ?cache ()) t1 t2 with
     | Result.Ok (_ : UGraph.t * (UGraph.t, Empty.t) universe_compare)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e
@@ -1015,7 +1065,8 @@ let generic_conv cv_pb ~l2r reds env ?(evars=default_evar_handler env) univs t1 
   | Result.Ok (s, _) -> Result.Ok s
   | Result.Error e -> Result.Error e
 
-let default_conv cv_pb env t1 t2 =
-    gen_conv ~typed:true cv_pb env t1 t2
+let default_conv ?cache cv_pb env t1 t2 =
+    gen_conv ?cache ~typed:true cv_pb env t1 t2
 
-let default_conv_leq = default_conv CUMUL
+let default_conv_leq ?cache env t1 t2 =
+  default_conv ?cache CUMUL env t1 t2

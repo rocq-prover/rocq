@@ -28,12 +28,17 @@ module NamedDecl = Context.Named.Declaration
 exception NotConvertible
 exception NotConvertibleVect of int
 
-let conv_leq env x y = default_conv CUMUL env x y
+type table = {
+  tbl : Constr.t HConstr.Tbl.t;
+  cache : Conversion.cache;
+}
 
-let conv_leq_vecti env v1 v2 =
+let conv_leq cache env x y = default_conv ~cache CUMUL env x y
+
+let conv_leq_vecti cache env v1 v2 =
   Array.fold_left2_i
     (fun i _ t1 t2 ->
-      match conv_leq env t1 t2 with
+      match conv_leq cache env t1 t2 with
       | Result.Ok () -> ()
       | Result.Error () -> raise (NotConvertibleVect i))
     ()
@@ -224,7 +229,7 @@ let rec check_empty_stack = function
 | CClosure.Zupdate _ :: s -> check_empty_stack s
 | _ -> false
 
-let type_of_apply env func funt argsv argstv =
+let type_of_apply cache env func funt argsv argstv =
   let open CClosure in
   let len = Array.length argsv in
   let infos = create_clos_infos RedFlags.all env in
@@ -240,7 +245,7 @@ let type_of_apply env func funt argsv argstv =
         let arg = argsv.(i) in
         let argt = argstv.(i) in
         let c1 = term_of_fconstr c1 in
-        begin match conv_leq env argt c1 with
+        begin match conv_leq cache env argt c1 with
         | Result.Ok () -> apply_rec (i+1) (mk_clos (CClosure.usubs_cons (inject arg) e) c2)
         | Result.Error () ->
           error_cant_apply_bad_type env
@@ -257,7 +262,7 @@ let type_of_apply env func funt argsv argstv =
 
 (* Checks that an array of terms has the type of a telescope. We assume that all
    inputs are well-typed separately. *)
-let type_of_parameters env ctx u argsv argstv =
+let type_of_parameters cache env ctx u argsv argstv =
   let open Context.Rel.Declaration in
   let ctx = List.rev ctx in
   let rec apply_rec i subst ctx = match ctx with
@@ -266,7 +271,7 @@ let type_of_parameters env ctx u argsv argstv =
     let arg = argsv.(i) in
     let argt = argstv.(i) in
     let t = esubst u subst t in
-    begin match conv_leq env argt t with
+    begin match conv_leq cache env argt t with
     | Result.Ok () -> apply_rec (i + 1) (Esubst.subs_cons (Vars.make_substituend arg) subst) ctx
     | Result.Error () ->
       error_actual_type env (make_judge arg argt) t
@@ -450,7 +455,7 @@ let type_of_constructor env (c,_u as cu) =
 
 exception NotConvertibleBranch of int * rel_context * types * types
 
-let check_branch_types env (_mib, mip) ci u pms c _ct lft (pctx, p) =
+let check_branch_types cache env (_mib, mip) ci u pms c _ct lft (pctx, p) =
   let open Context.Rel.Declaration in
   let rec instantiate ctx args subst = match ctx, args with
   | [], [] -> subst
@@ -473,7 +478,7 @@ let check_branch_types env (_mib, mip) ci u pms c _ct lft (pctx, p) =
     let indices = List.lastn mip.mind_nrealargs retargs in
     let subst = instantiate (List.rev pctx) (indices @ [cstr]) (Esubst.subs_shft (nargs, Esubst.subs_id 0)) in
     let expbrt = Vars.esubst Vars.lift_substituend subst p in
-    match conv_leq brenv brt expbrt with
+    match conv_leq cache brenv brt expbrt with
     | Result.Ok () -> ()
     | Result.Error () -> raise (NotConvertibleBranch (i, brctx, brt, expbrt))
   in
@@ -521,7 +526,7 @@ let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
   let subst = Vars.subst_of_rel_context_instance_list pctx (realargs @ [c]) in
   Vars.substl subst p
 
-let type_of_case env (mib, mip as specif) ci u pms (pctx, pnas, p, rp, pt) iv c ct lf lft =
+let type_of_case cache env (mib, mip as specif) ci u pms (pctx, pnas, p, rp, pt) iv c ct lf lft =
   let ((ind, u'), largs) =
     try find_rectype env ct
     with Not_found -> error_case_not_inductive env (make_judge c ct) in
@@ -556,7 +561,7 @@ let type_of_case env (mib, mip as specif) ci u pms (pctx, pnas, p, rp, pt) iv c 
   let rslty = type_case_scrutinee env (mib, mip) (u', largs) u pms (pctx, p) c in
   (* We return the "higher" inductive universe instance from the predicate,
      the branches must be typeable using these universes. *)
-  let () = check_branch_types env (mib, mip) ci u pms c ct lft (pctx, p) in
+  let () = check_branch_types cache env (mib, mip) ci u pms c ct lft (pctx, p) in
   rslty
 
 let type_of_projection env p c ct =
@@ -576,11 +581,11 @@ let type_of_projection env p c ct =
 (* Checks the type of a general (co)fixpoint, i.e. without checking *)
 (* the specific guard condition. *)
 
-let check_fixpoint env lna lar vdef vdeft =
+let check_fixpoint cache env lna lar vdef vdeft =
   let lt = Array.length vdeft in
   assert (Int.equal (Array.length lar) lt);
   try
-    conv_leq_vecti env vdeft (Array.map (fun ty -> lift lt ty) lar)
+    conv_leq_vecti cache env vdeft (Array.map (fun ty -> lift lt ty) lar)
   with NotConvertibleVect i ->
     error_ill_typed_rec_body env i lna (make_judgev vdef vdeft) lar
 
@@ -632,11 +637,11 @@ let push_rec_types (lna,typarray,_) env =
 (* The typing machine. *)
 let rec execute tbl env cstr =
   if Int.equal (HConstr.refcount cstr) 1 then execute_aux tbl env cstr
-  else begin match HConstr.Tbl.find_opt tbl cstr with
+  else begin match HConstr.Tbl.find_opt tbl.tbl cstr with
     | Some v -> v
     | None ->
       let v = execute_aux tbl env cstr in
-      HConstr.Tbl.add tbl cstr v;
+      HConstr.Tbl.add tbl.tbl cstr v;
       v
   end
 
@@ -681,7 +686,7 @@ and execute_aux tbl env cstr =
             (* No template polymorphism *)
             execute tbl env f
         in
-        type_of_apply env (self f) ft args argst
+        type_of_apply tbl.cache env (self f) ft args argst
 
     | Lambda (name,c1,c2) ->
       let s = execute_is_type tbl env c1 in
@@ -732,7 +737,7 @@ and execute_aux tbl env cstr =
               mk @@ App (mk @@ Ind (ci.ci_ind,u), args)
             in
             let _ : Sorts.t = execute_is_type tbl env ct' in
-            match conv_leq env ct (self ct') with
+            match conv_leq tbl.cache env ct (self ct') with
             | Result.Ok () -> ()
             | Result.Error () -> error_bad_invert env (* TODO: more informative message *)
 
@@ -751,7 +756,7 @@ and execute_aux tbl env cstr =
         in
         let () = check_constraints cst env in
         let paramsubst =
-          try type_of_parameters env params u pms pmst
+          try type_of_parameters tbl.cache env params u pms pmst
           with ArgumentsMismatch -> error_elim_arity env (ci.ci_ind, u) (self c) None
         in
         let (pctx, pt) =
@@ -793,7 +798,7 @@ and execute_aux tbl env cstr =
         let lft = Array.mapi build_one_branch lf in
         (* easier than mapping self over various shapes of arrays *)
         let (ci, u, pms, (p,rp), iv, c, lf) = destCase (self cstr) in
-        type_of_case env (mib, mip) ci u pms (pctx, fst p, snd p, rp, pt) iv c ct lf lft
+        type_of_case tbl.cache env (mib, mip) ci u pms (pctx, fst p, snd p, rp, pt) iv c ct lf lft
 
     | Fix ((_,i),recdef) ->
       let fix_ty = execute_recdef tbl env recdef i in
@@ -846,14 +851,19 @@ and execute_recdef tbl env (names,lar,vdef) i =
   let env1 = push_rec_types (names,lar,vdef) env in (* vdef is ignored *)
   let vdeft = execute_array tbl env1 vdef in
   let vdef = Array.map HConstr.self vdef in
-  let () = check_fixpoint env1 names lar vdef vdeft in
+  let () = check_fixpoint tbl.cache env1 names lar vdef vdeft in
   lar.(i)
 
 and execute_array tbl env cs =
   Array.map (fun c -> execute tbl env c) cs
 
+let fresh_table env = {
+  tbl = HConstr.Tbl.create ();
+  cache = Conversion.make_cache (Environ.universes env);
+}
+
 let execute env c =
-  NewProfile.profile "Typeops.execute" (fun () -> execute (HConstr.Tbl.create ()) env c) ()
+  NewProfile.profile "Typeops.execute" (fun () -> execute (fresh_table env) env c) ()
 
 (* Derived functions *)
 
@@ -898,6 +908,7 @@ let infer_type env constr =
 (* Typing of several terms. *)
 
 let check_context env rels =
+  let cache = Conversion.make_cache (Environ.universes env) in
   let open Context.Rel.Declaration in
   Context.Rel.fold_outside (fun d (env,rels) ->
     match d with
@@ -908,7 +919,7 @@ let check_context env rels =
       | LocalDef (x,bd,ty) ->
         let j1 = infer env bd in
         let jty = infer_type env ty in
-        let () = match conv_leq env j1.uj_type ty with
+        let () = match conv_leq cache env j1.uj_type ty with
         | Result.Ok () -> ()
         | Result.Error () -> error_actual_type env j1 ty
         in

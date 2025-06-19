@@ -207,7 +207,7 @@ let native_conv cv_pb sigma env t1 t2 =
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
+    let state = (univs, checked_universes ()) in
     let t1 = Term.it_mkLambda_or_LetIn t1 (Environ.rel_context env) in
     let t2 = Term.it_mkLambda_or_LetIn t2 (Environ.rel_context env) in
     match native_conv_gen cv_pb sigma env state t1 t2 with

@@ -246,7 +246,7 @@ let vm_conv cv_pb env t1 t2 =
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
+    let state = (univs, checked_universes ()) in
     let ans : (UGraph.t, 'a option) result =
       NewProfile.profile "vm_conv" (fun () ->
           vm_conv_gen cv_pb (Genlambda.empty_evars env) env state t1 t2)

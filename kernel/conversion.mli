@@ -14,9 +14,13 @@ open Environ
 (***********************************************************************
   s conversion functions *)
 
+type cache
+
+val make_cache : UGraph.t -> cache
+
 type 'a kernel_conversion_function = env -> 'a -> 'a -> (unit, unit) result
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
+  ?cache:cache -> ?l2r:bool -> ?reds:TransparentState.t -> env ->
   ?evars:CClosure.evar_handler ->
   'a -> 'a -> (unit, unit) result
 
@@ -48,7 +52,7 @@ val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
   'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)
-val checked_universes : (UGraph.t, 'err) universe_compare
+val checked_universes : ?cache:cache -> unit -> (UGraph.t, 'err) universe_compare
 
 (** These two functions can only fail with unit *)
 val conv : constr extended_conversion_function
@@ -61,5 +65,5 @@ val generic_conv : conv_pb -> l2r:bool
   -> TransparentState.t -> env -> ?evars:CClosure.evar_handler
   -> ('a, 'err) generic_conversion_function
 
-val default_conv     : conv_pb -> types kernel_conversion_function
-val default_conv_leq : types kernel_conversion_function
+val default_conv     : ?cache:cache -> conv_pb -> types kernel_conversion_function
+val default_conv_leq : ?cache:cache -> types kernel_conversion_function
