@@ -43,7 +43,7 @@ fun (A : Type@{uu}) (Wrap : Wrap@{uu} A) => Wrap
 Arguments wrap {A}%_type_scope {Wrap}
 bar@{uu} = nat
      : Wrap@{uu} Set
-(* uu |= 1 <= uu *)
+(* uu |= 0 < uu *)
 foo@{uu u v} =
 Type@{u} -> Type@{v} -> Type@{uu}
      : Type@{max(uu+1,u+1,v+1)}
@@ -294,6 +294,6 @@ id@{SProp ; 0}
 id3@{s ; u} =
 fun (A : Type@{s ; u}) (a : A) => a
      : forall A : Type@{s ; u}, A -> A
-(* s ; u |= 1 <= u *)
+(* s ; u |= 0 < u *)
 
 Arguments id3 A%_type_scope a
