@@ -821,7 +821,12 @@ let register_notation atts tkn lev body =
           user_err (str "Notation levels must range between 0 and 6")
       in
       n
-    | None -> 5
+    | None ->
+      (* autodetect level *)
+      begin match entries with
+        | TacTerm s :: _ when Names.Id.is_valid s -> 1
+        | _ -> 5
+      end
     in
     let key = make_fresh_key tkn in
     let ext = {
