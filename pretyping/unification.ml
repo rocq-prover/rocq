@@ -1539,7 +1539,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
       | exception Not_found -> None
     in  
     let (sigma,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
-      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas:(metasfn substn) (fst curenvnb) sigma f1l1) f2l2        
+      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas:(metasfn substn) (fst curenvnb) sigma f1l1) f2l2
       with Not_found -> error_cannot_unify (fst curenvnb) sigma (cM,cN)
     in
     if Reductionops.Stack.compare_shape ts ts1 then
@@ -1557,7 +1557,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
               let metas = Meta.meta_declare mv (substl ks b) substn.subst_metam in
               ({ substn with subst_metam = metas }, mkMeta mv :: ks, m - 1, test))
           (substn,[],List.length bs, fun s -> s) bs
-      in      
+      in
       try
       let opt' = {opt with with_types = false} in
       let fold u1 u s = unirec_rec curenvnb pb opt' s u1 (substl ks u) in
