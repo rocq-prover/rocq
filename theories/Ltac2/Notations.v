@@ -14,33 +14,33 @@ Require Ltac2.Control Ltac2.Fresh Ltac2.Option Ltac2.Pattern Ltac2.Array Ltac2.I
 
 (** Constr matching *)
 
-Ltac2 Notation "lazy_match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "lazy_match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.lazy_match0 t m.
 
-Ltac2 Notation "multi_match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "multi_match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.multi_match0 t m.
 
-Ltac2 Notation "match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.one_match0 t m.
 
 (** Goal matching *)
 
-Ltac2 Notation "lazy_match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "lazy_match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.lazy_goal_match0 false m.
 
-Ltac2 Notation "multi_match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "multi_match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.multi_goal_match0 false m.
 
-Ltac2 Notation "match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.one_goal_match0 false m.
 
-Ltac2 Notation "lazy_match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "lazy_match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.lazy_goal_match0 true m.
 
-Ltac2 Notation "multi_match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "multi_match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.multi_goal_match0 true m.
 
-Ltac2 Notation "match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.one_goal_match0 true m.
 
 (** Tacticals *)
