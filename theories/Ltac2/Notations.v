@@ -203,13 +203,17 @@ Ltac2 Notation eright := eright.
 Ltac2 constructor0 ev n bnd :=
   enter_h ev (fun ev bnd => Std.constructor_n ev n bnd) bnd.
 
-Ltac2 Notation "constructor" := Control.enter (fun () => Std.constructor false).
-Ltac2 Notation constructor := constructor.
-Ltac2 Notation "constructor" n(tactic) bnd(thunk(with_bindings)) := constructor0 false n bnd.
+Local Ltac2 constructor1 ev x :=
+  match x with
+  | None => Control.enter (fun () => Std.constructor ev)
+  | Some (tac, bnd) => constructor0 ev tac bnd
+  end.
 
-Ltac2 Notation "econstructor" := Control.enter (fun () => Std.constructor true).
-Ltac2 Notation econstructor := econstructor.
-Ltac2 Notation "econstructor" n(tactic) bnd(thunk(with_bindings)) := constructor0 true n bnd.
+Ltac2 Notation constructor := constructor1 false None.
+Ltac2 Notation "constructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 false x.
+
+Ltac2 Notation econstructor := constructor1 true None.
+Ltac2 Notation "econstructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 true x.
 
 Ltac2 specialize0 c pat :=
   enter_h false (fun _ c => Std.specialize c pat) c.
