@@ -937,6 +937,16 @@ let loc_info gr =
   | None -> mt()
   | Some loc -> cut() ++ hov 0 (str "Declared in" ++ spc() ++ pr_loc_use_dp loc)
 
+let pr_dir dir =
+  let s,mp =
+    let open Nametab in
+    let open GlobDirRef in match dir with
+    | DirOpenModule mp -> "Open Module", ModPath.print mp
+    | DirOpenModtype mp -> "Open Module Type", ModPath.print mp
+    | DirOpenSection dir -> "Open Section", pr_path dir
+  in
+  str s ++ spc () ++ mp
+
 let pr_located_qualid env = function
   | Term ref ->
       let ref_str = let open GlobRef in match ref with
@@ -949,15 +959,7 @@ let pr_located_qualid env = function
       v 0 (hov 0 (str ref_str ++ spc () ++ pr_path (Nametab.path_of_global ref) ++ extra))
   | Abbreviation kn ->
     str "Notation" ++ spc () ++ pr_path (Nametab.path_of_abbreviation kn)
-  | Dir dir ->
-      let s,mp =
-        let open Nametab in
-        let open GlobDirRef in match dir with
-        | DirOpenModule mp -> "Open Module", ModPath.print mp
-        | DirOpenModtype mp -> "Open Module Type", ModPath.print mp
-        | DirOpenSection dir -> "Open Section", pr_path dir
-      in
-      str s ++ spc () ++ mp
+  | Dir dir -> pr_dir dir
   | Module mp ->
     str "Module" ++ spc () ++ pr_path (Nametab.path_of_module mp)
   | ModuleType mp ->
@@ -980,7 +982,7 @@ let print_any_name access env sigma na udecl =
   | Term gref -> print_global_reference access env sigma gref udecl
   | Abbreviation kn -> print_abbreviation access env sigma kn
   | Module mp -> print_module mp
-  | Dir _ -> mt ()
+  | Dir dir -> pr_dir dir
   | ModuleType mp -> print_modtype mp
   | Other (obj, info) -> info.print obj
   | Undefined qid ->
