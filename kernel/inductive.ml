@@ -23,12 +23,7 @@ open Type_errors
 open Context.Rel.Declaration
 open Sorts
 
-(* raises an anomaly if not an inductive type *)
-let lookup_mind_specif env (kn,tyi) =
-  let mib = Environ.lookup_mind kn env in
-  if tyi >= Array.length mib.mind_packets then
-    user_err Pp.(str "Inductive.lookup_mind_specif: invalid inductive index");
-  (mib, mib.mind_packets.(tyi))
+let lookup_mind_specif = Environ.lookup_mind_specif
 
 let find_rectype ?evars env c =
   let (t, l) = decompose_app_list (whd_all ?evars env c) in
@@ -528,7 +523,7 @@ let expand_case env (ci, _, _, _, _, _, _ as case) =
   expand_case_specif specif case
 
 let contract_case env (ci, (p,rp), iv, c, br) =
-  let (mib, mip) = lookup_mind_specif env ci.ci_ind in
+  let mib, mip = lookup_mind_specif env ci.ci_ind in
   let (arity, p) = Term.decompose_lambda_n_decls (mip.mind_nrealdecls + 1) p in
   let (u, pms) = match arity with
   | LocalAssum (_, ty) :: _ ->
@@ -1660,7 +1655,7 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
                   try find_inductive ?evars env a
                   with Not_found ->
                     raise_err env i (RecursionNotOnInductiveType a) in
-                let mib,_ = lookup_mind_specif env (out_punivs mind) in
+                let mib = lookup_mind (fst (out_punivs mind)) env in
                 if mib.mind_finite != Finite then
                   raise_err env i (RecursionNotOnInductiveType a);
                 (mind, (env', b))

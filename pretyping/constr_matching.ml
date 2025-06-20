@@ -562,7 +562,7 @@ let sub_match ?(closed=true) env sigma pat c =
        | _ -> assert false in
      try_aux [(env, app); (env, Array.last lc)] mk_ctx next
   | Case (ci,u,pms,hd0,iv,c1,lc0) ->
-      let (mib, mip) = Inductive.lookup_mind_specif env ci.ci_ind in
+      let _, mip = Environ.lookup_mind_specif env ci.ci_ind in
       let (_, (hd,hdr), _, _, br) = expand_case env sigma (ci, u, pms, hd0, iv, c1, lc0) in
       let hd =
         let (ctx, hd) = decompose_lambda_decls sigma hd in

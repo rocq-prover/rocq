@@ -106,7 +106,7 @@ let get_template env sigma c =
   let (hd, args) = EConstr.decompose_app sigma c in
   match EConstr.destRef sigma hd with
   | ConstructRef (ind, i), u when Environ.template_polymorphic_ind ind env ->
-    let (mib, mip) = Inductive.lookup_mind_specif env ind in
+    let mib = lookup_mind (fst ind) env in
     let templ = match mib.Declarations.mind_template with
     | None -> assert false
     | Some t -> t.template_param_arguments
@@ -1022,7 +1022,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let sigma, _ = Typing.checked_appvect env sigma hd args in
   let ind, u = destInd sigma hd in
   let s = Retyping.get_sort_of env sigma concl in
-  let (mib, mip) = Inductive.lookup_mind_specif env ind in
+  let mib, mip = lookup_mind_specif env ind in
   let params, indices = Array.chop mib.mind_nparams args in
 
   (* check private *)

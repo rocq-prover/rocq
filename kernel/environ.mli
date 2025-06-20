@@ -250,6 +250,10 @@ val add_mind : MutInd.t -> mutual_inductive_body -> env -> env
    raises an anomaly if the required path is not found *)
 val lookup_mind : MutInd.t -> env -> mutual_inductive_body
 
+(** Fetching information in the environment about an inductive type.
+    Raises an anomaly if the inductive type is not found. *)
+val lookup_mind_specif : env -> inductive -> mind_specif
+
 val mem_mind : MutInd.t -> env -> bool
 
 val ind_relevance : inductive -> env -> Sorts.relevance

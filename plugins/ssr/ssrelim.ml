@@ -216,7 +216,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
       analyze_eliminator elimty env sigma in
     let seed =
       if is_case then
-        let mind,indb = Inductive.lookup_mind_specif env (kn,i) in
+        let mind, indb = Environ.lookup_mind_specif env (kn,i) in
         let tys = indb.Declarations.mind_nf_lc in
         let renamed_tys =
           Array.mapi (fun j (ctx, cty) ->

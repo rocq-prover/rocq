@@ -296,7 +296,7 @@ let ids_of_constr env sigma ?(all=false) vars c =
         (match EConstr.kind sigma f with
         | Construct ((ind,_),_)
         | Ind (ind,_) ->
-            let (mib,mip) = Inductive.lookup_mind_specif env ind in
+            let mib = lookup_mind (fst ind) env in
               Array.fold_left_from
                 (if all then 0 else mib.Declarations.mind_nparams)
                 aux vars args
@@ -308,7 +308,7 @@ let decompose_indapp env sigma f args =
   match EConstr.kind sigma f with
   | Construct ((ind,_),_)
   | Ind (ind,_) ->
-      let (mib,mip) = Inductive.lookup_mind_specif env ind in
+      let mib = lookup_mind (fst ind) env in
       let first = mib.Declarations.mind_nparams_rec in
       let pars, args = Array.chop first args in
         mkApp (f, pars), args

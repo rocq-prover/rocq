@@ -306,7 +306,7 @@ let retype ?metas ?(polyprop=true) sigma =
       let ty = type_of_global_reference_knowing_parameters env c args in
       strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
     | Construct ((ind, i as ctor), u) ->
-      let mib, mip = Inductive.lookup_mind_specif env ind in
+      let mib, mip = lookup_mind_specif env ind in
       let ty =
         if mib.mind_nparams <= Array.length args then
         (* Fully applied parameters, we do not have to substitute *)

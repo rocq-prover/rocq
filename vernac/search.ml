@@ -63,7 +63,7 @@ let { Goptions.get = blacklist_locals } =
 
 let iter_constructors indsp u fn env sigma nconstr =
   for i = 1 to nconstr do
-    let typ = Inductive.type_of_constructor ((indsp, i), u) (Inductive.lookup_mind_specif env indsp) in
+    let typ = Inductive.type_of_constructor ((indsp, i), u) (lookup_mind_specif env indsp) in
     fn (GlobRef.ConstructRef (indsp, i)) None env sigma typ
   done
 
@@ -97,7 +97,7 @@ let generic_search env sigma (fn : GlobRef.t -> Decls.logical_kind option -> env
           let iter_packet i mip =
             let ind = (mind, i) in
             let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
-            let typ = Inductive.type_of_inductive (Inductive.lookup_mind_specif env ind, u) in
+            let typ = Inductive.type_of_inductive (lookup_mind_specif env ind, u) in
             let () = fn (GlobRef.IndRef ind) None env sigma typ in
             let len = Array.length mip.mind_user_lc in
             iter_constructors ind u fn env sigma len

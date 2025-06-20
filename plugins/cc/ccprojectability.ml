@@ -200,7 +200,7 @@ let make_selector_match_indices env sigma ~pos ~special c (ind_fam, ind_args) re
   let indt = IndType (ind_fam, ind_args) in
   let (ind, _),_ = dest_ind_family ind_fam in
   let () = Tacred.check_privacy env ind in
-  let (_, mip) = Inductive.lookup_mind_specif env ind in
+  let _, mip = Environ.lookup_mind_specif env ind in
   let deparsign = make_arity_signature env sigma true ind_fam in
   let p = it_mkLambda_or_LetIn return_type deparsign in
   let cstrs = get_constructors env ind_fam in

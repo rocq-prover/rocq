@@ -1632,8 +1632,7 @@ and match_elim : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr
       let t = FCaseT(ci, u, pms, (p, r), head, brs, e) in
       let mark = neutr head.mark in
       let head = {mark; term=t} in
-      let specif = Environ.lookup_mind (fst ci.ci_ind) info.i_cache.i_env in
-      let specif = (specif, specif.mind_packets.(snd ci.ci_ind)) in
+      let specif = lookup_mind_specif info.i_cache.i_env ci.ci_ind in
       let ntys_ret = Environ.expand_arity specif (ci.ci_ind, u) pms (fst p) in
       let ntys_brs = Environ.expand_branch_contexts specif u pms brs in
       let prets, pbrss, elims, states = extract_or_kill4 (function [@ocaml.warning "-4"]

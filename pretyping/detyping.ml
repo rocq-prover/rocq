@@ -556,7 +556,7 @@ let it_destRLambda_or_LetIn_names l c =
 
 let get_ind_tag env ind p =
   if Environ.mem_mind (fst ind) env then
-    let (mib, mip) = Inductive.lookup_mind_specif env ind in
+    let _, mip = Environ.lookup_mind_specif env ind in
     Context.Rel.to_tags (List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt)
   else
     let (nas, _), _ = p in
@@ -564,7 +564,7 @@ let get_ind_tag env ind p =
 
 let get_cstr_tags env ind bl =
   if Environ.mem_mind (fst ind) env then
-    let (mib, mip) = Inductive.lookup_mind_specif env ind in
+    let _, mip = Environ.lookup_mind_specif env ind in
     Array.map2 (fun (d, _) n -> Context.Rel.to_tags (List.firstn n d))
       mip.mind_nf_lc mip.mind_consnrealdecls
   else

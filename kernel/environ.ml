@@ -251,6 +251,14 @@ let lookup_mind_key kn env =
 let lookup_mind kn env =
   pi1 (lookup_mind_key kn env)
 
+(* raises an anomaly if not an inductive type *)
+let lookup_mind_specif env (kn,tyi) =
+  let mib = lookup_mind kn env in
+  if tyi >= Array.length mib.mind_packets then
+    user_err Pp.(str "Environ.lookup_mind_specif: invalid inductive index");
+  mib, mib.mind_packets.(tyi)
+
+
 let ind_relevance kn env = match Indmap_env.find_opt kn env.irr_inds with
 | None -> Sorts.Relevant
 | Some r -> r

@@ -108,7 +108,7 @@ let get_polymorphic_positions env sigma f =
   let open Declarations in
   match EConstr.kind sigma f with
   | Ind (ind, u) | Construct ((ind, _), u) ->
-    let mib,oib = Inductive.lookup_mind_specif env ind in
+    let mib = lookup_mind (fst ind) env in
       (match mib.mind_template with
       | None -> assert false
       | Some templ -> templ.template_param_arguments)

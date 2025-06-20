@@ -125,7 +125,7 @@ let compute_constructor_signatures env ~rec_flag ((_,k as ity),u) =
     | [], [] -> []
     | _ -> anomaly (Pp.str "compute_constructor_signatures.")
   in
-  let (mib,mip) = Inductive.lookup_mind_specif env ity in
+  let mib, mip = Environ.lookup_mind_specif env ity in
   let map (ctx, _) = List.skipn (Context.Rel.length mib.mind_params_ctxt) (List.rev ctx) in
   let lc = Array.map map mip.mind_nf_lc in
   let lrecargs = Declareops.dest_subterms mip.mind_recargs in

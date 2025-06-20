@@ -320,7 +320,7 @@ and nf_atom_type env sigma atom =
   | Acase(ans,accu,p,bs) ->
       let a,ta = nf_accu_type env sigma accu in
       let ((mind, _ as ind), u),allargs = find_rectype_a env sigma (EConstr.of_constr ta) in
-      let (mib,mip) = Inductive.lookup_mind_specif env ind in
+      let mib, mip = lookup_mind_specif env ind in
       let nparams = mib.mind_nparams in
       let params,realargs = Array.chop nparams allargs in
       let pctx =

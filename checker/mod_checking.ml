@@ -110,7 +110,7 @@ let rec get_holes_profiles env nargs ndecls lincheck el =
 and get_holes_profiles_elim env nargs ndecls lincheck = function
   | PEApp args -> Array.fold_left (get_holes_profiles_parg env nargs ndecls) lincheck args
   | PECase (ind, ret, brs) ->
-      let mib, mip = Inductive.lookup_mind_specif env ind in
+      let mib, mip = lookup_mind_specif env ind in
       let lincheck = get_holes_profiles_parg env (nargs + mip.mind_nrealargs + 1) (ndecls + mip.mind_nrealdecls + 1) lincheck ret in
       Array.fold_left3 (fun lincheck nargs_b ndecls_b -> get_holes_profiles_parg env (nargs + nargs_b) (ndecls + ndecls_b) lincheck) lincheck mip.mind_consnrealargs mip.mind_consnrealdecls brs
   | PEProj proj ->
@@ -133,10 +133,10 @@ and get_holes_profiles_head env nargs ndecls lincheck = function
       let cb = lookup_constant c env in
       check_instance_mask env cb.const_universes u lincheck
   | PHConstr (c, u) ->
-      let (mib, _) = Inductive.lookup_mind_specif env (inductive_of_constructor c) in
+      let mib = lookup_mind (fst (inductive_of_constructor c)) env in
       check_instance_mask env mib.mind_universes u lincheck
   | PHInd (ind, u) ->
-      let (mib, _) = Inductive.lookup_mind_specif env ind in
+      let mib = lookup_mind (fst ind) env in
       check_instance_mask env mib.mind_universes u lincheck
   | PHInt _  | PHFloat _ | PHString _ -> lincheck
   | PHSort PSSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_not_allowed_sprop env

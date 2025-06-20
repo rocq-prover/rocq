@@ -196,7 +196,7 @@ let print_if_is_coercion ref =
 
 (* XXX TODO print based on the actual binders not from the monomorphic data *)
 let template_poly_variables env ind =
-  let mib, mip = Inductive.lookup_mind_specif env ind in
+  let mib = lookup_mind (fst ind) env in
   match mib.mind_template with
   | None -> assert false
   | Some { template_defaults; template_concl } ->
@@ -231,7 +231,7 @@ let print_polymorphism env ref =
 
 let print_squash env ref udecl = match ref with
   | GlobRef.IndRef ind ->
-    let _, mip = Inductive.lookup_mind_specif env ind in
+    let _, mip = lookup_mind_specif env ind in
     begin match mip.mind_squashed with
     | None -> []
     | Some squash ->

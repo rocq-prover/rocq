@@ -237,7 +237,7 @@ let explain_reference_variables sigma id c =
 let explain_elim_arity env sigma ind c okinds =
   let open EConstr in
   let env = make_all_name_different env sigma in
-  let mib, mip as specif = Inductive.lookup_mind_specif env (fst ind) in
+  let _, mip as specif = lookup_mind_specif env (fst ind) in
   let pi =
     let pp () = pr_pinductive env sigma ind in
     match mip.mind_squashed with

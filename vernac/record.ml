@@ -966,7 +966,7 @@ let declare_class ?mode declared =
       in
       GlobRef.ConstRef class_kn, univs, params, fields, [proj]
     | Declared.Record mind ->
-      let mib, mip = Inductive.lookup_mind_specif env (mind,0) in
+      let mib, mip = lookup_mind_specif env (mind,0) in
       let univs = Declareops.inductive_polymorphic_context mib in
       let ctor_args, _ = mip.mind_nf_lc.(0) in
       let fields = List.firstn mip.mind_consnrealdecls.(0) ctor_args in
@@ -1016,7 +1016,7 @@ let add_constant_class cst =
 
 let add_inductive_class ind =
   let env = Global.env () in
-  let mind, oneind = Inductive.lookup_mind_specif env ind in
+  let mind, oneind = lookup_mind_specif env ind in
   let ctx = oneind.mind_arity_ctxt in
   let univs = Declareops.inductive_polymorphic_context mind in
   let props, projs =

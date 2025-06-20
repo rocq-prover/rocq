@@ -615,7 +615,7 @@ let annotate_case env sigma (ci, u, pms, p, iv, c, bl as case) =
   let p =
     (* Too bad we need to fetch this data in the environment, should be in the
       case_info instead. *)
-    let (_, mip) = Inductive.lookup_mind_specif env ci.ci_ind in
+    let _, mip = Environ.lookup_mind_specif env ci.ci_ind in
     decompose_lambda_n_decls sigma (mip.Declarations.mind_nrealdecls + 1) p
   in
   let mk_br c n = decompose_lambda_n_decls sigma n c in
@@ -626,7 +626,7 @@ let expand_branch env _sigma u pms (ind, i) (nas, _br) =
   let open Declarations in
   let u = EInstance.unsafe_to_instance u in
   let pms = unsafe_to_constr_array pms in
-  let (mib, mip) = Inductive.lookup_mind_specif env ind in
+  let mib, mip = Environ.lookup_mind_specif env ind in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl pms in
   let (ctx, _) = mip.mind_nf_lc.(i - 1) in

@@ -178,7 +178,7 @@ let rec check_may_eta ~loc env evd t =
         Pp.(str "This subpattern has a product type, but pattern-matching is not done modulo eta, so this rule may not trigger at required times.")
   | Sort _ -> ()
   | Ind (ind, u) ->
-      let specif = Inductive.lookup_mind_specif env ind in
+      let specif = Environ.lookup_mind_specif env ind in
       if not @@ Inductive.is_primitive_record specif then () else
         warn_eta_in_pattern ?loc
           Pp.(str "This subpattern has a primitive record type, but pattern-matching is not done modulo eta, so this rule may not trigger at required times.")
@@ -199,7 +199,7 @@ let rec safe_pattern_of_constr_aux ~loc env evd usubst depth state t = Constr.ki
       let state, pargs = Array.fold_left_map (safe_arg_pattern_of_constr ~loc env evd usubst depth) state args in
       state, (head, elims @ [PEApp pargs])
   | Case (ci, u, params, (ret, _), _, c, brs) ->
-      let mib, mip = Inductive.lookup_mind_specif env ci.ci_ind in
+      let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
 
       let state, (head, elims) = safe_pattern_of_constr_aux ~loc env evd usubst depth state c in
 
@@ -334,7 +334,7 @@ let rec evar_subst evmap evd k t =
   | _ -> EConstr.map_with_binders evd succ (evar_subst evmap evd) k t
 
 let test_projection_apps env evd ~loc ind args =
-  let specif = Inductive.lookup_mind_specif env ind in
+  let specif = Environ.lookup_mind_specif env ind in
   if not @@ Inductive.is_primitive_record specif then () else
   if Array.for_all_i (fun i arg ->
     match arg with

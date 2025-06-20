@@ -141,7 +141,7 @@ let get_inductive_deps ~noprop env kn =
             (* Example: Inductive T A := C : T (option A) -> T A. *)
             List.fold_left (aux env) accu a
           else
-            let _,mip = Inductive.lookup_mind_specif env ind in
+            let _, mip = Environ.lookup_mind_specif env ind in
             (* Types in SProp have trivial equality and are skipped
                XXX should be substituting polymorphic universes *)
             if Sorts.is_sprop mip.mind_sort then
@@ -280,7 +280,7 @@ let dest_lam_assum_expand env c =
     ctx'@ctx, mkApp (lift (Context.Rel.length ctx') c, Context.Rel.instance mkRel 0 ctx')
 
 let pred_context env ci params u nas =
-  let mib, mip = Inductive.lookup_mind_specif env ci.ci_ind in
+  let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
   let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
@@ -294,7 +294,7 @@ let pred_context env ci params u nas =
   Inductive.instantiate_context u paramsubst nas realdecls
 
 let branch_context env ci params u nas i =
-  let mib, mip = Inductive.lookup_mind_specif env ci.ci_ind in
+  let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
   let ctx, _ = List.chop mip.mind_consnrealdecls.(i) (fst mip.mind_nf_lc.(i)) in

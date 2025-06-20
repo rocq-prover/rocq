@@ -478,7 +478,7 @@ let rec strip_app = function
 let expand_branch env u pms (ind, i) br =
   let open Declarations in
   let nas, _br = br.(i - 1) in
-  let (mib, mip) = Inductive.lookup_mind_specif env ind in
+  let mib, mip = Environ.lookup_mind_specif env ind in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl pms in
   let (ctx, _) = mip.mind_nf_lc.(i - 1) in
@@ -871,7 +871,7 @@ and cbv_apply_rule info env ctx psubst es stk =
         cbv_apply_rule info env ctx psubst (PEApp rempargs :: e) s
   | Declarations.PECase (pind, pret, pbrs) :: e, CASE (u, pms, (p, _), brs, iv, ci, env, s) ->
       if not @@ Environ.QInd.equal info.env pind ci.ci_ind then raise PatternFailure;
-      let specif = Inductive.lookup_mind_specif info.env ci.ci_ind in
+      let specif = Environ.lookup_mind_specif info.env ci.ci_ind in
       let ntys_ret = Inductive.expand_arity specif (ci.ci_ind, u) pms (fst p) in
       let ntys_ret = apply_env_context env ntys_ret in
       let ntys_brs = Inductive.expand_branch_contexts specif u pms brs in
@@ -917,7 +917,7 @@ let rec apply_stack info t = function
     (* FIXME: Prevent this expansion by caching whether an inductive contains let-bindings *)
     let (_, (ty,r), _, _, br) = Inductive.expand_case info.env (ci, u, pms, ty, iv, mkProp, br) in
     let ty =
-      let (_, mip) = Inductive.lookup_mind_specif info.env ci.ci_ind in
+      let _, mip = Environ.lookup_mind_specif info.env ci.ci_ind in
       Term.decompose_lambda_n_decls (mip.Declarations.mind_nrealdecls + 1) ty
     in
     let mk_br c n = Term.decompose_lambda_n_decls n c in

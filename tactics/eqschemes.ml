@@ -54,7 +54,6 @@ open Constr
 open Context
 open Declarations
 open Environ
-open Inductive
 open Termops
 open Vars
 open Namegen

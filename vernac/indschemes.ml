@@ -367,7 +367,7 @@ let name_and_process_scheme env = function
     let ind = smart_ind sch_qualid in
     let sort_of_ind =
       Elimschemes.pseudo_sort_quality_for_elim ind
-        (snd (Inductive.lookup_mind_specif env ind))
+        (snd (Environ.lookup_mind_specif env ind))
     in
     let suffix = scheme_suffix_gen sch sort_of_ind in
     let newid = Nameops.add_suffix (Nametab.basename_of_global (Names.GlobRef.IndRef ind)) suffix in
@@ -482,7 +482,7 @@ let build_combined_scheme env schemes =
       match Constr.kind last with
         | Constr.App (ind, args) ->
             let ind = Constr.destInd ind in
-            let (_,spec) = Inductive.lookup_mind_specif env (fst ind) in
+            let _, spec = Environ.lookup_mind_specif env (fst ind) in
               ctx, ind, spec.mind_nrealargs
         | _ -> ctx, Constr.destInd last, 0
   in

@@ -1705,7 +1705,7 @@ let register_inline kn senv =
   let env = add_constant kn cb env in { senv with env}
 
 let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) env =
-  let (mb,ob as spec) = Inductive.lookup_mind_specif env ind in
+  let (mb,ob as spec) = Environ.lookup_mind_specif env ind in
   let ind = match mb.mind_universes with
     | Polymorphic _ -> CErrors.user_err Pp.(str "A universe monomorphic inductive type is expected.")
     | Monomorphic -> Constr.UnsafeMonomorphic.mkInd ind

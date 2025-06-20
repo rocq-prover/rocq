@@ -606,7 +606,7 @@ let is_partial_template_head env sigma c =
   let (hd, args) = decompose_app sigma c in
   match destRef sigma hd with
   | (ConstructRef (ind, _) | IndRef ind), _ ->
-    let (mib, _) = Inductive.lookup_mind_specif env ind in
+    let mib = lookup_mind (fst ind) env in
     begin match mib.mind_template with
     | None -> false
     | Some _ -> Array.length args < mib.mind_nparams
@@ -1493,7 +1493,7 @@ let make_projection env sigma params cstr sign elim i n c (ind, u) =
         && not (isEvar sigma (fst (whd_betaiota_stack env sigma t)))
         && (not (isRel sigma t))
       then
-        let (_, mip) as specif = Inductive.lookup_mind_specif env ind in
+        let (_, mip) as specif = lookup_mind_specif env ind in
         let t = lift (i + 1 - n) t in
         let ksort = Retyping.get_sort_quality_of (push_rel_context sign env) sigma t in
         if UnivGen.QualityOrSet.eliminates_to
@@ -2046,7 +2046,7 @@ let constructor_tac with_evars expctdnumopt i lbind =
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     let ((ind, _), redcl) = Tacred.reduce_to_quantified_ind env sigma concl in
-    let nconstr = Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
+    let nconstr = Array.length (snd (lookup_mind_specif env ind)).mind_consnames in
     check_number_of_constructors expctdnumopt i nconstr;
     Tacticals.tclTHENLIST [
       convert_concl ~cast:false ~check:false redcl DEFAULTcast;
@@ -2077,7 +2077,7 @@ let any_constructor with_evars tacopt =
     let concl = Proofview.Goal.concl gl in
     let (ind, _), redcl = Tacred.reduce_to_quantified_ind env sigma concl in
     let nconstr =
-      Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
+      Array.length (snd (lookup_mind_specif env ind)).mind_consnames in
     if Int.equal nconstr 0 then TacticErrors.no_constructors ();
     Tacticals.tclTHENLIST [
       convert_concl ~cast:false ~check:false redcl DEFAULTcast;

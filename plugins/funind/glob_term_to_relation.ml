@@ -273,7 +273,7 @@ let make_discr_match brl el i =
 
 (* [build_constructors_of_type] construct the array of pattern of its inductive argument*)
 let build_constructors_of_type env ind' argl =
-  let mib, ind = Inductive.lookup_mind_specif env ind' in
+  let mib, ind = Environ.lookup_mind_specif env ind' in
   let npar = mib.Declarations.mind_nparams in
   Array.mapi
     (fun i _ ->
@@ -976,16 +976,16 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       with Continue ->
         let jmeq = GlobRef.IndRef (fst (EConstr.destInd Evd.empty (jmeq ()))) in
         let ty', ctx = Pretyping.understand env (Evd.from_env env) ty in
-        let ind, args' =
+        let (ind, _), args' =
           Inductiveops.find_inductive env Evd.(from_env env) ty'
         in
-        let mib, _ = Inductive.lookup_mind_specif env (fst ind) in
+        let mib = Environ.lookup_mind (fst ind) env in
         let nparam = mib.Declarations.mind_nparams in
         let params, arg' = Util.List.chop nparam args' in
         let rt_typ =
           DAst.make
           @@ GApp
-               ( DAst.make @@ GRef (GlobRef.IndRef (fst ind), None)
+               ( DAst.make @@ GRef (GlobRef.IndRef ind, None)
                , List.map
                    (fun p ->
                      Detyping.detype Detyping.Now env

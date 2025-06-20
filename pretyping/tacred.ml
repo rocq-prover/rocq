@@ -1399,7 +1399,7 @@ let pattern_occs loccs_trm = begin fun env sigma c ->
 (* Used in several tactics. *)
 
 let check_privacy env ind =
-  let spec = Inductive.lookup_mind_specif env ind in
+  let spec = lookup_mind_specif env ind in
   if Inductive.is_private spec then
     user_err Pp.(str "case analysis on a private type is not allowed.")
 
