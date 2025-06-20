@@ -636,7 +636,7 @@ Ltac2 Notation f_equal := Std.f_equal ().
 (** now *)
 
 Ltac2 now0 t := t (); ltac1:(easy_forward_decl).
-Ltac2 Notation "now" t(thunk(self)) : 6 := now0 t.
+Ltac2 Notation "now" t(thunk(tactic(6))) := now0 t.
 
 (** profiling *)
 
