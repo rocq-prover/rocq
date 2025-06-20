@@ -64,7 +64,7 @@ Program Instance equiv_transitive `(sa : Equivalence A) : Transitive equiv | 1.
 
   Next Obligation.
   Proof.
-    intros A R sa x y z Hxy Hyz.
+    unfold equiv; intros A R sa x y z Hxy Hyz.
     now transitivity y.
   Qed.
 

@@ -27,6 +27,8 @@ Set Universe Polymorphism.
 
 Definition crelation (A : Type) := A -> A -> Type.
 
+Global Typeclasses Transparent crelation.
+
 Definition arrow (A B : Type) := A -> B.
 
 Definition flip {A B C : Type} (f : A -> B -> C) := fun x y => f y x.

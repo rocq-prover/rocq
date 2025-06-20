@@ -68,6 +68,8 @@ Section Relation_Definition.
 
 End Relation_Definition.
 
+#[global] Typeclasses Transparent relation.
+
 #[global]
 Hint Unfold reflexive transitive antisymmetric symmetric: sets.
 
