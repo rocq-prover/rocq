@@ -24,6 +24,7 @@ type global_data = {
   gdata_type : type_scheme;
   gdata_mutable : bool;
   gdata_deprecation : Deprecation.t option;
+  gdata_mutation_history : ModPath.t list;
 }
 
 val define_global : ltac_constant -> global_data -> unit
