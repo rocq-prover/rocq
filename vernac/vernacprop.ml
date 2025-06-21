@@ -14,7 +14,7 @@
 open Vernacexpr
 
 let has_query_control { CAst.v } =
-  List.exists (function ControlFail | ControlSucceed -> true | _ -> false) v.control
+  List.exists (function { CAst.v = ControlFail | ControlSucceed } -> true | _ -> false) v.control
 
 (* Navigation commands are allowed in a coqtop session but not in a .v file *)
 let is_navigation_vernac = function

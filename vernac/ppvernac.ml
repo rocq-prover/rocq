@@ -1425,7 +1425,7 @@ let pr_synterp_vernac_expr v =
     return (keyword "Proof Mode" ++ str s)
 
 let pr_control_flag (p : control_flag) =
-  let w = match p with
+  let w = match p.v with
     | ControlTime -> keyword "Time"
     | ControlInstructions -> keyword "Instructions"
     | ControlProfile f -> keyword "Profile" ++ pr_opt qstring f

@@ -70,14 +70,6 @@ let make_bullet s =
   | '*' -> Star n
   | _ -> assert false
 
-(* For now we just keep the top-level location of the whole
-   vernacular, that is to say, including attributes and control flags;
-   this is not very convenient for advanced clients tho, so in the
-   future it'd be cool to actually locate the attributes and control
-   flags individually too. *)
-let add_control_flag ~loc ~flag { CAst.v = cmd } =
-  CAst.make ~loc { cmd with control = flag :: cmd.control }
-
 let test_hash_ident =
   let open Procq.Lookahead in
   to_entry "test_hash_ident" begin
@@ -99,23 +91,19 @@ let warn_chdir_pwd = CWarnings.create ~name:"change-dir-pwd-deprecated" ~categor
 GRAMMAR EXTEND Gram
   GLOBAL: vernac_control quoted_attributes attribute_list gallina_ext noedit_mode subprf subprf_with_selector qualid;
   vernac_control: FIRST
-    [ [ IDENT "Time"; c = vernac_control ->
-        { add_control_flag ~loc ~flag:ControlTime c }
-      | IDENT "Instructions"; c = vernac_control ->
-        { add_control_flag ~loc ~flag:ControlInstructions c }
-      | IDENT "Profile"; f = OPT STRING; c = vernac_control ->
-        { add_control_flag ~loc ~flag:(ControlProfile f) c }
-      | IDENT "Redirect"; s = ne_string; c = vernac_control ->
-        { add_control_flag ~loc ~flag:(ControlRedirect s) c }
-      | IDENT "Timeout"; n = natural; c = vernac_control ->
-        { add_control_flag ~loc ~flag:(ControlTimeout n) c }
-      | IDENT "Fail"; c = vernac_control ->
-        { add_control_flag ~loc ~flag:ControlFail c }
-      | IDENT "Succeed"; c = vernac_control ->
-        { add_control_flag ~loc ~flag:ControlSucceed c }
-      | v = decorated_vernac ->
-        { let (attrs, expr) = v in CAst.make ~loc { control = []; attrs; expr = expr } } ]
+    [ [ control = LIST0 control_flag; v = decorated_vernac ->
+        { let (attrs, expr) = v in CAst.make ~loc { control; attrs; expr; } } ]
     ]
+  ;
+  control_flag:
+    [ [ IDENT "Time" -> { CAst.make ~loc ControlTime }
+      | IDENT "Instructions" -> { CAst.make ~loc ControlInstructions }
+      | IDENT "Profile"; f = OPT STRING -> { CAst.make ~loc (ControlProfile f) }
+      | IDENT "Redirect"; s = ne_string -> { CAst.make ~loc (ControlRedirect s) }
+      | IDENT "Timeout"; n = natural -> { CAst.make ~loc (ControlTimeout n) }
+      | IDENT "Fail" -> { CAst.make ~loc ControlFail }
+      | IDENT "Succeed" -> { CAst.make ~loc ControlSucceed }
+    ] ]
   ;
   decorated_vernac:
     [ [ a = quoted_attributes ; a' = LIST0 legacy_attr; v = vernac_aux ->

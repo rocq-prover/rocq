@@ -519,7 +519,7 @@ type 'a vernac_expr_gen =
 
 type vernac_expr = synterp_vernac_expr vernac_expr_gen
 
-type control_flag =
+type control_flag_r =
   | ControlTime
   | ControlInstructions
   | ControlProfile of string option
@@ -527,6 +527,8 @@ type control_flag =
   | ControlTimeout of int
   | ControlFail
   | ControlSucceed
+
+type control_flag = control_flag_r CAst.t
 
 type ('a, 'b) vernac_control_gen_r =
   { control : 'a list

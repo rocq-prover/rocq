@@ -1555,25 +1555,30 @@ vernac_toplevel: [
 | DELETE vernac_control
 ]
 
-vernac_control: [
-(* replacing vernac_control with command is cheating a little;
-   they can't refer to the vernac_toplevel commands.
-   cover this the descriptions of these commands *)
-| REPLACE "Time" vernac_control
+(* Pretend that control flags are commands *)
+control_flag: [
+(* using sentence is cheating a little;
+   after a control_flag can't refer to the vernac_toplevel commands.
+   cover this in the descriptions of these commands *)
+| REPLACE "Time"
 | WITH "Time" sentence
-| REPLACE "Instructions" vernac_control
+| REPLACE "Instructions"
 | WITH "Instructions" sentence
-| REPLACE "Profile" OPT STRING vernac_control
+| REPLACE "Profile" OPT STRING
 | WITH "Profile" OPT STRING sentence
-| REPLACE "Redirect" ne_string vernac_control
+| REPLACE "Redirect" ne_string
 | WITH "Redirect" ne_string sentence
-| REPLACE "Timeout" natural vernac_control
+| REPLACE "Timeout" natural
 | WITH "Timeout" natural sentence
-| REPLACE "Fail" vernac_control
+| REPLACE "Fail"
 | WITH "Fail" sentence
-| REPLACE "Succeed" vernac_control
+| REPLACE "Succeed"
 | WITH "Succeed" sentence
-| DELETE decorated_vernac
+]
+
+vernac_control: [
+| DELETE LIST0 control_flag decorated_vernac
+| control_flag
 ]
 
 of_module_type: [
@@ -1816,6 +1821,7 @@ command: [
 
 SPLICE: [
 | query_command
+| control_flag
 ]
 
 query_command: [ ] (* re-add as a placeholder *)

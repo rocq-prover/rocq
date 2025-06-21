@@ -249,7 +249,7 @@ let () = let open Goptions in
       optwrite = (fun n -> Option.iter check_timeout n; default_timeout := n) }
 
 let has_timeout ctrl = ctrl |> List.exists (function
-    | Vernacexpr.ControlTimeout _ -> true
+    | { CAst.v = Vernacexpr.ControlTimeout _ } -> true
     | _ -> false)
 
 let add_default_timeout control =
@@ -257,9 +257,10 @@ let add_default_timeout control =
   | None -> control
   | Some n ->
     if has_timeout control then control
-    else Vernacexpr.ControlTimeout n :: control
+    else CAst.make (Vernacexpr.ControlTimeout n) :: control
 
-let from_syntax_one : Vernacexpr.control_flag -> unit control_entry = function
+let from_syntax_one : Vernacexpr.control_flag -> unit control_entry = fun flag ->
+  match flag.v with
   | ControlTime -> ControlTime { duration = System.empty_duration }
   | ControlInstructions -> ControlInstructions { instructions = Ok 0L }
   | ControlProfile to_file -> ControlProfile {to_file; profstate = empty_profstate}
