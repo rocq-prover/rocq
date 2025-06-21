@@ -79,7 +79,9 @@ type rec_pos = int array
 
 let eq_rec_pos = Array.equal Int.equal
 
-type vcofix = CofixLazy of t | CofixValue of t
+type vcofix0 = CofixLazy of t | CofixValue of t
+
+type vcofix = vcofix0 ref
 
 type atom =
   | Arel of int
@@ -117,7 +119,7 @@ let accumulate_tag = 0
 (** Unique pointer used to drive the accumulator function *)
 let ret_accu = Obj.repr (ref ())
 
-type accu_val = { mutable acc_atm : atom; acc_arg : t list }
+type accu_val = { acc_atm : atom; acc_arg : t list }
 
 external set_tag : Obj.t -> int -> unit = "rocq_obj_set_tag"
 
@@ -203,9 +205,6 @@ let mk_proj_accu kn c =
 let atom_of_accu (k:accumulator) =
   (get_accu k).acc_atm
 
-let set_atom_of_accu (k:accumulator) (a:atom) =
-  (get_accu k).acc_atm <- a
-
 let accu_nargs (k:accumulator) =
   List.length (get_accu k).acc_arg
 
@@ -216,18 +215,21 @@ let mk_fix_accu rec_pos pos types bodies =
   mk_accu (Afix(types,bodies,rec_pos, pos))
 
 let mk_cofix_accu pos types norm cofix args =
-  mk_accu (Acofix (types, norm, pos, args, CofixLazy cofix))
+  mk_accu (Acofix (types, norm, pos, args, ref @@ CofixLazy cofix))
 
 let force_cofix (cofix : t) =
   let accu = (Obj.magic cofix : accumulator) in
   let atom = atom_of_accu accu in
   match atom with
-  | Acofix (typ, norm, pos, args, CofixLazy f) ->
+  | Acofix (_, _, _, _, vref) ->
+    begin match !vref with
+    | CofixLazy f ->
     let () = assert (List.is_empty (args_of_accu accu)) in
     let v = apply f (Obj.magic ()) in
-    let () = set_atom_of_accu accu (Acofix (typ, norm, pos, args, CofixValue v)) in
+    let () = vref := CofixValue v in
     v
-  | Acofix (_, _, _, _, CofixValue v) -> v
+    | CofixValue v -> v
+    end
   | _ -> cofix
 
 let mk_const tag = Obj.magic tag
