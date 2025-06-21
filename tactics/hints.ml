@@ -766,24 +766,23 @@ struct
 
   let add_one env sigma (k, v) db =
     let v = instantiate_hint env sigma v in
-    let st',db,rebuild =
-      match v.code.obj with
-      | Unfold_nth egr ->
-          let addunf ts (ids, csts, prjs) =
-            let open TransparentState in
-            match egr with
-            | Evaluable.EvalVarRef id ->
-              { ts with tr_var = Id.Pred.add id ts.tr_var }, (Id.Set.add id ids, csts, prjs)
-            | Evaluable.EvalConstRef cst ->
-              { ts with tr_cst = Cpred.add cst ts.tr_cst }, (ids, Cset.add cst csts, prjs)
-            | Evaluable.EvalProjectionRef p ->
-              { ts with tr_prj = PRpred.add p ts.tr_prj }, (ids, csts, PRset.add p prjs)
-          in
-          let state, unfs = addunf db.hintdb_state db.hintdb_unfolds in
-            state, { db with hintdb_unfolds = unfs }, true
-      | _ -> db.hintdb_state, db, false
+    let db = match v.code.obj with
+    | Unfold_nth egr ->
+      let open TransparentState in
+      let ts = db.hintdb_state in
+      let (ids, csts, prjs) = db.hintdb_unfolds in
+      let state, unfs = match egr with
+      | Evaluable.EvalVarRef id ->
+        { ts with tr_var = Id.Pred.add id ts.tr_var }, (Id.Set.add id ids, csts, prjs)
+      | Evaluable.EvalConstRef cst ->
+        { ts with tr_cst = Cpred.add cst ts.tr_cst }, (ids, Cset.add cst csts, prjs)
+      | Evaluable.EvalProjectionRef p ->
+        { ts with tr_prj = PRpred.add p ts.tr_prj }, (ids, csts, PRset.add p prjs)
+      in
+      let db = { db with hintdb_unfolds = unfs } in
+      if db.use_dn then rebuild_db state db else db
+    | _ -> db
     in
-    let db = if db.use_dn && rebuild then rebuild_db st' db else db in
     let db, id = next_hint_id db in
     addkv k id v db
 
