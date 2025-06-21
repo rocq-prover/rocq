@@ -309,9 +309,9 @@ let pr_puniverses f env sigma (c,u) =
 let pr_existential_key = Termops.pr_existential_key
 let pr_existential env sigma ev = pr_lconstr_env env sigma (mkEvar ev)
 
-let pr_constant env cst = pr_global_env (Termops.vars_of_env env) (GlobRef.ConstRef cst)
-let pr_inductive env ind = pr_global_env (Termops.vars_of_env env) (GlobRef.IndRef ind)
-let pr_constructor env cstr = pr_global_env (Termops.vars_of_env env) (GlobRef.ConstructRef cstr)
+let pr_constant env cst = Termops.pr_global_env env (GlobRef.ConstRef cst)
+let pr_inductive env ind = Termops.pr_global_env env (GlobRef.IndRef ind)
+let pr_constructor env cstr = Termops.pr_global_env env (GlobRef.ConstructRef cstr)
 
 let pr_pconstant = pr_puniverses pr_constant
 let pr_pinductive = pr_puniverses pr_inductive
@@ -1094,7 +1094,7 @@ let pr_assumptionset env sigma s =
         Names.Constant.print kn
     in
     let safe_pr_global env gr =
-      try pr_global_env (Termops.vars_of_env env) gr
+      try Termops.pr_global_env env gr
       with Not_found ->
         let open GlobRef in match gr with
         | VarRef id -> Id.print id

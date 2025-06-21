@@ -36,7 +36,7 @@ let warn_abstract_large_num_no_op =
     (fun f ->
       strbrk "The 'abstract after' directive has no effect when " ++
       strbrk "the parsing function (" ++
-      Nametab.pr_global_env (Termops.vars_of_env (Global.env ())) f ++ strbrk ") targets an " ++
+      Termops.pr_global_env (Global.env ()) f ++ strbrk ") targets an " ++
       strbrk "option type.")
 
 let get_constructors ind =

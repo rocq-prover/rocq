@@ -211,12 +211,12 @@ let discharge_Function finfos = Some finfos
 
 let pr_ocst env sigma c =
   Option.fold_right
-    (fun v acc -> Printer.pr_global_env (Termops.vars_of_env env) (ConstRef v))
+    (fun v acc -> Termops.pr_global_env env (ConstRef v))
     c (mt ())
 
 let pr_info env sigma f_info =
   str "function_constant := "
-  ++ Printer.pr_global_env (Termops.vars_of_env env) (ConstRef f_info.function_constant)
+  ++ Termops.pr_global_env env (ConstRef f_info.function_constant)
   ++ fnl ()
   ++ str "function_constant_type := "
   ++ ( try

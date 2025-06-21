@@ -805,7 +805,7 @@ let warn_abstract_large_num =
     (fun (ty,f) ->
       strbrk "To avoid stack overflow, large numbers in " ++
       pr_qualid ty ++ strbrk " are interpreted as applications of " ++
-      Nametab.pr_global_env (Termops.vars_of_env (Global.env ())) f ++ strbrk ".")
+      Termops.pr_global_env (Global.env ()) f ++ strbrk ".")
 
 (***********************************************************************)
 

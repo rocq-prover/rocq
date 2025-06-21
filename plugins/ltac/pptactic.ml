@@ -377,8 +377,7 @@ let string_of_genarg_arg (ArgumentType arg) =
 
   let pr_evaluable_reference_env env = function
     | Evaluable.EvalVarRef id -> pr_id id
-    | Evaluable.EvalConstRef sp ->
-      Nametab.pr_global_env (Termops.vars_of_env env) (GlobRef.ConstRef sp)
+    | Evaluable.EvalConstRef sp -> Termops.pr_global_env env (GlobRef.ConstRef sp)
     | Evaluable.EvalProjectionRef p ->
       str "TODO projection" (* TODO *)
 
