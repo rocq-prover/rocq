@@ -351,7 +351,7 @@ Section Grothendieck2.
       intro m.
       transparent assert (H' : (s.(c) = d.(c))).
       {
-        apply (idtoiso C (x := s.(c)) (y := d.(c)))^-1%function.
+        apply ((idtoiso C (x := s.(c)) (y := d.(c)))^-1)%function.
         exists (m : morphism _ _ _).1.
         admit.
 

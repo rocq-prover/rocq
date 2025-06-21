@@ -80,11 +80,9 @@ Notation "x + y" := (Add x y) (in custom expr at level 2, left associativity).
 Notation "( x )" := x (in custom expr at level 0, x at level 2).
 
 (* Check the use of a two-steps coercion from constr to expr 1 then
-   from expr 0 to expr 2 (note that camlp5 parsing is more tolerant
-   and does not require parentheses to parse from level 2 while at
-   level 1) *)
+   from expr 0 to expr 2 *)
 
-Check [1 + 1].
+Check [(1 + 1)].
 
 End C.
 

@@ -29,7 +29,7 @@ Ltac2 Eval
 Ltac2 Eval
   ensure (Bool.neg (FSet.mem "hello" (FSet.remove "hello" (FSet.add "other" (FSet.add "hello" (FSet.empty FSet.Tags.string_tag)))))).
 
-Ltac2 Notation "sprintf" fmt(format) := Message.Format.kfprintf (fun m => Message.to_string m) fmt.
+Ltac2 Notation "sprintf" fmt(format) : 0 := Message.Format.kfprintf (fun m => Message.to_string m) fmt.
 
 Ltac2 Eval
   let m := FMap.empty FSet.Tags.string_tag in

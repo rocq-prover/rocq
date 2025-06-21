@@ -16,13 +16,13 @@ Qed.
 
 Goal True /\ True.
 Proof.
-  split > [|constructor]. constructor.
+  (split) > [|constructor]. constructor.
 Qed.
 
 Goal forall a b: nat, a = b -> True /\ a = b /\ True.
 Proof.
   intros.
-  (split > [|split]) > [|exact H|].
+  ((split) > [|split]) > [|exact H|].
   all: constructor.
 Qed.
 

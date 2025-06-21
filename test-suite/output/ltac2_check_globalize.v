@@ -12,7 +12,7 @@ Ltac2 Check (fun x => x : 'a -> 'a).
 
 Ltac2 Globalize (() ()).
 
-Ltac2 Notation "bar" := (1,2).
+Ltac2 Notation "bar" : 0 := (1,2).
 
 (* check that CTacApp nodes don't get merged or that we handle merging them correctly. *)
 Ltac2 Globalize bar 3.
