@@ -105,15 +105,15 @@ module RefHash =
 struct
   type t = my_global_reference
   let equal gr1 gr2 = match gr1, gr2 with
-  | ConstRef c1, ConstRef c2 -> Constant.SyntacticOrd.equal c1 c2
-  | IndRef i1, IndRef i2 -> Ind.SyntacticOrd.equal i1 i2
-  | ConstructRef c1, ConstructRef c2 -> Construct.SyntacticOrd.equal c1 c2
+  | ConstRef c1, ConstRef c2 -> Constant.UserOrd.equal c1 c2
+  | IndRef i1, IndRef i2 -> Ind.UserOrd.equal i1 i2
+  | ConstructRef c1, ConstructRef c2 -> Construct.UserOrd.equal c1 c2
   | _ -> false
   open Hashset.Combine
   let hash = function
-  | ConstRef c -> combinesmall 1 (Constant.SyntacticOrd.hash c)
-  | IndRef i -> combinesmall 2 (Ind.SyntacticOrd.hash i)
-  | ConstructRef c -> combinesmall 3 (Construct.SyntacticOrd.hash c)
+  | ConstRef c -> combinesmall 1 (Constant.UserOrd.hash c)
+  | IndRef i -> combinesmall 2 (Ind.UserOrd.hash i)
+  | ConstructRef c -> combinesmall 3 (Construct.UserOrd.hash c)
 end
 
 module RefTable = Hashtbl.Make(RefHash)
