@@ -14,33 +14,33 @@ Require Ltac2.Control Ltac2.Fresh Ltac2.Option Ltac2.Pattern Ltac2.Array Ltac2.I
 
 (** Constr matching *)
 
-Ltac2 Notation "lazy_match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "lazy_match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.lazy_match0 t m.
 
-Ltac2 Notation "multi_match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "multi_match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.multi_match0 t m.
 
-Ltac2 Notation "match!" t(tactic(6)) "with" m(constr_matching) "end" :=
+Ltac2 Notation "match!" t(tactic(6)) "with" m(constr_matching) "end" : 0 :=
   Pattern.one_match0 t m.
 
 (** Goal matching *)
 
-Ltac2 Notation "lazy_match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "lazy_match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.lazy_goal_match0 false m.
 
-Ltac2 Notation "multi_match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "multi_match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.multi_goal_match0 false m.
 
-Ltac2 Notation "match!" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "match!" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.one_goal_match0 false m.
 
-Ltac2 Notation "lazy_match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "lazy_match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.lazy_goal_match0 true m.
 
-Ltac2 Notation "multi_match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "multi_match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.multi_goal_match0 true m.
 
-Ltac2 Notation "match!" "reverse" "goal" "with" m(goal_matching) "end" :=
+Ltac2 Notation "match!" "reverse" "goal" "with" m(goal_matching) "end" : 0 :=
   Pattern.one_goal_match0 true m.
 
 (** Tacticals *)
@@ -203,13 +203,17 @@ Ltac2 Notation eright := eright.
 Ltac2 constructor0 ev n bnd :=
   enter_h ev (fun ev bnd => Std.constructor_n ev n bnd) bnd.
 
-Ltac2 Notation "constructor" := Control.enter (fun () => Std.constructor false).
-Ltac2 Notation constructor := constructor.
-Ltac2 Notation "constructor" n(tactic) bnd(thunk(with_bindings)) := constructor0 false n bnd.
+Local Ltac2 constructor1 ev x :=
+  match x with
+  | None => Control.enter (fun () => Std.constructor ev)
+  | Some (tac, bnd) => constructor0 ev tac bnd
+  end.
 
-Ltac2 Notation "econstructor" := Control.enter (fun () => Std.constructor true).
-Ltac2 Notation econstructor := econstructor.
-Ltac2 Notation "econstructor" n(tactic) bnd(thunk(with_bindings)) := constructor0 true n bnd.
+Ltac2 Notation constructor := constructor1 false None.
+Ltac2 Notation "constructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 false x.
+
+Ltac2 Notation econstructor := constructor1 true None.
+Ltac2 Notation "econstructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 true x.
 
 Ltac2 specialize0 c pat :=
   enter_h false (fun _ c => Std.specialize c pat) c.
@@ -632,7 +636,7 @@ Ltac2 Notation f_equal := Std.f_equal ().
 (** now *)
 
 Ltac2 now0 t := t (); ltac1:(easy_forward_decl).
-Ltac2 Notation "now" t(thunk(self)) : 6 := now0 t.
+Ltac2 Notation "now" t(thunk(tactic(6))) := now0 t.
 
 (** profiling *)
 
