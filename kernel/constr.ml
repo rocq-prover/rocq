@@ -93,7 +93,7 @@ type ('constr, 'types, 'univs, 'r) pcase =
 type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Rel       of int
   | Var       of Id.t
-  | Meta      of metavariable
+  | Meta      of metavariable * Name.t option
   | Evar      of 'constr pexistential
   | Sort      of 'sort
   | Cast      of 'constr * cast_kind * 'types
@@ -236,7 +236,7 @@ let destRel c = match kind c with
 
 (* Destructs an existential variable *)
 let destMeta c = match kind c with
-  | Meta n -> n
+  | Meta (n,_) -> n
   | _ -> raise DestKO
 
 (* Destructs a variable *)
@@ -454,7 +454,7 @@ let mkFix fix = of_kind @@ Fix fix
 let mkCoFix cofix= of_kind @@ CoFix cofix
 
 (* Constructs an existential variable named "?n" *)
-let mkMeta  n = of_kind @@  Meta n
+let mkMeta ?(name=None) n = of_kind @@  Meta (n,name)
 
 (* Constructs a Variable named id *)
 let mkVar id = of_kind @@ Var id
@@ -912,7 +912,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
   match kind_nocast_gen kind1 t1, kind_nocast_gen kind2 t2 with
   | Cast _, _ | _, Cast _ -> assert false (* kind_nocast *)
   | Rel n1, Rel n2 -> Int.equal n1 n2
-  | Meta m1, Meta m2 -> Int.equal m1 m2
+  | Meta (m1,_), Meta (m2,_) -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
@@ -1046,7 +1046,7 @@ let constr_ord_int f t1 t2 =
     | Rel _, _ -> -1 | _, Rel _ -> 1
     | Var id1, Var id2 -> Id.compare id1 id2
     | Var _, _ -> -1 | _, Var _ -> 1
-    | Meta m1, Meta m2 -> Int.compare m1 m2
+    | Meta (m1,_), Meta (m2,_) -> Int.compare m1 m2
     | Meta _, _ -> -1 | _, Meta _ -> 1
     | Evar (e1,l1), Evar (e2,l2) ->
       compare [(Evar.compare, e1, e2); (SList.compare f, l1, l2)]
@@ -1159,7 +1159,7 @@ let hasheq_ctx (nas1, c1) (nas2, c2) =
 let hasheq_kind t1 t2 =
   match t1, t2 with
     | Rel n1, Rel n2 -> n1 == n2
-    | Meta m1, Meta m2 -> m1 == m2
+    | Meta (m1,_), Meta (m2,_) -> m1 == m2
     | Var id1, Var id2 -> id1 == id2
     | Sort s1, Sort s2 -> s1 == s2
     | Cast (c1,k1,t1), Cast (c2,k2,t2) -> c1 == c2 && k1 == k2 && t1 == t2
@@ -1256,7 +1256,7 @@ let rec hash t =
       combinesmall 13 (combine (hash_term_array bl) (hash_term_array tl))
     | CoFix(_ln, (_, tl, bl)) ->
        combinesmall 14 (combine (hash_term_array bl) (hash_term_array tl))
-    | Meta n -> combinesmall 15 n
+    | Meta (n,_) -> combinesmall 15 n
     | Rel n -> combinesmall 16 n
     | Proj (p,r, c) ->
       combinesmall 17 (combine3 (Projection.CanOrd.hash p) (Sorts.relevance_hash r) (hash c))
@@ -1435,7 +1435,7 @@ let rec hash_term (t : t) : int * (constr,constr,_,_,_) kind_of_term =
     let hna, lna = Hashcons.hashcons_array hcons_annot lna in
     let h = combine3 hna hbl htl in
     (combinesmall 14 h, CoFix (ln,(lna,tl,bl)))
-  | Meta n as t ->
+  | Meta (n,_) as t ->
     (combinesmall 15 n, t)
   | Rel n as t ->
     (combinesmall 16 n, t)
@@ -1553,7 +1553,7 @@ let rec debug_print c =
   let open Pp in
   match kind c with
   | Rel n -> str "#"++int n
-  | Meta n -> str "Meta(" ++ int n ++ str ")"
+  | Meta (n,_) -> str "Meta(" ++ int n ++ str ")"
   | Var id -> Id.print id
   | Sort s -> Sorts.debug_print s
   | Cast (c,_, t) -> hov 1

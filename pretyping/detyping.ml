@@ -877,13 +877,17 @@ and detype_r d flags avoid env sigma t =
        with Not_found ->
          let s = "_UNBOUND_REL_"^(string_of_int n)
          in GVar (Id.of_string s))
-    | Meta n ->
+    | Meta (n,na) ->
         (* Meta in constr are not user-parsable and are mapped to Evar *)
         if n = Constr_matching.special_meta then
           (* Using a dash to be unparsable *)
           GEvar (CAst.make @@ Id.of_string_soft "CONTEXT-HOLE", [])
         else
-          GEvar (CAst.make @@ Id.of_string_soft ("M" ^ string_of_int n), [])
+          let name = match na with
+            | Some name -> Pp.string_of_ppcmds (Name.print name)
+            | None -> "M" ^ string_of_int n
+          in
+          GEvar (CAst.make @@ Id.of_string_soft name, [])
     | Var id ->
         (* Discriminate between section variable and non-section variable *)
         (try let _ = Global.lookup_named id in GRef (GlobRef.VarRef id, None)

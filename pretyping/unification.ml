@@ -47,7 +47,7 @@ type 'a freelisted = {
 let metavars_of c =
   let rec collrec acc c =
     match Constr.kind c with
-      | Meta mv -> Int.Set.add mv acc
+      | Meta (mv,_) -> Int.Set.add mv acc
       | _         -> Constr.fold collrec acc c
   in
   collrec Int.Set.empty (EConstr.Unsafe.to_constr c)
@@ -360,7 +360,7 @@ let occur_meta_or_undefined_evar evd c =
   in try occrec c; false with Occur | Not_found -> true
 
 let whd_meta ~metas sigma c = match EConstr.kind sigma c with
-  | Meta p ->
+  | Meta (p,_) ->
     (try Meta.meta_value metas p with Not_found -> c)
     (* Not recursive, for some reason *)
   | _ -> c
@@ -370,7 +370,7 @@ let occur_meta_evd ~metas sigma mv c =
     (* Note: evars are not instantiated by terms with metas *)
     let c = whd_meta ~metas sigma c in
     match EConstr.kind sigma c with
-    | Meta mv' when Int.equal mv mv' -> raise Occur
+    | Meta (mv',_) when Int.equal mv mv' -> raise Occur
     | Evar (_, args) -> SList.Skip.iter occrec args
     | _ -> EConstr.iter sigma occrec c
   in try occrec c; false with Occur -> true
@@ -465,7 +465,7 @@ let extract_instance_status = function
 
 let rec subst_meta_instances sigma bl c =
   match EConstr.kind sigma c with
-    | Meta i ->
+    | Meta (i,_) ->
       let select (j,_,_) = Int.equal i j in
       (try pi2 (List.find select bl) with Not_found -> c)
     | _ -> EConstr.map sigma (subst_meta_instances sigma bl) c
@@ -476,7 +476,7 @@ let pose_all_metas_as_evars ~metas env evd t =
   let evdref = ref evd in
   let metas = ref metas in
   let rec aux t = match EConstr.kind !evdref t with
-  | Meta mv ->
+  | Meta (mv,_) ->
       (match Meta.meta_opt_fvalue !metas mv with
        | Some {rebus=c;freemetas=mvs} ->
          let c = if Metaset.is_empty mvs then c else aux c in
@@ -503,7 +503,7 @@ let solve_pattern_eqn_array (env,nb) f l c (subst : subst0) =
   let sigma = subst.subst_sigma in
   let metas = subst.subst_metam in
   match EConstr.kind sigma f with
-    | Meta k ->
+    | Meta (k,_) ->
         (* We enforce that the Meta does not depend on the [nb]
            extra assumptions added by unification to the context *)
         let env' = pop_rel_context nb env in
@@ -953,7 +953,7 @@ let subst_defined_metas_evars sigma (bl,el) c =
      function. *)
   let c = EConstr.Unsafe.to_constr c in
   let rec substrec c = match Constr.kind c with
-    | Meta i ->
+    | Meta (i,_) ->
       let select (j,_,_) = Int.equal i j in
       substrec (EConstr.Unsafe.to_constr (pi2 (List.find select bl)))
     | Evar (evk,args) ->
@@ -1098,7 +1098,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
           Termops.Internal.print_constr_env curenv sigma cN)
     in
       match (EConstr.kind sigma cM, EConstr.kind sigma cN) with
-        | Meta k1, Meta k2 ->
+        | Meta (k1,_), Meta (k2,_) ->
             if Int.equal k1 k2 then substn else
             let stM,stN = extract_instance_status pb in
             let sigma =
@@ -1111,7 +1111,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
             in
             if k2 < k1 then push_metas sigma (k1, cN, stN) substn
             else push_metas sigma (k2, cM, stM) substn
-        | Meta k, _
+        | Meta (k,_), _
             when not (occur_metavariable sigma k cN) (* helps early trying alternatives *) ->
             let sigma =
               if opt.with_types && flags.check_applied_meta_types then
@@ -1130,7 +1130,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
               push_metas sigma
                 (k, lift (-nb) cN, snd (extract_instance_status pb)) substn
             else error_cannot_unify_local curenv sigma (m,n,cN)
-        | _, Meta k
+        | _, Meta (k,_)
             when not (occur_metavariable sigma k cM) (* helps early trying alternatives *) ->
           let sigma =
             if opt.with_types && flags.check_applied_meta_types then
@@ -1736,7 +1736,7 @@ let applyHead ~metas env evd c cl =
       | Prod ({binder_name},c1,c2) ->
         let src =
           match EConstr.kind evd a with
-          | Meta mv -> Meta.evar_source_of_meta mv metas
+          | Meta (mv,_) -> Meta.evar_source_of_meta mv metas
           | _ ->
             (* Does not matter, the evar will be later instantiated by [a] *)
             Loc.tag Evar_kinds.InternalHole in
@@ -2617,10 +2617,10 @@ let w_unify2 ~metas env evd flags dep cv_pb ty1 ty2 =
   let c1, oplist1 = whd_nored_stack ~metas:(Meta.meta_handler metas) env evd ty1 in
   let c2, oplist2 = whd_nored_stack ~metas:(Meta.meta_handler metas) env evd ty2 in
   match EConstr.kind evd c1, EConstr.kind evd c2 with
-    | Meta p1, _ ->
+    | Meta (p1,_), _ ->
         (* Find the predicate *)
         secondOrderAbstractionAlgo dep ~metas env evd flags ty2 (p1, oplist1)
-    | _, Meta p2 ->
+    | _, Meta (p2,_) ->
         (* Find the predicate *)
         secondOrderAbstractionAlgo dep ~metas env evd flags ty1 (p2, oplist2)
     | _ -> user_err Pp.(str "w_unify2")

@@ -244,7 +244,8 @@ let clenv_environments env sigma template bound t =
             sigma, t1, templ, Some (decls, s)
           in
           let metam = Meta.meta_declare mv t1 ~name:na' metam in
-          let t2 = if dep then (subst1 (mkMeta mv) t2) else t2 in
+          let name = Some na.binder_name in  (* save name for Print HintDb patterns *)
+          let t2 = if dep then (subst1 (mkMeta ~name mv) t2) else t2 in
           clrec templ sigma metam ((mv, dep, tmpl) :: metas) (Option.map ((+) (-1)) n) t2
       | (n, LetIn (na,b,_,t)) -> clrec templ sigma metam metas n (subst1 b t)
       | (n, _) -> (metam, sigma, List.rev metas, t)
@@ -439,7 +440,7 @@ let adjust_meta_source ~metas evd mv = function
       if Metaset.mem mv t.freemetas then
         let f,l = decompose_app_list evd t.rebus in
         match EConstr.kind evd f with
-        | Meta mv'' ->
+        | Meta (mv'',_) ->
           (match Meta.meta_opt_fvalue metas mv'' with
           | Some c -> match_name c.rebus l
           | None -> None)
@@ -728,7 +729,7 @@ let is_ground = function
 let make_proof env sigma c =
   let metas = ref Metaset.empty in
   let rec make c = match EConstr.kind sigma c with
-  | Meta mv ->
+  | Meta (mv,_) ->
     if Metaset.mem mv !metas then raise NonLinear
     else
       let () = metas := Metaset.add mv !metas in

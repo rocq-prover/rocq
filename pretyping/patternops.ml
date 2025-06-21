@@ -150,7 +150,7 @@ let pattern_of_constr ~broken env sigma t =
   let open Context.Rel.Declaration in
   match kind t with
     | Rel n  -> PRel n
-    | Meta n -> PMeta (Some (Id.of_string ("META" ^ string_of_int n)))
+    | Meta (n,_) -> PMeta (Some (Id.of_string ("META" ^ string_of_int n)))
     | Var id -> PVar id
     | Sort s -> PSort (EConstr.ESorts.quality_or_set sigma (EConstr.ESorts.make s))
     | Cast (c,_,_)      -> pattern_of_constr env c

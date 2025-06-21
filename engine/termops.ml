@@ -774,7 +774,7 @@ let occur_meta_or_existential sigma c =
 
 let occur_metavariable sigma m c =
   let rec occrec c = match EConstr.kind sigma c with
-  | Meta m' -> if Int.equal m m' then raise Occur
+  | Meta (m',_) -> if Int.equal m m' then raise Occur
   | Evar (_, args) -> SList.Skip.iter occrec args
   | _ -> EConstr.iter sigma occrec c
   in
@@ -882,7 +882,7 @@ let free_rels_and_unqualified_refs sigma t =
 let collect_metas sigma c =
   let rec collrec acc c =
     match EConstr.kind sigma c with
-      | Meta mv -> List.add_set Int.equal mv acc
+      | Meta (mv,_) -> List.add_set Int.equal mv acc
       | Evar (_, args) -> SList.Skip.fold collrec acc args
       | _       -> EConstr.fold sigma collrec acc c
   in
@@ -958,11 +958,11 @@ type meta_type_map = (metavariable * types) list
 type meta_value_map = (metavariable * constr) list
 
 let isMetaOf sigma mv c =
-  match EConstr.kind sigma c with Meta mv' -> Int.equal mv mv' | _ -> false
+  match EConstr.kind sigma c with Meta (mv',_) -> Int.equal mv mv' | _ -> false
 
 let rec subst_meta bl c =
   match kind c with
-    | Meta i -> (try Int.List.assoc i bl with Not_found -> c)
+    | Meta (i,_) -> (try Int.List.assoc i bl with Not_found -> c)
     | _ -> Constr.map (subst_meta bl) c
 
 let rec strip_outer_cast sigma c = match EConstr.kind sigma c with

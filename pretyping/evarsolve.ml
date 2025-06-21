@@ -676,7 +676,7 @@ let is_unification_pattern_pure_evar env evd (evk,args) t =
 
 let is_unification_pattern (env,nb) evd f l t =
   match EConstr.kind evd f with
-  | Meta m -> is_unification_pattern_meta env evd nb m l t
+  | Meta (m,_) -> is_unification_pattern_meta env evd nb m l t
   | Evar ev -> is_unification_pattern_evar env evd ev l t
   | _ -> None
 

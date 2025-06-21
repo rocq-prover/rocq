@@ -38,7 +38,7 @@ let unif env evd t1 t2=
   let rec head_reduce t=
     (* forbids non-sigma-normal meta in head position*)
     match EConstr.kind evd t with
-        Meta i->
+        Meta (i,_)->
           (try
              head_reduce (Int.List.assoc i !sigma)
            with Not_found->t)
@@ -49,16 +49,16 @@ let unif env evd t1 t2=
       let nt1=head_reduce (whd_betaiotazeta env evd t1)
       and nt2=head_reduce (whd_betaiotazeta env evd t2) in
         match (EConstr.kind evd nt1),(EConstr.kind evd nt2) with
-            Meta i,Meta j->
+            Meta (i,_),Meta (j,_)->
               if not (Int.equal i j) then
                 if i<j then bind j nt1
                 else bind i nt2
-          | Meta i,_ ->
+          | Meta (i,_),_ ->
               let t=subst_meta !sigma nt2 in
                 if Int.Set.is_empty (free_rels evd t) &&
                   not (occur_metavariable evd i t) then
                     bind i t else raise UFAIL
-          | _,Meta i ->
+          | _,Meta (i,_) ->
               let t=subst_meta !sigma nt1 in
                 if Int.Set.is_empty (free_rels evd t) &&
                   not (occur_metavariable evd i t) then
@@ -129,7 +129,7 @@ let mk_rel_inst evd t=
   let rel_env=ref [] in
   let rec renum_rec d t=
     match EConstr.kind evd t with
-        Meta n->
+        Meta (n,_) ->
           (try
              mkRel (d+(Int.List.assoc n !rel_env))
            with Not_found->

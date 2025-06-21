@@ -522,7 +522,7 @@ let () =
     v_blk 0 [|Tac2ffi.of_int n|]
   | Var id ->
     v_blk 1 [|Tac2ffi.of_ident id|]
-  | Meta n ->
+  | Meta (n,_) ->
     v_blk 2 [|Tac2ffi.of_int n|]
   | Evar (evk, args) ->
     let args = Evd.expand_existential sigma (evk, args) in

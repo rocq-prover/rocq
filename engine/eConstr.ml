@@ -190,7 +190,7 @@ let mkSet = of_kind (Sort (ESorts.make Sorts.set))
 let mkType u = of_kind (Sort (ESorts.make (Sorts.sort_of_univ u)))
 let mkRel n = of_kind (Rel n)
 let mkVar id = of_kind (Var id)
-let mkMeta n = of_kind (Meta n)
+let mkMeta ?(name=None) n = of_kind (Meta (n,name))
 let mkEvar e = of_kind (Evar e)
 let mkSort s = of_kind (Sort s)
 let mkCast (b, k, t) = of_kind (Cast (b, k, t))
@@ -291,7 +291,7 @@ let destEvar sigma c = match kind sigma c with
 | _ -> raise DestKO
 
 let destMeta sigma c = match kind sigma c with
-| Meta p -> p
+| Meta (p,_) -> p
 | _ -> raise DestKO
 
 let destSort sigma c = match kind sigma c with

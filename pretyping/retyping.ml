@@ -223,7 +223,7 @@ let type_of_template_knowing_parameters ~forbid_polyprop arity_sort_of typ args 
 let retype ?metas ?(polyprop=true) sigma =
   let rec type_of env cstr =
     match EConstr.kind sigma cstr with
-    | Meta n ->
+    | Meta (n,_) ->
       begin match safe_meta_type metas n with
       | None -> retype_error (BadMeta n)
       | Some ty -> strip_outer_cast sigma ty
