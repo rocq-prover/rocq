@@ -75,10 +75,10 @@ let hint_priority is = is.is_info.hint_priority
  * states management
  *)
 
-let classes : typeclasses ref = Summary.ref GlobRef.Map.empty ~name:"classes"
-let instances : instances ref = Summary.ref GlobRef.Map.empty ~name:"instances"
+let classes : typeclasses CRef.ref = Summary.ref GlobRef.Map.empty ~name:"classes"
+let instances : instances CRef.ref = Summary.ref GlobRef.Map.empty ~name:"instances"
 
-let class_info c = GlobRef.Map.find_opt c !classes
+let class_info c = GlobRef.Map.find_opt c CRef.(!classes)
 
 let class_info_exn env sigma r =
   match class_info r with
@@ -89,7 +89,7 @@ let class_info_exn env sigma r =
 
 let global_class_of_constr env sigma c =
   try let gr, u = EConstr.destRef sigma c in
-    GlobRef.Map.find gr !classes, u
+    GlobRef.Map.find gr CRef.(!classes), u
   with DestKO | Not_found -> not_a_class env sigma c
 
 let decompose_class_app env sigma c =
@@ -115,7 +115,7 @@ let class_of_constr env sigma c =
 
 let is_class_constr sigma c =
   try let gr, u = EConstr.destRef sigma c in
-    GlobRef.Map.mem gr !classes
+    GlobRef.Map.mem gr CRef.(!classes)
   with DestKO | Not_found -> false
 
 let rec is_class_type evd c =
@@ -123,7 +123,7 @@ let rec is_class_type evd c =
     match EConstr.kind evd c with
     | Prod (_, _, t) -> is_class_type evd t
     | Cast (t, _, _) -> is_class_type evd t
-    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) !classes
+    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) CRef.(!classes)
     | _ -> is_class_constr evd c
 
 let is_class_evar evd evi =
@@ -135,10 +135,11 @@ let rec is_maybe_class_type evd c =
     | Prod (_, _, t) -> is_maybe_class_type evd t
     | Cast (t, _, _) -> is_maybe_class_type evd t
     | Evar _ -> true
-    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) !classes
+    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) CRef.(!classes)
     | _ -> is_class_constr evd c
 
 let load_class cl =
+  let open CRef in
   classes := GlobRef.Map.add cl.cl_impl cl !classes
 
 (** Build the subinstances hints. *)
@@ -148,6 +149,7 @@ let load_class cl =
  *)
 
 let load_instance inst =
+  let open CRef in
   let insts =
     try GlobRef.Map.find inst.is_class !instances
     with Not_found -> GlobRef.Map.empty in
@@ -155,23 +157,24 @@ let load_instance inst =
   instances := GlobRef.Map.add inst.is_class insts !instances
 
 let remove_instance inst =
+  let open CRef in
   let insts =
     try GlobRef.Map.find inst.is_class !instances
     with Not_found -> assert false in
   let insts = GlobRef.Map.remove inst.is_impl insts in
   instances := GlobRef.Map.add inst.is_class insts !instances
 
-let typeclasses () = GlobRef.Map.fold (fun _ l c -> l :: c) !classes []
+let typeclasses () = GlobRef.Map.fold (fun _ l c -> l :: c) CRef.(!classes) []
 
 let cmap_elements c = GlobRef.Map.fold (fun k v acc -> v :: acc) c []
 
 let instances_of c =
-  try cmap_elements (GlobRef.Map.find c.cl_impl !instances) with Not_found -> []
+  try cmap_elements (GlobRef.Map.find c.cl_impl CRef.(!instances)) with Not_found -> []
 
 let all_instances () =
   GlobRef.Map.fold (fun k v acc ->
     GlobRef.Map.fold (fun k v acc -> v :: acc) v acc)
-    !instances []
+    CRef.(!instances) []
 
 let instances r =
   Option.map instances_of (class_info r)
@@ -184,7 +187,7 @@ let instances_exn env sigma r =
     not_a_class env sigma c
 
 let is_class gr =
-  GlobRef.Map.mem gr !classes
+  GlobRef.Map.mem gr CRef.(!classes)
 
 open Evar_kinds
 type evar_filter = Evar.t -> Evar_kinds.t Lazy.t -> bool
@@ -215,12 +218,13 @@ let get_filtered_typeclass_evars filter evd =
   let check ev = filter ev (lazy (snd (Evd.evar_source (Evd.find_undefined evd ev)))) in
   Evar.Set.filter check tcs
 
-let solve_all_instances_hook = ref (fun env evd filter unique fail -> assert false)
+let solve_all_instances_hook = CRef.ref (fun env evd filter unique fail -> assert false)
 
 let solve_all_instances env evd filter unique fail =
+  let open CRef in
   !solve_all_instances_hook env evd filter unique fail
 
-let set_solve_all_instances f = solve_all_instances_hook := f
+let set_solve_all_instances f = CRef.(solve_all_instances_hook := f)
 
 let resolve_typeclasses ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
     ?(fail=true) env evd =
@@ -246,9 +250,10 @@ let error_unresolvable env evd comp =
 
 (** Deprecated *)
 
-let solve_one_instance = ref (fun env evm t -> assert false)
+let solve_one_instance = CRef.ref (fun env evm t -> assert false)
 
 let resolve_one_typeclass ?unique:_ env evm t =
+  let open CRef in
   !solve_one_instance env evm t
 
-let set_solve_one_instance f = solve_one_instance := f
+let set_solve_one_instance f = CRef.(solve_one_instance := f)

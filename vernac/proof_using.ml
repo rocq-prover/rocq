@@ -19,7 +19,7 @@ module NamedDecl = Context.Named.Declaration
 let all_collection_id = Id.of_string "All"
 let known_names = Summary.ref [] ~name:"proofusing-nameset"
 
-let is_known_name id = CList.mem_assoc_f Id.equal id !known_names
+let is_known_name id = CList.mem_assoc_f Id.equal id CRef.(!known_names)
 
 let rec close_fwd env sigma s =
   let s' =
@@ -83,7 +83,7 @@ let process_expr env sigma fixnames e v_ty =
       begin
         if variable_exists id then
           warn_collection_precedence id;
-        aux (CList.assoc_f Id.equal id !known_names)
+        aux (CList.assoc_f Id.equal id CRef.(!known_names))
       end
     else
     if List.exists (Id.equal id) fixnames then
@@ -107,6 +107,7 @@ let definition_using env evd ~fixnames ~using ~terms =
   Names.Id.Set.(CList.fold_right add l empty)
 
 let name_set id expr =
+  let open CRef in
   if Id.equal id all_collection_id then err_redefine_all_collection ();
   if is_known_name id then warn_redefine_collection id;
   if Termops.is_section_variable (Global.env ()) id then warn_variable_shadowing id;

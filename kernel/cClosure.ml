@@ -575,8 +575,8 @@ let rec to_constr lfts v =
         let subs = comp_subs lfts env in
         subst_constr subs t
 
-    | FIrrelevant -> assert (!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
-    | FLOCKED -> assert (!Flags.in_debugger); mkVar(Id.of_string"_LOCKED_")
+    | FIrrelevant -> assert CRef.(!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
+    | FLOCKED -> assert CRef.(!Flags.in_debugger); mkVar(Id.of_string"_LOCKED_")
 
 and to_constr_case lfts ci u pms (p,r) iv c ve env =
   let subs = comp_subs lfts env in

@@ -222,6 +222,7 @@ let { Goptions.get = warn_hint } =
 let fresh_key =
   let id = Summary.ref ~name:"HINT-COUNTER" 0 in
   fun () ->
+    let open CRef in
     let cur = incr id; !id in
     let lbl = Id.of_string ("_" ^ string_of_int cur) in
     let kn = Lib.make_kn lbl in
@@ -284,6 +285,8 @@ sig
   val lookup : Environ.env -> Evd.evar_map -> t -> EConstr.constr -> stored_data list
 end =
 struct
+  open CRef
+
   module Bnet = Btermdn.Make(Stored)
 
   type diff = hint_pattern * stored_data
@@ -862,11 +865,18 @@ let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
 let statustable = Summary.ref ~name:"statustable" KNmap.empty
 
 let searchtable_map name =
+  let open CRef in
   Hintdbmap.find name !searchtable
+
 let searchtable_add (name,db) =
+  let open CRef in
   searchtable := Hintdbmap.add name db !searchtable
-let current_db_names () = Hintdbmap.domain !searchtable
-let current_db () = Hintdbmap.bindings !searchtable
+
+let current_db_names () =
+  let open CRef in
+  Hintdbmap.domain !searchtable
+
+let current_db () = Hintdbmap.bindings CRef.(!searchtable)
 
 let current_pure_db () = List.map snd (current_db ())
 
@@ -1068,6 +1078,7 @@ let get_db dbname =
 
 let add_hint dbname hintlist =
   let check (_, h) =
+    let open CRef in
     let () = if KNmap.mem h.code.uid !statustable then
       user_err Pp.(str "Conflicting hint keys. This can happen when including \
       twice the same module.")
@@ -1216,10 +1227,14 @@ let open_autohint h =
     let () =
       if not superglobal then
         (* Import-bound hints must be declared when not imported yet *)
+        let open CRef in
         let filter (_, h) = not @@ KNmap.mem h.code.uid !statustable in
         add_hint h.hint_name (List.filter filter hints)
     in
-    let add (_, hint) = statustable := KNmap.add hint.code.uid true !statustable in
+    let add (_, hint) =
+      let open CRef in
+      statustable := KNmap.add hint.code.uid true !statustable
+    in
     List.iter add hints
   | AddCut paths ->
     if not superglobal then add_cut h.hint_name paths
@@ -1434,7 +1449,7 @@ let add_resolves env sigma clist ~locality dbnames =
         )
       | _ -> ()
       in
-      let () = if not !Flags.quiet then List.iter check r in
+      let () = if not CRef.(!Flags.quiet) then List.iter check r in
       let hint = make_hint ~locality dbname (AddHints r) in
       Lib.add_leaf (inAutoHint hint))
     dbnames
@@ -1800,7 +1815,7 @@ let pr_searchtable env sigma =
     accu ++ str "In the database " ++ str name ++ str ":" ++ fnl () ++
     pr_hint_db_env env sigma db ++ fnl ()
   in
-  Hintdbmap.fold fold !searchtable (mt ())
+  Hintdbmap.fold fold CRef.(!searchtable) (mt ())
 
 let print_mp mp =
   try
@@ -1808,7 +1823,7 @@ let print_mp mp =
     str " from "  ++ pr_qualid qid
   with Not_found -> mt ()
 
-let is_imported h = try KNmap.find h.uid !statustable with Not_found -> true
+let is_imported h = try KNmap.find h.uid CRef.(!statustable) with Not_found -> true
 
 let hint_trace = Evd.Store.field "hint_trace"
 

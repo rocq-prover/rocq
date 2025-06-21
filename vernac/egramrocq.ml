@@ -270,6 +270,7 @@ let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" String.Set.em
 (** If the entry is present then local *)
 
 let create_custom_entry ~local s =
+  let open CRef in
   if List.mem s ["constr";"pattern";"ident";"global";"binder";"bigint"] then
     user_err Pp.(quote (str s) ++ str " is a reserved entry name.");
   let sc = "custom:"^s in
@@ -289,7 +290,7 @@ let exists_custom_entry s = match find_custom_entry s with
 | _ -> true
 | exception e when CErrors.noncritical e -> false
 
-let locality_of_custom_entry s = String.Set.mem s !custom_entry_locality
+let locality_of_custom_entry s = String.Set.mem s CRef.(!custom_entry_locality)
 
 (** This computes the name of the level where to add a new rule *)
 let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =

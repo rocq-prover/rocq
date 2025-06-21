@@ -544,7 +544,7 @@ type fixpoint_kind = IsFixpoint of lident option list | IsCoFixpoint
 (** Check obligations are properly solved before closing the
    [what_for] section / module *)
 val check_solved_obligations : pm:OblState.t -> what_for:Pp.t -> unit
-val default_tactic : unit Proofview.tactic ref
+val default_tactic : unit Proofview.tactic CRef.ref
 
 (** Resolution status of a program *)
 type progress =

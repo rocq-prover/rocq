@@ -154,8 +154,8 @@ let hdchar env sigma c =
     | Cast (c,_,_) | App (c,_) -> hdrec k c
     | Proj (kn,_,_) -> lowercase_first_char (Label.to_id (Constant.label (Projection.constant kn)))
     | Const (kn,_) -> lowercase_first_char (Label.to_id (Constant.label kn))
-    | Ind (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.IndRef x)) with Not_found when !Flags.in_debugger -> "zz")
-    | Construct (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef x)) with Not_found when !Flags.in_debugger -> "zz")
+    | Ind (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.IndRef x)) with Not_found when CRef.(!Flags.in_debugger) -> "zz")
+    | Construct (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef x)) with Not_found when CRef.(!Flags.in_debugger) -> "zz")
     | Var id  -> lowercase_first_char id
     | Sort s -> sort_hdchar (ESorts.kind sigma s)
     | Rel n ->
@@ -371,7 +371,7 @@ let visible_ids sigma (nenv, c) =
     (* except that Not_found is not fatal *)
     begin match Evd.expand_existential sigma ev with
     | args -> List.iter (visible_ids n) args
-    | exception Not_found when !Flags.in_debugger ->
+    | exception Not_found when CRef.(!Flags.in_debugger) ->
       SList.Skip.iter (visible_ids n) args
     end
   | _ -> EConstr.iter_with_binders sigma succ visible_ids n c
@@ -524,7 +524,7 @@ let next_name_for_display gen env sigma flags na avoid =
 let compute_displayed_name_in_gen_poly gen noccurn_fun env sigma flags avoid na c =
   let noccurs =
     try noccurn_fun sigma 1 c
-    with _ when !Flags.in_debugger -> false
+    with _ when CRef.(!Flags.in_debugger) -> false
   in
   if noccurs then Anonymous, avoid
   else
