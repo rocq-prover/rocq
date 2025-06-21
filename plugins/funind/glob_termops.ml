@@ -586,8 +586,7 @@ let resolve_and_replace_implicits exptyp env sigma rt =
       use_coercions = true;
       poly = false;
       resolve_tc = true;
-      undeclared_evars_patvars = false;
-      patvars_abstract = false;
+      undeclared_evars_rr = false;
       unconstrained_sorts = false;
     } in
     let hypnaming = Evarutil.VarSet.variables (Global.env ()) in
