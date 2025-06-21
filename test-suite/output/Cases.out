@@ -1,27 +1,18 @@
 t_rect =
 fun (P : t -> Type) (f : let x := t in forall x0 : x, P x0 -> P (k x0)) =>
-fix F (t : t) : P t :=
-  match t as t0 return (P t0) with
-  | k _ x0 => f x0 (F x0)
-  end
+fix F (t : t) : P t := let 'k _ x0 as t0 := t return (P t0) in f x0 (F x0)
      : forall P : t -> Type,
        (let x := t in forall x0 : x, P x0 -> P (k x0)) -> forall t : t, P t
 
 Arguments t_rect (P f)%_function_scope t
-     = fun d : TT => match d with
-                     | {| f3 := b |} => b
-                     end
+     = fun '{| f3 := b |} => b
      : TT -> 0 = 0
-     = fun d : TT => match d with
-                     | {| f3 := b |} => b
-                     end
+     = fun '{| f3 := b |} => b
      : TT -> 0 = 0
 proj =
 fun (x y : nat) (P : nat -> Type) (def : P x) (prf : P y) =>
 match eq_nat_dec x y with
-| left eqprf => match eqprf in (_ = z) return (P z) with
-                | eq_refl => def
-                end
+| left eqprf => let 'eq_refl in (_ = z) := eqprf return (P z) in def
 | right _ => prf
 end
      : forall (x y : nat) (P : nat -> Type), P x -> P y -> P y
@@ -37,25 +28,19 @@ fix foo (A : Type) (l : list A) {struct l} : option A :=
      : forall A : Type, list A -> option A
 
 Arguments foo A%_type_scope l%_list_scope
-uncast =
-fun (A : Type) (x : I A) => match x with
-                            | x0 <: _ => x0
-                            end
+uncast = fun (A : Type) '(x0 <: _) => x0
      : forall A : Type, I A -> A
 
 Arguments uncast A%_type_scope x
 foo' = if A 0 then true else false
      : bool
 f =
-fun H : B =>
-match H with
-| AC x =>
-    (fun x0 : P b =>
-     let b0 := b in
-     (if b0 as b return (P b -> True)
-      then fun _ : P true => Logic.I
-      else fun _ : P false => Logic.I) x0) x
-end
+fun '(AC x) =>
+(fun x0 : P b =>
+ let b0 := b in
+ (if b0 as b return (P b -> True)
+  then fun _ : P true => Logic.I
+  else fun _ : P false => Logic.I) x0) x
      : B -> True
 File "./output/Cases.v", line 91, characters 0-98:
 The command has indeed failed with message:
@@ -121,13 +106,15 @@ Arguments lem3 k
   
   p : nat
   a, a0 :=
-    match eq_refl as y in (_ = e) return (y = y /\ e = e) with
-    | eq_refl => conj eq_refl eq_refl
-    end : eq_refl = eq_refl /\ p = p
+    let
+    'eq_refl as y in (_ = e) := eq_refl return (y = y /\ e = e) in
+     conj eq_refl eq_refl
+    : eq_refl = eq_refl /\ p = p
   a1, a2 :=
-    match eq_refl in (_ = e) return (p = p /\ e = e) with
-    | eq_refl => conj eq_refl eq_refl
-    end : p = p /\ p = p
+    let
+    'eq_refl in (_ = e) := eq_refl return (p = p /\ e = e) in
+     conj eq_refl eq_refl
+    : p = p /\ p = p
   ============================
   eq_refl = eq_refl
 fun x : comparison => match x with
@@ -211,15 +198,9 @@ The command has indeed failed with message:
 The constructor D' (in type J') is expected to be applied to 4 arguments (or
 6 arguments when including variables for local definitions) while it is
 actually applied to 5 arguments.
-fun x : J' bool (true, true) =>
-match x with
-| D' _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
-end
+fun '(D' _ _ _ m _ e) => existT (fun x0 : nat => x0 = x0) m e
      : J' bool (true, true) -> {x : nat & x = x}
-fun x : J' bool (true, true) =>
-match x with
-| @D' _ _ _ _ n _ p _ => n + p
-end
+fun '(@D' _ _ _ _ n _ p _) => n + p
      : J' bool (true, true) -> nat
 File "./output/Cases.v", line 277, characters 33-40:
 The command has indeed failed with message:
@@ -242,15 +223,9 @@ The command has indeed failed with message:
 The constructor D' (in type J') is expected to be applied to 3 arguments (or
 4 arguments when including variables for local definitions) while it is
 actually applied to 5 arguments.
-fun x : J' bool (true, true) =>
-match x with
-| @D' _ _ _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
-end
+fun '(@D' _ _ _ _ _ m _ e) => existT (fun x0 : nat => x0 = x0) m e
      : J' bool (true, true) -> {x : nat & x = x}
-fun x : J' bool (true, true) =>
-match x with
-| @D' _ _ _ _ n _ p _ => (n, p)
-end
+fun '(@D' _ _ _ _ n _ p _) => (n, p)
      : J' bool (true, true) -> nat * nat
 File "./output/Cases.v", line 313, characters 3-4:
 Warning: Unused variable x might be a misspelled constructor. Use _ or _x to
