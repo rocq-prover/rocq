@@ -47,11 +47,10 @@ let set_typeclass_mode ~locality c b =
     (Hints.HintsModeEntry (c, b))
 
 let add_instance_hint gr ~locality info =
-  let inst = Hints.hint_globref gr in
      Flags.silently (fun () ->
        Hints.add_hints ~locality [typeclasses_db]
           (Hints.HintsResolveEntry
-             [info, false, inst])) ()
+             [info, false, gr])) ()
 
 (* short names without opening all Hints *)
 type locality = Hints.hint_locality = Local | Export | SuperGlobal

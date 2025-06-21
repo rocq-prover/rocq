@@ -62,7 +62,7 @@ let project_hint ~poly pri l2r r =
       cb
   in
   let info = {Typeclasses.hint_priority = pri; hint_pattern = None} in
-  (info, true, Hints.hint_globref (GlobRef.ConstRef c))
+  (info, true, GlobRef.ConstRef c)
 
 (* Only error when we have to (axioms may be instantiated if from functors)
    XXX maybe error if not from a functor argument?
@@ -88,11 +88,9 @@ let interp_hints ~poly h =
   in
   let fr r = soft_evaluable ?loc:r.CAst.loc (fref r) in
   let fi c =
-    let open Hints in
     match rectify_hint_constr c with
     | Some c ->
-      let gr = Smartlocate.global_with_alias c in
-      (hint_globref gr)
+      Smartlocate.global_with_alias c
     | None ->
       CErrors.user_err (Pp.strbrk
         "Declaring arbitrary terms as hints is forbidden. You must declare a \
@@ -136,7 +134,7 @@ let interp_hints ~poly h =
           let gr = GlobRef.ConstructRef c in
           ( empty_hint_info
           , true
-          , hint_globref gr ))
+          , gr ))
     in
     HintsResolveEntry (List.flatten (List.map constr_hints_of_ind lqid))
   | HintsExtern (pri, patcom, tacexp) ->

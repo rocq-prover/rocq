@@ -1039,8 +1039,8 @@ let make_mode ref m =
     else m'
 
 let make_trivial env sigma r =
-  let name = name_of_hint r in
-  let c,ctx = fresh_global_or_constr env sigma r in
+  let name = Some r in
+  let c,ctx = fresh_global_or_constr env sigma (IsGlobRef r) in
   let sigma = merge_context_set_opt sigma ctx in
   let t = hnf_constr env sigma (Retyping.get_type_of env sigma c) in
   let hd = head_constr sigma t in
@@ -1414,7 +1414,7 @@ let add_resolves env sigma clist ~locality dbnames =
     (fun dbname ->
       let r =
         List.flatten (List.map (fun (pri, hnf, gr) ->
-          make_resolves env sigma (true, hnf) pri ~check:true gr) clist)
+          make_resolves env sigma (true, hnf) pri ~check:true (IsGlobRef gr)) clist)
       in
       let check (_, hint) = match hint.code.obj with
       | ERes_pf { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
@@ -1493,8 +1493,8 @@ type hnf = bool
 type nonrec hint_info = hint_info
 
 type hints_entry =
-  | HintsResolveEntry of (hint_info * hnf * hint_term) list
-  | HintsImmediateEntry of hint_term list
+  | HintsResolveEntry of (hint_info * hnf * GlobRef.t) list
+  | HintsImmediateEntry of GlobRef.t list
   | HintsCutEntry of hints_path
   | HintsUnfoldEntry of Evaluable.t list
   | HintsTransparencyEntry of Evaluable.t hints_transparency_target * bool
@@ -1576,8 +1576,6 @@ let add_hints ~locality dbnames h =
       add_transparency lhints b ~locality dbnames
   | HintsExternEntry (info, tacexp) ->
       add_externs info tacexp ~locality dbnames
-
-let hint_globref gr = IsGlobRef gr
 
 let warn_non_reference_hint_using =
   CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.deprecated

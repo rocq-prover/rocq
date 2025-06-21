@@ -166,11 +166,9 @@ type hint_db = Hint_db.t
 
 type hnf = bool
 
-type hint_term
-
 type hints_entry =
-  | HintsResolveEntry of (hint_info * hnf * hint_term) list
-  | HintsImmediateEntry of hint_term list
+  | HintsResolveEntry of (hint_info * hnf * GlobRef.t) list
+  | HintsImmediateEntry of GlobRef.t list
   | HintsCutEntry of hints_path
   | HintsUnfoldEntry of Evaluable.t list
   | HintsTransparencyEntry of Evaluable.t hints_transparency_target * bool
@@ -197,8 +195,6 @@ val current_db_names : unit -> String.Set.t
 val current_pure_db : unit -> hint_db list
 
 val add_hints : locality:hint_locality -> hint_db_name list -> hints_entry -> unit
-
-val hint_globref : GlobRef.t -> hint_term
 
 (** A constr which is Hint'ed will be:
    - (1) used as an Exact, if it does not start with a product
