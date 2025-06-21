@@ -28,27 +28,27 @@ from subprocess import check_output
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 
-COQDOC_OPTIONS = ['--body-only', '--no-glob', '--no-index', '--no-externals',
+ROCQDOC_OPTIONS = ['--body-only', '--no-glob', '--no-index', '--no-externals',
                   '-s', '--html', '--stdout', '--utf8', '--parse-comments']
 
-COQDOC_SYMBOLS = ["->", "<-", "<->", "=>", "<=", ">=", "<>", "~", "/\\", "\\/", "|-", "*", "forall", "exists"]
-COQDOC_HEADER = "".join("(** remove printing {} *)".format(s) for s in COQDOC_SYMBOLS)
+ROCQDOC_SYMBOLS = ["->", "<-", "<->", "=>", "<=", ">=", "<>", "~", "/\\", "\\/", "|-", "*", "forall", "exists"]
+ROCQDOC_HEADER = "".join("(** remove printing {} *)".format(s) for s in ROCQDOC_SYMBOLS)
 
-def coqdoc(coq_code, rocqbin=None):
-    """Get the output of rocq doc on coq_code."""
+def rocqdoc(rocq_code, rocqbin=None):
+    """Get the output of rocq doc on rocq_code."""
     rocqbin = rocqbin or os.path.join(os.getenv("COQBIN", ""), "rocq")
     if not pexpect.utils.which(rocqbin):
         raise ValueError("'{}: not found".format(rocqbin))
     args = [rocqbin, "doc"]
-    fd, filename = mkstemp(prefix="coqdoc_", suffix=".v")
+    fd, filename = mkstemp(prefix="rocqdoc_", suffix=".v")
     if platform.system().startswith("CYGWIN"):
-        # coqdoc currently doesn't accept cygwin style paths in the form "/cygdrive/c/..."
+        # rocqdoc currently doesn't accept cygwin style paths in the form "/cygdrive/c/..."
         filename = check_output(["cygpath", "-w", filename]).decode("utf-8").strip()
     try:
-        os.write(fd, COQDOC_HEADER.encode("utf-8"))
-        os.write(fd, coq_code.encode("utf-8"))
+        os.write(fd, ROCQDOC_HEADER.encode("utf-8"))
+        os.write(fd, rocq_code.encode("utf-8"))
         os.close(fd)
-        return check_output(args + COQDOC_OPTIONS + [filename], timeout = 10).decode("utf-8")
+        return check_output(args + ROCQDOC_OPTIONS + [filename], timeout = 10).decode("utf-8")
     finally:
         os.remove(filename)
 
@@ -61,8 +61,8 @@ def first_string_node(node):
 
 def lex(source):
     """Convert source into a stream of (css_classes, token_string)."""
-    coqdoc_output = coqdoc(source)
-    soup = BeautifulSoup(coqdoc_output, "html.parser")
+    rocqdoc_output = rocqdoc(source)
+    soup = BeautifulSoup(rocqdoc_output, "html.parser")
     root = soup.find(class_='code')
     # strip the leading '\n'
     first = first_string_node(root)
@@ -73,7 +73,7 @@ def lex(source):
             yield [], elem
         elif elem.name == "span":
             if elem.string:
-                cls = "coqdoc-{}".format(elem.get("title", "comment"))
+                cls = "rocqdoc-{}".format(elem.get("title", "comment"))
                 yield [cls], elem.string
             else:
                 # handle multi-line comments
@@ -81,7 +81,7 @@ def lex(source):
                 mlc = children[0].startswith("(*") and children[-1].endswith ("*)")
                 for elem2 in children:
                     if isinstance(elem2, NavigableString):
-                        cls = ["coqdoc-comment"] if mlc else []
+                        cls = ["rocqdoc-comment"] if mlc else []
                         yield cls, elem2
                     elif elem2.name == 'br':
                         pass

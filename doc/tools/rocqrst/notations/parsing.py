@@ -21,7 +21,7 @@ checked_version = False
 check_version = Recognizer.checkVersion
 def checkVersion_once(*args, **kwargs):
     global checked_version
-    if not checked_version and os.getenv ("COQ_DEBUG_REFMAN"):
+    if not checked_version and os.getenv ("ROCQ_DEBUG_REFMAN"):
         # Using "Recognizer.checkVersion" would cause endless recursion
         check_version(*args, **kwargs)
         checked_version = True
