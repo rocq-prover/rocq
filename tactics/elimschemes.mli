@@ -20,3 +20,9 @@ val case_dep : individual scheme_kind
 val case_nodep : individual scheme_kind
 val casep_dep : individual scheme_kind
 val casep_nodep : individual scheme_kind
+
+(** Recursor names utilities *)
+
+val lookup_eliminator : Environ.env -> Names.inductive -> UnivGen.QualityOrSet.t -> Names.GlobRef.t
+val elimination_suffix : UnivGen.QualityOrSet.t -> string
+val make_elimination_ident : Names.Id.t -> UnivGen.QualityOrSet.t -> Names.Id.t
