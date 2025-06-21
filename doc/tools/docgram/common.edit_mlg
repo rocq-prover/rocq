@@ -1569,6 +1569,8 @@ vernac_control: [
 | WITH "Redirect" ne_string sentence
 | REPLACE "Timeout" natural vernac_control
 | WITH "Timeout" natural sentence
+| REPLACE "AllocLimit" natural [ "Mw" | "kw" ] vernac_control
+| WITH "AllocLimit" natural [ "Mw" | "kw" ] sentence
 | REPLACE "Fail" vernac_control
 | WITH "Fail" sentence
 | REPLACE "Succeed" vernac_control
