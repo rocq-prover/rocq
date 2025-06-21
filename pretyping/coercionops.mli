@@ -95,6 +95,7 @@ val lookup_pattern_path_between :
   env -> inductive * inductive -> (constructor * int) list
 
 val path_is_reversible : inheritance_path -> bool
+val path_is_identity : inheritance_path -> bool
 
 (**/**)
 (* Crade *)
