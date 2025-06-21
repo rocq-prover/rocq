@@ -1765,15 +1765,15 @@ let understand_tcc ?flags env sigma ?expected_type c =
   let sigma, c, _ = understand_tcc_ty ?flags env sigma ?expected_type c in
   sigma, c
 
-let understand_ltac flags env sigma lvar kind c =
-  let (sigma, c, _) = ise_pretype_gen flags env sigma lvar kind c in
-  (sigma, c)
-
 let understand_ltac_ty flags env sigma lvar kind c =
   ise_pretype_gen flags env sigma lvar kind c
 
+let understand_ltac flags env sigma lvar kind c =
+  let (sigma, c, _) = understand_ltac_ty flags env sigma lvar kind c in
+  (sigma, c)
+
 (* Fully evaluate an untyped constr *)
-let understand_uconstr ?(flags = all_and_fail_flags)
+let understand_uconstr_ty ?(flags = all_and_fail_flags)
   ?(expected_type = WithoutTypeConstraint) env sigma c =
   let open Ltac_pretype in
   let { closure; term } = c in
@@ -1783,7 +1783,11 @@ let understand_uconstr ?(flags = all_and_fail_flags)
     ltac_idents = closure.idents;
     ltac_genargs = closure.genargs;
   } in
-  understand_ltac flags env sigma vars expected_type term
+  understand_ltac_ty flags env sigma vars expected_type term
+
+let understand_uconstr ?flags ?expected_type env sigma c =
+  let sigma, c, _ = understand_uconstr_ty ?flags ?expected_type env sigma c in
+  sigma, c
 
 let path_convertible env sigma cl p q =
   let open Coercionops in
