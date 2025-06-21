@@ -339,8 +339,7 @@ and tac_of_hint dbg db_list local_db concl =
     "nocore" amongst the databases. *)
 
 let gen_trivial ?(debug=Off) lems dbnames =
-  Hints.wrap_hint_warning @@
-    Proofview.Goal.enter begin fun gl ->
+  Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let db_list =
@@ -408,8 +407,7 @@ let search d n db_list lems =
 let default_search_depth = 5
 
 let gen_auto ?(debug=Off) n lems dbnames =
-  Hints.wrap_hint_warning @@
-    Proofview.Goal.enter begin fun gl ->
+  Proofview.Goal.enter begin fun gl ->
     let n = match n with None -> default_search_depth | Some n -> n in
     let db_list =
       match dbnames with
