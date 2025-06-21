@@ -2495,8 +2495,8 @@ let error_notation_not_reference ?loc ntn ntns =
 let interp_notation_as_global_reference_expanded ?loc ~head test ntn sc =
   let scopes = match sc with
   | Some sc ->
-      let scope = find_scope (find_delimiters_scope sc) in
-      String.Map.add sc scope String.Map.empty
+    let scope = find_delimiters_scope sc in
+    String.Map.singleton scope (find_scope scope)
   | None -> !scope_map in
   let ntns = browse_notation true ntn scopes in
   let refs = List.map (global_reference_of_notation ~head test) ntns in
