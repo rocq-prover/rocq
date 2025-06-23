@@ -16,7 +16,7 @@ Axiom qa : Q a.
 
 Definition b := a.
 Definition c := a.
-
+Typeclasses Transparent b.
 (** b is transparent so typeclass search should find it. *)
 
 Goal P b.
@@ -25,7 +25,7 @@ Proof.
 Abort.
 
 (** c is transparent so typeclass search should find it. *)
-
+Typeclasses Transparent c.
 Goal Q c.
 Proof.
   Succeed typeclasses eauto.

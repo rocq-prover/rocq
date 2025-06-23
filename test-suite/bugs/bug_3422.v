@@ -55,7 +55,7 @@ Class Isomorphic {C : PreCategory} s d :=
     morphism_isomorphic :: morphism C s d;
     isisomorphism_isomorphic :: IsIsomorphism morphism_isomorphic
   }.
-
+Typeclasses Transparent morphism_isomorphic.
 Coercion morphism_isomorphic : Isomorphic >-> morphism.
 
 Local Infix "<~=~>" := Isomorphic (at level 70, no associativity) : category_scope.
@@ -164,7 +164,8 @@ Definition functor_category (C D : PreCategory) : PreCategory
 Notation "C -> D" := (functor_category C D) : category_scope.
 
 Definition NaturalIsomorphism (C D : PreCategory) F G := @Isomorphic (C -> D) F G.
-
+Typeclasses Transparent NaturalIsomorphism.
+Typeclasses Transparent object functor_category.
 Coercion natural_transformation_of_natural_isomorphism C D F G (T : @NaturalIsomorphism C D F G) : NaturalTransformation F G
   := T : morphism _ _ _.
 Local Infix "<~=~>" := NaturalIsomorphism : natural_transformation_scope.
