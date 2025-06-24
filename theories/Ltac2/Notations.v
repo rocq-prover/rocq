@@ -560,6 +560,8 @@ Ltac2 Notation "injection" arg(opt(destruction_arg)) ipat(opt(seq("as", intropat
 Ltac2 Notation "einjection" arg(opt(destruction_arg)) ipat(opt(seq("as", intropatterns))):=
   Std.injection true ipat arg.
 
+Ltac2 Notation revgoals := Std.revgoals ().
+
 (** Auto *)
 
 Ltac2 default_db dbs := match dbs with
