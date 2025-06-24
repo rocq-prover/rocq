@@ -828,7 +828,7 @@ let expand_table_key ~metas ts env sigma args = function
         end
         | exception NotEvaluableConst _ -> None
       else None
-  | VarKey id -> (try named_body id env |> Option.map (fun c -> (EConstr.of_constr c, args)) with Not_found -> None)
+  | VarKey id -> named_body id env |> Option.map (fun c -> (EConstr.of_constr c, args))
   | RelKey _ -> None
 
 let unfold_projection env p r stk =
