@@ -150,7 +150,9 @@ val nf_evars_universes : evar_map -> Constr.constr -> Constr.constr
 
     Note that the normalizer passed to [f] holds some imperative state
    in its closure. *)
-val finalize : ?abort_on_undefined_evars:bool -> evar_map ->
+val finalize : ?collapse_sort_variables:bool ->
+  ?abort_on_undefined_evars:bool -> evar_map ->
+  ?partial:bool ->
   ((EConstr.t -> Constr.t) -> 'a) ->
   evar_map * 'a
 
@@ -174,14 +176,20 @@ val eq_constr_univs_test :
     constr ->
     bool
 
-(** [compare_cumulative_instances cv_pb variance u1 u2 sigma] Returns
+type compare_result =
+  | UnivInconsistency of UGraph.univ_inconsistency
+  | UniversesDiffer
+
+(** [compare_cumulative_instances ~flex cv_pb variance u1 u2 sigma] Returns
    [Inl sigma'] where [sigma'] is [sigma] augmented with universe
    constraints such that [u1 cv_pb? u2] according to [variance].
    Additionally flexible universes in irrelevant positions are unified
-   if possible. Returns [Inr p] when the former is impossible. *)
-val compare_cumulative_instances : Conversion.conv_pb -> UVars.Variance.t array ->
+   if possible. Returns [Inr p] when the former is impossible.
+   [flex] determines if the comparison comes from a rigid or flexible
+    head comparison (flex should be true only for unfoldable constants) *)
+val compare_cumulative_instances : flex:bool -> Conversion.conv_pb -> nargs:UVars.application -> UVars.Variances.t ->
   UVars.Instance.t -> UVars.Instance.t -> evar_map ->
-  (evar_map, UGraph.univ_inconsistency) Util.union
+  (evar_map, compare_result) Util.union
 
 (** We should only compare constructors at convertible types, so this
     is only an opportunity to unify universes.

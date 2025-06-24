@@ -28,11 +28,11 @@ let fail_check state check box = match state with
 | Result.Error (Some err) -> box.fail err
 
 let convert_instances ~flex u1 u2 (state, check, box) =
-  let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
+  let state, check = UCompare.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
-let sort_cmp_universes pb s1 s2 (state, check, box) =
-  let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
+let sort_cmp_universes env pb s1 s2 (state, check, box) =
+  let state, check = UCompare.sort_cmp_universes env pb s1 s2 (state, check) in
   fail_check state check box
 
 let rec conv_val env pb lvl v1 v2 cu =
@@ -109,7 +109,7 @@ and conv_atom env pb lvl a1 a2 cu =
        if Constant.CanOrd.equal c1 c2 then convert_instances ~flex:true u1 u2 cu
        else raise NotConvertible
     | Asort s1, Asort s2 ->
-      sort_cmp_universes pb s1 s2 cu
+      sort_cmp_universes env pb s1 s2 cu
     | Avar id1, Avar id2 ->
         if Id.equal id1 id2 then cu else raise NotConvertible
     | Acase(a1,ac1,p1,bs1), Acase(a2,ac2,p2,bs2) ->

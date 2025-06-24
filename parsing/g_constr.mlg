@@ -96,24 +96,33 @@ let warn_old_sort_syntax =
   CWarnings.create ~name:"deprecated-sort-poly-syntax" ~category:Deprecation.Version.v9_1
     Pp.(fun () -> fmt "Separating sorts from universes with \"|\" is deprecated.@ Use \";\" instead.")
 
-type univ_level_or_quality =
-  | SProp | Prop | Set | Type | Anon of Loc.t | Global of Libnames.qualid
+let test_level_expr =
+  let open Procq.Lookahead in
+  to_entry "test_level_expr" begin
+    lk_kw "+" >> lk_nat
+  end
 
-let force_univ_level ?loc = function
-  | SProp -> UNamed CSProp
-  | Prop -> UNamed CProp
-  | Set -> UNamed CSet
-  | Type -> UAnonymous {rigid=UnivRigid}
-  | Anon _ -> UAnonymous {rigid=UnivFlexible false}
-  | Global qid -> UNamed (CType qid)
+type univ_or_quality =
+  | SProp | Prop | Set | Type | Anon of Loc.t | Global of universe_expr
+
+let force_univ ?loc = function
+  | Set -> UNamed [CSet,0]
+  | SProp -> UNamed [CSProp,0]
+  | Prop -> UNamed [CProp,0]
+  | Type -> UAnonymous {rigid=Some UnivRigid}
+  | Anon _ -> UAnonymous {rigid=Some UnivFlexible}
+  | Global u -> UNamed u
 
 let force_quality ?loc = function
+  | Set -> CQConstant QType
   | SProp -> CQConstant QSProp
   | Prop -> CQConstant QProp
-  | Set -> CErrors.user_err ?loc Pp.(str "Universe levels cannot be Set.")
   | Type -> CQConstant QType
   | Anon loc -> CQualVar (CQAnon (Some loc))
-  | Global qid -> CQualVar (CQVar qid)
+  | Global u ->
+    (match u with
+    | [(CType qid, 0)] -> CQualVar (CQVar qid)
+    | _ -> CErrors.user_err ?loc Pp.(str "Universe quality cannot be an arbitrary expression"))
 
 (* XXX use registered ref? but currently constrexpr doesn't have a node for registered refs
    and we can't do [Rocqlib.lib_ref] at parsing time, it's only available in the interp phase. *)
@@ -123,7 +132,7 @@ let sigref loc = Libnames.qualid_of_string ~loc "Corelib.Init.Specif.sig"
 
 GRAMMAR EXTEND Gram
   GLOBAL: binder_constr lconstr constr term
-  universe_name sort sort_quality_or_set sort_quality_var
+  universe_name universe sort sort_quality_or_set sort_quality_var
   global constr_pattern cpattern Constr.ident
   closed_binder open_binders binder binders binders_fixannot
   record_declaration typeclass_constraint pattern arg type_cstr
@@ -147,16 +156,22 @@ GRAMMAR EXTEND Gram
     [ [ "Set"  -> { None, UNamed [CSet, 0] }
       | "Prop" -> { None, UNamed [CProp, 0] }
       | "SProp" -> { None, UNamed [CSProp, 0] }
-      | "Type" -> { None, UAnonymous {rigid=UnivRigid} }
-      | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivFlexible false} }
-      | "Type"; "@{"; test_old_sort_qvar; q = reference; pipe_loc = [ "|" -> { loc } ]; u = universe; "}" -> {
+      | "Type" -> { None, UAnonymous {rigid=None} }
+      | "Type"; "@{"; "*"; "}" -> { None, UAnonymous {rigid=Some UnivRigid} }
+      | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=Some UnivFlexible} }
+      | "Type"; "@{"; test_old_sort_qvar; q = reference;
+        pipe_loc = [ "|" -> { loc } ]; u = universe_opt; "}" -> {
           warn_old_sort_syntax ~loc:pipe_loc ();
           Some (CQVar q), u
         }
-      | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
+      | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe_opt; "}" -> {
           Some (CQVar q), u
         }
-      | "Type"; "@{"; u = universe; "}" -> { None, u } ] ]
+      | "Type"; "@{"; u = universe; "}" -> { None, UNamed u }
+      | "𝒰"; "@{"; test_sort_qvar; q = reference; ";"; u = universe_opt; "}" -> { Some (CQVar q), u }
+      | "𝒰"; "@{"; u = universe; "}" -> { Some (CQAnon (Some loc)), UNamed u }
+      | "𝒰" -> { Some (CQAnon (Some loc)), UAnonymous {rigid=Some UnivFlexible} }
+      ] ]
   ;
   sort_quality_or_set:
     [ [ "Prop" -> { UnivGen.QualityOrSet.prop }
@@ -170,9 +185,21 @@ GRAMMAR EXTEND Gram
       | "Type" -> { CQConstant Sorts.Quality.QType }
       | v = reference -> { CQualVar (CQVar v) } ] ]
   ;
+  universe_opt:
+    [ [ u = universe -> { UNamed u }
+      | "*" -> { UAnonymous { rigid = Some UnivRigid } }
+      | "_" -> { UAnonymous { rigid = Some UnivFlexible } } ] ]
+  ;
+  universe:
+    [ [ IDENT "max"; "("; ids = LIST1 universe_expr SEP ","; ")" -> { ids }
+      | u = universe_expr -> { [u] } ] ]
+  ;
   universe_increment:
-    [ [ "+"; n = natural -> { n }
-      | -> { 0 } ] ]
+    [ [ test_level_expr; "+"; n = natural -> { n }
+      (* We need this test to help the parser avoid the conflict
+        between "+ n" after ident (level expression) and trailing "+"
+        (extra constraints allowed) *)
+    | -> { 0 } ] ]
   ;
   universe_name:
     [ [ id = global -> { CType id }
@@ -180,13 +207,8 @@ GRAMMAR EXTEND Gram
       | "Prop" -> { CProp } ] ]
   ;
   universe_expr:
-    [ [ id = universe_name; n = universe_increment -> { (id,n) }
-      | n = natural -> { CSet, n } ] ]
-  ;
-  universe:
-    [ [ IDENT "max"; "("; ids = LIST1 universe_expr SEP ","; ")" -> { UNamed ids }
-      | "_" -> { UAnonymous { rigid = UnivFlexible false } }
-      | u = universe_expr -> { UNamed [u] } ] ]
+    [ [ id = universe_name; n = universe_increment -> { (id,n) }  
+      | n = natural -> { (CSet, n) } ] ]
   ;
   lconstr:
     [ [ c = term LEVEL "200" -> { c } ] ]
@@ -326,26 +348,26 @@ GRAMMAR EXTEND Gram
       | -> { [] } ] ]
   ;
   univ_annot:
-    [ [ "@{"; l = LIST0 univ_level_or_quality; l' = OPT [ is_pipe = [ "|" -> { Some loc } | ";" -> { None } ]; l' = LIST0 univ_level_or_quality -> { is_pipe, l' } ]; "}" ->
+    [ [ "@{"; l = LIST0 univ_or_quality; l' = OPT [ is_pipe = [ "|" -> { Some loc } | ";" -> { None } ]; l' = LIST0 univ_or_quality -> { is_pipe, l' } ]; "}" ->
         {
           let l, l' = match l' with
-            | None -> [], List.map (force_univ_level ~loc) l
+            | None -> [], List.map (force_univ ~loc) l
             | Some (is_pipe, l') ->
               let () = Option.iter (fun loc -> warn_old_sort_syntax ~loc ()) is_pipe in
-              List.map (force_quality ~loc) l, List.map (force_univ_level ~loc) l'
+              List.map (force_quality ~loc) l, List.map (force_univ ~loc) l'
           in
           Some (l,l')
         }
       | -> { None } ] ]
   ;
-  univ_level_or_quality:
+  univ_or_quality:
     [ [ NUMBER "0" -> { Set }
       | "Set" -> { Set }
       | "SProp" -> { SProp }
       | "Prop" -> { Prop }
       | "Type" -> { Type }
       | "_" -> { Anon loc }
-      | id = global -> { Global id } ] ]
+      | u = universe -> { Global u } ] ]
   ;
   fix_decls:
     [ [ dcl = fix_decl -> { let (id,_,_,_,_,_) = dcl.CAst.v in (id,[dcl.CAst.v]) }

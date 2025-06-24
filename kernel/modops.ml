@@ -51,7 +51,7 @@ type signature_mismatch_error =
   | IncompatibleQualities of { err : QGraph.elimination_error; env : env; t1 : types; t2 : types }
   | IncompatiblePolymorphism of env * types * types
   | IncompatibleUnivConstraints of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
-  | IncompatibleVariance
+  | IncompatibleVariance of { got : UVars.Variances.t; expect : UVars.Variances.t }
   | NoRewriteRulesSubtyping
 
 type with_constraint_error =
@@ -219,7 +219,7 @@ let strengthen_const mp_from l cb resolver =
     let con = constant_of_delta_kn resolver kn in
     let u = UVars.make_abstract_instance (Declareops.constant_polymorphic_context cb) in
       { cb with
-        const_body = Def (mkConstU (con,u));
+        const_body = Def (mkConstU (con, u));
         const_body_code = Some (Vmbytegen.compile_alias con) }
 
 let rec strengthen_module mp mb = match mod_type mb with

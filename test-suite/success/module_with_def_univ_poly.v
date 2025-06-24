@@ -26,6 +26,6 @@ Module Poly.
 
   Unset Universe Polymorphism.
   Module M : T with Definition foo := Set : Type.
-    Polymorphic Definition foo := Set : Type.
+    Polymorphic Definition foo := Set : Type@{*}.
   End M.
 End Poly.

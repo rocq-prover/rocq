@@ -928,7 +928,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   dbg Pp.(fun () -> str "Before Simpl, Ustate.t = " ++ UState.pr (Evd.ustate sigma) ++ str "\n");
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
   let uctx = UState.normalize_variables uctx in
-  let uctx = UState.minimize uctx in
+  let uctx = UState.minimize ~partial:false uctx in
   dbg Pp.(fun () -> str "After Simpl, Ustate.t = " ++ UState.pr (Evd.ustate sigma) ++ str "\n");
   let ind_bodies = Array.map (fun ind ->
     { ind with
@@ -940,14 +940,12 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   (* build mentry *)
   let mie =
     let uctx = UState.context uctx in
-    let _qlen, ulen = UVars.UContext.size uctx in
     {
       mind_entry_record = None;
       mind_entry_finite = mib.mind_finite;
       mind_entry_params = EConstr.to_rel_context sigma ctxt_params ;
       mind_entry_inds = Array.to_list ind_bodies;
-      mind_entry_universes = Polymorphic_ind_entry uctx;
-      mind_entry_variance = Some (Array.make ulen None);
+      mind_entry_universes = Polymorphic_ind_entry (uctx, Some Infer_variances);
       mind_entry_private = mib.mind_private;
       }
   in

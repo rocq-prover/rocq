@@ -806,10 +806,30 @@ let extern_glob_sort uvars (q, l) =
   Option.map (extern_glob_qvar uvars) q,
   map_glob_sort_gen (List.map (on_fst (extern_glob_sort_name uvars))) l
 
+(** wrapper to handle print_universes: don't forget small univs *)
+let extern_glob_sort uvars (s:glob_sort) =
+  let really_extern = !PrintingFlags.print_universes || Option.has_some (fst s) || match snd s with
+    | UNamed [s, 0] -> begin match s with
+        | GSet | GProp | GSProp -> true
+        | GUniv _ | GLocalUniv _ | GRawUniv _ -> false
+      end
+    | _ -> false
+  in
+  if really_extern then extern_glob_sort uvars s
+  else
+    match s with
+    | _, UNamed _ -> Constrexpr_ops.expr_Type_sort UState.univ_rigid
+    | _, UAnonymous { rigid } -> Constrexpr_ops.expr_Type_sort_gen rigid
+
+
+let extern_glob_univ uvars u =
+  let map l = List.map (on_fst (extern_glob_sort_name uvars)) l in
+  map_glob_sort_gen map u
+
 let extern_instance uvars = function
   | Some (ql,ul) ->
     let ql = List.map (extern_glob_quality uvars) ql in
-    let ul = List.map (map_glob_sort_gen (extern_glob_sort_name uvars)) ul in
+    let ul = List.map (extern_glob_univ uvars) ul in
     Some (ql,ul)
   | None -> None
 
