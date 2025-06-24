@@ -216,7 +216,7 @@ let encapsulate_Fix_sub env sigma recname ctx body ccl (extradecl, rel, relargty
   let sigma, fix_sub = Typing.solve_evars env sigma fix_sub in
   sigma, tupled_ctx, tuple_value, mkApp (fix_sub, [|intern_body_lam|])
 
-let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl impls rel_measure =
+let build_wellfounded env sigma poly cumulative udecl {CAst.v=recname; loc} ctx body ccl impls rel_measure =
   let len = Context.Rel.length ctx in
   (* Restore body in the context of binders + extradecl *)
   let _, body = decompose_lambda_n_decls sigma (len + 1) body in
@@ -244,10 +244,10 @@ let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl im
         let tuple_value = update tuple_value in
         let ccl = update ccl in
         let ctx = Context.Rel.map_het (ERelevance.kind sigma) update ctx in
-        let univs = UState.check_univ_decl ~poly uctx udecl in
+        let univs = UState.check_univ_decl ~poly ~cumulative ~kind:UVars.Definition uctx udecl in
         let h_body =
-          let inst = UState.(match fst univs with
-              | Polymorphic_entry uctx -> UVars.UContext.instance uctx
+          let inst = UState.(match univs.universes_entry_universes with
+              | Polymorphic_entry (uctx, _variances) -> UVars.Instance.of_level_instance (UVars.UContext.instance uctx)
               | Monomorphic_entry _ -> UVars.Instance.empty) in
           Constr.mkRef (dref, inst) in
         let body = Term.it_mkLambda_or_LetIn (Constr.mkApp (h_body, [|tuple_value|])) ctx in
@@ -460,6 +460,11 @@ let interp_mutual_definition env ~program_mode ~function_mode rec_order fixl =
         sigma fixctximpenvs fixextras fixctxs fixl fixccls)
       () in
 
+  (* Instantiate evars and check all are resolved *)
+  let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
+  let sigma = UnivVariances.register_universe_variances_of_fix env sigma fixtypes fixdefs in
+  let sigma = Evd.minimize_universes ~partial:(List.exists Option.is_empty fixdefs) sigma in
+
   (* Build the fix declaration block *)
   let fix = {fixnames=fixlnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs} in
   (env, rec_sign, sigma), (fix, possible_guard, decl)
@@ -485,7 +490,6 @@ let interp_fixpoint_short rec_order fixpoint_exprl =
   let (_, _, sigma),(fix, _, _) = interp_mutual_definition ~program_mode:false ~function_mode:true env (CFixRecOrder rec_order) fixpoint_exprl in
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
-  let sigma = Evd.minimize_universes sigma in
   let sigma = Pretyping.(solve_remaining_evars all_no_fail_flags env sigma) in
   let typel = (ground_fixpoint env sigma fix).fixtypes in
   typel, sigma
@@ -528,10 +532,10 @@ let build_program_fixpoint env sigma rec_sign possible_guard fixnames fixrs fixd
     ignore (Pretyping.esearch_guard env sigma possible_guard fixdecls) in
   List.split3 (List.map3 (collect_evars env sigma rec_sign) fixnames fixdefs fixtypes)
 
-let finish_obligations env sigma rec_sign possible_guard poly udecl = function
+let finish_obligations env sigma rec_sign possible_guard poly cumulative udecl = function
   | {fixnames=[recname];fixrs;fixdefs=[body];fixtypes=[ccl];fixctxs=[ctx];fiximps=[imps];fixntns;fixwfs=[Some wf]} ->
     let sigma = Evarutil.nf_evar_map sigma in (* use nf_evar_map_undefined?? *)
-    let sigma, recname, body, ccl, impls, obls, hook = build_wellfounded env sigma poly udecl recname ctx (Option.get body) ccl imps wf in
+    let sigma, recname, body, ccl, impls, obls, hook = build_wellfounded env sigma poly cumulative udecl recname ctx (Option.get body) ccl imps wf in
     let fixrs = List.map (EConstr.ERelevance.kind sigma) fixrs in
     sigma, {fixnames=[recname];fixrs;fixdefs=[Some body];fixtypes=[ccl];fixctxs=[ctx];fiximps=[impls];fixntns;fixwfs=[Some wf]}, [obls], hook
   | {fixnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs} ->
@@ -544,7 +548,7 @@ let finish_regular env sigma use_inference_hook fix =
   let sigma = Pretyping.(solve_remaining_evars ?hook:inference_hook all_no_fail_flags env sigma) in
   sigma, ground_fixpoint env sigma fix, [], None
 
-let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
+let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ~cumulative ?typing_flags ?user_warns ?using (rec_order, fixl)
   : Declare.OblState.t option * Declare.Proof.t option =
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
@@ -565,9 +569,9 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
 
   let sigma, ({fixdefs=bodies;fixrs;fixtypes;fixwfs} as fix), obls, hook =
     match pm with
-    | Some pm -> finish_obligations env sigma rec_sign possible_guard poly udecl fix
+    | Some pm -> finish_obligations env sigma rec_sign possible_guard poly cumulative udecl fix
     | None -> finish_regular env sigma use_inference_hook fix in
-  let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
+  let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~cumulative ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
   let cinfo = build_recthms fix in
   match pm with
   | Some pm ->

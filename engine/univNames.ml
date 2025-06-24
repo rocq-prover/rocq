@@ -47,3 +47,5 @@ let pr_quality_with_global_universes ?(binders=empty_binders) q =
   match qualid_of_quality binders q with
   | Some qid  -> Libnames.pr_qualid qid
   | None -> Sorts.QVar.raw_pr q
+
+let () = Loop_checking.set_debug_pr_level pr_level_with_global_universes

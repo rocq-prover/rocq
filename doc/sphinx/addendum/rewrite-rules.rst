@@ -133,7 +133,7 @@ Universe levels and sort quality variables must be declared with the notation :n
 each variable must appear exactly once in the pattern.
 If any universe level isn't bound in the rule,
 as is often the case with the level of a pattern variable when it is a type,
-you need to make the universe instance extensible (with the final +).
+you need to make the universe instance extensible (with the final ?).
 Universe level constraints, as inferred from the pattern, must imply those given,
 which in turn must imply the constraints needed for the replacement.
 You can make the declared constraints extensible

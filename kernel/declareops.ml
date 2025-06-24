@@ -39,20 +39,12 @@ let hcons_template_universe ar =
   { template_param_arguments = List.Smart.map (Option.Smart.map (noh Sorts.hcons)) ar.template_param_arguments;
     template_concl = noh Sorts.hcons ar.template_concl;
     template_context = noh UVars.hcons_abstract_universe_context ar.template_context;
-    template_defaults = noh UVars.Instance.hcons ar.template_defaults;
+    template_defaults = noh UVars.LevelInstance.hcons ar.template_defaults;
   }
 
 let universes_context = function
   | Monomorphic -> UVars.AbstractContext.empty
-  | Polymorphic ctx -> ctx
-
-let abstract_universes = function
-  | Entries.Monomorphic_entry ->
-    UVars.empty_sort_subst, Monomorphic
-  | Entries.Polymorphic_entry uctx ->
-    let (inst, auctx) = UVars.abstract_universes uctx in
-    let inst = UVars.make_instance_subst inst in
-    (inst, Polymorphic auctx)
+  | Polymorphic (ctx, _) -> ctx
 
 (** {6 Constants } *)
 
@@ -68,6 +60,10 @@ let constant_has_body cb = match cb.const_body with
 
 let constant_polymorphic_context cb =
   universes_context cb.const_universes
+
+let universes_variances = function
+  | Monomorphic -> None
+  | Polymorphic (_, variance) -> variance
 
 let is_opaque cb = match cb.const_body with
   | OpaqueDef _ -> true
@@ -93,7 +89,7 @@ let subst_const_def subst def = match def with
 
 let subst_const_body subst cb =
   (* we're outside sections *)
-  assert (List.is_empty cb.const_hyps && UVars.Instance.is_empty cb.const_univ_hyps);
+  assert (List.is_empty cb.const_hyps && UVars.LevelInstance.is_empty cb.const_univ_hyps);
   if is_empty_subst subst then cb
   else
     let body' = subst_const_def subst cb.const_body in
@@ -102,12 +98,13 @@ let subst_const_body subst cb =
     then cb
     else
       { const_hyps = [];
-        const_univ_hyps = UVars.Instance.empty;
+        const_univ_hyps = UVars.LevelInstance.empty;
         const_body = body';
         const_type = type';
         const_body_code =
           Option.map (Vmemitcodes.subst_body_code subst) cb.const_body_code;
         const_universes = cb.const_universes;
+        const_sec_variance = cb.const_sec_variance;
         const_relevance = cb.const_relevance;
         const_inline_code = cb.const_inline_code;
         const_typing_flags = cb.const_typing_flags }
@@ -134,8 +131,9 @@ let hcons_const_def ?(hbody=noh Constr.hcons) = function
 let hcons_universes cbu =
   match cbu with
   | Monomorphic -> Monomorphic
-  | Polymorphic ctx ->
-    Polymorphic (noh UVars.hcons_abstract_universe_context ctx)
+  | Polymorphic (ctx, variances) ->
+    (* FIXME hashcons variances? *)
+    Polymorphic (noh UVars.hcons_abstract_universe_context ctx, variances)
 
 let hcons_const_body ?hbody cb =
   { cb with
@@ -242,12 +240,12 @@ let subst_mind_record subst r = match r with
 
 let subst_mind_body subst mib =
   (* we're outside sections *)
-  assert (List.is_empty mib.mind_hyps && UVars.Instance.is_empty mib.mind_univ_hyps);
+  assert (List.is_empty mib.mind_hyps && UVars.LevelInstance.is_empty mib.mind_univ_hyps);
   { mind_record = subst_mind_record subst mib.mind_record ;
     mind_finite = mib.mind_finite ;
     mind_ntypes = mib.mind_ntypes ;
     mind_hyps = [];
-    mind_univ_hyps = UVars.Instance.empty;
+    mind_univ_hyps = UVars.LevelInstance.empty;
     mind_nparams = mib.mind_nparams;
     mind_nparams_rec = mib.mind_nparams_rec;
     mind_params_ctxt =
@@ -255,7 +253,6 @@ let subst_mind_body subst mib =
     mind_packets = Array.Smart.map (subst_mind_packet subst) mib.mind_packets ;
     mind_universes = mib.mind_universes;
     mind_template = mib.mind_template;
-    mind_variance = mib.mind_variance;
     mind_sec_variance = mib.mind_sec_variance;
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
@@ -267,10 +264,10 @@ let inductive_polymorphic_context mib =
 let inductive_is_polymorphic mib =
   match mib.mind_universes with
   | Monomorphic -> false
-  | Polymorphic _ctx -> true
+  | Polymorphic _ -> true
 
 let inductive_is_cumulative mib =
-  Option.has_some mib.mind_variance
+  Option.has_some (universes_variances mib.mind_universes)
 
 let inductive_make_projection ind mib ~proj_arg =
   match mib.mind_record with

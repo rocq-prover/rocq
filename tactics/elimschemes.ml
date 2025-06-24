@@ -82,7 +82,7 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
     (* in case the inductive has a type elimination, generates only one
        induction scheme, the other ones share the same code with the
        appropriate type *)
-    let sigma, cte = Evd.fresh_constant_instance env sigma cte in
+    let sigma, cte = Evd.fresh_constant_instance env sigma ~rigid:Evd.UnivRigid cte in
     let c = mkConstU cte in
     let t = Typeops.type_of_constant_in env cte in
     let (mib,mip) = Inductive.lookup_mind_specif env ind in
@@ -96,8 +96,9 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
         mib.mind_nparams in
     (* here, if [sort] is [Type] then it means that it's actually a [Set]:
        we optimise non-[Type] schemes *)
-    let sigma, sort = Evd.fresh_sort_in_quality sigma sort in
+    let sigma, sort = Evd.fresh_sort_in_quality sigma ~rigid:Evd.UnivRigid sort in
     let sigma, t', c' = weaken_sort_scheme env sigma sort npars c t in
+    let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:(EConstr.of_constr t') (EConstr.of_constr c) in
     let sigma = Evd.minimize_universes sigma in
     (Evarutil.nf_evars_universes sigma c', Evd.ustate sigma)
   | None ->
@@ -154,7 +155,7 @@ let elim_scheme ~dep ~to_kind =
 
 let build_case_analysis_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
-  let (sigma, indu) = Evd.fresh_inductive_instance env sigma ind in
+  let (sigma, indu) = Evd.fresh_inductive_instance ~rigid:UnivRigid env sigma ind in
   let indu = Util.on_snd EConstr.EInstance.make indu in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
   let (sigma, c) = build_case_analysis_scheme env sigma indu dep sort in

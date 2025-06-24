@@ -108,7 +108,7 @@ let rec check_type_conclusion ind =
       | (None, UAnonymous {rigid=UnivRigid}) ->
         (* should have been made flexible *)
         assert false
-      | (None, UAnonymous {rigid=UnivFlexible _}) -> false
+      | (None, UAnonymous {rigid=UnivFlexible}) -> true
       | _ -> true
     end
   | GProd (_, _, _, _, e)
@@ -120,7 +120,7 @@ let rec make_anonymous_conclusion_flexible ind =
   let open Glob_term in
   match DAst.get ind with
   | GSort (None, UAnonymous {rigid=UnivRigid}) ->
-    Some (DAst.make ?loc:ind.loc (GSort (None, UAnonymous {rigid=UnivFlexible true})))
+    Some (DAst.make ?loc:ind.loc (GSort (None, UAnonymous {rigid=UnivFlexible})))
   | GSort _ -> None
   | GProd (a, b, c, d, e) -> begin match make_anonymous_conclusion_flexible e with
       | None -> None
@@ -451,8 +451,8 @@ let unbounded_from_below u cstrs =
   let open Univ in
   Univ.Constraints.for_all (fun (l, d, r) ->
       match d with
-      | Eq | Lt -> not (Univ.Level.equal l u) && not (Univ.Level.equal r u)
-      | Le -> not (Univ.Level.equal r u))
+      | Eq -> not (Univ.Universe.mem u l) && not (Univ.Universe.mem u r)
+      | Le -> not (Univ.Universe.mem u r))
     cstrs
 
 (* Returns the list [x_1, ..., x_n] of levels contributing to template
@@ -496,11 +496,15 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
   let template_univs = Univ.Level.Map.domain template_univs in
   pseudo_sort_poly, template_univs
 
+(* Returns two universe contexts, for the template and global universes.
+   The global universe will be declared before the template ones. *)
 let split_universe_context subset (univs, csts) =
   let rem = Univ.Level.Set.diff univs subset in
   let subfilter (l, _, r) =
-    let () = assert (not @@ Univ.Level.Set.mem r subset) in
-    Univ.Level.Set.mem l subset
+    let l = Univ.Universe.levels l in
+    let r = Univ.Universe.levels r in
+    let () = assert (not @@ Univ.Level.Set.for_all (fun r -> Univ.Level.Set.mem r subset) r) in
+    Univ.Level.Set.exists (fun l -> Univ.Level.Set.mem l subset) l
   in
   let subcst, remcst = Univ.Constraints.partition subfilter csts in
   (subset, subcst), (rem, remcst)
@@ -513,14 +517,21 @@ type should_template =
   | MaybeTemplate of { force_template : bool; }
   | NotTemplate
 
-let nontemplate_univ_entry ~poly sigma udecl =
+let nontemplate_univ_entry ~poly ~cumulative sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
-  let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
-  let uentry, global = match uentry with
-    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
+  let UState.{ universes_entry_universes = univ_entry; universes_entry_binders = ubinders } = 
+    Evd.check_univ_decl ~poly sigma ~kind:UVars.Definition udecl in
+  let uentry, global = match univ_entry with
+    | UState.Polymorphic_entry (uctx, variances) -> Polymorphic_ind_entry (uctx, variances), Univ.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
   in
-  sigma, uentry, ubinders, global
+  let gentry = 
+    let uentry, binders = match univ_entry with
+    | Monomorphic_entry uctx -> (UState.Monomorphic_entry uctx, ubinders)
+    | Polymorphic_entry (uctx, variances) -> (UState.Polymorphic_entry (uctx, variances), UnivNames.empty_binders)
+    in UState.{ universes_entry_universes = uentry; universes_entry_binders = binders }
+  in
+  sigma, uentry, gentry, global
 
 let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let template_qvars = match pseudo_sort_poly with
@@ -534,7 +545,8 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
-  let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
+  let gctx = uctx in
+  let ubinders = Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
@@ -544,10 +556,15 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   in
   let default_univs =
     let inst = UVars.UContext.instance uctx in
-    let qs, us = UVars.Instance.to_array inst in
-    UVars.Instance.of_array (Array.map (fun _ -> Quality.qtype) qs, us)
+    let qs, us = UVars.LevelInstance.to_array inst in
+    UVars.LevelInstance.of_array (Array.map (fun _ -> Quality.qtype) qs, us)
   in
-  sigma, Template_ind_entry {uctx; default_univs}, ubinders, global
+  (* Slightly hackish global universe declaration due to template types. *)
+  let univ_entry =
+    UState.{ universes_entry_universes = UState.Monomorphic_entry gctx; 
+    universes_entry_binders = ubinders }
+  in
+  sigma, Template_ind_entry {uctx; default_univs}, univ_entry, global
 
 let should_template ~user_template ~poly =
 match user_template, poly with
@@ -560,9 +577,9 @@ match user_template, poly with
 | None, false ->
   MaybeTemplate { force_template = false; }
 
-let inductive_univs sigma ~user_template ~poly udecl ~indnames ~ctx_params ~arities ~constructors template_syntax =
+let inductive_univs sigma ~user_template ~poly ~cumulative udecl ~indnames ~ctx_params ~arities ~constructors template_syntax =
   match should_template ~user_template ~poly with
-  | NotTemplate -> nontemplate_univ_entry ~poly sigma udecl
+  | NotTemplate -> nontemplate_univ_entry ~poly ~cumulative sigma udecl
   | MaybeTemplate { force_template; } ->
     let info = match List.combine3 arities constructors template_syntax with
     | [arity, (_cnames, constructors), SyntaxAllowsTemplatePoly] ->
@@ -577,14 +594,14 @@ let inductive_univs sigma ~user_template ~poly udecl ~indnames ~ctx_params ~arit
     in
     match info, force_template with
     | Error _, false ->
-      nontemplate_univ_entry ~poly sigma udecl
+      nontemplate_univ_entry ~poly ~cumulative sigma udecl
     | Error msg, true -> CErrors.user_err Pp.(str msg)
     | Ok (template_univs, pseudo_sort_poly), _ ->
       let has_template = not @@ Univ.Level.Set.is_empty template_univs in
       if force_template || should_auto_template (List.hd indnames) has_template then
         let () = if not has_template then warn_no_template_universe () in
         template_univ_entry sigma udecl ~template_univs pseudo_sort_poly
-      else nontemplate_univ_entry ~poly sigma udecl
+      else nontemplate_univ_entry ~poly ~cumulative sigma udecl
 
 let check_param = function
 | CLocalDef (na, _, _, _) -> check_named na
@@ -602,33 +619,36 @@ let restrict_inductive_universes sigma ctx_params arities constructors =
   let uvars = List.fold_right (fun (_,ctypes) -> List.fold_right merge_universes_of_constr ctypes) constructors uvars in
   Evd.restrict_universe_context sigma uvars
 
-let check_trivial_variances variances =
-  Array.iter (function
-      | None | Some UVars.Variance.Invariant -> ()
-      | Some _ ->
+let check_trivial_variances = function
+  | None -> ()
+  | Some variances ->
+    Array.iter (function occ ->
+      match UVars.VarianceOccurrence.term_variance_pos occ with
+      | UVars.Variance.Irrelevant, _ | UVars.Variance.Invariant, _ -> ()
+      | _ ->
         CErrors.user_err
           Pp.(strbrk "Universe variance was specified but this inductive will not be cumulative."))
     variances
 
-let variance_of_entry ~cumulative ~variances uctx =
-  match uctx with
-  | Monomorphic_ind_entry | Template_ind_entry _ -> check_trivial_variances variances; None
-  | Polymorphic_ind_entry uctx ->
-    if not cumulative then begin check_trivial_variances variances; None end
-    else
+let variance_of_entry ~cumulative ctx variances =
+  let ivariances = Option.map UVars.Variances.repr variances in
+  if not cumulative then begin check_trivial_variances ivariances; variances end
+  else variances
+    (* match ivariances with
+    | None -> variances
+    | Some variances ->
       let lvs = Array.length variances in
-      let _, lus = UVars.UContext.size uctx in
+      let _, lus = UVars.UContext.size ctx in
       assert (lvs <= lus);
-      Some (Array.append variances (Array.make (lus - lvs) None))
+      Some (UVars.Variances.of_array (Array.append variances (Array.make (lus - lvs) UVars.(VariancePos.make Variance.Invariant Position.InTerm)))) *)
 
-let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
+let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar_params ~private_ind =
   let {
     poly;
     cumulative;
     template;
     finite;
   } = flags in
-  let env_ar_params = EConstr.push_rel_context ctx_params env_ar in
   (* Compute renewed arities *)
   let ctor_args =  List.map (fun (_,tys) ->
       List.map (fun ty ->
@@ -645,14 +665,15 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
 
      We also need to restrict to avoid seeing spurious bounds from below
      (ie v <= template_u with v getting restricted away). *)
+  let sigma = UnivVariances.register_universe_variances_of_inductive ~cumulative env_ar_params sigma ~udecl ~params:ctx_params ~arities ~constructors in
+
   let sigma = Evd.minimize_universes ~collapse_sort_variables:false sigma in
   let sigma = restrict_inductive_universes sigma ctx_params arities constructors in
 
   let sigma, univ_entry, ubinders, global_univs =
-    inductive_univs sigma ~user_template:template ~poly udecl
+    inductive_univs sigma ~user_template:template ~poly ~cumulative udecl
       ~indnames ~ctx_params ~arities ~constructors template_syntax
   in
-
   (* evar-normalize *)
   let arities = List.map EConstr.(to_constr sigma) arities in
   let constructors = List.map (on_snd (List.map (EConstr.to_constr sigma))) constructors in
@@ -667,7 +688,8 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       })
       indnames arities constructors
   in
-  let variance = variance_of_entry ~cumulative ~variances univ_entry in
+  
+  (* let variance = variance_of_entry ~cumulative ~variances univ_entry in *)
   (* Build the mutual inductive entry *)
   let mind_ent =
     { mind_entry_params = ctx_params;
@@ -676,13 +698,12 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       mind_entry_inds = entries;
       mind_entry_private = if private_ind then Some false else None;
       mind_entry_universes = univ_entry;
-      mind_entry_variance = variance;
     }
   in
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
+  let sigma, udecl = interp_cumul_univ_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
@@ -690,7 +711,7 @@ let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
   in
   (* Names of parameters as arguments of the inductive type (defs removed) *)
   sigma, env_params, (ctx_params, env_uparams, ctx_uparams,
-  userimpls, useruimpls, impls, udecl, variances)
+  userimpls, useruimpls, impls, udecl)
 
 (* When a hole remains for a param, pretend the param is uniform and
    do the unification.
@@ -732,7 +753,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   (* In case of template polymorphism, we need to compute more constraints *)
   let unconstrained_sorts = not flags.poly in
 
-  let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl, variances) =
+  let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl) =
     interp_params ~unconstrained_sorts env0 udecl uparamsl paramsl
   in
 
@@ -801,6 +822,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   let indimpls = List.map (fun iimpl -> useruimpls @ iimpl) indimpls in
   let fullarities = List.map (fun c -> EConstr.it_mkProd_or_LetIn c ctx_uparams) fullarities in
   let env_ar = push_types env0 indnames relevances fullarities in
+  let env_ar_params = EConstr.push_rel_context ctx_params env_ar in
   (* Try further to solve evars, and instantiate them *)
   let sigma = solve_remaining_evars all_and_fail_flags env_params sigma in
   let impls =
@@ -810,7 +832,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
       indimpls cimpls
   in
   let arities_explicit = List.map (fun ar -> ar.ind_arity_explicit) indl in
-  let default_dep_elim, mie, binders, ctx = interp_mutual_inductive_constr ~flags ~sigma ~ctx_params ~udecl ~variances ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind ~indnames in
+  let default_dep_elim, mie, binders, ctx = interp_mutual_inductive_constr ~flags ~sigma ~ctx_params ~udecl ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar_params ~private_ind ~indnames in
   (default_dep_elim, mie, binders, impls, ctx)
 
 
@@ -868,7 +890,7 @@ let extract_inductive indl =
   List.map (fun ({CAst.v=indname},_,ar,lc) -> {
     ind_name = indname;
     ind_arity_explicit = Option.has_some ar;
-    ind_arity = Option.default (CAst.make @@ CSort Constrexpr_ops.expr_Type_sort) ar;
+    ind_arity = Option.default (CAst.make @@ CSort (Constrexpr_ops.expr_Type_sort UState.univ_flexible)) ar;
     ind_lc = List.map (fun (_,({CAst.v=id},t)) -> (id,t)) lc
   }) indl
 

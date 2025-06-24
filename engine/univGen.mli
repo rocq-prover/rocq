@@ -58,6 +58,7 @@ val new_univ_global : unit -> UGlobal.t
 val new_sort_global : Id.t -> Sorts.QGlobal.t
 val fresh_level : unit -> Level.t
 val fresh_sort_quality : unit -> Sorts.QVar.t
+val fresh_univ : unit -> Universe.t
 
 val new_global_univ : unit -> Universe.t in_universe_context_set
 
