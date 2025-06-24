@@ -932,7 +932,7 @@ let do_replace_lb handle aavoid narg p q =
     let type_of_pq = Retyping.get_type_of env sigma p in
     let (ind,u as indu),v = destruct_ind env sigma type_of_pq in
     let c = get_scheme handle (!lb_scheme_kind_aux ()) ind in
-    let sigma , lb_type_of_p = Evd.fresh_global env sigma c in
+    let sigma , lb_type_of_p = Evd.fresh_global ~rigid:UnivRigid env sigma c in
        let lb_args = Array.append (Array.append
                           v
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 1) v))
@@ -1192,8 +1192,8 @@ let make_bl_scheme env handle mind =
     Inductive.inductive_nonrec_rec_paramdecls (mib,u) in
   let bl_goal = compute_bl_goal env handle (ind,u) lnamesparrec nparrec in
   let bl_goal = EConstr.of_constr bl_goal in
-  let univ_poly = Declareops.inductive_is_polymorphic mib in
-  let poly = PolyFlags.of_univ_poly univ_poly in (* FIXME cumulativity not handled *)
+  let univ_poly, cumulative = Declareops.inductive_is_polymorphic mib, Declareops.inductive_is_cumulative mib in
+  let poly = PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables:true in
   let uctx = if univ_poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) bl_goal)) else uctx in
   let (ans, _, _, uctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:bl_goal
     (compute_bl_tact handle (ind, EConstr.EInstance.make u) lnamesparrec nparrec)

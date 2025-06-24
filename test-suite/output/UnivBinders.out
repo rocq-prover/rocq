@@ -43,7 +43,7 @@ fun (A : Type@{uu}) (Wrap : Wrap@{uu} A) => Wrap
 Arguments wrap {A}%_type_scope {Wrap}
 bar@{uu} = nat
      : Wrap@{uu} Set
-(* uu |= Set < uu *)
+(* uu |= 0 < uu *)
 foo@{uu u v} =
 Type@{u} -> Type@{v} -> Type@{uu}
      : Type@{max(uu+1,u+1,v+1)}
@@ -60,7 +60,7 @@ mono
      : Type@{mono.uu+1}
 Type@{mono.uu}
      : Type@{mono.uu+1}
-File "./output/UnivBinders.v", line 50, characters 2-31:
+File "./output/UnivBinders.v", line 51, characters 2-31:
 The command has indeed failed with message:
 Universe uu already exists.
 monomono
@@ -71,13 +71,13 @@ monomono
      : Type@{MONOU+1}
 mono
      : Type@{mono.uu+1}
-File "./output/UnivBinders.v", line 70, characters 0-52:
+File "./output/UnivBinders.v", line 71, characters 0-52:
 The command has indeed failed with message:
 Universe uu already exists.
 bobmorane =
 let tt := Type@{fooS.u1} in let ff := Type@{fooS.u3} in tt -> ff
      : Type@{max(fooS.u0,fooS.u2)}
-File "./output/UnivBinders.v", line 87, characters 23-25:
+File "./output/UnivBinders.v", line 88, characters 23-25:
 The command has indeed failed with message:
 Universe uu already bound.
 foo@{E M N} =
@@ -105,24 +105,25 @@ Arguments punwrap A%_type_scope p
 punwrap@{K} : forall A : Type@{K}, PWrap@{K} A -> A
 (* K |=  *)
 
-punwrap is universe polymorphic
+punwrap is universe polymorphic and cumulative
 punwrap is a primitive projection of PWrap
 Arguments punwrap A%_type_scope p
 punwrap is transparent
 Expands to: Constant UnivBinders.punwrap
-Declared in library UnivBinders, line 12, characters 43-50
-File "./output/UnivBinders.v", line 104, characters 0-19:
+Declared in library UnivBinders, line 13, characters 43-50
+File "./output/UnivBinders.v", line 105, characters 0-19:
 The command has indeed failed with message:
 Universe instance length for foo is 3 but should be 1.
-File "./output/UnivBinders.v", line 105, characters 0-20:
+File "./output/UnivBinders.v", line 106, characters 0-20:
 The command has indeed failed with message:
 Universe instance length for mono is 0 but should be 1.
-File "./output/UnivBinders.v", line 108, characters 0-33:
+File "./output/UnivBinders.v", line 109, characters 0-33:
 The command has indeed failed with message:
 This object does not support universe names.
-File "./output/UnivBinders.v", line 112, characters 0-50:
+File "./output/UnivBinders.v", line 113, characters 0-50:
 The command has indeed failed with message:
-Cannot enforce v < u because u < gU < gV < v
+Cannot enforce v+1 ≤ u because u < u+1 < u+3 ≤ gU+2 < gU+3 ≤ gV+1 < gV+3 ≤ v
+< v+3
 insec@{v} = Type@{uu} -> Type@{v}
      : Type@{max(uu+1,v+1)}
 (* v |=  *)
@@ -140,7 +141,7 @@ Inductive insecind@{uu k} : Type@{k+1} :=
 
 Arguments inseccstr _%_type_scope
 insec2@{u} = Prop
-     : Type@{Set+1}
+     : Type@{1}
 (* u |=  *)
 inmod@{uu} = Type@{uu}
      : Type@{uu+1}
@@ -161,26 +162,26 @@ axfoo@{i u u0} : Type@{u} -> Type@{i}
 axfoo is universe polymorphic
 Arguments axfoo _%_type_scope
 Expands to: Constant UnivBinders.axfoo
-Declared in library UnivBinders, line 151, characters 6-11
+Declared in library UnivBinders, line 152, characters 6-11
 axbar@{i u u0} : Type@{u0} -> Type@{i}
 (* i u u0 |=  *)
 
 axbar is universe polymorphic
 Arguments axbar _%_type_scope
 Expands to: Constant UnivBinders.axbar
-Declared in library UnivBinders, line 151, characters 17-22
+Declared in library UnivBinders, line 152, characters 17-22
 axfoo' : Type@{axfoo'.u0} -> Type@{axfoo'.i}
 
 axfoo' is not universe polymorphic
 Arguments axfoo' _%_type_scope
 Expands to: Constant UnivBinders.axfoo'
-Declared in library UnivBinders, line 152, characters 18-24
+Declared in library UnivBinders, line 153, characters 18-24
 axbar' : Type@{axfoo'.u1} -> Type@{axfoo'.i}
 
 axbar' is not universe polymorphic
 Arguments axbar' _%_type_scope
 Expands to: Constant UnivBinders.axbar'
-Declared in library UnivBinders, line 152, characters 30-36
+Declared in library UnivBinders, line 153, characters 30-36
 *** [ axfoo@{i u u0} : Type@{u} -> Type@{i} ]
 (* i u u0 |=  *)
 
@@ -195,7 +196,7 @@ Arguments axfoo' _%_type_scope
 *** [ axbar' : Type@{axfoo'.u1} -> Type@{axfoo'.i} ]
 
 Arguments axbar' _%_type_scope
-File "./output/UnivBinders.v", line 158, characters 19-26:
+File "./output/UnivBinders.v", line 159, characters 19-26:
 The command has indeed failed with message:
 When declaring multiple assumptions in one command, only the first name is
 allowed to mention a universe binder (which will be shared by the whole
@@ -255,20 +256,20 @@ Arguments MutualI1' A%_type_scope
 Arguments C1' A%_type_scope p1
 Arguments MutualI2' A%_type_scope
 Arguments C2' A%_type_scope p2
-File "./output/UnivBinders.v", line 209, characters 0-33:
+File "./output/UnivBinders.v", line 210, characters 0-33:
 The command has indeed failed with message:
-Universe inconsistency. Cannot enforce a < a because a = a.
+Universe inconsistency. Cannot enforce a+1 ≤ a because a < a+1.
 JMeq :
 forall [A : Type@{JMeq.u0}], A -> forall [B : Type@{JMeq.u1}], B -> Prop
 
 JMeq is template universe polymorphic on JMeq.u0 (cannot be instantiated to Prop)
 Arguments JMeq [A]%_type_scope x [B]%_type_scope _
 Expands to: Inductive UnivBinders.PartialTemplate.JMeq
-Declared in library UnivBinders, line 219, characters 10-14
-File "./output/UnivBinders.v", line 234, characters 2-38:
+Declared in library UnivBinders, line 220, characters 10-14
+File "./output/UnivBinders.v", line 235, characters 2-38:
 The command has indeed failed with message:
 Universe u0 already exists.
-File "./output/UnivBinders.v", line 241, characters 6-26:
+File "./output/UnivBinders.v", line 242, characters 6-26:
 The command has indeed failed with message:
 Tactic failure: Not equal (due to universes).
 eq_rect

@@ -36,13 +36,15 @@ Module D.
   Scheme Equality for unit.
 
   Inductive prod (A B:Type) := pair : A -> B -> prod A B.
+  Set Debug "backtrace".
+  Set Debug "univMinim".
   Scheme Equality for prod.
 
   (* With an indirection *)
   Inductive box A := c : A -> box A.
   Inductive prodbox (A B:Type) := pairbox : box A -> box B -> prodbox A B.
   Scheme Equality for prodbox.
-  Check eq_refl : prodbox_beq @{Set Set} =
+  Check eq_refl : prodbox_beq@{Set Set} =
     fun (A B : Type@{Set}) eq_A eq_B (X Y : prodbox A B) =>
       match X, Y with
       | pairbox _ _ x x0, pairbox _ _ x1 x2 =>

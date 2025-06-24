@@ -18,11 +18,11 @@ let fail_check state check box = match state with
 | Result.Error (Some err) -> box.fail err
 
 let convert_instances ~flex u1 u2 (state, check, box) =
-  let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
+  let state, check = UCompare.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
-let sort_cmp_universes pb s1 s2 (state, check, box) =
-  let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
+let sort_cmp_universes env pb s1 s2 (state, check, box) =
+  let state, check = UCompare.sort_cmp_universes env pb s1 s2 (state, check) in
   fail_check state check box
 
 let table_key_instance env = function
@@ -146,7 +146,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
         | _, _ -> assert false (* Should not happen if problem is well typed *)
     else raise NotConvertible
   | Asort s1, Asort s2 ->
-    sort_cmp_universes pb s1 s2 cu
+    sort_cmp_universes env pb s1 s2 cu
   | Asort _ , _ | Aind _, _ | Aid _, _ -> raise NotConvertible
 
 and conv_stack env k stk1 stk2 cu =
