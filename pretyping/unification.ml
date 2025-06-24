@@ -861,12 +861,14 @@ let subterm_restriction opt flags =
 let key_of env sigma b flags f =
   if subterm_restriction b flags then None else
   match EConstr.kind sigma f with
-  | Const (cst, u) when is_transparent env (Evaluable.EvalConstRef cst) &&
+  | Const (cst, u) when Environ.evaluable_constant cst env &&
+      is_transparent env (Evaluable.EvalConstRef cst) &&
       (Structures.PrimitiveProjections.is_transparent_constant flags.modulo_delta cst
        || PrimitiveProjections.mem cst) ->
       let u = EInstance.kind sigma u in
       Some (IsKey (ConstKey (cst, u)))
-  | Var id when is_transparent env (Evaluable.EvalVarRef id) &&
+  | Var id when Environ.evaluable_named id env &&
+      is_transparent env (Evaluable.EvalVarRef id) &&
       TransparentState.is_transparent_variable flags.modulo_delta id ->
     Some (IsKey (VarKey id))
   | Proj (p, r, c) when Names.Projection.unfolded p
@@ -1201,11 +1203,17 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
 
         (* eta-expansion *)
         | Lambda (na,t1,c1), _ when flags.modulo_eta ->
-            unirec_rec (push (na,t1) curenvnb) CONV {opt with at_top = true} substn
-              c1 (mkApp (lift 1 cN,[|mkRel 1|]))
+           (try
+              unirec_rec (push (na,t1) curenvnb) CONV {opt with at_top = true} substn
+                c1 (mkApp (lift 1 cN,[|mkRel 1|]))
+           with ex when precatchable_exception ex ->
+             unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
         | _, Lambda (na,t2,c2) when flags.modulo_eta ->
+           (try
             unirec_rec (push (na,t2) curenvnb) CONV {opt with at_top = true} substn
               (mkApp (lift 1 cM,[|mkRel 1|])) c2
+            with ex when precatchable_exception ex ->
+              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
 
         (* For records *)
         | App (f1, l1), _ when flags.modulo_eta &&
