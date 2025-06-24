@@ -1569,7 +1569,9 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
       let fold u1 u s = unirec_rec curenvnb pb opt' s u1 (substl ks u) in
       let foldl acc l1 l2 =
         try List.fold_right2 fold l1 l2 acc
-        with Invalid_argument _ -> assert false (* check_conv_record ensures lengths coincide *)
+        with Invalid_argument _ ->
+          (* assert false (\* check_conv_record ensures lengths coincide *\) *)
+          error_cannot_unify (fst curenvnb) sigma (cM,cN)
       in
       let substn = foldl substn us2 us in
       let substn = match params1 with None -> substn | Some params1 -> foldl substn params1 params in
