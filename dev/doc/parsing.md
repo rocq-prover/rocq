@@ -28,6 +28,7 @@ Notable attributes of the parser include:
 
 ## Contents ##
 
+- [Vocabulary](#vocabulary)
 - [Grammars: `*.mlg` File Structure](#grammars-mlg-file-structure)
 - [Grammars: Nonterminals and Productions](#grammars-nonterminals-and-productions)
   - [Alternate production syntax](#alternate-production-syntax)
@@ -36,10 +37,22 @@ Notable attributes of the parser include:
   - [Parsing productions](#parsing-productions)
   - [Lookahead](#lookahead)
 
+## Vocabulary
+
+- *entry*: a nonterminal. Entries are values of type
+  `'a Procq.Entry.t` (`Entry.t` in the rest of this document),
+  where `'a` is the type of the parsed value.
+  For instance `Procq.Prim.qualid : qualid Entry.t` parses qualified identifiers ("qualid").
+
+- *argument*: a nonterminal with associated functions (e.g. how to
+  print its values). Arguments are values of type
+  `('raw,'glb,'top) Genarg.genarg_type`, typically named `wit_foo`,
+  with an associated entry of type `'raw Entry.t` typically named `foo`.
+
 ## Grammars: `*.mlg` File Structure ##
 
-Grammars are defined in `*.mlg` files, which `coqpp` compiles into `*.ml` files at build time.
-`coqpp` code is in the `coqpp` directory.  `coqpp` uses yacc and lex to parse the grammar files.
+Grammars are defined in `*.mlg` files, which `rocq preprocess-mlg` compiles into `*.ml` files at build time.
+`preprocess-mlg` code is in the `coqpp` directory.  `coqpp` uses yacc and lex to parse the grammar files.
 You can examine its yacc and lex input files in `coqpp_lex.mll` and `coqpp_parse.mly` for
 details not fully covered here.
 
@@ -53,111 +66,252 @@ which has the full grammar for Rocq
 in one file and the parser action routines and other OCaml code are omitted.
 
 `*.mlg` files contain the following types of nodes (See `node` in the yacc grammar).  This part is
-very specific to Rocq (not so similar to Camlp5):
-
-* OCaml code - OCaml code enclosed in curly braces, which is copied verbatim to the generated `*.ml` file
-
-* Comments - comments in the `*.mlg` file in the form `(* … *)`, which are not copied
-  to the generated `*.ml` file.  Comments in OCaml code are preserved.
-
-* `DECLARE_PLUGIN "*_plugin"` - associates the file with a specific plugin, for example "ltac_plugin"
-
-* `GRAMMAR EXTEND` - adds additional nonterminals and productions to the grammar and declares global
-  nonterminals referenced in the `GRAMMAR EXTEND`:
-
-  ```
-  GRAMMAR EXTEND Gram
-    GLOBAL:
-      bignat bigint …;
-    <nonterminal definitions>
-  END
-  ```
-
-  Global nonterminals are declared in `pcoq.ml`, e.g. `let bignat = Entry.create "bignat"`.
-  All the `*.mlg` files include `open Pcoq` and often its modules, e.g. `open Procq.Prim`.
-
-  `GRAMMAR EXTEND` should be used only for large syntax additions.  To add new commands
-  and tactics, use these instead:
-
-  - `VERNAC COMMAND EXTEND` to add new commands
-  - `TACTIC EXTEND` to add new tactics
-  - `ARGUMENT EXTEND` to add new nonterminals
-
-  These constructs provide essential semantic information that's provided in a more complex,
-  less readable way with `GRAMMAR EXTEND`.
-
-* `VERNAC COMMAND EXTEND` - adds new command syntax by adding productions to the
-  `command` nonterminal.  For example:
-
-  ```
-  VERNAC COMMAND EXTEND ExtractionLibrary CLASSIFIED AS QUERY
-  | [ "Extraction" "Library" ident(m) ]
-    -> { extraction_library false m }
-  END
-  ```
-
-  Productions here are represented with alternate syntax, described later.
-
-  New commands should be added using this construct rather than `GRAMMAR EXTEND` so
-  they are correctly registered, such as having the correct command classifier.
-
-  TODO: explain "ExtractionLibrary", CLASSIFIED AS, CLASSIFIED BY, "{ tactic_mode }", STATE
-
-* `VERNAC { … } EXTEND` - TODO.  A variant.  The `{ … }` is a block of OCaml code.
-
-* `TACTIC EXTEND` - adds new tactic syntax by adding productions to `simple_tactic`.
-  For example:
-
-  ```
-  TACTIC EXTEND btauto
-  | [ "btauto" ] -> { Refl_btauto.Btauto.tac }
-  END
-  ```
-
-  adds a new nonterminal `btauto`.
-
-  New tactics should be added using this construct rather than `GRAMMAR EXTEND`.
-
-  TODO: explain DEPRECATED, LEVEL (not shown)
-
-* `ARGUMENT EXTEND` - defines a new nonterminal
-
-  ```
-  ARGUMENT EXTEND ast_closure_term
-       TYPED AS type_info
-       PRINTED BY { pp_ast_closure_term }
-       INTERPRETED BY { interp_ast_closure_term }
-       GLOBALIZED BY { glob_ast_closure_term }
-       SUBSTITUTED BY { subst_ast_closure_term }
-       RAW_PRINTED BY { pp_ast_closure_term }
-       GLOB_PRINTED BY { pp_ast_closure_term }
-    | [ term_annotation(a) constr(c) ] -> { mk_ast_closure_term a c }
-  END
-  ```
-
-  See comments in `tacentries.mli` for partial information on the various
-  arguments.
-
-* `VERNAC ARGUMENT EXTEND` - (part of `argument_extend` in the yacc grammar) defines
-  productions for a single nonterminal.  For example:
-
-  ```
-  VERNAC ARGUMENT EXTEND language
-  PRINTED BY { pr_language }
-  | [ "Ocaml" ] -> { let _ = warn_deprecated_ocaml_spelling () in Ocaml }
-  | [ "OCaml" ] -> { Ocaml }
-  | [ "Haskell" ] -> { Haskell }
-  | [ "Scheme" ] -> { Scheme }
-  | [ "JSON" ] -> { JSON }
-  END
-  ```
-
-  TODO: explain PRINTED BY, CODE
-
-* DOC_GRAMMAR - Used in `doc_grammar`-generated files to permit simplified syntax
+very specific to Rocq (not so similar to Camlp5).
 
 Note that you can reverse engineer many details by comparing the `.mlg` input file with
 the `.ml` generated by `coqpp`.
+
+### OCaml code
+
+OCaml code enclosed in curly braces, which is copied verbatim to the generated `*.ml` file
+
+### Comments
+
+Comments in the `*.mlg` file are in the form `(* … *)`. They are not copied
+to the generated `*.ml` file.  Comments in OCaml code are preserved.
+
+### DECLARE PLUGIN
+
+`DECLARE PLUGIN "plugin"` - associates the file with a specific
+plugin, for example "rocq-runtime.plugins.ltac". The string is the
+plugin's ocamlfind name (also used to load it in the `.v` file with
+`Declare ML Module`).
+
+### GRAMMAR EXTEND
+
+`GRAMMAR EXTEND` - adds additional entries and productions to the grammar and declares global
+entries referenced in the `GRAMMAR EXTEND`:
+
+```
+GRAMMAR EXTEND Gram
+GLOBAL:
+  bignat bigint …;
+<nonterminal definitions>
+END
+```
+
+Global entries should be available in the current OCaml scope,
+eg `open Procq.Prim` makes `qualid` available. (qualified entry names are not supported)
+
+`GRAMMAR EXTEND` should be used only for large syntax additions.  To add new commands
+and tactics, use these instead:
+
+- `VERNAC COMMAND EXTEND` (and variant `VERNAC { entry } EXTEND`) to add new commands
+- `TACTIC EXTEND` to add new ltac1 tactics
+- `ARGUMENT EXTEND` to add new arguments for `TACTIC EXTEND` and `VERNAC EXTEND`
+- `VERNAC ARGUMENT EXTEND` to add new arguments for `VERNAC EXTEND`
+
+These constructs provide essential semantic information that's provided in a more complex,
+less readable way with `GRAMMAR EXTEND`.
+
+### VERNAC EXTEND
+
+`VERNAC COMMAND EXTEND` - adds new command syntax by adding productions to the
+`command` entry.
+
+`VERNAC { entry } EXTEND` - adds new command syntax to the `entry` entry.
+This is typically used for proof modes (see also `Pvernac.register_proof_mode` and the user doc for proof modes).
+
+Simple example:
+
+```
+VERNAC COMMAND EXTEND CmdName CLASSIFIED AS SIDEFF
+| [ "Cmd" arg(a) ] -> { do_interp a }
+END
+```
+defines a command composed of the string `Cmd` followed by argument `wit_arg`.
+Running the command calls `do_interp a` where `a` is the result of parsing `arg`.
+
+Example with all optional elements:
+```
+VERNAC COMMAND EXTEND CmdName CLASSIFIED AS SIDEFF
+| #[ attr ] ![ state ] [ "Cmd" arg(a) ]
+  => { rule_classif a }
+  SYNTERP AS synv { do_synterp attr a }
+  -> { do_interp attr a synv }
+END
+```
+
+Productions here are represented with [alternate syntax](#alternate-production-syntax), described later.
+
+Nonterminals in `VERNAC EXTEND` parsing rules (e.g. `arg` in the example)
+are arguments, possibly with [nonterminal modifiers](#nonterminal-modifiers).
+The name prefixed by `wit_` must be available in the current OCaml scope.
+
+New commands should be added using this construct rather than `GRAMMAR EXTEND` so
+they are correctly registered, such as having the correct command classifier.
+
+#### Extend name
+
+Each `VERNAC EXTEND` must have a unique name ("CmdName" in the example)
+(unique for the plugin, you will get an anomaly at runtime if it's
+not).
+
+#### Classification
+
+Commands must be "classified" for the STM.
+Classifying a command is generating a
+`Vernacextend.vernac_classification` (see comments on its
+declaration for the meaning of the different values).
+This is done by appending one of the following annotations to the `VERNAC COMMAND EXTEND CmdName` grammar extension:
+- `CLASSIFIED AS QUERY` for `VtQuery`
+- `CLASSIFIED AS SIDEFF` for `VtSideff ([], VtLater)` (most commands are in this case)
+- `CLASSIFIED BY { code }` where code is the classification, when it is static
+- adding `{ code } =>` after the parsing rule (before its
+  interpretation), where `code` is the classification and has access
+  to argument values.
+
+  Used when the classification is not the same for the whole block
+  or depends on the parsed values
+  (eg `| [ "foo" arg(x) ] => { classify x } -> { interpret x }`).
+
+  Per-rule classification overrides block level classification.
+  Block classification should be omitted (it will be ignored)
+  if all rules have their own classification.
+
+#### State access
+
+Commands must explicitly declare when they use some of the global
+state: the current proof state, program obligations state, and
+bodies of `Qed` proofs. This is done by adding a `STATE state`
+specifier for the whole block, or overriding it per-rule with `![ state ]`
+before the parsing rule (after attributes if any).
+
+`preprocess-mlg` associates the state specifier with combinators in
+`Vernactypes`, and the interpretation must have the type expected by
+the combinator (except when it expects a thunk, in which case thunking is implicit).
+
+The following state specifiers
+are understood (see `Coqpp_main.understand_state` if this isn't up to date):
+- `close_proof` for `vtcloseproof`, note that closing proofs from plugin commands is buggy.
+- `open_proof` for `vtopenproof`.
+- `proof` for `vtmodifyproof`
+- `proof_opt_query` for `vtreadproofopt`
+- `proof_query` for `vtreadproof`
+- `read_program` for `vtreadprogram`
+- `program` for `vtmodifyprogram`
+- `declare_program` for `vtdeclareprogram`
+- `program_interactive` for `vtopenproofprogram`
+- `opaque_access` for `vtopaqueaccess`
+
+So for instance `open_proof` requires the interpretation to have type `Declare.Proof.t`
+(implicitly thunked),
+`proof` requires it to have type `pstate:Declare.Proof.t -> Declare.Proof.t`.
+
+#### Attributes
+
+By default commands support no attributes (except for the general
+attributes like `#[warnings]`). Attributes may be supported by
+adding the list of supported attributes `#[ x = a; y = b ]` before
+the parsing rule. `x` and `y` will be bound to the parsed attribute
+in the interpretation, `a` and `b` are qualified identifiers of type
+`'att Attributes.attribute`. Punning `#[ x ]` for `#[ x = x ]` is supported.
+You can delay attribute interpretation (e.g. if it depends on the command arguments)
+by using `Attributes.raw_attributes`.
+
+#### Synterp
+
+If the command modifies the parser or modifies state which may be
+used to change the parser in a later command, these operations must
+be separated from the main interpretation and done in the "synterp"
+phase. The "synterp" phase does not have access to the "interp"
+state (which notably includes the global env).
+
+This is done with `SYNTERP AS synv { synterp }`: `synterp` will be
+evaluated in the synterp phase with the command arguments and attributes bound,
+and its result will be bound to `synv` for the interp phase.
+
+### TACTIC EXTEND
+
+`TACTIC EXTEND` - adds new tactic (Ltac1) syntax by adding productions to `simple_tactic`.
+For example:
+
+```
+TACTIC EXTEND field_lookup
+| [ "field_lookup" tactic(f) "[" constr_list(lH) "]" ne_constr_list(lt) ] ->
+      { let (t,l) = List.sep_last lt in field_lookup f lH l t }
+END
+```
+
+adds a new tactic `field_lookup`.
+
+New tactics should be added using this construct rather than `GRAMMAR EXTEND`.
+
+Nonterminals in `VERNAC EXTEND` parsing rules
+(eg `tactic`, `constr_list`, `ne_constr_list` in the example)
+are arguments, possibly with [nonterminal modifiers](#nonterminal-modifiers).
+The name prefixed by `wit_` must be available in the current OCaml scope.
+
+TODO: explain DEPRECATED, LEVEL (not shown)
+
+### ARGUMENT EXTEND
+
+`ARGUMENT EXTEND` - defines a new argument which can be used in `TACTIC EXTEND` and `VERNAC EXTEND`
+
+```
+ARGUMENT EXTEND ast_closure_term
+     TYPED AS type_info
+     PRINTED BY { pp_ast_closure_term }
+     INTERPRETED BY { interp_ast_closure_term }
+     GLOBALIZED BY { glob_ast_closure_term }
+     SUBSTITUTED BY { subst_ast_closure_term }
+     RAW_PRINTED BY { pp_ast_closure_term }
+     GLOB_PRINTED BY { pp_ast_closure_term }
+  | [ term_annotation(a) constr(c) ] -> { mk_ast_closure_term a c }
+END
+```
+
+See comments in `tacentries.mli` for partial information on the various
+arguments.
+
+Nonterminals in `ARGUMENT EXTEND` parsing rules (eg `term_annotation` and `constr` in the example)
+are entry names, possibly with [nonterminal modifiers](#nonterminal-modifiers).
+
+### VERNAC ARGUMENT EXTEND
+
+`VERNAC ARGUMENT EXTEND` - (part of `argument_extend` in the yacc grammar) defines
+productions for a single nonterminal which can be used in `VERNAC EXTEND`.  For example:
+
+```
+VERNAC ARGUMENT EXTEND ring_mod
+  PRINTED BY { pr_ring_mod env sigma }
+  | [ "decidable" constr(eq_test) ] -> { Ring_kind(Computational eq_test) }
+  | [ "abstract" ] -> { Ring_kind Abstract }
+  | [ "morphism" constr(morph) ] -> { Ring_kind(Morphism morph) }
+  | [ "constants" "[" tactic(cst_tac) "]" ] -> { Const_tac(CstTac cst_tac) }
+  | [ "closed" "[" ne_global_list(l) "]" ] -> { Const_tac(Closed l) }
+  | [ "preprocess" "[" tactic(pre) "]" ] -> { Pre_tac pre }
+  | [ "postprocess" "[" tactic(post) "]" ] -> { Post_tac post }
+  | [ "setoid" constr(sth) constr(ext) ] -> { Setoid(sth,ext) }
+  | [ "sign" constr(sign_spec) ] -> { Sign_spec sign_spec }
+  | [ "power" constr(pow_spec) "[" ne_global_list(l) "]" ] ->
+           { Pow_spec (Closed l, pow_spec) }
+  | [ "power_tac" constr(pow_spec) "[" tactic(cst_tac) "]" ] ->
+           { Pow_spec (CstTac cst_tac, pow_spec) }
+  | [ "div" constr(div_spec) ] -> { Div_spec div_spec }
+END
+```
+
+`PRINTED BY` specifies how the argument should be printed (used by
+`-beautify`, `-time`, and various debug printers).
+The `PRINTED BY` code has variables `env : Environ.env` and `sigma : Evd.evar_map` bound.
+
+Nonterminals in `VERNAC ARGUMENT EXTEND` (e.g. `constr`, `tactic`, `ne_global_list` in the example)
+are entry names, possibly with [nonterminal modifiers](#nonterminal-modifiers).
+
+### DOC_GRAMMAR
+
+`DOC_GRAMMAR` - Used in `doc_grammar`-generated files to permit simplified syntax
 
 ## Grammars: Nonterminals and Productions
 
@@ -242,11 +396,11 @@ productions that's similar to what's used in the `Tactic Notation` and
   END
   ```
 
-Nonterminals appearing in the alternate production syntax are accessed through `wit_*` symbols
-defined in the OCaml code.  Some commonly used symbols are defined in `stdarg.ml`.
-Others are defined in the code generated by `ARGUMENT EXTEND` and `VERNAC ARGUMENT EXTEND`
-constructs.  References to nonterminals that don't have `wit_*` symbols cause
-compilation errors.
+For `VERNAC EXTEND` and `TACTIC EXTEND`, nonterminals appearing in the
+alternate production syntax are "arguments" (`Genarg.genarg_type`) accessed by prefixing the name with `wit_`. Some commonly used arguments are defined in
+`stdarg.ml`. Others are defined in the code generated by `ARGUMENT EXTEND`
+and `VERNAC ARGUMENT EXTEND` constructs. References to
+nonterminals that don't have `wit_*` symbols cause compilation errors.
 
 The differences are:
 * The outer `: [ … ];` is omitted.  Each production is enclosed in `| [ … ]`.
@@ -254,12 +408,7 @@ The differences are:
 * Literal strings that are valid identifiers don't become reserved keywords
 * No semicolons separating elements of the production
 * `integer(n)` is used to bind a nonterminal value to a variable instead of `n = integer`
-* Alternate forms of constructs are used:
-  * `ne_entry_list` for `LIST1 entry`
-  * `entry_list` for `LIST0 entry`
-  * `ne_entry_list_sep(var, sep)` for `LIST1 entry SEP sep` where the list is bound to `var`
-  * `entry_list_sep(var, sep)` for `LIST0 entry SEP sep` where the list is bound to `var`
-  * `entry_opt` for OPT entry
+* [nonterminal modifiers](#nonterminal-modifiers) are used
 * There's no way to define `LEVEL`s
 * There's no equivalent to `( elements )` or `[ elements1 | elements2 | … ]`, which may
   require repeating similar syntax several times.  For example, this single production
@@ -273,6 +422,21 @@ The differences are:
           OPT [ IDENT "transitivity"; IDENT "proved"; IDENT "by"; constr -> { … } ];
           IDENT "as"; ident -> { … }
   ```
+
+### Nonterminal modifiers
+
+In the alternate syntax nonterminal names may be mangled by adding
+prefixes and suffixes to parse lists and options:
+
+* `ne_entry_list` for `LIST1 entry`
+* `entry_list` for `LIST0 entry`
+* `ne_entry_list_sep(var, sep)` for `LIST1 entry SEP sep` where the list is bound to `var`
+* `entry_list_sep(var, sep)` for `LIST0 entry SEP sep` where the list is bound to `var`
+* `entry_opt` for `OPT entry`
+
+This works regardless of whether the nonterminal is an entry or an
+argument. The demangled entry or argument name must be available in
+the current OCaml scope (with `wit_` prefix for arguments).
 
 ## Usage notes
 
