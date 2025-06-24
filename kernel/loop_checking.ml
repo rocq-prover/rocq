@@ -1655,7 +1655,7 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
       else if ForwardClauses.cardinal canu.clauses_fwd <= ForwardClauses.cardinal canv.clauses_fwd then
         false
       else true
-    else if ku <= kv then false
+    else if ku < kv then false
     else (* canu + ku = canv + kv /\ kv < ku -> canv = canu + (ku - kv) *)
       true
   in
@@ -1887,7 +1887,6 @@ let replace_prefix_if_included can path ps =
 (** [find_to_merge_bwd model status u v] Search for an equivalence class of universes backward from u to v.
   @assumes u -> v is consistent *)
 let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
-  (* let nb_univs = ref 0 and nb_cstrs = ref 0 in *)
   let canvalue = defined_expr_value model (canv, kv) in
   let rec backward status path (can, k) : Status.t * PathSet.t =
     match Status.find status can with
@@ -1914,9 +1913,9 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
       let path = ((can, k) :: path) in
       let merge = if domerge then PathSet.singleton path else PathSet.empty in
       if isv then status, merge else
-      let status = Status.replace status can Status.Processing in
       let cls = can.clauses_bwd in
-      if ClausesOf.is_empty cls then status, merge else begin
+      if ClausesOf.is_empty cls then Status.replace status can Status.NonMerged, merge else begin
+        let status = Status.replace status can Status.Processing in
         let merge_fn (clk, _local, prems) (status, merge as acc) =
           (* Ensure there is indeed a backward clause of shape canv -> can *)
           (* prems -> can + clk *)
@@ -1947,14 +1946,13 @@ let find_to_merge_bwd model (status : Status.t) prems (canv, kv) =
     | NeList.Tip p -> merge_prem status p
     | NeList.Cons (p, ps) ->
       (* Multiple premises: we will merge the intersection of merged universes in each possible path,
-         if all premises are mergeable. *)
+         iff all premises are mergeable. *)
       let fold prem (status, merge) =
         if not (PathSet.is_empty merge) then
           let status, mergeprem = merge_prem status prem in
           if not (PathSet.is_empty mergeprem) then
             status, intersect_psets mergeprem merge
-          else (* At least one premise is not bounded by v, we keep the non-mergeable
-            universes found during the search *)
+          else (* At least one premise is not bounded by v *)
             status, mergeprem
         else status, merge
       in
