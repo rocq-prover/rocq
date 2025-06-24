@@ -96,6 +96,8 @@ val register_additional_error_info
   :  (Exninfo.info -> Pp.t option)
   -> unit
 
+exception AllocLimit
+
 (** [to_result ~f x] reifies (non-critical) exceptions into a [('a,
     iexn) Result.t] type *)
 val to_result : f:('a -> 'b) -> 'a -> ('b, Exninfo.iexn) Result.t

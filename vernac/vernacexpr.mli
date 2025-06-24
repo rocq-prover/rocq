@@ -525,6 +525,7 @@ type control_flag =
   | ControlProfile of string option
   | ControlRedirect of string
   | ControlTimeout of int
+  | ControlAllocLimit of Control.kilowords
   | ControlFail
   | ControlSucceed
 
