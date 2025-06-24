@@ -1,4 +1,4 @@
-DECLARE PLUGIN "rocq-plugin-tutorial.tuto0"
+DECLARE PLUGIN "rocq-plugin-tutorial.plugin"
 
 {
 
@@ -8,7 +8,7 @@ open Ltac_plugin
 let cat = CWarnings.create_category ~name:"plugin-tuto-cat" ()
 
 let tuto_warn = CWarnings.create ~name:"name" ~category:cat
-                            (fun _ -> strbrk Tuto0_main.message)
+    (fun () -> strbrk Tuto0_main.message)
 
 }
 
@@ -27,7 +27,7 @@ END
  *)
 TACTIC EXTEND hello_world_tactic
 | [ "hello_world" ] ->
-  { let _ = Feedback.msg_notice (str Tuto0_main.message) in
+  { let () = Feedback.msg_notice (str Tuto0_main.message) in
     Tacticals.tclIDTAC }
 END
 
@@ -51,7 +51,7 @@ END
 TACTIC EXTEND hello_warning_tactic
 | [ "hello_warning" ] ->
    {
-     let _ = tuto_warn () in
+     let () = tuto_warn () in
      Tacticals.tclIDTAC
    }
 END
@@ -71,6 +71,5 @@ END
  *)
 TACTIC EXTEND hello_error_tactic
 | [ "hello_error" ] ->
-  { let _ = CErrors.user_err (str Tuto0_main.message) in
-    Tacticals.tclIDTAC }
+  { CErrors.user_err (str Tuto0_main.message) }
 END

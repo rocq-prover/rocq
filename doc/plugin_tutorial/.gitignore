@@ -1,6 +1,8 @@
 *.ml*.d
 *.cm[ixt]*
-Makefile.coq*
+Makefile.rocq*
+!Makefile.*.local
+tuto0/src/META*
 *~
 *.[ao]
 .coqdeps.d

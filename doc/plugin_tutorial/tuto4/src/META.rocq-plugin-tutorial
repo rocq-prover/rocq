@@ -1,0 +1,11 @@
+package "tuto4" (
+    directory = "."
+    version = "dev"
+    description = "A tuto4 plugin"
+    requires = "rocq-runtime.plugins.ltac2"
+    archive(byte) = "tuto4_plugin.cma"
+    archive(native) = "tuto4_plugin.cmxa"
+    plugin(byte) = "tuto4_plugin.cma"
+    plugin(native) = "tuto4_plugin.cmxs"
+)
+directory = "."
