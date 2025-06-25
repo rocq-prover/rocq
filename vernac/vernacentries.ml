@@ -74,6 +74,19 @@ module DefAttributes = struct
      of the coercion from out-of-section [Let Coercion].
   *)
 
+  module Observer = Summary.Make (struct
+      type value = (Declare.Hook.S.t -> unit) list attribute
+      let name = "Definition attribute"
+    end)
+
+  let active_hooks unit : (Declare.Hook.S.t -> unit) list attribute =
+    let open Attributes.Notations in
+    let rec build acc = function
+      | [] -> return (List.rev acc)
+      | attr :: attrs -> attr >>= fun a -> build (List.rev_append a acc) attrs
+    in
+    build [] @@ List.map snd @@ Observer.all_active unit
+
   let importability_of_bool = function
     | true -> ImportNeedQualified
     | false -> ImportDefaultBehavior
@@ -108,21 +121,23 @@ module DefAttributes = struct
   let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") () =
     let discharge, deprecated_thing, replacement = discharge in
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
+    (* It is important because it prevents early evaluation of [active_hooks ()] *)
+    return () >>= fun () ->
     (locality ++ user_warns_with_use_globref_instead ++ polymorphic ++ program ++
                canonical_instance ++ typing_flags ++ using ++
-               reversible ++ clearbody) >>= fun ((((((((locality, user_warns), polymorphic), program),
+               reversible ++ clearbody ++ active_hooks ()) >>=
+    fun (((((((((locality, user_warns), polymorphic), program),
            canonical_instance), typing_flags), using),
-           reversible), clearbody) ->
+           reversible), clearbody), hooks) ->
       let using = Option.map Proof_using.using_from_string using in
       let reversible = Option.default false reversible in
       let () = if Option.has_some clearbody && not (Lib.sections_are_opened())
         then CErrors.user_err Pp.(str "Cannot use attribute clearbody outside sections.")
       in
       let scope = scope_of_locality locality discharge deprecated_thing replacement in
-      let hooks = [] in
       return { hooks; scope; locality; polymorphic; program; user_warns; canonical_instance; typing_flags; using; reversible; clearbody }
 
-  let parse ?coercion ?discharge f =
+  let parse ?coercion ?discharge f (* : DefAttributes.t  *) =
     Attributes.parse (def_attributes_gen ?coercion ?discharge ()) f
 
   let def_attributes = def_attributes_gen ()

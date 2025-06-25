@@ -88,6 +88,9 @@ type t = {
   clearbody: bool option;
 }
 
+module Observer : Summary.OBSERVABLE
+  with type value = (Declare.Hook.S.t -> unit) list Attributes.attribute
+
 val def_attributes : t Attributes.attribute
 
 end
