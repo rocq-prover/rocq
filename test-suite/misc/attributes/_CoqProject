@@ -1,0 +1,7 @@
+src/META.rocq-test-suite.plugins.attribute_plugin
+-Q theories Attributes
+-I src
+
+src/attribute.ml
+src/attribute_plugin.mlpack
+theories/attr.v

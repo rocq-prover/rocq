@@ -108,5 +108,61 @@ module Interp : sig
 
 end
 
+(** {6 Observables}
+
+    [OBSERVABLE] captures the pattern of backtrackable state that can be enabled
+    and disabled. To use it, [register] the value that you want to record and then
+    [activate] and [deactivate] the value using the returned [token].
+
+    Indirection is used to be able to handle non-marshallable values.
+*)
+module type OBSERVABLE =
+sig
+  (** The type of tokens to manipulate values. This is always marshallable. *)
+  type token
+
+  (** The value being stored. May be non-marshallable (typically a closure). *)
+  type value
+
+  (** Register a new value and get the token used to enable and disable it. *)
+  val register : name:string -> ?override:bool -> value -> token
+
+  (** Activate/deactive the value attached to the token. *)
+  val activate : token -> unit
+  val deactivate : token -> unit
+
+  (** Determine if the value for the given token is active. *)
+  val is_active : token -> bool
+end
+
+(** The implementation side of observation.
+    This should be held internally with the creator of the state.
+    Only the [OBSERVABLE] signature should be exposed.
+ *)
+module type OBSERVABLE_USER =
+sig
+  include OBSERVABLE
+
+  (** Get all of the active values *)
+  val all_active : unit -> (string * value) list
+end
+
+(** Generic implementation of [OBSERVABLE_USER]. *)
+module MakeObservable
+    (Obs : sig
+       (** An arbitrary type, does not need to be marshallable. *)
+       type value
+
+       val stage : Stage.t
+
+       (** Whether the list of active observers is process-local.
+           Unlike [ref ~local] this doesn't matter for marshalling since
+           observers apply indirection to be always marshallable. *)
+       val local : bool
+
+       (** The name of the summary. *)
+       val name : string
+     end) : OBSERVABLE_USER with type value = Obs.value
+
 (** {6 Debug} *)
 val dump : unit -> (int * string) list

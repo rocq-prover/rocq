@@ -1,0 +1,11 @@
+package "attribute" (
+    directory = "."
+    version = "dev"
+    description = "A test plugin"
+    requires = ""
+    archive(byte) = "attribute_plugin.cma"
+    archive(native) = "attribute_plugin.cmxa"
+    plugin(byte) = "attribute_plugin.cma"
+    plugin(native) = "attribute_plugin.cmxs"
+)
+directory = "."

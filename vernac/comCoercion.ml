@@ -352,7 +352,7 @@ let try_add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target 
 let try_add_new_coercion_with_source ref ~local ~reversible ~source =
   try_add_new_coercion_core ref ~local ~reversible (Some source) None false
 
-let add_coercion_hook reversible { Declare.Hook.S.scope; dref; _ } =
+let coercion_hook ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
   let open Locality in
   let local = match scope with
   | Discharge -> assert false (* Local Coercion in section behaves like Local Definition *)
@@ -363,10 +363,7 @@ let add_coercion_hook reversible { Declare.Hook.S.scope; dref; _ } =
   let msg = Nametab.pr_global_env Id.Set.empty dref ++ str " is now a coercion" in
   Flags.if_verbose Feedback.msg_info msg
 
-let add_coercion_hook ~reversible =
-  Declare.Hook.make (add_coercion_hook reversible)
-
-let add_subclass_hook ~poly { Declare.Hook.S.scope; dref; _ } =
+let subclass_hook ~poly ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
   let open Locality in
   let stre = match scope with
   | Discharge -> assert false (* Local Subclass in section behaves like Local Definition *)
@@ -375,12 +372,9 @@ let add_subclass_hook ~poly { Declare.Hook.S.scope; dref; _ } =
   in
   let cl = class_of_global dref in
   let loc = Nametab.cci_src_loc (TrueGlobal dref) in
-  try_add_new_coercion_subclass ?loc cl ~local:stre ~poly
+  try_add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
 
 let nonuniform = Attributes.bool_attribute ~name:"nonuniform"
-
-let add_subclass_hook ~poly ~reversible =
-  Declare.Hook.make (add_subclass_hook ~poly ~reversible)
 
 let warn_reverse_no_change =
   CWarnings.create ~name:"reversible-no-change" ~category:CWarnings.CoreCategories.coercions
