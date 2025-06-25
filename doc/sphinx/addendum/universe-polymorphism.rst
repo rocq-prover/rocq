@@ -281,7 +281,7 @@ The following is an example of a record with non-trivial subtyping relation:
 
 .. math::
 
-   E[Γ] ⊢ \mathsf{packType}@\{i\} =_{βδιζη}
+   E[Γ] ⊢ \mathsf{packType}@\{i\} ≤_{βδιζη}
    \mathsf{packType}@\{j\}~\mbox{ whenever }~i ≤ j
 
 Looking back at the example of monoids, we can see that they are naturally
