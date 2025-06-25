@@ -8,6 +8,384 @@ Recent changes
 
    .. include:: ../unreleased.rst
 
+Version 9.1
+-----------
+
+.. contents::
+   :local:
+   :depth: 1
+
+Summary of changes
+~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Changes in 9.1.0
+~~~~~~~~~~~~~~~~
+
+.. contents::
+   :local:
+
+Kernel
+^^^^^^
+
+- **Fixed:**
+  Guard checking forgot to check non principal arguments of a fixpoint
+  for unguarded uses of the fixpoint leading to an inconsistency
+  (`#20415 <https://github.com/coq/coq/pull/20415>`_,
+  fixes `#20413 <https://github.com/coq/coq/issues/20413>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  inconsistency from incomplete guard checking with nested matches
+  (`#20457 <https://github.com/rocq-prover/rocq/pull/20457>`_,
+  fixes `#20455 <https://github.com/rocq-prover/rocq/issues/20455>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  inconsistency from incorrect reduction across a fixpoint during guard checking
+  (`#20648 <https://github.com/rocq-prover/rocq/pull/20648>`_,
+  fixes `#20555 <https://github.com/rocq-prover/rocq/issues/20555>`_,
+  by Yann Leray).
+- **Fixed:**
+  Wrong context management during rewrite rule reduction
+  (`#20729 <https://github.com/rocq-prover/rocq/pull/20729>`_,
+  fixes `#20728 <https://github.com/rocq-prover/rocq/issues/20728>`_,
+  by Yann Leray).
+
+Specification language, type inference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Deprecated:**
+  in :ref:`sort polymorphic <sort-polymorphism>` instances, separating sorts from universes using `|` instead of `;` (the later being possible since this version)
+  (`#20635 <https://github.com/rocq-prover/rocq/pull/20635>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  in :ref:`sort polymorphic <sort-polymorphism>` instances, sorts can be separated from universes using `;` instead of `|`.
+  This is less ambiguous as `|` is also used to separate universes and constraints when declaring sort polymorphic objects,
+  and in such declarations when constraints are unspecified it allows omitting the `|`
+  (`Definition foo@{s;u} := ...` instead of `Definition foo@{s|u|+} := ...`)
+  (`#20635 <https://github.com/rocq-prover/rocq/pull/20635>`_,
+  by Gaëtan Gilbert).
+
+Notations
+^^^^^^^^^
+
+- **Changed:**
+  The `Specif` notations (`exists x : A, P`, `{ x : A | P }`, `{ x : A & P }`, etc)
+  locally open `type_scope` for the second component (`P`).
+  This makes eg `{ x & type_1 * type_2 }` work even when `nat_scope` is opened instead of interpreting `*` as peano multiplication
+  (`#20294 <https://github.com/coq/coq/pull/20294>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Enable Notation` and :cmd:`Disable Notation` do not take
+  effect in deep imports (i.e. when a parent of their origin module is
+  imported)
+  (`#20484 <https://github.com/rocq-prover/rocq/pull/20484>`_,
+  by Gaëtan Gilbert).
+
+Tactics
+^^^^^^^
+
+- **Changed:**
+  the :tacn:`abstract` tactic now only registers a name
+  for the sublemma after the whole tactic block has run,
+  i.e. after a dot. In particular, the sublemma cannot
+  be accessed by its name while the tactic call has not
+  returned
+  (`#14937 <https://github.com/coq/coq/pull/14937>`_,
+  by Pierre-Marie Pédrot).
+- **Changed:**
+  the congruence tactic now can handle some dependently typed constructor fields.
+  The field's type has to be composed of terms occuring globally or projectable from
+  parameters or indices of the inductive type
+  (`#19700 <https://github.com/rocq-prover/rocq/pull/19700>`_,
+  by Benedict Christian Smit).
+- **Changed:**
+  setoid rewriting now rewrites under primitive projections.
+  In rare cases (see for instance
+  `#20575 <https://github.com/rocq-prover/rocq/issues/20575>`_),
+  some rewrite that used to accidentally work will now correctly fail
+  (`#19811 <https://github.com/rocq-prover/rocq/pull/19811>`_,
+  by Josselin Poiret and Pierre-Marie Pédrot).
+- **Changed:**
+  output of :cmd:`Print Instances` better matches the actual behaviour
+  when an instance is declared multiple times with different priorities
+  (`#20486 <https://github.com/rocq-prover/rocq/pull/20486>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Add `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
+  (`#20197 <https://github.com/coq/coq/pull/20197>`_,
+  by Josselin Poiret).
+- **Added:**
+  Added a new :flag:`Rewrite Output Constraints` flag and :ref:`documented <debugging_resolution_issues>` its use
+  for solving typeclass resolution failures in setoid rewriting
+  (`#20476 <https://github.com/rocq-prover/rocq/pull/20476>`_,
+  by Matthieu Sozeau).
+
+Ltac language
+^^^^^^^^^^^^^
+
+- **Changed:**
+  :cmd:`Ltac` redefinitions (`Ltac ::=`) understand :attr:`export`.
+  Previously :attr:`global` and the default locality meant the redefinition would
+  take effect at Require time and when importing any surrounding module.
+  Now :attr:`global` means it takes affect at Require time,
+  :attr:`export` when the current module (but not its parents) is imported,
+  and the default is equivalent to the combination of :attr:`global` and :attr:`export`
+  (`#20054 <https://github.com/coq/coq/pull/20054>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Ltac` redefinitions (`Ltac foo ::= ...`) are not undone by
+  importing the module containing the original definition.
+  To get the previous behaviour, add `Ltac foo ::= orig_def.`
+  after the original definition `Ltac foo := orig_def.`
+  (`#20391 <https://github.com/coq/coq/pull/20391>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  Named goals can now appear in any goal selector list
+  (`#20511 <https://github.com/rocq-prover/rocq/pull/20511>`_,
+  fixes `#12838 <https://github.com/rocq-prover/rocq/issues/12838>`_,
+  by Dario Halilovic).
+
+Ltac2 language
+^^^^^^^^^^^^^^
+
+- **Changed:**
+  Ltac2 does not depend on the prelude (i.e.  it is compiled with `-noinit`).
+  It still depends on `Corelib.Init.Ltac` due to the interoperation with Ltac1
+  (`#20387 <https://github.com/rocq-prover/rocq/pull/20387>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  the documentation and error messages do not use the term "scope" to describe Ltac2 :ref:`syntactic_classes`
+  (`#20504 <https://github.com/rocq-prover/rocq/pull/20504>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Ltac2 Set` only takes effect with shallow imports, i.e.
+  `Import Foo` will not run a mutation from (non exported) inner module `Foo.Bar`
+  (`#20516 <https://github.com/rocq-prover/rocq/pull/20516>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  ``Ltac2.Constr.is_string``, ``Ltac2.Constr.is_sort``
+  (`#20088 <https://github.com/coq/coq/pull/20088>`_,
+  by Jason Gross).
+- **Added:**
+  ``Ltac2.Constr.decompose_app_list``, ``Ltac2.Constr.decompose_app``
+  (`#20089 <https://github.com/coq/coq/pull/20089>`_,
+  by Jason Gross).
+- **Added:**
+  ``Ltac2.Option.is_some``, ``Ltac2.Option.is_none``, ``Ltac2.Option.compare``,
+  ``Ltac2.Option.join``, ``Ltac2.Option.iter``
+  (`#20184 <https://github.com/coq/coq/pull/20184>`_,
+  by Jason Gross).
+- **Added:**
+  `empty` and `add` in `Ltac2.Fresh.Free`, `next` in `Ltac2.Fresh`.
+  `Ltac2.Fresh` operations should also be faster
+  (`#20220 <https://github.com/coq/coq/pull/20220>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Enable use of (open\_)lconstr inside Ltac2 Notation command
+  (`#20430 <https://github.com/coq/coq/pull/20430>`_,
+  by Pim Otte).
+- **Added:**
+  API functions for inductive types - `Ind.nparams`, `Ind.nparams_uniform`, `Ind.constructor_nargs`, `Ind.constructor_ndecls`, `Constr.Case.inductive`
+  (`#20475 <https://github.com/rocq-prover/rocq/pull/20475>`_,
+  fixes `#10940 <https://github.com/rocq-prover/rocq/issues/10940>`_,
+  by Patrick Nicodemus).
+- **Added:**
+  format specifiers `%A` to use unthunked printers and `%m` for already-formatted messages.
+  Typically, instead of `printf "foo: %a" (fun () v => print_thing v) v`
+  we can now write `printf "foo: %A" print_thing v`
+  or `printf "foo: %m" (print_thing v)`
+  (`#20498 <https://github.com/rocq-prover/rocq/pull/20498>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Ltac2 type for reduction expressions
+  (`#20543 <https://github.com/rocq-prover/rocq/pull/20543>`_,
+  by Radosław Rowicki, with review of Pierre-Marie Pédrot and Gaëtan Gilbert and Jason Gross).
+- **Added:**
+  Ported `rewrite_strat` to Ltac2 and added the `Rewrite.Strategy` module for describing rewrite strategies
+  (`#20544 <https://github.com/rocq-prover/rocq/pull/20544>`_,
+  fixes `#20482 <https://github.com/rocq-prover/rocq/issues/20482>`_,
+  by Radosław Rowicki with review of Jason Gross and Pierre-Marie Pédrot and Gaëtan Gilbert).
+- **Added:**
+  ``Ltac2.Message.empty``
+  (`#20547 <https://github.com/coq/coq/pull/20547>`_,
+  by Elyes Jemel).
+- **Added:**
+  Add conversion tests to Unification - `Unification.conv`, `Unification.conv_current`, `Unification.conv_full`
+  (`#20649 <https://github.com/rocq-prover/rocq/pull/20649>`_,
+  fixes `#20579 <https://github.com/rocq-prover/rocq/issues/20579>`_,
+  by Thomas Lamiaux).
+- **Added:**
+  antiquotation `$hyp:id` in terms for dynamically named hypotheses,
+  i.e. `let x := @y in constr:($hyp:x)` is equivalent to `constr:(&y)`
+  (`#20656 <https://github.com/rocq-prover/rocq/pull/20656>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  Ltac2 in terms in notations is more aware of the notation variables it uses,
+  providing early failure when the variable is instantiated with an invalid term,
+  preventing a spurious warning when a variable that cannot be instantiated is unused,
+  and preventing exponential blowups from copying unused data
+  (`#20313 <https://github.com/coq/coq/pull/20313>`_,
+  fixes `#17833 <https://github.com/coq/coq/issues/17833>`_
+  and `#20188 <https://github.com/coq/coq/issues/20188>`_
+  and `#20305 <https://github.com/coq/coq/issues/20305>`_,
+  by Gaëtan Gilbert).
+
+SSReflect
+^^^^^^^^^
+
+- **Changed:**
+  `%FUN` now delimits scope `function_scope` rather than `fun_scope`
+  in `ssrfun.v`
+  (`#20478 <https://github.com/rocq-prover/rocq/pull/20478>`_,
+  by Pierre Roux).
+- **Removed:**
+  scope `fun_scope` from `ssrfun.v` that was deprecated since 8.20,
+  use `function_scope` instead
+  (`#20478 <https://github.com/rocq-prover/rocq/pull/20478>`_,
+  by Pierre Roux).
+- **Deprecated:**
+  `idempotent` in `ssrfun.v`, use `idempotent_op` instead
+  (`#20478 <https://github.com/rocq-prover/rocq/pull/20478>`_,
+  by Pierre Roux).
+- **Added:**
+  definitions `injective2`, `idempotent_op` and `idempotent_fun` and
+  lemmas `omap_id`, `eq_omap`, `inj_omap`, `omapK`, `inr_inj` and
+  `inl_inj` in `ssrfun.v`
+  (`#20478 <https://github.com/rocq-prover/rocq/pull/20478>`_,
+  by Pierre Roux).
+
+Commands and options
+^^^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  commands taking a tactic argument (e.g. :cmd:`Hint Extern`)
+  now follow :opt:`Default Proof Mode` instead of hardcoding Ltac1
+  (`#19690 <https://github.com/coq/coq/pull/19690>`_,
+  fixes `#13784 <https://github.com/coq/coq/issues/13784>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :opt:`Printing Depth` completely skips subterms beyond the given depth.
+  In general the formatter depth is higher than the term depth, so there is no visible change,
+  but some notations print subterms without increasing the formatting depth in which case
+  you may need to increase the printing depth to avoid `...`
+  (`#20275 <https://github.com/coq/coq/pull/20275>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Search` ignores lemmas declared with :attr:`local` unless
+  new flag :flag:`Search Blacklist Locals` is unset
+  (`#20349 <https://github.com/coq/coq/pull/20349>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Search` now accepts open modules, including the current file with
+  the  `in`, `inside` and `outside` filters.
+  (`#20733 <https://github.com/coq/coq/pull/20733>`_,
+  fixes `#14010 <https://github.com/coq/coq/issues/14010>`_,
+  by Pierre Rousselin, with a lot of help by Gaëtan Gilbert).
+- **Removed:**
+  flag `Lia Enum`, which did nothing
+  (`#20640 <https://github.com/rocq-prover/rocq/pull/20640>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :cmd:`Sort` to declare global or section-scoped sort qualities
+  (`#18615 <https://github.com/coq/coq/pull/18615>`_,
+  by Kenji Maillard).
+- **Added:**
+  :cmd:`Number Notation` and :cmd:`String Notation` understand parsers which may produce error messages
+  (`#20107 <https://github.com/coq/coq/pull/20107>`_,
+  fixes `#20042 <https://github.com/coq/coq/issues/20042>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Added the #[refine] attribute to definitions and (co)fixpoints
+  (`#20355 <https://github.com/coq/coq/pull/20355>`_,
+  fixes `#20302 <https://github.com/coq/coq/issues/20302>`_,
+  by Yann Leray).
+
+Command-line tools
+^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  `rocq timelog2html` now needs package `rocq-devtools` to be installed
+  (`#20169 <https://github.com/coq/coq/pull/20169>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  error on ambiguous :cmd:`Require`. Rocq used to silently select a file
+  when ambiguous :cmd:`Require`\s came from different loadpaths, for instance
+  different fields of the ``ROCQPATH`` environment variable
+  (`#20601 <https://github.com/rocq-prover/rocq/pull/20601>`_,
+  fixes `#20587 <https://github.com/rocq-prover/rocq/issues/20587>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  `rocq dep` implicitly adds `-I $rocq-runtime/..` after the explicit `-I` instead of before
+  (where `$rocq-runtime` is the expected location of the rocq-runtime package).
+  This means that if a local plugin (whose META is in an explicit `-I` path) is installed next to rocq-runtime,
+  `rocq dep` will emit a dependency on the local version instead of the installed version
+  (`#20393 <https://github.com/coq/coq/pull/20393>`_,
+  by Gaëtan Gilbert).
+
+RocqIDE
+^^^^^^^
+
+- **Changed:**
+  default character encoding is UTF8 (it was locale dependent on non-windows OSes),
+  and when the configured encoding is not UTF8 RocqIDE will attempt to convert input files even if they are already valid UTF8
+  (`#20256 <https://github.com/coq/coq/pull/20256>`_,
+  fixes `#11526 <https://github.com/coq/coq/issues/11526>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  added an option to control the maximum length of the message view
+  in RocqIDE
+  (`#20597 <https://github.com/rocq-prover/rocq/pull/20597>`_,
+  fixes `#20420 <https://github.com/rocq-prover/rocq/issues/20420>`_,
+  by Pierre-Marie Pédrot).
+
+Corelib
+^^^^^^^
+
+- **Added:**
+  type `result` in `Corelib.Datatypes`, equivalent to `sum`
+  but with a name fitting possibly-failing computations
+  (`#20107 <https://github.com/coq/coq/pull/20107>`_,
+  by Gaëtan Gilbert).
+
+Infrastructure and dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  minimum supported OCaml version is now 4.14.0 (instead of 4.09.0),
+  and minimum supported OCamlfind version is now 1.9.1 (instead of 1.8.1)
+  (`#20576 <https://github.com/rocq-prover/rocq/pull/20576>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Rocq can be compile-time configured to be relocatable,
+  using `./configure -relocatable` instead of e.g. `./configure -prefix /some/path`.
+  See :ref:`system_config` for an explanation of how Rocq uses its configured installation paths
+  (`#19901 <https://github.com/coq/coq/pull/19901>`_,
+  by Gaëtan Gilbert).
+- **Added:** Experimental support for native Windows builds.
+  Rocq can now build and run under a native Windows environment using
+  the new native Windows support in Opam 2.3. This setup is tested in
+  CI, running a large part of the test suite. Beware this support is
+  still experimental, and some problem may arise on Unix-specific
+  tools. Note that RocqIDE is still not supported (c.f. `#20631
+  <https://github.com/rocq-prover/rocq/issues/20631>`_) (`#20464
+  <https://github.com/rocq-prover/rocq/pull/20464>`_, by Emilio Jesus
+  Gallego Arias, Gaëtan Gilbert, David Allsopp, Ali Caglayan, Jason
+  Gross, the Opam team, the @setup-ocaml team, the OCaml team).
+- **Fixed:**
+  Bad interaction between dune, `rocq dep`, and local opam directory switches
+  (`#20437 <https://github.com/rocq-prover/rocq/pull/20437>`_,
+  fixes `#20422 <https://github.com/rocq-prover/rocq/issues/20422>`_,
+  by Rodolphe Lepigre).
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- **Added:**
+  plugin tutorial for extending Ltac2
+  (`#20670 <https://github.com/rocq-prover/rocq/pull/20670>`_,
+  by Gaëtan Gilbert).
+
 Version 9.0
 -----------
 
