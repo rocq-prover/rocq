@@ -75,6 +75,7 @@ val preprocess_inductive_decl
 module DefAttributes : sig
 
 type t = {
+  hooks : (Declare.Hook.S.t -> unit) list ;
   scope : Locality.definition_scope;
   locality : bool option;
   polymorphic : bool;
