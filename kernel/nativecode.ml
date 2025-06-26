@@ -500,6 +500,7 @@ type mllambda =
   | MLsequence     of mllambda * mllambda
   | MLarray        of mllambda array
   | MLisaccu       of string * inductive * mllambda
+  | MLthunk        of mllambda
 
 and 'a mllam_pattern =
   | ConstPattern of int
@@ -585,10 +586,11 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
   | MLisaccu (s1, ind1, ml1), MLisaccu (s2, ind2, ml2) ->
     String.equal s1 s2 && Ind.CanOrd.equal ind1 ind2 &&
     eq_mllambda gn1 gn2 n env1 env2 ml1 ml2
+  | MLthunk l1, MLthunk l2 -> eq_mllambda gn1 gn2 n env1 env2 l1 l2
   | (MLlocal _ | MLglobal _ | MLprimitive _ | MLlam _ | MLletrec _ | MLlet _ |
     MLapp _ | MLif _ | MLmatch _ | MLconstruct _ | MLint _ | MLuint _ |
     MLfloat _ | MLstring _ | MLsetref _ | MLsequence _ |
-    MLarray _ | MLisaccu _), _ -> false
+    MLarray _ | MLisaccu _ | MLthunk _), _ -> false
 
 and eq_letrec gn1 gn2 n env1 env2 defs1 defs2 =
   let eq_def (_,args1,ml1) (_,args2,ml2) =
@@ -679,6 +681,7 @@ let rec hash_mllambda gn n env t =
       combinesmall 17 (Float64.hash f)
   | MLstring s ->
       combinesmall 18 (Pstring.hash s)
+  | MLthunk l -> combinesmall 19 (hash_mllambda gn n env l)
 
 and hash_mllambda_letrec gn n env init defs =
   let hash_def (_,args,ml) =
@@ -755,6 +758,7 @@ let fv_lam l =
     | MLsequence(l1,l2) -> aux l1 bind (aux l2 bind fv)
     | MLarray arr -> Array.fold_right (fun a fv -> aux a bind fv) arr fv
     | MLisaccu (_, _, body) -> aux body bind fv
+    | MLthunk l -> aux l bind fv
   in
   aux l LNset.empty LNset.empty
 
@@ -1473,14 +1477,13 @@ let compile_prim env decl cond paux =
       let knot = fresh_gnormtbl l in
       let map i g =
         (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
-        let unit = fresh_lname Anonymous in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
           MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
         in
         let self = Array.map (fun id -> MLlocal id) lf in
         let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
-        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
+        let body = MLthunk (Array.fold_right_i mk_let lf body) in
         let typs = mk_type in
         let self = mk_norm in
         mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
@@ -1568,6 +1571,7 @@ let subst s l =
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
       | MLarray arr -> MLarray (Array.map aux arr)
       | MLisaccu (s, ind, l) -> MLisaccu (s, ind, aux l)
+      | MLthunk l -> MLthunk (aux l)
     in
     aux l
 
@@ -1680,6 +1684,7 @@ let optimize gdef l =
     | MLsequence(l1,l2) -> MLsequence(optimize s l1, optimize s l2)
     | MLarray arr -> MLarray (Array.map (optimize s) arr)
     | MLisaccu (pf, ind, l) -> MLisaccu (pf, ind, optimize s l)
+    | MLthunk l -> MLthunk (optimize s l)
   in
   optimize LNmap.empty l
 
@@ -1859,6 +1864,9 @@ let pp_mllam fmt l =
         Format.fprintf fmt
           "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  true@\n| _ ->@\n  false@\nend@]"
         pp_mllam c accu
+    | MLthunk body ->
+      Format.fprintf fmt "@[(fun () ->@ %a)@]"
+        pp_mllam body
 
   and pp_letrec fmt defs =
     let len = Array.length defs in
