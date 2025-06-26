@@ -112,12 +112,8 @@ Tactics
   (`#20486 <https://github.com/rocq-prover/rocq/pull/20486>`_,
   by Gaëtan Gilbert).
 - **Added:**
-  Add `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
-  (`#20197 <https://github.com/coq/coq/pull/20197>`_,
-  by Josselin Poiret).
-- **Added:**
   Added a new :flag:`Rewrite Output Constraints` flag and :ref:`documented <debugging_resolution_issues>` its use
-  for solving typeclass resolution failures in setoid rewriting
+  for debugging typeclass resolution failures in setoid rewriting
   (`#20476 <https://github.com/rocq-prover/rocq/pull/20476>`_,
   by Matthieu Sozeau).
 
@@ -163,6 +159,10 @@ Ltac2 language
   `Import Foo` will not run a mutation from (non exported) inner module `Foo.Bar`
   (`#20516 <https://github.com/rocq-prover/rocq/pull/20516>`_,
   by Gaëtan Gilbert).
+- **Added:**
+  Add `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
+  (`#20197 <https://github.com/coq/coq/pull/20197>`_,
+  by Josselin Poiret).
 - **Added:**
   ``Ltac2.Constr.is_string``, ``Ltac2.Constr.is_sort``
   (`#20088 <https://github.com/coq/coq/pull/20088>`_,
