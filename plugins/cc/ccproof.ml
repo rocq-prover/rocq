@@ -21,6 +21,7 @@ type rule=
   | Trans of proof*proof
   | Congr of proof*proof
   | Inject of proof*Constr.pconstructor*int*int
+  | InjectArray of proof*int*int
 and proof =
     {p_lhs:ATerm.t;p_rhs:ATerm.t;p_rule:rule}
 
@@ -72,6 +73,10 @@ let rec psym p =
       {p_lhs=p.p_rhs;
        p_rhs=p.p_lhs;
        p_rule=Inject (psym p0,c,n,a)}
+  | InjectArray (p0,n,a)->
+      {p_lhs=p.p_rhs;
+       p_rhs=p.p_lhs;
+       p_rule=InjectArray (psym p0,n,a)}
   | Trans (p1,p2)-> ptrans (psym p2) (psym p1)
   | Congr (p1,p2)-> pcongr (psym p1) (psym p2)
 
@@ -92,6 +97,11 @@ let pinject p c n a =
    p_rhs=ATerm.nth_arg p.p_rhs (n-a);
    p_rule=Inject(p,c,n,a)}
 
+let pinject_array p n a =
+  {p_lhs=ATerm.nth_arg p.p_lhs (n-a);
+   p_rhs=ATerm.nth_arg p.p_rhs (n-a);
+   p_rule=InjectArray(p,n,a)}
+
 let rec equal_proof env sigma uf i j=
   debug_congruence (fun () -> str "equal_proof " ++ pr_idx_term env sigma uf i ++ brk (1,20) ++ pr_idx_term env sigma uf j);
   if i=j then prefl (aterm uf i) else
@@ -111,11 +121,13 @@ and edge_proof env sigma uf ((i,j),eq)=
     | Injection (ti,ipac,tj,jpac,k) -> (* pi_k ipac = p_k jpac *)
       let p=ind_proof env sigma uf ti ipac tj jpac in
       let cinfo= get_constructor_info uf ipac.cnode in
-      let cstr = match cinfo.ci_constr with
-      | Construct c -> c
+      match cinfo.ci_constr with
       | Int _ | Float _ | String _ -> assert false
-      in
-      pinject p cstr cinfo.ci_nhyps k in
+      | Construct cstr ->
+        pinject p cstr cinfo.ci_nhyps k
+      | Array {uvars; length} ->
+        pinject_array p cinfo.ci_nhyps k
+  in
   ptrans (ptrans pi pij) pj
 
 and constr_proof env sigma uf i ipac=

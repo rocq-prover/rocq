@@ -116,6 +116,7 @@ type constructor =
 | Int of Uint63.t
 | Float of Float64.t
 | String of Pstring.t
+| Array of {uvars: UVars.Instance.t; length: int}
 
 type cinfo=
     {ci_constr: constructor; (* inductive type *)
@@ -135,6 +136,8 @@ type 'a term =
   | Eps of Id.t
   | Appli of 'a * 'a
   | Constructor of cinfo (* constructor arity + nhyps *)
+
+exception ArrayWithoutType
 
 (* terms with eagerly cached constr and hash *)
 module ATerm :
@@ -166,7 +169,9 @@ struct
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | String s1, String s2 -> Pstring.equal s1 s2
   | Float f1, Float f2 -> Float64.equal f1 f2
-  | (Construct _ | String _ | Int _ | Float _), _ -> false
+  | Array {uvars=u1; length=l1}, Array {uvars=u2; length=l2} ->
+    Int.equal l1 l2 && UVars.Instance.equal u1 u2
+  | (Construct _ | String _ | Int _ | Float _ | Array _), _ -> false
 
   open Hashset.Combine
 
@@ -175,6 +180,8 @@ struct
   | Int i -> combine 2 (Uint63.hash i)
   | Float f -> combine 3 (Float64.hash f)
   | String s -> combine 4 (Pstring.hash s)
+  | Array {uvars; length} ->
+    combine3 5 length (UVars.Instance.hash uvars)
 
   let rec term_equal t1 t2 =
     match t1, t2 with
@@ -209,6 +216,37 @@ struct
     mkLambda(make_annot _A_ Sorts.Relevant,mkSort(s1),
              mkLambda(make_annot _B_ Sorts.Relevant,mkSort(s2),_body_))
 
+  (* We produce enough [fun x : ty] binders to turn a partially-applied array
+     into a well-typed term. Only the type is mandatory. *)
+  let constr_of_array length uvars args =
+    let len = List.length args in
+    debug_congruence Pp.(fun () -> str "constr_of_array args(" ++ int len ++ str ") = " ++ prlist_with_sep (fun () -> str ",") Constr.debug_print args);
+    if len = 0 then raise ArrayWithoutType else
+    (* if the default value was not provided it becomes first debruijn index *)
+    let missing = length + 2 - len in
+    let first_rel = missing in
+
+    let rels =
+      let rec go i acc =
+        if i > first_rel then acc else
+        go (i + 1) (Constr.mkRel i :: acc)
+      in
+      go 1 []
+    in
+
+    let ty, def, vals, rel_vals =
+      match args with
+      | ty :: def :: vals -> ty, def, vals, rels
+      | [ty] -> ty, mkRel first_rel, [], List.tl rels
+      | [] -> assert false      (* imposible, see check above *)
+    in
+    let vals = Array.of_list (vals @ rel_vals) in
+    let body = mkArray(uvars, vals, def, ty) in
+    (* Poor person's [Nat.iter] *)
+    let result = List.fold_left (fun body _ -> mkLambda (make_annot Anonymous Relevant, ty, body)) body rels in
+    debug_congruence Pp.(fun () -> str "constr_of_array result = " ++ Constr.debug_print result);
+    result
+
   let rec constr_of_term = function
       Symb (s,_) -> s
     | Product(s1,s2) -> cc_product s1 s2
@@ -217,10 +255,15 @@ struct
     | Constructor { ci_constr = Int i } -> mkInt i
     | Constructor { ci_constr = Float f } -> mkFloat f
     | Constructor { ci_constr = String s } -> mkString s
+    (* Arrays must come with arguments *)
+    | Constructor { ci_constr = Array {length; uvars} } ->
+      raise ArrayWithoutType
     | Appli (s1',s2') -> make_app [force s2'.constr] s1'
   and make_app l t' =
     match t'.term with
       Appli (s1',s2')->make_app ((force s2'.constr)::l) s1'
+    | Constructor { ci_constr = Array {uvars; length} } ->
+      constr_of_array length uvars l
     | _ -> Term.applist (force t'.constr, l)
 
   let constr t = force t.constr
@@ -248,14 +291,16 @@ struct
 
   let mkConstructor env info =
     let canon i = Environ.QConstruct.canonize env i in
-    let ci_constr = match info.ci_constr with
-    | Construct (c, u) -> Construct (canon c, u)
-    | Int i -> Int i
-    | Float f -> Float f
-    | String s -> String s
+    let mk info =
+      make (Constructor info)
     in
-    let info = { info with ci_constr } in
-    make (Constructor info)
+    match info.ci_constr with
+    | Construct (c, u) ->
+      mk @@ { info with ci_constr = Construct (canon c, u) }
+    | Int _
+    | Float _
+    | String _
+    | Array _ -> mk info
 
   let rec nth_arg t n =
     match t.term with
@@ -324,7 +369,7 @@ type representative=
      mutable lfathers:Int.Set.t;
      mutable fathers:Int.Set.t;
      mutable inductive_status: inductive_status;
-     class_type : types;
+     class_type : types option;
      mutable functions: Int.Set.t PafMap.t} (*pac -> term = app(constr,t) *)
 
 type cl = Rep of representative| Eqto of int*equality
@@ -542,6 +587,8 @@ let rec canonize_name c =
           mkLetIn (na, func b,func t,func ct)
       | App (ct,l) ->
           mkApp (func ct,Array.Smart.map func l)
+      | Array (uvars, vals, def, ty) ->
+        mkArray (uvars, Array.Smart.map func vals, func def, func ty)
       | Proj(p,r,c) ->
         let p' = Projection.map (fun kn ->
           MutInd.make1 (MutInd.canonical kn)) p in
@@ -568,20 +615,28 @@ let rec inst_pattern subst = function
         (fun spat f -> ATerm.mkAppli (f,inst_pattern subst spat))
            args t'
 
-let pr_idx_term env sigma uf i = str "[" ++ int i ++ str ":=" ++
-  Printer.pr_econstr_env env sigma (EConstr.of_constr (ATerm.constr (aterm uf i))) ++ str "]"
+let pp_aterm env sigma at =
+  match ATerm.constr at with
+  | exception ArrayWithoutType -> str "<array without type>"
+  | trm -> Printer.pr_econstr_env env sigma @@ EConstr.of_constr trm
 
-let pr_term env sigma t' = str "[" ++
-  Printer.pr_econstr_env env sigma (EConstr.of_constr (ATerm.constr t')) ++ str "]"
+let pr_idx_term env sigma uf i =
+  str "[" ++ int i ++ str ":=" ++ pp_aterm env sigma (aterm uf i) ++ str "]"
+
+let pr_term env sigma t' = str "[" ++ pp_aterm env sigma t' ++ str "]"
 
 let rec add_aterm state t' =
   let uf=state.uf in
     try Termhash.find uf.syms t' with
         Not_found ->
           let b=next uf in
-          let trm = ATerm.constr t' in
-          let typ = Retyping.get_type_of state.env state.sigma (EConstr.of_constr trm) in
-          let typ = canonize_name typ in
+          let typ =
+            match ATerm.constr t' with
+            | exception ArrayWithoutType -> None
+            | trm ->
+              let typ = Retyping.get_type_of state.env state.sigma (EConstr.of_constr trm) in
+              Some (canonize_name typ)
+          in
           let new_node=
             match ATerm.proj t' with
                 Symb _ | Product (_,_) ->
@@ -611,10 +666,17 @@ let rec add_aterm state t' =
                      vertex= Node(i1,i2);
                      aterm= t'}
               | Constructor cinfo ->
-                  let paf =
-                    {fsym=b;
-                     fnargs=0} in
-                    Queue.add (b,Fmark paf) state.marks;
+                  begin
+                    match cinfo.ci_constr with
+                    | Array _ ->
+                      (* Array terms cannot be considered functions *)
+                      ()
+                    | _ ->
+                      let paf =
+                        {fsym=b;
+                         fnargs=0} in
+                      Queue.add (b,Fmark paf) state.marks
+                  end;
                   let pac =
                     {cnode= b;
                      arity= cinfo.ci_arity;
@@ -628,10 +690,12 @@ let rec add_aterm state t' =
           in
             uf.map.(b)<-new_node;
             Termhash.add uf.syms t' b;
-            Typehash.replace state.by_type typ
-              (Int.Set.add b
-                 (try Typehash.find state.by_type typ with
-                      Not_found -> Int.Set.empty));
+            Option.iter (fun typ ->
+              Typehash.replace state.by_type typ
+                (Int.Set.add b
+                  (try Typehash.find state.by_type typ with
+                        Not_found -> Int.Set.empty))
+              ) typ;
             b
 
 let add_equality0 state c s' t' =
@@ -732,10 +796,12 @@ let union state i1 i2 eq=
   let r1= get_representative state.uf i1
   and r2= get_representative state.uf i2 in
     link state.uf i1 i2 eq;
-    Constrhash.replace state.by_type r1.class_type
-      (Int.Set.remove i1
-         (try Constrhash.find state.by_type r1.class_type with
-              Not_found -> Int.Set.empty));
+    Option.iter (fun typ ->
+      Constrhash.replace state.by_type typ
+        (Int.Set.remove i1
+          (try Constrhash.find state.by_type typ with
+                Not_found -> Int.Set.empty))
+      ) r1.class_type;
     let f= Int.Set.union r1.fathers r2.fathers in
       r2.weight<-Int.Set.cardinal f;
       r2.fathers<-f;
@@ -1080,6 +1146,14 @@ let build_term_to_complete uf pac =
     let () = assert (List.is_empty real_args) in
     let () = assert (Int.equal pac.arity 0) in
     mkString s, 0
+  | Array {uvars; length} ->
+    let () = assert (List.length real_args = length+2) in
+    let (ty, def, vals) =
+      match real_args with
+      | ty :: def :: vals -> ty, def, vals
+      | _ -> assert false
+    in
+    mkArray (EInstance.make uvars, Array.of_list vals, def, ty), pac.arity
 
 let terms_to_complete state =
   let uf = forest state in
