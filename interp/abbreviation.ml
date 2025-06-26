@@ -75,7 +75,7 @@ let open_abbreviation i ((sp,kn),(_local,abbrev)) =
   let pat = abbrev.abbrev_pattern in
   if not (Int.equal i 1 && is_alias_of_already_visible_name sp pat) then begin
     Nametab.push_abbreviation (Nametab.Exactly i) sp kn;
-    if not abbrev.abbrev_onlyparsing then
+    if Int.equal i 1 && not abbrev.abbrev_onlyparsing then
       (* Redeclare it to be used as (short) name in case an other (distfix)
          notation was declared in between *)
       Notationextern.declare_uninterpretation (AbbrevRule kn) pat
