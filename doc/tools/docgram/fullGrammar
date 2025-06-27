@@ -3254,8 +3254,7 @@ gmatch_rule: [
 ]
 
 goal_match_list: [
-| LIST1 gmatch_rule SEP "|"      (* ltac2 plugin *)
-| "|" LIST1 gmatch_rule SEP "|"      (* ltac2 plugin *)
+| OPT "|" LIST1 gmatch_rule SEP "|"      (* ltac2 plugin *)
 ]
 
 q_goal_matching: [

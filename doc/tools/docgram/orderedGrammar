@@ -1940,7 +1940,7 @@ q_goal_matching: [
 ]
 
 goal_match_list: [
-| OPT "|" LIST1 gmatch_rule SEP "|"
+| OPT "|" LIST1 gmatch_rule SEP "|"      (* ltac2 plugin *)
 ]
 
 gmatch_rule: [

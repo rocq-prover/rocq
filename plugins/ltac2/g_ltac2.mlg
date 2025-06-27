@@ -849,8 +849,7 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   goal_match_list:
-    [ [ mrl = LIST1 gmatch_rule SEP "|" -> { CAst.make ~loc @@ mrl }
-      | "|"; mrl = LIST1 gmatch_rule SEP "|" -> { CAst.make ~loc @@ mrl } ] ]
+    [ [ OPT "|"; mrl = LIST1 gmatch_rule SEP "|" -> { CAst.make ~loc @@ mrl } ] ]
   ;
   q_goal_matching:
     [ [ m = goal_match_list -> { m } ] ]
