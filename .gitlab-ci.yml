@@ -351,12 +351,15 @@ build:base:dev:dune:
   interruptible: true
   extends: .auto-use-tags
   script:
+    - git clone --depth=1 https://github.com/rocq-prover/stdlib.git
     - cp theories/Corelib/dune.disabled theories/Corelib/dune
     - cp theories/Ltac2/dune.disabled theories/Ltac2/dune
-    - dune build -p rocq-runtime,coq-core,rocq-core,coqide-server
+    - PKGS=rocq-runtime,coq-core,rocq-core,coqide-server,rocq-devtools,rocq-stdlib
+    - dune build -p $PKGS
     - ls _build/install/default/lib/coq/theories/Init/Prelude.vo
     - ls _build/install/default/lib/coq/user-contrib/Ltac2/Ltac2.vo
-  only: *full-ci
+    - ls _build/install/default/lib/coq/user-contrib/Stdlib/Reals/Reals.vo
+    # only: *full-ci
 
 build:base+async:
   extends: .build-template
