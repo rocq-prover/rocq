@@ -1837,7 +1837,7 @@ let read_rocqide_args argv =
       filter_rocqtop rocqtop project_files bindings_files out args
     |"-xml-debug"::args ->
       set_debug ();
-      Flags.xml_debug := true;
+      CRef.(Flags.xml_debug := true);
       filter_rocqtop rocqtop project_files bindings_files ("-xml-debug"::out) args
     |"-coqtop-flags" :: flags :: args->
       RocqDriver.ideslave_rocqtop_flags := Some flags;

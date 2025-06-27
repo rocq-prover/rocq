@@ -206,7 +206,7 @@ type _ delay =
 | Later : [ `thunk ] delay
 
 (** Should we keep details of universes during detyping ? *)
-let print_universes = ref false
+let print_universes = CRef.ref false
 
 (** Should we print hidden sort quality variables? *)
 let { Goptions.get = print_sort_quality } =
@@ -216,9 +216,10 @@ let { Goptions.get = print_sort_quality } =
     ()
 
 (** If true, prints local context of evars, whatever print_arguments *)
-let print_evar_arguments = ref false
+let print_evar_arguments = CRef.ref false
 
 let () =
+  let open CRef in
   let open Goptions in
   declare_bool_option
     { optstage = Summary.Stage.Interp;
@@ -389,11 +390,11 @@ let detype_sort sigma = function
   | Prop -> glob_Prop_sort
   | Set -> glob_Set_sort
   | Type u ->
-      (if !print_universes
+      (if CRef.(!print_universes)
        then None, detype_universe sigma u
        else glob_Type_sort)
   | QSort (q, u) ->
-    if !print_universes then
+    if CRef.(!print_universes) then
       let q = if print_sort_quality () || Evd.is_rigid_qvar sigma q then
           Some (detype_qvar sigma q)
         else None
@@ -485,7 +486,7 @@ let { Goptions.get = print_allow_match_default_clause } =
 
 let rec join_eqns (ids,rhs as x) patll = function
   | ({CAst.loc; v=(ids',patl',rhs')} as eqn')::rest ->
-     if not !Flags.raw_print && print_factorize_match_patterns () &&
+     if not CRef.(!Flags.raw_print) && print_factorize_match_patterns () &&
         List.eq_set Id.equal ids ids' && glob_constr_eq rhs rhs'
      then
        join_eqns x (patl'::patll) rest
@@ -531,7 +532,7 @@ let factorize_eqns eqns =
   let eqns = aux [] (List.rev eqns) in
   let mk_anon patl = List.map (fun _ -> DAst.make @@ PatVar Anonymous) patl in
   let open CAst in
-  if not !Flags.raw_print && print_allow_match_default_clause () && eqns <> [] then
+  if not CRef.(!Flags.raw_print) && print_allow_match_default_clause () && eqns <> [] then
     match select_default_clause eqns with
     (* At least two clauses and the last one is disjunctive with no variables *)
     | Some {loc=gloc;v=([],patl::_::_,rhs)}, (_::_ as eqns) ->
@@ -677,7 +678,7 @@ let detype_case computable detype detype_eqns avoid env sigma (ci, univs, params
       | NoInvert ->
         if Array.is_empty params && EInstance.is_empty univs
         then tomatch
-        else if !Flags.in_debugger then
+        else if CRef.(!Flags.in_debugger) then
           let t = mkApp (mkIndU (ci.ci_ind,univs), params) in
           DAst.make @@ GCast (tomatch, None, detype t)
         else
@@ -691,7 +692,7 @@ let detype_case computable detype detype_eqns avoid env sigma (ci, univs, params
         DAst.make @@ GCast (tomatch, None, detype t)
   in
   let alias, aliastyp, pred =
-    if (not !Flags.raw_print) && synth_type && computable && not (Int.equal (Array.length bl) 0)
+    if (not CRef.(!Flags.raw_print)) && synth_type && computable && not (Int.equal (Array.length bl) 0)
     then
       Anonymous, None, None
     else
@@ -711,7 +712,7 @@ let detype_case computable detype detype_eqns avoid env sigma (ci, univs, params
   let constructs = Array.init (Array.length bl) (fun i -> (ci.ci_ind,i+1)) in
   let tag = let st = ci.ci_pp_info.style in
     try
-      if !Flags.raw_print then
+      if CRef.(!Flags.raw_print) then
         RegularStyle
       else if st == LetPatternStyle then
         st
@@ -848,7 +849,7 @@ type binder_kind = BProd | BLambda | BLetIn
 (* Main detyping function                                             *)
 
 let detype_instance sigma l =
-  if not !print_universes then None
+  if not CRef.(!print_universes) then None
   else
     let l = EInstance.kind sigma l in
     if UVars.Instance.is_empty l then None
@@ -914,7 +915,7 @@ and detype_r d flags avoid env sigma t =
           try
             let _, mip = Global.lookup_inductive (Projection.inductive p) in
             mip.mind_consnrealargs.(0), Projection.arg p
-          with e when !Flags.in_debugger ->
+          with e when CRef.(!Flags.in_debugger) ->
             (* kinda weird printing but the name should be enough to
                indicate which projection it is *)
             1, 0
@@ -937,7 +938,7 @@ and detype_r d flags avoid env sigma t =
           GApp (DAst.make @@ GRef (GlobRef.ConstRef (Projection.constant p), None),
                 (args @ [detype d flags avoid env sigma c]))
         in
-        if !Flags.in_debugger || !Flags.in_ml_toplevel
+        if CRef.(!Flags.in_debugger || !Flags.in_ml_toplevel)
            || not (print_primproj_params ())
         then noparams ()
         else begin
@@ -984,7 +985,7 @@ and detype_r d flags avoid env sigma t =
               l
           in
           let l = get_instance (fun d c ->
-              not !print_evar_arguments
+              not CRef.(!print_evar_arguments)
               && bound_to_itself_or_letin d c
               && not (match EConstr.kind sigma c with
                   | Rel n -> Int.Set.mem n rels
@@ -1024,7 +1025,7 @@ and detype_r d flags avoid env sigma t =
 
 and detype_eqns d flags avoid env sigma computable constructs bl =
   try
-    if !Flags.raw_print || not (reverse_matching ()) then raise_notrace Exit;
+    if CRef.(!Flags.raw_print) || not (reverse_matching ()) then raise_notrace Exit;
     let mat = build_tree Anonymous flags (avoid,env) sigma bl in
     List.map (fun (ids,pat,((avoid,env),c)) ->
         CAst.make (Id.Set.elements ids,[pat],detype d flags avoid env sigma c))
@@ -1079,14 +1080,14 @@ and detype_binder d flags bk avoid env sigma decl c =
       let c = detype d { flg_isgoal = false } avoid env sigma (Option.get body) in
       (* Heuristic: we display the type if in Prop *)
       let s =
-        if !Flags.in_debugger then UnivGen.QualityOrSet.qtype
+        if CRef.(!Flags.in_debugger) then UnivGen.QualityOrSet.qtype
         else
           (* It can fail if ty is an evar, or if run inside ocamldebug or the
              OCaml toplevel since their printers don't have access to the proper sigma/env *)
           try Retyping.get_sort_quality_of (snd env) sigma ty
           with Retyping.RetypeError _ -> UnivGen.QualityOrSet.qtype
       in
-      let t = if not (UnivGen.QualityOrSet.is_prop s) && not !Flags.raw_print
+      let t = if not (UnivGen.QualityOrSet.is_prop s) && not CRef.(!Flags.raw_print)
               then None
               else Some (detype d (nongoal flags) avoid env sigma ty) in
       GLetIn (na', rinfo, c, t, r)

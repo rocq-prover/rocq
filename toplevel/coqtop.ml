@@ -123,7 +123,7 @@ let init_document opts stm_options injections =
      guaranteed in the past, but now is thanks to the STM API.
   *)
   (* Next line allows loading .vos files when in interactive mode *)
-  Flags.load_vos_libraries := true;
+  CRef.(Flags.load_vos_libraries := true);
   let open Vernac.State in
   let doc, sid =
     Stm.(new_doc
@@ -138,7 +138,7 @@ let init_toploop opts stm_opts injections =
   state
 
 let coqtop_init ({ run_mode; color_mode }, async_opts) injections ~opts =
-  if run_mode != Interactive then Flags.quiet := true;
+  if run_mode != Interactive then CRef.(Flags.quiet := true);
   Colors.init_color color_mode;
   Flags.if_verbose (print_header ~boot:opts.pre.boot) ();
   DebugHook.Intf.(set
@@ -170,7 +170,7 @@ let get_native_name s =
   try
     fix_windows_dirsep @@
     Filename.(List.fold_left concat (dirname s)
-                [ !Nativelib.output_dir
+                [ CRef.(!Nativelib.output_dir)
                 ; Library.native_name_from_filename s
                 ])
   with _ -> ""

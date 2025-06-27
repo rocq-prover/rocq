@@ -106,12 +106,12 @@ type library_t = {
 }
 
 (* This is a map from names to loaded libraries *)
-let libraries_table : library_t DPmap.t ref =
+let libraries_table : library_t DPmap.t CRef.ref =
   Summary.ref DPmap.empty ~stage:Summary.Stage.Synterp ~name:"LIBRARY"
 
 (* This is the map of loaded libraries filename *)
 (* (not synchronized so as not to be caught in the states on disk) *)
-let libraries_filename_table = ref DPmap.empty
+let libraries_filename_table = CRef.ref DPmap.empty
 
 (* These are the _ordered_ sets of loaded, imported and exported libraries *)
 let libraries_loaded_list = Summary.ref [] ~stage:Summary.Stage.Synterp ~name:"LIBRARY-LOAD"
@@ -123,6 +123,7 @@ let loaded_native_libraries = Summary.ref DPset.empty ~stage:Summary.Stage.Inter
 (* various requests to the tables *)
 
 let find_library dir =
+  let open CRef in
   DPmap.find_opt dir !libraries_table
 
 let try_find_library dir =
@@ -137,12 +138,14 @@ let library_compiled dir =
   lib.library_data.md_compiled
 
 let register_library_filename dir f =
+  let open CRef in
   (* Not synchronized: overwrite the previous binding if one existed *)
   (* from a previous play of the session *)
   libraries_filename_table :=
     DPmap.add dir f !libraries_filename_table
 
 let library_full_filename dir =
+  let open CRef in
   try DPmap.find dir !libraries_filename_table
   with Not_found -> "<unavailable filename>"
 
@@ -154,6 +157,7 @@ let library_is_loaded dir =
      be performed first, thus the libraries_loaded_list ... *)
 
 let register_loaded_library ~root m =
+  let open CRef in
   let libname = m.library_name in
   let rec aux = function
     | [] -> [root, libname]
@@ -163,6 +167,7 @@ let register_loaded_library ~root m =
   libraries_table := DPmap.add libname m !libraries_table
 
 let register_native_library libname =
+  let open CRef in
   if (Global.typing_flags ()).enable_native_compiler
     && not (DPset.mem libname !loaded_native_libraries) then begin
       let dirname = Filename.dirname (library_full_filename libname) in
@@ -170,7 +175,7 @@ let register_native_library libname =
       Nativelib.enable_library dirname libname
   end
 
-let loaded_libraries () = List.map snd !libraries_loaded_list
+let loaded_libraries () = List.map snd CRef.(!libraries_loaded_list)
 
 (** Delayed / available tables of opaque terms *)
 
@@ -461,7 +466,7 @@ let current_deps () =
       Some (m.library_name, m.library_digests)
     else None
   in
-  List.map_filter map !libraries_loaded_list
+  List.map_filter map CRef.(!libraries_loaded_list)
 
 let error_recursively_dependent_library dir =
   user_err
@@ -555,6 +560,6 @@ let get_used_load_paths () =
   String.Set.elements
     (List.fold_left (fun acc (root, m) -> String.Set.add
       (Filename.dirname (library_full_filename m)) acc)
-       String.Set.empty !libraries_loaded_list)
+       String.Set.empty CRef.(!libraries_loaded_list))
 
-let _ = Nativelib.get_load_paths := get_used_load_paths
+let () = CRef.(Nativelib.get_load_paths := get_used_load_paths)

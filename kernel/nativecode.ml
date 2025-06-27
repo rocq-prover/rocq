@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
 open CErrors
 open Names
 open Constr
@@ -993,15 +994,16 @@ let fv_params env =
   in
   if Array.is_empty params then empty_params
   else begin
+    let open Stdlib in
     let fvn = ref fvn in
     let i = ref start in
-    while not (List.is_empty !fvn) do
+    while not (CList.is_empty !fvn) do
       params.(!i) <- get_lname (List.hd !fvn);
       fvn := List.tl !fvn;
       incr i
     done;
     let fvr = ref fvr in
-    while not (List.is_empty !fvr) do
+    while not (CList.is_empty !fvr) do
       params.(!i) <- get_lname (List.hd !fvr);
       fvr := List.tl !fvr;
       incr i
@@ -1023,15 +1025,16 @@ let fv_args env fvn fvr =
   if Array.is_empty args then empty_args
   else
     begin
+      let open Stdlib in
       let fvn = ref fvn in
       let i = ref start in
-      while not (List.is_empty !fvn) do
+      while not (CList.is_empty !fvn) do
         args.(!i) <- get_var env (fst (List.hd !fvn));
         fvn := List.tl !fvn;
         incr i
       done;
       let fvr = ref fvr in
-      while not (List.is_empty !fvr) do
+      while not (CList.is_empty !fvr) do
         let (k,_ as kml) = List.hd !fvr in
         let n = get_lname kml in
         args.(!i) <- get_rel env n.lname k;
@@ -1079,13 +1082,15 @@ let get_proj_code i =
 
 type rlist =
   | Rnil
-  | Rcons of lname option mllam_pattern list ref * LNset.t * mllambda * rlist'
-and rlist' = rlist ref
+  | Rcons of lname option mllam_pattern list Stdlib.ref * LNset.t * mllambda * rlist'
+and rlist' = rlist Stdlib.ref
 
 let rm_params fv params =
   Array.map (fun l -> if LNset.mem l fv then Some l else None) params
 
 let rec insert pat body rl =
+ (* Shadow ref to normal *)
+ let open Stdlib in
  match !rl with
  | Rnil ->
      let fv = fv_lam body in
@@ -1107,11 +1112,13 @@ let rec insert pat body rl =
    else insert pat body rl
 
 let rec to_list rl =
+  let open Stdlib in
   match !rl with
   | Rnil -> []
   | Rcons(l,_,body,tl) -> (!l,body)::to_list tl
 
 let merge_branches t =
+  let open Stdlib in
   let newt = ref Rnil in
   Array.iter (fun (pat,body) -> insert pat body newt) t;
   Array.of_list (to_list newt)
@@ -1834,7 +1841,7 @@ let pp_mllam fmt l =
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s)
     | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
+        Format.fprintf fmt "@[CRef.(%s@ :=@\n Some (%a))@]" s pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
     | MLarray arr ->

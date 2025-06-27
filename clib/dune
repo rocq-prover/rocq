@@ -9,6 +9,7 @@
   (select memprof_coq.ml from
    (!memprof-limits -> memprof_coq.std.ml)
    (memprof-limits -> memprof_coq.memprof.ml))
+   thread-local-storage
    str unix threads))
 
 (deprecated_library_name

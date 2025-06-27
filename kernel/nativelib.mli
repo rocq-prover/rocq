@@ -11,16 +11,25 @@
 (** This file provides facilities to access OCaml compiler and dynamic linker,
 used by the native compiler. *)
 
+(** For build compatibility *)
+module CRef : sig
+  type 'a ref = 'a CRef.ref
+  val ref : 'a -> 'a ref
+  val (!) : 'a ref -> 'a
+  val (:=) : 'a ref -> 'a -> unit
+  val incr : int ref -> unit
+end
+
 (* Directory where compiled files are stored *)
-val output_dir : CUnix.physical_path ref
-val include_dirs : CUnix.physical_path list ref
+val output_dir : CUnix.physical_path CRef.ref
+val include_dirs : CUnix.physical_path list CRef.ref
 
 (** Default value for include dirs in non -boot mode (just the kernel). *)
 val default_include_dirs : Boot.Env.t -> CUnix.physical_path list
 
-val get_load_paths : (unit -> string list) ref
+val get_load_paths : (unit -> string list) CRef.ref
 
-val load_obj : (string -> unit) ref
+val load_obj : (string -> unit) CRef.ref
 
 val get_ml_filename : unit -> string * string
 
@@ -49,5 +58,6 @@ val enable_library : string -> Names.DirPath.t -> unit
 val link_libraries : unit -> unit
 
 (* used for communication with the loaded libraries *)
-val rt1 : Nativevalues.t option ref
-val rt2 : Nativevalues.t option ref
+(* EJGA: XXX Fixme, this should be in TLS, however some weird problems do happen with dynlink *)
+val rt1 : Nativevalues.t option CRef.ref
+val rt2 : Nativevalues.t option CRef.ref

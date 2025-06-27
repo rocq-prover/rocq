@@ -38,7 +38,7 @@ module NamedDecl = Context.Named.Declaration
 (* The key attached to each constant is used by the VM to retrieve previous *)
 (* evaluations of the constant. It is essentially an index in the symbols table *)
 (* used by the VM. *)
-type key = int CEphemeron.key option ref
+type key = int CEphemeron.key option CRef.ref
 
 (** Linking information for the native compiler. *)
 
@@ -46,9 +46,9 @@ type link_info =
   | Linked of string
   | NotLinked
 
-type constant_key = constant_body * (link_info ref * key)
+type constant_key = constant_body * (link_info CRef.ref * key)
 
-type mind_key = mutual_inductive_body * link_info ref
+type mind_key = mutual_inductive_body * link_info CRef.ref
 
 type named_context_val = {
   env_named_ctx : Constr.named_context;
@@ -577,7 +577,7 @@ let no_link_info = NotLinked
 
 let add_constant_key kn cb linkinfo env =
   let new_constants =
-    Cmap_env.add kn (cb,(ref linkinfo, ref None)) env.env_constants in
+    Cmap_env.add kn (cb,(CRef.ref linkinfo, CRef.ref None)) env.env_constants in
   let irr_constants = if cb.const_relevance != Sorts.Relevant
     then Cmap_env.add kn cb.const_relevance env.irr_constants
     else env.irr_constants
@@ -770,7 +770,7 @@ let add_mind_key kn (mind, _ as mind_key) env =
   { env with inductive_hyps; irr_inds; env_inductives = new_inds }
 
 let add_mind kn mib env =
-  let li = ref no_link_info in add_mind_key kn (mib, li) env
+  let li = CRef.ref no_link_info in add_mind_key kn (mib, li) env
 
 (* Lookup of section variables *)
 

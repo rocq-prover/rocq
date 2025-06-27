@@ -117,7 +117,7 @@ let new_univ_id =
   fun () -> incr cnt; !cnt
 
 let new_univ_global () =
-  let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
+  let s = if Flags.async_proofs_is_worker() then CRef.(!Flags.async_proofs_worker_id) else "" in
   Univ.UGlobal.make (Global.current_dirpath ()) s (new_univ_id ())
 
 let fresh_level () =
@@ -131,7 +131,7 @@ let new_sort_global id =
   Sorts.QGlobal.make (Global.current_dirpath ()) id
 
 let fresh_sort_quality () =
-  let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
+  let s = if Flags.async_proofs_is_worker() then CRef.(!Flags.async_proofs_worker_id) else "" in
   Sorts.QVar.make_unif s (new_sort_id ())
 
 let fresh_instance auctx : _ in_sort_context_set =

@@ -97,7 +97,7 @@ val check_unknown_warnings : string -> unit
 (** Warn with "unknown-warning" if any unknown warnings are in the
     string with non-disabled status. *)
 
-val override_unknown_warning : bool ref
+val override_unknown_warning : bool CRef.ref
 [@@ocaml.deprecated "(8.18) Do not use, internal."]
 (** For command line -w, this avoids using the warning system to avoid breaking
     "-w -unknown-warning". *)

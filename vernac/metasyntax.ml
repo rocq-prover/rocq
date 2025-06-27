@@ -2052,7 +2052,7 @@ let add_abbreviation ~local user_warns env ident (vars,c) modl =
 let cache_notation_toggle (local,(on,all,pat)) =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  toggle_notations ~on ~all ~verbose:(not !Flags.quiet) (Constrextern.without_symbols (Printer.pr_glob_constr_env env sigma)) pat
+  toggle_notations ~on ~all ~verbose:(not CRef.(!Flags.quiet)) (Constrextern.without_symbols (Printer.pr_glob_constr_env env sigma)) pat
 
 let subst_notation_toggle (subst,(local,(on,all,pat))) =
   let {notation_entry_pattern; interp_rule_key_pattern; use_pattern;

@@ -545,9 +545,10 @@ type expected = Type of types | Sort | Product
 type hook = env -> evar_map -> flags:Evarconv.unify_flags -> constr ->
   inferred:types -> expected:expected -> (evar_map * constr * constr) option
 
-let all_hooks = ref (CString.Map.empty : hook CString.Map.t)
+let all_hooks = CRef.ref (CString.Map.empty : hook CString.Map.t)
 
 let register_hook ~name ?(override=false) h =
+  let open CRef in
   if not override && CString.Map.mem name !all_hooks then
     CErrors.anomaly ~label:"Coercion.register_hook"
       Pp.(str "Hook already registered: \"" ++ str name ++ str "\".");
@@ -556,14 +557,16 @@ let register_hook ~name ?(override=false) h =
 let active_hooks = Summary.ref ~name:"coercion_hooks" ([] : string list)
 
 let deactivate_hook ~name =
-  active_hooks := List.filter (fun s -> not (String.equal s name)) !active_hooks
+  CRef.(active_hooks := List.filter (fun s -> not (String.equal s name)) !active_hooks)
 
 let activate_hook ~name =
+  let open CRef in
   assert (CString.Map.mem name !all_hooks);
   deactivate_hook ~name;
   active_hooks := name :: !active_hooks
 
 let apply_hooks env sigma ~flags body ~inferred ~expected =
+  let open CRef in
   List.find_map (fun name -> CString.Map.get name !all_hooks env sigma ~flags body ~inferred ~expected) !active_hooks
 
 let default_flags_of env =

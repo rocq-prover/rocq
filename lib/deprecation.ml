@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
+
 type t = { since : string option ; note : string option }
 type 'a with_qf = { depr : t; use_instead : 'a option }
 

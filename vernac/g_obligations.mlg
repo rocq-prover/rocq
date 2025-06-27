@@ -27,6 +27,7 @@ let () =
       get_default_tactic ()
     end
   in
+  let open CRef in
   Declare.Obls.default_tactic := tac
 
 let with_tac f tac =
