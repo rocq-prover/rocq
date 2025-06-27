@@ -1334,8 +1334,8 @@ command: [
 
 | DELETE "Show"
 | DELETE "Show" natural
-| DELETE "Show" ident
-| "Show" OPT [ ident | natural ]
+| DELETE "Show" fullyqualid
+| "Show" OPT [ fullyqualid | natural ]
 | DELETE "Show" "Ltac" "Profile"
 | REPLACE "Show" "Ltac" "Profile" "CutOff" integer
 | WITH "Show" "Ltac" "Profile" OPT [ "CutOff" integer | string ]
