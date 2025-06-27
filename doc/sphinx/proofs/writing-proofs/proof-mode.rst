@@ -936,15 +936,15 @@ Requesting information
 ----------------------
 
 
-.. cmd:: Show {? {| @ident | @natural } }
+.. cmd:: Show {? {| @qualid | @natural } }
 
    Displays the current goals.
 
    :n:`@natural`
      Display only the :token:`natural`\-th goal.
 
-   :n:`@ident`
-     Displays the named goal :token:`ident`. This is useful in
+   :n:`@qualid`
+     Displays the named goal :token:`qualid`. This is useful in
      particular to display a shelved goal but only works if the
      corresponding existential variable has been named by the user
      (see :ref:`existential-variables`) as in the following example.
