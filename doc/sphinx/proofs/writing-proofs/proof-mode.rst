@@ -579,7 +579,7 @@ subgoals are also focused.  The two focusing constructs are
 Curly braces
 ~~~~~~~~~~~~
 
-.. tacn:: {? {| @natural | [ @ident ] } : } %{
+.. tacn:: {? {| @natural | [ @qualid ] } : } %{
           %}
    :name: {; }
 
@@ -602,18 +602,18 @@ Curly braces
 
 .. _focus_shelved_goal:
 
-   :n:`[ @ident ]: %{`
-     Focuses on the goal named :token:`ident` even if the goal is not in focus.
+   :n:`[ @qualid ]: %{`
+     Focuses on the goal named :token:`qualid` even if the goal is not in focus.
      Goals are :term:`existential variables <existential variable>`, which don't
-     have names by default.  You can give a name to a goal by using
-     :n:`refine ?[@ident]`.
+     have names by default, unless you enable the :flag:`Accessible Goal Names`
+     flag. You can give a name to a goal by using :n:`refine ?[@ident]`.
 
+   .. _example-working-with-named-goals:
    .. example:: Working with named goals
 
       .. rocqtop:: in
 
          Ltac name_goal name := refine ?[name].  (* for convenience *)
-         Set Printing Goal Names.  (* show goal names, e.g. "(?base)" and "(?step)" *)
 
       .. rocqtop:: all
 
@@ -645,7 +645,7 @@ Curly braces
    .. exn:: No such goal (@natural).
       :undocumented:
 
-   .. exn:: No such goal (@ident).
+   .. exn:: No such goal (@qualid).
       :undocumented:
 
    .. exn:: Brackets do not support multi-goal selectors.
@@ -738,6 +738,70 @@ When a focused goal is proved, Rocq displays a message suggesting use of
    - "None": this makes bullets inactive.
    - "Strict Subproofs": this makes bullets active (this is the default behavior).
 
+.. _named_goals:
+
+Named goals
+~~~~~~~~~~~
+
+You can focus on a goal by using its name. Goals do not have a name by default,
+but a name can be given by using :n:`refine ?[@ident]`, or generated using the
+:flag:`Accessible Goal Names` flag.
+
+.. flag:: Accessible Goal Names
+
+   Enable automatic generation of goal names for the :tacn:`induction`,
+   :tacn:`destruct` and :tacn:`eapply` tactics. The goal generated takes the
+   name of the constructor or a matching hypothesis for the goal name.
+
+   .. example:: Automatic generation of goal names
+
+      Continuing the example from :ref:`here <example-working-with-named-goals>`,
+      names are generated for both the base case and the induction case.
+
+      .. rocqtop:: all
+
+         Set Accessible Goal Names.
+
+         Goal forall n, n + 0 = n.
+         Proof.
+         induction n.
+         [O]: { (* O is the name of the constructor for zero. *)
+           reflexivity.
+
+      .. rocqtop:: in
+
+         }
+
+      This also gives a name to goals that come from a binder or hypothesis:
+
+      .. rocqtop:: all reset
+
+         Set Accessible Goal Names.
+
+         Goal exists n : nat, n = n.
+         eexists.
+         [n]: exact 0.
+         reflexivity.
+         Qed.
+
+   .. example:: Conflicting names
+
+      If several goals generate the same name (e.g. when doing nested case
+      analysis or induction), *qualified names* are used to disambiguate them,
+      using the qualified name of the parent as the basis for the fully
+      qualified name.
+
+      .. rocqtop:: all abort
+
+         Set Accessible Goal Names.
+
+         Goal forall n m, n + m = m + n.
+         Proof.
+         intros. induction m.
+         [O]: {
+           simpl. induction n.
+
+
 Other focusing commands
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -770,7 +834,7 @@ Shelving goals
 Goals can be :gdef:`shelved` so they are no longer displayed in the proof state.
 Shelved goals can be unshelved with the :cmd:`Unshelve` command, which
 makes all shelved goals visible in the proof state.  You can use
-the goal selector :n:`[ @ident ]: %{` to focus on a single shelved goal
+the goal selector :n:`[ @qualid ]: %{` to focus on a single shelved goal
 (see :ref:`here <focus_shelved_goal>`).  Currently there's no single command or
 tactic that unshelves goals by name.
 
@@ -936,15 +1000,15 @@ Requesting information
 ----------------------
 
 
-.. cmd:: Show {? {| @ident | @natural } }
+.. cmd:: Show {? {| @qualid | @natural } }
 
    Displays the current goals.
 
    :n:`@natural`
      Display only the :token:`natural`\-th goal.
 
-   :n:`@ident`
-     Displays the named goal :token:`ident`. This is useful in
+   :n:`@qualid`
+     Displays the named goal :token:`qualid`. This is useful in
      particular to display a shelved goal but only works if the
      corresponding existential variable has been named by the user
      (see :ref:`existential-variables`) as in the following example.

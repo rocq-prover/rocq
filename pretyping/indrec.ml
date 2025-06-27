@@ -203,8 +203,8 @@ let mis_make_case_com dep env sigma (ind, u as pind) (mib, mip) s =
     else
       let cs = lift_constructor (k+1) constrs.(k) in
       let t = build_branch_type !!env sigma dep (mkRel (k+1)) cs in
-      let namef = make_name env "f" relevance in
-      let decl = LocalAssum (namef, t) in
+      let branch_name = make_annot (Name cs.cs_name) relevance in
+      let decl = LocalAssum (branch_name, t) in
       get_branches (RelEnv.push_rel decl env) (k + 1) (decl :: accu)
   in
 
@@ -589,9 +589,9 @@ let mis_make_indrec env sigma ?(force_mutual=false) listdepkind mib u =
                   true dep !!env !evdref (vargs,depPvec,i+j) indi cs recarg
               in
               let r_0 = Retyping.relevance_of_sort sfam in
-              let namef = make_name env "f" r_0 in
-                mkLambda (namef, p_0,
-                  (onerec (RelEnv.push_rel (LocalAssum (namef,p_0)) env)) (j+1))
+              let case_name = make_annot (Name cs.cs_name) r_0 in
+                mkLambda (case_name, p_0,
+                  (onerec (RelEnv.push_rel (LocalAssum (case_name,p_0)) env)) (j+1))
           in onerec env 0
       | [] ->
           makefix i listdepkind
