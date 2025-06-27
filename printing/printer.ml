@@ -46,7 +46,7 @@ let { Goptions.get = should_gname } =
     ()
 
 let print_goal_name sigma ev =
-  should_gname () || Evd.evar_has_ident ev sigma
+  should_gname () || Evd.evar_has_unambiguous_name ev sigma
 
 (**********************************************************************)
 (** Terms                                                             *)
