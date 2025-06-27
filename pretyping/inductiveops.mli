@@ -158,6 +158,7 @@ val type_of_projection_knowing_arg : env -> evar_map -> Projection.t ->
 (** Extract information from an inductive family *)
 
 type constructor_summary = {
+  cs_name : Id.t; (* name of the constructor *)
   cs_cstr : constructor puniverses;    (* internal name of the constructor plus universes *)
   cs_params : constr list;   (* parameters of the constructor in current ctx *)
   cs_nargs : int;            (* length of arguments signature (letin included) *)

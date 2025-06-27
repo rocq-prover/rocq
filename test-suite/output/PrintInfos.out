@@ -127,7 +127,7 @@ Alias.eq_ind :
 forall [A : Type] (x : A) (P : A -> Prop), P x -> forall y : A, x = y -> P y
 
 Alias.eq_ind is not universe polymorphic
-Arguments Alias.eq_ind [A]%_type_scope x P%_function_scope f y e
+Arguments Alias.eq_ind [A]%_type_scope x P%_function_scope eq_refl y e
   (where some original arguments have been renamed)
 Alias.eq_ind is transparent
 Expands to: Constant PrintInfos.Alias.eq_ind (syntactically equal to

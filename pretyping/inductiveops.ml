@@ -376,6 +376,7 @@ let make_case_info env ind style =
 (*s Useful functions *)
 
 type constructor_summary = {
+  cs_name : Id.t;
   cs_cstr : constructor puniverses;
   cs_params : constr list;
   cs_nargs : int;
@@ -384,6 +385,7 @@ type constructor_summary = {
 }
 
 let lift_constructor n cs = {
+  cs_name = cs.cs_name;
   cs_cstr = cs.cs_cstr;
   cs_params = List.map (lift n) cs.cs_params;
   cs_nargs = cs.cs_nargs;
@@ -412,7 +414,9 @@ let get_constructor ((ind,u),mib,mip,params) j =
   let (args,ccl) = Term.decompose_prod_decls typi in
   let (_,allargs) = Constr.decompose_app_list ccl in
   let vargs = List.skipn (List.length params) allargs in
-  { cs_cstr = (ith_constructor_of_inductive ind j,u);
+  let name = mip.mind_consnames.(j-1) in
+  { cs_name = name;
+    cs_cstr = (ith_constructor_of_inductive ind j,u);
     cs_params = params;
     cs_nargs = Context.Rel.length args;
     cs_args = EConstr.of_rel_context args;
