@@ -116,7 +116,7 @@ Global Instance isequiv_ap_hproptype `{Funext} X Y : IsEquiv (@ap _ _ hproptype 
 admit.
 Defined.
 
-Definition path_hprop `{Funext} X Y := (@ap _ _ hproptype X Y)^-1%equiv.
+Definition path_hprop `{Funext} X Y := ((@ap _ _ hproptype X Y)^-1)%equiv.
 
 Record hSet := BuildhSet {setT:> Type; iss :> IsHSet setT}.
 Local Open Scope equiv_scope.

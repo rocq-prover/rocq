@@ -976,7 +976,7 @@ library:ci-simple_io:
   - library:ci-ext_lib
   stage: build-2
 
-library:ci-sf:
+.library:ci-sf:  # disabled until https://github.com/DeepSpec/sf/pull/16 can get in / the process for overlays there can be documented
   extends: .ci-template
   needs:
   - build:base

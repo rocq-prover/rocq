@@ -538,10 +538,10 @@ We need some infrastructure for that.
     Definition id {T} {t : T} (x : phantom t) := x.
 
     Notation "[find v | t1 ~ t2 ] p" := (fun v (_ : unify t1 t2 None) => p)
-      (at level 50, v name, only parsing).
+      (at level 50, v name, p at level 50, only parsing).
 
     Notation "[find v | t1 ~ t2 | s ] p" := (fun v (_ : unify t1 t2 (Some s)) => p)
-      (at level 50, v name, only parsing).
+      (at level 50, v name, p at level 50, only parsing).
 
     Notation "'Error : t : s" := (unify _ t (Some s))
       (at level 50, format "''Error' : t : s").

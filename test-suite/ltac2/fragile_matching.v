@@ -62,7 +62,7 @@ Module RealCodeTest.
   Ltac2 Type interface := { dirty : unit -> bool }.
 
   Ltac2 useForm () := {
-    dirty := fun () =>
+    dirty := (fun () =>
       Array.for_all
         (fun item =>
           match item with
@@ -109,7 +109,7 @@ Module RealCodeTest.
             } =>
             true
           end)
-        Array.empty
+        Array.empty)
     }.
 
 End RealCodeTest.
