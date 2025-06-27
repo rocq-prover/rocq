@@ -105,6 +105,7 @@ module DefAttributes = struct
 
   (* [XXX] EJGA: coercion is unused here *)
   let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") () =
+    return () >>= fun () ->
     let discharge, deprecated_thing, replacement = discharge in
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
     (locality ++ user_warns_with_use_globref_instead ++ polymorphic ++ program ++
