@@ -1365,7 +1365,7 @@ simple_reserv: [
 range_selector: [
 | natural "-" natural
 | natural
-| test_bracket_ident "[" ident "]"
+| test_bracket_ident "[" fullyqualid "]"
 ]
 
 goal_selector: [
