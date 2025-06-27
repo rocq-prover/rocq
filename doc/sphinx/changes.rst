@@ -378,6 +378,14 @@ Infrastructure and dependencies
   fixes `#20422 <https://github.com/rocq-prover/rocq/issues/20422>`_,
   by Rodolphe Lepigre).
 
+Extraction
+^^^^^^^^^^
+
+- **Fixed:**
+  extraction handles sort polymorphic definitions
+  (`#20655 <https://github.com/rocq-prover/rocq/pull/20655>`_,
+  by Pierre-Marie Pédrot).
+
 Miscellaneous
 ^^^^^^^^^^^^^
 
