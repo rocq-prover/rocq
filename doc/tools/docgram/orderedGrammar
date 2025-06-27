@@ -835,7 +835,7 @@ command: [
 | "Focus" OPT natural
 | "Unfocus"
 | "Unfocused"
-| "Show" OPT [ ident | natural ]
+| "Show" OPT [ qualid | natural ]
 | "Show" "Existentials"
 | "Show" "Universes"
 | "Show" "Conjectures"
