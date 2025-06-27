@@ -67,6 +67,7 @@ let rocqide_known_option table = List.mem table [
   ["Printing";"Universes"];
   ["Printing";"Unfocused"];
   ["Printing";"Goal";"Names"];
+  ["Generate";"Goal";"Names"];
   ["Diffs"]]
 
 let is_known_option cmd = match cmd with
