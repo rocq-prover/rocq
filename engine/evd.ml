@@ -12,7 +12,6 @@ open Pp
 open CErrors
 open Util
 open Names
-open Nameops
 open Constr
 open Vars
 open Environ
@@ -342,93 +341,10 @@ type 'a in_ustate = 'a * UState.t
 type conv_pb = Conversion.conv_pb
 type evar_constraint = conv_pb * Environ.env * constr * constr
 
+(** Exporting from Evarnames. *)
+let generate_goal_names = Evarnames.generate_goal_names
+
 module EvMap = Evar.Map
-
-module EvNames :
-sig
-
-type t
-
-val empty : t
-val add_name_undefined : Id.t option -> Evar.t -> 'a evar_info -> t -> t
-val remove_name_defined : Evar.t -> t -> t
-val rename : Evar.t -> Id.t -> t -> t
-val reassign_name_defined : Evar.t -> Evar.t -> t -> t
-val ident : Evar.t -> t -> Id.t option
-val key : Id.t -> t -> Evar.t
-val state : t -> Fresh.t
-
-end =
-struct
-
-type t = {
-  fwd_map : Id.t EvMap.t;
-  rev_map : Evar.t Id.Map.t;
-  fsh_map : Fresh.t;
-}
-
-let empty = {
-  fwd_map = EvMap.empty;
-  rev_map = Id.Map.empty;
-  fsh_map = Fresh.empty;
-}
-
-let add_name_newly_undefined id evk evi names =
-  match id with
-  | None -> names
-  | Some id ->
-    if Id.Map.mem id names.rev_map then
-      user_err  (str "Already an existential evar of name " ++ Id.print id);
-    { fwd_map = EvMap.add evk id names.fwd_map;
-      rev_map = Id.Map.add id evk names.rev_map;
-      fsh_map = Fresh.add id names.fsh_map; }
-
-let add_name_undefined naming evk evi evar_names =
-  if EvMap.mem evk evar_names.fwd_map then
-    evar_names
-  else
-    add_name_newly_undefined naming evk evi evar_names
-
-let remove_name_defined evk names =
-  let id = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id with
-  | None -> names
-  | Some id ->
-    { fwd_map = EvMap.remove evk names.fwd_map;
-      rev_map = Id.Map.remove id names.rev_map;
-      fsh_map = Fresh.remove id names.fsh_map }
-
-let rename evk id names =
-  let id' = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id' with
-  | None ->
-    { fwd_map = EvMap.add evk id names.fwd_map;
-      rev_map = Id.Map.add id evk names.rev_map;
-      fsh_map = Fresh.add id names.fsh_map }
-  | Some id' ->
-    if Id.Map.mem id names.rev_map then anomaly (str "Evar name already in use.");
-    { fwd_map = EvMap.set evk id names.fwd_map; (* overwrite old name *)
-      rev_map = Id.Map.add id evk (Id.Map.remove id' names.rev_map);
-      fsh_map = Fresh.add id (Fresh.remove id' names.fsh_map) }
-
-let reassign_name_defined evk evk' names =
-  let id = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id with
-  | None -> names (* evk' must not be defined *)
-  | Some id ->
-    { fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map);
-      rev_map = Id.Map.add id evk' (Id.Map.remove id names.rev_map);
-      fsh_map = names.fsh_map; }
-
-let ident evk names =
-  try Some (EvMap.find evk names.fwd_map) with Not_found -> None
-
-let key id names =
-  Id.Map.find id names.rev_map
-
-let state names = names.fsh_map
-
-end
 
 type evar_flags =
   { obligation_evars : Evar.Set.t;
@@ -563,7 +479,7 @@ type evar_map = {
   (* Existential variables *)
   defn_evars : defined evar_info EvMap.t;
   undf_evars : undefined evar_info EvMap.t;
-  evar_names : EvNames.t;
+  evar_names : Evarnames.t;
   candidate_evars : Evar.Set.t; (* The subset of undefined evars with a non-empty candidate list. *)
   (** Universes *)
   universes  : UState.t;
@@ -656,12 +572,24 @@ let expand_existential0 = expand_existential
 
 (*** Lifting primitive from Evar.Map. ***)
 
-let rename evk id evd =
-  { evd with evar_names = EvNames.rename evk id evd.evar_names }
+let add_name evk basename ?parent evd =
+  { evd with evar_names = Evarnames.add basename evk ?parent evd.evar_names }
 
-let add_with_name (type a) ?name ~typeclass_candidate ~rrpat d e (i : a evar_info) = match i.evar_body with
+let transfer_name evk evk' evd =
+  { evd with evar_names = Evarnames.transfer_name evk evk' evd.evar_names }
+
+let add_with_name (type a) ?name ?parent ~typeclass_candidate ~rrpat d e (i : a evar_info) = match i.evar_body with
 | Evar_empty ->
-  let evar_names = EvNames.add_name_undefined name e i d.evar_names in
+  let evar_names =
+    match name with
+    | Some (basename, fresh) ->
+       (* If fresh (i.e. coming from ?[?ident] syntax), we first check for conflicts. *)
+       if fresh then
+         Evarnames.add_fresh basename e ?parent d.evar_names
+       else
+         Evarnames.add basename e ?parent d.evar_names
+    | None -> d.evar_names
+  in
   let evar_flags =
     if typeclass_candidate then
       let flags = d.evar_flags in
@@ -684,7 +612,7 @@ let add_with_name (type a) ?name ~typeclass_candidate ~rrpat d e (i : a evar_inf
   in
   { d with undf_evars = EvMap.add e i d.undf_evars; evar_names; evar_flags; candidate_evars }
 | Evar_defined _ ->
-  let evar_names = EvNames.remove_name_defined e d.evar_names in
+  let evar_names = Evarnames.remove e d.evar_names in
   { d with defn_evars = EvMap.add e i d.defn_evars; evar_names }
 
 (** Evd.add is a low-level function mainly used to update the evar_info
@@ -934,7 +862,7 @@ let empty = {
   evar_flags = empty_evar_flags;
   candidate_evars = Evar.Set.empty;
   effects    = empty_side_effects;
-  evar_names = EvNames.empty; (* id<->key for undefined evars *)
+  evar_names = Evarnames.empty; (* id<->key for undefined evars *)
   future_goals = FutureGoals.empty_stack;
   given_up = Evar.Set.empty;
   shelf = [[]];
@@ -966,10 +894,10 @@ let conv_pbs d = d.conv_pbs
 
 let evar_source evi = evi.evar_source
 
-let evar_names evd = EvNames.state evd.evar_names
-let evar_ident evk evd = EvNames.ident evk evd.evar_names
-let evar_has_ident evk evd = match evar_ident evk evd with Some _ -> true | None -> false
-let evar_key id evd = EvNames.key id evd.evar_names
+let evar_ident evk evd = Evarnames.name_of evk evd.evar_names
+let evar_has_name evk evd = Evarnames.has_name evk evd.evar_names
+let evar_has_unambiguous_name evk evd = Evarnames.has_unambiguous_name evk evd.evar_names
+let evar_key name evd = Evarnames.resolve name evd.evar_names
 
 let get_aliased_evars evd = evd.evar_flags.aliased_evars
 
@@ -1332,7 +1260,7 @@ let pr_shelf evd =
 
 let new_pure_evar ?(src=default_source) ?(filter = Filter.identity) ~relevance
   ?(abstract_arguments = Abstraction.identity) ?candidates
-  ?name ?(typeclass_candidate = false) ?(rrpat = false) sign evd typ =
+  ?name ?parent ?(typeclass_candidate = false) ?(rrpat = false) sign evd typ =
   let evi = {
     evar_hyps = sign;
     evar_concl = Undefined typ;
@@ -1345,7 +1273,7 @@ let new_pure_evar ?(src=default_source) ?(filter = Filter.identity) ~relevance
   }
   in
   let newevk = new_untyped_evar () in
-  let evd = add_with_name evd ?name ~typeclass_candidate ~rrpat newevk evi in
+  let evd = add_with_name evd ?name ?parent ~typeclass_candidate ~rrpat newevk evi in
   let evd = declare_future_goal newevk evd in
   (evd, newevk)
 
@@ -1376,7 +1304,7 @@ let define_gen evk body evd evar_flags =
   | [] ->  evd.last_mods
   | _ -> Evar.Set.add evk evd.last_mods
   in
-  let evar_names = EvNames.remove_name_defined evk evd.evar_names in
+  let evar_names = Evarnames.remove evk evd.evar_names in
   let candidate_evars = Evar.Set.remove evk evd.candidate_evars in
   { evd with defn_evars; undf_evars; last_mods; evar_names; evar_flags; candidate_evars }
 
@@ -1408,7 +1336,7 @@ let restrict evk filter ?candidates ?src evd =
   let last_mods = match evd.conv_pbs with
   | [] ->  evd.last_mods
   | _ -> Evar.Set.add evk evd.last_mods in
-  let evar_names = EvNames.reassign_name_defined evk evk' evd.evar_names in
+  let evar_names = Evarnames.transfer_name evk evk' evd.evar_names in
   let body = mkEvar(evk',id_inst) in
   let (defn_evars, undf_evars) = define_aux evd.defn_evars evd.undf_evars evk body in
   let evar_flags = inherit_evar_flags evd.evar_flags evk evk' in
