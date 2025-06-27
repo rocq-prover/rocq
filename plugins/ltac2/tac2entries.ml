@@ -933,6 +933,31 @@ let perform_eval ~pstate e =
     ++ spc () ++  str "=" ++ spc () ++
     Tac2print.pr_valexpr env sigma ans (snd ty))
 
+let do_declare (opq, nm, typ, body) : unit =
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let cinfo = Declare.CInfo.make ~name:nm ~typ:typ () in
+  let info = Declare.Info.make ~kind:(Decls.(IsDefinition Definition)) () in
+  let _ = Declare.declare_definition ~cinfo ~info ~opaque:opq ~body:body sigma in
+  ()
+
+let to_definition (v: Tac2val.valexpr) = match v with
+| ValBlk (0, [|opaquenessv; nmv; typv; bodyv|]) ->
+  (Tac2ffi.to_bool opaquenessv, Tac2ffi.to_ident nmv, Tac2ffi.to_option Tac2ffi.to_constr typv, Tac2ffi.to_constr bodyv)
+| _ -> assert false
+
+let declare (e: raw_tacexpr) : unit =
+  let env = Global.env () in
+  let (e, _) = Tac2intern.intern ~strict:false [] e in
+  let v = Tac2interp.interp Tac2interp.empty_environment e in
+  let proof =
+    let sigma = Evd.from_env env in
+    let name, poly = Id.of_string "ltac2", false in
+    Proof.start ~name ~poly sigma [] in
+  let (_, _, v) = Proof.run_tactic (Global.env ()) v proof in
+  let decs = Tac2ffi.to_list to_definition v in
+  List.iter (do_declare) decs
+
 (** Toplevel entries *)
 
 let warn_modtype = CWarnings.create ~name:"ltac2-in-modtype" ~category:CWarnings.CoreCategories.ltac2 ~default:AsError

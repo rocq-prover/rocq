@@ -1030,7 +1030,10 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
     Tac2entries.register_notation_interpretation synterpv
   }
 | ![proof_opt_query] [ "Ltac2" "Eval" ltac2_expr(e) ] => { Vernacextend.classify_as_query } -> {
-  fun ~pstate -> Tac2entries.perform_eval ~pstate e
+    fun ~pstate -> Tac2entries.perform_eval ~pstate e
+  }
+| [ "Ltac2" "Declare" ltac2_expr(defn) ] => { Vernacextend.classify_as_query } -> {
+    Tac2entries.declare defn
   }
 END
 
