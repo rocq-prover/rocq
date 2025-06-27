@@ -47,9 +47,69 @@ let cl_of_qualid = function
 let scope_class_of_qualid qid =
   Notation.scope_class_of_class (cl_of_qualid qid)
 
+(** TODO: this belongs elsewhere *)
+module type OBSERVERS =
+sig
+  type token
+  type value
+
+  val register : name:string -> ?override:bool -> value -> token
+
+  (* NOTE: it probably doesn't make sense to de-activate these,
+     but other uses of this require that interface
+  *)
+  val deactivate : token -> unit
+  val activate : token -> unit
+end
+
+(* This implements [OBSERVERS] but is not sealed because
+   the additional functions [is_active] and [all_active] are
+   meant to be used interally.
+ *)
+module Make
+    (Obs : sig
+       type value
+       val name : string
+     end) =
+struct
+  type token = string
+  type value = Obs.value
+
+  let observers = ref CString.Map.empty
+  let active_observers = Summary.ref ~name:Obs.name []
+
+  let register ~name ?(override=false) value =
+    if not override && CString.Map.mem name !observers then
+      CErrors.anomaly Pp.(str Obs.name ++ str " observer " ++
+                          str name ++ str " already exists")
+    else
+      observers := CString.Map.add name value !observers;
+    name
+
+  let remove name = List.remove String.equal name !active_observers
+
+  let deactivate name =
+    active_observers := remove name;
+    ()
+
+  let activate name =
+    assert (CString.Map.mem name !observers);
+    active_observers := name :: remove name;
+    ()
+
+  let all_active () =
+    (* NOTE: this is not very efficient. *)
+    let all = CString.Map.bindings !observers in
+    let f (k,v) =
+      if List.mem k !active_observers then Some v else None
+    in
+    List.filter_map f all
+end
+
 (** Standard attributes for definition-like commands. *)
 module DefAttributes = struct
   type t = {
+    hooks : (Declare.Hook.S.t -> unit) list ;
     scope : definition_scope;
     locality : bool option;
     polymorphic : bool;
@@ -72,6 +132,19 @@ module DefAttributes = struct
      we could alternatively decide to change the default locality
      of the coercion from out-of-section [Let Coercion].
   *)
+
+  module Observer = Make (struct
+      type value = (Declare.Hook.S.t -> unit) list attribute
+      let name = "Definition attribute"
+    end)
+
+  let active_hooks unit : (Declare.Hook.S.t -> unit) list attribute =
+    let open Attributes.Notations in
+    let rec build acc = function
+      | [] -> return (List.rev acc)
+      | attr :: attrs -> attr >>= fun a -> build (List.rev_append a acc) attrs
+    in
+    build [] @@ Observer.all_active unit
 
   let importability_of_bool = function
     | true -> ImportNeedQualified
@@ -109,18 +182,18 @@ module DefAttributes = struct
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
     (locality ++ user_warns_with_use_globref_instead ++ polymorphic ++ program ++
                canonical_instance ++ typing_flags ++ using ++
-               reversible ++ clearbody) >>= fun ((((((((locality, user_warns), polymorphic), program),
+               reversible ++ clearbody ++ active_hooks ()) >>= fun (((((((((locality, user_warns), polymorphic), program),
            canonical_instance), typing_flags), using),
-           reversible), clearbody) ->
+           reversible), clearbody), hooks) ->
       let using = Option.map Proof_using.using_from_string using in
       let reversible = Option.default false reversible in
       let () = if Option.has_some clearbody && not (Lib.sections_are_opened())
         then CErrors.user_err Pp.(str "Cannot use attribute clearbody outside sections.")
       in
       let scope = scope_of_locality locality discharge deprecated_thing replacement in
-      return { scope; locality; polymorphic; program; user_warns; canonical_instance; typing_flags; using; reversible; clearbody }
+      return { hooks; scope; locality; polymorphic; program; user_warns; canonical_instance; typing_flags; using; reversible; clearbody }
 
-  let parse ?coercion ?discharge f =
+  let parse ?coercion ?discharge f (* : DefAttributes.t  *) =
     Attributes.parse (def_attributes_gen ?coercion ?discharge ()) f
 
   let def_attributes = def_attributes_gen ()
@@ -809,18 +882,27 @@ let check_name_freshness locality {CAst.loc;v=id} : unit =
   then
     user_err ?loc  (Id.print id ++ str " already exists.")
 
-let vernac_definition_hook ~canonical_instance ~local ~poly ~reversible = let open Decls in function
-| Coercion ->
-  Some (ComCoercion.add_coercion_hook ~reversible)
-| CanonicalStructure ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
-| SubClass ->
-  Some (ComCoercion.add_subclass_hook ~poly ~reversible)
-| Definition when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
-| Let when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure dref)))
-| _ -> None
+let vernac_definition_hook ~atts ~canonical_instance ~local ~poly ~reversible kind =
+  let hooks = atts.DefAttributes.hooks in
+  let hooks =
+    let open Decls in
+    let open Declare.Hook in
+    match kind with
+    | Coercion ->
+      ComCoercion.coercion_hook ~reversible :: hooks
+    | CanonicalStructure ->
+      (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
+    | SubClass ->
+      ComCoercion.subclass_hook ~poly ~reversible :: hooks
+    | Definition when canonical_instance ->
+      (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
+    | Let when canonical_instance ->
+      (fun { S.dref } -> Canonical.declare_canonical_structure dref) :: hooks
+    | _ -> hooks
+  in
+  match hooks with
+  | [] -> None
+  | _ -> Some (Declare.Hook.(make (fun def -> List.iter (fun h -> h def) hooks)))
 
 let default_thm_id = Id.of_string "Unnamed_thm"
 
@@ -846,8 +928,10 @@ let vernac_definition_interactive ~atts (discharge, kind) (lid, udecl) bl t =
   let open DefAttributes in
   let scope, local, poly, program_mode, user_warns, typing_flags, using, clearbody =
     atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
-  let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
-  let hook = vernac_definition_hook ~canonical_instance ~local ~poly ~reversible kind in
+  let hook =
+    let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
+    vernac_definition_hook ~atts ~canonical_instance ~local ~poly ~reversible kind
+  in
   let name = vernac_definition_name lid scope in
   ComDefinition.do_definition_interactive ?loc:lid.loc ~typing_flags ~program_mode ~name ~poly ~scope ?clearbody:atts.clearbody
     ~kind:(Decls.IsDefinition kind) ?user_warns ?using:atts.using ?hook udecl bl t
@@ -858,19 +942,24 @@ let vernac_definition_refine ~atts (discharge, kind) (lid, udecl) bl red_option 
   let open DefAttributes in
   let scope, local, poly, program_mode, user_warns, typing_flags, using, clearbody =
      atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
-  let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
-  let hook = vernac_definition_hook ~canonical_instance ~local ~poly kind ~reversible in
+  let hook =
+    let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
+    vernac_definition_hook ~atts ~canonical_instance ~local ~poly kind ~reversible
+  in
   let name = vernac_definition_name lid scope in
   ComDefinition.do_definition_refine ~name ?loc:lid.loc
     ?clearbody ~poly ~typing_flags ~scope ~kind:(Decls.IsDefinition kind)
     ?user_warns ?using udecl bl c typ_opt ?hook
 
+(* [c] is the (untyped pre-term, constexpr) body of the definition *)
 let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c typ_opt =
   let open DefAttributes in
   let scope, local, poly, program_mode, user_warns, typing_flags, using, clearbody =
-     atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
-  let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
-  let hook = vernac_definition_hook ~canonical_instance ~local ~poly kind ~reversible in
+    atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
+  let hook =
+    let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
+    vernac_definition_hook ~atts ~canonical_instance ~local ~poly kind ~reversible
+  in
   let name = vernac_definition_name lid scope in
   let red_option = match red_option with
     | None -> None
