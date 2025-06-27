@@ -135,14 +135,9 @@ s
 fun _ : nat => 9
      : nat -> nat
 fun (x : nat) (p : x = x) =>
-match p in (_ = n) return (n = n) with
-| ONE => ONE
-end = p
+(let 'ONE in (_ = n) := p return (n = n) in ONE) = p
      : forall x : nat, x = x -> Prop
-fun (x : nat) (p : x = x) =>
-match p in (_ = n) return (n = n) with
-| 1 => 1
-end = p
+fun (x : nat) (p : x = x) => (let '1 in (_ = n) := p return (n = n) in 1) = p
      : forall x : nat, x = x -> Prop
 bar  0
      : nat
