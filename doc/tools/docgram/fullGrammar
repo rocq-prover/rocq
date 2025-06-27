@@ -518,7 +518,7 @@ command: [
 | "Unfocused"
 | "Show"
 | "Show" natural
-| "Show" ident
+| "Show" fullyqualid
 | "Show" "Existentials"
 | "Show" "Universes"
 | "Show" "Conjectures"
