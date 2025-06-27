@@ -112,6 +112,38 @@ let intern_ltac_variable ist qid =
     ArgVar (make ?loc:qid.CAst.loc @@ qualid_basename qid)
   else raise Not_found
 
+let intern_constr_gen pattern_mode isarity {ltacvars=lfun; genv=env; extra; intern_sign; strict_check} c =
+  let scope = if isarity then Pretyping.IsType else Pretyping.WithoutTypeConstraint in
+  let ltacvars = {
+    Constrintern.ltac_vars = lfun;
+    ltac_bound = Id.Set.empty;
+    ltac_extra = extra;
+  } in
+  let c' = Constrintern.intern_core scope ~strict_check ~pattern_mode ~ltacvars env Evd.(from_env env) intern_sign c in
+  (c',if strict_check then None else Some c)
+
+let intern_constr = intern_constr_gen false false
+let intern_type = intern_constr_gen false true
+
+let { Goptions.get = always_insert_impls } =
+  Goptions.declare_bool_option_and_ref ~key:["Ltac";"Always";"Insert";"Implicits"]
+    ~value:false
+    ()
+
+(* XXX enable printing implicits while printing?
+   currently we get "got @foo but in proof scripts foo would be produced" *)
+let warn_noninserted_impls =
+  CWarnings.create ~name:"ltac-non-inserted-implicits" ~category:Deprecation.Version.v9_1
+    Pp.(fun (qid, nonstrict_c, strict_c) ->
+        let env = Global.env() in
+        let sigma = Evd.from_env env in
+        fmt "Interpretation of %t in toplevel definition@ is different from its interpretation in proof scripts:@ \
+             got %t but in proof scripts %t would be produced.@ \
+             Use \"Set Ltac Always Insert Implicits\" to always get the later result."
+          (fun () -> pr_qualid qid)
+          (fun () -> Printer.pr_glob_constr_env env sigma strict_c)
+          (fun () -> Printer.pr_glob_constr_env env sigma nonstrict_c))
+
 let intern_constr_reference strict ist qid =
   let id = qualid_basename qid in
   if qualid_is_ident qid && not strict && find_hyp (qualid_basename qid) ist then
@@ -119,8 +151,17 @@ let intern_constr_reference strict ist qid =
   else if qualid_is_ident qid && find_var (qualid_basename qid) ist then
     (DAst.make @@ GVar id), if strict then None else Some (make @@ CRef (qid,None))
   else
-    DAst.make @@ GRef (locate_global_with_alias qid,None),
-    if strict then None else Some (make @@ CRef (qid,None))
+    match intern_constr {ist with strict_check=strict} (CAst.make (CRef (qid,None))) with
+    | exception Nametab.GlobalizationError _ -> raise Not_found
+    | c, _ as res ->
+      if not strict || always_insert_impls () then res
+      else
+        let alt = DAst.make @@ GRef (locate_global_with_alias qid, None) in
+        if Glob_ops.glob_constr_eq c alt then res
+        else begin
+          warn_noninserted_impls (qid, c, alt);
+          alt, None
+        end
 
 (* Internalize an isolated reference in position of tactic *)
 
@@ -214,19 +255,6 @@ let intern_binding_name ist x =
   (* Todo: consider the body of the lemma to which the binding refer
      and if a term w/o ltac vars, check the name is indeed quantified *)
   x
-
-let intern_constr_gen pattern_mode isarity {ltacvars=lfun; genv=env; extra; intern_sign; strict_check} c =
-  let scope = if isarity then Pretyping.IsType else Pretyping.WithoutTypeConstraint in
-  let ltacvars = {
-    Constrintern.ltac_vars = lfun;
-    ltac_bound = Id.Set.empty;
-    ltac_extra = extra;
-  } in
-  let c' = Constrintern.intern_core scope ~strict_check ~pattern_mode ~ltacvars env Evd.(from_env env) intern_sign c in
-  (c',if strict_check then None else Some c)
-
-let intern_constr = intern_constr_gen false false
-let intern_type = intern_constr_gen false true
 
 (* Globalize bindings *)
 let intern_binding ist = map (fun (b,c) ->
