@@ -90,7 +90,8 @@ GRAMMAR EXTEND Gram
       | IDENT "Unfocused" -> { VernacSynPure VernacUnfocused }
       | IDENT "Show" -> { VernacSynPure (VernacShow (ShowGoal OpenSubgoals)) }
       | IDENT "Show"; n = natural -> { VernacSynPure (VernacShow (ShowGoal (NthGoal n))) }
-      | IDENT "Show"; id = ident -> { VernacSynPure (VernacShow (ShowGoal (GoalId id))) }
+      | IDENT "Show"; id = fullyqualid -> {
+      let id = Evarnames.of_list id.CAst.v in VernacSynPure (VernacShow (ShowGoal (GoalId id))) }
       | IDENT "Show"; IDENT "Existentials" -> { VernacSynPure (VernacShow ShowExistentials) }
       | IDENT "Show"; IDENT "Universes" -> { VernacSynPure (VernacShow ShowUniverses) }
       | IDENT "Show"; IDENT "Conjectures" -> { VernacSynPure (VernacShow ShowProofNames) }
