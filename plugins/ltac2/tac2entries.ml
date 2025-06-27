@@ -574,10 +574,78 @@ type syntax_class_rule =
 
 type syntax_class_interpretation = sexpr list -> syntax_class_rule
 
+(* hardcoded syntactic classes, from ltac2 or further plugins *)
 let syntax_class_table : syntax_class_interpretation Id.Map.t ref = ref Id.Map.empty
 
+let ltac2_custom_entry : raw_tacexpr Procq.entry_command =
+  Procq.create_entry_command "ltac2"
+
+let local_custom_entries =
+  Summary.ref ~name:"ltac2 local custom entries" ~stage:Synterp Id.Set.empty
+
+let name_of_custom_entry id = "custom-ltac2:"^Id.to_string id
+
+let check_custom_entry_name id =
+  if Id.Map.mem id !syntax_class_table then
+    CErrors.user_err
+      Pp.(str "Cannot declare " ++ Id.print id ++
+          str " as a ltac2 custom entry:" ++ spc() ++
+          str "that name is already used for a builtin syntactic class.")
+  else if Procq.mem_custom_entry ltac2_custom_entry (name_of_custom_entry id) then
+    CErrors.user_err Pp.(str "Ltac2 custom entry " ++ Id.print id ++ str " already exists.")
+
+let cache_custom_entry (local,id) =
+  let () = check_custom_entry_name id in
+  let name = name_of_custom_entry id in
+  let _ : raw_tacexpr Procq.Entry.t = Procq.extend_entry_command ltac2_custom_entry name in
+  let () = if local then local_custom_entries := Id.Set.add id !local_custom_entries in
+  ()
+
+let inCustomEntry : bool * Id.t -> Libobject.obj =
+  declare_object {
+    (default_object "Ltac2 custom entry") with
+    object_stage = Synterp;
+    cache_function = cache_custom_entry;
+    load_function = (fun _ o -> cache_custom_entry o);
+    subst_function = (fun (_,x) -> x);
+    classify_function = (fun (local,_) -> if local then Dispose else Substitute);
+  }
+
+let register_custom_entry name =
+  let name = name.CAst.v in
+  check_custom_entry_name name;
+  (* not yet implemented: module local custom entries
+     NB: will need checks that exported notations don't rely on the local entries *)
+  let local = false in
+  Lib.add_leaf (inCustomEntry (local,name))
+
 let register_syntax_class id s =
+  assert (not (Id.Map.mem id !syntax_class_table));
+  let () = if Procq.mem_custom_entry ltac2_custom_entry (name_of_custom_entry id) then
+      CErrors.user_err
+        Pp.(str "Cannot register a builtin Ltac2 syntactic class named" ++
+            spc() ++ Id.print id ++ spc() ++
+            str "because that name is already used for a custom entry.")
+  in
   syntax_class_table := Id.Map.add id s !syntax_class_table
+
+let level_name lev = string_of_int lev
+
+let interp_custom_entry_action ?loc id entry : syntax_class_interpretation = function
+  | [] -> SyntaxRule (Procq.Symbol.nterm entry, (fun expr -> expr))
+  | [SexprInt lev] -> SyntaxRule (Procq.Symbol.nterml entry (level_name lev.v), (fun expr -> expr))
+  | _ :: _ ->
+    CErrors.user_err ?loc
+      Pp.(str "Invalid arguments for ltac2 custom entry " ++ Id.print id ++ str ".")
+
+let find_syntactic_class ?loc id =
+  match Id.Map.find_opt id !syntax_class_table with
+  | Some v -> v
+  | None ->
+    match Procq.find_custom_entry ltac2_custom_entry (name_of_custom_entry id) with
+    | entry -> interp_custom_entry_action ?loc id entry
+    | exception Not_found ->
+      CErrors.user_err ?loc (str "Unknown syntactic class" ++ spc () ++ Names.Id.print id)
 
 module ParseToken =
 struct
@@ -589,10 +657,8 @@ let loc_of_token = function
 
 let parse_syntax_class = function
 | SexprRec (_, {loc;v=Some id}, toks) ->
-  if Id.Map.mem id !syntax_class_table then
-    Id.Map.find id !syntax_class_table toks
-  else
-    CErrors.user_err ?loc (str "Unknown syntactic class" ++ spc () ++ Names.Id.print id)
+  let v = find_syntactic_class id in
+  v toks
 | SexprStr {v=str} ->
   let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
   SyntaxRule (Procq.Symbol.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
@@ -634,7 +700,7 @@ let parse_syntax_class = ParseToken.parse_syntax_class
 type synext = {
   synext_kn : KerName.t;
   synext_tok : sexpr list;
-  synext_lev : int;
+  synext_entry : Id.t option * int;
   synext_loc : bool;
   synext_depr : Deprecation.t option;
 }
@@ -663,6 +729,27 @@ let deprecated_ltac2_notation =
     ~warning_name_if_no_since:"deprecated-ltac2-notation"
     (fun (toks : sexpr list) -> pr_sequence ParseToken.print_token toks)
 
+let ltac2_levels = Procq.GramState.field "ltac2_levels"
+
+(* XXX optional lev and do reusefirst like in egramrocq? *)
+let fresh_level st entry lev =
+  match entry with
+  | None -> st, None
+  | Some entry ->
+    let all_levels = Option.default Id.Map.empty @@ Procq.GramState.get st ltac2_levels in
+    let entry_levels = Option.default Int.Set.empty @@ Id.Map.find_opt entry all_levels in
+    let last_before = Int.Set.find_first_opt (fun lev' -> lev' >= lev) entry_levels in
+    if Option.equal Int.equal last_before (Some lev) then st, None
+    else
+      let pos = match last_before with
+        | None -> Gramlib.Gramext.First
+        | Some lev' -> Gramlib.Gramext.After (level_name lev')
+      in
+      let entry_levels = Int.Set.add lev entry_levels in
+      let all_levels = Id.Map.add entry entry_levels all_levels in
+      let st = Procq.GramState.set st ltac2_levels all_levels in
+      st, Some pos
+
 let perform_notation syn st =
   let tok = List.rev_map ParseToken.parse_token syn.synext_tok in
   let KRule (rule, act) = get_rule tok in
@@ -678,9 +765,26 @@ let perform_notation syn st =
     CAst.make ~loc @@ CTacSyn (bnd, syn.synext_kn)
   in
   let rule = Procq.Production.make rule (act mk) in
-  let pos = Some (string_of_int syn.synext_lev) in
-  let rule = Procq.Reuse (pos, [rule]) in
-  [Procq.ExtendRule (Pltac.ltac2_expr, rule)], st
+  let entry, lev = syn.synext_entry in
+  let st, fresh = fresh_level st entry lev in
+  let pos = Some (level_name lev) in
+  let rule = match fresh with
+    | None -> Procq.Reuse (pos, [rule])
+    | Some pos' ->
+      (* with RightA, SELF on the right means really self, with LeftA/NonA it means next
+         we could simulate "really self" with a LeftA by using the explicit "entry(level)" form,
+         but RightA is slightly simpler *)
+      Procq.Fresh (pos', [pos, Some RightA, [rule]])
+  in
+  let entry = match entry with
+    | None -> Pltac.ltac2_expr
+    | Some entry ->
+      match Procq.find_custom_entry ltac2_custom_entry (name_of_custom_entry entry) with
+      | entry -> entry
+      | exception Not_found ->
+        CErrors.user_err Pp.(str "Unknown Ltac2 custom entry " ++ Id.print entry ++ str".")
+  in
+  [Procq.ExtendRule (entry, rule)], st
 
 let ltac2_notation =
   Procq.create_grammar_command "ltac2-notation" { gext_fun = perform_notation; gext_eq = (==) (* FIXME *) }
@@ -792,16 +896,25 @@ type notation_interpretation_data =
 | Abbreviation of Id.t * Deprecation.t option * raw_tacexpr
 | Synext of bool * KerName.t * Id.Set.t * raw_tacexpr
 
-let pr_register_notation tkn lev body =
+type notation_target = lident option * int option
+
+let pr_register_notation tkn (entry,lev) body =
+  let pptarget = match entry, lev with
+    | None, None -> mt()
+    | None, Some lev -> spc() ++ str ": " ++ int lev
+    | Some entry, None -> spc() ++ str ": " ++ Id.print entry.CAst.v
+    | Some entry, Some lev ->
+      spc() ++ str ": " ++ Id.print entry.CAst.v ++ str "(" ++ int lev ++ str ")"
+  in
   prlist_with_sep spc Tac2print.pr_syntax_class tkn ++
-  pr_opt (fun n -> str ": " ++ int n) lev ++ spc() ++
+  pptarget ++ spc() ++
   hov 2 (str ":= " ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body)
 
-let register_notation atts tkn lev body =
+let register_notation atts tkn (entry,lev) body =
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
   let local = Option.default false local in
-  match tkn, lev with
-  | [SexprRec (_, {loc;v=Some id}, [])], None ->
+  match tkn, entry, lev with
+  | [SexprRec (_, {loc;v=Some id}, [])], None, None ->
     (* Tactic abbreviation *)
     let () = check_lowercase CAst.(make ?loc id) in
     Abbreviation(id, deprecation, body)
@@ -814,26 +927,39 @@ let register_notation atts tkn lev body =
     | TacNonTerm (Anonymous, _) -> accu
     in
     let ids = List.fold_left fold Id.Set.empty entries in
+    let entry = match entry with
+      | Some {CAst.v=entry; loc} ->
+        if String.equal (Id.to_string entry) "tactic" then None
+        else Some entry
+      | None -> None
+    in
     (* Globalize so that names are absolute *)
-    let lev = match lev with
-    | Some n ->
-      let () =
-        if n < 0 || n > 6 then
-          user_err (str "Notation levels must range between 0 and 6")
-      in
-      n
-    | None ->
-      (* autodetect level *)
-      begin match entries with
-        | TacTerm s :: _ when Names.Id.is_valid s -> 1
-        | _ -> 5
-      end
+    let lev = if Option.has_some entry then
+        let lev = match lev with
+          | Some lev -> lev
+          | None -> user_err (str "Custom entry level must be explicit.")
+        in
+        let () = if lev < 0 then user_err (str "Custom entry levels must be nonnegative.") in
+        lev
+      else match lev with
+        | Some n ->
+          let () =
+            if n < 0 || n > 6 then
+              user_err (str "Notation levels must range between 0 and 6")
+          in
+          n
+        | None ->
+          (* autodetect level *)
+          begin match entries with
+          | TacTerm s :: _ when Names.Id.is_valid s -> 1
+          | _ -> 5
+          end
     in
     let key = make_fresh_key tkn in
     let ext = {
       synext_kn = key;
       synext_tok = tkn;
-      synext_lev = lev;
+      synext_entry = (entry,lev);
       synext_loc = local;
       synext_depr = deprecation;
     } in

@@ -401,6 +401,11 @@ let extend_grammar_command tag g =
   let (rules, st) = modify.gext_fun g grammar_state in
   grammar_extend_sync st (Dyn (tag,g)) rules ()
 
+let mem_custom_entry tag name =
+  match EntryDataMap.find tag (!state).custom_entries with
+  | Ex map -> String.Map.mem name map
+  | exception Not_found -> false
+
 let find_custom_entry tag name =
   let EntryData.Ex map = EntryDataMap.find tag (!state).custom_entries in
   String.Map.find name map
