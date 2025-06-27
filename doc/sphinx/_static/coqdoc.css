@@ -10,62 +10,62 @@
 /* Taken from CoqDoc's default stylesheet */
 
 
-.id[title="constructor"],.coqdoc-constructor {
+.id[title="constructor"],.rocqdoc-constructor {
     color: rgb(225 0 0);
 }
 
-.id[title="var"],.coqdoc-var,
-.id[title="variable"],.coqdoc-variable {
+.id[title="var"],.rocqdoc-var,
+.id[title="variable"],.rocqdoc-variable {
     color: rgb(210 46 0);
 }
 
-.id[title="definition"],.coqdoc-definition {
+.id[title="definition"],.rocqdoc-definition {
     color: #FF540A;
 }
 
-.id[title="abbreviation"],.coqdoc-abbreviation {
+.id[title="abbreviation"],.rocqdoc-abbreviation {
     color: #0042b9;  font-weight: bold
 
 }
 
-.id[title="lemma"],.coqdoc-lemma {
+.id[title="lemma"],.rocqdoc-lemma {
     color: rgb(255 85 0);
   font-weight: bold
 }
 
-.id[title="instance"],.coqdoc-instance {
+.id[title="instance"],.rocqdoc-instance {
     color: #003eae;  font-weight: bold
 
 }
 
-.id[title="projection"],.coqdoc-projection {
+.id[title="projection"],.rocqdoc-projection {
     color: #0042b9;  font-weight: bold
 
 }
 
-.id[title="method"],.coqdoc-method {
+.id[title="method"],.rocqdoc-method {
     color: #0d62fb;  font-weight: bold
 
 }
 
-.id[title="inductive"],.coqdoc-inductive {
+.id[title="inductive"],.rocqdoc-inductive {
     color: rgb(0%,0%,80%);
 }
 
-.id[title="record"],.coqdoc-record {
+.id[title="record"],.rocqdoc-record {
     color: rgb(0%,0%,80%);
 }
 
-.id[title="class"],.coqdoc-class {
+.id[title="class"],.rocqdoc-class {
     color: rgb(200 105 8);
 }
 
-.id[title="keyword"],.coqdoc-keyword {
+.id[title="keyword"],.rocqdoc-keyword {
  color: #08288d;
  font-weight: bold
 }
 
-.coqdoc-tactic {
+.rocqdoc-tactic {
     font-weight: bold;
 }
 
