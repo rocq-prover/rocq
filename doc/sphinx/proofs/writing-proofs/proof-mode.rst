@@ -584,7 +584,7 @@ subgoals are also focused.  The two focusing constructs are
 Curly braces
 ~~~~~~~~~~~~
 
-.. tacn:: {? {| @natural | [ @ident ] } : } %{
+.. tacn:: {? {| @natural | [ @qualid ] } : } %{
           %}
    :name: {; }
 
@@ -607,8 +607,8 @@ Curly braces
 
 .. _focus_shelved_goal:
 
-   :n:`[ @ident ]: %{`
-     Focuses on the goal named :token:`ident` even if the goal is not in focus.
+   :n:`[ @qualid ]: %{`
+     Focuses on the goal named :token:`qualid` even if the goal is not in focus.
      Goals are :term:`existential variables <existential variable>`, which don't
      have names by default.  You can give a name to a goal by using
      :n:`refine ?[@ident]`.
@@ -650,7 +650,7 @@ Curly braces
    .. exn:: No such goal (@natural).
       :undocumented:
 
-   .. exn:: No such goal (@ident).
+   .. exn:: No such goal (@qualid).
       :undocumented:
 
    .. exn:: Brackets do not support multi-goal selectors.

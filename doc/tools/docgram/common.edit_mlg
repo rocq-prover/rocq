@@ -1750,8 +1750,8 @@ tactic_mode: [
 | MOVETO simple_tactic subprf
 | REPLACE OPT toplevel_selector "{"
 (* semantically restricted *)
-| WITH OPT ( [ natural | "[" ident "]" ] ":" ) "{"
-| MOVETO simple_tactic OPT ( [ natural | "[" ident "]" ] ":" ) "{"
+| WITH OPT ( [ natural | "[" fullyqualid "]" ] ":" ) "{"
+| MOVETO simple_tactic OPT ( [ natural | "[" fullyqualid "]" ] ":" ) "{"
 | DELETE command
 | DELETENT
 ]
