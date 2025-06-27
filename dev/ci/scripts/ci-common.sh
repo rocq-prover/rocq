@@ -79,10 +79,9 @@ function overlay()
 }
 
 set +x
-# shellcheck source=ci-basic-overlay.sh
-. "${ci_dir}/../ci-basic-overlay.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../ci-basic-overlay.sh"
 
-for overlay in "${ci_dir}"/../user-overlays/*.sh; do
+for overlay in "$(dirname "${BASH_SOURCE[0]}")"/../user-overlays/*.sh; do
     # shellcheck source=/dev/null
     # the directoy can be empty
     if [ -e "${overlay}" ]; then . "${overlay}"; fi
