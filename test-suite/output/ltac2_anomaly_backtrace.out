@@ -1,11 +1,15 @@
 File "./output/ltac2_anomaly_backtrace.v", line 9, characters 0-18:
-Error: Anomaly "Uncaught exception Not_found."
+Error: <in exception printer>:
+Anomaly "Uncaught exception Rocq Error: No such goal.."
 Please report at http://rocq-prover.org/bugs/.
+<original exception>:
+Uncaught exception Not_found.
 Backtrace:
 Call foo
 Call Std.eval_hnf
 Prim <rocq-runtime.plugins.ltac2:reduce_constr>
 
 
+Fatal error: exception Rocq Error: No such goal.
 
-coqc exited with code 129
+coqc exited with code 2
