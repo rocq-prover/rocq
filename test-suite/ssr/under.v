@@ -1,5 +1,6 @@
-Require Import ssreflect.
-Require Import ssrbool TestSuite.ssr_mini_mathcomp.
+From Corelib Require Import ssreflect.
+From Corelib Require Import ssrbool.
+Require Import TestSuite.ssr_mini_mathcomp.
 Global Unset SsrOldRewriteGoalsOrder.
 
 (* under <names>: {occs}[patt]<lemma>.
@@ -294,6 +295,7 @@ Context {A : Type} {s1 s2 : Setoid m n}.
 
 Let B := @car m n s1.
 Let C := @car m n s2.
+Typeclasses Transparent Rel.
 Variable (F : C -> (A -> A -> B) -> C).
 Hypothesis rel2_gen :
   forall (c1 c2 : C) (P1 P2 : A -> A -> B),
@@ -315,7 +317,7 @@ End TestGeneric2.
 Section TestPreOrder.
 (* inspired by https://github.com/coq/coq/pull/10022#issuecomment-530101950 *)
 
-Require Import Morphisms.
+From Corelib Require Import Morphisms.
 
 (** Tip to tell rewrite that the LHS of [leq' x y (:= leq x y = true)]
     is x, not [leq x y] *)
