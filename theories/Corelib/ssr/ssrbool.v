@@ -1363,7 +1363,7 @@ Module Export PredSortOfSimplCoercion := DeclarePredSortOfSimpl PredOfSimpl.
  is already fixed (at least, not without redefining bool, true, false and
  all bool operations and lemmas); we provide syntax to recast a given type
  in predArgType as a workaround. **)
-Definition predArgType := Type.
+Definition predArgType := Type@{_}.
 Bind Scope type_scope with predArgType.
 Identity Coercion sort_of_predArgType : predArgType >-> Sortclass.
 Coercion pred_of_argType (T : predArgType) : simpl_pred T := predT.
