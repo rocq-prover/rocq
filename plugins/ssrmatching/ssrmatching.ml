@@ -55,6 +55,11 @@ let _ =
       optread  = (fun _ -> !pp_ref == ssr_pp);
       optwrite = debug }
 let pp s = !pp_ref s
+let { Goptions.get = option_LegacyFoUnif } =
+  Goptions.declare_bool_option_and_ref ~key:["SsrMatching";"LegacyFoUnif"]
+    ~depr:{Deprecation.since=Some "9.2";
+            note=Some "Use this flag only to port scripts from 9.1 to 9.2, do not leave it in final scripts." }
+    ~value:false ()
 
 (** Utils *)(* {{{ *****************************************************************)
 let env_size env = List.length (Environ.named_context env)
@@ -214,11 +219,117 @@ let flags_FO env =
     Unification.resolve_evars =
       (Unification.default_no_delta_unify_flags ts).Unification.resolve_evars
   }
+let legacy_unif_FO env ise metas p c =
+  let _ : _ * Evd.evar_map = Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) p c in
+  ()
+
+type hd_comparison =
+  | CompareArgs of evar_map * Unification.Meta.t * Impargs.implicit_status list
+  | CanonicalInfRequired
+  | CanonicalRedRequired of Evd.evar_map * EConstr.t * int
+  | Different
+
+let implicits_for_rewrite_of gr =
+  Impargs.implicits_of_global gr |> List.last |> snd
+
+  let failure_FO () = raise (CErrors.user_err Pp.(mt ()))
+
+let rec same_hd env ise metas p c =
+  match EConstr.kind ise p, EConstr.kind ise c with
+  | Const(c1,_), Const(c2,_) when Constant.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstRef c1))
+  | Ind(c1,_), Ind(c2,_) when Ind.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.IndRef c1))
+  | Construct(c1,_), Construct(c2,_) when Construct.CanOrd.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstructRef c1))
+  | Const(c1,_), _ when Structures.Structure.is_projection c1 -> CanonicalInfRequired
+  | _, Const(c2,i) when Structures.Structure.is_projection c2 ->
+      let b = Environ.constant_value_in env (c2,EConstr.EInstance.kind ise i) in
+      CanonicalRedRequired (ise, EConstr.of_constr b, Structures.Structure.projection_nparams c2)
+  | Rel c1,Rel c2 when c1 == c2 -> CompareArgs (ise,metas,[])
+  | Var c1,Var c2 when Id.equal c1 c2 ->
+    CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.VarRef c1))
+  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
+    let metas, ise = unif_FO_skip_impl env ise metas x y in
+    CompareArgs (ise,metas,[])
+  | _ -> Different
+and unif_FO_skip_impl env ise metas p c =
+  match EConstr.kind ise p, EConstr.kind ise c with
+  | Meta i, _ when Unification.Meta.meta_opt_fvalue metas i = None ->
+      let ise,metas = Unification.Meta.meta_assign i (c,TypeNotProcessed) metas ise in metas, ise
+  | Meta i, _ ->
+      begin match Unification.Meta.meta_opt_fvalue metas i with
+      | None -> assert false
+      | Some { Unification.rebus = p } -> unif_FO_skip_impl env ise metas p c
+      end
+  (* | App(hd,args1), _ when EConstr.isMeta ise hd -> metas, ise *)
+  (* | App(hd,args1), App(f,args2) when EConstr.isMeta ise hd ->
+      if Array.length args1 > Array.length args2 then failure_FO ();
+      let args2, rest = CArray.chop (Array.length args2 - Array.length args1) args2 in
+      let rhs = EConstr.mkApp (f,args2) in
+      pp(lazy(str "HO-FO" ++ pr_econstr_env env ise hd ++ str " = " ++ pr_econstr_env env ise rhs));
+      let metas, ise = unif_FO_skip_impl env ise metas hd rhs in
+      unif_FO_skip_impl3 env ise metas (Array.to_list args1) (Array.to_list rest) [] *)
+  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
+    unif_FO_skip_impl3 env ise metas [x] [y] []
+  | App(hd1,args1), App(hd2,args2) when not @@ EConstr.isMeta ise hd1 ->
+    begin match same_hd env ise metas hd1 hd2 with
+    | CanonicalRedRequired(ise,proj,narg) when Array.length args2 > narg ->
+        pp(lazy(str "Red in " ++ pr_econstr_env env ise c));
+        let c' =
+          let open Reductionops in
+          let metas = { meta_value = (fun i ->
+            Option.map (fun x -> x.Unification.rebus)
+              (Unification.Meta.meta_opt_fvalue metas i)) } in
+          Stack.zip ise @@
+            whd_betaiota_deltazeta_for_iota_state
+              TransparentState.full env ise ~metas
+              (EConstr.mkApp (proj,args2),Stack.empty) in
+        pp(lazy(str "Red out " ++ pr_econstr_env env ise c'));
+        if EConstr.eq_constr ise c c' then failure_FO ()
+        else unif_FO_skip_impl env ise metas p c'
+    | CanonicalInfRequired ->
+        pp(lazy(str "Skip"));
+        metas, ise
+    | CompareArgs(ise,metas,imp) ->
+        pp(lazy(str "Rec"));
+        unif_FO_skip_impl3 env ise metas (Array.to_list args1) (Array.to_list args2) imp
+    | _ ->
+        pp(lazy(str "Fail"));
+        failure_FO ()
+    end
+  | _ ->
+    let kludge v = EConstr.mkLambda (make_annot Anonymous EConstr.ERelevance.relevant, EConstr.mkProp, v) in
+    Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) (kludge p) (kludge c)
+and unif_FO_skip_impl3 env ise metas args1 args2 imp =
+  match args1, args2, imp with
+  | a1::args1, a2::args2, Some _ :: imp ->
+      pp(lazy(str"skip impl " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+      unif_FO_skip_impl3 env ise metas args1 args2 imp
+  | a1::args1, a2::args2, None :: imp ->
+      pp(lazy(str"do " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+      let metas, ise = unif_FO_skip_impl env ise metas a1 a2 in
+      unif_FO_skip_impl3 env ise metas args1 args2 imp
+  | a1::args1, a2::args2, [] ->
+      pp(lazy(str"do " ++ pr_econstr_env env ise a1 ++ str " = " ++ pr_econstr_env env ise a2));
+      let metas, ise = unif_FO_skip_impl env ise metas a1 a2 in
+      unif_FO_skip_impl3 env ise metas args1 args2 []
+  | [], [], _ ->
+      pp(lazy(str"good"));
+      metas, ise
+  | _ ->
+      pp(lazy(str"bad"));
+      failure_FO ()
+
+let new_unif_FO env ise metas p c =
+  pp(lazy(str"NEW FO " ++ pr_econstr_env env ise p ++ str " = " ++ pr_econstr_env env ise c));
+  let _ : _ * Evd.evar_map = unif_FO_skip_impl env ise metas p c in
+  ()
 
 let unif_FO env ise metas p c =
   let metas = Unification.Metamap.fold (fun mv t accu -> Unification.Meta.meta_declare mv t accu) metas Unification.Meta.empty in
-  let _ : _ * Evd.evar_map = Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) p c in
-  ()
+  if option_LegacyFoUnif () then legacy_unif_FO env ise metas p c
+  else new_unif_FO env ise metas p c
 
 (* Perform evar substitution in main term and prune substitution. *)
 let nf_open_term sigma0 ise c =
@@ -559,14 +670,25 @@ let match_upats_FO upats env sigma0 ise orig_c =
              unif_FO env ise metas p_FO c'
            in
            let ise' = (* Unify again using HO to assign evars *)
-             let p = mkApp (u.up_f, u.up_a) in
-             try unif_HO env ise p c' with e when CErrors.noncritical e -> raise NoMatch in
+             if u.up_k = KpatConst then
+              try
+                let ise = unif_HO env ise u.up_f f in
+                unif_HO_args env ise u.up_a (i - Array.length u.up_a) a
+              with e when CErrors.noncritical e -> raise NoMatch
+             else
+              let p = mkApp (u.up_f, u.up_a) in
+              try unif_HO env ise p c'
+              with e when CErrors.noncritical e -> raise NoMatch in
            let lhs = mkSubApp f i a in
            let pt' = unif_end env sigma0 ise' u.up_t (u.up_ok lhs) in
-           raise (FoundUnif (ungen_upat lhs pt' u))
+           if option_LegacyFoUnif () || Evar.Set.equal
+                (Evd.evars_of_term ise' (mkApp (u.up_f, u.up_a)))
+                (Evd.evars_of_term ise' lhs)
+           then raise (FoundUnif (ungen_upat lhs pt' u))
+           else (pp(lazy(str "not ground" ++ pr_econstr_pat env ise' (mkApp (u.up_f, u.up_a))));raise NoMatch)
        with FoundUnif (_, s,_,_) as sig_u when dont_impact_evars s -> raise sig_u
        | Not_found -> CErrors.anomaly (str"incomplete ise in match_upats_FO.")
-       | e when CErrors.noncritical e -> () in
+       | e when CErrors.noncritical e -> pp(lazy(str"FO fail: " ++ CErrors.print_no_report e)); () in
     List.iter one_match fpats
   done;
   iter_constr_LR ise loop f; Array.iter loop a in
@@ -617,6 +739,7 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
                let tfa = Retyping.get_type_of ~lax:true env ise fa in
                unif_HO env ise tuf tfa
             | _ -> ise in
+          pp(lazy(str"FLEX " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise fa));
           unif_HO env ise u.up_f fa
         | _ -> unif_HO env ise u.up_f f in
         let ise'' = unif_HO_args env ise' u.up_a (i - Array.length u.up_a) a in
@@ -769,14 +892,14 @@ let has_instances = function
 | None -> false
 | Some instances -> not (List.is_empty !instances)
 
-let find_tpattern ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
+let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
   fun env c h ~k ->
   do_once upat_that_matched (fun () ->
     let failed_because_of_TC = ref false in
     try
       let () = match instances with
-      | None -> match_upats_FO upats env sigma0 ise c
-      | Some _ -> ()
+      | None when not disable_FO -> match_upats_FO upats env sigma0 ise c
+      | _ -> ()
       in
       let on_instance = match instances with
       | None -> fun x -> raise (FoundUnif x)
@@ -841,7 +964,8 @@ let mk_tpattern_matcher ?(all_instances=false)
   let occ_state = create_occ_state occ in
   let upat_that_matched = ref None in
   let instances = if all_instances then Some (ref []) else None in
-  find_tpattern ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
+  let disable_FO = occ = Some(true,[1]) in
+  find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
   conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats occ_state
 
 type ('ident, 'term) ssrpattern =
