@@ -27,3 +27,15 @@ Set Asymmetric Patterns.
 Print eq_sym.
 
 End Bug18163.
+
+Module AvoidName.
+
+Definition test (O : unit) (S : nat -> unit) (n : nat) :=
+match n with
+| Datatypes.O => O
+| Datatypes.S n => S n
+end.
+
+Print test.
+
+End AvoidName.

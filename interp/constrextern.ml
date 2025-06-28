@@ -416,7 +416,7 @@ let rec extern_cases_pattern_in_scope ((custom,(lev_after:int option)),scopes as
             match extern_record_pattern cstrsp args with
             | Some l -> CPatRecord l
             | None ->
-                  let c = extern_reference Id.Set.empty (GlobRef.ConstructRef cstrsp) in
+                  let c = extern_reference vars (GlobRef.ConstructRef cstrsp) in
                   if Constrintern.get_asymmetric_patterns () then
                     if pattern_printable_in_both_syntax cstrsp
                     then CPatCstr (c, None, args)
