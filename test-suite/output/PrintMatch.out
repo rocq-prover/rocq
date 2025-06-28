@@ -46,3 +46,12 @@ end
      : forall [A : Type] [x y : A], x = y -> y = x
 
 Arguments eq_sym [A]%_type_scope [x y] _
+test =
+fun (O : unit) (S : nat -> unit) (n : nat) =>
+match n with
+| 0 => O
+| Datatypes.S n0 => S n0
+end
+     : unit -> (nat -> unit) -> nat -> unit
+
+Arguments test O S%_function_scope n%_nat_scope
