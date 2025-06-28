@@ -230,6 +230,14 @@ val uninterp_prim_token_cases_pattern :
 val availability_of_prim_token :
   prim_token -> scope_name -> subscopes -> delimiters option option
 
+(** Set the status of a prim token uninterpretation.
+    [scopes = None] means all scopes.
+    Returns the number of notations that were disabled.
+ *)
+val set_prim_notation_status : env:Environ.env -> gref:GlobRef.t -> ?scopes:scope_name list ->
+  is_string:bool -> bool -> int
+
+
 (** {6 Declare and interpret back and forth a notation } *)
 
 val warning_overridden_name : string

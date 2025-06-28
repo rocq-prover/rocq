@@ -1241,6 +1241,7 @@ type prim_token_interp_info =
   | NumberNotation of number_notation_obj
   | StringNotation of string_notation_obj
 
+(** The state used to construct the leaf for a primitive notation. *)
 type prim_token_infos = {
   pt_local : bool; (** Is this interpretation local? *)
   pt_scope : scope_name; (** Concerned scope *)
@@ -1255,10 +1256,51 @@ type prim_token_infos = {
 let prim_token_interp_infos =
   ref (String.Map.empty : (required_module * prim_token_interp_info) String.Map.t)
 
-(* Table from global_reference to backtrack-able informations about
+(* Backtrackable state for uninterpretation information.
+   This is the state that enables disabling notations.
+ *)
+type prim_token_uninterp_info =
+  { pti_scope : scope_name ;
+    pti_info : prim_token_interp_info ;
+    pti_in_match : bool ;
+    pti_enabled : bool }
+
+(* Table from global_reference to backtrack-able information about
    prim_token uninterpretation (in particular uninterpreter unique id). *)
 let prim_token_uninterp_infos =
-  ref (GlobRef.Map.empty : ((scope_name * (prim_token_interp_info * bool)) list) GlobRef.Map.t)
+  ref (GlobRef.Map.empty : prim_token_uninterp_info list GlobRef.Map.t)
+
+let set_prim_notation_status : env:Environ.env -> gref:GlobRef.t -> ?scopes:scope_name list -> is_string:bool -> bool -> int =
+  fun ~env ~gref ?scopes ~is_string enable ->
+    let matches ty (info : prim_token_uninterp_info) : bool =
+      let check_scope =
+        match scopes with
+        | None -> true
+        | Some scp -> List.mem info.pti_scope scp
+      in
+      let check_ref () =
+        let open Environ in
+        QGlobRef.equal env gref ty ||
+        match info.pti_info with
+        | NumberNotation info when not is_string ->
+          (QGlobRef.equal env gref info.to_ty ||
+           QGlobRef.equal env gref info.of_ty)
+        | StringNotation info when is_string ->
+          (QGlobRef.equal env gref info.to_ty ||
+           QGlobRef.equal env gref info.of_ty)
+        | _ -> false
+      in check_scope && check_ref ()
+    in
+    let cnt = ref 0 in
+    prim_token_uninterp_infos :=
+      GlobRef.Map.mapi (fun ty ->
+        (List.map (fun info ->
+             if matches ty info
+             then
+               let _ = cnt := 1 + !cnt in
+               { info with pti_enabled = enable }
+             else info))) !prim_token_uninterp_infos;
+    !cnt
 
 let hashtbl_check_and_set allow_overwrite uid f h eq =
   match Hashtbl.find h uid with
@@ -1297,7 +1339,10 @@ let cache_prim_token_interpretation infos =
   let add_uninterp r =
     let l = try GlobRef.Map.find r !prim_token_uninterp_infos with Not_found -> [] in
     prim_token_uninterp_infos :=
-      GlobRef.Map.add r ((sc,(ptii,infos.pt_in_match)) :: l)
+      GlobRef.Map.add r ({ pti_scope = sc;
+                           pti_info = ptii;
+                           pti_in_match = infos.pt_in_match;
+                           pti_enabled = true } :: l)
         !prim_token_uninterp_infos in
   List.iter add_uninterp infos.pt_refs
 
@@ -1813,17 +1858,19 @@ let uninterp_prim_token c local_scopes =
   match glob_prim_constr_key c with
   | None -> raise Notation_ops.No_match
   | Some r ->
-     let uninterp (sc,(info,_)) =
-       try
-         let uninterp = match info with
-           | Uid uid -> Hashtbl.find prim_token_uninterpreters uid
-           | NumberNotation o -> InnerPrimToken.RawNumUninterp (Numbers.uninterp o)
-           | StringNotation o -> InnerPrimToken.StringUninterp (Strings.uninterp o)
-         in
-         match InnerPrimToken.do_uninterp uninterp (AnyGlobConstr c) with
-         | None -> None
-         | Some n -> Some (sc,n)
-       with Not_found -> None in
+     let uninterp { pti_scope = sc; pti_info = info ; pti_enabled } =
+       if not pti_enabled then None
+       else
+         try
+           let uninterp = match info with
+             | Uid uid -> Hashtbl.find prim_token_uninterpreters uid
+             | NumberNotation o -> InnerPrimToken.RawNumUninterp (Numbers.uninterp o)
+             | StringNotation o -> InnerPrimToken.StringUninterp (Strings.uninterp o)
+           in
+           match InnerPrimToken.do_uninterp uninterp (AnyGlobConstr c) with
+           | None -> None
+           | Some n -> Some (sc,n)
+         with Not_found -> None in
      let add_key (sc,n) =
        Option.map (fun k -> sc,n,k) (availability_of_prim_token n sc local_scopes) in
      let l =
