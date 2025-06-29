@@ -14,8 +14,10 @@
   ;   + config/coq_config.py
   ;   + tools/coqdoc/coqdoc.css
   (package rocq-runtime)
+  (package rocq-core)
   (source_tree sphinx)
   (source_tree tools/coqrst)
+  ../config/coq_config.py
   unreleased.rst
   (env_var SPHINXWARNOPT)
   (env_var COQRST_EXTRA)))
@@ -24,17 +26,7 @@
  (targets
   (dir refman-html))
  (alias refman-html)
- ; Cannot use this deps alias because of ocaml/dune#3415
- ; (deps (alias refman-deps))
- ; EJGA: note this should've been fixed in dune master as of 05/03/2021
- (deps
-  (package rocq-runtime)
-  (source_tree sphinx)
-  (source_tree tools/coqrst)
-  ../config/coq_config.py
-  unreleased.rst
-  (env_var SPHINXWARNOPT)
-  (env_var COQRST_EXTRA))
+ (deps (alias refman-deps))
  (action
   (run env sphinx-build -q %{env:SPHINXWARNOPT=-W} -b html sphinx %{targets})))
 
@@ -42,18 +34,7 @@
  (targets
   (dir refman-pdf))
  (alias refman-pdf)
- ; Cannot use this deps alias because of ocaml/dune#3415
- ; (deps (alias refman-deps))
- ; EJGA: note this should've been fixed in dune master as of 05/03/2021
- (deps
-  (package rocq-runtime)
-  (source_tree sphinx)
-  (source_tree tools/coqrst)
-  ../config/coq_config.py
-  ../ide/rocqide/coq.png
-  unreleased.rst
-  (env_var SPHINXWARNOPT)
-  (env_var COQRST_EXTRA))
+ (deps ../ide/rocqide/coq.png  (alias refman-deps))
  (action
   (progn
    (run env sphinx-build -q %{env:SPHINXWARNOPT=-W} -b latex sphinx %{targets})
