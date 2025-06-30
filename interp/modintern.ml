@@ -53,12 +53,12 @@ let lookup_module_or_modtype kind qid =
   try
     if kind == ModType then raise Not_found;
     let mp = Nametab.locate_module qid in
-    Dumpglob.dump_modref ?loc mp "modtype"; (mp,Module)
+    Dumpglob.dump_modref ?loc mp "mod"; (mp,Module)
   with Not_found ->
     try
       if kind == Module then raise Not_found;
       let mp = Nametab.locate_modtype qid in
-      Dumpglob.dump_modref ?loc mp "mod"; (mp,ModType)
+      Dumpglob.dump_modref ?loc mp "modtype"; (mp,ModType)
     with Not_found as exn ->
       let _, info = Exninfo.capture exn in
       error_not_a_module_loc ~info kind loc qid
