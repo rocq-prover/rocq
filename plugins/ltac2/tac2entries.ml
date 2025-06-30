@@ -101,7 +101,7 @@ let subst_tacdef (subst, def) =
 let classify_tacdef o = Substitute
 
 let inTacDef : Id.t -> tacdef -> obj =
-  declare_named_object make_oname {(default_object "TAC2-DEFINITION") with
+  declare_named_object TacConstant.make_oname {(default_object "TAC2-DEFINITION") with
      cache_function  = cache_tacdef;
      load_function   = load_tacdef;
      open_function   = filtered_open open_tacdef;
@@ -330,7 +330,7 @@ let check_value ?loc e =
        str "Consider using a thunk.")
 
 let check_ltac_exists {loc;v=id} =
-  let kn = Lib.make_kn id in
+  let kn = TacConstant.make (Lib.current_mp()) id in
   let exists =
     try let _ = Tac2env.interp_global kn in true with Not_found -> false
   in
@@ -927,7 +927,7 @@ let subst_abbreviation (subst, abbr) =
 let classify_abbreviation o = Substitute
 
 let inTac2Abbreviation : Id.t -> abbreviation -> obj =
-  declare_named_object make_oname {(default_object "TAC2-ABBREVIATION") with
+  declare_named_object TacAlias.make_oname {(default_object "TAC2-ABBREVIATION") with
      cache_function  = cache_abbreviation;
      load_function   = load_abbreviation;
      open_function   = filtered_open ~cat:ltac2_notation_cat open_abbreviation;
@@ -1080,7 +1080,7 @@ let perform_redefinition (prefix,redef) =
   Tac2env.define_global kn data
 
 let subst_redefinition (subst, redef) =
-  let kn = Mod_subst.subst_kn subst redef.redef_kn in
+  let kn = TacConstant.subst subst redef.redef_kn in
   let body = Tac2intern.subst_expr subst redef.redef_body in
   if kn == redef.redef_kn && body == redef.redef_body then redef
   else { redef_local = redef.redef_local;
@@ -1414,8 +1414,8 @@ let print_ltac2_type qid =
     Feedback.msg_notice (print_type ~print_def:true qid kn)
 
 let print_signatures () =
-  let entries = KerName.Map.bindings (Tac2env.globals ()) in
-  let sort (kn1, _) (kn2, _) = KerName.compare kn1 kn2 in
+  let entries = TacConstant.Map.bindings (Tac2env.globals ()) in
+  let sort (kn1, _) (kn2, _) = TacConstant.compare kn1 kn2 in
   let entries = List.sort sort entries in
   let map (kn, entry) =
     let qid =
