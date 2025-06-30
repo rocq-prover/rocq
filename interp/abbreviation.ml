@@ -113,7 +113,7 @@ let classify_abbreviation abbrev =
   if abbrev.abbrev_local = Local then Dispose else Substitute
 
 let inAbbreviation : Id.t -> abbreviation -> obj =
-  declare_named_object {(default_object "ABBREVIATION") with
+  declare_named_object make_oname {(default_object "ABBREVIATION") with
     cache_function = cache_abbreviation;
     load_function = load_abbreviation;
     open_function = filtered_open open_abbreviation;

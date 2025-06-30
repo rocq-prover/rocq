@@ -2150,7 +2150,7 @@ let classify_custom_entry local =
   if local then Dispose else Substitute
 
 let inCustomEntry : Id.t -> locality_flag -> obj =
-  declare_named_object {(default_object "CUSTOM-ENTRIES") with
+  declare_named_object Lib.make_oname {(default_object "CUSTOM-ENTRIES") with
       object_stage = Summary.Stage.Synterp;
       cache_function = cache_custom_entry;
       load_function = load_custom_entry;

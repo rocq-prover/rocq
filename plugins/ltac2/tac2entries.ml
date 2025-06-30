@@ -101,7 +101,7 @@ let subst_tacdef (subst, def) =
 let classify_tacdef o = Substitute
 
 let inTacDef : Id.t -> tacdef -> obj =
-  declare_named_object {(default_object "TAC2-DEFINITION") with
+  declare_named_object make_oname {(default_object "TAC2-DEFINITION") with
      cache_function  = cache_tacdef;
      load_function   = load_tacdef;
      open_function   = filtered_open open_tacdef;
@@ -211,7 +211,7 @@ let subst_typdef (subst, def) =
 let classify_typdef o = Substitute
 
 let inTypDef : Id.t -> typdef -> obj =
-  declare_named_object {(default_object "TAC2-TYPE-DEFINITION") with
+  declare_named_object make_oname {(default_object "TAC2-TYPE-DEFINITION") with
      cache_function  = cache_typdef;
      load_function   = load_typdef;
      open_function   = filtered_open open_typdef;
@@ -625,7 +625,7 @@ let cache_custom_entry o =
   import_custom_entry 1 o
 
 let inCustomEntry : Id.t -> bool -> Libobject.obj =
-  declare_named_object {
+  declare_named_object Lib.make_oname {
     (default_object "Ltac2 custom entry") with
     object_stage = Synterp;
     cache_function = cache_custom_entry;
@@ -927,7 +927,7 @@ let subst_abbreviation (subst, abbr) =
 let classify_abbreviation o = Substitute
 
 let inTac2Abbreviation : Id.t -> abbreviation -> obj =
-  declare_named_object {(default_object "TAC2-ABBREVIATION") with
+  declare_named_object make_oname {(default_object "TAC2-ABBREVIATION") with
      cache_function  = cache_abbreviation;
      load_function   = load_abbreviation;
      open_function   = filtered_open ~cat:ltac2_notation_cat open_abbreviation;

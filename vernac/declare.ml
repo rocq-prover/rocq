@@ -441,7 +441,7 @@ let classify_constant cst = Libobject.Substitute
 
 let (objConstant : (Id.t * constant_obj) Libobject.Dyn.tag) =
   let open Libobject in
-  declare_named_object_full { (default_object "CONSTANT") with
+  declare_named_object_full make_oname { (default_object "CONSTANT") with
     cache_function = cache_constant;
     load_function = load_constant;
     open_function = filtered_open open_constant;
