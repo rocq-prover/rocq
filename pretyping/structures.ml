@@ -378,7 +378,7 @@ let rec get_nth n = function
 
 let rec decompose_projection ?metas sigma c args =
   match EConstr.kind sigma c with
-  | Meta mv ->
+  | Meta (mv,_) ->
     begin match metas with
     | None -> raise Not_found
     | Some m ->

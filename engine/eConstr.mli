@@ -158,7 +158,7 @@ val of_constr : Constr.t -> t
 
 val mkRel : int -> t
 val mkVar : Id.t -> t
-val mkMeta : metavariable -> t
+val mkMeta : ?name:Name.t option -> metavariable -> t
 val mkEvar : t pexistential -> t
 val mkSort : ESorts.t -> t
 val mkSProp : t

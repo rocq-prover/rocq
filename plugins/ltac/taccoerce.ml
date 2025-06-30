@@ -250,7 +250,7 @@ let coerce_to_ident_not_fresh sigma v =
     | Some c ->
        match EConstr.kind sigma c with
        | Var id -> id
-       | Meta m -> Id.of_string "x"
+       | Meta (m,_) -> Id.of_string "x"
        | Evar (kn,_) ->
         begin match Evd.evar_ident kn sigma with
         | None -> fail ()

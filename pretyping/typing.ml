@@ -530,7 +530,7 @@ let check_binder_relevance env sigma s decl =
 let rec execute env sigma cstr =
   let cstr = whd_evar sigma cstr in
   match EConstr.kind sigma cstr with
-    | Meta n -> assert false (* Typing should always be performed on meta-free terms *)
+    | Meta (n,_) -> assert false (* Typing should always be performed on meta-free terms *)
 
     | Evar ev ->
         let ty = EConstr.existential_type sigma ev in

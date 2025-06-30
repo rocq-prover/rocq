@@ -83,7 +83,7 @@ val mkFloat : Float64.t -> constr
 val mkString : Pstring.t -> constr
 
 (** Constructs an patvar named "?n" *)
-val mkMeta : metavariable -> constr
+val mkMeta : ?name:Name.t option -> metavariable -> constr
 
 (** Constructs an existential variable *)
 type existential = Evar.t * constr SList.t
@@ -245,7 +245,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   (** Gallina-variable that was introduced by Vernacular-command that
      extends the local context of the currently open section (i.e.
      [Variable] or [Let]). *)
-  | Meta      of metavariable
+  | Meta      of metavariable * Name.t option
   | Evar      of 'constr pexistential
   | Sort      of 'sort
   | Cast      of 'constr * cast_kind * 'types

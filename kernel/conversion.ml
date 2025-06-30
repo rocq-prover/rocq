@@ -316,7 +316,7 @@ let rec compare_under e1 c1 e2 c2 =
           | Inr (k', _) -> Int.equal k k'
         end
     end
-  | Meta m1, Meta m2 -> Int.equal m1 m2
+  | Meta (m1,_), Meta (m2,_) -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
@@ -405,7 +405,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
                  (* May happen because we convert application right to left *)
                  raise NotConvertible;
               fail_check infos @@ sort_cmp_universes (info_env infos.cnv_inf) cv_pb s1 s2 cuniv
-           | (Meta n, Meta m) ->
+           | (Meta (n,_), Meta (m,_)) ->
                if Int.equal n m
                then convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
                else raise NotConvertible
