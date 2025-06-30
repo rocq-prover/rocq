@@ -605,7 +605,7 @@ Printing universes
    The :n:`Subgraph` clause limits the printed graph to the requested
    names (adjusting constraints to preserve the implied transitive
    constraints between kept universes). :n:`@debug_univ_name` is
-   `:n:`@qualid` for named universes (e.g. `eq.u0`), and :n:`@string`
+   :n:`@qualid` for named universes (e.g. `eq.u0`), and :n:`@string`
    for raw universe expressions (e.g. `"Stdlib.Init.Logic.1"`).
 
    By default when printing a subgraph `Print Universes` attempts to
@@ -818,7 +818,7 @@ bound variable.
 
 Instantiating `s` in `Type@{s;u}` with the impredicative `Prop` or
 `SProp` produces `Prop` or `SProp` respectively regardless of the
-instantiation fof `u`.
+instantiation of `u`.
 
 .. rocqtop:: all
 
