@@ -367,11 +367,13 @@ Induction
 
    .. example:: :n:`induction` with :n:`@occurrences`
 
+      `induction in` is useful to generalize over other variables:
+
       .. rocqtop:: reset all
 
-         Lemma induction_test2 : forall n:nat, n = n -> n <= n.
-         intros.
-         induction n in H |-.
+         Lemma induction_test2 : forall n m:nat, n = m -> n <= m.
+         intros n m H.
+         induction n in m, H |- *.
          Show 2.
 
    .. tacn:: einduction {+, @induction_clause } {? @induction_principle }
