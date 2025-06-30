@@ -1,6 +1,6 @@
 # Update CACHEKEY in the .gitlab-ci.yml when modifying this file.
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 LABEL maintainer="e@x80.org"
 
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -63,7 +63,9 @@ ENV COQIDE_OPAM="cairo2.0.6.1 lablgtk3-sourceview3.3.1.2"
 # packages "lablgtk3-gtksourceview3"
 
 # base switch
-RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opam.ocaml.org && eval $(opam env) && opam update && \
+RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opam.ocaml.org && eval $(opam env) && \
+    opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
+    opam update && \
     opam install $BASE_OPAM $COQIDE_OPAM $CI_OPAM $BASE_ONLY_OPAM && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
@@ -72,6 +74,8 @@ RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opa
 RUN opam switch create "${COMPILER}+32bit" \
     --packages="ocaml-variants.${COMPILER}+options,ocaml-option-32bit" && \
     eval $(opam env) && \
+    opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
+    opam update && \
     i386 env CC='gcc -m32' opam install zarith.1.11 && \
     opam install $BASE_OPAM && \
     opam clean -a -c && \
