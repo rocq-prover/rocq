@@ -72,6 +72,7 @@ let define_tacdef ((_,kn), def) =
     gdata_type = def.tacdef_type;
     gdata_mutable = def.tacdef_mutable;
     gdata_deprecation = def.tacdef_deprecation;
+    gdata_mutation_history = [];
   } in
   Tac2env.define_global kn data
 
@@ -849,7 +850,7 @@ type redefinition = {
   redef_old : Id.t option;
 }
 
-let perform_redefinition redef =
+let perform_redefinition (prefix,redef) =
   let kn = redef.redef_kn in
   let data = Tac2env.interp_global kn in
   let body = match redef.redef_old with
@@ -858,7 +859,13 @@ let perform_redefinition redef =
     (* Rebind the old value with a let-binding *)
     GTacLet (false, [Name id, data.Tac2env.gdata_expr], redef.redef_body)
   in
-  let data = { data with Tac2env.gdata_expr = body } in
+  let history = if Option.has_some redef.redef_old then data.gdata_mutation_history else [] in
+  let data = {
+    data with
+    gdata_expr = body;
+    gdata_mutation_history = prefix.Libobject.obj_mp :: history;
+  }
+  in
   Tac2env.define_global kn data
 
 let subst_redefinition (subst, redef) =
@@ -870,7 +877,7 @@ let subst_redefinition (subst, redef) =
 let classify_redefinition o = Substitute
 
 let inTac2Redefinition : redefinition -> obj =
-  declare_object
+  declare_named_object_gen
     {(default_object "TAC2-REDEFINITION") with
      cache_function  = perform_redefinition;
      open_function   = simple_open perform_redefinition;
@@ -1006,6 +1013,22 @@ end
 let print_constant ~print_def qid ?info data =
   let e = data.Tac2env.gdata_expr in
   let (_, t) = data.Tac2env.gdata_type in
+  let ismut = if data.gdata_mutable then spc() ++ str "(* mutable *)" else mt() in
+  let history = if not print_def then mt()
+    else match data.gdata_mutation_history with
+      | [] -> mt ()
+      | mods ->
+        let pr_one mp =
+          let qid = try Nametab.shortest_qualid_of_module mp
+            with Not_found ->
+            try Nametab.shortest_qualid_of_dir (DirOpenModule mp)
+            with Not_found -> Nametab.shortest_qualid_of_dir (DirOpenModtype mp)
+          in
+          pr_qualid qid
+        in
+        let redef = prlist_with_sep fnl pr_one mods in
+        fnl () ++ str "Redefined by:" ++ fnl () ++ redef
+  in
   let name = int_name () in
   let def = if print_def then
       fnl () ++ hov 2
@@ -1017,7 +1040,7 @@ let print_constant ~print_def qid ?info data =
     | Some info -> fnl() ++ fnl() ++ hov 2 (str "Compiled as" ++ spc() ++ str info.Tac2env.source)
   in
   hov 0 (
-    hov 2 (pr_qualid qid ++ spc () ++ str ":" ++ spc () ++ pr_glbtype name t) ++ def ++ info
+    hov 2 (pr_qualid qid ++ spc () ++ str ":" ++ spc () ++ pr_glbtype name t ++ ismut) ++ def ++ info ++ history
   )
 
 let print_type ~print_def qid kn =
