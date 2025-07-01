@@ -1662,11 +1662,42 @@ let pr_hint env sigma h = match h.obj with
   | Extern (_, tac) ->
     str "(*external*) " ++ Gentactic.print_glob env sigma ~level:(LevelLe 0) tac
 
+let rec subst_meta sigma s c =
+  match kind sigma c with
+    | Meta i -> (try Int.Map.find i s with Not_found -> c)
+    | _ -> EConstr.map sigma (subst_meta sigma s) c
+
+let replace_clenv_type_metas env sigma clnv =
+  let module Metas = Unification.Meta in
+  let metam = Clenv.clenv_meta_list clnv in
+  let sigma, metamap = List.fold_left (fun (sigma, metamap) mv ->
+    let tymeta = Metas.meta_ftype metam mv in
+    let ty = subst_meta sigma metamap tymeta.rebus in
+    let naming = match Metas.meta_name metam mv with
+      | Name na -> IntroIdentifier na
+      | Anonymous -> IntroAnonymous
+    in
+    let sigma, ev = Evarutil.new_evar ~naming env sigma ty in
+    sigma, Int.Map.add mv ev metamap)
+    (sigma, Int.Map.empty) (Clenv.clenv_arguments clnv)
+  in
+  sigma, subst_meta sigma metamap (Clenv.clenv_type clnv)
+
+let pr_default_pattern env sigma = function
+| Give_exact h ->
+  pr_leconstr_env env sigma h.hint_type
+| Res_pf h | ERes_pf h | Res_pf_THEN_trivial_fail h ->
+  let sigma, c = replace_clenv_type_metas env sigma h.hint_clnv in
+  pr_leconstr_env env sigma c
+| Unfold_nth _ | Extern _ ->
+  (* These hints cannot contain DefaultPattern *)
+  assert false
+
 let pr_id_hint env sigma (id, v) =
   let pr_pat p = match p.pat with
   | None -> mt ()
   | Some (ConstrPattern p | SyntacticPattern p) -> str", pattern " ++ pr_lconstr_pattern_env env sigma p
-  | Some DefaultPattern -> str", pattern " ++ pr_leconstr_env env sigma (get_default_pattern v.code.obj)
+  | Some DefaultPattern -> str", pattern " ++ (pr_default_pattern env sigma v.code.obj)
   in
   (pr_hint env sigma v.code ++ str" (cost " ++ int v.pri ++ pr_pat v
    ++ str", id " ++ int id ++ str ")")
