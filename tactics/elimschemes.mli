@@ -36,6 +36,8 @@ val elim_scheme : dep:bool -> to_kind:UnivGen.QualityOrSet.t -> individual schem
 val case_dep : individual scheme_kind
 val case_nodep : individual scheme_kind
 val casep_dep : individual scheme_kind
+val case_poly_dep : Sorts.Quality.t -> individual scheme_kind
+val case_poly_nodep : Sorts.Quality.t -> individual scheme_kind
 val casep_nodep : individual scheme_kind
 
 (** Recursor names utilities *)
