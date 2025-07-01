@@ -4,7 +4,7 @@ File "./output/FixpointNoElim.v", line 4, characters 0-48:
 The command has indeed failed with message:
 Recursive definition of bar is ill-formed.
 Cannot define a fixpoint
-with principal argument living in sort "Type@{α3 ; Set}"
+with principal argument living in sort "Type@{α3 ; 0}"
 to produce a value in sort "Set"
-because "Type@{α3 ; Set}" does not eliminate to "Set".
+because "Type@{α3 ; 0}" does not eliminate to "Set".
 Recursive definition is: "fun _ : foo => I".
