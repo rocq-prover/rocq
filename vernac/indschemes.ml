@@ -218,9 +218,15 @@ let declare_one_case_analysis_scheme ?loc ind =
 
 (* Induction/recursion schemes *)
 
-let declare_one_induction_scheme ?loc ind =
-  let (mib,mip) as specif = Global.lookup_inductive ind in
-  let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
+let declare_one_induction_scheme_poly ?loc ind (mib, mip) q =
+  let scheme_kind =
+    elim_scheme ~dep:true ~to_kind:(UnivGen.QualityOrSet.Qual q)
+  in
+  let suff = "_poly_rec" in
+  let id = Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ suff)) in
+  define_individual_scheme ?loc scheme_kind id ind
+
+let declare_one_induction_scheme_const ?loc ind (mib, mip as specif) kind =
   let from_prop = Sorts.Quality.is_qprop kind in
   let depelim = Inductiveops.always_dependent_elim specif in
   let kelim mip = Inductiveops.constant_sorts_below
@@ -257,6 +263,14 @@ let declare_one_induction_scheme ?loc ind =
       in
       define_individual_scheme ?loc kind id ind)
          elims
+
+let declare_one_induction_scheme ?loc ind =
+  let ((mib, mip) as specif) = Global.lookup_inductive ind in
+  let quality = Elimschemes.pseudo_sort_quality_for_elim ind mip in
+  if Sorts.Quality.is_qvar quality then
+    declare_one_induction_scheme_poly ?loc ind specif quality
+  else
+    declare_one_induction_scheme_const ?loc ind specif quality
 
 let declare_induction_schemes ?(locmap=Locmap.default None) kn =
   let mib = Global.lookup_mind kn in
@@ -416,7 +430,8 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
         | Qual (QConstant QType) -> Some (if dep then case_dep else case_nodep)
         | Qual (QConstant QProp) -> Some (if dep then casep_dep else casep_nodep)
         | Qual (QConstant QSProp) -> Some (if dep then scase_dep else scase_nodep)
-        | Set | Qual (QVar _ | QGlobal _) ->
+        | Qual (QVar _ as q) -> Some (if dep then case_poly_dep q else case_poly_nodep q)
+        | Set | Qual (QGlobal _) ->
           (* currently we don't have standard scheme kinds for this *)
           None
     in
