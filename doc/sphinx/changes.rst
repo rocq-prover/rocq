@@ -112,7 +112,7 @@ Tactics
   (`#20486 <https://github.com/rocq-prover/rocq/pull/20486>`_,
   by Gaëtan Gilbert).
 - **Added:**
-  Added a new :flag:`Rewrite Output Constraints` flag and :ref:`documented <debugging_resolution_issues>` its use
+  a new :flag:`Rewrite Output Constraints` flag and :ref:`documented <debugging_resolution_issues>` its use
   for debugging typeclass resolution failures in setoid rewriting
   (`#20476 <https://github.com/rocq-prover/rocq/pull/20476>`_,
   by Matthieu Sozeau).
@@ -160,7 +160,7 @@ Ltac2 language
   (`#20516 <https://github.com/rocq-prover/rocq/pull/20516>`_,
   by Gaëtan Gilbert).
 - **Added:**
-  Add `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
+  `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
   (`#20197 <https://github.com/coq/coq/pull/20197>`_,
   by Josselin Poiret).
 - **Added:**
@@ -211,7 +211,7 @@ Ltac2 language
   (`#20547 <https://github.com/coq/coq/pull/20547>`_,
   by Elyes Jemel).
 - **Added:**
-  Add conversion tests to Unification - `Unification.conv`, `Unification.conv_current`, `Unification.conv_full`
+  conversion tests to Unification - `Unification.conv`, `Unification.conv_current`, `Unification.conv_full`
   (`#20649 <https://github.com/rocq-prover/rocq/pull/20649>`_,
   fixes `#20579 <https://github.com/rocq-prover/rocq/issues/20579>`_,
   by Thomas Lamiaux).
@@ -296,7 +296,7 @@ Commands and options
   fixes `#20042 <https://github.com/coq/coq/issues/20042>`_,
   by Gaëtan Gilbert).
 - **Added:**
-  Added the #[refine] attribute to definitions and (co)fixpoints
+  support for the :attr:`refine` attribute to definitions and (co)fixpoints
   (`#20355 <https://github.com/coq/coq/pull/20355>`_,
   fixes `#20302 <https://github.com/coq/coq/issues/20302>`_,
   by Yann Leray).
@@ -332,8 +332,8 @@ RocqIDE
   (`#20256 <https://github.com/coq/coq/pull/20256>`_,
   fixes `#11526 <https://github.com/coq/coq/issues/11526>`_,
   by Gaëtan Gilbert).
-- **Fixed:**
-  added an option to control the maximum length of the message view
+- **Added:**
+  an option to control the maximum length of the message view
   in RocqIDE
   (`#20597 <https://github.com/rocq-prover/rocq/pull/20597>`_,
   fixes `#20420 <https://github.com/rocq-prover/rocq/issues/20420>`_,
