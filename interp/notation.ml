@@ -52,7 +52,7 @@ let notation_cat = Libobject.create_category "notations"
     expression, set this scope to be the current scope
 *)
 
-let pr_notation (from,ntn) = qstring ntn ++ match from with InConstrEntry -> mt () | InCustomEntry s -> str " in custom " ++ str s
+let pr_notation ntn = qstring ntn.ntn_key ++ match ntn.ntn_entry with InConstrEntry -> mt () | InCustomEntry s -> str " in custom " ++ str s
 
 module NotationOrd =
   struct
@@ -1498,10 +1498,12 @@ let find_notation ntn sc =
   | OnlyParsingData (true,data) | ParsingAndPrintingData (true,_,data) -> data
   | _ -> raise Not_found
 
-let notation_of_prim_token = function
-  | Constrexpr.Number (SPlus,n) -> InConstrEntry, NumTok.Unsigned.sprint n
-  | Constrexpr.Number (SMinus,n) -> InConstrEntry, "- "^NumTok.Unsigned.sprint n
-  | String s -> InConstrEntry, String.quote_coq_string s
+let notation_of_prim_token p =
+  let k = match p with
+    | Constrexpr.Number (SPlus,n) -> NumTok.Unsigned.sprint n
+    | Constrexpr.Number (SMinus,n) -> "- "^NumTok.Unsigned.sprint n
+    | Constrexpr.String s -> String.quote_coq_string s in
+  Constrexpr.{ ntn_entry = InConstrEntry; ntn_key = k }
 
 let find_prim_token check_allowed ?loc p sc =
   (* Try for a user-defined numerical notation *)
@@ -1526,7 +1528,8 @@ let find_prim_token check_allowed ?loc p sc =
 
 let interp_prim_token_gen ?loc g p local_scopes =
   let scopes = make_current_scopes local_scopes in
-  let p_as_ntn = try notation_of_prim_token p with Not_found -> InConstrEntry,"" in
+  let p_as_ntn = try notation_of_prim_token p with Not_found ->
+    Constrexpr.{ ntn_entry = InConstrEntry; ntn_key = "" } in
   try
     let pat, sc = find_interpretation p_as_ntn (find_prim_token ?loc g p) scopes in
     pat, sc
@@ -2137,8 +2140,8 @@ let rec string_of_symbol = function
      let l = List.flatten (List.map string_of_symbol l) in "_"::l@".."::l@["_"]
   | Break _ -> []
 
-let make_notation_key from symbols =
-  (from,String.concat " " (List.flatten (List.map string_of_symbol symbols)))
+let make_notation_key ntn_entry symbols =
+  Constrexpr.{ ntn_entry; ntn_key = String.concat " " (List.flatten (List.map string_of_symbol symbols)) }
 
 let decompose_notation_pure_key s =
   let len = String.length s in
@@ -2167,8 +2170,8 @@ let decompose_notation_pure_key s =
   in
     decomp_ntn [] 0
 
-let decompose_notation_key (from,s) =
-  from, decompose_notation_pure_key s
+let decompose_notation_key ntn =
+  ntn.ntn_entry, decompose_notation_pure_key ntn.ntn_key
 
 let is_prim_token_constant_in_constr (entry, symbs) =
   match entry, List.filter (function Break _ -> false | _ -> true) symbs with
@@ -2181,7 +2184,7 @@ let is_prim_token_constant_in_constr (entry, symbs) =
 let level_of_notation ntn =
   if is_prim_token_constant_in_constr (decompose_notation_key ntn) then
     (* A primitive notation *)
-    ({ notation_entry = fst ntn; notation_level = 0}, []) (* TODO: string notations*)
+    ({ notation_entry = ntn.ntn_entry; notation_level = 0}, []) (* TODO: string notations*)
   else
     NotationMap.find ntn !notation_level_map
 
@@ -2350,9 +2353,9 @@ let rec raw_analyze_anonymous_notation_tokens = function
 (* Interpret notations with a recursive component *)
 
 type notation_symbols = {
-  recvars : (Id.t * Id.t) list; (* pairs (x,y) as in [ x ; .. ; y ] *)
-  mainvars : Id.t list; (* variables non involved in a recursive pattern *)
-  symbols : symbol list; (* the decomposition of the notation into terminals and nonterminals *)
+  mainvars : Id.t list; (* names of "toplevel" non-terminals *)
+  maintypes : Id.t notation_raw_type list; (* types of "toplevel" non-terminals *)
+  symbols : symbol list; (* the decomposition of the notation into terminals and nonterminals; there, recursive patterns refer to the left-hand variable *)
 }
 
 let out_nt = function NonTerminal x -> x | _ -> assert false
@@ -2377,36 +2380,33 @@ let rec find_pattern nt xl = function
   | ((SProdList _ | NonTerminal _) :: _), _ | _, (SProdList _ :: _) ->
       anomaly (Pp.str "Only Terminal or Break expected on left, non-SProdList on right.")
 
-let rec interp_list_parser hd = function
-  | [] -> [], List.rev hd
+let rec interp_list_parser hdvars hd = function
+  | [] -> List.rev hdvars, List.rev hd
   | NonTerminal id :: tl when Id.equal id Notation_ops.ldots_var ->
       if List.is_empty hd then user_err Pp.(str msg_expected_form_of_recursive_notation);
       let hd = List.rev hd in
       let ((x,y,sl),tl') = find_pattern (List.hd hd) [] (List.tl hd,tl) in
-      let xyl,tl'' = interp_list_parser [] tl' in
+      let xyl, tl'' = interp_list_parser [] [] tl' in
       (* We remember each pair of variable denoting a recursive part to *)
       (* remove the second copy of it afterwards *)
-      (x,y)::xyl, SProdList (x,sl) :: tl''
+      (x, NtnRawTypeVarList (NtnRawTypeVar (x, y))) :: xyl, SProdList (x,sl) :: tl''
   | (Terminal _ | Break _) as s :: tl ->
       if List.is_empty hd then
-        let yl,tl' = interp_list_parser [] tl in
+        let yl,tl' = interp_list_parser [] [] tl in
         yl, s :: tl'
       else
-        interp_list_parser (s::hd) tl
-  | NonTerminal _ as x :: tl ->
-      let xyl,tl' = interp_list_parser [x] tl in
-      xyl, List.rev_append hd tl'
+        interp_list_parser hdvars (s::hd) tl
+  | NonTerminal id as x :: tl ->
+      let xyl,tl' = interp_list_parser [id, NtnRawTypeVar id] [x] tl in
+      List.rev_append hdvars xyl, List.rev_append hd tl'
   | SProdList _ :: _ -> anomaly (Pp.str "Unexpected SProdList in interp_list_parser.")
-
-let get_notation_vars l =
-  List.map_filter (function NonTerminal id | SProdList (id,_) -> Some id | _ -> None) l
 
 let decompose_raw_notation ntn =
   let l = split_notation_string ntn in
   let symbols = raw_analyze_notation_tokens l in
-  let recvars, symbols = interp_list_parser [] symbols in
-  let mainvars = get_notation_vars symbols in
-  {recvars; mainvars; symbols}
+  let mainvartyps, symbols = interp_list_parser [] [] symbols in
+  let mainvars, maintypes = List.split mainvartyps in
+  {mainvars; maintypes; symbols}
 
 let interpret_notation_string ntn =
   (* We collect the possible interpretations of a notation string depending on whether it is
@@ -2423,9 +2423,9 @@ let interpret_notation_string ntn =
       (* Includes the case of only a subset of tokens or an "x 'U' y"-style format *)
       raw_analyze_notation_tokens toks
   in
-  let _,toks = interp_list_parser [] toks in
-  let _,ntn' = make_notation_key None toks in
-  ntn'
+  let _,toks = interp_list_parser [] [] toks in
+  let ntn' = make_notation_key InConstrEntry toks in
+  ntn'.ntn_key
 
 (* Tell if a non-recursive notation is an instance of a recursive one *)
 let is_approximation ntn ntn' =
@@ -2443,8 +2443,8 @@ let is_approximation ntn ntn' =
     | NonTerminal _ :: toks1, [] -> aux' toks1 l2full l2full toks2 || aux toks1 toks2
     | _ -> false
   in
-  let _,toks = interp_list_parser [] (raw_analyze_anonymous_notation_tokens (split_notation_string ntn)) in
-  let _,toks' = interp_list_parser [] (raw_analyze_anonymous_notation_tokens (split_notation_string ntn')) in
+  let _,toks = interp_list_parser [] [] (raw_analyze_anonymous_notation_tokens (split_notation_string ntn)) in
+  let _,toks' = interp_list_parser [] [] (raw_analyze_anonymous_notation_tokens (split_notation_string ntn')) in
   aux toks toks'
 
 let match_notation_key strict ntn ntn' =
@@ -2460,7 +2460,7 @@ let match_notation_key strict ntn ntn' =
 
 let browse_notation strict ntn map =
   let ntn = interpret_notation_string ntn in
-  let find (from,ntn') = match_notation_key strict ntn ntn' in
+  let find ntn' = match_notation_key strict ntn ntn'.ntn_key in
   let l =
     String.Map.fold
       (fun scope_name sc ->
@@ -2469,7 +2469,7 @@ let browse_notation strict ntn map =
           then List.map (fun d -> (ntn,scope_name,d)) (extract_notation_data data) @ l
           else l) sc.notations)
       map [] in
-  List.sort (fun x y -> String.compare (snd (pi1 x)) (snd (pi1 y))) l
+  List.sort (fun x y -> String.compare (pi1 x).ntn_key (pi1 y).ntn_key) l
 
 let global_reference_of_notation ~head test (ntn,sc,(on_parsing,on_printing,{not_interp = (_,c as interp); not_location = (_, df)})) =
   match c with
@@ -2519,7 +2519,11 @@ let interp_notation_as_global_reference_expanded ?loc ~head test ntn sc =
 let interp_notation_as_global_reference ?loc ~head test ntn sc =
   let _,_,_,_,ref = interp_notation_as_global_reference_expanded ?loc ~head test ntn sc in ref
 
-let pr_id_infos (id, ((level,(tmp_scopes, scopes)), under_binders, kind)) =
+let pr_id_infos (id, var_type) =
+  match var_type with
+  | NtnTypeVarList _ | NtnTypeVarTuple _ -> None (* TODO *)
+  | NtnTypeVar (((level,(tmp_scopes, scopes)), under_binders), kind) ->
+  (* XXX level? kind? *)
   let scopes = List.map (fun x -> "_"^x) tmp_scopes @ scopes in
   match scopes with
   | [] -> None
@@ -2551,7 +2555,7 @@ let locate_notation prglob ntn scope =
     prlist_with_sep fnl (fun (ntn,l) ->
       let scope = find_default ntn scopes in
       prlist_with_sep fnl
-        (fun (sc,(on_parsing,on_printing,{ not_interp  = (ids, r); not_location = ((libpath,secpath), df) })) ->
+        (fun (sc,(on_parsing,on_printing,{ not_interp = (ids, r); not_location = ((libpath,secpath), df) })) ->
           let full_path = DirPath.make (DirPath.repr secpath @ DirPath.repr libpath) in
           hov 2 (
             str "Notation" ++ spc() ++
@@ -2691,17 +2695,18 @@ let toggle_notations_in_scope ~on found inscope ntn_pattern ntns =
     (* shortcut *)
     List.fold_right (fun ntn_entry ntns ->
       try
-        NotationMap.add (ntn_entry, ntn)
+        let ntn = Constrexpr.{ ntn_entry; ntn_key = ntn } in
+        NotationMap.add ntn
           (toggle_notations_by_interpretation ~on found ntn_pattern
-             (inscope,(ntn_entry,ntn))
-             (NotationMap.find (ntn_entry, ntn) ntns))
+             (inscope, ntn)
+             (NotationMap.find ntn ntns))
           ntns
       with Not_found -> ntns)
         ntn_entries ntns
     (* Deal with full notations *)
   | ntn_entries, ntn_rule -> (* This is the table of notations, not of abbreviations *)
-    NotationMap.mapi (fun (ntn_entry,ntn_key' as ntn') data ->
-        if match_notation_entry ntn_entries ntn_entry && match_notation_rule ntn_rule ntn_key' then
+    NotationMap.mapi (fun ntn' data ->
+        if match_notation_entry ntn_entries ntn'.ntn_entry && match_notation_rule ntn_rule ntn'.ntn_key then
           toggle_notations_by_interpretation ~on found ntn_pattern
             (inscope,ntn')
             data
@@ -2776,7 +2781,7 @@ let toggle_notations ~on ~all ?(verbose=true) prglob ntn_pattern =
           str ":" ++ fnl () ++
           prlist_with_sep fnl (fun (kind, (vars,a as i)) ->
             match kind with
-            | Inl (l, (sc, (entry, _))) ->
+            | Inl (l, (sc, { ntn_entry = entry })) ->
               let sc = match sc with NotationInScope sc -> sc | LastLonelyNotation -> default_scope in
               let data = { not_interp = i; not_location = l; not_user_warns = None } in
               hov 0 (str "Notation " ++ pr_notation_data prglob (Some true,Some true,data) ++
