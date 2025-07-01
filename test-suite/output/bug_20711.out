@@ -1,0 +1,14 @@
+module Main where
+
+import qualified Prelude
+
+data Bool =
+   True
+ | False
+
+type Foo = Bool
+
+type Wrapper = Foo
+  -- singleton inductive, whose constructor was Build_Wrapper
+  
+
