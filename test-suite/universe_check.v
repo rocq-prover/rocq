@@ -72,6 +72,24 @@ Section incr.
 
 End incr.
 
+Section inj.
+  Universes i j.
+  Constraint i+1 <= j+1.
+  Check Constraint i <= j.
+  Check Constraint i+4 <= j+4.
+  Constraint j <= i.
+  Check Constraint i = j.
+End inj.
+
+Section inj_trans.
+  Universes i k j.
+  Constraint i+1 <= k, k <= j+1.
+  Check Constraint i <= j.
+  Check Constraint i <= j+1.
+  Constraint j <= i.
+  Check Constraint i = j.
+End inj_trans.
+
 Section maximpl.
   Universe a b c.
 
@@ -152,7 +170,7 @@ Module PrivatePoly.
 
   Unset Private Polymorphic Universes.
 
-  Lemma bar : Type. Proof. exact Type. Qed.
+  Lemma bar : Type@{_}. Proof. exact Type@{_}. Qed.
   Check bar@{_ _}.
 
   Set Private Polymorphic Universes.
