@@ -72,21 +72,6 @@ val preprocess_inductive_decl
   -> (Vernacexpr.inductive_expr * Vernacexpr.notation_declaration list) list
   -> Preprocessed_Mind_decl.t
 
-(** TODO: this belongs elsewhere *)
-module type OBSERVERS =
-sig
-  type token
-  type value
-
-  val register : name:string -> ?override:bool -> value -> token
-
-  (* NOTE: it probably doesn't make sense to de-activate these,
-     but other uses of this require that interface
-  *)
-  val deactivate : token -> unit
-  val activate : token -> unit
-end
-
 module DefAttributes : sig
 
 type t = {
@@ -103,9 +88,8 @@ type t = {
   clearbody: bool option;
 }
 
-module Observer : OBSERVERS
+module Observer : Summary.OBSERVABLE
   with type value = (Declare.Hook.S.t -> unit) list Attributes.attribute
-
 
 val def_attributes : t Attributes.attribute
 
