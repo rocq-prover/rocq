@@ -180,6 +180,8 @@ module DefAttributes = struct
   let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") () =
     let discharge, deprecated_thing, replacement = discharge in
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
+    (* It is important because it prevents early evaluation of [active_hooks ()] *)
+    return () >>= fun () ->
     (locality ++ user_warns_with_use_globref_instead ++ polymorphic ++ program ++
                canonical_instance ++ typing_flags ++ using ++
                reversible ++ clearbody ++ active_hooks ()) >>= fun (((((((((locality, user_warns), polymorphic), program),
