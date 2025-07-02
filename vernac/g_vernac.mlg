@@ -1351,7 +1351,7 @@ GRAMMAR EXTEND Gram
          { VernacSynterp (VernacNotation (true,ntn_decl)) }
      | IDENT "Notation"; id = identref; idl = LIST0 ident;
          ":="; c = constr; modl = syntax_modifiers ->
-           { VernacSynPure (VernacSyntacticDefinition (id,(idl,c), modl)) }
+           { VernacSynPure (VernacAbbreviation (id,(idl,c), modl)) }
      | IDENT "Notation"; ntn_decl = notation_declaration ->
            { VernacSynterp (VernacNotation (false,ntn_decl)) }
 

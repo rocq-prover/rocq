@@ -2837,7 +2837,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     vtdefault(fun () ->
         vernac_hints ~atts dbnames hints)
 
-  | VernacSyntacticDefinition (id,c,b) ->
+  | VernacAbbreviation (id,c,b) ->
      vtdefault(fun () -> vernac_abbreviation ~atts id c b)
 
   | VernacArguments (qid, args, more_implicits, flags) ->
