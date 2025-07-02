@@ -110,10 +110,10 @@ let parse arglist : t =
         | "-o" ->
           { oval with compilation_output_name = Some (next ()) }
         |"-vos" ->
-          Flags.load_vos_libraries := true;
+          CRef.(Flags.load_vos_libraries := true);
           { oval with compilation_mode = BuildVos }
         |"-vok" ->
-          Flags.load_vos_libraries := true;
+          CRef.(Flags.load_vos_libraries := true);
           { oval with compilation_mode = BuildVok }
 
         (* Glob options *)

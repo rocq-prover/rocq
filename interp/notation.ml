@@ -277,10 +277,10 @@ let notation_level_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notatio
 
 let declare_notation_level ntn level =
   try
-    let _ = NotationMap.find ntn !notation_level_map in
+    let _ = NotationMap.find ntn CRef.(!notation_level_map) in
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a level.")
   with Not_found ->
-  notation_level_map := NotationMap.add ntn level !notation_level_map
+  CRef.(notation_level_map := NotationMap.add ntn level !notation_level_map)
 
 (**********************************************************************)
 (* Interpreting numbers (not in summary because functional objects)   *)
@@ -2186,7 +2186,7 @@ let level_of_notation ntn =
     (* A primitive notation *)
     ({ notation_entry = fst ntn; notation_level = 0}, []) (* TODO: string notations*)
   else
-    NotationMap.find ntn !notation_level_map
+    NotationMap.find ntn CRef.(!notation_level_map)
 
 (************)
 (* Printing *)

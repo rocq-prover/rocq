@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open CRef
 type flag = bool ref
 
 type t = (unit -> Pp.t) -> unit

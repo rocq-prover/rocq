@@ -13,6 +13,7 @@
  * followed by an arbitrary number of entries
  *     ("%d %d %s %S\n" loc_begin loc_end key value)  *)
 
+open CRef
 open Filename
 
 let version = 1

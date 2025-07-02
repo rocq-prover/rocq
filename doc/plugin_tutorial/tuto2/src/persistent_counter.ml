@@ -15,7 +15,7 @@ let counter = Summary.ref ~name:"persistent_counter" 0
  * saves the value that is passed to it into the reference we have just defined:
  *)
 let cache_count v =
-  counter := v
+  CRef.(counter := v)
 
 (*
  * We then use declare_object to create a function that takes an integer value
@@ -44,7 +44,7 @@ let declare_counter : int -> Libobject.obj =
  * Incrementing our counter looks almost identical:
  *)
 let increment () =
-  Lib.add_leaf (declare_counter (succ !counter))
+  Lib.add_leaf (declare_counter (succ CRef.(!counter)))
 (*
  * except that we must call our declare_counter function to get a persistent
  * object. We then pass this object to Lib.add_leaf.
@@ -54,4 +54,4 @@ let increment () =
  * Reading a value does not change at all:
  *)
 let value () =
-  !counter
+  CRef.(!counter)

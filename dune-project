@@ -29,6 +29,7 @@
   (ocaml (>= 4.14.0))
   (ocamlfind (and (>= 1.9.1) (or (>= 1.9.8) (<> :os "windows"))))
   (zarith (>= 1.11))
+  (thread-local-storage (>= 0.2))
   (conf-linux-libc-dev (= :os "linux")))
  (conflicts
   (coq (< 8.17))

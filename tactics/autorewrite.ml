@@ -328,7 +328,7 @@ let empty_rewrite_db = {
 let rewtab =
   Summary.ref (String.Map.empty : rewrite_db String.Map.t) ~name:"autorewrite"
 
-let raw_find_base bas = String.Map.find bas !rewtab
+let raw_find_base bas = String.Map.find bas CRef.(!rewtab)
 
 let find_base bas =
   try raw_find_base bas
@@ -439,7 +439,7 @@ let auto_multi_rewrite ?(conds=Naive) lems cl =
 let fresh_key =
   let id = Summary.ref ~name:"REWHINT-COUNTER" 0 in
   fun () ->
-    let cur = incr id; !id in
+    let cur = CRef.(incr id; !id) in
     let lbl = Id.of_string ("_" ^ string_of_int cur) in
     let kn = Lib.make_kn lbl in
     let (mp, _) = KerName.repr kn in
@@ -473,7 +473,7 @@ let cache_hintrewrite (rbase,lrl) =
     rdb_maxuid = accu.rdb_maxuid + 1;
   } in
   let base = List.fold_left fold base lrl in
-  rewtab := String.Map.add rbase base !rewtab
+  CRef.(rewtab := String.Map.add rbase base !rewtab)
 
 let subst_hintrewrite (subst,(rbase,list as node)) =
   let subst_hint subst hint =

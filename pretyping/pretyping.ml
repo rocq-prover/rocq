@@ -55,12 +55,15 @@ let bidi_hints =
   Summary.ref (GlobRef.Map.empty : int GlobRef.Map.t) ~name:"bidirectionalityhints"
 
 let add_bidirectionality_hint gr n =
+  let open CRef in
   bidi_hints := GlobRef.Map.add gr n !bidi_hints
 
 let get_bidirectionality_hint gr =
+  let open CRef in
   GlobRef.Map.find_opt gr !bidi_hints
 
 let clear_bidirectionality_hint gr =
+  let open CRef in
   bidi_hints := GlobRef.Map.remove gr !bidi_hints
 
 (************************************************************************)

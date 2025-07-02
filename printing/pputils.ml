@@ -27,7 +27,7 @@ let extract_comments pos = split_comments [] [] pos !beautify_comments
 
 let pr_located pr (loc, x) =
   match loc with
-  | Some loc when !Flags.beautify ->
+  | Some loc when CRef.(!Flags.beautify) ->
     let (b, e) = Loc.unloc loc in
     (* Side-effect: order matters *)
     let before = Pp.comment (extract_comments b) in

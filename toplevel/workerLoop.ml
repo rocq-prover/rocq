@@ -13,7 +13,7 @@ let worker_parse_extra opts extra_args =
   ((),stm_opts), extra_args
 
 let worker_init init ((),stm_opts)  injections ~opts : Vernac.State.t =
-  Flags.quiet := true;
+  CRef.(Flags.quiet := true);
   init ();
   Coqtop.init_toploop opts stm_opts injections
 

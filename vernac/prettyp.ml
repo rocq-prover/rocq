@@ -226,7 +226,7 @@ let print_polymorphism env ref =
       (if poly then str "universe polymorphic"
        else if template_poly then
          str "template universe polymorphic"
-         ++ if !Detyping.print_universes then h (pr_template_variables env ref) else mt()
+         ++ if CRef.(!Detyping.print_universes) then h (pr_template_variables env ref) else mt()
        else str "not universe polymorphic") ]
 
 let print_squash env ref udecl = match ref with
