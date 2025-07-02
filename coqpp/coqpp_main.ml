@@ -708,7 +708,6 @@ let print_ast fmt arg =
 end
 
 let declare_plugin fmt name =
-  Option.iter (fprintf fmt "let _ = Mltop.add_known_module \"%s\"@\n") name;
   let () = match !plugin_name with
     | None -> plugin_name := Some name
     | Some _ -> fatal "Multiple DECLARE PLUGIN not allowed";
