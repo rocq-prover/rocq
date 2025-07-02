@@ -29,7 +29,7 @@ do
   if [[ $? == 1 ]]
   then
     echo $i" not found"
-    break
+    continue
   fi
   echo $res | tail -n1 | cut -d'<' -f1 >> reviewers-names.tmp
 done
