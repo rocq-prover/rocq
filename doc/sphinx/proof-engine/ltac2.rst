@@ -1372,7 +1372,7 @@ Abbreviations
 
    Introduces a special kind of notation, called an abbreviation,
    that does not add any parsing rules. It is similar in
-   spirit to Rocq abbreviations (see :cmd:`Notation (abbreviation)`),
+   spirit to Rocq abbreviations (see :cmd:`Abbreviation`),
    insofar as its main purpose is to give an
    absolute name to a piece of pure syntax, which can be transparently referred to
    by this name as if it were a proper definition.

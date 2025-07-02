@@ -84,7 +84,7 @@ Arguments bar {x}
 Module Corelib.Init.Peano
 Notation sym_eq := eq_sym
 Expands to: Notation Corelib.Init.Logic.sym_eq
-Declared in library Corelib.Init.Logic, line 757, characters 0-41
+Declared in library Corelib.Init.Logic, line 757, characters 0-45
 
 eq_sym : forall [A : Type] [x y : A], x = y -> y = x
 

@@ -740,7 +740,7 @@ A similar table for :cmd:`Section` can be found
 
       when imported
 
-  * - :cmd:`Notation (abbreviation)`
+  * - :cmd:`Abbreviation`
     - :attr:`global`
     - not available
     - ❌

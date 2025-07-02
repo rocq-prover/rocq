@@ -2431,6 +2431,7 @@ SPLICE: [
 | enable_notation_interpretation
 | enable_notation_flags
 | opt_scope
+| located_notation
 ] (* end SPLICE *)
 
 RENAME: [

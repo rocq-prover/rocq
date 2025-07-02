@@ -1349,10 +1349,13 @@ GRAMMAR EXTEND Gram
 
      | IDENT "Infix"; ntn_decl = notation_declaration ->
          { VernacSynterp (VernacNotation (true,ntn_decl)) }
-     | IDENT "Notation"; id = identref; idl = LIST0 ident;
+     | lnot = located_notation; id = identref; idl = LIST0 ident;
          ":="; c = constr; modl = syntax_modifiers ->
-           { VernacSynPure (VernacAbbreviation (id,(idl,c), modl)) }
-     | IDENT "Notation"; ntn_decl = notation_declaration ->
+           { VernacSynPure (VernacAbbreviation (id,(idl,c), modl, Some lnot)) }
+     | IDENT "Abbreviation"; id = identref; idl = LIST0 ident;
+         ":="; c = constr; modl = syntax_modifiers ->
+           { VernacSynPure (VernacAbbreviation (id,(idl,c), modl, None)) }
+     | located_notation; ntn_decl = notation_declaration ->
            { VernacSynterp (VernacNotation (false,ntn_decl)) }
 
      | IDENT "Reserved"; IDENT "Infix"; s = ne_lstring; l = syntax_modifiers ->
@@ -1368,6 +1371,9 @@ GRAMMAR EXTEND Gram
      (* "Print" "Grammar" and "Declare" "Scope" should be here but are in "command" entry in order
         to factorize with other "Print"-based or "Declare"-based vernac entries *)
   ] ]
+  ;
+  located_notation:
+    [ [ IDENT "Notation" -> { loc } ] ]
   ;
   enable_enable_disable:
     [ [ IDENT "Enable" -> { true }

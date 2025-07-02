@@ -2,7 +2,7 @@ Goal exists I, I = Logic.I.
 Show.
 Abort.
 
-Notation f x y p q r := ((forall x, p /\ r) /\ forall y, q /\ r).
+Abbreviation f x y p q r := ((forall x, p /\ r) /\ forall y, q /\ r).
 Goal f True False True False (Logic.True /\ Logic.False).
 Show.
 Abort.

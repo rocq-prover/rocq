@@ -975,6 +975,7 @@ command: [
 | "Bind" "Scope" scope_name "with" LIST1 coercion_class
 | "Infix" notation_declaration
 | "Notation" ident LIST0 ident ":=" one_term OPT ( "(" LIST1 syntax_modifier SEP "," ")" )
+| "Abbreviation" ident LIST0 ident ":=" one_term OPT ( "(" LIST1 syntax_modifier SEP "," ")" )
 | "Notation" notation_declaration
 | "Reserved" "Infix" string OPT ( "(" LIST1 syntax_modifier SEP "," ")" )
 | "Reserved" "Notation" string OPT ( "(" LIST1 syntax_modifier SEP "," ")" )

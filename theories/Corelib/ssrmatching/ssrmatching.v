@@ -24,12 +24,12 @@ Reserved Notation "( a 'as' b 'in' c )" (at level 0).
 Declare Scope ssrpatternscope.
 Delimit Scope ssrpatternscope with pattern.
 
-(* Notation to define shortcuts for the "X in t" part of a pattern.           *)
+(* Abbreviation to define shortcuts for the "X in t" part of a pattern.           *)
 Notation "( X 'in' t )" := (_ : fun X => t) (only parsing) : ssrpatternscope.
 
 (* Some shortcuts for recurrent "X in t" parts.                               *)
-Notation RHS := (X in _ = X)%pattern.
-Notation LHS := (X in X = _)%pattern.
+Abbreviation RHS := (X in _ = X)%pattern.
+Abbreviation LHS := (X in X = _)%pattern.
 
 End SsrMatchingSyntax.
 

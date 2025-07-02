@@ -298,7 +298,7 @@ Axiom admit : forall {T}, T.
 Section with_base.
   Context {base_type : Type}
           {base_interp : base_type -> Type}.
-  Local Notation type := (@type base_type).
+  Local Abbreviation type := (@type base_type).
 
   Fixpoint default {t} : interp base_interp t
     := match t with

@@ -338,7 +338,7 @@ Definition ternary_operation A := arrows (A::A::A::Tnil) A.
 
 (** We define n-ary [predicate]s as functions into [Prop]. *)
 
-Notation predicate l := (arrows l Prop).
+Abbreviation predicate l := (arrows l Prop).
 
 (** Unary predicates, or sets. *)
 

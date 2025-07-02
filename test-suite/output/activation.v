@@ -15,11 +15,11 @@ Module Abbrev.
 Set Warnings "+no-notation-to-enable-or-disable".
 Fail Disable Notation f. (* no abbreviation with such suffix *)
 Set Warnings "no-notation-to-enable-or-disable".
-Notation f w := (S w).
+Abbreviation f w := (S w).
 Disable Notation f w := (S w).
 Enable Notation := (S _).
 
-Module A. Notation a := Prop. End A. Include A.
+Module A. Abbreviation a := Prop. End A. Include A.
 Disable Notation A.a.
 Check a.
 Disable Notation a.
@@ -29,9 +29,9 @@ Enable Notation a (all). (* Note: reactivation is not necessarily in the same or
 Check a.
 Check Prop.
 
-Module Shadowed. Notation x := true. End Shadowed.
+Module Shadowed. Abbreviation x := true. End Shadowed.
 Import Shadowed.
-Notation x := 0.
+Abbreviation x := 0.
 Check x.
 Disable Notation Abbrev.x.
 Check x.

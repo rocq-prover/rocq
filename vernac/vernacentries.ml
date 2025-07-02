@@ -1818,7 +1818,18 @@ let vernac_hints ~atts dbnames h =
   let locality, poly = Attributes.(parse Notations.(hint_locality ++ polymorphic) atts) in
   Hints.add_hints ~locality dbnames (ComHints.interp_hints ~poly h)
 
-let vernac_abbreviation ~atts lid x only_parsing =
+let warn_deprecated_notation_for_abbreviation =
+  let w =
+    CWarnings.create_with_quickfix ~name:"notation-for-abbreviation" ~category:Deprecation.Version.v9_2
+      (fun () -> strbrk "Use of \"Notation\" keyword for abbreviations is deprecated, use \
+                         \"Abbreviation\" instead.") in
+  fun ~loc () ->
+    let quickfix = [Quickfix.make ~loc (str "Abbreviation")] in
+    w ~loc ~quickfix ()
+
+let vernac_abbreviation ~warn_old_notation ~atts lid x only_parsing =
+  Option.iter (fun loc -> warn_deprecated_notation_for_abbreviation ~loc ())
+    warn_old_notation;
   let module_local, user_warns = Attributes.(parse Notations.(module_locality ++ user_warns_with_use_globref_instead) atts) in
   Dumpglob.dump_definition lid false "abbrev";
   Metasyntax.add_abbreviation ~local:module_local user_warns (Global.env()) lid.v x only_parsing
@@ -2837,8 +2848,8 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     vtdefault(fun () ->
         vernac_hints ~atts dbnames hints)
 
-  | VernacAbbreviation (id,c,b) ->
-     vtdefault(fun () -> vernac_abbreviation ~atts id c b)
+  | VernacAbbreviation (id,c,b,warn_old_notation) ->
+     vtdefault(fun () -> vernac_abbreviation ~warn_old_notation ~atts id c b)
 
   | VernacArguments (qid, args, more_implicits, flags) ->
     vtdefault(fun () ->

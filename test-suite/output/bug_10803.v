@@ -4,8 +4,8 @@ Delimit Scope foo_scope with foo.
 Bind Scope foo_scope with Foo.
 Notation "'!'" := foo : foo_scope.
 Definition of_foo {x : nat} {y : nat} (f : Foo) := f.
-Notation a := (@of_foo O).
-Notation b := (@a).
+Abbreviation a := (@of_foo O).
+Abbreviation b := (@a).
 Check a !.
 Check @a O !.
 Check @b O.
