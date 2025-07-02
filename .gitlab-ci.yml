@@ -730,6 +730,8 @@ library:ci-cross_crypto:
   needs:
   - build:base
   - library:ci-stdlib
+  variables:
+    SAVE_BUILD_CI: "1" # for the minimizer (no install target available)
 
 library:ci-engine_bench:
   extends: .ci-template
