@@ -297,8 +297,8 @@ let is_user_name qid = match qid with
 
 let deprecated_ltac2_alias =
   Deprecation.create_warning
-    ~object_name:"Ltac2 alias"
-    ~warning_name_if_no_since:"deprecated-ltac2-alias"
+    ~object_name:"Ltac2 abbreviation"
+    ~warning_name_if_no_since:"deprecated-ltac2-abbreviation"
     (fun kn -> pr_qualid (Tac2env.shortest_qualid_of_ltac Id.Set.empty (TacAlias kn)))
 
 let deprecated_ltac2_def =

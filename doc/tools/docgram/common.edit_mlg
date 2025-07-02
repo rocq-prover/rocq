@@ -118,6 +118,7 @@ RENAME: [
 | Constr.cpattern cpattern
 | G_vernac.section_subset_expr section_var_expr
 | Prim.ident ident
+| Prim.identref identref
 | Prim.reference reference
 | Prim.string string
 | Prim.integer integer
@@ -2040,7 +2041,6 @@ ltac2_entry: [
 | WITH "Ltac2" tac2def_val
 | REPLACE tac2def_ext     (* Ltac2 plugin *)
 | WITH "Ltac2" tac2def_ext
-| "Ltac2" "Notation" ident ":=" ltac2_expr6 TAG Ltac2  (* variant *)
 | MOVEALLBUT command
 (* todo: MOVEALLBUT should ignore tag on "but" prodns *)
 ]
@@ -2067,7 +2067,9 @@ SPLICE: [
 | tac2def_typ
 | tac2def_ext
 | tac2def_syn
+| tac2abbrev_syn
 | ltac2def_syn
+| ltac2abbrev_syn
 | tac2def_mut
 | rec_flag
 | tac2alg_constructors

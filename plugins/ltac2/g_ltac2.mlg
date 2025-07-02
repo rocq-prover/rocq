@@ -108,6 +108,7 @@ let tac2def_val = Entry.make "tac2def_val"
 let tac2def_typ = Entry.make "tac2def_typ"
 let tac2def_ext = Entry.make "tac2def_ext"
 let tac2def_syn = Entry.make "tac2def_syn"
+let tac2abbrev_syn = Entry.make "tac2abbrev_syn"
 let tac2def_mut = Entry.make "tac2def_mut"
 let tac2mode = Entry.make "ltac2_command"
 let ltac2_atom = Entry.make "ltac2_atom"
@@ -141,7 +142,7 @@ let opt_fun ?loc args ty e =
 }
 
 GRAMMAR EXTEND Gram
-  GLOBAL: ltac2_expr ltac2_type tac2def_val tac2def_typ tac2def_ext tac2def_syn
+  GLOBAL: ltac2_expr ltac2_type tac2def_val tac2def_typ tac2def_ext tac2def_syn tac2abbrev_syn
           tac2def_mut tac2expr_in_env ltac2_atom;
   tac2pat:
     [ "1" LEFTA
@@ -463,6 +464,10 @@ GRAMMAR EXTEND Gram
     [ [ toks = LIST1 ltac2_syntax_class; n = syn_level; ":=";
         e = ltac2_expr ->
         { (toks, n, e) }
+    ] ]
+  ;
+  tac2abbrev_syn:
+    [ [ id = Prim.identref; ":="; e = ltac2_expr -> { (id, e) }
     ] ]
   ;
   globref:
@@ -983,6 +988,7 @@ let rules = [
 let pr_ltac2entry = Tac2print.pr_strexpr
 let pr_ltac2expr e = Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty e
 let pr_ltac2def_syn (a,b,c) = Tac2entries.pr_register_notation a b c
+let pr_ltac2abbrev_syn (a,c) = Tac2entries.pr_register_abbreviation a c
 
 }
 
@@ -997,6 +1003,11 @@ END
 VERNAC ARGUMENT EXTEND ltac2def_syn
 PRINTED BY { pr_ltac2def_syn }
 | [ tac2def_syn(e) ] -> { e }
+END
+
+VERNAC ARGUMENT EXTEND ltac2abbrev_syn
+PRINTED BY { pr_ltac2abbrev_syn }
+| [ tac2abbrev_syn(e) ] -> { e }
 END
 
 VERNAC ARGUMENT EXTEND ltac2_expr
@@ -1024,6 +1035,13 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
 | #[ raw_attributes ] [ "Ltac2" "Notation" ltac2def_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
     let (toks, n, body) = e in
     Tac2entries.register_notation raw_attributes toks n body
+  } ->
+  {
+    Tac2entries.register_notation_interpretation synterpv
+  }
+| #[ raw_attributes ] [ "Ltac2" "Abbreviation" ltac2abbrev_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
+    let (id, body) = e in
+    Tac2entries.register_abbreviation raw_attributes id body
   } ->
   {
     Tac2entries.register_notation_interpretation synterpv
