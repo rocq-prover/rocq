@@ -112,7 +112,7 @@ master_doc = "index"
 
 # General information about the project.
 project = 'The Rocq Prover'
-copyright = '1999-2024, Inria, CNRS and contributors'
+copyright = '1999-2025, Inria, CNRS and contributors'
 author = 'The Rocq Development Team'
 
 # The version info for the project you're documenting, acts as replacement for
