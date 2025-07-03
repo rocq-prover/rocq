@@ -280,7 +280,7 @@ project equations 'https://github.com/mattam82/Coq-Equations' '2137c8e7081f2d47a
 ########################################################################
 # Elpi + Hierarchy Builder
 ########################################################################
-project elpi 'https://github.com/LPCIC/coq-elpi' 'acf29a35983328e062843913b48c36f2057fb59b'
+project elpi 'https://github.com/LPCIC/coq-elpi' '157bd2af292d1a0f58741bf2d037eb3d1480e26b'
 # Contact @gares on github
 
 project hierarchy_builder 'https://github.com/math-comp/hierarchy-builder' '4b6a76fb6802a770dd929a9dd7e8e03c3a47f73e'
@@ -450,7 +450,7 @@ project perennial 'https://github.com/mit-pdos/perennial' 'b39e2c342ba3da95e11a7
 ########################################################################
 # metarocq
 ########################################################################
-project metarocq 'https://github.com/MetaRocq/metarocq' '57619a62980c4d92ec2122ddb312c3d4adfd8431'
+project metarocq 'https://github.com/MetaRocq/metarocq' '2995003b88f3812e5649cfdd0f9a4c44ceaf0700'
 # Contact @mattam82, @yforster on github
 
 ########################################################################
