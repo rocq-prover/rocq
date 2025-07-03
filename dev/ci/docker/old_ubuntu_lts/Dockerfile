@@ -33,7 +33,7 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
 
 # More dependencies of the sphinx doc, pytest for coqtail
 RUN pip3 install sphinx==5.0.0 sphinx_rtd_theme==1.1.0 \
-        antlr4-python3-runtime==4.7.1 sphinxcontrib-bibtex==2.4.2 \
+        antlr4-python3-runtime==4.7.1 sphinxcontrib-pybtex==0.24.0 sphinxcontrib-bibtex==2.4.2 \
       && rm -rf ~/.cache/pip
 
 # We need to install OPAM 2.0 manually for now.
