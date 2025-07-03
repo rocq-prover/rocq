@@ -382,7 +382,7 @@ let print_anyway c =
 let print_and_diff oldp proof =
   let output =
     if Proof_diffs.show_diffs () then
-      try Printer.pr_open_subgoals ~diffs:oldp proof
+      try Printer.pr_open_subgoals ~oldp proof
       with Pp_diff.Diff_Failure msg -> begin
         (* todo: print the unparsable string (if we know it) *)
         Feedback.msg_warning Pp.(str ("Diff failure: " ^ msg) ++ cut()
@@ -538,6 +538,8 @@ let loop ~state =
     let rec aux state =
       loop_flush_all ();
       top_stderr (fnl());
+      Vernacentries.get_prev_proof :=
+        (fun () -> let open Vernac.State in Stm.get_prev_proof ~doc:state.doc state.sid);
       let open Vernac.State in
       if !print_emacs then top_stderr (str (top_buffer.prompt state.doc));
       resynch_buffer top_buffer;
