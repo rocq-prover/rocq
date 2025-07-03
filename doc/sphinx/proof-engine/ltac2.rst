@@ -1255,7 +1255,7 @@ Match on values
 Notations
 ---------
 
-.. cmd:: Ltac2 Notation {+ @ltac2_syntax_class } {? : @natural } := @ltac2_expr
+.. cmd:: Ltac2 Notation {+ @ltac2_syntax_class } {? {| : @natural | : @ident {? ( @natural ) } } } := @ltac2_expr
 
    .. todo seems like name maybe should use lident rather than ident, considering:
 
@@ -1274,10 +1274,13 @@ Notations
    side (before the `:=`) defines the syntax to recognize and gives formal parameter
    names for the syntactic values.
 
-   :n:`@natural` is the level of the notation. When not provided, if
-   the notation starts with a string which is an identifier (e.g.
-   `"apply"`) the level is `1`, otherwise it is `5`.
-
+   :n:`@natural` is the level of the notation (:n:`@ident(@natural)`
+   means :cmd:`custom entry <Ltac2 Custom Entry>` :n:`@ident` at level
+   :n:`@natural`). For the default entry when the level is not
+   provided, if the notation starts with a string which is an
+   identifier (e.g. `"apply"`) the level is `1`, otherwise it is `5`.
+   Custom entries must have explicit levels.
+   
    When the notation is used, the values are substituted
    into the right-hand side.  In the following example, `x` is the formal parameter name and
    `constr` is its :ref:`syntactic class<syntactic_classes>`.  `print` and `of_constr` are
@@ -1363,6 +1366,13 @@ Notations
    .. exn:: Notation levels must range between 0 and 6.
 
       The level of a notation must be an integer between 0 and 6 inclusive.
+
+.. cmd:: Ltac2 Custom Entry @ident
+
+   Define a new grammar entry for Ltac2 expressions (as :cmd:`Declare
+   Custom Entry` does for terms). Parsing rules can be added to the
+   entry with :cmd:`Ltac2 Notation`, and the entry can be used as a
+   :ref:`syntactic class <syntactic_classes>`.
 
 Abbreviations
 ~~~~~~~~~~~~~

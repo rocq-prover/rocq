@@ -907,6 +907,8 @@ command: [
 | "Declare" "Right" "Step" one_term
 | "Number" "Notation" qualid qualid qualid OPT ( "(" LIST1 number_modifier SEP "," ")" ) ":" scope_name
 | "String" "Notation" qualid qualid qualid OPT ( "(" number_string_via ")" ) ":" scope_name
+| "Ltac2" "Custom" "Entry" ident      (* ltac2 plugin *)
+| "Ltac2" "Notation" LIST1 ltac2_syntax_class OPT [ ":" natural | ":" ident OPT [ "(" natural ")" ] ] ":=" ltac2_expr      (* ltac2 plugin *)
 | "SubClass" ident_decl def_body
 | thm_token ident_decl LIST0 binder ":" type LIST0 [ "with" ident_decl LIST0 binder ":" type ]
 | assumption_token OPT ( "Inline" OPT ( "(" natural ")" ) ) [ assumpt | LIST1 ( "(" assumpt ")" ) ]
@@ -989,7 +991,6 @@ command: [
 | "Ltac2" OPT "mutable" OPT "rec" tac2def_body LIST0 ( "with" tac2def_body )
 | "Ltac2" "Type" OPT "rec" tac2typ_def LIST0 ( "with" tac2typ_def )
 | "Ltac2" "@" "external" ident ":" ltac2_type ":=" string string
-| "Ltac2" "Notation" LIST1 ltac2_syntax_class OPT ( ":" natural ) ":=" ltac2_expr      (* ltac2 plugin *)
 | "Ltac2" "Set" qualid OPT [ "as" ident ] ":=" ltac2_expr
 | "Ltac2" "Notation" ident ":=" ltac2_expr      (* Ltac2 plugin *)
 | "Ltac2" "Eval" ltac2_expr      (* ltac2 plugin *)
