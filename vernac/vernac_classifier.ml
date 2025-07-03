@@ -83,7 +83,7 @@ let classify_vernac e =
     (* Plugins should classify their commands *)
     | VernacLoad _ -> VtSideff ([], VtNow)
     | VernacExtend (s,l) ->
-        try Vernacextend.get_vernac_classifier s l
+        try Vernacextend.get_vernac_classifier s ~atts l
         with Not_found -> anomaly(str"No classifier for"++spc()++str s.ext_entry ++str".")
   in
   let static_pure_classifier ~atts e = match e with

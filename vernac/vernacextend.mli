@@ -75,10 +75,13 @@ val type_vernac : Vernacexpr.extend_name -> plugin_args -> vernac_command
 
 (** {5 VERNAC EXTEND} *)
 
-type classifier = Genarg.raw_generic_argument list -> vernac_classification
+type classifier =
+  Genarg.raw_generic_argument list ->
+  atts:Attributes.vernac_flags ->
+  vernac_classification
 
 type (_, _) ty_sig =
-| TyNil : (vernac_command, vernac_classification) ty_sig
+| TyNil : (vernac_command, atts:Attributes.vernac_flags -> vernac_classification) ty_sig
 | TyTerminal : string * ('r, 's) ty_sig -> ('r, 's) ty_sig
 | TyNonTerminal :
   ('a, 'b, 'c) Extend.ty_user_symbol * ('r, 's) ty_sig ->
@@ -100,7 +103,7 @@ type ty_ml = TyML : bool (* deprecated *) * ('r, 's) ty_sig * 'r * 's option -> 
 val static_vernac_extend :
   plugin:string option ->
   command:string ->
-  ?classifier:(string -> vernac_classification) ->
+  ?classifier:(atts:Attributes.vernac_flags -> string -> vernac_classification) ->
   ?entry:Vernacexpr.vernac_expr Procq.Entry.t ->
   ty_ml list -> unit
 

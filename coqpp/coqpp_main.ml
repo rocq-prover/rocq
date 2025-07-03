@@ -369,9 +369,9 @@ let print_rule_classifier fmt r = match r.vernac_class with
 | Some f ->
   let no_binder = function ExtTerminal _ -> true | ExtNonTerminal _ -> false in
   if List.for_all no_binder r.vernac_toks then
-    fprintf fmt "Some @[%a@]" print_code f
+    fprintf fmt "Some @[(fun ~atts -> %a)@]" print_code f
   else
-    fprintf fmt "Some @[(fun %a-> %a)@]" print_binders r.vernac_toks print_code f
+    fprintf fmt "Some @[(fun %a ~atts -> %a)@]" print_binders r.vernac_toks print_code f
 
 (* let print_atts fmt = function *)
 (*   | None -> fprintf fmt "@[let () = Attributes.unsupported_attributes atts in@] " *)
@@ -482,11 +482,11 @@ let print_classifier fmt = function
    when the block level classifier is specified *)
 | ClassifDefault -> fprintf fmt ""
 | ClassifName "QUERY" ->
-  fprintf fmt "~classifier:(fun _ -> Vernacextend.classify_as_query)"
+  fprintf fmt "~classifier:(fun ~atts:_ _ -> Vernacextend.classify_as_query)"
 | ClassifName "SIDEFF" ->
-  fprintf fmt "~classifier:(fun _ -> Vernacextend.classify_as_sideeff)"
+  fprintf fmt "~classifier:(fun ~atts:_ _ -> Vernacextend.classify_as_sideeff)"
 | ClassifName s -> fatal (Printf.sprintf "Unknown classifier %s" s)
-| ClassifCode c -> fprintf fmt "~classifier:(%s)" c.code
+| ClassifCode c -> fprintf fmt "~classifier:(fun ~atts -> %s)" c.code
 
 let print_entry fmt = function
 | None -> fprintf fmt "None"

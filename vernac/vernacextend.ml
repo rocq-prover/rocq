@@ -92,7 +92,10 @@ let type_vernac opn converted_args ?loc ~atts =
 
 (** VERNAC EXTEND registering *)
 
-type classifier = Genarg.raw_generic_argument list -> vernac_classification
+type classifier =
+  Genarg.raw_generic_argument list ->
+  atts:Attributes.vernac_flags ->
+  vernac_classification
 
 (** Classifiers  *)
 module StringPair =
@@ -119,7 +122,7 @@ let classify_as_sideeff = VtSideff ([], VtLater)
 let classify_as_proofstep = VtProofStep { proof_block_detection = None}
 
 type (_, _) ty_sig =
-| TyNil : (vernac_command, vernac_classification) ty_sig
+| TyNil : (vernac_command, atts:Attributes.vernac_flags -> vernac_classification) ty_sig
 | TyTerminal : string * ('r, 's) ty_sig -> ('r, 's) ty_sig
 | TyNonTerminal : ('a, 'b, 'c) Extend.ty_user_symbol * ('r, 's) ty_sig -> ('a -> 'r, 'a -> 's) ty_sig
 
@@ -199,7 +202,7 @@ let static_vernac_extend ~plugin ~command ?classifier ?entry ext =
   | Some cl -> untype_classifier ty cl
   | None ->
     match classifier with
-    | Some cl -> fun _ -> cl command
+    | Some cl -> fun _ ~atts -> cl ~atts command
     | None ->
       let e = match entry with
       | None -> "COMMAND"
