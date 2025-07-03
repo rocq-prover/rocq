@@ -64,10 +64,7 @@ type mutual_inductive_entry = {
   mind_entry_finite : Declarations.recursivity_kind;
   mind_entry_params : Constr.rel_context;
   mind_entry_inds : one_inductive_entry list;
-  mind_entry_universes : inductive_universes_entry;
-  (* [None] if non-cumulative, otherwise associates each universe of
-     the entry to [None] if to be inferred or [Some v] if to be
-     checked. *)
+  mind_entry_universes : inductive_universes_entry; 
   mind_entry_private : bool option;
 }
 

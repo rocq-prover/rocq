@@ -25,6 +25,7 @@ open Context.Rel.Declaration
 open Entries
 open EConstr
 
+let debug = CDebug.create ~name:"comInductive"()
 module RelDecl = Context.Rel.Declaration
 
 type flags = {
@@ -625,6 +626,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~a
     template;
     finite;
   } = flags in
+  debug Pp.(fun () -> str"interp_mutual, cumulative = " ++ bool cumulative);
   (* Compute renewed arities *)
   let ctor_args =  List.map (fun (_,tys) ->
       List.map (fun ty ->
