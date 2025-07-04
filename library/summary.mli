@@ -108,5 +108,38 @@ module Interp : sig
 
 end
 
+(** Observables *)
+module type OBSERVABLE =
+sig
+  type token
+  type value
+
+  val register : name:string -> ?override:bool -> value -> token
+
+  (* NOTE: it probably doesn't make sense to de-activate these,
+     but other uses of this require that interface
+  *)
+  val deactivate : token -> unit
+  val activate : token -> unit
+end
+
+(** The user side of observation *)
+module type OBSERVABLE_USER =
+sig
+  include OBSERVABLE
+
+  val all_active : unit -> (string * value) list
+end
+
+(* This implements [OBSERVABLE] but is not sealed because
+   the additional functions [is_active] and [all_active] are
+   meant to be used interally.
+ *)
+module Make
+    (Obs : sig
+       type value
+       val name : string
+     end) : OBSERVABLE_USER with type value = Obs.value
+
 (** {6 Debug} *)
 val dump : unit -> (int * string) list

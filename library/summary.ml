@@ -221,4 +221,72 @@ let ref ?(stage=Stage.Interp) ?(local=false) ~name x =
     in
     r
 
+(** Observables *)
+module type OBSERVABLE =
+sig
+  type token
+  type value
+
+  val register : name:string -> ?override:bool -> value -> token
+
+  (* NOTE: it probably doesn't make sense to de-activate these,
+     but other uses of this require that interface
+  *)
+  val deactivate : token -> unit
+  val activate : token -> unit
+end
+
+module type OBSERVABLE_USER =
+sig
+  include OBSERVABLE
+
+  val all_active : unit -> (string * value) list
+end
+
+(* This implements [OBSERVABLE] but is not sealed because
+   the additional functions [is_active] and [all_active] are
+   meant to be used interally.
+ *)
+module Make
+    (Obs : sig
+       type value
+       val name : string
+     end) : OBSERVABLE_USER with type value = Obs.value =
+struct
+  type token = string
+  type value = Obs.value
+
+  let observers = Stdlib.ref CString.Map.empty
+  let active_observers = ref ~name:Obs.name []
+
+  let remove name = Util.List.remove String.equal name !active_observers
+
+  let deactivate name =
+    active_observers := remove name;
+    ()
+
+  let activate name =
+    assert (CString.Map.mem name !observers);
+    active_observers := name :: remove name;
+    ()
+
+  let register ~name ?(override=false) value =
+    if not override && CString.Map.mem name !observers then
+      CErrors.anomaly Pp.(str Obs.name ++ str " observer " ++
+                          str name ++ str " already exists")
+    else
+      observers := CString.Map.add name value !observers ;
+    name
+
+
+  let all_active () : (string * value) list =
+    (* NOTE: this is not very efficient. *)
+    let all = CString.Map.bindings !observers in
+    let f (k,v) =
+      if List.mem k !active_observers then Some (k, v) else None
+    in
+    List.filter_map f all
+end
+
+
 let dump = Dyn.dump
