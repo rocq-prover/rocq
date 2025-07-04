@@ -121,6 +121,10 @@ module type NAMETAB = sig
       If any warnings are associated with the produced object, print
       them unless [nowarn:true] was given. *)
 
+  val locate_upto : limit:int -> qualid -> (qualid * elt) list
+  (** Find elements which are [limit] different from the input (dots
+      are treated rigidly). *)
+
   val locate_all : qualid -> elt list
   (** Locate all elements with a given suffix. If the qualid is a
       valid absolute name, that element is first in the list. *)
