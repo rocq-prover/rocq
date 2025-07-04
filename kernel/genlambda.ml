@@ -52,7 +52,7 @@ and 'v lam_branches =
 
 and 'v fix_decl = Name.t binder_annot array * 'v lambda array * 'v lambda array
 
-and 'v lambda = { node : 'v node }
+and 'v lambda = { node : 'v node; hash : int }
 
 type evars =
   { evars_val : CClosure.evar_handler }
@@ -182,9 +182,139 @@ let rec pp_lam lam =
 
 (*s Constructors *)
 
-let mknode t = { node = t }
+open Hashset.Combine
 
 let node t = t.node
+let hash t = t.hash
+
+let hash_array t =
+  Array.fold_left (fun acc t -> combine acc (hash t)) 0 t
+
+let hash_fix_decl (nas, tys, bod) =
+  combine (Array.length nas) (combine (hash_array tys) (hash_array bod))
+
+let hash_branches br =
+  combine (hash_array br.constant_branches)
+    (Array.fold_left (fun acc (_nas, t) -> combine acc (hash t)) 0 br.nonconstant_branches)
+
+let mkhash = function
+| Lrel (_, n) ->
+  combinesmall 1 n
+| Lvar id ->
+  combinesmall 2 (Id.hash id)
+| Levar (ev, args) ->
+  combinesmall 3 (combine (Evar.hash ev) (hash_array args))
+| Lprod (dom, cod) ->
+  combinesmall 4 (combine (hash dom) (hash cod))
+| Llam (ids, body) ->
+  combinesmall 5 (combine (Array.length ids) (hash body))
+| Llet (_id, t, u) ->
+  combinesmall 6 (combine (hash t) (hash u))
+| Lapp (t, args) ->
+  combinesmall 7 (combine (hash t) (hash_array args))
+| Lconst (c, u) ->
+  combinesmall 8 (combine (Constant.UserOrd.hash c) (UVars.Instance.hash u))
+| Lproj (p, arg) ->
+  combinesmall 9 (combine (Projection.Repr.UserOrd.hash p) (hash arg))
+| Lprim ((c, u), _, args) ->
+  combinesmall 10 (combine (Constant.UserOrd.hash c) (combine (UVars.Instance.hash u) (hash_array args)))
+| Lcase (_annot, c, p, br) ->
+  combinesmall 11 (combine (hash c) (combine (hash p) (hash_branches br)))
+| Lfix ((_, _, i), fix) ->
+  combinesmall 12 (combine (Int.hash i) (hash_fix_decl fix))
+| Lcofix (n, cofix) ->
+  combinesmall 13 (combine (Int.hash n) (hash_fix_decl cofix))
+| Lint n ->
+  combinesmall 14 (Int.hash n)
+| Lparray (args, def) ->
+  combinesmall 15 (combine (hash_array args) (hash def))
+| Lmakeblock (ind, tag, args) ->
+  combinesmall 16 (combine (Ind.UserOrd.hash ind) (combine (Int.hash tag) (hash_array args)))
+| Luint i ->
+  combinesmall 17 (Uint63.hash i)
+| Lfloat f ->
+  combinesmall 18 (Float64.hash f)
+| Lstring s ->
+  combinesmall 19 (Pstring.hash s)
+| Lval _ ->
+  combinesmall 20 0 (* FIXME? *)
+| Lsort s ->
+  combinesmall 21 (Sorts.hash s)
+| Lind (ind, u) ->
+  combinesmall 22 (combine (Ind.UserOrd.hash ind) (UVars.Instance.hash u))
+
+let eq_annot na1 na2 =
+  (* ignore bound names *)
+  Context.eq_annot (fun _ _ -> true) Sorts.relevance_equal na1 na2
+
+let eq_annots nas1 nas2 =
+  Array.equal eq_annot nas1 nas2
+
+let rec equal eqval t1 t2 = match t1.node, t2.node with
+| Lrel (_, n1), Lrel (_, n2) ->
+  Int.equal n1 n2 (* name is only for printing *)
+| Lvar id1, Lvar id2 ->
+  Id.equal id1 id2
+| Levar (ev1, args1), Levar (ev2, args2) ->
+  Evar.equal ev1 ev2 && array_equal eqval args1 args2
+| Lprod (d1, c1), Lprod (d2, c2) ->
+  equal eqval d1 d2 && equal eqval c1 c2
+| Llam (ids1, t1), Llam (ids2, t2) ->
+  eq_annots ids1 ids2 && equal eqval t1 t2
+| Llet (id1, t1, u1), Llet (id2, t2, u2) ->
+  eq_annot id1 id2 && equal eqval t1 t2 && equal eqval u1 u2
+| Lapp (t1, a1), Lapp (t2, a2) ->
+  equal eqval t1 t2 && array_equal eqval a1 a2
+| Lconst (c1, u1), Lconst (c2, u2) ->
+  Constant.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2
+| Lproj (p1, t1), Lproj (p2, t2) ->
+  Projection.Repr.UserOrd.equal p1 p2 && equal eqval t1 t2
+| Lprim ((c1, u1), p1, a1), Lprim ((c2, u2), p2, a2) ->
+  Constant.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2 &&
+  CPrimitives.equal p1 p2 && array_equal eqval a1 a2
+| Lcase (ci1, t1, p1, br1), Lcase (ci2, t2, p2, br2) ->
+  Ind.UserOrd.equal (pi1 ci1).ci_ind (pi1 ci2).ci_ind && equal eqval t1 t2 &&
+  equal eqval p1 p2 && lam_branches_equal eqval br1 br2
+| Lfix ((l1, ind1, i1), f1), Lfix ((l2, ind2, i2), f2) ->
+  Array.equal Int.equal l1 l2 && Array.equal Ind.UserOrd.equal ind1 ind2 &&
+  Int.equal i1 i2 && fix_decl_equal eqval f1 f2
+| Lcofix (i1, f1), Lcofix (i2, f2) ->
+  Int.equal i1 i2 && fix_decl_equal eqval f1 f2
+| Lint i1, Lint i2 ->
+  Int.equal i1 i2
+| Lparray (a1, def1), Lparray (a2, def2) ->
+  array_equal eqval a1 a2 && equal eqval def1 def2
+| Lmakeblock (ind1, tag1, a1), Lmakeblock (ind2, tag2, a2) ->
+  Ind.UserOrd.equal ind1 ind2 && Int.equal tag1 tag2 && array_equal eqval a1 a2
+| Luint i1, Luint i2 ->
+  Uint63.equal i1 i2
+| Lfloat f1, Lfloat f2 ->
+  Float64.equal f1 f2
+| Lstring s1, Lstring s2 ->
+  Pstring.equal s1 s2
+| Lval v1, Lval v2 ->
+  eqval v1 v2
+| Lsort s1, Lsort s2 ->
+  Sorts.equal s1 s2
+| Lind (ind1, u1), Lind (ind2, u2) ->
+  Ind.UserOrd.equal ind1 ind2 && UVars.Instance.equal u1 u2
+| (Lrel _ | Lvar _ | Levar _ | Lprod _ | Llam _ | Llet _ | Lapp _ | Lconst _ | Lproj _
+  | Lprim _ | Lcase _ | Lfix _ | Lcofix _ | Lint _ | Lparray _ | Lmakeblock _ | Luint _
+  | Lfloat _ | Lstring _ | Lval _ | Lsort _ | Lind _), _ -> false
+
+and array_equal eqval a1 a2 =
+  Array.equal (fun t1 t2 -> equal eqval t1 t2) a1 a2
+
+and fix_decl_equal eqval (nas1, ty1, bd1) (nas2, ty2, bd2) =
+  eq_annots nas1 nas2 && array_equal eqval ty1 ty2 && array_equal eqval bd1 bd2
+
+and lam_branches_equal eqval br1 br2 =
+  array_equal eqval br1.constant_branches br2.constant_branches &&
+  Array.equal (fun (nas1, t1) (nas2, t2) -> eq_annots nas1 nas2 && equal eqval t1 t2)
+    br1.nonconstant_branches br2.nonconstant_branches
+
+let mknode t =
+  { node = t; hash = mkhash t }
 
 let mkLapp f args =
   if Array.is_empty args then f
@@ -408,7 +538,7 @@ let simplify lam =
 
     | Lapp(f,args) ->
         begin match simplify_app subst f subst args with
-        | { node = Lapp(f',args') } when f == f' && args == args' -> lam
+        | { node = Lapp(f',args'); _ } when f == f' && args == args' -> lam
         | lam' -> lam'
         end
 
@@ -418,7 +548,7 @@ let simplify lam =
     match f.node with
     | Lrel(id, i) ->
       begin match lam_subst_rel f id i substf with
-        | { node = Llam(ids, body) } ->
+        | { node = Llam(ids, body); _ } ->
           reduce_lapp
             (subs_id 0) (Array.to_list ids) body
             substa (Array.to_list args)
