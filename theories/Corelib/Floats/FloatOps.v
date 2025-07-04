@@ -15,7 +15,7 @@ From Corelib Require Import FloatClass SpecFloat PrimFloat.
 
 Definition prec := Eval compute in Z.of_nat 53.
 Definition emax := Eval compute in Z.of_nat 1024.
-Notation emin := (emin prec emax).
+Abbreviation emin := (emin prec emax).
 
 Definition shift := Eval compute in Z.of_nat 2101. (** [= 2*emax + prec] *)
 

@@ -12,7 +12,7 @@ Check [ < 0 > + < 1 > * < 2 >].
 Print Custom Grammar myconstr.
 
 Axiom a : nat.
-Notation b := a.
+Abbreviation b := a.
 Check [ < b > + < a > * < 2 >].
 
 Declare Custom Entry anotherconstr.
@@ -91,7 +91,7 @@ End C.
 Module I.
 
 Definition myAnd A B := A /\ B.
-Notation myAnd1 A := (myAnd A).
+Abbreviation myAnd1 A := (myAnd A).
 Check myAnd1 True True.
 
 Set Warnings "-auto-template".
@@ -250,9 +250,9 @@ End N.
 
 Module O.
 
-Notation U t := (match t with 0 => 0 | S t => t | _ => 0 end).
+Abbreviation U t := (match t with 0 => 0 | S t => t | _ => 0 end).
 Check fun x => U (S x).
-Notation V t := (t,fun t => t).
+Abbreviation V t := (t,fun t => t).
 Check V tt.
 Check fun x : nat => V x.
 
@@ -372,7 +372,7 @@ Module P.
 
   Module AbbreviationMixedTermBinderAsStrictPattern.
 
-  Notation myforce n P := (pseudo_force n (fun n => P)).
+  Abbreviation myforce n P := (pseudo_force n (fun n => P)).
   Check exists x y, myforce (x,y) (x >= 1 /\ y >= 2).
   Section S.
   Variable n:nat.
@@ -387,10 +387,10 @@ Module P.
 
   Module Bug4765Part.
 
-  Notation id x := ((fun y => y) x).
+  Abbreviation id x := ((fun y => y) x).
   Check id nat.
 
-  Notation id' x := ((fun x => x) x).
+  Abbreviation id' x := ((fun x => x) x).
   Check fun a : bool => id' a.
   Check fun nat : bool => id' nat.
   Fail Check id' nat.

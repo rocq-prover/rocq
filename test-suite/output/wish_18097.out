@@ -11,7 +11,7 @@ fix pow (n m : nat) {struct m} : nat :=
 Arguments Nat.pow (n m)%_nat_scope
 Notation pow := Nat.pow
 Expands to: Notation wish_18097.pow
-Declared in library wish_18097, line 1, characters 0-24
+Declared in library wish_18097, line 1, characters 0-28
 
 Nat.pow : nat -> nat -> nat
 

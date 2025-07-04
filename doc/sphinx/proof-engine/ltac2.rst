@@ -1282,7 +1282,7 @@ Notations
    into the right-hand side.  In the following example, `x` is the formal parameter name and
    `constr` is its :ref:`syntactic class<syntactic_classes>`.  `print` and `of_constr` are
    functions provided by Rocq through `Message.v`.
-   (Also see :cmd:`Ltac2 Notation (abbreviation)`.)
+   (Also see :cmd:`Ltac2 Abbreviation`.)
 
    .. flag:: Ltac2 Typed Notations
 
@@ -1367,12 +1367,11 @@ Notations
 Abbreviations
 ~~~~~~~~~~~~~
 
-.. cmd:: Ltac2 Notation @ident := @ltac2_expr
-   :name: Ltac2 Notation (abbreviation)
+.. cmd:: Ltac2 Abbreviation @ident := @ltac2_expr
 
    Introduces a special kind of notation, called an abbreviation,
    that does not add any parsing rules. It is similar in
-   spirit to Rocq abbreviations (see :cmd:`Notation (abbreviation)`),
+   spirit to Rocq abbreviations (see :cmd:`Abbreviation`),
    insofar as its main purpose is to give an
    absolute name to a piece of pure syntax, which can be transparently referred to
    by this name as if it were a proper definition.
@@ -1388,7 +1387,7 @@ Abbreviations
 
    .. rocqdoc::
 
-      Ltac2 Notation foo := fun x => x ().
+      Ltac2 Abbreviation foo := fun x => x ().
 
    Then we have the following expansion at internalization time.
 

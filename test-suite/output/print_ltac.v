@@ -11,9 +11,9 @@ Print Ltac t3.
 Ltac t4 x := match x with ?A => constr:((A, A)) end.
 Print Ltac t4.
 
-Notation idnat := (@id nat).
-Notation idn := id.
-Notation idan := (@id).
+Abbreviation idnat := (@id nat).
+Abbreviation idn := id.
+Abbreviation idan := (@id).
 Fail Strategy transparent [idnat].
 Strategy transparent [idn].
 Strategy transparent [idan].
@@ -46,9 +46,9 @@ Module Type Empty. End Empty.
 Module E. End E.
 Module F (E : Empty).
   Definition id {T} := @id T.
-  Notation idnat := (@id nat).
-  Notation idn := id.
-  Notation idan := (@id).
+  Abbreviation idnat := (@id nat).
+  Abbreviation idn := id.
+  Abbreviation idan := (@id).
   Fail Strategy transparent [idnat].
   Strategy transparent [idn].
   Strategy transparent [idan].

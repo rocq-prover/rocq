@@ -1,6 +1,6 @@
 (* Ensure order of hypotheses is respected after "subst" *)
 
-Notation goal :=
+Abbreviation goal :=
   (forall x y z, x = 0 -> y = 0 -> z = 0 -> x = 1 -> True -> x = 2 -> y = 3 -> True -> z = 4 -> True)
     (only parsing).
 
