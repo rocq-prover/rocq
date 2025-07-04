@@ -146,7 +146,7 @@ the constraints as a binding context before the instance, e.g.:
 
    Program Instance prod_eqb `(EA : EqDec A, EB : EqDec B) : EqDec (A * B) :=
      { eqb x y := match x, y with
-                  | (la, ra), (lb, rb) => andb (eqb la lb) (eqb ra rb)
+                  | (la, lb), (ra, rb) => andb (eqb la ra) (eqb lb rb)
                   end }.
 
 .. rocqtop:: none
@@ -318,7 +318,7 @@ Command summary
 
    .. note::
       Don't confuse typeclasses with "coercion classes", described in
-      `implicit coercions<classes-implicit-coercions>`.
+      :ref:`implicit coercions<classes-implicit-coercions>`.
 
    When record syntax is used, this command also supports the
    :attr:`projections(primitive)` :term:`attribute`.
