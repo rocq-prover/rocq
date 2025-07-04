@@ -79,9 +79,7 @@ type rec_pos = int array
 
 let eq_rec_pos = Array.equal Int.equal
 
-type vcofix0 = CofixLazy of t | CofixValue of t
-
-type vcofix = vcofix0 ref
+type vcofix = t Lazy.t
 
 type atom =
   | Arel of int
@@ -215,21 +213,15 @@ let mk_fix_accu rec_pos pos types bodies =
   mk_accu (Afix(types,bodies,rec_pos, pos))
 
 let mk_cofix_accu pos types norm cofix args =
-  mk_accu (Acofix (types, norm, pos, args, ref @@ CofixLazy cofix))
+  mk_accu (Acofix (types, norm, pos, args, Lazy.from_fun cofix))
 
 let force_cofix (cofix : t) =
   let accu = (Obj.magic cofix : accumulator) in
   let atom = atom_of_accu accu in
   match atom with
-  | Acofix (_, _, _, _, vref) ->
-    begin match !vref with
-    | CofixLazy f ->
+  | Acofix (_, _, _, _, v) ->
     let () = assert (List.is_empty (args_of_accu accu)) in
-    let v = apply f (Obj.magic ()) in
-    let () = vref := CofixValue v in
-    v
-    | CofixValue v -> v
-    end
+    Lazy.force v
   | _ -> cofix
 
 let mk_const tag = Obj.magic tag
