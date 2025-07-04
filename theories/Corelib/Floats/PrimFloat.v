@@ -152,3 +152,6 @@ Module Export PrimFloatNotations.
   Export PrimFloatNotationsInternalA.
   Export PrimFloatNotationsInternalB.
 End PrimFloatNotations.
+
+Definition turlututu := tt.
+Definition taratata := tt.
