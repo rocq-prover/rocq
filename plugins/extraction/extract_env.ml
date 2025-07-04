@@ -190,13 +190,13 @@ let vm_state =
 
 let expand_mexpr env mp me =
   let inl = Some (Flags.get_inline_level()) in
-  let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
-  let mb, (_, cst), _ = Mod_typing.translate_module state vm_state env mp inl (MExpr ([], me, None)) in
+  let state = ((Environ.universes env, Environ.qualities env, Univ.Constraints.empty), Reductionops.inferred_universes) in
+  let mb, (_, _, cst), _ = Mod_typing.translate_module state vm_state env mp inl (MExpr ([], me, None)) in
   mod_type mb, mod_delta mb
 
 let expand_modtype env mp me =
   let inl = Some (Flags.get_inline_level()) in
-  let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
+  let state = ((Environ.universes env, Environ.qualities env, Univ.Constraints.empty), Reductionops.inferred_universes) in
   let mtb, _cst, _ = Mod_typing.translate_modtype state vm_state env mp inl ([],me) in
   mtb
 
