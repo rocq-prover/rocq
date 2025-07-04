@@ -96,7 +96,7 @@ let subst_constr_with_occurrences subst (l,c) = (l,subst_glob_constr subst c)
 let subst_glob_constr_or_pattern subst (bvars,c,p) =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  (bvars,subst_glob_constr subst c,subst_pattern env sigma subst p)
+  (bvars,subst_glob_constr subst c,subst_uninstantiated_pattern env sigma subst p)
 
 let subst_glob_red_expr subst =
   Redops.map_red_expr_gen

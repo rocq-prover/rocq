@@ -88,7 +88,7 @@ let interp_search_item env sigma =
              which fails, not seeing that A can be Prop; so we use an
              untyped pattern as a fallback (i.e w/o no insertion of
              coercions, no compilation of pattern-matching) *)
-          snd (Constrintern.intern_constr_pattern env sigma ~as_type:head pat) in
+          snd (Constrintern.interp_constr_pattern env sigma ~as_type:head pat) in
       GlobSearchSubPattern (where,head,pat)
   | SearchString ((Anywhere,false),s,None)
       when Id.is_valid_ident_part s && String.equal (String.drop_simple_quotes s) s ->
@@ -131,7 +131,7 @@ let () =
 
 let interp_search env sigma s r =
   let r = interp_search_restriction r in
-  let get_pattern c = snd (Constrintern.intern_constr_pattern env sigma c) in
+  let get_pattern c = snd (Constrintern.interp_constr_pattern env sigma c) in
   let warnlist = ref [] in
   let pr_search ref kind env sigma c =
     let pr = pr_global ref in
