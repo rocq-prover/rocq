@@ -115,7 +115,8 @@ let print_as ind indname = function
   | Name id -> if is_canonical_as ind indname id then mt () else str " as " ++ Id.print id
 
 let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
-  let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
+  let lu = UVars.make_abstract_level_instance (Declareops.inductive_polymorphic_context mib) in
+  let u = UVars.Instance.of_level_instance lu in
   let mip = mib.mind_packets.(i) in
   let paramdecls = Inductive.inductive_paramdecls (mib,u) in
   let env_params, params = Namegen.make_all_rel_context_name_different env (Evd.from_env env) (EConstr.of_rel_context paramdecls) in
@@ -128,7 +129,7 @@ let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
   if isrecord then assert (Array.length cstrtypes = 1);
   let inst =
     if Declareops.inductive_is_polymorphic mib then
-      Printer.pr_universe_instance_binder sigma u Univ.Constraints.empty
+      Printer.pr_universe_instance_binder sigma lu Univ.Constraints.empty
     else mt ()
   in
   hov 0 (
@@ -164,7 +165,7 @@ let pr_mutual_inductive_body env mind mib udecl =
   hov 0 (def keyword ++ spc () ++
          prlist_with_sep (fun () -> fnl () ++ str"  with ")
            (print_one_inductive env sigma isrecord mib) inds_as ++ str "." ++
-         Printer.pr_universes sigma ?variance:mib.mind_variance mib.mind_universes)
+         Printer.pr_universes sigma mib.mind_universes)
 
 (** Modpaths *)
 

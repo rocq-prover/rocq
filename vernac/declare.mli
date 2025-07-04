@@ -101,6 +101,7 @@ module Info : sig
      start of the proof in the interactive case. *)
   val make
     : ?poly:bool
+    -> ?cumulative:bool
     -> ?inline : bool
     -> ?kind : Decls.logical_kind
     (** Theorem, etc... *)
@@ -436,6 +437,7 @@ type constant_entry =
 
 val prepare_parameter
   : poly:bool
+  -> cumulative:bool
   -> udecl:UState.universe_decl
   -> types:EConstr.types
   -> Evd.evar_map

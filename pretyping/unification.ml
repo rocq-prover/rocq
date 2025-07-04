@@ -1094,7 +1094,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     and cN = Evarutil.whd_head_evar sigma curn in
     let () =
       debug_tactic_unification (fun () ->
-          Termops.Internal.print_constr_env curenv sigma cM ++ strbrk" ~= " ++
+          Termops.Internal.print_constr_env curenv sigma cM ++ (if pb == CONV then strbrk" ~= " else strbrk " ~<= ")  ++
           Termops.Internal.print_constr_env curenv sigma cN)
     in
       match (EConstr.kind sigma cM, EConstr.kind sigma cN) with
@@ -1152,7 +1152,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         | Evar (evk,_ as ev), Evar (evk',_)
             when is_evar_allowed flags evk
               && Evar.equal evk evk' ->
-            begin match constr_cmp cv_pb env sigma flags cM cN with
+            begin match constr_cmp pb env sigma flags cM cN with
             | Some sigma ->
               push_sigma sigma substn
             | None ->
@@ -1194,7 +1194,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         (* Fast path for projections. *)
         | Proj (p1,_,c1), Proj (p2,_,c2) when Environ.QConstant.equal env
             (Projection.constant p1) (Projection.constant p2) ->
-          (try unify_same_proj curenvnb cv_pb {opt with at_top = true}
+          (try unify_same_proj curenvnb pb {opt with at_top = true}
                substn c1 c2
            with ex when precatchable_exception ex ->
              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
@@ -1393,7 +1393,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     let sigma = substn.subst_sigma in
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
-    match constr_cmp cv_pb env sigma flags ~nargs cM cN with
+    match constr_cmp pb env sigma flags ~nargs cM cN with
     | Some sigma -> push_sigma sigma substn
     | None ->
         try reduce curenvnb pb opt substn cM cN
@@ -1533,29 +1533,31 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     let metas = substn.subst_metam in
     let f1l1 = whd_nored_state ~metas:(Meta.meta_handler metas) (fst curenvnb) sigma (cM,Stack.empty) in
     let f2l2 = whd_nored_state ~metas:(Meta.meta_handler metas) (fst curenvnb) sigma (cN,Stack.empty) in
-    let (sigma,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
-      let metas mv = match Metamap.find mv metas with
+    let metasfn mv = match Metamap.find mv metas with
       | Cltyp (_, b) -> Some b.rebus
       | Clval (_, _, b) -> Some b.rebus
       | exception Not_found -> None
-      in
-      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas (fst curenvnb) sigma f1l1) f2l2
+    in  
+    let (sigma,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
+      try Evarconv.check_conv_record (fst curenvnb) sigma (Evarconv.decompose_proj ~metas:metasfn (fst curenvnb) sigma f1l1) f2l2        
       with Not_found -> error_cannot_unify (fst curenvnb) sigma (cM,cN)
     in
     if Reductionops.Stack.compare_shape ts ts1 then
-      let (metas,ks,_) =
+      let t2ty = Retyping.get_type_of ~metas:metasfn (fst curenvnb) sigma t2 in
+      let substn = push_sigma sigma substn in
+      let (substn,ks,_) =
         List.fold_left
-          (fun (metas,ks,m) b ->
+          (fun (substn,ks,m) b ->
             if match n with Some n -> Int.equal m n | None -> false then
-                (metas,t2::ks, m-1)
+              (* Enforce unification of type of the projected term and the projection's argument type *)
+              let substn = unirec_rec curenvnb CUMUL opt substn t2ty (substl ks b) in
+              (substn,t2::ks, m-1)
             else
               let mv = new_meta () in
-              let metas = Meta.meta_declare mv (substl ks b) metas in
-              (metas, mkMeta mv :: ks, m - 1))
-          (metas,[],List.length bs) bs
-      in
-      let substn = push_sigma sigma substn in
-      let substn = { substn with subst_metam = metas } in
+              let metas = Meta.meta_declare mv (substl ks b) substn.subst_metam in
+              ({ substn with subst_metam = metas }, mkMeta mv :: ks, m - 1))
+          (substn,[],List.length bs) bs
+      in      
       try
       let opt' = {opt with with_types = false} in
       let fold u1 u s = unirec_rec curenvnb pb opt' s u1 (substl ks u) in
@@ -1567,7 +1569,6 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
       let substn = match params1 with None -> substn | Some params1 -> foldl substn params1 params in
       let substn = Reductionops.Stack.fold2 (fun s u1 u2 -> unirec_rec curenvnb pb opt' s u1 u2) substn ts ts1 in
       let app = mkApp (c, Array.rev_of_list ks) in
-      (* let substn = unirec_rec curenvnb pb b false substn t cN in *)
         unirec_rec curenvnb pb opt' substn c1 app
       with Reductionops.Stack.IncompatibleFold2 ->
         error_cannot_unify (fst curenvnb) sigma (cM,cN)
@@ -1577,7 +1578,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
   let sigma = subst.subst_sigma in
   debug_tactic_unification (fun () ->
       str "Starting unification:" ++ spc() ++
-      Termops.Internal.print_constr_env env sigma (fst m) ++ strbrk" ~= " ++
+      Termops.Internal.print_constr_env env sigma (fst m) ++
+      (match cv_pb with CONV -> strbrk" ~= " | CUMUL -> strbrk" ~<= ") ++
       Termops.Internal.print_constr_env env sigma (fst n));
 
   let opt = { at_top = conv_at_top; with_types = false; with_cs = true } in
@@ -1782,7 +1784,6 @@ let nf_meta ~metas env sigma c =
   if Metaset.is_empty freemetas then c else Meta.meta_instance metas env sigma c
 
 let unify_to_type ~metas env sigma flags c status u =
-  let sigma, c = refresh_universes ~status:Evd.univ_flexible ~onlyalg:true (Some false) env sigma c in
   let t = get_type_of_with_metas ~metas env sigma (nf_meta ~metas env sigma c) in
   let t = nf_betaiota env sigma (nf_meta ~metas env sigma t) in
   unify_0 ~metas env sigma CUMUL flags t u
