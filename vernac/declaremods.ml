@@ -1430,7 +1430,8 @@ let declare_one_include_core (me,base,kind,inl) =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
       let state = ((Global.universes (), Univ.Constraints.empty), Reductionops.inferred_universes) in
-      let env = Modops.add_module cur_mp (module_body_of_type mb) (Global.env ()) in
+      (* Module subcomponents are already part of env at this point *)
+      let env = Environ.shallow_add_module cur_mp (module_body_of_type mb) (Global.env ()) in
       let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
       let () = Global.add_constraints cst in
       let mpsup_delta = match mod_global_delta mb with
