@@ -999,13 +999,24 @@ let current_struct () =
 let build_subtypes env mp args mtys =
   let (ctx, ans) = List.fold_left_map
     (fun ctx (mte,base,kind,inl) ->
-       let mte, ctx' = Modintern.interp_module_ast env Modintern.ModType base mte in
-       let env = Environ.push_context_set ~strict:true ctx' env in
-       let ctx = Univ.ContextSet.union ctx ctx' in
-       let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
-       let mtb, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl (args,mte) in
-       let ctx = Univ.ContextSet.add_constraints cst ctx in
-       ctx, mtb)
+      let mte, ctx' = Modintern.interp_module_ast env Modintern.ModType base mte in
+      let env = Environ.push_context_set ~strict:true ctx' env in
+      let ctx = Univ.ContextSet.union ctx ctx' in
+      let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
+      (* functor arguments are already part of the env, we compute the type
+         and requantify over them *)
+      let mtb, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
+      let fold (mbid, _, _) accu =
+        let pty = Global.lookup_module (MPbound mbid) in
+        MoreFunctor (mbid, module_type_of_module pty, accu)
+      in
+      (* XXX: parameters will be rechecked for subtyping, even though we
+         statically know they are the same as the ones of the ambient
+         module *)
+      let sign = List.fold_right fold args (mod_type mtb) in
+      let mtb = make_module_type sign (mod_delta mtb) in
+      let ctx = Univ.ContextSet.add_constraints cst ctx in
+      ctx, mtb)
     Univ.ContextSet.empty mtys
   in
   (ans, ctx)
