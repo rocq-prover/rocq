@@ -1653,11 +1653,51 @@ let pr_hint env sigma h = match h.obj with
   | Extern (_, tac) ->
     str "(*external*) " ++ Gentactic.print_glob env sigma ~level:(LevelLe 0) tac
 
+(* replace "?" "M123" with the original metavariable name *)
+let rename_regex = Str.regexp {|^M\([0-9]+\)$|}
+
+let rename_metas pp clnv =
+  let prev = ref "" in
+  let upd_str s =
+    let prev2 = !prev in
+    prev := s;
+    if prev2 = "?" && (Str.string_match rename_regex s 0) then begin
+      let mv = int_of_string (Str.matched_group 1 s) in
+      let metam = Clenv.clenv_meta_list clnv in
+      match Unification.Meta.meta_name metam mv with
+      | Name na -> Id.to_string na
+      | Anonymous -> s
+    end else s
+  in
+  let open Pp in
+  let rec upd_pp pp =
+    unrepr (match repr pp with
+    | Ppcmd_empty as pp -> pp
+    | Ppcmd_string s -> Ppcmd_string (upd_str s)
+    | Ppcmd_sized_string (i,s) -> Ppcmd_sized_string (i, upd_str s)
+    | Ppcmd_glue l -> Ppcmd_glue (List.map (fun i -> upd_pp i) l)
+    | Ppcmd_box (b,p) -> Ppcmd_box (b, upd_pp p)
+    | Ppcmd_tag (tag,p) -> Ppcmd_tag (tag, upd_pp p)
+    | Ppcmd_print_break _ as pp -> pp
+    | Ppcmd_force_newline as pp -> pp
+    | Ppcmd_comment _ as pp -> pp)
+  in
+  upd_pp pp
+
+let pr_default_pattern sigma env (h0 : hint hint_ast) = match h0 with
+| Give_exact h ->
+  pr_leconstr_env env sigma h.hint_type
+| Res_pf h | ERes_pf h | Res_pf_THEN_trivial_fail h ->
+  rename_metas (pr_leconstr_env env sigma (get_default_pattern h0)) h.hint_clnv
+| Unfold_nth _ | Extern _ ->
+  (* These hints cannot contain DefaultPattern *)
+  assert false
+
 let pr_id_hint env sigma (id, v) =
   let pr_pat p = match p.pat with
   | None -> mt ()
   | Some (ConstrPattern p | SyntacticPattern p) -> str", pattern " ++ pr_lconstr_pattern_env env sigma p
-  | Some DefaultPattern -> str", pattern " ++ pr_leconstr_env env sigma (get_default_pattern v.code.obj)
+  | Some DefaultPattern -> str", pattern " ++ (pr_default_pattern sigma env v.code.obj)
   in
   (pr_hint env sigma v.code ++ str" (cost " ++ int v.pri ++ pr_pat v
    ++ str", id " ++ int id ++ str ")")
