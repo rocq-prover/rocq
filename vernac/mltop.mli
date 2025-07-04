@@ -59,20 +59,7 @@ val add_ml_dir : string -> unit
 (** Tests if we can load ML files *)
 val has_dynlink : bool
 
-val module_is_known : string -> bool
-
 (** {5 Initialization functions} *)
-
-(** Declare a plugin which has been linked.  A plugin is
-    a findlib library name. Usually, this will be called automatically
-    when use do [DECLARE PLUGIN "pkg.lib"] in the .mlg file.
-
-    The main effect is that dynlink will not be attempted for this
-    plugin, so eg if it was statically linked Coq will not try and
-    fail to find the cmxs.
-*)
-val add_known_module : string -> unit
-(* EJGA: Todo, this could take a PluginSpec.t at some point *)
 
 (** Declare a initialization function. The initialization function is
     called in Declare ML Module, including reruns after backtracking

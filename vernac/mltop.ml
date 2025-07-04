@@ -87,6 +87,8 @@ module PluginSpec : sig
 
   val to_package : t -> string
 
+  val is_loaded : t -> bool
+
   (* Load a plugin, low-level, that is to say, will directly call the
      loading mechanism in OCaml/findlib *)
   val load : t -> unit
@@ -168,6 +170,8 @@ end = struct
     { lib }
 
   let to_package { lib } = lib
+
+  let is_loaded { lib } = Findlib.is_recorded_package lib
 
   let load = function
     | { lib } ->
@@ -277,26 +281,6 @@ let add_ml_dir s =
     | WithoutTop when has_dynlink -> ()
     | _ -> ()
 
-(** Is the ML code of the standard library placed into loadable plugins
-    or statically compiled into rocq repl ? For the moment this choice is
-    made according to the presence of native dynlink : even if bytecode
-    rocq repl could always load plugins, we prefer to have uniformity between
-    bytecode and native versions. *)
-
-(* [known_loaded_module] contains the names of the loaded ML modules
- * (linked or loaded with load_object). It is used not to load a
- * module twice. It is NOT the list of ML modules Rocq knows. *)
-
-(* TODO: Merge known_loaded_module and known_loaded_plugins *)
-let known_loaded_modules : PluginSpec.Set.t ref = ref PluginSpec.Set.empty
-
-let add_known_module mname =
-  if not (PluginSpec.Set.mem mname !known_loaded_modules) then
-    known_loaded_modules := PluginSpec.Set.add mname !known_loaded_modules
-
-let module_is_known mname = PluginSpec.Set.mem mname !known_loaded_modules
-let plugin_is_known mname = PluginSpec.Set.mem mname !known_loaded_modules
-
 (** Init time functions *)
 
 let initialized_plugins = Summary.ref ~stage:Synterp ~name:"inited-plugins" PluginSpec.Set.empty
@@ -345,16 +329,7 @@ let init_ml_object mname =
   end
 
 let load_ml_object mname =
-  ml_load mname;
-  add_known_module mname
-
-let add_known_module name =
-  let name = PluginSpec.of_package name in
-  add_known_module name
-
-let module_is_known mname =
-  let mname = PluginSpec.of_package mname in
-  module_is_known mname
+  ml_load mname
 
 (* Summary of declared ML Modules *)
 
@@ -396,7 +371,7 @@ let if_verbose_load req f name =
 
 let trigger_ml_object req plugin =
   let () =
-    if not @@ plugin_is_known plugin then begin
+    if not @@ PluginSpec.is_loaded plugin then begin
       if not has_dynlink then
         CErrors.user_err
           (str "Dynamic link not supported (module " ++ str (PluginSpec.pp plugin) ++ str ").")
