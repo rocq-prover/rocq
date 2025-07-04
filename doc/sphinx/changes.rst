@@ -18,7 +18,49 @@ Version 9.1
 Summary of changes
 ~~~~~~~~~~~~~~~~~~
 
-TODO
+WIP
+
+Notable changes:
+
+- incorrect guard checking leading to inconsistencies (multiple PRs)
+
+- sort polymorphic instances should now be written as `@{s ; u}` instead of `@{s | u}` (#20635)
+
+- fixed handling of notation variables for ltac2 in notations (i.e.
+  `Notation "'foo' x" := ltac2:(...)`) (#20313)
+
+- :attr:`refine` support for :cmd:`Definition` (#20355)
+
+- Rocq can be compile-time configured to be relocatable (#19901)
+
+- extraction handles sort polymorphic definitions (#20655)
+
+- ??
+
+Rocq 9.1 was made possible thanks to the following 24 reviewers:
+Florian Angeletti, Ali Caglayan, Cyril Cohen, Pierre Courtieu, Jim
+Fehrle, Gaëtan Gilbert, Jason Gross, Emilio Jesús Gallego Arias,
+Jan-Oliver Kaiser, Thomas Lamiaux, Rodolphe Lepigre, Rodolphe Lepigre,
+Erik Martin-Dorel, Guillaume Melquiond, Patrick Nicodemus,
+Pierre-Marie Pédrot, Pierre Rousselin, Pierre Roux, Gabriel Scherer,
+Matthieu Sozeau, Nicolas Tabareau, Enrico Tassi, Théo Winterhalter and
+Théo Zimmermann.
+
+See the `Rocq Team <https://rocq-prover.org/rocq-team>`_ page for
+more details on Rocq's development teams.
+
+The 45 contributors to the 9.1 version are: JeanCASPAR, Soudant,
+ypopovitch, Reynald Affeldt, Wassim Ait-Moussa, David Allsopp,
+Christian Benedict Smit, Frédéric Besson, Mathis Bouverot, Ali
+Caglayan, Benedict Christian Smit, Cyril Cohen, Pierre Courtieu,
+Julien Cretin, Jian Fang, Jim Fehrle, Gaëtan Gilbert, Jason Gross,
+Dario Halilovic, Hugo Herbelin, Elyes Jemel, Emilio Jesús Gallego
+Arias, Jan-Oliver Kaiser, Kacper Korban, Lucie Lahaye, Thomas Lamiaux,
+Rodolphe Lepigre, Yann Leray, Kenji Maillard, Erik Martin-Dorel,
+Patrick Nicodemus, Charles Norton, Pim Otte, Pierre-Marie Pédrot,
+Josselin Poiret, Johann Rosain, Pierre Rousselin, Pierre Roux,
+Radosław Rowicki, Benedict Smit, Bastien Sozeau, Matthieu Sozeau,
+Nicolas Tabareau, Enrico Tassi and Théo Zimmermann.
 
 Changes in 9.1.0
 ~~~~~~~~~~~~~~~~
@@ -71,7 +113,7 @@ Notations
 
 - **Changed:**
   The `Specif` notations (`exists x : A, P`, `{ x : A | P }`, `{ x : A & P }`, etc)
-  locally open `type_scope` for the second component (`P`).
+  locally opens `type_scope` for the second component (`P`).
   This makes eg `{ x & type_1 * type_2 }` work even when `nat_scope` is opened instead of interpreting `*` as peano multiplication
   (`#20294 <https://github.com/rocq-prover/rocq/pull/20294>`_,
   by Gaëtan Gilbert).
