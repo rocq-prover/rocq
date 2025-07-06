@@ -756,8 +756,13 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
    corresponding hypothesis.
 
    This option makes it possible to write proofs with multiple subgoals that do
-   not depend on the order in which constructors were defined. If you use
-   bullets or numbers instead, reordering constructors will break the proof.
+   not depend on the order in which constructors were defined, but instead rely
+   on the constructor names. If you use bullets or numbers, reordering
+   constructors will break the proof.
+
+   For proofs that use nested :tacn:`induction` or case analysis, qualified
+   names such as `true.false` are used to disambiguate subgoals (see an example
+   :ref:`here <conflicting-names>`).
 
    .. example:: Automatic generation of goal names
 
@@ -790,6 +795,7 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
          reflexivity.
          Qed.
 
+   .. _conflicting-names:
    .. example:: Conflicting names
 
       If several goals generate the same name (e.g. when doing nested case
@@ -803,9 +809,9 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
 
          Goal forall n m, n + m = m + n.
          Proof.
-         intros. induction m.
+         intros; induction m.
          [O]: {
-           simpl. induction n.
+           simpl; induction n.
 
 
 Other focusing commands
