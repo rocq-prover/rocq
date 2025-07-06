@@ -756,12 +756,17 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
    corresponding hypothesis.
 
    This option makes it possible to write proofs with multiple subgoals that do
-   not depend on the order in which constructors were defined. If you use
-   bullets or numbers instead, reordering constructors will break the proof.
+   not depend on the order in which constructors were defined, but instead rely
+   on the constructor names. If you use bullets or numbers, reordering
+   constructors will break the proof.
+
+   For proofs that use nested :tacn:`induction` or case analysis, qualified
+   names such as `true.false` are used to disambiguate subgoals (see an example
+   :ref:`here <qualified-goal-names>`).
 
    .. example:: Automatic generation of goal names
 
-      Continuing the example from :ref:`here <example-working-with-named-goals>`,
+      For the example given :ref:`here <example-working-with-named-goals>`,
       names are generated for both the base case and the induction case.
 
       .. rocqtop:: all
@@ -769,16 +774,15 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
          Set Generate Goal Names.
 
          Goal forall n, n + 0 = n.
-         Proof.
          induction n.
          [O]: { (* O is the name of the constructor for zero. *)
+
+      .. rocqtop:: in abort
+
            reflexivity.
-
-      .. rocqtop:: in
-
          }
 
-      This also gives a name to goals that come from a binder or hypothesis:
+      This flag also gives a name to goals that come from a binder or hypothesis:
 
       .. rocqtop:: all reset
 
@@ -790,22 +794,30 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
          reflexivity.
          Qed.
 
-   .. example:: Conflicting names
+   .. _qualified-goal-names:
+   .. example:: Qualified goal names
 
-      If several goals generate the same name (e.g. when doing nested case
-      analysis or induction), *qualified names* are used to disambiguate them,
-      using the qualified name of the parent as the basis for the fully
-      qualified name.
+      When doing nested case analysis or induction, qualified names are used to
+      disambiguate subgoals. The name of each subgoal is prefixed by the name of
+      its parent.
 
-      .. rocqtop:: all abort
+      .. rocqtop:: all
 
          Set Generate Goal Names.
 
          Goal forall n m, n + m = m + n.
-         Proof.
-         intros. induction m.
+         intros; induction m.
          [O]: {
-           simpl. induction n.
+           simpl; induction n.
+           [O.O]: reflexivity.
+           [O.S]: {
+             simpl.
+             congruence.
+
+      .. rocqtop:: in abort
+
+           }
+         }
 
 
 Other focusing commands
