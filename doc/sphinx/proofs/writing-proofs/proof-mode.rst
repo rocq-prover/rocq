@@ -754,63 +754,89 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
 
 .. flag:: Generate Goal Names
 
-   Enable automatic generation of goal names for the :tacn:`induction`,
+   Enables automatic generation of goal names for the :tacn:`induction`,
    :tacn:`destruct` and :tacn:`eapply` tactics. For :tacn:`induction` and
    :tacn:`destruct`, the subgoal takes the name of the corresponding
    constructor. For :tacn:`eapply`, the subgoal takes the name of the
    corresponding hypothesis.
 
    This option makes it possible to write proofs with multiple subgoals that do
-   not depend on the order in which constructors were defined. If you use
-   bullets or numbers instead, reordering constructors will break the proof.
+   not depend on the order in which constructors were defined, but instead rely
+   on the constructor names. If you use bullets or numbers, reordering
+   constructors will break the proof.
+
+   For proofs that use nested :tacn:`induction` or case analysis, qualified
+   names such as `true.false` are used to disambiguate subgoals (see an example
+   :ref:`here <qualified-goal-names>`).
 
    .. example:: Automatic generation of goal names
 
-      Continuing the example from :ref:`here <example-working-with-named-goals>`,
-      names are generated for both the base case and the induction case.
-
-      .. rocqtop:: all
-
-         Set Generate Goal Names.
-
-         Goal forall n, n + 0 = n.
-         Proof.
-         induction n.
-         [O]: { (* O is the name of the constructor for zero. *)
-           reflexivity.
+      In the following example, names are generated for both the base case and
+      the induction case (in constrast with the example given :ref:`here
+      <example-working-with-named-goals>` in which the user explicitly gives
+      names using :tacn:`refine`).
 
       .. rocqtop:: in
 
+         Set Generate Goal Names.
+         Goal forall n, n + 0 = n.
+
+      .. rocqtop:: all
+
+         induction n.
+         [O]: { (* O and S are the constructors for nat. *)
+           reflexivity.
+
+      .. rocqtop:: in abort
+
          }
 
-      This also gives a name to goals that come from a binder or hypothesis:
+      If a goal comes from an existential variable that failed to instantiate
+      (e.g. when using :tacn:`eapply` or other `e*` tactics), the goal is named
+      after the variable (below, `R` and `Rwf` are hypotheses of `well_founded_ind`):
 
-      .. rocqtop:: all reset
+      .. rocqtop:: none
 
-         Set Generate Goal Names.
+         Inductive even : nat -> Prop :=
+         | even_zero : even 0
+         | even_succ : forall n, even n -> even (S (S n)).
 
-         Goal exists n : nat, n = n.
-         eexists.
-         [n]: exact 0.
-         reflexivity.
-         Qed.
+         Inductive odd : nat -> Prop :=
+         | odd_one : odd 1
+         | odd_succ : forall n, odd n -> odd (S (S n)).
 
-   .. example:: Conflicting names
+      .. rocqtop:: in
 
-      If several goals generate the same name (e.g. when doing nested case
-      analysis or induction), *qualified names* are used to disambiguate them,
-      using the qualified name of the parent as the basis for the fully
-      qualified name.
+         Goal forall n : nat, even n \/ odd n.
 
       .. rocqtop:: all abort
 
+         eapply well_founded_ind.
+         [R]: exact lt.
+
+   .. _qualified-goal-names:
+   .. example:: Qualified goal names
+
+      When doing nested case analysis or induction, qualified names are used to
+      disambiguate subgoals. Subgoal names are prefixed by the names of parent goals.
+
+      .. rocqtop:: in
+
          Set Generate Goal Names.
 
-         Goal forall n m, n + m = m + n.
-         Proof.
-         intros. induction m.
+         Goal forall n m : nat, n + m = m + n.
+         intros. induction m; simpl.
          [O]: {
-           simpl. induction n.
+           induction n.
+           [O.O]: reflexivity.
+           [O.S]: { simpl. congruence. }
+         }
+         [S]: {
+           induction n.
+           [S.O]: { rewrite <- IHm. reflexivity. }
+           [S.S]: { rewrite <- IHm. auto. }
+         }
+         Qed.
 
 
 Other focusing commands
