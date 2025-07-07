@@ -228,7 +228,7 @@ interfere with one another, making some of them unusable. For instance, a notati
 and ``y`` at level 69 would be broken by another rule that puts
 ``y`` at another level, like ``x << y << z`` with ``x`` at level 69 and ``y``
 at level 200. To avoid such issues, you should left factorize rules, that is ensure
-that common prefixes use the samel levels.
+that common prefixes use the same levels.
 
 .. rocqtop:: all
 
@@ -1024,11 +1024,6 @@ the next command fails because p does not bind in the instance of n.
 
    Fail Check (exists_different p).
 
-.. rocqtop:: in
-
-   Notation "[> a , .. , b <]" :=
-     (cons a .. (cons b nil) .., cons b .. (cons a nil) ..).
-
 Notations with expressions used both as binder and term
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1051,7 +1046,7 @@ variant:
 .. rocqtop:: in reset
 
    Definition force2 q (P:nat*nat -> Prop) :=
-     (forall n', n' >= fst q -> forall p', p' >= snd q -> P q).
+     (forall n', n' >= fst q -> forall p', p' >= snd q -> P (n', p')).
 
    Notation "▢_ p P" := (force2 p (fun p => P))
      (at level 0, p pattern at level 0, P at level 9, format "▢_ p  P").
@@ -1337,7 +1332,7 @@ associated with the custom entry ``expr``. The level can be omitted, as in
 in which case Rocq infer it. If the sub-expression is at a border of
 the notation (as e.g. ``x`` and ``y`` in ``x + y``), the level is
 determined by the associativity. If the sub-expression is not at the
-border of the notation (as e.g. ``e`` in ``"[ e ]``), the level is
+border of the notation (as e.g. ``e`` in ``"[ e ]"``), the level is
 inferred to be the highest level used for the entry. In particular,
 this level depends on the highest level existing in the entry at the
 time of use of the notation.
@@ -1984,7 +1979,7 @@ Abbreviations
    .. rocqtop:: in reset
 
       Definition force2 q (P:nat*nat -> Prop) :=
-        (forall n', n' >= fst q -> forall p', p' >= snd q -> P q).
+        (forall n', n' >= fst q -> forall p', p' >= snd q -> P (n', p')).
 
       Notation F p P := (force2 p (fun p => P)).
       Check exists x y, F (x,y) (x >= 1 /\ y >= 2).
