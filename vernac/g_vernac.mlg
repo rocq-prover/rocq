@@ -103,6 +103,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Timeout"; n = natural -> { CAst.make ~loc (ControlTimeout n) }
       | IDENT "Fail" -> { CAst.make ~loc ControlFail }
       | IDENT "Succeed" -> { CAst.make ~loc ControlSucceed }
+      | IDENT "Capture"; IDENT "Output" -> { CAst.make ~loc ControlCaptureOutput }
     ] ]
   ;
   decorated_vernac:
@@ -1105,11 +1106,17 @@ GRAMMAR EXTEND Gram
         -> { VernacSynPure (VernacMemOption (table, v)) }
       | IDENT "Test"; table = setting_name ->
           { VernacSynPure (VernacPrintOption table) }
+      | IDENT "Test"; IDENT "Output"; s = string ->
+          { VernacSynPure (VernacTestOutput(s)) }
 
       | IDENT "Remove"; table = IDENT; field = IDENT; v= LIST1 table_value
         -> { VernacSynPure (VernacRemoveOption ([table;field], v)) }
       | IDENT "Remove"; table = IDENT; v = LIST1 table_value ->
-          { VernacSynPure (VernacRemoveOption ([table], v)) } ]]
+          { VernacSynPure (VernacRemoveOption ([table], v)) }
+
+      | IDENT "Drop"; IDENT "Output" ->
+          { VernacSynPure (VernacDropOutput) }
+      ] ]
   ;
   query_command:
     [ [ IDENT "Eval"; r = red_expr; "in"; c = lconstr; "." ->
@@ -1188,6 +1195,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Strategies" -> { PrintStrategy None }
       | IDENT "Registered" -> { PrintRegistered }
       | IDENT "Registered"; IDENT "Schemes" -> { PrintRegisteredSchemes }
+      | IDENT "Output" -> { PrintOutput }
     ] ]
   ;
   debug_univ_name:

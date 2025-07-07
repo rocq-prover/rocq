@@ -37,6 +37,9 @@ let empty_profstate = {
 
     [ControlSucceed {st}] means "Succeed" where the partial
     interpretation succeeded and produced state [st].
+
+    [ControlCaptureOutput {output}] means "Capture Output" where the partial
+    interpretation has not failed and accumulated standard output [output].
 *)
 type 'state control_entry =
   | ControlTime of { duration: System.duration }
@@ -46,6 +49,7 @@ type 'state control_entry =
   | ControlTimeout of { remaining : float }
   | ControlFail of { st : 'state }
   | ControlSucceed of { st : 'state }
+  | ControlCaptureOutput of { output : Buffer.t }
 
 type 'state control_entries = 'state control_entry list
 
@@ -197,6 +201,10 @@ let under_one_control ~loc ~with_local_state control f =
   | ControlTimeout {remaining} -> with_timeout ~timeout:remaining f
   | ControlFail {st} -> with_fail ~loc ~with_local_state st f
   | ControlSucceed {st} -> with_succeed ~with_local_state st f
+  | ControlCaptureOutput {output} ->
+    (* TODO this doesn't catch Fail msg *)
+    let v = Topfmt.with_output_to_buffer output f () in
+    Some (ControlCaptureOutput {output}, v)
 
 let rec under_control ~loc ~with_local_state controls ~noop f =
   match controls with
@@ -208,6 +216,13 @@ let rec under_control ~loc ~with_local_state controls ~noop f =
     | None -> [], noop
 
 let ignore_state = { with_local_state = fun _ f -> (), f () }
+
+let captured_output = Buffer.create 512 (* TODO @radrow this is likely too dumb — e.g. succeed won't protect this *)
+
+let flush_captured_output () =
+  let s = Buffer.contents captured_output in
+  Buffer.reset captured_output;
+  s
 
 let rec after_last_phase ~loc = function
   | [] -> false
@@ -231,6 +246,10 @@ let rec after_last_phase ~loc = function
       | ControlTimeout _ -> noop
       | ControlFail _ -> CErrors.user_err Pp.(str "The command has not failed!")
       | ControlSucceed _ -> true
+      | ControlCaptureOutput {output} ->
+        Buffer.add_buffer captured_output output;
+        Buffer.reset output;
+        noop
 
 (** A global default timeout, controlled by option "Set Default Timeout n".
     Use "Unset Default Timeout" to deactivate it. *)
@@ -270,5 +289,6 @@ let from_syntax_one : Vernacexpr.control_flag -> unit control_entry = fun flag -
     ControlTimeout { remaining = float_of_int timeout }
   | ControlFail -> ControlFail { st = () }
   | ControlSucceed -> ControlSucceed { st = () }
+  | ControlCaptureOutput -> ControlCaptureOutput { output = Buffer.create 512 }
 
 let from_syntax control = List.map from_syntax_one (add_default_timeout control)

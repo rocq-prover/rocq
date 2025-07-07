@@ -43,3 +43,8 @@ val under_control : loc:Loc.t option ->
     command failed or [Succeed] where it succeeded).
 *)
 val after_last_phase : loc:Loc.t option -> _ control_entries -> bool
+
+
+(** Retrieves captured output and flushes the buffer. TODO @radrow this sucks atm
+*)
+val flush_captured_output : unit -> string
