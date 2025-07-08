@@ -79,13 +79,12 @@ module DefAttributes = struct
       let name = "Definition attribute"
     end)
 
-  let active_hooks unit : (Declare.Hook.S.t -> unit) list attribute =
+  let active_hooks () : (Declare.Hook.S.t -> unit) list attribute =
+    let module AttList = Monad.Make(Attributes.Notations) in
+    let active = Observer.all_active () in
     let open Attributes.Notations in
-    let rec build acc = function
-      | [] -> return (List.rev acc)
-      | attr :: attrs -> attr >>= fun a -> build (List.rev_append a acc) attrs
-    in
-    build [] @@ List.map snd @@ Observer.all_active unit
+    AttList.List.map snd active >>= fun res ->
+    return (List.concat res)
 
   let importability_of_bool = function
     | true -> ImportNeedQualified
