@@ -51,10 +51,10 @@ help:
 	@echo "  Note: these targets produce a developer build, not suitable"
 	@echo "        for distribution to end-users or install"
 	@echo ""
-	@echo " To run an \$$app \\in {coqc,coqtop,coqtop.byte,rocqide}:"
+	@echo " To run rocq:"
 	@echo ""
-	@echo "  - use 'dune exec -- dev/shim/\$$app args'"
-	@echo "    Example: 'dune exec -- dev/shim/coqc file.v'"
+	@echo "  - use 'dune exec -- rocq \$$subcommand args'"
+	@echo "    Example: 'dune exec -- rocq compile file.v'"
 	@echo ""
 	@echo " Documentation targets:"
 	@echo ""
@@ -158,8 +158,8 @@ DUNE_FILES=theories/Corelib/dune theories/Ltac2/dune
 
 dunestrap: $(DUNE_FILES)
 
-states: dunestrap
-	dune build $(DUNEOPT) dev/shim/coqtop
+states: world
+	echo "'make states' is an alias for 'make world'"
 
 MAIN_TARGETS:=rocq-runtime.install coq-core.install rocq-core.install \
   coqide-server.install rocq-devtools.install

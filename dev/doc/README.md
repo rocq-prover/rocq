@@ -55,17 +55,21 @@ $ make
     # to get an idea of the available targets
 $ make check
    # build all OCaml files as fast as possible
-$ dune exec -- dev/shim/coqc-prelude test.v
-    # update coqc and the prelude and compile file test.v
 $ make world
     # build coq and the complete stdlib and setup it for use under _build/install/default
     # In particular, you may run, e.g., coq_makefile from _build/install/default
     # to build some test project
+$ dune exec -- rocq test.v
+    # compile file test.v
+    # The "rocq" shim will be updated if needed,
+    # but not the worker binary and not the corelib .vo files
 ```
 
-When running the commands above, you may set `DUNEOPT=--display=short`
-for a more verbose build (not required if you have already set the
-default verbosity globally as described in the previous section).
+When running the `make` targets above, you may set
+`DUNEOPT=--display=short` for a more verbose build
+(and use eg `dune exec --display=short -- rocq test.v` when calling dune directly)
+(not required if you have already set the default verbosity globally
+as described in the previous section).
 
 To learn how to run the test suite, you can read
 [`test-suite/README.md`](../../test-suite/README.md).

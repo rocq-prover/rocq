@@ -1,7 +1,7 @@
 Debugging from Rocq toplevel using OCaml toplevel
 ======================================================
 
-1. Launch bytecode version of Rocq (`dune exec -- dev/shim/coqtop.byte`)
+1. Launch bytecode version of Rocq (`dune exec -- rocq repl-with-drop`)
 2. Access OCaml toplevel using vernacular command `Drop.`
 3. Use `#trace` to tell which function(s) to trace,
    or type any other OCaml toplevel commands or OCaml expressions

@@ -93,8 +93,8 @@ working on the stdlib to avoid issues with artifacts.
 The following command sequence will do all that:
 ```
 opam install memtrace
-dune build theories/Strings/Byte.vo  # to build deps of Byte
-cp theories/Strings/Byte.v ./MyByte.v
-MEMTRACE=trace-byte.tcr dune exec -- dev/shim/coqc MyByte.v
+make world # to build deps
+cp theories/Corelib/Classes/RelationClasses.v /tmp
+MEMTRACE=trace-byte.tcr dune exec -- rocq c /tmp/RelationClasses.v
 memtrace-viewer trace-byte.tcr
 ```

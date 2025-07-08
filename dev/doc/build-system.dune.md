@@ -27,10 +27,9 @@ For more targeted builds, you can also call `dune` directly. First,
 call `make dunestrap` to generate necessary build files (the `make`
 targets above do it automatically). Then you can use:
 
-- `dune exec -- dev/shim/coqtop` : build and launch coqtop + prelude
-  [equivalent to `make states`].
-- `dune exec -- dev/shim/coqc <args...>`: build and launch `coqc` with
-  arguments of your choice
+- `dune exec -- rocq <args...>`:
+  build and launch rocq (does not build the worker and Prelude.vo).
+  with arguments of your choice
 - `dune build $target`: where `$target` can refer to the build
   directory or the source directory [but will be placed under
   `_build`]
@@ -106,31 +105,35 @@ Dune will read the file `~/.config/dune/config`; see `man
 dune-config`. Among others, you can set in this file the custom number
 of build threads `(jobs N)` and display options `(display _mode_)`.
 
-## Running binaries [coqtop / rocqide]
+## Running binaries (rocq compile, rocq top)
 
-Running `coqtop` directly with `dune exec -- coqtop` won't in general
-work well unless you are using `dune exec -- coqtop -noinit`. The
-`coqtop` binary doesn't depend itself on Rocq's prelude, so plugins /
-vo files may go stale if you rebuild only `coqtop`.
+You should generally run `make world` before running rocq so that the
+corelib is built and placed in `_build/install`.
 
-Instead, you should use the provided "shims" for running `coqtop` and
-`rocqide` in a fast build. In order to use them, do:
+If building the corelib produces an error outside the prelude, `make
+world` will still result in a usable state (of course you won't be
+able to Require any failed files).
 
-```
-$ dune exec -- dev/shim/coqtop
-```
+For errors inside the prelude, invoke rocq with
+`-boot -noinit -R _build/default/theories/Corelib Corelib`.
+For instance if you get an error in Datatypes,
+~~~bash
+dune exec -- rocq compile -boot -noinit -R _build/default/theories/Corelib Corelib _build/default/theories/Corelib/Init/Datatypes.v
+~~~
+should reproduce it.
 
-or `quickide` / `dev/shim/rocqide` for RocqIDE, etc.... See `dev/shim/dune` for a
-complete list of targets. These targets enjoy quick incremental compilation
-thanks to `-opaque` so they tend to be very fast while developing.
+~~~bash
+dune exec -- rocq compile -boot -noinit -R _build/default/theories/Corelib Corelib -R theories/Corelib Corelib theories/Corelib/Init/Datatypes.v
+~~~
+should be equivalent.
 
-Note that for a fast developer build of ML files, the `check` target
-is faster, as it doesn't link the binaries and uses the non-optimizing
-compiler.
-
-If you built the full core library with the `world` target,
-then you can run the commands in the
-`_build/install/default/bin` directories (including `coq_makefile`).
+Giving `-boot -R _build/default/theories/Corelib Corelib` to
+an IDE while visiting a file in `theories/Corelib/Init` should combine with
+`theories/Corelib/Init/_CoqProject` to produce the above result, eg
+~~~bash
+dune exec -- rocqide -boot -R _build/default/theories/Corelib Corelib theories/Corelib/Init/Datatypes.v
+~~~
+should work to reproduce the error interactively.
 
 ## Building custom toplevels
 
@@ -239,9 +242,9 @@ For running in emacs, use `coqdev-ocamldebug` from `coqdev.el`.
 
 ## Dropping from coqtop:
 
-The following commands should work:
+The following should work:
 ```
-dune exec -- dev/shim/coqtop.byte
+dune exec -- rocq repl-with-drop
 > Drop.
 ```
 
