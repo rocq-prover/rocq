@@ -1622,9 +1622,18 @@ let make_local_hint_db env sigma ?ts eapply lems =
   make_local_hint_db env sigma ts eapply lems
 
 let make_db_list dbnames =
-  let use_core = not (List.mem "nocore" dbnames) in
-  let dbnames = List.remove String.equal "nocore" dbnames in
-  let dbnames = if use_core then "core"::dbnames else dbnames in
+  let fold (core, nocore) db =
+    if String.equal db "core" then (true, nocore)
+    else if String.equal db "nocore" then (core, true)
+    else (core, nocore)
+  in
+  let has_core, has_nocore = List.fold_left fold (false, false) dbnames in
+  let dbnames = match has_core, has_nocore with
+  | true, true -> user_err Pp.(str "The core and nocore databases are mutually exclusive")
+  | true, false -> dbnames
+  | false, true -> List.remove String.equal "nocore" dbnames
+  | false, false -> "core" :: dbnames
+  in
   let lookup db =
     try searchtable_map db with Not_found -> error_no_such_hint_database db
   in
