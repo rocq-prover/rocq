@@ -246,6 +246,10 @@ let object_stage (Dyn.Dyn (tag, v)) =
   let O decl = DynMap.find tag !cache_tab in
   decl.object_stage
 
+let object_name (Dyn.Dyn (tag, v)) =
+  let O decl = DynMap.find tag !cache_tab in
+  decl.object_name
+
 let dump = Dyn.dump
 
 let local_object_nodischarge ?stage s ~cache =
