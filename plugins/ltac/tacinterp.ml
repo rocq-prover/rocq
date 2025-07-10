@@ -601,7 +601,7 @@ let interp_gen kind ist pattern_mode flags env sigma c =
      with an empty trace *)
   Tactic_debug.push_chunk trace;
   try
-    let (evd,c) =
+    let (evd,{ Environ.uj_val = c }) =
       catch_error_with_trace_loc loc stack (understand_ltac flags env sigma vars kind) term
     in
     (* spiwack: to avoid unnecessary modifications of tacinterp, as this
@@ -1070,7 +1070,8 @@ let type_uconstr ?(flags = (constr_flags ()))
   ?(expected_type = WithoutTypeConstraint) ist c =
   let flags = { flags with polymorphic = ist.Geninterp.poly } in
   begin fun env sigma ->
-    Pretyping.understand_uconstr ~flags ~expected_type env sigma c
+    let sigma, j = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
+    sigma, j.uj_val
   end
 
 (* Interprets an l-tac expression into a value *)

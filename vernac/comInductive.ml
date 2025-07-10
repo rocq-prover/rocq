@@ -146,7 +146,7 @@ let intern_ind_arity env sigma ind =
 
 let pretype_ind_arity ~unconstrained_sorts env sigma (loc, c, impls, template_syntax) =
   let flags = { Pretyping.all_no_fail_flags with unconstrained_sorts } in
-  let sigma,t = understand_tcc ~flags env sigma ~expected_type:IsType c in
+  let sigma,{ uj_val = t } = understand_tcc ~flags env sigma ~expected_type:IsType c in
   match Reductionops.sort_of_arity env sigma t with
   | exception Reduction.NotArity ->
     user_err ?loc (str "Not an arity")
@@ -178,7 +178,7 @@ let interp_cstrs env (sigma, ind_rel) impls params ind arity =
                   use_typeclasses = UseTCForConv;
                   solve_unification_constraints = false }
     in
-    let sigma, (ctyp, cimpl) = interp_type_evars_impls ~flags env sigma ~impls ctyp in
+    let sigma, ({utj_val = ctyp}, cimpl) = interp_type_evars_impls ~flags env sigma ~impls ctyp in
     let ctx, concl = Reductionops.whd_decompose_prod_decls env sigma ctyp in
     let concl_env = EConstr.push_rel_context ctx env in
     let sigma_with_model_evars, model =
@@ -682,7 +682,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
+  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl |> Util.on_pi1 Evd.from_ctx in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =

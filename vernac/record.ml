@@ -169,7 +169,7 @@ let build_type_telescope ~unconstrained_sorts newps env0 sigma { DataI.arity; _ 
   | Some t ->
     let env = EConstr.push_rel_context newps env0 in
     let impls = Constrintern.empty_internalization_env in
-    let sigma, s =
+    let sigma, { uj_val = s } =
       let t = Constrintern.intern_gen IsType ~impls env sigma t in
       let flags = { Pretyping.all_no_fail_flags with program_mode = false; unconstrained_sorts } in
       Pretyping.understand_tcc ~flags env sigma ~expected_type:IsType t
@@ -334,7 +334,10 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
   let is_template =
     List.exists (fun { DataI.arity; _} -> Option.cata check_anonymous_type true arity) records in
   let unconstrained_sorts = not flags.poly && not def && is_template in
-  let sigma, udecl, variances = Constrintern.interp_cumul_univ_decl_opt env0 udecl in
+  let sigma, udecl, variances =
+    Constrintern.interp_cumul_univ_decl_opt env0 udecl
+    |> Util.on_pi1 Evd.from_ctx
+  in
   let () = List.iter check_parameters_must_be_named params in
   let sigma, (impls_env, ((_env1,params), impls, _paramlocs)) =
     Constrintern.interp_context_evars ~program_mode:false ~unconstrained_sorts env0 sigma params in

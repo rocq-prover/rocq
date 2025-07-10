@@ -146,7 +146,7 @@ val build_signature :
   (types * types option) option list ->
   (types * types option) option ->
   Evd.evar_map * constr * (constr * t option) list
-val build_morphism_signature : Environ.env -> Evd.evar_map -> Constrexpr.constr_expr -> Evd.evar_map * t
+val build_morphism_signature : Environ.env -> UState.t -> Constrexpr.constr_expr -> Evd.evar_map * t
 val default_morphism : Environ.env -> Evd.evar_map ->
   (types * types option) option list *
   (types * types option) option ->

@@ -586,7 +586,8 @@ module Interp = struct
 
   let interp_constr env sigma c =
     let flags = Pretyping.all_and_fail_flags in
-    Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c
+    let sigma, j = Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c in
+    sigma, j.uj_val
 
   let interp_constr_list env sigma c =
     let sigma, c = interp_constr env sigma c in
@@ -594,7 +595,7 @@ module Interp = struct
 
   let interp_pattern env sigma c =
     let flags = { Pretyping.no_classes_no_fail_inference_flags with expand_evars = false } in
-    let sigma, c = Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c in
+    let sigma, { Environ.uj_val = c } = Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c in
     Patternops.legacy_bad_pattern_of_constr env sigma c
 
   let without_ltac = {

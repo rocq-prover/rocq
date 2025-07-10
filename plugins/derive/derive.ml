@@ -50,7 +50,9 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
   let sigma, (impls_env, ((env', ctx'), _, locs)) = Constrintern.interp_named_context_evars env sigma bl in
   let sigma, env', ctx' = fill_assumptions env sigma ctx' in
   let sigma = Evd.shelve sigma (List.map fst (Evar.Map.bindings (Evd.undefined_map sigma))) in
-  let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls env' sigma ~impls:impls_env suchthat in
+  let sigma, ({Environ.utj_val = suchthat}, impargs) =
+    Constrintern.interp_type_evars_impls env' sigma ~impls:impls_env suchthat
+  in
   (* create the initial goals for the proof: |- Type ; |- ?1 ; f:=?2 |- suchthat *)
   let goals =
     let open Proofview in

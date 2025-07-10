@@ -120,7 +120,7 @@ VERNAC COMMAND EXTEND Intern CLASSIFIED AS QUERY
      let sigma = Evd.from_env env in (* use this; never use empty *)
      let debug sigma = Termops.pr_evar_map ~with_univs:true None env sigma in
      Feedback.msg_notice (strbrk "State before intern: " ++ debug sigma);
-     let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
+     let (sigma, { Environ.uj_val = t }) = Constrintern.interp_constr_evars env sigma e in
      Feedback.msg_notice (strbrk "State after intern: " ++ debug sigma);
      let print t = Printer.pr_econstr_env env sigma t in
      Feedback.msg_notice (strbrk "Interned: " ++ print t)
@@ -153,7 +153,7 @@ VERNAC COMMAND EXTEND MyDefine CLASSIFIED AS SIDEFF
    {
      let env = Global.env () in
      let sigma = Evd.from_env env in
-     let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
+     let (sigma, { Environ.uj_val = t }) = Constrintern.interp_constr_evars env sigma e in
      let r = Simple_declare.declare_definition ~poly i sigma t in
      let print r = strbrk "Defined " ++ Printer.pr_global r ++ strbrk "." in
      Feedback.msg_notice (print r)
@@ -207,7 +207,7 @@ VERNAC COMMAND EXTEND DefineLookup CLASSIFIED AS SIDEFF
    { fun ~opaque_access ->
      let env = Global.env () in
      let sigma = Evd.from_env env in
-     let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
+     let (sigma, { Environ.uj_val = t }) = Constrintern.interp_constr_evars env sigma e in
      let r = Simple_declare.declare_definition ~poly i sigma t in
      let print r = strbrk "Defined " ++ Printer.pr_global r ++ strbrk "." in
      Feedback.msg_notice (print r);
@@ -231,7 +231,7 @@ VERNAC COMMAND EXTEND Check1 CLASSIFIED AS QUERY
    {
      let env = Global.env () in
      let sigma = Evd.from_env env in
-     let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
+     let (sigma, { Environ.uj_val = t }) = Constrintern.interp_constr_evars env sigma e in
      let (sigma, typ) = Simple_check.simple_check1 env sigma t in
      Feedback.msg_notice (Printer.pr_econstr_env env sigma typ)
    }
@@ -242,7 +242,7 @@ VERNAC COMMAND EXTEND Check2 CLASSIFIED AS QUERY
    {
      let env = Global.env () in
      let sigma = Evd.from_env env in
-     let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
+     let (sigma, { Environ.uj_val = t }) = Constrintern.interp_constr_evars env sigma e in
      let typ = Simple_check.simple_check2 env sigma t in
      Feedback.msg_notice (Printer.pr_econstr_env env sigma typ)
    }
@@ -260,8 +260,8 @@ VERNAC COMMAND EXTEND Convertible CLASSIFIED AS QUERY
    {
      let env = Global.env () in
      let sigma = Evd.from_env env in
-     let (sigma, t1) = Constrintern.interp_constr_evars env sigma e1 in
-     let (sigma, t2) = Constrintern.interp_constr_evars env sigma e2 in
+     let (sigma, { Environ.uj_val = t1 }) = Constrintern.interp_constr_evars env sigma e1 in
+     let (sigma, { Environ.uj_val = t2 }) = Constrintern.interp_constr_evars env sigma e2 in
      match Reductionops.infer_conv env sigma t1 t2 with
      | Some _ ->
         Feedback.msg_notice (strbrk "Yes :)")

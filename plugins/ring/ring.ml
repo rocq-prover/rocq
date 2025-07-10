@@ -170,11 +170,11 @@ let _ = add_tacdef false ((Loc.ghost,Id.of_string"ring_closed_term"
 (****************************************************************************)
 
 let ic env sigma c =
-  let c, uctx = Constrintern.interp_constr env sigma c in
-  (Evd.from_ctx uctx, c)
+  let sigma, j = Constrintern.interp_constr_evars ~flags:Pretyping.all_and_fail_flags env sigma c in
+  sigma, j.uj_val
 
 let ic_unsafe env sigma c = (*FIXME remove *)
-  fst (Constrintern.interp_constr env sigma c)
+  fst (Constrintern.interp_constr env (Evd.ustate sigma) c)
 
 let decl_constant name univs c =
   let open Constr in
@@ -647,8 +647,7 @@ let process_ring_mods env sigma l =
 
 let add_theory id rth l =
   let env = Global.env () in
-  let sigma = Evd.from_env env in
-  let sigma, rth = ic env sigma rth in
+  let sigma, rth = ic env (Evd.from_env env) rth in
   let (k,set,cst,pre,post,power,sign, div) = process_ring_mods env sigma l in
   add_theory0 env sigma id rth set k cst (pre,post) power sign div
 

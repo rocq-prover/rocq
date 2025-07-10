@@ -98,44 +98,44 @@ val intern_context : env -> bound_univs:UnivNames.universe_binders ->
 (** Main interpretation functions, using type class inference,
     expecting evars and pending problems to be all resolved *)
 
-val interp_constr : ?flags:inference_flags -> ?expected_type:typing_constraint -> env -> evar_map -> ?impls:internalization_env ->
+val interp_constr : ?flags:inference_flags -> ?expected_type:typing_constraint -> env -> UState.t -> ?impls:internalization_env ->
   constr_expr -> constr Evd.in_ustate
 
-val interp_casted_constr : ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
+val interp_casted_constr : ?flags:inference_flags -> env -> UState.t -> ?impls:internalization_env ->
   constr_expr -> types -> constr Evd.in_ustate
 
-val interp_type : ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
+val interp_type : ?flags:inference_flags -> env -> UState.t -> ?impls:internalization_env ->
   constr_expr -> types Evd.in_ustate
 
 (** Main interpretation function expecting all postponed problems to
     be resolved, but possibly leaving evars. *)
 
-val interp_open_constr : ?expected_type:typing_constraint -> env -> evar_map -> constr_expr -> evar_map * constr
+val interp_open_constr : ?expected_type:typing_constraint -> env -> evar_map -> constr_expr -> evar_map * unsafe_judgment
 
 (** Accepting unresolved evars *)
 
-val interp_constr_evars : ?program_mode:bool -> env -> evar_map ->
-  ?impls:internalization_env -> constr_expr -> evar_map * constr
+val interp_constr_evars : ?flags:Pretyping.inference_flags -> ?program_mode:bool -> env -> evar_map ->
+  ?impls:internalization_env -> constr_expr -> evar_map * unsafe_judgment
 
 val interp_casted_constr_evars : ?flags:Pretyping.inference_flags -> ?program_mode:bool -> env -> evar_map ->
-  ?impls:internalization_env -> constr_expr -> types -> evar_map * constr
+  ?impls:internalization_env -> constr_expr -> types -> evar_map * unsafe_judgment
 
 val interp_type_evars : ?program_mode:bool -> env -> evar_map ->
-  ?impls:internalization_env -> constr_expr -> evar_map * types
+  ?impls:internalization_env -> constr_expr -> evar_map * unsafe_type_judgment
 
 (** Accepting unresolved evars and giving back the manual implicit arguments *)
 
 val interp_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr ->
-  evar_map * (constr * Impargs.manual_implicits)
+  evar_map * (unsafe_judgment * Impargs.manual_implicits)
 
 val interp_casted_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> types ->
-  evar_map * (constr * Impargs.manual_implicits)
+  evar_map * (unsafe_judgment * Impargs.manual_implicits)
 
 val interp_type_evars_impls : ?flags:inference_flags -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr ->
-  evar_map * (types * Impargs.manual_implicits)
+  evar_map * (unsafe_type_judgment * Impargs.manual_implicits)
 
 (** Interprets constr patterns *)
 
@@ -161,10 +161,10 @@ val interp_reference : ltac_sign -> qualid -> glob_constr
 
 (** Interpret binders *)
 
-val interp_binder  : env -> evar_map -> Name.t -> constr_expr ->
+val interp_binder  : env -> UState.t -> Name.t -> constr_expr ->
   types Evd.in_ustate
 
-val interp_binder_evars : env -> evar_map -> Name.t -> constr_expr -> evar_map * types
+val interp_binder_evars : env -> evar_map -> Name.t -> constr_expr -> evar_map * unsafe_type_judgment
 
 (** Interpret contexts: returns extended env and context.
 
@@ -220,17 +220,17 @@ val interp_univ_constraint
 
 (** Local universe and constraint declarations. *)
 val interp_univ_decl : Environ.env -> universe_decl_expr ->
-                       Evd.evar_map * UState.universe_decl
+  UState.t * UState.universe_decl
 
 val interp_univ_decl_opt : Environ.env -> universe_decl_expr option ->
-                       Evd.evar_map * UState.universe_decl
+  UState.t * UState.universe_decl
 
 val interp_cumul_univ_decl_opt : Environ.env -> cumul_univ_decl_expr option ->
-  Evd.evar_map * UState.universe_decl * Entries.variance_entry
+  UState.t * UState.universe_decl * Entries.variance_entry
 (** BEWARE the variance entry needs to be adjusted by
    [ComInductive.variance_of_entry] if the instance is extensible. *)
 
 val interp_mutual_univ_decl_opt : Environ.env -> universe_decl_expr option list ->
-  Evd.evar_map * UState.universe_decl
+  UState.t * UState.universe_decl
 (** Check that all defined udecls of a list of udecls associated to a mutual definition
     are the same and interpret this common udecl *)

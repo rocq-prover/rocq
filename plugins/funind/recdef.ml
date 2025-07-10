@@ -1476,10 +1476,11 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
                  (tclFIRST
                     (List.map
                        (fun c ->
+                         let env = Global.env() in
                          Tacticals.tclTHENLIST
                            [ intros
                            ; Simple.apply
-                               (fst (interp_constr (Global.env ()) Evd.empty c))
+                               (fst (interp_constr env (UState.from_env env) c))
                              (*FIXME*)
                            ; Tacticals.tclCOMPLETE Auto.default_auto ])
                        using_lemmas))
@@ -1635,7 +1636,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   let open CVars in
   let env = Global.env () in
   let evd = Evd.from_env env in
-  let evd, function_type =
+  let evd, { utj_val = function_type } =
     interp_type_evars ~program_mode:false env evd type_of_f
   in
   let function_r = ERelevance.relevant in
@@ -1647,7 +1648,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
       env
   in
   (* Pp.msgnl (str "function type := " ++ Printer.pr_lconstr function_type);  *)
-  let evd, ty =
+  let evd, { utj_val = ty } =
     interp_type_evars ~program_mode:false env evd ~impls:rec_impls eq
   in
   let evd = Evd.minimize_universes evd in
@@ -1692,13 +1693,13 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
     declare_fun functional_id Decls.(IsDefinition Definition) ~univs res
   in
   (* Refresh the global universes, now including those of _F *)
-  let evd = Evd.from_env (Global.env ()) in
+  let evuctx = UState.from_env (Global.env ()) in
   let env_with_pre_rec_args =
     push_rel_context
       (List.map (function x, t -> LocalAssum (x, t)) pre_rec_args)
       env
   in
-  let relation, evuctx = interp_constr env_with_pre_rec_args evd r in
+  let relation, evuctx = interp_constr env_with_pre_rec_args evuctx r in
   let () = check_relation_type env_with_pre_rec_args evd relation in
   let evd = Evd.from_ctx evuctx in
   let tcc_lemma_name = add_suffix function_name "_tcc" in

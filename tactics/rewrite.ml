@@ -1480,7 +1480,7 @@ module Strategies =
 
     let fold_glob c : 'a pure_strategy =
       { strategy = fun { state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
-            let sigma, c = Pretyping.understand_tcc env (goalevars evars) c in
+            let sigma, { uj_val = c } = Pretyping.understand_tcc env (goalevars evars) c in
             state, run_fold_in env (sigma, cstrevars evars) c t ty
       }
 end
@@ -1835,8 +1835,8 @@ let proper_projection env sigma r ty =
                   Array.append args [| instarg |]) in
   sigma, it_mkLambda_or_LetIn app ctx
 
-let build_morphism_signature env sigma m =
-  let m,ctx = Constrintern.interp_constr env sigma m in
+let build_morphism_signature env ctx m =
+  let m,ctx = Constrintern.interp_constr env ctx m in
   let sigma = Evd.from_ctx ctx in
   let t = Retyping.get_type_of env sigma m in
   let cstrs =

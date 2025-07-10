@@ -98,15 +98,13 @@ val all_and_fail_flags : inference_flags
     heuristics (but no external tactic solver hooks), as well as to
     ensure that conversion problems are all solved and expand evars,
     but unresolved evars can remain. The difference is in whether the
-    evar_map is modified explicitly or by side-effect. *)
+    evar_map is modified explicitly or by side-effect.
+
+    The [expand_evars] flag is not applied to the type (only to the term).
+*)
 
 val understand_tcc : ?flags:inference_flags -> env -> evar_map ->
-  ?expected_type:typing_constraint -> glob_constr -> evar_map * constr
-
-(** As [understand_tcc] but also returns the type of the elaborated term.
-    The [expand_evars] flag is not applied to the type (only to the term). *)
-val understand_tcc_ty : ?flags:inference_flags -> env -> evar_map ->
-  ?expected_type:typing_constraint -> glob_constr -> evar_map * constr * types
+  ?expected_type:typing_constraint -> glob_constr -> evar_map * unsafe_judgment
 
 (** More general entry point with evars from ltac *)
 
@@ -122,24 +120,24 @@ val understand_tcc_ty : ?flags:inference_flags -> env -> evar_map ->
 
 val understand_ltac : inference_flags ->
   env -> evar_map -> ltac_var_map ->
-  typing_constraint -> glob_constr -> evar_map * EConstr.t
-
-val understand_ltac_ty : inference_flags ->
-  env -> evar_map -> ltac_var_map ->
-  typing_constraint -> glob_constr -> evar_map * EConstr.t * EConstr.types
+  typing_constraint -> glob_constr -> evar_map * unsafe_judgment
 
 (** Standard call to get a constr from a glob_constr, resolving
     implicit arguments and coercions, and compiling pattern-matching;
     the default inference_flags tells to use type classes and
     heuristics (but no external tactic solver hook), as well as to
     ensure that conversion problems are all solved and that no
-    unresolved evar remains, expanding evars. *)
+    unresolved evar remains, expanding evars.
+
+    Because we don't return an updated evar map but only the ustate,
+    we also take as argument just the ustate to avoid forgetting an
+    instantiation of preexisting evar. *)
 val understand : ?flags:inference_flags -> ?expected_type:typing_constraint ->
-  env -> evar_map -> glob_constr -> constr Evd.in_ustate
+  env -> UState.t -> glob_constr -> constr Evd.in_ustate
 
 val understand_uconstr :
   ?flags:inference_flags -> ?expected_type:typing_constraint ->
-  env -> evar_map -> Ltac_pretype.closed_glob_constr -> evar_map * EConstr.t
+  env -> evar_map -> Ltac_pretype.closed_glob_constr -> evar_map * unsafe_judgment
 
 (** [hook env sigma ev] returns [Some (sigma', term)] if [ev] can be
    instantiated with a solution, [None] otherwise. Used to extend
@@ -170,7 +168,7 @@ val check_evars : env -> ?initial:evar_map -> evar_map -> constr -> unit
 (** Internal of Pretyping... *)
 val ise_pretype_gen :
   inference_flags -> env -> evar_map ->
-  ltac_var_map -> typing_constraint -> glob_constr -> evar_map * constr * types
+  ltac_var_map -> typing_constraint -> glob_constr -> evar_map * unsafe_judgment
 
 (** {6 Open-recursion style pretyper} *)
 

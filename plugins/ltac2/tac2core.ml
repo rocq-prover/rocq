@@ -780,7 +780,9 @@ let () = define "expected_without_type_constraint" (ret expected_type)
 let () =
   define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) @@ fun flags expected_type c ->
   let pretype env sigma =
-    let sigma, t = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
+    let sigma, { Environ.uj_val = t } =
+      Pretyping.understand_uconstr ~flags ~expected_type env sigma c
+    in
     Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
   in
   pf_apply ~catch_exceptions:true pretype

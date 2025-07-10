@@ -178,7 +178,7 @@ let interp_refine env sigma ist ~concl rc =
     unconstrained_sorts = false;
   }
   in
-  let sigma, c = Pretyping.understand_ltac flags env sigma vars kind rc in
+  let sigma, { Environ.uj_val = c } = Pretyping.understand_ltac flags env sigma vars kind rc in
 (*   ppdebug(lazy(str"sigma@interp_refine=" ++ pr_evar_map None sigma)); *)
   debug_ssr (fun () -> str"c@interp_refine=" ++ Printer.pr_econstr_env env sigma c);
   (sigma, c)

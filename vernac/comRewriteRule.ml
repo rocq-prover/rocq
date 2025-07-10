@@ -39,8 +39,8 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   let loc = id.CAst.loc in
   let id = id.CAst.v in
   let env = Global.env () in
-  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
-  let evd, (typ, impls) =
+  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
+  let evd, ({Environ.utj_val = typ}, impls) =
     Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
       env evd typ
   in
@@ -416,7 +416,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with undeclared_evars_rr = true; expand_evars = false; solve_unification_constraints = false } in
-  let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
+  let evd, { Environ.uj_val = lhs; uj_type = typ } = Pretyping.understand_tcc ~flags env evd lhs in
 
   let evd = Evd.minimize_universes evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
@@ -461,7 +461,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let evd = Evd.set_universe_context evd uctx in
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd rhs) in
   let flags = Pretyping.no_classes_no_fail_inference_flags in
-  let evd', rhs =
+  let evd', { Environ.uj_val = rhs } =
     try Pretyping.understand_tcc ~flags env evd ~expected_type:(OfType typ) rhs
     with Pretype_errors.PretypeError (env', evd', e) ->
       warn_rewrite_rules_break_SR ?loc:rhs_loc

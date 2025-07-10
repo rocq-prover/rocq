@@ -288,7 +288,7 @@ let type_ctx_instance ~program_mode env sigma ctx inst subst =
     | LocalAssum _ :: _, [] | [], _ :: _ -> assert false
     | LocalAssum (_,t) :: ctx, c :: l ->
       let t' = substl subst t in
-      let (sigma, c') =
+      let (sigma, { Environ.uj_val = c' }) =
         interp_casted_constr_evars ~program_mode env sigma c t'
       in
       aux (sigma, c' :: subst) l ctx
@@ -462,7 +462,7 @@ let interp_props ~program_mode env' cty k ctx ctx' subst sigma = function
       do_instance_subst_constructor_and_ty subst k (ctx' @ ctx) in
     term, termtype, sigma
   | (_, term) ->
-    let sigma, def =
+    let sigma, { Environ.uj_val = def } =
       interp_casted_constr_evars ~program_mode env' sigma term cty in
     let termtype = it_mkProd_or_LetIn cty ctx in
     let term = it_mkLambda_or_LetIn def ctx in
@@ -536,10 +536,10 @@ let typeclass_univ_instance (cl, u) =
   }
 
 let interp_instance_context ~program_mode env ctx pl tclass =
-  let sigma, decl = interp_univ_decl_opt env pl in
+  let sigma, decl = interp_univ_decl_opt env pl |> Util.on_fst Evd.from_ctx in
   let sigma, (impls, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode env sigma ctx in
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let sigma, (c', imps') = interp_type_evars_impls ~flags ~impls env' sigma tclass in
+  let sigma, ({ Environ.utj_val = c' }, imps') = interp_type_evars_impls ~flags ~impls env' sigma tclass in
   let imps = imps @ imps' in
   let ctx', c = decompose_prod_decls sigma c' in
   let ctx'' = ctx' @ ctx in

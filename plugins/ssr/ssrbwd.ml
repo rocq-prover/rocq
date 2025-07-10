@@ -83,7 +83,8 @@ let apply_rconstr ?ist t =
       errorstrm Pp.(str"Cannot apply lemma "++pr_glob_constr_env env sigma t)
     else try understand_tcc env sigma ~expected_type:(OfType cl) (mkRlemma i)
       with e when CErrors.noncritical e -> loop (i + 1) in
-  refine_with (loop 0)
+  let sigma, j = loop 0 in
+  refine_with (sigma, j.uj_val)
   end
 
 let mkRAppView ist env sigma rv gv =

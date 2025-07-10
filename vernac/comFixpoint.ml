@@ -342,14 +342,14 @@ let interp_fix_context ~program_mode env sigma {Vernacexpr.binders} =
 
 let interp_fix_ccl ~program_mode sigma impls env fix =
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let sigma, (c, impl) = interp_type_evars_impls ~flags ~impls env sigma fix.Vernacexpr.rtype in
+  let sigma, ({Environ.utj_val = c}, impl) = interp_type_evars_impls ~flags ~impls env sigma fix.Vernacexpr.rtype in
   let r = Retyping.relevance_of_type env sigma c in
   sigma, (c, r, impl)
 
 let interp_fix_body ~program_mode env_rec ctx sigma impls fix ccl =
   Option.cata (fun body ->
     let env_rec_ctx = push_rel_context ctx env_rec in
-    let sigma, body = interp_casted_constr_evars ~program_mode env_rec_ctx sigma ~impls body ccl in
+    let sigma, { Environ.uj_val = body } = interp_casted_constr_evars ~program_mode env_rec_ctx sigma ~impls body ccl in
     sigma, Some (it_mkLambda_or_LetIn body ctx)) (sigma, None) fix.Vernacexpr.body_def
 
 let build_fix_type sigma ctx ccl (_, extradecl) =
@@ -396,10 +396,10 @@ let interp_wf ~program_mode env sigma recname ctx ccl = function
     let impl = CAst.make (Some (Name recproofid, true)) in
     (* The well-founded relation *)
     let env_ctx = push_rel_context ctx env in
-    let sigma, (rel, _) = interp_constr_evars_impls ~program_mode env sigma r in
+    let sigma, ({ Environ.uj_val = rel }, _) = interp_constr_evars_impls ~program_mode env sigma r in
     let relargty = Hipattern.is_homogeneous_relation ?loc:(Constrexpr_ops.constr_loc r) env_ctx sigma rel in
     (* The measure *)
-    let sigma, measure = interp_casted_constr_evars ~program_mode env_ctx sigma measure relargty in
+    let sigma, { Environ.uj_val = measure } = interp_casted_constr_evars ~program_mode env_ctx sigma measure relargty in
     let sigma, after, extradecl =
       if program_mode then
         let len = Context.Rel.length ctx in
@@ -421,7 +421,10 @@ let interp_mutual_definition env ~program_mode ~function_mode rec_order fixl =
   let fixnames = List.map (fun na -> na.CAst.v) fixlnames in
 
   (* Interp arities allowing for unresolved types *)
-  let sigma, decl = interp_mutual_univ_decl_opt env (List.map (fun Vernacexpr.{univs} -> univs) fixl) in
+  let sigma, decl =
+    interp_mutual_univ_decl_opt env (List.map (fun Vernacexpr.{univs} -> univs) fixl)
+    |> Util.on_fst Evd.from_ctx
+  in
   let sigma, (fixenv, fixctxs, fixctximpenvs, fixctximps) =
     on_snd List.split4 @@
       List.fold_left_map (fun sigma -> interp_fix_context ~program_mode env sigma) sigma fixl in

@@ -243,8 +243,8 @@ let add_inversion_lemma ~poly (name:lident) env sigma t sort dep inv_op =
 
 let add_inversion_lemma_exn ~poly na com comsort bool tac =
   let env = Global.env () in
-  let sigma = Evd.from_env env in
-  let c, uctx = Constrintern.interp_type env sigma com in
+  let uctx = UState.from_env env in
+  let c, uctx = Constrintern.interp_type env uctx com in
   let sigma = Evd.from_ctx uctx in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:univ_rigid sigma comsort in
   add_inversion_lemma ~poly na env sigma c sort bool tac

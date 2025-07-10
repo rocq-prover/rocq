@@ -195,11 +195,10 @@ let add_morphism_as_parameter atts m n : unit =
   init_setoid ();
   let instance_id = add_suffix n "_Proper" in
   let env = Global.env () in
-  let evd = Evd.from_env env in
   let poly = atts.polymorphic in
   let kind = Decls.(IsAssumption Logical) in
   let impargs, udecl = [], UState.default_univ_decl in
-  let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
+  let evd, types = Rewrite.Internal.build_morphism_signature env (UState.from_env env) m in
   let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
   let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
@@ -211,8 +210,7 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   init_setoid ();
   let instance_id = add_suffix n "_Proper" in
   let env = Global.env () in
-  let evd = Evd.from_env env in
-  let evd, morph = Rewrite.Internal.build_morphism_signature env evd m in
+  let evd, morph = Rewrite.Internal.build_morphism_signature env (UState.from_env env) m in
   let poly = atts.polymorphic in
   let kind = Decls.(IsDefinition Instance) in
   let hook { Declare.Hook.S.dref; _ } = dref |> function

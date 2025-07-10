@@ -96,12 +96,12 @@ let interp_definition ~program_mode env evd impl_env bl red_option c ctypopt =
   let evd, c, imps, tyopt =
     match tyopt with
     | None ->
-      let evd, (c, impsbody) = interp_constr_evars_impls ~program_mode ~impls env_bl evd c in
-      evd, c, imps1@impsbody, None
-    | Some (ty, impsty) ->
-      let evd, (c, impsbody) = interp_casted_constr_evars_impls ~program_mode ~impls env_bl evd c ty in
+      let evd, (j, impsbody) = interp_constr_evars_impls ~program_mode ~impls env_bl evd c in
+      evd, j.uj_val, imps1@impsbody, None
+    | Some ({utj_val = ty}, impsty) ->
+      let evd, (j, impsbody) = interp_casted_constr_evars_impls ~program_mode ~impls env_bl evd c ty in
       check_imps ~impsty ~impsbody;
-      evd, c, imps1@impsty, Some ty
+      evd, j.uj_val, imps1@impsty, Some ty
   in
   (* Do the reduction *)
   let evd, c = apply_under_binders (red_constant_body red_option) env_bl evd c in
@@ -113,16 +113,16 @@ let interp_definition ~program_mode env evd impl_env bl red_option c ctypopt =
 
 let interp_statement ~program_mode env evd ~flags ~scope name bl typ  =
   let evd, (impls, ((env, ctx), imps, _locs)) = Constrintern.interp_context_evars ~program_mode env evd bl in
-  let evd, (t', imps') = Constrintern.interp_type_evars_impls ~flags ~impls env evd typ in
+  let evd, (tj, imps') = Constrintern.interp_type_evars_impls ~flags ~impls env evd typ in
   let ids = List.map Context.Rel.Declaration.get_name ctx in
-  evd, ids, EConstr.it_mkProd_or_LetIn t' ctx, imps @ imps'
+  evd, ids, EConstr.it_mkProd_or_LetIn tj.utj_val ctx, imps @ imps'
 
 let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
   let program_mode = false in
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_univ_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
   let evd, (body, types), impargs =
     interp_definition ~program_mode env evd empty_internalization_env bl red_option c ctypopt
   in
@@ -137,7 +137,7 @@ let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_f
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_univ_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
   let evd, (body, types), impargs =
     interp_definition ~program_mode:true env evd empty_internalization_env bl red_option c ctypopt
   in
@@ -153,7 +153,7 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
+  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
   let evd, args, typ,impargs = interp_statement ~program_mode ~flags ~scope env evd name bl t in
   let evd =
     let inference_hook = if program_mode then Some Declare.Obls.program_inference_hook else None in
@@ -172,7 +172,7 @@ let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags 
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_univ_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
   let evd, (body, typ), impargs =
     interp_definition ~program_mode:false env evd empty_internalization_env bl None c ctypopt
   in

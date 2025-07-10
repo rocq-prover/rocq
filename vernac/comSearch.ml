@@ -71,7 +71,7 @@ let kind_searcher env = Decls.(function
 let interp_constr_pattern env sigma ?(expected_type=Pretyping.WithoutTypeConstraint) c =
   let c = Constrintern.intern_gen expected_type ~pattern_mode:true env sigma c in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with expand_evars = false } in
-  let sigma, c = Pretyping.understand_tcc ~flags env sigma ~expected_type c in
+  let sigma, { Environ.uj_val = c } = Pretyping.understand_tcc ~flags env sigma ~expected_type c in
   (* FIXME: it is necessary to be unsafe here because of the way we handle
      evars in the pretyper. Sometimes they get solved eagerly. *)
   Patternops.legacy_bad_pattern_of_constr env sigma c

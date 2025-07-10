@@ -96,7 +96,7 @@ let declare_axiom ~coe ~local ~kind ?user_warns ~univs ~impargs ~inline ~name ty
 let interp_assumption ~program_mode env sigma impl_env bl c =
   let flags = { Pretyping.all_no_fail_flags with program_mode } in
   let sigma, (impls, ((env_bl, ctx), impls1, _locs)) = interp_context_evars ~program_mode ~impl_env env sigma bl in
-  let sigma, (ty, impls2) = interp_type_evars_impls ~flags env_bl sigma ~impls c in
+  let sigma, ({ Environ.utj_val = ty }, impls2) = interp_type_evars_impls ~flags env_bl sigma ~impls c in
   let ty = EConstr.it_mkProd_or_LetIn ty ctx in
   sigma, ty, impls1@impls2
 
@@ -217,7 +217,7 @@ let do_assumptions ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
   let udecl, l = match scope with
     | Locality.Global import_behavior -> process_assumptions_udecls l
     | Locality.Discharge -> None, process_assumptions_no_udecls l in
-  let sigma, udecl = interp_univ_decl_opt env udecl in
+  let sigma, udecl = interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
   let coercions, ctx = local_binders_of_decls ~poly l in
   let sigma, ctx = interp_context_gen ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
   let univs = Evd.check_univ_decl ~poly sigma udecl in

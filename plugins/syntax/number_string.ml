@@ -117,7 +117,7 @@ let locate_float () =
 let has_type env sigma f ty =
   let c = DAst.make @@ GCast (f, Some Constr.DEFAULTcast, ty) in
   let flags = Pretyping.{ all_and_fail_flags with use_coercions = false } in
-  try let _ = Pretyping.understand ~flags env sigma c in true
+  try let _, _ = Pretyping.understand ~flags env (Evd.ustate sigma) c in true
   with Pretype_errors.PretypeError _ -> false
 
 let q_option () = Rocqlib.lib_ref_opt "core.option.type"
@@ -440,8 +440,7 @@ let locate_global_inductive_with_params allow_params qid =
               let g = Notation_ops.glob_constr_of_notation_constr n in
               let c, _ =
                 let env = Global.env () in
-                let sigma = Evd.from_env env in
-                Pretyping.understand env sigma g in
+                Pretyping.understand env (UState.from_env env) g in
               Some (EConstr.Unsafe.to_constr c)) l
     | _ -> raise Not_found
 

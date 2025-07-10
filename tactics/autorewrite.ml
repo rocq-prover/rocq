@@ -559,12 +559,12 @@ let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
 
 let add_rewrite_hint ~locality ~poly bases ort t lcsr =
   let env = Global.env() in
-  let sigma = Evd.from_env env in
+  let uctx = UState.from_env env in
   let f ce =
-    let c, ctx = Constrintern.interp_constr env sigma ce in
-    let c = EConstr.to_constr sigma c in
+    let c, uctx = Constrintern.interp_constr env uctx ce in
+    let c = EConstr.to_constr (Evd.from_ctx uctx) c in
     let ctx =
-      let ctx = UState.context_set ctx in
+      let ctx = UState.context_set uctx in
       if poly then ctx
       else (* This is a global universe context that shouldn't be
               refreshed at every use of the hint, declare it globally. *)

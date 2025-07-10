@@ -2720,9 +2720,9 @@ let intern_pattern globalenv patt =
 
 (* All evars resolved *)
 
-let interp_gen ?flags kind env sigma ?(impls=empty_internalization_env) c =
-  let c = intern_gen kind ~impls env sigma c in
-  understand ?flags ~expected_type:kind env sigma c
+let interp_gen ?flags kind env uctx ?(impls=empty_internalization_env) c =
+  let c = intern_gen kind ~impls env (Evd.from_ctx uctx) c in
+  understand ?flags ~expected_type:kind env uctx c
 
 let interp_constr ?flags ?(expected_type=WithoutTypeConstraint) env sigma ?(impls=empty_internalization_env) c =
   interp_gen ?flags expected_type env sigma c
@@ -2756,7 +2756,9 @@ let interp_casted_constr_evars_impls ?(program_mode=false) env evdref ?(impls=em
   interp_constr_evars_gen_impls ~flags env evdref ~impls (OfType typ) c
 
 let interp_type_evars_impls ?(flags=Pretyping.all_no_fail_flags) env sigma ?(impls=empty_internalization_env) c =
-  interp_constr_evars_gen_impls ~flags env sigma ~impls IsType c
+  let sigma, (j, impls) = interp_constr_evars_gen_impls ~flags env sigma ~impls IsType c in
+  let sigma, j = Typing.type_judgment env sigma j in
+  sigma, (j, impls)
 
 (* Not all evars expected to be resolved, with side-effect on evars *)
 
@@ -2765,14 +2767,15 @@ let interp_constr_evars_gen ?flags ?(program_mode=false) env sigma ?(impls=empty
   let flags = Option.default { Pretyping.all_no_fail_flags with program_mode } flags in
   understand_tcc ~flags env sigma ~expected_type c
 
-let interp_constr_evars ?program_mode env evdref ?(impls=empty_internalization_env) c =
-  interp_constr_evars_gen ?program_mode env evdref WithoutTypeConstraint ~impls c
+let interp_constr_evars ?flags ?program_mode env evdref ?(impls=empty_internalization_env) c =
+  interp_constr_evars_gen ?flags ?program_mode env evdref WithoutTypeConstraint ~impls c
 
 let interp_casted_constr_evars ?flags ?program_mode env sigma ?(impls=empty_internalization_env) c typ =
   interp_constr_evars_gen ?flags ?program_mode env sigma ~impls (OfType typ) c
 
 let interp_type_evars ?program_mode env sigma ?(impls=empty_internalization_env) c =
-  interp_constr_evars_gen ?program_mode env sigma IsType ~impls c
+  let sigma, j = interp_constr_evars_gen ?program_mode env sigma IsType ~impls c in
+  Typing.type_judgment env sigma j
 
 (* Miscellaneous *)
 let intern_constr_pattern env sigma ?(as_type=false) ?strict_check ?(ltacvars=empty_ltac_sign) c =
@@ -2833,15 +2836,16 @@ let interp_notation_constr env ?(impls=empty_internalization_env) nenv a =
 
 (* Interpret binders and contexts  *)
 
-let interp_binder env sigma na t =
-  let t = intern_gen IsType env sigma t in
+let interp_binder env uctx na t =
+  let t = intern_gen IsType env (Evd.from_ctx uctx) t in
   let t' = locate_if_hole ?loc:(loc_of_glob_constr t) na t in
-  understand ~expected_type:IsType env sigma t'
+  understand ~expected_type:IsType env uctx t'
 
 let interp_binder_evars env sigma na t =
   let t = intern_gen IsType env sigma t in
   let t' = locate_if_hole ?loc:(loc_of_glob_constr t) na t in
-  understand_tcc env sigma ~expected_type:IsType t'
+  let sigma, j = understand_tcc env sigma ~expected_type:IsType t' in
+  Typing.type_judgment env sigma j
 
 let my_intern_constr env lvar acc c =
   internalize env acc false lvar c
@@ -2895,7 +2899,7 @@ let interp_context_evars_gen ?(program_mode=false) ?(unconstrained_sorts = false
           let (na, _, bk, b', t) = glob_local_binder_of_extended b' in
           let sigma, t =
               let t' = if Option.is_empty b' then locate_if_hole ?loc:(loc_of_glob_constr t) na t else t in (* useful? *)
-              let sigma, t, _ = Pretyping.ise_pretype_gen flags env sigma empty_lvar IsType t' in
+              let sigma, { Environ.uj_val = t } = Pretyping.ise_pretype_gen flags env sigma empty_lvar IsType t' in
               sigma, t
           in
           let r = Retyping.relevance_of_type env sigma t in
@@ -2907,7 +2911,7 @@ let interp_context_evars_gen ?(program_mode=false) ?(unconstrained_sorts = false
             (int_env, (push_decl d env, sigma, d::params, impls, loc::locs))
           | Some b ->
             assert (bk = Explicit);
-            let sigma, c, _ = Pretyping.ise_pretype_gen flags env sigma empty_lvar (OfType t) b in
+            let sigma, { Environ.uj_val = c } = Pretyping.ise_pretype_gen flags env sigma empty_lvar (OfType t) b in
             let d = make_decl ?loc (LocalDef (make_annot na r, c, t)) in
             (int_env, (push_decl d env, sigma, d::params, impls, loc::locs)))
           bl (int_env,acc) in
@@ -2926,60 +2930,62 @@ let interp_context_evars ?program_mode ?unconstrained_sorts ?impl_env env sigma 
 
 (** Local universe and constraint declarations. *)
 
-let known_universe_level_name evd lid =
-  try Evd.universe_of_name evd lid.CAst.v
+let known_universe_level_name uctx lid =
+  try UState.universe_of_name uctx lid.CAst.v
   with Not_found ->
     let u = Nametab.locate_universe (Libnames.qualid_of_lident lid) in
     Univ.Level.make u
 
-let known_glob_level evd = function
+let known_glob_level uctx = function
   | GSProp | GProp ->
     CErrors.user_err (Pp.str "Universe constraints cannot mention Prop or SProp.")
   | GSet -> Univ.Level.set
   | GUniv u -> u
   | GRawUniv u -> anomaly Pp.(str "Raw universe in known_glob_level.")
   | GLocalUniv lid ->
-    try known_universe_level_name evd lid
+    try known_universe_level_name uctx lid
     with Not_found ->
       user_err ?loc:lid.CAst.loc
         (str "Undeclared universe " ++ Id.print lid.CAst.v)
 
-let interp_known_level evd u =
-  let u = intern_sort_name ~local_univs:{bound = bound_univs evd; unb_univs=false} u in
-  known_glob_level evd u
+let interp_known_level uctx u =
+  let u = intern_sort_name ~local_univs:{bound = UState.universe_binders uctx; unb_univs=false} u in
+  known_glob_level uctx u
 
-let interp_univ_constraint evd (u,c,v) =
-  let u = interp_known_level evd u in
-  let v = interp_known_level evd v in
+let interp_univ_constraint_u uctx (u,c,v) =
+  let u = interp_known_level uctx u in
+  let v = interp_known_level uctx v in
   u,c,v
 
-let interp_univ_constraints env evd cstrs =
-  let interp (evd,cstrs) cstr =
-    let cstr = interp_univ_constraint evd cstr in
+let interp_univ_constraint sigma c = interp_univ_constraint_u (Evd.ustate sigma) c
+
+let interp_univ_constraints env uctx cstrs =
+  let interp (uctx,cstrs) cstr =
+    let cstr = interp_univ_constraint_u uctx cstr in
     try
-      let evd = Evd.add_constraints evd (Univ.Constraints.singleton cstr) in
-      evd, Univ.Constraints.add cstr cstrs
+      let uctx = UState.add_constraints uctx (Univ.Constraints.singleton cstr) in
+      uctx, Univ.Constraints.add cstr cstrs
     with UGraph.UniverseInconsistency e as exn ->
       let _, info = Exninfo.capture exn in
       CErrors.user_err ~info
-        (UGraph.explain_universe_inconsistency (Termops.pr_evd_qvar evd) (Termops.pr_evd_level evd) e)
+        (UGraph.explain_universe_inconsistency (UState.pr_uctx_qvar uctx) (UState.pr_uctx_level uctx) e)
   in
-  List.fold_left interp (evd,Univ.Constraints.empty) cstrs
+  List.fold_left interp (uctx,Univ.Constraints.empty) cstrs
 
 let interp_univ_decl env decl =
   let open UState in
-  let evd = Evd.from_env env in
-  let evd, qualities = List.fold_left_map (fun evd lid ->
-      Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
-      evd
+  let uctx = UState.from_env env in
+  let uctx, qualities = List.fold_left_map (fun uctx lid ->
+      UState.new_sort_variable ?loc:lid.loc ~name:lid.v uctx)
+      uctx
       decl.univdecl_qualities
   in
-  let evd, instance = List.fold_left_map (fun evd lid ->
-      Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
-      evd
+  let uctx, instance = List.fold_left_map (fun uctx lid ->
+      UState.new_univ_variable ?loc:lid.loc univ_rigid (Some lid.v) uctx)
+      uctx
       decl.univdecl_instance
   in
-  let evd, cstrs = interp_univ_constraints env evd decl.univdecl_constraints in
+  let uctx, cstrs = interp_univ_constraints env uctx decl.univdecl_constraints in
   let decl = {
     univdecl_qualities = qualities;
     univdecl_extensible_qualities = decl.univdecl_extensible_qualities;
@@ -2988,42 +2994,24 @@ let interp_univ_decl env decl =
     univdecl_constraints = cstrs;
     univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
   }
-  in evd, decl
+  in
+  uctx, decl
 
 let interp_cumul_univ_decl env decl =
   let open UState in
   let binders = List.map fst decl.univdecl_instance in
   let variances = Array.map_of_list snd decl.univdecl_instance in
-  let evd = Evd.from_env env in
-  let evd, qualities = List.fold_left_map (fun evd lid ->
-      Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
-      evd
-      decl.univdecl_qualities
-  in
-  let evd, instance = List.fold_left_map (fun evd lid ->
-      Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
-      evd
-      binders
-  in
-  let evd, cstrs = interp_univ_constraints env evd decl.univdecl_constraints in
-  let decl = {
-    univdecl_qualities = qualities;
-    univdecl_extensible_qualities = decl.univdecl_extensible_qualities;
-    univdecl_instance = instance;
-    univdecl_extensible_instance = decl.univdecl_extensible_instance;
-    univdecl_constraints = cstrs;
-    univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
-  }
-  in
-  evd, decl, variances
+  let decl = { decl with univdecl_instance = binders } in
+  let uctx, decl = interp_univ_decl env decl in
+  uctx, decl, variances
 
 let interp_univ_decl_opt env l =
   match l with
-  | None -> Evd.from_env env, UState.default_univ_decl
+  | None -> UState.from_env env, UState.default_univ_decl
   | Some decl -> interp_univ_decl env decl
 
 let interp_cumul_univ_decl_opt env = function
-  | None -> Evd.from_env env, UState.default_univ_decl, [| |]
+  | None -> UState.from_env env, UState.default_univ_decl, [| |]
   | Some decl -> interp_cumul_univ_decl env decl
 
 let interp_mutual_univ_decl_opt env udecls =

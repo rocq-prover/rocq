@@ -37,12 +37,12 @@ let interp_casted_constr_with_implicits env sigma impls c =
 
 let build_newrecursive lnameargsardef =
   let env0 = Global.env () in
-  let sigma = Evd.from_env env0 in
+  let uctx = UState.from_env env0 in
   let rec_sign, rec_impls =
     List.fold_left
       (fun (env, impls) {Vernacexpr.fname = {CAst.v = recname}; binders; rtype} ->
         let arityc = Constrexpr_ops.mkCProdN binders rtype in
-        let arity, _ctx = Constrintern.interp_type env0 sigma arityc in
+        let arity, _ctx = Constrintern.interp_type env0 uctx arityc in
         let evd = Evd.from_env env0 in
         let evd, (_, (_, impls', _locs)) =
           Constrintern.interp_context_evars ~program_mode:false env evd binders
@@ -67,7 +67,7 @@ let build_newrecursive lnameargsardef =
       match body_def with
       | Some body_def ->
         let def = abstract_glob_constr body_def binders in
-        interp_casted_constr_with_implicits rec_sign sigma rec_impls def
+        interp_casted_constr_with_implicits rec_sign (Evd.from_ctx uctx) rec_impls def
       | None ->
         CErrors.user_err
           (Pp.str "Body of Function must be given.")
