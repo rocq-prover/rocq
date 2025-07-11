@@ -2137,9 +2137,10 @@ let exact_proof c =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   Refine.refine ~typecheck:false begin fun sigma ->
-    let (c, ctx) = Constrintern.interp_casted_constr (pf_env gl) sigma c (pf_concl gl) in
-    let sigma = Evd.set_universe_context sigma ctx in
-    (sigma, c)
+    let sigma, j =
+      Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags (pf_env gl) sigma c (pf_concl gl)
+    in
+    sigma, j.uj_val
   end
   end
 
