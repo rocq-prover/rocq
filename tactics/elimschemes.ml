@@ -208,13 +208,20 @@ let lookup_eliminator_by_name env ind s =
   r
 
 let lookup_eliminator env ind s =
-  match lookup_scheme (elim_scheme ~dep:true ~to_kind:s) ind with
+  let nodep_scheme_first =
+    (* compat, add an option to control this and remove someday *)
+    let _, mip = Inductive.lookup_mind_specif env ind in
+    Sorts.is_prop mip.mind_sort && not (Indrec.is_prop_but_default_dependent_elim ind)
+  in
+  let schemes =
+    List.map (fun dep -> elim_scheme ~dep ~to_kind:s)
+      (if nodep_scheme_first then [false;true] else [true;false])
+  in
+  match List.find_map (fun scheme -> lookup_scheme scheme ind) schemes with
   | Some c -> Names.GlobRef.ConstRef c
-  | None -> match lookup_scheme (elim_scheme ~dep:false ~to_kind:s) ind with
-    | Some c -> Names.GlobRef.ConstRef c
-    | None ->
-      (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
-      lookup_eliminator_by_name env ind s
+  | None ->
+    (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
+    lookup_eliminator_by_name env ind s
 
 (* Case analysis *)
 
