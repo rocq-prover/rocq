@@ -524,6 +524,8 @@ end
 
 module Html = struct
 
+  let title_re = Str.regexp_string "@@TITLE@@"
+
   let header () =
     if !prefs.header_trailer then
       if !prefs.header_file_spec then
@@ -531,7 +533,8 @@ module Html = struct
           try
             while true do
               let s = input_line cin in
-                printf "%s\n" s
+              let s = Str.global_replace title_re !page_title s in
+              printf "%s\n" s
             done
           with End_of_file -> close_in cin
       else
