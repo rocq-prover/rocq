@@ -24,7 +24,7 @@ val new_meta : unit -> metavariable
 
 (** {6 Creating a fresh evar given their type and context} *)
 
-val next_evar_name : evar_map -> intro_pattern_naming_expr -> Id.t option
+val next_evar_name : intro_pattern_naming_expr -> (Id.t * bool) option
 
 module VarSet :
 sig
@@ -41,6 +41,7 @@ val new_evar :
   ?relevance:ERelevance.t ->
   ?abstract_arguments:Abstraction.t -> ?candidates:constr list ->
   ?naming:intro_pattern_naming_expr ->
+  ?parent:Evar.t ->
   ?typeclass_candidate:bool ->
   ?hypnaming:naming_mode ->
   env -> evar_map -> types -> evar_map * EConstr.t
@@ -50,7 +51,8 @@ val new_pure_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   relevance:ERelevance.t ->
   ?abstract_arguments:Abstraction.t -> ?candidates:constr list ->
-  ?name:Id.t ->
+  ?name:(Id.t * bool) ->
+  ?parent:Evar.t ->
   ?typeclass_candidate:bool ->
   named_context_val -> evar_map -> types -> evar_map * Evar.t
 
