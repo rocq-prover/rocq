@@ -40,10 +40,8 @@ type t = {
   light : bool;
   title : string;
   header_trailer : bool;
-  header_file_spec : bool;
-  header_file : string;
-  footer_file_spec : bool;
-  footer_file : string;
+  header_file : string option;
+  footer_file : string option;
   index : bool;
   binder_index : bool;
   multi_index : bool;
