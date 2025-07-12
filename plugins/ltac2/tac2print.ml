@@ -813,7 +813,7 @@ let rec pr_syntax_class = let open CAst in function
 | SexprRec (_, {v=na}, args) ->
   let na = match na with
   | None -> str "_"
-  | Some id -> Id.print id
+  | Some id -> Libnames.pr_qualid id
   in
   let ppargs = if CList.is_empty args then mt()
     else str "(" ++ prlist_with_sep (fun () -> str ", ") pr_syntax_class args ++ str ")"
