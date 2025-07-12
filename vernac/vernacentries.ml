@@ -923,7 +923,11 @@ let vernac_end_proof ~lemma ~pm = let open Vernacexpr in function
 
 let vernac_abort ~lemma:_ ~pm = pm
 
+let deprecated_exact_proof = CWarnings.create ~name:"deprecated-exact-proof" ~category:Deprecation.Version.v9_2
+    Pp.(fun () -> str "\"Proof term.\" is deprecated. Use \"Proof. exact term. Qed.\" instead.")
+
 let vernac_exact_proof ~lemma ~pm c =
+  deprecated_exact_proof ();
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
      called only at the beginning of a proof. *)
   let lemma, status = Declare.Proof.by (Tactics.exact_proof c) lemma in

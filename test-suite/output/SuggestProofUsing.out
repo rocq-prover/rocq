@@ -1,3 +1,6 @@
+File "./output/SuggestProofUsing.v", line 8, characters 31-43:
+Warning: "Proof term." is deprecated. Use "Proof. exact term. Qed." instead.
+[deprecated-exact-proof,deprecated-since-9.2,deprecated,default]
 The proof of Nat should start with one of the following commands:
 Proof using . 
 Proof using Type*. 
@@ -5,6 +8,9 @@ Proof using Type.
 The proof of foo should start with one of the following commands:
 Proof using A B. 
 Proof using All. 
+File "./output/SuggestProofUsing.v", line 53, characters 31-42:
+Warning: "Proof term." is deprecated. Use "Proof. exact term. Qed." instead.
+[deprecated-exact-proof,deprecated-since-9.2,deprecated,default]
 The proof of sec_exactproof should start with one of the following commands:
 Proof using . 
 Proof using Type*. 
