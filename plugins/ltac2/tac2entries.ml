@@ -1288,11 +1288,13 @@ let def_unit = {
 
 let t_list = rocq_def "list"
 
-let () = Mltop.declare_cache_obj begin fun () ->
-  let unit = Id.of_string "unit" in
-  Lib.add_leaf (inTypDef unit def_unit);
-  register_prim_alg "list" 1 [
-    ("[]", []);
-    ("::", [GTypVar 0; GTypRef (Other t_list, [GTypVar 0])]);
-  ];
-end "rocq-runtime.plugins.ltac2"
+let () =
+  let obj () =
+     let unit = Id.of_string "unit" in
+     Lib.add_leaf (inTypDef unit def_unit);
+     register_prim_alg "list" 1 [
+       ("[]", []);
+       ("::", [GTypVar 0; GTypRef (Other t_list, [GTypVar 0])]);
+     ];
+  in
+  Mltop.(declare_cache_obj_full (interp_only_obj obj) "rocq-runtime.plugins.ltac2")

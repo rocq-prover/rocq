@@ -2598,6 +2598,8 @@ let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
   | EVernacNotation { local; decl } ->
     vtdefault(fun () -> Metasyntax.add_notation_interpretation ~local (Global.env()) decl)
 
+  | EVernacDeclareMLModule f -> vtdefault (fun () -> Mltop.run_interp_fun f)
+
   | EVernacDefineModule (export,lid,bl,argsexport,mtys,mexprl) ->
     let i () =
       unsupported_attributes atts;

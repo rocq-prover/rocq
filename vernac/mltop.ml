@@ -299,18 +299,36 @@ let add_init_function name f =
 (** Registering functions to be used at caching time, that is when the Declare
     ML module command is issued. *)
 
+type cache_obj = CacheObj : { synterp : unit -> 'a; interp : 'a -> unit } -> cache_obj
+
+let interp_only_obj interp = CacheObj { synterp = (fun () -> ()); interp }
+
 let cache_objs = ref PluginSpec.Map.empty
 
-let declare_cache_obj f name =
+let declare_cache_obj_full obj name =
   let name = PluginSpec.of_package name in
   let objs = try PluginSpec.Map.find name !cache_objs with Not_found -> [] in
-  let objs = f :: objs in
+  let objs = obj :: objs in
   cache_objs := PluginSpec.Map.add name objs !cache_objs
+
+let declare_cache_obj f name =
+  declare_cache_obj_full (CacheObj {synterp = f; interp = (fun () -> ()) }) name
+
+(* A little box to avoid getting confused with partially applied functions *)
+type interp_fun = InterpFun of (unit -> unit)
+
+let iter_interp_funs l =
+  InterpFun (fun () -> List.iter (fun (InterpFun f) -> f ()) l)
 
 let perform_cache_obj name =
   let objs = try PluginSpec.Map.find name !cache_objs with Not_found -> [] in
   let objs = List.rev objs in
-  List.iter (fun f -> f ()) objs
+  let v = List.map (fun (CacheObj {synterp; interp}) ->
+      let v = synterp () in
+      InterpFun (fun () -> interp v))
+      objs
+  in
+  iter_interp_funs v
 
 (** ml object = ml module or plugin *)
 let dinit = CDebug.create ~name:"mltop-init" ()
@@ -406,14 +424,17 @@ type ml_module_object =
   }
 
 let cache_ml_objects mnames =
-  let iter (implicit,obj) =
+  let map (implicit,obj) =
     trigger_ml_object (Regular {implicit}) obj;
-    if not implicit then begin
+    if implicit then None else begin
       init_ml_object obj;
-      perform_cache_obj obj
+      Some (perform_cache_obj obj)
     end
   in
-  List.iter iter mnames
+  let v = List.filter_map map mnames in
+  iter_interp_funs v
+
+let run_interp_fun (InterpFun f) = f ()
 
 let load_ml_objects _ {mnames; _} =
   let iter (implicit,obj) =
