@@ -112,15 +112,15 @@ let intern_ltac_variable ist qid =
     ArgVar (make ?loc:qid.CAst.loc @@ qualid_basename qid)
   else raise Not_found
 
-let intern_constr_reference strict ist qid =
+let intern_constr_reference ist qid =
   let id = qualid_basename qid in
-  if qualid_is_ident qid && not strict && find_hyp (qualid_basename qid) ist then
+  if qualid_is_ident qid && not ist.strict_check && find_hyp (qualid_basename qid) ist then
     (DAst.make @@ GVar id), Some (make @@ CRef (qid,None))
   else if qualid_is_ident qid && find_var (qualid_basename qid) ist then
-    (DAst.make @@ GVar id), if strict then None else Some (make @@ CRef (qid,None))
+    (DAst.make @@ GVar id), if ist.strict_check then None else Some (make @@ CRef (qid,None))
   else
     DAst.make @@ GRef (locate_global_with_alias qid,None),
-    if strict then None else Some (make @@ CRef (qid,None))
+    if ist.strict_check then None else Some (make @@ CRef (qid,None))
 
 (* Internalize an isolated reference in position of tactic *)
 
@@ -141,7 +141,7 @@ let intern_isolated_global_tactic_reference qid =
     Tacenv.tac_deprecation kn;
   TacCall (CAst.make ?loc (ArgArg (loc,kn),[]))
 
-let intern_isolated_tactic_reference strict ist qid =
+let intern_isolated_tactic_reference ist qid =
   (* An ltac reference *)
   try Reference (intern_ltac_variable ist qid)
   with Not_found ->
@@ -149,7 +149,7 @@ let intern_isolated_tactic_reference strict ist qid =
   try intern_isolated_global_tactic_reference qid
   with Not_found ->
   (* Tolerance for compatibility, allow not to use "constr:" *)
-  try ConstrMayEval (ConstrTerm (intern_constr_reference strict ist qid))
+  try ConstrMayEval (ConstrTerm (intern_constr_reference ist qid))
   with Not_found as exn ->
     (* Reference not found *)
     let _, info = Exninfo.capture exn in
@@ -177,18 +177,18 @@ let intern_applied_tactic_reference ist qid =
 
 (* Intern a reference parsed in a non-tactic entry *)
 
-let intern_non_tactic_reference strict ist qid =
+let intern_non_tactic_reference ist qid =
   (* An ltac reference *)
   try Reference (intern_ltac_variable ist qid)
   with Not_found ->
   (* A constr reference *)
-  try ConstrMayEval (ConstrTerm (intern_constr_reference strict ist qid))
+  try ConstrMayEval (ConstrTerm (intern_constr_reference ist qid))
   with Not_found ->
   (* Tolerance for compatibility, allow not to use "ltac:" *)
   try intern_isolated_global_tactic_reference qid
   with Not_found as exn ->
   (* By convention, use IntroIdentifier for unbound ident, when not in a def *)
-  if qualid_is_ident qid && not strict then
+  if qualid_is_ident qid && not ist.strict_check then
     let id = qualid_basename qid in
     let ipat = in_gen (glbwit wit_intro_pattern) (make ?loc:qid.CAst.loc @@ IntroNaming (IntroIdentifier id)) in
     TacGeneric (None,ipat)
@@ -542,7 +542,7 @@ and intern_tactic_seq onlytac ist tac =
       let ltacvars = Id.Set.union (extract_let_names l) ist.ltacvars in
       let ist' = { ist with ltacvars } in
       let l = List.map (fun (n,b) ->
-          (n,intern_tacarg ist.strict_check false (if isrec then ist' else ist) b)) l in
+          (n,intern_tacarg false (if isrec then ist' else ist) b)) l in
       ist.ltacvars, CAst.make ?loc (TacLetIn (isrec,l,intern_tactic onlytac ist' u))
 
   | TacMatchGoal (lz,lr,lmr) ->
@@ -611,14 +611,14 @@ and intern_tactic_seq onlytac ist tac =
   | TacAlias (s,l) ->
       let alias = Tacenv.interp_alias s in
       Option.iter (fun o -> warn_deprecated_alias ?loc (s,o)) @@ alias.Tacenv.alias_deprecation;
-      let l = List.map (intern_tacarg ist.strict_check false ist) l in
+      let l = List.map (intern_tacarg false ist) l in
       ist.ltacvars, CAst.make ?loc (TacAlias (s,l))
   | TacML (opn,l) ->
       let _ignore = Tacenv.interp_ml_tactic opn in
-      ist.ltacvars, CAst.make ?loc (TacML (opn,List.map (intern_tacarg ist.strict_check false ist) l))
+      ist.ltacvars, CAst.make ?loc (TacML (opn,List.map (intern_tacarg false ist) l))
 
 and intern_tactic_as_arg loc onlytac ist a =
-  match intern_tacarg ist.strict_check onlytac ist a with
+  match intern_tacarg onlytac ist a with
   | TacCall _ | Reference _
   | TacGeneric _ as a -> CAst.make ?loc (TacArg a)
   | Tacexp a -> a
@@ -633,14 +633,14 @@ and intern_tactic_fun ist (var,body) =
   let lfun = List.fold_left name_cons ist.ltacvars var in
   (var,intern_tactic_or_tacarg { ist with ltacvars = lfun } body)
 
-and intern_tacarg strict onlytac ist = function
-  | Reference r -> intern_non_tactic_reference strict ist r
+and intern_tacarg onlytac ist = function
+  | Reference r -> intern_non_tactic_reference ist r
   | ConstrMayEval c -> ConstrMayEval (intern_constr_may_eval ist c)
-  | TacCall { loc; v=(f,[]) } -> intern_isolated_tactic_reference strict ist f
+  | TacCall { loc; v=(f,[]) } -> intern_isolated_tactic_reference ist f
   | TacCall { loc; v=(f,l) } ->
       TacCall (CAst.make ?loc (
         intern_applied_tactic_reference ist f,
-        List.map (intern_tacarg ist.strict_check false ist) l))
+        List.map (intern_tacarg false ist) l))
   | TacFreshId x -> TacFreshId (List.map (intern_string_or_var ist) x)
   | TacPretype c -> TacPretype (intern_constr ist c)
   | TacNumgoals -> TacNumgoals
