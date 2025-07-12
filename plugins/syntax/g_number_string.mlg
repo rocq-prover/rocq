@@ -45,6 +45,10 @@ let pr_number_options l =
 let pr_string_option l =
   str "(" ++ pr_number_string_via l ++ str ")"
 
+let pr_enable_disable = function
+  | true -> str "Enable"
+  | false -> str "Disable"
+
 }
 
 VERNAC ARGUMENT EXTEND number_string_mapping
@@ -75,6 +79,12 @@ VERNAC ARGUMENT EXTEND string_option
 | [ "(" number_string_via(v) ")" ] -> { v }
 END
 
+VERNAC ARGUMENT EXTEND enable_disable
+  PRINTED BY { pr_enable_disable }
+| [ "Enable" ] -> { true }
+| [ "Disable" ] -> { false }
+END
+
 VERNAC COMMAND EXTEND NumberNotation CLASSIFIED AS SIDEFF
   | #[ locality = Attributes.locality; ] [ "Number" "Notation" reference(ty) reference(f) reference(g) number_options_opt(nl) ":"
       preident(sc) ] ->
@@ -82,8 +92,22 @@ VERNAC COMMAND EXTEND NumberNotation CLASSIFIED AS SIDEFF
     { vernac_number_notation (Locality.make_module_locality locality) ty f g (Option.default [] nl) sc }
 END
 
+VERNAC COMMAND EXTEND DisableNumberNotation CLASSIFIED AS SIDEFF
+  | #[ locality = Attributes.locality; ]
+    [ enable_disable(enable) "Number" "Notation" reference(r) ":" ne_preident_list(sc) ] ->
+
+    { vernac_enable_disable_notation (Locality.make_module_locality locality) ~gref:r ~scopes:sc ~is_string:false enable }
+END
+
 VERNAC COMMAND EXTEND StringNotation CLASSIFIED AS SIDEFF
   | #[ locality = Attributes.locality; ] [ "String" "Notation" reference(ty) reference(f) reference(g) string_option_opt(o) ":"
       preident(sc) ] ->
     { vernac_string_notation (Locality.make_module_locality locality) ty f g o sc }
+END
+
+VERNAC COMMAND EXTEND DisableStringNotation CLASSIFIED AS SIDEFF
+  | #[ locality = Attributes.locality; ]
+    [ enable_disable(enable) "String" "Notation" reference(r) ":" ne_preident_list(sc) ] ->
+
+    { vernac_enable_disable_notation (Locality.make_module_locality locality) ~gref:r ~scopes:sc ~is_string:true enable }
 END
