@@ -293,8 +293,13 @@ Ltac2 eval_vm (ctx : (pattern * occurrences) option) (c : constr) : constr := ev
 
 Ltac2 eval_native (ctx : (pattern * occurrences) option) (c : constr) : constr := eval (Red.native ctx) c.
 
+Local Ltac2 @external change_gen : bool -> pattern option -> (constr array -> constr) -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_change_gen".
 
-Ltac2 @ external change : pattern option -> (constr array -> constr) -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_change".
+Ltac2 change (pat:pattern option) (c:constr array -> constr) (cl:clause) : unit :=
+  change_gen true pat c cl.
+
+Ltac2 change_no_check (pat:pattern option) (c:constr array -> constr) (cl:clause) : unit :=
+  change_gen false pat c cl.
 
 Ltac2 @ external rewrite : evar_flag -> rewriting list -> clause -> (unit -> unit) option -> unit := "rocq-runtime.plugins.ltac2" "tac_rewrite".
 
