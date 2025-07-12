@@ -7,8 +7,8 @@ Definition char63_valid (c : char63) :=
 
 (** * Conversion to / from lists *)
 
-Notation of_nat n := (of_Z (Z.of_nat n)).
-Notation to_nat i := (Z.to_nat (to_Z i)).
+Abbreviation of_nat n := (of_Z (Z.of_nat n)).
+Abbreviation to_nat i := (Z.to_nat (to_Z i)).
 
 Definition to_list (s : string) : list char63 :=
   ListDef.map (fun i => get s (of_nat i)) (ListDef.seq 0 (to_nat (length s))).
@@ -57,7 +57,7 @@ Axiom cat_spec :
     to_list (cat s1 s2) =
       ListDef.firstn (to_nat max_length) (to_list s1 ++ to_list s2).
 
-Notation char63_compare := PrimInt63.compare (only parsing).
+Abbreviation char63_compare := PrimInt63.compare (only parsing).
 
 Axiom compare_spec :
   forall (s1 s2 : string),

@@ -3,11 +3,11 @@ Warning: Reference x is deprecated. Use M.y instead.
 [deprecated-reference,deprecated,default]
 Quickfix:
 Replace File "./output/Qf_deprecated.v", line 10, characters 17-18 with M.y
-File "./output/Qf_deprecated.v", line 13, characters 14-15:
+File "./output/Qf_deprecated.v", line 13, characters 18-19:
 Warning: Reference x is deprecated. Use M.y instead.
 [deprecated-reference,deprecated,default]
 Quickfix:
-Replace File "./output/Qf_deprecated.v", line 13, characters 14-15 with M.y
+Replace File "./output/Qf_deprecated.v", line 13, characters 18-19 with M.y
 File "./output/Qf_deprecated.v", line 25, characters 17-18:
 Warning: Notation v is deprecated. Use M1.w instead.
 [deprecated-syntactic-definition,deprecated,default]

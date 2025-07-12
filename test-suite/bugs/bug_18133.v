@@ -1,5 +1,5 @@
 Set Warnings "+all".
-#[deprecated(since="1")] Notation a := id.
+#[deprecated(since="1")] Abbreviation a := id.
 
 Goal False.
 Proof.

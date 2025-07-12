@@ -524,7 +524,7 @@ Enabling and disabling notations
       | in constr
 
    Enables or disables notations previously defined with
-   :cmd:`Notation` or :cmd:`Notation (abbreviation)`.
+   :cmd:`Notation` or :cmd:`Abbreviation`.
    Disabling a notation doesn't remove parsing rules or tokens defined by the notation.
    The command has no effect on notations reserved with :cmd:`Reserved Notation`.
    At least one of
@@ -1889,8 +1889,10 @@ Displaying information about scopes
 Abbreviations
 --------------
 
-.. cmd:: Notation @ident {* @ident__parm } := @one_term {? ( {+, @syntax_modifier } ) }
-   :name: Notation (abbreviation)
+.. cmd:: Abbreviation @ident {* @ident__parm } := @one_term {? ( {+, @syntax_modifier } ) }
+
+   .. deprecated
+      .. cmd:: Notation @ident {* @ident__parm } := @one_term {? ( {+, @syntax_modifier } ) }
 
    .. todo: for some reason, Sphinx doesn't complain about a duplicate name if
       :name: is omitted
