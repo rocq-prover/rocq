@@ -1320,11 +1320,15 @@ and parser_of_symbol : type s tr a.
             let al =
               try ps gstate strm__ :: al with
                 Stream.Failure ->
+                if not gstate.recover then raise Stream.Failure else
+                  let bp = LStream.count strm__ in
                   let a =
                     try parse_top_symb entry symb gstate strm__ with
                       Stream.Failure ->
                         raise (Error (symb_failed entry v sep symb))
                   in
+                  let ep = LStream.count strm__ in
+                  let () = warn_recover_continuation bp ep strm__ in
                   a :: al
             in
             kont gstate al strm__
@@ -1344,11 +1348,16 @@ and parser_of_symbol : type s tr a.
             with
               Some al -> kont gstate al strm__
             | _ ->
+              if not gstate.recover then al else
+                let bp = LStream.count strm__ in
                 match
                   try Some (parse_top_symb entry symb gstate strm__) with
                     Stream.Failure -> None
                 with
-                  Some a -> kont gstate (a :: al) strm__
+                  Some a ->
+                   let ep = LStream.count strm__ in
+                   let () = warn_recover_continuation bp ep strm__ in
+                   kont gstate (a :: al) strm__
                 | _ -> al
             end
         | _ -> al
