@@ -367,6 +367,9 @@ let print_registered_schemes () =
   in
   hov 0 (prlist_with_sep fnl pr_schemes_of_ind (Indmap.bindings schemes))
 
+let print_captured_output () =
+  str "wtf" (* TODO @radrow *)
+
 let dump_universes output g =
   let open Univ in
   let dump_arc u = function
@@ -2360,6 +2363,7 @@ let vernac_print =
   | PrintStrategy r -> no_state @@ fun () -> print_strategy r
   | PrintRegistered -> no_state print_registered
   | PrintRegisteredSchemes -> no_state print_registered_schemes
+  | PrintOutput -> no_state print_captured_output
 
 let vernac_search ~pstate ~atts s gopt r =
   let open ComSearch in
@@ -2928,6 +2932,27 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacAttributes atts ->
     vtdefault(fun () ->
         vernac_library_attributes atts)
+
+  | VernacDropOutput -> (* TODO @radrow *)
+    vtdefault(fun () ->
+        let _ = VernacControl.flush_captured_output () in
+        ()
+      )
+
+  | VernacTestOutput (expected) ->
+    vtdefault(fun () ->
+        let words = Str.split (Str.regexp "[ \t\n\r]+") in
+        let output = VernacControl.flush_captured_output () in
+        if words expected <> words output
+        then
+          CErrors.user_err Pp.(str "Outputs do not match.\n" ++
+                               str "Expected:\n" ++
+                               str expected ++
+                               str "\n\n" ++
+                               str "Got:\n" ++
+                               str output
+                              )
+      )
 
   (* Proof management *)
   | VernacFocus n ->
