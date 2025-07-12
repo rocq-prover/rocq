@@ -2,6 +2,10 @@
 
 let is_interrupted () = Memprof_limits.is_interrupted () [@@inline]
 
+let limit_allocations = Memprof_limits.limit_allocations
+
+let start_memprof_limits = Memprof_limits.start_memprof_limits
+
 module Resource_bind = Memprof_limits.Resource_bind
 
 (* Not exported by memprof limits :( *)
