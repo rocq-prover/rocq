@@ -196,28 +196,7 @@ type 'a hints_transparency_target =
   | HintsProjections
   | HintsReferences of 'a list
 
-type import_level = HintLax | HintWarn | HintStrict
-
 let hint_as_term h = (h.hint_uctx, h.hint_term)
-
-let warn_hint_to_string = function
-| HintLax -> "Lax"
-| HintWarn -> "Warn"
-| HintStrict -> "Strict"
-
-let string_to_warn_hint = function
-| "Lax" -> HintLax
-| "Warn" -> HintWarn
-| "Strict" -> HintStrict
-| _ -> user_err Pp.(str "Only the following values are accepted: Lax, Warn, Strict.")
-
-let { Goptions.get = warn_hint } =
-  Goptions.declare_interpreted_string_option_and_ref
-    ~key:["Loose"; "Hint"; "Behavior"]
-    ~value:HintLax
-    string_to_warn_hint
-    warn_hint_to_string
-    ()
 
 let fresh_key =
   let id = Summary.ref ~name:"HINT-COUNTER" 0 in
@@ -859,7 +838,6 @@ module Hintdbmap = String.Map
 type hint_db = Hint_db.t
 
 let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
-let statustable = Summary.ref ~name:"statustable" KerName.Map.empty
 
 let searchtable_map name =
   Hintdbmap.find name !searchtable
@@ -1067,14 +1045,6 @@ let get_db dbname =
   with Not_found -> Hint_db.empty ~name:dbname TransparentState.empty false
 
 let add_hint dbname hintlist =
-  let check (_, h) =
-    let () = if KerName.Map.mem h.code.uid !statustable then
-      user_err Pp.(str "Conflicting hint keys. This can happen when including \
-      twice the same module.")
-    in
-    statustable := KerName.Map.add h.code.uid false !statustable
-  in
-  let () = List.iter check hintlist in
   let db = get_db dbname in
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -1213,14 +1183,7 @@ let open_autohint h =
   let superglobal = superglobal h in
   match h.hint_action with
   | AddHints hints ->
-    let () =
-      if not superglobal then
-        (* Import-bound hints must be declared when not imported yet *)
-        let filter (_, h) = not @@ KerName.Map.mem h.code.uid !statustable in
-        add_hint h.hint_name (List.filter filter hints)
-    in
-    let add (_, hint) = statustable := KerName.Map.add hint.code.uid true !statustable in
-    List.iter add hints
+    if not superglobal then add_hint h.hint_name hints
   | AddCut paths ->
     if not superglobal then add_cut h.hint_name paths
   | AddTransparency { grefs; state } ->
@@ -1809,90 +1772,6 @@ let pr_searchtable env sigma =
   in
   Hintdbmap.fold fold !searchtable (mt ())
 
-let print_mp mp =
-  try
-    let qid = Nametab.shortest_qualid_of_module mp in
-    str " from "  ++ pr_qualid qid
-  with Not_found -> mt ()
-
-let is_imported h = try KerName.Map.find h.uid !statustable with Not_found -> true
-
-let hint_trace = Evd.Store.field "hint_trace"
-
-let log_hint h =
-  let open Proofview.Notations in
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let store = get_extra_data sigma in
-  match Store.get store hint_trace with
-  | None ->
-    (* All calls to hint logging should be well-scoped *)
-    assert false
-  | Some trace ->
-    let trace = KerName.Map.add h.uid h trace in
-    let store = Store.set store hint_trace trace in
-    Proofview.Unsafe.tclEVARS (set_extra_data store sigma)
-
-let warn_non_imported_hint =
-  CWarnings.create ~name:"non-imported-hint" ~category:CWarnings.CoreCategories.automation
-         (fun (hint,mp) ->
-          strbrk "Hint used but not imported: " ++ hint ++ print_mp mp)
-
-let warn env sigma h =
-  let hint = pr_hint env sigma h in
-  let mp = KerName.modpath h.uid in
-  warn_non_imported_hint (hint,mp)
-
-let wrap_hint_warning t =
-  let open Proofview.Notations in
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let store = get_extra_data sigma in
-  let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KerName.Map.empty in
-  Proofview.Unsafe.tclEVARS (set_extra_data store sigma) >>= fun () ->
-  t >>= fun ans ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let store = get_extra_data sigma in
-  let hints = match Store.get store hint_trace with
-  | None -> assert false
-  | Some hints -> hints
-  in
-  let () = KerName.Map.iter (fun _ h -> warn env sigma h) hints in
-  let store = match old with
-  | None -> Store.remove store hint_trace
-  | Some v -> Store.set store hint_trace v
-  in
-  Proofview.Unsafe.tclEVARS (set_extra_data store sigma) >>= fun () ->
-  Proofview.tclUNIT ans
-
-let wrap_hint_warning_fun env sigma t =
-  let store = get_extra_data sigma in
-  let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KerName.Map.empty in
-  let (ans, sigma) = t (set_extra_data store sigma) in
-  let store = get_extra_data sigma in
-  let hints = match Store.get store hint_trace with
-  | None -> assert false
-  | Some hints -> hints
-  in
-  let () = KerName.Map.iter (fun _ h -> warn env sigma h) hints in
-  let store = match old with
-  | None -> Store.remove store hint_trace
-  | Some v -> Store.set store hint_trace v
-  in
-  (ans, set_extra_data store sigma)
-
-let run_hint tac k = match warn_hint () with
-| HintLax -> k tac.obj
-| HintWarn ->
-  if is_imported tac then k tac.obj
-  else Proofview.tclTHEN (log_hint tac) (k tac.obj)
-| HintStrict ->
-  if is_imported tac then k tac.obj
-  else
-    let info = Exninfo.reify () in
-    Proofview.tclZERO ~info (UserError (str "Tactic failure."))
-
 module FullHint =
 struct
   type t = full_hint
@@ -1902,7 +1781,7 @@ struct
   | None -> None
   | Some (ConstrPattern p | SyntacticPattern p) -> Some p
   | Some DefaultPattern -> None
-  let run (h : t) k = run_hint h.code k
+  let run (h : t) k = k h.code.obj
   let print env sigma (h : t) = pr_hint env sigma h.code
   let name (h : t) = h.name
 

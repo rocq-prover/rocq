@@ -729,31 +729,6 @@ Creating Hints
    the symbol name.  Note that hints with the same cost are tried in
    reverse of the order they're defined in, i.e., last to first.
 
-Hint locality
-`````````````
-
-As explained at the beginning of :ref:`creating_hints`, hints outside sections have three
-possible localities: :attr:`local`, :attr:`export`, and :attr:`global`,
-with :attr:`export` now being the default. The default used to
-be :attr:`global`, so old code bases may still use it. The following
-option may be useful to help transition hints from the :attr:`global`
-to the :attr:`export` locality, as it can provide an over-approximation
-of where these hints are used:
-
-.. opt:: Loose Hint Behavior {| "Lax" | "Warn" | "Strict" }
-
-   This :term:`option` accepts three values:
-
-   - "Lax": no scope errors or warnings are generated for hints. This is the default.
-
-   - "Warn": outputs a warning when a non-imported hint is used. Note that this
-     is an over-approximation, because a hint may be triggered by a run that
-     will eventually fail and backtrack, resulting in the hint not being
-     actually useful for the proof.
-
-   - "Strict": fails when a non-imported hint is used, with the same caveats
-     as "Warn".
-
 .. _tactics-implicit-automation:
 
 Setting implicit automation tactics

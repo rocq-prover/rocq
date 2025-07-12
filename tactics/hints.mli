@@ -222,15 +222,6 @@ val make_local_hint_db : env -> evar_map -> ?ts:TransparentState.t -> bool -> de
 
 val make_db_list : hint_db_name list -> hint_db list
 
-val wrap_hint_warning : 'a Proofview.tactic -> 'a Proofview.tactic
-(** Use around toplevel calls to hint-using tactics, to enable the tracking of
-    non-imported hints. Any tactic calling [run_hint] must be wrapped this
-    way. *)
-
-val wrap_hint_warning_fun : env -> evar_map ->
-  (evar_map -> 'a * evar_map) -> 'a * evar_map
-(** Variant of the above for non-tactics *)
-
 val fresh_hint : env -> evar_map -> hint -> evar_map * constr
 
 val hint_res_pf : ?with_evars:bool -> ?with_classes:bool ->

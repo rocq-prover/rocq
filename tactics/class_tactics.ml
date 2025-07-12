@@ -992,9 +992,8 @@ module Search = struct
     tac <*> pr_goals (str "after eauto_tac_stuck: ")
 
   let eauto_tac mst ?unique ~only_classes ~best_effort ?strategy ~depth ~dep hints =
-    Hints.wrap_hint_warning @@
-      eauto_tac_stuck mst ?unique ~only_classes
-          ~best_effort ?strategy ~depth ~dep hints
+    eauto_tac_stuck mst ?unique ~only_classes
+      ~best_effort ?strategy ~depth ~dep hints
 
   let preprocess_goals evm goals =
     let sorted_goals =
@@ -1285,18 +1284,12 @@ let resolve_typeclass_evars depth unique env evd filter fail =
       (initial_select_evars filter) evd fail
 
 let solve_inst env evd filter unique fail =
-  let ((), sigma) = Hints.wrap_hint_warning_fun env evd begin fun evd ->
-    (), resolve_typeclass_evars
-    (get_typeclasses_depth ())
-    unique env evd filter fail
-  end in
-  sigma
+  resolve_typeclass_evars (get_typeclasses_depth ()) unique env evd filter fail
 
 let () =
   Typeclasses.set_solve_all_instances solve_inst
 
 let resolve_one_typeclass env sigma concl =
-  let (term, sigma) = Hints.wrap_hint_warning_fun env sigma begin fun sigma ->
   let hints = searchtable_map typeclasses_db in
   let st = Hint_db.transparent_state hints in
   let modes = Hint_db.modes hints in
@@ -1315,9 +1308,7 @@ let resolve_one_typeclass env sigma concl =
   in
   let evd = Proofview.return pv in
   let term = match Proofview.partial_proof entry pv with [t] -> t | _ -> assert false in
-  term, evd
-  end in
-  (sigma, term)
+  evd, term
 
 let () = (Typeclasses.set_solve_one_instance[@warning "-3"]) resolve_one_typeclass
 
@@ -1351,7 +1342,6 @@ let is_ground c =
 
 let autoapply c i =
   let open Proofview.Notations in
-  Hints.wrap_hint_warning @@
   Proofview.Goal.enter begin fun gl ->
   let hintdb = try Hints.searchtable_map i with Not_found ->
     CErrors.user_err (Pp.str ("Unknown hint database " ^ i ^ "."))
