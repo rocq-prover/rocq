@@ -31,5 +31,7 @@
    (run mv html/index.html html/genindex.html)
    (with-stdout-to
      _index.html
-    (progn (cat %{header}) (cat index-list.html) (cat %{footer})))
+    (progn (bash "sed 's/@@TITLE@@/Table of contents/' %{header}")
+     (cat index-list.html)
+     (cat %{footer})))
    (run cp _index.html html/index.html))))

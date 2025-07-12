@@ -455,6 +455,14 @@ Command line options
   :--charset string: Specify the HTML character set, to be inserted in
     the HTML header.
 
+Custom HTML header and footer
++++++++++++++++++++++++++++++
+
+With `--with-header` and `--with-footer` respectively, in HTML mode
+`rocq doc` will include the header at the beginning and the footer at
+the end of the file.
+
+Additionnally the string `@@TITLE@@` is replace by the page title in the header file.
 
 
 The rocq doc |Latex| style file
