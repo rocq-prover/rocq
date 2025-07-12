@@ -36,6 +36,7 @@ type synterp_entry =
       Library.library_t list * DirPath.t list * Vernacexpr.export_with_cats option * (qualid * Vernacexpr.import_filter_expr) list
   | EVernacImport of (Vernacexpr.export_flag * Libobject.open_filter) *
       (Names.ModPath.t CAst.t * Vernacexpr.import_filter_expr) list
+  | EVernacDeclareMLModule of Mltop.interp_fun
   | EVernacDeclareModule of Lib.export * lident *
       Declaremods.module_params_expr *
       module_entry

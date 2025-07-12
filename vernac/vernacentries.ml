@@ -1698,8 +1698,13 @@ let vernac_require_interp needed modrefl export qidl =
     export
 
 let vernac_require ~intern from export qidl =
-  let needed, modrefl = Synterp.synterp_require ~intern from export qidl in
-  vernac_require_interp needed modrefl export qidl
+  let needed, modrefl = Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (fun () ->
+      Synterp.synterp_require ~intern from export qidl)
+      ()
+  in
+  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some false) (fun () ->
+      vernac_require_interp needed modrefl export qidl)
+    ()
 
 (* Coercions and canonical structures *)
 
@@ -2597,6 +2602,8 @@ let vernac_proof pstate tac using =
 let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
   | EVernacNotation { local; decl } ->
     vtdefault(fun () -> Metasyntax.add_notation_interpretation ~local (Global.env()) decl)
+
+  | EVernacDeclareMLModule f -> vtdefault (fun () -> Mltop.run_interp_fun f)
 
   | EVernacDefineModule (export,lid,bl,argsexport,mtys,mexprl) ->
     let i () =

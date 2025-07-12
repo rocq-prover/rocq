@@ -322,7 +322,7 @@ let initial_atomic () =
         "fresh", CAst.make @@ TacArg(TacFreshId [])
       ]
 
-let () = Mltop.declare_cache_obj initial_atomic "rocq-runtime.plugins.ltac"
+let () = Mltop.(declare_cache_obj_full (interp_only_obj initial_atomic) "rocq-runtime.plugins.ltac")
 
 (* First-class Ltac access to primitive blocks *)
 
@@ -356,6 +356,6 @@ let initial_tacticals () =
         ([Name (idn 0)], CAst.make (TacML (initial_entry "solve", [varn 0]))));
   ]
 
-let () = Mltop.declare_cache_obj initial_tacticals "rocq-runtime.plugins.ltac"
+let () = Mltop.(declare_cache_obj_full (interp_only_obj initial_tacticals) "rocq-runtime.plugins.ltac")
 
 }

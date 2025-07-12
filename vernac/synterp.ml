@@ -72,6 +72,7 @@ type synterp_entry =
   | EVernacImport of (export_flag *
       Libobject.open_filter) *
       (Names.ModPath.t CAst.t * import_filter_expr) list
+  | EVernacDeclareMLModule of Mltop.interp_fun
   | EVernacDeclareModule of Lib.export * lident *
       Declaremods.module_params_expr *
       module_entry
@@ -427,8 +428,8 @@ let rec synterp ~intern ?loc ~atts v =
       let export, mpl = synterp_import export qidl in
       EVernacImport (export,mpl)
     | VernacDeclareMLModule l ->
-      with_locality ~atts synterp_declare_ml_module l;
-      EVernacNoop
+      let f = with_locality ~atts synterp_declare_ml_module l in
+      EVernacDeclareMLModule f
     | VernacChdir s ->
       unsupported_attributes atts;
       synterp_chdir s;
@@ -501,4 +502,4 @@ and synterp_control ~intern CAst.{ loc; v = cmd } =
   CAst.make ?loc { expr; control; attrs = cmd.attrs }
 
 let synterp_control ~intern cmd =
-  Flags.with_option Flags.in_synterp_phase (synterp_control ~intern) cmd
+  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (synterp_control ~intern) cmd

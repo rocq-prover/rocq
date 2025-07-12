@@ -395,9 +395,9 @@ let extend_atomic_tactic name entries =
   in
   List.iteri add_atomic entries
 
-let add_ml_tactic_notation name ~level ?deprecation prods =
+let synterp_add_ml_tactic_notation name ~level ?deprecation prods =
   let len = List.length prods in
-  let iter i prods =
+  let map i prods =
     let open Tacexpr in
     let get_id = function
     | TacTerm s -> None
@@ -408,12 +408,17 @@ let add_ml_tactic_notation name ~level ?deprecation prods =
     let map id = Reference (Locus.ArgVar (CAst.make id)) in
     let tac = CAst.make (TacML (entry, List.map map ids)) in
     let tacobj = add_glob_tactic_notation_syntax false ~level ?deprecation prods true in
-    add_glob_tactic_notation ?deprecation tacobj ids tac
+    tacobj, { Tacenv.alias_args = ids; alias_body = tac; alias_deprecation = deprecation }
   in
-  List.iteri iter (List.rev prods);
+  let for_interp = List.mapi map (List.rev prods) in
+  name, level, prods, for_interp
+
+let interp_add_ml_tactic_notation (name, level, prods, data) =
+  List.iter (fun o -> Lib.add_leaf (inTacticGrammar o)) data;
   (* We call [extend_atomic_tactic] only for "basic tactics" (the ones
      at ltac_expr level 0) *)
-  if Int.equal level 0 then extend_atomic_tactic name prods
+  let () = if Int.equal level 0 then extend_atomic_tactic name prods in
+  ()
 
 (**********************************************************************)
 (** Ltac quotations                                                   *)
@@ -740,11 +745,14 @@ let tactic_extend plugin_name tacname ~level ?deprecation sign =
     let id = Names.Id.of_string name in
     let obj () = Tacenv.register_ltac true false id body ?deprecation in
     let () = Tacenv.register_ml_tactic ml_tactic_name [|tac|] in
-    Mltop.declare_cache_obj obj plugin_name
+    Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin_name)
   | _ ->
-  let obj () = add_ml_tactic_notation ml_tactic_name ~level ?deprecation (List.map clause_of_ty_ml sign) in
-  Tacenv.register_ml_tactic ml_tactic_name @@ Array.of_list (List.map eval sign);
-  Mltop.declare_cache_obj obj plugin_name
+    let synterp () =
+      synterp_add_ml_tactic_notation ml_tactic_name ~level ?deprecation (List.map clause_of_ty_ml sign)
+    in
+    let interp = interp_add_ml_tactic_notation in
+    Tacenv.register_ml_tactic ml_tactic_name @@ Array.of_list (List.map eval sign);
+    Mltop.declare_cache_obj_full (CacheObj {synterp; interp}) plugin_name
 
 type (_, 'a) ml_ty_sig =
 | MLTyNil : ('a, 'a) ml_ty_sig
@@ -780,7 +788,7 @@ let ml_tactic_extend ~plugin ~name ~local ?deprecation sign tac =
   let id = Names.Id.of_string name in
   let obj () = Tacenv.register_ltac true local id body ?deprecation in
   let () = Tacenv.register_ml_tactic ml_tactic_name [|tac|] in
-  Mltop.declare_cache_obj obj plugin
+  Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin)
 
 module MLName =
 struct
@@ -850,7 +858,7 @@ let ml_val_tactic_extend ~plugin ~name ~local ?deprecation sign tac =
   let obj () = Tacenv.register_ltac true local id body ?deprecation in
   let () = assert (not @@ MLTacMap.mem ml_tactic_name !ml_table) in
   let () = ml_table := MLTacMap.add ml_tactic_name tac !ml_table in
-  Mltop.declare_cache_obj obj plugin
+  Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin)
 
 (** ARGUMENT EXTEND *)
 

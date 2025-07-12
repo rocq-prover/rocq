@@ -1530,7 +1530,7 @@ let () =
       CAst.make (TacML ({ mltac_name = name; mltac_index = 0 }, [])))) in
   let obj () =
     Tacenv.register_ltac true false (Id.of_string "ssrpattern") tac in
-  Mltop.declare_cache_obj obj "rocq-runtime.plugins.ssrmatching"
+  Mltop.(declare_cache_obj_full (interp_only_obj obj) "rocq-runtime.plugins.ssrmatching")
 
 let ssrinstancesof arg =
   Proofview.Goal.enter begin fun gl ->

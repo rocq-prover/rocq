@@ -54,11 +54,6 @@ val register_tactic_notation_entry : string -> ('a, 'b, 'c) Genarg.genarg_type -
     to finding an argument by name (as in {!Genarg}) if there is none
     matching. *)
 
-val add_ml_tactic_notation : ml_tactic_name -> level:int -> ?deprecation:Deprecation.t ->
-  argument grammar_tactic_prod_item_expr list list -> unit
-(** A low-level variant of {!add_tactic_notation} used by the TACTIC EXTEND
-    ML-side macro. *)
-
 (** {5 Tactic Quotations} *)
 
 val create_ltac_quotation : plugin:string -> string ->
