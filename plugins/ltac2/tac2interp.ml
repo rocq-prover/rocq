@@ -216,7 +216,7 @@ and eval_global kn =
   match Tac2env.get_compiled_global kn with
   | Some (_info,v) -> v
   | None -> match Tac2env.interp_global kn with
-    | exception Not_found -> anomaly (str "Unbound reference" ++ KerName.print kn)
+    | exception Not_found -> anomaly (str "Unbound reference" ++ TacConstant.print kn)
     | { gdata_expr = e } -> eval_pure Id.Map.empty (Some kn) e
 
 and eval_pure bnd kn = function
