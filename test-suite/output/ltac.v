@@ -83,3 +83,21 @@ end.
 intro.
 Show.
 Abort.
+
+Module StrictModeImplicits.
+(* Insertion of implicits in strict mode *)
+
+Definition foo {A:Type} (a:A) := a.
+
+Ltac tac1 c := apply c.
+
+Ltac tac2 := tac1 foo.
+
+Set Ltac Always Insert Implicits.
+
+Ltac tac3 := tac1 foo.
+
+Print tac2.
+Print tac3.
+
+End StrictModeImplicits.
