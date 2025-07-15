@@ -89,7 +89,7 @@ val mk_sort_accu : Sorts.t -> UVars.Instance.t -> t
 val mk_var_accu : Id.t -> t
 val mk_sw_accu : annot_sw -> accumulator -> t -> (t -> t)
 val mk_fix_accu : rec_pos  -> int -> t array -> t array -> t
-val mk_cofix_accu : int -> t array -> t array -> t -> t array -> t
+val mk_cofix_accu : int -> t array -> t array -> (unit -> t) -> t array -> t
 val mk_evar_accu : Evar.t -> t array -> t
 val mk_proj_accu : (inductive * int) -> accumulator -> t
 val force_cofix : t -> t

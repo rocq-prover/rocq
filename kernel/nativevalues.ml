@@ -213,7 +213,6 @@ let mk_fix_accu rec_pos pos types bodies =
   mk_accu (Afix(types,bodies,rec_pos, pos))
 
 let mk_cofix_accu pos types norm cofix args =
-  let cofix = Obj.magic (cofix : t) in
   mk_accu (Acofix (types, norm, pos, args, Lazy.from_fun cofix))
 
 let force_cofix (cofix : t) =
