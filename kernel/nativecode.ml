@@ -31,17 +31,18 @@ let keep_debug_files () =
 (** Local names **)
 
 (* The first component is there for debugging purposes only *)
-type lname = { lname : Name.t; luid : int }
+(* uid = None: only in binder position, does not bind anything *)
+type lname = { lname : Name.t; luid : int option }
 
 let eq_lname ln1 ln2 =
-  Int.equal ln1.luid ln2.luid
+  Option.equal Int.equal ln1.luid ln2.luid
 
-let dummy_lname = { lname = Anonymous; luid = -1 }
+let dummy_lname = { lname = Anonymous; luid = None }
 
 module LNord =
   struct
     type t = lname
-    let compare l1 l2 = l1.luid - l2.luid
+    let compare l1 l2 = Option.compare Int.compare l1.luid l2.luid
   end
 module LNmap = Map.Make(LNord)
 module LNset = Set.Make(LNord)
@@ -50,7 +51,7 @@ let lname_ctr = ref (-1)
 
 let fresh_lname n =
   incr lname_ctr;
-  { lname = n; luid = !lname_ctr }
+  { lname = n; luid = Some !lname_ctr }
 
 let rec is_lazy env t =
   match Constr.kind t with
@@ -1473,7 +1474,7 @@ let compile_prim env decl cond paux =
       let knot = fresh_gnormtbl l in
       let map i g =
         (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
-        let unit = fresh_lname Anonymous in
+        let unit = { lname = Anonymous; luid = None } in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
           MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
@@ -1573,7 +1574,7 @@ let subst s l =
 
 let add_subst id v s =
   match v with
-  | MLlocal id' when Int.equal id.luid id'.luid -> s
+  | MLlocal id' when Option.equal Int.equal id.luid id'.luid -> s
   | _ -> LNmap.add id v s
 
 let subst_norm params args s =
@@ -1778,12 +1779,18 @@ let pp_gname fmt g =
   Format.fprintf fmt "%s" (string_of_gname g)
 
 let pp_lname fmt ln =
-  Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
+  match ln.luid with
+  | None -> Format.fprintf fmt "_"
+  | Some uid ->
+    Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) uid
 
 let pp_ldecls fmt ids =
   let len = Array.length ids in
   for i = 0 to len - 1 do
-    Format.fprintf fmt " (%a : Nativevalues.t)" pp_lname ids.(i)
+    match ids.(i).luid with
+    | None -> Format.fprintf fmt " _"
+    | Some _ ->
+      Format.fprintf fmt " (%a : Nativevalues.t)" pp_lname ids.(i)
   done
 
 let string_of_construct prefix ~constant ind tag =
