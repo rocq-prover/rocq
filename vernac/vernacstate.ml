@@ -217,7 +217,7 @@ module Declare_ = struct
     match !s_lemmas with
     | None -> raise NoCurrentProof
     | Some stack ->
-      let pf, res = LemmaStack.with_top stack ~f:(Declare.Proof.map_fold_endline ~f) in
+      let pf, res = LemmaStack.with_top stack ~f:(Declare.Proof.map_fold ~f) in
       let stack = LemmaStack.map_top stack ~f:(fun _ -> pf) in
       s_lemmas := Some stack;
       res

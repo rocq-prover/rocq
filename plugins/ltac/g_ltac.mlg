@@ -323,13 +323,13 @@ END
 {
 
 let pr_ltac_use_default b =
-  if b then (* Bug: a space is inserted before "..." *) str ".." else mt ()
+  if b.CAst.v then (* Bug: a space is inserted before "..." *) str ".." else mt ()
 
 }
 
 VERNAC ARGUMENT EXTEND ltac_use_default PRINTED BY { pr_ltac_use_default }
-| [ "." ] -> { false }
-| [ "..." ] -> { true }
+| [ "." ] -> { CAst.make ~loc false }
+| [ "..." ] -> { CAst.make ~loc true }
 END
 
 {
@@ -364,7 +364,7 @@ VERNAC { tactic_mode } EXTEND VernacSolve STATE proof
 END
 
 VERNAC { tactic_mode } EXTEND VernacSolveParallel STATE proof
-| [ "par" ":" ltac_info_opt(info) tactic(t) ltac_use_default(with_end_tac) ] =>
+| [ "par" ":" ltac_info_opt(info) tactic(t) "." ] =>
     {
       let solving_tac = is_explicit_terminator t in
       let pbr = if solving_tac then Some "par" else None in
@@ -372,7 +372,7 @@ VERNAC { tactic_mode } EXTEND VernacSolveParallel STATE proof
     } -> {
       let t, abstract = rm_abstract t in
       let t = Tacinterp.hide_interp { Tacinterp.global = true; ast = t; } in
-      ComTactic.solve_parallel ~info t ~abstract ~with_end_tac
+      ComTactic.solve_parallel ~info t ~abstract
     }
 END
 

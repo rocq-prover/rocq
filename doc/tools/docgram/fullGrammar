@@ -2311,7 +2311,7 @@ tactic_mode: [
 | subprf
 | OPT toplevel_selector subprf_with_selector
 | OPT ltac_selector OPT ltac_info tactic ltac_use_default
-| "par" ":" OPT ltac_info tactic ltac_use_default
+| "par" ":" OPT ltac_info tactic "."
 ]
 
 ltac_selector: [
@@ -3332,7 +3332,7 @@ ltac2_use_default: [
 
 tac2mode: [
 | OPT ltac2_selector ltac2_expr6 ltac2_use_default      (* ltac2 plugin *)
-| "par" ":" ltac2_expr6 ltac2_use_default      (* ltac2 plugin *)
+| "par" ":" ltac2_expr6 "."      (* ltac2 plugin *)
 | subprf      (* ltac2 plugin *)
 | OPT toplevel_selector subprf_with_selector      (* ltac2 plugin *)
 ]

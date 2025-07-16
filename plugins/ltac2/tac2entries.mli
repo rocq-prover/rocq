@@ -70,11 +70,10 @@ val globalize_expr : raw_tacexpr -> unit
 (** {5 Eval loop} *)
 
 (** Evaluate a tactic expression in the current environment *)
-val call : pstate:Declare.Proof.t -> Goal_select.t option -> with_end_tac:bool -> raw_tacexpr
+val call : pstate:Declare.Proof.t -> Goal_select.t option -> with_end_tac:bool CAst.t -> raw_tacexpr
   -> Declare.Proof.t
 
-val call_par : pstate:Declare.Proof.t -> with_end_tac:bool -> raw_tacexpr
-  -> Declare.Proof.t
+val call_par : pstate:Declare.Proof.t -> raw_tacexpr -> Declare.Proof.t
 
 (** {5 Parsing entries} *)
 

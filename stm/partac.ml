@@ -114,7 +114,7 @@ end = struct (* {{{ *)
             Declare.Proof.map pstate ~f:(Proof.focus focus_cond () r_goalno) in
           let pstate =
             ComTactic.solve ~pstate
-              Goal_select.SelectAll ~info:None tactic ~with_end_tac:false in
+              Goal_select.SelectAll ~info:None tactic ~with_end_tac:(CAst.make false) in
           let { Proof.sigma } = Declare.Proof.fold pstate ~f:Proof.data in
           let EvarInfo evi = Evd.find sigma r_goal in
           match Evd.(evar_body evi) with
@@ -190,7 +190,7 @@ let get_results res =
        spc () ++ prlist_with_sep spc int missing ++ str ")")
 
 let enable_par ~spawn_args ~nworkers = ComTactic.set_par_implementation
-  (fun ~pstate ~info t_ast ~abstract ~with_end_tac ->
+  (fun ~pstate ~info t_ast ~abstract ->
     let t_state = Vernacstate.freeze_full_state () in
     let t_state = Vernacstate.Stm.make_shallow t_state in
     TaskQueue.with_n_workers ~spawn_args nworkers CoqworkmgrApi.High (fun queue ->

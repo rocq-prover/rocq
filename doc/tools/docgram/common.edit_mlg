@@ -1743,7 +1743,7 @@ tactic_mode: [
 (* todo: make sure to document this production! *)
 (* deleting to allow splicing query_command into command *)
 | DELETE OPT ltac_selector OPT ltac_info tactic ltac_use_default
-| DELETE "par" ":" OPT ltac_info tactic ltac_use_default
+| DELETE "par" ":" OPT ltac_info tactic "."
 (* Ignore attributes (none apply) and "...". *)
 | ltac_info tactic
 | MOVETO command ltac_info tactic

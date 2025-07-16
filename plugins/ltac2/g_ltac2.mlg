@@ -1049,7 +1049,7 @@ let toplevel_selector = G_vernac.toplevel_selector
 let pr_ltac2_selector s = Pp.(Goal_select.pr_goal_selector s ++ str ":")
 
 let pr_ltac2_use_default b =
-  if b then (* Bug: a space is inserted before "..." *) str ".." else mt ()
+  if b.CAst.v then (* Bug: a space is inserted before "..." *) str ".." else mt ()
 
 let subprf = G_vernac.subprf
 let subprf_with_selector = G_vernac.subprf_with_selector
@@ -1061,8 +1061,8 @@ VERNAC ARGUMENT EXTEND ltac2_selector PRINTED BY { pr_ltac2_selector }
 END
 
 VERNAC ARGUMENT EXTEND ltac2_use_default PRINTED BY { pr_ltac2_use_default }
-| [ "." ] -> { false }
-| [ "..." ] -> { true }
+| [ "." ] -> { CAst.make ~loc false }
+| [ "..." ] -> { CAst.make ~loc true }
 END
 
 VERNAC { tac2mode } EXTEND VernacLtac2
@@ -1070,9 +1070,9 @@ VERNAC { tac2mode } EXTEND VernacLtac2
   { classify_as_proofstep } -> { fun ~pstate ->
     Tac2entries.call ~pstate g ~with_end_tac t
   }
-| ![proof] [ "par" ":" ltac2_expr(t) ltac2_use_default(with_end_tac) ] =>
+| ![proof] [ "par" ":" ltac2_expr(t) "." ] =>
   { classify_as_proofstep } -> { fun ~pstate ->
-    Tac2entries.call_par ~pstate ~with_end_tac t
+    Tac2entries.call_par ~pstate t
   }
 END
 

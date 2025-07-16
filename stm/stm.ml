@@ -1934,7 +1934,7 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
            match (VCS.get_info base_state).state with
            | FullState { Vernacstate.interp = { lemmas } } ->
                Option.iter PG_compat.unfreeze lemmas;
-               PG_compat.with_current_proof (fun _ p ->
+               PG_compat.with_current_proof (fun p ->
                  feedback ~id:id Feedback.AddedAxiom;
                  fst (Proof.solve Goal_select.SelectAll None tac p), ());
                (* STATE SPEC:
