@@ -1,8 +1,7 @@
 # The Rocq Prover
 
 [![GitLab CI][gitlab-badge]][gitlab-link]
-[![GitHub macOS CI][gh-macos-badge]][gh-macos-link]
-[![GitHub Windows CI][gh-win-badge]][gh-win-link]
+[![GitHub CI][gh-badge]][gh-link]
 [![Zulip][zulip-badge]][zulip-link]
 [![Discourse][discourse-badge]][discourse-link]
 [![DOI][doi-badge]][doi-link]
@@ -10,11 +9,8 @@
 [gitlab-badge]: https://gitlab.inria.fr/coq/coq/badges/master/pipeline.svg
 [gitlab-link]: https://gitlab.inria.fr/coq/coq/commits/master
 
-[gh-macos-badge]: https://github.com/rocq-prover/rocq/actions/workflows/ci-macos.yml/badge.svg
-[gh-macos-link]: https://github.com/rocq-prover/rocq/actions/workflows/ci-macos.yml
-
-[gh-win-badge]: https://github.com/rocq-prover/rocq/actions/workflows/ci-windows.yml/badge.svg
-[gh-win-link]: https://github.com/rocq-prover/rocq/actions/workflows/ci-windows.yml
+[gh-badge]: https://github.com/rocq-prover/rocq/actions/workflows/ci-github.yml/badge.svg
+[gh-link]: https://github.com/rocq-prover/rocq/actions/workflows/ci-github.yml
 
 [discourse-badge]: https://img.shields.io/badge/Discourse-forum-informational.svg
 [discourse-link]: https://discourse.rocq-prover.org/
