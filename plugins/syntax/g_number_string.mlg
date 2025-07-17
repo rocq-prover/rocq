@@ -12,7 +12,7 @@ DECLARE PLUGIN "rocq-runtime.plugins.number_string_notation"
 
 {
 
-open Notation
+open PrimNotations
 open Number_string
 open Pp
 open Stdarg
