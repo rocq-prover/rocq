@@ -554,7 +554,7 @@ let mk_sources () =
   let edges =
     let libs = Library.loaded_libraries () in
     List.fold_left (fun edges dp ->
-        let _, csts = Safe_typing.univs_of_library @@ Library.library_compiled dp in
+        let _, (_, csts) = Safe_typing.univs_of_library @@ Library.library_compiled dp in
         Constraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
           csts edges)
       edges libs

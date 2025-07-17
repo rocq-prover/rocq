@@ -185,7 +185,10 @@ let v_level = v_tuple "level" [|v_int;v_raw_level|]
 let v_expr = v_tuple "levelexpr" [|v_level;v_int|]
 let v_univ = v_list v_expr
 
-let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_string;v_int|]|]
+let v_qglobal = v_pair v_dp v_id
+
+(* perhaps the "Unif" constructor should be forbidden in vo files *)
+let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_string;v_int|];[|v_qglobal|]|]
 
 let v_constant_quality = v_enum "constant_quality" 3
 
@@ -580,7 +583,7 @@ let v_vodigest = v_sum_c ("module_impl",0, [| [|v_string|]; [|v_string;v_string|
 let v_deps = v_array (v_tuple "dep" [|v_dp;v_vodigest|])
 let v_flags = v_tuple "flags" [|v_bool|] (* Allow Rewrite Rules *)
 let v_compiled_lib =
-  v_tuple "compiled" [|v_dp;v_module;v_context_set;v_set v_qvar;v_deps; v_flags|]
+  v_tuple "compiled" [|v_dp;v_module;v_pair (v_set v_qvar) v_context_set;v_deps; v_flags|]
 
 (** Toplevel structures in a vo (see Cic.mli) *)
 

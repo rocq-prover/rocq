@@ -175,8 +175,7 @@ end
 type compiled_library = {
   comp_name : DirPath.t;
   comp_mod : module_body;
-  comp_univs : Univ.ContextSet.t;
-  comp_qualities : Sorts.QVar.Set.t;
+  comp_univs : Sorts.QVar.Set.t * Univ.ContextSet.t;
   comp_deps : library_info array;
   comp_flags : permanent_flags;
 }
@@ -228,7 +227,8 @@ type safe_environment =
     modlabels : Label.Set.t;
     objlabels : Label.Set.t;
     univ : Univ.ContextSet.t;
-    qualities : Sorts.QVar.Set.t ;
+    (* maybe should be a qglobal set? *)
+    qualities : Sorts.QVar.Set.t;
     future_cst : (Constant_typing.typing_context * safe_environment * Nonce.t) HandleMap.t;
     required : required_lib DPmap.t;
     loads : (ModPath.t * module_body) list;
@@ -1514,8 +1514,7 @@ let export ~output_native_objects senv dir =
   let lib = {
     comp_name = dir;
     comp_mod = mb;
-    comp_univs = senv.univ;
-    comp_qualities = senv.qualities;
+    comp_univs = senv.qualities, senv.univ;
     comp_deps = Array.of_list comp_deps;
     comp_flags = permanent_flags
   } in
@@ -1531,9 +1530,10 @@ let import lib vmtab vodigest senv =
           ++ DirPath.print lib.comp_name ++ str").");
   let mp = MPfile lib.comp_name in
   let mb = lib.comp_mod in
-  let env = Environ.push_context_set ~strict:true lib.comp_univs senv.env in
+  let qualities, univs = lib.comp_univs in
+  let env = Environ.push_quality_set qualities senv.env in
+  let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
-  let env = Environ.push_quality_set lib.comp_qualities env in
   let env =
     let linkinfo = Nativecode.link_info_of_dirpath lib.comp_name in
     Modops.add_linked_module mp mb linkinfo env
