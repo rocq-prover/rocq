@@ -252,7 +252,7 @@ function
 | "IDENT", s -> fprintf fmt "Tok.PIDENT (%a)" print_pat s
 | "FIELD", s -> fprintf fmt "Tok.PFIELD (%a)" print_pat s
 | "NUMBER", None -> fprintf fmt "Tok.PNUMBER None"
-| "NUMBER", Some s -> fprintf fmt "Tok.PNUMBER (Some (NumTok.Unsigned.of_string %a))" print_string s
+| "NUMBER", Some s -> fprintf fmt "Tok.PNUMBER (Some (Option.get (NumTok.Unsigned.parse_string %a)))" print_string s
 | "STRING", s -> fprintf fmt "Tok.PSTRING (%a)" print_pat s
 | "LEFTQMARK", None -> fprintf fmt "Tok.PLEFTQMARK"
 | "BULLET", s -> fprintf fmt "Tok.PBULLET (%a)" print_pat s
