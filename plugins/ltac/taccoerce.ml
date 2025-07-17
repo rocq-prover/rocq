@@ -392,7 +392,9 @@ let coerce_to_hyp env sigma v =
     let id = out_gen (topwit wit_hyp) v in
     if is_variable env id then id else fail ()
   else match Value.to_constr v with
-  | Some c when isVar sigma c -> destVar sigma c
+  | Some c when isVar sigma c ->
+    let id = destVar sigma c in
+    if is_variable env id then id else fail ()
   | _ -> fail ()
 
 let coerce_to_hyp_list env sigma v =
