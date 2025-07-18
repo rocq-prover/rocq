@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *      The Rocq Prover / The Rocq Development Team           *)
+(*         *   The Coq Proof Assistant / The Coq Development Team       *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -1241,6 +1241,84 @@ let noccur_evar env evd defs evk c =
   in
   try occur_rec false (0,env) c; true with Occur -> false
 
+type 'a imitation = Same | Reconstructed of extra_env * Level.t list * 'a | Impossible
+
+let imitate_sort evd univ_gen cmp s =
+  match s with
+  | Prop | SProp -> Same
+  | Set when cmp = GEQ -> Same
+  | Set | Type _ | QSort _ ->
+    let qorig = Sorts.quality s in
+    let uorig = ExtraEnv.get_algebraic s in
+    let evd, l = univ_gen evd () in
+    let u = Universe.make l in
+    let evd =
+      match cmp with
+      | LEQ -> ExtraEnv.enforce_cmp_universe CUMUL qorig uorig u evd
+      | GEQ -> ExtraEnv.enforce_cmp_universe CUMUL qorig u uorig evd
+      | EQ -> assert false
+    in
+    Reconstructed (evd, [l], mkSort @@ Sorts.(make qorig u))
+
+let imitate_instance evd univ_gen cmp variance ui =
+  let open UVars in
+  let qs, us = Instance.to_array ui in
+  let generated_univs = ref [] in
+  let evd, us = Array.fold_left2_map (fun evd v u ->
+    match v with
+    | Variance.Covariant ->
+        let evd, u' = univ_gen evd () in
+        generated_univs := u' :: !generated_univs;
+        let evd = match cmp with
+          | LEQ -> ExtraEnv.enforce_constraint evd (u, Le, u')
+          | GEQ -> ExtraEnv.enforce_constraint evd (u', Le, u)
+          | EQ -> assert false
+        in
+        evd, u'
+    | Variance.Invariant | Variance.Irrelevant -> evd, u) evd variance us
+  in
+  if List.is_empty !generated_univs then
+    Same
+  else
+    Reconstructed (evd, List.rev !generated_univs, Instance.of_array (qs, us))
+
+let rec imitate env evd defs univ_gen cmp t =
+  match kind @@ Reduction.whd_all ~evars:(evar_handler_defs defs) env t with
+  | Sort s -> imitate_sort evd univ_gen cmp s
+  | Prod (na, ty, cod) ->
+    begin match imitate env evd defs univ_gen cmp cod with
+    | Same -> Same
+    | Impossible -> Impossible
+    | Reconstructed (evd, us, cod') -> Reconstructed (evd, us, mkProd (na, ty, cod'))
+    end
+  | Evar _ -> Impossible
+  | App (f, args) when isInd f ->
+      let ind, u = destInd f in
+      let mind = Environ.lookup_mind (fst ind) env in
+      begin match mind.mind_variance with
+      | None -> Same
+      | Some variances ->
+        let num_param_arity = inductive_cumulativity_arguments (mind, snd ind) in
+        if not (Int.equal num_param_arity (Array.length args)) then Same (* Not a type *)
+        else
+          begin match imitate_instance evd univ_gen cmp variances u with
+          | Same | Impossible as r -> r
+          | Reconstructed (evd, us, ui) ->
+            Reconstructed (evd, us, mkApp (mkIndU (ind, ui), args))
+          end
+      end
+  | _ -> (* All other types are neutral *) Same
+
+let eq_cmp_to_imitation_cmp ?(us = []) = function
+  | LEQ -> LESS us
+  | EQ -> EQUAL
+  | GEQ -> GREATER us
+
+let imitate env evd defs univ_gen cmp t =
+  match imitate env evd defs univ_gen cmp t with
+  | Same -> Some (evd, (eq_cmp_to_imitation_cmp cmp, t))
+  | Reconstructed (evd, us, t) -> Some (evd, (eq_cmp_to_imitation_cmp ~us cmp, t))
+  | Impossible -> None
 
 
 let check_sort_imitation evd us cmp sorig s =
@@ -1462,6 +1540,17 @@ let nf_evar_map evars qgraph defs =
       Sorts.relevance_subst_rel_fn (fun qv -> QState.relevance qv qgraph) rel,
       ido))
 
+
+let nf_evar_info (Info info) =
+  let qgraph = QState.of_pair info.qualities (info.qgraph, info.qabove_prop) in
+  Info { info with
+    evar_map = Evar.Map.map (fun (ctx, ty, rel, ido) -> (
+      nf_evar_ctx info.evars qgraph info.evar_defs ctx,
+      nf_evar info.evars qgraph info.evar_defs ty,
+      Sorts.relevance_subst_rel_fn (fun qv -> QState.relevance qv qgraph) rel,
+      ido)) info.evar_map;
+  }
+
 let nf_evar (Info info) c =
   let qgraph = QState.of_pair info.qualities (info.qgraph, info.qabove_prop) in
   nf_evar info.evars qgraph info.evar_defs c
@@ -1535,6 +1624,38 @@ let check_pattern_relevances evd pat_rel =
         warn_irrelevant_pattern Pp.(str "Subpattern has different relevance than whole pattern in rewrite rules")
     | Relevant -> ()
     ) evd.pattern_relevances
+
+
+let check_ucstr_slow env (Info info) (s1, cv_pb, s2) =
+  let open Quality in
+  let q1 = Sorts.quality s1 in
+  let q2 = Sorts.quality s2 in
+  let qgraph = QState.of_pair info.qualities (info.qgraph, info.qabove_prop) in
+  let qgraph = match QState.nf_quality qgraph q1 with
+    | QConstant _ -> qgraph
+    | QVar q ->
+      if cv_pb = CUMUL && (
+        QState.check_constraint (q1, Leq, QConstant QType) qgraph ||
+        not @@ QState.check_constraint (q2, Leq, QConstant QType) qgraph
+      )
+      then
+        let qgraph = QState.set q (QConstant QType) qgraph in
+        fst @@ QState.merge_qconstraints info.full_qcstrs qgraph
+      else
+        qgraph
+  in
+  let kind = match cv_pb with CONV -> QCumulConstraint.Eq | CUMUL -> Leq in
+  QState.check_constraint (q1, kind, q2) qgraph &&
+  match s1, s2 with
+  | (SProp | Prop | Set), _ | _, (SProp | Prop) -> true (* Quality unification is enough *)
+  | _ ->
+    let ustate = List.fold_left (fun ucstrs cstr -> push_uconstraint qgraph cstr ucstrs) info.ucstrs info.full_ucstrs in
+    let ug = Environ.universes env
+      |> Level.Map.fold (fun lvl _ ug -> UGraph.add_universe lvl ~strict:false ug) info.univs
+      |> UGraph.merge_constraints ustate
+    in
+    begin match cv_pb with CONV -> UGraph.check_eq | CUMUL -> UGraph.check_leq end
+      ug (ExtraEnv.get_algebraic s1) (ExtraEnv.get_algebraic s2)
 
 
 let rec get_pconstrapp args = function
