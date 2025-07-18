@@ -1091,7 +1091,9 @@ module Internal = struct
         add_mind mind mib env
       | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
       | SFBmodtype mtb -> add_modtype (MPdot (mp, l)) mtb env
-      | SFBrules r -> add_rewrite_rules r.rewrules_rules env
+      | SFBrules r ->
+        let rules = List.map (Rewrite_rules_ops.translate_rewrite_rule env) r.rewrules_rules in
+        add_rewrite_rules rules env
     in
     List.fold_left add_field env sign
 
