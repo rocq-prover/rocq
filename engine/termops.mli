@@ -175,17 +175,18 @@ val prod_applist_decls : Evd.evar_map -> int -> constr -> constr list -> constr
    [strip_outer_cast (Cast (Cast ... (Cast c, t) ... ))] is [c]. *)
 val strip_outer_cast : Evd.evar_map -> constr -> constr
 
-(** [nb_lam] {% $ %}[x_1:T_1]...[x_n:T_n]c{% $ %} where {% $ %}c{% $ %} is not an abstraction
-   gives {% $ %}n{% $ %} (casts are ignored) *)
+(** [nb_lam sigma t] counts the number of head lambda abstractions in [t], ignoring casts.
+    For instance on [fun x1 x2 x3 => c] (where [c] is not itself a lambda abstraction) it returns 3. *)
 val nb_lam : Evd.evar_map -> constr -> int
 
-(** Similar to [nb_lam], but gives the number of products instead *)
+(** [nb_prod sigma t] counts the number of head products in [t], ignoring casts. *)
 val nb_prod : Evd.evar_map -> constr -> int
 
-(** Similar to [nb_prod], but zeta-contracts let-in on the way *)
+(** Variant of [nb_prod] which also does zeta-reduction (i.e. reduces let-ins) along the way. *)
 val nb_prod_modulo_zeta : Evd.evar_map -> constr -> int
 
-(** Get the last arg of a constr intended to be an application *)
+(** [last_arg sigma t] returns the last argument of [t].
+    Fails if [t] is not an application. *)
 val last_arg : Evd.evar_map -> constr -> constr
 
 val adjust_app_list_size : constr -> constr list -> constr -> constr list ->

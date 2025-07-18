@@ -341,11 +341,6 @@ end
 let convert x y = convert_gen Conversion.CONV x y
 let convert_leq x y = convert_gen Conversion.CUMUL x y
 
-(* This tactic enables users to remove hypotheses from the signature.
- * Some care is taken to prevent them from removing variables that are
- * subsequently used in other hypotheses or in the conclusion of the
- * goal. *)
-
 let clear_gen fail = function
 | [] -> Proofview.tclUNIT ()
 | ids ->
@@ -384,7 +379,6 @@ let apply_clear_request clear_flag dft c =
   | None -> Proofview.tclUNIT ()
   | Some id -> clear [id]
 
-(* Moving hypotheses *)
 let move_hyp id dest =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
@@ -399,7 +393,6 @@ let move_hyp id dest =
     end
   end
 
-(* Renaming hypotheses *)
 let rename_hyp repl =
   let fold accu (src, dst) = match accu with
   | None -> None
@@ -503,13 +496,13 @@ let naming_of_name = function
 
 let find_name mayrepl decl naming gl = match naming with
   | NamingAvoid idl ->
-      (* this case must be compatible with [find_intro_names] below. *)
+      (* This case must be compatible with [find_intro_names] below. *)
       let env = Proofview.Goal.env gl in
       let sigma = Tacmach.project gl in
       new_fresh_id idl (default_id env sigma decl) gl
-  | NamingBasedOn (id,idl) ->  new_fresh_id idl id gl
+  | NamingBasedOn (id,idl) -> new_fresh_id idl id gl
   | NamingMustBe {CAst.loc;v=id} ->
-     (* When name is given, we allow to hide a global name *)
+     (* When name is given, we allow to hide a global name. *)
      let ids_of_hyps = Tacmach.pf_ids_set_of_hyps gl in
      if not mayrepl && Id.Set.mem id ids_of_hyps then
        error ?loc (AlreadyUsed id);
@@ -580,7 +573,7 @@ let internal_cut ?(check=true) replace id t =
 let assert_before_then_gen b naming t tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
-    let id = find_name b (LocalAssum (make_annot Anonymous Sorts.Relevant,t)) naming gl in
+    let id = find_name b (LocalAssum (make_annot Anonymous Sorts.Relevant, t)) naming gl in
     Tacticals.tclTHENLAST
       (internal_cut b id t)
       (tac id)
@@ -1001,7 +994,7 @@ let change ~check chg c cls =
       (id, redfun)
     in
     let reorder = if check then AnyHypConv else StableHypConv in
-    (* Don't check, we do it already in [change_on_subterm] *)
+    (* Don't check, we do it already in [change_on_subterm]. *)
     e_change_in_hyps ~check:false ~reorder f hyps
   end
 
@@ -1098,22 +1091,18 @@ let reduce redexp cl =
   end
   end
 
-(* Unfolding occurrences of a constant *)
-
 let unfold_constr = function
-  | GlobRef.ConstRef sp -> unfold_in_concl [AllOccurrences,EvalConstRef sp]
-  | GlobRef.VarRef id -> unfold_in_concl [AllOccurrences,EvalVarRef id]
+  | GlobRef.ConstRef sp -> unfold_in_concl [(AllOccurrences, EvalConstRef sp)]
+  | GlobRef.VarRef id -> unfold_in_concl [(AllOccurrences, EvalVarRef id)]
   | _ -> error NotUnfoldable
 
 (*******************************************)
 (*         Introduction tactics            *)
 (*******************************************)
 
-(* Returns the names that would be created by intros, without doing
-   intros.  This function is supposed to be compatible with an
-   iteration of [find_name] above. As [default_id] checks the sort of
-   the type to build hyp names, we maintain an environment to be able
-   to type dependent hyps. *)
+(** This function is supposed to be compatible with an iteration of [find_name] above.
+    As [default_id] checks the sort of the type to build hyp names,
+    we maintain an environment to be able to type dependent hyps. *)
 let find_intro_names env0 sigma ctxt =
   let _, res, _ = List.fold_right
     (fun decl acc ->
@@ -1881,9 +1870,6 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
   let concl = Proofview.Goal.concl gl in
   let sigma = Tacmach.project gl in
   let id = try Some (destVar sigma c) with DestKO -> None in
-  (* The actual type of the theorem. It will be matched against the
-  goal. If this fails, then the head constant will be unfolded step by
-  step. *)
   let concl_nprod = nb_prod_modulo_zeta sigma concl in
   let rec try_main_apply with_destruct c =
     Proofview.Goal.enter begin fun gl ->
@@ -1895,6 +1881,8 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
     in
     let flags =
       if with_delta then default_unify_flags () else default_no_delta_unify_flags ts in
+    (* The actual type of the theorem. It will be matched against the goal.
+       If this fails, then the head constant will be unfolded step by step. *)
     let thm_ty = nf_betaiota env sigma (Retyping.get_type_of env sigma c) in
     let sigma, thm_ty = Evarsolve.refresh_universes ~onlyalg:true None env sigma thm_ty in
     let try_apply thm_ty nprod =
@@ -2140,6 +2128,8 @@ let exact_proof c =
   end
   end
 
+(** For efficiency reasons we first try to find a hypothesis whose type
+    is syntactically equal to the goal. If this fails we retry with full conversion. *)
 let assumption =
   let rec arec gl only_eq = function
   | [] ->
@@ -2258,10 +2248,6 @@ let clear_wildcards ids =
   let clear_wildcards_msg ?loc env sigma _id err inglobal =
     user_err ?loc (clear_dependency_msg env sigma None err inglobal) in
   Tacticals.tclMAP (fun {CAst.loc;v=id} -> clear_gen (clear_wildcards_msg ?loc) [id]) ids
-
-(*   Takes a list of booleans, and introduces all the variables
- *  quantified in the goal which are associated with a value
- *  true  in the boolean list. *)
 
 let rec intros_clearing = function
   | []          -> Proofview.tclUNIT ()
@@ -2569,25 +2555,25 @@ let exceed_bound n = function
   | None -> false
   | Some n' -> n >= n'
 
-  (* We delay thinning until the completion of the whole intros tactic
-     to ensure that dependent hypotheses are cleared in the right
-     dependency order (see BZ#1000); we use fresh names, not used in
-     the tactic, for the hyps to clear *)
-  (* In [intro_patterns_core b avoid ids thin destopt bound n tac patl]:
-     [b]: compatibility flag, if false at toplevel, do not complete incomplete
-          trailing toplevel or_and patterns (as in "intros []", see
-          [bracketing_last_or_and_intro_pattern])
-     [avoid]: names to avoid when creating an internal name
-     [ids]: collect introduced names for possible use by the [tac] continuation
-     [thin]: collect names to erase at the end
-     [destopt]: position in the context where to introduce the hypotheses
-     [bound]: number of pending intros to do in the current or-and pattern,
-              with remembering of [b] flag if at toplevel
-     [n]: number of introduction done in the current or-and pattern
-     [tac]: continuation tactic
-     [patl]: introduction patterns to interpret
-  *)
+(** We delay thinning until the completion of the whole intros tactic
+    to ensure that dependent hypotheses are cleared in the right
+    dependency order (see BZ#1000); we use fresh names, not used in
+    the tactic, for the hyps to clear. *)
 
+(** In [intro_patterns_core b avoid ids thin destopt bound n tac patl]:
+    - [b]: compatibility flag, if false at toplevel, do not complete incomplete
+      trailing toplevel or_and patterns (as in "intros []", see
+      [bracketing_last_or_and_intro_pattern])
+    - [avoid]: names to avoid when creating an internal name
+    - [ids]: collect introduced names for possible use by the [tac] continuation
+    - [thin]: collect names to erase at the end
+    - [destopt]: position in the context where to introduce the hypotheses
+    - [bound]: number of pending intros to do in the current or-and pattern,
+      with remembering of [b] flag if at toplevel
+    - [n]: number of introduction done in the current or-and pattern
+    - [tac]: continuation tactic
+    - [patl]: introduction patterns to interpret
+*)
 let rec intro_patterns_core with_evars avoid ids thin destopt bound n tac =
   function
   | [] when fit_bound n bound ->
