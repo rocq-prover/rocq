@@ -1059,12 +1059,13 @@ let warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__ =
       | Slist1sep (s, sep, b) -> find_symb entry s
       | _ -> assert false in
     let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
+    let () = if not (Option.has_some cur_lev && Option.has_some top_lev) then CErrors.anomaly ~loc Pp.(str "unknown levels in warning") in
     warn_tolerance ~loc (cur_lev,top_lev)
   with Exit -> ()
 
 let warn_recover_continuation bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (None, None)
+  CErrors.anomaly ~loc Pp.(str "recover cont")
 
 let empty_entry ename levn strm =
   raise (Error ("entry [" ^ ename ^ "] is empty"))
