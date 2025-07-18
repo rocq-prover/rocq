@@ -499,6 +499,10 @@ let set_qvars qs env =
   let g = Sorts.QVar.Set.fold (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs g in
   { env with env_qualities = g }
 
+let push_floating_full_context_set ((qs, us), cstrs) env =
+  let env = push_qualities qs env in
+  map_universes (add_universes_set ~strict:false (us, cstrs)) env
+
 let push_subgraph (levels,csts) env =
   let add_subgraph g =
     let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
