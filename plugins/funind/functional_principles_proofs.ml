@@ -1156,7 +1156,7 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
                 (fix this_fix_info.name (this_fix_info.idx + 1))
           else
             Tactics.mutual_fix this_fix_info.name (this_fix_info.idx + 1)
-              other_fix_infos 0
+              other_fix_infos
       in
       let first_tac : unit Proofview.tactic =
         (* every operations until fix creations *)
