@@ -528,8 +528,10 @@ module Html = struct
 
   let header () =
     if !prefs.header_trailer then
-      if !prefs.header_file_spec then
-        let cin = open_in !prefs.header_file in
+      match !prefs.header_file with
+      | None -> ()
+      | Some f ->
+        let cin = open_in f in
           try
             while true do
               let s = input_line cin in
@@ -550,8 +552,10 @@ module Html = struct
         end
 
   let trailer () =
-    if !prefs.header_trailer && !prefs.footer_file_spec then
-        let cin = open_in !prefs.footer_file in
+    if !prefs.header_trailer then match !prefs.footer_file with
+      | None -> ()
+      | Some f ->
+        let cin = open_in f in
           try
             while true do
               let s = input_line cin in

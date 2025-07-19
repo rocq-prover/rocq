@@ -35,10 +35,8 @@ type t = {
   light : bool;
   title : string;
   header_trailer : bool;
-  header_file_spec : bool;
-  header_file : string;
-  footer_file_spec : bool;
-  footer_file : string;
+  header_file : string option;
+  footer_file : string option;
   index: bool;
   binder_index : bool;
   multi_index : bool;
@@ -72,10 +70,8 @@ let default : t = {
   light = false;
   title = "";
   header_trailer = true;
-  header_file_spec = false;
-  header_file = "";
-  footer_file_spec = false;
-  footer_file = "";
+  header_file = None;
+  footer_file = None;
   index = true;
   multi_index = false;
   index_name = "index";
