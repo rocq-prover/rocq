@@ -263,7 +263,7 @@ module Proof : sig
   val fold : f:(Proof.t -> 'a) -> t -> 'a
   val map : f:(Proof.t -> Proof.t) -> t -> t
   val map_fold : f:(Proof.t -> Proof.t * 'a) -> t -> t * 'a
-  val map_fold_endline : f:(unit Proofview.tactic -> Proof.t -> Proof.t * 'a) -> t -> t * 'a
+  val map_fold_endline : f:(Gentactic.glob_generic_tactic option -> Proof.t -> Proof.t * 'a) -> t -> t * 'a
 
   (** Sets the tactic to be used when a tactic line is closed with [...] *)
   val set_endline_tactic : Gentactic.glob_generic_tactic -> t -> t

@@ -26,8 +26,8 @@ val solve :
   pstate:Declare.Proof.t ->
   Goal_select.t ->
   info:int option ->
+  ?with_end_tac:bool CAst.t ->
   interpretable ->
-  with_end_tac:bool ->
   Declare.Proof.t
 
 (** [par: tac] runs tac on all goals, possibly in parallel using a worker pool.
@@ -39,7 +39,6 @@ type parallel_solver =
   info:int option ->
   interpretable ->
   abstract:bool -> (* the tactic result has to be opacified as per abstract *)
-  with_end_tac:bool ->
   Declare.Proof.t
 
 (** Entry point when the goal selector is par: *)

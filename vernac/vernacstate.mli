@@ -108,8 +108,7 @@ module Declare : sig
   val get_current_proof_name : unit -> Names.Id.t
 
   val map_proof : (Proof.t -> Proof.t) -> unit
-  val with_current_proof :
-      (unit Proofview.tactic -> Proof.t -> Proof.t * 'a) -> 'a
+  val with_current_proof : (Proof.t -> Proof.t * 'a) -> 'a
 
   val return_proof : unit -> Declare.Proof.closed_proof_output
 

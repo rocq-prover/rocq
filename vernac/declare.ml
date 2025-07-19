@@ -1777,12 +1777,7 @@ let map ~f p = { p with proof = f p.proof }
 let map_fold ~f p = let proof, res = f p.proof in { p with proof }, res
 
 let map_fold_endline ~f ps =
-  let et =
-    match ps.endline_tactic with
-    | None -> Proofview.tclUNIT ()
-    | Some tac -> Gentactic.interp tac
-  in
-  let (newpr,ret) = f et ps.proof in
+  let (newpr,ret) = f ps.endline_tactic ps.proof in
   let ps = { ps with proof = newpr } in
   ps, ret
 
