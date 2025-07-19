@@ -37,9 +37,9 @@ val introduction    : Id.t -> unit Proofview.tactic
 val convert_concl   : cast:bool -> check:bool -> types -> cast_kind -> unit Proofview.tactic
 val convert_hyp     : check:bool -> reorder:bool -> named_declaration -> unit Proofview.tactic
 val mutual_fix      :
-  Id.t -> int -> (Id.t * int * constr) list -> int -> unit Proofview.tactic
+  Id.t -> int -> (Id.t * int * constr) list -> unit Proofview.tactic
 val fix             : Id.t -> int -> unit Proofview.tactic
-val mutual_cofix    : Id.t -> (Id.t * constr) list -> int -> unit Proofview.tactic
+val mutual_cofix    : Id.t -> (Id.t * constr) list -> unit Proofview.tactic
 val cofix           : Id.t -> unit Proofview.tactic
 
 val convert         : constr -> constr -> unit Proofview.tactic
