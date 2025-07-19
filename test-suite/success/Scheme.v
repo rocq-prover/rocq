@@ -30,3 +30,34 @@ Unset Rewriting Schemes.
 Polymorphic Inductive foo@{u v|u<=v} : Type@{u}:= .
 Lemma bla@{u v|u < v} : foo@{u v} -> False.
 Proof. induction 1. Qed.
+
+Set Warnings "+deprecated-lookup-elim-by-name".
+
+Unset Elimination Schemes.
+Inductive bar := A | B (_:bar).
+
+Scheme bar_myind := Induction for bar Sort Prop.
+Scheme bar_myind_nodep := Minimality for bar Sort Prop.
+
+(* ignored *)
+Definition bar_ind := bar_myind.
+
+Lemma a_or_b : forall f:bar, f = A \/ exists f', f = B f'.
+Proof.
+  intros f.
+  induction f.
+  - left;reflexivity.
+  - right;eexists;reflexivity.
+Qed.
+
+Fixpoint bar_rec (P : Set) (f : P) (f0 : bar -> P -> P) b :=
+  match b with
+  | A => f
+  | B b0 => f0 b0 (bar_rec P f f0 b0)
+  end.
+
+Lemma to_bool : bar -> bool.
+Proof.
+  intros f.
+  Fail induction f.
+Abort.

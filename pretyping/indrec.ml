@@ -16,7 +16,6 @@ open Pp
 open CErrors
 open Util
 open Names
-open Libnames
 open Nameops
 open Constr
 open EConstr
@@ -716,45 +715,3 @@ let build_induction_scheme env sigma pind dep kind =
     raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (true, fst pind)));
   let sigma, l = mis_make_indrec env sigma [(pind,mib,mip,dep,kind)] mib (snd pind) in
     sigma, List.hd l
-
-(*s Eliminations. *)
-
-let elimination_suffix =
-  let open UnivGen.QualityOrSet in
-  let open Sorts.Quality in
-  function
-  | Qual (QConstant QSProp) -> "_sind"
-  | Qual (QConstant QProp) -> "_ind"
-  | Qual (QConstant QType) | Qual (QVar _) -> "_rect"
-  | Set -> "_rec"
-
-let case_suffix = "_case"
-
-let make_elimination_ident id s = add_suffix id (elimination_suffix s)
-
-(* Look up function for the default elimination constant *)
-
-let lookup_eliminator env ind_sp s =
-  let kn,i = ind_sp in
-  let mpu = KerName.modpath @@ MutInd.user kn in
-  let mpc = KerName.modpath @@ MutInd.canonical kn in
-  let ind_id = (lookup_mind kn env).mind_packets.(i).mind_typename in
-  let id = add_suffix ind_id (elimination_suffix s) in
-  let l = Label.of_id id in
-  let knu = KerName.make mpu l in
-  let knc = KerName.make mpc l in
-  (* Try first to get an eliminator defined in the same section as the *)
-  (* inductive type *)
-  let cst = Constant.make knu knc in
-  if mem_constant cst env then GlobRef.ConstRef cst
-  else
-    (* Then try to get a user-defined eliminator in some other places *)
-    (* using short name (e.g. for "eq_rec") *)
-    try Nametab.locate (qualid_of_ident id)
-    with Not_found ->
-      user_err
-        (strbrk "Cannot find the elimination combinator " ++
-         Id.print id ++ strbrk ", the elimination of the inductive definition " ++
-         Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
-         strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
-         strbrk " is probably not allowed.")
