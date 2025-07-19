@@ -265,6 +265,10 @@ let finalize_def_class env sigma ~params ~sort ~projtyp =
   (* no need to check evars in typ which is guaranteed to be a sort  *)
   let () = Context.Rel.iter ce params in
   let () = ce projtyp in
+  let () =
+    if not (Vars.closedn (List.length params) projtyp) then
+      CErrors.user_err Pp.(str "Definitional classes cannot be recursive.")
+  in
   sigma, params, sort, typ, projtyp
 
 let adjust_field_implicits ~isclass (params,param_impls) (impls:Impargs.manual_implicits) =
