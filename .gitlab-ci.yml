@@ -434,7 +434,7 @@ pkg:opam:native:
 #     - git branch --list 'pr-*' | xargs -r git branch -D
 #     - git fetch --unshallow
 #     - git branch -v
-#     - git push git@github.com:coq/coq-on-cachix "${CI_COMMIT_SHA}":"refs/heads/${CI_COMMIT_REF_NAME}"
+#     - git push git@github.com:rocq-prover/coq-on-cachix "${CI_COMMIT_SHA}":"refs/heads/${CI_COMMIT_REF_NAME}"
 
 pkg:nix:
   extends: .nix-template
@@ -484,7 +484,7 @@ doc:refman:deploy:
     - library:ci-stdlib_doc
   script:
     - echo "$DOCUMENTATION_DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - git clone git@github.com:coq/doc.git _deploy
+    - git clone git@github.com:rocq-prover/doc.git _deploy --depth 1
     - rm -rf _deploy/$CI_COMMIT_REF_NAME/api
     - rm -rf _deploy/$CI_COMMIT_REF_NAME/refman
     - rm -rf _deploy/$CI_COMMIT_REF_NAME/corelib
