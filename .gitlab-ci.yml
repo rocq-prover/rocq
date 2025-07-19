@@ -1092,14 +1092,6 @@ library:ci-http:
   variables:
     CI_TARGETS: "ceres parsec json async_test http"
 
-library:ci-trakt:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - plugin:ci-elpi_hb
-  stage: build-2
-
 # Plugins are by definition the projects that depend on Rocq's ML API
 
 plugin:ci-aac_tactics:
@@ -1316,15 +1308,6 @@ plugin:ci-smtcoq:
   needs:
   - build:base
   - library:ci-stdlib
-
-plugin:ci-smtcoq_trakt:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - plugin:ci-elpi_hb
-  - library:ci-trakt
-  stage: build-3+
 
 plugin:ci-stalmarck:
   extends: .ci-template
