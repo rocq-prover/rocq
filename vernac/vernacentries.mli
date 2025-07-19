@@ -75,6 +75,7 @@ val preprocess_inductive_decl
 module DefAttributes : sig
 
 type t = {
+  hooks : (Declare.Hook.S.t -> unit) list ;
   scope : Locality.definition_scope;
   locality : bool option;
   polymorphic : bool;
@@ -86,6 +87,9 @@ type t = {
   reversible : bool;
   clearbody: bool option;
 }
+
+module Observer : Summary.OBSERVABLE
+  with type value = (Declare.Hook.S.t -> unit) list Attributes.attribute
 
 val def_attributes : t Attributes.attribute
 
