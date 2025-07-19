@@ -10,15 +10,15 @@ Import N.
 Definition d1 := x = 3.
 
 Module M1.
-Notation w := x.
+Abbreviation w := x.
 End M1.
 Import M1.
 
 #[deprecated(use=w)]
-Notation v := 3.
+Abbreviation v := 3.
 
 Module M2.
-Notation w := 5.
+Abbreviation w := 5.
 End M2.
 Import M2.
 

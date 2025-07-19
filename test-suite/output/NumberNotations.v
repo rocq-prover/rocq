@@ -164,8 +164,8 @@ Module Test8.
   Fail Check let v := 0%wuint8 in v : wuint.
   Compute wrap (Nat.to_num_uint 0).
 
-  Notation wrap'' := wrap.
-  Notation unwrap'' := unwrap.
+  Abbreviation wrap'' := wrap.
+  Abbreviation unwrap'' := unwrap.
   Number Notation wuint wrap'' unwrap'' : wuint8'_scope.
   Check let v := 0%wuint8' in v : wuint.
 End Test8.
@@ -180,8 +180,8 @@ Module Test9.
     Record wuint := wrap { unwrap : Number.uint }.
     Let wrap' := wrap.
     Let unwrap' := unwrap.
-    Local Notation wrap'' := wrap.
-    Local Notation unwrap'' := unwrap.
+    Local Abbreviation wrap'' := wrap.
+    Local Abbreviation unwrap'' := unwrap.
     Number Notation wuint wrap' unwrap' : wuint9_scope.
     Check let v := 0%wuint9 in v : wuint.
     Number Notation wuint wrap'' unwrap'' : wuint9'_scope.
@@ -231,8 +231,8 @@ Module Test13.
   Definition to_uint (x y : unit) : Number.uint := Nat.to_num_uint O.
   Definition of_uint (x : Number.uint) : unit := tt.
   Definition to_uint_good := to_uint tt.
-  Notation to_uint' := (to_uint tt).
-  Notation to_uint'' := (to_uint _).
+  Abbreviation to_uint' := (to_uint tt).
+  Abbreviation to_uint'' := (to_uint _).
   Number Notation unit of_uint to_uint_good : test13_scope.
   Check let v := 0%test13 in v : unit.
   Fail Number Notation unit of_uint to_uint' : test13'_scope.
@@ -534,7 +534,7 @@ Definition to_uint (x : I) : Number.uint :=
       end in
   Nat.to_num_uint (f x).
 
-Notation nSet := (Set) (only parsing).  (* needed as a reference is expected in Number Notation and Set is syntactically not a reference *)
+Abbreviation nSet := (Set) (only parsing).  (* needed as a reference is expected in Number Notation and Set is syntactically not a reference *)
 Number Notation nSet of_uint to_uint (via I
   mapping [Empty_set => Iempty, unit => Iunit, sum => Isum])
   : type_scope.
@@ -726,7 +726,7 @@ Definition to_uint (l : list unit) : Number.uint :=
     end in
   Nat.to_num_uint (f l).
 
-Notation listunit := (list unit) (only parsing).
+Abbreviation listunit := (list unit) (only parsing).
 Number Notation listunit of_uint to_uint : nat_scope.
 
 Check 0.
@@ -765,7 +765,7 @@ Definition Ip_to_uint (l : Ip nat bool) : Number.uint :=
     end in
   Nat.to_num_uint (f l).
 
-Notation Ip_nat_bool := (Ip nat bool) (only parsing).
+Abbreviation Ip_nat_bool := (Ip nat bool) (only parsing).
 Number Notation Ip_nat_bool Ip_of_uint Ip_to_uint : nat_scope.
 
 Check 0.
@@ -787,7 +787,7 @@ Check 2.
 Check 3.
 Unset Printing All.
 
-Notation eqO := (eq _ O) (only parsing).
+Abbreviation eqO := (eq _ O) (only parsing).
 Definition eqO_of_uint (x : Number.uint) : eqO := eq_refl O.
 Definition eqO_to_uint (x : O = O) : Number.uint :=
   match x with
@@ -800,7 +800,7 @@ Check eq_refl (S O).  (* doesn't match eq _ O, printer not called *)
 Check eq_refl O. (* matches eq _ O, printer called *)
 Check eq_refl (id O). (* doesn't match eq _ O, printer not called *)
 
-Notation eq_ := (eq _ _) (only parsing).
+Abbreviation eq_ := (eq _ _) (only parsing).
 Number Notation eq_ eqO_of_uint eqO_to_uint : nat_scope.
 
 Check eq_refl (S O).  (* matches eq _ _, printer called, but type incorrect *)
@@ -827,7 +827,7 @@ Definition extra_list_unit_to_uint (x : extra_list unit) : Number.uint :=
       end in
   Nat.to_num_uint (f unit x).
 
-Notation extra_list_unit := (extra_list unit).
+Abbreviation extra_list_unit := (extra_list unit).
 Number Notation extra_list_unit
         extra_list_unit_of_uint extra_list_unit_to_uint : nat_scope.
 
@@ -866,7 +866,7 @@ Definition to_uint (x : (fun x => let v := x in v) I) : match O with O => Number
       end in
   Nat.to_num_uint (f x).
 
-Notation nSet := (Set) (only parsing).  (* needed as a reference is expected in Number Notation and Set is syntactically not a reference *)
+Abbreviation nSet := (Set) (only parsing).  (* needed as a reference is expected in Number Notation and Set is syntactically not a reference *)
 Number Notation nSet of_uint to_uint (via I
   mapping [Empty_set => Iempty, unit => Iunit, sum => Isum])
   : type_scope.
@@ -1027,7 +1027,7 @@ Definition printer2 (x : nunit 2) : Number.uint :=
 
 Definition parser2 (_ : Number.uint) : nunit 2 := NUnit 2.
 
-Notation nunit2 := (nunit 2).
+Abbreviation nunit2 := (nunit 2).
 Number Notation nunit2 parser2 printer2 : nat_scope.
 
 Check 2.

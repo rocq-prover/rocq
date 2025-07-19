@@ -299,9 +299,9 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Notation reflect := Datatypes.reflect.
-Notation ReflectT := Datatypes.ReflectT.
-Notation ReflectF := Datatypes.ReflectF.
+Abbreviation reflect := Datatypes.reflect.
+Abbreviation ReflectT := Datatypes.ReflectT.
+Abbreviation ReflectF := Datatypes.ReflectF.
 
 Reserved Notation "~~ b" (at level 35, right associativity).
 Reserved Notation "b ==> c" (at level 55, right associativity).
@@ -429,7 +429,7 @@ Reserved Notation "{ 'on' cd , 'bijective' f }" (at level 0, f at level 8,
  our default is &, but we try to match the intended meaning of op. The
  separator is a workaround for limitations of the parsing engine; the same
  limitations mean the separator cannot be omitted even when last_arg can.
-   The Notation declarations are complicated by the separate treatment for
+   The Abbreviation declarations are complicated by the separate treatment for
  some fixed arities (binary for bool operators, and all arities for Prop
  operators).
    We also use the square brackets in comprehension-style notations
@@ -471,7 +471,7 @@ Open Scope bool_scope.
 (**  An alternative to xorb that behaves somewhat better wrt simplification. **)
 Definition addb b := if b then negb else id.
 
-(**  Notation for && and || is declared in Init.Datatypes.  **)
+(**  Abbreviation for && and || is declared in Init.Datatypes.  **)
 Notation "~~ b" := (negb b) : bool_scope.
 Notation "b ==> c" := (implb b c) : bool_scope.
 Notation "b1 (+) b2" := (addb b1 b2) : bool_scope.
@@ -885,7 +885,7 @@ Notation "[ ==> b1 => c ]" := (b1 ==> c) (only parsing) : bool_scope.
 Section AllAnd.
 
 Variables (T : Type) (P1 P2 P3 P4 P5 : T -> Prop).
-Local Notation a P := (forall x, P x).
+Local Abbreviation a P := (forall x, P x).
 
 Lemma all_and2 : implies (forall x, [/\ P1 x & P2 x]) [/\ a P1 & a P2].
 Proof. by split=> haveP; split=> x; case: (haveP x). Qed.
@@ -1254,15 +1254,15 @@ Identity Coercion fun_of_pred : pred >-> Funclass.
 
 Definition subpred T (p1 p2 : pred T) := forall x : T, p1 x -> p2 x.
 
-(* Notation for some manifest predicates. *)
+(* Abbreviation for some manifest predicates. *)
 
-Notation xpred0 := (fun=> false).
-Notation xpredT := (fun=> true).
-Notation xpredI := (fun (p1 p2 : pred _) x => p1 x && p2 x).
-Notation xpredU := (fun (p1 p2 : pred _) x => p1 x || p2 x).
-Notation xpredC := (fun (p : pred _) x => ~~ p x).
-Notation xpredD := (fun (p1 p2 : pred _) x => ~~ p2 x && p1 x).
-Notation xpreim := (fun f (p : pred _) x => p (f x)).
+Abbreviation xpred0 := (fun=> false).
+Abbreviation xpredT := (fun=> true).
+Abbreviation xpredI := (fun (p1 p2 : pred _) x => p1 x && p2 x).
+Abbreviation xpredU := (fun (p1 p2 : pred _) x => p1 x || p2 x).
+Abbreviation xpredC := (fun (p : pred _) x => ~~ p x).
+Abbreviation xpredD := (fun (p1 p2 : pred _) x => ~~ p2 x && p1 x).
+Abbreviation xpreim := (fun f (p : pred _) x => p (f x)).
 
 (** The packed class interface for pred-like types. **)
 
@@ -1343,7 +1343,7 @@ Notation "[ 'pred' x : T | E1 & E2 ]" :=
 Module PredOfSimpl.
 Definition coerce T (sp : simpl_pred T) : pred T := fun_of_simpl sp.
 End PredOfSimpl.
-Notation pred_of_simpl := PredOfSimpl.coerce.
+Abbreviation pred_of_simpl := PredOfSimpl.coerce.
 Coercion pred_of_simpl : simpl_pred >-> pred.
 Canonical simplPredType T := PredType (@pred_of_simpl T).
 
@@ -1388,8 +1388,8 @@ Definition simpl_rel T := T -> simpl_pred T.
 Coercion rel_of_simpl T (sr : simpl_rel T) : rel T := fun x : T => sr x.
 Arguments rel_of_simpl {T} sr x /.
 
-Notation xrelU := (fun (r1 r2 : rel _) x y => r1 x y || r2 x y).
-Notation xrelpre := (fun f (r : rel _) x y => r (f x) (f y)).
+Abbreviation xrelU := (fun (r1 r2 : rel _) x y => r1 x y || r2 x y).
+Abbreviation xrelpre := (fun f (r : rel _) x y => r (f x) (f y)).
 
 Definition SimplRel {T} (r : rel T) : simpl_rel T := fun x => SimplPred (r x).
 Definition relU {T} (r1 r2 : rel T) := SimplRel (xrelU r1 r2).
@@ -1681,7 +1681,7 @@ Canonical keyed_mem_simpl :=
 
 End KeyPred.
 
-Local Notation in_unkey x S := (x \in @unkey_pred _ S _ _) (only parsing).
+Local Abbreviation in_unkey x S := (x \in @unkey_pred _ S _ _) (only parsing).
 Notation "x \in S" := (in_unkey x S) (only printing) : bool_scope.
 
 Section KeyedQualifier.
@@ -1805,14 +1805,14 @@ Proof. by move=> trR x y z Ryx Rzy; apply: trR Rzy Ryx. Qed.
 Local Notation "{ 'all1' P }" := (forall x, P x : Prop) (at level 0).
 Local Notation "{ 'all2' P }" := (forall x y, P x y : Prop) (at level 0).
 Local Notation "{ 'all3' P }" := (forall x y z, P x y z: Prop) (at level 0).
-Local Notation ph := (phantom _).
+Local Abbreviation ph := (phantom _).
 
 Section LocalProperties.
 
 Variables T1 T2 T3 : Type.
 
 Variables (d1 : mem_pred T1) (d2 : mem_pred T2) (d3 : mem_pred T3).
-Local Notation ph := (phantom Prop).
+Local Abbreviation ph := (phantom Prop).
 
 Definition prop_for (x : T1) P & ph {all1 P} := P x.
 
@@ -2245,7 +2245,7 @@ Lemma mono1W_in :
   {in aD, {homo f : x / aP x >-> rP x}}.
 Proof. by move=> hf x hx ax; rewrite hf. Qed.
 #[deprecated(since="Coq 8.16", note="Use mono1W_in instead.")]
-Notation mono2W_in := mono1W_in.
+Abbreviation mono2W_in := mono1W_in.
 
 Lemma monoW_in :
     {in aD &, {mono f : x y / aR x y >-> rR x y}} ->

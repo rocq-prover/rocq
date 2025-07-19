@@ -9,8 +9,8 @@ Ltac reify t :=
   | Datatypes.nat => nat
   | Datatypes.bool => bool
   end.
-Notation reify t := (ltac:(let rt := reify t in exact rt)) (only parsing).
-Notation reify_type_of e := (reify ((fun t (_ : t) => t) _ e)) (only parsing).
+Abbreviation reify t := (ltac:(let rt := reify t in exact rt)) (only parsing).
+Abbreviation reify_type_of e := (reify ((fun t (_ : t) => t) _ e)) (only parsing).
 Axiom Literal : forall {t}, denote t -> Type.
 Declare Scope foo_scope.
 Delimit Scope foo_scope with foo.
