@@ -65,8 +65,8 @@ let interp_constr flags ist c =
   let open Pretyping in
   let ist = to_lvar ist in
   Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
-    let (sigma, c) = understand_ltac flags env sigma ist WithoutTypeConstraint c in
-    let c = Tac2ffi.of_constr c in
+    let (sigma, j) = understand_ltac flags env sigma ist WithoutTypeConstraint c in
+    let c = Tac2ffi.of_constr j.uj_val in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
     Proofview.tclUNIT c
   end
@@ -275,8 +275,8 @@ let interp_preterm_var_as_constr ?loc env sigma tycon id =
     | Some ty -> OfType ty
     | None -> WithoutTypeConstraint
   in
-  let sigma, t, ty = Pretyping.understand_ltac_ty flags env sigma vars tycon term in
-  Environ.make_judge t ty, sigma
+  let sigma, j = Pretyping.understand_ltac flags env sigma vars tycon term in
+  j, sigma
 
 exception NotFoundHypVar of Id.t * Id.t
 

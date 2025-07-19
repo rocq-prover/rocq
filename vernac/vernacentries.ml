@@ -1835,8 +1835,7 @@ let default_env () = {
 let vernac_reserve bl =
   let sb_decl = (fun (idl,c) ->
     let env = Global.env() in
-    let sigma = Evd.from_env env in
-    let t,ctx = Constrintern.interp_type env sigma c in
+    let t,ctx = Constrintern.interp_type env (UState.from_env env) c in
     let t = Flags.without_option Detyping.print_universes (fun () ->
         Detyping.detype Detyping.Now env (Evd.from_ctx ctx) t)
         ()
@@ -2163,7 +2162,7 @@ let query_command_selector ?loc = function
 
 let check_may_eval env sigma redexp rc =
   let gc = Constrintern.intern_unknown_if_term_or_type env sigma rc in
-  let sigma, c = Pretyping.understand_tcc env sigma gc in
+  let sigma, { Environ.uj_val = c } = Pretyping.understand_tcc env sigma gc in
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   Evarconv.check_problems_are_solved env sigma;
   let sigma = Evd.minimize_universes sigma in
@@ -2216,7 +2215,7 @@ let vernac_global_check c =
   let env = Global.env() in
   let sigma = Evd.from_env env in
   let c = Constrintern.intern_constr env sigma c in
-  let sigma, c = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
+  let sigma, { Environ.uj_val = c } = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let uctx = Evd.universe_context_set sigma in

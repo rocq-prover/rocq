@@ -31,11 +31,11 @@ let do_primitive id udecl prim typopt =
     declare ?loc id e
   | Some typ ->
     let env = Global.env () in
-    let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
+    let evd, udecl = Constrintern.interp_univ_decl_opt env udecl |> Util.on_fst Evd.from_ctx in
     let auctx = CPrimitives.op_or_type_univs prim in
     let evd, u = Evd.with_sort_context_set UState.univ_flexible evd (UnivGen.fresh_instance auctx) in
     let expected_typ = EConstr.of_constr @@ Typeops.type_of_prim_or_type env u prim in
-    let evd, (typ,impls) =
+    let evd, ({Environ.utj_val = typ},impls) =
       Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
         env evd typ
     in
