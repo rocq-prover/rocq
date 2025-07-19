@@ -12,8 +12,33 @@ open Names
 open Declarations
 open Mod_declarations
 open Mod_subst
-open Modops
 open Nativecode
+
+module ModHack =
+struct
+
+let rec overwrite_structure mp sign resolver env =
+  let add_field env (l,elem) = match elem with
+    | SFBconst cb ->
+      let c = Mod_subst.constant_of_delta_kn resolver (KerName.make mp l) in
+      Environ.add_constant c cb env
+    | SFBmind mib ->
+      let mind = Mod_subst.mind_of_delta_kn resolver (KerName.make mp l) in
+      Environ.add_mind mind mib env
+    | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
+    | SFBmodtype mtb -> Environ.add_modtype (MPdot (mp, l)) mtb env
+    | SFBrules r -> Environ.add_rewrite_rules r.rewrules_rules env
+  in
+  List.fold_left add_field env sign
+
+and overwrite_module mp mb env =
+  let env = Environ.Internal.shallow_overwrite_module mp mb env in
+  match mod_type mb with
+  | NoFunctor struc ->
+    let delta = Option.get (Mod_declarations.mod_global_delta mb) in
+    overwrite_structure mp struc delta env
+  | MoreFunctor _ -> env
+end
 
 (** This file implements separate compilation for libraries in the native
 compiler *)
@@ -21,7 +46,7 @@ compiler *)
 let rec translate_mod mp env mod_expr acc =
   match mod_expr with
   | NoFunctor struc ->
-      let env' = add_structure mp struc (empty_delta_resolver mp) env in
+      let env' = ModHack.overwrite_structure mp struc (empty_delta_resolver mp) env in
       List.fold_left (translate_field mp env') acc struc
   | MoreFunctor _ -> acc
 
@@ -65,7 +90,7 @@ let dump_library mp env mod_expr =
   debug_native_compiler (fun () -> Pp.str "Compiling library...");
   match mod_expr with
   | NoFunctor struc ->
-      let env = add_structure mp struc (empty_delta_resolver mp) env in
+      let env = ModHack.overwrite_structure mp struc (empty_delta_resolver mp) env in
       let t0 = Sys.time () in
       clear_global_tbl ();
       clear_symbols ();
