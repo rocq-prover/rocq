@@ -1621,11 +1621,11 @@ let explain_reduction_tactic_error = function
       explain_type_error env' (Evd.from_env env') e
 
 let explain_prim_token_notation_error kind env sigma = function
-  | Notation.UnexpectedTerm c ->
+  | PrimNotations.UnexpectedTerm c ->
     (strbrk "Unexpected term " ++
      pr_constr_env env sigma c ++
      strbrk (" while parsing a "^kind^" notation."))
-  | Notation.UnexpectedNonOptionTerm c ->
+  | PrimNotations.UnexpectedNonOptionTerm c ->
     (strbrk "Unexpected non-option term " ++
      pr_constr_env env sigma c ++
      strbrk (" while parsing a "^kind^" notation."))
@@ -1674,7 +1674,7 @@ let rec vernac_interp_error_handler = function
     explain_type_error env (Evd.from_env env) te
   | PretypeError(ctx,sigma,te) ->
     explain_pretype_error ctx sigma te
-  | Notation.PrimTokenNotationError(kind,ctx,sigma,te) ->
+  | PrimNotations.PrimTokenNotationError(kind,ctx,sigma,te) ->
     explain_prim_token_notation_error kind ctx sigma te
   | Typeclasses_errors.TypeClassError(env, sigma, te) ->
     explain_typeclass_error env sigma te
