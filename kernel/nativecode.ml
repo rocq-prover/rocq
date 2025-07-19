@@ -1480,7 +1480,7 @@ let compile_prim env decl cond paux =
         in
         let self = Array.map (fun id -> MLlocal id) lf in
         let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
-        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
+        let body = MLprimitive (MLmagic, [|MLlam ([|unit|], Array.fold_right_i mk_let lf body)|]) in
         let typs = mk_type in
         let self = mk_norm in
         mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
