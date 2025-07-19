@@ -238,6 +238,7 @@ val load_object : int -> object_prefix * obj -> unit
 val open_object : open_filter -> int -> object_prefix * obj -> unit
 val subst_object : substitution * obj -> obj
 val classify_object : obj -> substitutivity
+val object_name : obj -> string
 val object_stage : obj -> Summary.Stage.t
 
 type discharged_obj
