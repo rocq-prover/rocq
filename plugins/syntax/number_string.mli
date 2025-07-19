@@ -34,3 +34,9 @@ val vernac_string_notation : locality_flag ->
                              qualid -> qualid ->
                              number_string_via option ->
                              Notation_term.scope_name -> unit
+
+val vernac_enable_disable_notation : locality_flag ->
+  gref:qualid ->
+  ?scopes:Notation_term.scope_name list ->
+  is_string:bool ->
+  bool -> unit

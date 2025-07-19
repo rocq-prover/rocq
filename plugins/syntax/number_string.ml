@@ -626,3 +626,10 @@ let vernac_string_notation local ty f g via scope =
          pt_in_match = true }
   in
   enable_prim_token_interpretation i
+
+let vernac_enable_disable_notation local ~gref ?scopes ~is_string enable =
+  let env = Global.env () in
+  let gref = Smartlocate.global_with_alias gref in
+  let count = Notation.set_prim_notation_status ~env ~gref ?scopes ~is_string enable in
+  let what = if enable then "Enabled " else "Disabled " in
+  Feedback.msg_info Pp.(str what ++ int count ++ str " notations.")
