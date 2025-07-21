@@ -255,7 +255,7 @@ GRAMMAR EXTEND Gram
     [ [ fs = fields_def -> { CAst.make ~loc @@ CRecord fs } ] ]
   ;
   fields_def:
-    [ [ f = field_def; ";"; fs = fields_def -> { f :: fs }
+    [ RIGHTA [ f = field_def; ";"; fs = fields_def -> { f :: fs }
       | f = field_def -> { [f] }
       | -> { [] } ] ]
   ;
@@ -401,7 +401,7 @@ GRAMMAR EXTEND Gram
     [ [ id = global; ":="; pat = pattern LEVEL "200" -> { (id, pat) } ] ]
   ;
   record_patterns:
-    [ [ p = record_pattern; ";"; ps = record_patterns -> { p :: ps }
+    [ RIGHTA [ p = record_pattern; ";"; ps = record_patterns -> { p :: ps }
       | p = record_pattern-> { [p] }
       | -> { [] } ] ]
   ;
@@ -446,7 +446,7 @@ GRAMMAR EXTEND Gram
         { CAst.make ~loc @@ CMeasureRec (id,m,rel) } ] ]
   ;
   binders_fixannot:
-    [ [ ensure_fixannot; f = fixannot -> { [], Some f }
+    [ RIGHTA [ ensure_fixannot; f = fixannot -> { [], Some f }
       | b = binder; bl = binders_fixannot -> { b @ fst bl, snd bl }
       | -> { [], None } ] ]
   ;
