@@ -213,13 +213,12 @@ The constructor D' (in type J') is expected to be applied to 4 arguments (or
 actually applied to 5 arguments.
 fun x : J' bool (true, true) =>
 match x with
-| D' _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
+| @D' _ _ _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
 end
      : J' bool (true, true) -> {x : nat & x = x}
-fun x : J' bool (true, true) =>
-match x with
-| @D' _ _ _ _ n _ p _ => n + p
-end
+fun x : J' bool (true, true) => match x with
+                                | D' _ _ _ n p _ => n + p
+                                end
      : J' bool (true, true) -> nat
 File "./output/Cases.v", line 277, characters 33-40:
 The command has indeed failed with message:

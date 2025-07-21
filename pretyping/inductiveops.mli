@@ -118,7 +118,7 @@ val constructor_nrealargs : env -> constructor -> int
 (** @return args with letin *)
 val constructor_nrealdecls : env -> constructor -> int
 
-(** @return tags of all decls: true = assumption, false = letin *)
+(** @return tags of all decls: true = letin, false = assumption *)
 val inductive_alltags : env -> inductive -> bool list
 val constructor_alltags : env -> constructor -> bool list
 
