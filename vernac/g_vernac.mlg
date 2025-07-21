@@ -577,7 +577,7 @@ GRAMMAR EXTEND Gram
         rfu_notation } } ] ]
   ;
   record_fields:
-    [ [ f = record_field; ";"; fs = record_fields -> { f :: fs }
+    [ RIGHTA [ f = record_field; ";"; fs = record_fields -> { f :: fs }
       | f = record_field -> { [f] }
       | -> { [] }
     ] ]
@@ -1284,7 +1284,7 @@ GRAMMAR EXTEND Gram
       | IDENT "headconcl" -> { InConcl, true } ] ]
   ;
   search_queries:
-    [ [ m = ne_in_or_out_modules -> { ([],m) }
+    [ RIGHTA [ m = ne_in_or_out_modules -> { ([],m) }
       | s = search_query; l = search_queries ->
         { let (sl,m) = l in (s::sl,m) }
       | -> { ([],SearchOutside []) }
