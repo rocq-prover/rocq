@@ -264,9 +264,10 @@ let set_prompt prompt =
 (* Read the input stream until a dot is encountered *)
 let parse_to_dot =
   let rec dot kwstate st = match Gramlib.LStream.next kwstate st with
-    | Tok.KEYWORD ("."|"...") -> ()
-    | Tok.EOI -> ()
-    | _ -> dot kwstate st
+    | Some (Tok.KEYWORD ("."|"...")) -> ()
+    | Some Tok.EOI -> ()
+    | Some _ -> dot kwstate st
+    | None -> raise Procq.StreamFail
   in
   Procq.Entry.(of_parser "Coqtoplevel.dot" { parser_fun = dot })
 
