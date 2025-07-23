@@ -35,8 +35,6 @@ let all_with ~head delta =
   let all = [FBeta;FMatch;FFix;FCofix;FZeta;delta] in
   Redops.make_red_flag (if head then FHead :: all else all)
 
-let err () = raise Procq.StreamFail
-
 (* Hack to parse "(x:=t)" as an explicit argument without conflicts with the *)
 (* admissible notation "(x t)" *)
 let test_lpar_id_coloneq =
@@ -75,23 +73,23 @@ let check_for_coloneq =
       let rec skip_to_rpar p n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | KEYWORD "(" -> skip_to_rpar (p+1) (n+1)
-        | KEYWORD ")" -> if Int.equal p 0 then n+1 else skip_to_rpar (p-1) (n+1)
-        | KEYWORD "." -> err ()
+        | KEYWORD ")" -> if Int.equal p 0 then Ok (n+1) else skip_to_rpar (p-1) (n+1)
+        | KEYWORD "." -> Error ()
         | _ -> skip_to_rpar p (n+1) in
       let rec skip_names n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | IDENT _ | KEYWORD "_" -> skip_names (n+1)
         | KEYWORD ":" -> skip_to_rpar 0 (n+1) (* skip a constr *)
-        | _ -> err () in
+        | _ -> Error () in
       let rec skip_binders n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
-        | KEYWORD "(" -> skip_binders (skip_names (n+1))
+        | KEYWORD "(" -> Result.bind (skip_names (n+1)) skip_binders
         | IDENT _ | KEYWORD "_" -> skip_binders (n+1)
-        | KEYWORD ":=" -> ()
-        | _ -> err () in
+        | KEYWORD ":=" -> Ok ()
+        | _ -> Error () in
       match Gramlib.LStream.peek_nth kwstate 0 strm with
       | Some (KEYWORD "(") -> skip_binders 2
-      | _ -> err () })
+      | _ -> Error () })
 
 let lookup_at_as_comma =
   let open Procq.Lookahead in

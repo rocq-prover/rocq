@@ -69,10 +69,10 @@ END
 {
 
 let input_ssrtermkind kwstate strm = match Gramlib.LStream.peek_nth kwstate 0 strm with
-  | Some (Tok.KEYWORD "(") -> InParens
-  | Some (Tok.KEYWORD "@") -> WithAt
-  | Some _ -> NoFlag
-  | None -> raise Procq.StreamFail
+  | Some (Tok.KEYWORD "(") -> Ok InParens
+  | Some (Tok.KEYWORD "@") -> Ok WithAt
+  | Some _ -> Ok NoFlag
+  | None -> Error () (* NB this never happens, instead we get a EOI token *)
 let ssrtermkind = Procq.Entry.(of_parser "ssrtermkind" { parser_fun = input_ssrtermkind })
 
 }

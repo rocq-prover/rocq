@@ -31,7 +31,15 @@ module type S = sig
   type 'c pattern
   type ty_pattern = TPattern : 'a pattern -> ty_pattern
 
-  exception StreamFail
+  type peek_error = unit
+
+  type 'a parser_v = ('a, peek_error) result
+  (** Recoverable parsing errors are signaled use [Error]. To be
+      correctly recovered we must not have consumed any tokens since
+      the last choice point, ie we only peeked at the stream.
+
+      Other errors are signaled using the [ParseError] exception or
+      even arbitrary exceptions. *)
 
   (** Type combinators to factor the module type between explicit
       state passing in Grammar and global state in Procq *)
@@ -61,9 +69,9 @@ module type S = sig
     val make : string -> 'a t mod_estate
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a }
+    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
-    val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a with_gstate
+    val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
     val print : Format.formatter -> 'a t -> unit with_estate
     val is_empty : 'a t -> bool with_estate
 
