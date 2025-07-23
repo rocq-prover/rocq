@@ -8,7 +8,7 @@
     Grammars entries can be extended using the [EXTEND] statement,
     added by loading the Camlp5 [pa_extend.cmo] file. *)
 
-exception Error of string
+exception ParseError of string
 (** Raised by parsers when the first component of a stream pattern is
    accepted, but one of the following components is rejected. *)
 
