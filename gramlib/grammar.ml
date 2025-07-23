@@ -6,7 +6,7 @@ open Gramext
 open Format
 open Util
 
-exception Error of string
+exception ParseError of string
 (** Raised by parsers when the first component of a stream pattern is
    accepted, but one of the following components is rejected. *)
 
@@ -1074,7 +1074,7 @@ let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
   warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
 let empty_entry ename levn strm =
-  raise (Error ("entry [" ^ ename ^ "] is empty"))
+  raise (ParseError ("entry [" ^ ename ^ "] is empty"))
 
 let start_parser_of_entry gstate entry levn (strm:_ LStream.t) =
   (get_entry gstate.estate entry).estart gstate levn strm
@@ -1119,7 +1119,7 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
              let act =
                try p1 gstate bp a strm__ with
                  StreamFail ->
-                   raise (Error (tree_failed entry a s son))
+                   raise (ParseError (tree_failed entry a s son))
              in
              act a)
   | Node (_, {node = s; son = son; brother = bro}) ->
@@ -1135,7 +1135,7 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
                    (try Some (p1 gstate bp a strm) with StreamFail -> None)
                  with
                    Some act -> act a
-                 | None -> raise (Error (tree_failed entry a s son))
+                 | None -> raise (ParseError (tree_failed entry a s son))
                  end
              | None -> p2 gstate strm)
 and parser_cont : type s tr tr' a r.
@@ -1181,14 +1181,14 @@ and parser_cont : type s tr tr' a r.
         let a = continue_parser_of_entry gstate (entry_of_symb entry s) None 0 bp a strm__ in
         let act =
           try p1 gstate strm__ with
-            StreamFail -> raise (Error (tree_failed entry a s son))
+            StreamFail -> raise (ParseError (tree_failed entry a s son))
         in
         fun _ ->
           warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
           act a
 
       else
-        raise (Error (tree_failed entry a s son))
+        raise (ParseError (tree_failed entry a s son))
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
 finite sequence of tokens. E.g., in
@@ -1253,7 +1253,7 @@ and parser_of_token_list : type s tr lt r.
          begin
            try let act = ps gstate a strm in act a
            with TokenListFailed (entry, a, tok, tree) ->
-             raise (Error (tree_failed entry a tok tree))
+             raise (ParseError (tree_failed entry a tok tree))
          end
        | None -> raise StreamFail)
     | None -> raise StreamFail
@@ -1279,7 +1279,7 @@ and parser_of_symbol : type s tr a.
             let al =
               try ps gstate strm__ :: al with
                 StreamFail ->
-                  raise (Error (symb_failed entry v sep symb))
+                  raise (ParseError (symb_failed entry v sep symb))
             in
             kont gstate al strm__
         | _ -> al
@@ -1312,7 +1312,7 @@ and parser_of_symbol : type s tr a.
                   let a =
                     try parser_of_symbol entry 0 (top_symb entry symb) gstate strm__
                     with StreamFail ->
-                      raise (Error (symb_failed entry v sep symb))
+                      raise (ParseError (symb_failed entry v sep symb))
                   in
                   (* not sure about nlevn/alevn args here *)
                   let () = warn_recover 1 0 (Capsule (entry, symb)) gstate bp strm__ in
@@ -1563,9 +1563,9 @@ module Parsable = struct
       let _, info = Exninfo.capture exn in
       let loc = get_parsing_loc () in
       let info = Loc.add_loc info loc in
-      let exn = Error ("illegal begin of " ^ entry.ename) in
+      let exn = ParseError ("illegal begin of " ^ entry.ename) in
       Exninfo.iraise (exn, info)
-    | Error _ as exn ->
+    | ParseError _ as exn ->
       let exn, info = Exninfo.capture exn in
       let loc = get_parsing_loc () in
       let info = Loc.add_loc info loc in
