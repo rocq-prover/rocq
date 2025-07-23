@@ -244,41 +244,40 @@ let pr_ssrsimpl _ _ _ = pr_simpl
 let wit_ssrsimplrep = add_genarg "ssrsimplrep" (fun env sigma -> pr_simpl)
 
 let test_ssrslashnum b1 b2 kwstate strm =
-  let err () = raise Procq.StreamFail in
   match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "/") ->
       (match LStream.peek_nth kwstate 1 strm with
       | Some (Tok.NUMBER _) when b1 ->
          (match LStream.peek_nth kwstate 2 strm with
-         | Some (Tok.KEYWORD ("=" | "/=")) when not b2 -> ()
+         | Some (Tok.KEYWORD ("=" | "/=")) when not b2 -> Ok ()
          | Some (Tok.KEYWORD "/") ->
-             if not b2 then () else begin
+             if not b2 then Ok () else begin
                match LStream.peek_nth kwstate 3 strm with
-               | Some (Tok.NUMBER _) -> ()
-               | _ -> err  ()
+               | Some (Tok.NUMBER _) -> Ok ()
+               | _ -> Error ()
              end
-         | _ -> err ())
+         | _ -> Error ())
       | Some (Tok.KEYWORD "/") when not b1 ->
          (match LStream.peek_nth kwstate 2 strm with
-         | Some (Tok.KEYWORD "=") when not b2 -> ()
+         | Some (Tok.KEYWORD "=") when not b2 -> Ok ()
          | Some (Tok.NUMBER _) when b2 ->
            (match LStream.peek_nth kwstate 3 strm with
-           | Some (Tok.KEYWORD "=") -> ()
-           | _ -> err ())
-         | _ when not b2 -> ()
-         | _ -> err ())
-      | Some (Tok.KEYWORD "=") when not b1 && not b2 -> ()
-      | _ -> err ())
+           | Some (Tok.KEYWORD "=") -> Ok ()
+           | _ -> Error ())
+         | _ when not b2 -> Ok ()
+         | _ -> Error ())
+      | Some (Tok.KEYWORD "=") when not b1 && not b2 -> Ok ()
+      | _ -> Error ())
   | Some (Tok.KEYWORD "//") when not b1 ->
          (match LStream.peek_nth kwstate 1 strm with
-         | Some (Tok.KEYWORD "=") when not b2 -> ()
+         | Some (Tok.KEYWORD "=") when not b2 -> Ok ()
          | Some (Tok.NUMBER _) when b2 ->
            (match LStream.peek_nth kwstate 2 strm with
-           | Some (Tok.KEYWORD "=") -> ()
-           | _ -> err ())
-         | _ when not b2 -> ()
-         | _ -> err ())
-  | _ -> err ()
+           | Some (Tok.KEYWORD "=") -> Ok ()
+           | _ -> Error ())
+         | _ when not b2 -> Ok ()
+         | _ -> Error ())
+  | _ -> Error ()
 
 let test_ssrslashnum10 = test_ssrslashnum true false
 let test_ssrslashnum11 = test_ssrslashnum true true
@@ -286,10 +285,9 @@ let test_ssrslashnum01 = test_ssrslashnum false true
 let test_ssrslashnum00 = test_ssrslashnum false false
 
 let negate_parser f x y =
-  let rc = try Some (f x y) with Procq.StreamFail -> None in
-  match rc with
-  | None -> ()
-  | Some _ -> raise Procq.StreamFail
+  match f x y with
+  | Error () -> Ok ()
+  | Ok _ -> Error ()
 
 let test_not_ssrslashnum =
   Procq.Entry.(of_parser
@@ -483,10 +481,10 @@ END
 (* Old kinds of terms *)
 
 let input_ssrtermkind kwstate strm = match LStream.peek_nth kwstate 0 strm with
-  | Some (Tok.KEYWORD "(") -> InParens
-  | Some (Tok.KEYWORD "@") -> WithAt
-  | Some _ -> NoFlag
-  | None -> raise Procq.StreamFail
+  | Some (Tok.KEYWORD "(") -> Ok InParens
+  | Some (Tok.KEYWORD "@") -> Ok WithAt
+  | Some _ -> Ok NoFlag
+  | None -> Error () (* NB this never happens, instead we get a EOI token *)
 
 let ssrtermkind = Procq.Entry.(of_parser "ssrtermkind" { parser_fun = input_ssrtermkind })
 
@@ -494,10 +492,10 @@ let ssrtermkind = Procq.Entry.(of_parser "ssrtermkind" { parser_fun = input_ssrt
 
 let input_term_annotation kwstate strm =
   match LStream.npeek kwstate 2 strm with
-  | Tok.KEYWORD "(" :: Tok.KEYWORD "(" :: _ -> `DoubleParens
-  | Tok.KEYWORD "(" :: _ -> `Parens
-  | Tok.KEYWORD "@" :: _ -> `At
-  | _ -> `None
+  | Tok.KEYWORD "(" :: Tok.KEYWORD "(" :: _ -> Ok `DoubleParens
+  | Tok.KEYWORD "(" :: _ -> Ok `Parens
+  | Tok.KEYWORD "@" :: _ -> Ok `At
+  | _ -> Ok `None
 let term_annotation =
   Procq.Entry.(of_parser "term_annotation" { parser_fun = input_term_annotation })
 
@@ -843,9 +841,9 @@ let reject_ssrhid kwstate strm =
   match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "[") ->
       (match LStream.peek_nth kwstate 1 strm with
-      | Some (Tok.KEYWORD ":") -> raise Procq.StreamFail
-      | _ -> ())
-  | _ -> ()
+      | Some (Tok.KEYWORD ":") -> Error ()
+      | _ -> Ok ())
+  | _ -> Ok ()
 
 let test_nohidden = Procq.Entry.(of_parser "test_ssrhid" { parser_fun = reject_ssrhid })
 
@@ -853,10 +851,9 @@ let rec reject_binder crossed_paren k kwstate s =
   match LStream.peek_nth kwstate k s with
   | Some (Tok.KEYWORD "(") when not crossed_paren -> reject_binder true (k+1) kwstate s
   | Some (Tok.IDENT _) when crossed_paren -> reject_binder true (k+1) kwstate s
-  | Some (Tok.KEYWORD ":" | Tok.KEYWORD ":=") when crossed_paren ->
-      raise Procq.StreamFail
-  | Some (Tok.KEYWORD ")") when crossed_paren -> raise Procq.StreamFail
-  | _ -> if crossed_paren then () else raise Procq.StreamFail
+  | Some (Tok.KEYWORD ":" | Tok.KEYWORD ":=") when crossed_paren -> Error ()
+  | Some (Tok.KEYWORD ")") when crossed_paren -> Error ()
+  | _ -> if crossed_paren then Ok () else Error ()
 
 let _test_nobinder = Procq.Entry.(of_parser "test_nobinder" { parser_fun = reject_binder false 0 })
 
@@ -1659,7 +1656,7 @@ let ssr_id_of_string loc s =
   ^ "Scripts with explicit references to anonymous variables are fragile."))
     end; Id.of_string s
 
-let ssr_null_entry = Procq.Entry.(of_parser "ssr_null" { parser_fun = fun _ _ -> () })
+let ssr_null_entry = Procq.Entry.(of_parser "ssr_null" { parser_fun = fun _ _ -> Ok () })
 
 }
 
