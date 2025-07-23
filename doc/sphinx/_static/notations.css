@@ -280,3 +280,8 @@ code span.error {
     padding-left: 2em; /* indent 2nd & subsequent lines */
     text-indent: -2em;
 }
+
+.rst-content dl:not(.docutils) dt {
+    padding: 6px;
+    display: table;
+}
