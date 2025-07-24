@@ -1131,13 +1131,10 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
           (fun gstate (strm__ : _ LStream.t) ->
              let bp = LStream.count strm__ in
              let* a = ps gstate strm__ in
-             let act =
-               match p1 gstate bp a strm__ with
-               | Ok act -> act
-               | Error () ->
-                 raise (ParseError (tree_failed entry a s son))
-             in
-             act a)
+             match p1 gstate bp a strm__ with
+             | Ok act -> act
+             | Error () ->
+               raise (ParseError (tree_failed entry a s son)))
   | Node (_, {node = s; son = son; brother = bro}) ->
           let ps = parser_of_symbol entry nlevn s in
           let p1 = parser_of_tree entry nlevn alevn son in
@@ -1148,17 +1145,17 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
              match ps gstate strm with
              | Ok a ->
                begin match p1 gstate bp a strm with
-               | Ok act -> act a
+               | Ok act -> act
                | Error () -> raise (ParseError (tree_failed entry a s son))
                end
              | Error () -> p2 gstate strm)
 
 (* XXX why are there 2 layers of parser_v?? *)
 and parser_cont : type s tr tr' a r.
-  (GState.t -> (a -> r) parser_t) -> s ty_entry -> int -> int -> (s, tr, a) ty_symbol -> (s, tr', a -> r) ty_tree -> GState.t -> int -> a -> _ -> (a -> r parser_v) parser_v =
-  fun p1 entry nlevn alevn s son gstate bp a (strm__ : _ LStream.t) ->
+  (GState.t -> (a -> r) parser_t) -> s ty_entry -> int -> int -> (s, tr, a) ty_symbol -> (s, tr', a -> r) ty_tree -> GState.t -> int -> a -> _ -> r parser_v parser_v =
+  fun p1 entry nlevn alevn s son gstate bp a0 (strm__ : _ LStream.t) ->
   match p1 gstate strm__ with
-  | Ok v -> Ok (fun x -> Ok (v x))
+  | Ok v -> Ok (Ok (v a0))
   | Error () ->
     (* Recover from a success on [s] with result [a] followed by a
         failure on [son] in a rule of the form [a = s; son] *)
@@ -1167,8 +1164,8 @@ and parser_cont : type s tr tr' a r.
        « OPT "!"; ident » fails to see an ident and the OPT was resolved
        into the empty sequence, with application e.g. to being able to
        safely write « LIST1 [ OPT "!"; id = ident -> id] ». *)
-    if LStream.count strm__ == bp then Ok (fun a -> Error ())
-    else if not gstate.recover then raise (ParseError (tree_failed entry a s son))
+    if LStream.count strm__ == bp then Ok (Error ())
+    else if not gstate.recover then raise (ParseError (tree_failed entry a0 s son))
     else
       (* Try to replay the son with the top occurrence of NEXT (by
          default at level nlevn) and trailing SELF (by default at alevn)
@@ -1180,9 +1177,8 @@ and parser_cont : type s tr tr' a r.
          parentheses as in "A \/ (forall x, x = x)". *)
       match let* top = top_tree entry son in parser_of_tree entry nlevn alevn top gstate strm__ with
       | Ok a ->
-        Ok (fun x ->
-            warn_recover nlevn alevn (get_node entry son) gstate bp strm__;
-            Ok (a x))
+        warn_recover nlevn alevn (get_node entry son) gstate bp strm__;
+        Ok (Ok (a a0))
       | Error () ->
         (* In case of success on just SELF, NEXT or an explicit call to
            a subentry followed by a failure on the rest (son), retry
@@ -1193,16 +1189,15 @@ and parser_cont : type s tr tr' a r.
            have been expected according to the level. *)
         let p1 = parser_of_tree entry nlevn alevn son in
         let* s' = entry_of_symb entry s in
-        let* a = continue_parser_of_entry gstate s' None 0 bp a strm__ in
+        let* a = continue_parser_of_entry gstate s' None 0 bp a0 strm__ in
         let act =
           match p1 gstate strm__ with
           | Ok act -> act
           | Error () ->
             raise (ParseError (tree_failed entry a s son))
         in
-        Ok (fun _ ->
-          warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
-          Ok (act a))
+        warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
+        Ok (Ok (act a))
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
 finite sequence of tokens. E.g., in
