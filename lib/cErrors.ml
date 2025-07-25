@@ -65,11 +65,16 @@ let raw_anomaly e = match e with
   | _ ->
     str "Uncaught exception " ++ str (Printexc.to_string e) ++ str "."
 
-let print_backtrace e = match Exninfo.get_backtrace e with
+let print_backtrace (e, info) = match Exninfo.get_backtrace info with
 | None -> None
 | Some bt ->
-  let bt = str (Exninfo.backtrace_to_string bt) in
-  Some (hov 0 bt)
+  match e with
+  | UserError _ ->
+    (* TODO: this branch should be guarded by a setting. *)
+    None
+  | _ ->
+    let bt = str (Exninfo.backtrace_to_string bt) in
+    Some (hov 0 bt)
 
 let print_anomaly askreport e =
   if askreport then
@@ -93,10 +98,12 @@ let is_anomaly = function
 (** Printing of additional error info, from Exninfo *)
 let additional_error_info_handler = ref []
 
-let register_additional_error_info (f : Exninfo.info -> Pp.t option) =
+let register_additional_error_info1 (f : exn * Exninfo.info -> Pp.t option) =
   additional_error_info_handler := f :: !additional_error_info_handler
+let () = register_additional_error_info1 print_backtrace
 
-let () = register_additional_error_info print_backtrace
+let register_additional_error_info (f : Exninfo.info -> Pp.t option) =
+  register_additional_error_info1 (fun (e, info) -> f info)
 
 (** [print_gen] is a general exception printer which tries successively
     all the handlers of a list, and finally a [bottom] handler if all
@@ -111,21 +118,21 @@ let rec print_gen ~anomaly stk e =
     | Some err_msg -> err_msg
     | None -> print_gen ~anomaly stk' e
 
-let print_extra info =
+let print_extra einfo =
   let pp =
-    CList.map_filter (fun f -> f info) !additional_error_info_handler
+    CList.map_filter (fun f -> f einfo) !additional_error_info_handler
   in
   if CList.is_empty pp then mt()
   else fnl() ++ prlist_with_sep fnl (fun x -> x) pp
 
 let print_gen ~anomaly (e, info) =
-  let extra_msg = print_extra info in
+  let extra_msg = print_extra (e, info) in
   try
     print_gen ~anomaly !handle_stack e ++ extra_msg
   with exn ->
     let exn, info = Exninfo.capture exn in
     (* exception in error printer *)
-    str "<in exception printer>:" ++ spc() ++ print_anomaly anomaly exn ++ print_extra info ++ fnl() ++
+    str "<in exception printer>:" ++ spc() ++ print_anomaly anomaly exn ++ print_extra (e, info) ++ fnl() ++
     str "<original exception>:" ++ spc() ++ print_anomaly false e ++ extra_msg
 
 let print_quickfix = function
