@@ -1,7 +1,7 @@
 t_rect =
 fun (P : t -> Type) (k : let x := t in forall x0 : x, P x0 -> P (k x0)) =>
 fix F (t : t) : P t :=
-  match t as t0 return (P t0) with
+  match t as t0 return P t0 with
   | Cases.k _ x0 => k x0 (F x0)
   end
      : forall P : t -> Type,
@@ -19,7 +19,7 @@ Arguments t_rect (P k)%_function_scope t
 proj =
 fun (x y : nat) (P : nat -> Type) (def : P x) (prf : P y) =>
 match eq_nat_dec x y with
-| left eqprf => match eqprf in (_ = z) return (P z) with
+| left eqprf => match eqprf in _ = z return P z with
                 | eq_refl => def
                 end
 | right _ => prf
@@ -52,7 +52,7 @@ match H with
 | AC x =>
     (fun x0 : P b =>
      let b0 := b in
-     (if b0 as b return (P b -> True)
+     (if b0 as b return P b -> True
       then fun _ : P true => Logic.I
       else fun _ : P false => Logic.I) x0) x
 end
@@ -82,17 +82,17 @@ Once notations are expanded, the resulting constructor D (in type J) is
 expected to be applied to no arguments while it is actually applied to
 1 argument.
 lem1 =
-fun dd : nat * nat => let (bb, cc) as aa return (aa = aa) := dd in eq_refl
+fun dd : nat * nat => let (bb, cc) as aa return aa = aa := dd in eq_refl
      : forall k : nat * nat, k = k
 
 Arguments lem1 k
 lem2 =
-fun dd : bool => if dd as aa return (aa = aa) then eq_refl else eq_refl
+fun dd : bool => if dd as aa return aa = aa then eq_refl else eq_refl
      : forall k : bool, k = k
 
 Arguments lem2 k%_bool_scope
 lem3 =
-fun dd : nat * nat => let (bb, cc) as aa return (aa = aa) := dd in eq_refl
+fun dd : nat * nat => let (bb, cc) as aa return aa = aa := dd in eq_refl
      : forall k : nat * nat, k = k
 
 Arguments lem3 k
@@ -103,14 +103,14 @@ Arguments lem3 k
            | 0 | S _ => 0
            end : nat
   e, e0 :=
-    match x + 0 as y return (y = y) with
+    match x + 0 as y return y = y with
     | 0 => eq_refl
     | S n => eq_refl
     end : x + 0 = x + 0
   n1, n2 := match x with
             | 0 | S _ => 0
             end : nat
-  e1, e2 := match x return (x = x) with
+  e1, e2 := match x return x = x with
             | 0 => eq_refl
             | S n => eq_refl
             end
@@ -121,11 +121,11 @@ Arguments lem3 k
   
   p : nat
   a, a0 :=
-    match eq_refl as y in (_ = e) return (y = y /\ e = e) with
+    match eq_refl as y in _ = e return y = y /\ e = e with
     | eq_refl => conj eq_refl eq_refl
     end : eq_refl = eq_refl /\ p = p
   a1, a2 :=
-    match eq_refl in (_ = e) return (p = p /\ e = e) with
+    match eq_refl in _ = e return p = p /\ e = e with
     | eq_refl => conj eq_refl eq_refl
     end : p = p /\ p = p
   ============================
@@ -213,13 +213,12 @@ The constructor D' (in type J') is expected to be applied to 4 arguments (or
 actually applied to 5 arguments.
 fun x : J' bool (true, true) =>
 match x with
-| D' _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
+| @D' _ _ _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
 end
      : J' bool (true, true) -> {x : nat & x = x}
-fun x : J' bool (true, true) =>
-match x with
-| @D' _ _ _ _ n _ p _ => n + p
-end
+fun x : J' bool (true, true) => match x with
+                                | D' _ _ _ n p _ => n + p
+                                end
      : J' bool (true, true) -> nat
 File "./output/Cases.v", line 277, characters 33-40:
 The command has indeed failed with message:
