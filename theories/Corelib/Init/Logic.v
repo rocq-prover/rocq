@@ -754,14 +754,14 @@ Qed.
 
 (* Aliases *)
 
-Notation sym_eq := eq_sym (only parsing).
-Notation trans_eq := eq_trans (only parsing).
-Notation sym_not_eq := not_eq_sym (only parsing).
+Abbreviation sym_eq := eq_sym (only parsing).
+Abbreviation trans_eq := eq_trans (only parsing).
+Abbreviation sym_not_eq := not_eq_sym (only parsing).
 
-Notation refl_equal := eq_refl (only parsing).
-Notation sym_equal := eq_sym (only parsing).
-Notation trans_equal := eq_trans (only parsing).
-Notation sym_not_equal := not_eq_sym (only parsing).
+Abbreviation refl_equal := eq_refl (only parsing).
+Abbreviation sym_equal := eq_sym (only parsing).
+Abbreviation trans_equal := eq_trans (only parsing).
+Abbreviation sym_not_equal := not_eq_sym (only parsing).
 
 #[global]
 Hint Immediate eq_sym not_eq_sym: core.

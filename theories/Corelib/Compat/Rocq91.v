@@ -10,4 +10,7 @@
 
 (** Compatibility file for making Rocq act similar to Coq v9.1 *)
 
+(* When adding Rocq92.v, uncomment the following line *)
+(* Require Export Corelib.Compat.Rocq92. *)
+
 #[export] Set Warnings "-deprecated-since-9.2".

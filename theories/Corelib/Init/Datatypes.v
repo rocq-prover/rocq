@@ -457,29 +457,29 @@ Proof. intros. apply CompareSpec2Type; assumption. Defined.
     sole inhabitant is denoted [identity_refl A a] *)
 
 #[deprecated(since="8.16",note="Use eq instead")]
-Notation identity := eq (only parsing).
+Abbreviation identity := eq (only parsing).
 #[deprecated(since="8.16",note="Use eq_refl instead")]
-Notation identity_refl := eq_refl (only parsing).
+Abbreviation identity_refl := eq_refl (only parsing).
 #[deprecated(since="8.16",note="Use eq_ind instead")]
-Notation identity_ind := eq_ind (only parsing).
+Abbreviation identity_ind := eq_ind (only parsing).
 #[deprecated(since="8.16",note="Use eq_rec instead")]
-Notation identity_rec := eq_rec (only parsing).
+Abbreviation identity_rec := eq_rec (only parsing).
 #[deprecated(since="8.16",note="Use eq_rect instead")]
-Notation identity_rect := eq_rect (only parsing).
+Abbreviation identity_rect := eq_rect (only parsing).
 #[deprecated(since="8.16",note="Use eq_sym instead")]
-Notation identity_sym := eq_sym (only parsing).
+Abbreviation identity_sym := eq_sym (only parsing).
 #[deprecated(since="8.16",note="Use eq_trans instead")]
-Notation identity_trans := eq_trans (only parsing).
+Abbreviation identity_trans := eq_trans (only parsing).
 #[deprecated(since="8.16",note="Use f_equal instead")]
-Notation identity_congr := f_equal (only parsing).
+Abbreviation identity_congr := f_equal (only parsing).
 #[deprecated(since="8.16",note="Use not_eq_sym instead")]
-Notation not_identity_sym := not_eq_sym (only parsing).
+Abbreviation not_identity_sym := not_eq_sym (only parsing).
 #[deprecated(since="8.16",note="Use eq_ind_r instead")]
-Notation identity_ind_r := eq_ind_r (only parsing).
+Abbreviation identity_ind_r := eq_ind_r (only parsing).
 #[deprecated(since="8.16",note="Use eq_rec_r instead")]
-Notation identity_rec_r := eq_rec_r (only parsing).
+Abbreviation identity_rec_r := eq_rec_r (only parsing).
 #[deprecated(since="8.16",note="Use eq_rect_r instead")]
-Notation identity_rect_r := eq_rect_r (only parsing).
+Abbreviation identity_rect_r := eq_rect_r (only parsing).
 
 Register eq as core.identity.type.
 Register eq_refl as core.identity.refl.
@@ -489,13 +489,13 @@ Register eq_trans as core.identity.trans.
 Register f_equal as core.identity.congr.
 
 #[deprecated(since="8.16",note="Use eq_refl instead")]
-Notation refl_id := eq_refl (only parsing).
+Abbreviation refl_id := eq_refl (only parsing).
 #[deprecated(since="8.16",note="Use eq_sym instead")]
-Notation sym_id := eq_sym (only parsing).
+Abbreviation sym_id := eq_sym (only parsing).
 #[deprecated(since="8.16",note="Use eq_trans instead")]
-Notation trans_id := eq_trans (only parsing).
+Abbreviation trans_id := eq_trans (only parsing).
 #[deprecated(since="8.16",note="Use not_eq_sym instead")]
-Notation sym_not_id := not_eq_sym (only parsing).
+Abbreviation sym_not_id := not_eq_sym (only parsing).
 
 (** Identity type *)
 
@@ -511,12 +511,12 @@ Register idProp as core.IDProp.idProp.
 
 (* Compatibility *)
 
-Notation prodT := prod (only parsing).
-Notation pairT := pair (only parsing).
-Notation prodT_rect := prod_rect (only parsing).
-Notation prodT_rec := prod_rec (only parsing).
-Notation prodT_ind := prod_ind (only parsing).
-Notation fstT := fst (only parsing).
-Notation sndT := snd (only parsing).
+Abbreviation prodT := prod (only parsing).
+Abbreviation pairT := pair (only parsing).
+Abbreviation prodT_rect := prod_rect (only parsing).
+Abbreviation prodT_rec := prod_rec (only parsing).
+Abbreviation prodT_ind := prod_ind (only parsing).
+Abbreviation fstT := fst (only parsing).
+Abbreviation sndT := snd (only parsing).
 
 (* end hide *)

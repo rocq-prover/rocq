@@ -168,7 +168,7 @@ Definition tail_mul n m := tail_addmul 0 n m.
 
 (** ** Conversion with a decimal representation for printing/parsing *)
 
-Local Notation ten := (S (S (S (S (S (S (S (S (S (S O)))))))))).
+Local Abbreviation ten := (S (S (S (S (S (S (S (S (S (S O)))))))))).
 
 Fixpoint of_uint_acc (d:Decimal.uint)(acc:nat) :=
   match d with
@@ -187,7 +187,7 @@ Fixpoint of_uint_acc (d:Decimal.uint)(acc:nat) :=
 
 Definition of_uint (d:Decimal.uint) := of_uint_acc d O.
 
-Local Notation sixteen := (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))))))).
+Local Abbreviation sixteen := (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))))))).
 
 Fixpoint of_hex_uint_acc (d:Hexadecimal.uint)(acc:nat) :=
   match d with
