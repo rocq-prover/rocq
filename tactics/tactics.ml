@@ -637,14 +637,12 @@ let rec check_mutind env sigma k cl = match EConstr.kind sigma (strip_outer_cast
     check_mutind (push_rel (LocalDef (na, c1, t)) env) sigma k b
 | _ -> error NotEnoughProducts
 
-(* Refine as a fixpoint *)
-let mutual_fix f n rest j = Proofview.Goal.enter begin fun gl ->
+let mutual_fix f n others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Tacmach.project gl in
   let concl = Proofview.Goal.concl gl in
   let () = check_mutind env sigma n concl in
-  let firsts, lasts = List.chop j rest in
-  let all = firsts @ (f, n, concl) :: lasts in
+  let all = (f, n, concl) :: others in
   let all = List.map (fun (f, n, ar) ->
       let r = Retyping.relevance_of_type env sigma ar in
       (f, r, n, ar))
@@ -654,9 +652,8 @@ let mutual_fix f n rest j = Proofview.Goal.enter begin fun gl ->
   | [] -> sign
   | (f, r, n, ar) :: oth ->
     let open Context.Named.Declaration in
-    let ()  = check_mutind env sigma n ar in
-    if mem_named_context_val f sign then
-      error (IntroAlreadyDeclared f);
+    check_mutind env sigma n ar;
+    (if mem_named_context_val f sign then error (IntroAlreadyDeclared f));
     mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
@@ -673,7 +670,7 @@ let mutual_fix f n rest j = Proofview.Goal.enter begin fun gl ->
   end
 end
 
-let fix id n = mutual_fix id n [] 0
+let fix id n = mutual_fix id n []
 
 let rec check_is_mutcoind env sigma cl =
   let b = whd_all env sigma cl in
@@ -688,20 +685,18 @@ let rec check_is_mutcoind env sigma cl =
       error AllMethodsInCoinductiveType
 
 (* Refine as a cofixpoint *)
-let mutual_cofix f others j = Proofview.Goal.enter begin fun gl ->
+let mutual_cofix f others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Tacmach.project gl in
   let concl = Proofview.Goal.concl gl in
-  let firsts,lasts = List.chop j others in
-  let all = firsts @ (f, concl) :: lasts in
+  let all = (f, concl) :: others in
   List.iter (fun (_, c) -> check_is_mutcoind env sigma c) all;
   let all = List.map (fun (id,t) -> (id, Retyping.relevance_of_type env sigma t, t)) all in
   let rec mk_sign sign = function
   | [] -> sign
   | (f, r, ar) :: oth ->
     let open Context.Named.Declaration in
-    if mem_named_context_val f sign then
-      error (AlreadyUsed f);
+    (if mem_named_context_val f sign then error (AlreadyUsed f));
     mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
@@ -718,7 +713,7 @@ let mutual_cofix f others j = Proofview.Goal.enter begin fun gl ->
   end
 end
 
-let cofix id = mutual_cofix id [] 0
+let cofix id = mutual_cofix id []
 
 (**************************************************************)
 (*          Reduction and conversion tactics                  *)
