@@ -94,8 +94,9 @@ let tokenize_string s =
   let rec stream_tok acc str =
     let e = Gramlib.LStream.next kwstate str in
     match e with
-    | Tok.EOI -> List.rev acc
-    | _ -> stream_tok ((Tok.extract_string true e) :: acc) str
+    | Some Tok.EOI -> List.rev acc
+    | Some e -> stream_tok ((Tok.extract_string true e) :: acc) str
+    | None -> raise Exit
   in
   let st = CLexer.Lexer.State.get () in
   Fun.protect ~finally:(fun () -> CLexer.Lexer.State.set st) @@ fun () ->

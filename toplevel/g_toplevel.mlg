@@ -26,8 +26,6 @@ type vernac_toplevel =
 
 let vernac_toplevel = Entry.make "toplevel:vernac_toplevel"
 
-let err () = raise Gramlib.Stream.Failure
-
 let test_show_goal =
   let open Procq.Lookahead in
   to_entry "test_show_goal" begin
