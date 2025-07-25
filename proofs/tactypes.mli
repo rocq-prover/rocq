@@ -9,12 +9,11 @@
 (************************************************************************)
 
 (** Tactic-related types that are not totally Ltac specific and still used in
-    lower API. It's not clear whether this is a temporary API or if this is
-    meant to stay. *)
+    lower API. *)
 
 open Names
 
-(** Introduction patterns *)
+(** {6 Introduction patterns. } *)
 
 type 'constr intro_pattern_expr =
   | IntroForthcoming of bool
@@ -30,7 +29,7 @@ and 'constr or_and_intro_pattern_expr =
   | IntroOrPattern of ('constr intro_pattern_expr) CAst.t list list
   | IntroAndPattern of ('constr intro_pattern_expr) CAst.t list
 
-(** Bindings *)
+(** {6 Bindings. } *)
 
 type quantified_hypothesis = AnonHyp of int | NamedHyp of lident
 

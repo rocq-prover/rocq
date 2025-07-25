@@ -1299,10 +1299,10 @@ let unfold env sigma name c =
   else
     user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))
 
-(* [unfoldoccs : (readable_constraints -> (int list * full_path) -> constr -> constr)]
- * Unfolds the constant name in a term c following a list of occurrences occl.
- * at the occurrences of occ_list. If occ_list is empty, unfold all occurrences.
- * Performs a betaiota reduction after unfolding. *)
+(** [unfoldoccs : (readable_constraints -> (int list * full_path) -> constr -> constr)]
+    unfolds the constant name in a term c following a list of occurrences occl.
+    at the occurrences of occ_list. If occ_list is empty, unfold all occurrences.
+    Performs a betaiota reduction after unfolding. *)
 let unfoldoccs env sigma (occs,name) c =
   let open Locus in
   match occs with
@@ -1314,11 +1314,11 @@ let unfoldoccs env sigma (occs,name) c =
       user_err Pp.(str ((string_of_evaluable_ref env name)^" does not occur."));
     nf_betaiotazeta env sigma uc
 
-(* Unfold reduction tactic: *)
+(** Unfold reduction tactic. *)
 let unfoldn loccname env sigma c =
   List.fold_left (fun c occname -> unfoldoccs env sigma occname c) c loccname
 
-(* Re-folding constants tactics: refold com in term c *)
+(*** Re-folding constants tactics: refold com in term c. *)
 let fold_one_com com env sigma c =
   let rcom = match red_product env sigma com with
   | None -> user_err Pp.(str "No head constant to reduce.")

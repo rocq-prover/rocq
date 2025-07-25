@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** The ast type contains generic metadata for AST nodes. *)
 type 'a t = {
   v   : 'a;
   loc : Loc.t option;

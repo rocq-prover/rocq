@@ -8,21 +8,19 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* Locations management *)
-
 type source =
   (* OCaml won't allow using DirPath.t in InFile *)
   | InFile of { dirpath : string option; file : string }
   | ToplevelInput
 
 type t = {
-  fname : source; (** filename or toplevel input *)
-  line_nb : int; (** start line number *)
-  bol_pos : int; (** position of the beginning of start line *)
-  line_nb_last : int; (** end line number *)
-  bol_pos_last : int; (** position of the beginning of end line *)
-  bp : int; (** start position *)
-  ep : int; (** end position *)
+  fname : source;
+  line_nb : int;
+  bol_pos : int;
+  line_nb_last : int;
+  bol_pos_last : int;
+  bp : int;
+  ep : int;
 }
 
 let create fname line_nb bol_pos bp ep = {

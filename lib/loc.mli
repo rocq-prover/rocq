@@ -10,82 +10,86 @@
 
 (** {5 Basic types} *)
 
+(** Information about a source file. *)
 type source =
   | InFile of { dirpath : string option; file : string }
   | ToplevelInput
 
+(** [Loc.t] represents a range of positions in a source file.
+    It is commonly used with ['a CAst.t]. *)
 type t = {
-  fname : source; (** filename or toplevel input *)
-  line_nb : int; (** start line number *)
-  bol_pos : int; (** position of the beginning of start line *)
-  line_nb_last : int; (** end line number *)
-  bol_pos_last : int; (** position of the beginning of end line *)
-  bp : int; (** start position *)
-  ep : int; (** end position *)
+  fname : source; (** Filename or toplevel input. *)
+  line_nb : int; (** Start line number. *)
+  bol_pos : int; (** Position of the beginning of start line. *)
+  line_nb_last : int; (** End line number. *)
+  bol_pos_last : int; (** Position of the beginning of end line. *)
+  bp : int; (** Start position. *)
+  ep : int; (** End position. *)
 }
 
 (** {5 Location manipulation} *)
 
 (** This is inherited from CAMPL4/5. *)
 
-val create : source -> int -> int -> int -> int -> t
 (** Create a location from a filename, a line number, a position of the
     beginning of the line, a start and end position *)
+val create : source -> int -> int -> int -> int -> t
 
-val initial : source -> t
 (** Create a location corresponding to the beginning of the given source *)
+val initial : source -> t
 
-val unloc : t -> int * int
 (** Return the start and end position of a location *)
+val unloc : t -> int * int
 
-val make_loc : int * int -> t
 (** Make a location out of its start and end position *)
+val make_loc : int * int -> t
 
 val merge : t -> t -> t
-val merge_opt : t option -> t option -> t option
-(** Merge locations, usually generating the largest possible span *)
 
-val sub : t -> int -> int -> t
+(** Merge locations, usually generating the largest possible span *)
+val merge_opt : t option -> t option -> t option
+
 (** [sub loc sh len] is the location [loc] shifted with [sh]
     characters and with length [len]. The previous ending position
     of the location is lost. *)
+val sub : t -> int -> int -> t
 
-val after : t -> int -> int -> t
 (** [after loc sh len] is the location just after loc (starting at the
     end position of [loc]) shifted with [sh] characters and of length [len]. *)
+val after : t -> int -> int -> t
 
-val finer : t option -> t option -> bool
 (** Answers [true] when the first location is more defined, or, when
     both defined, included in the second one *)
+val finer : t option -> t option -> bool
 
-val shift_loc : int -> int -> t -> t
 (** [shift_loc loc n p] shifts the beginning of location by [n] and
     the end by [p]; it is assumed that the shifts do not change the
     lines at which the location starts and ends *)
+val shift_loc : int -> int -> t -> t
 
 (** {5 Located exceptions} *)
 
-val add_loc : Exninfo.info -> t -> Exninfo.info
 (** Adding location to an exception *)
+val add_loc : Exninfo.info -> t -> Exninfo.info
 
-val get_loc : Exninfo.info -> t option
 (** Retrieving the optional location of an exception *)
+val get_loc : Exninfo.info -> t option
 
-val raise : ?loc:t -> exn -> 'a
 (** [raise loc e] is the same as [Pervasives.raise (add_loc e loc)]. *)
+val raise : ?loc:t -> exn -> 'a
 
 (** {5 Objects with location information } *)
 
 type 'a located = t option * 'a
 
-val tag : ?loc:t -> 'a -> 'a located
 (** Embed a location in a type *)
+val tag : ?loc:t -> 'a -> 'a located
 
-val map : ('a -> 'b) -> 'a located -> 'b located
 (** Modify an object carrying a location *)
+val map : ('a -> 'b) -> 'a located -> 'b located
 
-val pr : t -> Pp.t
 (** Print for user consumption. *)
+val pr : t -> Pp.t
 
 (** {5 Location of the current command (if any) } *)
 

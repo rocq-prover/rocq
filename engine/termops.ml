@@ -477,8 +477,6 @@ let it_mkLambda_or_LetIn_from_no_LetIn c decls =
   | LocalAssum (na,t) :: decls -> mkLambda (na,t,aux (k-1) decls c)
   in aux (List.length decls) (List.rev decls) c
 
-(* *)
-
 (* strips head casts and flattens head applications *)
 let rec strip_head_cast sigma c = match EConstr.kind sigma c with
   | App (f,cl) ->
@@ -500,12 +498,10 @@ let rec drop_extra_implicit_args sigma c = match EConstr.kind sigma c with
         (mkApp (f,fst (Array.chop (Array.length args - 1) args)))
   | _ -> c
 
-(* Get the last arg of an application *)
 let last_arg sigma c = match EConstr.kind sigma c with
   | App (f,cl) -> Array.last cl
   | _ -> anomaly (Pp.str "last_arg.")
 
-(* Get the last arg of an application *)
 let adjust_app_list_size f1 l1 f2 l2 =
   let open EConstr in
   let len1 = List.length l1 and len2 = List.length l2 in
@@ -1140,8 +1136,6 @@ let constr_cmp env sigma cv_pb t1 t2 =
 
 let eq_constr env sigma t1 t2 = constr_cmp env sigma Conversion.CONV t1 t2
 
-(* (nb_lam [na1:T1]...[nan:Tan]c) where c is not an abstraction
- * gives n (casts are ignored) *)
 let nb_lam sigma c =
   let rec nbrec n c = match EConstr.kind sigma c with
     | Lambda (_,_,c) -> nbrec (n+1) c
@@ -1150,7 +1144,6 @@ let nb_lam sigma c =
   in
   nbrec 0 c
 
-(* similar to nb_lam, but gives the number of products instead *)
 let nb_prod sigma c =
   let rec nbrec n c = match EConstr.kind sigma c with
     | Prod (_,_,c) -> nbrec (n+1) c

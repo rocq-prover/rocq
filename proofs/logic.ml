@@ -132,16 +132,11 @@ let check_decl_position env sigma sign d =
  * left side [left] of the full signature if [toleft=true] or to the hyps
  * on the right side [right] if [toleft=false].
  * If [with_dep] then dependent hypotheses are moved accordingly. *)
-
-(** Move destination for hypothesis *)
-
 type 'id move_location =
   | MoveAfter of 'id
   | MoveBefore of 'id
   | MoveFirst
-  | MoveLast (** can be seen as "no move" when doing intro *)
-
-(** Printing of [move_location] *)
+  | MoveLast
 
 let pr_move_location pr_id = function
   | MoveAfter id -> brk(1,1) ++ str "after " ++ pr_id id
