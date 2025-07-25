@@ -1348,7 +1348,7 @@ let find_projection_data c =
   match DAst.get c with
   | GApp (r, l) ->
     begin match DAst.get r with
-    | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, l, Structure.projection_nparams cst - List.length l)
+    | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, l, Structure.projection_nparams cst)
     | _ -> None
     end
   | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, [], Structure.projection_nparams cst)
@@ -2580,7 +2580,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
         if expl then
           [], []
         else
-          let ngivenparams = List.count (fun (_,x) -> Option.is_empty x) args1 in
+          let ngivenparams = List.length args0 + List.count (fun (_,x) -> Option.is_empty x) args1 in
           let nextraargs = List.length args2 in
           match select_impargs_size_for_proj ~nexpectedparams ~ngivenparams ~nextraargs impls with
           | Inl (imps1,imps2) -> (imps1,imps2)
