@@ -242,7 +242,7 @@ Module Bar.
   Fail #[export]
   Ltac find_secret := reflexivity.
   (* An abbreviation: *)
-  Fail #[export]
+  #[export]
   Notation add_42 := (Nat.add 42).
   (* A tactic notation: *)
   Fail #[export]
