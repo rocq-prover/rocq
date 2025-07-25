@@ -200,7 +200,7 @@ end
 module Lookahead =
 struct
 
-  type t = int -> CLexer.keyword_state -> (CLexer.keyword_state,Tok.t) LStream.t -> int option
+  type t = int -> CLexer.keyword_state -> (CLexer.keyword_state,Tok.t) LStream.t -> (int,peek_error) result
 
   let rec contiguous n m strm =
     n == m ||
@@ -210,43 +210,45 @@ struct
 
   let check_no_space m _kwstate strm =
     let n = LStream.count strm in
-    if contiguous n (n+m-1) strm then Some m else None
+    if contiguous n (n+m-1) strm then Ok m else Error empty_error
 
   let to_entry s (lk : t) =
-    let run kwstate strm = match lk 0 kwstate strm with None -> Error () | Some _ -> Ok () in
+    let run kwstate strm = match lk 0 kwstate strm with Error e -> Error e | Ok _ -> Ok () in
     Entry.(of_parser s { parser_fun = run })
 
   let (>>) (lk1 : t) lk2 n kwstate strm = match lk1 n kwstate strm with
-  | None -> None
-  | Some n -> lk2 n kwstate strm
+  | Error _ as e -> e
+  | Ok n -> lk2 n kwstate strm
 
   let (<+>) (lk1 : t) lk2 n kwstate strm = match lk1 n kwstate strm with
-  | None -> lk2 n kwstate strm
-  | Some n -> Some n
+  | Error e -> add_error e (lk2 n kwstate strm)
+  | Ok n -> Ok n
 
-  let lk_empty n kwstate strm = Some n
+  let lk_empty n kwstate strm = Ok n
 
   let lk_kw kw n kwstate strm = match LStream.peek_nth kwstate n strm with
-  | Some (Tok.KEYWORD kw' | Tok.IDENT kw') -> if String.equal kw kw' then Some (n + 1) else None
-  | _ -> None
+  | Some (Tok.KEYWORD kw' | Tok.IDENT kw') when String.equal kw kw' -> Ok (n + 1)
+  | _ -> Error (LStream.npeek kwstate n strm, [TPattern (PKEYWORD kw)])
 
   let lk_kws kws n kwstate strm = match LStream.peek_nth kwstate n strm with
-  | Some (Tok.KEYWORD kw | Tok.IDENT kw) -> if List.mem_f String.equal kw kws then Some (n + 1) else None
-  | _ -> None
+  | Some (Tok.KEYWORD kw | Tok.IDENT kw) when List.mem_f String.equal kw kws -> Ok (n + 1)
+  | _ ->
+    let pats = List.map (fun kw -> TPattern (PKEYWORD kw)) kws in
+    Error (LStream.npeek kwstate n strm, pats)
 
   let lk_ident n kwstate strm = match LStream.peek_nth kwstate n strm with
-  | Some (Tok.IDENT _) -> Some (n + 1)
-  | _ -> None
+  | Some (Tok.IDENT _) -> Ok (n + 1)
+  | _ -> Error (LStream.npeek kwstate n strm, [TPattern (PIDENT None)])
 
   let lk_name = lk_ident <+> lk_kw "_"
 
   let lk_ident_except idents n kwstate strm = match LStream.peek_nth kwstate n strm with
-  | Some (Tok.IDENT ident) when not (List.mem_f String.equal ident idents) -> Some (n + 1)
-  | _ -> None
+  | Some (Tok.IDENT ident) when not (List.mem_f String.equal ident idents) -> Ok (n + 1)
+  | _ -> Error empty_error
 
   let lk_nat n kwstate strm = match LStream.peek_nth kwstate n strm with
-  | Some (Tok.NUMBER p) when NumTok.Unsigned.is_nat p -> Some (n + 1)
-  | _ -> None
+  | Some (Tok.NUMBER p) when NumTok.Unsigned.is_nat p -> Ok (n + 1)
+  | _ -> Error empty_error
 
   let rec lk_list lk_elem n kwstate strm =
     ((lk_elem >> lk_list lk_elem) <+> lk_empty) n kwstate strm
@@ -254,8 +256,8 @@ struct
   let lk_ident_list = lk_list lk_ident
 
   let lk_field n kwstate strm = match LStream.peek_nth kwstate n strm with
-    | Some (Tok.FIELD _) -> Some (n+1)
-    | _ -> None
+    | Some (Tok.FIELD _) -> Ok (n+1)
+    | _ -> Error (LStream.npeek kwstate n strm, [TPattern (PFIELD None)])
 
   let lk_qualid = lk_ident >> lk_list lk_field
 
