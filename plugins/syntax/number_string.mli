@@ -10,15 +10,13 @@
 
 open Libnames
 open Vernacexpr
-open Notation
-
 
 type number_string_via = qualid * (bool * qualid * qualid) list
 
 (** * Number notation *)
 
 type number_option =
-  | After of numnot_option
+  | After of PrimNotations.numnot_option
   | Via of number_string_via
 
 val vernac_number_notation : locality_flag ->

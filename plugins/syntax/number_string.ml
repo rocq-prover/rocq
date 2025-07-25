@@ -14,6 +14,7 @@ open Names
 open Libnames
 open Glob_term
 open Notation
+open PrimNotations
 
 module CSet = CSet.Make (Constr)
 module CMap = CMap.Make (Constr)
