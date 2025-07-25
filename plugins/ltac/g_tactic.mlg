@@ -35,7 +35,7 @@ let all_with ~head delta =
   let all = [FBeta;FMatch;FFix;FCofix;FZeta;delta] in
   Redops.make_red_flag (if head then FHead :: all else all)
 
-let err () = raise Gramlib.Stream.Failure
+let err () = raise Procq.StreamFail
 
 (* Hack to parse "(x:=t)" as an explicit argument without conflicts with the *)
 (* admissible notation "(x t)" *)
@@ -90,7 +90,7 @@ let check_for_coloneq =
         | KEYWORD ":=" -> ()
         | _ -> err () in
       match Gramlib.LStream.peek_nth kwstate 0 strm with
-      | KEYWORD "(" -> skip_binders 2
+      | Some (KEYWORD "(") -> skip_binders 2
       | _ -> err () })
 
 let lookup_at_as_comma =
@@ -442,7 +442,7 @@ GRAMMAR EXTEND Gram
         (* Condition for accepting "in" at the end by compatibility *)
         { match ic,el,cl_tolerance with
         | [c,pat,None],Some _,Some _ -> ([c,pat,cl_tolerance],el)
-        | _,_,Some _ -> err ()
+        | _,_,Some _ -> CErrors.user_err ~loc Pp.(str "Unsupported syntax.")
         | _,_,None -> (ic,el) } ] ]
   ;
   simple_tactic:

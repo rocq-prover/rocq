@@ -65,14 +65,8 @@ let npeek e n strm =
   l
 
 let peek_nth e n strm =
-  let list = Stream.npeek e (n + 1) strm.strm in
-  let rec loop list p =
-    match list, p with
-      x :: _, 0 -> strm.max_peek <- Stream.count strm.strm + n + 1; x
-    | _ :: l, p -> loop l (p - 1)
-    | [], p -> strm.max_peek <- Stream.count strm.strm + (n - p); raise Stream.Failure
-  in
-  loop list n
+  let list = npeek e (n + 1) strm in
+  List.nth_opt list n
 
 let junk e strm = Stream.junk e strm.strm
 let njunk e len strm = Stream.njunk e len strm.strm

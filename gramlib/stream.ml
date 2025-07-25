@@ -23,8 +23,6 @@ and ('e,'a) gen = { mutable curr : 'a option option; func : 'e -> 'a option }
 and buffio =
   { ic : in_channel; buff : bytes; mutable len : int; mutable ind : int }
 
-exception Failure
-
 let count { count } = count
 
 let fill_buff b =
@@ -74,16 +72,15 @@ let npeek e n s =
   al
 
 let nth e n st =
-  try List.nth (npeek e (n+1) st) n
-  with Stdlib.Failure _ -> raise Failure
+  List.nth_opt (npeek e (n+1) st) n
 
 let rec njunk e n st =
   if n <> 0 then (junk e st; njunk e (n-1) st)
 
 let next e s =
   match peek e s with
-    Some a -> junk e s; a
-  | None -> raise Failure
+  | Some _ as a -> junk e s; a
+  | None -> None
 
 
 let is_empty e s =

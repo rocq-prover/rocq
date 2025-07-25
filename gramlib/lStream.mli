@@ -47,13 +47,12 @@ val junk : 'e -> ('e,'a) t -> unit
 val njunk : 'e -> int -> ('e,'a) t -> unit
 (** [njunk e n strm] consumes [n] elements from [strm] *)
 
-val next : 'e -> ('e,'a) t -> 'a
+val next : 'e -> ('e,'a) t -> 'a option
   (** [next e strm] returns and consumes the next element;
-      raise [Stream.Failure] if the stream is empty *)
+      [None] if the stream is empty *)
 
 (** Other functions *)
 
-val peek_nth : 'e -> int -> ('e,'a) t -> 'a
+val peek_nth : 'e -> int -> ('e,'a) t -> 'a option
   (** [peek_nth e n strm] returns the nth element counting from 0 without
-      consuming the stream; raises [Stream.Failure] if not enough
-      elements *)
+      consuming the stream; [None] if not enough elements *)
