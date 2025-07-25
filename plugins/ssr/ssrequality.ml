@@ -395,7 +395,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_
     | None ->
       let ((kn, i) as ind, _) = Tacred.eval_to_quantified_ind env sigma c_ty in
       let sort = Tacticals.elimination_sort_of_goal gl in
-      let sigma, elim = Evd.fresh_global env sigma (Indrec.lookup_eliminator env ind sort) in
+      let sigma, elim = Evd.fresh_global env sigma (Elimschemes.lookup_eliminator env ind sort) in
       if dir = R2L then sigma, elim else
       let elim, _ = EConstr.destConst sigma elim in
       let mp,l = KerName.repr (Constant.canonical elim) in
