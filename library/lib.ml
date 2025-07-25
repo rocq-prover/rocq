@@ -515,7 +515,20 @@ let add_discharged_leaf obj =
 
 let add_leaf obj =
   Libobject.cache_object (prefix(),obj);
-  match Libobject.object_stage obj with
+  let ostage = Libobject.object_stage obj in
+  let ok_stage = match !Flags.in_synterp_phase with
+    | None -> true
+    | Some false -> ostage == Interp
+    | Some true -> ostage == Synterp
+  in
+  let () = if not ok_stage then
+      let ppstage = match ostage with Interp -> "interp" | Synterp -> "synterp" in
+      CErrors.anomaly
+        Pp.(str "Adding object " ++
+            str (Libobject.object_name obj) ++
+            str " in incorrect stage (object_stage = " ++ str ppstage ++ str ").")
+  in
+  match ostage with
   | Summary.Stage.Synterp ->
     SynterpActions.add_leaf_entry (AtomicObject obj)
   | Summary.Stage.Interp ->
