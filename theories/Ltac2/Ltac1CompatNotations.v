@@ -18,3 +18,6 @@
 Require Import Ltac2.Init Ltac2.Std.
 
 Ltac2 Notation "transitivity" c(constr) : 1 := Std.transitivity c.
+
+Ltac2 Notation "rename" renames(list1(seq(ident, "into", ident), ",")) :=
+  Std.rename renames.
