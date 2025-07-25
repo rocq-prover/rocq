@@ -1065,7 +1065,7 @@ rw_pattern: [
 ]
 
 rewrite_rule: [
-| OPT [ univ_decl "|-" ] rw_pattern "=>" lconstr
+| rw_pattern "=>" lconstr
 ]
 
 scheme: [

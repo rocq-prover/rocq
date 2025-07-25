@@ -496,6 +496,10 @@ let push_quality_set qs env =
   { env with
     env_qualities = Sorts.QVar.Set.union qs env.env_qualities }
 
+let push_floating_full_context_set ((qs, us), cstrs) env =
+  let env = { env with env_qualities = Sorts.QVar.Set.union qs env.env_qualities } in
+  map_universes (add_universes_set ~strict:false (us, cstrs)) env
+
 let push_subgraph (levels,csts) env =
   let add_subgraph g =
     let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
@@ -1091,7 +1095,9 @@ module Internal = struct
         add_mind mind mib env
       | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
       | SFBmodtype mtb -> add_modtype (MPdot (mp, l)) mtb env
-      | SFBrules r -> add_rewrite_rules r.rewrules_rules env
+      | SFBrules r ->
+        let rules = List.map (Rewrite_rules_ops.translate_rewrite_rule env) r.rewrules_rules in
+        add_rewrite_rules rules env
     in
     List.fold_left add_field env sign
 
