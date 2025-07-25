@@ -280,11 +280,11 @@ Section GenericInstances.
   Program Instance respectful_per `(PER A R, PER B R') : PER (R ==> R').
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H B R' H0 x y z X X0 x0 y0 X1.
     assert(R x0 x0).
-    - eapply transitivity with y0... now apply symmetry.
-    - eapply transitivity with (y x0)...
+    - eapply transitivity with y0; auto. now apply symmetry.
+    - eapply transitivity with (y x0); auto.
   Qed.
 
   Unset Strict Universe Declaration.
@@ -311,10 +311,10 @@ Section GenericInstances.
     `(Transitive A R) : Proper (R --> R ++> arrow) R.
   
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x y X x0 y0 X0 X1.
-    apply transitivity with x...
-    apply transitivity with x0...
+    apply transitivity with x; auto.
+    apply transitivity with x0; auto.
   Qed.
 
   (** Proper declarations for partial applications. *)
@@ -324,9 +324,9 @@ Section GenericInstances.
   `(Transitive A R) {x} : Proper (R --> flip arrow) (R x) | 3.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x x0 y X X0.
-    apply transitivity with y...
+    apply transitivity with y; auto.
   Qed.
 
   Global Program 
@@ -334,9 +334,9 @@ Section GenericInstances.
     `(Transitive A R) {x} : Proper (R ++> arrow) (R x) | 3.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x x0 y X X0.
-    apply transitivity with x0...
+    apply transitivity with x0; auto.
   Qed.
 
   Global Program 
@@ -344,31 +344,31 @@ Section GenericInstances.
     `(PER A R) {x} : Proper (R ++> flip arrow) (R x) | 3.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x x0 y X X0.
-    apply transitivity with y... apply symmetry...
+    apply transitivity with y; auto. apply symmetry; auto.
   Qed.
 
   Global Program Instance trans_sym_contra_arrow_morphism
     `(PER A R) {x} : Proper (R --> arrow) (R x) | 3.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x x0 y X X0.
-    apply transitivity with x0... apply symmetry...
+    apply transitivity with x0; auto. apply symmetry; auto.
   Qed.
 
   Global Program Instance per_partial_app_type_morphism
   `(PER A R) {x} : Proper (R ==> iffT) (R x) | 2.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x x0 y X.
     split.
-    - intros ; apply transitivity with x0...
+    - intros ; apply transitivity with x0; auto.
     - intros.
-      apply transitivity with y...
-      apply symmetry...
+      apply transitivity with y; auto.
+      apply symmetry; auto.
   Qed.
 
   (** Every Transitive crelation induces a morphism by "pushing" an [R x y] on the left of an [R x z] proof to get an [R y z] goal. *)
@@ -378,9 +378,9 @@ Section GenericInstances.
   `(Transitive A R) : Proper (R ==> (@eq A) ==> flip arrow) R | 2.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x y X y0 y1 e X0; destruct e.
-    apply transitivity with y...
+    apply transitivity with y; auto.
   Qed.
 
   (** Every Symmetric and Transitive crelation gives rise to an equivariant morphism. *)
@@ -389,14 +389,14 @@ Section GenericInstances.
   Instance PER_type_morphism `(PER A R) : Proper (R ==> R ==> iffT) R | 1.
 
   Next Obligation.
-  Proof with auto.
+  Proof.
     intros A R H x y X x0 y0 X0.
     split ; intros.
-    - apply transitivity with x0...
-      apply transitivity with x... apply symmetry...
+    - apply transitivity with x0; auto.
+      apply transitivity with x; auto. apply symmetry; auto.
 
-    - apply transitivity with y... apply transitivity with y0...
-      apply symmetry...
+    - apply transitivity with y; auto. apply transitivity with y0; auto.
+      apply symmetry; auto.
   Qed.
 
   Lemma symmetric_equiv_flip `(Symmetric A R) : relation_equivalence R (flip R).

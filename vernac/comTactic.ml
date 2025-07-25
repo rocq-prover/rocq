@@ -33,7 +33,6 @@ type parallel_solver =
   info:int option ->
   interpretable ->
   abstract:bool ->
-  with_end_tac:bool ->
   Declare.Proof.t
 
 let { Goptions.get = print_info_trace } =
@@ -42,9 +41,43 @@ let { Goptions.get = print_info_trace } =
     ~value:None
     ()
 
-let solve_core ~pstate n ~info t ~with_end_tac:b =
+let warn_end_tac =
+  CWarnings.create_warning ~name:"deprecated-end-tac" ~from:[Deprecation.Version.v9_2] ()
+
+let pp_warn_end_tac =
+  CWarnings.create_in warn_end_tac Pp.(fun pptac ->
+      (* XXX we need to print eagerly for the quickfix but it should be delayed *)
+      fmt "Using \"...\" is deprecated, use \"%t\" instead" (fun () -> pptac))
+
+let warn_end_tac ?loc end_tac =
+  match end_tac with
+  | None -> CErrors.user_err ?loc Pp.(str "This \"...\" is useless, use \".\" instead.")
+  | Some end_tac ->
+  match CWarnings.warning_status warn_end_tac with
+  | Disabled -> ()
+  | _ ->
+    let pptac =
+      let env = Global.env() in
+      let sigma = Evd.from_env env in
+      let pptac = Gentactic.print_glob env sigma end_tac in
+      Pp.(str ";" ++ spc() ++ pptac ++ str ".")
+    in
+    let qf = match loc with
+      | None -> []
+      | Some loc -> [Quickfix.make ~loc pptac]
+    in
+    pp_warn_end_tac ?loc ~quickfix:qf pptac
+
+let use_end_tac ~with_end_tac end_tac =
+  if not with_end_tac.CAst.v then None
+  else begin
+    warn_end_tac ?loc:with_end_tac.loc end_tac;
+    Option.map Gentactic.interp end_tac
+  end
+
+let solve_core ~pstate n ~info ?(with_end_tac=CAst.make false) t =
   let pstate, status = Declare.Proof.map_fold_endline ~f:(fun etac p ->
-      let with_end_tac = if b then Some etac else None in
+      let with_end_tac = use_end_tac ~with_end_tac etac in
       let info = Option.append info (print_info_trace ()) in
       let (p,status) = Proof.solve n info t ?with_end_tac p in
       (* in case a strict subtree was completed,
@@ -54,9 +87,9 @@ let solve_core ~pstate n ~info t ~with_end_tac:b =
   if not status then Feedback.feedback Feedback.AddedAxiom;
   pstate
 
-let solve ~pstate n ~info t ~with_end_tac =
+let solve ~pstate n ~info ?with_end_tac t =
   let t = interp_tac t in
-  solve_core ~pstate n ~info t ~with_end_tac
+  solve_core ~pstate n ~info t ?with_end_tac
 
 let check_par_applicable pstate =
   Declare.Proof.fold pstate ~f:(fun p ->
@@ -71,15 +104,15 @@ let check_par_applicable pstate =
       CErrors.user_err
         Pp.(strbrk("The par: goal selector does not support goals with existential variables"))))
 
-let par_implementation = ref (fun ~pstate ~info t ~abstract ~with_end_tac ->
+let par_implementation : parallel_solver ref = ref (fun ~pstate ~info t ~abstract ->
   let t = interp_tac t in
   let t = Proofview.Goal.enter (fun _ ->
     if abstract then Abstract.tclABSTRACT None ~opaque:true t else t) 
   in
-  solve_core ~pstate Goal_select.SelectAll ~info t ~with_end_tac)
+  solve_core ~pstate Goal_select.SelectAll ~info t)
 
 let set_par_implementation f = par_implementation := f
 
-let solve_parallel ~pstate ~info t ~abstract ~with_end_tac =
+let solve_parallel ~pstate ~info t ~abstract =
   check_par_applicable pstate;
-  !par_implementation ~pstate ~info t ~abstract ~with_end_tac
+  !par_implementation ~pstate ~info t ~abstract

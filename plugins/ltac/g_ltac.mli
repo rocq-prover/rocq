@@ -35,9 +35,9 @@ val wit_ltac_info : int Genarg.vernac_genarg_type
 
 val ltac_info : int Procq.Entry.t
 
-val wit_ltac_use_default : bool Genarg.vernac_genarg_type
+val wit_ltac_use_default : bool CAst.t Genarg.vernac_genarg_type
 
-val ltac_use_default : bool Procq.Entry.t
+val ltac_use_default : bool CAst.t Procq.Entry.t
 
 val wit_ltac_tactic_level : int Genarg.vernac_genarg_type
 
