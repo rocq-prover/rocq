@@ -1,6 +1,6 @@
 # Update CACHEKEY in the .gitlab-ci.yml when modifying this file.
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 LABEL maintainer="e@x80.org"
 
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -19,7 +19,9 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         libgtksourceview-3.0-dev adwaita-icon-theme-full \
         # Dependencies of stdlib and sphinx doc
         texlive-latex-extra texlive-fonts-recommended texlive-xetex latexmk \
-        python3-pip python3-setuptools python3-pexpect python3-bs4 fonts-freefont-otf \
+        python3-sphinx python3-docutils python3-sphinx-rtd-theme \
+        python3-antlr4 python3-sphinxcontrib.bibtex \
+        python3-setuptools python3-pexpect python3-bs4 fonts-freefont-otf \
         # Dependency of stdlib-doc
         graphviz \
         # Dependencies of source-doc and coq-makefile
@@ -27,14 +29,8 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         # Dependencies of HB (test suite)
         wdiff \
         # Required for fiat-crypto and Coqtail
-        python-is-python3 \
+        python-is-python3 python3-pytest \
       && rm -rf /var/lib/apt/lists /usr/share/doc
-
-# More dependencies of the sphinx doc, pytest for coqtail
-RUN pip3 install docutils==0.17.1 sphinx==4.5.0 sphinx_rtd_theme==1.0.0 \
-        antlr4-python3-runtime==4.7.1 sphinxcontrib-bibtex==0.4.2 \
-        pytest==5.4.3 \
-      && rm -rf ~/.cache/pip
 
 # We need to install OPAM 2.0 manually for now.
 RUN wget https://github.com/ocaml/opam/releases/download/2.0.6/opam-2.0.6-x86_64-linux -O /usr/bin/opam && chmod 755 /usr/bin/opam
@@ -63,7 +59,9 @@ ENV COQIDE_OPAM="cairo2.0.6.1 lablgtk3-sourceview3.3.1.2"
 # packages "lablgtk3-gtksourceview3"
 
 # base switch
-RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opam.ocaml.org && eval $(opam env) && opam update && \
+RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opam.ocaml.org && eval $(opam env) && \
+    opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
+    opam update && \
     opam install $BASE_OPAM $COQIDE_OPAM $CI_OPAM $BASE_ONLY_OPAM && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
@@ -72,6 +70,8 @@ RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opa
 RUN opam switch create "${COMPILER}+32bit" \
     --packages="ocaml-variants.${COMPILER}+options,ocaml-option-32bit" && \
     eval $(opam env) && \
+    opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
+    opam update && \
     i386 env CC='gcc -m32' opam install zarith.1.11 && \
     opam install $BASE_OPAM && \
     opam clean -a -c && \
