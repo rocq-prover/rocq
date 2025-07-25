@@ -19,9 +19,6 @@ type ('e,'a) t
 (** The type of streams holding values of type ['a].
     Producing a new value needs an environment ['e]. *)
 
-exception Failure
-(** Raised by streams when trying to access beyond their end. *)
-
 (** {1 Stream builders} *)
 
 val from : ?offset:int -> ('e -> 'a option) -> ('e,'a) t
@@ -46,10 +43,9 @@ val of_channel : in_channel -> (unit,char) t
 
 (** {1 Predefined parsers} *)
 
-val next : 'e -> ('e,'a) t -> 'a
+val next : 'e -> ('e,'a) t -> 'a option
 (** Return the first element of the stream and remove it from the
-   stream.
-   @raise Stream.Failure if the stream is empty. *)
+   stream. [None] if the stream is empty. *)
 
 val is_empty : 'e -> ('e,'a) t -> bool
 (** Return [true] if the stream is empty, else [false]. *)
@@ -74,7 +70,9 @@ val npeek : 'e -> int -> ('e,'a) t -> 'a list
    the stream, or all its remaining elements if less than [n]
    elements are available. *)
 
-val nth : 'e -> int -> ('e,'a) t -> 'a
+val nth : 'e -> int -> ('e,'a) t -> 'a option
+(** Returns the [n]th (0-indexed) element of the sream without
+    consuming, or [None] if less than [n+1] elements are available. *)
 
 val njunk : 'e -> int -> ('e,'a) t -> unit
 
