@@ -1490,28 +1490,24 @@ let rec continue_parser_of_levels entry clevn =
                   warn_recover_continuation bp ep strm__ in
               c
 
-let make_continue_parser_of_entry entry desc =
-  match desc with
-  | Dlevels [] -> (fun _ _ _ _ _ (_ : _ LStream.t) -> raise Stream.Failure)
-  | Dlevels elev ->
+let make_continue_parser_of_entry entry = function
+  | [] -> (fun _ _ _ _ _ (_ : _ LStream.t) -> raise Stream.Failure)
+  | elev ->
     let p = lazy (continue_parser_of_levels entry 0 elev) in
     (fun gstate levfrom levn bp a (strm__ : _ LStream.t) ->
        try Lazy.force p gstate levfrom levn bp a strm__ with Stream.Failure -> a)
-  | Dparser p -> fun gstate levfrom levn bp a (strm__ : _ LStream.t) -> raise Stream.Failure
 
-let make_start_parser_of_entry entry desc =
-  match desc with
-  | Dlevels [] -> empty_entry entry.ename
-  | Dlevels elev ->
+let make_start_parser_of_entry entry = function
+  | [] -> empty_entry entry.ename
+  | elev ->
     let p = lazy (start_parser_of_levels entry 0 elev) in
     (fun gstate levn (strm:_ LStream.t) -> Lazy.force p gstate levn strm)
-  | Dparser p -> fun gstate levn strm -> p gstate.kwstate strm
 
-let make_entry_data entry desc = {
+let make_entry_data entry elev = {
   eentry = entry;
-  edesc = desc;
-  estart = make_start_parser_of_entry entry desc;
-  econtinue = make_continue_parser_of_entry entry desc;
+  edesc = Dlevels elev;
+  estart = make_start_parser_of_entry entry elev;
+  econtinue = make_continue_parser_of_entry entry elev;
 }
 
 (* Extend syntax *)
@@ -1528,7 +1524,7 @@ let extend_entry add_kw estate kwstate entry statement =
   let estate = modify_entry estate entry (fun edata ->
       let kwstate', elev = levels_of_rules add_kw !kwstate entry edata statement in
       kwstate := kwstate';
-      make_entry_data entry (Dlevels elev))
+      make_entry_data entry elev)
   in
   estate, !kwstate
 
@@ -1610,7 +1606,7 @@ module Entry = struct
     eentry = e;
     edesc = Dlevels [];
     estart = empty_entry e.ename;
-    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> raise Stream.Failure);
+    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
   }
 
   let make n estate =
@@ -1629,7 +1625,7 @@ module Entry = struct
   let of_parser_val e { parser_fun = p } = {
     eentry = e;
     estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.kwstate strm);
-    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> raise Stream.Failure);
+    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
     edesc = Dparser p;
   }
   let of_parser n p estate =
