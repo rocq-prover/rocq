@@ -40,14 +40,14 @@ exception RefinerError of Environ.env * evar_map * refiner_error
 
 val error_no_such_hypothesis : Environ.env -> evar_map -> Id.t -> 'a
 
-(** Move destination for hypothesis *)
-
+(** Move destination for hypothesis. *)
 type 'id move_location =
-  | MoveAfter of 'id
-  | MoveBefore of 'id
-  | MoveFirst
-  | MoveLast (** can be seen as "no move" when doing intro *)
+  | MoveAfter of 'id (** Move to the position directly _after_ a hypothesis. *)
+  | MoveBefore of 'id (** Move to the position directly _before_ a hypothesis. *)
+  | MoveFirst (** Move to the first position in the context. *)
+  | MoveLast (** Move to the last position in the context. This is the default used by [intro]. *)
 
+(** Print a [move_location]. *)
 val pr_move_location :
   ('a -> Pp.t) -> 'a move_location -> Pp.t
 

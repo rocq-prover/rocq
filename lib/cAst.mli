@@ -8,7 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** The ast type contains generic metadata for AST nodes *)
+(** ['a CAst.t] wraps a value of type ['a] with (optional) source location information.
+    It is notably used to add location information to AST nodes. *)
 type 'a t = private {
   v   : 'a;
   loc : Loc.t option;

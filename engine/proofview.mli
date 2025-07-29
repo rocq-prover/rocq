@@ -375,7 +375,7 @@ val depends_on : Evd.evar_map -> Evar.t -> Evar.t -> bool
     and the returned list contains only unsolved goals. *)
 val with_shelf : 'a tactic -> (Evar.t list * 'a) tactic
 
-(** If [n] is positive, [cycle n] puts the [n] first goal last. If [n]
+(** If [n] is positive, [cycle n] puts the [n] first goals last. If [n]
     is negative, then it puts the [n] last goals first.*)
 val cycle : int -> unit tactic
 
