@@ -1416,18 +1416,18 @@ let rec start_parser_of_levels entry clevn =
           match levs with
             [] ->
               (fun gstate levn strm ->
-                 (* this code should be there but is commented to preserve
-                    compatibility with previous versions... with this code,
-                    the grammar entry e: [[ "x"; a = e | "y" ]] should fail
-                    because it should be: e: [RIGHTA[ "x"; a = e | "y" ]]...
-                 if levn > clevn then match strm with parser []
-                 else
-                 *)
+                (* Recovery here means that a grammar entry e: [[ "x"; a = e | "y" ]]
+                   works even though it should be: e: [RIGHTA[ "x"; a = e | "y" ]] *)
+                if not gstate.recover && levn > clevn then raise Stream.Failure
+                else
                  let (strm__ : _ LStream.t) = strm in
                  let bp = LStream.count strm__ in
                  let act = p2 gstate strm__ in
                  let ep = LStream.count strm__ in
                  let a = act (LStream.interval_loc bp ep strm__) in
+                 let () = if levn > clevn then
+                     warn_recover_continuation clevn levn entry gstate bp ep strm__
+                 in
                  continue_parser_of_entry gstate entry (Some clevn) levn bp a strm)
           | _ ->
               fun gstate levn strm ->
