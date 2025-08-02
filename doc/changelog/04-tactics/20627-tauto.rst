@@ -1,0 +1,6 @@
+- **Changed:**
+  The proof search of `tauto` and `intuition` has slightly changed and should scale better.
+  This may break proof scripts relying on the generated names
+  but also prove a few more goals (with dependent hypotheses).
+  (`#20627 <https://github.com/rocq-prover/rocq/pull/20627>`_,
+  by Frédéric Besson).
