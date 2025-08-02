@@ -280,3 +280,8 @@ code span.error {
     padding-left: 2em; /* indent 2nd & subsequent lines */
     text-indent: -2em;
 }
+
+html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list) > dt {
+    padding: 2px 10px;
+    width: fit-content;
+}
