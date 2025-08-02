@@ -45,7 +45,7 @@ val in_debugger : bool ref
 val in_ml_toplevel : bool ref
 
 (* Used to check stages are used correctly. *)
-val in_synterp_phase : bool ref
+val in_synterp_phase : bool option ref
 
 (* Set Printing All flag. For some reason it is a global flag *)
 val raw_print : bool ref
