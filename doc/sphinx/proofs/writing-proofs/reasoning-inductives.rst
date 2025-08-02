@@ -982,7 +982,7 @@ This section describes some special purpose tactics to work with
 
    As :g:`H` occurs in the goal, we may want to reason by cases on its
    structure and so, we would like inversion tactics to substitute :g:`H` by
-   the corresponding @term in constructor form. Neither :tacn:`inversion` nor
+   the corresponding term in constructor form. Neither :tacn:`inversion` nor
    :tacn:`inversion_clear` do such a substitution. To have such a behavior we
    use the dependent inversion tactics:
 
@@ -1120,7 +1120,7 @@ Generation of induction principles with ``Scheme``
       | Type
 
    Generates :term:`induction principles <induction principle>` with given
-   :n:`scheme_type`\s and :n:`scheme_sort`\s for an inductive type. In the case
+   :n:`scheme_type`\s and :n:`sort_quality_or_set`\s for an inductive type. In the case
    where the inductive definition is a mutual inductive definition, the
    :n:`with` clause is used to generate a mutually recursive inductive scheme
    for each clause of the mutual inductive type.
@@ -1350,10 +1350,10 @@ Generation of inversion principles with ``Derive`` ``Inversion``
    Generates an inversion lemma for the
    :tacn:`inversion` tactic.  :token:`ident` is the name
    of the generated lemma.  :token:`one_term` should be in the form
-   :token:`qualid` or :n:`(forall {+ @binder }, @qualid @term)` where
+   :token:`qualid` or :n:`(forall {+ @binder }, @qualid {+ @one_term })` where
    :token:`qualid` is the name of an inductive
-   predicate and :n:`{+ @binder }` binds the variables occurring in the term
-   :token:`term`. The lemma is generated for the sort
+   predicate and :n:`{+ @binder }` binds the variables occurring in
+   :n:`{+ @one_term }`. The lemma is generated for the sort
    :token:`sort_quality_or_set` corresponding to :token:`one_term`.
    Applying the lemma is equivalent to inverting the instance with the
    :tacn:`inversion` tactic.

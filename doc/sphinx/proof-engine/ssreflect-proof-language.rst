@@ -243,15 +243,13 @@ The |SSR| destructuring assignment supports all the dependent
 match annotations; the full syntax is
 
 .. prodn::
-   term += let: @pattern {? as @ident} {? in @pattern} := @term {? return @term} in @term
+   term += let: @pattern {? as @ident} {? in @pattern__ind} := @term {? return @term__ret} in @term__body
 
-where the second :token:`pattern` and the second :token:`term` are *types*.
 
 When the ``as`` and ``return`` keywords are both present, then :token:`ident` is bound
-in both the second :token:`pattern` and the second :token:`term`; variables
-in the optional type :token:`pattern` are bound only in the second term, and
-other variables in the first  :token:`pattern` are bound only in the third
-:token:`term`, however.
+in both :n:`@term__ret` and :n:`@term__body`; variables in :n:`@pattern__ind` are bound
+only in :n:`@term__ret`, and other variables in :token:`pattern` are bound only in
+:n:`@term__body`, however.
 
 
 .. _pattern_conditional_ssr:
