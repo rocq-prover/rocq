@@ -9,7 +9,7 @@ Section Test.
 Variables (A B : Type) (a : A) (b : B).
 Variable c : A -> B.
 Coercion c : A >-> B.
-Notation COERCION := (c).
+Abbreviation COERCION := (c).
 Check b = a. (* printed the same except in 8.10 *)
 End Test.
 

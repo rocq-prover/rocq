@@ -35,14 +35,14 @@ Notation " `  t " := (proj1_sig t) (at level 10, t at next level) : program_scop
 
 (** Construct a dependent disjunction from a boolean. *)
 
-Notation dec := sumbool_of_bool.
+Abbreviation dec := sumbool_of_bool.
 
 (** The notations [in_right] and [in_left] construct objects of a dependent disjunction. *)
 
 (** Hide proofs and generates obligations when put in a term. *)
 
-Notation in_left := (@left _ _ _).
-Notation in_right := (@right _ _ _).
+Abbreviation in_left := (@left _ _ _).
+Abbreviation in_right := (@right _ _ _).
 
 (** Extraction directives *)
 (*

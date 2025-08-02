@@ -31,7 +31,7 @@ Print Ltac2 Out_of_bounds.
 
 (* alias *)
 
-Ltac2 Notation nota := () ().
+Ltac2 Abbreviation nota := () ().
 
 Print nota.
 
