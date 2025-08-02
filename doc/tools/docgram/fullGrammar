@@ -52,6 +52,7 @@ universe_name: [
 
 universe_expr: [
 | universe_name universe_increment
+| natural
 ]
 
 universe: [
@@ -190,6 +191,7 @@ univ_annot: [
 ]
 
 univ_level_or_quality: [
+| NUMBER "0"
 | "Set"
 | "SProp"
 | "Prop"
