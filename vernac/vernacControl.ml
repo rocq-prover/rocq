@@ -44,6 +44,7 @@ type 'state control_entry =
   | ControlProfile of { to_file : string option; profstate : profile_state }
   | ControlRedirect of { fname : string; truncate : bool}
   | ControlTimeout of { remaining : float }
+  | ControlAllocLimit of { remaining : Control.kilowords; allocated : Control.kilowords }
   | ControlFail of { st : 'state }
   | ControlSucceed of { st : 'state }
 
@@ -138,6 +139,27 @@ let with_timeout ~timeout:n f =
     else Some (ControlTimeout { remaining }, v)
   end
 
+let with_alloc_limit ~limit ~allocated f =
+  let () = if limit.Control.kilowords <= 0L then
+      CErrors.user_err Pp.(str "Alloc limit must be > 0.")
+  in
+  match Control.alloc_limit limit f () with
+  | None -> raise CErrors.AllocLimit
+  | Some (v, {kilowords=alloc}) ->
+    let remaining = Int64.sub limit.kilowords alloc in
+    (* can remaining <= 0 actually happen? not sure *)
+    if remaining <= 0L then raise CErrors.AllocLimit;
+    let remaining = { Control.kilowords = remaining } in
+    let allocated = { Control.kilowords = Int64.add allocated.Control.kilowords alloc } in
+    Some (ControlAllocLimit { remaining; allocated }, v)
+
+let fmt_allocated { Control.kilowords = allocated } =
+  let open Pp in
+  (* XXX print a few more digits for low Mw allocated *)
+  if allocated >= 1000L then
+    str "Allocated " ++ int64 (Int64.div allocated 1000L) ++ str "Mw."
+  else str "Allocated " ++ int64 allocated ++ str "kw."
+
 let real_error_loc ~cmdloc ~eloc =
   if Loc.finer eloc cmdloc then eloc
   else cmdloc
@@ -195,6 +217,7 @@ let under_one_control ~loc ~with_local_state control f =
     let v = Topfmt.with_output_to_file ~truncate fname f () in
     Some (ControlRedirect {fname; truncate=false}, v)
   | ControlTimeout {remaining} -> with_timeout ~timeout:remaining f
+  | ControlAllocLimit {remaining; allocated} -> with_alloc_limit ~limit:remaining ~allocated f
   | ControlFail {st} -> with_fail ~loc ~with_local_state st f
   | ControlSucceed {st} -> with_succeed ~with_local_state st f
 
@@ -229,6 +252,9 @@ let rec after_last_phase ~loc = function
         noop
       | ControlRedirect _ -> noop
       | ControlTimeout _ -> noop
+      | ControlAllocLimit { remaining = _; allocated } ->
+        Feedback.msg_notice @@ fmt_allocated allocated;
+        noop
       | ControlFail _ -> CErrors.user_err Pp.(str "The command has not failed!")
       | ControlSucceed _ -> true
 
@@ -268,6 +294,7 @@ let from_syntax_one : Vernacexpr.control_flag -> unit control_entry = fun flag -
   | ControlTimeout timeout ->
     (* don't check_timeout here as the error won't be caught by surrounding Fail *)
     ControlTimeout { remaining = float_of_int timeout }
+  | ControlAllocLimit limit -> ControlAllocLimit { remaining = limit; allocated = { kilowords = 0L } }
   | ControlFail -> ControlFail { st = () }
   | ControlSucceed -> ControlSucceed { st = () }
 
