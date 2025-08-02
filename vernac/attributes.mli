@@ -81,6 +81,9 @@ val user_warns_with_use_globref_instead : Globnames.extended_global_reference Us
 *)
 val hint_locality : Hints.hint_locality attribute
 
+(** Like [hint_locality], but errors on explicit non-Local in sections. *)
+val hint_locality_no_sections : Hints.hint_locality attribute
+
 (** Like [hint_locality] but the default in and out of sections is [SuperGlobal]. *)
 val hint_locality_default_superglobal : Hints.hint_locality attribute
 
