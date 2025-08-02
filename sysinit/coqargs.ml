@@ -396,6 +396,8 @@ let parse_args ~init arglist : t * string list =
       add_set_option oval ["Allow"; "StrictProp"] (OptionSet None)
     |"-disallow-sprop" ->
       add_set_option oval ["Allow"; "StrictProp"] OptionUnset
+    |"-generate-goal-names" ->
+      add_set_option oval ["Generate"; "Goal"; "Names"] (OptionSet None)
     |"-allow-rewrite-rules" -> set_logic (fun o -> { o with rewrite_rules = true }) oval
     |"-indices-matter" -> set_logic (fun o -> { o with indices_matter = true }) oval
     |"-m"|"--memory" -> { oval with post = { memory_stat = true }}
