@@ -1703,7 +1703,7 @@ exception IsNonrec
 let is_nonrec env mind = (Environ.lookup_mind (fst mind) env).mind_finite == Declarations.BiFinite
 
 let find_ind_eliminator env sigma ind s =
-  let c = lookup_eliminator env ind s in
+  let c = Elimschemes.lookup_eliminator env ind s in
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
