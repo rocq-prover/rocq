@@ -37,6 +37,11 @@ Contents
    appendix/indexes/index
    zebibliography
 
+.. toctree::
+   :caption: The refman's refman
+
+   README.rst
+
 .. No entries yet
   * :index:`thmindex`
 
