@@ -40,6 +40,7 @@ open Locusops
 open Tactypes
 open Proofview.Notations
 open Context.Named.Declaration
+open TacticExceptions
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
@@ -67,193 +68,6 @@ let () =
       optread  = (fun () -> !clear_hyp_by_default) ;
       optwrite = (fun b -> clear_hyp_by_default := b) }
 
-(*********************************************)
-(*                 Errors                    *)
-(*********************************************)
-
-exception IntroAlreadyDeclared of Id.t
-exception ClearDependency of env * evar_map * Id.t option * Evarutil.clear_dependency_error * GlobRef.t option
-exception ReplacingDependency of env * evar_map * Id.t * Evarutil.clear_dependency_error * GlobRef.t option
-exception AlreadyUsed of Id.t
-exception UsedTwice of Id.t
-exception VariableHasNoValue of Id.t
-exception ConvertIncompatibleTypes of env * evar_map * constr * constr
-exception ConvertNotAType
-exception NotConvertible
-exception NotUnfoldable
-exception NoQuantifiedHypothesis of quantified_hypothesis * bool
-exception CannotFindInstance of Id.t
-exception NothingToRewrite of Id.t
-exception IllFormedEliminationType
-exception UnableToApplyLemma of env * evar_map * constr * constr
-exception DependsOnBody of Id.t list * Id.Set.t * Id.t option
-exception NotRightNumberConstructors of int
-exception NotEnoughConstructors
-exception ConstructorNumberedFromOne
-exception NoConstructors
-exception UnexpectedExtraPattern of int option * delayed_open_constr intro_pattern_expr
-exception CannotFindInductiveArgument
-exception OneIntroPatternExpected
-exception KeepAndClearModifierOnlyForHypotheses
-exception FixpointOnNonInductiveType
-exception NotEnoughProducts
-exception AllMethodsInCoinductiveType
-exception ReplacementIllTyped of exn
-exception NotEnoughPremises
-exception NeedDependentProduct
-
-let error ?loc e =
-  Loc.raise ?loc e
-
-let clear_in_global_msg = function
-  | None -> mt ()
-  | Some ref -> str " implicitly in " ++ Printer.pr_global ref
-
-let clear_dependency_msg env sigma id err inglobal =
-  let ppidupper = function Some id -> Id.print id | None -> str "This variable" in
-  let ppid = function Some id -> Id.print id | None -> str "this variable" in
-  let pp = clear_in_global_msg inglobal in
-  match err with
-  | Evarutil.OccurHypInSimpleClause None ->
-      ppidupper id ++ str " is used" ++ pp ++ str " in conclusion."
-  | Evarutil.OccurHypInSimpleClause (Some id') ->
-      ppidupper id ++ strbrk " is used" ++ pp ++ str " in hypothesis " ++ Id.print id' ++ str"."
-  | Evarutil.EvarTypingBreak ev ->
-      str "Cannot remove " ++ ppid id ++
-      strbrk " without breaking the typing of " ++
-      Printer.pr_leconstr_env env sigma (mkEvar ev) ++ str"."
-  | Evarutil.NoCandidatesLeft ev ->
-      str "Cannot remove " ++ ppid id ++ str " as it would leave the existential " ++
-      Printer.pr_existential_key env sigma ev ++ str" without candidates."
-
-let replacing_dependency_msg env sigma id err inglobal =
-  let pp = clear_in_global_msg inglobal in
-  match err with
-  | Evarutil.OccurHypInSimpleClause None ->
-      str "Cannot change " ++ Id.print id ++ str ", it is used" ++ pp ++ str " in conclusion."
-  | Evarutil.OccurHypInSimpleClause (Some id') ->
-      str "Cannot change " ++ Id.print id ++
-      strbrk ", it is used" ++ pp ++ str " in hypothesis " ++ Id.print id' ++ str"."
-  | Evarutil.EvarTypingBreak ev ->
-      str "Cannot change " ++ Id.print id ++
-      strbrk " without breaking the typing of " ++
-      Printer.pr_leconstr_env env sigma (mkEvar ev) ++ str"."
-  | Evarutil.NoCandidatesLeft ev ->
-      str "Cannot change " ++ Id.print id ++ str " as it would leave the existential " ++
-      Printer.pr_existential_key env sigma ev ++ str" without candidates."
-
-let msg_quantified_hypothesis = function
-  | NamedHyp id ->
-      str "quantified hypothesis named " ++ Id.print id.CAst.v
-  | AnonHyp n ->
-      pr_nth n ++
-      str " non dependent hypothesis"
-
-let explain_unexpected_extra_pattern bound pat =
-  let nb = Option.get bound in
-  let s1,s2,s3 = match pat with
-  | IntroNaming (IntroIdentifier _) ->
-      "name", (String.plural nb " introduction pattern"), "no"
-  | _ -> "introduction pattern", "", "none" in
-  str "Unexpected " ++ str s1 ++ str " (" ++
-  (if Int.equal nb 0 then (str s3 ++ str s2) else
-   (str "at most " ++ int nb ++ str s2)) ++ spc () ++
-  str (if Int.equal nb 1 then "was" else "were") ++
-  strbrk " expected in the branch)."
-
-exception Unhandled
-
-let wrap_unhandled f e =
-  try Some (f e)
-  with Unhandled -> None
-
-let tactic_interp_error_handler = function
-  | IntroAlreadyDeclared id ->
-      Id.print id ++ str " is already declared."
-  | ClearDependency (env,sigma,id,err,inglobal) ->
-      clear_dependency_msg env sigma id err inglobal
-  | ReplacingDependency (env,sigma,id,err,inglobal) ->
-      replacing_dependency_msg env sigma id err inglobal
-  | AlreadyUsed id ->
-      Id.print id ++ str " is already used."
-  | UsedTwice id ->
-      Id.print id ++ str" is used twice."
-  | VariableHasNoValue id ->
-      Id.print id ++ str" is not a defined hypothesis."
-  | ConvertIncompatibleTypes (env,sigma,t1,t2) ->
-      str "The first term has type" ++ spc () ++
-      quote (Termops.Internal.print_constr_env env sigma t1) ++ spc () ++
-      strbrk "while the second term has incompatible type" ++ spc () ++
-      quote (Termops.Internal.print_constr_env env sigma t2) ++ str "."
-  | ConvertNotAType ->
-      str "Not a type."
-  | NotConvertible ->
-      str "Not convertible."
-  | NotUnfoldable ->
-     str "Cannot unfold a non-constant."
-  | NoQuantifiedHypothesis (id,red) ->
-      str "No " ++ msg_quantified_hypothesis id ++
-      strbrk " in current goal" ++
-      (if red then strbrk " even after head-reduction" else mt ()) ++ str"."
-  | CannotFindInstance id ->
-      str "Cannot find an instance for " ++ Id.print id ++ str"."
-  | NothingToRewrite id ->
-      str "Nothing to rewrite in " ++ Id.print id ++ str"."
-  | IllFormedEliminationType ->
-      str "The type of elimination clause is not well-formed."
-  | UnableToApplyLemma (env,sigma,thm,t) ->
-      str "Unable to apply lemma of type" ++ brk(1,1) ++
-      quote (Printer.pr_leconstr_env env sigma thm) ++ spc() ++
-      str "on hypothesis of type" ++ brk(1,1) ++
-      quote (Printer.pr_leconstr_env env sigma t) ++
-      str "."
-  | DependsOnBody (idl,ids,where) ->
-     let idl = List.filter (fun id -> Id.Set.mem id ids) idl in
-     let on_the_bodies = function
-       | [] -> assert false
-       | [id] -> str " depends on the body of " ++ Id.print id
-       | l -> str " depends on the bodies of " ++ pr_sequence Id.print l
-     in
-     (match where with
-     | None -> str "Conclusion" ++ on_the_bodies idl
-     | Some id -> str "Hypothesis " ++ Id.print id ++ on_the_bodies idl)
-  | NotRightNumberConstructors n ->
-      str "Not an inductive goal with " ++ int n ++ str (String.plural n " constructor") ++ str "."
-  | NotEnoughConstructors ->
-      str "Not enough constructors."
-  | ConstructorNumberedFromOne ->
-      str "The constructors are numbered starting from 1."
-  | NoConstructors ->
-      str "The type has no constructors."
-  | UnexpectedExtraPattern (bound,pat) ->
-      explain_unexpected_extra_pattern bound pat
-  | CannotFindInductiveArgument ->
-      str "Cannot find inductive argument of elimination scheme."
-  | OneIntroPatternExpected ->
-      str "Introduction pattern for one hypothesis expected."
-  | KeepAndClearModifierOnlyForHypotheses ->
-      str "keep/clear modifiers apply only to hypothesis names."
-  | FixpointOnNonInductiveType ->
-      str "Cannot do a fixpoint on a non inductive type."
-  | NotEnoughProducts ->
-      str "Not enough products."
-  | AllMethodsInCoinductiveType ->
-      str "All methods must construct elements in coinductive types."
-  | ReplacementIllTyped e ->
-      str "Replacement would lead to an ill-typed term:" ++ spc () ++ CErrors.print e
-  | NotEnoughPremises ->
-      str "Applied theorem does not have enough premises."
-  | NeedDependentProduct ->
-      str "Needs a non-dependent product."
-  | _ -> raise Unhandled
-
-let _ = CErrors.register_handler (wrap_unhandled tactic_interp_error_handler)
-
-let error_clear_dependency env sigma id err inglobal =
-  error (ClearDependency (env,sigma,Some id,err,inglobal))
-
-let error_replacing_dependency env sigma id err inglobal =
-  error (ReplacingDependency (env,sigma,id,err,inglobal))
 
 (*********************************************)
 (*                 Tactics                   *)
@@ -285,7 +99,7 @@ let introduction id =
     let hyps = named_context_val (Proofview.Goal.env gl) in
     let env = Proofview.Goal.env gl in
     let () = if mem_named_context_val id hyps then
-      error (IntroAlreadyDeclared id)
+      Loc.raise (IntroAlreadyDeclared id)
     in
     let open Context.Named.Declaration in
     match EConstr.kind sigma concl with
@@ -304,7 +118,7 @@ let convert_concl ~cast ~check ty k =
         if check then begin
           let sigma, _ = Typing.type_of env sigma ty in
           match Reductionops.infer_conv env sigma ty conclty with
-          | None -> error NotConvertible
+          | None -> Loc.raise NotConvertible
           | Some sigma -> sigma
         end else sigma
       in
@@ -331,11 +145,11 @@ let convert_gen pb x y =
   Proofview.Goal.enter begin fun gl ->
     match Tacmach.pf_apply (Reductionops.infer_conv ~pb) gl x y with
     | Some sigma -> Proofview.Unsafe.tclEVARS sigma
-    | None -> error NotConvertible
+    | None -> Loc.raise NotConvertible
     | exception e when CErrors.noncritical e ->
       let _, info = Exninfo.capture e in
       (* FIXME: Sometimes an anomaly is raised from conversion *)
-      error ?loc:(Loc.get_loc info) NotConvertible
+      Loc.raise ?loc:(Loc.get_loc info) NotConvertible
 end
 
 let convert x y = convert_gen Conversion.CONV x y
@@ -362,15 +176,24 @@ let clear_gen fail = function
     end)
   end
 
-let clear ids = clear_gen error_clear_dependency ids
-let clear_for_replacing ids = clear_gen error_replacing_dependency ids
+let clear ids =
+  let fail env sigma id err inglobal =
+    Loc.raise (ClearDependency (env, sigma, Some id, err, inglobal))
+  in
+  clear_gen fail ids
+
+let clear_for_replacing ids =
+  let fail env sigma id err inglobal =
+    Loc.raise (ReplacingDependency (env, sigma, id, err, inglobal))
+  in
+  clear_gen fail ids
 
 let apply_clear_request clear_flag dft c =
   let doclear = match clear_flag with
     | None -> if dft then c else None
     | Some true ->
       begin match c with
-      | None -> error KeepAndClearModifierOnlyForHypotheses
+      | None -> Loc.raise KeepAndClearModifierOnlyForHypotheses
       | Some id -> Some id
       end
     | Some false -> None
@@ -428,7 +251,7 @@ let rename_hyp repl =
       let () =
         try
           let elt = Id.Set.choose (Id.Set.inter dst mods) in
-          error (AlreadyUsed elt)
+          Loc.raise (AlreadyUsed elt)
         with Not_found -> ()
       in
       (* All is well *)
@@ -505,7 +328,7 @@ let find_name mayrepl decl naming gl = match naming with
      (* When name is given, we allow to hide a global name. *)
      let ids_of_hyps = Tacmach.pf_ids_set_of_hyps gl in
      if not mayrepl && Id.Set.mem id ids_of_hyps then
-       error ?loc (AlreadyUsed id);
+       Loc.raise ?loc (AlreadyUsed id);
      id
 
 (**************************************************************)
@@ -539,8 +362,8 @@ let get_previous_hyp_position env sigma id =
 let clear_hyps2 env sigma ids sign t cl =
   try
     Evarutil.clear_hyps2_in_evi env sigma sign t cl ids
-  with Evarutil.ClearDependencyError (id,err,inglobal) ->
-    error_replacing_dependency env sigma id err inglobal
+  with Evarutil.ClearDependencyError (id, err, inglobal) ->
+    Loc.raise (ReplacingDependency (env, sigma, id, err, inglobal))
 
 let internal_cut ?(check=true) replace id t =
   Proofview.Goal.enter begin fun gl ->
@@ -557,7 +380,7 @@ let internal_cut ?(check=true) replace id t =
         Environ.reset_with_named_context sign' env,t,concl,sigma
       else
         (if check && mem_named_context_val id sign then
-           error (IntroAlreadyDeclared id);
+           Loc.raise (IntroAlreadyDeclared id);
          push_named (LocalAssum (make_annot id r,t)) env,t,concl,sigma) in
     let nf_t = nf_betaiota env sigma t in
     Proofview.tclTHEN
@@ -621,14 +444,14 @@ let rec check_mutind env sigma k cl = match EConstr.kind sigma (strip_outer_cast
 | Prod (na, c1, b) ->
   if Int.equal k 1 then
     try ignore (find_inductive env sigma c1)
-    with Not_found -> error FixpointOnNonInductiveType
+    with Not_found -> Loc.raise FixpointOnNonInductiveType
   else
     let open Context.Rel.Declaration in
     check_mutind (push_rel (LocalAssum (na, c1)) env) sigma (pred k) b
 | LetIn (na, c1, t, b) ->
     let open Context.Rel.Declaration in
     check_mutind (push_rel (LocalDef (na, c1, t)) env) sigma k b
-| _ -> error NotEnoughProducts
+| _ -> Loc.raise NotEnoughProducts
 
 let mutual_fix f n others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
@@ -647,7 +470,7 @@ let mutual_fix f n others = Proofview.Goal.enter begin fun gl ->
     let open Context.Named.Declaration in
     let ()  = check_mutind env sigma n ar in
     if mem_named_context_val f sign then
-      error (IntroAlreadyDeclared f);
+      Loc.raise (IntroAlreadyDeclared f);
     mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
@@ -676,7 +499,7 @@ let rec check_is_mutcoind env sigma cl =
     try
       let _ = find_coinductive env sigma b in ()
     with Not_found ->
-      error AllMethodsInCoinductiveType
+      Loc.raise AllMethodsInCoinductiveType
 
 let mutual_cofix f others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
@@ -690,7 +513,7 @@ let mutual_cofix f others = Proofview.Goal.enter begin fun gl ->
   | (f, r, ar) :: oth ->
     let open Context.Named.Declaration in
     if mem_named_context_val f sign then
-      error (AlreadyUsed f);
+      Loc.raise (AlreadyUsed f);
     mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
@@ -725,7 +548,7 @@ let e_pf_change_decl (redfun : bool -> Tacred.change_function) where env sigma d
   match decl with
   | LocalAssum (id,ty) ->
     let () =
-      if where == InHypValueOnly then error (VariableHasNoValue id.binder_name)
+      if where == InHypValueOnly then Loc.raise (VariableHasNoValue id.binder_name)
     in
     let* (sigma, ty') = redfun false env sigma ty in
     Changed (sigma, LocalAssum (id, ty'))
@@ -914,12 +737,12 @@ let check_types env sigma mayneedglobalcheck deep newc origc =
         isSort sigma (whd_all env sigma t2)
       then (mayneedglobalcheck := true; sigma)
       else
-        error (ConvertIncompatibleTypes (env,sigma,t2,t1))
+        Loc.raise (ConvertIncompatibleTypes (env,sigma,t2,t1))
     | Some sigma -> sigma
   end
   else
     if not (isSort sigma (whd_all env sigma t1)) then
-      error ConvertNotAType
+      Loc.raise ConvertNotAType
     else sigma
 
 (* Now we introduce different instances of the previous tacticals *)
@@ -928,7 +751,7 @@ let change_and_check cv_pb mayneedglobalcheck deep t env sigma c = match t env s
 | Changed (sigma, t') ->
   let sigma = check_types env sigma mayneedglobalcheck deep t' c in
   match infer_conv ~pb:cv_pb env sigma t' c with
-  | None -> error NotConvertible
+  | None -> Loc.raise NotConvertible
   | Some sigma -> Changed (sigma, t')
 
 (* Use cumulativity only if changing the conclusion not a subterm *)
@@ -954,7 +777,7 @@ let change_on_subterm ~check cv_pb deep t where env sigma c =
       begin
         try fst (Typing.type_of env sigma c)
         with e when noncritical e ->
-          error (ReplacementIllTyped e)
+          Loc.raise (ReplacementIllTyped e)
       end else sigma
     in
     Changed (sigma, c)
@@ -1090,7 +913,7 @@ let reduce redexp cl =
 let unfold_constr = function
   | GlobRef.ConstRef sp -> unfold_in_concl [(AllOccurrences, EvalConstRef sp)]
   | GlobRef.VarRef id -> unfold_in_concl [(AllOccurrences, EvalVarRef id)]
-  | _ -> error NotUnfoldable
+  | _ -> Loc.raise NotUnfoldable
 
 (*******************************************)
 (*         Introduction tactics            *)
@@ -1355,7 +1178,7 @@ let depth_of_quantified_hypothesis red h gl =
   if h = AnonHyp 0 then warn_deprecated_intros_until_0 ();
   match lookup_hypothesis_as_renamed_gen red h gl with
     | Some depth -> depth
-    | None -> error (NoQuantifiedHypothesis(h,red))
+    | None -> Loc.raise (NoQuantifiedHypothesis(h,red))
 
 let intros_until_gen red h =
   Proofview.Goal.enter begin fun gl ->
@@ -1487,7 +1310,7 @@ let check_unresolved_evars_of_metas sigma clenv =
                      && not (Evd.mem sigma evk) ->
       let na = Unification.Meta.meta_name metas mv in
       let id = match na with Name id -> id | _ -> anomaly (Pp.str "unnamed dependent meta.") in
-      error (CannotFindInstance id)
+      Loc.raise (CannotFindInstance id)
     | _ -> ()
     end
   | None -> ()
@@ -1536,7 +1359,7 @@ let index_of_ind_arg sigma t =
       else aux i (j+1) u
   | _ -> match i with
       | Some i -> i
-      | None -> error CannotFindInductiveArgument
+      | None -> Loc.raise CannotFindInductiveArgument
   in aux None 0 t
 
 (*
@@ -1570,7 +1393,7 @@ let general_elim_clause0 with_evars flags (submetas, c, ty) elim =
   let elimclause = make_clenv_binding env sigma clause bindings in
   let indmv =
     try nth_arg index (clenv_arguments elimclause)
-    with Failure _ | Invalid_argument _ -> error IllFormedEliminationType
+    with Failure _ | Invalid_argument _ -> Loc.raise IllFormedEliminationType
   in
   let elimclause = clenv_instantiate ~flags ~submetas indmv elimclause (c, ty) in
   Clenv.res_pf elimclause ~with_evars ~with_classes:true ~flags
@@ -1586,13 +1409,13 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elim =
   let elimclause = mk_clenv_from env sigma (elimc, elimt) in
   let indmv =
     try nth_arg (Some i) (clenv_arguments elimclause)
-    with Failure _ | Invalid_argument _ -> error IllFormedEliminationType
+    with Failure _ | Invalid_argument _ -> Loc.raise IllFormedEliminationType
   in
   (* Assumes that the metas of [c] are part of [sigma] already *)
   let hypmv =
     match List.remove Int.equal indmv (clenv_independent elimclause) with
     | [a] -> a
-    | _ -> error IllFormedEliminationType
+    | _ -> Loc.raise IllFormedEliminationType
   in
   let elimclause = clenv_instantiate ~flags ~submetas indmv elimclause (c, ty) in
   let hyp = mkVar id in
@@ -1605,7 +1428,7 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elim =
   in
   let new_hyp_typ  = clenv_type elimclause in
   if EConstr.eq_constr sigma hyp_typ new_hyp_typ then
-    error (NothingToRewrite id);
+    Loc.raise (NothingToRewrite id);
   clenv_refine_in with_evars id true env sigma elimclause
   end
 
@@ -1884,7 +1707,7 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
     let try_apply thm_ty nprod =
       try
         let n = nb_prod_modulo_zeta sigma thm_ty - nprod in
-        if n<0 then error NotEnoughPremises;
+        if n<0 then Loc.raise NotEnoughPremises;
         let clause = make_clenv_binding_apply env sigma (Some n) (c,thm_ty) lbind in
         Clenv.res_pf clause ~with_classes ~with_evars ~flags
       with exn when noncritical exn ->
@@ -2006,7 +1829,7 @@ let apply_in_once_main flags (id, t) env sigma (loc,d,lbind) =
     | Some (mv, dep, clause) -> aux clause (if dep then [] else [mv])
     | None ->
       match e with
-      | UnableToApply -> error ?loc (UnableToApplyLemma (env,sigma,thm,t))
+      | UnableToApply -> Loc.raise ?loc (UnableToApplyLemma (env,sigma,thm,t))
       | _ -> Exninfo.iraise e'
   in
   let clenv = make_clenv_binding env sigma (d,thm) lbind in
@@ -2086,7 +1909,7 @@ let cut_and_apply c =
             let (sigma, x) = Evarutil.new_evar env sigma c1 in
             (sigma, mkApp (f, [|mkApp (c, [|x|])|]))
           end)
-    | _ -> error NeedDependentProduct
+    | _ -> Loc.raise NeedDependentProduct
   end
 
 (********************************************************************)
@@ -2207,7 +2030,7 @@ let clear_body idl =
             | LocalAssum (id,t) ->
               let () =
                 if Id.Set.mem id.binder_name ids then
-                  error (VariableHasNoValue id.binder_name)
+                  Loc.raise (VariableHasNoValue id.binder_name)
               in
               decl, ids, false
             | LocalDef (id,_,t) as decl ->
@@ -2242,7 +2065,8 @@ let clear_body idl =
 
 let clear_wildcards ids =
   let clear_wildcards_msg ?loc env sigma _id err inglobal =
-    user_err ?loc (clear_dependency_msg env sigma None err inglobal) in
+    user_err ?loc (clear_dependency_msg env sigma None err inglobal)
+  in
   Tacticals.tclMAP (fun {CAst.loc;v=id} -> clear_gen (clear_wildcards_msg ?loc) [id]) ids
 
 let rec intros_clearing = function
@@ -2296,13 +2120,13 @@ let apply_type ~typecheck newcl args =
 (************************)
 
 let check_number_of_constructors expctdnumopt i nconstr =
-  if Int.equal i 0 then error ConstructorNumberedFromOne;
+  if Int.equal i 0 then Loc.raise ConstructorNumberedFromOne;
   begin match expctdnumopt with
     | Some n when not (Int.equal n nconstr) ->
-        error (NotRightNumberConstructors n)
+        Loc.raise (NotRightNumberConstructors n)
     | _ -> ()
   end;
-  if i > nconstr then error NotEnoughConstructors
+  if i > nconstr then Loc.raise NotEnoughConstructors
 
 let constructor_core with_evars cstr lbind =
   Proofview.Goal.enter begin fun gl ->
@@ -2350,7 +2174,7 @@ let any_constructor with_evars tacopt =
     let (ind,_),redcl = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl cl in
     let nconstr =
       Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
-    if Int.equal nconstr 0 then error NoConstructors;
+    if Int.equal nconstr 0 then Loc.raise NoConstructors;
     Tacticals.tclTHENLIST [
       convert_concl ~cast:false ~check:false redcl DEFAULTcast;
       intros;
@@ -2504,10 +2328,10 @@ let rec check_name_unicity env ok seen = let open CAst in function
 | {loc;v=IntroNaming (IntroIdentifier id)} :: l ->
    (try
       ignore (if List.mem_f Id.equal id ok then raise Not_found else lookup_named id env);
-      error ?loc (AlreadyUsed id)
+      Loc.raise ?loc (AlreadyUsed id)
    with Not_found ->
      if List.mem_f Id.equal id seen then
-       error ?loc (UsedTwice id)
+       Loc.raise ?loc (UsedTwice id)
      else
        check_name_unicity env ok (id::seen) l)
 | {v=IntroAction (IntroOrAndPattern l)} :: l' ->
@@ -2579,7 +2403,7 @@ let rec intro_patterns_core with_evars avoid ids thin destopt bound n tac =
       intro_patterns_core with_evars avoid ids thin destopt bound n tac
         [CAst.make @@ IntroNaming IntroAnonymous]
   | {CAst.loc;v=pat} :: l ->
-  if exceed_bound n bound then error ?loc (UnexpectedExtraPattern(bound,pat)) else
+  if exceed_bound n bound then Loc.raise ?loc (UnexpectedExtraPattern(bound,pat)) else
   match pat with
   | IntroForthcoming onlydeps ->
       let naming = Id.Set.union avoid (explicit_intro_names l) in
@@ -2627,7 +2451,7 @@ and prepare_action ?loc with_evars destopt = function
           (fun _ l -> clear_wildcards l) in
       fun id ->
         intro_pattern_action ?loc with_evars ipat [] destopt tac id)
-  | IntroForthcoming _ -> error ?loc OneIntroPatternExpected
+  | IntroForthcoming _ -> Loc.raise ?loc OneIntroPatternExpected
 
 let intro_patterns_head_core with_evars destopt bound pat =
   Proofview.Goal.enter begin fun gl ->
@@ -2794,7 +2618,7 @@ let pose_tac na c =
     let id = match na with
     | Name id ->
       let () = if mem_named_context_val id hyps then
-        error (IntroAlreadyDeclared id)
+        Loc.raise (IntroAlreadyDeclared id)
       in
       id
     | Anonymous ->
@@ -3097,7 +2921,7 @@ let unfold_body x =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let xval = match Environ.lookup_named x env with
-  | LocalAssum _ -> error (VariableHasNoValue x)
+  | LocalAssum _ -> Loc.raise (VariableHasNoValue x)
   | LocalDef (_,xval,_) -> xval
   in
   let xval = EConstr.of_constr xval in

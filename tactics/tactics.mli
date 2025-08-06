@@ -20,10 +20,7 @@ open Tactypes
 open Locus
 open Ltac_pretype
 
-(** Main tactics defined in ML. This file is huge and should probably be split
-    in more reasonable units at some point. Because of its size and age, the
-    implementation features various styles and stages of the proof engine.
-    This has to be uniformized someday. *)
+(** Main tactics defined in ML. *)
 
 (** {6 General functions. } *)
 
@@ -54,8 +51,6 @@ val cofix : Id.t -> unit Proofview.tactic
 val mutual_cofix : Id.t -> (Id.t * constr) list -> unit Proofview.tactic
 
 (** {6 Conversion tactics. } *)
-
-exception NotConvertible
 
 (** [vm_cast_no_check new_concl] changes the conclusion to [new_concl] by inserting a [VMcast].
     It does not check that the new conclusion is indeed convertible to the old conclusion. *)
