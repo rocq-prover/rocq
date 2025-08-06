@@ -21,6 +21,7 @@ open Attributes
 open Constrexpr
 open Tac2expr
 open Tac2qexpr
+open Stdarg
 
 let lk_ident_or_anti =
   Procq.Lookahead.(lk_ident <+> (lk_kw "$" >> lk_ident >> check_no_space))
@@ -443,7 +444,7 @@ GRAMMAR EXTEND Gram
   ;
   syn_node:
     [ [ "_" -> { CAst.make ~loc None }
-      | id = Prim.ident -> { CAst.make ~loc (Some id) }
+      | id = qualid -> { CAst.make ~loc (Some id) }
     ] ]
   ;
   ltac2_syntax_class:
@@ -455,8 +456,9 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   syn_level:
-    [ [ -> { None }
-      | ":"; n = Prim.natural -> { Some n }
+    [ [ -> { None, None }
+      | ":"; n = Prim.natural -> { None, Some n }
+      | ":"; id = qualid; n = OPT [ "("; n = Prim.natural; ")" -> { n } ] -> { Some id, n }
     ] ]
   ;
   tac2def_syn:
@@ -1021,6 +1023,11 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
   } -> {
     Tac2entries.register_struct raw_attributes e
   }
+| [ "Ltac2" "Custom" "Entry" identref(id) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS _ {
+  Tac2entries.register_custom_entry id
+  } -> {
+  ()
+}
 | #[ raw_attributes ] [ "Ltac2" "Notation" ltac2def_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
     let (toks, n, body) = e in
     Tac2entries.register_notation raw_attributes toks n body
@@ -1085,8 +1092,6 @@ GRAMMAR EXTEND Gram
 END
 
 {
-
-open Stdarg
 
 let test_ltac2_ident_aux =
   let open Procq.Lookahead in
