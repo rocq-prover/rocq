@@ -150,6 +150,79 @@ let elim_scheme ~dep ~to_kind =
      end
   | Set -> if dep then rec_dep else rec_nodep
 
+let elimination_suffix =
+  let open UnivGen.QualityOrSet in
+  let open Sorts.Quality in
+  function
+  | Qual (QConstant QSProp) -> "_sind"
+  | Qual (QConstant QProp) -> "_ind"
+  | Qual (QConstant QType) | Qual (QVar _) -> "_rect"
+  | Set -> "_rec"
+
+let make_elimination_ident id s = Nameops.add_suffix id (elimination_suffix s)
+
+(* Look up function for the default elimination constant *)
+
+let lookup_eliminator_by_name env ind_sp s =
+  let open Names in
+  let open Environ in
+  let kn,i = ind_sp in
+  let mpu = KerName.modpath @@ MutInd.user kn in
+  let mpc = KerName.modpath @@ MutInd.canonical kn in
+  let ind_id = (lookup_mind kn env).mind_packets.(i).mind_typename in
+  let id = make_elimination_ident ind_id s in
+  let l = Label.of_id id in
+  let knu = KerName.make mpu l in
+  let knc = KerName.make mpc l in
+  (* Try first to get an eliminator defined in the same section as the *)
+  (* inductive type *)
+  let cst = Constant.make knu knc in
+  if mem_constant cst env then GlobRef.ConstRef cst
+  else
+    (* Then try to get a user-defined eliminator in some other places *)
+    (* using short name (e.g. for "eq_rec") *)
+    try Nametab.locate (Libnames.qualid_of_ident id)
+    with Not_found ->
+      CErrors.user_err
+        Pp.(strbrk "Cannot find the elimination combinator " ++
+            Id.print id ++ strbrk ", the elimination of the inductive definition " ++
+            Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
+            strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
+            strbrk " is probably not allowed.")
+
+let deprecated_lookup_by_name =
+  CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
+    Pp.(fun (env,ind,to_kind,r) ->
+        let pp_scheme () s = str (scheme_kind_name s) in
+        fmt "Found unregistered eliminator %t for %t by name.@ \
+             Use \"Register Scheme\" with it instead@ \
+             (\"as %a\" if dependent or \"as %a\" if non dependent)."
+          (fun () -> Termops.pr_global_env env r)
+          (fun () -> Termops.pr_global_env env (IndRef ind))
+          pp_scheme (elim_scheme ~dep:true ~to_kind)
+          pp_scheme (elim_scheme ~dep:false ~to_kind))
+
+let lookup_eliminator_by_name env ind s =
+  let r = lookup_eliminator_by_name env ind s in
+  deprecated_lookup_by_name (env,ind,s,r);
+  r
+
+let lookup_eliminator env ind s =
+  let nodep_scheme_first =
+    (* compat, add an option to control this and remove someday *)
+    let _, mip = Inductive.lookup_mind_specif env ind in
+    Sorts.is_prop mip.mind_sort && not (Indrec.is_prop_but_default_dependent_elim ind)
+  in
+  let schemes =
+    List.map (fun dep -> elim_scheme ~dep ~to_kind:s)
+      (if nodep_scheme_first then [false;true] else [true;false])
+  in
+  match List.find_map (fun scheme -> lookup_scheme scheme ind) schemes with
+  | Some c -> Names.GlobRef.ConstRef c
+  | None ->
+    (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
+    lookup_eliminator_by_name env ind s
+
 (* Case analysis *)
 
 let build_case_analysis_scheme_in_type env dep sort ind =
