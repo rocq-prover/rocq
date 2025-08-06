@@ -1138,7 +1138,7 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
     | ElimUsingList ((elim, elimt, indsign), params, realindvars, patts) ->
       let tac = Tacticals.tclTHENLIST [
         (* pattern to make the predicate appear. *)
-        Tactics.reduce (Pattern (List.map inj_with_occurrences patts)) onConcl;
+        ConvTactics.reduce (Pattern (List.map inj_with_occurrences patts)) onConcl;
         (* Induction by "refine (indscheme ?i ?j ?k...)" + resolution of all
           possible holes using arguments given by the user (but the
           functional one). *)
@@ -1180,7 +1180,7 @@ let induction_with_atomization_of_ind_arg isrec with_evars elim names hyp0 inhyp
   Tacticals.tclTHENLIST [
     Proofview.Unsafe.tclEVARS sigma;
     letins;
-    Tactics.change_in_hyp ~check:false None (Tactics.make_change_arg t) (hyp0, InHypTypeOnly);
+    ConvTactics.change_in_hyp ~check:false None (ConvTactics.make_change_arg t) (hyp0, InHypTypeOnly);
     apply_induction_in_context with_evars inhyps elim_info avoid names
   ]
   end

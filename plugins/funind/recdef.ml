@@ -25,6 +25,7 @@ open UnivGen
 open Tacticals
 open Tactics
 open ContextTactics
+open ConvTactics
 open Nametab
 open Tacred
 open Termops
@@ -216,10 +217,11 @@ let tclUSER tac is_mes l =
     ; ( if is_mes then
         observe_tclTHENLIST
           (fun _ _ -> str "tclUSER2")
-          [ unfold_in_concl
+          [ unfold
               [ ( Locus.AllOccurrences
                 , evaluable_of_global_reference
                     (delayed_force Indfun_common.ltof_ref) ) ]
+              None
           ; tac ]
       else tac ) ]
 
@@ -576,10 +578,11 @@ let rec destruct_bounds_aux infos (bound, hyple, rechyps) lbounds =
                              (simpl_iter Locusops.onConcl)
                          ; observe_tac
                              (fun _ _ -> str "unfold functional")
-                             (unfold_in_concl
+                             (unfold
                                 [ ( Locus.OnlyOccurrences [1]
                                   , evaluable_of_global_reference infos.func )
-                                ])
+                                ]
+                                None)
                          ; observe_tclTHENLIST
                              (fun _ _ -> str "test")
                              [ list_rewrite true
@@ -982,9 +985,10 @@ let make_rewrite expr_info l hp max =
                  [ simpl_iter Locusops.onConcl
                  ; observe_tac
                      (fun _ _ -> str "unfold functional")
-                     (unfold_in_concl
+                     (unfold
                         [ ( Locus.OnlyOccurrences [1]
-                          , evaluable_of_global_reference expr_info.func ) ])
+                          , evaluable_of_global_reference expr_info.func ) ]
+                        None)
                  ; list_rewrite true
                      (List.map (fun e -> (mkVar e, true)) expr_info.eqs)
                  ; observe_tac
@@ -1546,8 +1550,9 @@ let start_equation (f : GlobRef.t) (term_f : GlobRef.t)
         (observe_tclTHENLIST
            (fun _ _ -> str "start_equation")
            [ h_intros x
-           ; unfold_in_concl
+           ; unfold
                [(Locus.AllOccurrences, evaluable_of_global_reference f)]
+               None
            ; observe_tac
                (fun _ _ -> str "simplest_case")
                (simplest_case

@@ -32,6 +32,7 @@ open Hipattern
 open Tacticals
 open Tactics
 open ContextTactics
+open ConvTactics
 open Tacred
 open Rocqlib
 open Declarations

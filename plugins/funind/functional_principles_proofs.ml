@@ -21,6 +21,7 @@ open Names
 open Pp
 open Tactics
 open ContextTactics
+open ConvTactics
 open Induction
 open Indfun_common
 open Libnames
@@ -620,7 +621,7 @@ let build_proof (interactive_proof : bool) (fnames : Constant.t list) ptes_infos
                     tclTHENLIST
                       [ Generalize.generalize (term_eq :: List.map mkVar dyn_infos.rec_hyps)
                       ; thin dyn_infos.rec_hyps
-                      ; pattern_option [(Locus.AllOccurrencesBut [1], t)] None
+                      ; pattern [(Locus.AllOccurrencesBut [1], t)] None
                       ; observe_tac "toto"
                           (tclTHENLIST
                              [ Simple.case t
@@ -1268,9 +1269,10 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
                              (decompose_app_list sigma (List.hd (List.rev pte_args))))
                       in
                       tclTHENLIST
-                        [ unfold_in_concl
+                        [ unfold
                             [ ( Locus.AllOccurrences
                               , Evaluable.EvalConstRef (fst fname) ) ]
+                            None
                         ; (let do_prove =
                              build_proof interactive_proof
                                (Array.to_list fnames)
@@ -1373,10 +1375,11 @@ let new_prove_with_tcc is_mes acc_inv hrec tcc_hyps eqs : unit Proofview.tactic
             [ keep (tcc_hyps @ eqs)
             ; apply (Lazy.force acc_inv)
             ; ( if is_mes then
-                unfold_in_concl
+                unfold
                   [ ( Locus.AllOccurrences
                     , evaluable_of_global_reference (delayed_force ltof_ref) )
                   ]
+                  None
               else Proofview.tclUNIT () )
             ; observe_tac "rew_and_finish"
                 (tclTHENLIST

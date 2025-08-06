@@ -166,7 +166,7 @@ let diseqCase hyps eqonleft =
   (intro_using_then diseq (fun diseq ->
   tclTHEN (choose_noteq eqonleft)
   (tclTHEN (rewrite_and_clear (List.rev hyps))
-  (tclTHEN  (red_in_concl)
+  (tclTHEN  (ConvTactics.red None)
   (intro_using_then absurd (fun absurd ->
   tclTHEN  (Simple.apply (mkVar diseq))
   (tclTHEN  (injHyp absurd)

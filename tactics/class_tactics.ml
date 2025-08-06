@@ -299,7 +299,7 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
           else e_trivial_fail_db db_list local_db secvars in
         Tacticals.tclTHEN fst snd
       | Unfold_nth c ->
-        Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
+        Proofview.tclPROGRESS (ConvTactics.unfold [AllOccurrences,c] None)
       | Extern (p, tacast) -> conclPattern concl0 p tacast
     in
     let tac = FullHint.run h tac in

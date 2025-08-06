@@ -155,7 +155,7 @@ TACTIC EXTEND unify
 END
 
 TACTIC EXTEND convert
-| ["convert" constr(x) constr(y) ] -> { Tactics.convert x y }
+| ["convert" constr(x) constr(y) ] -> { ConvTactics.convert x y }
 END
 
 {

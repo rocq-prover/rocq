@@ -596,7 +596,7 @@ let undertac ?(pad_intro = false) ist ipats ((dir,_),_ as rule) hint =
     if hint = nohint then
       Proofview.tclUNIT ()
     else
-      let betaiota = Tactics.reduct_in_concl ~cast:false ~check:false
+      let betaiota = ConvTactics.reduct_in_concl ~cast:false ~check:false
           (Reductionops.nf_betaiota, DEFAULTcast)
       in
       (* Usefulness of check_numgoals: tclDISPATCH would be enough,

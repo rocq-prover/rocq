@@ -508,7 +508,7 @@ let raw_inversion inv_kind id status names =
     let (_, args) = decompose_app sigma t in
     let solve_tac =
       (* We have to change again because assert_before performs βι-reduction *)
-      change_concl cut_concl <*>
+      ConvTactics.change_concl cut_concl <*>
       case_tac dep names (rewrite_equations_tac as_mode inv_kind id neqns) (ind, u, args) id
     in
     tclTHEN (Proofview.Unsafe.tclEVARS sigma)

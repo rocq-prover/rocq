@@ -1129,7 +1129,7 @@ let compute_bl_tact handle ind lnamesparrec nparrec =
               Tacticals.tclTRY (
                   Tacticals.tclORELSE reflexivity my_discr_tac
                 );
-              simpl_in_hyp (freshz,Locus.InHyp);
+              ConvTactics.simpl (Some (freshz, Locus.InHyp));
               (*
 repeat ( apply andb_prop in z;let z1:= fresh "Z" in destruct z as [z1 z]).
                *)
@@ -1275,7 +1275,7 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
                   Tacticals.tclORELSE reflexivity my_discr_tac
                 );
               my_inj_tac freshz;
-              intros; simpl_in_concl;
+              intros; ConvTactics.simpl None;
               Auto.default_auto;
               Tacticals.tclREPEAT (
                   Tacticals.tclTHENLIST [apply (EConstr.of_constr (andb_true_intro()));

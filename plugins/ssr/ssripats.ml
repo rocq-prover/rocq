@@ -865,7 +865,7 @@ let ssrsmovetac = Goal.enter begin fun g ->
   let sigma, concl = Goal.(sigma g, concl g) in
   match EConstr.kind sigma concl with
   | Prod _ | LetIn _ -> tclUNIT ()
-  | _ -> Tactics.hnf_in_concl
+  | _ -> ConvTactics.hnf None
 end
 
 let tclIPAT ip =

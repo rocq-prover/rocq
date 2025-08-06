@@ -1537,7 +1537,7 @@ let micromega_order_change spec cert cert_typ env ff (*: unit Proofview.tactic*)
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
       Tacticals.tclTHENLIST
-        [ Tactics.change_concl
+        [ ConvTactics.change_concl
             (set sigma
                [ ( "__ff"
                  , ff
@@ -2009,7 +2009,7 @@ let micromega_order_changer cert env ff =
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
       Tacticals.tclTHENLIST
-        [ Tactics.change_concl
+        [ ConvTactics.change_concl
             (set sigma
                [ ( "__ff"
                  , ff

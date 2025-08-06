@@ -1592,10 +1592,10 @@ let newfail n s =
 let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
   let open Proofview.Notations in
   (* For compatibility *)
-  let beta = Tactics.reduct_in_concl ~cast:false ~check:false
+  let beta = ConvTactics.reduct_in_concl ~cast:false ~check:false
       (Reductionops.nf_betaiota, DEFAULTcast)
   in
-  let beta_hyp id = Tactics.reduct_in_hyp ~check:false ~reorder:false Reductionops.nf_betaiota (id, InHyp) in
+  let beta_hyp id = ConvTactics.reduct_in_hyp ~check:false ~reorder:false Reductionops.nf_betaiota (id, InHyp) in
   let treat sigma res state =
     match res with
     | None -> newfail 0 (str "Nothing to rewrite")
@@ -1618,7 +1618,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
             tclTHENFIRST (assert_replacing id newt tac) (beta_hyp id)
         | Some id, None ->
             Proofview.Unsafe.tclEVARS undef <*>
-            convert_hyp ~check:false ~reorder:false (LocalAssum (make_annot id ERelevance.relevant, newt)) <*>
+            ConvTactics.convert_hyp ~check:false ~reorder:false (LocalAssum (make_annot id ERelevance.relevant, newt)) <*>
             beta_hyp id
         | None, Some p ->
             Proofview.Unsafe.tclEVARS undef <*>
@@ -1632,7 +1632,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
             end
         | None, None ->
             Proofview.Unsafe.tclEVARS undef <*>
-            convert_concl ~cast:false ~check:false newt DEFAULTcast
+            ConvTactics.convert_concl ~cast:false ~check:false newt DEFAULTcast
   in
   Proofview.Goal.enter begin fun gl ->
     let concl = Proofview.Goal.concl gl in

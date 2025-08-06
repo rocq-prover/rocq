@@ -318,7 +318,7 @@ and tac_of_hint dbg db_list local_db concl =
     | Unfold_nth c ->
       Proofview.Goal.enter begin fun gl ->
        if exists_evaluable_reference (Proofview.Goal.env gl) c then
-         Tacticals.tclPROGRESS (reduce (Unfold [AllOccurrences,c]) Locusops.onConcl)
+         Tacticals.tclPROGRESS (ConvTactics.reduce (Unfold [AllOccurrences,c]) Locusops.onConcl)
        else
          let info = Exninfo.reify () in
          Tacticals.tclFAIL ~info (str"Unbound reference")

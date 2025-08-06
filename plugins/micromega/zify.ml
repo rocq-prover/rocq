@@ -1349,8 +1349,8 @@ let trans_hyp h t0 prfp =
         let env = Tacmach.pf_env gl in
         let evd = Tacmach.project gl in
         let t' = Reductionops.nf_betaiota env evd t' in
-        Tactics.change_in_hyp ~check:true None
-          (Tactics.make_change_arg t')
+        ConvTactics.change_in_hyp ~check:true None
+          (ConvTactics.make_change_arg t')
           (h, Locus.InHypTypeOnly))
   | TProof (t', prf) ->
     Tacticals.(
@@ -1376,7 +1376,7 @@ let trans_concl prfp =
         let env = Tacmach.pf_env gl in
         let evd = Tacmach.project gl in
         let t' = Reductionops.nf_betaiota env evd t in
-        Tactics.change_concl t')
+        ConvTactics.change_concl t')
   | TProof (t, prf) ->
     Proofview.Goal.enter (fun gl ->
         let env = Tacmach.pf_env gl in

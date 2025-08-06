@@ -18,7 +18,6 @@ open Context
 module CoqConstr = Constr
 open CoqConstr
 open Libnames
-open Tactics
 open Termops
 open Glob_term
 open Util
@@ -1513,7 +1512,7 @@ let ssrpatterntac arg =
   let sigma, tty = Typing.type_of env sigma t in
   let concl = EConstr.mkLetIn (make_annot (Name (Id.of_string "selected")) EConstr.ERelevance.relevant, t, tty, concl_x) in
   Proofview.Unsafe.tclEVARS sigma <*>
-  convert_concl ~cast:false ~check:true concl DEFAULTcast
+  ConvTactics.convert_concl ~cast:false ~check:true concl DEFAULTcast
   end
 
 (* Register "ssrpattern" tactic *)

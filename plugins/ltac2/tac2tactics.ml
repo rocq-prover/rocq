@@ -171,7 +171,7 @@ let change pat c cl =
     Tacred.Changed (delayed_of_tactic (c subst) env sigma)
   in
   let cl = mk_clause cl in
-  Tactics.change ~check:true pat c cl
+  ConvTactics.change ~check:true pat c cl
   end
 
 let rewrite ev rw cl by =
@@ -258,7 +258,7 @@ let mk_flags flags =
 
 let reduce_in red cl =
   let cl = mk_clause cl in
-  Tactics.reduce red cl
+  ConvTactics.reduce red cl
 
 let reduce_constr red c =
   Tac2core.pf_apply begin fun env sigma ->

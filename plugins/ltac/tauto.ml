@@ -263,7 +263,7 @@ let find_cut _ ist =
         else
           Proofview.tclOR
             (Proofview.tclUNIT () >>= fun () -> find_fun hyps)
-            (fun _ -> Tactics.convert dom typ <*> Proofview.tclUNIT (f, arg, codom))
+            (fun _ -> ConvTactics.convert dom typ <*> Proofview.tclUNIT (f, arg, codom))
       | _ -> find_fun hyps
     in
     Proofview.tclOR (Proofview.tclUNIT () >>= fun () -> find_arg hyps) (fun _ -> find_fun hyps0)

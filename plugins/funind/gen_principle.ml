@@ -720,7 +720,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
           ; (* unfolding of all the defined variables introduced by this branch *)
             (* observe_tac "unfolding" pre_tac; *)
             (* $zeta$ normalizing of the conclusion *)
-            reduce
+            ConvTactics.reduce
               (Genredexpr.Cbv
                  { Redops.all_flags with
                    Genredexpr.rDelta = false
@@ -877,6 +877,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
   let open EConstr in
   let open Tacmach in
   let open Tactics in
+  let open ConvTactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
       let eq_ind = make_eq () in
@@ -898,16 +899,17 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                  (Proofview.Goal.env g)
           then
             tclTHENLIST
-              [ unfold_in_concl
+              [ unfold
                   [ ( Locus.AllOccurrences
                     , Evaluable.EvalVarRef (destVar sigma args.(1)) ) ]
+                  None
               ; tclMAP
                   (fun id ->
                     tclTRY
-                      (unfold_in_hyp
+                      (unfold
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(1)) ) ]
-                         (destVar sigma args.(1), Locus.InHyp)))
+                         (Some (destVar sigma args.(1), Locus.InHyp))))
                   (pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if
@@ -917,16 +919,17 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                  (Proofview.Goal.env g)
           then
             tclTHENLIST
-              [ unfold_in_concl
+              [ unfold
                   [ ( Locus.AllOccurrences
                     , Evaluable.EvalVarRef (destVar sigma args.(2)) ) ]
+                  None
               ; tclMAP
                   (fun id ->
                     tclTRY
-                      (unfold_in_hyp
+                      (unfold
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(2)) ) ]
-                         (destVar sigma args.(2), Locus.InHyp)))
+                         (Some (destVar sigma args.(2), Locus.InHyp))))
                   (pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if isVar sigma args.(1) then
@@ -1045,6 +1048,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
   let open EConstr in
   let open Tacmach in
   let open Tactics in
+  let open ConvTactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
       (* We compute the types of the different mutually recursive lemmas
@@ -1131,10 +1135,11 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
                 ; Generalize.generalize (List.map mkVar ids)
                 ; thin ids ]
             else
-              unfold_in_concl
+              unfold
                 [ ( Locus.AllOccurrences
                   , Evaluable.EvalConstRef
                       (fst (destConst (Proofview.Goal.sigma g) f)) ) ]
+                None
           in
           (* The proof of each branche itself *)
           let ind_number = ref 0 in
