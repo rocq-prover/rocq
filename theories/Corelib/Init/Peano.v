@@ -42,7 +42,7 @@ Hint Resolve f_equal_nat: core.
 
 (** The predecessor function *)
 
-Notation pred := Nat.pred (only parsing).
+Abbreviation pred := Nat.pred (only parsing).
 
 Definition f_equal_pred := f_equal pred.
 
@@ -88,7 +88,7 @@ Hint Resolve n_Sn: core.
 
 (** Addition *)
 
-Notation plus := Nat.add (only parsing).
+Abbreviation plus := Nat.add (only parsing).
 Infix "+" := Nat.add : nat_scope.
 
 Definition f_equal2_plus := f_equal2 plus.
@@ -125,12 +125,12 @@ Qed.
 
 (** Standard associated names *)
 
-Notation plus_0_r_reverse := plus_n_O (only parsing).
-Notation plus_succ_r_reverse := plus_n_Sm (only parsing).
+Abbreviation plus_0_r_reverse := plus_n_O (only parsing).
+Abbreviation plus_succ_r_reverse := plus_n_Sm (only parsing).
 
 (** Multiplication *)
 
-Notation mult := Nat.mul (only parsing).
+Abbreviation mult := Nat.mul (only parsing).
 Infix "*" := Nat.mul : nat_scope.
 
 Definition f_equal2_mult := f_equal2 mult.
@@ -155,12 +155,12 @@ Hint Resolve mult_n_Sm: core.
 
 (** Standard associated names *)
 
-Notation mult_0_r_reverse := mult_n_O (only parsing).
-Notation mult_succ_r_reverse := mult_n_Sm (only parsing).
+Abbreviation mult_0_r_reverse := mult_n_O (only parsing).
+Abbreviation mult_succ_r_reverse := mult_n_Sm (only parsing).
 
 (** Truncated subtraction: [m-n] is [0] if [n>=m] *)
 
-Notation minus := Nat.sub (only parsing).
+Abbreviation minus := Nat.sub (only parsing).
 Infix "-" := Nat.sub : nat_scope.
 
 (** Definition of the usual orders, the basic properties of [le] and [lt]
@@ -249,8 +249,8 @@ Qed.
 
 (** Maximum and minimum : definitions and specifications *)
 
-Notation max := Nat.max (only parsing).
-Notation min := Nat.min (only parsing).
+Abbreviation max := Nat.max (only parsing).
+Abbreviation min := Nat.min (only parsing).
 
 Lemma max_l n m : m <= n -> Nat.max n m = n.
 Proof.

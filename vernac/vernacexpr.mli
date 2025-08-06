@@ -465,8 +465,9 @@ type nonrec synpure_vernac_expr =
   | VernacCreateHintDb of string * bool
   | VernacRemoveHints of string list * qualid list
   | VernacHints of string list * hints_expr
-  | VernacSyntacticDefinition of
+  | VernacAbbreviation of
       lident * (Id.t list * constr_expr) * syntax_modifier CAst.t list
+      * Loc.t option (* warn about old deprecated "Notation" keyword, to remove when removing it *)
   | VernacArguments of
       qualid or_by_notation *
       vernac_argument_status list (* Main arguments status list *) *

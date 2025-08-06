@@ -4,7 +4,7 @@ Require Import Ltac2.Ltac2.
 Ltac2 foo := ().
 
 #[deprecated(note="test_notation")]
-Ltac2 Notation bar := ().
+Ltac2 Abbreviation bar := ().
 
 #[deprecated(note="test_external")]
 Ltac2 @ external qux : 'a array -> int := "rocq-runtime.plugins.ltac2" "array_length".

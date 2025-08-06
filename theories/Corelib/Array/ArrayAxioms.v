@@ -1,6 +1,6 @@
 From Corelib Require Import PrimArray.
 
-Local Notation in_bounds i t := (PrimInt63.ltb i (length t)).
+Local Abbreviation in_bounds i t := (PrimInt63.ltb i (length t)).
 
 Axiom get_out_of_bounds : forall A (t:array A) i,
   in_bounds i t = false -> t.[i] = default t.
