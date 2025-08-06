@@ -498,17 +498,17 @@ END
 
      - Feedback.msg_info    : Pp.t -> unit
      - Feedback.msg_notice  : Pp.t -> unit
-     - Feedback.msg_warning : Pp.t -> unit
      - Feedback.msg_debug   : Pp.t -> unit
 
   to give user a textual feedback. Examples of some of these can be
   found in tuto0.
 
-  --- Signaling Errors ---
+  --- Signaling Errors and Warnings ---
 
-  While there is a Feedback.msg_error, when signaling an error,
-  it is currently better practice to use user_err. There is an example of
-  this in tuto0.
+  While there is a Feedback.msg_error and Feedback.msg_warning, when
+  signaling an error or warning, it is currently better practice to
+  use CErrors or the CWarnings APIs. There are examples of this in
+  tuto0.
 *)
 
 (* -------------------------------------------------------------------------- *)
