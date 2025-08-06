@@ -854,6 +854,7 @@ let add_modtype mp mtb env =
   { env with env_modtypes = new_modtypes }
 
 let shallow_add_module mp mb env =
+  let () = assert (not @@ ModPath.Map.mem mp env.env_modules) in
   let new_mods = ModPath.Map.add mp mb env.env_modules in
   { env with env_modules = new_mods }
 
