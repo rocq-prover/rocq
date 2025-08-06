@@ -1,0 +1,7 @@
+test =
+fun x : T 0 => match x in T _ e return e = e with
+               | C _ => eq_refl
+               end
+     : T 0 -> 0 = 0
+
+Arguments test x

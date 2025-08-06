@@ -186,7 +186,7 @@ sig
   val to_vars : ('c, 't, 'r) pt -> Id.Set.t
 
   (** Map a given rel-context to a list where each {e local
-      assumption} is mapped to [true] and each {e local definition} is
+      definition} is mapped to [true] and each {e local assumption} is
       mapped to [false]. The resulting list is in reverse order
       compared to the order of declarations in the context. *)
   val to_tags : ('c, 't, 'r) pt -> bool list
