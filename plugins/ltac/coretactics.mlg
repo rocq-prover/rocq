@@ -211,16 +211,16 @@ END
 (** Move *)
 
 TACTIC EXTEND move
-| [ "move" hyp(id) "at" "top" ] -> { Tactics.move_hyp id MoveFirst }
-| [ "move" hyp(id) "at" "bottom" ] -> { Tactics.move_hyp id MoveLast }
-| [ "move" hyp(id) "after" hyp(h) ] -> { Tactics.move_hyp id (MoveAfter h) }
-| [ "move" hyp(id) "before" hyp(h) ] -> { Tactics.move_hyp id (MoveBefore h) }
+| [ "move" hyp(id) "at" "top" ] -> { ContextTactics.move_hyp id MoveFirst }
+| [ "move" hyp(id) "at" "bottom" ] -> { ContextTactics.move_hyp id MoveLast }
+| [ "move" hyp(id) "after" hyp(h) ] -> { ContextTactics.move_hyp id (MoveAfter h) }
+| [ "move" hyp(id) "before" hyp(h) ] -> { ContextTactics.move_hyp id (MoveBefore h) }
 END
 
 (** Rename *)
 
 TACTIC EXTEND rename
-| [ "rename" ne_rename_list_sep(ids, ",") ] -> { Tactics.rename_hyp ids }
+| [ "rename" ne_rename_list_sep(ids, ",") ] -> { ContextTactics.rename_hyp ids }
 END
 
 (** Revert *)
@@ -277,16 +277,16 @@ END
 
 TACTIC EXTEND clear
 | [ "clear" hyp_list(ids) ] -> {
-    if List.is_empty ids then Tactics.keep []
-    else Tactics.clear ids
+    if List.is_empty ids then ContextTactics.keep []
+    else ContextTactics.clear ids
   }
-| [ "clear" "-" ne_hyp_list(ids) ] -> { Tactics.keep ids }
+| [ "clear" "-" ne_hyp_list(ids) ] -> { ContextTactics.keep ids }
 END
 
 (* Clearbody *)
 
 TACTIC EXTEND clearbody
-| [ "clearbody" ne_hyp_list(ids) ] -> { Tactics.clear_body ids }
+| [ "clearbody" ne_hyp_list(ids) ] -> { ContextTactics.clear_body ids }
 END
 
 (* Generalize dependent *)

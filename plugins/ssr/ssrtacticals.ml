@@ -120,7 +120,7 @@ let endclausestac id_map clseq gl_id cl0 =
     end
   in
   let ctacs =
-    if hide_goal then [Tactics.clear [gl_id]]
+    if hide_goal then [ContextTactics.clear [gl_id]]
     else [] in
   let mktac itacs = Tacticals.tclTHENLIST (itacs @ utacs @ ugtac :: ctacs) in
   let itac (_, id) = Tactics.introduction id in

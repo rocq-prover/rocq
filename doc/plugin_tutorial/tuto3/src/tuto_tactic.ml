@@ -139,10 +139,10 @@ let pack_tactic i =
     else
       if Termops.mem_named_context_val h_hyps_id hyps then
           tclTHEN (repackage i h_hyps_id)
-            (tclTHEN (Tactics.clear [h_hyps_id; i])
+            (tclTHEN (ContextTactics.clear [h_hyps_id; i])
                (Tactics.introduction h_hyps_id))
       else
         tclTHEN (package i)
-          (tclTHEN (Tactics.rename_hyp [i, h_hyps_id])
-             (Tactics.move_hyp h_hyps_id Logic.MoveLast))
+          (tclTHEN (ContextTactics.rename_hyp [i, h_hyps_id])
+             (ContextTactics.move_hyp h_hyps_id Logic.MoveLast))
     end

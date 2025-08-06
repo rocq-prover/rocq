@@ -109,7 +109,7 @@ let rec general_decompose_aux recognizer id =
   in
   let after_tac i =
     let nassums = List.length branchsigns.(i) in
-    (tclDO nassums intro) <*> (clear [id]) <*> (elim_on_ba next_tac nassums)
+    (tclDO nassums intro) <*> (ContextTactics.clear [id]) <*> (elim_on_ba next_tac nassums)
   in
   let branchtacs = List.init (Array.length branchsigns) after_tac in
   general_elim_using mkelim (ind, u, args) id <*>
@@ -129,7 +129,7 @@ let general_decompose recognizer c =
   tclTHENS (cut typc)
     [ intro_using_then tmphyp_name (fun id ->
           ifOnHyp recognizer (general_decompose_aux recognizer)
-            (fun id -> clear [id])
+            (fun id -> ContextTactics.clear [id])
             id);
        exact_no_check c ]
   end

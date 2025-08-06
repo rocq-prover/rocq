@@ -58,7 +58,7 @@ let revert_graph kn post_tac hid =
                   [ applist
                       ( mkConst f_complete
                       , Array.to_list f_args @ [res.(0); mkVar hid] ) ]
-              ; clear [hid]
+              ; ContextTactics.clear [hid]
               ; Simple.intro hid
               ; post_tac hid ]
         else tclIDTAC
@@ -102,7 +102,7 @@ let functional_inversion kn hid fconst f_correct =
           [ pre_tac hid
           ; Generalize.generalize
               [applist (f_correct, Array.to_list f_args @ [res; mkVar hid])]
-          ; clear [hid]
+          ; ContextTactics.clear [hid]
           ; Simple.intro hid
           ; Inv.inv Inv.FullInversion None (Tactypes.NamedHyp (CAst.make hid))
           ; Proofview.Goal.enter (fun gl ->

@@ -54,7 +54,7 @@ open Tactypes
 
 let clear_last =
   Proofview.tclEVARMAP >>= fun sigma ->
-  (onLastHyp (fun c -> (clear [destVar sigma c])))
+  (onLastHyp (fun c -> (ContextTactics.clear [destVar sigma c])))
 
 let choose_eq eqonleft =
   if eqonleft then
@@ -148,7 +148,7 @@ let rec rewrite_and_clear hyps = match hyps with
 | id :: hyps ->
   tclTHENLIST [
     Equality.rewriteLR (mkVar id);
-    clear [id];
+    ContextTactics.clear [id];
     rewrite_and_clear hyps;
   ]
 

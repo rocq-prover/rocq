@@ -182,7 +182,7 @@ let isCLR_PUSHL more_ids =
 let isCLR_CONSUME =
   tclGET (fun ({ to_clear = ids } as s) ->
   tclSET { s with to_clear = [] } <*>
-  Tactics.clear ids)
+  ContextTactics.clear ids)
 
 
 let isGEN_PUSH dg =
@@ -202,7 +202,7 @@ let isGEN_CONSUME =
   Tacticals.tclTHENLIST
     (List.map (fun { tmp_id; orig_name } ->
        gen_astac tmp_id orig_name) dgs) <*>
-  Tactics.clear (List.map (fun gen -> gen.tmp_id) dgs))
+  ContextTactics.clear (List.map (fun gen -> gen.tmp_id) dgs))
 
 
 let isNSEED_SET ty =
@@ -294,7 +294,7 @@ let intro_clear ids =
             (new_id :: used_ids, new_id :: clear_ids, (id, new_id) :: ren))
                      (Tacmach.pf_ids_of_hyps gl, [], []) ids
     in
-    Tactics.rename_hyp ren <*>
+    ContextTactics.rename_hyp ren <*>
     isCLR_PUSHL clear_ids
 end
 
@@ -816,7 +816,7 @@ let ssrcasetac (view, (eqid, (dgens, ipats))) =
         let simple = (eqid = None && deps = [] && occ = None) in
         if simple && inj then
           Ssrelim.perform_injection vc <*>
-          Tactics.clear (List.map Ssrcommon.hyp_id clear) <*>
+          ContextTactics.clear (List.map Ssrcommon.hyp_id clear) <*>
           tclIPATssr ipats
         else
         (* macro for "case/v E: x" ---> "case E: x / (v x)" *)
@@ -876,7 +876,7 @@ let ssrmovetac = function
      let gentac = Ssrcommon.genstac (gens, []) in
      let conclusion _ t clear ccl =
        Tactics.apply_type ~typecheck:true ccl [t] <*>
-       Tactics.clear (List.map Ssrcommon.hyp_id clear) in
+       ContextTactics.clear (List.map Ssrcommon.hyp_id clear) in
      gentac <*>
      tclLAST_GEN ~to_ind:false lastgen
        (tacVIEW_THEN_GRAB view ~conclusion) <*>
@@ -890,7 +890,7 @@ let ssrmovetac = function
     let gentac = Ssrcommon.genstac (gens, clr) in
     gentac <*> tclIPAT (IpatMachine.tclCompileIPats ipats)
   | _, (_, ({ clr }, ipats)) ->
-    Tacticals.tclTHENLIST [ssrsmovetac; Tactics.clear (List.map Ssrcommon.hyp_id clr); tclIPAT (IpatMachine.tclCompileIPats ipats)]
+    Tacticals.tclTHENLIST [ssrsmovetac; ContextTactics.clear (List.map Ssrcommon.hyp_id clr); tclIPAT (IpatMachine.tclCompileIPats ipats)]
 
 (** [abstract: absvar gens] **************************************************)
 let rec is_Evar_or_CastedMeta sigma x =

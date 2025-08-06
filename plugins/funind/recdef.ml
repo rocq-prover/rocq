@@ -24,6 +24,7 @@ open Util
 open UnivGen
 open Tacticals
 open Tactics
+open ContextTactics
 open Nametab
 open Tacred
 open Termops

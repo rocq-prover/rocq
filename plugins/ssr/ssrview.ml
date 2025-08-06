@@ -373,7 +373,7 @@ let rec apply_all_views_aux ~clear_if_id vs finalization conclusion s0 =
              Ssrprinters.debug_ssr (fun () -> Pp.(str"..was the last view"));
              conclusion ~to_clear:name <*> tclUNIT true
            end else
-             Tactics.clear name <*>
+             ContextTactics.clear name <*>
              tclINDEPENDENTL begin
                Ssrprinters.debug_ssr (fun () -> Pp.(str"..was NOT the last view"));
                Proofview.Goal.enter_one begin fun gl ->

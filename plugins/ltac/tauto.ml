@@ -86,7 +86,7 @@ let assert_ ?by c =
 
 let apply c = Tactics.apply c
 
-let clear id = Tactics.clear [id]
+let clear id = ContextTactics.clear [id]
 
 let assumption = Tactics.assumption
 

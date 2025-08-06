@@ -39,6 +39,7 @@ open Locusops
 open Tactypes
 open Proofview.Notations
 open Tactics
+open ContextTactics
 
 module NamedDecl = Context.Named.Declaration
 
@@ -206,8 +207,6 @@ let find_ind_eliminator env sigma ind s =
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
-let clear_wildcards = Tactics.Internal.clear_wildcards
-
 (*****************************)
 (* Decomposing introductions *)
 (*****************************)
@@ -272,7 +271,7 @@ let warn_cannot_remove_as_expected =
 
 let clear_for_destruct ids =
   Proofview.tclORELSE
-    (Tactics.Internal.clear_gen (fun env sigma id err inglobal -> raise (ClearDependencyError (id,err,inglobal))) ids)
+    (ContextTactics.clear ~fail:(fun env sigma id err inglobal -> raise (ClearDependencyError (id,err,inglobal))) ids)
     (function
      | ClearDependencyError (id,err,inglobal),_ -> warn_cannot_remove_as_expected (id,inglobal); Proofview.tclUNIT ()
      | e -> Exninfo.iraise e)
@@ -451,7 +450,7 @@ let induct_discharge with_evars dests avoid' tac (avoid,ra) names =
         let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         check_unused_names env sigma names;
-        Tacticals.tclTHEN (clear_wildcards thin) (tac dests)
+        Tacticals.tclTHEN (ContextTactics.clear_wildcards thin) (tac dests)
         end
   in
   peel_tac ra (dests, None) names []

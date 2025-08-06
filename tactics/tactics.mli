@@ -20,7 +20,10 @@ open Tactypes
 open Locus
 open Ltac_pretype
 
-(** Main tactics defined in ML. *)
+(** Main tactics defined in ML. This file is huge and should probably be split
+    in more reasonable units at some point. Because of its size and age, the
+    implementation features various styles and stages of the proof engine.
+    This has to be uniformized someday. *)
 
 (** {6 General functions. } *)
 
@@ -370,34 +373,11 @@ val reduce : red_expr -> clause -> unit Proofview.tactic
 (** [unfold_constr x] unfolds all occurences of [x] in the conclusion. *)
 val unfold_constr : GlobRef.t -> unit Proofview.tactic
 
-(** {6 Modification of the local context. } *)
-
-(** [clear ids] removes hypotheses [ids] from the context. *)
-val clear : Id.t list -> unit Proofview.tactic
-
-(** [clear_body ids] removes the definitions (but not the declarations) of hypotheses [ids]
-    from the context. *)
-val clear_body : Id.t list -> unit Proofview.tactic
+val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.tactic
 
 (** [unfold_body id] unfolds the definition of the local variable [id] in the conclusion
     and in all hypotheses. Fails if [id] does not have a body. *)
 val unfold_body : Id.t -> unit Proofview.tactic
-
-(** [keep ids] clears every hypothesis except:
-    - The hypotheses in [ids].
-    - The hypotheses which occur in the conclusion.
-    - The hypotheses which occur in the type or body of a kept hypothesis. *)
-val keep : Id.t list -> unit Proofview.tactic
-
-val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.tactic
-
-(** [move_hyp id loc] moves hypothesis [id] to location [loc]. *)
-val move_hyp : Id.t -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** [rename_hyp [(x1, y1); (x2; y2); ...]] renames hypotheses [xi] into [yi].
-    - The names [x1, x2, ...] are expected to be distinct.
-    - The names [y1, y2, ...] are expected to be distinct. *)
-val rename_hyp : (Id.t * Id.t) list -> unit Proofview.tactic
 
 (** {6 Apply tactics. } *)
 
@@ -741,12 +721,6 @@ sig
 val explicit_intro_names : 'a intro_pattern_expr CAst.t list -> Id.Set.t
 
 val check_name_unicity : env -> Id.t list -> Id.t list -> 'a intro_pattern_expr CAst.t list -> unit
-
-val clear_gen : (env -> evar_map -> Id.t -> Evarutil.clear_dependency_error ->
-  GlobRef.t option -> evar_map * named_context_val * types) ->
-  Id.t list -> unit Proofview.tactic
-
-val clear_wildcards : lident list -> unit Proofview.tactic
 
 val dest_intro_patterns : evars_flag -> Id.Set.t -> lident list ->
   Id.t Logic.move_location -> intro_patterns ->

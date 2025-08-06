@@ -86,7 +86,7 @@ let bring_hyps hyps =
 let revert hyps =
   Proofview.Goal.enter begin fun gl ->
     let ctx = List.map (fun id -> Tacmach.pf_get_hyp id gl) hyps in
-      (bring_hyps ctx) <*> (Tactics.clear hyps)
+      (bring_hyps ctx) <*> (ContextTactics.clear hyps)
   end
 
 (***************************)
@@ -196,7 +196,7 @@ let generalize_dep ?(with_let=false) c =
   tclTHENLIST
     [ Proofview.Unsafe.tclEVARS evd;
       Tactics.apply_type ~typecheck:false cl'' (if Option.is_empty body then c::args else args);
-      Tactics.clear tothin']
+      ContextTactics.clear tothin']
   end
 
 (**  *)
@@ -518,11 +518,11 @@ let abstract_generalize ?(generalize_vars=true) ?(force_dep=false) id =
             if dep then
               Tacticals.tclTHENLIST [
                 tac;
-                 Tactics.rename_hyp [(id, oldid)]; Tacticals.tclDO n Tactics.intro;
+                 ContextTactics.rename_hyp [(id, oldid)]; Tacticals.tclDO n Tactics.intro;
                  generalize_dep ~with_let:true (mkVar oldid)]
             else Tacticals.tclTHENLIST [
                     tac;
-                    Tactics.clear [id];
+                    ContextTactics.clear [id];
                     Tacticals.tclDO n Tactics.intro]
           in
             if List.is_empty vars then tac

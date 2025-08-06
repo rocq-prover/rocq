@@ -838,7 +838,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
 
 *)
 
-let thin = Tactics.clear
+let thin = ContextTactics.clear
 
 (* [intros_with_rewrite] do the intros in each branch and treat each new hypothesis
        (unfolding, substituting, destructing cases \ldots)

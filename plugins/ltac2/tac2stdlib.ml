@@ -554,7 +554,7 @@ let () =
   define "tac_reflexivity" (unit @-> tac unit) (fun _ -> Tactics.intros_reflexivity)
 
 let () =
-  define "tac_move" (ident @-> move_location @-> tac unit) Tactics.move_hyp
+  define "tac_move" (ident @-> move_location @-> tac unit) ContextTactics.move_hyp
 
 let tac_intro id mv =
   let mv = Option.default Logic.MoveLast mv in
@@ -624,7 +624,7 @@ let () =
   define "tac_split" (bool @-> bindings @-> tac unit) Tac2tactics.split_with_bindings
 
 let () =
-  define "tac_rename" (list (pair ident ident) @-> tac unit) Tactics.rename_hyp
+  define "tac_rename" (list (pair ident ident) @-> tac unit) ContextTactics.rename_hyp
 
 let () =
   define "tac_revert" (list ident @-> tac unit) Generalize.revert
@@ -639,13 +639,13 @@ let () =
   define "tac_cofix" (ident @-> tac unit) Tactics.cofix
 
 let () =
-  define "tac_clear" (list ident @-> tac unit) Tactics.clear
+  define "tac_clear" (list ident @-> tac unit) ContextTactics.clear
 
 let () =
-  define "tac_keep" (list ident @-> tac unit) Tactics.keep
+  define "tac_keep" (list ident @-> tac unit) ContextTactics.keep
 
 let () =
-  define "tac_clearbody" (list ident @-> tac unit) Tactics.clear_body
+  define "tac_clearbody" (list ident @-> tac unit) ContextTactics.clear_body
 
 (** Tactics from extratactics *)
 

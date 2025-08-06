@@ -1365,7 +1365,7 @@ let trans_hyp h t0 prfp =
           tclTHEN
             (Tactics.pose_proof (Name.Name h') prf)
             (tclTRY
-               (tclTHEN (Tactics.clear [h]) (Tactics.rename_hyp [(h', h)])))))
+               (tclTHEN (ContextTactics.clear [h]) (ContextTactics.rename_hyp [(h', h)])))))
 
 let trans_concl prfp =
   debug_zify (fun () -> Pp.(str "trans_concl: " ++ pp_prfp prfp ++ fnl ()));
@@ -1400,7 +1400,7 @@ let elim_binding x t ty =
       in
       Tacticals.tclTHEN
         (Tactics.pose_proof (Name h) (eq_proof ty (EConstr.mkVar x) t))
-        (Tacticals.tclTRY (Tactics.clear_body [x])))
+        (Tacticals.tclTRY (ContextTactics.clear_body [x])))
 
 let do_let tac (h : Constr.named_declaration) =
   match h with
@@ -1524,7 +1524,7 @@ let interp_pscript s =
     Tacticals.tclTHEN
       (Tactics.letin_tac None (Names.Name id) c None
          {Locus.onhyps = None; Locus.concl_occs = Locus.AllOccurrences})
-      (Tacticals.tclTRY (Tactics.clear_body [id]))
+      (Tacticals.tclTRY (ContextTactics.clear_body [id]))
   | Pose (id, c) -> Tactics.pose_proof (Names.Name id) c
 
 let rec interp_pscripts l =

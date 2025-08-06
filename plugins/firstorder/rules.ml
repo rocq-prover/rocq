@@ -56,7 +56,7 @@ let wrap ~flags n b continue seq =
   end
 
 let clear_global=function
-  | GlobRef.VarRef id-> clear [id]
+  | GlobRef.VarRef id-> ContextTactics.clear [id]
   | _->tclIDTAC
 
 (* connection rules *)
@@ -241,7 +241,7 @@ let ll_forall_tac ~flags prod backtrack id continue seq=
               let open EConstr in
               let id0 = List.nth (pf_ids_of_hyps gls) 0 in
               let term=mkApp(idc,[|mkVar(id0)|]) in
-              tclTHEN (Generalize.generalize [term]) (clear [id0])
+              tclTHEN (Generalize.generalize [term]) (ContextTactics.clear [id0])
            end);
            clear_global id;
            intro;

@@ -25,6 +25,7 @@ open Retyping
 open Tacmach
 open Tacticals
 open Tactics
+open ContextTactics
 open Elim
 open Equality
 open Tactypes
@@ -379,7 +380,7 @@ let dest_nf_eq env sigma t = match EConstr.kind sigma t with
 let projectAndApply as_mode thin avoid id eqname names depids =
   let subst_hyp l2r id =
     tclTHEN (tclTRY(rewriteInConcl l2r (EConstr.mkVar id)))
-      (if thin then clear [id] else (remember_first_eq id eqname; tclIDTAC))
+      (if thin then ContextTactics.clear [id] else (remember_first_eq id eqname; tclIDTAC))
   in
   let substHypIfVariable tac id =
     Proofview.Goal.enter begin fun gl ->

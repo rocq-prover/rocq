@@ -1032,7 +1032,7 @@ let tclMULT = function
   | n, Must when n > 1 -> tclDO n
   | _       -> tclID
 
-let cleartac clr = Proofview.tclTHEN (pf_check_hyps_uniq [] clr) (Tactics.clear (hyps_ids clr))
+let cleartac clr = Proofview.tclTHEN (pf_check_hyps_uniq [] clr) (ContextTactics.clear (hyps_ids clr))
 
 (* }}} *)
 
@@ -1344,7 +1344,7 @@ let tclWITHTOP tac = Goal.enter begin fun gl ->
     mk_anon_id "top_assumption" (Tacmach.pf_ids_of_hyps gl) in
   tclINTRO_ID top <*>
   tac (EConstr.mkVar top) <*>
-  Tactics.clear [top]
+  ContextTactics.clear [top]
 end
 
 let tacMK_SSR_CONST name =

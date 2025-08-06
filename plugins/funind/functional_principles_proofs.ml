@@ -20,6 +20,7 @@ open Namegen
 open Names
 open Pp
 open Tactics
+open ContextTactics
 open Induction
 open Indfun_common
 open Libnames
@@ -102,7 +103,7 @@ let change_hyp_with_using msg hyp_id t tac =
            (Tacticals.tclCOMPLETE tac))
         [ Tacticals.tclTHENLIST
             [ (* observe_tac "change_hyp_with_using thin" *)
-              Tactics.clear [hyp_id]
+              ContextTactics.clear [hyp_id]
             ; (* observe_tac "change_hyp_with_using rename " *)
               rename_hyp [(prov_id, hyp_id)] ] ])
 
