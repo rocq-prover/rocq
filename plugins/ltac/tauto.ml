@@ -88,7 +88,7 @@ let apply c = Tactics.apply c
 
 let clear id = ContextTactics.clear [id]
 
-let assumption = Tactics.assumption
+let assumption = Exact.assumption
 
 let split = Tactics.split_with_bindings false [Tactypes.NoBindings]
 

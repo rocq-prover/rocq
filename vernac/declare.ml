@@ -1863,7 +1863,7 @@ let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
   let init_tac =
     (* This is the case for hybrid proof mode / definition
        fixpoint, where terms for some constants are given with := *)
-    let tacl = List.map (Option.cata (EConstr.of_constr %> Tactics.exact_no_check) Tacticals.tclIDTAC) bodies in
+    let tacl = List.map (Option.cata (EConstr.of_constr %> Exact.exact_no_check) Tacticals.tclIDTAC) bodies in
     List.map2 (fun tac thm -> Tacticals.tclTHEN tac (intro_tac thm)) tacl cinfo'
   in
   match cinfo' with

@@ -131,7 +131,7 @@ let general_decompose recognizer c =
           ifOnHyp recognizer (general_decompose_aux recognizer)
             (fun id -> ContextTactics.clear [id])
             id);
-       exact_no_check c ]
+       Exact.exact_no_check c ]
   end
 
 let head_in indl t gl =

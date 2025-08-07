@@ -160,7 +160,7 @@ let assign_tac ~abstract res : unit Proofview.tactic =
       Proofview.Unsafe.tclEVARS (Evd.merge_universe_context sigma ctx)
     in
     (if abstract then Abstract.tclABSTRACT None else (fun x -> x))
-      (push_state uc <*> Tactics.exact_no_check (EConstr.of_constr pt))
+      (push_state uc <*> Exact.exact_no_check (EConstr.of_constr pt))
   end)
 
 let get_results res =

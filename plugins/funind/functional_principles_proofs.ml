@@ -53,7 +53,7 @@ type body_info = constr dynamic_info
 let observe_tac s =
   observe_tac ~header:(str "observation") (fun _ _ -> Pp.str s)
 
-let finish_proof dynamic_infos = observe_tac "finish" assumption
+let finish_proof dynamic_infos = observe_tac "finish" Exact.assumption
 let thin = clear
 let eq_constr sigma u v = EConstr.eq_constr_nounivs sigma u v
 
@@ -127,7 +127,7 @@ let prove_trivial_eq h_id context (constructor, type_of_term, term) =
             :: List.map mkVar context_hyps
           in
           let to_refine = applist (mkVar h_id, List.rev context_hyps') in
-          Tactics.exact_check to_refine) ]
+          Exact.exact_check to_refine) ]
 
 let find_rectype env sigma c =
   let t, l = decompose_app_list sigma (Reductionops.whd_betaiotazeta env sigma c) in
@@ -269,7 +269,7 @@ let change_eq env sigma hyp_id (context : rel_context) x t end_of_type =
              Typing.type_of (Proofview.Goal.env g) (Proofview.Goal.sigma g)
                to_refine
            in
-           tclTHEN (Proofview.Unsafe.tclEVARS evm) (Tactics.exact_check to_refine)))
+           tclTHEN (Proofview.Unsafe.tclEVARS evm) (Exact.exact_check to_refine)))
   in
   let simpl_eq_tac =
     change_hyp_with_using "prove_pattern_simplification" hyp_id new_type_of_hyp
@@ -396,7 +396,7 @@ let clean_hyp_with_heq ptes_infos eq_hyps hyp_id env sigma =
                     [ (* observe_tac "prove rec hyp" *)
                       prove_rec_hyp eq_hyps
                     ; (*                      observe_tac "prove rec hyp" *)
-                      Tactics.exact_check to_refine ]) ]
+                      Exact.exact_check to_refine ]) ]
         in
         tclTHENLIST
           [ (*              observe_tac "hyp rec"  *)
@@ -434,7 +434,7 @@ let clean_hyp_with_heq ptes_infos eq_hyps hyp_id env sigma =
                       ( mkVar hyp_id
                       , List.rev (rocq_I :: List.map mkVar context_hyps) )
                   in
-                  Tactics.exact_check to_refine) ]
+                  Exact.exact_check to_refine) ]
         in
         tclTHENLIST
           [ change_hyp_with_using "prove_trivial" hyp_id real_type_of_hyp
@@ -780,7 +780,7 @@ let prove_rec_hyp_for_struct fix_info eq_hyps =
          let rec_hyp_proof =
            mkApp (mkVar fix_info.name, array_get_start pte_args)
          in
-         Tactics.exact_check rec_hyp_proof))
+         Exact.exact_check rec_hyp_proof))
 
 let prove_rec_hyp fix_info =
   {proving_tac = prove_rec_hyp_for_struct fix_info; is_valid = (fun _ -> true)}

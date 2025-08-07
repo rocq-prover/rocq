@@ -297,7 +297,7 @@ let exact ist (c : Ltac_pretype.closed_glob_constr) =
   Proofview.Goal.enter begin fun gl ->
   let expected_type = Pretyping.OfType (pf_concl gl) in
   let sigma, c = Tacinterp.type_uconstr ~expected_type ist c (pf_env gl) (project gl) in
-  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
+  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Exact.exact_no_check c)
   end
 
 (** ProofGeneral specific command *)

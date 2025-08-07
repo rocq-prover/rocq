@@ -24,6 +24,7 @@ open Util
 open UnivGen
 open Tacticals
 open Tactics
+open Exact
 open ContextTactics
 open ConvTactics
 open Nametab

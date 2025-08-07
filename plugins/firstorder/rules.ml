@@ -89,7 +89,7 @@ let axiom_tac ~flags seq =
     match find_hyp ~flags seq env sigma concl with
     | Some (sigma, hyp) ->
       Proofview.Unsafe.tclEVARS sigma <*>
-      exact_no_check (mkVar hyp)
+      Exact.exact_no_check (mkVar hyp)
     | None -> tclFAIL (Pp.str "No axiom link")
   end
 
@@ -201,7 +201,7 @@ let ll_arrow_tac ~flags a b c backtrack id continue seq=
              clear_global id;
              wrap ~flags 1 false continue seq];
           tclTHENS (cut cc)
-            [(pf_constr_of_global id >>= fun c -> exact_no_check c);
+            [(pf_constr_of_global id >>= fun c -> Exact.exact_no_check c);
              tclTHENLIST
                [(pf_constr_of_global id >>= fun idc -> Generalize.generalize [d idc]);
                 clear_global id;

@@ -117,7 +117,7 @@ let contradiction_term (c,lbind as cl) =
     if is_empty_type env sigma ccl then
       Tacticals.tclTHEN
         (elim false None cl None)
-        (Tacticals.tclTRY assumption)
+        (Tacticals.tclTRY Exact.assumption)
     else
       Proofview.tclORELSE
         begin

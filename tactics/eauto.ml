@@ -15,7 +15,7 @@ open Names
 open Constr
 open Termops
 open EConstr
-open Tactics
+open Exact
 open Auto
 open Genredexpr
 open Locus

@@ -33,6 +33,7 @@ open Tacticals
 open Tactics
 open ContextTactics
 open ConvTactics
+open Exact
 open Tacred
 open Rocqlib
 open Declarations
@@ -1063,7 +1064,7 @@ let discr_positions env sigma { eq_data = (lbeq,(t,t1,t2)); eq_term = v; eq_evar
     (* pf : eq t t1 t2 -> False *)
     let pf = EConstr.mkApp (pf, [|v|]) in
     tclTHENS (assert_after Anonymous false_0)
-      [onLastHypId gen_absurdity; Tactics.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs]
+      [onLastHypId gen_absurdity; Exact.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs]
 
 let discrEq eq =
   let { eq_data = (_, (_, t1, t2)) } = eq in
@@ -1257,7 +1258,7 @@ let inject_if_homogenous_dependent_pair ty =
         tclTHENS (cut (mkApp (ceq,new_eq_args)))
           [clear [destVar sigma hyp];
            Tacticals.pf_constr_of_global inj2 >>= fun inj2 ->
-           Tactics.exact_check
+           Exact.exact_check
              (mkApp(inj2,[|ar1.(0);c;ar1.(1);ar1.(2);ar1.(3);ar2.(3);hyp|]))
           ])]
   with Exit ->
@@ -1305,7 +1306,7 @@ let inject_at_positions env sigma l2r eq posns tac =
     let map (pf, ty) =
       tclTHENS (cut ty) [
         inject_if_homogenous_dependent_pair ty;
-        Tactics.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs;
+        Exact.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs;
     ] in
     Proofview.Unsafe.tclEVARS !evdref <*>
     Tacticals.tclTHENFIRST

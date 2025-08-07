@@ -565,13 +565,13 @@ let () =
 (*
 
 TACTIC EXTEND exact
-  [ "exact" casted_constr(c) ] -> [ Tactics.exact_no_check c ]
+  [ "exact" casted_constr(c) ] -> [ Exact.exact_no_check c ]
 END
 
 *)
 
 let () =
-  define "tac_assumption" (unit @-> tac unit) (fun _ -> Tactics.assumption)
+  define "tac_assumption" (unit @-> tac unit) (fun _ -> Exact.assumption)
 
 let () =
   define "tac_eassumption" (unit @-> tac unit) (fun _ -> Eauto.e_assumption)
@@ -597,13 +597,13 @@ let () =
   define "tac_introsuntil" (qhyp @-> tac unit) Tactics.intros_until
 
 let () =
-  define "tac_exactnocheck" (constr @-> tac unit) Tactics.exact_no_check
+  define "tac_exactnocheck" (constr @-> tac unit) Exact.exact_no_check
 
 let () =
-  define "tac_vmcastnocheck" (constr @-> tac unit) Tactics.vm_cast_no_check
+  define "tac_vmcastnocheck" (constr @-> tac unit) Exact.vm_cast_no_check
 
 let () =
-  define "tac_nativecastnocheck" (constr @-> tac unit) Tactics.native_cast_no_check
+  define "tac_nativecastnocheck" (constr @-> tac unit) Exact.native_cast_no_check
 
 let () =
   define "tac_constructor" (bool @-> tac unit) (fun ev -> Tactics.any_constructor ev None)

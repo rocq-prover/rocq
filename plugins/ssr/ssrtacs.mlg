@@ -19,7 +19,6 @@ open Procq
 open Ltac_plugin
 open Stdarg
 open Libnames
-open Tactics
 open Util
 open Locus
 open Tacexpr
@@ -558,7 +557,7 @@ END
 
 let vmexacttac pf =
   Goal.enter begin fun gl ->
-  exact_no_check (EConstr.mkCast (pf, vmCast, Tacmach.pf_concl gl))
+  Exact.exact_no_check (EConstr.mkCast (pf, vmCast, Tacmach.pf_concl gl))
   end
 
 }

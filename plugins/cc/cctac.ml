@@ -362,7 +362,7 @@ let proof_tac (typ, lhs, rhs) p : unit Proofview.tactic =
     let concl = Proofview.Goal.concl gl in
     let sigma, p = proof_term env sigma (typ, lhs, rhs) p in
     let sigma = Typing.check env sigma p concl in
-    Proofview.Unsafe.tclEVARS sigma <*> exact_no_check p
+    Proofview.Unsafe.tclEVARS sigma <*> Exact.exact_no_check p
   end
 
 let refute_tac c t1 t2 p =
@@ -380,7 +380,7 @@ let refute_tac c t1 t2 p =
 let refine_exact_check c =
   Proofview.Goal.enter begin fun gl ->
     let evm, _ = Tacmach.pf_apply type_of gl c in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (exact_check c)
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (Exact.exact_check c)
   end
 
 let convert_to_goal_tac c t1 t2 p =

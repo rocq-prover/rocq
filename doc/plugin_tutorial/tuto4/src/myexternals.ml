@@ -47,7 +47,7 @@ let () = define "the_question" (int @-> ret bool) @@ fun i ->
    (ie a term) and returns the trivial value (and does side effects on the goal).
    "tac" means we have access to the tactic monad. *)
 let () = define "my_exact" (constr @-> tac unit) @@ fun c ->
-  Tactics.exact_check c
+  Exact.exact_check c
 
 (* We can see our new Ltac2 tactics in action in the beginning of the
    theories/Demo.v file. *)

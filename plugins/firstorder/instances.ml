@@ -145,7 +145,7 @@ let left_instance_tac ~flags (inst,id) continue seq=
                 introf;
                 tclSOLVE [wrap ~flags 1 false continue
                             (deepen (record env (id,None) seq))]];
-            tclTRY assumption]
+            tclTRY Exact.assumption]
     | Real (c, _)->
         if lookup env sigma (id,Some c) seq then
           tclFAIL (Pp.str "already done")
@@ -188,7 +188,7 @@ let right_instance_tac ~flags inst continue seq=
               split (Tactypes.ImplicitBindings [mkVar id0])
             end;
             tclSOLVE [wrap ~flags 0 true continue (deepen seq)]];
-         tclTRY assumption]
+         tclTRY Exact.assumption]
     | Real (c,_) ->
       if Item.is_ground c then
         (tclTHEN (split (Tactypes.ImplicitBindings [snd @@ Item.repr c]))

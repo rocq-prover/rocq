@@ -733,7 +733,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
             observe_tac "rewriting res value" (Equality.rewriteLR (mkVar hres))
           ; (* Conclusion *)
             observe_tac "exact"
-              (Proofview.Goal.enter (fun g -> exact_check (app_constructor g)))
+              (Proofview.Goal.enter (fun g -> Exact.exact_check (app_constructor g)))
           ]
       in
       (* end of branche proof *)
@@ -793,7 +793,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
       in
       tclTHENLIST
         [ observe_tac "principle"
-            (assert_by (Name principle_id) princ_type (exact_check f_principle))
+            (assert_by (Name principle_id) princ_type (Exact.exact_check f_principle))
         ; observe_tac "intro args_names" (tclMAP Simple.intro args_names)
         ; (* observe_tac "titi" (pose_proof (Name (Id.of_string "__")) (Reductionops.nf_beta Evd.empty  ((mkApp (mkVar principle_id,Array.of_list bindings))))); *)
           observe_tac "idtac" tclIDTAC

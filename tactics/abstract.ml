@@ -94,7 +94,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   end
 
 let abstract_subproof ~opaque tac =
-  cache_term_by_tactic_then ~opaque tac (fun lem args -> Tactics.exact_no_check (applist (lem, args)))
+  cache_term_by_tactic_then ~opaque tac (fun lem args -> Exact.exact_no_check (applist (lem, args)))
 
 let tclABSTRACT ?(opaque=true) name_op tac =
   abstract_subproof ~opaque ~name_op tac

@@ -175,36 +175,6 @@ val intro_patterns_bound_to : evars_flag -> int -> Id.t Logic.move_location -> i
     - Otherwise it will behave as [intro_patterns with_evars patt]. *)
 val intros_patterns : evars_flag -> intro_patterns -> unit Proofview.tactic
 
-(** {6 Exact tactics. } *)
-
-(** [assumption] solves the goal if it is convertible to the type of a hypothesis.
-    Fails if there is no such hypothesis. *)
-val assumption : unit Proofview.tactic
-
-(** [exact_no_check x] solves the goal with term [x].
-    It does not check that the type of [x] is convertible to the conclusion. *)
-val exact_no_check : constr -> unit Proofview.tactic
-
-(** [exact_check x] solves the goal with term [x].
-    Fails if the type of [x] does not match the conclusion. *)
-val exact_check : constr -> unit Proofview.tactic
-
-(** [exact_proof x] internalizes the constr_expr [x] using the conclusion,
-    and solves the goal using the internalized term.
-    Fails if [x] could not be internalized. *)
-val exact_proof : Constrexpr.constr_expr -> unit Proofview.tactic
-
-(** [cast_no_check ~kind new_concl] changes the conclusion to [new_concl] by inserting a cast
-    of kind [kind]. It does not check that the new conclusion is indeed convertible to the old
-    conclusion. *)
-val cast_no_check : kind:cast_kind -> constr -> unit Proofview.tactic
-
-(** Specialization of [cast_no_check] to [VMcast]. *)
-val vm_cast_no_check : constr -> unit Proofview.tactic
-
-(** Specialization of [cast_no_check] to [NATIVEcast]. *)
-val native_cast_no_check : constr -> unit Proofview.tactic
-
 
 (** [unfold_constr x] unfolds all occurences of [x] in the conclusion. *)
 val unfold_constr : GlobRef.t -> unit Proofview.tactic

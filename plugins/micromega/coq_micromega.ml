@@ -1966,7 +1966,7 @@ Tacticals.tclTHEN
             (Tactics.assert_by (Names.Name goal_name) arith_goal
                (*Proofview.tclTIME  (Some "kill_arith")*) kill_arith)
             ((*Proofview.tclTIME  (Some "apply_arith") *)
-             Tactics.exact_check
+             Exact.exact_check
                (EConstr.applist
                   ( EConstr.mkVar goal_name
                   , arith_args @ List.map EConstr.mkVar ids )))
@@ -2115,7 +2115,7 @@ let micromega_genr prover tac =
             [ kill_arith
             ; Tacticals.tclTHENLIST
                 [ Generalize.generalize (List.map EConstr.mkVar ids)
-                ; Tactics.exact_check
+                ; Exact.exact_check
                     (EConstr.applist (EConstr.mkVar goal_name, arith_args)) ] ]
       with CsdpNotFound -> fail_csdp_not_found ())
 

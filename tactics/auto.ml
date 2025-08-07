@@ -76,9 +76,9 @@ let exact h =
       try
         let _, sigma = Unification.w_unify env sigma CONV ~flags:auto_unif_flags concl t in
         Proofview.Unsafe.tclEVARSADVANCE sigma <*>
-        exact_no_check c
+        Exact.exact_no_check c
       with e when CErrors.noncritical e -> Proofview.tclZERO e
-    else Proofview.Unsafe.tclEVARS sigma <*> exact_check c
+    else Proofview.Unsafe.tclEVARS sigma <*> Exact.exact_check c
   end
 
 (* Util *)
@@ -267,7 +267,7 @@ let exists_evaluable_reference env = function
   | Evaluable.EvalVarRef v -> try ignore(Environ.lookup_named v env); true with Not_found -> false
 
 let dbg_intro dbg = tclLOG dbg (fun _ _ -> str "intro") intro
-let dbg_assumption dbg = tclLOG dbg (fun _ _ -> str "assumption") assumption
+let dbg_assumption dbg = tclLOG dbg (fun _ _ -> str "assumption") Exact.assumption
 
 let intro_register dbg kont db =
   Proofview.tclTHEN (dbg_intro dbg) @@
