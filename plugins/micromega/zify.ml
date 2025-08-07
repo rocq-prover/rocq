@@ -822,7 +822,7 @@ module CstrTable = struct
               if has_hyp types then Tacticals.tclIDTAC
               else
                 let n =
-                  Tactics.fresh_id_in_env Id.Set.empty
+                  HypNaming.fresh_id_in_env Id.Set.empty
                     (Names.Id.of_string "cstr")
                     env
                 in
@@ -1358,7 +1358,7 @@ let trans_hyp h t0 prfp =
           let env = Tacmach.pf_env gl in
           let evd = Tacmach.project gl in
           let target = Reductionops.nf_betaiota env evd t' in
-          let h' = Tactics.fresh_id_in_env Id.Set.empty h env in
+          let h' = HypNaming.fresh_id_in_env Id.Set.empty h env in
           let prf =
             EConstr.mkApp (force rew_iff, [|t0; target; prf; EConstr.mkVar h|])
           in
@@ -1396,7 +1396,7 @@ let elim_binding x t ty =
   Proofview.Goal.enter (fun gl ->
       let env = Tacmach.pf_env gl in
       let h =
-        Tactics.fresh_id_in_env Id.Set.empty (Nameops.add_prefix "heq_" x) env
+        HypNaming.fresh_id_in_env Id.Set.empty (Nameops.add_prefix "heq_" x) env
       in
       Tacticals.tclTHEN
         (Tactics.pose_proof (Name h) (eq_proof ty (EConstr.mkVar x) t))

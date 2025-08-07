@@ -535,7 +535,7 @@ let interp_fresh_id ist env sigma l =
           | ArgVar {v=id} -> Id.to_string (extract_ident ist env sigma id)) l) in
       let s = if CLexer.is_keyword (Procq.get_keyword_state()) s then s^"0" else s in
       Id.of_string s in
-  Tactics.fresh_id_in_env avoid id env
+  HypNaming.fresh_id_in_env avoid id env
 
 (* Extract the uconstr list from lfun *)
 let extract_ltac_constr_context ist env sigma =

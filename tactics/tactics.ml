@@ -42,6 +42,7 @@ open Context.Named.Declaration
 open TacticExceptions
 open ContextTactics
 open ConvTactics
+open HypNaming
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
@@ -55,19 +56,6 @@ let typ_of env sigma c =
   with RetypeError e ->
     user_err (print_retype_error e)
 
-open Goptions
-
-let clear_hyp_by_default = ref false
-
-let use_clear_hyp_by_default () = !clear_hyp_by_default
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Default";"Clearing";"Used";"Hypotheses"];
-      optread  = (fun () -> !clear_hyp_by_default) ;
-      optwrite = (fun b -> clear_hyp_by_default := b) }
 
 (******************************************)
 (*           Primitive tactics            *)
@@ -103,85 +91,6 @@ let introduction id =
     | LetIn (id0, c, t, b) -> unsafe_intro env (LocalDef ({id0 with binder_name=id}, c, t)) ~relevance b
     | _ -> raise (RefinerError (env, sigma, IntroNeedsProduct))
   end
-
-
-(**************************************************************)
-(*          Fresh names                                       *)
-(**************************************************************)
-
-let fresh_id_in_env avoid id env =
-  let avoid' = ids_of_named_context_val (named_context_val env) in
-  let avoid = if Id.Set.is_empty avoid then avoid' else Id.Set.union avoid' avoid in
-  next_ident_away_in_goal (Global.env ()) id avoid
-
-let new_fresh_id avoid id gl =
-  fresh_id_in_env avoid id (Proofview.Goal.env gl)
-
-let id_of_name_with_default id = function
-  | Anonymous -> id
-  | Name id   -> id
-
-let default_id_of_sort sigma s =
-  if ESorts.is_small sigma s then default_small_ident else default_type_ident
-
-let default_id env sigma decl =
-  let open Context.Rel.Declaration in
-  match decl with
-  | LocalAssum (name,t) ->
-      let dft = default_id_of_sort sigma (Retyping.get_sort_of env sigma t) in
-      id_of_name_with_default dft name.binder_name
-  | LocalDef (name,b,_) -> id_of_name_using_hdchar env sigma b name.binder_name
-
-(* Non primitive introduction tactics are treated by intro_then_gen
-   There is possibly renaming, with possibly names to avoid and
-   possibly a move to do after the introduction *)
-
-type name_flag =
-  | NamingAvoid of Id.Set.t
-  | NamingBasedOn of Id.t * Id.Set.t
-  | NamingMustBe of lident
-
-let naming_of_name = function
-  | Anonymous -> NamingAvoid Id.Set.empty
-  | Name id -> NamingMustBe (CAst.make id)
-
-let find_name mayrepl decl naming gl = match naming with
-  | NamingAvoid idl ->
-      (* This case must be compatible with [find_intro_names] below. *)
-      let env = Proofview.Goal.env gl in
-      let sigma = Tacmach.project gl in
-      new_fresh_id idl (default_id env sigma decl) gl
-  | NamingBasedOn (id,idl) -> new_fresh_id idl id gl
-  | NamingMustBe {CAst.loc;v=id} ->
-     (* When name is given, we allow to hide a global name. *)
-     let ids_of_hyps = Tacmach.pf_ids_set_of_hyps gl in
-     if not mayrepl && Id.Set.mem id ids_of_hyps then
-       Loc.raise ?loc (AlreadyUsed id);
-     id
-
-(**************************************************************)
-(*   Computing position of hypotheses for replacing           *)
-(**************************************************************)
-
-let get_next_hyp_position env sigma id =
-  let rec aux = function
-  | [] -> error_no_such_hypothesis env sigma id
-  | decl :: right ->
-    if Id.equal (NamedDecl.get_id decl) id then
-      match right with decl::_ -> MoveBefore (NamedDecl.get_id decl) | [] -> MoveFirst
-    else
-      aux right
-  in
-  aux
-
-let get_previous_hyp_position env sigma id =
-  let rec aux dest = function
-  | [] -> error_no_such_hypothesis env sigma id
-  | decl :: right ->
-      let hyp = NamedDecl.get_id decl in
-      if Id.equal hyp id then dest else aux (MoveAfter hyp) right
-  in
-  aux MoveLast
 
 (**************************************************************)
 (*            Cut rule                                        *)
@@ -224,7 +133,7 @@ let internal_cut ?(check=true) replace id t =
 let assert_before_then_gen b naming t tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
-    let id = find_name b (LocalAssum (make_annot Anonymous Sorts.Relevant, t)) naming gl in
+    let id = find_name ~replace:b (LocalAssum (make_annot Anonymous Sorts.Relevant, t)) naming gl in
     Tacticals.tclTHENLAST
       (internal_cut b id t)
       (tac id)
@@ -245,7 +154,7 @@ let replace_error_option err tac =
 let assert_after_then_gen b naming t tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
-    let id = find_name b (LocalAssum (make_annot Anonymous Sorts.Relevant,t)) naming gl in
+    let id = find_name ~replace:b (LocalAssum (make_annot Anonymous Sorts.Relevant,t)) naming gl in
     Tacticals.tclTHENFIRST
       (internal_cut b id t <*> Proofview.cycle 1)
       (tac id)
@@ -296,13 +205,13 @@ let rec intro_then_gen name_flag move_flag ~force ~dep tac =
     let concl = Proofview.Goal.concl gl in
     match EConstr.kind sigma concl with
     | Prod (name,t,u) when not dep || not (noccurn sigma 1 u) ->
-        let name = find_name false (LocalAssum (name,t)) name_flag gl in
+        let name = find_name (LocalAssum (name,t)) name_flag gl in
         build_intro_tac name move_flag tac
     | LetIn (name,b,t,u) when not dep || not (noccurn sigma 1 u) ->
-        let name = find_name false (LocalDef (name,b,t)) name_flag gl in
+        let name = find_name (LocalDef (name,b,t)) name_flag gl in
         build_intro_tac name move_flag tac
     | Evar ev when force ->
-        let name = find_name false (LocalAssum (anonR,concl)) name_flag gl in
+        let name = find_name (LocalAssum (anonR,concl)) name_flag gl in
         let sigma, t = Evardefine.define_evar_as_product env sigma ~name ev in
         Tacticals.tclTHEN
           (Proofview.Unsafe.tclEVARS sigma)
@@ -694,27 +603,9 @@ let clenv_refine_in with_evars targetid replace env sigma0 clenv =
   let naming = NamingMustBe (CAst.make targetid) in
   Proofview.Unsafe.tclEVARS evd <*>
   Proofview.Goal.enter begin fun gl ->
-    let id = find_name replace (LocalAssum (make_annot Anonymous Sorts.Relevant, new_hyp_typ)) naming gl in
+    let id = find_name ~replace (LocalAssum (make_annot Anonymous Sorts.Relevant, new_hyp_typ)) naming gl in
     Tacticals.tclTHENLAST (internal_cut replace id new_hyp_typ <*> Proofview.cycle 1) exact_tac
   end
-
-
-
-(************)
-
-let apply_clear_request clear_flag dft c =
-  let doclear = match clear_flag with
-    | None -> if dft then c else None
-    | Some true ->
-      begin match c with
-      | None -> Loc.raise KeepAndClearModifierOnlyForHypotheses
-      | Some id -> Some id
-      end
-    | Some false -> None
-  in
-  match doclear with
-  | None -> Proofview.tclUNIT ()
-  | Some id -> ContextTactics.clear [id]
 
 (********************************************)
 (*       Elimination tactics                *)
@@ -1215,7 +1106,7 @@ let apply_in_once ?(respect_opaque = false) with_delta
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
   let t' = Tacmach.pf_get_hyp_typ id gl in
-  let targetid = find_name true (LocalAssum (make_annot Anonymous Sorts.Relevant,t')) naming gl in
+  let targetid = find_name ~replace:true (LocalAssum (make_annot Anonymous Sorts.Relevant,t')) naming gl in
   let replace = Id.equal id targetid in
   let rec aux ?err idstoclear with_destruct c =
     Proofview.Goal.enter begin fun gl ->
@@ -1845,8 +1736,8 @@ let letin_tac_gen with_eq (id,depdecls,lastlhyp,ccl,c) ty =
     let (sigma, (newcl, eq_tac)) = match with_eq with
       | Some (lr,{CAst.loc;v=ido}) ->
           let heq = match ido with
-            | IntroAnonymous -> new_fresh_id (Id.Set.singleton id) (add_prefix "Heq" id) gl
-            | IntroFresh heq_base -> new_fresh_id (Id.Set.singleton id) heq_base gl
+            | IntroAnonymous -> fresh_id_in_env (Id.Set.singleton id) (add_prefix "Heq" id) (Proofview.Goal.env gl)
+            | IntroFresh heq_base -> fresh_id_in_env (Id.Set.singleton id) heq_base (Proofview.Goal.env gl)
             | IntroIdentifier id -> id in
           let eqdata = build_rocq_eq_data () in
           let args = if lr then [mkVar id;c] else [c;mkVar id]in

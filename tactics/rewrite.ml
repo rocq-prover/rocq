@@ -1162,7 +1162,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
             | Anonymous ->  Namegen.default_dependent_ident
             | Name id -> id
           in
-          let id = Tactics.fresh_id_in_env unfresh id env in
+          let id = HypNaming.fresh_id_in_env unfresh id env in
           Id.Set.add id unfresh, {n with binder_name = Name id}
         in
         let unfresh = match n'.binder_name with

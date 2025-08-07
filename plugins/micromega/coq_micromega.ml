@@ -1888,7 +1888,7 @@ let micromega_tauto ?abstract pre_process cnf spec prover
   * Parse the proof environment, and call micromega_tauto
   *)
 let fresh_id avoid id gl =
-  Tactics.fresh_id_in_env avoid id (Proofview.Goal.env gl)
+  HypNaming.fresh_id_in_env avoid id (Proofview.Goal.env gl)
 
 let clear_all_no_check =
   Proofview.Goal.enter (fun gl ->

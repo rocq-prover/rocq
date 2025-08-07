@@ -1421,7 +1421,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
     @ ( List.map (fun (_,_,_,slb) -> slb) list_id )
   in
   let open Tactics in
-  let fresh_id s gl = fresh_id_in_env (Id.Set.empty) s (Proofview.Goal.env gl) in
+  let fresh_id s gl = HypNaming.fresh_id_in_env (Id.Set.empty) s (Proofview.Goal.env gl) in
   intros_using_then first_intros begin fun fresh_first_intros ->
     let eqI =
       let a = Array.of_list fresh_first_intros in

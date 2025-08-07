@@ -169,7 +169,7 @@ let case_eq_intros_rewrite x =
       let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_ids_set_of_hyps gl in
       let n' = nb_prod (Tacmach.project gl) concl in
-      let h = fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
+      let h = HypNaming.fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
       Tacticals.tclTHENLIST [
                     Tacticals.tclDO (n'-n-1) intro;
                     introduction h;

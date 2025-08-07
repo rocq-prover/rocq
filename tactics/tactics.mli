@@ -33,13 +33,6 @@ val is_quantified_hypothesis : Id.t -> Proofview.Goal.t -> bool
     - Fails if [id] is already declared in the context. *)
 val introduction : Id.t -> unit Proofview.tactic
 
-(** [fresh_id_in_env avoid id env] generates a fresh identifier built from [id].
-    The returned identifier is guaranteed to be distinct from:
-    - The identifiers in [avoid].
-    - The global constants in [env].
-    - The local variables in [env]. *)
-val fresh_id_in_env : Id.Set.t -> Id.t -> env -> Id.t
-
 (** [find_intro_names env sigma ctx] returns the names that would be created by [intros],
     without actually doing [intros].  *)
 val find_intro_names : env -> Evd.evar_map -> rel_context -> Id.t list
@@ -223,17 +216,6 @@ val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.
 val unfold_body : Id.t -> unit Proofview.tactic
 
 (** {6 Apply tactics. } *)
-
-(** [use_clear_hyp_by_default ()] returns the default clear flag used by [apply] and related tactics.
-    - [true] means that hypotheses are cleared after being applied.
-    - [false] means that hypotheses are kept after being applied. *)
-val use_clear_hyp_by_default : unit -> bool
-
-(** [apply_clear_request c1 c2 id] implements the clear behaviour of [apply] and friends.
-    - [c1] is the primary clear flag. If [None] we use the secondary clear flag.
-    - [c2] is the secondary clear flag, usually [use_clear_hyp_by_default ()].
-    - [id] is the identifier of the hypothesis to clear. If [None] we do nothing. *)
-val apply_clear_request : clear_flag -> bool -> Id.t option -> unit Proofview.tactic
 
 (** [apply t] applies the lemma [t] to the conclusion. *)
 val apply : constr -> unit Proofview.tactic

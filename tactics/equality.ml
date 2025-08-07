@@ -46,6 +46,7 @@ open Proofview.Notations
 open Unification
 open Context.Named.Declaration
 open Combinators
+open HypNaming
 
 module NamedDecl = Context.Named.Declaration
 
