@@ -155,3 +155,5 @@ val replace_mp_in_kn : ModPath.t -> ModPath.t -> KerName.t -> KerName.t
    names appearing in [c] *)
 val subst_mps : substitution -> constr -> constr
 val subst_mps_list : substitution list -> constr -> constr
+
+val is_rerooted_delta : delta_resolver -> delta_resolver -> bool
