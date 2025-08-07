@@ -2047,7 +2047,7 @@ let setoid_symmetry_in id =
   let new_hyp = it_mkProd_or_LetIn new_hyp'  binders in
     (tclTHENLAST
       (Tactics.assert_after_replacing id new_hyp)
-      (tclTHENLIST [ intros; setoid_symmetry; apply (mkVar id); Exact.assumption ]))
+      (tclTHENLIST [ Intro.intros; setoid_symmetry; apply (mkVar id); Exact.assumption ]))
   end
 
 let _ = Hook.set Tactics.setoid_reflexivity setoid_reflexivity

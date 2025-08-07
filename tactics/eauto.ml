@@ -109,7 +109,7 @@ let rec e_trivial_fail_db db_list local_db =
   let secvars = compute_secvars gl in
   let tacl =
     e_assumption ::
-    (Tacticals.tclTHEN Tactics.intro next) ::
+    (Tacticals.tclTHEN (Intro.intro ()) next) ::
     (e_trivial_resolve (Tacmach.pf_env gl) (Tacmach.project gl) db_list local_db secvars (Tacmach.pf_concl gl))
   in
   Tacticals.tclSOLVE tacl
@@ -214,7 +214,7 @@ module Search = struct
       let mkdb env sigma =
         push_resolve_hyp env sigma (NamedDecl.get_id (List.hd (EConstr.named_context env))) db
       in
-      (false, mkdb, Tactics.intro, lazy (str "intro"))
+      (false, mkdb, Intro.intro (), lazy (str "intro"))
     in
     let rec_tacs =
       let mkdb env sigma =

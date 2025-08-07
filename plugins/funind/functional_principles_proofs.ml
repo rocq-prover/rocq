@@ -22,6 +22,7 @@ open Pp
 open Tactics
 open ContextTactics
 open ConvTactics
+open Intro
 open Induction
 open Indfun_common
 open Libnames
@@ -113,7 +114,7 @@ exception TOREMOVE
 let prove_trivial_eq h_id context (constructor, type_of_term, term) =
   let nb_intros = List.length context in
   Tacticals.tclTHENLIST
-    [ Tacticals.tclDO nb_intros intro
+    [ Tacticals.tclDO nb_intros (intro ())
     ; (* introducing context *)
       Proofview.Goal.enter (fun g ->
           let hyps = Proofview.Goal.hyps g in
@@ -260,7 +261,7 @@ let change_eq env sigma hyp_id (context : rel_context) x t end_of_type =
   let prove_new_hyp =
     let open Tacticals in
     let open Tacmach in
-    tclTHEN (tclDO ctxt_size intro)
+    tclTHEN (tclDO ctxt_size (intro ()))
       (Proofview.Goal.enter (fun g ->
            let all_ids = pf_ids_of_hyps g in
            let new_ids, _ = list_chop ctxt_size all_ids in
@@ -376,7 +377,7 @@ let clean_hyp_with_heq ptes_infos eq_hyps hyp_id env sigma =
         let prove_new_type_of_hyp =
           let context_length = List.length context in
           tclTHENLIST
-            [ tclDO context_length intro
+            [ tclDO context_length (intro ())
             ; Proofview.Goal.enter (fun g ->
                   let hyps = Proofview.Goal.hyps g in
                   let context_hyps_ids =
@@ -421,7 +422,7 @@ let clean_hyp_with_heq ptes_infos eq_hyps hyp_id env sigma =
         let prove_trivial =
           let nb_intro = List.length context in
           tclTHENLIST
-            [ tclDO nb_intro intro
+            [ tclDO nb_intro (intro ())
             ; Proofview.Goal.enter (fun g ->
                   let hyps = Proofview.Goal.hyps g in
                   let context_hyps =
@@ -500,15 +501,15 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
       tclTHENLIST
         [ (* We first introduce the variables *)
           tclDO nb_first_intro
-            (intro_avoiding (Id.Set.of_list dyn_infos.rec_hyps))
+            (intro ~naming:(NamingAvoid (Id.Set.of_list dyn_infos.rec_hyps)) ())
         ; (* Then the equation itself *)
-          intro_using_then heq_id
+          intro_basedon heq_id
             (* we get the fresh name with onLastHypId *)
-            (fun _ -> Proofview.tclUNIT ())
+            ~tac:(fun _ -> Proofview.tclUNIT ())
         ; onLastHypId (fun heq_id ->
               tclTHENLIST
                 [ (* Then the new hypothesis *)
-                  tclMAP introduction dyn_infos.rec_hyps
+                  tclMAP Intro.intro_mustbe dyn_infos.rec_hyps
                 ; observe_tac "after_introduction"
                     (Proofview.Goal.enter (fun g' ->
                          let env = Proofview.Goal.env g' in
@@ -643,7 +644,7 @@ let build_proof (interactive_proof : bool) (fnames : Constant.t list) ptes_infos
         | Lambda (n, t, b) -> (
           match EConstr.kind sigma (Proofview.Goal.concl g) with
           | Prod _ ->
-            tclTHEN intro
+            tclTHEN (intro ())
               (Proofview.Goal.enter (fun g' ->
                    let open Context.Named.Declaration in
                    let id = Tacmach.pf_last_hyp g' |> get_id in
@@ -872,7 +873,7 @@ let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_
   let f_id = Label.to_id (Constant.label (fst (destConst evd f))) in
   let prove_replacement =
     tclTHENLIST
-      [ tclDO (nb_params + rec_args_num + 1) intro
+      [ tclDO (nb_params + rec_args_num + 1) (intro ())
       ; observe_tac ""
           (onNthHypId 1 (fun rec_id ->
                tclTHENLIST
@@ -956,7 +957,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
       let open Tacticals in
       let open Proofview.Notations in
       tclTHEN
-        (tclDO nb_intro_to_do intro)
+        (tclDO nb_intro_to_do (intro ()))
         (Proofview.Goal.enter (fun g' ->
              let just_introduced = Tacticals.nLastDecls g' nb_intro_to_do in
              let open Context.Named.Declaration in
@@ -1165,12 +1166,12 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
         (* names are already refreshed *)
         tclTHENLIST
           [ observe_tac "introducing params"
-              (intros_mustbe_force (List.rev_map id_of_decl princ_info.params))
+              (intros_mustbe ~force:true (List.rev_map id_of_decl princ_info.params))
           ; observe_tac "introducing predicates"
-              (intros_mustbe_force
+              (intros_mustbe ~force:true
                  (List.rev_map id_of_decl princ_info.predicates))
           ; observe_tac "introducing branches"
-              (intros_mustbe_force
+              (intros_mustbe ~force:true
                  (List.rev_map id_of_decl princ_info.branches))
           ; observe_tac "building fixes" mk_fixes ]
       in
@@ -1189,7 +1190,7 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
               let nb_args = fix_info.nb_realargs in
               tclTHENLIST
                 [ (* observe_tac ("introducing args") *)
-                  tclDO nb_args intro
+                  tclDO nb_args (intro ())
                 ; Proofview.Goal.enter (fun g ->
                       (* replacement of the function by its body *)
                       let args = Tacticals.nLastDecls g nb_args in
@@ -1244,7 +1245,7 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
             with Not_found ->
               let nb_args = min princ_info.nargs (List.length ctxt) in
               tclTHENLIST
-                [ tclDO nb_args intro
+                [ tclDO nb_args (intro ())
                 ; Proofview.Goal.enter (fun g ->
                       let env = Proofview.Goal.env g in
                       let sigma = Proofview.Goal.sigma g in
@@ -1530,7 +1531,7 @@ let prove_principle_for_gen (f_ref, functional_ref, eq_ref) tcc_lemma_ref is_mes
             in
             tclTHENLIST
               [ Generalize.generalize [lemma]
-              ; Simple.intro hid
+              ; Intro.intro_mustbe ~force:true hid
               ; Elim.h_decompose_and (mkVar hid)
               ; Proofview.Goal.enter (fun g ->
                     let new_hyps = Tacmach.pf_ids_of_hyps g in

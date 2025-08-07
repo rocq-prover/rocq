@@ -375,7 +375,7 @@ let jmeq_refl () =
     @@ Rocqlib.lib_ref "core.JMeq.refl"
   with e when CErrors.noncritical e -> raise (ToShow e)
 
-let h_intros l = Tacticals.tclMAP (fun x -> Tactics.Simple.intro x) l
+let h_intros l = Tacticals.tclMAP (Intro.intro_mustbe ~force:true) l
 let h_id = Id.of_string "h"
 let hrec_id = Id.of_string "hrec"
 

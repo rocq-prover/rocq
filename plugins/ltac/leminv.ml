@@ -25,7 +25,7 @@ open Reductionops
 open Inductiveops
 open Tacmach
 open Tacticals
-open Tactics
+open Intro
 open Context.Named.Declaration
 
 module NamedDecl = Context.Named.Declaration
@@ -200,7 +200,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
     (str"Computed inversion goal was not closed in initial signature.");
   *)
   let pf = Proof.start ~name ~poly (Evd.from_ctx (ustate sigma)) [invEnv,invGoal] in
-  let pf, _, () = Proof.run_tactic env (tclTHEN intro (onLastHypId inv_op)) pf in
+  let pf, _, () = Proof.run_tactic env (tclTHEN (intro ()) (onLastHypId inv_op)) pf in
   let pfterm = List.hd (Proof.partial_proof pf) in
   let global_named_context = Global.named_context_val () in
   let ownSign = ref begin
@@ -286,7 +286,7 @@ let lemInvIn id c ids =
       if nb_of_new_hyp < 1  then
         intros_replacing ids
       else
-        (tclTHEN (tclDO nb_of_new_hyp intro) (intros_replacing ids))
+        (tclTHEN (tclDO nb_of_new_hyp (intro ())) (intros_replacing ids))
     in
     ((tclTHEN (tclTHEN (Generalize.bring_hyps hyps) (lemInv id c))
         (intros_replace_ids)))

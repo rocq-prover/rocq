@@ -1,0 +1,73 @@
+(************************************************************************)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
+(*  v      *         Copyright INRIA, CNRS and contributors             *)
+(* <O___,, * (see version control and CREDITS file for authors & dates) *)
+(*   \VV/  **************************************************************)
+(*    //   *    This file is distributed under the terms of the         *)
+(*         *     GNU Lesser General Public License Version 2.1          *)
+(*         *     (see LICENSE file for the text of the license)         *)
+(************************************************************************)
+
+open Names
+open EConstr
+open Evd
+open Tactypes
+open Locus
+
+(** Forward reasoning tactics ([assert], [pose], ...). *)
+
+(** [assert_before ?replace x T] first asks to prove [T], then to prove the original goal augmented
+    with a new hypothesis of type [x : T].
+    - [replace]: if [true] then allow replacing any previously declared hypothesis.
+      Defaults to [false].
+    - [x]: if [None] the name of the hypothesis is generated automatically.
+      If [Some] then it is the name of the hypothesis (which should not be already defined in the context). *)
+val assert_before : ?replace:bool -> Name.t -> types -> unit Proofview.tactic
+
+(** [assert_after ?replace x T] first asks the original goal augmented with a new hypothesis of type [x : T],
+    then to prove [T].
+    - [replace]: if [true] then allow replacing any previously declared hypothesis.
+      Defaults to [false].
+    - [x]: if [None] the name of the hypothesis is generated automatically.
+      If [Some] then it is the name of the hypothesis (which should not be already defined in the context). *)
+val assert_after : ?replace:bool -> Name.t -> types -> unit Proofview.tactic
+
+(** [forward before by_tac ipat t] performs a forward reasoning step.
+    - If [by_tac] is [None] it adds a new hypothesis with _body_ equal to [t].
+    - If [by_tac] is [Some tac] it asks to prove [t] and to prove the original goal
+      augmented with a new hypothesis of type [t]. If [tac] is [Some _] then [tac] is used
+      to prove [t] (and [tac] is required to succeed).
+    - [before]: if [true] then [t] must be proved first.
+      If [false] then [t] must be proved [last]. *)
+val forward : bool -> unit Proofview.tactic option option ->
+    intro_pattern option -> constr -> unit Proofview.tactic
+
+(** [assert_by x T tac] adds a new hypothesis [x : T]. The tactic [tac] is used
+    to prove [T]. If [x] is [None] a fresh name is automatically generated. *)
+val assert_by : Name.t -> types -> unit Proofview.tactic ->
+  unit Proofview.tactic
+
+(** [enough_by x T tac] changes the goal to [T]. The tactic [tac] is used to
+    prove the orignal goal augmented with a hypothesis [x : T]. If [x] is [None] a fresh name
+    is automatically generated. *)
+val enough_by : Name.t -> types -> unit Proofview.tactic ->
+  unit Proofview.tactic
+
+(** [pose_proof x t] adds a new hypothesis [x := t]. If [x] is [None] a fresh name
+    is automatically generated. *)
+val pose_proof : Name.t -> constr -> unit Proofview.tactic
+
+(** Implements the tactic [cut], actually a modus ponens rule. *)
+val cut : types -> unit Proofview.tactic
+
+(** [pose_tac x t] adds a new hypothesis [x := t]. If [x] is [None] a fresh name
+    is automatically generated. Fails if there is alreay a hypothesis named [x]. *)
+val pose_tac : Name.t -> constr -> unit Proofview.tactic
+
+val letin_tac : (bool * intro_pattern_naming) option ->
+  Name.t -> constr -> types option -> clause -> unit Proofview.tactic
+
+(** Common entry point for user-level "set", "pose", and "remember". *)
+val letin_pat_tac : with_evars:bool -> (bool * intro_pattern_naming) option ->
+  Name.t -> (evar_map option * constr) -> clause -> unit Proofview.tactic
+

@@ -518,12 +518,12 @@ let abstract_generalize ?(generalize_vars=true) ?(force_dep=false) id =
             if dep then
               Tacticals.tclTHENLIST [
                 tac;
-                 ContextTactics.rename_hyp [(id, oldid)]; Tacticals.tclDO n Tactics.intro;
+                 ContextTactics.rename_hyp [(id, oldid)]; Tacticals.tclDO n (Intro.intro ());
                  generalize_dep ~with_let:true (mkVar oldid)]
             else Tacticals.tclTHENLIST [
                     tac;
                     ContextTactics.clear [id];
-                    Tacticals.tclDO n Tactics.intro]
+                    Tacticals.tclDO n (Intro.intro ())]
           in
             if List.is_empty vars then tac
             else Tacticals.tclTHEN tac

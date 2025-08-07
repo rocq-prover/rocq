@@ -34,6 +34,7 @@ open Tactics
 open ContextTactics
 open ConvTactics
 open Exact
+open Intro
 open Tacred
 open Rocqlib
 open Declarations
@@ -1115,7 +1116,7 @@ let onNegatedEquality with_evars tac =
     | Prod (na,t,u) ->
       let u = nf_betaiota (push_rel_assum (na, t) env) sigma u in
       if is_empty_type env sigma u then
-        tclTHEN introf
+        tclTHEN (intro ~force:true ())
           (onLastHypId (fun id ->
             onEquality with_evars tac (mkVar id,NoBindings)))
       else tclZEROMSG (str "Not a negated primitive equality.")
@@ -1136,7 +1137,7 @@ let discrEverywhere with_evars =
   tclTHEN (Proofview.tclUNIT ())
     (* Delay the interpretation of side-effect *)
     (tclTHEN
-       (tclREPEAT introf)
+       (tclREPEAT (intro ~force:true ()))
        (tryAllHyps
           (fun id -> tclCOMPLETE (discr with_evars (mkVar id,NoBindings)))))
 
@@ -1252,7 +1253,7 @@ let inject_if_homogenous_dependent_pair ty =
     (* cut with the good equality and prove the requested goal *)
     tclTHENLIST
       [
-       intro;
+       intro ();
        onLastHyp (fun hyp ->
         Tacticals.pf_constr_of_global Rocqlib.(lib_ref "core.eq.type") >>= fun ceq ->
         tclTHENS (cut (mkApp (ceq,new_eq_args)))
@@ -1678,7 +1679,7 @@ let subst_one dep_proof_ok x (hyp,rhs,dir) =
     ((if need_rewrite then
       [Generalize.revert (List.map snd dephyps);
        general_rewrite ~where:None ~l2r:dir AtLeastOneOccurrence ~freeze:true ~dep:dep_proof_ok ~with_evars:false (mkVar hyp, NoBindings);
-       (tclMAP (fun (dest,id) -> intro_move (Some id) dest) dephyps)]
+       (tclMAP (fun (dest,id) -> intro_mustbe id ~move:dest ~force:true) dephyps)]
       else
        [Proofview.tclUNIT ()]) @
      [tclTRY (clear [x; hyp])])

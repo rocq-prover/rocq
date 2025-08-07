@@ -728,7 +728,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
               Locusops.onConcl
           ; observe_tac "toto " (Proofview.tclUNIT ())
           ; (* introducing the result of the graph and the equality hypothesis *)
-            observe_tac "introducing" (tclMAP Simple.intro [res; hres])
+            observe_tac "introducing" (tclMAP (Intro.intro_mustbe ~force:true) [res; hres])
           ; (* replacing [res] with its value *)
             observe_tac "rewriting res value" (Equality.rewriteLR (mkVar hres))
           ; (* Conclusion *)
@@ -794,7 +794,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
       tclTHENLIST
         [ observe_tac "principle"
             (assert_by (Name principle_id) princ_type (Exact.exact_check f_principle))
-        ; observe_tac "intro args_names" (tclMAP Simple.intro args_names)
+        ; observe_tac "intro args_names" (tclMAP (Intro.intro_mustbe ~force:true) args_names)
         ; (* observe_tac "titi" (pose_proof (Name (Id.of_string "__")) (Reductionops.nf_beta Evd.empty  ((mkApp (mkVar principle_id,Array.of_list bindings))))); *)
           observe_tac "idtac" tclIDTAC
         ; tclTHENS
@@ -891,7 +891,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
               args.(1) args.(2)
           then
             let id = pf_get_new_id (Id.of_string "y") g in
-            tclTHENLIST [Simple.intro id; thin [id]; intros_with_rewrite ()]
+            tclTHENLIST [Intro.intro_mustbe id ~force:true; thin [id]; intros_with_rewrite ()]
           else if
             isVar sigma args.(1)
             && Environ.evaluable_named
@@ -935,21 +935,21 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
           else if isVar sigma args.(1) then
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; generalize_dependent_of (destVar sigma args.(1)) id
               ; tclTRY (Equality.rewriteLR (mkVar id))
               ; intros_with_rewrite () ]
           else if isVar sigma args.(2) then
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; generalize_dependent_of (destVar sigma args.(2)) id
               ; tclTRY (Equality.rewriteRL (mkVar id))
               ; intros_with_rewrite () ]
           else
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; tclTRY (Equality.rewriteLR (mkVar id))
               ; intros_with_rewrite () ]
         | Ind _
@@ -968,7 +968,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
             ; intros_with_rewrite () ]
         | _ ->
           let id = pf_get_new_id (Id.of_string "y") g in
-          tclTHENLIST [Simple.intro id; intros_with_rewrite ()] )
+          tclTHENLIST [Intro.intro_mustbe ~force:true id; intros_with_rewrite ()] )
       | LetIn _ ->
         tclTHENLIST
           [ reduce
@@ -994,7 +994,7 @@ let rec reflexivity_with_destruct_cases () =
           | Case (_, _, _, _, _, v, _) ->
             tclTHENLIST
               [ simplest_case v
-              ; intros
+              ; Intro.intros
               ; observe_tac "reflexivity_with_destruct_cases"
                   (reflexivity_with_destruct_cases ()) ]
           | _ -> reflexivity
@@ -1124,7 +1124,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
                   CErrors.anomaly (Pp.str "Cannot find equation lemma.")
               in
               tclTHENLIST
-                [ tclMAP Simple.intro ids
+                [ tclMAP (Intro.intro_mustbe ~force:true) ids
                 ; Equality.rewriteLR (UnsafeMonomorphic.mkConst eq_lemma)
                 ; (* Don't forget to $\zeta$ normlize the term since the principles
                      have been $\zeta$-normalized *)
@@ -1172,13 +1172,13 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
           let open EConstr in
           let params = List.map mkVar params_names in
           tclTHENLIST
-            [ tclMAP Simple.intro (args_names @ [res; hres])
+            [ tclMAP (Intro.intro_mustbe ~force:true) (args_names @ [res; hres])
             ; observe_tac "h_generalize"
                 (Generalize.generalize
                    [ mkApp
                        ( applist (graph_principle, params)
                        , Array.map (fun c -> applist (c, params)) lemmas ) ])
-            ; Simple.intro graph_principle_id
+            ; Intro.intro_mustbe ~force:true graph_principle_id
             ; observe_tac ""
                 (tclTHENS
                    (observe_tac "elim"

@@ -950,7 +950,7 @@ let introid ?(orig=ref Anonymous) name =
       convert_concl_no_check (Reductionops.whd_beta env sigma g)
    | _ -> Tacticals.tclIDTAC
   end <*>
-    (fst_prod false (fun id -> orig := id; Tactics.intro_mustbe_force name))
+    (fst_prod false (fun id -> orig := id; Intro.intro_mustbe ~force:true name))
 
 let anontac decl =
   Proofview.Goal.enter begin fun gl ->

@@ -59,7 +59,7 @@ let revert_graph kn post_tac hid =
                       ( mkConst f_complete
                       , Array.to_list f_args @ [res.(0); mkVar hid] ) ]
               ; ContextTactics.clear [hid]
-              ; Simple.intro hid
+              ; Intro.intro_mustbe ~force:true hid
               ; post_tac hid ]
         else tclIDTAC
       | _ -> tclIDTAC)
@@ -103,7 +103,7 @@ let functional_inversion kn hid fconst f_correct =
           ; Generalize.generalize
               [applist (f_correct, Array.to_list f_args @ [res; mkVar hid])]
           ; ContextTactics.clear [hid]
-          ; Simple.intro hid
+          ; Intro.intro_mustbe ~force:true hid
           ; Inv.inv Inv.FullInversion None (Tactypes.NamedHyp (CAst.make hid))
           ; Proofview.Goal.enter (fun gl ->
                 let new_ids =
@@ -127,7 +127,7 @@ let invfun qhyp f =
     | None -> CErrors.user_err (Pp.str "Cannot use equivalence with graph!")
     | Some f_correct ->
       let f_correct = mkConst f_correct and kn = fst finfos.graph_ind in
-      Tactics.try_intros_until
+      Intro.try_intros_until
         (fun hid -> functional_inversion kn hid (mkConst f) f_correct)
         qhyp )
 
@@ -189,4 +189,4 @@ let invfun qhyp f =
       | _ ->
         CErrors.user_err Pp.(Ppconstr.pr_id hid ++ str " must be an equality ")
     in
-    try_intros_until (tac_action %> Proofview.Goal.enter) qhyp
+    Intro.try_intros_until (tac_action %> Proofview.Goal.enter) qhyp

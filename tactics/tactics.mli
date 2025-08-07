@@ -24,108 +24,6 @@ open Locus
 
 (** {6 General functions. } *)
 
-val is_quantified_hypothesis : Id.t -> Proofview.Goal.t -> bool
-
-(** {6 Basic introduction tactics. } *)
-
-(** [introduction id] is a low-level tactic which introduces a single variable with name [id].
-    - Fails if the goal is not a product or a let-in.
-    - Fails if [id] is already declared in the context. *)
-val introduction : Id.t -> unit Proofview.tactic
-
-(** [find_intro_names env sigma ctx] returns the names that would be created by [intros],
-    without actually doing [intros].  *)
-val find_intro_names : env -> Evd.evar_map -> rel_context -> Id.t list
-
-(** [intro] introduces a single variable with an automatically-generated name.
-    Fails if the goal is not a product or a let-in. *)
-val intro : unit Proofview.tactic
-
-(** [introf] is a more aggressive version of [intro]:
-    - If the goal is an evar it will instantiate it with a product.
-    - It will attempt to head normalize the goal until it is a product, a let-in, or an evar. *)
-val introf : unit Proofview.tactic
-
-(** [intro_move id_opt loc] introduces a single variable and moves it to location [loc].
-    - If [id_opt] is [Some id] the introduced variable is named [id].
-    - If [id_opt] is [None] we use an automatically generated name.
-    - It will instantiate evars and head-normalize the goal in the same way as [introf]. *)
-val intro_move : Id.t option -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** [intro_move_avoid id_opt avoid loc] is the same as [intro_move] except that
-    the automatically generated name is guaranteed to not be in the set [avoid]. *)
-val intro_move_avoid : Id.t option -> Id.Set.t -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** Generalization of [intro_move] to a list of variables and locations (processed from left to right). *)
-val intros_move : (Id.t * Id.t Logic.move_location) list -> unit Proofview.tactic
-
-(** [intro_avoiding avoid] introduces a single variable with an automatically-generated name
-    which is guaranteed to not be the set [avoid]. *)
-val intro_avoiding : Id.Set.t -> unit Proofview.tactic
-
-(** [intro_replacing id] introduces a single variable named [id], replacing the previous declaration of [id].
-
-    Fails if [id] is not already in the context. *)
-val intro_replacing : Id.t -> unit Proofview.tactic
-
-(** Deprecated version of [intro_using_then] kept for backwards compatibility. *)
-val intro_using : Id.t -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intro_using_then] to avoid renaming issues."]
-
-(** [intro_using_then id tac] introduces a single variable named [id]. It refreshes the name [id] if needed,
-    and applies [tac] to the resulting identifier. *)
-val intro_using_then : Id.t -> (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** [intro_mustbe_force id] is the same as [introf] but the name [id] is used instead of
-    an automatically-generated name. *)
-val intro_mustbe_force : Id.t -> unit Proofview.tactic
-
-(** Generalization of [intro_mustbe_force] to a list of variables (processed from left to right). *)
-val intros_mustbe_force : Id.t list -> unit Proofview.tactic
-
-(** [intro_then tac] introduces a single variable with an automatically-generated name,
-    and applies [tac] to the resulting identifier. *)
-val intro_then : (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** Deprecated variant of [intros_using_then] kept for backwards compatibility. *)
-val intros_using : Id.t list -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intros_using_then] to avoid renaming issues."]
-
-(** Generalization of [intro_using_then] to a list of variables (processed from left to right). *)
-val intros_using_then : Id.t list -> (Id.t list -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** Generalization of [intro_replacing] to a list of variables (processed from left to right). *)
-val intros_replacing : Id.t list -> unit Proofview.tactic
-
-(** Variant of [intros_replacing] which does not assume that the variables are
-    already declared in the context. *)
-val intros_possibly_replacing : Id.t list -> unit Proofview.tactic
-
-(** [auto_intros_tac names] introduces the variables in [names].
-    - The variables are introduced from right to left (contrary to the conventional order).
-    - Names are chosen as follow: [Anonymous] indicates to generate a fresh name
-      and [Name id] indicates to use the name [id].
-    - It will instantiate evars and head-normalize the goal in the same way as [introf]. *)
-val auto_intros_tac : Names.Name.t list -> unit Proofview.tactic
-
-(** [intros] keeps introducing variables while the goal is a product or a let-in. *)
-val intros : unit Proofview.tactic
-
-(** [intros_until hyp] is a variant of [intros] which stops when hypothesis [hyp] is introduced. *)
-val intros_until : quantified_hypothesis -> unit Proofview.tactic
-
-(** [intros_clearing bs] introduces as many variables as booleans in [bs]. Each boolean indicates
-    whether to clear the introduced variable (if [true]) or to keep it (if [false]). *)
-val intros_clearing : bool list -> unit Proofview.tactic
-
-(** Assuming a tactic [tac] depending on a hypothesis,
-    [try_intros_until tac arg] first assumes that [arg] denotes a
-    quantified hypothesis (denoted by name or by index) and tries to
-    introduce it in context before applying [tac], otherwise assumes the
-    hypothesis is already in context and directly applies [tac]. *)
-val try_intros_until :
-  (Id.t -> unit Proofview.tactic) -> quantified_hypothesis -> unit Proofview.tactic
-
 type evars_flag = bool     (* true = pose evars       false = fail on evars *)
 type rec_flag = bool       (* true = recursive        false = not recursive *)
 type advanced_flag = bool  (* true = advanced         false = basic *)
@@ -174,10 +72,6 @@ val intro_patterns_bound_to : evars_flag -> int -> Id.t Logic.move_location -> i
     - If [patt] is empty it will introduces as many variables as possible (using [intros]).
     - Otherwise it will behave as [intro_patterns with_evars patt]. *)
 val intros_patterns : evars_flag -> intro_patterns -> unit Proofview.tactic
-
-
-(** [unfold_constr x] unfolds all occurences of [x] in the conclusion. *)
-val unfold_constr : GlobRef.t -> unit Proofview.tactic
 
 val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.tactic
 
@@ -475,7 +369,6 @@ val with_set_strategy :
 module Simple : sig
   (** Simplified version of some of the above tactics *)
 
-  val intro : Id.t -> unit Proofview.tactic
   val apply : constr -> unit Proofview.tactic
   val eapply : constr -> unit Proofview.tactic
   val elim : constr -> unit Proofview.tactic

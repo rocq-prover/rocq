@@ -29,6 +29,7 @@ open Hipattern
 open Proofview.Notations
 open Tacmach
 open Tactypes
+open Intro
 
 (* This file contains the implementation of the tactics ``Decide
    Equality'' and ``Compare''. They can be used to decide the
@@ -116,7 +117,7 @@ let discrHyp id =
 
 let solveNoteqBranch side =
   tclTHEN (choose_noteq side)
-    (tclTHEN introf
+    (tclTHEN (intro ~force:true ())
       (onLastHypId (fun id -> discrHyp id)))
 
 (* Constructs the type {c1=c2}+{~c1=c2} *)
@@ -153,7 +154,7 @@ let rec rewrite_and_clear hyps = match hyps with
   ]
 
 let eqCase tac =
-  tclTHEN intro (onLastHypId tac)
+  tclTHEN (intro ()) (onLastHypId tac)
 
 let injHyp id =
   let c env sigma = (sigma, (mkVar id, NoBindings)) in
@@ -163,14 +164,14 @@ let injHyp id =
 let diseqCase hyps eqonleft =
   let diseq  = Id.of_string "diseq" in
   let absurd = Id.of_string "absurd" in
-  (intro_using_then diseq (fun diseq ->
+  (intro_basedon diseq ~tac:(fun diseq ->
   tclTHEN (choose_noteq eqonleft)
   (tclTHEN (rewrite_and_clear (List.rev hyps))
-  (tclTHEN  (ConvTactics.red None)
-  (intro_using_then absurd (fun absurd ->
-  tclTHEN  (Simple.apply (mkVar diseq))
-  (tclTHEN  (injHyp absurd)
-            (Auto.gen_trivial [] None))))))))
+  (tclTHEN (ConvTactics.red None)
+  (intro_basedon absurd ~tac:(fun absurd ->
+  tclTHEN (Simple.apply (mkVar diseq))
+  (tclTHEN (injHyp absurd)
+           (Auto.gen_trivial [] None))))))))
 
 open Proofview.Notations
 
@@ -311,7 +312,7 @@ let compare c1 c2 =
   let decide = mkDecideEqGoal true ops rectype c1 c2 in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)
     (tclTHENS (cut decide)
-       [(tclTHEN  intro
+       [(tclTHEN (intro ())
            (tclTHEN (onLastHyp simplest_case) clear_last));
         decideEquality rectype ops])
   end

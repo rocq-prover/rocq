@@ -18,6 +18,7 @@ open Util
 open Termops
 open Tactypes
 open Tactics
+open Intro
 open Proofview.Notations
 
 let assert_succeeds tac =
@@ -171,8 +172,8 @@ let case_eq_intros_rewrite x =
       let n' = nb_prod (Tacmach.project gl) concl in
       let h = HypNaming.fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
       Tacticals.tclTHENLIST [
-                    Tacticals.tclDO (n'-n-1) intro;
-                    introduction h;
+                    Tacticals.tclDO (n'-n-1) (intro ());
+                    intro_mustbe h;
                     rewrite_except h]
     end
   ]

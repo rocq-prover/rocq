@@ -256,7 +256,7 @@ let rec e_trivial_fail_db db_list local_db secvars =
   in
   let tacl =
     Eauto.e_assumption ::
-    (tclTHEN Tactics.intro trivial_fail :: [trivial_resolve])
+    (tclTHEN (Intro.intro ()) trivial_fail :: [trivial_resolve])
   in
   tclSOLVE tacl
 
@@ -887,7 +887,7 @@ module Search = struct
     in kont info'
 
   let intro info kont =
-    Proofview.tclBIND Tactics.intro
+    Proofview.tclBIND (Intro.intro ())
      (fun _ -> Proofview.Goal.enter (fun gl -> intro_tac info kont gl))
 
   let rec search_tac hints limit depth =

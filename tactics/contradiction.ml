@@ -136,5 +136,5 @@ let contradiction_term (c,lbind as cl) =
   end
 
 let contradiction = function
-  | None -> Tacticals.tclTHEN intros contradiction_context
+  | None -> Tacticals.tclTHEN Intro.intros contradiction_context
   | Some c -> contradiction_term c

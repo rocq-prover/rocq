@@ -17,6 +17,7 @@ open Hipattern
 open Tacmach
 open Tacticals
 open Tactics
+open Intro
 
 type elim_kind = Case of bool | Elim
 
@@ -109,7 +110,7 @@ let rec general_decompose_aux recognizer id =
   in
   let after_tac i =
     let nassums = List.length branchsigns.(i) in
-    (tclDO nassums intro) <*> (ContextTactics.clear [id]) <*> (elim_on_ba next_tac nassums)
+    (tclDO nassums (intro ())) <*> (ContextTactics.clear [id]) <*> (elim_on_ba next_tac nassums)
   in
   let branchtacs = List.init (Array.length branchsigns) after_tac in
   general_elim_using mkelim (ind, u, args) id <*>
@@ -127,10 +128,10 @@ let general_decompose recognizer c =
   Proofview.Goal.enter begin fun gl ->
   let typc = pf_get_type_of gl c in
   tclTHENS (cut typc)
-    [ intro_using_then tmphyp_name (fun id ->
+    [ intro_basedon ~tac:(fun id ->
           ifOnHyp recognizer (general_decompose_aux recognizer)
             (fun id -> ContextTactics.clear [id])
-            id);
+            id) tmphyp_name;
        Exact.exact_no_check c ]
   end
 

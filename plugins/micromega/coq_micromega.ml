@@ -1930,7 +1930,7 @@ let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
           let arith_goal, props, vars, ff_arith =
             make_goal_of_formula (genv, sigma) dumpexpr ff'
           in
-          let intro (id, _) = Tactics.introduction id in
+          let intro (id, _) = Intro.intro_mustbe id in
           let intro_vars = Tacticals.tclTHENLIST (List.map intro vars) in
           let intro_props = Tacticals.tclTHENLIST (List.map intro props) in
           (*       let ipat_of_name id = Some (CAst.make @@ IntroNaming (Namegen.IntroIdentifier id)) in*)
@@ -2079,7 +2079,7 @@ let micromega_genr prover tac =
           let arith_goal, props, vars, ff_arith =
             make_goal_of_formula (genv, sigma) (Lazy.force dump_rexpr) ff'
           in
-          let intro (id, _) = Tactics.introduction id in
+          let intro (id, _) = Intro.intro_mustbe id in
           let intro_vars = Tacticals.tclTHENLIST (List.map intro vars) in
           let intro_props = Tacticals.tclTHENLIST (List.map intro props) in
           let ipat_of_name id =

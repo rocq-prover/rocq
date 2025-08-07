@@ -75,6 +75,9 @@ val normalise_vm_in_concl : unit Proofview.tactic
     One can specify which occurences of each constant to unfold. *)
 val unfold : (occurrences * Evaluable.t) list -> goal_location -> unit Proofview.tactic
 
+(** [unfold_constr x] unfolds all occurences of [x] in the conclusion. *)
+val unfold_constr : Names.GlobRef.t -> unit Proofview.tactic
+
 (** [pattern [(occs1, t1); (occs2, t2); ...] loc] implements the [pattern] user tactic.
     It performs beta-expansion for the terms [ti] at occurences [occsi], in the goal location
     [loc] (i.e. either in the goal or in a hypothesis). *)

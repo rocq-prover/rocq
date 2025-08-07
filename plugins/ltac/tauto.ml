@@ -75,7 +75,7 @@ let () =
 let idtac = Proofview.tclUNIT ()
 let fail = Proofview.tclINDEPENDENT (tclFAIL (Pp.mt ()))
 
-let intro = Tactics.intro
+let intro = Intro.intro
 
 let assert_ ?by c =
   let tac = match by with
@@ -132,7 +132,7 @@ let flatten_contravariant_conj _ ist =
   with
   | Some (_,args) ->
     let newtyp = List.fold_right (fun a b -> mkArrow a ERelevance.relevant b) args c in
-    let intros = tclMAP (fun _ -> intro) args in
+    let intros = tclMAP (fun _ -> intro ()) args in
     let by = tclTHENLIST [intros; apply hyp; split; assumption] in
     tclTHENLIST [assert_ ~by newtyp; clear (destVar sigma hyp)]
   | _ -> fail
@@ -165,7 +165,7 @@ let flatten_contravariant_disj _ ist =
       let map i arg =
         let typ = mkArrow arg ERelevance.relevant c in
         let ci = Tactics.constructor_tac false None (succ i) Tactypes.NoBindings in
-        let by = tclTHENLIST [intro; apply hyp; ci; assumption] in
+        let by = tclTHENLIST [intro (); apply hyp; ci; assumption] in
         assert_ ~by typ
       in
       let tacs = List.mapi map args in

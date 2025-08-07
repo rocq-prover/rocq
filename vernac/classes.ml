@@ -380,7 +380,7 @@ let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impar
       let lemma, _ = Declare.Proof.by init_refine lemma in
       lemma
     | None ->
-      let lemma, _ = Declare.Proof.by (Tactics.auto_intros_tac ids) lemma in
+      let lemma, _ = Declare.Proof.by (Intro.auto_intros_tac ids) lemma in
       lemma
   in
   match tac with

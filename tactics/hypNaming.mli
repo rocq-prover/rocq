@@ -59,6 +59,11 @@ type name_flag =
     - If [name] is [Name id] then [x] will get picked. *)
 val naming_of_name : Name.t -> name_flag
 
+(** [naming_of_id_opt idopt avoid] builds a name flag for [idopt].
+    - if [idopt] is [Some id] then [NamingMustBe id] is returned.
+    - if [idopt] is [None] then [NamingAvoid avoid] is returned. *)
+val naming_of_id_opt : Id.t option -> Id.Set.t -> name_flag
+
 (** [find_name ~replace decl naming goal] generates a fresh name in the goal [goal]
     for the name flag [naming].
     - [replace]: if [true] then [NamingMustBe] will replace any previous hypothesis.
@@ -67,6 +72,10 @@ val naming_of_name : Name.t -> name_flag
     - [decl]: used to generate the base name for [NamingAvoid]. *)
 val find_name : ?replace:bool -> (constr, constr, 'a) Context.Rel.Declaration.pt ->
   name_flag -> Proofview.Goal.t -> Id.t
+
+(** [find_intro_names env sigma ctx] returns the names that would be created by [intros],
+    without actually doing [intros].  *)
+val find_intro_names : env -> Evd.evar_map -> rel_context -> Id.t list
 
 (** {6 Computing position of hypotheses for replacing. } *)
 

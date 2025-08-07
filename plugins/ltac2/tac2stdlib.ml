@@ -556,9 +556,10 @@ let () =
 let () =
   define "tac_move" (ident @-> move_location @-> tac unit) ContextTactics.move_hyp
 
-let tac_intro id mv =
-  let mv = Option.default Logic.MoveLast mv in
-  Tactics.intro_move id mv
+let tac_intro idopt move =
+  let move = Option.default Logic.MoveLast move in
+  Intro.intro ~naming:(HypNaming.naming_of_id_opt idopt Id.Set.empty) ~move ~force:true ()
+
 let () =
   define "tac_intro" (option ident @-> option move_location @-> tac unit) tac_intro
 
@@ -594,7 +595,7 @@ let () =
   define "tac_right" (bool @-> bindings @-> tac unit) Tac2tactics.right_with_bindings
 
 let () =
-  define "tac_introsuntil" (qhyp @-> tac unit) Tactics.intros_until
+  define "tac_introsuntil" (qhyp @-> tac unit) Intro.intros_until
 
 let () =
   define "tac_exactnocheck" (constr @-> tac unit) Exact.exact_no_check

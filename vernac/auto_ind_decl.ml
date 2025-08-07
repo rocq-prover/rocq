@@ -16,6 +16,7 @@ open Constr
 open Vars
 open Declarations
 open Names
+open Intro
 
 module RelDecl = Context.Rel.Declaration
 
@@ -1119,11 +1120,11 @@ let compute_bl_tact handle ind lnamesparrec nparrec =
     @ ( List.map (fun (_,_,sbl,_ ) -> sbl) list_id )
   in
   let open Tactics in
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_basedon first_intros ~tac:begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
-        intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
-        intro_using_then (Id.of_string "y") (fun freshm -> destruct_on (EConstr.mkVar freshm));
-        intro_using_then (Id.of_string "Z") begin fun freshz ->
+        intro_basedon (Id.of_string "x") ~tac:(fun freshn -> induct_on (EConstr.mkVar freshn));
+        intro_basedon (Id.of_string "y") ~tac:(fun freshm -> destruct_on (EConstr.mkVar freshm));
+        intro_basedon (Id.of_string "Z") ~tac:begin fun freshz ->
           Tacticals.tclTHENLIST [
               intros;
               Tacticals.tclTRY (
@@ -1264,11 +1265,11 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
     @ ( List.map (fun (_,_,_,slb) -> slb) list_id )
   in
   let open Tactics in
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_basedon first_intros ~tac:begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
-        intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
-        intro_using_then (Id.of_string "y") (fun freshm -> destruct_on (EConstr.mkVar freshm));
-        intro_using_then (Id.of_string "Z") begin fun freshz ->
+        intro_basedon (Id.of_string "x") ~tac:(fun freshn -> induct_on (EConstr.mkVar freshn));
+        intro_basedon (Id.of_string "y") ~tac:(fun freshm -> destruct_on (EConstr.mkVar freshm));
+        intro_basedon (Id.of_string "Z") ~tac:begin fun freshz ->
           Tacticals.tclTHENLIST [
               intros;
               Tacticals.tclTRY (
@@ -1422,7 +1423,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
   in
   let open Tactics in
   let fresh_id s gl = HypNaming.fresh_id_in_env (Id.Set.empty) s (Proofview.Goal.env gl) in
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_basedon first_intros ~tac:begin fun fresh_first_intros ->
     let eqI =
       let a = Array.of_list fresh_first_intros in
       let n = List.length list_id in
@@ -1432,8 +1433,8 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                                Array.get a (i+2*n), Array.get a (i+3*n))) in
       eqI handle (ind,u) fresh_list_id
     in
-    intro_using_then (Id.of_string "x") begin fun freshn ->
-      intro_using_then (Id.of_string "y") begin fun freshm ->
+    intro_basedon (Id.of_string "x") ~tac:begin fun freshn ->
+      intro_basedon (Id.of_string "y") ~tac:begin fun freshm ->
         Proofview.Goal.enter begin fun gl ->
           let freshH = fresh_id (Id.of_string "H") gl in
           let eqbnm = mkApp(eqI,[|mkVar freshn;mkVar freshm|]) in
@@ -1473,8 +1474,8 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                       let freshH3 = fresh_id (Id.of_string "H") gl in
                       Tacticals.tclTHENLIST [
                           simplest_right ;
-                          unfold_constr (Rocqlib.lib_ref "core.not.type");
-                          intro;
+                          ConvTactics.unfold_constr (Rocqlib.lib_ref "core.not.type");
+                          intro ();
                           Equality.subst_all ();
                           assert_by (Name freshH3)
                             (EConstr.of_constr (mkApp(eq,[|bb;mkApp(eqI,[|mkVar freshm;mkVar freshm|]);tt|])))

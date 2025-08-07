@@ -85,6 +85,11 @@ let naming_of_name = function
   | Anonymous -> NamingAvoid Id.Set.empty
   | Name id -> NamingMustBe (CAst.make id)
 
+let naming_of_id_opt idopt avoid =
+  match idopt with
+  | None -> NamingAvoid avoid
+  | Some id -> NamingMustBe (CAst.make id)
+
 let find_name ?(replace = false) decl naming gl = match naming with
   | NamingAvoid idl ->
       (* This case must be compatible with [find_intro_names] below. *)
@@ -98,6 +103,19 @@ let find_name ?(replace = false) decl naming gl = match naming with
      if not replace && Id.Set.mem id ids_of_hyps then
        Loc.raise ?loc (AlreadyUsed id);
      id
+
+(** This function is supposed to be compatible with an iteration of [find_name] above.
+    As [default_id] checks the sort of the type to build hyp names,
+    we maintain an environment to be able to type dependent hyps. *)
+let find_intro_names env0 sigma ctxt =
+  let _, res, _ = List.fold_right
+    (fun decl acc ->
+      let env,idl,avoid = acc in
+      let name = fresh_id_in_env avoid (default_id env sigma decl) env0 in
+      let newenv = push_rel decl env in
+      (newenv, name :: idl, Id.Set.add name avoid))
+    ctxt (env0, [], Id.Set.empty) in
+  List.rev res
 
 (**************************************************************)
 (** Computing position of hypotheses for replacing.           *)

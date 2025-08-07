@@ -971,7 +971,7 @@ let interp_destruction_arg ist gl arg =
         strbrk " neither to a quantified hypothesis nor to a term.")
       in
       let try_cast_id id' =
-        if Tactics.is_quantified_hypothesis id' gl
+        if Intro.is_quantified_hypothesis id' gl
         then keep,ElimOnIdent (CAst.make ?loc id')
         else
           (keep, ElimOnConstr begin fun env sigma ->
@@ -999,7 +999,7 @@ let interp_destruction_arg ist gl arg =
         | Some c -> keep,ElimOnConstr (fun env sigma -> (sigma, (c,NoBindings)))
       with Not_found ->
         (* We were in non strict (interactive) mode *)
-        if Tactics.is_quantified_hypothesis id gl then
+        if Intro.is_quantified_hypothesis id gl then
           keep,ElimOnIdent (CAst.make ?loc id)
         else
           let c = (DAst.make ?loc @@ GVar id,Some (CAst.make @@ CRef (qualid_of_ident ?loc id,None))) in

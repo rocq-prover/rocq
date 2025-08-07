@@ -443,6 +443,11 @@ let normalise_vm_in_concl = reduct_in_concl ~cast:true ~check:false (Redexpr.cbv
 
 let unfold loccname = reduct_option ~check:false (unfoldn loccname, DEFAULTcast)
 
+let unfold_constr = function
+  | GlobRef.ConstRef sp -> unfold [(AllOccurrences, EvalConstRef sp)] None
+  | GlobRef.VarRef id -> unfold [(AllOccurrences, EvalVarRef id)] None
+  | _ -> Loc.raise NotUnfoldable
+
 let pattern l = e_change_option ~check:false ~reorder:false (pattern_occs l, DEFAULTcast)
 
 (* The main reduction function *)

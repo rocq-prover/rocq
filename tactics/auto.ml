@@ -12,7 +12,6 @@ open Pp
 open Util
 open Names
 open Termops
-open Tactics
 open Proofview.Notations
 open Hints
 
@@ -266,7 +265,7 @@ let exists_evaluable_reference env = function
   | Evaluable.EvalProjectionRef _ -> true
   | Evaluable.EvalVarRef v -> try ignore(Environ.lookup_named v env); true with Not_found -> false
 
-let dbg_intro dbg = tclLOG dbg (fun _ _ -> str "intro") intro
+let dbg_intro dbg = tclLOG dbg (fun _ _ -> str "intro") (Intro.intro ())
 let dbg_assumption dbg = tclLOG dbg (fun _ _ -> str "assumption") Exact.assumption
 
 let intro_register dbg kont db =

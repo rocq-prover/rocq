@@ -192,20 +192,20 @@ END
 (** Intro *)
 
 TACTIC EXTEND intros_until
-| [ "intros" "until" quantified_hypothesis(h) ] -> { Tactics.intros_until h }
+| [ "intros" "until" quantified_hypothesis(h) ] -> { Intro.intros_until h }
 END
 
 TACTIC EXTEND intro
-| [ "intro" ] -> { Tactics.intro_move None MoveLast }
-| [ "intro" ident(id) ] -> { Tactics.intro_move (Some id) MoveLast }
-| [ "intro" ident(id) "at" "top" ] -> { Tactics.intro_move (Some id) MoveFirst }
-| [ "intro" ident(id) "at" "bottom" ] -> { Tactics.intro_move (Some id) MoveLast }
-| [ "intro" ident(id) "after" hyp(h) ] -> { Tactics.intro_move (Some id) (MoveAfter h) }
-| [ "intro" ident(id) "before" hyp(h) ] -> { Tactics.intro_move (Some id) (MoveBefore h) }
-| [ "intro" "at" "top" ] -> { Tactics.intro_move None MoveFirst }
-| [ "intro" "at" "bottom" ] -> { Tactics.intro_move None MoveLast }
-| [ "intro" "after" hyp(h) ] -> { Tactics.intro_move None (MoveAfter h) }
-| [ "intro" "before" hyp(h) ] -> { Tactics.intro_move None (MoveBefore h) }
+| [ "intro" ] -> { Intro.intro ~force:true () }
+| [ "intro" ident(id) ] -> { Intro.intro_mustbe id ~force:true }
+| [ "intro" ident(id) "at" "top" ] -> { Intro.intro_mustbe id ~move:MoveFirst ~force:true }
+| [ "intro" ident(id) "at" "bottom" ] -> { Intro.intro_mustbe id ~force:true }
+| [ "intro" ident(id) "after" hyp(h) ] -> { Intro.intro_mustbe id ~move:(MoveAfter h) ~force:true }
+| [ "intro" ident(id) "before" hyp(h) ] -> { Intro.intro_mustbe id ~move:(MoveBefore h) ~force:true }
+| [ "intro" "at" "top" ] -> { Intro.intro ~move:MoveFirst ~force:true () }
+| [ "intro" "at" "bottom" ] -> { Intro.intro ~force:true () }
+| [ "intro" "after" hyp(h) ] -> { Intro.intro ~move:(MoveAfter h) ~force:true () }
+| [ "intro" "before" hyp(h) ] -> { Intro.intro ~move:(MoveBefore h) ~force:true () }
 END
 
 (** Move *)
@@ -234,7 +234,7 @@ END
 {
 
 let simple_induct h =
-  Tacticals.tclTHEN (Tactics.intros_until h)
+  Tacticals.tclTHEN (Intro.intros_until h)
     (Tacticals.onLastHyp Tactics.simplest_elim)
 
 }
@@ -246,7 +246,7 @@ END
 {
 
 let simple_destruct h =
-  Tacticals.tclTHEN (Tactics.intros_until h)
+  Tacticals.tclTHEN (Intro.intros_until h)
     (Tacticals.onLastHyp Tactics.simplest_case)
 
 }

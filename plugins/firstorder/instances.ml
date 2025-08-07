@@ -16,6 +16,7 @@ open EConstr
 open Vars
 open Tacmach
 open Tactics
+open Intro
 open Tacticals
 open Proofview.Notations
 open Reductionops
@@ -136,13 +137,13 @@ let left_instance_tac ~flags (inst,id) continue seq=
         else
           tclTHENS (cut dom)
             [tclTHENLIST
-               [introf;
+               [intro ~force:true ();
                 (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl ->
                   let id0 = List.nth (pf_ids_of_hyps gl) 0 in
                   Generalize.generalize [mkApp(idc, [|mkVar id0|])]
                 end);
-                introf;
+                intro ~force:true ();
                 tclSOLVE [wrap ~flags 1 false continue
                             (deepen (record env (id,None) seq))]];
             tclTRY Exact.assumption]
@@ -170,7 +171,7 @@ let left_instance_tac ~flags (inst,id) continue seq=
           in
             tclTHENLIST
               [special_generalize;
-               introf;
+               intro ~force:true ();
                tclSOLVE
                  [wrap ~flags 1 false continue (deepen (record env (id,Some c) seq))]]
   end
@@ -182,7 +183,7 @@ let right_instance_tac ~flags inst continue seq=
       Phantom dom ->
         tclTHENS (cut dom)
         [tclTHENLIST
-           [introf;
+           [intro ~force:true ();
             Proofview.Goal.enter begin fun gl ->
               let id0 = List.nth (pf_ids_of_hyps gl) 0 in
               split (Tactypes.ImplicitBindings [mkVar id0])

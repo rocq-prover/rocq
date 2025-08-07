@@ -18,6 +18,7 @@ open Context
 open EConstr
 open Vars
 open Tactics
+open Intro
 open Typing
 open Ccalgo
 open Ccproof
@@ -510,26 +511,26 @@ let negative_concl_introf =
     let concl = Proofview.Goal.concl gl in
     let nt = whd env sigma concl in
     match EConstr.kind sigma nt with
-      Prod (_,_,ff) when isRefX env sigma (Lazy.force _False) ff -> introf
+      Prod (_,_,ff) when isRefX env sigma (Lazy.force _False) ff -> intro ~force:true ()
     | App (f,[|t|]) when isRefX env sigma (Lazy.force _not) f ->
         Tacticals.pf_constr_of_global (Lazy.force _False) >>= fun ff ->
         Refine.refine ~typecheck:true begin fun sigma ->
           let sigma, e = Evarutil.new_evar env sigma (mk_neg_ty ff t nt) in sigma, (mkApp (mk_neg_tm ff t nt, [|e|]))
-        end >>= fun _ -> intro >>= fun _ -> intro
+        end >>= fun _ -> intro () >>= fun _ -> intro ()
     | _ -> Tacticals.tclIDTAC
   end
 
 let congruence_tac depth l =
   let depth = Option.default 1000 depth in
   Tacticals.tclTHEN
-    (Tacticals.tclREPEAT (Tacticals.tclFIRST [intro; Tacticals.tclTHEN whd_in_concl intro]))
+    (Tacticals.tclREPEAT (Tacticals.tclFIRST [intro (); Tacticals.tclTHEN whd_in_concl (intro ())]))
     (cc_tactic depth l false)
 
 
 let simple_congruence_tac depth l =
   let depth = Option.default 1000 depth in
   Tacticals.tclTHENLIST [
-    Tacticals.tclREPEAT intro;
+    Tacticals.tclREPEAT (intro ());
     negative_concl_introf;
     cc_tactic depth l true]
 

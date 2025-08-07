@@ -122,10 +122,10 @@ let new_fresh_id avoid id gl =
   fresh_id_in_env avoid id (Proofview.Goal.env gl)
 
 let intros_until_n n =
-  Tactics.try_intros_until (fun _ -> tclIDTAC) (AnonHyp n)
+  Intro.try_intros_until (fun _ -> tclIDTAC) (AnonHyp n)
 
 let try_intros_until_id_check id =
-  Tactics.try_intros_until (fun _ -> tclIDTAC) (NamedHyp (CAst.make id))
+  Intro.try_intros_until (fun _ -> tclIDTAC) (NamedHyp (CAst.make id))
 
 (* Apply a tactic on a quantified hypothesis, an hypothesis in context
    or a term with bindings *)
@@ -348,8 +348,8 @@ let re_intro_dependent_hypotheses (lstatus,rstatus) (_,tophyp) =
     List.map (function (hyp,MoveLast) -> (hyp,tophyp) | x -> x) lstatus
   in
   Tacticals.tclTHEN
-    (Tactics.intros_move rstatus)
-    (Tactics.intros_move newlstatus)
+    (Intro.intros_move rstatus)
+    (Intro.intros_move newlstatus)
 
 let dest_intro_patterns = Tactics.Internal.dest_intro_patterns
 

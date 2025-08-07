@@ -27,8 +27,10 @@ open Tacticals
 open Tactics
 open ContextTactics
 open Elim
+open Intro
 open Equality
 open Tactypes
+open HypNaming
 open Proofview.Notations
 
 module NamedDecl = Context.Named.Declaration
@@ -399,7 +401,7 @@ let projectAndApply as_mode thin avoid id eqname names depids =
       [if as_mode then clear [id] else tclIDTAC;
        (tclMAP_i (false,false) neqns (function (idopt,_) ->
          tclTRY (tclTHEN
-           (intro_move_avoid idopt avoid Logic.MoveLast)
+           (intro ~naming:(naming_of_id_opt idopt avoid) ~force:true ())
            (* try again to substitute and if still not a variable after *)
            (* decomposition, arbitrarily try to rewrite RL !? *)
            (tclTRY (onLastHypId (substHypIfVariable (fun id -> subst_hyp false id))))))
@@ -433,30 +435,30 @@ let rewrite_equations as_mode othin neqns names ba =
   match othin with
     | Some thin ->
         tclTHENLIST
-            [tclDO neqns intro;
+            [tclDO neqns (intro ());
              Generalize.bring_hyps nodepids;
              clear (ids_of_named_context nodepids);
              (nLastDecls neqns (fun ctx -> Generalize.bring_hyps (List.rev ctx)));
              (nLastDecls neqns (fun ctx -> clear (ids_of_named_context ctx)));
              tclMAP_i (true,false) neqns (fun (idopt,names) ->
                (tclTHEN
-                 (intro_move_avoid idopt avoid Logic.MoveLast)
+                 (intro ~naming:(naming_of_id_opt idopt avoid) ~force:true ())
                  (onLastHypId (fun id ->
                    tclTRY (projectAndApply as_mode thin avoid id first_eq names depids)))))
                names;
              tclMAP (fun d -> tclIDTAC >>= fun () -> (* delay for [first_eq]. *)
                let idopt = if as_mode then Some (NamedDecl.get_id d) else None in
-               intro_move idopt (if thin then Logic.MoveLast else !first_eq))
+               intro ~naming:(naming_of_id_opt idopt Id.Set.empty) ~move:(if thin then Logic.MoveLast else !first_eq) ~force:true ())
                nodepids;
              (tclMAP (fun d -> tclTRY (clear [NamedDecl.get_id d])) depids)]
     | None ->
         (* simple inversion *)
         if as_mode then
           tclMAP_i (false,true) neqns (fun (idopt,_) ->
-            intro_move idopt Logic.MoveLast) names
+            intro ~naming:(naming_of_id_opt idopt Id.Set.empty) ~force:true ()) names
         else
           (tclTHENLIST
-             [tclDO neqns intro;
+             [tclDO neqns (intro ());
               Generalize.bring_hyps nodepids;
               clear (ids_of_named_context nodepids)])
   end
@@ -571,7 +573,7 @@ let invIn k names ids id =
         if nb_of_new_hyp < 1 then
           intros_replacing ids
         else
-          tclTHEN (tclDO nb_of_new_hyp intro) (intros_replacing ids)
+          tclTHEN (tclDO nb_of_new_hyp (intro ())) (intros_replacing ids)
       end
     in
     Proofview.tclORELSE

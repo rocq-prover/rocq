@@ -273,12 +273,12 @@ END
 (*** Introducing terms ***)
 
 (*
- * We can call the tactics defined in Tactics within our tactics.
+ * We can call the tactics defined in Tactics and related modules within our tactics.
  * Here we call intros.
  *)
 TACTIC EXTEND my_intro
 | [ "my_intro" ident(i) ] ->
-  { Tactics.introduction i }
+  { Intro.intro_mustbe i }
 END
 
 (*** Exploring proof state ***)
