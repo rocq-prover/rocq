@@ -633,10 +633,10 @@ let () =
   define "tac_admit" (unit @-> tac unit) (fun _ -> Proofview.give_up)
 
 let () =
-  define "tac_fix" (ident @-> int @-> tac unit) Tactics.fix
+  define "tac_fix" (ident @-> int @-> tac unit) FixTactics.fix
 
 let () =
-  define "tac_cofix" (ident @-> tac unit) Tactics.cofix
+  define "tac_cofix" (ident @-> tac unit) FixTactics.cofix
 
 let () =
   define "tac_clear" (list ident @-> tac unit) ContextTactics.clear

@@ -1227,7 +1227,7 @@ let termination_proof_header is_mes input_type ids args_id relation rec_arg_num
                    (onNLastHypsId (nargs + 1)
                       (tclMAP (fun id ->
                            tclTHEN (Generalize.generalize [mkVar id]) (clear [id]))))
-               ; observe_tac (fun _ _ -> str "fix") (fix hrec (nargs + 1))
+               ; observe_tac (fun _ _ -> str "fix") (FixTactics.fix hrec (nargs + 1))
                ; h_intros args_id
                ; Simple.intro wf_rec_arg
                ; observe_tac
