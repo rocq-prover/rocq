@@ -118,6 +118,15 @@ module Deltamap = struct
     let km' = KerName.Map.filter filter_kn km in
     { kmap = km'; mmap = mm'; root = root }
 
+  let is_subdelta reso1 reso2 =
+    let reso1 = reroot reso2.root reso1 in
+    let eqkn h1 h2 = match h1, h2 with
+    | Equiv kn1, Equiv kn2 -> KerName.equal kn1 kn2
+    | Inline _, Inline _ -> true
+    | (Equiv _ | Inline _), _ -> false
+    in
+    ModPath.Map.equal ModPath.equal reso1.mmap reso2.mmap && KerName.Map.equal eqkn reso1.kmap reso2.kmap
+
 end
 
 (* Invariant: in the [delta_hint] map, an [Equiv] should only
@@ -130,6 +139,8 @@ let has_root_delta_resolver mp reso =
   ModPath.equal mp (Deltamap.root reso)
 
 let upcast_delta_resolver = Deltamap.upcast
+
+let is_rerooted_delta = Deltamap.is_subdelta
 
 module Umap :
   sig
