@@ -480,11 +480,11 @@ END
 (* ********************************************************************* *)
 
 TACTIC EXTEND constr_eq
-| [ "constr_eq" constr(x) constr(y) ] -> { Tactics.constr_eq ~strict:false x y }
+| [ "constr_eq" constr(x) constr(y) ] -> { ConvTactics.constr_eq ~strict:false x y }
 END
 
 TACTIC EXTEND constr_eq_strict
-| [ "constr_eq_strict" constr(x) constr(y) ] -> { Tactics.constr_eq ~strict:true x y }
+| [ "constr_eq_strict" constr(x) constr(y) ] -> { ConvTactics.constr_eq ~strict:true x y }
 END
 
 TACTIC EXTEND constr_eq_nounivs

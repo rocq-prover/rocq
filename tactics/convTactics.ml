@@ -18,9 +18,11 @@ open Vars
 open Reductionops
 open Evd
 open Tacred
+open Unification
 open Genredexpr
 open Logic
 open Locus
+open Pretype_errors
 open Proofview.Notations
 open TacticExceptions
 
@@ -29,6 +31,33 @@ module NamedDecl = Context.Named.Declaration
 (**************************************************************)
 (** Basic conversion tactics.                                 *)
 (**************************************************************)
+
+let constr_eq ~strict x y =
+  let fail ~info = Tacticals.tclFAIL ~info (str "Not equal") in
+  let fail_universes ~info = Tacticals.tclFAIL ~info (str "Not equal (due to universes)") in
+  Proofview.Goal.enter begin fun gl ->
+    let env = Tacmach.pf_env gl in
+    let evd = Tacmach.project gl in
+      match EConstr.eq_constr_universes env evd x y with
+      | Some csts ->
+        if strict then
+          if UState.check_universe_constraints (Evd.ustate evd) csts
+          then Proofview.tclUNIT ()
+          else
+            let info = Exninfo.reify () in
+            fail_universes ~info
+        else
+        let csts = UnivProblem.Set.force csts in
+        begin match Evd.add_universe_constraints evd csts with
+           | evd -> Proofview.Unsafe.tclEVARS evd
+           | exception (UGraph.UniverseInconsistency _ as e) ->
+             let _, info = Exninfo.capture e in
+             fail_universes ~info
+        end
+      | None ->
+        let info = Exninfo.reify () in
+        fail ~info
+  end
 
 let convert ?(pb = Conversion.CONV) x y =
   Proofview.Goal.enter begin fun gl ->
@@ -40,6 +69,42 @@ let convert ?(pb = Conversion.CONV) x y =
       (* FIXME: Sometimes an anomaly is raised from conversion *)
       Loc.raise ?loc:(Loc.get_loc info) NotConvertible
   end
+
+let unify ?(state=TransparentState.full) x y =
+  Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  try
+    let core_flags =
+      { (default_unify_flags ()).core_unify_flags with
+        modulo_delta = state;
+        modulo_conv_on_closed_terms = Some state} in
+    (* What to do on merge and subterm flags?? *)
+    let flags = { (default_unify_flags ()) with
+      core_unify_flags = core_flags;
+      merge_unify_flags = core_flags;
+      subterm_unify_flags = { core_flags with modulo_delta = TransparentState.empty } }
+    in
+    let _, sigma = w_unify (Tacmach.pf_env gl) sigma Conversion.CONV ~flags x y in
+    Proofview.Unsafe.tclEVARS sigma
+  with e when noncritical e ->
+    let e, info = Exninfo.capture e in
+    Proofview.tclZERO ~info (PretypeError (env, sigma, CannotUnify (x, y, None)))
+  end
+
+let evarconv_unify ?(state=TransparentState.full) ?(with_ho=true) x y =
+  Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  try
+    let flags = Evarconv.default_flags_of state in
+    let sigma = Evarconv.unify ~flags ~with_ho env sigma Conversion.CONV x y in
+    Proofview.Unsafe.tclEVARS sigma
+  with e when noncritical e ->
+    let e, info = Exninfo.capture e in
+    Proofview.tclZERO ~info (PretypeError (env, sigma, CannotUnify (x, y, None)))
+  end
+
 
 (* Not sure if being able to disable [cast] is useful. Uses seem picked somewhat randomly. *)
 let convert_concl ~cast ~check ty k =

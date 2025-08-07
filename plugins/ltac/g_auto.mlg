@@ -141,7 +141,7 @@ TACTIC EXTEND autounfold_one
       END
 
 TACTIC EXTEND unify
-| ["unify" constr(x) constr(y) ] -> { Tactics.unify x y }
+| ["unify" constr(x) constr(y) ] -> { ConvTactics.unify x y }
 | ["unify" constr(x) constr(y) "with" preident(base)  ] -> {
     let table = try Some (Hints.searchtable_map base) with Not_found -> None in
     match table with
@@ -150,7 +150,7 @@ TACTIC EXTEND unify
       Tacticals.tclZEROMSG msg
     | Some t ->
       let state = Hints.Hint_db.transparent_state t in
-      Tactics.unify ~state x y
+      ConvTactics.unify ~state x y
   }
 END
 

@@ -17,15 +17,29 @@ open Pattern
 open Locus
 open Ltac_pretype
 
-(** Tactics which deal with reduction and conversion. *)
-
+(** Tactics which deal with reduction, conversion, and unification. *)
 
 (** {6 Basic conversion tactics. } *)
+
+(** [constr_eq ~strict x y] checks that [x] and [y] are syntactically equal (i.e. alpha-equivalent),
+    up to universes.
+    - [strict]: if [true] the universe constraints must be already true.
+      If [false] any necessary universe constraints are added to the evar map. *)
+val constr_eq : strict:bool -> constr -> constr -> unit Proofview.tactic
 
 (** [convert ?pb x y] checks that [x] and [y] are convertible (using all conversion rules)
     and fails otherwise.
     - [pb]: whether to use conversion ([CONV]) or cumulativity ([CUMUL]). Defaults to [CONV]. *)
 val convert : ?pb:conv_pb -> constr -> constr -> unit Proofview.tactic
+
+(** Legacy unification. Use [evarconv_unify] instead. *)
+val unify : ?state:TransparentState.t -> constr -> constr -> unit Proofview.tactic
+
+(** [evarconv_unify ?state ?with_ho x y] unifies [x] and [y], instantiating evars and adding universe constraints
+    as needed. Fails if [x] and [y] are not unifiable.
+    - [state]: transparency state to use (defaults to [TransparentState.full]).
+    - [with_ho]: whether to use higher order unification (defaults to [true]). *)
+val evarconv_unify : ?state:TransparentState.t -> ?with_ho:bool -> constr -> constr -> unit Proofview.tactic
 
 (** [convert_concl ~cast ~check new_concl kind] changes the conclusion to [new_concl],
     which should be convertible to the old conclusion.
@@ -39,7 +53,6 @@ val convert_concl : cast:bool -> check:bool -> types -> cast_kind -> unit Proofv
       are convertible (both the types and bodies need to be convertible), and that the new
       declaration of [x] has a body if and only if the old declaration of [x] has a body. *)
 val convert_hyp : check:bool -> reorder:bool -> named_declaration -> unit Proofview.tactic
-
 
 (** {6 Specialized reduction strategies. } *)
 
@@ -69,7 +82,6 @@ val pattern : (occurrences * constr) list -> goal_location -> unit Proofview.tac
 
 (** High-level reduction tactic. *)
 val reduce : red_expr -> clause -> unit Proofview.tactic
-
 
 (** {6 Generic conversion tactics. } *)
 
@@ -102,7 +114,6 @@ val change_in_hyp : check:bool -> (occurrences * constr_pattern) option -> chang
       If [Some patt] we change subterms matching pattern [patt]. *)
 val change :
   check:bool -> constr_pattern option -> change_arg -> clause -> unit Proofview.tactic
-
 
 (** {6 Generic reduction tactics. } *)
 

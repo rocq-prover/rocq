@@ -452,21 +452,6 @@ val letin_pat_tac : evars_flag -> (bool * intro_pattern_naming) option ->
 
 (** {6 Other tactics. } *)
 
-(** [constr_eq ~strict x y] checks that [x] and [y] are syntactically equal (i.e. alpha-equivalent),
-    up to universes.
-    - [strict]: if [true] the universe constraints must be already true.
-      If [false] any necessary universe constraints are added to the evar map. *)
-val constr_eq : strict:bool -> constr -> constr -> unit Proofview.tactic
-
-(** Legacy unification. Use [evarconv_unify] instead. *)
-val unify : ?state:TransparentState.t -> constr -> constr -> unit Proofview.tactic
-
-(** [evarconv_unify ?state ?with_ho x y] unifies [x] and [y], instantiating evars and adding universe constraints
-    as needed. Fails if [x] and [y] are not unifiable.
-    - [state]: transparency state to use (defaults to [TransparentState.full]).
-    - [with_ho]: whether to use higher order unification (defaults to [true]). *)
-val evarconv_unify : ?state:TransparentState.t -> ?with_ho:bool -> constr -> constr -> unit Proofview.tactic
-
 val specialize_eqs : Id.t -> unit Proofview.tactic
 
 val general_rewrite_clause :

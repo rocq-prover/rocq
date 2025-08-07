@@ -13,7 +13,7 @@ open Environ
 open Evd
 open Evarutil
 
-(** Tactics which modify the local context (clear, move, rename, ...). *)
+(** Tactics which modify the local context ([clear], [move], [rename], ...). *)
 
 (** [clear ?fail ids] removes hypotheses [ids] from the context.
     - [fail]: function which is called if clearing the hypotheses leads to a dependency error.
