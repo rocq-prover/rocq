@@ -720,7 +720,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
           ; (* unfolding of all the defined variables introduced by this branch *)
             (* observe_tac "unfolding" pre_tac; *)
             (* $zeta$ normalizing of the conclusion *)
-            reduce
+            ConvTactics.reduce
               (Genredexpr.Cbv
                  { Redops.all_flags with
                    Genredexpr.rDelta = false
@@ -728,12 +728,12 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
               Locusops.onConcl
           ; observe_tac "toto " (Proofview.tclUNIT ())
           ; (* introducing the result of the graph and the equality hypothesis *)
-            observe_tac "introducing" (tclMAP Simple.intro [res; hres])
+            observe_tac "introducing" (tclMAP (Intro.intro_mustbe ~force:true) [res; hres])
           ; (* replacing [res] with its value *)
             observe_tac "rewriting res value" (Equality.rewriteLR (mkVar hres))
           ; (* Conclusion *)
             observe_tac "exact"
-              (Proofview.Goal.enter (fun g -> exact_check (app_constructor g)))
+              (Proofview.Goal.enter (fun g -> Exact.exact_check (app_constructor g)))
           ]
       in
       (* end of branche proof *)
@@ -793,8 +793,8 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
       in
       tclTHENLIST
         [ observe_tac "principle"
-            (assert_by (Name principle_id) princ_type (exact_check f_principle))
-        ; observe_tac "intro args_names" (tclMAP Simple.intro args_names)
+            (assert_by (Name principle_id) princ_type (Exact.exact_check f_principle))
+        ; observe_tac "intro args_names" (tclMAP (Intro.intro_mustbe ~force:true) args_names)
         ; (* observe_tac "titi" (pose_proof (Name (Id.of_string "__")) (Reductionops.nf_beta Evd.empty  ((mkApp (mkVar principle_id,Array.of_list bindings))))); *)
           observe_tac "idtac" tclIDTAC
         ; tclTHENS
@@ -838,7 +838,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
 
 *)
 
-let thin = Tactics.clear
+let thin = ContextTactics.clear
 
 (* [intros_with_rewrite] do the intros in each branch and treat each new hypothesis
        (unfolding, substituting, destructing cases \ldots)
@@ -877,6 +877,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
   let open EConstr in
   let open Tacmach in
   let open Tactics in
+  let open ConvTactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
       let eq_ind = make_eq () in
@@ -890,7 +891,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
               args.(1) args.(2)
           then
             let id = pf_get_new_id (Id.of_string "y") g in
-            tclTHENLIST [Simple.intro id; thin [id]; intros_with_rewrite ()]
+            tclTHENLIST [Intro.intro_mustbe id ~force:true; thin [id]; intros_with_rewrite ()]
           else if
             isVar sigma args.(1)
             && Environ.evaluable_named
@@ -898,16 +899,17 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                  (Proofview.Goal.env g)
           then
             tclTHENLIST
-              [ unfold_in_concl
+              [ unfold
                   [ ( Locus.AllOccurrences
                     , Evaluable.EvalVarRef (destVar sigma args.(1)) ) ]
+                  None
               ; tclMAP
                   (fun id ->
                     tclTRY
-                      (unfold_in_hyp
+                      (unfold
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(1)) ) ]
-                         (destVar sigma args.(1), Locus.InHyp)))
+                         (Some (destVar sigma args.(1), Locus.InHyp))))
                   (pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if
@@ -917,36 +919,37 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                  (Proofview.Goal.env g)
           then
             tclTHENLIST
-              [ unfold_in_concl
+              [ unfold
                   [ ( Locus.AllOccurrences
                     , Evaluable.EvalVarRef (destVar sigma args.(2)) ) ]
+                  None
               ; tclMAP
                   (fun id ->
                     tclTRY
-                      (unfold_in_hyp
+                      (unfold
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(2)) ) ]
-                         (destVar sigma args.(2), Locus.InHyp)))
+                         (Some (destVar sigma args.(2), Locus.InHyp))))
                   (pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if isVar sigma args.(1) then
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; generalize_dependent_of (destVar sigma args.(1)) id
               ; tclTRY (Equality.rewriteLR (mkVar id))
               ; intros_with_rewrite () ]
           else if isVar sigma args.(2) then
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; generalize_dependent_of (destVar sigma args.(2)) id
               ; tclTRY (Equality.rewriteRL (mkVar id))
               ; intros_with_rewrite () ]
           else
             let id = pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
-              [ Simple.intro id
+              [ Intro.intro_mustbe ~force:true id
               ; tclTRY (Equality.rewriteLR (mkVar id))
               ; intros_with_rewrite () ]
         | Ind _
@@ -965,7 +968,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
             ; intros_with_rewrite () ]
         | _ ->
           let id = pf_get_new_id (Id.of_string "y") g in
-          tclTHENLIST [Simple.intro id; intros_with_rewrite ()] )
+          tclTHENLIST [Intro.intro_mustbe ~force:true id; intros_with_rewrite ()] )
       | LetIn _ ->
         tclTHENLIST
           [ reduce
@@ -991,7 +994,7 @@ let rec reflexivity_with_destruct_cases () =
           | Case (_, _, _, _, _, v, _) ->
             tclTHENLIST
               [ simplest_case v
-              ; intros
+              ; Intro.intros
               ; observe_tac "reflexivity_with_destruct_cases"
                   (reflexivity_with_destruct_cases ()) ]
           | _ -> reflexivity
@@ -1045,6 +1048,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
   let open EConstr in
   let open Tacmach in
   let open Tactics in
+  let open ConvTactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
       (* We compute the types of the different mutually recursive lemmas
@@ -1120,7 +1124,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
                   CErrors.anomaly (Pp.str "Cannot find equation lemma.")
               in
               tclTHENLIST
-                [ tclMAP Simple.intro ids
+                [ tclMAP (Intro.intro_mustbe ~force:true) ids
                 ; Equality.rewriteLR (UnsafeMonomorphic.mkConst eq_lemma)
                 ; (* Don't forget to $\zeta$ normlize the term since the principles
                      have been $\zeta$-normalized *)
@@ -1131,10 +1135,11 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
                 ; Generalize.generalize (List.map mkVar ids)
                 ; thin ids ]
             else
-              unfold_in_concl
+              unfold
                 [ ( Locus.AllOccurrences
                   , Evaluable.EvalConstRef
                       (fst (destConst (Proofview.Goal.sigma g) f)) ) ]
+                None
           in
           (* The proof of each branche itself *)
           let ind_number = ref 0 in
@@ -1167,13 +1172,13 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
           let open EConstr in
           let params = List.map mkVar params_names in
           tclTHENLIST
-            [ tclMAP Simple.intro (args_names @ [res; hres])
+            [ tclMAP (Intro.intro_mustbe ~force:true) (args_names @ [res; hres])
             ; observe_tac "h_generalize"
                 (Generalize.generalize
                    [ mkApp
                        ( applist (graph_principle, params)
                        , Array.map (fun c -> applist (c, params)) lemmas ) ])
-            ; Simple.intro graph_principle_id
+            ; Intro.intro_mustbe ~force:true graph_principle_id
             ; observe_tac ""
                 (tclTHENS
                    (observe_tac "elim"

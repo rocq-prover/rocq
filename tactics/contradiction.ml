@@ -117,7 +117,7 @@ let contradiction_term (c,lbind as cl) =
     if is_empty_type env sigma ccl then
       Tacticals.tclTHEN
         (elim false None cl None)
-        (Tacticals.tclTRY assumption)
+        (Tacticals.tclTRY Exact.assumption)
     else
       Proofview.tclORELSE
         begin
@@ -136,5 +136,5 @@ let contradiction_term (c,lbind as cl) =
   end
 
 let contradiction = function
-  | None -> Tacticals.tclTHEN intros contradiction_context
+  | None -> Tacticals.tclTHEN Intro.intros contradiction_context
   | Some c -> contradiction_term c

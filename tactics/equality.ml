@@ -31,6 +31,10 @@ open Logic
 open Hipattern
 open Tacticals
 open Tactics
+open ContextTactics
+open ConvTactics
+open Exact
+open Intro
 open Tacred
 open Rocqlib
 open Declarations
@@ -44,6 +48,7 @@ open Proofview.Notations
 open Unification
 open Context.Named.Declaration
 open Combinators
+open HypNaming
 
 module NamedDecl = Context.Named.Declaration
 
@@ -1060,7 +1065,7 @@ let discr_positions env sigma { eq_data = (lbeq,(t,t1,t2)); eq_term = v; eq_evar
     (* pf : eq t t1 t2 -> False *)
     let pf = EConstr.mkApp (pf, [|v|]) in
     tclTHENS (assert_after Anonymous false_0)
-      [onLastHypId gen_absurdity; Tactics.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs]
+      [onLastHypId gen_absurdity; Exact.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs]
 
 let discrEq eq =
   let { eq_data = (_, (_, t1, t2)) } = eq in
@@ -1111,7 +1116,7 @@ let onNegatedEquality with_evars tac =
     | Prod (na,t,u) ->
       let u = nf_betaiota (push_rel_assum (na, t) env) sigma u in
       if is_empty_type env sigma u then
-        tclTHEN introf
+        tclTHEN (intro ~force:true ())
           (onLastHypId (fun id ->
             onEquality with_evars tac (mkVar id,NoBindings)))
       else tclZEROMSG (str "Not a negated primitive equality.")
@@ -1132,7 +1137,7 @@ let discrEverywhere with_evars =
   tclTHEN (Proofview.tclUNIT ())
     (* Delay the interpretation of side-effect *)
     (tclTHEN
-       (tclREPEAT introf)
+       (tclREPEAT (intro ~force:true ()))
        (tryAllHyps
           (fun id -> tclCOMPLETE (discr with_evars (mkVar id,NoBindings)))))
 
@@ -1248,13 +1253,13 @@ let inject_if_homogenous_dependent_pair ty =
     (* cut with the good equality and prove the requested goal *)
     tclTHENLIST
       [
-       intro;
+       intro ();
        onLastHyp (fun hyp ->
         Tacticals.pf_constr_of_global Rocqlib.(lib_ref "core.eq.type") >>= fun ceq ->
         tclTHENS (cut (mkApp (ceq,new_eq_args)))
           [clear [destVar sigma hyp];
            Tacticals.pf_constr_of_global inj2 >>= fun inj2 ->
-           Tactics.exact_check
+           Exact.exact_check
              (mkApp(inj2,[|ar1.(0);c;ar1.(1);ar1.(2);ar1.(3);ar2.(3);hyp|]))
           ])]
   with Exit ->
@@ -1302,7 +1307,7 @@ let inject_at_positions env sigma l2r eq posns tac =
     let map (pf, ty) =
       tclTHENS (cut ty) [
         inject_if_homogenous_dependent_pair ty;
-        Tactics.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs;
+        Exact.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs;
     ] in
     Proofview.Unsafe.tclEVARS !evdref <*>
     Tacticals.tclTHENFIRST
@@ -1674,7 +1679,7 @@ let subst_one dep_proof_ok x (hyp,rhs,dir) =
     ((if need_rewrite then
       [Generalize.revert (List.map snd dephyps);
        general_rewrite ~where:None ~l2r:dir AtLeastOneOccurrence ~freeze:true ~dep:dep_proof_ok ~with_evars:false (mkVar hyp, NoBindings);
-       (tclMAP (fun (dest,id) -> intro_move (Some id) dest) dephyps)]
+       (tclMAP (fun (dest,id) -> intro_mustbe id ~move:dest ~force:true) dephyps)]
       else
        [Proofview.tclUNIT ()]) @
      [tclTRY (clear [x; hyp])])

@@ -822,7 +822,7 @@ module CstrTable = struct
               if has_hyp types then Tacticals.tclIDTAC
               else
                 let n =
-                  Tactics.fresh_id_in_env Id.Set.empty
+                  HypNaming.fresh_id_in_env Id.Set.empty
                     (Names.Id.of_string "cstr")
                     env
                 in
@@ -1349,8 +1349,8 @@ let trans_hyp h t0 prfp =
         let env = Tacmach.pf_env gl in
         let evd = Tacmach.project gl in
         let t' = Reductionops.nf_betaiota env evd t' in
-        Tactics.change_in_hyp ~check:true None
-          (Tactics.make_change_arg t')
+        ConvTactics.change_in_hyp ~check:true None
+          (ConvTactics.make_change_arg t')
           (h, Locus.InHypTypeOnly))
   | TProof (t', prf) ->
     Tacticals.(
@@ -1358,14 +1358,14 @@ let trans_hyp h t0 prfp =
           let env = Tacmach.pf_env gl in
           let evd = Tacmach.project gl in
           let target = Reductionops.nf_betaiota env evd t' in
-          let h' = Tactics.fresh_id_in_env Id.Set.empty h env in
+          let h' = HypNaming.fresh_id_in_env Id.Set.empty h env in
           let prf =
             EConstr.mkApp (force rew_iff, [|t0; target; prf; EConstr.mkVar h|])
           in
           tclTHEN
             (Tactics.pose_proof (Name.Name h') prf)
             (tclTRY
-               (tclTHEN (Tactics.clear [h]) (Tactics.rename_hyp [(h', h)])))))
+               (tclTHEN (ContextTactics.clear [h]) (ContextTactics.rename_hyp [(h', h)])))))
 
 let trans_concl prfp =
   debug_zify (fun () -> Pp.(str "trans_concl: " ++ pp_prfp prfp ++ fnl ()));
@@ -1376,7 +1376,7 @@ let trans_concl prfp =
         let env = Tacmach.pf_env gl in
         let evd = Tacmach.project gl in
         let t' = Reductionops.nf_betaiota env evd t in
-        Tactics.change_concl t')
+        ConvTactics.change_concl t')
   | TProof (t, prf) ->
     Proofview.Goal.enter (fun gl ->
         let env = Tacmach.pf_env gl in
@@ -1396,11 +1396,11 @@ let elim_binding x t ty =
   Proofview.Goal.enter (fun gl ->
       let env = Tacmach.pf_env gl in
       let h =
-        Tactics.fresh_id_in_env Id.Set.empty (Nameops.add_prefix "heq_" x) env
+        HypNaming.fresh_id_in_env Id.Set.empty (Nameops.add_prefix "heq_" x) env
       in
       Tacticals.tclTHEN
         (Tactics.pose_proof (Name h) (eq_proof ty (EConstr.mkVar x) t))
-        (Tacticals.tclTRY (Tactics.clear_body [x])))
+        (Tacticals.tclTRY (ContextTactics.clear_body [x])))
 
 let do_let tac (h : Constr.named_declaration) =
   match h with
@@ -1524,7 +1524,7 @@ let interp_pscript s =
     Tacticals.tclTHEN
       (Tactics.letin_tac None (Names.Name id) c None
          {Locus.onhyps = None; Locus.concl_occs = Locus.AllOccurrences})
-      (Tacticals.tclTRY (Tactics.clear_body [id]))
+      (Tacticals.tclTRY (ContextTactics.clear_body [id]))
   | Pose (id, c) -> Tactics.pose_proof (Names.Name id) c
 
 let rec interp_pscripts l =

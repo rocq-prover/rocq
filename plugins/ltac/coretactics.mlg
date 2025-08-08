@@ -35,7 +35,7 @@ TACTIC EXTEND exact
 END
 
 TACTIC EXTEND assumption
-| [ "assumption" ] -> { Tactics.assumption }
+| [ "assumption" ] -> { Exact.assumption }
 END
 
 TACTIC EXTEND etransitivity
@@ -47,15 +47,15 @@ TACTIC EXTEND cut
 END
 
 TACTIC EXTEND exact_no_check
-| [ "exact_no_check" constr(c) ] -> { Tactics.exact_no_check c }
+| [ "exact_no_check" constr(c) ] -> { Exact.exact_no_check c }
 END
 
 TACTIC EXTEND vm_cast_no_check
-| [ "vm_cast_no_check" constr(c) ] -> { Tactics.vm_cast_no_check c }
+| [ "vm_cast_no_check" constr(c) ] -> { Exact.vm_cast_no_check c }
 END
 
 TACTIC EXTEND native_cast_no_check
-| [ "native_cast_no_check" constr(c) ] -> { Tactics.native_cast_no_check c }
+| [ "native_cast_no_check" constr(c) ] -> { Exact.native_cast_no_check c }
 END
 
 TACTIC EXTEND exfalso
@@ -192,35 +192,35 @@ END
 (** Intro *)
 
 TACTIC EXTEND intros_until
-| [ "intros" "until" quantified_hypothesis(h) ] -> { Tactics.intros_until h }
+| [ "intros" "until" quantified_hypothesis(h) ] -> { Intro.intros_until h }
 END
 
 TACTIC EXTEND intro
-| [ "intro" ] -> { Tactics.intro_move None MoveLast }
-| [ "intro" ident(id) ] -> { Tactics.intro_move (Some id) MoveLast }
-| [ "intro" ident(id) "at" "top" ] -> { Tactics.intro_move (Some id) MoveFirst }
-| [ "intro" ident(id) "at" "bottom" ] -> { Tactics.intro_move (Some id) MoveLast }
-| [ "intro" ident(id) "after" hyp(h) ] -> { Tactics.intro_move (Some id) (MoveAfter h) }
-| [ "intro" ident(id) "before" hyp(h) ] -> { Tactics.intro_move (Some id) (MoveBefore h) }
-| [ "intro" "at" "top" ] -> { Tactics.intro_move None MoveFirst }
-| [ "intro" "at" "bottom" ] -> { Tactics.intro_move None MoveLast }
-| [ "intro" "after" hyp(h) ] -> { Tactics.intro_move None (MoveAfter h) }
-| [ "intro" "before" hyp(h) ] -> { Tactics.intro_move None (MoveBefore h) }
+| [ "intro" ] -> { Intro.intro ~force:true () }
+| [ "intro" ident(id) ] -> { Intro.intro_mustbe id ~force:true }
+| [ "intro" ident(id) "at" "top" ] -> { Intro.intro_mustbe id ~move:MoveFirst ~force:true }
+| [ "intro" ident(id) "at" "bottom" ] -> { Intro.intro_mustbe id ~force:true }
+| [ "intro" ident(id) "after" hyp(h) ] -> { Intro.intro_mustbe id ~move:(MoveAfter h) ~force:true }
+| [ "intro" ident(id) "before" hyp(h) ] -> { Intro.intro_mustbe id ~move:(MoveBefore h) ~force:true }
+| [ "intro" "at" "top" ] -> { Intro.intro ~move:MoveFirst ~force:true () }
+| [ "intro" "at" "bottom" ] -> { Intro.intro ~force:true () }
+| [ "intro" "after" hyp(h) ] -> { Intro.intro ~move:(MoveAfter h) ~force:true () }
+| [ "intro" "before" hyp(h) ] -> { Intro.intro ~move:(MoveBefore h) ~force:true () }
 END
 
 (** Move *)
 
 TACTIC EXTEND move
-| [ "move" hyp(id) "at" "top" ] -> { Tactics.move_hyp id MoveFirst }
-| [ "move" hyp(id) "at" "bottom" ] -> { Tactics.move_hyp id MoveLast }
-| [ "move" hyp(id) "after" hyp(h) ] -> { Tactics.move_hyp id (MoveAfter h) }
-| [ "move" hyp(id) "before" hyp(h) ] -> { Tactics.move_hyp id (MoveBefore h) }
+| [ "move" hyp(id) "at" "top" ] -> { ContextTactics.move_hyp id MoveFirst }
+| [ "move" hyp(id) "at" "bottom" ] -> { ContextTactics.move_hyp id MoveLast }
+| [ "move" hyp(id) "after" hyp(h) ] -> { ContextTactics.move_hyp id (MoveAfter h) }
+| [ "move" hyp(id) "before" hyp(h) ] -> { ContextTactics.move_hyp id (MoveBefore h) }
 END
 
 (** Rename *)
 
 TACTIC EXTEND rename
-| [ "rename" ne_rename_list_sep(ids, ",") ] -> { Tactics.rename_hyp ids }
+| [ "rename" ne_rename_list_sep(ids, ",") ] -> { ContextTactics.rename_hyp ids }
 END
 
 (** Revert *)
@@ -234,7 +234,7 @@ END
 {
 
 let simple_induct h =
-  Tacticals.tclTHEN (Tactics.intros_until h)
+  Tacticals.tclTHEN (Intro.intros_until h)
     (Tacticals.onLastHyp Tactics.simplest_elim)
 
 }
@@ -246,7 +246,7 @@ END
 {
 
 let simple_destruct h =
-  Tacticals.tclTHEN (Tactics.intros_until h)
+  Tacticals.tclTHEN (Intro.intros_until h)
     (Tacticals.onLastHyp Tactics.simplest_case)
 
 }
@@ -264,29 +264,29 @@ END
 (* Fix *)
 
 TACTIC EXTEND fix
-| [ "fix" ident(id) natural(n) ] -> { Tactics.fix id n }
+| [ "fix" ident(id) natural(n) ] -> { FixTactics.fix id n }
 END
 
 (* Cofix *)
 
 TACTIC EXTEND cofix
-| [ "cofix" ident(id) ] -> { Tactics.cofix id }
+| [ "cofix" ident(id) ] -> { FixTactics.cofix id }
 END
 
 (* Clear *)
 
 TACTIC EXTEND clear
 | [ "clear" hyp_list(ids) ] -> {
-    if List.is_empty ids then Tactics.keep []
-    else Tactics.clear ids
+    if List.is_empty ids then ContextTactics.keep []
+    else ContextTactics.clear ids
   }
-| [ "clear" "-" ne_hyp_list(ids) ] -> { Tactics.keep ids }
+| [ "clear" "-" ne_hyp_list(ids) ] -> { ContextTactics.keep ids }
 END
 
 (* Clearbody *)
 
 TACTIC EXTEND clearbody
-| [ "clearbody" ne_hyp_list(ids) ] -> { Tactics.clear_body ids }
+| [ "clearbody" ne_hyp_list(ids) ] -> { ContextTactics.clear_body ids }
 END
 
 (* Generalize dependent *)

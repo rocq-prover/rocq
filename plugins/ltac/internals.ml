@@ -18,6 +18,7 @@ open Util
 open Termops
 open Tactypes
 open Tactics
+open Intro
 open Proofview.Notations
 
 let assert_succeeds tac =
@@ -153,7 +154,7 @@ let  mkCaseEq a  : unit Proofview.tactic =
             let ans = Tacred.pattern_occs [Locus.OnlyOccurrences [1], a] env (Evd.from_env env) concl in
             match ans with
             | NoChange -> Proofview.tclUNIT ()
-            | Changed (_, c) -> change_concl c
+            | Changed (_, c) -> ConvTactics.change_concl c
           end;
           simplest_case a]
   end
@@ -169,10 +170,10 @@ let case_eq_intros_rewrite x =
       let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_ids_set_of_hyps gl in
       let n' = nb_prod (Tacmach.project gl) concl in
-      let h = fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
+      let h = HypNaming.fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
       Tacticals.tclTHENLIST [
-                    Tacticals.tclDO (n'-n-1) intro;
-                    introduction h;
+                    Tacticals.tclDO (n'-n-1) (intro ());
+                    intro_mustbe h;
                     rewrite_except h]
     end
   ]
@@ -297,7 +298,7 @@ let exact ist (c : Ltac_pretype.closed_glob_constr) =
   Proofview.Goal.enter begin fun gl ->
   let expected_type = Pretyping.OfType (pf_concl gl) in
   let sigma, c = Tacinterp.type_uconstr ~expected_type ist c (pf_env gl) (project gl) in
-  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
+  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Exact.exact_no_check c)
   end
 
 (** ProofGeneral specific command *)

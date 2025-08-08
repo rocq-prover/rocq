@@ -329,9 +329,9 @@ let rtauto_tac =
     let term = EConstr.of_constr term in
     let result=
       if check () then
-        Tactics.exact_check term
+        Exact.exact_check term
       else
-        Tactics.exact_no_check term in
+        Exact.exact_no_check term in
     let tac_end_time = System.get_time () in
     let () =
       if check () then Feedback.msg_info (str "Proof term type-checking is on");

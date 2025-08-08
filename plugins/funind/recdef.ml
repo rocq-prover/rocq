@@ -24,6 +24,9 @@ open Util
 open UnivGen
 open Tacticals
 open Tactics
+open Exact
+open ContextTactics
+open ConvTactics
 open Nametab
 open Tacred
 open Termops
@@ -34,6 +37,7 @@ open Equality
 open Eauto
 open Indfun_common
 open Context.Rel.Declaration
+open Intro
 
 (* Ugly things which should not be here *)
 
@@ -215,10 +219,11 @@ let tclUSER tac is_mes l =
     ; ( if is_mes then
         observe_tclTHENLIST
           (fun _ _ -> str "tclUSER2")
-          [ unfold_in_concl
+          [ unfold
               [ ( Locus.AllOccurrences
                 , evaluable_of_global_reference
                     (delayed_force Indfun_common.ltof_ref) ) ]
+              None
           ; tac ]
       else tac ) ]
 
@@ -364,7 +369,7 @@ let treat_case forbid_new_ids to_intros finalize_tac nb_lam e infos :
       observe_tclTHENLIST
         (fun _ _ -> str "treat_case1")
         [ h_intros (List.rev rev_ids)
-        ; intro_using_then teq_id (fun _ -> Proofview.tclUNIT ())
+        ; intro_basedon teq_id
         ; Tacticals.onLastHypId (fun heq ->
               observe_tclTHENLIST
                 (fun _ _ -> str "treat_case2")
@@ -550,17 +555,16 @@ let rec destruct_bounds_aux infos (bound, hyple, rechyps) lbounds =
         observe_tclTHENLIST
           (fun _ _ -> str "destruct_bounds_aux1")
           [ split (ImplicitBindings [s_max])
-          ; intro_then (fun id ->
+          ; intro ~tac:(fun id ->
                 observe_tac
                   (fun _ _ -> str "destruct_bounds_aux")
                   (tclTHENS
                      (simplest_case (mkVar id))
                      [ observe_tclTHENLIST
                          (fun _ _ -> str "")
-                         [ intro_using_then h_id
-                             (* We don't care about the refreshed name,
-                                accessed only through auto? *)
-                             (fun _ -> Proofview.tclUNIT ())
+                         [ (* We don't care about the refreshed name,
+                              accessed only through auto? *)
+                           intro_basedon h_id
                          ; simplest_elim
                              (mkApp (delayed_force lt_n_O, [|s_max|]))
                          ; default_full_auto ]
@@ -575,10 +579,11 @@ let rec destruct_bounds_aux infos (bound, hyple, rechyps) lbounds =
                              (simpl_iter Locusops.onConcl)
                          ; observe_tac
                              (fun _ _ -> str "unfold functional")
-                             (unfold_in_concl
+                             (unfold
                                 [ ( Locus.OnlyOccurrences [1]
                                   , evaluable_of_global_reference infos.func )
-                                ])
+                                ]
+                                None)
                          ; observe_tclTHENLIST
                              (fun _ _ -> str "test")
                              [ list_rewrite true
@@ -594,20 +599,20 @@ let rec destruct_bounds_aux infos (bound, hyple, rechyps) lbounds =
                                  (tclORELSE intros_reflexivity
                                     (observe_tac
                                        (fun _ _ -> str "calling prove_lt")
-                                       (prove_lt hyple))) ] ] ])) ]
+                                       (prove_lt hyple))) ] ] ])) () ]
       | (_, v_bound) :: l ->
         observe_tclTHENLIST
           (fun _ _ -> str "destruct_bounds_aux3")
           [ simplest_elim (mkVar v_bound)
           ; clear [v_bound]
-          ; tclDO 2 intro
+          ; tclDO 2 (intro ())
           ; onNthHypId 1 (fun p_hyp ->
                 onNthHypId 2 (fun p ->
                     observe_tclTHENLIST
                       (fun _ _ -> str "destruct_bounds_aux4")
                       [ simplest_elim
                           (mkApp (delayed_force max_constr, [|bound; mkVar p|]))
-                      ; tclDO 3 intro
+                      ; tclDO 3 (intro ())
                       ; onNLastHypsId 3 (fun lids ->
                             match lids with
                             | [hle2; hle1; pmax] ->
@@ -805,10 +810,9 @@ let terminate_app_rec (f, args) expr_info continuation_tac _ =
              (simplest_elim (mkApp (mkVar expr_info.ih, Array.of_list args)))
              [ observe_tclTHENLIST
                  (fun _ _ -> str "terminate_app_rec2")
-                 [ intro_using_then rec_res_id
-                     (* refreshed name gotten from onNthHypId *)
-                     (fun _ -> Proofview.tclUNIT ())
-                 ; intro
+                 [ (* refreshed name gotten from onNthHypId *)
+                   intro_basedon rec_res_id
+                 ; intro ()
                  ; onNthHypId 1 (fun v_bound ->
                        onNthHypId 2 (fun v ->
                            let new_infos =
@@ -981,9 +985,10 @@ let make_rewrite expr_info l hp max =
                  [ simpl_iter Locusops.onConcl
                  ; observe_tac
                      (fun _ _ -> str "unfold functional")
-                     (unfold_in_concl
+                     (unfold
                         [ ( Locus.OnlyOccurrences [1]
-                          , evaluable_of_global_reference expr_info.func ) ])
+                          , evaluable_of_global_reference expr_info.func ) ]
+                        None)
                  ; list_rewrite true
                      (List.map (fun e -> (mkVar e, true)) expr_info.eqs)
                  ; observe_tac
@@ -1004,7 +1009,7 @@ let rec compute_max rew_tac max l =
     observe_tclTHENLIST
       (fun _ _ -> str "compute_max")
       [ simplest_elim (mkApp (delayed_force max_constr, [|max; mkVar p|]))
-      ; tclDO 3 intro
+      ; tclDO 3 (intro ())
       ; onNLastHypsId 3 (fun lids ->
             match lids with
             | [hle2; hle1; pmax] -> compute_max rew_tac (mkVar pmax) l
@@ -1025,7 +1030,7 @@ let rec destruct_hex expr_info acc l =
       (fun _ _ -> str "destruct_hex")
       [ simplest_case (mkVar hex)
       ; clear [hex]
-      ; tclDO 2 intro
+      ; tclDO 2 (intro ())
       ; onNthHypId 1 (fun hp ->
             onNthHypId 2 (fun p ->
                 observe_tac
@@ -1039,7 +1044,7 @@ let rec intros_values_eq expr_info acc =
   tclORELSE
     (observe_tclTHENLIST
        (fun _ _ -> str "intros_values_eq")
-       [ tclDO 2 intro
+       [ tclDO 2 (intro ())
        ; onNthHypId 1 (fun hex ->
              onNthHypId 2 (fun v ->
                  intros_values_eq expr_info ((v, hex) :: acc))) ])
@@ -1222,9 +1227,9 @@ let termination_proof_header is_mes input_type ids args_id relation rec_arg_num
                    (onNLastHypsId (nargs + 1)
                       (tclMAP (fun id ->
                            tclTHEN (Generalize.generalize [mkVar id]) (clear [id]))))
-               ; observe_tac (fun _ _ -> str "fix") (fix hrec (nargs + 1))
+               ; observe_tac (fun _ _ -> str "fix") (FixTactics.fix hrec (nargs + 1))
                ; h_intros args_id
-               ; Simple.intro wf_rec_arg
+               ; Intro.intro_mustbe wf_rec_arg ~force:true
                ; observe_tac
                    (fun _ _ -> str "tac")
                    (tac wf_rec_arg hrec wf_rec_arg acc_inv) ] ]))
@@ -1425,7 +1430,7 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
           observe_tclTHENLIST
             (fun _ _ -> mt ())
             [ Generalize.generalize [lemma]
-            ; Simple.intro hid
+            ; Intro.intro_mustbe hid ~force:true
             ; Proofview.Goal.enter (fun gl ->
                   let ids = pf_ids_of_hyps gl in
                   tclTHEN
@@ -1545,8 +1550,9 @@ let start_equation (f : GlobRef.t) (term_f : GlobRef.t)
         (observe_tclTHENLIST
            (fun _ _ -> str "start_equation")
            [ h_intros x
-           ; unfold_in_concl
+           ; unfold
                [(Locus.AllOccurrences, evaluable_of_global_reference f)]
+               None
            ; observe_tac
                (fun _ _ -> str "simplest_case")
                (simplest_case

@@ -1537,7 +1537,7 @@ let micromega_order_change spec cert cert_typ env ff (*: unit Proofview.tactic*)
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
       Tacticals.tclTHENLIST
-        [ Tactics.change_concl
+        [ ConvTactics.change_concl
             (set sigma
                [ ( "__ff"
                  , ff
@@ -1888,7 +1888,7 @@ let micromega_tauto ?abstract pre_process cnf spec prover
   * Parse the proof environment, and call micromega_tauto
   *)
 let fresh_id avoid id gl =
-  Tactics.fresh_id_in_env avoid id (Proofview.Goal.env gl)
+  HypNaming.fresh_id_in_env avoid id (Proofview.Goal.env gl)
 
 let clear_all_no_check =
   Proofview.Goal.enter (fun gl ->
@@ -1930,7 +1930,7 @@ let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
           let arith_goal, props, vars, ff_arith =
             make_goal_of_formula (genv, sigma) dumpexpr ff'
           in
-          let intro (id, _) = Tactics.introduction id in
+          let intro (id, _) = Intro.intro_mustbe id in
           let intro_vars = Tacticals.tclTHENLIST (List.map intro vars) in
           let intro_props = Tacticals.tclTHENLIST (List.map intro props) in
           (*       let ipat_of_name id = Some (CAst.make @@ IntroNaming (Namegen.IntroIdentifier id)) in*)
@@ -1966,7 +1966,7 @@ Tacticals.tclTHEN
             (Tactics.assert_by (Names.Name goal_name) arith_goal
                (*Proofview.tclTIME  (Some "kill_arith")*) kill_arith)
             ((*Proofview.tclTIME  (Some "apply_arith") *)
-             Tactics.exact_check
+             Exact.exact_check
                (EConstr.applist
                   ( EConstr.mkVar goal_name
                   , arith_args @ List.map EConstr.mkVar ids )))
@@ -2009,7 +2009,7 @@ let micromega_order_changer cert env ff =
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
       Tacticals.tclTHENLIST
-        [ Tactics.change_concl
+        [ ConvTactics.change_concl
             (set sigma
                [ ( "__ff"
                  , ff
@@ -2079,7 +2079,7 @@ let micromega_genr prover tac =
           let arith_goal, props, vars, ff_arith =
             make_goal_of_formula (genv, sigma) (Lazy.force dump_rexpr) ff'
           in
-          let intro (id, _) = Tactics.introduction id in
+          let intro (id, _) = Intro.intro_mustbe id in
           let intro_vars = Tacticals.tclTHENLIST (List.map intro vars) in
           let intro_props = Tacticals.tclTHENLIST (List.map intro props) in
           let ipat_of_name id =
@@ -2115,7 +2115,7 @@ let micromega_genr prover tac =
             [ kill_arith
             ; Tacticals.tclTHENLIST
                 [ Generalize.generalize (List.map EConstr.mkVar ids)
-                ; Tactics.exact_check
+                ; Exact.exact_check
                     (EConstr.applist (EConstr.mkVar goal_name, arith_args)) ] ]
       with CsdpNotFound -> fail_csdp_not_found ())
 

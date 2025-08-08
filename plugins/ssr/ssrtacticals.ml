@@ -112,7 +112,7 @@ let endclausestac id_map clseq gl_id cl0 =
     EConstr.mkLetIn ({na with binder_name=Name (orig_id id)}, unmark v, unmark t, unmark c')
   | _ -> EConstr.map (project gl) unmark c in
   let utac hyp =
-    Tactics.convert_hyp ~check:false ~reorder:false (NamedDecl.map_constr unmark hyp) in
+    ConvTactics.convert_hyp ~check:false ~reorder:false (NamedDecl.map_constr unmark hyp) in
   let utacs = List.map utac (Proofview.Goal.hyps gl) in
   let ugtac =
     Proofview.Goal.enter begin fun gl ->
@@ -120,10 +120,10 @@ let endclausestac id_map clseq gl_id cl0 =
     end
   in
   let ctacs =
-    if hide_goal then [Tactics.clear [gl_id]]
+    if hide_goal then [ContextTactics.clear [gl_id]]
     else [] in
   let mktac itacs = Tacticals.tclTHENLIST (itacs @ utacs @ ugtac :: ctacs) in
-  let itac (_, id) = Tactics.introduction id in
+  let itac (_, id) = Intro.intro_mustbe id in
   if fits false (id_map, List.rev dc) then mktac (List.map itac id_map) else
   let all_ids = ids_of_rel_context dc @ pf_ids_of_hyps gl in
   if List.for_all not_hyp' all_ids && not c_hidden then mktac [] else

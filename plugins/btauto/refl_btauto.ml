@@ -247,9 +247,9 @@ module Btauto = struct
           let changed_gl = Constr.mkApp (c, [|typ; fl; fr|]) in
           let changed_gl = EConstr.of_constr changed_gl in
           Tacticals.tclTHENLIST [
-            Tactics.change_concl changed_gl;
+            ConvTactics.change_concl changed_gl;
             Tactics.apply (EConstr.of_constr (Lazy.force soundness));
-            Tactics.normalise_vm_in_concl;
+            ConvTactics.normalise_vm_in_concl;
             try_unification env
           ]
       | _ ->

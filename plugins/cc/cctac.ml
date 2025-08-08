@@ -18,6 +18,7 @@ open Context
 open EConstr
 open Vars
 open Tactics
+open Intro
 open Typing
 open Ccalgo
 open Ccproof
@@ -46,7 +47,7 @@ let whd_delta env sigma t =
 let whd_all env sigma c = Reductionops.whd_all env sigma c
 
 let whd_in_concl =
-  reduct_in_concl ~cast:true ~check:false (whd_all, DEFAULTcast)
+  ConvTactics.reduct_in_concl ~cast:true ~check:false (whd_all, DEFAULTcast)
 
 (* decompose member of equality in an applicative format *)
 
@@ -362,7 +363,7 @@ let proof_tac (typ, lhs, rhs) p : unit Proofview.tactic =
     let concl = Proofview.Goal.concl gl in
     let sigma, p = proof_term env sigma (typ, lhs, rhs) p in
     let sigma = Typing.check env sigma p concl in
-    Proofview.Unsafe.tclEVARS sigma <*> exact_no_check p
+    Proofview.Unsafe.tclEVARS sigma <*> Exact.exact_no_check p
   end
 
 let refute_tac c t1 t2 p =
@@ -380,7 +381,7 @@ let refute_tac c t1 t2 p =
 let refine_exact_check c =
   Proofview.Goal.enter begin fun gl ->
     let evm, _ = Tacmach.pf_apply type_of gl c in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (exact_check c)
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (Exact.exact_check c)
   end
 
 let convert_to_goal_tac c t1 t2 p =
@@ -482,7 +483,7 @@ let cc_tactic depth additional_terms b =
         | HeqnH (ida,idb) ->
           convert_to_hyp_tac ida ta idb tb p)
       begin function (e, info) -> match e with
-        | Tactics.NotConvertible ->
+        | TacticExceptions.NotConvertible ->
           Tacticals.tclFAIL
             (str (if b then "simple congruence failed" else "congruence failed") ++
              str " (cannot build a well-typed proof)")
@@ -510,26 +511,26 @@ let negative_concl_introf =
     let concl = Proofview.Goal.concl gl in
     let nt = whd env sigma concl in
     match EConstr.kind sigma nt with
-      Prod (_,_,ff) when isRefX env sigma (Lazy.force _False) ff -> introf
+      Prod (_,_,ff) when isRefX env sigma (Lazy.force _False) ff -> intro ~force:true ()
     | App (f,[|t|]) when isRefX env sigma (Lazy.force _not) f ->
         Tacticals.pf_constr_of_global (Lazy.force _False) >>= fun ff ->
         Refine.refine ~typecheck:true begin fun sigma ->
           let sigma, e = Evarutil.new_evar env sigma (mk_neg_ty ff t nt) in sigma, (mkApp (mk_neg_tm ff t nt, [|e|]))
-        end >>= fun _ -> intro >>= fun _ -> intro
+        end >>= fun _ -> intro () >>= fun _ -> intro ()
     | _ -> Tacticals.tclIDTAC
   end
 
 let congruence_tac depth l =
   let depth = Option.default 1000 depth in
   Tacticals.tclTHEN
-    (Tacticals.tclREPEAT (Tacticals.tclFIRST [intro; Tacticals.tclTHEN whd_in_concl intro]))
+    (Tacticals.tclREPEAT (Tacticals.tclFIRST [intro (); Tacticals.tclTHEN whd_in_concl (intro ())]))
     (cc_tactic depth l false)
 
 
 let simple_congruence_tac depth l =
   let depth = Option.default 1000 depth in
   Tacticals.tclTHENLIST [
-    Tacticals.tclREPEAT intro;
+    Tacticals.tclREPEAT (intro ());
     negative_concl_introf;
     cc_tactic depth l true]
 

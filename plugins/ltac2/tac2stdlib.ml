@@ -554,24 +554,25 @@ let () =
   define "tac_reflexivity" (unit @-> tac unit) (fun _ -> Tactics.intros_reflexivity)
 
 let () =
-  define "tac_move" (ident @-> move_location @-> tac unit) Tactics.move_hyp
+  define "tac_move" (ident @-> move_location @-> tac unit) ContextTactics.move_hyp
 
-let tac_intro id mv =
-  let mv = Option.default Logic.MoveLast mv in
-  Tactics.intro_move id mv
+let tac_intro idopt move =
+  let move = Option.default Logic.MoveLast move in
+  Intro.intro ~naming:(HypNaming.naming_of_id_opt idopt Id.Set.empty) ~move ~force:true ()
+
 let () =
   define "tac_intro" (option ident @-> option move_location @-> tac unit) tac_intro
 
 (*
 
 TACTIC EXTEND exact
-  [ "exact" casted_constr(c) ] -> [ Tactics.exact_no_check c ]
+  [ "exact" casted_constr(c) ] -> [ Exact.exact_no_check c ]
 END
 
 *)
 
 let () =
-  define "tac_assumption" (unit @-> tac unit) (fun _ -> Tactics.assumption)
+  define "tac_assumption" (unit @-> tac unit) (fun _ -> Exact.assumption)
 
 let () =
   define "tac_eassumption" (unit @-> tac unit) (fun _ -> Eauto.e_assumption)
@@ -594,16 +595,16 @@ let () =
   define "tac_right" (bool @-> bindings @-> tac unit) Tac2tactics.right_with_bindings
 
 let () =
-  define "tac_introsuntil" (qhyp @-> tac unit) Tactics.intros_until
+  define "tac_introsuntil" (qhyp @-> tac unit) Intro.intros_until
 
 let () =
-  define "tac_exactnocheck" (constr @-> tac unit) Tactics.exact_no_check
+  define "tac_exactnocheck" (constr @-> tac unit) Exact.exact_no_check
 
 let () =
-  define "tac_vmcastnocheck" (constr @-> tac unit) Tactics.vm_cast_no_check
+  define "tac_vmcastnocheck" (constr @-> tac unit) Exact.vm_cast_no_check
 
 let () =
-  define "tac_nativecastnocheck" (constr @-> tac unit) Tactics.native_cast_no_check
+  define "tac_nativecastnocheck" (constr @-> tac unit) Exact.native_cast_no_check
 
 let () =
   define "tac_constructor" (bool @-> tac unit) (fun ev -> Tactics.any_constructor ev None)
@@ -624,7 +625,7 @@ let () =
   define "tac_split" (bool @-> bindings @-> tac unit) Tac2tactics.split_with_bindings
 
 let () =
-  define "tac_rename" (list (pair ident ident) @-> tac unit) Tactics.rename_hyp
+  define "tac_rename" (list (pair ident ident) @-> tac unit) ContextTactics.rename_hyp
 
 let () =
   define "tac_revert" (list ident @-> tac unit) Generalize.revert
@@ -633,19 +634,19 @@ let () =
   define "tac_admit" (unit @-> tac unit) (fun _ -> Proofview.give_up)
 
 let () =
-  define "tac_fix" (ident @-> int @-> tac unit) Tactics.fix
+  define "tac_fix" (ident @-> int @-> tac unit) FixTactics.fix
 
 let () =
-  define "tac_cofix" (ident @-> tac unit) Tactics.cofix
+  define "tac_cofix" (ident @-> tac unit) FixTactics.cofix
 
 let () =
-  define "tac_clear" (list ident @-> tac unit) Tactics.clear
+  define "tac_clear" (list ident @-> tac unit) ContextTactics.clear
 
 let () =
-  define "tac_keep" (list ident @-> tac unit) Tactics.keep
+  define "tac_keep" (list ident @-> tac unit) ContextTactics.keep
 
 let () =
-  define "tac_clearbody" (list ident @-> tac unit) Tactics.clear_body
+  define "tac_clearbody" (list ident @-> tac unit) ContextTactics.clear_body
 
 (** Tactics from extratactics *)
 

@@ -535,7 +535,7 @@ let interp_fresh_id ist env sigma l =
           | ArgVar {v=id} -> Id.to_string (extract_ident ist env sigma id)) l) in
       let s = if CLexer.is_keyword (Procq.get_keyword_state()) s then s^"0" else s in
       Id.of_string s in
-  Tactics.fresh_id_in_env avoid id env
+  HypNaming.fresh_id_in_env avoid id env
 
 (* Extract the uconstr list from lfun *)
 let extract_ltac_constr_context ist env sigma =
@@ -971,7 +971,7 @@ let interp_destruction_arg ist gl arg =
         strbrk " neither to a quantified hypothesis nor to a term.")
       in
       let try_cast_id id' =
-        if Tactics.is_quantified_hypothesis id' gl
+        if Intro.is_quantified_hypothesis id' gl
         then keep,ElimOnIdent (CAst.make ?loc id')
         else
           (keep, ElimOnConstr begin fun env sigma ->
@@ -999,7 +999,7 @@ let interp_destruction_arg ist gl arg =
         | Some c -> keep,ElimOnConstr (fun env sigma -> (sigma, (c,NoBindings)))
       with Not_found ->
         (* We were in non strict (interactive) mode *)
-        if Tactics.is_quantified_hypothesis id gl then
+        if Intro.is_quantified_hypothesis id gl then
           keep,ElimOnIdent (CAst.make ?loc id)
         else
           let c = (DAst.make ?loc @@ GVar id,Some (CAst.make @@ CRef (qualid_of_ident ?loc id,None))) in
@@ -1720,7 +1720,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l (project gl)
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.mutual_fix (interp_ident ist env sigma id) n l_interp)
+        (FixTactics.mutual_fix (interp_ident ist env sigma id) n l_interp)
       end
       end
   | TacMutualCofix (id,l) ->
@@ -1735,7 +1735,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l (project gl)
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.mutual_cofix (interp_ident ist env sigma id) l_interp)
+        (FixTactics.mutual_cofix (interp_ident ist env sigma id) l_interp)
       end
       end
   | TacAssert (ev,b,t,ipat,c) ->
@@ -1836,7 +1836,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
       Proofview.Goal.enter begin fun gl ->
         let (sigma,r_interp) = interp_red_expr ist (pf_env gl) (project gl) r in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.reduce r_interp (interp_clause ist (pf_env gl) (project gl) cl))
+        (ConvTactics.reduce r_interp (interp_clause ist (pf_env gl) (project gl) cl))
       end
   | TacChange (check,None,c,cl) ->
       (* spiwack: until the tactic is in the monad *)
@@ -1860,7 +1860,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
             then Changed (interp_type ist env sigma c)
             else Changed (interp_constr ist env sigma c)
         in
-        Tactics.change ~check None c_interp (interp_clause ist (pf_env gl) (project gl) cl)
+        ConvTactics.change ~check None c_interp (interp_clause ist (pf_env gl) (project gl) cl)
       end
       end
   | TacChange (check,Some op,c,cl) ->
@@ -1883,7 +1883,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
             with e when to_catch e (* Hack *) ->
               user_err  (strbrk "Failed to get enough information from the left-hand side to type the right-hand side.")
         in
-        Tactics.change ~check (Some op) c_interp (interp_clause ist env sigma cl)
+        ConvTactics.change ~check (Some op) c_interp (interp_clause ist env sigma cl)
       end
       end
 

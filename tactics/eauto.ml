@@ -15,7 +15,7 @@ open Names
 open Constr
 open Termops
 open EConstr
-open Tactics
+open Exact
 open Auto
 open Genredexpr
 open Locus
@@ -109,7 +109,7 @@ let rec e_trivial_fail_db db_list local_db =
   let secvars = compute_secvars gl in
   let tacl =
     e_assumption ::
-    (Tacticals.tclTHEN Tactics.intro next) ::
+    (Tacticals.tclTHEN (Intro.intro ()) next) ::
     (e_trivial_resolve (Tacmach.pf_env gl) (Tacmach.project gl) db_list local_db secvars (Tacmach.pf_concl gl))
   in
   Tacticals.tclSOLVE tacl
@@ -135,7 +135,7 @@ and e_my_find_search env sigma db_list local_db secvars concl =
       | Res_pf_THEN_trivial_fail h ->
         Tacticals.tclTHEN (unify_e_resolve st h)
           (e_trivial_fail_db db_list local_db)
-      | Unfold_nth c -> reduce (Unfold [AllOccurrences,c]) onConcl
+      | Unfold_nth c -> ConvTactics.reduce (Unfold [AllOccurrences,c]) onConcl
       | Extern (pat, tacast) -> conclPattern concl pat tacast
       in
       (* We cannot determine statically the cost of subgoals of an Extern hint,
@@ -214,7 +214,7 @@ module Search = struct
       let mkdb env sigma =
         push_resolve_hyp env sigma (NamedDecl.get_id (List.hd (EConstr.named_context env))) db
       in
-      (false, mkdb, Tactics.intro, lazy (str "intro"))
+      (false, mkdb, Intro.intro (), lazy (str "intro"))
     in
     let rec_tacs =
       let mkdb env sigma =
@@ -390,7 +390,7 @@ let autounfolds ids csts prjs gl cls =
     let flags = List.fold_left (fun flags id -> RedFlags.(red_add flags (fVAR id))) flags ids in
     let flags = List.fold_left (fun flags cst -> RedFlags.(red_add flags (fCONST cst))) flags csts in
     List.fold_left (fun flags p -> RedFlags.(red_add flags (fPROJ p))) flags prjs
-  in reduct_option ~check:false (Reductionops.clos_norm_flags flags, DEFAULTcast) cls
+  in ConvTactics.reduct_option ~check:false (Reductionops.clos_norm_flags flags, DEFAULTcast) cls
 
 let cons a l = a :: l
 
@@ -481,8 +481,8 @@ let autounfold_one db cl =
   in
     if did then
       match cl with
-      | Some hyp -> change_in_hyp ~check:true None (make_change_arg c') hyp
-      | None -> convert_concl ~cast:false ~check:false c' DEFAULTcast
+      | Some hyp -> ConvTactics.change_in_hyp ~check:true None (ConvTactics.make_change_arg c') hyp
+      | None -> ConvTactics.convert_concl ~cast:false ~check:false c' DEFAULTcast
     else
       let info = Exninfo.reify () in
       Tacticals.tclFAIL ~info (str "Nothing to unfold")

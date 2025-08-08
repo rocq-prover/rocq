@@ -171,7 +171,7 @@ let change pat c cl =
     Tacred.Changed (delayed_of_tactic (c subst) env sigma)
   in
   let cl = mk_clause cl in
-  Tactics.change ~check:true pat c cl
+  ConvTactics.change ~check:true pat c cl
   end
 
 let rewrite ev rw cl by =
@@ -258,7 +258,7 @@ let mk_flags flags =
 
 let reduce_in red cl =
   let cl = mk_clause cl in
-  Tactics.reduce red cl
+  ConvTactics.reduce red cl
 
 let reduce_constr red c =
   Tac2core.pf_apply begin fun env sigma ->
@@ -387,14 +387,14 @@ let typeclasses_eauto strategy depth dbs =
   in
   Class_tactics.typeclasses_eauto ~only_classes ?strategy ~depth dbs
 
-let unify x y = Tactics.unify x y
+let unify x y = ConvTactics.unify x y
 
 let current_transparent_state () =
   Proofview.tclENV >>= fun env ->
   let state = Conv_oracle.get_transp_state (Environ.oracle env) in
   Proofview.tclUNIT state
 
-let evarconv_unify state x y = Tactics.evarconv_unify ~state x y
+let evarconv_unify state x y = ConvTactics.evarconv_unify ~state x y
 
 (** Inversion *)
 

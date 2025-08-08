@@ -1847,7 +1847,7 @@ let start_equations ~name ~info ~hook ~types sigma goals =
 
 let start_definition ~info ~cinfo ?using sigma =
   let { CInfo.name; typ; args } = cinfo in
-  let init_tac = Tactics.auto_intros_tac args in
+  let init_tac = Intro.auto_intros_tac args in
   let pinfo = Proof_info.make ~cinfo:[{cinfo with typ = ()}] ~info () in
   let env = Global.env () in
   let using = Option.map (interp_proof_using_cinfo env sigma [cinfo]) using in
@@ -1856,14 +1856,14 @@ let start_definition ~info ~cinfo ?using sigma =
       pi1 @@ Proof.run_tactic Global.(env ()) init_tac p)
 
 let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
-  let intro_tac { CInfo.args; _ } = Tactics.auto_intros_tac args in
+  let intro_tac { CInfo.args; _ } = Intro.auto_intros_tac args in
   let (possible_guard, fixrs) = possible_guard in
   let fixrs = List.map EConstr.ERelevance.make fixrs in
   let cinfo' = List.map (fun cinfo -> { cinfo with CInfo.typ = EConstr.of_constr cinfo.CInfo.typ }) cinfo in
   let init_tac =
     (* This is the case for hybrid proof mode / definition
        fixpoint, where terms for some constants are given with := *)
-    let tacl = List.map (Option.cata (EConstr.of_constr %> Tactics.exact_no_check) Tacticals.tclIDTAC) bodies in
+    let tacl = List.map (Option.cata (EConstr.of_constr %> Exact.exact_no_check) Tacticals.tclIDTAC) bodies in
     List.map2 (fun tac thm -> Tacticals.tclTHEN tac (intro_tac thm)) tacl cinfo'
   in
   match cinfo' with
@@ -1896,7 +1896,7 @@ let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using 
   let gls = List.rev (Evd.FutureGoals.comb future_goals) in
   let sigma = Evd.push_future_goals sigma in
 
-  let intro_tac { CInfo.args; _ } = Tactics.auto_intros_tac args in
+  let intro_tac { CInfo.args; _ } = Intro.auto_intros_tac args in
   let fixrs = snd possible_guard in
   let init_tac =
     let tacl = List.map (Option.cata (fun body -> Refine.refine ~typecheck:false (fun sigma -> sigma, body)) Tacticals.tclIDTAC) bodies in
