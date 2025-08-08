@@ -13,7 +13,7 @@ open Tactypes
 open HypNaming
 open Logic
 
-(** Basic introduction tactics. See [introPattern.ml] for variants which deal
+(** Basic introduction tactics. See [tactics.ml] for variants which deal
     with introduction patterns (i.e. which allow destructing introduced variables). *)
 
 
@@ -35,11 +35,13 @@ val is_quantified_hypothesis : Id.t -> Proofview.Goal.t -> bool
 val intro : ?move:(Id.t move_location) -> ?force:bool -> ?dep:bool ->
   ?tac:(Id.t -> unit Proofview.tactic) -> ?naming:name_flag -> unit -> unit Proofview.tactic
 
-(** Specialization of [intro] to [NamingMustBe id]. *)
+(** Specialization of [intro] to [NamingMustBe id], i.e. the introduced variable
+    is named exactly [id]. Fails if [id] is already in the context. *)
 val intro_mustbe : ?move:(Id.t move_location) -> ?force:bool -> ?dep:bool ->
   ?tac:(Id.t -> unit Proofview.tactic) -> Id.t -> unit Proofview.tactic
 
-(** Specialization of [intro] to [NamingBasedOn (id, Id.Set.empty)]. *)
+(** Specialization of [intro] to [NamingBasedOn (id, Id.Set.empty)],
+    i.e. the introduced variable is given a fresh name based on [id]. *)
 val intro_basedon : ?move:(Id.t move_location) -> ?force:bool -> ?dep:bool ->
   ?tac:(Id.t -> unit Proofview.tactic) -> Id.t -> unit Proofview.tactic
 
