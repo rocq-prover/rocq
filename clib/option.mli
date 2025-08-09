@@ -15,8 +15,6 @@
    they actually are similar considering ['a option] as a type
    of lists with at most one element. *)
 
-exception IsNone
-
 (** [has_some x] is [true] if [x] is of the form [Some y] and [false]
     otherwise.  *)
 val has_some : 'a option -> bool
@@ -36,8 +34,7 @@ val compare : ('a -> 'a -> int) -> 'a option -> 'a option -> int
 (** Lift a hash to option types. *)
 val hash : ('a -> int) -> 'a option -> int
 
-(** [get x] returns [y] where [x] is [Some y].
-    @raise IsNone if [x] equals [None]. *)
+(** [get x] returns [y] where [x] is [Some y], and asserts false otherwise. *)
 val get : 'a option -> 'a
 
 (** [make x] returns [Some x]. *)

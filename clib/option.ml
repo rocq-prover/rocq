@@ -41,13 +41,11 @@ let hash f = function
   | None -> 0
   | Some x -> f x
 
-exception IsNone
-
 (** [get x] returns [y] where [x] is [Some y].
     @raise IsNone if [x] equals [None]. *)
 let get = function
   | Some y -> y
-  | _ -> raise IsNone
+  | None -> assert false
 
 (** [make x] returns [Some x]. *)
 let make x = Some x
