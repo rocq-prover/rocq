@@ -274,14 +274,18 @@ let id_of_qvar uctx l =
 
 let is_rigid_qvar uctx q = QState.is_rigid uctx.sort_variables q
 
+let get_uname info = match info.uname with
+| None -> raise Not_found
+| Some id -> id
+
 let qualid_of_qvar_names (bind, (qrev,_)) l =
-  try Some (Libnames.qualid_of_ident (Option.get (QVar.Map.find l qrev).uname))
-  with Not_found | Option.IsNone ->
+  try Some (Libnames.qualid_of_ident (get_uname (QVar.Map.find l qrev)))
+  with Not_found ->
     UnivNames.qualid_of_quality bind l
 
 let qualid_of_level_names (bind, (_,urev)) l =
-  try Some (Libnames.qualid_of_ident (Option.get (Level.Map.find l urev).uname))
-  with Not_found | Option.IsNone ->
+  try Some (Libnames.qualid_of_ident (get_uname (Level.Map.find l urev)))
+  with Not_found ->
     UnivNames.qualid_of_level bind l
 
 let qualid_of_level uctx l = qualid_of_level_names uctx.names l
@@ -366,14 +370,14 @@ let compute_instance_binders uctx inst =
   let qinst, uinst = Instance.to_array inst in
   let qmap = function
     | QVar q ->
-      begin try Name (Option.get (QVar.Map.find q qrev).uname)
-      with Option.IsNone | Not_found -> Anonymous
+      begin try Name (get_uname (QVar.Map.find q qrev))
+      with Not_found -> Anonymous
       end
     | QConstant _ -> assert false
   in
   let umap lvl =
-    try Name (Option.get (Level.Map.find lvl urev).uname)
-    with Option.IsNone | Not_found -> Anonymous
+    try Name (get_uname (Level.Map.find lvl urev))
+    with Not_found -> Anonymous
   in
   {quals = Array.map qmap qinst; univs =  Array.map umap uinst}
 
