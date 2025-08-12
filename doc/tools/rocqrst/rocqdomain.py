@@ -1047,6 +1047,41 @@ def GrammarProductionRole(typ, rawtext, text, lineno, inliner, options={}, conte
 GrammarProductionRole.role_name = "production"
 
 
+def TokenRole(typ, rawtext, text, lineno, inliner, options={}, content=[]):
+    """A custom token role that handles special characters properly.
+    This addresses issue #20980 where :token:`!` was rendering as empty.
+    """
+    #pylint: disable=dangerous-default-value, unused-argument
+    from sphinx import addnodes
+    from sphinx.util import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Check if the token is a special character that isn't a valid nonterminal
+    # Valid tokens start with alphanumeric or underscore
+    if text and not (text[0].isalnum() or text[0] == '_'):
+        # For special characters like "!", display them literally
+        # or issue a warning
+        logger.warning('Invalid token name "%s" at %s:%s - token names should be alphanumeric', 
+                       text, inliner.document.current_source, lineno)
+        # Return the character as a literal instead of an empty string
+        node = nodes.literal(rawtext, text, classes=['token-literal'])
+        return [node], []
+    
+    # For valid token names, use the standard behavior
+    env = inliner.document.settings.env
+    targetid = make_id('grammar-token-{}'.format(text))
+    target = nodes.target('', '', ids=[targetid])
+    inliner.document.note_explicit_target(target)
+    code = nodes.literal(rawtext, text, role=typ.lower())
+    node = nodes.inline(rawtext, '', target, code, classes=['inline-grammar-production'])
+    set_role_source_info(inliner, lineno, node)
+    env.domaindata['std']['objects']['token', text] = env.docname, targetid
+    return [node], []
+
+TokenRole.role_name = "token"
+
+
 def GlossaryDefRole(typ, rawtext, text, lineno, inliner, options={}, content=[]):
     """A role to mark the definition of a glossary term inline in the text.
     See the documentation of the ":gdef:" role in doc/sphinx/README.rst
@@ -1242,6 +1277,7 @@ ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
                              PreambleDirective]
 
 ROCQ_ADDITIONAL_ROLES = [GrammarProductionRole,
+                        TokenRole,
                         GlossaryDefRole]
 
 def setup(app):
