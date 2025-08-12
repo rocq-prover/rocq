@@ -123,7 +123,7 @@ module Deltamap = struct
     let eqkn h1 h2 = match h1, h2 with
     | Equiv kn1, Equiv kn2 -> KerName.equal kn1 kn2
     | Inline _, Inline _ -> true
-    | (Equiv _ | Inline _), _ -> false
+    | (Equiv _ | Inline _), _ -> true
     in
     ModPath.Map.equal ModPath.equal reso1.mmap reso2.mmap && KerName.Map.equal eqkn reso1.kmap reso2.kmap
 
