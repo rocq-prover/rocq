@@ -253,6 +253,15 @@ let hint_locality = explicit_hint_locality >>= function
   | Some v -> return v
   | None -> return (default_hint_locality())
 
+let hint_locality_no_sections =
+  explicit_hint_locality >>= function
+  | Some v ->
+    let () = if v <> Local && Lib.sections_are_opened() then
+        CErrors.user_err Pp.(str "This command does not support this locality in sections.")
+    in
+    return v
+  | None -> return (default_hint_locality())
+
 let hint_locality_default_superglobal = explicit_hint_locality >>= function
   | Some v -> return v
   | None -> return Hints.SuperGlobal
