@@ -75,7 +75,7 @@ let functional_induction with_clean c princl pat =
                       we cross our finger and try to find a lemma named f_ind
                       (or f_rec, f_rect) i*)
               let princ_name =
-                Indrec.make_elimination_ident
+                Elimschemes.make_elimination_ident
                   (Label.to_id (Constant.label c'))
                   (elimination_sort_of_goal gl)
               in
