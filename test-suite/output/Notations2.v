@@ -75,8 +75,8 @@ Notation "f ( x )" := (f x) (at level 10, format "f ( x )").
 Check fun f x => f x + S x.
 
 Open Scope list_scope.
-Notation list1 := (1::nil)%list.
-Notation plus2 n := (S (S n)).
+Abbreviation list1 := (1::nil)%list.
+Abbreviation plus2 n := (S (S n)).
 (* plus2 was not correctly printed in the two following tests in 8.3pl1 *)
 Print plus2.
 Check fun n => match n with list1 => 0 | _ => 2 end.

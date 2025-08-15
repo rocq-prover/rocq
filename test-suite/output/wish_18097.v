@@ -1,3 +1,3 @@
-Notation pow := Nat.pow.
+Abbreviation pow := Nat.pow.
 Print pow.
 About pow.

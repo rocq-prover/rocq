@@ -356,17 +356,17 @@ Definition lift aT rT (f : aT -> rT) := fun x => Some (f x).
 
 End Option.
 
-Notation oapp := Option.apply.
-Notation odflt := Option.default.
-Notation obind := Option.bind.
-Notation omap := Option.map.
-Notation olift := Option.lift.
-Notation some := (@Some _) (only parsing).
+Abbreviation oapp := Option.apply.
+Abbreviation odflt := Option.default.
+Abbreviation obind := Option.bind.
+Abbreviation omap := Option.map.
+Abbreviation olift := Option.lift.
+Abbreviation some := (@Some _) (only parsing).
 
 (**  Shorthand for some basic equality lemmas.  **)
 
-Notation erefl := refl_equal.
-Notation ecast i T e x := (let: erefl in _ = i := e return T in x).
+Abbreviation erefl := refl_equal.
+Abbreviation ecast i T e x := (let: erefl in _ = i := e return T in x).
 Definition esym := sym_eq.
 Definition nesym := sym_not_eq.
 Definition etrans := trans_eq.
@@ -487,7 +487,7 @@ Notation "[ 'eta' f ]" := (fun x => f x) : function_scope.
 
 Notation "'fun' => E" := (fun _ => E) : function_scope.
 
-Notation id := (fun x => x).
+Abbreviation id := (fun x => x).
 
 Notation "@ 'id' T" := (fun x : T => x) (only parsing) : function_scope.
 
@@ -533,7 +533,7 @@ End OptionTheory.
 
 (** The empty type. **)
 
-Notation void := Empty_set.
+Abbreviation void := Empty_set.
 
 Definition of_void T (x : void) : T := match x with end.
 
@@ -574,7 +574,7 @@ Proof. by case/all_tag=> f /all_pair[]; exists f. Qed.
 (**  Refinement types.  **)
 
 (**  Prenex Implicits and renaming.  **)
-Notation sval := (@proj1_sig _ _).
+Abbreviation sval := (@proj1_sig _ _).
 Notation "@ 'sval'" := (@proj1_sig) (only parsing) : function_scope.
 
 Section Sig.
@@ -867,7 +867,7 @@ End SopSisS.
 End OperationProperties.
 
 #[deprecated(since="9.1", use=idempotent_op)]
-Notation idempotent:= idempotent_op (only parsing).
+Abbreviation idempotent:= idempotent_op (only parsing).
 
 Definition idempotent_fun (U : Type) (f : U -> U) := f \o f =1 f.
 

@@ -1,7 +1,7 @@
 (* Bug 5568, don't warn for notations in repeated module import *)
 
 Module foo.
-Notation compose := (fun g f => g f).
+Abbreviation compose := (fun g f => g f).
 Notation "g & f" := (compose g f) (at level 10).
 End foo.
 
@@ -126,23 +126,23 @@ Fail Notation "( x , y , .. , z )" := (pair .. (pair (pair y z) x) .. x).
 (**********************************************************************)
 (* Check preservation of scopes at printing time *)
 
-Notation SUM := sum.
+Abbreviation SUM := sum.
 Check SUM (nat*nat) nat.
 
 (**********************************************************************)
 (* Check preservation of implicit arguments at printing time *)
 
-Notation FST := fst.
+Abbreviation FST := fst.
 Check FST (0;1).
 
 (**********************************************************************)
 (* Check notations for references with activated or deactivated       *)
 (* implicit arguments                                                 *)
 
-Notation Nil := @nil.
+Abbreviation Nil := @nil.
 Check Nil.
 
-Notation NIL := nil.
+Abbreviation NIL := nil.
 Check NIL : list nat.
 
 
@@ -200,16 +200,16 @@ End Application.
 
 (* Check notations in cases patterns *)
 
-Notation SOME := Some.
-Notation NONE := None.
+Abbreviation SOME := Some.
+Abbreviation NONE := None.
 Check (fun x => match x with SOME x => x | NONE => 0 end).
 
-Notation NONE2 := (@None _).
-Notation SOME2 := (@Some _).
+Abbreviation NONE2 := (@None _).
+Abbreviation SOME2 := (@Some _).
 Check (fun x => match x with SOME2 x => x | NONE2 => 0 end).
 
-Notation NONE3 := @None.
-Notation SOME3 := @Some.
+Abbreviation NONE3 := @None.
+Abbreviation SOME3 := @Some.
 Check (fun x => match x with SOME3 _ x => x | NONE3 _ => 0 end).
 
 Notation "a :'" := (cons a) (at level 10).
@@ -221,7 +221,7 @@ Check (fun x => match x with | nil => NONE | h :' t => SOME3 _ t end).
    universe than the actual one; but it would be the same anyway
    without a notation *)
 
-Notation s := Type.
+Abbreviation s := Type.
 Check s.
 
 (* Test bug #2835: notations were not uniformly managed under prod and lambda *)

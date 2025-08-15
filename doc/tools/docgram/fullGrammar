@@ -696,6 +696,7 @@ command: [
 | "String" "Notation" reference reference reference OPT string_option ":" preident
 | "Ltac2" ltac2_entry      (* ltac2 plugin *)
 | "Ltac2" "Notation" ltac2def_syn      (* ltac2 plugin *)
+| "Ltac2" "Abbreviation" ltac2abbrev_syn      (* ltac2 plugin *)
 | "Ltac2" "Eval" ltac2_expr6      (* ltac2 plugin *)
 | "Print" test_ltac2_ident "Ltac2" reference      (* ltac2 plugin *)
 | "Print" "Ltac2" "Type" reference      (* ltac2 plugin *)
@@ -1551,11 +1552,16 @@ syntax: [
 | "Undelimit" "Scope" IDENT
 | "Bind" "Scope" IDENT; "with" LIST1 coercion_class
 | "Infix" notation_declaration
-| "Notation" identref LIST0 ident ":=" constr syntax_modifiers
-| "Notation" notation_declaration
+| located_notation identref LIST0 ident ":=" constr syntax_modifiers
+| "Abbreviation" identref LIST0 ident ":=" constr syntax_modifiers
+| located_notation notation_declaration
 | "Reserved" "Infix" ne_lstring syntax_modifiers
 | "Reserved" "Notation" ne_lstring syntax_modifiers
 | enable_enable_disable "Notation" enable_notation_rule enable_notation_interpretation enable_notation_flags opt_scope
+]
+
+located_notation: [
+| "Notation"
 ]
 
 enable_enable_disable: [
@@ -2940,6 +2946,10 @@ tac2def_syn: [
 | LIST1 ltac2_syntax_class syn_level ":=" ltac2_expr6      (* ltac2 plugin *)
 ]
 
+tac2abbrev_syn: [
+| Prim.identref ":=" ltac2_expr6      (* ltac2 plugin *)
+]
+
 globref: [
 | "&" Prim.ident      (* ltac2 plugin *)
 | Prim.qualid      (* ltac2 plugin *)
@@ -3315,6 +3325,10 @@ ltac2_entry: [
 
 ltac2def_syn: [
 | tac2def_syn      (* ltac2 plugin *)
+]
+
+ltac2abbrev_syn: [
+| tac2abbrev_syn      (* ltac2 plugin *)
 ]
 
 ltac2_expr: [

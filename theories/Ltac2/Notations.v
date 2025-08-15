@@ -63,18 +63,18 @@ end.
 
 Ltac2 fail0 (_ : unit) := Control.enter (fun _ => Control.zero (Tactic_failure None)).
 
-Ltac2 Notation fail := fail0 ().
+Ltac2 Abbreviation fail := fail0 ().
 
 Ltac2 try0 t := Control.enter (fun _ => orelse t (fun _ => ())).
 
-Ltac2 Notation try := try0.
+Ltac2 Abbreviation try := try0.
 
 Ltac2 rec repeat0 (t : unit -> unit) :=
   Control.enter (fun () =>
     ifcatch (fun _ => Control.progress t)
       (fun _ => Control.check_interrupt (); repeat0 t) (fun _ => ())).
 
-Ltac2 Notation repeat := repeat0.
+Ltac2 Abbreviation repeat := repeat0.
 
 Ltac2 dispatch0 t (head, tail) :=
   match tail with
@@ -93,17 +93,17 @@ Ltac2 do0 n t :=
   end in
   aux (n ()) t.
 
-Ltac2 Notation do := do0.
+Ltac2 Abbreviation do := do0.
 
-Ltac2 Notation once := Control.once.
+Ltac2 Abbreviation once := Control.once.
 
-Ltac2 Notation unshelve := Control.unshelve.
+Ltac2 Abbreviation unshelve := Control.unshelve.
 
 Ltac2 cycle := Control.cycle.
 
 Ltac2 progress0 tac := Control.enter (fun _ => Control.progress tac).
 
-Ltac2 Notation progress := progress0.
+Ltac2 Abbreviation progress := progress0.
 
 Ltac2 rec first0 tacs :=
 match tacs with
@@ -129,11 +129,11 @@ Ltac2 Notation "solve" "[" tacs(list0(thunk(tactic(6)), "|")) "]" := solve0 tacs
 
 Ltac2 time0 tac := Control.time None tac.
 
-Ltac2 Notation time := time0.
+Ltac2 Abbreviation time := time0.
 
 Ltac2 abstract0 tac := Control.abstract None tac.
 
-Ltac2 Notation abstract := abstract0.
+Ltac2 Abbreviation abstract := abstract0.
 
 (** Base tactics *)
 
@@ -154,19 +154,19 @@ Ltac2 intros0 ev p :=
   Control.enter (fun () => Std.intros ev p).
 
 Ltac2 Notation "intros" p(intropatterns) := intros0 false p.
-Ltac2 Notation intros := intros.
+Ltac2 Abbreviation intros := intros.
 
 Ltac2 Notation "eintros" p(intropatterns) := intros0 true p.
-Ltac2 Notation eintros := eintros.
+Ltac2 Abbreviation eintros := eintros.
 
 Ltac2 split0 ev bnd :=
   enter_h ev Std.split bnd.
 
 Ltac2 Notation "split" bnd(thunk(with_bindings)) := split0 false bnd.
-Ltac2 Notation split := split.
+Ltac2 Abbreviation split := split.
 
 Ltac2 Notation "esplit" bnd(thunk(with_bindings)) := split0 true bnd.
-Ltac2 Notation esplit := esplit.
+Ltac2 Abbreviation esplit := esplit.
 
 Ltac2 exists0 ev bnds := match bnds with
 | [] => split0 ev (fun () => Std.NoBindings)
@@ -179,26 +179,26 @@ Ltac2 exists0 ev bnds := match bnds with
 end.
 
 Ltac2 Notation "exists" bnd(list0(thunk(bindings), ",")) := exists0 false bnd.
-(* Ltac2 Notation exists := exists. *)
+(* Ltac2 Abbreviation exists := exists. *)
 
 Ltac2 Notation "eexists" bnd(list0(thunk(bindings), ",")) := exists0 true bnd.
-Ltac2 Notation eexists := eexists.
+Ltac2 Abbreviation eexists := eexists.
 
 Ltac2 left0 ev bnd := enter_h ev Std.left bnd.
 
 Ltac2 Notation "left" bnd(thunk(with_bindings)) := left0 false bnd.
-Ltac2 Notation left := left.
+Ltac2 Abbreviation left := left.
 
 Ltac2 Notation "eleft" bnd(thunk(with_bindings)) := left0 true bnd.
-Ltac2 Notation eleft := eleft.
+Ltac2 Abbreviation eleft := eleft.
 
 Ltac2 right0 ev bnd := enter_h ev Std.right bnd.
 
 Ltac2 Notation "right" bnd(thunk(with_bindings)) := right0 false bnd.
-Ltac2 Notation right := right.
+Ltac2 Abbreviation right := right.
 
 Ltac2 Notation "eright" bnd(thunk(with_bindings)) := right0 true bnd.
-Ltac2 Notation eright := eright.
+Ltac2 Abbreviation eright := eright.
 
 Ltac2 constructor0 ev n bnd :=
   enter_h ev (fun ev bnd => Std.constructor_n ev n bnd) bnd.
@@ -209,10 +209,10 @@ Local Ltac2 constructor1 ev x :=
   | Some (tac, bnd) => constructor0 ev tac bnd
   end.
 
-Ltac2 Notation constructor := constructor1 false None.
+Ltac2 Abbreviation constructor := constructor1 false None.
 Ltac2 Notation "constructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 false x.
 
-Ltac2 Notation econstructor := constructor1 true None.
+Ltac2 Abbreviation econstructor := constructor1 true None.
 Ltac2 Notation "econstructor" x(opt(seq(tactic,thunk(with_bindings)))) := constructor1 true x.
 
 Ltac2 specialize0 c pat :=
@@ -360,31 +360,31 @@ Ltac2 Notation "inversion_clear"
   ids(opt(seq("in", list1(ident)))) :=
   Std.inversion Std.FullInversionClear arg pat ids.
 
-Ltac2 Notation exfalso := Std.exfalso ().
+Ltac2 Abbreviation exfalso := Std.exfalso ().
 
 Ltac2 Notation "red" cl(opt(clause)) :=
   Std.red (default_on_concl cl).
-Ltac2 Notation red := red.
+Ltac2 Abbreviation red := red.
 
 Ltac2 Notation "hnf" cl(opt(clause)) :=
   Std.hnf (default_on_concl cl).
-Ltac2 Notation hnf := hnf.
+Ltac2 Abbreviation hnf := hnf.
 
 Ltac2 Notation "simpl" s(strategy) pl(opt(seq(pattern, occurrences))) cl(opt(clause)) :=
   Std.simpl s pl (default_on_concl cl).
-Ltac2 Notation simpl := simpl.
+Ltac2 Abbreviation simpl := simpl.
 
 Ltac2 Notation "cbv" s(strategy) cl(opt(clause)) :=
   Std.cbv s (default_on_concl cl).
-Ltac2 Notation cbv := cbv.
+Ltac2 Abbreviation cbv := cbv.
 
 Ltac2 Notation "cbn" s(strategy) cl(opt(clause)) :=
   Std.cbn s (default_on_concl cl).
-Ltac2 Notation cbn := cbn.
+Ltac2 Abbreviation cbn := cbn.
 
 Ltac2 Notation "lazy" s(strategy) cl(opt(clause)) :=
   Std.lazy s (default_on_concl cl).
-Ltac2 Notation lazy := lazy.
+Ltac2 Abbreviation lazy := lazy.
 
 Ltac2 Notation "unfold" pl(list1(seq(reference, occurrences), ",")) cl(opt(clause)) :=
   Std.unfold pl (default_on_concl cl).
@@ -401,11 +401,11 @@ Ltac2 Notation "pattern" pl(list1(seq(constr, occurrences), ",")) cl(opt(clause)
 
 Ltac2 Notation "vm_compute" pl(opt(seq(pattern, occurrences))) cl(opt(clause)) :=
   Std.vm pl (default_on_concl cl).
-Ltac2 Notation vm_compute := vm_compute.
+Ltac2 Abbreviation vm_compute := vm_compute.
 
 Ltac2 Notation "native_compute" pl(opt(seq(pattern, occurrences))) cl(opt(clause)) :=
   Std.native pl (default_on_concl cl).
-Ltac2 Notation native_compute := native_compute.
+Ltac2 Abbreviation native_compute := native_compute.
 
 Ltac2 Notation "eval" "red" "in" c(constr) :=
   Std.eval_red c.
@@ -500,27 +500,27 @@ Ltac2 Notation "eexact" c(preterm) := exact1 true c.
 (** Like [refine] but new evars are shelved instead of becoming subgoals. *)
 
 Ltac2 Notation "intro" id(opt(ident)) mv(opt(move_location)) := Std.intro id mv.
-Ltac2 Notation intro := intro.
+Ltac2 Abbreviation intro := intro.
 
 Ltac2 Notation "move" id(ident) mv(move_location) := Std.move id mv.
 
-Ltac2 Notation reflexivity := Std.reflexivity ().
+Ltac2 Abbreviation reflexivity := Std.reflexivity ().
 
 Ltac2 symmetry0 cl :=
   Std.symmetry (default_on_concl cl).
 
 Ltac2 Notation "symmetry" cl(opt(clause)) := symmetry0 cl.
-Ltac2 Notation symmetry := symmetry.
+Ltac2 Abbreviation symmetry := symmetry.
 
 Ltac2 Notation "revert" ids(list1(ident)) := Std.revert ids.
 
-Ltac2 Notation assumption := Std.assumption ().
+Ltac2 Abbreviation assumption := Std.assumption ().
 
-Ltac2 Notation eassumption := Std.eassumption ().
+Ltac2 Abbreviation eassumption := Std.eassumption ().
 
-Ltac2 Notation etransitivity := Std.etransitivity ().
+Ltac2 Abbreviation etransitivity := Std.etransitivity ().
 
-Ltac2 Notation admit := Std.admit ().
+Ltac2 Abbreviation admit := Std.admit ().
 
 Ltac2 clear0 ids := match ids with
 | [] => Std.keep []
@@ -529,9 +529,9 @@ end.
 
 Ltac2 Notation "clear" ids(list0(ident)) := clear0 ids.
 Ltac2 Notation "clear" "-" ids(list1(ident)) := Std.keep ids.
-Ltac2 Notation clear := clear.
+Ltac2 Abbreviation clear := clear.
 
-Ltac2 Notation refine := Control.refine.
+Ltac2 Abbreviation refine := Control.refine.
 
 (** extratactics *)
 
@@ -545,15 +545,15 @@ Ltac2 subst0 ids := match ids with
 end.
 
 Ltac2 Notation "subst" ids(list0(ident)) := subst0 ids.
-Ltac2 Notation subst := subst.
+Ltac2 Abbreviation subst := subst.
 
 Ltac2 Notation "discriminate" arg(opt(destruction_arg)) :=
   Std.discriminate false arg.
-Ltac2 Notation discriminate := discriminate.
+Ltac2 Abbreviation discriminate := discriminate.
 
 Ltac2 Notation "ediscriminate" arg(opt(destruction_arg)) :=
   Std.discriminate true arg.
-Ltac2 Notation ediscriminate := ediscriminate.
+Ltac2 Abbreviation ediscriminate := ediscriminate.
 
 Ltac2 Notation "injection" arg(opt(destruction_arg)) ipat(opt(seq("as", intropatterns))):=
   Std.injection false ipat arg.
@@ -586,7 +586,7 @@ Ltac2 Notation "trivial"
   use(opt(seq("using", list1(reference, ","))))
   dbs(opt(seq("with", hintdb))) := trivial0 use dbs.
 
-Ltac2 Notation trivial := trivial.
+Ltac2 Abbreviation trivial := trivial.
 
 Ltac2 auto0 n use dbs :=
   let dbs := default_db dbs in
@@ -597,7 +597,7 @@ Ltac2 Notation "auto" n(opt(tactic(0)))
   use(opt(seq("using", list1(reference, ","))))
   dbs(opt(seq("with", hintdb))) := auto0 n use dbs.
 
-Ltac2 Notation auto := auto.
+Ltac2 Abbreviation auto := auto.
 
 Ltac2 eauto0 n use dbs :=
   let dbs := default_db dbs in
@@ -608,7 +608,7 @@ Ltac2 Notation "eauto" n(opt(tactic(0)))
   use(opt(seq("using", list1(reference, ","))))
   dbs(opt(seq("with", hintdb))) := eauto0 n use dbs.
 
-Ltac2 Notation eauto := eauto.
+Ltac2 Abbreviation eauto := eauto.
 
 Ltac2 Notation "typeclasses_eauto" n(opt(tactic(0)))
   dbs(opt(seq("with", list1(ident)))) := Std.typeclasses_eauto None n dbs.
@@ -616,7 +616,7 @@ Ltac2 Notation "typeclasses_eauto" n(opt(tactic(0)))
 Ltac2 Notation "typeclasses_eauto" "bfs" n(opt(tactic(0)))
   dbs(opt(seq("with", list1(ident)))) := Std.typeclasses_eauto (Some Std.BFS) n dbs.
 
-Ltac2 Notation typeclasses_eauto := typeclasses_eauto.
+Ltac2 Abbreviation typeclasses_eauto := typeclasses_eauto.
 
 Ltac2 Notation "unify" x(constr) y(constr) := Std.unify x y.
 
@@ -628,7 +628,7 @@ Ltac2 Notation "simple" "congruence" n(opt(tactic(0))) l(opt(seq("with", list1(c
 
 #[deprecated(since="9.1", note="Use Std.f_equal instead.")]
 Ltac2 f_equal0 := Std.f_equal.
-Ltac2 Notation f_equal := Std.f_equal ().
+Ltac2 Abbreviation f_equal := Std.f_equal ().
 
 (** now *)
 

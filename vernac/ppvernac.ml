@@ -1083,10 +1083,10 @@ let pr_synpure_vernac_expr v =
     )
   | VernacHints (dbnames,h) ->
     return (pr_hints dbnames h pr_constr pr_constr_pattern_expr)
-  | VernacSyntacticDefinition (id,(ids,c),l) ->
+  | VernacAbbreviation (id,(ids,c),l,_) ->
     return (
       hov 2
-        (keyword "Notation" ++ spc () ++ pr_abbreviation pr_lident (ids,id) ++ str":=" ++ pr_constrarg c ++
+        (keyword "Abbreviation" ++ spc () ++ pr_abbreviation pr_lident (ids,id) ++ str":=" ++ pr_constrarg c ++
          pr_syntax_modifiers l)
     )
   | VernacArguments (q, args, more_implicits, mods) ->

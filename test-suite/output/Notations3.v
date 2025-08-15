@@ -156,7 +156,7 @@ Check [ fun x => x+0 ;; fun x => x+1 ;; fun x => x+2 ].
 
 Section Bug4765.
 
-Notation foo5 x T y := (fun x : T => y).
+Abbreviation foo5 x T y := (fun x : T => y).
 Check foo5 x nat x.
 
 End Bug4765.
@@ -405,8 +405,8 @@ End Issue7731.
 Module Issue8126.
 
 Definition myfoo (x : nat) (y : nat) (z : unit) := y.
-Notation myfoo0 := (@myfoo 0).
-Notation myfoo01 := (@myfoo0 1).
+Abbreviation myfoo0 := (@myfoo 0).
+Abbreviation myfoo01 := (@myfoo0 1).
 Check myfoo 0 1 tt. (* was printing [myfoo0 1 HI], but should print [myfoo01 HI]  *)
 Check myfoo0 1 tt. (* was printing [myfoo0 1 HI], but should print [myfoo01 HI]  *)
 Check myfoo01 tt. (* was printing [myfoo0 1 HI], but should print [myfoo01 HI]  *)
