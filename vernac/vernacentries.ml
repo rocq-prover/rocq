@@ -1453,7 +1453,7 @@ let add_subnames_of ?loc len n ns full_n ref =
         ns mip.mind_consnames
     in
     List.fold_left (fun ns q ->
-        let s = Indrec.elimination_suffix q in
+        let s = Elimschemes.elimination_suffix q in
         let n_elim = Id.of_string (Id.to_string mip.mind_typename ^ s) in
         match importable_extended_global_of_path ?loc (Libnames.add_path_suffix path_prefix n_elim) with
         | exception Not_found -> ns
