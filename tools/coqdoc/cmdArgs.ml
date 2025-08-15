@@ -141,12 +141,10 @@ let args_options = Arg.align [
   "--no-preamble", arg_set (fun p -> { p with header_trailer = false }),
   " Suppress LaTeX/HTML header and trailer";
   "--with-header", arg_file (fun p f -> { p with header_trailer = true;
-                                                 header_file_spec = true;
-                                                 header_file = f }),
+                                                 header_file = Some f }),
   "<file> Prepend <file> as html header";
   "--with-footer", arg_file (fun p f -> { p with header_trailer = true;
-                                                 footer_file_spec = true;
-                                                 footer_file = f }),
+                                                 footer_file = Some f }),
   "<file> append <file> as html footer";
   "--no-index", arg_set (fun p -> { p with index = false }),
   " Do not output the index";
