@@ -66,6 +66,7 @@ let lnegint = 35 (* must be consistent with Notation "- x" *)
 let ltop = LevelLe 200
 let lproj = 1
 let ldelim = 1
+let lcase_type = LevelLe 100
 let lsimpleconstr = LevelLe 8
 let lsimplepatt = LevelLe 1
 let no_after = None
@@ -548,7 +549,7 @@ let pr_as_in pr na indnalopt =
    | None -> mt ()) ++
   (match indnalopt with
    | None -> mt ()
-   | Some t -> spc () ++ keyword "in" ++ spc () ++ pr_patt pr no_after lsimplepatt t)
+   | Some t -> spc () ++ keyword "in" ++ spc () ++ pr_patt pr no_after ltop t)
 
 let pr_case_item pr (tm,as_clause, in_clause) =
   hov 0 (pr no_after (LevelLe lcast) tm ++ pr_as_in (pr no_after ltop) as_clause in_clause)
@@ -558,7 +559,7 @@ let pr_case_type pr po =
   | None -> mt ()
   | Some { CAst.v = CHole h } when is_anonymous_hole h -> mt()
   | Some p ->
-    spc() ++ hov 2 (keyword "return" ++ pr_sep_com spc (pr no_after lsimpleconstr) p)
+    spc() ++ hov 2 (keyword "return" ++ pr_sep_com spc (pr no_after lcase_type) p)
 
 let pr_simple_return_type pr na po =
   (match na with
