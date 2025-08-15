@@ -347,7 +347,7 @@ let declare_equivalent_keys c c' =
   let get_key c =
     let env = Global.env () in
     let evd = Evd.from_env env in
-    let (evd, c) = Constrintern.interp_open_constr env evd c in
+    let (evd, { Environ.uj_val = c }) = Constrintern.interp_open_constr env evd c in
     let kind c = EConstr.kind evd c in
     Keys.constr_key env kind c
   in
