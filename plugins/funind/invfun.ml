@@ -142,15 +142,19 @@ let invfun qhyp f =
       match EConstr.kind sigma hyp_typ with
       | App (eq, args) when EConstr.eq_constr sigma eq (make_eq ()) -> (
         let f1, _ = decompose_app sigma args.(1) in
+        let get_opt = function
+        | None -> raise NoFunction
+        | Some v -> v
+        in
         try
           if not (isConst sigma f1) then raise NoFunction;
           let finfos =
-            Option.get (find_Function_infos (fst (destConst sigma f1)))
+            get_opt (find_Function_infos (fst (destConst sigma f1)))
           in
-          let f_correct = mkConst (Option.get finfos.correctness_lemma)
-          and kn = fst finfos.graph_ind in
+          let f_correct = mkConst (get_opt finfos.correctness_lemma) in
+          let kn = fst finfos.graph_ind in
           functional_inversion kn hid f1 f_correct
-        with NoFunction | Option.IsNone ->
+        with NoFunction ->
           let f2, _ = decompose_app sigma args.(2) in
           if isConst sigma f2 then
             match find_Function_infos (fst (destConst sigma f2)) with

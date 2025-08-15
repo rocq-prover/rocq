@@ -894,6 +894,8 @@ let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_
   in
   evd
 
+exception NoLemma
+
 let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
     all_funs =
   Proofview.Goal.enter (fun g ->
@@ -905,8 +907,12 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
             | None -> raise Not_found
             | Some finfos -> finfos
           in
-          mkConst (Option.get finfos.equation_lemma)
-        with (Not_found | Option.IsNone) as e ->
+          let cst = match finfos.equation_lemma with
+          | None -> raise NoLemma
+          | Some cst -> cst
+          in
+          mkConst cst
+        with (Not_found | NoLemma) as e ->
           let f_id = Label.to_id (Constant.label (fst (destConst !evd f))) in
           (*i The next call to mk_equation_id is valid since we will construct the lemma
             Ensures by: obvious
@@ -917,7 +923,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
               (List.length rev_args_id) rec_arg_num;
           let _ =
             match e with
-            | Option.IsNone ->
+            | NoLemma ->
               let finfos =
                 match find_Function_infos (fst (destConst !evd f)) with
                 | None -> raise Not_found

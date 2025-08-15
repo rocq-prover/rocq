@@ -298,9 +298,12 @@ let create_custom_entry s =
 
 let find_custom_entry s =
   let state = gramstate() in
-  let find_aux field = CustomName.Map.find s (Option.get @@ GramState.get state field) in
+  let find_aux field = match GramState.get state field with
+  | None -> raise Not_found
+  | Some m -> CustomName.Map.find s m
+  in
   try (find_aux constr_custom_map, find_aux pattern_custom_map)
-  with Not_found | Option.IsNone ->
+  with Not_found ->
     anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
 
 (** This computes the name of the level where to add a new rule *)

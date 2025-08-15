@@ -135,7 +135,10 @@ let is_empty = function
 
 let context d =
   let top, _, bot = to_lists d in
-  let pair _ x y = try Option.get x, y with Option.IsNone -> assert false in
+  let pair _ x y = match x with
+  | None -> assert false
+  | Some x -> x, y
+  in
   List.map (flat pair true) top, List.map (flat pair true) bot
 
 let stateid_opt_equal = Option.equal Stateid.equal
