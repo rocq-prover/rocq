@@ -210,6 +210,7 @@ let classify_vernac e =
     | VernacUndoTo _ | VernacUndo _
     | VernacResetName _ | VernacResetInitial
     | VernacRestart -> VtMeta
+    | VernacDropOutput | VernacTestOutput _ -> VtSideff  ([], VtLater) (* TODO @radrow check dis *)
   in
   let static_classifier ~atts e = match e with
     | VernacSynPure e -> static_pure_classifier ~atts e
