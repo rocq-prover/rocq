@@ -59,7 +59,7 @@ let keywords =
 (* Note: do not shorten [str "foo" ++ fnl ()] into [str "foo\n"],
    the '\n' character interacts badly with the Format boxing mechanism *)
 
-let pp_open table mp = str ("open "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
+let pp_open table dp = str ("open "^ string_of_modfile (State.get_table table) dp) ++ fnl ()
 
 let pp_comment s = str "(* " ++ hov 0 s ++ str " *)"
 
@@ -79,12 +79,12 @@ let pp_mldummy usf =
 
 let preamble table _ comment used_modules usf =
   pp_header_comment comment ++
-  then_nl (prlist (fun o -> pp_open table o) used_modules) ++
+  then_nl (prlist (fun o -> pp_open table o) (DirPath.Set.elements used_modules)) ++
   then_nl (pp_tdummy usf ++ pp_mldummy usf)
 
 let sig_preamble table _ comment used_modules usf =
   pp_header_comment comment ++
-  then_nl (prlist (fun o -> pp_open table o) used_modules) ++
+  then_nl (prlist (fun o -> pp_open table o) (DirPath.Set.elements used_modules)) ++
   then_nl (pp_tdummy usf)
 
 (*s The pretty-printer for Ocaml syntax*)
@@ -688,7 +688,7 @@ and pp_module_type table params = function
   | MTfunsig (mbid, mt, mt') ->
       let typ = pp_module_type table [] mt in
       let name = pp_modname table (MPbound mbid) in
-      let def = pp_module_type table (MPbound mbid :: params) mt' in
+      let def = pp_module_type table (mbid :: params) mt' in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MTsig (mp, sign) ->
       let l = State.with_visibility table mp params begin fun table ->
@@ -766,7 +766,7 @@ and pp_module_expr table params = function
   | MEfunctor (mbid, mt, me) ->
       let name = pp_modname table (MPbound mbid) in
       let typ = pp_module_type table [] mt in
-      let def = pp_module_expr table (MPbound mbid :: params) me in
+      let def = pp_module_expr table (mbid :: params) me in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MEstruct (mp, sel) ->
       let l = State.with_visibility table mp params begin fun table ->

@@ -136,7 +136,7 @@ type table = {
   symbols : Label.t list Refmap'.t;
   opaques:  Refset'.t;
   modfile_ids : Id.Set.t;
-  modfile_mps : pp_tag ModPath.Map.t;
+  modfile_mps : string DirPath.Map.t;
 }
 
 type t = table ref
@@ -153,7 +153,7 @@ let empty_table = {
   symbols = Refmap'.empty;
   opaques = Refset'.empty;
   modfile_ids = Id.Set.empty;
-  modfile_mps = ModPath.Map.empty;
+  modfile_mps = DirPath.Map.empty;
 }
 
 let make_table () = ref { empty_table with modfile_ids = !blacklist_table }
@@ -857,25 +857,22 @@ let extraction_implicit r l =
   List.iter (fun r -> Lib.add_leaf (implicit_extraction (r, l))) r
 
 let string_of_modfile table mp =
-  try ModPath.Map.find mp !table.modfile_mps
+  try DirPath.Map.find mp !table.modfile_mps
   with Not_found ->
-    let id = Id.of_string (raw_string_of_modfile mp) in
+    let id = Id.of_string (raw_string_of_modfile (MPfile mp)) in
     let id' = next_ident_away id !table.modfile_ids in
     let s' = Id.to_string id' in
     table := { !table with
       modfile_ids = Id.Set.add id' !table.modfile_ids;
-      modfile_mps = ModPath.Map.add mp s' !table.modfile_mps;
+      modfile_mps = DirPath.Map.add mp s' !table.modfile_mps;
     };
     s'
 
 (* same as [string_of_modfile], but preserves the capital/uncapital 1st char *)
 
-let file_of_modfile table mp =
-  let s0 = match mp with
-    | MPfile f -> Id.to_string (List.hd (DirPath.repr f))
-    | _ -> assert false
-  in
-  String.mapi (fun i c -> if i = 0 then s0.[0] else c) (string_of_modfile table mp)
+let file_of_modfile table dp =
+  let s0 = Id.to_string (List.hd (DirPath.repr dp)) in
+  String.mapi (fun i c -> if i = 0 then s0.[0] else c) (string_of_modfile table dp)
 
 let add_blacklist_entries l =
   blacklist_table :=
