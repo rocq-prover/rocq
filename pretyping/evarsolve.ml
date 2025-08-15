@@ -1585,8 +1585,11 @@ let instantiate_evar unify flags env evd evk body =
      checking could involve the same evar definition problem again otherwise *)
   let allowed_evars = AllowedEvars.remove evk flags.allowed_evars in
   let flags = { flags with allowed_evars } in
-  let evd' = check_evar_instance unify flags env evd evk body in
-  Evd.define evk body evd'
+  if Evd.is_undefined evd evk then
+    let evd' = check_evar_instance unify flags env evd evk body in
+    Evd.define evk body evd'
+  else
+    evd
 
 (* We try to instantiate the evar assuming the body won't depend
  * on arguments that are not Rels or Vars, or appearing several times
