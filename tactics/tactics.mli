@@ -13,12 +13,9 @@ open Constr
 open EConstr
 open Environ
 open Evd
-open Redexpr
-open Pattern
 open Unification
 open Tactypes
 open Locus
-open Ltac_pretype
 
 (** Main tactics defined in ML. This file is huge and should probably be split
     in more reasonable units at some point. Because of its size and age, the
@@ -26,171 +23,6 @@ open Ltac_pretype
     This has to be uniformized someday. *)
 
 (** {6 General functions. } *)
-
-val is_quantified_hypothesis : Id.t -> Proofview.Goal.t -> bool
-
-(** {6 Fixpoint tactics. } *)
-
-(** [fix f idx] refines the goal using a fixpoint.
-    - [f] is the name of the variable which represents the fixpoint.
-    - [idx] is the index of the structurally recursive argument (starting at 1). *)
-val fix : Id.t -> int -> unit Proofview.tactic
-
-(** [mutual_fix f idx fs] refines the goal using a mutual fixpoint.
-    - [f] and [idx] are the name and recursive argument index for the first fixpoint.
-      The type of [f] is simply the conclusion of the goal.
-    - [fs] contains the name, recursive argument index, and type of every other fixpoint
-      in the mutual block. *)
-val mutual_fix :
-  Id.t -> int -> (Id.t * int * constr) list -> unit Proofview.tactic
-
-(** [cofix f] refines the goal using a cofixpoint.
-    - [f] is the name of the variable which represents the cofixpoint. *)
-val cofix : Id.t -> unit Proofview.tactic
-
-(** [mutual_cofix f fs] refines the goal using a mutual cofixpoint.
-    - [f] is the name of the first cofixpoint. The type of [f] is simply the conclusion of the goal.
-    - [fs] contains the name and type of every other cofixpoint in the mutual block. *)
-val mutual_cofix : Id.t -> (Id.t * constr) list -> unit Proofview.tactic
-
-(** {6 Conversion tactics. } *)
-
-exception NotConvertible
-
-(** [vm_cast_no_check new_concl] changes the conclusion to [new_concl] by inserting a [VMcast].
-    It does not check that the new conclusion is indeed convertible to the old conclusion. *)
-val vm_cast_no_check : constr -> unit Proofview.tactic
-
-(** Same as [vm_cast_no_check] but uses a [NATIVEcast]. *)
-val native_cast_no_check : constr -> unit Proofview.tactic
-
-(** [convert_concl ~cast ~check new_concl kind] changes the conclusion to [new_concl],
-    which should be convertible to the old conclusion.
-    - [cast]: if [true] insert a cast in the proof term using [kind] as the cast kind.
-    - [check]: if [true] we check for convertibility. *)
-val convert_concl : cast:bool -> check:bool -> types -> cast_kind -> unit Proofview.tactic
-
-(** [convert_hyp ~check ~reorder decl] changes the declaration of [x] to [decl],
-    where [x] is the variable bound by [decl].
-    - [check]: if [true] we check that [x] is in the context, that the new and old declarations of [x]
-      are convertible (both the types and bodies need to be convertible), and that the new
-      declaration of [x] has a body if and only if the old declaration of [x] has a body. *)
-val convert_hyp : check:bool -> reorder:bool -> named_declaration -> unit Proofview.tactic
-
-(** [convert x y] checks that [x] and [y] are convertible (using all conversion rules),
-    and fails otherwise. *)
-val convert : constr -> constr -> unit Proofview.tactic
-
-(** [convert_leq x y] checks that [x] is smaller than [y] for cumulativity (using all conversion rules),
-    and fails otherwise. *)
-val convert_leq : constr -> constr -> unit Proofview.tactic
-
-(** {6 Basic introduction tactics. } *)
-
-(** [introduction id] is a low-level tactic which introduces a single variable with name [id].
-    - Fails if the goal is not a product or a let-in.
-    - Fails if [id] is already declared in the context. *)
-val introduction : Id.t -> unit Proofview.tactic
-
-(** [fresh_id_in_env avoid id env] generates a fresh identifier built from [id].
-    The returned identifier is guaranteed to be distinct from:
-    - The identifiers in [avoid].
-    - The global constants in [env].
-    - The local variables in [env]. *)
-val fresh_id_in_env : Id.Set.t -> Id.t -> env -> Id.t
-
-(** [find_intro_names env sigma ctx] returns the names that would be created by [intros],
-    without actually doing [intros].  *)
-val find_intro_names : env -> Evd.evar_map -> rel_context -> Id.t list
-
-(** [intro] introduces a single variable with an automatically-generated name.
-    Fails if the goal is not a product or a let-in. *)
-val intro : unit Proofview.tactic
-
-(** [introf] is a more aggressive version of [intro]:
-    - If the goal is an evar it will instantiate it with a product.
-    - It will attempt to head normalize the goal until it is a product, a let-in, or an evar. *)
-val introf : unit Proofview.tactic
-
-(** [intro_move id_opt loc] introduces a single variable and moves it to location [loc].
-    - If [id_opt] is [Some id] the introduced variable is named [id].
-    - If [id_opt] is [None] we use an automatically generated name.
-    - It will instantiate evars and head-normalize the goal in the same way as [introf]. *)
-val intro_move : Id.t option -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** [intro_move_avoid id_opt avoid loc] is the same as [intro_move] except that
-    the automatically generated name is guaranteed to not be in the set [avoid]. *)
-val intro_move_avoid : Id.t option -> Id.Set.t -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** Generalization of [intro_move] to a list of variables and locations (processed from left to right). *)
-val intros_move : (Id.t * Id.t Logic.move_location) list -> unit Proofview.tactic
-
-(** [intro_avoiding avoid] introduces a single variable with an automatically-generated name
-    which is guaranteed to not be the set [avoid]. *)
-val intro_avoiding : Id.Set.t -> unit Proofview.tactic
-
-(** [intro_replacing id] introduces a single variable named [id], replacing the previous declaration of [id].
-
-    Fails if [id] is not already in the context. *)
-val intro_replacing : Id.t -> unit Proofview.tactic
-
-(** Deprecated version of [intro_using_then] kept for backwards compatibility. *)
-val intro_using : Id.t -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intro_using_then] to avoid renaming issues."]
-
-(** [intro_using_then id tac] introduces a single variable named [id]. It refreshes the name [id] if needed,
-    and applies [tac] to the resulting identifier. *)
-val intro_using_then : Id.t -> (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** [intro_mustbe_force id] is the same as [introf] but the name [id] is used instead of
-    an automatically-generated name. *)
-val intro_mustbe_force : Id.t -> unit Proofview.tactic
-
-(** Generalization of [intro_mustbe_force] to a list of variables (processed from left to right). *)
-val intros_mustbe_force : Id.t list -> unit Proofview.tactic
-
-(** [intro_then tac] introduces a single variable with an automatically-generated name,
-    and applies [tac] to the resulting identifier. *)
-val intro_then : (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** Deprecated variant of [intros_using_then] kept for backwards compatibility. *)
-val intros_using : Id.t list -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intros_using_then] to avoid renaming issues."]
-
-(** Generalization of [intro_using_then] to a list of variables (processed from left to right). *)
-val intros_using_then : Id.t list -> (Id.t list -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** Generalization of [intro_replacing] to a list of variables (processed from left to right). *)
-val intros_replacing : Id.t list -> unit Proofview.tactic
-
-(** Variant of [intros_replacing] which does not assume that the variables are
-    already declared in the context. *)
-val intros_possibly_replacing : Id.t list -> unit Proofview.tactic
-
-(** [auto_intros_tac names] introduces the variables in [names].
-    - The variables are introduced from right to left (contrary to the conventional order).
-    - Names are chosen as follow: [Anonymous] indicates to generate a fresh name
-      and [Name id] indicates to use the name [id].
-    - It will instantiate evars and head-normalize the goal in the same way as [introf]. *)
-val auto_intros_tac : Names.Name.t list -> unit Proofview.tactic
-
-(** [intros] keeps introducing variables while the goal is a product or a let-in. *)
-val intros : unit Proofview.tactic
-
-(** [intros_until hyp] is a variant of [intros] which stops when hypothesis [hyp] is introduced. *)
-val intros_until : quantified_hypothesis -> unit Proofview.tactic
-
-(** [intros_clearing bs] introduces as many variables as booleans in [bs]. Each boolean indicates
-    whether to clear the introduced variable (if [true]) or to keep it (if [false]). *)
-val intros_clearing : bool list -> unit Proofview.tactic
-
-(** Assuming a tactic [tac] depending on a hypothesis,
-    [try_intros_until tac arg] first assumes that [arg] denotes a
-    quantified hypothesis (denoted by name or by index) and tries to
-    introduce it in context before applying [tac], otherwise assumes the
-    hypothesis is already in context and directly applies [tac]. *)
-val try_intros_until :
-  (Id.t -> unit Proofview.tactic) -> quantified_hypothesis -> unit Proofview.tactic
 
 type evars_flag = bool     (* true = pose evars       false = fail on evars *)
 type rec_flag = bool       (* true = recursive        false = not recursive *)
@@ -241,181 +73,13 @@ val intro_patterns_bound_to : evars_flag -> int -> Id.t Logic.move_location -> i
     - Otherwise it will behave as [intro_patterns with_evars patt]. *)
 val intros_patterns : evars_flag -> intro_patterns -> unit Proofview.tactic
 
-(** {6 Exact tactics. } *)
-
-(** [assumption] solves the goal if it is convertible to the type of a hypothesis.
-    Fails if there is no such hypothesis. *)
-val assumption : unit Proofview.tactic
-
-(** [exact_no_check x] solves the goal with term [x].
-    It does not check that the type of [x] is convertible to the conclusion. *)
-val exact_no_check : constr -> unit Proofview.tactic
-
-(** [exact_check x] solves the goal with term [x].
-    Fails if the type of [x] does not match the conclusion. *)
-val exact_check : constr -> unit Proofview.tactic
-
-(** [exact_proof x] internalizes the constr_expr [x] using the conclusion,
-    and solves the goal using the internalized term.
-    Fails if [x] could not be internalized. *)
-val exact_proof : Constrexpr.constr_expr -> unit Proofview.tactic
-
-(** {6 Reduction tactics. } *)
-
-type tactic_reduction = Reductionops.reduction_function
-type e_tactic_reduction = Reductionops.e_reduction_function
-
-type change_arg = patvar_map -> env -> evar_map -> (evar_map * constr) Tacred.change
-
-val make_change_arg : constr -> change_arg
-
-(** [reduct_in_hyp ~check ~reorder red_fun hyp] applies the reduction function [red_fun] in hypothesis [hyp].
-    - [check]: if [true] we check that the new hypothesis is convertible to the old hypothesis. *)
-val reduct_in_hyp : check:bool -> reorder:bool -> tactic_reduction -> hyp_location -> unit Proofview.tactic
-
-(** [reduct_in_concl ~cast ~check (red_fun, kind)] applies the reduction function [red_fun] to the conclusion.
-    - [cast]: if [true] we insert a cast  in the proof term using [kind] as the cast kind.
-    - [check]: if [true] we check that the new conclusion is convertible to the old conclusion. *)
-val reduct_in_concl : cast:bool -> check:bool -> tactic_reduction * cast_kind -> unit Proofview.tactic
-
-(** [reduct_option] combines the behaviour of [reduct_in_hyp] and [reduct_in_concl].
-    If reducing in the conclusion it will insert a cast. *)
-val reduct_option : check:bool -> tactic_reduction * cast_kind -> goal_location -> unit Proofview.tactic
-
-(** Same as [reduct_in_concl] but the reduction function can update the evar map. *)
-val e_reduct_in_concl : cast:bool -> check:bool -> e_tactic_reduction * cast_kind -> unit Proofview.tactic
-
-(** [change_in_concl ~check where change_fun] changes the conclusion (or subterms of the conclusion) using
-    the change function [change_fun].
-    - [check]: if [true] we check that the new conclusion is convertible to the old conclusion.
-    - [where]: if [None] then the whole conclusion is changed.
-      If [Some (occs, patt)] then only the subterms of the conclusion which match occurences [occs]
-      and pattern [patt] are changed. *)
-val change_in_concl : check:bool -> (occurrences * constr_pattern) option -> change_arg -> unit Proofview.tactic
-
-(** [change_concl new_concl] replaces the conclusion with [new_concl].
-    Fails if the new conclusion and old conclusion are not convertible. *)
-val change_concl : constr -> unit Proofview.tactic
-
-(** [change_in_hyp ~check where change_fun hyp] is analogous to [change_in_concl] but works
-    on the hypothesis [hyp] instead of the conclusion. *)
-val change_in_hyp : check:bool -> (occurrences * constr_pattern) option -> change_arg ->
-                        hyp_location -> unit Proofview.tactic
-
-(** [change ~check where change_fun clause] applies the change function [change_fun].
-    - [check]: if [true] we check that the changed terms are convertible to the old terms.
-    - [clause]: specifies where to apply the change function: to the conclusion and/or to a (subset of) hypotheses.
-    - [where]: if [None] we change the complete conclusion/hypothesis.
-      If [Some patt] we change subterms matching pattern [patt]. *)
-val change :
-  check:bool -> constr_pattern option -> change_arg -> clause -> unit Proofview.tactic
-
-(** [red_in_concl] reduces the conclusion using the [red] reduction strategy. *)
-val red_in_concl : unit Proofview.tactic
-
-(** [red_in_hyp hyp] reduces hypothesis [hyp] using the [red] reduction strategy. *)
-val red_in_hyp : hyp_location -> unit Proofview.tactic
-
-(** [red_option loc] reduces the hypothesis or conclusion [loc] using the [red] reduction strategy. *)
-val red_option : goal_location -> unit Proofview.tactic
-
-(** [hnf_in_concl] reduces the conclusion to head normal form. *)
-val hnf_in_concl : unit Proofview.tactic
-
-(** [hnf_in_hyp hyp] reduces hypothesis [hyp] to head normal form. *)
-val hnf_in_hyp : hyp_location -> unit Proofview.tactic
-
-(** [hnf_option loc] reduces the hypothesis or conclusion [loc] to head normal form. *)
-val hnf_option : goal_location -> unit Proofview.tactic
-
-(** [simpl_in_concl] reduces the conclusion using the [simpl] reduction strategy. *)
-val simpl_in_concl : unit Proofview.tactic
-
-(** [simpl_in_hyp hyp] reduces hypothesis [hyp] using the [red] reduction strategy. *)
-val simpl_in_hyp : hyp_location -> unit Proofview.tactic
-
-(** [simpl_option loc] reduces the hypothesis or conclusion [loc] using the [simpl] reduction strategy. *)
-val simpl_option : goal_location -> unit Proofview.tactic
-
-(** [normalise_in_concl] reduces the conclusion to normal form. *)
-val normalise_in_concl : unit Proofview.tactic
-
-(** [normalise_in_hyp hyp] reduces hypothesis [hyp] to normal form. *)
-val normalise_in_hyp : hyp_location -> unit Proofview.tactic
-
-(** [normalise_option loc] reduces the hypothesis or conclusion [loc] to normal form. *)
-val normalise_option : goal_location -> unit Proofview.tactic
-
-(** [normalise_in_concl] reduces the conclusion to normal form using VM compute. *)
-val normalise_vm_in_concl : unit Proofview.tactic
-
-(** [unfold_in_concl cs] unfolds a list of constants [cs] in the conclusion.
-    One can specify which occurences of each constant to unfold. *)
-val unfold_in_concl :
-  (occurrences * Evaluable.t) list -> unit Proofview.tactic
-
-(** [unfold_in_hyp cs hyp] unfolds a list of constants [cs] in hypothesis [hyp].
-    One can specify which occurences of each constant to unfold. *)
-val unfold_in_hyp :
-  (occurrences * Evaluable.t) list -> hyp_location -> unit Proofview.tactic
-
-(** [unfold_option cs loc] unfolds a list of constants [cs] in the hypothesis or conclusion [loc].
-    One can specify which occurences of each constant to unfold. *)
-val unfold_option :
-  (occurrences * Evaluable.t) list -> goal_location -> unit Proofview.tactic
-
-(** [pattern_option [(occs1, t1); (occs2, t2); ...] loc] implements the [pattern] user tactic.
-    It performs beta-expansion for the terms [ti] at occurences [occsi], in the goal location
-    [loc] (i.e. either in the goal or in a hypothesis). *)
-val pattern_option :
-  (occurrences * constr) list -> goal_location -> unit Proofview.tactic
-
-val reduce : red_expr -> clause -> unit Proofview.tactic
-
-(** [unfold_constr x] unfolds all occurences of [x] in the conclusion. *)
-val unfold_constr : GlobRef.t -> unit Proofview.tactic
-
-(** {6 Modification of the local context. } *)
-
-(** [clear ids] removes hypotheses [ids] from the context. *)
-val clear : Id.t list -> unit Proofview.tactic
-
-(** [clear_body ids] removes the definitions (but not the declarations) of hypotheses [ids]
-    from the context. *)
-val clear_body : Id.t list -> unit Proofview.tactic
+val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.tactic
 
 (** [unfold_body id] unfolds the definition of the local variable [id] in the conclusion
     and in all hypotheses. Fails if [id] does not have a body. *)
 val unfold_body : Id.t -> unit Proofview.tactic
 
-(** [keep ids] clears every hypothesis except:
-    - The hypotheses in [ids].
-    - The hypotheses which occur in the conclusion.
-    - The hypotheses which occur in the type or body of a kept hypothesis. *)
-val keep : Id.t list -> unit Proofview.tactic
-
-val specialize : constr with_bindings -> intro_pattern option -> unit Proofview.tactic
-
-(** [move_hyp id loc] moves hypothesis [id] to location [loc]. *)
-val move_hyp : Id.t -> Id.t Logic.move_location -> unit Proofview.tactic
-
-(** [rename_hyp [(x1, y1); (x2; y2); ...]] renames hypotheses [xi] into [yi].
-    - The names [x1, x2, ...] are expected to be distinct.
-    - The names [y1, y2, ...] are expected to be distinct. *)
-val rename_hyp : (Id.t * Id.t) list -> unit Proofview.tactic
-
 (** {6 Apply tactics. } *)
-
-(** [use_clear_hyp_by_default ()] returns the default clear flag used by [apply] and related tactics.
-    - [true] means that hypotheses are cleared after being applied.
-    - [false] means that hypotheses are kept after being applied. *)
-val use_clear_hyp_by_default : unit -> bool
-
-(** [apply_clear_request c1 c2 id] implements the clear behaviour of [apply] and friends.
-    - [c1] is the primary clear flag. If [None] we use the secondary clear flag.
-    - [c2] is the secondary clear flag, usually [use_clear_hyp_by_default ()].
-    - [id] is the identifier of the hypothesis to clear. If [None] we do nothing. *)
-val apply_clear_request : clear_flag -> bool -> Id.t option -> unit Proofview.tactic
 
 (** [apply t] applies the lemma [t] to the conclusion. *)
 val apply : constr -> unit Proofview.tactic
@@ -682,21 +346,6 @@ val letin_pat_tac : evars_flag -> (bool * intro_pattern_naming) option ->
 
 (** {6 Other tactics. } *)
 
-(** [constr_eq ~strict x y] checks that [x] and [y] are syntactically equal (i.e. alpha-equivalent),
-    up to universes.
-    - [strict]: if [true] the universe constraints must be already true.
-      If [false] any necessary universe constraints are added to the evar map. *)
-val constr_eq : strict:bool -> constr -> constr -> unit Proofview.tactic
-
-(** Legacy unification. Use [evarconv_unify] instead. *)
-val unify : ?state:TransparentState.t -> constr -> constr -> unit Proofview.tactic
-
-(** [evarconv_unify ?state ?with_ho x y] unifies [x] and [y], instantiating evars and adding universe constraints
-    as needed. Fails if [x] and [y] are not unifiable.
-    - [state]: transparency state to use (defaults to [TransparentState.full]).
-    - [with_ho]: whether to use higher order unification (defaults to [true]). *)
-val evarconv_unify : ?state:TransparentState.t -> ?with_ho:bool -> constr -> constr -> unit Proofview.tactic
-
 val specialize_eqs : Id.t -> unit Proofview.tactic
 
 val general_rewrite_clause :
@@ -720,7 +369,6 @@ val with_set_strategy :
 module Simple : sig
   (** Simplified version of some of the above tactics *)
 
-  val intro : Id.t -> unit Proofview.tactic
   val apply : constr -> unit Proofview.tactic
   val eapply : constr -> unit Proofview.tactic
   val elim : constr -> unit Proofview.tactic
@@ -746,12 +394,6 @@ sig
 val explicit_intro_names : 'a intro_pattern_expr CAst.t list -> Id.Set.t
 
 val check_name_unicity : env -> Id.t list -> Id.t list -> 'a intro_pattern_expr CAst.t list -> unit
-
-val clear_gen : (env -> evar_map -> Id.t -> Evarutil.clear_dependency_error ->
-  GlobRef.t option -> evar_map * named_context_val * types) ->
-  Id.t list -> unit Proofview.tactic
-
-val clear_wildcards : lident list -> unit Proofview.tactic
 
 val dest_intro_patterns : evars_flag -> Id.Set.t -> lident list ->
   Id.t Logic.move_location -> intro_patterns ->

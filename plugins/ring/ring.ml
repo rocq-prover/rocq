@@ -119,10 +119,10 @@ let protect_red map env sigma c =
   eval 0 c
 
 let protect_tac map =
-  Tactics.reduct_option ~check:false (protect_red map,DEFAULTcast) None
+  ConvTactics.reduct_option ~check:false (protect_red map,DEFAULTcast) None
 
 let protect_tac_in map id =
-  Tactics.reduct_option ~check:false (protect_red map,DEFAULTcast) (Some(id, Locus.InHyp))
+  ConvTactics.reduct_option ~check:false (protect_red map,DEFAULTcast) (Some(id, Locus.InHyp))
 
 
 (****************************************************************************)

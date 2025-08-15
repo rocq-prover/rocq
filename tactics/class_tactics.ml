@@ -157,7 +157,7 @@ let e_give_exact flags h =
   let sigma, c = Hints.fresh_hint env sigma h in
   let (sigma, t1) = Typing.type_of (pf_env gl) sigma c in
   Proofview.Unsafe.tclEVARS sigma <*>
-  Clenv.unify ~flags ~cv_pb:CUMUL t1 <*> exact_no_check c
+  Clenv.unify ~flags ~cv_pb:CUMUL t1 <*> Exact.exact_no_check c
   end
 
 let unify_resolve ~with_evars flags h diff = match diff with
@@ -256,7 +256,7 @@ let rec e_trivial_fail_db db_list local_db secvars =
   in
   let tacl =
     Eauto.e_assumption ::
-    (tclTHEN Tactics.intro trivial_fail :: [trivial_resolve])
+    (tclTHEN (Intro.intro ()) trivial_fail :: [trivial_resolve])
   in
   tclSOLVE tacl
 
@@ -299,7 +299,7 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
           else e_trivial_fail_db db_list local_db secvars in
         Tacticals.tclTHEN fst snd
       | Unfold_nth c ->
-        Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
+        Proofview.tclPROGRESS (ConvTactics.unfold [AllOccurrences,c] None)
       | Extern (p, tacast) -> conclPattern concl0 p tacast
     in
     let tac = FullHint.run h tac in
@@ -887,7 +887,7 @@ module Search = struct
     in kont info'
 
   let intro info kont =
-    Proofview.tclBIND Tactics.intro
+    Proofview.tclBIND (Intro.intro ())
      (fun _ -> Proofview.Goal.enter (fun gl -> intro_tac info kont gl))
 
   let rec search_tac hints limit depth =

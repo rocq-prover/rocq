@@ -16,6 +16,7 @@ open EConstr
 open Vars
 open Tacmach
 open Tactics
+open Intro
 open Tacticals
 open Proofview.Notations
 open Reductionops
@@ -114,7 +115,7 @@ let mk_open_instance env sigma id idc c =
   let revt = substl (List.init m (fun i->mkRel (m-i))) t in
   let rec aux n avoid env sigma decls =
     if Int.equal n 0 then sigma, decls else
-      let nid = fresh_id_in_env avoid var_id env in
+      let nid = HypNaming.fresh_id_in_env avoid var_id env in
       let (sigma, (c, s)) = Evarutil.new_type_evar env sigma Evd.univ_flexible in
       let decl = LocalAssum (Context.make_annot (Name nid) (ESorts.relevance_of_sort s), c) in
       aux (n-1) (Id.Set.add nid avoid) (EConstr.push_rel decl env) sigma (decl::decls)
@@ -136,16 +137,16 @@ let left_instance_tac ~flags (inst,id) continue seq=
         else
           tclTHENS (cut dom)
             [tclTHENLIST
-               [introf;
+               [intro ~force:true ();
                 (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl ->
                   let id0 = List.nth (pf_ids_of_hyps gl) 0 in
                   Generalize.generalize [mkApp(idc, [|mkVar id0|])]
                 end);
-                introf;
+                intro ~force:true ();
                 tclSOLVE [wrap ~flags 1 false continue
                             (deepen (record env (id,None) seq))]];
-            tclTRY assumption]
+            tclTRY Exact.assumption]
     | Real (c, _)->
         if lookup env sigma (id,Some c) seq then
           tclFAIL (Pp.str "already done")
@@ -170,7 +171,7 @@ let left_instance_tac ~flags (inst,id) continue seq=
           in
             tclTHENLIST
               [special_generalize;
-               introf;
+               intro ~force:true ();
                tclSOLVE
                  [wrap ~flags 1 false continue (deepen (record env (id,Some c) seq))]]
   end
@@ -182,13 +183,13 @@ let right_instance_tac ~flags inst continue seq=
       Phantom dom ->
         tclTHENS (cut dom)
         [tclTHENLIST
-           [introf;
+           [intro ~force:true ();
             Proofview.Goal.enter begin fun gl ->
               let id0 = List.nth (pf_ids_of_hyps gl) 0 in
               split (Tactypes.ImplicitBindings [mkVar id0])
             end;
             tclSOLVE [wrap ~flags 0 true continue (deepen seq)]];
-         tclTRY assumption]
+         tclTRY Exact.assumption]
     | Real (c,_) ->
       if Item.is_ground c then
         (tclTHEN (split (Tactypes.ImplicitBindings [snd @@ Item.repr c]))

@@ -72,7 +72,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     in
     let concl = it_mkNamedProd_or_LetIn sigma concl sign in
     let solve_tac = tclCOMPLETE
-        (Tactics.intros_mustbe_force (List.rev_map NamedDecl.get_id sign) <*>
+        (Intro.intros_mustbe ~force:true (List.rev_map NamedDecl.get_id sign) <*>
          tac)
     in
     let effs, sigma, lem, args, safe =
@@ -94,7 +94,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   end
 
 let abstract_subproof ~opaque tac =
-  cache_term_by_tactic_then ~opaque tac (fun lem args -> Tactics.exact_no_check (applist (lem, args)))
+  cache_term_by_tactic_then ~opaque tac (fun lem args -> Exact.exact_no_check (applist (lem, args)))
 
 let tclABSTRACT ?(opaque=true) name_op tac =
   abstract_subproof ~opaque ~name_op tac

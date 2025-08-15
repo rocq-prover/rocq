@@ -39,6 +39,7 @@ open Locusops
 open Tactypes
 open Proofview.Notations
 open Tactics
+open ContextTactics
 
 module NamedDecl = Context.Named.Declaration
 
@@ -121,10 +122,10 @@ let new_fresh_id avoid id gl =
   fresh_id_in_env avoid id (Proofview.Goal.env gl)
 
 let intros_until_n n =
-  Tactics.try_intros_until (fun _ -> tclIDTAC) (AnonHyp n)
+  Intro.try_intros_until (fun _ -> tclIDTAC) (AnonHyp n)
 
 let try_intros_until_id_check id =
-  Tactics.try_intros_until (fun _ -> tclIDTAC) (NamedHyp (CAst.make id))
+  Intro.try_intros_until (fun _ -> tclIDTAC) (NamedHyp (CAst.make id))
 
 (* Apply a tactic on a quantified hypothesis, an hypothesis in context
    or a term with bindings *)
@@ -206,8 +207,6 @@ let find_ind_eliminator env sigma ind s =
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
-let clear_wildcards = Tactics.Internal.clear_wildcards
-
 (*****************************)
 (* Decomposing introductions *)
 (*****************************)
@@ -272,7 +271,7 @@ let warn_cannot_remove_as_expected =
 
 let clear_for_destruct ids =
   Proofview.tclORELSE
-    (Tactics.Internal.clear_gen (fun env sigma id err inglobal -> raise (ClearDependencyError (id,err,inglobal))) ids)
+    (ContextTactics.clear ~fail:(fun env sigma id err inglobal -> raise (ClearDependencyError (id,err,inglobal))) ids)
     (function
      | ClearDependencyError (id,err,inglobal),_ -> warn_cannot_remove_as_expected (id,inglobal); Proofview.tclUNIT ()
      | e -> Exninfo.iraise e)
@@ -349,8 +348,8 @@ let re_intro_dependent_hypotheses (lstatus,rstatus) (_,tophyp) =
     List.map (function (hyp,MoveLast) -> (hyp,tophyp) | x -> x) lstatus
   in
   Tacticals.tclTHEN
-    (Tactics.intros_move rstatus)
-    (Tactics.intros_move newlstatus)
+    (Intro.intros_move rstatus)
+    (Intro.intros_move newlstatus)
 
 let dest_intro_patterns = Tactics.Internal.dest_intro_patterns
 
@@ -451,7 +450,7 @@ let induct_discharge with_evars dests avoid' tac (avoid,ra) names =
         let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         check_unused_names env sigma names;
-        Tacticals.tclTHEN (clear_wildcards thin) (tac dests)
+        Tacticals.tclTHEN (ContextTactics.clear_wildcards thin) (tac dests)
         end
   in
   peel_tac ra (dests, None) names []
@@ -1139,7 +1138,7 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
     | ElimUsingList ((elim, elimt, indsign), params, realindvars, patts) ->
       let tac = Tacticals.tclTHENLIST [
         (* pattern to make the predicate appear. *)
-        Tactics.reduce (Pattern (List.map inj_with_occurrences patts)) onConcl;
+        ConvTactics.reduce (Pattern (List.map inj_with_occurrences patts)) onConcl;
         (* Induction by "refine (indscheme ?i ?j ?k...)" + resolution of all
           possible holes using arguments given by the user (but the
           functional one). *)
@@ -1181,7 +1180,7 @@ let induction_with_atomization_of_ind_arg isrec with_evars elim names hyp0 inhyp
   Tacticals.tclTHENLIST [
     Proofview.Unsafe.tclEVARS sigma;
     letins;
-    Tactics.change_in_hyp ~check:false None (Tactics.make_change_arg t) (hyp0, InHypTypeOnly);
+    ConvTactics.change_in_hyp ~check:false None (ConvTactics.make_change_arg t) (hyp0, InHypTypeOnly);
     apply_induction_in_context with_evars inhyps elim_info avoid names
   ]
   end

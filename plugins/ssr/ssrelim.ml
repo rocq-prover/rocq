@@ -568,7 +568,7 @@ let injectl2rtac sigma c = match EConstr.kind sigma c with
 | _ ->
   let id = injecteq_id in
   let xhavetac id c = Tactics.pose_proof (Name id) c in
-  Tacticals.tclTHENLIST [xhavetac id c; injectidl2rtac id (EConstr.mkVar id, NoBindings); Tactics.clear [id]]
+  Tacticals.tclTHENLIST [xhavetac id c; injectidl2rtac id (EConstr.mkVar id, NoBindings); ContextTactics.clear [id]]
 
 let is_injection_case env sigma c =
   let sigma, cty = Typing.type_of env sigma c in

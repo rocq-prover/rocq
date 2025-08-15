@@ -148,7 +148,7 @@ let functional_induction with_clean c princl pat =
                (fun id ->
                  tclTRY (Equality.subst_gen (do_rewrite_dependent ()) [id]))
                idl)
-            (reduce flag Locusops.allHypsAndConcl)
+            (ConvTactics.reduce flag Locusops.allHypsAndConcl)
         else tclIDTAC
       in
       tclTHEN

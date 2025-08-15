@@ -183,11 +183,11 @@ let show_intro ~proof all =
     let env = Evd.evar_filtered_env (Global.env ()) evi in
     let l,_= decompose_prod_decls sigma (Termops.strip_outer_cast sigma (Evd.evar_concl evi)) in
     if all then
-      let lid = Tactics.find_intro_names env sigma l in
+      let lid = HypNaming.find_intro_names env sigma l in
       hov 0 (prlist_with_sep  spc Id.print lid)
     else if not (List.is_empty l) then
       let n = List.last l in
-      Id.print (List.hd (Tactics.find_intro_names env sigma [n]))
+      Id.print (List.hd (HypNaming.find_intro_names env sigma [n]))
     else mt ()
   end else mt ()
 
@@ -930,7 +930,7 @@ let vernac_exact_proof ~lemma ~pm c =
   deprecated_exact_proof ();
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
      called only at the beginning of a proof. *)
-  let lemma, status = Declare.Proof.by (Tactics.exact_proof c) lemma in
+  let lemma, status = Declare.Proof.by (Exact.exact_proof c) lemma in
   let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque:Opaque ~idopt:None in
   if not status then Feedback.feedback Feedback.AddedAxiom;
   pm

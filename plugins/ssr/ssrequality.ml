@@ -507,7 +507,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       let cl' = EConstr.mkNamedProd sigma (make_annot rule_id ERelevance.relevant) (EConstr.it_mkProd_or_LetIn r3t dc) (EConstr.Vars.lift 1 cl) in
       let cl'' = EConstr.mkNamedProd sigma (make_annot pattern_id ERelevance.relevant) rdxt cl' in
       let itacs = [introid pattern_id; introid rule_id] in
-      let cltac = Tactics.clear [pattern_id; rule_id] in
+      let cltac = ContextTactics.clear [pattern_id; rule_id] in
       let rwtacs = [
         Tacticals.tclTHENLIST [
           rewritetac ?under dir (EConstr.mkVar rule_id);

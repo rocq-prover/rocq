@@ -392,7 +392,7 @@ let wlogtac ist (((clr0, pats),_),_) (gens, ((_, ct))) hint suff ghave =
       | Some (Some id),_ -> Some id, introid id, clear0, pats
       | Some _,_ ->
           let id = mk_anon_id "tmp" (Tacmach.pf_ids_of_hyps gl) in
-          Some id, introid id, Tacticals.tclTHEN clear0 (Tactics.clear [id]), pats in
+          Some id, introid id, Tacticals.tclTHEN clear0 (ContextTactics.clear [id]), pats in
       let tac_specialize = match id with
       | None -> Tacticals.tclIDTAC
       | Some id ->
@@ -596,7 +596,7 @@ let undertac ?(pad_intro = false) ist ipats ((dir,_),_ as rule) hint =
     if hint = nohint then
       Proofview.tclUNIT ()
     else
-      let betaiota = Tactics.reduct_in_concl ~cast:false ~check:false
+      let betaiota = ConvTactics.reduct_in_concl ~cast:false ~check:false
           (Reductionops.nf_betaiota, DEFAULTcast)
       in
       (* Usefulness of check_numgoals: tclDISPATCH would be enough,

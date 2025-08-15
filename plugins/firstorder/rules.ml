@@ -15,6 +15,7 @@ open EConstr
 open Vars
 open Tacmach
 open Tactics
+open Intro
 open Tacticals
 open Proofview.Notations
 open Termops
@@ -56,7 +57,7 @@ let wrap ~flags n b continue seq =
   end
 
 let clear_global=function
-  | GlobRef.VarRef id-> clear [id]
+  | GlobRef.VarRef id-> ContextTactics.clear [id]
   | _->tclIDTAC
 
 (* connection rules *)
@@ -89,7 +90,7 @@ let axiom_tac ~flags seq =
     match find_hyp ~flags seq env sigma concl with
     | Some (sigma, hyp) ->
       Proofview.Unsafe.tclEVARS sigma <*>
-      exact_no_check (mkVar hyp)
+      Exact.exact_no_check (mkVar hyp)
     | None -> tclFAIL (Pp.str "No axiom link")
   end
 
@@ -111,7 +112,7 @@ let ll_atom_tac ~flags backtrack id continue seq =
     end
   in
   tclIFTHENELSE
-    (tclTHENLIST [tac; clear_global id; intro])
+    (tclTHENLIST [tac; clear_global id; intro ()])
     (wrap ~flags 1 false continue seq) backtrack
 
 (* right connectives rules *)
@@ -125,9 +126,9 @@ let or_tac ~flags backtrack continue seq=
     backtrack
 
 let arrow_tac ~flags backtrack continue seq=
-  tclIFTHENELSE intro (wrap ~flags 1 true continue seq)
+  tclIFTHENELSE (intro ()) (wrap ~flags 1 true continue seq)
     (tclORELSE
-       (tclTHEN introf (tclCOMPLETE (wrap ~flags 1 true continue seq)))
+       (tclTHEN (intro ~force:true ()) (tclCOMPLETE (wrap ~flags 1 true continue seq)))
        backtrack)
 (* left connectives rules *)
 
@@ -138,7 +139,7 @@ let left_and_tac ~flags ind backtrack id continue seq =
      (tclTHENLIST
       [(pf_constr_of_global id >>= simplest_elim);
        clear_global id;
-       tclDO n intro])
+       tclDO n (intro ())])
      (wrap ~flags n false continue seq)
      backtrack
   end
@@ -149,7 +150,7 @@ let left_or_tac ~flags ind backtrack id continue seq =
   let f n=
     tclTHENLIST
       [clear_global id;
-       tclDO n intro;
+       tclDO n (intro ());
        wrap ~flags n false continue seq] in
     tclIFTHENSVELSE
       (pf_constr_of_global id >>= simplest_elim)
@@ -184,7 +185,7 @@ let ll_ind_tac ~flags (ind,u as indu) largs backtrack id continue seq =
            (tclTHENLIST
               [(pf_constr_of_global id >>= fun idc -> Generalize.generalize (newhyps idc));
                clear_global id;
-               tclDO lp intro])
+               tclDO lp (intro ())])
            (wrap ~flags lp false continue seq) backtrack
   end
 
@@ -197,16 +198,16 @@ let ll_arrow_tac ~flags a b c backtrack id continue seq=
     tclORELSE
       (tclTHENS (cut c)
          [tclTHENLIST
-            [introf;
+            [intro ~force:true ();
              clear_global id;
              wrap ~flags 1 false continue seq];
           tclTHENS (cut cc)
-            [(pf_constr_of_global id >>= fun c -> exact_no_check c);
+            [(pf_constr_of_global id >>= fun c -> Exact.exact_no_check c);
              tclTHENLIST
                [(pf_constr_of_global id >>= fun idc -> Generalize.generalize [d idc]);
                 clear_global id;
-                introf;
-                introf;
+                intro ~force:true ();
+                intro ~force:true ();
                 tclCOMPLETE (wrap ~flags 2 true continue seq)]]])
       backtrack
 
@@ -214,9 +215,9 @@ let ll_arrow_tac ~flags a b c backtrack id continue seq=
 
 let forall_tac ~flags backtrack continue seq=
   tclORELSE
-    (tclIFTHENELSE intro (wrap ~flags 0 true continue seq)
+    (tclIFTHENELSE (intro ()) (wrap ~flags 0 true continue seq)
        (tclORELSE
-          (tclTHEN introf (tclCOMPLETE (wrap ~flags 0 true continue seq)))
+          (tclTHEN (intro ~force:true ()) (tclCOMPLETE (wrap ~flags 0 true continue seq)))
           backtrack))
     (tclFAIL (Pp.str "reversible in 1st order mode"))
 
@@ -226,7 +227,7 @@ let left_exists_tac ~flags ind backtrack id continue seq =
     tclIFTHENELSE
       (Tacticals.pf_constr_of_global id >>= simplest_elim)
       (tclTHENLIST [clear_global id;
-                    tclDO n intro;
+                    tclDO n (intro ());
                     (wrap (n-1) ~flags false continue seq)])
       backtrack
   end
@@ -235,16 +236,16 @@ let ll_forall_tac ~flags prod backtrack id continue seq=
   tclORELSE
     (tclTHENS (cut prod)
        [tclTHENLIST
-          [intro;
+          [intro ();
            (pf_constr_of_global id >>= fun idc ->
            Proofview.Goal.enter begin fun gls->
               let open EConstr in
               let id0 = List.nth (pf_ids_of_hyps gls) 0 in
               let term=mkApp(idc,[|mkVar(id0)|]) in
-              tclTHEN (Generalize.generalize [term]) (clear [id0])
+              tclTHEN (Generalize.generalize [term]) (ContextTactics.clear [id0])
            end);
            clear_global id;
-           intro;
+           intro ();
            tclCOMPLETE (wrap ~flags 1 false continue (deepen seq))];
         tclCOMPLETE (wrap ~flags 0 true continue (deepen seq))])
     backtrack
