@@ -110,7 +110,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       if UGraph.check_leq (universes env) uu induu
       then f info
       else { info with missing = u :: info.missing } in
-    if Inductive.eliminates_to (Sorts.quality indu) (Sorts.quality u) then
+    if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
       check_univ_consistency (fun x -> x)
         (Sorts.univ_of_sort indu)
         (Sorts.univ_of_sort u)
