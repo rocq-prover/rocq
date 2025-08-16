@@ -420,7 +420,7 @@ let top_goal_print ~doc c oldp newp =
 let { Goptions.get = exit_on_error } =
   let open Goptions in
   declare_bool_option_and_ref
-    ~key:["Coqtop";"Exit";"On";"Error"]
+    ~key:["Rocqtop";"Exit";"On";"Error"]
     ~value:false
     ()
 

@@ -29,7 +29,7 @@ There is also a byte-code toplevel `rocq repl-with-drop` based on an OCaml tople
 You can switch to the OCaml toplevel with the command ``Drop.``,
 and come back to the Rocq toplevel with the command ``#go;;``.
 
-.. flag:: Coqtop Exit On Error
+.. flag:: Rocqtop Exit On Error
 
    This :term:`flag`, off by default, causes `rocq top` to exit with status code
    ``1`` if a command produces an error instead of recovering from it.
