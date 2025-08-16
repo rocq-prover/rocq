@@ -1,4 +1,4 @@
-:COQTOP_ARGS: -allow-rewrite-rules
+:ROCQTOP_ARGS: -allow-rewrite-rules
 
 .. _rewrite_rules:
 

@@ -39,7 +39,7 @@ modules.
 These primitive declarations are regular axioms. As such, they must be trusted and are listed by the
 :g:`Print Assumptions` command, as in the following example.
 
-.. rocqtop:: in reset
+.. rocqtop:: in reset warn
 
    From Corelib Require Import PrimInt63 Uint63Axioms.
    Lemma one_minus_one_is_zero : (sub 1 1 = 0)%uint63.

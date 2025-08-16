@@ -1936,7 +1936,7 @@ Abbreviations
 
    .. rocqtop:: all
 
-      Compute (Plus1 3).
+      Eval compute in (Plus1 3).
 
    An abbreviation expects no precedence nor associativity, since it
    is parsed as an usual application. Abbreviations are used as
