@@ -35,6 +35,12 @@ let abbrev_table =
 let add_abbreviation kn sp abbrev =
   abbrev_table := KerName.Map.add kn (sp,abbrev) !abbrev_table
 
+let fold_abbreviations f acc =
+  let f _ (fp, abbrev) acc =
+    f fp ~on:abbrev.abbrev_activated abbrev.abbrev_pattern acc
+  in
+  KerName.Map.fold f !abbrev_table acc
+
 let toggle_abbreviation ~on ~use kn =
   let sp, data = KerName.Map.find kn !abbrev_table in
   if data.abbrev_activated != on then
