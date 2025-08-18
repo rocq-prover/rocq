@@ -30,3 +30,6 @@ val toggle_abbreviation : on:bool -> use:notation_use -> abbreviation -> unit
 
 (** Activate (if on:true) or deactivate (if on:false) all abbreviations satisfying a criterion *)
 val toggle_abbreviations : on:bool -> use:notation_use -> (Libnames.full_path -> interpretation -> bool) -> unit
+
+val fold_abbreviations :
+  (Libnames.full_path -> on:bool -> interpretation -> 'a -> 'a) -> 'a -> 'a
