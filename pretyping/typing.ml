@@ -532,11 +532,10 @@ let rec execute env sigma cstr =
   match EConstr.kind sigma cstr with
     | Meta n -> assert false (* Typing should always be performed on meta-free terms *)
 
-    | Evar ev ->
+    | Evar (_, args as ev) ->
+        let sigma = SList.Skip.fold (fun sigma x -> fst (execute env sigma x)) sigma args in
         let ty = EConstr.existential_type sigma ev in
-        let jty = Retyping.get_type_of env sigma ty in
-        let sigma, jty = assumption_of_judgment env sigma { uj_val = ty; uj_type = jty } in
-        sigma, { uj_val = cstr; uj_type = jty }
+        sigma, { uj_val = cstr; uj_type = ty }
 
     | Rel n ->
         sigma, judge_of_relative env n
