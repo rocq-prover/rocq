@@ -540,8 +540,10 @@ let rec execute env sigma cstr =
           match ty with | None -> sigma | Some ty ->
           let aty = Context.Named.Declaration.get_type aty in
           let aty = Evd.instantiate_evar_array sigma evinfo aty args in
-          Evarconv.unify_leq_delay env sigma ty.uj_type aty
-          (* FIXME: Find a suitable error msg. *)
+          try Evarconv.unify_leq_delay env sigma ty.uj_type aty
+          with Evarconv.UnableToUnify (sigma,error) ->
+            (* FIXME: Find a suitable error msg. *)
+            error_cannot_unify env sigma ~reason:error (ty.uj_type, aty)
           ) sigma atys (SList.to_list tys) in
         let ty = EConstr.existential_type sigma ev in
         sigma, { uj_val = cstr; uj_type = ty }
