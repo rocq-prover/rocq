@@ -14,32 +14,41 @@ open Names
 open Libnames
 open Libobject
 open Lib
-open Notation_term
 open Notationextern
 
 (* Abbreviations. *)
 
+type key = KerName.t
+
+type interp = Notation_term.interpretation
+
 type abbreviation = {
   abbrev_local : Libobject.locality;
-  abbrev_pattern : interpretation;
+  abbrev_pattern : interp;
   abbrev_onlyparsing : bool;
   abbrev_user_warns : Globnames.extended_global_reference UserWarn.with_qf option;
   abbrev_activated : bool; (* Not really necessary in practice *)
   abbrev_src : Loc.t option;
 }
 
+type t = full_path * abbreviation
+
+let interp (_, a) = a.abbrev_pattern
+let full_path (fp, _) = fp
+let enabled (_, a) = a.abbrev_activated
+let only_parsing (_, a) = a.abbrev_onlyparsing
+
 let abbrev_table =
-  Summary.ref (KerName.Map.empty : (full_path * abbreviation) KerName.Map.t)
-    ~name:"ABBREVIATIONS"
+  Summary.ref (KerName.Map.empty : t KerName.Map.t) ~name:"ABBREVIATIONS"
 
-let add_abbreviation kn sp abbrev =
-  abbrev_table := KerName.Map.add kn (sp,abbrev) !abbrev_table
+let add kn fpa =
+  abbrev_table := KerName.Map.add kn fpa !abbrev_table
 
-let fold_abbreviations f acc =
-  let f _ (fp, abbrev) acc =
-    f fp ~on:abbrev.abbrev_activated abbrev.abbrev_pattern acc
-  in
+let fold f acc =
   KerName.Map.fold f !abbrev_table acc
+
+let find_opt k =
+  KerName.Map.find_opt k !abbrev_table
 
 let toggle_abbreviation ~on ~use kn =
   let sp, data = KerName.Map.find kn !abbrev_table in
@@ -59,12 +68,14 @@ let toggle_abbreviation ~on ~use kn =
     end
 
 let toggle_abbreviations ~on ~use filter =
-  KerName.Map.fold (fun kn (sp,abbrev) () ->
-      if abbrev.abbrev_activated != on && filter sp abbrev.abbrev_pattern then toggle_abbreviation ~on ~use kn)
-  !abbrev_table ()
+  let toggle kn (sp, a) _ =
+    if a.abbrev_activated != on && filter sp a.abbrev_pattern then
+      toggle_abbreviation ~on ~use kn
+  in
+  fold toggle ()
 
 let is_alias_of_already_visible_name sp = function
-  | _,NRef (ref,None) ->
+  | _,Notation_term.NRef (ref,None) ->
       let (dir,id) = repr_qualid (Nametab.shortest_qualid_of_global Id.Set.empty ref) in
       DirPath.is_empty dir && Id.equal id (basename sp)
   | _ ->
@@ -74,7 +85,7 @@ let load_abbreviation i ((sp,kn),abbrev) =
   if Nametab.exists_cci sp then
     user_err
       (Id.print (basename sp) ++ str " already exists.");
-  add_abbreviation kn sp abbrev;
+  add kn (sp, abbrev);
   Nametab.push_abbreviation ?user_warns:abbrev.abbrev_user_warns (Nametab.Until i) sp kn;
   abbrev.abbrev_src |> Option.iter (fun loc -> Nametab.set_cci_src_loc (Abbrev kn) loc);
   let pat = abbrev.abbrev_pattern in
