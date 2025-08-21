@@ -18,6 +18,9 @@ The tactics presented here specialize :tacn:`apply` and
    which can result in more than one success (e.g. for `\\/`) when using
    backtracking tactics such as `constructor; ...`.  See :tacn:`ltac-seq`.
 
+   To use :n:`constructor` on a hypothesis :n:`H`, use :tacn:`destruct` :n:`H`.
+   See this :ref:`example <example_split_hypothesis>`.
+
    :n:`{? with @bindings }`
      If specified, the :n:`apply` is done as :n:`apply … with @bindings`.
 
@@ -43,6 +46,9 @@ The tactics presented here specialize :tacn:`apply` and
    specify any parameters required for the constructor. It is
    typically used to split conjunctions in the conclusion such as `A /\\ B` into
    two new goals `A` and `B`.
+
+   To :n:`split` a hypothesis :n:`H`, use :tacn:`destruct` :n:`H`.
+   See this :ref:`example <example_split_hypothesis>`.
 
 .. tacn:: exists {*, @bindings }
 
@@ -159,7 +165,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
        case analysis using that subterm.
      + If :n:`@induction_arg` is a :n:`@natural`, then :n:`destruct @natural` behaves like
        :n:`intros until @natural` followed by :n:`destruct` applied to the last
-       introduced hypothesis.
+       introduced :term:`premise`.
 
    :n:`as @or_and_intropattern`
       Provides names for (or applies further transformations to)
@@ -191,6 +197,48 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
    :n:`@induction_principle`
      Makes the tactic equivalent to
      :tacn:`induction` :n:`{+, @induction_clause } @induction_principle`.
+
+   .. example:: Using :tacn:`destruct` on the conclusion
+
+      Creates a subgoal for each constructor, substituting the constructor
+      into the conclusion.
+
+      .. rocqtop:: reset none
+
+         Goal forall m n: nat, m + n = n + m.
+
+      .. rocqtop:: out
+
+         intros.
+
+      .. rocqtop:: all
+
+         destruct n.   (* n is an inductive *)
+
+   .. _example_split_hypothesis:
+
+   .. example:: Using :tacn:`destruct` on a hypothesis
+
+      This gives the effect of a :tacn:`split` or :tacn:`constructor` on the
+      hypothesis.  Creates hypotheses for each constructor of the head constant.
+
+      .. rocqtop:: reset none
+
+         Goal forall A B: Prop, A /\ B -> True.
+
+      .. rocqtop:: out
+
+         intros.
+
+      .. rocqtop:: all
+
+         destruct H.   (* H is a hypothesis *)
+
+   .. For this case, destruct H simply removes H.  That doesn't seem expected/useful.
+      Maybe should not do this?
+      Goal forall m n: nat, m + n = n + m -> True.
+      intros.
+      destruct H.
 
    .. _example_destruct_ind_concl:
 
