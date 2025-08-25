@@ -585,8 +585,8 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
       let possible_guard = (possible_guard, fixrs) in
       Some (Declare.Obls.add_mutual_definitions ~pm ~cinfo ~info ~opaque:false ~uctx ~bodies ~possible_guard ?using obls), None)
   | None ->
-    try
-      let bodies = List.map Option.get bodies in
+    match Option.List.map (fun x -> x) bodies with
+    | Some bodies ->
       let uctx = Evd.ustate sigma in
       (* All bodies are defined *)
       let possible_guard = (possible_guard, fixrs) in
@@ -594,7 +594,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
         Declare.declare_mutual_definitions ~cinfo ~info ~opaque:false ~uctx ~possible_guard ~bodies ?using ()
       in
       None, None
-    with Option.IsNone ->
+    | None ->
       (* At least one undefined body *)
       Evd.check_univ_decl_early ~poly ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
       let possible_guard = (possible_guard, fixrs) in

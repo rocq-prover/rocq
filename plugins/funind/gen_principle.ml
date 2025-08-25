@@ -1114,10 +1114,9 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
               || Rtree.is_infinite Declareops.eq_recarg
                    graph_def.Declarations.mind_recargs
             then
-              let eq_lemma =
-                try Option.get infos.equation_lemma
-                with Option.IsNone ->
-                  CErrors.anomaly (Pp.str "Cannot find equation lemma.")
+              let eq_lemma = match infos.equation_lemma with
+              | None -> CErrors.anomaly (Pp.str "Cannot find equation lemma.")
+              | Some lemma -> lemma
               in
               tclTHENLIST
                 [ tclMAP Simple.intro ids

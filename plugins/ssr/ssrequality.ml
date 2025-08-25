@@ -315,9 +315,7 @@ let unfoldintac occ rdx t (kt,_) =
         with e when CErrors.noncritical e -> errorstrm Pp.(str "The term " ++
           pr_econstr_env env sigma c ++spc()++ str "does not unify with " ++ pr_econstr_pat env sigma t)),
     ignore in
-  let concl =
-    try beta env0 (eval_pattern env0 sigma0 concl0 rdx occ unfold)
-    with Option.IsNone -> errorstrm Pp.(str"Failed to unfold " ++ pr_econstr_pat env0 sigma t) in
+  let concl = beta env0 (eval_pattern env0 sigma0 concl0 rdx occ unfold) in
   let () = conclude () in
   convert_concl ~check:true concl
   end
