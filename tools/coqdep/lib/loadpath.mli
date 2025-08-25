@@ -19,9 +19,22 @@ type filename = string
 type dirpath = string list
 type root = filename * dirpath
 
+module Filename :
+sig
+  type t
+  val repr : t -> filename
+end
+
+module FileSet : Set.S with type elt = Filename.t
+
+type fileset = private {
+  point : filename;
+  files : FileSet.t; (* guaranteed to contain [point] *)
+}
+
 type result =
-  | ExactMatches of filename list
-  | PartialMatchesInSameRoot of root * filename list
+  | ExactMatches of fileset
+  | PartialMatchesInSameRoot of root * fileset
 
 module State : sig
   type t

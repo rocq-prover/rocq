@@ -31,12 +31,6 @@ let absolute_file_name ~filename_concat basename odir =
      makes the windows build fail *)
   filename_concat (absolute_dir dir) basename
 
-let equal_file f1 f2 =
-  let filename_concat = Filename.concat in
-  String.equal
-    (absolute_file_name ~filename_concat (Filename.basename f1) (Some (Filename.dirname f1)))
-    (absolute_file_name ~filename_concat (Filename.basename f2) (Some (Filename.dirname f2)))
-
 (** [find_dir_logpath dir] Return the logical path of directory [dir]
     if it has been given one. Raise [Not_found] otherwise. In
     particular we can check if "." has been attributed a logical path
@@ -140,9 +134,35 @@ let rec cuts recur = function
     ([],if recur then suffixes true l else [true,l]) ::
     List.map (fun (fromtail,suffixes) -> (dir::fromtail,suffixes)) (cuts true tail)
 
+module Filename =
+struct
+
+type t = {
+  user : filename;
+  absolute : filename;
+}
+
+let make s = {
+  user = s;
+  absolute = absolute_file_name ~filename_concat:Filename.concat (Filename.basename s) (Some (Filename.dirname s));
+}
+
+let compare f1 f2 = String.compare f1.absolute f2.absolute
+
+let repr f = f.user
+
+end
+
+module FileSet = Set.Make(Filename)
+
+type fileset = {
+  point : filename;
+  files : FileSet.t; (* guaranteed to contain [point] *)
+}
+
 type result =
-  | ExactMatches of filename list
-  | PartialMatchesInSameRoot of root * filename list
+  | ExactMatches of fileset
+  | PartialMatchesInSameRoot of root * fileset
 
 module State = struct
 
@@ -172,23 +192,24 @@ let get_worker_path st =
     st.worker <- Some w;
     w
 
-let add_set f l = f :: CList.remove equal_file f l
+let singleton f = { point = f; files = FileSet.singleton (Filename.make f) }
+let add_set f l = { point = f; files = FileSet.add (Filename.make f) l.files }
 
 let insert_key root (full,f) m =
   (* An exact match takes precedence over non-exact matches *)
   match full, m with
   | true, ExactMatches l -> (* We add a conflict *) ExactMatches (add_set f l)
-  | true, PartialMatchesInSameRoot _ -> (* We give priority to exact match *) ExactMatches [f]
+  | true, PartialMatchesInSameRoot _ -> (* We give priority to exact match *) ExactMatches (singleton f)
   | false, ExactMatches l -> (* We keep the exact match *) m
   | false, PartialMatchesInSameRoot (root',l) ->
-    PartialMatchesInSameRoot (root, if root = root' then add_set f l else [f])
+    PartialMatchesInSameRoot (root, if root = root' then add_set f l else (singleton f))
 
 let safe_add_key q root key (full,f as file) =
   try
     let l = Hashtbl.find q key in
     Hashtbl.add q key (insert_key root file l)
   with Not_found ->
-    Hashtbl.add q key (if full then ExactMatches [f] else PartialMatchesInSameRoot (root,[f]))
+    Hashtbl.add q key (if full then ExactMatches (singleton f) else PartialMatchesInSameRoot (root, singleton f))
 
 let safe_add q root ((from, suffixes), file) =
   List.iter (fun (full,suff) -> safe_add_key q root (from,suff) (full,file)) suffixes
