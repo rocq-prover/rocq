@@ -25,6 +25,12 @@ Ltac2 map (f : 'a -> 'b) (ov : 'a option) :=
   | None => None
   end.
 
+Ltac2 filter (f : 'a -> bool) (o : 'a option) :=
+  match o with
+  | Some x => if f x then Some x else None
+  | None => None
+  end.
+
 Ltac2 iter (f : 'a -> unit) (ov : 'a option) :=
   match ov with
   | Some v => f v
