@@ -211,7 +211,7 @@ module DupMap = CMap.Make(DupOrd)
 *)
 
 type visible_layer = { mp : ModPath.t;
-                       params : ModPath.t list;
+                       params : MBId.t list;
                        content : Label.t KMap.t; }
 
 module State =
@@ -220,20 +220,28 @@ struct
 type state = {
   global_ids : Id.Set.t;
   mod_index : int Id.Map.t;
-  ref_renaming : pp_tag list Refmap'.t;
-  mp_renaming : pp_tag list ModPath.Map.t;
-  params_ren : ModPath.Set.t; (* List of module parameters that we should alpha-rename *)
-  mpfiles : ModPath.Set.t; (* List of external modules that will be opened initially *)
+  ref_renaming : string list Refmap'.t;
+  mp_renaming : string list ModPath.Map.t;
+  params_ren : MBId.Set.t; (* List of module parameters that we should alpha-rename *)
   duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
-  mpfiles_content : Label.t KMap.t ModPath.Map.t; (* table recording objects in the first level of all MPfile *)
+}
+
+type modular = {
+  mutable mpfiles : DirPath.Set.t; (* List of external modules that will be opened initially *)
+  mutable mpfiles_content : Label.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
+}
+
+let empty_modular () = {
+  mpfiles = DirPath.Set.empty;
+  mpfiles_content = DirPath.Map.empty;
 }
 
 type t = {
   table : Table.t;
   state : state ref;
   visibility : visible_layer ref list;
+  modular : modular option;
   (* fields below are read-only *)
-  modular : bool;
   library : bool;
   (*s Extraction modes: modular or monolithic, library or minimal ?
 
@@ -251,16 +259,14 @@ let make_state kw = {
   mod_index = Id.Map.empty;
   ref_renaming = Refmap'.empty;
   mp_renaming = ModPath.Map.empty;
-  params_ren = ModPath.Set.empty;
-  mpfiles = ModPath.Set.empty;
+  params_ren = MBId.Set.empty;
   duplicates = (0, DupMap.empty);
-  mpfiles_content = ModPath.Map.empty;
 }
 
 let make ~modular ~library ~keywords () = {
   table = Table.make_table ();
   state = ref (make_state keywords);
-  modular;
+  modular = if modular then Some (empty_modular ()) else None;
   library;
   keywords;
   phase = Impl;
@@ -269,7 +275,11 @@ let make ~modular ~library ~keywords () = {
 
 let get_table s = s.table
 
-let get_modular s = s.modular
+let get_modular s = match s.modular with
+| None -> false
+| Some _ -> true
+
+let get_modular_state s = s.modular
 
 let get_library s = s.library
 
@@ -286,10 +296,10 @@ let with_visibility s mp mps k =
   let ans = k { s with visibility = v :: s.visibility } in
   (* we save the 1st-level-content of MPfile for later use *)
   let () =
-    if s.phase == Impl && s.modular && is_modfile !v.mp
-    then
-      let state = s.state.contents in
-      s.state := { state with mpfiles_content = ModPath.Map.add !v.mp !v.content state.mpfiles_content }
+    if s.phase == Impl then match mp, s.modular with
+    | MPfile dp, Some mdl ->
+      mdl.mpfiles_content <- DirPath.Map.add dp !v.content mdl.mpfiles_content
+    | (MPbound _ | MPdot _ | MPfile _), (None | Some _) -> ()
   in
   ans
 
@@ -331,7 +341,7 @@ let get_ref_renaming s r =
   Refmap'.find r s.state.contents.ref_renaming
 
 let get_mp_renaming s mp =
-  ModPath.Map.find mp s.state.contents.mp_renaming
+  ModPath.Map.find_opt mp s.state.contents.mp_renaming
 
 let add_mp_renaming s mp l =
   let state = s.state.contents in
@@ -339,21 +349,19 @@ let add_mp_renaming s mp l =
 
 let add_params_ren s mp =
   let state = s.state.contents in
-  s.state := { state with params_ren = ModPath.Set.add mp state.params_ren }
+  s.state := { state with params_ren = MBId.Set.add mp state.params_ren }
 
 let mem_params_ren s mp =
-  ModPath.Set.mem mp s.state.contents.params_ren
+  MBId.Set.mem mp s.state.contents.params_ren
 
 let get_mpfiles s =
-  s.state.contents.mpfiles
+  s.mpfiles
 
 let add_mpfiles s mp =
-  let state = s.state.contents in
-  s.state := { state with mpfiles = ModPath.Set.add mp state.mpfiles }
+  s.mpfiles <- DirPath.Set.add mp s.mpfiles
 
 let clear_mpfiles s =
-  let state = s.state.contents in
-  s.state := { state with mpfiles = ModPath.Set.empty }
+  s.mpfiles <- DirPath.Set.empty
 
 let add_duplicate s mp l =
   let state = s.state.contents in
@@ -365,8 +373,7 @@ let add_duplicate s mp l =
 let get_duplicate s mp l =
   DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
 
-let get_mpfiles_content s mp =
-  ModPath.Map.find mp s.state.contents.mpfiles_content
+let get_mpfiles_content mdl mp = DirPath.Map.find mp mdl.mpfiles_content
 
 (* Reset *)
 
@@ -377,11 +384,14 @@ let reset s =
     mod_index = Id.Map.empty;
     ref_renaming = Refmap'.empty;
     mp_renaming = ModPath.Map.empty;
-    params_ren = ModPath.Set.empty;
-    mpfiles = ModPath.Set.empty;
+    params_ren = MBId.Set.empty;
     duplicates = (0, DupMap.empty);
-    mpfiles_content = s.state.contents.mpfiles_content; (* don't reset! *)
   } in
+  (* don't reset modular files content *)
+  let () = match s.modular with
+  | None -> ()
+  | Some mdl -> mdl.mpfiles <- DirPath.Set.empty
+  in
   s.state := state
 
 end
@@ -443,20 +453,28 @@ let rec mp_renaming_fun table mp = match mp with
       mp ::lmp
   | MPbound mbid ->
       let s = modular_rename table Mod (MBId.to_id mbid) in
-      if not (State.mem_params_ren table mp) then [s]
+      if not (State.mem_params_ren table mbid) then [s]
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
-  | MPfile _ ->
-      assert (State.get_modular table); (* see [at_toplevel] above *)
-      assert (State.get_phase table == Pre);
+  | MPfile f ->
+      let mdl = match State.get_modular_state table with
+      | None -> assert false (* see [at_toplevel] above *)
+      | Some mdl -> mdl
+      in
+      let () = assert (State.get_phase table == Pre) in
       let current_mpfile = (List.last (State.get_visible table)).mp in
-      if not (ModPath.equal mp current_mpfile) then State.add_mpfiles table mp;
-      [string_of_modfile (State.get_table table) mp]
+      let () = if not (ModPath.equal mp current_mpfile) then State.add_mpfiles mdl f in
+      [string_of_modfile (State.get_table table) f]
 
 (* ... and its version using a cache *)
 
 and mp_renaming table x =
-  try if is_mp_bound (base_mp x) then raise Not_found; State.get_mp_renaming table x
-  with Not_found -> let y = mp_renaming_fun table x in State.add_mp_renaming table x y; y
+  if is_mp_bound (base_mp x) then mp_renaming_fun table x
+  else match State.get_mp_renaming table x with
+  | Some v -> v
+  | None ->
+    let ans = mp_renaming_fun table x in
+    let () = State.add_mp_renaming table x ans in
+    ans
 
 (*s Renamings creation for a [global_reference]: we build its fully-qualified
     name in a [string list] form (head is the short name). *)
@@ -495,20 +513,20 @@ let ref_renaming table ((k,r) as x) =
 
 let rec clash mem mp0 ks = function
   | [] -> false
-  | mp :: _ when ModPath.equal mp mp0 -> false
+  | mp :: _ when ModPath.equal (MPfile mp) mp0 -> false
   | mp :: _ when mem mp ks -> true
   | _ :: mpl -> clash mem mp0 ks mpl
 
-let mpfiles_clash table mp0 ks =
-  clash (fun mp k -> KMap.mem k (get_mpfiles_content table mp)) mp0 ks
-    (List.rev (ModPath.Set.elements (State.get_mpfiles table)))
+let mpfiles_clash mdl mp0 ks =
+  clash (fun mp k -> KMap.mem k (get_mpfiles_content mdl mp)) mp0 ks
+    (List.rev (DirPath.Set.elements (State.get_mpfiles mdl)))
 
 let rec params_lookup table mp0 ks = function
   | [] -> false
-  | param :: _ when ModPath.equal mp0 param -> true
+  | param :: _ when ModPath.equal mp0 (MPbound param) -> true
   | param :: params ->
       let () = match ks with
-      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> State.add_params_ren table param
+      | (Mod, mp) when String.equal (List.hd (mp_renaming table (MPbound param))) mp -> State.add_params_ren table param
       | _ -> ()
       in
       params_lookup table mp0 ks params
@@ -521,7 +539,10 @@ let visible_clash table mp0 ks =
         let b = KMap.mem ks v.content in
         if b && not (is_mp_bound mp0) then true
         else begin
-          if b then State.add_params_ren table mp0;
+          let () = if b then match mp0 with
+          | MPbound mbid -> State.add_params_ren table mbid
+          | MPfile _ | MPdot _ -> assert false
+          in
           if params_lookup table mp0 ks v.params then false
           else clash vis
         end
@@ -543,23 +564,24 @@ let visible_clash_dbg table mp0 ks =
 (* After the 1st pass, we can decide which modules will be opened initially *)
 
 let opened_libraries table =
-  if not (State.get_modular table) then []
-  else
-    let used_files = ModPath.Set.elements (State.get_mpfiles table) in
-    let used_ks = List.map (fun mp -> Mod,string_of_modfile (State.get_table table) mp) used_files in
+  match State.get_modular_state table with
+  | None -> DirPath.Set.empty
+  | Some mdl ->
+    let used_files = DirPath.Set.elements (State.get_mpfiles mdl) in
+    let used_ks = List.map (fun dp -> Mod, string_of_modfile (State.get_table table) dp) used_files in
     (* By default, we open all used files. Ambiguities will be resolved later
        by using qualified names. Nonetheless, we don't open any file A that
        contains an immediate submodule A.B hiding another file B : otherwise,
        after such an open, there's no unambiguous way to refer to objects of B. *)
     let to_open =
       List.filter
-        (fun mp ->
-           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content table mp)) used_ks))
+        (fun dp ->
+           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content mdl dp)) used_ks))
         used_files
     in
-    let () = State.clear_mpfiles table in
-    let () = List.iter (fun mp -> State.add_mpfiles table mp) to_open in
-    ModPath.Set.elements (State.get_mpfiles table)
+    let () = State.clear_mpfiles mdl in
+    let () = List.iter (fun mp -> State.add_mpfiles mdl mp) to_open in
+    State.get_mpfiles mdl
 
 (*s On-the-fly qualification issues for both monolithic or modular extraction. *)
 
@@ -618,10 +640,12 @@ let pp_ocaml_bound table base rls =
 let pp_ocaml_extern table k base rls = match rls with
   | [] -> assert false
   | base_s :: rls' ->
-      if (not (State.get_modular table)) (* Pseudo qualification with "" *)
-        || (List.is_empty rls')  (* Case of a file A.v used as a module later *)
-        || (not (ModPath.Set.mem base (State.get_mpfiles table))) (* Module not opened *)
-        || (mpfiles_clash table base (fstlev_ks k rls')) (* Conflict in opened files *)
+      if match State.get_modular_state table with
+      | None -> true (* Pseudo qualification with "" *)
+      | Some mdl ->
+        (List.is_empty rls')  (* Case of a file A.v used as a module later *)
+        || (not (match base with MPfile dp -> DirPath.Set.mem dp (State.get_mpfiles mdl) | MPbound _ | MPdot _ -> false)) (* Module not opened *)
+        || (mpfiles_clash mdl base (fstlev_ks k rls')) (* Conflict in opened files *)
         || (visible_clash table base (fstlev_ks k rls')) (* Local conflict *)
       then
         (* We need to fully qualify. Last clash situation is unsupported *)

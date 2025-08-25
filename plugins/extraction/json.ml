@@ -56,7 +56,7 @@ let preamble table mod_name comment used_modules usf =
     ("need_magic", json_bool (usf.magic));
     ("need_dummy", json_bool (usf.mldummy));
     ("used_modules", json_list
-      (List.map (fun mf -> json_str (file_of_modfile (State.get_table table) mf)) used_modules))
+      (List.map (fun mf -> json_str (file_of_modfile (State.get_table table) mf)) (DirPath.Set.elements used_modules)))
   ]
 
 
