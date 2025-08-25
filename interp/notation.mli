@@ -188,7 +188,7 @@ val interp_notation_as_global_reference_expanded : ?loc:Loc.t -> head:bool ->
 val declare_arguments_scope :
   bool (** true=local *) -> GlobRef.t -> scope_name list list -> unit
 
-val find_arguments_scope : GlobRef.t -> scope_name list list
+val find_arguments_scope : Environ.env -> GlobRef.t -> scope_name list list
 
 type scope_class
 

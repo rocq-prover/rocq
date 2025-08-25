@@ -105,14 +105,14 @@ let print_fields envpar sigma cstrtypes =
         Id.print id ++ str (if b then " : " else " := ") ++
         Printer.pr_lconstr_env envpar sigma c) fields) ++ str" }"
 
-let is_canonical_as ind indname id =
+let is_canonical_as env ind indname id =
   (* See record.ml *)
-  let canonical_id = Record.canonical_inhabitant_id ~isclass:(Typeclasses.is_class (IndRef ind)) indname in
+  let canonical_id = Record.canonical_inhabitant_id ~isclass:(Typeclasses.is_class env (IndRef ind)) indname in
   Id.equal id canonical_id
 
-let print_as ind indname = function
+let print_as env ind indname = function
   | Anonymous -> mt () (* TODO: get the "as" name also for non-primitive records *)
-  | Name id -> if is_canonical_as ind indname id then mt () else str " as " ++ Id.print id
+  | Name id -> if is_canonical_as env ind indname id then mt () else str " as " ++ Id.print id
 
 let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
   let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
@@ -138,7 +138,7 @@ let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
     if not isrecord then
       brk(0,2) ++ print_constructors env_params sigma mip.mind_consnames cstrtypes
     else
-      brk(1,2) ++ print_fields env_params sigma cstrtypes ++ print_as ind mip.mind_typename as_clause
+      brk(1,2) ++ print_fields env_params sigma cstrtypes ++ print_as env ind mip.mind_typename as_clause
 
 let pr_mutual_inductive_body env mind mib udecl =
   let inds = List.init (Array.length mib.mind_packets) (fun x -> (mind, x)) in

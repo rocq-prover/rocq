@@ -137,7 +137,7 @@ let type_of_constant env sigma (c,u) =
   let cb = lookup_constant c env in
   let () = check_hyps_inclusion env sigma (GlobRef.ConstRef c) cb.const_hyps in
   let ty = CVars.subst_instance_constr (EConstr.Unsafe.to_instance u) cb.const_type in
-  EConstr.of_constr (rename_type ty (GlobRef.ConstRef c))
+  EConstr.of_constr (rename_type env ty (GlobRef.ConstRef c))
 
 let safe_meta_type metas n = match metas with
 | None -> None
@@ -311,7 +311,7 @@ let retype ?metas ?(polyprop=true) sigma =
       let ty =
         if mib.mind_nparams <= Array.length args then
         (* Fully applied parameters, we do not have to substitute *)
-          EConstr.of_constr (rename_type mip.mind_user_lc.(i - 1) (ConstructRef ctor))
+          EConstr.of_constr (rename_type env mip.mind_user_lc.(i - 1) (ConstructRef ctor))
       else
         type_of_global_reference_knowing_parameters env c args
       in
@@ -325,7 +325,7 @@ let retype ?metas ?(polyprop=true) sigma =
       ESorts.kind sigma s
     in
     let rename_type typ gr =
-      EConstr.of_constr @@ rename_type (EConstr.Unsafe.to_constr typ) gr
+      EConstr.of_constr @@ rename_type env (EConstr.Unsafe.to_constr typ) gr
     in
     match EConstr.kind sigma c with
     | Ind (ind, _) ->

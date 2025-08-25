@@ -967,6 +967,12 @@ let lookup_vm_code idx env =
 let set_retroknowledge env r = { env with retroknowledge = r }
 let retroknowledge env = env.retroknowledge
 
+module type QS =
+sig
+  type t
+  val canonize : env -> t -> t
+end
+
 module type QNameS =
 sig
   type t
@@ -974,6 +980,36 @@ sig
   val compare : env -> t -> t -> int
   val hash : env -> t -> int
   val canonize : env -> t -> t
+end
+
+module type QMapS =
+sig
+  type key
+  type (+'a) t
+  val empty: 'a t
+  val is_empty: 'a t -> bool
+  val mem: env -> key -> 'a t -> bool
+  val add: env -> key -> 'a -> 'a t -> 'a t
+  val remove: env -> key -> 'a t -> 'a t
+  val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+  val merge: (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+  val find: env -> key -> 'a t -> 'a
+  val find_opt : env -> key -> 'a t -> 'a option
+end
+
+module QMap (M : CSig.UMapS) (Q : QS with type t = M.key) : QMapS with type key = M.key =
+struct
+  type key = M.key
+  type 'a t = 'a M.t
+  let empty = M.empty
+  let is_empty = M.is_empty
+  let mem env key m = M.mem (Q.canonize env key) m
+  let add env key v m = M.add (Q.canonize env key) v m
+  let remove env key m = M.remove (Q.canonize env key) m
+  let fold = M.fold
+  let merge = M.merge
+  let find env key m = M.find (Q.canonize env key) m
+  let find_opt env key m = M.find_opt (Q.canonize env key) m
 end
 
 module QConstant =

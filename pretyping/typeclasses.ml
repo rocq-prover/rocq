@@ -56,7 +56,9 @@ type typeclass = {
   cl_unique : bool;
 }
 
-type typeclasses = typeclass GlobRef.Map.t
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+
+type typeclasses = typeclass GlobRefMap.t
 (* Invariant: for any pair (gr, tc) in the map, gr and tc.cl_impl are equal *)
 
 type instance = {
@@ -65,7 +67,7 @@ type instance = {
   is_impl: GlobRef.t;
 }
 
-type instances = (instance GlobRef.Map.t) GlobRef.Map.t
+type instances = (instance GlobRefMap.t) GlobRefMap.t
 
 let instance_impl is = is.is_impl
 
@@ -75,13 +77,13 @@ let hint_priority is = is.is_info.hint_priority
  * states management
  *)
 
-let classes : typeclasses ref = Summary.ref GlobRef.Map.empty ~name:"classes"
-let instances : instances ref = Summary.ref GlobRef.Map.empty ~name:"instances"
+let classes : typeclasses ref = Summary.ref GlobRefMap.empty ~name:"classes"
+let instances : instances ref = Summary.ref GlobRefMap.empty ~name:"instances"
 
-let class_info c = GlobRef.Map.find_opt c !classes
+let class_info env c = GlobRefMap.find_opt env c !classes
 
 let class_info_exn env sigma r =
-  match class_info r with
+  match class_info env r with
   | Some v -> v
   | None ->
     let sigma, c = Evd.fresh_global env sigma r in
@@ -89,7 +91,7 @@ let class_info_exn env sigma r =
 
 let global_class_of_constr env sigma c =
   try let gr, u = EConstr.destRef sigma c in
-    GlobRef.Map.find gr !classes, u
+    GlobRefMap.find env gr !classes, u
   with DestKO | Not_found -> not_a_class env sigma c
 
 let decompose_class_app env sigma c =
@@ -113,33 +115,33 @@ let class_of_constr env sigma c =
   try Some (dest_class_arity env sigma c)
   with e when CErrors.noncritical e -> None
 
-let is_class_constr sigma c =
+let is_class_constr env sigma c =
   try let gr, u = EConstr.destRef sigma c in
-    GlobRef.Map.mem gr !classes
+    GlobRefMap.mem env gr !classes
   with DestKO | Not_found -> false
 
-let rec is_class_type evd c =
+let rec is_class_type env evd c =
   let c, _ = EConstr.decompose_app evd c in
     match EConstr.kind evd c with
-    | Prod (_, _, t) -> is_class_type evd t
-    | Cast (t, _, _) -> is_class_type evd t
-    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) !classes
-    | _ -> is_class_constr evd c
+    | Prod (_, _, t) -> is_class_type env evd t
+    | Cast (t, _, _) -> is_class_type env evd t
+    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef (Projection.constant p)) !classes
+    | _ -> is_class_constr env evd c
 
-let is_class_evar evd evi =
-  is_class_type evd (Evd.evar_concl evi)
+let is_class_evar env evd evi =
+  is_class_type env evd (Evd.evar_concl evi)
 
-let rec is_maybe_class_type evd c =
+let rec is_maybe_class_type env evd c =
   let c, _ = EConstr.decompose_app evd c in
     match EConstr.kind evd c with
-    | Prod (_, _, t) -> is_maybe_class_type evd t
-    | Cast (t, _, _) -> is_maybe_class_type evd t
+    | Prod (_, _, t) -> is_maybe_class_type env evd t
+    | Cast (t, _, _) -> is_maybe_class_type env evd t
     | Evar _ -> true
-    | Proj (p, _, c) -> GlobRef.(Map.mem (ConstRef (Projection.constant p))) !classes
-    | _ -> is_class_constr evd c
+    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef (Projection.constant p)) !classes
+    | _ -> is_class_constr env evd c
 
-let load_class cl =
-  classes := GlobRef.Map.add cl.cl_impl cl !classes
+let load_class env cl =
+  classes := GlobRefMap.add env cl.cl_impl cl !classes
 
 (** Build the subinstances hints. *)
 
@@ -147,44 +149,44 @@ let load_class cl =
  * interface functions
  *)
 
-let load_instance inst =
+let load_instance env inst =
   let insts =
-    try GlobRef.Map.find inst.is_class !instances
-    with Not_found -> GlobRef.Map.empty in
-  let insts = GlobRef.Map.add inst.is_impl inst insts in
-  instances := GlobRef.Map.add inst.is_class insts !instances
+    try GlobRefMap.find env inst.is_class !instances
+    with Not_found -> GlobRefMap.empty in
+  let insts = GlobRefMap.add env inst.is_impl inst insts in
+  instances := GlobRefMap.add env inst.is_class insts !instances
 
-let remove_instance inst =
+let remove_instance env inst =
   let insts =
-    try GlobRef.Map.find inst.is_class !instances
+    try GlobRefMap.find env inst.is_class !instances
     with Not_found -> assert false in
-  let insts = GlobRef.Map.remove inst.is_impl insts in
-  instances := GlobRef.Map.add inst.is_class insts !instances
+  let insts = GlobRefMap.remove env inst.is_impl insts in
+  instances := GlobRefMap.add env inst.is_class insts !instances
 
-let typeclasses () = GlobRef.Map.fold (fun _ l c -> l :: c) !classes []
+let typeclasses () = GlobRefMap.fold (fun _ l c -> l :: c) !classes []
 
-let cmap_elements c = GlobRef.Map.fold (fun k v acc -> v :: acc) c []
+let cmap_elements c = GlobRefMap.fold (fun k v acc -> v :: acc) c []
 
-let instances_of c =
-  try cmap_elements (GlobRef.Map.find c.cl_impl !instances) with Not_found -> []
+let instances_of env c =
+  try cmap_elements (GlobRefMap.find env c.cl_impl !instances) with Not_found -> []
 
 let all_instances () =
-  GlobRef.Map.fold (fun k v acc ->
-    GlobRef.Map.fold (fun k v acc -> v :: acc) v acc)
+  GlobRefMap.fold (fun k v acc ->
+    GlobRefMap.fold (fun k v acc -> v :: acc) v acc)
     !instances []
 
-let instances r =
-  Option.map instances_of (class_info r)
+let instances env r =
+  Option.map (fun m -> instances_of env m) (class_info env r)
 
 let instances_exn env sigma r =
-  match instances r with
+  match instances env r with
   | Some v -> v
   | None ->
     let sigma, c = Evd.fresh_global env sigma r in
     not_a_class env sigma c
 
-let is_class gr =
-  GlobRef.Map.mem gr !classes
+let is_class env gr =
+  GlobRefMap.mem env gr !classes
 
 open Evar_kinds
 type evar_filter = Evar.t -> Evar_kinds.t Lazy.t -> bool

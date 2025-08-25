@@ -534,13 +534,16 @@ type implicit_discharge_request =
   | ImplInteractive of implicits_flags *
       implicit_interactive_request
 
-let implicits_table = Summary.ref GlobRef.Map.empty ~name:"implicits"
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+
+let implicits_table = Summary.ref GlobRefMap.empty ~name:"implicits"
 
 let implicits_of_global ref =
   try
-    let l = GlobRef.Map.find ref !implicits_table in
+    let env = Global.env () in
+    let l = GlobRefMap.find env ref !implicits_table in
     try
-      let rename_l = Arguments_renaming.arguments_names ref in
+      let rename_l = Arguments_renaming.arguments_names env ref in
       let rec rename implicits names = match implicits, names with
         | [], _ -> []
         | _, [] -> implicits
@@ -553,7 +556,7 @@ let implicits_of_global ref =
   with Not_found -> [DefaultImpArgs,[]]
 
 let cache_implicits_decl (ref, imps) =
-  implicits_table := GlobRef.Map.add ref imps !implicits_table
+  implicits_table := GlobRefMap.add (Global.env ()) ref imps !implicits_table
 
 let load_implicits _ (_,l) = List.iter cache_implicits_decl l
 

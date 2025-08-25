@@ -161,12 +161,17 @@ let equal env p1 p2 = match p1, p2 with
   | _ -> false
 
 let compare p1 p2 = match p1, p2 with
-  | Const_cs gr1, Const_cs gr2 -> GlobRef.CanOrd.compare gr1 gr2
-  | Proj_cs p1, Proj_cs p2 -> Projection.Repr.CanOrd.compare p1 p2
+  | Const_cs gr1, Const_cs gr2 -> GlobRef.UserOrd.compare gr1 gr2
+  | Proj_cs p1, Proj_cs p2 -> Projection.Repr.UserOrd.compare p1 p2
   | Prod_cs, Prod_cs -> 0
   | Sort_cs s1, Sort_cs s2 -> UnivGen.QualityOrSet.compare s1 s2
   | Default_cs, Default_cs -> 0
   | _ -> Stdlib.compare p1 p2
+
+let canonize env p = match p with
+| Const_cs gr -> Const_cs (Environ.QGlobRef.canonize env gr)
+| Proj_cs p -> Proj_cs (Environ.QProjection.Repr.canonize env p)
+| Prod_cs | Sort_cs _ | Default_cs -> p
 
 let rec of_constr sigma t =
   match EConstr.kind sigma t with
@@ -189,10 +194,12 @@ let print = function
 
 end
 
-module PatMap = Map.Make(ValuePattern)
+module PatMap = Environ.QMap(Map.Make(ValuePattern))(ValuePattern)
+
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
 
 let object_table =
-  Summary.ref (GlobRef.Map.empty : (constr * obj_typ) PatMap.t GlobRef.Map.t)
+  Summary.ref (GlobRefMap.empty : (constr * obj_typ) PatMap.t GlobRefMap.t)
     ~name:"record-canonical-structs"
 
 let keep_true_projections projs =
@@ -315,10 +322,10 @@ let make env sigma ref =
 let register ~warn env sigma o =
     compute_canonical_projections env sigma ~warn o |>
     List.iter (fun ((proj, (cs_pat, t)), s) ->
-      let l = try GlobRef.Map.find proj !object_table with Not_found -> PatMap.empty in
-      match PatMap.find cs_pat l with
+      let l = try GlobRefMap.find env proj !object_table with Not_found -> PatMap.empty in
+      match PatMap.find env cs_pat l with
       | exception Not_found ->
-          object_table := GlobRef.Map.add proj (PatMap.add cs_pat (t, s) l) !object_table
+          object_table := GlobRefMap.add env proj (PatMap.add env cs_pat (t, s) l) !object_table
       | _, cs ->
         if warn
         then
@@ -353,7 +360,7 @@ type t = {
 
 let find env sigma (proj,pat) =
   let t', { o_DEF = c; o_CTX = ctx; o_INJ=n; o_TABS = bs;
-        o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find pat (GlobRef.Map.find proj !object_table) in
+        o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find env pat (GlobRefMap.find env proj !object_table) in
   let us = List.map EConstr.of_constr us in
   let params = List.map EConstr.of_constr params in
   let u, ctx' = UnivGen.fresh_instance_from ctx None in
@@ -376,7 +383,7 @@ let rec get_nth n = function
   if n < len then arg.(n)
   else get_nth (n - len) args
 
-let rec decompose_projection ?metas sigma c args =
+let rec decompose_projection ?metas env sigma c args =
   match EConstr.kind sigma c with
   | Meta mv ->
     begin match metas with
@@ -384,24 +391,24 @@ let rec decompose_projection ?metas sigma c args =
     | Some m ->
       match m.meta_value mv with
       | None -> raise Not_found
-      | Some v -> decompose_projection ?metas sigma v args
+      | Some v -> decompose_projection ?metas env sigma v args
     end
-  | Cast (c, _, _) -> decompose_projection ?metas sigma c args
-  | App (c, arg) -> decompose_projection ?metas sigma c (arg :: args)
+  | Cast (c, _, _) -> decompose_projection ?metas env sigma c args
+  | App (c, arg) -> decompose_projection ?metas env sigma c (arg :: args)
   | Const (c, u) ->
      let n = Structure.projection_nparams c in
      (* Check if there is some canonical projection attached to this structure *)
-     let _ = GlobRef.Map.find (GlobRef.ConstRef c) !object_table in
+     let _ = GlobRefMap.find env (GlobRef.ConstRef c) !object_table in
      get_nth n args
   | Proj (p, _, c) ->
-     let _ = GlobRef.Map.find (GlobRef.ConstRef (Names.Projection.constant p)) !object_table in
+     let _ = GlobRefMap.find env (GlobRef.ConstRef (Names.Projection.constant p)) !object_table in
      c
   | _ -> raise Not_found
 
 let is_open_canonical_projection ?metas env sigma c =
   let open EConstr in
   try
-    let arg = decompose_projection ?metas sigma c [] in
+    let arg = decompose_projection ?metas env sigma c [] in
     try
       let arg = whd_all ?metas env sigma arg in
       let hd = match EConstr.kind sigma arg with App (hd, _) -> hd | _ -> arg in
@@ -435,15 +442,15 @@ let canonical_entry_of_object projection value (_, { o_ORIGIN = solution }) =
   { projection; value; solution }
 
 let entries () =
-  GlobRef.Map.fold (fun p ol acc ->
+  GlobRefMap.fold (fun p ol acc ->
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
     !object_table []
 
-let entries_for ~projection:p =
+let entries_for env ~projection:p =
   try
-    GlobRef.Map.find p !object_table |>
-    PatMap.bindings |>
-    List.map (fun (pat, o) -> canonical_entry_of_object p pat o)
+    GlobRefMap.find env p !object_table |>
+    (fun m -> PatMap.fold (fun pat o accu -> canonical_entry_of_object p pat o :: accu) m []) |>
+    List.rev
   with Not_found -> []
 
 end

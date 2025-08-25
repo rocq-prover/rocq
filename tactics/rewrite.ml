@@ -244,11 +244,11 @@ end) = struct
 
   let proper_class =
     let r = lazy (bind_rewrite_ref "Proper" ()) in
-    fun () -> Option.get (TC.class_info (Lazy.force r))
+    fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
 
   let proper_proxy_class =
     let r = lazy (bind_rewrite_ref "ProperProxy" ()) in
-    fun () -> Option.get (TC.class_info (Lazy.force r))
+    fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
 
   let proper_proj () = bind_rewrite_ref "proper_prf" ()
 

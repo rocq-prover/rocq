@@ -20,8 +20,8 @@ let smart_global r =
 
 let cache_bidi_hints (gr, ohint) =
   match ohint with
-  | None -> Pretyping.clear_bidirectionality_hint gr
-  | Some nargs -> Pretyping.add_bidirectionality_hint gr nargs
+  | None -> Pretyping.clear_bidirectionality_hint (Global.env ()) gr
+  | Some nargs -> Pretyping.add_bidirectionality_hint (Global.env ()) gr nargs
 
 let load_bidi_hints _ r =
   cache_bidi_hints r
@@ -117,7 +117,7 @@ let vernac_arguments ~section_local reference args more_implicits flags =
     List.map pi1 (Impargs.compute_implicits_names env sigma (EConstr.of_constr ty))
   in
   let prev_names =
-    try Arguments_renaming.arguments_names sr with Not_found -> inf_names
+    try Arguments_renaming.arguments_names env sr with Not_found -> inf_names
   in
   let num_args = List.length inf_names in
   assert (Int.equal num_args (List.length prev_names));
@@ -311,14 +311,14 @@ let vernac_arguments ~section_local reference args more_implicits flags =
   if bidi_hint_specified then begin
     let n = Option.get nargs_before_bidi in
     if section_local then
-      Pretyping.add_bidirectionality_hint sr n
+      Pretyping.add_bidirectionality_hint env sr n
     else
       Lib.add_leaf (inBidiHints (sr, Some n))
   end;
 
   if clear_bidi_hint then begin
     if section_local then
-      Pretyping.clear_bidirectionality_hint sr
+      Pretyping.clear_bidirectionality_hint env sr
     else
       Lib.add_leaf (inBidiHints (sr, None))
   end;

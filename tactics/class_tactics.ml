@@ -267,7 +267,7 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
     let all = Evarsolve.AllowedEvars.all in
     match hdc with
     | Some (hd,_) ->
-      begin match Typeclasses.class_info hd with
+      begin match Typeclasses.class_info env hd with
       | Some cl ->
         if cl.cl_strict then
           let undefined = lazy (Evarutil.undefined_evars_of_term sigma concl) in
@@ -427,8 +427,8 @@ let make_resolve_hyp env sigma st only_classes decl db =
   let is_class =
     let ctx, ar = decompose_prod_decls sigma cty in
       match EConstr.kind sigma (fst (decompose_app sigma ar)) with
-      | Const (c,_) -> is_class (GlobRef.ConstRef c)
-      | Ind (i,_) -> is_class (GlobRef.IndRef i)
+      | Const (c,_) -> is_class env (GlobRef.ConstRef c)
+      | Ind (i,_) -> is_class env (GlobRef.IndRef i)
       | _ -> false
   in
   let keep = not only_classes || is_class in
@@ -794,7 +794,7 @@ module Search = struct
             try
               let evi = Evd.find_undefined sigma ev in
               if info.search_only_classes then
-                Some (ev, not (is_class_evar sigma evi))
+                Some (ev, not (is_class_evar env sigma evi))
               else Some (ev, true)
             with Not_found -> None
           in
@@ -1274,12 +1274,12 @@ let resolve_all_evars depth unique env p oevd fail =
           docomp evd' comps
   in docomp oevd split
 
-let initial_select_evars filter =
+let initial_select_evars env filter =
   fun evd ev evi ->
     filter ev (Lazy.from_val (snd (Evd.evar_source evi))) &&
     (* Typeclass evars can contain evars whose conclusion is not
        yet determined to be a class or not. *)
-    Typeclasses.is_class_evar evd evi
+    Typeclasses.is_class_evar env evd evi
 
 
 let classes_transparent_state () =
@@ -1293,7 +1293,7 @@ let resolve_typeclass_evars depth unique env evd filter fail =
     with e when CErrors.noncritical e -> evd
   in
     resolve_all_evars depth unique env
-      (initial_select_evars filter) evd fail
+      (initial_select_evars env filter) evd fail
 
 let solve_inst env evd filter unique fail =
   resolve_typeclass_evars (get_typeclasses_depth ()) unique env evd filter fail
@@ -1379,5 +1379,5 @@ let resolve_tc c =
   let evars = Evarutil.undefined_evars_of_term sigma c in
   let filter = (fun ev _ -> Evar.Set.mem ev evars) in
   let fail = true in
-  let sigma = resolve_all_evars depth unique env (initial_select_evars filter) sigma fail in
+  let sigma = resolve_all_evars depth unique env (initial_select_evars env filter) sigma fail in
   Proofview.Unsafe.tclEVARS sigma

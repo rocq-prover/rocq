@@ -19,8 +19,10 @@ open Libobject
 
 (*i*)
 
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+
 let name_table =
-  Summary.ref (GlobRef.Map.empty : Name.t list GlobRef.Map.t)
+  Summary.ref (GlobRefMap.empty : Name.t list GlobRefMap.t)
     ~name:"rename-arguments"
 
 type req =
@@ -28,7 +30,7 @@ type req =
   | ReqGlobal
 
 let load_rename_args _ (_, (r, names)) =
-  name_table := GlobRef.Map.add r names !name_table
+  name_table := GlobRefMap.add (Global.env ()) r names !name_table
 
 let cache_rename_args o = load_rename_args 1 o
 
@@ -70,9 +72,9 @@ let rename_arguments local r names =
   let req = if local then ReqLocal else ReqGlobal in
   Lib.add_leaf (inRenameArgs (req, (r, names)))
 
-let arguments_names r = GlobRef.Map.find r !name_table
+let arguments_names env r = GlobRefMap.find env r !name_table
 
-let rename_type ty ref =
+let rename_type env ty ref =
   let name_override old_name override =
     match override with
     | Name _ as x -> {old_name with binder_name=x}
@@ -88,16 +90,16 @@ let rename_type ty ref =
         | Cast (t,_, _) -> rename_type_aux t renamings
         | _ -> c
   in
-  try rename_type_aux ty (arguments_names ref)
+  try rename_type_aux ty (arguments_names env ref)
   with Not_found -> ty
 
 let rename_typing env c =
   let j = Typeops.infer env c in
   let j' =
     match kind c with
-    | Const (c,u) -> { j with uj_type = rename_type j.uj_type (GlobRef.ConstRef c) }
-    | Ind (i,u) -> { j with uj_type = rename_type j.uj_type (GlobRef.IndRef i) }
-    | Construct (k,u) -> { j with uj_type = rename_type j.uj_type (GlobRef.ConstructRef k) }
+    | Const (c,u) -> { j with uj_type = rename_type env j.uj_type (GlobRef.ConstRef c) }
+    | Ind (i,u) -> { j with uj_type = rename_type env j.uj_type (GlobRef.IndRef i) }
+    | Construct (k,u) -> { j with uj_type = rename_type env j.uj_type (GlobRef.ConstructRef k) }
     | _ -> j
   in j'
 

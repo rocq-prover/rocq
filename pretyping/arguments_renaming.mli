@@ -15,9 +15,9 @@ open Constr
 val rename_arguments : bool -> GlobRef.t -> Name.t list -> unit
 
 (** [Not_found] is raised if no names are defined for [r] *)
-val arguments_names : GlobRef.t -> Name.t list
+val arguments_names : env -> GlobRef.t -> Name.t list
 
-val rename_type : types -> GlobRef.t -> types
+val rename_type : env -> types -> GlobRef.t -> types
 
 val rename_typing : env -> constr -> unsafe_judgment
 (** Typechecks using the kernel [Typeops.infer] *)

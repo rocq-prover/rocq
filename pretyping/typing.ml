@@ -141,7 +141,7 @@ let judge_of_applied_inductive_knowing_parameters ~check env sigma (ind, u) argj
   let u0 = EInstance.kind sigma u in
   let ty, csts = Inductive.type_of_inductive_knowing_parameters (specif, u0) paramstyp in
   let sigma = Evd.add_constraints sigma csts in
-  let funj = { uj_val = mkIndU (ind, u); uj_type = EConstr.of_constr (rename_type ty (GR.IndRef ind)) } in
+  let funj = { uj_val = mkIndU (ind, u); uj_type = EConstr.of_constr (rename_type env ty (GR.IndRef ind)) } in
   judge_of_applied ~check env sigma funj argjv
 
 let judge_of_applied_constructor_knowing_parameters ~check env sigma ((ind, _ as cstr), u) argjv =
@@ -151,7 +151,7 @@ let judge_of_applied_constructor_knowing_parameters ~check env sigma ((ind, _ as
   let u0 = EInstance.kind sigma u in
   let ty, csts = Inductive.type_of_constructor_knowing_parameters (cstr, u0) specif paramstyp in
   let sigma = Evd.add_constraints sigma csts in
-  let funj = { uj_val = mkConstructU (cstr, u); uj_type = (EConstr.of_constr (rename_type ty (GR.ConstructRef cstr))) } in
+  let funj = { uj_val = mkConstructU (cstr, u); uj_type = (EConstr.of_constr (rename_type env ty (GR.ConstructRef cstr))) } in
   judge_of_applied ~check env sigma funj argjv
 
 let judge_of_apply env sigma fj args =
@@ -419,7 +419,7 @@ let type_of_constant env sigma (c,u) =
   let u = EInstance.kind sigma u in
   let ty, csts = Environ.constant_type env (c,u) in
   let sigma = Evd.add_constraints sigma csts in
-  sigma, (EConstr.of_constr (rename_type ty (GR.ConstRef c)))
+  sigma, (EConstr.of_constr (rename_type env ty (GR.ConstRef c)))
 
 let type_of_inductive env sigma (ind,u) =
   let open Declarations in
@@ -428,7 +428,7 @@ let type_of_inductive env sigma (ind,u) =
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_inductive (specif,u) in
   let sigma = Evd.add_constraints sigma csts in
-  sigma, (EConstr.of_constr (rename_type ty (GR.IndRef ind)))
+  sigma, (EConstr.of_constr (rename_type env ty (GR.IndRef ind)))
 
 let type_of_constructor env sigma ((ind,_ as ctor),u) =
   let open Declarations in
@@ -437,7 +437,7 @@ let type_of_constructor env sigma ((ind,_ as ctor),u) =
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_constructor (ctor,u) specif in
   let sigma = Evd.add_constraints sigma csts in
-  sigma, (EConstr.of_constr (rename_type ty (GR.ConstructRef ctor)))
+  sigma, (EConstr.of_constr (rename_type env ty (GR.ConstructRef ctor)))
 
 let type_of_int env = EConstr.of_constr (Typeops.type_of_int env)
 
