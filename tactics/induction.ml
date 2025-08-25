@@ -202,7 +202,7 @@ type eliminator =
 let is_nonrec env mind = (Environ.lookup_mind (fst mind) env).mind_finite == Declarations.BiFinite
 
 let find_ind_eliminator env sigma ind s =
-  let c = lookup_eliminator env ind s in
+  let c = Elimschemes.lookup_eliminator env ind s in
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
@@ -974,31 +974,14 @@ let compute_case_signature env mind dep names_info =
   in
   Array.init (Array.length mip.mind_consnames) find_branches
 
-let error_cannot_recognize ind =
-  user_err
-    Pp.(str "Cannot recognize a statement based on " ++
-        Nametab.pr_global_env Id.Set.empty (IndRef ind) ++ str".")
-
 let guess_elim_shape env sigma isrec s hyp0 =
   let tmptyp0 = Typing.type_of_variable env hyp0 in
   let (mind, u), typ = Tacred.reduce_to_atomic_ind env sigma tmptyp0 in
   let is_elim = isrec && not (is_nonrec env mind) in
   let nparams =
-    if is_elim then
-      let gr = lookup_eliminator env mind s in
-      let sigma, ind = Evd.fresh_global env sigma gr in
-      let elimt = Retyping.get_type_of env sigma ind in
-      let scheme = compute_elim_sig sigma elimt in
-      let () = match scheme.indref with
-      | None -> error_cannot_recognize mind
-      | Some ref ->
-        if QGlobRef.equal env ref (IndRef mind) then ()
-        else error_cannot_recognize mind
-      in
-      scheme.nparams
-    else
-      let mib = Environ.lookup_mind (fst mind) env in
-      mib.mind_nparams
+    let mib = Environ.lookup_mind (fst mind) env in
+    if is_elim then mib.mind_nparams_rec
+    else mib.mind_nparams
   in
   let hd, args = decompose_app_list sigma typ in
   let (params, indices) = List.chop nparams args in
@@ -1127,7 +1110,6 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
       sigma, false, tac, indsign
     | ElimOver (id, (mind, u)) ->
        let sigma, ind = find_ind_eliminator env sigma mind s in
-       (* FIXME: we should store this instead of recomputing it *)
        let elimt = Retyping.get_type_of env sigma (mkConstU ind) in
        let scheme = compute_elim_sig sigma elimt in
        let indsign = compute_scheme_signature sigma scheme id (mkIndU (mind, u)) in
