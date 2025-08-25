@@ -20,6 +20,8 @@ type t = {
   path_installed : bool; (* true for automatically added paths (assumed installed), false for command line paths *)
 }
 
+let load_vos_libraries = ref false
+
 let load_paths = Summary.ref ([] : t list) ~stage:Summary.Stage.Synterp ~name:"LOADPATHS"
 
 let logical p = p.path_logical
@@ -187,7 +189,7 @@ module Error = struct
               ])
 
   let lib_not_found dir =
-    let vos = !Flags.load_vos_libraries in
+    let vos = !load_vos_libraries in
     let vos_msg = if vos then [Pp.str " (while searching for a .vos file)"] else [] in
     CErrors.user_err
       Pp.(seq ([ str "Cannot find library "; Names.DirPath.print dir; str" in loadpath"]@vos_msg))
@@ -211,7 +213,7 @@ let select_vo_file ~find base =
       let lpath, file = find name in
       Some (lpath, file)
     with Not_found -> None in
-  if !Flags.load_vos_libraries
+  if !load_vos_libraries
   then begin
     match find ".vos" with
     | Some (_, vos) as resvos when (Unix.stat vos).Unix.st_size > 0 -> resvos
