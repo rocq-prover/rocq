@@ -1050,32 +1050,28 @@ let get_node : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> capsule
 let warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__ =
   let ep = LStream.count strm__ in
   let loc = LStream.interval_loc bp ep strm__ in
-  try
-    let find_lev levn = function
-      | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
-      | _ -> raise Exit in
-    let rec find_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> _ = fun entry -> function
-      | Sself -> let levs = (get_entry gstate.estate entry).edesc in find_lev alevn levs, find_lev 0 levs
-      | Snext -> let levs = (get_entry gstate.estate entry).edesc in find_lev nlevn levs, find_lev 0 levs
-      | Snterml (e, levn) -> Some levn, find_lev 0 (get_entry gstate.estate e).edesc
-      | Slist1sep (s, sep) -> find_symb entry s
-      | _ -> assert false in
-    let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
-    warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
-  with Exit -> ()
+  let find_lev levn = function
+    | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
+    | _ -> assert false in
+  let rec find_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> _ = fun entry -> function
+    | Sself -> let levs = (get_entry gstate.estate entry).edesc in find_lev alevn levs, find_lev 0 levs
+    | Snext -> let levs = (get_entry gstate.estate entry).edesc in find_lev nlevn levs, find_lev 0 levs
+    | Snterml (e, levn) -> Some levn, find_lev 0 (get_entry gstate.estate e).edesc
+    | Slist1sep (s, sep) -> find_symb entry s
+    | _ -> assert false in
+  let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
+  warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
 let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  try
-    let find_lev levn = function
-      | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
-      | _ -> raise Exit in
-    let cur_lev, top_lev = try
-        let levs = (get_entry gstate.estate entry).edesc in find_lev clevn levs, find_lev levfrom levs
-      with Failure _ -> None, None
-    in
-    warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
-  with Exit -> ()
+  let find_lev levn = function
+    | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
+    | _ -> assert false in
+  let cur_lev, top_lev = try
+      let levs = (get_entry gstate.estate entry).edesc in find_lev clevn levs, find_lev levfrom levs
+    with Failure _ -> None, None
+  in
+  warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
 let empty_entry ename levn strm =
   raise (Error ("entry [" ^ ename ^ "] is empty"))
