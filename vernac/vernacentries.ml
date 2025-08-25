@@ -2550,6 +2550,10 @@ let vernac_validate_proof ~pstate =
   let env = Environ.reset_with_named_context hyps (Global.env ()) in
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   let sigma' = Typing.check env sigma pfterm pftyp in
+  let sigma' = Evar.Map.fold (fun _ e sigma ->
+    let env = Evd.evar_env env e in
+    let sigma, _ = Typing.type_of env sigma (Evd.evar_concl e) in
+    sigma) (Evd.undefined_map sigma') sigma' in
   let evar_issues =
     (* Use Evar.Map.merge as a kind of for_all2 *)
     Evar.Map.merge (fun e orig now -> match orig, now with
