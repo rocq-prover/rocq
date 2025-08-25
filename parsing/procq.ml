@@ -49,6 +49,10 @@ let empty_full_state =
     user_state = GramState.empty;
   }
 
+let assert_synterp () =
+  if !Flags.in_synterp_phase = Some false then
+    CErrors.anomaly Pp.(str "The grammar cannot be modified during the interp phase.")
+
 (** Not marshallable! *)
 let state = ref empty_full_state
 
@@ -73,7 +77,9 @@ let modify_state_unsync f state =
   let current_state = if is_base then base_state else f state.current_state in
   { state with base_state; current_state }
 
-let modify_state_unsync f () = state := modify_state_unsync f !state
+let modify_state_unsync f () =
+  assert_synterp ();
+  state := modify_state_unsync f !state
 
 let modify_keyword_state f =
   modify_state_unsync (fun {estate;kwstate;recover;has_non_assoc} -> {estate; kwstate = f kwstate; recover; has_non_assoc})
@@ -90,6 +96,7 @@ let make_entry_unsync make remake state =
   { state with base_state; current_state }, e
 
 let make_entry_unsync make remake () =
+  assert_synterp();
   let statev, e = make_entry_unsync make remake !state in
   state := statev;
   e
@@ -129,7 +136,9 @@ let grammar_extend_sync user_state entry rules state =
     current_sync_extensions = GramExt entry :: state.current_sync_extensions;
   }
 
-let grammar_extend_sync st e r () = state := grammar_extend_sync st e r !state
+let grammar_extend_sync st e r () =
+  assert_synterp();
+  state := grammar_extend_sync st e r !state
 
 type ('a,'b) entry_extension = {
   eext_fun : 'a -> 'b Entry.t -> GramState.t -> GramState.t;
@@ -157,6 +166,7 @@ let extend_entry_sync (type a b)
   state, e
 
 let extend_entry_sync tag interp data () =
+  assert_synterp();
   let statev, e = extend_entry_sync tag interp data !state in
   state := statev;
   e
@@ -469,19 +479,21 @@ let replay_sync_extension = function
   | GramExt (Dyn (tag,g)) -> extend_grammar_command tag g
   | EntryExt (tag,data) -> ignore (extend_entry_command tag data : _ Entry.t)
 
-let unfreeze = function
-  | {frozen_sync;} as frozen ->
-    let to_remove, to_add, _common = factorize_grams (!state).current_sync_extensions frozen_sync in
-    if CList.is_empty to_remove then begin
-      List.iter replay_sync_extension (List.rev to_add);
-      unfreeze_only_keywords frozen
-    end
-    else begin
-      state := reset_to_base !state;
-      List.iter replay_sync_extension (List.rev frozen_sync);
-      (* put back the keyword state, needed to support ssr hacks *)
-      unfreeze_only_keywords frozen
-    end
+let unfreeze ({frozen_sync;} as frozen) =
+  (* allow unfreezing synterp state even during interp phase *)
+  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> None) (fun () ->
+  let to_remove, to_add, _common = factorize_grams (!state).current_sync_extensions frozen_sync in
+  if CList.is_empty to_remove then begin
+    List.iter replay_sync_extension (List.rev to_add);
+    unfreeze_only_keywords frozen
+  end
+  else begin
+    state := reset_to_base !state;
+    List.iter replay_sync_extension (List.rev frozen_sync);
+    (* put back the keyword state, needed to support ssr hacks *)
+    unfreeze_only_keywords frozen
+  end)
+    ()
 
 let freeze_state state = {
   frozen_sync = state.current_sync_extensions;
