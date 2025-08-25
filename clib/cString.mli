@@ -71,6 +71,18 @@ val is_prefix : string -> string -> bool
 val is_suffix : string -> string -> bool
 (** [is_suffix suf s] tests whether [suf] is a suffix of [s]. *)
 
+val edit_distance : ?limit:int -> string -> string -> int
+(** [edit_distance s0 s1] is the number of single character edits
+    (understood as insertion, deletion, substitution, transposition)
+    that are needed to change [s0] into [s1].
+
+    If [limit] is provided the function returns with [limit] as soon
+    as it was determined that [s0] and [s1] have distance of at least
+    [limit]. This is faster if you have a fixed limit, for example for
+    spellchecking.
+
+    copied from ocaml 5.4 *)
+
 (** {6 Generic operations} **)
 
 module Set : CSet.ExtS with type elt = t
