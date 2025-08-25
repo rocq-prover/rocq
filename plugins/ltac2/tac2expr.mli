@@ -196,7 +196,7 @@ type exp_level =
 type sexpr =
 | SexprStr of string CAst.t
 | SexprInt of int CAst.t
-| SexprRec of Loc.t * Id.t option CAst.t * sexpr list
+| SexprRec of Loc.t * qualid option CAst.t * sexpr list
 
 (** {5 Toplevel statements} *)
 
