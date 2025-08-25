@@ -190,9 +190,14 @@ let vm_state =
 
 let expand_mexpr env mp me =
   let inl = Some (Flags.get_inline_level()) in
+  (* hack: in order not to overwrite the module binding mp, we first give it a
+     name that should not be part of the env and then substitute it away *)
+  let mp0 = ModPath.dummy in
   let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes) in
-  let mb, (_, cst), _ = Mod_typing.translate_module state vm_state env mp inl (MExpr ([], me, None)) in
-  mod_type mb, mod_delta mb
+  let mb, (_, cst), _ = Mod_typing.translate_module state vm_state env mp0 inl (MExpr ([], me, None)) in
+  let sign = mod_type mb in
+  let reso = mod_delta mb in
+  Modops.subst_modtype_signature_and_resolver mp0 mp sign reso
 
 let expand_modtype env mp me =
   let inl = Some (Flags.get_inline_level()) in
