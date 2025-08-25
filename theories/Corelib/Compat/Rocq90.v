@@ -10,4 +10,6 @@
 
 (** Compatibility file for making Rocq act similar to Coq v9.0 *)
 
+Require Export Corelib.Compat.Rocq91.
+
 #[export] Set Warnings "-deprecated-since-9.1".

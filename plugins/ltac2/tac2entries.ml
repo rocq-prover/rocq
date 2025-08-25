@@ -797,15 +797,27 @@ let pr_register_notation tkn lev body =
   pr_opt (fun n -> str ": " ++ int n) lev ++ spc() ++
   hov 2 (str ":= " ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body)
 
+let pr_register_abbreviation id body =
+  Id.print id.CAst.v ++
+  hov 2 (str ":= " ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body)
+
+let register_abbreviation atts id body =
+  let deprecation = Attributes.(parse deprecation) atts in
+  let () = check_lowercase id in
+  Abbreviation(id.CAst.v, deprecation, body)
+
+let warn_deprecated_notation_for_abbreviation =
+    CWarnings.create ~name:"ltac2-notation-for-abbreviation" ~category:Deprecation.Version.v9_2
+      (fun () -> strbrk "Use of \"Ltac2 Notation\" keyword for abbreviations is deprecated, use \"Ltac2 Abbreviation\" instead.")
+
 let register_notation atts tkn lev body =
-  let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
-  let local = Option.default false local in
   match tkn, lev with
   | [SexprRec (_, {loc;v=Some id}, [])], None ->
-    (* Tactic abbreviation *)
-    let () = check_lowercase CAst.(make ?loc id) in
-    Abbreviation(id, deprecation, body)
+    warn_deprecated_notation_for_abbreviation ();
+    register_abbreviation atts (CAst.make ?loc id) body
   | _ ->
+    let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
+    let local = Option.default false local in
     (* Check that the tokens make sense *)
     let entries = List.map ParseToken.parse_token tkn in
     let fold accu tok = match tok with

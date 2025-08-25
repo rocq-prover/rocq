@@ -112,7 +112,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall {A} (a1 a2:A) {B} (b:B), a1 = a2 /\ b = b.
 
-  Notation u := @p.
+  Abbreviation u := @p.
 
   Check u _.
   (* u ?A *)
@@ -140,7 +140,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall A (a1 a2:A) B (b:B), a1 = a2 /\ b = b.
 
-  Notation u := p.
+  Abbreviation u := p.
 
   Check p.
   (* u *)
@@ -172,7 +172,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall A (a1 a2:A) B (b:B), a1 = a2 /\ b = b.
 
-  Notation v := (@p _ 0).
+  Abbreviation v := (@p _ 0).
 
   Check v.
   (* v *)
@@ -202,7 +202,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall A (a1 a2:A) B (b:B), a1 = a2 /\ b = b.
 
-  Notation v := (p 0).
+  Abbreviation v := (p 0).
 
   Check v.
   (* v *)
@@ -382,25 +382,25 @@ Module AppliedPatternsPrinting.
   End D.
 
   Module E.
-  Notation P := @ p.
+  Abbreviation P := @ p.
   Check P 0 0 _ true.
   Check fun a => match a with P 0 0 _ _ => 1 | _ => 2 end.
   End E.
 
   Module F.
-  Notation P' := p.
+  Abbreviation P' := p.
   Check P' 0 0 true.
   Check fun a => match a with P' 0 0 _ => 1 | _ => 2 end.
   End F.
 
   Module G.
-  Notation Q q := (@p q).
+  Abbreviation Q q := (@p q).
   Check Q 0 0 true.
   Check fun a => match a with Q 0 0 _ => 1 | _ => 2 end.
   End G.
 
   Module H.
-  Notation Q' q := (p q).
+  Abbreviation Q' q := (p q).
   Check Q' 0 0 true.
   Check fun a => match a with Q' 0 0 _ => 1 | _ => 2 end.
   End H.
@@ -417,7 +417,7 @@ Module Activation.
   Disable Notation "_ + _" : type_scope.
   Fail Check 0 + 0.
 
-  Notation f x := (Some x).
+  Abbreviation f x := (Some x).
 
   Disable Notation f.
 

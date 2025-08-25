@@ -32,7 +32,7 @@ Section Well_founded.
 
   Register Fix_sub as program.wf.fix_sub.
 
-  (* Notation Fix_F := (Fix_F_sub P F_sub) (only parsing). (* alias *) *)
+  (* Abbreviation Fix_F := (Fix_F_sub P F_sub) (only parsing). (* alias *) *)
   (* Definition Fix (x:A) := Fix_F_sub P F_sub x (Rwf x). *)
 
   Hypothesis F_ext :

@@ -155,8 +155,8 @@ Section Well_founded_2.
 
 End Well_founded_2.
 
-Notation Acc_iter   := Fix_F   (only parsing). (* compatibility *)
-Notation Acc_iter_2 := Fix_F_2 (only parsing). (* compatibility *)
+Abbreviation Acc_iter   := Fix_F   (only parsing). (* compatibility *)
+Abbreviation Acc_iter_2 := Fix_F_2 (only parsing). (* compatibility *)
 
 
 

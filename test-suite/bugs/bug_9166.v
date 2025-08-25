@@ -1,7 +1,7 @@
 Set Warnings "+deprecated".
 
 #[deprecated(since = "X", note = "Y")]
-Notation bar := option.
+Abbreviation bar := option.
 
 Definition foo (x: nat) : nat :=
   match x with

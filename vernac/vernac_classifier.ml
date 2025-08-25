@@ -193,7 +193,7 @@ let classify_vernac e =
     | VernacOpenCloseScope _ | VernacDeclareScope _
     | VernacDelimiters _ | VernacBindScope _
     | VernacEnableNotation _
-    | VernacSyntacticDefinition _
+    | VernacAbbreviation _
     | VernacContext _ (* TASSI: unsure *) -> VtSideff ([], VtNow)
     | VernacInstance ((name,_),_,_,props,_) ->
       let program, refine =
