@@ -233,7 +233,6 @@ let clenv_environments env sigma template bound t =
       | (n, Prod (na,t1,t2)) ->
           let mv = new_meta () in
           let dep = not (noccurn sigma 1 t2) in
-          let na' = if dep then na.binder_name else Anonymous in
           let sigma, t1, templ, tmpl = match templ with
           | [] -> sigma, t1, templ, None
           | None :: templ -> sigma, t1, templ, None
@@ -243,7 +242,7 @@ let clenv_environments env sigma template bound t =
             let t1 = EConstr.it_mkProd_or_LetIn (EConstr.mkType (Univ.Universe.make s)) decls in
             sigma, t1, templ, Some (decls, s)
           in
-          let metam = Meta.meta_declare mv t1 ~name:na' metam in
+          let metam = Meta.meta_declare mv t1 ~name:na.binder_name metam in
           let t2 = if dep then (subst1 (mkMeta mv) t2) else t2 in
           clrec templ sigma metam ((mv, dep, tmpl) :: metas) (Option.map ((+) (-1)) n) t2
       | (n, LetIn (na,b,_,t)) -> clrec templ sigma metam metas n (subst1 b t)
@@ -488,8 +487,15 @@ let clenv_pose_metas_as_evars ~metas env sigma dep_mvs =
       else
         let src = Meta.evar_source_of_meta mv metas in
         let src = adjust_meta_source ~metas sigma mv src in
+        (* Add a name to the evar if the meta comes from a variable to make the
+           goal focusable. *)
+        let naming =
+          begin match src with
+          | _, Evar_kinds.VarInstance id when Evd.generate_goal_names() -> Namegen.IntroIdentifier id
+          | _ -> Namegen.IntroAnonymous
+          end in
         let typeclass_candidate = Typeclasses.is_maybe_class_type sigma ty in
-        let (sigma, evar) = new_evar ~typeclass_candidate env sigma ~src ty in
+        let (sigma, evar) = new_evar ~typeclass_candidate env sigma ~src ~naming ty in
         let sigma, metas = clenv_assign ~metas env sigma mv evar in
         fold metas sigma mvs in
   fold metas sigma dep_mvs
@@ -755,7 +761,7 @@ let rec as_constr = function
 | RfProj (p, r, c) -> EConstr.mkProj (p, r, as_constr c)
 
 (* Old style mk_goal primitive *)
-let mk_goal env evars hyps concl =
+let mk_goal env evars ?name ?parent hyps concl =
   (* A goal created that way will not be used by refine and will not
       be shelved. It must not appear as a future_goal, so the future
       goals are restored to their initial value after the evar is
@@ -763,14 +769,18 @@ let mk_goal env evars hyps concl =
   let evars = Evd.push_future_goals evars in
   let inst = EConstr.identity_subst_val hyps in
   let relevance = Retyping.relevance_of_type env evars concl in
+  let name = match name with
+  | Some name when Evd.generate_goal_names() -> Evarutil.next_evar_name (Namegen.IntroIdentifier name)
+  | _ -> None
+  in
   let (evars,evk) =
-    Evarutil.new_pure_evar ~src:(Loc.tag Evar_kinds.GoalEvar) ~typeclass_candidate:false hyps evars ~relevance concl
+    Evarutil.new_pure_evar ~src:(Loc.tag Evar_kinds.GoalEvar) ?name ?parent ~typeclass_candidate:false hyps evars ~relevance concl
   in
   let _, evars = Evd.pop_future_goals evars in
   let ev = EConstr.mkEvar (evk,inst) in
   (evk, ev, evars)
 
-let rec mk_refgoals ~metas env sigma goalacc conclty trm = match trm with
+let rec mk_refgoals ~metas env sigma goalacc ?parent conclty trm = match trm with
 | RfGround trm ->
   let ty = Retyping.get_type_of env sigma trm in
   (goalacc, ty, sigma, trm)
@@ -781,7 +791,12 @@ let rec mk_refgoals ~metas env sigma goalacc conclty trm = match trm with
   in
   let conclty = nf_betaiota env sigma conclty in
   let hyps = Environ.named_context_val env in
-  let (gl,ev,sigma) = mk_goal env sigma hyps conclty in
+  (* Add a name to the goal if the metavariable itself has a name *)
+  let name = match Meta.meta_name metas mv with
+  | Name name -> Some name
+  | Anonymous -> None
+  in
+  let (gl,ev,sigma) = mk_goal env sigma ?name ?parent hyps conclty in
   gl::goalacc, conclty, sigma, ev
 | RfApp (f, l) ->
   let (acc',hdty,sigma,applicand) = match f with
@@ -793,47 +808,47 @@ let rec mk_refgoals ~metas env sigma goalacc conclty trm = match trm with
       type_of_global_reference_knowing_parameters env sigma f args
     in
     goalacc, ty, sigma, f
-  | _ -> mk_refgoals ~metas env sigma goalacc None f
+  | _ -> mk_refgoals ~metas env sigma goalacc ?parent None f
   in
-  let ((acc'',conclty',sigma), args) = mk_arggoals ~metas env sigma acc' hdty l in
+  let ((acc'',conclty',sigma), args) = mk_arggoals ~metas env sigma acc' ?parent hdty l in
   let ans = EConstr.applist (applicand, args) in
   (acc'', conclty', sigma, ans)
 | RfProj (p, r, c) ->
-  let (acc',cty,sigma,c') = mk_refgoals ~metas env sigma goalacc None c in
+  let (acc',cty,sigma,c') = mk_refgoals ~metas env sigma goalacc ?parent None c in
   let c = EConstr.mkProj (p, r, c') in
   let ty = get_type_of env sigma c in
   (acc',ty,sigma,c)
 
-and mk_arggoals ~metas env sigma goalacc funty allargs =
+and mk_arggoals ~metas env sigma goalacc ?parent funty allargs =
   let foldmap (goalacc, funty, sigma) harg =
     let t = whd_all ~metas:(meta_handler metas) env sigma funty in
     match EConstr.kind sigma t with
     | Prod (_, c1, b) ->
-      let (acc, hargty, sigma, arg) = mk_refgoals ~metas env sigma goalacc (Some c1) harg in
+      let (acc, hargty, sigma, arg) = mk_refgoals ~metas env sigma ?parent goalacc (Some c1) harg in
       (acc, EConstr.Vars.subst1 arg b, sigma), arg
     | _ ->
       raise (RefinerError (env,sigma,CannotApply (t, as_constr harg)))
   in
   List.fold_left_map foldmap (goalacc, funty, sigma) allargs
 
-let treat_case env sigma ci lbrty accu =
+let treat_case env sigma ci lbrty accu ~parent =
   let open EConstr in
-  let fold (sigma, accu) (ctx, ty) =
+  let fold (sigma, accu) (name, ctx, ty) =
     let open Context.Rel.Declaration in
     let brctx = Array.of_list (List.rev_map get_annot ctx) in
     let args = Context.Rel.instance mkRel 0 ctx in
     (* TODO: tweak this to prevent dummy β-cuts *)
     let ty = nf_betaiota env sigma (it_mkProd_or_LetIn ty ctx) in
     let hyps = Environ.named_context_val env in
-    let (gl, ev, sigma) = mk_goal env sigma hyps ty in
+    let (gl, ev, sigma) = mk_goal env sigma ~name ~parent hyps ty in
     let br' = mkApp (ev, args) in
     (sigma, gl :: accu), (brctx, br')
   in
   Array.fold_left_map fold (sigma, accu) lbrty
 
-let std_refine ~metas env sigma cl r =
+let std_refine ~metas env sigma ?parent cl r =
   let r = make_proof env sigma r in
-  let (sgl, _, sigma, trm) = mk_refgoals ~metas env sigma [] (Some cl) r in
+  let (sgl, _, sigma, trm) = mk_refgoals ~metas env sigma [] (Some cl) r ?parent in
   (sigma, sgl, trm)
 
 (***********************************************)
@@ -842,7 +857,7 @@ let std_refine ~metas env sigma cl r =
 
 type refiner_kind =
 | Std of Meta.t * EConstr.t
-| Case of case_node * (EConstr.rel_context * EConstr.t) array
+| Case of case_node * (Id.t * EConstr.rel_context * EConstr.t) array
 
 let refiner_gen is_case =
   let open Proofview.Notations in
@@ -851,17 +866,17 @@ let refiner_gen is_case =
   let env = Proofview.Goal.env gl in
   let st = Proofview.Goal.state gl in
   let cl = Proofview.Goal.concl gl in
+  let evk = Proofview.Goal.goal gl in
   let (sigma, sgl, c) = match is_case with
   | Case ((ci, u, pms, p, iv, c), branches) ->
-    let ((sigma, accu), lf) = treat_case env sigma ci branches [] in
+    let ((sigma, accu), lf) = treat_case env sigma ~parent:evk ci branches [] in
     let ans = EConstr.mkCase (ci, u, pms, p, iv, c, lf) in
     (sigma, accu, ans)
   | Std (metas, r) ->
-    std_refine ~metas  env sigma cl r
+    std_refine ~metas env sigma ~parent:evk cl r
   in
   let map gl = Proofview.goal_with_state gl st in
   let sgl = List.rev_map map sgl in
-  let evk = Proofview.Goal.goal gl in
   (* Check that the goal itself does not appear in the refined term *)
   let _ =
     if not (Evarutil.occur_evar_upto sigma evk c) then ()
@@ -1002,11 +1017,12 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
     let get_branch cs =
       let base = mkApp (pred, cs.cs_concl_realargs) in
       let argctx = cs.cs_args in
+      let name = cs.cs_name in
       if dep then
         let argctx = Namegen.name_context env sigma argctx in
-        (argctx, applist (base, [build_dependent_constructor cs]))
+        (name, argctx, applist (base, [build_dependent_constructor cs]))
       else
-        (argctx, base)
+        (name, argctx, base)
     in
     Array.map get_branch constrs
   in
@@ -1032,7 +1048,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
     Internal.Case ((ci, u, pms, (p,r), iv, c), branches)
   | PrimitiveEta args ->
     let mv = new_meta () in
-    let (ctx, t) = branches.(0) in
+    let (_, ctx, t) = branches.(0) in
     let metas = Meta.meta_declare mv (it_mkProd_or_LetIn t ctx) metas in
     Internal.Std (metas, mkApp (mkMeta mv, Array.map nf_betaiota args))
   in

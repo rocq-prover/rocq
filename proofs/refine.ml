@@ -82,14 +82,10 @@ let generic_refine ~typecheck f gl =
     (* Nothing to do, the goal has been solved by side-effect *)
     sigma
   | Some self ->
-    match principal with
-    | None -> Evd.define self c sigma
-    | Some evk ->
-        let id = Evd.evar_ident self sigma in
-        let sigma = Evd.define self c sigma in
-        match id with
-        | None -> sigma
-        | Some id -> Evd.rename evk id sigma
+     let sigma = match principal with
+     | None -> sigma
+     | Some evk -> Evd.transfer_name self evk sigma
+     in Evd.define self c sigma
   in
   (* Mark goals *)
   let sigma = Proofview.Unsafe.mark_as_goals sigma (Evd.FutureGoals.comb future_goals) in
