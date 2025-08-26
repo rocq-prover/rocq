@@ -100,8 +100,8 @@ Export SsrMatchingSyntax.
 Export SsrSyntax.
 
 (** Save primitive notation that will be overloaded. **)
-Local Notation RocqGenericIf c vT vF := (if c then vT else vF) (only parsing).
-Local Notation RocqGenericDependentIf c x R vT vF :=
+Local Abbreviation RocqGenericIf c vT vF := (if c then vT else vF) (only parsing).
+Local Abbreviation RocqGenericDependentIf c x R vT vF :=
   (if c as x return R then vT else vF) (only parsing).
 
 (** Reserve notation that introduced in this file. **)
@@ -341,7 +341,7 @@ Register protect_term as plugins.ssreflect.protect_term.
   - unkeyed x where x is a variable will match any subterm with the same
     type as x (when x would raise the 'indeterminate pattern' error).        **)
 
-Notation unkeyed x := (let flex := x in flex).
+Abbreviation unkeyed x := (let flex := x in flex).
 
 (**  Ssreflect converse rewrite rule rule idiom.  **)
 Definition ssr_converse R (r : R) := (Logic.I, r).
@@ -377,7 +377,7 @@ Notation "=^~ r" := (ssr_converse r) : form_scope.
     constants can be expanded generically with the unlock rewrite rule.
     See the definition of card and subset in fintype for examples of this.   **)
 
-Notation nosimpl t := (let: tt := tt in t).
+Abbreviation nosimpl t := (let: tt := tt in t).
 
 Lemma master_key : unit. Proof. exact tt. Qed.
 Definition locked A := let: tt := master_key in fun x : A => x.
@@ -431,7 +431,7 @@ Canonical locked_with_unlockable T k x :=
 Lemma unlock_with T k x : unlocked (locked_with_unlockable k x) = x :> T.
 Proof. exact: unlock. Qed.
 
-(**  Notation to trigger Rocq elaboration to fill the holes **)
+(**  Abbreviation to trigger Rocq elaboration to fill the holes **)
 Notation "[ 'elaborate' x ]" := (ltac:(refine x)) (only parsing).
 
 (**  The internal lemmas for the have tactics.  **)
@@ -627,10 +627,10 @@ Canonical call.
 Canonical test_Prop.
 Canonical test_negative.
 Canonical check.
-Notation nonPropType := type.
+Abbreviation nonPropType := type.
 Coercion callee : call_of >-> Sortclass.
 Coercion frame : type >-> call_of.
-Notation notProp T := (@check false test_negative (call T)).
+Abbreviation notProp T := (@check false test_negative (call T)).
 End Exports.
 
 End NonPropType.

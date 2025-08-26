@@ -43,7 +43,7 @@ Ltac2 match_warn_bar_disabled x :=
   end.
 
 (* the warning is at intern time *)
-Ltac2 Notation bar_nota := Bar.
+Ltac2 Abbreviation bar_nota := Bar.
 
 Ltac2 Notation "isBar_nota" x(tactic) := match x with Bar => true | _ => false end.
 

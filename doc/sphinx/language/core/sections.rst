@@ -188,7 +188,7 @@ A similar table for :cmd:`Module` can be found
     - ❌
     - ❌
 
-  * - :cmd:`Notation (abbreviation)`
+  * - :cmd:`Abbreviation`
     - :attr:`local`
     - not available
     - ❌

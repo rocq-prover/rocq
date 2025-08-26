@@ -13,4 +13,6 @@
 (** When removing this file, please cleanup the "-compat" option code
     in sysinit/coqargs.ml *)
 
+Require Export Corelib.Compat.Rocq90.
+
 #[export] Set Warnings "-deprecated-since-9.0".

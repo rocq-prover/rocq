@@ -453,18 +453,18 @@ Module Pretype.
         anything other than performance.
         [true] in [constr_flags]. *)
 
-    Ltac2 Notation open_constr_flags_with_tc :=
+    Ltac2 Abbreviation open_constr_flags_with_tc :=
       set_nf_evars false (set_allow_evars true constr_flags).
 
     Local Ltac2 open_constr_flags_with_tc_kn () := open_constr_flags_with_tc.
     (** Code generation uses this as using the notation is not convenient. *)
 
-    Ltac2 Notation open_constr_flags_no_tc :=
+    Ltac2 Abbreviation open_constr_flags_no_tc :=
       set_use_typeclasses false open_constr_flags_with_tc.
     (** The flags used by open_constr:() and its alias [']. *)
 
     #[deprecated(since="8.20", note="use open_constr_flags_with_tc (or open_constr_flags_no_tc as desired)")]
-    Ltac2 Notation open_constr_flags := open_constr_flags_with_tc.
+    Ltac2 Abbreviation open_constr_flags := open_constr_flags_with_tc.
   End Flags.
 
   Ltac2 Type expected_type.

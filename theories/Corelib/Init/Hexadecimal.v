@@ -44,12 +44,12 @@ Inductive uint :=
     but rather use [D0 Nil] instead, since this form will be denoted
     as [0], while [Nil] will be printed as [Nil]. *)
 
-Notation zero := (D0 Nil).
+Abbreviation zero := (D0 Nil).
 
 (** For signed integers, we use two constructors [Pos] and [Neg]. *)
 
 Variant signed_int := Pos (d:uint) | Neg (d:uint).
-Notation int := signed_int.
+Abbreviation int := signed_int.
 
 (** For decimal numbers, we use two constructors [Hexadecimal] and
     [HexadecimalExp], depending on whether or not they are given with an
@@ -63,10 +63,10 @@ Variant hexadecimal :=
 Scheme Equality for uint.
 Scheme Equality for int.
 Scheme Equality for hexadecimal.
-Notation int_eq_dec := signed_int_eq_dec.
-Notation int_beq := signed_int_beq.
-Notation internal_int_dec_lb := internal_signed_int_dec_lb.
-Notation internal_int_dec_bl := internal_signed_int_dec_bl.
+Abbreviation int_eq_dec := signed_int_eq_dec.
+Abbreviation int_beq := signed_int_beq.
+Abbreviation internal_int_dec_lb := internal_signed_int_dec_lb.
+Abbreviation internal_int_dec_bl := internal_signed_int_dec_bl.
 
 Declare Scope hex_uint_scope.
 Delimit Scope hex_uint_scope with huint.
