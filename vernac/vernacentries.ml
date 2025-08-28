@@ -143,7 +143,7 @@ let with_section_locality ~atts f =
 let show_proof ~pstate =
   (* spiwack: this would probably be cooler with a bit of polishing. *)
   try
-    let pstate = Option.get pstate in
+    let pstate = match pstate with None -> raise Exit | Some s -> s in
     let p = Declare.Proof.get pstate in
     let sigma, _ = Declare.Proof.get_current_context pstate in
     let pprf = Proof.partial_proof p in
@@ -156,8 +156,7 @@ let show_proof ~pstate =
     Pp.prlist_with_sep Pp.fnl (Printer.pr_econstr_env env sigma) pprf
   (* We print nothing if there are no goals left *)
   with
-  | Proof.NoSuchGoal _
-  | Option.IsNone ->
+  | Proof.NoSuchGoal _ | Exit ->
     user_err (str "No goals to show.")
 
 let show_top_evars ~proof =
