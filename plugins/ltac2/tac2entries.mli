@@ -40,6 +40,8 @@ val register_custom_entry : lident -> unit
 
 val perform_eval : pstate:Declare.Proof.t option -> raw_tacexpr -> unit
 
+val declare : raw_tacexpr -> unit
+
 (** {5 Notations} *)
 
 type syntax_class_rule =
