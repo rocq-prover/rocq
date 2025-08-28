@@ -409,6 +409,7 @@ let do_mutual_induction_scheme ?(force_mutual=false) env ?(isrec=true) l =
     let _,_,ind,_ = List.hd l in
     Global.is_polymorphic (Names.GlobRef.IndRef ind)
   in
+  let is_mutual = isrec && List.length listdecl > 1 in
   let declare decl ({CAst.v=fi; loc},dep,ind, sort) =
     let decltype = Retyping.get_type_of env sigma decl in
     let decltype = EConstr.to_constr sigma decltype in
@@ -417,7 +418,8 @@ let do_mutual_induction_scheme ?(force_mutual=false) env ?(isrec=true) l =
     let kind =
       let open Elimschemes in
       let open UnivGen.QualityOrSet in
-      if isrec then Some (elim_scheme ~dep ~to_kind:sort)
+      if is_mutual then None (* don't make induction use mutual schemes *)
+      else if isrec then Some (elim_scheme ~dep ~to_kind:sort)
       else match sort with
         | Qual (QConstant QType) -> Some (if dep then case_dep else case_nodep)
         | Qual (QConstant QProp) -> Some (if dep then casep_dep else casep_nodep)
