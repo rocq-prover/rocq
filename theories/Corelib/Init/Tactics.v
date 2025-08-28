@@ -342,6 +342,7 @@ Create HintDb rewrite discriminated.
 #[global]
 Hint Variables Opaque : rewrite.
 Create HintDb typeclass_instances discriminated.
+Hint Constants Opaque : typeclass_instances.
 
 (** A variant of [apply] using [refine], doing as much conversion as necessary. *)
 
