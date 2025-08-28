@@ -101,7 +101,7 @@ let new_evar env sigma ?src ?rrpat ?(naming = Namegen.IntroAnonymous) ?relevance
   let (subst, _, sign) as ext = Lazy.force env.extra in
   let instance = Evarutil.default_ext_instance ext in
   let typ' = csubst_subst sigma subst typ in
-  let name = Evarutil.next_evar_name sigma naming in
+  let name = Evarutil.next_evar_name naming in
   let relevance = match relevance with
     | Some r -> r
     | None -> Retyping.relevance_of_type env.static_env sigma typ
