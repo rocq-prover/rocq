@@ -38,7 +38,7 @@ let pp_bracket_comment s = str"{- " ++ hov 0 s ++ str" -}"
    the '\n' character interacts badly with the Format boxing mechanism *)
 
 let preamble table mod_name comment used_modules usf =
-  let pp_import mp = str ("import qualified "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
+  let pp_import dp = str ("import qualified "^ string_of_modfile (State.get_table table) dp) ++ fnl ()
   in
   (if not (usf.magic || usf.tunknown) then mt ()
    else
@@ -51,7 +51,7 @@ let preamble table mod_name comment used_modules usf =
   ++
   str "module " ++ pr_upper_id mod_name ++ str " where" ++ fnl2 () ++
   str "import qualified Prelude" ++ fnl () ++
-  prlist pp_import used_modules ++ fnl ()
+  prlist pp_import (DirPath.Set.elements used_modules) ++ fnl ()
   ++
   (if not (usf.magic || usf.tunknown) then mt ()
    else

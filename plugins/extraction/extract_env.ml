@@ -656,7 +656,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*s Part III: the actual extraction commands *)
 (*********************************************)
 
-let init ?(inner=false) modular library =
+let init ?(inner=false) ~modular ~library () =
   if not inner then check_inside_section ();
   let keywords = (descr ()).keywords in
   let state = State.make ~modular ~library ~keywords () in
@@ -697,7 +697,7 @@ let rec locate_ref = function
     \verb!Extraction "file"! [qualid1] ... [qualidn]. *)
 
 let full_extr opaque_access f (refs,mps) =
-  let table = init false false in
+  let table = init ~modular:false ~library:false () in
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
@@ -710,7 +710,7 @@ let full_extraction ~opaque_access f lr =
    decomposed in many files, one per Rocq .v file *)
 
 let separate_extraction ~opaque_access lr =
-  let table = init true false in
+  let table = init ~modular:true ~library:false () in
   let refs,mps = locate_ref lr in
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = List.iter (function
@@ -721,8 +721,8 @@ let separate_extraction ~opaque_access lr =
   in
   let () = warns table in
   let print = function
-    | (MPfile dir as mp, sel) as e ->
-        print_structure_to_file table (module_filename table mp) false [e]
+    | (MPfile dir, sel) as e ->
+        print_structure_to_file table (module_filename table dir) false [e]
     | (MPdot _ | MPbound _), _ -> assert false
   in
   let () = List.iter print struc in
@@ -735,7 +735,7 @@ let simple_extraction ~opaque_access r =
   match locate_ref [r] with
   | ([], [mp]) as p -> full_extr opaque_access None p
   | [r],[] ->
-      let table = init false false in
+      let table = init ~modular:false ~library:false () in
       let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
       let d = get_decl_in_structure r struc in
       let () = warns table in
@@ -752,7 +752,7 @@ let simple_extraction ~opaque_access r =
   \verb!(Recursive) Extraction Library! [M]. *)
 
 let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
-  let table = init true true in
+  let table = init ~modular:true ~library:true () in
   let dir_m =
     (* XXX WTF is going on here? *)
     let q = qualid_of_ident m in
@@ -772,9 +772,9 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   let struc = optimize_struct table ([],[]) struc in
   let () = warns table in
   let print = function
-    | (MPfile dir as mp, sel) as e ->
+    | (MPfile dir, sel) as e ->
         let dry = not is_rec && not (DirPath.equal dir dir_m) in
-        print_structure_to_file table (module_filename table mp) dry [e]
+        print_structure_to_file table (module_filename table dir) dry [e]
     | _ -> assert false
   in
   let () = List.iter print struc in
@@ -819,7 +819,7 @@ let extract_and_compile ~opaque_access l =
 
 (* Show the extraction of the current ongoing proof *)
 let show_extraction ~pstate =
-  let table = init ~inner:true false false in
+  let table = init ~inner:true ~modular:false ~library:false () in
   let prf = Declare.Proof.get pstate in
   let sigma, env = Declare.Proof.get_current_context pstate in
   let trms = Proof.partial_proof prf in

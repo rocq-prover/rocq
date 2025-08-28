@@ -54,8 +54,8 @@ val modpath_of_r : global -> ModPath.t
 val label_of_r : global -> Label.t
 val base_mp : ModPath.t -> ModPath.t
 val is_modfile : ModPath.t -> bool
-val string_of_modfile : t -> ModPath.t -> string
-val file_of_modfile : t -> ModPath.t -> string
+val string_of_modfile : t -> DirPath.t -> string
+val file_of_modfile : t -> DirPath.t -> string
 val is_toplevel : ModPath.t -> bool
 val at_toplevel : ModPath.t -> bool
 val mp_length : ModPath.t -> int
