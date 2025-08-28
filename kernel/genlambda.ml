@@ -740,8 +740,11 @@ let rec lambda_of_constr cache env sigma c =
       else
         let b =
           match b.node with
-          | Llam(ids, body) when Array.length ids = arity -> (ids, body)
+          | Llam (ids, body) when arity <= Array.length ids ->
+            let ids, rem = Array.chop arity ids in
+            (ids, mkLlam rem body)
           | _ ->
+            (* happens when the branch contains let-bindings *)
             let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
             let ids = Array.make arity anon in
             let args = make_args arity 1 in
