@@ -37,7 +37,7 @@ fun '(x, y) => (y, x)
 forall '(x, y), swap (x, y) = (y, x)
      : Prop
 both_z =
-fun pat : nat * nat => let '(n, p) as x := pat return (F x) in (Z n, Z p)
+fun pat : nat * nat => let '(n, p) as x := pat return F x in (Z n, Z p)
      : forall pat : nat * nat, F pat
 
 Arguments both_z pat

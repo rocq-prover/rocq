@@ -292,8 +292,8 @@ struct
         | Anonymous -> accu)
       Id.Set.empty l
 
-  (** Map a given rel-context to a list where each {e local assumption} is mapped to [true]
-      and each {e local definition} is mapped to [false]. *)
+  (** Map a given rel-context to a list where each {e local definition} is mapped to [true]
+      and each {e local assumption} is mapped to [false]. *)
   let to_tags l =
     let rec aux l = function
       | [] -> l
