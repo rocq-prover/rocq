@@ -1573,6 +1573,8 @@ control_flag: [
 | WITH "Redirect" ne_string sentence
 | REPLACE "Timeout" natural
 | WITH "Timeout" natural sentence
+| REPLACE "AllocLimit" natural [ "Mw" | "kw" ] 
+| WITH "AllocLimit" natural [ "Mw" | "kw" ] sentence
 | REPLACE "Fail"
 | WITH "Fail" sentence
 | REPLACE "Succeed"
