@@ -273,7 +273,8 @@ let rec strengthen_and_subst_module mb subst mp_from mp_to =
         strengthen_and_subst_struct struc subst
           mp_from mp_to false false delta_mb
       in
-      let reso' = add_mp_delta_resolver mp_to mp_from reso' in
+      (* Don't forget to add the original resolver up to substitution *)
+      let reso' = add_delta_resolver (subst_dom_delta_resolver subst delta_mb) (add_mp_delta_resolver mp_to mp_from reso') in
       strengthen_module_body ~src:mp_from (NoFunctor struc') reso' mb
   | MoreFunctor _ ->
     let subst = add_mp mp_from mp_to (empty_delta_resolver mp_to) subst in
