@@ -387,7 +387,7 @@ let if_verbose_load req f name =
 
 (** Load a module for the first time (i.e. dynlink it) *)
 
-let trigger_ml_object req plugin =
+let trigger_ml_object (req, plugin) =
   let () =
     if not @@ PluginSpec.is_loaded plugin then begin
       if not has_dynlink then
@@ -404,7 +404,13 @@ let unfreeze_ml_modules x =
   List.iter
     (fun name ->
        let name = PluginSpec.of_package name in
-       trigger_ml_object Summary name) x
+       trigger_ml_object (Summary, name)) x
+
+(* Beware of the order to avoid double-locking *)
+let unfreeze_ml_modules = Util.atomify unfreeze_ml_modules
+
+let trigger_ml_object req plugin =
+  Util.atomify trigger_ml_object (req, plugin)
 
 let () =
   Summary.declare_ml_modules_summary
