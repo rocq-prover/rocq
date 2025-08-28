@@ -212,6 +212,79 @@ let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
 
 let name_of_reference ref = Id.to_string (Nametab.basename_of_global ref)
 
+module StringDist = struct
+  open String
+  module Int = Stdlib.Int
+
+  (* code hacked from OCaml stdlib String.edit_distance, modified to
+     match a substring instead of whole string *)
+
+  let uchar_array_of_utf_8_string s =
+    let slen = length s in (* is an upper bound on Uchar.t count *)
+    let uchars = Array.make slen Uchar.max in
+    let k = ref 0 and i = ref 0 in
+    while (!i < slen) do
+      let dec = get_utf_8_uchar s !i in
+      i := !i + Uchar.utf_decode_length dec;
+      uchars.(!k) <- Uchar.utf_decode_uchar dec;
+      incr k;
+    done;
+    uchars, !k
+
+  let edit_distance' ?(limit = Int.max_int) s0 s1 =
+    let[@inline] minimum a b c = Int.min a (Int.min b c) in
+    (* XXX we should be able to cache s0
+       instead recomputing every time we do the check *)
+    let s0, len0 = uchar_array_of_utf_8_string s0 in
+    let s1, len1 = uchar_array_of_utf_8_string s1 in
+    if len0 - len1 >= limit then limit else
+    let rec loop row_minus2 row_minus1 row i len0 limit s0 s1 =
+      if i > len0 then Array.fold_left Int.min Int.max_int row_minus1 else
+        let len1 = Array.length row - 1 in
+        let row_min = ref Int.max_int in
+        row.(0) <- i;
+        (* stdlib has some limit-based shortcuts here but naively
+           copying them doesn't work for substring matching *)
+        for j = 1 to len1 do
+          let cost = if Uchar.equal s0.(i-1) s1.(j-1) then 0 else 1 in
+          let min = minimum
+              (row_minus1.(j-1) + cost) (* substitute *)
+              (row_minus1.(j) + 1)      (* delete *)
+              (row.(j-1) + 1)           (* insert *)
+          in
+          let min =
+            if (i > 1 && j > 1 &&
+                Uchar.equal s0.(i-1) s1.(j-2) &&
+                Uchar.equal s0.(i-2) s1.(j-1))
+            then Int.min min (row_minus2.(j-2) + cost) (* transpose *)
+            else min
+          in
+          row.(j) <- min;
+          row_min := Int.min !row_min min;
+        done;
+        if !row_min >= limit then (* can no longer decrease *) limit else
+        loop row_minus1 row row_minus2 (i + 1) len0 limit s0 s1
+    in
+    let ignore =
+      (* Value used to make the values around the diagonal stripe ignored
+         by the min computations when we have a limit. *)
+      (* XXX why is max_int + 1 not a problem? *)
+      limit + 1
+    in
+    let row_minus2 = Array.make (len1 + 1) ignore in
+    (* for substring matching row_minus1 starts with constant 0 instead of stdlib (fun x -> x) *)
+    let row_minus1 = Array.make (len1 + 1) 0 in
+    let row = Array.make (len1 + 1) ignore in
+    loop row_minus2 row_minus1 row 1 len0 limit s0 s1
+
+end
+
+let string_contains_upto ?(limit=2) ~pattern s =
+  if String.length pattern <= 4 then String.string_contains ~where:s ~what:pattern
+  else
+    let d = StringDist.edit_distance' ~limit:(limit+1) pattern s in
+     d <= limit
+
 let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> match query with
 | GlobSearchSubPattern (where,head,pat) ->
   let open Context.Rel.Declaration in
@@ -229,8 +302,7 @@ let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> ma
         if head then Constr_matching.is_matching_head
         else Constr_matching.is_matching_appsubterm ~closed:false in
       f env sigma pat (EConstr.of_constr typ)) typl
-| GlobSearchString s ->
-  String.string_contains ~where:(name_of_reference gr) ~what:s
+| GlobSearchString s -> string_contains_upto ~pattern:s (name_of_reference gr)
 | GlobSearchKind k -> (match kind with None -> false | Some k' -> k = k')
 | GlobSearchFilter f -> f gr
 
