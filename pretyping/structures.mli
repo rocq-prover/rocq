@@ -91,7 +91,6 @@ type t =
   | Default_cs
 
 val equal : Environ.env -> t -> t -> bool
-val compare : t -> t -> int
 val print : t -> Pp.t
 
 (** Return the form of the component of a canonical structure *)
@@ -153,7 +152,7 @@ val entries : unit -> entry list
 
 (** [entries_for p] returns the list of canonical entries that have
     p as their FieldName *)
-val entries_for : projection:Names.GlobRef.t -> entry list
+val entries_for : Environ.env -> projection:Names.GlobRef.t -> entry list
 
 end
 

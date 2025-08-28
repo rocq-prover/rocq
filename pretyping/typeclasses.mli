@@ -65,7 +65,7 @@ type instance = {
   is_impl: GlobRef.t;
 }
 
-val instances : GlobRef.t -> instance list option
+val instances : env -> GlobRef.t -> instance list option
 (** [None] if not a class *)
 
 val instances_exn : env -> evar_map -> GlobRef.t -> instance list
@@ -74,12 +74,12 @@ val instances_exn : env -> evar_map -> GlobRef.t -> instance list
 val typeclasses : unit -> typeclass list
 val all_instances : unit -> instance list
 
-val load_class : typeclass -> unit
+val load_class : env -> typeclass -> unit
 
-val load_instance : instance -> unit
-val remove_instance : instance -> unit
+val load_instance : env -> instance -> unit
+val remove_instance : env -> instance -> unit
 
-val class_info : GlobRef.t -> typeclass option
+val class_info : env -> GlobRef.t -> typeclass option
 (** [None] if not a class *)
 
 val class_info_exn : env -> evar_map -> GlobRef.t -> typeclass
@@ -98,7 +98,7 @@ val instance_impl : instance -> GlobRef.t
 
 val hint_priority : instance -> int option
 
-val is_class : GlobRef.t -> bool
+val is_class : env -> GlobRef.t -> bool
 
 (** Filter which evars to consider for resolution. *)
 type evar_filter = Evar.t -> Evar_kinds.t Lazy.t -> bool
@@ -117,8 +117,8 @@ val no_goals_or_obligations : evar_filter
 
 val make_unresolvables : (Evar.t -> bool) -> evar_map -> evar_map
 
-val is_class_evar : evar_map -> undefined evar_info -> bool
-val is_class_type : evar_map -> EConstr.types -> bool
+val is_class_evar : env -> evar_map -> undefined evar_info -> bool
+val is_class_type : env -> evar_map -> EConstr.types -> bool
 
 val resolve_typeclasses : ?filter:evar_filter -> ?unique:bool ->
   ?fail:bool -> env -> evar_map -> evar_map
@@ -134,7 +134,7 @@ val set_solve_all_instances : (env -> evar_map -> evar_filter -> bool -> bool ->
 
 val get_typeclasses_unique_solutions : unit -> bool
 
-val is_maybe_class_type : evar_map -> EConstr.types -> bool
+val is_maybe_class_type : env -> evar_map -> EConstr.types -> bool
 
 (* Deprecated *)
 val resolve_one_typeclass : ?unique:bool -> env -> evar_map -> EConstr.types -> evar_map * EConstr.constr

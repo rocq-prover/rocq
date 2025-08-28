@@ -1299,7 +1299,7 @@ let intern_field_ref qid =
 (**********************************************************************)
 (* Interpreting references                                            *)
 
-let find_appl_head_data env (_,ntnvars) c =
+let find_appl_head_data genv env (_,ntnvars) c =
   let loc = c.CAst.loc in
   match DAst.get c with
   | GVar id when not (Id.Map.mem id ntnvars) ->
@@ -1309,14 +1309,14 @@ let find_appl_head_data env (_,ntnvars) c =
      with Not_found -> None, [], [])
   | GRef (ref,_) ->
     let impls = implicits_of_global ref in
-    let scopes = find_arguments_scope ref in
+    let scopes = find_arguments_scope genv ref in
     Some (CAst.make ?loc ref), impls, scopes
   | GApp (r, l) ->
     begin match DAst.get r with
     | GRef (ref,_) ->
       let n = List.length l in
       let impls = implicits_of_global ref in
-      let scopes = find_arguments_scope ref in
+      let scopes = find_arguments_scope genv ref in
       Some (CAst.make ?loc ref),
       (if n = 0 then [] else List.map (drop_first_implicits n) impls),
        List.skipn_at_best n scopes
@@ -1326,7 +1326,7 @@ let find_appl_head_data env (_,ntnvars) c =
       let ref = GlobRef.ConstRef cst in
       let n = List.length l + 1 in
       let impls = implicits_of_global ref in
-      let scopes = find_arguments_scope ref in
+      let scopes = find_arguments_scope genv ref in
       Some (CAst.make ?loc (GlobRef.ConstRef cst)),
       List.map (drop_first_implicits n) impls,
       List.skipn_at_best n scopes
@@ -1820,7 +1820,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
     | GApp (r, l) ->
       begin match DAst.get r with
       | GRef (g,_) ->
-        let allscs = find_arguments_scope g in
+        let allscs = find_arguments_scope genv g in
         let allscs = simple_adjust_scopes (List.length l) allscs in
         let params = make_pars ?loc g in (* Rem: no letins *)
         let nparams = List.length params in
@@ -1948,7 +1948,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
           if Int.equal n 0 then select_impargs_size npats impls_st
           else List.skipn_at_best n (select_stronger_impargs impls_st) in
       adjust_to_down tags imps None in
-    let subscopes = adjust_to_down tags (List.skipn_at_best n (find_arguments_scope gr)) [] in
+    let subscopes = adjust_to_down tags (List.skipn_at_best n (find_arguments_scope genv gr)) [] in
     let has_letin = check_has_letin ?loc gr expanded npats (List.count is_status_implicit imps) tags in
     let rec aux imps subscopes tags pats =
     match imps, subscopes, tags, pats with
@@ -2575,7 +2575,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
     | Some (p, us, args0, nexpectedparams) ->
       (* A reference registered as projection *)
       check_not_notation_variable f ntnvars;
-      let head, impls, subscopes = find_appl_head_data env lvar f in
+      let head, impls, subscopes = find_appl_head_data globalenv env lvar f in
       let imps1, imps2 =
         if expl then
           [], []
@@ -2637,7 +2637,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
     in aux 1 allimps subscopes eargs rargs
 
   and apply_impargs env loc c args =
-    let head, impls, subscopes = find_appl_head_data env lvar c in
+    let head, impls, subscopes = find_appl_head_data globalenv env lvar c in
     let imps = select_impargs_size (List.length (List.filter (fun (_,x) -> x == None) args)) impls in
     let args = intern_impargs head env imps subscopes args in
     smart_gapp c loc args
@@ -2651,7 +2651,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
       | _ -> DAst.make ?loc:(Loc.merge_opt (loc_of_glob_constr f) loc) @@ GApp (f, l)
 
   and apply_args env loc hd args =
-    let _, _, subscopes = find_appl_head_data env lvar hd in
+    let _, _, subscopes = find_appl_head_data globalenv env lvar hd in
     smart_gapp hd loc (intern_args env subscopes args)
 
   and intern_args env subscopes = function

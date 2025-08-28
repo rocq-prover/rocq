@@ -122,19 +122,19 @@ let next_name_away_from na avoid =
   | Anonymous -> make_fresh avoid (Global.env ()) (Id.of_string "anon")
   | Name id -> make_fresh avoid (Global.env ()) id
 
-let rec is_class_arg c =
+let rec is_class_arg env c =
   let open Constr in
   match kind c with
   | Prod (_,_,c)
   | Cast (c,_,_)
-  | LetIn (_,_,_,c) -> is_class_arg c
+  | LetIn (_,_,_,c) -> is_class_arg env c
   | _ ->
     let c, _ = decompose_app c in
     match destRef c with
     | exception DestKO -> false
-    | r, _ -> is_class r
+    | r, _ -> is_class env r
 
-let combine_params avoid applied needed =
+let combine_params env avoid applied needed =
   let named, applied =
     List.partition
       (function
@@ -163,7 +163,7 @@ let combine_params avoid applied needed =
       aux (Id.List.assoc id named :: ids) avoid app need
 
     | decl :: need ->
-      begin match app, is_class_arg (get_type decl) with
+      begin match app, is_class_arg env (get_type decl) with
         | (x, _) :: app, false -> aux (x :: ids) avoid app need
 
         | [], false | _, true ->
@@ -189,14 +189,14 @@ let implicit_application env ty =
       if Libnames.idset_mem_qualid qid env then None
       else
         let gr = Nametab.locate qid in
-        Option.map (fun cl -> cl, clapp) (Typeclasses.class_info gr)
+        Option.map (fun cl -> cl, clapp) (Typeclasses.class_info (Global.env ()) gr)
     with Not_found -> None
   in
   match is_class with
   | None -> ty, env
   | Some (c, {CAst.loc;v=(id, par, inst)}) ->
     let avoid = Id.Set.union env (Id.Set.of_list (free_vars_of_constr_expr ty ~bound:env [])) in
-    let args, avoid = combine_params avoid par (List.rev c.cl_context) in
+    let args, avoid = combine_params (Global.env ()) avoid par (List.rev c.cl_context) in
     CAst.make ?loc @@ CAppExpl ((id, inst), args), avoid
 
 let warn_ignoring_implicit_status =

@@ -279,10 +279,12 @@ type required_module = full_path * string list
 let prim_token_interp_infos =
   ref (String.Map.empty : (required_module * prim_token_interp_info) String.Map.t)
 
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+
 (* Table from global_reference to backtrack-able informations about
    prim_token uninterpretation (in particular uninterpreter unique id). *)
 let prim_token_uninterp_infos =
-  ref (GlobRef.Map.empty : ((scope_name * (prim_token_interp_info * bool)) list) GlobRef.Map.t)
+  ref (GlobRefMap.empty : ((scope_name * (prim_token_interp_info * bool)) list) GlobRefMap.t)
 
 type prim_token_infos = {
   pt_local : bool; (** Is this interpretation local? *)
@@ -294,15 +296,16 @@ type prim_token_infos = {
 }
 
 let cache_prim_token_interpretation infos =
+  let env = Global.env () in
   let ptii = infos.pt_interp_info in
   let sc = infos.pt_scope in
   check_scope ~tolerant:true sc;
   prim_token_interp_infos :=
     String.Map.add sc (infos.pt_required,ptii) !prim_token_interp_infos;
   let add_uninterp r =
-    let l = try GlobRef.Map.find r !prim_token_uninterp_infos with Not_found -> [] in
+    let l = try GlobRefMap.find env r !prim_token_uninterp_infos with Not_found -> [] in
     prim_token_uninterp_infos :=
-      GlobRef.Map.add r ((sc,(ptii,infos.pt_in_match)) :: l)
+      GlobRefMap.add env r ((sc,(ptii,infos.pt_in_match)) :: l)
         !prim_token_uninterp_infos in
   List.iter add_uninterp infos.pt_refs
 
@@ -809,7 +812,7 @@ let uninterp_prim_token c local_scopes =
      let add_key (sc,n) =
        Option.map (fun k -> sc,n,k) (availability_of_prim_token n sc local_scopes) in
      let l =
-       try GlobRef.Map.find r !prim_token_uninterp_infos
+       try GlobRefMap.find (Global.env ()) r !prim_token_uninterp_infos
        with Not_found -> raise Notation_ops.No_match in
      let l = List.map_filter uninterp l in
      let l = List.map_filter add_key l in
@@ -968,7 +971,7 @@ let rec update_scopes cls scl = match cls, scl with
   | _, [] -> List.map (update_scope []) cls
   | cl :: cls, sco :: scl -> update_scope sco cl :: update_scopes cls scl
 
-let arguments_scope = ref GlobRef.Map.empty
+let arguments_scope = ref GlobRefMap.empty
 
 type arguments_scope_discharge_request =
   | ArgsScopeAuto
@@ -981,7 +984,7 @@ let load_arguments_scope _ (_,r,scl,cls,allscopes) =
      Scope" of the current environment (e.g. so that after inlining of a
      parameter in a functor, it takes the current environment into account *)
   let initial_stamp = initial_scope_class_map in
-  arguments_scope := GlobRef.Map.add r (scl,cls,initial_stamp) !arguments_scope
+  arguments_scope := GlobRefMap.add (Global.env ()) r (scl,cls,initial_stamp) !arguments_scope
 
 let cache_arguments_scope o =
   load_arguments_scope 1 o
@@ -1075,15 +1078,15 @@ let declare_arguments_scope local r scl =
      re-computations and keep these manually given scopes. *)
   declare_arguments_scope_gen req r (scl,[])
 
-let find_arguments_scope r =
+let find_arguments_scope env r =
   try
-    let (scl,cls,stamp) = GlobRef.Map.find r !arguments_scope in
+    let (scl,cls,stamp) = GlobRefMap.find env r !arguments_scope in
     let cur_stamp = !scope_class_map in
     if stamp == cur_stamp then scl
     else
       (* Recent changes in the Bind Scope base, we re-compute the scopes *)
       let scl' = update_scopes cls scl in
-      arguments_scope := GlobRef.Map.add r (scl',cls,cur_stamp) !arguments_scope;
+      arguments_scope := GlobRefMap.add env r (scl',cls,cur_stamp) !arguments_scope;
       scl'
   with Not_found -> []
 
@@ -1803,7 +1806,7 @@ let init () =
   delimiters_map := String.Map.empty;
   scope_class_map := initial_scope_class_map;
   prim_token_interp_infos := String.Map.empty;
-  prim_token_uninterp_infos := GlobRef.Map.empty
+  prim_token_uninterp_infos := GlobRefMap.empty
 
 let _ =
   Summary.declare_summary "symbols"

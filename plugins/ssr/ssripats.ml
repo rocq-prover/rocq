@@ -251,7 +251,7 @@ let rec nb_deps_assums cur env sigma t =
   match EConstr.kind sigma t' with
   | Constr.Prod(name,ty,body) ->
      if EConstr.Vars.noccurn sigma 1 body &&
-        not (Typeclasses.is_class_type sigma ty) then cur
+        not (Typeclasses.is_class_type env sigma ty) then cur
      else nb_deps_assums (cur+1) env sigma body
   | Constr.LetIn(name,ty,t1,t2) ->
      nb_deps_assums (cur+1) env sigma t2

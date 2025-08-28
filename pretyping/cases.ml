@@ -319,7 +319,7 @@ let inductive_template env sigma tmloc ind =
           let ctx, _ = destArity sigma ty in
           sigma, mkArity (ctx, s)
       in
-      let typeclass_candidate = Typeclasses.is_maybe_class_type sigma ty in
+      let typeclass_candidate = Typeclasses.is_maybe_class_type env sigma ty in
       let sigma, e =
         Evarutil.new_evar ~typeclass_candidate env ~src:(hole_source n) sigma ty
       in

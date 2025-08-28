@@ -51,17 +51,19 @@ type typing_constraint = IsType | OfType of types | WithoutTypeConstraint
 
 let (!!) env = GlobEnv.env env
 
+module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+
 let bidi_hints =
-  Summary.ref (GlobRef.Map.empty : int GlobRef.Map.t) ~name:"bidirectionalityhints"
+  Summary.ref (GlobRefMap.empty : int GlobRefMap.t) ~name:"bidirectionalityhints"
 
-let add_bidirectionality_hint gr n =
-  bidi_hints := GlobRef.Map.add gr n !bidi_hints
+let add_bidirectionality_hint env gr n =
+  bidi_hints := GlobRefMap.add env gr n !bidi_hints
 
-let get_bidirectionality_hint gr =
-  GlobRef.Map.find_opt gr !bidi_hints
+let get_bidirectionality_hint env gr =
+  GlobRefMap.find_opt env gr !bidi_hints
 
-let clear_bidirectionality_hint gr =
-  bidi_hints := GlobRef.Map.remove gr !bidi_hints
+let clear_bidirectionality_hint env gr =
+  bidi_hints := GlobRefMap.remove env gr !bidi_hints
 
 (************************************************************************)
 (* This concerns Cases *)
@@ -1068,7 +1070,7 @@ struct
       (* if `f` is a global, we retrieve bidirectionality hints *)
         try
           let (gr,_) = destRef sigma fj.uj_val in
-          Option.default length @@ get_bidirectionality_hint gr
+          Option.default length @@ get_bidirectionality_hint !!env gr
         with DestKO ->
           length
     in

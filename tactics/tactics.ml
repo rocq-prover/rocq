@@ -3002,7 +3002,7 @@ let specialize (c,lbind) ipat =
     | LocalAssum (na, t) :: decls ->
       let t = Vars.esubst Vars.lift_substituend subst t in
       let env = push_rel (LocalAssum (na, t)) env in
-      let typeclass_candidate = Typeclasses.is_maybe_class_type sigma t in
+      let typeclass_candidate = Typeclasses.is_maybe_class_type env sigma t in
       let sigma, ev = Evarutil.new_evar ~typeclass_candidate env sigma (lift 1 t) in
       let subst = Esubst.subs_cons (Vars.make_substituend ev) (Esubst.subs_shft (1, subst)) in
       instantiate sigma env subst ((env, ev) :: accu) decls
@@ -3157,7 +3157,7 @@ let specialize_eqs id =
         | _ ->
             if in_eqs then acc, in_eqs, ctx, ty
             else
-              let typeclass_candidate = Typeclasses.is_maybe_class_type !evars t in
+              let typeclass_candidate = Typeclasses.is_maybe_class_type env !evars t in
               let sigma, e = Evarutil.new_evar ~typeclass_candidate (push_rel_context ctx env) !evars t in
               evars := sigma;
                 aux false (LocalDef (na,e,t) :: ctx) (mkApp (lift 1 acc, [| mkRel 1 |])) b)

@@ -1051,7 +1051,7 @@ let warn_already_existing_class =
       Printer.pr_global g ++ str " is already declared as a typeclass.")
 
 let declare_existing_class g =
-  if Typeclasses.is_class g then warn_already_existing_class g
+  if Typeclasses.is_class (Global.env ()) g then warn_already_existing_class g
   else
     match g with
     | GlobRef.ConstRef x -> add_constant_class x

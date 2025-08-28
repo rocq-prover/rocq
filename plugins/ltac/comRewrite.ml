@@ -51,7 +51,7 @@ module PropGlobal = struct
   let respectful_ref () = Rocqlib.lib_ref "rewrite.prop.respectful"
 
   let proper_class =
-    fun () -> Option.get (TC.class_info (Rocqlib.lib_ref "rewrite.prop.Proper"))
+    fun () -> Option.get (TC.class_info (Global.env ()) (Rocqlib.lib_ref "rewrite.prop.Proper"))
 
   let proper_proj () = Rocqlib.lib_ref "rewrite.prop.proper_prf"
 

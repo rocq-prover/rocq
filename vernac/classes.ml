@@ -79,7 +79,7 @@ let add_instance_base inst =
  *)
 let perform_instance i =
   let i = { is_class = i.class_name; is_info = i.info; is_impl = i.instance } in
-  Typeclasses.load_instance i
+  Typeclasses.load_instance (Global.env ()) i
 
 let cache_instance inst =
   perform_instance inst;
@@ -193,7 +193,7 @@ let declare_instance ?(warn = false) env sigma info local glob =
  * classes persistent object
  *)
 
-let cache_class c = load_class c
+let cache_class c = load_class (Global.env ()) c
 
 let subst_class (subst,cl) =
   let do_subst_con c = Mod_subst.subst_constant subst c

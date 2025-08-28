@@ -120,7 +120,7 @@ let add_constant_kind kn k = csttab := Names.Cmap.add kn k !csttab
 let constant_kind kn = Names.Cmap.find kn !csttab
 
 let type_of_global_ref gr =
-  if Typeclasses.is_class gr then
+  if Typeclasses.is_class (Global.env ()) gr then
     "class"
   else
     let open Names.GlobRef in

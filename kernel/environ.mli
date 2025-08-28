@@ -290,6 +290,12 @@ val instantiate_context : UVars.Instance.t -> Vars.substl -> Name.t binder_annot
 
 (** {6 Name quotients} *)
 
+module type QS =
+sig
+  type t
+  val canonize : env -> t -> t
+end
+
 module type QNameS =
 sig
   type t
@@ -298,6 +304,23 @@ sig
   val hash : env -> t -> int
   val canonize : env -> t -> t
 end
+
+module type QMapS =
+sig
+  type key
+  type (+'a) t
+  val empty: 'a t
+  val is_empty: 'a t -> bool
+  val mem: env -> key -> 'a t -> bool
+  val add: env -> key -> 'a -> 'a t -> 'a t
+  val remove: env -> key -> 'a t -> 'a t
+  val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+  val merge: (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+  val find: env -> key -> 'a t -> 'a
+  val find_opt : env -> key -> 'a t -> 'a option
+end
+
+module QMap (M : CSig.UMapS) (_ : QS with type t = M.key) : QMapS with type key = M.key
 
 module QConstant : QNameS with type t = Constant.t
 
