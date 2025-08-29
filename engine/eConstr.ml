@@ -713,6 +713,33 @@ let fold_with_binders sigma g f e acc c =
     List.fold_left (fun acc c -> f e acc c) acc args
   | _ -> Constr.fold_constr_with_binders g f e acc c
 
+let fold_with_full_binders env sigma g f n acc c =
+  let open Context.Rel.Declaration in
+  match kind sigma c with
+  | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
+    | Construct _ | Int _ | Float _ | String _) -> acc
+  | Cast (c,_, t) -> f n (f n acc c) t
+  | Prod (na,t,c) -> f (g (LocalAssum (na, t)) n) (f n acc t) c
+  | Lambda (na,t,c) -> f (g (LocalAssum (na, t)) n) (f n acc t) c
+  | LetIn (na,b,t,c) -> f (g (LocalDef (na, b, t)) n) (f n (f n acc b) t) c
+  | App (c,l) -> Array.fold_left (f n) (f n acc c) l
+  | Evar ((evk, _) as ev) ->
+    let args = Evd.expand_existential sigma ev in
+    List.fold_left (fun acc c -> f n acc c) acc args
+  | Case (ci,u,pms,p,iv,c,bl) ->
+    let (ci, _, pms, (p,_), iv, c, bl) = annotate_case env sigma (ci, u, pms, p, iv, c, bl) in
+    let fold_ctx n accu (nas, c) =
+      f (List.fold_right g nas n) accu c
+    in
+    Array.fold_left (fold_ctx n) (f n (fold_invert (f n) (fold_ctx n (Array.fold_left (f n) acc pms) p) iv) c) bl
+  | Proj (_,_,c) -> f n acc c
+  | Fix (_,(lna,tl,bl)) | CoFix (_,(lna,tl,bl))->
+    let acc = Array.fold_left (f n) acc tl in
+    let n' = Array.fold_left2_i (fun i n na t -> g (LocalAssum (na, lift i t)) n) n lna tl in
+    Array.fold_left (f n') acc bl
+  | Array (_u,t,def,ty) ->
+    f n (f n (Array.fold_left (f n) acc t) def) ty
+
 let compare_gen k eq_inst eq_sort eq_constr eq_evars nargs c1 c2 =
   (c1 == c2) || Constr.compare_head_gen_with k k eq_inst eq_sort eq_constr eq_evars nargs c1 c2
 
