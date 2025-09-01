@@ -35,6 +35,9 @@ type erelevance
 
 (** {5 Existential variables and unification states} *)
 
+(** If true, enables generation of goal names. *)
+val generate_goal_names : unit -> bool
+
 (** {6 Evar filters} *)
 
 module Filter :
@@ -191,7 +194,8 @@ val new_pure_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   relevance:erelevance ->
   ?abstract_arguments:Abstraction.t -> ?candidates:econstr list ->
-  ?name:Id.t ->
+  ?name:(Id.t * bool) ->
+  ?parent:Evar.t ->
   ?typeclass_candidate:bool ->
   ?rrpat:bool ->
   named_context_val -> evar_map -> etypes -> evar_map * Evar.t
@@ -370,15 +374,19 @@ val downcast : Evar.t-> etypes -> evar_map -> evar_map
 (** Change the type of an undefined evar to a new type assumed to be a
     subtype of its current type; subtyping must be ensured by caller *)
 
+(** {6 Evar names} *)
+
 val evar_ident : Evar.t -> evar_map -> Id.t option
 
-val evar_has_ident : Evar.t -> evar_map -> bool
+val evar_has_name : Evar.t -> evar_map -> bool
 
-val rename : Evar.t -> Id.t -> evar_map -> evar_map
+val evar_has_unambiguous_name : Evar.t -> evar_map -> bool
+
+val add_name : Evar.t -> Id.t -> ?parent:Evar.t -> evar_map -> evar_map
+
+val transfer_name : Evar.t -> Evar.t -> evar_map -> evar_map
 
 val evar_key : Id.t -> evar_map -> Evar.t
-
-val evar_names : evar_map -> Nameops.Fresh.t
 
 val dependent_evar_ident : Evar.t -> evar_map -> Id.t
 

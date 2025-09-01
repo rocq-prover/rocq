@@ -1018,7 +1018,8 @@ GRAMMAR EXTEND Gram
   range_selector:
     [ [ n = natural ; "-" ; m = natural -> { Proofview.RangeSelector (n, m) }
       | n = natural -> { Proofview.NthSelector n }
-      | test_bracket_ident; "["; id = ident; "]" -> { Proofview.IdSelector id } ] ]
+      | test_bracket_ident; "["; id = fullyqualid; "]" -> {
+      let id = Evarnames.of_list id.CAst.v in Proofview.IdSelector id } ] ]
   ;
   goal_selector:
   [ [ l = LIST1 range_selector SEP "," -> { Goal_select.SelectList l } ] ]

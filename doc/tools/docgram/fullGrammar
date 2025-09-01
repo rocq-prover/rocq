@@ -518,7 +518,7 @@ command: [
 | "Unfocused"
 | "Show"
 | "Show" natural
-| "Show" ident
+| "Show" fullyqualid
 | "Show" "Existentials"
 | "Show" "Universes"
 | "Show" "Conjectures"
@@ -1366,7 +1366,7 @@ simple_reserv: [
 range_selector: [
 | natural "-" natural
 | natural
-| test_bracket_ident "[" ident "]"
+| test_bracket_ident "[" fullyqualid "]"
 ]
 
 goal_selector: [
