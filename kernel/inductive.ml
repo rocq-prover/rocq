@@ -996,7 +996,7 @@ let get_recargs_approx ?evars env tree ind args =
   build_recargs_nested (env,[]) tree (ind, args)
 
 (* [restrict_spec env spec p] restricts the size information in spec to what is
-   allowed to flow through a match with predicate p in environment env. *)
+   allowed to flow out of a match with predicate p in environment env. *)
 let restrict_spec ?evars env spec p =
   match spec with
   | Not_subterm | Internally_bound_subterm _ -> spec
@@ -1022,6 +1022,44 @@ let restrict_spec ?evars env spec p =
      end
   | _ -> Not_subterm
 
+(* [filter_stack_domain env spec p] restricts the size information in stack to
+   what is allowed to enter under a match with predicate p in environment env. *)
+let filter_stack_domain stack_element_specif set_iota_specif ?evars env p stack =
+  let absctx, ar = Term.decompose_lambda_decls p in
+  (* Optimization: if the predicate is not dependent, no restriction is needed
+     and we avoid building the recargs tree. *)
+  if noccur_with_meta 1 (Context.Rel.length absctx) ar then stack
+  else let env = push_rel_context absctx env in
+  let rec filter_stack env ar stack =
+    match stack with
+    | [] -> []
+    | elt :: stack' ->
+    let t = whd_all ?evars env ar in
+    match kind t with
+    | Prod (n,a,c0) ->
+      let d = LocalAssum (n,a) in
+      let ctx, a = whd_decompose_prod_decls ?evars env a in
+      let env = push_rel_context ctx env in
+      let ty, args = decompose_app_list (whd_all ?evars env a) in
+      let elt = match kind ty with
+      | Ind ind ->
+        let spec = stack_element_specif ?evars elt in
+        let sarg =
+        lazy (match Lazy.force spec with
+        | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
+        | Subterm(l,s,path) ->
+            let recargs = get_recargs_approx ?evars env path ind args in
+            let path = inter_wf_paths path recargs in
+            Subterm(l,s,path))
+        in
+        SArg sarg
+      | _ -> SArg (set_iota_specif (lazy Not_subterm))
+      in
+      elt :: filter_stack (push_rel d env) c0 stack'
+    | _ -> List.fold_right (fun _ l -> SArg (set_iota_specif (lazy Not_subterm)) :: l) stack []
+  in
+  filter_stack env ar stack
+
 (* [subterm_specif renv t] computes the recursive structure of [t] and
    compare its size with the size of the initial recursive argument of
    the fixpoint we are checking. [renv] collects such information
@@ -1035,17 +1073,18 @@ let rec subterm_specif ?evars renv stack t =
     | Rel k -> subterm_var k renv
     | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
       let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
-       let stack' = push_stack_closures renv l stack in
-       let cases_spec =
-         branches_specif renv (lazy_subterm_specif ?evars renv [] c) ci
-       in
-       let stl =
-         Array.mapi (fun i br' ->
-                     let stack_br = push_stack_args (cases_spec.(i)) stack' in
-                     subterm_specif ?evars renv stack_br br')
-                    lbr in
-       let spec = subterm_spec_glb stl in
-       restrict_spec ?evars renv.env spec p
+      let stack' = push_stack_closures renv l stack in
+      let stack' = filter_stack_domain stack_element_specif Fun.id ?evars renv.env p stack' in
+      let cases_spec =
+        branches_specif renv (lazy_subterm_specif ?evars renv [] c) ci
+      in
+      let stl =
+        Array.mapi (fun i br' ->
+                    let stack_br = push_stack_args (cases_spec.(i)) stack' in
+                    subterm_specif ?evars renv stack_br br')
+                  lbr in
+      let spec = subterm_spec_glb stl in
+      restrict_spec ?evars renv.env spec p
 
     | Fix ((recindxs,i),(_,typarray,bodies as recdef)) ->
       (* when proving that the fixpoint f(x)=e is less than n, it is enough
@@ -1206,42 +1245,6 @@ let check_is_subterm x tree =
   | Not_subterm | Subterm (_,Large,_) -> InvalidSubterm
   | Internally_bound_subterm l -> NeedReduceSubterm l
 
-let filter_stack_domain ?evars env nr p stack =
-  let absctx, ar = Term.decompose_lambda_decls p in
-  (* Optimization: if the predicate is not dependent, no restriction is needed
-     and we avoid building the recargs tree. *)
-  if noccur_with_meta 1 (Context.Rel.length absctx) ar then stack
-  else let env = push_rel_context absctx env in
-  let rec filter_stack env ar stack =
-    match stack with
-    | [] -> []
-    | elt :: stack' ->
-    let t = whd_all ?evars env ar in
-    match kind t with
-    | Prod (n,a,c0) ->
-      let d = LocalAssum (n,a) in
-      let ctx, a = whd_decompose_prod_decls ?evars env a in
-      let env = push_rel_context ctx env in
-      let ty, args = decompose_app_list (whd_all ?evars env a) in
-      let elt = match kind ty with
-      | Ind ind ->
-        let spec = stack_element_specif ?evars elt in
-        let sarg =
-        lazy (match Lazy.force spec with
-        | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
-        | Subterm(l,s,path) ->
-            let recargs = get_recargs_approx ?evars env path ind args in
-            let path = inter_wf_paths path recargs in
-            Subterm(l,s,path))
-        in
-        SArg sarg
-      | _ -> SArg (set_iota_specif nr (lazy Not_subterm))
-      in
-      elt :: filter_stack (push_rel d env) c0 stack'
-    | _ -> List.fold_right (fun _ l -> SArg (set_iota_specif nr (lazy Not_subterm)) :: l) stack []
-  in
-  filter_stack env ar stack
-
 let find_uniform_parameters recindx nargs bodies =
   let nbodies = Array.length bodies in
   let min_indx = Array.fold_left min nargs recindx in
@@ -1379,7 +1382,7 @@ let check_one_fix ?evars renv recpos trees def =
             let nr = redex_level rs' in
             let case_spec =
               branches_specif renv (set_iota_specif nr (lazy_subterm_specif ?evars renv [] c_0)) ci in
-            let stack' = filter_stack_domain ?evars renv.env nr p stack in
+            let stack' = filter_stack_domain stack_element_specif (set_iota_specif nr) ?evars renv.env p stack in
             let rs' =
               Array.fold_left_i (fun k rs' br' ->
                   let stack_br = push_stack_args case_spec.(k) stack' in
