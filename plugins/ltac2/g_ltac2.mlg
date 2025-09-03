@@ -145,20 +145,22 @@ GRAMMAR EXTEND Gram
   GLOBAL: ltac2_expr ltac2_type tac2def_val tac2def_typ tac2def_ext tac2def_syn
           tac2def_mut tac2expr_in_env ltac2_atom;
   tac2pat:
-    [ "1" LEFTA
+    [ "3" NONA
+      [ p = tac2pat; "|"; pl = LIST1 tac2pat LEVEL "2" SEP "|" ->
+        { let pl = p :: pl in
+          CAst.make ~loc @@ CPatOr pl }
+      | p = tac2pat; "as"; id = identref -> { CAst.make ~loc @@ CPatAs (p,id) } ]
+    | "2" RIGHTA
+      [ p1 = tac2pat; "::"; p2 = tac2pat ->
+        { CAst.make ~loc @@ CPatRef (AbsKn (Other Tac2quote.Refs.c_cons), [p1; p2])}
+      ]
+    | "1" LEFTA
       [ qid = Prim.qualid; pl = LIST1 tac2pat LEVEL "0" -> {
         if Tac2env.is_constructor qid then
           CAst.make ~loc @@ CPatRef (RelId qid, pl)
         else
           CErrors.user_err ~loc (Pp.str "Syntax error") }
       | qid = Prim.qualid -> { pattern_of_qualid qid }
-      (* | "["; "]" -> { CAst.make ~loc @@ CPatRef (AbsKn (Other Tac2core.Core.c_nil), []) } *)
-      | p1 = tac2pat; "::"; p2 = tac2pat ->
-        { CAst.make ~loc @@ CPatRef (AbsKn (Other Tac2quote.Refs.c_cons), [p1; p2])}
-      | p = tac2pat; "|"; pl = LIST1 tac2pat SEP "|" ->
-        { let pl = p :: pl in
-          CAst.make ~loc @@ CPatOr pl }
-      | p = tac2pat; "as"; id = identref -> { CAst.make ~loc @@ CPatAs (p,id) }
       ]
     | "0"
       [ "_" -> { CAst.make ~loc @@ CPatVar Anonymous }
@@ -404,7 +406,7 @@ GRAMMAR EXTEND Gram
       | -> { [] } ] ]
   ;
   tac2rec_fieldpat:
-    [ [ qid = Prim.qualid; e = OPT [ ":="; e = tac2pat LEVEL "1" -> { e } ] ->
+    [ [ qid = Prim.qualid; e = OPT [ ":="; e = tac2pat -> { e } ] ->
         { let e = match e with
           | Some e -> e
           | None ->
