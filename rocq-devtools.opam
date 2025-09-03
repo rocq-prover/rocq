@@ -27,7 +27,7 @@ bug-reports: "https://github.com/rocq-prover/rocq/issues"
 depends: [
   "dune" {>= "3.8"}
   "rocq-runtime" {= version}
-  "yojson"
+  "yojson" {>= "2.0"}
   "camlzip"
   "odoc" {with-doc}
 ]
