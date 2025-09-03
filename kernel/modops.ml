@@ -410,7 +410,7 @@ let rec strengthen_and_subst_module mb subst mp_from mp_to =
         mod_delta = add_mp_delta_resolver mp_to mp_from reso' }
   | MoreFunctor _ ->
     let subst = add_mp mb.mod_mp mp_to empty_delta_resolver subst in
-    subst_module subst do_delta_dom mb
+    subst_module subst do_delta_dom_codom mb
 
 and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
   let strengthen_and_subst_field reso' item = match item with
