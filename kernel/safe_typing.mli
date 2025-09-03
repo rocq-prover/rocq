@@ -240,7 +240,7 @@ type compiled_library
 
 val dirpath_of_library : compiled_library -> DirPath.t
 val module_of_library : compiled_library -> Mod_declarations.module_body
-val univs_of_library : compiled_library -> Univ.ContextSet.t
+val univs_of_library : compiled_library -> Sorts.QVar.Set.t * Univ.ContextSet.t
 val check_flags_for_library : compiled_library -> safe_transformer0
 
 val start_library : DirPath.t -> ModPath.t safe_transformer
