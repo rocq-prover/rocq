@@ -160,8 +160,8 @@ Ltac2 language
   (`#20516 <https://github.com/rocq-prover/rocq/pull/20516>`_,
   by Gaëtan Gilbert).
 - **Added:**
-  `rename`, `eassumption`, `cycle`, and `exfalso` Ltac2 notations
-  (`#20197 <https://github.com/coq/coq/pull/20197>`_,
+  `rename` (in `Ltac1CompatNotations`), `eassumption`, `cycle`, and `exfalso` Ltac2 notations
+  (`#20197 <https://github.com/rocq-prover/rocq/pull/20197>`_,
   by Josselin Poiret).
 - **Added:**
   ``Ltac2.Constr.is_string``, ``Ltac2.Constr.is_sort``

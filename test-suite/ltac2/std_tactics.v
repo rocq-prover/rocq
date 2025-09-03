@@ -144,14 +144,6 @@ Proof.
   Std.apply true false [fun () => Control.plus (fun () => 'I) (fun _ => '0), Std.NoBindings] None.
 Qed.
 
-(* rename *)
-Goal forall (x : nat), x = x.
-Proof.
-  intro x.
-  rename x into y.
-  exact (@eq_refl _ y).
-Qed.
-
 (* eassumption *)
 Goal forall (x : nat) y z, x = y -> y = z -> x = z.
 Proof.
