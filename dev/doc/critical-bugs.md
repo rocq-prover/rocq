@@ -74,6 +74,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Incorrect specification of PrimFloat.leb](#incorrect-specification-of-primfloatleb)
       - [Incorrect implementation of SFclassify.](#incorrect-implementation-of-sfclassify)
       - [nativenorm reading back closures as arbitrary floating-point values](#nativenorm-reading-back-closures-as-arbitrary-floating-point-values)
+      - [guard condition issue made it inconsistent with univalence](#guard-condition-issue-made-it-inconsistent-with-univalence)
     - [Deserialization](#deserialization)
       - [deserialization of .vo data not properly checked](#deserialization-of-vo-data-not-properly-checked)
   - [Probably non exploitable fixed bugs](#probably-non-exploitable-fixed-bugs)
@@ -819,6 +820,18 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - found by: Jason Gross
 - GH issue number: coq/coq#17871
 - risk: proof of false when using primitive floats and native_compute
+
+#### guard condition issue made it inconsistent with univalence
+
+- component: guard condition
+- introduced: variant of [the issue with propositional extensionality](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-Sets) that was not fixed then
+- impacted released versions: the relative inconsistency was present from the very beginning, until 9.0
+- impacted coqchk versions: *-9.0
+- fixed in: 9.0.1
+- fixed by further constraining the guard condition: [PR 21050](https://github.com/rocq-prover/rocq/pull/21050)
+- found by: Thomas Lamiaux, Yann Leray, Pierre-Marie Pédrot, Nicolas Tabareau
+- GH issue number: [21053](https://github.com/rocq-prover/issues/21053)
+- risk: unlikely to be exploited by chance (?)
 
 ### Deserialization
 
