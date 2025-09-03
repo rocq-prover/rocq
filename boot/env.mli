@@ -136,3 +136,5 @@ val ocamlfind : unit -> string
 val print_config : ?prefix_var_name:string -> t -> out_channel -> unit
 
 val relocate : Coq_config.relocatable_path -> string
+
+val rocqbin : string
