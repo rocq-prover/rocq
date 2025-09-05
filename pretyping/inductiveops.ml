@@ -127,7 +127,7 @@ let mis_is_recursive_subset env listind rarg =
   Array.exists one_is_rec (dest_subterms rarg)
 
 let mis_is_recursive env ((ind,_),mib,mip) =
-  mis_is_recursive_subset env (List.init mib.mind_ntypes (fun i -> (ind,i)))
+  mis_is_recursive_subset env (List.init (Array.length mib.mind_packets) (fun i -> (ind,i)))
     (Rtree.Kind.make mip.mind_recargs)
 
 let mis_nf_constructor_type ((_,j),u) (mib,mip) =

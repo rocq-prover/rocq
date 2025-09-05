@@ -280,7 +280,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
       if chkpos && not (List.for_all (noccur_between n ntypes) auxnonrecargs) then
         failwith_non_pos_list n ntypes auxnonrecargs;
       (* Nested mutual inductive types are not supported *)
-      let auxntyp = mib.mind_ntypes in
+      let auxntyp = Array.length mib.mind_packets in
         if not (Int.equal auxntyp 1) then raise (IllFormedInd (LocalNonPos n));
         (* The nested inductive type with parameters removed *)
         let auxlcvect = abstract_mind_lc auxntyp auxnrecpar mind mip.mind_nf_lc in
@@ -541,7 +541,6 @@ let build_inductive env ~sec_univs names prv univs template variance
   let mib =
       (* Build the mutual inductive *)
     { mind_record = NotRecord;
-      mind_ntypes = ntypes;
       mind_finite = isfinite;
       mind_hyps = hyps;
       mind_univ_hyps = univ_hyps;

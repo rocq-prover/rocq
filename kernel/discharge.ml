@@ -146,7 +146,7 @@ let cook_inductive info mib =
   let cache = create_cache info in
   let nnewparams = Context.Rel.nhyps (rel_context_of_cooking_cache cache) in
   let mind_params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
-  let ntypes = mib.mind_ntypes in
+  let ntypes = Array.length mib.mind_packets in
   let mind_packets = Array.map (cook_one_ind info cache ~ntypes) mib.mind_packets in
   let mind_record = match mib.mind_record with
     | NotRecord -> NotRecord
@@ -188,7 +188,6 @@ let cook_inductive info mib =
     mind_packets;
     mind_record;
     mind_finite = mib.mind_finite;
-    mind_ntypes = mib.mind_ntypes;
     mind_hyps;
     mind_univ_hyps = univ_hyps;
     mind_nparams = mib.mind_nparams + nnewparams;
