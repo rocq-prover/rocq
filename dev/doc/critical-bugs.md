@@ -31,6 +31,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [module subtyping disrespected squashing status of inductives](#module-subtyping-disrespected-squashing-status-of-inductives)
       - [Functor inlining drops universe substitution](#functor-inlining-drops-universe-substitution)
       - [Primitives are incorrectly considered convertible to anything by module subtyping](#primitives-are-incorrectly-considered-convertible-to-anything-by-module-subtyping)
+      - [missing substitution when strengthening functors](#missing-substitution-when-strengthening-functors)
     - [Universes](#universes)
       - [issue with two parameters in the same universe level](#issue-with-two-parameters-in-the-same-universe-level)
       - [universe polymorphism can capture global universes](#universe-polymorphism-can-capture-global-universes)
@@ -331,6 +332,18 @@ and lack of checking of relevance marks on constants in coqchk
 - GH issue number: coq/coq#18503
 - exploit: see issue
 - risk: high if there is a Primitive in a Module Type, otherwise low
+
+#### Missing substitution when strengthening functors
+
+- component: modules
+- introduced: 8.5 for the kernel (c5b699f), 8.10 for the checker (#8773)
+- impacted released versions: 8.5-9.0.0
+- impacted coqchk version: 8.10-9.0.0
+- fixed in: V9.0.1
+- found by: Pierre-Marie Pédrot
+- GH issue number: rocq-prover/rocq#21051
+- exploit: see issue
+- risk: could be exploited by mistake when using heavy module machinery
 
 ### Universes
 

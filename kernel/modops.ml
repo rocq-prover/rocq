@@ -277,7 +277,7 @@ let rec strengthen_and_subst_module mb subst mp_from mp_to =
       strengthen_module_body ~src:mp_from (NoFunctor struc') reso' mb
   | MoreFunctor _ ->
     let subst = add_mp mp_from mp_to (empty_delta_resolver mp_to) subst in
-    subst_module subst_dom subst mp_from mb
+    subst_module subst_dom_codom subst mp_from mb
 
 and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
   let strengthen_and_subst_field reso' item = match item with
