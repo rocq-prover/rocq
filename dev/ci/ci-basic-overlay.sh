@@ -447,7 +447,7 @@ project perennial 'https://github.com/mit-pdos/perennial' '12aec9c9829939c32eb8e
 ########################################################################
 # metacoq
 ########################################################################
-project metacoq 'https://github.com/MetaCoq/metacoq' '17ba45ffc84d37e187ef87a55b840890f1d87f01'
+project metacoq 'https://github.com/MetaCoq/metacoq' '1f2c5a0b2517046a97e9eedf303e715e066b5fbf'
 # Contact @mattam82, @yforster on github
 
 ########################################################################
