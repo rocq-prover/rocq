@@ -141,16 +141,16 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
   in
 
   let check_packet cst p1 p2 =
-    let check f test why = if not (test (f p1) (f p2)) then error why in
-      check (fun p -> p.mind_consnames) (Array.equal Id.equal) NotSameConstructorNamesField;
-      check (fun p -> p.mind_typename) Id.equal NotSameInductiveNameInBlockField;
+    let check f test why = let fp2 = f p2 in if not (test (f p1) fp2) then error (why fp2) in
+      check (fun p -> p.mind_consnames) (Array.equal Id.equal) (fun _ -> NotSameConstructorNamesField);
+      check (fun p -> p.mind_typename) Id.equal (fun _ -> NotSameInductiveNameInBlockField);
       check (fun p -> p.mind_squashed) (Option.equal squash_info_equal)
-        (NotConvertibleInductiveField p2.mind_typename);
+        (fun _ -> NotConvertibleInductiveField p2.mind_typename);
       (* nf_lc later *)
       (* nf_arity later *)
       (* user_lc ignored *)
       (* user_arity ignored *)
-      check (fun p -> p.mind_nrealargs) Int.equal (NotConvertibleInductiveField p2.mind_typename); (* How can it fail since the type of inductive are checked below? [HH] *)
+      check (fun p -> p.mind_nrealargs) Int.equal (fun _ -> NotConvertibleInductiveField p2.mind_typename); (* How can it fail since the type of inductive are checked below? [HH] *)
       (* listrec ignored *)
       (* finite done *)
       (* nparams done *)
@@ -158,7 +158,26 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
       let ty1 = type_of_inductive ((mib1, p1), inst) in
       let ty2 = type_of_inductive ((mib2, p2), inst) in
       let cst = check_inductive_type cst p2.mind_typename ty1 ty2 in
-        cst
+      (* we check that records and their field names are preserved. *)
+      (** FIXME: this check looks nonsense *)
+      check (fun p -> p.mind_record <> NotRecord) (==) (fun x -> RecordFieldExpected x);
+      if p1.mind_record <> NotRecord then begin
+        let rec names_prod_letin t = match kind t with
+          | Prod(n,_,t) -> n.binder_name::(names_prod_letin t)
+          | LetIn(n,_,_,t) -> n.binder_name::(names_prod_letin t)
+          | Cast(t,_,_) -> names_prod_letin t
+          | _ -> []
+        in
+        assert (Int.equal (Array.length p1.mind_user_lc) 1);
+        assert (Int.equal (Array.length p2.mind_user_lc) 1);
+        check (fun p ->
+            (* can nparamdecls depend on which mib we look at? *)
+            let nparamdecls = List.length mib1.mind_params_ctxt in
+            let names = names_prod_letin (p.mind_user_lc.(0)) in
+            snd (List.chop nparamdecls names)) (List.equal Name.equal)
+          (fun x -> RecordProjectionsExpected x);
+      end;
+      cst
   in
   let mind = MutInd.make1 kn1 in
   let check_cons_types i cst p1 p2 =
@@ -191,26 +210,6 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
                     (subst_mind subst2 (MutInd.make kn2 kn2'))
     then ()
     else error NotEqualInductiveAliases
-  end;
-  (* we check that records and their field names are preserved. *)
-  (** FIXME: this check looks nonsense *)
-  check (fun mib -> mib.mind_record <> NotRecord) (==) (fun x -> RecordFieldExpected x);
-  if mib1.mind_record <> NotRecord then begin
-    let rec names_prod_letin t = match kind t with
-      | Prod(n,_,t) -> n.binder_name::(names_prod_letin t)
-      | LetIn(n,_,_,t) -> n.binder_name::(names_prod_letin t)
-      | Cast(t,_,_) -> names_prod_letin t
-      | _ -> []
-    in
-    assert (Int.equal (Array.length mib1.mind_packets) 1);
-    assert (Int.equal (Array.length mib2.mind_packets) 1);
-    assert (Int.equal (Array.length mib1.mind_packets.(0).mind_user_lc) 1);
-    assert (Int.equal (Array.length mib2.mind_packets.(0).mind_user_lc) 1);
-    check (fun mib ->
-      let nparamdecls = List.length mib.mind_params_ctxt in
-      let names = names_prod_letin (mib.mind_packets.(0).mind_user_lc.(0)) in
-      snd (List.chop nparamdecls names)) (List.equal Name.equal)
-      (fun x -> RecordProjectionsExpected x);
   end;
   (* we first check simple things *)
   let cst =

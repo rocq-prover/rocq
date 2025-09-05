@@ -721,10 +721,10 @@ let lookup_projection p env =
   let mib = lookup_mind mind env in
   (if not (Int.equal mib.mind_nparams (Projection.npars p))
    then anomaly ~label:"lookup_projection" Pp.(str "Bad number of parameters on projection."));
-  match mib.mind_record with
+  match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord -> anomaly ~label:"lookup_projection" Pp.(str "not a projection")
   | PrimRecord infos ->
-    let _,_,rs,typs = infos.(i) in
+    let _,_,rs,typs = infos in
     let arg = Projection.arg p in
     rs.(arg), typs.(arg)
 
