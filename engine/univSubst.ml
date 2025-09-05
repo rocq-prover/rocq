@@ -57,7 +57,7 @@ let constraint_add_leq v u c =
       else if j <= -1 (* n = m+k, v+k <= u and k>0 *) then
         if Level.equal x y then (* u+k <= u with k>0 *)
           Constraints.add (x,Lt,x) c
-        else CErrors.anomaly (Pp.str"Unable to handle arbitrary u+k <= v constraints.")
+        else CErrors.user_err (Pp.str"Unable to handle arbitrary u+k <= v constraints.")
       else if j = 0 then
         Constraints.add (x,Le,y) c
       else (* j >= 1 *) (* m = n + k, u <= v+k *)
