@@ -6,7 +6,7 @@ open Gramext
 open Format
 open Util
 
-exception Error of string
+exception ParseError of string
 (** Raised by parsers when the first component of a stream pattern is
    accepted, but one of the following components is rejected. *)
 
@@ -21,7 +21,9 @@ module type S = sig
   type 'c pattern
   type ty_pattern = TPattern : 'a pattern -> ty_pattern
 
-  exception StreamFail
+  type peek_error = unit
+
+  type 'a parser_v = ('a, peek_error) result
 
   (** Type combinators to factor the module type between explicit
       state passing in Grammar and global state in Procq *)
@@ -62,9 +64,9 @@ module type S = sig
     val make : string -> 'a t mod_estate
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a }
+    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
-    val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a with_gstate
+    val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
     val print : Format.formatter -> 'a t -> unit with_estate
     val is_empty : 'a t -> bool with_estate
     type any_t = Any : 'a t -> any_t
@@ -176,9 +178,19 @@ type te = L.te
 type 'c pattern = 'c L.pattern
 type ty_pattern = TPattern : 'a pattern -> ty_pattern
 
-type 'a parser_t = (L.keyword_state,L.te) LStream.t -> 'a
+type peek_error = unit
 
-exception StreamFail
+type 'a parser_v = ('a, peek_error) result
+
+type 'a parser_t = (L.keyword_state,L.te) LStream.t -> 'a parser_v
+
+let (let*) : 'a parser_v -> ('a -> 'b parser_v) -> 'b parser_v = Result.bind
+let (let+) : 'a parser_v -> ('a ->' b) -> 'b parser_v = fun x f -> Result.map f x
+
+let (<+>) (x: 'a parser_v) (y:unit -> 'a parser_v) : 'a parser_v =
+  match x with
+  | Ok _ -> x
+  | Error () -> y ()
 
 (** Used to propagate possible presence of SELF/NEXT in a rule (binary and) *)
 type ('a, 'b, 'c) ty_and_rec =
@@ -989,6 +1001,7 @@ let symb_failed entry prev_symb_result prev_symb symb =
   let tree = Node (MayRec3, {node = symb; brother = DeadEnd; son = DeadEnd}) in
   tree_failed entry prev_symb_result prev_symb tree
 
+(* XXX don't use exceptions for this *)
 exception TokenListFailed : 's ty_entry * 'a * ('s, 'tr, 'a) ty_symbol * ('s, 'b, 'c) ty_tree -> exn
 
 let level_number entry lab =
@@ -1002,32 +1015,34 @@ let level_number entry lab =
     Dlevels elev -> lookup 0 elev
   | Dparser _ -> raise Not_found
 
-let rec top_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> (s, norec, a) ty_symbol =
+let rec top_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> (s, norec, a) ty_symbol parser_v =
   fun entry ->
   function
-    Sself -> Snterm entry
-  | Snext -> Snterm entry
-  | Snterml (e, _) -> Snterm e
-  | Slist1sep (s, sep) -> Slist1sep (top_symb entry s, sep)
-  | _ -> raise StreamFail
+    Sself -> Ok (Snterm entry)
+  | Snext -> Ok (Snterm entry)
+  | Snterml (e, _) -> Ok (Snterm e)
+  | Slist1sep (s, sep) -> let+ s = top_symb entry s in Slist1sep (s, sep)
+  | _ -> Error ()
 
-let entry_of_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> a ty_entry =
+let entry_of_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> a ty_entry parser_v =
   fun entry ->
   function
-    Sself -> entry
-  | Snext -> entry
-  | Snterm e -> e
-  | Snterml (e, _) -> e
-  | _ -> raise StreamFail
+    Sself -> Ok entry
+  | Snext -> Ok entry
+  | Snterm e -> Ok e
+  | Snterml (e, _) -> Ok e
+  | _ -> Error ()
 
-let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tree =
+let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tree parser_v =
   fun entry ->
   function
-    Node (MayRec3, {node = s; brother = bro; son = son}) ->
-      Node (MayRec3, {node = top_symb entry s; brother = bro; son = son})
+  | Node (MayRec3, {node = s; brother = bro; son = son}) ->
+    let+ s' = top_symb entry s in
+    Node (MayRec3, {node = s'; brother = bro; son = son})
   | Node (NoRec3, {node = s; brother = bro; son = son}) ->
-      Node (NoRec3, {node = top_symb entry s; brother = bro; son = son})
-  | LocAct (_, _) | DeadEnd -> raise StreamFail
+    let+ s' = top_symb entry s in
+    Node (NoRec3, {node = s'; brother = bro; son = son})
+  | LocAct (_, _) | DeadEnd -> Error ()
 
 let warn_tolerance =
   CWarnings.(create_in (create_warning ~name:"level-tolerance"
@@ -1074,7 +1089,7 @@ let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
   warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
 let empty_entry ename levn strm =
-  raise (Error ("entry [" ^ ename ^ "] is empty"))
+  raise (ParseError ("entry [" ^ ename ^ "] is empty"))
 
 let start_parser_of_entry gstate entry levn (strm:_ LStream.t) =
   (get_entry gstate.estate entry).estart gstate levn strm
@@ -1089,39 +1104,34 @@ let continue_parser_of_entry gstate entry levfrom levn bp a (strm:_ LStream.t) =
 let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_tree -> GState.t -> r parser_t =
   fun entry nlevn alevn ->
   function
-    DeadEnd -> (fun _ (strm__ : _ LStream.t) -> raise StreamFail)
-  | LocAct (act, _) -> (fun _ (strm__ : _ LStream.t) -> act)
+  | DeadEnd -> (fun _ (strm__ : _ LStream.t) -> Error ())
+  | LocAct (act, _) -> (fun _ (strm__ : _ LStream.t) -> Ok act)
   | Node (_, {node = Sself; son = LocAct (act, _); brother = DeadEnd}) ->
       (* SELF on the right-hand side of the last rule *)
       (fun gstate (strm__ : _ LStream.t) ->
-         let a = start_parser_of_entry gstate entry alevn strm__ in act a)
+         let+ a = start_parser_of_entry gstate entry alevn strm__ in act a)
   | Node (_, {node = Sself; son = LocAct (act, _); brother = bro}) ->
       (* SELF on the right-hand side of a rule *)
       let p2 = parser_of_tree entry nlevn alevn bro in
       (fun gstate (strm__ : _ LStream.t) ->
          match start_parser_of_entry gstate entry alevn strm__ with
-         | a -> act a
-         | exception StreamFail ->  p2 gstate strm__)
+         | Ok a -> Ok (act a)
+         | Error () -> p2 gstate strm__)
   | Node (_, {node = Stoken tok; son = son; brother = DeadEnd}) ->
           parser_of_token_list entry nlevn alevn tok son
   | Node (_, {node = Stoken tok; son = son; brother = bro}) ->
           let p2 = parser_of_tree entry nlevn alevn bro in
           let p1 = parser_of_token_list entry nlevn alevn tok son in
           (fun gstate (strm__ : _ LStream.t) ->
-            try p1 gstate strm__ with StreamFail -> p2 gstate strm__)
+             p1 gstate strm__ <+> (fun () -> p2 gstate strm__))
   | Node (_, {node = s; son = son; brother = DeadEnd}) ->
           let ps = parser_of_symbol entry nlevn s in
           let p1 = parser_of_tree entry nlevn alevn son in
           let p1 = parser_cont p1 entry nlevn alevn s son in
           (fun gstate (strm__ : _ LStream.t) ->
              let bp = LStream.count strm__ in
-             let a = ps gstate strm__ in
-             let act =
-               try p1 gstate bp a strm__ with
-                 StreamFail ->
-                   raise (Error (tree_failed entry a s son))
-             in
-             act a)
+             let* a = ps gstate strm__ in
+             p1 gstate bp a strm__)
   | Node (_, {node = s; son = son; brother = bro}) ->
           let ps = parser_of_symbol entry nlevn s in
           let p1 = parser_of_tree entry nlevn alevn son in
@@ -1129,20 +1139,18 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
           let p2 = parser_of_tree entry nlevn alevn bro in
           (fun gstate (strm : _ LStream.t) ->
              let bp = LStream.count strm in
-             match try Some (ps gstate strm) with StreamFail -> None with
-               Some a ->
-                 begin match
-                   (try Some (p1 gstate bp a strm) with StreamFail -> None)
-                 with
-                   Some act -> act a
-                 | None -> raise (Error (tree_failed entry a s son))
-                 end
-             | None -> p2 gstate strm)
+             match ps gstate strm with
+             | Ok a -> p1 gstate bp a strm
+             | Error () -> p2 gstate strm)
+
 and parser_cont : type s tr tr' a r.
-  (GState.t -> (a -> r) parser_t) -> s ty_entry -> int -> int -> (s, tr, a) ty_symbol -> (s, tr', a -> r) ty_tree -> GState.t -> int -> a -> (a -> r) parser_t =
-  fun p1 entry nlevn alevn s son gstate bp a (strm__ : _ LStream.t) ->
-  try p1 gstate strm__ with
-    StreamFail ->
+  (GState.t -> (a -> r) parser_t) -> s ty_entry -> int -> int -> (s, tr, a) ty_symbol -> (s, tr', a -> r) ty_tree -> GState.t -> int -> a -> _ -> r parser_v =
+  fun p1 entry nlevn alevn s son gstate bp a0 (strm__ : _ LStream.t) ->
+  match p1 gstate strm__ with
+  | Ok v -> Ok (v a0)
+  | Error () ->
+    let fail a = raise (ParseError (tree_failed entry a s son)) in
+    let or_fail a x = match x with Ok x -> x | Error () -> fail a in
     (* Recover from a success on [s] with result [a] followed by a
         failure on [son] in a rule of the form [a = s; son] *)
     (* Discard the rule if what has been consumed before failing is
@@ -1150,9 +1158,9 @@ and parser_cont : type s tr tr' a r.
        « OPT "!"; ident » fails to see an ident and the OPT was resolved
        into the empty sequence, with application e.g. to being able to
        safely write « LIST1 [ OPT "!"; id = ident -> id] ». *)
-    if LStream.count strm__ == bp then fun a -> raise StreamFail
+    if LStream.count strm__ == bp then Error ()
+    else if not gstate.recover then fail a0
     else
-    try
       (* Try to replay the son with the top occurrence of NEXT (by
          default at level nlevn) and trailing SELF (by default at alevn)
          replaced with self at top level;
@@ -1161,14 +1169,11 @@ and parser_cont : type s tr tr' a r.
          « SELF; "\/"; same-entry-at-top-level » with application e.g. to
          accept "A \/ forall x, x = x" w/o requiring the expected
          parentheses as in "A \/ (forall x, x = x)". *)
-      if gstate.recover then
-        let a = parser_of_tree entry nlevn alevn (top_tree entry son) gstate strm__ in
+      match let* top = top_tree entry son in parser_of_tree entry nlevn alevn top gstate strm__ with
+      | Ok a ->
         warn_recover nlevn alevn (get_node entry son) gstate bp strm__;
-        a
-      else
-        raise StreamFail
-    with
-      StreamFail ->
+        Ok (a a0)
+      | Error () ->
         (* In case of success on just SELF, NEXT or an explicit call to
            a subentry followed by a failure on the rest (son), retry
            parsing as if this entry had been called at its toplevel;
@@ -1176,19 +1181,15 @@ and parser_cont : type s tr tr' a r.
            is retried with « "{"; same-entry-at-top-level; "}" », allowing
            e.g. to parse « {1 + 1} » while « {(1 + 1)} » would
            have been expected according to the level. *)
-      if gstate.recover then
         let p1 = parser_of_tree entry nlevn alevn son in
-        let a = continue_parser_of_entry gstate (entry_of_symb entry s) None 0 bp a strm__ in
-        let act =
-          try p1 gstate strm__ with
-            StreamFail -> raise (Error (tree_failed entry a s son))
+        let a =
+          let* s' = entry_of_symb entry s in
+          continue_parser_of_entry gstate s' None 0 bp a0 strm__
         in
-        fun _ ->
-          warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
-          act a
-
-      else
-        raise (Error (tree_failed entry a s son))
+        let a = or_fail a0 a in
+        let act = or_fail a (p1 gstate strm__) in
+        warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
+        Ok (act a)
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
 finite sequence of tokens. E.g., in
@@ -1216,33 +1217,33 @@ and parser_of_token_list : type s tr lt r.
        fun gstate last_a strm ->
         (match Option.bind (LStream.peek_nth gstate.kwstate n strm) (L.tok_match tok) with
          | Some a ->
-           (match try Some (p1 gstate a strm) with StreamFail -> None with
-            | Some act -> act a
-            | None ->
+           (match p1 gstate a strm with
+            | Ok act -> Ok (act a)
+            | Error () ->
               (try p2 gstate last_a strm
                with TokenListFailed _ -> raise (TokenListFailed (entry, a, Stoken tok, son))))
          | None ->
             (try p2 gstate last_a strm
              with TokenListFailed _ -> raise (TokenListFailed (entry, last_a, Stoken last_tok, tree))))
-    | DeadEnd -> fun gstate last_a strm -> raise StreamFail
+    | DeadEnd -> fun gstate last_a strm -> Error ()
     | _ ->
        let ps = parser_of_tree entry nlevn alevn tree in
        fun gstate last_a strm ->
          for _i = 1 to n do LStream.junk gstate.kwstate strm done;
-         match
-           try Some (ps gstate strm) with StreamFail ->
-           (* Tolerance: retry w/o granting the level constraint (see recover) *)
-           if gstate.recover then
-             try
+         let v = ps gstate strm in
+         let v =
+           if not gstate.recover then v else
+             v <+> fun () ->
+               (* Tolerance: retry w/o granting the level constraint (see recover) *)
                let bp = LStream.count strm in
-               let a = Some (parser_of_tree entry nlevn alevn (top_tree entry tree) gstate strm) in
-               warn_recover nlevn alevn (get_node entry tree) gstate bp strm; a
-             with StreamFail -> None
-           else
-             None
-         with
-         | Some act -> act
-         | None -> raise (TokenListFailed (entry, last_a, (Stoken last_tok), tree))
+               let* top = top_tree entry tree in
+               let+ a = parser_of_tree entry nlevn alevn top gstate strm in
+               warn_recover nlevn alevn (get_node entry tree) gstate bp strm;
+               a
+         in
+         match v with
+         | Ok v -> Ok v
+         | Error () -> raise (TokenListFailed (entry, last_a, (Stoken last_tok), tree))
   in
   let ps = loop 1 tok tree in
   fun gstate strm ->
@@ -1251,12 +1252,12 @@ and parser_of_token_list : type s tr lt r.
       (match L.tok_match tok tok' with
        | Some a ->
          begin
-           try let act = ps gstate a strm in act a
+           try let+ act = ps gstate a strm in act a
            with TokenListFailed (entry, a, tok, tree) ->
-             raise (Error (tree_failed entry a tok tree))
+             raise (ParseError (tree_failed entry a tok tree))
          end
-       | None -> raise StreamFail)
-    | None -> raise StreamFail
+       | None -> Error ())
+    | None -> Error ()
 and parser_of_symbol : type s tr a.
   s ty_entry -> int -> (s, tr, a) ty_symbol -> GState.t -> a parser_t =
   fun entry nlevn ->
@@ -1264,77 +1265,82 @@ and parser_of_symbol : type s tr a.
   | Slist0 s ->
       let ps = parser_of_symbol entry nlevn s in
       let rec loop gstate al (strm__ : _ LStream.t) =
-        match try Some (ps gstate strm__ :: al) with StreamFail -> None with
-          Some al -> loop gstate al strm__
-        | _ -> al
+        match ps gstate strm__ with
+        | Ok a -> loop gstate (a::al) strm__
+        | Error () -> al
       in
       (fun gstate (strm__ : _ LStream.t) ->
-         let a = loop gstate [] strm__ in List.rev a)
+         let a = loop gstate [] strm__ in Ok (List.rev a))
   | Slist0sep (symb, sep) ->
       let ps = parser_of_symbol entry nlevn symb in
       let pt = parser_of_symbol entry nlevn sep in
       let rec kont gstate al (strm__ : _ LStream.t) =
-        match try Some (pt gstate strm__) with StreamFail -> None with
-          Some v ->
-            let al =
-              try ps gstate strm__ :: al with
-                StreamFail ->
-                  raise (Error (symb_failed entry v sep symb))
+        match pt gstate strm__ with
+        | Ok v ->
+            let a = match ps gstate strm__ with
+              | Ok a -> a
+              | Error () ->
+                raise (ParseError (symb_failed entry v sep symb))
             in
-            kont gstate al strm__
-        | _ -> al
+            kont gstate (a::al) strm__
+        | Error () -> al
       in
       (fun gstate (strm__ : _ LStream.t) ->
-         match try Some (ps gstate strm__ :: []) with StreamFail -> None with
-           Some al -> let a = kont gstate al strm__ in List.rev a
-         | _ -> [])
+         match ps gstate strm__ with
+         | Ok a -> let a = kont gstate [a] strm__ in Ok (List.rev a)
+         | Error () -> Ok [])
   | Slist1 s ->
       let ps = parser_of_symbol entry nlevn s in
       let rec loop gstate al (strm__ : _ LStream.t) =
-        match try Some (ps gstate strm__ :: al) with StreamFail -> None with
-          Some al -> loop gstate al strm__
-        | _ -> al
+        match ps gstate strm__ with
+        | Ok a -> loop gstate (a::al) strm__
+        | Error () -> al
       in
       (fun gstate (strm__ : _ LStream.t) ->
-         let al = ps gstate strm__ :: [] in
-         let a = loop gstate al strm__ in List.rev a)
+         let* a = ps gstate strm__ in
+         let a = loop gstate [a] strm__ in Ok (List.rev a))
   | Slist1sep (symb, sep) ->
       let ps = parser_of_symbol entry nlevn symb in
       let pt = parser_of_symbol entry nlevn sep in
       let rec kont gstate al (strm__ : _ LStream.t) =
-        match try Some (pt gstate strm__) with StreamFail -> None with
-          Some v ->
-            let al =
-              try ps gstate strm__ :: al with
-                StreamFail ->
-                if not gstate.recover then raise StreamFail else
-                  let bp = LStream.count strm__ in
-                  let a =
-                    try parser_of_symbol entry 0 (top_symb entry symb) gstate strm__
-                    with StreamFail ->
-                      raise (Error (symb_failed entry v sep symb))
-                  in
-                  (* not sure about nlevn/alevn args here *)
-                  let () = warn_recover 1 0 (Capsule (entry, symb)) gstate bp strm__ in
-                  a :: al
-            in
-            kont gstate al strm__
-        | _ -> al
+        match pt gstate strm__ with
+        | Ok v ->
+          let* a =
+            match ps gstate strm__ with
+            | Ok a -> Ok a
+            | Error () ->
+              if not gstate.recover then Error () else
+                let bp = LStream.count strm__ in
+                let a =
+                  match
+                    let* top = top_symb entry symb in
+                    parser_of_symbol entry 0 top gstate strm__
+                  with
+                  | Ok a -> a
+                  | Error () ->
+                    raise (ParseError (symb_failed entry v sep symb))
+                in
+                (* not sure about nlevn/alevn args here *)
+                let () = warn_recover 1 0 (Capsule (entry, symb)) gstate bp strm__ in
+                Ok a
+          in
+          kont gstate (a::al) strm__
+        | Error () -> Ok al
       in
       (fun gstate (strm__ : _ LStream.t) ->
-         let al = ps gstate strm__ :: [] in
-         let a = kont gstate al strm__ in List.rev a)
+         let* a = ps gstate strm__ in
+         let+ a = kont gstate [a] strm__ in List.rev a)
   | Sopt s ->
       let ps = parser_of_symbol entry nlevn s in
       (fun gstate (strm__ : _ LStream.t) ->
-         match try Some (ps gstate strm__) with StreamFail -> None with
-           Some a -> Some a
-         | _ -> None)
+         match ps gstate strm__ with
+         | Ok a -> Ok (Some a)
+         | Error () -> Ok None)
   | Stree t ->
       let pt = parser_of_tree entry 1 0 t in
       (fun gstate (strm__ : _ LStream.t) ->
          let bp = LStream.count strm__ in
-         let a = pt gstate strm__ in
+         let+ a = pt gstate strm__ in
          let ep = LStream.count strm__ in
          let loc = LStream.interval_loc bp ep strm__ in a loc)
   | Snterm e -> (fun gstate (strm__ : _ LStream.t) -> start_parser_of_entry gstate e 0 strm__)
@@ -1353,20 +1359,20 @@ and parser_of_token : type s a.
     match LStream.peek kwstate strm with
     | Some tok ->
       (match f tok with
-       | Some r -> LStream.junk kwstate strm; r
-       | None -> raise StreamFail)
-    | None -> raise StreamFail
+       | Some r -> LStream.junk kwstate strm; Ok r
+       | None -> Error ())
+    | None -> Error ()
 and parser_of_tokens : type s.
   s ty_entry -> ty_pattern list -> L.keyword_state -> unit parser_t =
   fun entry tokl ->
   let rec loop n = function
-  | [] -> fun kwstate strm -> for _i = 1 to n do LStream.junk kwstate strm done; ()
+  | [] -> fun kwstate strm -> for _i = 1 to n do LStream.junk kwstate strm done; Ok ()
   | TPattern tok :: tokl ->
      fun kwstate strm ->
        let tok' = LStream.peek_nth kwstate n strm in
        match Option.bind tok' (L.tok_match tok) with
        | Some _ -> loop (n+1) tokl kwstate strm
-       | None -> raise StreamFail
+       | None -> Error ()
   in
   loop 0 tokl
 
@@ -1399,7 +1405,7 @@ and parser_of_tokens : type s.
 
 let rec start_parser_of_levels entry clevn =
   function
-    [] -> (fun _gstate levn (strm__ : _ LStream.t) -> raise StreamFail)
+    [] -> (fun _gstate levn (strm__ : _ LStream.t) -> Error ())
   | Level lev :: levs ->
       let p1 = start_parser_of_levels entry (succ clevn) levs in
       match lev.lprefix with
@@ -1423,7 +1429,7 @@ let rec start_parser_of_levels entry clevn =
                  *)
                  let (strm__ : _ LStream.t) = strm in
                  let bp = LStream.count strm__ in
-                 let act = p2 gstate strm__ in
+                 let* act = p2 gstate strm__ in
                  let ep = LStream.count strm__ in
                  let a = act (LStream.interval_loc bp ep strm__) in
                  continue_parser_of_entry gstate entry (Some clevn) levn bp a strm)
@@ -1435,12 +1441,12 @@ let rec start_parser_of_levels entry clevn =
                 else
                   let (strm__ : _ LStream.t) = strm in
                   let bp = LStream.count strm__ in
-                  match try Some (p2 gstate strm__) with StreamFail -> None with
-                    Some act ->
+                  match p2 gstate strm__ with
+                  | Ok act ->
                       let ep = LStream.count strm__ in
                       let a = act (LStream.interval_loc bp ep strm__) in
                       continue_parser_of_entry gstate entry (Some clevn) levn bp a strm
-                  | _ -> p1 gstate levn strm__
+                  | Error () -> p1 gstate levn strm__
 
 (** [continue_parser_of_levels entry clevn levels levn bp a strm] goes
     bottom-up from the last level to level [clevn], ignoring rules
@@ -1455,7 +1461,7 @@ let rec start_parser_of_levels entry clevn =
 *)
 let rec continue_parser_of_levels entry clevn =
   function
-    [] -> (fun _gstate levfrom levn bp a (strm__ : _ LStream.t) -> raise StreamFail)
+    [] -> (fun _gstate levfrom levn bp a (strm__ : _ LStream.t) -> Error ())
   | Level lev :: levs ->
       let p1 = continue_parser_of_levels entry (succ clevn) levs in
       match lev.lsuffix with
@@ -1473,18 +1479,17 @@ let rec continue_parser_of_levels entry clevn =
               (* Skip rules before [levn] *)
               p1 gstate levfrom levn bp a strm
             else if (not gstate.recover && match levfrom with Some levfrom -> levfrom < clevn | None -> false) then
-              raise StreamFail
+              Error ()
             else
               let (strm__ : _ LStream.t) = strm in
               let ep = LStream.count strm__ in
-              let c = try p1 gstate levfrom levn bp a strm__ with
-                StreamFail ->
-                  let act = p2 gstate strm__ in
+              let+ c = p1 gstate levfrom levn bp a strm__ <+> fun () ->
+                  let* act = p2 gstate strm__ in
                   let ep = LStream.count strm__ in
                   let a = act a (LStream.interval_loc bp ep strm__) in
                   if gstate.has_non_assoc && lev.assoc = NonA then
                     if clevn = levn then
-                      a
+                      Ok a
                     else
                       continue_parser_of_entry gstate entry (Some (clevn-1)) levn bp a strm
                   else
@@ -1497,11 +1502,11 @@ let rec continue_parser_of_levels entry clevn =
               c
 
 let make_continue_parser_of_entry entry = function
-  | [] -> (fun _ _ _ _ _ (_ : _ LStream.t) -> raise StreamFail)
+  | [] -> (fun _ _ _ _ _ (_ : _ LStream.t) -> Error ())
   | elev ->
     let p = lazy (continue_parser_of_levels entry 0 elev) in
     (fun gstate levfrom levn bp a (strm__ : _ LStream.t) ->
-       try Lazy.force p gstate levfrom levn bp a strm__ with StreamFail -> a)
+       Lazy.force p gstate levfrom levn bp a strm__ <+> fun () -> Ok a)
 
 let make_start_parser_of_entry entry = function
   | [] -> empty_entry entry.ename
@@ -1558,19 +1563,18 @@ module Parsable = struct
       let loc = LStream.get_loc (LStream.count ts) ts in
       Loc.merge loc loc'
     in
-    try efun ts with
-    | StreamFail as exn ->
-      let _, info = Exninfo.capture exn in
+    match efun ts with
+    | Ok v -> v
+    | Error () ->
       let loc = get_parsing_loc () in
-      let info = Loc.add_loc info loc in
-      let exn = Error ("illegal begin of " ^ entry.ename) in
-      Exninfo.iraise (exn, info)
-    | Error _ as exn ->
+      let exn = ParseError ("illegal begin of " ^ entry.ename) in
+      Loc.raise ~loc exn
+    | exception (ParseError _ as exn) ->
       let exn, info = Exninfo.capture exn in
       let loc = get_parsing_loc () in
       let info = Loc.add_loc info loc in
       Exninfo.iraise (exn, info)
-    | exc ->
+    | exception exc ->
       (* An error produced by the evaluation of the right-hand side *)
       (* of a rule, or a signal such as Sys.Break; we leave to the *)
       (* error the responsibility of locating itself *)
@@ -1623,11 +1627,11 @@ module Entry = struct
 
   let parse (e : 'a t) p gstate : 'a =
     Parsable.parse_parsable gstate e p
-  let parse_token_stream (e : 'a t) ts gstate : 'a =
+  let parse_token_stream (e : 'a t) ts gstate : 'a parser_v =
     start_parser_of_entry gstate e 0 ts
   let name e = e.ename
 
-  type 'a parser_fun = { parser_fun : L.keyword_state -> (L.keyword_state,te) LStream.t -> 'a }
+  type 'a parser_fun = { parser_fun : L.keyword_state -> (L.keyword_state,te) LStream.t -> 'a parser_v }
   let of_parser_val e { parser_fun = p } = {
     eentry = e;
     estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.kwstate strm);

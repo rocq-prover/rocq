@@ -197,7 +197,7 @@ struct
     if contiguous n (n+m-1) strm then Some m else None
 
   let to_entry s (lk : t) =
-    let run kwstate strm = match lk 0 kwstate strm with None -> raise StreamFail | Some _ -> () in
+    let run kwstate strm = match lk 0 kwstate strm with None -> Error () | Some _ -> Ok () in
     Entry.(of_parser s { parser_fun = run })
 
   let (>>) (lk1 : t) lk2 n kwstate strm = match lk1 n kwstate strm with
