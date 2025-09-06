@@ -1195,7 +1195,7 @@ Managing the local context
 
          .. rocqtop:: all
 
-            intros until 1.
+            intros until 1.  (* x and y are dependent premises, x = y is a non-dependent premise *)
 
       .. exn:: No quantified hypothesis named @ident in current goal even after head-reduction.
 
