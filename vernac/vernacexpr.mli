@@ -77,6 +77,7 @@ type printable =
   | PrintRegistered
   | PrintRegisteredSchemes
   | PrintNotation of qualid Constrexpr.notation_entry_gen * string
+  | PrintOutput
 
 type glob_search_where = InHyp | InConcl | Anywhere
 
@@ -489,6 +490,8 @@ type nonrec synpure_vernac_expr =
   | VernacPrimitive of ident_decl * CPrimitives.op_or_type * constr_expr option
   | VernacComments of comment list
   | VernacAttributes of Attributes.vernac_flags
+  | VernacTestOutput of string
+  | VernacDropOutput
 
   (* Proof management *)
   | VernacAbort
@@ -527,6 +530,7 @@ type control_flag_r =
   | ControlTimeout of int
   | ControlFail
   | ControlSucceed
+  | ControlCaptureOutput
 
 type control_flag = control_flag_r CAst.t
 
