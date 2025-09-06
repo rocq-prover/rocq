@@ -243,7 +243,8 @@ let add_coqlib_known st recur root phys_dir log_dir f =
   match get_extension f [".vo"; ".vos"] with
     | (basename, (".vo" | ".vos")) ->
         add_paths recur root st.State.coqlib phys_dir log_dir basename
-    | _ -> ()
+    | (f,_) ->
+        add_paths recur root st.State.other phys_dir log_dir f
 
 let add_known st recur root phys_dir log_dir f =
   match get_extension f [".v"; ".vo"; ".vos"] with
