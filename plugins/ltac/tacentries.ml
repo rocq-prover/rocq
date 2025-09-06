@@ -943,7 +943,7 @@ let argument_extend (type a b c) ~plugin ~name (arg : (a, b, c) tactic_argument)
   | Vernacextend.Arg_rules rules ->
     let e = Procq.create_generic_entry2 name (Genarg.rawwit wit) in
     let plugin_uid = (plugin, "argextend:"^name) in
-    let () = Egramml.grammar_extend ~plugin_uid e (Procq.Fresh (Gramlib.Gramext.First, [None, None, rules])) in
+    let () = Egramml.grammar_extend ~plugin_uid e (Procq.Fresh (Gramlib.Gramext.First, [None, Some RightA, rules])) in
     e
   in
   let (rpr, gpr, tpr) = arg.arg_printer in
