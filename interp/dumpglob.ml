@@ -133,7 +133,7 @@ let type_of_global_ref gr =
       "var" ^ type_of_logical_kind knd
     | IndRef ind ->
         let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
-          if mib.Declarations.mind_record <> Declarations.NotRecord then
+          if oib.Declarations.mind_record <> Declarations.NotRecord then
             begin match mib.Declarations.mind_finite with
             | Finite -> "indrec"
             | BiFinite -> "rec"

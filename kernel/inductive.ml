@@ -461,8 +461,8 @@ let is_allowed_fixpoint sind star =
 (************************************************************************)
 
 let is_private (mib,_) = mib.mind_private = Some true
-let is_primitive_record (mib,_) =
-  match mib.mind_record with
+let is_primitive_record (_,mip) =
+  match mip.mind_record with
   | PrimRecord _ -> true
   | NotRecord | FakeRecord -> false
 

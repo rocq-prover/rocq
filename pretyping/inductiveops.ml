@@ -284,8 +284,8 @@ let is_squashed sigma specifu =
     (loc_squashed_to_quality sigma)
     specifu
 
-let is_allowed_elimination sigma (((mib,_),_) as specifu) s =
-  match mib.mind_record with
+let is_allowed_elimination sigma (((_,mip),_) as specifu) s =
+  match mip.mind_record with
   | PrimRecord _ -> true
   | NotRecord | FakeRecord ->
      let s = EConstr.ESorts.kind sigma s in
@@ -311,8 +311,8 @@ let make_allowed_elimination_actions sigma s =
                  try Some (Evd.set_leq_sort sigma (mk sq) (mk indq))
                  with UGraph.UniverseInconsistency _ -> None }
 
-let make_allowed_elimination sigma ((mib,_),_ as specifu) s =
-  match mib.mind_record with
+let make_allowed_elimination sigma ((_,mip),_ as specifu) s =
+  match mip.mind_record with
   | PrimRecord _ -> Some sigma
   | NotRecord | FakeRecord ->
      Inductive.allowed_elimination_gen
@@ -325,7 +325,7 @@ let make_allowed_elimination sigma ((mib,_),_ as specifu) s =
 (* XXX questionable for sort poly inductives *)
 let elim_sort (mib,mip) =
   let is_record =
-    match mib.mind_record with
+    match mip.mind_record with
     | NotRecord | FakeRecord -> false
     | PrimRecord _ -> true in
   let has_args mip =
@@ -359,7 +359,7 @@ let sorts_for_schemes specif =
   constant_sorts_below (elim_sort specif)
 
 let has_dependent_elim (mib,mip) =
-  match mib.mind_record with
+  match mip.mind_record with
   | PrimRecord _ -> mib.mind_finite == BiFinite || mip.mind_relevance == Irrelevant
   | NotRecord | FakeRecord -> true
 
@@ -581,11 +581,11 @@ let compute_projections env (kn, i as ind) =
   let mib = Environ.lookup_mind kn env in
   let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
   let u = EInstance.make u in
-  let x = match mib.mind_record with
+  let x = match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord ->
     anomaly Pp.(str "Trying to build primitive projections for a non-primitive record")
   | PrimRecord info ->
-    let id, _, _, _ = info.(i) in
+    let id, _, _, _ = info in
     make_annot (Name id) (ERelevance.make mib.mind_packets.(i).mind_relevance)
   in
   let pkt = mib.mind_packets.(i) in

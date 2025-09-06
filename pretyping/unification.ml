@@ -1018,12 +1018,12 @@ let rec is_neutral env sigma ts t =
 
 let is_eta_constructor_app env sigma ts f l1 term =
   match EConstr.kind sigma f with
-  | Construct (((_, i as ind), j), u) when j == 1 ->
+  | Construct (((mind, i), j), u) when j == 1 ->
     let open Declarations in
-    let mib = lookup_mind (fst ind) env in
-      (match mib.Declarations.mind_record with
+    let mib = lookup_mind mind env in
+      (match mib.mind_packets.(i).mind_record with
       | PrimRecord info when mib.Declarations.mind_finite == Declarations.BiFinite &&
-          let (_, projs, _, _) = info.(i) in
+          let (_, projs, _, _) = info in
           Array.length projs == Array.length l1 - mib.Declarations.mind_nparams ->
         (* Check that the other term is neutral *)
         is_neutral env sigma ts term
