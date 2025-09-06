@@ -1,0 +1,4 @@
+fun x : T => match x with
+             | C i => i
+             end
+     : T -> True

@@ -261,35 +261,36 @@ let add_cpatt_for_params ind l =
   if !Flags.in_debugger then l else
     Util.List.addn  (Inductiveops.inductive_nparamdecls (Global.env()) ind) (DAst.make @@ PatVar Anonymous) l
 
-let drop_implicits_in_patt cst nb_expl args =
+let drop_implicits_in_patt cst nb_expl ?(tags=[]) args =
   let impl_st = implicits_of_global cst in
   let impl_data = extract_impargs_data impl_st in
   let rec impls_fit l = function
-    | [], t -> Some (List.rev_append l t)
-    | _, [] -> None
-    | h::t, { CAst.v = CPatAtom None }::tt when is_status_implicit h -> impls_fit l (t,tt)
-    | h::_, _ when is_status_implicit h -> None
-    | _::t, hh::tt -> impls_fit (hh::l) (t,tt)
+    | [], t, _ -> Some (List.rev_append l t)
+    | _, [], _ -> None
+    | t, hh :: tt, true :: tags -> impls_fit (hh :: l) (t, tt, tags)
+    | h::t, { CAst.v = CPatAtom None }::tt, ((false :: tags) | ([] as tags)) when is_status_implicit h -> impls_fit l (t,tt,tags)
+    | h::_, _, _ when is_status_implicit h -> None
+    | _::t, hh::tt, ((false :: tags) | ([] as tags)) -> impls_fit (hh::l) (t,tt,tags)
   in
-  let try_impls_fit (imps,args) =
+  let try_impls_fit (imps,args,tags) =
     if not !Constrintern.parsing_explicit &&
        ((!Flags.raw_print || !print_implicits) &&
         List.exists is_status_implicit imps)
        (* Note: !print_implicits_explicit_args=true not supported for patterns *)
     then None
-    else impls_fit [] (imps,args)
+    else impls_fit [] (imps,args,tags)
   in
   let rec select = function
     | [] -> None
     | (_,imps)::imps_list ->
-      match try_impls_fit (imps,args) with
+      match try_impls_fit (imps,args, tags) with
         | None -> select imps_list
         | x -> x
   in
   if Int.equal nb_expl 0 then select impl_data
   else
     let imps = List.skipn_at_best nb_expl (select_stronger_impargs impl_st) in
-    try_impls_fit (imps,args)
+    try_impls_fit (imps,args, tags)
 
 let destPrim = function { CAst.v = CPrim t } -> Some t | _ -> None
 let destPatPrim = function { CAst.v = CPatPrim t } -> Some t | _ -> None
@@ -423,7 +424,8 @@ let rec extern_cases_pattern_in_scope ((custom,(lev_after:int option)),scopes as
                     else CPatCstr (c, Some (add_patt_for_params (fst cstrsp) args), [])
                   else
                     let full_args = add_patt_for_params (fst cstrsp) args in
-                    match drop_implicits_in_patt (GlobRef.ConstructRef cstrsp) 0 full_args with
+                    let tags = Inductiveops.constructor_alltags (Global.env()) cstrsp in
+                    match drop_implicits_in_patt (GlobRef.ConstructRef cstrsp) 0 ~tags full_args with
                       | Some true_args -> CPatCstr (c, None, true_args)
                       | None           -> CPatCstr (c, Some full_args, [])
           in
@@ -525,19 +527,21 @@ let rec extern_notation_ind_pattern allscopes vars ind args = function
 let extern_ind_pattern_in_scope (custom,scopes as allscopes) vars ind args =
   (* pboutill: There are letins in pat which is incompatible with notations and
      not explicit application. *)
-  if !Flags.in_debugger||Inductiveops.inductive_has_local_defs (Global.env()) ind then
+  if !Flags.in_debugger then
     let c = extern_reference vars (GlobRef.IndRef ind) in
     let args = List.map (extern_cases_pattern_in_scope allscopes vars) args in
-    CAst.make @@ CPatCstr (c, Some (add_patt_for_params ind args), [])
+    CAst.make @@ CPatCstr (c, Some args, [])
   else
     try
-      if !Flags.raw_print || !print_no_symbol then raise No_match;
+      if !Flags.raw_print || !print_no_symbol || Inductiveops.inductive_has_local_defs (Global.env()) ind
+        then raise No_match;
       extern_notation_ind_pattern allscopes vars ind args
           (uninterp_ind_pattern_notations (Global.env ()) ind)
     with No_match ->
       let c = extern_reference vars (GlobRef.IndRef ind) in
       let args = List.map (extern_cases_pattern_in_scope allscopes vars) args in
-      match drop_implicits_in_patt (GlobRef.IndRef ind) 0 args with
+      let tags = Inductiveops.inductive_alltags (Global.env()) ind in
+      match drop_implicits_in_patt (GlobRef.IndRef ind) 0 ~tags args with
       | Some true_args -> CAst.make @@ CPatCstr (c, None, true_args)
       | None           -> CAst.make @@ CPatCstr (c, Some args, [])
 
