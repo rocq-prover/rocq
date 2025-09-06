@@ -18,7 +18,97 @@ Version 9.1
 Summary of changes
 ~~~~~~~~~~~~~~~~~~
 
-TODO
+We highlight some of the most impactful changes here:
+
+- fixed incorrect guard checking leading to inconsistencies (multiple PRs)
+
+- sort polymorphic universe instances should now be written
+  as `@{s ; u}` instead of `@{s | u}`
+  (`#20635 <https://github.com/rocq-prover/rocq/pull/20635>`_)
+
+- fixed handling of notation variables for ltac2 in notations
+  (i.e. `Notation "'foo' x" := ltac2:(...)`)
+  (`#20313 <https://github.com/rocq-prover/rocq/pull/20313>`_)
+
+- attribute :attr:`refine` support for :cmd:`Definition`
+  (`#20355 <https://github.com/rocq-prover/rocq/pull/20355>`_)
+
+- Rocq can be compile-time configured to be relocatable
+  (`#19901 <https://github.com/rocq-prover/rocq/pull/19901>`_)
+
+- extraction handles sort polymorphic definitions
+  (`#20655 <https://github.com/rocq-prover/rocq/pull/20655>`_)
+
+See the `Changes in 9.1.0`_ section below for the detailed list of changes,
+including potentially breaking changes marked with **Changed**.
+Rocq's `reference manual for 9.1 <https://rocq-prover.org/doc/v9.1/refman>`_,
+documentation of the 9.1 `core <https://rocq-prover.org/doc/v9.1/corelib>`__
+and `developer documentation of the 9.1 ML API <https://rocq-prover.org/doc/v9.1/api>`_
+are also available.
+
+Théo Zimmermann, with help from Jason Gross and Gaëtan Gilbert, maintained
+`coqbot <https://github.com/coq/bot>`_ used to run Coq's CI and other
+pull request management tasks.
+
+Jason Gross maintained the `bug minimizer <https://github.com/JasonGross/coq-tools>`_
+and its `automatic use through coqbot <https://github.com/rocq-prover/rocq/wiki/Coqbot-minimize-feature>`_.
+
+Ali Caglayan, Emilio Jesús Gallego Arias, Rudi Grinberg and Rodolphe Lepigre maintained the
+`Dune build system for OCaml and Coq/Rocq <https://github.com/ocaml/dune/>`_
+used to build the Rocq Prover itself and many Rocq projects.
+
+The `opam repository <https://github.com/coq/opam>`_ for Rocq packages has been maintained by
+Guillaume Claret, Guillaume Melquiond, Karl Palmskog, Matthieu Sozeau
+and Enrico Tassi with contributions from many users. The up-to-date list
+of packages is `available on the Rocq website <https://rocq-prover.org/packages>`_.
+
+Erik Martin-Dorel and Jaime Arias maintained the
+`Rocq Docker images <https://hub.docker.com/r/rocq/rocq-prover>`_.
+Erik Martin-Dorel maintained the `docker-keeper <https://gitlab.com/erikmd/docker-keeper>`_ compiler
+used to build and keep those images up to date (note that the tool is not Rocq specific).
+Erik Martin-Dorel and Théo Zimmermann maintained the
+`docker-coq-action <https://github.com/coq-community/docker-coq-action>`_
+container action (which is applicable to any opam project hosted on GitHub).
+
+Cyril Cohen, Vincent Laporte, Pierre Roux and Théo Zimmermann
+maintained the `Nix toolbox <https://github.com/coq-community/coq-nix-toolbox>`_.
+The docker-coq-action and the Nix toolbox are used by many Rocq projects for continuous integration.
+
+Rocq 9.1 was made possible thanks to the following 24 reviewers:
+Florian Angeletti, Ali Caglayan, Cyril Cohen, Pierre Courtieu, Jim
+Fehrle, Gaëtan Gilbert, Jason Gross, Emilio Jesús Gallego Arias,
+Jan-Oliver Kaiser, Thomas Lamiaux, Rodolphe Lepigre, Rodolphe Lepigre,
+Erik Martin-Dorel, Guillaume Melquiond, Patrick Nicodemus,
+Pierre-Marie Pédrot, Pierre Rousselin, Pierre Roux, Gabriel Scherer,
+Matthieu Sozeau, Nicolas Tabareau, Enrico Tassi, Théo Winterhalter and
+Théo Zimmermann.
+
+See the `Rocq Team <https://rocq-prover.org/rocq-team>`_ page for
+more details on Rocq's development teams.
+
+The 45 contributors to the 9.1 version are: JeanCASPAR, Soudant,
+ypopovitch, Reynald Affeldt, Wassim Ait-Moussa, David Allsopp,
+Christian Benedict Smit, Frédéric Besson, Mathis Bouverot, Ali
+Caglayan, Benedict Christian Smit, Cyril Cohen, Pierre Courtieu,
+Julien Cretin, Jian Fang, Jim Fehrle, Gaëtan Gilbert, Jason Gross,
+Dario Halilovic, Hugo Herbelin, Elyes Jemel, Emilio Jesús Gallego
+Arias, Jan-Oliver Kaiser, Kacper Korban, Lucie Lahaye, Thomas Lamiaux,
+Rodolphe Lepigre, Yann Leray, Kenji Maillard, Erik Martin-Dorel,
+Patrick Nicodemus, Charles Norton, Pim Otte, Pierre-Marie Pédrot,
+Josselin Poiret, Johann Rosain, Pierre Rousselin, Pierre Roux,
+Radosław Rowicki, Benedict Smit, Bastien Sozeau, Matthieu Sozeau,
+Nicolas Tabareau, Enrico Tassi and Théo Zimmermann.
+
+The Rocq community at large helped improve this new version via
+the GitHub issue and pull request system,
+the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
+`Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
+
+Gaëtan Gilbert and Pierre-Marie Pédrot are the release managers of Rocq 9.1.
+This release is the result of 397 merged PRs, closing 56 issues.
+
+| Nantes, September 2025
+| Gaëtan Gilbert and Pierre-Marie Pédrot for the Rocq development team
 
 Changes in 9.1.0
 ~~~~~~~~~~~~~~~~
@@ -71,7 +161,7 @@ Notations
 
 - **Changed:**
   The `Specif` notations (`exists x : A, P`, `{ x : A | P }`, `{ x : A & P }`, etc)
-  locally open `type_scope` for the second component (`P`).
+  locally opens `type_scope` for the second component (`P`).
   This makes eg `{ x & type_1 * type_2 }` work even when `nat_scope` is opened instead of interpreting `*` as peano multiplication
   (`#20294 <https://github.com/rocq-prover/rocq/pull/20294>`_,
   by Gaëtan Gilbert).
