@@ -1169,7 +1169,7 @@ let rec intern_rec env tycon {loc;v=e} =
     let { Tac2env.gdata_type = sch; gdata_deprecation = depr } =
       try Tac2env.interp_global kn
       with Not_found ->
-        CErrors.anomaly (str "Missing hardwired primitive " ++ KerName.print kn)
+        CErrors.anomaly (str "Missing hardwired primitive " ++ TacConstant.print kn)
     in
     let () = check_deprecated_ltac2 ?loc qid (TacConstant kn) in
     check (GTacRef kn, fresh_type_scheme env sch)
@@ -1177,7 +1177,7 @@ let rec intern_rec env tycon {loc;v=e} =
     let e =
       try Tac2env.interp_alias kn
       with Not_found ->
-        CErrors.anomaly (str "Missing hardwired alias " ++ KerName.print kn)
+        CErrors.anomaly (str "Missing hardwired alias " ++ TacAlias.print kn)
     in
     let () = check_deprecated_ltac2 ?loc qid (TacAlias kn) in
     intern_rec env tycon e.alias_body
@@ -1856,7 +1856,7 @@ let rec subst_glb_pat subst = function
 
 let rec subst_expr subst e = match e with
 | GTacAtm _ | GTacVar _ | GTacPrm _ -> e
-| GTacRef kn -> GTacRef (subst_kn subst kn)
+| GTacRef kn -> GTacRef (TacConstant.subst subst kn)
 | GTacFun (ids, e) -> GTacFun (ids, subst_expr subst e)
 | GTacApp (f, args) ->
   GTacApp (subst_expr subst f, List.map (fun e -> subst_expr subst e) args)
@@ -1962,10 +1962,10 @@ let rec subst_rawtype subst ({loc;v=tr} as t) = match tr with
 let subst_tacref subst ref = match ref with
 | RelId _ -> ref
 | AbsKn (TacConstant kn) ->
-  let kn' = subst_kn subst kn in
+  let kn' = TacConstant.subst subst kn in
   if kn' == kn then ref else AbsKn (TacConstant kn')
 | AbsKn (TacAlias kn) ->
-  let kn' = subst_kn subst kn in
+  let kn' = TacAlias.subst subst kn in
   if kn' == kn then ref else AbsKn (TacAlias kn')
 
 let subst_projection subst prj = match prj with

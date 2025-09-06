@@ -17,8 +17,11 @@ type redef_flag = bool
 type lid = Id.t
 type uid = Id.t
 
-type ltac_constant = KerName.t
-type ltac_alias = KerName.t
+module TacConstant : module type of Tac2names
+module TacAlias : module type of Tac2names
+type ltac_constant = TacConstant.t
+type ltac_alias = TacAlias.t
+
 type ltac_notation = KerName.t
 type ltac_constructor = KerName.t
 type ltac_projection = KerName.t
