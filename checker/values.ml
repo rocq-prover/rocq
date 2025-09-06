@@ -453,7 +453,6 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
   [|v_array v_one_ind;
     v_record_info;
     v_finite;
-    v_int;
     v_section_ctxt;
     v_instance;
     v_int;

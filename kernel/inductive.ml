@@ -845,7 +845,7 @@ let ienv_push_var (env, lra) (x,a,ra) =
 
 let ienv_push_inductive ?evars (env, ra_env) ((mind,u),lpar) =
   let mib = Environ.lookup_mind mind env in
-  let ntypes = mib.mind_ntypes in
+  let ntypes = Array.length mib.mind_packets in
   let push_ind mip env =
     let r = relevance_of_ind_body mip u in
     let anon = Context.make_annot Anonymous r in
@@ -937,7 +937,7 @@ let get_recargs_approx ?evars env tree ind args =
     let auxnpar = mib.mind_nparams_rec in
     let nonrecpar = mib.mind_nparams - auxnpar in
     let (lpar,_) = List.chop auxnpar largs in
-    let auxntyp = mib.mind_ntypes in
+    let auxntyp = Array.length mib.mind_packets in
     (* Extends the environment with a variable corresponding to
              the inductive def *)
     let (env',_ as ienv') = ienv_push_inductive ?evars ienv ((mind,u),lpar) in

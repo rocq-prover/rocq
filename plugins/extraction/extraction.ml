@@ -269,7 +269,8 @@ let fake_match_projection env p =
   let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
   let indu = mkIndU (ind,u) in
   let ctx, paramslet =
-    let subst = List.init mib.mind_ntypes (fun i -> mkIndU ((fst ind, mib.mind_ntypes - i - 1), u)) in
+    let ntypes = Array.length mib.mind_packets in
+    let subst = List.init ntypes (fun i -> mkIndU ((fst ind, ntypes - i - 1), u)) in
     let (ctx, cty) = mip.mind_nf_lc.(0) in
     let cty = Term.it_mkProd_or_LetIn cty ctx in
     let rctx, _ = decompose_prod_decls (Vars.substl subst cty) in
@@ -528,8 +529,7 @@ and extract_really_ind table env kn inst mib =
        ind_equiv = equiv
       };
     (* Second pass: we extract constructors *)
-    for i = 0 to mib.mind_ntypes - 1 do
-      let p,u = packets.(i) in
+    let () = packets |> Array.iteri @@ fun i (p,u) ->
       if not p.ip_logical then
         let types = Inductive.arities_of_constructors ((kn,i),u) (mib, mib.mind_packets.(i)) in
         for j = 0 to Array.length types - 1 do
@@ -545,7 +545,7 @@ and extract_really_ind table env kn inst mib =
           p.ip_types.(j) <-
             extract_type_cons table epar sg db dbmap (EConstr.of_constr t) (ndecls+1)
         done
-    done;
+    in
     (* Third pass: we determine special cases. *)
     let ind_info =
       try
@@ -553,7 +553,7 @@ and extract_really_ind table env kn inst mib =
         let r = { glob = GlobRef.IndRef ip; inst } in
         if is_custom r then raise (I Standard);
         if mib.mind_finite == CoFinite then raise (I Coinductive);
-        if not (Int.equal mib.mind_ntypes 1) then raise (I Standard);
+        if not (Int.equal (Array.length mib.mind_packets) 1) then raise (I Standard);
         let p,u = packets.(0) in
         if p.ip_logical then raise (I Standard);
         if not (Int.equal (Array.length p.ip_types) 1) then raise (I Standard);

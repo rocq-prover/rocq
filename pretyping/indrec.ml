@@ -449,7 +449,7 @@ let mis_make_indrec env sigma ?(force_mutual=false) listdepkind mib u =
   in
   let nrec = List.length listdepkind in
   let depPvec =
-    Array.make mib.mind_ntypes (None : (bool * constr) option) in
+    Array.make (Array.length mib.mind_packets) (None : (bool * constr) option) in
   let _ =
     let rec
         assign k = function

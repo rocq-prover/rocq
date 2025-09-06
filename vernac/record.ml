@@ -656,7 +656,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   let rp = applist (r, Context.Rel.instance_list mkRel 0 paramdecls) in
   let paramargs = Context.Rel.instance_list mkRel 1 paramdecls in (*def in [[params;x:rp]]*)
   let x = make_annot (Name inhabitant_id) (Inductive.relevance_of_ind_body mip uinstance) in
-  let fields = instantiate_possibly_recursive_type (fst indsp) uinstance mib.mind_ntypes paramdecls fields in
+  let fields = instantiate_possibly_recursive_type (fst indsp) uinstance (Array.length mib.mind_packets) paramdecls fields in
   let lifted_fields = Vars.lift_rel_context 1 fields in
   let primitive =
     match mib.mind_record with

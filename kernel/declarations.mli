@@ -261,8 +261,6 @@ type mutual_inductive_body = {
 
     mind_finite : recursivity_kind;  (** Whether the type is inductive, coinductive or non-recursive *)
 
-    mind_ntypes : int;  (** Number of types in the block *)
-
     mind_hyps : Constr.named_context;  (** Section hypotheses on which the block depends *)
 
     mind_univ_hyps : UVars.Instance.t; (** Section polymorphic universes. *)

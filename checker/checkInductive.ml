@@ -195,7 +195,7 @@ let check_same_record r1 r2 = match r1, r2 with
 
 let check_inductive env mind mb =
   let entry = to_entry mind mb in
-  let { mind_packets; mind_record; mind_finite; mind_ntypes; mind_hyps; mind_univ_hyps;
+  let { mind_packets; mind_record; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
         mind_private; mind_typing_flags; }
@@ -211,7 +211,6 @@ let check_inductive env mind mb =
   Array.iter2 (check_packet mind) mb.mind_packets mind_packets;
   check "mind_record" (check_same_record mb.mind_record mind_record);
   check "mind_finite" (mb.mind_finite == mind_finite);
-  check "mind_ntypes" Int.(equal mb.mind_ntypes mind_ntypes);
   check "mind_hyps" (List.is_empty mind_hyps);
   check "mind_univ_hyps" (UVars.Instance.is_empty mind_univ_hyps);
   check "mind_nparams" Int.(equal mb.mind_nparams mind_nparams);
