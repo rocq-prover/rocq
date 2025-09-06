@@ -420,7 +420,7 @@ struct
 module SeffOrd = struct
 type t = side_effect
 let compare e1 e2 =
-  Constant.CanOrd.compare e1.seff_constant e2.seff_constant
+  Constant.UserOrd.compare e1.seff_constant e2.seff_constant
 end
 
 module SeffSet = Set.Make(SeffOrd)
