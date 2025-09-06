@@ -1979,16 +1979,6 @@ let () =
       optwrite = (fun b -> Flags.raw_print := b) }
 
 let () =
-  declare_int_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Inline";"Level"];
-      optread  = (fun () -> Some (Flags.get_inline_level ()));
-      optwrite = (fun o ->
-                   let lev = Option.default Flags.default_inline_level o in
-                   Flags.set_inline_level lev) }
-
-let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
