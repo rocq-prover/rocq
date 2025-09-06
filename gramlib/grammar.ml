@@ -1060,6 +1060,9 @@ let warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__ =
     | Slist1sep (s, sep) -> find_symb entry s
     | _ -> assert false in
   let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
+  let () = if not (Option.has_some cur_lev && Option.has_some top_lev) then
+      CErrors.anomaly ~loc Pp.(str "unknown levels in warning")
+  in
   warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
 let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
@@ -1070,6 +1073,9 @@ let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
   let cur_lev, top_lev = try
       let levs = (get_entry gstate.estate entry).edesc in find_lev clevn levs, find_lev levfrom levs
     with Failure _ -> None, None
+  in
+  let () = if not (Option.has_some cur_lev && Option.has_some top_lev) then
+      CErrors.anomaly ~loc Pp.(str "unknown levels in warning (cont version)")
   in
   warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
 
