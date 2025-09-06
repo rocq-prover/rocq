@@ -1641,7 +1641,7 @@ let descend_in_conjunctions avoid tac (err, info) c =
     | Some (_,_,isrec) ->
         (* At this point, ind is known to be an index-free one-constructor
            inductive type, potentially recursive. *)
-        let n = (constructors_nrealargs env ind).(0) in
+        let n = (constructors_nrealdecls env ind).(0) in
         let IndType (indf,_) = find_rectype env sigma ccl in
         let (_,inst), params = dest_ind_family indf in
         let cstr = (get_constructors env indf).(0) in
