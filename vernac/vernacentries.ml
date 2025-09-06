@@ -1701,8 +1701,13 @@ let vernac_require_interp needed modrefl export qidl =
     export
 
 let vernac_require ~intern from export qidl =
-  let needed, modrefl = Synterp.synterp_require ~intern from export qidl in
-  vernac_require_interp needed modrefl export qidl
+  let needed, modrefl = Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (fun () ->
+      Synterp.synterp_require ~intern from export qidl)
+      ()
+  in
+  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some false) (fun () ->
+      vernac_require_interp needed modrefl export qidl)
+    ()
 
 (* Coercions and canonical structures *)
 

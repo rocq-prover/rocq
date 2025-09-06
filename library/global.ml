@@ -35,7 +35,7 @@ let is_curmod_library () =
   Safe_typing.is_curmod_library !global_env
 
 let assert_not_synterp () =
-  if !Flags.in_synterp_phase then
+  if !Flags.in_synterp_phase = Some true then
     CErrors.anomaly (
       Pp.strbrk"The global environment cannot be accessed during the syntactic interpretation phase.")
 
