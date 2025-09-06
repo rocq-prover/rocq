@@ -1720,7 +1720,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l (project gl)
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.mutual_fix (interp_ident ist env sigma id) n l_interp)
+        (FixTactics.mutual_fix (interp_ident ist env sigma id) n l_interp)
       end
       end
   | TacMutualCofix (id,l) ->
@@ -1735,7 +1735,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l (project gl)
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.mutual_cofix (interp_ident ist env sigma id) l_interp)
+        (FixTactics.mutual_cofix (interp_ident ist env sigma id) l_interp)
       end
       end
   | TacAssert (ev,b,t,ipat,c) ->

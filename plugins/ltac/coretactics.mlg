@@ -264,13 +264,13 @@ END
 (* Fix *)
 
 TACTIC EXTEND fix
-| [ "fix" ident(id) natural(n) ] -> { Tactics.fix id n }
+| [ "fix" ident(id) natural(n) ] -> { FixTactics.fix id n }
 END
 
 (* Cofix *)
 
 TACTIC EXTEND cofix
-| [ "cofix" ident(id) ] -> { Tactics.cofix id }
+| [ "cofix" ident(id) ] -> { FixTactics.cofix id }
 END
 
 (* Clear *)

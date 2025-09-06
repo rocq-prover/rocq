@@ -20,6 +20,7 @@ open Namegen
 open Names
 open Pp
 open Tactics
+open FixTactics
 open Induction
 open Indfun_common
 open Libnames
@@ -1161,7 +1162,7 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
                 (fun _ _ -> str "h_fix " ++ int (this_fix_info.idx + 1))
                 (fix this_fix_info.name (this_fix_info.idx + 1))
           else
-            Tactics.mutual_fix this_fix_info.name (this_fix_info.idx + 1)
+            FixTactics.mutual_fix this_fix_info.name (this_fix_info.idx + 1)
               other_fix_infos
       in
       let first_tac : unit Proofview.tactic =

@@ -26,30 +26,6 @@ open Ltac_pretype
 
 val is_quantified_hypothesis : Id.t -> Proofview.Goal.t -> bool
 
-(** {6 Fixpoint tactics. } *)
-
-(** [fix f idx] refines the goal using a fixpoint.
-    - [f] is the name of the variable which represents the fixpoint.
-    - [idx] is the index of the structurally recursive argument (starting at 1). *)
-val fix : Id.t -> int -> unit Proofview.tactic
-
-(** [mutual_fix f idx fs] refines the goal using a mutual fixpoint.
-    - [f] and [idx] are the name and recursive argument index for the first fixpoint.
-      The type of [f] is simply the conclusion of the goal.
-    - [fs] contains the name, recursive argument index, and type of every other fixpoint
-      in the mutual block. *)
-val mutual_fix :
-  Id.t -> int -> (Id.t * int * constr) list -> unit Proofview.tactic
-
-(** [cofix f] refines the goal using a cofixpoint.
-    - [f] is the name of the variable which represents the cofixpoint. *)
-val cofix : Id.t -> unit Proofview.tactic
-
-(** [mutual_cofix f fs] refines the goal using a mutual cofixpoint.
-    - [f] is the name of the first cofixpoint. The type of [f] is simply the conclusion of the goal.
-    - [fs] contains the name and type of every other cofixpoint in the mutual block. *)
-val mutual_cofix : Id.t -> (Id.t * constr) list -> unit Proofview.tactic
-
 (** {6 Conversion tactics. } *)
 
 (** [vm_cast_no_check new_concl] changes the conclusion to [new_concl] by inserting a [VMcast].
@@ -759,5 +735,18 @@ end
 (** The functions below have been moved to other files but are kept here
     for backwards compatibility. Don't use in new code. *)
 
-(** Deprecated, use [TacticErrors.not_convertible ()] instead. *)
+(** Deprecated since 9.2, use [TacticErrors.not_convertible ()] instead. *)
 exception NotConvertible
+
+val fix : Id.t -> int -> unit Proofview.tactic
+[@@ocaml.deprecated "(since 9.2) Use [FixTactics.fix]"]
+
+val mutual_fix :
+  Id.t -> int -> (Id.t * int * constr) list -> unit Proofview.tactic
+[@@ocaml.deprecated "(since 9.2) Use [FixTactics.mutual_fix]"]
+
+val cofix : Id.t -> unit Proofview.tactic
+[@@ocaml.deprecated "(since 9.2) Use [FixTactics.cofix]"]
+
+val mutual_cofix : Id.t -> (Id.t * constr) list -> unit Proofview.tactic
+[@@ocaml.deprecated "(since 9.2) Use [FixTactics.mutual_cofix]"]
