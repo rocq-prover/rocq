@@ -1061,11 +1061,11 @@ let constr_ord_int f t1 t2 =
     | LetIn _, _ -> -1 | _, LetIn _ -> 1
     | App (c1,l1), App (c2,l2) -> compare [(f,c1,c2); (Array.compare f, l1, l2)]
     | App _, _ -> -1 | _, App _ -> 1
-    | Const (c1,_u1), Const (c2,_u2) -> Constant.CanOrd.compare c1 c2
+    | Const (c1,_u1), Const (c2,_u2) -> Constant.UserOrd.compare c1 c2
     | Const _, _ -> -1 | _, Const _ -> 1
-    | Ind (ind1, _u1), Ind (ind2, _u2) -> Ind.CanOrd.compare ind1 ind2
+    | Ind (ind1, _u1), Ind (ind2, _u2) -> Ind.UserOrd.compare ind1 ind2
     | Ind _, _ -> -1 | _, Ind _ -> 1
-    | Construct (ct1,_u1), Construct (ct2,_u2) -> Construct.CanOrd.compare ct1 ct2
+    | Construct (ct1,_u1), Construct (ct2,_u2) -> Construct.UserOrd.compare ct1 ct2
     | Construct _, _ -> -1 | _, Construct _ -> 1
     | Case (_,_u1,pms1,(p1,_r1),iv1,c1,bl1), Case (_,_u2,pms2,(p2,_r2),iv2,c2,bl2) ->
       compare [
@@ -1082,7 +1082,7 @@ let constr_ord_int f t1 t2 =
     | CoFix(ln1,(_,tl1,bl1)), CoFix(ln2,(_,tl2,bl2)) ->
       compare [(Int.compare, ln1, ln2); (Array.compare f, tl1, tl2); (Array.compare f, bl1, bl2)]
     | CoFix _, _ -> -1 | _, CoFix _ -> 1
-    | Proj (p1,_r1,c1), Proj (p2,_r2,c2) -> compare [(Projection.CanOrd.compare, p1, p2); (f, c1, c2)]
+    | Proj (p1,_r1,c1), Proj (p2,_r2,c2) -> compare [(Projection.UserOrd.compare, p1, p2); (f, c1, c2)]
     | Proj _, _ -> -1 | _, Proj _ -> 1
     | Int i1, Int i2 -> Uint63.compare i1 i2
     | Int _, _ -> -1 | _, Int _ -> 1
@@ -1244,11 +1244,11 @@ let rec hash t =
     | Evar (e,l) ->
       combinesmall 8 (combine (Evar.hash e) (hash_term_list l))
     | Const (c,u) ->
-      combinesmall 9 (combine (Constant.CanOrd.hash c) (Instance.hash u))
+      combinesmall 9 (combine (Constant.UserOrd.hash c) (Instance.hash u))
     | Ind (ind,u) ->
-      combinesmall 10 (combine (Ind.CanOrd.hash ind) (Instance.hash u))
+      combinesmall 10 (combine (Ind.UserOrd.hash ind) (Instance.hash u))
     | Construct (c,u) ->
-      combinesmall 11 (combine (Construct.CanOrd.hash c) (Instance.hash u))
+      combinesmall 11 (combine (Construct.UserOrd.hash c) (Instance.hash u))
     | Case (_ , u, pms, (p,r), iv, c, bl) ->
       combinesmall 12 (combine5 (hash c) (hash_invert iv) (hash_term_array pms) (Instance.hash u)
                          (combine3 (hash_under_context p) (Sorts.relevance_hash r) (hash_branches bl)))
@@ -1259,7 +1259,7 @@ let rec hash t =
     | Meta n -> combinesmall 15 n
     | Rel n -> combinesmall 16 n
     | Proj (p,r, c) ->
-      combinesmall 17 (combine3 (Projection.CanOrd.hash p) (Sorts.relevance_hash r) (hash c))
+      combinesmall 17 (combine3 (Projection.UserOrd.hash p) (Sorts.relevance_hash r) (hash c))
     | Int i -> combinesmall 18 (Uint63.hash i)
     | Float f -> combinesmall 19 (Float64.hash f)
     | String s -> combinesmall 20 (Pstring.hash s)
