@@ -834,9 +834,9 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - GH issue number: coq/coq#17871
 - risk: proof of false when using primitive floats and native_compute
 
-#### guard condition issue made it inconsistent with univalence
+#### guard condition issue made it inconsistent with propositional extensionality in library Sets
 
-- component: guard condition
+- component: library of extensional sets, guard condition
 - introduced: variant of [the issue with propositional extensionality](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-Sets) that was not fixed then
 - impacted released versions: the relative inconsistency was present from the very beginning, until 9.0
 - impacted coqchk versions: *-9.0
