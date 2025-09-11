@@ -200,4 +200,15 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/ring/field_checker.v
     theories/Corelib/ring/field_eval.v
   </dd>
+
+  <dt id="micromega"> <a href="#micromega"><b>micromega</b></a>:
+    The micromega tactics
+  </dt>
+  <dd>
+    theories/Corelib/micromega/micromega_formula.v
+    theories/Corelib/micromega/micromega_witness.v
+    theories/Corelib/micromega/micromega_tactics.v
+    theories/Corelib/micromega/micromega_checker.v
+    theories/Corelib/micromega/micromega_eval.v
+  </dd>
 </dl>
