@@ -197,5 +197,7 @@ through the <tt>Require Import</tt> command.</p>
   <dd>
     theories/Corelib/ring/ring_checker.v
     theories/Corelib/ring/ring_eval.v
+    theories/Corelib/ring/field_checker.v
+    theories/Corelib/ring/field_eval.v
   </dd>
 </dl>
