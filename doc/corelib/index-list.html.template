@@ -190,4 +190,12 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/Strings/PrimString.v
     theories/Corelib/Strings/PrimStringAxioms.v
   </dd>
+
+  <dt id="ring"> <a href="#ring"><b>ring</b></a>:
+    Computational part of the ring and field tactics
+  </dt>
+  <dd>
+    theories/Corelib/ring/ring_checker.v
+    theories/Corelib/ring/ring_eval.v
+  </dd>
 </dl>
