@@ -22,22 +22,17 @@ We highlight some of the most impactful changes here:
 
 - fixed incorrect guard checking leading to inconsistencies (multiple PRs)
 
-- sort polymorphic universe instances should now be written
+- sort polymorphic universe instances :ref:`should now be written <91sortpolysyntax>`
   as `@{s ; u}` instead of `@{s | u}`
-  (`#20635 <https://github.com/rocq-prover/rocq/pull/20635>`_)
 
-- fixed handling of notation variables for ltac2 in notations
+- :ref:`fixed <91ltac2notationfix>` handling of notation variables for ltac2 in notations
   (i.e. `Notation "'foo' x" := ltac2:(...)`)
-  (`#20313 <https://github.com/rocq-prover/rocq/pull/20313>`_)
 
-- Support for :attr:`refine` attribute in :cmd:`Definition`
-  (`#20355 <https://github.com/rocq-prover/rocq/pull/20355>`_)
+- :ref:`Support <91refinedef>` for :attr:`refine` attribute in :cmd:`Definition`
 
-- Rocq can be compile-time configured to be relocatable
-  (`#19901 <https://github.com/rocq-prover/rocq/pull/19901>`_)
+- Rocq can be compile-time configured to be :ref:`relocatable <91relocatable>`
 
-- extraction handles sort polymorphic definitions
-  (`#20655 <https://github.com/rocq-prover/rocq/pull/20655>`_)
+- extraction :ref:`handles <91extractsortpoly>` sort polymorphic definitions
 
 See the `Changes in 9.1.0`_ section below for the detailed list of changes,
 including potentially breaking changes marked with **Changed**.
@@ -157,6 +152,8 @@ Kernel
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _91sortpolysyntax:
 
 - **Deprecated:**
   in :ref:`sort polymorphic <sort-polymorphism>` instances, separating sorts from universes using `|` instead of `;` (the later being possible since this version)
@@ -340,6 +337,9 @@ Ltac2 language
   i.e. `let x := @y in constr:($hyp:x)` is equivalent to `constr:(&y)`
   (`#20656 <https://github.com/rocq-prover/rocq/pull/20656>`_,
   by Gaëtan Gilbert).
+
+.. _91ltac2notationfix:
+
 - **Fixed:**
   Ltac2 in terms in notations is more aware of the notation variables it uses,
   providing early failure when the variable is instantiated with an invalid term,
@@ -415,6 +415,9 @@ Commands and options
   (`#20107 <https://github.com/coq/coq/pull/20107>`_,
   fixes `#20042 <https://github.com/coq/coq/issues/20042>`_,
   by Gaëtan Gilbert).
+
+.. _91refinedef:
+
 - **Added:**
   support for the :attr:`refine` attribute to definitions and (co)fixpoints
   (`#20355 <https://github.com/coq/coq/pull/20355>`_,
@@ -476,6 +479,9 @@ Infrastructure and dependencies
   and minimum supported OCamlfind version is now 1.9.1 (instead of 1.8.1)
   (`#20576 <https://github.com/rocq-prover/rocq/pull/20576>`_,
   by Gaëtan Gilbert).
+
+.. _91relocatable:
+
 - **Added:**
   Rocq can be compile-time configured to be relocatable,
   using `./configure -relocatable` instead of e.g. `./configure -prefix /some/path`.
@@ -500,6 +506,8 @@ Infrastructure and dependencies
 
 Extraction
 ^^^^^^^^^^
+
+.. _91extractsortpoly:
 
 - **Fixed:**
   extraction handles sort polymorphic definitions
