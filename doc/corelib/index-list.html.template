@@ -39,6 +39,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/BinNums/PosDef.v
     theories/Corelib/BinNums/NatDef.v
     theories/Corelib/BinNums/IntDef.v
+    theories/Corelib/BinNums/RatDef.v
   </dd>
 
   <dt id="Cyclic"> <a href="#Cyclic"><b>Cyclic</b></a>:
