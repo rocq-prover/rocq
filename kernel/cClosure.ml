@@ -135,7 +135,7 @@ let default_evar_handler env = {
   evar_repack = (fun _ -> assert false);
   evar_irrelevant = (fun _ -> assert false);
   qvar_irrelevant = (fun q ->
-      assert (Sorts.QVar.Set.mem q (Environ.qualities env));
+      assert (Sorts.QVar.Set.mem q (Environ.qvars env));
       false);
 }
 
@@ -156,6 +156,7 @@ type clos_infos = {
 let info_flags info = info.i_flags
 let info_env info = info.i_cache.i_env
 let info_univs info = info.i_cache.i_univs
+let info_elims info = Environ.qualities (info_env info)
 
 let push_relevance infos x =
   { infos with i_relevances = Range.cons x.binder_relevance infos.i_relevances }

@@ -48,6 +48,7 @@ type signature_mismatch_error =
   | RecordProjectionsExpected of Name.t list
   | NotEqualInductiveAliases
   | IncompatibleUniverses of UGraph.univ_inconsistency
+  | IncompatibleQualities of QGraph.elimination_error
   | IncompatiblePolymorphism of env * types * types
   | IncompatibleConstraints of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
   | IncompatibleVariance

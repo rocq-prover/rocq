@@ -12,4 +12,4 @@ open Names
 open Mod_declarations
 open Environ
 
-val check_subtypes : ('a, UGraph.univ_inconsistency) Conversion.universe_state -> env -> ModPath.t -> ModPath.t -> module_type_body -> 'a
+val check_subtypes : ('a, Conversion.graph_inconsistency) Conversion.universe_state -> env -> ModPath.t -> ModPath.t -> module_type_body -> 'a

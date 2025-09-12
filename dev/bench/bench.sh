@@ -54,7 +54,7 @@ check_variable () {
 
 # example: coq-hott.dev git+https://github.com/some-user/coq-hott#some-branch
 # (make sure to include the version for the opam package, note that just https won't work)
-: "${new_opam_override_urls:=}"
+: "${new_opam_override_urls:=rocq-equations.dev git+https://github.com/jrosain/Rocq-Equations#elimination-constraint-graph coq-lsp.dev git+https://github.com/jrosain/rocq-lsp#elimination-constraints-graph}"
 : "${old_opam_override_urls:=}"
 
 if [ "$CI" ]; then
