@@ -122,12 +122,16 @@ sig
   (** The value being stored. *)
   type value
 
-  (** Register a new value and get the token used to enable and disable it. *)
+  (** Register a new value and get the token used to enable and disable it.
+   *)
   val register : name:string -> ?override:bool -> value -> token
 
   (** Activate/deactive the value attached to the token. *)
   val activate : token -> unit
   val deactivate : token -> unit
+
+  (** Determine if the value for the given token is active *)
+  val is_active : token -> bool
 end
 
 (** The implementation side of observation.
@@ -138,17 +142,16 @@ module type OBSERVABLE_USER =
 sig
   include OBSERVABLE
 
-  (** Determine if the value for the given token is active *)
-  val is_active : token -> bool
-
   (** Get all of the active values *)
   val all_active : unit -> (string * value) list
 end
 
 (** Generic implementation of [OBSERVABLE_USER]. *)
-module Make
+module MakeObservable
     (Obs : sig
        type value
+       val stage : Stage.t
+       val local : bool
        val name : string
      end) : OBSERVABLE_USER with type value = Obs.value
 

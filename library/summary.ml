@@ -231,30 +231,32 @@ sig
 
   val activate : token -> unit
   val deactivate : token -> unit
+
+  val is_active : token -> bool
 end
 
 module type OBSERVABLE_USER =
 sig
   include OBSERVABLE
 
-  val is_active : token -> bool
-
   val all_active : unit -> (string * value) list
 end
 
-module Make
+module MakeObservable
     (Obs : sig
        type value
+       val stage : Stage.t
+       val local : bool
        val name : string
      end) : OBSERVABLE_USER with type value = Obs.value =
 struct
   type token = string
   type value = Obs.value
 
-  let observers = Stdlib.ref CString.Map.empty
-  let active_observers = ref ~name:Obs.name []
+  let observers = ref ~stage:Obs.stage ~local:Obs.local ~name:(Obs.name ^ "_values") CString.Map.empty
+  let active_observers : token list ref = ref ~stage:Obs.stage ~local:Obs.local ~name:(Obs.name ^ "_active") []
 
-  let register ~name ?(override=false) value =
+  let register ~name ?(override=false) value : token =
     if not override && CString.Map.mem name !observers then
       CErrors.anomaly Pp.(str Obs.name ++ str " observer " ++
                           str name ++ str " already exists")
@@ -264,17 +266,16 @@ struct
 
   let remove name = Util.List.remove String.equal name !active_observers
 
-  let activate name =
+  let activate name : unit =
     assert (CString.Map.mem name !observers);
     active_observers := name :: remove name;
     ()
 
-  let deactivate name =
+  let deactivate name : unit =
     active_observers := remove name;
     ()
 
-  let is_active : token -> bool =
-    fun tkn -> List.mem tkn !active_observers
+  let is_active tkn = List.mem tkn !active_observers
 
   let all_active () : (string * value) list =
     (* NOTE: this is not very efficient. *)
