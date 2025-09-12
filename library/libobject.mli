@@ -204,12 +204,6 @@ val declare_object :
 val declare_object_full :
   ('a, 'a, _) object_declaration -> 'a Dyn.tag
 
-val declare_named_object_full :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t * 'a) Dyn.tag
-
-val declare_named_object :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t -> 'a -> obj)
-
 (** Object prefix morally contains the "prefix" naming of an object to
    be stored by [library], where [obj_path] is the "absolute" path and
    [obj_mp] is the current "module" prefix.
@@ -228,7 +222,20 @@ type object_prefix = {
   obj_mp  : ModPath.t;
 }
 
+val make_oname : object_prefix -> Id.t -> object_name
+
+val declare_named_object_full :
+  (object_prefix -> Id.t -> 'name) ->
+  ('a, 'name * 'a, _) object_declaration -> (Id.t * 'a) Dyn.tag
+
+val declare_named_object :
+  (object_prefix -> Id.t -> 'name) ->
+  ('a, 'name * 'a, _) object_declaration -> (Id.t -> 'a -> obj)
+
 val eq_object_prefix : object_prefix -> object_prefix -> bool
+
+val declare_named_object_gen_full :
+  ('a, object_prefix * 'a, _) object_declaration -> 'a Dyn.tag
 
 val declare_named_object_gen :
   ('a, object_prefix * 'a, _) object_declaration -> ('a -> obj)
