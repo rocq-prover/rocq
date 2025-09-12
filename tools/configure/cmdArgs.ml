@@ -50,7 +50,7 @@ let default_prefs = {
   browser = None;
   bytecodecompiler = true;
   nativecompiler = NativeNo;
-  coqwebsite = "http://coq.inria.fr/";
+  coqwebsite = "http://rocq-prover.org/";
   debug = false;
 }
 
