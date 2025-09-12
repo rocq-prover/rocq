@@ -114,7 +114,7 @@ let print_as env ind indname = function
   | Anonymous -> mt () (* TODO: get the "as" name also for non-primitive records *)
   | Name id -> if is_canonical_as env ind indname id then mt () else str " as " ++ Id.print id
 
-let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
+let print_one_inductive env sigma mib ((_,i) as ind) =
   let u = UVars.make_abstract_instance (Declareops.inductive_polymorphic_context mib) in
   let mip = mib.mind_packets.(i) in
   let paramdecls = Inductive.inductive_paramdecls (mib,u) in
@@ -125,7 +125,12 @@ let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
   let arity = hnf_prod_applist_decls env nparamdecls (build_ind_type ((mib,mip),u)) args in
   let cstrtypes = Inductive.type_of_constructors (ind,u) (mib,mip) in
   let cstrtypes = Array.map (fun c -> snd (Term.decompose_prod_n_decls nparamdecls c)) cstrtypes in
-  if isrecord then assert (Array.length cstrtypes = 1);
+  let isrecord = match mip.mind_record with
+    | NotRecord -> None
+    | FakeRecord -> if !Flags.raw_print then None else Some Anonymous
+    | PrimRecord (id,_,_,_) -> Some (Name id)
+  in
+  if Option.has_some isrecord then assert (Array.length cstrtypes = 1);
   let inst =
     if Declareops.inductive_is_polymorphic mib then
       Printer.pr_universe_instance_binder sigma u Univ.Constraints.empty
@@ -134,36 +139,35 @@ let print_one_inductive env sigma isrecord mib ((_,i) as ind, as_clause) =
   hov 0 (
     Id.print mip.mind_typename ++ inst ++ brk(1,4) ++ print_params env sigma params ++
     str ": " ++ Printer.pr_lconstr_env env_params sigma arity ++ str " :=" ++
-    if isrecord then str " " ++ Id.print mip.mind_consnames.(0) else mt()) ++
-    if not isrecord then
-      brk(0,2) ++ print_constructors env_params sigma mip.mind_consnames cstrtypes
-    else
-      brk(1,2) ++ print_fields env_params sigma cstrtypes ++ print_as env ind mip.mind_typename as_clause
+    if Option.has_some isrecord then str " " ++ Id.print mip.mind_consnames.(0) else mt()) ++
+  match isrecord with
+  | None ->
+    brk(0,2) ++ print_constructors env_params sigma mip.mind_consnames cstrtypes
+  | Some as_clause ->
+    brk(1,2) ++ print_fields env_params sigma cstrtypes ++ print_as env ind mip.mind_typename as_clause
 
 let pr_mutual_inductive_body env mind mib udecl =
   let inds = List.init (Array.length mib.mind_packets) (fun x -> (mind, x)) in
-  let default_as = List.make (Array.length mib.mind_packets) Anonymous in
-  let keyword, isrecord, as_clause =
+  let keyword =
     let open Declarations in
     match mib.mind_finite with
-    | Finite -> "Inductive", false, default_as
-    | CoFinite -> "CoInductive", false, default_as
+    | Finite -> "Inductive"
+    | CoFinite -> "CoInductive"
     | BiFinite ->
-       match mib.mind_record with
-       | FakeRecord when not !Flags.raw_print -> "Record", true, default_as
-       | PrimRecord l -> "Record", true, Array.map_to_list (fun (id,_,_,_) -> Name id) l
-       | FakeRecord | NotRecord -> "Variant", false, default_as
+       match mib.mind_packets.(0).mind_record with
+       | NotRecord -> "Variant"
+       | FakeRecord -> if !Flags.raw_print then "Variant" else "Record"
+       | PrimRecord l -> "Record"
   in
   let udecl = Option.map (fun x -> GlobRef.IndRef (mind,0), x) udecl in
   let bl = Printer.universe_binders_with_opt_names
       (Declareops.inductive_polymorphic_context mib) udecl
   in
   let sigma = Evd.from_ctx (UState.of_names bl) in
-  let inds_as = List.combine inds as_clause in
 
   hov 0 (def keyword ++ spc () ++
          prlist_with_sep (fun () -> fnl () ++ str"  with ")
-           (print_one_inductive env sigma isrecord mib) inds_as ++ str "." ++
+           (print_one_inductive env sigma mib) inds ++ str "." ++
          Printer.pr_universes sigma ?variance:mib.mind_variance mib.mind_universes)
 
 (** Modpaths *)
