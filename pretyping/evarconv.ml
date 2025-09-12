@@ -748,6 +748,15 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
   let quick_fail i = (* not costly, loses info *)
     UnifFailure (i, NotSameHead)
   in
+  let get_tc evd e =
+    if not (Evd.is_typeclass_evar evd e) then raise Not_found else
+    let tc_evars = Evd.get_typeclass_evars evd in
+    let evd = Evd.set_typeclass_evars evd (Evar.Set.singleton e) in
+    let evd = Typeclasses.resolve_typeclasses env evd in
+    if not (Evd.is_defined evd e) then raise Not_found else
+    let tc_evars = Evar.Set.union tc_evars (Evd.get_typeclass_evars evd) in
+    let tc_evars = Evar.Set.filter (fun e -> not (Evd.is_defined evd e)) tc_evars in
+    Evd.set_typeclass_evars evd tc_evars in
   let miller_pfenning l2r fallback ev lF tM evd =
     match is_unification_pattern_evar env evd ev lF tM with
       | None -> fallback ()
@@ -876,9 +885,16 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
       | Construct u -> eta_constructor flags env evd u skR apprF
       | _ -> UnifFailure (evd,NotSameHead)
     in
+    let tc evd =
+      let (e, _) = EConstr.destEvar evd termF in
+      try let evd = get_tc evd e in
+        let apprF = whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd apprF in
+        let apprR = whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd apprR in
+        evar_eqappr_x flags env evd pbty keys lastUnfolded apprF apprR
+      with _ -> quick_fail evd in
     match Stack.list_of_app_stack skF with
     | None ->
-        ise_try evd [consume_stack l2r apprF apprR; eta]
+        ise_try evd [consume_stack l2r apprF apprR; eta; tc]
     | Some lF ->
         let tR = Stack.zip evd apprR in
           miller_pfenning l2r
@@ -1044,8 +1060,19 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           match consume true appr1 appr2 i with
           | Success _ as x -> x
           | UnifFailure _ -> quick_fail i
+        and f6 i =
+          try let evd = get_tc evd sp2 in
+            evar_eqappr_x flags env evd pbty keys lastUnfolded
+              (whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd appr1)
+              (whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd appr2)
+          with _ -> try
+            let evd = get_tc evd sp1 in
+            evar_eqappr_x flags env evd pbty keys lastUnfolded
+              (whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd appr1)
+              (whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd appr2)
+          with _ -> quick_fail i
         in
-        ise_try evd [f1; f2; f3; f4; f5]
+        ise_try evd [f1; f2; f3; f4; f5; f6]
 
     | Flexible ev1, MaybeFlexible v2 ->
       flex_maybeflex true ev1 appr1 appr2 v2
