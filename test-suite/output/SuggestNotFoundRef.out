@@ -1,0 +1,6 @@
+File "./output/SuggestNotFoundRef.v", line 1, characters 6-10:
+Error: The reference plas was not found in the current environment.
+Did you mean plus?
+
+
+coqc exited with code 1
