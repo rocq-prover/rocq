@@ -8,11 +8,13 @@ Ltac2
 General design
 --------------
 
-There are various alternatives to Ltac1, such as Mtac or Rtac for instance.
-While those alternatives can be quite different from Ltac1, we designed
-Ltac2 to be as close as reasonably possible to Ltac1, while fixing its
-:ref:`defects <ltac_defects>`.
+Ltac2 is a tactics metalanguage for Rocq. It is mostly used to write new
+tactics using a mix of :cmd:`Ltac2` definitions and :cmd:`Ltac2 Notation`\s.
+Ltac2 provides an API in the various modules of the Ltac2 library, see
+`the relevant section of Corelib's documentation <../../corelib/index.html#Ltac2>`_.
 
+Ltac2 is designed to be as close as reasonably possible to Ltac1, while fixing its
+:ref:`defects <ltac_defects>`.
 In particular, Ltac2 is:
 
 - a member of the ML family of languages, i.e.
