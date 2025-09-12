@@ -50,7 +50,7 @@ let scope_class_of_qualid qid =
 (** Standard attributes for definition-like commands. *)
 module DefAttributes = struct
   type t = {
-    hooks : (Declare.Hook.S.t -> unit) list ;
+    hooks : Declare.Hook.t list ;
     scope : definition_scope;
     locality : bool option;
     polymorphic : bool;
@@ -74,12 +74,14 @@ module DefAttributes = struct
      of the coercion from out-of-section [Let Coercion].
   *)
 
-  module Observer = Summary.Make (struct
-      type value = (Declare.Hook.S.t -> unit) list attribute
+  module Observer = Summary.MakeObservable (struct
+      type value = Declare.Hook.t list attribute
+      let local = false
+      let stage = Summary.Stage.Interp
       let name = "Definition attribute"
     end)
 
-  let active_hooks () : (Declare.Hook.S.t -> unit) list attribute =
+  let active_hooks () : Declare.Hook.t list attribute =
     let module AttList = Monad.Make(Attributes.Notations) in
     let active = Observer.all_active () in
     let open Attributes.Notations in
@@ -831,20 +833,20 @@ let vernac_definition_hook ~atts ~canonical_instance ~local ~poly ~reversible ki
     let open Declare.Hook in
     match kind with
     | Coercion ->
-      ComCoercion.coercion_hook ~reversible :: hooks
+      make (fun st -> ComCoercion.coercion_hook ~reversible st) :: hooks
     | CanonicalStructure ->
-      (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
+      make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
     | SubClass ->
-      ComCoercion.subclass_hook ~poly ~reversible :: hooks
+      make (ComCoercion.subclass_hook ~poly ~reversible) :: hooks
     | Definition when canonical_instance ->
-      (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
+      make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref) :: hooks
     | Let when canonical_instance ->
-      (fun { S.dref } -> Canonical.declare_canonical_structure dref) :: hooks
+      make (fun { S.dref } -> Canonical.declare_canonical_structure dref) :: hooks
     | _ -> hooks
   in
   match hooks with
   | [] -> None
-  | _ -> Some (Declare.Hook.(make (fun def -> List.iter (fun h -> h def) hooks)))
+  | _ -> Some (Declare.Hook.(make (fun st -> List.iter (fun hook -> call ~hook st) hooks)))
 
 let default_thm_id = Id.of_string "Unnamed_thm"
 
