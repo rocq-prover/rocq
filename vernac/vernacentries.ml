@@ -1377,11 +1377,13 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
     (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
     pm
 
-let vernac_scheme l =
+let vernac_scheme atts l =
   if Dumpglob.dump () then
     List.iter (fun (lid, sch) ->
       Option.iter (fun lid -> Dumpglob.dump_definition lid false "def") lid) l;
-  Indschemes.do_scheme (Global.env ()) l
+  let register = Attributes.(parse (bool_attribute ~name:"register") atts) in
+  let register = Option.default true register in
+  Indschemes.do_scheme ~register (Global.env ()) l
 
 let vernac_scheme_equality ?locmap sch id =
   Indschemes.do_scheme_equality ?locmap sch id
@@ -2773,8 +2775,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacScheme l ->
     vtdefault(fun () ->
-        unsupported_attributes atts;
-        vernac_scheme l)
+        vernac_scheme atts l)
   | VernacSchemeEquality (sch,id) ->
     vtdefault(fun () ->
         unsupported_attributes atts;

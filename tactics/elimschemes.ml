@@ -163,7 +163,7 @@ let make_elimination_ident id s = Nameops.add_suffix id (elimination_suffix s)
 
 (* Look up function for the default elimination constant *)
 
-let lookup_eliminator env ind_sp s =
+let lookup_eliminator_by_name env ind_sp s =
   let open Names in
   let open Environ in
   let kn,i = ind_sp in
@@ -189,6 +189,39 @@ let lookup_eliminator env ind_sp s =
             Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
             strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
             strbrk " is probably not allowed.")
+
+let deprecated_lookup_by_name =
+  CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
+    Pp.(fun (env,ind,to_kind,r) ->
+        let pp_scheme () s = str (scheme_kind_name s) in
+        fmt "Found unregistered eliminator %t for %t by name.@ \
+             Use \"Register Scheme\" with it instead@ \
+             (\"as %a\" if dependent or \"as %a\" if non dependent)."
+          (fun () -> Termops.pr_global_env env r)
+          (fun () -> Termops.pr_global_env env (IndRef ind))
+          pp_scheme (elim_scheme ~dep:true ~to_kind)
+          pp_scheme (elim_scheme ~dep:false ~to_kind))
+
+let lookup_eliminator_by_name env ind s =
+  let r = lookup_eliminator_by_name env ind s in
+  deprecated_lookup_by_name (env,ind,s,r);
+  r
+
+let lookup_eliminator env ind s =
+  let nodep_scheme_first =
+    (* compat, add an option to control this and remove someday *)
+    let _, mip = Inductive.lookup_mind_specif env ind in
+    Sorts.is_prop mip.mind_sort && not (Indrec.is_prop_but_default_dependent_elim ind)
+  in
+  let schemes =
+    List.map (fun dep -> elim_scheme ~dep ~to_kind:s)
+      (if nodep_scheme_first then [false;true] else [true;false])
+  in
+  match List.find_map (fun scheme -> lookup_scheme scheme ind) schemes with
+  | Some c -> Names.GlobRef.ConstRef c
+  | None ->
+    (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
+    lookup_eliminator_by_name env ind s
 
 (* Case analysis *)
 

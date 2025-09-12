@@ -326,9 +326,25 @@ Induction
      into the induction principle.  The number of :n:`@bindings`
      must be the same as the number of parameters of the induction principle.
 
-     If unspecified, the tactic applies the appropriate :term:`induction principle`
-     that was automatically generated when the inductive type was declared based
-     on the sort of the goal.
+     If unspecified, the tactic finds the appropriate :term:`induction principle`
+     using the "scheme" registration. The scheme kind depends on the sort of the goal:
+     `sind` for `SProp`, `ind` for `Prop`, `rec` for `Set` and `rect` for `Type`.
+     It also has a `_dep` or `_nodep` suffix indicating whether it is dependent in the eliminated value
+     (i.e. in :cmd:`Scheme`, `Induction` is `_dep` and `Minimality` is `_nodep`).
+     When both `_dep` and `_nodep` schemes are registered for the eliminated inductive and goal sort,
+     the `_dep` scheme is used unless the inductive type was explicitly declared
+     in `Prop`.
+
+     Automatically generated schemes and schemes produced by
+     :cmd:`Scheme` are automatically registered. Constants may also be
+     registered using :cmd:`Register Scheme`, e.g. `Register Scheme
+     my_foo_elim as rect_dep for foo` where `my_foo_elim` is a
+     dependent elimination scheme for inductive `foo` at sort `Type`.
+
+     If no scheme is registered for the eliminated inductive and goal
+     sort, :tacn:`induction` attempts to find a constant from the same
+     module as the inductive whose name is the inductive's name
+     suffixed by `sind` / `ind` / `rec` / `rect`. This name-based lookup is deprecated.
 
    .. exn:: Cannot recognize a statement based on @reference.
 
@@ -1142,6 +1158,10 @@ Generation of induction principles with ``Scheme``
    =================== =========== ===========
 
    See examples of the :n:`@scheme_type`\s :ref:`here <scheme_example>`.
+
+   Unless attribute `register=no` is used, the scheme is automatically
+   registered for use by tactics (for instance :tacn:`induction` uses
+   `Induction` schemes). Use :cmd:`Register Scheme` to manually register a scheme.
 
 .. cmd:: Scheme {? Boolean } Equality for @reference
    :name: Scheme Equality; Scheme Boolean Equality

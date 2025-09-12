@@ -37,12 +37,12 @@ val declare_rewriting_schemes : ?loc:Loc.t -> inductive -> unit
     By default [isrec] is [true].
  *)
 
-val do_mutual_induction_scheme : ?force_mutual:bool
+val do_mutual_induction_scheme : register:bool -> ?force_mutual:bool
   -> Environ.env -> ?isrec:bool -> resolved_scheme list -> unit
 
 (** Main calls to interpret the Scheme command *)
 
-val do_scheme : Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
+val do_scheme : register:bool -> Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
 
 (** Main call to Scheme Equality command *)
 
