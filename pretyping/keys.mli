@@ -10,11 +10,11 @@
 
 type key
 
-val declare_equiv_keys : key -> key -> unit
+val declare_equiv_keys : key -> int -> key -> int -> unit
 (** Declare two keys as being equivalent. *)
 
-val equiv_keys : key -> key -> bool
-(** Check equivalence of keys. *)
+val equiv_keys : key -> key -> (int * int) option
+(** Check equivalence of keys, returns the nubmer of arguments associated with each key. *)
 
 val constr_key : Environ.env -> ('a -> ('a, 't, 'u, 'i, 'r) Constr.kind_of_term) -> 'a -> key option
 (** Compute the head key of a term. *)
