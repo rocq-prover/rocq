@@ -248,7 +248,7 @@ There is dedicated syntax for list and array literals.
    tac2rec_fieldpats ::= @tac2rec_fieldpat ; {? @tac2rec_fieldpats }
    | @tac2rec_fieldpat ;
    | @tac2rec_fieldpat
-   tac2rec_fieldpat ::= @qualid {? := @tac2pat1 }
+   tac2rec_fieldpat ::= @qualid {? := @tac2pat3 }
    ltac2_atom ::= @integer
    | @string
    | @qualid
@@ -1221,11 +1221,13 @@ Match on values
 
    .. prodn::
       ltac2_branches ::= {? %| } {+| {? @atomic_tac2pat } => @ltac2_expr }
+      tac2pat3 ::= @tac2pat3 %| {+| @tac2pat2 }
+      | @tac2pat3 as @ident
+      | @tac2pat2
+      tac2pat2 ::= @tac2pat2 :: @tac2pat2
+      | @tac2pat1
       tac2pat1 ::= @qualid {+ @tac2pat0 }
       | @qualid
-      | @tac2pat1 :: @tac2pat0
-      | @tac2pat1 %| {+| @tac2pat1 }
-      | @tac2pat1 as @ident
       | @tac2pat0
       tac2pat0 ::= _
       | ()
@@ -1234,10 +1236,10 @@ Match on values
       | @qualid
       | ( {? @atomic_tac2pat } )
       | %{ {? @tac2rec_fieldpats } %}
-      | [ {*; @tac2pat1 } ]
-      atomic_tac2pat ::= @tac2pat1 : @ltac2_type
-      | @tac2pat1 , {*, @tac2pat1 }
-      | @tac2pat1
+      | [ {*; @tac2pat3 } ]
+      atomic_tac2pat ::= @tac2pat3 : @ltac2_type
+      | @tac2pat3 , {*, @tac2pat3 }
+      | @tac2pat3
 
 .. tacn:: if @ltac2_expr5__test then @ltac2_expr5__then else @ltac2_expr5__else
    :name: if-then-else (Ltac2)

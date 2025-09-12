@@ -113,3 +113,15 @@ Module RealCodeTest.
     }.
 
 End RealCodeTest.
+
+Module Parsing.
+  (* additional parsing tests not from ocaml *)
+
+  (* the first command should not parse as the second *)
+  Ltac2 Eval fun x => match x with _ :: _ | _ as x => x end.
+  Fail Ltac2 Eval fun x => match x with _ :: _ | (_ as x) => x end.
+
+  (* #21045 *)
+  Ltac2 Eval match [10; 20; 30; 40] with x :: y :: z => x :: y :: z | _ => [] end.
+
+End Parsing.

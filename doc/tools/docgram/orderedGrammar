@@ -2102,7 +2102,7 @@ tac2rec_fieldpats: [
 ]
 
 tac2rec_fieldpat: [
-| qualid OPT [ ":=" tac2pat1 ]      (* ltac2 plugin *)
+| qualid OPT [ ":=" tac2pat3 ]      (* ltac2 plugin *)
 ]
 
 ltac2_atom: [
@@ -2139,12 +2139,20 @@ ltac2_branches: [
 | OPT "|" LIST1 ( OPT atomic_tac2pat "=>" ltac2_expr ) SEP "|"
 ]
 
+tac2pat3: [
+| tac2pat3 "|" LIST1 tac2pat2 SEP "|"      (* ltac2 plugin *)
+| tac2pat3 "as" ident      (* ltac2 plugin *)
+| tac2pat2      (* ltac2 plugin *)
+]
+
+tac2pat2: [
+| tac2pat2 "::" tac2pat2      (* ltac2 plugin *)
+| tac2pat1      (* ltac2 plugin *)
+]
+
 tac2pat1: [
 | qualid LIST1 tac2pat0      (* ltac2 plugin *)
 | qualid      (* ltac2 plugin *)
-| tac2pat1 "::" tac2pat0      (* ltac2 plugin *)
-| tac2pat1 "|" LIST1 tac2pat1 SEP "|"      (* ltac2 plugin *)
-| tac2pat1 "as" ident      (* ltac2 plugin *)
 | tac2pat0      (* ltac2 plugin *)
 ]
 
@@ -2156,13 +2164,13 @@ tac2pat0: [
 | qualid      (* ltac2 plugin *)
 | "(" OPT atomic_tac2pat ")"      (* ltac2 plugin *)
 | "{" OPT tac2rec_fieldpats "}"      (* ltac2 plugin *)
-| "[" LIST0 tac2pat1 SEP ";" "]"      (* ltac2 plugin *)
+| "[" LIST0 tac2pat3 SEP ";" "]"      (* ltac2 plugin *)
 ]
 
 atomic_tac2pat: [
-| tac2pat1 ":" ltac2_type      (* ltac2 plugin *)
-| tac2pat1 "," LIST0 tac2pat1 SEP ","      (* ltac2 plugin *)
-| tac2pat1      (* ltac2 plugin *)
+| tac2pat3 ":" ltac2_type      (* ltac2 plugin *)
+| tac2pat3 "," LIST0 tac2pat3 SEP ","      (* ltac2 plugin *)
+| tac2pat3      (* ltac2 plugin *)
 ]
 
 func_scheme_def: [
