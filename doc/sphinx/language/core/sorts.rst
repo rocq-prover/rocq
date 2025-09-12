@@ -22,6 +22,7 @@ Sorts
    | _
    | @universe_expr
    universe_expr ::= @universe_name {? + @natural }
+   | @natural
 
 The types of types are called :gdef:`sorts <sort>`.
 

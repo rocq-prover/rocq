@@ -1,5 +1,27 @@
 Unset Strict Universe Declaration.
 
+Module ParseSet.
+
+  Check eq_refl : Type@{0} = Set.
+
+  Check Set : Type@{1}.
+  Fail Check Type@{1} : Type@{2}. (* it parses but +2 is currently not allowed *)
+
+  Polymorphic Definition id A (a:A) := a.
+
+  Check eq_refl : id@{0} = id@{Set}.
+
+  (* currently does not parse *)
+  (* Check id@{1}. *)
+
+  Sort s.
+
+  Check Type@{s; 0} : Type@{1}.
+
+  Polymorphic Definition apply A B (f:A -> B) x := f x.
+  Check eq_refl : apply@{0 0} = apply@{Set Set}.
+End ParseSet.
+
 Module withoutpoly.
 
 Inductive empty :=. 

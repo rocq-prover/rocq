@@ -174,7 +174,8 @@ GRAMMAR EXTEND Gram
       | "Prop" -> { CProp } ] ]
   ;
   universe_expr:
-    [ [ id = universe_name; n = universe_increment -> { (id,n) } ] ]
+    [ [ id = universe_name; n = universe_increment -> { (id,n) }
+      | n = natural -> { CSet, n } ] ]
   ;
   universe:
     [ [ IDENT "max"; "("; ids = LIST1 universe_expr SEP ","; ")" -> { UNamed ids }
@@ -340,7 +341,8 @@ GRAMMAR EXTEND Gram
       | -> { None } ] ]
   ;
   univ_level_or_quality:
-    [ [ "Set" -> { Set }
+    [ [ NUMBER "0" -> { Set }
+      | "Set" -> { Set }
       | "SProp" -> { SProp }
       | "Prop" -> { Prop }
       | "Type" -> { Type }
