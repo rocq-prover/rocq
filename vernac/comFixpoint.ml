@@ -24,6 +24,21 @@ module NamedDecl = Context.Named.Declaration
 
 (* 3c| Fixpoints and co-fixpoints *)
 
+let check_duplicate fixlnames =
+  let rec first_dup eq prefix = function
+    | [] -> None
+    | x :: l ->
+        if List.mem_f eq x prefix then
+          Some x
+        else
+          first_dup eq (x :: prefix) l
+  in
+  match first_dup lident_eq [] fixlnames with
+  | None -> ()
+  | Some CAst.{ v=na; loc } ->
+    CErrors.user_err ?loc (str "An entry of name " ++ Id.print na ++
+      str " already exists in the mutual block.")
+
 (* An (unoptimized) function that maps preorders to partial orders...
 
    Input:  a list of associations (x,[y1;...;yn]), all yi distincts
@@ -419,6 +434,7 @@ let interp_mutual_definition env ~program_mode ~function_mode rec_order fixl =
   let open EConstr in
   let fixlnames = List.map (fun fix -> fix.Vernacexpr.fname) fixl in
   let fixnames = List.map (fun na -> na.CAst.v) fixlnames in
+  check_duplicate fixlnames;
 
   (* Interp arities allowing for unresolved types *)
   let sigma, decl = interp_mutual_univ_decl_opt env (List.map (fun Vernacexpr.{univs} -> univs) fixl) in

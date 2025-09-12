@@ -1,0 +1,9 @@
+File "./output/bug_20766.v", line 10, characters 39-40:
+The command has indeed failed with message:
+An entry of name f already exists in the mutual block.
+File "./output/bug_20766.v", line 15, characters 30-31:
+The command has indeed failed with message:
+An entry of name f already exists in the mutual block.
+File "./output/bug_20766.v", line 19, characters 50-51:
+The command has indeed failed with message:
+An entry of name f already exists in the mutual block.
