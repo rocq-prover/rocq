@@ -25,7 +25,7 @@ accepted by the Rocq parser, but the grammar has been edited
 to improve readability and presentation.
 
 In the grammar presented in this manual, the terminal symbols are
-black (e.g. :n:`forall`), whereas the nonterminals are green, italic
+black (e.g. :n:`forall`), whereas the nonterminals are orange, italic
 and hyperlinked (e.g. :n:`@term`).  Some syntax is represented
 graphically using the following kinds of blocks:
 
