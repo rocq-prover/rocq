@@ -1899,14 +1899,6 @@ Abbreviations
 
    Defines an abbreviation :token:`ident` with the parameters :n:`@ident__parm`.
 
-   This command supports the :attr:`local` attribute, which limits the notation to the
-   current module.
-
-   Unlike a :cmd:`Notation`, an abbreviation defined with the default locality
-   is available (with a fully qualified name) outside the current module even
-   when :cmd:`Import` (or one of its variants) has not been used on the current
-   :cmd:`Module`.
-
    An *abbreviation* is a name, possibly applied to arguments, that
    denotes a (presumably) more complex expression. Here are examples:
 
@@ -1940,6 +1932,20 @@ Abbreviations
 
       Compute (Plus1 3).
 
+   This command supports the :attr:`local`, :attr:`export` and
+   :attr:`global` attributes. :attr:`local` limits the notation to the
+   current module or section. With :attr:`export` the abbreviation is
+   only used for printing when it is imported (but it can still be
+   accessed by its qualified name when not imported). With
+   :attr:`global` requiring the module containing the abbreviation is
+   enough to make it used by printing (NB: for "only parsing"
+   abbreviations there is no difference between :attr:`export` and
+   :attr:`global`).
+
+   The default is :attr:`export` outside sections and :attr:`local` in
+   sections, and :attr:`local` is the only supported locality in
+   sections.
+
    An abbreviation expects no precedence nor associativity, since it
    is parsed as an usual application. Abbreviations are used as
    much as possible by the Rocq printers unless the modifier ``(only
@@ -1970,9 +1976,9 @@ Abbreviations
 
       Check (id 0).
 
-   Abbreviations disappear when a section is closed. No typing of the
-   denoted expression is performed at definition time. Type checking is
-   done only at the time of use of the abbreviation.
+   No typing of the denoted expression is performed at definition
+   time. Type checking is done only at the time of use of the
+   abbreviation.
 
    Like for notations, if the right-hand side of an abbreviation is a
    partially applied constant, the abbreviation inherits the implicit

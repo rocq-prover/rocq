@@ -1838,9 +1838,9 @@ let warn_deprecated_notation_for_abbreviation =
 let vernac_abbreviation ~warn_old_notation ~atts lid x only_parsing =
   Option.iter (fun loc -> warn_deprecated_notation_for_abbreviation ~loc ())
     warn_old_notation;
-  let module_local, user_warns = Attributes.(parse Notations.(module_locality ++ user_warns_with_use_globref_instead) atts) in
+  let local, user_warns = Attributes.(parse Notations.(hint_locality_no_sections ++ user_warns_with_use_globref_instead) atts) in
   Dumpglob.dump_definition lid false "abbrev";
-  Metasyntax.add_abbreviation ~local:module_local user_warns (Global.env()) lid.v x only_parsing
+  Metasyntax.add_abbreviation ~local user_warns (Global.env()) lid.v x only_parsing
 
 let default_env () = {
   Notation_term.ninterp_var_type = Id.Map.empty;
