@@ -478,7 +478,7 @@ let process_toplevel_command ~state stm =
 
   | VernacControl { CAst.loc; v=c } ->
     let nstate = Vernac.process_expr ~state (CAst.make ?loc c) in
-    let () = match nstate.proof with
+    let () = if not !print_emacs then match nstate.proof with
     | None -> ()
     | Some proof -> top_goal_print ~doc:state.doc c state.proof proof
     in
