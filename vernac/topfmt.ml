@@ -155,8 +155,7 @@ let gen_logger dbg warn ?qf ?pre_hdr level msg = let open Feedback in match leve
   | Debug   -> msgnl_with !std_ft (make_body dbg  dbg_hdr ?pre_hdr ?qf msg)
   | Info    -> msgnl_with !std_ft (make_body dbg info_hdr ?pre_hdr ?qf msg)
   | Notice  -> msgnl_with !std_ft (make_body noq info_hdr ?pre_hdr ?qf msg)
-  | Warning -> Flags.if_warn (fun () ->
-               msgnl_with !err_ft (make_body warn warn_hdr ?pre_hdr ?qf msg)) ()
+  | Warning -> msgnl_with !err_ft (make_body warn warn_hdr ?pre_hdr ?qf msg)
   | Error   -> msgnl_with !err_ft (make_body noq   err_hdr ?pre_hdr ?qf msg)
 
 (** Standard loggers *)
