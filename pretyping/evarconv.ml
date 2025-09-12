@@ -686,8 +686,11 @@ struct
 end
 
 let rec evar_conv_x flags env evd pbty term1 term2 =
+  let t = Random.int 1073741823 in
+  let () = debug_unification (fun () -> Pp.(v 0 (str "evar_conv_x: " ++ int t ++ cut () ++ Termops.Internal.print_constr_env env evd term1 ++ cut () ++ Termops.Internal.print_constr_env env evd term2 ++ cut ()))) in
   let term1 = whd_head_evar evd term1 in
   let term2 = whd_head_evar evd term2 in
+  let () = debug_unification (fun () -> Pp.(v 0 (str "evar_conv_x after whd_head_evar " ++ int t ++ cut () ++ Termops.Internal.print_constr_env env evd term1 ++ cut () ++ Termops.Internal.print_constr_env env evd term2 ++ cut ()))) in
   (* Maybe convertible but since reducing can erase evars which [evar_apprec]
      could have found, we do it only if the terms are free of evar.
      Note: incomplete heuristic... *)
@@ -696,7 +699,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
       infer_conv_noticing_evars ~pb:pbty ~ts:flags.closed_ts env evd term1 term2
     else None
   in
-  match ground_test with
+  let r = match ground_test with
     | Some result -> result
     | None ->
       (* Until pattern-unification is used consistently, use nohdbeta to not
@@ -727,6 +730,9 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                    NotClean: pruning in solve_simple_eqn is incomplete wrt
                      Miller patterns *)
                 default ()
+              | UnifFailure (_, CannotSolveConstraint _) as x ->
+                let () = debug_unification (fun () -> Pp.(v 0 (str "cannot solve constraint" ++ cut ()))) in
+                x
               | x -> x)
           | _, Evar ev when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
             (match solve_simple_eqn (conv_fun evar_conv_x) flags env evd
@@ -737,9 +743,15 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                    NotClean: pruning in solve_simple_eqn is incomplete wrt
                      Miller patterns *)
                 default ()
+              | UnifFailure (_, CannotSolveConstraint _) as x ->
+                let () = debug_unification (fun () -> Pp.(v 0 (str "cannot solve constraint" ++ cut ()))) in
+                x
               | x -> x)
           | _ -> default ()
         end
+  in
+  let () = debug_unification (fun () -> Pp.(v 0 (str "end evar_conv_x " ++ int t ++ str " with " ++ str (match r with Success _ -> "success" | _ -> "failure") ++ cut ()))) in
+  r
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     keys (* canonical structure keys cache *)
@@ -808,6 +820,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         let tM = Stack.zip evd apprM in
           miller_pfenning l2r
             (fun () -> if not_only_app then (* Postpone the use of an heuristic *)
+              let () = debug_unification (fun () -> Pp.(v 0 (str "postpone in miller" ++ cut ()))) in
               switch (fun x y -> Success (Evarutil.add_unification_pb (pbty,env,x,y) i)) (Stack.zip evd apprF) tM
             else quick_fail i)
             ev lF tM i
@@ -894,6 +907,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                          i,mkEvar ev
                        else
                          i,Stack.zip evd apprF in
+                    let () = debug_unification (fun () -> Pp.(v 0 (str "postpone" ++ cut ()))) in
                      switch (fun x y -> Success (Evarutil.add_unification_pb (pbty,env,x,y) i))
                        tF tR
                    else
@@ -1685,6 +1699,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
   if not (noccur_evar env_rhs evd evk rhs) then raise (TypingFailed evd);
   (* Ensure that any progress made by Typing.e_solve_evars will not contradict
       the solution we are trying to build here by adding the problem as a constraint. *)
+  let () = debug_unification (fun () -> Pp.(v 0 (str "postpone in 2nd order matching" ++ cut ()))) in
   let evd = Evarutil.add_unification_pb (CONV,env_rhs,mkLEvar evd (evk, args),rhs) evd in
   let prc env evd c = Termops.Internal.print_constr_env env evd c in
   let rec make_subst i = function
@@ -2060,6 +2075,7 @@ exception UnableToUnify of evar_map * unification_error
 
 let evar_conv_x flags env evd pb x1 x2 : unification_result =
   NewProfile.profile "unification" (fun () ->
+      let () = debug_unification (fun () -> Pp.(v 0 (str "toplevel evar_conv_x: " ++ cut ()))) in
       evar_conv_x flags env evd pb x1 x2)
     ()
 
