@@ -2242,7 +2242,7 @@ let keyed_unify env evd kop =
         let kc = Keys.constr_key env (fun c -> EConstr.kind evd c) cl in
           match kc with
           | None -> false
-          | Some kc -> Keys.equiv_keys kop kc
+          | Some kc -> Keys.equiv_keys kop kc <> None
 
 type 'aconstr akind =
   | AApp of 'aconstr * 'aconstr array
