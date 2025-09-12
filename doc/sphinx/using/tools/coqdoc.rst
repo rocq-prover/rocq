@@ -294,7 +294,7 @@ suffixes ``.v`` and ``.g`` and |Latex| files by the suffix ``.tex``.
 
 :HTML output: This is the default output format. One HTML file is created for
   each Rocq file given on the command line, together with a file
-  ``index.html`` (unless ``option-no-index is passed``). The HTML pages use a
+  ``index.html`` (unless option ``--no-index`` is passed). The HTML pages use a
   style sheet named ``style.css``. Such a file is distributed with `rocq doc`.
 :|Latex| output: A single |Latex| file is created, on standard
   output. It can be redirected to a file using the option ``-o``. The order of
@@ -439,7 +439,7 @@ Command line options
 
   :-latin1, --latin1: Select ISO-8859-1 input files. It is equivalent to
     --inputenc latin1 --charset iso-8859-1.
-  :-utf8, --utf8: Set --inputenc utf8x for |Latex| output and--charset
+  :-utf8, --utf8: Set --inputenc utf8x for |Latex| output and --charset
     utf-8 for HTML output. Also use Unicode replacements for a couple of
     standard plain ASCII notations such as → for ``->`` and ∀ for ``forall``. |Latex|
     UTF-8 support can be found

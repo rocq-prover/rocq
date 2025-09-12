@@ -316,8 +316,8 @@ and ``rocq repl``, unless stated otherwise:
   the input file and the corresponding `-R` / `-Q` options.
 :-exclude-dir *directory*: Exclude any subdirectory named *directory*
   while processing options such as -R and -Q. By default, only the
-  conventional version control management directories named CVS
-  and_darcs are excluded.
+  conventional version control management directories named ``CVS``
+  and ``_darcs`` are excluded.
 :-nois, -noinit: Start from an empty state instead of loading the `Init.Prelude`
   module.
 :-init-file *file*: Load *file* as the resource file instead of

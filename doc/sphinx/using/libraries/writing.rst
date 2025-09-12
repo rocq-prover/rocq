@@ -30,8 +30,8 @@ deprecated compatibility alias using :cmd:`Abbreviation`
    compiled library file, use :cmd:`Attributes`.
 
    The :n:`use` attribute can be used for commands such as :cmd:`Definition`,
-   :cmd:`Theorem`, and ``Notation @ident``. Its value must refer to an
-   existing constant of abbreviation and is printed as part of the warning
+   :cmd:`Theorem`, and :cmd:`Abbreviation`. Its value must refer to an
+   existing constant or abbreviation and is printed as part of the warning
    message as well as used by LSP based user interfaces as a quick fix.
 
    It can trigger the following warnings:
