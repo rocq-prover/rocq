@@ -18,7 +18,92 @@ Version 9.1
 Summary of changes
 ~~~~~~~~~~~~~~~~~~
 
-TODO
+We highlight some of the most impactful changes here:
+
+- fixed incorrect guard checking leading to inconsistencies (multiple PRs)
+
+- sort polymorphic universe instances :ref:`should now be written <91sortpolysyntax>`
+  as `@{s ; u}` instead of `@{s | u}`
+
+- :ref:`fixed <91ltac2notationfix>` handling of notation variables for ltac2 in notations
+  (i.e. `Notation "'foo' x" := ltac2:(...)`)
+
+- :ref:`Support <91refinedef>` for :attr:`refine` attribute in :cmd:`Definition`
+
+- Rocq can be compile-time configured to be :ref:`relocatable <91relocatable>`
+
+- extraction :ref:`handles <91extractsortpoly>` sort polymorphic definitions
+
+See the `Changes in 9.1.0`_ section below for the detailed list of changes,
+including potentially breaking changes marked with **Changed**.
+Rocq's `reference manual for 9.1 <https://rocq-prover.org/doc/v9.1/refman>`_,
+documentation of the 9.1 `corelib <https://rocq-prover.org/doc/v9.1/corelib>`__
+and `developer documentation of the 9.1 ML API <https://rocq-prover.org/doc/v9.1/api>`_
+are also available.
+
+Théo Zimmermann, with help from Jason Gross and Gaëtan Gilbert, maintained
+`coqbot <https://github.com/rocq-prover/bot>`__ used to run Rocq's CI and other
+pull request management tasks.
+
+Jason Gross maintained the `bug minimizer <https://github.com/JasonGross/coq-tools>`_
+and its `automatic use through coqbot <https://github.com/rocq-prover/rocq/wiki/Coqbot-minimize-feature>`_.
+
+Ali Caglayan, Emilio Jesús Gallego Arias, Rudi Grinberg and Rodolphe Lepigre maintained the
+`Dune build system for OCaml and Coq/Rocq <https://github.com/ocaml/dune/>`_
+used to build the Rocq Prover itself and many Rocq projects.
+
+The `opam repository <https://github.com/coq/opam>`_ for Rocq packages has been maintained by
+Guillaume Claret, Guillaume Melquiond, Karl Palmskog, Matthieu Sozeau
+and Enrico Tassi with contributions from many users. The up-to-date list
+of packages is `available on the Rocq website <https://rocq-prover.org/packages>`_.
+
+Erik Martin-Dorel maintained the
+`Rocq Docker images <https://hub.docker.com/r/rocq/rocq-prover>`_ and
+the `docker-keeper <https://gitlab.com/erikmd/docker-keeper>`_ compiler
+used to build and keep those images up to date (note that the tool is not Rocq specific).
+Erik Martin-Dorel and Théo Zimmermann maintained the
+`docker-coq-action <https://github.com/coq-community/docker-coq-action>`_
+container action (which is applicable to any opam project hosted on GitHub).
+
+Cyril Cohen, Vincent Laporte, Pierre Roux and Théo Zimmermann
+maintained the `Nix toolbox <https://github.com/coq-community/coq-nix-toolbox>`_.
+The docker-coq-action and the Nix toolbox are used by many Rocq projects for continuous integration.
+
+Rocq 9.1 was made possible thanks to the following 24 reviewers:
+Florian Angeletti, Ali Caglayan, Cyril Cohen, Pierre Courtieu, Jim
+Fehrle, Gaëtan Gilbert, Jason Gross, Emilio Jesús Gallego Arias,
+Jan-Oliver Kaiser, Thomas Lamiaux, Rodolphe Lepigre,
+Erik Martin-Dorel, Guillaume Melquiond, Patrick Nicodemus,
+Pierre-Marie Pédrot, Pierre Rousselin, Pierre Roux, Gabriel Scherer,
+Matthieu Sozeau, Nicolas Tabareau, Enrico Tassi, Théo Winterhalter and
+Théo Zimmermann.
+
+See the `Rocq Team <https://rocq-prover.org/rocq-team>`_ page for
+more details on Rocq's development teams.
+
+The 45 contributors to the 9.1 version are: Soudant,
+ypopovitch, Reynald Affeldt, Wassim Ait-Moussa, David Allsopp,
+Christian Benedict Smit, Frédéric Besson, Mathis Bouverot, Ali
+Caglayan, Jean Caspar, Benedict Christian Smit, Cyril Cohen, Pierre Courtieu,
+Julien Cretin, Jian Fang, Jim Fehrle, Gaëtan Gilbert, Jason Gross,
+Dario Halilovic, Hugo Herbelin, Elyes Jemel, Emilio Jesús Gallego
+Arias, Jan-Oliver Kaiser, Kacper Korban, Lucie Lahaye, Thomas Lamiaux,
+Rodolphe Lepigre, Yann Leray, Kenji Maillard, Erik Martin-Dorel,
+Patrick Nicodemus, Charles Norton, Pim Otte, Pierre-Marie Pédrot,
+Josselin Poiret, Johann Rosain, Pierre Rousselin, Pierre Roux,
+Radosław Rowicki, Benedict Smit, Bastien Sozeau, Matthieu Sozeau,
+Nicolas Tabareau, Enrico Tassi and Théo Zimmermann.
+
+The Rocq community at large helped improve this new version via
+the GitHub issue and pull request system,
+the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
+`Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
+
+Gaëtan Gilbert and Pierre-Marie Pédrot are the release managers of Rocq 9.1.
+This release is the result of 397 merged PRs, closing 56 issues.
+
+| Nantes, September 2025
+| Gaëtan Gilbert and Pierre-Marie Pédrot for the Rocq development team
 
 Changes in 9.1.0
 ~~~~~~~~~~~~~~~~
@@ -50,9 +135,25 @@ Kernel
   (`#20729 <https://github.com/rocq-prover/rocq/pull/20729>`_,
   fixes `#20728 <https://github.com/rocq-prover/rocq/issues/20728>`_,
   by Yann Leray).
+- **Fixed:**
+  Fix guard checker making propositional extensionality inconsistent
+  (`#21050 <https://github.com/rocq-prover/rocq/pull/21050>`_,
+  fixes `#21053 <https://github.com/rocq-prover/rocq/issues/21053>`_,
+  by Yann Leray).
+- **Fixed:**
+  substitution of functor delta-resolvers when strengthening.
+  The previous code was only substituting the inner delta resolvers
+  and ignoring the codomain of functors. In particular this was generating
+  ill-formed constants whose canonical component was pointing to a bound name
+  that did not exist in the global environment, leading to an inconsistency
+  (`#21057 <https://github.com/rocq-prover/rocq/pull/21057>`_,
+  fixes `#21051 <https://github.com/rocq-prover/rocq/issues/21051>`_,
+  by Pierre-Marie Pédrot).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _91sortpolysyntax:
 
 - **Deprecated:**
   in :ref:`sort polymorphic <sort-polymorphism>` instances, separating sorts from universes using `|` instead of `;` (the later being possible since this version)
@@ -65,13 +166,24 @@ Specification language, type inference
   (`Definition foo@{s;u} := ...` instead of `Definition foo@{s|u|+} := ...`)
   (`#20635 <https://github.com/rocq-prover/rocq/pull/20635>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  Anomaly `List.chop` in the presence of projections with not
+  enough argument scopes (`#20945
+  <https://github.com/rocq-prover/rocq/pull/20945>`_, fixes `#20940
+  <https://github.com/rocq-prover/rocq/issues/20940>`_, by Hugo
+  Herbelin).
+- **Fixed:**
+  Anomaly `List.chop` with too many projection parameters in an abbreviation
+  (`#20946 <https://github.com/rocq-prover/rocq/pull/20946>`_,
+  fixes `#15815 <https://github.com/rocq-prover/rocq/issues/15815>`_,
+  by Hugo Herbelin).
 
 Notations
 ^^^^^^^^^
 
 - **Changed:**
   The `Specif` notations (`exists x : A, P`, `{ x : A | P }`, `{ x : A & P }`, etc)
-  locally open `type_scope` for the second component (`P`).
+  locally opens `type_scope` for the second component (`P`).
   This makes eg `{ x & type_1 * type_2 }` work even when `nat_scope` is opened instead of interpreting `*` as peano multiplication
   (`#20294 <https://github.com/coq/coq/pull/20294>`_,
   by Gaëtan Gilbert).
@@ -160,6 +272,11 @@ Ltac2 language
   (`#20516 <https://github.com/rocq-prover/rocq/pull/20516>`_,
   by Gaëtan Gilbert).
 - **Added:**
+  A file `Ltac1CompatNotations` for Ltac2 Notations reproducing Ltac1 parsing of tactics,
+  that can be harmful to parsing, and produce bad error messages.
+  (`#20569 <https://github.com/rocq-prover/rocq/pull/20569>`_,
+  by Thomas Lamiaux).
+- **Added:**
   `rename` (in `Ltac1CompatNotations`), `eassumption`, `cycle`, and `exfalso` Ltac2 notations
   (`#20197 <https://github.com/rocq-prover/rocq/pull/20197>`_,
   by Josselin Poiret).
@@ -220,6 +337,9 @@ Ltac2 language
   i.e. `let x := @y in constr:($hyp:x)` is equivalent to `constr:(&y)`
   (`#20656 <https://github.com/rocq-prover/rocq/pull/20656>`_,
   by Gaëtan Gilbert).
+
+.. _91ltac2notationfix:
+
 - **Fixed:**
   Ltac2 in terms in notations is more aware of the notation variables it uses,
   providing early failure when the variable is instantiated with an invalid term,
@@ -295,6 +415,9 @@ Commands and options
   (`#20107 <https://github.com/coq/coq/pull/20107>`_,
   fixes `#20042 <https://github.com/coq/coq/issues/20042>`_,
   by Gaëtan Gilbert).
+
+.. _91refinedef:
+
 - **Added:**
   support for the :attr:`refine` attribute to definitions and (co)fixpoints
   (`#20355 <https://github.com/coq/coq/pull/20355>`_,
@@ -356,6 +479,9 @@ Infrastructure and dependencies
   and minimum supported OCamlfind version is now 1.9.1 (instead of 1.8.1)
   (`#20576 <https://github.com/rocq-prover/rocq/pull/20576>`_,
   by Gaëtan Gilbert).
+
+.. _91relocatable:
+
 - **Added:**
   Rocq can be compile-time configured to be relocatable,
   using `./configure -relocatable` instead of e.g. `./configure -prefix /some/path`.
@@ -380,6 +506,8 @@ Infrastructure and dependencies
 
 Extraction
 ^^^^^^^^^^
+
+.. _91extractsortpoly:
 
 - **Fixed:**
   extraction handles sort polymorphic definitions
