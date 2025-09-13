@@ -46,7 +46,7 @@ Théo Zimmermann, with help from Jason Gross and Gaëtan Gilbert, maintained
 pull request management tasks.
 
 Jason Gross maintained the `bug minimizer <https://github.com/JasonGross/coq-tools>`_
-and its `automatic use through coqbot <https://github.com/rocq-prover/rocq/wiki/Coqbot-minimize-feature>`_.
+and its `automatic use through coqbot <https://github.com/rocq-prover/rocq/wiki/Coqbot-minimize-feature>`__.
 
 Ali Caglayan, Emilio Jesús Gallego Arias, Rudi Grinberg and Rodolphe Lepigre maintained the
 `Dune build system for OCaml and Coq/Rocq <https://github.com/ocaml/dune/>`_
