@@ -22,9 +22,9 @@ open CmdArgs.Prefs
 
 let (/) = Filename.concat
 
-let coq_version = "9.1+rc1"
-let vo_magic = 90099
-let is_a_released_version = false
+let coq_version = "9.1.0"
+let vo_magic = 90100
+let is_a_released_version = true
 
 (** Default OCaml binaries *)
 
