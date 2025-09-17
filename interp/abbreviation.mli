@@ -43,13 +43,10 @@ val fold : (key -> t -> 'a -> 'a) -> 'a -> 'a
     abbreviation map, if there is one. *)
 val find_opt : key -> t option
 
-val declare_abbreviation : local:Libobject.locality ->
-  Globnames.extended_global_reference UserWarn.with_qf option -> Id.t ->
-  onlyparsing:bool -> interp -> unit
-
-val search_abbreviation : key -> interp
-
-val import_abbreviation : int -> Libnames.full_path -> key -> unit
+(** [find_interp k] gives the interpretation of the abbreviation associated
+    with the key [k] in the abbreviation map. The [Not_found] exception is
+    raised if [k] is not mapped. *)
+val find_interp : key -> interp
 
 (** [toggle ~on ~use key] actives (if [on]) or deactivates (if [not on]) the
     abbreviation with the given [key]. An abbreviation associated with [key]
@@ -59,3 +56,9 @@ val toggle : on:bool -> use:notation_use -> key -> unit
 (** [toggle_if ~on ~use pred] is equivalent to running [toggle ~on ~use] on
     all abbreviations satisfying the given predicate [pred]. *)
 val toggle_if : on:bool -> use:notation_use -> (key -> t -> bool) -> unit
+
+val declare : local:Libobject.locality ->
+  Globnames.extended_global_reference UserWarn.with_qf option -> Id.t ->
+  onlyparsing:bool -> interp -> unit
+
+val import : int -> Libnames.full_path -> key -> unit

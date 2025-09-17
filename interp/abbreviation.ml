@@ -103,7 +103,7 @@ let open_abbreviation i ((sp,kn),abbrev) =
       Notationextern.declare_uninterpretation (Global.env ()) (AbbrevRule kn) pat
   end
 
-let import_abbreviation i sp kn =
+let import i sp kn =
   let _,abbrev = KerName.Map.get kn !abbrev_table in
   open_abbreviation i ((sp,kn),abbrev)
 
@@ -126,7 +126,7 @@ let inAbbreviation : Id.t -> abbreviation -> obj =
     subst_function = subst_abbreviation;
     classify_function = classify_abbreviation }
 
-let declare_abbreviation ~local user_warns id ~onlyparsing pat =
+let declare ~local user_warns id ~onlyparsing pat =
   let abbrev = {
     abbrev_local = local;
     abbrev_pattern = pat;
@@ -139,6 +139,6 @@ let declare_abbreviation ~local user_warns id ~onlyparsing pat =
   add_leaf (inAbbreviation id abbrev)
 
 (* Remark: do not check for activation (if not activated, it is already not supposed to be located) *)
-let search_abbreviation kn =
+let find_interp kn =
   let _,abbrev = KerName.Map.find kn !abbrev_table in
   abbrev.abbrev_pattern

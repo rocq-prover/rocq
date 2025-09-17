@@ -646,7 +646,7 @@ let print_global_reference access env sigma gref udecl =
   | VarRef id -> print_section_variable_with_infos env sigma id
 
 let glob_constr_of_abbreviation kn =
-  let (vars,a) = Abbreviation.search_abbreviation kn in
+  let (vars,a) = Abbreviation.find_interp kn in
   (List.map fst vars, Notation_ops.glob_constr_of_notation_constr a)
 
 let print_abbreviation_body env kn (vars,c) =

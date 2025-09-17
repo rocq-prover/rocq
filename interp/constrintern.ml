@@ -1368,7 +1368,7 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       raise Not_found
   | TrueGlobal ref -> (DAst.make ?loc @@ GRef (ref, us)), Some ref, args
   | Abbrev sp ->
-      let (ids,c) = Abbreviation.search_abbreviation sp in
+      let (ids,c) = Abbreviation.find_interp sp in
       let nids = List.length ids in
       if List.length args < nids then error_not_enough_arguments ?loc;
       let args1,args2 = List.chop nids args in

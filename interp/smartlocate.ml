@@ -18,13 +18,12 @@ open Pp
 open CErrors
 open Libnames
 open Globnames
-open Abbreviation
 open Notation_term
 
 let global_of_extended_global_head = function
   | TrueGlobal ref -> ref
   | Abbrev kn ->
-      let _, syn_def = search_abbreviation kn in
+      let _, syn_def = Abbreviation.find_interp kn in
       let rec head_of = function
         | NRef (ref,None) -> ref
         | NApp (rc, _) -> head_of rc
@@ -36,7 +35,7 @@ let global_of_extended_global_head = function
 let global_of_extended_global_exn = function
   | TrueGlobal ref -> ref
   | Abbrev kn ->
-  match search_abbreviation kn with
+  match Abbreviation.find_interp kn with
   | [],NRef (ref,None) -> ref
   | [],NApp (NRef (ref,None),[]) -> ref
   | _ -> raise Not_found
