@@ -49,8 +49,6 @@ val declare_abbreviation : local:Libobject.locality ->
 
 val search_abbreviation : key -> interp
 
-val search_filtered_abbreviation : (interp -> 'a option) -> key -> 'a option
-
 val import_abbreviation : int -> Libnames.full_path -> key -> unit
 
 (** Activate (if on:true) or deactivate (if on:false) an abbreviation assumed to exist *)

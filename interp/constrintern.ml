@@ -1430,7 +1430,10 @@ let intern_qualid_for_pattern test_global intern_not qid pats =
         let args = List.map (intern_not subst) args in
         Some (g, Some args, pats2)
       | _ -> None in
-    match Abbreviation.search_filtered_abbreviation filter kn with
+    match Abbreviation.find_opt kn with
+    | None -> raise Not_found
+    | Some abbrev ->
+    match filter (Abbreviation.interp abbrev) with
     | Some (g, pats1, pats2) ->
       Nametab.is_warned_xref xref
       |> Option.iter (fun warn -> Nametab.warn_user_warn_xref ?loc:qid.loc warn (Abbrev kn));

@@ -145,8 +145,3 @@ let declare_abbreviation ~local user_warns id ~onlyparsing pat =
 let search_abbreviation kn =
   let _,abbrev = KerName.Map.find kn !abbrev_table in
   abbrev.abbrev_pattern
-
-let search_filtered_abbreviation filter kn =
-  let _,abbrev = KerName.Map.find kn !abbrev_table in
-  let res = filter abbrev.abbrev_pattern in
-  res
