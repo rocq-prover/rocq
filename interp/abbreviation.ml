@@ -20,11 +20,9 @@ open Notationextern
 
 type key = KerName.t
 
-type interp = Notation_term.interpretation
-
 type abbreviation = {
   abbrev_local : Libobject.locality;
-  abbrev_pattern : interp;
+  abbrev_pattern : Notation_term.interpretation;
   abbrev_onlyparsing : bool;
   abbrev_user_warns : Globnames.extended_global_reference UserWarn.with_qf option;
   abbrev_activated : bool; (* Not really necessary in practice *)
