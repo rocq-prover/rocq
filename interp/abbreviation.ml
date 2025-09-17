@@ -50,29 +50,26 @@ let fold f acc =
 let find_opt k =
   KerName.Map.find_opt k !abbrev_table
 
-let toggle_abbreviation ~on ~use kn =
-  let sp, data = KerName.Map.find kn !abbrev_table in
-  if data.abbrev_activated != on then
-    begin
-      abbrev_table := KerName.Map.add kn (sp, {data with abbrev_activated = on}) !abbrev_table;
-      match use with
-      | OnlyPrinting -> ()
-      | OnlyParsing | ParsingAndPrinting ->
-         if on then
-           begin
-             Nametab.push_abbreviation ?user_warns:data.abbrev_user_warns (Nametab.Until 1) sp kn;
-             Nametab.push_abbreviation (Nametab.Exactly 1) sp kn
-           end
-         else
-           Nametab.remove_abbreviation sp kn
-    end
+let toggle_aux ~on ~use k (sp, data) =
+  if data.abbrev_activated != on then begin
+    abbrev_table := KerName.Map.add k (sp, {data with abbrev_activated = on}) !abbrev_table;
+    match use with
+    | OnlyPrinting -> ()
+    | (OnlyParsing | ParsingAndPrinting) when on ->
+        Nametab.push_abbreviation ?user_warns:data.abbrev_user_warns (Nametab.Until 1) sp k;
+        Nametab.push_abbreviation (Nametab.Exactly 1) sp k
+    | OnlyParsing | ParsingAndPrinting ->
+        Nametab.remove_abbreviation sp k
+  end
 
-let toggle_abbreviations ~on ~use filter =
-  let toggle kn (sp, a) _ =
-    if a.abbrev_activated != on && filter sp a.abbrev_pattern then
-      toggle_abbreviation ~on ~use kn
-  in
-  fold toggle ()
+let toggle ~on ~use k =
+  toggle_aux ~on ~use k (KerName.Map.find k !abbrev_table)
+
+let toggle_if ~on ~use filter =
+  fold (fun k ((_, a) as abbr) _ ->
+    if a.abbrev_activated != on && filter k abbr then
+      toggle_aux ~on ~use k abbr
+  ) ()
 
 let is_alias_of_already_visible_name sp = function
   | _,Notation_term.NRef (ref,None) ->

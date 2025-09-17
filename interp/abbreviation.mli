@@ -51,9 +51,11 @@ val search_abbreviation : key -> interp
 
 val import_abbreviation : int -> Libnames.full_path -> key -> unit
 
-(** Activate (if on:true) or deactivate (if on:false) an abbreviation assumed to exist *)
-val toggle_abbreviation : on:bool -> use:notation_use -> key -> unit
+(** [toggle ~on ~use key] actives (if [on]) or deactivates (if [not on]) the
+    abbreviation with the given [key]. An abbreviation associated with [key]
+    should exist, otherwise [Not_found] is raised. *)
+val toggle : on:bool -> use:notation_use -> key -> unit
 
-(** Activate (if on:true) or deactivate (if on:false) all abbreviations satisfying a criterion *)
-val toggle_abbreviations : on:bool -> use:notation_use ->
-  (Libnames.full_path -> interp -> bool) -> unit
+(** [toggle_if ~on ~use pred] is equivalent to running [toggle ~on ~use] on
+    all abbreviations satisfying the given predicate [pred]. *)
+val toggle_if : on:bool -> use:notation_use -> (key -> t -> bool) -> unit

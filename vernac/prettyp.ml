@@ -658,7 +658,7 @@ let print_abbreviation_body env kn (vars,c) =
         spc () ++ str ":=") ++
      spc () ++
      Vernacstate.System.protect (fun () ->
-         Abbreviation.toggle_abbreviation ~on:false ~use:ParsingAndPrinting kn;
+         Abbreviation.toggle ~on:false ~use:ParsingAndPrinting kn;
          pr_glob_constr_env env (Evd.from_env env) c) ())
 
 let print_abbreviation access env sigma kn =
