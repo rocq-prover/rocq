@@ -22,6 +22,11 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+Definition eq_Has_Leibniz_elim@{l l'} : Has_Leibniz@{Type Prop Prop;l Set l'} (@eq) :=
+  @eq_ind.
+
+Hint Resolve eq_Has_Leibniz_elim : rewrite_instances.
+
 Lemma foo (H : true = false) : False.
 Proof.
   discriminate.

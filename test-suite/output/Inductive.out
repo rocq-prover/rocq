@@ -40,7 +40,7 @@ or is not universe polymorphic
 or may only be eliminated to produce values whose type is SProp or Prop.
 Arguments or (A B)%_type_scope
 Expands to: Inductive Corelib.Init.Logic.or
-Declared in library Corelib.Init.Logic, line 89, characters 10-12
+Declared in library Corelib.Init.Logic, line 88, characters 10-12
 sunit : SProp
 
 sunit is not universe polymorphic

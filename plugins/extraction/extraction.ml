@@ -665,6 +665,7 @@ let record_constant_type table env sg kn inst opt_typ =
        | None -> qmono cb.const_universes inst cb.const_type
        | Some typ -> typ
      in
+     let typ = Reductionops.whd_all env sg typ in
      let mlt = extract_type table env sg [] 1 typ [] in
      let schema = (type_maxvar mlt, mlt) in
      let () = add_cst_type (Common.State.get_table table) kn inst cb schema in

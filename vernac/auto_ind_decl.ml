@@ -932,9 +932,7 @@ let do_replace_lb handle aavoid narg p q =
     let env = Tacmach.pf_env gl in
     let (ind,u as indu),v = destruct_ind env sigma type_of_pq in
     let c = get_scheme handle (!lb_scheme_kind_aux ()) ind in
-    let open Proofview.Notations in
-    let lb_type_of_p = mkConstU (c,u) in
-       Proofview.tclEVARMAP >>= fun sigma ->
+    let sigma , lb_type_of_p = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
        let lb_args = Array.append (Array.append
                           v
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 1) v))
@@ -943,6 +941,7 @@ let do_replace_lb handle aavoid narg p q =
                        then lb_type_of_p else mkApp (lb_type_of_p,lb_args)
            in
            Tacticals.tclTHENLIST [
+             Proofview.Unsafe.tclEVARS sigma;
              Equality.replace p q ; Tactics.apply app ; Auto.default_auto]
   end
 
@@ -990,7 +989,7 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
              then Tacticals.tclTHENLIST [Equality.replace t1 t2; Auto.default_auto ; aux q1 q2 ]
              else (
                let c = get_scheme handle (!bl_scheme_kind_aux ()) ind' in
-               let bl_t1 = mkConstU (c,u) in
+               let sigma , bl_t1 = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
                let bl_args =
                         Array.append (Array.append
                           v
@@ -1001,6 +1000,7 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
                            then bl_t1 else mkApp (bl_t1,bl_args)
                 in
                 Tacticals.tclTHENLIST [
+                  Proofview.Unsafe.tclEVARS sigma;
                   Equality.replace_by t1 t2
                     (Tacticals.tclTHEN (Tactics.apply app) (Auto.default_auto)) ;
                   aux q1 q2 ]
@@ -1439,15 +1439,13 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
           let eqbnm = mkApp(eqI,[|mkVar freshn;mkVar freshm|]) in
           let arfresh = Array.of_list fresh_first_intros in
           let xargs = Array.sub arfresh 0 (2*nparrec) in
-          let c = get_scheme handle bl_scheme_kind ind in
-          let blI = mkConstU (c,u) in
-          let c = get_scheme handle lb_scheme_kind ind in
-          let lbI = mkConstU (c,u) in
           (* univ polymorphic schemes may have extra constraints
              from using univ monomorphic f_equal and the like *)
           let env, sigma = Proofview.Goal.(env gl, sigma gl) in
-          let sigma, _ = Typing.type_of env sigma (EConstr.of_constr blI) in
-          let sigma, _ = Typing.type_of env sigma (EConstr.of_constr lbI) in
+          let c = get_scheme handle bl_scheme_kind ind in
+          let sigma , blI = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
+          let c = get_scheme handle lb_scheme_kind ind in
+          let sigma , lbI = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
           Tacticals.tclTHENLIST [
               Proofview.Unsafe.tclEVARS sigma;
 
@@ -1463,7 +1461,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                     (* left *)
                     Tacticals.tclTHENLIST [
                         simplest_left;
-                        apply (EConstr.of_constr (mkApp(blI,Array.map mkVar xargs)));
+                        apply (EConstr.mkApp(blI,Array.map EConstr.mkVar xargs));
                         Auto.default_auto
                       ]
                   ;
@@ -1479,7 +1477,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                           assert_by (Name freshH3)
                             (EConstr.of_constr (mkApp(eq,[|bb;mkApp(eqI,[|mkVar freshm;mkVar freshm|]);tt|])))
                             (Tacticals.tclTHENLIST [
-                                 apply (EConstr.of_constr (mkApp(lbI,Array.map mkVar xargs)));
+                                 apply (EConstr.mkApp(lbI,Array.map EConstr.mkVar xargs));
                                  Auto.default_auto
                             ]);
                           Equality.general_rewrite ~where:(Some freshH3) ~l2r:true
