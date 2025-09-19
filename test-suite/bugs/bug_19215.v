@@ -100,7 +100,10 @@ Register eq_elim as core.eq.rect.
 
   End equality.
 
-  Inductive comparison : Set :=
+Instance eq_Has_Leibniz_elim@{s s'; l l' l''} : Has_Leibniz@{s s' s' ; l l' l''} (@eq@{s s' ; l l'}) :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+Inductive comparison : Set :=
   | Eq : comparison
   | Lt : comparison
   | Gt : comparison.

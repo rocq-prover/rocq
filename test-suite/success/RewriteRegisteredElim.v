@@ -25,11 +25,11 @@ Proof. rewrite e. reflexivity. Qed.
 
 Lemma EQ_sym2 {A} {x y : A} (e : EQ x y) : EQ y x.
 Proof.
-  Fail rewrite <- e.
-  Import Registers.
   rewrite <- e.
   reflexivity.
 Qed.
+
+Import Registers.
 
 Require Import ssreflect.
 

@@ -10,10 +10,8 @@
 
 Set Implicit Arguments.
 
-Require Export Notations.
+Require Export Equality.
 Require Import Ltac.
-
-Notation "A -> B" := (forall (_ : A), B) : type_scope.
 
 (** * Propositional connectives *)
 
@@ -403,6 +401,26 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+Instance eq_Has_Prop_refl : Has_refl@{Prop Prop;Set Set} (@eq) :=
+  fun A x => eq_refl.
+
+Instance eq_Has_refl@{l} : Has_refl@{Type Prop;l Set} (@eq) :=
+  fun A x => eq_refl.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_J_Prop_elim@{s ; l} : Has_J@{Prop Prop s ; Set Set l} (@eq) _ :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_J_elim@{s ; l l'} : Has_J@{Type Prop s ; l Set l'} (@eq) _ :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_Leibniz_Prop_elim@{s ; l} : Has_Leibniz@{Prop Prop s;Set Set l} (@eq) := Has_J_Has_Leibniz _.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_Leibniz_elim@{s ; l l'} : Has_Leibniz@{Type Prop s;l Set l'} (@eq) := Has_J_Has_Leibniz _.
+
 Section Logic_lemmas.
 
   Theorem absurd : forall A C:Prop, A -> ~ A -> C.
@@ -472,6 +490,22 @@ Section Logic_lemmas.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
 End Logic_lemmas.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_J_r_Prop_elim@{s ; l} : Has_J_r@{Prop Prop s ; Set Set l} (@eq) _.
+  intros A x P t y e. destruct e. assumption.
+Defined.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_J_r_elim_Type@{s ; l l'} : Has_J_r@{Type Prop s ; l Set l'} (@eq) _.
+  intros A x P t y e. destruct e. assumption.
+Defined.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_Leibniz_r_Prop_elim@{s;l} : Has_Leibniz_r@{Prop Prop s;Set Set l} (@eq) := Has_J_r_Has_Leibniz_r _.
+
+#[universes(polymorphic=yes)]
+Instance eq_Has_Leibniz_r_elim@{s;l l'} : Has_Leibniz_r@{Type Prop s;l Set l'} (@eq) := Has_J_r_Has_Leibniz_r _.
 
 Module EqNotations.
   Notation "'rew' H 'in' H'" := (eq_rect _ _ H' _ H)

@@ -22,6 +22,10 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+#[universes(polymorphic=yes)]
+Instance eq_Has_Leibniz_elim@{s ; l l'} : Has_Leibniz@{Type Prop s;l Set l'} (@eq) :=
+  fun A x P t y e => match e with eq_refl => t end.
+
 Lemma foo (H : true = false) : False.
 Proof.
   discriminate.
@@ -31,6 +35,6 @@ Print foo.
 Goal False.
   let c := eval cbv delta [foo] in foo in
     match c with
-      context[eq_ind] => idtac
+      context[eq_Has_Leibniz_elim] => idtac
     end.
 Abort.

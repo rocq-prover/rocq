@@ -11,15 +11,12 @@ Definition nand@{q; |} (a b : bool@{q;}) : bool@{q;} :=
 Inductive seq@{q;u|} {A : Type@{q;u}} (a : A) : A -> Type@{q;u} := | srefl : seq a a.
 Arguments srefl {_ _}.
 
-Definition seq_elim@{q;u v|} :=
-  fun (A : Type@{q;u}) (x : A) (P : A -> Type@{q;v}) (f : P x) (a : A) (e : seq x a) =>
-  match e in (seq _ a0) return (P a0) with
-  | srefl => f
-  end.
+#[universes(polymorphic=yes)]
+Instance seq_Has_Leibniz_elim@{s; l l' l''} : Has_Leibniz@{s s s;l l' l''} (@seq) :=
+  fun A x P t y e => match e with srefl => t end.
 
 Register seq as core.eq.type.
 Register srefl as core.eq.refl.
-Register seq_elim as core.eq.rect.
 
 Lemma foo@{q; |} (f : bool@{q;} -> bool@{q;}) (x : bool@{q;}) : seq (f true) (f true).
 Proof.
