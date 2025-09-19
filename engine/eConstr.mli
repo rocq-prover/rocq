@@ -71,7 +71,7 @@ end
 
 module EInstance :
 sig
-  type t
+  type t = Evd.einstance
   (** Type of universe instances up-to universe unification. Similar to
       [ESorts.t] for [UVars.Instance.t]. *)
 
@@ -452,7 +452,7 @@ val identity_subst_val : named_context_val -> t SList.t
 
 (* XXX Missing Sigma proxy *)
 val fresh_global :
-  ?loc:Loc.t -> ?rigid:Evd.rigid -> ?names:UVars.Instance.t -> Environ.env ->
+  ?loc:Loc.t -> ?rigid:Evd.rigid -> ?names:EInstance.t -> Environ.env ->
   Evd.evar_map -> GlobRef.t -> Evd.evar_map * t
 
 val is_global : Environ.env -> Evd.evar_map -> GlobRef.t -> t -> bool

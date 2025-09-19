@@ -23,6 +23,8 @@ type econstr = constr
 type etypes = types
 type esorts = Sorts.t
 type erelevance = Sorts.relevance
+type einstance = UVars.Instance.t
+type 'a puniverses = 'a * einstance
 
 (** Generic filters *)
 module Filter :
