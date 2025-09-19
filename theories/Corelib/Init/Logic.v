@@ -403,6 +403,118 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+Create HintDb typeclass_instances discriminated.
+
+Section J_as_a_class.
+
+Unset Implicit Arguments.
+Set Universe Polymorphism.
+
+  Class Has_refl@{sa se;la le} (eq : forall A : Type@{sa;la}, A -> A -> Type@{se;le})
+  := refl : forall A x, eq A x x.
+
+Arguments refl {_ _}.
+
+Register Has_refl as rocq.core.Has_refl.
+
+Class Has_J@{sa se sp;la le lp} (eq : forall A : Type@{sa ; la}, A -> A -> Type@{se;le})
+  (Has_refl : Has_refl eq) :=
+  J : forall (A : Type@{sa ; la}) (x : A) (P : forall y : A, eq A x y -> Type@{sp ; lp}),
+    P x (refl A x) -> forall y e, P y e.
+
+Arguments J {_ _ _}.
+
+Register Has_J as rocq.core.Has_J.
+
+Class Has_Leibniz@{sa se sp;la le lp} (eq : forall A : Type@{sa ; la}, A -> A -> Type@{se;le}) :=
+  leibniz : forall (A : Type@{sa ; la}) (x : A) (P : A -> Type@{sp ; lp}), P x -> forall y, eq A x y -> P y.
+
+Class Has_Leibniz_r@{sa se sp;la le lp} (eq : forall A : Type@{sa ; la}, A -> A -> Type@{se;le}) :=
+  leibniz_r : forall (A : Type@{sa ; la}) (x : A) (P : A -> Type@{sp ; lp}), P x -> forall y, eq A y x -> P y.
+
+Arguments leibniz _ {_}.
+
+Register Has_Leibniz as rocq.core.Has_Leibniz.
+Register Has_Leibniz_r as rocq.core.Has_Leibniz_r.
+
+Definition J_no_dep@{s s' sp;l l' lp} {eq} {refl} (eqr : Has_J@{s s' sp;l l' lp} eq refl) :
+  forall (A : Type@{s ; l}) (x : A) (P : A -> Type@{sp ; lp}), P x -> forall y (e : eq A x y), P y :=
+  fun A x P px y e => J _ x (fun y _ => P y) px y e.
+
+Definition Has_J_Has_Leibniz@{s s' sp;l l' lp} {eq} {refl} (eqr : Has_J@{s s' sp;l l' lp} eq refl) : Has_Leibniz@{s s' sp;l l' lp} eq :=
+  fun A x P px y e => J_no_dep _ A x P px y e.
+
+#[projections(primitive=no)]
+Class Has_JRefl@{sa se se' se'';la le le' le''}
+  (eq : forall A : Type@{sa ; la}, A -> A -> Type@{se;le})
+  (Has_refl : Has_refl@{sa se;la le} eq)
+  (Has_J : Has_J@{sa se se';la le le'} eq Has_refl)
+  (Has_Leibniz : Has_Leibniz@{sa se se';la le le'} eq)
+  (eqe : forall A : Type@{se' ; le'}, A -> A -> Type@{se'';le''}) : Type
+  :=
+  {
+    J_refl : forall (A : Type@{sa ; la}) (x : A) (P : forall y : A, eq A x y -> Type@{se' ; le'}) (f : P x (refl A x)), eqe _ (J A x P f x (refl A x)) f ;
+    leibniz_refl : forall (A : Type@{sa ; la}) (x : A) (P : A -> Type@{se' ; le'}) (f : P x), eqe _ (leibniz eq A x P f x (refl A x)) f
+  }.
+
+Register Has_JRefl as rocq.core.Has_JRefl.
+
+End J_as_a_class.
+
+
+Section ap.
+  Sort sa se sb se'.
+  Universe la le lb le'.
+  Context {eq : forall A : Type@{sa;la}, A -> A -> Type@{se;le}}
+          {A : Type@{sa;la}}
+          {eq' : forall A : Type@{sb; lb}, A -> A -> Type@{se';le'}}
+          {_refl: Has_refl@{sb se';lb le'} eq'}
+          {_leibniz: Has_Leibniz@{sa se se';la le le'} eq}.
+
+  Definition ap {B} (f : A -> B) {x y : A} (e : eq _ x y) : eq' _ (f x) (f y) :=
+    leibniz _ _ (fun y => eq' B (f x) (f y)) (refl _ _) _ e.
+
+End ap.
+
+Register ap as core.eq.congr.
+
+Section ap.
+  Sort sa se.
+  Universe la le.
+  Context {eq : forall A : Type@{sa;la}, A -> A -> Type@{se;le}}
+          {A : Type@{sa;la}}
+          {_refl: Has_refl@{sa se;la le} eq}
+          {_leibniz: Has_Leibniz@{sa se se;la le le} eq}.
+
+  Definition sym {x y : A} (e : eq _ x y) : eq _ y x :=
+    leibniz _ _ (fun y => eq A y _) (refl _ _) _ e.
+
+End ap.
+
+Set Implicit Arguments.
+Unset Universe Polymorphism.
+
+Instance eq_Has_refl@{l} : Has_refl@{Type Prop;l Set} (fun A => @eq A) :=
+  fun A x => eq_refl.
+
+Instance eq_Has_J_elim_Type@{l l'} : Has_J@{Type Prop Type ; l Set l'} (fun A => @eq A) _ :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+Instance eq_Has_J_elim_Prop@{l} : Has_J@{Type Prop Prop ; l Set Set} (fun A => @eq A) _ :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+Instance eq_Has_J_elim_SProp@{l} : Has_J@{Type Prop SProp ; l Set Set} (fun A => @eq A) _ :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+Instance eq_Has_Leibniz_elim@{l l'} : Has_Leibniz@{Type Prop Type;l Set l'} (@eq)
+  := @eq_rect.
+
+Instance eq_Has_Leibniz_elim_Prop@{l} : Has_Leibniz@{Type Prop Prop;l Set Set} (@eq)
+  := @eq_ind.
+
+Instance eq_Has_Leibniz_elim_SProp@{l} : Has_Leibniz@{Type Prop SProp;l Set Set} (@eq)
+  := @eq_sind.
+
 Section Logic_lemmas.
 
   Theorem absurd : forall A C:Prop, A -> ~ A -> C.
@@ -472,6 +584,16 @@ Section Logic_lemmas.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
 End Logic_lemmas.
+
+Instance eq_Has_Leibniz_r_elim@{l l'} : Has_Leibniz_r@{Type Prop Type;l Set l'} (@eq) :=
+  fun A x P t y e => match eq_sym e with eq_refl => t end.
+
+Instance eq_Has_Leibniz_r_elim_Prop@{l} : Has_Leibniz_r@{Type Prop Prop;l Set Set} (@eq) :=
+  fun A x P t y e => match eq_sym e with eq_refl => t end.
+
+Instance eq_Has_Leibniz_r_elim_SProp@{l} : Has_Leibniz_r@{Type Prop SProp;l Set Set} (@eq) :=
+  fun A x P t y e => match eq_sym e with eq_refl => t end.
+
 
 Module EqNotations.
   Notation "'rew' H 'in' H'" := (eq_rect _ _ H' _ H)
