@@ -322,6 +322,16 @@ let make env sigma ref =
 let register ~warn env sigma o =
     compute_canonical_projections env sigma ~warn o |>
     List.iter (fun ((proj, (cs_pat, t)), s) ->
+      let constr_key = Keys.constr_key env (EConstr.kind sigma) in
+      let () = try
+        Keys.declare_equiv_keys
+          (Option.get (constr_key (EConstr.mkRef (proj, EConstr.EInstance.empty))))
+          (match proj with
+          | ConstRef c -> (try 1 + Structure.projection_nparams c with Not_found -> 0)
+          | _ -> 0)
+          (Option.get (constr_key (EConstr.of_constr t)))
+          (List.length s.o_TCOMPS)
+        with _ -> () in
       let l = try GlobRefMap.find env proj !object_table with Not_found -> PatMap.empty in
       match PatMap.find env cs_pat l with
       | exception Not_found ->
