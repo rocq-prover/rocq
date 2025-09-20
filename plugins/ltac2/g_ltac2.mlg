@@ -374,7 +374,7 @@ GRAMMAR EXTEND Gram
         { (atts, c, args) } ] ]
   ;
   tac2rec_fields:
-    [ [ f = tac2rec_field; ";"; l = tac2rec_fields -> { f :: l }
+    [ RIGHTA [ f = tac2rec_field; ";"; l = tac2rec_fields -> { f :: l }
       | f = tac2rec_field; ";" -> { [f] }
       | f = tac2rec_field -> { [f] }
       | -> { [] } ] ]
@@ -383,7 +383,7 @@ GRAMMAR EXTEND Gram
     [ [ mut = mut_flag; id = Prim.ident; ":"; t = ltac2_type -> { (id, mut, t) } ] ]
   ;
   tac2rec_fieldexprs:
-    [ [ f = tac2rec_fieldexpr; ";"; l = tac2rec_fieldexprs -> { f :: l }
+    [ RIGHTA [ f = tac2rec_fieldexpr; ";"; l = tac2rec_fieldexprs -> { f :: l }
       | f = tac2rec_fieldexpr; ";" -> { [f] }
       | f = tac2rec_fieldexpr-> { [f] }
       | -> { [] } ] ]
@@ -401,7 +401,7 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   tac2rec_fieldpats:
-    [ [ f = tac2rec_fieldpat; ";"; l = tac2rec_fieldpats -> { f :: l }
+    [ RIGHTA [ f = tac2rec_fieldpat; ";"; l = tac2rec_fieldpats -> { f :: l }
       | f = tac2rec_fieldpat; ";" -> { [f] }
       | f = tac2rec_fieldpat-> { [f] }
       | -> { [] } ] ]
@@ -749,7 +749,7 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   for_each_goal:
-    [ [ ta = ltac2_expr; "|"; tg = for_each_goal -> { let (first,last) = tg in (Some ta :: first, last) }
+    [ RIGHTA [ ta = ltac2_expr; "|"; tg = for_each_goal -> { let (first,last) = tg in (Some ta :: first, last) }
       | ta = ltac2_expr; ".."; l = tactic_then_last -> { ([], Some (Some ta, l)) }
       | ".."; l = tactic_then_last -> { ([], Some (None, l)) }
       | ta = ltac2_expr -> { ([Some ta], None) }

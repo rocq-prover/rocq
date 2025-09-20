@@ -275,7 +275,7 @@ let vernac_argument_extend ~plugin ~name arg =
     let e = Procq.create_generic_entry2 name (Genarg.rawwit wit) in
     let plugin_uid = Option.map (fun plugin -> (plugin, "vernacargextend:"^name)) plugin in
     let () = Egramml.grammar_extend ?plugin_uid e
-        (Procq.Fresh (Gramlib.Gramext.First, [None, None, rules]))
+        (Procq.Fresh (Gramlib.Gramext.First, [None, Some RightA, rules]))
     in
     e
   in
