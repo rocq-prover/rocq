@@ -703,6 +703,8 @@ let pr_printable = function
     keyword "Print Notation" ++ spc() ++ str ntn_key
   | PrintNotation (Constrexpr.InCustomEntry ent, ntn_key) ->
     keyword "Print Notation" ++ spc() ++ pr_qualid ent ++ str ntn_key
+  | PrintOutput ->
+    keyword "Print Output"
 
 let pr_using e =
   let rec aux = function
@@ -1317,6 +1319,10 @@ let pr_synpure_vernac_expr v =
             prlist_with_sep (fun _ -> fnl () ++ keyword "with"
                                       ++ spc ()) pr_rew_rule l)
     )
+  | VernacDropOutput ->
+    keyword "Drop Output"
+  | VernacTestOutput (s) ->
+    keyword "Test Output" ++ spc () ++ quote (str s) (* TODO @radrow is this ok? *)
 
 let pr_synterp_vernac_expr v =
   let return = tag_vernac v in
@@ -1433,6 +1439,7 @@ let pr_control_flag (p : control_flag) =
     | ControlTimeout n -> keyword "Timeout " ++ int n
     | ControlFail -> keyword "Fail"
     | ControlSucceed -> keyword "Succeed"
+    | ControlCaptureOutput -> keyword "Capture" ++ spc() ++ keyword "Output"
   in
   w ++ spc ()
 
