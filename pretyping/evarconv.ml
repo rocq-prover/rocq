@@ -685,6 +685,8 @@ struct
     if l2r then clear_left c else clear_left (flip c)
 end
 
+type orig = { left : state; right : state }
+
 let rec evar_conv_x flags env evd pbty term1 term2 =
   let term1 = whd_head_evar evd term1 in
   let term2 = whd_head_evar evd term2 in
@@ -704,10 +706,11 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
         let term1 = apprec_nohdbeta flags env evd term1 in
         let term2 = apprec_nohdbeta flags env evd term2 in
         let default () =
+          let hd1 = (whd_nored_state env evd (term1,Stack.empty)) in
+          let hd2 = (whd_nored_state env evd (term2,Stack.empty)) in
         match
           evar_eqappr_x flags env evd pbty (Cs_keys_cache.empty ()) None
-            (whd_nored_state env evd (term1,Stack.empty))
-            (whd_nored_state env evd (term2,Stack.empty))
+            { left = hd1; right = hd2 } hd1 hd2
         with
         | UnifFailure _ as x ->
            if Retyping.is_term_irrelevant env evd term1 ||
@@ -743,8 +746,8 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     keys (* canonical structure keys cache *)
-    lastUnfolded (* tells which side was last unfolded, if any *)
-    (term1, sk1 as appr1) (term2, sk2 as appr2) =
+    lastUnfolded (* tells which side was last unfolded, if any, where `true` means RHS. *)
+    orig (term1, sk1 as appr1) (term2, sk2 as appr2) =
   let quick_fail i = (* not costly, loses info *)
     UnifFailure (i, NotSameHead)
   in
@@ -781,8 +784,8 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
       flags.open_ts env' evd (c'1, Stack.empty) in
     let out2 = whd_nored_state env' evd
       (lift 1 (Stack.zip evd (term', sk')), Stack.append_app [|EConstr.mkRel 1|] Stack.empty) in
-    if onleft then evar_eqappr_x flags env' evd CONV keys None out1 out2
-    else evar_eqappr_x flags env' evd CONV (Cs_keys_cache.flip keys) None out2 out1
+    if onleft then evar_eqappr_x flags env' evd CONV keys None { left = out1; right = out2 } out1 out2
+    else evar_eqappr_x flags env' evd CONV (Cs_keys_cache.flip keys) None { left = out2; right = out1 } out2 out1
   in
   let rigids env evd sk term sk' term' =
     let nargs = Stack.args_size sk in
@@ -822,8 +825,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
        3.  reduce the redex into M and recursively solve E[?n[inst]] =? E'[M] *)
     let switch f a b = if l2r then f a b else f b a in
     let delta i =
-      switch (evar_eqappr_x flags env i pbty keys None) apprF
-        (whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vskM)
+      let vskM = Option.get (eval_flexible_term flags.open_ts env evd (fst vskM) (snd vskM)) in
+      let apprM' = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vskM in
+      (* We cheat here. Unfolding here means that we should not go back to the heads
+        when rediscovering the problem ?e=t, so we put the unfolded term in place of the
+        head. *)
+      let orig = { left = apprM'; right = apprM' } in
+      switch (evar_eqappr_x flags env i pbty keys None orig) apprF apprM'
     in
     let default i = ise_try i [miller l2r ev apprF apprM;
                                consume l2r apprF apprM;
@@ -844,8 +852,12 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                   let apprM' =
                     whd_betaiota_deltazeta_for_iota_state flags.open_ts env evd (termM',skM)
                   in
+                  (* We cheat here. Unfolding here means that we should not go back to the heads
+                     when rediscovering the problem ?e=t, so we put the unfolded term in place of the
+                     head. *)
+                  let orig = if l2r then { left = orig.right; right = apprM' } else { left = apprM'; right = orig.left } in
                   let delta' i =
-                    switch (evar_eqappr_x flags env i pbty keys None) apprF apprM'
+                    switch (evar_eqappr_x flags env i pbty keys None orig) apprF apprM'
                   in
                   fun i -> ise_try i [miller l2r ev apprF apprM';
                                    consume l2r apprF apprM'; delta']
@@ -900,7 +912,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                      UnifFailure (evd,OccurCheck (fst ev,tR)))])
             ev lF tR evd
   in
-  let first_order env i t1 t2 sk1 sk2 =
+  let first_order env i t1 t2 sk1 sk2 orig =
     (* Try first-order unification *)
     match ise_stack2 false env i (evar_conv_x flags) sk1 sk2 with
     | None, Success i' ->
@@ -912,7 +924,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                           (position_problem true pbty,destEvar i' ev1',term2)
        else
          (* HH: Why not to drop sk1 and sk2 since they unified *)
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty keys None orig
                        (ev1', sk1) (term2, sk2)
     | Some (r,[]), Success i' ->
        (* We have sk1'[] = sk2[] for some sk1' s.t. sk1[]=sk1'[r[]] *)
@@ -922,7 +934,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
          solve_simple_eqn (conv_fun evar_conv_x) flags env i'
                           (position_problem false pbty,destEvar i' ev2',Stack.zip i' (term1,r))
        else
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty keys None orig
                        (ev2', sk1) (term2, sk2)
     | Some ([],r), Success i' ->
        (* Symmetrically *)
@@ -934,7 +946,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                           (position_problem true pbty,destEvar i' ev1',Stack.zip i' (term2,r))
        else
          (* HH: Why not to drop sk1 and sk2 since they unified *)
-         evar_eqappr_x flags env evd pbty keys None
+         evar_eqappr_x flags env evd pbty keys None orig
                           (ev1', sk1) (term2, sk2)
     | None, (UnifFailure _ as x) ->
        (* sk1 and sk2 have no common outer part *)
@@ -1007,6 +1019,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
   match (flex_kind_of_term flags env evd term1 sk1,
          flex_kind_of_term flags env evd term2 sk2) with
     | Flexible (sp1,al1), Flexible (sp2,al2) ->
+        let k1 = if lastUnfolded = Some true && not (Stack.not_purely_applicative sk1) then let (t, sk) = orig.left in flex_kind_of_term flags env evd t sk else Flexible (sp1, al1) in
+        let k2 = if lastUnfolded = Some false && not (Stack.not_purely_applicative sk2) then let (t, sk) = orig.right in flex_kind_of_term flags env evd t sk else Flexible (sp2, al2) in
+        begin match (k1, k2) with
+        | Flexible ev1, MaybeFlexible v2 -> flex_maybeflex true ev1 appr1 orig.right orig.right
+        | MaybeFlexible v1, Flexible ev2 -> flex_maybeflex false ev2 appr2 orig.left orig.left
+        | _, Rigid | Rigid, _ -> anomaly (Pp.str "flexible terms cannot fold to rigid ones")
+        | _ ->
       (* Notations:
          - "sk" is a stack (or, more abstractly, an evaluation context, written E)
          - "ev" is an evar "?ev", more precisely an evar ?n with an instance inst
@@ -1018,7 +1037,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
            1b'. if E₁=E₁'[E₁''] and E₁'=E₂ unifiable, recursively solve E₁''[?n₁[inst₁]] = ?n₂[inst₂]
              recursively solve E2[?n[inst]] = E'2[redex]
            2. fails if neither E₁ nor E₂ is a prefix of the other *)
-        let f1 i = first_order env i term1 term2 sk1 sk2
+        let f1 i = first_order env i term1 term2 sk1 sk2 orig
         and f2 i =
           if Evar.equal sp1 sp2 then
             match ise_stack2 false env i (evar_conv_x flags) sk1 sk2 with
@@ -1046,12 +1065,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           | UnifFailure _ -> quick_fail i
         in
         ise_try evd [f1; f2; f3; f4; f5]
+        end
 
     | Flexible ev1, MaybeFlexible v2 ->
-      flex_maybeflex true ev1 appr1 appr2 v2
+      flex_maybeflex true ev1 appr1 appr2 (if Stack.not_purely_applicative sk1 then appr2 else orig.right)
 
     | MaybeFlexible vsk1, Flexible ev2 ->
-      flex_maybeflex false ev2 appr2 appr1 vsk1
+      flex_maybeflex false ev2 appr2 appr1 (if Stack.not_purely_applicative sk2 then appr1 else orig.left)
 
     | MaybeFlexible (v1', sk1' as vsk1'), MaybeFlexible (v2', sk2' as vsk2') -> begin
         match EConstr.kind evd term1, EConstr.kind evd term2 with
@@ -1071,7 +1091,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         and f2 i =
           let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
           and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2'
-          in evar_eqappr_x flags env i pbty keys None out1 out2
+          in evar_eqappr_x flags env i pbty keys None orig out1 out2
         in
         ise_try evd [f1; f2]
 
@@ -1083,7 +1103,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           and f2 i =
             let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
             and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2'
-            in evar_eqappr_x flags env i pbty keys None out1 out2
+            in evar_eqappr_x flags env i pbty keys None orig out1 out2
           in
             ise_try evd [f1; f2]
 
@@ -1095,7 +1115,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           in
             (match res with
             | Some (f1,args1) ->
-              evar_eqappr_x flags env evd pbty keys None (f1,Stack.append_app args1 sk1)
+              evar_eqappr_x flags env evd pbty keys None orig (f1,Stack.append_app args1 sk1)
                 appr2
             | None -> UnifFailure (evd,NotSameHead))
 
@@ -1106,7 +1126,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           in
             (match res with
             | Some (f2,args2) ->
-              evar_eqappr_x flags env evd pbty keys None appr1 (f2,Stack.append_app args2 sk2)
+              evar_eqappr_x flags env evd pbty keys None orig appr1 (f2,Stack.append_app args2 sk2)
             | None -> UnifFailure (evd,NotSameHead))
 
         | _, _ ->
@@ -1169,14 +1189,14 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           ise_try i [
             (fun i ->
               if b || !no_cs1 then
-                evar_eqappr_x flags env i pbty keys (Some false)
+                evar_eqappr_x flags env i pbty keys (Some false) orig
                   (whd_betaiota_deltazeta_for_iota_state
                      flags.open_ts env i vsk1')
                   appr2
               else quick_fail i);
             fun i ->
               if b then quick_fail i else
-              evar_eqappr_x flags env i pbty keys (Some true) appr1
+              evar_eqappr_x flags env i pbty keys (Some true) orig appr1
                 (whd_betaiota_deltazeta_for_iota_state
                    flags.open_ts env i vsk2')]
         in
@@ -1195,8 +1215,22 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
            (* When in modulo_betaiota = false case, lambda's are not reduced *)
            (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
 
-    | Flexible ev1, Rigid -> flex_rigid true ev1 appr1 appr2
-    | Rigid, Flexible ev2 -> flex_rigid false ev2 appr2 appr1
+    | Flexible ev1, Rigid ->
+        if Stack.not_purely_applicative sk1 then flex_rigid true ev1 appr1 appr2 else
+        let (t2, sk2) as appr2 = orig.right in
+        begin match flex_kind_of_term flags env evd t2 sk2 with
+        | Flexible ev2 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
+        | MaybeFlexible v2 -> flex_maybeflex true ev1 appr1 appr2 appr2
+        | Rigid -> flex_rigid true ev1 appr1 appr2
+        end
+    | Rigid, Flexible ev2 ->
+        if Stack.not_purely_applicative sk2 then flex_rigid false ev2 appr2 appr1 else
+        let (t1, sk1) as appr1 = orig.left in
+        begin match flex_kind_of_term flags env evd t1 sk1 with
+        | Flexible ev1 -> anomaly (Pp.str "rigid terms can not fold to flexible ones")
+        | MaybeFlexible v1 -> flex_maybeflex false ev2 appr2 appr1 appr1
+        | Rigid -> flex_rigid false ev2 appr2 appr1
+        end
 
     | MaybeFlexible vsk1', Rigid ->
         let f3 i =
@@ -1206,7 +1240,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
              | Inl x -> x
              | Inr _ -> UnifFailure (i,NoCanonicalStructure)
         and f4 i =
-          evar_eqappr_x flags env i pbty keys (Some false)
+          evar_eqappr_x flags env i pbty keys (Some false) orig
             (whd_betaiota_deltazeta_for_iota_state
                flags.open_ts env i vsk1')
             appr2
@@ -1221,7 +1255,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
              | Inl x -> x
              | Inr _ -> UnifFailure (i,NoCanonicalStructure)
         and f4 i =
-          evar_eqappr_x flags env i pbty keys (Some true) appr1
+          evar_eqappr_x flags env i pbty keys (Some true) orig appr1
             (whd_betaiota_deltazeta_for_iota_state
                flags.open_ts env i vsk2')
         in
