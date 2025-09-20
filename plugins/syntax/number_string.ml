@@ -225,7 +225,7 @@ let locate_global_sort_inductive_or_constant env sigma qid =
     match Nametab.locate_extended qid with
     | Globnames.TrueGlobal _ -> raise Not_found
     | Globnames.Abbrev kn ->
-    match Abbreviation.search_abbreviation kn with
+    match Abbreviation.find_interp kn with
     | [], Notation_term.NSort r ->
        let sigma,c = Glob_ops.fresh_glob_sort_in_quality sigma r in
        let c = EConstr.ESorts.kind sigma c in
@@ -432,7 +432,7 @@ let locate_global_inductive_with_params allow_params qid =
     match Nametab.locate_extended qid with
     | Globnames.TrueGlobal _ -> raise Not_found
     | Globnames.Abbrev kn ->
-    match Abbreviation.search_abbreviation kn with
+    match Abbreviation.find_interp kn with
     | [], Notation_term.(NApp (NRef (GlobRef.IndRef i,None), l)) ->
        i,
        List.map (function

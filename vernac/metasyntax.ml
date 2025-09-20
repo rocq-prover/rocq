@@ -2087,7 +2087,7 @@ let add_abbreviation ~local user_warns env ident (vars,c) modl =
   let interp = make_interpretation_vars ~default_if_binding:AsAnyPattern [] acvars level (List.map in_pat vars) in
   let vars = List.map (fun (x,_) -> (x, Id.Map.find x interp)) vars in
   let onlyparsing = only_parsing || fst (printability None [] vars false reversibility pat) in
-  Abbreviation.declare_abbreviation ~local user_warns ident ~onlyparsing (vars,pat)
+  Abbreviation.declare ~local user_warns ident ~onlyparsing (vars,pat)
 
 (**********************************************************************)
 (* Activating/deactivating notations                                  *)

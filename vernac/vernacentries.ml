@@ -1490,7 +1490,7 @@ let cache_name (len,n) =
   let open Globnames in
   let open GlobRef in
   match n with
-  | Abbrev kn -> Abbreviation.import_abbreviation (len+1) (Nametab.path_of_abbreviation kn) kn
+  | Abbrev kn -> Abbreviation.import (len+1) (Nametab.path_of_abbreviation kn) kn
   | TrueGlobal (VarRef _) -> assert false
   | TrueGlobal (ConstRef c) when Declare.is_local_constant c ->
     (* Can happen through functor application *)
