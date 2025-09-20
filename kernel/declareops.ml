@@ -209,6 +209,18 @@ let subst_wf_paths subst p = Rtree.Smart.map (subst_recarg subst) p
 
 (** {7 Substitution of inductive declarations } *)
 
+let subst_mind_record subst r = match r with
+| NotRecord -> NotRecord
+| FakeRecord -> FakeRecord
+| PrimRecord infos ->
+  let map (id, ps, rs, pb as info) =
+    let pb' = Array.Smart.map (subst_mps subst) pb in
+    if pb' == pb then info
+    else (id, ps, rs, pb')
+  in
+  let infos' = map infos in
+  if infos' == infos then r else PrimRecord infos'
+
 let subst_mind_packet subst mbp =
   { mind_consnames = mbp.mind_consnames;
     mind_consnrealdecls = mbp.mind_consnrealdecls;
@@ -218,6 +230,7 @@ let subst_mind_packet subst mbp =
     mind_arity_ctxt = subst_rel_context subst mbp.mind_arity_ctxt;
     mind_user_arity = subst_mps subst mbp.mind_user_arity;
     mind_sort = mbp.mind_sort;
+    mind_record = subst_mind_record subst mbp.mind_record;
     mind_user_lc = Array.Smart.map (subst_mps subst) mbp.mind_user_lc;
     mind_nrealargs = mbp.mind_nrealargs;
     mind_nrealdecls = mbp.mind_nrealdecls;
@@ -228,23 +241,10 @@ let subst_mind_packet subst mbp =
     mind_nb_args = mbp.mind_nb_args;
     mind_reloc_tbl = mbp.mind_reloc_tbl }
 
-let subst_mind_record subst r = match r with
-| NotRecord -> NotRecord
-| FakeRecord -> FakeRecord
-| PrimRecord infos ->
-  let map (id, ps, rs, pb as info) =
-    let pb' = Array.Smart.map (subst_mps subst) pb in
-    if pb' == pb then info
-    else (id, ps, rs, pb')
-  in
-  let infos' = Array.Smart.map map infos in
-  if infos' == infos then r else PrimRecord infos'
-
 let subst_mind_body subst mib =
   (* we're outside sections *)
   assert (List.is_empty mib.mind_hyps && UVars.Instance.is_empty mib.mind_univ_hyps);
-  { mind_record = subst_mind_record subst mib.mind_record ;
-    mind_finite = mib.mind_finite ;
+  { mind_finite = mib.mind_finite ;
     mind_hyps = [];
     mind_univ_hyps = UVars.Instance.empty;
     mind_nparams = mib.mind_nparams;
@@ -274,11 +274,11 @@ let inductive_is_cumulative mib =
   Option.has_some mib.mind_variance
 
 let inductive_make_projection ind mib ~proj_arg =
-  match mib.mind_record with
+  match mib.mind_packets.(snd ind).mind_record with
   | NotRecord | FakeRecord ->
     CErrors.anomaly Pp.(str "inductive_make_projection: not a primitive record.")
   | PrimRecord infos ->
-    let _, labs, rs, _ = infos.(snd ind) in
+    let _, labs, rs, _ = infos in
     if proj_arg < 0 || Array.length labs <= proj_arg
     then CErrors.anomaly Pp.(str "inductive_make_projection: invalid proj_arg.");
     let p = Names.Projection.Repr.make ind
@@ -289,10 +289,10 @@ let inductive_make_projection ind mib ~proj_arg =
     p, rs.(proj_arg)
 
 let inductive_make_projections ind mib =
-  match mib.mind_record with
+  match mib.mind_packets.(snd ind).mind_record with
   | NotRecord | FakeRecord -> None
   | PrimRecord infos ->
-    let _, labs, relevances, _ = infos.(snd ind) in
+    let _, labs, relevances, _ = infos in
     let projs = Array.map2_i (fun proj_arg lab r ->
         Names.Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg lab, r)
         labs relevances

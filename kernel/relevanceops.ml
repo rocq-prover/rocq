@@ -34,11 +34,11 @@ let relevance_of_constructor env ((ind,_),u) =
 let relevance_of_projection_repr env (p, u) =
   let mib = lookup_mind (Names.Projection.Repr.mind p) env in
   let _mind,i = Names.Projection.Repr.inductive p in
-  match mib.mind_record with
+  match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord ->
     CErrors.anomaly ~label:"relevance_of_projection" Pp.(str "not a projection")
   | PrimRecord infos ->
-    let _,_,rs,_ = infos.(i) in
+    let _,_,rs,_ = infos in
     UVars.subst_instance_relevance u rs.(Names.Projection.Repr.arg p)
 
 let relevance_of_projection env (p,u) =

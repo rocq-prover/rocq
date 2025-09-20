@@ -27,9 +27,22 @@ let template_univ_entry {template_context; template_defaults=default_univs; _} =
 let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
   let open Entries in
   let nparams = List.length mb.mind_params_ctxt in (* include letins *)
-  let mind_entry_record = match mb.mind_record with
+  let mind_entry_record =
+    (* NB declarations support blocks with some records and some
+       non-records, but not yet entries *)
+    assert (mb.mind_packets |> Array.for_all @@ fun p ->
+            match mb.mind_packets.(0).mind_record, p.mind_record with
+            | NotRecord, NotRecord | FakeRecord, FakeRecord | PrimRecord _, PrimRecord _ -> true
+            | (NotRecord | FakeRecord | PrimRecord _), _ -> false);
+    match mb.mind_packets.(0).mind_record with
     | NotRecord -> None | FakeRecord -> Some None
-    | PrimRecord data -> Some (Some (Array.map (fun (x,_,_,_) -> x) data))
+    | PrimRecord _ ->
+      let get_id p =
+        match p.mind_record with
+        | NotRecord | FakeRecord -> assert false
+        | PrimRecord (x,_,_,_) -> x
+      in
+      Some (Some (Array.map get_id mb.mind_packets))
   in
   let template = Option.map template_univ_entry mb.mind_template in
   let mind_entry_universes = match mb.mind_universes with
@@ -148,8 +161,17 @@ let eq_reloc_tbl = Array.equal (fun x y -> Int.equal (fst x) (fst y) && Int.equa
 let eq_in_context (ctx1, t1) (ctx2, t2) =
   Context.Rel.equal Sorts.relevance_equal Constr.equal ctx1 ctx2 && Constr.equal t1 t2
 
+let check_same_record r1 r2 = match r1, r2 with
+  | NotRecord, NotRecord | FakeRecord, FakeRecord -> true
+  | PrimRecord (_,_,r1,tys1), PrimRecord (_,_,r2,tys2) ->
+    (* The kernel doesn't care about the names, we just need to check
+       that the saved types are correct. *)
+    Array.equal Sorts.relevance_equal r1 r2 &&
+    Array.equal Constr.equal tys1 tys2
+  | (NotRecord | FakeRecord | PrimRecord _), _ -> false
+
 let check_packet mind ind
-    { mind_typename; mind_arity_ctxt; mind_user_arity; mind_sort; mind_consnames; mind_user_lc;
+    { mind_typename; mind_arity_ctxt; mind_user_arity; mind_record; mind_sort; mind_consnames; mind_user_lc;
       mind_nrealargs; mind_nrealdecls; mind_squashed; mind_nf_lc;
       mind_consnrealargs; mind_consnrealdecls; mind_recargs; mind_relevance;
       mind_nb_constant; mind_nb_args; mind_reloc_tbl } =
@@ -160,6 +182,7 @@ let check_packet mind ind
   check "mind_arity" (Constr.equal ind.mind_user_arity mind_user_arity);
   check "mind_sort" (Sorts.equal ind.mind_sort mind_sort);
   ignore mind_consnames; (* passed through *)
+  check "mind_record" (check_same_record ind.mind_record mind_record);
   check "mind_user_lc" (Array.equal Constr.equal ind.mind_user_lc mind_user_lc);
   check "mind_nrealargs" Int.(equal ind.mind_nrealargs mind_nrealargs);
   check "mind_nrealdecls" Int.(equal ind.mind_nrealdecls mind_nrealdecls);
@@ -182,20 +205,9 @@ let check_packet mind ind
 
   ()
 
-let check_same_record r1 r2 = match r1, r2 with
-  | NotRecord, NotRecord | FakeRecord, FakeRecord -> true
-  | PrimRecord r1, PrimRecord r2 ->
-    (* The kernel doesn't care about the names, we just need to check
-       that the saved types are correct. *)
-    Array.for_all2 (fun (_,_,r1,tys1) (_,_,r2,tys2) ->
-        Array.equal Sorts.relevance_equal r1 r2 &&
-        Array.equal Constr.equal tys1 tys2)
-      r1 r2
-  | (NotRecord | FakeRecord | PrimRecord _), _ -> false
-
 let check_inductive env mind mb =
   let entry = to_entry mind mb in
-  let { mind_packets; mind_record; mind_finite; mind_hyps; mind_univ_hyps;
+  let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
         mind_private; mind_typing_flags; }
@@ -209,7 +221,6 @@ let check_inductive env mind mb =
   let check = check mind in
 
   Array.iter2 (check_packet mind) mb.mind_packets mind_packets;
-  check "mind_record" (check_same_record mb.mind_record mind_record);
   check "mind_finite" (mb.mind_finite == mind_finite);
   check "mind_hyps" (List.is_empty mind_hyps);
   check "mind_univ_hyps" (UVars.Instance.is_empty mind_univ_hyps);

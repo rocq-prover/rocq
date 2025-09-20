@@ -211,10 +211,10 @@ bind_univs.mono = Type@{bind_univs.mono.u}
 bind_univs.poly@{u} = Type@{u}
      : Type@{u+1}
 (* u |=  *)
-Inductive MutualR1@{u} (A : Type@{u}) : Prop :=
-    Build_MutualR1 : MutualR2@{u} A -> MutualR1@{u} A
-  with MutualR2@{u} (A : Type@{u}) : Prop :=
-    Build_MutualR2 : MutualR1@{u} A -> MutualR2@{u} A.
+Inductive MutualR1@{u} (A : Type@{u}) : Prop := Build_MutualR1
+  { p1 : MutualR2@{u} A }
+  with MutualR2@{u} (A : Type@{u}) : Prop := Build_MutualR2
+  { p2 : MutualR1@{u} A }.
 (* u |=  *)
 
 Arguments MutualR1 A%_type_scope
@@ -233,10 +233,10 @@ Arguments MutualI1 A%_type_scope
 Arguments C1 A%_type_scope p1
 Arguments MutualI2 A%_type_scope
 Arguments C2 A%_type_scope p2
-CoInductive MutualR1'@{u} (A : Type@{u}) : Prop :=
-    Build_MutualR1' : MutualR2'@{u} A -> MutualR1'@{u} A
-  with MutualR2'@{u} (A : Type@{u}) : Prop :=
-    Build_MutualR2' : MutualR1'@{u} A -> MutualR2'@{u} A.
+CoInductive MutualR1'@{u} (A : Type@{u}) : Prop := Build_MutualR1'
+  { p1' : MutualR2'@{u} A }
+  with MutualR2'@{u} (A : Type@{u}) : Prop := Build_MutualR2'
+  { p2' : MutualR1'@{u} A }.
 (* u |=  *)
 
 Arguments MutualR1' A%_type_scope

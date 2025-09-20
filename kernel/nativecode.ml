@@ -2218,10 +2218,10 @@ let compile_mind mb mind stack =
       let gn = Gproj ("", ind, proj_arg) in
       Glet (gn, mkMLlam [|c_uid|] code) :: acc
     in
-    let projs = match mb.mind_record with
+    let projs = match ob.mind_record with
     | NotRecord | FakeRecord -> []
     | PrimRecord info ->
-      let _, _, _, pbs = info.(i) in
+      let _, _, _, pbs = info in
       Array.fold_left_i add_proj [] pbs
     in
     projs @ gtype :: accu :: stack

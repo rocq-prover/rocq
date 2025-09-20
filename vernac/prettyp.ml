@@ -314,20 +314,22 @@ let print_type_in_type env ref =
 
 (** Printing primitive projection status *)
 
-let print_primitive_record recflag mipv = function
+let print_primitive_record recflag mipv =
+  let mipv = Array.to_list mipv in
+  mipv |> List.concat_map @@ fun mip -> match mip.mind_record with
   | PrimRecord _ ->
     let eta = match recflag with
-    | CoFinite | Finite -> str" without eta conversion"
-    | BiFinite -> str " with eta conversion"
+      | CoFinite | Finite -> str" without eta conversion"
+      | BiFinite -> str " with eta conversion"
     in
-    [Id.print mipv.(0).mind_typename ++ str" has primitive projections" ++ eta ++ str"."]
+    [Id.print mip.mind_typename ++ str" has primitive projections" ++ eta ++ str"."]
   | FakeRecord | NotRecord -> []
 
 let print_primitive env ref =
   match ref with
   | GlobRef.IndRef ind ->
     let mib = Environ.lookup_mind (fst ind) env in
-      print_primitive_record mib.mind_finite mib.mind_packets mib.mind_record
+      print_primitive_record mib.mind_finite mib.mind_packets
   | _ -> []
 
 (** Printing arguments status (scopes, implicit, names) *)
@@ -552,7 +554,7 @@ let print_inductive_with_infos env mind udecl =
   let mipv = mib.mind_packets in
   Printmod.pr_mutual_inductive_body env mind mib udecl ++
   with_line_skip
-    (print_primitive_record mib.mind_finite mipv mib.mind_record @
+    (print_primitive_record mib.mind_finite mipv @
      print_inductive_args env mind mib)
 
 let print_section_variable_with_infos env sigma id =

@@ -111,7 +111,7 @@ let cook_projection cache ~params t =
   let _, t = decompose_prod_n_decls (Context.Rel.length params + 1 + nrels) t in
   t
 
-let cook_one_ind info cache ~ntypes mip =
+let cook_one_ind info cache ~params ~ntypes mip =
   let mind_user_arity = abstract_as_type cache mip.mind_user_arity in
   let mind_sort = abstract_as_sort cache mip.mind_sort in
   let mind_arity_ctxt = cook_rel_context cache mip.mind_arity_ctxt in
@@ -122,7 +122,20 @@ let cook_one_ind info cache ~ntypes mip =
       decompose_prod_decls lc)
       mip.mind_nf_lc
   in
+  let mind_record = match mip.mind_record with
+    | NotRecord -> NotRecord
+    | FakeRecord -> FakeRecord
+    | PrimRecord (id,projs,relevances,tys) ->
+      let data =
+        let tys = Array.map (cook_projection cache ~params) tys in
+        let relevances = Array.map (lift_relevance info) relevances in
+        (id,projs,relevances,tys)
+      in
+      PrimRecord data
+  in
+
   { mind_typename = mip.mind_typename;
+    mind_record;
     mind_arity_ctxt;
     mind_user_arity;
     mind_sort;
@@ -147,19 +160,7 @@ let cook_inductive info mib =
   let nnewparams = Context.Rel.nhyps (rel_context_of_cooking_cache cache) in
   let mind_params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
   let ntypes = Declareops.mind_ntypes mib in
-  let mind_packets = Array.map (cook_one_ind info cache ~ntypes) mib.mind_packets in
-  let mind_record = match mib.mind_record with
-    | NotRecord -> NotRecord
-    | FakeRecord -> FakeRecord
-    | PrimRecord data ->
-      let data = Array.map (fun (id,projs,relevances,tys) ->
-          let tys = Array.map (cook_projection cache ~params:mib.mind_params_ctxt) tys in
-          let relevances = Array.map (lift_relevance info) relevances in
-          (id,projs,relevances,tys))
-          data
-      in
-      PrimRecord data
-  in
+  let mind_packets = Array.map (cook_one_ind info cache ~params:mib.mind_params_ctxt ~ntypes) mib.mind_packets in
   let names = names_info info in
   let mind_hyps =
     List.filter (fun d -> not (Id.Set.mem (NamedDecl.get_id d) names))
@@ -186,7 +187,6 @@ let cook_inductive info mib =
   in
   {
     mind_packets;
-    mind_record;
     mind_finite = mib.mind_finite;
     mind_hyps;
     mind_univ_hyps = univ_hyps;

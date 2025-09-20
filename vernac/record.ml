@@ -659,7 +659,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   let fields = instantiate_possibly_recursive_type (fst indsp) uinstance (Declareops.mind_ntypes mib) paramdecls fields in
   let lifted_fields = Vars.lift_rel_context 1 fields in
   let primitive =
-    match mib.mind_record with
+    match mip.mind_record with
     | PrimRecord _ -> true
     | FakeRecord | NotRecord -> false
   in

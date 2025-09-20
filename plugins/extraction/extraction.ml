@@ -249,13 +249,12 @@ let parse_ind_args si args relmax =
          | _ -> parse (i+1) (j+1) s)
   in parse 1 1 si
 
-let relevance_of_projection_repr mib p =
-  let _mind,i = Names.Projection.Repr.inductive p in
-  match mib.mind_record with
+let relevance_of_projection_repr mip p =
+  match mip.mind_record with
   | NotRecord | FakeRecord ->
     CErrors.anomaly ~label:"relevance_of_projection" Pp.(str "not a projection")
   | PrimRecord infos ->
-    let _,_,rs,_ = infos.(i) in
+    let _,_,rs,_ = infos in
     rs.(Names.Projection.Repr.arg p)
 
 (** Because of automatic unboxing the easy way [mk_def c] on the
@@ -285,11 +284,11 @@ let fake_match_projection env p =
     ci_pp_info;
   }
   in
-  let relevance = relevance_of_projection_repr mib p in
-  let x = match mib.mind_record with
+  let relevance = relevance_of_projection_repr mip p in
+  let x = match mip.mind_record with
     | NotRecord | FakeRecord -> assert false
     | PrimRecord info ->
-      let x, _, _, _ = info.(snd ind) in
+      let x, _, _, _ = info in
       make_annot (Name x) mip.mind_relevance
   in
   let indty = mkApp (indu, Context.Rel.instance mkRel 0 paramslet) in
@@ -560,7 +559,7 @@ and extract_really_ind table env kn inst mib =
         let typ = p.ip_types.(0) in
         let l = if conservative_types () then [] else List.filter (fun t -> not (isTdummy (expand table env t))) typ in
         if List.is_empty l then raise (I Standard);
-        if mib.mind_record == Declarations.NotRecord then
+        if mip0.mind_record == Declarations.NotRecord then
           if not (keep_singleton ()) && Int.equal (List.length l) 1 && not (type_mem_kn kn (List.hd l))
           then raise (I Singleton)
           else raise (I Standard);

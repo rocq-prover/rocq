@@ -147,7 +147,7 @@ v}
 (** Record information:
     If the type is not a record, then NotRecord
     If the type is a non-primitive record, then FakeRecord
-    If it is a primitive record, for every type in the block, we get:
+    If it is a primitive record, PrimRecord of:
     - The identifier for the binder name of the record in primitive projections.
     - The constants associated to each projection.
     - The projection types (under parameters).
@@ -160,7 +160,7 @@ v}
 type record_info =
 | NotRecord
 | FakeRecord
-| PrimRecord of (Id.t * Label.t array * Sorts.relevance array * types array) array
+| PrimRecord of (Id.t * Label.t array * Sorts.relevance array * types array)
 
 type squash_info =
   | AlwaysSquashed
@@ -192,6 +192,8 @@ type one_inductive_body = {
     (** Original user arity, convertible to [mkArity (mind_arity_ctxt, mind_sort)].
         As such it contains the parameters.
         (not necessarily a syntactic arity, eg [relation A] instead of [A -> A -> Prop]) *)
+
+    mind_record : record_info; (** The record information *)
 
     mind_consnames : Id.t array; (** Names of the constructors: [cij] *)
 
@@ -256,8 +258,6 @@ type recursivity_kind =
 type mutual_inductive_body = {
 
     mind_packets : one_inductive_body array;  (** The component of the mutual inductive block *)
-
-    mind_record : record_info; (** The record information *)
 
     mind_finite : recursivity_kind;  (** Whether the type is inductive, coinductive or non-recursive *)
 
