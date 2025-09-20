@@ -21,3 +21,7 @@ Fail Ltac2 baz () := preterm:(notbound).
 Ltac2 Eval
   let x := preterm:(n = n) in
   constr:(forall n:nat, ltac2:(Control.refine (fun () => Constr.pretype x))).
+
+Ltac2 Notation "mypreterm:(" x(lpreterm) ")" := x.
+
+Ltac2 Eval mypreterm:(0 = 0).

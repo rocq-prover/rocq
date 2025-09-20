@@ -623,11 +623,8 @@ The current implementation recognizes the following built-in quotations:
 - ``ident``, which parses identifiers (type ``Init.ident``).
 - ``constr``, which parses Rocq terms and produces an evar-free term at runtime
   (type ``Init.constr``).
-- ``lconstr``, which is equivalent to ``constr`` but at precedence level 200.
 - ``open_constr``, which parses Rocq terms and produces a term potentially with
   holes at runtime (type ``Init.constr`` as well).
-- ``open_lconstr``, which is equivalent to ``open_constr`` but at precedence
-  level 200.
 - ``preterm``, which parses Rocq terms and produces a value which must
   be typechecked with ``Constr.pretype`` (type ``Init.preterm``).
 - ``pat``, which parses Rocq patterns and produces a pattern used for term
@@ -1500,15 +1497,24 @@ table further down lists the classes that are handled plainly.
     the term (as described in  :ref:`LocalInterpretationRulesForNotations`).  The last
     :token:`scope_key` is the top of the scope stack that's applied to the :token:`term`.
 
+  :n:`lconstr {? ( {+, @scope_key } ) }`
+     Identical to `constr` but the term is parsed at precedence level 200.
+
   :n:`open_constr {? ( {+, @scope_key } ) }`
     Parses an open :token:`term`. Like :n:`constr` above, this class
     accepts a list of notation scopes with the same effects.
+
+  :n:`open_lconstr {? ( {+, @scope_key } ) }`
+     Identical to `open_constr` but the term is parsed at precedence level 200.
 
 .. _preterm:
 
   :n:`preterm {? ( {+, @scope_key } ) }`
     Parses a non-typechecked :token:`term`. Like :n:`constr` above, this class
     accepts a list of notation scopes with the same effects.
+
+  :n:`lpreterm {? ( {+, @scope_key } ) }`
+     Identical to `preterm` but the term is parsed at precedence level 200.
 
   :n:`ident`
     Parses :token:`ident` or :n:`$@ident`.  The first form returns :n:`ident:(@ident)`,

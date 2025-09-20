@@ -566,6 +566,12 @@ let () = add_syntax_class "preterm" begin function arg ->
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
 end
 
+let () = add_syntax_class "lpreterm" begin function arg ->
+  let delimiters = constr_delimiters "lpreterm" arg in
+  let act e = Tac2quote.of_preterm ~delimiters e in
+  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
+end
+
 let () = add_expr_syntax_class "ident" q_ident (fun id -> Tac2quote.of_anti Tac2quote.of_ident id)
 let () = add_expr_syntax_class "bindings" q_bindings Tac2quote.of_bindings
 let () = add_expr_syntax_class "with_bindings" q_with_bindings Tac2quote.of_bindings
