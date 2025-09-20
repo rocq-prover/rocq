@@ -75,7 +75,7 @@ let () =
   let intern = intern_constr_tacexpr in
   let interp ist c = interp_constr Tac2core.constr_flags ist c in
   let print env sigma c = str "constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
-  let raw_print env sigma c = str "constr:(" ++ Ppconstr.pr_constr_expr env sigma c ++ str ")" in
+  let raw_print env sigma c = str "constr:(" ++ Ppconstr.pr_lconstr_expr env sigma c ++ str ")" in
   let subst subst c = Detyping.subst_glob_constr (Global.env()) subst c in
   let obj = {
     ml_intern = intern;
@@ -90,7 +90,7 @@ let () =
   let intern = intern_constr_tacexpr in
   let interp ist c = interp_constr Tac2core.open_constr_no_classes_flags ist c in
   let print env sigma c = str "open_constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
-  let raw_print env sigma c = str "open_constr:(" ++ Ppconstr.pr_constr_expr env sigma c ++ str ")" in
+  let raw_print env sigma c = str "open_constr:(" ++ Ppconstr.pr_lconstr_expr env sigma c ++ str ")" in
   let subst subst c = Detyping.subst_glob_constr (Global.env()) subst c in
   let obj = {
     ml_intern = intern;
@@ -131,7 +131,7 @@ let () =
     Patternops.subst_uninstantiated_pattern env sigma subst c
   in
   let print env sigma pat = str "pat:(" ++ Printer.pr_uninstantiated_lconstr_pattern_env env sigma pat ++ str ")" in
-  let raw_print env sigma pat = str "pat:(" ++ Ppconstr.pr_constr_pattern_expr env sigma pat ++ str ")" in
+  let raw_print env sigma pat = str "pat:(" ++ Ppconstr.pr_lconstr_pattern_expr env sigma pat ++ str ")" in
   let interp env c =
     let ist = to_lvar env in
     Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
@@ -175,7 +175,7 @@ let () =
     in
     hov 2 (str "preterm:(" ++ ppids ++ Printer.pr_lglob_constr_env env sigma c ++ str ")")
   in
-  let raw_print env sigma c = str "preterm:(" ++ Ppconstr.pr_constr_expr env sigma c ++ str ")" in
+  let raw_print env sigma c = str "preterm:(" ++ Ppconstr.pr_lconstr_expr env sigma c ++ str ")" in
   let obj = {
     ml_intern = intern;
     ml_interp = interp;

@@ -110,6 +110,8 @@ let pr_closed_glob_n_env ?goal_concl_style ?inctx ?scope env sigma n c =
   pr_constr_expr_n env sigma n (extern_closed_glob ?goal_concl_style ?inctx ?scope env sigma c)
 let pr_closed_glob_env ?goal_concl_style ?inctx ?scope env sigma c =
   pr_constr_expr env sigma (extern_closed_glob ?goal_concl_style ?inctx ?scope env sigma c)
+let pr_closed_lglob_env ?goal_concl_style ?inctx ?scope env sigma c =
+  pr_lconstr_expr env sigma (extern_closed_glob ?goal_concl_style ?inctx ?scope env sigma c)
 
 let pr_lconstr_pattern_env env sigma c =
   pr_lconstr_pattern_expr env sigma (extern_constr_pattern (Termops.names_of_rel_context env) sigma c)
