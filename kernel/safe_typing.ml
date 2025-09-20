@@ -532,7 +532,7 @@ let push_qualities qs senv =
     let sections = Option.map (Section.push_mono_qualities qs) senv.sections
     in
     { senv with
-      env = Environ.push_qualities qs senv.env ;
+      env = Environ.push_quality_set qs senv.env ;
       qualities = Sorts.QVar.Set.union qs senv.qualities ;
       sections
     }
@@ -1378,7 +1378,7 @@ let end_module l restype senv =
   let mbids = List.rev_map fst params in
   let mb = build_module_body params restype senv in
   let newenv = Environ.set_universes (Environ.universes senv.env) oldsenv.env in
-  let newenv = Environ.set_qualities (Environ.qualities senv.env) newenv in
+  let newenv = Environ.set_qualities (Environ.qvars senv.env) newenv in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
   let senv' = propagate_loads { senv with env = newenv } in
@@ -1533,7 +1533,7 @@ let import lib vmtab vodigest senv =
   let mp = MPfile lib.comp_name in
   let mb = lib.comp_mod in
   let qualities, univs = lib.comp_univs in
-  let env = Environ.push_qualities qualities senv.env in
+  let env = Environ.push_quality_set qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
   let env =
@@ -1596,6 +1596,9 @@ let close_section senv =
       senv (List.rev rev_reimport)
   in
   (* Third phase: replay the discharged section contents *)
+  let filtered_qualities =
+    Sorts.QVar.Set.filter (fun q -> not @@ Sorts.QVar.is_unif q) senv.qualities in
+  let senv = { senv with qualities = filtered_qualities } in
   let senv = push_context_set ~strict:true cstrs senv in
   let senv = push_qualities qs senv in
   let fold entry senv =
