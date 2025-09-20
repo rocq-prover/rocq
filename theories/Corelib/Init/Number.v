@@ -10,7 +10,7 @@
 
 (** * Decimal or Hexadecimal numbers *)
 
-Require Import Decimal Hexadecimal.
+Require Import Logic Decimal Hexadecimal.
 
 Variant uint := UIntDecimal (u:Decimal.uint) | UIntHexadecimal (u:Hexadecimal.uint).
 

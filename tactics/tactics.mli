@@ -455,7 +455,7 @@ val default_elim : evars_flag -> clear_flag -> constr with_bindings ->
   unit Proofview.tactic
 
 val general_elim_clause : evars_flag -> unify_flags -> Id.t option ->
-    ((metavariable list * Unification.Meta.t) * EConstr.t * EConstr.types) -> Constant.t -> unit Proofview.tactic
+    ((metavariable list * Unification.Meta.t) * EConstr.t * EConstr.types) -> EConstr.t -> unit Proofview.tactic
 
 (** [general_case_analysis with_evars clear (t, bindings)] performs case analysis on [t].
     If [t] is a variable which is not in the context, we attempt to perform introductions
@@ -677,7 +677,7 @@ val subst_one :
   (bool -> Id.t -> Id.t * constr * bool -> unit Proofview.tactic) Hook.t
 
 val declare_intro_decomp_eq :
-  ((int -> unit Proofview.tactic) -> Rocqlib.rocq_eq_data * types *
+  ((int -> unit Proofview.tactic) -> Rocqlib.rocq_eq_data * EInstance.t * types *
    (types * constr * constr) ->
    constr * types -> unit Proofview.tactic) -> unit
 
