@@ -1346,11 +1346,11 @@ let general_elim with_evars clear_flag (c, lbindc) elim =
 let general_elim_clause with_evars flags where arg elim =
   Proofview.tclENV >>= fun env ->
   Proofview.tclEVARMAP >>= fun sigma ->
-  let (sigma, (elim, u)) = Evd.fresh_constant_instance env sigma elim in
+  let (sigma, elim) = Evd.fresh_constant_instance env sigma elim in
   Proofview.Unsafe.tclEVARS sigma <*>
   match where with
-  | None -> general_elim_clause0 with_evars flags arg (ElimConstant (elim, EInstance.make u))
-  | Some id -> general_elim_clause_in0 with_evars flags id arg (elim, EInstance.make u)
+  | None -> general_elim_clause0 with_evars flags arg (ElimConstant elim)
+  | Some id -> general_elim_clause_in0 with_evars flags id arg elim
 
 (* Case analysis tactics *)
 
@@ -2026,8 +2026,8 @@ let constructor_core with_evars cstr lbind =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    let (sigma, (cons, u)) = Evd.fresh_constructor_instance env sigma cstr in
-    let cons = mkConstructU (cons, EInstance.make u) in
+    let (sigma, cons) = Evd.fresh_constructor_instance env sigma cstr in
+    let cons = mkConstructU cons in
     let apply_tac = general_apply true false with_evars None (CAst.make (cons,lbind)) in
     Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma) apply_tac
   end

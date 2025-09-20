@@ -290,7 +290,6 @@ let inductive_template env sigma tmloc ind =
      instead of the global default universes
      (and in the future fresh qualities?) *)
   let sigma, indu = Evd.fresh_inductive_instance env sigma ind in
-  let indu = on_snd EInstance.make indu in
   let templ =
     match (Environ.lookup_mind (fst (fst indu)) env).mind_template with
     | None -> []
