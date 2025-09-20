@@ -1,0 +1,4 @@
+A/File1.vo A/File1.glob A/File1.v.beautified A/File1.required_vo: A/File1.v @ROCQWORKER@
+A/File11.vo A/File11.glob A/File11.v.beautified A/File11.required_vo: A/File11.v @ROCQWORKER@
+B/File1.vo B/File1.glob B/File1.v.beautified B/File1.required_vo: B/File1.v @ROCQWORKER@
+File2.vo File2.glob File2.v.beautified File2.required_vo: File2.v A/File11.vo B/File1.vo @ROCQWORKER@ A/OtherFile.txt

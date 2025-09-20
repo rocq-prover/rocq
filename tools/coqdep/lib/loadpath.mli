@@ -48,6 +48,7 @@ val search_v_known : State.t -> ?from:dirpath -> dirpath -> result option
 val search_other_known : State.t -> ?from:dirpath -> dirpath -> result option
 
 val is_in_coqlib : State.t -> ?from:dirpath -> dirpath -> bool
+val is_other_in_coqlib : State.t -> from:dirpath -> dirpath -> bool
 
 val add_current_dir : State.t -> System.unix_path -> unit
 val add_q_include : State.t -> System.unix_path -> string -> unit

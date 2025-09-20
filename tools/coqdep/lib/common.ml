@@ -244,7 +244,9 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
         begin match safe_assoc loadpath ~what:External (Some from) f [str] with
         | Some (file :: _) -> add_dep (Dep_info.Dep.Other (canonize ~separator_hack vAccu file))
         | Some [] -> assert false
-        | None -> warning_module_notfound (External, Some from, f, [str])
+        | None ->
+          if not (Loadpath.is_other_in_coqlib loadpath ~from [str]) then
+            warning_module_notfound (External, Some from, f, [str])
         end;
         loop ()
   in

@@ -1,22 +1,44 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Check that both coqdep and coqtop/coqc support -R
 # Check that both coqdep and coqtop/coqc takes -R preferably to installed $ROCQPATH
 # See also bugs #2242, #2337, #2339
-rm -f misc/deps/DistinctRoot/*.vo misc/deps/DistinctRoot/*.vo/{A,B}/*.vo
-output=misc/deps/DistinctRootDeps.real
-(cd misc/deps; $coqdep -worker @ROCQWORKER@ -f _CoqDistinctRoot) > "$output" 2>&1
-diff -u --strip-trailing-cr misc/deps/DistinctRootDeps.out "$output"
-R=$?
-times
-$coqc -R misc/deps/DistinctRoot/A A -R misc/deps/DistinctRoot/B B misc/deps/DistinctRoot/A/File1.v
-$coqc -R misc/deps/DistinctRoot/A A -R misc/deps/DistinctRoot/B B misc/deps/DistinctRoot/B/File1.v
-export ROCQPATH=misc/deps/DistinctRoot
-$coqc -R misc/deps/DistinctRoot/B B misc/deps/DistinctRoot/File2.v
-S=$?
-if [ $R = 0 ] && [ $S = 0 ]; then
-    printf "coqdep and coqc agree.\n"
-    exit 0
-else
-    printf "coqdep and coqc disagree.\n"
-    exit 1
+
+set -ex
+
+export PATH=$BIN:$PATH
+
+cd misc/deps/DistinctRoot
+rm -rf _test
+mkdir _test
+find . -maxdepth 1 -not -name . -not -name _test -exec cp -r '{}' -t _test ';'
+cd _test
+
+if ! rocq dep -worker @ROCQWORKER@ -R A A -R B B A/File1.v A/File11.v B/File1.v File2.v > coqdep1.real 2>&1; then
+  cat coqdep1.real
+  exit 1
 fi
+diff -u --strip-trailing-cr coqdep1.out coqdep1.real || true
+
+touch A/File1.vo # bad vo, must not be loaded
+rocq c -R A A -R B B A/File11.v
+rocq c -R A A -R B B B/File1.v
+
+# now test with A "installed"
+mkdir install
+cp -r A install/A
+export ROCQPATH=install
+if ! rocq dep -worker @ROCQWORKER@ -R B B B/File1.v File2.v > coqdep2.real 2>&1; then
+  cat coqdep2.real
+  exit 1
+fi
+diff -u --strip-trailing-cr coqdep2.out coqdep2.real
+rocq c -R B B File2.v
+
+rm A/File1.vo
+if ! rocq dep -worker @ROCQWORKER@ -R A A -R B B A/File1.v A/File11.v B/File1.v File2.v > coqdep3.real 2>&1; then
+  cat coqdep3.real
+  exit 1
+fi
+# reuse coqdep1.out: output should be same as first rocq dep run
+diff -u --strip-trailing-cr coqdep1.out coqdep3.real
+rocq c -R A A -R B B File2.v

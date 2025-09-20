@@ -170,6 +170,7 @@ module State = struct
     { vfiles : (dirpath * dirpath, result) Hashtbl.t
     ; coqlib : (dirpath * dirpath, result) Hashtbl.t
     ; other : (dirpath * dirpath, result) Hashtbl.t
+    ; coqlibother : (dirpath * dirpath, result) Hashtbl.t
     ; boot : bool
     ; mutable worker : string option
     }
@@ -178,6 +179,7 @@ module State = struct
     { vfiles = Hashtbl.create 4101
     ; coqlib = Hashtbl.create 19
     ; other = Hashtbl.create 17317
+    ; coqlibother = Hashtbl.create 17317
     ; boot
     ; worker
     }
@@ -231,6 +233,10 @@ let is_in_coqlib st ?from s =
   try let _ = search_table st.State.coqlib ~from:["Stdlib"] s in true
   with Not_found -> false
 
+let is_other_in_coqlib st ~from s =
+  try let _ = search_table st.State.coqlibother ~from s in true
+  with Not_found -> false
+
 let add_paths recur root table phys_dir log_dir basename =
   let name = log_dir@[basename] in
   let file = System.(phys_dir // basename) in
@@ -243,7 +249,8 @@ let add_coqlib_known st recur root phys_dir log_dir f =
   match get_extension f [".vo"; ".vos"] with
     | (basename, (".vo" | ".vos")) ->
         add_paths recur root st.State.coqlib phys_dir log_dir basename
-    | _ -> ()
+    | (f,_) ->
+        add_paths recur root st.State.coqlibother phys_dir log_dir f
 
 let add_known st recur root phys_dir log_dir f =
   match get_extension f [".v"; ".vo"; ".vos"] with
