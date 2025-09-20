@@ -291,6 +291,7 @@ universe: [
 
 universe_expr: [
 | universe_name OPT ( "+" natural )
+| natural
 ]
 
 universe_name: [
@@ -304,6 +305,7 @@ univ_annot: [
 ]
 
 univ_level_or_quality: [
+| "0"
 | "Set"
 | "SProp"
 | "Prop"
