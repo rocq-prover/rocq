@@ -64,7 +64,7 @@ let declare_global ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~
   let (uentry, ubinders) = univs in
   let inl = let open Declaremods in match inline with
     | NoInline -> None
-    | DefaultInline -> Some (Flags.get_inline_level())
+    | DefaultInline -> Declaremods.default_inline_level()
     | InlineAt i -> Some i
   in
   let decl = match body with

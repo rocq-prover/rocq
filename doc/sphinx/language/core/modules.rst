@@ -104,11 +104,21 @@ together, as well as a means of massive abstraction.
    :cmd:`Include` commands is equivalent to giving them all in a single
    non-interactive :cmd:`Module` command.
 
-   The ! prefix indicates that any assumption command (such as :cmd:`Axiom`) with an :n:`Inline` clause
-   in the type of the functor arguments will be ignored.
+.. opt:: Inline Level
 
-   .. todo: What is an Inline directive?  sb command but still unclear.  Maybe referring to the
-      "inline" in functor_app_annot?  or assumption_token Inline assum_list?
+   Controls inlining of parameters (declared by e.g. :cmd:`Axiom`) in
+   functor application. The default is 100.
+
+   A functor application with `[inline at level A]` will inline all
+   parameters declared with `Inline(B)` with `B <= A`.
+
+   :cmd:`Parameter` declaration with `Inline` uses the value of this option
+   unless an explicit level is provided (with `Inline(level)`).
+
+   Functor application implicitly uses `[inline at level n]` where `n`
+   is the value of this option, unless `[inline at level]` or `[no
+   inline]` (or the prefix `!` which is equivalent to the suffix `[no
+   inline]`) is explicitly provided.
 
 .. cmd:: Module Type @ident {* @module_binder } {* <: @module_type_inl } {? := {+<+ @module_type_inl } }
 
