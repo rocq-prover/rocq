@@ -259,17 +259,33 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | PMeta None, _ -> subst
 
-  | PRef (GlobRef.VarRef v1), Var v2 when Id.equal v1 v2 -> subst
+  | PRef (GlobRef.VarRef v1), Var v2 ->
+    if Id.equal v1 v2 then subst
+    else raise PatternMatchingFailure
 
-  | PVar v1, Var v2 when Id.equal v1 v2 -> subst
+  | PVar v1, Var v2 ->
+    if Id.equal v1 v2 then subst
+    else raise PatternMatchingFailure
 
-  | PRef ref, (Const _ | Ind _ | Construct _) when EConstr.isRefX env sigma ref t -> subst
+  | PRef (GlobRef.ConstRef cst1), Const (cst2, _) ->
+    if Environ.QConstant.equal env cst1 cst2 then subst
+    else raise PatternMatchingFailure
 
-  | PRel n1, Rel n2 when Int.equal n1 n2 -> subst
+  | PRef (GlobRef.IndRef ind1), Ind (ind2, _) ->
+    if Environ.QInd.equal env ind1 ind2 then subst
+    else raise PatternMatchingFailure
+
+  | PRef (GlobRef.ConstructRef cst1), Construct (cst2, _) ->
+    if Environ.QConstruct.equal env cst1 cst2 then subst
+    else raise PatternMatchingFailure
+
+  | PRel n1, Rel n2 ->
+    if Int.equal n1 n2 then subst
+    else raise PatternMatchingFailure
 
   | PSort ps, Sort s ->
-    if UnivGen.QualityOrSet.equal ps (ESorts.quality_or_set sigma s)
-    then subst else raise PatternMatchingFailure
+    if UnivGen.QualityOrSet.equal ps (ESorts.quality_or_set sigma s) then subst
+    else raise PatternMatchingFailure
 
   | PApp (p, [||]), _ -> sorec ctx env subst p t
 
@@ -301,31 +317,32 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
       raise PatternMatchingFailure
     | PProj (pr1,c1), Proj (pr,_,c) ->
-      if Environ.QProjection.equal env pr1 pr then
-        try Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
-        with Invalid_argument _ -> raise PatternMatchingFailure
-      else raise PatternMatchingFailure
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
     | _, Proj (pr,_,c) ->
       begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
       | term -> sorec ctx env subst p term
       | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
       end
-    | _, _ ->
-      try Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
-      with Invalid_argument _ -> raise PatternMatchingFailure
+    | _ ->
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
     end
-
-  | PApp (PRef (GlobRef.ConstRef c1), _), Proj (pr, _, c2) when not (Environ.QConstant.equal env c1 (Projection.constant pr)) ->
-    raise PatternMatchingFailure
 
   | PApp (c, args), Proj (pr, _, c2) ->
-    begin match Retyping.expand_projection env sigma pr c2 [] with
-    | term -> sorec ctx env subst p term
-    | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
+    begin match c with
+    | PRef (GlobRef.ConstRef c1) when not (Environ.QConstant.equal env c1 (Projection.constant pr)) ->
+      raise PatternMatchingFailure
+    | _ ->
+      begin match Retyping.expand_projection env sigma pr c2 [] with
+      | term -> sorec ctx env subst p term
+      | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
+      end
     end
 
-  | PProj (p1, c1), Proj (p2, _, c2) when Environ.QProjection.equal env p1 p2 ->
-    sorec ctx env subst c1 c2
+  | PProj (p1, c1), Proj (p2, _, c2) ->
+    if Environ.QProjection.equal env p1 p2 then sorec ctx env subst c1 c2
+    else raise PatternMatchingFailure
 
   | PProd (na1, c1, d1), Prod (na2, c2, d2) ->
     sorec (push_binder na1 na2 c2 ctx) (EConstr.push_rel (LocalAssum (na2,c2)) env)
@@ -406,29 +423,39 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     in
     List.fold_left chk_branch subst br1
 
-  | PFix ((ln1, i1),(lna1, tl1, bl1)), Fix ((ln2, i2),(lna2, tl2, bl2)) when Array.equal Int.equal ln1 ln2 && Int.equal i1 i2 ->
+  | PFix ((ln1, i1),(lna1, tl1, bl1)), Fix ((ln2, i2),(lna2, tl2, bl2)) ->
+    let () = if not (Array.equal Int.equal ln1 ln2 && Int.equal i1 i2) then raise PatternMatchingFailure in
     let ctx' = Array.fold_left3 (fun ctx na1 na2 t2 -> push_binder na1 na2 t2 ctx) ctx lna1 lna2 tl2 in
     let env' = Array.fold_left2 (fun env na2 c2 -> EConstr.push_rel (LocalAssum (na2,c2)) env) env lna2 tl2 in
     let subst = Array.fold_left4 (match_under_common_fix_binders sorec sigma binding_vars ctx ctx' env env') subst tl1 tl2 bl1 bl2 in
     Array.fold_left2 (fun subst na1 na2 -> add_binders na1 na2 binding_vars subst) subst lna1 lna2
 
-  | PCoFix (i1, (lna1, tl1, bl1)), CoFix (i2, (lna2, tl2, bl2)) when Int.equal i1 i2 ->
+  | PCoFix (i1, (lna1, tl1, bl1)), CoFix (i2, (lna2, tl2, bl2)) ->
+    let () = if not (Int.equal i1 i2) then raise PatternMatchingFailure in
     let ctx' = Array.fold_left3 (fun ctx na1 na2 t2 -> push_binder na1 na2 t2 ctx) ctx lna1 lna2 tl2 in
     let env' = Array.fold_left2 (fun env na2 c2 -> EConstr.push_rel (LocalAssum (na2,c2)) env) env lna2 tl2 in
     let subst = Array.fold_left4 (match_under_common_fix_binders sorec sigma binding_vars ctx ctx' env env') subst tl1 tl2 bl1 bl2 in
     Array.fold_left2 (fun subst na1 na2 -> add_binders na1 na2 binding_vars subst) subst lna1 lna2
 
-  | PEvar (c1, args1), Evar (c2, args2) when Evar.equal c1 c2 ->
+  | PEvar (c1, args1), Evar (c2, args2) ->
+    let () = if not (Evar.equal c1 c2) then raise PatternMatchingFailure in
     let args2 = Evd.expand_existential sigma (c2, args2) in
     List.fold_left2 (sorec ctx env) subst args1 args2
 
-  | PInt i1, Int i2 when Uint63.equal i1 i2 -> subst
+  | PInt i1, Int i2 ->
+    if Uint63.equal i1 i2 then subst
+    else raise PatternMatchingFailure
 
-  | PFloat f1, Float f2 when Float64.equal f1 f2 -> subst
+  | PFloat f1, Float f2 ->
+    if Float64.equal f1 f2 then subst
+    else raise PatternMatchingFailure
 
-  | PString s1, String s2 when Pstring.equal s1 s2 -> subst
+  | PString s1, String s2 ->
+    if Pstring.equal s1 s2 then subst
+    else raise PatternMatchingFailure
 
-  | PArray (pt, pdef, pty), Array (_u, t, def, ty) when Int.equal (Array.length pt) (Array.length t) ->
+  | PArray (pt, pdef, pty), Array (_u, t, def, ty) ->
+    let () = if not (Int.equal (Array.length pt) (Array.length t)) then raise PatternMatchingFailure in
     sorec ctx env (sorec ctx env (Array.fold_left2 (sorec ctx env) subst pt t) pdef def) pty ty
 
   | (PRef _ | PVar _ | PRel _ | PApp _ | PProj _ | PLambda _
