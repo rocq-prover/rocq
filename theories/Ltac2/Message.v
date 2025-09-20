@@ -23,7 +23,13 @@ Ltac2 @ external of_int : int -> message := "rocq-runtime.plugins.ltac2" "messag
 Ltac2 @ external of_ident : ident -> message := "rocq-runtime.plugins.ltac2" "message_of_ident".
 
 Ltac2 @ external of_constr : constr -> message := "rocq-runtime.plugins.ltac2" "message_of_constr".
-(** Panics if there is more than one goal under focus. *)
+(** Prints at level 8 (surrounding with parentheses to print syntax
+    above that level such as applications).
+    Panics if there is more than one goal under focus. *)
+
+Ltac2 @ external of_lconstr : constr -> message := "rocq-runtime.plugins.ltac2" "message_of_lconstr".
+(** Prints at level 200 (no surrounding parentheses).
+    Panics if there is more than one goal under focus. *)
 
 Ltac2 @ external of_exn : exn -> message := "rocq-runtime.plugins.ltac2" "message_of_exn".
 (** Panics if there is more than one goal under focus. *)

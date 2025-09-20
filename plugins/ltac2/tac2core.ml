@@ -197,6 +197,10 @@ let () =
   define "message_of_constr" (constr @-> tac pp) @@ fun c ->
   pf_apply @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
 
+let () =
+  define "message_of_lconstr" (constr @-> tac pp) @@ fun c ->
+  pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
+
 let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
 let () =
