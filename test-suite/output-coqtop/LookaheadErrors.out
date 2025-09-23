@@ -1,5 +1,10 @@
 
-Rocq < 
+Rocq < Toplevel input, characters 0-38:
+> Notation "## x" := (S x) (at level 0).
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
+
 Rocq < 
 Rocq < Toplevel input, characters 9-11:
 > Check ## [].
@@ -8,6 +13,11 @@ Error: Syntax error: '##' or [term] expected after '##' (in [term]).
 
 Rocq < Rocq < Setting x constr at next level
 to match previous notation with longest common prefix: "## _".
+Toplevel input, characters 1-39:
+> Notation "## x" := (S x) (at level 0).
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 
 Rocq < 
 Rocq < Toplevel input, characters 9-11:

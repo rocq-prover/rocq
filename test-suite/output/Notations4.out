@@ -22,6 +22,9 @@ should usually be at level 0 (default).
 [closed-notation-not-level-0,parsing,default]
 [<< # 0 >>]
      : option nat
+File "./output/Notations4.v", line 28, characters 0-60:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 [b + c]
      : nat
 fun a : nat => [a + a]
@@ -33,6 +36,9 @@ should usually be at level 0 (default).
 File "./output/Notations4.v", line 38, characters 0-88:
 Warning: This notation will not be used for printing as it is bound to a
 single variable. [notation-bound-to-variable,parsing,default]
+File "./output/Notations4.v", line 58, characters 0-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 [1 {f 1}]
      : Expr
 fun (x : nat) (y z : Expr) => [1 + y z + {f x}]
@@ -72,6 +78,9 @@ r 2 3
      : Prop
 let v := 0%test17 in v : myint63
      : myint63
+File "./output/Notations4.v", line 123, characters 0-108:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun y : nat => # (x, z) |-> y & y
      : forall y : nat,
        (?T * ?T0 -> ?T * ?T0 * nat) * (?T1 * ?T2 -> ?T1 * ?T2 * nat)
@@ -175,14 +184,32 @@ Warning: Notation "_ :=: _" was already used.
 [notation-overridden,parsing,default]
 0 :=: 0
      : Prop
+File "./output/Notations4.v", line 277, characters 0-66:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun x : nat => <{ x; (S x) }>
      : nat -> nat
 Set
      : Type
+File "./output/Notations4.v", line 298, characters 0-66:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
+File "./output/Notations4.v", line 299, characters 0-69:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun x : nat => S x
      : nat -> nat
+File "./output/Notations4.v", line 308, characters 0-66:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
+File "./output/Notations4.v", line 309, characters 0-70:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 True
      : Prop
+File "./output/Notations4.v", line 327, characters 2-115:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 exists p : nat, ▢_p (p >= 1)
      : Prop
 ▢_n (n >= 1)
@@ -196,6 +223,9 @@ Found a constructor while a variable name was expected.
 File "./output/Notations4.v", line 337, characters 17-18:
 The command has indeed failed with message:
 Found a constant while a variable name was expected.
+File "./output/Notations4.v", line 343, characters 2-117:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 exists x y : nat, ▢_(x, y) (x >= 1 /\ y >= 2)
      : Prop
 ▢_n (n >= 1)
@@ -208,6 +238,9 @@ Found an inductive type while a pattern was expected.
 File "./output/Notations4.v", line 353, characters 17-18:
 The command has indeed failed with message:
 Found a constant while a pattern was expected.
+File "./output/Notations4.v", line 359, characters 2-124:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 exists x y : nat, ▢_(x, y) (x >= 1 /\ y >= 2)
      : Prop
 pseudo_force n (fun n : nat => n >= 1)
@@ -311,8 +344,17 @@ Notation "[[ _ ]]" is already defined at level 0 with arguments custom foo
 while it is now required to be at level 0 with arguments custom bar.
 lambda x y : nat, x + y = 0
      : nat -> nat -> Prop
+File "./output/Notations4.v", line 565, characters 0-90:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ((!!nat) + bool)%type
      : Set
+File "./output/Notations4.v", line 574, characters 0-85:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
+File "./output/Notations4.v", line 576, characters 0-60:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun z : nat => (z, 1, z, 2)
      : nat -> nat * nat * nat * nat
 fun z : nat => [(!!z) + z]

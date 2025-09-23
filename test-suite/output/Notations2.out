@@ -60,6 +60,9 @@ match n with
 | plus2 _ :: _ => 2
 end
      : list(nat) -> nat
+File "./output/Notations2.v", line 107, characters 0-84:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 # x : nat => x
      : nat -> nat
 # _ : nat => 2
@@ -68,6 +71,9 @@ end
      : ∀ x : nat, x <= 0 -> {x0 : nat | x <= x0}
 exist (Q x) y conj
      : {x0 : A | Q x x0}
+File "./output/Notations2.v", line 120, characters 0-58:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 % i
      : nat -> nat
 % j

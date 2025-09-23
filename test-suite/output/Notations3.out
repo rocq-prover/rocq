@@ -286,11 +286,17 @@ myfoo01 tt
    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 FORALL [[a, b]], a - b = 0
      : Prop
+File "./output/Notations3.v", line 457, characters 0-58:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ∀ (A : TypTerm) (B : ◻ A -> TypTerm),
 (∀ a : ◻ A, ◻ {B a}) -> ◻ (∀' {a : ◻ A}, {B a})
      : Type
 FORALL [[a, b]], a - b = 0
      : Prop
+File "./output/Notations3.v", line 495, characters 0-65:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ∀ a b : nat, a - b = 0
      : Prop
 fun x : option unit => match x with

@@ -22,14 +22,23 @@ forall n n0 : nat, ### (n = n0)
      : list nat
 (1; 2, 4)
      : nat * nat * nat
+File "./output/Notations.v", line 72, characters 0-98:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ifzero 3
      : bool
+File "./output/Notations.v", line 76, characters 0-91:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 pred 3
      : nat
 fun n : nat => pred n
      : nat -> nat
 fun n : nat => pred n
      : nat -> nat
+File "./output/Notations.v", line 82, characters 0-120:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun x : nat => ifn x is succ n then n else 0
      : nat -> nat
 1 -
@@ -148,6 +157,9 @@ match p in _ = n return n = n with
 | 1 => 1
 end = p
      : forall x : nat, x = x -> Prop
+File "./output/Notations.v", line 254, characters 0-44:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 bar  0
      : nat
 let k := rew [P] p in v in k

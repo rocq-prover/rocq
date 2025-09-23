@@ -1,8 +1,14 @@
 x `+ (y `+ z)
      : nat
+File "./output/bug_15322.v", line 12, characters 0-56:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 [x `+ (y `+ z)]
      : nat
 fun x y z : nat => [x `+ (y `+ z)]
      : nat -> (nat -> (nat -> nat))
+File "./output/bug_15322.v", line 23, characters 0-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun x y z : nat => [x `+ (y `+ z)]
      : nat -> (nat -> (nat -> nat))

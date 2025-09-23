@@ -1362,6 +1362,11 @@ let warn_closed_notation_not_level_0 =
                        terminal symbol) should usually be at level 0 \
                        (default).")
 
+let warn_level_0_notation_not_closed =
+  CWarnings.create ~name:"level-0-notation-not-closed" ~category:CWarnings.CoreCategories.parsing
+    (fun () -> strbrk "Notations at level 0 should be closed (first and last \
+                       symbols should be terminal symbols).")
+
 let warn_postfix_notation_not_level_1 =
   CWarnings.create ~name:"postfix-notation-not-level-1" ~category:CWarnings.CoreCategories.parsing
     (fun () -> strbrk "Postfix notations (i.e. starting with a \
@@ -1382,7 +1387,7 @@ let find_precedence custom lev etyps symbols onlyprint =
       | _ :: t -> aux false t
       | [] -> b in
     aux false symbols in
-  match first_symbol with
+  let msgs, lev = match first_symbol with
   | None -> [],0
   | Some (NonTerminal x) ->
       let msgs, lev = match last_is_terminal (), lev with
@@ -1428,7 +1433,11 @@ let find_precedence custom lev etyps symbols onlyprint =
       end
   | Some _ ->
       if Option.is_empty lev then user_err Pp.(str "Cannot determine the level.");
-      [],Option.get lev
+      [],Option.get lev in
+  if lev <> 0 then msgs, lev else
+    match first_symbol, last_is_terminal () with
+    | Some (Terminal _), true -> msgs, lev
+    | _ -> msgs @ [warn_level_0_notation_not_closed], lev
 
 let check_curly_brackets_notation_exists () =
   try let _ = Notation.level_of_notation (InConstrEntry,"{ _ }") in ()

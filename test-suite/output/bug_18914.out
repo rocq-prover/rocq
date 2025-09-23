@@ -1,2 +1,8 @@
+File "./output/bug_18914.v", line 4, characters 0-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
+File "./output/bug_18914.v", line 5, characters 0-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 < a ++ b ++ c >
      : C
