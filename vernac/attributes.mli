@@ -52,6 +52,7 @@ end
 val raw_attributes : vernac_flags attribute
 
 val polymorphic : bool attribute
+val collapse_sort_variables : bool option attribute
 val poly : PolyFlags.construction_kind -> PolyFlags.t attribute
 (** Attributes supported by monomorphic or polymorphic constructions depending on their kind *)
 

@@ -42,23 +42,20 @@ type possible_guard = {
 } (* Note: if no fix indices are given, it has to be a cofix *)
 
 val search_guard :
-  ?loc:Loc.t -> ?evars:CClosure.evar_handler ->
-  ?elim_to:(Sorts.Quality.t -> Sorts.Quality.t -> bool) -> env ->
-  possible_guard -> Constr.rec_declaration -> int array option
-
-val search_fix_guard : (* For Fixpoints only *)
-  ?loc:Loc.t -> ?evars:CClosure.evar_handler -> env ->
-  possible_fix_indices -> Constr.rec_declaration -> int array
+  ?loc:Loc.t -> env -> evar_map ->
+  possible_guard -> Constr.rec_declaration -> (evar_map * int array) option
 
 val esearch_guard :
   ?loc:Loc.t -> env -> evar_map -> possible_guard ->
-  EConstr.rec_declaration -> int array option
+  EConstr.rec_declaration -> (evar_map * int array) option
 
 val esearch_fix_guard : (* For Fixpoints only *)
   ?loc:Loc.t -> env -> evar_map -> possible_fix_indices ->
-  EConstr.rec_declaration -> int array
+  EConstr.rec_declaration -> evar_map * int array
 
-val esearch_cofix_guard : ?loc:Loc.t -> env -> evar_map -> EConstr.rec_declaration -> unit
+val esearch_cofix_guard :
+  ?loc:Loc.t -> env -> evar_map ->
+  EConstr.rec_declaration -> unit
 
 type typing_constraint =
   | IsType (** Necessarily a type *)

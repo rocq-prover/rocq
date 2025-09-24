@@ -82,9 +82,9 @@ The command has indeed failed with message:
 Recursive definition of foo' and bar' is ill-formed.
 As a mutual fixpoint decreasing on the 1st argument of foo' and
 1st argument of bar':
-Cannot define a fixpoint with principal argument living in sort 
-"SProp" to produce a value in sort "Prop"
-because "SProp" does not eliminate to "Prop".
+Recursive call to bar' has principal argument equal to 
+"SI" instead of
+a subterm of "n".
 As a mutual fixpoint decreasing on the 1st argument of foo' and
 2nd argument of bar':
 Recursive call to bar' has principal argument equal to 

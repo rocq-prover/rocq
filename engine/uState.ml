@@ -101,7 +101,7 @@ module QState : sig
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
-  val collapse : ?except:QVar.Set.t -> t -> t
+  val collapse : ?except:QVar.Set.t -> ?to_type:bool -> t -> t
   val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
@@ -164,8 +164,8 @@ let set q qv m =
   let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
   let qv = match qv with QVar qv -> repr_node qv m | QConstant qc -> ReprConstant qc in
   let enforce_eq q1 q2 g = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
-  match q, qv with
-  | q, ReprVar (qv, _qvrigd) ->
+  match qv with
+  | ReprVar (qv, _qvrigd) ->
     if QVar.equal q qv then Some m
     else if rigid then None
     else
@@ -173,9 +173,10 @@ let set q qv m =
         if is_above_prop m q
         then QSet.add qv (QSet.remove q m.above_prop)
         else m.above_prop in
-      Some { qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
-             elims = enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
-  | q, ReprConstant qc ->
+      Some { m with
+             qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
+             elims = enforce_eq (QVar qv) (QVar q) m.elims; }
+  | ReprConstant qc ->
     if qc == QSProp && (is_above_prop m q || eliminates_to_prop m q) then None
     else if rigid then None
     else
@@ -305,13 +306,40 @@ let collapse_above_prop ~to_prop m =
          )
          m.qmap m
 
-let collapse ?(except=QSet.empty) m =
+let collapse ?(except=QSet.empty) ?(to_type = true) m =
+  let free_qualities = QMap.fold (fun q v fqs ->
+      match v with
+      | Equiv _ -> fqs
+      | Canonical _ -> QSet.add q fqs)
+      m.qmap QSet.empty
+  in
+  let dominates_above_prop q q' =
+    not (QVar.equal q q') && QGraph.eliminates_to m.elims (QVar q) (QVar q') && not (QSet.mem q m.above_prop)
+  in
   QMap.fold (fun q v m ->
-           match v with
-           | Equiv _ -> m
-           | Canonical { rigid } -> if rigid || QSet.mem q except then m
-                    else Option.get (set q qtype m))
-         m.qmap m
+      match v with
+      | Equiv _ -> m
+      | Canonical { rigid } ->
+        if rigid || QSet.mem q except then m
+        (* This check is necessary because there is a particular scenario where we could end up
+           with an unsatisfied elimination constraint or an unnecessary elaborated elimination constraint to Type
+           (or some inexistent sort variable); if we simply defaulted sort variables to Type, as before.
+           This comes from a weird interaction with "above Prop". The scenario is:
+           - An unbound sort variable β might be set to be above Prop during unification, which in practice
+             should be equal to Prop.
+           - A rigid sort s eliminates to Prop explicitly (and β, since they are supposed to be equal)
+           - Collapsing β to Type means that now sort s eliminates to Type, but this is an undeclared constraint,
+             and therefore the declaration fails.
+
+           This check is therefore simply finding if the sort variable above Prop is dominated by another one.
+           If so, the sort variable collapses to Prop, otherwise to Type (if collapsing is enabled), or we keep it.
+        *)
+        else if QSet.mem q m.above_prop then
+          if QSet.exists (fun q' -> dominates_above_prop q' q) free_qualities then
+            Option.get (set q qprop m)
+          else Option.get (set q qtype m)
+        else if to_type then Option.get (set q qtype m) else m)
+    m.qmap m
 
 let pr prqvar_opt ({ qmap; elims } as m) =
   let open Pp in
@@ -358,7 +386,8 @@ let normalize_elim_constraints m cstrs =
   let can_drop (q1,_,q2) = not (is_instantiated q1 && is_instantiated q2) in
   let subst_cst (q1,c,q2) = (subst q1,c,subst q2) in
   let cstrs = ElimConstraints.map subst_cst cstrs in
-  ElimConstraints.filter can_drop cstrs
+  let cstrs = ElimConstraints.filter can_drop cstrs in
+  ElimConstraints.filter (fun (q1, _, q2) -> not @@ Quality.equal q1 q2) cstrs
 end
 
 module UPairSet = UnivMinim.UPairSet
@@ -1505,8 +1534,8 @@ let collapse_above_prop_sort_variables ~to_prop uctx =
   let sorts = QState.collapse_above_prop ~to_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
-let collapse_sort_variables ?except uctx =
-  let sorts = QState.collapse ?except uctx.sort_variables in
+let collapse_sort_variables ?except ?(to_type = true) uctx =
+  let sorts = QState.collapse ?except ~to_type uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
 let minimize uctx =

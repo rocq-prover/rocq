@@ -83,19 +83,19 @@ type possible_guard = {
   possible_fix_indices : possible_fix_indices;
 } (* Note: if no fix indices are given, it has to be a cofix *)
 
-exception Found of int array option
+exception Found of (evar_map * int array) option
 
 let nf_fix sigma (nas, cs, ts) =
   let inj c = EConstr.to_constr ~abort_on_undefined_evars:false sigma c in
   (Array.map EConstr.Unsafe.to_binder_annot nas, Array.map inj cs, Array.map inj ts)
 
-let search_guard ?loc ?evars ?elim_to env {possibly_cofix; possible_fix_indices} fixdefs =
+let search_guard ?loc env sigma {possibly_cofix; possible_fix_indices} fixdefs =
   let is_singleton = function [_] -> true | _ -> false in
   let one_fix_possibility = List.for_all is_singleton possible_fix_indices in
   if one_fix_possibility && not possibly_cofix then
     let indexes = Array.of_list (List.map List.hd possible_fix_indices) in
     let fix = ((indexes, 0), fixdefs) in
-    try let () = check_fix ?evars ?elim_to env fix in Some indexes
+    try let sigma = check_fix_with_elims env sigma fix in Some (sigma, indexes)
     with reraise ->
       let (e, info) = Exninfo.capture reraise in
       let info = Option.cata (fun loc -> Loc.add_loc info loc) info loc in
@@ -105,7 +105,7 @@ let search_guard ?loc ?evars ?elim_to env {possibly_cofix; possible_fix_indices}
     if zero_fix_possibility && possibly_cofix then
       (* Maybe can we skip this check since it will be done in the kernel again *)
       let cofix = (0, fixdefs) in
-      try let () = check_cofix ?evars env cofix in None
+      try let () = check_cofix ~evars:(Evd.evar_handler sigma) env cofix in None
       with reraise ->
         let (e, info) = Exninfo.capture reraise in
         let info = Option.cata (fun loc -> Loc.add_loc info loc) info loc in
@@ -127,7 +127,7 @@ let search_guard ?loc ?evars ?elim_to env {possibly_cofix; possible_fix_indices}
                error when totality is assumed but the strutural argument is
                not specified. *)
             try
-              let () = check_fix ?evars ?elim_to env fix in raise (Found (Some indexes))
+              let sigma = check_fix_with_elims env sigma fix in raise (Found (Some (sigma, indexes)))
             with TypeError _ -> ())
           combinations in
        let () =
@@ -139,20 +139,15 @@ let search_guard ?loc ?evars ?elim_to env {possibly_cofix; possible_fix_indices}
        user_err ?loc (Pp.str errmsg)
      with Found indexes -> indexes
 
-let search_fix_guard ?loc ?evars env possible_fix_indices fixdefs =
-  Option.get (search_guard ?loc ?evars env {possibly_cofix=false; possible_fix_indices} fixdefs)
-
 let esearch_guard ?loc env sigma indexes fix =
   (* not sure if we still need to nf_fix when calling search_guard with ~evars
      (here and other callers through the code)
      OTOH search_guard needs to go through the whole term to see possible recursive calls
      so we may as well upfront normalize *)
   let fix = nf_fix sigma fix in
-  let evars = Evd.evar_handler sigma in
-  let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
-  try search_guard ?loc ~evars ~elim_to env indexes fix
-  with TypeError (env,err) ->
-    Loc.raise ?loc (PretypeError (env,sigma,TypingError (of_type_error err)))
+  try search_guard ?loc env sigma indexes fix
+  with TypeError (env, err) ->
+    Loc.raise ?loc (PretypeError (env, sigma, TypingError (of_type_error err)))
 
 let esearch_fix_guard ?loc env sigma possible_fix_indices fix =
   Option.get (esearch_guard ?loc env sigma {possibly_cofix=false; possible_fix_indices} fix)
@@ -252,7 +247,8 @@ type pretype_flags = {
 
 let glob_opt_qvar ?loc ~flags sigma = function
   | None ->
-    if flags.unconstrained_sorts then
+    let collapse_sort_variables = PolyFlags.collapse_sort_variables flags.poly in
+    if flags.unconstrained_sorts || not collapse_sort_variables then
       let sigma, q = new_quality_variable ?loc sigma in
       sigma, Some q
     else sigma, None
@@ -555,7 +551,7 @@ let pretype_global ?loc rigid env evd gr us =
     | None -> evd, None
     | Some l -> instance ?loc evd l
   in
-  Evd.fresh_global ?loc ~rigid ?names:instance !!env evd gr
+  Evd.fresh_global ?loc ?names:instance !!env evd gr
 
 let pretype_ref ?loc sigma env ref us =
   match ref with
@@ -880,7 +876,7 @@ struct
       let nf c = nf_evar sigma c in
       let ftys = Array.map nf ftys in (* FIXME *)
       let fdefs = Array.map (fun x -> nf (j_val x)) vdefj in
-      let fixj = match fixkind with
+      let sigma, fixj = match fixkind with
         | GFix (vn,i) ->
               (* First, let's find the guard indexes. *)
               (* If recursive argument was not given by user, we try all args.
@@ -893,16 +889,16 @@ struct
                              (fun i annot -> match annot with
                              | Some n -> [n]
                              | None -> List.interval 0 (Context.Rel.nhyps ctxtv.(i) - 1))
-           vn)
+          vn)
           in
           let fixdecls = (names,ftys,fdefs) in
-          let indexes = esearch_fix_guard ?loc !!env sigma possible_fix_indices fixdecls in
-          make_judge (mkFix ((indexes,i),fixdecls)) ftys.(i)
+          let sigma, indexes = esearch_fix_guard ?loc !!env sigma possible_fix_indices fixdecls in
+          sigma, make_judge (mkFix ((indexes,i),fixdecls)) ftys.(i)
         | GCoFix i ->
           let fixdecls = (names,ftys,fdefs) in
           let cofix = (i, fixdecls) in
           let () = esearch_cofix_guard ?loc !!env sigma fixdecls in
-          make_judge (mkCoFix cofix) ftys.(i)
+          sigma, make_judge (mkCoFix cofix) ftys.(i)
       in
       discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma fixj tycon
 
