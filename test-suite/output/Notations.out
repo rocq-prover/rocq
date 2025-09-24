@@ -118,6 +118,10 @@ fun x : option nat => match x with
                       | NONE3 _ => 0
                       end
      : option nat -> nat
+File "./output/Notations.v", line 215, characters 0-42:
+Warning: Postfix notations (i.e. starting with a nonterminal symbol and
+ending with a terminal symbol) should usually be at level 1 (default).
+[postfix-notation-not-level-1,parsing,default]
 fun x : list ?T =>
 match x with
 | NIL => NONE3 (list ?T)

@@ -2,6 +2,10 @@ gargs:( (!) )
      : list nat
 gargs:( (!, !, !) )
      : list nat
+File "./output/bug_13018.v", line 15, characters 0-74:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 OnlyGargs[ (!) ]
      : list nat
 gargs999:( (!) )
@@ -10,5 +14,9 @@ gargs999:( (!, !, !) )
      : list nat
 OnlyGargs[ (!) ]
      : list nat
+File "./output/bug_13018.v", line 29, characters 0-96:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 OnlyGargs999[ (!) ]
      : list nat

@@ -988,8 +988,7 @@ It is also possible to rely on Rocq's syntax of binders using the
 
 .. rocqtop:: in
 
-   Notation "'myforall' p , [ P , Q ] " := (forall p, P -> Q)
-     (at level 200, p binder).
+   Notation "'myforall' p , [ P , Q ] " := (forall p, P -> Q) (p binder).
 
 In this case, all of :n:`@ident`, :n:`{@ident}`, :n:`[@ident]`, :n:`@ident:@type`,
 :n:`{@ident:@type}`, :n:`[@ident:@type]`, :n:`'@pattern` can be used in place of

@@ -1812,6 +1812,7 @@ let make_generic_printing_rules reserved main_data ntn sd =
 
 let make_syntax_rules reserved main_data ntn sd =
   let open SynData in
+  List.iter (fun f -> f ()) sd.msgs;
   (* Prepare the parsing and printing rules *)
   let pa_rules = make_parsing_rules main_data sd in
   let pp_rules = make_generic_printing_rules reserved main_data ntn sd in
@@ -1900,7 +1901,6 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
 (* Notations without interpretation (Reserved Notation) *)
 
 let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
-  let open SynData in
   let (main_data,mods) = interp_non_syntax_modifiers ~reserved:true ~infix ~abbrev:false None mods in
   let mods = interp_modifiers main_data.entry mods in
   let notation_symbols, is_prim_token = analyze_notation_tokens ~onlyprinting:main_data.onlyprinting ~infix main_data.entry df in
@@ -1909,7 +1909,6 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
   let synext = make_syntax_rules true main_data ntn sd in
-  List.iter (fun f -> f ()) sd.msgs;
   Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =

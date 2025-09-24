@@ -1,4 +1,16 @@
+File "./output/bug_10824.v", line 3, characters 0-38:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 !!
      : Prop
+File "./output/bug_10824.v", line 8, characters 0-38:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
+File "./output/bug_10824.v", line 10, characters 0-38:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 !!
      : Prop

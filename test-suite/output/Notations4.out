@@ -1,3 +1,7 @@
+File "./output/Notations4.v", line 10, characters 0-76:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 [< 0 > + < 1 > * < 2 >]
      : nat
 Entry custom:Notations4.A.myconstr is
@@ -12,12 +16,20 @@ Entry custom:Notations4.A.myconstr is
 
 [< b > + < b > * < 2 >]
      : nat
+File "./output/Notations4.v", line 21, characters 0-92:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 [<< # 0 >>]
      : option nat
 [b + c]
      : nat
 fun a : nat => [a + a]
      : nat -> nat
+File "./output/Notations4.v", line 38, characters 0-88:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 File "./output/Notations4.v", line 38, characters 0-88:
 Warning: This notation will not be used for printing as it is bound to a
 single variable. [notation-bound-to-variable,parsing,default]
@@ -105,6 +117,10 @@ Warning: Accessing custom entry B.expr by its unqualified name is deprecated.
 [deprecated-unqualified-custom-entry,deprecated-since-9.2,deprecated,default]
 Quickfix:
 Replace File "./output/Notations4.v", line 165, characters 35-39 with B.expr
+File "./output/Notations4.v", line 165, characters 0-64:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 File "./output/Notations4.v", line 166, characters 21-25:
 Warning: Accessing custom entry B.expr by its unqualified name is deprecated.
 [deprecated-unqualified-custom-entry,deprecated-since-9.2,deprecated,default]

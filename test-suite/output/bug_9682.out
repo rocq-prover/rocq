@@ -1,3 +1,11 @@
+File "./output/bug_9682.v", line 10, characters 0-202:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
+File "./output/bug_9682.v", line 14, characters 0-349:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 mmatch 1 + 2 + 3 + 4 + 5 + 6 in nat as x
 return M (x = x) with
 | 1

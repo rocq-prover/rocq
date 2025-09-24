@@ -33,6 +33,10 @@ let f := 4 in x + y = z + d
      : Type -> Prop
 let' f (x y : nat) (a := 0) (z : nat) (_ : bool) := x + y + z + 1 in f 0 1 2
      : bool -> nat
+File "./output/Notations2.v", line 74, characters 0-60:
+Warning: Postfix notations (i.e. starting with a nonterminal symbol and
+ending with a terminal symbol) should usually be at level 1 (default).
+[postfix-notation-not-level-1,parsing,default]
 λ (f : nat -> nat) (x : nat), f(x) + S(x)
      : (nat -> nat) -> nat -> nat
 Notation plus2 n := (S(S(n)))

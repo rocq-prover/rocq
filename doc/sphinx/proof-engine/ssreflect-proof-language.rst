@@ -4414,7 +4414,7 @@ Contextual patterns in rewrite
 
   .. rocqtop:: all
 
-     Notation "n .+1" := (Datatypes.S n) (at level 2, left associativity,
+     Notation "n .+1" := (Datatypes.S n) (at level 1, left associativity,
                           format "n .+1") : nat_scope.
 
      Axiom addSn : forall m n, m.+1 + n = (m + n).+1.
