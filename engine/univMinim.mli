@@ -23,6 +23,8 @@ val empty_extra : extra
 
 val extra_union : extra -> extra -> extra
 
+val remove_from_extra : Level.Set.t -> extra -> extra
+
 (** Operations on inferred variances *)
 
 val update_variance : InferCumulativity.variances -> Level.t -> Level.t -> InferCumulativity.variances

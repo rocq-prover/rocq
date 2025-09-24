@@ -1347,7 +1347,8 @@ let restrict_uctx uctx keep =
     let universes = UGraph.remove removed uctx.universes in
     let uctx' = { uctx with local_variables = Level.Set.diff uctx.local_variables removed; 
       flexible_variables = Level.Set.diff uctx.flexible_variables removed;
-      variances = Option.map (fun v -> Level.Set.fold Level.Map.remove removed v)  uctx.variances; 
+      variances = Option.map (fun v -> Level.Set.fold Level.Map.remove removed v) uctx.variances; 
+      minim_extra = UnivMinim.remove_from_extra removed uctx.minim_extra;
       universes } in
     debug Pp.(fun () -> str"Restricted universe context" ++ pr ~local:true uctx');
     uctx'

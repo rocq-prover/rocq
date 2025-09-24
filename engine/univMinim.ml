@@ -219,6 +219,13 @@ let extra_union a b = {
   above_zero = Level.Set.union a.above_zero b.above_zero;
 }
 
+let remove_from_extra removed a = {
+  weak_constraints = UPairSet.filter (fun (l, r) -> Level.Set.subset removed (Universe.levels l) ||
+  Level.Set.subset removed (Universe.levels r)) a.weak_constraints;
+  above_zero = Level.Set.diff a.above_zero removed;
+  above_prop = Level.Set.diff a.above_prop removed;
+}
+
 (* let pr_universe_set prl s = 
   let open Pp in
   str "{" ++ LevelExpr.Set.fold (fun lk acc -> LevelExpr.pr prl lk ++ str", " ++ acc) s (mt()) ++ str "}"  *)
