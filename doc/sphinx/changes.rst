@@ -683,6 +683,66 @@ Miscellaneous
   (`#19842 <https://github.com/coq/coq/pull/19842>`_,
   by Gaëtan Gilbert).
 
+Changes in 9.0.1
+~~~~~~~~~~~~~~~~
+
+.. contents::
+   :local:
+
+Kernel
+^^^^^^
+
+- **Fixed:**
+  Guard checking forgot to check non principal arguments of a fixpoint
+  for unguarded uses of the fixpoint leading to an inconsistency
+  (`#20415 <https://github.com/rocq-prover/rocq/pull/20415>`_,
+  fixes `#20413 <https://github.com/rocq-prover/rocq/issues/20413>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  inconsistency from incomplete guard checking with nested matches
+  (`#20457 <https://github.com/rocq-prover/rocq/pull/20457>`_,
+  fixes `#20455 <https://github.com/rocq-prover/rocq/issues/20455>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  inconsistency from incorrect reduction across a fixpoint during guard checking
+  (`#20648 <https://github.com/rocq-prover/rocq/pull/20648>`_,
+  fixes `#20555 <https://github.com/rocq-prover/rocq/issues/20555>`_,
+  by Yann Leray).
+- **Fixed:**
+  Fix guard checker making propositional extensionality inconsistent
+  (`#21050 <https://github.com/rocq-prover/rocq/pull/21050>`_,
+  fixes `#21053 <https://github.com/rocq-prover/rocq/issues/21053>`_,
+  by Yann Leray).
+- **Fixed:**
+  substitution of functor delta-resolvers when strengthening.
+  The previous code was only substituting the inner delta resolvers
+  and ignoring the codomain of functors. In particular this was generating
+  ill-formed constants whose canonical component was pointing to a bound name
+  that did not exist in the global environment, leading to an inconsistency
+  (`#21057 <https://github.com/rocq-prover/rocq/pull/21057>`_,
+  fixes `#21051 <https://github.com/rocq-prover/rocq/issues/21051>`_,
+  by Pierre-Marie Pédrot).
+
+Command-line tools
+^^^^^^^^^^^^^^^^^^
+
+- **Fixed:**
+  `rocq dep` implicitly adds `-I $rocq-runtime/..` after the explicit `-I` instead of before
+  (where `$rocq-runtime` is the expected location of the rocq-runtime package).
+  This means that if a local plugin (whose META is in an explicit `-I` path) is installed next to rocq-runtime,
+  `rocq dep` will emit a dependency on the local version instead of the installed version
+  (`#20393 <https://github.com/rocq-prover/rocq/pull/20393>`_,
+  by Gaëtan Gilbert).
+
+Infrastructure and dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Fixed:**
+  Bad interaction between dune, `rocq dep`, and local opam directory switches
+  (`#20437 <https://github.com/rocq-prover/rocq/pull/20437>`_,
+  fixes `#20422 <https://github.com/rocq-prover/rocq/issues/20422>`_,
+  by Rodolphe Lepigre).
+
 Version 8.20
 ------------
 
