@@ -832,7 +832,9 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
       if keep_head_inductive sigma ty1 then true
       else
         let s = get_sort_quality_of env sigma ty1 in
-        keep_proofs || not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.sprop)
+        keep_proofs ||
+        (not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.sprop) &&
+         not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.prop))
     in
     if keep then [(List.rev posn,t1,t2)] else []
   in
