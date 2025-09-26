@@ -416,10 +416,12 @@ Instance eq_Has_J_elim@{s ; l l'} : Has_J@{Type Prop s ; l Set l'} (@eq) _ :=
   fun A x P t y e => match e with eq_refl => t end.
 
 #[universes(polymorphic=yes)]
-Instance eq_Has_Leibniz_Prop_elim@{s ; l} : Has_Leibniz@{Prop Prop s;Set Set l} (@eq) := Has_J_Has_Leibniz _.
+Instance eq_Has_Leibniz_Prop_elim@{s ; l} : Has_Leibniz@{Prop Prop s;Set Set l} (@eq) :=
+  fun A x P t y e => match e with eq_refl => t end.
 
 #[universes(polymorphic=yes)]
-Instance eq_Has_Leibniz_elim@{s ; l l'} : Has_Leibniz@{Type Prop s;l Set l'} (@eq) := Has_J_Has_Leibniz _.
+Instance eq_Has_Leibniz_elim@{s ; l l'} : Has_Leibniz@{Type Prop s;l Set l'} (@eq) :=
+  fun A x P t y e => match e with eq_refl => t end.
 
 Section Logic_lemmas.
 
@@ -502,10 +504,12 @@ Instance eq_Has_J_r_elim_Type@{s ; l l'} : Has_J_r@{Type Prop s ; l Set l'} (@eq
 Defined.
 
 #[universes(polymorphic=yes)]
-Instance eq_Has_Leibniz_r_Prop_elim@{s;l} : Has_Leibniz_r@{Prop Prop s;Set Set l} (@eq) := Has_J_r_Has_Leibniz_r _.
+Instance eq_Has_Leibniz_r_Prop_elim@{s;l} : Has_Leibniz_r@{Prop Prop s;Set Set l} (@eq) :=
+  fun A x P H y H0 => leibniz A x P H y (eq_sym H0).
 
 #[universes(polymorphic=yes)]
-Instance eq_Has_Leibniz_r_elim@{s;l l'} : Has_Leibniz_r@{Type Prop s;l Set l'} (@eq) := Has_J_r_Has_Leibniz_r _.
+Instance eq_Has_Leibniz_r_elim@{s;l l'} : Has_Leibniz_r@{Type Prop s;l Set l'} (@eq) :=
+  fun A x P H y H0 => leibniz A x P H y (eq_sym H0).
 
 Module EqNotations.
   Notation "'rew' H 'in' H'" := (eq_rect _ _ H' _ H)

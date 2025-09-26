@@ -13,7 +13,6 @@ open Pp
 open CErrors
 open Util
 open Names
-(* open Nameops *)
 open Constr
 open Context
 open Termops
