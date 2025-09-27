@@ -1,0 +1,5 @@
+(library
+ (name setoid_plugin)
+ (public_name rocq-runtime.plugins.setoid)
+ (synopsis "Rocq's setoid_rewrite tactic")
+ (libraries rocq-runtime.plugins.ltac))
