@@ -150,7 +150,7 @@ let basecuttac k c =
           let sigma, ug = match qg with
             | QConstant (QSProp | QProp) -> sigma, Univ.Level.set
             | _ -> Evd.new_univ_level_variable Evd.univ_flexible sigma in
-          let names = UVars.Instance.of_array ([|qc;qg|],[|uc;ug|]) in
+          let names = EInstance.make @@ UVars.Instance.of_array ([|qc;qg|],[|uc;ug|]) in
           let sigma, f = EConstr.fresh_global env sigma ~names f in
           let sigma, step = Evarutil.new_evar env sigma c in
           let stepg = Proofview_monad.with_empty_state (fst @@ destEvar sigma step) in

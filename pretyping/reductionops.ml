@@ -1276,7 +1276,7 @@ let sigma_compare_sorts _env pb s0 s1 sigma =
     end
 
 let sigma_compare_instances ~flex i0 i1 sigma =
-  match Evd.set_eq_instances ~flex sigma i0 i1 with
+  match Evd.set_eq_instances ~flex sigma (EInstance.make i0) (EInstance.make i1) with
   | sigma -> Result.Ok sigma
   | exception Evd.UniversesDiffer -> Result.Error None
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some err)

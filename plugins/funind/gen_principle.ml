@@ -191,17 +191,17 @@ let build_functional_principle env (sigma : Evd.evar_map) old_princ_type sorts f
     (Induction.compute_elim_sig sigma (EConstr.of_constr old_princ_type))
       .Induction.nparams
   in
+  let funs = Array.map EConstr.mkConstU funs in
   let new_principle_type =
     Functional_principles_types.compute_new_princ_type_from_rel (Global.env ())
-      (Array.map Constr.mkConstU funs)
+      (Array.map (EConstr.to_constr sigma) funs)
       (Array.map (fun s -> EConstr.ESorts.kind sigma s) sorts) old_princ_type
   in
   let sigma, _ =
     Typing.type_of ~refresh:true env sigma
       (EConstr.of_constr new_principle_type)
   in
-  let map (c, u) = EConstr.mkConstU (c, EConstr.EInstance.make u) in
-  let ftac = proof_tac (Array.map map funs) mutr_nparams in
+  let ftac = proof_tac funs mutr_nparams in
   let uctx = Evd.ustate sigma in
   let typ = EConstr.of_constr new_principle_type in
   let body, typ, univs, _safe, _uctx =
@@ -364,7 +364,7 @@ let generate_principle (evd : Evd.evar_map ref) pconstants on_error is_general
             evd := sigma;
             let princ_type = EConstr.Unsafe.to_constr princ_type in
             generate_functional_principle evd princ_type None None
-              (Array.of_list pconstants) (* funs_kn *)
+              (Array.map_of_list (fun (c, u) -> c, EConstr.EInstance.make u ) pconstants) (* funs_kn *)
               i
               (continue_proof 0 [|funs_kn.(i)|]))
           0 fix_rec_l
@@ -1274,7 +1274,7 @@ let get_funs_constant mp =
     in
     l_const
 
-let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _ list =
+let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet.t) list) : _ list =
   let exception Found_type of int in
   let env = Global.env () in
   let funs = List.map fst fas in
@@ -1300,7 +1300,7 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
     List.map
       (fun idx ->
         let ind = (first_fun_kn, idx) in
-        ((ind, EConstr.EInstance.make @@ snd first_fun), true, EConstr.ESorts.prop))
+        ((ind, snd first_fun), true, EConstr.ESorts.prop))
       funs_indexes
   in
   let sigma, schemes = Indrec.build_mutual_induction_scheme env !evd ind_list in
@@ -1354,7 +1354,7 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
   if List.is_empty other_princ_types then [(body, typ, univs, opaque)]
   else
     let other_fun_princ_types =
-      let funs = Array.map Constr.mkConstU this_block_funs in
+      let funs = Array.map EConstr.(mkConstU %> to_constr sigma) this_block_funs in
       let sorts = Array.of_list sorts in
       let sorts = Array.map (fun s -> EConstr.ESorts.kind sigma s) sorts in
       List.map
@@ -1418,14 +1418,13 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
    lemmas for each function in [funs] w.r.t. [graphs]
 *)
 
-let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
+let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : inductive list)
     =
   let open EConstr in
   assert (funs <> []);
   assert (graphs <> []);
   let funs = Array.of_list funs and graphs = Array.of_list graphs in
-  let map (c, u) = mkConstU (c, EInstance.make u) in
-  let funs_constr = Array.map map funs in
+  let funs_constr = Array.map mkConstU funs in
   (* XXX STATE Why do we need this... why is the toplevel protection not enough *)
   funind_purify
     (fun () ->
@@ -1595,8 +1594,7 @@ let derive_inversion env fix_names =
             Evd.fresh_global env evd
               (Option.get (Constrintern.locate_reference (Libnames.qualid_of_ident id)))
           in
-          let cst, u = EConstr.destConst evd c in
-          (evd, (cst, EConstr.EInstance.kind evd u) :: l))
+          (evd, EConstr.destConst evd c :: l))
         fix_names (evd', [])
     in
     (*
@@ -2154,7 +2152,7 @@ let build_scheme fas =
                 ++ spc ()
                 ++ str "should be the named of a globally defined function")
         in
-        ((c, EConstr.EInstance.kind !evd u), sort))
+        ((c, u), sort))
       fas
   in
   let bodies_types = make_scheme evd pconstants in

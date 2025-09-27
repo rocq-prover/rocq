@@ -548,7 +548,7 @@ let instance ?loc evd (ql,ul) =
          (evd, l :: univs)) (evd, [])
       ul
   in
-  evd, Some (UVars.Instance.of_array (Array.rev_of_list ql', Array.rev_of_list ul'))
+  evd, Some (EInstance.make (UVars.Instance.of_array (Array.rev_of_list ql', Array.rev_of_list ul')))
 
 let pretype_global ?loc rigid env evd gr us =
   let evd, instance =

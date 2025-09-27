@@ -267,7 +267,9 @@ exception NotAValidPrimToken
     what it means for a term to be ground / to be able to be
     considered for parsing. *)
 
-let constr_of_globref ?(allow_constant=true) env sigma = function
+let constr_of_globref ?(allow_constant=true) env sigma =
+  let open EConstr in
+  function
   | GlobRef.ConstructRef c ->
      let sigma,c = Evd.fresh_constructor_instance env sigma c in
      sigma,mkConstructU c
@@ -282,7 +284,9 @@ let constr_of_globref ?(allow_constant=true) env sigma = function
 (** [check_glob g c] checks that glob [g] is equal to constr [c]
     and returns [g] as a constr (with fresh universe instances)
     or raises [NotAValidPrimToken]. *)
-let rec check_glob env sigma g c = match DAst.get g, Constr.kind c with
+let rec check_glob env sigma g c =
+  let open EConstr in
+  match DAst.get g, Constr.kind c with
   | Glob_term.GRef (GlobRef.ConstructRef c as g, _), Constr.Construct (c', _)
        when Environ.QConstruct.equal env c c' -> constr_of_globref env sigma g
   | Glob_term.GRef (GlobRef.IndRef c as g, _), Constr.Ind (c', _)
@@ -308,12 +312,14 @@ let rec check_glob env sigma g c = match DAst.get g, Constr.kind c with
      sigma, mkArray (u,t,def,ty)
   | Glob_term.GSort s, Constr.Sort s' ->
      let sigma,s = Glob_ops.fresh_glob_sort_in_quality sigma s in
-     let s = EConstr.ESorts.kind sigma s in
-     if not (Sorts.equal s s') then raise NotAValidPrimToken;
+     let s' = ESorts.make s' in
+     if not (ESorts.equal sigma s s') then raise NotAValidPrimToken;
      sigma,mkSort s
   | _ -> raise NotAValidPrimToken
 
-let rec constr_of_glob to_post post env sigma g = match DAst.get g with
+let rec constr_of_glob to_post post env sigma g =
+  let open EConstr in
+  match DAst.get g with
   | Glob_term.GRef (r, _) ->
       let o = List.find_opt (fun (_,r',_) -> Environ.QGlobRef.equal env r r') post in
       begin match o with
@@ -367,7 +373,6 @@ let rec constr_of_glob to_post post env sigma g = match DAst.get g with
        sigma, mkArray (u',t',def',ty')
   | Glob_term.GSort gs ->
       let sigma,c = Glob_ops.fresh_glob_sort_in_quality sigma gs in
-      let c = EConstr.ESorts.kind sigma c in
       sigma,mkSort c
   | _ ->
       raise NotAValidPrimToken
@@ -514,6 +519,7 @@ let uninterp to_raw o n =
   let of_ty = EConstr.Unsafe.to_constr of_ty in
   try
     let sigma,n = constr_of_glob o.to_post env sigma n in
+    let n = EConstr.Unsafe.to_constr n in
     let c = eval_constr_app env sigma of_ty n in
     let c = match snd o.of_kind with
       | Direct -> c
