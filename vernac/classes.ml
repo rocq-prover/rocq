@@ -30,6 +30,7 @@ let warn_default_mode = CWarnings.create ~name:"class-declaration-default-mode" 
     spc () ++ str "for" ++ spc () ++ Printer.pr_global gr))
 
 let set_typeclass_transparency ~locality c b =
+  let () = check_typeclasses_db () in
   Hints.add_hints ~locality [typeclasses_db]
     (Hints.HintsTransparencyEntry (Hints.HintsReferences c, b))
 
@@ -43,14 +44,16 @@ let set_typeclass_transparency_com ~locality refs b =
   set_typeclass_transparency ~locality refs b
 
 let set_typeclass_mode ~locality c b =
+  let () = check_typeclasses_db () in
   Hints.add_hints ~locality [typeclasses_db]
     (Hints.HintsModeEntry (c, b))
 
 let add_instance_hint gr ~locality info =
-     Flags.silently (fun () ->
-       Hints.add_hints ~locality [typeclasses_db]
-          (Hints.HintsResolveEntry
-             [info, false, gr])) ()
+  let () = check_typeclasses_db () in
+  Flags.silently (fun () ->
+    Hints.add_hints ~locality [typeclasses_db]
+      (Hints.HintsResolveEntry
+          [info, false, gr])) ()
 
 (* short names without opening all Hints *)
 type locality = Hints.hint_locality = Local | Export | SuperGlobal

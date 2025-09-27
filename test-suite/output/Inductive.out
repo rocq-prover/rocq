@@ -17,13 +17,13 @@ option : Type -> Type
 option is template universe polymorphic
 Arguments option A%_type_scope
 Expands to: Inductive Corelib.Init.Datatypes.option
-Declared in library Corelib.Init.Datatypes, line 202, characters 10-16
+Declared in library Corelib.Init.Datatypes, line 209, characters 10-16
 option : Type@{option.u0} -> Type@{max(Set,option.u0)}
 
 option is template universe polymorphic on option.u0 (cannot be instantiated to Prop)
 Arguments option A%_type_scope
 Expands to: Inductive Corelib.Init.Datatypes.option
-Declared in library Corelib.Init.Datatypes, line 202, characters 10-16
+Declared in library Corelib.Init.Datatypes, line 209, characters 10-16
 File "./output/Inductive.v", line 27, characters 4-13:
 The command has indeed failed with message:
 Parameters should be syntactically the same for each inductive type.

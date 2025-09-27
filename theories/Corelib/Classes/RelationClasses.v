@@ -248,6 +248,9 @@ Arguments transitivity {A} {R} {_} [x] [y] [z] _ _.
 Arguments Antisymmetric A eqA {_} _.
 
 #[global]
+Create HintDb ord.
+
+#[global]
 Hint Resolve irreflexivity : ord.
 
 Unset Implicit Arguments.
@@ -257,6 +260,9 @@ Ltac solve_relation :=
   | [ |- ?R ?x ?x ] => reflexivity
   | [ H : ?R ?x ?y |- ?R ?y ?x ] => symmetry ; exact H
   end.
+
+#[global]
+Create HintDb relations.
 
 #[global]
 Hint Extern 4 => solve_relation : relations.

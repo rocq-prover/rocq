@@ -15,6 +15,8 @@ open EConstr
 
 val typeclasses_db : string
 
+val check_typeclasses_db : ?loc:Loc.t -> unit -> unit
+
 val set_typeclasses_debug : bool -> unit
 
 val set_typeclasses_depth : int option -> unit

@@ -1810,6 +1810,10 @@ let warn_implicit_core_hint_db =
          (fun () -> strbrk "Adding and removing hints in the core database implicitly is deprecated. "
              ++ strbrk"Please specify a hint database.")
 
+let warn_implicit_create_hint_db =
+  CWarnings.create ~name:"implicit-create-hint-db" ~category:Deprecation.Version.v9_2
+    (fun db -> strbrk "Implicitly declaring hint databases is deprecated. Please explicitly create " ++ quote (str db))
+
 let vernac_remove_hints ~atts dbnames ids =
   let locality = Attributes.(parse hint_locality atts) in
   let dbnames =
@@ -1826,6 +1830,15 @@ let vernac_hints ~atts dbnames h =
     else dbnames
   in
   let locality, poly = Attributes.(parse Notations.(hint_locality ++ polymorphic) atts) in
+  let check_db db =
+    if String.equal db "nocore" then ()
+    else match Hints.searchtable_map db with
+    | _ -> ()
+    | exception Not_found ->
+      let () = warn_implicit_create_hint_db db in
+      Hints.create_hint_db false db TransparentState.empty false
+  in
+  let () = List.iter check_db dbnames in
   Hints.add_hints ~locality dbnames (ComHints.interp_hints ~poly h)
 
 let warn_deprecated_notation_for_abbreviation =

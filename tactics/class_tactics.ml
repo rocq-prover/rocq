@@ -27,6 +27,12 @@ module NamedDecl = Context.Named.Declaration
 (** Hint database named "typeclass_instances", created in prelude *)
 let typeclasses_db = "typeclass_instances"
 
+let check_typeclasses_db ?loc () =
+  try ignore (Hints.searchtable_map typeclasses_db)
+  with Not_found ->
+    CErrors.user_err (strbrk "The built-in typeclass hint database " ++
+      quote (str typeclasses_db) ++ strbrk " has not been registered.")
+
 (** Options handling *)
 
 let typeclasses_depth_opt_name = ["Typeclasses";"Depth"]

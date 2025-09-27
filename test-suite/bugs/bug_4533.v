@@ -149,6 +149,8 @@ Type2le@{j a}} {Q_inO : In@{u a j} O Q},
 
 End ReflectiveSubuniverses.
 
+Create HintDb typeclass_instances discriminated.
+
 Module ReflectiveSubuniverses_Theory (Os : ReflectiveSubuniverses).
   Export Os.
   Existing Class In.

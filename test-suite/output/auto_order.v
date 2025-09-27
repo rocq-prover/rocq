@@ -1,8 +1,18 @@
+Create HintDb plus.
+Hint Constants Opaque : plus.
+Hint Projections Opaque : plus.
+Hint Variables Opaque : plus.
+
 Hint Extern 1 => idtac "first"; fail : plus.
 Hint Extern 1 => idtac "second"; fail : plus.
 
 Hint Extern 2 => idtac "third"; fail : plus.
 Hint Extern 2 => idtac "fourth"; fail : plus.
+
+Create HintDb plus2.
+Hint Constants Opaque : plus2.
+Hint Projections Opaque : plus2.
+Hint Variables Opaque : plus2.
 
 Hint Extern 1 => idtac "fifth, different hintDb"; fail : plus2.
 

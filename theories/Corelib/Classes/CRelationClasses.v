@@ -236,6 +236,9 @@ Hint Extern 4 (subrelation (flip _) _) =>
   class_apply @subrelation_symmetric : typeclass_instances.
 
 #[global]
+Create HintDb ord.
+
+#[global]
 Hint Resolve irreflexivity : ord.
 
 Unset Implicit Arguments.
@@ -245,6 +248,9 @@ Ltac solve_crelation :=
   | [ |- ?R ?x ?x ] => reflexivity
   | [ H : ?R ?x ?y |- ?R ?y ?x ] => symmetry ; exact H
   end.
+
+#[global]
+Create HintDb crelations.
 
 #[global]
 Hint Extern 4 => solve_crelation : crelations.
