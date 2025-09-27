@@ -27,5 +27,5 @@ Goal
 Proof.
   intros a b H.
   inversion H.
-  Fail reflexivity.
+  reflexivity.
 Abort.

@@ -18,8 +18,9 @@ End Nat.
 
 Notation eq_nat_dec := Nat.eq_dec (only parsing).
 
+#[universes(polymorphic=yes)]
 Theorem eq_rect_nat_double : forall T (a b c : nat) x ab bc,
-  eq_rect b T (eq_rect a T x b ab) c bc = eq_rect a T x c (eq_trans ab bc).
+  @eq_Has_Leibniz_r_elim _ b T (eq_rect a T x b ab) c bc = eq_rect a T x c (eq_trans ab (eq_sym bc)).
 Admitted.
 
 Ltac eq_rect_simpl :=

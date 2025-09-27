@@ -8,8 +8,7 @@ nat_ind (fun n0 : nat => ((n0 * m) + n0) = (n0 * (S m)))
    (let n0 := p * (S m) in
     match H in _ = n1 return ((m + (p * m)) + (S p)) = (S (m + n1)) with
     | eq_refl =>
-        eq_ind (S ((m + (p * m)) + p))
-          (fun n1 : nat => n1 = (S (m + ((p * m) + p))))
+        eq_Has_Leibniz_elim (fun n1 : nat => n1 = (S (m + ((p * m) + p))))
           (eq_S ((m + (p * m)) + p) (m + ((p * m) + p))
              (nat_ind
                 (fun n1 : nat => ((n1 + (p * m)) + p) = (n1 + ((p * m) + p)))
@@ -25,7 +24,7 @@ nat_ind (fun n0 : nat => ((n0 * m) + n0) = (n0 * (S m)))
                 m
               :
               ((m + (p * m)) + p) = (m + ((p * m) + p))))
-          ((m + (p * m)) + (S p)) (plus_n_Sm (m + (p * m)) p)
+          (plus_n_Sm (m + (p * m)) p)
     end)
    :
    (((S p) * m) + (S p)) = ((S p) * (S m)))
