@@ -1,0 +1,934 @@
+Entry custom:StrictAssociativity.expr is
+[ "3" RIGHTA
+  [ SELF; "op22"; NEXT
+  | "atom3" ]
+| "2" RIGHTA
+  [ SELF; "post12"
+  | SELF; "op12"; custom:StrictAssociativity.expr LEVEL "2"
+  | "pre21"; NEXT
+  | "pre22"; custom:StrictAssociativity.expr LEVEL "2"
+  | "atom2" ]
+| "1" LEFTA
+  [ SELF; "post11"
+  | SELF; "op10"; NEXT
+  | "pre10"; NEXT
+  | "pre11"; custom:StrictAssociativity.expr LEVEL "1"
+  | "atom1" ]
+| "0" RIGHTA
+  [ IDENT "atom0" ] ]
+
+File "./output/StrictAssociativity.v", line 41, characters 17-24:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 10 E
+     : Check_If_Warning_Above
+Pass 11 E
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 43, characters 17-24:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 12 E
+     : Check_If_Warning_Above
+Pass 13 E
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 46, characters 23-28:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 20 (F E)
+     : Check_If_Warning_Above
+Pass 21 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 48, characters 17-30:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 22 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 50, characters 23-28:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 30 (F E)
+     : Check_If_Warning_Above
+Pass 31 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 52, characters 17-30:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 32 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 54, characters 23-28:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 40 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 55, characters 23-28:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 41 (F E)
+     : Check_If_Warning_Above
+Pass 42 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 57, characters 17-30:
+Warning: In term, tolerating this expression at level 0 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 43 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 59, characters 23-28:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 50 (F E)
+     : Check_If_Warning_Above
+Pass 51 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 61, characters 17-30:
+Warning: In term, tolerating this expression at level 0 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 52 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 63, characters 17-31:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 60 (F E)
+     : Check_If_Warning_Above
+Pass 61 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 65, characters 17-31:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 62 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 67, characters 17-31:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 70 (F E)
+     : Check_If_Warning_Above
+Pass 71 (F E)
+     : Check_If_Warning_Above
+Pass 72 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 70, characters 17-31:
+Warning: In term, tolerating this expression at level 0 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 73 (F E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 72, characters 17-35:
+Warning: In term, tolerating this expression at level 3 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 80 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 73, characters 28-33:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 81 (G E E)
+     : Check_If_Warning_Above
+Pass 82 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 75, characters 17-35:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 83 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 77, characters 17-35:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 90 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 78, characters 28-33:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 91 (G E E)
+     : Check_If_Warning_Above
+Pass 92 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 80, characters 17-35:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 93 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 82, characters 18-23:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+File "./output/StrictAssociativity.v", line 82, characters 18-23:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+File "./output/StrictAssociativity.v", line 82, characters 18-35:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 100 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 83, characters 29-34:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 101 (G E E)
+     : Check_If_Warning_Above
+Pass 102 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 85, characters 18-35:
+Warning: In term, tolerating this expression at level 0 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 103 (G E E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 87, characters 18-42:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 110 (G (F E) E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 88, characters 18-42:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 111 (G (F E) E)
+     : Check_If_Warning_Above
+Pass 112 (F (G E E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 91, characters 18-30:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+File "./output/StrictAssociativity.v", line 91, characters 18-43:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 120 (G (F E) E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 92, characters 18-43:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 121 (G (F E) E)
+     : Check_If_Warning_Above
+Pass 122 (G (F E) E)
+     : Check_If_Warning_Above
+Pass 130 (G E (F E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 96, characters 35-40:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 131 (G E (F E))
+     : Check_If_Warning_Above
+Pass 132 (G E (F E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 99, characters 18-43:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 140 (F (G E E))
+     : Check_If_Warning_Above
+Pass 141 (G E (F E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 101, characters 29-41:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 142 (G E (F E))
+     : Check_If_Warning_Above
+Pass 143 (F (G E E))
+     : Check_If_Warning_Above
+Pass 150 (F (G E E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 105, characters 24-40:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 151 (F (G E E))
+     : Check_If_Warning_Above
+Pass 152 (G (F E) E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 108, characters 18-30:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 1 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+File "./output/StrictAssociativity.v", line 108, characters 18-30:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 2 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+File "./output/StrictAssociativity.v", line 108, characters 18-43:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 160 (G (F E) E)
+     : Check_If_Warning_Above
+Pass 161 (G (F E) E)
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 111, characters 29-40:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 170 (G E (F E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 112, characters 29-40:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 171 (G E (F E))
+     : Check_If_Warning_Above
+Pass 180 (F (G E E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 115, characters 18-43:
+Warning: In term, tolerating this expression at level 1 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 181 (F (G E E))
+     : Check_If_Warning_Above
+Pass 182 (F (G E E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 118, characters 18-47:
+Warning: In term, tolerating this expression at level 2 while it is expected
+to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 190 (G (G E E) E)
+     : Check_If_Warning_Above
+Pass 191 (G E (G E E))
+     : Check_If_Warning_Above
+File "./output/StrictAssociativity.v", line 121, characters 29-45:
+Warning: In
+custom:StrictAssociativity.expr, tolerating this expression at level 0 while
+it is expected to be at level 3. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 200 (G E (G E E))
+     : Check_If_Warning_Above
+Pass 201 (G (G E E) E)
+     : Check_If_Warning_Above
+Entry ltac_expr is
+[ "5" RIGHTA
+  [ IDENT "atom5" ]
+| "4" LEFTA
+  [ SELF; IDENT "post44"
+  | SELF; ";"; SELF
+  | SELF; ";"; tactic_then_locality; for_each_goal; "]"
+  | IDENT "pre43"; NEXT
+  | IDENT "pre44"; SELF
+  | IDENT "atom4" ]
+| "3" RIGHTA
+  [ "atom3"
+  | IDENT "try"; SELF
+  | IDENT "do"; nat_or_var; SELF
+  | IDENT "timeout"; nat_or_var; SELF
+  | IDENT "time"; OPT string; SELF
+  | IDENT "repeat"; SELF
+  | IDENT "progress"; SELF
+  | IDENT "once"; SELF
+  | IDENT "exactly_once"; SELF
+  | IDENT "abstract"; NEXT; "using"; ident
+  | IDENT "abstract"; NEXT
+  | IDENT "only"; goal_selector; ":"; SELF ]
+| "2" RIGHTA
+  [ SELF; IDENT "post22"
+  | SELF; "+"; SELF
+  | SELF; "||"; SELF
+  | "pre21"; NEXT
+  | "pre22"; SELF
+  | "atom2"
+  | IDENT "tryif"; SELF; "then"; SELF; "else"; SELF ]
+| "1" RIGHTA
+  [ "atom1"
+  | "fun"; LIST1 input_fun; "=>"; ltac_expr LEVEL "5"
+  | "let"; [ IDENT "rec" |  ]; LIST1 let_clause SEP "with"; "in"; ltac_expr
+    LEVEL "5"
+  | IDENT "first"; "["; LIST0 ltac_expr SEP "|"; "]"
+  | IDENT "solve"; "["; LIST0 ltac_expr SEP "|"; "]"
+  | IDENT "idtac"; LIST0 message_token
+  | match_key; IDENT "goal"; "with"; match_context_list; "end"
+  | match_key; IDENT "reverse"; IDENT "goal"; "with"; match_context_list;
+    "end"
+  | match_key; SELF; "with"; match_list; "end"
+  | failkw; [ nat_or_var |  ]; LIST0 message_token
+  | simple_tactic
+  | tactic_value
+  | reference; LIST0 tactic_arg ]
+| "0" LEFTA
+  [ "("; SELF; ")"
+  | "["; ">"; for_each_goal; "]"
+  | tactic_atom ] ]
+
+Entry simple_tactic is
+[ LEFTA
+  [ IDENT "firstorder"; OPT tactic; "with"; LIST1 preident
+  | IDENT "firstorder"; OPT tactic; firstorder_using; "with"; LIST1 preident
+  | IDENT "firstorder"; OPT tactic; firstorder_using
+  | IDENT "congruence"; OPT natural; "with"; LIST1 constr
+  | IDENT "congruence"; OPT natural
+  | IDENT "dintuition"; tactic
+  | IDENT "dintuition"
+  | IDENT "intuition"; tactic
+  | IDENT "intuition"
+  | IDENT "assert_fails"; ltac_expr LEVEL "3"
+  | IDENT "inversion_sigma"; hyp; "as"; simple_intropattern
+  | IDENT "inversion_sigma"; hyp
+  | IDENT "inversion_sigma"
+  | IDENT "now"; tactic
+  | IDENT "rewrite_all"; "<-"; constr
+  | IDENT "rewrite_all"; constr
+  | IDENT "destruct_with_eqn"; ":"; ident; ident
+  | IDENT "destruct_with_eqn"; ":"; ident; constr
+  | IDENT "destruct_with_eqn"; ident
+  | IDENT "destruct_with_eqn"; constr
+  | IDENT "clearbody"; LIST1 hyp
+  | IDENT "clear"; IDENT "dependent"; hyp
+  | IDENT "clear"; "-"; LIST1 hyp
+  | IDENT "clear"; LIST0 hyp
+  | IDENT "revert"; IDENT "dependent"; hyp
+  | IDENT "revert"; LIST1 hyp
+  | IDENT "rename"; LIST1 rename SEP ","
+  | IDENT "move"; hyp; "at"; IDENT "top"
+  | IDENT "move"; hyp; "at"; IDENT "bottom"
+  | IDENT "move"; hyp; IDENT "after"; hyp
+  | IDENT "move"; hyp; IDENT "before"; hyp
+  | IDENT "intro"; "at"; IDENT "top"
+  | IDENT "intro"; "at"; IDENT "bottom"
+  | IDENT "intro"; IDENT "after"; hyp
+  | IDENT "intro"; IDENT "before"; hyp
+  | IDENT "intro"; ident; "at"; IDENT "top"
+  | IDENT "intro"; ident; "at"; IDENT "bottom"
+  | IDENT "intro"; ident; IDENT "after"; hyp
+  | IDENT "intro"; ident; IDENT "before"; hyp
+  | IDENT "intro"; ident
+  | IDENT "intro"
+  | IDENT "eexists"; LIST1 bindings SEP ","
+  | IDENT "eexists"
+  | "exists"; LIST1 bindings SEP ","
+  | "exists"
+  | IDENT "esplit"; "with"; bindings
+  | IDENT "split"; "with"; bindings
+  | IDENT "symmetry"; "in"; in_clause
+  | IDENT "specialize"; constr_with_bindings; "as"; simple_intropattern
+  | IDENT "specialize"; constr_with_bindings
+  | IDENT "econstructor"; nat_or_var; "with"; bindings
+  | IDENT "econstructor"; nat_or_var
+  | IDENT "econstructor"
+  | IDENT "constructor"; nat_or_var; "with"; bindings
+  | IDENT "constructor"; nat_or_var
+  | IDENT "constructor"
+  | IDENT "eright"; "with"; bindings
+  | IDENT "right"; "with"; bindings
+  | IDENT "eleft"; "with"; bindings
+  | IDENT "left"; "with"; bindings
+  | IDENT "exact"; uconstr
+  | IDENT "with_strategy"; strategy_level_or_var; "["; LIST1 smart_global;
+    "]"; ltac_expr LEVEL "3"
+  | IDENT "guard"; test
+  | IDENT "swap"; int_or_var; int_or_var
+  | IDENT "cycle"; int_or_var
+  | IDENT "unshelve"; ltac_expr LEVEL "1"
+  | IDENT "transparent_abstract"; ltac_expr LEVEL "3"; "using"; ident
+  | IDENT "transparent_abstract"; ltac_expr LEVEL "3"
+  | IDENT "destauto"; "in"; hyp
+  | IDENT "destauto"
+  | IDENT "specialize_eqs"; hyp
+  | IDENT "generalize_eqs_vars"; hyp
+  | IDENT "generalize_eqs"; hyp
+  | IDENT "stepr"; constr; "by"; tactic
+  | IDENT "stepr"; constr
+  | IDENT "stepl"; constr; "by"; tactic
+  | IDENT "stepl"; constr
+  | IDENT "instantiate"; "("; ident; ":="; lconstr; ")"
+  | IDENT "instantiate"; "("; natural; ":="; lconstr; ")"; hloc
+  | IDENT "evar"; test_lpar_id_colon; "("; ident; ":"; lconstr; ")"
+  | IDENT "evar"; constr
+  | IDENT "subst"; LIST1 hyp
+  | IDENT "subst"
+  | IDENT "notypeclasses"; IDENT "refine"; uconstr
+  | IDENT "refine"; uconstr
+  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause; "using"; tactic
+  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause
+  | IDENT "autorewrite"; "with"; LIST1 preident; clause; "using"; tactic
+  | IDENT "autorewrite"; "with"; LIST1 preident; clause
+  | IDENT "contradiction"; OPT constr_with_bindings
+  | IDENT "decompose"; "["; LIST1 constr; "]"; constr
+  | IDENT "decompose"; IDENT "record"; constr
+  | IDENT "decompose"; IDENT "sum"; constr
+  | IDENT "einjection"; "as"; LIST0 simple_intropattern
+  | IDENT "einjection"; destruction_arg; "as"; LIST0 simple_intropattern
+  | IDENT "einjection"; destruction_arg
+  | IDENT "einjection"
+  | IDENT "injection"; "as"; LIST0 simple_intropattern
+  | IDENT "injection"; destruction_arg; "as"; LIST0 simple_intropattern
+  | IDENT "injection"; destruction_arg
+  | IDENT "injection"
+  | IDENT "ediscriminate"; destruction_arg
+  | IDENT "ediscriminate"
+  | IDENT "discriminate"; destruction_arg
+  | IDENT "discriminate"
+  | IDENT "esimplify_eq"; destruction_arg
+  | IDENT "esimplify_eq"
+  | IDENT "simplify_eq"; destruction_arg
+  | IDENT "simplify_eq"
+  | IDENT "replace"; "<-"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; "<-"; uconstr; clause
+  | IDENT "replace"; "->"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; "->"; uconstr; clause
+  | IDENT "replace"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; uconstr; clause
+  | IDENT "assert_succeeds"; ltac_expr LEVEL "3"
+  | IDENT "unify"; constr; constr; "with"; preident
+  | IDENT "unify"; constr; constr
+  | IDENT "autounfold_one"; hintbases; "in"; hyp
+  | IDENT "autounfold_one"; hintbases
+  | IDENT "autounfold"; hintbases; clause
+  | IDENT "info_eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "info_auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "trivial"; auto_using; hintbases
+  | IDENT "info_trivial"; auto_using; hintbases
+  | IDENT "trivial"; auto_using; hintbases
+  | IDENT "autoapply"; constr; "with"; preident
+  | IDENT "head_of_constr"; ident; constr
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "dfs"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "dfs"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "best_effort"; OPT nat_or_var;
+    "with"; LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "best_effort"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; OPT nat_or_var
+  | IDENT "decide"; IDENT "equality"
+  | IDENT "decide"; constr; "with"; constr
+  | IDENT "setoid_transitivity"; constr
+  | IDENT "setoid_etransitivity"
+  | IDENT "setoid_symmetry"; "in"; hyp
+  | IDENT "setoid_symmetry"
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "at"; occurrences;
+    "in"; hyp
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "at"; occurrences
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "in"; hyp; "at";
+    occurrences
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "in"; hyp
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings
+  | IDENT "substitute"; orient; constr_with_bindings
+  | IDENT "rewrite_strat"; rewstrategy; "in"; hyp
+  | IDENT "rewrite_strat"; rewstrategy
+  | IDENT "rewrite_db"; preident; "in"; hyp
+  | IDENT "rewrite_db"; preident
+  | IDENT "finish_timing"; "("; string; ")"; OPT string
+  | IDENT "finish_timing"; OPT string
+  | IDENT "restart_timer"; OPT string
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"; IDENT "cutoff"; integer
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"; string
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"
+  | IDENT "reset"; IDENT "ltac"; IDENT "profile"
+  | IDENT "stop"; IDENT "ltac"; IDENT "profiling"
+  | IDENT "start"; IDENT "ltac"; IDENT "profiling"
+  | IDENT "intros"; IDENT "until"; quantified_hypothesis
+  | IDENT "intros"; ne_intropatterns
+  | IDENT "intros"
+  | IDENT "eintros"; ne_intropatterns
+  | IDENT "eintros"
+  | IDENT "apply"; "<-"; constr; "in"; hyp
+  | IDENT "apply"; "<-"; constr
+  | IDENT "apply"; "->"; constr; "in"; hyp
+  | IDENT "apply"; "->"; constr
+  | IDENT "apply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "eapply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "elim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "eelim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "case"; induction_clause_list
+  | IDENT "ecase"; induction_clause_list
+  | "fix"; ident; natural; "with"; LIST1 fixdecl
+  | "fix"; ident; natural
+  | "cofix"; ident; "with"; LIST1 cofixdecl
+  | "cofix"; ident
+  | IDENT "set"; bindings_with_parameters; clause
+  | IDENT "set"; constr; as_name; clause
+  | IDENT "eset"; bindings_with_parameters; clause
+  | IDENT "eset"; constr; as_name; clause
+  | IDENT "remember"; constr; as_name; eqn_ipat; clause_dft_all
+  | IDENT "eremember"; constr; as_name; eqn_ipat; clause_dft_all
+  | IDENT "assert"; lpar_id_coloneq; "("; identref; ":="; lconstr; ")"
+  | IDENT "assert"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "assert"; constr; as_ipat; by_tactic
+  | IDENT "eassert"; lpar_id_coloneq; "("; identref; ":="; lconstr; ")"
+  | IDENT "eassert"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "eassert"; constr; as_ipat; by_tactic
+  | IDENT "pose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
+    lconstr; ")"
+  | IDENT "pose"; IDENT "proof"; lconstr; as_ipat
+  | IDENT "pose"; bindings_with_parameters
+  | IDENT "pose"; constr; as_name
+  | IDENT "epose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
+    lconstr; ")"
+  | IDENT "epose"; IDENT "proof"; lconstr; as_ipat
+  | IDENT "epose"; bindings_with_parameters
+  | IDENT "epose"; constr; as_name
+  | IDENT "enough"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "enough"; constr; as_ipat; by_tactic
+  | IDENT "eenough"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "eenough"; constr; as_ipat; by_tactic
+  | IDENT "generalize"; IDENT "dependent"; constr
+  | IDENT "generalize"; constr; LIST1 constr
+  | IDENT "generalize"; constr; lookup_at_as_comma; occs; as_name;
+    LIST0 [ ","; pattern_occ; as_name ]
+  | IDENT "generalize"; constr
+  | IDENT "induction"; induction_clause_list
+  | IDENT "einduction"; induction_clause_list
+  | IDENT "destruct"; induction_clause_list
+  | IDENT "edestruct"; induction_clause_list
+  | IDENT "rewrite"; "*"; orient; uconstr; "in"; hyp; "at"; occurrences;
+    by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "in"; hyp; by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "at"; occurrences; "in"; hyp;
+    by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "at"; occurrences; by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; by_arg_tac
+  | IDENT "rewrite"; LIST1 oriented_rewriter SEP ","; clause; by_tactic
+  | IDENT "erewrite"; LIST1 oriented_rewriter SEP ","; clause; by_tactic
+  | IDENT "dependent"; IDENT "destruction"; ident
+  | IDENT "dependent"; IDENT "induction"; ident
+  | IDENT "dependent"; IDENT "generalize_eqs_vars"; hyp
+  | IDENT "dependent"; IDENT "generalize_eqs"; hyp
+  | IDENT "dependent"; IDENT "rewrite"; orient; constr; "in"; hyp
+  | IDENT "dependent"; IDENT "rewrite"; orient; constr
+  | IDENT "dependent";
+    [ IDENT "simple"; IDENT "inversion" | IDENT "inversion"
+    | IDENT "inversion_clear" ]; quantified_hypothesis; as_or_and_ipat;
+    OPT [ "with"; constr ]
+  | IDENT "simple"; IDENT "congruence"; OPT natural; "with"; LIST1 constr
+  | IDENT "simple"; IDENT "congruence"; OPT natural
+  | IDENT "simple"; IDENT "destruct"; quantified_hypothesis
+  | IDENT "simple"; IDENT "induction"; quantified_hypothesis
+  | IDENT "simple"; IDENT "subst"
+  | IDENT "simple"; IDENT "notypeclasses"; IDENT "refine"; uconstr
+  | IDENT "simple"; IDENT "refine"; uconstr
+  | IDENT "simple"; IDENT "injection"; destruction_arg
+  | IDENT "simple"; IDENT "injection"
+  | IDENT "simple"; IDENT "apply"; LIST1 constr_with_bindings_arg SEP ",";
+    in_hyp_as
+  | IDENT "simple"; IDENT "eapply"; LIST1 constr_with_bindings_arg SEP ",";
+    in_hyp_as
+  | IDENT "simple"; IDENT "inversion"; quantified_hypothesis; as_or_and_ipat;
+    in_hyp_list
+  | IDENT "inversion_clear"; quantified_hypothesis; as_or_and_ipat;
+    in_hyp_list
+  | IDENT "inversion"; quantified_hypothesis; "using"; constr; in_hyp_list
+  | IDENT "inversion"; quantified_hypothesis; as_or_and_ipat; in_hyp_list
+  | IDENT "red"; clause
+  | IDENT "hnf"; clause
+  | IDENT "simpl"; OPT [ IDENT "head" ]; delta_flag; OPT ref_or_pattern_occ;
+    clause
+  | IDENT "cbv"; strategy_flag; clause
+  | IDENT "cbn"; strategy_flag; clause
+  | IDENT "lazy"; strategy_flag; clause
+  | IDENT "compute"; delta_flag; clause
+  | IDENT "vm_compute"; OPT ref_or_pattern_occ; clause
+  | IDENT "native_compute"; OPT ref_or_pattern_occ; clause
+  | IDENT "unfold"; LIST1 unfold_occ SEP ","; clause
+  | IDENT "fold"; LIST1 constr; clause
+  | IDENT "pattern"; LIST1 pattern_occ SEP ","; clause
+  | IDENT "change"; conversion; clause
+  | IDENT "change_no_check"; conversion; clause ] ]
+
+Entry tactic_value is
+[ LEFTA
+  [ IDENT "firstorder_using"; ":"; "("; firstorder_using; ")"
+  | IDENT "test"; ":"; "("; test; ")"
+  | IDENT "comparison"; ":"; "("; comparison; ")"
+  | IDENT "opthints"; ":"; "("; opthints; ")"
+  | IDENT "auto_using"; ":"; "("; auto_using; ")"
+  | IDENT "hintbases"; ":"; "("; hintbases; ")"
+  | IDENT "eauto_search_strategy"; ":"; "("; eauto_search_strategy; ")"
+  | IDENT "eauto_search_strategy_name"; ":"; "("; eauto_search_strategy_name;
+    ")"
+  | IDENT "debug"; ":"; "("; debug; ")"
+  | IDENT "rewstrategy"; ":"; "("; rewstrategy; ")"
+  | IDENT "glob_constr_with_bindings"; ":"; "("; constr_with_bindings; ")"
+  | IDENT "strategy_level_or_var"; ":"; "("; strategy_level_or_var; ")"
+  | IDENT "strategy_level"; ":"; "("; strategy_level; ")"
+  | IDENT "test_lpar_id_colon"; ":"; "("; test_lpar_id_colon; ")"
+  | IDENT "in_clause"; ":"; "("; in_clause; ")"
+  | IDENT "by_arg_tac"; ":"; "("; by_arg_tac; ")"
+  | IDENT "rename"; ":"; "("; rename; ")"
+  | IDENT "hloc"; ":"; "("; hloc; ")"
+  | IDENT "lglob"; ":"; "("; lconstr; ")"
+  | IDENT "lconstr"; ":"; "("; lconstr; ")"
+  | IDENT "glob"; ":"; "("; constr; ")"
+  | IDENT "occurrences"; ":"; "("; occurrences; ")"
+  | IDENT "natural"; ":"; "("; natural; ")"
+  | IDENT "orient"; ":"; "("; orient; ")"
+  | IDENT "ltac"; ":"; "("; ltac_expr LEVEL "5"; ")"
+  | IDENT "open_constr"; ":"; "("; lconstr; ")"
+  | IDENT "ipattern"; ":"; "("; simple_intropattern; ")"
+  | IDENT "constr"; ":"; "("; lconstr; ")"
+  | IDENT "uconstr"; ":"; "("; lconstr; ")"
+  | IDENT "reference"; ":"; "("; reference; ")"
+  | IDENT "ident"; ":"; "("; ident; ")"
+  | IDENT "smart_global"; ":"; "("; smart_global; ")"
+  | IDENT "string"; ":"; "("; string; ")"
+  | IDENT "integer"; ":"; "("; integer; ")"
+  | IDENT "fresh"; LIST0 fresh_id
+  | IDENT "type_term"; uconstr
+  | IDENT "numgoals"
+  | constr_eval ] ]
+
+File "./output/StrictAssociativity.v", line 142, characters 22-36:
+Warning: In term, tolerating this expression at level 5 while it is expected
+to be at level 5. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1000 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1002 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1003 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1011 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1013 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1020 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1021 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 155, characters 22-27:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1100 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 156, characters 30-35:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 5. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1101 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1102 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1103 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 160, characters 22-33:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1110 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 161, characters 22-33:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1111 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1112 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1113 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 165, characters 22-34:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1120 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+File "./output/StrictAssociativity.v", line 166, characters 22-35:
+Warning: In ltac_expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
+parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Warn 1121 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+Pass 1122 ?Goal
+     : Check_If_Warning_Above
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
