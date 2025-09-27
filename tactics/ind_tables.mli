@@ -94,11 +94,18 @@ val local_lookup_scheme : handle -> 'a scheme_kind -> inductive -> Constant.t op
 val pr_scheme_kind : 'a scheme_kind -> Pp.t
 
 val declare_definition_scheme :
-  (internal : bool
-   -> univs:UState.named_universes_entry
+  (univs:UState.named_universes_entry
    -> role:Evd.side_effect_role
    -> name:Id.t
-   -> effs:Evd.side_effects
-   -> ?loc:Loc.t
+   -> effs:(Evd.side_effects * Safe_typing.safe_environment)
    -> Constr.t
-   -> Constant.t * Evd.side_effects) ref
+   -> Constant.t * (Evd.side_effects * Safe_typing.safe_environment)) ref
+
+val register_definition_scheme :
+  (internal:bool
+  -> name:Id.t
+  -> const:Constant.t
+  -> univs:UState.named_universes_entry
+  -> ?loc:Loc.t
+  -> unit
+  -> unit) ref

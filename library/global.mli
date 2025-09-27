@@ -56,8 +56,6 @@ val add_constant :
   ?typing_flags:typing_flags ->
   Id.t -> Entries.constant_entry -> Constant.t
 val fill_opaque : Safe_typing.opaque_certificate -> unit
-val add_private_constant :
-  Id.t -> Univ.ContextSet.t -> Safe_typing.side_effect_declaration -> Constant.t * Safe_typing.private_constants
 val add_rewrite_rules : Id.t -> rewrite_rules_body -> unit
 val add_mind :
   ?typing_flags:typing_flags ->
@@ -205,3 +203,11 @@ val current_dirpath : unit -> DirPath.t
 val with_global : (Environ.env -> DirPath.t -> 'a Univ.in_universe_context_set) -> 'a
 
 val global_env_summary_tag : Safe_typing.safe_environment Summary.Dyn.tag
+
+module Internal :
+sig
+
+val reset_safe_env : Safe_typing.safe_environment -> unit
+(** Only use for manipulation of private constants *)
+
+end

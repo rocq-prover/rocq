@@ -100,7 +100,6 @@ let set_rewrite_rules_allowed b = globalize0 (Safe_typing.set_rewrite_rules_allo
 let rewrite_rules_allowed () = Environ.rewrite_rules_allowed (env())
 let export_private_constants cd = globalize (Safe_typing.export_private_constants cd)
 let add_constant ?typing_flags id d = globalize (Safe_typing.add_constant ?typing_flags (i2l id) d)
-let add_private_constant id u d = globalize (Safe_typing.add_private_constant (i2l id) u d)
 let fill_opaque c = globalize0 (Safe_typing.fill_opaque c)
 let add_rewrite_rules id c = globalize0 (Safe_typing.add_rewrite_rules (i2l id) c)
 let add_mind ?typing_flags id mie = globalize (Safe_typing.add_mind ?typing_flags (i2l id) mie)
@@ -257,3 +256,10 @@ let set_share_reduction b =
 
 let set_VM b = globalize0 (Safe_typing.set_VM b)
 let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)
+
+module Internal =
+struct
+
+let reset_safe_env = GlobalSafeEnv.set_safe_env
+
+end
