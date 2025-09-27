@@ -37,6 +37,9 @@ Arguments mult_n_Sm (n m)%_nat_scope
      : list nat
 {0 = 1} + {2 <= (4 + 5)}
      : Set
+File "./output/PrintingParentheses.v", line 32, characters 0-59:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 forall x y z : nat, [(x + y) + z] = [x + y + z]
      : Prop
 forall x y z : nat, [(x + y) + z] = [x + (y + z)]

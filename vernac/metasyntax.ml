@@ -1362,6 +1362,11 @@ let warn_closed_notation_not_level_0 =
                        terminal symbol) should usually be at level 0 \
                        (default).")
 
+let warn_level_0_notation_not_closed =
+  CWarnings.create ~name:"level-0-notation-not-closed" ~category:CWarnings.CoreCategories.parsing
+    (fun () -> strbrk "Notations at level 0 should be closed (first and last \
+                       symbols should be terminal symbols).")
+
 let warn_postfix_notation_not_level_1 =
   CWarnings.create ~name:"postfix-notation-not-level-1" ~category:CWarnings.CoreCategories.parsing
     (fun () -> strbrk "Postfix notations (i.e. starting with a \
@@ -1382,14 +1387,14 @@ let find_precedence custom lev etyps symbols onlyprint =
       | _ :: t -> aux false t
       | [] -> b in
     aux false symbols in
-  match first_symbol with
+  let msgs, lev = match first_symbol with
   | None -> [],0
   | Some (NonTerminal x) ->
       let msgs, lev = match last_is_terminal (), lev with
         | false, _ -> [], lev
         | true, None -> [fun () -> Flags.if_verbose (Feedback.msg_info ?loc:None) (strbrk "Setting postfix notation at level 1.")], Some 1
         | true, Some 1 -> [], Some 1
-        | true, Some n -> [fun () -> warn_postfix_notation_not_level_1 ()], Some n in
+        | true, Some n -> [warn_postfix_notation_not_level_1], Some n in
       let test () =
         if onlyprint then
           if Option.is_empty lev then
@@ -1424,11 +1429,15 @@ let find_precedence custom lev etyps symbols onlyprint =
       begin match lev with
       | None -> [fun () -> Flags.if_verbose (Feedback.msg_info ?loc:None) (strbrk "Setting notation at level 0.")], 0
       | Some 0 -> [], 0
-      | Some n -> [fun () -> warn_closed_notation_not_level_0 ()], n
+      | Some n -> [warn_closed_notation_not_level_0], n
       end
   | Some _ ->
       if Option.is_empty lev then user_err Pp.(str "Cannot determine the level.");
-      [],Option.get lev
+      [],Option.get lev in
+  if lev <> 0 then msgs, lev else
+    match first_symbol, last_is_terminal () with
+    | Some (Terminal _), true -> msgs, lev
+    | _ -> msgs @ [warn_level_0_notation_not_closed], lev
 
 let check_curly_brackets_notation_exists () =
   try let _ = Notation.level_of_notation (InConstrEntry,"{ _ }") in ()
@@ -1812,6 +1821,7 @@ let make_generic_printing_rules reserved main_data ntn sd =
 
 let make_syntax_rules reserved main_data ntn sd =
   let open SynData in
+  List.iter (fun f -> f ()) sd.msgs;
   (* Prepare the parsing and printing rules *)
   let pa_rules = make_parsing_rules main_data sd in
   let pp_rules = make_generic_printing_rules reserved main_data ntn sd in
@@ -1900,7 +1910,6 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
 (* Notations without interpretation (Reserved Notation) *)
 
 let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
-  let open SynData in
   let (main_data,mods) = interp_non_syntax_modifiers ~reserved:true ~infix ~abbrev:false None mods in
   let mods = interp_modifiers main_data.entry mods in
   let notation_symbols, is_prim_token = analyze_notation_tokens ~onlyprinting:main_data.onlyprinting ~infix main_data.entry df in
@@ -1909,7 +1918,6 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
   let synext = make_syntax_rules true main_data ntn sd in
-  List.iter (fun f -> f ()) sd.msgs;
   Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =

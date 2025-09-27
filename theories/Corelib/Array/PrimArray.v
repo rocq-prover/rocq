@@ -26,8 +26,10 @@ Module Export PArrayNotations.
 
 Declare Scope array_scope.
 Delimit Scope array_scope with array.
+#[warning="-postfix-notation-not-level-1"]
 Notation "t .[ i ]" := (get t i)
   (at level 2, left associativity, format "t .[ i ]").
+#[warning="-postfix-notation-not-level-1"]
 Notation "t .[ i <- a ]" := (set t i a)
   (at level 2, left associativity, format "t .[ i <- a ]").
 

@@ -234,6 +234,9 @@ where
      : forall b : bool, 0 = 0 /\ b = b
 ## nat 0 0 bool true
      : 0 = 0 /\ true = true
+File "./output/Notations5.v", line 301, characters 2-54:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ## 0
      : forall (a2 : nat) (B : Type) (b : B), 0 = a2 /\ b = b
 ## 0
@@ -254,6 +257,9 @@ where
      : 0 = 0 /\ true = true
 ## 0 0 true
      : 0 = 0 /\ true = true
+File "./output/Notations5.v", line 329, characters 2-57:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ## 0
      : forall (a2 : nat) (B : Type) (b : B), 0 = a2 /\ b = b
 ## 0
@@ -288,6 +294,9 @@ fun a : T => match a with
              | _ => 2
              end
      : T -> nat
+File "./output/Notations5.v", line 373, characters 2-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ## 0 0 0%bool
      : T
 fun a : T => match a with
@@ -295,6 +304,9 @@ fun a : T => match a with
              | _ => 2
              end
      : T -> nat
+File "./output/Notations5.v", line 379, characters 2-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ##' 0 0 0%bool
      : T
 fun a : T => match a with

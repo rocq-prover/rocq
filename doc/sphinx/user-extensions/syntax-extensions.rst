@@ -264,6 +264,11 @@ of Rocq predefined notations can be found in the chapter on :ref:`thecoqlibrary`
 
    It is usually better to put closed notations, that is the ones starting and ending with a terminal symbol, at level 0.
 
+.. warn:: Notations at level 0 should be closed (first and last symbols should be terminal symbols).
+   :name: level-0-notation-not-closed
+
+   Notations at level 0 should be closed, since there is no next level for associativity.
+
 .. warn:: Postfix notations (i.e. starting with a nonterminal symbol and ending with a terminal symbol) should usually be at level 1 (default).")
    :name: postfix-notation-not-level-1
 
@@ -988,8 +993,7 @@ It is also possible to rely on Rocq's syntax of binders using the
 
 .. rocqtop:: in
 
-   Notation "'myforall' p , [ P , Q ] " := (forall p, P -> Q)
-     (at level 200, p binder).
+   Notation "'myforall' p , [ P , Q ] " := (forall p, P -> Q) (p binder).
 
 In this case, all of :n:`@ident`, :n:`{@ident}`, :n:`[@ident]`, :n:`@ident:@type`,
 :n:`{@ident:@type}`, :n:`[@ident:@type]`, :n:`'@pattern` can be used in place of
@@ -1034,7 +1038,7 @@ binding position. Here is an example:
 
    Definition force n (P:nat -> Prop) := forall n', n' >= n -> P n'.
    Notation "▢_ n P" := (force n (fun n => P))
-     (at level 0, n name, P at level 9, format "▢_ n  P").
+     (at level 2, n name, P at level 9, format "▢_ n  P").
 
 .. rocqtop:: all
 
@@ -1049,7 +1053,7 @@ variant:
      (forall n', n' >= fst q -> forall p', p' >= snd q -> P (n', p')).
 
    Notation "▢_ p P" := (force2 p (fun p => P))
-     (at level 0, p pattern at level 0, P at level 9, format "▢_ p  P").
+     (at level 2, p pattern at level 0, P at level 9, format "▢_ p  P").
 
 .. rocqtop:: all
 
@@ -1264,6 +1268,7 @@ Custom entries
       Notation "x + y" := (Add x y) (in custom expr at level 2, left associativity).
       Notation "( x )" := x (in custom expr, x at level 2).
       Notation "{ x }" := x (in custom expr, x constr).
+      #[warning="-level-0-notation-not-closed"]
       Notation "x" := x (in custom expr at level 0, x ident).
 
       Axiom f : nat -> Expr.
@@ -1398,6 +1403,7 @@ use the following form:
 
 .. rocqtop:: in
 
+   #[warning="-level-0-notation-not-closed"]
    Notation "x" := x (in custom expr at level 0, x ident).
 
 Similarly, to indicate that a custom entry should parse global references
@@ -1409,6 +1415,7 @@ Similarly, to indicate that a custom entry should parse global references
 
 .. rocqtop:: in
 
+   #[warning="-level-0-notation-not-closed"]
    Notation "x" := x (in custom expr at level 0, x global).
 
 .. cmd:: Print Custom Grammar @qualid

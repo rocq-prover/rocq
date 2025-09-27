@@ -1,3 +1,6 @@
+File "./output/bug_18342.v", line 8, characters 0-67:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 <{ SS (? I) }>
      : nat
 <{ SS [[{{?}} I]] }>

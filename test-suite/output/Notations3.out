@@ -147,16 +147,32 @@ exists_true (A : Type) (R : A -> A -> Prop) (_ : Reflexive R),
 exists_true (x : nat) (A : Type) (R : A -> A -> Prop) 
 (_ : Reflexive R) (y : nat), x.y = 0 -> forall z : A, R z z
      : Prop
+File "./output/Notations3.v", line 228, characters 0-101:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 !! _ _ : nat # True #
      : Prop * Prop * Prop
 {{D 1, 2}}
      : nat * nat * (nat * nat * (nat * nat))
+File "./output/Notations3.v", line 236, characters 0-104:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 ! a b : nat # True #
      : Prop * (Prop * Prop)
 {{forall x : nat, x = 0, nat}}
      : Prop * Set
+File "./output/Notations3.v", line 242, characters 0-143:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 !!!! a b : nat # True #
      : Prop * Prop * (Prop * Prop * Prop)
+File "./output/Notations3.v", line 247, characters 0-130:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 @@ a b : nat # a = b # b = a #
      : Prop * Prop
 exists_non_null x y z t : nat , x = y /\ z = t
@@ -239,6 +255,10 @@ Notation "'exists' ! x .. y , p" :=
   (default interpretation) (from Corelib.Init.Logic)
 Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope
   (default interpretation) (from Corelib.Init.Datatypes)
+File "./output/Notations3.v", line 395, characters 0-97:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 1 goal
   
   ============================
@@ -266,11 +286,17 @@ myfoo01 tt
    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 FORALL [[a, b]], a - b = 0
      : Prop
+File "./output/Notations3.v", line 457, characters 0-58:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ∀ (A : TypTerm) (B : ◻ A -> TypTerm),
 (∀ a : ◻ A, ◻ {B a}) -> ◻ (∀' {a : ◻ A}, {B a})
      : Type
 FORALL [[a, b]], a - b = 0
      : Prop
+File "./output/Notations3.v", line 495, characters 0-65:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 ∀ a b : nat, a - b = 0
      : Prop
 fun x : option unit => match x with

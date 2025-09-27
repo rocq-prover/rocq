@@ -1,3 +1,7 @@
+File "./output/bug_9180.v", line 3, characters 0-93:
+Warning: Postfix notations (i.e. starting with a nonterminal symbol and
+ending with a terminal symbol) should usually be at level 1 (default).
+[postfix-notation-not-level-1,parsing,default]
 Notation "n .+1" := (S n) (* n in scope _nat_scope *) : nat_scope
   (default interpretation) (from bug_9180)
 forall x : nat, x.+1 = x.+1

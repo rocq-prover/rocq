@@ -1,3 +1,6 @@
+File "./output/activation.v", line 4, characters 0-61:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 File "./output/activation.v", line 5, characters 0-47:
 The command has indeed failed with message:
 More than one interpretation bound to this notation, confirm with the "all"

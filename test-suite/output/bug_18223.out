@@ -1,3 +1,6 @@
+File "./output/bug_18223.v", line 10, characters 0-55:
+Warning: Notations at level 0 should be closed (first and last symbols should
+be terminal symbols). [level-0-notation-not-closed,parsing,default]
 fun a b : A => < {| b a |} >
      : A -> A -> A
 fun a b : A => < {| b a |} >

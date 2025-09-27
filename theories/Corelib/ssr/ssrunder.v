@@ -46,7 +46,7 @@ Parameter under_rel_done :
   forall (A : Type) (eqA : A -> A -> Prop) (EeqA : Reflexive eqA) (x : A),
     @Under_rel A eqA x x.
 Notation "''Under[' x ]" := (@Under_rel _ _ x _)
-  (at level 8, format "''Under['  x  ]", only printing).
+  (at level 0, format "''Under['  x  ]", only printing).
 End UNDER_REL.
 
 Module Export Under_rel : UNDER_REL.

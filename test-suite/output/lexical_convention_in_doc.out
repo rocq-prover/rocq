@@ -1,11 +1,23 @@
+File "./output/lexical_convention_in_doc.v", line 7, characters 0-26:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 not (not True)
      : Prop
 not True
      : Prop
+File "./output/lexical_convention_in_doc.v", line 19, characters 0-26:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 not (not True)
      : Prop
 not (not True)
      : Prop
+File "./output/lexical_convention_in_doc.v", line 32, characters 0-26:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 not False
      : Prop
 (fun x : Prop => not (not x)) o
@@ -13,5 +25,9 @@ not False
 File "./output/lexical_convention_in_doc.v", line 50, characters 12-15:
 The command has indeed failed with message:
 The reference _ho was not found in the current environment.
+File "./output/lexical_convention_in_doc.v", line 59, characters 0-26:
+Warning: Closed notations (i.e. starting and ending with a terminal symbol)
+should usually be at level 0 (default).
+[closed-notation-not-level-0,parsing,default]
 True
      : Prop
