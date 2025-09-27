@@ -1718,14 +1718,16 @@ let toggle_abbreviations ~on found ntn_pattern =
       | Some (Inl _), _, _ | None, _::_, _ | None, _, Some _ -> raise Exit (* Not about abbreviation, shortcut *)
       | None, [], None -> None
     in
-    let test sp a =
+    let test _ abbrev =
+      let sp = Abbreviation.full_path abbrev in
+      let a = Abbreviation.interp abbrev in
       let res = match_notation_interpretation ntn_pattern.interpretation_pattern a in
       let res' = match qid with
         | Some qid -> Libnames.is_qualid_suffix_of_full_path qid sp
         | None -> true in
       let res'' = res && res' in
       if res'' then found := (Inr sp, a) :: !found; res'' in
-    Abbreviation.toggle_abbreviations ~on ~use:ntn_pattern.use_pattern test
+    Abbreviation.toggle_if ~on ~use:ntn_pattern.use_pattern test
   with Exit -> ()
 
 let warn_nothing_to_enable_or_disable =
