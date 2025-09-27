@@ -354,5 +354,5 @@ let declare_equivalent_keys c c' =
   let k1 = get_key c in
   let k2 = get_key c' in
     match k1, k2 with
-    | Some k1, Some k2 -> Keys.declare_equiv_keys k1 k2
+    | Some k1, Some k2 -> Keys.declare_equiv_keys k1 0 k2 0
     | _ -> ()
