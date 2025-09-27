@@ -205,11 +205,14 @@ struct
     Rewrite.Strategies.old_hints (Id.to_string i)
 
   let one_lemma c l2r =
-    let c env sigma = Pretyping.understand_uconstr env sigma c in
+    let c env sigma = Pretyping.understand_uconstr env sigma c |> Util.on_snd Environ.j_val in
     Rewrite.Strategies.one_lemma c l2r None AllOccurrences
 
   let lemmas cs =
-    let mk_c c = (); fun env sigma -> Pretyping.understand_uconstr env sigma c in
+    let mk_c c = (); fun env sigma ->
+        Pretyping.understand_uconstr env sigma c
+        |> Util.on_snd Environ.j_val
+    in
     let mk_c c = (mk_c c, true, None) in
     let cs = List.map mk_c cs in
     Rewrite.Strategies.lemmas cs
