@@ -75,7 +75,8 @@ val named_context_val : env -> named_context_val
 
 val set_universes : UGraph.t -> env -> env
 
-val qualities : env -> Sorts.QVar.Set.t
+val qualities : env -> QGraph.t
+val qvars : env -> Sorts.QVar.Set.t
 val set_qualities : Sorts.QVar.Set.t -> env -> env
 
 val typing_flags    : env -> typing_flags
