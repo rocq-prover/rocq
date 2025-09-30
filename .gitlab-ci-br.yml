@@ -26,6 +26,6 @@ trigger:
     ORIGIN_CI_PROJECT_TITLE: $CI_PROJECT_TITLE
     FM_CI_TRIGGER_KIND: $FM_CI_TRIGGER_KIND
   trigger:
-    project: bedrocksystems/formal-methods/fm-ci
+    project: skylabs_ai/FM/fm-ci
     branch: trigger-$FM_CI_TRIGGER_KIND
     strategy: depend
