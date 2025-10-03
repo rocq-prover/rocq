@@ -97,3 +97,5 @@ module LexerDiff :
   with type keyword_state = keyword_state
    and type te = Tok.t
    and type 'c pattern = 'c Tok.p
+
+val record_comments : bool ref
