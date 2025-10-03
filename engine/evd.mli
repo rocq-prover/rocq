@@ -591,10 +591,11 @@ val check_eq : evar_map -> esorts -> esorts -> bool
 val check_leq : evar_map -> esorts -> esorts -> bool
 
 val check_constraints : evar_map -> Univ.Constraints.t -> bool
-val check_qconstraints : evar_map -> Sorts.QConstraints.t -> bool
+val check_elim_constraints : evar_map -> Sorts.ElimConstraints.t -> bool
 val check_quconstraints : evar_map -> Sorts.QUConstraints.t -> bool
 
 val ustate : evar_map -> UState.t
+val elim_graph : evar_map -> QGraph.t
 val evar_universe_context : evar_map -> UState.t [@@deprecated "(9.0) Use [Evd.ustate]"]
 
 val universe_context_set : evar_map -> Univ.ContextSet.t
