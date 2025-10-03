@@ -104,7 +104,8 @@ val deactivate_observer : observer -> unit
 (** Setting opacity *)
 
 val set_typeclass_transparency
-  :  locality:Hints.hint_locality
+  :  ?typeclasses_db:Hints.hint_db_name ->
+     locality:Hints.hint_locality
   -> Evaluable.t list
   -> bool
   -> unit
@@ -116,7 +117,8 @@ val set_typeclass_transparency_com
   -> unit
 
 val set_typeclass_mode
-  :  locality:Hints.hint_locality
+  :  ?typeclasses_db:string ->
+     locality:Hints.hint_locality
   -> GlobRef.t
   -> Hints.hint_mode list
   -> unit

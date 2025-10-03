@@ -392,7 +392,7 @@ let is_declared_term env evd t =
     let typ = Retyping.get_type_of env evd t in
     try
       ignore
-        (Class_tactics.resolve_one_typeclass env evd
+        (Class_tactics.resolve_one_typeclass None env evd
            (EConstr.mkApp (Lazy.force rocq_DeclaredConstant, [|typ; t|])));
       true
     with Not_found -> false )

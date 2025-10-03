@@ -12,8 +12,9 @@
 
 open Names
 open EConstr
+open Hints
 
-val typeclasses_db : string
+val typeclasses_db : hint_db_name
 
 val check_typeclasses_db : ?loc:Loc.t -> unit -> unit
 
@@ -55,14 +56,15 @@ val not_evar : constr -> unit Proofview.tactic
 
 val is_ground : constr -> unit Proofview.tactic
 
-val autoapply : constr -> Hints.hint_db_name -> unit Proofview.tactic
+val autoapply : constr -> hint_db_name -> unit Proofview.tactic
 
-val resolve_one_typeclass : Environ.env -> Evd.evar_map -> types -> Evd.evar_map * constr
+val resolve_one_typeclass : hint_db option -> Environ.env -> Evd.evar_map -> types -> Evd.evar_map * constr
 (** Tries to find a solution for the given type. Raises Not_found it it fails. *)
 
 val resolve_tc : constr -> unit Proofview.tactic
 
 type solver = { solver :
+  ?db:hint_db ->
   Environ.env ->
   Evd.evar_map ->
   depth:int option ->

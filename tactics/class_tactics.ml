@@ -30,9 +30,8 @@ let typeclasses_db = "typeclass_instances"
 let check_typeclasses_db ?loc () =
   try ignore (Hints.searchtable_map typeclasses_db)
   with Not_found ->
-    CErrors.user_err (strbrk "The built-in typeclass hint database " ++
+  CErrors.user_err (strbrk "The built-in typeclass hint database " ++
       quote (str typeclasses_db) ++ strbrk " has not been registered.")
-
 (** Options handling *)
 
 let typeclasses_depth_opt_name = ["Typeclasses";"Depth"]
@@ -462,6 +461,7 @@ let make_hints env sigma (modes,st) only_classes sign =
 module Intpart = Unionfind.Make(Evar.Set)(Evar.Map)
 
 type solver = { solver :
+  ?db:hint_db ->
   Environ.env ->
   Evd.evar_map ->
   depth:int option ->
@@ -1088,8 +1088,11 @@ module Search = struct
     NewProfile.profile "typeclass search" (fun () ->
       run_on_goals env evd (eauto_tac_stuck st ~unique ~only_classes ~best_effort ~depth ~dep hints) ~goals) ()
 
-  let typeclasses_resolve : solver = { solver = fun env evd ~depth ~unique ~best_effort ~goals ->
-    let db = searchtable_map typeclasses_db in
+  let typeclasses_resolve : solver = { solver = fun ?db env evd ~depth ~unique ~best_effort ~goals ->
+    let db = match db with
+    | None -> searchtable_map typeclasses_db
+    | Some db -> db
+    in
     let st = Hint_db.transparent_state db in
     let modes = Hint_db.modes db in
     typeclasses_eauto env evd ~goals ?depth ~best_effort ~unique (modes,st) [db]
@@ -1288,14 +1291,18 @@ let initial_select_evars env filter =
     Typeclasses.is_class_evar env evd evi
 
 
-let classes_transparent_state () =
-  try Hint_db.transparent_state (searchtable_map typeclasses_db)
+let classes_transparent_state db () =
+  let db = match db with
+  | None -> searchtable_map typeclasses_db
+  | Some db -> db
+  in
+  try Hint_db.transparent_state db
   with Not_found -> TransparentState.empty
 
 let resolve_typeclass_evars depth unique env evd filter fail =
   let evd =
     try Evarconv.solve_unif_constraints_with_heuristics
-      ~flags:(Evarconv.default_flags_of (classes_transparent_state())) env evd
+      ~flags:(Evarconv.default_flags_of (classes_transparent_state None ())) env evd
     with e when CErrors.noncritical e -> evd
   in
     resolve_all_evars depth unique env
@@ -1307,14 +1314,17 @@ let solve_inst env evd filter unique fail =
 let () =
   Typeclasses.set_solve_all_instances solve_inst
 
-let resolve_one_typeclass env sigma concl =
-  let hints = searchtable_map typeclasses_db in
-  let st = Hint_db.transparent_state hints in
-  let modes = Hint_db.modes hints in
+let resolve_one_typeclass db env sigma concl =
+  let db = match db with
+  | None -> searchtable_map typeclasses_db
+  | Some db -> db
+  in
+  let st = Hint_db.transparent_state db in
+  let modes = Hint_db.modes db in
   let depth = get_typeclasses_depth () in
   let tac = Tacticals.tclCOMPLETE (Search.eauto_tac (modes,st)
       ~only_classes:true ~best_effort:false
-      ~depth [hints] ~dep:true)
+      ~depth [db] ~dep:true)
   in
   let entry, pv = Proofview.init sigma [env, concl] in
   let pv =
@@ -1328,7 +1338,7 @@ let resolve_one_typeclass env sigma concl =
   let term = match Proofview.partial_proof entry pv with [t] -> t | _ -> assert false in
   evd, term
 
-let () = (Typeclasses.set_solve_one_instance[@warning "-3"]) resolve_one_typeclass
+let () = (Typeclasses.set_solve_one_instance[@warning "-3"]) (resolve_one_typeclass None)
 
 (** Take the head of the arity of a constr.
     Used in the partial application tactic. *)
