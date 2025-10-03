@@ -1,4 +1,4 @@
-Set Warnings "+level-tolerance".
+Set Warnings "+level-tolerance,-closed-notation-not-level-0,-postfix-notation-not-level-1".
 
 Inductive T := E : T | F : T -> T | G : T -> T -> T.
 Inductive Parsing {A} := Accept (_ : nat) (_ : A) | Reject (_ : nat) (_ : A).
