@@ -14,3 +14,14 @@ Declare ML Module "rocq-runtime.plugins.ltac".
 
 (** Forward declaration for ltac2. *)
 Ltac easy_forward_decl := fail "Cannot use easy: Corelib.Init.Tactics not loaded".
+
+Module Internal.
+  (** Export some tactics for internal (Corelib) use.
+
+      These tactics are declared as "local" in the plugin, so they
+      exist with name Ltac.foo while in this file and this module
+      reexports them. *)
+
+  Ltac head_of_constr id c := Ltac.head_of_constr id c.
+
+End Internal.

@@ -70,17 +70,17 @@ Check (1;2,4).
 Section C.
 
 Notation "'ifzero' n" := (match n with 0 => true | S _ => false end)
-  (at level 0, n at level 0).
+  (at level 2, n at level 0).
 Check (ifzero 3).
 
 Notation "'pred' n" := (match n with 0 => 0 | S n' => n' end)
-  (at level 0, n at level 0).
+  (at level 2, n at level 0).
 Check (pred 3).
 Check (fun n => match n with 0 => 0 | S n => n end).
 Check (fun n => match n with S p as x => p | _ => 0 end).
 
 Notation "'ifn' x 'is' 'succ' n 'then' t 'else' u" :=
-  (match x with O => u | S n => t end) (at level 0, u at level 0).
+  (match x with O => u | S n => t end) (at level 2, u at level 0).
 Check fun x => ifn x is succ n then n else 0.
 
 End C.
@@ -212,7 +212,7 @@ Abbreviation NONE3 := @None.
 Abbreviation SOME3 := @Some.
 Check (fun x => match x with SOME3 _ x => x | NONE3 _ => 0 end).
 
-Notation "a :'" := (cons a) (at level 10).
+Notation "a :'" := (cons a) (at level 1).
 
 Check (fun x => match x with | nil => NONE | h :' t => SOME3 _ t end).
 

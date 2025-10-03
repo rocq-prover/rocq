@@ -27,6 +27,12 @@ module NamedDecl = Context.Named.Declaration
 (** Hint database named "typeclass_instances", created in prelude *)
 let typeclasses_db = "typeclass_instances"
 
+let check_typeclasses_db ?loc () =
+  try ignore (Hints.searchtable_map typeclasses_db)
+  with Not_found ->
+    CErrors.user_err (strbrk "The built-in typeclass hint database " ++
+      quote (str typeclasses_db) ++ strbrk " has not been registered.")
+
 (** Options handling *)
 
 let typeclasses_depth_opt_name = ["Typeclasses";"Depth"]
@@ -99,7 +105,7 @@ end = struct
         optwrite = set_typeclasses_verbose; }
 
   let ppdebug lvl pp =
-    if !typeclasses_debug > lvl then Feedback.msg_debug (pp())
+    if !typeclasses_debug > lvl then Feedback.msg_debug (hov 2 @@ pp())
 
   let get_debug () = !typeclasses_debug
 end
@@ -744,7 +750,7 @@ module Search = struct
                  str" on" ++ spc () ++ pr_ev sigma (Proofview.Goal.goal gl)
                else mt ())
             in
-            (header ++ str " failed with: " ++ pr_internal_exception ie))
+            (header ++ spc() ++ str "failed with: " ++ pr_internal_exception ie))
       in
       let tac_of gls i j = Goal.enter begin fun gl' ->
         let sigma' = Goal.sigma gl' in

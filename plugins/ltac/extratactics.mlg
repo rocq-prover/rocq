@@ -671,13 +671,6 @@ VERNAC COMMAND EXTEND Print_keys CLASSIFIED AS QUERY
 | [ "Print" "Equivalent" "Keys" ] -> { Feedback.msg_notice (Keys.pr_keys Printer.pr_global) }
 END
 
-VERNAC COMMAND EXTEND OptimizeProof
-| ![ proof ] [ "Optimize" "Proof" ] => { classify_as_proofstep } ->
-  { fun ~pstate -> Declare.Proof.compact pstate }
-| [ "Optimize" "Heap" ] => { classify_as_proofstep } ->
-  { Gc.compact () }
-END
-
 TACTIC EXTEND optimize_heap
 | [ "optimize_heap" ] -> { Internals.tclOPTIMIZE_HEAP }
 END

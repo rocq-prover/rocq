@@ -52,6 +52,7 @@ universe_name: [
 
 universe_expr: [
 | universe_name universe_increment
+| natural
 ]
 
 universe: [
@@ -190,6 +191,7 @@ univ_annot: [
 ]
 
 univ_level_or_quality: [
+| NUMBER "0"
 | "Set"
 | "SProp"
 | "Prop"
@@ -531,6 +533,8 @@ command: [
 | "Create" "HintDb" IDENT; [ "discriminated" | ]
 | "Remove" "Hints" LIST1 global opt_hintbases
 | "Hint" hint opt_hintbases
+| "Optimize" "Proof"
+| "Optimize" "Heap"
 | "Comments" LIST0 comment
 | "Attributes" attribute_list
 | "Declare" "Instance" ident_decl binders ":" term200 hint_info
@@ -630,8 +634,6 @@ command: [
 | "Unshelve"
 | "Declare" "Equivalent" "Keys" constr constr
 | "Print" "Equivalent" "Keys"
-| "Optimize" "Proof"
-| "Optimize" "Heap"
 | "infoH" tactic
 | "Hint" "Cut" "[" hints_path "]" opthints
 | "Typeclasses" "Transparent" LIST1 reference
@@ -1849,7 +1851,6 @@ simple_tactic: [
 | "typeclasses" "eauto" "dfs" OPT nat_or_var
 | "typeclasses" "eauto" "best_effort" OPT nat_or_var
 | "typeclasses" "eauto" OPT nat_or_var
-| "head_of_constr" ident constr
 | "not_evar" constr
 | "is_ground" constr
 | "autoapply" constr "with" preident

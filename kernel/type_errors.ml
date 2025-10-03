@@ -62,6 +62,7 @@ type ('constr, 'types, 'r) ptype_error =
   | NumberBranches of ('constr, 'types) punsafe_judgment * int
   | IllFormedCaseParams
   | IllFormedBranch of 'constr * pconstructor * 'constr * 'constr
+  | BadProjType of ('constr, 'types) punsafe_judgment * Projection.t
   | Generalization of (Name.t * 'types) * ('constr, 'types) punsafe_judgment
   | ActualType of ('constr, 'types) punsafe_judgment * 'types
   | IncorrectPrimitive of (CPrimitives.op_or_type,'types) punsafe_judgment * 'types
@@ -131,6 +132,9 @@ let error_number_branches env cj expn =
 
 let error_ill_formed_branch env c i actty expty =
   raise (TypeError (env, IllFormedBranch (c, i, actty, expty)))
+
+let error_bad_proj_type env cj p =
+  raise (TypeError (env, BadProjType (cj, p)))
 
 let error_generalization env nvar c =
   raise (TypeError (env, Generalization (nvar,c)))
@@ -225,6 +229,7 @@ let map_ptype_error fr f = function
 | WrongCaseInfo (pi, ci) -> WrongCaseInfo (pi, ci)
 | NumberBranches (j, n) -> NumberBranches (on_judgment f j, n)
 | IllFormedBranch (c, pc, t1, t2) -> IllFormedBranch (f c, pc, f t1, f t2)
+| BadProjType (j, p) -> BadProjType (on_judgment f j, p)
 | Generalization ((na, t), j) -> Generalization ((na, f t), on_judgment f j)
 | ActualType (j, t) -> ActualType (on_judgment f j, f t)
 | IncorrectPrimitive (p, t) -> IncorrectPrimitive ({p with uj_type=f p.uj_type}, f t)

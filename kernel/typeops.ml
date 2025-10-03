@@ -579,7 +579,10 @@ let type_of_projection env p c ct =
     try find_rectype env ct
     with Not_found -> error_case_not_inductive env (make_judge c ct)
   in
-  assert(Ind.CanOrd.equal (Projection.inductive p) ind);
+  let () =
+    if not (Environ.QInd.equal env (Projection.inductive p) ind) then
+      error_bad_proj_type env (make_judge c ct) p
+  in
   let pr = UVars.subst_instance_relevance u pr in
   let ty = Vars.subst_instance_constr u pty in
   pr, substl (c :: CList.rev args) ty

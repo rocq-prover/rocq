@@ -787,8 +787,8 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   and u = EConstr.Unsafe.to_constr u in
   let sigma = ref extended_evd in
   let eq_universes _ u1 u2 =
-    let u1 = normalize_universe_instance !sigma u1 in
-    let u2 = normalize_universe_instance !sigma u2 in
+    let u1 = EConstr.EInstance.(kind !sigma (make u1)) in
+    let u2 = EConstr.EInstance.(kind !sigma (make u2)) in
     UGraph.check_eq_instances (universes !sigma) u1 u2
   in
   let eq_sorts s1 s2 =

@@ -45,7 +45,6 @@ let declare_abstract = ref (fun ~name ~poly ~sign ~secsign ~opaque ~solve_tac en
 
 let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   let open Tacticals in
-  let open Tacmach in
   let open Proofview.Notations in
   Proofview.tclProofInfo [@ocaml.warning "-3"] >>= fun (name, poly) ->
   let suffix = if opaque then "_subproof" else "_subterm" in
@@ -53,6 +52,8 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    (* XXX we cannot use [tclENV] here because toplevel callers may pass wrong
+       named contexts when nesting abstracts. See #5641. *)
     let section_sign = Global.named_context_val () in
     let goal_sign = Proofview.Goal.hyps gl in
     let sign,secsign =
@@ -65,7 +66,17 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
            else (Context.Named.add d s1,s2))
         goal_sign (Context.Named.empty, Environ.empty_named_context_val)
     in
-    let name = Namegen.next_global_ident_away (Global.safe_env ()) name (pf_ids_set_of_hyps gl) in
+    let bad id = match lookup_named_val id section_sign with
+    | (_ : named_declaration) -> true
+    | exception Not_found ->
+      Safe_typing.exists_objlabel (Names.Label.of_id id) (Global.safe_env ()) ||
+      (* The local environment is OK when it comes to constants though,
+         including those defined by [tclABSTRACT]. *)
+      let kn = Lib.make_kn id in
+      let kn = Names.Constant.make1 kn in
+      Environ.mem_constant kn env
+    in
+    let name = Namegen.next_ident_away_from name bad in
     let concl = match goal_type with
       | None ->  Proofview.Goal.concl gl
       | Some ty -> ty

@@ -781,9 +781,6 @@ let hash_table_key f ik =
   | VarKey id -> combinesmall 2 (Id.hash id)
   | RelKey i -> combinesmall 3 (Int.hash i)
 
-let eq_mind_chk = MutInd.UserOrd.equal
-let eq_ind_chk (kn1,i1) (kn2,i2) = Int.equal i1 i2 && eq_mind_chk kn1 kn2
-
 (*******************************************************************)
 (** Compatibility layers *)
 

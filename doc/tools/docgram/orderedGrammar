@@ -291,6 +291,7 @@ universe: [
 
 universe_expr: [
 | universe_name OPT ( "+" natural )
+| natural
 ]
 
 universe_name: [
@@ -304,6 +305,7 @@ univ_annot: [
 ]
 
 univ_level_or_quality: [
+| "0"
 | "Set"
 | "SProp"
 | "Prop"
@@ -1505,7 +1507,6 @@ simple_tactic: [
 | "autounfold_one" OPT hintbases OPT ( "in" ident )
 | "unify" one_term one_term OPT ( "with" ident )
 | "convert" one_term one_term
-| "head_of_constr" ident one_term
 | "not_evar" one_term
 | "is_ground" one_term
 | "autoapply" one_term "with" ident

@@ -270,8 +270,8 @@ module PrintingInductiveMake =
   end) ->
   struct
     type t = inductive
-    module Set = Indset
-    let encode = Test.encode
+    module Set = Indset_env
+    let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
     let subst subst obj = subst_ind subst obj
     let check_local _ _ = ()
     let discharge (i:t) = i

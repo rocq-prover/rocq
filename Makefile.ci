@@ -114,7 +114,7 @@ CI_VIRTUAL_TARGETS= \
     ci-elpi_hb \
     ci-platform_full
 
-.PHONY: ci-all $(CI_TARGETS) $(CI_VIRTUAL_TARGETS)
+.PHONY: ci-all ci-update ci-reset $(CI_TARGETS) $(CI_VIRTUAL_TARGETS)
 
 ci-help:
 	echo '*** Coq CI system, please specify a target to build.'
@@ -265,6 +265,14 @@ ci-platform_full: $(CI_PLATFORM_FULL)
 # Generic rule, we use make to ease CI integration
 $(CI_TARGETS): ci-%:
 	+./dev/ci/ci-wrapper.sh $*
+
+# Helper to update all CI repositories already downloaded
+ci-update:
+	./dev/ci/ci-update.sh
+
+# Helper to reset all CI repositories already downloaded
+ci-reset:
+	./dev/ci/ci-reset.sh
 
 # if we do eg "make states ci-foo", ci-foo will wait for states
 # if we just do "make ci-foo" it will just run ci-foo

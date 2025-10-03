@@ -12,7 +12,7 @@ Check gargs:( (!) ). (* cons 42 nil *)
 Check gargs:( (!, !, !) ). (* cons 42 (42 :: 42 :: nil) *)
 
 Definition OnlyGargs {T} (x:T) := x.
-Notation "OnlyGargs[ x  ]" := (OnlyGargs x) (at level 10, x custom gargs).
+Notation "OnlyGargs[ x  ]" := (OnlyGargs x) (at level 0, x custom gargs).
 Check OnlyGargs[ (!) ]. (* OnlyGargs[ cons 42 nil] *)
 
 Declare Custom Entry gargs999.
@@ -26,5 +26,5 @@ Check gargs999:( (!, !, !) ). (* gargs999:( (!, !, !)) *)
 Check OnlyGargs[ (!) ]. (* OnlyGargs[ gargs999:( (!))] *)
 
 Definition OnlyGargs999 {T} (x:T) := x.
-Notation "OnlyGargs999[ x  ]" := (OnlyGargs999 x) (at level 10, x custom gargs999 at level 999).
+Notation "OnlyGargs999[ x  ]" := (OnlyGargs999 x) (at level 0, x custom gargs999 at level 999).
 Check OnlyGargs999[ (!) ]. (* OnlyGargs999[ (!)] *)

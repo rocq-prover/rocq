@@ -56,7 +56,9 @@ if [ "$CI_NAME" != stdlib_test ]; then
   tools/make-one-time-file.py --real "$CI_NAME.log"
 fi
 
-if [ "$CI" ] && ! [ $code = 0 ]; then
+# don't print error summary for coq_tools as it gets spammy, and hides jason_msg
+# see eg https://gitlab.inria.fr/coq/coq/-/jobs/6292796
+if [ "$CI" ] && ! [ $code = 0 ] && [ "$CI_NAME" != coq_tools ]; then
   set +x
 
   escape_re=$(printf '\033%s' '\[[0-9;]+m')

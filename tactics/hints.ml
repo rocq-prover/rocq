@@ -841,7 +841,12 @@ let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
 
 let searchtable_map name =
   Hintdbmap.find name !searchtable
-let searchtable_add (name,db) =
+let searchtable_add (name, db) =
+  (* XXX see #21114 *)
+(*   let () = assert (Hintdbmap.mem name !searchtable) in *)
+  searchtable := Hintdbmap.add name db !searchtable
+let searchtable_create (name, db) =
+(*   let () = assert (not @@ Hintdbmap.mem name !searchtable) in *)
   searchtable := Hintdbmap.add name db !searchtable
 let current_db_names () = Hintdbmap.domain !searchtable
 let current_db () = Hintdbmap.bindings !searchtable
@@ -1049,7 +1054,7 @@ let add_hint dbname hintlist =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let db' = Hint_db.add_list env sigma hintlist db in
-    searchtable_add (dbname,db')
+  searchtable_add (dbname, db')
 
 let add_transparency dbname target b =
   let open TransparentState in
@@ -1067,24 +1072,25 @@ let add_transparency dbname target b =
         | Evaluable.EvalVarRef v -> { st with tr_var = (if b then Id.Pred.add else Id.Pred.remove) v st.tr_var }
         | Evaluable.EvalProjectionRef p -> { st with tr_prj = (if b then PRpred.add else PRpred.remove) p st.tr_prj } )
         st grs
-  in searchtable_add (dbname, Hint_db.set_transparent_state db st')
+  in
+  searchtable_add (dbname, Hint_db.set_transparent_state db st')
 
 let remove_hint dbname grs =
   let env = Global.env () in
   let db = get_db dbname in
   let db' = Hint_db.remove_list env grs db in
-    searchtable_add (dbname, db')
+  searchtable_add (dbname, db')
 
 let add_cut dbname path =
   let env = Global.env () in
   let db = get_db dbname in
   let db' = Hint_db.add_cut env path db in
-    searchtable_add (dbname, db')
+  searchtable_add (dbname, db')
 
 let add_mode dbname l m =
   let db = get_db dbname in
   let db' = Hint_db.add_mode l m db in
-    searchtable_add (dbname, db')
+  searchtable_add (dbname, db')
 
 type db_obj = {
   db_local : bool;
@@ -1100,7 +1106,7 @@ let warn_mismatch_create_hintdb = CWarnings.create ~name:"mismatched-hint-db" ~c
 
 let cache_db ({db_name=name; db_use_dn=b; db_ts=ts} as o) =
   match searchtable_map name with
-  | exception Not_found -> searchtable_add (name, Hint_db.empty ~name ts b)
+  | exception Not_found -> searchtable_create (name, Hint_db.empty ~name ts b)
   | db ->
     (* Explicit DBs start with full TS, implicit DBs start with empty TS
        This should probably be controllable in Create Hint Db,

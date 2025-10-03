@@ -16,6 +16,7 @@ Definition ap {A B:Type} (f:A -> B) {x y:A} (p:x = y) : f x = f y := match p wit
 Class IsEquiv {A B : Type} (f : A -> B) := { equiv_inv : B -> A ; eisretr : forall x, f (equiv_inv x) = x }.
 Arguments eisretr {A B} f {_} _.
 Notation "f ^-1" := (@equiv_inv _ _ f _) (at level 3, format "f '^-1'").
+Create HintDb typeclass_instances discriminated.
 Global Instance isequiv_compose `{IsEquiv A B f} `{IsEquiv B C g} : IsEquiv (g o f) | 1000 := admit.
 Definition isequiv_homotopic {A B} (f : A -> B) (g : A -> B) `{IsEquiv A B f} (h : forall x, f x = g x) : IsEquiv g := admit.
 Global Instance isequiv_inverse {A B} (f : A -> B) {feq : IsEquiv f} : IsEquiv f^-1 | 10000 := admit.

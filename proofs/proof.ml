@@ -425,17 +425,6 @@ let solve_constraints =
   Proofview.tclOR Refine.solve_constraints
     (fun (e,info) -> Proofview.tclZERO ~info (FailedConstraints e))
 
-let register_side_effects eff =
-  let open Names in
-  let cst = Safe_typing.constants_of_private eff.Evd.seff_private in
-  let iter kn =
-    let gr = GlobRef.ConstRef kn in
-    let id = Label.to_id (Constant.label kn) in
-    let sp = Lib.make_path id in
-    Nametab.push (Nametab.Until 1) sp gr
-  in
-  List.iter iter cst
-
 let solve ?with_end_tac env gi info_lvl tac pr =
     let tac = match with_end_tac with
       | None -> tac
@@ -455,16 +444,14 @@ let solve ?with_end_tac env gi info_lvl tac pr =
       else tac
     in
     let env = Environ.update_typing_flags ?typing_flags:pr.typing_flags env in
-    let (p,(_env,status,info),()) = run_tactic env tac pr in
-    let () = register_side_effects (Evd.eval_side_effects (Proofview.return p.proofview)) in
-    let env = Global.env () in
-    let sigma = Evd.from_env env in
+    let (p, (env, status, info), ()) = run_tactic env tac pr in
+    let sigma = (data p).sigma in
     let () =
       match info_lvl with
       | None -> ()
       | Some i -> Feedback.msg_info (Pp.hov 0 (Proofview.Trace.pr_info env sigma ~lvl:i info))
     in
-    (p,status)
+    (p, status)
 
 (**********************************************************************)
 (* Shortcut to build a term using tactics *)

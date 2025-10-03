@@ -1057,6 +1057,7 @@ let pr_let_clauses recflag pr_gen pr l =
             keyword "type_term" ++ pr.pr_constr env sigma c
           | TacNumgoals ->
             keyword "numgoals"
+          | TacGeneric (Some _, _) as a -> pr_tac ltop (CAst.make (TacArg a))
           | (TacCall _|Tacexp _ | TacGeneric _) as a ->
             hov 0 (keyword "ltac:" ++ surround (pr_tac ltop (CAst.make (TacArg a))))
 

@@ -1368,7 +1368,7 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       raise Not_found
   | TrueGlobal ref -> (DAst.make ?loc @@ GRef (ref, us)), Some ref, args
   | Abbrev sp ->
-      let (ids,c) = Abbreviation.search_abbreviation sp in
+      let (ids,c) = Abbreviation.find_interp sp in
       let nids = List.length ids in
       if List.length args < nids then error_not_enough_arguments ?loc;
       let args1,args2 = List.chop nids args in
@@ -1430,7 +1430,10 @@ let intern_qualid_for_pattern test_global intern_not qid pats =
         let args = List.map (intern_not subst) args in
         Some (g, Some args, pats2)
       | _ -> None in
-    match Abbreviation.search_filtered_abbreviation filter kn with
+    match Abbreviation.find_opt kn with
+    | None -> raise Not_found
+    | Some abbrev ->
+    match filter (Abbreviation.interp abbrev) with
     | Some (g, pats1, pats2) ->
       Nametab.is_warned_xref xref
       |> Option.iter (fun warn -> Nametab.warn_user_warn_xref ?loc:qid.loc warn (Abbrev kn));

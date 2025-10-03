@@ -69,6 +69,9 @@ Section Relation_Definition.
 End Relation_Definition.
 
 #[global]
+Create HintDb sets.
+
+#[global]
 Hint Unfold reflexive transitive antisymmetric symmetric: sets.
 
 #[global]

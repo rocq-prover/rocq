@@ -943,7 +943,10 @@ let compute_case_signature env mind dep names_info =
   | Prod (_,t,c) ->
     let hd, _ = Constr.decompose_app t in
     (* no recursive call in case analysis *)
-    let arg = if Constr.isRefX indref hd then RecArg else OtherArg in
+    let arg = match Constr.kind hd with
+    | Ind (ind, _) when Environ.QInd.equal env mind ind -> RecArg
+    | _ -> OtherArg
+    in
     (arg, true, not (CVars.noccurn 1 c)) :: check_branch c
   | LetIn (_,_,_,c) ->
     (OtherArg, false, not (CVars.noccurn 1 c)) :: check_branch c

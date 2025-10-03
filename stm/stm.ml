@@ -1935,8 +1935,11 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
            | FullState { Vernacstate.interp = { lemmas } } ->
                Option.iter PG_compat.unfreeze lemmas;
                PG_compat.with_current_proof (fun p ->
-                 feedback ~id:id Feedback.AddedAxiom;
-                 fst (Proof.solve (Global.env ()) Goal_select.SelectAll None tac p), ());
+                 let () = feedback ~id:id Feedback.AddedAxiom in
+                 let (pf, _) = Proof.solve (Global.env ()) Goal_select.SelectAll None tac p in
+                 (* XXX is it really necessary to register the effects here? *)
+                 let pf = Declare.Internal.register_side_effects pf in
+                 pf, ());
                (* STATE SPEC:
                 * - start: Modifies the input state adding a proof.
                 * - end  : maybe after recovery command.

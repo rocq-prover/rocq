@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-set -xe
+if [ -z "${CI_QUIET}" ];
+then
+  set -xe
+fi
 
 # default value for NJOBS
 : "${NJOBS:=1}"
@@ -46,12 +49,8 @@ export PATH="$COQBIN:$PATH"
 # Rocq's tools need an ending slash :S, we should fix them.
 export COQBIN="$COQBIN/"
 
-ls -l "$COQBIN"
-
 # Where we download and build external developments
 CI_BUILD_DIR="$PWD/_build_ci"
-
-ls -l "$CI_BUILD_DIR" || true
 
 declare -A overlays
 
@@ -86,7 +85,11 @@ for overlay in "$(dirname "${BASH_SOURCE[0]}")"/../user-overlays/*.sh; do
     # the directoy can be empty
     if [ -e "${overlay}" ]; then . "${overlay}"; fi
 done
-set -x
+
+if [ -z "${CI_QUIET}" ];
+then
+  set -x
+fi
 
 # [git_download <project> [<destination>]] will download <project> and
 # unpack it in <destination> (if given; default:

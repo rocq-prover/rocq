@@ -326,12 +326,12 @@ Binding arguments to scopes
       Notation "@@" := false (only parsing): mybool_scope.
 
       Bind Scope bool_scope with bool.
-      Notation "# x #" := (g x) (at level 40).
-      Check # @@ #.
+      Notation "<< x >>" := (g x).
+      Check << @@ >>.
       Arguments g _%_mybool_scope.
-      Check # @@ #.
+      Check << @@ >>.
       Delimit Scope mybool_scope with mybool.
-      Check # @@%mybool #.
+      Check << @@%mybool >>.
 
 .. _Args_effect_on_unfolding:
 

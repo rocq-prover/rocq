@@ -308,10 +308,12 @@ pattern or when the hint has no pattern.
 Creating hint databases
 ```````````````````````
 
-Hint databases can be created with the :cmd:`Create HintDb` command or implicitly
-by adding a hint to an unknown database.  We recommend you always use :cmd:`Create HintDb`
-and then imediately use :cmd:`Hint Constants` and :cmd:`Hint Variables` to make
-those settings explicit.
+Hint databases can be created with the :cmd:`Create HintDb` command.
+After a call to :cmd:`Create HintDb`, we recommend to immediately use
+:cmd:`Hint Constants` and :cmd:`Hint Variables` to make those settings explicit.
+
+Alternatively, adding a hint to an unknown database creates the latter
+implicitly, but this behavior is deprecated as of Rocq 9.2.
 
 Note that the default transparency
 settings differ between these two methods of creation.  Databases created with
@@ -419,6 +421,11 @@ Creating Hints
 
       The default value for hint locality outside sections is
       now :attr:`export`. It used to be :attr:`global`.
+
+   .. deprecated:: 9.2
+
+      Implicitly creating a unknown database is now deprecated and will become
+      an error.
 
    The `Hint` commands are:
 
@@ -552,6 +559,7 @@ Creating Hints
          .. rocqtop:: reset all
 
             Require Import ListDef.
+            Create HintDb eqdec.
             Hint Extern 5 ({?X1 = ?X2} + {?X1 <> ?X2}) =>
               generalize  X1, X2; decide equality : eqdec.
             Goal forall a b:list (nat * nat), {a = b} + {a <> b}.
@@ -650,6 +658,7 @@ Creating Hints
       .. rocqtop:: all reset
 
          Parameter plus : nat -> nat -> nat -> Prop.
+         Create HintDb plus.
          Hint Mode plus ! - - : plus.
          Hint Mode plus - ! - : plus.
 

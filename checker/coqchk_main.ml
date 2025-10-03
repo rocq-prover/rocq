@@ -275,6 +275,7 @@ let explain_exn = function
       | NumberBranches _ -> str"NumberBranches"
       | IllFormedBranch _ -> str"IllFormedBranch"
       | IllFormedCaseParams -> str "IllFormedCaseParams"
+      | BadProjType _ -> str "BadProjType"
       | Generalization _ -> str"Generalization"
       | ActualType _ -> str"ActualType"
       | IncorrectPrimitive _ -> str"IncorrectPrimitive"

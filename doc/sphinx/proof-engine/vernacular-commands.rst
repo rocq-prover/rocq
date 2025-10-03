@@ -1215,15 +1215,15 @@ Exposing constants to OCaml libraries
    the constant is exposed to the kernel. For instance, the `PrimInt63` module
    features the following declaration:
 
-   This command supports attributes :attr:`local`, :attr:`export` and :attr:`global`.
-   The default is :attr:`global`, even inside sections.
-
    .. rocqdoc::
 
       Register bool as kernel.ind_bool.
 
    This makes the kernel aware of the `bool` type, which is used, for example,
    to define the return type of the :g:`#int63_eq` primitive.
+
+   This command supports attributes :attr:`local`, :attr:`export` and :attr:`global`.
+   The default is :attr:`global`, even inside sections.
 
    .. seealso:: :ref:`primitive-integers`
 

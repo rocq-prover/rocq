@@ -480,6 +480,7 @@ let build_combined_scheme env schemes =
   let sigma = Evd.from_env env in
   let sigma, defs = List.fold_left_map (fun sigma cst ->
     let sigma, c = Evd.fresh_constant_instance env sigma cst in
+    let c = on_snd (EConstr.EInstance.kind sigma) c in
     sigma, (c, Typeops.type_of_constant_in env c)) sigma schemes in
   let find_inductive ty =
     let (ctx, arity) = decompose_prod ty in

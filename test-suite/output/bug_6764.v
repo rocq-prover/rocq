@@ -16,12 +16,12 @@ End A'.
 
 Module B.
 Record T := {a:nat}.
-Notation "%% x" := (a x) (at level 0, x at level 0).
+Notation "%% x" := (a x) (at level 2, x at level 2).
 Check fun x => %%x.
 End B.
 
 Module B'.
 Record T := {a:nat}.
-Notation "%% x" := x.(a) (at level 0, x at level 0).
+Notation "%% x" := x.(a) (at level 2, x at level 2).
 Check fun x => %%x.
 End B'.

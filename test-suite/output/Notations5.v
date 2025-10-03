@@ -298,7 +298,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall A (a1 a2:A) B (b:B), a1 = a2 /\ b = b.
 
-  Notation "## q" := (p q) (at level 0, q at level 0).
+  Notation "## q" := (p q) (at level 2, q at level 0).
 
   Check p 0.
   (* ## 0 *)
@@ -326,7 +326,7 @@ Module AppliedTermsPrinting.
 
   Axiom p : forall A (a1 a2:A) B (b:B), a1 = a2 /\ b = b.
 
-  Notation "## q" := (@p _ q) (at level 0, q at level 0).
+  Notation "## q" := (@p _ q) (at level 2, q at level 0).
 
   Check p 0.
   (* ## 0 *)
@@ -370,13 +370,13 @@ Module AppliedPatternsPrinting.
   End B.
 
   Module C.
-  Notation "## q" := (@p q) (at level 0, q at level 0).
+  Notation "## q" := (@p q) (at level 2, q at level 0).
   Check ## 0 0 true.
   Check fun a => match a with ## 0 0 _ => 1 | _ => 2 end.
   End C.
 
   Module D.
-  Notation "##' q" := (p q) (at level 0, q at level 0).
+  Notation "##' q" := (p q) (at level 2, q at level 0).
   Check ##' 0 0 true.
   Check fun a => match a with ##' 0 0 _ => 1 | _ => 2 end.
   End D.

@@ -333,6 +333,14 @@ let explain_ill_formed_branch env sigma c ci actty expty =
   spc () ++ str "has type" ++ brk(1,1) ++ pa ++ spc () ++
   str "which should be" ++ brk(1,1) ++ pe ++ str "."
 
+let explain_bad_proj_type env sigma cj p =
+  let pc = pr_leconstr_env env sigma cj.uj_val in
+  let pct = pr_leconstr_env env sigma cj.uj_type in
+  let rcd = pr_global (GlobRef.IndRef (Projection.inductive p)) in
+  str "The term" ++ brk(1,1) ++ pc ++ spc () ++
+  str "has type" ++ brk(1,1) ++ pct ++ spc () ++
+  str "which is not an instance of record type " ++ rcd ++ str "."
+
 let explain_generalization env sigma (name,var) j =
   let pe = pr_ne_context_of (str "In environment") env sigma in
   let pv = pr_letype_env env sigma var in
@@ -981,6 +989,8 @@ let explain_type_error env sigma err =
   | IllFormedCaseParams -> explain_ill_formed_case_params env sigma
   | IllFormedBranch (c, i, actty, expty) ->
       explain_ill_formed_branch env sigma c i actty expty
+  | BadProjType (cj, p) ->
+    explain_bad_proj_type env sigma cj p
   | Generalization (nvar, c) ->
       explain_generalization env sigma nvar c
   | ActualType (j, pt) ->

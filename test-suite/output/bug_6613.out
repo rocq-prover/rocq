@@ -1,0 +1,1 @@
+Ltac bar := foo constr:(5)

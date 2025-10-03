@@ -562,7 +562,7 @@ Ltac partial_application_tactic :=
     end
   in
   let params m sk fk :=
-    (let m' := fresh in head_of_constr m' m ;
+    (let m' := fresh in Ltac.Internal.head_of_constr m' m ;
      let n := fresh in evar (n:nat) ;
      let v := eval compute in n in clear n ;
       let H := fresh in

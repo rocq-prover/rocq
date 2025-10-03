@@ -640,6 +640,7 @@ let replace_using_leibniz clause c1 c2 l2r unsafe try_prove_eq_opt =
       try lib_ref "core.identity.type", lib_ref "core.identity.sym"
       with NotFoundRef _ ->
         user_err (strbrk "Need a registration for either core.eq.type and core.eq.sym or core.identity.type and core.identity.sym.") in
+    Proofview.Unsafe.tclEVARS evd >>= fun () ->
     Tacticals.pf_constr_of_global sym >>= fun sym ->
     Tacticals.pf_constr_of_global e >>= fun e ->
     let eq = applist (e, [t1;c1;c2]) in

@@ -7,7 +7,7 @@ Entry custom:Notations4.A.myconstr is
   [ SELF; "+"; NEXT ]
 | "4" RIGHTA
   [ SELF; "*"; NEXT ]
-| "3" RIGHTA
+| "0" RIGHTA
   [ "<"; term LEVEL "10"; ">" ] ]
 
 [< b > + < b > * < 2 >]
@@ -111,7 +111,7 @@ Warning: Accessing custom entry B.expr by its unqualified name is deprecated.
 Quickfix:
 Replace File "./output/Notations4.v", line 166, characters 21-25 with B.expr
 Entry custom:Notations4.B.expr is
-[ "201" RIGHTA
+[ "0" RIGHTA
   [ "{"; term LEVEL "200"; "}" ] ]
 
 fun x : nat => [ x ]

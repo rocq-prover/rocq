@@ -11,6 +11,7 @@ Set Default Proof Mode "Classic".
 Set Universe Polymorphism.
 Class Contr_internal (A : Type) := BuildContr { center : A }.
 Arguments center A {_}.
+Create HintDb typeclass_instances discriminated.
 Class Contr (A : Type) : Type := Contr_is_trunc : Contr_internal A.
 #[export] Hint Extern 0 => progress change Contr_internal with Contr in * : typeclass_instances.
 Definition contr_paths_contr0 {A} `{Contr A} : Contr A := {| center := center A |}.

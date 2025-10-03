@@ -136,6 +136,8 @@ Record Equiv A B := BuildEquiv {
 
 Coercion equiv_fun : Equiv >-> Funclass.
 
+Create HintDb typeclass_instances discriminated.
+
 Global Existing Instance equiv_isequiv.
 
 Notation "A <~> B" := (Equiv A B) (at level 85) : type_scope.

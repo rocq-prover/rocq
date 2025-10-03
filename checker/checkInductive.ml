@@ -143,12 +143,12 @@ let check_squashed orig generated = match orig, generated with
     | SometimesSquashed s1, SometimesSquashed s2 ->
       Sorts.Quality.Set.subset s2 s1
 
-(* Use [eq_ind_chk] because when we rebuild the recargs we have lost
+(* Use [UserOrd] because when we rebuild the recargs we have lost
    the knowledge of who is the canonical version.
    Try with to see test-suite/coqchk/include.v *)
 let eq_recarg_type ty1 ty2 = match ty1, ty2 with
-  | RecArgInd ind1, RecArgInd ind2 -> eq_ind_chk ind1 ind2
-  | RecArgPrim c1, RecArgPrim c2 -> Names.Constant.CanOrd.equal c1 c2
+  | RecArgInd ind1, RecArgInd ind2 -> Names.Ind.UserOrd.equal ind1 ind2
+  | RecArgPrim c1, RecArgPrim c2 -> Names.Constant.UserOrd.equal c1 c2
   | (RecArgInd _ | RecArgPrim _), _ -> false
 
 let eq_recarg r1 r2 = match r1, r2 with

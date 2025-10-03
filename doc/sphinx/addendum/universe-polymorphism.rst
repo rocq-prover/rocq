@@ -531,7 +531,8 @@ Explicit Universes
    | Set
    | Prop
    univ_annot ::= @%{ {* @univ_level_or_quality } {? {| %| | ; } {* @univ_level_or_quality } } %}
-   univ_level_or_quality ::= Set
+   univ_level_or_quality ::= 0
+   | Set
    | SProp
    | Prop
    | Type

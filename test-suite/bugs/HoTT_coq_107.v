@@ -40,6 +40,8 @@ Fixpoint IsTrunc_internal (n : trunc_index) (A : Type) : Type :=
     | trunc_S n' => forall (x y : A), IsTrunc_internal n' (x = y)
   end.
 
+Create HintDb typeclass_instances discriminated.
+
 Class IsTrunc (n : trunc_index) (A : Type) : Type :=
   Trunc_is_trunc : IsTrunc_internal n A.
 

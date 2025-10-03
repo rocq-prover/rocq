@@ -574,10 +574,6 @@ val eq_table_key : ('a -> 'a -> bool) -> 'a tableKey -> 'a tableKey -> bool
 val hash_table_key : ('a -> int) -> 'a tableKey -> int
 val eq_constant_key : Constant.t -> Constant.t -> bool
 
-(** equalities on constant and inductive names (for the checker) *)
-
-val eq_ind_chk : inductive -> inductive -> bool
-
 (** {5 Module paths} *)
 
 type module_path = ModPath.t =

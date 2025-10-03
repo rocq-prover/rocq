@@ -220,15 +220,6 @@ let isRef c = match kind c with
   | Const _ | Ind _ | Construct _ | Var _ -> true
   | _ -> false
 
-let isRefX x c =
-  let open GlobRef in
-  match x, kind c with
-  | ConstRef c, Const (c', _) -> Constant.CanOrd.equal c c'
-  | IndRef i, Ind (i', _) -> Ind.CanOrd.equal i i'
-  | ConstructRef i, Construct (i', _) -> Construct.CanOrd.equal i i'
-  | VarRef id, Var id' -> Id.equal id id'
-  | _ -> false
-
 (* Destructs a de Bruijn index *)
 let destRel c = match kind c with
   | Rel n -> n

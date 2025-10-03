@@ -225,7 +225,7 @@ Check exists_true x `(Reflexive A R) y, x+y=0 -> forall z, R z z.
 End G.
 
 (* Allows recursive patterns for binders to be associative on the left *)
-Notation "!! x .. y # A #" := (.. (A,(forall x, True)) ..,(forall y, True)) (at level 200, x binder).
+Notation "!! x .. y # A #" := (.. (A,(forall x, True)) ..,(forall y, True)) (at level 0, x binder).
 Check !! a b : nat # True #.
 
 (* Examples where the recursive pattern refer several times to the recursive variable *)
@@ -233,6 +233,7 @@ Check !! a b : nat # True #.
 Notation "{{D  x , .. , y }}" := ((x,x), .. ((y,y),(0,0)) ..).
 Check {{D 1, 2 }}.
 
+#[warning="-closed-notation-not-level-0"]
 Notation "! x .. y # A #" :=
   ((forall x, x=x), .. ((forall y, y=y), A) ..)
   (at level 200, x binder).
@@ -241,12 +242,12 @@ Check ((forall x, x=0), nat). (* should not use the notation *)
 
 Notation "!!!! x .. y # A #" :=
   (((forall x, x=x),(forall x, x=0)), .. (((forall y, y=y),(forall y, y=0)), A) ..)
-  (at level 200, x binder).
+  (at level 0, x binder).
 Check !!!! a b : nat # True #.
 
 Notation "@@ x .. y # A # B #" :=
   ((forall x, .. (forall y, A) ..), (forall x, .. (forall y, B) ..))
-  (at level 200, x binder).
+  (at level 0, x binder).
 Check @@ a b : nat # a=b # b=a #.
 
 Notation "'exists_non_null' x .. y  , P" :=
@@ -392,7 +393,7 @@ Module Issue7731.
 
 Axiom (P : nat -> Prop).
 Parameter (X : nat).
-Notation "## @ E ^^^" := (P E) (at level 20, E at level 1, format "'[ ' ## '/' @ E '/' ^^^ ']'").
+Notation "## @ E ^^^" := (P E) (at level 0, E at level 1, format "'[ ' ## '/' @ E '/' ^^^ ']'").
 Notation "%" := X.
 
 Set Printing Width 7.

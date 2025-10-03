@@ -22,6 +22,7 @@ Sorts
    | _
    | @universe_expr
    universe_expr ::= @universe_name {? + @natural }
+   | @natural
 
 The types of types are called :gdef:`sorts <sort>`.
 
@@ -78,7 +79,7 @@ which appear in the syntax :n:`Type@{@universe}`.
 An :gdef:`algebraic universe` :math:`u` is either a variable,
 a successor of an algebraic universe (an expression :math:`u+1`),
 an upper bound of algebraic universes (an expression :math:`\max(u_1 ,...,u_n )`),
-or the base universe :math:`\Set`.
+or ground universe :math:`\mathbb{N}` (:math:`\Set` is legacy syntax for :math:`0`).
 
 A graph of constraints between the universe variables is maintained
 globally. To ensure the existence of a mapping of the universes to the

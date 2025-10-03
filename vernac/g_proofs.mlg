@@ -143,3 +143,10 @@ GRAMMAR EXTEND Gram
                   | "-" -> { ModeOutput } ] -> { l } ] ]
   ;
 END
+
+VERNAC COMMAND EXTEND OptimizeProof
+| ![ proof ] [ "Optimize" "Proof" ] => { Vernacextend.classify_as_proofstep } ->
+  { fun ~pstate -> Declare.Proof.compact pstate }
+| [ "Optimize" "Heap" ] => { Vernacextend.classify_as_proofstep } ->
+  { Gc.compact () }
+END

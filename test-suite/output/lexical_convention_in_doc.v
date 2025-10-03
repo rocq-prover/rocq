@@ -4,6 +4,7 @@ Set Printing All. Set Warnings "-prefix-incompatible-level".
    the inputs ``~ ~`` and ``~~`` generate different tokens *)
 Section TestLexer0.
 
+#[warning="-closed-notation-not-level-0"]
 Local Notation "~" := not.
 Local Notation "~~" := not.
 
@@ -16,6 +17,7 @@ End TestLexer0.
    then the two inputs are equivalent *)
 Section TestLexer1.
 
+#[warning="-closed-notation-not-level-0"]
 Local Notation "~" := not.
 
 Set Printing All.
@@ -29,6 +31,7 @@ End TestLexer1.
    not to cut the identifier-like subsequence ``ho``. *)
 Section TestLexer2.
 
+#[warning="-closed-notation-not-level-0"]
 Local Notation "~" := not.
 Local Notation "~_h" := (fun x => not (not x)).
 Local Notation "'_ho'" := False.
@@ -56,6 +59,7 @@ End TestLexer3.
    rule, i.e. as the token ``~_ho``. *)
 Section TestLexer4.
 
+#[warning="-closed-notation-not-level-0"]
 Local Notation "~" := not.
 Local Notation "~_h" := (fun x => not (not x)).
 Local Notation "'_ho'" := False.

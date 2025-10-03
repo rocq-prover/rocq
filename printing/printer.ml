@@ -1055,13 +1055,13 @@ struct
   let compare_axiom x y =
     match x,y with
     | Constant k1 , Constant k2 ->
-      Constant.CanOrd.compare k1 k2
+      Constant.UserOrd.compare k1 k2
     | Positive m1 , Positive m2
     | UIP m1, UIP m2 ->
-      MutInd.CanOrd.compare m1 m2
+      MutInd.UserOrd.compare m1 m2
     | Guarded k1 , Guarded k2
     | TypeInType k1, TypeInType k2 ->
-      GlobRef.CanOrd.compare k1 k2
+      GlobRef.UserOrd.compare k1 k2
     | Constant _, _ -> -1
     | _, Constant _ -> 1
     | Positive _, _ -> -1
@@ -1079,10 +1079,10 @@ struct
     | Axiom (k1,_) , Axiom (k2, _) -> compare_axiom k1 k2
     | Axiom _ , _ -> -1
     | _ , Axiom _ -> 1
-    | Opaque k1 , Opaque k2 -> Constant.CanOrd.compare k1 k2
+    | Opaque k1 , Opaque k2 -> Constant.UserOrd.compare k1 k2
     | Opaque _ , _ -> -1
     | _ , Opaque _ -> 1
-    | Transparent k1 , Transparent k2 -> Constant.CanOrd.compare k1 k2
+    | Transparent k1 , Transparent k2 -> Constant.UserOrd.compare k1 k2
 end
 
 module ContextObjectSet = Set.Make (OrderedContextObject)

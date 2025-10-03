@@ -59,6 +59,10 @@ Register false as core.bool.false.
 Inductive reflect (P : Prop) : bool -> Set :=
   | ReflectT : P -> reflect P true
   | ReflectF : ~ P -> reflect P false.
+
+#[global]
+Create HintDb bool.
+
 #[global]
 Hint Constructors reflect : bool.
 Arguments ReflectT : clear implicits.
@@ -116,6 +120,9 @@ Register andb_true_intro as core.bool.andb_true_intro.
 (** Interpretation of booleans as propositions *)
 
 Inductive eq_true : bool -> Prop := is_eq_true : eq_true true.
+
+#[global]
+Create HintDb eq_true.
 
 #[global]
 Hint Constructors eq_true : eq_true.

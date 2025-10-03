@@ -20,6 +20,8 @@ Axiom barrett_reduce_function_bundled : forall {params : BarrettParameters}
                                                (_ : @LargeT _ (@ops params)),
     @SmallT _ (@ops params).
 
+Create HintDb typeclass_instances discriminated.
+
 Global Instance ZZLikeOps e : ZLikeOps (f (S O) e)
   := { LargeT := nat ; SmallT := nat ; CarryAdd x y := y }.
 Definition SRep := nat.

@@ -32,6 +32,8 @@ type econstr
 type etypes = econstr
 type esorts
 type erelevance
+type einstance
+type 'a puniverses = 'a * einstance
 
 (** {5 Existential variables and unification states} *)
 
@@ -390,6 +392,8 @@ type side_effect_role =
 type side_effects = {
   seff_private : Safe_typing.private_constants;
   seff_roles : side_effect_role Cmap.t;
+  seff_univs : UState.named_universes_entry Cmap.t;
+  (* only used by Declare to register names for mono universes *)
 }
 
 val empty_side_effects : side_effects
@@ -571,14 +575,14 @@ val make_nonalgebraic_variable : evar_map -> Univ.Level.t -> evar_map
 
 val is_flexible_level : evar_map -> Univ.Level.t -> bool
 
-val normalize_universe_instance : evar_map -> UVars.Instance.t -> UVars.Instance.t
+val normalize_universe_instance : evar_map -> einstance -> einstance
 
 val set_leq_sort : evar_map -> esorts -> esorts -> evar_map
 val set_eq_sort : evar_map -> esorts -> esorts -> evar_map
 val set_eq_level : evar_map -> Univ.Level.t -> Univ.Level.t -> evar_map
 val set_leq_level : evar_map -> Univ.Level.t -> Univ.Level.t -> evar_map
 val set_eq_instances : ?flex:bool ->
-  evar_map -> UVars.Instance.t -> UVars.Instance.t -> evar_map
+  evar_map -> einstance -> einstance -> evar_map
 
 val set_eq_qualities : evar_map -> Sorts.Quality.t -> Sorts.Quality.t -> evar_map
 val set_above_prop : evar_map -> Sorts.Quality.t -> evar_map
@@ -641,15 +645,15 @@ val update_sigma_univs : UGraph.t -> evar_map -> evar_map
 val fresh_sort_in_quality : ?loc:Loc.t -> ?rigid:rigid
   -> evar_map -> UnivGen.QualityOrSet.t -> evar_map * esorts
 val fresh_constant_instance : ?loc:Loc.t -> ?rigid:rigid
-  -> env -> evar_map -> Constant.t -> evar_map * pconstant
+  -> env -> evar_map -> Constant.t -> evar_map * Constant.t puniverses
 val fresh_inductive_instance : ?loc:Loc.t -> ?rigid:rigid
-  -> env -> evar_map -> inductive -> evar_map * pinductive
+  -> env -> evar_map -> inductive -> evar_map * inductive puniverses
 val fresh_constructor_instance : ?loc:Loc.t -> ?rigid:rigid
-  -> env -> evar_map -> constructor -> evar_map * pconstructor
+  -> env -> evar_map -> constructor -> evar_map * constructor puniverses
 val fresh_array_instance : ?loc:Loc.t -> ?rigid:rigid
-  -> env -> evar_map  -> evar_map * UVars.Instance.t
+  -> env -> evar_map  -> evar_map * einstance
 
-val fresh_global : ?loc:Loc.t -> ?rigid:rigid -> ?names:UVars.Instance.t -> env ->
+val fresh_global : ?loc:Loc.t -> ?rigid:rigid -> ?names:einstance -> env ->
   evar_map -> GlobRef.t -> evar_map * econstr
 
 (********************************************************************)
@@ -693,7 +697,7 @@ module MiniEConstr : sig
   end
 
   module EInstance : sig
-    type t
+    type t = einstance
     val make : UVars.Instance.t -> t
     val kind : evar_map -> t -> UVars.Instance.t
     val empty : t

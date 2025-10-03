@@ -64,6 +64,7 @@ type ('constr, 'types, 'r) ptype_error =
   | NumberBranches of ('constr, 'types) punsafe_judgment * int
   | IllFormedCaseParams
   | IllFormedBranch of 'constr * pconstructor * 'constr * 'constr
+  | BadProjType of ('constr, 'types) punsafe_judgment * Projection.t
   | Generalization of (Name.t * 'types) * ('constr, 'types) punsafe_judgment
   | ActualType of ('constr, 'types) punsafe_judgment * 'types
   | IncorrectPrimitive of (CPrimitives.op_or_type,'types) punsafe_judgment * 'types
@@ -131,6 +132,8 @@ val error_number_branches : env -> unsafe_judgment -> int -> 'a
 val error_ill_formed_branch : env -> constr -> pconstructor -> constr -> constr -> 'a
 
 val error_generalization : env -> Name.t * types -> unsafe_judgment -> 'a
+
+val error_bad_proj_type : env -> unsafe_judgment -> Projection.t -> 'a
 
 val error_actual_type : env -> unsafe_judgment -> types -> 'a
 

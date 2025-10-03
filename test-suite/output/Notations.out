@@ -121,7 +121,7 @@ fun x : option nat => match x with
 fun x : list ?T =>
 match x with
 | NIL => NONE3 (list ?T)
-| (_ :') t => SOME3 (list ?T) t
+| _ :' t => SOME3 (list ?T) t
 end
      : list ?T -> option (list ?T)
 where

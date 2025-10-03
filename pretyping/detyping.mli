@@ -76,4 +76,4 @@ module PrintingInductiveMake :
     val member_message : Pp.t -> bool -> Pp.t
     val field : string
     val title : string
-  end) -> Goptions.RefConvertArg with type t = inductive and module Set = Indset
+  end) -> Goptions.RefConvertArg with type t = inductive
