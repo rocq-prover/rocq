@@ -1719,9 +1719,22 @@ let rec vernac_interp_error_handler = function
   | Logic.RefinerError (env, sigma, e) ->
     explain_refiner_error env sigma e
   | Nametab.GlobalizationError q ->
-    str "The reference" ++ spc () ++ Libnames.pr_qualid q ++
+    (* XXX also add quickfix handler *)
+    let ppq = Libnames.string_of_qualid q in
+    let others =
+      (* for very small strings results are bad (eg "x not found, did you mean S") *)
+      if String.length ppq <= 2 then []
+      else
+        (* limit copied from rust (but the distance algorithm isn't exactly the same) *)
+        Nametab.XRefs.locate_upto ~limit:(max 1 (String.length ppq / 3)) q
+    in
+    let ppothers = if CList.is_empty others then mt()
+      else spc() ++ str "Did you mean" ++ spc() ++ pr_choice (fun (q',_) -> Libnames.pr_qualid q') others ++ str "?"
+    in
+    str "The reference" ++ spc () ++ str ppq ++
     spc () ++ str "was not found" ++
-    spc () ++ str "in the current" ++ spc () ++ str "environment."
+    spc () ++ str "in the current" ++ spc () ++ str "environment." ++
+    ppothers
   | Tacticals.FailError (i,s) ->
     let s = Lazy.force s in
     str "Tactic failure" ++
