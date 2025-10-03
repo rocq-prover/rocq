@@ -90,11 +90,11 @@ end
 module type RefConvertArg = sig
   type t
   module Set : CSig.USetS with type elt = t
-  val encode : Environ.env -> Libnames.qualid -> t
+  val encode : Environ.env -> Libnames.qualid -> state:_ Summary.Interp.read -> t
   val subst : Mod_subst.substitution -> t -> t
 
   val check_local : Libobject.locality -> t -> unit
-  val discharge : t -> t
+  val discharge : t -> state:_ Summary.Interp.read -> t
   (** Elements which cannot be discharged should only be added with Local *)
 
   val printer : t -> Pp.t
@@ -106,9 +106,9 @@ end
 module MakeRefTable :
   functor (A : RefConvertArg) ->
 sig
-  val v : unit -> A.Set.t
-  val active : A.t -> bool
-  val set : Libobject.locality -> A.t -> bool -> unit
+  val v : state:_ Summary.Interp.read -> A.Set.t
+  val active : A.t -> state:_ Summary.Interp.read -> bool
+  val set : Libobject.locality -> A.t -> bool -> state:Summary.Interp.readwrite -> unit
 end
 
 
