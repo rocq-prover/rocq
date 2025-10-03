@@ -21,6 +21,7 @@ Module Binder.
 
 Ltac2 Type relevance_var.
 Ltac2 Type relevance := [ Relevant | Irrelevant | RelevanceVar (relevance_var) ].
+(** This type will eventually be removed in favour of Relevance.t as an abstract type. *)
 
 Ltac2 @ external make : ident option -> constr -> binder := "rocq-runtime.plugins.ltac2" "constr_binder_make".
 (** Create a binder given the name and the type of the bound variable.
@@ -39,6 +40,27 @@ Ltac2 @ external relevance : binder -> relevance := "rocq-runtime.plugins.ltac2"
 (** Retrieve the relevance of a binder. *)
 
 End Binder.
+
+Module Relevance.
+
+  (** Type of proof relevance: relevant, irrelevant or a variable
+      (either locally rigid variable from sort polymorphism, or
+      unification variable from elaboration). *)
+  Ltac2 Type t := Binder.relevance.
+
+  (** Test equality of relevances in the current proof state
+      (the proof state matters for unification sort variables,
+      which may be instantiated). *)
+  Ltac2 @external equal : t -> t -> bool
+    := "rocq-runtime.plugins.ltac2" "constr_relevance_equal".
+
+  Ltac2 @external relevant : t
+    := "rocq-runtime.plugins.ltac2" "constr_relevance_relevant".
+
+  Ltac2 @external irrelevant : t
+    := "rocq-runtime.plugins.ltac2" "constr_relevance_irrelevant".
+
+End Relevance.
 
 Module Unsafe.
 
@@ -108,7 +130,7 @@ Ltac2 Type kind := [
   (** A name of an inductive or coinductive type. [Ind ind ui] is [ind@[ui]] *)
   | Constructor (constructor, instance)
   (** A constructor of an inductive type. [Constructor c ui] is [c@[ui]]. *)
-  | Case (case, (constr * Binder.relevance), case_invert, constr, constr array)
+  | Case (case, (constr * Relevance.t), case_invert, constr, constr array)
   (** [Case case (fun u1 u2 ... un v => rettype, _) ci scrut
           [|(fun x1 x2 => t1);(fun y1 y2 y3 => t2));...|]]
       corresponds to
@@ -135,7 +157,7 @@ Ltac2 Type kind := [
           (...)
        |]] *)
   | CoFix (int, binder array, constr array)
-  | Proj (projection, Binder.relevance, constr)
+  | Proj (projection, Relevance.t, constr)
   (** [Proj p r c] is [c.(p)]. The relevance is the relevance of the whole term. *)
   | Uint63 (uint63)
   | Float (float)
