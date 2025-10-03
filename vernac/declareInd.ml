@@ -184,7 +184,9 @@ let { Goptions.get = default_prop_dep_elim } =
 
 type default_dep_elim = DefaultElim | PropButDepElim
 
-let declare_mutual_inductive_with_eliminations ?typing_flags ?(indlocs=[]) ?default_dep_elim mie ubinders impls =
+type declare_schemes = No | Default
+
+let declare_mutual_inductive_with_eliminations ?typing_flags ?(indlocs=[]) ?default_dep_elim mie ubinders impls ~schemes =
   (* spiwack: raises an error if the structure is supposed to be non-recursive,
         but isn't *)
   begin match mie.mind_entry_finite with
@@ -240,8 +242,12 @@ let declare_mutual_inductive_with_eliminations ?typing_flags ?(indlocs=[]) ?defa
   Flags.if_verbose Feedback.msg_info (minductive_message names);
   let indlocs = List.map fst indlocs in
   let locmap = Ind_tables.Locmap.make mind indlocs in
-  if mie.mind_entry_private == None
-  then Indschemes.declare_default_schemes mind ~locmap;
+  let () = match schemes with
+    | No -> ()
+    | Default ->
+      if Option.has_some mie.mind_entry_private then ()
+      else Indschemes.declare_default_schemes mind ~locmap
+  in
   mind
 
 module Internal =

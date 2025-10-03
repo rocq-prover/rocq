@@ -1035,6 +1035,11 @@ let private_ind =
   | Some () -> return true
   | None -> return false
 
+let schemes_attr =
+  let values = let open DeclareInd in [("default", Default); ("no", No)] in
+  Attributes.key_value_attribute ~key:"schemes" ?empty:None ~values
+  |> Attributes.Notations.map (Option.default DeclareInd.Default)
+
 (** Flag governing use of primitive projections. Disabled by default. *)
 let { Goptions.get = primitive_flag } =
   Goptions.declare_bool_option_and_ref
@@ -1143,7 +1148,7 @@ let preprocess_defclass ~atts udecl (id, bl, c, l) =
   in
   let flags = {
     (* flags which don't matter for definitional classes *)
-    ComInductive.template=None; cumulative=false; finite=BiFinite;
+    ComInductive.template=None; cumulative=false; finite=BiFinite; schemes=No;
     (* real flags *)
     poly; mode;
   }
@@ -1187,16 +1192,18 @@ let preprocess_record ~atts udecl kind indl =
     | Class _ -> mode_attr
     | _ -> Notations.return None
   in
-  let ((template, (poly, cumulative)), primitive_proj), mode =
+  let (((template, (poly, cumulative)), primitive_proj), mode), schemes =
     Attributes.(
       parse Notations.(
           template
           ++ polymorphic_cumulative
-          ++ primitive_proj ++ hint_mode_attr)
+          ++ primitive_proj
+          ++ hint_mode_attr
+          ++ schemes_attr)
         atts)
   in
   let finite = finite_of_kind kind in
-  let flags = { ComInductive.template; cumulative; poly; finite; mode } in
+  let flags = { ComInductive.template; cumulative; poly; finite; mode; schemes } in
   let parse_record_field_attr (x, f) =
     let attr =
       let rev = match f.rfu_coercion with
@@ -1253,16 +1260,19 @@ let preprocess_inductive ~atts udecl kind indl =
     | Class _ -> mode_attr
     | _ -> Notations.return None
   in
-  let (((template, (poly, cumulative)), private_ind), typing_flags), mode =
+  let ((((template, (poly, cumulative)), private_ind), typing_flags), mode), schemes =
     Attributes.(
       parse Notations.(
           template
           ++ polymorphic_cumulative
-          ++ private_ind ++ typing_flags ++ hint_mode_attr)
+          ++ private_ind
+          ++ typing_flags
+          ++ hint_mode_attr
+          ++ schemes_attr)
         atts)
   in
   let finite = finite_of_kind kind in
-  let flags = { ComInductive.template; cumulative; poly; finite; mode } in
+  let flags = { ComInductive.template; cumulative; poly; finite; mode; schemes } in
   let unpack (((_, id) , bl, c, decl), ntn) = match decl with
     | Constructors l -> (id, bl, c, l), ntn
     | RecordDecl _ -> assert false (* ruled out above *)

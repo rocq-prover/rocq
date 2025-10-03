@@ -128,9 +128,9 @@ let pr_possible_values ~values =
   Pp.(str "{" ++ prlist_with_sep pr_comma str (List.map fst values) ++ str "}")
 
 (** [key_value_attribute ~key ~default ~values] parses a attribute [key=value]
-  with possible [key] [value] in [values], [default] is for compatibility for users
-  doing [qualif(key)] which is parsed as [qualif(key=default)] *)
-let key_value_attribute ~key ~default ~(values : (string * 'a) list) : 'a option attribute =
+  with possible [key] [value] in [values], [empty] is for compatibility for users
+  doing [qualif(key)] which is parsed as [qualif(key=empty)] *)
+let key_value_attribute ~key ?empty ~(values : (string * 'a) list) : 'a option attribute =
   let parser ?loc = function
     | Some v ->
       CErrors.user_err ?loc Pp.(str "key '" ++ str key ++ str "' has been already set.")
@@ -145,8 +145,8 @@ let key_value_attribute ~key ~default ~(values : (string * 'a) list) : 'a option
                     str "use one of " ++ pr_possible_values ~values)
             | value -> value
           end
-        | VernacFlagEmpty ->
-          default
+        | VernacFlagEmpty when Option.has_some empty ->
+          Option.get empty
         | err ->
           CErrors.user_err ?loc
             Pp.(str "Invalid syntax " ++ pr_vernac_flag_r (key, err) ++ str ", try "
@@ -157,7 +157,7 @@ let key_value_attribute ~key ~default ~(values : (string * 'a) list) : 'a option
 
 let bool_attribute ~name : bool option attribute =
   let values = ["yes", true; "no", false] in
-  key_value_attribute ~key:name ~default:true ~values
+  key_value_attribute ~key:name ~empty:true ~values
 
 (* Variant of the [bool] attribute with only two values (bool has three). *)
 let qualid_is_this_ident fp id =
