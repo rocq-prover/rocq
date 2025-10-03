@@ -97,7 +97,7 @@ let app_poly_sort b =
 let find_class_proof proof_type proof_method env evars carrier relation =
   try
     let evars, goal = app_poly_check env evars proof_type [| carrier ; relation |] in
-    let evars', c = Class_tactics.resolve_one_typeclass env (goalevars evars) goal in
+    let evars', c = Class_tactics.resolve_one_typeclass None env (goalevars evars) goal in
       if extends_undefined (goalevars evars) evars' then raise Not_found
       else app_poly_check env (evars',cstrevars evars) proof_method [| carrier; relation; c |]
   with e when CErrors.noncritical e -> raise Not_found
@@ -450,7 +450,7 @@ end) = struct
               let (evars, evset), inst =
                 app_poly env' (sigma,Evar.Set.empty)
                   rewrite_relation_class [| ty1; equiv |] in
-              let sigma, _ = Class_tactics.resolve_one_typeclass env' evars inst in
+              let sigma, _ = Class_tactics.resolve_one_typeclass None env' evars inst in
               (* We check that the relation is homogeneous *after* launching resolution,
                  as this convertibility test might be expensive in general (e.g. this
                  slows down mathcomp-odd-order). *)
@@ -1869,7 +1869,7 @@ let default_morphism env sigma sign m =
     PropGlobal.build_signature (sigma, Evar.Set.empty) env t (fst sign) (snd sign)
   in
   let sigma, morph = app_poly_check env sigma PropGlobal.proper_type [| t; sign; m |] in
-  let sigma, mor = Class_tactics.resolve_one_typeclass env (goalevars sigma) morph in
+  let sigma, mor = Class_tactics.resolve_one_typeclass None env (goalevars sigma) morph in
   let sigma, proj = proper_projection env sigma mor morph in
   sigma, mor, proj
 
