@@ -13,7 +13,6 @@ open Pp
 open CErrors
 open Util
 open Names
-open Nameops
 open Constr
 open Context
 open Termops
@@ -208,6 +207,8 @@ let rewrite_keyed_unif_flags = {
   resolve_evars = false
 }
 
+let rewrite_db = "rewrite_instances"
+
 let tclNOTSAMEGOAL tac =
   let goal gl = Proofview.Goal.goal gl in
   Proofview.Goal.enter begin fun gl ->
@@ -247,7 +248,7 @@ let elim_wrapper cls rwtac =
       Proofview.tclZERO ~info e
     end
 
-let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r elim =
+let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r elim indargs =
   (* Ad hoc asymmetric general_elim_clause *)
   let general_elim_clause0 rew =
     let rewrite_elim =
@@ -262,7 +263,7 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
       let flags = make_flags frzevars sigma flags newevars in
       let metas = Clenv.clenv_meta_list rew in
       let submetas = (Clenv.clenv_arguments rew, metas) in
-      general_elim_clause with_evars flags cls (submetas, c, Clenv.clenv_type rew) elim
+      general_elim_clause with_evars flags cls (submetas, c, Clenv.clenv_type rew) elim indargs
       end
     in
     Proofview.Unsafe.tclEVARS (Clenv.clenv_evd rew) <*>
@@ -283,8 +284,7 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
     | Some id -> pf_get_hyp_typ id gl
     in
     let ty = it_mkProd_or_LetIn (applist (eqn, args)) ctx in
-    let eqclause = Clenv.make_clenv_binding env sigma (c, ty) l in
-    let try_clause (metas, evd') =
+    let eqclause = Clenv.make_clenv_binding env sigma (c, ty) l in    let try_clause (metas, evd') =
       let clenv = Clenv.update_clenv_evd eqclause evd' metas in
       let clenv = Clenv.clenv_pose_dependent_evars ~with_evars:true clenv in
       side_tac (general_elim_clause0 clenv) tac
@@ -311,79 +311,9 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
 
 let (forward_general_setoid_rewrite_clause, general_setoid_rewrite_clause) = Hook.make ()
 
-(* Do we have a JMeq instance on twice the same domains ? *)
-
-let jmeq_same_dom env sigma (rels, eq, args) =
-  let env = push_rel_context rels env in
-  match args with
-    | [dom1; _; dom2;_] -> is_conv env sigma dom1 dom2
-    | _ -> false
-
-let eq_elimination_ref l2r sort =
-  let open UnivGen.QualityOrSet in
-  let name =
-    if l2r then
-      match sort with
-      | Qual (QConstant QProp) -> "core.eq.ind_r"
-      | Qual (QConstant QSProp) -> "core.eq.sind_r"
-      | Set | Qual (QConstant QType | QVar _) -> "core.eq.rect_r"
-    else
-      match sort with
-      | Qual (QConstant QProp) -> "core.eq.ind"
-      | Qual (QConstant QSProp) -> "core.eq.sind"
-      | Set | Qual (QConstant QType | QVar _) -> "core.eq.rect"
-  in
-  Rocqlib.lib_ref_opt name
-
-(* find_elim determines which elimination principle is necessary to
-   eliminate lbeq on sort_of_gl. *)
-
-let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
-  Proofview.Goal.enter_one begin fun gl ->
-  let env = Proofview.Goal.env gl in
-  let sigma = project gl in
-  let is_global_exists gr c = match Rocqlib.lib_ref_opt gr with
-    | Some gr -> isRefX env sigma gr c
-    | None -> false
-  in
-  let inccl = Option.is_empty cls in
-  let is_eq = is_global_exists "core.eq.type" hdcncl in
-  let is_jmeq = is_global_exists "core.JMeq.type" hdcncl && jmeq_same_dom env sigma t in
-  if (is_eq || is_jmeq) && not dep
-  then
-    let sort = elimination_sort_of_clause cls gl in
-    let c =
-      match EConstr.kind sigma hdcncl with
-      | Ind (ind_sp,u) ->
-        begin match lft2rgt, cls with
-        | Some true, None
-        | Some false, Some _ ->
-          begin match if is_eq then eq_elimination_ref true sort else None with
-          | Some r -> destConstRef r
-          | None ->
-             let c1 = destConstRef (Elimschemes.lookup_eliminator env ind_sp sort) in
-             let mp,l = KerName.repr (Constant.canonical c1) in
-             let l' = Label.of_id (add_suffix (Label.to_id l) "_r")  in
-             let c1' = Global.constant_of_delta_kn (KerName.make mp l') in
-             if not (Environ.mem_constant c1' (Global.env ())) then
-               user_err
-                 (str "Cannot find rewrite principle " ++ Label.print l' ++ str ".");
-             c1'
-          end
-        | _ ->
-           begin match if is_eq then eq_elimination_ref false sort else None with
-           | Some r -> destConstRef r
-           | None -> destConstRef (Elimschemes.lookup_eliminator env ind_sp sort)
-           end
-        end
-      | _ ->
-          (* cannot occur since we checked that we are in presence of
-             Logic.eq or Jmeq just before *)
-        assert false
-    in
-    Proofview.tclUNIT c
-  else
-  let scheme_name = match dep, lft2rgt, inccl with
+(* scheme_name returns the generic elimination principle to be used, dependending on dep(endency), in conclusion or not and left-to-right *)
+let scheme_name dep lft2rgt inccl =
+  match dep, lft2rgt, inccl with
     (* Non dependent case *)
     | false, Some true, true -> rew_l2r_scheme_kind
     | false, Some true, false -> rew_r2l_scheme_kind
@@ -394,10 +324,134 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
     | true, Some true, false -> rew_l2r_forward_dep_scheme_kind
     | true, _, true -> rew_r2l_dep_scheme_kind
     | true, _, false -> rew_r2l_forward_dep_scheme_kind
+
+(* has_J_ref returns the name of the class to be used, dependending on dep(endency), in conclusion or not and left-to-right *)
+(* The integer encodes the position of the equality argument in the elimination principle, starting from 0 *)
+let has_J_ref dep lft2rgt inccl =
+  match dep, lft2rgt, inccl with
+    (* Non dependent case *)
+    | false, Some true, true -> Rocqlib.lib_ref "rocq.core.Has_Leibniz_r" , 5
+    | false, Some true, false -> Rocqlib.lib_ref "rocq.core.Has_Leibniz" , 5
+    | false, _, false -> Rocqlib.lib_ref "rocq.core.Has_Leibniz_r" , 5
+    | false, _, true -> Rocqlib.lib_ref "rocq.core.Has_Leibniz" , 5
+    (* Dependent case *)
+    | true, Some true, true -> Rocqlib.lib_ref "rocq.core.Has_J_r" , 5
+    | true, Some true, false -> Rocqlib.lib_ref "rocq.core.Has_J_r_forward" , 4
+    | true, _, true -> Rocqlib.lib_ref "rocq.core.Has_J" , 5
+    | true, _, false -> Rocqlib.lib_ref "rocq.core.Has_J_forward" , 4
+
+let level_init l sigma =
+  let rec aux l sigma =
+    match l with
+    | [] -> sigma , []
+    | levels :: ls ->
+      let sigma , new_level = begin
+          match Univ.Universe.level levels with
+          | Some level -> (sigma , level)
+          | None -> Evd.new_univ_level_variable UState.univ_flexible sigma
+      end in
+      let sigma , r = aux ls sigma in
+      sigma , new_level :: r
+in aux l sigma
+
+let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
+  let has_elim_ref , indarg = has_J_ref dep l2r inccl in
+  let has_refl_ref = Rocqlib.lib_ref "rocq.core.Has_refl" in
+  let c_quality = ESorts.quality sigma c_sort in
+  let e_quality = ESorts.quality sigma e_sort in
+  let p_quality = ESorts.quality sigma p_sort in
+  let qs = [ c_quality; e_quality; p_quality ] in
+  let c_level = Sorts.univ_of_sort (ESorts.kind sigma c_sort) in
+  let e_level = Sorts.univ_of_sort (ESorts.kind sigma e_sort) in
+  let p_level = Sorts.univ_of_sort (ESorts.kind sigma p_sort) in
+  let sigma , univs = level_init [ c_level; e_level; p_level ] sigma in
+  let names = EInstance.make @@ UVars.Instance.of_array (Array.of_list qs, Array.of_list univs) in
+  let eta_expanse name typ f =
+      let body = EConstr.mkApp (Vars.lift 1 f , [| mkRel 1 |] ) in
+      EConstr.mkLambda (EConstr.nameR name, typ , body)
   in
-  match EConstr.kind sigma hdcncl with
-  | Ind (ind,u) -> find_scheme scheme_name ind
-  | _ -> assert false
+  (* This patch is to handle template poly equality with carrier in Prop, because of cumulatitivty of Prop into Type *)
+  let c_type = EConstr.mkSort (ESorts.make (Sorts.make c_quality (Univ.Universe.make (List.hd univs)))) in
+  let eq = eta_expanse (Id.of_string "A") c_type eq in
+  let sigma , has_J_class = Evd.fresh_global ~names env sigma has_elim_ref in
+  if dep then
+    let has_refl_names =
+          EInstance.make @@ UVars.Instance.of_array (Array.of_list (List.firstn 2 qs), Array.of_list (List.firstn 2 univs)) in
+    let sigma , has_refl_class = Evd.fresh_global ~names:has_refl_names env sigma has_refl_ref in
+    let sigma , apprefl = Typing.checked_appvect env sigma has_refl_class [| eq |] in
+    let sigma , has_refl = Evarutil.new_evar ~typeclass_candidate:true env sigma apprefl in
+    let sigma , app = Typing.checked_appvect env sigma has_J_class [| eq; has_refl |] in
+    let sigma , _ty = Typing.type_of env sigma app in
+    (sigma, (app, AtPosition indarg))
+  else
+    let sigma , app = Typing.checked_appvect env sigma has_J_class [| eq |] in
+    let sigma , _ty = Typing.type_of env sigma app in
+    (sigma , (app, AtPosition indarg))
+
+let lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+  let sigma, (query,indarg) = lookup_eq_eliminator env sigma eq
+      ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort in
+  let db = Hints.searchtable_map rewrite_db in
+  let (sigma , c) = Class_tactics.resolve_one_typeclass ~db env sigma query in
+  let hd , _ = EConstr.decompose_app sigma c in
+  let c_name , _ = Constr.destConst (EConstr.to_constr sigma hd) in
+  let c = Reductionops.whd_const c_name env sigma c in
+  ((sigma , c), indarg)
+
+let lookup_eq_eliminator_tac env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+  try
+    lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
+  with Not_found -> user_err Pp.(
+      str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
+      str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
+      str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
+
+let eq_eliminator env sigma eq ?(dep=false) ?(inccl=true) l2r ~c_sort ~e_sort ~p_sort =
+  try let ((sigma , c), indarg) = lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort in
+      Some ((sigma , c), indarg)
+  with Not_found -> None
+
+(* find_elim determines which elimination principle is necessary to
+   eliminate lbeq on sort_of_gl. *)
+
+let find_elim lft2rgt dep cls (ctx, hdcncl, args) =
+  Proofview.Goal.enter_one begin fun gl ->
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let inccl = Option.is_empty cls in
+  let gen_elim =
+     match EConstr.kind sigma hdcncl with
+    | Ind (ind,u) ->
+      find_scheme (scheme_name dep lft2rgt inccl) ind >>= fun elim ->
+      (* env may have been modified by find_scheme *)
+      Proofview.tclEVARMAP >>= fun sigma ->
+      Proofview.tclENV >>= fun env ->
+      let (sigma, (c,u)) = Evd.fresh_constant_instance env sigma elim in
+      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (mkConstU (c,u), UnknownPosition)
+    | _ -> assert false
+  in
+  (* avoid to check instance for non homogenous equality types *)
+  if List.length args = 3
+  then
+    let env' = EConstr.push_rel_context ctx env in
+    let args = Array.of_list args in
+    let e_sort = Retyping.get_sort_of env' sigma (mkApp (hdcncl, args)) in
+    let c_sort = Retyping.get_sort_of env' sigma args.(0) in
+    let p_sort = match cls with
+      | None ->
+          Retyping.get_sort_of env sigma (Proofview.Goal.concl gl)
+      | Some id -> begin
+          let hyp = mkVar id in
+          let hyp_typ = Retyping.get_type_of env sigma hyp in
+          Retyping.get_sort_of env sigma hyp_typ
+        end
+    in
+    match eq_eliminator env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
+    | Some ((sigma, c),indarg) ->
+        Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (c,indarg)
+    | None -> gen_elim
+  else
+    gen_elim
   end
 
 let type_of_clause cls gl = match cls with
@@ -409,13 +463,9 @@ let leibniz_rewrite_ebindings_clause cls lft2rgt tac c ((_, hdcncl, _) as t) l w
   let evd = Proofview.Goal.sigma gl in
   let type_of_cls = type_of_clause cls gl in
   let dep = dep_proof_ok && dependent_no_evar evd c type_of_cls in
-  find_elim lft2rgt dep cls t >>= fun elim ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let (sigma, elim) = Evd.fresh_global env sigma (ConstRef elim) in
-  Proofview.Unsafe.tclEVARS sigma <*>
-  general_elim_clause with_evars frzevars tac cls c t l
-  (match lft2rgt with None -> false | Some b -> b) elim
+  find_elim lft2rgt dep cls t >>= fun (elim, indarg) ->
+      general_elim_clause with_evars frzevars tac cls c t l
+      (match lft2rgt with None -> false | Some b -> b) elim indarg
   end
 
 let adjust_rewriting_direction args lft2rgt =
@@ -767,7 +817,7 @@ let set_keep_equality = KeepEqualitiesTable.set
 
 let keep_head_inductive sigma c =
   (* Note that we do not weak-head normalize c before checking it is an
-     applied inductive, because [get_sort_quality_of] did not use to either.
+     applied inductive, because [get_sort_sort_of] did not use to either.
      As a matter of fact, if it reduces to an applied template inductive
      type but is not syntactically equal to it, it will fail to project. *)
   let _, hd = EConstr.decompose_prod sigma c in
@@ -989,6 +1039,7 @@ let rec build_discriminator env sigma true_0 false_0 pos c = function
       let subval = build_discriminator cnum_env sigma true_0 false_0 pos newc l in
       kont sigma subval false_0
 
+
 (* Note: discrimination could be more clever: if some elimination is
    not allowed because of a large impredicative constructor in the
    path (see allowed_sorts in find_positions), the positions could
@@ -1019,23 +1070,27 @@ let gen_absurdity id =
           absurd_term=False
 *)
 
-let ind_scheme_of_eq lbeq to_kind =
-  (* use ind rather than case by compatibility *)
-  let kind = Elimschemes.elim_scheme ~dep:false ~to_kind in
-  find_scheme kind (destIndRef lbeq.eq) >>= fun c ->
-  Proofview.tclUNIT (GlobRef.ConstRef c)
-
-
-let discrimination_pf e (lbeq,s,(t,t1,t2)) discriminator p_quality =
+let discrimination_pf e (eq,_,s,(t,t1,t2)) discriminator p_sort =
   build_rocq_I () >>= fun i ->
-  ind_scheme_of_eq lbeq (UnivGen.QualityOrSet.of_quality p_quality) >>= fun eq_elim ->
-    pf_constr_of_global eq_elim >>= fun eq_elim ->
+  Proofview.Goal.enter_one begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let ((sigma, c),_) = lookup_eq_eliminator_tac env sigma eq
+      ~dep:false ~inccl:true ~l2r:(Some false)
+      ~e_sort:s
+      ~c_sort:(Retyping.get_sort_of env sigma t)
+      ~p_sort in
+    Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT c >>= fun eq_elim ->
     Proofview.tclEVARMAP >>= fun sigma ->
-    Proofview.tclUNIT
-       (applist (eq_elim, [t;t1;mkNamedLambda sigma (make_annot e ERelevance.relevant) t discriminator;i;t2]))
+    let term =
+      (applist (eq_elim, [t;t1;mkNamedLambda sigma (make_annot e ERelevance.relevant) t discriminator;i;t2]))
+    in
+    let sigma, _ = Typing.solve_evars env sigma term in
+    Proofview.Unsafe.tclEVARS sigma >>= fun _ -> Proofview.tclUNIT term
+  end
 
 type equality = {
-  eq_data  : (rocq_eq_data * ESorts.t * (EConstr.t * EConstr.t * EConstr.t));
+  eq_data  : ( EConstr.constr *  GlobRef.t * ESorts.t * (EConstr.t * EConstr.t * EConstr.t));
   (* equality data + A : Type, t1 : A, t2 : A *)
   eq_term : EConstr.t;
   (* term [M : R A t1 t2] where [R] is the equality from above *)
@@ -1045,11 +1100,11 @@ type equality = {
 
 let eq_baseid = Id.of_string "e"
 
-let discr_positions env sigma { eq_data = (_, s, (t, _, _)) as eq_data; eq_term = v; eq_evar = evs } cpath dirn =
+let discr_positions env sigma { eq_data = (_, _ , s, (t, _, _)) as eq_data; eq_term = v; eq_evar = evs } cpath dirn =
   build_rocq_True () >>= fun true_0 ->
   build_rocq_False () >>= fun false_0 ->
   let false_ty = Retyping.get_type_of env sigma false_0 in
-  let false_kind = ESorts.quality sigma (Retyping.get_sort_of env sigma false_0) in
+  let false_kind = Retyping.get_sort_of env sigma false_0 in
   let e = next_ident_away eq_baseid (vars_of_env env) in
   let e_env = push_named (Context.Named.Declaration.LocalAssum (make_annot e ERelevance.relevant,t)) env in
 
@@ -1069,7 +1124,7 @@ let discr_positions env sigma { eq_data = (_, s, (t, _, _)) as eq_data; eq_term 
       [onLastHypId gen_absurdity; Tactics.exact_check pf <*> Proofview.Unsafe.tclNEWGOALS evs]
 
 let discrEq eq =
-  let { eq_data = (_, s, (_, t1, t2)) } = eq in
+  let { eq_data = (_, _ , s, (_, t1, t2)) } = eq in
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
@@ -1106,7 +1161,7 @@ let onEquality with_evars tac (c,lbindc) =
   let goals = List.map_filter filter eq_clause.EClause.cl_holes in
   let cl_args = Array.map_of_list (fun h -> h.EClause.hole_evar) eq_clause.EClause.cl_holes in
   let (eq,u,eq_args) = find_this_eq_data_decompose env sigma eq_clause.cl_concl in
-  let eq = { eq_data = (eq, s, eq_args); eq_term = mkApp (c, cl_args); eq_evar = goals } in
+  let eq = { eq_data = (EConstr.mkIndU (Globnames.destIndRef eq.eq, u), eq.congr, s, eq_args); eq_term = mkApp (c, cl_args); eq_evar = goals } in
   Proofview.Unsafe.tclEVARS sigma <*> tac eq
   end
 
@@ -1281,7 +1336,7 @@ let simplify_args env sigma t =
     | _ -> t
 
 let inject_at_positions env sigma l2r eq posns tac =
-  let { eq_data = (eq, s, (t,t1,t2)); eq_term = v; eq_evar = evs } = eq in
+  let { eq_data = (eq, congr, s, (t,t1,t2)); eq_term = v; eq_evar = evs } = eq in
   let e = next_ident_away eq_baseid (vars_of_env env) in
   let e_env = push_named (LocalAssum (make_annot e ERelevance.relevant,t)) env in
   let evdref = ref sigma in
@@ -1290,7 +1345,7 @@ let inject_at_positions env sigma l2r eq posns tac =
       (* arbitrarily take t1' as the injector default value *)
       let sigma, (injbody,resty) = build_injector e_env !evdref t1' (mkVar e) cpath in
       let injfun = mkNamedLambda sigma (make_annot e ERelevance.relevant) t injbody in
-      let sigma,congr = Evd.fresh_global env sigma eq.congr in
+      let sigma,congr = Evd.fresh_global env sigma congr in
       (* pf : eq t t1 t2 -> eq resty (injfun t1) (injfun t2) *)
       let mk c = Retyping.get_judgment_of env sigma c in
       let args = Array.map mk [|t; resty; injfun; t1; t2|] in
@@ -1322,9 +1377,10 @@ let () = CErrors.register_handler (function
   | NothingToInject -> Some (Pp.str "Nothing to inject.")
   | _ -> None)
 
+
 let injEqThen keep_proofs tac l2r eql =
   Proofview.Goal.enter begin fun gl ->
-  let { eq_data = (eq, s, (t,t1,t2)) } = eql in
+  let { eq_data = (eq, _ , s, (t,t1,t2)) } = eql in
   let sigma = Proofview.Goal.sigma gl in
   let env = Proofview.Goal.env gl in
   let goalsort = Retyping.get_sort_of env sigma (Proofview.Goal.concl gl) in
@@ -1396,7 +1452,7 @@ let injConcl flags ?injection_in_context () = injClause flags ?injection_in_cont
 let injHyp flags ?injection_in_context clear_flag id = injClause flags ?injection_in_context None false (Some (clear_flag,ElimOnIdent CAst.(make id)))
 
 let decompEqThen keep_proofs ntac eq =
-  let { eq_data = (_, eqsort, (_,t1,t2)) } = eq in
+  let { eq_data = (_, _ , eqsort, (_,t1,t2)) } = eq in
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
@@ -1422,12 +1478,12 @@ let dEq ~keep_proofs with_evars =
 let dEqThen ~keep_proofs with_evars ntac where =
   dEqThen0 ~keep_proofs with_evars (fun _ _ n -> ntac n) where
 
-let intro_decomp_eq tac (eq, _, data) (c, t) =
+let intro_decomp_eq tac (eq, congr, _, data) (c, t) =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let s = Retyping.get_sort_of env sigma t in
-    let eq = { eq_data = (eq, s, data); eq_term = c; eq_evar = [] } in
+    let eq = { eq_data = (eq, congr , s, data); eq_term = c; eq_evar = [] } in
     decompEqThen !keep_proof_equalities_for_injection (fun _ -> tac) eq
   end
 

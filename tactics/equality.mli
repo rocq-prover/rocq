@@ -27,7 +27,12 @@ type conditions =
   | FirstSolved (* Use the first match whose side-conditions are solved *)
   | AllMatches (* Rewrite all matches whose side-conditions are solved *)
 
-val eq_elimination_ref : orientation -> UnivGen.QualityOrSet.t -> GlobRef.t option
+val eq_eliminator : Environ.env -> Evd.evar_map -> Evd.econstr ->
+  ?dep:orientation -> ?inccl:orientation -> orientation option ->
+  c_sort:ESorts.t ->
+  e_sort:ESorts.t ->
+  p_sort:ESorts.t ->
+  ((Evd.evar_map * Evd.econstr) * equality_position_on_elim) option
 
 (* Equivalent to [general_rewrite l2r] *)
 val rewriteLR : constr -> unit Proofview.tactic
