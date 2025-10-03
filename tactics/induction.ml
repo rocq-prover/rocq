@@ -1385,7 +1385,7 @@ let has_generic_occurrences_but_goal cls id env sigma ccl =
   (* TODO: whd_evar of goal *)
   (cls.concl_occs != NoOccurrences || not (occur_var env sigma id ccl))
 
-let induction_gen clear_flag isrec with_evars elim
+let induction_gen ~clear_flag ~isrec ~with_evars elim
     ((_pending,(c,lbind)),(eqname,names) as arg) cls =
   let inhyps = match cls with
   | Some {onhyps=Some hyps} -> List.map (fun ((_,id),_) -> id) hyps
@@ -1497,7 +1497,7 @@ let induction_destruct isrec with_evars (lc,elim) =
     | _ ->
       (* standard induction *)
       onOpenInductionArg env sigma
-      (fun clear_flag c -> induction_gen clear_flag isrec with_evars elim (c,allnames) cls) c
+      (fun clear_flag c -> induction_gen ~clear_flag ~isrec ~with_evars elim (c,allnames) cls) c
     end
   | _ ->
     Proofview.Goal.enter begin fun gl ->
@@ -1514,13 +1514,13 @@ let induction_destruct isrec with_evars (lc,elim) =
       (* TODO *)
       Tacticals.tclTHEN
         (onOpenInductionArg env sigma (fun clear_flag a ->
-          induction_gen clear_flag isrec with_evars None (a,b) cl) a)
+          induction_gen ~clear_flag ~isrec ~with_evars None (a,b) cl) a)
         (Tacticals.tclMAP (fun (a,b,cl) ->
           Proofview.Goal.enter begin fun gl ->
           let env = Proofview.Goal.env gl in
           let sigma = Tacmach.project gl in
           onOpenInductionArg env sigma (fun clear_flag a ->
-            induction_gen clear_flag false with_evars None (a,b) cl) a
+            induction_gen ~clear_flag ~isrec:false ~with_evars None (a,b) cl) a
           end) l)
     | Some elim ->
       (* Several induction hyps with induction scheme *)
@@ -1543,9 +1543,9 @@ let induction_destruct isrec with_evars (lc,elim) =
     end
 
 let induction ev clr c l e =
-  induction_gen clr true ev e
+  induction_gen ~clear_flag:clr ~isrec:true ~with_evars:ev e
     ((None,(c,NoBindings)),(None,l)) None
 
 let destruct ev clr c l e =
-  induction_gen clr false ev e
+  induction_gen ~clear_flag:clr ~isrec:false ~with_evars:ev e
     ((None,(c,NoBindings)),(None,l)) None
