@@ -18,7 +18,7 @@ open UVars
 let template_default_univs = Summary.ref ~name:"template default univs" Univ.Level.Set.empty
 
 let cache_template_default_univs us =
-  template_default_univs := Univ.Level.Set.union !template_default_univs us
+  CRef.(template_default_univs := Univ.Level.Set.union !template_default_univs us)
 
 let template_default_univs_obj =
   Libobject.declare_object {
@@ -36,7 +36,7 @@ let add_template_default_univs kn =
     let _, us = UVars.Instance.levels template.template_defaults in
     Lib.add_leaf (template_default_univs_obj us)
 
-let template_default_univs () = !template_default_univs
+let template_default_univs () = CRef.(!template_default_univs)
 
 module UnivFlex = UnivFlex
 

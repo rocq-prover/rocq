@@ -169,7 +169,7 @@ let error_ldots_var ?loc =
 (* Pre-computing the implicit arguments and arguments scopes needed   *)
 (* for interpretation *)
 
-let parsing_explicit = ref false
+let parsing_explicit = CRef.ref false
 
 let empty_internalization_env = Id.Map.empty
 
@@ -2605,7 +2605,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
 
   and intern_impargs head env allimps subscopes args =
     let eargs, rargs = extract_explicit_arg allimps args in
-    if !parsing_explicit then
+    if CRef.(!parsing_explicit) then
       if List.is_empty eargs then intern_args env subscopes rargs
       else user_err Pp.(str "Arguments given by name or position not supported in explicit mode.")
     else

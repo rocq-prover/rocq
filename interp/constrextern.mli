@@ -52,6 +52,7 @@ val extern_rel_context : constr option -> env -> Evd.evar_map ->
   rel_context -> local_binder_expr list
 
 (** Printing options *)
+open CRef
 val print_implicits : bool ref
 val print_implicits_defensive : bool ref
 val print_coercions : bool ref

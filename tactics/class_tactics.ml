@@ -75,6 +75,8 @@ module Debug : sig
 
   val set_typeclasses_debug : bool -> unit
 end = struct
+  open CRef
+
   let typeclasses_debug = ref 0
 
   let set_typeclasses_debug d = (:=) typeclasses_debug (if d then 1 else 0)
@@ -488,6 +490,7 @@ module Search = struct
        Hint_db.empty TransparentState.full true)
 
   let make_autogoal_hints only_classes (modes,st as mst) gl =
+    let open CRef in
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let sign = EConstr.named_context env in
@@ -1199,9 +1202,10 @@ type condition = Environ.env -> evar_map -> Evar.Set.t -> bool
 
 type tc_solver = solver * condition
 
-let class_solvers = ref (CString.Map.empty : tc_solver CString.Map.t)
+let class_solvers = CRef.ref (CString.Map.empty : tc_solver CString.Map.t)
 
 let register_solver ~name ?(override=false) h =
+  let open CRef in
   if not override && CString.Map.mem name !class_solvers then
     CErrors.anomaly ~label:"Class_tactics.register_solver"
       Pp.(str (Printf.sprintf {|Solver "%s" is already registered|} name));
@@ -1210,14 +1214,17 @@ let register_solver ~name ?(override=false) h =
 let active_solvers = Summary.ref ~name:"typeclass_solvers" ([] : string list)
 
 let deactivate_solver ~name =
+  let open CRef in
   active_solvers := List.filter (fun s -> not (String.equal s name)) !active_solvers
 
 let activate_solver ~name =
+  let open CRef in
   assert (CString.Map.mem name !class_solvers);
   deactivate_solver ~name;
   active_solvers := name :: !active_solvers
 
 let find_solver env evd (s : Intpart.set) =
+  let open CRef in
   let rec find_solver = function
     | [] -> Search.typeclasses_resolve
     | hd :: tl ->
@@ -1230,6 +1237,7 @@ let find_solver env evd (s : Intpart.set) =
 (** If [do_split] is [true], we try to separate the problem in
     several components and then solve them separately *)
 let resolve_all_evars depth unique env p oevd fail =
+  let open CRef in
   let () =
     ppdebug 0 (fun () ->
         str"Calling typeclass resolution with flags: "++

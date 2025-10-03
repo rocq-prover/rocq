@@ -249,28 +249,30 @@ let occur_rigidly flags env evd (evk,_) t =
 
 type hook = Environ.env -> Evd.evar_map -> ((Names.Constant.t * EConstr.EInstance.t) * EConstr.t list option * EConstr.t) -> (EConstr.t * EConstr.t list) -> (Evd.evar_map * Structures.CanonicalSolution.t) option
 
-let all_hooks = ref (CString.Map.empty : hook CString.Map.t)
+(* EJGA: Out of summary, let's do a better pattern for this *)
+let all_hooks = CRef.ref (CString.Map.empty : hook CString.Map.t)
 
 let register_hook ~name ?(override=false) h =
-  if not override && CString.Map.mem name !all_hooks then
+  if not override && CString.Map.mem name CRef.(!all_hooks) then
     CErrors.anomaly ~label:"CanonicalSolution.register_hook"
       Pp.(str "Hook already registered: \"" ++ str name ++ str "\".");
-  all_hooks := CString.Map.add name h !all_hooks
+  CRef.(all_hooks := CString.Map.add name h !all_hooks)
 
 let active_hooks = Summary.ref ~name:"canonical_solution_hooks_hacked" ([] : string list)
 
 let deactivate_hook ~name =
-  active_hooks := List.filter (fun s -> not (String.equal s name)) !active_hooks
+  CRef.(active_hooks := List.filter (fun s -> not (String.equal s name)) !active_hooks)
 
 let activate_hook ~name =
-  assert (CString.Map.mem name !all_hooks);
+  assert (CString.Map.mem name CRef.(!all_hooks));
   deactivate_hook ~name;
-  active_hooks := name :: !active_hooks
+  CRef.(active_hooks := name :: !active_hooks)
 
 let apply_hooks env sigma proj pat =
   List.find_map (fun name ->
-    try CString.Map.get name !all_hooks env sigma proj pat
-    with e when CErrors.noncritical e -> anomaly Pp.(str "CS hook " ++ str name ++ str " exploded")) !active_hooks
+    try CString.Map.get name CRef.(!all_hooks) env sigma proj pat
+    with e when CErrors.noncritical e ->
+      anomaly Pp.(str "CS hook " ++ str name ++ str " exploded")) CRef.(!active_hooks)
 
 let decompose_proj ?metas env sigma (t1, sk1) =
    (* I only recognize ConstRef projections since these are the only ones for which
@@ -1503,11 +1505,11 @@ let evar_conv_x flags env evd pbty term1 term2 =
 
 let evar_unify = conv_fun evar_conv_x
 
-let evar_conv_hook = ref evar_conv_x
+let evar_conv_hook = CRef.ref evar_conv_x
 
-let evar_conv_x flags = !evar_conv_hook flags
+let evar_conv_x flags = CRef.(!evar_conv_hook flags)
 
-let set_evar_conv f = evar_conv_hook := f
+let set_evar_conv f = CRef.(evar_conv_hook := f)
 
 
 (* We assume here |l1| <= |l2| *)
@@ -1634,8 +1636,8 @@ let filter_possible_projections evd i0 c ty ctxt args =
     Id.Set.mem (NamedDecl.get_id decl) tyvars)
     0 ctxt
 
-let solve_evars = ref (fun _ -> failwith "solve_evars not installed")
-let set_solve_evars f = solve_evars := f
+let solve_evars = CRef.ref (fun _ -> failwith "solve_evars not installed")
+let set_solve_evars f = CRef.(solve_evars := f)
 
 (* We solve the problem env_rhs |- ?e[u1..un] = rhs knowing
  * x1:T1 .. xn:Tn |- ev : ty
@@ -1803,7 +1805,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
     Pp.(str"solve_evars on: " ++ prc env_evar evd rhs' ++ fnl () ++
         str"evars: " ++ pr_evar_map (Some 0) env_evar evd));
   let evd,rhs' =
-    try !solve_evars env_evar evd rhs'
+    try CRef.(!solve_evars) env_evar evd rhs'
     with e when Pretype_errors.precatchable_exception e ->
       (* Could not revert all subterms *)
       raise (TypingFailed evd) in
@@ -1882,7 +1884,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
                    prc evenv evd rhs'));
          (* solve_evars is not commuting with nf_evar, because restricting
              an evar might provide a more specific type. *)
-          let evd, _ = !solve_evars evenv evd rhs' in
+          let evd, _ = CRef.(!solve_evars) evenv evd rhs' in
           debug_ho_unification (fun () ->
             Pp.(str"abstracted type: " ++ prc evenv evd (nf_evar evd rhs')));
           let flags = default_flags_of TransparentState.full in

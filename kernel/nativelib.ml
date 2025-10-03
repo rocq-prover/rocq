@@ -7,6 +7,7 @@
 (*         *     GNU Lesser General Public License Version 2.1          *)
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
+open CRef
 open Util
 open Nativecode
 open CErrors
@@ -184,7 +185,7 @@ let execute_library ~prefix f upds =
   if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;
   register_native_file prefix;
   update_locations upds;
-  (!rt1, !rt2)
+  !rt1, !rt2
 
 let link_library dirname prefix =
   let basename = Dynlink.adapt_filename (prefix ^ "cmo") in
@@ -214,3 +215,6 @@ let link_libraries () =
 
 let enable_library dirname libname =
   delayed_link := (dirname, libname) :: !delayed_link
+
+(* For build compatiblity *)
+module CRef = CRef

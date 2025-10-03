@@ -10,6 +10,7 @@
 
 (* This file is (C) Copyright 2006-2015 Microsoft Corporation and Inria. *)
 
+open CRef
 open Ltac_plugin
 open Util
 open Names
@@ -674,7 +675,7 @@ let rwrxtac ?under ?map_redex occ rdx_pat dir rule =
       (fun e c _ i -> find_R ~k:(fun _ _ _ h -> EConstr.mkRel h) e c i),
       fun cl -> let rdx,d,r = end_R () in closed0_check env0 sigma0 cl rdx; (d,r),rdx
   | Some (_, e) ->
-      let r = ref None in
+      let r = Stdlib.ref None in
       (fun env c _ h -> do_once r (fun () -> find_rule c, c); EConstr.mkRel h),
       (fun concl -> closed0_check env0 sigma0 concl e;
         let (d,(ev,ctx,c)) , x = assert_done r in (d,(true, ev,ctx, Reductionops.nf_evar ev c)) , x) in
@@ -720,14 +721,14 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let fail = ref false in
+  let fail = Stdlib.ref false in
   let interp_rpattern env sigma gc =
     try interp_rpattern env sigma gc
     with e when CErrors.noncritical e && snd mult = May ->
-      fail := true; { pat_sigma = sigma; pat_pat = T EConstr.mkProp } in
+      Stdlib.(fail := true); { pat_sigma = sigma; pat_pat = T EConstr.mkProp } in
   let interp env sigma gc =
     try interp_term env sigma ist gc
-    with e when CErrors.noncritical e && snd mult = May -> fail := true; (sigma, EConstr.mkProp) in
+    with e when CErrors.noncritical e && snd mult = May -> Stdlib.(fail := true); (sigma, EConstr.mkProp) in
   let rwtac =
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
@@ -748,7 +749,7 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
     end
   in
   let ctac = cleartac (interp_clr sigma (oclr, (fst gt, snd (interp env sigma gt)))) in
-  if !fail then ctac else Tacticals.tclTHEN (tclMULT mult rwtac) ctac
+  if Stdlib.(!fail) then ctac else Tacticals.tclTHEN (tclMULT mult rwtac) ctac
   end
 
 (** Rewrite argument sequence *)

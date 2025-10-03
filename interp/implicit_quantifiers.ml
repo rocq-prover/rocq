@@ -9,6 +9,7 @@
 (************************************************************************)
 
 (*i*)
+open CRef
 open Names
 open Context
 open CErrors

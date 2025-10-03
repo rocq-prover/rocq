@@ -1881,6 +1881,11 @@ let vernac_generalizable ~local =
 
 let allow_sprop_opt_name = ["Allow";"StrictProp"]
 
+[@@@ocaml.warning "-60"]
+module Options = struct
+
+open CRef
+
 let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
@@ -2140,6 +2145,8 @@ let () =
       optwrite = (fun b -> Global.set_typing_flags
                      {(Global.typing_flags ()) with Declarations.allow_uip = b})
     }
+end
+(* module Options *)
 
 let vernac_set_strategy ~local l =
   let local = Option.default false local in

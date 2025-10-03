@@ -242,12 +242,12 @@ let load = ref WithoutTop
 (* Sets and initializes a toplevel (if any) *)
 let set_top toplevel = load :=
   WithTop toplevel;
-  Nativelib.load_obj := toplevel.load_module
+  CRef.(Nativelib.load_obj := toplevel.load_module)
 
 (* Removes the toplevel (if any) *)
 let remove () =
   load := WithoutTop;
-  Nativelib.load_obj := (fun x -> () : string -> unit)
+  CRef.(Nativelib.load_obj := (fun x -> () : string -> unit))
 
 (* Tests if an Ocaml toplevel runs under Rocq *)
 let is_ocaml_top () =
@@ -289,7 +289,7 @@ let plugin_init_functions : (unit -> unit) list PluginSpec.Map.t ref = ref Plugi
 
 let add_init_function name f =
   let name = PluginSpec.of_package name in
-  if PluginSpec.Set.mem name !initialized_plugins
+  if PluginSpec.Set.mem name CRef.(!initialized_plugins)
   then CErrors.anomaly Pp.(str "Not allowed to add init function for already initialized plugin " ++ str (PluginSpec.pp name));
   plugin_init_functions := PluginSpec.Map.update name (function
       | None -> Some [f]
@@ -334,7 +334,7 @@ let perform_cache_obj name =
 let dinit = CDebug.create ~name:"mltop-init" ()
 
 let init_ml_object mname =
-  if PluginSpec.Set.mem mname !initialized_plugins
+  if PluginSpec.Set.mem mname CRef.(!initialized_plugins)
   then dinit Pp.(fun () -> str "already initialized " ++ str (PluginSpec.pp mname))
   else  begin
     dinit Pp.(fun () -> str "initing " ++ str (PluginSpec.pp mname));
@@ -342,7 +342,7 @@ let init_ml_object mname =
       | l -> List.iter (fun f -> f()) (List.rev l); List.length l
       | exception Not_found -> 0
     in
-    initialized_plugins := PluginSpec.Set.add mname !initialized_plugins;
+    CRef.(initialized_plugins := PluginSpec.Set.add mname !initialized_plugins);
     dinit Pp.(fun () -> str "finished initing " ++ str (PluginSpec.pp mname) ++ str " (" ++ int n ++ str " init functions)")
   end
 
@@ -371,7 +371,7 @@ type load_request =
 
 let if_verbose_load req f name =
   match req with
-  | Regular {implicit} when not !Flags.quiet -> begin
+  | Regular {implicit} when not CRef.(!Flags.quiet) -> begin
       let info =
         str "[Loading ML file " ++ str (PluginSpec.pp name) ++
         (if implicit then str " (implicit dependency)" else mt()) ++ str " ..." in

@@ -78,56 +78,64 @@ type notation_data =
 let ltac_notations = Summary.ref KerName.Map.empty ~name:"ltac2-notations"
 
 let define_global kn e =
+  let open CRef in
   let state = !ltac_state in
   ltac_state := { state with ltac_tactics = KerName.Map.add kn e state.ltac_tactics }
 
 let interp_global kn =
-  let data = KerName.Map.find kn ltac_state.contents.ltac_tactics in
+  let open CRef in
+  let data = KerName.Map.find kn !ltac_state.ltac_tactics in
   data
 
 let set_compiled_global kn info v =
+  let open CRef in
   assert (not (interp_global kn).gdata_mutable);
   compiled_tacs := KerName.Map.add kn (info,v) !compiled_tacs
 
-let get_compiled_global kn = KerName.Map.find_opt kn !compiled_tacs
+let get_compiled_global kn = KerName.Map.find_opt kn CRef.(!compiled_tacs)
 
-let globals () = (!ltac_state).ltac_tactics
+let globals () = (CRef.(!ltac_state)).ltac_tactics
 
 let define_constructor kn t =
+  let open CRef in
   let state = !ltac_state in
   ltac_state := {
     state with
     ltac_constructors = KerName.Map.add kn t state.ltac_constructors;
   }
 
-let interp_constructor kn = KerName.Map.find kn ltac_state.contents.ltac_constructors
+let interp_constructor kn = KerName.Map.find kn CRef.(!ltac_state.ltac_constructors)
 
 let find_all_constructors_in_type kn =
-  KerName.Map.filter (fun _ data -> KerName.equal kn data.cdata_type) (!ltac_state).ltac_constructors
+  KerName.Map.filter (fun _ data -> KerName.equal kn data.cdata_type) (CRef.(!ltac_state)).ltac_constructors
 
 let define_projection kn t =
+  let open CRef in
   let state = !ltac_state in
   ltac_state := { state with ltac_projections = KerName.Map.add kn t state.ltac_projections }
 
-let interp_projection kn = KerName.Map.find kn ltac_state.contents.ltac_projections
+let interp_projection kn = KerName.Map.find kn CRef.(!ltac_state.ltac_projections)
 
 let define_type kn e =
+  let open CRef in
   let state = !ltac_state in
   ltac_state := { state with ltac_types = KerName.Map.add kn e state.ltac_types }
 
-let interp_type kn = KerName.Map.find kn ltac_state.contents.ltac_types
+let interp_type kn = KerName.Map.find kn CRef.(!ltac_state.ltac_types)
 
 let define_alias ?deprecation kn tac =
+  let open CRef in
   let state = !ltac_state in
   let data = { alias_body = tac; alias_depr = deprecation } in
   ltac_state := { state with ltac_aliases = KerName.Map.add kn data state.ltac_aliases }
 
-let interp_alias kn = KerName.Map.find kn ltac_state.contents.ltac_aliases
+let interp_alias kn = KerName.Map.find kn CRef.(!ltac_state.ltac_aliases)
 
 let define_notation kn tac =
+  let open CRef in
   ltac_notations := KerName.Map.add kn tac !ltac_notations
 
-let interp_notation kn = KerName.Map.find kn !ltac_notations
+let interp_notation kn = KerName.Map.find kn CRef.(!ltac_notations)
 
 module ML =
 struct
@@ -140,15 +148,19 @@ end
 
 module MLMap = Map.Make(ML)
 
-let primitive_map = ref MLMap.empty
+let primitive_map = CRef.ref MLMap.empty
 
 let define_primitive name f =
+  let open CRef in
   let f = match f with
     | ValCls f -> ValCls (annotate_closure (FrPrim name) f)
     | _ -> f
   in
   primitive_map := MLMap.add name f !primitive_map
-let interp_primitive name = MLMap.find name !primitive_map
+
+let interp_primitive name =
+  let open CRef in
+  MLMap.find name !primitive_map
 
 (** Name management *)
 
@@ -273,13 +285,15 @@ end
 
 module MLType = Tac2dyn.ArgMap(MLTypeObj)
 
-let ml_object_table = ref MLType.empty
+let ml_object_table = CRef.ref MLType.empty
 
 let define_ml_object t tpe =
+  let open CRef in
   ml_object_table := MLType.add t (MLType.Pack tpe) !ml_object_table
 
 let interp_ml_object t =
   try
+    let open CRef in
     let MLType.Pack ans = MLType.find t !ml_object_table in
     ans
   with Not_found ->

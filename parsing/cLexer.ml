@@ -381,7 +381,7 @@ let dbg = CDebug.create ~name:"comment-lexing" ()
 
 let comment_stop ep =
   let current_s = Buffer.contents current_comment in
-  (if !Flags.record_comments && Buffer.length current_comment > 0 then
+  (if CRef.(!Flags.record_comments) && Buffer.length current_comment > 0 then
     let bp = match !comment_begin with
         Some bp -> bp
       | None ->

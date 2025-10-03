@@ -195,9 +195,10 @@ let extend_tactic_grammar kn ml ntn = extend_grammar_command tactic_grammar (kn,
 (**********************************************************************)
 (* Tactic Notation                                                    *)
 
-let entry_names = ref String.Map.empty
+let entry_names = CRef.ref String.Map.empty
 
 let register_tactic_notation_entry name entry =
+  let open CRef in
   let entry = match entry with
   | ExtraArg arg -> ArgT.Any arg
   | _ -> assert false
@@ -210,6 +211,7 @@ let interp_prod_item = function
     let symbol = parse_user_entry ?loc nt sep in
     let interp s = function
     | None ->
+      let open CRef in
       if String.Map.mem s !entry_names then String.Map.find s !entry_names
       else begin match ArgT.name s with
       | None ->
@@ -230,7 +232,7 @@ let interp_prod_item = function
 let make_fresh_key =
   let id = Summary.ref ~stage:Summary.Stage.Synterp ~name:"TACTIC-NOTATION-COUNTER" 0 in
   fun prods ->
-    let cur = incr id; !id in
+    let cur = CRef.(incr id; !id) in
     let map = function
     | TacTerm s -> s
     | TacNonTerm _ -> "#"
@@ -802,7 +804,7 @@ end
 
 module MLTacMap = Map.Make(MLName)
 
-let ml_table : (Geninterp.Val.t list -> Geninterp.Val.t Ftactic.t) MLTacMap.t ref = ref MLTacMap.empty
+let ml_table : (Geninterp.Val.t list -> Geninterp.Val.t Ftactic.t) MLTacMap.t CRef.ref = CRef.ref MLTacMap.empty
 
 type ml_ltac_val = {
   tacval_tac : Tacexpr.ml_tactic_name;
@@ -837,6 +839,7 @@ let in_tacval =
   (* No need to register a value tag for it via register_val0 since we will
      never access this genarg directly. *)
   let interp_fun ist tac =
+    let open CRef in
     let args = List.map (fun id -> Id.Map.get id ist.Geninterp.lfun) tac.tacval_var in
     let tac = MLTacMap.get tac.tacval_tac !ml_table in
     tac args
@@ -846,6 +849,7 @@ let in_tacval =
 
 
 let ml_val_tactic_extend ~plugin ~name ~local ?deprecation sign tac =
+  let open CRef in
   let open Tacexpr in
   let tac args = cast_ml sign tac args in
   let ml_tactic_name = { mltac_tactic = name; mltac_plugin = plugin } in

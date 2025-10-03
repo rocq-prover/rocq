@@ -636,6 +636,7 @@ let prop_but_default_dependent_elim =
   Summary.ref ~name:"prop_but_default_dependent_elim" Indset_env.empty
 
 let inPropButDefaultDepElim : inductive -> Libobject.obj =
+  let open CRef in
   Libobject.declare_object @@
   Libobject.superglobal_object "prop_but_default_dependent_elim"
     ~cache:(fun i ->
@@ -646,7 +647,9 @@ let inPropButDefaultDepElim : inductive -> Libobject.obj =
 let declare_prop_but_default_dependent_elim i =
   Lib.add_leaf (inPropButDefaultDepElim i)
 
-let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_dependent_elim
+let is_prop_but_default_dependent_elim i =
+  let open CRef in
+  Indset_env.mem i !prop_but_default_dependent_elim
 
 let pseudo_sort_quality_for_elim ind mip =
   let s = mip.mind_sort in
