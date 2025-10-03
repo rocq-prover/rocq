@@ -9,6 +9,8 @@ Unset Elimination Schemes.
 
 Set Universe Polymorphism.
 
+Require Import Equality.
+
 Declare ML Module "rocq-runtime.plugins.ltac".
 
 Global Set Default Proof Mode "Classic".
@@ -44,6 +46,11 @@ Definition ap {A B:Type} (f:A -> B) {x y:A} (p:x = y) : f x = f y
   := match p with idpath => idpath end.
 Arguments ap {A B} f {x y} p.
 Register ap as core.identity.congr.
+
+Definition paths_Has_Leibniz_elim@{l l' l''} : Has_Leibniz@{Type Type Type;l l' l''} (@paths) :=
+  fun A x P t y e => match e with idpath => t end.
+
+Hint Resolve paths_Has_Leibniz_elim : rewrite_instances.
 
 Variant Empty : Type :=.
 

@@ -43,14 +43,14 @@ Section inversion_sigma.
               (p : x = y), p = p.
   Proof.
     intros x y p; destr_sigma.
-    inversion_sigma p as [-> p]; cbn [eq_rect] in *.
+    inversion_sigma p as [-> p]; cbn in *.
     lazymatch type of p with
     | existT _ (existT _ ?a ?b) (existT _ ?c ?d) = existT _ (existT _ ?e ?f) (existT _ ?g ?h)
       => is_var a; is_var b; is_var c; is_var d; is_var e; is_var f; is_var g; is_var h
     end.
     inversion_sigma p as [p1 p2].
     lazymatch type of p1 with existT _ ?a ?b = existT _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
-    inversion_sigma p1 as [-> <-]; cbn [eq_rect eq_existT_uncurried eq_sigT eq_existT_curried eq_sigT_uncurried] in * |- .
+    inversion_sigma p1 as [-> <-]; cbn in * |- .
     lazymatch type of p2 with existT _ ?a ?b = existT _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
     inversion_sigma p2 as [-> <-].
     cbn.
@@ -61,14 +61,14 @@ Section inversion_sigma.
               (p : x = y), p = p.
   Proof.
     intros x y p; destr_sigma.
-    inversion_sigma p as [-> p]; cbn [eq_rect] in *.
+    inversion_sigma p as [-> p]; cbn in *.
     lazymatch type of p with
     | exist _ (exist _ ?a ?b) (exist _ ?c ?d) = exist _ (exist _ ?e ?f) (exist _ ?g ?h)
       => is_var a; is_var b; is_var c; is_var d; is_var e; is_var f; is_var g; is_var h
     end.
     inversion_sigma p as [p1 p2].
     lazymatch type of p1 with exist _ ?a ?b = exist _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
-    inversion_sigma p1 as [-> <-]; cbn [eq_rect eq_exist_uncurried eq_sig eq_exist_curried eq_sig_uncurried] in * |- .
+    inversion_sigma p1 as [-> <-]; cbn in * |- .
     lazymatch type of p2 with exist _ ?a ?b = exist _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
     inversion_sigma p2 as [-> <-].
     cbn.
@@ -79,14 +79,14 @@ Section inversion_sigma.
               (p : x = y), p = p.
   Proof.
     intros x y p; destr_sigma.
-    inversion_sigma p as [-> p]; cbn [eq_rect] in *.
+    inversion_sigma p as [-> p]; cbn in *.
     lazymatch type of p with
     | ex_intro _ (ex_intro _ ?a ?b) (ex_intro _ ?c ?d) = ex_intro _ (ex_intro _ ?e ?f) (ex_intro _ ?g ?h)
       => is_var a; is_var b; is_var c; is_var d; is_var e; is_var f; is_var g; is_var h
     end.
     inversion_sigma p as [p1 p2].
     lazymatch type of p1 with ex_intro _ ?a ?b = ex_intro _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
-    inversion_sigma p1 as [-> <-]; cbn [eq_rect eq_ex_intro_uncurried eq_ex_intro eq_ex eq_ex_uncurried] in * |- .
+    inversion_sigma p1 as [-> <-]; cbn in * |- .
     lazymatch type of p2 with ex_intro _ ?a ?b = ex_intro _ ?c ?d => is_var a; is_var b; is_var c; is_var d end.
     inversion_sigma p2 as [-> <-].
     cbn.
