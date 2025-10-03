@@ -19,10 +19,14 @@ Rocq < Identifier 'op12' now a keyword
 
 Rocq < Identifier 'op10' now a keyword
 
-Rocq < Rocq < 
-Rocq < 
-Rocq < 
-Rocq < 
+Rocq < Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
 Rocq < Rocq < Identifier 'atom3' now a keyword
 
 Rocq < Identifier 'atom2' now a keyword
@@ -656,7 +660,6 @@ Entry simple_tactic is
   | IDENT "info_trivial"; auto_using; hintbases
   | IDENT "trivial"; auto_using; hintbases
   | IDENT "autoapply"; constr; "with"; preident
-  | IDENT "head_of_constr"; ident; constr
   | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var; "with";
     LIST1 preident
   | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var
