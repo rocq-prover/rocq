@@ -819,6 +819,14 @@ let () =
   EConstr.Unsafe.to_relevance na.binder_relevance
 
 let () =
+  define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) @@ fun r1 r2 _ sigma ->
+  EConstr.ERelevance.(equal sigma (make r1) (make r2))
+
+let () = define "constr_relevance_relevant" (ret relevance) Sorts.Relevant
+
+let () = define "constr_relevance_irrelevant" (ret relevance) Sorts.Irrelevant
+
+let () =
   define "constr_has_evar" (constr @-> tac bool) @@ fun c ->
   Proofview.tclEVARMAP >>= fun sigma ->
   return (Evarutil.has_undefined_evars sigma c)
