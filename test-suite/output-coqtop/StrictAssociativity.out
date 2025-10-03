@@ -1,426 +1,476 @@
-Entry custom:StrictAssociativity.expr is
+
+Rocq < 
+Rocq < Rocq < T is defined
+T_rect is defined
+T_ind is defined
+T_rec is defined
+T_sind is defined
+
+Rocq < Parsing is defined
+Parsing_rect is defined
+Parsing_ind is defined
+Parsing_rec is defined
+Parsing_sind is defined
+
+Rocq < Rocq < 
+Rocq < Rocq < Identifier 'op22' now a keyword
+
+Rocq < Identifier 'op12' now a keyword
+
+Rocq < Identifier 'op10' now a keyword
+
+Rocq < Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < Identifier 'atom3' now a keyword
+
+Rocq < Identifier 'atom2' now a keyword
+
+Rocq < Identifier 'atom1' now a keyword
+
+Rocq < 
+Rocq < Rocq < Identifier 'pre22' now a keyword
+
+Rocq < Identifier 'pre21' now a keyword
+
+Rocq < Identifier 'pre11' now a keyword
+
+Rocq < Identifier 'pre10' now a keyword
+
+Rocq < Rocq < Identifier 'post12' now a keyword
+
+Rocq < Identifier 'post11' now a keyword
+
+Rocq < Rocq < Entry custom:Top.expr is
 [ "3" RIGHTA
   [ SELF; "op22"; NEXT
   | "atom3" ]
 | "2" RIGHTA
   [ SELF; "post12"
-  | SELF; "op12"; custom:StrictAssociativity.expr LEVEL "2"
+  | SELF; "op12"; custom:Top.expr LEVEL "2"
   | "pre21"; NEXT
-  | "pre22"; custom:StrictAssociativity.expr LEVEL "2"
+  | "pre22"; custom:Top.expr LEVEL "2"
   | "atom2" ]
 | "1" LEFTA
   [ SELF; "post11"
   | SELF; "op10"; NEXT
   | "pre10"; NEXT
-  | "pre11"; custom:StrictAssociativity.expr LEVEL "1"
+  | "pre11"; custom:Top.expr LEVEL "1"
   | "atom1" ]
 | "0" RIGHTA
   [ IDENT "atom0" ] ]
 
-File "./output/StrictAssociativity.v", line 41, characters 17-24:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Toplevel input, characters 513-520:
+> Check Reject 10 [2 atom3 ].
+>                    ^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 11 E
+     : Parsing
+
+Rocq < Toplevel input, characters 19-26:
+> Check Reject 12 [1 atom2 ].
+>                    ^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 13 E
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 20 [2 pre22 atom3 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 10 E
-     : Check_If_Warning_Above
-Pass 11 E
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 43, characters 17-24:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 21 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 22 [1 pre22 atom2 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 30 [2 pre21 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 12 E
-     : Check_If_Warning_Above
-Pass 13 E
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 46, characters 23-28:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 20 (F E)
-     : Check_If_Warning_Above
-Pass 21 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 48, characters 17-30:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 31 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 32 [1 pre21 atom1 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 40 [2 pre11 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 22 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 50, characters 23-28:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 30 (F E)
-     : Check_If_Warning_Above
-Pass 31 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 52, characters 17-30:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Toplevel input, characters 25-30:
+> Check Reject 41 [1 pre11 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 32 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 54, characters 23-28:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 40 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 55, characters 23-28:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 41 (F E)
-     : Check_If_Warning_Above
-Pass 42 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 57, characters 17-30:
-Warning: In term, tolerating this expression at level 0 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 42 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 43 [0 pre11 atom1 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 0 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 50 [1 pre10 atom1 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 43 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 59, characters 23-28:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 50 (F E)
-     : Check_If_Warning_Above
-Pass 51 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 61, characters 17-30:
-Warning: In term, tolerating this expression at level 0 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 51 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 52 [0 pre10 atom0 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 0 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-34:
+> Check Reject 60 [2 atom2 post12 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 61 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-33:
+> Check Reject 62 [1 atom1 post12 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-34:
+> Check Reject 70 [2 atom2 post11 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 71 (F E)
+     : Parsing
+
+Rocq < Accept 72 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-33:
+> Check Reject 73 [0 atom1 post11 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 0 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-38:
+> Check Reject 80 [3 atom3 op22 atom2 ].
+>                    ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 3 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 30-35:
+> Check Reject 81 [3 atom2 op22 atom3 ].
+>                               ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 52 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 63, characters 17-31:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 82 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-37:
+> Check Reject 83 [2 atom2 op22 atom2 ].
+>                    ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-38:
+> Check Reject 90 [2 atom2 op12 atom2 ].
+>                    ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 30-35:
+> Check Reject 91 [2 atom1 op12 atom3 ].
+>                               ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 60 (F E)
-     : Check_If_Warning_Above
-Pass 61 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 65, characters 17-31:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 92 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-37:
+> Check Reject 93 [1 atom1 op12 atom2 ].
+>                    ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 21-26:
+> Check Reject 100 [1 atom2 op10 atom0].
+>                     ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 62 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 67, characters 17-31:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 101 [1 atom1 op10 atom1].
+>                                ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 70 (F E)
-     : Check_If_Warning_Above
-Pass 71 (F E)
-     : Check_If_Warning_Above
-Pass 72 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 70, characters 17-31:
-Warning: In term, tolerating this expression at level 0 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 102 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 20-37:
+> Check Reject 103 [0 atom1 op10 atom0].
+>                     ^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 0 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 21-45:
+> Check Reject 110 [2 pre22 atom2 op12 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 20-44:
+> Check Reject 111 [2 pre21 atom1 op12 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 112 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 21-33:
+> Check Reject 120 [2 atom2 post12 op12 atom2 ].
+>                     ^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 2 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 73 (F E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 72, characters 17-35:
-Warning: In term, tolerating this expression at level 3 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Toplevel input, characters 20-45:
+> Check Reject 121 [2 atom1 post12 op12 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 122 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Accept 130 (G E (F E))
+     : Parsing
+
+Rocq < Toplevel input, characters 37-42:
+> Check Reject 131 [2 atom1 op12 pre21 atom2 ].
+>                                      ^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 80 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 73, characters 28-33:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 81 (G E E)
-     : Check_If_Warning_Above
-Pass 82 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 75, characters 17-35:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 132 (G E (F E))
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 21-46:
+> Check Reject 140 [2 atom1 op12 atom2 post12 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 141 (G E (F E))
+     : Parsing
+
+Rocq < Toplevel input, characters 31-43:
+> Check Reject 142 [2 atom1 op10 atom1 post12 ].
+>                                ^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 83 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 77, characters 17-35:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 143 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < Accept 150 (F (G E E))
+     : Parsing
+
+Rocq < Toplevel input, characters 26-42:
+> Check Reject 151 [1 pre10 atom1 op10 atom0 ].
+>                           ^^^^^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 90 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 78, characters 28-33:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 91 (G E E)
-     : Check_If_Warning_Above
-Pass 92 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 80, characters 17-35:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 152 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 21-33:
+> Check Reject 160 [1 atom1 post12 op10 atom0 ].
+>                     ^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 1 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 93 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 82, characters 18-23:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-File "./output/StrictAssociativity.v", line 82, characters 18-23:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-File "./output/StrictAssociativity.v", line 82, characters 18-35:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Accept 161 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 32-43:
+> Check Reject 170 [1 atom1 op10 pre11 atom0 ].
+>                                ^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 100 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 83, characters 29-34:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 101 (G E E)
-     : Check_If_Warning_Above
-Pass 102 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 85, characters 18-35:
-Warning: In term, tolerating this expression at level 0 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Toplevel input, characters 31-42:
+> Check Reject 171 [1 atom1 op10 pre10 atom0 ].
+>                                ^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 103 (G E E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 87, characters 18-42:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
+
+Rocq < Rocq < Accept 180 (F (G E E))
+     : Parsing
+
+Rocq < Toplevel input, characters 20-45:
+> Check Reject 181 [1 atom1 op10 atom0 post12 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 1 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 182 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 21-50:
+> Check Reject 190 [2 atom1 op12 atom2 op12 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 2 while it is expected to
+be at level 3. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 191 (G E (G E E))
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 32-48:
+> Check Reject 200 [1 atom1 op10 atom1 op10 atom0 ].
+>                                ^^^^^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at level 0 while it is
+expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 110 (G (F E) E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 88, characters 18-42:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 111 (G (F E) E)
-     : Check_If_Warning_Above
-Pass 112 (F (G E E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 91, characters 18-30:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-File "./output/StrictAssociativity.v", line 91, characters 18-43:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 120 (G (F E) E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 92, characters 18-43:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 121 (G (F E) E)
-     : Check_If_Warning_Above
-Pass 122 (G (F E) E)
-     : Check_If_Warning_Above
-Pass 130 (G E (F E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 96, characters 35-40:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 131 (G E (F E))
-     : Check_If_Warning_Above
-Pass 132 (G E (F E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 99, characters 18-43:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 140 (F (G E E))
-     : Check_If_Warning_Above
-Pass 141 (G E (F E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 101, characters 29-41:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 142 (G E (F E))
-     : Check_If_Warning_Above
-Pass 143 (F (G E E))
-     : Check_If_Warning_Above
-Pass 150 (F (G E E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 105, characters 24-40:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 151 (F (G E E))
-     : Check_If_Warning_Above
-Pass 152 (G (F E) E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 108, characters 18-30:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 1 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-File "./output/StrictAssociativity.v", line 108, characters 18-30:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 2 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-File "./output/StrictAssociativity.v", line 108, characters 18-43:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 160 (G (F E) E)
-     : Check_If_Warning_Above
-Pass 161 (G (F E) E)
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 111, characters 29-40:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 170 (G E (F E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 112, characters 29-40:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 171 (G E (F E))
-     : Check_If_Warning_Above
-Pass 180 (F (G E E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 115, characters 18-43:
-Warning: In term, tolerating this expression at level 1 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 181 (F (G E E))
-     : Check_If_Warning_Above
-Pass 182 (F (G E E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 118, characters 18-47:
-Warning: In term, tolerating this expression at level 2 while it is expected
-to be at level 3. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 190 (G (G E E) E)
-     : Check_If_Warning_Above
-Pass 191 (G E (G E E))
-     : Check_If_Warning_Above
-File "./output/StrictAssociativity.v", line 121, characters 29-45:
-Warning: In
-custom:StrictAssociativity.expr, tolerating this expression at level 0 while
-it is expected to be at level 3. This tolerance will be eventually removed.
-Insert parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 200 (G E (G E E))
-     : Check_If_Warning_Above
-Pass 201 (G (G E E) E)
-     : Check_If_Warning_Above
-Entry ltac_expr is
+
+Rocq < Accept 201 (G (G E E) E)
+     : Parsing
+
+Rocq < Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < Rocq < Entry ltac_expr is
 [ "5" RIGHTA
   [ IDENT "atom5" ]
 | "4" LEFTA
@@ -800,135 +850,148 @@ Entry tactic_value is
   | IDENT "numgoals"
   | constr_eval ] ]
 
-File "./output/StrictAssociativity.v", line 142, characters 22-36:
-Warning: In term, tolerating this expression at level 5 while it is expected
-to be at level 5. This tolerance will be eventually removed. Insert
-parentheses or try to lower the level at which the top symbol of this
-expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1000 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Rocq < Toplevel input, characters 25-39:
+> Check Reject 1000 ltac:(atom5 ; atom3).
+>                         ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at level 5 while it is expected to
+be at level 5. This tolerance will be eventually removed. Insert parentheses
+or try to lower the level at which the top symbol of this expression is
+parsed. [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 32-37:
+> Check Reject 1001 ltac:(atom4 ; atom4).
+>                                 ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 1002 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1002 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1003 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1003 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Rocq < Toplevel input, characters 31-36:
+> Check Reject 1010 ltac:(pre43 atom4 ; atom3).
+>                               ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 1011 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1011 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Toplevel input, characters 30-35:
+> Check Reject 1012 ltac:(pre44 atom4 ; atom3).
+>                               ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 1013 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1013 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Rocq < Accept 1020 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1020 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1021 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1021 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 155, characters 22-27:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Rocq < Toplevel input, characters 25-30:
+> Check Reject 1100 ltac:(atom2 + atom2).
+>                         ^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1100 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 156, characters 30-35:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Toplevel input, characters 32-37:
+> Check Reject 1101 ltac:(atom1 + atom3).
+>                                 ^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 5. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1101 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1102 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1102 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1103 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1103 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 160, characters 22-33:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Rocq < Toplevel input, characters 25-36:
+> Check Reject 1110 ltac:(pre22 atom2 + atom2).
+>                         ^^^^^^^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1110 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 161, characters 22-33:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Toplevel input, characters 24-35:
+> Check Reject 1111 ltac:(pre21 atom1 + atom2).
+>                         ^^^^^^^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1111 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1112 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1112 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1113 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1113 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 165, characters 22-34:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Rocq < Toplevel input, characters 25-37:
+> Check Reject 1120 ltac:(atom1 post22 + atom2).
+>                         ^^^^^^^^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1120 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
-File "./output/StrictAssociativity.v", line 166, characters 22-35:
-Warning: In ltac_expr, tolerating this expression at level 2 while it is
+
+Rocq < Toplevel input, characters 24-37:
+> Check Reject 1121 ltac:(atom1 + atom2 post22).
+>                         ^^^^^^^^^^^^^
+Error: In ltac_expr, tolerating this expression at level 2 while it is
 expected to be at level 3. This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Warn 1121 ?Goal
-     : Check_If_Warning_Above
+
+Rocq < Accept 1122 ?Goal
+     : Parsing
 where
 ?A : [ |- Type]
 ?Goal : [ |- ?A]
-Pass 1122 ?Goal
-     : Check_If_Warning_Above
-where
-?A : [ |- Type]
-?Goal : [ |- ?A]
+
+Rocq < 
