@@ -95,6 +95,9 @@ iff_refl: forall A : Prop, A <-> A
 le_n: forall n : nat, n <= n
 eq_refl: forall {A : Type} {x : A}, x = x
 Nat.divmod: nat -> nat -> nat -> nat -> nat * nat
+refl:
+  forall {eq : forall A : Type@{β0 ; _}, A -> A -> Type@{β1 ; _}},
+  Has_refl eq -> forall (A : Type@{β0 ; _}) (x : A), eq A x x
 (use "About" for full details on the implicit arguments of eq_refl)
 conj: forall [A B : Prop], A -> B -> A /\ B
 pair: forall {A B : Type}, A -> B -> A * B

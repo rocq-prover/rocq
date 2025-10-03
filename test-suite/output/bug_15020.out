@@ -7,4 +7,4 @@ Arguments eq_rect {A}%_type_scope {x} P%_function_scope eq_refl {y} e
   (where some original arguments have been renamed)
 eq_rect is transparent
 Expands to: Constant Corelib.Init.Logic.eq_rect
-Declared in library Corelib.Init.Logic, line 381, characters 0-115
+Declared in library Corelib.Init.Logic, line 380, characters 0-115

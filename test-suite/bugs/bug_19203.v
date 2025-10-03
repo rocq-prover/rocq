@@ -17,6 +17,11 @@ Definition seq_elim@{q;u v|} :=
   | srefl => f
   end.
 
+Definition seq_Has_Leibniz_elim@{s; l l' l''} : Has_Leibniz@{s s s;l l' l''} (@seq) :=
+  @seq_elim.
+
+Hint Resolve seq_Has_Leibniz_elim : rewrite_instances.
+
 Register seq as core.eq.type.
 Register srefl as core.eq.refl.
 Register seq_elim as core.eq.rect.

@@ -100,6 +100,11 @@ Register eq_elim as core.eq.rect.
 
   End equality.
 
+  Definition eq_Has_Leibniz_elim@{s s'; l l' l''} : Has_Leibniz@{s s' s' ; l l' l''} (@eq@{s s' ; l l'}) :=
+  fun A x P t y e => match e with eq_refl => t end.
+
+  Hint Resolve eq_Has_Leibniz_elim : rewrite_instances.
+
   Inductive comparison : Set :=
   | Eq : comparison
   | Lt : comparison
