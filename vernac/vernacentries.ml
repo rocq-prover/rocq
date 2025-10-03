@@ -364,7 +364,7 @@ let print_registered_schemes () =
   let pr_schemes_of_ind (ind, schemes) =
     prlist_with_sep fnl (pr_one_scheme ind) (CString.Map.bindings schemes)
   in
-  hov 0 (prlist_with_sep fnl pr_schemes_of_ind (Indmap.bindings schemes))
+  hov 0 (prlist_with_sep fnl pr_schemes_of_ind (Indmap_env.bindings schemes))
 
 let dump_universes output g =
   let open Univ in
