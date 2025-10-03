@@ -10,6 +10,14 @@
 
 module Dyn = Dyn.Make ()
 
+type (-'synterp_rw, -'interp_rw) t = Token
+
+type nothing = [`Nothing]
+
+type read = [`R|`Nothing]
+
+type readwrite = [`RW|`R|`Nothing]
+
 module Stage = struct
 
 type t = Synterp | Interp
@@ -77,10 +85,15 @@ module HMap = Dyn.HMap(Decl)(ID)
 
 module type FrozenStage = sig
 
-  (** The type [frozen] is a snapshot of the states of all the registered
-      tables of the system. *)
+  type -'rw t
+
+  type nonrec 'a read = ([>read] as 'a) t
+  type nonrec readwrite = readwrite t
 
   type frozen
+
+  val read : [`Nothing|`R] read
+  val readwrite : readwrite
 
   val empty_frozen : frozen
   val freeze_summaries : unit -> frozen
@@ -125,6 +138,14 @@ let init_summaries sum_map =
 
 module Synterp = struct
 
+  type nonrec 'rw t = ('rw, nothing) t
+
+  type nonrec 'a read = ([>read] as 'a) t
+  type nonrec readwrite = readwrite t
+
+  let read = Token
+  let readwrite = Token
+
   type frozen =
     {
         summaries : Frozen.t;
@@ -163,6 +184,14 @@ end
 
 module Interp = struct
 
+type nonrec 'rw t = (read, 'rw) t
+
+type nonrec 'a read = ([>read] as 'a) t
+type nonrec readwrite = readwrite t
+
+let read = Token
+let readwrite = Token
+
 type frozen = Frozen.t
 
 let empty_frozen = Frozen.empty
@@ -197,28 +226,54 @@ end
 
 let nop () = ()
 
-(** All-in-one reference declaration + registration *)
+(** All-in-one reference declaration + registration + access control *)
 
-let ref_tag ?(stage=Stage.Interp) ~name x =
+type 'v declared_synterp = {
+  sread : 'syn 'interp. ([>read] as 'syn, 'interp) t -> 'v;
+  swrite : 'interp. (readwrite, 'interp) t -> 'v -> unit;
+}
+
+type 'v declared_interp = {
+  read : 'syn 'interp. ('syn, [>read] as 'interp) t -> 'v;
+  write : 'syn. ('syn, readwrite) t -> 'v -> unit;
+}
+
+let synterp_of_ref r = { sread = (fun Token -> !r); swrite = (fun Token v -> r := v) }
+
+let interp_of_ref r = { read = (fun Token -> !r); write = (fun Token v -> r := v) }
+
+let syn_ref ~name x =
   let r = ref x in
-  let tag = declare_summary_tag name
-    { stage;
+  let () = declare_summary name
+    { stage = Synterp;
       freeze_function = (fun () -> !r);
       unfreeze_function = ((:=) r);
-      init_function = (fun () -> r := x) } in
-  r, tag
+      init_function = (fun () -> r := x) }
+  in
+  synterp_of_ref r
 
-let ref ?(stage=Stage.Interp) ?(local=false) ~name x =
-  if not local then fst @@ ref_tag ~stage ~name x
+let ref_tag ~name x =
+  let r = ref x in
+  let tag = declare_summary_tag name
+    { stage = Interp;
+      freeze_function = (fun () -> !r);
+      unfreeze_function = ((:=) r);
+      init_function = (fun () -> r := x) }
+  in
+  interp_of_ref r, tag
+
+let ref ?(local=false) ~name x =
+  if not local then fst @@ ref_tag ~name x
   else
     let r = ref x in
     let () = declare_summary name
         ~make_marshallable:(fun _ -> None)
-        { stage;
+        { stage = Interp;
           freeze_function = (fun () -> Some !r);
           unfreeze_function = (function Some v -> r := v | None -> r := x);
           init_function = (fun () -> r := x); }
     in
-    r
+    interp_of_ref r
+
 
 let dump = Dyn.dump
