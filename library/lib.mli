@@ -36,14 +36,6 @@ val node_prefix : 'summary node -> Libobject.object_prefix
 type 'summary library_segment = ('summary node * Libobject.t list) list
 
 (** {6 ... } *)
-(** Adding operations (which call the [cache] method, and getting the
-  current list of operations (most recent ones coming first). *)
-
-val add_leaf : Libobject.obj -> unit
-
-val add_discharged_leaf : Libobject.discharged_obj -> unit
-
-(** {6 ... } *)
 
 (** The function [contents] gives access to the current entire segment *)
 
@@ -90,9 +82,9 @@ val is_modtype : unit -> bool
 val is_modtype_strict : unit -> bool
 val is_module : unit -> bool
 
-type discharged_item =
+type 'obj discharged_item =
   | DischargedExport of Libobject.ExportObj.t
-  | DischargedLeaf of Libobject.discharged_obj
+  | DischargedLeaf of 'obj
 
 type classified_objects = {
   substobjs : Libobject.t list;
@@ -105,7 +97,21 @@ type classified_objects = {
     given stage. *)
 module type StagedLibS = sig
 
+  type -'rw state
+  type 'a read = ([>Summary.read] as 'a) state
+  type readwrite = Summary.readwrite state
+
   type summary
+
+  type discharged_obj
+
+  (** {6 ... } *)
+  (** Adding operations (which call the [cache] method, and getting the
+      current list of operations (most recent ones coming first). *)
+
+  val add_leaf : Libobject.obj -> state:readwrite -> unit
+
+  val add_discharged_leaf : discharged_obj -> state:readwrite -> unit
 
   (** Returns the opening node of a given name *)
   val find_opening_node : ?loc:Loc.t -> Id.t -> summary node
@@ -114,11 +120,11 @@ module type StagedLibS = sig
   val add_leaf_entry : Libobject.t -> unit
 
   (** {6 Sections } *)
-  val open_section : Id.t -> unit
+  val open_section : Id.t -> state:readwrite -> unit
 
   (** [close_section] needs to redo Export, so the complete
       implementation needs to involve [Declaremods]. *)
-  val close_section : unit -> discharged_item list
+  val close_section : state:readwrite -> discharged_obj discharged_item list
 
   (** {6 Modules and module types } *)
 
@@ -154,8 +160,12 @@ end
 (** We provide two instances of [StagedLibS], corresponding to the Synterp and
     Interp stages. *)
 
-module Synterp : StagedLibS with type summary = Summary.Synterp.frozen
-module Interp : StagedLibS with type summary = Summary.Interp.frozen
+module Synterp : StagedLibS
+  with type summary = Summary.Synterp.frozen
+   and type 'rw state = 'rw Summary.Synterp.t
+module Interp : StagedLibS
+  with type summary = Summary.Interp.frozen
+   and type 'rw state = 'rw Summary.Interp.t
 
 (** {6 Compilation units } *)
 
