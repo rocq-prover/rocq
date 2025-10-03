@@ -52,8 +52,8 @@ let find_in_PATH f =
   | Some paths ->
     let sep = if Coq_config.arch_is_win32 then ';' else ':' in
     let paths = String.split_on_char sep paths in
-    paths |> List.find_opt (fun path ->
-        Sys.file_exists (if path = "" then f else Filename.concat path f))
+    paths |> List.map (fun path -> if path = "" then f else Filename.concat path f)
+    |> List.find_opt Sys.file_exists
 
 let main () =
   if Array.length Sys.argv < 2 then die "usage: %s ROCQ_EXE [OUT_FILE]" Sys.argv.(0);
