@@ -46,8 +46,6 @@ let user_err ?loc ?info strm =
   let info = Option.cata (Loc.add_loc info) info loc in
   Exninfo.iraise (UserError strm, info)
 
-exception Timeout = Control.Timeout
-
 (** Only anomalies should reach the bottom of the handler stack.
     In usual situation, the [handle_stack] is treated as it if was always
     non-empty with [print_anomaly] as its bottom handler. *)

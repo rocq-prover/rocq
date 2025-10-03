@@ -1034,9 +1034,9 @@ let tclTIMEOUTF n t =
     let open Logic_monad.NonLogical in
     timeout n (Proof.repr (Proof.run t envvar initial)) >>= fun r ->
     match r with
-    | None -> return (Util.Inr (Logic_monad.Tac_Timeout, Exninfo.null))
-    | Some (Logic_monad.Nil e) -> return (Util.Inr e)
-    | Some (Logic_monad.Cons (r, _)) -> return (Util.Inl r)
+    | Error info -> return (Util.Inr (Logic_monad.Tac_Timeout, info))
+    | Ok (Logic_monad.Nil e) -> return (Util.Inr e)
+    | Ok (Logic_monad.Cons (r, _)) -> return (Util.Inl r)
   end >>= function
     | Util.Inl (res,s,m,i) ->
         Proof.set s >>

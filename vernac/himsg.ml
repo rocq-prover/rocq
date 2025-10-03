@@ -1679,7 +1679,6 @@ let explain_exn_default = function
   | Sys_error msg -> hov 0 (str "System error: " ++ quote (str msg))
   | Out_of_memory -> hov 0 (str "Out of memory.")
   | Stack_overflow -> hov 0 (str "Stack overflow.")
-  | CErrors.Timeout -> hov 0 (str "Timeout!")
   | Sys.Break -> hov 0 (str "User interrupt.")
   (* Otherwise, not handled here *)
   | _ -> raise Unhandled

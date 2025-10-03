@@ -126,15 +126,23 @@ let fmt_profile to_file v =
     );
   fmt_profiling counters sums
 
+(* do not reuse Control.Timeout: once we hit the timeout handler the
+   exn becomes a regular, noncritical error *)
+exception CmdTimeout
+
+let () = CErrors.register_handler (function
+  | CmdTimeout -> Some Pp.(str "Timeout!")
+  | _ -> None)
+
 let with_timeout ~timeout:n f =
   check_timeout_f n;
   let start = Unix.gettimeofday () in
   begin match Control.timeout n f () with
-  | None -> Exninfo.iraise (Exninfo.capture CErrors.Timeout)
-  | Some v ->
+  | Error info -> Exninfo.iraise (CmdTimeout, info)
+  | Ok v ->
     let stop = Unix.gettimeofday () in
     let remaining = n -. (stop -. start) in
-    if remaining <= 0. then Exninfo.iraise (Exninfo.capture CErrors.Timeout)
+    if remaining <= 0. then raise CmdTimeout
     else Some (ControlTimeout { remaining }, v)
   end
 
@@ -148,11 +156,12 @@ let with_fail f : (Loc.t option * Pp.t, 'a) result =
     let x = f () in
     Error x
   with
-  (* Fail Timeout is a common pattern so we need to support it. *)
   | e ->
     (* The error has to be printed in the failing state *)
     let _, info as exn = Exninfo.capture e in
-    if CErrors.is_anomaly e && e != CErrors.Timeout then Exninfo.iraise exn;
+    (* Don't turn Sys.Break and anomalies into successes
+       NB: on windows Sys.Break is used instead of Control.Timeout *)
+    if e = Sys.Break || CErrors.is_anomaly e then Exninfo.iraise exn;
     Ok (Loc.get_loc info, CErrors.iprint exn)
 
 type ('st0,'st) with_local_state = { with_local_state : 'a. 'st0 -> (unit -> 'a) -> 'st * 'a }
