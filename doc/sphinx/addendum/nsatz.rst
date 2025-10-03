@@ -3,7 +3,7 @@
 Nsatz: a solver for equalities in integral domains
 ===========================================================
 
-:Author: Loïc Pottier
+:Author: Loïc Pottier, Laurent Thery and Lionel Blatter
 
 .. note::
    The tactics described in this chapter require the Stdlib library.
@@ -72,6 +72,57 @@ files that declare the axioms used to define the real numbers, you can
 
    See the file `Nsatz.v <https://github.com/rocq-prover/stdlib/blob/master/test-suite/success/Nsatz.v>`_
    for examples, especially in geometry.
+
+.. tacn:: ensatz {? with strategy := @one_term }
+
+   This tactic is for solving goals of the form
+
+   :math:`\begin{array}{l}
+   \forall X_1, \ldots, X_n \in A, \\
+   P_1(X_1, \ldots, X_n) = Q_1(X_1, \ldots, X_n), \ldots, P_s(X_1, \ldots, X_n) = Q_s(X_1, \ldots, X_n) \\
+   \vdash \exists Y_1, \ldots, Y_m \in A, \\
+   P(X_1, \ldots, X_n) = Y_1 * Q_1'(X_1, \ldots, X_n) + \ldots + Y_m * Q_m'(X_1, \ldots, X_n)
+   \end{array}`
+
+   where :math:`P, P_1, Q_1, Q_1', , \ldots, P_s, Q_s, Q_m'` are polynomials and :math:`A` is an integral
+   domain, i.e. a commutative ring with no zero divisors. For example, :math:`A`
+   can be :math:`\mathbb{R}`, :math:`\mathbb{Z}`, or :math:`\mathbb{Q}`.
+   Note that the equality :math:`=` used in these goals can be
+   any setoid equality (see :ref:`tactics-enabled-on-user-provided-relations`) , not only Leibniz equality.
+
+   It also proves formulas
+
+   :math:`\begin{array}{l}
+   \forall X_1, \ldots, X_n \in A, \\
+   P_1(X_1, \ldots, X_n) = Q_1(X_1, \ldots, X_n) \wedge \ldots \wedge P_s(X_1, \ldots, X_n) = Q_s(X_1, \ldots, X_n) \\
+   \rightarrow \exists Y_1, \ldots, Y_m \in A,\\
+   P(X_1, \ldots, X_n) = Y_1 * Q_1'(X_1, \ldots, X_n) + \ldots + Y_m * Q_m'(X_1, \ldots, X_n)
+   \end{array}`
+
+   doing automatic introductions.
+
+   The tactic can also solve goals with existentiel variables.
+
+   .. example::
+
+     .. rocqtop:: all extra-stdlib
+
+       From Stdlib Require Import Znumtheory.
+       From Stdlib Require Import ZArith.
+       From Stdlib Require Import ZNsatz.
+
+       Goal forall a b n j x y z : Z,
+           a - j = x * n ->
+           b - y = z * n ->
+           exists k : Z, a * b - j * y = k * n.
+       Proof.
+         intros. eexists. ensatz.
+       Qed.
+
+
+   See the file
+   `ENsatz.v <https://github.com/rocq-prover/stdlib/blob/master/test-suite/success/ENsatz.v>`_
+   for examples.
 
 More about `nsatz`
 ---------------------
