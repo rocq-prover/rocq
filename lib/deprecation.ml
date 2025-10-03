@@ -48,18 +48,20 @@ let printer ~object_name ~pp_qf pp (x,{depr={since;note};use_instead}) =
   pr_opt (fun since -> str "since " ++ str since) since ++
   str "." ++ pr_opt (fun x -> x) note
 
+let quickfix ~pp_qf ~loc (x,{use_instead}) =
+  match use_instead with
+  | None -> []
+  | Some replacement ->
+    [Quickfix.make ~loc (pp_qf replacement)]
+
 let create_warning_with_qf ?default ~object_name ~warning_name_if_no_since ~pp_qf pp =
   let pp = printer ~object_name ~pp_qf pp in
+  let quickfix = quickfix ~pp_qf in
   let main_cat, main_w = CWarnings.create_hybrid ?default ~name:warning_name_if_no_since ~from:[depr_cat] () in
-  let main_w = CWarnings.create_in main_w pp in
+  let main_w = CWarnings.create_in main_w ~quickfix pp in
   let warnings = ref CString.Map.empty in
   fun ?loc (v, ({depr = {since}; use_instead } as info)) ->
     let since = since_name since in
-    let quickfix =
-      match use_instead with
-      | None -> None
-      | Some replacement ->
-          Option.cata (fun loc -> Some [Quickfix.make ~loc (pp_qf replacement)]) None loc in
     let w = match since with
       | NoSince -> main_w
       | Since since ->
@@ -74,7 +76,7 @@ let create_warning_with_qf ?default ~object_name ~warning_name_if_no_since ~pp_q
           warnings := CString.Map.add since w !warnings;
           w
     in
-    w ?loc ?quickfix (v,info)
+    w ?loc (v,info)
 
 let create_warning ?default ~object_name ~warning_name_if_no_since pp =
   let f = create_warning_with_qf ?default ~object_name ~warning_name_if_no_since ~pp_qf:(fun _ -> assert false) pp in

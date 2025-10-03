@@ -1842,13 +1842,11 @@ let vernac_hints ~atts dbnames h =
   Hints.add_hints ~locality dbnames (ComHints.interp_hints ~poly h)
 
 let warn_deprecated_notation_for_abbreviation =
-  let w =
-    CWarnings.create_with_quickfix ~name:"notation-for-abbreviation" ~category:Deprecation.Version.v9_2
-      (fun () -> strbrk "Use of \"Notation\" keyword for abbreviations is deprecated, use \
-                         \"Abbreviation\" instead.") in
-  fun ~loc () ->
-    let quickfix = [Quickfix.make ~loc (str "Abbreviation")] in
-    w ~loc ~quickfix ()
+  CWarnings.create ~name:"notation-for-abbreviation" ~category:Deprecation.Version.v9_2
+    ~quickfix:(fun ~loc () -> [Quickfix.make ~loc (str "Abbreviation")])
+    (fun () ->
+       strbrk "Use of \"Notation\" keyword for abbreviations is deprecated, \
+               use \"Abbreviation\" instead.")
 
 let vernac_abbreviation ~warn_old_notation ~atts lid x only_parsing =
   Option.iter (fun loc -> warn_deprecated_notation_for_abbreviation ~loc ())

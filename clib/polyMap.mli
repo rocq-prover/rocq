@@ -50,6 +50,8 @@ module Make (Tag:Tag) : sig
 
     val mem : 'a tag -> t -> bool
 
+    val update : 'a onetag -> ('a value option -> 'a value option) -> t -> t
+
     val modify : 'a tag -> ('a value -> 'a value) -> t -> t
 
     type 'acc fold = { fold : 'a. 'a onetag -> 'a value -> 'acc -> 'acc }

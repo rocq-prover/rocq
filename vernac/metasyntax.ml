@@ -44,8 +44,9 @@ let add_custom_compat kn =
     Id.Map.update id (fun existing -> Some (kn :: Option.default [] existing))
       !compat_custom_names
 
-let warn_compat_custom = CWarnings.create_with_quickfix ~name:"deprecated-unqualified-custom-entry"
+let warn_compat_custom = CWarnings.create ~name:"deprecated-unqualified-custom-entry"
     ~category:Deprecation.Version.v9_2
+    ~quickfix:(fun ~loc custom -> [Quickfix.make ~loc (Nametab.CustomEntries.pr custom)])
     Pp.(fun custom ->
         str "Accessing custom entry " ++ Nametab.CustomEntries.pr custom ++
         str " by its unqualified name is deprecated.")
@@ -63,10 +64,7 @@ let intern_custom_name qid =
     | None -> Loc.raise ?loc:qid.loc (UnknownCustomEntry qid)
     | Some [] -> assert false
     | Some [custom] ->
-      let quickfix = qid.loc |> Option.map @@ fun loc ->
-        [Quickfix.make ~loc (Nametab.CustomEntries.pr custom)]
-      in
-      warn_compat_custom ?loc:qid.loc custom ?quickfix;
+      warn_compat_custom ?loc:qid.loc custom;
       custom
     | Some customs ->
       user_err ?loc:qid.loc

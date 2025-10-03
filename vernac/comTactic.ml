@@ -45,28 +45,22 @@ let warn_end_tac =
   CWarnings.create_warning ~name:"deprecated-end-tac" ~from:[Deprecation.Version.v9_2] ()
 
 let pp_warn_end_tac =
-  CWarnings.create_in warn_end_tac Pp.(fun pptac ->
-      (* XXX we need to print eagerly for the quickfix but it should be delayed *)
-      fmt "Using \"...\" is deprecated, use \"%t\" instead" (fun () -> pptac))
+  let pptac end_tac =
+    let env = Global.env() in
+    let sigma = Evd.from_env env in
+    let pptac = Gentactic.print_glob env sigma end_tac in
+    Pp.(str ";" ++ spc() ++ pptac ++ str ".")
+  in
+  CWarnings.create_in warn_end_tac
+    ~quickfix:(fun ~loc end_tac -> [Quickfix.make ~loc (pptac end_tac)])
+    Pp.(fun end_tac ->
+      fmt "Using \"...\" is deprecated, use \"%t\" instead" (fun () -> pptac end_tac))
 
 let warn_end_tac ?loc end_tac =
   match end_tac with
   | None -> CErrors.user_err ?loc Pp.(str "This \"...\" is useless, use \".\" instead.")
   | Some end_tac ->
-  match CWarnings.warning_status warn_end_tac with
-  | Disabled -> ()
-  | _ ->
-    let pptac =
-      let env = Global.env() in
-      let sigma = Evd.from_env env in
-      let pptac = Gentactic.print_glob env sigma end_tac in
-      Pp.(str ";" ++ spc() ++ pptac ++ str ".")
-    in
-    let qf = match loc with
-      | None -> []
-      | Some loc -> [Quickfix.make ~loc pptac]
-    in
-    pp_warn_end_tac ?loc ~quickfix:qf pptac
+    pp_warn_end_tac ?loc end_tac
 
 let use_end_tac ~with_end_tac end_tac =
   if not with_end_tac.CAst.v then None

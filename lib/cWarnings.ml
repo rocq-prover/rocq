@@ -72,11 +72,17 @@ let get_status ~name = match get_warning name with
 
 type _ tag = ..
 
-type w = W : 'a tag * Quickfix.t list * 'a -> w
+type w = W : Loc.t option * 'a tag * 'a -> w
 exception WarnError of w
+
+type 'a quickfix = loc:Loc.t -> 'a -> Quickfix.t list
+(* XXX accept optional loc? In principle we could have a loc in the
+   ['a] while the warning as a whole is unlocated but not clear if
+   that ever really happens. *)
 
 module DMap = PolyMap.Make (struct type nonrec 'a tag = 'a tag = .. end)
 module PrintMap = DMap.Map(struct type 'a t = 'a -> Pp.t end)
+module QFMap = DMap.Map(struct type 'a t = 'a quickfix list end)
 
 module Msg = struct
   type 'a t = {
@@ -87,6 +93,7 @@ end
 type 'a msg = 'a Msg.t
 
 let printers = ref PrintMap.empty
+let quickfixes = ref QFMap.empty
 
 let wrap_pp w pp =
   let open Pp in
@@ -96,28 +103,39 @@ let register_printer { Msg.tag; warning} pp =
   let pp x = wrap_pp warning pp x in
   printers := PrintMap.add tag pp !printers
 
+let register_quickfix { Msg.tag } qf =
+  quickfixes := QFMap.update tag (fun v -> Some (qf :: Option.default [] v)) !quickfixes
+
 let create_msg warning () =
   let v = { Msg.tag = DMap.make(); warning; } in
   v
 
-let print (W (tag,_, w)) =
+let print (W (_loc, tag, w)) =
   let pp = try PrintMap.find tag !printers with Not_found -> assert false in
   pp w
+
+let quickfix (W (loc, tag, w)) =
+  match loc with
+  | None -> []
+  | Some loc ->
+  let pp = try QFMap.find tag !quickfixes with Not_found -> [] in
+  List.concat_map (fun f -> f ~loc w) pp
 
 let () = CErrors.register_handler (function
     | WarnError w -> Some (print w)
     | _ -> None)
 
 let () = Quickfix.register (function
-| WarnError (W(_,qf,_)) -> qf
-| _ -> [])
+    | WarnError w -> quickfix w
+    | _ -> [])
 
-let warn { Msg.tag; warning } ?loc ?(quickfix=[]) v =
+let warn { Msg.tag; warning } ?loc v =
   let tag = DMap.tag_of_onetag tag in
+  let w = W (loc,tag,v) in
   match warning_status warning with
   | Disabled -> ()
-  | AsError -> Loc.raise ?loc (WarnError (W (tag,quickfix,v)))
-  | Enabled -> Feedback.msg_warning ?loc ~quickfix (print (W (tag,quickfix,v)))
+  | AsError -> Loc.raise ?loc (WarnError w)
+  | Enabled -> Feedback.msg_warning ?loc ~quickfix:(quickfix w) (print w)
 
 (** Flag handling *)
 
@@ -376,19 +394,16 @@ let create_warning ?from ?default ~name () =
 let create_hybrid ?from ?default ~name () =
   create_gen ?from ?default ~name ~hybrid:true ()
 
-let create_in w pp =
+let create_in w ?quickfix pp =
   let msg = create_msg w () in
   let () = register_printer msg pp in
-  fun ?loc ?quickfix x -> warn ?loc ?quickfix msg x
+  let () = quickfix |> Option.iter (register_quickfix msg) in
+  fun ?loc x -> warn ?loc msg x
 
-let create_with_quickfix ~name ?category ?default pp =
+let create ~name ?category ?default ?quickfix pp =
   let from = Option.map (fun x -> [x]) category in
   let w = create_warning ?from ?default ~name () in
-  create_in w pp
-
-let create ~name ?category ?default pp =
-  let f = create_with_quickfix ~name ?category ?default pp in
-  fun ?loc x -> f ?quickfix:None ?loc x
+  create_in w ?quickfix pp
 
 let warn_unknown_warnings = create ~name:"unknown-warning" Pp.(fun flags ->
     str "Could not enable unknown " ++

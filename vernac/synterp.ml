@@ -265,9 +265,10 @@ let _ = CErrors.register_handler begin function
 end
 
 let warn_deprecated_from_Coq =
-  CWarnings.create_with_quickfix ~name:"deprecated-from-Coq"
+  CWarnings.create ~name:"deprecated-from-Coq"
     ~category:Deprecation.Version.v9_0
-    (fun () -> strbrk
+    ~quickfix:(fun ~loc qid -> [Quickfix.make ~loc (Libnames.pr_qualid qid)])
+    (fun (_qid : qualid) -> strbrk
         "\"From Coq\" has been replaced by \"From Stdlib\".")
 
 let deprecated_Coq from qidl =
@@ -305,10 +306,7 @@ let deprecated_Coq from qidl =
            let w', qid = repl_Coq_qid qid in Option.append w w', (qid, fe))
          None qidl in
        w, from, qidl in
-  let () = match warn with None -> () | Some qid ->
-    let quickfix = Option.map (fun loc ->
-      [Quickfix.make ~loc (Libnames.pr_qualid qid)]) qid.loc in
-    warn_deprecated_from_Coq ?quickfix () in
+  let () = warn |> Option.iter (fun qid -> warn_deprecated_from_Coq ?loc:qid.loc qid) in
   from, qidl
 
 let synterp_require ~intern from export qidl =

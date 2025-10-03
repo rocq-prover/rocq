@@ -97,8 +97,9 @@ let stdlib_id = Id.of_string "Stdlib"
 let corelib_id = Id.of_string "Corelib"
 
 let warn_deprecated_dirpath_Coq =
-  CWarnings.create_with_quickfix ~name:"deprecated-dirpath-Coq"
+  CWarnings.create ~name:"deprecated-dirpath-Coq"
     ~category:Deprecation.Version.v9_0
+    ~quickfix:(fun ~loc (old_id, new_id) -> [Quickfix.make ~loc new_id])
     (fun (old_id, new_id) ->
       Pp.(old_id ++ spc () ++ str "has been replaced by" ++ spc () ++ new_id ++ str "."))
 
@@ -113,8 +114,7 @@ let warn_deprecated_dirpath_Coq ?loc (coq_repl, l, id) =
   let dp l = DirPath.make (List.rev l) in
   let old_id = pr_qualid @@ Libnames.make_qualid (DirPath.make l) id in
   let new_id = pr_qualid @@ Libnames.make_qualid (dp @@ fix_coq_id coq_repl (List.rev l)) id in
-  let quickfix = Option.map (fun loc -> [ Quickfix.make ~loc new_id ]) loc in
-  warn_deprecated_dirpath_Coq ?loc ?quickfix (old_id, new_id)
+  warn_deprecated_dirpath_Coq ?loc (old_id, new_id)
 
 module Make (E : EqualityType) : NAMETREE
   with type elt = E.t =

@@ -23,7 +23,7 @@ type warning
 type 'a msg
 (** A [msg] belongs to a [warning]. *)
 
-val warn : 'a msg -> ?loc:Loc.t -> ?quickfix:Quickfix.t list -> 'a -> unit
+val warn : 'a msg -> ?loc:Loc.t -> 'a -> unit
 (** Emit a message in some warning. *)
 
 (** Creation functions
@@ -46,19 +46,24 @@ val create_hybrid : ?from:category list -> ?default:status -> name:string -> uni
 val create_msg : warning -> unit -> 'a msg
 (** A message with data ['a] in the given warning. *)
 
-val create_in : warning -> ('a -> Pp.t) -> ?loc:Loc.t -> ?quickfix:Quickfix.t list -> 'a -> unit
-(** Create a msg with registered printer. *)
+type 'a quickfix = loc:Loc.t -> 'a -> Quickfix.t list
+(** Type of quickfix generator from ['a]. *)
+
+val create_in : warning -> ?quickfix:'a quickfix ->
+  ('a -> Pp.t) -> ?loc:Loc.t -> 'a -> unit
+(** Create a msg with registered printer and optional quickfix. *)
 
 val register_printer : 'a msg -> ('a -> Pp.t) -> unit
 (** Register the printer for a given message. If a printer is already registered it is replaced. *)
 
-val create : name:string -> ?category:category -> ?default:status ->
-  ('a -> Pp.t) -> ?loc:Loc.t -> 'a -> unit
-(** Combined creation function. [name] must be a fresh name. *)
+val register_quickfix : 'a msg -> 'a quickfix -> unit
+(** Register a quickfix generator for a given message. If a quickfix
+    generator is already registered it is combined with the new
+    generator. *)
 
-val create_with_quickfix : name:string -> ?category:category -> ?default:status ->
-    ('a -> Pp.t) -> ?loc:Loc.t -> ?quickfix:Quickfix.t list -> 'a -> unit
-  (** Combined creation function. [name] must be a fresh name. *)
+val create : name:string -> ?category:category -> ?default:status ->
+  ?quickfix:'a quickfix -> ('a -> Pp.t) -> ?loc:Loc.t -> 'a -> unit
+(** Combined creation function. [name] must be a fresh name. *)
 
 (** Misc APIs *)
 

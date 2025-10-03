@@ -51,6 +51,8 @@ module Make (Tag:Tag) = struct
 
     val mem : 'a tag -> t -> bool
 
+    val update : 'a onetag -> ('a value option -> 'a value option) -> t -> t
+
     val modify : 'a tag -> ('a value -> 'a value) -> t -> t
 
     type 'acc fold = { fold : 'a. 'a onetag -> 'a value -> 'acc -> 'acc }
@@ -81,6 +83,20 @@ module Make (Tag:Tag) = struct
     let add tag v m = M.add (onekey tag) (V (tag, v)) m
 
     let mem tag m = M.mem (key tag) m
+
+    let update (type a) (tag:a onetag) (f:a V.t option -> a V.t option) m =
+      M.update (key tag) (fun optv ->
+          let optv : a V.t option = match optv with
+            | None -> None
+            | Some (V (tag', v)) ->
+              let module T = (val tag) in
+              match tag_of_onetag tag' with
+              | T.T -> Some v
+              | _ -> assert false
+          in
+          match f optv with
+          | None -> None
+          | Some v -> Some (V (tag,v))) m
 
     let modify (type a) (tag:a tag) (f:a V.t -> a V.t) m =
       M.modify (key tag) (fun _ (V (tag', v)) ->
