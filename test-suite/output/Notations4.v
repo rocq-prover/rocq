@@ -49,10 +49,10 @@ Inductive Expr :=
  | One : Expr.
 
 Declare Custom Entry expr.
+Notation "x + y" := (Add x y) (in custom expr at level 2, left associativity).
 Notation "[ expr ]" := expr (expr custom expr at level 2).
 Notation "1" := One (in custom expr at level 0).
 Notation "x y" := (Mul x y) (in custom expr at level 1, left associativity).
-Notation "x + y" := (Add x y) (in custom expr at level 2, left associativity).
 Notation "( x )" := x (in custom expr at level 0, x at level 2).
 Notation "{ x }" := x (in custom expr at level 0, x constr).
 Notation "x" := x (in custom expr at level 0, x ident).
