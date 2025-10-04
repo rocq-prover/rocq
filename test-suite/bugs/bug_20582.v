@@ -13,7 +13,7 @@ Succeed Constraint eq.u0 < Injections.u1.
 Lemma can_pcan g : cancel g -> pcancel (fun y => Some (g y)).
 Proof. by move=> fK x; congr (Some _). Defined.
 
-Succeed Constraint eq.u0 < Injections.u1.
+Fail Constraint eq.u0 < Injections.u1.
 Succeed Constraint Injections.u1 < eq.u0.
 
 End Injections.

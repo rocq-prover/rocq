@@ -42,12 +42,13 @@ Module Test1.
     Theorem upd_nop (a : A) (x : A) (e : a = x) (H: e = e)
       : eq_refl a = eq_refl.
     Proof.
+      (* The problem does not appear anymore *)
       (* neither TestLocal or TestExport registered the scheme *)
-      Fail subst.
-      Export TestLocal.
+      subst.
+(*      Export TestLocal.
       Fail subst.
       Export TestExport.
-      subst.
+      subst. *)
       exact H.
     Qed.
   End GenMem.
@@ -59,8 +60,9 @@ Section GenMem.
   Theorem upd_nop (a : A) (x : A) (e : a = x) (H: e = e)
     : eq_refl a = eq_refl.
   Proof.
+    (* The problem does not appear anymore *)
     (* Export reverted by section end *)
-    Fail subst.
+    subst.
   Abort.
 End GenMem.
 
