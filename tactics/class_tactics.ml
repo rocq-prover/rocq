@@ -140,7 +140,7 @@ let auto_core_unif_flags st allowed_evars = {
   use_pattern_unification = true;
   use_meta_bound_pattern_unification = true;
   allowed_evars;
-  restrict_conv_on_strict_subterms = false; (* ? *)
+  restrict_conv_on_strict_subterms = true; (* ? *)
   modulo_betaiota = true;
   modulo_eta = false;
 }
