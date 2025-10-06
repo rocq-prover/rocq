@@ -117,6 +117,10 @@ struct
   let repr x = x
   let of_repr x = x
 
+  let is_unif = function
+    | Unif _ -> true
+    | (Var _ | Global _) -> false
+
   module Self = struct type nonrec t = t let compare = compare end
   module Set = CSet.Make(Self)
   module Map = CMap.Make(Self)
@@ -152,12 +156,6 @@ module Quality = struct
       | _, QSProp -> 1
       | QType, QType -> 0
 
-    let eliminates_to a b = match a, b with
-      | _, QSProp -> true
-      | (QType | QProp), QProp -> true
-      | QType, _  -> true
-      | _, _ -> false
-
     let pr = function
       | QProp -> Pp.str "Prop"
       | QSProp -> Pp.str "SProp"
@@ -181,12 +179,6 @@ module Quality = struct
     | QVar _, _ -> -1
     | _, QVar _ -> 1
     | QConstant a, QConstant b -> Constants.compare a b
-
-  let eliminates_to a b = match a, b with
-    | QConstant QType, _ -> true
-    | QVar q, QVar q' -> QVar.equal q q' (* "trivial" check *)
-    | QConstant a, QConstant b -> Constants.eliminates_to a b
-    | _, (QVar _ | QConstant _) -> false
 
   let pr prv = function
     | QVar v -> prv v
@@ -241,6 +233,9 @@ module Quality = struct
   let is_qsprop = equal qsprop
   let is_qprop = equal qprop
   let is_qtype = equal qtype
+  let is_qvar q = match q with QVar _ -> true | _ -> false
+  let is_qconst q = match q with QConstant _ -> true | _ -> false
+  let is_qglobal q = match q with QVar (QVar.Global _) -> true | _ -> false
 
   module Self = struct type nonrec t = t let compare = compare end
   module Set = CSet.Make(Self)
@@ -256,14 +251,62 @@ module Quality = struct
     | PQConstant _, QVar _ -> None
 end
 
-module QConstraint = struct
-  type kind = Equal | Leq
+module ElimConstraint = struct
+  type kind = Equal | ElimTo
 
   let eq_kind : kind -> kind -> bool = (=)
   let compare_kind : kind -> kind -> int = compare
 
   let pr_kind = function
     | Equal -> Pp.str "="
+    | ElimTo -> Pp.str "->"
+
+  type t = Quality.t * kind * Quality.t
+
+  let equal (a,k,b) (a',k',b') =
+    eq_kind k k' && Quality.equal a a' && Quality.equal b b'
+
+  let compare (a,k,b) (a',k',b') =
+    let c = compare_kind k k' in
+    if c <> 0 then c
+    else
+      let c = Quality.compare a a' in
+      if c <> 0 then c
+      else Quality.compare b b'
+
+  let pr prq (a,k,b) =
+    let open Pp in
+    hov 1 (Quality.pr prq a ++ spc() ++ pr_kind k ++ spc() ++ Quality.pr prq b)
+
+  let raw_pr x = pr QVar.raw_pr x
+
+end
+
+module ElimConstraints = struct include CSet.Make(ElimConstraint)
+  let pr prq c =
+    let open Pp in
+    v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
+      hov 0 (Quality.pr prq u1 ++ ElimConstraint.pr_kind op ++ Quality.pr prq u2))
+       (elements c))
+
+end
+
+let enforce_eq_quality a b csts =
+  if Quality.equal a b then csts
+  else ElimConstraints.add (a,ElimConstraint.Equal,b) csts
+
+let enforce_elim_to_quality a b csts =
+  if Quality.equal a b then csts
+  else ElimConstraints.add (a,ElimConstraint.ElimTo,b) csts
+
+module QCumulConstraint = struct
+  type kind = Eq | Leq
+
+  let eq_kind : kind -> kind -> bool = (=)
+  let compare_kind : kind -> kind -> int = compare
+
+  let pr_kind (c : kind) = match c with
+    | Eq -> Pp.str "="
     | Leq -> Pp.str "<="
 
   type t = Quality.t * kind * Quality.t
@@ -279,45 +322,43 @@ module QConstraint = struct
       if c <> 0 then c
       else Quality.compare b b'
 
-  let trivial (a,(Equal|Leq),b) = Quality.equal a b
-
   let pr prq (a,k,b) =
     let open Pp in
     hov 1 (Quality.pr prq a ++ spc() ++ pr_kind k ++ spc() ++ Quality.pr prq b)
 
   let raw_pr x = pr QVar.raw_pr x
 
+  let trivial ((a,(Eq|Leq),b) : t) = Quality.equal a b
 end
 
-module QConstraints = struct include CSet.Make(QConstraint)
-  let trivial = for_all QConstraint.trivial
-
+module QCumulConstraints = struct include CSet.Make(QCumulConstraint)
   let pr prq c =
     let open Pp in
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
-      hov 0 (Quality.pr prq u1 ++ QConstraint.pr_kind op ++ Quality.pr prq u2))
+      hov 0 (Quality.pr prq u1 ++ QCumulConstraint.pr_kind op ++ Quality.pr prq u2))
        (elements c))
 
+  let trivial = for_all QCumulConstraint.trivial
 end
 
-let enforce_eq_quality a b csts =
+let enforce_eq_cumul_quality a b csts =
   if Quality.equal a b then csts
-  else QConstraints.add (a,QConstraint.Equal,b) csts
+  else QCumulConstraints.add (a,QCumulConstraint.Eq,b) csts
 
 let enforce_leq_quality a b csts =
   if Quality.equal a b then csts
   else match a, b with
     | Quality.(QConstant QProp), Quality.(QConstant QType) -> csts
-    | _ -> QConstraints.add (a,QConstraint.Leq,b) csts
+    | _ -> QCumulConstraints.add (a,QCumulConstraint.Leq,b) csts
 
 module QUConstraints = struct
 
-  type t = QConstraints.t * Univ.Constraints.t
+  type t = QCumulConstraints.t * Univ.Constraints.t
 
-  let empty = QConstraints.empty, Univ.Constraints.empty
+  let empty = QCumulConstraints.empty, Univ.Constraints.empty
 
   let union (qcsts,ucsts) (qcsts',ucsts') =
-    QConstraints.union qcsts qcsts', Constraints.union ucsts ucsts'
+    QCumulConstraints.union qcsts qcsts', Constraints.union ucsts ucsts'
 end
 
 type t =
@@ -367,15 +408,6 @@ let compare s1 s2 =
       let c = QVar.compare q1 q2 in
       if Int.equal c 0 then Universe.compare u1 u2 else c
     | QSort _, (Prop | Set | Type _) -> 1
-
-let quality s =
-  match s with
-  | SProp -> Quality.qsprop
-  | Prop -> Quality.qprop
-  | Set | Type _ -> Quality.qtype
-  | QSort (q,_) -> Quality.QVar q
-
-let eliminates_to s1 s2 = Quality.eliminates_to (quality s1) (quality s2)
 
 let equal s1 s2 = Int.equal (compare s1 s2) 0
 

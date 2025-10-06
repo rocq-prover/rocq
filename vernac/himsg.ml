@@ -241,7 +241,8 @@ let explain_elim_arity env sigma ind c okinds =
         if ppunivs then Flags.with_option Constrextern.print_universes pp ()
         else pp ()
       in
-      let squash = Option.get (Inductive.is_squashed (specif, snd ind)) in
+      let env = Environ.set_qualities (QGraph.qvar_domain @@ Evd.elim_graph sigma) env in
+      let squash = Option.get (Inductive.is_squashed env (specif, snd ind)) in
       match squash with
       | SquashToSet ->
         let ppt = ppt () in
@@ -874,9 +875,14 @@ let explain_unsatisfied_constraints env sigma cst =
     Univ.Constraints.pr (Termops.pr_evd_level sigma) cst ++
     spc () ++ str "(maybe a bugged tactic)."
 
-let explain_unsatisfied_qconstraints env sigma cst =
-  strbrk "Unsatisfied quality constraints: " ++
-  Sorts.QConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
+let explain_unsatisfied_elim_constraints env sigma cst =
+  strbrk "Unsatisfied elimination constraints: " ++
+  Sorts.ElimConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
+  spc() ++ str "(maybe a bugged tactic)."
+
+let explain_unsatisfied_qcumul_constraints env sigma cst =
+  strbrk "Unsatisfied quality cumulativity constraints: " ++
+  Sorts.QCumulConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
   spc() ++ str "(maybe a bugged tactic)."
 
 let explain_undeclared_universes env sigma l =
@@ -1009,8 +1015,10 @@ let explain_type_error env sigma err =
       explain_wrong_case_info env ind ci
   | UnsatisfiedConstraints cst ->
     explain_unsatisfied_constraints env sigma cst
-  | UnsatisfiedQConstraints cst ->
-    explain_unsatisfied_qconstraints env sigma cst
+  | UnsatisfiedElimConstraints cst ->
+    explain_unsatisfied_elim_constraints env sigma cst
+  | UnsatisfiedQCumulConstraints cst ->
+    explain_unsatisfied_qcumul_constraints env sigma cst
   | UndeclaredUniverses l ->
     explain_undeclared_universes env sigma l
   | UndeclaredQualities l ->
@@ -1140,6 +1148,23 @@ let rec explain_pretype_error env sigma err =
   | UnsatisfiableConstraints (c,comp) -> explain_unsatisfiable_constraints env sigma c comp
   | DisallowedSProp -> explain_disallowed_sprop ()
 
+let explain_elimination_error defprv err =
+  let open Pp in
+  match err with
+  | QGraph.IllegalConstraint -> str "A constraint involving two constants or SProp ~> s is illegal."
+  | QGraph.CreatesForbiddenPath (q1,q2) ->
+     str "This expression would enforce a non-declared elimination constraint between" ++
+       spc() ++ Sorts.Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Sorts.Quality.pr defprv q2
+  | QGraph.MultipleDominance (q1,qv,q2) ->
+     let pr_elim q = Sorts.Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Sorts.Quality.pr defprv qv in
+     str "This expression enforces" ++ spc() ++ pr_elim q1 ++ spc() ++ str"and" ++ spc() ++
+       pr_elim q2 ++ spc() ++ str"which might make type-checking undecidable"
+  | QGraph.QualityInconsistency (k, q1, q2, r) ->
+     str"The quality constraints are inconsistent: " ++
+       str "cannot enforce" ++ spc() ++ Sorts.Quality.pr defprv q1 ++ spc() ++
+       Sorts.ElimConstraint.pr_kind k ++ spc() ++ Sorts.Quality.pr defprv q2 ++ spc() ++
+       QGraph.explain_quality_inconsistency defprv r
+
 (* Module errors *)
 
 let pr_modpath mp =
@@ -1225,6 +1250,8 @@ let explain_not_match_error = function
       Sorts.QVar.raw_pr
       UnivNames.pr_level_with_global_universes
       incon
+  | IncompatibleQualities incon ->
+     explain_elimination_error Sorts.QVar.raw_pr incon
   | IncompatiblePolymorphism (env, t1, t2) ->
     let t1, t2 = pr_explicit env (Evd.from_env env) (EConstr.of_constr t1) (EConstr.of_constr t2) in
     str "conversion of polymorphic values generates additional constraints: " ++
@@ -1549,8 +1576,8 @@ let explain_incompatible_prim_declarations (type a) (act:a Primred.action_kind) 
 (* Recursion schemes errors *)
 
 let explain_recursion_scheme_error env = function
-  | NotAllowedCaseAnalysis (isrec,k,i) ->
-    explain_elim_arity env (Evd.from_env env) i None (Some k)
+  | NotAllowedCaseAnalysis (sigma,isrec,k,i) ->
+    explain_elim_arity env sigma i None (Some k)
       (* error_not_allowed_case_analysis env isrec k i *)
   | NotMutualInScheme (ind,ind')-> error_not_mutual_in_scheme env ind ind'
   | NotAllowedDependentAnalysis (isrec, i) ->
