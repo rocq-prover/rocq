@@ -38,7 +38,7 @@ let is_modular = function
 let split_struc k m struc =
   let rec split rev_before = function
     | [] -> raise Not_found
-    | (k',b)::after when Label.equal k k' && (is_modular b) == (m : bool) ->
+    | (k',b)::after when Id.equal k k' && (is_modular b) == (m : bool) ->
       List.rev rev_before,b,after
     | h::tail -> split (h::rev_before) tail
   in split [] struc
@@ -50,7 +50,7 @@ let discr_resolver mp mtb = match mod_type mtb with
 let rec rebuild_mp mp l =
   match l with
   | []-> mp
-  | i::r -> rebuild_mp (MPdot(mp,Label.of_id i)) r
+  | i::r -> rebuild_mp (MPdot(mp,i)) r
 
 let infer_gen_conv state env c1 c2 =
   Conversion.generic_conv Conversion.CONV ~l2r:false TransparentState.full env state c1 c2
@@ -67,7 +67,7 @@ type with_body = {
 let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
   let lab,idl = match idl with
     | [] -> assert false
-    | id::idl -> Label.of_id id, idl
+    | id::idl -> id, idl
   in
   try
     let modular = not (List.is_empty idl) in
@@ -158,7 +158,7 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
 let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
   let lab,idl = match idl with
     | [] -> assert false
-    | id::idl -> Label.of_id id, idl
+    | id::idl -> id, idl
   in
   try
     let before,spec,after = split_struc lab true struc in

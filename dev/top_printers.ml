@@ -38,7 +38,6 @@ let ppfuture kx = pp (Future.print (fun _ -> str "_") kx)
 
 (* name printers *)
 let ppid id = pp (Id.print id)
-let pplab l = pp (Label.print l)
 let ppmbid mbid = pp (str (MBId.debug_to_string mbid))
 let ppdir dir = pp (DirPath.print dir)
 let ppmp mp = pp(str (ModPath.debug_to_string mp))
@@ -695,27 +694,27 @@ let encode_path ?loc prefix mpdir suffix id =
 let raw_string_of_ref ?loc _ = let open GlobRef in function
   | ConstRef cst ->
       let (mp,id) = KerName.repr (Constant.user cst) in
-      encode_path ?loc "CST" (Some mp) [] (Label.to_id id)
+      encode_path ?loc "CST" (Some mp) [] id
   | IndRef (kn,i) ->
       let (mp,id) = KerName.repr (MutInd.user kn) in
-      encode_path ?loc "IND" (Some mp) [Label.to_id id]
+      encode_path ?loc "IND" (Some mp) [id]
         (Id.of_string ("_"^string_of_int i))
   | ConstructRef ((kn,i),j) ->
       let (mp,id) = KerName.repr (MutInd.user kn) in
       encode_path ?loc "CSTR" (Some mp)
-        [Label.to_id id;Id.of_string ("_"^string_of_int i)]
+        [id;Id.of_string ("_"^string_of_int i)]
         (Id.of_string ("_"^string_of_int j))
   | VarRef id ->
       encode_path ?loc "SECVAR" None [] id
 
 let short_string_of_ref ?loc _ = let open GlobRef in function
   | VarRef id -> qualid_of_ident ?loc id
-  | ConstRef cst -> qualid_of_ident ?loc (Label.to_id (Constant.label cst))
-  | IndRef (kn,0) -> qualid_of_ident ?loc (Label.to_id (MutInd.label kn))
+  | ConstRef cst -> qualid_of_ident ?loc (Constant.label cst)
+  | IndRef (kn,0) -> qualid_of_ident ?loc (MutInd.label kn)
   | IndRef (kn,i) ->
-      encode_path ?loc "IND" None [Label.to_id (MutInd.label kn)]
+      encode_path ?loc "IND" None [MutInd.label kn]
         (Id.of_string ("_"^string_of_int i))
   | ConstructRef ((kn,i),j) ->
       encode_path ?loc "CSTR" None
-        [Label.to_id (MutInd.label kn);Id.of_string ("_"^string_of_int i)]
+        [MutInd.label kn; Id.of_string ("_"^string_of_int i)]
         (Id.of_string ("_"^string_of_int j))

@@ -51,37 +51,37 @@ let add_mib_nameobjects mp l mib map =
     let map =
       Array.fold_right_i
       (fun i id map ->
-        Label.Map.add (Label.of_id id) (IndConstr((ip,i+1), mib)) map)
+        Id.Map.add id (IndConstr((ip,i+1), mib)) map)
       oib.mind_consnames
       map
     in
-      Label.Map.add (Label.of_id oib.mind_typename) (IndType (ip, mib)) map
+      Id.Map.add oib.mind_typename (IndType (ip, mib)) map
   in
   Array.fold_right_i add_mip_nameobjects mib.mind_packets map
 
 
 (* creates (namedobject/namedmodule) map for the whole signature *)
 
-type labmap = { objs : namedobject Label.Map.t; mods : namedmodule Label.Map.t }
+type labmap = { objs : namedobject Id.Map.t; mods : namedmodule Id.Map.t }
 
-let empty_labmap = { objs = Label.Map.empty; mods = Label.Map.empty }
+let empty_labmap = { objs = Id.Map.empty; mods = Id.Map.empty }
 
 let get_obj mp map l =
-  try Label.Map.find l map.objs
+  try Id.Map.find l map.objs
   with Not_found -> error_no_such_label_sub l (ModPath.to_string mp)
 
 let get_mod mp map l =
-  try Label.Map.find l map.mods
+  try Id.Map.find l map.mods
   with Not_found -> error_no_such_label_sub l (ModPath.to_string mp)
 
 let make_labmap mp list =
   let add_one (l,e) map =
    match e with
-    | SFBconst cb -> { map with objs = Label.Map.add l (Constant cb) map.objs }
-    | SFBrules _ -> { map with objs = Label.Map.add l Rules map.objs }
+    | SFBconst cb -> { map with objs = Id.Map.add l (Constant cb) map.objs }
+    | SFBrules _ -> { map with objs = Id.Map.add l Rules map.objs }
     | SFBmind mib -> { map with objs = add_mib_nameobjects mp l mib map.objs }
-    | SFBmodule mb -> { map with mods = Label.Map.add l (Module mb) map.mods }
-    | SFBmodtype mtb -> { map with mods = Label.Map.add l (Modtype mtb) map.mods }
+    | SFBmodule mb -> { map with mods = Id.Map.add l (Module mb) map.mods }
+    | SFBmodtype mtb -> { map with mods = Id.Map.add l (Modtype mtb) map.mods }
   in
   CList.fold_right add_one list empty_labmap
 

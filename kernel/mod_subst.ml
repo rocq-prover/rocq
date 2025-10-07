@@ -203,7 +203,7 @@ let debug_pr_subst subst =
 let add_inline_delta_resolver kn (lev,oc) = Deltamap.add_kn kn (Inline (lev,oc))
 
 let add_kn_delta_resolver kn kn' =
-  assert (Label.equal (KerName.label kn) (KerName.label kn'));
+  assert (Id.equal (KerName.label kn) (KerName.label kn'));
   Deltamap.add_kn kn (Equiv kn')
 
 let add_mp_delta_resolver mp1 mp2 = Deltamap.add_mp mp1 mp2

@@ -219,8 +219,8 @@ let flatten_modtype env mp me_alg struc_opt =
 
 let env_for_mtb_with_def env mp me reso idl =
   let struc = Modops.destr_nofunctor mp me in
-  let l = Label.of_id (List.hd idl) in
-  let spot = function (l',SFBconst _) -> Label.equal l l' | _ -> false in
+  let l = List.hd idl in
+  let spot = function (l',SFBconst _) -> Id.equal l l' | _ -> false in
   let before = fst (List.split_when spot struc) in
   Modops.add_structure mp before reso env
 
@@ -832,7 +832,7 @@ let show_extraction ~pstate =
     (* FIXME: substitute relevances with ground ones *)
     let ast, ty = extract_constr table env sigma t in
     let mp = Lib.current_mp () in
-    let l = Label.of_id (Declare.Proof.get_name pstate) in
+    let l = Declare.Proof.get_name pstate in
     let fake_ref = { glob = GlobRef.ConstRef (Constant.make2 mp l); inst = InfvInst.empty } in
     let decl = Dterm (fake_ref, ast, ty) in
     print_one_decl table [] mp decl

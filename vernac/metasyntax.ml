@@ -39,7 +39,7 @@ let () = CErrors.register_handler @@ function
 let compat_custom_names = Summary.ref ~stage:Synterp ~name:"compat-custom-names" Id.Map.empty
 
 let add_custom_compat kn =
-  let id = CustomName.label kn |> Label.to_id in
+  let id = CustomName.label kn in
   compat_custom_names :=
     Id.Map.update id (fun existing -> Some (kn :: Option.default [] existing))
       !compat_custom_names

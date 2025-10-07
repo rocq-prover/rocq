@@ -47,7 +47,7 @@ and translate_field mp env acc (l,x) =
      compile_mind_field mp l acc mb
   | SFBrules rrb ->
      (debug_native_compiler (fun () ->
-        let msg = Printf.sprintf "Not Compiling rules %s..." (Label.to_string l) in
+        let msg = Printf.sprintf "Not Compiling rules %s..." (Id.to_string l) in
         Pp.str msg));
      compile_rewrite_rules env l acc rrb
   | SFBmodule md ->

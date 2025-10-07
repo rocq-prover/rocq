@@ -397,7 +397,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_
       if dir = R2L then sigma, elim else
       let elim, _ = EConstr.destConst sigma elim in
       let mp,l = KerName.repr (Constant.canonical elim) in
-      let l' = Label.of_id (Nameops.add_suffix (Label.to_id l) "_r")  in
+      let l' = Nameops.add_suffix l "_r"  in
       let c1' = Global.constant_of_delta_kn (Constant.canonical (Constant.make2 mp l')) in
       Evd.fresh_global env sigma (ConstRef c1')
   in

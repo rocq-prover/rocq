@@ -16,7 +16,7 @@ type export_flag = Export | Import
 type export = (export_flag * Libobject.open_filter) option (* None for a Module Type *)
 
 let make_oname Libobject.{ obj_path; obj_mp } id =
-  Names.(Libnames.add_path_suffix obj_path id, KerName.make obj_mp (Label.of_id id))
+  Names.(Libnames.add_path_suffix obj_path id, KerName.make obj_mp id)
 
 type 'summary node =
   | CompilingLibrary of Libobject.object_prefix
@@ -209,7 +209,7 @@ let make_path_except_section id =
 
 let make_kn id =
   let mp = current_mp () in
-  Names.KerName.make mp (Names.Label.of_id id)
+  Names.KerName.make mp id
 
 let make_foname id = make_oname !synterp_state.path_prefix id
 
@@ -300,7 +300,7 @@ let rec split_modpath = function
   |Names.MPbound mbid -> library_dp (), [Names.MBId.to_id mbid]
   |Names.MPdot (mp,l) ->
     let (dp,ids) = split_modpath mp in
-    (dp, Names.Label.to_id l :: ids)
+    (dp, l :: ids)
 
 let library_part = function
   | GlobRef.VarRef id -> library_dp ()

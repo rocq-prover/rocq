@@ -69,7 +69,7 @@ let def_of_const t =
     with Not_found ->
       anomaly
         ( str "Cannot find definition of constant "
-        ++ Id.print (Label.to_id (Constant.label (fst sp)))
+        ++ Id.print (Constant.label (fst sp))
         ++ str "." ) )
   | _ -> assert false
 
@@ -1705,7 +1705,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   let tcc_lemma_constr = ref Undefined in
   (* let _ = Pp.msgnl (fun _ _ -> str "relation := " ++ Printer.pr_lconstr_env env_with_pre_rec_args relation) in *)
   let hook {Declare.Hook.S.uctx; dref; _ } =
-    assert (match dref with GlobRef.ConstRef cst -> Id.equal (Label.to_id (Constant.label cst)) term_id | _ -> assert false);
+    assert (match dref with GlobRef.ConstRef cst -> Id.equal (Constant.label cst) term_id | _ -> assert false);
     let f_ref =
       declare_f function_name Decls.(IsProof Lemma) arg_ctx dref
     in

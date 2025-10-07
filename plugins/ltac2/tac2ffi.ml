@@ -247,7 +247,7 @@ let of_rewstrategy ev = of_ext val_rewstrategy ev
 let to_rewstrategy ev = to_ext val_rewstrategy ev
 let rewstrategy = repr_ext val_rewstrategy
 
-let rocq_core n = Names.(KerName.make Tac2env.rocq_prefix (Label.of_id @@ Id.of_string_soft n))
+let rocq_core n = Names.(KerName.make Tac2env.rocq_prefix (Id.of_string_soft n))
 
 let internal_err = rocq_core "Internal"
 

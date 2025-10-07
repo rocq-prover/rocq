@@ -601,7 +601,7 @@ let abs_cterm env sigma n c0 =
 let rec constr_name sigma c = match EConstr.kind sigma c with
   | Var id -> Name id
   | Cast (c', _, _) -> constr_name sigma c'
-  | Const (cn,_) -> Name (Label.to_id (Constant.label cn))
+  | Const (cn,_) -> Name (Constant.label cn)
   | App (c', _) -> constr_name sigma c'
   | _ -> Anonymous
 

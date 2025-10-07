@@ -192,7 +192,7 @@ type section_data = {
   rev_env : Environ.env;
   rev_univ : Univ.ContextSet.t;
   rev_qualities : Sorts.QVar.Set.t;
-  rev_objlabels : Label.Set.t;
+  rev_objlabels : Id.Set.t;
   rev_reimport : reimport list;
   rev_revstruct : structure_body;
   rev_paramresolver : ParamResolver.t;
@@ -224,8 +224,8 @@ type safe_environment =
     modresolver : Mod_subst.delta_resolver;
     paramresolver : ParamResolver.t;
     revstruct : structure_body;
-    modlabels : Label.Set.t;
-    objlabels : Label.Set.t;
+    modlabels : Id.Set.t;
+    objlabels : Id.Set.t;
     univ : Univ.ContextSet.t;
     (* maybe should be a qglobal set? *)
     qualities : Sorts.QVar.Set.t;
@@ -255,8 +255,8 @@ let empty_environment =
     modresolver = Mod_subst.empty_delta_resolver ModPath.dummy;
     paramresolver = ParamResolver.empty DirPath.dummy;
     revstruct = [];
-    modlabels = Label.Set.empty;
-    objlabels = Label.Set.empty;
+    modlabels = Id.Set.empty;
+    objlabels = Id.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
@@ -544,8 +544,8 @@ let is_joined_environment e = HandleMap.is_empty e.future_cst
 
 (** {6 Various checks } *)
 
-let exists_modlabel l senv = Label.Set.mem l senv.modlabels
-let exists_objlabel l senv = Label.Set.mem l senv.objlabels
+let exists_modlabel l senv = Id.Set.mem l senv.modlabels
+let exists_objlabel l senv = Id.Set.mem l senv.objlabels
 
 let check_modlabel l senv =
   if exists_modlabel l senv then Modops.error_existing_label l
@@ -554,14 +554,14 @@ let check_objlabel l senv =
   if exists_objlabel l senv then Modops.error_existing_label l
 
 let check_objlabels ls senv =
-  Label.Set.iter (fun l -> check_objlabel l senv) ls
+  Id.Set.iter (fun l -> check_objlabel l senv) ls
 
 (** Are we closing the right module / modtype ?
     No user error here, since the opening/ending coherence
     is now verified in [vernac_end_segment] *)
 
 let check_current_label lab = function
-  | MPdot (_,l) -> assert (Label.equal lab l)
+  | MPdot (_,l) -> assert (Id.equal lab l)
   | _ -> assert false
 
 let check_struct = function
@@ -664,8 +664,8 @@ let push_section_context uctx senv =
 
 let labels_of_mib mib =
   let add,get =
-    let labels = ref Label.Set.empty in
-    (fun id -> labels := Label.Set.add (Label.of_id id) !labels),
+    let labels = ref Id.Set.empty in
+    (fun id -> labels := Id.Set.add id !labels),
     (fun () -> !labels)
   in
   let visit_mip mip =
@@ -694,11 +694,11 @@ let add_field ((l,sfb) as field) gn senv =
   let mlabs,olabs = match sfb with
     | SFBmind mib ->
       let l = labels_of_mib mib in
-      check_objlabels l senv; (Label.Set.empty,l)
+      check_objlabels l senv; (Id.Set.empty,l)
     | SFBconst _ | SFBrules _ ->
-      check_objlabel l senv; (Label.Set.empty, Label.Set.singleton l)
+      check_objlabel l senv; (Id.Set.empty, Id.Set.singleton l)
     | SFBmodule _ | SFBmodtype _ ->
-      check_modlabel l senv; (Label.Set.singleton l, Label.Set.empty)
+      check_modlabel l senv; (Id.Set.singleton l, Id.Set.empty)
   in
   let env' = match sfb, gn with
     | SFBconst cb, C con -> Environ.add_constant con cb senv.env
@@ -725,8 +725,8 @@ let add_field ((l,sfb) as field) gn senv =
     env = env';
     sections;
     revstruct = field :: senv.revstruct;
-    modlabels = Label.Set.union mlabs senv.modlabels;
-    objlabels = Label.Set.union olabs senv.objlabels }
+    modlabels = Id.Set.union mlabs senv.modlabels;
+    objlabels = Id.Set.union olabs senv.objlabels }
 
 (** Applying a certain function to the resolver of a safe environment *)
 
@@ -793,7 +793,7 @@ let inline_side_effects env body side_eff =
   if List.is_empty side_eff then (body, Univ.ContextSet.empty, sigs, 0)
   else
     (** Second step: compute the lifts and substitutions to apply *)
-    let cname c r = Context.make_annot (Name (Label.to_id (Constant.label c))) r in
+    let cname c r = Context.make_annot (Name (Constant.label c)) r in
     let fold (subst, var, ctx, args) { seff_constant = c; seff_body = (_hbody, cb); seff_univs = univs; _ } =
       let (b, opaque) = match cb.const_body with
       | Def b -> (b, false)
@@ -856,7 +856,7 @@ let warn_failed_cert = CWarnings.create ~name:"failed-abstract-certificate"
     ~category:CWarnings.CoreCategories.tactics ~default:CWarnings.Disabled
     Pp.(fun kn ->
         str "Certificate for private constant " ++
-        Label.print (Constant.label kn) ++
+        Id.print (Constant.label kn) ++
         str " failed.")
 
 (* Given the list of signatures of side effects, checks if they match.
@@ -1170,7 +1170,7 @@ let check_mind mie lab =
   | [] -> assert false (* empty inductive entry *)
   | oie::_ ->
     (* The label and the first inductive type name should match *)
-    assert (Id.equal (Label.to_id lab) oie.mind_entry_typename)
+    assert (Id.equal lab oie.mind_entry_typename)
 
 let add_checked_mind kn mib senv =
   let mib =
@@ -1271,8 +1271,8 @@ let start_mod_modtype ~istype l senv =
 
     (* module local fields *)
     revstruct = [];
-    modlabels = Label.Set.empty;
-    objlabels = Label.Set.empty;
+    modlabels = Id.Set.empty;
+    objlabels = Id.Set.empty;
     loads = [];
     local_retroknowledge = [];
   }
@@ -1359,7 +1359,7 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
     env = newenv;
     modresolver = newresolver;
     revstruct = newdef::oldsenv.revstruct;
-    modlabels = Label.Set.add (fst newdef) oldsenv.modlabels;
+    modlabels = Id.Set.add (fst newdef) oldsenv.modlabels;
     univ = senv.univ;
     qualities = senv.qualities ;
     future_cst = senv.future_cst;
@@ -1485,8 +1485,8 @@ let start_library dir senv =
     modresolver = Mod_subst.empty_delta_resolver mp;
     paramresolver = ParamResolver.empty dir;
     revstruct = [];
-    modlabels = Label.Set.empty;
-    objlabels = Label.Set.empty;
+    modlabels = Id.Set.empty;
+    objlabels = Id.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;

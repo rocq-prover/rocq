@@ -35,9 +35,9 @@ let control_prefix = prefix_gen "Control"
 let pattern_prefix = prefix_gen "Pattern"
 let array_prefix = prefix_gen "Array"
 let constr_prefix = prefix_gen "Constr"
-let format_prefix = MPdot (prefix_gen "Message", Label.make "Format")
+let format_prefix = MPdot (prefix_gen "Message", Id.of_string "Format")
 
-let kername prefix n = KerName.make prefix (Label.of_id (Id.of_string_soft n))
+let kername prefix n = KerName.make prefix (Id.of_string_soft n)
 let std_core n = kername Tac2env.std_prefix n
 let rocq_core n = kername Tac2env.rocq_prefix n
 let control_core n = kername control_prefix n
@@ -74,7 +74,7 @@ open Refs
 (** Quoters *)
 
 let in_constr mods n =
-  let mp = List.fold_left (fun mp mod_ -> MPdot (mp, Label.of_id @@ Id.of_string mod_))
+  let mp = List.fold_left (fun mp mod_ -> MPdot (mp, Id.of_string mod_))
       constr_prefix
       mods
   in

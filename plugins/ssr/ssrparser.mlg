@@ -97,7 +97,7 @@ let register_ssrtac name f prods =
     | TacNonTerm (_, (_, ido)) -> ido in
   let ids = List.map_filter get_id prods in
   let tac = CAst.make (TacML (ssrtac_entry name, List.map map ids)) in
-  let key = KerName.make path (Label.make ("ssrparser_" ^ name)) in
+  let key = KerName.make path (Id.of_string ("ssrparser_" ^ name)) in
   let body = Tacenv.{ alias_args = ids; alias_body = tac; alias_deprecation = None } in
   let parule = {
     pptac_level = 0;

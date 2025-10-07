@@ -169,7 +169,7 @@ let () = define "sum2" (custom2 @-> ret int) @@ fun (i,j) ->
 let loader_module_name = ModPath.MPfile (DirPath.make @@ List.map Id.of_string ["Loader"; "Tuto4"])
 
 (* the type in that module is "custom2" *)
-let custom2_type_name = KerName.make loader_module_name (Label.of_id @@ Id.of_string "custom2")
+let custom2_type_name = KerName.make loader_module_name (Id.of_string "custom2")
 
 (* the printing system gives us the current env and evar map, the
    value to be printed, and the type arguments at which we are printing. *)

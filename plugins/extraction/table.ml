@@ -133,7 +133,7 @@ type table = {
   (* projs: working modulo name equivalence is ok *)
   info_axioms : Refset'.t;
   log_axioms : Refset'.t;
-  symbols : Label.t list Refmap'.t;
+  symbols : Id.t list Refmap'.t;
   opaques:  Refset'.t;
   modfile_ids : Id.Set.t;
   modfile_mps : string DirPath.Map.t;
@@ -236,7 +236,7 @@ let record_fields_of_type table = function
 let add_recursors table env ind =
   let kn = MutInd.canonical ind in
   let mk_kn id =
-    KerName.make (KerName.modpath kn) (Label.of_id id)
+    KerName.make (KerName.modpath kn) id
   in
   let mib = Environ.lookup_mind ind env in
   Array.iter
@@ -284,14 +284,14 @@ let safe_basename_of_global_gen table r =
   let last_chance r (kn, pos) =
     try Nametab.basename_of_global r
     with Not_found ->
-      let id = Id.to_string (Label.to_id (MutInd.label kn)) in
+      let id = Id.to_string (MutInd.label kn) in
       Id.of_string (id ^ "_" ^ String.concat "_" (List.map string_of_int pos))
   in
   let unsafe_lookup_ind table kn = snd (InfvMap.find r.inst (Mindmap_env.find kn !table.inductives)) in
   let open GlobRef in
   match r.glob with
-    | ConstRef kn -> Label.to_id (Constant.label kn)
-    | IndRef (kn,0) -> Label.to_id (MutInd.label kn)
+    | ConstRef kn -> Constant.label kn
+    | IndRef (kn,0) -> MutInd.label kn
     | IndRef (kn,i) ->
       let r = r.glob in
       begin match table with
@@ -325,7 +325,7 @@ let safe_pr_long_global r =
   with Not_found -> match r.glob with
     | GlobRef.ConstRef kn ->
         let mp,l = KerName.repr (Constant.user kn) in
-        str ((ModPath.to_string mp)^"."^(Label.to_string l))
+        str ((ModPath.to_string mp)^"."^(Id.to_string l))
     | _ -> assert false
 
 let pr_long_mp mp =
@@ -362,7 +362,7 @@ let warn_extraction_symbols =
   let pp_symb_with_rules (symb, rules) =
     safe_pr_global symb ++
     if List.is_empty rules then str " (no rules)" else
-    str ":" ++ spc() ++ prlist_with_sep spc Label.print rules
+    str ":" ++ spc() ++ prlist_with_sep spc Id.print rules
   in
   CWarnings.create ~name:"extraction-symbols" ~category:CWarnings.CoreCategories.extraction
     (fun symbols ->

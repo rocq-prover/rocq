@@ -118,7 +118,7 @@ type typdef = {
 
 let change_kn_label kn id =
   let mp = KerName.modpath kn in
-  KerName.make mp (Label.of_id id)
+  KerName.make mp id
 
 let change_sp_label sp id =
   let (dp, _) = Libnames.repr_path sp in
@@ -236,7 +236,7 @@ type typext = {
 let push_typext vis prefix def =
   let iter data =
     let spc = Libnames.add_path_suffix prefix.obj_path data.edata_name in
-    let knc = KerName.make prefix.obj_mp (Label.of_id data.edata_name) in
+    let knc = KerName.make prefix.obj_mp data.edata_name in
     let user_warns = data.edata_warn in
     Tac2env.push_constructor ?user_warns vis spc knc
   in
@@ -244,7 +244,7 @@ let push_typext vis prefix def =
 
 let define_typext mp def =
   let iter data =
-    let knc = KerName.make mp (Label.of_id data.edata_name) in
+    let knc = KerName.make mp data.edata_name in
     let cdata = {
       Tac2env.cdata_prms = def.typext_prms;
       cdata_type = def.typext_type;
@@ -1211,7 +1211,7 @@ let pr_frame = function
 
 let () = register_handler begin function
 | Tac2interp.LtacError (kn, args) ->
-  let t_exn = KerName.make Tac2env.rocq_prefix (Label.make "exn") in
+  let t_exn = KerName.make Tac2env.rocq_prefix (Id.of_string "exn") in
   let v = Tac2ffi.of_open (kn, args) in
   let t = GTypRef (Other t_exn, []) in
   let c = Tac2print.pr_valexpr (Global.env ()) Evd.empty v t in
@@ -1483,7 +1483,7 @@ let register_prim_alg name params def =
   let def = { typdef_local = false; typdef_abstract = false; typdef_expr = def } in
   Lib.add_leaf (inTypDef id def)
 
-let rocq_def n = KerName.make Tac2env.rocq_prefix (Label.make n)
+let rocq_def n = KerName.make Tac2env.rocq_prefix (Id.of_string n)
 
 let def_unit = {
   typdef_local = false;

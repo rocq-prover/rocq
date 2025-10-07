@@ -267,16 +267,6 @@ end
 module MBImap = MBId.Map
 module MBIset = MBId.Set
 
-(** {6 Names of structure elements } *)
-
-module Label =
-struct
-  include Id
-  let make = Id.of_string
-  let of_id id = id
-  let to_id id = id
-end
-
 (** {6 The module part of the kernel name } *)
 
 module ModPath = struct
@@ -284,7 +274,7 @@ module ModPath = struct
   type t =
     | MPfile of DirPath.t
     | MPbound of MBId.t
-    | MPdot of t * Label.t
+    | MPdot of t * Id.t
 
   type module_path = t
 
@@ -296,14 +286,14 @@ module ModPath = struct
   let rec to_string = function
     | MPfile sl -> DirPath.to_string sl
     | MPbound uid -> MBId.to_string uid
-    | MPdot (mp,l) -> to_string mp ^ "." ^ Label.to_string l
+    | MPdot (mp,l) -> to_string mp ^ "." ^ Id.to_string l
 
   let print mp = str (to_string mp)
 
   let rec debug_to_string = function
     | MPfile sl -> DirPath.to_string sl
     | MPbound uid -> MBId.debug_to_string uid
-    | MPdot (mp,l) -> debug_to_string mp ^ "." ^ Label.to_string l
+    | MPdot (mp,l) -> debug_to_string mp ^ "." ^ Id.to_string l
 
   (** we compare labels first if both are MPdots *)
   let rec compare mp1 mp2 =
@@ -339,7 +329,7 @@ module ModPath = struct
   | MPfile dp -> combinesmall 1 (DirPath.hash dp)
   | MPbound id -> combinesmall 2 (MBId.hash id)
   | MPdot (mp, lbl) ->
-    combinesmall 3 (combine (hash mp) (Label.hash lbl))
+    combinesmall 3 (combine (hash mp) (Id.hash lbl))
 
   let dummy = MPfile DirPath.dummy
 
@@ -394,7 +384,7 @@ module KerName = struct
 
   type t = {
     modpath : ModPath.t;
-    knlabel : Label.t;
+    knlabel : Id.t;
     refhash : int;
     (** Lazily computed hash. If unset, it is set to negative values. *)
   }
@@ -403,7 +393,7 @@ module KerName = struct
 
   let make modpath knlabel =
     let open Hashset.Combine in
-    let refhash = combine (ModPath.hash modpath) (Label.hash knlabel) in
+    let refhash = combine (ModPath.hash modpath) (Id.hash knlabel) in
     (* Truncate for backwards compatibility w.r.t. ordering *)
     let refhash = refhash land 0x3FFFFFFF in
     { modpath; knlabel; refhash; }
@@ -414,7 +404,7 @@ module KerName = struct
   let label kn = kn.knlabel
 
   let to_string_gen mp_to_string kn =
-    mp_to_string kn.modpath ^ "." ^ Label.to_string kn.knlabel
+    mp_to_string kn.modpath ^ "." ^ Id.to_string kn.knlabel
 
   let to_string kn = to_string_gen ModPath.to_string kn
 
@@ -437,7 +427,7 @@ module KerName = struct
     let h2 = kn2.refhash in
     if 0 <= h1 && 0 <= h2 && not (Int.equal h1 h2) then false
     else
-      Label.equal kn1.knlabel kn2.knlabel &&
+      Id.equal kn1.knlabel kn2.knlabel &&
       ModPath.equal kn1.modpath kn2.modpath
 
   let hash kn = kn.refhash
@@ -791,7 +781,7 @@ let eq_constant_key = Constant.UserOrd.equal
 type module_path = ModPath.t =
   | MPfile of DirPath.t
   | MPbound of MBId.t
-  | MPdot of module_path * Label.t
+  | MPdot of module_path * Id.t
 
 (** Compatibility layer for [Constant] *)
 
@@ -833,7 +823,7 @@ struct
         let c = Int.compare a.proj_npars b.proj_npars in
         if c <> 0 then c
         else
-          Label.compare (Constant.label a.proj_name) (Constant.label b.proj_name)
+          Id.compare (Constant.label a.proj_name) (Constant.label b.proj_name)
 
     module CanOrd = struct
       type nonrec t = t
@@ -1108,3 +1098,12 @@ type lname = Name.t CAst.t
 type lstring = string CAst.t
 
 let lident_eq = CAst.eq Id.equal
+
+(** Deprecated *)
+module Label =
+struct
+  include Id
+  let make = Id.of_string
+  let of_id id = id
+  let to_id id = id
+end

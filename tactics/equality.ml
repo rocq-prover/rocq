@@ -363,11 +363,11 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
           | None ->
              let c1 = destConstRef (Elimschemes.lookup_eliminator env ind_sp sort) in
              let mp,l = KerName.repr (Constant.canonical c1) in
-             let l' = Label.of_id (add_suffix (Label.to_id l) "_r")  in
+             let l' = add_suffix l "_r"  in
              let c1' = Global.constant_of_delta_kn (KerName.make mp l') in
              if not (Environ.mem_constant c1' (Global.env ())) then
                user_err
-                 (str "Cannot find rewrite principle " ++ Label.print l' ++ str ".");
+                 (str "Cannot find rewrite principle " ++ Id.print l' ++ str ".");
              c1'
           end
         | _ ->

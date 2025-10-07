@@ -51,7 +51,7 @@ sig
   val get_library : t -> bool
   val get_keywords : t -> Id.Set.t
   val get_phase : t -> phase
-  val get_duplicate : t -> ModPath.t -> Label.t -> string option
+  val get_duplicate : t -> ModPath.t -> Id.t -> string option
 
   (** Setters *)
   val set_phase : t -> phase -> t

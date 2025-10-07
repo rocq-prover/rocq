@@ -171,9 +171,8 @@ let lookup_eliminator_by_name env ind_sp s =
   let mpc = KerName.modpath @@ MutInd.canonical kn in
   let ind_id = (lookup_mind kn env).mind_packets.(i).mind_typename in
   let id = make_elimination_ident ind_id s in
-  let l = Label.of_id id in
-  let knu = KerName.make mpu l in
-  let knc = KerName.make mpc l in
+  let knu = KerName.make mpu id in
+  let knc = KerName.make mpc id in
   (* Try first to get an eliminator defined in the same section as the *)
   (* inductive type *)
   let cst = Constant.make knu knc in

@@ -77,7 +77,7 @@ let pp_sort s =
   | Sorts.SProp -> str "SProp"
   | Sorts.Type _ | Sorts.QSort _ -> str "Type"
 
-let pr_con sp = str(Names.Label.to_string (Constant.label sp))
+let pr_con sp = str(Names.Id.to_string (Constant.label sp))
 
 let rec pp_lam lam =
   match lam.node with
@@ -202,7 +202,7 @@ let mkLlam ids body =
 
 (* Hack: brutally pierce through the abstraction of PArray *)
 let unsafe_mkPArray args def =
-  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
+  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Id.of_string "dummy") in
   let dummy = (MutInd.make1 dummy, 0) in
   let ar = mknode @@ Lmakeblock (dummy, 0, args) in
   let kind = mknode @@ Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)
@@ -210,7 +210,7 @@ let unsafe_mkPArray args def =
 
 (* Same as above but with a blob instead of a block *)
 let unsafe_mkPArray_val v def =
-  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Names.Label.of_id @@ Id.of_string "dummy") in
+  let dummy = KerName.make (ModPath.MPfile DirPath.empty) (Id.of_string "dummy") in
   let dummy = (MutInd.make1 dummy, 0) in
   let ar = mknode @@ Lval v in
   let kind = mknode @@ Lmakeblock (dummy, 0, [|ar; def|]) in (* Parray.Array *)

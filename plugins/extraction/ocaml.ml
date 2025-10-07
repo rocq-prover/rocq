@@ -710,9 +710,9 @@ and pp_module_type table params = function
       let mp_mt = msid_of_mt mt in
       let l,idl' = List.sep_last idl in
       let mp_w =
-        List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
+        List.fold_left (fun mp l -> MPdot(mp, l)) mp_mt idl'
       in
-      let r = { glob = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)); inst = rlv } in
+      let r = { glob = GlobRef.ConstRef (Constant.make2 mp_w l); inst = rlv } in
       let pp_w = State.with_visibility table mp_mt [] begin fun table ->
         str " with type " ++ ids ++ pp_global table Type r
       end in
@@ -720,7 +720,7 @@ and pp_module_type table params = function
   | MTwith(mt,ML_With_module(idl,mp)) ->
       let mp_mt = msid_of_mt mt in
       let mp_w =
-        List.fold_left (fun mp id -> MPdot(mp,Label.of_id id)) mp_mt idl
+        List.fold_left (fun mp id -> MPdot(mp, id)) mp_mt idl
       in
       let pp_w = State.with_visibility table mp_mt [] begin fun table ->
         str " with module " ++ pp_modname table mp_w
