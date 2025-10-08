@@ -73,7 +73,7 @@ let raw_string_of_modfile = function
   | MPfile f -> String.capitalize_ascii (Id.to_string (List.hd (DirPath.repr f)))
   | _ -> assert false
 
-let extraction_current_mp () = fst (Safe_typing.flatten_env (Global.safe_env ()))
+let extraction_current_mp () = Safe_typing.(current_modpath @@ flatten_env (Global.safe_env ()))
 
 let is_toplevel mp = ModPath.equal mp (extraction_current_mp ())
 
