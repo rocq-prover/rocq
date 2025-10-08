@@ -1321,6 +1321,119 @@ let () =
   define "projection_to_constant" (projection @-> ret (option constant)) @@ fun p ->
   Some (Projection.constant p)
 
+let () = define "module_equal" (modpath @-> modpath @-> ret bool) @@ fun a b ->
+  ModPath.equal a b
+
+let () = define "module_to_message" (modpath @-> ret pp) @@ fun m ->
+  try Nametab.Modules.pr m
+  with Not_found ->
+  try Nametab.ModTypes.pr m
+  with Not_found ->
+  try Nametab.OpenMods.pr (DirOpenModule m)
+  with Not_found ->
+  try Nametab.OpenMods.pr (DirOpenModtype m)
+  with Not_found ->
+    CErrors.anomaly Pp.(str "Unknown module or modtype " ++ ModPath.print m)
+
+(* Find info about open module [m] in [senv_l] describing the open
+   modules of some safe env with current module [senv_m].
+   Returns [None] if [m] is the library, [Some v] if [m] is some inner open module. *)
+let rec find_openmod m senv_m senv_l =
+  let open ModPath in
+  match senv_m, senv_l with
+  | MPbound _, _ -> assert false
+  | MPfile _, [] -> assert (ModPath.equal m senv_m); None
+  | MPfile _, _ :: _ -> assert false
+  | MPdot (m0, _), is_modtype :: rest ->
+    if ModPath.equal m senv_m then Some is_modtype
+    else find_openmod m m0 rest
+  | MPdot _, [] -> assert false
+
+(* Assuming [m] is currently open, tell whether it is modtype. *)
+let open_module_is_modtype m =
+  let senv = Global.safe_env() in
+  match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_is_modtype senv) with
+  | None -> false
+  | Some b -> b
+
+let open_module_is_functor m =
+  let senv = Global.safe_env() in
+  match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_num_parameters senv) with
+  | None -> false
+  | Some nparams -> not (Int.equal nparams 0)
+
+let () = define "module_is_modtype" (modpath @-> eret bool) @@ fun m env _ ->
+  try ignore (Environ.lookup_modtype m env); true
+  with Not_found ->
+  try open_module_is_modtype m
+  with Not_found -> false
+
+let () = define "module_is_functor" (modpath @-> eret bool) @@ fun m env _ ->
+  let modbody_is_functor m = match Mod_declarations.mod_type m with
+    | NoFunctor _ -> false
+    | MoreFunctor _ -> true
+  in
+  match Environ.lookup_module m env with
+  | m -> modbody_is_functor m
+  | exception Not_found -> match Environ.lookup_modtype m env with
+    | m -> modbody_is_functor m
+    | exception Not_found -> open_module_is_functor m
+
+let () = define "module_is_bound_module" (modpath @-> ret bool) @@ function
+  | MPbound _ -> true
+  | MPfile _ | MPdot _ -> false
+
+let () = define "module_is_library" (modpath @-> ret bool) @@ function
+  | MPfile _ -> true
+  | MPbound _ | MPdot _ -> false
+
+let () = define "module_is_open" (modpath @-> eret bool) @@ fun m env _ ->
+  try ignore (Environ.lookup_module m env); false
+  with Not_found ->
+  try ignore (Environ.lookup_modtype m env); false
+  with Not_found -> true
+
+let () = define "module_parent_module" (modpath @-> ret (option modpath)) @@ function
+  | MPdot (m, _) -> Some m
+  | MPbound _ | MPfile _ -> None
+
+let () = define "module_of_reference" (reference @-> tac modpath) @@ function
+  | VarRef _ -> throw (Invalid_argument "module_of_reference")
+  | ConstRef c -> return (Constant.modpath c)
+  | IndRef (mind,_) | ConstructRef ((mind,_),_) -> return (MutInd.modpath mind)
+
+let () = define "current_module" (unit @-> ret modpath) @@ fun () ->
+  Global.current_modpath()
+
+let module_field_handler = triple (fun1 modpath valexpr) (fun1 reference valexpr) (fun1 unit valexpr)
+
+let () = define "module_field_handle" (module_field @-> module_field_handler @-> tac valexpr) @@ fun f handler ->
+  let (handle_submodule, handle_reference, handle_rewrule) = handler in
+  match f with
+  | Ref x -> handle_reference x
+  | Submodule x -> handle_submodule x
+  | Rewrule -> handle_rewrule ()
+
+let () = define "module_contents" (modpath @-> ret (option (list module_field))) @@ fun m ->
+  let env = Safe_typing.(env_of_safe_env @@ flatten_env (Global.safe_env())) in
+  match Environ.lookup_module m env with
+  | exception Not_found -> (* modtype *) None
+  | body -> match Mod_declarations.mod_type body with
+    | MoreFunctor _ -> (* functor *) None
+    | NoFunctor body ->
+      let to_field (lab, f) : ModField.t = match (f:_ Declarations.structure_field_body) with
+        | SFBconst _ ->
+          let kn = KerName.make m lab in
+          Ref (ConstRef (Global.constant_of_delta_kn kn))
+        | SFBmind _ ->
+          let kn = KerName.make m lab in
+          Ref (IndRef ((Global.mind_of_delta_kn kn, 0)))
+        | SFBrules _ -> Rewrule
+        | SFBmodule _ -> Submodule (MPdot (m, lab))
+        | SFBmodtype _ -> Submodule (MPdot (m, lab))
+      in
+      Some (List.map to_field body)
+
 module MapTagDyn = Dyn.Make()
 
 type ('a,'set,'map) map_tag = ('a * 'set * 'map) MapTagDyn.tag
