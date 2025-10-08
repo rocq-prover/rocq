@@ -30,6 +30,13 @@ let map_repr f g r = {
 type ind_data = (Names.Ind.t * Declarations.mutual_inductive_body)
 type binder = (Names.Name.t EConstr.binder_annot * EConstr.types)
 
+module ModField = struct
+  type t =
+    | Ref of Names.GlobRef.t
+    | Submodule of Names.ModPath.t
+    | Rewrule
+end
+
 (** Dynamic tags *)
 
 let val_exn = Val.create "exn"
@@ -61,6 +68,8 @@ let val_pretype_flags = Val.create "pretype_flags"
 let val_expected_type = Val.create "expected_type"
 let val_reduction = Val.create "reduction"
 let val_rewstrategy = Val.create "rewstrategy"
+let val_modpath = Val.create "modpath"
+let val_module_field = Val.create "module_field"
 
 let extract_val (type a) (type b) (tag : a Val.tag) (tag' : b Val.tag) (v : b) : a =
 match Val.eq tag tag' with
@@ -461,6 +470,15 @@ let binder = repr_ext val_binder
 let of_instance c = of_ext val_instance c
 let to_instance c = to_ext val_instance c
 let instance = repr_ext val_instance
+
+let of_modpath c = of_ext val_modpath c
+let to_modpath c = to_ext val_modpath c
+let modpath = repr_ext val_modpath
+
+let of_module_field c = of_ext val_module_field c
+let to_module_field c = to_ext val_module_field c
+let module_field = repr_ext val_module_field
+
 
 let of_reference = let open Names.GlobRef in function
 | VarRef id -> ValBlk (0, [| of_ident id |])
