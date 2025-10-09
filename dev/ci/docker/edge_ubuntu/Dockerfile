@@ -53,9 +53,9 @@ RUN mkdir -p ~/.config/dune && printf '(lang dune 2.1)\n(jobs %s)\n' $NJOBS > ~/
 
 # Edge opam is the set of edge packages required by Coq
 ENV COMPILER="4.14.2" \
-    BASE_OPAM="zarith.1.13 ounit2.2.2.6 camlzip.1.13" \
+    BASE_OPAM="zarith.1.13 ounit2.2.2.6 camlzip.1.13 thread-local-storage.0.2" \
     CI_OPAM="ocamlgraph.2.0.0 cppo.1.6.9" \
-    BASE_OPAM_EDGE="dune.3.14.0 dune-build-info.3.14.0 dune-release.2.0.0 ocamlfind.1.9.6 odoc.2.3.1" \
+    BASE_OPAM_EDGE="dune.3.14.0 dune-build-info.3.14.0 dune-release.2.0.0 ocamlfind.1.9.6 odoc.2.3.1 thread-local-storage.0.2" \
     CI_OPAM_EDGE="elpi.3.0.1 ppx_import.1.10.0 cmdliner.1.1.1 sexplib.v0.15.1 ppx_sexp_conv.v0.15.1 ppx_hash.v0.15.0 ppx_compare.v0.15.0 ppx_deriving_yojson.3.7.0 yojson.2.1.0 uri.4.2.0 ppx_yojson_conv.v0.15.1 ppx_inline_test.v0.15.1 ppx_assert.v0.15.0 ppx_optcomp.v0.15.0 lsp.1.16.2 sel.0.6.0" \
     COQIDE_OPAM_EDGE="lablgtk3-sourceview3.3.1.3"
 

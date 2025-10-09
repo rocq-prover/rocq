@@ -12,6 +12,8 @@
     containing a pair composed of the distinguishing [token] and the backtrace
     information. We discriminate the token by pointer equality. *)
 
+open CRef
+
 module Store = Store.Make ()
 
 type 'a t = 'a Store.field

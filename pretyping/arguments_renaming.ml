@@ -30,7 +30,7 @@ type req =
   | ReqGlobal
 
 let load_rename_args _ (_, (r, names)) =
-  name_table := GlobRefMap.add (Global.env ()) r names !name_table
+  CRef.(name_table := GlobRefMap.add (Global.env ()) r names !name_table)
 
 let cache_rename_args o = load_rename_args 1 o
 
@@ -72,7 +72,7 @@ let rename_arguments local r names =
   let req = if local then ReqLocal else ReqGlobal in
   Lib.add_leaf (inRenameArgs (req, (r, names)))
 
-let arguments_names env r = GlobRefMap.find env r !name_table
+let arguments_names env r = GlobRefMap.find env r CRef.(!name_table)
 
 let rename_type env ty ref =
   let name_override old_name override =

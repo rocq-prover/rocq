@@ -93,7 +93,7 @@ let prec_of_prim_token = function
 
 let adjust_level side lev_after l_not prec =
   match side with
-  | Some _ when !Constrextern.print_parentheses -> no_after, LevelLe 0
+  | Some _ when CRef.(!Constrextern.print_parentheses) -> no_after, LevelLe 0
   | Some Right ->
     (if Notation.may_capture_cont_after lev_after prec then no_after else lev_after), prec
   | Some Left -> Some l_not, prec
@@ -172,7 +172,7 @@ let pr_generalization bk c =
   str "`" ++ str hd ++ c ++ str tl
 
 let pr_com_at n =
-  if !Flags.beautify && not (Int.equal n 0) then comment (Pputils.extract_comments n)
+  if CRef.(!Flags.beautify) && not (Int.equal n 0) then comment (Pputils.extract_comments n)
   else mt()
 
 let pr_with_comments ?loc pp = pr_located (fun x -> x) (loc, pp)
@@ -818,7 +818,7 @@ let pr lev_after prec = function
   | c -> pr lev_after prec c
 
 let transf env sigma c =
-  if !Flags.beautify_file then
+  if CRef.(!Flags.beautify_file) then
     let r = Constrintern.intern_gen ~strict_check:false WithoutTypeConstraint env sigma c in
     Constrextern.(extern_glob_constr (extern_env env sigma)) r
   else c

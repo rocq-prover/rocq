@@ -555,7 +555,7 @@ let print_xml =
   let m = Mutex.create () in
   fun oc xml ->
     CThread.with_lock m ~scope:(fun () ->
-        if !Flags.xml_debug then
+        if CRef.(!Flags.xml_debug) then
           Printf.printf "SENT --> %s\n%!" (Xml_printer.to_string_fmt xml);
         try Control.protect_sigalrm (Xml_printer.print oc) xml
         with e -> let e = Exninfo.capture e in Exninfo.iraise e)
@@ -599,7 +599,7 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
   let process_xml_msg xml_ic xml_oc out_ch =
     try
       let xml_query = Xml_parser.parse xml_ic in
-      if !Flags.xml_debug then
+      if CRef.(!Flags.xml_debug) then
         pr_with_pid (Xml_printer.to_string_fmt xml_query);
       let Xmlprotocol.Unknown q = Xmlprotocol.to_call xml_query in
       let () = pr_debug_call q in
@@ -676,7 +676,7 @@ let rec parse = function
   | "--xml_format=Ppcmds" :: rest ->
         msg_format := (fun () -> Xmlprotocol.Ppcmds); parse rest
   | "-xml-debug" :: rest ->
-    Flags.xml_debug := true; parse rest
+    CRef.(Flags.xml_debug := true); parse rest
   | x :: rest ->
      if String.length x > 0 && x.[0] = '-' then
        (prerr_endline ("Unknown option " ^ x); exit 1)
@@ -705,9 +705,9 @@ let islave_parse opts extra_args =
   ( { Coqtop.run_mode; color_mode }, stm_opts), []
 
 let islave_init ( { Coqtop.run_mode; color_mode }, stm_opts) injections ~opts =
-  if run_mode = Coqtop.Batch then Flags.quiet := true;
+  if run_mode = Coqtop.Batch then CRef.(Flags.quiet := true);
   (* -xml-debug implies -debug. *)
-  let injections = if !Flags.xml_debug
+  let injections = if CRef.(!Flags.xml_debug)
     then Coqargs.OptionInjection (["Debug"], OptionSet (Some "all")) :: injections
     else injections
   in

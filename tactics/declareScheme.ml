@@ -13,6 +13,7 @@ open Names
 let scheme_map = Summary.ref Indmap.empty ~name:"Schemes"
 
 let cache_one_scheme kind (ind,const) =
+  let open CRef in
   scheme_map := Indmap.update ind (function
       | None -> Some (CString.Map.singleton kind const)
       | Some map -> Some (CString.Map.add kind const map))
@@ -38,6 +39,6 @@ let inScheme : Libobject.locality * (string * (inductive * Constant.t)) -> Libob
 let declare_scheme local kind indcl =
   Lib.add_leaf (inScheme (local,(kind,indcl)))
 
-let lookup_scheme kind ind = CString.Map.find kind (Indmap.find ind !scheme_map)
+let lookup_scheme kind ind = CString.Map.find kind (Indmap.find ind CRef.(!scheme_map))
 
-let all_schemes () = !scheme_map
+let all_schemes () = CRef.(!scheme_map)

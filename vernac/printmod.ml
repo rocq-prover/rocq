@@ -127,7 +127,7 @@ let print_one_inductive env sigma mib ((_,i) as ind) =
   let cstrtypes = Array.map (fun c -> snd (Term.decompose_prod_n_decls nparamdecls c)) cstrtypes in
   let isrecord = match mip.mind_record with
     | NotRecord -> None
-    | FakeRecord -> if !Flags.raw_print then None else Some Anonymous
+    | FakeRecord -> if CRef.(!Flags.raw_print) then None else Some Anonymous
     | PrimRecord (id,_,_,_) -> Some (Name id)
   in
   if Option.has_some isrecord then assert (Array.length cstrtypes = 1);
@@ -156,7 +156,7 @@ let pr_mutual_inductive_body env mind mib udecl =
     | BiFinite ->
        match mib.mind_packets.(0).mind_record with
        | NotRecord -> "Variant"
-       | FakeRecord -> if !Flags.raw_print then "Variant" else "Record"
+       | FakeRecord -> if CRef.(!Flags.raw_print) then "Variant" else "Record"
        | PrimRecord l -> "Record"
   in
   let udecl = Option.map (fun x -> GlobRef.IndRef (mind,0), x) udecl in

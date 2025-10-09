@@ -13,10 +13,10 @@ let counter = Summary.ref ~name:"counter" 0
  * We can increment our counter:
  *)
 let increment () =
-  counter := succ !counter
+  CRef.(counter := succ !counter)
 
 (*
  * We can also read the value of our counter:
  *)
 let value () =
-  !counter
+  CRef.(!counter)

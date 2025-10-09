@@ -396,7 +396,7 @@ let parse_args argv =
     | "-norec" :: [] -> usage 1
 
     | "-silent" :: rem ->
-        Flags.quiet := true; parse rem
+      CRef.(Flags.quiet := true); parse rem
 
     | s :: _ when s<>"" && s.[0]='-' ->
         fatal_error (str "Unknown option " ++ str s) false

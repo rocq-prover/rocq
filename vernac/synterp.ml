@@ -248,7 +248,7 @@ let err_notfound_library ?from qid =
   | Some from -> str " with prefix " ++ DirPath.print from
   in
   let bonus =
-    if !Flags.load_vos_libraries then mt ()
+    if CRef.(!Flags.load_vos_libraries) then mt ()
     else str " (while searching for a .vos file)"
   in
   strbrk "Unable to locate library " ++ pr_qualid qid ++ prefix ++ bonus

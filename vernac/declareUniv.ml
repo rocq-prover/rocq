@@ -258,6 +258,8 @@ let do_constraint ~poly l =
     in
     Global.push_section_context uctx
 
+open CRef
+
 let constraint_sources = Summary.ref ~name:"univ constraint sources" []
 
 let cache_constraint_source x = constraint_sources := x :: !constraint_sources

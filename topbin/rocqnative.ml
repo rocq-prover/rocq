@@ -188,7 +188,7 @@ let get_used_load_paths () =
       (Filename.dirname f) acc)
        !libraries_table String.Set.empty)
 
-let _ = Nativelib.get_load_paths := get_used_load_paths
+let _ = CRef.(Nativelib.get_load_paths := get_used_load_paths)
 end
 
 let add_path ~unix_path:dir ~rocq_root:rocq_dirpath =
@@ -231,7 +231,7 @@ let init_load_path_std env ~default_ml () =
   let user_contrib = Boot.Env.user_contrib env |> Boot.Path.to_string in
   let xdg_dirs = Envars.xdg_dirs in
   let rocqpath = Envars.coqpath in
-  let () = if default_ml then Nativelib.(include_dirs := default_include_dirs env) in
+  let () = if default_ml then Nativelib.(CRef.(include_dirs := default_include_dirs env)) in
   (* NOTE: These directories are searched from last to first *)
   (* first standard library *)
   add_rec_path ~unix_path:corelib ~rocq_root:(Names.DirPath.make[rocq_root]);
@@ -254,7 +254,7 @@ let init_load_path ~boot ~coqlib ~vo_path ~ml_path =
     | Env env ->
       init_load_path_std env ~default_ml:(CList.is_empty ml_path) ()
   in
-  let () = if not default_ml then Nativelib.include_dirs := ml_path in
+  let () = if not default_ml then CRef.(Nativelib.include_dirs := ml_path) in
   (* always add current directory *)
   add_path ~unix_path:"." ~rocq_root:Loadpath.default_root_prefix;
   (* additional loadpath, given with -R/-Q options *)
@@ -362,7 +362,7 @@ let rec parse_args (args : string list) accu =
     let accu =  { accu with ml_path = dir :: accu.ml_path } in
     parse_args rem accu
   |"-native-output-dir" :: dir :: rem ->
-    Nativelib.output_dir := dir;
+    CRef.(Nativelib.output_dir := dir);
     parse_args rem accu
   | "-coqlib" :: s :: rem -> parse_args rem { accu with coqlib = Some s }
   | ("-?"|"-h"|"-H"|"-help"|"--help") :: _ -> Usage.usage ()

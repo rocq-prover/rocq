@@ -297,7 +297,7 @@ let create_custom_entry s =
   ()
 
 let find_custom_entry s =
-  let state = gramstate() in
+  let state = gramstate () in
   let find_aux field = match GramState.get state field with
   | None -> raise Not_found
   | Some m -> CustomName.Map.find s m

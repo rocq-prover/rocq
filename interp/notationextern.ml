@@ -12,6 +12,7 @@
     for notations *)
 
 (*i*)
+open CRef
 open Util
 open Names
 open Globnames
@@ -187,14 +188,14 @@ type data = {
   ntn_done : notation_rule list;
 }
 
-type t = data ref option
+type t = data CRef.ref option
 
 let empty = None
 
 let push k r s = match s with
-| None -> Some (ref { ntn_done = []; ntn_todo = [k, r] })
-| Some { contents = s } ->
-  Some (ref { ntn_done = s.ntn_done; ntn_todo = (k, r) :: s.ntn_todo })
+| None -> Some (CRef.ref { ntn_done = []; ntn_todo = [k, r] })
+| Some s ->
+  Some (CRef.(ref { ntn_done = !s.ntn_done; ntn_todo = (k, r) :: !s.ntn_todo }))
 
 let add r s = push Add r s
 
@@ -217,10 +218,10 @@ let force s =
 let repr s = match s with
 | None -> []
 | Some r ->
-  match force !r with
-  | None -> r.contents.ntn_done
+  match force CRef.(!r) with
+  | None -> CRef.(!r).ntn_done
   | Some ans ->
-    let () = r := { ntn_done = ans; ntn_todo = [] } in
+    let () = CRef.(r := { ntn_done = ans; ntn_todo = [] }) in
     ans
 
 end

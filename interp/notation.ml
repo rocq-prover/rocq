@@ -268,6 +268,7 @@ let entry_relative_level_le child = function
 let notation_level_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_level_map" NotationMap.empty
 
 let declare_notation_level ntn level =
+  let open CRef in
   if NotationMap.mem ntn !notation_level_map then
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a level.");
   notation_level_map := NotationMap.add ntn level !notation_level_map
@@ -1171,7 +1172,7 @@ let level_of_notation ntn =
     (* A primitive notation *)
     ({ notation_entry = fst ntn; notation_level = 0}, []) (* TODO: string notations*)
   else
-    NotationMap.find ntn !notation_level_map
+    NotationMap.find ntn CRef.(!notation_level_map)
 
 (************)
 (* Printing *)
