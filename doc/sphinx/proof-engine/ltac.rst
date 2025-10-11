@@ -236,6 +236,11 @@ examining the part at the end under "Entry tactic:tactic_value".
         - an untyped term
         - :tacn:`refine`
 
+      * - ``open_constr``
+        - :token:`term`
+        - a term allowing unresolved evars
+        - :tacn:`refine`
+
       * - ``constr``
         - :token:`term`
         - a term
@@ -253,19 +258,23 @@ of the :token:`syn_value`\s can appear at the beginning of an :token:`ltac_expr`
 the others are not useful because they will not evaluate to tactics.)
 
 :n:`uconstr:(@term)` can be used to build untyped terms.
-Terms built in |Ltac| are well-typed by default.  Building large
-terms in recursive |Ltac| functions may give very slow behavior because
-terms must be fully type checked at each step.  In this case, using
-an untyped term may avoid most of the repetitive type checking for the term,
-improving performance.
-
-.. todo above: maybe elaborate on "well-typed by default"
-   see https://github.com/rocq-prover/rocq/pull/12103#discussion_r436317558
+Terms built in |Ltac| are well-typed by default.
 
 Untyped terms built using :n:`uconstr:(…)` can be used as arguments to the
 :tacn:`refine` tactic, for example. In that case the untyped term is type
 checked against the conclusion of the goal, and the holes which are not solved
 by the typing procedure are turned into new subgoals.
+
+If instead the term was built with `open_constr` before being passed to `refine`,
+it would first be type checked without a type constraint, then coerced to the type of the goal.
+This may lead to different (usually worse) unifications.
+
+Building large terms in recursive |Ltac| functions may give very slow behavior
+because terms built with `constr` (the default for terms passed as arguments to tactics)
+must be fully traversed at each step, producing performance quadratic in the size of the term.
+
+In such cases, using `uconstr` or `open_constr` may avoid most of the repetitive
+type checking for the term, improving performance.
 
 Substitution
 ~~~~~~~~~~~~
