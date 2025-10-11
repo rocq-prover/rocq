@@ -479,8 +479,9 @@ let coercions () =
 let inheritance_graph () =
   ClGraph.bindings !inheritance_graph
 
-let coercion_of_reference r =
+let coercion_of_reference env r =
   let ref = Nametab.global r in
+  let ref = Environ.QGlobRef.canonize env ref in
   if not (coercion_exists ref) then
     user_err
       (Nametab.pr_global_env Id.Set.empty ref ++ str" is not a coercion.");
@@ -489,8 +490,8 @@ let coercion_of_reference r =
 module CoercionPrinting =
   struct
     type t = coe_typ
-    module Set = GlobRef.Set
-    let encode _env = coercion_of_reference
+    module Set = GlobRef.Set_env
+    let encode = coercion_of_reference
     let subst = subst_coe_typ
 
     let check_local local = let open GlobRef in function
