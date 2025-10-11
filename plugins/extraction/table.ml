@@ -129,7 +129,7 @@ type table = {
   inductive_kinds : inductive_kind InfvMap.t Mindmap_env.t;
   recursors : KerName.Set.t;
   (* recursors: we can use the equivalence between canonical and user constant names. *)
-  projs : (inductive * int) GlobRef.Map.t;
+  projs : GlobRef.Set_env.t;
   (* projs: working modulo name equivalence is ok *)
   info_axioms : Refset'.t;
   log_axioms : Refset'.t;
@@ -147,7 +147,7 @@ let empty_table = {
   inductives = Mindmap_env.empty;
   inductive_kinds = Mindmap_env.empty;
   recursors = KerName.Set.empty;
-  projs = GlobRef.Map.empty;
+  projs = GlobRef.Set_env.empty;
   info_axioms = Refset'.empty;
   log_axioms = Refset'.empty;
   symbols = Refmap'.empty;
@@ -251,8 +251,8 @@ let is_recursor table r = match r.glob with
   | GlobRef.ConstRef c -> KerName.Set.mem (Constant.canonical c) !table.recursors
   | _ -> false
 
-let add_projection table n kn ip = table := { !table with projs = GlobRef.Map.add (GlobRef.ConstRef kn) (ip,n) !table.projs }
-let is_projection table r = GlobRef.Map.mem r.glob !table.projs
+let add_projection table n kn ip = table := { !table with projs = GlobRef.Set_env.add (GlobRef.ConstRef kn) !table.projs }
+let is_projection table r = GlobRef.Set_env.mem r.glob !table.projs
 
 (*s Table of used axioms *)
 
