@@ -90,3 +90,5 @@ type t = {
 val def_attributes : t Attributes.attribute
 
 end
+
+val get_prev_proof : (unit -> Proof.t option) ref

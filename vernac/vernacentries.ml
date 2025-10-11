@@ -2531,6 +2531,8 @@ let vernac_bullet (bullet : Proof_bullet.t) ~pstate =
   Declare.Proof.map ~f:(fun p ->
     Proof_bullet.put p bullet) pstate
 
+let get_prev_proof : (unit -> Proof.t option) ref = ref (fun () -> None)
+
 (* Stack is needed due to show proof names, should deprecate / remove
    and take pstate *)
 let vernac_show ~pstate =
@@ -2548,10 +2550,11 @@ let vernac_show ~pstate =
     let proof = Declare.Proof.get pstate in
     begin function
     | ShowGoal goalref ->
+      let oldp = if Proof_diffs.show_diffs () then !get_prev_proof () else None in
       begin match goalref with
-        | OpenSubgoals -> pr_open_subgoals proof
-        | NthGoal n -> pr_nth_open_subgoal ~proof n
-        | GoalId id -> pr_goal_by_id ~proof id
+        | OpenSubgoals -> pr_open_subgoals ~oldp proof
+        | NthGoal n -> pr_nth_open_subgoal ?oldp ~proof n
+        | GoalId id -> pr_goal_by_id ?oldp ~proof id
       end
     | ShowExistentials -> show_top_evars ~proof
     | ShowUniverses -> show_universes ~proof
