@@ -10,10 +10,9 @@
 
 Set Implicit Arguments.
 
+Require Export Equality.
 Require Export Notations.
 Require Import Ltac.
-
-Notation "A -> B" := (forall (_ : A), B) : type_scope.
 
 (** * Propositional connectives *)
 
@@ -406,6 +405,87 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+(* Those instances already exist *)
+(* Not that we duplicate sort polymorphic definitions for backward compatibility *)
+
+Instance eq_Has_Prop_refl : Has_refl@{Prop Prop;Set Set} (@eq)
+  := @eq_refl.
+
+Instance eq_Has_refl@{l} : Has_refl@{Type Prop;l Set} (@eq)
+  := @eq_refl.
+
+Instance eq_Has_Leibniz_Prop_elim@{l} : Has_Leibniz@{Prop Prop Type;Set Set l} (@eq)
+  := @eq_rect.
+
+Hint Resolve eq_Has_Leibniz_Prop_elim : rewrite_instances.
+
+Instance eq_Has_Leibniz_elim@{l l'} : Has_Leibniz@{Type Prop Type;l Set l'} (@eq)
+  := @eq_rect.
+
+Hint Resolve eq_Has_Leibniz_elim : rewrite_instances.
+
+Instance eq_Has_Leibniz_Prop_elimP : Has_Leibniz@{Prop Prop Prop;Set Set Set} (@eq)
+  := @eq_ind.
+
+Hint Resolve eq_Has_Leibniz_Prop_elimP : rewrite_instances.
+
+Instance eq_Has_Leibniz_elimP@{l} : Has_Leibniz@{Type Prop Prop;l Set Set} (@eq)
+  := @eq_ind.
+
+Hint Resolve eq_Has_Leibniz_elimP : rewrite_instances.
+
+Instance eq_Has_Leibniz_Prop_elimSP : Has_Leibniz@{Prop Prop SProp;Set Set Set} (@eq)
+  := @eq_sind.
+
+Hint Resolve eq_Has_Leibniz_Prop_elimSP : rewrite_instances.
+
+Instance eq_Has_Leibniz_elimSP@{l} : Has_Leibniz@{Type Prop SProp;l Set Set} (@eq)
+  := @eq_sind.
+
+Hint Resolve eq_Has_Leibniz_elimSP : rewrite_instances.
+
+(* Those instance were defined using internally generated scheme *)
+
+Definition eq_rect_dep {A:Type} (x : A) (P : forall y : A, x = y -> Type) :
+P x eq_refl -> forall y e , P y e.
+intros t y e. destruct e. assumption.
+Defined.
+
+Definition eq_sind_dep {A:Type} (x : A) (P : forall y : A, x = y -> SProp) :
+P x eq_refl -> forall y e , P y e.
+intros t y e. destruct e. assumption.
+Defined.
+
+Instance eq_Has_J_Prop_elim@{l} : Has_J@{Prop Prop Type ; Set Set l} (@eq) _ :=
+  @eq_rect_dep.
+
+Hint Resolve eq_Has_J_Prop_elim : rewrite_instances.
+
+Instance eq_Has_J_Prop_elimP : Has_J@{Prop Prop Prop ; Set Set Set} (@eq) _ :=
+  @eq_rect_dep.
+
+Hint Resolve eq_Has_J_Prop_elimP : rewrite_instances.
+
+Instance eq_Has_J_elim@{l l'} : Has_J@{Type Prop Type ; l Set l'} (@eq) _ :=
+  @eq_rect_dep.
+
+Hint Resolve eq_Has_J_elim : rewrite_instances.
+
+Instance eq_Has_J_elimP@{l} : Has_J@{Type Prop Prop ; l Set Set} (@eq) _ :=
+  @eq_rect_dep.
+
+Hint Resolve eq_Has_J_elimP : rewrite_instances.
+
+Instance eq_Has_J_Prop_elimSP : Has_J@{Prop Prop SProp ; Set Set Set} (@eq) _ :=
+  @eq_sind_dep.
+
+Hint Resolve eq_Has_J_Prop_elimSP : rewrite_instances.
+
+Instance eq_Has_J_elimSP@{l} : Has_J@{Type Prop SProp ; l Set Set} (@eq) _ :=
+  @eq_sind_dep.
+
+Hint Resolve eq_Has_J_elimSP : rewrite_instances.
+
 Section Logic_lemmas.
 
   Theorem absurd : forall A C:Prop, A -> ~ A -> C.
@@ -452,6 +532,11 @@ Section Logic_lemmas.
 
   End equality.
 
+  Theorem eq_sym_involutive A (x y:A) (e:x=y) : eq_sym (eq_sym e) = e.
+  Proof.
+  destruct e; reflexivity.
+  Defined.
+
   Definition eq_sind_r :
     forall (A:Type) (x:A) (P:A -> SProp), P x -> forall y:A, y = x -> P y.
   Proof.
@@ -465,16 +550,94 @@ Section Logic_lemmas.
 
   Register eq_ind_r as core.eq.ind_r.
 
-  Definition eq_rec_r :
-    forall (A:Type) (x:A) (P:A -> Set), P x -> forall y:A, y = x -> P y.
-    intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
-  Defined.
-
   Definition eq_rect_r :
     forall (A:Type) (x:A) (P:A -> Type), P x -> forall y:A, y = x -> P y.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
+
 End Logic_lemmas.
+
+Abbreviation eq_rec_r := eq_rect_r.
+
+Instance eq_Has_Leibniz_r_Prop_elim@{l} : Has_Leibniz_r@{Prop Prop Type;Set Set l} (@eq)
+  := @eq_rect_r.
+
+Hint Resolve eq_Has_Leibniz_r_Prop_elim : rewrite_instances.
+
+Instance eq_Has_Leibniz_r_elim@{l l'} : Has_Leibniz_r@{Type Prop Type;l Set l'} (@eq)
+  := @eq_rect_r.
+
+Hint Resolve eq_Has_Leibniz_r_elim : rewrite_instances.
+
+Instance eq_Has_Leibniz_r_Prop_elimP : Has_Leibniz_r@{Prop Prop Prop;Set Set Set} (@eq)
+  := @eq_ind_r.
+
+Hint Resolve eq_Has_Leibniz_r_Prop_elimP : rewrite_instances.
+
+Instance eq_Has_Leibniz_r_elimP@{l} : Has_Leibniz_r@{Type Prop Prop;l Set Set} (@eq)
+  := @eq_ind_r.
+
+Hint Resolve eq_Has_Leibniz_r_elimP : rewrite_instances.
+
+Instance eq_Has_Leibniz_r_Prop_elimSP : Has_Leibniz_r@{Prop Prop SProp;Set Set Set} (@eq)
+  := @eq_sind_r.
+
+Hint Resolve eq_Has_Leibniz_r_Prop_elimSP : rewrite_instances.
+
+Instance eq_Has_Leibniz_r_elimSP@{l} : Has_Leibniz_r@{Type Prop SProp;l Set Set} (@eq)
+  := @eq_sind_r.
+
+Hint Resolve eq_Has_Leibniz_r_elimSP : rewrite_instances.
+
+(* Those instance were defined using internally generated scheme *)
+
+Definition eq_rect_r_dep {A:Type} (x : A) (P : forall y : A, y = x -> Type)
+  : P x eq_refl -> forall y e , P y e.
+  intros t y e. rewrite <- (eq_sym_involutive e).
+  exact (J_eliminator A x (fun y e => P y (eq_sym e)) t y (eq_sym e)).
+Defined.
+
+Definition eq_ind_r_dep {A:Type} (x : A) (P : forall y : A, y = x -> Prop)
+  : P x eq_refl -> forall y e , P y e.
+  intros t y e. rewrite <- (eq_sym_involutive e).
+  exact (J_eliminator A x (fun y e => P y (eq_sym e)) t y (eq_sym e)).
+Defined.
+
+Definition eq_sind_r_dep {A:Type} (x : A) (P : forall y : A, y = x -> SProp)
+  : P x eq_refl -> forall y e , P y e.
+  intros t y e. rewrite <- (eq_sym_involutive e).
+  exact (J_eliminator A x (fun y e => P y (eq_sym e)) t y (eq_sym e)).
+Defined.
+
+Instance eq_Has_J_r_Prop_elim@{l} : Has_J_r@{Prop Prop Type ; Set Set l} (@eq) _
+  := @eq_rect_r_dep.
+
+Hint Resolve eq_Has_J_r_Prop_elim : rewrite_instances.
+
+Instance eq_Has_J_r_Prop_elimP : Has_J_r@{Prop Prop Prop ; Set Set Set} (@eq) _
+  := @eq_ind_r_dep.
+
+Hint Resolve eq_Has_J_r_Prop_elimP : rewrite_instances.
+
+Instance eq_Has_J_r_elim@{l l'} : Has_J_r@{Type Prop Type; l Set l'} (@eq) _
+  := @eq_rect_r_dep.
+
+Hint Resolve eq_Has_J_r_elim : rewrite_instances.
+
+Instance eq_Has_J_r_elimP@{l} : Has_J_r@{Type Prop Prop ; l Set Set} (@eq) _
+ := @eq_ind_r_dep.
+
+Hint Resolve eq_Has_J_r_elimP : rewrite_instances.
+
+Instance eq_Has_J_r_elimSP@{l} : Has_J_r@{Type Prop SProp ; l Set Set} (@eq) _
+  := @eq_sind_r_dep.
+
+Hint Resolve eq_Has_J_r_elimSP : rewrite_instances.
+
+Instance eq_Has_J_r_Prop_elimSP : Has_J_r@{Prop Prop SProp ; Set Set Set} (@eq) _
+  := @eq_sind_r_dep.
+
+Hint Resolve eq_Has_J_r_Prop_elimSP : rewrite_instances.
 
 Module EqNotations.
   Notation "'rew' H 'in' H'" := (eq_rect _ _ H' _ H)
@@ -633,11 +796,6 @@ Defined.
 Theorem eq_trans_refl_r A (x y:A) (e:x=y) : eq_trans e eq_refl = e.
 Proof.
   destruct e. reflexivity.
-Defined.
-
-Theorem eq_sym_involutive A (x y:A) (e:x=y) : eq_sym (eq_sym e) = e.
-Proof.
-  destruct e; reflexivity.
 Defined.
 
 Theorem eq_trans_sym_inv_l A (x y:A) (e:x=y) : eq_trans (eq_sym e) e = eq_refl.
