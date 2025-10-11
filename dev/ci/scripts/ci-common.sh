@@ -2,8 +2,9 @@
 
 if [ -z "${CI_QUIET}" ];
 then
-  set -xe
+  set -x
 fi
+set -e
 
 # default value for NJOBS
 : "${NJOBS:=1}"
