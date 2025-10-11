@@ -1017,6 +1017,7 @@ command: [
 | "Profile" OPT string sentence
 | "Redirect" string sentence
 | "Timeout" natural sentence
+| "AllocLimit" natural [ "Mw" | "kw" ] sentence
 | "Fail" sentence
 | "Succeed" sentence
 | "Drop"
@@ -1484,6 +1485,7 @@ simple_tactic: [
 | "guard" int_or_var comparison int_or_var
 | "decompose" "[" LIST1 one_term "]" one_term
 | "optimize_heap"
+| "alloc_limit" natural "Mw" ltac_expr
 | "with_strategy" strategy_level_or_var "[" LIST1 reference "]" ltac_expr3
 | "start" "ltac" "profiling"
 | "stop" "ltac" "profiling"
