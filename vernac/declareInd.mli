@@ -20,6 +20,8 @@ type default_dep_elim = DefaultElim | PropButDepElim
 type indlocs = (Loc.t option * Loc.t option list) list
 (** Inductive type and constructor locs, for .glob and src loc info *)
 
+type declare_schemes = No | Default
+
 val declare_mutual_inductive_with_eliminations
   : ?typing_flags:Declarations.typing_flags
   -> ?indlocs:indlocs
@@ -27,6 +29,7 @@ val declare_mutual_inductive_with_eliminations
   -> Entries.mutual_inductive_entry (* Inductive types declaration *)
   -> UState.named_universes_entry (* Global universes, including the template default instance *)
   -> one_inductive_impls list (* Implicit arguments *)
+  -> schemes:declare_schemes
   -> Names.MutInd.t
 
 (** {6 For legacy support, do not use}  *)

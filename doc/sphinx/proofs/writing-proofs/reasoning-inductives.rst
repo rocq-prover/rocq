@@ -1262,6 +1262,14 @@ Generation of induction principles with ``Scheme``
 Automatic declaration of schemes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. attr:: schemes = {| default | no }
+   :name: schemes
+
+   When this attribute is not provided or provided with value
+   `default`, schemes are automatically declared according to the following flags.
+
+   When it is provided with value `no`, no schemes are automatically declared.
+
 .. flag:: Elimination Schemes
 
    This :term:`flag` enables automatic declaration of induction principles when defining a new

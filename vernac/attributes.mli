@@ -108,6 +108,11 @@ val parse_with_extra : 'a attribute -> vernac_flags -> vernac_flags * 'a
 
 (** * Defining attributes. *)
 
+(** [key_value_attribute ~key ~empty ~values] parses a attribute [key=value]
+  with possible [key,value] in [values], if [empty=Some v] it is for compatibility for users
+  doing [qualif(key)] which is parsed as [qualif(key=v)] *)
+val key_value_attribute : key:string -> ?empty:'a -> values:(string * 'a) list -> 'a option attribute
+
 type 'a key_parser = ?loc:Loc.t -> 'a option -> vernac_flag_value -> 'a
 (** A parser for some key in an attribute. It is given a nonempty ['a
     option] when the attribute is multiply set for some command.

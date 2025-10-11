@@ -834,7 +834,7 @@ module Declared = struct
     | Record of MutInd.t
 end
 
-let declare_structure (decl:Record_decl.t) =
+let declare_structure (decl:Record_decl.t) ~schemes =
   Global.push_context_set decl.entry.global_univs;
   (* XXX no implicit arguments for constructors? *)
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
@@ -845,6 +845,7 @@ let declare_structure (decl:Record_decl.t) =
       impls
       ~indlocs:decl.indlocs
       ~default_dep_elim
+      ~schemes
   in
   let map i ({ RecordEntry.inhabitant_id; implfs; fieldlocs }, { Data.is_coercion; proj_flags; }) =
     let rsp = (kn, i) in (* This is ind path of idstruc *)
@@ -1074,7 +1075,7 @@ let definition_structure ~flags udecl kind ~primitive_proj (records : Ast.t list
       declare_class_constant entry data
     | RecordEntry entry ->
       let structure = interp_structure_core entry ~projections_kind ~indlocs data in
-      declare_structure structure
+      declare_structure structure ~schemes:flags.schemes
   in
   if kind_class kind <> NotClass then declare_class ~mode:flags.mode declared;
   inds
