@@ -680,6 +680,10 @@ let () =
     (unit @-> tac unit)
     (fun _ -> return () >>= fun () -> Equality.subst_all ())
 
+let () =
+  define "tac_revgoals" (unit @-> tac unit)
+    (fun _ -> return () >>= fun () -> Proofview.revgoals)
+
 (** Auto *)
 
 let () =
