@@ -505,7 +505,14 @@ sig
 end
 
 module Mindset : CSig.USetS with type elt = MutInd.t
-module Mindmap : Map.UExtS with type key = MutInd.t and module Set := Mindset
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
+module Mindmap : Map.UExtS with type key = MutInd.t and module Set := Mindset [@ocaml.warning "-3"]
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
+
 module Mindmap_env : CMap.UExtS with type key = MutInd.t
 
 module Ind :
@@ -539,11 +546,26 @@ end
 type constructor = Construct.t
 
 module Indset : CSet.ExtS with type elt = inductive
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
 module Constrset : CSet.ExtS with type elt = constructor
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
+
 module Indset_env : CSet.ExtS with type elt = inductive
 module Constrset_env : CSet.ExtS with type elt = constructor
-module Indmap : CMap.ExtS with type key = inductive and module Set := Indset
-module Constrmap : CMap.ExtS with type key = constructor and module Set := Constrset
+
+module Indmap : CMap.ExtS with type key = inductive and module Set := Indset [@ocaml.warning "-3"]
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
+module Constrmap : CMap.ExtS with type key = constructor and module Set := Constrset [@ocaml.warning "-3"]
+[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+the future. In the meantime either use the _env variant or the Q-variant from \
+Environ, depending on the desired semantics."]
+
 module Indmap_env : CMap.ExtS with type key = inductive and module Set := Indset_env
 module Constrmap_env : CMap.ExtS with type key = constructor and module Set := Constrset_env
 
