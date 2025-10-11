@@ -58,8 +58,12 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
         ~aux_file:(aux_file_name_for long_f_dot_out)
         ~v_file:long_f_dot_in);
 
-      Dumpglob.push_output copts.glob_out;
-      Dumpglob.start_dump_glob ~vfile:long_f_dot_in ~vofile:long_f_dot_out;
+      let dump = match copts.glob_out with
+      | None -> Dumpglob.MultFiles { vofile = long_f_dot_out; vfile = long_f_dot_in }
+      | Some NoGlob -> Dumpglob.NoGlob
+      | Some (GlobFile f) -> Dumpglob.File f
+      in
+      Dumpglob.push_output dump;
       Dumpglob.dump_string ("F" ^ Names.DirPath.to_string ldir ^ "\n");
 
       let wall_clock1 = Unix.gettimeofday () in
@@ -83,7 +87,6 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
       (* In both .vo, and .vok production mode, dump an empty .vok file to
          indicate that proofs are ok. *)
       dump_empty_vok();
-      Dumpglob.end_dump_glob ()
 
   | BuildVos ->
       let doc, sid = Topfmt.(in_phase ~phase:LoadingPrelude)

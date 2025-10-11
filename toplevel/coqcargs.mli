@@ -22,6 +22,10 @@
 *)
 type compilation_mode = BuildVo | BuildVos | BuildVok
 
+type glob_output =
+| NoGlob
+| GlobFile of string (* Single file for all coqc arguments *)
+
 type t =
   { compilation_mode : compilation_mode
 
@@ -30,7 +34,7 @@ type t =
 
   ; echo : bool
 
-  ; glob_out    : Dumpglob.glob_output
+  ; glob_out    : glob_output option
 
   ; output_context : bool
   }

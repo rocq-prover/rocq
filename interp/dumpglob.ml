@@ -12,31 +12,50 @@ open Util
 
 (* Dump of globalization (to be used by coqdoc) *)
 
-let glob_file = ref stdout
-
-let open_glob_file f =
-  glob_file := open_out f
-
-let close_glob_file () =
-  close_out !glob_file
+type glob_file = { vfile : string; vofile : string }
 
 type glob_output =
   | NoGlob
   | Feedback
-  | MultFiles
+  | MultFiles of glob_file
   | File of string
+
+type glob_state =
+  | StNoGlob
+  | StFeedback
+  | StChannel of out_channel
 
 let glob_output = ref []
 
 let get_output () = match !glob_output with
-  | [] -> NoGlob
+  | [] -> StNoGlob
   | g::_ -> g
 
-let push_output g = glob_output := g::!glob_output
+let push_output g =
+  let g = match g with
+  | NoGlob -> StNoGlob
+  | Feedback -> StFeedback
+  | MultFiles { vofile; vfile } ->
+    let ch = open_out (Filename.chop_extension vofile ^ ".glob") in
+    let () = output_string ch "DIGEST " in
+    let () = output_string ch (Digest.to_hex (Digest.file vfile)) in
+    let () = output_char ch '\n' in
+    StChannel ch
+  | File f ->
+    let ch = open_out f in
+    let () = output_string ch "DIGEST NO\n" in
+    StChannel ch
+  in
+  glob_output := g :: !glob_output
 
-let pop_output () = glob_output := match !glob_output with
-    | [] -> CErrors.anomaly (Pp.str "No output left to pop")
-    | _::ds -> ds
+let pop_output () = match !glob_output with
+| [] -> CErrors.anomaly (Pp.str "No output left to pop")
+| hd :: ds ->
+  let () = match hd with
+  | StNoGlob | StFeedback -> ()
+  | StChannel ch -> close_out ch
+  in
+  glob_output := ds
 
 let pause () = push_output NoGlob
 let continue = pop_output
@@ -52,29 +71,11 @@ let with_glob_output g f () =
     pop_output ();
     Exninfo.iraise reraise
 
-let dump () = get_output () <> NoGlob
+let dump () = get_output () <> StNoGlob
 
-let dump_string s =
-  if dump () && get_output () != Feedback then
-    output_string !glob_file s
-
-let start_dump_glob ~vfile ~vofile =
-  match get_output () with
-  | MultFiles ->
-      open_glob_file (Filename.chop_extension vofile ^ ".glob");
-      output_string !glob_file "DIGEST ";
-      output_string !glob_file (Digest.to_hex (Digest.file vfile));
-      output_char !glob_file '\n'
-  | File f ->
-      open_glob_file f;
-      output_string !glob_file "DIGEST NO\n"
-  | NoGlob | Feedback ->
-      ()
-
-let end_dump_glob () =
-  match get_output () with
-  | MultFiles | File _ -> close_glob_file ()
-  | NoGlob | Feedback -> ()
+let dump_string s = match get_output () with
+| StNoGlob | StFeedback -> ()
+| StChannel ch -> output_string ch s
 
 open Decls
 open Declarations
@@ -162,12 +163,12 @@ let interval loc =
 
 let dump_ref ?loc filepath modpath ident ty =
   match get_output () with
-  | Feedback ->
+  | StFeedback ->
     Option.iter (fun loc ->
         Feedback.feedback (Feedback.GlobRef (loc, filepath, modpath, ident, ty))
       ) loc
-  | NoGlob -> ()
-  | _ -> Option.iter (fun loc ->
+  | StNoGlob -> ()
+  | StChannel _ -> Option.iter (fun loc ->
     let bl,el = interval loc in
     dump_string (Printf.sprintf "R%d:%d %s %s %s %s\n"
                   bl el filepath modpath ident ty)
@@ -272,7 +273,7 @@ let add_glob_kn ?loc kn =
     add_glob_gen ?loc sp lib_dp "abbrev"
 
 let dump_def ?loc ty secpath id = Option.iter (fun loc ->
-  if get_output () = Feedback then
+  if get_output () = StFeedback then
     Feedback.feedback (Feedback.GlobDef (loc, id, secpath, ty))
   else
     let bl,el = interval loc in

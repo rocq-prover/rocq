@@ -103,15 +103,14 @@
 
 *)
 
-val start_dump_glob : vfile:string -> vofile:string -> unit
-val end_dump_glob : unit -> unit
+type glob_file = { vfile : string; vofile : string }
 
 val dump : unit -> bool
 
 type glob_output =
   | NoGlob
   | Feedback
-  | MultFiles                   (* one glob file per .v file *)
+  | MultFiles of glob_file      (* one glob file per .v file *)
   | File of string              (* Single file for all coqc arguments *)
 
 (** [push_output o] temporarily overrides the output location to [o].

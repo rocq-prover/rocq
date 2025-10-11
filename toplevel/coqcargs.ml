@@ -10,6 +10,10 @@
 
 type compilation_mode = BuildVo | BuildVos | BuildVok
 
+type glob_output =
+| NoGlob
+| GlobFile of string              (* Single file for all coqc arguments *)
+
 type t =
   { compilation_mode : compilation_mode
 
@@ -18,7 +22,7 @@ type t =
 
   ; echo : bool
 
-  ; glob_out    : Dumpglob.glob_output
+  ; glob_out    : glob_output option
 
   ; output_context : bool
   }
@@ -31,7 +35,7 @@ let default =
 
   ; echo = false
 
-  ; glob_out = Dumpglob.MultFiles
+  ; glob_out = None
 
   ; output_context = false
   }
@@ -118,11 +122,11 @@ let parse arglist : t =
 
         (* Glob options *)
         |"-no-glob" | "-noglob" ->
-          { oval with glob_out = Dumpglob.NoGlob }
+          { oval with glob_out = Some NoGlob }
 
         |"-dump-glob" ->
           let file = next () in
-          { oval with glob_out = Dumpglob.File file }
+          { oval with glob_out = Some (GlobFile file) }
 
         (* Rest *)
         | s ->
