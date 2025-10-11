@@ -173,12 +173,6 @@ let lookup_mind mind =
 (** Graph traversal of an object, collecting on the way the dependencies of
     traversed objects *)
 
-let label_of = let open GlobRef in function
-  | ConstRef kn -> Constant.label kn
-  | IndRef (kn,_)
-  | ConstructRef ((kn,_),_) -> MutInd.label kn
-  | VarRef id -> Label.of_id id
-
 let fold_with_full_binders g f n acc c =
   let open Context.Rel.Declaration in
   let open Constr in
@@ -215,7 +209,7 @@ let get_constant_body access kn =
     | c, _ -> Some c
     | exception e when CErrors.noncritical e -> None (* missing delayed body, e.g. in vok mode *)
 
-let rec traverse access current ctx accu t =
+let rec traverse access (current:GlobRef.t) ctx accu t =
   let open GlobRef in
   let open Constr in
   match Constr.kind t with
@@ -259,7 +253,7 @@ and traverse_object access (curr, data, ax2ty) body obj =
       GlobRef.Map_env.add obj None data, ax2ty
     | Some body ->
       let contents,data,ax2ty =
-        traverse access (label_of obj) Context.Rel.empty
+        traverse access obj Context.Rel.empty
                  (GlobRef.Set_env.empty,data,ax2ty) body in
       GlobRef.Map_env.add obj (Some contents) data, ax2ty
   in
@@ -271,7 +265,6 @@ and traverse_object access (curr, data, ax2ty) body obj =
     dependency between mutually defined inductives and constructors. *)
 and traverse_inductive access (curr, data, ax2ty) mind obj =
   let firstind_ref = (GlobRef.IndRef (mind, 0)) in
-  let label = label_of obj in
   let data, ax2ty =
    (* Invariant : I_0 \in data iff I_i \in data iff c_ij \in data
       where I_0, I_1, ... are in the same mutual definition and c_ij
@@ -288,7 +281,7 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
      (* Collects references of parameters *)
      let param_ctx = mib.mind_params_ctxt in
      let nparam = List.length param_ctx in
-     let accu = traverse_context access label Context.Rel.empty accu param_ctx in
+     let accu = traverse_context access obj Context.Rel.empty accu param_ctx in
      (* For each inductive, collects references in their arity and in the type
         of constructors*)
      let (contents, data, ax2ty) = Array.fold_left (fun accu oib ->
@@ -297,11 +290,11 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
          in
          let accu =
            traverse_context
-             access label param_ctx accu arity_wo_param
+             access obj param_ctx accu arity_wo_param
          in
          Array.fold_left (fun accu cst_typ ->
             let param_ctx, cst_typ_wo_param = Term.decompose_prod_n_decls nparam cst_typ in
-            traverse access label param_ctx accu cst_typ_wo_param)
+            traverse access obj param_ctx accu cst_typ_wo_param)
           accu oib.mind_user_lc)
        accu mib.mind_packets
      in
@@ -352,7 +345,7 @@ let uses_uip mib =
 let assumptions ?(add_opaque=false) ?(add_transparent=false) access st gr t =
   let open Printer in
   (* Only keep the transitive dependencies *)
-  let (_, graph, ax2ty) = traverse access (label_of gr) t in
+  let (_, graph, ax2ty) = traverse access gr t in
   let open GlobRef in
   let fold obj contents accu = match obj with
   | VarRef id ->

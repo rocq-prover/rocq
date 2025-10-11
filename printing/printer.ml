@@ -1043,7 +1043,7 @@ type axiom =
 
 type context_object =
   | Variable of Id.t (* A section variable or a Let definition *)
-  | Axiom of axiom * (Label.t * Constr.rel_context * types) list
+  | Axiom of axiom * (GlobRef.t * Constr.rel_context * types) list
   | Opaque of Constant.t     (* An opaque constant. *)
   | Transparent of Constant.t
 
@@ -1147,8 +1147,14 @@ let pr_assumptionset env sigma s =
       | Axiom (axiom,l) ->
         let ax = pr_axiom env axiom typ ++
           spc() ++
-          prlist_with_sep cut (fun (lbl, ctx, ty) ->
-            str "used in " ++ Label.print lbl ++
+          prlist_with_sep cut (fun (gr, ctx, ty) ->
+            let lab = let open GlobRef in match gr with
+              | ConstRef kn -> Constant.label kn
+              | IndRef (kn,_)
+              | ConstructRef ((kn,_),_) -> MutInd.label kn
+              | VarRef id -> Label.of_id id
+            in
+            str "used in " ++ Label.print lab ++
             str " to prove" ++ fnl() ++ safe_pr_ltype_relctx (ctx,ty))
           l in
         (v, ax :: a, o, tr)

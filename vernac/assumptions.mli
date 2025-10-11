@@ -22,9 +22,9 @@ open Printer
     NOTE: this function is used in the plugin paramcoq.
 *)
 val traverse :
-  Global.indirect_accessor -> Label.t -> constr ->
+  Global.indirect_accessor -> GlobRef.t -> constr ->
     (GlobRef.Set_env.t * GlobRef.Set_env.t option GlobRef.Map_env.t *
-     (Label.t * Constr.rel_context * types) list GlobRef.Map_env.t)
+     (GlobRef.t * Constr.rel_context * types) list GlobRef.Map_env.t)
 
 (** Collects all the assumptions (optionally including opaque definitions)
    on which a term relies (together with their type). The above warning of
