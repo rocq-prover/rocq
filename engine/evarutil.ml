@@ -381,18 +381,16 @@ let push_rel_context_to_named_context ~hypnaming env sigma typ =
 
 let new_pure_evar = Evd.new_pure_evar
 
-let next_evar_name sigma naming = match naming with
+let next_evar_name naming = match naming with
 | IntroAnonymous -> None
-| IntroIdentifier id -> Some id
-| IntroFresh id ->
-  let id = Nameops.Fresh.next id (Evd.evar_names sigma) in
-  Some id
+| IntroFresh id -> Some (id, true)
+| IntroIdentifier id -> Some (id, false)
 
 (* [new_evar] declares a new existential in an env env with type typ *)
 (* Converting the env into the sign of the evar to define *)
-let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = IntroAnonymous) ?typeclass_candidate
+let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = IntroAnonymous) ?parent ?typeclass_candidate
     ?rrpat ?hypnaming env evd typ =
-  let name = next_evar_name evd naming in
+  let name = next_evar_name naming in
   let hypnaming = match hypnaming with
   | Some n -> n
   | None -> VarSet.variables (Global.env ())
@@ -408,7 +406,7 @@ let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = 
   | Some r -> r
   | None -> ERelevance.relevant (* FIXME: relevant_of_type not defined yet *)
   in
-  let (evd, evk) = new_pure_evar sign evd typ' ?src ?rrpat ?filter ~relevance ?abstract_arguments ?candidates ?name
+  let (evd, evk) = new_pure_evar sign evd typ' ?src ?rrpat ?filter ~relevance ?abstract_arguments ?candidates ?name ?parent
     ?typeclass_candidate in
   (evd, EConstr.mkEvar (evk, instance))
 
