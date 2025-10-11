@@ -1623,7 +1623,7 @@ let flatten_env senv =
     | SIG (params,env) -> close (snd (end_module (label senv.modpath) None {senv with modvariant = STRUCT (params,env)}))
     | LIBRARY | NONE -> senv in
   let senv = close senv in
-  (senv.modpath, senv.revstruct)
+  senv
 
 (** {6 Safe typing } *)
 

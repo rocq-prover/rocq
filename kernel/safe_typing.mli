@@ -36,7 +36,7 @@ val sections_of_safe_env : safe_environment -> section_data Section.t option
 
 val structure_body_of_safe_env : safe_environment -> Mod_declarations.structure_body
 
-val flatten_env : safe_environment -> ModPath.t * Mod_declarations.structure_body
+val flatten_env : safe_environment -> safe_environment
 
 (** The safe_environment state monad *)
 

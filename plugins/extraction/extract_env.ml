@@ -28,8 +28,8 @@ open Common
 (****************************************)
 
 let toplevel_env () =
-  let mp, struc = Safe_typing.flatten_env (Global.safe_env ()) in
-  mp, List.rev struc
+  let senv = Safe_typing.flatten_env (Global.safe_env ()) in
+  Safe_typing.current_modpath senv, List.rev (Safe_typing.structure_body_of_safe_env senv)
 
 let environment_until dir_opt =
   let rec parse = function
