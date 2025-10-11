@@ -18,7 +18,6 @@ val pp_as_format : Pp.t -> unit
 val ppfuture : 'a Future.computation -> unit
 
 val ppid : Names.Id.t -> unit
-val pplab : Names.Label.t -> unit
 val ppmbid : Names.MBId.t -> unit
 val ppdir : Names.DirPath.t -> unit
 val ppmp : Names.ModPath.t -> unit

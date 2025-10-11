@@ -168,7 +168,7 @@ let declare_object_gen odecl =
   tag
 
 let make_oname { obj_path; obj_mp } id =
-  Libnames.add_path_suffix obj_path id, Names.KerName.make obj_mp (Names.Label.of_id id)
+  Libnames.add_path_suffix obj_path id, Names.KerName.make obj_mp id
 
 let declare_named_object_full odecl =
   let odecl =

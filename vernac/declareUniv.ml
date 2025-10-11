@@ -139,8 +139,8 @@ let input_sort_names (src, l) =
 
 
 let label_of = let open GlobRef in function
-| ConstRef c -> Label.to_id @@ Constant.label c
-| IndRef (c,_) -> Label.to_id @@ MutInd.label c
+| ConstRef c -> Constant.label c
+| IndRef (c,_) -> MutInd.label c
 | VarRef id -> id
 | ConstructRef _ ->
   CErrors.anomaly ~label:"declare_univ_binders"

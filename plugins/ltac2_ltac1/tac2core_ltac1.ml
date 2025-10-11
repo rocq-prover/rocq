@@ -120,7 +120,7 @@ let gtypref kn = GTypRef (Other kn, [])
 
 open Tac2quote.Refs
 
-let core_prefix path n = KerName.make path (Label.of_id (Id.of_string_soft n))
+let core_prefix path n = KerName.make path (Id.of_string_soft n)
 let ltac1_core n = core_prefix Tac2env.ltac1_prefix n
 let t_ltac1 = ltac1_core "t"
 let ltac1_lambda = ltac1_core "lambda"

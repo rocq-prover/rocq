@@ -256,7 +256,7 @@ let coerce_to_ident_not_fresh sigma v =
         | None -> fail ()
         | Some id -> id
         end
-       | Const (cst,_) -> Label.to_id (Constant.label cst)
+       | Const (cst,_) -> Constant.label cst
        | Construct (cstr,_) ->
           let ref = GlobRef.ConstructRef cstr in
           let basename = Nametab.basename_of_global ref in
@@ -268,10 +268,10 @@ let coerce_to_ident_not_fresh sigma v =
        | Sort s ->
           begin
             match ESorts.kind sigma s with
-            | Sorts.SProp -> Label.to_id (Label.make "SProp")
-            | Sorts.Prop -> Label.to_id (Label.make "Prop")
-            | Sorts.Set -> Label.to_id (Label.make "Set")
-            | Sorts.Type _ | Sorts.QSort _ -> Label.to_id (Label.make "Type")
+            | Sorts.SProp -> Id.of_string "SProp"
+            | Sorts.Prop -> Id.of_string "Prop"
+            | Sorts.Set -> Id.of_string "Set"
+            | Sorts.Type _ | Sorts.QSort _ -> Id.of_string "Type"
           end
        | _ -> fail()
 

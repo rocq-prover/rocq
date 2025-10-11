@@ -222,7 +222,7 @@ type axiom =
 
 type context_object =
   | Variable of Id.t (* A section variable or a Let definition *)
-  | Axiom of axiom * (Label.t * Constr.rel_context * types) list
+  | Axiom of axiom * (Id.t * Constr.rel_context * types) list
   | Opaque of Constant.t     (* An opaque constant. *)
   | Transparent of Constant.t
 

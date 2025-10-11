@@ -183,9 +183,9 @@ type phase = Pre | Impl | Intf
 
 module DupOrd =
 struct
-  type t = ModPath.t * Label.t
+  type t = ModPath.t * Id.t
   let compare (mp1, l1) (mp2, l2) =
-    let c = Label.compare l1 l2 in
+    let c = Id.compare l1 l2 in
     if Int.equal c 0 then ModPath.compare mp1 mp2 else c
 end
 
@@ -212,7 +212,7 @@ module DupMap = CMap.Make(DupOrd)
 
 type visible_layer = { mp : ModPath.t;
                        params : MBId.t list;
-                       content : Label.t KMap.t; }
+                       content : Id.t KMap.t; }
 
 module State =
 struct
@@ -228,7 +228,7 @@ type state = {
 
 type modular = {
   mutable mpfiles : DirPath.Set.t; (* List of external modules that will be opened initially *)
-  mutable mpfiles_content : Label.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
+  mutable mpfiles_content : Id.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
 }
 
 let empty_modular () = {
@@ -424,8 +424,7 @@ let modular_rename table k id =
 (*s For monolithic extraction, first-level modules might have to be renamed
     with unique numbers *)
 
-let modfstlev_rename table l =
-  let id = Label.to_id l in
+let modfstlev_rename table id =
   try
     let n = State.get_mod_index table id in
     let () = State.add_mod_index table id (n+1) in
@@ -448,7 +447,7 @@ let rec mp_renaming_fun table mp = match mp with
       let lmp = mp_renaming table mp in
       let mp = match lmp with
       | [""] -> modfstlev_rename table l
-      | _ -> modular_rename table Mod (Label.to_id l)
+      | _ -> modular_rename table Mod l
       in
       mp ::lmp
   | MPbound mbid ->

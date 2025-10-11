@@ -175,7 +175,7 @@ let pr_mutual_inductive_body env mind mib udecl =
 let rec print_local_modpath locals = function
   | MPbound mbid -> Id.print (Util.List.assoc_f MBId.equal mbid locals)
   | MPdot(mp,l) ->
-      print_local_modpath locals mp ++ str "." ++ Label.print l
+      print_local_modpath locals mp ++ str "." ++ Id.print l
   | MPfile _ -> raise Not_found
 
 let print_modpath locals mp =
@@ -217,7 +217,7 @@ let nametab_register_body mp dir (l,body) =
     | SFBmodtype _ -> () (* TODO *)
     | SFBrules _ -> () (* TODO? *)
     | SFBconst _ ->
-      push (Label.to_id l) (GlobRef.ConstRef (Constant.make2 mp l))
+      push l (GlobRef.ConstRef (Constant.make2 mp l))
     | SFBmind mib ->
       let mind = MutInd.make2 mp l in
       Array.iteri
@@ -263,7 +263,7 @@ let nametab_register_modparam used mbid mtb =
       id
 
 let print_body is_impl extent env mp (l,body) =
-  let name = Label.print l in
+  let name = Id.print l in
   hov 2 (match body with
     | SFBmodule _ -> keyword "Module" ++ spc () ++ name
     | SFBmodtype _ -> keyword "Module Type" ++ spc () ++ name

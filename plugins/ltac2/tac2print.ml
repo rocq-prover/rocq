@@ -19,19 +19,19 @@ let pr_tacref avoid kn =
   try Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid (TacConstant kn))
   with Not_found when !Flags.in_debugger || KerName.Map.mem kn (Tac2env.globals()) ->
     str (ModPath.to_string (KerName.modpath kn))
-    ++ str"." ++ Label.print (KerName.label kn)
+    ++ str"." ++ Id.print (KerName.label kn)
     ++ if !Flags.in_debugger then mt() else str " (* local *)"
 
 (** Utils *)
 
 let change_kn_label kn id =
   let mp = KerName.modpath kn in
-  KerName.make mp (Label.of_id id)
+  KerName.make mp id
 
 let paren p = hov 2 (str "(" ++ p ++ str ")")
 
 let t_list =
-  KerName.make Tac2env.rocq_prefix (Label.of_id (Id.of_string "list"))
+  KerName.make Tac2env.rocq_prefix (Id.of_string "list")
 
 let c_nil = change_kn_label t_list (Id.of_string_soft "[]")
 let c_cons = change_kn_label t_list (Id.of_string_soft "::")
@@ -46,7 +46,7 @@ type typ_level =
 | T0
 
 let t_unit =
-  KerName.make Tac2env.rocq_prefix (Label.of_id (Id.of_string "unit"))
+  KerName.make Tac2env.rocq_prefix (Id.of_string "unit")
 
 let pr_typref kn =
   Libnames.pr_qualid (Tac2env.shortest_qualid_of_type kn)
@@ -936,7 +936,7 @@ and pr_val_list env sigma args tpe =
 let pr_valexpr env sigma v t = pr_valexpr_gen env sigma E5 v t
 
 let register_init n f =
-  let kn = KerName.make Tac2env.rocq_prefix (Label.make n) in
+  let kn = KerName.make Tac2env.rocq_prefix (Id.of_string n) in
   register_val_printer kn { val_printer = fun env sigma v _ -> f env sigma v }
 
 let () = register_init "int" begin fun _ _ n ->
@@ -983,7 +983,7 @@ let () = register_init "err" begin fun _ _ e ->
 end
 
 let () =
-  let kn = KerName.make Tac2env.rocq_prefix (Label.make "array") in
+  let kn = KerName.make Tac2env.rocq_prefix (Id.of_string "array") in
   let val_printer env sigma v arg = match arg with
   | [arg] ->
     let (_, v) = to_block v in

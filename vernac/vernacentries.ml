@@ -257,8 +257,7 @@ let print_namespace ~pstate ns =
   let rec match_modulepath ns = function
     | MPbound _ -> None (* Not a proper namespace. *)
     | MPfile dir -> match_dirpath ns (Names.DirPath.repr dir)
-    | MPdot (mp,lbl) ->
-        let id = Names.Label.to_id lbl in
+    | MPdot (mp,id) ->
         begin match match_modulepath ns mp with
         | Some [] as y -> y
         | Some (a::ns') ->
@@ -277,14 +276,14 @@ let print_namespace ~pstate ns =
     let rec list_of_modulepath = function
       | MPbound _ -> assert false (* MPbound never matches *)
       | MPfile dir -> Names.DirPath.repr dir
-      | MPdot (mp,lbl) -> (Names.Label.to_id lbl)::(list_of_modulepath mp)
+      | MPdot (mp,lbl) -> lbl::(list_of_modulepath mp)
     in
     snd (Util.List.chop n (List.rev (list_of_modulepath mp)))
   in
   let print_list pr l = prlist_with_sep (fun () -> str".") pr l in
   let print_kn kn =
     let (mp,lbl) = Names.KerName.repr kn in
-    let qn = (qualified_minus (List.length ns) mp)@[Names.Label.to_id lbl] in
+    let qn = (qualified_minus (List.length ns) mp)@[lbl] in
     print_list Id.print qn
   in
   let print_constant ~pstate k body =

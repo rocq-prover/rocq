@@ -269,7 +269,7 @@ let update_Function finfo =
   Lib.add_leaf (in_Function finfo)
 
 let add_Function is_general f =
-  let f_id = Label.to_id (Constant.label f) in
+  let f_id = Constant.label f in
   let equation_lemma = find_or_none (mk_equation_id f_id)
   and correctness_lemma = find_or_none (mk_correct_id f_id)
   and completeness_lemma = find_or_none (mk_complete_id f_id)

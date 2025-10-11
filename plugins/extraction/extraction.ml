@@ -297,7 +297,7 @@ let fake_match_projection env p =
     | LocalAssum (na,ty) :: rem ->
       let ty = Vars.substl subst (liftn 1 j ty) in
       if arg != proj_arg then
-        let lab = match na.binder_name with Name id -> Label.of_id id | Anonymous -> assert false in
+        let lab = match na.binder_name with Name id -> id | Anonymous -> assert false in
         let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg:arg lab in
         fold (arg+1) (j+1) (mkProj (Projection.make kn false, na.binder_relevance, mkRel 1)::subst) rem
       else
@@ -585,7 +585,7 @@ and extract_really_ind table env kn inst mib =
           | {binder_name=Anonymous}::l, typ::typs ->
               None :: (select_fields (i+1) l typs)
           | {binder_name=Name id}::l, typ::typs ->
-              let knp = Constant.make2 mp (Label.of_id id) in
+              let knp = Constant.make2 mp id in
               (* Is it safe to use [id] for projections [foo.id] ? *)
               if List.for_all ((==) Keep) (type2signature table env typ)
               then (* for OCaml inlining: *) add_projection (Common.State.get_table table) nparams knp ip;

@@ -211,7 +211,7 @@ let fresh_key =
     let lbl = Id.of_string_soft (Printf.sprintf "%s#%i"
       (ModPath.to_string mp) cur)
     in
-    KerName.make mp (Label.of_id lbl)
+    KerName.make mp lbl
 
 let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
   let d = Int.compare pri1 pri2 in

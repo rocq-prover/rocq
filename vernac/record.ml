@@ -568,7 +568,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
       (* [ccl'] is defined in context [params;x:rp;x:rp] *)
       if primitive then
         let p = Projection.Repr.make indsp
-            ~proj_npars:mib.mind_nparams ~proj_arg:i (Label.of_id fid) in
+            ~proj_npars:mib.mind_nparams ~proj_arg:i fid in
         mkProj (Projection.make p false, rci, mkRel 1), Some (p,rci)
       else
         let ccl' = liftn 1 2 ccl in
@@ -955,7 +955,7 @@ let declare_class ?mode declared =
         | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> assert false
       in
       let params, field = Term.decompose_lambda_decls class_body in
-      let fname = Name (Label.to_id @@ Constant.label proj_kn) in
+      let fname = Name (Constant.label proj_kn) in
       let frelevance = proj_cb.const_relevance in
       let fields = [ RelDecl.LocalAssum ({binder_name=fname; binder_relevance=frelevance}, field) ] in
       let proj = {

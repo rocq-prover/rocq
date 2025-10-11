@@ -83,7 +83,7 @@ let is_visible_name id =
   with Not_found ->
     (* FIXME: due to private constant declaration being imperative, we have to
        also check in the global env *)
-    Global.exists_objlabel (Label.of_id id)
+    Global.exists_objlabel id
 
 let compute_name internal id avoid =
   if internal then
@@ -143,7 +143,7 @@ let local_check_scheme kind ind { sch_eff = eff } =
 
 let define ?loc internal role id c poly uctx sch =
   let avoid = Safe_typing.constants_of_private sch.sch_eff.Evd.seff_private in
-  let avoid = Id.Set.of_list @@ List.map (fun cst -> Label.to_id @@ Constant.label cst) avoid in
+  let avoid = Id.Set.of_list @@ List.map (fun cst -> Constant.label cst) avoid in
   let id = compute_name internal id avoid in
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
   let uctx = UState.minimize uctx in

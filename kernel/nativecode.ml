@@ -95,11 +95,11 @@ type gname =
   | Gind of string * inductive (* prefix, inductive name *)
   | Gconstant of string * Constant.t (* prefix, constant name *)
   | Gproj of string * inductive * int (* prefix, inductive, index (start from 0) *)
-  | Gcase of Label.t option * int
-  | Gpred of Label.t option * int
-  | Gfixtype of Label.t option * int
-  | Gnorm of Label.t option * int
-  | Gnormtbl of Label.t option * int
+  | Gcase of Id.t option * int
+  | Gpred of Id.t option * int
+  | Gfixtype of Id.t option * int
+  | Gnorm of Id.t option * int
+  | Gnormtbl of Id.t option * int
   | Ginternal of string
   | Grel of int
   | Gnamed of Id.t
@@ -113,17 +113,17 @@ let eq_gname gn1 gn2 =
   | Gproj (s1, ind1, i1), Gproj (s2, ind2, i2) ->
     String.equal s1 s2 && Ind.UserOrd.equal ind1 ind2 && Int.equal i1 i2
   | Gcase (None, i1), Gcase (None, i2) -> Int.equal i1 i2
-  | Gcase (Some l1, i1), Gcase (Some l2, i2) -> Int.equal i1 i2 && Label.equal l1 l2
+  | Gcase (Some l1, i1), Gcase (Some l2, i2) -> Int.equal i1 i2 && Id.equal l1 l2
   | Gpred (None, i1), Gpred (None, i2) -> Int.equal i1 i2
-  | Gpred (Some l1, i1), Gpred (Some l2, i2) -> Int.equal i1 i2 && Label.equal l1 l2
+  | Gpred (Some l1, i1), Gpred (Some l2, i2) -> Int.equal i1 i2 && Id.equal l1 l2
   | Gfixtype (None, i1), Gfixtype (None, i2) -> Int.equal i1 i2
   | Gfixtype (Some l1, i1), Gfixtype (Some l2, i2) ->
-      Int.equal i1 i2 && Label.equal l1 l2
+      Int.equal i1 i2 && Id.equal l1 l2
   | Gnorm (None, i1), Gnorm (None, i2) -> Int.equal i1 i2
-  | Gnorm (Some l1, i1), Gnorm (Some l2, i2) -> Int.equal i1 i2 && Label.equal l1 l2
+  | Gnorm (Some l1, i1), Gnorm (Some l2, i2) -> Int.equal i1 i2 && Id.equal l1 l2
   | Gnormtbl (None, i1), Gnormtbl (None, i2) -> Int.equal i1 i2
   | Gnormtbl (Some l1, i1), Gnormtbl (Some l2, i2) ->
-      Int.equal i1 i2 && Label.equal l1 l2
+      Int.equal i1 i2 && Id.equal l1 l2
   | Ginternal s1, Ginternal s2 -> String.equal s1 s2
   | Grel i1, Grel i2 -> Int.equal i1 i2
   | Gnamed id1, Gnamed id2 -> Id.equal id1 id2
@@ -141,11 +141,11 @@ let gname_hash gn = match gn with
    combinesmall 1 (combine (String.hash s) (Ind.UserOrd.hash ind))
 | Gconstant (s, c) ->
    combinesmall 2 (combine (String.hash s) (Constant.UserOrd.hash c))
-| Gcase (l, i) -> combinesmall 3 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gpred (l, i) -> combinesmall 4 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gfixtype (l, i) -> combinesmall 5 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnorm (l, i) -> combinesmall 6 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnormtbl (l, i) -> combinesmall 7 (combine (Option.hash Label.hash l) (Int.hash i))
+| Gcase (l, i) -> combinesmall 3 (combine (Option.hash Id.hash l) (Int.hash i))
+| Gpred (l, i) -> combinesmall 4 (combine (Option.hash Id.hash l) (Int.hash i))
+| Gfixtype (l, i) -> combinesmall 5 (combine (Option.hash Id.hash l) (Int.hash i))
+| Gnorm (l, i) -> combinesmall 6 (combine (Option.hash Id.hash l) (Int.hash i))
+| Gnormtbl (l, i) -> combinesmall 7 (combine (Option.hash Id.hash l) (Int.hash i))
 | Ginternal s -> combinesmall 8 (String.hash s)
 | Grel i -> combinesmall 9 (Int.hash i)
 | Gnamed id -> combinesmall 10 (Id.hash id)
@@ -1716,7 +1716,6 @@ let optimize_stk stk =
 (* Redefine a bunch of functions in module Names to generate names
    acceptable to OCaml. *)
 let string_of_id s = Unicode.ascii_of_ident (Id.to_string s)
-let string_of_label l = string_of_id (Label.to_id l)
 
 let string_of_dirpath = function
   | [] -> "_"
@@ -1739,11 +1738,11 @@ let string_of_name x =
 let string_of_label_def l =
   match l with
     | None -> ""
-    | Some l -> string_of_label l
+    | Some l -> string_of_id l
 
 (* Relativization of module paths *)
 let rec list_of_mp acc = function
-  | MPdot (mp,l) -> list_of_mp (string_of_label l::acc) mp
+  | MPdot (mp,l) -> list_of_mp (string_of_id l::acc) mp
   | MPfile dp ->
       let dp = DirPath.repr dp in
       string_of_dirpath dp :: acc
@@ -1754,7 +1753,7 @@ let list_of_mp mp = list_of_mp [] mp
 let string_of_kn kn =
   let (mp,l) = KerName.repr kn in
   let mp = list_of_mp mp in
-  String.concat "_" mp ^ "_" ^ string_of_label l
+  String.concat "_" mp ^ "_" ^ string_of_id l
 
 let string_of_con c = string_of_kn (Constant.user c)
 let string_of_mind mind = string_of_kn (MutInd.user mind)
@@ -2333,7 +2332,7 @@ let compile_mind_field mp l acc mb =
 
 let warn_native_rules =
   CWarnings.create ~name:"native-rewrite-rules"
-    (fun lbl -> Pp.(str "Cannot translate the following rewrite rules: " ++ Label.print lbl))
+    (fun lbl -> Pp.(str "Cannot translate the following rewrite rules: " ++ Id.print lbl))
 
 let compile_rewrite_rules _env lbl acc rrb =
   warn_native_rules lbl;

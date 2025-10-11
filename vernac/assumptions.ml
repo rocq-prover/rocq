@@ -32,17 +32,17 @@ let modcache = ref (ModPath.Map.empty : structure_body ModPath.Map.t)
 
 let rec search_mod_label lab = function
   | [] -> raise Not_found
-  | (l, SFBmodule mb) :: _ when Label.equal l lab -> mb
+  | (l, SFBmodule mb) :: _ when Id.equal l lab -> mb
   | _ :: fields -> search_mod_label lab fields
 
 let rec search_cst_label lab = function
   | [] -> raise Not_found
-  | (l, SFBconst cb) :: _ when Label.equal l lab -> cb
+  | (l, SFBconst cb) :: _ when Id.equal l lab -> cb
   | _ :: fields -> search_cst_label lab fields
 
 let rec search_mind_label lab = function
   | [] -> raise Not_found
-  | (l, SFBmind mind) :: _ when Label.equal l lab -> mind
+  | (l, SFBmind mind) :: _ when Id.equal l lab -> mind
   | _ :: fields -> search_mind_label lab fields
 
 (* TODO: using [empty_delta_resolver] below is probably slightly incorrect. But:
@@ -177,7 +177,7 @@ let label_of = let open GlobRef in function
   | ConstRef kn -> Constant.label kn
   | IndRef (kn,_)
   | ConstructRef ((kn,_),_) -> MutInd.label kn
-  | VarRef id -> Label.of_id id
+  | VarRef id -> id
 
 let fold_with_full_binders g f n acc c =
   let open Context.Rel.Declaration in

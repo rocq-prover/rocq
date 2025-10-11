@@ -1540,7 +1540,7 @@ let inline_test r t =
 
 let con_of_string s =
   let d, id = Libnames.split_dirpath (dirpath_of_string s) in
-  Constant.make2 (ModPath.MPfile d) (Label.of_id id)
+  Constant.make2 (ModPath.MPfile d) id
 
 let manual_inline_set =
   List.fold_right (fun x -> Cset_env.add (con_of_string x))

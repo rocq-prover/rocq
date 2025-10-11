@@ -868,7 +868,7 @@ let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_
   let eqn = mkApp (Lazy.force eq, [|type_of_f; eq_lhs; eq_rhs|]) in
   let lemma_type = it_mkProd_or_LetIn eqn type_ctxt in
   (* Pp.msgnl (str "lemma type " ++ Printer.pr_lconstr lemma_type ++ fnl () ++ str "f_body " ++ Printer.pr_lconstr f_body); *)
-  let f_id = Label.to_id (Constant.label (fst (destConst evd f))) in
+  let f_id = Constant.label (fst (destConst evd f)) in
   let prove_replacement =
     tclTHENLIST
       [ tclDO (nb_params + rec_args_num + 1) intro
@@ -914,7 +914,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
           in
           mkConst cst
         with (Not_found | NoLemma) as e ->
-          let f_id = Label.to_id (Constant.label (fst (destConst !evd f))) in
+          let f_id = Constant.label (fst (destConst !evd f)) in
           (*i The next call to mk_equation_id is valid since we will construct the lemma
             Ensures by: obvious
             i*)
