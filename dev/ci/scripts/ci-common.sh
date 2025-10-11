@@ -9,7 +9,7 @@ fi
 : "${NJOBS:=1}"
 export NJOBS
 
-. "${BASH_SOURCE[0]}/../ci-env.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../ci-env.sh"
 
 # Where we download and build external developments
 CI_BUILD_DIR="$PWD/_build_ci"
