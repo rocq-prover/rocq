@@ -95,3 +95,7 @@ type vo_path =
   }
 
 val add_vo_path : vo_path -> unit
+
+(** Flag to indicate that .vos files should be loaded for dependencies
+    instead of .vo files. Used by -vos and -vok options. *)
+val load_vos_libraries : bool ref

@@ -28,6 +28,8 @@ type inline =
   | DefaultInline
   | InlineAt of int
 
+val default_inline_level : unit -> int option
+
 (** Kinds of modules *)
 
 type module_params = (lident list * (Constrexpr.module_ast * inline)) list

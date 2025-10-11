@@ -264,12 +264,10 @@ let parse_warnings items =
 (* For compatibility, we accept "none" *)
 let parse_flags s =
   if is_none_keyword s then begin
-      Flags.make_warn false;
       set_all_warnings_status Disabled;
       "none"
     end
   else begin
-      Flags.make_warn true;
       let flags = flags_of_string s in
       let flags = normalize_flags flags in
       parse_warnings flags;
