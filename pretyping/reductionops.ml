@@ -35,7 +35,7 @@ type effect_name = string
 (** create a persistent set to store effect functions *)
 
 (* Table bindings a constant to an effect *)
-let constant_effect_table = Summary.ref ~name:"reduction-side-effect" Cmap.empty
+let constant_effect_table = Summary.ref ~name:"reduction-side-effect" Cmap_env.empty
 
 (* Table bindings function key to effective functions *)
 let effect_table = ref String.Map.empty
@@ -43,13 +43,13 @@ let effect_table = ref String.Map.empty
 (** a test to know whether a constant is actually the effect function *)
 let reduction_effect_hook env sigma con c =
   try
-    let funkey = Cmap.find con !constant_effect_table in
+    let funkey = Cmap_env.find con !constant_effect_table in
     let effect_function = String.Map.find funkey !effect_table in
     effect_function env sigma (Lazy.force c)
   with Not_found -> ()
 
 let cache_reduction_effect (con,funkey) =
-  constant_effect_table := Cmap.add con funkey !constant_effect_table
+  constant_effect_table := Cmap_env.add con funkey !constant_effect_table
 
 let subst_reduction_effect (subst,(con,funkey)) =
   (subst_constant subst con,funkey)
