@@ -79,6 +79,7 @@ module type NAMETREE = sig
   val empty : t
   val push : visibility -> full_path -> elt -> t -> t
   val locate : qualid -> t -> elt
+  val locate_upto : limit:int -> qualid -> t -> (qualid * elt) list
   val find : full_path -> t -> elt
   val remove : full_path -> t -> t
   val exists : full_path -> t -> bool
@@ -295,13 +296,35 @@ let rec search tree = function
      end
   | [] -> Some tree.path
 
+let rec search_upto ~limit acc (cur_dist,prefix) tree path =
+  if Int.equal limit cur_dist then begin match search tree path with
+    | None -> acc
+    | Some ((Absolute (_, o) | Relative (_, o)) :: _) -> (cur_dist, List.rev_append path prefix, o) :: acc
+    | Some [] -> acc
+  end
+  else
+  match path with
+  | modid :: path ->
+    Id.Map.fold (fun modid' subtree acc ->
+        let dist = CString.edit_distance ~limit:(limit+1) (Id.to_string modid) (Id.to_string modid') in
+        if dist <= limit - cur_dist then
+          search_upto ~limit acc (cur_dist + dist, modid' :: prefix) subtree path
+        else acc)
+      tree.map acc
+  | [] ->
+    match tree.path with
+    | (Absolute (_, o) | Relative (_, o)) :: _ -> (cur_dist, prefix, o) :: acc
+    | [] -> acc
+
+let mangle_deprecated_path dir =
+  match List.rev dir with
+  | last :: l when Id.equal last coq_id ->
+    [ (Some stdlib_id, List.rev (stdlib_id :: l));
+      (Some corelib_id, List.rev (corelib_id :: l)) ]
+  | _ -> [ None, dir ]
+
 let search ?loc id tree dir =
-  let dirs = match List.rev dir with
-    | last :: l when Id.equal last coq_id ->
-      [ (Some stdlib_id, List.rev (stdlib_id :: l));
-        (Some corelib_id, List.rev (corelib_id :: l)) ]
-    | _ -> [ None, dir ]
-  in
+  let dirs = mangle_deprecated_path dir in
   let search_one (warn, dir) =
     match search tree dir with
     | Some v -> Some (warn, v)
@@ -312,6 +335,11 @@ let search ?loc id tree dir =
     Option.iter (fun coq_repl -> warn_deprecated_dirpath_Coq ?loc (coq_repl, dir, id)) coq_repl;
     p
   | None -> raise Not_found
+
+let search_upto ~limit acc prefix tree dir =
+  let dirs = mangle_deprecated_path dir in
+  (* no warning here *)
+  List.fold_left (fun acc (_,dir) -> search_upto ~limit acc prefix tree dir) acc dirs
 
 let find_node qid tab =
   let loc = qid.CAst.loc in
@@ -324,6 +352,26 @@ let locate qid tab =
     | [] -> raise Not_found
   in
     o
+
+let locate_upto ~limit qid tab =
+  let (dir,id) = repr_qualid qid in
+  let res =
+    Id.Map.fold (fun id' tree acc ->
+        let dist = CString.edit_distance ~limit:(limit+1) (Id.to_string id) (Id.to_string id') in
+        if dist <= limit then
+          search_upto ~limit acc (dist, [id']) tree (DirPath.repr dir)
+        else acc)
+      tab
+      []
+  in
+  let res = List.sort (fun (x,_,_) (y,_,_) -> Int.compare x y) res in
+  List.map (fun (_,x,y) ->
+      let x = match List.rev x with
+        | [] -> assert false
+        | x :: lx -> Libnames.make_qualid (DirPath.make lx) x
+      in
+      x, y)
+    res
 
 let find uname tab =
   let l,id = repr_path uname in
@@ -408,6 +456,8 @@ module type NAMETAB_gen = sig
   val pr : elt -> Pp.t read_tab
 
   val locate : qualid -> elt read_tab
+
+  val locate_upto : limit:int -> qualid -> (qualid * elt) list read_tab
 
   val locate_all : qualid -> elt list read_tab
 
@@ -496,6 +546,8 @@ module MakeTab (E:ValueType) : Functional_NAMETAB with type elt = E.t = struct
 
   let locate qid { tab } = Tab.locate qid tab
 
+  let locate_upto ~limit qid { tab } = Tab.locate_upto ~limit qid tab
+
   let locate_all qid { tab } = Tab.find_prefixes qid tab
 
   let completion_candidates qid { tab } = Tab.match_prefixes qid tab
@@ -535,6 +587,8 @@ module MakeImperative (Tab:Functional_NAMETAB) (SI:StateInfo) ()
   let pr v = Tab.pr v !the_tab
 
   let locate qid = Tab.locate qid !the_tab
+
+  let locate_upto ~limit qid = Tab.locate_upto ~limit qid !the_tab
 
   let locate_all qid = Tab.locate_all qid !the_tab
 
