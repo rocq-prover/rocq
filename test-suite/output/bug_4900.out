@@ -1,0 +1,8 @@
+File "./output/bug_4900.v", line 1, characters 0-48:
+The command has indeed failed with message:
+Timeout!
+File "./output/bug_4900.v", line 2, characters 0-48:
+Error: Timeout!
+
+
+coqc exited with code 1

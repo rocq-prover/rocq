@@ -43,3 +43,6 @@ val under_control : loc:Loc.t option ->
     command failed or [Succeed] where it succeeded).
 *)
 val after_last_phase : loc:Loc.t option -> _ control_entries -> bool
+
+(** Exposed so that waterproof can change the error message. *)
+exception CmdTimeout

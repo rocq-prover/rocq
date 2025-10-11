@@ -35,7 +35,7 @@ let unix_timeout n f x =
   let timeout_handler _ = raise Timeout in
   let old_timer = getitimer ITIMER_REAL in
   (* Here we assume that the existing timer will also interrupt us. *)
-  if old_timer.it_value > 0. && old_timer.it_value <= n then Some (f x) else
+  if old_timer.it_value > 0. && old_timer.it_value <= n then Ok (f x) else
     let psh = Sys.signal Sys.sigalrm (Sys.Signal_handle timeout_handler) in
     let restore_timeout () =
       let timer_status = getitimer ITIMER_REAL in
@@ -51,11 +51,12 @@ let unix_timeout n f x =
       let _ = setitimer ITIMER_REAL {it_interval = 0.; it_value = n} in
       let res = f x in
       restore_timeout ();
-      Some res
+      Ok res
     with
     | Timeout ->
+      let _, info = Exninfo.capture Timeout in
       restore_timeout ();
-      None
+      Error info
     | e ->
       let e = Exninfo.capture e in
       restore_timeout ();
@@ -87,18 +88,19 @@ let windows_timeout n f x =
       exited := true;
       raise Sys.Break
     end in
-    Some res
+    Ok res
   with
   | Sys.Break ->
+    let _, info as e = Exninfo.capture Sys.Break in
     (* Just in case, it could be a regular Ctrl+C *)
-    if not !exited then begin killed := true; raise Sys.Break end
-    else None
+    if not !exited then begin killed := true; Exninfo.iraise e end
+    else Error info
   | e ->
     let e = Exninfo.capture e in
     let () = killed := true in
     Exninfo.iraise e
 
-type timeout = { timeout : 'a 'b. float -> ('a -> 'b) -> 'a -> 'b option }
+type timeout = { timeout : 'a 'b. float -> ('a -> 'b) -> 'a -> ('b, Exninfo.info) result }
 
 let timeout_fun = match Sys.os_type with
 | "Unix" | "Cygwin" -> { timeout = unix_timeout }
