@@ -1,0 +1,965 @@
+
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < T is defined
+T_rect is defined
+T_ind is defined
+T_rec is defined
+T_sind is defined
+
+Rocq < Parsing is defined
+Parsing_rect is defined
+Parsing_ind is defined
+Parsing_rec is defined
+Parsing_sind is defined
+
+Rocq < Rocq < 
+Rocq < Rocq < Identifier 'op22' now a keyword
+
+Rocq < Identifier 'op12' now a keyword
+
+Rocq < Identifier 'op10' now a keyword
+
+Rocq < Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
+Rocq < Setting notation at level 0.
+
+Rocq < Rocq < Identifier 'atom3' now a keyword
+
+Rocq < Identifier 'atom2' now a keyword
+
+Rocq < Identifier 'atom1' now a keyword
+
+Rocq < 
+Rocq < Rocq < Identifier 'pre22' now a keyword
+
+Rocq < Identifier 'pre21' now a keyword
+
+Rocq < Identifier 'pre11' now a keyword
+
+Rocq < Identifier 'pre10' now a keyword
+
+Rocq < 
+Rocq < 
+Rocq < Rocq < Identifier 'post12' now a keyword
+
+Rocq < Identifier 'post11' now a keyword
+
+Rocq < Rocq < Entry custom:Top.expr is
+[ "3" RIGHTA
+  [ SELF; "op22"; NEXT
+  | "atom3" ]
+| "2" RIGHTA
+  [ SELF; "post12"
+  | SELF; "op12"; custom:Top.expr LEVEL "2"
+  | "pre21"; NEXT
+  | "pre22"; custom:Top.expr LEVEL "2"
+  | "atom2" ]
+| "1" LEFTA
+  [ SELF; "post11"
+  | SELF; "op10"; NEXT
+  | "pre10"; NEXT
+  | "pre11"; custom:Top.expr LEVEL "1"
+  | "atom1" ]
+| "0" RIGHTA
+  [ IDENT "pre0x"; NEXT
+  | IDENT "pre00"; custom:Top.expr LEVEL "0"
+  | IDENT "atom0" ] ]
+
+
+Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Toplevel input, characters 496-503:
+> Check Reject 10 [2 atom3 ].
+>                    ^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 11 E
+     : Parsing
+
+Rocq < Toplevel input, characters 19-26:
+> Check Reject 12 [1 atom2 ].
+>                    ^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 13 E
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 20 [2 pre22 atom3 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 21 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 22 [1 pre22 atom2 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 30 [2 pre21 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 31 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 32 [1 pre21 atom1 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 40 [2 pre11 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 25-30:
+> Check Reject 41 [1 pre11 atom2 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 42 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 43 [0 pre11 atom1 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 50 [1 pre10 atom1 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 51 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-32:
+> Check Reject 52 [0 pre10 atom0 ].
+>                    ^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 60 [1 pre00 atom1 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 25-30:
+> Check Reject 61 [0 pre00 atom1 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 62 (F E)
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 26-31:
+> Check Reject 70 [0 pre0x atom0 ].
+>                          ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected.  (there is no next level of last level) This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-25:
+> Check Reject 80 [2 atom3 post12 ].
+>                    ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < AcceptTmp 81 (F E)
+     : Parsing
+
+Rocq < Accept 82 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-33:
+> Check Reject 83 [1 atom1 post12 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 20-25:
+> Check Reject 90 [2 atom2 post11 ].
+>                    ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 91 (F E)
+     : Parsing
+
+Rocq < Accept 92 (F E)
+     : Parsing
+
+Rocq < Toplevel input, characters 19-33:
+> Check Reject 93 [0 atom1 post11 ].
+>                    ^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < AcceptTmp 100 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 101 [3 atom2 op22 atom3 ].
+>                                ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 102 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 20-38:
+> Check Reject 103 [2 atom2 op22 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < AcceptTmp 110 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 111 [2 atom1 op12 atom3 ].
+>                                ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 112 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 20-38:
+> Check Reject 113 [1 atom1 op12 atom2 ].
+>                     ^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Toplevel input, characters 21-26:
+> Check Reject 120 [1 atom2 op10 atom0].
+>                     ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 121 [1 atom1 op10 atom1].
+>                                ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 122 (G E E)
+     : Parsing
+
+Rocq < Toplevel input, characters 20-37:
+> Check Reject 123 [0 atom1 op10 atom0].
+>                     ^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < AcceptTmp 130 (F (G E E))
+     : Parsing
+
+Rocq < AcceptTmp 131 (G (F E) E)
+     : Parsing
+
+Rocq < Accept 132 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < AcceptTmp 140 (G (F E) E)
+     : Parsing
+
+Rocq < AcceptTmp 141 (G (F E) E)
+     : Parsing
+
+Rocq < Accept 142 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Accept 150 (G E (F E))
+     : Parsing
+
+Rocq < Toplevel input, characters 37-42:
+> Check Reject 151 [2 atom1 op12 pre21 atom2 ].
+>                                      ^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 152 (G E (F E))
+     : Parsing
+
+Rocq < Rocq < AcceptTmp 160 (G E (F E))
+     : Parsing
+
+Rocq < Accept 161 (G E (F E))
+     : Parsing
+
+Rocq < Toplevel input, characters 31-43:
+> Check Reject 162 [2 atom1 op10 atom1 post12 ].
+>                                ^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 163 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < Accept 170 (F (G E E))
+     : Parsing
+
+Rocq < Toplevel input, characters 26-42:
+> Check Reject 171 [1 pre10 atom1 op10 atom0 ].
+>                           ^^^^^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 172 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 21-33:
+> Check Reject 180 [1 atom1 post12 op10 atom0 ].
+>                     ^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 181 (G (F E) E)
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 32-43:
+> Check Reject 190 [1 atom1 op10 pre11 atom0 ].
+>                                ^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 31-42:
+> Check Reject 191 [1 atom1 op10 pre10 atom0 ].
+>                                ^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Rocq < Accept 200 (F (G E E))
+     : Parsing
+
+Rocq < Toplevel input, characters 20-45:
+> Check Reject 201 [1 atom1 op10 atom0 post12 ].
+>                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In term, tolerating this expression at a higher level than expected.
+This tolerance will be eventually removed. Insert parentheses or try to lower
+the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 202 (F (G E E))
+     : Parsing
+
+Rocq < Rocq < AcceptTmp 210 (G E (G E E))
+     : Parsing
+
+Rocq < Accept 211 (G E (G E E))
+     : Parsing
+
+Rocq < Rocq < Toplevel input, characters 32-48:
+> Check Reject 220 [1 atom1 op10 atom1 op10 atom0 ].
+>                                ^^^^^^^^^^^^^^^^
+Error: In custom:Top.expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 221 (G (G E E) E)
+     : Parsing
+
+Rocq < Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < 
+Rocq < 
+Rocq < Rocq < 
+Rocq < 
+Rocq < Rocq < Entry ltac_expr is
+[ "5" RIGHTA
+  [ IDENT "atom5" ]
+| "4" LEFTA
+  [ SELF; IDENT "post44"
+  | SELF; ";"; SELF
+  | SELF; ";"; tactic_then_locality; for_each_goal; "]"
+  | IDENT "pre43"; NEXT
+  | IDENT "pre44"; SELF
+  | IDENT "atom4" ]
+| "3" RIGHTA
+  [ "atom3"
+  | IDENT "try"; SELF
+  | IDENT "do"; nat_or_var; SELF
+  | IDENT "timeout"; nat_or_var; SELF
+  | IDENT "time"; OPT string; SELF
+  | IDENT "repeat"; SELF
+  | IDENT "progress"; SELF
+  | IDENT "once"; SELF
+  | IDENT "exactly_once"; SELF
+  | IDENT "abstract"; NEXT; "using"; ident
+  | IDENT "abstract"; NEXT
+  | IDENT "only"; goal_selector; ":"; SELF ]
+| "2" RIGHTA
+  [ SELF; "post12"
+  | SELF; "+"; SELF
+  | SELF; "||"; SELF
+  | "pre21"; NEXT
+  | "pre22"; SELF
+  | "atom2"
+  | IDENT "tryif"; SELF; "then"; SELF; "else"; SELF ]
+| "1l" LEFTA
+  [  ]
+| "1" RIGHTA
+  [ "atom1"
+  | "fun"; LIST1 input_fun; "=>"; ltac_expr LEVEL "5"
+  | "let"; [ IDENT "rec" |  ]; LIST1 let_clause SEP "with"; "in"; ltac_expr
+    LEVEL "5"
+  | IDENT "first"; "["; LIST0 ltac_expr SEP "|"; "]"
+  | IDENT "solve"; "["; LIST0 ltac_expr SEP "|"; "]"
+  | IDENT "idtac"; LIST0 message_token
+  | match_key; IDENT "goal"; "with"; match_context_list; "end"
+  | match_key; IDENT "reverse"; IDENT "goal"; "with"; match_context_list;
+    "end"
+  | match_key; SELF; "with"; match_list; "end"
+  | failkw; [ nat_or_var |  ]; LIST0 message_token
+  | simple_tactic
+  | tactic_value
+  | reference; LIST0 tactic_arg ]
+| "0" LEFTA
+  [ "("; SELF; ")"
+  | "["; ">"; for_each_goal; "]"
+  | tactic_atom ] ]
+
+Entry simple_tactic is
+[ LEFTA
+  [ IDENT "firstorder"; OPT tactic; "with"; LIST1 preident
+  | IDENT "firstorder"; OPT tactic; firstorder_using; "with"; LIST1 preident
+  | IDENT "firstorder"; OPT tactic; firstorder_using
+  | IDENT "congruence"; OPT natural; "with"; LIST1 constr
+  | IDENT "congruence"; OPT natural
+  | IDENT "dintuition"; tactic
+  | IDENT "dintuition"
+  | IDENT "intuition"; tactic
+  | IDENT "intuition"
+  | IDENT "assert_fails"; ltac_expr LEVEL "3"
+  | IDENT "inversion_sigma"; hyp; "as"; simple_intropattern
+  | IDENT "inversion_sigma"; hyp
+  | IDENT "inversion_sigma"
+  | IDENT "now"; tactic
+  | IDENT "rewrite_all"; "<-"; constr
+  | IDENT "rewrite_all"; constr
+  | IDENT "destruct_with_eqn"; ":"; ident; ident
+  | IDENT "destruct_with_eqn"; ":"; ident; constr
+  | IDENT "destruct_with_eqn"; ident
+  | IDENT "destruct_with_eqn"; constr
+  | IDENT "clearbody"; LIST1 hyp
+  | IDENT "clear"; IDENT "dependent"; hyp
+  | IDENT "clear"; "-"; LIST1 hyp
+  | IDENT "clear"; LIST0 hyp
+  | IDENT "revert"; IDENT "dependent"; hyp
+  | IDENT "revert"; LIST1 hyp
+  | IDENT "rename"; LIST1 rename SEP ","
+  | IDENT "move"; hyp; "at"; IDENT "top"
+  | IDENT "move"; hyp; "at"; IDENT "bottom"
+  | IDENT "move"; hyp; IDENT "after"; hyp
+  | IDENT "move"; hyp; IDENT "before"; hyp
+  | IDENT "intro"; "at"; IDENT "top"
+  | IDENT "intro"; "at"; IDENT "bottom"
+  | IDENT "intro"; IDENT "after"; hyp
+  | IDENT "intro"; IDENT "before"; hyp
+  | IDENT "intro"; ident; "at"; IDENT "top"
+  | IDENT "intro"; ident; "at"; IDENT "bottom"
+  | IDENT "intro"; ident; IDENT "after"; hyp
+  | IDENT "intro"; ident; IDENT "before"; hyp
+  | IDENT "intro"; ident
+  | IDENT "intro"
+  | IDENT "eexists"; LIST1 bindings SEP ","
+  | IDENT "eexists"
+  | "exists"; LIST1 bindings SEP ","
+  | "exists"
+  | IDENT "esplit"; "with"; bindings
+  | IDENT "split"; "with"; bindings
+  | IDENT "symmetry"; "in"; in_clause
+  | IDENT "specialize"; constr_with_bindings; "as"; simple_intropattern
+  | IDENT "specialize"; constr_with_bindings
+  | IDENT "econstructor"; nat_or_var; "with"; bindings
+  | IDENT "econstructor"; nat_or_var
+  | IDENT "econstructor"
+  | IDENT "constructor"; nat_or_var; "with"; bindings
+  | IDENT "constructor"; nat_or_var
+  | IDENT "constructor"
+  | IDENT "eright"; "with"; bindings
+  | IDENT "right"; "with"; bindings
+  | IDENT "eleft"; "with"; bindings
+  | IDENT "left"; "with"; bindings
+  | IDENT "exact"; uconstr
+  | IDENT "with_strategy"; strategy_level_or_var; "["; LIST1 smart_global;
+    "]"; ltac_expr LEVEL "3"
+  | IDENT "guard"; test
+  | IDENT "swap"; int_or_var; int_or_var
+  | IDENT "cycle"; int_or_var
+  | IDENT "unshelve"; ltac_expr LEVEL "1"
+  | IDENT "transparent_abstract"; ltac_expr LEVEL "3"; "using"; ident
+  | IDENT "transparent_abstract"; ltac_expr LEVEL "3"
+  | IDENT "specialize_eqs"; hyp
+  | IDENT "generalize_eqs_vars"; hyp
+  | IDENT "generalize_eqs"; hyp
+  | IDENT "stepr"; constr; "by"; tactic
+  | IDENT "stepr"; constr
+  | IDENT "stepl"; constr; "by"; tactic
+  | IDENT "stepl"; constr
+  | IDENT "instantiate"; "("; ident; ":="; lconstr; ")"
+  | IDENT "instantiate"; "("; natural; ":="; lconstr; ")"; hloc
+  | IDENT "evar"; test_lpar_id_colon; "("; ident; ":"; lconstr; ")"
+  | IDENT "evar"; constr
+  | IDENT "subst"; LIST1 hyp
+  | IDENT "subst"
+  | IDENT "notypeclasses"; IDENT "refine"; uconstr
+  | IDENT "refine"; uconstr
+  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause; "using"; tactic
+  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause
+  | IDENT "autorewrite"; "with"; LIST1 preident; clause; "using"; tactic
+  | IDENT "autorewrite"; "with"; LIST1 preident; clause
+  | IDENT "contradiction"; OPT constr_with_bindings
+  | IDENT "decompose"; "["; LIST1 constr; "]"; constr
+  | IDENT "decompose"; IDENT "record"; constr
+  | IDENT "decompose"; IDENT "sum"; constr
+  | IDENT "einjection"; "as"; LIST0 simple_intropattern
+  | IDENT "einjection"; destruction_arg; "as"; LIST0 simple_intropattern
+  | IDENT "einjection"; destruction_arg
+  | IDENT "einjection"
+  | IDENT "injection"; "as"; LIST0 simple_intropattern
+  | IDENT "injection"; destruction_arg; "as"; LIST0 simple_intropattern
+  | IDENT "injection"; destruction_arg
+  | IDENT "injection"
+  | IDENT "ediscriminate"; destruction_arg
+  | IDENT "ediscriminate"
+  | IDENT "discriminate"; destruction_arg
+  | IDENT "discriminate"
+  | IDENT "esimplify_eq"; destruction_arg
+  | IDENT "esimplify_eq"
+  | IDENT "simplify_eq"; destruction_arg
+  | IDENT "simplify_eq"
+  | IDENT "replace"; "<-"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; "<-"; uconstr; clause
+  | IDENT "replace"; "->"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; "->"; uconstr; clause
+  | IDENT "replace"; uconstr; "with"; constr; clause; by_arg_tac
+  | IDENT "replace"; uconstr; clause
+  | IDENT "assert_succeeds"; ltac_expr LEVEL "3"
+  | IDENT "unify"; constr; constr; "with"; preident
+  | IDENT "unify"; constr; constr
+  | IDENT "autounfold_one"; hintbases; "in"; hyp
+  | IDENT "autounfold_one"; hintbases
+  | IDENT "autounfold"; hintbases; clause
+  | IDENT "info_eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "info_auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "eauto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "auto"; OPT nat_or_var; auto_using; hintbases
+  | IDENT "debug"; IDENT "trivial"; auto_using; hintbases
+  | IDENT "info_trivial"; auto_using; hintbases
+  | IDENT "trivial"; auto_using; hintbases
+  | IDENT "autoapply"; constr; "with"; preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "bfs"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "dfs"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "dfs"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "best_effort"; OPT nat_or_var;
+    "with"; LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; IDENT "best_effort"; OPT nat_or_var
+  | IDENT "typeclasses"; IDENT "eauto"; OPT nat_or_var; "with";
+    LIST1 preident
+  | IDENT "typeclasses"; IDENT "eauto"; OPT nat_or_var
+  | IDENT "decide"; IDENT "equality"
+  | IDENT "decide"; constr; "with"; constr
+  | IDENT "setoid_transitivity"; constr
+  | IDENT "setoid_etransitivity"
+  | IDENT "setoid_symmetry"; "in"; hyp
+  | IDENT "setoid_symmetry"
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "at"; occurrences;
+    "in"; hyp
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "at"; occurrences
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "in"; hyp; "at";
+    occurrences
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings; "in"; hyp
+  | IDENT "setoid_rewrite"; orient; constr_with_bindings
+  | IDENT "substitute"; orient; constr_with_bindings
+  | IDENT "rewrite_strat"; rewstrategy; "in"; hyp
+  | IDENT "rewrite_strat"; rewstrategy
+  | IDENT "rewrite_db"; preident; "in"; hyp
+  | IDENT "rewrite_db"; preident
+  | IDENT "finish_timing"; "("; string; ")"; OPT string
+  | IDENT "finish_timing"; OPT string
+  | IDENT "restart_timer"; OPT string
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"; IDENT "cutoff"; integer
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"; string
+  | IDENT "show"; IDENT "ltac"; IDENT "profile"
+  | IDENT "reset"; IDENT "ltac"; IDENT "profile"
+  | IDENT "stop"; IDENT "ltac"; IDENT "profiling"
+  | IDENT "start"; IDENT "ltac"; IDENT "profiling"
+  | IDENT "intros"; IDENT "until"; quantified_hypothesis
+  | IDENT "intros"; ne_intropatterns
+  | IDENT "intros"
+  | IDENT "eintros"; ne_intropatterns
+  | IDENT "eintros"
+  | IDENT "apply"; "<-"; constr; "in"; hyp
+  | IDENT "apply"; "<-"; constr
+  | IDENT "apply"; "->"; constr; "in"; hyp
+  | IDENT "apply"; "->"; constr
+  | IDENT "apply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "eapply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "elim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "eelim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "case"; induction_clause_list
+  | IDENT "ecase"; induction_clause_list
+  | "fix"; ident; natural; "with"; LIST1 fixdecl
+  | "fix"; ident; natural
+  | "cofix"; ident; "with"; LIST1 cofixdecl
+  | "cofix"; ident
+  | IDENT "set"; bindings_with_parameters; clause
+  | IDENT "set"; constr; as_name; clause
+  | IDENT "eset"; bindings_with_parameters; clause
+  | IDENT "eset"; constr; as_name; clause
+  | IDENT "remember"; constr; as_name; eqn_ipat; clause_dft_all
+  | IDENT "eremember"; constr; as_name; eqn_ipat; clause_dft_all
+  | IDENT "assert"; lpar_id_coloneq; "("; identref; ":="; lconstr; ")"
+  | IDENT "assert"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "assert"; constr; as_ipat; by_tactic
+  | IDENT "eassert"; lpar_id_coloneq; "("; identref; ":="; lconstr; ")"
+  | IDENT "eassert"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "eassert"; constr; as_ipat; by_tactic
+  | IDENT "pose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
+    lconstr; ")"
+  | IDENT "pose"; IDENT "proof"; lconstr; as_ipat
+  | IDENT "pose"; bindings_with_parameters
+  | IDENT "pose"; constr; as_name
+  | IDENT "epose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
+    lconstr; ")"
+  | IDENT "epose"; IDENT "proof"; lconstr; as_ipat
+  | IDENT "epose"; bindings_with_parameters
+  | IDENT "epose"; constr; as_name
+  | IDENT "enough"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "enough"; constr; as_ipat; by_tactic
+  | IDENT "eenough"; test_lpar_id_colon; "("; identref; ":"; lconstr; ")";
+    by_tactic
+  | IDENT "eenough"; constr; as_ipat; by_tactic
+  | IDENT "generalize"; IDENT "dependent"; constr
+  | IDENT "generalize"; constr; LIST1 constr
+  | IDENT "generalize"; constr; lookup_at_as_comma; occs; as_name;
+    LIST0 [ ","; pattern_occ; as_name ]
+  | IDENT "generalize"; constr
+  | IDENT "induction"; induction_clause_list
+  | IDENT "einduction"; induction_clause_list
+  | IDENT "destruct"; induction_clause_list
+  | IDENT "edestruct"; induction_clause_list
+  | IDENT "rewrite"; "*"; orient; uconstr; "in"; hyp; "at"; occurrences;
+    by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "in"; hyp; by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "at"; occurrences; "in"; hyp;
+    by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; "at"; occurrences; by_arg_tac
+  | IDENT "rewrite"; "*"; orient; uconstr; by_arg_tac
+  | IDENT "rewrite"; LIST1 oriented_rewriter SEP ","; clause; by_tactic
+  | IDENT "erewrite"; LIST1 oriented_rewriter SEP ","; clause; by_tactic
+  | IDENT "dependent"; IDENT "destruction"; ident
+  | IDENT "dependent"; IDENT "induction"; ident
+  | IDENT "dependent"; IDENT "generalize_eqs_vars"; hyp
+  | IDENT "dependent"; IDENT "generalize_eqs"; hyp
+  | IDENT "dependent"; IDENT "rewrite"; orient; constr; "in"; hyp
+  | IDENT "dependent"; IDENT "rewrite"; orient; constr
+  | IDENT "dependent";
+    [ IDENT "simple"; IDENT "inversion" | IDENT "inversion"
+    | IDENT "inversion_clear" ]; quantified_hypothesis; as_or_and_ipat;
+    OPT [ "with"; constr ]
+  | IDENT "simple"; IDENT "congruence"; OPT natural; "with"; LIST1 constr
+  | IDENT "simple"; IDENT "congruence"; OPT natural
+  | IDENT "simple"; IDENT "destruct"; quantified_hypothesis
+  | IDENT "simple"; IDENT "induction"; quantified_hypothesis
+  | IDENT "simple"; IDENT "subst"
+  | IDENT "simple"; IDENT "notypeclasses"; IDENT "refine"; uconstr
+  | IDENT "simple"; IDENT "refine"; uconstr
+  | IDENT "simple"; IDENT "injection"; destruction_arg
+  | IDENT "simple"; IDENT "injection"
+  | IDENT "simple"; IDENT "apply"; LIST1 constr_with_bindings_arg SEP ",";
+    in_hyp_as
+  | IDENT "simple"; IDENT "eapply"; LIST1 constr_with_bindings_arg SEP ",";
+    in_hyp_as
+  | IDENT "simple"; IDENT "inversion"; quantified_hypothesis; as_or_and_ipat;
+    in_hyp_list
+  | IDENT "inversion_clear"; quantified_hypothesis; as_or_and_ipat;
+    in_hyp_list
+  | IDENT "inversion"; quantified_hypothesis; "using"; constr; in_hyp_list
+  | IDENT "inversion"; quantified_hypothesis; as_or_and_ipat; in_hyp_list
+  | IDENT "red"; clause
+  | IDENT "hnf"; clause
+  | IDENT "simpl"; OPT [ IDENT "head" ]; delta_flag; OPT ref_or_pattern_occ;
+    clause
+  | IDENT "cbv"; strategy_flag; clause
+  | IDENT "cbn"; strategy_flag; clause
+  | IDENT "lazy"; strategy_flag; clause
+  | IDENT "compute"; delta_flag; clause
+  | IDENT "vm_compute"; OPT ref_or_pattern_occ; clause
+  | IDENT "native_compute"; OPT ref_or_pattern_occ; clause
+  | IDENT "unfold"; LIST1 unfold_occ SEP ","; clause
+  | IDENT "fold"; LIST1 constr; clause
+  | IDENT "pattern"; LIST1 pattern_occ SEP ","; clause
+  | IDENT "change"; conversion; clause
+  | IDENT "change_no_check"; conversion; clause ] ]
+
+Entry tactic_value is
+[ LEFTA
+  [ IDENT "firstorder_using"; ":"; "("; firstorder_using; ")"
+  | IDENT "test"; ":"; "("; test; ")"
+  | IDENT "comparison"; ":"; "("; comparison; ")"
+  | IDENT "opthints"; ":"; "("; opthints; ")"
+  | IDENT "auto_using"; ":"; "("; auto_using; ")"
+  | IDENT "hintbases"; ":"; "("; hintbases; ")"
+  | IDENT "eauto_search_strategy"; ":"; "("; eauto_search_strategy; ")"
+  | IDENT "eauto_search_strategy_name"; ":"; "("; eauto_search_strategy_name;
+    ")"
+  | IDENT "debug"; ":"; "("; debug; ")"
+  | IDENT "rewstrategy"; ":"; "("; rewstrategy; ")"
+  | IDENT "glob_constr_with_bindings"; ":"; "("; constr_with_bindings; ")"
+  | IDENT "strategy_level_or_var"; ":"; "("; strategy_level_or_var; ")"
+  | IDENT "strategy_level"; ":"; "("; strategy_level; ")"
+  | IDENT "test_lpar_id_colon"; ":"; "("; test_lpar_id_colon; ")"
+  | IDENT "in_clause"; ":"; "("; in_clause; ")"
+  | IDENT "by_arg_tac"; ":"; "("; by_arg_tac; ")"
+  | IDENT "rename"; ":"; "("; rename; ")"
+  | IDENT "hloc"; ":"; "("; hloc; ")"
+  | IDENT "lglob"; ":"; "("; lconstr; ")"
+  | IDENT "lconstr"; ":"; "("; lconstr; ")"
+  | IDENT "glob"; ":"; "("; constr; ")"
+  | IDENT "occurrences"; ":"; "("; occurrences; ")"
+  | IDENT "natural"; ":"; "("; natural; ")"
+  | IDENT "orient"; ":"; "("; orient; ")"
+  | IDENT "ltac"; ":"; "("; ltac_expr LEVEL "5"; ")"
+  | IDENT "open_constr"; ":"; "("; lconstr; ")"
+  | IDENT "ipattern"; ":"; "("; simple_intropattern; ")"
+  | IDENT "constr"; ":"; "("; lconstr; ")"
+  | IDENT "uconstr"; ":"; "("; lconstr; ")"
+  | IDENT "reference"; ":"; "("; reference; ")"
+  | IDENT "ident"; ":"; "("; ident; ")"
+  | IDENT "smart_global"; ":"; "("; smart_global; ")"
+  | IDENT "string"; ":"; "("; string; ")"
+  | IDENT "integer"; ":"; "("; integer; ")"
+  | IDENT "fresh"; LIST0 fresh_id
+  | IDENT "type_term"; uconstr
+  | IDENT "numgoals"
+  | constr_eval ] ]
+
+
+Rocq < Rocq < Toplevel input, characters 24-29:
+> Check Reject 230 ltac:(atom5 ; atom3).
+>                        ^^^^^
+Error: In ltac_expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 231 ltac:(atom4 ; atom4).
+>                                ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 232 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 233 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Rocq < Toplevel input, characters 30-35:
+> Check Reject 240 ltac:(pre43 atom4 ; atom3).
+>                              ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 241 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Toplevel input, characters 29-34:
+> Check Reject 242 ltac:(pre44 atom4 ; atom3).
+>                              ^^^^^
+Error: The reference atom4 was not found in the current environment.
+
+Rocq < Accept 243 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Rocq < Accept 250 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 251 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Rocq < AcceptTmp 260 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Toplevel input, characters 31-36:
+> Check Reject 261 ltac:(atom1 + atom3).
+>                                ^^^^^
+Error: In ltac_expr, tolerating this expression at a higher level than
+expected. This tolerance will be eventually removed. Insert parentheses or
+try to lower the level at which the top symbol of this expression is parsed.
+[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+
+Rocq < Accept 262 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 263 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Rocq < AcceptTmp 270 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < AcceptTmp 271 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 272 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 273 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Rocq < AcceptTmp 280 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < AcceptTmp 281 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < Accept 282 ?Goal
+     : Parsing
+where
+?A : [ |- Type]
+?Goal : [ |- ?A]
+
+Rocq < 
