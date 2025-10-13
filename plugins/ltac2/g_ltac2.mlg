@@ -146,7 +146,7 @@ GRAMMAR EXTEND Gram
   GLOBAL: ltac2_expr ltac2_type tac2def_val tac2def_typ tac2def_ext tac2def_syn tac2abbrev_syn
           tac2def_mut tac2expr_in_env ltac2_atom;
   tac2pat:
-    [ "3" NONA
+    [ "3" LEFTA
       [ p = tac2pat; "|"; pl = LIST1 tac2pat LEVEL "2" SEP "|" ->
         { let pl = p :: pl in
           CAst.make ~loc @@ CPatOr pl }

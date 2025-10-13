@@ -4,7 +4,7 @@ Set Warnings "-level-0-notation-not-closed".
 Set Warnings "-postfix-notation-not-level-1".
 
 Inductive T := E : T | F : T -> T | G : T -> T -> T.
-Inductive Parsing {A} := AcceptTmp (_ : nat) (_ : A) | Accept (_ : nat) (_ : A) | Reject (_ : nat) (_ : A).
+Inductive Parsing {A} := Accept (_ : nat) (_ : A) | Reject (_ : nat) (_ : A).
 
 Declare Custom Entry expr.
 
@@ -74,7 +74,7 @@ Check Accept 62 [0 pre00 atom0 ].
 Check Reject 70 [0 pre0x atom0 ].
 
 Check Reject 80 [2 atom3 post12 ].
-Check AcceptTmp 81 [2 atom2 post12 ].
+Check Reject 81 [2 atom2 post12 ].
 Check Accept 82 [2 atom1 post12 ].
 Check Reject 83 [1 atom1 post12 ].
 
@@ -83,12 +83,12 @@ Check Accept 91 [2 atom1 post11 ].
 Check Accept 92 [1 atom1 post11 ].
 Check Reject 93 [0 atom1 post11 ].
 
-Check AcceptTmp 100 [3 atom3 op22 atom2 ].
+Check Reject 100 [3 atom3 op22 atom2 ].
 Check Reject 101 [3 atom2 op22 atom3 ].
 Check Accept 102 [3 atom2 op22 atom2 ].
 Check Reject 103 [2 atom2 op22 atom2 ].
 
-Check AcceptTmp 110 [2 atom2 op12 atom2 ].
+Check Reject 110 [2 atom2 op12 atom2 ].
 Check Reject 111 [2 atom1 op12 atom3 ].
 Check Accept 112 [2 atom1 op12 atom2 ].
 Check Reject 113 [1 atom1 op12 atom2 ].
@@ -98,19 +98,19 @@ Check Reject 121 [1 atom1 op10 atom1].
 Check Accept 122 [1 atom1 op10 atom0].
 Check Reject 123 [0 atom1 op10 atom0].
 
-Check AcceptTmp 130 [2 pre22 atom2 op12 atom2 ].
-Check AcceptTmp 131 [2 pre21 atom1 op12 atom2 ].
+Check Reject 130 [2 pre22 atom2 op12 atom2 ].
+Check Reject 131 [2 pre21 atom1 op12 atom2 ].
 Check Accept 132 [2 pre22 atom1 op12 atom2 ].
 
-Check AcceptTmp 140 [2 atom2 post12 op12 atom2 ].
-Check AcceptTmp 141 [2 atom1 post12 op12 atom2 ].
+Check Reject 140 [2 atom2 post12 op12 atom2 ].
+Check Reject 141 [2 atom1 post12 op12 atom2 ].
 Check Accept 142 [2 atom1 post11 op12 atom2 ].
 
 Check Accept 150 [2 atom1 op12 pre22 atom2 ].
 Check Reject 151 [2 atom1 op12 pre21 atom2 ].
 Check Accept 152 [2 atom1 op12 pre21 atom1 ].
 
-Check AcceptTmp 160 [2 atom1 op12 atom2 post12 ].
+Check Reject 160 [2 atom1 op12 atom2 post12 ].
 Check Accept 161 [2 atom1 op12 atom1 post12 ].
 Check Reject 162 [2 atom1 op10 atom1 post12 ].
 Check Accept 163 [2 atom1 op10 atom0 post12 ].
@@ -129,7 +129,7 @@ Check Accept 200 [2 atom1 op10 atom0 post12 ].
 Check Reject 201 [1 atom1 op10 atom0 post12 ].
 Check Accept 202 [1 atom1 op10 atom0 post11 ].
 
-Check AcceptTmp 210 [2 atom1 op12 atom2 op12 atom2 ].
+Check Reject 210 [2 atom1 op12 atom2 op12 atom2 ].
 Check Accept 211 [2 atom1 op12 atom1 op12 atom2 ].
 
 Check Reject 220 [1 atom1 op10 atom1 op10 atom0 ].
@@ -166,16 +166,16 @@ Check Accept 243 ltac:(pre44 atom3 ; atom3).
 Check Accept 250 ltac:(atom4 post44 ; atom3).
 Check Accept 251 ltac:(atom4 ; atom3 post44).
 
-Check AcceptTmp 260 ltac:(atom2 + atom2).
+Check Reject 260 ltac:(atom2 + atom2).
 Check Reject 261 ltac:(atom1 + atom3).
 Check Accept 262 ltac:(atom1 + atom2).
 Check Accept 263 ltac:(atom1 + atom1 + atom2).
 
-Check AcceptTmp 270 ltac:(pre22 atom2 + atom2).
-Check AcceptTmp 271 ltac:(pre21 atom1 + atom2).
+Check Reject 270 ltac:(pre22 atom2 + atom2).
+Check Reject 271 ltac:(pre21 atom1 + atom2).
 Check Accept 272 ltac:(pre22 atom1 + atom2).
 Check Accept 273 ltac:(atom1 + pre22 atom2).
 
-Check AcceptTmp 280 ltac:(atom1 post12 + atom2).
-Check AcceptTmp 281 ltac:(atom1 + atom2 post12).
+Check Reject 280 ltac:(atom1 post12 + atom2).
+Check Reject 281 ltac:(atom1 + atom2 post12).
 Check Accept 282 ltac:(atom1 + atom1 post12).
