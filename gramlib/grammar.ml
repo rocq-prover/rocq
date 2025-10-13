@@ -1058,9 +1058,11 @@ let warn_recover ename bp ?ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
   warn_tolerance ~loc (ename, "by the notation started on the left")
 
-let warn_recover_continuation ename bp ep strm__ =
+let warn_recover_continuation ename bp ep strm__ strict =
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, "by the notation continuing on the right")
+  let msg = "by the notation continuing on the right"
+    ^ if not strict then "" else " (which is not left-associative)" in
+  warn_tolerance ~loc (ename, msg)
 
 let warn_recover_last_start ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
@@ -1452,11 +1454,16 @@ let rec continue_parser_of_levels entry clevn =
           in
           let p2 = parser_of_tree entry (succ clevn) alevn tree in
           fun gstate levfrom levn bp a strm ->
+            let tolerance = match levfrom with
+              | Some levfrom when levfrom = clevn && lev.assoc <> LeftA -> Some true
+              | Some levfrom when levfrom < clevn -> Some false
+              | _ -> None
+            in
             (* Apply the lsuffix continuation if the level is in the interval [levn;levfrom] *)
             if levn > clevn then
               (* Skip rules before [levn] *)
               p1 gstate levfrom levn bp a strm
-            else if (not gstate.recover && match levfrom with Some levfrom -> levfrom < clevn | None -> false) then
+            else if (not gstate.recover && Option.has_some tolerance) then
               Error ()
             else
               let (strm__ : _ LStream.t) = strm in
@@ -1472,11 +1479,7 @@ let rec continue_parser_of_levels entry clevn =
                       continue_parser_of_entry gstate entry (Some (clevn-1)) levn bp a strm
                   else
                     continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
-              let () = match levfrom with
-                | Some levfrom when levfrom < clevn ->
-                  warn_recover_continuation entry.ename bp ep strm__
-                | _ -> ()
-              in
+              let () = Option.iter (warn_recover_continuation entry.ename bp ep strm__) tolerance in
               c
 
 let make_continue_parser_of_entry entry = function
