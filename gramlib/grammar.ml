@@ -1049,9 +1049,8 @@ let warn_tolerance =
                           ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
     Pp.(fun (e, msg) ->
         strbrk "In " ++ str e ++ str ", tolerating this expression at" ++
-        strbrk " a higher level than expected." ++
-        pr_opt (fun m -> strbrk (" " ^ m)) msg ++
-        strbrk " This tolerance will be eventually removed." ++
+        strbrk " a higher level than expected" ++ pr_opt strbrk msg ++
+        strbrk ". This tolerance will be eventually removed." ++
         strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
 
 let warn_recover ename bp strm__ =
@@ -1062,6 +1061,10 @@ let warn_recover ename bp strm__ =
 let warn_recover_continuation ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
   warn_tolerance ~loc (ename, None)
+
+let warn_recover_strict_continue ename bp ep strm__ =
+  let loc = LStream.interval_loc bp ep strm__ in
+  warn_tolerance ~loc (ename, Some "(not a left-associative level)")
 
 let warn_recover_last_start ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
@@ -1452,11 +1455,16 @@ let rec continue_parser_of_levels entry clevn =
           in
           let p2 = parser_of_tree entry (succ clevn) alevn tree in
           fun gstate levfrom levn bp a strm ->
+            let tolerance = match levfrom with
+              | Some levfrom when levfrom = clevn && lev.assoc <> LeftA -> Some true
+              | Some levfrom when levfrom < clevn -> Some false
+              | _ -> None
+            in
             (* Apply the lsuffix continuation if the level is in the interval [levn;levfrom] *)
             if levn > clevn then
               (* Skip rules before [levn] *)
               p1 gstate levfrom levn bp a strm
-            else if (not gstate.recover && match levfrom with Some levfrom -> levfrom < clevn | None -> false) then
+            else if (not gstate.recover && match tolerance with Some _ -> true | None -> false) then
               Error ()
             else
               let (strm__ : _ LStream.t) = strm in
@@ -1472,9 +1480,9 @@ let rec continue_parser_of_levels entry clevn =
                       continue_parser_of_entry gstate entry (Some (clevn-1)) levn bp a strm
                   else
                     continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
-              let () = match levfrom with
-                | Some levfrom when levfrom < clevn ->
-                  warn_recover_continuation entry.ename bp ep strm__
+              let () = match tolerance with
+                | Some true -> warn_recover_strict_continue entry.ename bp ep strm__
+                | Some false -> warn_recover_continuation entry.ename bp ep strm__
                 | _ -> ()
               in
               c
