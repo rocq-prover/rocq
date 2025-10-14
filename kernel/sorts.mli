@@ -204,6 +204,7 @@ val relevance_hash : relevance -> int
 
 val relevance_equal : relevance -> relevance -> bool
 
+val relevance_subst_rel_fn : (QVar.t -> relevance) -> relevance -> relevance
 val relevance_subst_fn : (QVar.t -> Quality.t) -> relevance -> relevance
 
 val relevance_of_sort : t -> relevance
@@ -216,3 +217,5 @@ type ('q, 'u) pattern =
   | PSProp | PSSProp | PSSet | PSType of 'u | PSQSort of 'q * 'u
 
 val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t option
+
+val relevance_match : int option -> relevance -> ('t, Quality.t, 'u) Partial_subst.t -> ('t, Quality.t, 'u) Partial_subst.t
