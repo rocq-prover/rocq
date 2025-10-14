@@ -39,27 +39,23 @@ let { Goptions.get = do_rewrite_output_constraints } =
 
 (** Constants used by the tactic. *)
 
-let bind_global_ref lib s =
-  let gr = lazy (Rocqlib.lib_ref (lib ^ "." ^ s)) in
-  fun () -> Lazy.force gr
+let bind_global lib s =
+  (); fun () -> Rocqlib.lib_ref (lib ^ "." ^ s)
 
 type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
-let bind_global lib s =
-  let gr = lazy (Rocqlib.lib_ref (lib ^ "." ^ s)) in
-    fun env (evd,cstrs) ->
-      let (evd, c) = Evd.fresh_global env evd (Lazy.force gr) in
-        (evd, cstrs), c
+let fresh_ref env (sigma, cstrs) gr =
+  let (sigma, c) = Evd.fresh_global env sigma gr in
+  (sigma, cstrs), c
 
 (** Utility for dealing with polymorphic applications *)
 
 (** Global constants. *)
 
-let rocq_eq_ref  () = Rocqlib.lib_ref    "core.eq.type"
 let rocq_eq      = bind_global "core.eq" "type"
 let rocq_f_equal = bind_global "core.eq" "congr"
 let rocq_all     = bind_global "core" "all"
-let impl        = bind_global "core" "impl"
+let impl         = bind_global "core" "impl"
 
 let default_relation = bind_global "rewrite" "DefaultRelation"
 
@@ -82,13 +78,13 @@ let extends_undefined evars evars' =
   in fold_undefined f evars' false
 
 let app_poly_check env evars f args =
-  let (evars, cstrs), fc = f env evars in
+  let (evars, cstrs), fc = fresh_ref env evars (f ()) in
   let evars, t = Typing.checked_appvect env evars fc args in
   (evars, cstrs), t
 
 let app_poly_nocheck env evars f args =
-  let evars, fc = f env evars in
-    evars, mkApp (fc, args)
+  let evars, fc = fresh_ref env evars (f ()) in
+  evars, mkApp (fc, args)
 
 let app_poly_sort b =
   if b then app_poly_nocheck
@@ -205,16 +201,16 @@ let decompose_applied_relation env sigma (c,l) =
 
 module GlobalBindings (M : sig
   val prefix : string
-  val app_poly : env -> evars -> (env -> evars -> evars * constr) -> constr array -> evars * constr
-  val arrow : env -> evars -> evars * constr
+  val app_poly : env -> evars -> (unit -> GlobRef.t) -> constr array -> evars * constr
+  val arrow : unit -> GlobRef.t
 end) = struct
   open M
   open Context.Rel.Declaration
 
   let bind_rewrite s = bind_global prefix s
-  let bind_rewrite_ref s = bind_global_ref prefix s
+  let bind_rewrite_ref s = bind_global prefix s
 
-  let relation : env -> evars -> evars * constr =
+  let relation =
     bind_rewrite "relation"
 
   let reflexive_type = bind_rewrite "Reflexive"
@@ -229,8 +225,8 @@ end) = struct
   let forall_relation = bind_rewrite "forall_relation"
   let pointwise_relation = bind_rewrite "pointwise_relation"
 
-  let forall_relation_ref = bind_global_ref prefix "forall_relation"
-  let pointwise_relation_ref = bind_global_ref prefix "pointwise_relation"
+  let forall_relation_ref = bind_global prefix "forall_relation"
+  let pointwise_relation_ref = bind_global prefix "pointwise_relation"
 
   let respectful = bind_rewrite "respectful"
 
@@ -252,15 +248,11 @@ end) = struct
 
   let proper_proj () = bind_rewrite_ref "proper_prf" ()
 
-  let proper_type env (sigma,cstrs) =
-    let l = (proper_class ()).TC.cl_impl in
-    let (sigma, c) = Evd.fresh_global env sigma l in
-    (sigma, cstrs), c
+  let proper_type () =
+    (proper_class ()).TC.cl_impl
 
-  let proper_proxy_type env (sigma,cstrs) =
-    let l = (proper_proxy_class ()).TC.cl_impl in
-    let (sigma, c) = Evd.fresh_global env sigma l in
-    (sigma, cstrs), c
+  let proper_proxy_type () =
+    (proper_proxy_class ()).TC.cl_impl
 
   let proper_proof env evars carrier relation x =
     let evars, goal = app_poly env evars proper_proxy_type [| carrier ; relation; x |] in
@@ -440,7 +432,7 @@ end) = struct
     match EConstr.kind sigma t with
     | App (c, args) when Array.length args >= 2 ->
       let head = if isApp sigma c then fst (destApp sigma c) else c in
-        if isRefX env sigma (rocq_eq_ref ()) head then None
+        if isRefX env sigma (rocq_eq ()) head then None
         else
           (try
             let env' = push_rel_context rels env in
