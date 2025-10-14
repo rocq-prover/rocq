@@ -28,6 +28,10 @@ val timeout : float -> ('a -> 'b) -> 'a -> 'b option
 (** [timeout n f x] tries to compute [Some (f x)], and if it fails to do so
     before [n] seconds, returns [None] instead. *)
 
+type kilowords = { kilowords : Int64.t } [@@unboxed]
+
+val alloc_limit : kilowords -> ('a -> 'b) -> 'a -> ('b * kilowords) option
+
 (** Set a particular timeout function; warning, this is an internal
    API and it is scheduled to go away. *)
 type timeout = { timeout : 'a 'b. float -> ('a -> 'b) -> 'a -> 'b option }
