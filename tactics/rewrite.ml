@@ -44,20 +44,27 @@ let bind_global lib s =
 
 type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
-let fresh_ref env (sigma, cstrs) gr =
-  let (sigma, c) = Evd.fresh_global env sigma gr in
+type setoid_constant =
+| StdOther of (unit -> GlobRef.t)
+
+let is_setoid_constant env sigma c t = match c with
+| StdOther f -> isRefX env sigma (f ()) t
+
+let fresh_ref env (sigma, cstrs) gr = match gr with
+| StdOther gr ->
+  let (sigma, c) = Evd.fresh_global env sigma (gr ()) in
   (sigma, cstrs), c
 
 (** Utility for dealing with polymorphic applications *)
 
 (** Global constants. *)
 
-let rocq_eq      = bind_global "core.eq" "type"
-let rocq_f_equal = bind_global "core.eq" "congr"
-let rocq_all     = bind_global "core" "all"
-let impl         = bind_global "core" "impl"
+let rocq_eq      = StdOther (bind_global "core.eq" "type")
+let rocq_f_equal = StdOther (bind_global "core.eq" "congr")
+let rocq_all     = StdOther (bind_global "core" "all")
+let impl         = StdOther (bind_global "core" "impl")
 
-let default_relation = bind_global "rewrite" "DefaultRelation"
+let default_relation = StdOther (bind_global "rewrite" "DefaultRelation")
 
 (** Bookkeeping which evars are constraints so that we can
     remove them at the end of the tactic. *)
@@ -78,12 +85,12 @@ let extends_undefined evars evars' =
   in fold_undefined f evars' false
 
 let app_poly_check env evars f args =
-  let (evars, cstrs), fc = fresh_ref env evars (f ()) in
+  let (evars, cstrs), fc = fresh_ref env evars f in
   let evars, t = Typing.checked_appvect env evars fc args in
   (evars, cstrs), t
 
 let app_poly_nocheck env evars f args =
-  let evars, fc = fresh_ref env evars (f ()) in
+  let evars, fc = fresh_ref env evars f in
   evars, mkApp (fc, args)
 
 let app_poly_sort b =
@@ -201,8 +208,8 @@ let decompose_applied_relation env sigma (c,l) =
 
 module GlobalBindings (M : sig
   val prefix : string
-  val app_poly : env -> evars -> (unit -> GlobRef.t) -> constr array -> evars * constr
-  val arrow : unit -> GlobRef.t
+  val app_poly : env -> evars -> setoid_constant -> constr array -> evars * constr
+  val arrow : setoid_constant
 end) = struct
   open M
   open Context.Rel.Declaration
@@ -211,32 +218,32 @@ end) = struct
   let bind_rewrite_ref s = bind_global prefix s
 
   let relation =
-    bind_rewrite "relation"
+    StdOther (bind_rewrite "relation")
 
-  let reflexive_type = bind_rewrite "Reflexive"
-  let reflexive_proof = bind_rewrite "reflexivity"
+  let reflexive_type = StdOther (bind_rewrite "Reflexive")
+  let reflexive_proof = StdOther (bind_rewrite "reflexivity")
 
-  let symmetric_type = bind_rewrite "Symmetric"
-  let symmetric_proof = bind_rewrite "symmetry"
+  let symmetric_type = StdOther (bind_rewrite "Symmetric")
+  let symmetric_proof = StdOther (bind_rewrite "symmetry")
 
-  let transitive_type = bind_rewrite "Transitive"
-  let transitive_proof = bind_rewrite "transitivity"
+  let transitive_type = StdOther (bind_rewrite "Transitive")
+  let transitive_proof = StdOther (bind_rewrite "transitivity")
 
-  let forall_relation = bind_rewrite "forall_relation"
-  let pointwise_relation = bind_rewrite "pointwise_relation"
+  let forall_relation = StdOther (bind_rewrite "forall_relation")
+  let pointwise_relation = StdOther (bind_rewrite "pointwise_relation")
 
-  let forall_relation_ref = bind_global prefix "forall_relation"
-  let pointwise_relation_ref = bind_global prefix "pointwise_relation"
+  let forall_relation_ref = StdOther (bind_global prefix "forall_relation")
+  let pointwise_relation_ref = StdOther (bind_global prefix "pointwise_relation")
 
-  let respectful = bind_rewrite "respectful"
+  let respectful = StdOther (bind_rewrite "respectful")
 
-  let rocq_forall = bind_rewrite "forall_def"
+  let rocq_forall = StdOther (bind_rewrite "forall_def")
 
-  let subrelation = bind_rewrite "subrelation"
-  let do_subrelation = bind_rewrite "do_subrelation"
-  let apply_subrelation = bind_rewrite "apply_subrelation"
+  let subrelation = StdOther (bind_rewrite "subrelation")
+  let do_subrelation = StdOther (bind_rewrite "do_subrelation")
+  let apply_subrelation = StdOther (bind_rewrite "apply_subrelation")
 
-  let rewrite_relation_class = bind_rewrite "RewriteRelation"
+  let rewrite_relation_class = StdOther (bind_rewrite "RewriteRelation")
 
   let proper_class =
     let r = lazy (bind_rewrite_ref "Proper" ()) in
@@ -246,13 +253,14 @@ end) = struct
     let r = lazy (bind_rewrite_ref "ProperProxy" ()) in
     fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
 
-  let proper_proj () = bind_rewrite_ref "proper_prf" ()
+  let proper_proj =
+    StdOther (fun () -> bind_rewrite_ref "proper_prf" ())
 
-  let proper_type () =
-    (proper_class ()).TC.cl_impl
+  let proper_type =
+    StdOther (fun () -> (proper_class ()).TC.cl_impl)
 
-  let proper_proxy_type () =
-    (proper_proxy_class ()).TC.cl_impl
+  let proper_proxy_type =
+    StdOther (fun () -> (proper_proxy_class ()).TC.cl_impl)
 
   let proper_proof env evars carrier relation x =
     let evars, goal = app_poly env evars proper_proxy_type [| carrier ; relation; x |] in
@@ -354,9 +362,9 @@ end) = struct
     if Int.equal n 0 then Some c
     else
       match EConstr.kind sigma c with
-      | App (f, [| a; b; relb |]) when isRefX env sigma (pointwise_relation_ref ()) f ->
+      | App (f, [| a; b; relb |]) when is_setoid_constant env sigma pointwise_relation_ref f ->
         decomp_pointwise env sigma (pred n) relb
-      | App (f, [| a; b; arelb |]) when isRefX env sigma (forall_relation_ref ()) f ->
+      | App (f, [| a; b; arelb |]) when is_setoid_constant env sigma forall_relation_ref f ->
         decomp_pointwise env sigma (pred n) (Reductionops.beta_applist sigma (arelb, [mkRel 1]))
       | _ ->
         (* cf #11347: when rewriting a commutative cut, we
@@ -367,9 +375,9 @@ end) = struct
   let rec apply_pointwise env sigma rel = function
     | arg :: args ->
       (match EConstr.kind sigma rel with
-      | App (f, [| a; b; relb |]) when isRefX env sigma (pointwise_relation_ref ()) f ->
+      | App (f, [| a; b; relb |]) when is_setoid_constant env sigma pointwise_relation_ref f ->
         apply_pointwise env sigma relb args
-      | App (f, [| a; b; arelb |]) when isRefX env sigma (forall_relation_ref ()) f ->
+      | App (f, [| a; b; arelb |]) when is_setoid_constant env sigma forall_relation_ref f ->
         apply_pointwise env sigma (Reductionops.beta_applist sigma (arelb, [arg])) args
       | _ -> invalid_arg "apply_pointwise")
     | [] -> rel
@@ -432,7 +440,7 @@ end) = struct
     match EConstr.kind sigma t with
     | App (c, args) when Array.length args >= 2 ->
       let head = if isApp sigma c then fst (destApp sigma c) else c in
-        if isRefX env sigma (rocq_eq ()) head then None
+        if is_setoid_constant env sigma rocq_eq head then None
         else
           (try
             let env' = push_rel_context rels env in
@@ -464,8 +472,8 @@ module PropGlobal = struct
   struct
     let prefix = "rewrite.prop"
     let app_poly = app_poly_nocheck
-    let arrow = bind_global "core" "arrow"
-    let rocq_inverse = bind_global "core" "flip"
+    let arrow = StdOther (bind_global "core" "arrow")
+    let rocq_inverse = StdOther (bind_global "core" "flip")
   end
 
   module G = GlobalBindings(Consts)
@@ -483,8 +491,8 @@ module TypeGlobal = struct
     struct
       let prefix = "rewrite.type"
       let app_poly = app_poly_check
-      let arrow = bind_global prefix "arrow"
-      let rocq_inverse = bind_global prefix "flip"
+      let arrow = StdOther (bind_global prefix "arrow")
+      let rocq_inverse = StdOther (bind_global prefix "flip")
     end
 
   module G = GlobalBindings(Consts)
@@ -1822,7 +1830,7 @@ let proper_projection env sigma r ty =
   let ctx, inst = decompose_prod_decls sigma ty in
   let mor, args = destApp sigma inst in
   let instarg = mkApp (r, rel_vect 0 (List.length ctx)) in
-  let sigma, proj = Evd.fresh_global env sigma (PropGlobal.proper_proj ()) in
+  let (sigma, ()), proj = fresh_ref env (sigma, ()) PropGlobal.proper_proj in
   let app = mkApp (proj,
                   Array.append args [| instarg |]) in
   sigma, it_mkLambda_or_LetIn app ctx
