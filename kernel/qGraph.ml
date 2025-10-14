@@ -40,16 +40,42 @@ module G = AcyclicGraph.Make(struct
     let anomaly_err q = Pp.(str "Quality " ++ Quality.raw_pr q ++ str " undefined.")
   end)
 
-module RigidPath = struct
-  type t = Quality.t * Quality.t
+module RigidPaths = struct
+  type t = (Quality.t list) Quality.Map.t
 
-  let compare (q1,q2) (q1',q2') =
-    let i = Quality.compare q1 q1' in
-    if i = 0 then Quality.compare q2 q2'
-    else i
+  let add_elim_to q1 q2 g =
+    let upd ls =
+      Some (match ls with
+        | Some ls -> q2 :: ls
+        | None -> [q2])
+    in
+    Quality.Map.update q1 upd g
+
+  let empty : t = Quality.Map.empty
+
+  let dfs q g =
+    let rec aux seen q =
+      if Quality.Set.mem q seen
+      then seen
+      else
+        let seen = Quality.Set.add q seen in
+        match Quality.Map.find_opt q g with
+        | None -> seen
+        | Some ls -> List.fold_left aux seen ls
+  in aux Quality.Set.empty q
+
+  let check_forbidden_path (map : Quality.Set.t Quality.Map.t) g =
+    let fold q s ls =
+      let allowed = dfs q g in
+      let diff = Quality.Set.diff s allowed in
+      if Quality.Set.is_empty diff
+      then ls
+      else List.append (List.map (fun q' -> (q, q')) (List.of_seq @@ Quality.Set.to_seq diff)) ls in
+    let forbidden = Quality.Map.fold fold map [] in
+    match forbidden with
+    | [] -> None
+    | p :: _ -> Some p
 end
-
-module RigidPaths = Set.Make(RigidPath)
 
 module QMap = QVar.Map
 module QSet = QVar.Set
@@ -57,7 +83,7 @@ module QSet = QVar.Set
 type t =
   { graph: G.t;
     rigid_paths: RigidPaths.t;
-    ground_and_global_sorts: Quality.t list;
+    ground_and_global_sorts: Quality.Set.t;
     dominant: Quality.t QMap.t;
     delayed_check: QSet.t QMap.t;
   }
@@ -109,19 +135,13 @@ let non_refl_pairs l =
     List.fold_right (fun y acc -> if x <> y then (x,y) :: acc else acc) l in
   List.fold_right fold l []
 
-let get_new_rigid_path g p dom =
-  let n = List.length dom in
-  if RigidPaths.cardinal p = n*(n+1)/2 then None
-  else
-    let forbidden = List.filter (fun u -> not (RigidPaths.mem u p)) @@ non_refl_pairs dom in
-    let witness = List.filter (fun (q,q') -> check_func ElimConstraint.ElimTo g q q') forbidden in
-    match witness with
-    | [] -> None
-    | x :: _ -> Some x
-
-let add_transitive_rigid_paths q1 q2 p =
-  let transitive_set = RigidPaths.filter (fun (q,_) -> Quality.equal q2 q) p in
-  RigidPaths.fold (fun (_,q) p -> RigidPaths.add (q1,q) p) transitive_set p
+let get_new_rigid_paths g p dom =
+  let add (q1,_,q2) accu =
+    Quality.Map.update q1
+      (fun ls -> Some (match ls with Some ls -> Quality.Set.add q2 ls | None -> Quality.Set.singleton q2))
+      accu in
+  let all_paths = G.constraints_for ~kept:dom g add Quality.Map.empty in
+  RigidPaths.check_forbidden_path all_paths p
 
 let set_dominant g qv q =
   { g with dominant = QMap.add qv q g.dominant }
@@ -200,9 +220,9 @@ let enforce_constraint src (q1,k,q2) g =
           if (Quality.is_qconst q1 && Quality.is_qconst q2) ||
                (Quality.is_qsprop q1 && not (Quality.is_qsprop q2))
           then raise (EliminationError IllegalConstraint)
-          else { g with graph; rigid_paths = RigidPaths.add (q1,q2) @@ add_transitive_rigid_paths q1 q2 g.rigid_paths }
+          else { g with graph; rigid_paths = RigidPaths.add_elim_to q1 q2 g.rigid_paths }
        | Internal ->
-          match get_new_rigid_path g.graph g.rigid_paths g.ground_and_global_sorts with
+          match get_new_rigid_paths g.graph g.rigid_paths g.ground_and_global_sorts with
           | None -> { g with graph }
           | Some (q1,q2) -> raise (EliminationError (CreatesForbiddenPath (q1, q2))) in
      dominance_check g (q1,k,q2)
@@ -220,7 +240,7 @@ let add_quality q g =
   let g = enforce_constraint Static (Quality.qtype, ElimConstraint.ElimTo, q) { g with graph } in
   let (paths,ground_and_global_sorts) =
     if Quality.is_qglobal q
-    then (RigidPaths.add (Quality.qtype, q) g.rigid_paths, q :: g.ground_and_global_sorts)
+    then (RigidPaths.add_elim_to Quality.qtype q g.rigid_paths, Quality.Set.add q g.ground_and_global_sorts)
     else (g.rigid_paths,g.ground_and_global_sorts) in
   (* As Type ~> s, set Type to be the dominant sort of q if q is a variable. *)
   let dominant = match q with
@@ -242,15 +262,13 @@ let initial_graph =
      otherwise the [Option.get] will fail). *)
   let fold (g,p) (q,q') =
     if ElimTable.eliminates_to q q'
-    then (Option.get @@ G.enforce_lt q q' g, RigidPaths.add (q', q) (RigidPaths.add (q, q') p))
-    (* we also add (q', q) as this check is never needed: inserting in the graph
-       with Lt ensures that a path between q' and q will be detected as forbidden *)
+    then (Option.get @@ G.enforce_lt q q' g, RigidPaths.add_elim_to q q' p)
     else (g,p)
   in
   let (g,p) = List.fold_left fold (g,RigidPaths.empty) @@ non_refl_pairs Quality.all_constants in
   { graph = g;
     rigid_paths = p;
-    ground_and_global_sorts = Quality.all_constants;
+    ground_and_global_sorts = Quality.Set.of_list Quality.all_constants;
     dominant = QMap.empty;
     delayed_check = QMap.empty; }
 
