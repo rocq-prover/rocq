@@ -741,6 +741,10 @@ value rocq_interprete
       }
 
       Instruct(GRAB) {
+        /* "required" can be -1, which is fine since there is at least
+           one argument on the stack. It would be clearer if there was
+           a dedicated PUTBACK opcode to handle that very rare case,
+           rather than having GRAB support it by accident. */
         int required = *pc++;
         print_instr("GRAB");
         /*      printf("GRAB %d\n",required); */
