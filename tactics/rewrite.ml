@@ -46,13 +46,30 @@ type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
 type setoid_constant =
 | StdOther of (unit -> GlobRef.t)
+| StdRespectful of bool (* true = poly *)
+| StdProper of bool
+| StdRelation of bool
+| StdReflexive of bool
+| StdSymmetric of bool
 
-let is_setoid_constant env sigma c t = match c with
-| StdOther f -> isRefX env sigma (f ()) t
+let setoid_constant_to_ref = function
+| StdOther f -> f ()
+| StdRespectful typ ->
+  Rocqlib.lib_ref (if typ then "rewrite.type.respectful" else "rewrite.prop.respectful")
+| StdProper typ ->
+  Rocqlib.lib_ref (if typ then "rewrite.type.Proper" else "rewrite.prop.Proper")
+| StdRelation typ ->
+  Rocqlib.lib_ref (if typ then "rewrite.type.relation" else "rewrite.prop.relation")
+| StdReflexive typ ->
+  Rocqlib.lib_ref (if typ then "rewrite.type.Reflexive" else "rewrite.prop.Reflexive")
+| StdSymmetric typ ->
+  Rocqlib.lib_ref (if typ then "rewrite.type.Symmetric" else "rewrite.prop.Symmetric")
 
-let fresh_ref env (sigma, cstrs) gr = match gr with
-| StdOther gr ->
-  let (sigma, c) = Evd.fresh_global env sigma (gr ()) in
+let is_setoid_constant env sigma c t =
+  isRefX env sigma (setoid_constant_to_ref c) t
+
+let fresh_ref env (sigma, cstrs) gr =
+  let (sigma, c) = Evd.fresh_global env sigma (setoid_constant_to_ref gr) in
   (sigma, cstrs), c
 
 (** Utility for dealing with polymorphic applications *)
@@ -84,7 +101,69 @@ let extends_undefined evars evars' =
   let f ev evi found = found || not (Evd.mem evars ev)
   in fold_undefined f evars' false
 
-let app_poly_check env evars f args =
+let get_type_level env sigma c =
+  let s = Retyping.get_sort_of env sigma c in
+  match ESorts.kind sigma s with
+  | Sorts.Prop | Sorts.SProp | Sorts.Set -> Some Univ.Level.set
+  | Sorts.QSort (_, u) | Sorts.Type u -> Univ.Universe.level u
+
+let get_relation_level env sigma c =
+  let ty = Retyping.get_type_of env sigma c in
+  let decls, s = Reductionops.dest_arity env sigma ty in
+  match ESorts.kind sigma s with
+  | Sorts.Prop | Sorts.SProp | Sorts.Set -> Some Univ.Level.set
+  | Sorts.QSort (_, u) | Sorts.Type u -> Univ.Universe.level u
+
+let fresh_global env sigma gr inst =
+  let uset = ref Univ.Level.Set.empty in
+  let mkinst = function
+  | None ->
+    let l = UnivGen.fresh_level () in
+    let () = uset := Univ.Level.Set.add l !uset in
+    l
+  | Some l -> l
+  in
+  let lvls = Array.map mkinst inst in
+  let inst = UVars.Instance.of_array ([||], lvls) in
+  let auctx = Environ.universes_of_global env gr in
+  let uctx = UVars.AbstractContext.instantiate inst auctx in
+  let uctx = (Sorts.QVar.Set.empty, !uset), uctx in
+  let (sigma, ()) = Evd.with_sort_context_set univ_flexible sigma ((), uctx) in
+  sigma, EConstr.mkRef (gr, EInstance.make inst)
+
+type arg_kind =
+| AOthr
+| AType of int (* nth argument is a type *)
+| ARltn of int (* nth argument is a crelation *)
+
+let fresh_applied_global env evars gr nargs inst args =
+  let (sigma, cstrs) = evars in
+  let gr = setoid_constant_to_ref gr in
+  let () = assert (Int.equal (Array.length args) nargs) in
+  let map = function
+  | AOthr -> None
+  | AType i -> get_type_level env sigma args.(i)
+  | ARltn i -> get_relation_level env sigma args.(i)
+  in
+  let inst = Array.map map inst in
+  let (sigma, c) = fresh_global env sigma gr inst in
+  let sigma, t = Typing.checked_appvect env sigma c args in
+  (sigma, cstrs), t
+
+let app_poly_check env evars f args = match f with
+| StdRespectful true ->
+  fresh_applied_global env evars f 4 [|AType 0; ARltn 2; AType 1; ARltn 3; AOthr; AOthr|] args
+| StdProper true ->
+  fresh_applied_global env evars f 3 [|AType 0; ARltn 1|] args
+| StdRelation true ->
+  fresh_applied_global env evars f 1 [|AType 0; AOthr|] args
+| StdReflexive true ->
+  fresh_applied_global env evars f 2 [|AType 0; ARltn 1|] args
+| StdSymmetric true ->
+  fresh_applied_global env evars f 2 [|AType 0; ARltn 1|] args
+| StdOther _
+| StdRespectful false | StdProper false | StdRelation false
+| StdReflexive false | StdSymmetric false ->
   let (evars, cstrs), fc = fresh_ref env evars f in
   let evars, t = Typing.checked_appvect env evars fc args in
   (evars, cstrs), t
@@ -208,6 +287,7 @@ let decompose_applied_relation env sigma (c,l) =
 
 module GlobalBindings (M : sig
   val prefix : string
+  val in_type : bool
   val app_poly : env -> evars -> setoid_constant -> constr array -> evars * constr
   val arrow : setoid_constant
 end) = struct
@@ -218,12 +298,12 @@ end) = struct
   let bind_rewrite_ref s = bind_global prefix s
 
   let relation =
-    StdOther (bind_rewrite "relation")
+    StdRelation in_type
 
-  let reflexive_type = StdOther (bind_rewrite "Reflexive")
+  let reflexive_type = StdReflexive in_type
   let reflexive_proof = StdOther (bind_rewrite "reflexivity")
 
-  let symmetric_type = StdOther (bind_rewrite "Symmetric")
+  let symmetric_type = StdSymmetric in_type
   let symmetric_proof = StdOther (bind_rewrite "symmetry")
 
   let transitive_type = StdOther (bind_rewrite "Transitive")
@@ -235,7 +315,7 @@ end) = struct
   let forall_relation_ref = StdOther (bind_global prefix "forall_relation")
   let pointwise_relation_ref = StdOther (bind_global prefix "pointwise_relation")
 
-  let respectful = StdOther (bind_rewrite "respectful")
+  let respectful = StdRespectful in_type
 
   let rocq_forall = StdOther (bind_rewrite "forall_def")
 
@@ -245,10 +325,6 @@ end) = struct
 
   let rewrite_relation_class = StdOther (bind_rewrite "RewriteRelation")
 
-  let proper_class =
-    let r = lazy (bind_rewrite_ref "Proper" ()) in
-    fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
-
   let proper_proxy_class =
     let r = lazy (bind_rewrite_ref "ProperProxy" ()) in
     fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
@@ -257,7 +333,7 @@ end) = struct
     StdOther (fun () -> bind_rewrite_ref "proper_prf" ())
 
   let proper_type =
-    StdOther (fun () -> (proper_class ()).TC.cl_impl)
+    StdProper in_type
 
   let proper_proxy_type =
     StdOther (fun () -> (proper_proxy_class ()).TC.cl_impl)
@@ -471,6 +547,7 @@ module PropGlobal = struct
   module Consts =
   struct
     let prefix = "rewrite.prop"
+    let in_type = false
     let app_poly = app_poly_nocheck
     let arrow = StdOther (bind_global "core" "arrow")
     let rocq_inverse = StdOther (bind_global "core" "flip")
@@ -490,6 +567,7 @@ module TypeGlobal = struct
   module Consts =
     struct
       let prefix = "rewrite.type"
+      let in_type = true
       let app_poly = app_poly_check
       let arrow = StdOther (bind_global prefix "arrow")
       let rocq_inverse = StdOther (bind_global prefix "flip")
