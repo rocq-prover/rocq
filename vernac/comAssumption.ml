@@ -101,7 +101,7 @@ let interp_assumption ~program_mode env sigma impl_env bl c =
   sigma, ty, impls1@impls2
 
 let empty_poly_univ_entry = UState.Polymorphic_entry UVars.UContext.empty, UnivNames.empty_binders
-let empty_mono_univ_entry = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders
+let empty_mono_univ_entry = UState.Monomorphic_entry PolyConstraints.ContextSet.empty, UnivNames.empty_binders
 let empty_univ_entry poly = if poly then empty_poly_univ_entry else empty_mono_univ_entry
 
 let clear_univs scope univ =
@@ -217,10 +217,10 @@ let do_assumptions ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
   let udecl, l = match scope with
     | Locality.Global import_behavior -> process_assumptions_udecls l
     | Locality.Discharge -> None, process_assumptions_no_udecls l in
-  let sigma, udecl = interp_univ_decl_opt env udecl in
+  let sigma, udecl = interp_poly_decl_opt env udecl in
   let coercions, ctx = local_binders_of_decls ~poly l in
   let sigma, ctx = interp_context_gen ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
-  let univs = Evd.check_univ_decl ~poly sigma udecl in
+  let univs = Evd.check_poly_decl ~poly sigma udecl in
   declare_context ~try_global_assum_as_instance:false ~scope ~univs ?user_warns ~inline ctx
 
 let warn_context_outside_section =

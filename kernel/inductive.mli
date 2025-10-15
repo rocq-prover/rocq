@@ -11,6 +11,7 @@
 open Names
 open Constr
 open Univ
+open PolyConstraints
 open UVars
 open Declarations
 open Environ
@@ -46,24 +47,24 @@ val inductive_nonrec_rec_paramdecls : mutual_inductive_body puniverses -> Constr
 val inductive_nnonrecparams : mutual_inductive_body -> int
 
 val instantiate_inductive_constraints :
-  mutual_inductive_body -> Instance.t -> Constraints.t
+  mutual_inductive_body -> Instance.t -> PolyConstraints.t
 
 type template_univ =
   | TemplateProp
-  | TemplateAboveProp of Sorts.QVar.t * Universe.t
+  | TemplateAboveProp of Quality.QVar.t * Universe.t
   | TemplateUniv of Universe.t
 
 type param_univs = (default:Sorts.t -> template_univ) list
 
-type template_subst = Sorts.Quality.t Int.Map.t * Universe.t Int.Map.t
+type template_subst = Quality.t Int.Map.t * Universe.t Int.Map.t
 
 val instantiate_template_constraints
   : template_subst
   -> Declarations.template_universes
-  -> Univ.Constraints.t
+  -> PolyConstraints.t
 
 val instantiate_template_universes : mutual_inductive_body -> param_univs ->
-  Constraints.t * rel_context * template_subst
+  PolyConstraints.t * rel_context * template_subst
 
 val constrained_type_of_inductive : mind_specif puniverses -> types constrained
 
@@ -80,29 +81,29 @@ val type_of_inductive_knowing_parameters :
     These functions handle the internals of elimination.
     Call them instead of the lower-level ones like [QGraph.eliminates_to]. *)
 
-val raw_eliminates_to : Sorts.Quality.t -> Sorts.Quality.t -> bool
+val raw_eliminates_to : Quality.t -> Quality.t -> bool
 (* Warning: this function does not handle [QVar]s properly: it only allows
    elimination on the same [QVar]. Use [eliminates_to] for a proper handling of
    variables. *)
 
-val eliminates_to : QGraph.t -> Sorts.Quality.t -> Sorts.Quality.t -> bool
+val eliminates_to : QGraph.t -> Quality.t -> Quality.t -> bool
 
 val sort_eliminates_to : QGraph.t -> Sorts.t -> Sorts.t -> bool
 
-type squash = SquashToSet | SquashToQuality of Sorts.Quality.t
+type squash = SquashToSet | SquashToQuality of Quality.t
 
 type 'a allow_elimination_actions =
   { not_squashed : 'a
   ; squashed_to_set_below : 'a
   ; squashed_to_set_above : 'a
-  ; squashed_to_quality : Sorts.Quality.t -> 'a }
+  ; squashed_to_quality : Quality.t -> 'a }
 
-val is_squashed_gen : QGraph.t -> ('a -> Sorts.t -> Sorts.Quality.t)
-  -> ('a -> Sorts.Quality.Set.elt -> Sorts.Quality.t) -> (mind_specif * 'a)
+val is_squashed_gen : QGraph.t -> ('a -> Sorts.t -> Quality.t)
+  -> ('a -> Quality.Set.elt -> Quality.t) -> (mind_specif * 'a)
   -> squash option
 
-val allowed_elimination_gen : QGraph.t -> ('a -> Sorts.t -> Sorts.Quality.t)
-  -> ('a -> Sorts.Quality.Set.elt -> Sorts.Quality.t)
+val allowed_elimination_gen : QGraph.t -> ('a -> Sorts.t -> Quality.t)
+  -> ('a -> Quality.Set.elt -> Quality.t)
   -> 'b allow_elimination_actions -> (mind_specif * 'a) -> Sorts.t -> 'b
 
 val is_squashed : env -> mind_specif puniverses -> squash option
@@ -110,8 +111,7 @@ val is_squashed : env -> mind_specif puniverses -> squash option
 val is_allowed_elimination_actions : QGraph.t -> Sorts.t -> bool allow_elimination_actions
 
 val is_allowed_elimination : env -> mind_specif puniverses -> Sorts.t -> bool
-val is_allowed_fixpoint : (Sorts.Quality.t -> Sorts.Quality.t -> bool)
-  -> Sorts.t -> Sorts.t -> bool
+val is_allowed_fixpoint : (Quality.t -> Quality.t -> bool) -> Sorts.t -> Sorts.t -> bool
 
 (** End of elimination functions *)
 
@@ -195,7 +195,7 @@ val is_primitive_positive_container : env -> Constant.t -> bool
 
 (** When [chk] is false, the guard condition is not actually
     checked. *)
-val check_fix : ?evars:evar_handler -> ?elim_to:(Sorts.Quality.t -> Sorts.Quality.t -> bool) -> env -> fixpoint -> unit
+val check_fix : ?evars:evar_handler -> ?elim_to:(Quality.t -> Quality.t -> bool) -> env -> fixpoint -> unit
 val check_cofix : ?evars:evar_handler -> env -> cofixpoint -> unit
 
 val abstract_mind_lc : int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
@@ -205,5 +205,5 @@ module Template : sig
   val template_subst_sort : template_subst -> Sorts.t -> Sorts.t
 
   (** Qualities must be above_prop  *)
-  val max_template_quality : Sorts.Quality.t -> Sorts.Quality.t -> Sorts.Quality.t
+  val max_template_quality : Quality.t -> Quality.t -> Quality.t
 end

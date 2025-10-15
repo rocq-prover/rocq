@@ -204,7 +204,7 @@ let pr_univ l =
 let pr_qvar_expr = function
   | CQAnon _ -> tag_type (str "_")
   | CQVar qid -> tag_type (pr_qualid qid)
-  | CRawQVar q -> tag_type (Sorts.QVar.raw_pr q)
+  | CRawQVar q -> tag_type (Quality.QVar.raw_pr q)
 
 let pr_relevance = function
   | CRelevant -> str "Relevant"
@@ -216,7 +216,7 @@ let pr_relevance_info = function
   | Some r -> str "(* " ++ pr_relevance r ++ str " *) "
 
 let pr_quality_expr q = match q with
-  | CQConstant q -> tag_type (Sorts.Quality.Constants.pr q)
+  | CQConstant q -> tag_type (Quality.Constants.pr q)
   | CQualVar q -> pr_qvar_expr q
 
 let pr_quality_univ (q, l) = match q with

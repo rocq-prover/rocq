@@ -45,7 +45,7 @@ let check_constant_declaration env opac kn cb opacify =
     | Polymorphic auctx ->
       let ctx = UVars.AbstractContext.repr auctx in
       (* [env] contains De Bruijn universe variables *)
-      let env = push_context ~strict:false ctx env in
+      let env = push_context ~strict:false QGraph.Rigid ctx env in
       true, env
   in
   let ty = cb.const_type in
@@ -88,7 +88,7 @@ let check_constant_declaration env opac kn cb opacify =
   Environ.add_constant kn cb env, opac
 
 let check_quality_mask env qmask lincheck =
-  let open Sorts.Quality in
+  let open Quality in
   match qmask with
   | PQConstant QSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_disallowed_sprop env
   | PQConstant (QProp | QType) -> lincheck

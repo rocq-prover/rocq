@@ -395,7 +395,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
     | _ -> sigma
   in
   let add_levels c levels = EConstr.universes_of_constr sigma ~init:levels c in
-  let levels = Sorts.QVar.Set.empty, Univ.Level.Set.empty in
+  let levels = Quality.QVar.Set.empty, Univ.Level.Set.empty in
   let fold_params levels = function
     | LocalDef (_, b, t) -> add_levels b (add_levels t levels)
     | LocalAssum (_, t) ->
@@ -426,7 +426,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
   in
   qvars, ulevels
 
-type linearity = Linear of Sorts.QVar.t option | NonLinear
+type linearity = Linear of Quality.QVar.t option | NonLinear
 
 let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
   (* to be pseudo sort poly, every univ in the conclusion must be bound at a free quality *)
@@ -437,11 +437,11 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
     match ESorts.kind sigma s with
     | SProp | Prop | Set -> None
     | QSort (q,u) ->
-      if not (Sorts.QVar.Set.mem q non_template_qvars)
+      if not (Quality.QVar.Set.mem q non_template_qvars)
       && Univ.Universe.for_all (fun (u,_) ->
              match Univ.Level.Map.find_opt u template_univs with
              | None | Some None -> false
-             | Some (Some q') -> QVar.equal q q')
+             | Some (Some q') -> Quality.QVar.equal q q')
            u
       then Some q
       else None
@@ -449,10 +449,10 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
 
 let unbounded_from_below u cstrs =
   let open Univ in
-  Univ.Constraints.for_all (fun (l, d, r) ->
+  UnivConstraints.for_all (fun (l, d, r) ->
       match d with
-      | Eq | Lt -> not (Univ.Level.equal l u) && not (Univ.Level.equal r u)
-      | Le -> not (Univ.Level.equal r u))
+      | UnivConstraint.Eq | UnivConstraint.Lt -> not (Level.equal l u) && not (Level.equal r u)
+      | UnivConstraint.Le -> not (Level.equal r u))
     cstrs
 
 (* Returns the list [x_1, ..., x_n] of levels contributing to template
@@ -480,8 +480,8 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
         | NonLinear -> false
         | Linear _ ->
           assert (not @@ Univ.Level.is_set u);
-          Univ.Level.Set.mem u (Univ.ContextSet.levels uctx) &&
-          unbounded_from_below u (Univ.ContextSet.constraints uctx) &&
+          Univ.Level.Set.mem u (PolyConstraints.ContextSet.levels uctx) &&
+          unbounded_from_below u (PolyConstraints.ContextSet.univ_constraints uctx) &&
           not (Univ.Level.Set.mem u non_template_levels))
       paramslevels
   in
@@ -496,14 +496,14 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
   let template_univs = Univ.Level.Map.domain template_univs in
   pseudo_sort_poly, template_univs
 
-let split_universe_context subset (univs, csts) =
+let split_universe_context subset (univs, (elim_csts,univ_csts)) =
   let rem = Univ.Level.Set.diff univs subset in
   let subfilter (l, _, r) =
     let () = assert (not @@ Univ.Level.Set.mem r subset) in
     Univ.Level.Set.mem l subset
   in
-  let subcst, remcst = Univ.Constraints.partition subfilter csts in
-  (subset, subcst), (rem, remcst)
+  let subcst, remcst = Univ.UnivConstraints.partition subfilter univ_csts in
+  (subset, PolyConstraints.make elim_csts subcst), (rem, PolyConstraints.of_univs remcst)
 
 let warn_no_template_universe =
   CWarnings.create ~name:"no-template-universe"
@@ -515,24 +515,24 @@ type should_template =
 
 let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
-  let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
+  let uentry, _ as ubinders = Evd.check_poly_decl ~poly sigma udecl in
   let uentry, global = match uentry with
-    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
+    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, PolyConstraints.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
   in
   sigma, uentry, ubinders, global
 
 let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let template_qvars = match pseudo_sort_poly with
-    | Some q -> QVar.Set.singleton q
-    | None -> QVar.Set.empty
+    | Some q -> Quality.QVar.Set.singleton q
+    | None -> Quality.QVar.Set.empty
   in
   let sigma = Evd.collapse_sort_variables ~except:template_qvars sigma in
-  let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
+  let sigma = Quality.QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
       template_qvars sigma
   in
   let uctx =
-    UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
+    UState.check_template_poly_decl (Evd.ustate sigma) ~template_qvars udecl
   in
   let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
@@ -682,7 +682,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
+  let sigma, udecl, variances = interp_cumul_poly_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
@@ -891,7 +891,7 @@ type t = {
   nuparams : int option;
   univ_binders : UState.named_universes_entry;
   implicits : DeclareInd.one_inductive_impls list;
-  uctx : Univ.ContextSet.t;
+  uctx : PolyConstraints.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
   indlocs : DeclareInd.indlocs;
@@ -932,7 +932,7 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
-  Global.push_context_set uctx;
+  Global.push_context_set QGraph.Static uctx;
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits);
   (* Declare the possible notations of inductive types *)

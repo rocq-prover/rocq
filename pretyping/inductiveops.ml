@@ -247,26 +247,27 @@ let inductive_has_local_defs env ind =
 
 let squash_elim_sort sigma squash rtnsort =
   let open Inductive in
-  let add_unif_if_cannot_elim_into starget =
+  let add_unif_if_cannot_elim_into pb starget =
     let q = Sorts.quality starget in
     let q' = ESorts.quality sigma rtnsort in
     if Inductive.eliminates_to (Evd.elim_graph sigma) q q'
     then sigma
-    else Evd.set_eq_sort sigma rtnsort @@ ESorts.make starget in
+    else pb sigma (ESorts.make starget) rtnsort in
   match squash with
-  | SquashToSet -> add_unif_if_cannot_elim_into Sorts.set
+  | SquashToSet ->
+         add_unif_if_cannot_elim_into Evd.set_eq_sort Sorts.set
      (* Squashed inductive in Set, only happens with impredicative Set *)
   | SquashToQuality (QConstant QProp) ->
-     add_unif_if_cannot_elim_into Sorts.prop
+     add_unif_if_cannot_elim_into Evd.set_eq_sort Sorts.prop
      (* Squashed inductive in Prop, return sort must be Prop or SProp *)
   | SquashToQuality (QConstant QSProp) ->
-     add_unif_if_cannot_elim_into Sorts.sprop
+     add_unif_if_cannot_elim_into Evd.set_eq_sort Sorts.sprop
      (* Squashed inductive in SProp, return sort must be SProp. *)
   | SquashToQuality (QConstant QType) ->
-     Evd.set_leq_sort sigma ESorts.set rtnsort
+         add_unif_if_cannot_elim_into Evd.set_leq_sort Sorts.set
      (* Sort poly squash to type *)
   | SquashToQuality (QVar q) ->
-     Evd.set_leq_sort sigma (ESorts.make (Sorts.qsort q Univ.Universe.type0)) rtnsort
+     add_unif_if_cannot_elim_into Evd.set_leq_sort (Sorts.qsort q Univ.Universe.type0)
 
 (* [s] is the sort of an inductive definition. *)
 let loc_indsort_to_quality sigma u s =
@@ -347,7 +348,7 @@ let elim_sort (mib,mip) =
      future. *)
   if Option.is_empty mip.mind_squashed &&
        not (is_record && has_args mip && Sorts.is_sprop mip.mind_sort)
-  then Sorts.Quality.qtype
+  then Quality.qtype
   else Sorts.quality mip.mind_sort
 
 let top_allowed_sort env (kn,i as ind) =

@@ -24,15 +24,15 @@ type existential_name = Id.t
 
 type glob_qvar =
   | GLocalQVar of lname
-  | GQVar of Sorts.QVar.t
-  | GRawQVar of Sorts.QVar.t (* hack for funind *)
+  | GQVar of Quality.QVar.t
+  | GRawQVar of Quality.QVar.t (* hack for funind *)
 
 type glob_relevance =
   | GRelevant | GIrrelevant
   | GRelevanceVar of glob_qvar
 
 type glob_quality =
-  | GQConstant of Sorts.Quality.constant
+  | GQConstant of Quality.constant
   | GQualVar of glob_qvar
 
 type glob_sort_name =
@@ -59,7 +59,7 @@ type glob_instance = glob_quality list * glob_level list
 (** sort expressions *)
 type glob_sort = (glob_qvar option * (glob_sort_name * int) list glob_sort_gen)
 
-type glob_constraint = glob_sort_name * Univ.constraint_type * glob_sort_name
+type glob_constraint = glob_sort_name * Univ.UnivConstraint.kind * glob_sort_name
 
 type glob_recarg = int option
 

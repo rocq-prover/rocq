@@ -889,14 +889,17 @@ let existential_type d n = match existential_type_opt d n with
   | Some t -> t
   | None -> anomaly (str "Evar " ++ str (string_of_existential (fst n)) ++ str " was not declared.")
 
-let add_constraints d c =
-  { d with universes = UState.add_constraints d.universes c }
+let add_univ_constraints d c =
+  { d with universes = UState.add_univ_constraints d.universes c }
+
+let add_poly_constraints src d c =
+  { d with universes = UState.add_poly_constraints src d.universes c }
 
 let add_quconstraints d c =
   { d with universes = UState.add_quconstraints d.universes c }
 
-let add_universe_constraints d c =
-  { d with universes = UState.add_universe_constraints d.universes c }
+let add_constraints d c =
+  { d with universes = UState.add_constraints QGraph.Internal d.universes c Quality.ElimConstraints.empty }
 
 (*** /Lifting... ***)
 
@@ -1069,13 +1072,13 @@ let to_universe_context evd = UState.context evd.universes
 
 let univ_entry ~poly evd = UState.univ_entry ~poly evd.universes
 
-let check_univ_decl ~poly evd decl = UState.check_univ_decl ~poly evd.universes decl
+let check_poly_decl ~poly evd decl = UState.check_poly_decl ~poly evd.universes decl
 
-let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
+let check_poly_decl_early ~poly ~with_obls sigma udecl terms =
   let () =
     if with_obls && not poly &&
-       (not udecl.UState.univdecl_extensible_instance
-        || not udecl.UState.univdecl_extensible_constraints)
+       (not udecl.UState.polydecl_extensible_instance
+        || not udecl.UState.polydecl_extensible_constraints)
     then
       CErrors.user_err
         Pp.(str "Non extensible universe declaration not supported \
@@ -1085,7 +1088,7 @@ let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   let uctx = ustate sigma in
   let uctx = UState.collapse_sort_variables uctx in
   let uctx = UState.restrict uctx vars in
-  ignore (UState.check_univ_decl ~poly uctx udecl)
+  ignore (UState.check_poly_decl ~poly uctx udecl)
 
 let restrict_universe_context evd vars =
   { evd with universes = UState.restrict evd.universes vars }
@@ -1096,17 +1099,17 @@ let universe_subst evd =
 let merge_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
 
-let merge_sort_context_set ?loc ?(sideff=false) rigid evd ctx' =
-  {evd with universes = UState.merge_sort_context ?loc ~sideff rigid evd.universes ctx'}
+let merge_sort_context_set ?loc ?(sideff=false) rigid src evd ctx' =
+  {evd with universes = UState.merge_sort_context ?loc ~sideff rigid src evd.universes ctx'}
 
 let merge_sort_variables ?loc ?(sideff=false) evd qs =
-  { evd with universes = UState.merge_sort_variables ?loc ~sideff evd.universes qs }
+  { evd with universes = UState.merge_sort_variables ?loc ~sideff evd.universes QGraph.Static qs Quality.ElimConstraints.empty }
 
 let with_context_set ?loc rigid evd (a, uctx) =
   (merge_context_set ?loc rigid evd uctx, a)
 
-let with_sort_context_set ?loc rigid d (a, ctx) =
-  (merge_sort_context_set ?loc rigid d ctx, a)
+let with_sort_context_set ?loc rigid src d (a, ctx) =
+  (merge_sort_context_set ?loc rigid src d ctx, a)
 
 let new_univ_level_variable ?loc ?name rigid evd =
   let uctx', u = UState.new_univ_variable ?loc rigid name evd.universes in
@@ -1136,23 +1139,23 @@ let make_nonalgebraic_variable evd u =
 (****************************************)
 
 let fresh_sort_in_quality ?loc ?(rigid=univ_flexible) evd s =
-  with_sort_context_set ?loc rigid evd
+  with_sort_context_set ?loc rigid QGraph.Internal evd
     (UnivGen.fresh_sort_in_quality s)
 
 let fresh_constant_instance ?loc ?(rigid=univ_flexible) env evd c =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_constant_instance env c)
+  with_sort_context_set ?loc rigid QGraph.Internal evd (UnivGen.fresh_constant_instance env c)
 
 let fresh_inductive_instance ?loc ?(rigid=univ_flexible) env evd i =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_inductive_instance env i)
+  with_sort_context_set ?loc rigid QGraph.Internal evd (UnivGen.fresh_inductive_instance env i)
 
 let fresh_constructor_instance ?loc ?(rigid=univ_flexible) env evd c =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_constructor_instance env c)
+  with_sort_context_set ?loc rigid QGraph.Internal evd (UnivGen.fresh_constructor_instance env c)
 
 let fresh_array_instance ?loc ?(rigid=univ_flexible) env evd =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_array_instance env)
+  with_sort_context_set ?loc rigid QGraph.Internal evd (UnivGen.fresh_array_instance env)
 
 let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_global_instance ?loc ?names env gr)
+  with_sort_context_set ?loc rigid QGraph.Internal evd (UnivGen.fresh_global_instance ?loc ?names env gr)
 
 let is_flexible_level evd l =
   let uctx = evd.universes in
@@ -1166,7 +1169,7 @@ let is_eq_sort s1 s2 =
 let universe_rigidity evd l =
   let uctx = evd.universes in
   (* XXX why are we considering all locals to be flexible here? *)
-  if Univ.Level.Set.mem l (Univ.ContextSet.levels (UState.context_set uctx)) then
+  if Univ.Level.Set.mem l (PolyConstraints.ContextSet.levels (UState.context_set uctx)) then
     UnivFlexible (UState.is_algebraic l uctx)
   else UnivRigid
 
@@ -1183,19 +1186,19 @@ let set_eq_sort evd s1 s2 =
   | None -> evd
   | Some (u1, u2) ->
     if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
-      add_universe_constraints evd
+      add_constraints evd
         (UnivProblem.Set.singleton (UnivProblem.UEq (u1,u2)))
     else
       evd
 
 let set_eq_level d u1 u2 =
-  add_constraints d (Univ.enforce_eq_level u1 u2 Univ.Constraints.empty)
+  add_univ_constraints d (Univ.enforce_eq_level u1 u2 Univ.UnivConstraints.empty)
 
 let set_leq_level d u1 u2 =
-  add_constraints d (Univ.enforce_leq_level u1 u2 Univ.Constraints.empty)
+  add_univ_constraints d (Univ.enforce_leq_level u1 u2 Univ.UnivConstraints.empty)
 
 let set_eq_instances ?(flex=false) d u1 u2 =
-  add_universe_constraints d
+  add_constraints d
     (UnivProblem.enforce_eq_instances_univs flex u1 u2 UnivProblem.Set.empty)
 
 let set_leq_sort evd s1 s2 =
@@ -1205,16 +1208,16 @@ let set_leq_sort evd s1 s2 =
   | None -> evd
   | Some (u1, u2) ->
      if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
-       add_universe_constraints evd @@
+       add_constraints evd @@
          UnivProblem.Set.singleton (UnivProblem.ULe (u1,u2))
      else evd
 
 let set_eq_qualities evd q1 q2 =
-  add_universe_constraints evd @@ UnivProblem.Set.singleton (QEq (q1, q2))
+  add_constraints evd @@ UnivProblem.Set.singleton (QEq (q1, q2))
 
 let set_above_prop evd q =
-  add_universe_constraints evd @@
-    UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q))
+  add_constraints evd @@
+    UnivProblem.Set.singleton (QLeq (Quality.qprop, q))
 
 let check_eq evd s s' =
   let quals = elim_graph evd in
@@ -1228,7 +1231,7 @@ let check_leq evd s s' =
   let univs = UState.ugraph ustate in
   UGraph.check_leq_sort quals univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
 
-let check_constraints evd csts =
+let check_univ_constraints evd csts =
   UGraph.check_constraints csts (UState.ugraph evd.universes)
 
 let check_qconstraints evd csts =
@@ -1238,7 +1241,10 @@ let check_elim_constraints evd csts =
   UState.check_elim_constraints evd.universes csts
 
 let check_quconstraints evd (qcsts,ucsts) =
-  check_qconstraints evd qcsts && check_constraints evd ucsts
+  check_qconstraints evd qcsts && check_univ_constraints evd ucsts
+
+let check_poly_constraints evd (qcsts,ucsts) =
+  check_elim_constraints evd qcsts && check_univ_constraints evd ucsts
 
 let fix_undefined_variables evd =
   { evd with universes = UState.fix_undefined_variables evd.universes }

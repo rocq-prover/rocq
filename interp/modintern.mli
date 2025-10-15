@@ -34,7 +34,7 @@ exception ModuleInternalizationError of module_internalization_error
 
 type module_kind = Module | ModType | ModAny
 
-type module_struct_expr = (universe_decl_expr option * constr_expr) Declarations.module_alg_expr
+type module_struct_expr = (poly_decl_expr option * constr_expr) Declarations.module_alg_expr
 
 (** Module internalization, i.e. from AST to module expression *)
 val intern_module_ast :
@@ -42,4 +42,4 @@ val intern_module_ast :
 
 (** Module interpretation, i.e. from module expression to typed module entry *)
 val interp_module_ast :
-  env -> module_kind -> ModPath.t -> module_struct_expr -> module_struct_entry * Univ.ContextSet.t
+  env -> module_kind -> ModPath.t -> module_struct_expr -> module_struct_entry * PolyConstraints.ContextSet.t

@@ -174,7 +174,7 @@ module XRefs : WarnedTab
 
 module Univs : NAMETAB with type elt = Univ.UGlobal.t
 
-module Quality : NAMETAB with type elt = Sorts.QGlobal.t
+module Quality : NAMETAB with type elt = Quality.QGlobal.t
 
 (** Module types, modules and open modules/modtypes/sections form three separate name spaces
     (maybe this will change someday) *)

@@ -23,7 +23,7 @@ type rew_rule = {
   rew_lemma : constr;
   rew_type: types;
   rew_pat: constr;
-  rew_ctx: Univ.ContextSet.t;
+  rew_ctx: PolyConstraints.ContextSet.t;
   rew_l2r: bool;
   rew_tac: Gentactic.glob_generic_tactic option;
 }
@@ -373,7 +373,7 @@ let one_base where conds tac_main bas =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let subst, ctx' = UnivGen.fresh_universe_context_set_instance h.rew_ctx in
-    let subst = Sorts.QVar.Map.empty, subst in
+    let subst = Quality.QVar.Map.empty, subst in
     let c' = Vars.subst_univs_level_constr subst h.rew_lemma in
     let sigma = Evd.merge_context_set Evd.univ_flexible sigma ctx' in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (rewrite h.rew_l2r c' tc)
@@ -537,7 +537,7 @@ let find_applied_relation ?loc env sigma c left2right =
                     (str"The type" ++ spc () ++ Printer.pr_econstr_env env sigma ctype ++
                        spc () ++ str"of this term does not end with an applied relation.")
 
-type raw_rew_rule = (constr Univ.in_universe_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
+type raw_rew_rule = (constr PolyConstraints.in_poly_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
 
 (* To add rewriting rules to a base *)
 let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
@@ -568,8 +568,8 @@ let add_rewrite_hint ~locality ~poly bases ort t lcsr =
       if poly then ctx
       else (* This is a global universe context that shouldn't be
               refreshed at every use of the hint, declare it globally. *)
-        (Global.push_context_set ctx;
-         Univ.ContextSet.empty)
+        (Global.push_context_set QGraph.Static ctx;
+         PolyConstraints.ContextSet.empty)
     in
     CAst.make ?loc:(Constrexpr_ops.constr_loc ce) ((c, ctx), ort, t) in
   let eqs = List.map f lcsr in

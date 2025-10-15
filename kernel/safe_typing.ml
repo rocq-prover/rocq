@@ -175,7 +175,7 @@ end
 type compiled_library = {
   comp_name : DirPath.t;
   comp_mod : module_body;
-  comp_univs : Sorts.QVar.Set.t * Univ.ContextSet.t;
+  comp_univs : Quality.QVar.Set.t * PolyConstraints.ContextSet.t;
   comp_deps : library_info array;
   comp_flags : permanent_flags;
 }
@@ -190,8 +190,8 @@ type required_lib = {
 (** Part of the safe_env at a section opening time to be backtracked *)
 type section_data = {
   rev_env : Environ.env;
-  rev_univ : Univ.ContextSet.t;
-  rev_qualities : Sorts.QVar.Set.t;
+  rev_univ : PolyConstraints.ContextSet.t;
+  rev_qualities : Quality.QVar.Set.t;
   rev_objlabels : Label.Set.t;
   rev_reimport : reimport list;
   rev_revstruct : structure_body;
@@ -226,9 +226,9 @@ type safe_environment =
     revstruct : structure_body;
     modlabels : Label.Set.t;
     objlabels : Label.Set.t;
-    univ : Univ.ContextSet.t;
+    univ : PolyConstraints.ContextSet.t;
     (* maybe should be a qglobal set? *)
-    qualities : Sorts.QVar.Set.t;
+    qualities : Quality.QVar.Set.t ;
     future_cst : (Constant_typing.typing_context * safe_environment * Nonce.t) HandleMap.t;
     required : required_lib DirPath.Map.t;
     loads : (ModPath.t * module_body) list;
@@ -259,8 +259,8 @@ let empty_environment =
     objlabels = Label.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
-    univ = Univ.ContextSet.empty;
-    qualities = Sorts.QVar.Set.empty ;
+    univ = PolyConstraints.ContextSet.empty;
+    qualities = Quality.QVar.Set.empty ;
     required = DirPath.Map.empty;
     loads = [];
     local_retroknowledge = [];
@@ -365,7 +365,7 @@ sig
 
   val make : safe_environment -> t
 
-  val universes : t -> Univ.ContextSet.t
+  val universes : t -> PolyConstraints.ContextSet.t
 
   (** Checks whether [dst] is a valid extension of [src], possibly adding universes and constraints. *)
   val safe_extend : src:t -> dst:t -> t option
@@ -374,7 +374,7 @@ struct
 
 type t = {
   certif_struc : Mod_declarations.structure_body;
-  certif_univs : Univ.ContextSet.t;
+  certif_univs : PolyConstraints.ContextSet.t;
 }
 
 let make senv = {
@@ -389,7 +389,7 @@ let is_suffix l suf = match l with
 let safe_extend ~src ~dst =
   if is_suffix dst.certif_struc src.certif_struc then
     Some { certif_struc = dst.certif_struc;
-           certif_univs = Univ.ContextSet.union src.certif_univs dst.certif_univs }
+           certif_univs = PolyConstraints.ContextSet.union src.certif_univs dst.certif_univs }
   else None
 
 let universes c = c.certif_univs
@@ -400,7 +400,7 @@ type side_effect = {
   seff_certif : Certificate.t CEphemeron.key;
   seff_constant : Constant.t;
   seff_body : HConstr.t option * (Constr.t, Vmemitcodes.body_code option) Declarations.pconstant_body;
-  seff_univs : Univ.ContextSet.t;
+  seff_univs : PolyConstraints.ContextSet.t;
 }
 (* Invariant: For any senv, if [Certificate.safe_extend senv seff_certif] returns [Some certif'] then
    [senv + Certificate.universes certif' + (c.seff_constant -> seff_body)] is well-formed
@@ -486,8 +486,8 @@ let is_empty_private_constants c = SideEffects.is_empty c
 let concat_private = SideEffects.concat
 
 let universes_of_private eff =
-  let fold acc eff = Univ.ContextSet.union eff.seff_univs acc in
-  List.fold_left fold Univ.ContextSet.empty (side_effects_of_private_constants eff)
+  let fold acc eff = PolyConstraints.ContextSet.union eff.seff_univs acc in
+  List.fold_left fold PolyConstraints.ContextSet.empty (side_effects_of_private_constants eff)
 
 let constants_of_private eff =
   let fold acc eff = eff.seff_constant :: acc in
@@ -510,21 +510,21 @@ let get_section = function
   | None -> CErrors.user_err Pp.(str "No open section.")
   | Some s -> s
 
-let push_context_set ~strict cst senv =
-  if Univ.ContextSet.is_empty cst then senv
+let push_context_set ~strict src cst senv =
+  if PolyConstraints.ContextSet.is_empty cst then senv
   else
     let sections = Option.map (Section.push_constraints cst) senv.sections
     in
     { senv with
-      env = Environ.push_context_set ~strict cst senv.env;
-      univ = Univ.ContextSet.union cst senv.univ;
+      env = Environ.push_context_set ~strict src cst senv.env;
+      univ = PolyConstraints.ContextSet.union cst senv.univ;
       sections }
 
-let add_constraints cst senv =
-  push_context_set ~strict:true cst senv
+let add_constraints src cst senv =
+  push_context_set ~strict:true src cst senv
 
-let push_qualities qs senv =
-  if Sorts.QVar.Set.is_empty qs then senv
+let push_quality_set qs senv =
+  if Quality.QVar.Set.is_empty qs then senv
   else
     let () = if is_modtype senv
       then CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")  ;
@@ -533,7 +533,7 @@ let push_qualities qs senv =
     in
     { senv with
       env = Environ.push_qualities qs senv.env ;
-      qualities = Sorts.QVar.Set.union qs senv.qualities ;
+      qualities = Quality.QVar.Set.union qs senv.qualities ;
       sections
     }
 
@@ -653,12 +653,12 @@ let push_section_context uctx senv =
   let sections = Section.push_local_universe_context uctx sections in
   let senv = { senv with sections=Some sections } in
   let qualities, ctx = UVars.UContext.to_context_set uctx in
-  assert Sorts.QVar.Set.(is_empty (inter qualities senv.qualities));
+  assert Quality.QVar.Set.(is_empty (inter qualities senv.qualities));
   (* push_context checks freshness *)
   { senv with
-    env = Environ.push_context ~strict:false uctx senv.env;
-    univ = Univ.ContextSet.union ctx senv.univ ;
-    qualities = Sorts.QVar.Set.union qualities senv.qualities }
+    env = Environ.push_context ~strict:false QGraph.Rigid uctx senv.env;
+    univ = PolyConstraints.ContextSet.union ctx senv.univ ;
+    qualities = Quality.QVar.Set.union qualities senv.qualities }
 
 (** {6 Insertion of new declarations to current environment } *)
 
@@ -744,7 +744,7 @@ type exported_private_constant = Constant.t * exported_opaque option
 let repr_exported_opaque o =
   let priv = match o .exp_univs with
   | None -> Opaqueproof.PrivateMonomorphic ()
-  | Some _ -> Opaqueproof.PrivatePolymorphic Univ.ContextSet.empty
+  | Some _ -> Opaqueproof.PrivatePolymorphic PolyConstraints.ContextSet.empty
   in
   (o.exp_handle, (o.exp_body, priv))
 
@@ -790,7 +790,7 @@ let inline_side_effects env body side_eff =
   let side_eff = List.map_filter filter (SideEffects.repr side_eff) in
   let sigs = List.rev_map (fun e -> e.seff_constant, e.seff_certif) side_eff in
   (** Most recent side-effects first in side_eff *)
-  if List.is_empty side_eff then (body, Univ.ContextSet.empty, sigs, 0)
+  if List.is_empty side_eff then (body, PolyConstraints.ContextSet.empty, sigs, 0)
   else
     (** Second step: compute the lifts and substitutions to apply *)
     let cname c r = Context.make_annot (Name (Label.to_id (Constant.label c))) r in
@@ -805,15 +805,15 @@ let inline_side_effects env body side_eff =
         (** Abstract over the term at the top of the proof *)
         let ty = cb.const_type in
         let subst = Cmap_env.add c (Inr var) subst in
-        let ctx = Univ.ContextSet.union ctx univs in
+        let ctx = PolyConstraints.ContextSet.union ctx univs in
         (subst, var + 1, ctx, (cname c cb.const_relevance, b, ty, opaque) :: args)
       | Polymorphic _ ->
-        let () = assert (Univ.ContextSet.is_empty univs) in
+        let () = assert (PolyConstraints.ContextSet.is_empty univs) in
         (** Inline the term to emulate universe polymorphism *)
         let subst = Cmap_env.add c (Inl b) subst in
         (subst, var, ctx, args)
     in
-    let (subst, len, ctx, args) = List.fold_left fold (Cmap_env.empty, 1, Univ.ContextSet.empty, []) side_eff in
+    let (subst, len, ctx, args) = List.fold_left fold (Cmap_env.empty, 1, PolyConstraints.ContextSet.empty, []) side_eff in
     (** Third step: inline the definitions *)
     let rec subst_const i k t = match Constr.kind t with
     | Const (c, u) ->
@@ -849,7 +849,7 @@ let inline_side_effects env body side_eff =
 
 let inline_private_constants env ((body, ctx), side_eff) =
   let body, ctx', _, _ = inline_side_effects env body side_eff in
-  let ctx' = Univ.ContextSet.union ctx ctx' in
+  let ctx' = PolyConstraints.ContextSet.union ctx ctx' in
   (body, ctx')
 
 let warn_failed_cert = CWarnings.create ~name:"failed-abstract-certificate"
@@ -880,7 +880,7 @@ let check_signatures senv sl =
     None
   | Some mb ->
     let univs = Certificate.universes mb in
-    Some (Univ.ContextSet.diff univs senv.univ)
+    Some (PolyConstraints.ContextSet.diff univs senv.univ)
 
 type side_effect_declaration =
 | DefinitionEff : Entries.definition_entry -> side_effect_declaration
@@ -920,8 +920,8 @@ let export_eff eff =
   (eff.seff_constant, eff.seff_body)
 
 let is_empty_private = function
-| Opaqueproof.PrivateMonomorphic ctx -> Univ.ContextSet.is_empty ctx
-| Opaqueproof.PrivatePolymorphic ctx -> Univ.ContextSet.is_empty ctx
+| Opaqueproof.PrivateMonomorphic ctx -> PolyConstraints.ContextSet.is_empty ctx
+| Opaqueproof.PrivatePolymorphic ctx -> PolyConstraints.ContextSet.is_empty ctx
 
 let compile_bytecode env cb =
   let code = Vmbytegen.compile_constant_body ~fail_on_error:false env cb.const_universes cb.const_body in
@@ -931,8 +931,8 @@ let compile_bytecode env cb =
   It performs the type-checking of the body immediately. *)
 let infer_direct_opaque ~sec_univs env ce =
   let cb, ctx = Constant_typing.infer_opaque ~sec_univs env ce in
-  let body = ce.Entries.opaque_entry_body, Univ.ContextSet.empty in
-  let handle _env c () = (c, Univ.ContextSet.empty, 0) in
+  let body = ce.Entries.opaque_entry_body, PolyConstraints.ContextSet.empty in
+  let handle _env c () = (c, PolyConstraints.ContextSet.empty, 0) in
   let (hbody, c, u) = Constant_typing.check_delayed handle ctx (body, ()) in
   (* No constraints can be generated, we set it empty everywhere *)
   let () = assert (is_empty_private u) in
@@ -963,8 +963,8 @@ let export_side_effects senv eff =
       | [] -> univs, List.rev acc
       | eff :: rest ->
         let uctx = eff.seff_univs in
-        let env = Environ.push_context_set ~strict:true uctx env in
-        let univs = Univ.ContextSet.union uctx univs in
+        let env = Environ.push_context_set QGraph.Static ~strict:true uctx env in
+        let univs = PolyConstraints.ContextSet.union uctx univs in
         let env, cb =
           let ce = constant_entry_of_side_effect eff in
           let hbody, cb = match ce with
@@ -979,7 +979,7 @@ let export_side_effects senv eff =
         in
         recheck_seff rest univs (cb :: acc) env
     in
-    recheck_seff seff Univ.ContextSet.empty [] env
+    recheck_seff seff PolyConstraints.ContextSet.empty [] env
 
 let push_opaque_proof senv =
   let o, otab = Opaqueproof.create (library_dp_of_senv senv) senv.opaquetab in
@@ -988,7 +988,7 @@ let push_opaque_proof senv =
 
 let export_private_constants eff senv =
   let uctx, exported = export_side_effects senv eff in
-  let senv = push_context_set ~strict:true uctx senv in
+  let senv = push_context_set ~strict:true QGraph.Static uctx senv in
   let map senv (kn, (hbody, c)) = match c.const_body with
   | OpaqueDef body ->
     (* Don't care about the body, it has been checked by {!infer_direct_opaque} *)
@@ -1055,7 +1055,7 @@ let add_constant ?typing_flags l decl senv =
 
 type opaque_certificate = {
   opq_body : Constr.t;
-  opq_univs : Univ.ContextSet.t Opaqueproof.delayed_universes;
+  opq_univs : PolyConstraints.ContextSet.t Opaqueproof.delayed_universes;
   opq_handle : Opaqueproof.opaque_handle;
   opq_nonce : Nonce.t;
 }
@@ -1071,7 +1071,7 @@ let check_opaque senv (i : Opaqueproof.opaque_handle) pf =
     let trusted = check_signatures trust signatures in
     let trusted, uctx = match trusted with
     | None -> 0, uctx
-    | Some univs -> skip, Univ.ContextSet.union univs uctx
+    | Some univs -> skip, PolyConstraints.ContextSet.union univs uctx
     in
     body, uctx, trusted
   in
@@ -1082,9 +1082,9 @@ let check_opaque senv (i : Opaqueproof.opaque_handle) pf =
   in
   let ctx = match ctx with
   | Opaqueproof.PrivateMonomorphic u ->
-    Opaqueproof.PrivateMonomorphic (snd @@ Univ.ContextSet.hcons u)
+    Opaqueproof.PrivateMonomorphic (snd @@ PolyConstraints.ContextSet.hcons u)
   | Opaqueproof.PrivatePolymorphic u ->
-    Opaqueproof.PrivatePolymorphic (snd @@ Univ.ContextSet.hcons u)
+    Opaqueproof.PrivatePolymorphic (snd @@ PolyConstraints.ContextSet.hcons u)
   in
   { opq_body = c; opq_univs = ctx; opq_handle = i; opq_nonce = nonce }
 
@@ -1100,7 +1100,7 @@ let fill_opaque { opq_univs = ctx; opq_handle = i; opq_nonce = n; _ } senv =
   (* TODO: Drop the the monomorphic constraints, they should really be internal
      but the higher levels use them haphazardly. *)
   let senv = match ctx with
-  | Opaqueproof.PrivateMonomorphic ctx -> add_constraints ctx senv
+  | Opaqueproof.PrivateMonomorphic ctx -> add_constraints QGraph.Static ctx senv
   | Opaqueproof.PrivatePolymorphic _ -> senv
   in
   (* Mark the constant as having been checked *)
@@ -1114,12 +1114,12 @@ let repr_certificate { opq_body = body; opq_univs = ctx; _ } =
   body, ctx
 
 let check_constraints uctx = function
-| Entries.Polymorphic_entry _ -> Univ.ContextSet.is_empty uctx
+| Entries.Polymorphic_entry _ -> PolyConstraints.ContextSet.is_empty uctx
 | Entries.Monomorphic_entry -> true
 
 let add_private_constant l uctx decl senv : (Constant.t * private_constants) * safe_environment =
   let kn = Constant.make2 senv.modpath l in
-  let senv = push_context_set ~strict:true uctx senv in
+  let senv = push_context_set ~strict:true QGraph.Static uctx senv in
     let hbody, cb =
       let sec_univs = Option.map Section.all_poly_univs senv.sections in
       match decl with
@@ -1190,9 +1190,9 @@ let add_mind l mie senv =
   | None -> senv
   | Some { template_context = ctx; template_defaults = u; _ } ->
     let qs, levels = UVars.Instance.levels u in
-    assert (Sorts.Quality.Set.for_all (fun q -> Sorts.Quality.equal Sorts.Quality.qtype q) qs);
+    assert (Quality.Set.for_all (fun q -> Quality.is_qtype q) qs);
     let csts = UVars.AbstractContext.instantiate u ctx in
-    push_context_set ~strict:true (levels,csts) senv
+    push_context_set ~strict:true QGraph.Static (levels,csts) senv
   in
   (kn, why_not_prim_record), add_checked_mind kn mib senv
 
@@ -1489,8 +1489,8 @@ let start_library dir senv =
     objlabels = Label.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
-    univ = Univ.ContextSet.empty;
-    qualities = Sorts.QVar.Set.empty;
+    univ = PolyConstraints.ContextSet.empty;
+    qualities = Quality.QVar.Set.empty;
     loads = [];
     local_retroknowledge = [];
     opaquetab = Opaqueproof.empty_opaquetab;
@@ -1534,7 +1534,7 @@ let import lib vmtab vodigest senv =
   let mb = lib.comp_mod in
   let qualities, univs = lib.comp_univs in
   let env = Environ.push_qualities qualities senv.env in
-  let env = Environ.push_context_set ~strict:true univs env in
+  let env = Environ.push_context_set ~strict:true QGraph.Static univs env in
   let env = Environ.link_vm_library vmtab env in
   let env =
     let linkinfo = Nativecode.link_info_of_dirpath lib.comp_name in
@@ -1597,10 +1597,11 @@ let close_section senv =
   in
   (* Third phase: replay the discharged section contents *)
   let filtered_qualities =
-    Sorts.QVar.Set.filter (fun q -> not @@ Sorts.QVar.is_unif q) senv.qualities in
+    Quality.QVar.Set.filter (fun q -> not @@ Quality.QVar.is_unif q) senv.qualities in
   let senv = { senv with qualities = filtered_qualities } in
-  let senv = push_context_set ~strict:true cstrs senv in
-  let senv = push_qualities qs senv in
+  let senv = push_quality_set qs senv in
+  let cstrs = PolyConstraints.ContextSet.filter_out_constant_qualities cstrs in
+  let senv = push_context_set ~strict:true QGraph.Rigid cstrs senv in
   let fold entry senv =
     match entry with
   | SecDefinition kn ->
@@ -1768,9 +1769,9 @@ let register_inductive ind prim senv =
   let action = Retroknowledge.Register_ind(prim,ind) in
   add_retroknowledge action senv
 
-let add_constraints c =
-  add_constraints
-    (Univ.ContextSet.add_constraints c Univ.ContextSet.empty)
+let add_constraints src c =
+  add_constraints src
+    (PolyConstraints.ContextSet.add_constraints c PolyConstraints.ContextSet.empty)
 
 
 (* NB: The next old comment probably refers to [propagate_loads] above.

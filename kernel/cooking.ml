@@ -359,7 +359,7 @@ let discharge_abstract_universe_context abstr auctx =
     let suff = UVars.make_abstract_instance auctx in
     let ainst = Instance.append subst suff in
     let substf = make_instance_subst ainst in
-    let auctx = UVars.subst_univs_level_abstract_universe_context (snd substf) auctx in
+    let auctx = UVars.subst_univs_level_abstract_universe_context substf auctx in
     let auctx' = AbstractContext.union abstr.abstr_auctx auctx in
     { abstr with abstr_ausubst = ainst }, n, auctx'
 
@@ -388,7 +388,7 @@ let lift_private_mono_univs info a =
   a
 
 let lift_private_poly_univs info (inst, cstrs) =
-  let cstrs = Univ.subst_univs_level_constraints (snd (make_instance_subst info.abstr_info.abstr_ausubst)) cstrs in
+  let cstrs = UVars.subst_univs_constraints (make_instance_subst info.abstr_info.abstr_ausubst) cstrs in
   (inst, cstrs)
 
 let lift_relevance info relevance =

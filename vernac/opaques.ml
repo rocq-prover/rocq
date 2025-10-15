@@ -113,7 +113,7 @@ let get_current_constraints i =
       let _, ctx = Safe_typing.repr_certificate (Future.force cert) in
       let ctx = match ctx with
       | Opaqueproof.PrivateMonomorphic ctx -> ctx
-      | Opaqueproof.PrivatePolymorphic _ -> Univ.ContextSet.empty
+      | Opaqueproof.PrivatePolymorphic _ -> PolyConstraints.ContextSet.empty
       in
       Some ctx
   with Not_found -> None

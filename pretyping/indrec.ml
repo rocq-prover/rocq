@@ -176,7 +176,7 @@ let paramdecls_fresh_template sigma (mib,u) =
         templ.template_param_arguments
     in
     let csts, params, _ = Inductive.instantiate_template_universes mib univs in
-    let sigma = Evd.add_constraints sigma csts in
+    let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
     sigma, EConstr.of_rel_context params
 
 let mis_make_case_com dep env sigma (ind, u as pind) (mib, mip) s =
@@ -651,7 +651,7 @@ let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_de
 let pseudo_sort_quality_for_elim ind mip =
   let s = mip.mind_sort in
   if Sorts.is_prop s && is_prop_but_default_dependent_elim ind
-  then Sorts.Quality.qtype
+  then Quality.qtype
   else Sorts.quality s
 
 let is_in_prop mip =

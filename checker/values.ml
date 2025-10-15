@@ -194,12 +194,25 @@ let v_constant_quality = v_enum "constant_quality" 3
 
 let v_quality = v_sum "quality" 0 [|[|v_qvar|];[|v_constant_quality|]|]
 
-let v_cstrs =
+let v_elim_cstrs =
   v_annot_c
-    ("Univ.constraints",
+    ("Quality.ElimConstraints.t",
      v_set
-       (v_tuple "univ_constraint"
+       (v_tuple "Quality.ElimConstraint.t"
+          [|v_quality;v_enum "elim_request" 2;v_quality|]))
+
+
+let v_univ_cstrs =
+  v_annot_c
+    ("Univ.UnivConstraints.t",
+     v_set
+       (v_tuple "Univ.UnivConstraint.t"
           [|v_level;v_enum "order_request" 3;v_level|]))
+
+let v_cstrs =
+  v_tuple
+    "PolyConstraints.t"
+    [|v_elim_cstrs;v_univ_cstrs|]
 
 let v_variance = v_enum "variance" 3
 
