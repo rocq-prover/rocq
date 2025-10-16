@@ -160,7 +160,7 @@ v}
 type record_info =
 | NotRecord
 | FakeRecord
-| PrimRecord of (Id.t * Label.t array * Sorts.relevance array * types array)
+| PrimRecord of (Id.t * Id.t array * Sorts.relevance array * types array)
 
 type squash_info =
   | AlwaysSquashed
@@ -389,4 +389,4 @@ type ('mod_body, 'mod_type) structure_field_body =
     a [structure_body], once for a module ([SFBmodule] or [SFBmodtype])
     and once for an object ([SFBconst] or [SFBmind]) *)
 
-and ('mod_body, 'mod_type) structure_body = (Label.t * ('mod_body, 'mod_type) structure_field_body) list
+and ('mod_body, 'mod_type) structure_body = (Id.t * ('mod_body, 'mod_type) structure_field_body) list

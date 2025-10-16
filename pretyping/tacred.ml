@@ -355,7 +355,7 @@ let invert_recursive_names infos env sigma ref u names i =
           | EvalRel _ | EvalEvar _ -> None
           | EvalVar id' -> Some (EvalVar id)
           | EvalConst kn ->
-            let kn = Constant.change_label kn (Label.of_id id) in
+            let kn = Constant.change_label kn id in
             if Environ.mem_constant kn env then Some (EvalConst kn) else None
         in
         match refi with

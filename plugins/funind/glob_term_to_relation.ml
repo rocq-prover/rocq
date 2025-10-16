@@ -1278,7 +1278,7 @@ let do_build_inductive evd (funconstants : pconstant list)
     returned_types (rtl : glob_constr list) =
   let funnames =
     List.map
-      (fun c -> Label.to_id (KerName.label (Constant.canonical (fst c))))
+      (fun c -> Constant.label (fst c))
       funconstants
   in
   (*   Pp.msgnl (prlist_with_sep fnl Printer.pr_glob_constr rtl); *)

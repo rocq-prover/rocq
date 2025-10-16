@@ -133,7 +133,7 @@ val lookup_pinductive : Constr.pinductive ->
 val lookup_mind      : MutInd.t -> mutual_inductive_body
 val lookup_module    : ModPath.t -> module_body
 val lookup_modtype   : ModPath.t -> module_type_body
-val exists_objlabel  : Label.t -> bool
+val exists_objlabel  : Id.t -> bool
 
 val constant_of_delta_kn : KerName.t -> Constant.t
 val mind_of_delta_kn : KerName.t -> MutInd.t

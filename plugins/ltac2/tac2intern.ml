@@ -22,7 +22,7 @@ open Tac2typing_env
 
 (** Hardwired types and constants *)
 
-let rocq_type n = KerName.make Tac2env.rocq_prefix (Label.make n)
+let rocq_type n = KerName.make Tac2env.rocq_prefix (Id.of_string n)
 
 let t_int = rocq_type "int"
 let t_string = rocq_type "string"

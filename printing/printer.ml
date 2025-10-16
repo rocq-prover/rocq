@@ -142,8 +142,8 @@ let pr_in_comment x = str "(* " ++ x ++ str " *)"
     (needs an environment for this). *)
 
 let id_of_global env = let open GlobRef in function
-  | ConstRef kn -> Label.to_id (Constant.label kn)
-  | IndRef (kn,0) -> Label.to_id (MutInd.label kn)
+  | ConstRef kn -> Constant.label kn
+  | IndRef (kn,0) -> MutInd.label kn
   | IndRef (kn,i) ->
     (Environ.lookup_mind kn env).mind_packets.(i).mind_typename
   | ConstructRef ((kn,i),j) ->
@@ -154,7 +154,7 @@ let rec dirpath_of_mp = function
   | MPfile sl -> sl
   | MPbound uid -> DirPath.make [MBId.to_id uid]
   | MPdot (mp,l) ->
-    Libnames.add_dirpath_suffix (dirpath_of_mp mp) (Label.to_id l)
+    Libnames.add_dirpath_suffix (dirpath_of_mp mp) l
 
 let dirpath_of_global = let open GlobRef in function
   | ConstRef kn -> dirpath_of_mp (Constant.modpath kn)
@@ -1152,9 +1152,9 @@ let pr_assumptionset env sigma s =
               | ConstRef kn -> Constant.label kn
               | IndRef (kn,_)
               | ConstructRef ((kn,_),_) -> MutInd.label kn
-              | VarRef id -> Label.of_id id
+              | VarRef id -> id
             in
-            str "used in " ++ Label.print lab ++
+            str "used in " ++ Id.print lab ++
             str " to prove" ++ fnl() ++ safe_pr_ltype_relctx (ctx,ty))
           l in
         (v, ax :: a, o, tr)

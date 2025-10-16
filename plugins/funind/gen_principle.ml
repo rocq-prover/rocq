@@ -260,7 +260,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
       match new_princ_name with
       | Some {CAst.v=id; loc} -> (id, id, loc)
       | None ->
-        let id_of_f = Label.to_id (Constant.label (fst f)) in
+        let id_of_f = Constant.label (fst f) in
         (id_of_f, Elimschemes.make_elimination_ident id_of_f (EConstr.ESorts.quality_or_set !evd type_sort), None)
     in
     let names = ref [new_princ_name] in
@@ -847,7 +847,7 @@ let tauto =
   let open Ltac_plugin in
   let dp = List.map Id.of_string ["Tauto"; "Init"; "Corelib"] in
   let mp = ModPath.MPfile (DirPath.make dp) in
-  let kn = KerName.make mp (Label.make "tauto") in
+  let kn = KerName.make mp (Id.of_string "tauto") in
   Proofview.tclBIND (Proofview.tclUNIT ()) (fun () ->
       let body = Tacenv.interp_ltac kn in
       Tacinterp.eval_tactic body)
@@ -1196,7 +1196,7 @@ let get_funs_constant mp =
         (fun i na ->
           match na.Context.binder_name with
           | Name id ->
-            let const = Constant.make2 mp (Label.of_id id) in
+            let const = Constant.make2 mp id in
             (const, i)
           | Anonymous -> CErrors.anomaly (Pp.str "Anonymous fix."))
         na
@@ -1474,7 +1474,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
       in
       Array.iteri
         (fun i f_as_constant ->
-          let f_id = Label.to_id (Constant.label (fst f_as_constant)) in
+          let f_id = Constant.label (fst f_as_constant) in
           (*i The next call to mk_correct_id is valid since we are constructing the lemma
               Ensures by: obvious
             i*)
@@ -1540,7 +1540,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
       in
       Array.iteri
         (fun i f_as_constant ->
-          let f_id = Label.to_id (Constant.label (fst f_as_constant)) in
+          let f_id = Constant.label (fst f_as_constant) in
           (*i The next call to mk_complete_id is valid since we are constructing the lemma
               Ensures by: obvious
             i*)
@@ -2091,7 +2091,7 @@ let make_graph (f_ref : GlobRef.t) =
         in
         l
       | _ ->
-        let fname = CAst.make (Label.to_id (Constant.label c)) in
+        let fname = CAst.make (Constant.label c) in
         [ None, { Vernacexpr.fname
           ; univs = None
           ; binders = nal_tas
@@ -2109,7 +2109,7 @@ let make_graph (f_ref : GlobRef.t) =
     (* We register the infos *)
     List.iter
       (fun {Vernacexpr.fname = {CAst.v = id}} ->
-        add_Function false (Constant.make2 mp (Label.of_id id)))
+        add_Function false (Constant.make2 mp id))
       (snd expr_list)
 
 (* *************** statically typed entrypoints ************************* *)

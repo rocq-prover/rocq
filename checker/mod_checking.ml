@@ -172,7 +172,7 @@ let check_rhs env holes_profile rhs =
   check 0 rhs
 
 let check_rewrite_rule env lab i (symb, rule) =
-  Flags.if_verbose Feedback.msg_notice (str "  checking rule:" ++ Label.print lab ++ str"#" ++ Pp.int i);
+  Flags.if_verbose Feedback.msg_notice (str "  checking rule:" ++ Id.print lab ++ str"#" ++ Pp.int i);
   let { nvars; lhs_pat; rhs } = rule in
   let symb_cb = Environ.lookup_constant symb env in
   let () =

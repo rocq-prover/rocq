@@ -74,7 +74,7 @@ struct
     | DArray
 
   let compare_ci ci1 ci2 =
-    let c = Label.compare (MutInd.label @@ fst ci1.ci_ind) (MutInd.label @@ fst ci2.ci_ind) in
+    let c = Id.compare (MutInd.label @@ fst ci1.ci_ind) (MutInd.label @@ fst ci2.ci_ind) in
     if c = 0 then
       let c = Int.compare ci1.ci_npar ci2.ci_npar in
       if c = 0 then
@@ -449,7 +449,7 @@ let fresh_key =
     let lbl = Id.of_string_soft (Printf.sprintf "%s#%i"
       (ModPath.to_string mp) cur)
     in
-    KerName.make mp (Label.of_id lbl)
+    KerName.make mp lbl
 
 let auto_multi_rewrite_with ?(conds=Naive) tac_main lbas cl =
   let onconcl = match cl.Locus.concl_occs with NoOccurrences -> false | _ -> true in

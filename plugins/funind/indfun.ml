@@ -76,7 +76,7 @@ let functional_induction with_clean c princl pat =
                       (or f_rec, f_rect) i*)
               let princ_name =
                 Elimschemes.make_elimination_ident
-                  (Label.to_id (Constant.label c'))
+                  (Constant.label c')
                   (elimination_sort_of_goal gl)
               in
               let princ_ref =

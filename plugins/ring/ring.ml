@@ -264,7 +264,7 @@ let cdir = ["Stdlib";plugin_dir]
 let znew_ring_path =
   DirPath.make (List.map Id.of_string ["InitialRing";plugin_dir;"Stdlib"])
 let zltac s =
-  lazy(KerName.make (ModPath.MPfile znew_ring_path) (Label.make s))
+  lazy(KerName.make (ModPath.MPfile znew_ring_path) (Id.of_string s))
 
 (* Ring theory *)
 
@@ -707,7 +707,7 @@ let new_field_path =
   DirPath.make (List.map Id.of_string ["Field_tac";plugin_dir;"Stdlib"])
 
 let field_ltac s =
-  lazy(KerName.make (ModPath.MPfile new_field_path) (Label.make s))
+  lazy(KerName.make (ModPath.MPfile new_field_path) (Id.of_string s))
 
 
 let _ = add_map "field"

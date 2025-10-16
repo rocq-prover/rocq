@@ -17,7 +17,6 @@
     - Name.t is an ad-hoc variant of Id.t option allowing to handle optionally
       named objects.
     - DirPath.t represents generic paths as sequences of identifiers.
-    - Label.t is an equivalent of Id.t made distinct for semantical purposes.
     - ModPath.t are module paths.
     - KerName.t are absolute names of objects in Rocq.
 *)
@@ -166,44 +165,6 @@ end
 module DPset = DirPath.Set [@@deprecated "Use DirPath.Set"]
 module DPmap = DirPath.Map [@@deprecated "Use DirPath.Map"]
 
-(** {6 Names of structure elements } *)
-
-module Label :
-sig
-  type t
-  (** Type of labels *)
-
-  val equal : t -> t -> bool
-  (** Equality over labels *)
-
-  val compare : t -> t -> int
-  (** Comparison over labels. *)
-
-  val hash : t -> int
-  (** Hash over labels. *)
-
-  val make : string -> t
-  (** Create a label out of a string. *)
-
-  val of_id : Id.t -> t
-  (** Conversion from an identifier. *)
-
-  val to_id : t -> Id.t
-  (** Conversion to an identifier. *)
-
-  val to_string : t -> string
-  (** Conversion to string. *)
-
-  val print : t -> Pp.t
-  (** Pretty-printer. *)
-
-  module Set : Set.ExtS with type elt = t
-  module Map : Map.ExtS with type key = t and module Set := Set
-
-  val hcons : t Hashcons.f
-
-end
-
 (** {6 Unique names for bound modules} *)
 
 module MBId :
@@ -252,7 +213,7 @@ sig
   type t =
     | MPfile of DirPath.t
     | MPbound of MBId.t
-    | MPdot of t * Label.t
+    | MPdot of t * Id.t
 
   val compare : t -> t -> int
   val equal : t -> t -> bool
@@ -292,12 +253,12 @@ sig
   type t
 
   (** Constructor and destructor *)
-  val make : ModPath.t -> Label.t -> t
-  val repr : t -> ModPath.t * Label.t
+  val make : ModPath.t -> Id.t -> t
+  val repr : t -> ModPath.t * Id.t
 
   (** Projections *)
   val modpath : t -> ModPath.t
-  val label : t -> Label.t
+  val label : t -> Id.t
 
   val to_string : t -> string
   (** Encode as a string (not to be used for user-facing messages). *)
@@ -394,7 +355,7 @@ sig
   val make1 : KerName.t -> t
   (** Special case of [make] where the user name is canonical.  *)
 
-  val make2 : ModPath.t -> Label.t -> t
+  val make2 : ModPath.t -> Id.t -> t
   (** Shortcut for [(make1 (KerName.make ...))] *)
 
   (** Projections *)
@@ -405,7 +366,7 @@ sig
   val modpath : t -> ModPath.t
   (** Shortcut for [KerName.modpath (user ...)] *)
 
-  val label : t -> Label.t
+  val label : t -> Id.t
   (** Shortcut for [KerName.label (user ...)] *)
 
   (** Comparisons *)
@@ -418,7 +379,7 @@ sig
   val hash : t -> int [@@ocaml.deprecated "(8.13) Use QConstant.hash"]
   (** Hashing function *)
 
-  val change_label : t -> Label.t -> t
+  val change_label : t -> Id.t -> t
   (** Builds a new constant name with a different label *)
 
   (** Displaying *)
@@ -465,7 +426,7 @@ sig
   val make1 : KerName.t -> t
   (** Special case of [make] where the user name is canonical.  *)
 
-  val make2 : ModPath.t -> Label.t -> t
+  val make2 : ModPath.t -> Id.t -> t
   (** Shortcut for [(make1 (KerName.make ...))] *)
 
   (** Projections *)
@@ -476,7 +437,7 @@ sig
   val modpath : t -> ModPath.t
   (** Shortcut for [KerName.modpath (user ...)] *)
 
-  val label : t -> Label.t
+  val label : t -> Id.t
   (** Shortcut for [KerName.label (user ...)] *)
 
   (** Comparisons *)
@@ -601,14 +562,14 @@ val eq_constant_key : Constant.t -> Constant.t -> bool
 type module_path = ModPath.t =
   | MPfile of DirPath.t
   | MPbound of MBId.t
-  | MPdot of ModPath.t * Label.t
+  | MPdot of ModPath.t * Id.t
 [@@ocaml.deprecated "(8.8) Alias type"]
 
 module Projection : sig
   module Repr : sig
     type t
 
-    val make : inductive -> proj_npars:int -> proj_arg:int -> Label.t -> t
+    val make : inductive -> proj_npars:int -> proj_arg:int -> Id.t -> t
 
     include QNameS with type t := t
 
@@ -619,7 +580,7 @@ module Projection : sig
     val mind : t -> MutInd.t
     val npars : t -> int
     val arg : t -> int
-    val label : t -> Label.t
+    val label : t -> Id.t
 
     val equal : t -> t -> bool [@@ocaml.deprecated "(8.13) Use QProjection.equal"]
     val hash : t -> int [@@ocaml.deprecated "(8.13) Use QProjection.hash"]
@@ -647,7 +608,7 @@ module Projection : sig
   val inductive : t -> inductive
   val npars : t -> int
   val arg : t -> int
-  val label : t -> Label.t
+  val label : t -> Id.t
   val unfolded : t -> bool
   val unfold : t -> t
 
@@ -725,3 +686,39 @@ type lname = Name.t CAst.t
 type lstring = string CAst.t
 
 val lident_eq : lident -> lident -> bool
+
+(** Deprecated *)
+module Label : sig
+  type t = Id.t
+  (** Type of labels *)
+
+  val equal : t -> t -> bool
+  (** Equality over labels *)
+
+  val compare : t -> t -> int
+  (** Comparison over labels. *)
+
+  val hash : t -> int
+  (** Hash over labels. *)
+
+  val make : string -> t
+  (** Create a label out of a string. *)
+
+  val of_id : Id.t -> t
+  (** Conversion from an identifier. *)
+
+  val to_id : t -> Id.t
+  (** Conversion to an identifier. *)
+
+  val to_string : t -> string
+  (** Conversion to string. *)
+
+  val print : t -> Pp.t
+  (** Pretty-printer. *)
+
+  module Set : Set.ExtS with type elt = t
+  module Map : Map.ExtS with type key = t and module Set := Set
+
+  val hcons : t Hashcons.f
+
+end [@@deprecated "(9.2) Use Id"]

@@ -717,20 +717,20 @@ let print_library_leaf env sigma ~with_values mp lobj =
           (try Some(print_named_decl env sigma false id) with Not_found -> None)
       end @@
       DynHandle.add Declare.Internal.Constant.tag begin fun (id,_) ->
-        let kn = Constant.make2 mp (Label.of_id id) in
+        let kn = Constant.make2 mp id in
         Some (print_constant env ~with_values false kn None)
       end @@
       DynHandle.add DeclareInd.Internal.objInductive begin fun (id,_) ->
-        let kn = MutInd.make2 mp (Label.of_id id) in
+        let kn = MutInd.make2 mp id in
         Some (print_inductive env kn None)
       end @@
       DynHandle.empty
     in
     handle handler o
   | ModuleObject (id,_) ->
-    Some (Printmod.print_module ~with_body:(Option.has_some with_values) (MPdot (mp,Label.of_id id)))
+    Some (Printmod.print_module ~with_body:(Option.has_some with_values) (MPdot (mp, id)))
   | ModuleTypeObject (id,_) ->
-    Some (print_modtype (MPdot (mp, Label.of_id id)))
+    Some (print_modtype (MPdot (mp, id)))
   | IncludeObject _ | KeepObject _ | EscapeObject _ | ExportObject _ -> None
 
 let decr = Option.map ((+) (-1))
@@ -782,7 +782,7 @@ let handleF h (Libobject.Dyn.Dyn (tag, o)) = match DynHandleF.find tag h with
 let print_full_pure_atomic access env sigma mp lobj =
   let handler =
     DynHandleF.add Declare.Internal.Constant.tag begin fun (id,_) ->
-      let kn = KerName.make mp (Label.of_id id) in
+      let kn = KerName.make mp id in
       let con = Global.constant_of_delta_kn kn in
       let cb = Global.lookup_constant con in
       let typ = cb.const_type in
@@ -809,7 +809,7 @@ let print_full_pure_atomic access env sigma mp lobj =
       ++ str "." ++ fnl () ++ fnl ()
     end @@
     DynHandleF.add DeclareInd.Internal.objInductive begin fun (id,_) ->
-      let kn = KerName.make mp (Label.of_id id) in
+      let kn = KerName.make mp id in
       let mind = Global.mind_of_delta_kn kn in
       let mib = Global.lookup_mind mind in
       Printmod.pr_mutual_inductive_body (Global.env()) mind mib None ++
@@ -823,10 +823,10 @@ let print_full_pure_leaf access env sigma mp = function
   | AtomicObject lobj -> print_full_pure_atomic access env sigma mp lobj
   | ModuleObject (id, _) ->
     (* TODO: make it reparsable *)
-    print_module (MPdot (mp,Label.of_id id)) ++ str "." ++ fnl () ++ fnl ()
+    print_module (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
   | ModuleTypeObject (id, _) ->
     (* TODO: make it reparsable *)
-    print_modtype (MPdot (mp,Label.of_id id)) ++ str "." ++ fnl () ++ fnl ()
+    print_modtype (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
   | _ -> mt()
 
 let print_full_pure_context access env sigma =

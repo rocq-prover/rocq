@@ -1,7 +1,6 @@
 #install_printer (* identifier *) Top_printers.ppid;;
 #install_printer (* identifier *) Top_printers.ppidset;;
 #install_printer (* Intset.t *) Top_printers.ppintset;;
-#install_printer (* label *) Top_printers.pplab;;
 #install_printer (* mod_bound_id *) Top_printers.ppmbid;;
 #install_printer (* dir_path *) Top_printers.ppdir;;
 #install_printer (* module_path *) Top_printers.ppmp;;

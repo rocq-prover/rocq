@@ -422,7 +422,7 @@ let open_constant i ((sp,kn), obj) =
     Nametab.push (Nametab.Exactly i) sp (GlobRef.ConstRef con)
 
 let exists_name id =
-  Decls.variable_exists id || Global.exists_objlabel (Label.of_id id)
+  Decls.variable_exists id || Global.exists_objlabel id
 
 let check_exists id =
   if exists_name id then
@@ -454,7 +454,7 @@ let inConstant v = Libobject.Dyn.Easy.inj v objConstant
 (* Register the libobjects attached to the constants *)
 let register_constant loc cst kind ?user_warns local =
   (* Register the declaration *)
-  let id = Label.to_id (Constant.label cst) in
+  let id = Constant.label cst in
   let loc = fallback_loc id loc in
   let o = inConstant (id, { cst_kind = kind; cst_locl = local; cst_warn = user_warns; cst_loc = loc; }) in
   let () = Lib.add_leaf o in
@@ -468,7 +468,7 @@ let register_side_effect (c, body, role, univs) =
   | None -> ()
   | Some opaque -> Opaques.declare_private_opaque opaque
   in
-  let id = Label.to_id @@ Constant.label c in
+  let id = Constant.label c in
   let () = register_constant (fallback_loc ~warn:false id None) c Decls.(IsProof Theorem) Locality.ImportDefaultBehavior in
   let () = match univs with
   | None -> ()
@@ -498,7 +498,7 @@ let register_side_effects pf =
   let cst = Safe_typing.constants_of_private eff.Evd.seff_private in
   let iter kn =
     let gr = GlobRef.ConstRef kn in
-    let id = Label.to_id (Constant.label kn) in
+    let id = Constant.label kn in
     let sp = Lib.make_path id in
     Nametab.push (Nametab.Until 1) sp gr
   in
@@ -693,7 +693,7 @@ let declare_private_constant ?role ~name ~opaque de effs senv =
       OpaqueEff de, ctx
 
   in
-  let (kn, eff), senv = Safe_typing.add_private_constant (Label.of_id name) ctx de senv in
+  let (kn, eff), senv = Safe_typing.add_private_constant name ctx de senv in
   let seff_univs =
     if Univ.Level.Set.is_empty (fst ctx) then effs.Evd.seff_univs
     else Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.Evd.seff_univs
@@ -931,7 +931,7 @@ let register_definition_scheme ~internal ~name ~const:kn ~univs ?loc () =
   let () = register_constant (fallback_loc ~warn:false name None) kn kind Locality.ImportDefaultBehavior in
   let () = DeclareUniv.declare_univ_binders (ConstRef kn) univs in
   Dumpglob.dump_definition
-    (CAst.make ?loc (Constant.label kn |> Label.to_id)) false "scheme";
+    (CAst.make ?loc (Constant.label kn)) false "scheme";
   let () = if internal then () else definition_message name in
   ()
 
@@ -1221,7 +1221,7 @@ module ProgramDecl = struct
         (* declare global univs of the main constant before we do obligations *)
         let uctx = UState.collapse_sort_variables uctx in
         let () = Global.push_context_set (UState.context_set uctx) in
-        let cst = Constant.make2 (Lib.current_mp()) (Label.of_id cinfo.CInfo.name) in
+        let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
         let () = DeclareUniv.declare_univ_binders (ConstRef cst)
             (UState.univ_entry ~poly:false uctx)
         in

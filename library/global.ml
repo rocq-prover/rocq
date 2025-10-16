@@ -78,8 +78,6 @@ let globalize_with_summary fs f =
 
 (** [Safe_typing] operations, now operating on the global environment *)
 
-let i2l = Label.of_id
-
 let push_named_assum a = globalize0 (Safe_typing.push_named_assum a)
 let push_named_def d = globalize0 (Safe_typing.push_named_def d)
 let push_section_context c = globalize0 (Safe_typing.push_section_context c)
@@ -99,12 +97,12 @@ let sprop_allowed () = Environ.sprop_allowed (env())
 let set_rewrite_rules_allowed b = globalize0 (Safe_typing.set_rewrite_rules_allowed b)
 let rewrite_rules_allowed () = Environ.rewrite_rules_allowed (env())
 let export_private_constants cd = globalize (Safe_typing.export_private_constants cd)
-let add_constant ?typing_flags id d = globalize (Safe_typing.add_constant ?typing_flags (i2l id) d)
+let add_constant ?typing_flags id d = globalize (Safe_typing.add_constant ?typing_flags id d)
 let fill_opaque c = globalize0 (Safe_typing.fill_opaque c)
-let add_rewrite_rules id c = globalize0 (Safe_typing.add_rewrite_rules (i2l id) c)
-let add_mind ?typing_flags id mie = globalize (Safe_typing.add_mind ?typing_flags (i2l id) mie)
-let add_modtype id me inl = globalize (Safe_typing.add_modtype (i2l id) me inl)
-let add_module id me inl = globalize (Safe_typing.add_module (i2l id) me inl)
+let add_rewrite_rules id c = globalize0 (Safe_typing.add_rewrite_rules id c)
+let add_mind ?typing_flags id mie = globalize (Safe_typing.add_mind ?typing_flags id mie)
+let add_modtype id me inl = globalize (Safe_typing.add_modtype id me inl)
+let add_module id me inl = globalize (Safe_typing.add_module id me inl)
 let add_include me ismod inl = globalize (Safe_typing.add_include me ismod inl)
 
 let open_section () = globalize0 Safe_typing.open_section
@@ -150,14 +148,14 @@ let discharge_proj_repr p =
     else
       p
 
-let start_module id = globalize (Safe_typing.start_module (i2l id))
-let start_modtype id = globalize (Safe_typing.start_modtype (i2l id))
+let start_module id = globalize (Safe_typing.start_module id)
+let start_modtype id = globalize (Safe_typing.start_modtype id)
 
 let end_module fs id mtyo =
-  globalize_with_summary fs (Safe_typing.end_module (i2l id) mtyo)
+  globalize_with_summary fs (Safe_typing.end_module id mtyo)
 
 let end_modtype fs id =
-  globalize_with_summary fs (Safe_typing.end_modtype (i2l id))
+  globalize_with_summary fs (Safe_typing.end_modtype id)
 
 let add_module_parameter mbid mte inl =
   globalize (Safe_typing.add_module_parameter mbid mte inl)

@@ -91,11 +91,11 @@ val export_private_constants :
 (** returns the main constant *)
 val add_constant :
   ?typing_flags:Declarations.typing_flags ->
-  Label.t -> Entries.constant_entry -> Constant.t safe_transformer
+  Id.t -> Entries.constant_entry -> Constant.t safe_transformer
 
 (** Similar to add_constant but also returns a certificate *)
 val add_private_constant :
-  Label.t -> Univ.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
+  Id.t -> Univ.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
 
 (** {5 Delayed proofs} *)
 
@@ -128,7 +128,7 @@ val repr_certificate : opaque_certificate ->
 (** {5 Rewrite rules} *)
 
 (** Add a rewrite rule corresponding to the equality witnessed by the constant. *)
-val add_rewrite_rules : Label.t -> Declarations.rewrite_rules_body -> safe_environment -> safe_environment
+val add_rewrite_rules : Id.t -> Declarations.rewrite_rules_body -> safe_environment -> safe_environment
 
 (** {5 Inductive blocks} *)
 
@@ -136,16 +136,16 @@ val add_rewrite_rules : Label.t -> Declarations.rewrite_rules_body -> safe_envir
 
 val add_mind :
   ?typing_flags:Declarations.typing_flags ->
-  Label.t -> Entries.mutual_inductive_entry ->
+  Id.t -> Entries.mutual_inductive_entry ->
   (MutInd.t * IndTyping.NotPrimRecordReason.t option) safe_transformer
 
 (** Adding a module or a module type *)
 
 val add_module :
-  Label.t -> Entries.module_entry -> Declarations.inline ->
+  Id.t -> Entries.module_entry -> Declarations.inline ->
     (ModPath.t * Mod_subst.delta_resolver) safe_transformer
 val add_modtype :
-  Label.t -> Entries.module_type_entry -> Declarations.inline ->
+  Id.t -> Entries.module_type_entry -> Declarations.inline ->
     ModPath.t safe_transformer
 
 (** Adding universe constraints *)
@@ -196,9 +196,9 @@ val push_section_context : UVars.UContext.t -> safe_transformer0
 
 (** {6 Interactive module functions } *)
 
-val start_module : Label.t -> ModPath.t safe_transformer
+val start_module : Id.t -> ModPath.t safe_transformer
 
-val start_modtype : Label.t -> ModPath.t safe_transformer
+val start_modtype : Id.t -> ModPath.t safe_transformer
 
 val add_module_parameter :
   MBId.t -> Entries.module_struct_entry -> Declarations.inline ->
@@ -220,10 +220,10 @@ val allow_delayed_constants : bool ref
 (** The optional result type is given without its functorial part *)
 
 val end_module :
-  Label.t -> (Entries.module_struct_entry * Declarations.inline) option ->
+  Id.t -> (Entries.module_struct_entry * Declarations.inline) option ->
     (ModPath.t * MBId.t list * Mod_subst.delta_resolver) safe_transformer
 
-val end_modtype : Label.t -> (ModPath.t * MBId.t list) safe_transformer
+val end_modtype : Id.t -> (ModPath.t * MBId.t list) safe_transformer
 
 val add_include :
   Entries.module_struct_entry -> bool -> Declarations.inline ->
@@ -265,7 +265,7 @@ val typing : safe_environment -> Constr.constr -> judgment
 
 (** {6 Queries } *)
 
-val exists_objlabel : Label.t -> safe_environment -> bool
+val exists_objlabel : Id.t -> safe_environment -> bool
 
 val delta_of_senv : safe_environment -> Mod_subst.delta_resolver
 

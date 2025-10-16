@@ -446,8 +446,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
       match na.Context.binder_name with
       | Name id ->
         let r = na.Context.binder_relevance in
-        let lab = Label.of_id id in
-        let kn = Projection.Repr.make ind ~proj_npars:nparamargs ~proj_arg:i lab in
+        let kn = Projection.Repr.make ind ~proj_npars:nparamargs ~proj_arg:i id in
         (* from [params, field1,..,fieldj |- t(params,field1,..,fieldj)]
            to [params, x:I, field1,..,fieldj |- t(params,field1,..,fieldj] *)
         let t = liftn 1 j t in
@@ -457,7 +456,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
         (* from [params, x:I, field1,..,fieldj |- t(field1,..,fieldj)]
            to [params, x:I |- t(proj1 x,..,projj x)] *)
         let fterm = mkProj (Projection.make kn false, r, mkRel 1) in
-        (i + 1, j + 1, lab :: labs, r :: rs, projty :: pbs, fterm :: letsubst)
+        (i + 1, j + 1, id :: labs, r :: rs, projty :: pbs, fterm :: letsubst)
       | Anonymous -> assert false (* checked by indTyping *)
   in
   let (_, _, labs, rs, pbs, _letsubst) =

@@ -540,7 +540,7 @@ let build_beq_scheme env handle kn =
         if Reduction.is_arity env (Typeops.type_of_constant_in env cst) then
           (* Support for working in a context with "eq_x : x -> x -> bool" *)
           (* Needs Hints, see test suite *)
-          let eq_lbl = Label.make ("eq_" ^ Label.to_string (Constant.label kn)) in
+          let eq_lbl = Id.of_string ("eq_" ^ Id.to_string (Constant.label kn)) in
           let kneq = Constant.change_label kn eq_lbl in
           if Environ.mem_constant kneq env then
             let _ = Environ.constant_opt_value_in env (kneq, u) in
@@ -918,9 +918,9 @@ let do_replace_lb handle aavoid narg p q =
       (* Works in specific situations where the args have to be already declared as a
          Parameter (see example "J" in test file SchemeEquality.v);
          We assume the parameter to have the same polymorphic arity as cst *)
-        let lbl = Label.to_string (Constant.label cst) in
+        let lbl = Id.to_string (Constant.label cst) in
         let newlbl = if Int.equal offset 1 then ("eq_" ^ lbl) else (lbl ^ "_lb") in
-        let newcst = Constant.change_label cst (Label.make newlbl) in
+        let newcst = Constant.change_label cst (Id.of_string newlbl) in
         if Environ.mem_constant newcst env then mkConstU (newcst,u)
         else raise (ConstructorWithNonParametricInductiveType (fst hd))
     | _ -> raise (ConstructorWithNonParametricInductiveType (fst hd))
@@ -965,9 +965,9 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
       (* Works in specific situations where the args have to be already declared as a
          Parameter (see example "J" in test file SchemeEquality.v)
          We assume the parameter to have the same polymorphic arith as cst *)
-        let lbl = Label.to_string (Constant.label cst) in
+        let lbl = Id.to_string (Constant.label cst) in
         let newlbl = if Int.equal offset 1 then ("eq_" ^ lbl) else (lbl ^ "_bl") in
-        let newcst = Constant.change_label cst (Label.make newlbl) in
+        let newcst = Constant.change_label cst (Id.of_string newlbl) in
         if Environ.mem_constant newcst env then mkConstU (newcst,u)
         else raise (ConstructorWithNonParametricInductiveType (fst hd))
     | _ -> raise (ConstructorWithNonParametricInductiveType (fst hd))

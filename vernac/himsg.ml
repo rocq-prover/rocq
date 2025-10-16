@@ -1177,7 +1177,7 @@ let pr_modtype_subpath upper mp =
       Libnames.add_dirpath_suffix dir id, []
     with Not_found ->
       match mp with
-      | MPdot (mp',id) -> let mp, suff = aux mp' in mp, Label.to_id id::suff
+      | MPdot (mp',id) -> let mp, suff = aux mp' in mp, id::suff
       | _ -> assert false
   in
   let mp, suff = aux mp in
@@ -1286,7 +1286,7 @@ let rec get_submodules acc = function
 
 let get_submodules trace =
   let submodules, trace = get_submodules [] trace in
-  (String.concat "." (List.map Label.to_string submodules)), trace
+  (String.concat "." (List.map Id.to_string submodules)), trace
 
 let rec print_trace = function
   | [] -> assert false
@@ -1300,15 +1300,15 @@ let rec print_trace = function
 
 let explain_signature_mismatch trace l why =
   let submodules, trace = get_submodules trace in
-  let l = if String.is_empty submodules then Label.print l
-    else str submodules ++ str"." ++ Label.print l
+  let l = if String.is_empty submodules then Id.print l
+    else str submodules ++ str"." ++ Id.print l
   in
   str "Signature components for field " ++ l ++
   (if List.is_empty trace then mt() else str " in " ++ print_trace trace) ++
   str " do not match:" ++ spc () ++ explain_not_match_error why ++ str "."
 
 let explain_label_already_declared l =
-  str "The label " ++ Label.print l ++ str " is already declared."
+  str "The label " ++ Id.print l ++ str " is already declared."
 
 let explain_not_a_functor () =
   str "Application of a non-functor."
@@ -1334,25 +1334,25 @@ let explain_not_equal_module_paths mp1 mp2 =
   str "Module " ++ pr_modpath mp1 ++ strbrk " is not equal to " ++ pr_module_or_modtype_subpath mp2 ++ str "."
 
 let explain_no_such_label l mp =
-  str "No field named " ++ Label.print l ++ str " in " ++ pr_modtype_subpath false mp ++ str "."
+  str "No field named " ++ Id.print l ++ str " in " ++ pr_modtype_subpath false mp ++ str "."
 
 let explain_not_a_module_label l =
-  Label.print l ++ str " is not the name of a module field."
+  Id.print l ++ str " is not the name of a module field."
 
 let explain_not_a_constant l =
-  quote (Label.print l) ++ str " is not a constant."
+  quote (Id.print l) ++ str " is not a constant."
 
 let explain_incorrect_label_constraint l =
   str "Incorrect constraint for label " ++
-  quote (Label.print l) ++ str "."
+  quote (Id.print l) ++ str "."
 
 let explain_generative_module_expected l =
-  str "The module " ++ Label.print l ++ str " is not generative." ++
+  str "The module " ++ Id.print l ++ str " is not generative." ++
   strbrk " Only components of generative modules can be changed" ++
   strbrk " using the \"with\" construct."
 
 let explain_label_missing l s =
-  str "The field " ++ Label.print l ++ str " is missing in "
+  str "The field " ++ Id.print l ++ str " is missing in "
   ++ str s ++ str "."
 
 let explain_include_restricted_functor mp =

@@ -51,7 +51,7 @@ val info_file : string -> unit
 val occur_kn_in_ref : MutInd.t -> global -> bool
 val repr_of_r : global -> KerName.t
 val modpath_of_r : global -> ModPath.t
-val label_of_r : global -> Label.t
+val label_of_r : global -> Id.t
 val base_mp : ModPath.t -> ModPath.t
 val is_modfile : ModPath.t -> bool
 val string_of_modfile : t -> DirPath.t -> string
@@ -62,8 +62,8 @@ val mp_length : ModPath.t -> int
 val prefixes_mp : ModPath.t -> ModPath.Set.t
 val common_prefix_from_list :
   ModPath.t -> ModPath.t list -> ModPath.t option
-val get_nth_label_mp : int -> ModPath.t -> Label.t
-val labels_of_ref : global -> ModPath.t * Label.t list
+val get_nth_label_mp : int -> ModPath.t -> Id.t
+val labels_of_ref : global -> ModPath.t * Id.t list
 
 (*s Some table-related operations *)
 
@@ -102,7 +102,7 @@ val add_info_axiom : t -> global -> unit
 val remove_info_axiom : t -> global -> unit
 val add_log_axiom : t -> global-> unit
 val add_symbol : t -> global -> unit
-val add_symbol_rule : t -> global -> Label.t -> unit
+val add_symbol_rule : t -> global -> Id.t -> unit
 
 val add_opaque : t -> global -> unit
 val remove_opaque : t -> global -> unit

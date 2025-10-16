@@ -664,7 +664,7 @@ let import_modules ~export mpl =
     the ModSubstObjs table, we compensate this by explicit traversal
     of Module Types inner objects when needed. Quite a hack... *)
 
-let mp_id mp id = MPdot (mp, Label.of_id id)
+let mp_id mp id = MPdot (mp, id)
 
 let rec register_mod_objs mp obj = match obj with
   | ModuleObject (id,sobjs) -> ModSubstObjs.set (mp_id mp id) sobjs
@@ -706,7 +706,7 @@ let rec replace_module_object idl mp0 objs0 mp1 objs1 =
   | _,[] -> []
   | id::idl,(ModuleObject (id', sobjs))::tail when Id.equal id id' ->
     begin
-      let mp_id = MPdot(mp0, Label.of_id id) in
+      let mp_id = MPdot(mp0, id) in
       let objs = match idl with
         | [] -> subst_objects (map_mp mp1 mp_id (empty_delta_resolver mp_id)) objs1
         | _ ->
@@ -864,7 +864,7 @@ let start_module_core id args res =
         Some (mte, inl), Enforce (mte, base, kind, inl)
     | Check resl -> None, Check (build_subtypes resl)
   in
-  let mp = ModPath.MPdot((openmod_syntax_info ()).cur_mp, Label.of_id id) in
+  let mp = ModPath.MPdot((openmod_syntax_info ()).cur_mp, id) in
   mp, res_entry_o, mbids, sign, args
 
 let start_module export id args res =
@@ -924,7 +924,7 @@ let declare_module id args res mexpr_o =
   let fs = Summary.Synterp.freeze_summaries () in
   (* We simulate the beginning of an interactive module,
      then we adds the module parameters to the global env. *)
-  let mp = ModPath.MPdot((openmod_syntax_info ()).cur_mp, Label.of_id id) in
+  let mp = ModPath.MPdot((openmod_syntax_info ()).cur_mp, id) in
   let args = intern_args args in
   let mbids = List.flatten @@ List.map fst args in
   let mty_entry_o = match res with
@@ -1213,7 +1213,7 @@ module RawModTypeOps = struct
 module Synterp = struct
 
 let start_modtype_core id cur_mp args mtys =
-  let mp = ModPath.MPdot(cur_mp, Label.of_id id) in
+  let mp = ModPath.MPdot(cur_mp, id) in
   let args = RawModOps.Synterp.intern_args args in
   let mbids = List.flatten @@ List.map (fun (mbidl,_) -> mbidl) args in
   let sub_mty_l = RawModOps.Synterp.build_subtypes mtys in

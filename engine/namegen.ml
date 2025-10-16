@@ -118,7 +118,7 @@ let head_name sigma c = (* Find the head constant of a constr if any *)
     match EConstr.kind sigma c with
     | Prod (_,_,c) | Lambda (_,_,c) | LetIn (_,_,_,c)
     | Cast (c,_,_) | App (c,_) -> hdrec c
-    | Proj (kn,_,_) -> Some (Label.to_id (Constant.label (Projection.constant kn)))
+    | Proj (kn,_,_) -> Some (Constant.label (Projection.constant kn))
     | Const _ | Ind _ | Construct _ | Var _ as c ->
         Some (Nametab.basename_of_global (global_of_constr c))
     | Fix ((_,i),(lna,_,_)) | CoFix (i,(lna,_,_)) ->
@@ -152,8 +152,8 @@ let hdchar env sigma c =
     match EConstr.kind sigma c with
     | Prod (_,_,c) | Lambda (_,_,c) | LetIn (_,_,_,c) -> hdrec (k+1) c
     | Cast (c,_,_) | App (c,_) -> hdrec k c
-    | Proj (kn,_,_) -> lowercase_first_char (Label.to_id (Constant.label (Projection.constant kn)))
-    | Const (kn,_) -> lowercase_first_char (Label.to_id (Constant.label kn))
+    | Proj (kn,_,_) -> lowercase_first_char (Constant.label (Projection.constant kn))
+    | Const (kn,_) -> lowercase_first_char (Constant.label kn)
     | Ind (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.IndRef x)) with Not_found when !Flags.in_debugger -> "zz")
     | Construct (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef x)) with Not_found when !Flags.in_debugger -> "zz")
     | Var id  -> lowercase_first_char id
@@ -421,7 +421,7 @@ let next_name_away_in_goal (type a) (gen : a Generator.t) env na (avoid : a) =
 
 let next_global_ident_away senv id avoid =
   let id = if Id.Set.mem id avoid then restart_subscript id else id in
-  let bad id = Id.Set.mem id avoid || Safe_typing.exists_objlabel (Label.of_id id) senv in
+  let bad id = Id.Set.mem id avoid || Safe_typing.exists_objlabel id senv in
   next_ident_away_from id bad
 
 (* 4- Looks for next fresh name outside a list; if name already used,

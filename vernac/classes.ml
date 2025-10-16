@@ -567,7 +567,7 @@ let interp_instance_context ~program_mode env ctx pl tclass =
 let id_of_class env ref =
   let open GlobRef in
   match ref with
-    | ConstRef kn -> Label.to_id @@ Constant.label kn
+    | ConstRef kn -> Constant.label kn
     | IndRef (kn,i) ->
         let mip = (Environ.lookup_mind kn env).Declarations.mind_packets in
           mip.(0).Declarations.mind_typename
