@@ -396,7 +396,16 @@ let lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_so
   let hd , _ = EConstr.decompose_app sigma c in
   let c_name , _ = Constr.destConst (EConstr.to_constr sigma hd) in
   let c = Reductionops.whd_const c_name env sigma c in
-  ((sigma , c), indarg)
+  (* This function is to revert the template poly patch *)
+  let eta_reduce f =
+      let _ , body= EConstr.decompose_lambda sigma f in
+      let hd , args = EConstr.decompose_app sigma body in
+      if Array.length args == 1 && args.(0) == mkRel 1 then
+        hd
+      else
+        f
+  in
+  ((sigma , eta_reduce c), indarg)
 
 let lookup_eq_eliminator_tac env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
   try
