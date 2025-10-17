@@ -200,13 +200,13 @@ val pr_transparent_state   : TransparentState.t -> Pp.t
 
 (** Proofs, these functions obey [Hyps Limit] and [Compact contexts]. *)
 
-(** [pr_open_subgoals ~quiet ?diffs proof] shows the context for [proof] as used by, for example, coqtop.
+(** [pr_open_subgoals ~quiet ?oldp proof] shows the context for [proof] as used by, for example, coqtop.
     The first active goal is printed with all its antecedents and the conclusion.  The other active goals only show their
-     conclusions.  If [diffs] is [Some oproof], highlight the differences between the old proof [oproof], and [proof].  [quiet]
+     conclusions.  If [oldp] is [Some oproof], highlight the differences between the old proof [oproof], and [proof].  [quiet]
      disables printing messages as Feedback.
 *)
-val pr_open_subgoals       : ?quiet:bool -> ?diffs:Proof.t option -> Proof.t -> Pp.t
-val pr_nth_open_subgoal    : proof:Proof.t -> int -> Pp.t
+val pr_open_subgoals       : ?quiet:bool -> ?oldp:Proof.t option -> Proof.t -> Pp.t
+val pr_nth_open_subgoal    : ?oldp:Proof.t -> proof:Proof.t -> int -> Pp.t
 val pr_evar                : evar_map -> (Evar.t * undefined evar_info) -> Pp.t
 val pr_evars_int           : evar_map -> shelf:Evar.t list -> given_up:Evar.t list -> int -> undefined evar_info Evar.Map.t -> Pp.t
 val pr_ne_evar_set         : Pp.t -> Pp.t -> evar_map ->
@@ -232,7 +232,7 @@ module ContextObjectMap : CMap.ExtS
 
 val pr_assumptionset : env -> evar_map -> types ContextObjectMap.t -> Pp.t
 
-val pr_goal_by_id : proof:Proof.t -> Id.t -> Pp.t
+val pr_goal_by_id : ?oldp:Proof.t -> proof:Proof.t -> Id.t -> Pp.t
 val pr_goal_emacs : proof:Proof.t option -> int -> int -> Pp.t
 
 val pr_typing_flags : Declarations.typing_flags -> Pp.t
