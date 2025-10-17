@@ -155,15 +155,7 @@ let auto_unif_flags ?(allowed_evars = Evarsolve.AllowedEvars.all) st =
 }
 
 let e_give_exact flags h =
-  let open Tacmach in
-  Proofview.Goal.enter begin fun gl ->
-  let env = Proofview.Goal.env gl in
-  let sigma = project gl in
-  let sigma, c = Hints.fresh_hint env sigma h in
-  let (sigma, t1) = Typing.type_of (pf_env gl) sigma c in
-  Proofview.Unsafe.tclEVARS sigma <*>
-  Clenv.unify ~flags ~cv_pb:CUMUL t1 <*> exact_no_check c
-  end
+  Hints.hint_res_pf ~with_evars:false ~with_classes:false ~flags h
 
 let unify_resolve ~with_evars flags h diff = match diff with
 | None ->
