@@ -2377,15 +2377,23 @@ type head_kind =
 | HeadOther
 
 let get_head_kind ~metas env sigma c =
-  match get_type_of_with_metas ~lax:true ~metas env sigma c with
-  | ty ->
+  let ty = get_type_of_with_metas ~lax:true ~metas env sigma c in
+  let hd, _ = decompose_app sigma ty in
+  match EConstr.kind sigma hd with
+  | Prod _ -> HeadProd
+  | Sort _ -> HeadSort
+  | Ind _ -> HeadInd
+  | _ ->
+    (* We try again after reduction, this may be a bit expensive but it also
+       reduces the subterm search space later on *)
+    let metas = Meta.meta_handler metas in
+    let ty = whd_all ~metas env sigma ty in
     let hd, _ = decompose_app sigma ty in
     match EConstr.kind sigma hd with
     | Prod _ -> HeadProd
     | Sort _ -> HeadSort
     | Ind _ -> HeadInd
     | _ -> HeadOther
-  | exception (RetypeError _) -> HeadOther
 
 (* can c have a type of the same shape as knd? *)
 let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
