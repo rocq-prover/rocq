@@ -10,6 +10,14 @@
 
 module Dyn = Dyn.Make ()
 
+type (-'synterp_rw, -'interp_rw) t = Token
+
+type nothing = [`Nothing]
+
+type read = [`R|`Nothing]
+
+type readwrite = [`RW|`R|`Nothing]
+
 module Stage = struct
 
 type t = Synterp | Interp
@@ -77,17 +85,22 @@ module HMap = Dyn.HMap(Decl)(ID)
 
 module type FrozenStage = sig
 
-  (** The type [frozen] is a snapshot of the states of all the registered
-      tables of the system. *)
+  type -'rw t
+
+  type nonrec 'a read = ([>read] as 'a) t
+  type nonrec readwrite = readwrite t
 
   type frozen
 
+  val read : [`Nothing|`R] read
+  val readwrite : readwrite
+
   val empty_frozen : frozen
-  val freeze_summaries : unit -> frozen
+  val freeze_summaries : state:_ read -> frozen
   val make_marshallable : frozen -> frozen
-  val unfreeze_summaries : ?partial:bool -> frozen -> unit
-  val init_summaries : unit -> unit
-  val project_from_summary : frozen -> 'a Dyn.tag -> 'a
+  val unfreeze_summaries : ?partial:bool -> frozen -> state:readwrite -> unit
+  val init_summaries : state:readwrite -> unit
+  val project_from_summary : frozen -> 'a Dyn.tag -> state:_ read -> 'a
 
 end
 
@@ -125,6 +138,14 @@ let init_summaries sum_map =
 
 module Synterp = struct
 
+  type nonrec 'rw t = ('rw, nothing) t
+
+  type nonrec 'a read = ([>read] as 'a) t
+  type nonrec readwrite = readwrite t
+
+  let read = Token
+  let readwrite = Token
+
   type frozen =
     {
         summaries : Frozen.t;
@@ -135,7 +156,7 @@ module Synterp = struct
 
   let empty_frozen = { summaries = Frozen.empty; ml_module = None }
 
-  let freeze_summaries () =
+  let freeze_summaries ~state:Token =
     let summaries = freeze_summaries !sum_map_synterp in
     { summaries; ml_module = Option.map (fun decl -> decl.freeze_function ()) !sum_mod }
 
@@ -143,7 +164,7 @@ module Synterp = struct
     { summaries = make_marshallable !sum_marsh_synterp summaries;
       ml_module }
 
-  let unfreeze_summaries ?(partial=false) { summaries; ml_module } =
+  let unfreeze_summaries ?(partial=false) { summaries; ml_module } ~state:Token =
     (* The unfreezing of [ml_modules_summary] has to be anticipated since it
     * may modify the content of [summaries] by loading new ML modules *)
     begin match !sum_mod with
@@ -152,34 +173,42 @@ module Synterp = struct
     end;
     unfreeze_summaries ~partial !sum_map_synterp summaries
 
-  let init_summaries () =
+  let init_summaries ~state:Token =
     init_summaries !sum_map_synterp
 
   (** Summary projection *)
-  let project_from_summary { summaries; _ } tag =
+  let project_from_summary { summaries; _ } tag ~state:Token =
     Frozen.find tag summaries
 
 end
 
 module Interp = struct
 
-type frozen = Frozen.t
+  type nonrec 'rw t = (read, 'rw) t
 
-let empty_frozen = Frozen.empty
+  type nonrec 'a read = ([>read] as 'a) t
+  type nonrec readwrite = readwrite t
 
-  let freeze_summaries () =
+  let read = Token
+  let readwrite = Token
+
+  type frozen = Frozen.t
+
+  let empty_frozen = Frozen.empty
+
+  let freeze_summaries ~state:Token =
     freeze_summaries !sum_map_interp
 
   let make_marshallable summaries = make_marshallable !sum_marsh_interp summaries
 
-  let unfreeze_summaries ?(partial=false) summaries =
+  let unfreeze_summaries ?(partial=false) summaries ~state:Token =
     unfreeze_summaries ~partial !sum_map_interp summaries
 
-  let init_summaries () =
+  let init_summaries ~state:Token =
     init_summaries !sum_map_interp
 
   (** Summary projection *)
-  let project_from_summary summaries tag =
+  let project_from_summary summaries tag ~state:Token =
     Frozen.find tag summaries
 
   let modify_summary summaries tag v =
@@ -197,28 +226,54 @@ end
 
 let nop () = ()
 
-(** All-in-one reference declaration + registration *)
+(** All-in-one reference declaration + registration + access control *)
 
-let ref_tag ?(stage=Stage.Interp) ~name x =
+type 'v declared_synterp = {
+  sread : 'syn 'interp. ([>read] as 'syn, 'interp) t -> 'v;
+  swrite : 'interp. (readwrite, 'interp) t -> 'v -> unit;
+}
+
+type 'v declared_interp = {
+  read : 'syn 'interp. ('syn, [>read] as 'interp) t -> 'v;
+  write : 'syn. ('syn, readwrite) t -> 'v -> unit;
+}
+
+let synterp_of_ref r = { sread = (fun Token -> !r); swrite = (fun Token v -> r := v) }
+
+let interp_of_ref r = { read = (fun Token -> !r); write = (fun Token v -> r := v) }
+
+let syn_ref ~name x =
   let r = ref x in
-  let tag = declare_summary_tag name
-    { stage;
+  let () = declare_summary name
+    { stage = Synterp;
       freeze_function = (fun () -> !r);
       unfreeze_function = ((:=) r);
-      init_function = (fun () -> r := x) } in
-  r, tag
+      init_function = (fun () -> r := x) }
+  in
+  synterp_of_ref r
 
-let ref ?(stage=Stage.Interp) ?(local=false) ~name x =
-  if not local then fst @@ ref_tag ~stage ~name x
+let ref_tag ~name x =
+  let r = ref x in
+  let tag = declare_summary_tag name
+    { stage = Interp;
+      freeze_function = (fun () -> !r);
+      unfreeze_function = ((:=) r);
+      init_function = (fun () -> r := x) }
+  in
+  interp_of_ref r, tag
+
+let ref ?(local=false) ~name x =
+  if not local then fst @@ ref_tag ~name x
   else
     let r = ref x in
     let () = declare_summary name
         ~make_marshallable:(fun _ -> None)
-        { stage;
+        { stage = Interp;
           freeze_function = (fun () -> Some !r);
           unfreeze_function = (function Some v -> r := v | None -> r := x);
           init_function = (fun () -> r := x); }
     in
-    r
+    interp_of_ref r
+
 
 let dump = Dyn.dump

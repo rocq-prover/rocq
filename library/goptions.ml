@@ -56,10 +56,10 @@ let error_undeclared_key key =
 (* 1- Tables                                                                *)
 
 type 'a table_of_A =  {
-  add : Environ.env -> Libobject.locality -> 'a -> unit;
-  remove : Environ.env -> Libobject.locality -> 'a -> unit;
-  mem : Environ.env -> 'a -> unit;
-  print : unit -> unit;
+  add : Libobject.locality -> 'a -> state:Summary.Interp.readwrite -> unit;
+  remove : Libobject.locality -> 'a -> state:Summary.Interp.readwrite -> unit;
+  mem : 'read. 'a -> state:'read Summary.Interp.read -> unit;
+  print : 'read. state:'read Summary.Interp.read -> unit;
 }
 
 let opts_cat = Libobject.create_category "options"
@@ -71,10 +71,10 @@ module MakeTable =
           type key
           module Set : CSig.USetS with type elt = t
           val table : (string * key table_of_A) list ref
-          val encode : Environ.env -> key -> t
+          val encode : key -> state:_ Summary.Interp.read -> t
           val subst : Mod_subst.substitution -> t -> t
           val check_local : Libobject.locality -> t -> unit
-          val discharge : t -> t
+          val discharge : t -> state:_ Summary.Interp.read -> t
           val printer : t -> Pp.t
           val key : option_name
           val title : string
@@ -95,28 +95,28 @@ module MakeTable =
 
     module MySet = A.Set
 
-    let t = Summary.ref ~stage:Interp MySet.empty ~name:nick
+    let { Summary.read=(!); write=(:=) } = Summary.ref MySet.empty ~name:nick
 
     let inGo : Libobject.locality * (option_mark * A.t) -> Libobject.obj =
-      let cache (f,p) = match f with
-        | GOadd -> t := MySet.add p !t
-        | GOrmv -> t := MySet.remove p !t in
+      let cache (f,p) ~state = match f with
+        | GOadd -> state := MySet.add p !state
+        | GOrmv -> state := MySet.remove p !state in
       let subst (subst,(f,p as obj)) =
         let p' = A.subst subst p in
         if p' == p then obj else
           (f,p')
       in
-      Libobject.declare_object @@
+      Libobject.Interp.declare_object @@
       Libobject.object_with_locality ~cat:opts_cat nick
-        ~cache ~subst:(Some subst) ~discharge:(on_snd A.discharge)
+        ~cache ~subst:(Some subst) ~discharge:(fun (x,o) ~state -> x, A.discharge o ~state )
 
-    let add_option local c =
+    let add_option local c ~state =
       A.check_local local c;
-      Lib.add_leaf (inGo (local,(GOadd, c)))
+      Lib.Interp.add_leaf (inGo (local,(GOadd, c))) ~state
 
-    let remove_option local c =
+    let remove_option local c ~state =
       A.check_local local c;
-      Lib.add_leaf (inGo (local,(GOrmv, c)))
+      Lib.Interp.add_leaf (inGo (local,(GOrmv, c))) ~state
 
     let print_table table_name printer table =
       let open Pp in
@@ -129,19 +129,19 @@ module MakeTable =
       Feedback.msg_notice pp
 
     let table_of_A = {
-       add = (fun env local x -> add_option local (A.encode env x));
-       remove = (fun env local x -> remove_option local (A.encode env x));
-       mem = (fun env x ->
-        let y = A.encode env x in
-        let answer = MySet.mem y !t in
+       add = (fun local x ~state -> add_option local (A.encode x ~state) ~state);
+       remove = (fun local x ~state -> remove_option local (A.encode x ~state) ~state);
+       mem = (fun x ~state ->
+        let y = A.encode x ~state in
+        let answer = MySet.mem y !state in
         Feedback.msg_info (A.member_message y answer));
-       print = (fun () -> print_table A.title A.printer !t);
+       print = (fun ~state -> print_table A.title A.printer !state);
      }
 
-    let () = A.table := (nick, table_of_A)::!A.table
+    let () = let open Stdlib in A.table := (nick, table_of_A)::!A.table
 
-    let v () = !t
-    let active x = A.Set.mem x !t
+    let v ~state = !state
+    let active x ~state = A.Set.mem x !state
     let set local x b = if b then add_option local x else remove_option local x
   end
 
@@ -162,10 +162,10 @@ struct
   type key = string
   module Set = CString.Set
   let table = string_table
-  let encode _env x = x
+  let encode x ~state:_ = x
   let subst _ x = x
   let check_local _ _ = ()
-  let discharge x = x
+  let discharge x ~state:_ = x
   let printer = Pp.str
   let key = A.key
   let title = A.title
@@ -183,10 +183,10 @@ module type RefConvertArg =
 sig
   type t
   module Set : CSig.USetS with type elt = t
-  val encode : Environ.env -> Libnames.qualid -> t
+  val encode : Libnames.qualid -> state:_ Summary.Interp.read -> t
   val subst : Mod_subst.substitution -> t -> t
   val check_local : Libobject.locality -> t -> unit
-  val discharge : t -> t
+  val discharge : t -> state:_ Summary.Interp.read -> t
   val printer : t -> Pp.t
   val key : option_name
   val title : string
@@ -273,12 +273,13 @@ with Not_found ->
 let declare_raw name v = value_tab := OptionMap.add name (AnyOpt v) !value_tab
 
 (* not quite the same as RawOpt.t: write takes a option_locality, optkey field present *)
-type 'a option_sig = {
+type ('a,'read,'readwrite) option_sig = {
   optstage : Summary.Stage.t;
   optdepr  : Deprecation.t option;
   optkey   : option_name;
-  optread  : unit -> 'a;
-  optwrite : 'a -> unit }
+  optread  : state:'read -> 'a;
+  optwrite : state:'readwrite -> unit;
+}
 
 open Libobject
 
@@ -286,30 +287,29 @@ let warn_deprecated_option =
   Deprecation.create_warning ~object_name:"Option" ~warning_name_if_no_since:"deprecated-option"
     (fun key -> Pp.str (nickname key))
 
-let option_object name stage act =
-  let cache_option (l,v) = act v in
-  let load_option i (l, _ as o) = match l with
-    | OptGlobal -> cache_option o
+let option_object name act =
+  let cache_option (l,v) ~state = act v ~state in
+  let load_option i (l, _ as o) ~state = match l with
+    | OptGlobal -> cache_option o ~state
     | OptExport -> ()
     | OptLocal | OptDefault ->
       (* Ruled out by classify_function *)
       assert false
   in
-  let open_option  (l, _ as o) = match l with
-    | OptExport -> cache_option o
+  let open_option  (l, _ as o) ~state = match l with
+    | OptExport -> cache_option o ~state
     | OptGlobal -> ()
     | OptLocal | OptDefault ->
       (* Ruled out by classify_function *)
       assert false
   in
-  let discharge_option (l,_ as o) =
+  let discharge_option (l,_ as o) ~state:_ =
     match l with OptLocal -> None | (OptExport | OptGlobal | OptDefault) -> Some o
   in
   let classify_option (l,_) =
     match l with (OptExport | OptGlobal) -> Substitute | (OptLocal | OptDefault) -> Dispose
   in
   { (Libobject.default_object name) with
-    object_stage = stage;
     cache_function = cache_option;
     load_function = load_option;
     open_function = simple_open ~cat:opts_cat open_option;
@@ -323,7 +323,7 @@ let declare_option ?(preprocess = fun x -> x) ?(no_summary=false) ~kind
   check_key key;
   let () =
     if not no_summary then begin
-      let default = read() in
+      let default = read ~state in
       Summary.declare_summary (nickname key)
         { stage;
           Summary.freeze_function = read;
