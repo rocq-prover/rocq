@@ -29,6 +29,7 @@ Require Ltac2.List.
 Require Ltac2.Ltac1.
 Require Ltac2.Message.
 Require Ltac2.Meta.
+Require Ltac2.Module.
 Require Ltac2.Option.
 Require Ltac2.Pattern.
 Require Ltac2.Printf.

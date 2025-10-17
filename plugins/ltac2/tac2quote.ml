@@ -20,6 +20,7 @@ open Tac2qexpr
 
 let wit_pattern = Arg.create "pattern"
 let wit_reference = Arg.create "reference"
+let wit_module = Arg.create "module"
 let wit_ident = Arg.create "ident"
 let wit_constr = Arg.create "constr"
 let wit_open_constr = Arg.create "open_constr"
@@ -57,6 +58,8 @@ let t_ident = rocq_core "ident"
 let t_option = rocq_core "option"
 let t_exn = rocq_core "exn"
 let t_reference = std_core "reference"
+
+let t_module = kername (prefix_gen "Module") "t"
 
 let c_nil = rocq_core "[]"
 let c_cons = rocq_core "::"
@@ -449,6 +452,8 @@ let of_reference r =
     inj_wit ?loc:ref.loc wit_reference ref
   in
   of_anti of_ref r
+
+let of_module qid = inj_wit ?loc:qid.loc wit_module qid
 
 let of_strength ?loc s =
   let s = let open Genredexpr in match s with
