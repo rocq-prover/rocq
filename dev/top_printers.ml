@@ -647,7 +647,8 @@ let ppist ist =
 
 let in_current_context f c =
   let (evmap,sign) = get_current_context () in
-  f (fst (Constrintern.interp_constr sign evmap c))(*FIXME*)
+  (* FIXME dropping evar map *)
+  f (snd (Constrintern.interp_constr_evars sign evmap c)).uj_val
 
 (* We expand the result of preprocessing to be independent of camlp5
 
