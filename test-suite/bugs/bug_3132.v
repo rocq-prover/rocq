@@ -22,6 +22,12 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+#[universes(polymorphic)]
+Definition eq_Has_Leibniz_elim@{l} : Has_Leibniz@{Type Prop Prop;l Set Set} (fun A => @eq A) :=
+  fun A => @eq_ind A.
+
+Hint Resolve eq_Has_Leibniz_elim : rewrite_instances.
+
 Lemma foo (H : true = false) : False.
 Proof.
   discriminate.
