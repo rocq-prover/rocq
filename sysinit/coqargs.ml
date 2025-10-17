@@ -179,6 +179,9 @@ let add_load_vernacular opts verb s =
 let add_set_option opts opt_name value =
   { opts with pre = { opts.pre with injections = OptionInjection (opt_name, value) :: opts.pre.injections }}
 
+let add_set_warnings opts flags =
+  add_set_option opts ["Warnings"] (OptionSet (Some flags))
+
 let add_set_debug opts flags =
   add_set_option opts ["Debug"] (OptionSet (Some flags))
 
@@ -344,10 +347,7 @@ let parse_args ~init arglist : t * string list =
     |"-topfile" ->
       { oval with config = { oval.config with logic = { oval.config.logic with toplevel_name = TopPhysical (next()) }}}
 
-    |"-w" | "-W" ->
-      let w = next () in
-      if w = "none" then add_set_option oval ["Warnings"] (OptionSet(Some w))
-      else add_set_option oval ["Warnings"] (OptionSet (Some w))
+    |"-w" | "-W" -> add_set_warnings oval (next())
 
     |"-bytecode-compiler" ->
       { oval with config = { oval.config with enable_VM = get_bool ~opt (next ()) }}
@@ -403,7 +403,8 @@ let parse_args ~init arglist : t * string list =
     |"-boot" -> { oval with pre = { oval.pre with boot = true }}
     |"-profile-ltac" -> add_set_option oval ["Ltac"; "Profiling"] (OptionSet None)
     |"-q" -> { oval with pre = { oval.pre with load_rcfile = false; }}
-    |"-quiet"|"-silent" -> { oval with config = { oval.config with quiet = true } }
+    |"-quiet"|"-silent" ->
+      add_set_warnings { oval with config = { oval.config with quiet = true } } "-all"
     |"-time" -> { oval with config = { oval.config with time = Some ToFeedback }}
     |"-time-file" -> { oval with config = { oval.config with time = Some (ToFile (next())) }}
     | "-profile" -> { oval with config = { oval.config with profile = Some (next()) } }
