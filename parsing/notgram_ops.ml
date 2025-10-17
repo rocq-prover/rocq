@@ -36,7 +36,12 @@ let list_prefixes ntn =
          | Terminal s when String.equal s (Names.Id.to_string Notation_ops.ldots_var) -> 0, true
            (* the above is horribly hackish but we plan to rewrite recursive notations soon anyway *)
          | Terminal _ | SProdList _ | Break _ -> 0, inrec in
-       ([s], nt) :: List.map (fun (l, k) -> s :: l, k + nt) (aux inrec symbols) in
+       let q = List.map (fun (l, k) -> s :: l, k + nt) (aux inrec symbols) in
+       match s, symbols with
+       (* successive Terminal are considered at once by the parser,
+          don't list "'T1'" as prefix of "'T1' 'T2'" *)
+       | Terminal _, Terminal _ :: _ -> q
+       | _ -> ([s], nt) :: q in
   let entry, symbols = decompose_notation_key ntn in
   let symbols = match symbols with
     (* don't consider notations "{ _ ..." that have a special treatment *)
