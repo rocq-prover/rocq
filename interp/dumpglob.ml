@@ -20,10 +20,26 @@ type glob_output =
   | MultFiles of glob_file
   | File of string
 
+module Cache :
+sig
+  type t
+  val make : unit -> t
+  val with_cache : t -> string -> (string -> unit) -> unit
+end =
+struct
+  type t = String.Set.t ref
+  let make () = ref String.Set.empty
+  let with_cache cache data f =
+    if String.Set.mem data !cache then ()
+    else
+      let () = cache := String.Set.add data !cache in
+      f data
+end
+
 type glob_state =
   | StNoGlob
   | StFeedback
-  | StChannel of out_channel
+  | StChannel of { chan : out_channel; cache : Cache.t }
 
 let glob_output = ref []
 
@@ -40,11 +56,11 @@ let push_output g =
     let () = output_string ch "DIGEST " in
     let () = output_string ch (Digest.to_hex (Digest.file vfile)) in
     let () = output_char ch '\n' in
-    StChannel ch
+    StChannel { chan = ch; cache = Cache.make () }
   | File f ->
     let ch = open_out f in
     let () = output_string ch "DIGEST NO\n" in
-    StChannel ch
+    StChannel { chan = ch; cache = Cache.make () }
   in
   glob_output := g :: !glob_output
 
@@ -53,7 +69,7 @@ let pop_output () = match !glob_output with
 | hd :: ds ->
   let () = match hd with
   | StNoGlob | StFeedback -> ()
-  | StChannel ch -> close_out ch
+  | StChannel ch -> close_out ch.chan
   in
   glob_output := ds
 
@@ -75,7 +91,7 @@ let dump () = get_output () <> StNoGlob
 
 let dump_string s = match get_output () with
 | StNoGlob | StFeedback -> ()
-| StChannel ch -> output_string ch s
+| StChannel ch -> output_string ch.chan s
 
 open Decls
 open Declarations
@@ -168,10 +184,11 @@ let dump_ref ?loc filepath modpath ident ty =
         Feedback.feedback (Feedback.GlobRef (loc, filepath, modpath, ident, ty))
       ) loc
   | StNoGlob -> ()
-  | StChannel _ -> Option.iter (fun loc ->
-    let bl,el = interval loc in
-    dump_string (Printf.sprintf "R%d:%d %s %s %s %s\n"
-                  bl el filepath modpath ident ty)
+  | StChannel ch ->
+    Option.iter (fun loc ->
+      let bl, el = interval loc in
+      let payload = Printf.sprintf "R%d:%d %s %s %s %s\n" bl el filepath modpath ident ty in
+      Cache.with_cache ch.cache payload dump_string
     ) loc
 
 let dump_reference ?loc modpath ident ty =
