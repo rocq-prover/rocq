@@ -214,6 +214,7 @@ the optional tactic of the ``Hint Rewrite`` command.
 
    .. rocqtop:: in
 
+      Create Rewrite HintDb base0.
       Global Hint Rewrite Ack0 Ack1 Ack2 : base0.
 
    .. rocqtop:: all
@@ -244,6 +245,7 @@ the optional tactic of the ``Hint Rewrite`` command.
 
    .. rocqtop:: in extra-stdlib
 
+      Create Rewrite HintDb base1.
       Global Hint Rewrite g0 g1 g2 using lia : base1.
 
    .. rocqtop:: in extra-stdlib

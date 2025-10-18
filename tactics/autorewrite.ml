@@ -473,6 +473,10 @@ let warn_create_hintdb =
   CWarnings.create ~name:"already-declared-rewrite-hint-db" ~category:CWarnings.CoreCategories.automation
     Pp.(fun db -> str "Rewrite hint database " ++ str db.db_name ++ str " already exists.")
 
+let warn_implicit_create_hint_db =
+  CWarnings.create ~name:"implicit-create-rewrite-hint-db" ~category:Deprecation.Version.v9_2
+    (fun db -> strbrk "Implicitly declaring Rewrite hint databases is deprecated. Please explicitly create " ++ quote (str db))
+
 let cache_db db = match String.Map.find_opt db.db_name !rewtab with
 | None ->
   rewtab := String.Map.add db.db_name empty_rewrite_db !rewtab
@@ -588,7 +592,12 @@ let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
   let lrul = List.map map lrul in
   Lib.add_leaf (inHintRewrite (locality,(base,lrul)))
 
+
+let check_declared db =
+  if not (String.Map.mem db !rewtab) then warn_implicit_create_hint_db db
+
 let add_rewrite_hint ~locality ~poly bases ort t lcsr =
+  let () = List.iter check_declared bases in
   let env = Global.env() in
   let sigma = Evd.from_env env in
   let f ce =
