@@ -235,9 +235,9 @@ Rocq < AcceptTmp 81 (F E)
 Rocq < Accept 82 (F E)
      : Parsing
 
-Rocq < Toplevel input, characters 19-33:
+Rocq < Toplevel input, characters 19-31:
 > Check Reject 83 [1 atom1 post12 ].
->                    ^^^^^^^^^^^^^^
+>                    ^^^^^^^^^^^^
 Error: In term, tolerating this expression at a higher level than expected by
 the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
@@ -283,9 +283,9 @@ top symbol of this expression is parsed.
 Rocq < Accept 102 (G E E)
      : Parsing
 
-Rocq < Toplevel input, characters 20-38:
+Rocq < Toplevel input, characters 20-36:
 > Check Reject 103 [2 atom2 op22 atom2 ].
->                     ^^^^^^^^^^^^^^^^^^
+>                     ^^^^^^^^^^^^^^^^
 Error: In term, tolerating this expression at a higher level than expected by
 the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
@@ -307,9 +307,9 @@ top symbol of this expression is parsed.
 Rocq < Accept 112 (G E E)
      : Parsing
 
-Rocq < Toplevel input, characters 20-38:
+Rocq < Toplevel input, characters 20-36:
 > Check Reject 113 [1 atom1 op12 atom2 ].
->                     ^^^^^^^^^^^^^^^^^^
+>                     ^^^^^^^^^^^^^^^^
 Error: In term, tolerating this expression at a higher level than expected by
 the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
@@ -445,9 +445,9 @@ top symbol of this expression is parsed.
 Rocq < Rocq < Accept 200 (F (G E E))
      : Parsing
 
-Rocq < Toplevel input, characters 20-45:
+Rocq < Toplevel input, characters 20-43:
 > Check Reject 201 [1 atom1 op10 atom0 post12 ].
->                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+>                     ^^^^^^^^^^^^^^^^^^^^^^^
 Error: In term, tolerating this expression at a higher level than expected by
 the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
