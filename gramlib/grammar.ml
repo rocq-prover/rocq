@@ -1053,8 +1053,8 @@ let warn_tolerance =
         strbrk " This tolerance will be eventually removed." ++
         strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
 
-let warn_recover ename bp strm__ =
-  let ep = LStream.count strm__ in
+let warn_recover ename bp ?ep strm__ =
+  let ep = match ep with Some ep -> ep | None -> LStream.count strm__ in
   let loc = LStream.interval_loc bp ep strm__ in
   warn_tolerance ~loc (ename, "by the notation started on the left")
 
@@ -1164,9 +1164,10 @@ and parser_cont : type s tr tr' a r.
           let* s' = entry_of_symb entry s in
           continue_parser_of_entry gstate s' None 0 bp a0 strm__
         in
+        let ep = LStream.count strm__ in
         let a = or_fail a0 a in
         let act = or_fail a (p1 gstate strm__) in
-        warn_recover entry.ename bp strm__;
+        warn_recover entry.ename bp ~ep strm__;
         Ok (act a)
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
