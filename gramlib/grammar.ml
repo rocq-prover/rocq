@@ -1049,23 +1049,22 @@ let warn_tolerance =
                           ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
     Pp.(fun (e, msg) ->
         strbrk "In " ++ str e ++ str ", tolerating this expression at" ++
-        strbrk " a higher level than expected." ++
-        pr_opt (fun m -> strbrk (" " ^ m)) msg ++
+        strbrk " a higher level than expected " ++ strbrk msg ++ str "." ++
         strbrk " This tolerance will be eventually removed." ++
         strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
 
 let warn_recover ename bp strm__ =
   let ep = LStream.count strm__ in
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, None)
+  warn_tolerance ~loc (ename, "by the notation started on the left")
 
 let warn_recover_continuation ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, None)
+  warn_tolerance ~loc (ename, "by the notation continuing on the right")
 
 let warn_recover_last_start ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, Some "(there is no next level of last level)")
+  warn_tolerance ~loc (ename, "(there is no next level of last level)")
 
 let empty_entry ename levn strm =
   raise (ParseError ("entry [" ^ ename ^ "] is empty"))

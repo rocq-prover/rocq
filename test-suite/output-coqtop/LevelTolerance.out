@@ -76,9 +76,10 @@ Rocq < Rocq < Entry custom:Top.expr is
 Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Rocq < Toplevel input, characters 496-503:
 > Check Reject 10 [2 atom3 ].
 >                    ^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 11 E
@@ -87,9 +88,10 @@ Rocq < Accept 11 E
 Rocq < Toplevel input, characters 19-26:
 > Check Reject 12 [1 atom2 ].
 >                    ^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 13 E
@@ -99,8 +101,9 @@ Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 20 [2 pre22 atom3 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 21 (F E)
@@ -109,17 +112,19 @@ Rocq < Accept 21 (F E)
 Rocq < Toplevel input, characters 19-32:
 > Check Reject 22 [1 pre22 atom2 ].
 >                    ^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 30 [2 pre21 atom2 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 31 (F E)
@@ -128,25 +133,28 @@ Rocq < Accept 31 (F E)
 Rocq < Toplevel input, characters 19-32:
 > Check Reject 32 [1 pre21 atom1 ].
 >                    ^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 40 [2 pre11 atom2 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Toplevel input, characters 25-30:
 > Check Reject 41 [1 pre11 atom2 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 42 (F E)
@@ -155,17 +163,19 @@ Rocq < Accept 42 (F E)
 Rocq < Toplevel input, characters 19-32:
 > Check Reject 43 [0 pre11 atom1 ].
 >                    ^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 50 [1 pre10 atom1 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 51 (F E)
@@ -174,25 +184,28 @@ Rocq < Accept 51 (F E)
 Rocq < Toplevel input, characters 19-32:
 > Check Reject 52 [0 pre10 atom0 ].
 >                    ^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 60 [1 pre00 atom1 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Toplevel input, characters 25-30:
 > Check Reject 61 [0 pre00 atom1 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 62 (F E)
@@ -202,7 +215,7 @@ Rocq < Rocq < Toplevel input, characters 26-31:
 > Check Reject 70 [0 pre0x atom0 ].
 >                          ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected.  (there is no next level of last level) This tolerance will be
+expected (there is no next level of last level). This tolerance will be
 eventually removed. Insert parentheses or try to lower the level at which the
 top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
@@ -211,8 +224,9 @@ Rocq < Rocq < Toplevel input, characters 20-25:
 > Check Reject 80 [2 atom3 post12 ].
 >                    ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation continuing on the right. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < AcceptTmp 81 (F E)
@@ -224,17 +238,19 @@ Rocq < Accept 82 (F E)
 Rocq < Toplevel input, characters 19-33:
 > Check Reject 83 [1 atom1 post12 ].
 >                    ^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 20-25:
 > Check Reject 90 [2 atom2 post11 ].
 >                    ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation continuing on the right. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 91 (F E)
@@ -246,9 +262,10 @@ Rocq < Accept 92 (F E)
 Rocq < Toplevel input, characters 19-33:
 > Check Reject 93 [0 atom1 post11 ].
 >                    ^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < AcceptTmp 100 (G E E)
@@ -258,8 +275,9 @@ Rocq < Toplevel input, characters 31-36:
 > Check Reject 101 [3 atom2 op22 atom3 ].
 >                                ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 102 (G E E)
@@ -268,9 +286,10 @@ Rocq < Accept 102 (G E E)
 Rocq < Toplevel input, characters 20-38:
 > Check Reject 103 [2 atom2 op22 atom2 ].
 >                     ^^^^^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < AcceptTmp 110 (G E E)
@@ -280,8 +299,9 @@ Rocq < Toplevel input, characters 31-36:
 > Check Reject 111 [2 atom1 op12 atom3 ].
 >                                ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 112 (G E E)
@@ -290,25 +310,28 @@ Rocq < Accept 112 (G E E)
 Rocq < Toplevel input, characters 20-38:
 > Check Reject 113 [1 atom1 op12 atom2 ].
 >                     ^^^^^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Toplevel input, characters 21-26:
 > Check Reject 120 [1 atom2 op10 atom0].
 >                     ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation continuing on the right. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Toplevel input, characters 31-36:
 > Check Reject 121 [1 atom1 op10 atom1].
 >                                ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 122 (G E E)
@@ -317,9 +340,10 @@ Rocq < Accept 122 (G E E)
 Rocq < Toplevel input, characters 20-37:
 > Check Reject 123 [0 atom1 op10 atom0].
 >                     ^^^^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < AcceptTmp 130 (F (G E E))
@@ -347,8 +371,9 @@ Rocq < Toplevel input, characters 37-42:
 > Check Reject 151 [2 atom1 op12 pre21 atom2 ].
 >                                      ^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 152 (G E (F E))
@@ -364,8 +389,9 @@ Rocq < Toplevel input, characters 31-43:
 > Check Reject 162 [2 atom1 op10 atom1 post12 ].
 >                                ^^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 163 (F (G E E))
@@ -378,8 +404,9 @@ Rocq < Toplevel input, characters 26-42:
 > Check Reject 171 [1 pre10 atom1 op10 atom0 ].
 >                           ^^^^^^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 172 (G (F E) E)
@@ -389,8 +416,9 @@ Rocq < Rocq < Toplevel input, characters 21-33:
 > Check Reject 180 [1 atom1 post12 op10 atom0 ].
 >                     ^^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation continuing on the right. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 181 (G (F E) E)
@@ -400,16 +428,18 @@ Rocq < Rocq < Toplevel input, characters 32-43:
 > Check Reject 190 [1 atom1 op10 pre11 atom0 ].
 >                                ^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Toplevel input, characters 31-42:
 > Check Reject 191 [1 atom1 op10 pre10 atom0 ].
 >                                ^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Rocq < Accept 200 (F (G E E))
@@ -418,9 +448,10 @@ Rocq < Rocq < Accept 200 (F (G E E))
 Rocq < Toplevel input, characters 20-45:
 > Check Reject 201 [1 atom1 op10 atom0 post12 ].
 >                     ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In term, tolerating this expression at a higher level than expected.
-This tolerance will be eventually removed. Insert parentheses or try to lower
-the level at which the top symbol of this expression is parsed.
+Error: In term, tolerating this expression at a higher level than expected by
+the notation started on the left. This tolerance will be eventually removed.
+Insert parentheses or try to lower the level at which the top symbol of this
+expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 202 (F (G E E))
@@ -436,8 +467,9 @@ Rocq < Rocq < Toplevel input, characters 32-48:
 > Check Reject 220 [1 atom1 op10 atom1 op10 atom0 ].
 >                                ^^^^^^^^^^^^^^^^
 Error: In custom:Top.expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 221 (G (G E E) E)
@@ -839,8 +871,9 @@ Rocq < Rocq < Toplevel input, characters 24-29:
 > Check Reject 230 ltac:(atom5 ; atom3).
 >                        ^^^^^
 Error: In ltac_expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation continuing on the right. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Toplevel input, characters 31-36:
@@ -904,8 +937,9 @@ Rocq < Toplevel input, characters 31-36:
 > Check Reject 261 ltac:(atom1 + atom3).
 >                                ^^^^^
 Error: In ltac_expr, tolerating this expression at a higher level than
-expected. This tolerance will be eventually removed. Insert parentheses or
-try to lower the level at which the top symbol of this expression is parsed.
+expected by the notation started on the left. This tolerance will be
+eventually removed. Insert parentheses or try to lower the level at which the
+top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
 
 Rocq < Accept 262 ?Goal
