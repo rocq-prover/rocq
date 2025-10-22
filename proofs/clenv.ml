@@ -141,9 +141,15 @@ let get_head_ref sigma c =
   | (gr, u) -> Some (gr, u, args)
   | exception DestKO -> None
 
+let is_cumulative env r =  let open GlobRef in match r with
+  | ConstructRef ((mind,_),_) | IndRef (mind,_)  ->
+      let mind = Environ.lookup_mind mind env in
+      Declareops.inductive_is_cumulative mind
+  | _ -> false
+
 let rec first_order_match env sigma bound accu c1 c2 = match get_head_ref sigma c1, get_head_ref sigma c2 with
 | Some (gr1, u1, args1), Some (gr2, u2, args2) ->
-  if QGlobRef.equal env gr1 gr2 then
+  if QGlobRef.equal env gr1 gr2 && not (is_cumulative env gr1) then
     let _q1, u1 = UVars.Instance.to_array (EConstr.Unsafe.to_instance u1) in
     let _q2, u2 = UVars.Instance.to_array (EConstr.Unsafe.to_instance u2) in
     let accu = Array.fold_left2 (fun accu u u0 -> if Univ.Level.Set.mem u0 bound then Univ.Level.Map.add u0 u accu else accu) accu u1 u2 in
