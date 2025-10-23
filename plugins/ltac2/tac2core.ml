@@ -1117,6 +1117,8 @@ let () =
   Proofview.Goal.enter @@ fun gl ->
   Refine.generic_refine ~typecheck:true c gl
 
+let () = define "solve_constraints" (unit @-> tac unit) @@ fun () -> Refine.solve_constraints
+
 let () =
   define "with_holes" (thunk valexpr @-> fun1 valexpr valexpr @-> tac valexpr) @@ fun x f ->
   Tacticals.tclRUNWITHHOLES false (thaw x) f
