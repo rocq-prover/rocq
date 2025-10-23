@@ -27,7 +27,7 @@ type conditions =
   | FirstSolved (* Use the first match whose side-conditions are solved *)
   | AllMatches (* Rewrite all matches whose side-conditions are solved *)
 
-val eq_eliminator : Environ.env -> Evd.evar_map -> Evd.econstr ->
+val lookup_eq_eliminator_opt : Environ.env -> Evd.evar_map -> Evd.econstr ->
   ?dep:orientation -> ?inccl:orientation -> orientation option ->
   c_sort:ESorts.t ->
   e_sort:ESorts.t ->

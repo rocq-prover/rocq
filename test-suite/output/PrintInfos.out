@@ -84,7 +84,7 @@ Arguments bar {x}
 Module Corelib.Init.Peano
 Notation sym_eq := eq_sym
 Expands to: Notation Corelib.Init.Logic.sym_eq
-Declared in library Corelib.Init.Logic, line 940, characters 0-45
+Declared in library Corelib.Init.Logic, line 838, characters 0-45
 
 eq_sym : forall [A : Type] [x y : A], x = y -> y = x
 
@@ -92,7 +92,7 @@ eq_sym is not universe polymorphic
 Arguments eq_sym [A]%_type_scope [x y] _
 eq_sym is transparent
 Expands to: Constant Corelib.Init.Logic.eq_sym
-Declared in library Corelib.Init.Logic, line 513, characters 12-18
+Declared in library Corelib.Init.Logic, line 462, characters 12-18
 Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x.
 
 Arguments eq {A}%_type_scope x _

@@ -325,6 +325,25 @@ let scheme_name dep lft2rgt inccl =
     | true, _, true -> rew_r2l_dep_scheme_kind
     | true, _, false -> rew_r2l_forward_dep_scheme_kind
 
+let eq_scheme_name dep lft2rgt inccl target = let open Sorts.Quality in
+  match dep, lft2rgt, inccl, target with
+    (* Non dependent case *)
+    | false, Some true, true , QConstant QType -> Rocqlib.lib_ref_opt "core.eq.rect_r" , 5
+    | false, Some true, true , QConstant QProp -> Rocqlib.lib_ref_opt "core.eq.ind_r" , 5
+    | false, Some true, false , QConstant QType -> Rocqlib.lib_ref_opt "core.eq.rect" , 5
+    | false, Some true, false , QConstant QProp -> Rocqlib.lib_ref_opt "core.eq.ind" , 5
+    | false, _ , false , QConstant QType -> Rocqlib.lib_ref_opt "core.eq.rect_r" , 5
+    | false, _ , false , QConstant QProp -> Rocqlib.lib_ref_opt "core.eq.ind_r" , 5
+    | false, _ , true , QConstant QProp -> Rocqlib.lib_ref_opt "core.eq.ind" , 5
+    | false, _ , true , QConstant QType -> Rocqlib.lib_ref_opt "core.eq.rect" , 5
+    (* Dependent case *)
+    | true, Some true, true , QConstant QType  -> Rocqlib.lib_ref_opt "core.eq.rect_r_dep", 5
+    | true, Some true, true , QConstant QProp  -> Rocqlib.lib_ref_opt "core.eq.ind_r_dep" , 5
+    | true, _ , true , QConstant QType  -> Rocqlib.lib_ref_opt "core.eq.rect_dep" , 5
+    | true, _ , true , QConstant QProp  -> Rocqlib.lib_ref_opt "core.eq.ind_dep" , 5
+    | _ , _, _ , _ -> None , 0
+
+
 (* has_J_ref returns the name of the class to be used, dependending on dep(endency), in conclusion or not and left-to-right *)
 (* The integer encodes the position of the equality argument in the elimination principle, starting from 0 *)
 let has_J_ref dep lft2rgt inccl =
@@ -386,7 +405,7 @@ let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
     let sigma , app = Typing.checked_appvect env sigma has_J_class [| eq |] in
     (sigma , (app, AtPosition indarg))
 
-let lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+let lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
   let sigma, (query,indarg) = lookup_eq_eliminator env sigma eq
       ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort in
   let db = Hints.searchtable_map rewrite_db in
@@ -405,18 +424,34 @@ let lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_so
   in
   ((sigma , eta_reduce c), indarg)
 
-let lookup_eq_eliminator_tac env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+  let is_global_exists gr c = match Rocqlib.lib_ref_opt gr with
+    | Some gr -> isRefX env sigma gr c
+    | None -> false in
+  let is_eq = is_global_exists "core.eq.type" eq in
+  let eq_scheme = eq_scheme_name dep l2r inccl (ESorts.quality sigma p_sort) in
+  let is_some_scheme x = match x with Some _ , _ -> true | None , _ -> false in
+  if is_eq && is_some_scheme eq_scheme then
+    match eq_scheme with
+    | Some r , indarg ->
+      let elim = destConstRef r in
+      let (sigma, (c,u)) = Evd.fresh_constant_instance env sigma elim in
+      ((sigma , mkConstU (c,u)), AtPosition indarg)
+    | None , _ -> assert false (* Not possible *)
+  (* avoid to check instance for non homogenous equality types *)
+  else begin
   try
-    lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
+    lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
   with Not_found -> user_err Pp.(
       str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
       str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
       str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
+  end
 
-let eq_eliminator env sigma eq ?(dep=false) ?(inccl=true) l2r ~c_sort ~e_sort ~p_sort =
-  try let ((sigma , c), indarg) = lookup_eq_eliminator_gen env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort in
+let lookup_eq_eliminator_opt env sigma eq ?(dep=false) ?(inccl=true) l2r ~c_sort ~e_sort ~p_sort =
+  try let ((sigma , c), indarg) = lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort in
       Some ((sigma , c), indarg)
-  with Not_found -> None
+  with _ -> None
 
 (* find_elim determines which elimination principle is necessary to
    eliminate lbeq on sort_of_gl. *)
@@ -426,6 +461,14 @@ let find_elim lft2rgt dep cls (ctx, hdcncl, args) =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let inccl = Option.is_empty cls in
+  let p_sort = match cls with
+    | None ->
+        Retyping.get_sort_of env sigma (Proofview.Goal.concl gl)
+    | Some id -> begin
+        let hyp = mkVar id in
+        let hyp_typ = Retyping.get_type_of env sigma hyp in
+        Retyping.get_sort_of env sigma hyp_typ
+      end in
   let gen_elim =
      match EConstr.kind sigma hdcncl with
     | Ind (ind,u) ->
@@ -437,23 +480,13 @@ let find_elim lft2rgt dep cls (ctx, hdcncl, args) =
       Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (mkConstU (c,u), UnknownPosition)
     | _ -> assert false
   in
-  (* avoid to check instance for non homogenous equality types *)
   if List.length args = 3
   then
     let env' = EConstr.push_rel_context ctx env in
     let args = Array.of_list args in
     let e_sort = Retyping.get_sort_of env' sigma (mkApp (hdcncl, args)) in
     let c_sort = Retyping.get_sort_of env' sigma args.(0) in
-    let p_sort = match cls with
-      | None ->
-          Retyping.get_sort_of env sigma (Proofview.Goal.concl gl)
-      | Some id -> begin
-          let hyp = mkVar id in
-          let hyp_typ = Retyping.get_type_of env sigma hyp in
-          Retyping.get_sort_of env sigma hyp_typ
-        end
-    in
-    match eq_eliminator env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
+    match lookup_eq_eliminator_opt env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
     | Some ((sigma, c),indarg) ->
         Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (c,indarg)
     | None -> gen_elim
@@ -1082,7 +1115,7 @@ let discrimination_pf e (eq,_,s,(t,t1,t2)) discriminator p_sort =
   Proofview.Goal.enter_one begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let ((sigma, c),_) = lookup_eq_eliminator_tac env sigma eq
+    let ((sigma, c),_) = lookup_eq_eliminator_with_error env sigma eq
       ~dep:false ~inccl:true ~l2r:(Some false)
       ~e_sort:s
       ~c_sort:(Retyping.get_sort_of env sigma t)

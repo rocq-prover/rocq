@@ -390,7 +390,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   let sigma, elim =
     let p_sort = Retyping.get_sort_of env sigma (Proofview.Goal.concl gl) in
     let elim =
-      Equality.eq_eliminator env sigma eq (Some (dir = L2R)) ~c_sort ~e_sort ~p_sort
+      Equality.lookup_eq_eliminator_opt env sigma eq (Some (dir = L2R)) ~c_sort ~e_sort ~p_sort
     in match elim with
     | Some ((sigma, elim),_) ->
       debug_ssr Pp.(fun () -> str"elim=" ++ pr_econstr_env env sigma elim);
