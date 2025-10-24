@@ -15,6 +15,7 @@ through the <tt>Require Import</tt> command.</p>
   <dd>
     theories/Corelib/Init/Ltac.v
     theories/Corelib/Init/Notations.v
+    theories/Corelib/Init/Equality.v
     theories/Corelib/Init/Datatypes.v
     theories/Corelib/Init/Logic.v
     theories/Corelib/Init/Byte.v

@@ -10,10 +10,9 @@
 
 Set Implicit Arguments.
 
+Require Export Equality.
 Require Export Notations.
 Require Import Ltac.
-
-Notation "A -> B" := (forall (_ : A), B) : type_scope.
 
 (** * Propositional connectives *)
 
@@ -406,6 +405,47 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+Instance eq_Has_Prop_refl : Has_refl@{Prop Prop;Set Set} (fun A => @eq A)
+  := @eq_refl.
+
+#[universes(polymorphic)]
+Instance eq_Has_refl@{l} : Has_refl@{Type Prop;l Set} (fun a => @eq a)
+  := fun A => @eq_refl A.
+
+#[universes(polymorphic)]
+Definition eq_elim@{s;l l'} (A : Type@{l}) (x : A) (P : forall y: A, x = y -> Type@{s ; l'})
+  (t : P x eq_refl) (y : A) (e : x = y) :  P y e :=
+  match e with eq_refl => t end.
+
+#[universes(polymorphic)]
+Definition eq_Has_Leibniz_Prop_elim@{s;l} : Has_Leibniz@{Prop Prop s;Set Set l} (@eq)
+  := fun A x P => @eq_elim A x (fun y _ => P y).
+
+Hint Resolve eq_Has_Leibniz_Prop_elim : rewrite_instances.
+
+#[universes(polymorphic)]
+Definition eq_Has_Leibniz_elim@{s; l l'} : Has_Leibniz@{Type Prop s;l Set l'} (fun a => @eq a)
+  := fun A x P => @eq_elim A x (fun y _ => P y).
+
+Hint Resolve eq_Has_Leibniz_elim : rewrite_instances.
+
+(* Those instance were defined using internally generated scheme *)
+
+#[universes(polymorphic)]
+Definition eq_Has_J_Prop_elim@{s; l} : Has_J@{Prop Prop s ; Set Set l} (fun a => @eq a) _ :=
+  @eq_elim.
+
+Hint Resolve eq_Has_J_Prop_elim : rewrite_instances.
+
+#[universes(polymorphic)]
+Definition eq_Has_J_elim@{s; l l'} : Has_J@{Type Prop s ; l Set l'} (@eq) _ :=
+  @eq_elim.
+
+Hint Resolve eq_Has_J_elim : rewrite_instances.
+
+Definition eq_rect_dep@{l l'} := eq_elim@{Type;l l'}.
+Definition eq_ind_dep@{l} := eq_elim@{Prop;l Set}.
+
 Section Logic_lemmas.
 
   Theorem absurd : forall A C:Prop, A -> ~ A -> C.
@@ -452,21 +492,18 @@ Section Logic_lemmas.
 
   End equality.
 
-  Definition eq_sind_r :
-    forall (A:Type) (x:A) (P:A -> SProp), P x -> forall y:A, y = x -> P y.
+  Theorem eq_sym_involutive A (x y:A) (e:x=y) : eq_sym (eq_sym e) = e.
   Proof.
-    intros A x P H y H0. elim eq_sym with (1 := H0); assumption.
+  destruct e; reflexivity.
   Defined.
+
+  #[universes(polymorphic)]
+  Definition eq_elim_r@{s;l l'} :
+    forall (A:Type@{l}) (x:A) (P:A -> Type@{s;l'}), P x -> forall y:A, y = x -> P y :=
+    fun A x P t y e => match eq_sym e with eq_refl => t end.
 
   Definition eq_ind_r :
     forall (A:Type) (x:A) (P:A -> Prop), P x -> forall y:A, y = x -> P y.
-    intros A x P H y H0. elim eq_sym with (1 := H0); assumption.
-  Defined.
-
-  Register eq_ind_r as core.eq.ind_r.
-
-  Definition eq_rec_r :
-    forall (A:Type) (x:A) (P:A -> Set), P x -> forall y:A, y = x -> P y.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
 
@@ -474,7 +511,53 @@ Section Logic_lemmas.
     forall (A:Type) (x:A) (P:A -> Type), P x -> forall y:A, y = x -> P y.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
+
 End Logic_lemmas.
+
+Abbreviation eq_rec_r := eq_rect_r.
+
+#[universes(polymorphic)]
+Definition eq_Has_Leibniz_r_Prop_elim@{s;l} : Has_Leibniz_r@{Prop Prop s;Set Set l} (fun a => @eq a)
+  := fun A x P => @eq_elim_r A x P.
+
+Hint Resolve eq_Has_Leibniz_r_Prop_elim : rewrite_instances.
+
+#[universes(polymorphic)]
+Definition eq_Has_Leibniz_r_elim@{s; l l'} : Has_Leibniz_r@{Type Prop s;l Set l'} (fun a => @eq a)
+  := fun A x P => @eq_elim_r A x P.
+
+Hint Resolve eq_Has_Leibniz_r_elim : rewrite_instances.
+
+(* Those instance were defined using internally generated scheme *)
+
+#[universes(polymorphic)]
+Definition eq_elim_r_dep@{s;l l'} {A:Type@{l}} (x : A) (P : forall y : A, y = x -> Type@{s;l'})
+  : P x eq_refl -> forall y e , P y e.
+  intros t y e. rewrite <- (eq_sym_involutive e).
+  exact (eq_elim (fun y e => P y (eq_sym e)) t (eq_sym e)).
+Defined.
+
+Definition eq_rect_r_dep@{l l'} {A} :=  @eq_elim_r_dep@{Type; l l'} A.
+Definition eq_ind_r_dep@{l} {A} :=  @eq_elim_r_dep@{Prop; l Set} A.
+
+#[universes(polymorphic)]
+Definition eq_Has_J_r_Prop_elim@{s;l} : Has_J_r@{Prop Prop s; Set Set l} (fun a => @eq a) _
+  := @eq_elim_r_dep.
+
+Hint Resolve eq_Has_J_r_Prop_elim : rewrite_instances.
+
+#[universes(polymorphic)]
+Definition eq_Has_J_r_elim@{s;l l'} : Has_J_r@{Type Prop s; l Set l'} (fun a => @eq a) _
+  := @eq_elim_r_dep.
+
+Hint Resolve eq_Has_J_r_elim : rewrite_instances.
+
+Register eq_ind_r as core.eq.ind_r.
+Register eq_rect_r as core.eq.rect_r.
+Register eq_rect_dep as core.eq.rect_dep.
+Register eq_ind_dep as core.eq.ind_dep.
+Register eq_rect_r_dep as core.eq.rect_r_dep.
+Register eq_ind_r_dep as core.eq.ind_r_dep.
 
 Module EqNotations.
   Notation "'rew' H 'in' H'" := (eq_rect _ _ H' _ H)
@@ -633,11 +716,6 @@ Defined.
 Theorem eq_trans_refl_r A (x y:A) (e:x=y) : eq_trans e eq_refl = e.
 Proof.
   destruct e. reflexivity.
-Defined.
-
-Theorem eq_sym_involutive A (x y:A) (e:x=y) : eq_sym (eq_sym e) = e.
-Proof.
-  destruct e; reflexivity.
 Defined.
 
 Theorem eq_trans_sym_inv_l A (x y:A) (e:x=y) : eq_trans (eq_sym e) e = eq_refl.

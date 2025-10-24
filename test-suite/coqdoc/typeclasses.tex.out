@@ -20,7 +20,7 @@
 
 \begin{coqdoccode}
 \coqdocnoindent
-\coqdockw{Class} \coqdef{Coqdoc.typeclasses.EqDec}{EqDec}{\coqdocrecord{EqDec}} \coqdef{Coqdoc.typeclasses.T:1}{T}{\coqdocbinder{T}} := \{ \coqdef{Coqdoc.typeclasses.eqb}{eqb}{\coqdocprojection{eqb}} : \coqref{Coqdoc.typeclasses.T:1}{\coqdocvariable{T}} \coqexternalref{::type scope:x '->' x}{http://coq.inria.fr/stdlib/Corelib.Init.Logic}{\coqdocnotation{\ensuremath{\rightarrow}}} \coqref{Coqdoc.typeclasses.T:1}{\coqdocvariable{T}} \coqexternalref{::type scope:x '->' x}{http://coq.inria.fr/stdlib/Corelib.Init.Logic}{\coqdocnotation{\ensuremath{\rightarrow}}} \coqexternalref{bool}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{bool}} \}.\coqdoceol
+\coqdockw{Class} \coqdef{Coqdoc.typeclasses.EqDec}{EqDec}{\coqdocrecord{EqDec}} \coqdef{Coqdoc.typeclasses.T:1}{T}{\coqdocbinder{T}} := \{ \coqdef{Coqdoc.typeclasses.eqb}{eqb}{\coqdocprojection{eqb}} : \coqref{Coqdoc.typeclasses.T:1}{\coqdocvariable{T}} \coqexternalref{::type scope:x '->' x}{http://coq.inria.fr/stdlib/Corelib.Init.Equality}{\coqdocnotation{\ensuremath{\rightarrow}}} \coqref{Coqdoc.typeclasses.T:1}{\coqdocvariable{T}} \coqexternalref{::type scope:x '->' x}{http://coq.inria.fr/stdlib/Corelib.Init.Equality}{\coqdocnotation{\ensuremath{\rightarrow}}} \coqexternalref{bool}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{bool}} \}.\coqdoceol
 \coqdocemptyline
 \coqdocnoindent
 \coqdockw{Section} \coqdef{Coqdoc.typeclasses.TC}{TC}{\coqdocsection{TC}}.\coqdoceol
