@@ -1038,7 +1038,7 @@ and detype_eqn d flags avoid env sigma u pms constr br =
   let ctx, body = RobustExpand.branch (snd env) sigma constr u pms br in
   let branch = EConstr.it_mkLambda_or_LetIn body ctx in
   let make_pat decl avoid env b ids =
-    if force_wildcard () && noccurn sigma 1 b then
+    if force_wildcard () && not !Flags.in_debugger && noccurn sigma 1 b then
       DAst.make @@ PatVar Anonymous,avoid,(add_name (set_name Anonymous decl) env),ids
     else
       let na,avoid' = compute_name sigma ~let_in:false ~pattern:true flags avoid env (get_name decl) b in
