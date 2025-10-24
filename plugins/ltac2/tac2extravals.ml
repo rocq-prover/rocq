@@ -413,8 +413,11 @@ let () =
 let add_syntax_class_full s f =
   Tac2entries.register_syntax_class (Id.of_string s) f
 
-let add_syntax_class s f =
-  add_syntax_class_full s (fun s -> Tac2entries.no_used_levels, f s)
+let add_syntax_class s intern f =
+  add_syntax_class_full s {
+    intern_synclass = (fun s -> Tac2entries.no_used_levels, intern s);
+    interp_synclass = (fun s -> f s);
+  }
 
 let syntax_class_fail s args =
   let args = str "(" ++ prlist_with_sep (fun () -> str ", ") Tac2print.pr_syntax_class args ++ str ")" in
@@ -424,8 +427,10 @@ let q_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0))
 
 let add_expr_syntax_class name entry f =
   add_syntax_class name begin function
-  | [] -> Tac2entries.SyntaxRule (Procq.Symbol.nterm entry, f)
+  | [] -> ()
   | arg -> syntax_class_fail name arg
+  end begin fun () ->
+    Tac2entries.SyntaxRule (Procq.Symbol.nterm entry, f)
   end
 
 let add_generic_syntax_class s entry arg =
@@ -434,100 +439,136 @@ let add_generic_syntax_class s entry arg =
 open CAst
 
 let () = add_syntax_class "keyword" begin function
-| [SexprStr {loc;v=s}] ->
-  let syntax_class = Procq.Symbol.token (Tok.PKEYWORD s) in
-  Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+| [SexprStr {loc;v=s}] -> s
 | arg -> syntax_class_fail "keyword" arg
-end
+  end begin fun s ->
+    let syntax_class = Procq.Symbol.token (Tok.PKEYWORD s) in
+    Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+  end
 
 let () = add_syntax_class "terminal" begin function
-| [SexprStr {loc;v=s}] ->
-  let syntax_class = Procq.Symbol.token (Procq.terminal s) in
-  Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+| [SexprStr {loc;v=s}] -> s
 | arg -> syntax_class_fail "terminal" arg
-end
+  end begin fun s ->
+    let syntax_class = Procq.Symbol.token (Procq.terminal s) in
+    Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+  end
 
-let () = add_syntax_class_full "list0" begin function
-| [tok] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let syntax_class = Procq.Symbol.list0 syntax_class in
-  let act l = Tac2quote.of_list act l in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| [tok; SexprStr {v=str}] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
-  let syntax_class = Procq.Symbol.list0sep syntax_class sep in
-  let act l = Tac2quote.of_list act l in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "list0" arg
-end
+let () = add_syntax_class_full "list0" {
+  intern_synclass = begin function
+  | [tok] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, (subclass, None)
+  | [tok; SexprStr {v=str}] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, (subclass, Some str)
+  | arg -> syntax_class_fail "list0" arg
+  end;
+  interp_synclass = begin function
+  | subclass, None ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let syntax_class = Procq.Symbol.list0 syntax_class in
+    let act l = Tac2quote.of_list act l in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  | subclass, Some str ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
+    let syntax_class = Procq.Symbol.list0sep syntax_class sep in
+    let act l = Tac2quote.of_list act l in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end;
+}
 
-let () = add_syntax_class_full "list1" begin function
-| [tok] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let syntax_class = Procq.Symbol.list1 syntax_class in
-  let act l = Tac2quote.of_list act l in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| [tok; SexprStr {v=str}] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
-  let syntax_class = Procq.Symbol.list1sep syntax_class sep in
-  let act l = Tac2quote.of_list act l in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "list1" arg
-end
+let () = add_syntax_class_full "list1" {
+  intern_synclass = begin function
+  | [tok] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, (subclass, None)
+  | [tok; SexprStr {v=str}] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, (subclass, Some str)
+  | arg -> syntax_class_fail "list1" arg
+  end;
+  interp_synclass = begin function
+  | subclass, None ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let syntax_class = Procq.Symbol.list1 syntax_class in
+    let act l = Tac2quote.of_list act l in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  | subclass, Some str ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
+    let syntax_class = Procq.Symbol.list1sep syntax_class sep in
+    let act l = Tac2quote.of_list act l in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end;
+}
 
-let () = add_syntax_class_full "opt" begin function
-| [tok] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let syntax_class = Procq.Symbol.opt syntax_class in
-  let act opt = match opt with
-  | None ->
-    CAst.make @@ CTacCst (AbsKn (Other c_none))
-  | Some x ->
-    CAst.make @@ CTacApp (CAst.make @@ CTacCst (AbsKn (Other c_some)), [act x])
-  in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "opt" arg
-end
+let () = add_syntax_class_full "opt" {
+  intern_synclass = begin function
+  | [tok] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, subclass
+  | arg -> syntax_class_fail "opt" arg
+  end;
+  interp_synclass = begin fun subclass ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let syntax_class = Procq.Symbol.opt syntax_class in
+    let act opt = match opt with
+      | None ->
+        CAst.make @@ CTacCst (AbsKn (Other c_none))
+      | Some x ->
+        CAst.make @@ CTacApp (CAst.make @@ CTacCst (AbsKn (Other c_some)), [act x])
+    in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end;
+}
 
 let () = add_syntax_class "self" begin function
-| [] ->
-  let syntax_class = Procq.Symbol.self in
-  let act tac = tac in
-  Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "self" arg
-end
+  | [] -> ()
+  | arg -> syntax_class_fail "self" arg
+  end begin fun () ->
+    let syntax_class = Procq.Symbol.self in
+    let act tac = tac in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end
 
 let () = add_syntax_class "next" begin function
-| [] ->
-  let syntax_class = Procq.Symbol.next in
-  let act tac = tac in
-  Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "next" arg
-end
+  | [] -> ()
+  | arg -> syntax_class_fail "next" arg
+  end begin fun () ->
+    let syntax_class = Procq.Symbol.next in
+    let act tac = tac in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end
 
 let () = add_syntax_class "tactic" begin function
-| [] ->
-  (* Default to level 5 parsing *)
-  let syntax_class = Procq.Symbol.nterml ltac2_expr "5" in
-  let act tac = tac in
-  Tac2entries.SyntaxRule (syntax_class, act)
-| [SexprInt {loc;v=n}] as arg ->
-  let () = if n < 0 || n > 6 then syntax_class_fail "tactic" arg in
-  let syntax_class = Procq.Symbol.nterml ltac2_expr (string_of_int n) in
-  let act tac = tac in
-  Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "tactic" arg
-end
+  | [] ->
+    (* Default to level 5 parsing *)
+    5
+  | [SexprInt {loc;v=n}] as arg ->
+    let () = if n < 0 || n > 6 then syntax_class_fail "tactic" arg in
+    n
+  | arg -> syntax_class_fail "tactic" arg
+  end begin fun lev ->
+    let syntax_class = Procq.Symbol.nterml ltac2_expr (string_of_int lev) in
+    let act tac = tac in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end
 
-let () = add_syntax_class_full "thunk" begin function
-| [tok] ->
-  let used, Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
-  let act e = Tac2quote.thunk (act e) in
-  used, Tac2entries.SyntaxRule (syntax_class, act)
-| arg -> syntax_class_fail "thunk" arg
-end
+let () = add_syntax_class_full "thunk" {
+  intern_synclass = begin function
+  | [tok] ->
+    let used, subclass = Tac2entries.intern_syntax_class tok in
+    used, subclass
+  | arg -> syntax_class_fail "thunk" arg
+  end;
+  interp_synclass = begin fun subclass ->
+    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let act e = Tac2quote.thunk (act e) in
+    Tac2entries.SyntaxRule (syntax_class, act)
+  end;
+}
 
 let constr_delimiters s arg =
   List.map (function
@@ -535,39 +576,33 @@ let constr_delimiters s arg =
       | _ -> syntax_class_fail s arg)
     arg
 
-let () = add_syntax_class "constr" begin function arg ->
-  let delimiters = constr_delimiters "constr" arg in
+let () = add_syntax_class "constr" (constr_delimiters "constr") begin function delimiters ->
   let act e = Tac2quote.of_constr ~delimiters e in
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
 end
 
-  let () = add_syntax_class "lconstr" begin function arg ->
-  let delimiters = constr_delimiters "lconstr" arg in
-    let act e = Tac2quote.of_constr ~delimiters e in
-    Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-  end
+let () = add_syntax_class "lconstr" (constr_delimiters "lconstr") begin function delimiters ->
+  let act e = Tac2quote.of_constr ~delimiters e in
+  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
+end
 
-let () = add_syntax_class "open_constr" begin function arg ->
-  let delimiters = constr_delimiters "open_constr" arg in
+let () = add_syntax_class "open_constr" (constr_delimiters "open_constr") begin function delimiters ->
   let act e = Tac2quote.of_open_constr ~delimiters e in
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
 end
 
-let () = add_syntax_class "open_lconstr" begin function arg ->
-  let delimiters = constr_delimiters "open_lconstr" arg in
+let () = add_syntax_class "open_lconstr" (constr_delimiters "open_lconstr") begin function delimiters ->
   let act e = Tac2quote.of_open_constr ~delimiters e in
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
 end
 
 
-let () = add_syntax_class "preterm" begin function arg ->
-  let delimiters = constr_delimiters "preterm" arg in
+let () = add_syntax_class "preterm" (constr_delimiters "preterm") begin function delimiters ->
   let act e = Tac2quote.of_preterm ~delimiters e in
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
 end
 
-let () = add_syntax_class "lpreterm" begin function arg ->
-  let delimiters = constr_delimiters "lpreterm" arg in
+let () = add_syntax_class "lpreterm" (constr_delimiters "lpreterm") begin function delimiters ->
   let act e = Tac2quote.of_preterm ~delimiters e in
   Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
 end
@@ -615,27 +650,39 @@ type seqrule =
 
 let rec make_seq_rule = function
 | [] ->
-  Tac2entries.no_used_levels, Seqrule (Procq.Rule.stop, CvNil)
-| tok :: rem ->
-  let used, Tac2entries.SyntaxRule (syntax_class, f) = Tac2entries.parse_syntax_class tok in
+  Seqrule (Procq.Rule.stop, CvNil)
+| (skip,tok) :: rem ->
+  let Tac2entries.SyntaxRule (syntax_class, f) = Tac2entries.interp_syntax_class tok in
   let syntax_class =
     match Procq.generalize_symbol syntax_class with
     | None ->
       CErrors.user_err (str "Recursive symbols (self / next) are not allowed in local rules")
     | Some syntax_class -> syntax_class
   in
-  let used', Seqrule (r, c) = make_seq_rule rem in
+  let Seqrule (r, c) = make_seq_rule rem in
   let r = Procq.Rule.next_norec r syntax_class in
-  let f = match tok with
-  | SexprStr _ -> None (* Leave out mere strings *)
-  | _ -> Some f
-  in
-  Tac2entries.union_used_levels used used', Seqrule (r, CvCns (c, f))
+  let f = if skip then None else Some f in
+  Seqrule (r, CvCns (c, f))
 
-let () = add_syntax_class_full "seq" begin fun toks ->
-    let used, Seqrule (r, c) = make_seq_rule (List.rev toks) in
-    let syntax_class =
-      Procq.(Symbol.rules [Rules.make r (apply c [])])
-    in
-    used, Tac2entries.SyntaxRule (syntax_class, (fun e -> e))
-end
+let interp_seq_rule toks =
+  let Seqrule (r, c) = make_seq_rule (List.rev toks) in
+  let syntax_class =
+    Procq.(Symbol.rules [Rules.make r (apply c [])])
+  in
+  Tac2entries.SyntaxRule (syntax_class, (fun e -> e))
+
+let intern_seq_rule toks =
+  List.fold_left_map (fun used tok ->
+      let used', rule = Tac2entries.intern_syntax_class tok in
+      let skip = match tok with
+        | SexprStr _ -> true (* Leave out mere strings *)
+        | _ -> false
+      in
+      Tac2entries.union_used_levels used used', (skip, rule))
+    Tac2entries.no_used_levels
+    toks
+
+let () = add_syntax_class_full "seq" {
+  intern_synclass = intern_seq_rule;
+  interp_synclass = interp_seq_rule;
+}
