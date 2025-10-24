@@ -1195,7 +1195,7 @@ Managing the local context
 
          .. rocqtop:: all
 
-            intros until 1.
+            intros until 1.  (* x and y are dependent premises, x = y is a non-dependent premise *)
 
       .. exn:: No quantified hypothesis named @ident in current goal even after head-reduction.
 
@@ -1214,8 +1214,8 @@ Managing the local context
 .. tacn:: clear {? {? - } {+ @ident } }
 
    Erases *unneeded* hypotheses from the context of the current goal.  "Unneeded"
-   means that the unselected hypotheses and the goal don't depend directly or
-   indirectly on the erased hypotheses.  That means the hypotheses will no longer
+   means that the unselected hypotheses and the goal don't refer directly or
+   indirectly to the erased hypotheses.  That means the hypotheses will no longer
    appear in the context and therefore can't be used in subsequent proof steps.
    Note that erasing an uneeded hypothesis may turn a goal that was provable
    into an unprovable goal.
