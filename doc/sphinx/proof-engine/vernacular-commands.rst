@@ -939,6 +939,11 @@ Quitting and debugging
       for :cmd:`Timeout` commands themselves.  If unset, no timeout is
       applied.
 
+.. cmd:: AllocLimit @natural {| Mw | kw } @sentence
+   :undocumented:
+
+.. tacn:: alloc_limit @natural Mw @ltac_expr
+   :undocumented:
 
 .. cmd:: Fail @sentence
 
