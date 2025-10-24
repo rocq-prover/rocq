@@ -81,7 +81,7 @@ let in_constr mods n =
   kername mp n
 
 let global_ref ?loc kn =
-  CAst.make ?loc @@ CTacRef (AbsKn (TacConstant kn))
+  CAst.make ?loc @@ CTacRef (AbsKn (TacConstant (TacConstant.of_kn kn)))
 
 let constructor ?loc kn args =
   let cst = CAst.make ?loc @@ CTacCst (AbsKn (Other kn)) in
