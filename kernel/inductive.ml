@@ -484,7 +484,28 @@ let is_primitive_record (_,mip) =
     [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
     while replacing names using [nas] (order reversed)
 *)
-let instantiate_context = Environ.instantiate_context
+let instantiate_context u subst nas ctx =
+  let open Context.Rel.Declaration in
+  let get_binder i na =
+    Context.
+    { binder_name = nas.(i).binder_name;
+      binder_relevance = UVars.subst_instance_relevance u na.binder_relevance }
+  in
+  let rec instantiate i ctx = match ctx with
+  | [] -> assert (Int.equal i (-1)); []
+  | LocalAssum (na, ty) :: ctx ->
+    let ctx = instantiate (pred i) ctx in
+    let ty = substnl subst i (subst_instance_constr u ty) in
+    let na = get_binder i na in
+    LocalAssum (na, ty) :: ctx
+  | LocalDef (na, ty, bdy) :: ctx ->
+    let ctx = instantiate (pred i) ctx in
+    let ty = substnl subst i (subst_instance_constr u ty) in
+    let bdy = substnl subst i (subst_instance_constr u bdy) in
+    let na = get_binder i na in
+    LocalDef (na, ty, bdy) :: ctx
+  in
+  instantiate (Array.length nas - 1) ctx
 
 let expand_arity = Environ.expand_arity
 

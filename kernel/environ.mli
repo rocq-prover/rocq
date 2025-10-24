@@ -292,6 +292,7 @@ val expand_branch_contexts : Declarations.mind_specif -> UVars.Instance.t -> con
   assumes that [ctx] and [nas] have the same length. *)
 val instantiate_context : UVars.Instance.t -> Vars.substl -> Name.t binder_annot array ->
   rel_context -> rel_context
+[@@deprecated "(9.1) Use [instantiate_context] in Inductive"]
 
 
 (** {6 Name quotients} *)
