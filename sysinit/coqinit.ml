@@ -187,7 +187,7 @@ let init_document opts =
   Nativelib.output_dir := opts.config.native_output_dir;
 
   (* Default output dir *)
-  Flags.output_directory := opts.config.output_directory;
+  System.output_directory := opts.config.output_directory;
 
   (* Test mode *)
   Flags.test_mode := opts.config.test_mode;
@@ -195,12 +195,11 @@ let init_document opts =
   (* beautify *)
   if opts.config.beautify then begin
     Flags.beautify := true;
-    Flags.record_comments := true;
+    CLexer.record_comments := true;
   end;
 
   if opts.config.quiet then begin
     Flags.quiet := true;
-    Flags.make_warn false;
   end;
 
   ()

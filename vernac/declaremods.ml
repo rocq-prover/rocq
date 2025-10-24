@@ -36,12 +36,17 @@ type inline =
   | DefaultInline
   | InlineAt of int
 
-let default_inline () = Some (Flags.get_inline_level ())
+let default_inline_level = 100
+
+let { Goptions.get = default_inline_level } =
+  Goptions.declare_int_option_and_ref ~key:["Inline";"Level"] ~value:default_inline_level ()
+
+let default_inline_level () = Some (default_inline_level())
 
 let inl2intopt = function
   | NoInline -> None
   | InlineAt i -> Some i
-  | DefaultInline -> default_inline ()
+  | DefaultInline -> default_inline_level ()
 
 (** These functions register the visibility of the module and iterates
     through its components. They are called by plenty of module functions *)
@@ -1160,7 +1165,7 @@ let declare_module id args res mexpr_o =
   let mp, mty_entry_o, subs, params, ctx = start_module_core id args res in
   let env = Global.env () in
   let mexpr_entry_o, inl_expr, ctx' = match mexpr_o with
-    | None -> None, default_inline (), Univ.ContextSet.empty
+    | None -> None, default_inline_level (), Univ.ContextSet.empty
     | Some (mte, base, kind, inl) ->
       let (mte, ctx) = Modintern.interp_module_ast env kind base mte in
       Some mte, inl, ctx
@@ -1171,7 +1176,7 @@ let declare_module id args res mexpr_o =
   let entry, inl_res = match mexpr_entry_o, mty_entry_o with
     | None, None -> assert false (* No body, no type ... *)
     | None, Some (typ, inl) -> MType (params, typ), inl
-    | Some body, otyp -> MExpr (params, body, Option.map fst otyp), Option.cata snd (default_inline ()) otyp
+    | Some body, otyp -> MExpr (params, body, Option.map fst otyp), Option.cata snd (default_inline_level ()) otyp
   in
   let sobjs, mp0 = match entry with
     | MType (_,mte) | MExpr (_,_,Some mte) ->
@@ -1724,7 +1729,7 @@ let debug_print_modtab () = InterpVisitor.debug_print_modtab ()
 let process_module_binding mbid me =
   let sp = Libnames.make_path DirPath.empty (MBId.to_id mbid) in
   let mp = MPbound mbid in
-  let sobjs = InterpVisitor.get_module_sobjs false (Global.env()) (default_inline ()) me in
+  let sobjs = InterpVisitor.get_module_sobjs false (Global.env()) (default_inline_level ()) me in
   let subst = map_mp (get_module_path me) mp (empty_delta_resolver mp) in
   let sobjs = subst_sobjs subst sobjs in
   SynterpVisitor.load_module 1 sp mp sobjs;
