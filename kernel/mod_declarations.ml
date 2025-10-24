@@ -73,7 +73,20 @@ type 'a module_retroknowledge = ('a, Retroknowledge.action list) when_mod_body
 
 (** Builders *)
 
-let make_module_body typ delta retro = {
+let check_delta typ delta = match typ with
+| NoFunctor struc ->
+  let iter (_, sfb) = match sfb with
+  | SFBconst _ | SFBmind _ | SFBmodtype _ | SFBrules _ -> ()
+  | SFBmodule mb ->
+    match mb.mod_type with
+    | NoFunctor _ -> assert (is_rerooted_delta delta mb.mod_delta)
+    | MoreFunctor _ -> ()
+  in
+  List.iter iter struc
+| MoreFunctor _ -> ()
+
+let make_module_body typ delta retro =
+  let () = check_delta typ delta in {
   mod_expr = ModBodyVal FullStruct;
   mod_type = typ;
   mod_type_alg = None;
@@ -90,6 +103,7 @@ let make_module_type typ delta = {
 }
 
 let strengthen_module_body ~src typ delta mb =
+  let () = check_delta typ delta in
   { mb with
     mod_expr = ModBodyVal (Algebraic (MENoFunctor (MEident src)));
     mod_type = typ;
@@ -104,6 +118,7 @@ let replace_module_body struc delta mb =
   (* This is only used by "with Module", we should try to inherit the algebraic type *)
   let () = match mb.mod_expr with ModBodyVal Abstract -> () | _ -> assert false in
   let () = match mb.mod_type with NoFunctor _ -> () | MoreFunctor _ -> assert false in
+  let () = check_delta (NoFunctor struc) delta in
   { mb with
     mod_type = NoFunctor struc;
     mod_type_alg = None;
