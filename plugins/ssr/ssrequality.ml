@@ -405,9 +405,8 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
         let id = make_annot (Name pattern_id) ERelevance.relevant in
         let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
         let pred = Vars.subst_var sigma pattern_id pred in
-        let sigma, predty = Typing.type_of penv sigma pred in
+        let sigma, predty , p_sort = Typing.type_and_sort_of penv sigma pred in
         let sigma, elim =
-            let p_sort = Retyping.get_sort_of env sigma predty in
             let (sigma, elim),_ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(Some (dir = L2R)) ~c_sort ~e_sort ~p_sort
             in sigma , elim
         in
