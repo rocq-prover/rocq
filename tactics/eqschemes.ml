@@ -521,6 +521,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
   let realsign_ind_P n aP =
     name_context env ((LocalAssum (make_annot (Name varH) indr,aP))::realsign_P n) in
   let s, ctx' = UnivGen.fresh_sort_in_quality kind in
+  let sr = Sorts.relevance_of_sort s in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let rci = Sorts.Relevant in
@@ -544,16 +545,16 @@ let build_l2r_forward_rew_scheme dep env ind kind =
   (mkCase (Inductive.contract_case env (ci,
      (my_it_mkLambda_or_LetIn_name env
        (lift_rel_context (nrealargs+1) realsign_ind)
-       (mkNamedProd (make_annot varP indr)
+       (mkNamedProd (make_annot varP Sorts.Relevant)
          (my_it_mkProd_or_LetIn
            (if dep then realsign_ind_P 2 applied_ind_P else realsign_P 2) s)
-       (mkNamedProd (make_annot varHC indr) applied_PC applied_PG)), rci),
+       (mkNamedProd (make_annot varHC sr) applied_PC applied_PG)), rci),
      NoInvert,
      (mkVar varH),
-     [|mkNamedLambda (make_annot varP indr)
+     [|mkNamedLambda (make_annot varP Sorts.Relevant)
         (my_it_mkProd_or_LetIn
           (if dep then realsign_ind_P 1 applied_ind_P' else realsign_P 2) s)
-      (mkNamedLambda (make_annot varHC indr) applied_PC'
+      (mkNamedLambda (make_annot varHC sr) applied_PC'
         (mkVar varHC))|]))))))
   in c, UState.of_context_set ctx
 
@@ -603,10 +604,20 @@ let build_r2l_forward_rew_scheme dep env ind kind =
   let realsign_ind =
     name_context env ((LocalAssum (make_annot (Name varH) indr,applied_ind))::realsign) in
   let s, ctx' = UnivGen.fresh_sort_in_quality kind in
+  let sr = Sorts.relevance_of_sort s in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
-  let rci = Sorts.Relevant in (* TODO relevance *)
   let ci = make_case_info env ind RegularStyle in
+  let iv =
+    (* XXX is Evd.from_env correct? *)
+    if Inductiveops.Internal.should_invert_case env (Evd.from_env env) sr ci
+    then
+      let _, args = decompose_app_list applied_ind in
+      let indices = List.skipn mib.mind_nparams args in
+      let indices = CArray.map_of_list (lift 3) indices in
+      CaseInvert { indices }
+    else NoInvert
+  in
   let applied_PC =
     applist (mkVar varP,if dep then constrargs_cstr else constrargs) in
   let applied_PG =
@@ -616,19 +627,19 @@ let build_r2l_forward_rew_scheme dep env ind kind =
   let c =
   (my_it_mkLambda_or_LetIn paramsctxt
   (my_it_mkLambda_or_LetIn_name env realsign_ind
-  (mkNamedLambda (make_annot varP indr)
+  (mkNamedLambda (make_annot varP Sorts.Relevant)
     (my_it_mkProd_or_LetIn (lift_rel_context (nrealargs+1)
                              (if dep then realsign_ind else realsign)) s)
-  (mkNamedLambda (make_annot varHC indr) (lift 1 applied_PG)
+  (mkNamedLambda (make_annot varHC sr) (lift 1 applied_PG)
   (mkApp
     (mkCase (Inductive.contract_case env (ci,
        (my_it_mkLambda_or_LetIn_name env
          (lift_rel_context (nrealargs+3) realsign_ind)
-         (mkArrow applied_PG indr (lift (2*nrealargs+5) applied_PC)), rci),
-       NoInvert,
+         (mkArrow applied_PG sr (lift (2*nrealargs+5) applied_PC)), sr),
+       iv,
        mkRel 3 (* varH *),
        [|mkLambda
-          (make_annot (Name varHC) indr,
+          (make_annot (Name varHC) sr,
            lift (nrealargs+3) applied_PC,
            mkRel 1)|])),
     [|mkVar varHC|]))))))
