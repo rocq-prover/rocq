@@ -387,25 +387,6 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   let env = pf_env gl in
   let beta = Reductionops.clos_norm_flags RedFlags.beta env sigma in
   let sigma, new_rdx = map_redex env sigma ~before:rdx ~after:new_rdx in
-  let sigma, elim =
-    let p_sort = Retyping.get_sort_of env sigma (Proofview.Goal.concl gl) in
-    let elim =
-      Equality.lookup_eq_eliminator_opt env sigma eq (Some (dir = L2R)) ~c_sort ~e_sort ~p_sort
-    in match elim with
-    | Some ((sigma, elim),_) ->
-      debug_ssr Pp.(fun () -> str"elim=" ++ pr_econstr_env env sigma elim);
-      sigma, elim
-    | None ->
-      let ((kn, i) as ind, _) = Tacred.eval_to_quantified_ind env sigma c_ty in
-      let sort = Tacticals.elimination_sort_of_goal gl in
-      let sigma, elim = Evd.fresh_global env sigma (Elimschemes.lookup_eliminator env ind sort) in
-      if dir = R2L then sigma, elim else
-      let elim, _ = EConstr.destConst sigma elim in
-      let mp,l = KerName.repr (Constant.canonical elim) in
-      let l' = Nameops.add_suffix l "_r"  in
-      let c1' = Global.constant_of_delta_kn (Constant.canonical (Constant.make2 mp l')) in
-      Evd.fresh_global env sigma (ConstRef c1')
-  in
   (* The resulting goal *)
   let evty = beta (EConstr.Vars.subst1 new_rdx pred) in
   let typeclass_candidate = Typeclasses.is_maybe_class_type env sigma evty in
@@ -417,9 +398,21 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   (* We check the proof is well typed. We assume that the type of [elim] is of
      the form [forall (A : Type) (x : A) (P : A -> Type@{s}), T] s.t. the only
      universes to unify are by checking the [A] and [P] arguments. *)
-  let sigma, p, pred =
+  let sigma, p, pred , elim =
     try
       let open EConstr in
+      let sigma, pred , elim =
+        let id = make_annot (Name pattern_id) ERelevance.relevant in
+        let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
+        let pred = Vars.subst_var sigma pattern_id pred in
+        let sigma, predty = Typing.type_of penv sigma pred in
+        let sigma, elim =
+            let p_sort = Retyping.get_sort_of env sigma predty in
+            let (sigma, elim),_ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(Some (dir = L2R)) ~c_sort ~e_sort ~p_sort
+            in sigma , elim
+        in
+        sigma, { Environ.uj_val = mkLambda (id, rdx_ty, pred); uj_type = mkProd (id, rdx_ty, predty) } , elim
+      in
       let elimT = Retyping.get_type_of env sigma elim in
       let (idA, tA, elimT) = destProd sigma elimT in
       let (_, _, elimT) = destProd sigma elimT in
@@ -429,15 +422,8 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
       (* Do not fully retype pred, we already know that the domain is well-typed.
          The way this is written makes it easier to profile which part of
          typing is takes time. *)
-      let sigma, pred =
-        let id = make_annot (Name pattern_id) ERelevance.relevant in
-        let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
-        let pred = Vars.subst_var sigma pattern_id pred in
-        let sigma, predty = Typing.type_of penv sigma pred in
-        sigma, { Environ.uj_val = mkLambda (id, rdx_ty, pred); uj_type = mkProd (id, rdx_ty, predty) }
-      in
       let sigma = Typing.check_actual_type env sigma pred tP in
-      sigma, p, pred.uj_val
+      sigma, p, pred.uj_val , elim
     with
     | Pretype_errors.PretypeError (env, sigma, te) -> raise (PRtype_error (Some (env, sigma, te)))
     | e when CErrors.noncritical e -> raise (PRtype_error None)
