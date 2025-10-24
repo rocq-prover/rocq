@@ -402,7 +402,7 @@ let check_typeclasses_instances_are_solved ~program_mode env sigma frozen =
     Typeclasses.error_unresolvable env sigma tcs
   end
 
-let check_extra_evars_are_solved env current_sigma frozen = match frozen with
+let check_extra_evars_are_solved ~program_mode env current_sigma frozen = match frozen with
 | Frz (_, None) -> ()
 | Frz (_, Some (lazy pending)) ->
   Evar.Set.iter
@@ -410,7 +410,7 @@ let check_extra_evars_are_solved env current_sigma frozen = match frozen with
       if not (Evd.is_defined current_sigma evk) then
         let (loc,k) = evar_source (Evd.find_undefined current_sigma evk) in
         match k with
-        | Evar_kinds.ImplicitArg (gr, (i, id), false) -> ()
+        | Evar_kinds.ImplicitArg (gr, (i, id), false) when program_mode -> ()
         | _ ->
             error_unsolvable_implicit ?loc env current_sigma evk None) pending
 
@@ -425,10 +425,7 @@ let check_evars env ?initial sigma c =
        | _ ->
         let EvarInfo evi = Evd.find sigma evk in
          let (loc,k) = evar_source evi in
-         begin match k with
-           | Evar_kinds.ImplicitArg (gr, (i, id), false) -> ()
-           | _ -> Pretype_errors.error_unsolvable_implicit ?loc env sigma evk None
-         end)
+        Pretype_errors.error_unsolvable_implicit ?loc env sigma evk None)
     | _ -> EConstr.iter sigma proc_rec c
   in proc_rec c
 
@@ -439,7 +436,7 @@ let check_problems_are_solved env sigma = function
 let check_evars_are_solved_from ~program_mode env sigma frozen frozen_for_pb =
   check_typeclasses_instances_are_solved ~program_mode env sigma frozen;
   check_problems_are_solved env sigma frozen_for_pb;
-  check_extra_evars_are_solved env sigma frozen
+  check_extra_evars_are_solved ~program_mode env sigma frozen
 
 (* Try typeclasses, hooks, unification heuristics ... *)
 

@@ -423,7 +423,7 @@ let interp_wf ~program_mode env sigma recname ctx ccl = function
         sigma, true, extradecl
       else
         let sigma, wf_term = well_founded sigma in
-        let applied_wf = mkApp (wf_term, [| relargty; rel; measure |]) in
+        let applied_wf = mkApp (wf_term, [| relargty; rel |]) in
         let extradecl = RelDecl.LocalAssum (make_annot (Name recproofid) ERelevance.relevant, applied_wf) in
         sigma, false, extradecl
     in
