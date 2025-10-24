@@ -364,6 +364,8 @@ Ltac2 @ external autorewrite : bool -> (unit -> unit) option -> ident list -> cl
 Ltac2 @ external subst : ident list -> unit := "rocq-runtime.plugins.ltac2" "tac_subst".
 Ltac2 @ external subst_all : unit -> unit := "rocq-runtime.plugins.ltac2" "tac_substall".
 
+Ltac2 @ external revgoals : unit -> unit := "rocq-runtime.plugins.ltac2" "tac_revgoals".
+
 (** auto *)
 
 Ltac2 Type debug := [ Off | Info | Debug ].
