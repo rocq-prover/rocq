@@ -26,12 +26,15 @@ Module Export PArrayNotations.
 
 Declare Scope array_scope.
 Delimit Scope array_scope with array.
+(* Temporary dummy notation to keep level 2 left associative
+   as done by the old notations at level 2 (changed to level 1 in Rocq 9.2). *)
 #[warning="-postfix-notation-not-level-1"]
+Reserved Notation "x #####_dummy_PrimArray_notation_to_make_level_2_left_assoc#"
+  (at level 2, left associativity).
 Notation "t .[ i ]" := (get t i)
-  (at level 2, left associativity, format "t .[ i ]").
-#[warning="-postfix-notation-not-level-1"]
+  (at level 1, left associativity, format "t .[ i ]").
 Notation "t .[ i <- a ]" := (set t i a)
-  (at level 2, left associativity, format "t .[ i <- a ]").
+  (at level 1, left associativity, format "t .[ i <- a ]").
 
 End PArrayNotations.
 
