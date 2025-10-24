@@ -367,11 +367,7 @@ let level_init l sigma =
     match l with
     | [] -> sigma , []
     | levels :: ls ->
-      let sigma , new_level = begin
-          match Univ.Universe.level levels with
-          | Some level -> (sigma , level)
-          | None -> Evd.new_univ_level_variable UState.univ_flexible sigma
-      end in
+      let sigma , new_level = Evd.new_univ_level_variable UState.univ_flexible sigma in
       let sigma , r = aux ls sigma in
       sigma , new_level :: r
 in aux l sigma
