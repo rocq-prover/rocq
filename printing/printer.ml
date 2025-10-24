@@ -222,8 +222,8 @@ let universe_binders_with_opt_names orig names =
         })
   in
   let fold_qnamed i ((qbind,ubind),(revqbind,revubind) as o) = function
-    | Name id -> let ui = Sorts.QVar.make_var i in
-      (Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)
+    | Name id -> let ui = Quality.QVar.make_var i in
+      (Id.Map.add id ui qbind, ubind), (Quality.QVar.Map.add ui id revqbind, revubind)
     | Anonymous -> o
   in
   let fold_unamed i ((qbind,ubind),(revqbind,revubind) as o) = function
@@ -236,9 +236,9 @@ let universe_binders_with_opt_names orig names =
   let fold_qanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
     | Name _ -> o
     | Anonymous ->
-      let ui = Sorts.QVar.make_var i in
+      let ui = Quality.QVar.make_var i in
       let id = Namegen.next_ident_away_from u_ident (fun id -> Id.Map.mem id qbind) in
-      (id, ((Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)))
+      (id, ((Id.Map.add id ui qbind, ubind), (Quality.QVar.Map.add ui id revqbind, revubind)))
   in
   let fold_uanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
     | Name _ -> o
@@ -252,8 +252,8 @@ let universe_binders_with_opt_names orig names =
   names
 
 let pr_universe_ctx_set sigma c =
-  if !Detyping.print_universes && not (Univ.ContextSet.is_empty c) then
-    fnl()++pr_in_comment (v 0 (Univ.ContextSet.pr (Termops.pr_evd_level sigma) c))
+  if !Detyping.print_universes && not (PConstraints.ContextSet.is_empty c) then
+    fnl()++pr_in_comment (v 0 (PConstraints.ContextSet.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) c))
   else
     mt()
 
@@ -262,20 +262,20 @@ let pr_universe_ctx sigma ?variance c =
     fnl()++
     pr_in_comment
       (v 0
-         (UVars.pr_universe_context (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma)
+         (UVars.UContext.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma)
             ?variance c))
   else
     mt()
 
 let pr_abstract_universe_ctx sigma ?variance ?priv c =
-  let open Univ in
-  let priv = Option.default Univ.ContextSet.empty priv in
+  let open PConstraints in
+  let priv = Option.default ContextSet.empty priv in
   let has_priv = not (ContextSet.is_empty priv) in
   if !Detyping.print_universes && (not (UVars.AbstractContext.is_empty c) || has_priv) then
     let prqvar u = Termops.pr_evd_qvar sigma u in
     let prlev u = Termops.pr_evd_level sigma u in
-    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.pr_abstract_universe_context prqvar prlev ?variance c) in
-    let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (Univ.ContextSet.pr prlev priv) else mt() in
+    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.AbstractContext.pr prqvar prlev ?variance c) in
+    let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (ContextSet.pr prqvar prlev priv) else mt() in
     fnl()++pr_in_comment (pub ++ priv)
   else
     mt()
@@ -294,11 +294,11 @@ let pr_universe_instance_binder evd inst csts =
   let open Univ in
   let prqvar = Termops.pr_evd_qvar evd in
   let prlev = Termops.pr_evd_level evd in
-  let pcsts = if Constraints.is_empty csts then mt()
+  let pcsts = if UnivConstraints.is_empty csts then mt()
     else strbrk " | " ++
          prlist_with_sep pr_comma
-           (fun (u,d,v) -> hov 0 (prlev u ++ pr_constraint_type d ++ prlev v))
-           (Constraints.elements csts)
+           (fun (u,d,v) -> hov 0 (prlev u ++ UnivConstraint.pr_kind d ++ prlev v))
+           (UnivConstraints.elements csts)
   in
   str"@{" ++ UVars.Instance.pr prqvar prlev inst ++ pcsts ++ str"}"
 

@@ -100,9 +100,9 @@ let check_universes error env u1 u2 =
   | Monomorphic, Monomorphic -> env
   | Polymorphic auctx1, Polymorphic auctx2 ->
     if not (UGraph.check_subtype (Environ.universes env) auctx2 auctx1) then
-      error (IncompatibleConstraints { got = auctx1; expect = auctx2; } )
+      error (IncompatibleUnivConstraints { got = auctx1; expect = auctx2; } )
     else
-      Environ.push_context ~strict:false (UVars.AbstractContext.repr auctx2) env
+      Environ.push_context ~strict:false QGraph.Internal (UVars.AbstractContext.repr auctx2) env
   | Monomorphic, Polymorphic _ -> error (PolymorphicStatusExpected true)
   | Polymorphic _, Monomorphic -> error (PolymorphicStatusExpected false)
 
@@ -117,7 +117,7 @@ let check_variance error v1 v2 =
 
 let squash_info_equal s1 s2 = match s1, s2 with
   | AlwaysSquashed, AlwaysSquashed -> true
-  | SometimesSquashed s1, SometimesSquashed s2 -> Sorts.Quality.Set.equal s1 s2
+  | SometimesSquashed s1, SometimesSquashed s2 -> Quality.Set.equal s1 s2
   | (AlwaysSquashed | SometimesSquashed _), _ -> false
 
 (* for now we do not allow reorderings *)

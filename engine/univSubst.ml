@@ -19,8 +19,8 @@ type universe_subst = Universe.t universe_map
 type universe_subst_fn = Level.t -> Universe.t option
 type universe_level_subst_fn = Level.t -> Level.t
 
-type quality_subst = Quality.t QVar.Map.t
-type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst = Quality.t Quality.QVar.Map.t
+type quality_subst_fn = Quality.QVar.t -> Quality.t
 
 let subst_univs_universe fn ul =
   let addn n u = iterate Universe.super n u in
@@ -53,17 +53,17 @@ let constraint_add_leq v u c =
     | (x,n), (y,m) ->
     let j = m - n in
       if j = -1 (* n = m+1, v+1 <= u <-> v < u *) then
-        Constraints.add (x,Lt,y) c
+        UnivConstraints.add (x,Lt,y) c
       else if j <= -1 (* n = m+k, v+k <= u and k>0 *) then
         if Level.equal x y then (* u+k <= u with k>0 *)
-          Constraints.add (x,Lt,x) c
+          UnivConstraints.add (x,Lt,x) c
         else CErrors.user_err (Pp.str"Unable to handle arbitrary u+k <= v constraints.")
       else if j = 0 then
-        Constraints.add (x,Le,y) c
+        UnivConstraints.add (x,Le,y) c
       else (* j >= 1 *) (* m = n + k, u <= v+k *)
         if Level.equal x y then c (* u <= u+k, trivial *)
         else if Level.is_set x then c (* Prop,Set <= u+S k, trivial *)
-        else Constraints.add (x,Le,y) c (* u <= v implies u <= v+k *)
+        else UnivConstraints.add (x,Le,y) c (* u <= v implies u <= v+k *)
 
 let check_univ_leq_one u v =
   let leq (u,n) (v,n') =
@@ -96,7 +96,7 @@ let enforce_eq_sort s1 s2 cst = match s1, s2 with
 | (Set | Type _), (Set | Type _) ->
   enforce_eq (get_algebraic s1) (get_algebraic s2) cst
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_eq u1 u2 cst
+  if Quality.QVar.equal q1 q2 then enforce_eq u1 u2 cst
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
@@ -110,44 +110,44 @@ let enforce_leq_sort s1 s2 cst = match s1, s2 with
 | (Set | Type _), (Set | Type _) ->
   enforce_leq (get_algebraic s1) (get_algebraic s2) cst
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_leq u1 u2 cst
+  if Quality.QVar.equal q1 q2 then enforce_leq u1 u2 cst
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 
 let enforce_leq_alg_sort s1 s2 g = match s1, s2 with
-| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> Constraints.empty, g
-| (Prop, (Set | Type _)) -> Constraints.empty, g
+| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> UnivConstraints.empty, g
+| (Prop, (Set | Type _)) -> UnivConstraints.empty, g
 | (((Prop | Set | Type _ | QSort _) as s1), (Prop | SProp as s2))
 | ((SProp as s1), ((Prop | Set | Type _ | QSort _) as s2)) ->
   raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
 | (Set | Type _), (Set | Type _) ->
   UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g
 | QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then UGraph.enforce_leq_alg u1 u2 g
+  if Quality.QVar.equal q1 q2 then UGraph.enforce_leq_alg u1 u2 g
   else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 
 let enforce_univ_constraint (u,d,v) =
   match d with
-  | Eq -> enforce_eq u v
-  | Le -> enforce_leq u v
-  | Lt -> enforce_leq (Universe.super u) v
+  | UnivConstraint.Eq -> enforce_eq u v
+  | UnivConstraint.Le -> enforce_leq u v
+  | UnivConstraint.Lt -> enforce_leq (Universe.super u) v
 
 let subst_univs_constraint fn (u,d,v as c) cstrs =
   let u' = fn u in
   let v' = fn v in
   match u', v' with
-  | None, None -> Constraints.add c cstrs
+  | None, None -> UnivConstraints.add c cstrs
   | Some u, None -> enforce_univ_constraint (u,d,Universe.make v) cstrs
   | None, Some v -> enforce_univ_constraint (Universe.make u,d,v) cstrs
   | Some u, Some v -> enforce_univ_constraint (u,d,v) cstrs
 
 let subst_univs_constraints subst csts =
-  Constraints.fold
+  UnivConstraints.fold
     (fun c cstrs -> subst_univs_constraint subst c cstrs)
-    csts Constraints.empty
+    csts UnivConstraints.empty
 
 let level_subst_of f =
   fun l ->

@@ -132,7 +132,7 @@ let make_eq_univs_test env evd c =
     match EConstr.eq_constr_universes_proj env evd c c' with
     | None -> Result.Error ()
     | Some cst ->
-      try Result.Ok (Evd.add_universe_constraints evd cst)
+      try Result.Ok (Evd.add_constraints evd cst)
       with Evd.UniversesDiffer | UGraph.UniverseInconsistency _ -> Result.Error ()
     );
   merge_fun = (fun evd _ -> Result.Ok evd);

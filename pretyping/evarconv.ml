@@ -1142,7 +1142,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           match univs with
           | Some univs ->
               ise_and i [(fun i ->
-                try Success (Evd.add_universe_constraints i univs)
+                try Success (Evd.add_constraints i univs)
                 with UniversesDiffer -> UnifFailure (i,NotSameHead)
                 | UGraph.UniverseInconsistency p -> UnifFailure (i, UnifUnivInconsistency p));
                          (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]

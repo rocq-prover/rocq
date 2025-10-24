@@ -10,7 +10,7 @@
 
 open Names
 open Univ
-open Sorts
+open Quality
 
 type universe_binders = QVar.t Id.Map.t * Level.t Id.Map.t
 
@@ -37,7 +37,7 @@ let pr_level_with_global_universes ?(binders=empty_binders) l =
   | None -> Level.raw_pr l
 
 let qualid_of_quality (ctx,_) q =
-  match Sorts.QVar.repr q with
+  match Quality.QVar.repr q with
   | Global qid ->
     (try Some (Nametab.Quality.shortest_qualid_gen (fun id -> Id.Map.mem id ctx) qid)
      with Not_found -> None)
@@ -46,4 +46,4 @@ let qualid_of_quality (ctx,_) q =
 let pr_quality_with_global_universes ?(binders=empty_binders) q =
   match qualid_of_quality binders q with
   | Some qid  -> Libnames.pr_qualid qid
-  | None -> Sorts.QVar.raw_pr q
+  | None -> Quality.QVar.raw_pr q

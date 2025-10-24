@@ -731,9 +731,9 @@ end
 module Univs = EasyNoWarn(UnivsV)()
 
 module QualityV = struct
-  include Sorts.QGlobal
+  include Quality.QGlobal
   let is_var _ = None
-  module Map = HMap.Make(Sorts.QGlobal)
+  module Map = HMap.Make(Quality.QGlobal)
   let stage = Summary.Stage.Interp
   let summary_name = "sorttab"
 end

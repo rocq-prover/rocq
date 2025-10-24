@@ -36,11 +36,11 @@ let sort_name_expr_eq c1 c2 = match c1, c2 with
 let qvar_expr_eq c1 c2 = match c1, c2 with
   | CQVar q1, CQVar q2 -> Libnames.qualid_eq q1 q2
   | CQAnon _, CQAnon _ -> true
-  | CRawQVar q1, CRawQVar q2 -> Sorts.QVar.equal q1 q2
+  | CRawQVar q1, CRawQVar q2 -> Quality.QVar.equal q1 q2
   | (CQVar _ | CQAnon _ | CRawQVar _), _ -> false
 
 let quality_expr_eq q1 q2 = match q1, q2 with
-  | CQConstant q1, CQConstant q2 -> Sorts.Quality.Constants.equal q1 q2
+  | CQConstant q1, CQConstant q2 -> Quality.Constants.equal q1 q2
   | CQualVar q1, CQualVar q2 -> qvar_expr_eq q1 q2
   | (CQConstant _ | CQualVar _), _ -> false
 

@@ -198,7 +198,7 @@ END
 let pr_fun_scheme_arg (princ_name,fun_name,s) =
   Names.Id.print princ_name.CAst.v ++ str " :=" ++ spc() ++ str "Induction for " ++
   Libnames.pr_qualid fun_name ++ spc() ++ str "Sort " ++
-  UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s
+  UnivGen.QualityOrSet.pr Quality.QVar.raw_pr s
 
 }
 

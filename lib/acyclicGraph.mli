@@ -64,7 +64,7 @@ module Make (Point:Point) : sig
       when the rejected constraint is an equality the path may go in either direction.
       Note that each step does not necessarily correspond to an actual constraint,
       but reflect how the system stores the graph
-      and may result from combination of several Constraints.t...
+      and may result from combination of several UnivConstraints.t...
   *)
   type explanation = Point.t * (constraint_type * Point.t) list
 

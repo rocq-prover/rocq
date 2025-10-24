@@ -43,7 +43,7 @@ type possible_guard = {
 
 val search_guard :
   ?loc:Loc.t -> ?evars:CClosure.evar_handler ->
-  ?elim_to:(Sorts.Quality.t -> Sorts.Quality.t -> bool) -> env ->
+  ?elim_to:(Quality.t -> Quality.t -> bool) -> env ->
   possible_guard -> Constr.rec_declaration -> int array option
 
 val search_fix_guard : (* For Fixpoints only *)

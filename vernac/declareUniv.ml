@@ -35,7 +35,7 @@ type sort_source =
 
 type sort_name_decl = {
   sdecl_src : sort_source; (* global sort introduced by some global value *)
-  sdecl_named : (Id.t * Sorts.QGlobal.t) list;
+  sdecl_named : (Id.t * Quality.QGlobal.t) list;
 }
 
 let check_exists_universe sp =
@@ -202,15 +202,15 @@ let do_universe ~poly l =
   match poly with
   | false ->
     let ctx = List.fold_left (fun ctx (_,qid) -> Level.Set.add (Level.make qid) ctx)
-        Level.Set.empty l, Constraints.empty
+        Level.Set.empty l, PConstraints.empty
     in
-    Global.push_context_set ctx
+    Global.push_context_set QGraph.Static ctx
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
     let us = CArray.map_of_list (fun (_,l) -> Level.make l) l in
     let ctx =
       UVars.UContext.make {quals = [||]; univs = names}
-        (UVars.Instance.of_array ([||],us), Constraints.empty)
+        (UVars.Instance.of_array ([||],us), PConstraints.empty)
     in
     Global.push_section_context ctx
 
@@ -226,31 +226,36 @@ let do_sort ~poly l =
   let () = input_sort_names (src, l) in
   match poly with
   | false ->
-    let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
-      Sorts.QVar.Set.empty l
+    let qs = List.fold_left  (fun qs (_, qv) -> Quality.QVar.(Set.add (make_global qv) qs))
+      Quality.QVar.Set.empty l
     in
-    Global.push_qualities qs
+    Global.push_quality_set qs
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
-    let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in
+    let qs = CArray.map_of_list (fun (_,sg) -> Quality.global sg) l in
     let ctx =
       UVars.UContext.make {quals=names; univs=[||]}
-        (UVars.Instance.of_array (qs,[||]), Constraints.empty)
+        (UVars.Instance.of_array (qs,[||]), PConstraints.empty)
     in
     Global.push_section_context ctx
 
 let do_constraint ~poly l =
-  let open Univ in
+  let open PConstraints in
   let evd = Evd.from_env (Global.env ()) in
   let constraints = List.fold_left (fun acc cst ->
-      let cst = Constrintern.interp_univ_constraint evd cst in
-      Constraints.add cst acc)
-      Constraints.empty l
+      match cst with
+      | Constrexpr.UnivCst (l,d,r as cst) ->
+         let cst = Constrintern.interp_univ_constraint evd cst in
+         PConstraints.add_univ cst acc
+      | Constrexpr.ElimCst (l,d,r as cst) ->
+         let cst = Constrintern.interp_elim_constraint evd cst in
+         PConstraints.add_quality cst acc)
+      PConstraints.empty l
   in
   match poly with
   | false ->
     let uctx = ContextSet.add_constraints constraints ContextSet.empty in
-    Global.push_context_set uctx
+    Global.push_context_set QGraph.Rigid uctx
   | true ->
     let uctx = UVars.UContext.make
         UVars.empty_bound_names
@@ -277,7 +282,7 @@ let constraint_obj =
    main issue is the filtering or redundant constraints (needed for perf / smaller vo file sizes) *)
 let add_constraint_source x ctx =
   let _, csts = ctx in
-  if Univ.Constraints.is_empty csts then ()
+  if PConstraints.is_empty csts then ()
   else
     let v = x, csts in
     Lib.add_leaf (constraint_obj v)
