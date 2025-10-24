@@ -90,6 +90,7 @@ let set_doc doc = ide_doc := Some doc
 
 let add ((((s,eid),(sid,verbose)),off),(line_nb,bol_pos)) =
   let doc = get_doc () in
+  Vernacentries.get_prev_proof := (fun () -> Stm.get_prev_proof ~doc sid);
   let open Loc in
   (* This needs to be akin to what CLexer.after does *)
   let loc = { (initial ToplevelInput) with
