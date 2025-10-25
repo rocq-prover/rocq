@@ -20,7 +20,7 @@ open UVars
     notation i*)
 type 'constr pfix_guard_error =
   (* Fixpoints *)
-  | NotEnoughAbstractionInFixBody
+  | NotEnoughAbstractionInFixBody of int
   | RecursionNotOnInductiveType of 'constr
   | RecursionOnIllegalTerm of int * (env * 'constr) * (int list * int list) Lazy.t
   | NotEnoughArgumentsForFixCall of int
