@@ -18,7 +18,7 @@ open UVars
 
 type 'constr pfix_guard_error =
   (* Fixpoints *)
-  | NotEnoughAbstractionInFixBody
+  | NotEnoughAbstractionInFixBody of int
   | RecursionNotOnInductiveType of 'constr
   | RecursionOnIllegalTerm of int * (env * 'constr) * (int list * int list) Lazy.t
   | NotEnoughArgumentsForFixCall of int
@@ -198,10 +198,9 @@ let error_ill_formed_inductive env ind kn =
   raise (TypeError (env, IllFormedInductive (ind, kn)))
 
 let map_pfix_guard_error f = function
-| NotEnoughAbstractionInFixBody -> NotEnoughAbstractionInFixBody
+| NotEnoughAbstractionInFixBody _ | NotEnoughArgumentsForFixCall _ as e -> e
 | RecursionNotOnInductiveType c -> RecursionNotOnInductiveType (f c)
 | RecursionOnIllegalTerm (n, (env, c), l1_l2) -> RecursionOnIllegalTerm (n, (env, f c), l1_l2)
-| NotEnoughArgumentsForFixCall n -> NotEnoughArgumentsForFixCall n
 | FixpointOnNonEliminable (s, s') -> FixpointOnNonEliminable (s, s')
 
 let map_pcofix_guard_error f = function

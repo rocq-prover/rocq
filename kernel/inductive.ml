@@ -1453,7 +1453,7 @@ let check_one_fix cache ?evars renv recpos trees def =
             let stack_others = lift_stack nbodies (List.firstn nuniformparams fix_stack) in
             (* Check guard in the expanded fix *)
             let illformed () =
-              error_ill_formed_rec_body renv.env (Type_errors.FixGuardError NotEnoughAbstractionInFixBody)
+              error_ill_formed_rec_body renv.env (Type_errors.FixGuardError (NotEnoughAbstractionInFixBody recindxs.(i)))
                 (pi1 recdef) i (push_rec_types recdef renv.env)
                 (judgment_of_fixpoint recdef) in
             let rs' = Array.fold_left2_i (fun j rs' recindx body ->
@@ -1658,7 +1658,7 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
                 (mind, (env', b))
               else check_occur env' (n+1) b
             else anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
-        | _ -> raise_err env i NotEnoughAbstractionInFixBody
+        | _ -> raise_err env i (NotEnoughAbstractionInFixBody k)
     in
     let ((ind, inst), _) as res = check_occur fixenv 1 def in
     let _, mip = lookup_mind_specif env ind in
