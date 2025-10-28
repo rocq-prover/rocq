@@ -263,6 +263,12 @@ match sd with
 let find_scheme kind (mind,i as ind) =
   let open Proofview.Notations in
   Proofview.tclEVARMAP >>= fun sigma ->
+  let s = local_lookup_scheme (Evd.eval_side_effects sigma) kind ind in
+  Proofview.tclUNIT s
+
+let force_find_scheme kind (mind,i as ind) =
+  let open Proofview.Notations in
+  Proofview.tclEVARMAP >>= fun sigma ->
   match local_lookup_scheme (Evd.eval_side_effects sigma) kind ind with
   | Some s ->
     Proofview.tclUNIT s
