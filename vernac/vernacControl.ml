@@ -157,6 +157,7 @@ let with_alloc_limit ~limit ~allocated f =
   let () = if limit.Control.kilowords <= 0L then
       CErrors.user_err Pp.(str "Alloc limit must be > 0.")
   in
+  if not Memprof_coq.is_real_memprof then CWarnings.warn_no_memprof ();
   match Control.alloc_limit limit f () with
   | Error info -> Exninfo.iraise (AllocLimit,info)
   | Ok (v, {kilowords=alloc}) ->

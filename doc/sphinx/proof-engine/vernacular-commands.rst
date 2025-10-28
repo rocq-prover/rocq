@@ -944,6 +944,12 @@ Quitting and debugging
    Executes :n:`@sentence`. If the operation allocates more than the specified limit
    (`w` means machine words), then it is interrupted and an error message is displayed.
 
+   .. warn:: Allocation limit ignored: memprof-limits was not installed when Rocq was compiled
+      :name: no-memprof-limits
+
+      If memprof-limits was not installed when Rocq was compiled,
+      :n:`@sentence` is executed without enforcing the limit.
+
 .. tacn:: alloc_limit @natural {| Mw | kw } @ltac_expr
 
    :cmd:`AllocLimit` as a tactical.
