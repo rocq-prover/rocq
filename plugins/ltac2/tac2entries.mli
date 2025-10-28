@@ -20,6 +20,8 @@ val register_ltac : ?deprecation:Deprecation.t -> ?local:bool -> ?mut:bool -> re
 val register_type : ?local:bool -> ?abstract:bool -> rec_flag ->
   (qualid * redef_flag * raw_quant_typedef) list -> unit
 
+val reexport_type : qualid -> Id.t -> unit
+
 val register_primitive : ?deprecation:Deprecation.t -> ?local:bool ->
   Names.lident -> raw_typexpr -> ml_tactic_name -> unit
 
