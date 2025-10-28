@@ -1,0 +1,11 @@
+name: CI
+on:
+  push:
+    branches: ["main", "skylabs-*"]
+  pull_request:
+    types: [synchronize,opened,reopened]
+
+jobs:
+  CI:
+    uses: SkylabsAI/workspace/.github/workflows/filter.yml@main
+    secrets: inherit
