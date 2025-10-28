@@ -168,8 +168,13 @@ let unshelve ist t =
   Proofview.Unsafe.tclGETGOALS >>= fun ogls ->
   Proofview.Unsafe.tclSETGOALS (gls @ ogls)
 
-let alloc_limit ist n tac =
-  Proofview.tclALLOCLIMIT n (Tacinterp.tactic_of_value ist tac)
+let alloc_limit ?loc ist n tac =
+  let tac = Tacinterp.tactic_of_value ist tac in
+  let tac = Proofview.tclALLOCLIMIT n tac in
+  if Memprof_coq.is_real_memprof then tac
+  else
+    Proofview.tclLIFT (Proofview.NonLogical.make (CWarnings.warn_no_memprof ?loc)) >>= fun () ->
+    tac
 
 (** tactic analogous to "OPTIMIZE HEAP" *)
 
