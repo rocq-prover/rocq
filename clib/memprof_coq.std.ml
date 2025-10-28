@@ -1,3 +1,5 @@
+let is_real_memprof = false
+
 let is_interrupted _ = false [@@inline]
 
 let limit_allocations ~limit:_ f = Ok (f(), 0L)
