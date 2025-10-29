@@ -243,10 +243,10 @@ struct
 
   (** For [reflect] and [split] see the "Backtracking, Interleaving,
       and Terminating Monad Transformers" paper.  *)
-  type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_ NonLogical.t
-  and ('a, 'e) reified_ = {r : 'e -> ('a, 'e) reified} [@@unboxed]
+  type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_
+  and ('a, 'e) reified_ = {r : 'e -> ('a, 'e) reified NonLogical.t} [@@unboxed]
 
-  let rec reflect (m : ('a * 'o, 'e) reified) =
+  let rec reflect (m : ('a * 'o, 'e) reified NonLogical.t) =
     { iolist = fun s0 nil cons ->
       let next = function
       | Nil e -> nil e
@@ -273,7 +273,7 @@ struct
       let p = (x, s) in
       NonLogical.return (Cons (p, {r=l}))
     in
-    m.iolist s rnil rcons
+    m.iolist s rnil rcons ()
 
   let repr x = x
 end
@@ -385,6 +385,6 @@ struct
       let p = (x, s.sstate, s.wstate, s.ustate) in
       NonLogical.return (Cons (p, {r=l}))
     in
-    m.iolist s rnil rcons
+    m.iolist s rnil rcons ()
 
  end
