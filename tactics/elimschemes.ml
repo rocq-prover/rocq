@@ -143,16 +143,16 @@ let elim_scheme ~dep ~to_kind =
        match q with
        | QConstant QSProp when dep -> sind_dep
        | QConstant QProp when dep -> ind_dep
-       | (QConstant QType | QVar _) when dep -> rect_dep
+       | (QConstant QType | Quality.QVar _) when dep -> rect_dep
        | QConstant QSProp -> sind_nodep
        | QConstant QProp -> ind_nodep
-       | QConstant QType | QVar _ -> rect_nodep
+       | QConstant QType | Quality.QVar _ -> rect_nodep
      end
   | Set -> if dep then rec_dep else rec_nodep
 
 let elimination_suffix =
   let open UnivGen.QualityOrSet in
-  let open Sorts.Quality in
+  let open Quality in
   function
   | Qual (QConstant QSProp) -> "_sind"
   | Qual (QConstant QProp) -> "_ind"
@@ -186,7 +186,7 @@ let lookup_eliminator_by_name env ind_sp s =
         Pp.(strbrk "Cannot find the elimination combinator " ++
             Id.print id ++ strbrk ", the elimination of the inductive definition " ++
             Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
-            strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
+            strbrk " on sort " ++ UnivGen.QualityOrSet.pr Quality.QVar.raw_pr s ++
             strbrk " is probably not allowed.")
 
 let deprecated_lookup_by_name =

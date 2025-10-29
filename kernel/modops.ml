@@ -50,7 +50,7 @@ type signature_mismatch_error =
   | IncompatibleUniverses of UGraph.univ_inconsistency
   | IncompatibleQualities of QGraph.elimination_error
   | IncompatiblePolymorphism of env * types * types
-  | IncompatibleConstraints of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
+  | IncompatibleUnivConstraints of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
 

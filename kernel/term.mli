@@ -194,7 +194,7 @@ val isArity : types -> bool
 type sorts = Sorts.t = private
   | SProp | Prop | Set
   | Type of Univ.Universe.t  (** Type *)
-  | QSort of Sorts.QVar.t * Univ.Universe.t
+  | QSort of Quality.QVar.t * Univ.Universe.t
 [@@ocaml.deprecated "(8.8) Alias for Sorts.t"]
 
 val decompose_prod_assum : types -> Constr.rel_context * types

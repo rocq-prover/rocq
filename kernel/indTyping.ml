@@ -83,14 +83,14 @@ type univ_info =
 
 let add_squash q info =
   match info.ind_squashed with
-  | None -> { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.singleton q)) }
+  | None -> { info with ind_squashed = Some (SometimesSquashed (Quality.Set.singleton q)) }
   | Some AlwaysSquashed -> info
   | Some (SometimesSquashed qs) ->
     (* XXX dedup insertion *)
-    { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
+    { info with ind_squashed = Some (SometimesSquashed (Quality.Set.add q qs)) }
 
 let compute_elim_squash ?(is_real_arg=false) env u info =
-  let open Sorts.Quality in
+  let open Quality in
   let info = if not is_real_arg then info
     else match info.record_arg_info with
       | HasRelevantArg -> info
@@ -111,9 +111,15 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       then f info
       else { info with missing = u :: info.missing } in
     if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-      check_univ_consistency (fun x -> x)
-        (Sorts.univ_of_sort indu)
-        (Sorts.univ_of_sort u)
+          if Quality.is_impredicative (Sorts.quality indu)
+          then
+            match u with
+            | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
+            | QSort (q, _) -> add_squash (QVar q) info
+            | SProp | Prop -> info
+          else check_univ_consistency (fun x -> x)
+                 (Sorts.univ_of_sort indu)
+                 (Sorts.univ_of_sort u)
     else
       let check_univ_consistency_squash quality =
         check_univ_consistency (add_squash quality) in
@@ -258,19 +264,19 @@ let check_record data =
    We also forbid strict bounds from above because they lead
    to problems when instantiated with algebraic universes
    (template_u < v can become w+1 < v which we cannot yet handle). *)
-let check_unbounded_from_below (univs,csts) =
-  Univ.Constraints.iter (fun (l,d,r) ->
+let check_unbounded_from_below (univs,(_,csts)) =
+  Univ.UnivConstraints.iter (fun (l,d,r) ->
       let bad = match d with
-        | Eq | Lt ->
+        | UnivConstraint.Eq | UnivConstraint.Lt ->
           if Level.Set.mem l univs then Some l
           else if Level.Set.mem r univs then Some r
           else None
-        | Le -> if Level.Set.mem r univs then Some r else None
+        | UnivConstraint.Le -> if Level.Set.mem r univs then Some r else None
       in
       bad |> Option.iter (fun bad ->
           CErrors.user_err Pp.(str "Universe level " ++ Level.raw_pr bad ++
                                str " cannot be template because it appears in constraint " ++
-                               Level.raw_pr l ++ pr_constraint_type d ++ Level.raw_pr r)))
+                               Level.raw_pr l ++ UnivConstraint.pr_kind d ++ Level.raw_pr r)))
     csts
 
 let check_not_appearing_univs ~template_univs univs =
@@ -347,12 +353,12 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
      The inductive and binding parameter types must be syntactically arities. *)
   let check_not_appearing c =
     let qs, us = Vars.sort_and_universes_of_constr c in
-    let qappearing = Sorts.QVar.Set.inter qs template_qvars in
-    if not (Sorts.QVar.Set.is_empty qappearing) then
+    let qappearing = Quality.QVar.Set.inter qs template_qvars in
+    if not (Quality.QVar.Set.is_empty qappearing) then
       CErrors.user_err
         Pp.(str "Template " ++
-            str (if Int.equal 1 (Sorts.QVar.Set.cardinal qappearing) then "quality" else "qualities") ++
-            spc() ++ prlist_with_sep spc Sorts.QVar.raw_pr (Sorts.QVar.Set.elements qappearing) ++ spc() ++
+            str (if Int.equal 1 (Quality.QVar.Set.cardinal qappearing) then "quality" else "qualities") ++
+            spc() ++ prlist_with_sep spc Quality.QVar.raw_pr (Quality.QVar.Set.elements qappearing) ++ spc() ++
             str "appear in illegal positions.")
     else check_not_appearing_univs ~template_univs us
   in
@@ -390,17 +396,17 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
                 CErrors.user_err Pp.(str "Non-linear template level " ++ Level.raw_pr l)
               else Level.Set.add l ubound
           in
-          let qbound = Option.fold_right Sorts.QVar.Set.add qopt qbound in
+          let qbound = Option.fold_right Quality.QVar.Set.add qopt qbound in
           qbound, ubound)
-      (Sorts.QVar.Set.empty,Level.Set.empty)
+      (Quality.QVar.Set.empty,Level.Set.empty)
       template_params
   in
-  let q_unbound = Sorts.QVar.Set.diff template_qvars qbound in
-  let () = if not (Sorts.QVar.Set.is_empty q_unbound) then
+  let q_unbound = Quality.QVar.Set.diff template_qvars qbound in
+  let () = if not (Quality.QVar.Set.is_empty q_unbound) then
       CErrors.user_err
         Pp.(str "Template " ++
-            str (if Int.equal 1 (Sorts.QVar.Set.cardinal q_unbound) then "quality" else "qualities") ++ spc() ++
-            prlist_with_sep spc Sorts.QVar.raw_pr (Sorts.QVar.Set.elements q_unbound) ++ spc() ++
+            str (if Int.equal 1 (Quality.QVar.Set.cardinal q_unbound) then "quality" else "qualities") ++ spc() ++
+            prlist_with_sep spc Quality.QVar.raw_pr (Quality.QVar.Set.elements q_unbound) ++ spc() ++
             str "not bound by parameters.")
 
   in
@@ -458,13 +464,13 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     let bind_qs, bind_us = UVars.Instance.to_array bind_instance in
     let default_qs, default_us = UVars.Instance.to_array default_univs in
     let qsubst = Array.fold_left2 (fun qsubst bind_q default_q ->
-        let open Sorts.Quality in
+        let open Quality in
         match bind_q, default_q with
         | QConstant _, _ -> assert false
         | QVar bind_q, QConstant QType ->
-          Sorts.QVar.Map.add bind_q default_q qsubst
+          Quality.QVar.Map.add bind_q default_q qsubst
         | QVar _, _ -> CErrors.anomaly Pp.(str "Default template quality must be QType."))
-        Sorts.QVar.Map.empty
+        Quality.QVar.Map.empty
         bind_qs default_qs
     in
     let usubst = Array.fold_left2 (fun usubst bind_u default_u ->
@@ -485,7 +491,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
 
 let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
   if not (List.is_empty univ_info.missing)
-  then raise (InductiveError (env, MissingConstraints (univ_info.missing,univ_info.ind_univ)));
+  then raise (InductiveError (env, MissingUnivConstraints (univ_info.missing,univ_info.ind_univ)));
   let arity = Vars.subst_univs_level_constr usubst arity in
   let lc = Array.map (Vars.subst_univs_level_constr usubst) lc in
   let indices = Vars.subst_univs_level_context usubst indices in
@@ -502,10 +508,10 @@ let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
   let squashed = Option.map (function
       | AlwaysSquashed -> AlwaysSquashed
       | SometimesSquashed qs ->
-        let qs = Sorts.Quality.Set.fold (fun q qs ->
-            Sorts.Quality.Set.add (UVars.subst_sort_level_quality usubst q) qs)
+        let qs = Quality.Set.fold (fun q qs ->
+            Quality.Set.add (UVars.subst_sort_level_quality usubst q) qs)
             qs
-            Sorts.Quality.Set.empty
+            Quality.Set.empty
         in
         SometimesSquashed qs)
       univ_info.ind_squashed
@@ -530,7 +536,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Template_ind_entry {uctx; default_univs=_} ->
       Environ.Internal.push_template_context uctx env
     | Monomorphic_ind_entry -> env
-    | Polymorphic_ind_entry ctx -> push_context ctx env
+    | Polymorphic_ind_entry ctx -> push_context QGraph.Internal ctx env
   in
 
   let has_template_poly = match mie.mind_entry_universes with

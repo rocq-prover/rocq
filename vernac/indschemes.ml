@@ -26,7 +26,6 @@ open Ind_tables
 open Auto_ind_decl
 open Eqschemes
 open Elimschemes
-open Sorts
 
 (** Data of an inductive scheme with name resolved *)
 type resolved_scheme = Names.Id.t CAst.t * Indrec.dep_flag * Names.inductive * UnivGen.QualityOrSet.t
@@ -200,7 +199,7 @@ let declare_one_case_analysis_scheme ?loc ind =
   let (mib, mip) as specif = Global.lookup_inductive ind in
   let kind = Indrec.pseudo_sort_quality_for_elim ind mip in
   let dep, suff =
-    if Sorts.Quality.is_qprop kind then case_nodep, Some "case"
+    if Quality.is_qprop kind then case_nodep, Some "case"
     else if not (Inductiveops.has_dependent_elim specif) then
       case_nodep, None
     else case_dep, Some "case" in
@@ -211,7 +210,7 @@ let declare_one_case_analysis_scheme ?loc ind =
       Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ "_" ^ suff))
   in
   let kelim = Inductiveops.elim_sort (mib,mip) in
-  if Inductive.raw_eliminates_to kelim Sorts.Quality.qtype then
+  if Inductive.raw_eliminates_to kelim Quality.qtype then
     define_individual_scheme ?loc dep id ind
 
 (* Induction/recursion schemes *)
@@ -219,7 +218,7 @@ let declare_one_case_analysis_scheme ?loc ind =
 let declare_one_induction_scheme ?loc ind =
   let (mib,mip) as specif = Global.lookup_inductive ind in
   let kind = Indrec.pseudo_sort_quality_for_elim ind mip in
-  let from_prop = Sorts.Quality.is_qprop kind in
+  let from_prop = Quality.is_qprop kind in
   let depelim = Inductiveops.has_dependent_elim specif in
   let kelim = Inductiveops.constant_sorts_below
               @@ Inductiveops.elim_sort (mib,mip) in

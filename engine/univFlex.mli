@@ -9,6 +9,7 @@
 (************************************************************************)
 
 open Univ
+open PConstraints
 
 type t
 (** Flexible universe data.

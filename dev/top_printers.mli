@@ -147,30 +147,30 @@ val pproof : Proof.t -> unit
 (* Universes *)
 val ppuni : Univ.Universe.t -> unit
 val ppuni_level : Univ.Level.t -> unit (* raw *)
-val ppqvar : Sorts.QVar.t -> unit
+val ppqvar : Quality.QVar.t -> unit
 val ppesorts : EConstr.ESorts.t -> unit
 val pperelevance : EConstr.ERelevance.t -> unit
 val prlev : Univ.Level.t -> Pp.t (* with global names (does this work?) *)
-val ppqvarset : Sorts.QVar.Set.t -> unit
+val ppqvarset : Quality.QVar.Set.t -> unit
 val ppuniverse_set : Univ.Level.Set.t -> unit
 val ppuniverse_instance : UVars.Instance.t -> unit
 val ppuniverse_einstance : EConstr.EInstance.t -> unit
 val ppuniverse_context : UVars.UContext.t -> unit
 val ppaucontext : UVars.AbstractContext.t -> unit
-val ppuniverse_context_set : Univ.ContextSet.t -> unit
+val ppuniverse_context_set : PConstraints.ContextSet.t -> unit
 val ppuniverse_subst : UnivSubst.universe_subst -> unit
 val ppuniverse_opt_subst : UState.universe_opt_subst -> unit
-val ppqvar_subst : Sorts.Quality.t Sorts.QVar.Map.t -> unit
-val ppuniverse_level_subst : Univ.universe_level_subst -> unit
+val ppqvar_subst : Quality.t Quality.QVar.Map.t -> unit
+val ppuniverse_level_subst : UVars.universe_level_subst -> unit
 val ppustate : UState.t -> unit
-val ppconstraints : Univ.Constraints.t -> unit
-val ppqconstraints : Sorts.ElimConstraints.t -> unit
+val ppconstraints : Univ.UnivConstraints.t -> unit
+val ppqconstraints : Quality.ElimConstraints.t -> unit
 val ppuniverseconstraints : UnivProblem.Set.t -> unit
 val ppuniverse_context_future : UVars.UContext.t Future.computation -> unit
 val ppuniverses : UGraph.t -> unit
 
-val pp_partialfsubst : (CClosure.fconstr, Sorts.Quality.t, Univ.Universe.t) Partial_subst.t -> unit
-val pp_partialsubst : (EConstr.constr, Sorts.Quality.t, Univ.Universe.t) Partial_subst.t -> unit
+val pp_partialfsubst : (CClosure.fconstr, Quality.t, Univ.Universe.t) Partial_subst.t -> unit
+val pp_partialsubst : (EConstr.constr, Quality.t, Univ.Universe.t) Partial_subst.t -> unit
 
 val ppnamedcontextval : Environ.named_context_val -> unit
 val ppenv : Environ.env -> unit

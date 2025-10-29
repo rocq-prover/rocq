@@ -41,6 +41,7 @@ let choose_dest_or_ind scheme_info args =
 
 let functional_induction with_clean c princl pat =
   let open Proofview.Notations in
+  let open Quality in
   Proofview.Goal.enter_one (fun gl ->
       let sigma = project gl in
       let f, args = decompose_app_list sigma c in

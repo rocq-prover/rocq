@@ -524,7 +524,7 @@ it is an atomic universe (i.e. not an algebraic max() universe).
 Explicit Universes
 -------------------
 
-.. insertprodn universe_name univ_constraint
+.. insertprodn universe_name sort_poly_constraint
 
 .. prodn::
    universe_name ::= @qualid
@@ -538,9 +538,10 @@ Explicit Universes
    | Type
    | _
    | @qualid
-   univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* @ident } {? + } {? %| {*, @univ_constraint } {? + } } %}
-   cumul_univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @univ_constraint } {? + } } %}
-   univ_constraint ::= @universe_name {| < | = | <= } @universe_name
+   sort_poly_decl ::= @%{ {? {* @ident } {| %| | ; } } {* @ident } {? + } {? %| {*, @sort_poly_constraint } {? + } } %}
+   cumul_sort_poly_decl ::= @%{ {? {* @ident } {| %| | ; } } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_poly_constraint } {? + } } %}
+   sort_poly_constraint ::= @universe_name {| < | = | <= } @universe_name
+   | @sort_quality_var -> @sort_quality_var
 
 The syntax has been extended to allow users to explicitly bind names
 to universes and explicitly instantiate polymorphic definitions.
@@ -558,7 +559,7 @@ to universes and explicitly instantiate polymorphic definitions.
    .. exn:: Polymorphic universes can only be declared inside sections, use Monomorphic Universe instead.
       :undocumented:
 
-.. cmd:: Constraint {+, @univ_constraint }
+.. cmd:: Constraint {+, @sort_poly_constraint }
 
    Declares new constraints between named universes.
 

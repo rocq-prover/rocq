@@ -1502,7 +1502,7 @@ let solve_refl ?(can_drop=false) unify flags env evd pbty evk argsv1 argsv2 =
   let eq_constr c1 c2 = match EConstr.eq_constr_universes env !evdref c1 c2 with
   | None -> false
   | Some cstr ->
-    try evdref := Evd.add_universe_constraints !evdref cstr; true
+    try evdref := Evd.add_constraints !evdref cstr; true
     with UniversesDiffer -> false
   in
   let argsv1e = Evd.expand_existential !evdref (evk, argsv1) in

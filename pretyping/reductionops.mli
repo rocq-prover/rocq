@@ -249,7 +249,7 @@ val is_transparent : Environ.env -> Evaluable.t -> bool
 
 (** {6 Conversion Functions (uses closures, lazy strategy) } *)
 
-type conversion_test = Constraints.t -> Constraints.t
+type conversion_test = UnivConstraints.t -> UnivConstraints.t
 
 val is_conv : ?reds:TransparentState.t -> env -> evar_map -> constr -> constr -> bool
 val is_conv_leq : ?reds:TransparentState.t -> env -> evar_map -> constr -> constr -> bool
@@ -316,7 +316,7 @@ val is_head_evar : env -> evar_map -> constr -> bool
 exception AnomalyInConversion of exn
 
 (* inferred_universes just gathers the constraints. *)
-val inferred_universes : (UGraph.t * Univ.Constraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
+val inferred_universes : (UGraph.t * Univ.UnivConstraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
 
 (** Deprecated *)
 

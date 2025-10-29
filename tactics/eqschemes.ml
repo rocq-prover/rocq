@@ -67,9 +67,9 @@ module RelDecl = Context.Rel.Declaration
 
 let hid = Id.of_string "H"
 let xid = Id.of_string "X"
-let default_id_of_sort = let open Sorts.Quality in function
+let default_id_of_sort = let open Quality in function
     | QConstant QSProp | QConstant QProp -> hid
-    | QConstant QType | QVar _ -> xid
+    | QConstant QType | Quality.QVar _ -> xid
 let fresh env id avoid =
   let freshid = next_global_ident_away (Global.safe_env ()) id avoid in
   freshid, Id.Set.add freshid avoid
@@ -819,8 +819,8 @@ let build_congr env (eq,refl,ctx) ind =
   let uni, ctx' = UnivGen.new_global_univ () in
   let ctx =
     let (qs,us),csts = ctx in
-    let us, csts = Univ.ContextSet.union (us,csts) ctx' in
-    ((qs, us), UnivSubst.enforce_leq uni (univ_of_eq env eq) csts) in
+    let us, (elim_csts,univ_csts) = PConstraints.ContextSet.union (us,csts) ctx' in
+    ((qs, us), (elim_csts,UnivSubst.enforce_leq uni (univ_of_eq env eq) univ_csts)) in
   let c =
   my_it_mkLambda_or_LetIn paramsctxt
      (mkNamedLambda (make_annot varB Sorts.Relevant) (mkType uni)

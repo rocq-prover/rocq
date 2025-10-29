@@ -19,7 +19,7 @@ open Mod_subst
 
 type 'a delayed_universes =
 | PrivateMonomorphic of 'a
-| PrivatePolymorphic of Univ.ContextSet.t (** local constraints *)
+| PrivatePolymorphic of PConstraints.ContextSet.t (** local constraints *)
 
 type opaquetab
 type opaque

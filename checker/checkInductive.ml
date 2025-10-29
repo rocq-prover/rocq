@@ -11,7 +11,6 @@
 open Declarations
 open Environ
 open Names
-open Univ
 open UVars
 open Util
 
@@ -110,7 +109,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
 
 let check_abstract_uctx a b =
   eq_sizes (AbstractContext.size a) (AbstractContext.size b)
-  && Constraints.equal (UContext.constraints @@ AbstractContext.repr a)
+  && PConstraints.equal (UContext.constraints @@ AbstractContext.repr a)
     (UContext.constraints @@ AbstractContext.repr b)
 
 let check_template ar1 ar2 = match ar1, ar2 with
@@ -141,7 +140,7 @@ let check_squashed orig generated = match orig, generated with
     | AlwaysSquashed, SometimesSquashed _ -> true
     | SometimesSquashed _, AlwaysSquashed -> false
     | SometimesSquashed s1, SometimesSquashed s2 ->
-      Sorts.Quality.Set.subset s2 s1
+      Quality.Set.subset s2 s1
 
 (* Use [UserOrd] because when we rebuild the recargs we have lost
    the knowledge of who is the canonical version.

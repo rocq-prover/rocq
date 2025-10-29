@@ -24,7 +24,7 @@ module RelDecl = Context.Rel.Declaration
 
 let get_sigmatypes sigma ~sort ~predsort =
   let open EConstr in
-  let open Sorts.Quality in
+  let open Quality in
   let which, sigsort = match predsort, sort with
     | QConstant QSProp, _ | _, QConstant QSProp ->
       user_err Pp.(str "SProp arguments not supported by Program Fixpoint yet.")

@@ -376,10 +376,10 @@ let detype_qvar sigma q =
   | None -> GQVar q
 
 let detype_quality sigma q =
-  let open Sorts.Quality in
+  let open Quality in
   match q with
   | QConstant q -> GQConstant q
-  | QVar q -> GQualVar (detype_qvar sigma q)
+  | Quality.QVar q -> GQualVar (detype_qvar sigma q)
 
 let detype_universe sigma u =
   UNamed (List.map (on_fst (detype_level_name sigma)) (Univ.Universe.repr u))

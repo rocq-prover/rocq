@@ -10,10 +10,10 @@
 
 open Names
 open Constr
-open Univ
 open UVars
 open Declarations
 open Mod_declarations
+open PConstraints
 
 (** Unsafe environments. We define here a datatype for environments.
    Since typing is not yet defined, it is not possible to check the
@@ -76,8 +76,9 @@ val named_context_val : env -> named_context_val
 val set_universes : UGraph.t -> env -> env
 
 val qualities : env -> QGraph.t
-val qvars : env -> Sorts.QVar.Set.t
-val set_qualities : Sorts.QVar.Set.t -> env -> env
+val qvars : env -> Quality.QVar.Set.t
+val set_qualities : Quality.QVar.Set.t -> env -> env
+val set_qualities_graph : QGraph.t -> env -> env
 
 val typing_flags    : env -> typing_flags
 val is_impredicative_set : env -> bool
@@ -207,7 +208,7 @@ exception NotEvaluableConst of const_evaluation_result
 val constant_type : env -> Constant.t puniverses -> types constrained
 
 val constant_value_and_type : env -> Constant.t puniverses ->
-  constr option * types * Constraints.t
+  constr option * types * PConstraints.t
 (** The universe context associated to the constant, empty if not
     polymorphic *)
 val constant_context : env -> Constant.t -> AbstractContext.t
@@ -371,23 +372,26 @@ val lookup_modtype : ModPath.t -> env -> module_type_body
 
 (** {5 Universe constraints } *)
 
-val add_constraints : Constraints.t -> env -> env
+val add_constraints : QGraph.constraint_source -> PConstraints.t -> env -> env
 (** Add universe constraints to the environment.
     @raise UniverseInconsistency. *)
 
-val check_constraints : Constraints.t -> env -> bool
+val check_univ_constraints : Univ.UnivConstraints.t -> env -> bool
+(** Check universe constraints are satifiable in the environment. *)
+
+val check_constraints : PConstraints.t -> env -> bool
 (** Check constraints are satifiable in the environment. *)
 
-val push_context : ?strict:bool -> UContext.t -> env -> env
-(** [push_context ?(strict=false) ctx env] pushes the universe context to the environment.
+val push_context : ?strict:bool -> QGraph.constraint_source -> UContext.t -> env -> env
+(** [push_context ?(strict=false) src ctx env] pushes the universe context to the environment.
     @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
 
-val push_context_set : ?strict:bool -> ContextSet.t -> env -> env
-(** [push_context_set ?(strict=false) ctx env] pushes the universe
+val push_context_set : ?strict:bool -> QGraph.constraint_source -> ContextSet.t -> env -> env
+(** [push_context_set ?(strict=false) src ctx env] pushes the universe
     context set to the environment. It does not fail even if one of the
     universes is already declared. *)
 
-val push_qualities : Sorts.QVar.Set.t -> env -> env
+val push_qualities : Quality.QVar.Set.t -> env -> env
 (** [push_qualities qs env] pushes the set of quality variables in
     the environment. It fails if a quality variable is already
     declared. *)
@@ -487,7 +491,7 @@ module Internal : sig
       Do not use outside kernel inductive typechecking. *)
   val push_template_context : UContext.t -> env -> env
 
-  val is_above_prop : env -> Sorts.QVar.t -> bool
+  val is_above_prop : env -> Quality.QVar.t -> bool
 
   module View :
   sig
@@ -499,7 +503,7 @@ module Internal : sig
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;
-      env_qualities : Sorts.QVar.Set.t;
+      env_qualities : Quality.QVar.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;
       env_typing_flags  : typing_flags;
     }
