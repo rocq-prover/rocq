@@ -42,6 +42,9 @@ Record char63_wrapper := wrap_char63 { char63_wrap : char63 }.
 
 Module Export Char63Notations.
   Coercion char63_wrap : char63_wrapper >-> char63.
+
+  Definition eeee (s : string) := get s 0.
+
   Definition parse (s : string) : option char63_wrapper :=
     if PrimInt63.eqb (length s) 1%uint63 then Some (wrap_char63 (get s 0)) else None.
   Definition print (i : char63_wrapper) : option string :=
