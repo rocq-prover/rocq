@@ -386,5 +386,5 @@ let () =
     compile senv ~in_file
   with exn ->
     Format.eprintf "Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn);
-    let exit_code = if (CErrors.is_anomaly exn) then 129 else 1 in
+    let exit_code = if (CErrors.is_anomaly ~async:true exn) then 129 else 1 in
     exit exit_code

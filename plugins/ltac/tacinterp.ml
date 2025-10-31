@@ -1868,7 +1868,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
         let env = Proofview.Goal.env gl in
         let sigma = project gl in
         let op = interp_typed_pattern ist env sigma op in
-        let to_catch = function Not_found -> true | e -> CErrors.is_anomaly e in
+        let to_catch = function Not_found -> true | e -> CErrors.is_anomaly ~async:false e in
         let c_interp patvars env sigma =
           let lfun' = Id.Map.fold (fun id c lfun ->
             Id.Map.add id (Value.of_constr c) lfun)

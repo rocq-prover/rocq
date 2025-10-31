@@ -25,10 +25,13 @@ val anomaly : ?loc:Loc.t -> ?info:Exninfo.info -> ?label:string -> Pp.t -> 'a
 (** Raise an anomaly, with an optional location and an optional
     label identifying the anomaly. *)
 
-val is_anomaly : exn -> bool
+val is_anomaly : async:bool -> exn -> bool
 (** Check whether a given exception is an anomaly.
     This is mostly provided for compatibility. Please avoid doing specific
-    tricks with anomalies thanks to it. See rather [noncritical] below. *)
+    tricks with anomalies thanks to it. See rather [noncritical] below.
+
+    [async] is the value returned for asynchronous exceptions (timeouts, user interrupts, etc).
+    Avoid catching these at all costs! *)
 
 exception UserError of Pp.t
 (** Main error signaling exception. It carries a header plus a pretty printing

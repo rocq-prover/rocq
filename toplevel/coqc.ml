@@ -57,7 +57,7 @@ let coqc_run copts ~opts injections =
     flush_all();
     Topfmt.print_err_exn exn;
     flush_all();
-    let exit_code = if (CErrors.is_anomaly exn) then 129 else 1 in
+    let exit_code = if (CErrors.is_anomaly ~async:true exn) then 129 else 1 in
     exit exit_code
 
 let fix_stm_opts opts stm_opts = match opts.Coqcargs.compilation_mode with

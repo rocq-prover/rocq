@@ -84,9 +84,10 @@ let is_handled e =
   let is_handled_by h = Option.has_some (h e) in
   List.exists is_handled_by !handle_stack
 
-let is_anomaly = function
+let is_anomaly ~async = function
 | Anomaly _ -> true
-| exn -> not (is_handled exn)
+| Control.Timeout | Sys.Break | Out_of_memory | Stack_overflow -> async
+| exn -> if Memprof_coq.is_interrupted() then async else not (is_handled exn)
 
 (** Printing of additional error info, from Exninfo *)
 let additional_error_info_handler = ref []

@@ -1143,7 +1143,8 @@ let clos_norm_flags flgs env sigma t =
       (Evarutil.create_clos_infos env sigma flgs)
       (CClosure.create_tab ())
       (Esubst.subs_id 0, UVars.Instance.empty) (EConstr.Unsafe.to_constr t))
-  with e when is_anomaly e -> user_err Pp.(str "Tried to normalize ill-typed term")
+  with e when is_anomaly ~async:false e ->
+    user_err Pp.(str "Tried to normalize ill-typed term")
 
 let clos_whd_flags flgs env sigma t =
   try
@@ -1151,7 +1152,8 @@ let clos_whd_flags flgs env sigma t =
       (Evarutil.create_clos_infos env sigma flgs)
       (CClosure.create_tab ())
       (CClosure.inject (EConstr.Unsafe.to_constr t)))
-  with e when is_anomaly e -> user_err Pp.(str "Tried to normalize ill-typed term")
+  with e when is_anomaly ~async:false e ->
+    user_err Pp.(str "Tried to normalize ill-typed term")
 
 let nf_beta = clos_norm_flags RedFlags.beta
 let nf_betaiota = clos_norm_flags RedFlags.betaiota
@@ -1192,7 +1194,7 @@ let _ = CErrors.register_handler (function
 
 let report_anomaly (e, info) =
   let e =
-    if is_anomaly e then AnomalyInConversion e
+    if is_anomaly ~async:false e then AnomalyInConversion e
     else e
   in
   Exninfo.iraise (e, info)
