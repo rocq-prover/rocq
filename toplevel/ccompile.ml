@@ -115,6 +115,7 @@ let compile_file opts stm_opts copts injections (f_in, echo) =
   if !Flags.beautify then
     Flags.with_option Flags.beautify_file
       (fun f_in -> compile opts stm_opts copts injections ~echo ~f_in ~f_out) f_in
+    [@ocaml.warning "-3"]
   else
     compile opts stm_opts copts injections ~echo ~f_in ~f_out
 
