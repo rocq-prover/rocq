@@ -1587,7 +1587,7 @@ dependently-typed style:
 
 .. rocqtop:: in
 
-   Notation " t --> t' " := (arrow t t') (at level 20, t' at next level).
+   Notation " t --> t' " := (arrow t t') (at level 20, right associativity).
 
 .. rocqtop:: in
 
@@ -1597,7 +1597,7 @@ dependently-typed style:
 
 .. rocqtop:: in
 
-   Notation " G , tau " := (snoc G tau) (at level 20, tau at next level).
+   Notation " G , tau " := (snoc G tau) (at level 21, left associativity).
 
 .. rocqtop:: in
 
@@ -1609,7 +1609,7 @@ dependently-typed style:
 
 .. rocqtop:: in
 
-   Notation " G ; D " := (conc G D) (at level 20).
+   Notation " G ; D " := (conc G D) (at level 21).
 
 .. rocqtop:: in
 
