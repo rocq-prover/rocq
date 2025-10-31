@@ -986,6 +986,8 @@ let () =
 let () =
   define "clear_err_info" (err @-> ret err) @@ fun (e,_) -> (e, Exninfo.null)
 
+let () = define "print_err" (err @-> ret pp) @@ fun (e,_) -> CErrors.print e
+
 (** Control *)
 
 (** exn -> 'a *)
