@@ -1055,7 +1055,7 @@ let register_notation_interpretation = function
     Lib.add_leaf (inTac2NotationInterp (local,kn,data))
 
 type redefinition = {
-  redef_local : bool (* false = Export *);
+  redef_local : Libobject.locality;
   redef_kn : ltac_constant;
   redef_body : glb_tacexpr;
   redef_old : Id.t option;
@@ -1079,6 +1079,18 @@ let perform_redefinition (prefix,redef) =
   in
   Tac2env.define_global kn data
 
+let load_redefinition _ (_,redef as o) =
+  match redef.redef_local with
+  | Local -> assert false
+  | Export -> ()
+  | SuperGlobal -> perform_redefinition o
+
+let open_redefinition (_,redef as o) =
+  match redef.redef_local with
+  | Local -> assert false
+  | Export -> perform_redefinition o
+  | SuperGlobal -> ()
+
 let subst_redefinition (subst, redef) =
   let kn = Mod_subst.subst_kn subst redef.redef_kn in
   let body = Tac2intern.subst_expr subst redef.redef_body in
@@ -1089,26 +1101,24 @@ let subst_redefinition (subst, redef) =
          redef_old = redef.redef_old;
        }
 
-let classify_redefinition o = if o.redef_local then Dispose else Substitute
+let classify_redefinition o = match o.redef_local with
+  | Local -> Dispose
+  | Export | SuperGlobal -> Substitute
 
 let inTac2Redefinition : redefinition -> obj =
   declare_named_object_gen
     {(default_object "TAC2-REDEFINITION") with
      cache_function  = perform_redefinition;
-     open_function   = simple_open perform_redefinition;
+     load_function = load_redefinition;
+     open_function   = simple_open open_redefinition;
      subst_function = subst_redefinition;
      classify_function = classify_redefinition;
     }
 
 let register_redefinition ~local qid old ({loc=eloc} as e) =
   let local = match local with
-    | None -> Lib.sections_are_opened()
-    | Some Local -> true
-    | Some Export ->
-      if Lib.sections_are_opened() then
-        CErrors.user_err Pp.(str "This command does not support \"export\" in sections.")
-      else false
-    | Some SuperGlobal -> CErrors.user_err Pp.(str "This command does not support \"global\".")
+    | None -> if Lib.sections_are_opened() then Local else Export
+    | Some local -> Locality.check_locality_nodischarge Local; local
   in
   let kn =
     try Tac2env.locate_ltac qid
@@ -1209,13 +1219,45 @@ let pr_frame = function
   str "Extn " ++ str (Tac2dyn.Arg.repr tag) ++ str ":" ++ spc () ++
     obj.Tac2env.ml_print env sigma arg
 
-let () = register_handler begin function
-| Tac2interp.LtacError (kn, args) ->
+let print_raw_error kn args =
   let t_exn = KerName.make Tac2env.rocq_prefix (Id.of_string "exn") in
   let v = Tac2ffi.of_open (kn, args) in
   let t = GTypRef (Other t_exn, []) in
   let c = Tac2print.pr_valexpr (Global.env ()) Evd.empty v t in
-  Some (hov 0 (str "Uncaught Ltac2 exception:" ++ spc () ++ hov 0 c))
+  hov 0 (str "Uncaught Ltac2 exception:" ++ spc () ++ hov 0 c)
+
+let print_error kn args =
+  let env = Global.env() in
+  let sigma = Evd.from_env env in
+  let user_print = KerName.make Tac2quote.Refs.control_prefix (Id.of_string "print_exn") in
+  let user_print = Tac2interp.eval_global user_print in
+  let user_print = Tac2ffi.(to_fun1 of_exn (to_option to_pp)) user_print in
+  let user_print () =
+    let res, _, _, _, _ =
+    Proofview.apply ~name:(Id.of_string_soft "ltac2 error printing") ~poly:false
+      env
+      (user_print (Tac2interp.LtacError (kn, args), Exninfo.null))
+      (snd @@ Proofview.init sigma [])
+    in
+    res
+  in
+  match user_print() with
+  | Some msg -> msg
+  | None -> print_raw_error kn args
+  | exception e when CErrors.noncritical e ->
+    let e = Exninfo.capture e in
+    let ppe = match e with
+      | Tac2interp.LtacError (kn', args'), _info ->
+        (* don't use iprint: high risk of looping *)
+        (* XXX print the info? currently CErrors.print_extra is not exposed *)
+        print_raw_error kn' args'
+      | _ -> CErrors.iprint e
+    in
+    print_raw_error kn args ++ fnl() ++
+    hov 2 (str "Custom Ltac2 printer failed:" ++ spc() ++ ppe)
+
+let () = register_handler begin function
+| Tac2interp.LtacError (kn, args) -> Some (print_error kn args)
 | _ -> None
 end
 
