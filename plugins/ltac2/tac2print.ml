@@ -994,6 +994,15 @@ let () =
   in
   register_val_printer kn { val_printer }
 
+let () =
+  let kn = KerName.make (MPfile (Libnames.dirpath_of_string "Ltac2.Module")) (Label.make "t") in
+  let val_printer _env _sigma v _arg =
+    let v = to_modpath v in
+    (* XXX nametab based printing? if so share with tac2core *)
+    str "module:(" ++ ModPath.print v ++ str ")"
+  in
+  register_val_printer kn { val_printer }
+
 let pr_profile_frame = let open Pp in function
   | FrAnon e -> str "<fun " ++ pr_glbexpr ~avoid:Id.Set.empty e ++ str ">"
   | FrLtac kn -> pr_tacref Id.Set.empty kn
