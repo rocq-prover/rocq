@@ -438,7 +438,7 @@ let init_with_argv argv =
     includes := [];
     make_senv ()
   with e ->
-    fatal_error (str "Error during initialization :" ++ (explain_exn e)) (is_anomaly e)
+    fatal_error (str "Error during initialization :" ++ (explain_exn e)) (is_anomaly ~async:true e)
 
 let init() = init_with_argv Sys.argv
 
@@ -448,7 +448,7 @@ let run senv =
     flush_all(); senv
   with e ->
     if CDebug.(get_flag misc) then Printexc.print_backtrace stderr;
-    fatal_error (explain_exn e) (is_anomaly e)
+    fatal_error (explain_exn e) (is_anomaly ~async:true e)
 
 let main () =
   let senv = init() in
