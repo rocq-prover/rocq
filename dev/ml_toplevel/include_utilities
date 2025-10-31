@@ -20,7 +20,7 @@ let e s =
 let constr_of_string s = 
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  Constrintern.interp_constr env sigma (parse_constr s)
+  Constrintern.interp_constr_evars env sigma (parse_constr s)
 
 (* get the body of a constant *)
 
@@ -37,4 +37,4 @@ let current_goal () = get_nth_goal 1;;
 *)
 
 let pf_e gl s = 
-  Constrintern.interp_constr (Tacmach.pf_env gl) (Tacmach.project gl) (parse_constr s)
+  Constrintern.interp_constr_evars (Tacmach.pf_env gl) (Tacmach.project gl) (parse_constr s)

@@ -133,17 +133,16 @@ let rec intern_module_ast kind m = match m with
 let interp_with_decl env base kind = function
   | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
   | WithDef(fqid,(udecl,c)) ->
-    let sigma, udecl = interp_univ_decl_opt env udecl in
-    let c, ectx = interp_constr env sigma c in
+    let ectx, udecl = interp_univ_decl_opt env udecl in
+    let c, ectx = interp_constr env ectx c in
+    let c = EConstr.to_constr (Evd.from_ctx ectx) c in
     let poly = lookup_polymorphism env base kind fqid in
     begin match fst (UState.check_univ_decl ~poly ectx udecl) with
       | UState.Polymorphic_entry ctx ->
         let inst, ctx = UVars.abstract_universes ctx in
-        let c = EConstr.Vars.subst_univs_level_constr (UVars.make_instance_subst inst) c in
-        let c = EConstr.to_constr sigma c in
+        let c = Vars.subst_univs_level_constr (UVars.make_instance_subst inst) c in
         WithDef (fqid,(c, Some ctx)), Univ.ContextSet.empty
       | UState.Monomorphic_entry ctx ->
-        let c = EConstr.to_constr sigma c in
         WithDef (fqid,(c, None)), ctx
     end
 

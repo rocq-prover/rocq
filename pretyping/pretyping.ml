@@ -472,10 +472,10 @@ let check_evars_are_solved ~program_mode env ?initial current_sigma =
   let frozen = frozen_and_pending_holes (initial, current_sigma) None in
   check_evars_are_solved_from ~program_mode env current_sigma frozen frozen
 
-let process_inference_flags flags env initial (sigma,c,cty) =
-  let sigma = solve_remaining_evars_from flags env ~initial sigma (Some cty) in
-  let c = if flags.expand_evars then nf_evar sigma c else c in
-  sigma,c,cty
+let process_inference_flags flags env initial (sigma,j) =
+  let sigma = solve_remaining_evars_from flags env ~initial sigma (Some j.uj_type) in
+  let j = if flags.expand_evars then { j with uj_val = nf_evar sigma j.uj_val } else j in
+  sigma,j
 
 let adjust_evar_source sigma na c =
   match na, kind sigma c with
@@ -1691,20 +1691,18 @@ let ise_pretype_gen (flags : inference_flags) env sigma lvar kind c =
   } in
   let hypnaming = VarSet.variables (Global.env ()) in
   let env = GlobEnv.make ~hypnaming env sigma lvar in
-  let sigma', c', c'_ty = match kind with
+  let sigma', j = match kind with
     | WithoutTypeConstraint ->
-      let sigma, j = pretype ~flags:pretype_flags empty_tycon env sigma c in
-      sigma, j.uj_val, j.uj_type
+      pretype ~flags:pretype_flags empty_tycon env sigma c
     | OfType exptyp ->
-      let sigma, j = pretype ~flags:pretype_flags (mk_tycon exptyp) env sigma c in
-      sigma, j.uj_val, j.uj_type
+      pretype ~flags:pretype_flags (mk_tycon exptyp) env sigma c
     | IsType ->
       let sigma, tj = pretype_type ~flags:pretype_flags empty_valcon env sigma c in
-      sigma, tj.utj_val, mkSort tj.utj_type
+      sigma, { uj_val = tj.utj_val; uj_type = mkSort tj.utj_type }
   in
-  process_inference_flags flags !!env sigma (sigma',c',c'_ty)
+  process_inference_flags flags !!env sigma (sigma',j)
 
-let ise_pretype_gen flags env sigma lvar kind c : _ * _ * _ =
+let ise_pretype_gen flags env sigma lvar kind c : _ * _ =
   NewProfile.profile "pretyping" (fun () ->
       ise_pretype_gen flags env sigma lvar kind c)
     ()
@@ -1736,9 +1734,9 @@ let no_classes_no_fail_inference_flags = {
 let all_and_fail_flags = default_inference_flags true
 let all_no_fail_flags = default_inference_flags false
 
-let ise_pretype_gen_ctx flags env sigma lvar kind c =
-  let sigma, c, _ = ise_pretype_gen flags env sigma lvar kind c in
-  c, Evd.ustate sigma
+let ise_pretype_gen_ctx flags env uctx lvar kind c =
+  let sigma, j = ise_pretype_gen flags env (Evd.from_ctx uctx) lvar kind c in
+  j.uj_val, Evd.ustate sigma
 
 (** Entry points of the high-level type synthesis algorithm *)
 
@@ -1748,18 +1746,10 @@ let understand
     env sigma c =
   ise_pretype_gen_ctx flags env sigma empty_lvar expected_type c
 
-let understand_tcc_ty ?(flags=all_no_fail_flags) env sigma ?(expected_type=WithoutTypeConstraint) c =
+let understand_tcc ?(flags=all_no_fail_flags) env sigma ?(expected_type=WithoutTypeConstraint) c =
   ise_pretype_gen flags env sigma empty_lvar expected_type c
 
-let understand_tcc ?flags env sigma ?expected_type c =
-  let sigma, c, _ = understand_tcc_ty ?flags env sigma ?expected_type c in
-  sigma, c
-
 let understand_ltac flags env sigma lvar kind c =
-  let (sigma, c, _) = ise_pretype_gen flags env sigma lvar kind c in
-  (sigma, c)
-
-let understand_ltac_ty flags env sigma lvar kind c =
   ise_pretype_gen flags env sigma lvar kind c
 
 (* Fully evaluate an untyped constr *)
@@ -1820,8 +1810,8 @@ let path_convertible env sigma cl p q =
                    mkGVar (Id.of_string "x"))
   in
   try
-    let sigma,tp = understand_tcc env sigma (path_to_gterm p) in
-    let sigma,tq = understand_tcc env sigma (path_to_gterm q) in
+    let sigma,{uj_val=tp} = understand_tcc env sigma (path_to_gterm p) in
+    let sigma,{uj_val=tq} = understand_tcc env sigma (path_to_gterm q) in
     if Evd.has_undefined sigma then
       false
     else

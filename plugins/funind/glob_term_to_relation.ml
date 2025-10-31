@@ -304,7 +304,7 @@ let raw_push_named (na, raw_value, raw_typ) env =
   | Anonymous -> env
   | Name id -> (
     let typ, _ =
-      Pretyping.understand env (Evd.from_env env)
+      Pretyping.understand env (UState.from_env env)
         ~expected_type:Pretyping.IsType raw_typ
     in
     let na = make_annot id ERelevance.relevant in
@@ -504,7 +504,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
          The "value" of this branch is then simply [res]
       *)
       (* XXX here and other [understand] calls drop the ctx *)
-      let rt_as_constr, ctx = Pretyping.understand env (Evd.from_env env) rt in
+      let rt_as_constr, ctx = Pretyping.understand env (UState.from_env env) rt in
       let rt_typ = Retyping.get_type_of env (Evd.from_env env) rt_as_constr in
       let res_raw_type =
         Detyping.detype Detyping.Now env (Evd.from_env env)
@@ -631,7 +631,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
       | Some t -> DAst.make ?loc:rt.loc @@ GCast (v, Some DEFAULTcast, t)
     in
     let v_res = build_entry_lc env sigma funnames avoid v in
-    let v_as_constr, ctx = Pretyping.understand env (Evd.from_env env) v in
+    let v_as_constr, ctx = Pretyping.understand env (UState.from_env env) v in
     let v_type = Retyping.get_type_of env (Evd.from_env env) v_as_constr in
     let v_r = ERelevance.relevant in
     (* TODO relevance *)
@@ -652,7 +652,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
     let make_discr = make_discr_match brl in
     build_entry_lc_from_case env sigma funnames make_discr el brl avoid
   | GIf (b, (na, e_option), lhs, rhs) ->
-    let b_as_constr, ctx = Pretyping.understand env (Evd.from_env env) b in
+    let b_as_constr, ctx = Pretyping.understand env (UState.from_env env) b in
     let b_typ = Retyping.get_type_of env (Evd.from_env env) b_as_constr in
     let ind, _ =
       try Inductiveops.find_inductive env (Evd.from_env env) b_typ
@@ -674,7 +674,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
     let nal_as_glob_constr =
       List.map (function Name id -> mkGVar id | Anonymous -> mkGHole ()) nal
     in
-    let b_as_constr, ctx = Pretyping.understand env (Evd.from_env env) b in
+    let b_as_constr, ctx = Pretyping.understand env (UState.from_env env) b in
     let b_typ = Retyping.get_type_of env (Evd.from_env env) b_as_constr in
     let ind, _ =
       try Inductiveops.find_inductive env (Evd.from_env env) b_typ
@@ -719,7 +719,7 @@ and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
       List.map
         (fun (case_arg, _) ->
           let case_arg_as_constr, ctx =
-            Pretyping.understand env (Evd.from_env env) case_arg
+            Pretyping.understand env (UState.from_env env) case_arg
           in
           Retyping.get_type_of env (Evd.from_env env) case_arg_as_constr)
         el
@@ -921,7 +921,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         let new_t =
           mkGApp (mkGVar (mk_rel_id this_relname), List.tl args' @ [res_rt])
         in
-        let t', ctx = Pretyping.understand env (Evd.from_env env) new_t in
+        let t', ctx = Pretyping.understand env (UState.from_env env) new_t in
         let r = ERelevance.relevant in
         (* TODO relevance *)
         let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
@@ -944,7 +944,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       try
         observe (str "computing new type for eq : " ++ pr_glob_constr_env env rt);
         let t' =
-          try fst (Pretyping.understand env (Evd.from_env env) t) (*FIXME*)
+          try fst (Pretyping.understand env (UState.from_env env) t) (*FIXME*)
           with e when CErrors.noncritical e -> raise Continue
         in
         let is_in_b = is_free_in id b in
@@ -965,7 +965,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         (mkGProd (n, t, new_b), id_to_exclude)
       with Continue ->
         let jmeq = GlobRef.IndRef (fst (EConstr.destInd Evd.empty (jmeq ()))) in
-        let ty', ctx = Pretyping.understand env (Evd.from_env env) ty in
+        let ty', ctx = Pretyping.understand env (UState.from_env env) ty in
         let ind, args' =
           Inductiveops.find_inductive env Evd.(from_env env) ty'
         in
@@ -993,7 +993,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         observe
           (str "computing new type for jmeq : " ++ pr_glob_constr_env env eq');
         let eq'_as_constr, ctx =
-          Pretyping.understand env (Evd.from_env env) eq'
+          Pretyping.understand env (UState.from_env env) eq'
         in
         observe (str " computing new type for jmeq : done");
         let sigma = Evd.(from_env env) in
@@ -1038,7 +1038,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         in
         let subst_b = if is_in_b then b else replace_var_by_term id rt b in
         let new_env =
-          let t', ctx = Pretyping.understand env (Evd.from_env env) eq' in
+          let t', ctx = Pretyping.understand env (UState.from_env env) eq' in
           let r = ERelevance.relevant in
           (* TODO relevance *)
           EConstr.push_rel (LocalAssum (make_annot n r, t')) env
@@ -1075,7 +1075,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       with Continue -> (
         observe
           (str "computing new type for prod : " ++ pr_glob_constr_env env rt);
-        let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+        let t', ctx = Pretyping.understand env (UState.from_env env) t in
         let r = ERelevance.relevant in
         (* TODO relevance *)
         let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
@@ -1090,7 +1090,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       )
     | _ -> (
       observe (str "computing new type for prod : " ++ pr_glob_constr_env env rt);
-      let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+      let t', ctx = Pretyping.understand env (UState.from_env env) t in
       let r = ERelevance.relevant in
       (* TODO relevance *)
       let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
@@ -1107,7 +1107,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     let not_free_in_t id = not (is_free_in id t) in
     let new_crossed_types = t :: crossed_types in
     observe (str "computing new type for lambda : " ++ pr_glob_constr_env env rt);
-    let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+    let t', ctx = Pretyping.understand env (UState.from_env env) t in
     match n with
     | Name id ->
       let r = ERelevance.relevant in
@@ -1133,8 +1133,8 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       | Some t -> DAst.make ?loc:rt.loc @@ GCast (v, Some DEFAULTcast, t)
     in
     let not_free_in_t id = not (is_free_in id t) in
-    let evd = Evd.from_env env in
-    let t', ctx = Pretyping.understand env evd t in
+    let ctx = UState.from_env env in
+    let t', ctx = Pretyping.understand env ctx t in
     let evd = Evd.from_ctx ctx in
     let type_t' = Retyping.get_type_of env evd t' in
     let new_env =
@@ -1157,7 +1157,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     let new_t, id_to_exclude' =
       rebuild_cons env nb_args relname args crossed_types depth t
     in
-    let t', ctx = Pretyping.understand env (Evd.from_env env) new_t in
+    let t', ctx = Pretyping.understand env (UState.from_env env) new_t in
     let r = ERelevance.relevant in
     (* TODO relevance *)
     let new_env = EConstr.push_rel (LocalAssum (make_annot na r, t')) env in
@@ -1364,8 +1364,9 @@ let do_build_inductive evd (funconstants : pconstant list)
     let rel_arities = Array.mapi rel_arity funsargs in
     Util.Array.fold_left2
       (fun env rel_name rel_ar ->
-        let rex =
-          fst (with_full_print (Constrintern.interp_constr env evd) rel_ar)
+         let rex =
+           (* XXX don't drop returned ustate, use evar-aware interp instead of ustate only interp *)
+          fst (with_full_print (Constrintern.interp_constr env (Evd.ustate evd)) rel_ar)
         in
         let r = ERelevance.relevant in
         (* TODO relevance *)
