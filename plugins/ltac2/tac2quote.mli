@@ -49,6 +49,8 @@ module Refs : sig
 
   val t_module : type_constant
 
+  (** Modules *)
+  val control_prefix : ModPath.t
 end
 
 val constructor : ?loc:Loc.t -> ltac_constructor -> raw_tacexpr list -> raw_tacexpr
