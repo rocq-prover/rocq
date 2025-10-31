@@ -35,3 +35,5 @@ Extract Inductive sumor => option [ Some None ].
 Extract Inlined Constant andb => "(&&)".
 Extract Inlined Constant orb => "(||)".
 
+(* for the dependent principle of equality*)
+Extract Inlined Constant eq_rect_r_dep => "(fun _ t _ -> t)".

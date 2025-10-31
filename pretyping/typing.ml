@@ -687,6 +687,18 @@ let type_of ?(refresh=false) env sigma c =
       Evarsolve.refresh_universes ~onlyalg:true (Some false) env sigma j.uj_type
     else sigma, j.uj_type
 
+let type_and_sort_of ?(refresh=false) env sigma c =
+  let sigma, j = execute env sigma c in
+  (* side-effect on evdref *)
+  let sigma , ctype =
+    if refresh then
+      Evarsolve.refresh_universes ~onlyalg:true (Some false) env sigma j.uj_type
+    else sigma, j.uj_type in
+  let sigma, a = type_judgment env sigma j in
+  sigma, ctype , a.utj_type
+
+
+
 let solve_evars env sigma c =
   let sigma, j = execute env sigma c in
   (* side-effect on evdref *)

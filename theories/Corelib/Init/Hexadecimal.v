@@ -16,7 +16,7 @@
     We represent numbers in base 16 as lists of hexadecimal digits,
     in big-endian order (most significant digit comes first). *)
 
-Require Import Datatypes Specif Decimal.
+Require Import Logic Datatypes Specif Decimal.
 
 (** Unsigned integers are just lists of digits.
     For instance, sixteen is (D1 (D0 Nil)) *)
