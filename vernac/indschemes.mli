@@ -22,10 +22,6 @@ val declare_beq_scheme : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
 
 val declare_eq_decidability : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
 
-(** Build and register a congruence scheme for an equality-like inductive type *)
-
-val declare_congr_scheme : ?loc:Loc.t -> inductive -> unit
-
 (** Build and register rewriting schemes for an equality-like inductive type *)
 
 val declare_rewriting_schemes : ?loc:Loc.t -> inductive -> unit

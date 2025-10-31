@@ -311,13 +311,9 @@ let warn_cannot_build_congruence =
 let declare_congr_scheme ?loc ind =
   let env = Global.env () in
   if Hipattern.is_inductive_equality env ind then begin
-    if
-      try Rocqlib.check_required_library Rocqlib.logic_module_name; true
-      with e when CErrors.noncritical e -> false
-    then
-      define_individual_scheme ?loc congr_scheme_kind None ind
-    else
-      warn_cannot_build_congruence ()
+    match Rocqlib.lib_ref_opt "core.eq.type" with
+    | Some _ -> define_individual_scheme ?loc congr_scheme_kind None ind
+    | None -> warn_cannot_build_congruence ()
   end
 
 (* Scheme command *)
