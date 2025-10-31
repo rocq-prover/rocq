@@ -819,6 +819,7 @@ control_flag: [
 | "Profile" OPT STRING
 | "Redirect" ne_string
 | "Timeout" natural
+| "AllocLimit" natural [ "Mw" | "kw" ]
 | "Fail"
 | "Succeed"
 ]
@@ -1825,6 +1826,7 @@ simple_tactic: [
 | "guard" test
 | "decompose" "[" LIST1 constr "]" constr
 | "optimize_heap"
+| "alloc_limit" natural memory_unit tactic
 | "with_strategy" strategy_level_or_var "[" LIST1 smart_global "]" tactic3
 | "eassumption"
 | "eexact" constr
@@ -2095,6 +2097,11 @@ comparison: [
 
 test: [
 | int_or_var comparison int_or_var
+]
+
+memory_unit: [
+| "Mw"
+| "kw"
 ]
 
 hintbases: [
