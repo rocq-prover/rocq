@@ -56,12 +56,20 @@ val no_used_levels : used_levels
 
 val union_used_levels : used_levels -> used_levels -> used_levels
 
-type syntax_class_interpretation = sexpr list -> used_levels * syntax_class_rule
+type 'glb syntax_class_decl = {
+  intern_synclass : sexpr list -> used_levels * 'glb;
+  interp_synclass : 'glb -> syntax_class_rule;
+}
 
-val register_syntax_class : Id.t -> syntax_class_interpretation -> unit
+val register_syntax_class : Id.t -> _ syntax_class_decl -> unit
 (** Create a new syntax class with the provided name *)
 
-val parse_syntax_class : sexpr -> used_levels * syntax_class_rule
+type syntax_class
+
+val intern_syntax_class : sexpr -> used_levels * syntax_class
+(** Use this to internalize the syntax class arguments for interpretation functions *)
+
+val interp_syntax_class : syntax_class -> syntax_class_rule
 (** Use this to interpret the syntax class arguments for interpretation functions *)
 
 (** {5 Inspecting} *)

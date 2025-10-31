@@ -8,6 +8,9 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+(* must be before open Libobject, otherwise Dyn is Libobject.Dyn *)
+module SynclassDyn = Dyn.Make()
+
 open Pp
 open Util
 open CAst
@@ -581,10 +584,22 @@ let no_used_levels = Tac2Custom.Map.empty
 let union_used_levels a b =
   Tac2Custom.Map.union (fun _ a b -> Some (Int.Set.union a b)) a b
 
-type syntax_class_interpretation = sexpr list -> used_levels * syntax_class_rule
-
 (* hardcoded syntactic classes, from ltac2 or further plugins *)
-let syntax_class_table : syntax_class_interpretation Id.Map.t ref = ref Id.Map.empty
+type 'glb syntax_class_decl = {
+  intern_synclass : sexpr list -> used_levels * 'glb;
+  interp_synclass : 'glb -> syntax_class_rule;
+}
+
+type syntax_class = SynclassDyn.t
+
+module SynclassInterpMap = SynclassDyn.Map(struct
+    type 'a t = 'a -> syntax_class_rule
+  end)
+
+let syntax_class_interns : (sexpr list -> used_levels * SynclassDyn.t) Id.Map.t ref =
+  ref Id.Map.empty
+
+let syntax_class_interps = ref SynclassInterpMap.empty
 
 module CustomV = struct
   include Tac2Custom
@@ -637,7 +652,7 @@ let inCustomEntry : Id.t -> bool -> Libobject.obj =
 
 let check_custom_entry_name id =
   (* XXX allow it anyway? the name can be accessed by qualifying it *)
-  if Id.Map.mem id !syntax_class_table then
+  if Id.Map.mem id !syntax_class_interns then
     CErrors.user_err
       Pp.(str "Cannot declare " ++ Id.print id ++
           str " as a ltac2 custom entry:" ++ spc() ++
@@ -653,31 +668,75 @@ let register_custom_entry name =
   let local = false in
   Lib.add_leaf (inCustomEntry name local)
 
-let register_syntax_class id s =
-  assert (not (Id.Map.mem id !syntax_class_table));
-  syntax_class_table := Id.Map.add id s !syntax_class_table
+let register_syntax_class id (s:_ syntax_class_decl) =
+  assert (not (Id.Map.mem id !syntax_class_interns));
+  let tag = SynclassDyn.create (Id.to_string id) in
+  let intern args =
+    let used, data = s.intern_synclass args in
+    used, SynclassDyn.Dyn (tag, data)
+  in
+  syntax_class_interns := Id.Map.add id intern !syntax_class_interns;
+  syntax_class_interps := SynclassInterpMap.add tag s.interp_synclass !syntax_class_interps
 
 let level_name lev = string_of_int lev
 
-let interp_custom_entry_action ?loc qid ename entry : syntax_class_interpretation = function
-  | [] -> no_used_levels, SyntaxRule (Procq.Symbol.nterm entry, (fun expr -> expr))
-  | [SexprInt {CAst.v=lev}] ->
-    let used = Tac2Custom.Map.singleton ename (Int.Set.singleton lev)  in
-    used, SyntaxRule (Procq.Symbol.nterml entry (level_name lev), (fun expr -> expr))
-  | _ :: _ ->
-    CErrors.user_err ?loc
-      Pp.(str "Invalid arguments for ltac2 custom entry " ++ pr_qualid qid ++ str ".")
+let terminal_synclass_tag : string SynclassDyn.tag = SynclassDyn.create "<terminal>"
 
-let find_syntactic_class ?loc qid =
+let interp_terminal str : syntax_class_rule =
+  let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
+  SyntaxRule (Procq.Symbol.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
+
+let () =
+  syntax_class_interps := SynclassInterpMap.add terminal_synclass_tag interp_terminal !syntax_class_interps
+
+type custom_synclass_data = {
+  custom_synclass_name : Tac2Custom.t;
+  custom_synclass_level : int option;
+}
+
+let interp_custom_entry data : syntax_class_rule =
+  let ename = data.custom_synclass_name in
+  let entry = find_custom_entry ename in
+  match data.custom_synclass_level with
+  | None ->
+    SyntaxRule (Procq.Symbol.nterm entry, (fun expr -> expr))
+  | Some lev ->
+    SyntaxRule (Procq.Symbol.nterml entry (level_name lev), (fun expr -> expr))
+
+let custom_synclass_tag : custom_synclass_data SynclassDyn.tag = SynclassDyn.create "<custom>"
+
+let () =
+  syntax_class_interps := SynclassInterpMap.add custom_synclass_tag interp_custom_entry !syntax_class_interps
+
+let intern_custom_entry ?loc qid ename args : used_levels * custom_synclass_data =
+  let lev =
+    match args with
+    | [] -> None
+    | [SexprInt {CAst.v=lev}] -> Some lev
+    | _ :: _ ->
+      CErrors.user_err ?loc
+        Pp.(str "Invalid arguments for ltac2 custom entry " ++ pr_qualid qid ++ str ".")
+  in
+  let used = match lev with
+    | None -> no_used_levels
+    | Some lev -> Tac2Custom.Map.singleton ename (Int.Set.singleton lev)
+  in
+  used, { custom_synclass_name = ename;
+    custom_synclass_level = lev;
+  }
+
+let intern_syntactic_class ?loc qid args =
   let is_class =
-    if qualid_is_ident qid then Id.Map.find_opt (qualid_basename qid) !syntax_class_table
+    if qualid_is_ident qid then Id.Map.find_opt (qualid_basename qid) !syntax_class_interns
     else None
   in
   match is_class with
-  | Some v -> v
+  | Some intern -> intern args
   | None ->
     match CustomTab.locate qid with
-    | kn -> interp_custom_entry_action ?loc qid kn (find_custom_entry kn)
+    | kn ->
+      let used, data = intern_custom_entry ?loc qid kn args in
+      used, SynclassDyn.Dyn (custom_synclass_tag, data)
     | exception Not_found ->
       CErrors.user_err ?loc (str "Unknown syntactic class" ++ spc () ++ pr_qualid qid)
 
@@ -689,13 +748,10 @@ let loc_of_token = function
 | SexprInt {loc} -> loc
 | SexprRec (loc, _, _) -> Some loc
 
-let parse_syntax_class = function
+let intern_syntax_class = function
 | SexprRec (_, {loc;v=Some id}, toks) ->
-  let v = find_syntactic_class id in
-  v toks
-| SexprStr {v=str} ->
-  let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
-  no_used_levels, SyntaxRule (Procq.Symbol.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
+  intern_syntactic_class id toks
+| SexprStr {v=str} -> no_used_levels, SynclassDyn.Dyn (terminal_synclass_tag, str)
 | tok ->
   let loc = loc_of_token tok in
   CErrors.user_err ?loc (str "Invalid parsing token")
@@ -714,7 +770,7 @@ let parse_token = function
 | SexprStr {v=s} -> no_used_levels, TacTerm s
 | SexprRec (_, na, [tok]) ->
   let na = check_name na in
-  let used, syntax_class = parse_syntax_class tok in
+  let used, syntax_class = intern_syntax_class tok in
   used, TacNonTerm (na, syntax_class)
 | tok ->
   let loc = loc_of_token tok in
@@ -741,12 +797,15 @@ let print_token = function
 
 end
 
-let parse_syntax_class = ParseToken.parse_syntax_class
+let intern_syntax_class = ParseToken.intern_syntax_class
 
 type synext = {
   synext_kn : KerName.t;
-  synext_tok : sexpr list;
-  synext_entry : qualid option * int;
+  (* for printing, XXX print the internalized version? *)
+  synext_raw : sexpr list;
+  synext_used : used_levels;
+  synext_tok : SynclassDyn.t token list;
+  synext_entry : Tac2Custom.t option * int;
   synext_loc : bool;
   synext_depr : Deprecation.t option;
 }
@@ -756,9 +815,14 @@ type krule =
   (raw_tacexpr, _, 'act, Loc.t -> raw_tacexpr) Procq.Rule.t *
   ((Loc.t -> (Name.t * raw_tacexpr) list -> raw_tacexpr) -> 'act) -> krule
 
-let rec get_rule (tok : syntax_class_rule token list) : krule = match tok with
+let interp_syntax_class (SynclassDyn.Dyn (tag, data)) =
+  let interp = SynclassInterpMap.find tag !syntax_class_interps in
+  interp data
+
+let rec get_rule (tok : SynclassDyn.t token list) : krule = match tok with
 | [] -> KRule (Procq.Rule.stop, fun k loc -> k loc [])
-| TacNonTerm (na, SyntaxRule (syntax_class, inj)) :: tok ->
+| TacNonTerm (na, v) :: tok ->
+  let SyntaxRule (syntax_class, inj) = interp_syntax_class v in
   let KRule (rule, act) = get_rule tok in
   let rule = Procq.Rule.next rule syntax_class in
   let act k e = act (fun loc acc -> k loc ((na, inj e) :: acc)) in
@@ -809,14 +873,13 @@ let check_levels st used_levels =
   Tac2Custom.Map.iter iter used_levels
 
 let perform_notation syn st =
-  let tok = List.rev_map ParseToken.parse_token syn.synext_tok in
-  let used, tok = List.split tok in
-  let used = List.fold_left union_used_levels no_used_levels used in
+  let tok = syn.synext_tok in
+  let used = syn.synext_used in
   let KRule (rule, act) = get_rule tok in
   let mk loc args =
     let () = match syn.synext_depr with
     | None -> ()
-    | Some depr -> deprecated_ltac2_notation ~loc (syn.synext_tok, depr)
+    | Some depr -> deprecated_ltac2_notation ~loc (syn.synext_raw, depr)
     in
     let map (na, e) =
       ((CAst.make ?loc:e.loc na), e)
@@ -826,12 +889,6 @@ let perform_notation syn st =
   in
   let rule = Procq.Production.make rule (act mk) in
   let entry, lev = syn.synext_entry in
-  let entry = match entry with
-    | None -> None
-    | Some entry ->
-      try Some (CustomTab.locate entry)
-      with Not_found -> CErrors.user_err Pp.(str "Unknown entry " ++ pr_qualid entry ++ str ".")
-  in
   let st, fresh = fresh_level st entry lev in
   let () = check_levels st used in
   let pos = Some (level_name lev) in
@@ -1009,7 +1066,10 @@ let register_notation atts tkn (entry,lev) body =
     let entry = match entry with
       | Some entry ->
         if qualid_eq entry tactic_qualid then None
-        else Some entry
+        else begin
+          try Some (CustomTab.locate entry)
+          with Not_found -> CErrors.user_err Pp.(str "Unknown entry " ++ pr_qualid entry ++ str ".")
+        end
       | None -> None
     in
     (* Globalize so that names are absolute *)
@@ -1035,9 +1095,14 @@ let register_notation atts tkn (entry,lev) body =
           end
     in
     let key = make_fresh_key tkn in
+    let tokens = List.rev_map ParseToken.parse_token tkn in
+    let used, tokens = List.split tokens in
+    let used = List.fold_left union_used_levels no_used_levels used in
     let ext = {
       synext_kn = key;
-      synext_tok = tkn;
+      synext_raw = tkn;
+      synext_used = used;
+      synext_tok = tokens;
       synext_entry = (entry,lev);
       synext_loc = local;
       synext_depr = deprecation;
