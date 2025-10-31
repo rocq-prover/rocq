@@ -584,7 +584,7 @@ subgoals are also focused.  The two focusing constructs are
 Curly braces
 ~~~~~~~~~~~~
 
-.. tacn:: {? {| @natural | [ @ident ] } : } %{
+.. tacn:: {? {| @natural | [ @qualid ] } : } %{
           %}
    :name: {; }
 
@@ -607,18 +607,18 @@ Curly braces
 
 .. _focus_shelved_goal:
 
-   :n:`[ @ident ]: %{`
-     Focuses on the goal named :token:`ident` even if the goal is not in focus.
+   :n:`[ @qualid ]: %{`
+     Focuses on the goal named :token:`qualid` even if the goal is not in focus.
      Goals are :term:`existential variables <existential variable>`, which don't
-     have names by default.  You can give a name to a goal by using
-     :n:`refine ?[@ident]`.
+     have names by default, unless you enable the :flag:`Generate Goal Names`
+     flag. You can give a name to a goal by using :n:`refine ?[@ident]`.
 
+   .. _example-working-with-named-goals:
    .. example:: Working with named goals
 
       .. rocqtop:: in
 
          Ltac name_goal name := refine ?[name].  (* for convenience *)
-         Set Printing Goal Names.  (* show goal names, e.g. "(?base)" and "(?step)" *)
 
       .. rocqtop:: all
 
@@ -650,7 +650,7 @@ Curly braces
    .. exn:: No such goal (@natural).
       :undocumented:
 
-   .. exn:: No such goal (@ident).
+   .. exn:: No such goal (@qualid).
       :undocumented:
 
    .. exn:: Brackets do not support multi-goal selectors.
@@ -743,6 +743,102 @@ When a focused goal is proved, Rocq displays a message suggesting use of
    - "None": this makes bullets inactive.
    - "Strict Subproofs": this makes bullets active (this is the default behavior).
 
+.. _named_goals:
+
+Named goals
+~~~~~~~~~~~
+
+You can focus on a goal by using its name. Goals do not have a name by default,
+but a name can be given by using :n:`refine ?[@ident]`, or generated using the
+:flag:`Generate Goal Names` flag.
+
+.. flag:: Generate Goal Names
+
+   Enables automatic generation of goal names for the :tacn:`induction`,
+   :tacn:`destruct` and :tacn:`eapply` tactics. For :tacn:`induction` and
+   :tacn:`destruct`, the subgoal takes the name of the corresponding
+   constructor. For :tacn:`eapply`, the subgoal takes the name of the
+   corresponding hypothesis.
+
+   This option makes it possible to write proofs with multiple subgoals that do
+   not depend on the order in which constructors were defined, but instead rely
+   on the constructor names. If you use bullets or numbers, reordering
+   constructors will break the proof.
+
+   For proofs that use nested :tacn:`induction` or case analysis, qualified
+   names such as `true.false` are used to disambiguate subgoals (see an example
+   :ref:`here <qualified-goal-names>`).
+
+   .. example:: Automatic generation of goal names
+
+      In the following example, names are generated for both the base case and
+      the induction case (in constrast with the example given :ref:`here
+      <example-working-with-named-goals>` in which the user explicitly gives
+      names using :tacn:`refine`).
+
+      .. rocqtop:: in
+
+         Set Generate Goal Names.
+         Goal forall n, n + 0 = n.
+
+      .. rocqtop:: all
+
+         induction n.
+         [O]: { (* O and S are the constructors for nat. *)
+           reflexivity.
+
+      .. rocqtop:: in abort
+
+         }
+
+      If a goal comes from an existential variable that failed to instantiate
+      (e.g. when using :tacn:`eapply` or other `e*` tactics), the goal is named
+      after the variable (below, `R` and `Rwf` are hypotheses of `well_founded_ind`):
+
+      .. rocqtop:: none
+
+         Inductive even : nat -> Prop :=
+         | even_zero : even 0
+         | even_succ : forall n, even n -> even (S (S n)).
+
+         Inductive odd : nat -> Prop :=
+         | odd_one : odd 1
+         | odd_succ : forall n, odd n -> odd (S (S n)).
+
+      .. rocqtop:: in
+
+         Goal forall n : nat, even n \/ odd n.
+
+      .. rocqtop:: all abort
+
+         eapply well_founded_ind.
+         [R]: exact lt.
+
+   .. _qualified-goal-names:
+   .. example:: Qualified goal names
+
+      When doing nested case analysis or induction, qualified names are used to
+      disambiguate subgoals. Subgoal names are prefixed by the names of parent goals.
+
+      .. rocqtop:: in
+
+         Set Generate Goal Names.
+
+         Goal forall n m : nat, n + m = m + n.
+         intros. induction m; simpl.
+         [O]: {
+           induction n.
+           [O.O]: reflexivity.
+           [O.S]: { simpl. congruence. }
+         }
+         [S]: {
+           induction n.
+           [S.O]: { rewrite <- IHm. reflexivity. }
+           [S.S]: { rewrite <- IHm. auto. }
+         }
+         Qed.
+
+
 Other focusing commands
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -775,7 +871,7 @@ Shelving goals
 Goals can be :gdef:`shelved` so they are no longer displayed in the proof state.
 Shelved goals can be unshelved with the :cmd:`Unshelve` command, which
 makes all shelved goals visible in the proof state.  You can use
-the goal selector :n:`[ @ident ]: %{` to focus on a single shelved goal
+the goal selector :n:`[ @qualid ]: %{` to focus on a single shelved goal
 (see :ref:`here <focus_shelved_goal>`).  Currently there's no single command or
 tactic that unshelves goals by name.
 
@@ -941,15 +1037,15 @@ Requesting information
 ----------------------
 
 
-.. cmd:: Show {? {| @ident | @natural } }
+.. cmd:: Show {? {| @qualid | @natural } }
 
    Displays the current goals.
 
    :n:`@natural`
      Display only the :token:`natural`\-th goal.
 
-   :n:`@ident`
-     Displays the named goal :token:`ident`. This is useful in
+   :n:`@qualid`
+     Displays the named goal :token:`qualid`. This is useful in
      particular to display a shelved goal but only works if the
      corresponding existential variable has been named by the user
      (see :ref:`existential-variables`) as in the following example.
