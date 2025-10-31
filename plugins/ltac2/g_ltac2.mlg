@@ -1036,6 +1036,11 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
   } -> {
     Tac2entries.register_struct raw_attributes e
   }
+| [ "Ltac2" "Reexport" "Type" reference(qid) "as" ident(id) ] => {
+    VtSideff ([id], VtLater)
+  } -> {
+  Tac2entries.reexport_type qid id
+  }
 | [ "Ltac2" "Custom" "Entry" identref(id) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS _ {
   Tac2entries.register_custom_entry id
   } -> {

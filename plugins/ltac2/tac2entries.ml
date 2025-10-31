@@ -124,9 +124,8 @@ let change_sp_label sp id =
   let (dp, _) = Libnames.repr_path sp in
   Libnames.make_path dp id
 
-let push_typedef visibility sp kn (_, def) = match def with
-| GTydDef _ ->
-  Tac2env.push_type visibility sp kn
+let push_typedef_contents visibility sp kn (_, def) = match def with
+| GTydDef _ -> ()
 | GTydAlg { galg_constructors = cstrs } ->
   (* Register constructors *)
   let iter (user_warns, c, _) =
@@ -134,7 +133,6 @@ let push_typedef visibility sp kn (_, def) = match def with
     let knc = change_kn_label kn c in
     Tac2env.push_constructor ?user_warns visibility spc knc
   in
-  Tac2env.push_type visibility sp kn;
   List.iter iter cstrs
 | GTydRec fields ->
   (* Register fields *)
@@ -143,10 +141,12 @@ let push_typedef visibility sp kn (_, def) = match def with
     let knc = change_kn_label kn c in
     Tac2env.push_projection visibility spc knc
   in
-  Tac2env.push_type visibility sp kn;
   List.iter iter fields
-| GTydOpn ->
-  Tac2env.push_type visibility sp kn
+| GTydOpn -> ()
+
+let push_typedef visibility sp kn def =
+  Tac2env.push_type visibility sp kn;
+  push_typedef_contents visibility sp kn def
 
 let next i =
   let ans = !i in
@@ -562,6 +562,47 @@ let register_type ?local ?abstract isrec types = match types with
   in
   let types = List.map map types in
   register_typedef ?local ?abstract isrec types
+
+let load_reexport_type i ((sp,kn),orig) =
+  let def = Tac2env.interp_type orig in
+  push_typedef_contents (Until i) sp orig def
+
+let open_reexport_type i ((sp,kn),orig) =
+  let def = Tac2env.interp_type orig in
+  push_typedef_contents (Exactly i) sp orig def
+
+let cache_reexport_type o = load_reexport_type 1 o
+
+let inReexportType =
+  declare_named_object
+    { (default_object "TAC2-REEXPORT-TYPE") with
+     cache_function = cache_reexport_type;
+     load_function = load_reexport_type;
+     open_function = filtered_open open_reexport_type;
+     subst_function = (fun (subst,kn) -> Mod_subst.subst_kn subst kn);
+     (* NB don't bother supporting Local as it doesn't seem useful *)
+     classify_function = (fun _ -> Substitute);
+    }
+
+(* TODO deprecate attr *)
+let reexport_type qid as_id =
+  let () =
+    if Lib.sections_are_opened() then
+      (* if you want to implement it take care that the "orig" type isn't local to the section *)
+      CErrors.user_err Pp.(str "Ltac2 Reexport Type not supported in sections.")
+  in
+  match Tac2env.locate_type qid with
+  | exception Not_found ->
+    CErrors.user_err ?loc:qid.loc Pp.(str "Unknown Ltac2 type " ++ pr_qualid qid ++ str ".")
+  | orig ->
+    let params, _ = Tac2env.interp_type orig in
+    let alias_def = GTypRef (Other orig, List.init params (fun i -> GTypVar i)) in
+    Lib.add_leaf (inTypDef as_id {
+        typdef_local = false;
+        typdef_abstract = false;
+        typdef_expr = params, GTydDef (Some alias_def);
+      });
+    Lib.add_leaf (inReexportType as_id orig)
 
 (** Parsing *)
 
