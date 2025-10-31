@@ -27,7 +27,7 @@
  (name rocq-runtime)
  (depends
   (ocaml (>= 4.14.0))
-  (ocamlfind (and (>= 1.9.1) (or (>= 1.9.8) (<> :os "windows"))))
+  (ocamlfind (and (>= 1.9.1) (or (>= 1.9.8) (<> :os-family "windows"))))
   (zarith (>= 1.11))
   (conf-linux-libc-dev (= :os "linux")))
  (conflicts
@@ -136,7 +136,7 @@ structured way."))
   conf-adwaita-icon-theme
   (coqide-server (= :version))
   (cairo2 (>= 0.6.4))
-  (lablgtk3-sourceview3 (and (>= 3.1.2) (or (>= 3.1.5) (<> :os "windows")))))
+  (lablgtk3-sourceview3 (and (>= 3.1.2) (or (>= 3.1.5) (<> :os-family "windows")))))
  (synopsis "The Rocq Prover --- GTK3 IDE")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
 a formal language to write mathematical definitions, executable
