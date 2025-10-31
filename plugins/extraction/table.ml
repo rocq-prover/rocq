@@ -563,7 +563,7 @@ let { Goptions.get = output_directory } =
     ~key:output_directory_key ()
 
 let output_directory () =
-  match output_directory (), !Flags.output_directory with
+  match output_directory (), !System.output_directory with
   | Some dir, _ | None, Some dir ->
       (* Ensure that the directory exists *)
       System.mkdir dir;

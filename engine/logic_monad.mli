@@ -64,7 +64,6 @@ module NonLogical : sig
 
   (** Loggers. The buffer is also flushed. *)
   val print_debug : Pp.t -> unit t
-  val print_warning : Pp.t -> unit t
   val print_notice : Pp.t -> unit t
   val print_info : Pp.t -> unit t
 
