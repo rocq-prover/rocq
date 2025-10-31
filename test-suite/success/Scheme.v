@@ -61,3 +61,49 @@ Proof.
   intros f.
   Fail induction f.
 Abort.
+
+Module Attribute.
+  (* test schemes attribute *)
+
+  Set Elimination Schemes.
+
+  #[schemes=none]
+    Inductive foo1 := Foo1.
+  Fail Check foo1_ind.
+
+  #[schemes=default]
+    Inductive foo2 := Foo2.
+  Check foo2_ind.
+
+  Unset Elimination Schemes.
+
+  #[schemes=none]
+    Inductive foo3 := Foo3.
+  Fail Check foo3_ind.
+
+  (* XXX should default ignore Elimination Schemes? *)
+  #[schemes=default]
+    Inductive foo4 := Foo4.
+  Fail Check foo4_ind.
+
+  Set Elimination Schemes.
+  Set Rewriting Schemes.
+
+  #[schemes=default]
+    Inductive foo5 : bool -> Prop := Foo5 : foo5 true.
+  Check foo5_ind.
+  Check foo5_rew.
+
+  #[schemes=none]
+    Inductive foo6 : bool -> Prop := Foo6 : foo6 true.
+  Fail Check foo6_ind.
+  Fail Check foo6_rew.
+
+  (* can't do rewriting schemes for this *)
+  Fail Inductive foo7 := Foo7.
+
+  (* but disabling schemes doesn't try rewriting schemes *)
+  #[schemes=none]
+    Inductive foo7 := Foo7.
+
+End Attribute.
