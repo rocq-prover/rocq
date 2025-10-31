@@ -250,6 +250,9 @@ the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 3154-3154 with (
+Replace Toplevel input, characters 3166-3166 with )
 
 Rocq < Rocq < Toplevel input, characters 20-25:
 > Check Reject 90 [2 atom2 post11 ].
@@ -305,6 +308,9 @@ the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 3452-3452 with (
+Replace Toplevel input, characters 3468-3468 with )
 
 Rocq < Rocq < Toplevel input, characters 21-26:
 > Check Reject 110 [2 atom2 op12 atom2 ].
@@ -336,6 +342,9 @@ the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 3613-3613 with (
+Replace Toplevel input, characters 3629-3629 with )
 
 Rocq < Rocq < Toplevel input, characters 21-26:
 > Check Reject 120 [1 atom2 op10 atom0].
@@ -509,6 +518,9 @@ the notation started on the left. This tolerance will be eventually removed.
 Insert parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 4794-4794 with (
+Replace Toplevel input, characters 4817-4817 with )
 
 Rocq < Accept 202 (F (G E E))
      : Parsing
@@ -938,6 +950,9 @@ expected by the notation continuing on the right. This tolerance will be
 eventually removed. Insert parentheses or try to lower the level at which the
 top symbol of this expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 5725-5725 with (
+Replace Toplevel input, characters 5730-5730 with )
 
 Rocq < Toplevel input, characters 31-36:
 > Check Reject 231 ltac:(atom4 ; atom4).
@@ -999,6 +1014,9 @@ left-associative). This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 6164-6164 with (
+Replace Toplevel input, characters 6169-6169 with )
 
 Rocq < Toplevel input, characters 31-36:
 > Check Reject 261 ltac:(atom1 + atom3).
@@ -1030,6 +1048,9 @@ left-associative). This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 6335-6335 with (
+Replace Toplevel input, characters 6340-6340 with )
 
 Rocq < Toplevel input, characters 23-34:
 > Check Reject 271 ltac:(pre21 atom1 + atom2).
@@ -1040,6 +1061,9 @@ left-associative). This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 6374-6374 with (
+Replace Toplevel input, characters 6385-6385 with )
 
 Rocq < Accept 272 ?Goal
      : Parsing
@@ -1062,6 +1086,9 @@ left-associative). This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 6510-6510 with (
+Replace Toplevel input, characters 6522-6522 with )
 
 Rocq < Toplevel input, characters 31-36:
 > Check Reject 281 ltac:(atom1 + atom2 post12).
@@ -1072,6 +1099,9 @@ left-associative). This tolerance will be eventually removed. Insert
 parentheses or try to lower the level at which the top symbol of this
 expression is parsed.
 [level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
+Quickfix:
+Replace Toplevel input, characters 6564-6564 with (
+Replace Toplevel input, characters 6569-6569 with )
 
 Rocq < Accept 282 ?Goal
      : Parsing

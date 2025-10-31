@@ -1047,26 +1047,34 @@ let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tr
 let warn_tolerance =
   CWarnings.(create_in (create_warning ~name:"level-tolerance"
                           ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
-    Pp.(fun (e, msg) ->
+    ~quickfix:(fun ~loc (_, _, qf) -> qf)
+    Pp.(fun (e, msg, _) ->
         strbrk "In " ++ str e ++ str ", tolerating this expression at" ++
         strbrk " a higher level than expected " ++ strbrk msg ++ str "." ++
         strbrk " This tolerance will be eventually removed." ++
         strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
 
-let warn_recover ename bp ?ep strm__ =
-  let ep = match ep with Some ep -> ep | None -> LStream.count strm__ in
+let warn_recover_qf ename bp ?ep strm__ msg =
+  let has_ep = Option.has_some ep in
+  let ep = Option.default (LStream.count strm__) ep in
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, "by the notation started on the left")
+  let qf =
+    let paren_enames = ["term"; "pattern"; "ltac_expr"] in
+    if not (has_ep && List.mem ename paren_enames) then [] else
+      let qf le s = Quickfix.make ~loc:(le loc 0 0) (Pp.str s) in
+      [qf Loc.sub "("; qf Loc.after ")"] in
+  warn_tolerance ~loc (ename, msg, qf)
+
+let warn_recover ename bp ?ep strm__ =
+  warn_recover_qf ename bp ?ep strm__ "by the notation started on the left"
 
 let warn_recover_continuation ename bp ep strm__ strict =
-  let loc = LStream.interval_loc bp ep strm__ in
   let msg = "by the notation continuing on the right"
     ^ if not strict then "" else " (which is not left-associative)" in
-  warn_tolerance ~loc (ename, msg)
+  warn_recover_qf ename bp ~ep strm__ msg
 
 let warn_recover_last_start ename bp ep strm__ =
-  let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc (ename, "(there is no next level of last level)")
+  warn_recover_qf ename bp ~ep strm__ "(there is no next level of last level)"
 
 let empty_entry ename levn strm =
   raise (ParseError ("entry [" ^ ename ^ "] is empty"))
