@@ -2377,7 +2377,7 @@ type head_kind =
 | HeadOther
 
 let get_head_kind ~metas env sigma c =
-  let ty = get_type_of_with_metas ~lax:true ~metas env sigma c in
+  let ty = get_type_of_with_metas ~metas env sigma c in
   let hd, _ = decompose_app sigma ty in
   match EConstr.kind sigma hd with
   | Prod _ -> HeadProd
