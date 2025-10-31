@@ -85,16 +85,16 @@ type object_name = Libnames.full_path * KerName.t
 
 type open_filter
 
-type ('a,'b,'discharged) object_declaration = {
+type ('a,'b,'discharged,'read,'readwrite) object_declaration = {
   object_name : string;
-  object_stage : Summary.Stage.t;
-  cache_function : 'b -> unit;
-  load_function : int -> 'b -> unit;
-  open_function : open_filter -> int -> 'b -> unit;
+  cache_function : 'b -> state:'readwrite -> unit;
+  load_function : int -> 'b -> state:'readwrite -> unit;
+  open_function : open_filter -> int -> 'b -> state:'readwrite -> unit;
+  (* XXX allow read state for classify and subst? *)
   classify_function : 'a -> substitutivity;
   subst_function :  substitution * 'a -> 'a;
-  discharge_function : 'a -> 'discharged option;
-  rebuild_function : 'discharged -> 'a;
+  discharge_function : 'a -> state:'read -> 'discharged option;
+  rebuild_function : 'discharged -> state:'read -> 'a;
 }
 
 val unfiltered : open_filter
@@ -114,14 +114,14 @@ val in_filter : cat:category option -> open_filter -> bool
     On [cat:(Some category)], returns whether the filter allows
    opening objects in the given [category]. *)
 
-val filtered_open : ?cat:category -> ('i -> 'a -> unit) ->
-  open_filter -> 'i -> 'a -> unit
+val filtered_open : ?cat:category -> ('i -> 'a -> state:'readwrite -> unit) ->
+  open_filter -> 'i -> 'a -> state:'readwrite -> unit
 (** Combinator for making objects with simple category-based open
    behaviour. When [cat:None], can be opened by Unfiltered, but also
    by Filtered with a negative set. *)
 
-val simple_open : ?cat:category -> ('a -> unit) ->
-  open_filter -> int -> 'a -> unit
+val simple_open : ?cat:category -> ('a -> state:'readwrite -> unit) ->
+  open_filter -> int -> 'a -> state:'readwrite -> unit
 (** Like [filtered_open], and also requires the int to be 1 to
     actually open. *)
 
@@ -142,15 +142,12 @@ val filter_or :  open_filter -> open_filter -> open_filter
     The classify_function must be specified.
 *)
 
-val default_object : ?stage:Summary.Stage.t -> string -> ('a,'b,'a) object_declaration
+val default_object : string -> ('a,'b,'a,'read,'readwrite) object_declaration
 
 (** the identity substitution function *)
 val ident_subst_function : substitution * 'a -> 'a
 
 (** {6 ... } *)
-(** Given an object declaration, the function [declare_object_full]
-   will hand back two functions, the "injection" and "projection"
-   functions for dynamically typed library-objects. *)
 
 module Dyn : Dyn.S
 
@@ -185,31 +182,6 @@ and keep_objects = { keep_objects : t list }
 
 and escape_objects = { escape_objects : t list }
 
-(** Object declaration and names: if you need the current prefix
-   (typically to interact with the nametab), you need to have it
-   passed to you.
-
-    - [declare_named_object_gen] passes the raw prefix which you can
-    manipulate as you wish.
-
-    - [declare_named_object_full] and [declare_named_object] provide
-   the convenience of packaging it with the provided [Id.t] into a
-   [object_name].
-
-    - [declare_object] and [declare_object_full] ignore the prefix for you. *)
-
-val declare_object :
-  ('a, 'a, _) object_declaration -> ('a -> obj)
-
-val declare_object_full :
-  ('a, 'a, _) object_declaration -> 'a Dyn.tag
-
-val declare_named_object_full :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t * 'a) Dyn.tag
-
-val declare_named_object :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t -> 'a -> obj)
-
 (** Object prefix morally contains the "prefix" naming of an object to
    be stored by [library], where [obj_path] is the "absolute" path and
    [obj_mp] is the current "module" prefix.
@@ -229,22 +201,64 @@ type object_prefix = {
 }
 
 val eq_object_prefix : object_prefix -> object_prefix -> bool
+module type Staged = sig
+  type -'rw state
+  type 'a read = ([>Summary.read] as 'a) state
+  type readwrite = Summary.readwrite state
 
-val declare_named_object_gen :
-  ('a, object_prefix * 'a, _) object_declaration -> ('a -> obj)
+  type nonrec ('a, 'b, 'c) object_declaration = ('a, 'b, 'c, Summary.read read, readwrite) object_declaration
 
-val cache_object : object_prefix * obj -> unit
-val load_object : int -> object_prefix * obj -> unit
-val open_object : open_filter -> int -> object_prefix * obj -> unit
-val subst_object : substitution * obj -> obj
-val classify_object : obj -> substitutivity
-val object_name : obj -> string
-val object_stage : obj -> Summary.Stage.t
+  (** Object declaration and names: if you need the current prefix
+      (typically to interact with the nametab), you need to have it
+      passed to you.
 
-type discharged_obj
+      - [declare_named_object_gen] passes the raw prefix which you can
+        manipulate as you wish.
 
-val discharge_object : obj -> discharged_obj option
-val rebuild_object : discharged_obj -> obj
+      - [declare_named_object_full] and [declare_named_object] provide
+        the convenience of packaging it with the provided [Id.t] into a
+        [object_name].
+
+      - [declare_object] and [declare_object_full] ignore the prefix for you. *)
+
+  val declare_object :
+    ('a, 'a, _) object_declaration -> ('a -> obj)
+
+  val declare_object_full :
+    ('a, 'a, _) object_declaration -> 'a Dyn.tag
+
+  val declare_named_object_full :
+    ('a, object_name * 'a, _) object_declaration -> (Names.Id.t * 'a) Dyn.tag
+
+  val declare_named_object :
+    ('a, object_name * 'a, _) object_declaration -> (Names.Id.t -> 'a -> obj)
+
+  val declare_named_object_gen :
+    ('a, object_prefix * 'a, _) object_declaration -> ('a -> obj)
+
+  val cache_object : object_prefix * obj -> state:readwrite -> unit
+  val load_object : int -> object_prefix * obj -> state:readwrite -> unit
+  val open_object : open_filter -> int -> object_prefix * obj -> state:readwrite -> unit
+  val subst_object : Mod_subst.substitution * obj -> obj
+  val classify_object : obj -> substitutivity
+  val object_name : obj -> string
+
+  type discharged_obj
+
+  val discharge_object : obj -> state:_ read -> discharged_obj option
+  val rebuild_object : discharged_obj -> state:_ read -> obj
+
+end
+
+module Synterp : Staged
+  with type 'rw state = 'rw Summary.Synterp.t
+   and type 'a read = 'a Summary.Synterp.read
+   and type readwrite = Summary.Synterp.readwrite
+
+module Interp : Staged
+  with type 'rw state = 'rw Summary.Interp.t
+   and type 'a read = 'a Summary.Interp.read
+   and type readwrite = Summary.Interp.readwrite
 
 type locality = Local | Export | SuperGlobal
 
@@ -261,11 +275,11 @@ type locality = Local | Export | SuperGlobal
 
     [cat] only matters when importing, ie only for [Export] values.
 *)
-val object_with_locality : ?stage:Summary.Stage.t -> ?cat:category -> string ->
-  cache:('a -> unit) ->
+val object_with_locality : ?cat:category -> string ->
+  cache:('a -> state:'readwrite -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a) ->
-  (locality * 'a, locality * 'a, locality * 'a) object_declaration
+  discharge:('a -> state:'read -> 'a) ->
+  (locality * 'a, locality * 'a, locality * 'a, 'read, 'readwrite) object_declaration
 
 (** Higher-level API for objects with fixed scope.
 
@@ -281,36 +295,36 @@ We recommend to avoid declaring superglobal objects and using the nodischarge
 variants.
 *)
 
-val local_object : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+val local_object : string ->
+  cache:('a -> state:'readwrite -> unit) ->
+  discharge:('a -> state:'read -> 'a option) ->
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
-val local_object_nodischarge : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  ('a,'a,'a) object_declaration
+val local_object_nodischarge : string ->
+  cache:('a -> state:'readwrite -> unit) ->
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
-val global_object : ?cat:category -> ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
+val global_object : ?cat:category -> string ->
+  cache:('a -> state:'readwrite -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+  discharge:('a -> state:'read -> 'a option) ->
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
-val global_object_nodischarge : ?cat:category -> ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
+val global_object_nodischarge : ?cat:category -> string ->
+  cache:('a -> state:'readwrite -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  ('a,'a,'a) object_declaration
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
-val superglobal_object : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
+val superglobal_object : string ->
+  cache:('a -> state:'readwrite -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+  discharge:('a -> state:'read -> 'a option) ->
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
-val superglobal_object_nodischarge : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
+val superglobal_object_nodischarge : string ->
+  cache:('a -> state:'readwrite -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  ('a,'a,'a) object_declaration
+  ('a,'a,'a,'read,'readwrite) object_declaration
 
 (** {6 Debug} *)
 
