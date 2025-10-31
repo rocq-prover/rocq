@@ -529,48 +529,79 @@ let () = add_syntax_class_full "thunk" begin function
 | arg -> syntax_class_fail "thunk" arg
 end
 
-let constr_delimiters s arg =
-  List.map (function
-      | SexprRec (_, { v = Some s }, []) when Libnames.qualid_is_ident s -> Libnames.qualid_basename s
+let level_qid = Libnames.qualid_of_string "level"
+let custom_qid = Libnames.qualid_of_string "custom"
+
+let constr_args s arg =
+  List.fold_left (fun (lev,custom,scopes) -> function
+      | SexprRec (_, { v = Some qid }, [])
+        when Libnames.qualid_is_ident qid ->
+        lev, custom, Libnames.qualid_basename qid :: scopes
+      | SexprRec (_, { v = Some qid }, [SexprInt lev'])
+        when Libnames.qualid_eq qid level_qid ->
+        if Option.has_some lev then syntax_class_fail s arg
+        else Some lev', custom, scopes
+      | SexprRec (_, { v = Some qid }, [SexprRec (_, { v = Some custom' }, [])])
+        when Libnames.qualid_eq qid custom_qid ->
+        if Option.has_some custom then syntax_class_fail s arg
+        else lev, Some custom', scopes
       | _ -> syntax_class_fail s arg)
+    (None,None,[])
     arg
 
-let () = add_syntax_class "constr" begin function arg ->
-  let delimiters = constr_delimiters "constr" arg in
-  let act e = Tac2quote.of_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
+let constr_delimiters s arg =
+  let lev, custom, scopes = constr_args s arg in
+  let () = if Option.has_some lev then
+      CErrors.user_err Pp.(str "Specifying level not allowed for syntax class " ++ str s ++ str ".")
+  in
+  let () = if Option.has_some custom then
+      CErrors.user_err Pp.(str "Custom entry not allowed for syntax class " ++ str s ++ str ".")
+  in
+  scopes
 
-  let () = add_syntax_class "lconstr" begin function arg ->
-  let delimiters = constr_delimiters "lconstr" arg in
-    let act e = Tac2quote.of_constr ~delimiters e in
-    Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-  end
+let constr_args s arg =
+  let lev, custom, scopes = constr_args s arg in
+  let custom = custom
+    |> Option.map (fun custom ->
+        try Nametab.CustomEntries.locate custom
+        with Not_found -> CErrors.user_err ?loc:custom.loc Pp.(str "Unknown custom entry " ++ Libnames.pr_qualid custom ++ str "."))
+    |> Option.map (fun custom -> fst @@ Egramrocq.find_custom_entry custom)
+  in
+  let () = lev |> Option.iter (fun lev -> if lev.v < 0 then CErrors.user_err ?loc:lev.loc Pp.(str "Level must be nonnegative.")) in
+  let lev = lev |> Option.map (fun lev -> string_of_int lev.v) in
+  let symb = match lev, custom with
+    | None, None -> Procq.Symbol.nterm Procq.Constr.constr
+    | Some lev, None -> Procq.Symbol.nterml Procq.Constr.term lev
+    | None, Some custom -> Procq.Symbol.nterm custom
+    | Some lev, Some custom ->
+      Procq.Symbol.nterml custom lev
+  in
+  symb, scopes
 
-let () = add_syntax_class "open_constr" begin function arg ->
-  let delimiters = constr_delimiters "open_constr" arg in
-  let act e = Tac2quote.of_open_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
+let add_constr_classes namefmt quote =
+  let () =
+    let s = Printf.sprintf namefmt "" in
+    add_syntax_class s begin function arg ->
+      let symb, delimiters = constr_args s arg in
+      let act e = quote ?delimiters:(Some delimiters) e in
+      Tac2entries.SyntaxRule (symb, act)
+    end
+  in
+  let () =
+    let s = Printf.sprintf namefmt "l" in
+    add_syntax_class s begin function arg ->
+      let delimiters = constr_delimiters s arg in
+      let act e = quote ?delimiters:(Some delimiters) e in
+      Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
+    end
+  in
+  ()
 
-let () = add_syntax_class "open_lconstr" begin function arg ->
-  let delimiters = constr_delimiters "open_lconstr" arg in
-  let act e = Tac2quote.of_open_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-end
+let () = add_constr_classes "%sconstr" Tac2quote.of_constr
 
+let () = add_constr_classes "open_%sconstr" Tac2quote.of_open_constr
 
-let () = add_syntax_class "preterm" begin function arg ->
-  let delimiters = constr_delimiters "preterm" arg in
-  let act e = Tac2quote.of_preterm ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
-
-let () = add_syntax_class "lpreterm" begin function arg ->
-  let delimiters = constr_delimiters "lpreterm" arg in
-  let act e = Tac2quote.of_preterm ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-end
+let () = add_constr_classes "%spreterm" Tac2quote.of_preterm
 
 let () = add_expr_syntax_class "ident" q_ident (fun id -> Tac2quote.of_anti Tac2quote.of_ident id)
 let () = add_expr_syntax_class "bindings" q_bindings Tac2quote.of_bindings
