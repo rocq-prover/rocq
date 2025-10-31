@@ -224,3 +224,31 @@ Ltac2 @ external timeout : int -> (unit -> 'a) -> 'a :=
 (** [timeoutf t thunk] calls [thunk ()] with a timeout of [t] seconds. *)
 Ltac2 @ external timeoutf : float -> (unit -> 'a) -> 'a :=
   "rocq-runtime.plugins.ltac2" "timeoutf".
+
+(** Error printing *)
+
+(** Print internal errors. *)
+Ltac2 @external print_err : err -> message
+  := "rocq-runtime.plugins.ltac2" "print_err".
+
+(** Print exceptions as errors. Used by the runtime when printing uncaught errors.
+    Extensible by mutation, see uses below.
+
+    IMPORTANT: when called for printing uncaught errors, it is run in an empty state
+    (no goals, empty evar map).
+
+    Also note that the "Internal" branch is not used when printing
+    uncaught errors as Internal exceptions are not considered as Ltac2
+    errors. *)
+Ltac2 mutable print_exn : exn -> message option := fun e =>
+  match e with
+  | Internal e => Some (print_err e)
+  | _ => None
+  end.
+
+#[global]
+Ltac2 Set print_exn as print_other := fun e =>
+  match e with
+  | Tactic_failure (Some msg) => Some msg
+  | _ => print_other e
+  end.
