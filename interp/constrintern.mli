@@ -93,6 +93,49 @@ val intern_pattern : env -> cases_pattern_expr ->
 val intern_context : env -> bound_univs:UnivNames.universe_binders ->
   internalization_env -> local_binder_expr list -> internalization_env * glob_decl list
 
+
+(** Open-recursion for instrumenting the internalization phase. *)
+type intern_env
+
+module Interner : sig
+
+  type 'a fn = Environ.env -> intern_env -> bool -> (ltac_sign * Genintern.ntnvar_status Id.Map.t) -> ?loc:Loc.t -> 'a -> glob_constr
+
+  type t = {
+    ref_ : t -> (qualid * instance_expr option) fn
+  ; fix : t -> (lident * fix_expr list) fn
+  ; cofix : t -> (lident * cofix_expr list) fn
+  ; prodn : t -> (local_binder_expr list * constr_expr) fn
+  ; lambdan : t -> (local_binder_expr list * constr_expr) fn
+  ; letin : t -> (lname * constr_expr * constr_expr option * constr_expr) fn
+  ; appexpl : t -> ((qualid * instance_expr option) * constr_expr list) fn
+  ; app : t -> (constr_expr * (constr_expr * explicitation CAst.t option) list) fn
+  ; proj : t -> (explicit_flag * (qualid * instance_expr option)
+              * (constr_expr * explicitation CAst.t option) list * constr_expr) fn
+  ; record : t -> ((qualid * constr_expr) list) fn
+  ; cases : t -> (Constr.case_style * constr_expr option * case_expr list * branch_expr list) fn
+  ; lettuple : t -> (lname list * (lname option * constr_expr option) * constr_expr * constr_expr) fn
+  ; if_ : t -> (constr_expr * (lname option * constr_expr option) * constr_expr * constr_expr) fn
+  ; hole : t -> Evar_kinds.glob_evar_kind option fn
+  ; genarg : t -> Genarg.raw_generic_argument fn
+  ; genargglob : t -> Genarg.glob_generic_argument fn
+  ; patvar : t -> (Pattern.patvar) fn
+  ; evar : t -> (Glob_term.existential_name CAst.t * (lident * constr_expr) list) fn
+  ; sort : t -> sort_expr fn
+  ; cast : t -> (constr_expr * Constr.cast_kind option * constr_expr) fn
+  ; notation : t -> (notation_with_optional_scope option * notation * constr_notation_substitution) fn
+  ; generalization : t -> (Glob_term.binding_kind * constr_expr) fn
+  ; prim : t -> prim_token fn
+  ; delimiters : t -> (delimiter_depth * string * constr_expr) fn
+  ; array : t -> (instance_expr option * constr_expr array * constr_expr * constr_expr) fn
+  }
+
+  val eval : t -> constr_expr_r fn
+
+end
+
+val default : Interner.t
+
 (** {6 Composing internalization with type inference (pretyping) } *)
 
 (** Main interpretation functions, using type class inference,
