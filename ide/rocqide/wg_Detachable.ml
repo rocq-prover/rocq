@@ -15,7 +15,7 @@ class type detachable_signals =
     method detached : callback:(GObj.widget -> unit) -> unit
   end
 
-class detachable (obj : ([> Gtk.box] as 'a) Gobject.obj) =
+class detachable (obj : [> Gtk.box] Gobject.obj) =
 
   object(self)
     inherit GPack.box_skel (obj :> Gtk.box Gobject.obj) as super
