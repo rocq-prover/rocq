@@ -323,4 +323,4 @@ val print_kconstr : Environ.env -> Evd.evar_map -> Evd.econstr -> Pp.t
 end
 
 val pr_evar_universe_context : UState.t -> Pp.t
-[@@deprecated "(9.0) Use [Evd.pr_ustate] instead"]
+[@@deprecated "(9.0) Use [UState.pr] instead"]
