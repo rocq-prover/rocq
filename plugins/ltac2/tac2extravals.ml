@@ -76,7 +76,7 @@ let () =
   let interp ist c = interp_constr Tac2core.constr_flags ist c in
   let print env sigma c = str "constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
   let raw_print env sigma c = str "constr:(" ++ Ppconstr.pr_lconstr_expr env sigma c ++ str ")" in
-  let subst subst c = Detyping.subst_glob_constr (Global.env()) subst c in
+  let subst subst c = Detyping.subst_glob_constr subst c in
   let obj = {
     ml_intern = intern;
     ml_subst = subst;
@@ -91,7 +91,7 @@ let () =
   let interp ist c = interp_constr Tac2core.open_constr_no_classes_flags ist c in
   let print env sigma c = str "open_constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
   let raw_print env sigma c = str "open_constr:(" ++ Ppconstr.pr_lconstr_expr env sigma c ++ str ")" in
-  let subst subst c = Detyping.subst_glob_constr (Global.env()) subst c in
+  let subst subst c = Detyping.subst_glob_constr subst c in
   let obj = {
     ml_intern = intern;
     ml_subst = subst;
@@ -168,7 +168,7 @@ let () =
     let c = { closure; term = c } in
     return (Tac2ffi.of_preterm c)
   in
-  let subst subst (ids,c) = ids, Detyping.subst_glob_constr (Global.env()) subst c in
+  let subst subst (ids,c) = ids, Detyping.subst_glob_constr subst c in
   let print env sigma (ids,c) =
     let ppids = if Id.Set.is_empty ids then mt()
       else prlist_with_sep spc Id.print (Id.Set.elements ids) ++ spc() ++ str "|-" ++ spc()

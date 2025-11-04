@@ -1188,16 +1188,10 @@ let rec subst_cases_pattern subst = DAst.map (function
           PatCstr (((kn',i),j),cpl',n)
   )
 
-let rec subst_glob_constr env subst = DAst.map (function
+let rec subst_glob_constr subst = DAst.map (function
   | GRef (ref,u) as raw ->
-    let ref',t = subst_global subst ref in
-    if ref' == ref then raw else (match t with
-        | None -> GRef (ref', u)
-        | Some t ->
-          let evd = Evd.from_env env in
-          let t = t.UVars.univ_abstracted_value in (* XXX This seems dangerous *)
-          DAst.get (detype Now env evd (EConstr.of_constr t)))
-
+    let ref' = subst_global_reference subst ref in
+    if ref' == ref then raw else GRef (ref', u)
   | GSort _
   | GVar _
   | GEvar _
@@ -1207,14 +1201,14 @@ let rec subst_glob_constr env subst = DAst.map (function
   | GPatVar _ as raw -> raw
 
   | GApp (r,rl) as raw ->
-      let r' = subst_glob_constr env subst r
-      and rl' = List.Smart.map (subst_glob_constr env subst) rl in
+      let r' = subst_glob_constr subst r
+      and rl' = List.Smart.map (subst_glob_constr subst) rl in
         if r' == r && rl' == rl then raw else
           GApp(r',rl')
 
   | GProj ((cst,u),rl,r) as raw ->
-      let rl' = List.Smart.map (subst_glob_constr env subst) rl
-      and r' = subst_glob_constr env subst r in
+      let rl' = List.Smart.map (subst_glob_constr subst) rl
+      and r' = subst_glob_constr subst r in
       let ref = GlobRef.ConstRef cst in
       let ref',t = subst_global subst ref in
       assert (t = None); (* projection *)
@@ -1222,27 +1216,27 @@ let rec subst_glob_constr env subst = DAst.map (function
           GProj((destConstRef ref',u),rl',r')
 
   | GLambda (n,r,bk,r1,r2) as raw ->
-      let r1' = subst_glob_constr env subst r1 and r2' = subst_glob_constr env subst r2 in
+      let r1' = subst_glob_constr subst r1 and r2' = subst_glob_constr subst r2 in
         if r1' == r1 && r2' == r2 then raw else
           GLambda (n,r,bk,r1',r2')
 
   | GProd (n,r,bk,r1,r2) as raw ->
-      let r1' = subst_glob_constr env subst r1 and r2' = subst_glob_constr env subst r2 in
+      let r1' = subst_glob_constr subst r1 and r2' = subst_glob_constr subst r2 in
         if r1' == r1 && r2' == r2 then raw else
           GProd (n,r,bk,r1',r2')
 
   | GLetIn (n,r,r1,t,r2) as raw ->
-      let r1' = subst_glob_constr env subst r1 in
-      let r2' = subst_glob_constr env subst r2 in
-      let t' = Option.Smart.map (subst_glob_constr env subst) t in
+      let r1' = subst_glob_constr subst r1 in
+      let r2' = subst_glob_constr subst r2 in
+      let t' = Option.Smart.map (subst_glob_constr subst) t in
         if r1' == r1 && t == t' && r2' == r2 then raw else
           GLetIn (n,r,r1',t',r2')
 
   | GCases (sty,rtno,rl,branches) as raw ->
     let open CAst in
-      let rtno' = Option.Smart.map (subst_glob_constr env subst) rtno
+      let rtno' = Option.Smart.map (subst_glob_constr subst) rtno
       and rl' = List.Smart.map (fun (a,x as y) ->
-        let a' = subst_glob_constr env subst a in
+        let a' = subst_glob_constr subst a in
         let (n,topt) = x in
         let topt' = Option.Smart.map
           (fun ({loc;v=((sp,i),y)} as t) ->
@@ -1253,7 +1247,7 @@ let rec subst_glob_constr env subst = DAst.map (function
                         (fun ({loc;v=(idl,cpl,r)} as branch) ->
                            let cpl' =
                              List.Smart.map (subst_cases_pattern subst) cpl
-                           and r' = subst_glob_constr env subst r in
+                           and r' = subst_glob_constr subst r in
                              if cpl' == cpl && r' == r then branch else
                                CAst.(make ?loc (idl,cpl',r')))
                         branches
@@ -1262,27 +1256,27 @@ let rec subst_glob_constr env subst = DAst.map (function
           GCases (sty,rtno',rl',branches')
 
   | GLetTuple (nal,(na,po),b,c) as raw ->
-      let po' = Option.Smart.map (subst_glob_constr env subst) po
-      and b' = subst_glob_constr env subst b
-      and c' = subst_glob_constr env subst c in
+      let po' = Option.Smart.map (subst_glob_constr subst) po
+      and b' = subst_glob_constr subst b
+      and c' = subst_glob_constr subst c in
         if po' == po && b' == b && c' == c then raw else
           GLetTuple (nal,(na,po'),b',c')
 
   | GIf (c,(na,po),b1,b2) as raw ->
-      let po' = Option.Smart.map (subst_glob_constr env subst) po
-      and b1' = subst_glob_constr env subst b1
-      and b2' = subst_glob_constr env subst b2
-      and c' = subst_glob_constr env subst c in
+      let po' = Option.Smart.map (subst_glob_constr subst) po
+      and b1' = subst_glob_constr subst b1
+      and b2' = subst_glob_constr subst b2
+      and c' = subst_glob_constr subst c in
         if c' == c && po' == po && b1' == b1 && b2' == b2 then raw else
           GIf (c',(na,po'),b1',b2')
 
   | GRec (fix,ida,bl,ra1,ra2) as raw ->
-      let ra1' = Array.Smart.map (subst_glob_constr env subst) ra1
-      and ra2' = Array.Smart.map (subst_glob_constr env subst) ra2 in
+      let ra1' = Array.Smart.map (subst_glob_constr subst) ra1
+      and ra2' = Array.Smart.map (subst_glob_constr subst) ra2 in
       let bl' = Array.Smart.map
         (List.Smart.map (fun (na,r,k,obd,ty as dcl) ->
-          let ty' = subst_glob_constr env subst ty in
-          let obd' = Option.Smart.map (subst_glob_constr env subst) obd in
+          let ty' = subst_glob_constr subst ty in
+          let obd' = Option.Smart.map (subst_glob_constr subst) obd in
           if ty'==ty && obd'==obd then dcl else (na,r,k,obd',ty')))
         bl in
         if ra1' == ra1 && ra2' == ra2 && bl'==bl then raw else
@@ -1304,14 +1298,14 @@ let rec subst_glob_constr env subst = DAst.map (function
     else GGenarg arg'
 
   | GCast (r1,k,r2) as raw ->
-      let r1' = subst_glob_constr env subst r1 in
-      let r2' = subst_glob_constr env subst r2 in
+      let r1' = subst_glob_constr subst r1 in
+      let r2' = subst_glob_constr subst r2 in
       if r1' == r1 && r2' == r2 then raw else GCast (r1',k,r2')
 
   | GArray (u,t,def,ty) as raw ->
-      let def' = subst_glob_constr env subst def
-      and t' = Array.Smart.map (subst_glob_constr env subst) t
-      and ty' = subst_glob_constr env subst ty
+      let def' = subst_glob_constr subst def
+      and t' = Array.Smart.map (subst_glob_constr subst) t
+      and ty' = subst_glob_constr subst ty
       in
         if def' == def && t' == t && ty' == ty then raw else
           GArray(u,t',def',ty')

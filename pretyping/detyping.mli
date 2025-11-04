@@ -38,7 +38,7 @@ val print_allow_match_default_opt_name : string list
 
 val subst_cases_pattern : substitution -> cases_pattern -> cases_pattern
 
-val subst_glob_constr : env -> substitution -> glob_constr -> glob_constr
+val subst_glob_constr : substitution -> glob_constr -> glob_constr
 
 val factorize_eqns : 'a cases_clauses_g -> 'a disjunctive_cases_clauses_g
 

@@ -29,7 +29,7 @@ let subst_quantified_hypothesis _ x = x
 let subst_declared_or_quantified_hypothesis _ x = x
 
 let subst_glob_constr_and_expr subst (c, e) =
-  (Detyping.subst_glob_constr (Global.env()) subst c, e)
+  (Detyping.subst_glob_constr subst c, e)
 
 let subst_glob_constr = subst_glob_constr_and_expr (* shortening *)
 
