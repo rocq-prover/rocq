@@ -1163,10 +1163,6 @@ let () =
   define "timeoutf" (float @-> thunk valexpr @-> tac valexpr) @@ fun f64 f ->
     Proofview.tclTIMEOUTF (Float64.to_float f64) (thaw f)
 
-let () =
-  define "check_interrupt" (unit @-> tac unit) @@ fun _ ->
-  Proofview.tclCHECKINTERRUPT
-
 (** Fresh *)
 
 let () = define "fresh_free_empty" (ret free) Nameops.Fresh.empty

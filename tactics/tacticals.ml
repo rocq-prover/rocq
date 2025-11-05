@@ -34,7 +34,6 @@ let catch_failerror (e, info) =
   | FailError (lvl,s) when lvl > 0 ->
     tclZERO ~info (FailError (lvl - 1, s))
   | e ->
-    Control.check_for_interrupt ();
     tclUNIT ()
 
 (************************************************************************)
@@ -343,7 +342,7 @@ let rec tclDO n t =
 let rec tclREPEAT0 t =
   tclINDEPENDENT begin
     Proofview.tclIFCATCH t
-      (fun () -> tclCHECKINTERRUPT <*> tclREPEAT0 t)
+      (fun () -> tclREPEAT0 t)
       (fun e -> catch_failerror e <*> tclUNIT ())
   end
 let tclREPEAT t =

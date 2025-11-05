@@ -453,7 +453,6 @@ let success= function
 
 let branching = function
     Incomplete (seq,stack) ->
-      Control.check_for_interrupt ();
       let successors = search_all seq in
       let _ =
         match successors with

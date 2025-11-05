@@ -16,14 +16,6 @@ exception Timeout
 (** Will periodically call [Thread.delay] if set to true *)
 val enable_thread_delay : bool ref
 
-val interrupt : bool ref
-(** Rocq interruption: set the following boolean reference to interrupt Rocq
-    (it eventually raises [Break], simulating a Ctrl-C) *)
-
-val check_for_interrupt : unit -> unit
-(** Use this function as a potential yield function. If {!interrupt} has been
-    set, il will raise [Sys.Break]. *)
-
 val timeout : float -> ('a -> 'b) -> 'a -> ('b, Exninfo.info) result
 (** [timeout n f x] tries to compute [Ok (f x)], and if it fails to do
     so before [n] seconds, returns [Error info] instead (where [info]

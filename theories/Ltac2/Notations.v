@@ -72,7 +72,7 @@ Ltac2 Abbreviation try := try0.
 Ltac2 rec repeat0 (t : unit -> unit) :=
   Control.enter (fun () =>
     ifcatch (fun _ => Control.progress t)
-      (fun _ => Control.check_interrupt (); repeat0 t) (fun _ => ())).
+      (fun _ => repeat0 t) (fun _ => ())).
 
 Ltac2 Abbreviation repeat := repeat0.
 

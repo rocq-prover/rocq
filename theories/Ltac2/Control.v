@@ -144,9 +144,6 @@ Ltac2 @ external time : string option -> (unit -> 'a) -> 'a := "rocq-runtime.plu
 Ltac2 @ external abstract : ident option -> (unit -> unit) -> unit := "rocq-runtime.plugins.ltac2" "abstract".
 (** Abstract a subgoal. *)
 
-Ltac2 @ external check_interrupt : unit -> unit := "rocq-runtime.plugins.ltac2" "check_interrupt".
-(** For internal use. *)
-
 (** Assertions throwing exceptions and short form throws *)
 
 Ltac2 throw_invalid_argument (msg : string) :=

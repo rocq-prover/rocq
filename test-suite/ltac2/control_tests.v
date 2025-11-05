@@ -165,8 +165,6 @@ Goal True.
   abstract (Some @subproof) (fun () => exact I).
 Qed.
 
-Ltac2 Eval check_interrupt ().
-
 Ltac2 Eval
   match case (fun () => '(1 + tt)) with
   | Err (Internal e) =>

@@ -1369,12 +1369,8 @@ module Strategies =
 
     let try_ str : 'a pure_strategy = choice str id
 
-    let check_interrupt str input =
-      Control.check_for_interrupt ();
-      str input
-
     let fix (f : 'a pure_strategy -> 'a pure_strategy) : 'a pure_strategy =
-      let rec aux input = (f { strategy = fun input -> check_interrupt aux input }).strategy input in
+      let rec aux input = (f { strategy = fun input -> aux input }).strategy input in
       { strategy = aux }
 
     let fix_tac (f : 'a pure_strategy -> 'a pure_strategy Proofview.tactic) : 'a pure_strategy Proofview.tactic =
@@ -1385,7 +1381,7 @@ module Strategies =
         let err_msg = Pp.str "Rewrite strategy fixed-point variables cannot be executed by \"rewrite_strat\" inside of fix." in
         ref (fun _ -> user_err err_msg)
       in
-      f {strategy = fun input -> check_interrupt !forward_def input} >>= fun f ->
+      f {strategy = fun input -> !forward_def input} >>= fun f ->
       forward_def := f.strategy;
       Proofview.tclUNIT f
 

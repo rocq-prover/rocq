@@ -653,7 +653,6 @@ module Search = struct
           str "Failed: " ++ pr_search_goals sigma failed ++ fnl () ++
           str "Initial: " ++ pr_search_goals sigma tacs)
       in
-      tclCHECKINTERRUPT <*>
       match tacs with
       | tac :: tacs -> next tac tacs stuck
       | [] -> (* All remaining goals are stuck *)

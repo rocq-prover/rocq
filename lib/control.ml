@@ -12,21 +12,9 @@
 
 let interrupt = ref false
 
-let steps = ref 0
-
 let enable_thread_delay = ref false
 
 exception Timeout
-
-let check_for_interrupt () =
-  if !interrupt then begin interrupt := false; raise Sys.Break end;
-  if !enable_thread_delay then begin
-    incr steps;
-    if !steps = 1000 then begin
-      Thread.delay 0.001;
-      steps := 0;
-    end
-  end
 
 (** This function does not work on windows, sigh... *)
 (* This function assumes it is the only function calling [setitimer] *)

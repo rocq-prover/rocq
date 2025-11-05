@@ -439,9 +439,6 @@ module Progress : sig
     bool
 end
 
-(** Checks for interrupts *)
-val tclCHECKINTERRUPT : unit tactic
-
 (** [tclTIMEOUT n t] can have only one success.
     In case of timeout it fails with [tclZERO Tac_Timeout]. *)
 val tclTIMEOUTF : float -> 'a tactic -> 'a tactic

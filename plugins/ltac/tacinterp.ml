@@ -1094,7 +1094,6 @@ let rec val_interp ist ?(appl=UnnamedAppl) (tac:glob_tactic_expr) : Val.t Ftacti
     Ftactic.return (of_tacvalue (VFun (UnnamedAppl, extract_trace ist, extract_loc ist, ist.lfun, [], tac)))
   in
   let open Ftactic in
-  Control.check_for_interrupt ();
   match curr_debug ist with
   | DebugOn lev ->
         let eval v =

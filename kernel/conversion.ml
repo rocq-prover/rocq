@@ -383,7 +383,6 @@ let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
 
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
 and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
-  Control.check_for_interrupt ();
   (* First head reduce both terms *)
   let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
   let appr1 = whd_stack ninfos infos.lft_tab (fst st1) (snd st1) in
@@ -464,7 +463,6 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
             | RelKey _ -> None
           in
           let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
-          let () = Control.check_for_interrupt () in
           if Conv_oracle.oracle_order oracle l2r (to_er fl1) (to_er fl2) then
             let appr1 = whd_stack ninfos infos.lft_tab t1 v1 in
             eqwhnf cv_pb l2r infos (lft1, appr1) appr2 cuniv

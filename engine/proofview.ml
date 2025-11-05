@@ -1267,9 +1267,6 @@ module NonLogical = Logic_monad.NonLogical
 
 let tclLIFT = Proof.lift
 
-let tclCHECKINTERRUPT =
-   tclLIFT (NonLogical.make Control.check_for_interrupt)
-
 let wrap_exceptions f =
   try f ()
   with e when catchable_exception e ->

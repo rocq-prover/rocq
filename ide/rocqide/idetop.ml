@@ -38,8 +38,7 @@ let valid_interrupt () =
     true
 
 let init_signal_handler () =
-  let f _ = if valid_interrupt () then
-              if !catch_break then raise Sys.Break else Control.interrupt := true in
+  let f _ = if valid_interrupt () then () else () in
   Sys.set_signal Sys.sigint (Sys.Signal_handle f)
 
 let pr_with_pid s = Printf.eprintf "[pid %d] %s\n%!" (Unix.getpid ()) s
@@ -509,7 +508,6 @@ let idetop_make_cases iname =
 let eval_call c =
   let interruptible f x =
     catch_break := true;
-    Control.check_for_interrupt ();
     let r = f x in
     catch_break := false;
     r

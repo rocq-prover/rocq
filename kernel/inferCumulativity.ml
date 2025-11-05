@@ -172,7 +172,6 @@ let infer_constant env variances (con,u) =
 let whd_stack (infos, tab) hd stk = CClosure.whd_stack infos tab hd stk
 
 let rec infer_fterm cv_pb infos variances hd stk =
-  Control.check_for_interrupt ();
   let hd,stk = whd_stack infos hd stk in
   let open CClosure in
   let push_relevance (infos, tab) n = (push_relevance infos n, tab) in
