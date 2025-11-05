@@ -405,6 +405,11 @@ create_opam() {
     fi
 
     opam install -qy -j "$number_of_processors" $initial_opam_packages
+
+    if [ $RUNNER = NEW ]; then
+      opam install -y memprof-limits
+    fi
+
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
     cd "$coq_dir"
