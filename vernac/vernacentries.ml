@@ -1687,6 +1687,7 @@ let vernac_require_interp needed modrefl export qidl =
   in
   if Dumpglob.dump () then
     List.iter2 (fun ({CAst.loc},_) dp -> Dumpglob.dump_libref ?loc dp "lib") qidl modrefl;
+  Coq_config.gc_ramp_up @@ fun () ->
   (* Load *)
   Library.require_library_from_dirpath needed;
   (* Import*)

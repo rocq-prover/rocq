@@ -8,6 +8,10 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+(** If available (OCaml >=5.4), [Gc.ramp_up] dropping the [suspended_collection_work] data.
+    Otherwise just call the given function. *)
+val gc_ramp_up : (unit -> 'a) -> 'a
+
 type relocatable_path =
   | NotRelocatable of string (* absolute path *)
   | Relocatable of string (* relative to the inferred prefix *)
