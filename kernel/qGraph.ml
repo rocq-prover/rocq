@@ -226,6 +226,9 @@ let add_quality q g =
     | Quality.QConstant _ -> g.dominant in
   { g with rigid_paths = paths; ground_and_global_sorts; dominant }
 
+let check_declared_qualities g l =
+  G.check_declared g.graph l
+
 let enforce_eliminates_to src s1 s2 g =
   enforce_constraint src (s1, ElimConstraint.ElimTo, s2) g
 

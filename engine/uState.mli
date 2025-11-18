@@ -230,10 +230,16 @@ val constrain_variables : Univ.Level.Set.t -> t -> t
 val fix_undefined_variables : t -> t
 (** cf UnivFlex *)
 
+val allow_failures : t -> t
+
+val recheck_failures : ?fail:(Pp.t -> unit) -> (UnivProblem.t -> bool) -> t -> t
+
 (** Universe minimization *)
 val minimize : t -> t
 
 val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
+
+val freeze_sort_variables : t -> t
 
 val collapse_sort_variables : ?except:QVar.Set.t -> t -> t
 

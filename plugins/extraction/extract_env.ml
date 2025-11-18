@@ -403,10 +403,11 @@ let rec extract_structure table access venv env mp reso ~all = function
     inds @ ms
   | (l, SFBrules rrb) :: struc ->
       let inst = InfvInst.empty in (* FIXME ? *)
-      let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst inst) rrb.rewrules_rules in
+      let head_symbols = List.map (fun r -> Rewrite_rules_ops.head_symbol r.pattern) rrb.rewrules_rules in
+      let b = List.exists (fun cst -> Visit.needed_cst venv cst inst) head_symbols in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) { glob = ConstRef cst; inst } l) rrb.rewrules_rules;
+        List.iter (fun cst -> Table.add_symbol_rule (State.get_table table) { glob = ConstRef cst; inst } l) head_symbols;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->

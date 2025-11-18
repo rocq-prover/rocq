@@ -179,7 +179,7 @@ let rec add_structure mp sign resolver linkinfo env =
       Environ.add_mind_key mind mib linkinfo env
     | SFBmodule mb -> add_module (MPdot (mp, l)) mb linkinfo env (* adds components as well *)
     | SFBmodtype mtb -> Environ.add_modtype (MPdot (mp, l)) mtb env
-    | SFBrules r -> Environ.add_rewrite_rules r.rewrules_rules env
+    | SFBrules r -> Environ.add_rewrite_rules r.rewrules_machine env
   in
   List.fold_left add_field env sign
 

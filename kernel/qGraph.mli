@@ -46,6 +46,9 @@ val add_quality : Quality.t -> t -> t
     a constraint or calling [eliminates_to].
     Forces [Type] to eliminate to this quality. *)
 
+(** Check that the universe levels are declared. *)
+val check_declared_qualities : t -> Sorts.Quality.Set.t -> (unit, Sorts.Quality.Set.t) result
+
 type constraint_source =
   | Internal
   | Rigid
