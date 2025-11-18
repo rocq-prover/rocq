@@ -234,3 +234,12 @@ let fresh_sort_context_instance ((qs,us),csts) =
       (QVar.Map.empty, QVar.Set.empty)
   in
   (qsubst, usubst), ((qs, us), csts)
+
+let family_to_str = function
+  | QualityOrSet.Set -> "InSet"
+  | Qual a -> begin match a with
+      | Quality.QConstant Quality.QSProp -> "InSProp"
+      | Quality.QConstant Quality.QProp -> "InProp"
+      | Quality.QConstant Quality.QType -> "InType"
+      | Quality.QVar _ -> "InQSort"
+    end

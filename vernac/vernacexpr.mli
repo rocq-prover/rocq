@@ -245,22 +245,11 @@ type proof_end =
   (*                         name in `Save ident` when closing goal *)
   | Proved of opacity_flag * lident option
 
-type scheme_type =
-  | SchemeInduction
-  | SchemeMinimality
-  | SchemeElimination
-  | SchemeCase
-
-type equality_scheme_type =
-  | SchemeBooleanEquality
-  | SchemeEquality
-  | SchemeRewriting
-
   (* The data of a Scheme decleration *)
 type scheme = {
-  sch_type : scheme_type ;
+  sch_type : string list ;
   sch_qualid : Libnames.qualid Constrexpr.or_by_notation ;
-  sch_sort : UnivGen.QualityOrSet.t ;
+  sch_sort : UnivGen.QualityOrSet.t option;
 }
 
 type section_subset_expr =
@@ -304,7 +293,7 @@ type section_subset_expr =
 type register_kind =
   | RegisterInline
   | RegisterCoqlib of qualid
-  | RegisterScheme of { inductive : qualid; scheme_kind : qualid }
+  | RegisterScheme of { inductive : qualid; scheme_kind : string list }
 
 (** {6 Types concerning the module layer} *)
 
@@ -422,7 +411,7 @@ type nonrec synpure_vernac_expr =
   | VernacFixpoint of discharge * fixpoints_expr
   | VernacCoFixpoint of discharge * cofixpoints_expr
   | VernacScheme of (lident option * scheme) list
-  | VernacSchemeEquality of equality_scheme_type * Libnames.qualid Constrexpr.or_by_notation
+  | VernacSchemeRewriting of Libnames.qualid Constrexpr.or_by_notation
   | VernacCombinedScheme of lident * lident list
   | VernacUniverse of lident list
   | VernacSort of lident list
