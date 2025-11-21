@@ -32,10 +32,8 @@ let push_handle eff =
   let sigma = Evd.emit_side_effects eff sigma in
   Proofview.Unsafe.tclEVARS sigma
 
-type mutual_scheme_object_function =
-  Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
-type individual_scheme_object_function =
-  Environ.env -> handle -> inductive -> constr Evd.in_ustate
+type mutual_scheme_object_function = Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
+type individual_scheme_object_function = Environ.env -> handle -> inductive -> constr Evd.in_ustate
 
 type 'a scheme_kind = string
 
@@ -52,8 +50,8 @@ type scheme_dependency =
 | SchemeIndividualDep of inductive * individual scheme_kind
 
 type scheme_object_function =
-  | MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> MutInd.t -> scheme_dependency list) option
-  | IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> scheme_dependency list) option
+| MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> MutInd.t -> scheme_dependency list) option
+| IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> scheme_dependency list) option
 
 let scheme_object_table =
   (Hashtbl.create 17 : (string, string * scheme_object_function) Hashtbl.t)
@@ -150,6 +148,7 @@ let define ?loc internal role id c poly uctx sch =
   let avoid = Id.Set.of_list @@ List.map (fun cst -> Constant.label cst) avoid in
   let id = compute_name internal id avoid in
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
+  let uctx = UState.normalize_variables uctx in
   let uctx = UState.minimize uctx in
   let c = UState.nf_universes uctx c in
   let uctx = UState.restrict uctx (Vars.universes_of_constr c) in

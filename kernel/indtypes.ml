@@ -395,6 +395,165 @@ let check_positivity ~chkpos kn names env_ar_par paramsctxt finite inds =
 
 (************************************************************************)
 (************************************************************************)
+(* Computes which uniform parameters are strictly positive *)
+
+(* debugging  *)
+let dbg_strpos = CDebug.create ~name:"strpos" ()
+
+open Pp
+let rec pp_list f l = match l with
+  | []   -> Pp.str "]"
+  | [a]  -> f a ++ Pp.str "]"
+  | a::l -> f a ++ str "; " ++ pp_list f l
+
+let pp_strpos l = Pp.str "[" ++ pp_list Pp.bool l
+
+(** [&&] pointwise for lists *)
+let andl = List.map2 (fun a b -> a && b)
+
+(** Iterate [&&] on [f x] for an array [ar] *)
+let andl_array f default ar =
+  Array.fold_right (fun x acc -> andl acc (f x)) ar default
+
+(** Check which uniform parameters are arity, unfolding Let-ins, and returns
+    the updated environment and the initial value of strictly positivity     *)
+let init_value env uparams =
+  let rec aux env tel =
+    match tel with
+    | [] -> (env, [])
+    | decl::tel ->
+      match get_value decl with
+      | Some _ -> aux (push_rel decl env) tel
+      | None   -> let ty = whd_all env @@ get_type decl in
+                  let (env, init_value) = aux (push_rel decl env) tel in
+                  (env, isArity ty :: init_value)
+    in
+    aux env (List.rev uparams)
+
+(** Check if the uniform parameters appear in a term *)
+let check_strpos uparams env t =
+  let nenv = List.length @@ Environ.rel_context env in
+  let rec aux i tel =
+    match tel with
+    | [] -> []
+    | decl::tel ->
+      match get_value decl with
+      | Some _ -> aux (i+1) tel
+      | None   -> noccur_between (nenv - i) 1 t :: aux (i+1) tel
+  in
+  aux 0 (List.rev uparams)
+
+(** Check if the uniform parameters appear in a context  *)
+let check_strpos_context uparams env default cxt =
+  let rec aux env strpos tel =
+    match tel with
+    | [] -> (env, strpos)
+    | decl::tel ->
+        match get_value decl with
+        | Some _ -> aux (push_rel decl env) strpos tel
+        | None   ->
+          let ty = whd_all env @@ get_type decl in
+          let strpos_decl = check_strpos uparams env ty in
+          aux (push_rel decl env) (andl strpos_decl strpos) tel
+  in aux env default (List.rev cxt)
+
+(** Computes which uniform parameters are strictly positive in an argument *)
+let rec compute_params_rec_strpos_arg check_strpos check_strpos_context env kn nparams_rec nparams init_value (arg : constr) : bool list =
+  (* strictly positive uniform parameters do not appear on the left of an arrow *)
+  let (local_vars, hd) = Reduction.whd_decompose_prod_decls env arg in
+  let (env, strpos_local) = check_strpos_context env init_value local_vars in
+  (* check the head *)
+  let (hd, inst_args) = decompose_app hd in
+  let srpos_hd = match kind hd with
+    | Rel k ->
+        (* Check if it is the inductive *)
+        if List.length (Environ.rel_context env) < k
+        (* If it is the inductive, then they should not appear in the instantiation
+        of the non-unfiform parameters and indices of the inductive type being defined *)
+        then let (_, iargs) = Array.chop nparams_rec inst_args in
+             andl_array (check_strpos env) init_value iargs
+        (* Otherwise, they should not appear in the arguments *)
+        else andl_array (check_strpos env) init_value inst_args
+    | Ind ((kn_nested, _), _) ->
+        (* Check if it is the inductive or nested *)
+        if QMutInd.equal env kn kn_nested
+        (* If it is the inductive, then they should not appear in the instantiation
+          of the non-unfiform parameters and indices of the inductive type being defined *)
+        then let (_, iargs) = Array.chop nparams_rec inst_args in
+             andl_array (check_strpos env) init_value iargs
+        (* For nested arguments, they should: *)
+        else begin
+          let mib_nested = lookup_mind kn_nested env in
+          let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec inst_args in
+          (* - appear strictly positively in the instantiation of the uniform parameters
+               that are strictly postive themselves
+             - not appear in uniform parameters that are not strictly postive *)
+          let strpos_inst_uparams = Array.fold_right_i (fun i x acc ->
+            if List.nth mib_nested.mind_params_rec_strpos i
+            then andl acc @@ compute_params_rec_strpos_arg check_strpos check_strpos_context env kn nparams_rec nparams init_value x
+            else andl acc @@ check_strpos env x
+            ) inst_uparams init_value  in
+          (* - not appear in the instantiation of the non-uniform parameters and indices *)
+          let strpos_inst_nuparams_indices = andl_array (check_strpos env) init_value inst_nuparams_indices in
+          andl strpos_inst_uparams strpos_inst_nuparams_indices
+        end
+    | _ -> check_strpos env hd
+  in
+  andl strpos_local srpos_hd
+
+(** Computes which uniform parameters are strictly positive in a constructor *)
+let compute_params_rec_strpos_ctor check_strpos check_strpos_context env kn nparams_rec nparams init_value (args, hd) =
+  (* They must not appear in the left on an arrow in each argument *)
+  let (env, strpos_args) =
+    List.fold_right (
+        fun arg (env, acc) ->
+        match get_value arg with
+        | Some _ -> (push_rel arg env, acc)
+        | None   ->
+            let strpos_arg = compute_params_rec_strpos_arg check_strpos check_strpos_context
+                                env kn nparams_rec nparams init_value (get_type arg) in
+          (push_rel arg env, andl acc strpos_arg)
+      ) args (env, init_value)
+  in
+  (* They must not appear in the instantiation of the indices *)
+  let (_, xs) = decompose_app hd in
+  let inst_indices = Array.sub xs nparams (Array.length xs - nparams) in
+  let str_inst_indices = andl_array (check_strpos env) strpos_args inst_indices in
+  let res_ctor = andl strpos_args str_inst_indices in
+  res_ctor
+
+(** Computes which uniform parameters are strictly positive in an inductive block *)
+let compute_params_rec_strpos_ind check_strpos check_strpos_context env kn nparams_rec nparams init_value (indices, ctors) =
+  (* They must not appear in indices *)
+  let (_, strpos_indices) = check_strpos_context env init_value indices in
+  (* They must be strictly positive in each constructor *)
+  let strpos_ctors = andl_array (compute_params_rec_strpos_ctor check_strpos check_strpos_context env kn nparams_rec nparams init_value) init_value ctors in
+  let res_ind = andl strpos_indices strpos_ctors in
+  res_ind
+
+(** Computes which uniform parameters are strictly positive in a mutual inductive block.
+    [inds : (rel_context * (rel_declaration list * types) array) array] contains
+    the context of indices, then for each constructor the telescope of arguments, and the hd.
+    This function can be used whether the inductive is refered using [Rel] or [Ind]. *)
+let compute_params_rec_strpos env kn uparams nuparams nparams_rec nparams inds : bool list =
+  dbg_strpos Pp.(fun () -> str "\n------------------------------------------------------------- \n" ++ str (MutInd.to_string kn) ++ str "\n") ;
+  let check_strpos = check_strpos uparams in
+  let check_strpos_context = check_strpos_context uparams in
+  (* They must be arities [forall ..., sort X] *)
+  let (env, init_value) = init_value env uparams in
+  dbg_strpos (fun () -> str "Init Value = " ++ pp_strpos init_value);
+  (* They must not appear in non-uniform parameters *)
+  let (env, strpos_nuparams) = check_strpos_context env init_value nuparams in
+  (* They must be strictly positive in each inductive block *)
+  let strpos_inds = andl_array (compute_params_rec_strpos_ind check_strpos check_strpos_context env kn nparams_rec nparams init_value) init_value inds in
+  let res = andl strpos_nuparams strpos_inds in
+  dbg_strpos (fun () -> str "Final Result = " ++ pp_strpos res);
+  res
+
+
+
+(************************************************************************)
+(************************************************************************)
 (* Build the inductive packet *)
 
 let fold_inductive_blocks f acc inds =
@@ -467,7 +626,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
   Array.of_list (List.rev pbs)
 
 let build_inductive env ~sec_univs names prv univs template variance
-    paramsctxt kn isrecord isfinite inds nmr recargs =
+    paramsctxt kn isrecord isfinite inds nmr params_rec_strpos recargs =
   let ntypes = Array.length inds in
   (* Compute the set of used section variables *)
   let hyps = used_section_variables env inds in
@@ -554,6 +713,7 @@ let build_inductive env ~sec_univs names prv univs template variance
     mind_univ_hyps = univ_hyps;
     mind_nparams = nparamargs;
     mind_nparams_rec = nmr;
+    mind_params_rec_strpos = params_rec_strpos;
     mind_params_ctxt = paramsctxt;
     mind_packets = packets;
     mind_universes = univs;
@@ -567,6 +727,8 @@ let build_inductive env ~sec_univs names prv univs template variance
 (************************************************************************)
 (************************************************************************)
 
+(** Check if an inductive definition is well-typed and positive, and
+    computes the associated mutual inductive body. *)
 let check_inductive env ~sec_univs kn mie =
   (* First type-check the inductive definition *)
   let (env_ar_par, univs, template, variance, record, why_not_prim_record, paramsctxt, inds) =
@@ -577,14 +739,18 @@ let check_inductive env ~sec_univs kn mie =
   let names = Array.map_of_list (fun entry -> entry.mind_entry_typename, entry.mind_entry_consnames)
       mie.mind_entry_inds
   in
-  let (nmr,recargs) = check_positivity ~chkpos kn names
+  let (nmr, recargs) = check_positivity ~chkpos kn names
       env_ar_par paramsctxt mie.mind_entry_finite
       (Array.map (fun ((_,lc),(indices,_),_) -> Context.Rel.nhyps indices,lc) inds)
   in
+  (* Seperate uparams and nuparams *)
+  let (uparams_ctxt, nuparams_ctxt) = Declareops.split_uparans_nuparams nmr paramsctxt in
+  (* Compute which uniform parameters are strictly positive *)
+  let params_rec_strpos = compute_params_rec_strpos env kn uparams_ctxt nuparams_ctxt nmr (Context.Rel.nhyps paramsctxt)
+      (Array.map (fun (_, x, _) -> x) inds) in
   (* Build the inductive packets *)
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
-      paramsctxt kn record mie.mind_entry_finite
-      inds nmr recargs
+      paramsctxt kn record mie.mind_entry_finite inds nmr params_rec_strpos recargs
   in
   mib, why_not_prim_record

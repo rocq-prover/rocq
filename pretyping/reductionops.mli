@@ -318,8 +318,10 @@ exception AnomalyInConversion of exn
 (* inferred_universes just gathers the constraints. *)
 val inferred_universes : env -> (UGraph.t * Univ.Constraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
 
-(** Deprecated *)
+val eta_expand : env -> evar_map -> etypes -> etypes -> etypes
+val eta_expand_instantiation : env -> evar_map -> constr array -> rel_context -> constr array
 
+(** Deprecated *)
 val splay_prod : env -> evar_map -> constr -> (Name.t EConstr.binder_annot * constr) list * constr
 [@@ocaml.deprecated "(8.18) Use [whd_decompose_prod] instead."]
 val splay_lam : env -> evar_map -> constr -> (Name.t EConstr.binder_annot * constr) list * constr

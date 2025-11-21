@@ -1608,7 +1608,7 @@ let import lib vmtab vodigest senv =
     sections;
   }
 
-(** {6 Interactive sections *)
+(** {6 Interactive sections} *)
 
 let open_section senv =
   let custom = {
@@ -1656,11 +1656,11 @@ let close_section senv =
     let cb = compile_bytecode senv.env cb in
     (* Delayed constants are already in the global environment *)
     add_constant_aux senv (kn, cb)
-  | SecInductive ind ->
-    let mib = Environ.lookup_mind ind env0 in
-    let info = Section.segment_of_inductive ind sections0 in
-    let mib = Discharge.cook_inductive info mib in
-    add_checked_mind ind mib senv
+  | SecInductive kn ->
+    let mib = Environ.lookup_mind kn env0 in
+    let info = Section.segment_of_inductive kn sections0 in
+    let mib = Discharge.cook_inductive env0 kn info mib in
+    add_checked_mind kn mib senv
   in
   List.fold_right fold entries senv
 

@@ -20,7 +20,7 @@ open Environ
 open Pretype_errors
 open Type_errors
 open Typeclasses_errors
-open Indrec
+open Inductiveops
 open Cases
 open Logic
 open Printer

@@ -524,8 +524,8 @@ let raw_inversion inv_kind id status names =
 
 (* Error messages of the inversion tactics *)
 let wrap_inv_error id = function (e, info) -> match e with
-  | Indrec.RecursionSchemeError
-      (_, Indrec.NotAllowedCaseAnalysis (_, _,(Type _ | Set as k),i)) ->
+  | Inductiveops.RecursionSchemeError
+      (_, Inductiveops.NotAllowedCaseAnalysis (_, _,(Type _ | Set as k),i)) ->
       Proofview.tclENV >>= fun env ->
       Proofview.tclEVARMAP >>= fun sigma ->
       tclZEROMSG (

@@ -264,6 +264,8 @@ let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_a
     [|v_instance;v_array v_constr;v_constr;v_constr|] (* v_array *)
   |]))
 
+let v_strpos = v_list v_bool
+
 let v_rdecl = v_sum "rel_declaration" 0
     [| [|v_binder_annot v_name; v_constr|];               (* LocalAssum *)
        [|v_binder_annot v_name; v_constr; v_constr|] |]   (* LocalDef *)
@@ -457,6 +459,7 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
     v_instance;
     v_int;
     v_int;
+    v_strpos;
     v_rctxt;
     v_univs; (* universes *)
     v_opt v_template_universes;
