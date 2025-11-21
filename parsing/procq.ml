@@ -15,6 +15,72 @@ open Gramlib
 (** The parser of Rocq *)
 include Grammar.GMake(CLexer.Lexer)
 
+let assert_synterp () =
+  if !Flags.in_synterp_phase = Some false then
+    CErrors.anomaly Pp.(str "The grammar cannot be modified during the interp phase.")
+
+let add_kw = { add_kw = CLexer.add_keyword_tok }
+
+let no_add_kw = { add_kw = fun () _ -> () }
+
+let extend_gstate ~ignore_kw ({GState.kwstate; estate;} as gstate) e ext =
+  let estate, kwstate =
+    if ignore_kw then
+      let estate, () = safe_extend no_add_kw estate () e ext in
+      estate, kwstate
+    else safe_extend add_kw estate kwstate e ext
+  in
+  {gstate with GState.kwstate; estate;}
+
+(** Unsynchronized grammar extensions *)
+
+type unsync_ext =
+| UGramExt : { ignore_kw:bool; entry : 'a Entry.t; ext : 'a extend_statement } -> unsync_ext
+| UEntryExt : 'a Entry.t * 'a Entry.parser_fun option -> unsync_ext
+
+let empty_gstate = {
+  GState.estate = EState.empty;
+  kwstate = CLexer.empty_keyword_state;
+  recover = true;
+  has_non_assoc = false;
+}
+
+(** int is the length of the list *)
+let unsync_state : (int * unsync_ext list * GState.t) ref = ref (0, [], empty_gstate)
+
+let grammar_extend ~ignore_kw e ext =
+  assert_synterp();
+  let ulen, exts, gstate = !unsync_state in
+  let gstate = extend_gstate ~ignore_kw gstate e ext in
+  unsync_state := (ulen+1, UGramExt {ignore_kw; entry=e; ext} :: exts, gstate)
+
+let entry_extend_unsync name parser_opt =
+  assert_synterp();
+  let ulen, exts,gstate = !unsync_state in
+  let estate, entry = match parser_opt with
+    | None -> Entry.make name gstate.estate
+    | Some p -> Entry.of_parser name p gstate.estate
+  in
+  let gstate = { gstate with estate } in
+  unsync_state := (ulen+1, UEntryExt (entry, parser_opt) :: exts, gstate);
+  entry
+
+let replay_extend_entry entry parser_opt gstate =
+  let estate =
+    match parser_opt with
+    | None -> Unsafe.existing_entry gstate.GState.estate entry
+    | Some p -> Unsafe.existing_of_parser gstate.GState.estate entry p
+  in
+  { gstate with estate }
+
+let replay_one_unsync_extend ext gstate =
+  match ext with
+  | UGramExt {ignore_kw; entry; ext} -> extend_gstate ~ignore_kw gstate entry ext
+  | UEntryExt (e,p) -> replay_extend_entry e p gstate
+
+let replay_unsync_extends exts gstate =
+  List.fold_right replay_one_unsync_extend exts gstate
+
 (** Marshallable representation of grammar extensions *)
 
 module EntryCommand = Dyn.Make ()
@@ -33,76 +99,86 @@ type grammar_entry =
 type full_state = {
   (* the state used for parsing *)
   current_state : GState.t;
-  (* grammar state containing only non-marshallable extensions
-     (NB: this includes entries from Entry.make) *)
-  base_state : GState.t;
-  (* current_state = List.fold_right add_entry current_sync_extensions base_state
+  (* Number of unsynchronized extensions added to current_state *)
+  unsync_exts : int;
+  (* when all unsynchronized extensions have been added,
+     current_state = List.fold_right add_entry current_sync_extensions (pi3 !unsync_state)
      this means the list is in reverse order of addition *)
   current_sync_extensions : grammar_entry list;
-  (* some user data tied to the grammar state, typically contains info on declared levels *)
+  (* some user data tied to the grammar state, typically contains info on declared levels
+     and maps custom entry names to the actual Entry.t values *)
   user_state : GramState.t;
 }
 
 let empty_full_state =
-  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state; recover = true; has_non_assoc = false } in
   {
     current_state = empty_gstate;
-    base_state = empty_gstate;
+    unsync_exts = 0;
     current_sync_extensions = [];
     user_state = GramState.empty;
   }
 
-let assert_synterp () =
-  if !Flags.in_synterp_phase = Some false then
-    CErrors.anomaly Pp.(str "The grammar cannot be modified during the interp phase.")
+module GlobalState : sig
 
-(** Not marshallable! *)
-let state = ref empty_full_state
+  val gramstate : unit -> GramState.t
 
-let gramstate () = (!state).user_state
+  val gstate : unit -> GState.t
 
-let gstate () = (!state).current_state
+  val modify_sync_state : (full_state -> full_state * 'a) -> 'a
+  val modify_sync_state0 : (full_state -> full_state) -> unit
+
+  val current_sync_extensions : unit -> grammar_entry list
+
+end = struct
+  (** Not marshallable! *)
+  let state = ref empty_full_state
+
+  let update () =
+    let ulen, exts, _ = !unsync_state in
+    let current = !state in
+    if Int.equal ulen current.unsync_exts then ()
+    else
+      let exts = List.firstn (ulen - current.unsync_exts) exts in
+      state := {
+        current with
+        current_state = replay_unsync_extends exts current.current_state;
+        unsync_exts = ulen;
+      }
+
+  (* no need to update, gramstate isn't modified by it *)
+  let gramstate () = (!state).user_state
+
+  let gstate () =
+    update();
+    (!state).current_state
+
+  let modify_sync_state f =
+    assert_synterp();
+    update();
+    let state', v = f !state in
+    state := state';
+    v
+
+  let modify_sync_state0 f = modify_sync_state (fun state -> f state, ())
+
+  let current_sync_extensions () = (!state).current_sync_extensions
+end
+open GlobalState
+
+let gramstate = gramstate
 
 let get_keyword_state () = (gstate()).kwstate
 
 let terminal s = CLexer.terminal (get_keyword_state()) s
 
-let reset_to_base state = {
-  base_state = state.base_state;
-  current_state = state.base_state;
-  current_sync_extensions = [];
-  user_state = GramState.empty;
-}
-
-let modify_state_unsync f state =
-  let is_base = state.base_state == state.current_state in
-  let base_state = f state.base_state in
-  let current_state = if is_base then base_state else f state.current_state in
-  { state with base_state; current_state }
-
-let modify_state_unsync f () =
-  assert_synterp ();
-  state := modify_state_unsync f !state
-
-let make_entry_unsync make remake state =
-  let is_base = state.base_state == state.current_state in
-  let base_estate, e = make state.base_state.estate in
-  let base_state = { state.base_state with estate = base_estate } in
-  let current_state = if is_base then base_state else
-      let current_estate = remake state.current_state.estate e in
-      { state.current_state with estate = current_estate }
-  in
-  { state with base_state; current_state }, e
-
-let make_entry_unsync make remake () =
-  assert_synterp();
-  let statev, e = make_entry_unsync make remake !state in
-  state := statev;
-  e
-
-let add_kw = { add_kw = CLexer.add_keyword_tok }
-
-let no_add_kw = { add_kw = fun () _ -> () }
+let from_unsync_state () =
+  let ulen, _, gstate = !unsync_state in
+  {
+    current_state = gstate;
+    unsync_exts = ulen;
+    current_sync_extensions = [];
+    user_state = GramState.empty;
+  }
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
@@ -113,20 +189,6 @@ let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
   try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
-
-let extend_gstate ~ignore_kw {GState.kwstate; estate; recover; has_non_assoc} e ext =
-  let estate, kwstate =
-    if ignore_kw then
-      let estate, () = safe_extend no_add_kw estate () e ext in
-      estate, kwstate
-    else safe_extend add_kw estate kwstate e ext
-  in
-  {GState.kwstate; estate; recover; has_non_assoc}
-
-(* XXX rename to grammar_extend_unsync? *)
-let grammar_extend ~ignore_kw e ext =
-  let extend_one g = extend_gstate ~ignore_kw g e ext in
-  modify_state_unsync extend_one ()
 
 type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
@@ -143,8 +205,7 @@ let grammar_extend_sync ~ignore_kw user_state entry rules state =
   }
 
 let grammar_extend_sync ~ignore_kw st e r () =
-  assert_synterp();
-  state := grammar_extend_sync ~ignore_kw st e r !state
+  modify_sync_state0 (grammar_extend_sync ~ignore_kw st e r)
 
 type ('a,'b) entry_extension = {
   eext_fun : 'a -> 'b Entry.t -> GramState.t -> GramState.t;
@@ -169,14 +230,12 @@ let extend_entry_sync (type a b)
     user_state;
   }
   in
-  state
+  state, ()
 
 let extend_entry_sync tag interp data () =
-  assert_synterp();
-  let statev = extend_entry_sync tag interp data !state in
-  state := statev
+  modify_sync_state (extend_entry_sync tag interp data)
 
-let extend_keywords state kws = {
+let extend_keywords kws state = {
   state with
   current_state =
     { state.current_state with
@@ -186,8 +245,7 @@ let extend_keywords state kws = {
 }
 
 let extend_keywords kws =
-  assert_synterp();
-  state := extend_keywords !state kws
+  modify_sync_state0 (extend_keywords kws)
 
 module Parsable = struct
   include Parsable
@@ -196,12 +254,9 @@ end
 
 module Entry = struct
   include Entry
-  let make name = make_entry_unsync (fun estate -> Entry.make name estate) Unsafe.existing_entry ()
+  let make name = entry_extend_unsync name None
   let parse e p = parse e p (gstate())
-  let of_parser na p = make_entry_unsync
-      (fun estate -> of_parser na p estate)
-      (fun estate e -> Unsafe.existing_of_parser estate e p)
-      ()
+  let of_parser na p = entry_extend_unsync na (Some p)
   let parse_token_stream e strm = parse_token_stream e strm (gstate())
   let print fmt e = print fmt e (gstate()).estate
   let is_empty e = is_empty e (gstate()).estate
@@ -419,7 +474,7 @@ let create_grammar_command name interp : _ grammar_command =
 
 let extend_grammar_command ~ignore_kw tag g =
   let modify = GrammarInterpMap.find tag !grammar_interp in
-  let grammar_state = (!state).user_state in
+  let grammar_state = gramstate() in
   let (rules, st) = modify.gext_fun g grammar_state in
   grammar_extend_sync ~ignore_kw st (Dyn (tag,g)) rules ()
 
@@ -455,22 +510,7 @@ let find_grammars_by_name name =
    grammar rules. *)
 type frozen_t = {
   frozen_sync : grammar_entry list;
-  frozen_base_kw : CLexer.keyword_state;
-  frozen_kw : CLexer.keyword_state;
 }
-
-let unfreeze_only_keywords = function
-  | {frozen_base_kw; frozen_kw} ->
-    let is_base = !(state).base_state == (!state).current_state && frozen_base_kw == frozen_kw in
-    let base_state = { (!state).base_state with kwstate = frozen_base_kw } in
-    let current_state = if is_base then base_state else
-        { (!state).current_state with kwstate = frozen_kw }
-    in
-    state := {
-      !state with
-      base_state;
-      current_state;
-    }
 
 let eq_grams g1 g2 = match g1, g2 with
   | GramExt {ignore_kw=kw1;entry=GrammarCommand.Dyn (t1, v1)},
@@ -501,29 +541,20 @@ let replay_sync_extension = function
   | EntryExt (tag,data) -> extend_entry_command tag data
   | KeywordExt kws -> extend_keywords kws
 
-let unfreeze ({frozen_sync;} as frozen) =
+let unfreeze {frozen_sync} =
   (* allow unfreezing synterp state even during interp phase *)
   Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> None) (fun () ->
-  let to_remove, to_add, _common = factorize_grams (!state).current_sync_extensions frozen_sync in
+  let to_remove, to_add, _common = factorize_grams (current_sync_extensions()) frozen_sync in
   if CList.is_empty to_remove then begin
     List.iter replay_sync_extension (List.rev to_add);
-    unfreeze_only_keywords frozen
   end
   else begin
-    state := reset_to_base !state;
+    modify_sync_state0 (fun _ -> from_unsync_state());
     List.iter replay_sync_extension (List.rev frozen_sync);
-    (* put back the keyword state, needed to support ssr hacks *)
-    unfreeze_only_keywords frozen
   end)
     ()
 
-let freeze_state state = {
-  frozen_sync = state.current_sync_extensions;
-  frozen_base_kw = state.base_state.kwstate;
-  frozen_kw = state.current_state.kwstate;
-}
-
-let freeze () : frozen_t = freeze_state !state
+let freeze () : frozen_t = { frozen_sync = current_sync_extensions() }
 
 (** No need to provide an init function : the grammar state is
     statically available, and already empty initially, while
