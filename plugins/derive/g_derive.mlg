@@ -22,7 +22,7 @@ let classify_derive_command _ = Vernacextend.(VtStartProof (Doesn'tGuaranteeOpac
 
 let () =
    Mltop.add_init_function "rocq-runtime.plugins.derive" (fun () ->
-     Procq.modify_keyword_state (fun kw -> CLexer.add_keyword_tok kw (Tok.PKEYWORD "SuchThat")))
+     Procq.modify_keyword_state (fun kw -> CLexer.add_keyword kw  "SuchThat"))
 
 let warn_deprecated_derive_suchthat =
    CWarnings.create ~name:"deprecated-derive-suchthat" ~category:Deprecation.Version.v9_0
