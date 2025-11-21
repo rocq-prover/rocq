@@ -26,6 +26,7 @@ type gramext = { ignore_kw:bool; entry:GrammarCommand.t }
 type grammar_entry =
 | GramExt of gramext
 | EntryExt : ('a * 'b) EntryCommand.tag * 'a -> grammar_entry
+| KeywordExt of string list
 
 (** State handling (non marshallable!) *)
 
@@ -82,10 +83,6 @@ let modify_state_unsync f state =
 let modify_state_unsync f () =
   assert_synterp ();
   state := modify_state_unsync f !state
-
-let modify_keyword_state f =
-  modify_state_unsync (fun {estate;kwstate;recover;has_non_assoc} -> {estate; kwstate = f kwstate; recover; has_non_assoc})
-    ()
 
 let make_entry_unsync make remake state =
   let is_base = state.base_state == state.current_state in
@@ -178,6 +175,19 @@ let extend_entry_sync tag interp data () =
   assert_synterp();
   let statev = extend_entry_sync tag interp data !state in
   state := statev
+
+let extend_keywords state kws = {
+  state with
+  current_state =
+    { state.current_state with
+      kwstate = List.fold_left CLexer.add_keyword state.current_state.kwstate kws;
+    };
+  current_sync_extensions = KeywordExt kws :: state.current_sync_extensions;
+}
+
+let extend_keywords kws =
+  assert_synterp();
+  state := extend_keywords !state kws
 
 module Parsable = struct
   include Parsable
@@ -478,7 +488,8 @@ let eq_grams g1 g2 = match g1, g2 with
     let EExt interp = EntryInterpMap.find t1 !entry_interp in
     interp.eext_eq d1 d2
   end
-| (GramExt _, EntryExt _) | (EntryExt _, GramExt _) -> false
+| KeywordExt l1, KeywordExt l2 -> l1 == l2 || List.equal String.equal l1 l2
+| GramExt _, _ | EntryExt _, _ | KeywordExt _, _ -> false
 
 (* We compare the current state of the grammar and the state to unfreeze,
    by computing the longest common suffixes *)
@@ -488,6 +499,7 @@ let factorize_grams l1 l2 =
 let replay_sync_extension = function
   | GramExt {ignore_kw;entry=Dyn(tag,g)} -> extend_grammar_command ~ignore_kw tag g
   | EntryExt (tag,data) -> extend_entry_command tag data
+  | KeywordExt kws -> extend_keywords kws
 
 let unfreeze ({frozen_sync;} as frozen) =
   (* allow unfreezing synterp state even during interp phase *)

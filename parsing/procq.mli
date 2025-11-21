@@ -292,4 +292,4 @@ val unfreeze : frozen_t -> unit
 
 val get_keyword_state : unit -> CLexer.keyword_state
 
-val modify_keyword_state : (CLexer.keyword_state -> CLexer.keyword_state) -> unit
+val extend_keywords : string list -> unit
