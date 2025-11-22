@@ -73,28 +73,28 @@ Definition sumor_sind := sum_elim@{Type Prop Type SProp;_ _ _}.
 Definition sumor_rect := sum_elim@{Type Prop Type Type;_ _ _}.
 Definition sumor_ind := sum_elim@{Type Prop Type Prop;_ _ _}.
 
-Fail Definition idT@{sl sr s;ul ur} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
+Fail Definition idT@{sl sr s;ul ur|} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
   : sum@{sl sr Type;ul ur} A B :=
   match x return sum@{sl sr Type;ul ur} A B with
   | inl a => inl a
   | inr b => inr b
   end.
 
-Fail Definition idP@{sl sr s;ul ur} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
+Fail Definition idP@{sl sr s;ul ur|} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
   : sum@{sl sr Prop;ul ur} A B :=
   match x return sum@{sl sr Prop;ul ur} A B with
   | inl a => inl a
   | inr b => inr b
   end.
 
-Fail Definition idS@{sl sr s;ul ur} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
+Fail Definition idS@{sl sr s;ul ur|} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
   : sum@{sl sr SProp;ul ur} A B :=
   match x return sum@{sl sr SProp;ul ur} A B with
   | inl a => inl a
   | inr b => inr b
   end.
 
-Fail Definition idV@{sl sr s s';ul ur} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
+Fail Definition idV@{sl sr s s';ul ur|} (A : Type@{sl;ul}) (B : Type@{sr;ur}) (x : sum@{sl sr s;ul ur} A B)
   : sum@{sl sr s';ul ur} A B :=
   match x return sum@{sl sr s';ul ur} A B with
   | inl a => inl a
@@ -145,19 +145,19 @@ Definition list'_elim@{s s0 s';l l'|s0 -> s'}
     | cons' x l => fc x l (F l)
     end.
 
-Fail Fixpoint list'_idT@{s s';l} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s Type;l} A :=
+Fail Fixpoint list'_idT@{s s';l|} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s Type;l} A :=
   match l with
   | nil' => nil'
   | cons' x l => cons' x (list'_idT l)
   end.
 
-Fail Fixpoint list'_idP@{s s';l} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s Prop;l} A :=
+Fail Fixpoint list'_idP@{s s';l|} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s Prop;l} A :=
   match l with
   | nil' => nil'
   | cons' x l => cons' x (list'_idP l)
   end.
 
-Fail Fixpoint list'_idS@{s s';l} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s SProp;l} A :=
+Fail Fixpoint list'_idS@{s s';l|} {A : Type@{s;l}} (l : List'@{s s';l} A) : List'@{s SProp;l} A :=
   match l with
   | nil' => nil'
   | cons' x l => cons' x (list'_idS l)
