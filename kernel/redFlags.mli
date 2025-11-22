@@ -13,6 +13,25 @@
     Rel/Var bound to a term is Delta, but reduction of a LetIn expression
     is Letin reduction *)
 
+module Flags : sig
+  type t = private int
+
+  val none : t
+  val mask : t
+
+  val fBETA : t
+  val fDELTA : t
+  val fMATCH : t
+  val fFIX : t
+  val fCOFIX : t
+  val fZETA : t
+
+  val (+) : t -> t -> t
+  val (-) : t -> t -> t
+
+  val set : t -> t -> bool
+end
+
 (** Set of reduction kinds. *)
 type reds
 
@@ -49,6 +68,12 @@ val red_add_transparent : reds -> TransparentState.t -> reds
 
 (** Retrieve the transparent state of the reduction flags *)
 val red_transparent : reds -> TransparentState.t
+
+(** Sets the flags for the reduction flags. *)
+val set_red_flags : reds -> Flags.t -> reds
+
+(** Retrieve the flags part of the reduction flags *)
+val red_flags : reds -> Flags.t
 
 (** Build a reduction set from scratch = iter [red_add] on [no_red] *)
 val mkflags : red_kind list -> reds

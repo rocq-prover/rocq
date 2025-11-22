@@ -32,7 +32,6 @@ open Context
 open Environ
 open Vars
 open Esubst
-open RedFlags
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
@@ -166,14 +165,27 @@ type infos_cache = {
   i_share : bool;
   i_univs : UGraph.t;
   i_mode : mode;
+  i_redflags : RedFlags.reds;
 }
 
+type flags = int
+let fBETA : flags = (RedFlags.Flags.fBETA :> int)
+let fDELTA : flags = (RedFlags.Flags.fDELTA :> int)
+let fMATCH : flags = (RedFlags.Flags.fMATCH :> int)
+let fFIX : flags = (RedFlags.Flags.fFIX :> int)
+let fCOFIX : flags = (RedFlags.Flags.fCOFIX :> int)
+let fZETA : flags = (RedFlags.Flags.fZETA :> int)
+let all_flags : flags = (RedFlags.Flags.mask :> int)
+
 type clos_infos = {
-  i_flags : reds;
+  i_flags : flags;
+  i_ts : TransparentState.t;
   i_relevances : Sorts.relevance Range.t;
   i_cache : infos_cache }
 
-let info_flags info = info.i_flags
+let [@ocaml.inline always] red_set info f = info.i_flags land f != 0
+
+let info_flags info = info.i_cache.i_redflags
 let info_env info = info.i_cache.i_env
 let info_univs info = info.i_cache.i_univs
 let info_elims info = Environ.qualities (info_env info)
@@ -411,8 +423,7 @@ end = struct
         let def = Environ.lookup_named id env in
         shortcut_irrelevant info
           (binder_relevance (NamedDecl.get_annot def));
-        let ts = RedFlags.red_transparent info.i_flags in
-        if TransparentState.is_transparent_variable ts id then
+        if TransparentState.is_transparent_variable info.i_ts id then
           Def (assoc_defined def, [||])
         else
           raise Not_found
@@ -422,8 +433,7 @@ end = struct
         | None -> info.i_cache.i_sigma.abstr_const cst
         in
         shortcut_irrelevant info (UVars.subst_instance_relevance u cb.const_relevance);
-        let ts = RedFlags.red_transparent info.i_flags in
-        if TransparentState.is_transparent_constant ts cst then match cb.const_body with
+        if TransparentState.is_transparent_constant info.i_ts cst then match cb.const_body with
         | Undef _ | Def _ | OpaqueDef _ | Primitive _ ->
           let mask = match cb.const_body_code with
           | (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant) -> [||]
@@ -986,7 +996,7 @@ let contract_fix_vect fix =
   (on_fst (fun env -> mk_subs env 0) env, thisbody)
 
 let unfold_projection info p r =
-  if red_projection info.i_flags p
+  if RedFlags.red_projection info.i_cache.i_redflags p
   then
     Some (Zproj (Projection.repr p, r))
   else None
@@ -1822,7 +1832,7 @@ and match_head : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr
     match_main red info tab ~pat_state states next
 
 let match_symbol red info tab ~pat_state fl (u, b, r) stk =
-  let unfold_fix = b && red_set info.i_flags fFIX in
+  let unfold_fix = b && red_set info fFIX in
   let states, elims = Array.split @@ Array.map
     (fun r ->
       let pu, es = r.lhs_pat in
@@ -1848,11 +1858,11 @@ type 'a depth = 'a RedPattern.patstate
 let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
   fun info tab ~pat_state m stk ->
   match m.term with
-  | FLambda(n,tys,f,e) when red_set info.i_flags fBETA ->
+  | FLambda(n,tys,f,e) when red_set info fBETA ->
       (match get_args n tys f e stk with
           Inl e', s -> knit info tab ~pat_state e' f s
         | Inr lam, s -> knr_ret info tab ~pat_state (lam,s))
-  | FFlex fl when red_set info.i_flags fDELTA ->
+  | FFlex fl when red_set info fDELTA ->
       (match Table.lookup info tab fl with
         | Def (v, _) -> kni info tab ~pat_state v stk
         | Primitive op ->
@@ -1872,8 +1882,8 @@ let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
           RedPattern.match_symbol red info tab ~pat_state fl (u, b, r) stk
         | Undef _ | OpaqueDef _ -> (set_ntrl m; knr_ret info tab ~pat_state (m,stk)))
   | FConstruct (c,_) ->
-     let use_match = red_set info.i_flags fMATCH in
-     let use_fix = red_set info.i_flags fFIX in
+     let use_match = red_set info fMATCH in
+     let use_fix = red_set info fFIX in
      if use_match || use_fix then
       (match [@ocaml.warning "-4"] m,  stk with
         | (_, Zapp _ :: _) -> assert false (* knh *)
@@ -1902,7 +1912,7 @@ let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
   | FCoFix ((i, (lna, _, _)), e) ->
     if is_irrelevant info (usubst_relevance e (lna.(i)).binder_relevance) then
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
-    else if red_set info.i_flags fCOFIX then
+    else if red_set info fCOFIX then
       (match strip_update_shift_app m stk with
         | (_, _, args, (((ZcaseT _|Zproj _)::_) as stk')) ->
             let (fxe,fxbd) = contract_fix_vect m.term in
@@ -1910,7 +1920,7 @@ let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
         | (_, _, args, ((Zapp _ | Zfix _ | Zshift _ | Zupdate _ | Zprimitive _) :: _ | [] as s)) ->
             knr_ret info tab ~pat_state (m,args@s))
     else knr_ret info tab ~pat_state (m, stk)
-  | FLetIn (_,v,_,bd,e) when red_set info.i_flags fZETA ->
+  | FLetIn (_,v,_,bd,e) when red_set info fZETA ->
       knit info tab ~pat_state (on_fst (subs_cons v) e) bd stk
   | FInt _ | FFloat _ | FString _ | FArray _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app m stk with
@@ -1935,7 +1945,7 @@ let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
            kni info tab ~pat_state a (Zprimitive(op,c,rargs,nargs)::s)
              end
      | (depth, _, _, stk) -> knr_ret info tab ~pat_state (m,zshift depth stk))
-  | FCaseInvert (ci, u, pms, _p,iv,_c,v,env) when red_set info.i_flags fMATCH ->
+  | FCaseInvert (ci, u, pms, _p,iv,_c,v,env) when red_set info fMATCH ->
     let pms = mk_clos_vect env pms in
     let u = usubst_instance env u in
     begin match case_inversion info tab ci u pms iv v with
@@ -1994,7 +2004,10 @@ and case_inversion info tab ci u params indices v = match v with
     let _, expect = mip.mind_nf_lc.(0) in
     let _ind, expect_args = destApp expect in
     let tab = if info.i_cache.i_mode == Conversion then tab else Table.create () in
-    let info = {info with i_cache = { info.i_cache with i_mode = Conversion}; i_flags=all} in
+    let info =
+      let i_cache = {info.i_cache with i_mode = Conversion; i_redflags = RedFlags.all} in
+      {info with i_cache; i_ts = TransparentState.full; i_flags = all_flags}
+    in
     let check_index i index =
       let expected = expect_args.(ci.ci_npar + i) in
       let expected = mk_clos (psubst,u) expected in
@@ -2187,12 +2200,14 @@ let whd_stack infos tab m stk = match m.mark with
   in
   k
 
-let create_infos i_mode ?univs ?evars i_flags i_env =
+let create_infos i_mode ?univs ?evars i_redflags i_env =
   let evars = Option.default (default_evar_handler i_env) evars in
   let i_univs = Option.default (Environ.universes i_env) univs in
   let i_share = (Environ.typing_flags i_env).Declarations.share_reduction in
-  let i_cache = {i_env; i_sigma = evars; i_share; i_univs; i_mode} in
-  {i_flags; i_relevances = Range.empty; i_cache}
+  let i_cache = {i_env; i_sigma = evars; i_share; i_univs; i_mode; i_redflags} in
+  let i_flags = (RedFlags.red_flags i_redflags :> int) in
+  let i_ts = RedFlags.red_transparent i_redflags in
+  {i_flags; i_ts; i_relevances = Range.empty; i_cache}
 
 let create_conv_infos = create_infos Conversion
 let create_clos_infos = create_infos Reduction
@@ -2200,7 +2215,10 @@ let create_clos_infos = create_infos Reduction
 let oracle_of_infos infos = Environ.oracle infos.i_cache.i_env
 
 let infos_with_reds infos reds =
-  { infos with i_flags = reds }
+  let i_cache = {infos.i_cache with i_redflags = reds} in
+  let i_flags = (RedFlags.red_flags reds :> int) in
+  let i_ts = RedFlags.red_transparent reds in
+  {infos with i_cache; i_ts; i_flags}
 
 let unfold_ref_with_args infos tab fl v =
   match Table.lookup infos tab fl with
@@ -2210,7 +2228,11 @@ let unfold_ref_with_args infos tab fl v =
     let rargs, a, nargs, v = get_native_args1 op c v in
     Some (a, (Zupdate a::(Zprimitive(op,c,rargs,nargs)::v)))
   | Symbol (u, b, r) ->
-    RedPattern.match_symbol knred (infos_with_reds infos all) tab ~pat_state:(RedPattern.Nil Yes) fl (u, b, r) v
+    let infos =
+      let i_cache = {infos.i_cache with i_redflags = RedFlags.all} in
+      {infos with i_cache; i_ts = TransparentState.full; i_flags = all_flags}
+    in
+    RedPattern.match_symbol knred infos tab ~pat_state:(RedPattern.Nil Yes) fl (u, b, r) v
   | Undef _ | OpaqueDef _ | Primitive _ -> None
 
 let get_ref_mask info tab fl = match Table.lookup info tab fl with
