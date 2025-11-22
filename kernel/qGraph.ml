@@ -123,7 +123,7 @@ type constraint_source =
   | Static
 
 type elimination_error =
-  | IllegalConstraint
+  | IllegalConstraint of Quality.t * Quality.t
   | CreatesForbiddenPath of Quality.t * Quality.t
   | MultipleDominance of Quality.t * Quality.t * Quality.t
   | QualityInconsistency of quality_inconsistency
@@ -219,7 +219,7 @@ let enforce_constraint src (q1,k,q2) g =
        | Rigid ->
           if (Quality.is_qconst q1 && Quality.is_qconst q2) ||
                (Quality.is_qsprop q1 && not (Quality.is_qsprop q2))
-          then raise (EliminationError IllegalConstraint)
+          then raise (EliminationError (IllegalConstraint (q1, q2)))
           else { g with graph; rigid_paths = RigidPaths.add_elim_to q1 q2 g.rigid_paths }
        | Internal ->
           match get_new_rigid_paths g.graph g.rigid_paths g.ground_and_global_sorts with
@@ -338,8 +338,8 @@ let explain_quality_inconsistency prv r =
   let open Pp in
   let pr_cst = function
     | AcyclicGraph.Eq -> str"="
-    | AcyclicGraph.Le -> str"~>"
-    | AcyclicGraph.Lt -> str"~>" (* Yes, it's the same as above. *)
+    | AcyclicGraph.Le -> str"->"
+    | AcyclicGraph.Lt -> str"->" (* Yes, it's the same as above. *)
   in
   match r with
   | None -> mt()
@@ -350,21 +350,24 @@ let explain_quality_inconsistency prv r =
      else
        let qualities = pstart :: List.map snd p in
        let constants = List.filter Quality.is_qconst qualities in
-       str "because it would identify" ++
+       str "because it would identify " ++
          prlist_with_sep (fun() -> spc() ++ str"and" ++ spc()) (Quality.pr prv) constants ++
          spc() ++ str"which is inconsistent." ++ spc() ++
-         str"This is introduced by the constraints" ++ spc() ++ Quality.pr prv pstart ++
-         prlist (fun (r,v) -> spc() ++ pr_cst r ++ str" " ++ Quality.pr prv v) p
+         str"This is introduced by the constraints " ++
+         prlist (fun (r, v) -> Quality.pr prv v ++ spc() ++ pr_cst r ++ spc()) p ++
+         Quality.pr prv pstart
 
 let explain_elimination_error defprv err =
   let open Pp in
   match err with
-  | IllegalConstraint -> str "A constraint involving two constants or SProp ~> s is illegal."
+  | IllegalConstraint (q1, q2) -> str "This expression would enforce an elimination constraint between" ++
+       spc() ++ Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Quality.pr defprv q2 ++
+    str " that is not allowed."
   | CreatesForbiddenPath (q1,q2) ->
      str "This expression would enforce a non-declared elimination constraint between" ++
        spc() ++ Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Quality.pr defprv q2
   | MultipleDominance (q1,qv,q2) ->
-     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Quality.pr defprv qv in
+     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"->" ++ spc() ++ Quality.pr defprv qv in
      str "This expression enforces" ++ spc() ++ pr_elim q1 ++ spc() ++ str"and" ++ spc() ++
        pr_elim q2 ++ spc() ++ str"which might make type-checking undecidable"
   | QualityInconsistency (prv, (k, q1, q2, r)) ->
@@ -373,3 +376,11 @@ let explain_elimination_error defprv err =
        str "cannot enforce" ++ spc() ++ Quality.pr prv q1 ++ spc() ++
        ElimConstraint.pr_kind k ++ spc() ++ Quality.pr prv q2 ++ spc() ++
        explain_quality_inconsistency prv r
+
+let pr prv g =
+  let open Pp in
+  let dom = List.of_seq @@ Quality.Set.to_seq @@ domain g in
+  let pairs = non_refl_pairs dom in
+  let eliminable = List.filter (fun (q1, q2) -> eliminates_to g q1 q2) pairs in
+  let pp (q1, q2) = Quality.pr prv q1 ++ str " -> " ++ Quality.pr prv q2 in
+  prlist_with_sep (fun () -> str " , ") pp eliminable

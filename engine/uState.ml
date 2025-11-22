@@ -280,7 +280,7 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
     | None -> mt()
     | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
-  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap))
+  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap) ++ str " |= " ++ QGraph.pr prqvar elims)
 
 let elims m = m.elims
 

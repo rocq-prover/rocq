@@ -35,7 +35,7 @@ type quality_inconsistency =
     (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
-  | IllegalConstraint
+  | IllegalConstraint of Quality.t * Quality.t
   | CreatesForbiddenPath of Quality.t * Quality.t
   | MultipleDominance of Quality.t * Quality.t * Quality.t
   | QualityInconsistency of quality_inconsistency
@@ -110,3 +110,5 @@ val pr_qualities : (Quality.t -> Pp.t) -> t -> Pp.t
 val explain_quality_inconsistency : (QVar.t -> Pp.t) -> explanation option -> Pp.t
 
 val explain_elimination_error : (QVar.t -> Pp.t) -> elimination_error -> Pp.t
+
+val pr : (QVar.t -> Pp.t) -> t -> Pp.t
