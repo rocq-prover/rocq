@@ -106,6 +106,18 @@ val eq_lift : lift -> lift -> bool
 (** Debugging utilities *)
 module Internal :
 sig
+
+type weakening = LFT of int * weakening | WEAK of int * weakening | ID
+(* More intuitive representation for weakenings
+   Instead of using ELSHFT (s ⟼ ↑^n ∘ s), uses WEAK (s ⟼ s ∘ ↑^n) *)
+(** Assuming Γ ⊢ σ : Δ and |Ξ| = n, then Γ, Ξ ⊢ WEAK (n, σ) : Δ *)
+
+val weakening_of_lift : lift -> weakening
+val weakening_to_lift : weakening -> lift
+
+val pp_weakening : weakening -> Pp.t
+
+
 type 'a or_rel = REL of int | VAL of int * 'a
 
 (** High-level representation of a substitution. The first component is a list
