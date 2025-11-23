@@ -268,6 +268,55 @@ let rec lift_subst mk e s = match s with
 module Internal =
 struct
 
+type weakening = LIFT of int * weakening | WEAK of int * weakening | ID
+(* More intuitive representation for weakenings
+   Instead of using ELSHFT (s ⟼ ↑^n ∘ s), uses WEAK (s ⟼ s ∘ ↑^n) *)
+
+(* compose a relocation of magnitude n *)
+let weak n = function
+  | WEAK (k, w) -> WEAK (k+n, w)
+  | w           -> WEAK (n, w)
+let weak n w = if Int.equal n 0 then w else weak n w
+
+(* cross n binders *)
+let lift n = function
+  | ID          -> ID
+  | LIFT (k, w) -> LIFT (n+k, w)
+  | w           -> LIFT (n, w)
+let lift n w = if Int.equal n 0 then w else lift n w
+
+let rec weakening_of_lift pending =
+  function
+  | ELID -> ID
+  | ELSHFT (el, k) -> weak k (weakening_of_lift (pending+k) el)
+  | ELLFT (k, el) ->
+    if k > pending then
+      lift (k - pending) (weakening_of_lift 0 el)
+    else
+      weakening_of_lift (pending - k) el
+let weakening_of_lift el = weakening_of_lift 0 el
+
+let rec weakening_to_lift =
+  function
+  | ID -> ELID
+  | LIFT (k, w) -> el_shft_rec k (weakening_to_lift w)
+  | WEAK (k, w) ->
+      el_shft_rec k (el_liftn_rec k (weakening_to_lift w))
+[@@warning "-unused-value-declaration"]
+
+let rec pp_weakening =
+  let open Pp in
+  function
+  | ID -> str "keep..]"
+  | LIFT (k, w) ->
+      str "keep " ++ int k ++ str ";" ++ spc () ++ pp_weakening w
+  | WEAK (k, w) ->
+      str "drop " ++ int k ++ str ";" ++ spc () ++ pp_weakening w
+let pp_weakening w = Pp.(str "[" ++ pp_weakening w)
+
+let pp_lift w = pp_weakening (weakening_of_lift w)
+
+
 type 'a or_rel = REL of int | VAL of int * 'a
 
 let to_rel shift = function

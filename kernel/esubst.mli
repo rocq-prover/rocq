@@ -106,6 +106,12 @@ val eq_lift : lift -> lift -> bool
 (** Debugging utilities *)
 module Internal :
 sig
+
+(** If [Γ ⊢ lift : Δ], [pp_lift lift] prints [Γ] as a list of whether
+    the corresponding element appears in [Δ] *)
+val pp_lift : lift -> Pp.t
+
+
 type 'a or_rel = REL of int | VAL of int * 'a
 
 (** High-level representation of a substitution. The first component is a list
