@@ -299,9 +299,15 @@ let add_init_function name f =
 (** Registering functions to be used at caching time, that is when the Declare
     ML module command is issued. *)
 
-type cache_obj = CacheObj : { synterp : unit -> 'a; interp : 'a -> unit } -> cache_obj
+type cache_obj = CacheObj : {
+    synterp : Summary.Synterp.mut -> 'a;
+    interp : Summary.Interp.mut -> 'a -> unit;
+  } -> cache_obj
 
-let interp_only_obj interp = CacheObj { synterp = (fun () -> ()); interp }
+let interp_only_obj interp = CacheObj {
+    synterp = (fun _sum -> ());
+    interp  = (fun sum () -> interp sum);
+  }
 
 let cache_objs = ref PluginSpec.Map.empty
 
@@ -312,20 +318,20 @@ let declare_cache_obj_full obj name =
   cache_objs := PluginSpec.Map.add name objs !cache_objs
 
 let declare_cache_obj f name =
-  declare_cache_obj_full (CacheObj {synterp = f; interp = (fun () -> ()) }) name
+  declare_cache_obj_full (CacheObj {synterp = f; interp = (fun _sum () -> ()) }) name
 
 (* A little box to avoid getting confused with partially applied functions *)
-type interp_fun = InterpFun of (unit -> unit)
+type interp_fun = InterpFun of (Summary.Interp.mut -> unit)
 
 let iter_interp_funs l =
-  InterpFun (fun () -> List.iter (fun (InterpFun f) -> f ()) l)
+  InterpFun (fun sum -> List.iter (fun (InterpFun f) -> f sum) l)
 
-let perform_cache_obj name =
+let perform_cache_obj sum name =
   let objs = try PluginSpec.Map.find name !cache_objs with Not_found -> [] in
   let objs = List.rev objs in
   let v = List.map (fun (CacheObj {synterp; interp}) ->
-      let v = synterp () in
-      InterpFun (fun () -> interp v))
+      let v = synterp sum in
+      InterpFun (fun sum -> interp sum v))
       objs
   in
   iter_interp_funs v
@@ -413,12 +419,11 @@ let trigger_ml_object req plugin =
   Util.atomify trigger_ml_object (req, plugin)
 
 let () =
-  Summary.declare_ml_modules_summary
-    { stage = Summary.Stage.Synterp
-    ; Summary.freeze_function = (fun () ->
+  Summary.Synterp.declare_ml_modules_summary
+    { freeze = (fun () ->
           get_loaded_modules () |> List.map PluginSpec.to_package)
-    ; Summary.unfreeze_function = unfreeze_ml_modules
-    ; Summary.init_function = reset_loaded_modules }
+    ; unfreeze = unfreeze_ml_modules
+    ; init = reset_loaded_modules }
 
 (* Liboject entries of declared ML Modules *)
 type ml_module_object =
@@ -429,20 +434,9 @@ type ml_module_object =
   ; mdigests : Digest.t list
   }
 
-let cache_ml_objects mnames =
-  let map (implicit,obj) =
-    trigger_ml_object (Regular {implicit}) obj;
-    if implicit then None else begin
-      init_ml_object obj;
-      Some (perform_cache_obj obj)
-    end
-  in
-  let v = List.filter_map map mnames in
-  iter_interp_funs v
+let run_interp_fun (InterpFun f) sum = f sum
 
-let run_interp_fun (InterpFun f) = f ()
-
-let load_ml_objects _ {mnames; _} =
+let load_ml_objects _ {mnames; _} _sum =
   let iter (implicit,obj) =
     trigger_ml_object (Regular {implicit}) obj;
     if not implicit then init_ml_object obj
@@ -454,25 +448,68 @@ let classify_ml_objects {mlocal=mlocal} =
 
 let inMLModule : ml_module_object -> Libobject.obj =
   let open Libobject in
-  declare_object
+  Libobject.Synterp.declare_object
     {(default_object "ML-MODULE") with
-      object_stage = Summary.Stage.Synterp;
-      cache_function = (fun _ -> ());
+      cache_function = (fun _ _ -> ());
       load_function = load_ml_objects;
-      subst_function = (fun (_,o) -> o);
+      subst_function = ident_subst_function;
       classify_function = classify_ml_objects }
 
-let declare_ml_modules local mnames =
+let cache_new_synterp (_,newsynterp) sum =
+  Summary.Synterp.init_new_summaries newsynterp sum
+
+let inNewSynterp : bool * Summary.Synterp.any_summary list -> Libobject.obj =
+  let open Libobject in
+  Libobject.Synterp.declare_object
+    { (default_object "ML-NEWSYNTERP") with
+      cache_function = cache_new_synterp;
+      load_function = (fun _ -> cache_new_synterp);
+      subst_function = ident_subst_function;
+      classify_function = (fun (local,_) -> if local then Dispose else Substitute);
+    }
+
+let cache_new_interp (_,newinterp) sum =
+  Summary.Interp.init_new_summaries newinterp sum
+
+let inNewInterp : bool * Summary.Interp.any_summary list -> Libobject.obj =
+  let open Libobject in
+  Libobject.Interp.declare_object
+    { (default_object "ML-NEWINTERP") with
+      cache_function = cache_new_interp;
+      load_function = (fun _ -> cache_new_interp);
+      subst_function = ident_subst_function;
+      classify_function = (fun (local,_) -> if local then Dispose else Substitute);
+    }
+
+let new_interp sum local newinterp = Lib.Interp.add_leaf sum (inNewInterp (local,newinterp))
+
+let declare_ml_modules sum local mnames =
   let mnames = List.map (PluginSpec.of_package ~usercode:true) mnames in
   if Lib.sections_are_opened()
   then CErrors.user_err Pp.(str "Cannot Declare ML Module while sections are opened.");
   let mnames = PluginSpec.add_deps mnames in
   let mdigests = CList.concat_map (fun (_,plugin) -> PluginSpec.digest plugin) mnames in
-  Lib.add_leaf (inMLModule {mlocal=local; mnames; mdigests});
+  Lib.Synterp.add_leaf sum (inMLModule {mlocal=local; mnames; mdigests});
   (* We can't put this in cache_function: it may declare other
      objects, and when the current module is required we want to run
      the ML-MODULE object before them. *)
-  cache_ml_objects mnames
+  (* summary capture is unbacktrackable! buggy! *)
+  let new_synterp, (new_interp, ()) =
+    Summary.Synterp.capture_new_summaries @@ fun () ->
+    Summary.Interp.capture_new_summaries @@ fun () ->
+    List.iter (fun (implicit, obj) ->
+        trigger_ml_object (Regular {implicit}) obj)
+      mnames
+  in
+  let () = Lib.Synterp.add_leaf sum (inNewSynterp (local,new_synterp)) in
+  let map (implicit,obj) =
+    if implicit then None else begin
+      init_ml_object obj;
+      Some (perform_cache_obj sum obj)
+    end
+  in
+  let v = List.filter_map map mnames in
+  new_interp, iter_interp_funs v
 
 (* Printing of loaded ML modules *)
 

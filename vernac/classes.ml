@@ -29,33 +29,33 @@ let warn_default_mode = CWarnings.create ~name:"class-declaration-default-mode" 
   Pp.(fun (gr, m) -> hov 2 (str "Using an inferred default mode: " ++ prlist_with_sep spc Hints.pp_hint_mode m ++
     spc () ++ str "for" ++ spc () ++ Printer.pr_global gr))
 
-let set_typeclass_transparency ?typeclasses_db ~locality c b =
+let set_typeclass_transparency sum ?typeclasses_db ~locality c b =
   let db_name = match typeclasses_db with
   | None -> Class_tactics.typeclasses_db
   | Some s -> s
   in
   let () = check_typeclasses_db () in
-  Hints.add_hints ~locality [db_name]
+  Hints.add_hints sum ~locality [db_name]
     (Hints.HintsTransparencyEntry (Hints.HintsReferences c, b))
 
-let set_typeclass_transparency_com ~locality refs b =
+let set_typeclass_transparency_com sum ~locality refs b =
   let refs = List.map
       (fun x -> Tacred.evaluable_of_global_reference
           (Global.env ())
           (Smartlocate.global_with_alias x))
       refs
   in
-  set_typeclass_transparency ~locality refs b
+  set_typeclass_transparency sum ~locality refs b
 
-let set_typeclass_mode ?(typeclasses_db=typeclasses_db) ~locality c b =
+let set_typeclass_mode sum ?(typeclasses_db=typeclasses_db) ~locality c b =
   let () = check_typeclasses_db () in
-  Hints.add_hints ~locality [typeclasses_db]
+  Hints.add_hints sum ~locality [typeclasses_db]
     (Hints.HintsModeEntry (c, b))
 
-let add_instance_hint ?(typeclasses_db=typeclasses_db) gr ~locality info =
+let add_instance_hint sum ?(typeclasses_db=typeclasses_db) gr ~locality info =
   let () = check_typeclasses_db () in
   Flags.silently (fun () ->
-    Hints.add_hints ~locality [typeclasses_db]
+    Hints.add_hints sum ~locality [typeclasses_db]
       (Hints.HintsResolveEntry
           [info, false, gr])) ()
 
@@ -71,7 +71,7 @@ type instance = {
   locality : Hints.hint_locality;
 }
 
-let add_instance_base inst =
+let add_instance_base sum inst =
   let locality =
     (* in a section, declare the hint as local
        since cache_instance will call add_instance_hint again;
@@ -79,7 +79,7 @@ let add_instance_base inst =
     if Global.sections_are_opened () then Local
     else inst.locality
   in
-  add_instance_hint inst.instance ~locality inst.info
+  add_instance_hint sum inst.instance ~locality inst.info
 
 (*
  * instances persistent object
@@ -88,26 +88,26 @@ let perform_instance i =
   let i = { is_class = i.class_name; is_info = i.info; is_impl = i.instance } in
   Typeclasses.load_instance (Global.env ()) i
 
-let cache_instance inst =
+let cache_instance inst sum =
   perform_instance inst;
-  add_instance_base inst
+  add_instance_base sum inst
 
-let load_instance _ inst = match inst.locality with
+let load_instance _ inst _sum = match inst.locality with
 | Local -> assert false
 | SuperGlobal -> perform_instance inst
 | Export -> ()
 
-let open_instance i inst = match inst.locality with
+let open_instance i inst _sum = match inst.locality with
 | Local -> assert false
 | SuperGlobal -> ()
 | Export -> if Int.equal i 1 then perform_instance inst
 
-let subst_instance (subst, inst) =
+let subst_instance _sum subst inst =
   { inst with
       class_name = fst (subst_global subst inst.class_name);
       instance = fst (subst_global subst inst.instance) }
 
-let discharge_instance inst =
+let discharge_instance _sum inst =
   match inst.locality with
   | Local -> None
   | SuperGlobal | Export ->
@@ -119,7 +119,7 @@ let classify_instance inst = match inst.locality with
 | SuperGlobal | Export -> Substitute
 
 let instance_input : instance -> obj =
-  declare_object
+  Libobject.Interp.declare_object
     { (default_object "type classes instances state") with
       cache_function = cache_instance;
       load_function = load_instance;
@@ -158,7 +158,7 @@ let activate_observer name =
 let observe event =
   List.iter (fun name -> (CString.Map.get name !observers) event) !active_observers
 
-let add_instance cl info global impl =
+let add_instance sum cl info global impl =
   let () = match global with
     | Local -> ()
     | SuperGlobal ->
@@ -174,7 +174,7 @@ let add_instance cl info global impl =
     locality = global ;
     instance = impl;
   } in
-  Lib.add_leaf (instance_input i);
+  Lib.Interp.add_leaf sum (instance_input i);
   observe (Event.NewInstance { class_name = cl.cl_impl; instance = impl; info; locality = global })
 
 let warning_not_a_class =
@@ -188,21 +188,21 @@ let warning_not_a_class =
           ++ str "” is not a class")
     )
 
-let declare_instance ?(warn = false) env sigma info local glob =
+let declare_instance sum ?(warn = false) env sigma info local glob =
   let ty, _ = Typeops.type_of_global_in_context env glob in
   let info = Option.default {hint_priority = None; hint_pattern = None} info in
   match class_of_constr env sigma (EConstr.of_constr ty) with
   | Some (rels, ((tc,_), args) as _cl) ->
-    add_instance tc info local glob
+    add_instance sum tc info local glob
   | None -> if warn then warning_not_a_class (glob, ty)
 
 (*
  * classes persistent object
  *)
 
-let cache_class c = load_class (Global.env ()) c
+let cache_class c _sum = load_class (Global.env ()) c
 
-let subst_class (subst,cl) =
+let subst_class _sum subst cl =
   let do_subst_con c = Mod_subst.subst_constant subst c
   and do_subst c = Mod_subst.subst_mps subst c
   and do_subst_gr gr = fst (subst_global subst gr) in
@@ -246,17 +246,17 @@ let discharge_class cl =
     cl
 
 let class_input : typeclass -> obj =
-  declare_object
+  Libobject.Interp.declare_object
     { (default_object "type classes state") with
       cache_function = cache_class;
       load_function = (fun _ -> cache_class);
       classify_function = (fun x -> Substitute);
-      discharge_function = (fun a -> Some (discharge_class a));
+      discharge_function = (fun _ a -> Some (discharge_class a));
       subst_function = subst_class;
     }
 
-let add_class cl =
-  Lib.add_leaf (class_input cl);
+let add_class sum cl =
+  Lib.Interp.add_leaf sum (class_input cl);
   observe (Event.NewClass cl)
 
 let intern_info {hint_priority;hint_pattern} =
@@ -266,7 +266,7 @@ let intern_info {hint_priority;hint_pattern} =
   {hint_priority;hint_pattern}
 
 (** TODO: add subinstances *)
-let existing_instance ?loc glob c info =
+let existing_instance sum ?loc glob c info =
   let info = Option.default Hints.empty_hint_info info in
   let info = intern_info info in
   let env = Global.env() in
@@ -274,7 +274,7 @@ let existing_instance ?loc glob c info =
   let instance, _ = Typeops.type_of_global_in_context env c in
   let ctx, r = Term.decompose_prod_decls instance in
     match class_of_constr (Environ.push_rel_context ctx env) sigma (EConstr.of_constr r) with
-      | Some (_, ((tc,u), _)) -> add_instance tc info glob c
+      | Some (_, ((tc,u), _)) -> add_instance sum tc info glob c
       | None -> user_err ?loc (Pp.str "Constant does not build instances of a declared type class.")
 
 type typeclass_in_univs = {
@@ -306,26 +306,27 @@ let type_ctx_instance ~program_mode env sigma ctx inst subst =
   in
   aux (sigma, subst) inst (List.rev ctx)
 
-let instance_hook info global ?hook cst =
+let instance_hook info global ?hook sum cst =
   let info = intern_info info in
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  declare_instance env sigma (Some info) global cst;
-  (match hook with Some h -> h cst | None -> ())
+  declare_instance sum env sigma (Some info) global cst;
+  (match hook with Some h -> h sum cst | None -> ())
 
-let declare_instance_constant iinfo global impargs ?hook (name:lident) udecl poly sigma term termtype =
+let declare_instance_constant sum iinfo global impargs ?hook
+    (name:lident) udecl poly sigma term termtype =
   let kind = Decls.(IsDefinition Instance) in
   let cinfo = Declare.CInfo.make ?loc:name.loc ~name:name.v ~impargs ~typ:(Some termtype) () in
   let info = Declare.Info.make ~kind ~poly ~udecl () in
-  let kn = Declare.declare_definition ~cinfo ~info ~opaque:false ~body:term sigma in
-  instance_hook iinfo global ?hook kn
+  let kn = Declare.declare_definition sum ~cinfo ~info ~opaque:false ~body:term sigma in
+  instance_hook iinfo global ?hook sum kn
 
 let instance_type cl args =
   let lenpars = List.count is_local_assum cl.clu_context in
   let pars = List.firstn lenpars args in
   applist (mkRef (cl.clu_impl,cl.clu_univs), pars)
 
-let do_declare_instance sigma ~locality ~poly k ctx ctx' pri udecl impargs subst (name:lident) =
+let do_declare_instance sum sigma ~locality ~poly k ctx ctx' pri udecl impargs subst (name:lident) =
   let subst = List.fold_left2
       (fun subst' s decl -> if is_local_assum decl then s :: subst' else subst')
       [] subst k.clu_context
@@ -333,19 +334,19 @@ let do_declare_instance sigma ~locality ~poly k ctx ctx' pri udecl impargs subst
   let ty_constr = instance_type k subst in
   let termtype = it_mkProd_or_LetIn ty_constr (ctx' @ ctx) in
   let sigma, entry = Declare.prepare_parameter ~poly sigma ~udecl ~types:termtype in
-  let cst = Declare.declare_constant ?loc:name.loc ~name:name.v
+  let cst = Declare.declare_constant sum ?loc:name.loc ~name:name.v
       ~kind:Decls.(IsAssumption Logical) (Declare.ParameterEntry entry) in
   let cst = (GlobRef.ConstRef cst) in
-  Impargs.maybe_declare_manual_implicits false cst impargs;
-  instance_hook pri locality cst
+  Impargs.maybe_declare_manual_implicits sum false cst impargs;
+  instance_hook pri locality sum cst
 
-let declare_instance_program pm env sigma ~locality ~poly {CAst.v=name;loc} pri impargs udecl term termtype =
-  let hook { Declare.Hook.S.scope; dref; _ } =
+let declare_instance_program sum pm env sigma ~locality ~poly {CAst.v=name;loc} pri impargs udecl term termtype =
+  let hook sum { Declare.Hook.S.scope; dref; _ } =
     let cst = match dref with GlobRef.ConstRef kn -> kn | _ -> assert false in
     let pri = intern_info pri in
     let env = Global.env () in
     let sigma = Evd.from_env env in
-    declare_instance env sigma (Some pri) locality (GlobRef.ConstRef cst)
+    declare_instance sum env sigma (Some pri) locality (GlobRef.ConstRef cst)
   in
   let obls, _, body, typ = RetrieveObl.retrieve_obligations env name sigma 0 term termtype in
   let hook = Declare.Hook.make hook in
@@ -353,7 +354,7 @@ let declare_instance_program pm env sigma ~locality ~poly {CAst.v=name;loc} pri 
   let kind = Decls.IsDefinition Decls.Instance in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
   let info = Declare.Info.make ~udecl ~poly ~kind ~hook () in
-  Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~uctx ~body obls
+  Declare.Obls.add_definition sum ~pm ~info ~cinfo ~opaque:false ~uctx ~body obls
 
 let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impargs udecl ids term termtype =
   (* spiwack: it is hard to reorder the actions to do
@@ -364,7 +365,7 @@ let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impar
   let gls = List.rev (Evd.FutureGoals.comb future_goals) in
   let sigma = Evd.push_future_goals sigma in
   let kind = Decls.(IsDefinition Instance) in
-  let hook = Declare.Hook.(make (fun { S.dref ; _ } -> instance_hook pri locality ?hook dref)) in
+  let hook = Declare.Hook.(make (fun sum { S.dref ; _ } -> instance_hook pri locality ?hook sum dref)) in
   let info = Declare.Info.make ~hook ~kind ~udecl ~poly () in
   (* XXX: We need to normalize the type, otherwise Admitted / Qed will fails!
      This is due to a bug in proof_global :( *)
@@ -495,15 +496,17 @@ let do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly cty k ctx 
         id pri imps decl (List.map RelDecl.get_name ctx) term termtype)
     ()
 
-let do_instance env env' sigma ?hook ~locality ~poly cty k ctx ctx' pri decl imps subst id props =
+let do_instance sum env env' sigma ?hook ~locality ~poly
+    cty k ctx ctx' pri decl imps subst id props =
   let term, termtype, sigma =
     interp_props ~program_mode:false env' cty k ctx ctx' subst sigma props
   in
   let termtype, sigma = do_instance_resolve_TC termtype sigma env in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
-  declare_instance_constant pri locality imps ?hook id decl poly sigma term termtype
+  declare_instance_constant sum pri locality imps ?hook id decl poly sigma term termtype
 
-let do_instance_program ~pm env env' sigma ?hook ~locality ~poly cty k ctx ctx' pri decl imps subst id opt_props =
+let do_instance_program sum ~pm env env' sigma ?hook ~locality ~poly
+    cty k ctx ctx' pri decl imps subst id opt_props =
   let term, termtype, sigma =
     match opt_props with
     | Some props ->
@@ -516,10 +519,10 @@ let do_instance_program ~pm env env' sigma ?hook ~locality ~poly cty k ctx ctx' 
       term, termtype, sigma in
   let termtype, sigma = do_instance_resolve_TC termtype sigma env in
   if not (Evd.has_undefined sigma) && not (Option.is_empty opt_props) then
-    let () = declare_instance_constant pri locality imps ?hook id decl poly sigma term termtype in
+    let () = declare_instance_constant sum pri locality imps ?hook id decl poly sigma term termtype in
     pm
   else
-    declare_instance_program pm env sigma ~locality ~poly id pri imps decl term termtype
+    declare_instance_program sum pm env sigma ~locality ~poly id pri imps decl term termtype
 
 let typeclass_univ_instance env (cl, u) =
   assert (UVars.eq_sizes (UVars.AbstractContext.size cl.cl_univs) (EInstance.length u));
@@ -595,30 +598,30 @@ let new_instance_interactive ~locality ~poly instid ctx cl
   id, do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly
     cty k ctx ctx' pri decl imps subst id opt_props
 
-let new_instance_program ~locality ~pm ~poly instid ctx cl opt_props ?hook pri =
+let new_instance_program sum ~locality ~pm ~poly instid ctx cl opt_props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:true env instid ctx cl in
   let pm =
-    do_instance_program ~pm env env' sigma ?hook ~locality ~poly
+    do_instance_program sum ~pm env env' sigma ?hook ~locality ~poly
       cty k ctx ctx' pri decl imps subst id opt_props in
   pm, id
 
-let new_instance ~locality ~poly instid ctx cl props ?hook pri =
+let new_instance sum ~locality ~poly instid ctx cl props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:false env instid ctx cl in
-  do_instance env env' sigma ?hook ~locality ~poly
+  do_instance sum env env' sigma ?hook ~locality ~poly
     cty k ctx ctx' pri decl imps subst id props;
   id
 
-let declare_new_instance ~locality ~program_mode ~poly instid ctx cl pri =
+let declare_new_instance sum ~locality ~program_mode ~poly instid ctx cl pri =
   let env = Global.env() in
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     interp_instance_context ~program_mode env ctx pl cl
   in
-  do_declare_instance sigma ~locality ~poly k ctx ctx' pri decl imps subst instid
+  do_declare_instance sum sigma ~locality ~poly k ctx ctx' pri decl imps subst instid
 
 let refine_att =
   let open Attributes in

@@ -3,6 +3,7 @@
  (synopsis "Rocq's Loadable Libraries (vo) Support")
  (public_name rocq-runtime.library)
  (wrapped false)
+ (modules_without_implementation summary_intf)
  (libraries kernel))
 
 (deprecated_library_name

@@ -303,4 +303,4 @@ val reboot : Environ.env -> t -> t
 
 end
 
-val add_template_default_univs : Environ.env -> MutInd.t -> unit
+val add_template_default_univs : Summary.Interp.mut -> Environ.env -> MutInd.t -> unit

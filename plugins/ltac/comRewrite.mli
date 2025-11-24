@@ -15,7 +15,8 @@ type rewrite_attributes
 val rewrite_attributes : rewrite_attributes Attributes.attribute
 
 val declare_relation
-  : rewrite_attributes
+  : Summary.Interp.mut
+  -> rewrite_attributes
   -> ?binders:local_binder_expr list
   -> constr_expr
   -> constr_expr
@@ -26,7 +27,8 @@ val declare_relation
   -> unit
 
 val add_setoid
-  : rewrite_attributes
+  : Summary.Interp.mut
+  -> rewrite_attributes
   -> local_binder_expr list
   -> constr_expr
   -> constr_expr
@@ -41,10 +43,11 @@ val add_morphism_interactive
   -> lident
   -> Declare.Proof.t
 
-val add_morphism_as_parameter : rewrite_attributes -> constr_expr -> lident -> unit
+val add_morphism_as_parameter : Summary.Interp.mut ->
+  rewrite_attributes -> constr_expr -> lident -> unit
 
 val add_morphism
-  :  rewrite_attributes
+  : rewrite_attributes
   -> tactic:unit Proofview.tactic
   -> local_binder_expr list
   -> constr_expr

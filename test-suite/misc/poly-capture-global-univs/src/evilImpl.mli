@@ -1,2 +1,2 @@
 
-val evil : Names.Id.t -> Names.Id.t -> unit
+val evil : Summary.Interp.mut -> Names.Id.t -> Names.Id.t -> unit

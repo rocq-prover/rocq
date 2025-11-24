@@ -44,7 +44,7 @@ let coqc_main ((copts,_),stm_opts) injections ~opts =
     let sigma, env = let e = Global.env () in Evd.from_env e, e in
     let access = Library.indirect_accessor[@@warning "-3"] in
     Feedback.msg_notice Pp.(
-        Prettyp.print_full_pure_context access env sigma ++ fnl ())
+        Prettyp.print_full_pure_context !Stm.cur_summary access env sigma ++ fnl ())
   end;
   ()
 

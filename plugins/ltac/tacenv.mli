@@ -47,7 +47,8 @@ val check_alias : alias -> bool
 
 (** {5 Rocq tactic definitions} *)
 
-val register_ltac : bool -> bool -> ?deprecation:Deprecation.t -> Id.t ->
+val register_ltac : Summary.Interp.mut ->
+  bool -> bool -> ?deprecation:Deprecation.t -> Id.t ->
   glob_tactic_expr -> unit
 (** Register a new Ltac with the given name and body.
 
@@ -56,7 +57,8 @@ val register_ltac : bool -> bool -> ?deprecation:Deprecation.t -> Id.t ->
     definition. It also puts the Ltac name in the nametab, so that it can be
     used unqualified. *)
 
-val redefine_ltac : Libobject.locality -> KerName.t -> glob_tactic_expr -> unit
+val redefine_ltac : Summary.Interp.mut ->
+  Libobject.locality -> KerName.t -> glob_tactic_expr -> unit
 (** Replace a Ltac with the given name and body. *)
 
 val interp_ltac : KerName.t -> glob_tactic_expr

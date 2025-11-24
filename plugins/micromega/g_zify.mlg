@@ -21,17 +21,17 @@ let locality = Zify.zify_register_locality
 DECLARE PLUGIN "rocq-runtime.plugins.zify"
 
 VERNAC COMMAND EXTEND DECLAREINJECTION CLASSIFIED AS SIDEFF
-| #[ locality ] ["Add" "Zify" "InjTyp"   reference(t) ] -> { Zify.InjTable.register locality t }
-| #[ locality ] ["Add" "Zify" "BinOp"     reference(t) ] -> { Zify.BinOp.register locality t }
-| #[ locality ] ["Add" "Zify" "UnOp"      reference(t) ] -> { Zify.UnOp.register locality t }
-| #[ locality ] ["Add" "Zify" "CstOp"     reference(t) ] -> { Zify.CstOp.register locality t }
-| #[ locality ] ["Add" "Zify" "BinRel"    reference(t) ] -> { Zify.BinRel.register locality t }
-| #[ locality ] ["Add" "Zify" "PropOp"    reference(t) ] -> { Zify.PropBinOp.register locality t }
-| #[ locality ] ["Add" "Zify" "PropBinOp"    reference(t) ] -> { Zify.PropBinOp.register locality t }
-| #[ locality ] ["Add" "Zify" "PropUOp"   reference(t) ] -> { Zify.PropUnOp.register locality t }
-| #[ locality ] ["Add" "Zify" "BinOpSpec" reference(t) ] -> { Zify.BinOpSpec.register locality t }
-| #[ locality ] ["Add" "Zify" "UnOpSpec"  reference(t) ] -> { Zify.UnOpSpec.register locality t }
-| #[ locality ] ["Add" "Zify" "Saturate"  reference(t) ] -> { Zify.Saturate.register locality t }
+| #[ locality ] ["Add" "Zify" "InjTyp"   reference(t) ] -> { Zify.InjTable.register summary locality t }
+| #[ locality ] ["Add" "Zify" "BinOp"     reference(t) ] -> { Zify.BinOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "UnOp"      reference(t) ] -> { Zify.UnOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "CstOp"     reference(t) ] -> { Zify.CstOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "BinRel"    reference(t) ] -> { Zify.BinRel.register summary locality t }
+| #[ locality ] ["Add" "Zify" "PropOp"    reference(t) ] -> { Zify.PropBinOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "PropBinOp"    reference(t) ] -> { Zify.PropBinOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "PropUOp"   reference(t) ] -> { Zify.PropUnOp.register summary locality t }
+| #[ locality ] ["Add" "Zify" "BinOpSpec" reference(t) ] -> { Zify.BinOpSpec.register summary locality t }
+| #[ locality ] ["Add" "Zify" "UnOpSpec"  reference(t) ] -> { Zify.UnOpSpec.register summary locality t }
+| #[ locality ] ["Add" "Zify" "Saturate"  reference(t) ] -> { Zify.Saturate.register summary locality t }
 END
 
 TACTIC EXTEND ITER

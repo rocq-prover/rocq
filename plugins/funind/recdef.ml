@@ -47,14 +47,14 @@ let find_reference sl s =
   let dp = Names.DirPath.make (List.rev_map Id.of_string sl) in
   locate (make_qualid dp (Id.of_string s))
 
-let declare_fun name kind ?univs value =
+let declare_fun sum name kind ?univs value =
   let ce = Declare.definition_entry ?univs value (*FIXME *) in
   GlobRef.ConstRef
-    (Declare.declare_constant ~name ~kind (Declare.DefinitionEntry ce))
+    (Declare.declare_constant sum ~name ~kind (Declare.DefinitionEntry ce))
 
-let defined lemma =
+let defined sum lemma =
   let (_ : _ list) =
-    Declare.Proof.save_regular ~proof:lemma ~opaque:Vernacexpr.Transparent
+    Declare.Proof.save_regular sum ~proof:lemma ~opaque:Vernacexpr.Transparent
       ~idopt:None
   in
   ()
@@ -177,10 +177,10 @@ let (value_f : Constr.rel_context -> GlobRef.t -> Constr.t) =
   let body = Reduction.beta_applist proj_body (List.map (EConstr.to_constr sigma) [t; p; arg]) in
   Term.it_mkLambda_or_LetIn body context
 
-let (declare_f :
-      Id.t -> Decls.logical_kind -> Constr.rel_context -> GlobRef.t -> GlobRef.t) =
- fun f_id kind input_type fterm_ref ->
-  declare_fun f_id kind (value_f input_type fterm_ref)
+let (declare_f : Summary.Interp.mut ->
+     Id.t -> Decls.logical_kind -> Constr.rel_context -> GlobRef.t -> GlobRef.t) =
+ fun sum f_id kind input_type fterm_ref ->
+  declare_fun sum f_id kind (value_f input_type fterm_ref)
 
 let observe_tac = observe_tac ~header:(Pp.mt ())
 
@@ -1389,7 +1389,7 @@ let is_opaque_constant c =
   | Declarations.Primitive _ -> Opaque
   | Declarations.Symbol _ -> Opaque
 
-let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
+let open_new_goal sum ~lemma build_proof sigma using_lemmas ref_ goal_name
     (gls_type, decompose_and_tac, nb_goal) =
   (* Pp.msgnl (str "gls_type := " ++ Printer.pr_lconstr gls_type); *)
   let current_proof_name = Declare.Proof.get_name lemma in
@@ -1404,7 +1404,7 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
   let na = next_global_ident_away (Global.safe_env ()) name Id.Set.empty in
   if Termops.occur_existential sigma gls_type then
     CErrors.user_err Pp.(str "\"abstract\" cannot handle existentials");
-  let hook _ =
+  let hook sum _ =
     let opacity =
       let na_ref = qualid_of_ident na in
       let na_global = Smartlocate.global_with_alias na_ref in
@@ -1458,7 +1458,7 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
     in
     let lemma = build_proof env (Evd.from_env env) start_tac end_tac in
     let (_ : _ list) =
-      Declare.Proof.save_regular ~proof:lemma ~opaque:opacity ~idopt:None
+      Declare.Proof.save_regular sum ~proof:lemma ~opaque:opacity ~idopt:None
     in
     ()
   in
@@ -1486,10 +1486,10 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
                  tclIDTAC))
            lemma
   in
-  if Declare.Proof.get_open_goals lemma = 0 then (defined lemma; None)
+  if Declare.Proof.get_open_goals lemma = 0 then (defined sum lemma; None)
   else Some lemma
 
-let com_terminate interactive_proof tcc_lemma_name tcc_lemma_ref is_mes
+let com_terminate sum interactive_proof tcc_lemma_name tcc_lemma_ref is_mes
     fonctional_ref input_type relation rec_arg_num thm_name using_lemmas nb_args
     ctx hook =
   let start_proof env ctx tac_start tac_end =
@@ -1522,12 +1522,12 @@ let com_terminate interactive_proof tcc_lemma_name tcc_lemma_ref is_mes
   try
     let sigma, new_goal_type = build_new_goal_type lemma in
     let sigma = Evd.from_ctx (Evd.ustate sigma) in
-    open_new_goal ~lemma start_proof sigma using_lemmas tcc_lemma_ref
+    open_new_goal ~lemma sum start_proof sigma using_lemmas tcc_lemma_ref
       (Some tcc_lemma_name) new_goal_type
   with EmptySubgoals ->
     (* a non recursive function declared with measure ! *)
     tcc_lemma_ref := Not_needed;
-    if interactive_proof then Some lemma else (defined lemma; None)
+    if interactive_proof then Some lemma else (defined sum lemma; None)
 
 let start_equation (f : GlobRef.t) (term_f : GlobRef.t)
     (cont_tactic : Id.t list -> unit Proofview.tactic) =
@@ -1553,7 +1553,7 @@ let start_equation (f : GlobRef.t) (term_f : GlobRef.t)
                   (mkApp (terminate_constr, Array.of_list (List.map mkVar x))))
            ; observe_tac (fun _ _ -> str "prove_eq") (cont_tactic x) ]))
 
-let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
+let com_eqn sum uctx nb_arg eq_name functional_ref f_ref terminate_ref
     equation_lemma_type =
   let open CVars in
   let opacity =
@@ -1604,11 +1604,11 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
                 ; ih = Id.of_string "______" }))
          lemma
   in
-  let _ =
+  let () =
     Flags.silently
       (fun () ->
         let (_ : _ list) =
-          Declare.Proof.save_regular ~proof:lemma ~opaque:opacity ~idopt:None
+          Declare.Proof.save_regular sum ~proof:lemma ~opaque:opacity ~idopt:None
         in
         ())
       ()
@@ -1627,7 +1627,7 @@ let check_relation_type env evd relation =
 
 (*      Pp.msgnl (fun _ _ -> str "eqn finished"); *)
 
-let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
+let recursive_definition sum ~interactive_proof ~is_mes function_name rec_impls
     type_of_f r rec_arg_num eq generate_induction_principle using_lemmas :
     Declare.Proof.t option =
   let open Term in
@@ -1689,7 +1689,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   let term_id = add_suffix function_name "_terminate" in
   let functional_ref =
     let univs = Evd.univ_entry ~poly:false evd in
-    declare_fun functional_id Decls.(IsDefinition Definition) ~univs res
+    declare_fun sum functional_id Decls.(IsDefinition Definition) ~univs res
   in
   (* Refresh the global universes, now including those of _F *)
   let evd = Evd.from_env (Global.env ()) in
@@ -1704,19 +1704,19 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   let tcc_lemma_name = add_suffix function_name "_tcc" in
   let tcc_lemma_constr = ref Undefined in
   (* let _ = Pp.msgnl (fun _ _ -> str "relation := " ++ Printer.pr_lconstr_env env_with_pre_rec_args relation) in *)
-  let hook {Declare.Hook.S.uctx; dref; _ } =
+  let hook sum {Declare.Hook.S.uctx; dref; _ } =
     assert (match dref with GlobRef.ConstRef cst -> Id.equal (Constant.label cst) term_id | _ -> assert false);
     let f_ref =
-      declare_f function_name Decls.(IsProof Lemma) arg_ctx dref
+      declare_f sum function_name Decls.(IsProof Lemma) arg_ctx dref
     in
     let _ =
-      Extraction_plugin.Table.extraction_inline true [qualid_of_ident term_id]
+      Extraction_plugin.Table.extraction_inline sum true [qualid_of_ident term_id]
     in
     (*     message "start second proof"; *)
     let stop =
       (* XXX: What is the correct way to get sign at hook time *)
       try
-        com_eqn uctx (List.length res_vars) equation_id functional_ref f_ref
+        com_eqn sum uctx (List.length res_vars) equation_id functional_ref f_ref
           dref
           (subst_var function_name equation_lemma_type);
         false
@@ -1737,16 +1737,16 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
       and functional_ref =
         destConst (constr_of_monomorphic_global (Global.env ()) functional_ref)
       and eq_ref = destConst (constr_of_monomorphic_global (Global.env ()) eq_ref) in
-      generate_induction_principle f_ref tcc_lemma_constr functional_ref eq_ref
+      generate_induction_principle sum f_ref tcc_lemma_constr functional_ref eq_ref
         rec_arg_num
         (EConstr.of_constr rec_arg_type)
         (nb_prod evd (EConstr.of_constr res))
         relation
   in
   (* XXX STATE Why do we need this... why is the toplevel protection not enough *)
-  funind_purify
+  funind_purify sum
     (fun () ->
-      com_terminate interactive_proof tcc_lemma_name tcc_lemma_constr is_mes
+      com_terminate sum interactive_proof tcc_lemma_name tcc_lemma_constr is_mes
         functional_ref
         (EConstr.of_constr rec_arg_type)
         relation rec_arg_num term_id using_lemmas (List.length res_vars) evd

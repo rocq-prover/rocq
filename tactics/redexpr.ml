@@ -57,12 +57,12 @@ let { Goptions.get = simplIsCbn } =
 let set_strategy_one ref l =
   Global.set_strategy (Evaluable.to_kevaluable ref) l
 
-let cache_strategy (_,str) =
+let cache_strategy (_,str) _sum =
   List.iter
     (fun (lev,ql) -> List.iter (fun q -> set_strategy_one q lev) ql)
     str
 
-let subst_strategy (subs,(local,obj)) =
+let subst_strategy _sum subs (local,obj) =
   local,
   List.Smart.map
     (fun (k,ql as entry) ->
@@ -94,7 +94,7 @@ let disch_ref ref =
     Some (Evaluable.EvalProjectionRef p)
   | Evaluable.EvalVarRef id -> if Global.is_in_section (GlobRef.VarRef id) then None else Some ref
 
-let discharge_strategy (local,obj) =
+let discharge_strategy _sum (local,obj) =
   if local then None else
   map_strategy disch_ref obj
 
@@ -102,7 +102,7 @@ type strategy_obj = bool * (Conv_oracle.level * Evaluable.t list) list
 
 let inStrategy : strategy_obj -> Libobject.obj =
   let open Libobject in
-  declare_object
+  Interp.declare_object
     {(default_object "STRATEGY") with
      cache_function = cache_strategy;
      load_function = (fun _ obj -> cache_strategy obj);
@@ -122,9 +122,9 @@ let check_not_fully_opaque l ref =
             spc () ++ str "transparent because it was declared opaque.")
   | _ -> ()
 
-let set_strategy local str =
+let set_strategy sum local str =
   List.iter (fun (l,refs) -> List.iter (check_not_fully_opaque l) refs) str;
-  Lib.add_leaf (inStrategy (local,str))
+  Lib.Interp.add_leaf sum (inStrategy (local,str))
 
 (* Generic reduction: reduction functions used in reduction tactics *)
 
@@ -255,7 +255,7 @@ let check_custom = function
       then user_err (str "Reference to undefined reduction expression " ++ str s ++ str ".")
   |_ -> ()
 
-let decl_red_expr s e =
+let decl_red_expr s e _sum =
   if String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab
   then user_err
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
@@ -444,17 +444,17 @@ let subst_red_expr subs =
 
 let inReduction : bool * string * red_expr -> Libobject.obj =
   let open Libobject in
-  declare_object
+  Interp.declare_object
     {(default_object "REDUCTION") with
-     cache_function = (fun (_,s,e) -> decl_red_expr s e);
-     load_function = (fun _ (_,s,e) -> decl_red_expr s e);
+     cache_function = (fun (_,s,e) sum -> decl_red_expr s e sum);
+     load_function = (fun _ (_,s,e) sum -> decl_red_expr s e sum);
      subst_function =
-       (fun (subs,(b,s,e)) -> b,s,subst_red_expr subs e);
+       (fun _sum subs (b,s,e) -> b,s,subst_red_expr subs e);
      classify_function =
        (fun ((b,_,_)) -> if b then Dispose else Substitute) }
 
-let declare_red_expr locality s expr =
-    Lib.add_leaf (inReduction (locality,s,expr))
+let declare_red_expr sum locality s expr =
+  Lib.Interp.add_leaf sum (inReduction (locality,s,expr))
 
 let make0 ?dyn name =
   let wit = Genarg.make0 name in

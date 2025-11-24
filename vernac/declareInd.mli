@@ -25,7 +25,8 @@ type declare_schemes = None | Default
 val schemes_attr : declare_schemes Attributes.attribute
 
 val declare_mutual_inductive_with_eliminations
-  : ?typing_flags:Declarations.typing_flags
+  : Summary.Interp.mut
+    -> ?typing_flags:Declarations.typing_flags
   -> ?indlocs:indlocs
   -> ?default_dep_elim:default_dep_elim list
   -> ?schemes:declare_schemes
@@ -44,4 +45,4 @@ val objInductive : (Names.Id.t * inductive_obj) Libobject.Dyn.tag
 end
 
 val declare_primitive_projection :
-  Names.Projection.Repr.t -> Names.Constant.t -> unit
+  Summary.Interp.mut -> Names.Projection.Repr.t -> Names.Constant.t -> unit

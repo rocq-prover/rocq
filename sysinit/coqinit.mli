@@ -57,4 +57,5 @@ val init_document : Coqargs.t -> unit
     options and required libraries, it starts its processing (see also
     Declaremods.start_library) *)
 val start_library :
+  Summary.Interp.t ref ->
   intern:Library.Intern.t -> top:Names.DirPath.t -> Coqargs.injection_command list -> unit

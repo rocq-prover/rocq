@@ -56,8 +56,8 @@ let error_undeclared_key key =
 (* 1- Tables                                                                *)
 
 type 'a table_of_A =  {
-  add : Environ.env -> Libobject.locality -> 'a -> unit;
-  remove : Environ.env -> Libobject.locality -> 'a -> unit;
+  add : Summary.Interp.mut -> Environ.env -> Libobject.locality -> 'a -> unit;
+  remove : Summary.Interp.mut -> Environ.env -> Libobject.locality -> 'a -> unit;
   mem : Environ.env -> 'a -> unit;
   print : unit -> unit;
 }
@@ -74,7 +74,7 @@ module MakeTable =
           val encode : Environ.env -> key -> t
           val subst : Mod_subst.substitution -> t -> t
           val check_local : Libobject.locality -> t -> unit
-          val discharge : t -> t
+          val discharge : Summary.Interp.t -> t -> t
           val printer : t -> Pp.t
           val key : option_name
           val title : string
@@ -95,28 +95,28 @@ module MakeTable =
 
     module MySet = A.Set
 
-    let t = Summary.ref ~stage:Interp MySet.empty ~name:nick
+    let t = Summary.ref MySet.empty ~name:nick
 
     let inGo : Libobject.locality * (option_mark * A.t) -> Libobject.obj =
-      let cache (f,p) = match f with
+      let cache (f,p) _sum = match f with
         | GOadd -> t := MySet.add p !t
         | GOrmv -> t := MySet.remove p !t in
-      let subst (subst,(f,p as obj)) =
+      let subst _ subst (f,p as obj) =
         let p' = A.subst subst p in
         if p' == p then obj else
           (f,p')
       in
-      Libobject.declare_object @@
+      Libobject.Interp.declare_object @@
       Libobject.object_with_locality ~cat:opts_cat nick
-        ~cache ~subst:(Some subst) ~discharge:(on_snd A.discharge)
+        ~cache ~subst:(Some subst) ~discharge:(fun sum x -> on_snd (A.discharge sum) x)
 
-    let add_option local c =
+    let add_option summary local c =
       A.check_local local c;
-      Lib.add_leaf (inGo (local,(GOadd, c)))
+      Lib.Interp.add_leaf summary (inGo (local,(GOadd, c)))
 
-    let remove_option local c =
+    let remove_option summary local c =
       A.check_local local c;
-      Lib.add_leaf (inGo (local,(GOrmv, c)))
+      Lib.Interp.add_leaf summary (inGo (local,(GOrmv, c)))
 
     let print_table table_name printer table =
       let open Pp in
@@ -129,8 +129,8 @@ module MakeTable =
       Feedback.msg_notice pp
 
     let table_of_A = {
-       add = (fun env local x -> add_option local (A.encode env x));
-       remove = (fun env local x -> remove_option local (A.encode env x));
+       add = (fun summary env local x -> add_option summary local (A.encode env x));
+       remove = (fun summary env local x -> remove_option summary local (A.encode env x));
        mem = (fun env x ->
         let y = A.encode env x in
         let answer = MySet.mem y !t in
@@ -142,7 +142,7 @@ module MakeTable =
 
     let v () = !t
     let active x = A.Set.mem x !t
-    let set local x b = if b then add_option local x else remove_option local x
+    let set sum local x b = if b then add_option sum local x else remove_option sum local x
   end
 
 let string_table = ref []
@@ -165,7 +165,7 @@ struct
   let encode _env x = x
   let subst _ x = x
   let check_local _ _ = ()
-  let discharge x = x
+  let discharge _ x = x
   let printer = Pp.str
   let key = A.key
   let title = A.title
@@ -186,7 +186,7 @@ sig
   val encode : Environ.env -> Libnames.qualid -> t
   val subst : Mod_subst.substitution -> t -> t
   val check_local : Libobject.locality -> t -> unit
-  val discharge : t -> t
+  val discharge : Summary.Interp.t -> t -> t
   val printer : t -> Pp.t
   val key : option_name
   val title : string
@@ -212,18 +212,18 @@ end
 module MakeRefTable =
   functor (A : RefConvertArg) -> MakeTable (RefConvert(A))
 
-type iter_table_aux = { aux : 'a. 'a table_of_A -> Environ.env -> 'a -> unit }
+type iter_table_aux = { aux : 'a. 'a table_of_A -> 'a -> unit }
 
-let iter_table env f key lv =
+let iter_table f key lv =
   let aux = function
     | StringRefValue s ->
        begin
-         try f.aux (get_string_table key) env s
+         try f.aux (get_string_table key) s
          with Not_found -> error_no_table_of_this_type ~kind:"string" key
        end
     | QualidRefValue locqid ->
        begin
-         try f.aux (get_ref_table key) env locqid
+         try f.aux (get_ref_table key) locqid
          with Not_found -> error_no_table_of_this_type ~kind:"qualid" key
        end
   in
@@ -243,16 +243,16 @@ end
 module OptionMap = Map.Make(OptionOrd)
 
 module RawOpt = struct
-  type 'a t = {
+  type ('a,'summary,'summary_mut) t = {
     kind : 'a option_kind;
     depr : Deprecation.t option;
-    stage : Summary.Stage.t;
-    read : unit -> 'a;
-    write : option_locality -> 'a -> unit;
+    stage : ('summary,'summary_mut) Summary.StageG.t;
+    read : 'summary -> 'a;
+    write : 'summary_mut -> option_locality -> 'a -> unit;
   }
 end
 
-type any_opt = AnyOpt : 'a RawOpt.t -> any_opt
+type any_opt = AnyOpt : _ RawOpt.t -> any_opt
 
 let value_tab = ref OptionMap.empty
 
@@ -286,93 +286,140 @@ let warn_deprecated_option =
   Deprecation.create_warning ~object_name:"Option" ~warning_name_if_no_since:"deprecated-option"
     (fun key -> Pp.str (nickname key))
 
-let option_object name stage act =
-  let cache_option (l,v) = act v in
-  let load_option i (l, _ as o) = match l with
-    | OptGlobal -> cache_option o
+let option_object name act =
+  let cache_option (l,v) _sum = act v in
+  let load_option i (l, _ as o) sum = match l with
+    | OptGlobal -> cache_option o sum
     | OptExport -> ()
     | OptLocal | OptDefault ->
       (* Ruled out by classify_function *)
       assert false
   in
-  let open_option  (l, _ as o) = match l with
-    | OptExport -> cache_option o
+  let open_option  (l, _ as o) sum = match l with
+    | OptExport -> cache_option o sum
     | OptGlobal -> ()
     | OptLocal | OptDefault ->
       (* Ruled out by classify_function *)
       assert false
   in
-  let discharge_option (l,_ as o) =
+  let discharge_option _ (l,_ as o) =
     match l with OptLocal -> None | (OptExport | OptGlobal | OptDefault) -> Some o
   in
   let classify_option (l,_) =
     match l with (OptExport | OptGlobal) -> Substitute | (OptLocal | OptDefault) -> Dispose
   in
   { (Libobject.default_object name) with
-    object_stage = stage;
     cache_function = cache_option;
     load_function = load_option;
     open_function = simple_open ~cat:opts_cat open_option;
-    subst_function = (fun (_,o) -> o);
+    subst_function = (fun _ _ o -> o);
     discharge_function = discharge_option;
     classify_function = classify_option;
   }
+
+let declare_summary stage key read write  =
+  let default = read() in
+  match stage with
+  | Synterp ->
+    let _ : unit Summary.Synterp.v =
+      Summary.Synterp.declare (nickname key)
+        { freeze = read;
+          unfreeze = write;
+          init = (fun () -> write default) }
+    in
+    ()
+  | Interp ->
+    let _ : unit Summary.Interp.v =
+      Summary.Interp.declare (nickname key)
+        { freeze = read;
+          unfreeze = write;
+          init = (fun () -> write default) }
+    in
+    ()
 
 let declare_option ?(preprocess = fun x -> x) ?(no_summary=false) ~kind
   { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
   check_key key;
   let () =
-    if not no_summary then begin
-      let default = read() in
-      Summary.declare_summary (nickname key)
-        { stage;
-          Summary.freeze_function = read;
-          Summary.unfreeze_function = write;
-          Summary.init_function = (fun () -> write default) }
-    end
+    if not no_summary then declare_summary stage key read write
   in
-  let change =
+  match stage with
+  | Synterp ->
+    let open Libobject.Synterp in
+    let change =
       let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) stage write)
+        declare_object (option_object (nickname key) write)
       in
-      (fun l v -> let v = preprocess v in Lib.add_leaf (options (l, v)))
-  in
-  let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
-  let cwrite l v = warn (); change l v in
-  declare_raw key {
-    kind;
-    stage;
-    depr;
-    read;
-    write = cwrite;
-  }
+      (fun sum l v -> let v = preprocess v in Lib.Synterp.add_leaf sum (options (l, v)))
+    in
+    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
+    let cwrite sum l v = warn (); change sum l v in
+    declare_raw key {
+      kind;
+      stage = SynterpG;
+      depr;
+      read = (fun _sum -> read ());
+      write = cwrite;
+    }
+  | Interp ->
+    let open Libobject.Interp in
+    let change =
+      let options : option_locality * _ -> obj =
+        declare_object (option_object (nickname key) write)
+      in
+      (fun sum l v -> let v = preprocess v in Lib.Interp.add_leaf sum (options (l, v)))
+    in
+    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
+    let cwrite sum l v = warn (); change sum l v in
+    declare_raw key {
+      kind;
+      stage = InterpG;
+      depr;
+      read = (fun _sum -> read ());
+      write = cwrite;
+    }
 
 let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
   check_key key;
-  let default = read() in
-  let () = Summary.declare_summary (nickname key)
-      { stage;
-        Summary.freeze_function = read;
-        Summary.unfreeze_function = write;
-        Summary.init_function = (fun () -> write default) }
-  in
-  let append x = write (read()^sep^x) in
-  let change =
+  declare_summary stage key read write;
+  match stage with
+  | Synterp ->
+    let open Libobject.Synterp in
+    let append x = write (read()^sep^x) in
+    let change =
       let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) stage append)
+        declare_object (option_object (nickname key) append)
       in
-      (fun l v -> let v = preprocess v in Lib.add_leaf (options (l, v)))
-  in
-  let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
-  let cwrite l v = warn (); change l v in
-  declare_raw key {
-    kind = StringKind;
-    stage;
-    depr;
-    read;
-    write = cwrite;
-  }
+      (fun sum l v -> let v = preprocess v in Lib.Synterp.add_leaf sum (options (l, v)))
+    in
+    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
+    let cwrite sum l v = warn (); change sum l v in
+    declare_raw key {
+      kind = StringKind;
+      stage = SynterpG;
+      depr;
+      read = (fun _sum -> read());
+      write = cwrite;
+    }
+  | Interp ->
+    let open Libobject.Interp in
+    let append x = write (read()^sep^x) in
+    let change =
+      let options : option_locality * _ -> obj =
+        declare_object (option_object (nickname key) append)
+      in
+      (fun sum l v -> let v = preprocess v in Lib.Interp.add_leaf sum (options (l, v)))
+    in
+    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
+    let cwrite sum l v = warn (); change sum l v in
+    declare_raw key {
+      kind = StringKind;
+      stage = InterpG;
+      depr;
+      read = (fun _sum -> read());
+      write = cwrite;
+    }
 
 type 'a getter = { get : unit -> 'a }
 
@@ -442,12 +489,6 @@ let to_option_value (type a) (k:a option_kind) (v:a) : option_value =
   | StringKind -> StringValue v
   | StringOptKind -> StringOptValue v
 
-let get_option_value key =
-  try
-    let AnyOpt opt = get_option key in
-    Some (fun () -> to_option_value opt.kind (opt.read ()))
-  with Not_found -> None
-
 let bad_type_error ~expected ~got =
   CErrors.user_err Pp.(strbrk "Bad type of value for this option:" ++ spc()
     ++ str "expected " ++ str expected ++ str ", got " ++ str got ++ str ".")
@@ -460,12 +501,17 @@ type 'a check_and_cast = { check_and_cast : 'b. 'a -> 'b option_kind -> 'b }
 (** Sets the option only if [stage] matches the option declaration or if [stage]
   is omitted. If the option is not found, a warning is emitted only if the stage
   is [Interp] or omitted. *)
-let set_option_value ?(locality = OptDefault) ?stage { check_and_cast } key v =
+let set_option_value (type sum mut) ?(locality = OptDefault) (stage:(sum,mut) Summary.StageG.t) { check_and_cast } (sum:mut) key v =
   match get_option key with
-  | exception Not_found -> begin match stage with None | Some Summary.Stage.Interp -> warn_unknown_option key | _ -> () end
+  | exception Not_found -> begin match stage with
+      | InterpG -> warn_unknown_option key
+      | SynterpG -> ()
+    end
   | AnyOpt opt ->
-    if Option.cata (fun s -> s = opt.stage) true stage then
-      opt.write locality (check_and_cast v opt.kind)
+    match Summary.StageG.equal stage opt.stage with
+    | None -> ()
+    | Some Refl ->
+      opt.write sum locality (check_and_cast v opt.kind)
 
 let check_int_value (type a) (v:int option) (k:a option_kind) : a =
   match k with
@@ -501,18 +547,18 @@ let check_unset_value (type a) () (k:a option_kind) : a =
    warnings. This allows a script to refer to an option that doesn't
    exist anymore *)
 
-let set_int_option_value_gen ?locality ?stage =
-  set_option_value ?locality ?stage { check_and_cast = check_int_value }
-let set_bool_option_value_gen ?locality ?stage key v =
-  set_option_value ?locality ?stage { check_and_cast = check_bool_value } key v
-let set_string_option_value_gen ?locality ?stage =
-  set_option_value ?locality ?stage { check_and_cast = check_string_value }
-let unset_option_value_gen ?locality ?stage key =
-  set_option_value ?locality ?stage { check_and_cast = check_unset_value } key ()
+let set_int_option_value_gen ?locality stage mut key v =
+  set_option_value ?locality stage { check_and_cast = check_int_value } mut key v
+let set_bool_option_value_gen ?locality stage mut key v =
+  set_option_value ?locality stage { check_and_cast = check_bool_value } mut key v
+let set_string_option_value_gen ?locality stage mut key v =
+  set_option_value ?locality stage { check_and_cast = check_string_value } mut key v
+let unset_option_value_gen ?locality stage mut key =
+  set_option_value ?locality stage { check_and_cast = check_unset_value } mut key ()
 
-let set_int_option_value ?stage opt v = set_int_option_value_gen ?stage opt v
-let set_bool_option_value ?stage opt v = set_bool_option_value_gen ?stage opt v
-let set_string_option_value ?stage opt v = set_string_option_value_gen ?stage opt v
+let set_int_option_value stage opt v = set_int_option_value_gen stage opt v
+let set_bool_option_value stage opt v = set_bool_option_value_gen stage opt v
+let set_string_option_value stage opt v = set_string_option_value_gen stage opt v
 
 (* Printing options/tables *)
 
@@ -525,9 +571,14 @@ let msg_option_value = Pp.(function
   | StringOptValue None -> str "undefined"
   | StringOptValue (Some s) -> quote (str s))
 
-let print_option_value key =
+let read_any (type a b c) (sum:Summary.Interp.t) (opt:(a,b,c) RawOpt.t) =
+  match opt.stage with
+  | InterpG -> opt.read sum
+  | SynterpG -> opt.read sum.synterp
+
+let print_option_value sum key =
   let AnyOpt opt = get_option key in
-  let s = opt.read () in
+  let s = read_any sum opt in
   match to_option_value opt.kind s with
     | BoolValue b ->
         Feedback.msg_notice Pp.(prlist_with_sep spc str key ++ str " is "
@@ -536,18 +587,18 @@ let print_option_value key =
         Feedback.msg_notice Pp.(str "Current value of "
           ++ prlist_with_sep spc str key ++ str " is " ++ msg_option_value s)
 
-let get_tables () =
+let get_tables sum =
   let tables = !value_tab in
   let fold key (AnyOpt opt) accu =
     let state = {
       opt_depr = opt.depr;
-      opt_value = to_option_value opt.kind (opt.read ());
+      opt_value = to_option_value opt.kind (read_any sum opt);
     } in
     OptionMap.add key state accu
   in
   OptionMap.fold fold tables OptionMap.empty
 
-let print_tables () =
+let print_tables sum =
   let open Pp in
   let print_option key value depr =
     let msg = str "  " ++ str (nickname key) ++ str ": " ++ msg_option_value value in
@@ -564,7 +615,7 @@ let print_tables () =
   str "Options:" ++ fnl () ++
     OptionMap.fold
       (fun key (AnyOpt opt) p ->
-        p ++ print_option key (to_option_value opt.kind (opt.read ())) opt.depr)
+        p ++ print_option key (to_option_value opt.kind (read_any sum opt)) opt.depr)
       !value_tab (mt ()) ++
   str "Tables:" ++ fnl () ++
     List.fold_right

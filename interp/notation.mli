@@ -102,7 +102,7 @@ type prim_token_infos = {
 (** Activate a prim token interpretation whose unique id and functions
     have already been registered. *)
 
-val enable_prim_token_interpretation : prim_token_infos -> unit
+val enable_prim_token_interpretation : Summary.Interp.mut -> prim_token_infos -> unit
 
 (** Return the [term]/[cases_pattern] bound to a primitive token in a
    given scope context*)
@@ -186,7 +186,11 @@ val interp_notation_as_global_reference_expanded : ?loc:Loc.t -> head:bool ->
 
 (** Declares and looks for scopes associated to arguments of a global ref *)
 val declare_arguments_scope :
-  bool (** true=local *) -> GlobRef.t -> scope_name list list -> unit
+  Summary.Interp.mut ->
+  bool (** true=local *) ->
+  GlobRef.t ->
+  scope_name list list ->
+  unit
 
 val find_arguments_scope : Environ.env -> GlobRef.t -> scope_name list list
 
@@ -201,7 +205,7 @@ val subst_scope_class :
 type add_scope_where = AddScopeTop | AddScopeBottom
 (** add new scope at top or bottom of existing stack (default is reset) *)
 val declare_scope_class : (* local: *) bool -> scope_name -> ?where:add_scope_where -> scope_class -> unit
-val declare_ref_arguments_scope : GlobRef.t -> unit
+val declare_ref_arguments_scope : Summary.Interp.mut -> GlobRef.t -> unit
 
 val compute_arguments_scope : Environ.env -> Evd.evar_map -> EConstr.types -> scope_name list list
 val compute_type_scope : Environ.env -> Evd.evar_map -> EConstr.types -> scope_name list

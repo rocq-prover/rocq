@@ -33,16 +33,16 @@ module Hook = struct
       }
   end
 
-  type 'a g = (S.t -> 'a -> 'a) CEphemeron.key
+  type 'a g = (Summary.Interp.mut -> S.t -> 'a -> 'a) CEphemeron.key
   type t = unit g
 
-  let make_g hook = CEphemeron.create hook
-  let make (hook : S.t -> unit) : t = CEphemeron.create (fun x () -> hook x)
+  let make_g hook : _ g = CEphemeron.create hook
+  let make (hook : Summary.Interp.mut -> S.t -> unit) : t = make_g (fun sum x () -> hook sum x)
 
-  let hcall hook x s = CEphemeron.default hook (fun _ x -> x) x s
+  let hcall (hook: _ g) sum x s = CEphemeron.default hook (fun _ _ x -> x) sum x s
 
-  let call_g ?hook x s = Option.cata (fun hook -> hcall hook x s) s hook
-  let call ?hook x = Option.iter (fun hook -> hcall hook x ()) hook
+  let call_g ?hook sum x s = Option.cata (fun hook -> hcall hook sum x s) s hook
+  let call ?(hook:t option) sum x = Option.iter (fun hook -> hcall hook sum x ()) hook
 
 end
 
@@ -435,7 +435,7 @@ type constant_obj = {
   cst_loc : Loc.t option;
 }
 
-let load_constant i ((sp,kn), obj) =
+let load_constant i ((sp,kn), obj) _sum =
   if Nametab.exists_cci sp then
     raise (DeclareUniv.AlreadyDeclared (None, Libnames.basename sp));
   let con = Global.constant_of_delta_kn kn in
@@ -449,7 +449,7 @@ let load_constant i ((sp,kn), obj) =
   end
 
 (* Opening means making the name without its module qualification available *)
-let open_constant i ((sp,kn), obj) =
+let open_constant i ((sp,kn), obj) _sum =
   (* Never open a local definition *)
   match obj.cst_locl with
   | Locality.ImportNeedQualified -> ()
@@ -464,55 +464,57 @@ let check_exists id =
   if exists_name id then
     raise (DeclareUniv.AlreadyDeclared (None, id))
 
-let cache_constant ((sp,kn), obj) =
+let cache_constant ((sp,kn), obj) _sum =
   let kn = Global.constant_of_delta_kn kn in
   let gr = GlobRef.ConstRef kn in
   Nametab.push ?user_warns:obj.cst_warn (Nametab.Until 1) sp gr;
   Dumpglob.add_constant_kind kn obj.cst_kind;
   obj.cst_loc |> Option.iter (fun loc -> Nametab.set_cci_src_loc (TrueGlobal gr) loc)
 
-let discharge_constant obj = Some obj
+let discharge_constant _sum obj = Some obj
 
 let classify_constant cst = Libobject.Substitute
 
 let (objConstant : (Id.t * constant_obj) Libobject.Dyn.tag) =
   let open Libobject in
-  declare_named_object_full { (default_object "CONSTANT") with
-    cache_function = cache_constant;
-    load_function = load_constant;
-    open_function = filtered_open open_constant;
-    classify_function = classify_constant;
-    subst_function = ident_subst_function;
-    discharge_function = discharge_constant }
+  Libobject.Interp.declare_named_object_full
+    { (default_object "CONSTANT") with
+      cache_function = cache_constant;
+      load_function = load_constant;
+      open_function = filtered_open open_constant;
+      classify_function = classify_constant;
+      subst_function = ident_subst_function;
+      discharge_function = discharge_constant }
 
 let inConstant v = Libobject.Dyn.Easy.inj v objConstant
 
 (* Register the libobjects attached to the constants *)
-let register_constant loc cst kind ?user_warns local =
+let register_constant sum loc cst kind ?user_warns local =
   (* Register the declaration *)
   let id = Constant.label cst in
   let loc = fallback_loc id loc in
   let o = inConstant (id, { cst_kind = kind; cst_locl = local; cst_warn = user_warns; cst_loc = loc; }) in
-  let () = Lib.add_leaf o in
+  let () = Lib.Interp.add_leaf sum o in
   (* Register associated data *)
-  Impargs.declare_constant_implicits cst;
-  Notation.declare_ref_arguments_scope (GlobRef.ConstRef cst)
+  Impargs.declare_constant_implicits sum cst;
+  Notation.declare_ref_arguments_scope sum (GlobRef.ConstRef cst)
 
-let register_side_effect (c, body, role, univs) =
+let register_side_effect sum (c, body, role, univs) =
   (* Register the body in the opaque table *)
   let () = match body with
   | None -> ()
   | Some opaque -> Opaques.declare_private_opaque opaque
   in
   let id = Constant.label c in
-  let () = register_constant (fallback_loc ~warn:false id None) c Decls.(IsProof Theorem) Locality.ImportDefaultBehavior in
+  let () = register_constant sum (fallback_loc ~warn:false id None) c Decls.(IsProof Theorem) Locality.ImportDefaultBehavior in
   let () = match univs with
   | None -> ()
-  | Some univs -> DeclareUniv.declare_univ_binders (ConstRef c) univs
+  | Some univs -> DeclareUniv.declare_univ_binders sum (ConstRef c) univs
   in
   match role with
   | None -> ()
-  | Some (Evd.Schema (ind, kind)) -> DeclareScheme.declare_scheme SuperGlobal kind (ind, GlobRef.ConstRef c)
+  | Some (Evd.Schema (ind, kind)) ->
+    DeclareScheme.declare_scheme sum SuperGlobal kind (ind, GlobRef.ConstRef c)
 
 let get_roles export eff =
   let eff = SideEff.obj eff in
@@ -524,10 +526,10 @@ let get_roles export eff =
 
 (* This globally defines the side-effects in the environment and registers their
    libobjects. *)
-let export_side_effects eff =
+let export_side_effects sum eff =
   let export = Global.export_private_constants (SideEff.get eff) in
   let export = get_roles export eff in
-  List.iter register_side_effect export
+  List.iter (register_side_effect sum) export
 
 (* This is different from [export_side_effects] as the former properly declares
    the body of opaque constants whereas this function keeps them as axioms, see
@@ -628,7 +630,7 @@ let is_unsafe_typing_flags flags =
   let open Declarations in
   not (flags.check_universes && flags.check_guarded && flags.check_positive)
 
-let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind ~typing_flags ?user_warns cd =
+let declare_constant sum ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind ~typing_flags ?user_warns cd =
   let before_univs = Global.universes () in
   let make_constant = function
   (* Logically define the constant and its subproofs, no libobject tampering *)
@@ -715,11 +717,11 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       | Error _ -> true
     in
     let ctx = on_snd (Univ.UnivConstraints.filter is_new_constraint) ctx in
-    DeclareUniv.add_constraint_source (ConstRef kn) ctx
+    DeclareUniv.add_constraint_source sum (ConstRef kn) ctx
   in
-  let () = DeclareUniv.declare_univ_binders (GlobRef.ConstRef kn) ubinders in
+  let () = DeclareUniv.declare_univ_binders sum (GlobRef.ConstRef kn) ubinders in
   let () = declare_opaque kn delayed in
-  let () = register_constant loc kn kind local ?user_warns in
+  let () = register_constant sum loc kn kind local ?user_warns in
   if unsafe || is_unsafe_typing_flags typing_flags then feedback_axiom();
   kn
 
@@ -756,12 +758,12 @@ type variable_declaration =
    variables (only Prettyp.print_context AFAICT) *)
 let objVariable : Id.t Libobject.Dyn.tag =
   let open Libobject in
-  declare_object_full { (default_object "VARIABLE") with
+  Libobject.Interp.declare_object_full { (default_object "VARIABLE") with
     classify_function = (fun _ -> Dispose)}
 
 let inVariable v = Libobject.Dyn.Easy.inj v objVariable
 
-let declare_variable ~name ~kind ~typing_flags d =
+let declare_variable sum ~name ~kind ~typing_flags d =
   (* Variables are distinguished by only short names *)
   if Decls.variable_exists name then
     raise (DeclareUniv.AlreadyDeclared (None, name));
@@ -771,7 +773,7 @@ let declare_variable ~name ~kind ~typing_flags d =
       let () = match fst univs with
         | UState.Monomorphic_entry uctx ->
           (* XXX [snd univs] is ignored, should we use it? *)
-          let () = DeclareUniv.name_mono_section_univs (fst uctx) in
+          let () = DeclareUniv.name_mono_section_univs sum (fst uctx) in
           Global.push_context_set uctx
         | UState.Polymorphic_entry uctx -> Global.push_section_context uctx
       in
@@ -781,12 +783,12 @@ let declare_variable ~name ~kind ~typing_flags d =
       (* The body should already have been forced upstream because it is a
          section-local definition, but it's not enforced by typing *)
       let ((body, body_uctx), eff), opaque, feedback_id = ProofEntry.force_extract_body de in
-      let () = export_side_effects eff in
+      let () = export_side_effects sum eff in
       (* We must declare the universe constraints before type-checking the
          term. *)
       let univs = match fst de.proof_entry_universes with
         | UState.Monomorphic_entry uctx ->
-          let () = DeclareUniv.name_mono_section_univs (fst uctx) in
+          let () = DeclareUniv.name_mono_section_univs sum (fst uctx) in
           let () = Global.push_context_set (Univ.ContextSet.union uctx body_uctx) in
           UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders
         | UState.Polymorphic_entry uctx ->
@@ -810,7 +812,7 @@ let declare_variable ~name ~kind ~typing_flags d =
             proof_entry_inline_code = de.proof_entry_inline_code;
           }
           in
-          let kn = declare_constant ~name:cname ~loc:None
+          let kn = declare_constant sum ~name:cname ~loc:None
               ~local:ImportNeedQualified ~kind:(IsProof Lemma) ~typing_flags
               (DefinitionEntry de)
           in
@@ -828,9 +830,9 @@ let declare_variable ~name ~kind ~typing_flags d =
   in
   Nametab.push (Nametab.Until 1) (Libnames.make_path DirPath.empty name) (GlobRef.VarRef name);
   Decls.(add_variable_data name {opaque;kind});
-  Lib.add_leaf (inVariable name);
-  Impargs.declare_var_implicits ~impl name;
-  Notation.declare_ref_arguments_scope (GlobRef.VarRef name)
+  Lib.Interp.add_leaf sum (inVariable name);
+  Impargs.declare_var_implicits sum ~impl name;
+  Notation.declare_ref_arguments_scope sum (GlobRef.VarRef name)
 
 (* Declaration messages *)
 
@@ -944,17 +946,18 @@ let declare_definition_scheme ~univs ~role ~name ~effs c =
   let entry = pure_definition_entry ~univs c in
   declare_private_constant ~role ~name ~opaque:false entry effs
 
-let register_definition_scheme ~internal ~name ~const:kn ~univs ?loc () =
+let register_definition_scheme sum ~internal ~name ~const:kn ~univs ?loc () =
   let kind = Decls.(IsDefinition Scheme) in
-  let () = register_constant (fallback_loc ~warn:false name None) kn kind Locality.ImportDefaultBehavior in
-  let () = DeclareUniv.declare_univ_binders (ConstRef kn) univs in
+  let () = register_constant sum (fallback_loc ~warn:false name None) kn kind Locality.ImportDefaultBehavior in
+  let () = DeclareUniv.declare_univ_binders sum (ConstRef kn) univs in
   Dumpglob.dump_definition
     (CAst.make ?loc (Constant.label kn)) false "scheme";
   let () = if internal then () else definition_message name in
   ()
 
 (* Locality stuff *)
-let declare_entry ~loc ~name ?(scope=Locality.default_scope) ?(clearbody=false) ~kind ~typing_flags ~user_warns ?hook ?(obls=[]) ~impargs ~uctx entry =
+let declare_entry sum ~loc ~name ?(scope=Locality.default_scope) ?(clearbody=false)
+    ~kind ~typing_flags ~user_warns ?hook ?(obls=[]) ~impargs ~uctx entry =
   let should_suggest =
     ProofEntry.get_opacity entry
     && not (List.is_empty (Global.named_context()))
@@ -962,19 +965,19 @@ let declare_entry ~loc ~name ?(scope=Locality.default_scope) ?(clearbody=false) 
   in
   let dref = match scope with
   | Locality.Discharge ->
-    let () = declare_variable ~typing_flags ~name ~kind (SectionLocalDef {clearbody; entry}) in
+    let () = declare_variable sum ~typing_flags ~name ~kind (SectionLocalDef {clearbody; entry}) in
     if should_suggest then Proof_using.suggest_variable (Global.env ()) name;
     Names.GlobRef.VarRef name
   | Locality.Global local ->
     assert (not clearbody);
-    let kn = declare_constant ~loc ~name ~local ~kind ~typing_flags ?user_warns (DefinitionEntry entry) in
+    let kn = declare_constant sum ~loc ~name ~local ~kind ~typing_flags ?user_warns (DefinitionEntry entry) in
     let gr = Names.GlobRef.ConstRef kn in
     if should_suggest then Proof_using.suggest_constant (Global.env ()) kn;
     gr
   in
-  let () = Impargs.maybe_declare_manual_implicits false dref impargs in
+  let () = Impargs.maybe_declare_manual_implicits sum false dref impargs in
   let () = definition_message name in
-  Hook.call ?hook { Hook.S.uctx; obls; scope; dref };
+  Hook.call ?hook sum { Hook.S.uctx; obls; scope; dref };
   dref
 
 let warn_let_as_axiom =
@@ -984,18 +987,18 @@ let warn_let_as_axiom =
 
 (* Declare an assumption when not in a section: Parameter/Axiom but also
    Variable/Hypothesis seen as Local Parameter/Axiom *)
-let declare_parameter ~loc ~name ~scope ~hook ~impargs ~uctx pe =
+let declare_parameter sum ~loc ~name ~scope ~hook ~impargs ~uctx pe =
   let local = match scope with
     | Locality.Discharge -> warn_let_as_axiom name; Locality.ImportNeedQualified
     | Locality.Global local -> local
   in
   let kind = Decls.(IsAssumption Conjectural) in
   let decl = ParameterEntry pe in
-  let cst = declare_constant ~loc ~name ~local ~kind ~typing_flags:None decl in
+  let cst = declare_constant sum ~loc ~name ~local ~kind ~typing_flags:None decl in
   let dref = Names.GlobRef.ConstRef cst in
-  let () = Impargs.maybe_declare_manual_implicits false dref impargs in
+  let () = Impargs.maybe_declare_manual_implicits sum false dref impargs in
   let () = assumption_message name in
-  let () = Hook.(call ?hook { S.uctx; obls = []; scope; dref}) in
+  let () = Hook.(call ?hook sum { S.uctx; obls = []; scope; dref}) in
   cst
 
 (* Using processing *)
@@ -1024,14 +1027,16 @@ let interp_mutual_using env cinfo bodies_types using =
       interp_proof_using_gen f env evd cinfos using)
     using
 
-let declare_possibly_mutual_definitions ~info ~cinfo ~obls ?(is_telescope=false) obj =
+let declare_possibly_mutual_definitions sum ~info ~cinfo ~obls ?(is_telescope=false) obj =
   let eff, entries = process_proof ~info ~is_telescope obj in
-  let () = export_side_effects eff in
+  let () = export_side_effects sum eff in
   let { Info.hook; scope; clearbody; kind; typing_flags; user_warns; ntns; _ } = info in
   let _, refs = List.fold_left2_map (fun subst CInfo.{name; impargs; loc} (entry, uctx) ->
       (* replacing matters for Derive-like statement but it does not hurt otherwise *)
       let entry = ProofEntry.map_entry entry ~f:(Vars.replace_vars subst) in
-      let gref = declare_entry ~loc ~name ~scope ~clearbody ~kind ?hook ~impargs ~typing_flags ~user_warns ~obls ~uctx entry in
+      let gref = declare_entry sum ~loc ~name ~scope ~clearbody
+          ~kind ?hook ~impargs ~typing_flags ~user_warns ~obls ~uctx entry
+      in
       let inst = instance_of_univs entry.proof_entry_universes in
       let const = Constr.mkRef (gref, inst) in
       ((name, const) :: subst, gref)) [] cinfo entries in
@@ -1040,11 +1045,12 @@ let declare_possibly_mutual_definitions ~info ~cinfo ~obls ?(is_telescope=false)
     let local = info.scope=Locality.Discharge in
     if ntns <> [] then
       CWarnings.with_warn ("-"^Notation.warning_overridden_name)
-        (List.iter (Metasyntax.add_notation_interpretation ~local (Global.env()))) ntns
+        (List.iter (Metasyntax.add_notation_interpretation sum ~local (Global.env()))) ntns
   in
   refs
 
-let declare_possibly_mutual_parameters ~info ~cinfo ?(mono_uctx_extra=UState.empty) ~sec_vars typs =
+let declare_possibly_mutual_parameters sum ~info ~cinfo ?(mono_uctx_extra=UState.empty)
+    ~sec_vars typs =
   (* Note, if an initial uctx, minimize and restrict have not been done *)
   (* if the uctx of an abandonned proof, minimize is redundant (see close_proof) *)
   let { Info.scope; poly; hook; udecl } = info in
@@ -1060,7 +1066,7 @@ let declare_possibly_mutual_parameters ~info ~cinfo ?(mono_uctx_extra=UState.emp
           parameter_entry_universes = univs;
           parameter_entry_inline_code = None;
         } in
-      let cst = declare_parameter ~loc ~name ~scope ~hook ~impargs ~uctx pe in
+      let cst = declare_parameter sum ~loc ~name ~scope ~hook ~impargs ~uctx pe in
       let inst = instance_of_univs univs in
       (i+1, (name, Constr.mkConstU (cst,inst))::subst, (cst, univs)::csts)
   ) (0, [], []) cinfo typs)
@@ -1085,7 +1091,7 @@ let prepare_recursive_edeclaration sigma cinfo fixtypes fixrs fixdefs =
   let defs = List.map (EConstr.Vars.subst_vars sigma (List.rev fixnames)) fixdefs in
   (Array.of_list names, Array.of_list fixtypes, Array.of_list defs)
 
-let declare_mutual_definitions ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible_guard ?using () =
+let declare_mutual_definitions sum ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible_guard ?using () =
   (* Note: uctx is supposed to be already minimized *)
   let { Info.typing_flags; _ } = info in
   let env = Global.env() in
@@ -1099,7 +1105,7 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible
   let using = interp_mutual_using env cinfo entries_for_using using in
   let proof = { output_entries = entries; output_ustate = uctx; output_sideff = SideEff.make eff } in
   let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
-  let refs = declare_possibly_mutual_definitions ~info ~cinfo ~obls:[] obj in
+  let refs = declare_possibly_mutual_definitions sum ~info ~cinfo ~obls:[] obj in
   let fixnames = List.map (fun { CInfo.name } -> name) cinfo in
   recursive_message indexes fixnames;
   refs
@@ -1122,7 +1128,7 @@ let check_evars_are_solved env sigma t =
   let evars = Evarutil.undefined_evars_of_term sigma t in
   if not (Evar.Set.is_empty evars) then error_unresolved_evars env sigma t evars
 
-let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
+let declare_definition sum ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let { CInfo.name; typ; _ } = cinfo in
   let env = Global.env () in
   Option.iter (check_evars_are_solved env sigma) typ;
@@ -1135,7 +1141,7 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let using = interp_mutual_using env [cinfo] [body,typ] using in
   let proof = { output_entries = [(body, typ)]; output_ustate = uctx; output_sideff = eff } in
   let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
-  let gref = List.hd (declare_possibly_mutual_definitions ~info ~cinfo:[cinfo] ~obls obj) in
+  let gref = List.hd (declare_possibly_mutual_definitions sum ~info ~cinfo:[cinfo] ~obls obj) in
   gref, uctx
 
 let prepare_obligations ~name ?types ~body env sigma =
@@ -1210,7 +1216,7 @@ module ProgramDecl = struct
 
   open Obligation
 
-  let make ~info ~cinfo ~opaque ~reduce ~deps ~uctx ~body ~possible_guard ?obl_hook ?using obls =
+  let make sum ~info ~cinfo ~opaque ~reduce ~deps ~uctx ~body ~possible_guard ?obl_hook ?using obls =
     let obls', body =
       match body with
       | None ->
@@ -1245,7 +1251,7 @@ module ProgramDecl = struct
         let ctx = UState.check_mono_sort_constraints @@ UState.context_set uctx in
         let () = Global.push_context_set ctx in
         let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
-        let () = DeclareUniv.declare_univ_binders (ConstRef cst)
+        let () = DeclareUniv.declare_univ_binders sum (ConstRef cst)
             (UState.univ_entry ~poly:false uctx)
         in
         UState.Internal.reboot (Global.env()) uctx
@@ -1369,7 +1375,7 @@ let update_global_obligation_uctx prg uctx =
       UState.Internal.reboot (Global.env ()) uctx in
   ProgramDecl.Internal.set_uctx ~uctx prg
 
-let declare_obligation prg obl ~uctx ~types ~body =
+let declare_obligation sum prg obl ~uctx ~types ~body =
   let body = prg.prg_reduce body in
   let types = Option.map prg.prg_reduce types in
   match obl.obl_status with
@@ -1390,7 +1396,7 @@ let declare_obligation prg obl ~uctx ~types ~body =
     let ce = definition_entry ?types:ty ~opaque ~univs body in
     (* ppedrot: seems legit to have obligations as local *)
     let constant =
-      declare_constant ~loc:(fallback_loc ~warn:false obl.obl_name None) ~name:obl.obl_name
+      declare_constant sum ~loc:(fallback_loc ~warn:false obl.obl_name None) ~name:obl.obl_name
         ~typing_flags:prg.prg_info.Info.typing_flags
         ~local:Locality.ImportNeedQualified
         ~kind:Decls.(IsProof Property)
@@ -1424,9 +1430,9 @@ module State = struct
   type t = prg_hook ProgramDecl.t CEphemeron.key ProgMap.t
   and prg_hook = PrgHook of t Hook.g
 
-  let call_prg_hook { prg_hook=hook } x pm =
+  let call_prg_hook { prg_hook=hook } sum x pm =
     let hook = Option.map (fun (PrgHook h) -> h) hook in
-    Hook.call_g ?hook x pm
+    Hook.call_g ?hook sum x pm
 
 
   let empty = ProgMap.empty
@@ -1564,7 +1570,7 @@ let subst_prog subst prg =
   ( Vars.replace_vars subst' prg.prg_body
   , Vars.replace_vars subst' (* Termops.refresh_universes *) prg.prg_cinfo.CInfo.typ )
 
-let declare_definition ~pm prg =
+let declare_definition sum ~pm prg =
   let varsubst = obligation_substitution true prg in
   let sigma = Evd.from_ctx prg.prg_uctx in
   let body, types = subst_prog varsubst prg in
@@ -1573,15 +1579,15 @@ let declare_definition ~pm prg =
   let name, info, opaque, using = prg.prg_cinfo.CInfo.name, prg.prg_info, prg.prg_opaque, prg.prg_using in
   let obls = List.map (fun (id, (_, c)) -> (id, c)) varsubst in
   (* XXX: This is doing normalization twice *)
-  let kn, uctx = declare_definition ~cinfo ~info ~obls ~body ~opaque ?using sigma in
+  let kn, uctx = declare_definition sum ~cinfo ~info ~obls ~body ~opaque ?using sigma in
   (* XXX: We call the obligation hook here, by consistency with the
      previous imperative behaviour, however I'm not sure this is right *)
   let pm = State.call_prg_hook prg
-      { Hook.S.uctx; obls; scope = prg.prg_info.Info.scope; dref = kn} pm in
+      sum { Hook.S.uctx; obls; scope = prg.prg_info.Info.scope; dref = kn} pm in
   let pm = progmap_remove pm prg in
   pm, kn
 
-let declare_mutual_definitions ~pm l =
+let declare_mutual_definitions sum ~pm l =
   let first = List.hd l in
   let defobl x =
     let oblsubst = obligation_substitution true x in
@@ -1604,7 +1610,7 @@ let declare_mutual_definitions ~pm l =
   let possible_guard = Option.get first.prg_possible_guard in
   (* Declare the recursive definitions *)
   let kns =
-    declare_mutual_definitions ~info:first.prg_info
+    declare_mutual_definitions sum ~info:first.prg_info
       ~eff:Evd.empty_side_effects (* FIXME? *)
       ~uctx:first.prg_uctx ~bodies:fixdefs ~possible_guard ~opaque:first.prg_opaque
       ~cinfo:fixitems ?using:first.prg_using ()
@@ -1613,14 +1619,14 @@ let declare_mutual_definitions ~pm l =
   let dref = List.hd kns in
   let scope = first.prg_info.Info.scope in
   let s_hook = {Hook.S.uctx = first.prg_uctx; obls; scope; dref} in
-  Hook.call ?hook:first.prg_info.Info.hook s_hook;
+  Hook.call ?hook:first.prg_info.Info.hook sum s_hook;
   (* XXX: We call the obligation hook here, by consistency with the
      previous imperative behaviour, however I'm not sure this is right *)
-  let pm = State.call_prg_hook first s_hook pm in
+  let pm = State.call_prg_hook first sum s_hook pm in
   let pm = List.fold_left progmap_remove pm l in
   pm, dref
 
-let update_obls ~pm prg obls rem =
+let update_obls sum ~pm prg obls rem =
   let prg_obligations = {obls; remaining = rem} in
   let prg' = {prg with prg_obligations} in
   let pm = progmap_replace prg' pm in
@@ -1629,14 +1635,14 @@ let update_obls ~pm prg obls rem =
   else
     match prg'.prg_deps with
     | [] ->
-      let pm, kn = declare_definition ~pm prg' in
+      let pm, kn = declare_definition sum ~pm prg' in
       pm, Defined
     | l ->
       let progs =
         List.map (fun x -> CEphemeron.get (ProgMap.find x pm)) prg'.prg_deps
       in
       if List.for_all (fun x -> obligations_solved x) progs then
-        let pm, kn = declare_mutual_definitions ~pm progs in
+        let pm, kn = declare_mutual_definitions sum ~pm progs in
         pm, Defined
       else pm, Dependent
 
@@ -1649,22 +1655,23 @@ let dependencies obls n =
     obls;
   !res
 
-let update_program_decl_on_defined ~pm prg obls num obl rem ~auto =
+let update_program_decl_on_defined sum ~pm prg obls num obl rem ~auto =
   let obls = Array.copy obls in
   let () = obls.(num) <- obl in
-  let pm, _progress = update_obls ~pm prg obls (pred rem) in
+  let pm, _progress = update_obls sum ~pm prg obls (pred rem) in
   let pm =
     if pred rem > 0 then
       let deps = dependencies obls num in
       if not (Int.Set.is_empty deps) then
-        auto ~pm (Some prg.prg_cinfo.CInfo.name) deps None
+        auto sum ~pm (Some prg.prg_cinfo.CInfo.name) deps None
       else pm
     else pm
   in
   pm
 
 type obligation_resolver =
-     pm:State.t
+  Summary.Interp.mut
+  -> pm:State.t
   -> Id.t option
   -> Int.Set.t
   -> unit Proofview.tactic option
@@ -1701,7 +1708,7 @@ let do_check_final ~pm = function
     in
     if not final then not_final_obligation check_final
 
-let obligation_terminator ~pm ~entry ~eff ~uctx ~oinfo:{name; num; auto; check_final} =
+let obligation_terminator sum ~pm ~entry ~eff ~uctx ~oinfo:{name; num; auto; check_final} =
   let env = Global.env () in
   let ty = entry.proof_entry_type in
   let body, opaque = ProofEntry.force_entry_body entry in
@@ -1727,8 +1734,8 @@ let obligation_terminator ~pm ~entry ~eff ~uctx ~oinfo:{name; num; auto; check_f
     | (_, status), false -> status
   in
   let obl = {obl with obl_status = (false, status)} in
-  let prg, obl, cst = declare_obligation prg obl ~body ~types:ty ~uctx in
-  let pm = update_program_decl_on_defined ~pm prg obls num obl rem ~auto in
+  let prg, obl, cst = declare_obligation sum prg obl ~body ~types:ty ~uctx in
+  let pm = update_program_decl_on_defined sum ~pm prg obls num obl rem ~auto in
   let () = do_check_final ~pm check_final in
   pm, cst
 
@@ -1737,7 +1744,8 @@ let obligation_terminator ~pm ~entry ~eff ~uctx ~oinfo:{name; num; auto; check_f
 
    FIXME: There is duplication of this code with obligation_terminator
    and Obligations.admit_obligations *)
-let obligation_admitted_terminator ~pm typ {name; num; auto; check_final} declare_fun sec_vars uctx =
+let obligation_admitted_terminator sum ~pm typ
+    {name; num; auto; check_final} declare_fun sec_vars uctx =
   let prg = Option.get (State.find pm name) in
   let {obls; remaining = rem} = prg.prg_obligations in
   let obl = obls.(num) in
@@ -1751,7 +1759,7 @@ let obligation_admitted_terminator ~pm typ {name; num; auto; check_final} declar
   let inst = instance_of_univs univs in
   let obl = {obl with obl_body = Some (DefinedObl (cst, inst))} in
   let prg = update_global_obligation_uctx prg uctx in
-  let pm = update_program_decl_on_defined ~pm prg obls num obl rem ~auto in
+  let pm = update_program_decl_on_defined sum ~pm prg obls num obl rem ~auto in
   let () = do_check_final ~pm check_final in
   pm
 
@@ -1919,7 +1927,7 @@ let start_definition ~info ~cinfo ?using sigma =
   map lemma ~f:(fun p ->
       pi1 @@ Proof.run_tactic Global.(env ()) init_tac p)
 
-let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
+let start_mutual_definitions sum ~info ~cinfo ~bodies ~possible_guard ?using sigma =
   let intro_tac { CInfo.args; _ } = Tactics.auto_intros_tac args in
   let (possible_guard, fixrs) = possible_guard in
   let fixrs = List.map EConstr.ERelevance.make fixrs in
@@ -1952,10 +1960,10 @@ let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
         (* We simulate the goal context in which the fixpoint bodies have to be proved (exact relevance does not matter) *)
         let make_decl CInfo.{name; typ} = Context.Named.Declaration.LocalAssum (Context.annotR name, typ) in
         Environ.push_named_context (List.map make_decl cinfo) (Global.env()) in
-      List.iter (Metasyntax.add_notation_interpretation ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
+      List.iter (Metasyntax.add_notation_interpretation sum ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
     lemma
 
-let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using sigma =
+let start_mutual_definitions_refine sum ~info ~cinfo ~bodies ~possible_guard ?using sigma =
   let future_goals, sigma = Evd.pop_future_goals sigma in
   let gls = List.rev (Evd.FutureGoals.comb future_goals) in
   let sigma = Evd.push_future_goals sigma in
@@ -1993,7 +2001,7 @@ let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using 
         (* We simulate the goal context in which the fixpoint bodies have to be proved (exact relevance does not matter) *)
         let make_decl CInfo.{name; typ} = Context.Named.Declaration.LocalAssum (Context.annotR name, EConstr.Unsafe.to_constr typ) in
         Environ.push_named_context (List.map make_decl cinfo) (Global.env()) in
-      List.iter (Metasyntax.add_notation_interpretation ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
+      List.iter (Metasyntax.add_notation_interpretation sum ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
     lemma
 
 let get_used_variables pf = pf.using
@@ -2325,20 +2333,22 @@ let check_type_evars_solved env sigma typ =
   | [] -> ()
   | evk::_ -> CErrors.user_err (str "Cannot admit: the statement has unresolved existential variables.")
 
-let finish_admitted ~pm ~pinfo ~sec_vars typs =
+let finish_admitted sum ~pm ~pinfo ~sec_vars typs =
   (* If the constant was an obligation we need to update the program map *)
   let { Proof_info.info; cinfo } = pinfo in
   match CEphemeron.default pinfo.Proof_info.proof_ending Proof_ending.Regular with
   | Proof_ending.End_obligation oinfo ->
     let declare_fun ~uctx ~mono_uctx_extra typ =
-      List.hd (declare_possibly_mutual_parameters ~info ~cinfo ~sec_vars ~mono_uctx_extra [typ, uctx]) in
+      List.hd (declare_possibly_mutual_parameters sum ~info ~cinfo ~sec_vars
+                 ~mono_uctx_extra [typ, uctx])
+    in
     let typ, uctx = match typs with [typ, uctx] -> typ, uctx | _ -> assert false in
-    Obls_.obligation_admitted_terminator ~pm typ oinfo declare_fun sec_vars uctx
+    Obls_.obligation_admitted_terminator sum ~pm typ oinfo declare_fun sec_vars uctx
   | _ ->
-    let (_ : 'a list) = declare_possibly_mutual_parameters ~info ~cinfo ~sec_vars typs in
+    let (_ : 'a list) = declare_possibly_mutual_parameters sum ~info ~cinfo ~sec_vars typs in
     pm
 
-let save_admitted ~pm ~proof =
+let save_admitted sum ~pm ~proof =
   let iproof = get proof in
   let Proof.{ entry } = Proof.data iproof in
   let typs = List.map pi3 (Proofview.initial_goals entry) in
@@ -2348,13 +2358,13 @@ let save_admitted ~pm ~proof =
   let sigma = Evd.minimize_universes sigma in
   let uctx = Evd.ustate sigma in
   let typs = List.map (fun typ -> (EConstr.to_constr sigma typ, uctx)) typs in
-  finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs
+  finish_admitted sum ~pm ~pinfo:proof.pinfo ~sec_vars typs
 
 (************************************************************************)
 (* Saving a lemma-like constant                                         *)
 (************************************************************************)
 
-let finish_proved_equations ~pm ~kind ~hook i entries types sigma0 =
+let finish_proved_equations sum ~pm ~kind ~hook i entries types sigma0 =
 
   let obls = ref 1 in
   let sigma, recobls =
@@ -2367,7 +2377,7 @@ let finish_proved_equations ~pm ~kind ~hook i entries types sigma0 =
         let body, opaque = match entry.proof_entry_body with Default { body; opaque } -> body, opaque | _ -> assert false in
         let body, typ, args = ProofEntry.shrink_entry local_context body entry.proof_entry_type in
         let entry = { entry with proof_entry_body = Default { body; opaque }; proof_entry_type = typ } in
-        let cst = declare_constant ~loc:None ~name:id ~kind ~typing_flags:None (DefinitionEntry entry) in
+        let cst = declare_constant sum ~loc:None ~name:id ~kind ~typing_flags:None (DefinitionEntry entry) in
         let sigma, app = Evd.fresh_global (Global.env ()) sigma (GlobRef.ConstRef cst) in
         let sigma = Evd.define ev (EConstr.applist (app, args)) sigma in
         sigma, cst) sigma0
@@ -2382,7 +2392,7 @@ let check_single_entry entries label =
   | _ ->
     CErrors.anomaly ~label Pp.(str "close_proof returned more than one proof term")
 
-let finish_proof ~pm proof_obj proof_info =
+let finish_proof sum ~pm proof_obj proof_info =
   let open Proof_ending in
   let { Proof_info.info; cinfo; possible_guard } = proof_info in
   match CEphemeron.default proof_info.Proof_info.proof_ending Regular with
@@ -2390,18 +2400,18 @@ let finish_proof ~pm proof_obj proof_info =
     (* Unless this is a block of mutual fixpoint, we assume the
        statements, if more than one, to form a telescope, as in Derive *)
     let is_telescope = Option.is_empty proof_info.possible_guard in
-    pm, declare_possibly_mutual_definitions ~info ~cinfo ~obls:[] ~is_telescope proof_obj
+    pm, declare_possibly_mutual_definitions sum ~info ~cinfo ~obls:[] ~is_telescope proof_obj
   | End_obligation oinfo ->
     let eff, entries = process_proof ~info proof_obj in
     let entry, uctx = check_single_entry entries "Obligation.save" in
-    Obls_.obligation_terminator ~pm ~entry ~eff ~uctx ~oinfo
+    Obls_.obligation_terminator sum ~pm ~entry ~eff ~uctx ~oinfo
   | End_equations { hook; i; types; sigma } ->
     let kind = info.Info.kind in
     let eff, entries = process_proof ~info proof_obj in
     (* FIXME: this is probably not the right place to declare effects *)
-    let () = export_side_effects eff in
+    let () = export_side_effects sum eff in
     let entries = List.map fst entries in
-    finish_proved_equations ~pm ~kind ~hook i entries types sigma
+    finish_proved_equations sum ~pm ~kind ~hook i entries types sigma
 
 let err_save_forbidden_in_place_of_qed () =
   CErrors.user_err (Pp.str "Cannot use Save with more than one constant or in this proof mode")
@@ -2419,24 +2429,24 @@ let process_idopt_for_save ~idopt info =
         err_save_forbidden_in_place_of_qed ()
     in { info with Proof_info.cinfo }
 
-let save ~pm ~proof ~opaque ~idopt =
+let save sum ~pm ~proof ~opaque ~idopt =
   (* Env and sigma are just used for error printing in save_remaining_recthms *)
   let proof_obj = close_proof ~opaque ~keep_body_ucst_separate:false proof in
   let proof_info = process_idopt_for_save ~idopt proof.pinfo in
-  finish_proof ~pm proof_obj.proof_object proof_info
+  finish_proof sum ~pm proof_obj.proof_object proof_info
 
-let save_regular ~(proof : t) ~opaque ~idopt =
+let save_regular sum ~(proof : t) ~opaque ~idopt =
   let open Proof_ending in
   match CEphemeron.default proof.pinfo.Proof_info.proof_ending Regular with
   | Regular ->
-    let (_, grs) : Obls_.State.t * _ = save ~pm:Obls_.State.empty ~proof ~opaque ~idopt in
+    let (_, grs) : Obls_.State.t * _ = save sum ~pm:Obls_.State.empty ~proof ~opaque ~idopt in
     grs
   | _ -> CErrors.anomaly Pp.(str "save_regular: unexpected proof ending")
 
 (***********************************************************************)
 (* Special case to close a lemma without forcing a proof               *)
 (***********************************************************************)
-let save_lemma_admitted_delayed ~pm ~proof =
+let save_lemma_admitted_delayed sum ~pm ~proof =
   let { Proof_object.proof_object; pinfo } = proof in
   (* Drop side-effects, they will not be used anyway *)
   let _eff, entries = process_proof ~info:pinfo.info proof_object in
@@ -2447,19 +2457,19 @@ let save_lemma_admitted_delayed ~pm ~proof =
   (* If the proof is partial, do we want to take the (restriction on
      visible uvars of) uctx so far or (as done below) the initial ones
      that refers to only the types *)
-  finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs
+  finish_admitted sum ~pm ~pinfo:proof.pinfo ~sec_vars typs
 
-let save_lemma_proved_delayed ~pm ~proof ~idopt =
+let save_lemma_proved_delayed sum ~pm ~proof ~idopt =
   (* vio2vo used to call this with invalid [pinfo], now it should work fine. *)
   let pinfo = process_idopt_for_save ~idopt proof.Proof_object.pinfo in
-  let pm, _ = finish_proof ~pm proof.proof_object pinfo in
+  let pm, _ = finish_proof sum ~pm proof.proof_object pinfo in
   pm
 
 end (* Proof module *)
 
-let _ = Ind_tables.declare_definition_scheme := declare_definition_scheme
-let _ = Ind_tables.register_definition_scheme := register_definition_scheme
-let _ = Abstract.declare_abstract := Proof.declare_abstract
+let () = Ind_tables.declare_definition_scheme := declare_definition_scheme
+let () = Ind_tables.register_definition_scheme := register_definition_scheme
+let () = Abstract.declare_abstract := Proof.declare_abstract
 
 let build_by_tactic = Proof.build_by_tactic
 
@@ -2473,7 +2483,7 @@ module Internal = struct
 
   let objVariable = objVariable
 
-  let export_side_effects eff = export_side_effects (SideEff.make eff)
+  let export_side_effects sum eff = export_side_effects sum (SideEff.make eff)
 
   let register_side_effects pf =
     let proof, eff = register_side_effects pf.Proof.proof in
@@ -2589,22 +2599,22 @@ let solve_by_tac prg obls i tac =
     warn_solve_errored ?loc err;
     None
 
-let solve_and_declare_by_tac prg obls i tac =
+let solve_and_declare_by_tac sum prg obls i tac =
   match solve_by_tac prg obls i tac with
   | None -> None
   | Some (t, ty, uctx) ->
     let obl = obls.(i) in
-    let prg, obl', _cst = declare_obligation prg obl ~body:t ~types:ty ~uctx in
+    let prg, obl', _cst = declare_obligation sum prg obl ~body:t ~types:ty ~uctx in
     obls.(i) <- obl';
     Some prg
 
-let solve_obligation_by_tac prg obls i tac =
+let solve_obligation_by_tac sum prg obls i tac =
   let obl = obls.(i) in
   match obl.obl_body with
   | Some _ -> None
   | None ->
     if List.is_empty (deps_remaining obls obl.obl_deps)
-    then solve_and_declare_by_tac prg obls i tac
+    then solve_and_declare_by_tac sum prg obls i tac
     else None
 
 let get_unique_prog ~pm prg =
@@ -2615,7 +2625,7 @@ let get_unique_prog ~pm prg =
   | Error ((id :: _) as ids) ->
     Error.ambiguous_program id ids
 
-let solve_prg_obligations ~pm prg ?oblset tac =
+let solve_prg_obligations sum ~pm prg ?oblset tac =
   let { obls; remaining } = Internal.get_obligations prg in
   let rem = ref remaining in
   let obls' = Array.copy obls in
@@ -2629,7 +2639,7 @@ let solve_prg_obligations ~pm prg ?oblset tac =
     Array.fold_left_i
       (fun i prg x ->
         if p i then (
-          match solve_obligation_by_tac prg obls' i tac with
+          match solve_obligation_by_tac sum prg obls' i tac with
           | None -> prg
           | Some prg ->
             let deps = dependencies obls i in
@@ -2639,13 +2649,13 @@ let solve_prg_obligations ~pm prg ?oblset tac =
         else prg)
       prg obls'
   in
-  update_obls ~pm prg obls' !rem
+  update_obls sum ~pm prg obls' !rem
 
-let auto_solve_obligations ~pm n ?oblset tac : State.t * progress =
+let auto_solve_obligations sum ~pm n ?oblset tac : State.t * progress =
   Flags.if_verbose Feedback.msg_info
     (str "Solving obligations automatically...");
   let prg = get_unique_prog ~pm n in
-  solve_prg_obligations ~pm prg ?oblset tac
+  solve_prg_obligations sum ~pm prg ?oblset tac
 
 let solve_obligation ?check_final prg num tac =
   let user_num = succ num in
@@ -2662,7 +2672,7 @@ let solve_obligation ?check_final prg num tac =
   let kind = kind_of_obligation (snd obl.obl_status) in
   let evd = Evd.from_ctx (Internal.get_uctx prg) in
   let evd = Evd.update_sigma_univs (Global.universes ()) evd in
-  let auto ~pm n oblset tac = fst (auto_solve_obligations ~pm n ~oblset tac) in
+  let auto sum ~pm n oblset tac = fst (auto_solve_obligations sum ~pm n ~oblset tac) in
   let proof_ending =
     let name = Internal.get_name prg in
     Proof_ending.End_obligation {name; num; auto; check_final}
@@ -2684,14 +2694,14 @@ let solve_obligation ?check_final prg num tac =
   lemma
 
 (** Implements [Solve Obligations of name with tac] *)
-let solve_obligations ~pm n tac =
+let solve_obligations sum ~pm n tac =
   let prg = get_unique_prog ~pm n in
-  fst (solve_prg_obligations ~pm prg tac)
+  fst (solve_prg_obligations sum ~pm prg tac)
 
 (** Implements [Solve All Obligations with tac] *)
-let solve_all_obligations ~pm tac =
+let solve_all_obligations sum ~pm tac =
   State.fold pm ~init:pm ~f:(fun k v pm ->
-      solve_prg_obligations ~pm v tac |> fst)
+      solve_prg_obligations sum ~pm v tac |> fst)
 
 (** Implements [Obligation n of name with tac] *)
 let obligation (user_num, name) ~pm tac =
@@ -2760,29 +2770,29 @@ let msg_generating_obl name obls =
        info ++ str ", generating " ++ int len ++
        str (String.plural len " obligation"))
 
-let add_definition ~pm ~info ~cinfo ~opaque ~uctx ?body
+let add_definition sum ~pm ~info ~cinfo ~opaque ~uctx ?body
     ?tactic ?(reduce = reduce) ?using ?obl_hook obls =
   let obl_hook = Option.map (fun h -> State.PrgHook h) obl_hook in
   let prg =
-    ProgramDecl.make ~info ~cinfo ~body ~opaque ~uctx ~reduce ~deps:[] ~possible_guard:None ?obl_hook ?using obls
+    ProgramDecl.make sum ~info ~cinfo ~body ~opaque ~uctx ~reduce ~deps:[] ~possible_guard:None ?obl_hook ?using obls
   in
   let name = CInfo.get_name cinfo in
   let {obls;_} = Internal.get_obligations prg in
   if Int.equal (Array.length obls) 0 then
     let () = Flags.if_verbose (msg_generating_obl name) obls in
-    let pm, _cst = Obls_.declare_definition ~pm prg in
+    let pm, _cst = Obls_.declare_definition sum ~pm prg in
     pm
   else
     let () = Flags.if_verbose (msg_generating_obl name) obls in
     let pm = State.add pm name prg in
-    let pm, res = auto_solve_obligations ~pm (Some name) tactic in
+    let pm, res = auto_solve_obligations sum ~pm (Some name) tactic in
     let () = match res with
     | Remain -> Flags.if_verbose (show_obligations ~pm ~msg:false) (Some name)
     | Dependent | Defined -> ()
     in
     pm
 
-let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guard
+let add_mutual_definitions sum ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guard
     ?tactic ?(reduce = reduce) ?using ?obl_hook obls =
   let obl_hook = Option.map (fun h -> State.PrgHook h) obl_hook in
   let deps = List.map CInfo.get_name cinfo in
@@ -2790,7 +2800,7 @@ let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
     List.fold_left3
       (fun pm cinfo body obls ->
         let prg =
-          ProgramDecl.make ~info ~cinfo ~opaque ~body:(Some body) ~uctx ~deps
+          ProgramDecl.make sum ~info ~cinfo ~opaque ~body:(Some body) ~uctx ~deps
             ~possible_guard:(Some possible_guard) ~reduce ?obl_hook ?using obls
         in
         State.add pm (CInfo.get_name cinfo) prg)
@@ -2801,7 +2811,7 @@ let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
       (fun (pm, finished) x ->
         if finished then (pm, finished)
         else
-          let pm, res = auto_solve_obligations ~pm (Some x) tactic in
+          let pm, res = auto_solve_obligations sum ~pm (Some x) tactic in
           match res with
           | Defined ->
             (* If one definition is turned into a constant,
@@ -2814,7 +2824,7 @@ let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
 
 (** [admit_obligations ~pm name] implements [Admit Obligations of name] *)
 
-let rec admit_prog ~pm prg =
+let rec admit_prog sum ~pm prg =
   let {obls} = Internal.get_obligations prg in
   let is_open _ x = Option.is_empty x.obl_body && List.is_empty (deps_remaining obls x.obl_deps) in
   let i = match Array.findi is_open obls with
@@ -2822,25 +2832,25 @@ let rec admit_prog ~pm prg =
     | None -> CErrors.anomaly (Pp.str "Could not find a solvable obligation.")
   in
   let proof = solve_obligation prg i None in
-  let pm = Proof.save_admitted ~pm ~proof in
+  let pm = Proof.save_admitted sum ~pm ~proof in
   match ProgMap.find_opt (Internal.get_name prg) pm with
-  | Some prg -> admit_prog ~pm (CEphemeron.get prg)
+  | Some prg -> admit_prog sum ~pm (CEphemeron.get prg)
   | None -> pm
 
-let rec admit_all_obligations ~pm =
+let rec admit_all_obligations sum ~pm =
   let prg = State.first_pending pm in
   match prg with
   | None -> pm
   | Some prg ->
-    let pm = admit_prog ~pm prg in
-    admit_all_obligations ~pm
+    let pm = admit_prog sum ~pm prg in
+    admit_all_obligations sum ~pm
 
-let admit_obligations ~pm name =
+let admit_obligations sum ~pm name =
   match name with
-  | None -> admit_all_obligations ~pm
+  | None -> admit_all_obligations sum ~pm
   | Some _ ->
     let prg = get_unique_prog ~pm name in
-    let pm = admit_prog ~pm prg in
+    let pm = admit_prog sum ~pm prg in
     pm
 
 (** Implements [Next Obligation of name with tac] and [Final Obligation of name with tac] *)
@@ -2910,15 +2920,15 @@ end
 
 module OblState = Obls_.State
 
-let declare_constant ?loc ?local ~name ~kind ?typing_flags =
-  declare_constant ~loc ?local ~name ~kind ~typing_flags
+let declare_constant sum ?loc ?local ~name ~kind ?typing_flags =
+  declare_constant sum ~loc ?local ~name ~kind ~typing_flags
 
-let declare_entry ?loc ~name ?scope ~kind ?user_warns ?hook ~impargs ~uctx entry =
-  declare_entry ~loc ~name ?scope ~kind ~typing_flags:None ?clearbody:None ~user_warns ?hook ~impargs ~uctx entry
+let declare_entry sum ?loc ~name ?scope ~kind ?user_warns ?hook ~impargs ~uctx entry =
+  declare_entry sum ~loc ~name ?scope ~kind ~typing_flags:None ?clearbody:None ~user_warns ?hook ~impargs ~uctx entry
 
-let declare_definition_full ~info ~cinfo ~opaque ~body ?using sigma =
-  let c, uctx = declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma in
+let declare_definition_full sum ~info ~cinfo ~opaque ~body ?using sigma =
+  let c, uctx = declare_definition sum ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma in
   c, if info.poly then PConstraints.ContextSet.empty else UState.context_set uctx
 
-let declare_definition ~info ~cinfo ~opaque ~body ?using sigma =
-  declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma |> fst
+let declare_definition sum ~info ~cinfo ~opaque ~body ?using sigma =
+  declare_definition sum ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma |> fst

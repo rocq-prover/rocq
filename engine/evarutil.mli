@@ -259,4 +259,8 @@ val generalize_evar_over_rels : evar_map -> existential -> types * constr list
 val subterm_source : Evar.t -> ?where:Evar_kinds.subevar_kind -> Evar_kinds.t Loc.located ->
   Evar_kinds.t Loc.located
 
-val meta_counter_summary_tag : int Summary.Dyn.tag
+val meta_counter_summary_tag : int Summary.Interp.tag
+
+module Internal : sig
+  val current_meta_counter : unit -> int
+end

@@ -1034,31 +1034,31 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
 | #[ raw_attributes ] [ "Ltac2" ltac2_entry(e) ] => {
     VtSideff (names_of_strexpr e, VtLater)
   } -> {
-    Tac2entries.register_struct raw_attributes e
+    Tac2entries.register_struct summary raw_attributes e
   }
 | [ "Ltac2" "Import" "Type" reference(qid) "as" ident(id) ] => {
     VtSideff ([id], VtLater)
   } -> {
-  Tac2entries.import_type qid id
+  Tac2entries.import_type summary qid id
   }
 | [ "Ltac2" "Custom" "Entry" identref(id) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS _ {
-  Tac2entries.register_custom_entry id
+  Tac2entries.register_custom_entry summary id
   } -> {
   ()
 }
 | #[ raw_attributes ] [ "Ltac2" "Notation" ltac2def_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
     let (toks, n, body) = e in
-    Tac2entries.register_notation raw_attributes toks n body
+    Tac2entries.register_notation summary raw_attributes toks n body
   } ->
   {
-    Tac2entries.register_notation_interpretation synterpv
+    Tac2entries.register_notation_interpretation summary synterpv
   }
 | #[ raw_attributes ] [ "Ltac2" "Abbreviation" ltac2abbrev_syn(e) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS synterpv {
     let (id, body) = e in
     Tac2entries.register_abbreviation raw_attributes id body
   } ->
   {
-    Tac2entries.register_notation_interpretation synterpv
+    Tac2entries.register_notation_interpretation summary synterpv
   }
 | ![proof_opt_query] [ "Ltac2" "Eval" ltac2_expr(e) ] => { Vernacextend.classify_as_query } -> {
   fun ~pstate -> Tac2entries.perform_eval ~pstate e
@@ -1104,7 +1104,7 @@ VERNAC { tac2mode } EXTEND VernacLtac2
   }
 | ![proof] [ "par" ":" ltac2_expr(t) "." ] =>
   { classify_as_proofstep } -> { fun ~pstate ->
-    Tac2entries.call_par ~pstate t
+    Tac2entries.call_par (Summary.Interp.get summary) ~pstate t
   }
 END
 

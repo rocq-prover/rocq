@@ -1538,8 +1538,8 @@ let () =
   let tac =
     CAst.make (TacFun ([Name (Id.of_string "pattern")],
       CAst.make (TacML ({ mltac_name = name; mltac_index = 0 }, [])))) in
-  let obj () =
-    Tacenv.register_ltac true false (Id.of_string "ssrpattern") tac in
+  let obj sum =
+    Tacenv.register_ltac sum true false (Id.of_string "ssrpattern") tac in
   Mltop.(declare_cache_obj_full (interp_only_obj obj) "rocq-runtime.plugins.ssrmatching")
 
 let ssrinstancesof arg =

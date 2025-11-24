@@ -117,7 +117,9 @@ let interp_statement ~program_mode env evd ~flags ~scope name bl typ  =
   let ids = List.map Context.Rel.Declaration.get_name ctx in
   evd, ids, EConstr.it_mkProd_or_LetIn t' ctx, imps @ imps'
 
-let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
+let do_definition sum ?loc ?hook ~name ?scope ?clearbody
+    ~poly ?typing_flags ~kind ?using ?user_warns
+    udecl bl red_option c ctypopt =
   let program_mode = false in
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
@@ -130,10 +132,12 @@ let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?
   let cinfo = Declare.CInfo.make ?loc ~name ~impargs ~typ:types () in
   let info = Declare.Info.make ?scope ?clearbody ~kind ?hook ~udecl ~poly ?typing_flags ?user_warns () in
   let _ : Names.GlobRef.t =
-    Declare.declare_definition ~info ~cinfo ~opaque:false ~body ?using evd
+    Declare.declare_definition sum ~info ~cinfo ~opaque:false ~body ?using evd
   in ()
 
-let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
+let do_definition_program sum ?loc ?hook ~pm ~name ~scope ?clearbody
+    ~poly ?typing_flags ~kind ?using ?user_warns
+    udecl bl red_option c ctypopt =
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
@@ -145,7 +149,7 @@ let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_f
   let () = Evd.check_univ_decl_early ~poly ~with_obls:true evd udecl [body; typ] in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
   let info = Declare.Info.make ~udecl ~scope ?clearbody ~poly ~kind ?hook ?typing_flags ?user_warns () in
-  Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls
+  Declare.Obls.add_definition sum ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls
 
 let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~poly ~typing_flags ~kind ?using ?user_warns udecl bl t =
   let env = Global.env () in

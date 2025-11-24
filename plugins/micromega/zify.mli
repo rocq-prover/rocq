@@ -11,7 +11,8 @@
 val zify_register_locality : Hints.hint_locality Attributes.attribute
 
 module type S = sig
-  val register : Hints.hint_locality -> Libnames.qualid -> unit
+  val register : Summary.Interp.mut ->
+    Hints.hint_locality -> Libnames.qualid -> unit
   val print : unit -> unit
 end
 

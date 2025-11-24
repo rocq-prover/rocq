@@ -52,8 +52,10 @@ val toggle : on:bool -> use:notation_use -> Globnames.abbreviation -> unit
 val toggle_if : on:bool -> use:notation_use ->
   (Globnames.abbreviation -> data -> bool) -> unit
 
-val declare : local:Libobject.locality ->
-  Globnames.extended_global_reference UserWarn.with_qf option -> Id.t ->
+val declare : Summary.Interp.mut ->
+  local:Libobject.locality ->
+  Globnames.extended_global_reference UserWarn.with_qf option ->
+  Id.t ->
   onlyparsing:bool -> Notation_term.interpretation -> unit
 
-val import : int -> Libnames.full_path -> Globnames.abbreviation -> unit
+val import : int -> Libnames.full_path -> Globnames.abbreviation -> Summary.Interp.mut -> unit

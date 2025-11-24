@@ -63,9 +63,9 @@ module Hook : sig
       }
   end
 
-  val make_g : (S.t -> 'a -> 'a) -> 'a g
-  val make : (S.t -> unit) -> t
-  val call : ?hook:t -> S.t -> unit
+  val make_g : (Summary.Interp.mut -> S.t -> 'a -> 'a) -> 'a g
+  val make : (Summary.Interp.mut -> S.t -> unit) -> t
+  val call : ?hook:t -> Summary.Interp.mut -> S.t -> unit
 end
 
 (** {2 One-go, non-interactive declaration API } *)
@@ -124,7 +124,8 @@ end
    that [sigma] is checked for unresolved evars, thus you should be
    careful not to submit open terms *)
 val declare_definition
-  :  info:Info.t
+  : Summary.Interp.mut
+  -> info:Info.t
   -> cinfo:EConstr.t option CInfo.t
   -> opaque:bool
   -> body:EConstr.t
@@ -133,7 +134,8 @@ val declare_definition
   -> GlobRef.t
 
 val declare_mutual_definitions
-  :  info:Info.t
+  : Summary.Interp.mut
+  -> info:Info.t
   -> cinfo: Constr.t CInfo.t list
   -> opaque:bool
   -> eff:Evd.side_effects
@@ -216,7 +218,8 @@ module Proof : sig
 
   (** Pretty much internal, used by mutual Lemma / Fixpoint vernaculars *)
   val start_mutual_definitions
-    :  info:Info.t
+    : Summary.Interp.mut
+    -> info:Info.t
     -> cinfo:Constr.t CInfo.t list
     -> bodies:Constr.t option list
     -> possible_guard:(Pretyping.possible_guard * Sorts.relevance list)
@@ -226,7 +229,8 @@ module Proof : sig
 
   (** Pretty much internal, used by mutual Lemma / Fixpoint vernaculars with #[refine] *)
   val start_mutual_definitions_refine
-    :  info:Info.t
+    : Summary.Interp.mut
+    -> info:Info.t
     -> cinfo:EConstr.t CInfo.t list
     -> bodies:EConstr.t option list
     -> possible_guard:(Pretyping.possible_guard * Evd.erelevance list)
@@ -236,7 +240,8 @@ module Proof : sig
 
   (** Qed a proof  *)
   val save
-    : pm:OblState.t
+    : Summary.Interp.mut
+    -> pm:OblState.t
     -> proof:t
     -> opaque:Vernacexpr.opacity_flag
     -> idopt:Names.lident option
@@ -244,13 +249,15 @@ module Proof : sig
 
   (** For proofs known to have [Regular] ending, no need to touch program state. *)
   val save_regular
-    : proof:t
+    : Summary.Interp.mut
+    -> proof:t
     -> opaque:Vernacexpr.opacity_flag
     -> idopt:Names.lident option
     -> GlobRef.t list
 
   (** Admit a proof *)
-  val save_admitted : pm:OblState.t -> proof:t -> OblState.t
+  val save_admitted : Summary.Interp.mut ->
+    pm:OblState.t -> proof:t -> OblState.t
 
   (** [by env tac] applies tactic [tac] to the 1st subgoal of the current
       focused proof.
@@ -326,12 +333,14 @@ module Proof : sig
   (** Special cases for delayed proofs, in this case we must provide the
       proof information so the proof won't be forced. *)
   val save_lemma_admitted_delayed :
-       pm:OblState.t
+    Summary.Interp.mut
+    -> pm:OblState.t
     -> proof:proof_object
     -> OblState.t
 
   val save_lemma_proved_delayed
-    : pm:OblState.t
+    : Summary.Interp.mut
+    -> pm:OblState.t
     -> proof:proof_object
     -> idopt:Names.lident option
     -> OblState.t
@@ -389,7 +398,8 @@ val symbol_entry
     for removal from the public API, use higher-level declare APIs
     instead *)
 val declare_entry
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> name:Id.t
   -> ?scope:Locality.definition_scope
   -> kind:Decls.logical_kind
@@ -414,7 +424,8 @@ type variable_declaration =
 
 (** Declaration of local constructions (Variable/Hypothesis/Local) *)
 val declare_variable
-  :  name:variable
+  : Summary.Interp.mut
+  -> name:variable
   -> kind:Decls.logical_kind
   -> typing_flags:Declarations.typing_flags option
   -> variable_declaration
@@ -447,7 +458,8 @@ val prepare_parameter
   for removal from the public API, use higher-level declare APIs
   instead *)
 val declare_constant
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> ?local:Locality.import_status
   -> name:Id.t
   -> kind:Decls.logical_kind
@@ -459,7 +471,8 @@ val declare_constant
 (** Like [declare_definition] but also returns the universes and universe constraints added to the
     global environment *)
 val declare_definition_full
-  :  info:Info.t
+  : Summary.Interp.mut
+  -> info:Info.t
   -> cinfo:EConstr.t option CInfo.t
   -> opaque:bool
   -> body:EConstr.t
@@ -557,7 +570,8 @@ val prepare_obligations
    will return whether all the obligations were solved; if so, it will
    also register [c] with the kernel. *)
 val add_definition :
-     pm:OblState.t
+  Summary.Interp.mut
+  -> pm:OblState.t
   -> info:Info.t
   -> cinfo:Constr.types CInfo.t
   -> opaque:bool
@@ -575,7 +589,8 @@ val add_definition :
 (** Start a [Program Fixpoint] declaration, similar to the above,
    except it takes a list now. *)
 val add_mutual_definitions :
-     pm:OblState.t
+  Summary.Interp.mut
+  -> pm:OblState.t
   -> info:Info.t
   -> cinfo:Constr.types CInfo.t list
   -> opaque:bool
@@ -602,10 +617,12 @@ val next_obligation :
 
 (** Implementation of the [Solve Obligations of id with tac] command *)
 val solve_obligations :
+  Summary.Interp.mut ->
   pm:OblState.t -> Names.Id.t option -> unit Proofview.tactic option -> OblState.t
 
 (** Implementation of the [Solve All Obligations with tac] command *)
-val solve_all_obligations : pm:OblState.t -> unit Proofview.tactic option -> OblState.t
+val solve_all_obligations : Summary.Interp.mut ->
+  pm:OblState.t -> unit Proofview.tactic option -> OblState.t
 
 (** Implementation of the [Obligations of id] command *)
 val show_obligations : pm:OblState.t -> ?msg:bool -> Names.Id.t option -> unit
@@ -614,7 +631,8 @@ val show_obligations : pm:OblState.t -> ?msg:bool -> Names.Id.t option -> unit
 val show_term : pm:OblState.t -> Names.Id.t option -> Pp.t
 
 (** Implementation of the [Admit Obligations of id] command *)
-val admit_obligations : pm:OblState.t -> Names.Id.t option -> OblState.t
+val admit_obligations : Summary.Interp.mut ->
+  pm:OblState.t -> Names.Id.t option -> OblState.t
 
 val check_program_libraries : unit -> unit
 
@@ -643,7 +661,8 @@ module Internal : sig
     usually happens at the end of a proof (during Qed or Defined), but
     one may need to declare them by hand, for example because the
     tactic was run as part of a command *)
-  val export_side_effects : Evd.side_effects -> unit
+  val export_side_effects : Summary.Interp.mut ->
+    Evd.side_effects -> unit
 
   val register_side_effects : Proof.t -> Proof.t
 

@@ -621,7 +621,8 @@ let zify_register_locality =
   | None -> return (if Lib.sections_are_opened () then Hints.Local else Hints.SuperGlobal)
 
 module type S = sig
-  val register : Hints.hint_locality -> Libnames.qualid -> unit
+  val register : Summary.Interp.mut ->
+    Hints.hint_locality -> Libnames.qualid -> unit
   val print : unit -> unit
 end
 
@@ -671,13 +672,13 @@ module MakeTable (E : Elt) : S = struct
              ++ str " X1 ... Xn"))
 
   let register_obj : Libobject.locality * Constr.constr -> Libobject.obj =
-    let cache_constr c =
+    let cache_constr c _sum =
       let env = Global.env () in
       let evd = Evd.from_env env in
       register_constr env evd c
     in
-    let subst_constr (subst, c) = Mod_subst.subst_mps subst c in
-    Libobject.declare_object
+    let subst_constr _sum subst c = Mod_subst.subst_mps subst c in
+    Libobject.Interp.declare_object
     @@ Libobject.object_with_locality
          ("register-zify-" ^ E.name)
          ~cache:cache_constr ~subst:(Some subst_constr)
@@ -688,10 +689,10 @@ module MakeTable (E : Elt) : S = struct
        registered as a [superglobal_object_nodischarge].
        TODO: pre-compute [get_type_of] - [cache_constr] is using another environment.
      *)
-  let register local c =
+  let register sum local c =
     try
       let c = UnivGen.constr_of_monomorphic_global (Global.env ()) (Nametab.locate c) in
-      let _ = Lib.add_leaf (register_obj (local,c)) in
+      let () = Lib.Interp.add_leaf sum (register_obj (local,c)) in
       ()
     with Not_found ->
       raise

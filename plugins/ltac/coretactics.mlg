@@ -301,11 +301,11 @@ END
 
 open Tacexpr
 
-let initial_atomic () =
+let initial_atomic summary =
   let nocl = {onhyps=Some[];concl_occs=AllOccurrences} in
   let iter (s, t) =
     let body = CAst.make (TacAtom t) in
-    Tacenv.register_ltac false false (Names.Id.of_string s) body
+    Tacenv.register_ltac summary false false (Names.Id.of_string s) body
   in
   let () = List.iter iter
       [ "red", TacReduce (Red, nocl);
@@ -315,7 +315,7 @@ let initial_atomic () =
         "intros", TacIntroPattern (false,[]);
       ]
   in
-  let iter (s, t) = Tacenv.register_ltac false false (Names.Id.of_string s) t in
+  let iter (s, t) = Tacenv.register_ltac summary false false (Names.Id.of_string s) t in
   List.iter iter
       [ "idtac", CAst.make (TacId []);
         "fail", CAst.make (TacFail (TacLocal,ArgArg 0,[]));
@@ -345,10 +345,10 @@ let register_list_tactical name f =
 let () = register_list_tactical "first" Tacticals.tclFIRST
 let () = register_list_tactical "solve" Tacticals.tclSOLVE
 
-let initial_tacticals () =
+let initial_tacticals summary =
   let idn n = Id.of_string (Printf.sprintf "_%i" n) in
   let varn n = Reference (ArgVar (CAst.make (idn n))) in
-  let iter (s, t) = Tacenv.register_ltac false false (Id.of_string s) t in
+  let iter (s, t) = Tacenv.register_ltac summary false false (Id.of_string s) t in
   List.iter iter [
     "first", CAst.make (TacFun
         ([Name (idn 0)], CAst.make (TacML (initial_entry "first", [varn 0]))));

@@ -651,7 +651,7 @@ let glob_constr_of_abbreviation kn =
   let (vars,a) = Abbreviation.find_interp kn in
   (List.map fst vars, Notation_ops.glob_constr_of_notation_constr a)
 
-let print_abbreviation_body env kn (vars,c) =
+let print_abbreviation_body sum env kn (vars,c) =
   let qid = Nametab.shortest_qualid_of_abbreviation Id.Set.empty kn in
   hov 2
     (hov 4
@@ -659,16 +659,16 @@ let print_abbreviation_body env kn (vars,c) =
         prlist (fun id -> spc () ++ Id.print id) vars ++
         spc () ++ str ":=") ++
      spc () ++
-     Vernacstate.System.protect (fun () ->
+     Vernacstate.System.protect (fun sum ->
          Abbreviation.toggle ~on:false ~use:ParsingAndPrinting kn;
-         pr_glob_constr_env env (Evd.from_env env) c) ())
+         pr_glob_constr_env env (Evd.from_env env) c) sum)
 
-let print_abbreviation access env sigma kn =
+let print_abbreviation sum access env sigma kn =
   let (vars,c) = glob_constr_of_abbreviation kn in
   let pp = match DAst.get c with
   | GRef (gref,_udecl) -> (* TODO: don't drop universes? *) [print_global_reference access env sigma gref None]
   | _ -> [] in
-  print_abbreviation_body env kn (vars,c) ++
+  print_abbreviation_body sum env kn (vars,c) ++
   with_line_skip pp
 
 (** Unused outside? *)
@@ -707,7 +707,7 @@ let handle h (Libobject.Dyn.Dyn (tag, o)) = match DynHandle.find tag h with
    no reason that an object in the stack corresponds to a user-facing
    declaration. It may have been so at the time this was written, but this
    needs to be done in a more principled way. *)
-let print_library_leaf env sigma ~with_values mp lobj =
+let print_library_leaf sum env sigma ~with_values mp lobj =
   match lobj with
   | AtomicObject o ->
     let handler =
@@ -728,21 +728,21 @@ let print_library_leaf env sigma ~with_values mp lobj =
     in
     handle handler o
   | ModuleObject (id,_) ->
-    Some (Printmod.print_module ~with_body:(Option.has_some with_values) (MPdot (mp, id)))
+    Some (Printmod.print_module sum ~with_body:(Option.has_some with_values) (MPdot (mp, id)))
   | ModuleTypeObject (id,_) ->
-    Some (print_modtype (MPdot (mp, id)))
+    Some (print_modtype sum (MPdot (mp, id)))
   | IncludeObject _ | KeepObject _ | EscapeObject _ | ExportObject _ -> None
 
 let decr = Option.map ((+) (-1))
 
 let is_done = Option.equal Int.equal (Some 0)
 
-let print_leaves env sigma ~with_values mp n leaves =
+let print_leaves sum env sigma ~with_values mp n leaves =
   let rec prec n = function
     | [] -> n, []
     | o :: rest ->
       if is_done n then n, []
-      else begin match print_library_leaf env sigma ~with_values mp o with
+      else begin match print_library_leaf sum env sigma ~with_values mp o with
         | Some pp ->
           let n, prest = prec (decr n) rest in
           n, pp :: prest
@@ -752,23 +752,23 @@ let print_leaves env sigma ~with_values mp n leaves =
   let n, l = prec n leaves in
   n, v 0 (pr_sequence (fun x -> x) (List.rev l))
 
-let print_context env sigma ~with_values =
+let print_context sum env sigma ~with_values =
   let rec prec n = function
     | [] -> mt()
     | (node, leaves) :: rest ->
       if is_done n then mt()
       else
         let mp = (Lib.node_prefix node).obj_mp in
-        let n, pleaves = print_leaves env sigma ~with_values mp n leaves in
+        let n, pleaves = print_leaves sum env sigma ~with_values mp n leaves in
         if is_done n then pleaves
         else prec n rest ++ pleaves
   in
   prec
 
-let print_full_context access env sigma =
-  print_context env sigma ~with_values:(Some access) None (Lib.contents ())
-let print_full_context_typ env sigma = (* Command [Print All] *)
-  print_context env sigma ~with_values:None None (Lib.contents ())
+let print_full_context sum access env sigma =
+  print_context sum env sigma ~with_values:(Some access) None (Lib.contents ())
+let print_full_context_typ sum env sigma = (* Command [Print All] *)
+  print_context sum env sigma ~with_values:None None (Lib.contents ())
 
 (** Command line [-output-context] *)
 
@@ -819,21 +819,21 @@ let print_full_pure_atomic access env sigma mp lobj =
   in
   handleF handler lobj
 
-let print_full_pure_leaf access env sigma mp = function
+let print_full_pure_leaf sum access env sigma mp = function
   | AtomicObject lobj -> print_full_pure_atomic access env sigma mp lobj
   | ModuleObject (id, _) ->
     (* TODO: make it reparsable *)
-    print_module (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
+    print_module sum (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
   | ModuleTypeObject (id, _) ->
     (* TODO: make it reparsable *)
-    print_modtype (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
+    print_modtype sum (MPdot (mp, id)) ++ str "." ++ fnl () ++ fnl ()
   | _ -> mt()
 
-let print_full_pure_context access env sigma =
+let print_full_pure_context sum access env sigma =
   let rec prec = function
     | (node,leaves)::rest ->
       let mp = (Lib.node_prefix node).obj_mp in
-      let pp = Pp.prlist (print_full_pure_leaf access env sigma mp) leaves in
+      let pp = Pp.prlist (print_full_pure_leaf sum access env sigma mp) leaves in
       prec rest ++ pp
   | [] -> mt ()
   in
@@ -861,11 +861,11 @@ let read_sec_context qid =
   let cxt = Lib.contents () in
   List.rev (get_cxt [] cxt)
 
-let print_sec_context access env sigma sec =
-  print_context env sigma ~with_values:(Some access) None (read_sec_context sec)
+let print_sec_context sum access env sigma sec =
+  print_context sum env sigma ~with_values:(Some access) None (read_sec_context sec)
 
-let print_sec_context_typ env sigma sec =
-  print_context env sigma ~with_values:None None (read_sec_context sec)
+let print_sec_context_typ sum env sigma sec =
+  print_context sum env sigma ~with_values:None None (read_sec_context sec)
 
 (** Command [Print] *)
 
@@ -978,14 +978,14 @@ let maybe_error_reject_univ_decl na udecl =
     (* TODO Print na somehow *)
     user_err (str "This object does not support universe names.")
 
-let print_any_name access env sigma na udecl =
+let print_any_name sum access env sigma na udecl =
   maybe_error_reject_univ_decl na udecl;
   match na with
   | Term gref -> print_global_reference access env sigma gref udecl
-  | Abbreviation kn -> print_abbreviation access env sigma kn
-  | Module mp -> print_module mp
+  | Abbreviation kn -> print_abbreviation sum access env sigma kn
+  | Module mp -> print_module sum mp
   | Dir dir -> pr_dir dir
-  | ModuleType mp -> print_modtype mp
+  | ModuleType mp -> print_modtype sum mp
   | Other (obj, info) -> info.print obj
   | Undefined qid ->
   try  (* A goal variable which is not a section variable *)
@@ -994,7 +994,7 @@ let print_any_name access env sigma na udecl =
     print_named_decl env sigma true str
   with Not_found -> user_err ?loc:qid.loc (pr_qualid qid ++ spc () ++ str "not a defined object.")
 
-let print_notation_interpretation env sigma (entry,ntn) df sc c =
+let print_notation_interpretation sum env sigma (entry,ntn) df sc c =
   let filter = Notation.{
     notation_entry_pattern = [entry];
     interp_rule_key_pattern = Some (Inl ntn);
@@ -1002,18 +1002,18 @@ let print_notation_interpretation env sigma (entry,ntn) df sc c =
     scope_pattern = sc;
     interpretation_pattern = Some c;
   } in
-  Vernacstate.System.protect (fun () ->
+  Vernacstate.System.protect (fun sum ->
       Notation.toggle_notations ~on:false ~all:false ~verbose:false (pr_glob_constr_env env sigma) filter;
-      hov 0 (str "Notation" ++ spc () ++ Notation_ops.pr_notation_info (pr_glob_constr_env env sigma) df (snd c))) ()
+      hov 0 (str "Notation" ++ spc () ++ Notation_ops.pr_notation_info (pr_glob_constr_env env sigma) df (snd c))) sum
 
-let print_name access env sigma na udecl =
+let print_name sum access env sigma na udecl =
   match na with
   | {loc; v=Constrexpr.ByNotation (ntn,sc)} ->
     let ntn, df, sc, c, ref = Notation.interp_notation_as_global_reference_expanded ?loc ~head:false (fun _ -> true) ntn sc in
-    print_notation_interpretation env sigma ntn df (Some sc) c ++ fnl () ++ fnl () ++
-    print_any_name access env sigma (Term ref) udecl
+    print_notation_interpretation sum env sigma ntn df (Some sc) c ++ fnl () ++ fnl () ++
+    print_any_name sum access env sigma (Term ref) udecl
   | {loc; v=Constrexpr.AN ref} ->
-    print_any_name access env sigma (locate_any_name ref) udecl
+    print_any_name sum access env sigma (locate_any_name ref) udecl
 
 (** Command [Print Notation] *)
 
@@ -1068,37 +1068,37 @@ let print_about_global_reference ?loc env ref udecl =
     [hov 0 (str "Expands to: " ++ pr_located_qualid env (Term ref)) ++
     loc_info (TrueGlobal ref)])
 
-let print_about_abbreviation env sigma kn =
+let print_about_abbreviation sum env sigma kn =
   let (vars,c) = glob_constr_of_abbreviation kn in
   let pp = match DAst.get c with
   | GRef (gref,_udecl) -> (* TODO: don't drop universes? *) [print_about_global_reference env gref None]
   | _ -> [] in
-  print_abbreviation_body env kn (vars,c) ++ fnl () ++
+  print_abbreviation_body sum env kn (vars,c) ++ fnl () ++
   hov 0 (str "Expands to: " ++ pr_located_qualid env (Abbreviation kn)) ++
   loc_info (Abbrev kn) ++
   with_line_skip pp
 
-let print_about_any ?loc env sigma k udecl =
+let print_about_any sum ?loc env sigma k udecl =
   maybe_error_reject_univ_decl k udecl;
   match k with
   | Term ref -> Dumpglob.add_glob ?loc ref; print_about_global_reference env ref udecl
-  | Abbreviation kn -> v 0 (print_about_abbreviation env sigma kn)
+  | Abbreviation kn -> v 0 (print_about_abbreviation sum env sigma kn)
   | Dir _ | Module _ | ModuleType _ | Undefined _ -> hov 0 (pr_located_qualid env k)
   | Other (obj, info) -> hov 0 (info.about obj)
 
-let print_about env sigma na udecl =
+let print_about sum env sigma na udecl =
   match na with
   | {loc;v=Constrexpr.ByNotation (ntn,sc)} ->
     let ntn, df, sc, c, ref = Notation.interp_notation_as_global_reference_expanded ?loc ~head:false (fun _ -> true) ntn sc in
-    print_notation_interpretation env sigma ntn df (Some sc) c ++ fnl () ++ fnl () ++
-    print_about_any ?loc env sigma (Term ref) udecl
+    print_notation_interpretation sum env sigma ntn df (Some sc) c ++ fnl () ++ fnl () ++
+    print_about_any sum ?loc env sigma (Term ref) udecl
   | {loc;v=Constrexpr.AN ref} ->
-      print_about_any ?loc env sigma (locate_any_name ref) udecl
+      print_about_any sum ?loc env sigma (locate_any_name ref) udecl
 
 (* Command [Inspect], for debug *)
 
-let inspect env sigma depth =
-  print_context env sigma ~with_values:None (Some depth) (Lib.contents ())
+let inspect sum env sigma depth =
+  print_context sum env sigma ~with_values:None (Some depth) (Lib.contents ())
 
 (*************************************************************************)
 (* Pretty-printing functions coming from classops.ml                     *)

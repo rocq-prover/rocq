@@ -29,7 +29,8 @@ type uniform_inductive_flag =
   | NonUniformParameters
 
 val do_mutual_inductive
-  : flags:flags
+  : Summary.Interp.mut
+  -> flags:flags
   -> ?typing_flags:Declarations.typing_flags
   -> cumul_univ_decl_expr option
   -> (one_inductive_expr * notation_declaration list) list
@@ -66,7 +67,8 @@ end
 
 (** elaborates an inductive declaration (the first half of do_mutual_inductive) *)
 val interp_mutual_inductive
-  :  env:Environ.env
+  : Summary.Interp.t
+  -> env:Environ.env
   -> flags:flags
   -> ?typing_flags:Declarations.typing_flags
   -> cumul_univ_decl_expr option

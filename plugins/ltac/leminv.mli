@@ -16,6 +16,6 @@ open Tactypes
 val lemInv_clause :
   quantified_hypothesis -> constr -> Id.t list -> unit Proofview.tactic
 
-val add_inversion_lemma_exn : poly:bool ->
+val add_inversion_lemma_exn : Summary.Interp.mut ->  poly:bool ->
   lident -> constr_expr -> UnivGen.QualityOrSet.t -> bool -> (Id.t -> unit Proofview.tactic) ->
     unit

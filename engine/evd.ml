@@ -706,7 +706,7 @@ let remove_evar_flags evk evar_flags =
 let evar_counter_summary_name = "evar counter"
 
 (* Generator of existential names *)
-let evar_ctr, evar_counter_summary_tag = Summary.ref_tag 0 ~name:evar_counter_summary_name
+let evar_ctr, evar_counter_summary_tag = Summary.Interp.ref_tag 0 ~name:evar_counter_summary_name
 let new_untyped_evar () = incr evar_ctr; Evar.unsafe_of_int !evar_ctr
 
 let default_source = Loc.tag @@ Evar_kinds.InternalHole
@@ -1954,3 +1954,7 @@ let drop_new_defined ~original sigma =
   let undf_evars = normalize_against original.undf_evars sigma.undf_evars in
   { sigma with defn_evars = to_keep; undf_evars })
     ()
+
+module Internal = struct
+  let current_evar_counter () = !evar_ctr
+end

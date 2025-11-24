@@ -17,7 +17,7 @@ val protect_tac_in : string -> Id.t -> unit Proofview.tactic
 
 val protect_tac : string -> unit Proofview.tactic
 
-val add_theory :
+val add_theory : Summary.Interp.mut ->
   Id.t ->
   constr_expr ->
   constr_expr ring_mod list -> unit
@@ -29,7 +29,7 @@ val ring_lookup :
   constr list ->
   constr list -> constr -> unit Proofview.tactic
 
-val add_field_theory :
+val add_field_theory : Summary.Interp.mut ->
   Id.t ->
   constr_expr ->
   constr_expr field_mod list -> unit

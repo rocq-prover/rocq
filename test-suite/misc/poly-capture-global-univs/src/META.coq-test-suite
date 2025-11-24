@@ -1,0 +1,11 @@
+package "evil" (
+    directory = "."
+    version = "dev"
+    description = "An evil test plugin"
+    requires = "rocq-runtime.plugins.ltac"
+    archive(byte) = "evil_plugin.cma"
+    archive(native) = "evil_plugin.cmxa"
+    plugin(byte) = "evil_plugin.cma"
+    plugin(native) = "evil_plugin.cmxs"
+)
+directory = "."

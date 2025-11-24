@@ -105,11 +105,11 @@ val compute_implicits_names : env -> Evd.evar_map -> types -> implicit_position 
 
 (** {6 Computation of implicits (done using the global environment). } *)
 
-val declare_var_implicits : variable -> impl:Glob_term.binding_kind -> unit
-val declare_constant_implicits : Constant.t -> unit
-val declare_mib_implicits : MutInd.t -> unit
+val declare_var_implicits : Summary.Interp.mut -> variable -> impl:Glob_term.binding_kind -> unit
+val declare_constant_implicits : Summary.Interp.mut -> Constant.t -> unit
+val declare_mib_implicits : Summary.Interp.mut -> MutInd.t -> unit
 
-val declare_implicits : bool -> GlobRef.t -> unit
+val declare_implicits : Summary.Interp.mut -> bool -> GlobRef.t -> unit
 
 (** [declare_manual_implicits local ref enriching l]
    Manual declaration of which arguments are expected implicit.
@@ -117,18 +117,18 @@ val declare_implicits : bool -> GlobRef.t -> unit
    implicits depending on the current state.
    Unsets implicits if [l] is empty. *)
 
-val declare_manual_implicits : bool -> GlobRef.t -> ?enriching:bool ->
+val declare_manual_implicits : Summary.Interp.mut -> bool -> GlobRef.t -> ?enriching:bool ->
   manual_implicits -> unit
 
 (** If the list is empty, do nothing, otherwise declare the implicits. *)
 
-val maybe_declare_manual_implicits : bool -> GlobRef.t -> ?enriching:bool ->
+val maybe_declare_manual_implicits : Summary.Interp.mut -> bool -> GlobRef.t -> ?enriching:bool ->
   manual_implicits -> unit
 
 (** [set_implicits local ref l]
    Manual declaration of implicit arguments.
   [l] is a list of possible sequences of implicit statuses. *)
-val set_implicits : bool -> GlobRef.t -> (Name.t * Glob_term.binding_kind) list list -> unit
+val set_implicits : Summary.Interp.mut -> bool -> GlobRef.t -> (Name.t * Glob_term.binding_kind) list list -> unit
 
 val implicits_of_global : GlobRef.t -> implicits_list list
 

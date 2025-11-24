@@ -683,7 +683,7 @@ type unsolvability_explanation = SeveralInstancesFound of int
 
 (* This stuff is internal and should not be used. Currently a hack in
    the STM relies on it. *)
-val evar_counter_summary_tag : int Summary.Dyn.tag
+val evar_counter_summary_tag : int Summary.Interp.tag
 
 (** {5 Deprecated functions} *)
 val create_evar_defs : evar_map -> evar_map
@@ -771,4 +771,8 @@ module Expand : sig
   val kind : evar_map -> handle -> econstr -> handle * (econstr, econstr, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
   val expand : evar_map -> handle -> econstr -> econstr
   val expand_instance : skip:bool -> undefined evar_info -> handle -> econstr SList.t -> econstr SList.t
+end
+
+module Internal : sig
+  val current_evar_counter : unit -> int
 end

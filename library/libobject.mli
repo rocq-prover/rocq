@@ -85,16 +85,16 @@ type object_name = Libnames.full_path * KerName.t
 
 type open_filter
 
-type ('a,'b,'discharged) object_declaration = {
+type ('a,'b,'discharged,'summary,'summary_mut) object_declaration = {
   object_name : string;
-  object_stage : Summary.Stage.t;
-  cache_function : 'b -> unit;
-  load_function : int -> 'b -> unit;
-  open_function : open_filter -> int -> 'b -> unit;
+  cache_function : 'b -> 'summary_mut -> unit;
+  load_function : int -> 'b -> 'summary_mut -> unit;
+  open_function : open_filter -> int -> 'b -> 'summary_mut -> unit;
   classify_function : 'a -> substitutivity;
-  subst_function :  substitution * 'a -> 'a;
-  discharge_function : 'a -> 'discharged option;
-  rebuild_function : 'discharged -> 'a;
+  (* XXX disallow summary access for subst_function? *)
+  subst_function : 'summary -> substitution -> 'a -> 'a;
+  discharge_function : 'summary -> 'a -> 'discharged option;
+  rebuild_function : 'summary -> 'discharged -> 'a;
 }
 
 val unfiltered : open_filter
@@ -114,14 +114,14 @@ val in_filter : cat:category option -> open_filter -> bool
     On [cat:(Some category)], returns whether the filter allows
    opening objects in the given [category]. *)
 
-val filtered_open : ?cat:category -> ('i -> 'a -> unit) ->
-  open_filter -> 'i -> 'a -> unit
+val filtered_open : ?cat:category -> ('i -> 'a -> 'sum -> unit) ->
+  open_filter -> 'i -> 'a -> 'sum -> unit
 (** Combinator for making objects with simple category-based open
    behaviour. When [cat:None], can be opened by Unfiltered, but also
    by Filtered with a negative set. *)
 
-val simple_open : ?cat:category -> ('a -> unit) ->
-  open_filter -> int -> 'a -> unit
+val simple_open : ?cat:category -> ('a -> 'sum -> unit) ->
+  open_filter -> int -> 'a -> 'sum -> unit
 (** Like [filtered_open], and also requires the int to be 1 to
     actually open. *)
 
@@ -142,10 +142,10 @@ val filter_or :  open_filter -> open_filter -> open_filter
     The classify_function must be specified.
 *)
 
-val default_object : ?stage:Summary.Stage.t -> string -> ('a,'b,'a) object_declaration
+val default_object : string -> ('a,'b,'a,_,_) object_declaration
 
 (** the identity substitution function *)
-val ident_subst_function : substitution * 'a -> 'a
+val ident_subst_function : 'summary -> substitution -> 'a -> 'a
 
 (** {6 ... } *)
 (** Given an object declaration, the function [declare_object_full]
@@ -185,31 +185,6 @@ and keep_objects = { keep_objects : t list }
 
 and escape_objects = { escape_objects : t list }
 
-(** Object declaration and names: if you need the current prefix
-   (typically to interact with the nametab), you need to have it
-   passed to you.
-
-    - [declare_named_object_gen] passes the raw prefix which you can
-    manipulate as you wish.
-
-    - [declare_named_object_full] and [declare_named_object] provide
-   the convenience of packaging it with the provided [Id.t] into a
-   [object_name].
-
-    - [declare_object] and [declare_object_full] ignore the prefix for you. *)
-
-val declare_object :
-  ('a, 'a, _) object_declaration -> ('a -> obj)
-
-val declare_object_full :
-  ('a, 'a, _) object_declaration -> 'a Dyn.tag
-
-val declare_named_object_full :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t * 'a) Dyn.tag
-
-val declare_named_object :
-  ('a, object_name * 'a, _) object_declaration -> (Id.t -> 'a -> obj)
-
 (** Object prefix morally contains the "prefix" naming of an object to
    be stored by [library], where [obj_path] is the "absolute" path and
    [obj_mp] is the current "module" prefix.
@@ -230,21 +205,61 @@ type object_prefix = {
 
 val eq_object_prefix : object_prefix -> object_prefix -> bool
 
-val declare_named_object_gen :
-  ('a, object_prefix * 'a, _) object_declaration -> ('a -> obj)
+module type Staged = sig
 
-val cache_object : object_prefix * obj -> unit
-val load_object : int -> object_prefix * obj -> unit
-val open_object : open_filter -> int -> object_prefix * obj -> unit
-val subst_object : substitution * obj -> obj
-val classify_object : obj -> substitutivity
-val object_name : obj -> string
-val object_stage : obj -> Summary.Stage.t
+  type summary
+  type summary_mut
 
-type discharged_obj
+  type nonrec ('a,'b,'c) object_declaration = ('a,'b,'c,summary,summary_mut) object_declaration
 
-val discharge_object : obj -> discharged_obj option
-val rebuild_object : discharged_obj -> obj
+  (** Object declaration and names: if you need the current prefix
+      (typically to interact with the nametab), you need to have it
+      passed to you.
+
+      - [declare_named_object_gen] passes the raw prefix which you can
+        manipulate as you wish.
+
+      - [declare_named_object_full] and [declare_named_object] provide
+        the convenience of packaging it with the provided [Id.t] into a
+        [object_name].
+
+      - [declare_object] and [declare_object_full] ignore the prefix for you. *)
+
+  val declare_object :
+    ('a, 'a, _) object_declaration -> ('a -> obj)
+
+  val declare_object_full :
+    ('a, 'a, _) object_declaration -> 'a Dyn.tag
+
+  val declare_named_object_full :
+    ('a, object_name * 'a, _) object_declaration -> (Id.t * 'a) Dyn.tag
+
+  val declare_named_object :
+    ('a, object_name * 'a, _) object_declaration -> (Id.t -> 'a -> obj)
+
+  val declare_named_object_gen :
+    ('a, object_prefix * 'a, _) object_declaration -> ('a -> obj)
+
+  val cache_object : object_prefix * obj -> summary_mut -> unit
+  val load_object : int -> object_prefix * obj -> summary_mut -> unit
+  val open_object : open_filter -> int -> object_prefix * obj -> summary_mut -> unit
+  val subst_object : summary -> substitution -> obj -> obj
+  val classify_object : obj -> substitutivity
+  val object_name : obj -> string
+
+  type discharged_obj
+
+  val discharge_object : summary -> obj -> discharged_obj option
+  val rebuild_object : summary -> discharged_obj -> obj
+end
+
+module Synterp : Staged
+  with type summary = Summary.Synterp.t
+   and type summary_mut = Summary.Synterp.mut
+
+module Interp : Staged
+  with type summary = Summary.Interp.t
+   and type summary_mut = Summary.Interp.mut
 
 type locality = Local | Export | SuperGlobal
 
@@ -261,11 +276,11 @@ type locality = Local | Export | SuperGlobal
 
     [cat] only matters when importing, ie only for [Export] values.
 *)
-val object_with_locality : ?stage:Summary.Stage.t -> ?cat:category -> string ->
-  cache:('a -> unit) ->
-  subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a) ->
-  (locality * 'a, locality * 'a, locality * 'a) object_declaration
+val object_with_locality : ?cat:category -> string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  subst:('summary -> Mod_subst.substitution -> 'a -> 'a) option ->
+  discharge:('summary -> 'a -> 'a) ->
+  (locality * 'a, locality * 'a, locality * 'a, 'summary, 'summary_mut) object_declaration
 
 (** Higher-level API for objects with fixed scope.
 
@@ -281,36 +296,36 @@ We recommend to avoid declaring superglobal objects and using the nodischarge
 variants.
 *)
 
-val local_object : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+val local_object : string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  discharge:('summary -> 'a -> 'a option) ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
-val local_object_nodischarge : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  ('a,'a,'a) object_declaration
+val local_object_nodischarge : string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
-val global_object : ?cat:category -> ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+val global_object : ?cat:category -> string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  subst:('summary -> Mod_subst.substitution -> 'a -> 'a) option ->
+  discharge:('summary -> 'a -> 'a option) ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
-val global_object_nodischarge : ?cat:category -> ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  ('a,'a,'a) object_declaration
+val global_object_nodischarge : ?cat:category -> string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  subst:('summary -> Mod_subst.substitution -> 'a -> 'a) option ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
-val superglobal_object : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a option) ->
-  ('a,'a,'a) object_declaration
+val superglobal_object : string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  subst:('summary -> Mod_subst.substitution -> 'a -> 'a) option ->
+  discharge:('summary -> 'a -> 'a option) ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
-val superglobal_object_nodischarge : ?stage:Summary.Stage.t -> string ->
-  cache:('a -> unit) ->
-  subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  ('a,'a,'a) object_declaration
+val superglobal_object_nodischarge : string ->
+  cache:('a -> 'summary_mut -> unit) ->
+  subst:('summary -> Mod_subst.substitution -> 'a -> 'a) option ->
+  ('a,'a,'a,'summary,'summary_mut) object_declaration
 
 (** {6 Debug} *)
 

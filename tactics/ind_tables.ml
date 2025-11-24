@@ -100,7 +100,7 @@ let compute_name internal id avoid =
 let declare_definition_scheme = ref (fun ~univs ~role ~name ~effs c ->
     CErrors.anomaly (Pp.str "scheme declaration not registered"))
 
-let register_definition_scheme = ref (fun ~internal ~name ~const ~univs ?loc () ->
+let register_definition_scheme = ref (fun sum ~internal ~name ~const ~univs ?loc () ->
   CErrors.anomaly (Pp.str "scheme registering not registered"))
 
 let lookup_scheme kind ind =
@@ -116,7 +116,7 @@ let empty_schemes eff = {
   sch_reg = [];
 }
 
-let redeclare_schemes { sch_eff = eff } =
+let redeclare_schemes sum { sch_eff = eff } =
   let fold c role accu = match role with
   | Evd.Schema (ind, kind) ->
     try
@@ -127,7 +127,7 @@ let redeclare_schemes { sch_eff = eff } =
       String.Map.add kind ((ind, GlobRef.ConstRef c) :: old) accu
   in
   let schemes = Cmap_env.fold fold (Evd.seff_roles eff) String.Map.empty in
-  let iter kind defs = List.iter (DeclareScheme.declare_scheme SuperGlobal kind) defs in
+  let iter kind defs = List.iter (DeclareScheme.declare_scheme sum SuperGlobal kind) defs in
   String.Map.iter iter schemes
 
 let local_lookup_scheme eff kind ind = match lookup_scheme kind ind with
@@ -302,22 +302,22 @@ let force_find_scheme kind (mind,i as ind) =
       let e, info = Exninfo.capture e in
       Proofview.tclZERO ~info e
 
-let register_schemes sch =
+let register_schemes sum sch =
   let iter (id, kn, loc, univs) =
-    !register_definition_scheme ~internal:false ~name:id ~const:kn ~univs ?loc ()
+    !register_definition_scheme sum ~internal:false ~name:id ~const:kn ~univs ?loc ()
   in
   List.iter iter (List.rev sch.sch_reg)
 
-let define_individual_scheme ?loc kind names ind =
+let define_individual_scheme sum ?loc kind names ind =
   let sch = empty_schemes Evd.empty_side_effects in
   let eff = define_individual_scheme ?loc kind ~internal:false names ind sch in
   let () = globally_declare_schemes eff in
-  let () = register_schemes eff in
-  redeclare_schemes eff
+  let () = register_schemes sum eff in
+  redeclare_schemes sum eff
 
-let define_mutual_scheme ?locmap kind names mind =
+let define_mutual_scheme sum ?locmap kind names mind =
   let sch = empty_schemes Evd.empty_side_effects in
   let eff = define_mutual_scheme ?locmap kind ~internal:false names mind sch in
   let () = globally_declare_schemes eff in
-  let () = register_schemes eff in
-  redeclare_schemes eff
+  let () = register_schemes sum eff in
+  redeclare_schemes sum eff

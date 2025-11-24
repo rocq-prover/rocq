@@ -43,8 +43,10 @@ type library_name = DirPath.t
 type library_objects
 
 module Synterp : sig
+open Summary.Synterp
 
 val declare_module :
+  mut ->
   Id.t ->
   module_params ->
   (Constrexpr.module_ast * inline) module_signature ->
@@ -52,18 +54,21 @@ val declare_module :
   ModPath.t * module_params_expr * module_expr list * module_expr module_signature
 
 val start_module :
+  mut ->
   Lib.export -> Id.t ->
   module_params ->
   (Constrexpr.module_ast * inline) module_signature ->
   ModPath.t * module_params_expr * module_expr module_signature
 
-val end_module : unit -> ModPath.t
+val end_module : mut -> ModPath.t
 
 val declare_include :
+  mut ->
   (Constrexpr.module_ast * inline) list ->
   module_expr list
 
 val declare_modtype :
+  mut ->
   Id.t ->
   module_params ->
   (Constrexpr.module_ast * inline) list ->
@@ -71,24 +76,26 @@ val declare_modtype :
   ModPath.t * module_params_expr * module_expr list * module_expr list
 
 val start_modtype :
+  mut ->
   Id.t ->
   module_params ->
   (Constrexpr.module_ast * inline) list ->
   ModPath.t * module_params_expr * module_expr list
 
-val end_modtype : unit -> ModPath.t
+val end_modtype : mut -> ModPath.t
 
-val import_module : Libobject.open_filter -> export:Lib.export_flag -> ModPath.t -> unit
+val import_module : mut -> Libobject.open_filter -> export:Lib.export_flag -> ModPath.t -> unit
 
-val import_modules : export:Lib.export_flag -> (Libobject.open_filter * ModPath.t) list -> unit
+val import_modules : mut -> export:Lib.export_flag -> (Libobject.open_filter * ModPath.t) list -> unit
 
-val register_library : library_name -> library_objects -> unit
+val register_library : mut -> library_name -> library_objects -> unit
 
-val close_section : unit -> unit
+val close_section : mut -> unit
 
 end
 
 module Interp : sig
+open Summary.Interp
 
 (** [declare_module id fargs typ exprs] declares module [id], from
    functor arguments [fargs], with final type [typ].  [exprs] is
@@ -97,6 +104,7 @@ module Interp : sig
    multiple (body of the shape M <+ N <+ ...). *)
 
 val declare_module :
+  mut ->
   Id.t ->
   module_params_expr ->
   module_expr module_signature ->
@@ -104,12 +112,13 @@ val declare_module :
   ModPath.t
 
 val start_module :
+  mut ->
   Lib.export -> Id.t ->
   module_params_expr ->
   module_expr module_signature ->
   ModPath.t
 
-val end_module : unit -> ModPath.t
+val end_module : mut -> ModPath.t
 
 (** {6 Module types } *)
 
@@ -117,6 +126,7 @@ val end_module : unit -> ModPath.t
     Similar to [declare_module], except that the types could be multiple *)
 
 val declare_modtype :
+  mut ->
   Id.t ->
   module_params_expr ->
   module_expr list ->
@@ -124,14 +134,16 @@ val declare_modtype :
   ModPath.t
 
 val start_modtype :
+  mut ->
   Id.t ->
   module_params_expr ->
   module_expr list ->
   ModPath.t
 
-val end_modtype : unit -> ModPath.t
+val end_modtype : mut -> ModPath.t
 
 val register_library :
+  mut ->
   library_name ->
   Safe_typing.compiled_library -> library_objects -> Safe_typing.vodigest ->
   Vmlibrary.on_disk ->
@@ -143,17 +155,18 @@ val register_library :
    or when [mp] corresponds to a functor. If [export] is [true], the module is also
    opened every time the module containing it is. *)
 
-val import_module : Libobject.open_filter -> export:Lib.export_flag -> ModPath.t -> unit
+val import_module : mut -> Libobject.open_filter -> export:Lib.export_flag -> ModPath.t -> unit
 
 (** Same as [import_module] but for multiple modules, and more optimized than
     iterating [import_module]. *)
-val import_modules : export:Lib.export_flag -> (Libobject.open_filter * ModPath.t) list -> unit
+val import_modules : mut -> export:Lib.export_flag ->
+  (Libobject.open_filter * ModPath.t) list -> unit
 
 (** Include  *)
 
-val declare_include : module_expr list -> unit
+val declare_include : mut -> module_expr list -> unit
 
-val close_section : unit -> unit
+val close_section : mut -> unit
 
 end
 
@@ -174,7 +187,7 @@ val append_end_library_hook : (unit -> unit) -> unit
     (together with their section path). Ignores synterp objects. *)
 
 val iter_all_interp_segments :
-  (Libobject.object_prefix -> Libobject.t -> unit) -> unit
+  Summary.Interp.t -> (Libobject.object_prefix -> Libobject.t -> unit) -> unit
 
 
 val debug_print_modtab : unit -> Pp.t
@@ -182,7 +195,8 @@ val debug_print_modtab : unit -> Pp.t
 (** For printing modules, [process_module_binding] adds names of
     bound module (and its components) to Nametab. It also loads
     objects associated to it. It may raise a [Failure] when the
-    bound module hasn't an atomic type. *)
+    bound module hasn't an atomic type.
+*)
 
 val process_module_binding :
-  MBId.t -> (Constr.t * UVars.AbstractContext.t option) Declarations.module_alg_expr -> unit
+  Summary.Interp.t ref -> MBId.t -> (Constr.t * UVars.AbstractContext.t option) Declarations.module_alg_expr -> unit

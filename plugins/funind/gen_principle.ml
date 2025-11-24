@@ -35,7 +35,7 @@ let rec abstract_glob_constr c = function
 let interp_casted_constr_with_implicits env sigma impls c =
   Constrintern.intern_gen Pretyping.WithoutTypeConstraint env sigma ~impls c
 
-let build_newrecursive lnameargsardef =
+let build_newrecursive sum lnameargsardef =
   let env0 = Global.env () in
   let sigma = Evd.from_env env0 in
   let rec_sign, rec_impls =
@@ -72,7 +72,8 @@ let build_newrecursive lnameargsardef =
         CErrors.user_err
           (Pp.str "Body of Function must be given.")
     in
-    Vernacstate.System.protect (List.map f) lnameargsardef
+    (* XXX useless protect? *)
+    Vernacstate.System.protect (fun _sum -> List.map f) sum lnameargsardef
   in
   (recdef, rec_impls)
 
@@ -152,8 +153,8 @@ and rebuild_nal aux bk bl' nal typ =
 
 let rebuild_bl aux bl typ = rebuild_bl aux bl typ
 
-let recompute_binder_list (rec_order, fixpoint_exprl) =
-  let typel, sigma = ComFixpoint.interp_fixpoint_short rec_order fixpoint_exprl in
+let recompute_binder_list sum (rec_order, fixpoint_exprl) =
+  let typel, sigma = ComFixpoint.interp_fixpoint_short sum rec_order fixpoint_exprl in
   let constr_expr_typel =
     let flags = full_printing_flags() in
     (List.map (fun c ->
@@ -249,7 +250,7 @@ let change_property_sort evd toSort princ princName =
          (List.map change_sort_in_predicate princ_info.Induction.predicates))
       (EConstr.Unsafe.to_rel_context princ_info.Induction.params) )
 
-let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
+let generate_functional_principle sum (evd : Evd.evar_map ref) old_princ_type sorts
     new_princ_name funs i proof_tac =
   try
     let f = funs.(i) in
@@ -268,7 +269,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
         (id_of_f, Elimschemes.make_elimination_ident id_of_f (EConstr.ESorts.quality_or_set !evd type_sort), None)
     in
     let names = ref [new_princ_name] in
-    let hook new_principle_type _ =
+    let hook new_principle_type sum _ =
       if Option.is_empty sorts then (
         (*     let id_of_f = Label.to_id (con_label f) in *)
         let register_with_sort sort =
@@ -289,7 +290,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
           let univs = Evd.univ_entry ~poly:false evd' in
           let ce = Declare.definition_entry ~univs value in
           ignore
-            (Declare.declare_constant ?loc ~name
+            (Declare.declare_constant sum ?loc ~name
                ~kind:Decls.(IsDefinition Scheme)
                (Declare.DefinitionEntry ce));
           Declare.definition_message name;
@@ -309,14 +310,14 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
     let uctx = Evd.ustate sigma in
     let entry = Declare.definition_entry ~univs ?types body in
     let (_ : Names.GlobRef.t) =
-      Declare.declare_entry ~name:new_princ_name ~hook
+      Declare.declare_entry sum ~name:new_princ_name ~hook
         ~kind:Decls.(IsProof Theorem)
         ~impargs:[] ~uctx entry
     in
     ()
   with e when CErrors.noncritical e -> raise (Defining_principle e)
 
-let generate_principle (evd : Evd.evar_map ref) pconstants on_error is_general
+let generate_principle sum (evd : Evd.evar_map ref) pconstants on_error is_general
     do_built fix_rec_l recdefs
     (continue_proof :
          int
@@ -334,7 +335,7 @@ let generate_principle (evd : Evd.evar_map ref) pconstants on_error is_general
   in
   try
     (* We then register the Inductive graphs of the functions  *)
-    Glob_term_to_relation.build_inductive !evd pconstants funs_args funs_types
+    Glob_term_to_relation.build_inductive sum !evd pconstants funs_args funs_types
       recdefs;
     if do_built then begin
       (*i The next call to mk_rel_id is valid since we have just construct the graph
@@ -367,18 +368,18 @@ let generate_principle (evd : Evd.evar_map ref) pconstants on_error is_general
             in
             evd := sigma;
             let princ_type = EConstr.Unsafe.to_constr princ_type in
-            generate_functional_principle evd princ_type None None
+            generate_functional_principle sum evd princ_type None None
               (Array.map_of_list (fun (c, u) -> c, EConstr.EInstance.make u ) pconstants) (* funs_kn *)
               i
               (continue_proof 0 [|funs_kn.(i)|]))
           0 fix_rec_l
       in
-      Array.iter (add_Function is_general) funs_kn;
+      Array.iter (add_Function sum is_general) funs_kn;
       ()
     end
   with e when CErrors.noncritical e -> on_error names e
 
-let register_struct is_rec (rec_order, fixpoint_exprl) =
+let register_struct sum is_rec (rec_order, fixpoint_exprl) =
   let open EConstr in
   match fixpoint_exprl with
   | [{Vernacexpr.fname; univs; binders; rtype; body_def}] when not is_rec ->
@@ -389,7 +390,7 @@ let register_struct is_rec (rec_order, fixpoint_exprl) =
         CErrors.user_err
           Pp.(str "Body of Function must be given.")
     in
-    ComDefinition.do_definition ?loc:fname.CAst.loc ~name:fname.CAst.v ~poly:false
+    ComDefinition.do_definition sum ?loc:fname.CAst.loc ~name:fname.CAst.v ~poly:false
       ~kind:Decls.Definition univs binders None body (Some rtype);
     let evd, rev_pconstants =
       List.fold_left
@@ -407,7 +408,7 @@ let register_struct is_rec (rec_order, fixpoint_exprl) =
     in
     (None, evd, List.rev rev_pconstants)
   | _ ->
-    let pm, p = ComFixpoint.do_mutually_recursive ~refine:false ~program_mode:false ~poly:false ~kind:(IsDefinition Fixpoint) (CFixRecOrder rec_order, fixpoint_exprl) in
+    let pm, p = ComFixpoint.do_mutually_recursive sum ~refine:false ~program_mode:false ~poly:false ~kind:(IsDefinition Fixpoint) (CFixRecOrder rec_order, fixpoint_exprl) in
     assert (Option.is_empty pm && Option.is_empty p);
     let evd, rev_pconstants =
       List.fold_left
@@ -1274,7 +1275,7 @@ let get_funs_constant mp =
     in
     l_const
 
-let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet.t) list) : _ list =
+let make_scheme sum evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet.t) list) : _ list =
   let exception Found_type of int in
   let env = Global.env () in
   let funs = List.map fst fas in
@@ -1343,9 +1344,9 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
     try
       build_functional_principle (Global.env ()) !evd first_type (Array.of_list sorts)
         this_block_funs 0
-        (Functional_principles_proofs.prove_princ_for_struct evd false 0
+        (Functional_principles_proofs.prove_princ_for_struct sum evd false 0
            (Array.of_list (List.map fst funs)))
-        (fun _ _ -> ())
+        (fun _ _ _ -> ())
     with e when CErrors.noncritical e -> raise (Defining_principle e)
   in
   evd := sigma0;
@@ -1398,10 +1399,10 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
               build_functional_principle (Global.env ()) !evd
                 (List.nth other_princ_types (!i - 1))
                 (Array.of_list sorts) this_block_funs !i
-                (Functional_principles_proofs.prove_princ_for_struct evd false
+                (Functional_principles_proofs.prove_princ_for_struct sum evd false
                    !i
                    (Array.of_list (List.map fst funs)))
-                (fun _ _ -> ())
+                (fun _ _ _ -> ())
             in
             evd := sigma0;
             (body, typ, univs, opaque)
@@ -1418,7 +1419,7 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
    lemmas for each function in [funs] w.r.t. [graphs]
 *)
 
-let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : inductive list)
+let derive_correctness sum (funs : Constant.t EConstr.puniverses list) (graphs : inductive list)
     =
   let open EConstr in
   assert (funs <> []);
@@ -1426,7 +1427,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
   let funs = Array.of_list funs and graphs = Array.of_list graphs in
   let funs_constr = Array.map mkConstU funs in
   (* XXX STATE Why do we need this... why is the toplevel protection not enough *)
-  funind_purify
+  funind_purify sum
     (fun () ->
       let env = Global.env () in
       let evd = ref (Evd.from_env env) in
@@ -1466,7 +1467,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
             (List.map
                (fun (body, typ, _opaque, _univs) ->
                  (EConstr.of_constr body, EConstr.of_constr (Option.get typ)))
-               (make_scheme evd
+               (make_scheme sum evd
                   (Array.map_to_list (fun const -> (const, UnivGen.QualityOrSet.qtype)) funs)))
       in
       let proving_tac =
@@ -1485,7 +1486,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
           let lemma = Declare.Proof.start ~cinfo ~info !evd in
           let lemma = fst @@ Declare.Proof.by (Global.env ()) (proving_tac i) lemma in
           let (_ : _ list) =
-            Declare.Proof.save_regular ~proof:lemma
+            Declare.Proof.save_regular sum ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
           in
           let finfo =
@@ -1499,7 +1500,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
               (Option.get (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)))
           in
           let lem_cst, _ = EConstr.destConst !evd lem_cst_constr in
-          update_Function {finfo with correctness_lemma = Some lem_cst})
+          update_Function sum {finfo with correctness_lemma = Some lem_cst})
         funs;
       let env = Global.env () in
       let lemmas_types_infos =
@@ -1558,7 +1559,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
                  lemma)
           in
           let (_ : _ list) =
-            Declare.Proof.save_regular ~proof:lemma
+            Declare.Proof.save_regular sum ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
           in
           let finfo =
@@ -1571,7 +1572,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
               (Option.get (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)))
           in
           let lem_cst, _ = destConst !evd lem_cst_constr in
-          update_Function {finfo with completeness_lemma = Some lem_cst})
+          update_Function sum {finfo with completeness_lemma = Some lem_cst})
         funs)
     ()
 
@@ -1582,7 +1583,7 @@ let warn_funind_cannot_build_inversion =
         strbrk "Cannot build inversion information"
         ++ if do_observe () then fnl () ++ CErrors.print e' else mt ())
 
-let derive_inversion env fix_names =
+let derive_inversion sum env fix_names =
   try
     let evd' = Evd.from_env env in
     (* we first transform the fix_names identifier into their corresponding constant *)
@@ -1616,11 +1617,11 @@ let derive_inversion env fix_names =
             (evd, fst (EConstr.destInd evd id) :: l))
           fix_names (evd', [])
       in
-      derive_correctness fix_names_as_constant lind
+      derive_correctness sum fix_names_as_constant lind
     with e when CErrors.noncritical e -> warn_funind_cannot_build_inversion e
   with e when CErrors.noncritical e -> warn_funind_cannot_build_inversion e
 
-let register_wf interactive_proof ?(is_mes = false) fname rec_impls wf_rel_expr
+let register_wf sum interactive_proof ?(is_mes = false) fname rec_impls wf_rel_expr
     wf_arg using_lemmas args ret_type body pre_hook =
   let type_of_f = Constrexpr_ops.mkCProdN args ret_type in
   let rec_arg_num =
@@ -1648,20 +1649,20 @@ let register_wf interactive_proof ?(is_mes = false) fname rec_impls wf_rel_expr
          , [(f_app_args, None); (body, None)] )
   in
   let eq = Constrexpr_ops.mkCProdN args unbounded_eq in
-  let hook ((f_ref, _) as fconst) tcc_lemma_ref (functional_ref, _) (eq_ref, _)
+  let hook sum ((f_ref, _) as fconst) tcc_lemma_ref (functional_ref, _) (eq_ref, _)
       rec_arg_num rec_arg_type _nb_args relation =
     try
-      pre_hook [fconst]
+      pre_hook sum [fconst]
         (generate_correction_proof_wf f_ref tcc_lemma_ref is_mes functional_ref
            eq_ref rec_arg_num rec_arg_type relation);
-      derive_inversion (Global.env ()) [fname]
+      derive_inversion sum (Global.env ()) [fname]
     with e when CErrors.noncritical e -> (* No proof done *)
                                          ()
   in
-  Recdef.recursive_definition ~interactive_proof ~is_mes fname rec_impls
+  Recdef.recursive_definition sum ~interactive_proof ~is_mes fname rec_impls
     type_of_f wf_rel_expr rec_arg_num eq hook using_lemmas
 
-let register_mes interactive_proof fname rec_impls wf_mes_expr wf_rel_expr_opt
+let register_mes sum interactive_proof fname rec_impls wf_mes_expr wf_rel_expr_opt
     wf_arg using_lemmas args ret_type body =
   let wf_arg_type, wf_arg =
     match wf_arg with
@@ -1727,10 +1728,10 @@ let register_mes interactive_proof fname rec_impls wf_mes_expr wf_rel_expr_opt
       in
       (wf_rel_with_mes, false)
   in
-  register_wf interactive_proof ~is_mes fname rec_impls wf_rel_from_mes wf_arg
+  register_wf sum interactive_proof ~is_mes fname rec_impls wf_rel_from_mes wf_arg
     using_lemmas args ret_type body
 
-let do_generate_principle_aux pconstants on_error register_built
+let do_generate_principle_aux sum pconstants on_error register_built
     interactive_proof (rec_order, fixpoint_exprl as fix) : Declare.Proof.t option =
   List.iter
     (fun {Vernacexpr.notations} ->
@@ -1742,7 +1743,7 @@ let do_generate_principle_aux pconstants on_error register_built
     | [ Some { CAst.v = Constrexpr.CWfRec (wf_x, wf_rel) } ] ->
       let ( {Vernacexpr.fname; univs = _; binders; rtype; body_def} as
           fixpoint_expr ) =
-        match recompute_binder_list fix with
+        match recompute_binder_list sum fix with
         | [e] -> e
         | _ -> assert false
       in
@@ -1754,27 +1755,27 @@ let do_generate_principle_aux pconstants on_error register_built
           CErrors.user_err
             (Pp.str "Body of Function must be given.")
       in
-      let recdefs, rec_impls = build_newrecursive fixpoint_exprl in
+      let recdefs, rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
       let using_lemmas = [] in
-      let pre_hook pconstants =
-        generate_principle
+      let pre_hook sum pconstants =
+        generate_principle sum
           (ref (Evd.from_env (Global.env ())))
           pconstants on_error true register_built fixpoint_exprl recdefs
       in
       if register_built then
-        ( register_wf interactive_proof fname.CAst.v rec_impls wf_rel
+        ( register_wf sum interactive_proof fname.CAst.v rec_impls wf_rel
             wf_x.CAst.v using_lemmas binders rtype body pre_hook
         , false )
       else (None, false)
     | [ Some { CAst.v = Constrexpr.CMeasureRec (wf_x, wf_mes, wf_rel_opt) } ] ->
       let ( {Vernacexpr.fname; univs = _; binders; rtype; body_def} as
           fixpoint_expr ) =
-        match recompute_binder_list fix with
+        match recompute_binder_list sum fix with
         | [e] -> e
         | _ -> assert false
       in
       let fixpoint_exprl = [fixpoint_expr] in
-      let recdefs, rec_impls = build_newrecursive fixpoint_exprl in
+      let recdefs, rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
       let using_lemmas = [] in
       let body =
         match body_def with
@@ -1783,13 +1784,13 @@ let do_generate_principle_aux pconstants on_error register_built
           CErrors.user_err
             Pp.(str "Body of Function must be given.")
       in
-      let pre_hook pconstants =
-        generate_principle
+      let pre_hook sum pconstants =
+        generate_principle sum
           (ref (Evd.from_env (Global.env ())))
           pconstants on_error true register_built fixpoint_exprl recdefs
       in
       if register_built then
-        ( register_mes interactive_proof fname.CAst.v rec_impls wf_mes wf_rel_opt
+        ( register_mes sum interactive_proof fname.CAst.v rec_impls wf_mes wf_rel_opt
             (Option.map (fun x -> x.CAst.v) wf_x)
             using_lemmas binders rtype body pre_hook
         , true )
@@ -1804,23 +1805,23 @@ let do_generate_principle_aux pconstants on_error register_built
                     or measure")
             | _ -> () )
         rec_order;
-      let fixpoint_exprl = recompute_binder_list fix in
+      let fixpoint_exprl = recompute_binder_list sum fix in
       let fix_names =
         List.map (function {Vernacexpr.fname} -> fname.CAst.v) fixpoint_exprl
       in
       (* ok all the expressions are structural *)
-      let recdefs, _rec_impls = build_newrecursive fixpoint_exprl in
+      let recdefs, _rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
       let is_rec = List.exists (is_rec fix_names) recdefs in
       let lemma, evd, pconstants =
-        if register_built then register_struct is_rec (rec_order, fixpoint_exprl)
+        if register_built then register_struct sum is_rec (rec_order, fixpoint_exprl)
         else (None, Evd.from_env (Global.env ()), pconstants)
       in
       let evd = ref evd in
-      generate_principle (ref !evd) pconstants on_error false register_built
+      generate_principle sum (ref !evd) pconstants on_error false register_built
         fixpoint_exprl recdefs
-        (Functional_principles_proofs.prove_princ_for_struct evd
+        (Functional_principles_proofs.prove_princ_for_struct sum evd
            interactive_proof);
-      if register_built then derive_inversion (Global.env ()) fix_names;
+      if register_built then derive_inversion sum (Global.env ()) fix_names;
       (lemma, true)
   in
   lemma
@@ -2023,7 +2024,7 @@ let rec get_args b t :
   | Constrexpr.CLambdaN ([], b) -> ([], b, t)
   | _ -> ([], b, t)
 
-let make_graph (f_ref : GlobRef.t) =
+let make_graph sum (f_ref : GlobRef.t) =
   let open Constrexpr in
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -2099,32 +2100,32 @@ let make_graph (f_ref : GlobRef.t) =
     let mp = Constant.modpath c in
     let expr_list = List.split expr_list in
     let pstate =
-      do_generate_principle_aux [(c, UVars.Instance.empty)] error_error false
+      do_generate_principle_aux sum [(c, UVars.Instance.empty)] error_error false
         false expr_list
     in
     assert (Option.is_empty pstate);
     (* We register the infos *)
     List.iter
       (fun {Vernacexpr.fname = {CAst.v = id}} ->
-        add_Function false (Constant.make2 mp id))
+        add_Function sum false (Constant.make2 mp id))
       (snd expr_list)
 
 (* *************** statically typed entrypoints ************************* *)
 
-let do_generate_principle_interactive fixl : Declare.Proof.t =
-  match do_generate_principle_aux [] warning_error true true fixl with
+let do_generate_principle_interactive sum fixl : Declare.Proof.t =
+  match do_generate_principle_aux sum [] warning_error true true fixl with
   | Some lemma -> lemma
   | None ->
     CErrors.anomaly (Pp.str "indfun: leaving no open proof in interactive mode")
 
-let do_generate_principle fixl : unit =
-  match do_generate_principle_aux [] warning_error true false fixl with
+let do_generate_principle sum fixl : unit =
+  match do_generate_principle_aux sum [] warning_error true false fixl with
   | Some _lemma ->
     CErrors.anomaly
       (Pp.str "indfun: leaving a goal open in non-interactive mode")
   | None -> ()
 
-let build_scheme fas =
+let build_scheme sum fas =
   let env = Global.env () in
   let evd = ref (Evd.from_env env) in
   let pconstants =
@@ -2152,20 +2153,20 @@ let build_scheme fas =
         ((c, u), sort))
       fas
   in
-  let bodies_types = make_scheme evd pconstants in
+  let bodies_types = make_scheme sum evd pconstants in
   List.iter2
     (fun (princ_id, _, _) (body, types, univs, opaque) ->
       let (_ : Constant.t) =
         let opaque = if opaque = Vernacexpr.Opaque then true else false in
         let def_entry = Declare.definition_entry ~univs ~opaque ?types body in
-        Declare.declare_constant ?loc:princ_id.CAst.loc ~name:princ_id.CAst.v
+        Declare.declare_constant sum ?loc:princ_id.CAst.loc ~name:princ_id.CAst.v
           ~kind:Decls.(IsProof Theorem)
           (Declare.DefinitionEntry def_entry)
       in
       Declare.definition_message princ_id.v)
     fas bodies_types
 
-let build_case_scheme fa =
+let build_case_scheme sum fa =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   (*   let id_to_constr id =  *)
@@ -2213,12 +2214,12 @@ let build_case_scheme fa =
                 pr_lconstr scheme_type ++ str " and " ++ (fun a -> prlist_with_sep spc (fun c -> pr_lconstr (mkConst c)) (Array.to_list a)) this_block_funs
              );
     *)
-    generate_functional_principle
+    generate_functional_principle sum
       (ref (Evd.from_env (Global.env ())))
       (EConstr.Unsafe.to_constr scheme_type)
       (Some [|sorts|])
       (Some princ_name) this_block_funs 0
-      (Functional_principles_proofs.prove_princ_for_struct
+      (Functional_principles_proofs.prove_princ_for_struct sum
          (ref (Evd.from_env (Global.env ())))
          false 0 [|funs|])
   in

@@ -1289,7 +1289,7 @@ let rec rebuild_return_type rt =
                ([CAst.make Anonymous], None, Constrexpr.Default Explicit, rt) ]
          , CAst.make @@ Constrexpr.CSort Constrexpr_ops.expr_Type_sort )
 
-let do_build_inductive evd (funconstants : pconstant list)
+let do_build_inductive sum evd (funconstants : pconstant list)
     (funsargs : (Name.t * glob_constr * glob_constr option) list list)
     returned_types (rtl : glob_constr list) =
   let funnames =
@@ -1531,7 +1531,7 @@ let do_build_inductive evd (funconstants : pconstant list)
     without_implicit_declarations
       (Flags.silently
          (fun () ->
-            ComInductive.do_mutual_inductive ~flags
+            ComInductive.do_mutual_inductive sum ~flags
               None rel_inds
               ~private_ind:false
               ~uniform:ComInductive.NonUniformParameters))
@@ -1580,12 +1580,12 @@ let do_build_inductive evd (funconstants : pconstant list)
     in
     observe msg; raise reraise
 
-let build_inductive evd funconstants funsargs returned_types rtl =
+let build_inductive sum evd funconstants funsargs returned_types rtl =
   (* XXX pass functionally (is it just the marked XXX near Detype.current calls?) *)
   let pu = !PrintingFlags.print_universes in
   try
     PrintingFlags.print_universes := true;
-    do_build_inductive evd funconstants funsargs returned_types rtl;
+    do_build_inductive sum evd funconstants funsargs returned_types rtl;
     PrintingFlags.print_universes := pu;
   with e when CErrors.noncritical e ->
     PrintingFlags.print_universes := pu;

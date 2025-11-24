@@ -260,18 +260,18 @@ let check_key key =
     user_err Pp.(str "Conflicting tactic notations keys. This can happen when including \
     twice the same module.")
 
-let cache_tactic_notation (tobj, body) =
+let cache_tactic_notation (tobj, body) _sum =
   let key = tobj.tacobj_key in
   let () = check_key key in
   Tacenv.register_alias key body
 
-let load_tactic_notation i (tobj, body) =
+let load_tactic_notation i (tobj, body) _sum =
   let key = tobj.tacobj_key in
   let () = check_key key in
   (* Only add the printing and interpretation rules. *)
   Tacenv.register_alias key body
 
-let subst_tactic_notation (subst, (tobj, body)) =
+let subst_tactic_notation _sum subst (tobj, body) =
   let open Tacenv in
   { tobj with
     tacobj_key = Mod_subst.subst_kn subst tobj.tacobj_key
@@ -283,31 +283,31 @@ let classify_tactic_notation tacobj = Substitute
 let ltac_notation_cat = Libobject.create_category "ltac.notations"
 
 let inTacticGrammar : tactic_grammar_obj * Tacenv.alias_tactic -> obj =
-  declare_object {(default_object "TacticGrammar") with
+  Libobject.Interp.declare_object {(default_object "TacticGrammar") with
        (* no open_function for the interp side of tactic notations *)
        load_function = load_tactic_notation;
        cache_function = cache_tactic_notation;
        subst_function = subst_tactic_notation;
        classify_function = classify_tactic_notation}
 
-let cache_tactic_syntax tobj =
+let cache_tactic_syntax tobj _sum =
   let key = tobj.tacobj_key in
   extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram;
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram)
 
-let open_tactic_syntax tobj =
+let open_tactic_syntax tobj _sum =
   let key = tobj.tacobj_key in
   if not tobj.tacobj_local then
     extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
-let load_tactic_syntax i tobj =
+let load_tactic_syntax i tobj _sum =
   let key = tobj.tacobj_key in
   (* Only add the printing and interpretation rules. *)
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram);
   if Int.equal i 1 && not tobj.tacobj_local then
     extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
-let subst_tactic_syntax (subst, tobj) =
+let subst_tactic_syntax _sum subst tobj =
   { tobj with
     tacobj_key = Mod_subst.subst_kn subst tobj.tacobj_key
   }
@@ -316,8 +316,7 @@ let subst_tactic_syntax (subst, tobj) =
 let classify_tactic_syntax tacobj = Substitute
 
 let inTacticSyntax : tactic_grammar_obj -> obj =
-  declare_object {(default_object "TacticSyntax") with
-       object_stage = Summary.Stage.Synterp;
+  Libobject.Synterp.declare_object {(default_object "TacticSyntax") with
        open_function = simple_open ~cat:ltac_notation_cat open_tactic_syntax;
        load_function = load_tactic_syntax;
        cache_function = cache_tactic_syntax;
@@ -328,13 +327,13 @@ let cons_production_parameter = function
 | TacTerm _ -> None
 | TacNonTerm (_, (_, ido)) -> ido
 
-let add_glob_tactic_notation ?deprecation tacobj ids tac =
+let add_glob_tactic_notation sum ?deprecation tacobj ids tac =
   let open Tacenv in
   let body =
     { alias_args = ids; alias_body = tac; alias_deprecation = deprecation } in
-  Lib.add_leaf (inTacticGrammar (tacobj, body))
+  Lib.Interp.add_leaf sum (inTacticGrammar (tacobj, body))
 
-let add_glob_tactic_notation_syntax local ~level ?deprecation prods forml =
+let add_glob_tactic_notation_syntax sum local ~level ?deprecation prods forml =
   let parule = {
     tacgram_level = level;
     tacgram_prods = prods;
@@ -345,17 +344,17 @@ let add_glob_tactic_notation_syntax local ~level ?deprecation prods forml =
     tacobj_tacgram = parule;
     tacobj_forml = forml;
   } in
-  Lib.add_leaf (inTacticSyntax tacobj);
+  Lib.Synterp.add_leaf sum (inTacticSyntax tacobj);
   tacobj
 
-let add_tactic_notation ?deprecation tacobj e =
+let add_tactic_notation sum ?deprecation tacobj e =
   let ids = List.map_filter cons_production_parameter tacobj.tacobj_tacgram.tacgram_prods in
   let tac = Tacintern.glob_tactic_env ids (Global.env()) e in
-  add_glob_tactic_notation ?deprecation tacobj ids tac
+  add_glob_tactic_notation sum ?deprecation tacobj ids tac
 
-let add_tactic_notation_syntax local n ?deprecation prods =
+let add_tactic_notation_syntax sum local n ?deprecation prods =
   let prods = List.map interp_prod_item prods in
-  add_glob_tactic_notation_syntax local ~level:n ?deprecation prods false
+  add_glob_tactic_notation_syntax sum local ~level:n ?deprecation prods false
 
 (**********************************************************************)
 (* ML Tactic entries                                                  *)
@@ -364,7 +363,7 @@ exception NonEmptyArgument
 
 (** ML tactic notations whose use can be restricted to an identifier are added
     as true Ltac entries. *)
-let extend_atomic_tactic name entries =
+let extend_atomic_tactic sum name entries =
   let open Tacexpr in
   let map_prod prods =
     let (hd, rem) = match prods with
@@ -391,11 +390,11 @@ let extend_atomic_tactic name entries =
     let args = List.map (fun a -> Tacexp a) args in
     let entry = { mltac_name = name; mltac_index = i } in
     let body = CAst.make (TacML (entry, args)) in
-    Tacenv.register_ltac false false (Names.Id.of_string id) body
+    Tacenv.register_ltac sum false false (Names.Id.of_string id) body
   in
   List.iteri add_atomic entries
 
-let synterp_add_ml_tactic_notation name ~level ?deprecation prods =
+let synterp_add_ml_tactic_notation sum name ~level ?deprecation prods =
   let len = List.length prods in
   let map i prods =
     let open Tacexpr in
@@ -407,17 +406,17 @@ let synterp_add_ml_tactic_notation name ~level ?deprecation prods =
     let entry = { mltac_name = name; mltac_index = len - i - 1 } in
     let map id = Reference (Locus.ArgVar (CAst.make id)) in
     let tac = CAst.make (TacML (entry, List.map map ids)) in
-    let tacobj = add_glob_tactic_notation_syntax false ~level ?deprecation prods true in
+    let tacobj = add_glob_tactic_notation_syntax sum false ~level ?deprecation prods true in
     tacobj, { Tacenv.alias_args = ids; alias_body = tac; alias_deprecation = deprecation }
   in
   let for_interp = List.mapi map (List.rev prods) in
   name, level, prods, for_interp
 
-let interp_add_ml_tactic_notation (name, level, prods, data) =
-  List.iter (fun o -> Lib.add_leaf (inTacticGrammar o)) data;
+let interp_add_ml_tactic_notation sum (name, level, prods, data) =
+  List.iter (fun o -> Lib.Interp.add_leaf sum (inTacticGrammar o)) data;
   (* We call [extend_atomic_tactic] only for "basic tactics" (the ones
      at ltac_expr level 0) *)
-  let () = if Int.equal level 0 then extend_atomic_tactic name prods in
+  let () = if Int.equal level 0 then extend_atomic_tactic sum name prods in
   ()
 
 (**********************************************************************)
@@ -464,7 +463,7 @@ let warn_unusable_identifier =
       (fun id -> strbrk "The Ltac name" ++ spc () ++ Id.print id ++ spc () ++
         strbrk "may be unusable because of a conflict with a notation.")
 
-let register_ltac atts = function
+let register_ltac sum atts = function
 | [Tacexpr.TacticRedefinition (qid, body)] ->
   let local = Attributes.(parse explicit_hint_locality atts) in
   let local = match local with
@@ -479,7 +478,7 @@ let register_ltac atts = function
   in
   let ist = Tacintern.make_empty_glob_sign ~strict:true in
   let body = Tacintern.intern_tactic_or_tacarg ist body in
-  local |> List.iter (fun local -> Tacenv.redefine_ltac local kn body);
+  local |> List.iter (fun local -> Tacenv.redefine_ltac sum local kn body);
   let name = Tacenv.shortest_qualid_of_tactic kn in
   Flags.if_verbose Feedback.msg_info (Libnames.pr_qualid name ++ str " is redefined")
 
@@ -512,7 +511,7 @@ let register_ltac atts = function
     let body = Tacintern.intern_tactic_or_tacarg ist body in
     (name, body)
   in
-  let defs () =
+  let defs sum =
     (* Register locally the tactic to handle recursivity. This
        function affects the whole environment, so that we transactify
        it afterwards. *)
@@ -523,9 +522,9 @@ let register_ltac atts = function
     let () = List.iter iter_rec rfun in
     List.map map rfun
   in
-  let defs = Vernacstate.System.protect defs () in
+  let defs = Vernacstate.System.protect defs (Summary.Interp.get sum) in
   let iter (id, tac) =
-    Tacenv.register_ltac false local id tac ?deprecation;
+    Tacenv.register_ltac sum false local id tac ?deprecation;
     Flags.if_verbose Feedback.msg_info (Id.print id ++ str " is defined")
   in
   List.iter iter defs
@@ -743,12 +742,12 @@ let tactic_extend plugin_name tacname ~level ?deprecation sign =
        [lift_constr_tac_to_ml_tac] function. *)
     let body = CAst.make (Tacexpr.TacFun (vars, CAst.make (Tacexpr.TacML (ml, [])))) in
     let id = Names.Id.of_string name in
-    let obj () = Tacenv.register_ltac true false id body ?deprecation in
+    let obj sum = Tacenv.register_ltac sum true false id body ?deprecation in
     let () = Tacenv.register_ml_tactic ml_tactic_name [|tac|] in
     Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin_name)
   | _ ->
-    let synterp () =
-      synterp_add_ml_tactic_notation ml_tactic_name ~level ?deprecation (List.map clause_of_ty_ml sign)
+    let synterp sum =
+      synterp_add_ml_tactic_notation sum ml_tactic_name ~level ?deprecation (List.map clause_of_ty_ml sign)
     in
     let interp = interp_add_ml_tactic_notation in
     Tacenv.register_ml_tactic ml_tactic_name @@ Array.of_list (List.map eval sign);
@@ -786,7 +785,7 @@ let ml_tactic_extend ~plugin ~name ~local ?deprecation sign tac =
   let args = List.map (fun id -> Reference (Locus.ArgVar (CAst.make id))) args in
   let body = CAst.make (Tacexpr.TacFun (vars, CAst.make (Tacexpr.TacML (ml, args)))) in
   let id = Names.Id.of_string name in
-  let obj () = Tacenv.register_ltac true local id body ?deprecation in
+  let obj sum = Tacenv.register_ltac sum true local id body ?deprecation in
   let () = Tacenv.register_ml_tactic ml_tactic_name [|tac|] in
   Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin)
 
@@ -855,7 +854,7 @@ let ml_val_tactic_extend ~plugin ~name ~local ?deprecation sign tac =
   let vars = List.map (fun id -> Name id) vars in
   let body = CAst.make (Tacexpr.TacFun (vars, CAst.make (Tacexpr.TacArg body))) in
   let id = Names.Id.of_string name in
-  let obj () = Tacenv.register_ltac true local id body ?deprecation in
+  let obj sum = Tacenv.register_ltac sum true local id body ?deprecation in
   let () = assert (not @@ MLTacMap.mem ml_tactic_name !ml_table) in
   let () = ml_table := MLTacMap.add ml_tactic_name tac !ml_table in
   Mltop.(declare_cache_obj_full (interp_only_obj obj) plugin)

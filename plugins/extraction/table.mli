@@ -109,7 +109,7 @@ val remove_opaque : t -> global -> unit
 
 (*s Output Directory parameter *)
 
-val output_directory : unit -> string
+val output_directory : Summary.Interp.mut -> string
 
 (*s AccessOpaque parameter *)
 
@@ -183,30 +183,30 @@ val find_custom_match : ml_branch array -> string
 
 (*s Extraction commands. *)
 
-val extraction_language : lang -> unit
-val extraction_inline : bool -> qualid list -> unit
+val extraction_language : Summary.Interp.mut -> lang -> unit
+val extraction_inline : Summary.Interp.mut -> bool -> qualid list -> unit
 val print_extraction_inline : unit -> Pp.t
 val print_extraction_foreign : unit -> Pp.t
 val print_extraction_callback : unit -> Pp.t
-val reset_extraction_inline : unit -> unit
-val reset_extraction_foreign : unit -> unit
-val reset_extraction_callback : unit -> unit
-val extract_callback : string option -> qualid -> unit
-val extract_constant_inline :
+val reset_extraction_inline : Summary.Interp.mut -> unit
+val reset_extraction_foreign : Summary.Interp.mut -> unit
+val reset_extraction_callback : Summary.Interp.mut -> unit
+val extract_callback : Summary.Interp.mut -> string option -> qualid -> unit
+val extract_constant_inline : Summary.Interp.mut ->
   bool -> qualid -> string list -> string -> unit
-val extract_constant_foreign :
+val extract_constant_foreign : Summary.Interp.mut ->
   qualid -> string -> unit
-val extract_inductive :
+val extract_inductive : Summary.Interp.mut ->
   qualid -> string -> string list -> string option -> unit
 
 
 type int_or_id = ArgInt of int | ArgId of Id.t
-val extraction_implicit : qualid -> int_or_id list -> unit
+val extraction_implicit : Summary.Interp.mut -> qualid -> int_or_id list -> unit
 
 (*s Table of blacklisted filenames *)
 
-val extraction_blacklist : string list -> unit
-val reset_extraction_blacklist : unit -> unit
+val extraction_blacklist : Summary.Interp.mut -> string list -> unit
+val reset_extraction_blacklist : Summary.Interp.mut -> unit
 val print_extraction_blacklist : unit -> Pp.t
 
 

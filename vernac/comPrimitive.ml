@@ -10,13 +10,13 @@
 
 open Names
 
-let declare ?loc id entry =
+let declare sum ?loc id entry =
   let _ : Constant.t =
-    Declare.declare_constant ?loc ~name:id ~kind:Decls.IsPrimitive (Declare.PrimitiveEntry entry)
+    Declare.declare_constant sum ?loc ~name:id ~kind:Decls.IsPrimitive (Declare.PrimitiveEntry entry)
   in
   Flags.if_verbose Feedback.msg_info Pp.(Id.print id ++ str " is declared")
 
-let do_primitive id udecl prim typopt =
+let do_primitive sum id udecl prim typopt =
   if Lib.sections_are_opened () then
     CErrors.user_err Pp.(str "Declaring a primitive is not allowed in sections.");
   if Dumpglob.dump () then Dumpglob.dump_definition id false "ax";
@@ -28,7 +28,7 @@ let do_primitive id udecl prim typopt =
       CErrors.user_err ?loc
         Pp.(strbrk "Cannot use a universe declaration without a type when declaring primitives.");
     let e = Declare.primitive_entry prim in
-    declare ?loc id e
+    declare sum ?loc id e
   | Some typ ->
     let env = Global.env () in
     let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
@@ -52,4 +52,4 @@ let do_primitive id udecl prim typopt =
     let typ = EConstr.to_constr evd typ in
     let univ_entry = Evd.check_univ_decl ~poly:(not (UVars.AbstractContext.is_empty auctx)) evd udecl in
     let entry = Declare.primitive_entry ~types:(typ, univ_entry) prim in
-    declare ?loc id entry
+    declare sum ?loc id entry

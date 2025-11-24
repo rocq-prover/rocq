@@ -26,28 +26,28 @@ module NamedDecl = Context.Named.Declaration
     - with implicit arguments (impls)
     - with implicit status for discharge (impl)
     - virtually with named universes *)
-let declare_local ~coe ~try_assum_as_instance ~kind ~univs ~impargs ~impl ~name body typ =
+let declare_local sum ~coe ~try_assum_as_instance ~kind ~univs ~impargs ~impl ~name body typ =
   let decl = match body with
     | None ->
       Declare.SectionLocalAssum {typ; impl; univs}
     | Some b ->
       Declare.SectionLocalDef {clearbody = (* TODO *) false; entry = Declare.definition_entry ~univs ~types:typ b} in
-  let () = Declare.declare_variable ~name ~kind ~typing_flags:None decl in
+  let () = Declare.declare_variable sum ~name ~kind ~typing_flags:None decl in
   let () = if body = None then Declare.assumption_message name else Declare.definition_message name in
   let r = GlobRef.VarRef name in
-  let () = maybe_declare_manual_implicits true r impargs in
+  let () = maybe_declare_manual_implicits sum true r impargs in
   let _ = if try_assum_as_instance && Option.is_empty body then
       let env = Global.env () in
       let sigma = Evd.from_env env in
-      Classes.declare_instance env sigma None Hints.Local r in
+      Classes.declare_instance sum env sigma None Hints.Local r in
   let () =
     if coe = Vernacexpr.AddCoercion then
-      ComCoercion.try_add_new_coercion
+      ComCoercion.try_add_new_coercion sum
         r ~local:true ~reversible:false in
   (r, UVars.Instance.empty)
 
-let declare_variable ~coe ~kind ~univs ~impargs ~impl ~name typ =
-  declare_local ~coe ~try_assum_as_instance:true ~kind:(Decls.IsAssumption kind) ~univs ~impargs ~impl ~name None typ
+let declare_variable sum ~coe ~kind ~univs ~impargs ~impl ~name typ =
+  declare_local sum ~coe ~try_assum_as_instance:true ~kind:(Decls.IsAssumption kind) ~univs ~impargs ~impl ~name None typ
 
 let instance_of_univ_entry = function
   | UState.Polymorphic_entry univs -> UVars.UContext.instance univs
@@ -59,7 +59,7 @@ let instance_of_univ_entry = function
     - with implicit arguments
     - with inlining for functor application
     - with named universes *)
-let declare_global ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~impargs ~inline
+let declare_global sum ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~impargs ~inline
     ~name:{CAst.v=name; loc} body typ =
   let (uentry, ubinders) = univs in
   let inl = let open Declaremods in match inline with
@@ -70,9 +70,9 @@ let declare_global ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~
   let decl = match body with
     | None -> Declare.ParameterEntry (Declare.parameter_entry ~univs:(uentry, ubinders) ?inline:inl typ)
     | Some b -> Declare.DefinitionEntry (Declare.definition_entry ~univs ~types:typ b) in
-  let kn = Declare.declare_constant ?loc ~name ~local ~kind ?user_warns decl in
+  let kn = Declare.declare_constant sum ?loc ~name ~local ~kind ?user_warns decl in
   let gr = GlobRef.ConstRef kn in
-  let () = maybe_declare_manual_implicits false gr impargs in
+  let () = maybe_declare_manual_implicits sum false gr impargs in
   let () = match body with None -> Declare.assumption_message name | Some _ -> Declare.definition_message name in
   let local = match local with
     | Locality.ImportNeedQualified -> true
@@ -82,16 +82,16 @@ let declare_global ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~
       (* why local when is_modtype? *)
       let env = Global.env () in
       let sigma = Evd.from_env env in
-      Classes.declare_instance env sigma None Hints.SuperGlobal gr in
+      Classes.declare_instance sum env sigma None Hints.SuperGlobal gr in
   let () =
     if coe = Vernacexpr.AddCoercion then
-      ComCoercion.try_add_new_coercion
+      ComCoercion.try_add_new_coercion sum
         gr ~local ~reversible:false in
   let inst = instance_of_univ_entry uentry in
   (gr,inst)
 
-let declare_axiom ~coe ~local ~kind ?user_warns ~univs ~impargs ~inline ~name typ =
-  declare_global ~coe ~try_assum_as_instance:false ~local ~kind:(Decls.IsAssumption kind) ?user_warns ~univs ~impargs ~inline ~name None typ
+let declare_axiom sum ~coe ~local ~kind ?user_warns ~univs ~impargs ~inline ~name typ =
+  declare_global sum ~coe ~try_assum_as_instance:false ~local ~kind:(Decls.IsAssumption kind) ?user_warns ~univs ~impargs ~inline ~name None typ
 
 let interp_assumption ~program_mode env sigma impl_env bl c =
   let flags = { Pretyping.all_no_fail_flags with program_mode } in
@@ -113,13 +113,13 @@ let clear_univs scope univ =
 let context_subst subst (id,b,t,infos) =
   id, Option.map (Vars.replace_vars subst) b, Vars.replace_vars subst t, infos
 
-let declare_context ~try_global_assum_as_instance ~scope ~univs ?user_warns ~inline ctx =
+let declare_context sum ~try_global_assum_as_instance ~scope ~univs ?user_warns ~inline ctx =
   let fn i subst d =
     let (name,b,t,(impl,kind,coe,impargs)) = context_subst subst d in
     let univs = if i = 0 then univs else clear_univs scope univs in
     let refu = match scope with
-      | Locality.Discharge -> declare_local ~coe ~try_assum_as_instance:true ~kind ~univs ~impargs ~impl ~name:name.CAst.v b t
-      | Locality.Global local -> declare_global ~coe ~try_assum_as_instance:try_global_assum_as_instance ~local ~kind ?user_warns ~univs ~impargs ~inline ~name b t in
+      | Locality.Discharge -> declare_local sum ~coe ~try_assum_as_instance:true ~kind ~univs ~impargs ~impl ~name:name.CAst.v b t
+      | Locality.Global local -> declare_global sum ~coe ~try_assum_as_instance:try_global_assum_as_instance ~local ~kind ?user_warns ~univs ~impargs ~inline ~name b t in
     (name.v, Constr.mkRef refu) :: subst
   in
   let _ = List.fold_left_i fn 0 [] ctx in
@@ -206,7 +206,7 @@ let interp_context_gen ~program_mode ~kind ~autoimp_enable ~coercions env sigma 
   in
   sigma, List.rev ctx
 
-let do_assumptions ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
+let do_assumptions sum ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
   let sec = Lib.sections_are_opened () in
   if Dumpglob.dump () then begin
     List.iter (fun (_,(idl,_)) ->
@@ -221,7 +221,7 @@ let do_assumptions ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
   let coercions, ctx = local_binders_of_decls ~poly l in
   let sigma, ctx = interp_context_gen ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
   let univs = Evd.check_univ_decl ~poly sigma udecl in
-  declare_context ~try_global_assum_as_instance:false ~scope ~univs ?user_warns ~inline ctx
+  declare_context sum ~try_global_assum_as_instance:false ~scope ~univs ?user_warns ~inline ctx
 
 let warn_context_outside_section =
   CWarnings.create ~name:"context-outside-section"
@@ -232,7 +232,7 @@ let warn_context_outside_section =
                           Axiom\" followed by \"Existing Instance\" \
                           for typeclasses.")
 
-let do_context ~program_mode ~poly ctx =
+let do_context sum ~program_mode ~poly ctx =
   let sec = Lib.sections_are_opened () in
   if not sec then warn_context_outside_section ();
   if Dumpglob.dump () then begin
@@ -257,7 +257,7 @@ let do_context ~program_mode ~poly ctx =
   in
   let sigma, ctx = interp_context_gen ~program_mode ~kind:Context ~autoimp_enable:false ~coercions:Id.Set.empty env sigma ctx in
   let univs = Evd.univ_entry ~poly sigma in
-  declare_context ~try_global_assum_as_instance:true ~scope ~univs ~inline:Declaremods.NoInline ctx
+  declare_context sum ~try_global_assum_as_instance:true ~scope ~univs ~inline:Declaremods.NoInline ctx
 
 (* API compatibility (used in Elpi) *)
 

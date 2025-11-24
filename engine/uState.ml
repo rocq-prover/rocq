@@ -17,24 +17,24 @@ open UVars
 
 let template_default_univs = Summary.ref ~name:"template default univs" Univ.Level.Set.empty
 
-let cache_template_default_univs us =
+let cache_template_default_univs us _sum =
   template_default_univs := Univ.Level.Set.union !template_default_univs us
 
 let template_default_univs_obj =
-  Libobject.declare_object {
+  Libobject.Interp.declare_object {
     (Libobject.default_object "template default univs") with
     cache_function = cache_template_default_univs;
     load_function = (fun _ us -> cache_template_default_univs us);
-    discharge_function = (fun x -> Some x);
+    discharge_function = (fun _ x -> Some x);
     classify_function = (fun _ -> Escape);
   }
 
-let add_template_default_univs env kn =
+let add_template_default_univs sum env kn =
   match (Environ.lookup_mind kn env).mind_template with
   | None -> ()
   | Some template ->
     let _, us = UVars.Instance.levels template.template_defaults in
-    Lib.add_leaf (template_default_univs_obj us)
+    Lib.Interp.add_leaf sum (template_default_univs_obj us)
 
 let template_default_univs () = !template_default_univs
 

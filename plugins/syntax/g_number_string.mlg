@@ -79,11 +79,11 @@ VERNAC COMMAND EXTEND NumberNotation CLASSIFIED AS SIDEFF
   | #[ locality = Attributes.locality; ] [ "Number" "Notation" reference(ty) reference(f) reference(g) number_options_opt(nl) ":"
       preident(sc) ] ->
 
-    { vernac_number_notation (Locality.make_module_locality locality) ty f g (Option.default [] nl) sc }
+    { vernac_number_notation summary (Locality.make_module_locality locality) ty f g (Option.default [] nl) sc }
 END
 
 VERNAC COMMAND EXTEND StringNotation CLASSIFIED AS SIDEFF
   | #[ locality = Attributes.locality; ] [ "String" "Notation" reference(ty) reference(f) reference(g) string_option_opt(o) ":"
       preident(sc) ] ->
-    { vernac_string_notation (Locality.make_module_locality locality) ty f g o sc }
+    { vernac_string_notation summary (Locality.make_module_locality locality) ty f g o sc }
 END

@@ -22,17 +22,10 @@ val translate_vernac
   -> Synterp.vernac_entry
   -> Vernactypes.typed_vernac
 
-(** Vernacular require command, used by the command line *)
-val vernac_require
-  : intern:Library.Intern.t
-  -> Libnames.qualid option
-  -> Vernacexpr.export_with_cats option
-  -> (Libnames.qualid * Vernacexpr.import_filter_expr) list
-  -> unit
-
 (** Interp phase of the require command *)
 val vernac_require_interp
-  : Library.library_t list
+  : Summary.Interp.mut
+  -> Library.library_t list
   -> Names.DirPath.t list
   -> Vernacexpr.export_with_cats option
   -> (Libnames.qualid * Vernacexpr.import_filter_expr) list

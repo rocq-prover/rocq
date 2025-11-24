@@ -382,7 +382,7 @@ let search flags =
   let sigma, env = match pstate with
   | None -> let env = Global.env () in Evd.(from_env env, env)
   | Some p -> Declare.Proof.get_goal_context p 1 in
-  List.map export_rocq_object (Search.interface_search env sigma (
+  List.map export_rocq_object (Search.interface_search !Stm.cur_summary env sigma (
     List.map (fun (c, b) -> (import_search_constraint c, b)) flags)
   )
   [@@ocaml.warning "-3"]
@@ -443,20 +443,25 @@ let db_configd () =
   debug_cmd := DebugHook.Action.Configd
 
 let get_options () =
-  let table = Goptions.get_tables () in
+  let table = Goptions.get_tables !Stm.cur_summary in
   let fold key state accu = (key, export_option_state state) :: accu in
   Goptions.OptionMap.fold fold table []
 
-let set_options options =
+let set_options sum stage options =
   let open Goptions in
   let iter (name, value) = match import_option_value value with
-  | BoolValue b -> set_bool_option_value name b
-  | IntValue i -> set_int_option_value name i
-  | StringValue s -> set_string_option_value name s
-  | StringOptValue (Some s) -> set_string_option_value name s
-  | StringOptValue None -> unset_option_value_gen name
+  | BoolValue b -> set_bool_option_value stage sum name b
+  | IntValue i -> set_int_option_value stage sum name i
+  | StringValue s -> set_string_option_value stage sum name s
+  | StringOptValue (Some s) -> set_string_option_value stage sum name s
+  | StringOptValue None -> unset_option_value_gen stage sum name
   in
   List.iter iter options
+
+let set_options options =
+  Summary.run_synterp_interp (fun sum -> set_options sum SynterpG options)
+    (fun sum () -> set_options sum InterpG options)
+    Stm.cur_summary
 
 let about () = {
   Interface.coqtop_version = Coq_config.version;

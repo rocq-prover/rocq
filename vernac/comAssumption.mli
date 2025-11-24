@@ -16,7 +16,8 @@ open Constrexpr
 
 (** Declaration of a local assumption (Variable/Hypothesis) *)
 val declare_variable
-  :  coe:coercion_flag
+  : Summary.Interp.mut
+  -> coe:coercion_flag
   -> kind:Decls.assumption_object_kind
   -> univs:UState.named_universes_entry
   -> impargs:Impargs.manual_implicits
@@ -27,7 +28,8 @@ val declare_variable
 
 (** Declaration of a local construction (Variable/Hypothesis/Let) *)
 val declare_local
-  :  coe:coercion_flag
+  : Summary.Interp.mut
+  -> coe:coercion_flag
   -> try_assum_as_instance:bool (* true = declare a variable of type a class as an instance *)
   -> kind:Decls.logical_kind
   -> univs:UState.named_universes_entry
@@ -40,7 +42,8 @@ val declare_local
 
 (** Declaration of a global assumption (Axiom/Parameter) *)
 val declare_axiom
-  :  coe:coercion_flag
+  : Summary.Interp.mut
+  -> coe:coercion_flag
   -> local:Locality.import_status
   -> kind:Decls.assumption_object_kind
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
@@ -53,7 +56,8 @@ val declare_axiom
 
 (** Declaration of a global construction (Axiom/Parameter/Definition) *)
 val declare_global
-  :  coe:coercion_flag
+  : Summary.Interp.mut
+  -> coe:coercion_flag
   -> try_assum_as_instance:bool (* true = declare a parameter of type a class as an instance *)
   -> local:Locality.import_status
   -> kind:Decls.logical_kind
@@ -68,7 +72,8 @@ val declare_global
 
 (** Interpret the commands Variable/Hypothesis/Axiom/Parameter *)
 val do_assumptions
-  :  program_mode:bool
+  : Summary.Interp.mut
+  -> program_mode:bool
   -> poly:bool
   -> scope:Locality.definition_scope
   -> kind:Decls.assumption_object_kind
@@ -79,7 +84,8 @@ val do_assumptions
 
 (** Interpret the command Context *)
 val do_context
-  :  program_mode:bool
+  : Summary.Interp.mut
+  -> program_mode:bool
   -> poly:bool
   -> local_binder_expr list
   -> unit

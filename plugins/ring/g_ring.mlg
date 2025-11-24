@@ -85,7 +85,7 @@ END
 
 VERNAC COMMAND EXTEND AddSetoidRing CLASSIFIED AS SIDEFF
   | [ "Add" "Ring" identref(id) ":" constr(t) ring_mods_opt(l) ] ->
-    { add_theory id.CAst.v t (Option.default [] l) }
+    { add_theory summary id.CAst.v t (Option.default [] l) }
   | [ "Print" "Rings" ] => { Vernacextend.classify_as_query } -> {
     print_rings ()
   }
@@ -123,7 +123,7 @@ END
 
 VERNAC COMMAND EXTEND AddSetoidField CLASSIFIED AS SIDEFF
 | [ "Add" "Field" identref(id) ":" constr(t) field_mods_opt(l) ] ->
-  { let l = match l with None -> [] | Some l -> l in add_field_theory id.CAst.v t l }
+  { let l = match l with None -> [] | Some l -> l in add_field_theory summary id.CAst.v t l }
 | [ "Print" "Fields" ] => {Vernacextend.classify_as_query} -> {
     print_fields ()
   }

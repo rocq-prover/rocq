@@ -76,7 +76,7 @@ let handle h (Libobject.Dyn.Dyn (tag, o)) = match DynHandle.find tag h with
 | exception Not_found -> ()
 
 (* General search over declarations *)
-let generic_search env sigma (fn : GlobRef.t -> Decls.logical_kind option -> env -> Evd.evar_map -> constr -> unit) =
+let generic_search sum env sigma (fn : GlobRef.t -> Decls.logical_kind option -> env -> Evd.evar_map -> constr -> unit) =
   List.iter (fun d -> fn (GlobRef.VarRef (NamedDecl.get_id d)) None env sigma (NamedDecl.get_type d))
     (Environ.named_context env);
   let iter_obj prefix lobj = match lobj with
@@ -109,7 +109,7 @@ let generic_search env sigma (fn : GlobRef.t -> Decls.logical_kind option -> env
       handle handler o
     | _ -> ()
   in
-  try Declaremods.iter_all_interp_segments iter_obj
+  try Declaremods.iter_all_interp_segments sum iter_obj
   with Not_found -> ()
 
 (** This module defines a preference on constrs in the form of a
@@ -234,7 +234,7 @@ let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> ma
 
 (** SearchPattern *)
 
-let search_pattern env sigma pat mods pr_search =
+let search_pattern sum env sigma pat mods pr_search =
   let filter ref kind env sigma typ =
     module_filter mods ref kind env sigma typ &&
     pattern_filter pat env sigma (EConstr.of_constr typ) &&
@@ -243,7 +243,7 @@ let search_pattern env sigma pat mods pr_search =
   let iter ref kind env sigma typ =
     if filter ref kind env sigma typ then pr_search ref kind env sigma typ
   in
-  generic_search env sigma iter
+  generic_search sum env sigma iter
 
 (** SearchRewrite *)
 
@@ -255,7 +255,7 @@ let rewrite_pat1 pat =
 let rewrite_pat2 pat =
   PApp (PRef (eq ()), [| PMeta None; PMeta None; pat |])
 
-let search_rewrite env sigma pat mods pr_search =
+let search_rewrite sum env sigma pat mods pr_search =
   let pat1 = rewrite_pat1 pat in
   let pat2 = rewrite_pat2 pat in
   let filter ref kind env sigma typ =
@@ -267,11 +267,11 @@ let search_rewrite env sigma pat mods pr_search =
   let iter ref kind env sigma typ =
     if filter ref kind env sigma typ then pr_search ref kind env sigma typ
   in
-  generic_search env sigma iter
+  generic_search sum env sigma iter
 
 (** Search *)
 
-let search env sigma items mods pr_search =
+let search sum env sigma items mods pr_search =
   let filter ref kind env sigma typ =
     let eqb b1 b2 = if b1 then b2 else not b2 in
     module_filter mods ref kind env sigma typ &&
@@ -284,7 +284,7 @@ let search env sigma items mods pr_search =
   let iter ref kind env sigma typ =
     if filter ref kind env sigma typ then pr_search ref kind env sigma typ
   in
-  generic_search env sigma iter
+  generic_search sum env sigma iter
 
 type search_constraint =
   | Name_Pattern of Str.regexp
@@ -299,7 +299,7 @@ type 'a coq_object = {
   coq_object_object : 'a;
 }
 
-let interface_search env sigma =
+let interface_search sum env sigma =
   let rec extract_flags name tpe subtpe mods blacklist = function
   | [] -> (name, tpe, subtpe, mods, blacklist)
   | (Name_Pattern regexp, b) :: l ->
@@ -368,5 +368,5 @@ let interface_search env sigma =
   let iter ref kind env sigma typ =
     if filter_function ref kind env sigma typ then print_function ref env sigma typ
   in
-  let () = generic_search env sigma iter in
+  let () = generic_search sum env sigma iter in
   !ans

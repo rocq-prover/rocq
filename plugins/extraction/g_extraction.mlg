@@ -72,50 +72,50 @@ END
 
 VERNAC COMMAND EXTEND Extraction CLASSIFIED AS QUERY STATE opaque_access
 (* Extraction in the Rocq toplevel *)
-| [ "Extraction" global(x) ] -> { simple_extraction x }
-| [ "Recursive" "Extraction" ne_global_list(l) ] -> { full_extraction None l }
+| [ "Extraction" global(x) ] -> { simple_extraction summary x }
+| [ "Recursive" "Extraction" ne_global_list(l) ] -> { full_extraction summary None l }
 
 (* Monolithic extraction to a file *)
 | [ "Extraction" string(f) ne_global_list(l) ]
-  -> { full_extraction (Some f) l }
+  -> { full_extraction summary (Some f) l }
 
 (* Extraction to a temporary file and OCaml compilation *)
 | [ "Extraction" "TestCompile" ne_global_list(l) ]
-  -> { extract_and_compile l }
+  -> { extract_and_compile summary l }
 END
 
 VERNAC COMMAND EXTEND SeparateExtraction CLASSIFIED AS QUERY STATE opaque_access
 (* Same, with content split in several files *)
 | [ "Separate" "Extraction" ne_global_list(l) ]
-  -> { separate_extraction l }
+  -> { separate_extraction summary l }
 END
 
 (* Modular extraction (one Rocq library = one ML module) *)
 VERNAC COMMAND EXTEND ExtractionLibrary CLASSIFIED AS QUERY STATE opaque_access
 | [ "Extraction" "Library" identref(m) ]
-  -> { extraction_library false m }
+  -> { extraction_library summary false m }
 END
 
 VERNAC COMMAND EXTEND RecursiveExtractionLibrary CLASSIFIED AS QUERY STATE opaque_access
 | [ "Recursive" "Extraction" "Library" identref(m) ]
-  -> { extraction_library true m }
+  -> { extraction_library summary true m }
 END
 
 (* Target Language *)
 VERNAC COMMAND EXTEND ExtractionLanguage CLASSIFIED AS SIDEFF
 | [ "Extraction" "Language" language(l) ]
-  -> { extraction_language l }
+  -> { extraction_language summary l }
 END
 
 VERNAC COMMAND EXTEND ExtractionInline CLASSIFIED AS SIDEFF
 (* Custom inlining directives *)
 | [ "Extraction" "Inline" ne_global_list(l) ]
-  -> { extraction_inline true l }
+  -> { extraction_inline summary true l }
 END
 
 VERNAC COMMAND EXTEND ExtractionNoInline CLASSIFIED AS SIDEFF
 | [ "Extraction" "NoInline" ne_global_list(l) ]
-  -> { extraction_inline false l }
+  -> { extraction_inline summary false l }
 END
 
 VERNAC COMMAND EXTEND PrintExtractionInline CLASSIFIED AS QUERY
@@ -125,19 +125,19 @@ END
 
 VERNAC COMMAND EXTEND ResetExtractionInline CLASSIFIED AS SIDEFF
 | [ "Reset" "Extraction" "Inline" ]
-  -> { reset_extraction_inline () }
+  -> { reset_extraction_inline summary }
 END
 
 VERNAC COMMAND EXTEND ExtractionImplicit CLASSIFIED AS SIDEFF
 (* Custom implicit arguments of some csts/inds/constructors *)
 | [ "Extraction" "Implicit" global(r) "[" int_or_id_list(l) "]" ]
-  -> { extraction_implicit r l }
+  -> { extraction_implicit summary r l }
 END
 
 VERNAC COMMAND EXTEND ExtractionBlacklist CLASSIFIED AS SIDEFF
 (* Force Extraction to not use some filenames *)
 | [ "Extraction" "Blacklist" ne_preident_list(l) ]
-  -> { extraction_blacklist l }
+  -> { extraction_blacklist summary l }
 END
 
 VERNAC COMMAND EXTEND PrintExtractionBlacklist CLASSIFIED AS QUERY
@@ -147,7 +147,7 @@ END
 
 VERNAC COMMAND EXTEND ResetExtractionBlacklist CLASSIFIED AS SIDEFF
 | [ "Reset" "Extraction" "Blacklist" ]
-  -> { reset_extraction_blacklist () }
+  -> { reset_extraction_blacklist summary }
 END
 
 (* Commands for setting, printing and resetting callbacks extraction. *)
@@ -155,7 +155,7 @@ END
 (* Defining a Rocq object as ML callback for FFI call target from C *)
 VERNAC COMMAND EXTEND ExtractionCallback CLASSIFIED AS SIDEFF
 | [ "Extract" "Callback" string_opt(o) global(x) ]
-  -> { extract_callback o x }
+  -> { extract_callback summary o x }
 END
 
 VERNAC COMMAND EXTEND PrintExtractionCallback CLASSIFIED AS QUERY
@@ -165,7 +165,7 @@ END
 
 VERNAC COMMAND EXTEND ResetExtractionCallback CLASSIFIED AS SIDEFF
 | [ "Reset" "Extraction" "Callback" ]
-  -> { reset_extraction_callback () }
+  -> { reset_extraction_callback summary }
 END
 
 (* Commands for printing and resetting foreigns extraction. *)
@@ -184,24 +184,24 @@ END
 (* Overriding of a Rocq object by an ML one *)
 VERNAC COMMAND EXTEND ExtractionConstant CLASSIFIED AS SIDEFF
 | [ "Extract" "Constant" global(x) string_list(idl) "=>" mlname(y) ]
-  -> { extract_constant_inline false x idl y }
+  -> { extract_constant_inline summary false x idl y }
 END
 
 (* Overriding of a Rocq object by an ML one that will be a FFI call to C *)
 VERNAC COMMAND EXTEND ExtractionForeignConstant CLASSIFIED AS SIDEFF
 | [ "Extract" "Foreign" "Constant" global(x) "=>" string(y) ]
-  -> { extract_constant_foreign x y }
+  -> { extract_constant_foreign summary x y }
 END
 
 VERNAC COMMAND EXTEND ExtractionInlinedConstant CLASSIFIED AS SIDEFF
 | [ "Extract" "Inlined" "Constant" global(x) "=>" mlname(y) ]
-  -> { extract_constant_inline true x [] y }
+  -> { extract_constant_inline summary true x [] y }
 END
 
 VERNAC COMMAND EXTEND ExtractionInductive CLASSIFIED AS SIDEFF
 | [ "Extract" "Inductive" global(x) "=>"
     mlname(id) "[" mlname_list(idl) "]" string_opt(o) ]
-  -> { extract_inductive x id idl o }
+  -> { extract_inductive summary x id idl o }
 END
 (* Show the extraction of the current proof *)
 

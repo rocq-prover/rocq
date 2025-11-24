@@ -522,7 +522,7 @@ let descr () = match lang () with
 
 let default_id = Id.of_string "Main"
 
-let mono_filename f =
+let mono_filename sum f =
   let d = descr () in
   match f with
     | None -> None, None, default_id
@@ -541,20 +541,20 @@ let mono_filename f =
         in
         let f =
           if Filename.is_relative f then
-            Filename.concat (output_directory ()) f
+            Filename.concat (output_directory sum) f
           else f
         in
         Some (f^d.file_suffix), Option.map ((^) f) d.sig_suffix, id
 
 (* Builds a suitable filename from a module id *)
 
-let module_filename table mp =
+let module_filename sum table mp =
   let f = file_of_modfile (State.get_table table) mp in
   let id = Id.of_string f in
-  let f = Filename.concat (output_directory ()) f in
+  let f = Filename.concat (output_directory sum) f in
   let d = descr () in
   let fimpl_base = d.file_naming table mp ^ d.file_suffix in
-  let fimpl = Filename.concat (output_directory ()) fimpl_base in
+  let fimpl = Filename.concat (output_directory sum) fimpl_base in
   Some fimpl, Option.map ((^) f) d.sig_suffix, id
 
 (*s Extraction of one decl to stdout. *)
@@ -701,20 +701,20 @@ let rec locate_ref = function
     extracting to a file with the command:
     \verb!Extraction "file"! [qualid1] ... [qualidn]. *)
 
-let full_extr opaque_access f (refs,mps) =
+let full_extr sum opaque_access f (refs,mps) =
   let table = init ~modular:false ~library:false () in
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
-  print_structure_to_file table (mono_filename f) false struc
+  print_structure_to_file table (mono_filename sum f) false struc
 
-let full_extraction ~opaque_access f lr =
-  full_extr opaque_access f (locate_ref lr)
+let full_extraction sum ~opaque_access f lr =
+  full_extr sum opaque_access f (locate_ref lr)
 
 (*s Separate extraction is similar to recursive extraction, with the output
    decomposed in many files, one per Rocq .v file *)
 
-let separate_extraction ~opaque_access lr =
+let separate_extraction sum ~opaque_access lr =
   let table = init ~modular:true ~library:false () in
   let refs,mps = locate_ref lr in
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
@@ -727,7 +727,7 @@ let separate_extraction ~opaque_access lr =
   let () = warns table in
   let print = function
     | (MPfile dir, sel) as e ->
-        print_structure_to_file table (module_filename table dir) false [e]
+        print_structure_to_file table (module_filename sum table dir) false [e]
     | (MPdot _ | MPbound _), _ -> assert false
   in
   let () = List.iter print struc in
@@ -736,9 +736,9 @@ let separate_extraction ~opaque_access lr =
 (*s Simple extraction in the Rocq toplevel. The vernacular command
     is \verb!Extraction! [qualid]. *)
 
-let simple_extraction ~opaque_access r =
+let simple_extraction sum ~opaque_access r =
   match locate_ref [r] with
-  | ([], [mp]) as p -> full_extr opaque_access None p
+  | ([], [mp]) as p -> full_extr sum opaque_access None p
   | [r],[] ->
       let table = init ~modular:false ~library:false () in
       let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
@@ -756,7 +756,7 @@ let simple_extraction ~opaque_access r =
 (*s (Recursive) Extraction of a library. The vernacular command is
   \verb!(Recursive) Extraction Library! [M]. *)
 
-let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
+let extraction_library sum ~opaque_access is_rec CAst.{loc;v=m} =
   let table = init ~modular:true ~library:true () in
   let dir_m =
     (* XXX WTF is going on here? *)
@@ -779,7 +779,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   let print = function
     | (MPfile dir, sel) as e ->
         let dry = not is_rec && not (DirPath.equal dir dir_m) in
-        print_structure_to_file table (module_filename table dir) dry [e]
+        print_structure_to_file table (module_filename sum table dir) dry [e]
     | _ -> assert false
   in
   let () = List.iter print struc in
@@ -811,11 +811,11 @@ let compile f =
 let remove f =
   if Sys.file_exists f then Sys.remove f
 
-let extract_and_compile ~opaque_access l =
+let extract_and_compile sum ~opaque_access l =
   if lang () != Ocaml then
     CErrors.user_err (Pp.str "This command only works with OCaml extraction");
   let f = Filename.temp_file "testextraction" ".ml" in
-  let () = full_extraction ~opaque_access (Some f) l in
+  let () = full_extraction sum ~opaque_access (Some f) l in
   let () = compile f in
   let () = remove f; remove (f^"i") in
   let base = Filename.chop_suffix f ".ml" in

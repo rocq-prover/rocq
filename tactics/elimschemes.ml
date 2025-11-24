@@ -30,18 +30,17 @@ let prop_but_default_dependent_elim =
   Summary.ref ~name:"PROP-BUT-DEFAULT-DEPENDENT-ELIM" Indset_env.empty
 
 let inPropButDefaultDepElim : inductive -> Libobject.obj =
-  Libobject.declare_object @@
+  Libobject.Interp.declare_object @@
   Libobject.superglobal_object "prop_but_default_dependent_elim"
-    ~cache:(fun i ->
+    ~cache:(fun i _sum ->
         prop_but_default_dependent_elim := Indset_env.add i !prop_but_default_dependent_elim)
-    ~subst:(Some (fun (subst,i) -> Mod_subst.subst_ind subst i))
-    ~discharge:(fun i -> Some i)
+    ~subst:(Some (fun _sum subst i -> Mod_subst.subst_ind subst i))
+    ~discharge:(fun _sum i -> Some i)
 
-(** Declare an inductive block can be eliminated dependently *)
-let declare_prop_but_default_dependent_elim i =
-  Lib.add_leaf (inPropButDefaultDepElim i)
+let declare_prop_but_default_dependent_elim sum i =
+  Lib.Interp.add_leaf sum (inPropButDefaultDepElim i)
 
-(** Check if an inductive block can be eliminated dependently *)
+(** Check if an inductive block should be eliminated dependently *)
 let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_dependent_elim
 
 (** Returns [QType] if the inductive block can be eliminated dependently,

@@ -16,21 +16,21 @@ exception AlreadyDeclared of (string option * Id.t)
 
 (** Internally used to declare names of universes from monomorphic
    constants/inductives. Noop on polymorphic references. *)
-val declare_univ_binders : GlobRef.t -> UState.named_universes_entry -> unit
+val declare_univ_binders : Summary.Interp.mut -> GlobRef.t -> UState.named_universes_entry -> unit
 
 (** Internally used to name universes associated with no particular constant in a section. *)
-val name_mono_section_univs : Univ.Level.Set.t -> unit
+val name_mono_section_univs : Summary.Interp.mut -> Univ.Level.Set.t -> unit
 
 (** Command [Universes]. *)
-val do_universe : poly:bool -> lident list -> unit
+val do_universe : Summary.Interp.mut -> poly:bool -> lident list -> unit
 
 (** Command [Constraint]. *)
 val do_constraint : poly:bool -> Constrexpr.sort_constraint_expr list -> unit
 
-val add_constraint_source : GlobRef.t -> Univ.ContextSet.t -> unit
+val add_constraint_source : Summary.Interp.mut -> GlobRef.t -> Univ.ContextSet.t -> unit
 
 val constraint_sources : unit -> (GlobRef.t * Univ.UnivConstraints.t) list
 (** Returns constraints associated to globrefs, newest first. *)
 
 (** Command [Sort]. *)
-val do_sort : poly:bool -> lident list -> unit
+val do_sort : Summary.Interp.mut -> poly:bool -> lident list -> unit

@@ -12,20 +12,18 @@ module Synterp = struct
 
   type t = Lib.Synterp.frozen * Summary.Synterp.frozen
 
-  let freeze () =
-    (Lib.Synterp.freeze (), Summary.Synterp.freeze_summaries ())
+  let freeze sum =
+    (Lib.Synterp.freeze (), Summary.Synterp.freeze_summaries sum)
 
-  let unfreeze (fl,fs) =
+  let unfreeze sum (fl,fs) =
     Lib.Synterp.unfreeze fl;
-    Summary.Synterp.unfreeze_summaries fs
+    Summary.Synterp.unfreeze_summaries fs sum
 
   let parsing (_fl, fs) =
     Summary.Synterp.project_from_summary fs Procq.parser_summary_tag
 
-  let init () = freeze ()
-
   module Stm = struct
-    let make_shallow (lib, summary) = Lib.Synterp.drop_objects lib, Summary.Synterp.make_marshallable summary
+    let make_shallow (lib, summary) = Lib.Synterp.drop_objects lib, summary
     let lib = fst
     let summary = snd
   end
@@ -34,8 +32,8 @@ end
 
 module Interp_system : sig
   type t
-  val freeze : unit -> t
-  val unfreeze : t -> unit
+  val freeze : Summary.Interp.t -> t
+  val unfreeze : Summary.Interp.mut -> t -> unit
   module Stm : sig
     val make_shallow : t -> t
     val lib : t -> Lib.Interp.frozen
@@ -47,15 +45,15 @@ end = struct
 
   type t = Lib.Interp.frozen * Summary.Interp.frozen
 
-  let freeze () =
-    (Lib.Interp.freeze (), Summary.Interp.freeze_summaries ())
+  let freeze sum =
+    (Lib.Interp.freeze (), Summary.Interp.freeze_summaries sum)
 
-  let unfreeze (fl,fs) =
+  let unfreeze sum (fl,fs) =
     Lib.Interp.unfreeze fl;
-    Summary.Interp.unfreeze_summaries fs
+    Summary.Interp.unfreeze_summaries fs sum
 
   module Stm = struct
-    let make_shallow (lib, summary) = Lib.Interp.drop_objects lib, Summary.Interp.make_marshallable summary
+    let make_shallow (lib, summary) = Lib.Interp.drop_objects lib, summary
     let lib = fst
     let summary = snd
     let replace_summary (lib,_) summary = (lib,summary)
@@ -63,12 +61,18 @@ end = struct
 end
 
 module System = struct
-let protect f x =
-  let freeze () = let s = Synterp.freeze () in let i = Interp_system.freeze () in s, i in
-  let unfreeze (s,i) = Synterp.unfreeze s; Interp_system.unfreeze i in
+let protect f sum =
+  let freeze () = let s = Synterp.freeze sum.Summary.Interp.synterp in let i = Interp_system.freeze sum in s, i in
+  let sum = ref sum in
+  let unfreeze (s,i) =
+    Summary.run_synterp_interp
+      (fun sum -> Synterp.unfreeze sum s)
+      (fun sum () -> Interp_system.unfreeze sum i)
+      sum
+  in
   let open Memprof_coq.Resource_bind in
   let& () = Util.protect_state ~freeze ~unfreeze in
-  f x
+  f sum
 end
 
 module LemmaStack = struct
@@ -120,15 +124,13 @@ let update_cache rf v =
 
 let do_if_not_cached rf f v =
   match !rf with
-  | None ->
-    rf := Some v; f v
-  | Some vc when vc != v ->
-    rf := Some v; f v
-  | Some _ ->
-    ()
+  | Some fr when fr == v -> ()
+  | _ ->
+    let () = f v in
+    rf := Some v
 
-let freeze_interp_state () =
-  { system = update_cache s_cache (System.freeze ());
+let freeze_interp_state sum =
+  { system = update_cache s_cache (System.freeze sum);
     lemmas = !s_lemmas;
     program = !s_program;
     opaques = Opaques.Summary.freeze ();
@@ -137,11 +139,12 @@ let freeze_interp_state () =
 let make_shallow s =
   { s with system = System.Stm.make_shallow s.system }
 
-let unfreeze_interp_state { system; lemmas; program; opaques } =
-  do_if_not_cached s_cache System.unfreeze system;
+let unfreeze_interp_state sum { system; lemmas; program; opaques } =
+  let sum = do_if_not_cached s_cache (System.unfreeze sum) system in
   s_lemmas := lemmas;
   s_program := program;
-  Opaques.Summary.unfreeze opaques
+  Opaques.Summary.unfreeze opaques;
+  sum
 
 end
 
@@ -150,15 +153,17 @@ type t =
   ; interp: Interp.t
   }
 
-let freeze_full_state () =
-  { synterp = Synterp.freeze ();
-    interp = Interp.freeze_interp_state ();
+let freeze_full_state sum =
+  { synterp = Synterp.freeze sum.Summary.Interp.synterp;
+    interp = Interp.freeze_interp_state sum;
   }
 
-let unfreeze_full_state st =
+let unfreeze_full_state sum st =
   NewProfile.profile "unfreeze_full_state" (fun () ->
-      Synterp.unfreeze st.synterp;
-      Interp.unfreeze_interp_state st.interp)
+      Summary.run_synterp_interp
+        (fun sum -> Synterp.unfreeze sum st.synterp)
+        (fun sum () -> Interp.unfreeze_interp_state sum st.interp)
+        sum)
     ()
 
 (* Compatibility module *)
@@ -284,6 +289,22 @@ module Stm = struct
     let st = Summary.Interp.remove_from_summary st Evd.evar_counter_summary_tag in
     Synterp.Stm.summary synterp, Synterp.Stm.lib synterp,
       st, Interp.System.Stm.lib system
+
+  let unfreeze_non_pstate cur_summary (s_synterp,l_synterp,s_interp,l_interp) =
+    let evar_cnt = Evd.Internal.current_evar_counter() in
+    let s_interp = Summary.Interp.modify_summary s_interp Evd.evar_counter_summary_tag evar_cnt in
+    let s_interp = Summary.Interp.modify_summary s_interp Evarutil.meta_counter_summary_tag (Evarutil.Internal.current_meta_counter()) in
+    let () = Summary.run_synterp_interp
+        (fun sum ->
+           Summary.Synterp.unfreeze_summaries ~partial:true s_synterp sum;
+           Lib.Synterp.unfreeze l_synterp)
+        (fun sum () ->
+           Summary.Interp.unfreeze_summaries ~partial:true s_interp sum;
+           Lib.Interp.unfreeze l_interp)
+        cur_summary
+    in
+    if Declare_.there_are_pending_proofs () then
+      Declare_.update_sigma_univs (Global.universes ())
 
   let same_env { interp = { system = s1 } } { interp = { system = s2 } } =
     let s1 = Interp.System.Stm.summary s1 in

@@ -26,7 +26,8 @@ val interp_definition
   -> Evd.evar_map * (EConstr.t * EConstr.t option) * Impargs.manual_implicits
 
 val do_definition
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> name:Id.t
   -> ?scope:Locality.definition_scope
@@ -44,7 +45,8 @@ val do_definition
   -> unit
 
 val do_definition_program
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> pm:Declare.OblState.t
   -> name:Id.t

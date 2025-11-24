@@ -20,17 +20,25 @@ let real_error_loc ~cmdloc ~eloc =
 let locate_if_not_already ?loc (e, info) =
   (e, Option.cata (Loc.add_loc info) info (real_error_loc ~cmdloc:loc ~eloc:(Loc.get_loc info)))
 
+let unfreeze_local_synterp sum synterp =
+  let synterp, () =
+    Summary.Synterp.with_mut (fun sum -> Vernacstate.Synterp.unfreeze sum synterp)
+      sum.Summary.Interp.synterp
+  in
+  { sum with synterp }
+
 let with_interp_state ~unfreeze_transient st =
-  let with_local_state synterp_st f =
-    unfreeze_transient synterp_st;
-    let v = f () in
+  let with_local_state synterp_st f sum =
+    let sum = unfreeze_transient sum synterp_st in
+    let v = f sum in
     Vernacstate.Interp.invalidate_cache ();
-    Vernacstate.unfreeze_full_state st;
+    let sum = unfreeze_local_synterp sum st.Vernacstate.synterp in
+    Vernacstate.Interp.unfreeze_interp_state sum st.Vernacstate.interp;
     (), v
   in
   { VernacControl.with_local_state }
 
-let interp_control_gen ~loc ~st ~unfreeze_transient control f =
+let interp_control_gen ~loc ~st ~unfreeze_transient control f sum =
   let noop = st.Vernacstate.interp.lemmas, st.Vernacstate.interp.program in
   let control, res =
     VernacControl.under_control ~loc
@@ -38,16 +46,17 @@ let interp_control_gen ~loc ~st ~unfreeze_transient control f =
       control
       ~noop
       (Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some false) f)
+      sum
   in
   if VernacControl.after_last_phase ~loc control
   then noop
   else res
 
 (* [loc] is the [Loc.t] of the vernacular command being interpreted. *)
-let rec interp_expr ?loc ~st cmd =
+let rec interp_expr sum ?loc ~st cmd =
   let before_univs = Global.universes () in
   let pstack, pm = with_generic_atts ~check:false cmd.attrs (fun ~atts ->
-      interp_expr_core ?loc ~atts ~st cmd.expr)
+      interp_expr_core sum ?loc ~atts ~st cmd.expr)
   in
   let after_univs = Global.universes () in
   if before_univs == after_univs then pstack, pm
@@ -55,7 +64,7 @@ let rec interp_expr ?loc ~st cmd =
     let f = Declare.Proof.update_sigma_univs after_univs in
     Option.map (Vernacstate.LemmaStack.map ~f) pstack, pm
 
-and interp_expr_core ?loc ~atts ~st c =
+and interp_expr_core sum ?loc ~atts ~st c =
   match c with
 
   (* The STM should handle that, but LOAD bypasses the STM... *)
@@ -71,7 +80,7 @@ and interp_expr_core ?loc ~atts ~st c =
 
   | VernacSynterp EVernacLoad (verbosely, fname) ->
     Attributes.unsupported_attributes atts;
-    vernac_load ~verbosely fname
+    vernac_load sum ~verbosely fname
 
   | v ->
     let fv = Vernacentries.translate_vernac ?loc ~atts v in
@@ -82,17 +91,18 @@ and interp_expr_core ?loc ~atts ~st c =
         proof=stack;
         opaque_access=();
       }
+      sum
     in
     proof, prog
 
-and vernac_load ~verbosely entries =
+and vernac_load sum ~verbosely entries =
   (* Note that no proof should be open here, so the state here is just token for now *)
-  let st = Vernacstate.freeze_full_state () in
+  let st = Vernacstate.freeze_full_state (Summary.Interp.get sum) in
   let v_mod = if verbosely then Flags.verbosely else Flags.silently in
   let interp_entry (stack, pm) (CAst.{ loc; v = cmd }, synterp_st) =
-    Vernacstate.Synterp.unfreeze synterp_st;
+    let sum = unfreeze_local_synterp sum synterp_st in
     let st = Vernacstate.{ synterp = synterp_st; interp = { st.interp with Interp.lemmas = stack; program = pm }} in
-    v_mod (interp_control ~st) (CAst.make ?loc cmd)
+    v_mod (interp_control sum ~st) (CAst.make ?loc cmd)
   in
   let pm = st.Vernacstate.interp.program in
   let stack = st.Vernacstate.interp.lemmas in
@@ -105,12 +115,13 @@ and vernac_load ~verbosely entries =
     CErrors.user_err Pp.(str "Files processed by Load cannot leave open proofs.");
   stack, pm
 
-and interp_control ~st ({ CAst.v = cmd; loc }) =
+and interp_control sum ~st ({ CAst.v = cmd; loc }) =
   Util.try_finally (fun () ->
       Loc.set_current_command_loc loc;
       interp_control_gen ~loc ~st cmd.control
-        ~unfreeze_transient:Vernacstate.Synterp.unfreeze
-        (fun () -> interp_expr ?loc ~st cmd))
+        ~unfreeze_transient:unfreeze_local_synterp
+        (fun sum -> interp_expr sum ?loc ~st cmd)
+        sum)
     ()
     (fun () -> Loc.set_current_command_loc None)
     ()
@@ -123,34 +134,35 @@ and interp_control ~st ({ CAst.v = cmd; loc }) =
 *)
 
 (* Interpreting a possibly delayed proof *)
-let interp_qed_delayed ~proof ~st pe =
+let interp_qed_delayed ~proof ~st sum pe =
   let stack = st.Vernacstate.interp.lemmas in
   let pm = st.Vernacstate.interp.program in
   let stack = Option.cata (fun stack -> snd @@ Vernacstate.LemmaStack.pop stack) None stack in
   let pm = NeList.map_head (fun pm -> match pe with
       | Admitted ->
-        Declare.Proof.save_lemma_admitted_delayed ~pm ~proof
+        Declare.Proof.save_lemma_admitted_delayed sum ~pm ~proof
       | Proved (_,idopt) ->
-        let pm = Declare.Proof.save_lemma_proved_delayed ~pm ~proof ~idopt in
+        let pm = Declare.Proof.save_lemma_proved_delayed sum ~pm ~proof ~idopt in
         pm)
       pm
   in
   stack, pm
 
-let interp_qed_delayed_control ~proof ~st ~control { CAst.loc; v=pe } =
+let interp_qed_delayed_control ~proof sum ~st ~control { CAst.loc; v=pe } =
   interp_control_gen ~loc ~st control
-    ~unfreeze_transient:(fun () -> ())
-    (fun () -> interp_qed_delayed ~proof ~st pe)
+    ~unfreeze_transient:(fun sum () -> sum)
+    (fun sum -> interp_qed_delayed ~proof ~st sum pe)
+    sum
 
 (* General interp with management of state *)
 
 (* Be careful with the cache here in case of an exception. *)
-let interp_gen ~verbosely ~st ~interp_fn cmd =
+let interp_gen ~verbosely ~st ~interp_fn sum cmd =
   try
     let v_mod = if verbosely then Flags.verbosely else Flags.silently in
-    let ontop = v_mod (interp_fn ~st) cmd in
+    let ontop = v_mod (interp_fn sum ~st) cmd in
     Vernacstate.Declare.set ontop [@ocaml.warning "-3"];
-    Vernacstate.Interp.freeze_interp_state ()
+    Vernacstate.Interp.freeze_interp_state (Summary.Interp.get sum)
   with exn ->
     let exn = Exninfo.capture exn in
     let exn = locate_if_not_already ?loc:cmd.CAst.loc exn in
@@ -158,16 +170,27 @@ let interp_gen ~verbosely ~st ~interp_fn cmd =
     Exninfo.iraise exn
 
 (* Regular interp *)
-let interp ~intern ?(verbosely=true) ~st cmd =
-  Vernacstate.unfreeze_full_state st;
+let interp ~intern ?(verbosely=true) ~st sum cmd =
+  let () = Vernacstate.unfreeze_full_state sum st in
   vernac_pperr_endline Pp.(fun () -> str "interpreting: " ++ Ppvernac.pr_vernac_expr cmd.CAst.v.expr);
-  let entry = NewProfile.profile "synterp" (fun () -> Synterp.synterp_control ~intern cmd) () in
-  let interp = NewProfile.profile "interp" (fun () -> interp_gen ~verbosely ~st ~interp_fn:interp_control entry) () in
-  Vernacstate.{ synterp = Vernacstate.Synterp.freeze (); interp }
+  let interp =
+    Summary.run_synterp_interp
+      (fun sum ->
+         NewProfile.profile "synterp" (fun () ->
+             Synterp.synterp_control sum ~intern cmd) ())
+      (fun sum entry ->
+         NewProfile.profile "interp" (fun () ->
+             interp_gen ~verbosely ~st ~interp_fn:interp_control sum entry) ())
+      sum
+  in
+  (* XXX freeze synterp between synterp and interp phases? should be equivalent *)
+  Vernacstate.{ synterp = Vernacstate.Synterp.freeze !sum.synterp; interp }
 
-let interp_entry ?(verbosely=true) ~st entry =
-  Vernacstate.unfreeze_full_state st;
-  interp_gen ~verbosely ~st ~interp_fn:interp_control entry
+let interp_entry ?(verbosely=true) sum ~st entry =
+  let () = Vernacstate.unfreeze_full_state sum st in
+  Summary.run_interp (fun sum ->
+      interp_gen ~verbosely ~st ~interp_fn:interp_control sum entry)
+    sum
 
 module Intern = struct
 
@@ -185,8 +208,8 @@ end
 
 let fs_intern = Intern.fs_intern
 
-let interp_qed_delayed_proof ~proof ~st ~control (CAst.{loc; v = pe } as e) : Vernacstate.Interp.t =
+let interp_qed_delayed_proof ~proof ~st ~control sum (CAst.{loc; v = pe } as e) : Vernacstate.Interp.t =
   NewProfile.profile "interp-delayed-qed" (fun () ->
       interp_gen ~verbosely:false ~st
-        ~interp_fn:(interp_qed_delayed_control ~proof ~control) e)
+        ~interp_fn:(interp_qed_delayed_control ~proof ~control) sum e)
     ()

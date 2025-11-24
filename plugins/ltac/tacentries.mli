@@ -15,7 +15,7 @@ open Tacexpr
 
 (** {5 Tactic Definitions} *)
 
-val register_ltac : Attributes.vernac_flags -> Tacexpr.tacdef_body list -> unit
+val register_ltac : Summary.Interp.mut -> Attributes.vernac_flags -> Tacexpr.tacdef_body list -> unit
 (** Adds new Ltac definitions to the environment. *)
 
 (** {5 Tactic Notations} *)
@@ -36,14 +36,14 @@ type argument = Genarg.ArgT.any Extend.user_symbol
     leaves. *)
 
 val add_tactic_notation :
-  ?deprecation:Deprecation.t -> tactic_grammar_obj ->
+  Summary.Interp.mut -> ?deprecation:Deprecation.t -> tactic_grammar_obj ->
   raw_tactic_expr -> unit
 (** [add_tactic_notation local level prods expr] adds a tactic notation in the
     environment at level [level] with locality [local] made of the grammar
     productions [prods] and returning the body [expr] *)
 
 val add_tactic_notation_syntax :
-  locality_flag -> int -> ?deprecation:Deprecation.t -> raw_argument
+  Summary.Synterp.mut -> locality_flag -> int -> ?deprecation:Deprecation.t -> raw_argument
   grammar_tactic_prod_item_expr list ->
   tactic_grammar_obj
 

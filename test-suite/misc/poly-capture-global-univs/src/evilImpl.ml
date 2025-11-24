@@ -1,6 +1,6 @@
 open Names
 
-let evil name name_f =
+let evil sum name name_f =
   let open Univ in
   let open UVars in
   let open Constr in
@@ -10,7 +10,7 @@ let evil name name_f =
   let te = Declare.definition_entry
       ~univs:(UState.Monomorphic_entry (Univ.ContextSet.singleton u), UnivNames.empty_binders) tu
   in
-  let tc = Declare.declare_constant ~name ~kind (Declare.DefinitionEntry te) in
+  let tc = Declare.declare_constant sum ~name ~kind (Declare.DefinitionEntry te) in
   let tc = mkConst tc in
 
   let fe = Declare.definition_entry
@@ -18,5 +18,5 @@ let evil name name_f =
       ~types:(Term.mkArrowR tc tu)
       (mkLambda (Context.nameR (Id.of_string "x"), tc, mkRel 1))
   in
-  let _ : Constant.t = Declare.declare_constant ~name:name_f ~kind (Declare.DefinitionEntry fe) in
+  let _ : Constant.t = Declare.declare_constant sum ~name:name_f ~kind (Declare.DefinitionEntry fe) in
   ()

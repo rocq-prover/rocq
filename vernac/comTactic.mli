@@ -35,6 +35,7 @@ val solve :
     explicitly to the solver and [tac1] passed to worker since it is up to
     master to opacify the sub proofs produced by the workers. *)
 type parallel_solver =
+  Summary.Interp.t ->
   pstate:Declare.Proof.t ->
   info:int option ->
   interpretable ->

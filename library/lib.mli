@@ -36,14 +36,6 @@ val node_prefix : 'summary node -> Libobject.object_prefix
 type 'summary library_segment = ('summary node * Libobject.t list) list
 
 (** {6 ... } *)
-(** Adding operations (which call the [cache] method, and getting the
-  current list of operations (most recent ones coming first). *)
-
-val add_leaf : Libobject.obj -> unit
-
-val add_discharged_leaf : Libobject.discharged_obj -> unit
-
-(** {6 ... } *)
 
 (** The function [contents] gives access to the current entire segment *)
 
@@ -90,9 +82,9 @@ val is_modtype : unit -> bool
 val is_modtype_strict : unit -> bool
 val is_module : unit -> bool
 
-type discharged_item =
+type 'obj discharged_item =
   | DischargedExport of Libobject.ExportObj.t
-  | DischargedLeaf of Libobject.discharged_obj
+  | DischargedLeaf of 'obj
 
 type classified_objects = {
   substobjs : Libobject.t list;
@@ -106,37 +98,48 @@ type classified_objects = {
 module type StagedLibS = sig
 
   type summary
+  type summary_mut
+  type frozen_summary
+  type discharged_obj
+
+  (** {6 ... } *)
+  (** Adding operations (which call the [cache] method, and getting the
+      current list of operations (most recent ones coming first). *)
+
+  val add_leaf : summary_mut -> Libobject.obj -> unit
+
+  val add_discharged_leaf : summary_mut -> discharged_obj -> unit
 
   (** Returns the opening node of a given name *)
-  val find_opening_node : ?loc:Loc.t -> Id.t -> summary node
+  val find_opening_node : ?loc:Loc.t -> Id.t -> frozen_summary node
 
-  val add_entry : summary node -> unit
+  val add_entry : frozen_summary node -> unit
   val add_leaf_entry : Libobject.t -> unit
 
   (** {6 Sections } *)
-  val open_section : Id.t -> unit
+  val open_section : summary -> Id.t -> unit
 
   (** [close_section] needs to redo Export, so the complete
       implementation needs to involve [Declaremods]. *)
-  val close_section : unit -> discharged_item list
+  val close_section : summary_mut -> discharged_obj discharged_item list
 
   (** {6 Modules and module types } *)
 
   val start_module :
     export -> Id.t -> ModPath.t ->
-    summary -> Libobject.object_prefix
+    frozen_summary -> Libobject.object_prefix
 
   val start_modtype :
     Id.t -> ModPath.t ->
-    summary -> Libobject.object_prefix
+    frozen_summary -> Libobject.object_prefix
 
   val end_module :
     unit ->
-    Libobject.object_prefix * summary * classified_objects
+    Libobject.object_prefix * frozen_summary * classified_objects
 
   val end_modtype :
     unit ->
-    Libobject.object_prefix * summary * classified_objects
+    Libobject.object_prefix * frozen_summary * classified_objects
 
   type frozen
 
@@ -154,8 +157,14 @@ end
 (** We provide two instances of [StagedLibS], corresponding to the Synterp and
     Interp stages. *)
 
-module Synterp : StagedLibS with type summary = Summary.Synterp.frozen
-module Interp : StagedLibS with type summary = Summary.Interp.frozen
+module Synterp : StagedLibS
+  with type summary = Summary.Synterp.t
+   and type summary_mut = Summary.Synterp.mut
+   and type frozen_summary = Summary.Synterp.frozen
+module Interp : StagedLibS
+  with type summary = Summary.Interp.t
+   and type summary_mut = Summary.Interp.mut
+   and type frozen_summary = Summary.Interp.frozen
 
 (** {6 Compilation units } *)
 
@@ -180,5 +189,4 @@ val library_part :  GlobRef.t -> DirPath.t
 
 (** Compatibility layer *)
 
-(** This also does init_summaries *)
 val init : unit -> unit

@@ -146,37 +146,38 @@ type tacdef = {
   depr : Deprecation.t option;
 }
 
-let load_md i (prefix, {local; id; for_ml=b; expr=t; depr}) =
+let load_md i (prefix, {local; id; for_ml=b; expr=t; depr}) _sum =
   let sp, kn = Lib.make_oname prefix id in
   let () = if not local then push_tactic (Nametab.Until i) sp kn in
   add ~depr kn b t
 
-let open_md i (prefix, {local; id; for_ml=b; expr=t; depr}) =
+let open_md i (prefix, {local; id; for_ml=b; expr=t; depr}) _sum =
   (* todo: generate a warning when non-unique, record choices for non-unique mappings *)
   let sp, kn = Lib.make_oname prefix id in
   let () = if not local then push_tactic (Nametab.Exactly i) sp kn in
   ()
 
-let cache_md (prefix, {local; id; for_ml=b; expr=t; depr}) =
+let cache_md (prefix, {local; id; for_ml=b; expr=t; depr}) _sum =
   let sp, kn = Lib.make_oname prefix id in
   let () = push_tactic (Nametab.Until 1) sp kn in
   add ~depr kn b t
 
-let subst_md (subst, {local; id; for_ml; expr=t; depr}) =
+let subst_md _sum subst {local; id; for_ml; expr=t; depr} =
   {local; id; for_ml; expr=Tacsubst.subst_tactic subst t; depr}
 
 let classify_md _ = Substitute
 
 let inMD : tacdef -> obj =
-  declare_named_object_gen {(default_object "TAC-DEFINITION") with
+  Libobject.Interp.declare_named_object_gen
+    {(default_object "TAC-DEFINITION") with
      cache_function = cache_md;
      load_function = load_md;
      open_function = filtered_open open_md;
      subst_function = subst_md;
      classify_function = classify_md}
 
-let register_ltac for_ml local ?deprecation id tac =
-  Lib.add_leaf (inMD {local; id; for_ml; expr=tac; depr=deprecation})
+let register_ltac sum for_ml local ?deprecation id tac =
+  Lib.Interp.add_leaf sum (inMD {local; id; for_ml; expr=tac; depr=deprecation})
 
 type tacreplace = {
   repl_local : Libobject.locality;
@@ -184,22 +185,22 @@ type tacreplace = {
   repl_expr : glob_tactic_expr;
 }
 
-let load_replace i (prefix, {repl_local; repl_tac; repl_expr=t}) =
+let load_replace i (prefix, {repl_local; repl_tac; repl_expr=t}) _sum =
   match repl_local with
   | Local | Export -> ()
   | SuperGlobal ->
     replace repl_tac prefix.obj_mp t
 
-let open_replace i (prefix, {repl_local; repl_tac; repl_expr=t}) =
+let open_replace i (prefix, {repl_local; repl_tac; repl_expr=t}) _sum =
   match repl_local with
   | Local | SuperGlobal -> ()
   | Export ->
     replace repl_tac prefix.obj_mp t
 
-let cache_replace (prefix, {repl_local; repl_tac; repl_expr=t}) =
+let cache_replace (prefix, {repl_local; repl_tac; repl_expr=t}) _sum =
   replace repl_tac prefix.obj_mp t
 
-let subst_replace (subst, {repl_local; repl_tac; repl_expr}) =
+let subst_replace _sum subst {repl_local; repl_tac; repl_expr} =
   { repl_local;
     repl_tac=Mod_subst.subst_kn subst repl_tac;
     repl_expr=Tacsubst.subst_tactic subst repl_expr;
@@ -210,7 +211,8 @@ let classify_replace o = match o.repl_local with
   | Export | SuperGlobal -> Substitute
 
 let inReplace : tacreplace -> obj =
-  declare_named_object_gen {(default_object "TAC-REDEFINITION") with
+  Libobject.Interp.declare_named_object_gen
+    {(default_object "TAC-REDEFINITION") with
      cache_function = cache_replace;
      load_function = load_replace;
      (* should this be simple_open ie only redefine when importing the
@@ -219,5 +221,5 @@ let inReplace : tacreplace -> obj =
      subst_function = subst_replace;
      classify_function = classify_replace}
 
-let redefine_ltac repl_local repl_tac repl_expr =
-  Lib.add_leaf (inReplace {repl_local; repl_tac; repl_expr})
+let redefine_ltac sum repl_local repl_tac repl_expr =
+  Lib.Interp.add_leaf sum (inReplace {repl_local; repl_tac; repl_expr})

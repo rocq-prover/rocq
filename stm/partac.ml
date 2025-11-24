@@ -107,7 +107,8 @@ end = struct (* {{{ *)
 
   let perform { r_state = st; r_ast = tactic; r_goal; r_goalno } =
     receive_state st;
-    Vernacstate.unfreeze_full_state (Option.get !state);
+    let sum = ref Summary.empty in
+    let () = Vernacstate.unfreeze_full_state sum (Option.get !state) in
     try
       Vernacstate.LemmaStack.with_top (Option.get (Option.get !state).Vernacstate.interp.lemmas) ~f:(fun pstate ->
           let pstate =
@@ -190,8 +191,8 @@ let get_results res =
        spc () ++ prlist_with_sep spc int missing ++ str ")")
 
 let enable_par ~spawn_args ~nworkers = ComTactic.set_par_implementation
-  (fun ~pstate ~info t_ast ~abstract ->
-    let t_state = Vernacstate.freeze_full_state () in
+  (fun sum ~pstate ~info t_ast ~abstract ->
+    let t_state = Vernacstate.freeze_full_state sum in
     let t_state = Vernacstate.Stm.make_shallow t_state in
     TaskQueue.with_n_workers ~spawn_args nworkers CoqworkmgrApi.High (fun queue ->
     Declare.Proof.map pstate ~f:(fun p ->

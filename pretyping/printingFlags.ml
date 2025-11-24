@@ -172,7 +172,7 @@ struct
   let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
   let subst subst obj = Mod_subst.subst_ind subst obj
   let check_local _ _ = ()
-  let discharge (i:t) = i
+  let discharge _ (i:t) = i
   let printer ind = Nametab.pr_global_env Names.Id.Set.empty (IndRef ind)
   let key = ["Printing";Test.field]
   let title = Test.title

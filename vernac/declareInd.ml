@@ -14,11 +14,11 @@ open Entries
 type indlocs = (Loc.t option * Loc.t option list) list
 
 (** Declaration of inductive blocks *)
-let declare_inductive_argument_scopes kn mie =
+let declare_inductive_argument_scopes sum kn mie =
   List.iteri (fun i {mind_entry_consnames=lc} ->
-    Notation.declare_ref_arguments_scope (GlobRef.IndRef (kn,i));
+    Notation.declare_ref_arguments_scope sum (GlobRef.IndRef (kn,i));
     for j=1 to List.length lc do
-      Notation.declare_ref_arguments_scope (GlobRef.ConstructRef ((kn,i),j));
+      Notation.declare_ref_arguments_scope sum (GlobRef.ConstructRef ((kn,i),j));
     done) mie.mind_entry_inds
 
 type inductive_obj = {
@@ -45,27 +45,27 @@ let inductive_names sp kn obj =
       ([], 0) obj.ind_names
   in names
 
-let load_inductive i ((sp, kn), names) =
+let load_inductive i ((sp, kn), names) _sum =
   let names = inductive_names sp kn names in
   List.iter (fun (loc, sp, ref) ->
       Nametab.push (Nametab.Until i) sp ref;
       Option.iter (Nametab.set_cci_src_loc (TrueGlobal ref)) loc)
     names
 
-let open_inductive i ((sp, kn), names) =
+let open_inductive i ((sp, kn), names) _sum =
   let names = inductive_names sp kn names in
   List.iter (fun (_, sp, ref) -> Nametab.push (Nametab.Exactly i) sp ref) names
 
-let cache_inductive o =
+let cache_inductive o sum =
   (* Until 1 and Exactly 1 are equivalent so no need to open_inductive *)
-  load_inductive 1 o
+  load_inductive 1 o sum
 
-let discharge_inductive names =
+let discharge_inductive _sum names =
   Some names
 
 let objInductive : (Id.t * inductive_obj) Libobject.Dyn.tag =
   let open Libobject in
-  declare_named_object_full {(default_object "INDUCTIVE") with
+  Interp.declare_named_object_full {(default_object "INDUCTIVE") with
     cache_function = cache_inductive;
     load_function = load_inductive;
     open_function = filtered_open open_inductive;
@@ -76,17 +76,17 @@ let objInductive : (Id.t * inductive_obj) Libobject.Dyn.tag =
 
 let inInductive v = Libobject.Dyn.Easy.inj v objInductive
 
-let cache_prim (p,c) = Structures.PrimitiveProjections.register p c
+let cache_prim (p,c) _sum = Structures.PrimitiveProjections.register p c
 
 let load_prim _ p = cache_prim p
 
-let subst_prim (subst,(p,c)) = Mod_subst.subst_proj_repr subst p, Mod_subst.subst_constant subst c
+let subst_prim _sum subst (p,c) = Mod_subst.subst_proj_repr subst p, Mod_subst.subst_constant subst c
 
-let discharge_prim (p,c) = Some (Global.discharge_proj_repr p, c)
+let discharge_prim _sum (p,c) = Some (Global.discharge_proj_repr p, c)
 
 let inPrim : (Projection.Repr.t * Constant.t) -> Libobject.obj =
   let open Libobject in
-  declare_object {
+  Interp.declare_object {
     (default_object "PRIMPROJS") with
     cache_function = cache_prim ;
     load_function = load_prim;
@@ -94,7 +94,7 @@ let inPrim : (Projection.Repr.t * Constant.t) -> Libobject.obj =
     classify_function = (fun x -> Substitute);
     discharge_function = discharge_prim }
 
-let declare_primitive_projection p c = Lib.add_leaf (inPrim (p,c))
+let declare_primitive_projection sum p c = Lib.Interp.add_leaf sum (inPrim (p,c))
 
 let feedback_axiom () = Feedback.(feedback AddedAxiom)
 
@@ -104,7 +104,7 @@ let is_unsafe_typing_flags () =
   not (flags.check_universes && flags.check_guarded && flags.check_positive)
 
 (* for initial declaration *)
-let declare_mind ?typing_flags ~indlocs mie =
+let declare_mind sum ?typing_flags ~indlocs mie =
   let id = match mie.mind_entry_inds with
     | ind::_ -> ind.mind_entry_typename
     | [] -> CErrors.anomaly (Pp.str "cannot declare an empty list of inductives.") in
@@ -135,11 +135,11 @@ let declare_mind ?typing_flags ~indlocs mie =
       check_exists typ;
       List.iter (fun {CAst.v} -> check_exists v) cons) names;
   let mind, why_not_prim_record = Global.add_mind ?typing_flags id mie in
-  let () = Lib.add_leaf (inInductive (id, { ind_names = names })) in
-  let () = UState.add_template_default_univs (Global.env ()) mind in
+  let () = Lib.Interp.add_leaf sum (inInductive (id, { ind_names = names })) in
+  let () = UState.add_template_default_univs sum (Global.env ()) mind in
   if is_unsafe_typing_flags() then feedback_axiom ();
-  Impargs.declare_mib_implicits mind;
-  declare_inductive_argument_scopes mind mie;
+  Impargs.declare_mib_implicits sum mind;
+  declare_inductive_argument_scopes sum mind mie;
   mind, why_not_prim_record
 
 let is_recursive mie =
@@ -195,7 +195,7 @@ let schemes_attr =
   Attributes.key_value_attribute ~key:"schemes" ?empty:None ~values
   |> Attributes.Notations.map (Option.default Default)
 
-let declare_mutual_inductive_with_eliminations
+let declare_mutual_inductive_with_eliminations sum
     ?typing_flags ?(indlocs=[]) ?default_dep_elim ?(schemes=Default)
     mie ubinders impls =
   (* spiwack: raises an error if the structure is supposed to be non-recursive,
@@ -215,22 +215,22 @@ let declare_mutual_inductive_with_eliminations
     | _ -> ()
   end;
   let names = List.map (fun e -> e.mind_entry_typename) mie.mind_entry_inds in
-  let mind, why_not_prim_record = declare_mind ?typing_flags ~indlocs mie in
+  let mind, why_not_prim_record = declare_mind sum ?typing_flags ~indlocs mie in
   why_not_prim_record |> Option.iter (fun why_not_prim_record ->
       warn_non_primitive_record (mind,why_not_prim_record));
   let () = match fst ubinders with
     | UState.Polymorphic_entry _ -> ()
     | UState.Monomorphic_entry ctx ->
-      DeclareUniv.add_constraint_source (IndRef (mind,0)) ctx
+      DeclareUniv.add_constraint_source sum (IndRef (mind,0)) ctx
   in
-  DeclareUniv.declare_univ_binders (GlobRef.IndRef (mind,0)) ubinders;
+  DeclareUniv.declare_univ_binders sum (GlobRef.IndRef (mind,0)) ubinders;
   List.iteri (fun i (indimpls, constrimpls) ->
       let ind = (mind,i) in
       let gr = GlobRef.IndRef ind in
-      Impargs.maybe_declare_manual_implicits false gr indimpls;
+      Impargs.maybe_declare_manual_implicits sum false gr indimpls;
       List.iteri
         (fun j impls ->
-           Impargs.maybe_declare_manual_implicits false
+           Impargs.maybe_declare_manual_implicits sum false
              (GlobRef.ConstructRef (ind, succ j)) impls)
         constrimpls)
     impls;
@@ -248,8 +248,8 @@ let declare_mutual_inductive_with_eliminations
               Sorts.is_prop mip.mind_sort
           in
           if prop_but_default_dep_elim
-          then Elimschemes.declare_prop_but_default_dependent_elim (mind, i)
-        ) defaults
+          then Elimschemes.declare_prop_but_default_dependent_elim sum (mind, i))
+        defaults
   in
   Flags.if_verbose Feedback.msg_info (minductive_message names);
   let indlocs = List.map fst indlocs in
@@ -258,7 +258,7 @@ let declare_mutual_inductive_with_eliminations
     | None -> ()
     | Default ->
       if Option.has_some mie.mind_entry_private then ()
-      else Indschemes.declare_default_schemes mind ~locmap
+      else Indschemes.declare_default_schemes sum mind ~locmap
   in
   mind
 

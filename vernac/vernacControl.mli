@@ -16,12 +16,14 @@ type 'state control_entries = 'state control_entry list
 (** Translate from syntax and add default timeout. *)
 val from_syntax : Vernacexpr.control_flag list -> unit control_entries
 
-type ('st0,'st) with_local_state = { with_local_state : 'a. 'st0 -> (unit -> 'a) -> 'st * 'a }
+type ('active,'st0,'st) with_local_state = {
+  with_local_state : 'a. 'st0 -> ('active -> 'a) -> 'active -> 'st * 'a
+}
 (** [with_local_state state0 f] should run [f] with [state0] installed,
     capture the state produced by running [f] and revert the global state afterwards.
 *)
 
-val trivial_state : (unit,unit) with_local_state
+val trivial_state : (_,unit,unit) with_local_state
 
 (** [under_control ~loc ~with_local_state control ~noop f]
     runs [f ()] in the context given by the [control].
@@ -31,10 +33,11 @@ val trivial_state : (unit,unit) with_local_state
     [noop] is returned.
 *)
 val under_control : loc:Loc.t option ->
-  with_local_state:('state0,'state) with_local_state ->
+  with_local_state:('active,'state0,'state) with_local_state ->
   'state0 control_entries ->
   noop:'b ->
-  (unit -> 'b) ->
+  ('active -> 'b) ->
+  'active ->
   'state control_entries * 'b
 
 (** Print any final messages (eg from [Time]) and raise final

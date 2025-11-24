@@ -67,7 +67,7 @@ and anon_abstracting_tac = bool (** abstracting anonymously its result *)
 
 and proof_block_name = string (** open type of delimiters *)
 
-type vernac_command = ?loc:Loc.t -> atts:Attributes.vernac_flags -> unit -> Vernactypes.typed_vernac
+type vernac_command = ?loc:Loc.t -> atts:Attributes.vernac_flags -> Summary.Synterp.mut -> Vernactypes.typed_vernac
 
 type plugin_args = Genarg.raw_generic_argument list
 

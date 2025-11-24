@@ -147,7 +147,7 @@ let meta_counter_summary_name = "meta counter"
 
 (* Generator of metavariables *)
 let meta_ctr, meta_counter_summary_tag =
-  Summary.ref_tag 0 ~name:meta_counter_summary_name
+  Summary.Interp.ref_tag 0 ~name:meta_counter_summary_name
 
 let new_meta () = incr meta_ctr; !meta_ctr
 
@@ -834,3 +834,7 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
     Constr.compare_head_gen_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n
   in
   Constr.compare_head_gen_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' 0 t u
+
+module Internal = struct
+  let current_meta_counter () = !meta_ctr
+end

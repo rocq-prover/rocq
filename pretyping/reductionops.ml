@@ -48,17 +48,17 @@ let reduction_effect_hook env sigma con c =
     effect_function env sigma (Lazy.force c)
   with Not_found -> ()
 
-let cache_reduction_effect (con,funkey) =
+let cache_reduction_effect (con,funkey) _sum =
   constant_effect_table := Cmap_env.add con funkey !constant_effect_table
 
-let subst_reduction_effect (subst,(con,funkey)) =
+let subst_reduction_effect  _sum subst (con,funkey) =
   (subst_constant subst con,funkey)
 
 let inReductionEffect : Libobject.locality * (Constant.t * string) -> obj =
-  declare_object @@ object_with_locality "REDUCTION-EFFECT"
+  Interp.declare_object @@ object_with_locality "REDUCTION-EFFECT"
     ~cache:cache_reduction_effect
     ~subst:(Some subst_reduction_effect)
-    ~discharge:(fun x -> x)
+    ~discharge:(fun _ x -> x)
 
 let declare_reduction_effect funkey f =
   if String.Map.mem funkey !effect_table then
@@ -66,8 +66,8 @@ let declare_reduction_effect funkey f =
   effect_table := String.Map.add funkey f !effect_table
 
 (** A function to set the value of the print function *)
-let set_reduction_effect local x funkey =
-  Lib.add_leaf (inReductionEffect (local,(x,funkey)))
+let set_reduction_effect sum local x funkey =
+  Lib.Interp.add_leaf sum (inReductionEffect (local,(x,funkey)))
 
 
 (** Machinery to custom the behavior of the reduction *)
@@ -96,7 +96,7 @@ module ReductionBehaviour = struct
   let table =
     Summary.ref ((Cpred.empty, Cmap.empty)) ~name:"reductionbehaviour"
 
-  let load _ (_,(r, b)) =
+  let load _ (_,(r, b)) _sum =
     table := (match b with
                 | None -> Cpred.remove r (fst !table), Cmap.remove r (snd !table)
                 | Some NeverUnfold -> Cpred.add r (fst !table), Cmap.remove r (snd !table)
@@ -106,11 +106,11 @@ module ReductionBehaviour = struct
 
   let classify (local,_) = if local then Dispose else Substitute
 
-  let subst (subst, (local, (r,o) as orig)) =
+  let subst _sum subst (local, (r,o) as orig) =
     let r' = subst_constant subst r in if r==r' then orig
     else (local,(r',o))
 
-  let discharge = function
+  let discharge _sum = function
     | false, (gr, b) ->
       let b =
         let gr = GlobRef.ConstRef gr in
@@ -123,7 +123,7 @@ module ReductionBehaviour = struct
       Some (false, (gr, b))
     | true, _ -> None
 
-  let inRedBehaviour = declare_object {
+  let inRedBehaviour = Interp.declare_object {
       (default_object "REDUCTIONBEHAVIOUR") with
       load_function = load;
       cache_function = cache;
@@ -132,8 +132,8 @@ module ReductionBehaviour = struct
       discharge_function = discharge;
     }
 
-  let set ~local r b =
-    Lib.add_leaf (inRedBehaviour (local, (r, b)))
+  let set sum ~local r b =
+    Lib.Interp.add_leaf sum (inRedBehaviour (local, (r, b)))
 
   let get_from_db table r =
     if Cpred.mem r (fst table) then

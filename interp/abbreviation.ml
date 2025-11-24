@@ -13,7 +13,6 @@ open CErrors
 open Names
 open Libnames
 open Libobject
-open Lib
 open Notationextern
 
 type abbreviation = {
@@ -72,7 +71,7 @@ let is_alias_of_already_visible_name sp = function
   | _ ->
       false
 
-let load_abbreviation i ((sp,kn),abbrev) =
+let load_abbreviation i ((sp,kn),abbrev) _sum =
   if Nametab.exists_cci sp then
     user_err
       (Id.print (basename sp) ++ str " already exists.");
@@ -87,7 +86,7 @@ let load_abbreviation i ((sp,kn),abbrev) =
   in
   ()
 
-let open_abbreviation i ((sp,kn),abbrev) =
+let open_abbreviation i ((sp,kn),abbrev) _sum =
   let pat = abbrev.abbrev_pattern in
   if not (Int.equal i 1 && is_alias_of_already_visible_name sp pat) then begin
     Nametab.push_abbreviation (Nametab.Exactly i) sp kn;
@@ -97,15 +96,15 @@ let open_abbreviation i ((sp,kn),abbrev) =
       Notationextern.declare_uninterpretation (Global.env ()) (AbbrevRule kn) pat
   end
 
-let import i sp kn =
+let import i sp kn sum =
   let _,abbrev = KerName.Map.get kn !abbrev_table in
-  open_abbreviation i ((sp,kn),abbrev)
+  open_abbreviation i ((sp,kn),abbrev) sum
 
-let cache_abbreviation d =
-  load_abbreviation 1 d;
-  open_abbreviation 1 d
+let cache_abbreviation d sum =
+  load_abbreviation 1 d sum;
+  open_abbreviation 1 d sum
 
-let subst_abbreviation (subst,abbrev) =
+let subst_abbreviation _sum subst abbrev =
   let abbrev_pattern = Notation_ops.subst_interpretation subst abbrev.abbrev_pattern in
   { abbrev with abbrev_pattern }
 
@@ -113,14 +112,15 @@ let classify_abbreviation abbrev =
   if abbrev.abbrev_local = Local then Dispose else Substitute
 
 let inAbbreviation : Id.t -> abbreviation -> obj =
-  declare_named_object {(default_object "ABBREVIATION") with
-    cache_function = cache_abbreviation;
-    load_function = load_abbreviation;
-    open_function = filtered_open open_abbreviation;
-    subst_function = subst_abbreviation;
-    classify_function = classify_abbreviation }
+  Libobject.Interp.declare_named_object
+    {(default_object "ABBREVIATION") with
+     cache_function = cache_abbreviation;
+     load_function = load_abbreviation;
+     open_function = filtered_open open_abbreviation;
+     subst_function = subst_abbreviation;
+     classify_function = classify_abbreviation }
 
-let declare ~local user_warns id ~onlyparsing pat =
+let declare sum ~local user_warns id ~onlyparsing pat =
   let abbrev = {
     abbrev_local = local;
     abbrev_pattern = pat;
@@ -130,7 +130,7 @@ let declare ~local user_warns id ~onlyparsing pat =
     abbrev_src = Loc.get_current_command_loc();
     }
   in
-  add_leaf (inAbbreviation id abbrev)
+  Lib.Interp.add_leaf sum (inAbbreviation id abbrev)
 
 (* Remark: do not check for activation (if not activated, it is already not supposed to be located) *)
 let find_interp kn =

@@ -67,8 +67,8 @@ let declare_an_instance {CAst.v=n; loc} s args =
 
 let declare_instance a aeq n s = declare_an_instance n s [a;aeq]
 
-let anew_instance atts binders (name,t) fields =
-  let _id = Classes.new_instance ~poly:atts.polymorphic
+let anew_instance sum atts binders (name,t) fields =
+  let _id = Classes.new_instance sum ~poly:atts.polymorphic
       name binders t (true, CAst.make @@ CRecord (fields))
       ~locality:atts.locality Hints.empty_hint_info
   in
@@ -76,56 +76,56 @@ let anew_instance atts binders (name,t) fields =
 
 let add_suffix n suff = CAst.map (fun n -> Nameops.add_suffix n suff) n
 
-let declare_instance_refl atts binders a aeq n lemma =
+let declare_instance_refl sum atts binders a aeq n lemma =
   let instance = declare_instance a aeq (add_suffix n "_Reflexive") "Corelib.Classes.RelationClasses.Reflexive"
-  in anew_instance atts binders instance
+  in anew_instance sum atts binders instance
        [(qualid_of_ident (Id.of_string "reflexivity"),lemma)]
 
-let declare_instance_sym atts binders a aeq n lemma =
+let declare_instance_sym sum atts binders a aeq n lemma =
   let instance = declare_instance a aeq (add_suffix n "_Symmetric") "Corelib.Classes.RelationClasses.Symmetric"
-  in anew_instance atts binders instance
+  in anew_instance sum atts binders instance
        [(qualid_of_ident (Id.of_string "symmetry"),lemma)]
 
-let declare_instance_trans atts binders a aeq n lemma =
+let declare_instance_trans sum atts binders a aeq n lemma =
   let instance = declare_instance a aeq (add_suffix n "_Transitive") "Corelib.Classes.RelationClasses.Transitive"
-  in anew_instance atts binders instance
+  in anew_instance sum atts binders instance
        [(qualid_of_ident (Id.of_string "transitivity"),lemma)]
 
-let declare_relation atts ?(binders=[]) a aeq n refl symm trans =
+let declare_relation sum atts ?(binders=[]) a aeq n refl symm trans =
   init_setoid ();
   let instance = declare_instance a aeq (add_suffix n "_relation") "Corelib.Classes.RelationClasses.RewriteRelation" in
-  let () = anew_instance atts binders instance [] in
+  let () = anew_instance sum atts binders instance [] in
   match (refl,symm,trans) with
     (None, None, None) -> ()
   | (Some lemma1, None, None) ->
-    declare_instance_refl atts binders a aeq n lemma1
+    declare_instance_refl sum atts binders a aeq n lemma1
   | (None, Some lemma2, None) ->
-    declare_instance_sym atts binders a aeq n lemma2
+    declare_instance_sym sum atts binders a aeq n lemma2
   | (None, None, Some lemma3) ->
-    declare_instance_trans atts binders a aeq n lemma3
+    declare_instance_trans sum atts binders a aeq n lemma3
   | (Some lemma1, Some lemma2, None) ->
-    let () = declare_instance_refl atts binders a aeq n lemma1 in
-    declare_instance_sym atts binders a aeq n lemma2
+    let () = declare_instance_refl sum atts binders a aeq n lemma1 in
+    declare_instance_sym sum atts binders a aeq n lemma2
   | (Some lemma1, None, Some lemma3) ->
-    let () = declare_instance_refl atts binders a aeq n lemma1 in
-    let () = declare_instance_trans atts binders a aeq n lemma3 in
+    let () = declare_instance_refl sum atts binders a aeq n lemma1 in
+    let () = declare_instance_trans sum atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.PreOrder" in
-    anew_instance atts binders instance
+    anew_instance sum atts binders instance
       [(qualid_of_ident (Id.of_string "PreOrder_Reflexive"), lemma1);
        (qualid_of_ident (Id.of_string "PreOrder_Transitive"),lemma3)]
   | (None, Some lemma2, Some lemma3) ->
-    let () = declare_instance_sym atts binders a aeq n lemma2 in
-    let () = declare_instance_trans atts binders a aeq n lemma3 in
+    let () = declare_instance_sym sum atts binders a aeq n lemma2 in
+    let () = declare_instance_trans sum atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.PER" in
-    anew_instance atts binders instance
+    anew_instance sum atts binders instance
       [(qualid_of_ident (Id.of_string "PER_Symmetric"), lemma2);
        (qualid_of_ident (Id.of_string "PER_Transitive"),lemma3)]
   | (Some lemma1, Some lemma2, Some lemma3) ->
-    let () = declare_instance_refl atts binders a aeq n lemma1 in
-    let () = declare_instance_sym atts binders a aeq n lemma2 in
-    let () = declare_instance_trans atts binders a aeq n lemma3 in
+    let () = declare_instance_refl sum atts binders a aeq n lemma1 in
+    let () = declare_instance_sym sum atts binders a aeq n lemma2 in
+    let () = declare_instance_trans sum atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.Equivalence" in
-    anew_instance atts binders instance
+    anew_instance sum atts binders instance
       [(qualid_of_ident (Id.of_string "Equivalence_Reflexive"), lemma1);
        (qualid_of_ident (Id.of_string "Equivalence_Symmetric"), lemma2);
        (qualid_of_ident (Id.of_string "Equivalence_Transitive"), lemma3)]
@@ -142,7 +142,7 @@ let proper_projection env sigma r ty =
                   Array.append args [| instarg |]) in
   sigma, it_mkLambda_or_LetIn app ctx
 
-let declare_projection {CAst.v=name; loc} instance_id r =
+let declare_projection sum {CAst.v=name; loc} instance_id r =
   let env = Global.env () in
   let poly = Environ.is_polymorphic env r in
   let sigma = Evd.from_env env in
@@ -176,22 +176,22 @@ let declare_projection {CAst.v=name; loc} instance_id r =
   let cinfo = Declare.CInfo.make ?loc ~name ~impargs ~typ:types () in
   let info = Declare.Info.make ~kind ~udecl ~poly () in
   let _r : GlobRef.t =
-    Declare.declare_definition ~cinfo ~info ~opaque:false ~body sigma
+    Declare.declare_definition sum ~cinfo ~info ~opaque:false ~body sigma
   in ()
 
-let add_setoid atts binders a aeq t n =
+let add_setoid sum atts binders a aeq t n =
   init_setoid ();
-  let () = declare_instance_refl atts binders a aeq n (mkappc "Seq_refl" [a;aeq;t]) in
-  let () = declare_instance_sym atts binders a aeq n (mkappc "Seq_sym" [a;aeq;t]) in
-  let () = declare_instance_trans atts binders a aeq n (mkappc "Seq_trans" [a;aeq;t]) in
+  let () = declare_instance_refl sum atts binders a aeq n (mkappc "Seq_refl" [a;aeq;t]) in
+  let () = declare_instance_sym sum atts binders a aeq n (mkappc "Seq_sym" [a;aeq;t]) in
+  let () = declare_instance_trans sum atts binders a aeq n (mkappc "Seq_trans" [a;aeq;t]) in
   let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.Equivalence"
   in
-  anew_instance atts binders instance
+  anew_instance sum atts binders instance
     [(qualid_of_ident (Id.of_string "Equivalence_Reflexive"), mkappc "Seq_refl" [a;aeq;t]);
      (qualid_of_ident (Id.of_string "Equivalence_Symmetric"), mkappc "Seq_sym" [a;aeq;t]);
      (qualid_of_ident (Id.of_string "Equivalence_Transitive"), mkappc "Seq_trans" [a;aeq;t])]
 
-let add_morphism_as_parameter atts m n : unit =
+let add_morphism_as_parameter sum atts m n : unit =
   init_setoid ();
   let instance_id = add_suffix n "_Proper" in
   let env = Global.env () in
@@ -201,11 +201,11 @@ let add_morphism_as_parameter atts m n : unit =
   let impargs, udecl = [], UState.default_univ_decl in
   let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
   let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
-  let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
+  let cst = Declare.declare_constant sum ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
-  Classes.Internal.add_instance
+  Classes.Internal.add_instance sum
     (PropGlobal.proper_class ()) Hints.empty_hint_info atts.locality cst;
-  declare_projection n instance_id cst
+  declare_projection sum n instance_id cst
 
 let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   init_setoid ();
@@ -215,11 +215,11 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   let evd, morph = Rewrite.Internal.build_morphism_signature env evd m in
   let poly = atts.polymorphic in
   let kind = Decls.(IsDefinition Instance) in
-  let hook { Declare.Hook.S.dref; _ } = dref |> function
+  let hook sum { Declare.Hook.S.dref; _ } = dref |> function
     | GlobRef.ConstRef cst ->
-      Classes.Internal.add_instance (PropGlobal.proper_class ()) Hints.empty_hint_info
+      Classes.Internal.add_instance sum (PropGlobal.proper_class ()) Hints.empty_hint_info
         atts.locality (GlobRef.ConstRef cst);
-      declare_projection n instance_id (GlobRef.ConstRef cst)
+      declare_projection sum n instance_id (GlobRef.ConstRef cst)
     | _ -> assert false
   in
   let hook = Declare.Hook.make hook in
@@ -242,7 +242,7 @@ let add_morphism atts ~tactic binders m s n =
   let _id, lemma = Classes.new_instance_interactive
       ~locality:atts.locality ~poly:atts.polymorphic
       instance_name binders instance_t
-      ~tac:tactic ~hook:(declare_projection n instance_id)
+      ~tac:tactic ~hook:(fun sum gr -> declare_projection sum n instance_id gr)
       Hints.empty_hint_info None
   in
   lemma (* no instance body -> always open proof *)

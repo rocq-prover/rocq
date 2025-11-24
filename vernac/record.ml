@@ -46,7 +46,7 @@ let { Goptions.get = typeclasses_default_mode } =
     ~value:Hints.ModeOutput
     ()
 
-let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
+let interp_fields_evars sum env sigma ~ninds ~nparams impls_env nots l =
   let _, sigma, impls, locs, newfs, _ =
     List.fold_left2
       (fun (env, sigma, uimpls, locs, params, impls_env) no d ->
@@ -76,7 +76,7 @@ let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
            | None -> LocalAssum (make_annot i r,t)
            | Some b -> LocalDef (make_annot i r,b,t)
          in
-         List.iter (Metasyntax.set_notation_for_interpretation env impls_env) no;
+         List.iter (Metasyntax.set_notation_for_interpretation sum env impls_env) no;
          (EConstr.push_rel d env, sigma, impl :: uimpls, loc :: locs, d::params, impls_env))
       (env, sigma, [], [], [], impls_env) nots l
   in
@@ -328,7 +328,7 @@ let fix_entry_record ~isclass ~primitive_proj records mie =
   else
     ids, { mie with mind_entry_record = Some (Some (Array.of_list ids)) }
 
-let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_proj udecl params (records : DataI.t list) =
+let typecheck_params_and_fields sum ~kind ~(flags:ComInductive.flags) ~primitive_proj udecl params (records : DataI.t list) =
   let def = kind = DefClass in
   let isclass = kind != NotClass in
   let env0 = Global.env () in
@@ -358,7 +358,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
   let ninds = List.length arities in
   let nparams = List.length params in
   let fold sigma { DataI.nots; fs; _ } =
-    interp_fields_evars env_ar_params sigma ~ninds ~nparams impls_env nots fs
+    interp_fields_evars sum env_ar_params sigma ~ninds ~nparams impls_env nots fs
   in
   let (sigma, fields) = List.fold_left_map fold sigma records in
   let field_impls, locs, fields = List.split3 fields in
@@ -534,12 +534,12 @@ let instantiate_possibly_recursive_type ind u ntypes paramdecls fields =
 
 (** Declare projection [ref] over [from] a coercion
    or a typeclass instance according to [flags]. *)
-let declare_proj_coercion_instance ~flags ref from =
+let declare_proj_coercion_instance sum ~flags ref from =
   let () = match flags.Data.pf_coercion with
     | None -> ()
     | Some { coe_local=local; coe_reversible=reversible } ->
       let cl = ComCoercion.class_of_global from in
-      ComCoercion.try_add_new_coercion_with_source ref ~local ~reversible ~source:cl
+      ComCoercion.try_add_new_coercion_with_source sum ref ~local ~reversible ~source:cl
   in
   let () = match flags.Data.pf_instance with
     | None -> ()
@@ -547,7 +547,7 @@ let declare_proj_coercion_instance ~flags ref from =
       let env = Global.env () in
       let sigma = Evd.from_env env in
       let info = Typeclasses.{ hint_priority = inst_priority; hint_pattern = None } in
-      Classes.declare_instance ~warn:true env sigma (Some info) inst_locality ref
+      Classes.declare_instance sum ~warn:true env sigma (Some info) inst_locality ref
   in
   ()
 
@@ -558,7 +558,7 @@ let declare_proj_coercion_instance ~flags ref from =
    implicits parameters, coercion status, etc... of the projection;
    this could be refactored as noted above by moving to the
    higher-level declare constant API *)
-let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
+let build_named_proj sum ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
     paramargs decl impls {CAst.v=fid; loc} subst nfi ti i indsp mib lifted_fields x rp =
   let ccl = subst_projection fid subst ti in
   let body, p_opt = match decl with
@@ -585,7 +585,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
   let kind = Decls.IsDefinition kind in
   let kn =
     (* XXX more precise loc *)
-    try Declare.declare_constant ?loc ~name:fid ~kind (Declare.DefinitionEntry entry)
+    try Declare.declare_constant sum ?loc ~name:fid ~kind (Declare.DefinitionEntry entry)
     with Type_errors.TypeError (ctx,te) as exn when not primitive ->
       let _, info = Exninfo.capture exn in
       Exninfo.iraise (NotDefinable (BadTypedProj (fid,ctx,te)),info)
@@ -593,7 +593,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
   Declare.definition_message fid;
   let term = match p_opt with
     | Some (p,r) ->
-      let _ = DeclareInd.declare_primitive_projection p kn in
+      let _ = DeclareInd.declare_primitive_projection sum p kn in
       mkProj (Projection.make p false, r, mkRel 1)
     | None ->
       let proj_args = (*Rel 1 refers to "x"*) paramargs@[mkRel 1] in
@@ -602,14 +602,14 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
       | _ -> applist (mkConstU (kn,uinstance),proj_args)
   in
   let refi = GlobRef.ConstRef kn in
-  Impargs.maybe_declare_manual_implicits false refi impls;
-  declare_proj_coercion_instance ~flags refi (GlobRef.IndRef indsp);
+  Impargs.maybe_declare_manual_implicits sum false refi impls;
+  declare_proj_coercion_instance sum ~flags refi (GlobRef.IndRef indsp);
   let i = if is_local_assum decl then i+1 else i in
   (Some kn, i, Projection term::subst)
 
 (** [build_proj] will build a projection for each field, or skip if
    the field is anonymous, i.e. [_ : t] *)
-let build_proj env mib indsp primitive x rp lifted_fields paramdecls paramargs ~uinstance ~kind ~univs
+let build_proj sum env mib indsp primitive x rp lifted_fields paramdecls paramargs ~uinstance ~kind ~univs
     (nfi,i,kinds,subst) flags loc decl impls =
   let fi = RelDecl.get_name decl in
   let ti = RelDecl.get_type decl in
@@ -619,7 +619,7 @@ let build_proj env mib indsp primitive x rp lifted_fields paramdecls paramargs ~
       (None,i,NoProjection fi::subst)
     | Name fid ->
       let fid = CAst.make ?loc fid in
-      try build_named_proj
+      try build_named_proj sum
             ~primitive ~flags ~univs ~uinstance ~kind env paramdecls paramargs decl impls fid
             subst nfi ti i indsp mib lifted_fields x rp
       with NotDefinable why as exn ->
@@ -636,7 +636,7 @@ let build_proj env mib indsp primitive x rp lifted_fields paramdecls paramargs ~
 
 (** [declare_projections] prepares the common context for all record
    projections and then calls [build_proj] for each one. *)
-let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
+let declare_projections sum indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   let env = Global.env() in
   let (mib,mip) = Global.lookup_inductive indsp in
   let uinstance =
@@ -669,26 +669,26 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   in
   let (_,_,canonical_projections,_) =
     List.fold_left4
-      (build_proj env mib indsp primitive x rp lifted_fields paramdecls paramargs ~uinstance ~kind ~univs)
+      (build_proj sum env mib indsp primitive x rp lifted_fields paramdecls paramargs ~uinstance ~kind ~univs)
       (List.length fields,0,[],[]) flags (List.rev fieldlocs) (List.rev fields) (List.rev fieldimpls)
   in
     List.rev canonical_projections
 
 open Typeclasses
 
-let load_structure _ structure = Structure.register structure
+let load_structure _ structure _sum = Structure.register structure
 
 let cache_structure o = load_structure 1 o
 
-let subst_structure (subst, obj) = Structure.subst subst obj
+let subst_structure _sum subst obj = Structure.subst subst obj
 
-let discharge_structure x = Some x
+let discharge_structure _sum x = Some x
 
-let rebuild_structure s = Structure.rebuild (Global.env()) s
+let rebuild_structure _sum s = Structure.rebuild (Global.env()) s
 
 let inStruc : Structure.t -> Libobject.obj =
   let open Libobject in
-  declare_object {(default_object "STRUCTURE") with
+  Libobject.Interp.declare_object {(default_object "STRUCTURE") with
     cache_function = cache_structure;
     load_function = load_structure;
     subst_function = subst_structure;
@@ -696,8 +696,8 @@ let inStruc : Structure.t -> Libobject.obj =
     discharge_function = discharge_structure;
     rebuild_function = rebuild_structure; }
 
-let declare_structure_entry o =
-  Lib.add_leaf (inStruc o)
+let declare_structure_entry sum o =
+  Lib.Interp.add_leaf sum (inStruc o)
 
 (** Main record declaration part:
 
@@ -794,7 +794,7 @@ let extract_record_data records =
   in
   ps, data, decl_data
 
-let pre_process_structure udecl kind ~flags ~primitive_proj (records : Ast.t list) =
+let pre_process_structure sum udecl kind ~flags ~primitive_proj (records : Ast.t list) =
   let def = (kind = Vernacexpr.Class true) in
   let indlocs = check_unique_names ~def records in
   let ps, interp_data, decl_data = extract_record_data records in
@@ -803,9 +803,13 @@ let pre_process_structure udecl kind ~flags ~primitive_proj (records : Ast.t lis
        [Notation.with_notation_protection], due to the call to
        Metasyntax.set_notation_for_interpretation, however something
        is messing state beyond that.
+
+       Probably the Lib.add_leaf in Metasyntax.set_notation_for_interpretation, now removed.
     *)
-    Vernacstate.System.protect (fun () ->
-        typecheck_params_and_fields ~primitive_proj ~kind:(kind_class kind) ~flags udecl ps interp_data) ()
+    Vernacstate.System.protect (Summary.run_interp (fun sum ->
+        typecheck_params_and_fields sum ~primitive_proj ~kind:(kind_class kind) ~flags
+          udecl ps interp_data))
+      sum
   in
   let projections_kind =
     Decls.(match kind_class kind with NotClass -> StructureComponent | _ -> Method) in
@@ -819,10 +823,10 @@ let interp_structure_core (entry:RecordEntry.t) ~projections_kind ~indlocs data 
     indlocs;
   }
 
-let interp_structure ~flags udecl kind ~primitive_proj records =
+let interp_structure sum ~flags udecl kind ~primitive_proj records =
   assert (kind <> Vernacexpr.Class true);
   let entry, projections_kind, data, indlocs =
-    pre_process_structure udecl kind ~flags ~primitive_proj records in
+    pre_process_structure sum udecl kind ~flags ~primitive_proj records in
   match entry with
   | DefclassEntry _ -> assert false
   | RecordEntry entry ->
@@ -834,13 +838,14 @@ module Declared = struct
     | Record of MutInd.t
 end
 
-let declare_structure (decl:Record_decl.t) ~schemes =
+let declare_structure sum (decl:Record_decl.t) ~schemes =
   let () = Global.push_context_set decl.entry.global_univs in
   (* XXX no implicit arguments for constructors? *)
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
   let default_dep_elim = List.map (fun x -> x.RecordEntry.default_dep_elim) decl.entry.ind_infos in
   let kn =
-    DeclareInd.declare_mutual_inductive_with_eliminations decl.entry.mie
+    DeclareInd.declare_mutual_inductive_with_eliminations sum
+      decl.entry.mie
       decl.entry.ubinders
       impls
       ~indlocs:decl.indlocs
@@ -851,14 +856,14 @@ let declare_structure (decl:Record_decl.t) ~schemes =
     let rsp = (kn, i) in (* This is ind path of idstruc *)
     let cstr = (rsp, 1) in
     let kind = decl.projections_kind in
-    let projections = declare_projections rsp ~kind ~inhabitant_id proj_flags ~fieldlocs implfs in
+    let projections = declare_projections sum rsp ~kind ~inhabitant_id proj_flags ~fieldlocs implfs in
     let build = GlobRef.ConstructRef cstr in
     let () = match is_coercion with
       | NoCoercion -> ()
-      | AddCoercion -> ComCoercion.try_add_new_coercion build ~local:false ~reversible:false
+      | AddCoercion -> ComCoercion.try_add_new_coercion sum build ~local:false ~reversible:false
     in
     let struc = Structure.make (Global.env ()) rsp projections in
-    let () = declare_structure_entry struc in
+    let () = declare_structure_entry sum struc in
     GlobRef.IndRef rsp
   in
   let data = List.combine decl.entry.ind_infos decl.records in
@@ -867,7 +872,7 @@ let declare_structure (decl:Record_decl.t) ~schemes =
 
 (* declare definitional class (typeclasses that are not record) *)
 (* [data.is_coercion] must be [NoCoercion] and [data.proj_flags] must have exactly 1 element. *)
-let declare_class_constant entry (data:Data.t) =
+let declare_class_constant sum entry (data:Data.t) =
   let { DefClassEntry.univs; name; projname; params; sort; typ; projtyp;
         inhabitant_id; impls; projimpls; }
     = entry
@@ -887,7 +892,7 @@ let declare_class_constant entry (data:Data.t) =
   let class_type = it_mkProd_or_LetIn typ params in
   let class_entry =
     Declare.definition_entry ~types:class_type ~univs class_body in
-  let cst = Declare.declare_constant ?loc:name.loc ~name:name.v
+  let cst = Declare.declare_constant sum ?loc:name.loc ~name:name.v
       (Declare.DefinitionEntry class_entry) ~kind:Decls.(IsDefinition Definition)
   in
   let inst, univs = match univs with
@@ -907,19 +912,19 @@ let declare_class_constant entry (data:Data.t) =
   let proj_body =
     it_mkLambda_or_LetIn (mkLambda (binder, inst_type, mkRel 1)) params in
   let proj_entry = Declare.definition_entry ~types:proj_type ~univs proj_body in
-  let proj_cst = Declare.declare_constant ?loc:projname.loc ~name:projname.v
+  let proj_cst = Declare.declare_constant sum ?loc:projname.loc ~name:projname.v
       (Declare.DefinitionEntry proj_entry) ~kind:Decls.(IsDefinition Definition)
   in
   let cref = GlobRef.ConstRef cst in
-  Impargs.declare_manual_implicits false cref impls;
-  Impargs.declare_manual_implicits false (GlobRef.ConstRef proj_cst) projimpls;
-  Classes.set_typeclass_transparency ~locality:Hints.SuperGlobal
+  Impargs.declare_manual_implicits sum false cref impls;
+  Impargs.declare_manual_implicits sum false (GlobRef.ConstRef proj_cst) projimpls;
+  Classes.set_typeclass_transparency sum ~locality:Hints.SuperGlobal
     [Evaluable.EvalConstRef cst] false;
   let () =
-    declare_proj_coercion_instance ~flags:proj_flags (GlobRef.ConstRef proj_cst) cref in
+    declare_proj_coercion_instance sum ~flags:proj_flags (GlobRef.ConstRef proj_cst) cref in
   Declared.Defclass { class_kn = cst; proj_kn = proj_cst }, [cref]
 
-let set_class_mode ref mode ctx =
+let set_class_mode sum ref mode ctx =
   let modes =
     match mode with
     | Some (Some m) -> Some m
@@ -939,12 +944,12 @@ let set_class_mode ref mode ctx =
   in
   match modes with
   | None -> ()
-  | Some modes -> Classes.set_typeclass_mode ~locality:Hints.SuperGlobal ref modes
+  | Some modes -> Classes.set_typeclass_mode sum ~locality:Hints.SuperGlobal ref modes
 
 
 (** [declare_class] declares the typeclass information for a [Class] declaration.
     NB: [Class] syntax does not allow [with]. *)
-let declare_class ?mode declared =
+let declare_class sum ?mode declared =
   let env = Global.env() in
   let impl, univs, params, fields, projs = match declared with
     | Declared.Defclass { class_kn; proj_kn } ->
@@ -989,10 +994,10 @@ let declare_class ?mode declared =
     cl_projs = projs;
   }
   in
-  Classes.add_class k;
-  set_class_mode impl mode params
+  Classes.add_class sum k;
+  set_class_mode sum impl mode params
 
-let add_constant_class cst =
+let add_constant_class sum cst =
   let env = Global.env () in
   let ty, univs = Typeops.type_of_global_in_context env (GlobRef.ConstRef cst) in
   let r = (Environ.lookup_constant cst env).const_relevance in
@@ -1010,11 +1015,11 @@ let add_constant_class cst =
       cl_unique = typeclasses_unique ()
     }
   in
-  Classes.add_class tc;
-  Classes.set_typeclass_transparency ~locality:Hints.SuperGlobal
+  Classes.add_class sum tc;
+  Classes.set_typeclass_transparency sum ~locality:Hints.SuperGlobal
     [Evaluable.EvalConstRef cst] false
 
-let add_inductive_class ind =
+let add_inductive_class sum ind =
   let env = Global.env () in
   let mind, oneind = Inductive.lookup_mind_specif env ind in
   let ctx = oneind.mind_arity_ctxt in
@@ -1045,18 +1050,18 @@ let add_inductive_class ind =
     cl_unique = typeclasses_unique ();
   }
   in
-  Classes.add_class k
+  Classes.add_class sum k
 
 let warn_already_existing_class =
   CWarnings.create ~name:"already-existing-class" ~category:CWarnings.CoreCategories.automation Pp.(fun g ->
       Printer.pr_global g ++ str " is already declared as a typeclass.")
 
-let declare_existing_class g =
+let declare_existing_class sum g =
   if Typeclasses.is_class (Global.env ()) g then warn_already_existing_class g
   else
     match g with
-    | GlobRef.ConstRef x -> add_constant_class x
-    | GlobRef.IndRef x -> add_inductive_class x
+    | GlobRef.ConstRef x -> add_constant_class sum x
+    | GlobRef.IndRef x -> add_inductive_class sum x
     | _ -> user_err
              (Pp.str"Unsupported class type, only constants and inductives are allowed.")
 
@@ -1064,20 +1069,20 @@ let declare_existing_class g =
     list telling if the corresponding fields must me declared as coercions
     or subinstances. *)
 
-let definition_structure ~flags udecl kind ~primitive_proj (records : Ast.t list)
+let definition_structure sum ~flags udecl kind ~primitive_proj (records : Ast.t list)
   : GlobRef.t list =
   let entry, projections_kind, data, indlocs =
-    pre_process_structure udecl kind ~flags ~primitive_proj records
+    pre_process_structure (Summary.Interp.get sum) udecl kind ~flags ~primitive_proj records
   in
   let declared, inds = match entry with
     | DefclassEntry entry ->
       let data = match data with [x] -> x | _ -> assert false in
-      declare_class_constant entry data
+      declare_class_constant sum entry data
     | RecordEntry entry ->
       let structure = interp_structure_core entry ~projections_kind ~indlocs data in
-      declare_structure structure ~schemes:flags.schemes
+      declare_structure sum structure ~schemes:flags.schemes
   in
-  if kind_class kind <> NotClass then declare_class ~mode:flags.mode declared;
+  if kind_class kind <> NotClass then declare_class sum ~mode:flags.mode declared;
   inds
 
 module Internal = struct

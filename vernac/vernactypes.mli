@@ -58,38 +58,47 @@ type 'r typed_vernac_gen =
       spec : (('inprog, 'outprog) Prog.t,
               ('inproof, 'outproof) Proof.t,
               'inaccess OpaqueAccess.t) state_gen;
-      run : ('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen * 'r;
+      run : ('inprog, 'inproof, 'inaccess) state_gen ->
+        Summary.Interp.mut ->
+        ('outprog, 'outproof, unit) state_gen * 'r;
     } -> 'r typed_vernac_gen
 
 type typed_vernac = unit typed_vernac_gen
 
 val typed_vernac_gen
   : (('inprog, 'outprog) Prog.t, ('inproof, 'outproof) Proof.t, 'inaccess OpaqueAccess.t) state_gen
-  -> (('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen * 'r)
+  -> (('inprog, 'inproof, 'inaccess) state_gen ->
+      Summary.Interp.mut ->
+      ('outprog, 'outproof, unit) state_gen * 'r)
   -> 'r typed_vernac_gen
 
 val map_typed_vernac : ('a -> 'b) -> 'a typed_vernac_gen -> 'b typed_vernac_gen
 
 val typed_vernac
   : (('inprog, 'outprog) Prog.t, ('inproof, 'outproof) Proof.t, 'inaccess OpaqueAccess.t) state_gen
-  -> (('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen)
+  -> (('inprog, 'inproof, 'inaccess) state_gen ->
+      Summary.Interp.mut ->
+      ('outprog, 'outproof, unit) state_gen)
   -> typed_vernac
 
 type full_state = (Prog.stack, Vernacstate.LemmaStack.t option, unit) state_gen
 
-val run : 'r typed_vernac_gen -> full_state -> full_state * 'r
+val run : 'r typed_vernac_gen -> full_state -> Summary.Interp.mut -> full_state * 'r
 
 (** Some convenient typed_vernac constructors. Used by coqpp. *)
 
-val vtdefault : (unit -> unit) -> typed_vernac
-val vtnoproof : (unit -> unit) -> typed_vernac
-val vtcloseproof : (lemma:Declare.Proof.t -> pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
-val vtopenproof : (unit -> Declare.Proof.t) -> typed_vernac
-val vtmodifyproof : (pstate:Declare.Proof.t -> Declare.Proof.t) -> typed_vernac
-val vtreadproofopt : (pstate:Declare.Proof.t option -> unit) -> typed_vernac
-val vtreadproof : (pstate:Declare.Proof.t -> unit) -> typed_vernac
-val vtreadprogram : (pm:Declare.OblState.t -> unit) -> typed_vernac
-val vtmodifyprogram : (pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
-val vtdeclareprogram : (pm:Declare.OblState.t -> Declare.Proof.t) -> typed_vernac
-val vtopenproofprogram : (pm:Declare.OblState.t -> Declare.OblState.t * Declare.Proof.t) -> typed_vernac
-val vtopaqueaccess : (opaque_access:Global.indirect_accessor -> unit) -> typed_vernac
+val vtdefault : (Summary.Interp.mut -> unit) -> typed_vernac
+val vtnoproof : (Summary.Interp.mut -> unit) -> typed_vernac
+val vtcloseproof :
+  (lemma:Declare.Proof.t -> pm:Declare.OblState.t ->
+   Summary.Interp.mut -> Declare.OblState.t) ->
+  typed_vernac
+val vtopenproof : (Summary.Interp.mut -> Declare.Proof.t) -> typed_vernac
+val vtmodifyproof : (pstate:Declare.Proof.t -> Summary.Interp.mut -> Declare.Proof.t) -> typed_vernac
+val vtreadproofopt : (pstate:Declare.Proof.t option -> Summary.Interp.mut -> unit) -> typed_vernac
+val vtreadproof : (pstate:Declare.Proof.t -> Summary.Interp.mut -> unit) -> typed_vernac
+val vtreadprogram : (pm:Declare.OblState.t -> Summary.Interp.mut -> unit) -> typed_vernac
+val vtmodifyprogram : (pm:Declare.OblState.t -> Summary.Interp.mut -> Declare.OblState.t) -> typed_vernac
+val vtdeclareprogram : (pm:Declare.OblState.t -> Summary.Interp.mut -> Declare.Proof.t) -> typed_vernac
+val vtopenproofprogram : (pm:Declare.OblState.t -> Summary.Interp.mut -> Declare.OblState.t * Declare.Proof.t) -> typed_vernac
+val vtopaqueaccess : (opaque_access:Global.indirect_accessor -> Summary.Interp.mut -> unit) -> typed_vernac

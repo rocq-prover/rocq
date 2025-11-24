@@ -6,5 +6,5 @@ open EvilImpl
 DECLARE PLUGIN "rocq-runtime.plugins.evil"
 
 VERNAC COMMAND EXTEND VernacEvil CLASSIFIED AS SIDEFF
-| [ "Evil" ident(x) ident(y) ] -> { evil x y }
+| [ "Evil" ident(x) ident(y) ] -> { evil summary x y }
 END

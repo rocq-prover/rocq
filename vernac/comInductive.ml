@@ -723,7 +723,7 @@ let maybe_unify_params_in env_ar_par sigma ~ninds ~nparams ~binders:k c =
   in
   aux (env_ar_par,k) sigma c
 
-let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notations ~private_ind =
+let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) notations ~private_ind =
   check_all_names_different env0 indl;
   List.iter check_param paramsl;
   if not (List.is_empty uparamsl) && not (List.is_empty notations)
@@ -767,14 +767,16 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
 
   let (sigma, _), constructors =
     Metasyntax.with_syntax_protection (fun () ->
+        snd @@ Summary.Interp.with_mut (fun sum ->
         (* Temporary declaration of notations and scopes *)
-        List.iter (Metasyntax.set_notation_for_interpretation env_params ntn_impls) notations;
+        List.iter (Metasyntax.set_notation_for_interpretation sum env_params ntn_impls) notations;
         (* Interpret the constructor types *)
         List.fold_left2_map
           (fun (sigma, ind_rel) ind arity ->
             interp_cstrs env_ar_params (sigma, ind_rel) impls ctx_params_lifted
               ind (EConstr.Vars.liftn ninds (Rel.length ctx_params + 1) arity))
           (sigma, ninds) indl arities)
+          sum)
       ()
   in
 
@@ -909,7 +911,7 @@ let rec count_binder_expr = function
   | CLocalPattern {CAst.loc} :: _ ->
     Loc.raise ?loc (Gramlib.Grammar.ParseError "pattern with quote not allowed here")
 
-let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let interp_mutual_inductive sum ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let indlocs = List.map (fun ((n,_,_,constructors),_) ->
       let conslocs = List.map (fun (_,(c,_)) -> c.CAst.loc) constructors in
       n.CAst.loc, conslocs)
@@ -925,23 +927,23 @@ let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~u
       | NonUniformParameters -> ([], params, indl), None
   in
   let env = Environ.update_typing_flags ?typing_flags env in
-  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen ~flags env udecl indl where_notations ~private_ind in
+  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen sum ~flags env udecl indl where_notations ~private_ind in
   let open Mind_decl in
   { mie; default_dep_elim; nuparams; univ_binders; implicits; uctx; where_notations; coercions; indlocs }
 
-let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let do_mutual_inductive sum ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let open Mind_decl in
   let env = Global.env () in
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
-    interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
+    interp_mutual_inductive (Summary.Interp.get sum) ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
-  ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
+  ignore (DeclareInd.declare_mutual_inductive_with_eliminations sum ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)
-  List.iter (Metasyntax.add_notation_interpretation ~local:false (Global.env ())) where_notations;
+  List.iter (Metasyntax.add_notation_interpretation sum ~local:false (Global.env ())) where_notations;
   (* Declare the coercions *)
-  List.iter (fun qid -> ComCoercion.try_add_new_coercion (Nametab.locate qid) ~local:false ~reversible:true) coercions
+  List.iter (fun qid -> ComCoercion.try_add_new_coercion sum (Nametab.locate qid) ~local:false ~reversible:true) coercions
 
 (** Prepare a "match" template for a given inductive type.
     For each branch of the match, we list the constructor name

@@ -594,7 +594,7 @@ END
 VERNAC COMMAND EXTEND CountPersistent CLASSIFIED AS SIDEFF
 | [ "Count" "Persistent" ] ->
    {
-     Persistent_counter.increment ();
+     Persistent_counter.increment summary;
      let v = Persistent_counter.value () in
      Feedback.msg_notice (Pp.str "Times Count Persistent has been called: " ++ Pp.int v)
    }

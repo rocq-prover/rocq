@@ -254,7 +254,7 @@ let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl im
     Declare.Obls.prepare_obligations ~name:recname_func ~body:def ~types:typ env sigma in
   let hook, impls =
     if len > 1 then
-      let hook { Declare.Hook.S.dref; uctx; obls; _ } =
+      let hook sum { Declare.Hook.S.dref; uctx; obls; _ } =
         let update c = CVars.replace_vars obls (evmap mkVar (Evarutil.nf_evar (Evd.from_ctx uctx) c)) in
         let tuple_value = update tuple_value in
         let ccl = update ccl in
@@ -269,10 +269,10 @@ let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl im
         let ty = Term.it_mkProd_or_LetIn ccl ctx in
         let ce = Declare.definition_entry ~types:ty ~univs body in
         (* FIXME: include locality *)
-        let c = Declare.declare_constant ?loc ~name:recname ~kind:Decls.(IsDefinition Definition) (DefinitionEntry ce) in
+        let c = Declare.declare_constant sum ?loc ~name:recname ~kind:Decls.(IsDefinition Definition) (DefinitionEntry ce) in
         let gr = GlobRef.ConstRef c in
         if Impargs.is_implicit_args () || not (List.is_empty impls) then
-          Impargs.declare_manual_implicits false gr impls
+          Impargs.declare_manual_implicits sum false gr impls
       in
       Some (Declare.Hook.make hook), []
     else
@@ -429,7 +429,7 @@ let interp_wf ~program_mode env sigma recname ctx ccl = function
     in
     sigma, ((after, [extradecl]), Some (extradecl, rel, relargty, measure), [impl])
 
-let interp_mutual_definition env ~program_mode ~function_mode rec_order fixl =
+let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl =
   let open Context.Named.Declaration in
   let open EConstr in
   let fixlnames = List.map (fun fix -> fix.Vernacexpr.fname) fixl in
@@ -465,7 +465,7 @@ let interp_mutual_definition env ~program_mode ~function_mode rec_order fixl =
     let dummy_fixtypes = List.map3 (build_dummy_fix_type sigma) fixctxs fixccls fixextras in
     let impls = compute_internalization_env env sigma ~force Recursive fixnames dummy_fixtypes fixrecimps in
     Metasyntax.with_syntax_protection (fun () ->
-      List.iter (Metasyntax.set_notation_for_interpretation env impls) fixntns;
+      List.iter (Metasyntax.set_notation_for_interpretation sum env impls) fixntns;
       List.fold_left5_map
         (fun sigma fixctximpenv (after,extradecl) ctx body ccl ->
            let impls = Id.Map.fold Id.Map.add fixctximpenv impls in
@@ -496,9 +496,9 @@ let ground_fixpoint env evd {fixnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fix
 
 (** For Funind *)
 
-let interp_fixpoint_short rec_order fixpoint_exprl =
+let interp_fixpoint_short sum rec_order fixpoint_exprl =
   let env = Global.env () in
-  let (_, _, sigma),(fix, _, _) = interp_mutual_definition ~program_mode:false ~function_mode:true env (CFixRecOrder rec_order) fixpoint_exprl in
+  let (_, _, sigma),(fix, _, _) = interp_mutual_definition sum ~program_mode:false ~function_mode:true env (CFixRecOrder rec_order) fixpoint_exprl in
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   let sigma = Evd.minimize_universes sigma in
@@ -560,18 +560,20 @@ let finish_regular env sigma use_inference_hook fix =
   let sigma = Pretyping.(solve_remaining_evars ?hook:inference_hook all_no_fail_flags env sigma) in
   sigma, ground_fixpoint env sigma fix, [], None
 
-let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
+let do_mutually_recursive sum ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
   : Declare.OblState.t option * Declare.Proof.t option =
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
-  let (env,rec_sign,sigma),(fix,possible_guard,udecl) = interp_mutual_definition env ~program_mode ~function_mode:false rec_order fixl in
+  let (env,rec_sign,sigma),(fix,possible_guard,udecl) = interp_mutual_definition sum env ~program_mode ~function_mode:false rec_order fixl in
   check_recursive ~kind env sigma fix;
 
   if refine then
     let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?typing_flags ?user_warns ~ntns:fix.fixntns () in
     let cinfo = build_recthms fix in
     let possible_guard = (possible_guard, fix.fixrs) in
-    let lemma = Declare.Proof.start_mutual_definitions_refine ~info ~cinfo ~bodies:fix.fixdefs ~possible_guard ?using sigma in
+    let lemma = Declare.Proof.start_mutual_definitions_refine sum
+        ~info ~cinfo ~bodies:fix.fixdefs ~possible_guard ?using sigma
+    in
     None, Some lemma
   else
 
@@ -596,11 +598,11 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
     (match fixwfs, bodies, cinfo, obls with
     | [Some _], [body], [cinfo], [obls] ->
       (* Program Fixpoint wf/measure *)
-      let pm = Declare.Obls.add_definition ~pm ~cinfo ~info ~opaque:false ~body ~uctx ?using obls in
+      let pm = Declare.Obls.add_definition sum ~pm ~cinfo ~info ~opaque:false ~body ~uctx ?using obls in
       Some pm, None
     | _ ->
       let possible_guard = (possible_guard, fixrs) in
-      Some (Declare.Obls.add_mutual_definitions ~pm ~cinfo ~info ~opaque:false ~uctx ~bodies ~possible_guard ?using obls), None)
+      Some (Declare.Obls.add_mutual_definitions sum ~pm ~cinfo ~info ~opaque:false ~uctx ~bodies ~possible_guard ?using obls), None)
   | None ->
     match Option.List.map (fun x -> x) bodies with
     | Some bodies ->
@@ -609,12 +611,12 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
       (* All bodies are defined *)
       let possible_guard = (possible_guard, fixrs) in
       let _ : GlobRef.t list =
-        Declare.declare_mutual_definitions ~cinfo ~info ~opaque:false ~eff ~uctx ~possible_guard ~bodies ?using ()
+        Declare.declare_mutual_definitions sum ~cinfo ~info ~opaque:false ~eff ~uctx ~possible_guard ~bodies ?using ()
       in
       None, None
     | None ->
       (* At least one undefined body *)
       Evd.check_univ_decl_early ~poly ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
       let possible_guard = (possible_guard, fixrs) in
-      let lemma = Declare.Proof.start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma in
+      let lemma = Declare.Proof.start_mutual_definitions sum ~info ~cinfo ~bodies ~possible_guard ?using sigma in
       None, Some lemma

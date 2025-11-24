@@ -87,39 +87,39 @@ let mkKGlob env gr = KGlob (Environ.QGlobRef.canonize env gr)
 
 (** Registration of keys as an object *)
 
-let load_keys _ (ref,ref') =
+let load_keys _ (ref,ref') _sum =
   add_keys ref ref'
 
 let cache_keys o =
   load_keys 1 o
 
-let subst_key subst k =
+let subst_key _sum subst k =
   match k with
   | KGlob gr -> mkKGlob (Global.env ()) (subst_global_reference subst gr)
   | _ -> k
 
-let subst_keys (subst,(k,k')) =
-  (subst_key subst k, subst_key subst k')
+let subst_keys sum subst (k,k') =
+  (subst_key sum subst k, subst_key sum subst k')
 
-let discharge_key = function
+let discharge_key _sum = function
   | KGlob (GlobRef.VarRef _ as g) when Global.is_in_section g -> None
   | x -> Some x
 
-let discharge_keys (k,k') =
-  match discharge_key k, discharge_key k' with
+let discharge_keys sum (k,k') =
+  match discharge_key sum k, discharge_key sum k' with
   | Some x, Some y -> Some (x, y)
   | _ -> None
 
 type key_obj = key * key
 
 let inKeys : key_obj -> obj =
-  declare_object @@ superglobal_object "KEYS"
+  Interp.declare_object @@ superglobal_object "KEYS"
     ~cache:cache_keys
     ~subst:(Some subst_keys)
     ~discharge:discharge_keys
 
-let declare_equiv_keys ref ref' =
-  Lib.add_leaf (inKeys (ref,ref'))
+let declare_equiv_keys sum ref ref' =
+  Lib.Interp.add_leaf sum (inKeys (ref,ref'))
 
 let constr_key env kind c =
   try

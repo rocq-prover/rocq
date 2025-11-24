@@ -15,13 +15,15 @@ open Typeclasses
 
 (** Instance declaration *)
 
-val declare_instance : ?warn:bool -> env -> Evd.evar_map ->
-                       hint_info option -> Hints.hint_locality -> GlobRef.t -> unit
+val declare_instance : Summary.Interp.mut ->
+  ?warn:bool -> env -> Evd.evar_map ->
+  hint_info option -> Hints.hint_locality -> GlobRef.t -> unit
 (** Declares the given global reference as an instance of its type.
     Does nothing — or emit a “not-a-class” warning if the [warn] argument is set —
     when said type is not a registered type class. *)
 
-val existing_instance : ?loc:Loc.t -> Hints.hint_locality -> GlobRef.t -> Vernacexpr.hint_info_expr option -> unit
+val existing_instance : Summary.Interp.mut ->
+  ?loc:Loc.t -> Hints.hint_locality -> GlobRef.t -> Vernacexpr.hint_info_expr option -> unit
 (** globality, reference, optional priority and pattern information *)
 
 val new_instance_interactive
@@ -31,36 +33,39 @@ val new_instance_interactive
   -> local_binder_expr list
   -> constr_expr
   -> ?tac:unit Proofview.tactic
-  -> ?hook:(GlobRef.t -> unit)
+  -> ?hook:(Summary.Interp.mut -> GlobRef.t -> unit)
   -> Vernacexpr.hint_info_expr
   -> (bool * constr_expr) option
   -> lident * Declare.Proof.t
 
 val new_instance
-  : locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> locality:Hints.hint_locality
   -> poly:bool
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
   -> (bool * constr_expr)
-  -> ?hook:(GlobRef.t -> unit)
+  -> ?hook:(Summary.Interp.mut -> GlobRef.t -> unit)
   -> Vernacexpr.hint_info_expr
   -> lident
 
 val new_instance_program
-  : locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> locality:Hints.hint_locality
   -> pm:Declare.OblState.t
   -> poly:bool
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
   -> (bool * constr_expr) option
-  -> ?hook:(GlobRef.t -> unit)
+  -> ?hook:(Summary.Interp.mut -> GlobRef.t -> unit)
   -> Vernacexpr.hint_info_expr
   -> Declare.OblState.t * lident
 
 val declare_new_instance
-  : locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> locality:Hints.hint_locality
   -> program_mode:bool
   -> poly:bool
   -> ident_decl
@@ -69,7 +74,7 @@ val declare_new_instance
   -> Vernacexpr.hint_info_expr
   -> unit
 
-val add_class : typeclass -> unit
+val add_class : Summary.Interp.mut -> typeclass -> unit
 
 type instance = {
   class_name : GlobRef.t;
@@ -104,21 +109,24 @@ val deactivate_observer : observer -> unit
 (** Setting opacity *)
 
 val set_typeclass_transparency
-  :  ?typeclasses_db:Hints.hint_db_name ->
-     locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> ?typeclasses_db:Hints.hint_db_name
+  -> locality:Hints.hint_locality
   -> Evaluable.t list
   -> bool
   -> unit
 
 val set_typeclass_transparency_com
-  :  locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> locality:Hints.hint_locality
   -> Libnames.qualid list
   -> bool
   -> unit
 
 val set_typeclass_mode
-  :  ?typeclasses_db:string ->
-     locality:Hints.hint_locality
+  : Summary.Interp.mut
+  -> ?typeclasses_db:string
+  -> locality:Hints.hint_locality
   -> GlobRef.t
   -> Hints.hint_mode list
   -> unit
@@ -130,7 +138,8 @@ val refine_att : bool Attributes.attribute
 (** {6 Low level interface used by Add Morphism, do not use } *)
 module Internal :
 sig
-val add_instance : typeclass -> hint_info -> Hints.hint_locality -> GlobRef.t -> unit
+  val add_instance : Summary.Interp.mut ->
+    typeclass -> hint_info -> Hints.hint_locality -> GlobRef.t -> unit
 end
 
 

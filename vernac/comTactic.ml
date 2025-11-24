@@ -29,6 +29,7 @@ let interp_tac (I (tag,t)) =
   f t
 
 type parallel_solver =
+  Summary.Interp.t ->
   pstate:Declare.Proof.t ->
   info:int option ->
   interpretable ->
@@ -99,7 +100,7 @@ let check_par_applicable pstate =
       CErrors.user_err
         Pp.(strbrk("The par: goal selector does not support goals with existential variables"))))
 
-let par_implementation : parallel_solver ref = ref (fun ~pstate ~info t ~abstract ->
+let par_implementation : parallel_solver ref = ref (fun sum ~pstate ~info t ~abstract ->
   let t = interp_tac t in
   let t = Proofview.Goal.enter (fun _ ->
     if abstract then Abstract.tclABSTRACT None ~opaque:true t else t) 
@@ -108,6 +109,6 @@ let par_implementation : parallel_solver ref = ref (fun ~pstate ~info t ~abstrac
 
 let set_par_implementation f = par_implementation := f
 
-let solve_parallel ~pstate ~info t ~abstract =
+let solve_parallel sum ~pstate ~info t ~abstract =
   check_par_applicable pstate;
-  !par_implementation ~pstate ~info t ~abstract
+  !par_implementation sum ~pstate ~info t ~abstract

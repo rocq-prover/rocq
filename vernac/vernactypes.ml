@@ -147,60 +147,63 @@ type 'r typed_vernac_gen =
       spec : (('inprog, 'outprog) Prog.t,
               ('inproof, 'outproof) Proof.t,
               'inaccess OpaqueAccess.t) state_gen;
-      run : ('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen * 'r;
+      run : ('inprog, 'inproof, 'inaccess) state_gen ->
+        Summary.Interp.mut ->
+        ('outprog, 'outproof, unit) state_gen * 'r;
     } -> 'r typed_vernac_gen
 
 let map_typed_vernac f (TypedVernac {spec; run}) =
-  TypedVernac {spec; run = (fun st -> Util.on_snd f (run st)) }
+  TypedVernac {spec; run = (fun st sum -> Util.on_snd f (run st sum)) }
 
 type typed_vernac = unit typed_vernac_gen
 
 type full_state = (Prog.stack,Vernacstate.LemmaStack.t option,unit) state_gen
 
-let run (TypedVernac { spec = { prog; proof; opaque_access }; run }) (st:full_state) : full_state * _ =
+let run (TypedVernac { spec = { prog; proof; opaque_access }; run }) (st:full_state) sum : full_state * _ =
   let ( * ) = combine_runners in
   let runner = Prog.runner prog * Proof.runner proof * OpaqueAccess.runner opaque_access in
   let st, v = runner.run (tuple st) @@ fun st ->
-    let st, v= run @@ untuple st in tuple st, v
+    let st, v = run (untuple st) sum in
+    tuple st, v
   in
   untuple st, v
 
 let typed_vernac_gen spec run = TypedVernac { spec; run }
 
-let typed_vernac spec run = TypedVernac { spec; run = (fun st -> run st, () ) }
+let typed_vernac spec run = TypedVernac { spec; run = (fun st sum -> run st sum, () ) }
 
 let vtdefault f = typed_vernac ignore_state
-    (fun (_:no_state) -> let () = f () in no_state)
+    (fun (_:no_state) sum -> let () = f sum in no_state)
 
 let vtnoproof f = typed_vernac { ignore_state with proof = Reject }
-    (fun (_:no_state) -> let () = f () in no_state)
+    (fun (_:no_state) sum -> let () = f sum in no_state)
 
 let vtcloseproof f = typed_vernac { ignore_state with prog = Modify; proof = Close }
-    (fun {prog; proof} -> let prog = f ~lemma:proof ~pm:prog in { no_state with prog })
+    (fun {prog; proof} sum -> let prog = f ~lemma:proof ~pm:prog sum in { no_state with prog })
 
 let vtopenproof f = typed_vernac { ignore_state with proof = Open }
-    (fun (_:no_state) -> let proof = f () in { no_state with proof })
+    (fun (_:no_state) sum -> let proof = f sum in { no_state with proof })
 
 let vtmodifyproof f = typed_vernac { ignore_state with proof = Modify }
-    (fun {proof} -> let proof = f ~pstate:proof in { no_state with proof })
+    (fun {proof} sum -> let proof = f ~pstate:proof sum in { no_state with proof })
 
 let vtreadproofopt f = typed_vernac { ignore_state with proof = ReadOpt }
-    (fun {proof} -> let () = f ~pstate:proof in no_state)
+    (fun {proof} sum -> let () = f ~pstate:proof sum in no_state)
 
 let vtreadproof f = typed_vernac { ignore_state with proof = Read }
-    (fun {proof} -> let () = f ~pstate:proof in no_state)
+    (fun {proof} sum -> let () = f ~pstate:proof sum in no_state)
 
 let vtreadprogram f = typed_vernac { ignore_state with prog = Read }
-    (fun {prog} -> let () = f ~pm:prog in no_state)
+    (fun {prog} sum -> let () = f ~pm:prog sum in no_state)
 
 let vtmodifyprogram f = typed_vernac { ignore_state with prog = Modify }
-    (fun {prog} -> let prog = f ~pm:prog in { no_state with prog })
+    (fun {prog} sum -> let prog = f ~pm:prog sum in { no_state with prog })
 
 let vtdeclareprogram f = typed_vernac { ignore_state with prog = Read; proof = Open }
-    (fun {prog} -> let proof = f ~pm:prog in { no_state with proof })
+    (fun {prog} sum -> let proof = f ~pm:prog sum in { no_state with proof })
 
 let vtopenproofprogram f = typed_vernac { ignore_state with prog = Modify; proof = Open }
-    (fun {prog} -> let prog, proof = f ~pm:prog in { no_state with prog; proof; })
+    (fun {prog} sum -> let prog, proof = f ~pm:prog sum in { no_state with prog; proof; })
 
 let vtopaqueaccess f = typed_vernac { ignore_state with opaque_access = Access }
-    (fun {opaque_access} -> let () = f ~opaque_access in no_state)
+    (fun {opaque_access} sum -> let () = f ~opaque_access sum in no_state)
