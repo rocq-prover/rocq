@@ -915,12 +915,37 @@ module Search = struct
                       (fun e' -> let (e, info) = merge_exceptions e e' in
                               Proofview.tclZERO ~info e))
 
+  module Unifiable :
+  sig
+    type t
+    val make : Evd.evar_map -> Evar.t list -> t
+    val unifiable : t -> Evar.t -> bool
+  end =
+  struct
+    type t = (Evar.t * Intpart.set Lazy.t) list
+
+    let make sigma l =
+      let cache = Evarutil.create_undefined_evars_cache () in
+      let map ev =
+      (* Computes the set of evars appearing in the hypotheses, the conclusion or
+        the body of the evar_info [evi]. Note: since we want to use it on goals,
+        the body is actually supposed to be empty. *)
+        let EvarInfo evi = Evd.find sigma ev in
+        let fevs = lazy (Evarutil.filtered_undefined_evars_of_evar_info ~cache sigma evi) in
+        (ev, fevs)
+      in
+      List.map map l
+
+    let unifiable l g =
+      CList.exists (fun (tgt, lazy evs) -> not (Evar.equal g tgt) && Evar.Set.mem g evs) l
+  end
+
   let search_tac mst only_classes best_effort dep hints depth =
     let open Proofview in
-    let tac sigma gls i =
+    let tac unif i =
       Goal.enter begin fun gl ->
         let i = succ i in
-        let dep = dep || Proofview.unifiable sigma (Goal.goal gl) gls in
+        let dep = dep || Unifiable.unifiable unif (Goal.goal gl) in
         let info = make_autogoal mst only_classes dep (cut_of_hints hints) best_effort i gl in
         search_tac hints depth 1 info
       end
@@ -929,7 +954,8 @@ module Search = struct
       let gls = CList.map Proofview.drop_state gls in
       Proofview.tclEVARMAP >>= fun sigma ->
       let j = List.length gls in
-      search_fixpoint ~best_effort ~allow_out_of_order:true (List.init j (fun i -> tac sigma gls i))
+      let unif = Unifiable.make sigma gls in
+      search_fixpoint ~best_effort ~allow_out_of_order:true (List.init j (fun i -> tac unif i))
 
   let fix_iterative t =
     let rec aux depth =
