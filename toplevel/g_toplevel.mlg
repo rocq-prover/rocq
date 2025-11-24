@@ -56,7 +56,7 @@ GRAMMAR EXTEND Gram
           (if removed = None then Proof_diffs.DiffOn else Proof_diffs.DiffRemoved)) }
       | IDENT "Show"; "."-> { Some (VernacShowGoal OpenSubgoals) }
       | test_show_natural; IDENT "Show"; n = natural; "." -> { Some (VernacShowGoal (NthGoal n)) }
-      | IDENT "Show"; IDENT "Diffs"; id = ident; "." -> { Some (VernacShowGoal (GoalId id)) }
+      | IDENT "Show"; IDENT "Diffs"; id = qualid; "." -> { Some (VernacShowGoal (GoalId id)) }
       | cmd = Pvernac.Vernac_.main_entry ->
               { match cmd with
               | None -> None

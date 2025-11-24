@@ -365,7 +365,7 @@ let tclBREAK = Proof.break
 type goal_range_selector =
   | NthSelector of int
   | RangeSelector of (int * int)
-  | IdSelector of Names.Id.t
+  | IdSelector of Libnames.full_path
 
 exception NoSuchGoals of int
 exception CannotSelectShelvedAndFocused

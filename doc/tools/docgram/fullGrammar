@@ -496,7 +496,7 @@ vernac_toplevel: [
 | "Show" "Proof" "Diffs" OPT "removed" "."
 | "Show" "."
 | test_show_natural "Show" natural "."
-| "Show" "Diffs" ident "."
+| "Show" "Diffs" qualid "."
 | Pvernac.Vernac_.main_entry
 ]
 
@@ -530,7 +530,7 @@ command: [
 | "Unfocused"
 | "Show"
 | "Show" natural
-| "Show" fullyqualid
+| "Show" qualid
 | "Show" "Existentials"
 | "Show" "Universes"
 | "Show" "Conjectures"
@@ -1383,7 +1383,7 @@ simple_reserv: [
 range_selector: [
 | natural "-" natural
 | natural
-| test_bracket_ident "[" fullyqualid "]"
+| test_bracket_ident "[" qualid "]"
 ]
 
 goal_selector: [
