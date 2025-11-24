@@ -343,18 +343,18 @@ sort: [
 ]
 
 term100: [
-| REPLACE term100 "<:" term200
-| WITH term100 "<:" type
-| MOVETO term_cast term100 "<:" type
-| REPLACE term100 "<<:" term200
-| WITH term100 "<<:" type
-| MOVETO term_cast term100 "<<:" type
-| REPLACE term100 ":>" term200
-| WITH term100 ":>" type
-| MOVETO term_cast term100 ":>" type
-| REPLACE term100 ":" term200
-| WITH term100 ":" type
-| MOVETO term_cast term100 ":" type
+| REPLACE term99 "<:" term200
+| WITH term99 "<:" type
+| MOVETO term_cast term99 "<:" type
+| REPLACE term99 "<<:" term200
+| WITH term99 "<<:" type
+| MOVETO term_cast term99 "<<:" type
+| REPLACE term99 ":>" term200
+| WITH term99 ":>" type
+| MOVETO term_cast term99 ":>" type
+| REPLACE term99 ":" term200
+| WITH term99 ":" type
+| MOVETO term_cast term99 ":" type
 ]
 
 constr: [
@@ -2005,8 +2005,8 @@ SPLICE: [
 ]
 
 ltac2_expr3: [
-| REPLACE ltac2_expr3 "," LIST1 ltac2_expr2 SEP ","      (* Ltac2 plugin *)
-| WITH LIST1 ltac2_expr3 SEP "," TAG Ltac2
+| REPLACE ltac2_expr2 "," LIST1 ltac2_expr2 SEP ","      (* Ltac2 plugin *)
+| WITH LIST1 ltac2_expr2 SEP "," TAG Ltac2
 | DELETE ltac2_expr2      (* Ltac2 plugin *)
 ]
 

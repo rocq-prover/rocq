@@ -40,10 +40,10 @@ Type cast
 .. insertprodn term_cast term_cast
 
 .. prodn::
-   term_cast ::= @term100 <: @type
-   | @term100 <<: @type
-   | @term100 :> @type
-   | @term100 : @type
+   term_cast ::= @term10 <: @type
+   | @term10 <<: @type
+   | @term10 :> @type
+   | @term10 : @type
 
 The expression :n:`@term10 : @type` is a type cast expression. It enforces
 the type of :n:`@term10` to be :n:`@type`.

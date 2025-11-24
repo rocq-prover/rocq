@@ -189,6 +189,7 @@ let print_assoc fmt = function
 | LeftA -> fprintf fmt "Gramlib.Gramext.LeftA"
 | RightA -> fprintf fmt "Gramlib.Gramext.RightA"
 | NonA -> fprintf fmt "Gramlib.Gramext.NonA"
+| BothA -> fprintf fmt "Gramlib.Gramext.BothA"
 
 let is_token s = match string_split s with
 | [s] -> is_uident s

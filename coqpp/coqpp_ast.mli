@@ -49,6 +49,7 @@ type assoc =
 | LeftA
 | RightA
 | NonA
+| BothA
 
 type gram_symbol =
 | GSymbString of string
