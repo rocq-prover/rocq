@@ -6,7 +6,7 @@
 (*
  * Increment the persistent counter
  *)
-val increment : unit -> unit
+val increment : Summary.Interp.mut -> unit
 
 (*
  * Determine the value of the persistent counter

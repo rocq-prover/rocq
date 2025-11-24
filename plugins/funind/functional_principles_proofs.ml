@@ -819,7 +819,7 @@ let var_of_decl = id_of_decl %> mkVar
 let revert idl =
   Tacticals.tclTHEN (Generalize.generalize (List.map mkVar idl)) (clear idl)
 
-let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_num
+let generate_equation_lemma sum env evd fnames f fun_num nb_params nb_args rec_args_num
     =
   let open Tacticals in
   (*   observe (str "nb_args := " ++ str (string_of_int nb_args)); *)
@@ -890,14 +890,14 @@ let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_
   let lemma = Declare.Proof.start ~cinfo ~info evd in
   let lemma, _ = Declare.Proof.by (Global.env ()) prove_replacement lemma in
   let (_ : _ list) =
-    Declare.Proof.save_regular ~proof:lemma ~opaque:Vernacexpr.Transparent
+    Declare.Proof.save_regular sum ~proof:lemma ~opaque:Vernacexpr.Transparent
       ~idopt:None
   in
   evd
 
 exception NoLemma
 
-let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
+let do_replace sum (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
     all_funs =
   Proofview.Goal.enter (fun g ->
       let env = Proofview.Goal.env g in
@@ -920,7 +920,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
             i*)
           let equation_lemma_id = mk_equation_id f_id in
           evd :=
-            generate_equation_lemma env !evd all_funs f fun_num (List.length params)
+            generate_equation_lemma sum env !evd all_funs f fun_num (List.length params)
               (List.length rev_args_id) rec_arg_num;
           let _ =
             match e with
@@ -930,7 +930,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
                 | None -> raise Not_found
                 | Some finfos -> finfos
               in
-              update_Function
+              update_Function sum
                 { finfos with
                   equation_lemma =
                     Some
@@ -971,7 +971,7 @@ let do_replace (evd : Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num
                (Equality.rewriteLR equation_lemma) <*>
                (revert just_introduced_id))))
 
-let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
+let prove_princ_for_struct sum (evd : Evd.evar_map ref) interactive_proof fun_num
     fnames all_funs _nparams : unit Proofview.tactic =
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
@@ -1213,7 +1213,7 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
                       in
                       tclTHENLIST
                         [ observe_tac "do_replace"
-                            (do_replace evd full_params
+                            (do_replace sum evd full_params
                                (fix_info.idx + List.length princ_params)
                                ( args_id
                                @ List.map

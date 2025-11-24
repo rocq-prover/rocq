@@ -186,15 +186,18 @@ type hint_locality = Libobject.locality = Local | Export | SuperGlobal
    [use_dn] switches the use of the discrimination net for all hints
    and patterns. *)
 
-val create_hint_db : bool -> hint_db_name -> TransparentState.t -> bool -> unit
+val create_hint_db : Summary.Interp.mut ->
+  bool -> hint_db_name -> TransparentState.t -> bool -> unit
 
-val remove_hints : locality:hint_locality -> hint_db_name list -> GlobRef.t list -> unit
+val remove_hints : Summary.Interp.mut ->
+  locality:hint_locality -> hint_db_name list -> GlobRef.t list -> unit
 
 val current_db_names : unit -> String.Set.t
 
 val current_pure_db : unit -> hint_db list
 
-val add_hints : locality:hint_locality -> hint_db_name list -> hints_entry -> unit
+val add_hints : Summary.Interp.mut ->
+  locality:hint_locality -> hint_db_name list -> hints_entry -> unit
 
 (** A constr which is Hint'ed will be:
    - (1) used as an Exact, if it does not start with a product

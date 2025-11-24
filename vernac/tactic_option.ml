@@ -55,13 +55,13 @@ let declare_tactic_option ?default name =
   let set_current_tactic t =
     current_tactic := t
   in
-  let cache (_, tac) = set_current_tactic tac in
-  let load _ (local, tac) = match local with
+  let cache (_, tac) _sum = set_current_tactic tac in
+  let load _ (local, tac) _sum = match local with
     | Default | Global | GlobalAndExport -> set_current_tactic tac
     | Export -> ()
     | Local -> assert false (* not allowed by classify *)
   in
-  let import i (local, tac) = match local with
+  let import i (local, tac) _sum = match local with
     | GlobalAndExport | Export -> if Int.equal i 1 then set_current_tactic tac
     | Default | Global -> set_current_tactic tac
     | Local -> assert false (* not allowed by classify *)
@@ -70,11 +70,11 @@ let declare_tactic_option ?default name =
     | Local -> Dispose
     | Default | Global | Export | GlobalAndExport -> Substitute
   in
-  let subst (s, (local, tac)) =
+  let subst _sum s  (local, tac) =
     (local, Option.map (Gentactic.subst s) tac)
   in
   let input : tac_option_locality * Gentactic.glob_generic_tactic option -> obj =
-    declare_object
+    Interp.declare_object
       { (default_object name) with
         cache_function = cache;
         load_function = load;
@@ -83,7 +83,7 @@ let declare_tactic_option ?default name =
         classify_function = classify;
         subst_function = subst}
   in
-  let put ?loc local tac =
+  let put sum ?loc local tac =
     let () = match local with
       | Default -> if not (Lib.sections_are_opened()) then warn_default_locality ?loc ()
       | Local -> ()
@@ -92,7 +92,7 @@ let declare_tactic_option ?default name =
         then CErrors.user_err ?loc
             Pp.(str "This locality is not supported inside sections by this command.")
     in
-    Lib.add_leaf (input (local, Some tac))
+    Lib.Interp.add_leaf sum (input (local, Some tac))
   in
   let get () = match !current_tactic with
     | None -> Proofview.tclUNIT ()

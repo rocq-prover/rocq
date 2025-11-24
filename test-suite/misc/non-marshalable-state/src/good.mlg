@@ -2,7 +2,7 @@ DECLARE PLUGIN "coq-test-suite.good"
 
 {
 
-let state = Summary.ref ~local:true
+let get_state, set_state = Summary.Interp.local_ref
   ~name:"elpi-compiler-cache"
   None
 
@@ -10,6 +10,6 @@ let state = Summary.ref ~local:true
 
 VERNAC COMMAND EXTEND magic CLASSIFIED AS SIDEFF
 | [ "magic" ] -> {
-    state := Some (fun () -> ())
+    set_state @@ Some (fun () -> ())
 }
 END

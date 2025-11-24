@@ -15,7 +15,8 @@ open Vernacexpr
 (** Entry points for the vernacular commands Fixpoint and CoFixpoint *)
 
 val do_mutually_recursive
-  :  ?pm:Declare.OblState.t
+  : Summary.Interp.mut
+  -> ?pm:Declare.OblState.t
      (* Obligation mode turns unresolved evars into obligations *)
   -> refine:bool
      (* [refine] means definitions are allowed to have holes *)
@@ -51,6 +52,7 @@ val do_mutually_recursive
 (** Exported for Funind *)
 
 val interp_fixpoint_short
-  :  Constrexpr.fixpoint_order_expr option list
+  : Summary.Interp.mut
+  -> Constrexpr.fixpoint_order_expr option list
   -> recursive_expr_gen list
   -> Constr.types list * Evd.evar_map

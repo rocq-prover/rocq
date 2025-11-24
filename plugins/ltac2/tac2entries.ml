@@ -82,20 +82,20 @@ let define_tacdef ((_,kn), def) =
 let push_tacdef visibility ((sp, kn), def) =
   if not def.tacdef_local then Tac2env.push_ltac visibility sp (TacConstant kn)
 
-let load_tacdef i obj =
+let load_tacdef i obj _sum =
   push_tacdef (Until i) obj;
   define_tacdef obj
 
-let open_tacdef i obj = push_tacdef (Exactly i) obj
+let open_tacdef i obj _sum = push_tacdef (Exactly i) obj
 
 (* Not sure if it's correct that we don't "open", do Until 1 and
    Exactly 1 have the same effect? *)
-let cache_tacdef ((sp, kn), def as obj) =
+let cache_tacdef ((sp, kn), def as obj) _sum =
   (* unconditional unlike push_tacdef *)
   Tac2env.push_ltac (Until 1) sp (TacConstant kn);
   define_tacdef obj
 
-let subst_tacdef (subst, def) =
+let subst_tacdef _sum subst def =
   let expr' = subst_expr subst def.tacdef_expr in
   let type' = subst_type_scheme subst def.tacdef_type in
   if expr' == def.tacdef_expr && type' == def.tacdef_type then def
@@ -104,7 +104,8 @@ let subst_tacdef (subst, def) =
 let classify_tacdef o = Substitute
 
 let inTacDef : Id.t -> tacdef -> obj =
-  declare_named_object {(default_object "TAC2-DEFINITION") with
+  Libobject.Interp.declare_named_object
+    {(default_object "TAC2-DEFINITION") with
      cache_function  = cache_tacdef;
      load_function   = load_tacdef;
      open_function   = filtered_open open_tacdef;
@@ -200,21 +201,22 @@ let perform_typdef vs ((sp, kn), def) =
   let () = if not def.typdef_local then push_typedef vs sp kn expr in
   define_typedef kn expr
 
-let load_typdef i obj = perform_typdef (Until i) obj
-let open_typdef i obj = perform_typdef (Exactly i) obj
+let load_typdef i obj _sum = perform_typdef (Until i) obj
+let open_typdef i obj _sum = perform_typdef (Exactly i) obj
 
-let cache_typdef ((sp, kn), def) =
+let cache_typdef ((sp, kn), def) _sum =
   let () = push_typedef (Until 1) sp kn def.typdef_expr in
   define_typedef kn def.typdef_expr
 
-let subst_typdef (subst, def) =
+let subst_typdef _sum subst def =
   let expr' = subst_quant_typedef subst def.typdef_expr in
   if expr' == def.typdef_expr then def else { def with typdef_expr = expr' }
 
 let classify_typdef o = Substitute
 
 let inTypDef : Id.t -> typdef -> obj =
-  declare_named_object {(default_object "TAC2-TYPE-DEFINITION") with
+  Libobject.Interp.declare_named_object
+    {(default_object "TAC2-TYPE-DEFINITION") with
      cache_function  = cache_typdef;
      load_function   = load_typdef;
      open_function   = filtered_open open_typdef;
@@ -258,7 +260,7 @@ let define_typext mp def =
   in
   List.iter iter def.typext_expr
 
-let cache_typext (prefix, def) =
+let cache_typext (prefix, def) _sum =
   let () = define_typext prefix.obj_mp def in
   push_typext (Until 1) prefix def
 
@@ -266,10 +268,10 @@ let perform_typext vs (prefix, def) =
   let () = if not def.typext_local then push_typext vs prefix def in
   define_typext prefix.obj_mp def
 
-let load_typext i obj = perform_typext (Until i) obj
-let open_typext i obj = perform_typext (Exactly i) obj
+let load_typext i obj _sum = perform_typext (Until i) obj
+let open_typext i obj _sum = perform_typext (Exactly i) obj
 
-let subst_typext (subst, e) =
+let subst_typext _sum subst e =
   let open Mod_subst in
   let subst_data data =
     let edata_args = List.Smart.map (fun e -> subst_type subst e) data.edata_args in
@@ -286,7 +288,8 @@ let subst_typext (subst, e) =
 let classify_typext o = Substitute
 
 let inTypExt : typext -> obj =
-  declare_named_object_gen {(default_object "TAC2-TYPE-EXTENSION") with
+  Libobject.Interp.declare_named_object_gen
+    {(default_object "TAC2-TYPE-EXTENSION") with
      cache_function  = cache_typext;
      load_function   = load_typext;
      open_function   = filtered_open open_typext;
@@ -345,7 +348,7 @@ let check_ltac_exists {loc;v=id} =
     user_err ?loc (str "Tactic " ++ Names.Id.print id ++ str " already exists")
 
 
-let register_ltac ?deprecation ?(local = false) ?(mut = false) isrec tactics =
+let register_ltac sum ?deprecation ?(local = false) ?(mut = false) isrec tactics =
   let map ({loc;v=na}, e) =
     let id = match na with
     | Anonymous ->
@@ -374,7 +377,7 @@ let register_ltac ?deprecation ?(local = false) ?(mut = false) isrec tactics =
       tacdef_type = t;
       tacdef_deprecation = deprecation;
     } in
-    Lib.add_leaf (inTacDef id def)
+    Lib.Interp.add_leaf sum (inTacDef id def)
   in
   List.iter iter defs
 
@@ -382,7 +385,7 @@ let qualid_to_ident qid =
   if qualid_is_ident qid then CAst.make ?loc:qid.CAst.loc @@ qualid_basename qid
   else user_err ?loc:qid.CAst.loc (str "Identifier expected")
 
-let register_typedef ?(local = false) ?(abstract=false) isrec types =
+let register_typedef sum ?(local = false) ?(abstract=false) isrec types =
   let same_name ({v=id1}, _) ({v=id2}, _) = Id.equal id1 id2 in
   let () = match List.duplicates same_name types with
   | [] -> ()
@@ -466,10 +469,10 @@ let register_typedef ?(local = false) ?(abstract=false) isrec types =
     (id, typdef)
   in
   let types = List.map map types in
-  let iter (id, def) = Lib.add_leaf (inTypDef id def) in
+  let iter (id, def) = Lib.Interp.add_leaf sum (inTypDef id def) in
   List.iter iter types
 
-let register_primitive ?deprecation ?(local = false) ({loc;v=id} as lid) t ml =
+let register_primitive sum ?deprecation ?(local = false) ({loc;v=id} as lid) t ml =
   let () = check_ltac_exists lid in
   let t = intern_open_type t in
   let () =
@@ -485,9 +488,9 @@ let register_primitive ?deprecation ?(local = false) ({loc;v=id} as lid) t ml =
     tacdef_type = t;
     tacdef_deprecation = deprecation;
   } in
-  Lib.add_leaf (inTacDef id def)
+  Lib.Interp.add_leaf sum (inTacDef id def)
 
-let register_open ?(local = false) qid (params, def) =
+let register_open sum ?(local = false) qid (params, def) =
   let kn =
     try Tac2env.locate_type qid
     with Not_found ->
@@ -542,17 +545,17 @@ let register_open ?(local = false) qid (params, def) =
       typext_prms = tparams;
       typext_expr = def;
     } in
-    Lib.add_leaf (inTypExt def)
+    Lib.Interp.add_leaf sum (inTypExt def)
   | CTydRec _ | CTydDef _ ->
     user_err ?loc:qid.CAst.loc (str "Extensions only accept inductive constructors")
 
-let register_type ?local ?abstract isrec types = match types with
+let register_type sum ?local ?abstract isrec types = match types with
 | [qid, true, def] ->
   let () = if isrec then user_err ?loc:qid.CAst.loc (str "Extensions cannot be recursive.") in
   let () = if Option.default false abstract
     then user_err ?loc:qid.loc (str "Extensions cannot be abstract.")
   in
-  register_open ?local qid def
+  register_open ?local sum qid def
 | _ ->
   let map (qid, redef, def) =
     let () = if redef then
@@ -561,31 +564,31 @@ let register_type ?local ?abstract isrec types = match types with
     (qualid_to_ident qid, def)
   in
   let types = List.map map types in
-  register_typedef ?local ?abstract isrec types
+  register_typedef sum ?local ?abstract isrec types
 
-let load_import_type i ((sp,kn),orig) =
+let load_import_type i ((sp,kn),orig) _sum =
   let def = Tac2env.interp_type orig in
   push_typedef_contents (Until i) sp orig def
 
-let open_import_type i ((sp,kn),orig) =
+let open_import_type i ((sp,kn),orig) _sum =
   let def = Tac2env.interp_type orig in
   push_typedef_contents (Exactly i) sp orig def
 
-let cache_import_type o = load_import_type 1 o
+let cache_import_type o sum = load_import_type 1 o sum
 
 let inImportType =
-  declare_named_object
+  Libobject.Interp.declare_named_object
     { (default_object "TAC2-IMPORT-TYPE") with
      cache_function = cache_import_type;
      load_function = load_import_type;
      open_function = filtered_open open_import_type;
-     subst_function = (fun (subst,kn) -> Mod_subst.subst_kn subst kn);
+     subst_function = (fun _sum subst kn -> Mod_subst.subst_kn subst kn);
      (* NB don't bother supporting Local as it doesn't seem useful *)
      classify_function = (fun _ -> Substitute);
     }
 
 (* TODO deprecate attr *)
-let import_type qid as_id =
+let import_type sum qid as_id =
   let () =
     if Lib.sections_are_opened() then
       (* if you want to implement it take care that the "orig" type isn't local to the section *)
@@ -597,12 +600,12 @@ let import_type qid as_id =
   | orig ->
     let params, _ = Tac2env.interp_type orig in
     let alias_def = GTypRef (Other orig, List.init params (fun i -> GTypVar i)) in
-    Lib.add_leaf (inTypDef as_id {
+    Lib.Interp.add_leaf sum (inTypDef as_id {
         typdef_local = false;
         typdef_abstract = false;
         typdef_expr = params, GTydDef (Some alias_def);
       });
-    Lib.add_leaf (inImportType as_id orig)
+    Lib.Interp.add_leaf sum (inImportType as_id orig)
 
 (** Parsing *)
 
@@ -669,28 +672,27 @@ let () =
   | exception Not_found -> None
   | name -> Some [Any (find_custom_entry name)]
 
-let load_custom_entry i ((sp,kn),local) =
+let load_custom_entry i ((sp,kn),local) _sum =
   let () = CustomTab.push (Until i) sp kn in
   let () = Procq.extend_entry_command ltac2_custom_entry kn in
   let () = assert (not local) in
   ()
 
-let import_custom_entry i ((sp,kn),local) =
+let import_custom_entry i ((sp,kn),local) _sum =
   let () = CustomTab.push (Exactly i) sp kn in
   ()
 
-let cache_custom_entry o =
-  load_custom_entry 1 o;
-  import_custom_entry 1 o
+let cache_custom_entry o sum =
+  load_custom_entry 1 o sum;
+  import_custom_entry 1 o sum
 
 let inCustomEntry : Id.t -> bool -> Libobject.obj =
-  declare_named_object {
+  Libobject.Synterp.declare_named_object {
     (default_object "Ltac2 custom entry") with
-    object_stage = Synterp;
     cache_function = cache_custom_entry;
     load_function = load_custom_entry;
     open_function = filtered_open import_custom_entry;
-    subst_function = (fun (_,x) -> x);
+    subst_function = ident_subst_function;
     classify_function = (fun local -> if local then Dispose else Substitute);
   }
 
@@ -704,13 +706,13 @@ let check_custom_entry_name id =
   else if CustomTab.exists (Lib.make_path id) then
     CErrors.user_err Pp.(str "Ltac2 custom entry " ++ Id.print id ++ str " already exists.")
 
-let register_custom_entry name =
+let register_custom_entry sum name =
   let name = name.CAst.v in
   check_custom_entry_name name;
   (* not yet implemented: module local custom entries
      NB: will need checks that exported notations don't rely on the local entries *)
   let local = false in
-  Lib.add_leaf (inCustomEntry name local)
+  Lib.Synterp.add_leaf sum (inCustomEntry name local)
 
 let register_syntax_class id (s:_ syntax_class_decl) =
   assert (not (Id.Map.mem id !syntax_class_interns));
@@ -951,10 +953,10 @@ let perform_notation syn st =
 let ltac2_notation =
   Procq.create_grammar_command "ltac2-notation" { gext_fun = perform_notation; gext_eq = (==) (* FIXME *) }
 
-let cache_synext syn =
+let cache_synext syn _sum =
   Procq.extend_grammar_command ~ignore_kw:false ltac2_notation syn
 
-let subst_synext (subst, syn) =
+let subst_synext _sum subst syn =
   let kn = Mod_subst.subst_kn subst syn.synext_kn in
   if kn == syn.synext_kn then syn
   else { syn with synext_kn = kn }
@@ -965,14 +967,14 @@ let classify_synext o =
 let ltac2_notation_cat = Libobject.create_category "ltac2.notations"
 
 let inTac2Notation : synext -> obj =
-  declare_object {(default_object "TAC2-NOTATION") with
-     object_stage = Summary.Stage.Synterp;
+  Libobject.Synterp.declare_object
+    {(default_object "TAC2-NOTATION") with
      cache_function  = cache_synext;
      open_function   = simple_open ~cat:ltac2_notation_cat cache_synext;
      subst_function = subst_synext;
      classify_function = classify_synext}
 
-let cache_synext_interp (local,kn,tac) =
+let cache_synext_interp (local,kn,tac) _sum =
   Tac2env.define_notation kn tac
 
 let subst_notation_data subst = function
@@ -986,7 +988,7 @@ let subst_notation_data subst = function
     if body' == body && argtys' == argtys && ty' == ty then n
     else TypedNota {nota_body=body'; nota_argtys=argtys'; nota_ty=ty'; nota_prms=prms}
 
-let subst_synext_interp (subst, (local,kn,tac as o)) =
+let subst_synext_interp _sum subst (local,kn,tac as o) =
   let tac' = subst_notation_data subst tac in
   let kn' = Mod_subst.subst_kn subst kn in
   if kn' == kn && tac' == tac then o else
@@ -996,7 +998,8 @@ let classify_synext_interp (local,_,_) =
   if local then Dispose else Substitute
 
 let inTac2NotationInterp : (bool*KerName.t*Tac2env.notation_data) -> obj =
-  declare_object {(default_object "TAC2-NOTATION-INTERP") with
+  Libobject.Interp.declare_object
+    {(default_object "TAC2-NOTATION-INTERP") with
      cache_function  = cache_synext_interp;
      open_function   = simple_open ~cat:ltac2_notation_cat cache_synext_interp;
      subst_function = subst_synext_interp;
@@ -1011,14 +1014,14 @@ let perform_abbreviation visibility ((sp, kn), abbr) =
   let () = Tac2env.push_ltac visibility sp (TacAlias kn) in
   Tac2env.define_alias ?deprecation:abbr.abbr_depr kn abbr.abbr_body
 
-let load_abbreviation i obj = perform_abbreviation (Until i) obj
-let open_abbreviation i obj = perform_abbreviation (Exactly i) obj
+let load_abbreviation i obj _sum = perform_abbreviation (Until i) obj
+let open_abbreviation i obj _sum = perform_abbreviation (Exactly i) obj
 
-let cache_abbreviation ((sp, kn), abbr) =
+let cache_abbreviation ((sp, kn), abbr) _sum =
   let () = Tac2env.push_ltac (Until 1) sp (TacAlias kn) in
   Tac2env.define_alias ?deprecation:abbr.abbr_depr kn abbr.abbr_body
 
-let subst_abbreviation (subst, abbr) =
+let subst_abbreviation _sum subst abbr =
   let body' = subst_rawexpr subst abbr.abbr_body in
   if body' == abbr.abbr_body then abbr
   else { abbr_body = body'; abbr_depr = abbr.abbr_depr }
@@ -1026,7 +1029,8 @@ let subst_abbreviation (subst, abbr) =
 let classify_abbreviation o = Substitute
 
 let inTac2Abbreviation : Id.t -> abbreviation -> obj =
-  declare_named_object {(default_object "TAC2-ABBREVIATION") with
+  Libobject.Interp.declare_named_object
+    {(default_object "TAC2-ABBREVIATION") with
      cache_function  = cache_abbreviation;
      load_function   = load_abbreviation;
      open_function   = filtered_open ~cat:ltac2_notation_cat open_abbreviation;
@@ -1087,7 +1091,7 @@ let warn_deprecated_notation_for_abbreviation =
 
 let tactic_qualid = qualid_of_ident (Id.of_string "tactic")
 
-let register_notation atts tkn (entry,lev) body =
+let register_notation sum atts tkn (entry,lev) body =
   match tkn, entry, lev with
   | [SexprRec (_, {loc;v=Some id}, [])], None, None ->
     warn_deprecated_notation_for_abbreviation ();
@@ -1149,17 +1153,17 @@ let register_notation atts tkn (entry,lev) body =
       synext_loc = local;
       synext_depr = deprecation;
     } in
-    Lib.add_leaf (inTac2Notation ext);
+    Lib.Synterp.add_leaf sum (inTac2Notation ext);
     Synext (local,key,ids,body)
 
-let register_notation_interpretation = function
+let register_notation_interpretation sum = function
   | Abbreviation (id, deprecation, body) ->
     let body = Tac2intern.globalize Id.Set.empty body in
     let abbr = { abbr_body = body; abbr_depr = deprecation } in
-    Lib.add_leaf (inTac2Abbreviation id abbr)
+    Lib.Interp.add_leaf sum (inTac2Abbreviation id abbr)
   | Synext (local,kn,ids,body) ->
     let data = intern_notation_data ids body in
-    Lib.add_leaf (inTac2NotationInterp (local,kn,data))
+    Lib.Interp.add_leaf sum (inTac2NotationInterp (local,kn,data))
 
 type redefinition = {
   redef_local : Libobject.locality;
@@ -1168,7 +1172,7 @@ type redefinition = {
   redef_old : Id.t option;
 }
 
-let perform_redefinition (prefix,redef) =
+let perform_redefinition (prefix,redef) _sum =
   let kn = redef.redef_kn in
   let data = Tac2env.interp_global kn in
   let body = match redef.redef_old with
@@ -1186,19 +1190,19 @@ let perform_redefinition (prefix,redef) =
   in
   Tac2env.define_global kn data
 
-let load_redefinition _ (_,redef as o) =
+let load_redefinition _ (_,redef as o) sum =
   match redef.redef_local with
   | Local -> assert false
   | Export -> ()
-  | SuperGlobal -> perform_redefinition o
+  | SuperGlobal -> perform_redefinition o sum
 
-let open_redefinition (_,redef as o) =
+let open_redefinition (_,redef as o) sum =
   match redef.redef_local with
   | Local -> assert false
-  | Export -> perform_redefinition o
+  | Export -> perform_redefinition o sum
   | SuperGlobal -> ()
 
-let subst_redefinition (subst, redef) =
+let subst_redefinition _sum subst redef =
   let kn = Mod_subst.subst_kn subst redef.redef_kn in
   let body = Tac2intern.subst_expr subst redef.redef_body in
   if kn == redef.redef_kn && body == redef.redef_body then redef
@@ -1213,7 +1217,7 @@ let classify_redefinition o = match o.redef_local with
   | Export | SuperGlobal -> Substitute
 
 let inTac2Redefinition : redefinition -> obj =
-  declare_named_object_gen
+  Libobject.Interp.declare_named_object_gen
     {(default_object "TAC2-REDEFINITION") with
      cache_function  = perform_redefinition;
      load_function = load_redefinition;
@@ -1222,7 +1226,7 @@ let inTac2Redefinition : redefinition -> obj =
      classify_function = classify_redefinition;
     }
 
-let register_redefinition ~local qid old ({loc=eloc} as e) =
+let register_redefinition sum ~local qid old ({loc=eloc} as e) =
   let local = match local with
     | None -> if Lib.sections_are_opened() then Local else Export
     | Some local -> Locality.check_locality_nodischarge Local; local
@@ -1260,7 +1264,7 @@ let register_redefinition ~local qid old ({loc=eloc} as e) =
     redef_body = e;
     redef_old = old;
   } in
-  Lib.add_leaf (inTac2Redefinition def)
+  Lib.Interp.add_leaf sum (inTac2Redefinition def)
 
 let perform_eval ~pstate e =
   let env = Global.env () in
@@ -1294,22 +1298,22 @@ let check_modtype what =
 
 let abstract_att = Attributes.bool_attribute ~name:"abstract"
 
-let register_struct atts str = match str with
+let register_struct sum atts str = match str with
 | StrVal (mut, isrec, e) ->
   check_modtype "definitions";
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
-  register_ltac ?deprecation ?local ~mut isrec e
+  register_ltac sum ?deprecation ?local ~mut isrec e
 | StrTyp (isrec, t) ->
   check_modtype "types";
   let local, abstract = Attributes.(parse Notations.(locality ++ abstract_att)) atts in
-  register_type ?local ?abstract isrec t
+  register_type sum ?local ?abstract isrec t
 | StrPrm (id, t, ml) ->
   check_modtype "externals";
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
-  register_primitive ?deprecation ?local id t ml
+  register_primitive sum ?deprecation ?local id t ml
 | StrMut (qid, old, e) ->
   let local = Attributes.(parse explicit_hint_locality) atts in
-  register_redefinition ~local qid old e
+  register_redefinition sum ~local qid old e
 
 (** Toplevel exception *)
 
@@ -1585,12 +1589,12 @@ let call ~pstate g ~with_end_tac tac =
   let g = Option.default (Goal_select.get_default_goal_selector()) g in
   ComTactic.solve ~pstate ~with_end_tac g ~info:None (ltac2_interp tac)
 
-let call_par ~pstate tac =
-  ComTactic.solve_parallel ~pstate ~info:None (ltac2_interp tac) ~abstract:false
+let call_par sum ~pstate tac =
+  ComTactic.solve_parallel ~pstate sum ~info:None (ltac2_interp tac) ~abstract:false
 
 (** Primitive algebraic types than can't be defined Rocq-side *)
 
-let register_prim_alg name params def =
+let register_prim_alg sum name params def =
   let id = Id.of_string name in
   let def = List.map (fun (cstr, tpe) -> (None, Id.of_string_soft cstr, tpe)) def in
   let getn (const, nonconst) (_, c, args) = match args with
@@ -1605,7 +1609,7 @@ let register_prim_alg name params def =
   } in
   let def = (params, GTydAlg alg) in
   let def = { typdef_local = false; typdef_abstract = false; typdef_expr = def } in
-  Lib.add_leaf (inTypDef id def)
+  Lib.Interp.add_leaf sum (inTypDef id def)
 
 let rocq_def n = KerName.make Tac2env.rocq_prefix (Id.of_string n)
 
@@ -1618,10 +1622,10 @@ let def_unit = {
 let t_list = rocq_def "list"
 
 let () =
-  let obj () =
+  let obj sum =
      let unit = Id.of_string "unit" in
-     Lib.add_leaf (inTypDef unit def_unit);
-     register_prim_alg "list" 1 [
+     Lib.Interp.add_leaf sum (inTypDef unit def_unit);
+     register_prim_alg sum "list" 1 [
        ("[]", []);
        ("::", [GTypVar 0; GTypRef (Other t_list, [GTypVar 0])]);
      ];

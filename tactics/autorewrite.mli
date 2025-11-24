@@ -15,13 +15,14 @@ open Equality
 
 type raw_rew_rule = (constr PConstraints.in_poly_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
 
-val create_rewrite_hint_db : local:bool -> name:string -> unit
+val create_rewrite_hint_db : Summary.Interp.mut -> local:bool -> name:string -> unit
 
 (** To add rewriting rules to a base *)
-val add_rew_rules : locality:Hints.hint_locality -> string -> raw_rew_rule list -> unit
+val add_rew_rules : Summary.Interp.mut -> locality:Hints.hint_locality -> string -> raw_rew_rule list -> unit
 
 val add_rewrite_hint
-  : locality:Libobject.locality
+  : Summary.Interp.mut
+  -> locality:Libobject.locality
   -> poly:bool
   -> string list
   -> bool

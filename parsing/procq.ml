@@ -568,12 +568,11 @@ let freeze () : frozen_t = { frozen_sync = current_sync_extensions() }
 
     XXX is this still true? if not we can do (fun () -> unfreeze (FreezeFull empty_full_state)) *)
 
-let parser_summary_tag =
-  Summary.declare_summary_tag "GRAMMAR_LEXER"
-    { stage = Summary.Stage.Synterp;
-      Summary.freeze_function = freeze;
-      Summary.unfreeze_function = unfreeze;
-      Summary.init_function = Summary.nop }
+let _, parser_summary_tag =
+  Summary.Synterp.declare_tag "GRAMMAR_LEXER"
+    { freeze;
+      unfreeze;
+      init = (fun () -> ()) }
 
 let with_grammar_rule_protection f x =
   let open Memprof_coq.Resource_bind in

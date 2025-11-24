@@ -25,6 +25,8 @@ open Synterp
 
 module NamedDecl = Context.Named.Declaration
 
+let (!!) = Summary.Interp.get
+
 (* Utility functions, at some point they should all disappear and
    instead enviroment/state selection should be done at the Vernac DSL
    level. *)
@@ -222,20 +224,20 @@ let print_libraries () =
   pr_vertical_list DirPath.print loaded
 
 
-let print_module qid =
+let print_module sum qid =
   match Nametab.locate_module qid with
-  | mp -> Printmod.print_module ~with_body:true mp
+  | mp -> Printmod.print_module sum ~with_body:true mp
   | exception Not_found -> user_err (str"Unknown Module " ++ pr_qualid qid ++ str".")
 
-let print_modtype qid =
+let print_modtype sum qid =
   try
     let kn = Nametab.locate_modtype qid in
-    Printmod.print_modtype kn
+    Printmod.print_modtype sum kn
   with Not_found ->
     (* Is there a module of this name ? If yes we display its type *)
     try
       let mp = Nametab.locate_module qid in
-      Printmod.print_module ~with_body:false mp
+      Printmod.print_module sum ~with_body:false mp
     with Not_found ->
       user_err (str"Unknown Module Type or Module " ++ pr_qualid qid ++ str".")
 
@@ -739,20 +741,20 @@ let qualid_global id = smart_global (make ?loc:id.loc @@ Constrexpr.AN id)
 (**********)
 (* Syntax *)
 
-let vernac_declare_scope ~module_local sc =
-  Metasyntax.declare_scope module_local sc
+let vernac_declare_scope ~module_local sum sc =
+  Metasyntax.declare_scope sum module_local sc
 
-let vernac_delimiters ~module_local sc action =
+let vernac_delimiters ~module_local sum sc action =
   match action with
-  | Some lr -> Metasyntax.add_delimiters module_local sc lr
-  | None -> Metasyntax.remove_delimiters module_local sc
+  | Some lr -> Metasyntax.add_delimiters sum module_local sc lr
+  | None -> Metasyntax.remove_delimiters sum module_local sc
 
-let vernac_bind_scope ~atts sc cll =
+let vernac_bind_scope ~atts sum sc cll =
   let module_local, where = Attributes.(parse Notations.(module_locality ++ bind_scope_where) atts) in
-  Metasyntax.add_class_scope module_local sc where (List.map scope_class_of_qualid cll)
+  Metasyntax.add_class_scope sum module_local sc where (List.map scope_class_of_qualid cll)
 
-let vernac_open_close_scope ~section_local (to_open,s) =
-  Metasyntax.open_close_scope section_local ~to_open s
+let vernac_open_close_scope ~section_local sum (to_open,s) =
+  Metasyntax.open_close_scope sum section_local ~to_open s
 
 let interp_enable_notation_rule on ntn interp flags scope =
   let open Notation in
@@ -794,11 +796,11 @@ let interp_enable_notation_rule on ntn interp flags scope =
     parse_notation_enable_flags false default_notation_enable_pattern flags in
   on, all, notation_pattern
 
-let vernac_enable_notation ~module_local on rule interp flags scope =
+let vernac_enable_notation ~module_local sum on rule interp flags scope =
   let () = match rule, interp, scope with
     | None, None, None -> user_err (str "No notation provided.") | _ -> () in
   let on, all, notation_pattern = interp_enable_notation_rule on rule interp flags scope in
-  Metasyntax.declare_notation_toggle module_local ~on ~all notation_pattern
+  Metasyntax.declare_notation_toggle sum module_local ~on ~all notation_pattern
 
 (***********)
 (* Gallina *)
@@ -815,13 +817,14 @@ let vernac_definition_hook ~canonical_instance ~local ~poly ~reversible = let op
 | Coercion ->
   Some (ComCoercion.add_coercion_hook ~reversible)
 | CanonicalStructure ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
+  Some (Declare.Hook.(make (fun sum { S.dref } ->
+      Canonical.declare_canonical_structure sum ?local dref)))
 | SubClass ->
   Some (ComCoercion.add_subclass_hook ~poly ~reversible)
 | Definition when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
+  Some (Declare.Hook.(make (fun sum { S.dref } -> Canonical.declare_canonical_structure sum ?local dref)))
 | Let when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure dref)))
+  Some (Declare.Hook.(make (fun sum { S.dref } -> Canonical.declare_canonical_structure sum dref)))
 | _ -> None
 
 let default_thm_id = Id.of_string "Unnamed_thm"
@@ -867,7 +870,7 @@ let vernac_definition_refine ~atts (discharge, kind) (lid, udecl) bl red_option 
     ?clearbody ~poly ~typing_flags ~scope ~kind:(Decls.IsDefinition kind)
     ?user_warns ?using udecl bl c typ_opt ?hook
 
-let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c typ_opt =
+let vernac_definition ~atts ~pm sum (discharge, kind) (lid, udecl) bl red_option c typ_opt =
   let open DefAttributes in
   let scope, local, poly, program_mode, user_warns, typing_flags, using, clearbody =
      atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
@@ -882,18 +885,18 @@ let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c t
       Some (snd (Redexpr.interp_redexp_no_ltac env sigma r)) in
   if program_mode then
     let kind = Decls.IsDefinition kind in
-    ComDefinition.do_definition_program ?loc:lid.loc ~pm ~name
+    ComDefinition.do_definition_program sum ?loc:lid.loc ~pm ~name
       ?clearbody ~poly ?typing_flags ~scope ~kind
       ?user_warns ?using udecl bl red_option c typ_opt ?hook
   else
     let () =
-      ComDefinition.do_definition ~name ?loc:lid.loc
+      ComDefinition.do_definition sum ~name ?loc:lid.loc
         ?clearbody ~poly ?typing_flags ~scope ~kind
         ?user_warns ?using udecl bl red_option c typ_opt ?hook in
     pm
 
 (* NB: pstate argument to use combinators easily *)
-let vernac_start_proof ~atts kind l =
+let vernac_start_proof ~atts sum kind l =
   let open DefAttributes in
   if Dumpglob.dump () then
     List.iter (fun ((id, _), _) -> Dumpglob.dump_definition id false "prf") l;
@@ -910,17 +913,17 @@ let vernac_start_proof ~atts kind l =
     let fix = List.map (fun ((fname, univs), (binders, rtype)) ->
         { fname; binders; rtype; body_def = None; univs; notations = []}) l in
     let pm, proof =
-      ComFixpoint.do_mutually_recursive ~refine:false ~program_mode ~use_inference_hook:program_mode
+      ComFixpoint.do_mutually_recursive sum ~refine:false ~program_mode ~use_inference_hook:program_mode
         ~scope ?clearbody ~kind:(Decls.IsProof kind) ~poly ?typing_flags
         ?user_warns ?using (CUnknownRecOrder, fix) in
     assert (Option.is_empty pm);
     Option.get proof
 
-let vernac_end_proof ~lemma ~pm = let open Vernacexpr in function
+let vernac_end_proof ~lemma ~pm sum = let open Vernacexpr in function
   | Admitted ->
-    Declare.Proof.save_admitted ~pm ~proof:lemma
+    Declare.Proof.save_admitted sum ~pm ~proof:lemma
   | Proved (opaque,idopt) ->
-    let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque ~idopt
+    let pm, _ = Declare.Proof.save sum ~pm ~proof:lemma ~opaque ~idopt
     in pm
 
 let vernac_abort ~lemma:_ ~pm = pm
@@ -928,22 +931,22 @@ let vernac_abort ~lemma:_ ~pm = pm
 let deprecated_exact_proof = CWarnings.create ~name:"deprecated-exact-proof" ~category:Deprecation.Version.v9_2
     Pp.(fun () -> str "\"Proof term.\" is deprecated. Use \"Proof. exact term. Qed.\" instead.")
 
-let vernac_exact_proof ~lemma ~pm c =
+let vernac_exact_proof ~lemma ~pm sum c =
   deprecated_exact_proof ();
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
      called only at the beginning of a proof. *)
   let lemma, status = Declare.Proof.by (Global.env ()) (Tactics.exact_proof c) lemma in
-  let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque:Opaque ~idopt:None in
+  let pm, _ = Declare.Proof.save sum ~pm ~proof:lemma ~opaque:Opaque ~idopt:None in
   if not status then Feedback.feedback Feedback.AddedAxiom;
   pm
 
-let vernac_assumption ~atts kind l inline =
+let vernac_assumption ~atts sum kind l inline =
   let open DefAttributes in
   let scope, poly, program_mode, using, user_warns =
     atts.scope, atts.polymorphic, atts.program, atts.using, atts.user_warns in
   if Option.has_some using then
     Attributes.unsupported_attributes [CAst.make ("using",VernacFlagEmpty)];
-  ComAssumption.do_assumptions ~poly ~program_mode ~scope ~kind ?user_warns ~inline l
+  ComAssumption.do_assumptions sum ~poly ~program_mode ~scope ~kind ?user_warns ~inline l
 
 let { Goptions.get = is_polymorphic_inductive_cumulativity } =
   declare_bool_option_and_ref
@@ -1320,17 +1323,17 @@ let dump_inductive indl_for_glob decl =
     | Inductive _ -> ()
   end
 
-let vernac_inductive ~atts kind indl =
+let vernac_inductive ~atts sum kind indl =
   let open Preprocessed_Mind_decl in
   let indl_for_glob, decl = preprocess_inductive_decl ~atts kind indl in
   dump_inductive indl_for_glob decl;
   match decl with
   | Record { flags; kind; udecl; primitive_proj; records } ->
     let _ : _ list =
-      Record.definition_structure ~flags udecl kind ~primitive_proj records in
+      Record.definition_structure sum ~flags udecl kind ~primitive_proj records in
     ()
   | Inductive { flags; udecl; typing_flags; private_ind; uniform; inductives } ->
-    ComInductive.do_mutual_inductive ~flags udecl inductives ?typing_flags ~private_ind ~uniform
+    ComInductive.do_mutual_inductive sum ~flags udecl inductives ?typing_flags ~private_ind ~uniform
 
 let preprocess_inductive_decl ~atts kind indl =
   snd @@ preprocess_inductive_decl ~atts kind indl
@@ -1350,7 +1353,7 @@ let with_obligations program_mode f pm =
     assert (Option.is_empty pm');
     pm, proof
 
-let vernac_fixpoint ~atts ~refine ~pm (rec_order,fixl) =
+let vernac_fixpoint ~atts ~refine ~pm sum (rec_order,fixl) =
   let open DefAttributes in
   let scope = vernac_fixpoint_common ~atts fixl in
   let poly, typing_flags, program_mode, clearbody, using, user_warns =
@@ -1361,7 +1364,7 @@ let vernac_fixpoint ~atts ~refine ~pm (rec_order,fixl) =
       let opens = List.exists (fun { body_def } -> Option.is_empty body_def) fixl in
       if opens then CErrors.user_err Pp.(str"Program Fixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition Fixpoint) ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive sum ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition Fixpoint) ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
     pm
 
 let vernac_cofixpoint_common ~atts l =
@@ -1371,7 +1374,7 @@ let vernac_cofixpoint_common ~atts l =
   List.iter (fun { fname } -> check_name_freshness scope fname) l;
   scope
 
-let vernac_cofixpoint ~pm ~refine ~atts cofixl =
+let vernac_cofixpoint ~pm ~refine ~atts sum cofixl =
   let open DefAttributes in
   let scope = vernac_cofixpoint_common ~atts cofixl in
   let poly, typing_flags, program_mode, clearbody, using, user_warns =
@@ -1382,29 +1385,31 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
       if opens then
         CErrors.user_err Pp.(str"Program CoFixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive sum ?pm ~refine ~scope ?clearbody
+        ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using
+        (CCoFixRecOrder, cofixl))
     pm
 
-let vernac_scheme atts l =
+let vernac_scheme sum ~atts l =
   if Dumpglob.dump () then
     List.iter (fun (lid, sch) ->
       Option.iter (fun lid -> Dumpglob.dump_definition lid false "def") lid) l;
   let register = Attributes.(parse (bool_attribute ~name:"register") atts) in
   let register = Option.default true register in
-  Indschemes.do_scheme ~register (Global.env ()) l
+  Indschemes.do_scheme sum ~register (Global.env ()) l
 
 let vernac_scheme_equality ?locmap sch id =
   Indschemes.do_scheme_equality ?locmap sch id
 
 (* [XXX] locmap unused here *)
-let vernac_combined_scheme lid l ~locmap =
+let vernac_combined_scheme sum lid l ~locmap =
   (* XXX why does this take idents and not qualids *)
   let l = List.map (fun id -> match qualid_global (qualid_of_ident ?loc:id.loc id.v) with
       | ConstRef c -> c
       | _ -> CErrors.user_err ?loc:id.loc Pp.(Pputils.pr_lident  id ++ str " is not a constant."))
       l
   in
- Indschemes.do_combined_scheme lid l
+ Indschemes.do_combined_scheme sum lid l
 
 let vernac_universe ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
@@ -1494,11 +1499,11 @@ let interp_names m ns =
   in
   ns
 
-let cache_name (len,n) =
+let cache_name (len,n) sum =
   let open Globnames in
   let open GlobRef in
   match n with
-  | Abbrev kn -> Abbreviation.import (len+1) (Nametab.path_of_abbreviation kn) kn
+  | Abbrev kn -> Abbreviation.import (len+1) (Nametab.path_of_abbreviation kn) kn sum
   | TrueGlobal (VarRef _) -> assert false
   | TrueGlobal (ConstRef c) when Declare.is_local_constant c ->
     (* Can happen through functor application *)
@@ -1506,20 +1511,20 @@ let cache_name (len,n) =
   | TrueGlobal gr ->
     Nametab.(push (Exactly (len+1)) (path_of_global gr) gr)
 
-let cache_names ns = List.iter cache_name ns
+let cache_names ns sum = List.iter (fun n -> cache_name n sum) ns
 
-let subst_names (subst,ns) = List.Smart.map (on_snd (Globnames.subst_extended_reference subst)) ns
+let subst_names _sum subst ns = List.Smart.map (on_snd (Globnames.subst_extended_reference subst)) ns
 
-let inExportNames = Libobject.declare_object
+let inExportNames = Libobject.Interp.declare_object
     (Libobject.global_object "EXPORTNAMES"
        ~cache:cache_names ~subst:(Some subst_names)
-       ~discharge:(fun x -> Some x))
+       ~discharge:(fun _ x -> Some x))
 
-let import_names ~export m ns =
+let import_names sum ~export m ns =
   let ns = interp_names m ns in
   match export with
-  | Lib.Export -> Lib.add_leaf (inExportNames ns)
-  | Lib.Import -> cache_names ns
+  | Lib.Export -> Lib.Interp.add_leaf sum (inExportNames ns)
+  | Lib.Import -> cache_names ns sum
 
 let interp_import_cats cats =
   Option.cata
@@ -1528,11 +1533,11 @@ let interp_import_cats cats =
     cats
 
 (* Assumes cats is irrelevant if f is ImportNames *)
-let import_module_with_filter ~export cats m f =
+let import_module_with_filter sum ~export cats m f =
   match f with
   | ImportAll ->
-    Declaremods.Interp.import_module cats ~export m
-  | ImportNames ns -> import_names ~export m ns
+    Declaremods.Interp.import_module sum cats ~export m
+  | ImportNames ns -> import_names sum ~export m ns
 
 let check_no_filter_when_using_cats l =
   List.iter (function
@@ -1542,85 +1547,85 @@ let check_no_filter_when_using_cats l =
           Pp.(str "Cannot combine importing by categories and importing by names."))
     l
 
-let vernac_import (export, cats) mpl =
+let vernac_import sum (export, cats) mpl =
   let import_mod (CAst.{v = mp; loc},f) =
     try
       let () = Dumpglob.dump_modref ?loc mp "mod" in
       let () = if Modops.is_functor @@ Mod_declarations.mod_type (Global.lookup_module mp)
         then CErrors.user_err ?loc Pp.(str "Cannot import functor " ++ str (ModPath.to_string mp) ++ str".")
       in
-      import_module_with_filter ~export cats mp f
+      import_module_with_filter sum ~export cats mp f
     with Not_found ->
         CErrors.user_err ?loc Pp.(str "Cannot find module " ++ str (ModPath.to_string mp) ++ str ".")
   in
   List.iter import_mod mpl
 
-let vernac_declare_module export {loc;v=id} binders_ast mty_ast =
+let vernac_declare_module sum export {loc;v=id} binders_ast mty_ast =
   (* We check the state of the system (in section, in module type)
      and what module information is supplied *)
   if Lib.sections_are_opened () then
     user_err Pp.(str "Modules and Module Types are not allowed inside sections.");
-  let mp = Declaremods.Interp.declare_module id binders_ast (Declaremods.Enforce mty_ast) [] in
+  let mp = Declaremods.Interp.declare_module sum id binders_ast (Declaremods.Enforce mty_ast) [] in
   Dumpglob.dump_moddef ?loc mp "mod";
   Flags.if_verbose Feedback.msg_info (str "Module " ++ Id.print id ++ str " is declared");
-  Option.iter (fun export -> vernac_import export [CAst.make ?loc mp, ImportAll]) export
+  Option.iter (fun export -> vernac_import sum export [CAst.make ?loc mp, ImportAll]) export
 
-let vernac_define_module export {loc;v=id} binders_ast argsexport mty_ast_o mexpr_ast_l =
+let vernac_define_module sum export {loc;v=id} binders_ast argsexport mty_ast_o mexpr_ast_l =
   (* We check the state of the system (in section, in module type)
      and what module information is supplied *)
   if Lib.sections_are_opened () then
     user_err Pp.(str "Modules and Module Types are not allowed inside sections.");
   match mexpr_ast_l with
     | [] ->
-       let mp = Declaremods.Interp.start_module export id binders_ast mty_ast_o in
+       let mp = Declaremods.Interp.start_module sum export id binders_ast mty_ast_o in
        Dumpglob.dump_moddef ?loc mp "mod";
        Flags.if_verbose Feedback.msg_info
          (str "Interactive Module " ++ Id.print id ++ str " started");
        List.iter
-         (fun (export,mp) -> vernac_import export [CAst.make mp, ImportAll])
+         (fun (export,mp) -> vernac_import sum export [CAst.make mp, ImportAll])
          argsexport
     | _::_ ->
        let mp =
-         Declaremods.Interp.declare_module
+         Declaremods.Interp.declare_module sum
            id binders_ast mty_ast_o mexpr_ast_l
        in
        Dumpglob.dump_moddef ?loc mp "mod";
        Flags.if_verbose Feedback.msg_info
          (str "Module " ++ Id.print id ++ str " is defined");
-       Option.iter (fun export -> vernac_import export [CAst.make ?loc mp, ImportAll])
+       Option.iter (fun export -> vernac_import sum export [CAst.make ?loc mp, ImportAll])
          export
 
-let vernac_end_module export {loc;v=id} =
-  let mp = Declaremods.Interp.end_module () in
+let vernac_end_module sum export {loc;v=id} =
+  let mp = Declaremods.Interp.end_module sum in
   Dumpglob.dump_modref ?loc mp "mod";
   Flags.if_verbose Feedback.msg_info (str "Module " ++ Id.print id ++ str " is defined");
   Option.iter (fun (export,filter) ->
-      Declaremods.Interp.import_module filter ~export mp)
+      Declaremods.Interp.import_module sum filter ~export mp)
     export
 
-let vernac_declare_module_type {loc;v=id} binders_ast argsexport mty_sign mty_ast_l =
+let vernac_declare_module_type sum {loc;v=id} binders_ast argsexport mty_sign mty_ast_l =
   if Lib.sections_are_opened () then
     user_err Pp.(str "Modules and Module Types are not allowed inside sections.");
 
   match mty_ast_l with
     | [] ->
-       let mp = Declaremods.Interp.start_modtype id binders_ast mty_sign in
+       let mp = Declaremods.Interp.start_modtype sum id binders_ast mty_sign in
        Dumpglob.dump_moddef ?loc mp "modtype";
        Flags.if_verbose Feedback.msg_info
          (str "Interactive Module Type " ++ Id.print id ++ str " started");
        List.iter
-         (fun (export,mp) -> vernac_import export [CAst.make ?loc mp, ImportAll])
+         (fun (export,mp) -> vernac_import sum export [CAst.make ?loc mp, ImportAll])
          argsexport
 
     | _ :: _ ->
-        let mp = Declaremods.Interp.declare_modtype id binders_ast mty_sign mty_ast_l in
+        let mp = Declaremods.Interp.declare_modtype sum id binders_ast mty_sign mty_ast_l in
         Dumpglob.dump_moddef ?loc mp "modtype";
         Flags.if_verbose Feedback.msg_info
           (str "Module Type " ++ Id.print id ++ str " is defined")
 
 
-let vernac_end_modtype {loc;v=id} =
-  let mp = Declaremods.Interp.end_modtype () in
+let vernac_end_modtype sum {loc;v=id} =
+  let mp = Declaremods.Interp.end_modtype sum in
   Dumpglob.dump_modref ?loc mp "modtype";
   Flags.if_verbose Feedback.msg_info (str "Module Type " ++ Id.print id ++ str " is defined")
 
@@ -1631,14 +1636,14 @@ let vernac_include l = Declaremods.Interp.declare_include l
 
 (* Sections *)
 
-let vernac_begin_section ~poly {v=id} =
-  Lib.Interp.open_section id;
+let vernac_begin_section sum ~poly {v=id} =
+  Lib.Interp.open_section !!sum id;
   (* If there was no polymorphism attribute this just sets the option
      to its current value ie noop. *)
-  set_bool_option_value_gen ~locality:OptLocal ["Universe"; "Polymorphism"] poly
+  set_bool_option_value_gen InterpG sum ~locality:OptLocal ["Universe"; "Polymorphism"] poly
 
-let vernac_end_section {CAst.loc; v} =
-  Declaremods.Interp.close_section ()
+let vernac_end_section sum {CAst.loc; v} =
+  Declaremods.Interp.close_section sum
 
 let vernac_name_sec_hyp {v=id} set = Proof_using.name_set id set
 
@@ -1653,23 +1658,23 @@ let msg_of_subsection ss id =
   in
   Pp.str kind ++ spc () ++ Id.print id
 
-let vernac_end_segment ~pm ~proof ({v=id; loc} as lid) =
+let vernac_end_segment ~pm ~proof sum ({v=id; loc} as lid) =
   let ss = Lib.Interp.find_opening_node ?loc id in
   let what_for = msg_of_subsection ss lid.v in
   if Option.has_some proof then
     CErrors.user_err (Pp.str "Command not supported (Open proofs remain)");
   Declare.Obls.check_solved_obligations ~pm ~what_for;
   match ss with
-  | Lib.OpenedModule (false,export,_,_) -> vernac_end_module export lid
-  | Lib.OpenedModule (true,_,_,_) -> vernac_end_modtype lid
-  | Lib.OpenedSection _ -> vernac_end_section lid
+  | Lib.OpenedModule (false,export,_,_) -> vernac_end_module sum export lid
+  | Lib.OpenedModule (true,_,_,_) -> vernac_end_modtype sum lid
+  | Lib.OpenedSection _ -> vernac_end_section sum lid
   | _ -> assert false
 
 let vernac_end_segment lid =
   let open Vernactypes in
   typed_vernac { ignore_state with prog=Pop; proof=ReadOpt; }
-    (fun {proof; prog} ->
-       let () = vernac_end_segment ~pm:prog ~proof lid in
+    (fun {proof; prog} sum ->
+       let () = vernac_end_segment ~pm:prog ~proof sum lid in
        no_state)
 
 let vernac_begin_segment ~interactive f =
@@ -1677,8 +1682,8 @@ let vernac_begin_segment ~interactive f =
   let proof = Proof.(if interactive then Reject else Ignore) in
   let prog = Prog.(if interactive then Push else Ignore) in
   typed_vernac { ignore_state with prog; proof; }
-    (fun (_:no_state) ->
-       let () = f () in
+    (fun (_:no_state) sum ->
+       let () = f sum in
        no_state)
 
 (* Libraries *)
@@ -1688,7 +1693,7 @@ let warn_require_in_section =
     (fun () -> strbrk "Use of “Require” inside a section is fragile." ++ spc() ++
                strbrk "It is not recommended to use this functionality in finished proof scripts.")
 
-let vernac_require_interp needed modrefl export qidl =
+let vernac_require_interp sum needed modrefl export qidl =
   if Lib.sections_are_opened () then warn_require_in_section ();
   let () = match export with
     | None -> List.iter (function
@@ -1702,30 +1707,21 @@ let vernac_require_interp needed modrefl export qidl =
     List.iter2 (fun ({CAst.loc},_) dp -> Dumpglob.dump_libref ?loc dp "lib") qidl modrefl;
   Coq_config.gc_ramp_up @@ fun () ->
   (* Load *)
-  Library.require_library_from_dirpath needed;
+  Library.require_library_from_dirpath sum needed;
   (* Import*)
   Option.iter (fun (export,cats) ->
       let cats = interp_import_cats cats in
       List.iter2 (fun m (_,f) ->
-          import_module_with_filter ~export cats (MPfile m) f)
+          import_module_with_filter sum ~export cats (MPfile m) f)
         modrefl qidl)
     export
 
-let vernac_require ~intern from export qidl =
-  let needed, modrefl = Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (fun () ->
-      Synterp.synterp_require ~intern from export qidl)
-      ()
-  in
-  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some false) (fun () ->
-      vernac_require_interp needed modrefl export qidl)
-    ()
-
 (* Coercions and canonical structures *)
 
-let vernac_canonical ~local r =
-  Canonical.declare_canonical_structure ?local (smart_global r)
+let vernac_canonical ~local sum r =
+  Canonical.declare_canonical_structure sum ?local (smart_global r)
 
-let vernac_coercion ~atts ref qidst =
+let vernac_coercion ~atts sum ref qidst =
   let ref' = smart_global ref in
   match qidst with
   | Some (qids, qidt) ->
@@ -1735,29 +1731,29 @@ let vernac_coercion ~atts ref qidst =
      let reversible = Option.default false reversible in
      let target = cl_of_qualid qidt in
      let source = cl_of_qualid qids in
-     ComCoercion.try_add_new_coercion_with_target ref' ~local ~reversible
+     ComCoercion.try_add_new_coercion_with_target sum ref' ~local ~reversible
        ~source ~target;
      Flags.if_verbose Feedback.msg_info (pr_global ref' ++ str " is now a coercion")
   | None ->
      match Attributes.parse reversible atts with
      | None -> user_err (str "Expected `: Sourceclass >-> Targetclass`.")
-     | Some reversible -> ComCoercion.change_reverse ref' ~reversible
+     | Some reversible -> ComCoercion.change_reverse sum ref' ~reversible
 
-let vernac_identity_coercion ~atts id qids qidt =
+let vernac_identity_coercion ~atts sum id qids qidt =
   let local, poly = Attributes.(parse Notations.(locality ++ polymorphic) atts) in
   let local = enforce_locality local in
   let target = cl_of_qualid qidt in
   let source = cl_of_qualid qids in
-  ComCoercion.try_add_new_identity_coercion id ~local ~poly ~source ~target
+  ComCoercion.try_add_new_identity_coercion sum id ~local ~poly ~source ~target
 
 (* Type classes *)
 
-let vernac_instance_program ~atts ~pm name bl t props info =
+let vernac_instance_program ~atts ~pm sum name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
   let locality, poly =
     Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
   in
-  let pm, _id = Classes.new_instance_program ~pm ~locality ~poly name bl t props info in
+  let pm, _id = Classes.new_instance_program sum ~pm ~locality ~poly name bl t props info in
   pm
 
 let vernac_instance_interactive ~atts name bl t info props =
@@ -1769,34 +1765,34 @@ let vernac_instance_interactive ~atts name bl t info props =
     Classes.new_instance_interactive ~locality ~poly name bl t info props in
   pstate
 
-let vernac_instance ~atts name bl t props info =
+let vernac_instance ~atts sum name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
   let locality, poly =
     Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
   in
   let _id : lident =
-    Classes.new_instance ~locality ~poly name bl t props info in
+    Classes.new_instance sum ~locality ~poly name bl t props info in
   ()
 
-let vernac_declare_instance ~atts id bl inst pri =
+let vernac_declare_instance ~atts sum id bl inst pri =
   Dumpglob.dump_definition (fst id) false "inst";
   let (program, locality), poly =
     Attributes.(parse (Notations.(program ++ hint_locality ++ polymorphic))) atts
   in
-  Classes.declare_new_instance ~program_mode:program ~locality ~poly id bl inst pri
+  Classes.declare_new_instance sum ~program_mode:program ~locality ~poly id bl inst pri
 
 let vernac_context ~atts ctx =
   let program_mode, poly = Attributes.(parse (Notations.(program ++ polymorphic))) atts in
   ComAssumption.do_context ~program_mode ~poly ctx
 
-let vernac_existing_instance ~atts insts =
+let vernac_existing_instance ~atts sum insts =
   let locality = Attributes.parse hint_locality atts in
   List.iter (fun (id, info) ->
       let g = qualid_global id in
-      Classes.existing_instance ?loc:id.loc locality g (Some info)) insts
+      Classes.existing_instance sum ?loc:id.loc locality g (Some info)) insts
 
-let vernac_existing_class id =
-  Record.declare_existing_class (qualid_global id)
+let vernac_existing_class sum id =
+  Record.declare_existing_class sum (qualid_global id)
 
 (***********)
 (* Solving *)
@@ -1811,8 +1807,8 @@ let vernac_set_end_tac pstate tac =
 (************)
 (* Commands *)
 
-let vernac_create_hintdb ~module_local id b =
-  Hints.create_hint_db module_local id TransparentState.full b
+let vernac_create_hintdb ~module_local sum id b =
+  Hints.create_hint_db sum module_local id TransparentState.full b
 
 let warn_implicit_core_hint_db =
   CWarnings.create ~name:"implicit-core-hint-db" ~category:Deprecation.Version.v8_10
@@ -1823,16 +1819,16 @@ let warn_implicit_create_hint_db =
   CWarnings.create ~name:"implicit-create-hint-db" ~category:Deprecation.Version.v9_2
     (fun db -> strbrk "Implicitly declaring hint databases is deprecated. Please explicitly create " ++ quote (str db))
 
-let vernac_remove_hints ~atts dbnames ids =
+let vernac_remove_hints ~atts sum dbnames ids =
   let locality = Attributes.(parse hint_locality atts) in
   let dbnames =
     if List.is_empty dbnames then
       (warn_implicit_core_hint_db (); ["core"])
     else dbnames
   in
-  Hints.remove_hints ~locality dbnames (List.map Smartlocate.global_with_alias ids)
+  Hints.remove_hints ~locality sum dbnames (List.map Smartlocate.global_with_alias ids)
 
-let vernac_hints ~atts dbnames h =
+let vernac_hints ~atts sum dbnames h =
   let dbnames =
     if List.is_empty dbnames then
       (warn_implicit_core_hint_db (); ["core"])
@@ -1845,10 +1841,10 @@ let vernac_hints ~atts dbnames h =
     | _ -> ()
     | exception Not_found ->
       let () = warn_implicit_create_hint_db db in
-      Hints.create_hint_db false db TransparentState.empty false
+      Hints.create_hint_db sum false db TransparentState.empty false
   in
   let () = List.iter check_db dbnames in
-  Hints.add_hints ~locality dbnames (ComHints.interp_hints ~poly h)
+  Hints.add_hints ~locality sum dbnames (ComHints.interp_hints sum ~poly h)
 
 let warn_deprecated_notation_for_abbreviation =
   CWarnings.create ~name:"notation-for-abbreviation" ~category:Deprecation.Version.v9_2
@@ -1857,12 +1853,12 @@ let warn_deprecated_notation_for_abbreviation =
        strbrk "Use of \"Notation\" keyword for abbreviations is deprecated, \
                use \"Abbreviation\" instead.")
 
-let vernac_abbreviation ~warn_old_notation ~atts lid x only_parsing =
+let vernac_abbreviation ~warn_old_notation ~atts sum lid x only_parsing =
   Option.iter (fun loc -> warn_deprecated_notation_for_abbreviation ~loc ())
     warn_old_notation;
   let local, user_warns = Attributes.(parse Notations.(hint_locality_no_sections ++ user_warns_with_use_globref_instead) atts) in
   Dumpglob.dump_definition lid false "abbrev";
-  Metasyntax.add_abbreviation ~local user_warns (Global.env()) lid.v x only_parsing
+  Metasyntax.add_abbreviation ~local sum user_warns (Global.env()) lid.v x only_parsing
 
 let default_env () = {
   Notation_term.ninterp_var_type = Id.Map.empty;
@@ -2064,7 +2060,7 @@ let () =
                      {(Global.typing_flags ()) with Declarations.allow_uip = b})
     }
 
-let vernac_set_strategy ~local l =
+let vernac_set_strategy ~local sum l =
   let local = Option.default false local in
   let glob_ref r =
     match smart_global r with
@@ -2078,9 +2074,9 @@ let vernac_set_strategy ~local l =
       | _ -> user_err Pp.(str
           "Cannot set an inductive type or a constructor as transparent.") in
   let l = List.map (fun (lev,ql) -> (lev,List.map glob_ref ql)) l in
-  Redexpr.set_strategy local l
+  Redexpr.set_strategy sum local l
 
-let vernac_set_opacity ~on_proj_constant ~local (v,l) =
+let vernac_set_opacity sum ~on_proj_constant ~local (v,l) =
   let local = Option.default true local in
   let glob_ref r =
     match smart_global r with
@@ -2097,7 +2093,7 @@ let vernac_set_opacity ~on_proj_constant ~local (v,l) =
       | _ -> user_err Pp.(str
           "Cannot set an inductive type or a constructor as transparent.") in
   let l = List.map glob_ref l in
-  Redexpr.set_strategy local [v,l]
+  Redexpr.set_strategy sum local [v,l]
 
 let get_current_context_of_args ~pstate =
   match pstate with
@@ -2159,11 +2155,11 @@ let vernac_check_may_eval ~pstate redexp glopt rc =
   let sigma, env = get_current_context_of_args ~pstate glopt in
   check_may_eval env sigma redexp rc
 
-let vernac_declare_reduction ~local s r =
+let vernac_declare_reduction ~local sum s r =
   let local = Option.default false local in
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  Redexpr.declare_red_expr local s (snd (Redexpr.interp_redexp_no_ltac env sigma r))
+  Redexpr.declare_red_expr sum local s (snd (Redexpr.interp_redexp_no_ltac env sigma r))
 
   (* The same but avoiding the current goal context if any *)
 let vernac_global_check c =
@@ -2185,7 +2181,7 @@ let vernac_global_check c =
 (* Printing "About" information of a hypothesis of the current goal.
    We only print the type and a small statement to this comes from the
    goal. Precondition: there must be at least one current goal. *)
-let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
+let print_about_hyp_globs ~pstate sum ?loc ref_or_by_not udecl glopt =
   let exception NoHyp in
   let open Context.Named.Declaration in
   try
@@ -2222,7 +2218,7 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
   with (* fallback to globals *)
     | NoHyp | Not_found ->
     let sigma, env = get_current_or_global_context ~pstate in
-    Prettyp.print_about env sigma ref_or_by_not udecl
+    Prettyp.print_about sum env sigma ref_or_by_not udecl
 
 let prglob_without_notations env sigma c =
   let flags = PrintingFlags.Extern.current() in
@@ -2231,67 +2227,68 @@ let prglob_without_notations env sigma c =
 
 let vernac_print =
   let no_state f =
-    Vernactypes.(typed_vernac_gen ignore_state (fun _ -> no_state, f ()))
+    Vernactypes.(typed_vernac_gen ignore_state (fun _ sum -> no_state, f !!sum))
   in
   let with_pstate f =
-    let f {Vernactypes.proof} =
-      Vernactypes.no_state, f ~pstate:proof
+    let f {Vernactypes.proof} sum =
+      Vernactypes.no_state, f !!sum ~pstate:proof
     in
     Vernactypes.(typed_vernac_gen { ignore_state with proof = ReadOpt } f)
   in
-  let with_proof_env f = with_pstate (fun ~pstate ->
+  let with_proof_env f = with_pstate (fun sum ~pstate ->
       let sigma, env = get_current_or_global_context ~pstate in
-      f env sigma)
+      f sum env sigma)
   in
   let with_proof_env_and_opaques f =
     let open Vernactypes in
-    let f {proof; opaque_access} =
+    let f {proof; opaque_access} sum =
       let sigma, env = get_current_or_global_context ~pstate:proof in
-      no_state, f ~opaque_access env sigma
+      no_state, f !!sum ~opaque_access env sigma
     in
     typed_vernac_gen { ignore_state with proof = ReadOpt; opaque_access = Access } f
   in
   function
-  | PrintTypingFlags -> with_proof_env @@ fun env _sigma -> pr_typing_flags (Environ.typing_flags env)
+  | PrintTypingFlags -> with_proof_env @@ fun _sum env _sigma ->
+    pr_typing_flags (Environ.typing_flags env)
   | PrintTables -> no_state print_tables
   | PrintFullContext -> with_proof_env Prettyp.print_full_context_typ
-  | PrintSectionContext qid -> with_proof_env @@ fun env sigma ->
-    Prettyp.print_sec_context_typ env sigma qid
-  | PrintInspect n -> with_proof_env @@ fun env sigma ->
-    Prettyp.inspect env sigma n
-  | PrintGrammar ent -> no_state @@ fun () -> Metasyntax.pr_grammar ent
-  | PrintCustomGrammar ent -> no_state @@ fun () -> Metasyntax.pr_custom_grammar ent
-  | PrintKeywords -> no_state Metasyntax.pr_keywords
-  | PrintLoadPath dir -> (* For compatibility ? *) no_state @@ fun () -> print_loadpath dir
-  | PrintLibraries -> no_state print_libraries
-  | PrintModule qid -> no_state @@ fun () -> print_module qid
-  | PrintModuleType qid -> no_state @@ fun () -> print_modtype qid
-  | PrintNamespace ns -> with_pstate @@ print_namespace ns
-  | PrintMLLoadPath -> no_state @@ fun () ->
+  | PrintSectionContext qid -> with_proof_env @@ fun sum env sigma ->
+    Prettyp.print_sec_context_typ sum env sigma qid
+  | PrintInspect n -> with_proof_env @@ fun sum env sigma ->
+    Prettyp.inspect sum env sigma n
+  | PrintGrammar ent -> no_state @@ fun _sum -> Metasyntax.pr_grammar ent
+  | PrintCustomGrammar ent -> no_state @@ fun _sum -> Metasyntax.pr_custom_grammar ent
+  | PrintKeywords -> no_state @@ fun _sum -> Metasyntax.pr_keywords ()
+  | PrintLoadPath dir -> (* For compatibility ? *) no_state @@ fun _sum -> print_loadpath dir
+  | PrintLibraries -> no_state @@ fun _sum -> print_libraries ()
+  | PrintModule qid -> no_state @@ fun sum -> print_module sum qid
+  | PrintModuleType qid -> no_state @@ fun sum -> print_modtype sum qid
+  | PrintNamespace ns -> with_pstate @@ fun _sum -> print_namespace ns
+  | PrintMLLoadPath -> no_state @@ fun _sum ->
     let paths = Findlib.search_path () in
     v 0 (prlist_with_sep cut str paths )
-  | PrintMLModules -> no_state Mltop.print_ml_modules
-  | PrintDebugGC -> no_state Mltop.print_gc
-  | PrintName (qid,udecl) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
-    Prettyp.print_name opaque_access env sigma qid udecl
-  | PrintGraph -> no_state Prettyp.print_graph
-  | PrintClasses -> no_state Prettyp.print_classes
-  | PrintTypeclasses -> no_state Prettyp.print_typeclasses
-  | PrintInstances c -> no_state @@ fun () -> Prettyp.print_instances (smart_global c)
-  | PrintCoercions -> no_state Prettyp.print_coercions
-  | PrintNotation (entry, ntnstr) -> with_proof_env @@ fun env sigma ->
+  | PrintMLModules -> no_state @@ fun _sum -> Mltop.print_ml_modules ()
+  | PrintDebugGC -> no_state @@ fun _sum -> Mltop.print_gc ()
+  | PrintName (qid,udecl) -> with_proof_env_and_opaques @@ fun sum ~opaque_access env sigma ->
+    Prettyp.print_name sum opaque_access env sigma qid udecl
+  | PrintGraph -> no_state @@ fun _sum -> Prettyp.print_graph ()
+  | PrintClasses -> no_state @@ fun _sum -> Prettyp.print_classes ()
+  | PrintTypeclasses -> no_state @@ fun _sum -> Prettyp.print_typeclasses ()
+  | PrintInstances c -> no_state @@ fun _sum -> Prettyp.print_instances (smart_global c)
+  | PrintCoercions -> no_state @@ fun _sum -> Prettyp.print_coercions ()
+  | PrintNotation (entry, ntnstr) -> with_proof_env @@ fun _sum env sigma ->
     Prettyp.print_notation env sigma entry ntnstr
-  | PrintCoercionPaths (cls,clt) -> no_state @@ fun () ->
+  | PrintCoercionPaths (cls,clt) -> no_state @@ fun _sum ->
     Prettyp.print_coercion_paths (cl_of_qualid cls) (cl_of_qualid clt)
-  | PrintCanonicalConversions qids -> with_proof_env @@ fun env sigma ->
+  | PrintCanonicalConversions qids -> with_proof_env @@ fun _sum env sigma ->
     let grefs = List.map Smartlocate.smart_global qids in
     Prettyp.print_canonical_projections env sigma grefs
-  | PrintUniverses prunivs -> no_state @@ fun ()->
+  | PrintUniverses prunivs -> no_state @@ fun _sum ->
     print_universes prunivs
-  | PrintSorts -> no_state print_sorts
-  | PrintHint r -> with_proof_env @@ fun env sigma ->
+  | PrintSorts -> no_state @@ fun _sum -> print_sorts ()
+  | PrintHint r -> with_proof_env @@ fun _sum env sigma ->
     Hints.pr_hint_ref env sigma (smart_global r)
-  | PrintHintGoal -> with_pstate @@ fun ~pstate ->
+  | PrintHintGoal -> with_pstate @@ fun _sum ~pstate ->
     begin match pstate with
     | Some pstate ->
       let pf = Declare.Proof.get pstate in
@@ -2299,21 +2296,21 @@ let vernac_print =
     | None ->
       str "No proof in progress"
     end
-  | PrintHintDbName s -> with_proof_env @@ fun env sigma ->
+  | PrintHintDbName s -> with_proof_env @@ fun _sum env sigma ->
     Hints.pr_hint_db_by_name env sigma s
-  | PrintHintDb -> with_proof_env @@ fun env sigma ->
+  | PrintHintDb -> with_proof_env @@ fun _sum env sigma ->
     Hints.pr_searchtable env sigma
-  | PrintScopes -> with_proof_env @@ fun env sigma ->
+  | PrintScopes -> with_proof_env @@ fun _sum env sigma ->
     Notation.pr_scopes (prglob_without_notations env sigma)
-  | PrintScope s -> with_proof_env @@ fun env sigma ->
+  | PrintScope s -> with_proof_env @@ fun _sum env sigma ->
     Notation.pr_scope (prglob_without_notations env sigma) s
-  | PrintVisibility s -> with_proof_env @@ fun env sigma ->
+  | PrintVisibility s -> with_proof_env @@ fun _sum env sigma ->
     Notation.pr_visibility (prglob_without_notations env sigma) s
-  | PrintAbout (ref_or_by_not,udecl,glnumopt) -> with_pstate @@
-    print_about_hyp_globs ref_or_by_not udecl glnumopt
-  | PrintImplicit qid -> with_proof_env @@ fun env _sigma ->
+  | PrintAbout (ref_or_by_not,udecl,glnumopt) -> with_pstate @@ fun sum ->
+    print_about_hyp_globs sum ref_or_by_not udecl glnumopt
+  | PrintImplicit qid -> with_proof_env @@ fun _sum env _sigma ->
     Prettyp.print_impargs env (smart_global qid)
-  | PrintAssumptions (o,t,r) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
+  | PrintAssumptions (o,t,r) -> with_proof_env_and_opaques @@ fun _sum ~opaque_access env sigma ->
     (* Prints all the axioms and section variables used by a term *)
     let gr = smart_global r in
     let cstr, _ = UnivGen.fresh_global_instance env gr in
@@ -2321,11 +2318,11 @@ let vernac_print =
     let nassums =
       Assumptions.assumptions opaque_access st ~add_opaque:o ~add_transparent:t gr cstr in
     Printer.pr_assumptionset env sigma nassums
-  | PrintStrategy r -> no_state @@ fun () -> print_strategy r
-  | PrintRegistered -> no_state print_registered
-  | PrintRegisteredSchemes -> no_state print_registered_schemes
+  | PrintStrategy r -> no_state @@ fun _sum -> print_strategy r
+  | PrintRegistered -> no_state @@ fun _sum -> print_registered ()
+  | PrintRegisteredSchemes -> no_state @@ fun _sum -> print_registered_schemes ()
 
-let vernac_search ~pstate ~atts s gopt r =
+let vernac_search ~pstate sum ~atts s gopt r =
   let open ComSearch in
   let gopt = query_command_selector gopt in
   let sigma, env =
@@ -2338,7 +2335,7 @@ let vernac_search ~pstate ~atts s gopt r =
     (* if goal selector is given and wrong, then let exceptions be raised. *)
     | Some g -> get_goal_or_global_context ~pstate g
   in
-  interp_search env sigma s r
+  interp_search sum env sigma s r
 
 let vernac_locate ~pstate query =
   let open Constrexpr in
@@ -2358,7 +2355,7 @@ let vernac_locate ~pstate query =
 let warn_unknown_scheme_kind = CWarnings.create ~name:"unknown-scheme-kind"
     Pp.(fun sk -> str "Unknown scheme kind " ++ Libnames.pr_qualid sk ++ str ".")
 
-let vernac_register ~atts qid r =
+let vernac_register ~atts sum qid r =
   let gr = Smartlocate.global_with_alias qid in
   match r with
   | RegisterInline ->
@@ -2388,7 +2385,7 @@ let vernac_register ~atts qid r =
     end
     else
       let local = Attributes.parse hint_locality_default_superglobal atts in
-      Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
+      Rocqlib.register_ref sum local (Libnames.string_of_qualid n) gr
   | RegisterScheme { inductive; scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
     let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
@@ -2397,7 +2394,7 @@ let vernac_register ~atts qid r =
     in
     let ind = Smartlocate.global_inductive_with_alias inductive in
     Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
-    DeclareScheme.declare_scheme local scheme_kind_s (ind, gr)
+    DeclareScheme.declare_scheme sum local scheme_kind_s (ind, gr)
 
 let vernac_library_attributes atts =
   if Global.is_curmod_library () && not (Lib.sections_are_opened ()) then
@@ -2557,59 +2554,61 @@ let vernac_proof pstate tac using =
 
 let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
   | EVernacNotation { local; decl } ->
-    vtdefault(fun () -> Metasyntax.add_notation_interpretation ~local (Global.env()) decl)
+    vtdefault(fun sum -> Metasyntax.add_notation_interpretation sum ~local (Global.env()) decl)
 
-  | EVernacDeclareMLModule f -> vtdefault (fun () -> Mltop.run_interp_fun f)
+  | EVernacDeclareMLModule (local,i,f) -> vtdefault (fun sum ->
+      Mltop.new_interp sum local i;
+      Mltop.run_interp_fun f sum)
 
   | EVernacDefineModule (export,lid,bl,argsexport,mtys,mexprl) ->
-    let i () =
+    let i sum =
       unsupported_attributes atts;
-      vernac_define_module export lid bl argsexport mtys mexprl in
+      vernac_define_module sum export lid bl argsexport mtys mexprl in
     (* XXX: We should investigate if eventually this should be made
        VtNoProof in all cases. *)
     vernac_begin_segment ~interactive:(List.is_empty mexprl) i
 
   | EVernacDeclareModuleType (lid,bl,argsexport,mtys,exprl) ->
-    vernac_begin_segment ~interactive:(List.is_empty exprl) (fun () ->
+    vernac_begin_segment ~interactive:(List.is_empty exprl) (fun sum ->
         unsupported_attributes atts;
-        vernac_declare_module_type lid bl argsexport mtys exprl)
+        vernac_declare_module_type sum lid bl argsexport mtys exprl)
 
   (* Modules *)
   | EVernacDeclareModule (export,lid,bl,mty) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_declare_module export lid bl mty)
+        vernac_declare_module sum export lid bl mty)
 
   | EVernacInclude in_asts ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_include in_asts)
+        vernac_include sum in_asts)
 
   (* Gallina extensions *)
   | EVernacBeginSection lid ->
-    vernac_begin_segment ~interactive:true (fun () ->
-        vernac_begin_section ~poly:(only_polymorphism atts) lid)
+    vernac_begin_segment ~interactive:true (fun sum ->
+        vernac_begin_section sum ~poly:(only_polymorphism atts) lid)
 
   | EVernacEndSegment lid ->
     unsupported_attributes atts;
     vernac_end_segment lid
 
   | EVernacRequire (needed, modrefl, export, qidl) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_require_interp needed modrefl export qidl)
+        vernac_require_interp sum needed modrefl export qidl)
   | EVernacImport (export,mpl) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_import export mpl)
+        vernac_import sum export mpl)
 
   | EVernacSetOption { export; key; value } ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
     let atts = if export then CAst.make ?loc ("export", VernacFlagEmpty) :: atts else atts in
-    Vernacoptions.vernac_set_option ~locality:(parse option_locality atts) ~stage:Summary.Stage.Interp key value)
+    Vernacoptions.vernac_set_option sum ~locality:(parse option_locality atts) ~stage:InterpG key value)
 
   | EVernacNoop ->
-    vtdefault(fun () -> ())
+    vtdefault(fun _sum -> ())
 
   | EVernacLoad _ ->
     anomaly (str "type_vernac")
@@ -2629,15 +2628,15 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   (* Syntax *)
   | VernacDeclareScope sc ->
-    vtdefault(fun () -> with_module_locality ~atts vernac_declare_scope sc)
+    vtdefault(fun sum -> with_module_locality ~atts vernac_declare_scope sum sc)
   | VernacDelimiters (sc,lr) ->
-    vtdefault(fun () -> with_module_locality ~atts vernac_delimiters sc lr)
+    vtdefault(fun sum -> with_module_locality ~atts vernac_delimiters sum sc lr)
   | VernacBindScope (sc,rl) ->
-    vtdefault(fun () -> vernac_bind_scope ~atts sc rl)
+    vtdefault(fun sum -> vernac_bind_scope ~atts sum sc rl)
   | VernacOpenCloseScope (b, s) ->
-    vtdefault(fun () -> with_section_locality ~atts vernac_open_close_scope (b,s))
+    vtdefault(fun sum -> with_section_locality ~atts vernac_open_close_scope sum (b,s))
   | VernacEnableNotation (on,rule,interp,flags,scope) ->
-    vtdefault(fun () -> with_module_locality ~atts vernac_enable_notation on rule interp flags scope)
+    vtdefault(fun sum -> with_module_locality ~atts vernac_enable_notation sum on rule interp flags scope)
 
   (* Gallina *)
 
@@ -2645,215 +2644,220 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let coercion = match kind with Decls.Coercion -> true | _ -> false in
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     if refine then
-      vtopenproof(fun () ->
+      vtopenproof(fun sum ->
         with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
          vernac_definition_refine dkind lid bl red_option c typ)
     else
-      vtmodifyprogram (fun ~pm ->
+      vtmodifyprogram (fun ~pm sum ->
         with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
-        vernac_definition ~pm dkind lid bl red_option c typ)
+        vernac_definition ~pm sum dkind lid bl red_option c typ)
   | VernacDefinition ((discharge,kind as dkind),lid,ProveBody(bl,typ)) ->
     let coercion = match kind with Decls.Coercion -> true | _ -> false in
-    vtopenproof(fun () ->
+    vtopenproof(fun _sum ->
       with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
        vernac_definition_interactive dkind lid bl typ)
 
   | VernacStartTheoremProof (k,l) ->
-    vtopenproof(fun () -> with_def_attributes ~atts vernac_start_proof k l)
+    vtopenproof(fun sum -> with_def_attributes ~atts vernac_start_proof sum k l)
   | VernacExactProof c ->
-    vtcloseproof (fun ~lemma ->
+    vtcloseproof (fun ~lemma ~pm sum ->
         unsupported_attributes atts;
-        vernac_exact_proof ~lemma c)
+        vernac_exact_proof ~lemma ~pm sum c)
 
   | VernacAssumption ((discharge,kind),nl,l) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         with_def_attributes ~atts
           ~discharge:(discharge,
                       "\"Variable\" or \"Hypothesis\"",
                       "\"#[local] Parameter\" or \"#[local] Axiom\"")
-          vernac_assumption kind l nl)
+          vernac_assumption sum kind l nl)
 
   | VernacSymbol l ->
-    vtdefault (fun () ->
+    vtdefault (fun sum ->
       let unfold_fix, poly =
         Attributes.(parse Notations.(unfold_fix ++ polymorphic)) atts
       in
-        ComRewriteRule.do_symbols ~poly ~unfold_fix l)
+        ComRewriteRule.do_symbols sum ~poly ~unfold_fix l)
 
   | VernacInductive (finite, l) ->
-    vtdefault(fun () -> vernac_inductive ~atts finite l)
+    vtdefault(fun sum -> vernac_inductive sum ~atts finite l)
 
   | VernacFixpoint (discharge, l) ->
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     let opens = refine || List.exists (fun { body_def } -> Option.is_empty body_def) (snd l) in
     let discharge = discharge, "\"Let Fixpoint\"", "\"#[local] Fixpoint\"" in
     (if opens then
-      vtopenproof (fun () ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_fixpoint ~refine ~pm:None) l in
-        assert (Option.is_empty pm);
-        Option.get proof)
-    else
-      vtmodifyprogram (fun ~pm ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_fixpoint ~refine ~pm:(Some pm)) l in
-        assert (Option.is_empty proof);
-        Option.get pm))
+      vtopenproof (fun sum ->
+           let pm, proof = with_def_attributes ~discharge ~atts
+               (vernac_fixpoint ~refine ~pm:None sum) l
+           in
+           assert (Option.is_empty pm);
+           Option.get proof)
+     else
+       vtmodifyprogram (fun ~pm sum ->
+           let pm, proof = with_def_attributes ~discharge ~atts
+               (vernac_fixpoint ~refine ~pm:(Some pm) sum) l in
+           assert (Option.is_empty proof);
+           Option.get pm))
 
   | VernacCoFixpoint (discharge, l) ->
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     let opens = refine || List.exists (fun { body_def } -> Option.is_empty body_def) l in
     let discharge = discharge,  "\"Let CoFixpoint\"", "\"#[local] CoFixpoint\"" in
     (if opens then
-      vtopenproof (fun () ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_cofixpoint ~refine ~pm:None) l in
+      vtopenproof (fun sum ->
+        let pm, proof = with_def_attributes ~discharge ~atts
+            (vernac_cofixpoint ~refine ~pm:None sum) l in
         assert (Option.is_empty pm);
         Option.get proof)
     else
-      vtmodifyprogram (fun ~pm ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_cofixpoint ~refine ~pm:(Some pm)) l in
+      vtmodifyprogram (fun ~pm sum ->
+        let pm, proof = with_def_attributes ~discharge ~atts
+            (vernac_cofixpoint ~refine ~pm:(Some pm) sum) l in
         assert (Option.is_empty proof);
         Option.get pm))
 
   | VernacScheme l ->
-    vtdefault(fun () ->
-        vernac_scheme atts l)
+    vtdefault(fun sum ->
+        vernac_scheme sum ~atts l)
   | VernacSchemeEquality (sch,id) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_scheme_equality sch id ~locmap:(Ind_tables.Locmap.default loc))
+        vernac_scheme_equality sum sch id ~locmap:(Ind_tables.Locmap.default loc))
   | VernacCombinedScheme (id, l) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_combined_scheme id l ~locmap:(Ind_tables.Locmap.default loc))
+        vernac_combined_scheme sum id l ~locmap:(Ind_tables.Locmap.default loc))
   | VernacUniverse l ->
-    vtdefault(fun () -> vernac_universe ~poly:(only_polymorphism atts) l)
+    vtdefault(fun sum -> vernac_universe sum ~poly:(only_polymorphism atts) l)
 
   | VernacSort l ->
-    vtdefault(fun () -> vernac_sort ~poly:(only_polymorphism atts) l)
+    vtdefault(fun sum -> vernac_sort sum ~poly:(only_polymorphism atts) l)
 
   | VernacConstraint l ->
-    vtdefault(fun () -> vernac_constraint ~poly:(only_polymorphism atts) l)
+    vtdefault(fun _sum -> vernac_constraint ~poly:(only_polymorphism atts) l)
 
   | VernacAddRewRule (id, c) ->
-    vtdefault (fun () ->
+    vtdefault (fun _sum ->
         unsupported_attributes atts;
         ComRewriteRule.do_rules id.v c)
 
   (* Gallina extensions *)
 
   | VernacNameSectionHypSet (lid, set) ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
         unsupported_attributes atts;
         vernac_name_sec_hyp lid set)
 
   | VernacCanonical qid ->
-    vtdefault(fun () ->
-        vernac_canonical ~local:(only_locality atts) qid)
+    vtdefault(fun sum ->
+        vernac_canonical sum ~local:(only_locality atts) qid)
 
   | VernacCoercion (r,st) ->
-    vtdefault(fun () -> vernac_coercion ~atts r st)
+    vtdefault(fun sum -> vernac_coercion sum ~atts r st)
 
   | VernacIdentityCoercion (id,s,t) ->
-    vtdefault(fun () -> vernac_identity_coercion ~atts id s t)
+    vtdefault(fun sum -> vernac_identity_coercion sum ~atts id s t)
 
   (* Type classes *)
   | VernacInstance (name, bl, t, props, info) ->
     let atts, program = Attributes.(parse_with_extra program) atts in
     if program then
-      vtmodifyprogram (vernac_instance_program ~atts name bl t props info)
+      vtmodifyprogram (fun ~pm sum -> vernac_instance_program sum ~pm ~atts name bl t props info)
     else begin match props with
     | None ->
-       vtopenproof (fun () ->
+       vtopenproof (fun _sum ->
         vernac_instance_interactive ~atts name bl t info None)
     | Some props ->
       let atts, refine = Attributes.parse_with_extra Classes.refine_att atts in
       if refine then
-        vtopenproof (fun () ->
+        vtopenproof (fun _sum ->
           vernac_instance_interactive ~atts name bl t info (Some props))
       else
-        vtdefault (fun () ->
-          vernac_instance ~atts name bl t props info)
+        vtdefault (fun sum ->
+          vernac_instance sum ~atts name bl t props info)
     end
 
   | VernacDeclareInstance (id, bl, inst, info) ->
-    vtdefault(fun () -> vernac_declare_instance ~atts id bl inst info)
+    vtdefault(fun sum -> vernac_declare_instance sum ~atts id bl inst info)
   | VernacContext sup ->
-    vtdefault(fun () -> vernac_context ~atts sup)
+    vtdefault(fun sum -> vernac_context sum ~atts sup)
   | VernacExistingInstance insts ->
-    vtdefault(fun () -> vernac_existing_instance ~atts insts)
+    vtdefault(fun sum -> vernac_existing_instance sum ~atts insts)
 
   | VernacExistingClass id ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_existing_class id)
+        vernac_existing_class sum id)
 
   (* Commands *)
   | VernacCreateHintDb (dbname,b) ->
-    vtdefault(fun () ->
-        with_module_locality ~atts vernac_create_hintdb dbname b)
+    vtdefault(fun sum ->
+        with_module_locality ~atts vernac_create_hintdb sum dbname b)
 
   | VernacRemoveHints (dbnames,ids) ->
-    vtdefault(fun () ->
-        vernac_remove_hints ~atts dbnames ids)
+    vtdefault(fun sum ->
+        vernac_remove_hints sum ~atts dbnames ids)
 
   | VernacHints (dbnames,hints) ->
-    vtdefault(fun () ->
-        vernac_hints ~atts dbnames hints)
+    vtdefault(fun sum ->
+        vernac_hints sum ~atts dbnames hints)
 
   | VernacAbbreviation (id,c,b,warn_old_notation) ->
-     vtdefault(fun () -> vernac_abbreviation ~warn_old_notation ~atts id c b)
+     vtdefault(fun sum -> vernac_abbreviation sum ~warn_old_notation ~atts id c b)
 
   | VernacArguments (qid, args, more_implicits, flags) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         with_section_locality ~atts
-          (ComArguments.vernac_arguments qid args more_implicits flags))
+          (ComArguments.vernac_arguments sum qid args more_implicits flags))
 
   | VernacReserve bl ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
         unsupported_attributes atts;
         vernac_reserve bl)
 
   | VernacGeneralizable gen ->
-    vtdefault(fun () -> with_locality ~atts vernac_generalizable gen)
+    vtdefault(fun sum -> with_locality ~atts vernac_generalizable sum gen)
 
   | VernacSetOpacity (qidl, on_proj_constant) ->
-    vtdefault(fun () ->
-        with_locality ~atts (vernac_set_opacity ~on_proj_constant) qidl)
+    vtdefault(fun sum ->
+        with_locality ~atts (vernac_set_opacity ~on_proj_constant sum) qidl)
 
   | VernacSetStrategy l ->
-    vtdefault(fun () -> with_locality ~atts vernac_set_strategy l)
+    vtdefault(fun sum -> with_locality ~atts vernac_set_strategy sum l)
 
   | VernacRemoveOption (key,v) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
       let local = Attributes.parse Attributes.hint_locality atts in
-      Vernacoptions.vernac_remove_option local key v)
+      Vernacoptions.vernac_remove_option sum local key v)
 
   | VernacAddOption (key,v) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
       let local = Attributes.parse Attributes.hint_locality atts in
-      Vernacoptions.vernac_add_option local key v)
+      Vernacoptions.vernac_add_option sum local key v)
 
   | VernacMemOption (key,v) ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
     unsupported_attributes atts;
     Vernacoptions.vernac_mem_option key v)
 
   | VernacPrintOption key ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        Vernacoptions.vernac_print_option key)
+        Vernacoptions.vernac_print_option !!sum key)
 
   | VernacCheckMayEval (r,g,c) ->
-    vtreadproofopt(fun ~pstate ->
+    vtreadproofopt(fun ~pstate _sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@
         vernac_check_may_eval ~pstate r g c)
 
   | VernacDeclareReduction (s,r) ->
-    vtdefault(fun () ->
-        with_locality ~atts vernac_declare_reduction s r)
+    vtdefault(fun sum ->
+        with_locality ~atts vernac_declare_reduction sum s r)
 
   | VernacGlobalCheck c ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@ vernac_global_check c)
 
@@ -2864,78 +2868,84 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
       (vernac_print p)
 
   | VernacSearch (s,g,r) ->
-    vtreadproofopt(
+    vtreadproofopt(fun ~pstate sum ->
         unsupported_attributes atts;
-        vernac_search ~atts s g r)
+        vernac_search !!sum ~pstate ~atts s g r)
 
   | VernacLocate l ->
-    vtreadproofopt(fun ~pstate ->
+    vtreadproofopt(fun ~pstate _sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@ vernac_locate ~pstate l)
 
   | VernacRegister (qid, r) ->
-    vtnoproof(fun () ->
-        vernac_register ~atts qid r)
+    vtnoproof(fun sum ->
+        vernac_register sum ~atts qid r)
 
   | VernacPrimitive ((id, udecl), prim, typopt) ->
-    vtdefault(fun () ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        ComPrimitive.do_primitive id udecl prim typopt)
+        ComPrimitive.do_primitive sum id udecl prim typopt)
 
   | VernacComments l ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
         unsupported_attributes atts;
         Flags.if_verbose Feedback.msg_info (str "Comments ok\n"))
 
   | VernacAttributes atts ->
-    vtdefault(fun () ->
+    vtdefault(fun _sum ->
         vernac_library_attributes atts)
 
   (* Proof management *)
   | VernacFocus n ->
-    vtmodifyproof(unsupported_attributes atts;vernac_focus n)
+    vtmodifyproof @@ fun ~pstate _sum ->
+    unsupported_attributes atts;
+    vernac_focus ~pstate n
   | VernacUnfocus ->
-    vtmodifyproof(unsupported_attributes atts;vernac_unfocus)
+    vtmodifyproof @@ fun ~pstate _sum ->
+    unsupported_attributes atts;
+    vernac_unfocus ~pstate
   | VernacUnfocused ->
-    vtreadproof(fun ~pstate ->
+    vtreadproof(fun ~pstate _sum ->
       unsupported_attributes atts;
       Feedback.msg_notice @@ vernac_unfocused ~pstate)
   | VernacBullet b ->
-    vtmodifyproof(
+    vtmodifyproof(fun ~pstate _sum ->
       unsupported_attributes atts;
-      vernac_bullet b)
+      vernac_bullet b ~pstate)
   | VernacSubproof n ->
-    vtmodifyproof(
+    vtmodifyproof(fun ~pstate _sum ->
       unsupported_attributes atts;
-      vernac_subproof n)
+      vernac_subproof n ~pstate)
   | VernacEndSubproof ->
-    vtmodifyproof(
+    vtmodifyproof(fun ~pstate _sum ->
       unsupported_attributes atts;
-      vernac_end_subproof)
+      vernac_end_subproof ~pstate)
   | VernacShow s ->
-    vtreadproofopt(fun ~pstate ->
+    vtreadproofopt(fun ~pstate _sum ->
       unsupported_attributes atts;
       Feedback.msg_notice @@ vernac_show ~pstate s)
   | VernacCheckGuard ->
-    vtreadproof(fun ~pstate ->
+    vtreadproof(fun ~pstate _sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@ vernac_check_guard ~pstate)
   | VernacValidateProof ->
-    vtreadproof(fun ~pstate ->
+    vtreadproof(fun ~pstate _sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@ vernac_validate_proof ~pstate)
   | VernacProof (tac, using) ->
-    vtmodifyproof(fun ~pstate ->
+    vtmodifyproof(fun ~pstate _sum ->
     unsupported_attributes atts;
     vernac_proof pstate tac using)
 
   | VernacEndProof pe ->
+    vtcloseproof @@ fun ~lemma ~pm sum ->
     unsupported_attributes atts;
-    vtcloseproof (vernac_end_proof pe)
+    vernac_end_proof ~lemma ~pm sum pe
 
   | VernacAbort ->
+    vtcloseproof @@ fun ~lemma ~pm sum ->
     unsupported_attributes atts;
-    vtcloseproof vernac_abort
+    vernac_abort ~lemma ~pm
 
 let translate_vernac ?loc ~atts v =
   match v with

@@ -14,9 +14,8 @@ module Synterp : sig
 
   type t
 
-  val init : unit -> t
-  val freeze : unit -> t
-  val unfreeze : t -> unit
+  val freeze : Summary.Synterp.t -> t
+  val unfreeze : Summary.Synterp.mut -> t -> unit
   val parsing : t -> Procq.frozen_t
 end
 
@@ -24,7 +23,7 @@ module System : sig
   (** [protect f x] runs [f x] and discards changes in the system state
       (both [Synterp.t] and [Interp.System.t]). It doesn't touch the
       proof functional state in [Interp.t] *)
-  val protect : ('a -> 'b) -> 'a -> 'b
+  val protect : (Summary.Interp.t ref -> 'b) -> Summary.Interp.t -> 'b
 end
 
 module LemmaStack : sig
@@ -59,8 +58,8 @@ module Interp : sig
     (** qed-terminated proofs *)
     }
 
-  val freeze_interp_state : unit -> t
-  val unfreeze_interp_state : t -> unit
+  val freeze_interp_state : Summary.Interp.t -> t
+  val unfreeze_interp_state : Summary.Interp.mut -> t -> unit
 
   (* WARNING: Do not use, it will go away in future releases *)
   val invalidate_cache : unit -> unit
@@ -72,8 +71,8 @@ type t =
   ; interp: Interp.t
   }
 
-val freeze_full_state : unit -> t
-val unfreeze_full_state : t -> unit
+val freeze_full_state : Summary.Interp.t -> t
+val unfreeze_full_state : Summary.Interp.t ref -> t -> unit
 
 (** STM-specific state handling *)
 module Stm : sig
@@ -85,8 +84,9 @@ module Stm : sig
   val set_pstate : t -> pstate -> t
 
   (** Rest of the state, unfortunately this is used in low-level so we need to expose it *)
-  type non_pstate = Summary.Synterp.frozen * Lib.Synterp.frozen * Summary.Interp.frozen * Lib.Interp.frozen
+  type non_pstate
   val non_pstate : t -> non_pstate
+  val unfreeze_non_pstate : Summary.Interp.t ref -> non_pstate -> unit
 
   (** Checks if two states have the same Environ.env (physical eq) *)
   val same_env : t -> t -> bool

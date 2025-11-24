@@ -140,7 +140,7 @@ END
 
 {
 
-let declare_one_prenex_implicit locality f =
+let declare_one_prenex_implicit sum locality f =
   let fref =
     try Smartlocate.global_with_alias f
     with e when CErrors.noncritical e -> errorstrm (pr_qualid f ++ str " is not declared") in
@@ -159,7 +159,7 @@ let declare_one_prenex_implicit locality f =
   | [] ->
     errorstrm (str "Expected some implicits for " ++ pr_qualid f)
   | impls ->
-    Impargs.set_implicits locality fref [List.map (fun imp -> (Anonymous,imp)) impls]
+    Impargs.set_implicits sum locality fref [List.map (fun imp -> (Anonymous,imp)) impls]
 
 }
 
@@ -167,7 +167,7 @@ VERNAC COMMAND EXTEND Ssrpreneximplicits CLASSIFIED AS SIDEFF
   | #[ locality = Attributes.locality; ] [ "Prenex" "Implicits" ne_global_list(fl) ]
   -> {
          let locality = Locality.make_section_locality locality in
-         List.iter (declare_one_prenex_implicit locality) fl;
+         List.iter (declare_one_prenex_implicit summary locality) fl;
      }
 END
 
@@ -294,10 +294,10 @@ VERNAC COMMAND EXTEND HintView CLASSIFIED AS SIDEFF
      { let hints = glob_view_hints lvh in
        match n with
        | None ->
-          Ssrview.AdaptorDb.declare Ssrview.AdaptorDb.Forward hints;
-          Ssrview.AdaptorDb.declare Ssrview.AdaptorDb.Backward hints
+          Ssrview.AdaptorDb.declare summary Ssrview.AdaptorDb.Forward hints;
+          Ssrview.AdaptorDb.declare summary Ssrview.AdaptorDb.Backward hints
        | Some k ->
-          Ssrview.AdaptorDb.declare k hints }
+          Ssrview.AdaptorDb.declare summary k hints }
 END
 
 (** Search compatibility *)

@@ -66,7 +66,7 @@ val build_mutual_induction_scheme :
 
 (** Default dependence of eliminations for Prop inductives *)
 
-val declare_prop_but_default_dependent_elim : inductive -> unit
+val declare_prop_but_default_dependent_elim : Summary.Interp.mut -> inductive -> unit
 
 val is_prop_but_default_dependent_elim : inductive -> bool
 

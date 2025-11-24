@@ -44,21 +44,21 @@ let add_generalizable gen table =
   | Some l -> List.fold_left (fun table lid -> declare_generalizable_ident table lid)
       table l
 
-let cache_generalizable_type (local,cmd) =
+let cache_generalizable_type (local,cmd) _sum =
   generalizable_table := add_generalizable cmd !generalizable_table
 
-let load_generalizable_type _ (local,cmd) =
+let load_generalizable_type _ (local,cmd) _sum =
   generalizable_table := add_generalizable cmd !generalizable_table
 
 let in_generalizable : bool * lident list option -> obj =
-  declare_object {(default_object "GENERALIZED-IDENT") with
+  Interp.declare_object {(default_object "GENERALIZED-IDENT") with
     load_function = load_generalizable_type;
     cache_function = cache_generalizable_type;
     classify_function = (fun (local, _) -> if local then Dispose else Keep)
   }
 
-let declare_generalizable ~local gen =
- Lib.add_leaf (in_generalizable (local, gen))
+let declare_generalizable sum ~local gen =
+ Lib.Interp.add_leaf sum (in_generalizable (local, gen))
 
 let find_generalizable_ident id = Id.Pred.mem (root_of_id id) !generalizable_table
 

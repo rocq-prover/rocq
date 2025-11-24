@@ -82,7 +82,11 @@ let _ = add_test "tokenize_string/diff_mode in lexer" t
 open Pp
 
 let write_diffs_option s =
-  Goptions.set_string_option_value Proof_diffs.opt_name s
+  Summary.run_synterp_interp
+    (fun _sum -> ())
+    (fun sum () ->
+       Goptions.set_string_option_value InterpG sum Proof_diffs.opt_name s)
+    Stm.cur_summary
 
 (* example that was failing from #8922 *)
 let t () =

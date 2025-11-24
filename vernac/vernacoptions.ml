@@ -12,18 +12,18 @@ open Util
 open Goptions
 open Vernacexpr
 
-let vernac_set_option ~locality ~stage key opt =
+let vernac_set_option sum ~locality ~stage key opt =
   match opt with
-  | OptionUnset -> unset_option_value_gen ~locality ~stage key
-  | OptionSetString s -> set_string_option_value_gen ~locality ~stage key s
-  | OptionSetInt n -> set_int_option_value_gen ~locality ~stage key (Some n)
-  | OptionSetTrue -> set_bool_option_value_gen ~locality ~stage key true
+  | OptionUnset -> unset_option_value_gen ~locality stage sum key
+  | OptionSetString s -> set_string_option_value_gen ~locality stage sum key s
+  | OptionSetInt n -> set_int_option_value_gen ~locality stage sum key (Some n)
+  | OptionSetTrue -> set_bool_option_value_gen ~locality stage sum key true
 
 let warn_set_append_deprecated =
   CWarnings.create ~name:"set-append-deprecated" ~category:Deprecation.Version.v9_1
     Pp.(fun () -> str "Set ... Append is not supported.")
 
-let vernac_set_option ~locality ~stage table v =
+let vernac_set_option sum ~locality ~stage table v =
   let table =
     if String.equal "Append" (List.last table) then begin
       let table = List.drop_last table in
@@ -38,20 +38,22 @@ let vernac_set_option ~locality ~stage table v =
     end
     else table
   in
-  vernac_set_option ~locality ~stage table v
+  vernac_set_option sum ~locality ~stage table v
 
-let iter_table f k v = Goptions.iter_table (Global.env()) f k v
+let vernac_add_option sum local =
+  let env = Global.env() in
+  iter_table { aux = fun table x -> table.add sum env local x }
 
-let vernac_add_option local = iter_table { aux = fun table env x -> table.add env local x }
+let vernac_remove_option sum local =
+  let env = Global.env() in
+  iter_table { aux = fun table x -> table.remove sum env local x }
 
-let vernac_remove_option local = iter_table { aux = fun table env x -> table.remove env local x }
+let vernac_mem_option = iter_table { aux = fun table x -> table.mem (Global.env()) x}
 
-let vernac_mem_option = iter_table { aux = fun table -> table.mem }
-
-let vernac_print_option key =
+let vernac_print_option sum key =
   try (get_ref_table key).print ()
   with Not_found ->
   try (get_string_table key).print ()
   with Not_found ->
-  try print_option_value key
+  try print_option_value sum key
   with Not_found -> error_undeclared_key key

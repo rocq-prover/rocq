@@ -183,8 +183,9 @@ let pr_evar_source env sigma = function
   | Evar_kinds.RewriteRulePattern Name id -> str "pattern variable " ++ Id.print id
 
 let pr_evar_info (type a) env sigma (evi : a Evd.evar_info) =
+  let module I = Internal in
   let open Evd in
-  let print_constr = Internal.print_kconstr in
+  let print_constr = I.print_kconstr in
   let phyps =
     try
       let decls = match Filter.repr (evar_filter evi) with

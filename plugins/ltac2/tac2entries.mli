@@ -14,18 +14,23 @@ open Tac2expr
 
 (** {5 Toplevel definitions} *)
 
-val register_ltac : ?deprecation:Deprecation.t -> ?local:bool -> ?mut:bool -> rec_flag ->
+val register_ltac : Summary.Interp.mut ->
+  ?deprecation:Deprecation.t -> ?local:bool -> ?mut:bool -> rec_flag ->
   (Names.lname * raw_tacexpr) list -> unit
 
-val register_type : ?local:bool -> ?abstract:bool -> rec_flag ->
+val register_type : Summary.Interp.mut ->
+  ?local:bool -> ?abstract:bool -> rec_flag ->
   (qualid * redef_flag * raw_quant_typedef) list -> unit
 
-val import_type : qualid -> Id.t -> unit
+val import_type : Summary.Interp.mut ->
+  qualid -> Id.t -> unit
 
-val register_primitive : ?deprecation:Deprecation.t -> ?local:bool ->
+val register_primitive : Summary.Interp.mut ->
+  ?deprecation:Deprecation.t -> ?local:bool ->
   Names.lident -> raw_typexpr -> ml_tactic_name -> unit
 
-val register_struct : Attributes.vernac_flags -> strexpr -> unit
+val register_struct : Summary.Interp.mut ->
+  Attributes.vernac_flags -> strexpr -> unit
 
 type notation_interpretation_data
 
@@ -35,15 +40,17 @@ val pr_register_notation : sexpr list -> notation_target -> raw_tacexpr -> Pp.t
 
 val pr_register_abbreviation : Id.t CAst.t -> raw_tacexpr -> Pp.t
 
-val register_notation : Attributes.vernac_flags -> sexpr list ->
+val register_notation : Summary.Synterp.mut ->
+  Attributes.vernac_flags -> sexpr list ->
   notation_target -> raw_tacexpr -> notation_interpretation_data
 
 val register_abbreviation : Attributes.vernac_flags -> Id.t CAst.t ->
   raw_tacexpr -> notation_interpretation_data
 
-val register_notation_interpretation : notation_interpretation_data -> unit
+val register_notation_interpretation : Summary.Interp.mut ->
+  notation_interpretation_data -> unit
 
-val register_custom_entry : lident -> unit
+val register_custom_entry : Summary.Synterp.mut -> lident -> unit
 
 val perform_eval : pstate:Declare.Proof.t option -> raw_tacexpr -> unit
 
@@ -106,7 +113,8 @@ val find_custom_entry : Tac2Custom.t -> raw_tacexpr Procq.Entry.t
 val call : pstate:Declare.Proof.t -> Goal_select.t option -> with_end_tac:bool CAst.t -> raw_tacexpr
   -> Declare.Proof.t
 
-val call_par : pstate:Declare.Proof.t -> raw_tacexpr -> Declare.Proof.t
+val call_par : Summary.Interp.t ->
+  pstate:Declare.Proof.t -> raw_tacexpr -> Declare.Proof.t
 
 (** {5 Parsing entries} *)
 

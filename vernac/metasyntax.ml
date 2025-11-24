@@ -1023,22 +1023,18 @@ let cache_one_syntax_extension (ntn,synext) =
   (* Printing *)
   Option.iter (declare_generic_notation_printing_rules ntn) synext.synext_notprint
 
-let cache_syntax_extension (_, sy) =
+let cache_syntax_extension (_, sy) _sum =
   cache_one_syntax_extension sy
-
-let subst_syntax_extension (subst, (local, (ntn, synext))) =
-  (local, (ntn, synext))
 
 let classify_syntax_definition (local, _) =
   if local then Dispose else Substitute
 
 let inSyntaxExtension : syntax_extension_obj -> obj =
-  declare_object
+  Libobject.Synterp.declare_object
     {(default_object "SYNTAX-EXTENSION") with
-     object_stage = Summary.Stage.Synterp;
      open_function = simple_open ~cat:notation_cat cache_syntax_extension;
      cache_function = cache_syntax_extension;
-     subst_function = subst_syntax_extension;
+     subst_function = ident_subst_function;
      classify_function = classify_syntax_definition}
 
 (** ******************************************************************** **)
@@ -1659,7 +1655,7 @@ type notation_obj = {
   notobj_specific_pp_rules : notation_printing_rules option;
 }
 
-let load_notation_common silently_define_scope_if_undefined _ nobj =
+let load_notation_common silently_define_scope_if_undefined _ nobj _sum =
   (* When the default shall be to require that a scope already exists *)
   (* the call to ensure_scope will have to be removed *)
   if silently_define_scope_if_undefined then
@@ -1672,7 +1668,7 @@ let load_notation_common silently_define_scope_if_undefined _ nobj =
 let load_notation =
   load_notation_common true
 
-let open_notation nobj =
+let open_notation nobj _sum =
   let scope = nobj.notobj_scope in
   let (ntn, df) = nobj.notobj_notation in
   let pat = nobj.notobj_interp in
@@ -1689,48 +1685,48 @@ let open_notation nobj =
        Ppextend.declare_specific_notation_printing_rules (scope,ntn) pp_sy
    | None -> ())
 
-let cache_notation o =
-  load_notation_common false 1 o;
-  open_notation o
+let cache_notation o sum =
+  load_notation_common false 1 o sum;
+  open_notation o sum
 
-let subst_notation (subst, nobj) =
+let subst_notation _sum subst nobj =
   { nobj with notobj_interp = subst_interpretation subst nobj.notobj_interp; }
 
 let classify_notation nobj =
   if nobj.notobj_local then Dispose else Substitute
 
 let inNotation : notation_obj -> obj =
-  declare_object {(default_object "NOTATION") with
-       open_function = simple_open ~cat:notation_cat open_notation;
-       cache_function = cache_notation;
-       subst_function = subst_notation;
-       load_function = load_notation;
-       classify_function = classify_notation}
+  Libobject.Interp.declare_object
+    {(default_object "NOTATION") with
+     open_function = simple_open ~cat:notation_cat open_notation;
+     cache_function = cache_notation;
+     subst_function = subst_notation;
+     load_function = load_notation;
+     classify_function = classify_notation}
 
 (**********************************************************************)
 (* Registration of interpretation scopes opening/closing              *)
 
-let cache_scope (local,op,sc) =
+let cache_scope (local,op,sc) _sum =
   if op then Notation.open_scope sc else Notation.close_scope sc
 
-let subst_scope (subst,sc) = sc
-
-let discharge_scope (local,_,_ as o) =
+let discharge_scope _sum (local,_,_ as o) =
   if local then None else Some o
 
 let classify_scope (local,_,_) =
   if local then Dispose else Substitute
 
 let inScope : bool * bool * scope_name -> obj =
-  declare_object {(default_object "SCOPE") with
-      cache_function = cache_scope;
-      open_function = simple_open ~cat:notation_cat cache_scope;
-      subst_function = subst_scope;
-      discharge_function = discharge_scope;
-      classify_function = classify_scope }
+  Libobject.Interp.declare_object
+    {(default_object "SCOPE") with
+     cache_function = cache_scope;
+     open_function = simple_open ~cat:notation_cat cache_scope;
+     subst_function = ident_subst_function;
+     discharge_function = discharge_scope;
+     classify_function = classify_scope }
 
-let open_close_scope local ~to_open sc =
-  Lib.add_leaf (inScope (local,to_open,normalize_scope sc))
+let open_close_scope sum local ~to_open sc =
+  Lib.Interp.add_leaf sum (inScope (local,to_open,normalize_scope sc))
 
 (**********************************************************************)
 
@@ -1930,7 +1926,7 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
 
 (* Notations without interpretation (Reserved Notation) *)
 
-let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
+let add_reserved_notation sum ~local ~infix ({CAst.loc;v=df},mods) =
   let (main_data,mods) = interp_non_syntax_modifiers ~reserved:true ~infix ~abbrev:false None mods in
   let mods = interp_modifiers main_data.entry mods in
   let notation_symbols, is_prim_token = analyze_notation_tokens ~onlyprinting:main_data.onlyprinting ~infix main_data.entry df in
@@ -1939,7 +1935,7 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
   let synext = make_syntax_rules true main_data ntn sd in
-  Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
+  Lib.Synterp.add_leaf sum (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =
   notation_declaration * notation_main_data * notation_symbols * notation * syntax_rules
@@ -1966,18 +1962,18 @@ let prepare_where_notation ntn_decl =
         user_err Pp.(str "Parsing rule for this notation has to be previously declared.") in
     (ntn_decl, main_data, notation_symbols, ntn, syntax_rules)
 
-let add_notation_interpretation ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
+let add_notation_interpretation sum ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
   let notation = make_notation_interpretation ~local main_data notation_symbols ntn syntax_rules df env c sc in
-  Lib.add_leaf (inNotation notation);
+  Lib.Interp.add_leaf sum (inNotation notation);
   Dumpglob.dump_notation (CAst.make ?loc ntn) sc true
 
 (* interpreting a where clause *)
-let set_notation_for_interpretation env impls (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
+let set_notation_for_interpretation sum env impls (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
   let notation = make_notation_interpretation ~local:true main_data notation_symbols ntn syntax_rules df env ~impls c sc in
-  Lib.add_leaf (inNotation notation);
-  Option.iter (fun sc -> Lib.add_leaf (inScope (false,true,sc))) sc
+  cache_notation notation sum;
+  Option.iter (fun sc -> cache_scope (false,true,sc) sum) sc
 
 let build_notation_syntax ~local ~infix user_warns ntn_decl =
   let { ntn_decl_string = {CAst.loc;v=df}; ntn_decl_modifiers = modifiers; ntn_decl_interp = c } = ntn_decl in
@@ -2006,11 +2002,11 @@ let build_notation_syntax ~local ~infix user_warns ntn_decl =
   in
   main_data, notation_symbols, ntn, syntax_rules, c, df
 
-let add_notation_syntax ~local ~infix user_warns ntn_decl =
+let add_notation_syntax sum ~local ~infix user_warns ntn_decl =
   (* Build or rebuild the syntax rules *)
   let main_data, notation_symbols, ntn, syntax_rules, c, df = build_notation_syntax ~local ~infix user_warns ntn_decl in
   (* Declare syntax *)
-  syntax_rules_iter (fun sy -> Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
+  syntax_rules_iter (fun sy -> Lib.Synterp.add_leaf sum (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
   let ntn_decl_string = CAst.make ?loc:ntn_decl.ntn_decl_string.CAst.loc df in
   let ntn_decl = { ntn_decl with ntn_decl_interp = c; ntn_decl_string } in
   ntn_decl, main_data, notation_symbols, ntn, syntax_rules
@@ -2024,7 +2020,7 @@ type scope_command =
   | ScopeDelimRemove
   | ScopeClasses of add_scope_where option * scope_class list
 
-let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,o) =
+let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,o) _sum =
   let declare_scope_if_needed =
     if silently_define_scope_if_undefined then Notation.declare_scope
     else Notation.ensure_scope in
@@ -2039,7 +2035,7 @@ let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,
 let load_scope_command =
   load_scope_command_common true
 
-let open_scope_command (noexport,scope,o) =
+let open_scope_command (noexport,scope,o) _sum =
   match o with
   | ScopeDeclare -> ()
   | ScopeDelimAdd dlm -> Notation.declare_delimiters scope dlm
@@ -2048,11 +2044,11 @@ let open_scope_command (noexport,scope,o) =
     let local = Lib.sections_are_opened () in
     List.iter (Notation.declare_scope_class local scope ?where) cl
 
-let cache_scope_command o =
-  load_scope_command_common false 1 o;
-  open_scope_command o
+let cache_scope_command o sum =
+  load_scope_command_common false 1 o sum;
+  open_scope_command o sum
 
-let subst_scope_command (subst,(noexport,scope,o as x)) = match o with
+let subst_scope_command _sum subst (noexport,scope,o as x) = match o with
   | ScopeClasses (where, cl) ->
       let env = Global.env () in
       let cl' = List.map_filter (subst_scope_class env subst) cl in
@@ -2066,24 +2062,25 @@ let classify_scope_command (noexport, _, _) =
   if noexport then Dispose else Substitute
 
 let inScopeCommand : locality_flag * scope_name * scope_command -> obj =
-  declare_object {(default_object "DELIMITERS") with
-      cache_function = cache_scope_command;
-      open_function = simple_open ~cat:notation_cat open_scope_command;
-      load_function = load_scope_command;
-      subst_function = subst_scope_command;
-      classify_function = classify_scope_command}
+  Libobject.Interp.declare_object
+    {(default_object "DELIMITERS") with
+     cache_function = cache_scope_command;
+     open_function = simple_open ~cat:notation_cat open_scope_command;
+     load_function = load_scope_command;
+     subst_function = subst_scope_command;
+     classify_function = classify_scope_command}
 
-let declare_scope local scope =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDeclare))
+let declare_scope sum local scope =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDeclare))
 
-let add_delimiters local scope key =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDelimAdd key))
+let add_delimiters sum local scope key =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDelimAdd key))
 
-let remove_delimiters local scope =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDelimRemove))
+let remove_delimiters sum local scope =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDelimRemove))
 
-let add_class_scope local scope where cl =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeClasses (where, cl)))
+let add_class_scope sum local scope where cl =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeClasses (where, cl)))
 
 let interp_abbreviation_modifiers modl =
   let mods, skipped = interp_non_syntax_modifiers ~reserved:false ~infix:false ~abbrev:true None modl in
@@ -2092,7 +2089,7 @@ let interp_abbreviation_modifiers modl =
     user_err ?loc:modifier.CAst.loc (str "Abbreviations don't support " ++ Ppvernac.pr_syntax_modifier modifier));
   (mods.onlyparsing, mods.itemscopes)
 
-let add_abbreviation ~local user_warns env ident (vars,c) modl =
+let add_abbreviation sum ~local user_warns env ident (vars,c) modl =
   let (only_parsing, scopes) = interp_abbreviation_modifiers modl in
   let vars = List.map (fun v -> v, List.assoc_opt v scopes) vars in
   let acvars,pat,reversibility =
@@ -2116,12 +2113,12 @@ let add_abbreviation ~local user_warns env ident (vars,c) modl =
   let interp = make_interpretation_vars ~default_if_binding:AsAnyPattern [] acvars level (List.map in_pat vars) in
   let vars = List.map (fun (x,_) -> (x, Id.Map.find x interp)) vars in
   let onlyparsing = only_parsing || fst (printability None [] vars false reversibility pat) in
-  Abbreviation.declare ~local user_warns ident ~onlyparsing (vars,pat)
+  Abbreviation.declare sum ~local user_warns ident ~onlyparsing (vars,pat)
 
 (**********************************************************************)
 (* Activating/deactivating notations                                  *)
 
-let cache_notation_toggle (local,(on,all,pat)) =
+let cache_notation_toggle (local,(on,all,pat)) _sum =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let flags = PrintingFlags.Extern.current() in
@@ -2129,7 +2126,7 @@ let cache_notation_toggle (local,(on,all,pat)) =
   let prglob c = Printer.pr_glob_constr_env ~flags env sigma c in
   toggle_notations ~on ~all ~verbose:(not !Flags.quiet) prglob pat
 
-let subst_notation_toggle (subst,(local,(on,all,pat))) =
+let subst_notation_toggle _sum subst (local,(on,all,pat)) =
   let {notation_entry_pattern; interp_rule_key_pattern; use_pattern;
        scope_pattern; interpretation_pattern} = pat in
   let interpretation_pattern = Option.map (subst_interpretation subst) interpretation_pattern in
@@ -2141,19 +2138,20 @@ let classify_notation_toggle (local,_) =
   if local then Dispose else Substitute
 
 let inNotationActivation : locality_flag * (bool * bool * notation_query_pattern) -> obj =
-  declare_object {(default_object "NOTATION-TOGGLE") with
-      cache_function = cache_notation_toggle;
-      open_function = simple_open cache_notation_toggle;
-      subst_function = subst_notation_toggle;
-      classify_function = classify_notation_toggle}
+  Libobject.Interp.declare_object
+    {(default_object "NOTATION-TOGGLE") with
+     cache_function = cache_notation_toggle;
+     open_function = simple_open cache_notation_toggle;
+     subst_function = subst_notation_toggle;
+     classify_function = classify_notation_toggle}
 
-let declare_notation_toggle local ~on ~all s =
-  Lib.add_leaf (inNotationActivation (local,(on,all,s)))
+let declare_notation_toggle sum local ~on ~all s =
+  Lib.Interp.add_leaf sum (inNotationActivation (local,(on,all,s)))
 
 (** **************************************************************** **)
 (** Declaration of custom entries                                    **)
 
-let load_custom_entry i ((sp,kn),local) =
+let load_custom_entry i ((sp,kn),local) _sum =
   Nametab.CustomEntries.push (Until i) sp kn;
   add_custom_compat kn;
   Egramrocq.create_custom_entry kn;
@@ -2162,26 +2160,24 @@ let load_custom_entry i ((sp,kn),local) =
   in
   ()
 
-let import_custom_entry i ((sp,kn),_) =
+let import_custom_entry i ((sp,kn),_) _sum =
   Nametab.CustomEntries.push (Exactly i) sp kn
 
-let cache_custom_entry o = load_custom_entry 1 o
-
-let subst_custom_entry (subst,x) = x
+let cache_custom_entry o sum = load_custom_entry 1 o sum
 
 let classify_custom_entry local =
   if local then Dispose else Substitute
 
 let inCustomEntry : Id.t -> locality_flag -> obj =
-  declare_named_object {(default_object "CUSTOM-ENTRIES") with
-      object_stage = Summary.Stage.Synterp;
-      cache_function = cache_custom_entry;
-      load_function = load_custom_entry;
-      open_function = filtered_open import_custom_entry;
-      subst_function = subst_custom_entry;
-      classify_function = classify_custom_entry}
+  Libobject.Synterp.declare_named_object
+    {(default_object "CUSTOM-ENTRIES") with
+     cache_function = cache_custom_entry;
+     load_function = load_custom_entry;
+     open_function = filtered_open import_custom_entry;
+     subst_function = ident_subst_function;
+     classify_function = classify_custom_entry}
 
-let declare_custom_entry local s =
+let declare_custom_entry sum local s =
   let () = if List.mem (Id.to_string s) ["constr";"pattern";"ident";"global";"binder";"bigint"] then
       user_err Pp.(quote (Id.print s) ++ str " is a reserved entry name.")
   in
@@ -2189,4 +2185,4 @@ let declare_custom_entry local s =
     if Nametab.CustomEntries.exists (Lib.make_path s) then
       user_err Pp.(Id.print s ++ str " already exists.")
   in
-  Lib.add_leaf (inCustomEntry s local)
+  Lib.Synterp.add_leaf sum (inCustomEntry s local)

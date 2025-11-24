@@ -173,7 +173,7 @@ let error_not_transparent source =
   user_err
     (pr_class source ++ str " must be a transparent constant.")
 
-let build_id_coercion ?loc idf_opt source poly =
+let build_id_coercion sum ?loc idf_opt source poly =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma, vs = match source with
@@ -219,19 +219,19 @@ let build_id_coercion ?loc idf_opt source poly =
          ~inline:true (mkCast (val_f, DEFAULTcast, typ_f)))
   in
   let kind = Decls.(IsDefinition IdentityCoercion) in
-  let kn = declare_constant ?loc ~name ~kind constr_entry in
+  let kn = declare_constant sum ?loc ~name ~kind constr_entry in
   GlobRef.ConstRef kn
 
 let check_source = function
 | Some (CL_FUN as s) -> raise (CoercionError (ForbiddenSourceClass s))
 | _ -> ()
 
-let cache_coercion ?(update=false) c =
+let cache_coercion ?(update=false) c _sum =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   Coercionops.declare_coercion env sigma ~update c
 
-let discharge_coercion c =
+let discharge_coercion _sum c =
   if c.coe_local then None
   else
     let n =
@@ -250,15 +250,16 @@ let classify_coercion obj =
 let coe_cat = create_category "coercions"
 
 let inCoercion : coe_info_typ -> obj =
-  declare_object {(default_object "COERCION") with
-    open_function = simple_open ~cat:coe_cat cache_coercion;
-    cache_function = cache_coercion;
-    subst_function = (fun (subst,c) -> subst_coercion subst c);
-    classify_function = classify_coercion;
-    discharge_function = discharge_coercion;
-  }
+  Libobject.Interp.declare_object
+    {(default_object "COERCION") with
+     open_function = simple_open ~cat:coe_cat cache_coercion;
+     cache_function = cache_coercion;
+     subst_function = (fun _sum subst c -> subst_coercion subst c);
+     classify_function = classify_coercion;
+     discharge_function = discharge_coercion;
+    }
 
-let declare_coercion coef ?(local = false) ~reversible ~isid ~src:cls ~target:clt ~params:ps () =
+let declare_coercion sum coef ?(local = false) ~reversible ~isid ~src:cls ~target:clt ~params:ps () =
   let isproj =
     match coef with
     | GlobRef.ConstRef c -> Structures.PrimitiveProjections.find_opt c
@@ -274,7 +275,7 @@ let declare_coercion coef ?(local = false) ~reversible ~isid ~src:cls ~target:cl
     coe_target = clt;
     coe_param = ps;
   } in
-  Lib.add_leaf (inCoercion c)
+  Lib.Interp.add_leaf sum (inCoercion c)
 
 (*
 nom de la fonction coercion
@@ -293,7 +294,7 @@ let warn_uniform_inheritance =
           Printer.pr_global g ++
             strbrk" does not respect the uniform inheritance condition.")
 
-let add_new_coercion_core coef stre ~reversible source target isid : unit =
+let add_new_coercion_core sum coef stre ~reversible source target isid : unit =
   check_source source;
   let env = Global.env () in
   let t, _ = Typeops.type_of_global_in_context env coef in
@@ -325,48 +326,48 @@ let add_new_coercion_core coef stre ~reversible source target isid : unit =
   | `GLOBAL -> false
   in
   let params = List.length (Context.Rel.instance_list EConstr.mkRel 0 ctx) in
-  declare_coercion coef ~local ~reversible ~isid ~src:cls ~target:clt ~params ()
+  declare_coercion sum coef ~local ~reversible ~isid ~src:cls ~target:clt ~params ()
 
-let try_add_new_coercion_core ref ~local c ~reversible d e =
-  try add_new_coercion_core ref (loc_of_bool local) c ~reversible d e
+let try_add_new_coercion_core sum ref ~local c ~reversible d e =
+  try add_new_coercion_core sum ref (loc_of_bool local) c ~reversible d e
   with CoercionError e ->
       user_err
         (explain_coercion_error ref e ++ str ".")
 
-let try_add_new_coercion ref ~local ~reversible =
-  try_add_new_coercion_core ref ~local ~reversible None None false
+let try_add_new_coercion sum ref ~local ~reversible =
+  try_add_new_coercion_core sum ref ~local ~reversible None None false
 
-let try_add_new_coercion_subclass ?loc cl ~local ~poly ~reversible =
-  let coe_ref = build_id_coercion ?loc None cl poly in
-  try_add_new_coercion_core coe_ref ~local ~reversible (Some cl) None true
+let try_add_new_coercion_subclass sum ?loc cl ~local ~poly ~reversible =
+  let coe_ref = build_id_coercion sum ?loc None cl poly in
+  try_add_new_coercion_core sum coe_ref ~local ~reversible (Some cl) None true
 
-let try_add_new_coercion_with_target ref ~local ~reversible ~source ~target =
-  try_add_new_coercion_core ref ~local ~reversible
+let try_add_new_coercion_with_target sum ref ~local ~reversible ~source ~target =
+  try_add_new_coercion_core sum ref ~local ~reversible
     (Some source) (Some target) false
 
-let try_add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target =
-  let ref = build_id_coercion ?loc (Some id) source poly in
-  try_add_new_coercion_core ref ~local ~reversible:true
+let try_add_new_identity_coercion sum {CAst.v=id; loc} ~local ~poly ~source ~target =
+  let ref = build_id_coercion sum ?loc (Some id) source poly in
+  try_add_new_coercion_core sum ref ~local ~reversible:true
     (Some source) (Some target) true
 
-let try_add_new_coercion_with_source ref ~local ~reversible ~source =
-  try_add_new_coercion_core ref ~local ~reversible (Some source) None false
+let try_add_new_coercion_with_source sum ref ~local ~reversible ~source =
+  try_add_new_coercion_core sum ref ~local ~reversible (Some source) None false
 
-let add_coercion_hook reversible { Declare.Hook.S.scope; dref; _ } =
+let add_coercion_hook sum reversible { Declare.Hook.S.scope; dref; _ } =
   let open Locality in
   let local = match scope with
   | Discharge -> assert false (* Local Coercion in section behaves like Local Definition *)
   | Global ImportNeedQualified -> true
   | Global ImportDefaultBehavior -> false
   in
-  let () = try_add_new_coercion dref ~local ~reversible in
+  let () = try_add_new_coercion sum dref ~local ~reversible in
   let msg = Nametab.pr_global_env Id.Set.empty dref ++ str " is now a coercion" in
   Flags.if_verbose Feedback.msg_info msg
 
 let add_coercion_hook ~reversible =
-  Declare.Hook.make (add_coercion_hook reversible)
+  Declare.Hook.make (fun sum s -> add_coercion_hook sum reversible s)
 
-let add_subclass_hook ~poly { Declare.Hook.S.scope; dref; _ } =
+let add_subclass_hook sum ~poly { Declare.Hook.S.scope; dref; _ } =
   let open Locality in
   let stre = match scope with
   | Discharge -> assert false (* Local Subclass in section behaves like Local Definition *)
@@ -375,20 +376,20 @@ let add_subclass_hook ~poly { Declare.Hook.S.scope; dref; _ } =
   in
   let cl = class_of_global dref in
   let loc = Nametab.cci_src_loc (TrueGlobal dref) in
-  try_add_new_coercion_subclass ?loc cl ~local:stre ~poly
+  try_add_new_coercion_subclass sum ?loc cl ~local:stre ~poly
 
 let nonuniform = Attributes.bool_attribute ~name:"nonuniform"
 
 let add_subclass_hook ~poly ~reversible =
-  Declare.Hook.make (add_subclass_hook ~poly ~reversible)
+  Declare.Hook.make (fun sum s -> add_subclass_hook sum ~poly ~reversible s)
 
 let warn_reverse_no_change =
   CWarnings.create ~name:"reversible-no-change" ~category:CWarnings.CoreCategories.coercions
     (fun () -> str "The reversible attribute is unchanged.")
 
-let change_reverse ref ~reversible =
+let change_reverse sum ref ~reversible =
   if not (coercion_exists ref) then
     user_err (Printer.pr_global ref ++ str" is not a coercion.");
   let coe_info = coercion_info ref in
   if reversible = coe_info.coe_reversible then warn_reverse_no_change ()
-  else cache_coercion ~update:true { coe_info with coe_reversible = reversible }
+  else cache_coercion ~update:true { coe_info with coe_reversible = reversible } sum

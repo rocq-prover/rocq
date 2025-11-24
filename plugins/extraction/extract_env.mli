@@ -13,14 +13,18 @@
 open Names
 open Libnames
 
-val simple_extraction : opaque_access:Global.indirect_accessor -> qualid -> unit
-val full_extraction : opaque_access:Global.indirect_accessor -> string option -> qualid list -> unit
-val separate_extraction : opaque_access:Global.indirect_accessor -> qualid list -> unit
-val extraction_library : opaque_access:Global.indirect_accessor -> bool -> lident -> unit
+(* these functions modify the summary because they call
+   output_directory which sets the directory if it was not already
+   set. *)
+
+val simple_extraction : Summary.Interp.mut -> opaque_access:Global.indirect_accessor -> qualid -> unit
+val full_extraction : Summary.Interp.mut -> opaque_access:Global.indirect_accessor -> string option -> qualid list -> unit
+val separate_extraction : Summary.Interp.mut -> opaque_access:Global.indirect_accessor -> qualid list -> unit
+val extraction_library : Summary.Interp.mut -> opaque_access:Global.indirect_accessor -> bool -> lident -> unit
 
 (* For the test-suite : extraction to a temporary file + ocamlc on it *)
 
-val extract_and_compile : opaque_access:Global.indirect_accessor -> qualid list -> unit
+val extract_and_compile : Summary.Interp.mut -> opaque_access:Global.indirect_accessor -> qualid list -> unit
 
 (* For debug / external output via coqtop.byte + Drop : *)
 

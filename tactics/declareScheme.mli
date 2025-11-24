@@ -10,6 +10,6 @@
 
 open Names
 
-val declare_scheme : Libobject.locality -> string -> (inductive * GlobRef.t) -> unit
+val declare_scheme : Summary.Interp.mut -> Libobject.locality -> string -> (inductive * GlobRef.t) -> unit
 val lookup_scheme : string -> inductive -> GlobRef.t
 val all_schemes : unit -> GlobRef.t CString.Map.t Indmap_env.t

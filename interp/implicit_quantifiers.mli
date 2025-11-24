@@ -12,7 +12,7 @@ open Names
 open Glob_term
 open Constrexpr
 
-val declare_generalizable : local:bool -> lident list option -> unit
+val declare_generalizable : Summary.Interp.mut -> local:bool -> lident list option -> unit
 
 (** Fragile, should be used only for construction a set of identifiers to avoid *)
 
