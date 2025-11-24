@@ -83,7 +83,11 @@ let generic_refine ~typecheck f gl =
     | None -> Evd.define self c sigma
     | Some evk ->
         let id = Evd.evar_ident self sigma in
-        let sigma = Evd.define self c sigma in
+        let sigma =
+          if EConstr.isEvar sigma c then
+            Evd.define_with_evar self c sigma
+          else Evd.define self c sigma
+        in
         match id with
         | None -> sigma
         | Some id -> Evd.rename evk id sigma
