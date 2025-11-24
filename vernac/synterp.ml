@@ -18,6 +18,8 @@ open Vernacexpr
 open Locality
 open Attributes
 
+let (!!) = Summary.Synterp.get
+
 let get_default_proof_mode = Pvernac.get_default_proof_mode
 
 let module_locality = Attributes.Notations.(locality >>= fun l -> return (make_module_locality l))
@@ -72,7 +74,7 @@ type synterp_entry =
   | EVernacImport of (export_flag *
       Libobject.open_filter) *
       (Names.ModPath.t CAst.t * import_filter_expr) list
-  | EVernacDeclareMLModule of Mltop.interp_fun
+  | EVernacDeclareMLModule of bool * Summary.Interp.any_summary list * Mltop.interp_fun
   | EVernacDeclareModule of Lib.export * lident *
       Declaremods.module_params_expr *
       module_entry
@@ -100,22 +102,22 @@ and vernac_control_entry =
 let synterp_reserved_notation ~module_local ~infix l =
   Metasyntax.add_reserved_notation ~local:module_local ~infix l
 
-let synterp_custom_entry ~module_local s =
-  Metasyntax.declare_custom_entry module_local s
+let synterp_custom_entry ~module_local sum s =
+  Metasyntax.declare_custom_entry sum module_local s
 
 (* Assumes cats is irrelevant if f is ImportNames *)
-let import_module_syntax_with_filter ~export cats m f =
+let import_module_syntax_with_filter sum ~export cats m f =
   match f with
-  | ImportAll -> Declaremods.Synterp.import_module cats ~export m
+  | ImportAll -> Declaremods.Synterp.import_module sum cats ~export m
   | ImportNames ns -> ()
 
-let synterp_import_mod (export,cats) qid f =
+let synterp_import_mod sum (export,cats) qid f =
   let loc = qid.loc in
   let m = try Nametab.locate_module qid
     with Not_found ->
       CErrors.user_err ?loc Pp.(str "Cannot find module " ++ pr_qualid qid)
   in
-  import_module_syntax_with_filter ~export cats m f; m
+  import_module_syntax_with_filter sum ~export cats m f; m
 
 let synterp_import_cats cats =
   Option.cata
@@ -131,12 +133,14 @@ let check_no_filter_when_using_cats l =
           Pp.(str "Cannot combine importing by categories and importing by names."))
     l
 
-let synterp_import export refl =
+let synterp_import sum export refl =
   if Option.has_some (snd export) then check_no_filter_when_using_cats refl;
   let export = on_snd synterp_import_cats export in
-  export, List.map (fun (qid,f) -> CAst.make ?loc:qid.loc @@ synterp_import_mod export qid f, f) refl
+  export, List.map (fun (qid,f) ->
+      CAst.make ?loc:qid.loc @@
+      synterp_import_mod sum export qid f, f) refl
 
-let synterp_define_module export {loc;v=id} (binders_ast : module_binder list) mty_ast_o mexpr_ast_l =
+let synterp_define_module sum export {loc;v=id} (binders_ast : module_binder list) mty_ast_o mexpr_ast_l =
   if Lib.sections_are_opened () then
     user_err Pp.(str "Modules and Module Types are not allowed inside sections.");
   let export = Option.map (on_snd synterp_import_cats) export in
@@ -147,11 +151,11 @@ let synterp_define_module export {loc;v=id} (binders_ast : module_binder list) m
          (fun (export,idl,ty) (args,argsexport) ->
            (idl,ty)::args, (List.map (fun {v=i} -> Option.map (on_snd synterp_import_cats) export,i)idl)@argsexport) binders_ast
              ([],[]) in
-       let mp, args, sign = Declaremods.Synterp.start_module export id binders_ast mty_ast_o in
+       let mp, args, sign = Declaremods.Synterp.start_module sum export id binders_ast mty_ast_o in
        let argsexports = List.map_filter
          (fun (export,id) ->
           Option.map (fun export ->
-            export, synterp_import_mod export (qualid_of_ident id) ImportAll
+            export, synterp_import_mod sum export (qualid_of_ident id) ImportAll
           ) export
          ) argsexport
        in
@@ -163,14 +167,14 @@ let synterp_define_module export {loc;v=id} (binders_ast : module_binder list) m
            user_err Pp.(str "Arguments of a functor definition can be imported only if the definition is interactive. Remove the \"Export\" and \"Import\" keywords from every functor argument.")
           else (idl,ty)) binders_ast in
        let mp, args, expr, sign =
-         Declaremods.Synterp.declare_module
+         Declaremods.Synterp.declare_module sum
            id binders_ast mty_ast_o mexpr_ast_l
        in
        Option.iter (fun (export,cats) ->
-        ignore (synterp_import_mod (export,cats) (qualid_of_ident id) ImportAll)) export;
+        ignore (synterp_import_mod sum (export,cats) (qualid_of_ident id) ImportAll)) export;
        export, args, [], expr, sign
 
-let synterp_declare_module_type_syntax {loc;v=id} binders_ast mty_sign mty_ast_l =
+let synterp_declare_module_type_syntax sum {loc;v=id} binders_ast mty_sign mty_ast_l =
   if Lib.sections_are_opened () then
     user_err Pp.(str "Modules and Module Types are not allowed inside sections.");
   match mty_ast_l with
@@ -181,12 +185,14 @@ let synterp_declare_module_type_syntax {loc;v=id} binders_ast mty_sign mty_ast_l
            (idl,ty)::args, (List.map (fun {v=i} -> Option.map (on_snd synterp_import_cats) export,i)idl)@argsexport) binders_ast
              ([],[]) in
 
-       let mp, args, sign = Declaremods.Synterp.start_modtype id binders_ast mty_sign in
+       let mp, args, sign = Declaremods.Synterp.start_modtype sum id binders_ast mty_sign in
        let argsexport =
          List.map_filter
            (fun (export,id) ->
              Option.map
-               (fun export -> export, synterp_import_mod export (qualid_of_ident ?loc id) ImportAll) export
+               (fun export ->
+                  export, synterp_import_mod sum
+                    export (qualid_of_ident ?loc id) ImportAll) export
            ) argsexport
        in
        args, argsexport, [], sign
@@ -196,41 +202,41 @@ let synterp_declare_module_type_syntax {loc;v=id} binders_ast mty_sign mty_ast_l
             if not (Option.is_empty export) then
               user_err Pp.(str "Arguments of a functor definition can be imported only if the definition is interactive. Remove the \"Export\" and \"Import\" keywords from every functor argument.")
             else (idl,ty)) binders_ast in
-        let mp, args, expr, sign = Declaremods.Synterp.declare_modtype id binders_ast mty_sign mty_ast_l in
+        let mp, args, expr, sign = Declaremods.Synterp.declare_modtype sum id binders_ast mty_sign mty_ast_l in
         args, [], expr, sign
 
-let synterp_declare_module export {loc;v=id} binders_ast mty_ast =
+let synterp_declare_module sum export {loc;v=id} binders_ast mty_ast =
   let binders_ast = List.map
    (fun (export,idl,ty) ->
      if not (Option.is_empty export) then
       user_err Pp.(str "Arguments of a functor declaration cannot be exported. Remove the \"Export\" and \"Import\" keywords from every functor argument.")
      else (idl,ty)) binders_ast in
   let mp, args, expr, sign =
-    Declaremods.Synterp.declare_module id binders_ast (Declaremods.Enforce mty_ast) []
+    Declaremods.Synterp.declare_module sum id binders_ast (Declaremods.Enforce mty_ast) []
   in
   assert (List.is_empty expr);
   let sign = match sign with Declaremods.Enforce x -> x | _ -> assert false in
   let export = Option.map (on_snd synterp_import_cats) export in
-  Option.iter (fun export -> ignore @@ synterp_import_mod export (qualid_of_ident id) ImportAll) export;
+  Option.iter (fun export -> ignore @@ synterp_import_mod sum export (qualid_of_ident id) ImportAll) export;
   mp, export, args, sign
 
 let synterp_include l = Declaremods.Synterp.declare_include l
 
-let synterp_end_module export {loc;v=id} =
-  let _ = Declaremods.Synterp.end_module () in
-  Option.map (fun export -> synterp_import_mod export (qualid_of_ident ?loc id) ImportAll) export
+let synterp_end_module sum export {loc;v=id} =
+  let _ = Declaremods.Synterp.end_module sum in
+  Option.map (fun export -> synterp_import_mod sum export (qualid_of_ident ?loc id) ImportAll) export
 
-let synterp_end_section {CAst.loc; v} =
+let synterp_end_section sum {CAst.loc; v} =
   Dumpglob.dump_reference ?loc
     (DirPath.to_string (Lib.current_dirpath true)) "<>" "sec";
-  Declaremods.Synterp.close_section ()
+  Declaremods.Synterp.close_section sum
 
-let synterp_end_segment ({v=id;loc} as lid) =
+let synterp_end_segment sum ({v=id;loc} as lid) =
   let ss = Lib.Synterp.find_opening_node ?loc id in
   match ss with
-  | Lib.OpenedModule (false,export,_,_) -> ignore (synterp_end_module export lid)
-  | Lib.OpenedModule (true,_,_,_) -> ignore (Declaremods.Synterp.end_modtype ())
-  | Lib.OpenedSection _ -> synterp_end_section lid
+  | Lib.OpenedModule (false,export,_,_) -> ignore (synterp_end_module sum export lid)
+  | Lib.OpenedModule (true,_,_,_) -> ignore (Declaremods.Synterp.end_modtype sum)
+  | Lib.OpenedSection _ -> synterp_end_section sum lid
   | _ -> assert false
 
 let err_unmapped_library ?from qid =
@@ -309,7 +315,7 @@ let deprecated_Coq from qidl =
   let () = warn |> Option.iter (fun qid -> warn_deprecated_from_Coq ?loc:qid.loc qid) in
   from, qidl
 
-let synterp_require ~intern from export qidl =
+let synterp_require sum ~intern from export qidl =
   let from, qidl = deprecated_Coq from qidl in
   let root = match from with
   | None -> None
@@ -326,11 +332,11 @@ let synterp_require ~intern from export qidl =
   in
   let modrefl = List.map locate qidl in
   Coq_config.gc_ramp_up @@ fun () ->
-  let filenames = Library.require_library_syntax_from_dirpath ~intern modrefl in
+  let filenames = Library.require_library_syntax_from_dirpath sum ~intern modrefl in
   Option.iter (fun (export,cats) ->
       let cats = synterp_import_cats cats in
       List.iter2 (fun (_, m) (_, f) ->
-          import_module_syntax_with_filter ~export cats (MPfile m) f)
+          import_module_syntax_with_filter sum ~export cats (MPfile m) f)
         modrefl qidl)
     export;
     filenames, List.map snd modrefl
@@ -341,9 +347,9 @@ let synterp_require ~intern from export qidl =
 let expand filename =
   Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (str x)) filename
 
-let synterp_declare_ml_module ~local l =
+let synterp_declare_ml_module ~local sum l =
   let local = Option.default false local in
-  Mltop.declare_ml_modules local l
+  local, Mltop.declare_ml_modules sum local l
 
 let warn_chdir = CWarnings.create ~name:"change-dir-deprecated" ~category:Deprecation.Version.v8_20
     (fun () -> strbrk "Command \"Cd\" is deprecated." ++ spc () ++
@@ -373,62 +379,62 @@ let synterp_extra_dep ?loc from file id =
   let from = Libnames.add_dirpath_suffix hd tl in
   ComExtraDeps.declare_extra_dep ?loc ~from ~file id
 
-let synterp_begin_section ({v=id} as lid) =
+let synterp_begin_section sum ({v=id} as lid) =
   Dumpglob.dump_definition lid true "sec";
-  Lib.Synterp.open_section id
+  Lib.Synterp.open_section sum id
 
 let with_synterp_state =
-  let with_local_state () f =
-    let st = Vernacstate.Synterp.freeze () in
-    let v = f () in
-    let transient_st = Vernacstate.Synterp.freeze () in
-    Vernacstate.Synterp.unfreeze st;
+  let with_local_state () f sum =
+    let st = Vernacstate.Synterp.freeze (Summary.Synterp.get sum) in
+    let v = f sum in
+    let transient_st = Vernacstate.Synterp.freeze (Summary.Synterp.get sum) in
+    Vernacstate.Synterp.unfreeze sum st;
     transient_st, v
   in
   { VernacControl.with_local_state }
 
-let rec synterp ~intern ?loc ~atts v =
+let rec synterp sum ~intern ?loc ~atts v =
   match v with
   | VernacSynterp v0 ->
     let e = begin match v0 with
     | VernacReservedNotation (infix, sl) ->
-      with_module_locality ~atts synterp_reserved_notation ~infix sl;
+      with_module_locality ~atts synterp_reserved_notation ~infix sum sl;
       EVernacNoop
     | VernacNotation (infix,ntn_decl) ->
       let local, user_warns = Attributes.(parse Notations.(module_locality ++ user_warns) atts) in
-      let decl = Metasyntax.add_notation_syntax ~local ~infix user_warns ntn_decl in
+      let decl = Metasyntax.add_notation_syntax sum ~local ~infix user_warns ntn_decl in
       EVernacNotation { local; decl }
     | VernacDeclareCustomEntry s ->
-      with_module_locality ~atts synterp_custom_entry s;
+      with_module_locality ~atts synterp_custom_entry sum s;
       EVernacNoop
     | VernacDefineModule (export,lid,bl,mtys,mexprl) ->
-      let export, args, argsexport, expr, sign = synterp_define_module export lid bl mtys mexprl in
+      let export, args, argsexport, expr, sign = synterp_define_module sum export lid bl mtys mexprl in
       EVernacDefineModule (export,lid,args,argsexport,sign,expr)
     | VernacDeclareModuleType (lid,bl,mtys,mtyo) ->
-      let args, argsexport, expr, sign = synterp_declare_module_type_syntax lid bl mtys mtyo in
+      let args, argsexport, expr, sign = synterp_declare_module_type_syntax sum lid bl mtys mtyo in
       EVernacDeclareModuleType (lid,args,argsexport,sign,expr)
     | VernacDeclareModule (export,lid,bl,mtyo) ->
       let mp, export, args, sign =
-        synterp_declare_module export lid bl mtyo
+        synterp_declare_module sum export lid bl mtyo
       in
       EVernacDeclareModule (export,lid,args,sign)
     | VernacInclude in_asts ->
-      EVernacInclude (synterp_include in_asts)
+      EVernacInclude (synterp_include sum in_asts)
     | VernacBeginSection lid ->
-      synterp_begin_section lid;
+      synterp_begin_section !!sum lid;
       EVernacBeginSection lid
     | VernacEndSegment lid ->
-      synterp_end_segment lid;
+      synterp_end_segment sum lid;
       EVernacEndSegment lid
     | VernacRequire (from, export, qidl) ->
-      let needed, modrefl = synterp_require ~intern from export qidl in
+      let needed, modrefl = synterp_require sum ~intern from export qidl in
       EVernacRequire (needed, modrefl, export, qidl)
     | VernacImport (export,qidl) ->
-      let export, mpl = synterp_import export qidl in
+      let export, mpl = synterp_import sum export qidl in
       EVernacImport (export,mpl)
     | VernacDeclareMLModule l ->
-      let f = with_locality ~atts synterp_declare_ml_module l in
-      EVernacDeclareMLModule f
+      let local, (a, b) = with_locality ~atts synterp_declare_ml_module sum l in
+      EVernacDeclareMLModule (local,a,b)
     | VernacChdir s ->
       unsupported_attributes atts;
       synterp_chdir s;
@@ -446,22 +452,22 @@ let rec synterp ~intern ?loc ~atts v =
         else atts
       in
       let locality = parse option_locality atts in
-      Vernacoptions.vernac_set_option ~locality ~stage:Summary.Stage.Synterp key value;
+      Vernacoptions.vernac_set_option sum ~locality ~stage:SynterpG key value;
       EVernacSetOption { export; key; value }
     | VernacProofMode mn ->
       unsupported_attributes atts;
       EVernacNoop
     | VernacLoad (verbosely, fname) ->
       unsupported_attributes atts;
-      synterp_load ~intern verbosely fname
+      synterp_load sum ~intern verbosely fname
     | VernacExtend (opn,args) ->
-      let f = Vernacextend.type_vernac ?loc ~atts opn args () in
+      let f = Vernacextend.type_vernac ?loc ~atts opn args sum in
       EVernacExtend(f)
     end in
     VernacSynterp e
   | VernacSynPure x -> VernacSynPure x
 
-and synterp_load ~intern verbosely fname =
+and synterp_load sum ~intern verbosely fname =
   let fname =
     Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (Pp.str x)) fname in
   let fname = CUnix.make_suffix fname ".v" in
@@ -480,25 +486,27 @@ and synterp_load ~intern verbosely fname =
     match parse_sentence proof_mode input with
     | None -> entries
     | Some cmd ->
-      let entry = v_mod (synterp_control ~intern) cmd in
-      let st = Vernacstate.Synterp.freeze () in
+      let entry = v_mod (synterp_control sum ~intern) cmd in
+      let st = Vernacstate.Synterp.freeze (Summary.Synterp.get sum) in
       (load_loop [@ocaml.tailcall]) ((entry,st)::entries)
   in
   let entries = List.rev @@ load_loop [] in
   EVernacLoad(verbosely, entries)
 
-and synterp_control ~intern CAst.{ loc; v = cmd } =
-  let fn expr =
+and synterp_control sum ~intern CAst.{ loc; v = cmd } =
+  let fn sum expr =
     with_generic_atts ~check:true cmd.attrs (fun ~atts ->
-        synterp ~intern ?loc ~atts cmd.expr)
+        synterp sum ~intern ?loc ~atts cmd.expr)
   in
   let control, expr =
     VernacControl.under_control ~loc ~with_local_state:with_synterp_state
       (VernacControl.from_syntax cmd.control)
       ~noop:(VernacSynterp EVernacNoop)
-      (fun () -> fn cmd.expr)
+      (fun sum -> fn sum cmd.expr)
+      sum
   in
   CAst.make ?loc { expr; control; attrs = cmd.attrs }
 
-let synterp_control ~intern cmd =
-  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (synterp_control ~intern) cmd
+let synterp_control sum ~intern cmd =
+  Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true)
+    (synterp_control sum ~intern) cmd

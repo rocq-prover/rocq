@@ -12,7 +12,7 @@ open Names
 open Environ
 open Constr
 
-val rename_arguments : bool -> GlobRef.t -> Name.t list -> unit
+val rename_arguments : Summary.Interp.mut -> bool -> GlobRef.t -> Name.t list -> unit
 
 (** [Not_found] is raised if no names are defined for [r] *)
 val arguments_names : env -> GlobRef.t -> Name.t list

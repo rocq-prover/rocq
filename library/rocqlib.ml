@@ -52,19 +52,19 @@ let lib_ref_opt s = CString.Map.find_opt s !table
 let add_ref s c =
   table := CString.Map.add s c !table
 
-let cache_ref (s,c) =
+let cache_ref (s,c) _sum =
   add_ref s c
 
 let (inRocqlibRef : Libobject.locality * (string * GlobRef.t) -> Libobject.obj) =
   let open Libobject in
-  declare_object @@ object_with_locality "COQLIBREF"
+  Interp.declare_object @@ object_with_locality "COQLIBREF"
     ~cache:cache_ref
     ~subst:(Some ident_subst_function)
-    ~discharge:(fun x -> x)
+    ~discharge:(fun _ x -> x)
 
 (** Replaces a binding ! *)
-let register_ref local s c =
-  Lib.add_leaf @@ inRocqlibRef (local,(s,c))
+let register_ref sum local s c =
+  Lib.Interp.add_leaf sum @@ inRocqlibRef (local,(s,c))
 
 (************************************************************************)
 (* Generic functions to find Rocq objects *)

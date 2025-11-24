@@ -183,13 +183,15 @@ VERNAC COMMAND EXTEND Function STATE CUSTOM
     -> {
     let warn = "-unused-pattern-matching-variable,-non-recursive" in
     if is_interactive recsl then
-      Vernactypes.vtopenproof (fun () ->
-          CWarnings.with_warn warn
-            Gen_principle.do_generate_principle_interactive (List.split (List.map snd recsl)))
+      Vernactypes.vtopenproof (fun sum ->
+          CWarnings.with_warn warn (fun () ->
+              Gen_principle.do_generate_principle_interactive sum (List.split (List.map snd recsl)))
+            ())
     else
-      Vernactypes.vtdefault (fun () ->
-          CWarnings.with_warn warn
-            Gen_principle.do_generate_principle (List.split (List.map snd recsl)))
+      Vernactypes.vtdefault (fun sum ->
+          CWarnings.with_warn warn (fun () ->
+              Gen_principle.do_generate_principle sum (List.split (List.map snd recsl)))
+            ())
   }
 END
 
@@ -229,15 +231,15 @@ VERNAC COMMAND EXTEND NewFunctionalScheme
    ->
     { begin
         try
-          Gen_principle.build_scheme fas
+          Gen_principle.build_scheme summary fas
         with
         | Gen_principle.No_graph_found ->
           begin
             match fas with
             | (_,fun_name,_)::_ ->
               begin
-                Gen_principle.make_graph (Smartlocate.global_with_alias fun_name);
-                try Gen_principle.build_scheme fas
+                Gen_principle.make_graph summary (Smartlocate.global_with_alias fun_name);
+                try Gen_principle.build_scheme summary fas
                 with
                 | Gen_principle.No_graph_found ->
                   CErrors.user_err Pp.(str "Cannot generate induction principle(s)")
@@ -258,11 +260,11 @@ END
 VERNAC COMMAND EXTEND NewFunctionalCase
 | ["Functional" "Case" fun_scheme_arg(fas) ]
   => { Vernacextend.(VtSideff([(pi1 fas).CAst.v], VtLater)) }
-  -> { Gen_principle.build_case_scheme fas }
+  -> { Gen_principle.build_case_scheme summary fas }
 END
 
 (***** debug only ***)
 VERNAC COMMAND EXTEND GenerateGraph CLASSIFIED AS QUERY
 | ["Generate" "graph" "for" reference(c)] ->
-  { Gen_principle.make_graph (Smartlocate.global_with_alias c) }
+  { Gen_principle.make_graph summary (Smartlocate.global_with_alias c) }
 END

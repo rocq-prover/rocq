@@ -20,11 +20,11 @@ val check_typeclasses_db : ?loc:Loc.t -> unit -> unit
 
 val set_typeclasses_debug : bool -> unit
 
-val set_typeclasses_depth : int option -> unit
+val set_typeclasses_depth : Summary.Interp.mut -> int option -> unit
 
 type search_strategy = Dfs | Bfs
 
-val set_typeclasses_strategy : search_strategy -> unit
+val set_typeclasses_strategy : Summary.Interp.mut -> search_strategy -> unit
 
 val typeclasses_eauto :
   ?only_classes:bool

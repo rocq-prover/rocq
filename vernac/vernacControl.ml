@@ -134,10 +134,10 @@ let () = CErrors.register_handler (function
   | CmdTimeout -> Some Pp.(str "Timeout!")
   | _ -> None)
 
-let with_timeout ~timeout:n f =
+let with_timeout ~timeout:n f sum =
   check_timeout_f n;
   let start = Unix.gettimeofday () in
-  begin match Control.timeout n f () with
+  begin match Control.timeout n (fun () -> f sum) () with
   | Error info -> Exninfo.iraise (CmdTimeout, info)
   | Ok v ->
     let stop = Unix.gettimeofday () in
@@ -151,9 +151,9 @@ let real_error_loc ~cmdloc ~eloc =
   else cmdloc
 
 (* Restoring the state is the caller's responsibility *)
-let with_fail f : (Loc.t option * Pp.t, 'a) result =
+let with_fail f sum : (Loc.t option * Pp.t, 'a) result =
   try
-    let x = f () in
+    let x = f sum in
     Error x
   with
   | e ->
@@ -163,12 +163,14 @@ let with_fail f : (Loc.t option * Pp.t, 'a) result =
     if CErrors.is_async e || CErrors.is_sync_anomaly e then Exninfo.iraise exn;
     Ok (Loc.get_loc info, CErrors.iprint exn)
 
-type ('st0,'st) with_local_state = { with_local_state : 'a. 'st0 -> (unit -> 'a) -> 'st * 'a }
+type ('active,'st0,'st) with_local_state = {
+  with_local_state : 'a. 'st0 -> ('active -> 'a) -> 'active -> 'st * 'a
+}
 
-let trivial_state = { with_local_state = fun () f -> (), f () }
+let trivial_state = { with_local_state = fun () f x -> (), f x }
 
-let with_fail ~loc ~with_local_state st0 f =
-  let transient_st, res = with_local_state.with_local_state st0 (fun () -> with_fail f) in
+let with_fail ~loc ~with_local_state st0 f sum =
+  let transient_st, res = with_local_state.with_local_state st0 (fun sum -> with_fail f sum) sum in
   match res with
   | Error v ->
     Some (ControlFail { st = transient_st }, v)
@@ -178,51 +180,51 @@ let with_fail ~loc ~with_local_state st0 f =
     then Feedback.msg_notice ?loc Pp.(str "The command has indeed failed with message:" ++ fnl () ++ msg);
     None
 
-let with_succeed ~with_local_state st0 f =
-  let transient_st, v = with_local_state.with_local_state st0 f in
+let with_succeed ~with_local_state st0 f sum =
+  let transient_st, v = with_local_state.with_local_state st0 f sum in
   Some (ControlSucceed { st = transient_st }, v)
 
-let under_one_control ~loc ~with_local_state control f =
+let under_one_control ~loc ~with_local_state control f sum =
   match control with
   | ControlTime { duration } ->
     with_measure System.measure_duration System.duration_add System.fmt_transaction_result
       (fun duration -> ControlTime {duration})
       duration
-      f
+      (fun () -> f sum)
   | ControlInstructions {instructions} ->
     with_measure System.count_instructions System.instruction_count_add System.fmt_instructions_result
       (fun instructions -> ControlInstructions {instructions})
       instructions
-      f
+      (fun () -> f sum)
   | ControlProfile {to_file; profstate} ->
     with_measure measure_profile add_profile (fun v -> fmt_profile to_file v)
       (fun profstate -> ControlProfile {to_file; profstate})
       profstate
-      f
+      (fun () -> f sum)
   | ControlRedirect { fname; truncate } ->
-    let v = Topfmt.with_output_to_file ~truncate fname f () in
+    let v = Topfmt.with_output_to_file ~truncate fname (fun () -> f sum) () in
     Some (ControlRedirect {fname; truncate=false}, v)
-  | ControlTimeout {remaining} -> with_timeout ~timeout:remaining f
-  | ControlFail {st} -> with_fail ~loc ~with_local_state st f
-  | ControlSucceed {st} -> with_succeed ~with_local_state st f
+  | ControlTimeout {remaining} -> with_timeout ~timeout:remaining f sum
+  | ControlFail {st} -> with_fail ~loc ~with_local_state st f sum
+  | ControlSucceed {st} -> with_succeed ~with_local_state st f sum
 
-let rec under_control ~loc ~with_local_state controls ~noop f =
+let rec under_control ~loc ~with_local_state controls ~noop f sum =
   match controls with
-  | [] -> [], f ()
+  | [] -> [], f sum
   | control :: rest ->
-    let f () = under_control ~loc ~with_local_state rest ~noop f in
-    match under_one_control ~loc ~with_local_state control f with
+    let f sum = under_control ~loc ~with_local_state rest ~noop f sum in
+    match under_one_control ~loc ~with_local_state control f sum with
     | Some (control, (rest,v)) -> control :: rest, v
     | None -> [], noop
 
-let ignore_state = { with_local_state = fun _ f -> (), f () }
+let ignore_state = { with_local_state = fun _ f sum -> (), f sum }
 
 let rec after_last_phase ~loc = function
   | [] -> false
   | control :: rest ->
     (* don't match on [control] before processing [rest]: correctly handle eg [Fail Fail]. *)
     let rest () = after_last_phase ~loc rest in
-    match under_one_control ~loc ~with_local_state:ignore_state control rest with
+    match under_one_control ~loc ~with_local_state:ignore_state control rest () with
     | None -> true
     | Some (control,noop) ->
       match control with

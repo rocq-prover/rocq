@@ -18,19 +18,19 @@ let smart_global r =
   Dumpglob.add_glob ?loc:r.loc gr;
   gr
 
-let cache_bidi_hints (gr, ohint) =
+let cache_bidi_hints (gr, ohint) _sum =
   match ohint with
   | None -> Pretyping.clear_bidirectionality_hint (Global.env ()) gr
   | Some nargs -> Pretyping.add_bidirectionality_hint (Global.env ()) gr nargs
 
-let load_bidi_hints _ r =
-  cache_bidi_hints r
+let load_bidi_hints _ r sum =
+  cache_bidi_hints r sum
 
-let subst_bidi_hints (subst, (gr, ohint as orig)) =
+let subst_bidi_hints _sum subst (gr, ohint as orig) =
   let gr' = Globnames.subst_global_reference subst gr in
   if gr == gr' then orig else (gr', ohint)
 
-let discharge_bidi_hints (gr, ohint) =
+let discharge_bidi_hints _sum (gr, ohint) =
   if Globnames.isVarRef gr && Global.is_in_section gr then None
   else
     let vars = Global.section_instance gr in
@@ -39,7 +39,7 @@ let discharge_bidi_hints (gr, ohint) =
 
 let inBidiHints =
   let open Libobject in
-  declare_object { (default_object "BIDIRECTIONALITY-HINTS" ) with
+  Interp.declare_object { (default_object "BIDIRECTIONALITY-HINTS" ) with
                    load_function = load_bidi_hints;
                    cache_function = cache_bidi_hints;
                    classify_function = (fun o -> Substitute);
@@ -70,7 +70,7 @@ let warn_scope_delimiter_depth =
 (* [nargs_for_red] is the number of arguments required to trigger reduction,
    [args] is the main list of arguments statuses,
    [more_implicits] is a list of extra lists of implicit statuses  *)
-let vernac_arguments ~section_local reference args more_implicits flags =
+let vernac_arguments sum ~section_local reference args more_implicits flags =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let assert_flag = List.mem `Assert flags in
@@ -276,7 +276,7 @@ let vernac_arguments ~section_local reference args more_implicits flags =
   (* Actions *)
 
   if renaming_specified then begin
-    Arguments_renaming.rename_arguments section_local sr names
+    Arguments_renaming.rename_arguments sum section_local sr names
   end;
 
   if scopes_specified || clear_scopes_flag then begin
@@ -287,19 +287,19 @@ let vernac_arguments ~section_local reference args more_implicits flags =
         with CErrors.UserError _ ->
           Notation.find_delimiters_scope ?loc k)) scopes
     in
-    Notation.declare_arguments_scope section_local (smart_global reference) scopes
+    Notation.declare_arguments_scope sum section_local (smart_global reference) scopes
   end;
 
   if implicits_specified || clear_implicits_flag then
-    Impargs.set_implicits section_local (smart_global reference) implicits;
+    Impargs.set_implicits sum section_local (smart_global reference) implicits;
 
   if default_implicits_flag then
-    Impargs.declare_implicits section_local (smart_global reference);
+    Impargs.declare_implicits sum section_local (smart_global reference);
 
   if red_modifiers_specified || clear_red_flag then begin
     match sr with
     | GlobRef.ConstRef c ->
-      Reductionops.ReductionBehaviour.set
+      Reductionops.ReductionBehaviour.set sum
         ~local:section_local c red_behavior
 
     | _ ->
@@ -313,14 +313,14 @@ let vernac_arguments ~section_local reference args more_implicits flags =
     if section_local then
       Pretyping.add_bidirectionality_hint env sr n
     else
-      Lib.add_leaf (inBidiHints (sr, Some n))
+      Lib.Interp.add_leaf sum (inBidiHints (sr, Some n))
   end;
 
   if clear_bidi_hint then begin
     if section_local then
       Pretyping.clear_bidirectionality_hint env sr
     else
-      Lib.add_leaf (inBidiHints (sr, None))
+      Lib.Interp.add_leaf sum (inBidiHints (sr, None))
   end;
 
   if not (renaming_specified ||

@@ -562,7 +562,7 @@ let { Goptions.get = output_directory } =
   declare_stringopt_option_and_ref ~stage:Summary.Stage.Interp ~value:None
     ~key:output_directory_key ()
 
-let output_directory () =
+let output_directory sum =
   match output_directory (), !System.output_directory with
   | Some dir, _ | None, Some dir ->
       (* Ensure that the directory exists *)
@@ -572,7 +572,7 @@ let output_directory () =
     let pwd = Sys.getcwd () in
     warn_using_current_directory pwd;
     (* Note: in case of error in the caller of output_directory, the effect of the setting will be undo *)
-    set_string_option_value ~stage:Summary.Stage.Interp output_directory_key pwd;
+    set_string_option_value InterpG sum output_directory_key pwd;
     pwd
 
 (*s Extraction AccessOpaque *)
@@ -679,11 +679,11 @@ let lang_ref = Summary.ref Ocaml ~name:"ExtrLang"
 let lang () = !lang_ref
 
 let extr_lang : lang -> obj =
-  declare_object @@ superglobal_object_nodischarge "Extraction Lang"
-    ~cache:(fun l -> lang_ref := l)
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Extraction Lang"
+    ~cache:(fun l sum -> lang_ref := l)
     ~subst:None
 
-let extraction_language x = Lib.add_leaf (extr_lang x)
+let extraction_language sum x = Lib.Interp.add_leaf sum (extr_lang x)
 
 (*s Extraction Inline/NoInline *)
 
@@ -733,22 +733,22 @@ let add_callback_entry alias_opt qualid_ref =
 let subst_global s g = { glob = fst (subst_global s g.glob); inst = g.inst }
 
 let inline_extraction : bool * global list -> obj =
-  declare_object @@ superglobal_object "Extraction Inline"
-    ~cache:(fun (b,l) -> add_inline_entries b l)
-    ~subst:(Some (fun (s,(b,l)) -> (b,(List.map (fun x -> subst_global s x) l))))
-    ~discharge:(fun x -> Some x)
+  Libobject.Interp.declare_object @@ superglobal_object "Extraction Inline"
+    ~cache:(fun (b,l) _sum -> add_inline_entries b l)
+    ~subst:(Some (fun _sum s (b,l) -> (b,(List.map (fun x -> subst_global s x) l))))
+    ~discharge:(fun _sum x -> Some x)
 
 let foreign_extraction : global list -> obj =
-  declare_object @@ superglobal_object "Extraction Foreign"
-    ~cache:(fun l -> add_foreign_entries l)
-    ~subst:(Some (fun (s,l) -> (List.map (fun x -> subst_global s x) l)))
-    ~discharge:(fun x -> Some x)
+  Libobject.Interp.declare_object @@ superglobal_object "Extraction Foreign"
+    ~cache:(fun l _sum -> add_foreign_entries l)
+    ~subst:(Some (fun _sum s l -> (List.map (fun x -> subst_global s x) l)))
+    ~discharge:(fun _sum x -> Some x)
 
 let callback_extraction : string option * global -> obj =
-  declare_object @@ superglobal_object "Extraction Callback"
-    ~cache:(fun (alias, x) -> add_callback_entry alias x)
-    ~subst:(Some (fun (s,(alias, x)) -> (alias, subst_global s x)))
-    ~discharge:(fun x -> Some x)
+  Libobject.Interp.declare_object @@ superglobal_object "Extraction Callback"
+    ~cache:(fun (alias, x) _sum -> add_callback_entry alias x)
+    ~subst:(Some (fun _sum s (alias, x) -> (alias, subst_global s x)))
+    ~discharge:(fun _sum x -> Some x)
 
 
 
@@ -759,13 +759,13 @@ let mono_global_with_alias qid =
   let inst = Environ.universes_of_global (Global.env ()) gr in
   List.map (fun inst -> { glob = gr; inst }) (InfvInst.generate inst)
 
-let extraction_inline b l =
+let extraction_inline sum b l =
   let refs = List.map_append mono_global_with_alias l in
   List.iter
     (fun r -> match r.glob with
        | GlobRef.ConstRef _ -> ()
        | _ -> error_constant r) refs;
-  Lib.add_leaf (inline_extraction (b,refs))
+  Lib.Interp.add_leaf sum (inline_extraction (b,refs))
 
 (* Printing part *)
 
@@ -784,25 +784,25 @@ let print_extraction_inline () =
 (* Reset part *)
 
 let reset_inline : unit -> obj =
-  declare_object @@ superglobal_object_nodischarge "Reset Extraction Inline"
-    ~cache:(fun () -> inline_table := empty_inline_table)
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Reset Extraction Inline"
+    ~cache:(fun () _sum -> inline_table := empty_inline_table)
     ~subst:None
 
 let reset_foreign : unit -> obj =
-  declare_object @@ superglobal_object_nodischarge "Reset Extraction Foreign"
-    ~cache:(fun () -> foreign_set := empty_foreign_set)
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Reset Extraction Foreign"
+    ~cache:(fun () _sum -> foreign_set := empty_foreign_set)
     ~subst:None
 
 let reset_callback : unit -> obj =
-  declare_object @@ superglobal_object_nodischarge "Reset Extraction Callback"
-    ~cache:(fun () -> callback_map := empty_callback_map)
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Reset Extraction Callback"
+    ~cache:(fun () _sum -> callback_map := empty_callback_map)
     ~subst:None
 
-let reset_extraction_inline () = Lib.add_leaf (reset_inline ())
+let reset_extraction_inline sum = Lib.Interp.add_leaf sum (reset_inline ())
 
-let reset_extraction_foreign () = Lib.add_leaf (reset_foreign ())
+let reset_extraction_foreign sum = Lib.Interp.add_leaf sum (reset_foreign ())
 
-let reset_extraction_callback () = Lib.add_leaf (reset_callback ())
+let reset_extraction_callback sum = Lib.Interp.add_leaf sum (reset_callback ())
 
 (*s Extraction Implicit *)
 
@@ -843,16 +843,16 @@ let add_implicits r l =
 (* Registration of operations for rollback. *)
 
 let implicit_extraction : global * int_or_id list -> obj =
-  declare_object @@ superglobal_object_nodischarge "Extraction Implicit"
-    ~cache:(fun (r,l) -> add_implicits r l)
-    ~subst:(Some (fun (s,(r,l)) -> (subst_global s r, l)))
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Extraction Implicit"
+    ~cache:(fun (r,l) _sum -> add_implicits r l)
+    ~subst:(Some (fun _sum s (r,l) -> (subst_global s r, l)))
 
 (* Grammar entries. *)
 
-let extraction_implicit r l =
+let extraction_implicit sum r l =
   check_inside_section ();
   let r = mono_global_with_alias r in
-  List.iter (fun r -> Lib.add_leaf (implicit_extraction (r, l))) r
+  List.iter (fun r -> Lib.Interp.add_leaf sum (implicit_extraction (r, l))) r
 
 let string_of_modfile table mp =
   try DirPath.Map.find mp !table.modfile_mps
@@ -872,7 +872,7 @@ let file_of_modfile table dp =
   let s0 = Id.to_string (List.hd (DirPath.repr dp)) in
   String.mapi (fun i c -> if i = 0 then s0.[0] else c) (string_of_modfile table dp)
 
-let add_blacklist_entries l =
+let add_blacklist_entries l _sum =
   blacklist_table :=
     List.fold_right (fun s -> Id.Set.add (Id.of_string (String.capitalize_ascii s)))
       l !blacklist_table
@@ -880,15 +880,15 @@ let add_blacklist_entries l =
 (* Registration of operations for rollback. *)
 
 let blacklist_extraction : string list -> obj =
-  declare_object @@ superglobal_object_nodischarge "Extraction Blacklist"
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Extraction Blacklist"
     ~cache:add_blacklist_entries
     ~subst:None
 
 (* Grammar entries. *)
 
-let extraction_blacklist l =
+let extraction_blacklist sum l =
   let l = List.rev l in
-  Lib.add_leaf (blacklist_extraction l)
+  Lib.Interp.add_leaf sum (blacklist_extraction l)
 
 (* Printing part *)
 
@@ -898,11 +898,11 @@ let print_extraction_blacklist () =
 (* Reset part *)
 
 let reset_blacklist : unit -> obj =
-  declare_object @@ superglobal_object_nodischarge "Reset Extraction Blacklist"
-    ~cache:(fun ()-> blacklist_table := Id.Set.empty)
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "Reset Extraction Blacklist"
+    ~cache:(fun () _sum -> blacklist_table := Id.Set.empty)
     ~subst:None
 
-let reset_extraction_blacklist () = Lib.add_leaf (reset_blacklist ())
+let reset_extraction_blacklist sum = Lib.Interp.add_leaf sum (reset_blacklist ())
 
 (*s Extract Constant/Inductive. *)
 
@@ -968,18 +968,18 @@ let print_extraction_callback () =
 (* Registration of operations for rollback. *)
 
 let in_customs : global * string list * string -> obj =
-  declare_object @@ superglobal_object_nodischarge "ML extractions"
-    ~cache:(fun (r,ids,s) -> add_custom r ids s)
-    ~subst:(Some (fun (s,(r,ids,str)) -> (subst_global s r, ids, str)))
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "ML extractions"
+    ~cache:(fun (r,ids,s) _sum -> add_custom r ids s)
+    ~subst:(Some (fun _sum s (r,ids,str) -> (subst_global s r, ids, str)))
 
 let in_custom_matchs : global * string -> obj =
-  declare_object @@ superglobal_object_nodischarge "ML extractions custom matches"
-    ~cache:(fun (r,s) -> add_custom_match r s)
-    ~subst:(Some (fun (subs,(r,s)) -> (subst_global subs r, s)))
+  Libobject.Interp.declare_object @@ superglobal_object_nodischarge "ML extractions custom matches"
+    ~cache:(fun (r,s) _sum -> add_custom_match r s)
+    ~subst:(Some (fun _sum subs (r,s) -> (subst_global subs r, s)))
 
 (* Grammar entries. *)
 
-let extract_callback optstr x =
+let extract_callback sum optstr x =
   if lang () != Ocaml then
       CErrors.user_err (Pp.str "Extract Callback is supported only for OCaml extraction.");
 
@@ -987,11 +987,11 @@ let extract_callback optstr x =
   List.iter begin fun qualid_ref ->
   match qualid_ref.glob with
       (* Add the alias and qualid_ref to callback extraction.*)
-    | GlobRef.ConstRef _ -> Lib.add_leaf (callback_extraction (optstr, qualid_ref))
+    | GlobRef.ConstRef _ -> Lib.Interp.add_leaf sum (callback_extraction (optstr, qualid_ref))
     | _                  -> error_constant ?loc:x.CAst.loc qualid_ref
   end refs
 
-let extract_constant_generic r ids s arity_handler (is_redef, redef_msg) extr_type =
+let extract_constant_generic sum r ids s arity_handler (is_redef, redef_msg) extr_type =
   check_inside_section ();
   let g = mono_global_with_alias r in
   List.iter begin fun g -> match g.glob with
@@ -1004,29 +1004,29 @@ let extract_constant_generic r ids s arity_handler (is_redef, redef_msg) extr_ty
         if is_redef g then
           CErrors.user_err ((str "The term ") ++ safe_pr_long_global g ++ (str " is already defined as ")
             ++ (str redef_msg) ++ (str " custom constant."));
-        Lib.add_leaf (extr_type g);
-        Lib.add_leaf (in_customs (g,ids,s));
+        Lib.Interp.add_leaf sum (extr_type g);
+        Lib.Interp.add_leaf sum (in_customs (g,ids,s));
     | _ -> error_constant ?loc:r.CAst.loc g
   end g
 
-let extract_constant_inline inline r ids s =
+let extract_constant_inline sum inline r ids s =
   let arity_handler env typ g =
     let nargs = Hook.get use_type_scheme_nb_args env typ in
     if not (Int.equal (List.length ids) nargs) then error_axiom_scheme ?loc:r.CAst.loc g nargs
   in
-  extract_constant_generic r ids s (arity_handler) (is_foreign_custom, "foreign") (fun g -> inline_extraction (inline,[g]))
+  extract_constant_generic sum r ids s (arity_handler) (is_foreign_custom, "foreign") (fun g -> inline_extraction (inline,[g]))
 
 (* const_name : qualid -> replacement : string*)
-let extract_constant_foreign r s =
+let extract_constant_foreign sum r s =
   if lang () != Ocaml then
       CErrors.user_err (Pp.str "Extract Foreign Constant is supported only for OCaml extraction.");
   let arity_handler env typ g =
       CErrors.user_err (Pp.str "Extract Foreign Constant is supported only for functions.")
   in
-  extract_constant_generic r [] s (arity_handler) (is_inline_custom, "inline") (fun g -> foreign_extraction [g])
+  extract_constant_generic sum r [] s (arity_handler) (is_inline_custom, "inline") (fun g -> foreign_extraction [g])
 
 
-let extract_inductive r s l optstr =
+let extract_inductive sum r s l optstr =
   check_inside_section ();
   let g = mono_global_with_alias r in
   List.iter begin fun g ->
@@ -1036,14 +1036,14 @@ let extract_inductive r s l optstr =
         let mib = Global.lookup_mind kn in
         let n = Array.length mib.mind_packets.(i).mind_consnames in
         if not (Int.equal n (List.length l)) then error_nb_cons ();
-        Lib.add_leaf (inline_extraction (true,[g]));
-        Lib.add_leaf (in_customs (g,[],s));
-        Option.iter (fun s -> Lib.add_leaf (in_custom_matchs (g,s)))
+        Lib.Interp.add_leaf sum (inline_extraction (true,[g]));
+        Lib.Interp.add_leaf sum (in_customs (g,[],s));
+        Option.iter (fun s -> Lib.Interp.add_leaf sum (in_custom_matchs (g,s)))
           optstr;
         List.iteri
           (fun j s ->
              let g = { glob = GlobRef.ConstructRef (ip,succ j); inst = g.inst } in
-             Lib.add_leaf (inline_extraction (true,[g]));
-             Lib.add_leaf (in_customs (g,[],s))) l
+             Lib.Interp.add_leaf sum (inline_extraction (true,[g]));
+             Lib.Interp.add_leaf sum (in_customs (g,[],s))) l
     | _ -> error_inductive ?loc:r.CAst.loc g
   end g

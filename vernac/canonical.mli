@@ -9,4 +9,4 @@
 (************************************************************************)
 open Names
 
-val declare_canonical_structure : ?local:bool -> GlobRef.t -> unit
+val declare_canonical_structure : Summary.Interp.mut -> ?local:bool -> GlobRef.t -> unit

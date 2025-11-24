@@ -466,7 +466,7 @@ let locate_global_inductive_or_int63_or_float env allow_params qid =
 let intern_cref env sigma r =
   Constrintern.intern_constr env sigma (CAst.make @@ Constrexpr.CAppExpl ((r,None),[]))
 
-let vernac_number_notation local ty f g opts scope =
+let vernac_number_notation sum local ty f g opts scope =
   let rec parse_opts = function
     | [] -> None, Nop
     | h :: opts ->
@@ -535,7 +535,7 @@ let vernac_number_notation local ty f g opts scope =
          pt_refs;
          pt_in_match = true }
   in
-  enable_prim_token_interpretation i
+  enable_prim_token_interpretation sum i
 
 (** * String notation *)
 
@@ -580,7 +580,7 @@ let type_error_of g ty =
     (pr_qualid g ++ str " should go from " ++ pr_qualid ty ++
      strbrk " to T or (option T) or (result T _), where T is either Byte.byte, (list Byte.byte), or PrimString.string.")
 
-let vernac_string_notation local ty f g via scope =
+let vernac_string_notation sum local ty f g via scope =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let targets = List.concat [
@@ -626,4 +626,4 @@ let vernac_string_notation local ty f g via scope =
          pt_refs;
          pt_in_match = true }
   in
-  enable_prim_token_interpretation i
+  enable_prim_token_interpretation sum i

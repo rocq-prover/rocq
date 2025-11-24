@@ -16,11 +16,13 @@ val interp
   : intern:Library.Intern.t
   -> ?verbosely:bool
   -> st:Vernacstate.t
+  -> Summary.Interp.t ref
   -> Vernacexpr.vernac_control
   -> Vernacstate.t
 
 val interp_entry
   : ?verbosely:bool
+  -> Summary.Interp.t ref
   -> st:Vernacstate.t
   -> Synterp.vernac_control_entry
   -> Vernacstate.Interp.t
@@ -31,5 +33,6 @@ val interp_qed_delayed_proof
   :  proof:Declare.Proof.proof_object
   -> st:Vernacstate.t
   -> control:unit VernacControl.control_entries
+  -> Summary.Interp.mut
   -> Vernacexpr.proof_end CAst.t
   -> Vernacstate.Interp.t

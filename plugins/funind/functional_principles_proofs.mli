@@ -10,8 +10,8 @@
 
 open Names
 
-val prove_princ_for_struct :
-     Evd.evar_map ref
+val prove_princ_for_struct : Summary.Interp.mut
+  -> Evd.evar_map ref
   -> bool
   -> int
   -> Constant.t array
@@ -20,7 +20,7 @@ val prove_princ_for_struct :
   -> unit Proofview.tactic
 
 val prove_principle_for_gen :
-     Constant.t * Constant.t * Constant.t
+  Constant.t * Constant.t * Constant.t
   -> (* name of the function, the functional and the fixpoint equation *)
      Indfun_common.tcc_lemma_value ref
   -> (* a pointer to the obligation proofs lemma *)

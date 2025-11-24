@@ -287,3 +287,6 @@ val stm_debug : bool ref
 
 val backup : unit -> document
 val restore : document -> unit
+
+(* HACK?? *)
+val cur_summary : Summary.Interp.t ref

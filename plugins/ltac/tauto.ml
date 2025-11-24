@@ -282,7 +282,7 @@ let register_tauto_tactic tac name0 args =
   let entry = { mltac_name = name; mltac_index = 0 } in
   let () = Tacenv.register_ml_tactic name [| tac |] in
   let tac = CAst.make (TacFun (ids, CAst.make (TacML (entry, [])))) in
-  let obj () = Tacenv.register_ltac true true (Id.of_string name0) tac in
+  let obj sum = Tacenv.register_ltac sum true true (Id.of_string name0) tac in
   Mltop.(declare_cache_obj_full (interp_only_obj obj) tauto_plugin)
 
 let () = register_tauto_tactic is_empty "is_empty" ["tauto_flags"; "X1"]
