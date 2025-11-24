@@ -217,7 +217,8 @@ let focus_id cond inf id pr =
           raise CannotUnfocusThisWay
      end
   | None ->
-     raise (NoSuchGoal (Some id))
+    let id = Libnames.basename id in
+    raise (NoSuchGoal (Some id))
   end
 
 let rec unfocus kind pr () =
