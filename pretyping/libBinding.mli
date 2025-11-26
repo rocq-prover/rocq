@@ -58,6 +58,9 @@ module State :
     val get_names : Nameops.Fresh.t t
     val get_state : state t
 
+    val update_sigma : evar_map -> state -> state * unit
+    val map : ('a -> 'b) -> 'a t -> 'b t
+
     (** Create a new state out of an environment [env] and evar_map [sigma] with:
       - The set of names is computed out of [env]
       - The substitution is empty *)
@@ -265,6 +268,9 @@ val closure_context_sep : binder -> freshness -> naming_scheme -> rel_context ->
     between [key_vars, key_letin, key_both]. *)
 val closure_context_sep_opt : binder -> freshness -> naming_scheme -> rel_context ->
   (access_key list * access_key list * access_key list -> (constr option) t) -> (constr option) t
+
+val closure_context_sep_opt_prod : binder -> freshness -> naming_scheme -> rel_context ->
+  (access_key list * access_key list * access_key list -> ('a * constr) option t) -> ('a * constr) option t
 
 (** [reads cxt binder cc_letin cc_var] go through a context [cxt],
     apply [binder] to each context declaration [decl] to it,

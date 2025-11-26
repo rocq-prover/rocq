@@ -208,7 +208,7 @@ let check_packet mind ind
 let check_inductive env mind mb =
   let entry = to_entry mind mb in
   let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
-        mind_nparams; mind_nparams_rec; mind_params_ctxt;
+        mind_nparams; mind_nparams_rec; mind_params_rec_strpos; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
         mind_private; mind_typing_flags; }
     =
@@ -226,9 +226,10 @@ let check_inductive env mind mb =
   check "mind_univ_hyps" (UVars.Instance.is_empty mind_univ_hyps);
   check "mind_nparams" Int.(equal mb.mind_nparams mind_nparams);
 
-  check "mind_nparams_rec" (mb.mind_nparams_rec <= mind_nparams_rec);
   (* module substitution can increase the real number of recursively
      uniform parameters, so be tolerant and use [<=]. *)
+  check "mind_nparams_rec" (mb.mind_nparams_rec <= mind_nparams_rec);
+  check "mind_params_rec_strpos" (List.length mind_params_rec_strpos >= 0);
 
   check "mind_params_ctxt" (Context.Rel.equal Sorts.relevance_equal Constr.equal mb.mind_params_ctxt mind_params_ctxt);
   ignore mind_universes; (* Indtypes did the necessary checking *)

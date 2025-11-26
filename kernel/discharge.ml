@@ -154,18 +154,24 @@ let cook_one_ind info cache ~params ~ntypes mip =
     mind_reloc_tbl = mip.mind_reloc_tbl;
   }
 
-let cook_inductive info mib =
+let cook_inductive env kn info mib =
   let info, univ_hyps, mind_universes = lift_univs info mib.mind_univ_hyps mib.mind_universes in
   let cache = create_cache info in
-  let nnewparams = Context.Rel.nhyps (rel_context_of_cooking_cache cache) in
-  let mind_params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
+  (* additional uniform parameters *)
+  let new_params_rec = rel_context_of_cooking_cache cache in
+  let nnewparams = Context.Rel.nhyps new_params_rec in
+  (* new uniform parameters *)
+  let nparams_rec = mib.mind_nparams_rec + nnewparams in
+  (* new parameters *)
+  let nparams = mib.mind_nparams + nnewparams in
+  let params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
+  (* new inductive bodies *)
   let ntypes = Declareops.mind_ntypes mib in
   let mind_packets = Array.map (cook_one_ind info cache ~params:mib.mind_params_ctxt ~ntypes) mib.mind_packets in
+  (* remove section variables of the section being closed *)
   let names = names_info info in
-  let mind_hyps =
-    List.filter (fun d -> not (Id.Set.mem (NamedDecl.get_id d) names))
-      mib.mind_hyps
-  in
+  let mind_hyps = List.filter (fun d -> not (Id.Set.mem (NamedDecl.get_id d) names)) mib.mind_hyps in
+  (* new variance *)
   let mind_variance, mind_sec_variance =
     match mib.mind_variance, mib.mind_sec_variance with
     | None, None -> None, None
@@ -178,6 +184,7 @@ let cook_inductive info mib =
       in
       Some (Array.append newvariance variance), Some sec_variance
   in
+  (* new template universe variables *)
   let mind_template = match mib.mind_template with
   | None -> None
   | Some {template_param_arguments=levels; template_context; template_concl; template_defaults;} ->
@@ -185,14 +192,31 @@ let cook_inductive info mib =
       let levels = List.rev_append sec_levels levels in
       Some {template_param_arguments=levels; template_context; template_concl; template_defaults}
   in
+  (* When closing a section, the strict positivty of uniform parameters must be recomputed.
+     Parameters that are section variables are uniform by design, but this imposes
+     no condition on the positiveness of the parameters. *)
+  let (uparams, nuparams) = Declareops.split_uparans_nuparams nparams_rec params_ctxt in
+  let inds = Array.map (fun ind ->
+      let (indices, _) = List.chop (List.length ind.mind_arity_ctxt - nparams) ind.mind_arity_ctxt in
+      let ctors = Array.map (fun (args, hd) ->
+                      let (args,_) = List.chop (List.length args - nparams) args in
+                      (List.rev args, hd)
+                    ) ind.mind_nf_lc
+                  in
+      (indices, ctors)
+    ) mind_packets in
+
+  let params_rec_strpos = Indtypes.compute_params_rec_strpos env kn uparams nuparams nparams_rec nparams inds in
+
   {
     mind_packets;
     mind_finite = mib.mind_finite;
     mind_hyps;
     mind_univ_hyps = univ_hyps;
-    mind_nparams = mib.mind_nparams + nnewparams;
-    mind_nparams_rec = mib.mind_nparams_rec + nnewparams;
-    mind_params_ctxt;
+    mind_nparams = nparams;
+    mind_nparams_rec = nparams_rec;
+    mind_params_rec_strpos = params_rec_strpos;
+    mind_params_ctxt = params_ctxt;
     mind_universes;
     mind_template;
     mind_variance;

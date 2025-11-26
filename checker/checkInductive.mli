@@ -11,9 +11,8 @@
 open Names
 open Environ
 
-exception InductiveMismatch of MutInd.t * string
 (** Some field of the inductive is different from what the kernel infers. *)
+exception InductiveMismatch of MutInd.t * string
 
-(*s The following function does checks on inductive declarations. *)
-
+(** Does checks on inductive declarations. *)
 val check_inductive : env -> MutInd.t -> Declarations.mutual_inductive_body -> env

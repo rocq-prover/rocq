@@ -235,10 +235,12 @@ let declare_one_induction_scheme ?loc ind =
   in
   let elims =
     List.filter (fun (sort,_) -> List.mem_f UnivGen.QualityOrSet.equal sort kelim)
-      [(UnivGen.QualityOrSet.qtype, "rect");
-       (UnivGen.QualityOrSet.prop, "ind");
-       (UnivGen.QualityOrSet.set, "rec");
-       (UnivGen.QualityOrSet.sprop, "sind")]
+       [
+         (UnivGen.QualityOrSet.qtype, "rect");
+       (* (UnivGen.QualityOrSet.prop, "ind"); *)
+       (* (UnivGen.QualityOrSet.set, "rec"); *)
+       (* (UnivGen.QualityOrSet.sprop, "sind") *)
+       ]
   in
   let elims = List.map (fun (to_kind,dflt_suff) ->
       if from_prop then elim_scheme ~dep:false ~to_kind, Some dflt_suff

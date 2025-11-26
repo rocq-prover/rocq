@@ -237,3 +237,15 @@ module Internal : sig
   val nf_relevance : Evd.evar_map -> Sorts.relevance -> Sorts.relevance
   val should_invert_case : env -> Evd.evar_map -> Sorts.relevance -> Constr.case_info -> bool
 end
+
+
+(* Errors related to recursors building *)
+type recursion_scheme_error =
+  | NotAllowedCaseAnalysis of Evd.evar_map * (*isrec:*) bool * Sorts.t * (inductive * UVars.Instance.t)
+  | NotMutualInScheme of inductive * inductive
+  | DuplicateInductiveBlock of inductive
+  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
+
+exception RecursionSchemeError of env * recursion_scheme_error
+
+val check_valid_elimination : env -> evar_map -> inductive * einstance -> dep:bool -> esorts -> evar_map

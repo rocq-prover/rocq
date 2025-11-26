@@ -13,16 +13,6 @@ open EConstr
 open Environ
 open Evd
 
-(** Errors related to recursors building *)
-
-type recursion_scheme_error =
-  | NotAllowedCaseAnalysis of evar_map * (*isrec:*) bool * Sorts.t * Constr.pinductive
-  | NotMutualInScheme of inductive * inductive
-  | DuplicateInductiveBlock of inductive
-  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
-
-exception RecursionSchemeError of env * recursion_scheme_error
-
 (** Eliminations *)
 
 type dep_flag = bool
@@ -37,8 +27,6 @@ type case_analysis = private {
   case_body : EConstr.t;
   case_type : EConstr.t;
 }
-
-val check_valid_elimination : env -> evar_map -> inductive puniverses -> dep:bool -> ESorts.t -> evar_map
 
 val eval_case_analysis : case_analysis -> EConstr.t * EConstr.types
 

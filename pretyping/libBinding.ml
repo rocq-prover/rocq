@@ -52,6 +52,9 @@ struct
   let get_names s = s.names
   let get_state s = s
 
+  let update_sigma sigma s = ({s with sigma = sigma}, ())
+  let map f t = fun s -> f (t s)
+
   (* make functions *)
   let make env sigma = {
     env = env;
@@ -260,8 +263,9 @@ let read_context binder cxt = fold_left_state (fun a l -> a :: l) cxt (fun _ -> 
 
 let add_context fresh naming_scheme = read_context (add_decl fresh naming_scheme)
 let closure_context binder fresh naming_scheme = read_context (build_binder binder fresh naming_scheme)
-
 let closure_context_opt binder fresh naming_scheme = read_context (build_binder_opt binder fresh naming_scheme)
+
+
 
 (* seperate var and letin in key_vars / key_letins / key_both *)
 
@@ -276,6 +280,22 @@ let read_context_sep binder cxt =
 let add_context_sep fresh naming_scheme = read_context_sep (add_decl fresh naming_scheme)
 let closure_context_sep binder fresh naming_scheme = read_context_sep (build_binder binder fresh naming_scheme)
 let closure_context_sep_opt binder fresh naming_scheme = read_context_sep (build_binder_opt binder fresh naming_scheme)
+
+let build_binder_opt_prod binder fresh naming_scheme decl cc =
+  match fresh with
+    | Fresh ->
+        let* decl = naming_scheme decl in
+        let+ k = push_fresh_rel decl in
+        let* v = cc k in
+        return @@ Option.map (fun (a,b) -> (a, wrap_binder binder decl b)) v
+    | Old ->
+        let* decl = weaken_rel decl  in
+        let* decl = naming_scheme decl in
+        let+ k = push_old_rel decl in
+        let* v = cc k in
+        return @@ Option.map (fun (a,b) -> (a, wrap_binder binder decl b)) v
+
+let closure_context_sep_opt_prod binder fresh naming_scheme = read_context_sep (build_binder_opt_prod binder fresh naming_scheme)
 
 (* takes a continuation after binder var and letin to add fresh binders and decide what to do with the keys *)
 let read_by_decl cxt binder cc_letin cc_var =

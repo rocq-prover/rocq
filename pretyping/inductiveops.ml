@@ -777,3 +777,32 @@ let control_only_guard env sigma c =
     raise (Pretype_errors.PretypeError
              (env, sigma,
               TypingError (Pretype_errors.of_type_error e)))
+
+(* Errors related to recursors building *)
+type recursion_scheme_error =
+  | NotAllowedCaseAnalysis of Evd.evar_map * (*isrec:*) bool * Sorts.t * (inductive * UVars.Instance.t)
+  | NotMutualInScheme of inductive * inductive
+  | DuplicateInductiveBlock of inductive
+  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
+
+exception RecursionSchemeError of env * recursion_scheme_error
+
+let check_privacy_block specif =
+  if Inductive.is_private specif then
+    user_err (Pp.str "case analysis on a private inductive type")
+
+let check_valid_elimination env sigma (ind, u as pind) ~dep s =
+  let specif = Inductive.lookup_mind_specif env ind in
+  let () =
+    if dep && not (has_dependent_elim specif) then
+      raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (false, ind)))
+  in
+  let () = check_privacy_block specif in
+  match make_allowed_elimination sigma (specif,u) s with
+  | Some sigma -> sigma
+  | None ->
+    let s = EConstr.ESorts.kind sigma s in
+    let pind = on_snd EConstr.Unsafe.to_instance pind in
+    raise
+      (RecursionSchemeError
+         (env, NotAllowedCaseAnalysis (sigma, false, s, pind)))

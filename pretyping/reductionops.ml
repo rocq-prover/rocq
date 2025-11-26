@@ -1752,3 +1752,7 @@ let splay_lam_n = hnf_decompose_lambda_n_assum
 let hnf_decompose_prod = whd_decompose_prod
 let hnf_decompose_lambda = whd_decompose_lambda
 let hnf_decompose_prod_decls = whd_decompose_prod_decls
+
+let eta_expand env sigma t ty =
+  of_constr @@ Reduction.eta_expand ~evars:(Evd.evar_handler sigma) env
+    (MiniEConstr.unsafe_to_constr t) (MiniEConstr.unsafe_to_constr ty)

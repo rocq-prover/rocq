@@ -12,7 +12,6 @@
 
 (* This file builds various inductive schemes *)
 
-open Pp
 open CErrors
 open Util
 open Names
@@ -33,14 +32,6 @@ open Context.Rel.Declaration
 
 type dep_flag = bool
 
-(* Errors related to recursors building *)
-type recursion_scheme_error =
-  | NotAllowedCaseAnalysis of Evd.evar_map * (*isrec:*) bool * Sorts.t * pinductive
-  | NotMutualInScheme of inductive * inductive
-  | DuplicateInductiveBlock of inductive
-  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
-
-exception RecursionSchemeError of env * recursion_scheme_error
 
 let ident_hd env ids t na =
   let na = named_hd env (Evd.from_env env) t na in
@@ -82,14 +73,6 @@ let make_name env s r =
   make_annot (Name id) r
 
 
-(*******************************************)
-(* Building curryfied elimination          *)
-(*******************************************)
-
-let check_privacy_block specif =
-  if Inductive.is_private specif then
-    user_err (str"case analysis on a private inductive type")
-
 (**********************************************************************)
 (* Building case analysis schemes *)
 (* Christine Paulin, 1996 *)
@@ -128,22 +111,6 @@ let build_branch_type env sigma dep p cs =
       cs.cs_args
   else
     it_mkProd_or_LetIn base cs.cs_args
-
-let check_valid_elimination env sigma (ind, u as pind) ~dep s =
-  let specif = Inductive.lookup_mind_specif env ind in
-  let () =
-    if dep && not (Inductiveops.has_dependent_elim specif) then
-      raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (false, ind)))
-  in
-  let () = check_privacy_block specif in
-  match Inductiveops.make_allowed_elimination sigma (specif,u) s with
-  | Some sigma -> sigma
-  | None ->
-    let s = EConstr.ESorts.kind sigma s in
-    let pind = on_snd EConstr.Unsafe.to_instance pind in
-    raise
-      (RecursionSchemeError
-         (env, NotAllowedCaseAnalysis (sigma, false, s, pind)))
 
 let paramdecls_fresh_template sigma (mib,u) =
   match mib.mind_template with
@@ -316,15 +283,16 @@ let build_case_analysis_scheme_default env sigma pity kind =
 
 
 (* ************************************************************************** *)
-(*                              Generate Recursors                            *)
+(*                             Generate Eliminators                           *)
 (* ************************************************************************** *)
 
 let (let@) x f = x f
 let (let*) x f = fun s -> let a = x s in f a s
+let (let+) x f = fun s -> let (s,a) = x s in f a s
 
 type elim_info = int * one_inductive_body * bool * Evd.esorts
 
-let dbg = CDebug.create ~name:"generate_recursors" ()
+let dbg = CDebug.create ~name:"generate_eliminators" ()
 
 (* ************************************************************************** *)
 (*                              View Argument                                 *)
@@ -333,48 +301,52 @@ let dbg = CDebug.create ~name:"generate_recursors" ()
 type arg =
   (* pos_ind, constant context, inst_nuparams inst_indices *)
   | ArgIsInd of int * rel_context * constr array * constr array
+  (* kn_nested, pos_nested, inst_uparams, inst_nuparams_indices *)
+  | ArgIsNested of MutInd.t * int
+                   * mutual_inductive_body * one_inductive_body
+                   * rel_context * constr array * constr array
+                   * GlobRef.t * GlobRef.t
   (* constant context, hd, args (maybe empty) *)
   | ArgIsCst of rel_context * constr * constr array
 
-(* Decompose the argument in [it_Prod_or_LetIn local, X]
-  where [X] is Ind, nested or a constant *)
-let view_arg kname mdecl t : arg State.t =
+let lookup_scheme kind ind =
+  try Some (DeclareScheme.lookup_scheme kind ind) with Not_found -> None
+
+(* Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is Ind, nested or a constant *)
+let view_arg kn mdecl t : arg State.t =
   let* env = get_env in
   let* sigma = get_sigma in
   let (cxt, hd) = Reductionops.whd_decompose_prod_decls env sigma t in
   let (hd, iargs) = decompose_app sigma hd in
   match kind sigma hd with
-  (* If it is nested *)
-  | Ind ((kname_indb, pos_indb), _) ->
+  | Ind ((kn_ind, pos_ind), _) ->
     (* If it is the inductive *)
-    if kname = kname_indb
+    if kn = kn_ind
     then let (_, local_nuparams_indices) = Array.chop mdecl.mind_nparams_rec iargs in
          let (local_nuparams, local_indices) = Array.chop (mdecl.mind_nparams - mdecl.mind_nparams_rec) local_nuparams_indices in
-         return @@ ArgIsInd (pos_indb, cxt, local_nuparams, local_indices)
-    (* 2.2 If it is nested *)
+         return @@ ArgIsInd (pos_ind, cxt, local_nuparams, local_indices)
+    (* if there is no argument, it cannot be nested *)
     else if Array.length iargs = 0 then return @@ ArgIsCst (cxt, hd, iargs)
+    (* If it is nested *)
     else begin
-      (* NESTED NOT TREATED FOR THE MOMENT *)
-      return @@ ArgIsCst (cxt, hd, iargs)
+      (* Recover sparse parametricity, if not declared arg is constant *)
+      match lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
+      | None -> return @@ ArgIsCst (cxt, hd, iargs)
+      | Some ref_sparam ->
+      (* Recover the associated local fundamental theorem, if not declared arg is constant *)
+      match lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
+      | None -> return @@ ArgIsCst (cxt, hd, iargs)
+      | Some ref_lth ->
+      let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
+      let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
+      return @@ ArgIsNested (kn_ind, pos_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
       end
   | _ -> return @@ ArgIsCst (cxt, hd, iargs)
 
-(* seperate uparams and nuparams *)
-let chop_letin n l =
-  let rec goto i acc = function
-    | h :: t ->
-      begin match h with
-      | LocalAssum _ -> if Int.equal i 0 then (List.rev acc, h::t) else goto (pred i) (h :: acc) t
-      | LocalDef _ -> goto i (h :: acc) t
-      end
-    | [] -> if Int.equal i 0 then (List.rev acc, []) else failwith "goto"
-  in
-  goto n [] l
-
 let get_params_sep sigma mdecl u =
   let (sigma, up_params) = paramdecls_fresh_template sigma (mdecl, u) in
-  let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev up_params in
-  (sigma, List.rev uparams, List.rev nuparams)
+  let (uparams, nuparams) = Declareops.split_uparans_nuparams mdecl.mind_nparams_rec up_params in
+  (sigma, uparams, nuparams)
 
 let closure_uparams binder s uparams = closure_context_sep binder Old s uparams
 let closure_nuparams binder s nuparams = closure_context_sep binder Old s nuparams
@@ -427,40 +399,113 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams cc =
     make_binder binder naming_hd_fresh name_pred ty_pred cc
   ) cc
 
+let instantiate_sparam inst_uparams strpos preds =
+  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
+  (* fix predicate *)
+  let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
+  (* instantiate *)
+  List.fold_right (fun (inst_uparam, b, pred) acc ->
+    if not b then inst_uparam :: acc
+    else match pred with
+    | None -> inst_uparam :: mk_fun_true inst_uparam :: acc
+    | Some pred -> inst_uparam :: pred :: acc
+    )
+  (List.combine3 inst_uparams strpos preds) []
+
+let eta_expand_instantiation env sigma inst tel =
+  let rec aux inst tel subst =
+  match inst, tel with
+  | t::inst, decl::tel ->
+      let ty = substl subst @@ get_type decl in
+      let eta_t = Reductionops.eta_expand env sigma t ty in
+      aux inst tel (eta_t::subst)
+  | [], [] -> subst
+  | _, _ -> assert false
+  in
+  List.rev @@ aux inst tel []
+
+  (* Recursively compute the predicate, returns None if it is not nested *)
+  let compute_pred f i x : (constr option) t = begin
+    (* quantify local variables *)
+    let* sigma = get_sigma in
+    let (cxt, hd) = decompose_lambda_decls sigma x in
+    let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
+    (* create new variable *)
+    let name_var = make_annot Anonymous ERelevance.relevant in
+    let@ key_arg = make_binder_opt Lambda naming_id name_var hd in
+    let* ty_var = State.get_type key_arg in
+    (* compute rec call *)
+    let* res = f key_arg ty_var in
+    return @@ res
+    end
+
 (* This function computes the type of the recursive call *)
-let make_rec_call kn mdecl ind_bodies key_preds key_arg ty =
+let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
   let* v = view_arg kn mdecl ty in
   match v with
-  | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) -> begin
+  | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) ->
+    begin
       (* generate recursion hypotheses only for the blocks that are used *)
       match find_opt_pos (fun (i,_,_,_) -> i = pos_ind_block) ind_bodies with
       | None -> return None
-      | Some (pred_pos, (_, _, pred_dep, sort)) -> return @@
-      Some (
-        relevance_of_sort sort,
-        (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
-        let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
-        let* i = geti_term key_preds pred_pos in
-        let pred = mkApp (i, (Array.append inst_nuparams inst_indices)) in
-        (* NOT DEP: return the predicate *)
-        if not pred_dep then return pred else
-        (* DEP: Apply the predicate to the argument *)
-        let* arg = get_term key_arg in
-        let* loc = get_terms key_locals in
-        let arg = mkApp (arg , Array.of_list loc) in
-        return @@ mkApp (pred, [| arg |])
-      )
+      | Some (pred_pos, (_, _, pred_dep, sort)) ->
+          let rec_hyp =
+            let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
+            let* i = geti_term key_preds pred_pos in
+            let pred = mkApp (i, (Array.append inst_nuparams inst_indices)) in
+            (* NOT DEP: return the predicate *)
+            if not pred_dep then return pred else
+            (* DEP: Apply the predicate to the argument *)
+            let* arg = get_term key_arg in
+            let* loc = get_terms key_locals in
+            let arg = mkApp (arg , Array.of_list loc) in
+            (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
+            return @@ mkApp (pred, [| arg |])
+          in
+          fun s -> Some (relevance_of_sort sort, rec_hyp s)
+    end
+  | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
+                  loc, inst_uparams, inst_nuparams_indices, ref_sparam, _) ->
+    begin
+      let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
+      (* eta expand arguments *)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let uparams_nested = List.rev @@ EConstr.of_rel_context uparams_nested in
+      let inst_uparams = Array.of_list @@ eta_expand_instantiation env sigma (Array.to_list inst_uparams) uparams_nested in
+      (* Compute the rec call, and check at least one is nested *)
+      let* s = get_state in
+      let compute_pred = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) in
+      let rec_pred = Array.mapi (fun i x -> compute_pred i x s) inst_uparams in
+      if Array.for_all Option.is_empty rec_pred then return None else begin
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let (sigma, ind) = fresh_global env sigma ref_sparam in
+      let+ _ = update_sigma sigma in
+      let u = snd @@ destRef sigma ind in
+      let rec_hyp_rev = ind_relevance ind_nested u in
+      (* Instantiate param *)
+      let strpos = List.rev mib_nested.mind_params_rec_strpos in
+      let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) strpos (Array.to_list rec_pred) in
+      let* arg = get_term key_arg in
+      let* loc = get_terms key_locals in
+      let arg = mkApp (arg , Array.of_list loc) in
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let rec_hyp = mkApp (ind, Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      return @@ Some (rec_hyp_rev, rec_hyp)
+      end
     end
   | _ -> return None
 
 (* Create and bind the recursive call *)
 let make_rec_call_cc kn mdecl ind_bodies key_preds _ key_arg cc =
   let* arg = LibBinding.State.get_type key_arg in
-  let* rec_call = make_rec_call kn mdecl ind_bodies key_preds key_arg arg in
+  let* rec_call = make_rec_call_ty kn mdecl ind_bodies key_preds key_arg arg in
   match rec_call with
   | Some (rec_hyp_rev, rec_hyp_ty) ->
       let name_rec_hyp = make_annot Anonymous rec_hyp_rev in
-      let* rec_hyp_ty = rec_hyp_ty in
       let@ _ = make_binder Prod naming_id name_rec_hyp rec_hyp_ty in
       cc [key_arg]
   | _ -> cc [key_arg]
@@ -525,8 +570,42 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_preds =
   let@ (key_VarMatch) = make_binder Prod naming_hd_fresh name_ind tind in
   make_ccl key_preds focus dep key_nuparams key_indices key_VarMatch
 
+
+(** Generate the type of the recursor, useful for debugging *)
+let _gen_elim_type print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+
+  dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
+    ++ str "DEBUBG TYPE: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
+
+  let t =
+    let@ (key_uparams, _, _) = closure_uparams Prod naming_hd_fresh uparams in
+    let@ key_preds = closure_preds kn u ind_bodies Prod key_uparams nuparams in
+    let@ key_ctors = closure_ctors kn mdecl u ind_bodies Prod key_uparams nuparams key_preds in
+    make_return_type kn u ind_bodies focus key_uparams nuparams key_preds
+  in
+
+  let t = t @@ State.make env sigma in
+  dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
+  t
+
+let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
+  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
+  let mk_rocq_I = mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty) in
+  (* fix predicate *)
+  let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
+  let mk_fun_I x = mkLambda ((make_annot Anonymous ERelevance.relevant), mk_rocq_true, mk_rocq_I) in
+  (* instantiate *)
+  List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
+    if not b then inst_uparam :: acc
+    else match pred, pred_hold with
+    | None, None -> inst_uparam :: mk_fun_true inst_uparam :: mk_fun_I inst_uparam :: acc
+    | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
+    | _, _ -> assert false
+    )
+  (List.combine3 inst_uparams strpos @@ List.combine preds preds_hold) []
+
 (* ty is well-formed in s *)
-let make_rec_call kn mdecl ind_bodies key_fixs key_arg ty : ((constr State.t) option) State.t =
+let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (constr option) State.t =
   let* v = view_arg kn mdecl ty in
   match v with
   | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) -> begin
@@ -534,36 +613,68 @@ let make_rec_call kn mdecl ind_bodies key_fixs key_arg ty : ((constr State.t) op
       match find_opt_pos (fun (i,_,_,_) -> i = pos_ind_block) ind_bodies with
       | None -> return None
       | Some (pred_pos, _) ->
-      return @@ Some (
         (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
-        let@ (key_locals, _, _) = closure_context_sep Lambda Fresh naming_id loc in
+        dbg Pp.(fun () -> str "pred pos: " ++ Pp.int pred_pos ++ str ", nb fixs " ++ Pp.int (List.length key_fixs));
+        let@ (key_locals, _, _) = closure_context_sep_opt Lambda Fresh naming_id loc in
         let* kpos = geti_term key_fixs pred_pos in
         let fix = mkApp (kpos, (Array.append inst_nuparams inst_indices)) in
         let* karg = get_term key_arg in
         let* kloc = get_terms key_locals in
         let arg = mkApp (karg, Array.of_list kloc) in
-        return @@ mkApp (fix, [| arg |])
-      )
+        return @@ Some (mkApp (fix, [| arg |]))
+    end
+  | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
+                  loc, inst_uparams, inst_nuparams_indices, _, ref_fth) ->
+    begin
+      let@ (key_locals, _, _) = closure_context_sep_opt Lambda Old naming_id loc in
+      (* eta expand arguments *)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let uparams_nested = List.rev @@ EConstr.of_rel_context uparams_nested in
+      let inst_uparams = Array.of_list @@ eta_expand_instantiation env sigma (Array.to_list inst_uparams) uparams_nested in
+      (* Compute the rec call, and check at least one is nested *)
+      let* s = get_state in
+      let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) in
+      let rec_preds = Array.mapi (fun i x -> compute_pred_preds i x s) inst_uparams in
+      let compute_pred_holds = compute_pred (make_rec_call kn mdecl ind_bodies key_preds key_fixs) in
+      let rec_preds_hold = Array.mapi (fun i x -> compute_pred_holds i x s) inst_uparams in
+      if Array.for_all Option.is_empty rec_preds_hold then return None else begin
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let (sigma, fth) = fresh_global env sigma ref_fth in
+      let+ _ = update_sigma sigma in
+      (* Instantiation *)
+      let strpos = List.rev mib_nested.mind_params_rec_strpos in
+      let inst_uparams = Array.of_list @@ instantiate_fundamental_theorem (Array.to_list inst_uparams) strpos (Array.to_list rec_preds) (Array.to_list rec_preds_hold) in
+      let* arg = get_term key_arg in
+      let* loc = get_terms key_locals in
+      let arg = mkApp (arg , Array.of_list loc) in
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let (simga, rec_hyp) = Typing.checked_appvect env sigma fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      let+ _ = update_sigma sigma in
+      return @@ Some (rec_hyp)
+      end
     end
   | _ -> return None
 
 (* Compute the arguments of the rec call *)
-let compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args =
+let compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args =
   CList.fold_right_i (fun pos_arg key_arg t ->
     let* karg = LibBinding.State.get_type key_arg in
-    let* rec_call = make_rec_call kn mdecl ind_bodies key_fixs key_arg karg in
+    let* rec_call = make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg karg in
     let* karg' = get_term key_arg in
     let* t = t in
     match rec_call with
-      | Some rc_tm -> let* rc_tm = rc_tm in
-                return @@ karg' :: rc_tm :: t
+      | Some rc_tm -> return @@ karg' :: rc_tm :: t
       | None -> return @@ karg' :: t
   ) 0 key_args (return [])
 
-let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
-    ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
+    ++ str "DEBUBG TERM: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
 
   let t =
 
@@ -573,15 +684,15 @@ let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : el
   let@ key_ctors = closure_ctors kn mdecl u ind_bodies Lambda key_uparams nuparams key_preds in
   (* 2. Fixpoint *)
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
-  let fix_type pos_list _ = make_return_type  kn u ind_bodies pos_list key_uparams nuparams key_preds in
+  let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
+    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) || true in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
-    else fun cc -> cc ([], 0, List.hd ind_bodies) in
+    else begin dbg Pp.(fun () -> str "TAKEN BUG"); fun cc -> cc ([], 0, List.hd ind_bodies) end in
   (* 3. Closure Nuparams / Indices / Var *)
   let@ (key_nuparams, _, _) = closure_nuparams Lambda naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
@@ -601,7 +712,7 @@ let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : el
         xind case_pred (relevance_of_sort sort) (xmatch) in
     (* 5 Body of the branch *)
     let* hyp = getij_term key_ctors pos_list pos_ctor in
-    let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args in
+    let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args in
     let* xnup = get_terms key_nuparams in
     let args = xnup @ cfix in
     return @@ mkApp (hyp, Array.of_list args)
@@ -659,7 +770,8 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
-      let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
+      (* let recs = List.init (List.length listdepkind) (_gen_elim_type Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
+      let recs = List.init (List.length listdepkind) (_gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
       (sigma, recs)
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
 

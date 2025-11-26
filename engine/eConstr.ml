@@ -1089,7 +1089,6 @@ let smash_rel_context ctx =
 let esubst : (int -> 'a -> t) -> 'a Esubst.subs -> t -> t =
 match unsafe_eq with
 | Refl -> Vars.esubst
-
 end
 
 (* Constructs either [forall x:t, c] or [let x:=b:t in c] *)

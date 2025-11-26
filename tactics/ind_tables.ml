@@ -32,10 +32,8 @@ let push_handle eff =
   let sigma = Evd.emit_side_effects eff sigma in
   Proofview.Unsafe.tclEVARS sigma
 
-type mutual_scheme_object_function =
-  Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
-type individual_scheme_object_function =
-  Environ.env -> handle -> inductive -> constr Evd.in_ustate
+type mutual_scheme_object_function = Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
+type individual_scheme_object_function = Environ.env -> handle -> inductive -> constr Evd.in_ustate
 
 type 'a scheme_kind = string
 
@@ -52,8 +50,8 @@ type scheme_dependency =
 | SchemeIndividualDep of inductive * individual scheme_kind
 
 type scheme_object_function =
-  | MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> MutInd.t -> scheme_dependency list) option
-  | IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> scheme_dependency list) option
+| MutualSchemeFunction of mutual_scheme_object_function * (Environ.env -> MutInd.t -> scheme_dependency list) option
+| IndividualSchemeFunction of individual_scheme_object_function * (Environ.env -> inductive -> scheme_dependency list) option
 
 let scheme_object_table =
   (Hashtbl.create 17 : (string, string * scheme_object_function) Hashtbl.t)
