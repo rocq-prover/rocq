@@ -68,7 +68,7 @@ type pp_tactic = {
 }
 
 (* Tactic notations *)
-let prnotation_tab = Summary.ref ~name:"pptactic-notation" KerName.Map.empty
+let prnotation_tab = Summary.ref ~stage:Synterp ~name:"pptactic-notation" KerName.Map.empty
 
 let declare_notation_tactic_pprule kn pt =
   prnotation_tab := KerName.Map.add kn pt !prnotation_tab
