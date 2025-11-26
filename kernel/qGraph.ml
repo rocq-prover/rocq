@@ -21,7 +21,6 @@ module ElimTable = struct
 
   let eliminates_to q q' =
     match q, q' with
-    | QConstant QType, _ -> true
     | QConstant q, QConstant q' -> const_eliminates_to q q'
     | QVar q, QVar q' -> QVar.equal q q'
     | (QConstant _ | QVar _), _ -> false
@@ -169,6 +168,8 @@ let update_dominance_if_valid g (q1,k,q2) =
      else
        match q1, q2 with
        | (Quality.QConstant _ | Quality.QVar _), Quality.QConstant _ -> assert false
+       | Quality.QVar qv1, Quality.QVar qv2 when QVar.equal qv1 qv2 -> assert false
+        (* It makes no sense to update or delay the dominance of a sort variable when it eliminates to itself *)
        | Quality.QVar qv1, Quality.QVar qv2 ->
           (* 3 cases:
              - if [qv1] is a global, treat as constants.
@@ -227,8 +228,9 @@ let enforce_constraint (q1, k, q2) g =
   | None ->
      let e = lazy (G.get_explanation (q1,to_graph_cstr k,q2) g.graph) in
      raise @@ EliminationError (QualityInconsistency (None, (k, q1, q2, Some (Path e))))
-  | Some g ->
-    dominance_check g (q1, k, q2)
+  | Some graph ->
+    if Quality.equal q1 q2 then graph
+    else dominance_check graph (q1, k, q2)
 
 let merge_constraints csts g = ElimConstraints.fold enforce_constraint csts g
 
@@ -241,16 +243,11 @@ exception AlreadyDeclared = G.AlreadyDeclared
 
 let add_quality q g =
   let graph = G.add q g.graph in
-  let g = enforce_constraint (Quality.qtype, ElimConstraint.ElimTo, q) { g with graph } in
-  let (paths,ground_and_global_sorts) =
+  let ground_and_global_sorts =
     if Quality.is_qglobal q
-    then (RigidPaths.add_elim_to Quality.qtype q g.rigid_paths, Quality.Set.add q g.ground_and_global_sorts)
-    else (g.rigid_paths,g.ground_and_global_sorts) in
-  (* As Type ~> s, set Type to be the dominant sort of q if q is a variable. *)
-  let dominant = match q with
-    | Quality.QVar qv -> QMap.add qv Quality.qtype g.dominant
-    | Quality.QConstant _ -> g.dominant in
-  { g with rigid_paths = paths; ground_and_global_sorts; dominant }
+    then Quality.Set.add q g.ground_and_global_sorts
+    else g.ground_and_global_sorts in
+  { g with graph; ground_and_global_sorts }
 
 let enforce_eliminates_to s1 s2 g =
   enforce_constraint (s1, ElimConstraint.ElimTo, s2) g
@@ -298,7 +295,8 @@ let merge g g' =
              (fun q acc -> try add_quality q acc with _ -> acc) qs g in
   Quality.Set.fold
     (fun q -> Quality.Set.fold
-             (fun q' acc -> if eliminates_to g' q q'
+             (fun q' acc -> if Quality.equal q q' then acc
+                         else if eliminates_to g' q q'
                          then enforce_eliminates_to q q' acc
                          else acc) qs) qs g
 
