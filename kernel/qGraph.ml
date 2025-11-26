@@ -187,7 +187,7 @@ let update_dominance_if_valid g (q1,k,q2) =
             (match QMap.find_opt qv1 g.dominant with
             | None ->
                let add_delayed qs =
-                 Some { g with delayed_check = QMap.set qv1 (QSet.add qv2 qs) g.delayed_check }
+                 Some { g with delayed_check = QMap.add qv1 (QSet.add qv2 qs) g.delayed_check }
                in
                (match QMap.find_opt qv1 g.delayed_check with
                | None -> add_delayed QSet.empty
