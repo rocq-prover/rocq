@@ -58,6 +58,7 @@ Type@{i}.
 Definition Type2le@{i j} := Eval hnf in let gt := (Set : Type@{i}) in
                                         let ge := ((fun x => x) : Type1@{j} ->
 Type@{i}) in Type@{i}.
+Typeclasses Transparent Type2le.
 
 Notation idmap := (fun x => x).
 Delimit Scope function_scope with function.
