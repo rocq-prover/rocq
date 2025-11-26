@@ -21,7 +21,6 @@ module ElimTable = struct
 
   let eliminates_to q q' =
     match q, q' with
-    | QConstant QType, _ -> true
     | QConstant q, QConstant q' -> const_eliminates_to q q'
     | QVar q, QVar q' -> QVar.equal q q'
     | (QConstant _ | QVar _), _ -> false
@@ -237,16 +236,11 @@ exception AlreadyDeclared = G.AlreadyDeclared
 
 let add_quality q g =
   let graph = G.add q g.graph in
-  let g = enforce_constraint Static (Quality.qtype, ElimConstraint.ElimTo, q) { g with graph } in
-  let (paths,ground_and_global_sorts) =
+  let ground_and_global_sorts =
     if Quality.is_qglobal q
-    then (RigidPaths.add_elim_to Quality.qtype q g.rigid_paths, Quality.Set.add q g.ground_and_global_sorts)
-    else (g.rigid_paths,g.ground_and_global_sorts) in
-  (* As Type ~> s, set Type to be the dominant sort of q if q is a variable. *)
-  let dominant = match q with
-    | Quality.QVar qv -> QMap.add qv Quality.qtype g.dominant
-    | Quality.QConstant _ -> g.dominant in
-  { g with rigid_paths = paths; ground_and_global_sorts; dominant }
+    then Quality.Set.add q g.ground_and_global_sorts
+    else g.ground_and_global_sorts in
+  { g with graph; ground_and_global_sorts }
 
 let enforce_eliminates_to src s1 s2 g =
   enforce_constraint src (s1, ElimConstraint.ElimTo, s2) g
