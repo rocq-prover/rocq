@@ -364,6 +364,53 @@ let with_typing_flags ?typing_flags senv ~f =
     let res, senv = f (set_typing_flags typing_flags senv) in
     res, set_typing_flags orig_typing_flags senv
 
+(* f1 is stricter than f2 if terms typed with f1 also type with f2 *)
+let stricter_flags f1 f2 =
+  let impl b1 b2 = if b1 then b2 else true in
+  let {
+    check_guarded = check_guarded1;
+    check_positive = check_positive1;
+    check_universes = check_universes1;
+    check_eliminations = check_eliminations1;
+    indices_matter = indices_matter1;
+    impredicative_set = impredicative_set1;
+    sprop_allowed = sprop_allowed1;
+    allow_uip = allow_uip1;
+    (* The flags below do not change the theory *)
+    conv_oracle = _;
+    share_reduction = _;
+    unfold_dep_heuristic = _;
+    enable_VM = _;
+    enable_native_compiler = _;
+  } = f1
+  in
+  let {
+    check_guarded = check_guarded2;
+    check_positive = check_positive2;
+    check_universes = check_universes2;
+    check_eliminations = check_eliminations2;
+    indices_matter = indices_matter2;
+    impredicative_set = impredicative_set2;
+    sprop_allowed = sprop_allowed2;
+    allow_uip = allow_uip2;
+    (* The flags below do not change the theory *)
+    conv_oracle = _;
+    share_reduction = _;
+    unfold_dep_heuristic = _;
+    enable_VM = _;
+    enable_native_compiler = _;
+  } = f2
+  in
+  impl check_guarded2 check_guarded1 &&
+  impl check_positive2 check_positive1 &&
+  impl check_universes2 check_universes1 &&
+  impl check_eliminations2 check_eliminations1 &&
+  impl indices_matter2 indices_matter1 &&
+  (* Beware: the order is reversed below because a "true" flag is laxer *)
+  impl impredicative_set1 impredicative_set2 &&
+  impl sprop_allowed1 sprop_allowed2 &&
+  impl allow_uip1 allow_uip2
+
 (** {6 Stm machinery } *)
 
 module Certificate :
@@ -379,8 +426,8 @@ sig
   val safe_extend : src:t -> dst:t -> t option
 
   (** [compatible src dst] checks whether [dst] adds exactly 1 declaration
-      to an ancestor of [src].
-      If it does, the declaration is also valid in [src] (up to universes). *)
+      to an ancestor of [src] and the typing flags are compatible.
+      If so, the declaration is also valid in [src] (up to universes). *)
   val compatible : safe_environment -> t -> bool
 end =
 struct
@@ -388,11 +435,13 @@ struct
 type t = {
   certif_struc : Mod_declarations.structure_body;
   certif_univs : Univ.ContextSet.t;
+  certif_flags : Declarations.typing_flags;
 }
 
 let make senv = {
   certif_struc = senv.revstruct;
   certif_univs = senv.univ;
+  certif_flags = Environ.typing_flags senv.env;
 }
 
 let is_suffix l suf = match l with
@@ -400,12 +449,14 @@ let is_suffix l suf = match l with
 | _ :: l -> l == suf
 
 let safe_extend ~src ~dst =
-  if is_suffix dst.certif_struc src.certif_struc then
+  if is_suffix dst.certif_struc src.certif_struc && stricter_flags dst.certif_flags src.certif_flags then
     Some { certif_struc = dst.certif_struc;
-           certif_univs = Univ.ContextSet.union src.certif_univs dst.certif_univs }
+           certif_univs = Univ.ContextSet.union src.certif_univs dst.certif_univs;
+           certif_flags = dst.certif_flags }
   else None
 
 let compatible src dst =
+  stricter_flags dst.certif_flags (Environ.typing_flags src.env) &&
   let dst = dst.certif_struc in
   let src = src.revstruct in
   match dst with
