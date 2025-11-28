@@ -23,7 +23,7 @@ type quality_subst_fn = QVar.t -> Quality.t
 val level_subst_of : universe_subst_fn -> universe_level_subst_fn
 (** The resulting function must never be called on a level which would produce an algebraic. *)
 
-val subst_univs_constraints : universe_subst_fn -> Constraints.t -> Constraints.t
+val subst_univs_constraints : universe_subst_fn -> UnivConstraints.t -> UnivConstraints.t
 
 (** Full universes substitutions into terms *)
 

@@ -38,7 +38,7 @@ let safe_flags oracle = {
 let hcons_template_universe ar =
   { template_param_arguments = List.Smart.map (Option.Smart.map (noh Sorts.hcons)) ar.template_param_arguments;
     template_concl = noh Sorts.hcons ar.template_concl;
-    template_context = noh UVars.hcons_abstract_universe_context ar.template_context;
+    template_context = noh UVars.AbstractContext.hcons ar.template_context;
     template_defaults = noh UVars.Instance.hcons ar.template_defaults;
   }
 
@@ -135,7 +135,7 @@ let hcons_universes cbu =
   match cbu with
   | Monomorphic -> Monomorphic
   | Polymorphic ctx ->
-    Polymorphic (noh UVars.hcons_abstract_universe_context ctx)
+    Polymorphic (noh UVars.AbstractContext.hcons ctx)
 
 let hcons_const_body ?hbody cb =
   { cb with

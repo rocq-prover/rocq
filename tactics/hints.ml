@@ -388,7 +388,7 @@ let lookup_tacs env sigma concl se =
 
 let merge_context_set_opt sigma ctx = match ctx with
 | None -> sigma
-| Some ctx -> Evd.merge_sort_context_set Evd.univ_flexible sigma ctx
+| Some ctx -> Evd.merge_sort_context_set Evd.univ_flexible QGraph.Internal sigma ctx
 
 let instantiate_hint env sigma p =
   let mk_clenv { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = ar } =
@@ -1827,7 +1827,7 @@ let fresh_hint env sigma h =
     (* Refresh the instance of the hint *)
     let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
     let c = Vars.subst_univs_level_constr subst c in
-    let sigma = Evd.merge_sort_context_set Evd.univ_flexible sigma ctx in
+    let sigma = Evd.merge_sort_context_set Evd.univ_flexible QGraph.Internal sigma ctx in
     sigma, c
 
 let hint_res_pf ?with_evars ?with_classes ?flags h =

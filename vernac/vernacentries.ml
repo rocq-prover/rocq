@@ -171,7 +171,7 @@ let show_universes ~proof =
   let ctx = Evd.universe_context_set (Evd.minimize_universes sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
-       Univ.ContextSet.pr (Termops.pr_evd_level sigma) ctx)
+       PConstraints.ContextSet.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -370,10 +370,10 @@ let dump_universes output g =
   let dump_arc u = function
     | UGraph.Node ltle ->
       Univ.Level.Map.iter (fun v strict ->
-          let typ = if strict then Lt else Le in
+          let typ = if strict then UnivConstraint.Lt else UnivConstraint.Le in
           output typ u v) ltle;
     | UGraph.Alias v ->
-      output Eq u v
+      output UnivConstraint.Eq u v
   in
   Univ.Level.Map.iter dump_arc g
 
@@ -388,11 +388,11 @@ let dump_universes_gen prl g s =
       begin fun kind left right ->
         let () = Lazy.force init in
         match kind with
-          | Univ.Lt ->
+          | Univ.UnivConstraint.Lt ->
             Printf.fprintf output "  \"%s\" -> \"%s\" [style=bold];\n" right left
-          | Univ.Le ->
+          | Univ.UnivConstraint.Le ->
             Printf.fprintf output "  \"%s\" -> \"%s\" [style=solid];\n" right left
-          | Univ.Eq ->
+          | Univ.UnivConstraint.Eq ->
             Printf.fprintf output "  \"%s\" -> \"%s\" [style=dashed];\n" left right
       end, begin fun () ->
         if Lazy.is_val init then Printf.fprintf output "}\n";
@@ -401,9 +401,9 @@ let dump_universes_gen prl g s =
     end else begin
       begin fun kind left right ->
         let kind = match kind with
-          | Univ.Lt -> "<"
-          | Univ.Le -> "<="
-          | Univ.Eq -> "="
+          | Univ.UnivConstraint.Lt -> "<"
+          | Univ.UnivConstraint.Le -> "<="
+          | Univ.UnivConstraint.Eq -> "="
         in
         Printf.fprintf output "%s %s %s ;\n" left kind right
       end, (fun () -> close_out output)
@@ -515,13 +515,14 @@ type constraint_source = GlobRef of GlobRef.t | Library of DirPath.t
    (either [<] or [=], NB we can't get both at the same time).
 *)
 type constraint_sources = {
-  edges : (constraint_source * Univ.constraint_type) Univ.Level.Map.t Univ.Level.Map.t;
+  edges : (constraint_source * Univ.UnivConstraint.kind) Univ.Level.Map.t Univ.Level.Map.t;
 }
 
 let empty_sources = { edges = Univ.Level.Map.empty }
 
 let mk_sources () =
   let open Univ in
+  let open UnivConstraint in
   let srcs = DeclareUniv.constraint_sources () in
   let pick_stricter_constraint (_,k as v) (_,k' as v') =
     match k, k' with
@@ -552,14 +553,15 @@ let mk_sources () =
   let edges =
     let libs = Library.loaded_libraries () in
     List.fold_left (fun edges dp ->
-        let _, (_, csts) = Safe_typing.univs_of_library @@ Library.library_compiled dp in
-        Constraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
-          csts edges)
+        let _, (_,(_,univ_csts)) =
+          Safe_typing.univs_of_library @@ Library.library_compiled dp in
+        UnivConstraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
+          univ_csts edges)
       edges libs
   in
   let edges =
-    List.fold_left (fun edges (ref,csts) ->
-        Constraints.fold (fun cst edges -> add_edge cst (GlobRef ref) edges)
+    List.fold_left (fun edges (ref,(_,csts)) ->
+        UnivConstraints.fold (fun cst edges -> add_edge cst (GlobRef ref) edges)
           csts edges)
       edges srcs
   in
@@ -567,7 +569,7 @@ let mk_sources () =
     edges;
   }
 
-exception Found of (Univ.constraint_type * Univ.Level.t * constraint_source) list
+exception Found of (Univ.UnivConstraint.kind * Univ.Level.t * constraint_source) list
 
 (* We are looking for a path from [source] to [target].
    If [k] is [Lt] the path must contain at least one [Lt].
@@ -588,22 +590,23 @@ let search src ~target k ~source =
         | Some has_enough_lt ->
           if has_enough_lt then true
           else (* original k was [Lt], if current k is also [Lt] we have no new info on this path *)
-            k = Univ.Lt
+            k = Univ.UnivConstraint.Lt
       in
       if is_visited then loop visited todo next_todo
       else
-        let visited = UMap.add source (k <> Univ.Lt) visited in
+        let visited = UMap.add source (k <> Univ.UnivConstraint.Lt) visited in
         let visited, next_todo =
           UMap.fold (fun u (ref,k') (visited,next_todo) ->
-              if k = Univ.Eq && k' = Univ.Lt then
+              if k = Univ.UnivConstraint.Eq && k' = Univ.UnivConstraint.Lt then
                 (* no point searching for a loop involving [u]  *)
                 (UMap.add u true visited, next_todo)
               else
-                let next_k = if k = Univ.Lt && k' = Univ.Lt then Univ.Le
-                  else k
+                let next_k = if k = Univ.UnivConstraint.Lt && k' = Univ.UnivConstraint.Lt
+                             then Univ.UnivConstraint.Le
+                             else k
                 in
                 let revpath = (k',u,ref) :: revpath in
-                if Univ.Level.equal u target && next_k <> Univ.Lt
+                if Univ.Level.equal u target && next_k <> Univ.UnivConstraint.Lt
                 then raise (Found revpath)
                 else (visited, (u, next_k, revpath) :: next_todo))
             (Option.default UMap.empty (UMap.find_opt source src.edges))
@@ -619,7 +622,7 @@ let search src (u,k,v) =
   match path with
   | None -> None
   | Some path ->
-    if k = Univ.Eq && not (List.for_all (fun (k',_,_) -> k' = Univ.Eq) path) then
+    if k = Univ.UnivConstraint.Eq && not (List.for_all (fun (k',_,_) -> k' = Univ.UnivConstraint.Eq) path) then
       let path' = search src ~source:v k ~target:u in
       begin match path' with
       | None -> None
@@ -628,7 +631,7 @@ let search src (u,k,v) =
     else Some path
 
 let find_source (u,k,v as cst) src =
-  if Univ.Level.is_set u && k = Univ.Lt then []
+  if Univ.Level.is_set u && k = Univ.UnivConstraint.Lt then []
   else Option.default [] (search src cst)
 
 let pr_constraint_source = function
@@ -642,8 +645,9 @@ let pr_constraint_source = function
 let pr_source_path prl u src =
   if CList.is_empty src then mt()
   else
+    let open Univ in
     let pr_rel = function
-      | Univ.Eq -> str"=" | Lt -> str"<" | Le -> str"<="
+      | UnivConstraint.Eq -> str"=" | UnivConstraint.Lt -> str"<" | UnivConstraint.Le -> str"<="
     in
     let pr_one (k,v,ref) =
       spc() ++
@@ -664,7 +668,7 @@ let pr_arc srcs prl = let open Pp in
       prl u ++ str " " ++
       v 0
         (pr_pmap spc (fun (v, strict) ->
-             let k = if strict then Univ.Lt else Univ.Le in
+             let k = if strict then Univ.UnivConstraint.Lt else Univ.UnivConstraint.Le in
              let src = find_source (u,k,v) srcs in
              hov 2 ((if strict then str "< " else str "<= ") ++ prl v ++ pr_source_path prl u src))
             ltle) ++
@@ -1419,7 +1423,7 @@ let vernac_sort ~poly l =
 let vernac_constraint ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
     user_err
-                 (str"Polymorphic universe constraints can only be declared"
+                 (str"Polymorphic constraints can only be declared"
                   ++ str " inside sections, use Monomorphic Constraint instead.");
   DeclareUniv.do_constraint ~poly l
 
@@ -2126,7 +2130,7 @@ let check_may_eval env sigma redexp rc =
     else
       let env = Evarutil.nf_env_evar sigma env in
       let env = Environ.push_qualities qs env in
-      let env = Environ.push_context_set (us,csts) env in
+      let env = Environ.push_context_set QGraph.Static (us,csts) env in
       let c = EConstr.to_constr sigma c in
       let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
       (* OK to call kernel which does not support evars *)
@@ -2170,7 +2174,7 @@ let vernac_global_check c =
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let uctx = Evd.universe_context_set sigma in
-  let senv = Safe_typing.push_context_set ~strict:false uctx senv in
+  let senv = Safe_typing.push_context_set ~strict:false QGraph.Static uctx senv in
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
   Prettyp.print_safe_judgment j ++

@@ -271,7 +271,17 @@ let template_subst_ctx subst ctx params = template_subst_ctx [] subst ctx params
 
 let instantiate_template_constraints subst templ =
   let cstrs = UVars.UContext.constraints (UVars.AbstractContext.repr templ.template_context) in
-  let fold (u, cst, v) accu =
+  let foldq (q, cst, q') accq =
+    let substq q = match q with
+      | Quality.QConstant _ -> q
+      | Quality.QVar q' ->
+         begin
+           match QVar.var_index q' with
+           | None -> q
+           | Some q' -> Int.Map.get q' (fst subst)
+         end in
+    ElimConstraints.add (substq q, cst, substq q') accq in
+  let foldu (u, cst, v) accu =
     (* v is not a local universe by the unbounded from below property *)
     let u = match Level.var_index u with
       | None -> Universe.make u
@@ -279,14 +289,14 @@ let instantiate_template_constraints subst templ =
     in
     (* if qsort, it is above prop *)
     let fold accu (u, n) = match n, cst with
-      | 0, _ -> Constraints.add (u, cst, v) accu
-      | 1, Le -> Constraints.add (u, Lt, v) accu
-      | 1, (Eq | Lt) -> assert false (* FIXME? *)
+      | 0, _ -> UnivConstraints.add (u, cst, v) accu
+      | 1, UnivConstraint.Le -> UnivConstraints.add (u, UnivConstraint.Lt, v) accu
+      | 1, (UnivConstraint.Eq | UnivConstraint.Lt) -> assert false (* FIXME? *)
       | _ -> assert false
     in
     List.fold_left fold accu (Univ.Universe.repr u)
   in
-  Constraints.fold fold cstrs Constraints.empty
+  PConstraints.fold (foldq, foldu) cstrs PConstraints.empty
 
 let instantiate_template_universes mib args =
   let templ = match mib.mind_template with
@@ -459,10 +469,8 @@ let is_allowed_elimination env specifu s =
 
 (* We always allow fixpoints on values in Prop (for the accessibility predicate for instance). *)
 let is_allowed_fixpoint elim_to sind star =
-  Sorts.equal sind Sorts.prop ||
-    elim_to
-      (Sorts.quality sind)
-      (Sorts.quality star)
+  elim_to (Sorts.quality sind) Quality.qprop ||
+    elim_to (Sorts.quality sind) (Sorts.quality star)
 
 (************************************************************************)
 
@@ -1669,12 +1677,12 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
         let sind = UVars.subst_instance_sort inst mip.mind_sort in
         let u = Sorts.univ_of_sort sind in
         (* This is an approximation: a [Relevant] variable might be of sort [Prop]
-           or [Type]. But we only care about the quality, and we always allow
-           fixpoints on [Prop] so we always return the [Type] variant. *)
+           or [Type]. As we only care about the quality, we have to be conservative
+           here, i.e., every relevant sort (so, [Prop] or above) can be eliminated
+           into any other relevant sort. *)
         let bsort = match names.(i).Context.binder_relevance with
           | Irrelevant -> Sorts.sprop
-          | Relevant when Universe.is_type0 u -> Sorts.set
-          | Relevant -> Sorts.make Sorts.Quality.qtype u
+          | Relevant -> Sorts.prop
           | RelevanceVar q -> Sorts.qsort q u in
         let elim_to = match elim_to with
           | Some f -> f

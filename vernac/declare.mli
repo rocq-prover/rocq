@@ -104,7 +104,7 @@ module Info : sig
     -> ?inline : bool
     -> ?kind : Decls.logical_kind
     (** Theorem, etc... *)
-    -> ?udecl : UState.universe_decl
+    -> ?udecl : UState.sort_poly_decl
     -> ?scope : Locality.definition_scope
     (** locality  *)
     -> ?clearbody:bool
@@ -436,7 +436,7 @@ type constant_entry =
 
 val prepare_parameter
   : poly:bool
-  -> udecl:UState.universe_decl
+  -> udecl:UState.sort_poly_decl
   -> types:EConstr.types
   -> Evd.evar_map
   -> Evd.evar_map * parameter_entry
@@ -467,7 +467,7 @@ val declare_definition_full
   -> body:EConstr.t
   -> ?using:Vernacexpr.section_subset_expr
   -> Evd.evar_map
-  -> GlobRef.t * Univ.ContextSet.t
+  -> GlobRef.t * PConstraints.ContextSet.t
 
 (** Declaration messages, for internal use *)
 

@@ -111,9 +111,15 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       then f info
       else { info with missing = u :: info.missing } in
     if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-      check_univ_consistency (fun x -> x)
-        (Sorts.univ_of_sort indu)
-        (Sorts.univ_of_sort u)
+          if Sorts.Quality.is_impredicative (Sorts.quality indu)
+          then
+            match u with
+            | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
+            | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
+            | SProp | Prop -> info
+          else check_univ_consistency (fun x -> x)
+                 (Sorts.univ_of_sort indu)
+                 (Sorts.univ_of_sort u)
     else
       let check_univ_consistency_squash quality =
         check_univ_consistency (add_squash quality) in
@@ -258,19 +264,19 @@ let check_record data =
    We also forbid strict bounds from above because they lead
    to problems when instantiated with algebraic universes
    (template_u < v can become w+1 < v which we cannot yet handle). *)
-let check_unbounded_from_below (univs,csts) =
-  Univ.Constraints.iter (fun (l,d,r) ->
+let check_unbounded_from_below (univs,(_,csts)) =
+  Univ.UnivConstraints.iter (fun (l,d,r) ->
       let bad = match d with
-        | Eq | Lt ->
+        | UnivConstraint.Eq | UnivConstraint.Lt ->
           if Level.Set.mem l univs then Some l
           else if Level.Set.mem r univs then Some r
           else None
-        | Le -> if Level.Set.mem r univs then Some r else None
+        | UnivConstraint.Le -> if Level.Set.mem r univs then Some r else None
       in
       bad |> Option.iter (fun bad ->
           CErrors.user_err Pp.(str "Universe level " ++ Level.raw_pr bad ++
                                str " cannot be template because it appears in constraint " ++
-                               Level.raw_pr l ++ pr_constraint_type d ++ Level.raw_pr r)))
+                               Level.raw_pr l ++ UnivConstraint.pr_kind d ++ Level.raw_pr r)))
     csts
 
 let check_not_appearing_univs ~template_univs univs =
@@ -485,7 +491,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
 
 let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
   if not (List.is_empty univ_info.missing)
-  then raise (InductiveError (env, MissingConstraints (univ_info.missing,univ_info.ind_univ)));
+  then raise (InductiveError (env, MissingUnivConstraints (univ_info.missing,univ_info.ind_univ)));
   let arity = Vars.subst_univs_level_constr usubst arity in
   let lc = Array.map (Vars.subst_univs_level_constr usubst) lc in
   let indices = Vars.subst_univs_level_context usubst indices in
@@ -530,7 +536,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Template_ind_entry {uctx; default_univs=_} ->
       Environ.Internal.push_template_context uctx env
     | Monomorphic_ind_entry -> env
-    | Polymorphic_ind_entry ctx -> push_context ctx env
+    | Polymorphic_ind_entry ctx -> push_context QGraph.Internal ctx env
   in
 
   let has_template_poly = match mie.mind_entry_universes with

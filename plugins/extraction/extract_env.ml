@@ -193,7 +193,7 @@ let expand_mexpr env mp me =
   (* hack: in order not to overwrite the module binding mp, we first give it a
      name that should not be part of the env and then substitute it away *)
   let mp0 = ModPath.dummy in
-  let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes env) in
+  let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
   let mb, (_, cst), _ = Mod_typing.translate_module state vm_state env mp0 inl (MExpr ([], me, None)) in
   let sign = mod_type mb in
   let reso = mod_delta mb in
@@ -201,7 +201,7 @@ let expand_mexpr env mp me =
 
 let expand_modtype env mp me =
   let inl = Declaremods.default_inline_level () in
-  let state = ((Environ.universes env, Univ.Constraints.empty), Reductionops.inferred_universes env) in
+  let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
   let mtb, _cst, _ = Mod_typing.translate_modtype state vm_state env mp inl ([],me) in
   mtb
 
