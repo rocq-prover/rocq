@@ -159,8 +159,11 @@ val onAllHyps           : (Id.t -> unit tactic) -> unit tactic
 val onAllHypsAndConcl   : (Id.t option -> unit tactic) -> unit tactic
 
 val elimination_sort_of_goal : Proofview.Goal.t -> UnivGen.QualityOrSet.t
+[@@ocaml.deprecated "(9.2) Use Retyping.get_sort_quality_of"]
 val elimination_sort_of_hyp  : Id.t -> Proofview.Goal.t -> UnivGen.QualityOrSet.t
+[@@ocaml.deprecated "(9.2) Use Retyping.get_sort_quality_of"]
 val elimination_sort_of_clause : Id.t option -> Proofview.Goal.t -> UnivGen.QualityOrSet.t
+[@@ocaml.deprecated "(9.2) Use Retyping.get_sort_quality_of"]
 
 val pf_constr_of_global : GlobRef.t -> constr Proofview.tactic
 

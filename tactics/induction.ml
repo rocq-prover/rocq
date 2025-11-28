@@ -1157,7 +1157,8 @@ let induction_with_atomization_of_ind_arg isrec with_evars elim names hyp0 inhyp
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let sort = Tacticals.elimination_sort_of_goal gl in
+  let concl = Proofview.Goal.concl gl in
+  let sort = Retyping.get_sort_quality_of env sigma concl in
   let sigma, ty, elim_info = find_induction_type env sigma isrec elim hyp0 sort in
   let letins, avoid, t = atomize_param_of_ind env sigma ty in
   let letins = tclMAP (fun (na, c) -> Tactics.letin_tac None (Name na) c None allHypsAndConcl) letins in

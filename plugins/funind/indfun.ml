@@ -43,6 +43,7 @@ let functional_induction with_clean c princl pat =
   Proofview.Goal.enter_one (fun gl ->
       let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
+      let concl = Proofview.Goal.concl gl in
       let f, args = decompose_app_list sigma c in
       match princl with
       | None -> (
@@ -59,7 +60,7 @@ let functional_induction with_clean c princl pat =
                   ( str "Cannot find induction information on "
                   ++ Termops.pr_global_env env (ConstRef c') )
             in
-            match elimination_sort_of_goal gl with
+            match Retyping.get_sort_quality_of env sigma concl with
             | Qual (QConstant QSProp) -> finfo.sprop_lemma
             | Qual (QConstant QProp) -> finfo.prop_lemma
             | Set -> finfo.rec_lemma
@@ -77,7 +78,7 @@ let functional_induction with_clean c princl pat =
               let princ_name =
                 Elimschemes.make_elimination_ident
                   (Constant.label c')
-                  (elimination_sort_of_goal gl)
+                  (Retyping.get_sort_quality_of env sigma concl)
               in
               let princ_ref =
                 match

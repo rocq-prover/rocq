@@ -201,8 +201,9 @@ let elim_type dty rectype a1 a2 =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let (ind, _) = Tacred.reduce_to_atomic_ind env sigma dty.op in
-  let s = Tacticals.elimination_sort_of_goal gl in
+  let s = Retyping.get_sort_quality_of env sigma concl in
   let elimc = Elimschemes.lookup_eliminator env (fst ind) s in
   (* Eliminator type is expected to have (potentially non-dependent) shape
       [forall A B (P : I A B -> Type), P _ -> P _ -> forall (s : I A B), P s ] *)
