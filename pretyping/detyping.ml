@@ -864,7 +864,7 @@ and detype_r d flags avoid env sigma t =
         try
           let id = match Evd.evar_ident evk sigma with
           | None -> Termops.evar_suggested_name (snd env) sigma evk
-          | Some id -> id
+          | Some id -> Libnames.basename id (* XXX: is this reasonable? *)
           in
           let info = Evd.find_undefined sigma evk in
           let cl = Evd.expand_existential sigma (evk, cl) in

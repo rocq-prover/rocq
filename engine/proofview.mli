@@ -248,7 +248,7 @@ val tclBREAK : (Exninfo.iexn -> Exninfo.iexn option) -> 'a tactic -> 'a tactic
 type goal_range_selector =
   | NthSelector of int
   | RangeSelector of (int * int)
-  | IdSelector of Names.Id.t
+  | IdSelector of Libnames.full_path
 
 exception NoSuchGoals of int
 exception CannotSelectShelvedAndFocused
@@ -293,7 +293,7 @@ val tclFOCUSSELECTORLIST : ?nosuchgoal:'a tactic -> goal_range_selector list -> 
 (** [tclFOCUSID x t] applies [t] on a (single) focused goal like
     {!tclFOCUS}. The goal is found by its name rather than its
     number. Fails with [nosuchgoal], by default raising [NoSuchGoals 1]. *)
-val tclFOCUSID : ?nosuchgoal:'a tactic -> Names.Id.t -> 'a tactic -> 'a tactic
+val tclFOCUSID : ?nosuchgoal:'a tactic -> Libnames.full_path -> 'a tactic -> 'a tactic
 
 (** [tclTRYFOCUS i j t] behaves like {!tclFOCUS}, except that if the
     specified range doesn't correspond to existing goals, behaves like

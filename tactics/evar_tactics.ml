@@ -119,6 +119,7 @@ let instantiate_tac n c ido =
 let instantiate_tac_by_name id c =
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
+  let id = Libnames.make_path DirPath.empty id in
   let evk =
     try Evd.evar_key id sigma
     with Not_found -> user_err Pp.(str "Unknown existential variable.") in

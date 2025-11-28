@@ -13,9 +13,6 @@ open Names
 (** Whether the [Generate Goal Names] option is enabled. *)
 val generate_goal_names : unit -> bool
 
-(** Creates a qualified name from a list of identifiers. *)
-val of_list : Id.t list -> Id.t
-
 (** Represents an evar name map. *)
 type t
 
@@ -39,7 +36,7 @@ val remove : Evar.t -> t -> t
 val transfer_name : Evar.t -> Evar.t -> t -> t
 
 (** Returns the qualified name associated to the evar, if any. *)
-val name_of : Evar.t -> t -> Id.t option
+val name_of : Evar.t -> t -> Libnames.full_path option
 
 (** Returns [true] if the evar has a name.
     Equivalent to [name_of ev <> None] but faster since it does not compute the
@@ -51,4 +48,4 @@ val has_unambiguous_name : Evar.t -> t -> bool
 
 (** Resolves the given (partially) qualified name to an evar.
     If the name resolution failed, raises [Not_found]. *)
-val resolve : Id.t -> t -> Evar.t
+val resolve : Libnames.full_path -> t -> Evar.t
