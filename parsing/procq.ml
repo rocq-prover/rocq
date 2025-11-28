@@ -12,8 +12,14 @@ open Util
 open Genarg
 open Gramlib
 
+module Syn = struct
+  (* currently parser_fun only allows functional access to the keyword state
+     (but some parsers access the whole parser state...) *)
+  type t = CLexer.keyword_state
+end
+
 (** The parser of Rocq *)
-include Grammar.GMake(CLexer.Lexer)
+include Grammar.GMake(Syn)(CLexer.Lexer)
 
 (** Marshallable representation of grammar extensions *)
 
@@ -31,10 +37,12 @@ type grammar_entry =
 
 type full_state = {
   (* the state used for parsing *)
-  current_state : GState.t;
+  current_state : EState.t;
+  current_kws : CLexer.keyword_state;
   (* grammar state containing only non-marshallable extensions
      (NB: this includes entries from Entry.make) *)
-  base_state : GState.t;
+  base_state : EState.t;
+  base_kws : CLexer.keyword_state;
   (* current_state = List.fold_right add_entry current_sync_extensions base_state
      this means the list is in reverse order of addition *)
   current_sync_extensions : grammar_entry list;
@@ -43,10 +51,11 @@ type full_state = {
 }
 
 let empty_full_state =
-  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state; recover = true; has_non_assoc = false } in
   {
-    current_state = empty_gstate;
-    base_state = empty_gstate;
+    current_state = EState.empty;
+    current_kws = CLexer.empty_keyword_state;
+    base_state = EState.empty;
+    base_kws = CLexer.empty_keyword_state;
     current_sync_extensions = [];
     user_state = GramState.empty;
   }
@@ -60,42 +69,62 @@ let state = ref empty_full_state
 
 let gramstate () = (!state).user_state
 
-let gstate () = (!state).current_state
+let estate () = (!state).current_state
 
-let get_keyword_state () = (gstate()).kwstate
+let get_keyword_state () = (!state).current_kws
+
+let make_gstate estate kwstate = {
+  GState.estate;
+  kwstate;
+  recover = true;
+  has_non_assoc = false;
+  synstate = kwstate;
+}
+
+let gstate() = make_gstate (estate()) (get_keyword_state())
 
 let terminal s = CLexer.terminal (get_keyword_state()) s
 
 let reset_to_base state = {
   base_state = state.base_state;
+  base_kws = state.base_kws;
   current_state = state.base_state;
+  current_kws = state.base_kws;
   current_sync_extensions = [];
   user_state = GramState.empty;
 }
 
+let is_base state =
+  state.base_state == state.current_state && state.base_kws == state.current_kws
+
 let modify_state_unsync f state =
-  let is_base = state.base_state == state.current_state in
-  let base_state = f state.base_state in
-  let current_state = if is_base then base_state else f state.current_state in
-  { state with base_state; current_state }
+  let is_base = is_base state in
+  let base_state, base_kws = f state.base_state state.base_kws in
+  let current_state, current_kws = if is_base then base_state,base_kws
+    else f state.current_state state.current_kws in
+  { state with base_state; base_kws; current_state; current_kws }
 
 let modify_state_unsync f () =
   assert_synterp ();
   state := modify_state_unsync f !state
 
+let modify_keyword_state f state =
+  let is_base = state.base_kws == state.current_kws in
+  let base_kws = f state.base_kws in
+  let current_kws = if is_base then base_kws else f state.current_kws in
+  { state with base_kws; current_kws }
+
 let modify_keyword_state f =
-  modify_state_unsync (fun {estate;kwstate;recover;has_non_assoc} -> {estate; kwstate = f kwstate; recover; has_non_assoc})
-    ()
+  assert_synterp ();
+  state := modify_keyword_state f !state
 
 let make_entry_unsync make remake state =
   let is_base = state.base_state == state.current_state in
-  let base_estate, e = make state.base_state.estate in
-  let base_state = { state.base_state with estate = base_estate } in
-  let current_state = if is_base then base_state else
-      let current_estate = remake state.current_state.estate e in
-      { state.current_state with estate = current_estate }
+  let base_estate, e = make state.base_state in
+  let current_state = if is_base then base_estate else
+      remake state.current_state e
   in
-  { state with base_state; current_state }, e
+  { state with base_state = base_estate; current_state }, e
 
 let make_entry_unsync make remake () =
   assert_synterp();
@@ -109,38 +138,42 @@ let no_add_kw = { add_kw = fun () _ -> () }
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
-  let { GState.estate; kwstate; recover; has_non_assoc } = gstate() in
+  let estate = estate() in
+  let kwstate = get_keyword_state() in
   let estate, entry = Entry.make "epsilon" estate in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [r]]) in
   let estate, kwstate = safe_extend add_kw estate kwstate entry ext in
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
-  try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
+  try Some (Entry.parse entry strm (make_gstate estate kwstate)) with e when CErrors.noncritical e -> None
 
-let extend_gstate ~ignore_kw {GState.kwstate; estate; recover; has_non_assoc} e ext =
+let extend_gstate ~ignore_kw estate kwstate e ext =
   let estate, kwstate =
     if ignore_kw then
       let estate, () = safe_extend no_add_kw estate () e ext in
       estate, kwstate
     else safe_extend add_kw estate kwstate e ext
   in
-  {GState.kwstate; estate; recover; has_non_assoc}
+  estate, kwstate
 
 (* XXX rename to grammar_extend_unsync? *)
 let grammar_extend ~ignore_kw e ext =
-  let extend_one g = extend_gstate ~ignore_kw g e ext in
+  let extend_one estate kwstate = extend_gstate ~ignore_kw estate kwstate e ext in
   modify_state_unsync extend_one ()
 
 type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
 
 let grammar_extend_sync ~ignore_kw user_state entry rules state =
-  let extend_one_sync state = function
-    | ExtendRule (e, ext) -> extend_gstate state e ext
+  let extend_one_sync (estate,kwstate) = function
+    | ExtendRule (e, ext) -> extend_gstate estate kwstate e ext
   in
-  let current_state = List.fold_left (extend_one_sync ~ignore_kw) state.current_state rules in
+  let current_state,current_kws =
+    List.fold_left (extend_one_sync ~ignore_kw) (state.current_state,state.current_kws) rules
+  in
   { state with
     current_state;
+    current_kws;
     user_state;
     current_sync_extensions = GramExt {ignore_kw; entry} :: state.current_sync_extensions;
   }
@@ -162,12 +195,11 @@ let extend_entry_sync (type a b)
     state
   =
   let name = interp.eext_name data in
-  let current_estate, e = Entry.make name state.current_state.estate in
-  let current_state = { state.current_state with estate = current_estate } in
+  let current_estate, e = Entry.make name state.current_state in
   let user_state = interp.eext_fun data e state.user_state in
   let state = {
     state with
-    current_state;
+    current_state = current_estate;
     current_sync_extensions = EntryExt (tag,data) :: state.current_sync_extensions;
     user_state;
   }
@@ -451,15 +483,10 @@ type frozen_t = {
 
 let unfreeze_only_keywords = function
   | {frozen_base_kw; frozen_kw} ->
-    let is_base = !(state).base_state == (!state).current_state && frozen_base_kw == frozen_kw in
-    let base_state = { (!state).base_state with kwstate = frozen_base_kw } in
-    let current_state = if is_base then base_state else
-        { (!state).current_state with kwstate = frozen_kw }
-    in
     state := {
       !state with
-      base_state;
-      current_state;
+      base_kws = frozen_base_kw;
+      current_kws = frozen_kw;
     }
 
 let eq_grams g1 g2 = match g1, g2 with
@@ -507,8 +534,8 @@ let unfreeze ({frozen_sync;} as frozen) =
 
 let freeze_state state = {
   frozen_sync = state.current_sync_extensions;
-  frozen_base_kw = state.base_state.kwstate;
-  frozen_kw = state.current_state.kwstate;
+  frozen_base_kw = state.base_kws;
+  frozen_kw = state.current_kws;
 }
 
 let freeze () : frozen_t = freeze_state !state
