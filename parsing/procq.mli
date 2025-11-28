@@ -16,7 +16,8 @@ open Libnames
 (** The parser of Rocq *)
 
 include Gramlib.Grammar.S
-  with type keyword_state := CLexer.keyword_state
+  with type synterp_state := CLexer.keyword_state
+   and type keyword_state := CLexer.keyword_state
    and type te := Tok.t
    and type 'a pattern := 'a Tok.p
    and type 'a with_gstate := 'a

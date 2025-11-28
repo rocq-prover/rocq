@@ -12,8 +12,14 @@ open Util
 open Genarg
 open Gramlib
 
+module Syn = struct
+  (* currently parser_fun only allows functional access to the keyword state
+     (but some parsers access the whole parser state...) *)
+  type t = CLexer.keyword_state
+end
+
 (** The parser of Rocq *)
-include Grammar.GMake(CLexer.Lexer)
+include Grammar.GMake(Syn)(CLexer.Lexer)
 
 let assert_synterp () =
   if !Flags.in_synterp_phase = Some false then
@@ -23,14 +29,14 @@ let add_kw = { add_kw = CLexer.add_keyword_tok }
 
 let no_add_kw = { add_kw = fun () _ -> () }
 
-let extend_gstate ~ignore_kw ({GState.kwstate; estate;} as gstate) e ext =
+let extend_gstate ~ignore_kw estate kwstate e ext =
   let estate, kwstate =
     if ignore_kw then
       let estate, () = safe_extend no_add_kw estate () e ext in
       estate, kwstate
     else safe_extend add_kw estate kwstate e ext
   in
-  {gstate with GState.kwstate; estate;}
+  estate, kwstate
 
 (** Unsynchronized grammar extensions *)
 
@@ -38,45 +44,35 @@ type unsync_ext =
 | UGramExt : { ignore_kw:bool; entry : 'a Entry.t; ext : 'a extend_statement } -> unsync_ext
 | UEntryExt : 'a Entry.t * 'a Entry.parser_fun option -> unsync_ext
 
-let empty_gstate = {
-  GState.estate = EState.empty;
-  kwstate = CLexer.empty_keyword_state;
-  recover = true;
-  has_non_assoc = false;
-}
-
 (** int is the length of the list *)
-let unsync_state : (int * unsync_ext list * GState.t) ref = ref (0, [], empty_gstate)
+let unsync_state : (int * unsync_ext list * EState.t * CLexer.keyword_state) ref =
+  ref (0, [], EState.empty, CLexer.empty_keyword_state)
 
 let grammar_extend ~ignore_kw e ext =
   assert_synterp();
-  let ulen, exts, gstate = !unsync_state in
-  let gstate = extend_gstate ~ignore_kw gstate e ext in
-  unsync_state := (ulen+1, UGramExt {ignore_kw; entry=e; ext} :: exts, gstate)
+  let ulen, exts, estate, kwstate = !unsync_state in
+  let estate, kwstate = extend_gstate ~ignore_kw estate kwstate e ext in
+  unsync_state := (ulen+1, UGramExt {ignore_kw; entry=e; ext} :: exts, estate, kwstate)
 
 let entry_extend_unsync name parser_opt =
   assert_synterp();
-  let ulen, exts,gstate = !unsync_state in
+  let ulen, exts, estate, kwstate = !unsync_state in
   let estate, entry = match parser_opt with
-    | None -> Entry.make name gstate.estate
-    | Some p -> Entry.of_parser name p gstate.estate
+    | None -> Entry.make name estate
+    | Some p -> Entry.of_parser name p estate
   in
-  let gstate = { gstate with estate } in
-  unsync_state := (ulen+1, UEntryExt (entry, parser_opt) :: exts, gstate);
+  unsync_state := (ulen+1, UEntryExt (entry, parser_opt) :: exts, estate, kwstate);
   entry
 
-let replay_extend_entry entry parser_opt gstate =
-  let estate =
-    match parser_opt with
-    | None -> Unsafe.existing_entry gstate.GState.estate entry
-    | Some p -> Unsafe.existing_of_parser gstate.GState.estate entry p
-  in
-  { gstate with estate }
+let replay_extend_entry entry parser_opt estate =
+  match parser_opt with
+  | None -> Unsafe.existing_entry estate entry
+  | Some p -> Unsafe.existing_of_parser estate entry p
 
-let replay_one_unsync_extend ext gstate =
+let replay_one_unsync_extend ext (estate,kwstate) =
   match ext with
-  | UGramExt {ignore_kw; entry; ext} -> extend_gstate ~ignore_kw gstate entry ext
-  | UEntryExt (e,p) -> replay_extend_entry e p gstate
+  | UGramExt {ignore_kw; entry; ext} -> extend_gstate ~ignore_kw estate kwstate entry ext
+  | UEntryExt (e,p) -> replay_extend_entry e p estate, kwstate
 
 let replay_unsync_extends exts gstate =
   List.fold_right replay_one_unsync_extend exts gstate
@@ -98,7 +94,8 @@ type grammar_entry =
 
 type full_state = {
   (* the state used for parsing *)
-  current_state : GState.t;
+  current_state : EState.t;
+  current_kws : CLexer.keyword_state;
   (* Number of unsynchronized extensions added to current_state *)
   unsync_exts : int;
   (* when all unsynchronized extensions have been added,
@@ -112,7 +109,8 @@ type full_state = {
 
 let empty_full_state =
   {
-    current_state = empty_gstate;
+    current_state = EState.empty;
+    current_kws = CLexer.empty_keyword_state;
     unsync_exts = 0;
     current_sync_extensions = [];
     user_state = GramState.empty;
@@ -122,7 +120,8 @@ module GlobalState : sig
 
   val gramstate : unit -> GramState.t
 
-  val gstate : unit -> GState.t
+  val estate : unit -> EState.t
+  val kwstate : unit -> CLexer.keyword_state
 
   val modify_sync_state : (full_state -> full_state * 'a) -> 'a
   val modify_sync_state0 : (full_state -> full_state) -> unit
@@ -134,23 +133,31 @@ end = struct
   let state = ref empty_full_state
 
   let update () =
-    let ulen, exts, _ = !unsync_state in
+    let ulen, exts, _, _ = !unsync_state in
     let current = !state in
     if Int.equal ulen current.unsync_exts then ()
     else
       let exts = List.firstn (ulen - current.unsync_exts) exts in
+      let estate, kwstate =
+        replay_unsync_extends exts (current.current_state, current.current_kws)
+      in
       state := {
         current with
-        current_state = replay_unsync_extends exts current.current_state;
+        current_state = estate;
+        current_kws = kwstate;
         unsync_exts = ulen;
       }
 
   (* no need to update, gramstate isn't modified by it *)
   let gramstate () = (!state).user_state
 
-  let gstate () =
+  let estate () =
     update();
     (!state).current_state
+
+  let kwstate () =
+    update();
+    (!state).current_kws
 
   let modify_sync_state f =
     assert_synterp();
@@ -167,12 +174,23 @@ open GlobalState
 
 let gramstate = gramstate
 
-let get_keyword_state () = (gstate()).kwstate
+let get_keyword_state () = kwstate()
+
+let make_gstate estate kwstate = {
+  GState.estate;
+  kwstate;
+  recover = true;
+  has_non_assoc = false;
+  synstate = kwstate;
+}
+
+let gstate() = make_gstate (estate()) (get_keyword_state())
 
 let from_unsync_state () =
-  let ulen, _, gstate = !unsync_state in
+  let ulen, _, estate, kwstate = !unsync_state in
   {
-    current_state = gstate;
+    current_state = estate;
+    current_kws = kwstate;
     unsync_exts = ulen;
     current_sync_extensions = [];
     user_state = GramState.empty;
@@ -180,24 +198,28 @@ let from_unsync_state () =
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
-  let { GState.estate; kwstate; recover; has_non_assoc } = gstate() in
+  let estate = estate() in
+  let kwstate = get_keyword_state() in
   let estate, entry = Entry.make "epsilon" estate in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [r]]) in
   let estate, kwstate = safe_extend add_kw estate kwstate entry ext in
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
-  try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
+  try Some (Entry.parse entry strm (make_gstate estate kwstate)) with e when CErrors.noncritical e -> None
 
 type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
 
 let grammar_extend_sync ~ignore_kw user_state entry rules state =
-  let extend_one_sync state = function
-    | ExtendRule (e, ext) -> extend_gstate state e ext
+  let extend_one_sync (estate,kwstate) = function
+    | ExtendRule (e, ext) -> extend_gstate estate kwstate e ext
   in
-  let current_state = List.fold_left (extend_one_sync ~ignore_kw) state.current_state rules in
+  let current_state,current_kws =
+    List.fold_left (extend_one_sync ~ignore_kw) (state.current_state,state.current_kws) rules
+  in
   { state with
     current_state;
+    current_kws;
     user_state;
     current_sync_extensions = GramExt {ignore_kw; entry} :: state.current_sync_extensions;
   }
@@ -218,12 +240,11 @@ let extend_entry_sync (type a b)
     state
   =
   let name = interp.eext_name data in
-  let current_estate, e = Entry.make name state.current_state.estate in
-  let current_state = { state.current_state with estate = current_estate } in
+  let current_estate, e = Entry.make name state.current_state in
   let user_state = interp.eext_fun data e state.user_state in
   let state = {
     state with
-    current_state;
+    current_state = current_estate;
     current_sync_extensions = EntryExt (tag,data) :: state.current_sync_extensions;
     user_state;
   }
@@ -235,10 +256,7 @@ let extend_entry_sync tag interp data () =
 
 let extend_keywords kws state = {
   state with
-  current_state =
-    { state.current_state with
-      kwstate = List.fold_left CLexer.add_keyword state.current_state.kwstate kws;
-    };
+  current_kws = List.fold_left CLexer.add_keyword state.current_kws kws;
   current_sync_extensions = KeywordExt kws :: state.current_sync_extensions;
 }
 

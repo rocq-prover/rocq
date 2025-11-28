@@ -26,6 +26,7 @@ type norec
 type mayrec
 
 module type S = sig
+  type synterp_state
   type keyword_state
   type te
   type 'c pattern
@@ -69,7 +70,7 @@ module type S = sig
     val make : string -> 'a t mod_estate
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
+    type 'a parser_fun = { parser_fun : synterp_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
     val print : Format.formatter -> 'a t -> unit with_kwstate with_estate
@@ -143,6 +144,7 @@ end
 (* Interface private to clients  *)
 module type ExtS = sig
 
+  type synterp_state
   type keyword_state
 
   module EState : sig
@@ -153,13 +155,15 @@ module type ExtS = sig
     type t = {
       estate : EState.t;
       kwstate : keyword_state;
+      synstate : synterp_state;
       recover : bool;
       has_non_assoc : bool;
     }
   end
 
   include S
-    with type keyword_state := keyword_state
+    with type synterp_state := synterp_state
+     and type keyword_state := keyword_state
      and type 'a with_gstate := GState.t -> 'a
      and type 'a with_kwstate := keyword_state -> 'a
      and type 'a with_estate := EState.t -> 'a
@@ -186,7 +190,8 @@ end
       type (instead of (string * string)); the module parameter
       must specify a way to show them as (string * string) *)
 
-module GMake (L : Plexing.S) : ExtS
-  with type keyword_state := L.keyword_state
+module GMake (Syn : sig type t end) (L : Plexing.S) : ExtS
+  with type synterp_state := Syn.t
+   and type keyword_state := L.keyword_state
    and type te := L.te
    and type 'c pattern := 'c L.pattern
