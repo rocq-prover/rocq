@@ -40,13 +40,21 @@ module MakeStage(X:sig
       CErrors.anomaly ~label:"Summary.declare"
         Pp.(fmt "Colliding summary names: %s vs %s." sumname (Dyn.repr t))
 
-  type ('v,'frozen) declaration = {
-    freeze : 'v -> 'frozen;
-    unfreeze : 'frozen -> 'v;
+  type ('v,'freeze,'unfreeze) declaration_gen = {
+    freeze : 'v -> 'freeze;
+    unfreeze : 'unfreeze -> 'v;
     init : unit -> 'v;
   }
 
-  module Decl = struct type _ t = D : ('a,'b) declaration -> ('a * 'b) t end
+  type ('v,'frozen) declaration = ('v,'frozen,'frozen) declaration_gen
+
+  let generalize_declaration decl = {
+    freeze = decl.freeze;
+    unfreeze = (fun (_,f) -> decl.unfreeze f);
+    init = decl.init;
+  }
+
+  module Decl = struct type _ t = D : ('a,'b,('a option * 'b)) declaration_gen -> ('a * 'b) t end
   module DeclMap = Dyn.Map(Decl)
 
   let sum_map = ref DeclMap.empty
@@ -105,12 +113,14 @@ module MakeStage(X:sig
 
   let declare_hook = ref None
 
-  let declare_tag sumname decl =
+  let declare_tag_gen sumname decl =
     let () = check_name sumname in
     let tag = Dyn.create sumname in
     let () = sum_map := DeclMap.add tag (D decl) !sum_map in
     let () = Option.iter (fun f -> f (AnySummary tag)) !declare_hook in
     make_v tag, Tag tag
+
+  let declare_tag name decl = declare_tag_gen name (generalize_declaration decl)
 
   let declare sumname decl = fst @@ declare_tag sumname decl
 
@@ -120,7 +130,7 @@ module MakeStage(X:sig
     init = (fun () -> v);
   }
 
-  let declare_simple summname v = declare summname (simple_declaration v)
+  let declare_simple ~name v = declare name (simple_declaration v)
 
   let local_declaration v =
     let unfreeze x =
@@ -177,11 +187,17 @@ module MakeStage(X:sig
     in
     FreezeHMap.map { map } !sum_map
 
-  let unfreeze_summaries ?(partial=false) (frozen:frozen) =
+  let unfreeze_summaries ?(partial=false) (frozen:frozen) orig =
     (* We must be independent on the order of the map! *)
     let ufz (DeclMap.Any (tag, D decl)) acc =
       let v = match FrozenMap.find tag frozen with
-        | Frozen v -> Some (decl.unfreeze v)
+        | Frozen v ->
+          let ov = try
+              let V v = VMap.find tag orig in
+              Some v
+            with Not_found -> None
+          in
+          Some (decl.unfreeze (ov,v))
         | exception Not_found ->
           if not partial then begin
             warn_summary_out_of_scope (Dyn.repr tag);
@@ -200,7 +216,7 @@ module MakeStage(X:sig
     DeclMap.fold ufz !sum_map VMap.empty
 
   let unfreeze_summaries ?partial frozen sum =
-    set sum @@ X.set sum @@ unfreeze_summaries ?partial frozen
+    set sum @@ X.set sum @@ unfreeze_summaries ?partial frozen (force_mut sum)
 
   let init_summaries () =
     let init (DeclMap.Any (tag, D decl)) acc =
