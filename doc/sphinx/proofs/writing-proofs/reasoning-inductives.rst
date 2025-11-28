@@ -44,6 +44,9 @@ The tactics presented here specialize :tacn:`apply` and
    typically used to split conjunctions in the conclusion such as `A /\\ B` into
    two new goals `A` and `B`.
 
+   To :n:`split` a hypothesis :n:`H` that begins with :n:`and`, use
+   :tacn:`destruct` :n:`H`.  See :ref:`example <example_split_hypothesis>`.
+
 .. tacn:: exists {*, @bindings }
 
    Equivalent to :n:`constructor 1 with @bindings__i` for each set of bindings
@@ -133,10 +136,15 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
    inductive or coinductive type selected by :n:`@induction_arg`.  The selected
    subterm, after possibly doing an :tacn:`intros`, must have
    an inductive or coinductive type.  Unlike :tacn:`induction`,
-   :n:`destruct` generates no induction hypothesis.
+   :n:`destruct` generates no induction hypothesis
+   (see :n:`induction` :ref:`example <example_create_induction_hyp>`).
 
    In each new subgoal, the tactic replaces the selected subterm with the associated
    constructor applied to its arguments, if any.
+
+   Applying :n:`destruct` to a hypothesis beginning with :n:`and` such as :n:`A /\ B`
+   or :n:`A <-> B` splits the hypothesis into multiple hypotheses without creating new
+   subgoals.  Example :ref:`here <example_split_hypothesis>`.
 
    :n:`{+, @induction_clause }`
      Giving multiple :n:`@induction_clause`\s is equivalent to applying :n:`destruct`
@@ -150,16 +158,16 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
          goal, then :n:`destruct @ident` behaves like
          :tacn:`intros` :n:`until @ident; destruct @ident`.
 
-       + If :n:`@ident` is no longer dependent in the
-         goal after application of :n:`destruct`, it is erased. To avoid erasure,
-         use parentheses, as in :n:`destruct (@ident)`.
+       + If :n:`@ident` is not referenced directly or indirectly in the
+         goal or unselected hypotheses after application of :n:`destruct`,
+         it is erased. To avoid erasure, use parentheses, as in :n:`destruct (@ident)`.
 
      + :n:`@one_term` may contain holes that are denoted by “_”. In this case,
        the tactic selects the first subterm that matches the pattern and performs
        case analysis using that subterm.
      + If :n:`@induction_arg` is a :n:`@natural`, then :n:`destruct @natural` behaves like
        :n:`intros until @natural` followed by :n:`destruct` applied to the last
-       introduced hypothesis.
+       introduced :term:`premise`.
 
    :n:`as @or_and_intropattern`
       Provides names for (or applies further transformations to)
@@ -191,6 +199,60 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
    :n:`@induction_principle`
      Makes the tactic equivalent to
      :tacn:`induction` :n:`{+, @induction_clause } @induction_principle`.
+
+   .. example:: Using :tacn:`destruct`
+
+      Creates a subgoal for each constructor, substituting the constructor
+      into the conclusion.
+
+      .. rocqtop:: reset none
+
+         Goal forall m n: nat, m + n = n + m.
+
+      .. rocqtop:: out
+
+         intros.
+
+      .. rocqtop:: all
+
+         destruct n.
+         2: {     (* no induction hypothesis created *)
+
+   .. _example_create_induction_hyp:
+
+   .. example:: :tacn:`induction` creating an induction hypotheses
+
+      Unlike :n:`destruct`, :n:`induction` creates induction hypotheses
+      in appropriate subgoals (compare to the previous example).
+
+      .. rocqtop:: reset none
+
+         Goal forall m n: nat, m + n = n + m.
+
+      .. rocqtop:: out
+
+         intros.
+
+      .. rocqtop:: all
+
+         induction n.
+         2: {    (* IHn is the induction hypothesis *)
+
+   .. _example_split_hypothesis:
+
+   .. example:: Using :tacn:`destruct` on a hypothesis beginning with :n:`and`
+
+      .. rocqtop:: reset none
+
+         Goal forall A B: Prop, A /\ B -> True.
+
+      .. rocqtop:: out
+
+         intros.
+
+      .. rocqtop:: all
+
+         destruct H.
 
    .. _example_destruct_ind_concl:
 
