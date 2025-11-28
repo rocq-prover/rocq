@@ -72,6 +72,11 @@ val pr_grammar : string list -> Pp.t
 val pr_custom_grammar : Libnames.qualid -> Pp.t
 val pr_keywords : unit -> Pp.t
 
+(** Register a handler for Print Custom Grammar. The handler should
+    return [None] for unknown entries and [Some] of the associated
+    entries for known entries. *)
+val register_custom_grammar_for_print : (Libnames.qualid -> Procq.Entry.any_t list option) -> unit
+
 val with_syntax_protection : ('a -> 'b) -> 'a -> 'b
 
 val declare_notation_toggle : locality_flag -> on:bool -> all:bool -> Notation.notation_query_pattern -> unit

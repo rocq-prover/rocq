@@ -663,6 +663,12 @@ let ltac2_custom_entry : (Tac2Custom.t, raw_tacexpr) Procq.entry_command =
 let find_custom_entry kn =
   Tac2Custom.Map.get kn @@ Option.get @@ Procq.GramState.get (Procq.gramstate()) ltac2_custom_map
 
+let () =
+  Metasyntax.register_custom_grammar_for_print @@ fun name ->
+  match CustomTab.locate name with
+  | exception Not_found -> None
+  | name -> Some [Any (find_custom_entry name)]
+
 let load_custom_entry i ((sp,kn),local) =
   let () = CustomTab.push (Until i) sp kn in
   let () = Procq.extend_entry_command ltac2_custom_entry kn in

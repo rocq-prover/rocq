@@ -170,12 +170,33 @@ let pr_grammar = function
     in
     pr_grammar_subset grammar
 
+let custom_grammars = ref []
+
+let register_custom_grammar_for_print h = custom_grammars := h :: !custom_grammars
+
+let () = register_custom_grammar_for_print @@ fun name ->
+  try
+    let name = intern_custom_name name in
+    let constr_entry, _ = Egramrocq.find_custom_entry name in
+    Some [Procq.Entry.Any constr_entry]
+  with UnknownCustomEntry _ ->
+    None
+
+let get_custom_grammars name =
+  let entries = List.filter_map (fun f -> f name) !custom_grammars in
+  match entries with
+  | [] -> raise (UnknownCustomEntry name)
+  | _ :: _ -> List.flatten entries
+
 let pr_custom_grammar name =
-  let name = intern_custom_name name in
-  let constr_entry, _ = Egramrocq.find_custom_entry name in
-  pr_grammar_subset
-    (String.Map.singleton (Procq.Entry.name constr_entry)
-       [Procq.Entry.Any constr_entry])
+  let entries = get_custom_grammars name in
+  let add_entry map (Procq.Entry.Any e as any) =
+    String.Map.update (Procq.Entry.name e)
+      (fun entries -> Some (any :: Option.default [] entries))
+      map
+  in
+  let map = List.fold_left add_entry String.Map.empty entries in
+  pr_grammar_subset map
 
 let pr_keywords () =
   Pp.prlist_with_sep Pp.fnl Pp.str (CString.Set.elements (CLexer.keywords (Procq.get_keyword_state())))
