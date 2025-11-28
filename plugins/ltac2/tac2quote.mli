@@ -47,6 +47,8 @@ module Refs : sig
   val t_exn : type_constant
   val t_reference : type_constant
 
+  val t_module : type_constant
+
 end
 
 val constructor : ?loc:Loc.t -> ltac_constructor -> raw_tacexpr list -> raw_tacexpr
@@ -101,6 +103,8 @@ val of_move_location : move_location -> raw_tacexpr
 
 val of_reference : reference or_anti -> raw_tacexpr
 
+val of_module : Libnames.qualid -> raw_tacexpr
+
 val of_hyp : ?loc:Loc.t -> Id.t CAst.t -> raw_tacexpr
 (** id ↦ 'Control.hyp @id' *)
 
@@ -131,6 +135,8 @@ val wit_pattern : (Constrexpr.constr_expr, Pattern.uninstantiated_pattern) Arg.t
 val wit_ident : (Id.t, Id.t) Arg.tag
 
 val wit_reference : (reference, GlobRef.t) Arg.tag
+
+val wit_module : (Libnames.qualid, ModPath.t) Arg.tag
 
 val wit_constr : (Constrexpr.constr_expr, Glob_term.glob_constr) Arg.tag
 
