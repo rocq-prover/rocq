@@ -2287,7 +2287,6 @@ SPLICE: [
 | ltac_selector
 | Constr.ident
 | attribute_list
-| term99
 | term90
 | term9
 | term8

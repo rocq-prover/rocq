@@ -262,7 +262,8 @@ rest of the Rocq Prover manual: :term:`terms <term>` and :term:`types
      .. prodn::
         term ::= @term100
         term100 ::= @term_cast
-        | @term10
+        | @term99
+        term99 ::= @term10
         term10 ::= @term_application
         | @term_forall_or_fun
         | @term_let

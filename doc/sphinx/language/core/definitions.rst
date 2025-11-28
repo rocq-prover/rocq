@@ -40,26 +40,26 @@ Type cast
 .. insertprodn term_cast term_cast
 
 .. prodn::
-   term_cast ::= @term10 <: @type
-   | @term10 <<: @type
-   | @term10 :> @type
-   | @term10 : @type
+   term_cast ::= @term99 <: @type
+   | @term99 <<: @type
+   | @term99 :> @type
+   | @term99 : @type
 
-The expression :n:`@term10 : @type` is a type cast expression. It enforces
-the type of :n:`@term10` to be :n:`@type`.
+The expression :n:`@term99 : @type` is a type cast expression. It enforces
+the type of :n:`@term99` to be :n:`@type`.
 
-:n:`@term10 <: @type` specifies that the virtual machine will be used
-to type check that :n:`@term10` has type :n:`@type` (see :tacn:`vm_compute`).
+:n:`@term99 <: @type` specifies that the virtual machine will be used
+to type check that :n:`@term99` has type :n:`@type` (see :tacn:`vm_compute`).
 
-:n:`@term10 <<: @type` specifies that compilation to OCaml will be used
-to type check that :n:`@term10` has type :n:`@type` (see :tacn:`native_compute`).
+:n:`@term99 <<: @type` specifies that compilation to OCaml will be used
+to type check that :n:`@term99` has type :n:`@type` (see :tacn:`native_compute`).
 
-:n:`@term10 :> @type` enforces the type of :n:`@term10` to be
+:n:`@term99 :> @type` enforces the type of :n:`@term99` to be
 :n:`@type` without leaving a trace in the produced value.
 This is a :gdef:`volatile cast`.
 
 If a scope is :ref:`bound <LocalInterpretationRulesForNotations>` to
-:n:`@type` then :n:`@term10` is interpreted in that scope.
+:n:`@type` then :n:`@term99` is interpreted in that scope.
 
 .. _gallina-definitions:
 

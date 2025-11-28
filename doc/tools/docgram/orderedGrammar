@@ -9,6 +9,10 @@ term: [
 
 term100: [
 | term_cast
+| term99
+]
+
+term99: [
 | term10
 ]
 
@@ -427,10 +431,10 @@ term_generalizing: [
 ]
 
 term_cast: [
-| term10 "<:" type
-| term10 "<<:" type
-| term10 ":>" type
-| term10 ":" type
+| term99 "<:" type
+| term99 "<<:" type
+| term99 ":>" type
+| term99 ":" type
 ]
 
 term_match: [
