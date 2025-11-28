@@ -83,11 +83,14 @@ val add_init_function : string -> (unit -> unit) -> unit
     [declare_cache_obj_full] if you also need to interact with Interp
     state.
 *)
-val declare_cache_obj : (unit -> unit) -> string -> unit
+val declare_cache_obj : (Summary.Synterp.mut -> unit) -> string -> unit
 
-type cache_obj = CacheObj : { synterp : unit -> 'a; interp : 'a -> unit } -> cache_obj
+type cache_obj = CacheObj : {
+    synterp : Summary.Synterp.mut -> 'a;
+    interp : Summary.Interp.mut -> 'a -> unit;
+  } -> cache_obj
 
-val interp_only_obj : (unit -> unit) -> cache_obj
+val interp_only_obj : (Summary.Interp.mut -> unit) -> cache_obj
 
 (** Register a callback with an interp phase. *)
 val declare_cache_obj_full : cache_obj -> string -> unit
@@ -96,10 +99,12 @@ val declare_cache_obj_full : cache_obj -> string -> unit
 
 type interp_fun
 
-val run_interp_fun : interp_fun -> unit
+val run_interp_fun : interp_fun -> Summary.Interp.mut -> unit
 
 (** Implementation of the [Declare ML Module] vernacular command. *)
-val declare_ml_modules : Vernacexpr.locality_flag -> string list -> interp_fun
+val declare_ml_modules : Summary.Synterp.mut -> Vernacexpr.locality_flag -> string list -> Summary.Interp.any_summary list * interp_fun
+
+val new_interp : Summary.Interp.mut -> bool -> Summary.Interp.any_summary list -> unit
 
 (** {5 Utilities} *)
 

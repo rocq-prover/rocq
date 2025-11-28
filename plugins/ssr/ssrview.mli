@@ -16,7 +16,7 @@ module AdaptorDb : sig
   type kind = Forward | Backward | Equivalence
 
   val get : kind -> Glob_term.glob_constr list
-  val declare : kind -> Glob_term.glob_constr list -> unit
+  val declare : Summary.Interp.mut -> kind -> Glob_term.glob_constr list -> unit
 
 end
 

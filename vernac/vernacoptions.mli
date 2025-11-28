@@ -11,16 +11,19 @@
 open Goptions
 
 val vernac_set_option :
+  'summary_mut ->
   locality:option_locality ->
-  stage:Summary.Stage.t ->
-  option_name -> Vernacexpr.option_setting -> unit
+  stage:(_,'summary_mut) Summary.StageG.t ->
+  option_name -> Vernacexpr.option_setting ->
+  unit
 
 val vernac_add_option :
-  Libobject.locality -> option_name -> table_value list -> unit
+  Summary.Interp.mut -> Libobject.locality -> option_name -> table_value list -> unit
 
 val vernac_remove_option :
-  Libobject.locality -> option_name -> table_value list -> unit
+  Summary.Interp.mut -> Libobject.locality -> option_name -> table_value list -> unit
 
 val vernac_mem_option : option_name -> table_value list -> unit
 
-val vernac_print_option : option_name -> unit
+val vernac_print_option : Summary.Interp.t ->
+  option_name -> unit

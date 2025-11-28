@@ -284,7 +284,7 @@ val find_grammars_by_name : string -> Entry.any_t list
 val with_grammar_rule_protection : ('a -> 'b) -> 'a -> 'b
 
 type frozen_t
-val parser_summary_tag : frozen_t Summary.Dyn.tag
+val parser_summary_tag : frozen_t Summary.Synterp.tag
 
 (** Parsing state handling *)
 val freeze : unit -> frozen_t
@@ -292,4 +292,4 @@ val unfreeze : frozen_t -> unit
 
 val get_keyword_state : unit -> CLexer.keyword_state
 
-val modify_keyword_state : (CLexer.keyword_state -> CLexer.keyword_state) -> unit
+val extend_keywords : string list -> unit

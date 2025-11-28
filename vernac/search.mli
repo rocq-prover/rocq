@@ -47,12 +47,15 @@ val search_filter : glob_search_item -> filter_function
 goal and the global environment for things matching [pattern] and
 satisfying module exclude/include clauses of [modinout]. *)
 
-val search_rewrite : env -> Evd.evar_map -> constr_pattern -> Libnames.full_path list search_restriction
-                  -> display_function -> unit
-val search_pattern : env -> Evd.evar_map -> constr_pattern -> Libnames.full_path list search_restriction
-                  -> display_function -> unit
-val search         : env -> Evd.evar_map -> (bool * glob_search_request) list
-                  -> Libnames.full_path list search_restriction -> display_function -> unit
+val search_rewrite : Summary.Interp.t ->
+  env -> Evd.evar_map -> constr_pattern -> Libnames.full_path list search_restriction
+  -> display_function -> unit
+val search_pattern : Summary.Interp.t ->
+  env -> Evd.evar_map -> constr_pattern -> Libnames.full_path list search_restriction
+  -> display_function -> unit
+val search : Summary.Interp.t ->
+  env -> Evd.evar_map -> (bool * glob_search_request) list
+  -> Libnames.full_path list search_restriction -> display_function -> unit
 
 type search_constraint =
   | Name_Pattern of Str.regexp
@@ -72,11 +75,13 @@ type 'a coq_object = {
   coq_object_object : 'a;
 }
 
-val interface_search : env -> Evd.evar_map -> (search_constraint * bool) list -> constr coq_object list
+val interface_search : Summary.Interp.t ->
+  env -> Evd.evar_map -> (search_constraint * bool) list -> constr coq_object list
 
 (** {6 Generic search function} *)
 
-val generic_search : env -> Evd.evar_map -> display_function -> unit
+val generic_search : Summary.Interp.t ->
+  env -> Evd.evar_map -> display_function -> unit
 (** This function iterates over all hypothesis of the goal numbered
     [glnum] (if present) and all known declarations. *)
 

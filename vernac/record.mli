@@ -46,7 +46,8 @@ module Ast : sig
 end
 
 val definition_structure
-  : flags:ComInductive.flags
+  : Summary.Interp.mut
+  -> flags:ComInductive.flags
   -> cumul_univ_decl_expr option
   -> inductive_kind
   -> primitive_proj:bool
@@ -86,7 +87,8 @@ end
 
 (** Ast.t list at the constr level *)
 val interp_structure
-  : flags:ComInductive.flags
+  : Summary.Interp.t
+  -> flags:ComInductive.flags
   -> cumul_univ_decl_expr option
   -> inductive_kind
   -> primitive_proj:bool
@@ -94,7 +96,7 @@ val interp_structure
   -> Record_decl.t
 
 
-val declare_existing_class : GlobRef.t -> unit
+val declare_existing_class : Summary.Interp.mut ->  GlobRef.t -> unit
 
 val canonical_inhabitant_id : isclass:bool -> Id.t -> Id.t
 
@@ -102,7 +104,8 @@ val canonical_inhabitant_id : isclass:bool -> Id.t -> Id.t
    current user Elpi, see https://github.com/LPCIC/coq-elpi/pull/151 *)
 module Internal : sig
   val declare_projections
-    : Names.inductive
+    : Summary.Interp.mut
+    -> Names.inductive
     -> kind:Decls.definition_object_kind
     -> inhabitant_id:Names.Id.t
     -> Data.projection_flags list
@@ -110,6 +113,6 @@ module Internal : sig
     -> Impargs.manual_implicits list
     -> Structure.projection list
 
-  val declare_structure_entry : Structure.t -> unit
+  val declare_structure_entry : Summary.Interp.mut -> Structure.t -> unit
 
 end

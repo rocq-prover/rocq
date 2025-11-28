@@ -10,7 +10,7 @@
 
 type key
 
-val declare_equiv_keys : key -> key -> unit
+val declare_equiv_keys : Summary.Interp.mut -> key -> key -> unit
 (** Declare two keys as being equivalent. *)
 
 val equiv_keys : key -> key -> bool

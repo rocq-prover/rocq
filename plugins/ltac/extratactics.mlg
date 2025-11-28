@@ -228,19 +228,19 @@ let classify_hint _ = VtSideff ([], VtLater)
 
 VERNAC COMMAND EXTEND HintRewrite CLASSIFIED BY { classify_hint }
 | #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ":" ne_preident_list(bl) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic bl o None l }
+  { add_rewrite_hint summary ~locality ~poly:polymorphic bl o None l }
 | #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t)
     ":" ne_preident_list(bl) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic bl o (Some t) l }
+  { add_rewrite_hint summary ~locality ~poly:polymorphic bl o (Some t) l }
 | #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic ["core"] o None l }
+  { add_rewrite_hint summary ~locality ~poly:polymorphic ["core"] o None l }
 | #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic ["core"] o (Some t) l }
+  { add_rewrite_hint summary ~locality ~poly:polymorphic ["core"] o (Some t) l }
 END
 
 VERNAC COMMAND EXTEND HintCreateRewriteDb CLASSIFIED BY { classify_hint }
 | #[ locality = Synterp.module_locality ] [ "Create" "Rewrite" "HintDb" ident(id) ] ->
-  { create_rewrite_hint_db ~local:locality ~name:(Id.to_string id) }
+  { create_rewrite_hint_db summary ~local:locality ~name:(Id.to_string id) }
 END
 
 (**********************************************************************)
@@ -287,36 +287,36 @@ VERNAC COMMAND EXTEND DeriveInversionClear
 | #[ polymorphic; ] [ "Derive" "Inversion_clear" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s false inv_clear_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c s false inv_clear_tac }
 
 | #[ polymorphic; ] [ "Derive" "Inversion_clear" identref(na) "with" constr(c) ] => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_clear_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_clear_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveInversion
 | #[ polymorphic; ] [ "Derive" "Inversion" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s false inv_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c s false inv_tac }
 
 | #[ polymorphic; ] [ "Derive" "Inversion" identref(na) "with" constr(c) ] => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversion
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c s true dinv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversionClear
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion_clear" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
   -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_clear_tac }
+      add_inversion_lemma_exn summary ~poly:polymorphic na c s true dinv_clear_tac }
 END
 
 (**********************************************************************)
@@ -393,27 +393,27 @@ let step left x tac =
 
 (* Main function to push lemmas in persistent environment *)
 
-let cache_transitivity_lemma (left,lem) =
+let cache_transitivity_lemma (left,lem) _sum =
   if left then
     transitivity_left_table  := lem :: !transitivity_left_table
   else
     transitivity_right_table := lem :: !transitivity_right_table
 
-let subst_transitivity_lemma (subst,(b,ref)) = (b,subst_mps subst ref)
+let subst_transitivity_lemma _sum subst (b,ref) = (b,subst_mps subst ref)
 
 let inTransitivity : bool * Constr.t -> obj =
-  declare_object @@ global_object_nodischarge "TRANSITIVITY-STEPS"
+  Libobject.Interp.declare_object @@ global_object_nodischarge "TRANSITIVITY-STEPS"
     ~cache:cache_transitivity_lemma
     ~subst:(Some subst_transitivity_lemma)
 
 (* Main entry points *)
 
-let add_transitivity_lemma left lem =
+let add_transitivity_lemma sum left lem =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let lem',ctx (*FIXME*) = Constrintern.interp_constr env sigma lem in
   let lem' = EConstr.to_constr sigma lem' in
-  Lib.add_leaf (inTransitivity (left,lem'))
+  Lib.Interp.add_leaf sum (inTransitivity (left,lem'))
 
 }
 
@@ -431,12 +431,12 @@ END
 
 VERNAC COMMAND EXTEND AddStepl CLASSIFIED AS SIDEFF
 | [ "Declare" "Left" "Step" constr(t) ] ->
-    { add_transitivity_lemma true t }
+    { add_transitivity_lemma summary true t }
 END
 
 VERNAC COMMAND EXTEND AddStepr CLASSIFIED AS SIDEFF
 | [ "Declare" "Right" "Step" constr(t) ] ->
-    { add_transitivity_lemma false t }
+    { add_transitivity_lemma summary false t }
 END
 
 (**********************************************************************)
@@ -664,7 +664,9 @@ END
 (** library/keys *)
 
 VERNAC COMMAND EXTEND Declare_keys CLASSIFIED AS SIDEFF
-| [ "Declare" "Equivalent" "Keys" constr(c) constr(c') ] -> { Internals.declare_equivalent_keys c c' }
+| [ "Declare" "Equivalent" "Keys" constr(c) constr(c') ] -> {
+  Internals.declare_equivalent_keys summary c c'
+}
 END
 
 VERNAC COMMAND EXTEND Print_keys CLASSIFIED AS QUERY

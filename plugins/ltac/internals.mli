@@ -63,7 +63,8 @@ val exact : Geninterp.interp_sign -> Ltac_pretype.closed_glob_constr -> unit Pro
 
 (** {5 Commands} *)
 
-val declare_equivalent_keys : Constrexpr.constr_expr -> Constrexpr.constr_expr -> unit
+val declare_equivalent_keys : Summary.Interp.mut ->
+  Constrexpr.constr_expr -> Constrexpr.constr_expr -> unit
 
 val infoH : pstate:Declare.Proof.t -> Tacexpr.raw_tactic_expr -> unit
 (** ProofGeneral command *)

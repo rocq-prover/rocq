@@ -503,7 +503,7 @@ module CoercionPrinting =
           CErrors.user_err
             Pp.(Id.print x ++ str " cannot be added with locality " ++ str local ++ str ".")
 
-    let discharge = let open GlobRef in function
+    let discharge _sum = let open GlobRef in function
       | ConstRef _ | ConstructRef _ | IndRef _ as x -> x
       | VarRef _ as x -> assert (not (Global.is_in_section x)); x
 

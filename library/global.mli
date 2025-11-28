@@ -87,7 +87,7 @@ val add_include :
 val open_section : unit -> unit
 (** [poly] is true when the section should be universe polymorphic *)
 
-val close_section : Summary.Interp.frozen -> unit
+val close_section : Summary.Interp.mut -> Summary.Interp.frozen -> unit
 (** Close the section and reset the global state to the one at the time when
     the section what opened. *)
 
@@ -112,11 +112,11 @@ val discharge_proj_repr : Projection.Repr.t -> Projection.Repr.t
 val start_module : Id.t -> ModPath.t
 val start_modtype : Id.t -> ModPath.t
 
-val end_module : Summary.Interp.frozen -> Id.t ->
+val end_module : Summary.Interp.mut -> Summary.Interp.frozen -> Id.t ->
   (Entries.module_struct_entry * inline) option ->
     ModPath.t * MBId.t list * Mod_subst.delta_resolver
 
-val end_modtype : Summary.Interp.frozen -> Id.t -> ModPath.t * MBId.t list
+val end_modtype : Summary.Interp.mut -> Summary.Interp.frozen -> Id.t -> ModPath.t * MBId.t list
 
 val add_module_parameter :
   MBId.t -> Entries.module_struct_entry -> inline ->
@@ -201,7 +201,7 @@ val current_modpath : unit -> ModPath.t
 
 val current_dirpath : unit -> DirPath.t
 
-val global_env_summary_tag : Safe_typing.safe_environment Summary.Dyn.tag
+val global_env_summary_tag : Safe_typing.safe_environment Summary.Interp.tag
 
 module Internal :
 sig

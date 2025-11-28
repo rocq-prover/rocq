@@ -64,7 +64,8 @@ type compile_info = {
 
 let ltac_state = Summary.ref empty_state ~name:"ltac2-state"
 
-let compiled_tacs = Summary.ref ~local:true ~name:"ltac2-compiled-state" KerName.Map.empty
+let get_compiled_tacs, set_compiled_tacs =
+  Summary.Interp.local_ref ~name:"ltac2-compiled-state" KerName.Map.empty
 
 type notation_data =
   | UntypedNota of raw_tacexpr
@@ -87,9 +88,9 @@ let interp_global kn =
 
 let set_compiled_global kn info v =
   assert (not (interp_global kn).gdata_mutable);
-  compiled_tacs := KerName.Map.add kn (info,v) !compiled_tacs
+  set_compiled_tacs @@ KerName.Map.add kn (info,v) @@ get_compiled_tacs ()
 
-let get_compiled_global kn = KerName.Map.find_opt kn !compiled_tacs
+let get_compiled_global kn = KerName.Map.find_opt kn @@ get_compiled_tacs ()
 
 let globals () = (!ltac_state).ltac_tactics
 

@@ -51,14 +51,14 @@ val declare_reduction : string -> reduction_function -> unit
 
 (** Adding a custom reduction (function to be called a vernac command).
    The boolean flag is the locality. *)
-val declare_red_expr : bool -> string -> red_expr -> unit
+val declare_red_expr : Summary.Interp.mut -> bool -> string -> red_expr -> unit
 
 (** Opaque and Transparent commands. *)
 
 (** Sets the expansion strategy of a constant. When the boolean is
    true, the effect is non-synchronous (i.e. it does not survive
    section and module closure). *)
-val set_strategy :
+val set_strategy : Summary.Interp.mut ->
   bool -> (Conv_oracle.level * Evaluable.t list) list -> unit
 
 (** call by value normalisation function using the virtual machine *)

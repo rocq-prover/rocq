@@ -155,11 +155,11 @@ let cache_Function (_,(finfos)) =
   then function_table := new_tbl
 *)
 
-let cache_Function finfos =
+let cache_Function finfos _sum =
   from_function := Cmap_env.add finfos.function_constant finfos !from_function;
   from_graph := Indmap_env.add finfos.graph_ind finfos !from_graph
 
-let subst_Function (subst, finfos) =
+let subst_Function _sum subst finfos =
   let do_subst_con c = Mod_subst.subst_constant subst c
   and do_subst_ind i = Mod_subst.subst_ind subst i in
   let function_constant' = do_subst_con finfos.function_constant in
@@ -198,7 +198,7 @@ let subst_Function (subst, finfos) =
     ; sprop_lemma = sprop_lemma'
     ; is_general = finfos.is_general }
 
-let discharge_Function finfos = Some finfos
+let discharge_Function _sum finfos = Some finfos
 
 let pr_ocst env sigma c =
   Option.fold_right
@@ -240,7 +240,7 @@ let pr_table env sigma tb =
 
 let in_Function : function_info -> Libobject.obj =
   let open Libobject in
-  declare_object
+  Libobject.Interp.declare_object
   @@ superglobal_object "FUNCTIONS_DB" ~cache:cache_Function
        ~subst:(Some subst_Function) ~discharge:discharge_Function
 
@@ -255,11 +255,11 @@ let find_or_none id =
 let find_Function_infos f = Cmap_env.find_opt f !from_function
 let find_Function_of_graph ind = Indmap_env.find_opt ind !from_graph
 
-let update_Function finfo =
+let update_Function sum finfo =
   (* Pp.msgnl (pr_info finfo); *)
-  Lib.add_leaf (in_Function finfo)
+  Lib.Interp.add_leaf sum (in_Function finfo)
 
-let add_Function is_general f =
+let add_Function sum is_general f =
   let f_id = Constant.label f in
   let equation_lemma = find_or_none (mk_equation_id f_id)
   and correctness_lemma = find_or_none (mk_correct_id f_id)
@@ -285,7 +285,7 @@ let add_Function is_general f =
     ; graph_ind
     ; is_general }
   in
-  update_Function finfos
+  update_Function sum finfos
 
 let pr_table env sigma = pr_table env sigma !from_function
 
@@ -450,10 +450,10 @@ let compose_prod l b = prodn (List.length l) l b
 type tcc_lemma_value = Undefined | Value of constr | Not_needed
 
 (* We only "purify" on exceptions. XXX: What is this doing here? *)
-let funind_purify f x =
-  let st = Vernacstate.freeze_full_state () in
+let funind_purify sum f x =
+  let st = Vernacstate.Interp.freeze_interp_state @@ Summary.Interp.get sum in
   try f x
   with e ->
     let e = Exninfo.capture e in
-    Vernacstate.unfreeze_full_state st;
+    Vernacstate.Interp.unfreeze_interp_state sum st;
     Exninfo.iraise e

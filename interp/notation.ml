@@ -295,7 +295,7 @@ type prim_token_infos = {
   pt_in_match : bool (** Is this prim token legal in match patterns ? *)
 }
 
-let cache_prim_token_interpretation infos =
+let cache_prim_token_interpretation infos _sum =
   let env = Global.env () in
   let ptii = infos.pt_interp_info in
   let sc = infos.pt_scope in
@@ -309,7 +309,7 @@ let cache_prim_token_interpretation infos =
         !prim_token_uninterp_infos in
   List.iter add_uninterp infos.pt_refs
 
-let subst_prim_token_interpretation (subs,infos) =
+let subst_prim_token_interpretation sum subs infos =
   { infos with
     pt_refs = List.map (subst_global_reference subs) infos.pt_refs }
 
@@ -317,14 +317,15 @@ let classify_prim_token_interpretation infos =
     if infos.pt_local then Dispose else Substitute
 
 let inPrimTokenInterp : prim_token_infos -> obj =
-  declare_object {(default_object "PRIM-TOKEN-INTERP") with
+  Libobject.Interp.declare_object
+    {(default_object "PRIM-TOKEN-INTERP") with
      open_function  = simple_open ~cat:notation_cat cache_prim_token_interpretation;
      cache_function = cache_prim_token_interpretation;
      subst_function = subst_prim_token_interpretation;
      classify_function = classify_prim_token_interpretation}
 
-let enable_prim_token_interpretation infos =
-  Lib.add_leaf (inPrimTokenInterp infos)
+let enable_prim_token_interpretation sum infos =
+  Lib.Interp.add_leaf sum (inPrimTokenInterp infos)
 
 (** Compatibility.
     Avoid the next two functions, they will now store unnecessary
@@ -978,7 +979,7 @@ type arguments_scope_discharge_request =
   | ArgsScopeManual
   | ArgsScopeNoDischarge
 
-let load_arguments_scope _ (_,r,scl,cls,allscopes) =
+let load_arguments_scope _ (_,r,scl,cls,allscopes) _sum =
   List.iter (List.iter check_scope) scl;
   (* force recomputation to take into account the possible extra "Bind
      Scope" of the current environment (e.g. so that after inlining of a
@@ -986,13 +987,13 @@ let load_arguments_scope _ (_,r,scl,cls,allscopes) =
   let initial_stamp = initial_scope_class_map in
   arguments_scope := GlobRefMap.add (Global.env ()) r (scl,cls,initial_stamp) !arguments_scope
 
-let cache_arguments_scope o =
-  load_arguments_scope 1 o
+let cache_arguments_scope o sum =
+  load_arguments_scope 1 o sum
 
 let subst_scope_class env subst cs =
   try Some (subst_cl_typ env subst cs) with Not_found -> None
 
-let subst_arguments_scope (subst,(req,r,scl,cls,allscopes)) =
+let subst_arguments_scope _sum subst (req,r,scl,cls,allscopes) =
   let r' = fst (subst_global subst r) in
   let subst_cl ocl = match ocl with
     | None -> ocl
@@ -1011,7 +1012,7 @@ let discharge_available_scopes map =
       let lbot = List.filter (fun x -> not (snd x)) lbot in
       if List.is_empty ltop && List.is_empty lbot then None else Some (ltop, lbot)) map
 
-let discharge_arguments_scope (req,r,scs,_cls,available_scopes) =
+let discharge_arguments_scope _sum (req,r,scs,_cls,available_scopes) =
   if req == ArgsScopeNoDischarge || (isVarRef r && Global.is_in_section r) then None
   else
     let n =
@@ -1028,7 +1029,7 @@ let discharge_arguments_scope (req,r,scs,_cls,available_scopes) =
 let classify_arguments_scope (req,_,_,_,_) =
   if req == ArgsScopeNoDischarge then Dispose else Substitute
 
-let rebuild_arguments_scope (req,r,scs,n_as_cls,available_scopes) =
+let rebuild_arguments_scope _sum (req,r,scs,n_as_cls,available_scopes) =
   match req with
     | ArgsScopeNoDischarge -> assert false
     | ArgsScopeAuto ->
@@ -1059,24 +1060,25 @@ type arguments_scope_obj =
     scope_class_map
 
 let inArgumentsScope : arguments_scope_obj -> obj =
-  declare_object {(default_object "ARGUMENTS-SCOPE") with
-      cache_function = cache_arguments_scope;
-      load_function = load_arguments_scope;
-      subst_function = subst_arguments_scope;
-      classify_function = classify_arguments_scope;
-      discharge_function = discharge_arguments_scope;
-      rebuild_function = rebuild_arguments_scope }
+  Libobject.Interp.declare_object
+    {(default_object "ARGUMENTS-SCOPE") with
+     cache_function = cache_arguments_scope;
+     load_function = load_arguments_scope;
+     subst_function = subst_arguments_scope;
+     classify_function = classify_arguments_scope;
+     discharge_function = discharge_arguments_scope;
+     rebuild_function = rebuild_arguments_scope }
 
 let is_local local ref = local || isVarRef ref && Global.is_in_section ref
 
-let declare_arguments_scope_gen req r (scl,cls) =
-  Lib.add_leaf (inArgumentsScope (req,r,scl,cls,!scope_class_map))
+let declare_arguments_scope_gen sum req r (scl,cls) =
+  Lib.Interp.add_leaf sum (inArgumentsScope (req,r,scl,cls,!scope_class_map))
 
-let declare_arguments_scope local r scl =
+let declare_arguments_scope sum local r scl =
   let req = if is_local local r then ArgsScopeNoDischarge else ArgsScopeManual in
   (* We empty the list of argument classes to disable further scope
      re-computations and keep these manually given scopes. *)
-  declare_arguments_scope_gen req r (scl,[])
+  declare_arguments_scope_gen sum req r (scl,[])
 
 let find_arguments_scope env r =
   try
@@ -1090,13 +1092,13 @@ let find_arguments_scope env r =
       scl'
   with Not_found -> []
 
-let declare_ref_arguments_scope ref =
+let declare_ref_arguments_scope sum ref =
   let env = Global.env () in (* FIXME? *)
   let sigma = Evd.from_env env in
   let typ = EConstr.of_constr @@ fst @@ Typeops.type_of_global_in_context env ref in
   (* cls is fixed but scs is only an initial value that can be modified in find_arguments_scope *)
   let (scs,cls as o) = compute_arguments_scope_full env sigma !scope_class_map typ in
-  declare_arguments_scope_gen ArgsScopeAuto ref o
+  declare_arguments_scope_gen sum ArgsScopeAuto ref o
 
 (********************************)
 (* Encoding notations as string *)
@@ -1811,11 +1813,11 @@ let init () =
   prim_token_uninterp_infos := GlobRefMap.empty
 
 let _ =
-  Summary.declare_summary "symbols"
-    { stage = Summary.Stage.Interp;
-      Summary.freeze_function = freeze;
-      Summary.unfreeze_function = unfreeze;
-      Summary.init_function = init }
+  Summary.Interp.declare "symbols"
+    { freeze;
+      unfreeze;
+      init;
+    }
 
 let with_notation_protection f x =
   let open Memprof_coq.Resource_bind in
