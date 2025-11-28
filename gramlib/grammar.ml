@@ -16,6 +16,7 @@ type norec
 type mayrec
 
 module type S = sig
+  type synterp_state
   type keyword_state
   type te
   type 'c pattern
@@ -64,7 +65,7 @@ module type S = sig
     val make : string -> 'a t mod_estate
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
+    type 'a parser_fun = { parser_fun : synterp_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
     val print : Format.formatter -> 'a t -> unit with_estate
@@ -134,6 +135,7 @@ end
 
 module type ExtS = sig
 
+  type synterp_state
   type keyword_state
 
   module EState : sig
@@ -144,13 +146,15 @@ module type ExtS = sig
     type t = {
       estate : EState.t;
       kwstate : keyword_state;
+      synstate : synterp_state;
       recover : bool;
       has_non_assoc : bool;
     }
   end
 
   include S
-    with type keyword_state := keyword_state
+    with type synterp_state := synterp_state
+     and type keyword_state := keyword_state
      and type 'a with_gstate := GState.t -> 'a
      and type 'a with_kwstate := keyword_state -> 'a
      and type 'a with_estate := EState.t -> 'a
@@ -168,8 +172,9 @@ module type ExtS = sig
 end
 
 (* Implementation *)
-module GMake (L : Plexing.S) : ExtS
-  with type keyword_state := L.keyword_state
+module GMake (Syn : sig type t end) (L : Plexing.S) : ExtS
+  with type synterp_state := Syn.t
+   and type keyword_state := L.keyword_state
    and type te := L.te
    and type 'c pattern := 'c L.pattern
 = struct
@@ -251,7 +256,7 @@ type 'a ty_level = Level : (_, _, 'a) ty_rec_level -> 'a ty_level
 
 type 'a ty_desc =
 | Dlevels of 'a ty_level list
-| Dparser of (L.keyword_state -> 'a parser_t)
+| Dparser of (Syn.t -> 'a parser_t)
 
 (** The closures are built by partially applying the parsing functions
     to [edesc] but without depending on the state (so when we update
@@ -275,6 +280,7 @@ and GState : sig
   type t = {
     estate : EState.t;
     kwstate : L.keyword_state;
+    synstate : Syn.t;
     recover : bool;
     has_non_assoc : bool;
   }
@@ -282,6 +288,7 @@ end = struct
   type t = {
     estate : EState.t;
     kwstate : L.keyword_state;
+    synstate : Syn.t;
     recover : bool;
     has_non_assoc : bool;
   }
@@ -1613,10 +1620,10 @@ module Entry = struct
     start_parser_of_entry gstate e 0 ts
   let name e = e.ename
 
-  type 'a parser_fun = { parser_fun : L.keyword_state -> (L.keyword_state,te) LStream.t -> 'a parser_v }
+  type 'a parser_fun = { parser_fun : Syn.t -> (L.keyword_state,te) LStream.t -> 'a parser_v }
   let of_parser_val e { parser_fun = p } = {
     eentry = e;
-    estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.kwstate strm);
+    estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.synstate strm);
     econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
     edesc = Dparser p;
   }
