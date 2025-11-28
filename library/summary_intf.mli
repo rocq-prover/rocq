@@ -30,25 +30,31 @@ module type Staged = sig
   (** We provide safe projection from the summary to the types stored in it.*)
   type _ tag
 
+  type ('v,'freeze,'unfreeze) declaration_gen = {
+    freeze : 'v -> 'freeze;
+    unfreeze : 'unfreeze -> 'v;
+    init : unit -> 'v;
+  }
+
   (** Types of global Rocq states. The ['v] type should be pure but
       doesn't need to be marshallable, and can be efficiently
       accessed. The ['frozen] type should be pure and marshallable by
       the standard OCaml marshalling functions.
 
       NB: ['v = unit] means the accessible state is handled outside [t]. *)
-  type ('v,'frozen) declaration = {
-    freeze : 'v -> 'frozen;
-    unfreeze : 'frozen -> 'v;
-    init : unit -> 'v;
-  }
+  type ('v,'frozen) declaration = ('v,'frozen,'frozen) declaration_gen
 
   val declare : string -> ('v,'frozen) declaration -> 'v v
   val declare_tag : string -> ('v,'frozen) declaration -> 'v v * 'frozen tag
 
+  (** State where unfreezing may take advantage of existing state *)
+  val declare_tag_gen : string -> ('v,'frozen,('v option * 'frozen)) declaration_gen ->
+    'v v * 'frozen tag
+
   (** Common case where ['v] is marshallable, [freeze] and [unfreeze] are the identity. *)
   val simple_declaration : 'v -> ('v,'v) declaration
 
-  val declare_simple : string -> 'v -> 'v v
+  val declare_simple : name:string -> 'v -> 'v v
 
   (** Legacy API, TODO deprecate *)
   val ref : name:string -> 'v -> 'v ref
@@ -66,9 +72,9 @@ module type Staged = sig
   val empty_frozen : frozen
   val freeze_summaries : t -> frozen
 
-  (** Unfreeze doesn't use the data in the [mut] argument, but it may
-      modify imperative global state so we require a [mut] handle
-      instead of having type [frozen -> t]. *)
+  (** Unfreeze may read the data in the [mut] argument for optimizations (cf procq),
+      also it may modify imperative global state so we require a [mut] handle
+      instead of having type [frozen -> t] or [frozen -> t -> t]. *)
   val unfreeze_summaries : ?partial:bool -> frozen -> mut -> unit
 
   val init_summaries : unit -> t
