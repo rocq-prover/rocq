@@ -93,13 +93,10 @@ let hintmap_of env sigma secvars concl =
      else (fun db -> Hint_db.map_auto env sigma ~secvars hdc concl db)
    (* FIXME: should be (Hint_db.map_eauto hdc concl db) *)
 
-let e_exact flags h =
-  Proofview.Goal.enter begin fun gl ->
-    let env = Proofview.Goal.env gl in
-    let sigma = Proofview.Goal.sigma gl in
-    let sigma, c = Hints.fresh_hint env sigma h in
-    Proofview.Unsafe.tclEVARS sigma <*> e_give_exact c
-  end
+let e_exact _flags h =
+  (* XXX: we never use the argument flags *)
+  let flags = eauto_unif_flags in
+  Hints.hint_res_pf ~with_evars:false ~with_classes:false ~flags h
 
 let rec e_trivial_fail_db db_list local_db =
   let next = Proofview.Goal.enter begin fun gl ->
