@@ -152,7 +152,7 @@ val mk_discharged_id : Id.t -> Id.t
 val is_tagged : string -> string -> bool
 val has_discharged_tag : string -> bool
 val ssrqid : string -> Libnames.qualid
-val mk_anon_id : string -> Id.t list -> Id.t
+val mk_anon_id : string -> named_context_val -> Id.t
 val nbargs_open_constr : Environ.env -> Evd.evar_map * EConstr.t -> int
 val pf_nbargs : Environ.env -> Evd.evar_map -> EConstr.t -> int
 

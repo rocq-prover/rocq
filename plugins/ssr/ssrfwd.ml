@@ -391,7 +391,7 @@ let wlogtac ist (((clr0, pats),_),_) (gens, ((_, ct))) hint suff ghave =
       | None, _ -> None, Tacticals.tclIDTAC, clear0, pats
       | Some (Some id),_ -> Some id, introid id, clear0, pats
       | Some _,_ ->
-          let id = mk_anon_id "tmp" (Tacmach.pf_ids_of_hyps gl) in
+          let id = mk_anon_id "tmp" (Environ.named_context_val env) in
           Some id, introid id, Tacticals.tclTHEN clear0 (Tactics.clear [id]), pats in
       let tac_specialize = match id with
       | None -> Tacticals.tclIDTAC

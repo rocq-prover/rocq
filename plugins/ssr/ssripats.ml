@@ -288,12 +288,13 @@ let intro_end =
 (** [=> _] *****************************************************************)
 let intro_clear ids =
   Goal.enter begin fun gl ->
-    let _, clear_ids, ren =
-      List.fold_left (fun (used_ids, clear_ids, ren) id ->
-            let new_id = Ssrcommon.mk_anon_id (Id.to_string id) used_ids in
-            (new_id :: used_ids, new_id :: clear_ids, (id, new_id) :: ren))
-                     (Tacmach.pf_ids_of_hyps gl, [], []) ids
+    let env = Proofview.Goal.env gl in
+    let fold (used_ids, clear_ids, ren) id =
+      let new_id = Ssrcommon.mk_anon_id (Id.to_string id) used_ids in
+      let used_ids = Environ.push_named_context_val (LocalAssum (annotR new_id, mkProp)) used_ids in
+      (used_ids, new_id :: clear_ids, (id, new_id) :: ren)
     in
+    let _, clear_ids, ren = List.fold_left fold (Environ.named_context_val env, [], []) ids in
     Tactics.rename_hyp ren <*>
     isCLR_PUSHL clear_ids
 end
@@ -661,12 +662,13 @@ let elim_intro_tac ipats ?seed what eqid ssrelim is_rec clr =
        intro_eq ()
     | Some (IPatId ipat) ->
        let intro_lhs = Goal.enter begin fun g ->
+         let env = Proofview.Goal.env g in
          let sigma = Goal.sigma g in
          let elim_name = match clr, what with
            | [SsrHyp(_, x)], _ -> x
            | _, Ssrelim.EConstr(_,_,t) when EConstr.isVar sigma t ->
               EConstr.destVar sigma t
-           | _ -> Ssrcommon.mk_anon_id "K" (Tacmach.pf_ids_of_hyps g) in
+           | _ -> Ssrcommon.mk_anon_id "K" (Environ.named_context_val env) in
          Tacticals.tclFIRST
            [ Ssrcommon.tclINTRO_ID elim_name
            ; Ssrcommon.tclINTRO_ANON ~seed:"K" ()]
@@ -691,7 +693,7 @@ let elim_intro_tac ipats ?seed what eqid ssrelim is_rec clr =
            let open EConstr in
            let refl =
              mkApp (eq, [|Vars.lift 1 case_ty; mkRel 1; Vars.lift 1 case|]) in
-           let name = Ssrcommon.mk_anon_id "K" (Tacmach.pf_ids_of_hyps g) in
+           let name = Ssrcommon.mk_anon_id "K" (Environ.named_context_val env) in
 
            let new_concl =
              mkProd (make_annot (Name name) ERelevance.relevant, case_ty, mkArrow refl ERelevance.relevant (Vars.lift 2 concl)) in

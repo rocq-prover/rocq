@@ -307,6 +307,7 @@ let max_suffix m (t, j0 as tj0) id  =
 
 (** creates a fresh (w.r.t. `gl_ids` and internal names) inaccessible name of the form _tXX_ *)
 let mk_anon_id t gl_ids =
+  let gl_ids = List.map NamedDecl.get_id (EConstr.named_context_of_val gl_ids) in
   let m, si0, id0 =
     let s = ref (Printf.sprintf  "_%s_" t) in
     if is_internal_name !s then s := "_" ^ !s;
@@ -955,10 +956,11 @@ let introid ?(orig=ref Anonymous) name =
 
 let anontac decl =
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
   let id =  match RelDecl.get_name decl with
   | Name id ->
-    if is_discharged_id id then id else mk_anon_id (Id.to_string id) (Tacmach.pf_ids_of_hyps gl)
-  | _ -> mk_anon_id ssr_anon_hyp (Tacmach.pf_ids_of_hyps gl) in
+    if is_discharged_id id then id else mk_anon_id (Id.to_string id) (Environ.named_context_val env)
+  | _ -> mk_anon_id ssr_anon_hyp (Environ.named_context_val env) in
   introid id
   end
 
@@ -1252,7 +1254,7 @@ let tclINTRO ~id ~conclusion:k = Goal.enter begin fun gl ->
   let env, sigma, g, relevance = Goal.(env gl, sigma gl, concl gl, relevance gl) in
   let decl, t, no_red = decompose_assum env sigma g in
   let original_name = Rel.Declaration.get_name decl in
-  let already_used = Tacmach.pf_ids_of_hyps gl in
+  let already_used = Environ.named_context_val env in
   let id = match id, original_name with
     | Id id, _ -> id
     | Seed id, _ -> mk_anon_id id already_used
@@ -1260,10 +1262,10 @@ let tclINTRO ~id ~conclusion:k = Goal.enter begin fun gl ->
        if is_discharged_id id then id
        else mk_anon_id (Id.to_string id) already_used
     | Anon, Anonymous ->
-       let ids = Tacmach.pf_ids_of_hyps gl in
+       let ids = Environ.named_context_val env in
        mk_anon_id ssr_anon_hyp ids
   in
-  if List.mem id already_used then
+  if Id.Map.mem id already_used.Environ.env_named_map then
     errorstrm Pp.(Id.print id ++ str" already used");
   unsafe_intro env (set_decl_id id decl) ~relevance t <*>
   (if no_red then tclUNIT () else tclFULL_BETAIOTA) <*>
@@ -1342,8 +1344,8 @@ let tacIS_INJECTION_CASE ?ty t = begin
 end
 
 let tclWITHTOP tac = Goal.enter begin fun gl ->
-  let top =
-    mk_anon_id "top_assumption" (Tacmach.pf_ids_of_hyps gl) in
+  let env = Proofview.Goal.env gl in
+  let top = mk_anon_id "top_assumption" (Environ.named_context_val env) in
   tclINTRO_ID top <*>
   tac (EConstr.mkVar top) <*>
   Tactics.clear [top]

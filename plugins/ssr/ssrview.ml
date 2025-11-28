@@ -94,13 +94,14 @@ let vsINIT ~view ~subject_name ~to_clear =
 (** Initializes the state in which view data is accumulated when views are
 applied to the first assumption in the goal *)
 let vsBOOTSTRAP = Goal.enter_one ~__LOC__ begin fun gl ->
+  let env = Proofview.Goal.env gl in
   let concl = Goal.concl gl in
   let id = (* We keep the orig name for checks in "in" tcl *)
     let open EConstr in
     match kind_of_type (Goal.sigma gl) concl with
     | ProdType({binder_name=Name.Name id}, _, _)
       when Ssrcommon.is_discharged_id id -> id
-    | _ -> mk_anon_id "view_subject" (Tacmach.pf_ids_of_hyps gl) in
+    | _ -> mk_anon_id "view_subject" (Environ.named_context_val env) in
   let view = EConstr.mkVar id in
   Ssrcommon.tclINTRO_ID id <*>
   tclSET (Some { subject_name = [id]; view; to_clear = [] })

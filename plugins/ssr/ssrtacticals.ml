@@ -135,10 +135,11 @@ let endclausestac id_map clseq gl_id cl0 =
 let tclCLAUSES tac (gens, clseq) =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
   if clseq = InGoal || clseq = InSeqGoal then tac else
   let clr_gens = pf_clauseids gens clseq in
   let clear = Tacticals.tclTHENLIST (List.rev(List.fold_right clr_of_wgen clr_gens [])) in
-  let gl_id = mk_anon_id hidden_goal_tag (Tacmach.pf_ids_of_hyps gl) in
+  let gl_id = mk_anon_id hidden_goal_tag (Environ.named_context_val env) in
   let cl0 = Proofview.Goal.concl gl in
   let dtac =
     Proofview.Goal.enter begin fun gl ->
