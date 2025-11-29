@@ -1,5 +1,5 @@
 open Format
-open Term
+open Sorts
 open Names
 open Vmemitcodes
 open Values

@@ -12,6 +12,7 @@ open CErrors
 open Util
 open Names
 open Univ
+open Sorts
 open Term
 open Constr
 open Context

@@ -188,37 +188,3 @@ val destArity : types -> arity
 
 (** Tell if a term has the form of an arity *)
 val isArity : types -> bool
-
-(* Deprecated *)
-
-type sorts = Sorts.t = private
-  | SProp | Prop | Set
-  | Type of Univ.Universe.t  (** Type *)
-  | QSort of Sorts.QVar.t * Univ.Universe.t
-[@@ocaml.deprecated "(8.8) Alias for Sorts.t"]
-
-val decompose_prod_assum : types -> Constr.rel_context * types
-[@@ocaml.deprecated "(8.18) Use [decompose_prod_decls] instead."]
-val decompose_lam_assum : constr -> Constr.rel_context * constr
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_decls] instead."]
-val decompose_prod_n_assum : int -> types -> Constr.rel_context * types
-[@@ocaml.deprecated "(8.18) Use [decompose_prod_n_decls] instead."]
-val prod_assum : types -> Constr.rel_context
-[@@ocaml.deprecated "(8.18) Use [prod_decls] instead."]
-val lam_assum : constr -> Constr.rel_context
-[@@ocaml.deprecated "(8.18) Use [lambda_decls] instead."]
-val prod_n_assum : int -> types -> Constr.rel_context
-[@@ocaml.deprecated "(8.18) Use [prod_n_decls] instead."]
-val strip_prod_assum : types -> types
-[@@ocaml.deprecated "(8.18) Use [strip_prod_decls] instead."]
-val strip_lam_assum : constr -> constr
-[@@ocaml.deprecated "(8.18) Use [strip_lambda_decls] instead."]
-
-val decompose_lam : t -> (Name.t binder_annot * t) list * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda] instead."]
-val decompose_lam_n : int -> t -> (Name.t binder_annot * t) list * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_n] instead."]
-val decompose_lam_n_assum : int -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_n_assum] instead."]
-val decompose_lam_n_decls : int -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_n_decls] instead."]

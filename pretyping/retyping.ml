@@ -13,7 +13,6 @@ module CVars = Vars
 open Pp
 open CErrors
 open Util
-open Term
 open Constr
 open Context
 open Inductiveops

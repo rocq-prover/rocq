@@ -31,35 +31,6 @@ val lookup_rel_id : Id.t -> ('c, 't, 'r) Context.Rel.pt -> int * 'c option * 't
 val rel_vect : int -> int -> Constr.constr array
 val rel_list : int -> int -> constr list
 
-(** Prod/Lambda/LetIn destructors on econstr *)
-
-val mkProd_or_LetIn : rel_declaration -> types -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.mkProd_or_LetIn]."]
-
-val mkProd_wo_LetIn : rel_declaration -> types -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.mkProd_wo_LetIn]."]
-
-val it_mkProd : types -> (Name.t EConstr.binder_annot * types) list -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkProd]."]
-
-val it_mkLambda : constr -> (Name.t EConstr.binder_annot * types) list -> constr
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkLambda]."]
-
-val it_mkProd_or_LetIn : types -> rel_context -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkProd_or_LetIn]."]
-
-val it_mkProd_wo_LetIn : types -> rel_context -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkProd_wo_LetIn]."]
-
-val it_mkLambda_or_LetIn : Constr.constr -> Constr.rel_context -> Constr.constr
-  [@@ocaml.deprecated "(8.17) Use synonymous [Term.it_mkLambda_or_LetIn]."]
-
-val it_mkNamedProd_or_LetIn : Evd.evar_map -> types -> named_context -> types
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkNamedProd_or_LetIn]."]
-
-val it_mkNamedLambda_or_LetIn : Evd.evar_map -> constr -> named_context -> constr
-  [@@ocaml.deprecated "(8.17) Use synonymous [EConstr.it_mkNamedLambda_or_LetIn]."]
-
 (** Prod/Lambda/LetIn destructors on constr *)
 
 val it_mkNamedProd_wo_LetIn : Constr.types -> Constr.named_context -> Constr.types
@@ -205,12 +176,6 @@ val ids_of_named_context : ('c, 't, 'r) Context.Named.pt -> Id.t list
 val ids_of_context : env -> Id.t list
 val names_of_rel_context : env -> names_context
 
-(* [context_chop n Γ] returns (Γ₁,Γ₂) such that [Γ]=[Γ₂Γ₁], [Γ₁] has
-   [n] hypotheses, excluding local definitions, and [Γ₁], if not empty,
-   starts with an hypothesis (i.e. [Γ₁] has the form empty or [x:A;Γ₁'] *)
-val context_chop : int -> Constr.rel_context -> Constr.rel_context * Constr.rel_context
-  [@@ocaml.deprecated "(8.16) Use synonymous [Context.Rel.chop_nhyps]."]
-
 (* [env_rel_context_chop n env] extracts out the [n] top declarations
    of the rel_context part of [env], counting both local definitions and
    hypotheses *)
@@ -224,16 +189,6 @@ val add_vname : Id.Set.t -> Name.t -> Id.Set.t
 val process_rel_context : (rel_declaration -> env -> env) -> env -> env
 val assums_of_rel_context : ('c, 't, 'r) Context.Rel.pt -> ((Name.t,'r) Context.pbinder_annot * 't) list
 
-val lift_rel_context : int -> Constr.rel_context -> Constr.rel_context
-  [@@ocaml.deprecated "(8.15) Use synonymous [Vars.lift_rel_context]."]
-val substl_rel_context : Constr.constr list -> Constr.rel_context -> Constr.rel_context
-  [@@ocaml.deprecated "(8.15) Use synonymous [Vars.substl_rel_context]."]
-val smash_rel_context : Constr.rel_context -> Constr.rel_context
-  [@@ocaml.deprecated "(8.15) Use synonymous [Vars.smash_rel_context]."]
-val map_rel_context_with_binders :
-  (int -> 'c -> 'c) -> ('c, 'c, 'r) Context.Rel.pt -> ('c, 'c, 'r) Context.Rel.pt
-  [@@ocaml.deprecated "(8.15) Use synonymous [Context.Rel.map_with_binders]."]
-
 val map_rel_context_in_env :
   (env -> Constr.constr -> Constr.constr) -> env -> Constr.rel_context -> Constr.rel_context
 val fold_named_context_both_sides :
@@ -241,12 +196,6 @@ val fold_named_context_both_sides :
     Constr.named_context -> init:'a -> 'a
 val mem_named_context_val : Id.t -> named_context_val -> bool
 val compact_named_context : Evd.evar_map -> EConstr.named_context -> EConstr.compacted_context
-
-val map_rel_decl : ('r1 -> 'r2 ) -> ('a -> 'b) -> ('a, 'a, 'r1) Context.Rel.Declaration.pt -> ('b, 'b, 'r2) Context.Rel.Declaration.pt
-[@@deprecated "(8.20) Use [Context.Rel.Declaration.map_constr_het]"]
-
-val map_named_decl : ('r1 -> 'r2 ) -> ('a -> 'b) -> ('a, 'a, 'r1) Context.Named.Declaration.pt -> ('b, 'b, 'r2) Context.Named.Declaration.pt
-[@@deprecated "(8.20) Use [Context.Named.Declaration.map_constr_het]"]
 
 val clear_named_body : Id.t -> env -> env
 
@@ -260,15 +209,6 @@ val dependency_closure : env -> Evd.evar_map -> named_context -> Id.Set.t -> Id.
 
 (** Test if an identifier is the basename of a global reference *)
 val is_section_variable : env -> Id.t -> bool
-
-val global_of_constr : Evd.evar_map -> constr -> GlobRef.t * EInstance.t
-[@@ocaml.deprecated "(8.12) Use [EConstr.destRef] instead (throws DestKO instead of Not_found)."]
-
-val is_global : Environ.env -> Evd.evar_map -> GlobRef.t -> constr -> bool
-[@@ocaml.deprecated "(8.12) Use [EConstr.isRefX] instead."]
-
-val isGlobalRef : Evd.evar_map -> constr -> bool
-[@@ocaml.deprecated "(8.12) Use [EConstr.isRef] instead."]
 
 val is_template_polymorphic_ref : env -> Evd.evar_map -> constr -> bool
 val is_template_polymorphic_ind : env -> Evd.evar_map -> constr -> bool

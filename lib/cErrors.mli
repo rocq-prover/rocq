@@ -11,11 +11,6 @@
 (** This modules implements basic manipulations of errors for use
     throughout Rocq's code. *)
 
-(** {6 Error handling} *)
-
-val push : exn -> Exninfo.iexn
-[@@ocaml.deprecated "(8.12) please use [Exninfo.capture]"]
-
 (** {6 Generic errors.}
 
  [Anomaly] is used for system errors and [UserError] for the

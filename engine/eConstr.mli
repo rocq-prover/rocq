@@ -191,15 +191,6 @@ module UnsafeMonomorphic : sig
   val mkConstruct : constructor -> t
 end
 
-val mkConst : Constant.t -> t
-[@@deprecated "(8.18) Use [mkConstU] or if truly needed [UnsafeMonomorphic.mkConst]"]
-
-val mkInd : inductive -> t
-[@@deprecated "(8.18) Use [mkIndU] or if truly needed [UnsafeMonomorphic.mkInd]"]
-
-val mkConstruct : constructor -> t
-[@@deprecated "(8.18) Use [mkConstructU] or if truly needed [UnsafeMonomorphic.mkConstruct]"]
-
 val mkRef : GlobRef.t * EInstance.t -> t
 
 val type1 : t
@@ -324,9 +315,6 @@ val decompose_lambda_n_assum : Evd.evar_map -> int -> t -> rel_context * t
 val decompose_lambda_n_decls : Evd.evar_map -> int -> t -> rel_context * t
 
 val prod_decls : Evd.evar_map -> t -> rel_context
-
-val compose_lam : (Name.t binder_annot * t) list -> t -> t
-[@@ocaml.deprecated "(8.17) Use [it_mkLambda] instead."]
 
 val to_lambda : Evd.evar_map -> int -> t -> t
 
@@ -459,9 +447,6 @@ val fresh_global :
   ?loc:Loc.t -> ?rigid:Evd.rigid -> ?names:EInstance.t -> Environ.env ->
   Evd.evar_map -> GlobRef.t -> Evd.evar_map * t
 
-val is_global : Environ.env -> Evd.evar_map -> GlobRef.t -> t -> bool
-[@@ocaml.deprecated "(8.12) Use [EConstr.isRefX] instead."]
-
 val expand_case : Environ.env -> Evd.evar_map ->
   case -> (t,t,ERelevance.t) Inductive.pexpanded_case
 
@@ -571,23 +556,3 @@ val iter_with_binders : Evd.evar_map ->
   ('a -> 'a) -> ('a -> handle -> t -> unit) -> 'a -> handle -> kind -> unit
 
 end
-
-(** Deprecated *)
-
-val decompose_lambda_assum : Evd.evar_map -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_decls] instead."]
-val decompose_prod_assum : Evd.evar_map -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_prod_decls] instead."]
-val decompose_prod_n_assum : Evd.evar_map -> int -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_prod_n_decls] instead."]
-val prod_assum : Evd.evar_map -> t -> rel_context
-[@@ocaml.deprecated "(8.18) Use [prod_decls] instead."]
-
-val decompose_lam : Evd.evar_map -> t -> (Name.t binder_annot * t) list * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda] instead."]
-val decompose_lam_n_assum : Evd.evar_map -> int -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_n_assum] instead."]
-val decompose_lam_n_decls : Evd.evar_map -> int -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_n_decls] instead."]
-val decompose_lam_assum : Evd.evar_map -> t -> rel_context * t
-[@@ocaml.deprecated "(8.18) Use [decompose_lambda_assum] instead."]

@@ -124,14 +124,6 @@ val protect_state : freeze:(unit -> 'st) -> unfreeze:('st ->unit) -> scope:(unit
 
 val atomify : ('a -> 'b) -> 'a -> 'b
 
-(** {6 Enriched exceptions} *)
-
-type iexn = Exninfo.iexn
-[@@ocaml.deprecated "(8.12) please use [Exninfo.iexn]"]
-
-val iraise : Exninfo.iexn -> 'a
-[@@ocaml.deprecated "(8.12) please use [Exninfo.iraise]"]
-
 (** {6 Misc. } *)
 
 type ('a, 'b) union = ('a, 'b) CSig.union = Inl of 'a | Inr of 'b

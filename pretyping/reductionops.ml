@@ -1260,8 +1260,6 @@ let is_conv ?(reds=TransparentState.full) env sigma x y =
   is_fconv ~reds Conversion.CONV env sigma x y
 let is_conv_leq ?(reds=TransparentState.full) env sigma x y =
   is_fconv ~reds Conversion.CUMUL env sigma x y
-let check_conv ?(pb=Conversion.CUMUL) ?(ts=TransparentState.full) env sigma x y =
-  is_fconv ~reds:ts pb env sigma x y
 
 let sigma_compare_sorts pb s0 s1 sigma =
   match pb with
@@ -1524,28 +1522,6 @@ let dest_arity env sigma c =
 
 let sort_of_arity env sigma c = snd (dest_arity env sigma c)
 
-(* deprecated (wrong behavior)  *)
-let hnf_decompose_prod_n_decls env sigma n =
-  let rec decrec env m ln c = if Int.equal m 0 then (ln,c) else
-    match EConstr.kind sigma (whd_all env sigma c) with
-      | Prod (n,a,c0) ->
-          decrec (push_rel (LocalAssum (n,a)) env)
-            (m-1) (Context.Rel.add (LocalAssum (n,a)) ln) c0
-      | _                      -> invalid_arg "whd_decompose_prod_n_decls"
-  in
-  decrec env n Context.Rel.empty
-
-(* deprecated (wrong behavior) *)
-let hnf_decompose_lambda_n_assum env sigma n =
-  let rec decrec env m ln c = if Int.equal m 0 then (ln,c) else
-    match EConstr.kind sigma (whd_all env sigma c) with
-      | Lambda (n,a,c0) ->
-          decrec (push_rel (LocalAssum (n,a)) env)
-            (m-1) (Context.Rel.add (LocalAssum (n,a)) ln) c0
-      | _                      -> invalid_arg "whd_decompose_lambda_n_assum"
-  in
-  decrec env n Context.Rel.empty
-
 let whd_decompose_prod_n_assum env sigma n =
   let rec decrec env m ctx c = if Int.equal m 0 then (ctx,c) else
     match EConstr.kind sigma (whd_allnolet env sigma c) with
@@ -1740,15 +1716,3 @@ let inferred_universes elims =
 end
 
 let inferred_universes env = Infer.inferred_universes (Environ.qualities env)
-
-(* Deprecated *)
-
-let splay_prod = whd_decompose_prod
-let splay_lam = whd_decompose_lambda
-let splay_prod_assum = whd_decompose_prod_decls
-let splay_prod_n = hnf_decompose_prod_n_decls
-let splay_lam_n = hnf_decompose_lambda_n_assum
-
-let hnf_decompose_prod = whd_decompose_prod
-let hnf_decompose_lambda = whd_decompose_lambda
-let hnf_decompose_prod_decls = whd_decompose_prod_decls

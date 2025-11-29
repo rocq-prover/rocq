@@ -16,7 +16,7 @@
 
 open Util
 open Names
-open Term
+open Sorts
 open Constr
 open Context
 open Environ

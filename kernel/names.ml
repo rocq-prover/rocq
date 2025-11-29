@@ -565,10 +565,6 @@ module KerPair = struct
     let hash x = KerName.hash (canonical x)
   end
 
-  (** Default (logical) comparison and hash is on the canonical part *)
-  let equal = CanOrd.equal
-  let hash = CanOrd.hash
-
   module Self_Hashcons =
     struct
       type t = kernel_pair
@@ -813,9 +809,6 @@ struct
 
     let arg c = c.proj_arg
 
-    let hash p =
-      Hashset.Combine.combinesmall p.proj_arg (Ind.CanOrd.hash p.proj_ind)
-
     let compare_gen a b =
       let c = Int.compare a.proj_arg b.proj_arg in
       if c <> 0 then c
@@ -851,9 +844,6 @@ struct
       let hash p =
         Hashset.Combine.combinesmall p.proj_arg (Ind.UserOrd.hash p.proj_ind)
     end
-
-    let equal = CanOrd.equal
-    let compare = CanOrd.compare
 
     let canonize p =
       let { proj_ind; proj_npars; proj_arg; proj_name } = p in
@@ -911,12 +901,6 @@ struct
   let unfolded = snd
   let unfold (c, b as p) = if b then p else (c, true)
 
-  let equal (c, b) (c', b') = Repr.equal c c' && b == b'
-
-  let repr_equal p p' = Repr.equal (repr p) (repr p')
-
-  let hash (c, b) = (if b then 1 else 0) + Repr.hash c
-
   module CanOrd = struct
     type nonrec t = t
     let compare (p, b) (p', b') =
@@ -954,10 +938,6 @@ struct
 
   let hcons = Hashcons.simple_hcons HashProjection.generate HashProjection.hcons ()
 
-  let compare (p, b) (p', b') =
-    let c = Bool.compare b b' in
-    if c <> 0 then c else Repr.compare p p'
-
   let map f (c, b as x) =
     let c' = Repr.map f c in
     if c' == c then x else (c', b)
@@ -988,14 +968,6 @@ module GlobRefInternal = struct
     | ConstRef of Constant.t       (** A reference to the environment. *)
     | IndRef of inductive          (** A reference to an inductive type. *)
     | ConstructRef of constructor  (** A reference to a constructor of an inductive type. *)
-
-  let equal gr1 gr2 =
-    gr1 == gr2 || match gr1,gr2 with
-    | ConstRef con1, ConstRef con2 -> Constant.equal con1 con2
-    | IndRef kn1, IndRef kn2 -> Ind.CanOrd.equal kn1 kn2
-    | ConstructRef kn1, ConstructRef kn2 -> Construct.CanOrd.equal kn1 kn2
-    | VarRef v1, VarRef v2 -> Id.equal v1 v2
-    | (ConstRef _ | IndRef _ | ConstructRef _ | VarRef _), _ -> false
 
   let global_eq_gen eq_cst eq_ind eq_cons x y =
     x == y ||
@@ -1037,8 +1009,6 @@ module GlobRef = struct
     | ConstRef of Constant.t       (** A reference to the environment. *)
     | IndRef of inductive          (** A reference to an inductive type. *)
     | ConstructRef of constructor  (** A reference to a constructor of an inductive type. *)
-
-  let equal = GlobRefInternal.equal
 
   (* By default, [global_reference] are ordered on their canonical part *)
 

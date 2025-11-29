@@ -607,5 +607,3 @@ let tclTYPEOFTHEN ?refresh c tac =
     let sigma = Proofview.Goal.sigma gl in
     let (sigma, t) = Typing.type_of ?refresh env sigma c in
     Proofview.Unsafe.tclEVARS sigma <*> tac sigma t)
-
-let tclSELECT = Goal_select.tclSELECT

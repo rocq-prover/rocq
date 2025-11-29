@@ -84,9 +84,6 @@ val get_warning : string -> warning elt
 val warning_status : warning -> status
 (** Current status of the warning. *)
 
-val get_status : name:string -> status
-(* [@@ocaml.deprecated "(8.18) Use [CWarnings.warning_status]"] *)
-
 val normalize_flags_string : string -> string
 (** Cleans up a user provided warnings status string, e.g. removing unknown
     warnings (in which case a warning is emitted) or subsumed warnings . *)

@@ -10,10 +10,6 @@
 
 open Pp
 
-(** Aliases *)
-
-let push = Exninfo.capture
-
 (* Errors *)
 
 exception Anomaly of string option * Pp.t (* System errors *)

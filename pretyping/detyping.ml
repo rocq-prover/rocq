@@ -16,7 +16,7 @@ open Util
 open Names
 open Constr
 open Context
-open Term
+open Sorts
 open EConstr
 open Vars
 open Inductiveops

@@ -373,12 +373,6 @@ sig
 
   include QNameS with type t := t
 
-  val equal : t -> t -> bool [@@ocaml.deprecated "(8.13) Use QConstant.equal"]
-  (** Default comparison, alias for [CanOrd.equal] *)
-
-  val hash : t -> int [@@ocaml.deprecated "(8.13) Use QConstant.hash"]
-  (** Hashing function *)
-
   val change_label : t -> Id.t -> t
   (** Builds a new constant name with a different label *)
 
@@ -443,11 +437,6 @@ sig
   (** Comparisons *)
 
   include QNameS with type t := t
-
-  val equal : t -> t -> bool [@@ocaml.deprecated "(8.13) Use QMutInd.equal"]
- (** Default comparison, alias for [CanOrd.equal] *)
-
-  val hash : t -> int [@@ocaml.deprecated "(8.13) Use QMutInd.hash"]
 
   (** Displaying *)
 
@@ -582,10 +571,6 @@ module Projection : sig
     val arg : t -> int
     val label : t -> Id.t
 
-    val equal : t -> t -> bool [@@ocaml.deprecated "(8.13) Use QProjection.equal"]
-    val hash : t -> int [@@ocaml.deprecated "(8.13) Use QProjection.hash"]
-    val compare : t -> t -> int [@@ocaml.deprecated "(8.13) Use QProjection.compare"]
-
     val map : (MutInd.t -> MutInd.t) -> t -> t
     val map_npars : (int -> int) -> t -> t
 
@@ -612,19 +597,8 @@ module Projection : sig
   val unfolded : t -> bool
   val unfold : t -> t
 
-  val equal : t -> t -> bool
-  [@@ocaml.deprecated "(8.13) Use QProjection.equal"]
-  val hash : t -> int
-  [@@ocaml.deprecated "(8.13) Use QProjection.hash"]
   val hcons : t Hashcons.f
   (** Hashconsing of projections. *)
-
-  val repr_equal : t -> t -> bool
-  [@@ocaml.deprecated "(8.13) Use an explicit projection of Repr"]
-  (** Ignoring the unfolding boolean. *)
-
-  val compare : t -> t -> int
-  [@@ocaml.deprecated "(8.13) Use QProjection.compare"]
 
   val map : (MutInd.t -> MutInd.t) -> t -> t
   val map_npars : (int -> int) -> t -> t
@@ -658,9 +632,6 @@ module GlobRef : sig
     | ConstRef of Constant.t       (** A reference to the environment. *)
     | IndRef of inductive          (** A reference to an inductive type. *)
     | ConstructRef of constructor  (** A reference to a constructor of an inductive type. *)
-
-  val equal : t -> t -> bool
-  [@@ocaml.deprecated "(8.18) Use QGlobRef.equal"]
 
   val is_bound : t -> bool
 

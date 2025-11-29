@@ -896,10 +896,6 @@ let intro_move idopt hto = intro_move_avoid idopt Id.Set.empty hto
 
 (**** Multiple introduction tactics ****)
 
-let rec intros_using = function
-  | []     -> Proofview.tclUNIT()
-  | str::l -> Tacticals.tclTHEN (intro_using str) (intros_using l)
-
 let rec intros_mustbe_force = function
   | []     -> Proofview.tclUNIT()
   | str::l -> Tacticals.tclTHEN (intro_mustbe_force str) (intros_mustbe_force l)

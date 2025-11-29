@@ -66,10 +66,6 @@ let get_warning name =
 
 let warning_status w = w.current
 
-let get_status ~name = match get_warning name with
-  | There w -> warning_status w
-  | NotThere | OtherType -> assert false
-
 type _ tag = ..
 
 type w = W : Loc.t option * 'a tag * 'a -> w
