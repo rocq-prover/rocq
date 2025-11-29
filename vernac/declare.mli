@@ -136,6 +136,7 @@ val declare_mutual_definitions
   :  info:Info.t
   -> cinfo: Constr.t CInfo.t list
   -> opaque:bool
+  -> eff:Evd.side_effects
   -> uctx:UState.t
   -> bodies:Constr.t list
   -> possible_guard:Pretyping.possible_guard * Sorts.relevance list
