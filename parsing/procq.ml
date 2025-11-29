@@ -333,7 +333,6 @@ module Prim =
 
     (* parsed like ident but interpreted as a term *)
     let hyp = Entry.make "hyp"
-    let var = hyp
 
     let name = Entry.make "name"
     let identref = Entry.make "identref"

@@ -12,7 +12,6 @@ module CVars = Vars
 
 open CErrors
 open Util
-open Term
 open Constr
 open Context
 open Environ

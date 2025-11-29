@@ -1143,8 +1143,6 @@ let mkNamedProd_wo_LetIn sigma decl c =
 let it_mkProd init = List.fold_left (fun c (n,t)  -> mkProd (n, t, c)) init
 let it_mkLambda init = List.fold_left (fun c (n,t)  -> mkLambda (n, t, c)) init
 
-let compose_lam l b = it_mkLambda b l
-
 let it_mkProd_or_LetIn t ctx = List.fold_left (fun c d -> mkProd_or_LetIn d c) t ctx
 let it_mkLambda_or_LetIn t ctx = List.fold_left (fun c d -> mkLambda_or_LetIn d c) t ctx
 
@@ -1222,8 +1220,6 @@ let fresh_global ?loc ?rigid ?names env sigma reference =
   let (evd,t) = Evd.fresh_global ?loc ?rigid ?names env sigma reference in
   evd, t
 
-let is_global = isRefX
-
 let lookup_constant = Evd.MiniEConstr.lookup_constant
 
 let constant_value_in env sigma (kn, u) =
@@ -1292,16 +1288,5 @@ module UnsafeMonomorphic = struct
   let mkInd i = of_kind (Ind (in_punivs i))
   let mkConstruct c = of_kind (Construct (in_punivs c))
 end
-
-(* deprecated *)
-
-let decompose_lambda_assum = decompose_lambda_decls
-let decompose_prod_assum = decompose_prod_decls
-let decompose_prod_n_assum = decompose_prod_n_decls
-let prod_assum = prod_decls
-let decompose_lam = decompose_lambda
-let decompose_lam_n_assum = decompose_lambda_n_assum
-let decompose_lam_n_decls = decompose_lambda_n_decls
-let decompose_lam_assum = decompose_lambda_assum
 
 include UnsafeMonomorphic

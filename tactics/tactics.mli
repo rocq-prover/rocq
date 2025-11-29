@@ -105,10 +105,6 @@ val intro_avoiding : Id.Set.t -> unit Proofview.tactic
     Fails if [id] is not already in the context. *)
 val intro_replacing : Id.t -> unit Proofview.tactic
 
-(** Deprecated version of [intro_using_then] kept for backwards compatibility. *)
-val intro_using : Id.t -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intro_using_then] to avoid renaming issues."]
-
 (** [intro_using_then id tac] introduces a single variable named [id]. It refreshes the name [id] if needed,
     and applies [tac] to the resulting identifier. *)
 val intro_using_then : Id.t -> (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
@@ -123,10 +119,6 @@ val intros_mustbe_force : Id.t list -> unit Proofview.tactic
 (** [intro_then tac] introduces a single variable with an automatically-generated name,
     and applies [tac] to the resulting identifier. *)
 val intro_then : (Id.t -> unit Proofview.tactic) -> unit Proofview.tactic
-
-(** Deprecated variant of [intros_using_then] kept for backwards compatibility. *)
-val intros_using : Id.t list -> unit Proofview.tactic
-[@@ocaml.deprecated "(8.13) Prefer [intros_using_then] to avoid renaming issues."]
 
 (** Generalization of [intro_using_then] to a list of variables (processed from left to right). *)
 val intros_using_then : Id.t list -> (Id.t list -> unit Proofview.tactic) -> unit Proofview.tactic

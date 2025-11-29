@@ -13,6 +13,7 @@ open CErrors
 open Util
 open Names
 open Nameops
+open Sorts
 open Term
 open Constr
 open Context
@@ -452,18 +453,6 @@ let lookup_rel_id id sign =
       else lookrec (n+1) l
   in
   lookrec 1 sign
-
-let mkProd_or_LetIn = EConstr.mkProd_or_LetIn
-let mkProd_wo_LetIn = EConstr.mkProd_wo_LetIn
-
-let it_mkProd = EConstr.it_mkProd
-let it_mkLambda = EConstr.it_mkLambda
-
-let it_mkProd_or_LetIn = EConstr.it_mkProd_or_LetIn
-let it_mkProd_wo_LetIn = EConstr.it_mkProd_wo_LetIn
-let it_mkLambda_or_LetIn = Term.it_mkLambda_or_LetIn
-let it_mkNamedProd_or_LetIn = EConstr.it_mkNamedProd_or_LetIn
-let it_mkNamedLambda_or_LetIn = EConstr.it_mkNamedLambda_or_LetIn
 
 (* On Constr *)
 let it_named_context_quantifier f ~init = List.fold_left (fun c d -> f d c) init
@@ -1055,19 +1044,6 @@ let is_section_variable env id =
   try let _ = Environ.lookup_named id env in true
   with Not_found -> false
 
-let global_of_constr sigma c =
-  let open GlobRef in
-  match EConstr.kind sigma c with
-  | Const (c, u) -> ConstRef c, u
-  | Ind (i, u) -> IndRef i, u
-  | Construct (c, u) -> ConstructRef c, u
-  | Var id -> VarRef id, EConstr.EInstance.empty
-  | _ -> raise Not_found
-
-let is_global = EConstr.isRefX
-
-let isGlobalRef = EConstr.isRef
-
 let is_template_polymorphic_ref env sigma f =
   match EConstr.kind sigma f with
   | Ind (ind, u) | Construct ((ind, _), u) ->
@@ -1213,19 +1189,10 @@ let map_rel_context_in_env f env sign =
   in
   aux env [] (List.rev sign)
 
-let map_rel_context_with_binders = Context.Rel.map_with_binders
-let substl_rel_context = Vars.substl_rel_context
-let lift_rel_context = Vars.lift_rel_context
-let smash_rel_context = Vars.smash_rel_context
-
 let fold_named_context_both_sides f l ~init = List.fold_right_and_left f l init
 
 let mem_named_context_val id ctxt =
   try ignore(Environ.lookup_named_ctxt id ctxt); true with Not_found -> false
-
-let map_rel_decl = RelDecl.map_constr_het
-
-let map_named_decl = NamedDecl.map_constr_het
 
 let compact_named_context sigma sign =
   let compact l decl =
@@ -1314,16 +1281,6 @@ let prod_applist_decls sigma n c l =
     | LetIn(_,b,_,c), _ -> app (n-1) (Vars.substl subst b::subst) c l
     | _ -> anomaly (Pp.str "Not enough prod/let's.") in
   app n [] c l
-
-(* Cut a context ctx in 2 parts (ctx1,ctx2) with ctx1 containing k non let-in
-     variables skips let-in's; let-in's in the middle are put in ctx2 *)
-let context_chop k ctx =
-  let rec chop_aux acc = function
-    | (0, l2) -> (List.rev acc, l2)
-    | (n, (RelDecl.LocalDef _ as h)::t) -> chop_aux (h::acc) (n, t)
-    | (n, (h::t)) -> chop_aux (h::acc) (pred n, t)
-    | (_, []) -> anomaly (Pp.str "context_chop.")
-  in chop_aux [] (k,ctx)
 
 (* Do not skip let-in's *)
 let env_rel_context_chop k env =

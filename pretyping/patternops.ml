@@ -133,13 +133,6 @@ let rec head_pattern_bound (t:constr_pattern) =
       anomaly ~label:"head_pattern_bound" (Pp.str "not a type.")
     | PExtra e -> Util.Empty.abort e
 
-let head_of_constr_reference sigma c = match EConstr.kind sigma c with
-  | Const (sp,_) -> GlobRef.ConstRef sp
-  | Construct (sp,_) -> GlobRef.ConstructRef sp
-  | Ind (sp,_) -> GlobRef.IndRef sp
-  | Var id -> GlobRef.VarRef id
-  | _ -> anomaly (Pp.str "Not a rigid reference.")
-
 let mkPRef env gr =
   PRef (Environ.QGlobRef.canonize env gr)
 

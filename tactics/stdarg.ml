@@ -49,8 +49,6 @@ let wit_identref =
 let wit_hyp =
   make0 ~dyn:(val_tag (topwit wit_ident)) "hyp"
 
-let wit_var = wit_hyp
-
 let wit_ref = make0 "ref"
 
 let wit_smart_global = make0 ~dyn:(val_tag (topwit wit_ref)) "smart_global"

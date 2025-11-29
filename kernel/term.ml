@@ -371,23 +371,3 @@ let rec isArity c =
   | Cast (c,_,_)      -> isArity c
   | Sort _          -> true
   | _               -> false
-
-(* Deprecated *)
-
-let decompose_prod_assum = decompose_prod_decls
-let decompose_lam_assum = decompose_lambda_decls
-let decompose_prod_n_assum = decompose_prod_n_decls
-let prod_assum = prod_decls
-let lam_assum = lambda_decls
-let prod_n_assum = prod_n_decls
-let strip_prod_assum = strip_prod_decls
-let strip_lam_assum = strip_lambda_decls
-let decompose_lam = decompose_lambda
-let decompose_lam_n = decompose_lambda_n
-let decompose_lam_n_assum = decompose_lambda_n_assum
-let decompose_lam_n_decls = decompose_lambda_n_decls
-
-type sorts = Sorts.t = private
-  | SProp | Prop | Set
-  | Type of Univ.Universe.t  (** Type *)
-  | QSort of Sorts.QVar.t * Univ.Universe.t
