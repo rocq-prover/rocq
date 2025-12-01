@@ -74,7 +74,7 @@ Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 Register eq_elim as core.eq.rect.
 
-Register Scheme eq_ind as Minimality for eq.
+Register Scheme eq_ind as Minimality for eq Sort Prop.
 
   Section equality.
 

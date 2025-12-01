@@ -358,7 +358,7 @@ let print_registered () =
 let print_registered_schemes () =
   let schemes = DeclareScheme.all_schemes() in
   let pr_one_scheme ind ((name,qual,b), c) =
-    pr_global (ConstRef c) ++ str " registered as " ++
+    pr_global c ++ str " registered as " ++
     str ((String.concat " " name) ^ (match qual with
           | Some s -> " (" ^ (UnivGen.QualityOrSet.family_to_str s) ^ ")"
           | None -> " (None)")) ++
@@ -2355,11 +2355,6 @@ let vernac_register ~atts qid r =
       Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
   | RegisterScheme { inductive; scheme_kind = (scheme_name,qual,is_mutual) as scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
-    let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
-    let gr = match gr with
-      | ConstRef c -> c
-      | _ -> CErrors.user_err ?loc:qid.loc Pp.(str "Register Scheme: expecing a constant.")
-    in
     let () = if not (Ind_tables.is_declared_scheme_object scheme_kind) then
         CErrors.user_err Pp.(str ("unknown scheme kind " ^ (String.concat " " scheme_name)))
     in

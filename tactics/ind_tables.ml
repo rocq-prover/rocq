@@ -363,7 +363,7 @@ let force_find_scheme kind (mind,i as ind) =
       | s,MutualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
         let deps = match deps with None -> [] | Some deps -> deps env mind true in (* /!\ true *)
-        let sch = empty_schemes senv in
+        let sch = empty_schemes eff in
         begin match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps with
           | None -> assert false
           | Some eff -> 

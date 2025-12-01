@@ -81,8 +81,9 @@ let build_mutual_induction_scheme_in_type env dep sort isrec l =
     in
     loop 0 n sigma []
   in
+  let tmp_lrecspec = List.map (fun (((indd,ii),inst),dep,new_sort) -> ((indd,ii),dep,new_sort)) lrecspec in
   let sigma, listdecl =
-    if isrec then Indrec.build_mutual_induction_scheme env sigma ~force_mutual:false lrecspec
+    if isrec then Indrec.build_mutual_induction_scheme env sigma ~force_mutual:false tmp_lrecspec inst
     else
       List.fold_left_map (fun sigma (ind,dep,sort) ->
           let sigma, c = Indrec.build_case_analysis_scheme env sigma ind dep sort in
