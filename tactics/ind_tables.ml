@@ -46,7 +46,7 @@ let pr_scheme_kind (kind : Key.t) =
   let (str_list, opt_str,b) = kind in
   let pr_list = Pp.prlist Pp.str str_list in
   let pr_option = match opt_str with
-    | Some s -> Pp.str (" (" ^ (UnivGen.family_to_str s) ^ ")")
+    | Some s -> Pp.str (" (" ^ (UnivGen.QualityOrSet.family_to_str s) ^ ")")
     | None -> Pp.str " (None)"
   in
   Pp.(pr_list ++ pr_option)
@@ -75,7 +75,7 @@ let key_str key =
   let (str_list, opt_str,b) = key in
   let str_list = String.concat " " str_list in
   let str_option = match opt_str with
-    | Some s -> " (" ^ (UnivGen.family_to_str s) ^ ")"
+    | Some s -> " (" ^ (UnivGen.QualityOrSet.family_to_str s) ^ ")"
     | None -> " (None)"
   in
   str_list ^ str_option

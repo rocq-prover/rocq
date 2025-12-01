@@ -357,20 +357,15 @@ let print_registered () =
 
 let print_registered_schemes () =
   let schemes = DeclareScheme.all_schemes() in
-  let pr_one_scheme ind (kind, c) =
-    pr_global c ++ str " registered as " ++ str kind ++ str " for " ++ pr_global (IndRef ind)
+  let pr_one_scheme ind ((name,qual,b), c) =
+    pr_global (ConstRef c) ++ str " registered as " ++
+    str ((String.concat " " name) ^ (match qual with
+          | Some s -> " (" ^ (UnivGen.QualityOrSet.family_to_str s) ^ ")"
+          | None -> " (None)")) ++
+    str " for " ++ pr_global (IndRef ind)
   in
   let pr_schemes_of_ind (ind, schemes) =
-    let tmp = DeclareScheme.Key.Map.bindings schemes in
-    let tmpp = List.map (fun ((a,c,d),b) ->
-        (* /!\ will print 2 times if both individual and mutual (represented by bool d here) are defined for a given scheme *)
-        let s1 = String.concat " " a in
-        let s2 = match c with
-          | Some s -> " (" ^ (UnivGen.family_to_str s) ^ ")"
-          | None -> " (None)"
-        in
-        ((s1 ^ s2),b)) tmp in
-    prlist_with_sep fnl (pr_one_scheme ind) tmpp
+    prlist_with_sep fnl (pr_one_scheme ind) (DeclareScheme.Key.Map.bindings schemes)
   in
   hov 0 (prlist_with_sep fnl pr_schemes_of_ind (Indmap_env.bindings schemes))
 
@@ -2358,19 +2353,19 @@ let vernac_register ~atts qid r =
     else
       let local = Attributes.parse hint_locality_default_superglobal atts in
       Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
-  | RegisterScheme { inductive; scheme_kind } ->
+  | RegisterScheme { inductive; scheme_kind = (scheme_name,qual,is_mutual) as scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
     let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
     let gr = match gr with
       | ConstRef c -> c
       | _ -> CErrors.user_err ?loc:qid.loc Pp.(str "Register Scheme: expecing a constant.")
     in
-    let () = if not (Ind_tables.is_declared_scheme_object (scheme_kind_s, Some UnivGen.QualityOrSet.qtype,false)) then
-        CErrors.user_err Pp.(str ("unknown scheme kind " ^ (String.concat " " scheme_kind)))
+    let () = if not (Ind_tables.is_declared_scheme_object scheme_kind) then
+        CErrors.user_err Pp.(str ("unknown scheme kind " ^ (String.concat " " scheme_name)))
     in
     let ind = Smartlocate.global_inductive_with_alias inductive in
     Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
-    DeclareScheme.declare_scheme local (scheme_kind_s, Some UnivGen.QualityOrSet.qtype,false) (ind,gr)
+    DeclareScheme.declare_scheme local scheme_kind (ind,gr)
 
 let vernac_library_attributes atts =
   if Global.is_curmod_library () && not (Lib.sections_are_opened ()) then

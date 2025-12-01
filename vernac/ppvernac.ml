@@ -1261,11 +1261,11 @@ let pr_synpure_vernac_expr v =
         (keyword "Register" ++ spc() ++ pr_qualid qid ++ spc () ++ str "as"
          ++ spc () ++ pr_qualid name)
     )
-  | VernacRegister (qid, RegisterScheme {inductive; scheme_kind}) ->
+  | VernacRegister (qid, RegisterScheme { inductive; scheme_kind = (scheme_name,qual,is_mutual) }) ->
     return (
       hov 2
         (keyword "Register" ++ spc() ++ keyword "Scheme" ++ spc() ++ pr_qualid qid ++ spc () ++ str "as"
-         ++ spc () ++ Pp.prlist Pp.str scheme_kind ++ spc() ++ str "for" ++ spc() ++ pr_qualid inductive)
+         ++ spc () ++ Pp.prlist Pp.str scheme_name ++ spc() ++ str "for" ++ spc() ++ pr_qualid inductive)
     )
   | VernacRegister (qid, RegisterInline) ->
     return (
