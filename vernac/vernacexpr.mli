@@ -293,7 +293,7 @@ type section_subset_expr =
 type register_kind =
   | RegisterInline
   | RegisterCoqlib of qualid
-  | RegisterScheme of { inductive : qualid; scheme_kind : string list }
+  | RegisterScheme of { inductive : qualid; scheme_kind : (string list * UnivGen.QualityOrSet.t option * bool) }
 
 (** {6 Types concerning the module layer} *)
 
