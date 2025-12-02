@@ -15,7 +15,8 @@ module type S = sig
   type te
   type 'c pattern
   val tok_pattern_eq : 'a pattern -> 'b pattern -> ('a, 'b) Util.eq option
-  val tok_pattern_strings : 'c pattern -> string * string option
+  val tok_pattern_exact : _ pattern -> bool
+  val tok_pattern_strings : keyword_state -> 'c pattern -> string * string option
 
   (** Returning a stream equipped with a location function *)
   val tok_func : ?loc:Loc.t -> (unit,char) Stream.t -> (keyword_state,te) LStream.t

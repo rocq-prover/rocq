@@ -72,7 +72,7 @@ module type S = sig
     type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
-    val print : Format.formatter -> 'a t -> unit with_estate
+    val print : Format.formatter -> 'a t -> unit with_kwstate with_estate
     val is_empty : 'a t -> bool with_estate
 
     type any_t = Any : 'a t -> any_t

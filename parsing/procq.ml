@@ -193,7 +193,7 @@ module Entry = struct
       (fun estate e -> Unsafe.existing_of_parser estate e p)
       ()
   let parse_token_stream e strm = parse_token_stream e strm (gstate())
-  let print fmt e = print fmt e (gstate()).estate
+  let print fmt e = let gstate = gstate() in print fmt e gstate.estate gstate.kwstate
   let is_empty e = is_empty e (gstate()).estate
   let accumulate_in e = accumulate_in e (gstate()).estate
   let all_in () = all_in () (gstate()).estate

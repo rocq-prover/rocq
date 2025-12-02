@@ -21,7 +21,7 @@ type 'c p =
   | PQUOTATION : string -> string p
   | PEOI : unit p
 
-val pattern_strings : 'c p -> string * string option
+val pattern_exact : _ p -> bool
 
 type t =
   | KEYWORD of string

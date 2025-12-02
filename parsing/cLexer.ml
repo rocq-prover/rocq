@@ -729,6 +729,22 @@ let next_token ~diff_mode ttree loc s : (Tok.t * Loc.t, Exninfo.iexn) Result.t =
   let f (diff_mode, ttree, loc, s) = next_token ~diff_mode ttree loc s in
   CErrors.to_result ~f (diff_mode, ttree, loc, s)
 
+let pattern_strings : type c. _ -> c p -> string * string option =
+  fun kwstate -> function
+  | PKEYWORD s -> "", Some s
+  | PIDENT (Some s as os) ->
+    let kind = if is_keyword kwstate s then "" else "IDENT" in
+    kind, os
+  | PIDENT None -> "IDENT", None
+  | PFIELD s -> "FIELD", s
+  | PNUMBER None -> "NUMBER", None
+  | PNUMBER (Some n) -> "NUMBER", Some (NumTok.Unsigned.sprint n)
+  | PSTRING s -> "STRING", s
+  | PLEFTQMARK -> "LEFTQMARK", None
+  | PBULLET s -> "BULLET", s
+  | PQUOTATION lbl -> "QUOTATION", Some lbl
+  | PEOI -> "EOI", None
+
 (** {6 The lexer of Rocq} *)
 
 module MakeLexer (Diff : sig val mode : bool end)
@@ -741,7 +757,8 @@ module MakeLexer (Diff : sig val mode : bool end)
   type te = Tok.t
   type 'c pattern = 'c Tok.p
   let tok_pattern_eq = Tok.equal_p
-  let tok_pattern_strings = Tok.pattern_strings
+  let tok_pattern_exact = Tok.pattern_exact
+  let tok_pattern_strings = pattern_strings
   let tok_func ?(loc=Loc.(initial ToplevelInput)) cs =
     let cur_loc = ref loc in
     Gramlib.LStream.from ~loc
