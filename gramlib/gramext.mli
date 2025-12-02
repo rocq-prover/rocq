@@ -7,6 +7,7 @@ type position =
   | Last
   | Before of string
   | After of string
+  | Unique
 
 type g_assoc = NonA | RightA | LeftA | BothA
 

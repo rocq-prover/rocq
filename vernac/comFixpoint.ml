@@ -464,7 +464,7 @@ let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl
     let force = List.map (fun (_,extra) -> Id.Set.of_list (List.map_filter (fun d -> Nameops.Name.to_option (RelDecl.get_name d)) extra)) fixextras in
     let dummy_fixtypes = List.map3 (build_dummy_fix_type sigma) fixctxs fixccls fixextras in
     let impls = compute_internalization_env env sigma ~force Recursive fixnames dummy_fixtypes fixrecimps in
-    Metasyntax.with_syntax_protection (fun () ->
+    Metasyntax.with_syntax_protection (fun _sum ->
       List.iter (Metasyntax.set_notation_for_interpretation sum env impls) fixntns;
       List.fold_left5_map
         (fun sigma fixctximpenv (after,extradecl) ctx body ccl ->
@@ -474,7 +474,8 @@ let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl
              else push_named_context rec_sign env, extradecl@ctx in
            interp_fix_body ~program_mode env' ctx sigma impls body (Vars.lift (Context.Rel.length extradecl) ccl))
         sigma fixctximpenvs fixextras fixctxs fixl fixccls)
-      () in
+      sum.synterp
+  in
 
   (* Build the fix declaration block *)
   let fix = {fixnames=fixlnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs} in

@@ -530,7 +530,8 @@ let interp_fresh_id ist env sigma l =
         String.concat "" (List.map (function
           | ArgArg s -> s
           | ArgVar {v=id} -> Id.to_string (extract_ident ist env sigma id)) l) in
-      let s = if CLexer.is_keyword (Procq.get_keyword_state()) s then s^"0" else s in
+      (* FIXME keyword state *)
+      let s = if CLexer.is_keyword (Procq.unsync_keywords()) s then s^"0" else s in
       Id.of_string s in
   Tactics.fresh_id_in_env avoid id env
 

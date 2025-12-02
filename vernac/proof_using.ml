@@ -213,21 +213,22 @@ let suggest_variable env id =
     | LocalAssum _ -> assert false
   end
 
-let value = ref None
+let value = Summary.ref ~name:"proof-using-state" None
 
 let using_to_string us = Pp.string_of_ppcmds (Ppvernac.pr_using us)
 let entry = Procq.eoi_entry G_vernac.section_subset_expr
-let using_from_string us = Procq.Entry.parse entry
+let using_from_string sum us = Procq.Functional.Entry.parse entry
     (Procq.Parsable.make (Gramlib.Stream.of_string ("( "^us^" )")))
+    Procq.FullState.(gstate sum @@ from_unsync_state())
 
 let proof_using_opt_name = ["Default";"Proof";"Using"]
 let () =
-  Goptions.(declare_stringopt_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = proof_using_opt_name;
-      optread  = (fun () -> Option.map using_to_string !value);
-      optwrite = (fun b -> value := Option.map using_from_string b);
+  Goptions.(declare_option_s ~kind:StringOptKind
+    { optstage_s = Summary.StageG.InterpG;
+      optdepr_s  = None;
+      optkey_s   = proof_using_opt_name;
+      optread_s  = (fun _sum -> Option.map using_to_string !value);
+      optwrite_s = (fun sum b -> value := Option.map (using_from_string sum.synterp) b);
     })
 
 let get_default_proof_using () = !value

@@ -67,7 +67,7 @@ val union_used_levels : used_levels -> used_levels -> used_levels
 
 type 'glb syntax_class_decl = {
   intern_synclass : sexpr list -> used_levels * 'glb;
-  interp_synclass : 'glb -> syntax_class_rule;
+  interp_synclass : Procq.FullState.t -> 'glb -> syntax_class_rule;
 }
 
 val register_syntax_class : Id.t -> _ syntax_class_decl -> unit
@@ -78,7 +78,7 @@ type syntax_class
 val intern_syntax_class : sexpr -> used_levels * syntax_class
 (** Use this to internalize the syntax class arguments for interpretation functions *)
 
-val interp_syntax_class : syntax_class -> syntax_class_rule
+val interp_syntax_class : Procq.FullState.t -> syntax_class -> syntax_class_rule
 (** Use this to interpret the syntax class arguments for interpretation functions *)
 
 (** {5 Inspecting} *)
@@ -103,7 +103,8 @@ module Tac2Custom : module type of KerName
 
 module CustomTab : Nametab.NAMETAB with type elt = Tac2Custom.t
 
-val find_custom_entry : Tac2Custom.t -> raw_tacexpr Procq.Entry.t
+val find_custom_entry_g : Procq.GramState.t -> Tac2Custom.t -> raw_tacexpr Procq.Entry.t
+val find_custom_entry : Summary.Synterp.t -> Tac2Custom.t -> raw_tacexpr Procq.Entry.t
 (** NB: Do not save the result of this function across summary resets,
     the Entry.t gets regenerated on (parsing) summary unfreeze. *)
 

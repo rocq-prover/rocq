@@ -359,6 +359,16 @@ let empty = { Interp.synterp = Synterp.Self.VMap.empty; interp = Interp.VMap.emp
 
 let init () = Interp.init_summaries (Synterp.init_summaries ())
 
+let run_synterp synterp_f sum =
+  let synterp = (!sum).Interp.synterp in
+  let synterp, v =
+    Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> Some true) (fun () ->
+        Synterp.with_mut synterp_f synterp)
+      ()
+  in
+  sum := { !sum with synterp };
+  v
+
 let run_interp interp_f sum =
   let interp = !sum in
   let interp, v =

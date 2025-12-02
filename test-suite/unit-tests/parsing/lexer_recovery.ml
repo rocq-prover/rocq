@@ -8,10 +8,11 @@ let doc =
   map_imap (λ l v, Some (default v (m1 !! l))) m2."
 
 let parse pa n =
+  let sum = (!Stm.cur_summary).synterp in
   let entry = Pvernac.Vernac_.main_entry in
   let rec loop res n =
     if n = 0 then res else
-      match Procq.Entry.parse entry pa with
+      match Procq.Entry.parse entry pa sum with
       | None -> res
       | Some r -> loop (r :: res) (n-1)
   in
@@ -36,6 +37,7 @@ let parse_whole pa =
 let log_file = __FILE__ ^ ".log"
 
 let main () =
+  let sum = (!Stm.cur_summary).synterp in
   let pa = setup_pa () in
   let res, loc =
     try
@@ -46,7 +48,7 @@ let main () =
     | CLexer.Error.E _ ->
       (* We now consume a single token and check that the location is
          correct for "A" *)
-      let () = Procq.Parsable.consume pa 1 in
+      let () = Procq.Parsable.consume pa 1 sum in
       let loc = Procq.Parsable.loc pa in
       let res = (loc.line_nb = 2) && (loc.bol_pos = 52) && (loc.bp = 58) && (loc.ep = 59) in
       res, loc

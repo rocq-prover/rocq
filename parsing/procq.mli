@@ -15,15 +15,24 @@ open Libnames
 
 (** The parser of Rocq *)
 
-include Gramlib.Grammar.S
-  with type synterp_state := CLexer.keyword_state
+module Functional : Gramlib.Grammar.ExtS
+  with type synterp_state := Summary.Synterp.t
    and type keyword_state := CLexer.keyword_state
    and type te := Tok.t
    and type 'a pattern := 'a Tok.p
-   and type 'a with_gstate := 'a
-   and type 'a with_kwstate := 'a
-   and type 'a with_estate := 'a
-   and type 'a mod_estate := 'a
+
+include Gramlib.Grammar.S
+  with type gstate := Functional.GState.t
+   and type keyword_state := CLexer.keyword_state
+   and type te := Tok.t
+   and type 'a pattern := 'a Tok.p
+   and type 'a with_gstate := Summary.Synterp.t -> 'a
+   and type 'a with_kwstate := Summary.Synterp.t -> 'a
+   and type 'a with_estate := Summary.Synterp.t -> 'a
+   and type 'a mod_estate := Summary.Synterp.mut -> 'a
+   and type 'a mod_estate' := 'a
+   and type 'a Entry.t = 'a Functional.Entry.t
+   and type Parsable.t = Functional.Parsable.t
 
 module Lookahead : sig
   type t
@@ -131,7 +140,7 @@ end
 
 (** Parse a string *)
 
-val parse_string : 'a Entry.t -> ?loc:Loc.t -> string -> 'a
+val parse_string : Summary.Synterp.t -> 'a Entry.t -> ?loc:Loc.t -> string -> 'a
 val eoi_entry : 'a Entry.t -> 'a Entry.t
 
 val create_generic_entry2 : string ->
@@ -208,7 +217,7 @@ module Module :
 
 (** {5 Type-safe grammar extension} *)
 
-val epsilon_value : ('a -> 'self) -> ('self, _, 'a) Symbol.t -> 'self option
+val epsilon_value : Summary.Synterp.t -> ('a -> 'self) -> ('self, _, 'a) Symbol.t -> 'self option
 
 (** {5 Extending the parser without synchronization} *)
 
@@ -222,7 +231,24 @@ val grammar_extend : ignore_kw:bool -> 'a Entry.t -> 'a extend_statement -> unit
 module GramState : Store.S
 (** Auxiliary state of the grammar. Not marshallable. *)
 
-val gramstate : unit -> GramState.t
+val gramstate : Summary.Synterp.t -> GramState.t
+
+module FullState : sig
+  (** Synchronized extensions do not have access to the whole summary,
+      but they do have access to the parser state through this
+      type. *)
+  type t
+
+  val gramstate : t -> GramState.t
+
+  val kwstate : t -> CLexer.keyword_state
+
+  val estate : t -> Functional.EState.t
+
+  val gstate : Summary.Synterp.t -> t -> Functional.GState.t
+
+  val from_unsync_state : unit -> t
+end
 
 (** {6 Extension with parsing rules} *)
 
@@ -234,7 +260,7 @@ type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
 
 type 'a grammar_extension = {
-  gext_fun : 'a -> GramState.t -> extend_rule list * GramState.t;
+  gext_fun : 'a -> FullState.t -> extend_rule list * GramState.t;
   gext_eq : 'a -> 'a -> bool;
 }
 (** Grammar extension entry point. Given some ['a] and a current grammar state,
@@ -246,7 +272,7 @@ val create_grammar_command : string -> 'a grammar_extension -> 'a grammar_comman
 (** Create a new grammar-modifying command with the given name. The extension
     function is called to generate the rules for a given data. *)
 
-val extend_grammar_command : ignore_kw:bool -> 'a grammar_command -> 'a -> unit
+val extend_grammar_command : Summary.Synterp.mut -> ignore_kw:bool -> 'a grammar_command -> 'a -> unit
 (** Extend the grammar of Rocq with the given data. *)
 
 (** {6 Extension with parsing entries} *)
@@ -254,7 +280,7 @@ val extend_grammar_command : ignore_kw:bool -> 'a grammar_command -> 'a -> unit
 (** Used to generate a ['b Entry.t] from a ['a]. ['a] must be marshallable. *)
 type ('a,'b) entry_extension = {
   (* Add info about the entry to the state. *)
-  eext_fun : 'a -> 'b Entry.t -> GramState.t -> GramState.t;
+  eext_fun : 'a -> 'b Entry.t -> FullState.t -> GramState.t;
   (* Printing name of the entry. *)
   eext_name : 'a -> string;
   (* Comparison function. *)
@@ -267,7 +293,7 @@ type ('a,'b) entry_command
 val create_entry_command : string -> ('a,'b) entry_extension -> ('a,'b) entry_command
 (** Create a new entry-creating command with the given name. *)
 
-val extend_entry_command : ('a,'b) entry_command -> 'a -> unit
+val extend_entry_command : Summary.Synterp.mut -> ('a,'b) entry_command -> 'a -> unit
 (** Create a new synchronized entry.
     This is meant to be used by registering the created entry in the GramState with [eext_fun],
     then when it is needed getting the entry from the GramState. *)
@@ -279,15 +305,17 @@ val find_grammars_by_name : string -> Entry.any_t list
 
 (** {6 Protection w.r.t. backtrack} *)
 
-val with_grammar_rule_protection : ('a -> 'b) -> 'a -> 'b
+val with_grammar_rule_protection : Summary.Synterp.t -> (Summary.Synterp.mut -> 'a) -> 'a
 
 type frozen_t
 val parser_summary_tag : frozen_t Summary.Synterp.tag
 
 (** Parsing state handling *)
-val freeze : unit -> frozen_t
-val unfreeze : frozen_t -> unit
+val freeze : Summary.Synterp.t -> frozen_t
+val unfreeze : Summary.Synterp.mut -> frozen_t -> unit
 
-val get_keyword_state : unit -> CLexer.keyword_state
+val get_keyword_state : Summary.Synterp.t -> CLexer.keyword_state
 
-val extend_keywords : string list -> unit
+val extend_keywords : Summary.Synterp.mut -> string list -> unit
+
+val unsync_keywords : unit -> CLexer.keyword_state

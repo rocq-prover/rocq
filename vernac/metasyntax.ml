@@ -80,22 +80,22 @@ let intern_notation_entry = function
 
 let entry_buf = Buffer.create 64
 
-let pr_entry e =
+let pr_entry sum e =
   let () = Buffer.clear entry_buf in
   let ft = Format.formatter_of_buffer entry_buf in
-  let () = Procq.Entry.print ft e in
+  let () = Procq.Entry.print ft e sum in
   str (Buffer.contents entry_buf)
 
 let error_unknown_entry ?loc name =
   user_err ?loc Pp.(str "Unknown or unprintable grammar entry " ++ str name ++ str".")
 
-let pr_grammar_subset grammar =
+let pr_grammar_subset sum grammar =
   let pp = String.Map.mapi (fun name l -> match l with
       | []  -> assert false
       | entries ->
         str "Entry " ++ str name ++ str " is" ++ fnl() ++
         prlist_with_sep (fun () -> str "or" ++ fnl())
-          (fun (Procq.Entry.Any e) -> pr_entry e)
+          (fun (Procq.Entry.Any e) -> pr_entry sum e)
           entries)
       grammar
   in
@@ -125,24 +125,24 @@ let is_known = let open Procq.Entry in function
     | [] -> None
     | entries -> Some entries
 
-let full_grammar () =
+let full_grammar sum =
   let open Pvernac.Vernac_ in
   let open Procq.Entry in
   let proof_modes = List.map (fun (_,Pvernac.ProofMode e) -> Any e.command_entry)
       (CString.Map.bindings (Pvernac.list_proof_modes()))
   in
   let entries = (Any main_entry) :: (Any noedit_mode) :: proof_modes in
-  Procq.Entry.accumulate_in entries
+  Procq.Entry.accumulate_in entries sum
 
 let same_entry (Procq.Entry.Any e) (Procq.Entry.Any e') = (Obj.magic e) == (Obj.magic e')
 
-let pr_grammar = function
+let pr_grammar sum = function
   | [] ->
-    let grammar = full_grammar () in
-    pr_grammar_subset grammar
+    let grammar = full_grammar sum in
+    pr_grammar_subset sum grammar
   | ["Full"] ->
-    let grammar = Procq.Entry.all_in () in
-    pr_grammar_subset grammar
+    let grammar = Procq.Entry.all_in sum in
+    pr_grammar_subset sum grammar
   | names ->
     let known, other = List.fold_left (fun (known,other) name ->
         match is_known name with
@@ -151,7 +151,7 @@ let pr_grammar = function
         ([],[])
         names
     in
-    let grammar = if List.is_empty other then String.Map.empty else full_grammar () in
+    let grammar = if List.is_empty other then String.Map.empty else full_grammar sum in
     let () = List.iter (fun name ->
         if not (String.Map.mem name grammar)
         then error_unknown_entry name)
@@ -168,38 +168,39 @@ let pr_grammar = function
           grammar)
         grammar known
     in
-    pr_grammar_subset grammar
+    pr_grammar_subset sum grammar
 
 let custom_grammars = ref []
 
 let register_custom_grammar_for_print h = custom_grammars := h :: !custom_grammars
 
-let () = register_custom_grammar_for_print @@ fun name ->
+let () = register_custom_grammar_for_print @@ fun sum name ->
   try
     let name = intern_custom_name name in
-    let constr_entry, _ = Egramrocq.find_custom_entry name in
+    let constr_entry, _ = Egramrocq.find_custom_entry sum name in
     Some [Procq.Entry.Any constr_entry]
   with UnknownCustomEntry _ ->
     None
 
-let get_custom_grammars name =
-  let entries = List.filter_map (fun f -> f name) !custom_grammars in
+let get_custom_grammars sum name =
+  let entries = List.filter_map (fun f -> f sum name) !custom_grammars in
   match entries with
   | [] -> raise (UnknownCustomEntry name)
   | _ :: _ -> List.flatten entries
 
-let pr_custom_grammar name =
-  let entries = get_custom_grammars name in
+let pr_custom_grammar sum name =
+  let entries = get_custom_grammars sum name in
   let add_entry map (Procq.Entry.Any e as any) =
     String.Map.update (Procq.Entry.name e)
       (fun entries -> Some (any :: Option.default [] entries))
       map
   in
   let map = List.fold_left add_entry String.Map.empty entries in
-  pr_grammar_subset map
+  pr_grammar_subset sum map
 
-let pr_keywords () =
-  Pp.prlist_with_sep Pp.fnl Pp.str (CString.Set.elements (CLexer.keywords (Procq.get_keyword_state())))
+let pr_keywords sum =
+  Pp.prlist_with_sep Pp.fnl Pp.str @@
+  CString.Set.elements @@ CLexer.keywords @@ Procq.get_keyword_state sum
 
 (** **************************************************************** **)
 (** Parse a format (every terminal starting with a letter or a single
@@ -783,7 +784,7 @@ let prod_entry_type = function
   | ETConstr (s,_,p) -> ETProdConstr (s,p)
   | ETPattern (_,n) -> ETProdPattern (pattern_entry_level n)
 
-let keyword_needed need s =
+let keyword_needed sum need s =
   (* Ensure that IDENT articulation terminal symbols are keywords *)
   match CLexer.terminal s with
   | Tok.PIDENT (Some k) ->
@@ -804,14 +805,14 @@ let keyword_needed need s =
     need
   | _ -> true
 
-let make_production ({notation_level = lev}, _) etyps symbols =
+let make_production sum ({notation_level = lev}, _) etyps symbols =
   let rec aux need = function
     | [] -> [[]]
     | NonTerminal m :: l ->
         let typ = prod_entry_type (List.assoc m etyps) in
         distribute [GramConstrNonTerminal (typ, Some m)] (aux (is_not_small_constr typ) l)
     | Terminal s :: l ->
-        let keyword = keyword_needed need s in
+        let keyword = keyword_needed sum need s in
         distribute [GramConstrTerminal (keyword,s)] (aux false l)
     | Break _ :: l ->
         aux need l
@@ -820,7 +821,7 @@ let make_production ({notation_level = lev}, _) etyps symbols =
           (List.map (function Terminal s -> [s]
             | Break _ -> []
             | _ -> anomaly (Pp.str "Found a non terminal token in recursive notation separator.")) sl) in
-        let tkl = List.map_i (fun i x -> let need = (i=0) in (keyword_needed need x, x)) 0 tkl in
+        let tkl = List.map_i (fun i x -> let need = (i=0) in (keyword_needed sum need x, x)) 0 tkl in
         match List.assoc x etyps with
         | ETConstr (s,_,(lev,_ as typ)) ->
             let p,l' = include_possible_similar_trailing_pattern (s,lev) etyps sl l in
@@ -944,7 +945,7 @@ let specific_format_to_declare (specific,ntn as specific_ntn) rules =
 type syntax_extension_obj =
   locality_flag * (notation * syntax_extension)
 
-let check_and_extend_constr_grammar ntn rule =
+let check_and_extend_constr_grammar sum ntn rule =
   try
     let ntn_for_grammar = rule.notgram_notation in
     if notation_eq ntn ntn_for_grammar then raise Not_found;
@@ -961,7 +962,7 @@ let check_and_extend_constr_grammar ntn rule =
       error_parsing_incompatible_level ntn ntn_for_grammar oldprec oldtyps prec typs;
     if oldparsing = None then raise Not_found
   with Not_found ->
-    Egramrocq.extend_constr_grammar rule
+    Egramrocq.extend_constr_grammar sum rule
 
 let warn_prefix_incompatible_level =
   CWarnings.create ~name:"notation-incompatible-prefix"
@@ -992,7 +993,7 @@ let check_prefix_incompatible_level ntn prec nottyps =
          warn_prefix_incompatible_level (pref, ntn, pref_prec, pref_nottyps, prec, nottyps);
      with Not_found | Failure _ -> ()
 
-let cache_one_syntax_extension (ntn,synext) =
+let cache_one_syntax_extension (ntn,synext) sum =
   let prec = synext.synext_level in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
@@ -1017,14 +1018,14 @@ let cache_one_syntax_extension (ntn,synext) =
       None in
   (* Declare the parsing rule *)
   begin match oldparsing, synext.synext_notgram with
-  | None, Some grams -> List.iter (check_and_extend_constr_grammar ntn) grams
+  | None, Some grams -> List.iter (check_and_extend_constr_grammar sum ntn) grams
   | _ -> (* The grammars rules are canonically derived from the string and the precedence*) ()
   end;
   (* Printing *)
   Option.iter (declare_generic_notation_printing_rules ntn) synext.synext_notprint
 
-let cache_syntax_extension (_, sy) _sum =
-  cache_one_syntax_extension sy
+let cache_syntax_extension (_, sy) sum =
+  cache_one_syntax_extension sy sum
 
 let classify_syntax_definition (local, _) =
   if local then Dispose else Substitute
@@ -1736,10 +1737,11 @@ let with_lib_stk_protection f x =
   let& () = Util.protect_state ~freeze ~unfreeze in
   f x
 
-let with_syntax_protection f x =
+let with_syntax_protection f sum =
   with_lib_stk_protection
-    (Procq.with_grammar_rule_protection
-       (with_notation_protection f)) x
+    (fun () -> Procq.with_grammar_rule_protection sum
+        (fun sum -> with_notation_protection (fun () -> f sum) ()))
+    ()
 
 (** **************************************************************** **)
 (** Recovering existing syntax                                       **)
@@ -1770,10 +1772,10 @@ let recover_squash_syntax sy =
 (** **************************************************************** **)
 (** Main entry point for building parsing and printing rules         **)
 
-let make_pa_rule (typs,symbols) parsing_data =
+let make_pa_rule sum (typs,symbols) parsing_data =
   let { ntn_for_grammar; prec_for_grammar; typs_for_grammar; need_squash } = parsing_data in
   let assoc = recompute_assoc typs in
-  let prod = make_production prec_for_grammar typs symbols in
+  let prod = make_production sum prec_for_grammar typs symbols in
   let sy = {
     notgram_level = prec_for_grammar;
     notgram_assoc = assoc;
@@ -1798,10 +1800,10 @@ let make_pp_rule level (typs,symbols) fmt =
   | Some fmt ->
      hunks_of_format (level, List.split typs) (symbols, fmt)
 
-let make_parsing_rules main_data (sd : SynData.syn_data) =
+let make_parsing_rules sum main_data (sd : SynData.syn_data) =
   let open SynData in
   if main_data.onlyprinting then None
-  else Some (make_pa_rule sd.pa_syntax_data sd.not_data)
+  else Some (make_pa_rule sum sd.pa_syntax_data sd.not_data)
 
 (** **************************************************************** **)
 (** Main functions about notations                                   **)
@@ -1836,11 +1838,11 @@ let make_generic_printing_rules reserved main_data ntn sd =
   with Not_found ->
     Some (make_rule (make_pp_rule level sd.pp_syntax_data main_data.format))
 
-let make_syntax_rules reserved main_data ntn sd =
+let make_syntax_rules sum reserved main_data ntn sd =
   let open SynData in
   List.iter (fun f -> f ()) sd.msgs;
   (* Prepare the parsing and printing rules *)
-  let pa_rules = make_parsing_rules main_data sd in
+  let pa_rules = make_parsing_rules sum main_data sd in
   let pp_rules = make_generic_printing_rules reserved main_data ntn sd in
   {
     synext_level    = sd.level;
@@ -1934,7 +1936,7 @@ let add_reserved_notation sum ~local ~infix ({CAst.loc;v=df},mods) =
   let ntn = make_notation_key main_data.entry notation_symbols.symbols in
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-  let synext = make_syntax_rules true main_data ntn sd in
+  let synext = make_syntax_rules (Summary.Synterp.get sum) true main_data ntn sd in
   Lib.Synterp.add_leaf sum (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =
@@ -1975,7 +1977,7 @@ let set_notation_for_interpretation sum env impls (ntn_decl, main_data, notation
   cache_notation notation sum;
   Option.iter (fun sc -> cache_scope (false,true,sc) sum) sc
 
-let build_notation_syntax ~local ~infix user_warns ntn_decl =
+let build_notation_syntax sum ~local ~infix user_warns ntn_decl =
   let { ntn_decl_string = {CAst.loc;v=df}; ntn_decl_modifiers = modifiers; ntn_decl_interp = c } = ntn_decl in
   (* Extract the modifiers not affecting the parsing rule *)
   let (main_data,syntax_modifiers) = interp_non_syntax_modifiers ~reserved:false ~infix ~abbrev:false user_warns modifiers in
@@ -1993,20 +1995,24 @@ let build_notation_syntax ~local ~infix user_warns ntn_decl =
     with NoSyntaxRule ->
       (* Try to determine a default syntax rule *)
       let sd = compute_syntax_data ~local main_data notation_symbols ntn NotationMods.default in
-      SpecificSyntax (make_syntax_rules false main_data ntn sd))
+      SpecificSyntax (make_syntax_rules sum false main_data ntn sd))
 
   | _ ->
     let mods = interp_modifiers main_data.entry syntax_modifiers in
     let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-    SpecificSyntax (make_syntax_rules false main_data ntn sd)
+    SpecificSyntax (make_syntax_rules sum false main_data ntn sd)
   in
   main_data, notation_symbols, ntn, syntax_rules, c, df
 
 let add_notation_syntax sum ~local ~infix user_warns ntn_decl =
   (* Build or rebuild the syntax rules *)
-  let main_data, notation_symbols, ntn, syntax_rules, c, df = build_notation_syntax ~local ~infix user_warns ntn_decl in
+  let main_data, notation_symbols, ntn, syntax_rules, c, df =
+    build_notation_syntax (Summary.Synterp.get sum) ~local ~infix user_warns ntn_decl
+  in
   (* Declare syntax *)
-  syntax_rules_iter (fun sy -> Lib.Synterp.add_leaf sum (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
+  syntax_rules_iter (fun sy ->
+      Lib.Synterp.add_leaf sum (inSyntaxExtension (local,(ntn,sy))))
+    syntax_rules;
   let ntn_decl_string = CAst.make ?loc:ntn_decl.ntn_decl_string.CAst.loc df in
   let ntn_decl = { ntn_decl with ntn_decl_interp = c; ntn_decl_string } in
   ntn_decl, main_data, notation_symbols, ntn, syntax_rules
@@ -2151,10 +2157,10 @@ let declare_notation_toggle sum local ~on ~all s =
 (** **************************************************************** **)
 (** Declaration of custom entries                                    **)
 
-let load_custom_entry i ((sp,kn),local) _sum =
+let load_custom_entry i ((sp,kn),local) sum =
   Nametab.CustomEntries.push (Until i) sp kn;
   add_custom_compat kn;
-  Egramrocq.create_custom_entry kn;
+  Egramrocq.create_custom_entry sum kn;
   let () = if local then
       custom_entry_locality := CustomName.Set.add kn !custom_entry_locality
   in

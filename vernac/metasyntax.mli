@@ -72,16 +72,18 @@ val add_abbreviation : Summary.Interp.mut ->
 
 (** Print the Camlp5 state of a grammar *)
 
-val pr_grammar : string list -> Pp.t
-val pr_custom_grammar : Libnames.qualid -> Pp.t
-val pr_keywords : unit -> Pp.t
+val pr_grammar : Summary.Synterp.t -> string list -> Pp.t
+val pr_custom_grammar : Summary.Synterp.t -> Libnames.qualid -> Pp.t
+val pr_keywords : Summary.Synterp.t -> Pp.t
 
 (** Register a handler for Print Custom Grammar. The handler should
     return [None] for unknown entries and [Some] of the associated
     entries for known entries. *)
-val register_custom_grammar_for_print : (Libnames.qualid -> Procq.Entry.any_t list option) -> unit
+val register_custom_grammar_for_print :
+  (Summary.Synterp.t -> Libnames.qualid -> Procq.Entry.any_t list option) -> unit
 
-val with_syntax_protection : ('a -> 'b) -> 'a -> 'b
+(* XXX also handles interp phase summaries *)
+val with_syntax_protection : (Summary.Synterp.mut -> 'a) -> Summary.Synterp.t -> 'a
 
 val declare_notation_toggle : Summary.Interp.mut ->
   locality_flag -> on:bool -> all:bool -> Notation.notation_query_pattern -> unit

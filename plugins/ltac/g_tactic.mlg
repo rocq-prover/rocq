@@ -69,7 +69,8 @@ open Extraargs
 (* idem for (x1..xn:t) [n^2 complexity but exceptional use] *)
 let check_for_coloneq =
   Procq.Entry.(of_parser "lpar_id_colon"
-    { parser_fun = fun kwstate strm ->
+    { parser_fun = fun state strm ->
+      let kwstate = state.kwstate in
       let rec skip_to_rpar p n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | KEYWORD "(" -> skip_to_rpar (p+1) (n+1)

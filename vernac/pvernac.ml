@@ -98,20 +98,22 @@ module Vernac_ =
         let ProofMode mode = find_proof_mode ename in
         mode.command_entry
 
-    let parse_generic_tactic strm =
+    let parse_generic_tactic gstate strm =
       let (let+) x f = Result.map f x in
       let mode = get_default_proof_mode () in
       let ProofMode mode = find_proof_mode mode in
-      let+ v = Procq.Entry.parse_token_stream mode.tactic_expr_entry strm in
+      let+ v = Procq.Functional.Entry.parse_token_stream mode.tactic_expr_entry strm gstate in
       Gentactic.of_raw_genarg Genarg.(in_gen (rawwit mode.wit_tactic_expr) v)
 
     let command_entry =
       Procq.Entry.(of_parser "command_entry"
-        { parser_fun = (fun _kwstate strm -> Procq.Entry.parse_token_stream (select_command_entry !command_entry_ref) strm) })
+        { parser_fun = (fun gstate strm ->
+          Procq.Functional.Entry.parse_token_stream (select_command_entry !command_entry_ref)
+            strm gstate) })
 
     let generic_tactic =
       Procq.Entry.(of_parser "generic_tactic"
-        { parser_fun = (fun _kwstate strm -> parse_generic_tactic strm) })
+        { parser_fun = parse_generic_tactic })
 
   end
 

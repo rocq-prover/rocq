@@ -269,17 +269,17 @@ let parse_to_dot =
     | Some _ -> dot kwstate st
     | None -> Error ()
   in
-  Procq.Entry.(of_parser "Coqtoplevel.dot" { parser_fun = dot })
+  Procq.Entry.(of_parser "Coqtoplevel.dot" { parser_fun = fun syn st -> dot syn.kwstate st })
 
 (* If an error occurred while parsing, we try to read the input until a dot
    token is encountered.
    We assume that when a lexer error occurs, at least one char was eaten *)
 
-let rec discard_to_dot () =
+let rec discard_to_dot sum =
   try
-    Procq.Entry.parse parse_to_dot top_buffer.tokens
+    Procq.Entry.parse parse_to_dot top_buffer.tokens sum
   with
-    | CLexer.Error.E _ -> (* Lexer failed *) discard_to_dot ()
+    | CLexer.Error.E _ -> (* Lexer failed *) discard_to_dot sum
     | e when CErrors.noncritical e -> ()
 
 let read_sentence ~state input =
@@ -300,7 +300,7 @@ let read_sentence ~state input =
     (match fst reraise with
      | Sys.Break -> Pp.pp_with !Topfmt.err_ft (Pp.fnl ())
      | _ ->
-        try discard_to_dot ()
+        try discard_to_dot (!Stm.cur_summary).synterp
         with Sys.Break ->
           Pp.pp_with !Topfmt.err_ft (Pp.fnl ());
           raise Sys.Break);

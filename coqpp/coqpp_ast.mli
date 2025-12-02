@@ -44,6 +44,7 @@ type position =
 | Last
 | Before of level
 | After of level
+| Unique
 
 type assoc =
 | LeftA

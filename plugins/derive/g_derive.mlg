@@ -21,8 +21,8 @@ DECLARE PLUGIN "rocq-runtime.plugins.derive"
 let classify_derive_command _ = Vernacextend.(VtStartProof (Doesn'tGuaranteeOpacity,[]))
 
 let () =
-   Mltop.add_init_function "rocq-runtime.plugins.derive" (fun () ->
-     Procq.extend_keywords ["SuchThat"])
+   Mltop.add_init_function "rocq-runtime.plugins.derive" (fun sum ->
+     Procq.extend_keywords sum ["SuchThat"])
 
 let warn_deprecated_derive_suchthat =
    CWarnings.create ~name:"deprecated-derive-suchthat" ~category:Deprecation.Version.v9_0
@@ -31,11 +31,21 @@ let warn_deprecated_derive_suchthat =
 }
 
 VERNAC COMMAND EXTEND Derive CLASSIFIED BY { classify_derive_command } STATE open_proof
-| #[ atts = Vernacentries.DefAttributes.def_attributes; ]
+| #[ atts = Attributes.raw_attributes; ]
   [ "Derive" open_binders(bl) "SuchThat" constr(suchthat) "As" identref(lemma) ] ->
   { warn_deprecated_derive_suchthat ();
+    let atts = Attributes.parse
+        (Vernacentries.DefAttributes.def_attributes @@ Summary.Interp.get summary)
+        atts
+    in
     Derive.start_deriving ~atts bl suchthat lemma }
-| #[ atts = Vernacentries.DefAttributes.def_attributes; ]
+| #[ atts = Attributes.raw_attributes; ]
   [ "Derive" open_binders(bl) "in" constr(suchthat) "as" identref(lemma) ] ->
-  { Derive.start_deriving ~atts bl suchthat lemma }
+  {
+    let atts = Attributes.parse
+        (Vernacentries.DefAttributes.def_attributes @@ Summary.Interp.get summary)
+        atts
+    in
+    Derive.start_deriving ~atts bl suchthat lemma
+  }
 END

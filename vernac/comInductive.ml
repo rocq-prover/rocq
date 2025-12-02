@@ -766,7 +766,7 @@ let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) no
   let ntn_impls = compute_internalization_env env_uparams sigma Inductive indnames fullarities indimpls in
 
   let (sigma, _), constructors =
-    Metasyntax.with_syntax_protection (fun () ->
+    Metasyntax.with_syntax_protection (fun _synsum ->
         snd @@ Summary.Interp.with_mut (fun sum ->
         (* Temporary declaration of notations and scopes *)
         List.iter (Metasyntax.set_notation_for_interpretation sum env_params ntn_impls) notations;
@@ -777,7 +777,7 @@ let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) no
               ind (EConstr.Vars.liftn ninds (Rel.length ctx_params + 1) arity))
           (sigma, ninds) indl arities)
           sum)
-      ()
+      sum.synterp
   in
 
   let nparams = Context.Rel.length ctx_params in

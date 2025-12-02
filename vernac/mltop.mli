@@ -66,7 +66,7 @@ val has_dynlink : bool
     over it (either interactive backtrack, module closing backtrack,
     Require of a file with Declare ML Module).
 *)
-val add_init_function : string -> (unit -> unit) -> unit
+val add_init_function : string -> (Summary.Synterp.mut -> unit) -> unit
 
 (** Register a callback that will be called when the module is declared with
     the Declare ML Module command. This is useful to define Coq objects at that

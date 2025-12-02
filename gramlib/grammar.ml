@@ -16,7 +16,7 @@ type norec
 type mayrec
 
 module type S = sig
-  type synterp_state
+  type gstate
   type keyword_state
   type te
   type 'c pattern
@@ -41,6 +41,8 @@ module type S = sig
   type 'a mod_estate
   (** Read/write entry state *)
 
+  type 'a mod_estate'
+
   module Parsable : sig
     type t
     (** [Parsable.t] Stream tokenizers with Rocq-specific functionality *)
@@ -62,17 +64,17 @@ module type S = sig
 
   module Entry : sig
     type 'a t
-    val make : string -> 'a t mod_estate
+    val make : string -> 'a t mod_estate'
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : synterp_state -> (keyword_state,te) LStream.t -> 'a parser_v }
-    val of_parser : string -> 'a parser_fun -> 'a t mod_estate
+    type 'a parser_fun = { parser_fun : gstate -> (keyword_state,te) LStream.t -> 'a parser_v }
+    val of_parser : string -> 'a parser_fun -> 'a t mod_estate'
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
-    val print : Format.formatter -> 'a t -> unit with_kwstate with_estate
+    val print : Format.formatter -> 'a t -> unit with_gstate
     val is_empty : 'a t -> bool with_estate
     type any_t = Any : 'a t -> any_t
     val accumulate_in : any_t list -> any_t list CString.Map.t with_estate
-    val all_in : unit -> any_t list CString.Map.t with_estate
+    val all_in : any_t list CString.Map.t with_estate
   end
 
   module rec Symbol : sig
@@ -153,12 +155,13 @@ module type ExtS = sig
   end
 
   include S
-    with type synterp_state := synterp_state
+    with type gstate := GState.t
      and type keyword_state := keyword_state
      and type 'a with_gstate := GState.t -> 'a
      and type 'a with_kwstate := keyword_state -> 'a
      and type 'a with_estate := EState.t -> 'a
      and type 'a mod_estate := EState.t -> EState.t * 'a
+     and type 'a mod_estate' := EState.t -> EState.t * 'a
 
   type 's add_kw = { add_kw : 'c. 's -> 'c pattern -> 's }
 
@@ -254,9 +257,9 @@ type ('trecs, 'trecp, 'a) ty_rec_level = {
 
 type 'a ty_level = Level : (_, _, 'a) ty_rec_level -> 'a ty_level
 
-type 'a ty_desc =
+type ('t,'a) ty_desc =
 | Dlevels of 'a ty_level list
-| Dparser of (Syn.t -> 'a parser_t)
+| Dparser of ('t -> 'a parser_t)
 
 (** The closures are built by partially applying the parsing functions
     to [edesc] but without depending on the state (so when we update
@@ -267,7 +270,7 @@ type 'a ty_desc =
 *)
 type ('t,'a) entry_data = {
   eentry : 'a ty_entry;
-  edesc : 'a ty_desc;
+  edesc : ('t,'a) ty_desc;
   estart : 't -> int -> 'a parser_t;
   econtinue : 't -> int option -> int -> int -> 'a -> 'a parser_t;
 }
@@ -657,6 +660,7 @@ let get_position entry position levs =
               let (levs1, levs2) = get levs in lev :: levs1, levs2
       in
       get levs
+  | Unique -> assert (CList.is_empty levs); [], []
 
 let get_level entry name levs = match name with
   | Some n ->
@@ -1620,10 +1624,10 @@ module Entry = struct
     start_parser_of_entry gstate e 0 ts
   let name e = e.ename
 
-  type 'a parser_fun = { parser_fun : Syn.t -> (L.keyword_state,te) LStream.t -> 'a parser_v }
+  type 'a parser_fun = { parser_fun : GState.t -> (L.keyword_state,te) LStream.t -> 'a parser_v }
   let of_parser_val e { parser_fun = p } = {
     eentry = e;
-    estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.synstate strm);
+    estart = (fun gstate _ (strm:_ LStream.t) -> p gstate strm);
     econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
     edesc = Dparser p;
   }
@@ -1632,7 +1636,7 @@ module Entry = struct
     let estate = add_entry otag estate e (of_parser_val e p) in
     estate, e
 
-  let print ppf e estate kwstate = fprintf ppf "%a@." (print_entry estate kwstate) e
+  let print ppf e gstate = fprintf ppf "%a@." (print_entry gstate.estate gstate.kwstate) e
 
   let is_empty e estate = match (get_entry estate e).edesc with
   | Dparser _ -> failwith "Arbitrary parser entry"
@@ -1672,7 +1676,7 @@ module Entry = struct
 
   let same_entry (Any e) (Any e') = Option.has_some (eq_entry e e')
 
-  let all_in () estate =
+  let all_in estate =
     let add_entry (Any e as a) acc = String.Map.update e.ename (function
         | None -> Some [a]
         | Some l -> Some (a::l))

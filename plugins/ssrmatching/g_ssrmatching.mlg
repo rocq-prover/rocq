@@ -67,7 +67,7 @@ END
 
 {
 
-let input_ssrtermkind kwstate strm = match Gramlib.LStream.peek_nth kwstate 0 strm with
+let input_ssrtermkind state strm = match Gramlib.LStream.peek_nth state.Procq.Functional.GState.kwstate 0 strm with
   | Some (Tok.KEYWORD "(") -> Ok InParens
   | Some (Tok.KEYWORD "@") -> Ok WithAt
   | Some _ -> Ok NoFlag
