@@ -134,6 +134,15 @@ type 'a option_sig = {
   optwrite   : 'a -> unit
 }
 
+(** Variant where the reader and setter act on the summary instead of imperative state *)
+type ('a,'summary,'summary_mut) option_sig_sum = {
+  optstage_s : ('summary,'summary_mut) Summary.StageG.t;
+  optdepr_s : Deprecation.t option;
+  optkey_s : option_name;
+  optread_s : 'summary -> 'a;
+  optwrite_s : 'summary_mut -> 'a -> unit;
+}
+
 (** The [preprocess] function is triggered before setting the option. It can be
     used to emit a warning on certain values, and clean-up the final value.
 
@@ -144,6 +153,11 @@ type 'a option_sig = {
     [StringOptKind] should be preferred to [StringKind] because it supports "Unset". *)
 val declare_option   : ?preprocess:('a -> 'a) -> ?no_summary:bool ->
   kind:'a option_kind -> 'a option_sig -> unit
+
+(** Like [declare_option] but the option state already exists in the summary *)
+val declare_option_s : ?preprocess:('a -> 'a) -> kind:'a option_kind ->
+  ('a,_,_) option_sig_sum ->
+  unit
 
 val declare_append_only_option : ?preprocess:(string -> string) -> sep:string ->
   string option_sig -> unit
