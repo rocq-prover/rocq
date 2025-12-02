@@ -573,7 +573,7 @@ struct
 let terminal s =
   let p =
     if s <> "" && s.[0] >= '0' && s.[0] <= '9' then "CLexer.terminal_number"
-    else "Procq.terminal" in
+    else "CLexer.terminal" in
   let c = Printf.sprintf "Procq.Symbol.token (%s \"%s\")" p s in
   SymbQuote c
 

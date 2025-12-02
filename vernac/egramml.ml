@@ -35,7 +35,7 @@ let rec ty_rule_of_gram = function
 | [] -> AnyTyRule TyStop
 | GramTerminal s :: rem ->
   let AnyTyRule rem = ty_rule_of_gram rem in
-  let tok = Procq.Symbol.token (Procq.terminal s) in
+  let tok = Procq.Symbol.token (CLexer.terminal s) in
   let r = TyNext (rem, tok, None) in
   AnyTyRule r
 | GramNonTerminal (_, (t, tok)) :: rem ->

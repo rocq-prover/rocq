@@ -873,7 +873,7 @@ let rec get_rule (tok : SynclassDyn.t token list) : krule = match tok with
   KRule (rule, act)
 | TacTerm t :: tok ->
   let KRule (rule, act) = get_rule tok in
-  let rule = Procq.(Rule.next rule (Symbol.token (Procq.terminal t))) in
+  let rule = Procq.(Rule.next rule (Symbol.token (CLexer.terminal t))) in
   let act k _ = act k in
   KRule (rule, act)
 

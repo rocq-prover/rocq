@@ -43,9 +43,6 @@ module Lookahead : sig
   val lk_ident_list : t
 end
 
-(** When string is not an ident, returns a keyword. *)
-val terminal : string -> string Tok.p
-
 (** The parser of Rocq is built from three kinds of rule declarations:
 
    - dynamic rules declared at the evaluation of Rocq files (using
