@@ -272,6 +272,16 @@ with Not_found ->
 
 let declare_raw name v = value_tab := OptionMap.add name (AnyOpt v) !value_tab
 
+type ('a,'summary,'summary_mut) option_sig_sum = {
+  optstage_s : ('summary,'summary_mut) Summary.StageG.t;
+  optdepr_s : Deprecation.t option;
+  optkey_s : option_name;
+  optread_s : 'summary -> 'a;
+  optwrite_s : 'summary_mut -> 'a -> unit;
+}
+
+type 'a any_sig = AnySig : ('a,_,_) option_sig_sum -> 'a any_sig
+
 (* not quite the same as RawOpt.t: write takes a option_locality, optkey field present *)
 type 'a option_sig = {
   optstage : Summary.Stage.t;
@@ -287,7 +297,7 @@ let warn_deprecated_option =
     (fun key -> Pp.str (nickname key))
 
 let option_object name act =
-  let cache_option (l,v) _sum = act v in
+  let cache_option (l,v) sum = act sum v in
   let load_option i (l, _ as o) sum = match l with
     | OptGlobal -> cache_option o sum
     | OptExport -> ()
@@ -317,7 +327,48 @@ let option_object name act =
     classify_function = classify_option;
   }
 
-let declare_summary stage key read write  =
+let declare_option_s (type summary summary_mut) ?(preprocess = fun x -> x) ~kind
+    { optstage_s=(stage:(summary,summary_mut) Summary.StageG.t);
+      optdepr_s=depr; optkey_s=key; optread_s=read; optwrite_s=write } =
+  check_key key;
+  let change : summary_mut -> _ -> _ =
+    match stage with
+    | SynterpG ->
+      let options : option_locality * _ -> obj =
+        Libobject.Synterp.declare_object (option_object (nickname key) write)
+      in
+      (fun sum l v -> let v = preprocess v in Lib.Synterp.add_leaf sum (options (l, v)))
+    | InterpG ->
+      let options : option_locality * _ -> obj =
+        Libobject.Interp.declare_object (option_object (nickname key) write)
+      in
+      (fun sum l v -> let v = preprocess v in Lib.Interp.add_leaf sum (options (l, v)))
+  in
+  let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
+  let cwrite sum l v = warn (); change sum l v in
+  declare_raw key {
+    kind;
+    stage;
+    depr;
+    read = read;
+    write = cwrite;
+  }
+
+
+let make_no_summary_sig { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
+  let mksig stage = AnySig {
+    optstage_s = stage;
+    optdepr_s = depr;
+    optkey_s = key;
+    optread_s = (fun _sum -> read());
+    optwrite_s = (fun _sum x -> write x);
+  }
+  in
+  match stage with
+  | Synterp -> mksig SynterpG
+  | Interp -> mksig InterpG
+
+let declare_summary stage key read write =
   let default = read() in
   match stage with
   | Synterp ->
@@ -338,46 +389,13 @@ let declare_summary stage key read write  =
     ()
 
 let declare_option ?(preprocess = fun x -> x) ?(no_summary=false) ~kind
-  { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
+  ({ optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } as optsig) =
   check_key key;
   let () =
     if not no_summary then declare_summary stage key read write
   in
-  match stage with
-  | Synterp ->
-    let open Libobject.Synterp in
-    let change =
-      let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) write)
-      in
-      (fun sum l v -> let v = preprocess v in Lib.Synterp.add_leaf sum (options (l, v)))
-    in
-    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
-    let cwrite sum l v = warn (); change sum l v in
-    declare_raw key {
-      kind;
-      stage = SynterpG;
-      depr;
-      read = (fun _sum -> read ());
-      write = cwrite;
-    }
-  | Interp ->
-    let open Libobject.Interp in
-    let change =
-      let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) write)
-      in
-      (fun sum l v -> let v = preprocess v in Lib.Interp.add_leaf sum (options (l, v)))
-    in
-    let warn () = depr |> Option.iter (fun depr -> warn_deprecated_option (key,depr)) in
-    let cwrite sum l v = warn (); change sum l v in
-    declare_raw key {
-      kind;
-      stage = InterpG;
-      depr;
-      read = (fun _sum -> read ());
-      write = cwrite;
-    }
+  let AnySig optsig = make_no_summary_sig optsig in
+  declare_option_s ~preprocess ~kind optsig
 
 let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
@@ -389,7 +407,7 @@ let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     let append x = write (read()^sep^x) in
     let change =
       let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) append)
+        declare_object (option_object (nickname key) (fun _sum x -> append x))
       in
       (fun sum l v -> let v = preprocess v in Lib.Synterp.add_leaf sum (options (l, v)))
     in
@@ -407,7 +425,7 @@ let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     let append x = write (read()^sep^x) in
     let change =
       let options : option_locality * _ -> obj =
-        declare_object (option_object (nickname key) append)
+        declare_object (option_object (nickname key) (fun _sum x -> append x))
       in
       (fun sum l v -> let v = preprocess v in Lib.Interp.add_leaf sum (options (l, v)))
     in
