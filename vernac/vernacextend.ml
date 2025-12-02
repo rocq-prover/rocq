@@ -168,9 +168,9 @@ let rec untype_command : type r s. (r, s) ty_sig -> r -> plugin_args -> vernac_c
 let rec untype_user_symbol : type s a b c. (a, b, c) Extend.ty_user_symbol -> (s, Gramlib.Grammar.norec, a) Procq.Symbol.t =
   let open Extend in function
   | TUlist1 l -> Procq.Symbol.list1 (untype_user_symbol l)
-  | TUlist1sep (l, s) -> Procq.Symbol.list1sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (Procq.terminal s)])
+  | TUlist1sep (l, s) -> Procq.Symbol.list1sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal s)])
   | TUlist0 l -> Procq.Symbol.list0 (untype_user_symbol l)
-  | TUlist0sep (l, s) -> Procq.Symbol.list0sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (Procq.terminal s)])
+  | TUlist0sep (l, s) -> Procq.Symbol.list0sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal s)])
   | TUopt o -> Procq.Symbol.opt (untype_user_symbol o)
   | TUentry a -> Procq.Symbol.nterm (Procq.genarg_grammar (Genarg.ExtraArg a))
   | TUentryl (a, i) -> Procq.Symbol.nterml (Procq.genarg_grammar (Genarg.ExtraArg a)) (string_of_int i)

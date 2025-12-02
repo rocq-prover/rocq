@@ -64,8 +64,6 @@ let gstate () = (!state).current_state
 
 let get_keyword_state () = (gstate()).kwstate
 
-let terminal s = CLexer.terminal (get_keyword_state()) s
-
 let reset_to_base state = {
   base_state = state.base_state;
   current_state = state.base_state;

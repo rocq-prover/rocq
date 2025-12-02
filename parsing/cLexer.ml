@@ -804,9 +804,6 @@ module LexerDiff = MakeLexer (struct let mode = true end)
 
 (** Terminal symbols interpretation *)
 
-let is_ident_not_keyword ttree s =
-  is_ident s && not (is_keyword ttree s)
-
 let strip s =
   let len =
     let rec loop i len =
@@ -826,10 +823,10 @@ let strip s =
     in
     Bytes.to_string (loop 0 0)
 
-let terminal ttree s =
+let terminal s =
   let s = strip s in
   let () = match s with "" -> failwith "empty token." | _ -> () in
-  if is_ident_not_keyword ttree s then PIDENT (Some s)
+  if is_ident s then PIDENT (Some s)
   else PKEYWORD s
 
 (* Precondition: the input is a number (c.f. [NumTok.t]) *)

@@ -458,7 +458,7 @@ let () = add_syntax_class "terminal" begin function
 | [SexprStr {loc;v=s}] -> s
 | arg -> syntax_class_fail "terminal" arg
   end begin fun s ->
-    let syntax_class = Procq.Symbol.token (Procq.terminal s) in
+    let syntax_class = Procq.Symbol.token (CLexer.terminal s) in
     Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
   end
 
@@ -480,7 +480,7 @@ let () = add_syntax_class_full "list0" {
     Tac2entries.SyntaxRule (syntax_class, act)
   | subclass, Some str ->
     let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
-    let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
+    let sep = Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal str)] in
     let syntax_class = Procq.Symbol.list0sep syntax_class sep in
     let act l = Tac2quote.of_list act l in
     Tac2entries.SyntaxRule (syntax_class, act)
@@ -505,7 +505,7 @@ let () = add_syntax_class_full "list1" {
     Tac2entries.SyntaxRule (syntax_class, act)
   | subclass, Some str ->
     let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
-    let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
+    let sep = Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal str)] in
     let syntax_class = Procq.Symbol.list1sep syntax_class sep in
     let act l = Tac2quote.of_list act l in
     Tac2entries.SyntaxRule (syntax_class, act)
