@@ -106,7 +106,7 @@ module DefAttributes = struct
   let clearbody = bool_attribute ~name:"clearbody"
 
   (* [XXX] EJGA: coercion is unused here *)
-  let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") () =
+  let def_attributes_gen (sum:Summary.Interp.t) ?(coercion=false) ?(discharge=NoDischarge,"","") () =
     let discharge, deprecated_thing, replacement = discharge in
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
     (locality ++ user_warns_with_use_globref_instead ++ polymorphic ++ program ++
@@ -114,7 +114,7 @@ module DefAttributes = struct
                reversible ++ clearbody) >>= fun ((((((((locality, user_warns), polymorphic), program),
            canonical_instance), typing_flags), using),
            reversible), clearbody) ->
-      let using = Option.map Proof_using.using_from_string using in
+      let using = Option.map (Proof_using.using_from_string sum.synterp) using in
       let reversible = Option.default false reversible in
       let () = if Option.has_some clearbody && not (Lib.sections_are_opened())
         then CErrors.user_err Pp.(str "Cannot use attribute clearbody outside sections.")
@@ -122,15 +122,15 @@ module DefAttributes = struct
       let scope = scope_of_locality locality discharge deprecated_thing replacement in
       return { scope; locality; polymorphic; program; user_warns; canonical_instance; typing_flags; using; reversible; clearbody }
 
-  let parse ?coercion ?discharge f =
-    Attributes.parse (def_attributes_gen ?coercion ?discharge ()) f
+  let parse sum ?coercion ?discharge f =
+    Attributes.parse (def_attributes_gen sum ?coercion ?discharge ()) f
 
-  let def_attributes = def_attributes_gen ()
+  let def_attributes sum = def_attributes_gen sum ()
 
 end
 
-let with_def_attributes ?coercion ?discharge ~atts f =
-  let atts = DefAttributes.parse ?coercion ?discharge atts in
+let with_def_attributes ?coercion ?discharge sum ~atts f =
+  let atts = DefAttributes.parse sum ?coercion ?discharge atts in
   if atts.DefAttributes.program then Declare.Obls.check_program_libraries ();
   f ~atts
 
@@ -2256,9 +2256,9 @@ let vernac_print =
     Prettyp.print_sec_context_typ sum env sigma qid
   | PrintInspect n -> with_proof_env @@ fun sum env sigma ->
     Prettyp.inspect sum env sigma n
-  | PrintGrammar ent -> no_state @@ fun _sum -> Metasyntax.pr_grammar ent
-  | PrintCustomGrammar ent -> no_state @@ fun _sum -> Metasyntax.pr_custom_grammar ent
-  | PrintKeywords -> no_state @@ fun _sum -> Metasyntax.pr_keywords ()
+  | PrintGrammar ent -> no_state @@ fun sum -> Metasyntax.pr_grammar sum.synterp ent
+  | PrintCustomGrammar ent -> no_state @@ fun sum -> Metasyntax.pr_custom_grammar sum.synterp ent
+  | PrintKeywords -> no_state @@ fun sum -> Metasyntax.pr_keywords sum.synterp
   | PrintLoadPath dir -> (* For compatibility ? *) no_state @@ fun _sum -> print_loadpath dir
   | PrintLibraries -> no_state @@ fun _sum -> print_libraries ()
   | PrintModule qid -> no_state @@ fun sum -> print_module sum qid
@@ -2645,20 +2645,20 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     if refine then
       vtopenproof(fun sum ->
-        with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+        with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
          vernac_definition_refine dkind lid bl red_option c typ)
     else
       vtmodifyprogram (fun ~pm sum ->
-        with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+        with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
         vernac_definition ~pm sum dkind lid bl red_option c typ)
   | VernacDefinition ((discharge,kind as dkind),lid,ProveBody(bl,typ)) ->
     let coercion = match kind with Decls.Coercion -> true | _ -> false in
-    vtopenproof(fun _sum ->
-      with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+    vtopenproof(fun sum ->
+      with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
        vernac_definition_interactive dkind lid bl typ)
 
   | VernacStartTheoremProof (k,l) ->
-    vtopenproof(fun sum -> with_def_attributes ~atts vernac_start_proof sum k l)
+    vtopenproof(fun sum -> with_def_attributes (Summary.Interp.get sum) ~atts vernac_start_proof sum k l)
   | VernacExactProof c ->
     vtcloseproof (fun ~lemma ~pm sum ->
         unsupported_attributes atts;
@@ -2666,7 +2666,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacAssumption ((discharge,kind),nl,l) ->
     vtdefault(fun sum ->
-        with_def_attributes ~atts
+        with_def_attributes (Summary.Interp.get sum) ~atts
           ~discharge:(discharge,
                       "\"Variable\" or \"Hypothesis\"",
                       "\"#[local] Parameter\" or \"#[local] Axiom\"")
@@ -2688,14 +2688,14 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge, "\"Let Fixpoint\"", "\"#[local] Fixpoint\"" in
     (if opens then
       vtopenproof (fun sum ->
-           let pm, proof = with_def_attributes ~discharge ~atts
+           let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
                (vernac_fixpoint ~refine ~pm:None sum) l
            in
            assert (Option.is_empty pm);
            Option.get proof)
      else
        vtmodifyprogram (fun ~pm sum ->
-           let pm, proof = with_def_attributes ~discharge ~atts
+           let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
                (vernac_fixpoint ~refine ~pm:(Some pm) sum) l in
            assert (Option.is_empty proof);
            Option.get pm))
@@ -2706,13 +2706,13 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge,  "\"Let CoFixpoint\"", "\"#[local] CoFixpoint\"" in
     (if opens then
       vtopenproof (fun sum ->
-        let pm, proof = with_def_attributes ~discharge ~atts
+        let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
             (vernac_cofixpoint ~refine ~pm:None sum) l in
         assert (Option.is_empty pm);
         Option.get proof)
     else
       vtmodifyprogram (fun ~pm sum ->
-        let pm, proof = with_def_attributes ~discharge ~atts
+        let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
             (vernac_cofixpoint ~refine ~pm:(Some pm) sum) l in
         assert (Option.is_empty proof);
         Option.get pm))
@@ -2921,7 +2921,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
       unsupported_attributes atts;
       vernac_end_subproof ~pstate)
   | VernacShow s ->
-    vtreadproofopt(fun ~pstate _sum ->
+    vtreadproofopt(fun ~pstate sum ->
       unsupported_attributes atts;
       Feedback.msg_notice @@ vernac_show ~pstate s)
   | VernacCheckGuard ->

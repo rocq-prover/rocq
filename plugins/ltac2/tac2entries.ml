@@ -628,13 +628,13 @@ let union_used_levels a b =
 (* hardcoded syntactic classes, from ltac2 or further plugins *)
 type 'glb syntax_class_decl = {
   intern_synclass : sexpr list -> used_levels * 'glb;
-  interp_synclass : 'glb -> syntax_class_rule;
+  interp_synclass : Procq.FullState.t -> 'glb -> syntax_class_rule;
 }
 
 type syntax_class = SynclassDyn.t
 
 module SynclassInterpMap = SynclassDyn.Map(struct
-    type 'a t = 'a -> syntax_class_rule
+    type 'a t = Procq.FullState.t -> 'a -> syntax_class_rule
   end)
 
 let syntax_class_interns : (sexpr list -> used_levels * SynclassDyn.t) Id.Map.t ref =
@@ -656,6 +656,7 @@ let ltac2_custom_map : raw_tacexpr Procq.Entry.t Tac2Custom.Map.t Procq.GramStat
 let ltac2_custom_entry : (Tac2Custom.t, raw_tacexpr) Procq.entry_command =
   Procq.create_entry_command "ltac2" {
     eext_fun = (fun kn e state ->
+      let state = Procq.FullState.gramstate state in
       let map = Option.default Tac2Custom.Map.empty (Procq.GramState.get state ltac2_custom_map) in
       let map = Tac2Custom.Map.add kn e map in
       Procq.GramState.set state ltac2_custom_map map);
@@ -663,18 +664,20 @@ let ltac2_custom_entry : (Tac2Custom.t, raw_tacexpr) Procq.entry_command =
     eext_eq = Tac2Custom.equal;
   }
 
-let find_custom_entry kn =
-  Tac2Custom.Map.get kn @@ Option.get @@ Procq.GramState.get (Procq.gramstate()) ltac2_custom_map
+let find_custom_entry_g st kn =
+  Tac2Custom.Map.get kn @@ Option.get @@ Procq.GramState.get st ltac2_custom_map
+
+let find_custom_entry sum kn = find_custom_entry_g (Procq.gramstate sum) kn
 
 let () =
-  Metasyntax.register_custom_grammar_for_print @@ fun name ->
+  Metasyntax.register_custom_grammar_for_print @@ fun sum name ->
   match CustomTab.locate name with
   | exception Not_found -> None
-  | name -> Some [Any (find_custom_entry name)]
+  | name -> Some [Any (find_custom_entry sum name)]
 
-let load_custom_entry i ((sp,kn),local) _sum =
+let load_custom_entry i ((sp,kn),local) sum =
   let () = CustomTab.push (Until i) sp kn in
-  let () = Procq.extend_entry_command ltac2_custom_entry kn in
+  let () = Procq.extend_entry_command sum ltac2_custom_entry kn in
   let () = assert (not local) in
   ()
 
@@ -728,7 +731,7 @@ let level_name lev = string_of_int lev
 
 let terminal_synclass_tag : string SynclassDyn.tag = SynclassDyn.create "<terminal>"
 
-let interp_terminal str : syntax_class_rule =
+let interp_terminal _ str : syntax_class_rule =
   let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
   SyntaxRule (Procq.Symbol.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
 
@@ -740,9 +743,9 @@ type custom_synclass_data = {
   custom_synclass_level : int option;
 }
 
-let interp_custom_entry data : syntax_class_rule =
+let interp_custom_entry st data : syntax_class_rule =
   let ename = data.custom_synclass_name in
-  let entry = find_custom_entry ename in
+  let entry = find_custom_entry_g (Procq.FullState.gramstate st) ename in
   match data.custom_synclass_level with
   | None ->
     SyntaxRule (Procq.Symbol.nterm entry, (fun expr -> expr))
@@ -861,20 +864,20 @@ type krule =
   (raw_tacexpr, _, 'act, Loc.t -> raw_tacexpr) Procq.Rule.t *
   ((Loc.t -> (Name.t * raw_tacexpr) list -> raw_tacexpr) -> 'act) -> krule
 
-let interp_syntax_class (SynclassDyn.Dyn (tag, data)) =
+let interp_syntax_class st (SynclassDyn.Dyn (tag, data)) =
   let interp = SynclassInterpMap.find tag !syntax_class_interps in
-  interp data
+  interp st data
 
-let rec get_rule (tok : SynclassDyn.t token list) : krule = match tok with
+let rec get_rule st (tok : SynclassDyn.t token list) : krule = match tok with
 | [] -> KRule (Procq.Rule.stop, fun k loc -> k loc [])
 | TacNonTerm (na, v) :: tok ->
-  let SyntaxRule (syntax_class, inj) = interp_syntax_class v in
-  let KRule (rule, act) = get_rule tok in
+  let SyntaxRule (syntax_class, inj) = interp_syntax_class st v in
+  let KRule (rule, act) = get_rule st tok in
   let rule = Procq.Rule.next rule syntax_class in
   let act k e = act (fun loc acc -> k loc ((na, inj e) :: acc)) in
   KRule (rule, act)
 | TacTerm t :: tok ->
-  let KRule (rule, act) = get_rule tok in
+  let KRule (rule, act) = get_rule st tok in
   let rule = Procq.(Rule.next rule (Symbol.token (CLexer.terminal t))) in
   let act k _ = act k in
   KRule (rule, act)
@@ -918,10 +921,11 @@ let check_levels st used_levels =
   in
   Tac2Custom.Map.iter iter used_levels
 
-let perform_notation syn st =
+let perform_notation syn fullst =
+  let st = Procq.FullState.gramstate fullst in
   let tok = syn.synext_tok in
   let used = syn.synext_used in
-  let KRule (rule, act) = get_rule tok in
+  let KRule (rule, act) = get_rule fullst tok in
   let mk loc args =
     let () = match syn.synext_depr with
     | None -> ()
@@ -946,15 +950,15 @@ let perform_notation syn st =
   in
   let entry = match entry with
     | None -> Pltac.ltac2_expr
-    | Some entry -> find_custom_entry entry
+    | Some entry -> find_custom_entry_g st entry
   in
   [Procq.ExtendRule (entry, rule)], st
 
 let ltac2_notation =
   Procq.create_grammar_command "ltac2-notation" { gext_fun = perform_notation; gext_eq = (==) (* FIXME *) }
 
-let cache_synext syn _sum =
-  Procq.extend_grammar_command ~ignore_kw:false ltac2_notation syn
+let cache_synext syn sum =
+  Procq.extend_grammar_command sum ~ignore_kw:false ltac2_notation syn
 
 let subst_synext _sum subst syn =
   let kn = Mod_subst.subst_kn subst syn.synext_kn in

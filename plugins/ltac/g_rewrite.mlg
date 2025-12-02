@@ -95,9 +95,8 @@ END
 
 GRAMMAR EXTEND Gram
   GLOBAL: rewstrategy;
-  rewstrategy:
-    [ NONA
-      [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { StratFix (id, s) }
+  rewstrategy: TOP
+    [ [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { StratFix (id, s) }
       | h = ne_rewstrategy1_list_sep_semicolon -> { h } ] ]
   ;
   ne_rewstrategy1_list_sep_semicolon:

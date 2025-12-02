@@ -159,6 +159,7 @@ let rec prod_item_of_symbol lev = function
 
 let add_tactic_entry (kn, ml, tg) state =
   let open Tacexpr in
+  let state = Procq.FullState.gramstate state in
   let entry, pos = get_tactic_entry tg.tacgram_level in
   let mkact loc l =
     let map arg =
@@ -190,7 +191,7 @@ let add_tactic_entry (kn, ml, tg) state =
 let tactic_grammar =
   create_grammar_command "TacticGrammar" { gext_fun = add_tactic_entry; gext_eq = (==) (* FIXME *) }
 
-let extend_tactic_grammar kn ml ntn = extend_grammar_command tactic_grammar (kn, ml, ntn)
+let extend_tactic_grammar sum kn ml ntn = extend_grammar_command sum tactic_grammar (kn, ml, ntn)
 
 (**********************************************************************)
 (* Tactic Notation                                                    *)
@@ -290,22 +291,22 @@ let inTacticGrammar : tactic_grammar_obj * Tacenv.alias_tactic -> obj =
        subst_function = subst_tactic_notation;
        classify_function = classify_tactic_notation}
 
-let cache_tactic_syntax tobj _sum =
+let cache_tactic_syntax tobj sum =
   let key = tobj.tacobj_key in
-  extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram;
+  extend_tactic_grammar sum ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram;
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram)
 
-let open_tactic_syntax tobj _sum =
+let open_tactic_syntax tobj sum =
   let key = tobj.tacobj_key in
   if not tobj.tacobj_local then
-    extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
+    extend_tactic_grammar sum ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
-let load_tactic_syntax i tobj _sum =
+let load_tactic_syntax i tobj sum =
   let key = tobj.tacobj_key in
   (* Only add the printing and interpretation rules. *)
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram);
   if Int.equal i 1 && not tobj.tacobj_local then
-    extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
+    extend_tactic_grammar sum ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
 let subst_tactic_syntax _sum subst tobj =
   { tobj with
@@ -363,7 +364,7 @@ exception NonEmptyArgument
 
 (** ML tactic notations whose use can be restricted to an identifier are added
     as true Ltac entries. *)
-let extend_atomic_tactic sum name entries =
+let extend_atomic_tactic (sum:Summary.Interp.mut) name entries =
   let open Tacexpr in
   let map_prod prods =
     let (hd, rem) = match prods with
@@ -376,7 +377,7 @@ let extend_atomic_tactic sum name entries =
       let EntryName (typ, e) = prod_item_of_symbol 0 symb in
       let Genarg.Rawwit wit = typ in
       let inj x = CAst.make @@ TacArg ( TacGeneric (None, Genarg.in_gen typ x)) in
-      let default = epsilon_value inj e in
+      let default = epsilon_value sum.synterp inj e in
       match default with
       | None -> raise NonEmptyArgument
       | Some def -> Tacintern.intern_tactic_or_tacarg (Genintern.empty_glob_sign ~strict:true Environ.empty_env) def
@@ -495,7 +496,7 @@ let register_ltac sum atts = function
       in
       let is_shadowed =
         try
-          match Procq.parse_string Pltac.tactic (Id.to_string id) with
+          match Procq.parse_string sum.synterp Pltac.tactic (Id.to_string id) with
           | { CAst.v=(Tacexpr.TacArg _) } -> false
           | _ -> true (* most probably TacAtom, i.e. a primitive tactic ident *)
         with e when CErrors.noncritical e -> true (* prim tactics with args, e.g. "apply" *)

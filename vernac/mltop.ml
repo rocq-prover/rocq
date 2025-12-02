@@ -285,7 +285,8 @@ let add_ml_dir s =
 
 let initialized_plugins = Summary.ref ~stage:Synterp ~name:"inited-plugins" PluginSpec.Set.empty
 
-let plugin_init_functions : (unit -> unit) list PluginSpec.Map.t ref = ref PluginSpec.Map.empty
+let plugin_init_functions : (Summary.Synterp.mut -> unit) list PluginSpec.Map.t ref =
+  ref PluginSpec.Map.empty
 
 let add_init_function name f =
   let name = PluginSpec.of_package name in
@@ -339,13 +340,13 @@ let perform_cache_obj sum name =
 (** ml object = ml module or plugin *)
 let dinit = CDebug.create ~name:"mltop-init" ()
 
-let init_ml_object mname =
+let init_ml_object sum mname =
   if PluginSpec.Set.mem mname !initialized_plugins
   then dinit Pp.(fun () -> str "already initialized " ++ str (PluginSpec.pp mname))
   else  begin
     dinit Pp.(fun () -> str "initing " ++ str (PluginSpec.pp mname));
     let n = match PluginSpec.Map.find mname !plugin_init_functions with
-      | l -> List.iter (fun f -> f()) (List.rev l); List.length l
+      | l -> List.iter (fun f -> f sum) (List.rev l); List.length l
       | exception Not_found -> 0
     in
     initialized_plugins := PluginSpec.Set.add mname !initialized_plugins;
@@ -436,10 +437,10 @@ type ml_module_object =
 
 let run_interp_fun (InterpFun f) sum = f sum
 
-let load_ml_objects _ {mnames; _} _sum =
+let load_ml_objects _ {mnames; _} sum =
   let iter (implicit,obj) =
     trigger_ml_object (Regular {implicit}) obj;
-    if not implicit then init_ml_object obj
+    if not implicit then init_ml_object sum obj
   in
   List.iter iter mnames
 
@@ -504,7 +505,7 @@ let declare_ml_modules sum local mnames =
   let () = Lib.Synterp.add_leaf sum (inNewSynterp (local,new_synterp)) in
   let map (implicit,obj) =
     if implicit then None else begin
-      init_ml_object obj;
+      init_ml_object sum obj;
       Some (perform_cache_obj sum obj)
     end
   in

@@ -483,7 +483,7 @@ and synterp_load sum ~intern verbosely fname =
   in
   let proof_mode = Some (get_default_proof_mode ()) in
   let rec load_loop entries =
-    match parse_sentence proof_mode input with
+    match parse_sentence proof_mode input (Summary.Synterp.get sum) with
     | None -> entries
     | Some cmd ->
       let entry = v_mod (synterp_control sum ~intern) cmd in

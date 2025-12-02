@@ -78,7 +78,7 @@ type t = {
   clearbody: bool option;
 }
 
-val def_attributes : t Attributes.attribute
+val def_attributes : Summary.Interp.t -> t Attributes.attribute
 
 end
 

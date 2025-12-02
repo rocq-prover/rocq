@@ -34,4 +34,4 @@ val get_default_proof_using : unit -> Vernacexpr.section_subset_expr option
 val proof_using_opt_name : string list
 (** For the stm *)
 
-val using_from_string : string -> Vernacexpr.section_subset_expr
+val using_from_string : Summary.Synterp.t -> string -> Vernacexpr.section_subset_expr

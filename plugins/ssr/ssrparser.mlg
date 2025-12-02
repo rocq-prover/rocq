@@ -239,7 +239,8 @@ let pr_ssrsimpl _ _ _ = pr_simpl
 
 let wit_ssrsimplrep = add_genarg "ssrsimplrep" (fun env sigma -> pr_simpl)
 
-let test_ssrslashnum b1 b2 kwstate strm =
+let test_ssrslashnum b1 b2 state strm =
+  let kwstate = state.Procq.Functional.GState.kwstate in
   match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "/") ->
       (match LStream.peek_nth kwstate 1 strm with
@@ -477,7 +478,9 @@ END
 
 (* Old kinds of terms *)
 
-let input_ssrtermkind kwstate strm = match LStream.peek_nth kwstate 0 strm with
+let input_ssrtermkind state strm =
+  let kwstate = state.Procq.Functional.GState.kwstate in
+  match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "(") -> Ok InParens
   | Some (Tok.KEYWORD "@") -> Ok WithAt
   | Some _ -> Ok NoFlag
@@ -487,7 +490,8 @@ let ssrtermkind = Procq.Entry.(of_parser "ssrtermkind" { parser_fun = input_ssrt
 
 (* New kinds of terms *)
 
-let input_term_annotation kwstate strm =
+let input_term_annotation state strm =
+  let kwstate = state.Procq.Functional.GState.kwstate in
   match LStream.npeek kwstate 2 strm with
   | Tok.KEYWORD "(" :: Tok.KEYWORD "(" :: _ -> Ok `DoubleParens
   | Tok.KEYWORD "(" :: _ -> Ok `Parens
@@ -834,7 +838,8 @@ let test_leftsquarebracket_equal =
     lk_kw "[" >> lk_kw "=" >> check_no_space
   end
 
-let reject_ssrhid kwstate strm =
+let reject_ssrhid state strm =
+  let kwstate = state.Procq.Functional.GState.kwstate in
   match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "[") ->
       (match LStream.peek_nth kwstate 1 strm with
@@ -852,7 +857,10 @@ let rec reject_binder crossed_paren k kwstate s =
   | Some (Tok.KEYWORD ")") when crossed_paren -> Error ()
   | _ -> if crossed_paren then Ok () else Error ()
 
-let _test_nobinder = Procq.Entry.(of_parser "test_nobinder" { parser_fun = reject_binder false 0 })
+let reject_binder state e = reject_binder false 0 state.Procq.Functional.GState.kwstate e
+
+
+let _test_nobinder = Procq.Entry.(of_parser "test_nobinder" { parser_fun = reject_binder })
 
 }
 

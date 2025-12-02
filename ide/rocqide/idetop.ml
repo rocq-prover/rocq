@@ -355,13 +355,13 @@ let pattern_of_string ?env s =
     | None -> Global.env ()
     | Some e -> e
   in
-  let constr = Procq.parse_string Procq.Constr.cpattern s in
+  let constr = Procq.parse_string (!Stm.cur_summary).synterp Procq.Constr.cpattern s in
   let (_, pat) = Constrintern.interp_constr_pattern env (Evd.from_env env) constr in
   pat
 
 let dirpath_of_string_list s =
   let path = String.concat "." s in
-  let qid = Procq.parse_string Procq.Constr.global path in
+  let qid = Procq.parse_string (!Stm.cur_summary).synterp Procq.Constr.global path in
   let id =
     try Nametab.full_name_module qid
     with Not_found ->

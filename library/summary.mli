@@ -74,4 +74,6 @@ val init : unit -> Interp.t
 (** Execute something mutating both phases. *)
 val run_synterp_interp : (Synterp.mut -> 'a) -> (Interp.mut -> 'a -> 'b) -> Interp.t ref -> 'b
 
+val run_synterp : (Synterp.mut -> 'a) -> Interp.t ref -> 'a
+
 val run_interp : (Interp.mut -> 'a) -> Interp.t ref -> 'a

@@ -756,7 +756,8 @@ let lbrace = Char.chr 123
 (** Workaround to a limitation of coqpp *)
 
 let test_ssr_rw_syntax =
-  let test kwstate strm =
+  let test state strm =
+    let kwstate = state.Procq.Functional.GState.kwstate in
     if not !ssr_rw_syntax then Error () else
     if is_ssr_loaded () then Ok () else
     match LStream.peek_nth kwstate 0 strm with

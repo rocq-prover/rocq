@@ -184,6 +184,7 @@ let print_position fmt pos = match pos with
 | Last -> fprintf fmt "Gramlib.Gramext.Last"
 | Before s -> fprintf fmt "Gramlib.Gramext.Before@ \"%s\"" s
 | After s -> fprintf fmt "Gramlib.Gramext.After@ \"%s\"" s
+| Unique -> fprintf fmt "Gramlib.Gramext.Unique"
 
 let print_assoc fmt = function
 | LeftA -> fprintf fmt "Gramlib.Gramext.LeftA"
@@ -351,18 +352,13 @@ let print_entry fmt e = match e.gentry_rules with
     e.gentry_name pr_pos pos pr_prd rules
 | GDataFresh (pos, rules) ->
   let print_rules fmt rules = print_list fmt print_rule rules in
-  let pr_check fmt () = match pos with
-  | None -> fprintf fmt "let () =@ @[assert@ (Procq.Entry.is_empty@ %s)@]@ in@\n" e.gentry_name
-  | Some _ -> fprintf fmt ""
-  in
-  let pos = match pos with None -> First | Some pos -> pos in
-  fprintf fmt "%alet () =@ @[%a@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
-    pr_check ()
+  let pos = match pos with None -> Unique | Some pos -> pos in
+  fprintf fmt "let () =@ @[<2>%a@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
     grammar_extend ()
     e.gentry_name print_position pos print_rules rules
 
 let print_ast fmt ext =
-  let () = fprintf fmt "@[<2>let _ =@ " in
+  let () = fprintf fmt "@[<v2>let () =@ " in
   let () = fprintf fmt "@[<v>%a@]" print_local ext in
   let () = List.iter (fun e -> print_entry fmt e) ext.gramext_entries in
   let () = fprintf fmt "()@]@\n" in
