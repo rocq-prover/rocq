@@ -318,6 +318,8 @@ exception AnomalyInConversion of exn
 (* inferred_universes just gathers the constraints. *)
 val inferred_universes : env -> (UGraph.t * Univ.UnivConstraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
 
+val format_steps : (CClosure.current_context * CClosure.RecordedSteps.t) list -> Pp.t
+
 (** Deprecated *)
 
 val splay_prod : env -> evar_map -> constr -> (Name.t EConstr.binder_annot * constr) list * constr
