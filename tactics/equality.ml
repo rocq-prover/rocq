@@ -899,6 +899,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
   let goalsort = ESorts.kind sigma goalsort in
   let false_inst = UVars.Instance.(of_array ([|eqqual|], [||])) in
   let rec findrec posn t1 t2 =
+    (* We could try to forbid δ-reduction below for efficiency, see #2939 *)
     let hd1,args1 = whd_all_stack env sigma t1 in
     let hd2,args2 = whd_all_stack env sigma t2 in
     match (EConstr.kind sigma hd1, EConstr.kind sigma hd2) with
@@ -927,7 +928,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
           else
           (* if we cannot eliminate to Type, we cannot discriminate but we
              may still try to project *)
-          project env posn (applist (hd1,args1)) (applist (hd2,args2))
+          project env posn t1 t2
       | Int i1, Int i2 ->
         if Uint63.equal i1 i2 then []
         else raise (DiscrFound (List.rev posn, DInt (i1, i2)))
@@ -943,7 +944,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
           if is_conv env sigma t1_0 t2_0 then
             []
           else
-            project env posn t1_0 t2_0
+            project env posn t1 t2
   in
   try
     Inr (findrec [] t1 t2)
@@ -1388,6 +1389,8 @@ let inject_if_homogenous_dependent_pair ty =
 
 let simplify_args env sigma t =
   (* Quick hack to reduce in arguments of eq only *)
+  let simpl env sigma c = Reductionops.clos_whd_flags RedFlags.betaiota env sigma c in
+  (* We only have to reduce pattern-matchings applied to constructors *)
   match decompose_app sigma t with
     | eq, [|t;c1;c2|] -> applist (eq,[t;simpl env sigma c1;simpl env sigma c2])
     | eq, [|t1;c1;t2;c2|] -> applist (eq,[t1;simpl env sigma c1;t2;simpl env sigma c2])
