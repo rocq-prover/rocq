@@ -1105,7 +1105,7 @@ let warn_mismatch_create_hintdb = CWarnings.create ~name:"mismatched-hint-db" ~c
         str "Hint Db " ++ str db_name ++ str " already exists and " ++
         (if db_use_dn then str "is not" else str "is") ++ str " discriminated.")
 
-let cache_db ({db_name=name; db_use_dn=b; db_ts=ts} as o) =
+let cache_db ({db_name=name; db_use_dn=b; db_ts=ts} as o) _sum =
   match searchtable_map name with
   | exception Not_found -> searchtable_create (name, Hint_db.empty ~name ts b)
   | db ->
@@ -1120,15 +1120,16 @@ let load_db _ x = cache_db x
 let classify_db db = if db.db_local then Dispose else Substitute
 
 let inDB : db_obj -> obj =
-  declare_object {(default_object "AUTOHINT_DB") with
-                  cache_function = cache_db;
-                  load_function = load_db;
-                  subst_function = (fun (_,x) -> x);
-                  classify_function = classify_db; }
+  Interp.declare_object
+    {(default_object "AUTOHINT_DB") with
+     cache_function = cache_db;
+     load_function = load_db;
+     subst_function = ident_subst_function;
+     classify_function = classify_db; }
 
-let create_hint_db l n ts b =
+let create_hint_db sum l n ts b =
   let hint = {db_local=l; db_name=n; db_use_dn=b; db_ts=ts} in
-  Lib.add_leaf (inDB hint)
+  Lib.Interp.add_leaf sum (inDB hint)
 
 type hint_action =
   | AddTransparency of {
@@ -1171,7 +1172,7 @@ let superglobal h = match h.hint_local with
   | SuperGlobal -> true
   | Local | Export -> false
 
-let load_autohint _ h =
+let load_autohint _ h _sum =
   let name = h.hint_name in
   let superglobal = superglobal h in
   match h.hint_action with
@@ -1186,7 +1187,7 @@ let load_autohint _ h =
   | AddMode { gref; mode } ->
     if superglobal then add_mode name gref mode
 
-let open_autohint h =
+let open_autohint h _sum =
   let superglobal = superglobal h in
   match h.hint_action with
   | AddHints hints ->
@@ -1200,10 +1201,10 @@ let open_autohint h =
   | AddMode { gref; mode } ->
     if not superglobal then add_mode h.hint_name gref mode
 
-let cache_autohint o =
-  load_autohint 1 o; open_autohint o
+let cache_autohint o sum =
+  load_autohint 1 o sum; open_autohint o sum
 
-let subst_autohint (subst, obj) =
+let subst_autohint _sum subst obj =
   let subst_key gr =
     let (gr', t) = subst_global subst gr in
     match t with
@@ -1296,7 +1297,7 @@ let classify_autohint obj =
   if is_hint_local obj.hint_local || is_trivial_action obj.hint_action then Dispose
   else Substitute
 
-let discharge_autohint obj =
+let discharge_autohint _sum obj =
   if is_hint_local obj.hint_local then None
   else
     let action = match obj.hint_action with
@@ -1337,7 +1338,7 @@ let discharge_autohint obj =
 let hint_cat = create_category "hints"
 
 let inAutoHint : hint_obj -> obj =
-  declare_object
+  Interp.declare_object
     {(default_object "AUTOHINT") with
      cache_function = cache_autohint;
      load_function = load_autohint;
@@ -1366,20 +1367,20 @@ let make_hint ~locality name action =
   hint_action = action;
 }
 
-let remove_hints ~locality dbnames grs =
+let remove_hints sum ~locality dbnames grs =
   let () = check_locality locality in
   let dbnames = if List.is_empty dbnames then ["core"] else dbnames in
     List.iter
       (fun dbname ->
         let hint = make_hint ~locality dbname (RemoveHints grs) in
-        Lib.add_leaf (inAutoHint hint))
+        Lib.Interp.add_leaf sum (inAutoHint hint))
       dbnames
 
 (**************************************************************************)
 (*                     The "Hint" vernacular command                      *)
 (**************************************************************************)
 
-let add_resolves env sigma clist ~locality dbnames =
+let add_resolves sum env sigma clist ~locality dbnames =
   List.iter
     (fun dbname ->
       let r =
@@ -1406,56 +1407,56 @@ let add_resolves env sigma clist ~locality dbnames =
       in
       let () = if not !Flags.quiet then List.iter check r in
       let hint = make_hint ~locality dbname (AddHints r) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
-let add_unfolds l ~locality dbnames =
+let add_unfolds sum l ~locality dbnames =
   List.iter
     (fun dbname ->
       let hint = make_hint ~locality dbname (AddHints (List.map make_unfold l)) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
-let add_cuts l ~locality dbnames =
+let add_cuts sum l ~locality dbnames =
   List.iter
     (fun dbname ->
       let hint = make_hint ~locality dbname (AddCut l) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
-let add_mode l m ~locality dbnames =
+let add_mode sum l m ~locality dbnames =
   List.iter
     (fun dbname ->
       let m' = make_mode l m in
       let hint = make_hint ~locality dbname (AddMode { gref = l; mode = m' }) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
-let add_transparency l b ~locality dbnames =
+let add_transparency sum l b ~locality dbnames =
   List.iter
     (fun dbname ->
       let hint = make_hint ~locality dbname (AddTransparency { grefs = l; state = b }) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
-let add_extern info tacast ~locality dbname =
+let add_extern sum info tacast ~locality dbname =
   let pat = match info.hint_pattern with
   | None -> None
   | Some (_, pat) -> Some pat
   in
   let hint = make_hint ~locality dbname
                        (AddHints [make_extern (Option.get info.hint_priority) pat tacast]) in
-  Lib.add_leaf (inAutoHint hint)
+  Lib.Interp.add_leaf sum (inAutoHint hint)
 
-let add_externs info tacast ~locality dbnames =
-  List.iter (add_extern info tacast ~locality) dbnames
+let add_externs sum info tacast ~locality dbnames =
+  List.iter (add_extern sum info tacast ~locality) dbnames
 
-let add_trivials env sigma l ~locality dbnames =
+let add_trivials sum env sigma l ~locality dbnames =
   List.iter
     (fun dbname ->
       let l = List.map (fun c -> make_trivial env sigma c) l in
       let hint = make_hint ~locality dbname (AddHints l) in
-      Lib.add_leaf (inAutoHint hint))
+      Lib.Interp.add_leaf sum (inAutoHint hint))
     dbnames
 
 type hnf = bool
@@ -1515,7 +1516,7 @@ let is_notlocal = function
 | Local -> false
 | Export | SuperGlobal -> true
 
-let add_hints ~locality dbnames h =
+let add_hints sum ~locality dbnames h =
   let () = match h with
   | HintsResolveEntry _ | HintsImmediateEntry _ | HintsUnfoldEntry _ | HintsExternEntry _ ->
     check_locality locality
@@ -1537,15 +1538,15 @@ let add_hints ~locality dbnames h =
   let env = Global.env() in
   let sigma = Evd.from_env env in
   match h with
-  | HintsResolveEntry lhints -> add_resolves env sigma lhints ~locality dbnames
-  | HintsImmediateEntry lhints -> add_trivials env sigma lhints ~locality dbnames
-  | HintsCutEntry lhints -> add_cuts lhints ~locality dbnames
-  | HintsModeEntry (l,m) -> add_mode l m ~locality dbnames
-  | HintsUnfoldEntry lhints -> add_unfolds lhints ~locality dbnames
+  | HintsResolveEntry lhints -> add_resolves sum env sigma lhints ~locality dbnames
+  | HintsImmediateEntry lhints -> add_trivials sum env sigma lhints ~locality dbnames
+  | HintsCutEntry lhints -> add_cuts sum lhints ~locality dbnames
+  | HintsModeEntry (l,m) -> add_mode sum l m ~locality dbnames
+  | HintsUnfoldEntry lhints -> add_unfolds sum lhints ~locality dbnames
   | HintsTransparencyEntry (lhints, b) ->
-      add_transparency lhints b ~locality dbnames
+      add_transparency sum lhints b ~locality dbnames
   | HintsExternEntry (info, tacexp) ->
-      add_externs info tacexp ~locality dbnames
+      add_externs sum info tacexp ~locality dbnames
 
 let warn_non_reference_hint_using =
   CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.deprecated

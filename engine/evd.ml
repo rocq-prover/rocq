@@ -706,7 +706,7 @@ let remove_evar_flags evk evar_flags =
 let evar_counter_summary_name = "evar counter"
 
 (* Generator of existential names *)
-let evar_ctr, evar_counter_summary_tag = Summary.ref_tag 0 ~name:evar_counter_summary_name
+let evar_ctr, evar_counter_summary_tag = Summary.Interp.ref_tag 0 ~name:evar_counter_summary_name
 let new_untyped_evar () = incr evar_ctr; Evar.unsafe_of_int !evar_ctr
 
 let default_source = Loc.tag @@ Evar_kinds.InternalHole
@@ -1029,13 +1029,13 @@ let to_universe_context evd = UState.context evd.universes
 
 let univ_entry ~poly evd = UState.univ_entry ~poly evd.universes
 
-let check_sort_poly_decl ~poly evd decl = UState.check_sort_poly_decl ~poly evd.universes decl
+let check_univ_decl ~poly evd decl = UState.check_univ_decl ~poly evd.universes decl
 
-let check_sort_poly_decl_early ~poly ~with_obls sigma udecl terms =
+let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   let () =
     if with_obls && not poly &&
-       (not udecl.UState.sort_poly_decl_extensible_instance
-        || not udecl.UState.sort_poly_decl_extensible_constraints)
+       (not udecl.UState.univdecl_extensible_instance
+        || not udecl.UState.univdecl_extensible_constraints)
     then
       CErrors.user_err
         Pp.(str "Non extensible universe declaration not supported \
@@ -1045,7 +1045,7 @@ let check_sort_poly_decl_early ~poly ~with_obls sigma udecl terms =
   let uctx = ustate sigma in
   let uctx = UState.collapse_sort_variables uctx in
   let uctx = UState.restrict uctx vars in
-  ignore (UState.check_sort_poly_decl ~poly uctx udecl)
+  ignore (UState.check_univ_decl ~poly uctx udecl)
 
 let restrict_universe_context evd vars =
   { evd with universes = UState.restrict evd.universes vars }
@@ -1965,3 +1965,7 @@ let drop_new_defined ~original sigma =
   let undf_evars = normalize_against original.undf_evars sigma.undf_evars in
   { sigma with defn_evars = to_keep; undf_evars })
     ()
+
+module Internal = struct
+  let current_evar_counter () = !evar_ctr
+end

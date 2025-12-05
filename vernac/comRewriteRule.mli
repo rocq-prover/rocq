@@ -1,8 +1,19 @@
-val do_symbols : poly:bool -> unfold_fix:bool ->
-  (Vernacexpr.coercion_flag * ((Names.lident * Constrexpr.sort_poly_decl_expr option) list * Constrexpr.constr_expr)) list
+(************************************************************************)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
+(*  v      *         Copyright INRIA, CNRS and contributors             *)
+(* <O___,, * (see version control and CREDITS file for authors & dates) *)
+(*   \VV/  **************************************************************)
+(*    //   *    This file is distributed under the terms of the         *)
+(*         *     GNU Lesser General Public License Version 2.1          *)
+(*         *     (see LICENSE file for the text of the license)         *)
+(************************************************************************)
+
+val do_symbols : Summary.Interp.mut ->
+  poly:bool -> unfold_fix:bool ->
+  (Vernacexpr.coercion_flag * ((Names.lident * Constrexpr.universe_decl_expr option) list * Constrexpr.constr_expr)) list
   -> unit
 
 val do_rules :
   Names.Id.t ->
-  (Constrexpr.sort_poly_decl_expr option * Constrexpr.constr_expr * Constrexpr.constr_expr) list ->
+  (Constrexpr.universe_decl_expr option * Constrexpr.constr_expr * Constrexpr.constr_expr) list ->
   unit

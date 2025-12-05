@@ -15,11 +15,14 @@
 
 (** {5 Adding notations} *)
 
-val extend_constr_grammar : Notation_gram.one_notation_grammar -> unit
+val extend_constr_grammar : Summary.Synterp.mut -> Notation_gram.one_notation_grammar -> unit
 (** Add a term notation rule to the parsing system. *)
 
-val find_custom_entry : Globnames.CustomName.t ->
+val find_custom_entry_g : Procq.GramState.t -> Globnames.CustomName.t ->
   Constrexpr.constr_expr Procq.Entry.t * Constrexpr.cases_pattern_expr Procq.Entry.t
 
-val create_custom_entry : Globnames.CustomName.t -> unit
+val find_custom_entry : Summary.Synterp.t -> Globnames.CustomName.t ->
+  Constrexpr.constr_expr Procq.Entry.t * Constrexpr.cases_pattern_expr Procq.Entry.t
+
+val create_custom_entry : Summary.Synterp.mut -> Globnames.CustomName.t -> unit
 (** Add the entry to the grammar. *)

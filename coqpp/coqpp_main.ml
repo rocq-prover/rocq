@@ -184,6 +184,7 @@ let print_position fmt pos = match pos with
 | Last -> fprintf fmt "Gramlib.Gramext.Last"
 | Before s -> fprintf fmt "Gramlib.Gramext.Before@ \"%s\"" s
 | After s -> fprintf fmt "Gramlib.Gramext.After@ \"%s\"" s
+| Unique -> fprintf fmt "Gramlib.Gramext.Unique"
 
 let print_assoc fmt = function
 | LeftA -> fprintf fmt "Gramlib.Gramext.LeftA"
@@ -351,18 +352,13 @@ let print_entry fmt e = match e.gentry_rules with
     e.gentry_name pr_pos pos pr_prd rules
 | GDataFresh (pos, rules) ->
   let print_rules fmt rules = print_list fmt print_rule rules in
-  let pr_check fmt () = match pos with
-  | None -> fprintf fmt "let () =@ @[assert@ (Procq.Entry.is_empty@ %s)@]@ in@\n" e.gentry_name
-  | Some _ -> fprintf fmt ""
-  in
-  let pos = match pos with None -> First | Some pos -> pos in
-  fprintf fmt "%alet () =@ @[%a@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
-    pr_check ()
+  let pos = match pos with None -> Unique | Some pos -> pos in
+  fprintf fmt "let () =@ @[<2>%a@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
     grammar_extend ()
     e.gentry_name print_position pos print_rules rules
 
 let print_ast fmt ext =
-  let () = fprintf fmt "@[<2>let _ =@ " in
+  let () = fprintf fmt "@[<v2>let () =@ " in
   let () = fprintf fmt "@[<v>%a@]" print_local ext in
   let () = List.iter (fun e -> print_entry fmt e) ext.gramext_entries in
   let () = fprintf fmt "()@]@\n" in
@@ -444,8 +440,8 @@ let rec pr_named_arguments fmt = function
 | s :: l -> fprintf fmt "~%s@ %a" s pr_named_arguments l
 
 let pr_begin_wrapper fmt = function
-| [] -> fprintf fmt "fun () ->"
-| args -> fprintf fmt "fun %a ->" pr_named_arguments args
+| [] -> fprintf fmt "fun summary ->"
+| args -> fprintf fmt "fun %a summary ->" pr_named_arguments args
 
 let pr_end_wrapper fmt = function
 | [] -> fprintf fmt ""
@@ -454,7 +450,7 @@ let pr_end_wrapper fmt = function
 let print_body_state state fmt r =
   let state = match r.vernac_state with Some _ as s -> s | None -> state in
   match state with
-  | None -> fprintf fmt "Vernactypes.vtdefault (fun () -> %a)" print_code r.vernac_body
+  | None -> fprintf fmt "Vernactypes.vtdefault (fun summary -> %a)" print_code r.vernac_body
   | Some "CUSTOM" -> print_code fmt r.vernac_body
   | Some state ->
     let state, wrap = understand_state state in
@@ -464,16 +460,28 @@ let print_body_state state fmt r =
 let print_body_fun state fmt r =
   match r.vernac_synterp with
   | None ->
-    fprintf fmt "let coqpp_body %a%a =@ @[%a@] in@ "
-      print_binders r.vernac_toks print_atts_left r.vernac_atts (print_body_state state) r
+    fprintf fmt "@[<v>let coqpp_synterp summary @[%a@]_ = () in@ @]let coqpp_body %a%a () =@ @[%a@] in@ "
+      print_binders r.vernac_toks
+      print_binders r.vernac_toks
+      print_atts_left r.vernac_atts
+      (print_body_state state) r
   | Some (id,pe) ->
-    fprintf fmt "let coqpp_body %a%a =@ @[(let %s = %a in %a)@] in@ "
-      print_binders r.vernac_toks print_atts_left r.vernac_atts id print_code pe  (print_body_state state) r
+    fprintf fmt "let coqpp_synterp summary %a%a =@ @[%a@] in@ let coqpp_body %a%a %s =@ @[%a@] in@ "
+      print_binders r.vernac_toks
+      print_atts_left r.vernac_atts
+      print_code pe
+      print_binders r.vernac_toks
+      print_atts_left r.vernac_atts
+      id
+      (print_body_state state) r
 
 let print_body state fmt r =
-  fprintf fmt "@[<2>(%a@[<2>fun %a?loc ~atts () ->@]@ @[<2>coqpp_body@ %a%a@])@]"
-    (print_body_fun state) r print_binders r.vernac_toks
-    print_binders r.vernac_toks print_atts_right r.vernac_atts
+  fprintf fmt "@[<2>(%a@[<2>fun %a?loc ~atts summary ->@]@ @[<2>let atts = %a in@ @[coqpp_body@ %aatts @[(coqpp_synterp summary %aatts)@]@]@])@]"
+    (print_body_fun state) r
+    print_binders r.vernac_toks
+    print_atts_right r.vernac_atts
+    print_binders r.vernac_toks
+    print_binders r.vernac_toks
 
 let rec print_sig fmt = function
 | [] -> fprintf fmt "@[Vernacextend.TyNil@]"
@@ -573,7 +581,7 @@ struct
 let terminal s =
   let p =
     if s <> "" && s.[0] >= '0' && s.[0] <= '9' then "CLexer.terminal_number"
-    else "Procq.terminal" in
+    else "CLexer.terminal" in
   let c = Printf.sprintf "Procq.Symbol.token (%s \"%s\")" p s in
   SymbQuote c
 

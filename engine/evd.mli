@@ -630,11 +630,11 @@ val to_universe_context : evar_map -> UVars.UContext.t
 
 val univ_entry : poly:bool -> evar_map -> UState.named_universes_entry
 
-val check_sort_poly_decl : poly:bool -> evar_map -> UState.sort_poly_decl -> UState.named_universes_entry
+val check_univ_decl : poly:bool -> evar_map -> UState.universe_decl -> UState.named_universes_entry
 
 (** An early check of compatibility of the universe declaration before
     starting to build a declaration interactively *)
-val check_sort_poly_decl_early : poly:bool -> with_obls:bool -> evar_map -> UState.sort_poly_decl -> Constr.t list -> unit
+val check_univ_decl_early : poly:bool -> with_obls:bool -> evar_map -> UState.universe_decl -> Constr.t list -> unit
 
 val merge_universe_context : evar_map -> UState.t -> evar_map
 val set_universe_context : evar_map -> UState.t -> evar_map
@@ -686,7 +686,7 @@ type unsolvability_explanation = SeveralInstancesFound of int
 
 (* This stuff is internal and should not be used. Currently a hack in
    the STM relies on it. *)
-val evar_counter_summary_tag : int Summary.Dyn.tag
+val evar_counter_summary_tag : int Summary.Interp.tag
 
 (** {5 Deprecated functions} *)
 val create_evar_defs : evar_map -> evar_map
@@ -774,4 +774,8 @@ module Expand : sig
   val kind : evar_map -> handle -> econstr -> handle * (econstr, econstr, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
   val expand : evar_map -> handle -> econstr -> econstr
   val expand_instance : skip:bool -> undefined evar_info -> handle -> econstr SList.t -> econstr SList.t
+end
+
+module Internal : sig
+  val current_evar_counter : unit -> int
 end

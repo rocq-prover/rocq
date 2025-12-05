@@ -52,7 +52,7 @@ and anon_abstracting_tac = bool (** abstracting anonymously its result *)
 
 and proof_block_name = string (** open type of delimiters *)
 
-type vernac_command = ?loc:Loc.t -> atts:Attributes.vernac_flags -> unit -> typed_vernac
+type vernac_command = ?loc:Loc.t -> atts:Attributes.vernac_flags -> Summary.Synterp.mut -> typed_vernac
 
 type plugin_args = Genarg.raw_generic_argument list
 
@@ -165,12 +165,16 @@ let rec untype_command : type r s. (r, s) ty_sig -> r -> plugin_args -> vernac_c
     | Some Refl -> untype_command ty (f v) args
   end
 
+(* NB: untype_grammar is called at a point where we don't have summary access
+   (typically at dynlink time, so there is no correct summary since dynlink can't be backtracked)
+   so we use unsync_keywords
+*)
 let rec untype_user_symbol : type s a b c. (a, b, c) Extend.ty_user_symbol -> (s, Gramlib.Grammar.norec, a) Procq.Symbol.t =
   let open Extend in function
   | TUlist1 l -> Procq.Symbol.list1 (untype_user_symbol l)
-  | TUlist1sep (l, s) -> Procq.Symbol.list1sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (Procq.terminal s)])
+  | TUlist1sep (l, s) -> Procq.Symbol.list1sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal s)])
   | TUlist0 l -> Procq.Symbol.list0 (untype_user_symbol l)
-  | TUlist0sep (l, s) -> Procq.Symbol.list0sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (Procq.terminal s)])
+  | TUlist0sep (l, s) -> Procq.Symbol.list0sep (untype_user_symbol l) (Procq.Symbol.tokens [Procq.TPattern (CLexer.terminal s)])
   | TUopt o -> Procq.Symbol.opt (untype_user_symbol o)
   | TUentry a -> Procq.Symbol.nterm (Procq.genarg_grammar (Genarg.ExtraArg a))
   | TUentryl (a, i) -> Procq.Symbol.nterml (Procq.genarg_grammar (Genarg.ExtraArg a)) (string_of_int i)
@@ -243,10 +247,10 @@ let static_vernac_extend ~plugin ~command ?classifier ?entry ~ignore_kw ext =
           then CErrors.anomaly
               Pp.(str "static_vernac_extend in dynlinked code must pass non-None plugin.")
         in
-        Egramml.extend_vernac_command_grammar ~ignore_kw ~undoable:false ext
+        Egramml.extend_vernac_command_grammar (None:Summary.Synterp.mut option) ~ignore_kw ext
       | Some plugin ->
-        Mltop.add_init_function plugin (fun () ->
-            Egramml.extend_vernac_command_grammar ~ignore_kw ~undoable:true ext)
+        Mltop.add_init_function plugin (fun sum ->
+            Egramml.extend_vernac_command_grammar ~ignore_kw (Some sum) ext)
     in
     ()
   in

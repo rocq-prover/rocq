@@ -156,7 +156,7 @@ VERNAC COMMAND EXTEND MyDefine CLASSIFIED AS SIDEFF
      let env = Global.env () in
      let sigma = Evd.from_env env in
      let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
-     let r = Simple_declare.declare_definition ~poly i sigma t in
+     let r = Simple_declare.declare_definition summary ~poly i sigma t in
      let print r = strbrk "Defined " ++ Printer.pr_global r ++ strbrk "." in
      Feedback.msg_notice (print r)
    }
@@ -210,7 +210,7 @@ VERNAC COMMAND EXTEND DefineLookup CLASSIFIED AS SIDEFF
      let env = Global.env () in
      let sigma = Evd.from_env env in
      let (sigma, t) = Constrintern.interp_constr_evars env sigma e in
-     let r = Simple_declare.declare_definition ~poly i sigma t in
+     let r = Simple_declare.declare_definition summary ~poly i sigma t in
      let print r = strbrk "Defined " ++ Printer.pr_global r ++ strbrk "." in
      Feedback.msg_notice (print r);
      let env = Global.env () in

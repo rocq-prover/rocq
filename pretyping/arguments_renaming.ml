@@ -29,7 +29,7 @@ type req =
   | ReqLocal
   | ReqGlobal
 
-let load_rename_args _ (_, (r, names)) =
+let load_rename_args _ (_, (r, names)) _sum =
   name_table := GlobRefMap.add (Global.env ()) r names !name_table
 
 let cache_rename_args o = load_rename_args 1 o
@@ -38,12 +38,12 @@ let classify_rename_args = function
   | ReqLocal, _ -> Dispose
   | ReqGlobal, _ -> Substitute
 
-let subst_rename_args (subst, (_, (r, names as orig))) =
+let subst_rename_args _sum subst (_, (r, names as orig)) =
   ReqLocal,
   let r' = fst (subst_global subst r) in
   if r==r' then orig else (r', names)
 
-let discharge_rename_args = function
+let discharge_rename_args _sum = function
   | ReqGlobal, (c, names) as req when not (isVarRef c && Global.is_in_section c) ->
      (try
        let var_names = Array.map_to_list (fun c -> Name (destVar c)) (Global.section_instance c) in
@@ -52,7 +52,7 @@ let discharge_rename_args = function
      with Not_found -> Some req)
   | _ -> None
 
-let inRenameArgs = declare_object { (default_object "RENAME-ARGUMENTS" ) with
+let inRenameArgs = Interp.declare_object { (default_object "RENAME-ARGUMENTS" ) with
   load_function = load_rename_args;
   cache_function = cache_rename_args;
   classify_function = classify_rename_args;
@@ -60,7 +60,7 @@ let inRenameArgs = declare_object { (default_object "RENAME-ARGUMENTS" ) with
   discharge_function = discharge_rename_args;
 }
 
-let rename_arguments local r names =
+let rename_arguments sum local r names =
   let () = match r with
     | GlobRef.VarRef id ->
       CErrors.user_err
@@ -70,7 +70,7 @@ let rename_arguments local r names =
     | _ -> ()
   in
   let req = if local then ReqLocal else ReqGlobal in
-  Lib.add_leaf (inRenameArgs (req, (r, names)))
+  Lib.Interp.add_leaf sum (inRenameArgs (req, (r, names)))
 
 let arguments_names env r = GlobRefMap.find env r !name_table
 

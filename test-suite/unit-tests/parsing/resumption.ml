@@ -11,10 +11,11 @@ Definition d :=
 "
 
 let parse pa n =
+  let sum = (!Stm.cur_summary).synterp in
   let entry = Pvernac.Vernac_.main_entry in
   let rec loop res n =
     if n = 0 then res else
-      match Procq.Entry.parse entry pa with
+      match Procq.Entry.parse entry pa sum with
       | None -> res
       | Some r -> loop (r :: res) (n-1)
   in

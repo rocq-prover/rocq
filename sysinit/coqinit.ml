@@ -212,7 +212,14 @@ let warn_require_not_found =
         pr_opt (fun prefix -> str "with prefix " ++ Libnames.pr_qualid prefix)
           prefix ++ str ".")
 
-let require_file ~intern ~prefix ~lib ~export ~allow_failure =
+let vernac_require sum ~intern from export qidl =
+  Summary.run_synterp_interp (fun synterp ->
+      Synterp.synterp_require synterp ~intern from export qidl)
+    (fun interp (needed,modrefl) ->
+       Vernacentries.vernac_require_interp interp needed modrefl export qidl)
+    sum
+
+let require_file sum ~intern ~prefix ~lib ~export ~allow_failure =
   let mp = Libnames.qualid_of_string lib in
   let mfrom = Option.map Libnames.qualid_of_string prefix in
   let exp = Option.map (function
@@ -221,7 +228,7 @@ let require_file ~intern ~prefix ~lib ~export ~allow_failure =
       export
   in
   try
-    Flags.silently (Vernacentries.vernac_require ~intern mfrom exp) [mp,Vernacexpr.ImportAll]
+    Flags.silently (vernac_require sum ~intern mfrom exp) [mp,Vernacexpr.ImportAll]
   with (Synterp.UnmappedLibrary _ | Synterp.NotFoundLibrary _) when allow_failure ->
     warn_require_not_found (mfrom, mp)
 
@@ -248,22 +255,28 @@ let interp_set_option (type a) opt (v:string) (k:a Goptions.option_kind) : a =
 let interp_set_option opt =
   { Goptions.check_and_cast = (fun v k -> interp_set_option opt v k ) }
 
-let set_option (opt,v) =
+let set_option sum stage (opt,v) =
   let open Goptions in
   match (v:Coqargs.option_command) with
-  | OptionUnset -> unset_option_value_gen ~locality:OptLocal opt
-  | OptionSet None -> set_bool_option_value_gen ~locality:OptLocal opt true
-  | OptionSet (Some v) -> set_option_value ~locality:OptLocal (interp_set_option opt) opt v
+  | OptionUnset -> unset_option_value_gen stage sum ~locality:OptLocal opt
+  | OptionSet None -> set_bool_option_value_gen stage sum ~locality:OptLocal opt true
+  | OptionSet (Some v) -> set_option_value stage ~locality:OptLocal (interp_set_option opt) sum opt v
 
-let handle_injection ~intern = let open Coqargs in function
+let set_option sum ov =
+  Summary.run_synterp_interp
+    (fun synterp -> set_option synterp SynterpG ov)
+    (fun interp () -> set_option interp InterpG ov)
+    sum
+
+let handle_injection sum ~intern = let open Coqargs in function
   | RequireInjection {lib;prefix;export;allow_failure} ->
-    require_file ~intern ~lib ~prefix ~export ~allow_failure
-  | OptionInjection o -> set_option o
+    require_file sum ~intern ~lib ~prefix ~export ~allow_failure
+  | OptionInjection o -> set_option sum o
   | WarnNoNative s -> warn_no_native_compiler s
   | WarnNativeDeprecated -> warn_deprecated_native_compiler ()
 
-let start_library ~intern ~top injections =
+let start_library sum ~intern ~top injections =
   Flags.verbosely Declaremods.start_library top;
   CWarnings.override_unknown_warning[@ocaml.warning "-3"] := true;
-  List.iter (handle_injection ~intern) injections;
+  List.iter (handle_injection sum ~intern) injections;
   CWarnings.override_unknown_warning[@ocaml.warning "-3"] := false

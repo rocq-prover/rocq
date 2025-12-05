@@ -40,8 +40,8 @@ let { Goptions.get = get_typeclasses_depth } =
     ~value:None
     ()
 
-let set_typeclasses_depth =
-  Goptions.set_int_option_value typeclasses_depth_opt_name
+let set_typeclasses_depth sum x =
+  Goptions.set_int_option_value InterpG sum typeclasses_depth_opt_name x
 
 (** When this flag is enabled, the resolution of type classes tries to avoid
     useless introductions. This is no longer useful since we have eta, but is
@@ -112,9 +112,9 @@ let set_typeclasses_debug = set_typeclasses_debug
 
 type search_strategy = Dfs | Bfs
 
-let set_typeclasses_strategy = function
-  | Dfs -> Goptions.set_bool_option_value iterative_deepening_opt_name false
-  | Bfs -> Goptions.set_bool_option_value iterative_deepening_opt_name true
+let set_typeclasses_strategy sum = function
+  | Dfs -> Goptions.set_bool_option_value InterpG sum iterative_deepening_opt_name false
+  | Bfs -> Goptions.set_bool_option_value InterpG sum iterative_deepening_opt_name true
 
 let pr_ev evs ev =
   let evi = Evd.find_undefined evs ev in
