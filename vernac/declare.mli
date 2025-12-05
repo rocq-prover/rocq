@@ -298,9 +298,6 @@ module Proof : sig
 
   val get_goal_context : t -> int -> Evd.evar_map * Environ.env
 
-  (** [get_current_goal_context ()] works as [get_goal_context 1] *)
-  val get_current_goal_context : t -> Evd.evar_map * Environ.env
-
   (** [get_current_context ()] returns the context of the
       current focused goal. If there is no focused goal but there
       is a proof in progress, it returns the corresponding evar_map.
@@ -477,8 +474,6 @@ val definition_message : Id.t -> unit
 val assumption_message : Id.t -> unit
 val fixpoint_message : int array option -> Id.t list -> unit
 
-val check_exists : Id.t -> unit
-
 (** Semantics of this function is a bit dubious, use with care *)
 val build_by_tactic
   :  Environ.env
@@ -547,12 +542,6 @@ type fixpoint_kind = IsFixpoint of lident option list | IsCoFixpoint
 val check_solved_obligations : pm:OblState.t -> what_for:Pp.t -> unit
 val default_tactic : unit Proofview.tactic ref
 
-(** Resolution status of a program *)
-type progress =
-  | Remain of int  (** n obligations remaining *)
-  | Dependent  (** Dependent on other definitions *)
-  | Defined of GlobRef.t  (** Defined as id *)
-
 (** Prepare API, to be removed once we provide the corresponding 1-step API *)
 val prepare_obligations
   :  name:Id.t
@@ -579,7 +568,7 @@ val add_definition :
   -> ?using:Vernacexpr.section_subset_expr
   -> ?obl_hook: OblState.t Hook.g
   -> RetrieveObl.obligation_info
-  -> OblState.t * progress
+  -> OblState.t
 
 (* XXX: unify with MutualEntry *)
 
@@ -613,8 +602,6 @@ val next_obligation :
 
 (** Implementation of the [Solve Obligations of id with tac] command *)
 val solve_obligations :
-  pm:OblState.t -> Names.Id.t option -> unit Proofview.tactic option -> OblState.t * progress
-val try_solve_obligations :
   pm:OblState.t -> Names.Id.t option -> unit Proofview.tactic option -> OblState.t
 
 (** Implementation of the [Solve All Obligations with tac] command *)

@@ -82,9 +82,9 @@ END
 
 VERNAC COMMAND EXTEND Solve_Obligations CLASSIFIED AS SIDEFF STATE program
 | [ "Solve" "Obligations" "of" identref(name) withtac(t) ] ->
-    { try_solve_obligations (Some name.CAst.v) (Option.map interp_gen t) }
+    { solve_obligations (Some name.CAst.v) (Option.map interp_gen t) }
 | [ "Solve" "Obligations" withtac(t) ] ->
-    { try_solve_obligations None (Option.map interp_gen t) }
+    { solve_obligations None (Option.map interp_gen t) }
 END
 
 VERNAC COMMAND EXTEND Solve_All_Obligations CLASSIFIED AS SIDEFF STATE program

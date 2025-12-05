@@ -596,7 +596,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
     (match fixwfs, bodies, cinfo, obls with
     | [Some _], [body], [cinfo], [obls] ->
       (* Program Fixpoint wf/measure *)
-      let pm, _ = Declare.Obls.add_definition ~pm ~cinfo ~info ~opaque:false ~body ~uctx ?using obls in
+      let pm = Declare.Obls.add_definition ~pm ~cinfo ~info ~opaque:false ~body ~uctx ?using obls in
       Some pm, None
     | _ ->
       let possible_guard = (possible_guard, fixrs) in

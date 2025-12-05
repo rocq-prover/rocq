@@ -210,7 +210,10 @@ let exact ist (c : Ltac_pretype.closed_glob_constr) =
    NOTE: some tactics delete hypothesis and reuse names (induction,
    destruct), this is not detected by this tactical. *)
 let infoH ~pstate (tac : raw_tactic_expr) : unit =
-  let (_, oldhyps) = Declare.Proof.get_current_goal_context pstate in
+  let oldhyps =
+    try snd @@ Declare.Proof.get_goal_context pstate 1
+    with Proof.NoSuchGoal _ -> Global.env ()
+  in
   let oldhyps = List.map Context.Named.Declaration.get_id @@ Environ.named_context oldhyps in
   let tac = Tacinterp.interp tac in
   let tac =

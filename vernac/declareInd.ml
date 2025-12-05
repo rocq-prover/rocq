@@ -127,9 +127,13 @@ let declare_mind ?typing_flags ~indlocs mie =
     (typ, consl)
   in
   let names = List.mapi map_names mie.mind_entry_inds in
+  let check_exists id =
+    if Decls.variable_exists id || Global.exists_objlabel id then
+      raise (DeclareUniv.AlreadyDeclared (None, id))
+  in
   List.iter (fun ({CAst.v=typ}, cons) ->
-      Declare.check_exists typ;
-      List.iter (fun {CAst.v} -> Declare.check_exists v) cons) names;
+      check_exists typ;
+      List.iter (fun {CAst.v} -> check_exists v) cons) names;
   let mind, why_not_prim_record = Global.add_mind ?typing_flags id mie in
   let () = Lib.add_leaf (inInductive (id, { ind_names = names })) in
   let () = UState.add_template_default_univs (Global.env ()) mind in

@@ -1168,7 +1168,7 @@ let prepare_parameter ~poly ~udecl ~types sigma =
     } in
   sigma, pe
 
-type progress = Remain of int | Dependent | Defined of GlobRef.t
+type progress = Remain | Dependent | Defined
 
 module Obls_ = struct
 
@@ -1625,19 +1625,19 @@ let update_obls ~pm prg obls rem =
   let prg' = {prg with prg_obligations} in
   let pm = progmap_replace prg' pm in
   obligations_message rem;
-  if rem > 0 then pm, Remain rem
+  if rem > 0 then pm, Remain
   else
     match prg'.prg_deps with
     | [] ->
       let pm, kn = declare_definition ~pm prg' in
-      pm, Defined kn
+      pm, Defined
     | l ->
       let progs =
         List.map (fun x -> CEphemeron.get (ProgMap.find x pm)) prg'.prg_deps
       in
       if List.for_all (fun x -> obligations_solved x) progs then
         let pm, kn = declare_mutual_definitions ~pm progs in
-        pm, Defined kn
+        pm, Defined
       else pm, Dependent
 
 let dependencies obls n =
@@ -1657,8 +1657,7 @@ let update_program_decl_on_defined ~pm prg obls num obl rem ~auto =
     if pred rem > 0 then
       let deps = dependencies obls num in
       if not (Int.Set.is_empty deps) then
-        let pm, _progress = auto ~pm (Some prg.prg_cinfo.CInfo.name) deps None in
-        pm
+        auto ~pm (Some prg.prg_cinfo.CInfo.name) deps None
       else pm
     else pm
   in
@@ -1669,7 +1668,7 @@ type obligation_resolver =
   -> Id.t option
   -> Int.Set.t
   -> unit Proofview.tactic option
-  -> State.t * progress
+  -> State.t
 
 type obl_check_final = AllFinal | SpecificFinal of Id.t
 
@@ -2200,15 +2199,12 @@ let close_proof ?warn_incomplete ~opaque ~keep_body_ucst_separate (proof : t) : 
   ; pinfo = proof.pinfo
   }) ()
 
-let close_proof_delayed ~feedback_id proof (fpl : closed_proof_output Future.computation) : Proof_object.t =
-  NewProfile.profile "close_proof_delayed" (fun () ->
+let close_future_proof ~feedback_id proof (fpl : closed_proof_output Future.computation) : Proof_object.t =
   { Proof_object.proof_object =
       DeferredOpaqueProof { deferred_proof = fpl; using = proof.using; initial_proof_data = Proof.data proof.proof;
                           feedback_id; initial_euctx = proof.initial_euctx }
   ; pinfo = proof.pinfo
-  }) ()
-
-let close_future_proof = close_proof_delayed
+  }
 
 let update_sigma_univs ugraph p =
   map ~f:(Proof.update_sigma_univs ugraph) p
@@ -2286,17 +2282,6 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
 let get_goal_context pf i =
   let p = get pf in
   Proof.get_goal_context_gen p i
-
-let get_current_goal_context pf =
-  let p = get pf in
-  try Proof.get_goal_context_gen p 1
-  with
-  | Proof.NoSuchGoal _ ->
-    (* spiwack: returning empty evar_map, since if there is no goal,
-       under focus, there is no accessible evar either. EJGA: this
-       seems strange, as we have pf *)
-    let env = Global.env () in
-    Evd.from_env env, env
 
 let get_current_context pf =
   let p = get pf in
@@ -2677,7 +2662,7 @@ let solve_obligation ?check_final prg num tac =
   let kind = kind_of_obligation (snd obl.obl_status) in
   let evd = Evd.from_ctx (Internal.get_uctx prg) in
   let evd = Evd.update_sigma_univs (Global.universes ()) evd in
-  let auto ~pm n oblset tac = auto_solve_obligations ~pm n ~oblset tac in
+  let auto ~pm n oblset tac = fst (auto_solve_obligations ~pm n ~oblset tac) in
   let proof_ending =
     let name = Internal.get_name prg in
     Proof_ending.End_obligation {name; num; auto; check_final}
@@ -2698,18 +2683,15 @@ let solve_obligation ?check_final prg num tac =
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
 
+(** Implements [Solve Obligations of name with tac] *)
 let solve_obligations ~pm n tac =
   let prg = get_unique_prog ~pm n in
-  solve_prg_obligations ~pm prg tac
+  fst (solve_prg_obligations ~pm prg tac)
 
 (** Implements [Solve All Obligations with tac] *)
 let solve_all_obligations ~pm tac =
   State.fold pm ~init:pm ~f:(fun k v pm ->
       solve_prg_obligations ~pm v tac |> fst)
-
-(** Implements [Solve Obligations of name with tac] *)
-let try_solve_obligations ~pm name tac =
-  solve_obligations ~pm name tac |> fst
 
 (** Implements [Obligation n of name with tac] *)
 let obligation (user_num, name) ~pm tac =
@@ -2786,19 +2768,19 @@ let add_definition ~pm ~info ~cinfo ~opaque ~uctx ?body
   in
   let name = CInfo.get_name cinfo in
   let {obls;_} = Internal.get_obligations prg in
-  if Int.equal (Array.length obls) 0 then (
-    Flags.if_verbose (msg_generating_obl name) obls;
-    let pm, cst = Obls_.declare_definition ~pm prg in
-    pm, Defined cst)
+  if Int.equal (Array.length obls) 0 then
+    let () = Flags.if_verbose (msg_generating_obl name) obls in
+    let pm, _cst = Obls_.declare_definition ~pm prg in
+    pm
   else
     let () = Flags.if_verbose (msg_generating_obl name) obls in
     let pm = State.add pm name prg in
     let pm, res = auto_solve_obligations ~pm (Some name) tactic in
-    match res with
-    | Remain rem ->
-      Flags.if_verbose (show_obligations ~pm ~msg:false) (Some name);
-      pm, res
-    | _ -> pm, res
+    let () = match res with
+    | Remain -> Flags.if_verbose (show_obligations ~pm ~msg:false) (Some name)
+    | Dependent | Defined -> ()
+    in
+    pm
 
 let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guard
     ?tactic ?(reduce = reduce) ?using ?obl_hook obls =
@@ -2821,11 +2803,11 @@ let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
         else
           let pm, res = auto_solve_obligations ~pm (Some x) tactic in
           match res with
-          | Defined _ ->
+          | Defined ->
             (* If one definition is turned into a constant,
                the whole block is defined. *)
             (pm, true)
-          | _ -> (pm, false))
+          | Dependent | Remain -> (pm, false))
       (pm, false) deps
   in
   pm
@@ -2923,8 +2905,6 @@ let check_solved_obligations =
   Obls_.check_solved_obligations is_empty
 type fixpoint_kind = Obls_.fixpoint_kind =
   | IsFixpoint of lident option list | IsCoFixpoint
-type nonrec progress = progress =
-  | Remain of int | Dependent | Defined of GlobRef.t
 
 end
 

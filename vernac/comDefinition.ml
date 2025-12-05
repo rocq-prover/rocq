@@ -142,12 +142,10 @@ let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_f
     interp_definition ~program_mode:true env evd empty_internalization_env bl red_option c ctypopt
   in
   let body, typ, uctx, _, obls = Declare.Obls.prepare_obligations ~name ~body ?types env evd in
-  Evd.check_sort_poly_decl_early ~poly ~with_obls:true evd udecl [body; typ];
-  let pm, _ =
-    let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
-    let info = Declare.Info.make ~udecl ~scope ?clearbody ~poly ~kind ?hook ?typing_flags ?user_warns () in
-    Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls
-  in pm
+  let () = Evd.check_sort_poly_decl_early ~poly ~with_obls:true evd udecl [body; typ] in
+  let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
+  let info = Declare.Info.make ~udecl ~scope ?clearbody ~poly ~kind ?hook ?typing_flags ?user_warns () in
+  Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls
 
 let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~poly ~typing_flags ~kind ?using ?user_warns udecl bl t =
   let env = Global.env () in

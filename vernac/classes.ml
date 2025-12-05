@@ -353,9 +353,7 @@ let declare_instance_program pm env sigma ~locality ~poly {CAst.v=name;loc} pri 
   let kind = Decls.IsDefinition Decls.Instance in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
   let info = Declare.Info.make ~udecl ~poly ~kind ~hook () in
-  let pm, _ =
-    Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~uctx ~body obls
-  in pm
+  Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~uctx ~body obls
 
 let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impargs udecl ids term termtype =
   (* spiwack: it is hard to reorder the actions to do
