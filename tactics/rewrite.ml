@@ -1195,6 +1195,66 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
           | Fail | Identity -> b'
         in state, res
 
+      | LetIn (n, v, t, b) ->
+        let eq = Rocqlib.build_rocq_eq_data () in
+        let evars', eqty = Evd.fresh_global env (fst evars) eq.Rocqlib.eq in
+        let eqty = EConstr.mkApp (eqty, [| t |]) in
+        let state, v' =
+          s.strategy { state ; term1 = v ; ty1 = t ; cstr = (prop,Some eqty); evars = (evars', snd evars); env; unfresh }
+        in 
+        let res =
+          match v' with
+          | Success r -> 
+            let env' = EConstr.push_rel (LocalDef (n, v, t)) env in
+            let bty = Retyping.get_type_of env' (goalevars evars) b in    
+            if not @@ noccurn (goalevars evars) 1 bty then Fail
+            else
+              let bty = subst1 mkProp bty in
+              let r = match r.rew_prf with
+              | RewPrf (_rel, prf) ->
+                let sigma, eqt = Evd.fresh_global env (fst r.rew_evars) eq.Rocqlib.eq in
+                let sigma, congr = Evd.fresh_global env sigma eq.Rocqlib.congr in
+                let congr = mkApp (congr, [| t; bty; mkLambda (n, t, b); r.rew_from; r.rew_to; prf |]) in
+                { r with rew_prf = RewPrf (mkApp (eqt, [| bty |]), congr); rew_evars = (sigma, snd r.rew_evars) }
+              | x -> r
+              in
+              Success { r with
+                rew_car = bty;
+                rew_from = mkLetIn(n, r.rew_from, t, b);
+                rew_to = mkLetIn (n, r.rew_to, t, b) }
+          | Fail | Identity -> v'
+        in 
+        let res =
+          match res with
+          | Success res -> 
+            (match res.rew_prf with
+            | RewPrf (rel, prf) ->
+              Success (apply_constraint env res.rew_car rel prf (prop,cstr) res)
+            | _ -> Success res)
+          | _ -> res
+        in
+        (match res with
+        | Success _ -> state, res
+        | Fail | Identity -> 
+          let env' = EConstr.push_rel (LocalDef (n, v, t)) env in
+          let bty = Retyping.get_type_of env' (goalevars evars) b in    
+          let state, b' =  s.strategy { state ; term1 = b ; ty1 = bty ; cstr = (prop, Option.map (lift 1) cstr); 
+            evars; env = env'; unfresh }
+          in 
+          let res = 
+            match b' with
+            | Success r ->
+              let mklet t' = mkLetIn (n, v, t, t') in
+              Success { r with rew_car = r.rew_car;
+                rew_prf = 
+                  (match r.rew_prf with
+                  | RewPrf (rel, prf) -> RewPrf (mklet rel, mklet prf)
+                  | RewCast k -> RewCast k);
+                rew_from = mklet r.rew_from;
+                rew_to = mklet r.rew_to; }
+            | _ -> res
+          in state, res)
+
       | Case (ci, u, pms, p, iv, c, brs) ->
         let (ci, (p,rp), iv, c, brs) = EConstr.expand_case env (goalevars evars) (ci, u, pms, p, iv, c, brs) in
         let cty = Retyping.get_type_of env (goalevars evars) c in
@@ -1520,7 +1580,7 @@ let solve_constraints env (evars,cstrs) =
   let evars' = TC.resolve_typeclasses env ~filter:TC.all_evars ~fail:true evars' in
   Evd.set_typeclass_evars evars' oldtcs
 
-let nf_zeta =
+let _nf_zeta =
   Reductionops.clos_norm_flags (RedFlags.mkflags [RedFlags.fZETA])
 
 exception RewriteFailure of Environ.env * Evd.evar_map * pretype_error
@@ -1564,7 +1624,7 @@ let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : resul
     let res = match res.rew_prf with
       | RewCast c -> None
       | RewPrf (rel, p) ->
-        let p = nf_zeta env evars p in
+        (* let p = nf_zeta env evars p in *)
         let term =
           match abs with
           | None -> p
