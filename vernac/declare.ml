@@ -91,7 +91,7 @@ module Info = struct
     { poly : bool
     ; inline : bool
     ; kind : Decls.logical_kind
-    ; udecl : UState.sort_poly_decl
+    ; udecl : UState.universe_decl
     ; scope : Locality.definition_scope
     ; clearbody : bool (* always false for non Discharge scope *)
     ; hook : Hook.t option
@@ -103,7 +103,7 @@ module Info = struct
   (** Note that [opaque] doesn't appear here as it is not known at the
      start of the proof in the interactive case. *)
   let make ?(poly=false) ?(inline=false) ?(kind=Decls.(IsDefinition Definition))
-      ?(udecl=UState.default_sort_poly_decl) ?(scope=Locality.default_scope)
+      ?(udecl=UState.default_univ_decl) ?(scope=Locality.default_scope)
       ?(clearbody=false) ?hook ?typing_flags ?user_warns ?(ntns=[]) () =
     { poly; inline; kind; udecl; scope; hook; typing_flags; clearbody; user_warns; ntns }
 end
@@ -253,7 +253,7 @@ let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl bo
      complement the univ constraints of the typ with the ones of
      the body.  So we keep the two sets distinct. *)
   let uctx_body = UState.restrict uctx used_univs in
-  UState.check_mono_sort_poly_decl uctx_body udecl
+  UState.check_mono_univ_decl uctx_body udecl
 
 let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ =
   let utyp = UState.univ_entry ~poly:false initial_euctx in
@@ -264,13 +264,13 @@ let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_uni
        complement the univ constraints of the typ with the ones of
        the body.  So we keep the two sets distinct. *)
     let uctx_body = UState.restrict uctx used_univs in
-    UState.check_mono_sort_poly_decl uctx_body udecl in
+    UState.check_mono_univ_decl uctx_body udecl in
   initial_euctx, utyp, used_univs, Default { body; opaque = Opaque (ubody, eff) }
 
 let make_univs_immediate_private_poly ~uctx ~udecl ~eff ~used_univs body typ =
   let used_univs_typ, used_univs = universes_of_body_type ~used_univs body typ in
   let uctx' = UState.restrict uctx used_univs_typ in
-  let utyp = UState.check_sort_poly_decl ~poly:true uctx' udecl in
+  let utyp = UState.check_univ_decl ~poly:true uctx' udecl in
   let ubody =
     let uctx = UState.restrict uctx used_univs in
     let uctx = PConstraints.ContextSet.diff (UState.context_set uctx) (UState.context_set uctx') in
@@ -286,7 +286,7 @@ let make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs bod
      the actually used universes.
      TODO: check if restrict is really necessary now. *)
   let uctx = UState.restrict uctx used_univs in
-  let utyp = UState.check_sort_poly_decl ~poly uctx udecl in
+  let utyp = UState.check_univ_decl ~poly uctx udecl in
   let utyp = match fst utyp with
     | Polymorphic_entry _ -> utyp
     | Monomorphic_entry uctx ->
@@ -1051,7 +1051,7 @@ let declare_possibly_mutual_parameters ~info ~cinfo ?(mono_uctx_extra=UState.emp
   pi3 (List.fold_left2 (
     fun (i, subst, csts) { CInfo.name; loc; impargs } (typ, uctx) ->
       let uctx' = UState.restrict uctx (Vars.universes_of_constr typ) in
-      let univs = UState.check_sort_poly_decl ~poly uctx' udecl in
+      let univs = UState.check_univ_decl ~poly uctx' udecl in
       let univs = if i = 0 then add_mono_uctx mono_uctx_extra univs else univs in
       let typ = Vars.replace_vars subst typ in
       let pe = {
@@ -1159,7 +1159,7 @@ let prepare_parameter ~poly ~udecl ~types sigma =
   let sigma, typ = Evarutil.finalize ~abort_on_undefined_evars:true
       sigma (fun nf -> nf types)
   in
-  let univs = Evd.check_sort_poly_decl ~poly sigma udecl in
+  let univs = Evd.check_univ_decl ~poly sigma udecl in
   let pe = {
       parameter_entry_secctx = None;
       parameter_entry_type = typ;

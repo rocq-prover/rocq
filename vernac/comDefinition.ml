@@ -122,7 +122,7 @@ let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_sort_poly_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl in
   let evd, (body, types), impargs =
     interp_definition ~program_mode env evd empty_internalization_env bl red_option c ctypopt
   in
@@ -137,12 +137,12 @@ let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_f
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_sort_poly_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl in
   let evd, (body, types), impargs =
     interp_definition ~program_mode:true env evd empty_internalization_env bl red_option c ctypopt
   in
   let body, typ, uctx, _, obls = Declare.Obls.prepare_obligations ~name ~body ?types env evd in
-  let () = Evd.check_sort_poly_decl_early ~poly ~with_obls:true evd udecl [body; typ] in
+  let () = Evd.check_univ_decl_early ~poly ~with_obls:true evd udecl [body; typ] in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
   let info = Declare.Info.make ~udecl ~scope ?clearbody ~poly ~kind ?hook ?typing_flags ?user_warns () in
   Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls
@@ -151,7 +151,7 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let evd, udecl = Constrintern.interp_sort_poly_decl_opt env udecl in
+  let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
   let evd, args, typ,impargs = interp_statement ~program_mode ~flags ~scope env evd name bl t in
   let evd =
     let inference_hook = if program_mode then Some Declare.Obls.program_inference_hook else None in
@@ -159,7 +159,7 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let evd = Evd.minimize_universes evd in
   Pretyping.check_evars_are_solved ~program_mode env evd;
   let typ = EConstr.to_constr evd typ in
-  Evd.check_sort_poly_decl_early ~poly ~with_obls:false evd udecl [typ];
+  Evd.check_univ_decl_early ~poly ~with_obls:false evd udecl [typ];
   let typ = EConstr.of_constr typ in
   let info = Declare.Info.make ?hook ~poly ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~args ~impargs () in
@@ -170,7 +170,7 @@ let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags 
   let env = Global.env() in
   let env = Environ.update_typing_flags ?typing_flags env in
   (* Explicitly bound universes and constraints *)
-  let evd, udecl = interp_sort_poly_decl_opt env udecl in
+  let evd, udecl = interp_univ_decl_opt env udecl in
   let evd, (body, typ), impargs =
     interp_definition ~program_mode:false env evd empty_internalization_env bl None c ctypopt
   in

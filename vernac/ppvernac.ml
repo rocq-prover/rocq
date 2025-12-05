@@ -87,20 +87,20 @@ let pr_variance_lident (lid,v) =
   let v = Option.cata UVars.Variance.pr (mt()) v in
   v ++ pr_lident lid
 
-let pr_sort_poly_decl_qualities l extensible =
+let pr_univ_decl_qualities l extensible =
   (* "extensible" not really supported in syntax currently *)
   if List.is_empty l then mt()
   else prlist_with_sep spc pr_lident l ++ strbrk " ; "
 
-let pr_sort_poly_decl_instance l extensible =
+let pr_univ_decl_instance l extensible =
   prlist_with_sep spc pr_lident l ++
   (if extensible then str"+" else mt ())
 
-let pr_cumul_sort_poly_decl_instance l extensible =
+let pr_cumul_univ_decl_instance l extensible =
   prlist_with_sep spc pr_variance_lident l ++
   (if extensible then str"+" else mt ())
 
-let pr_sort_poly_decl_constraints elims univs extensible =
+let pr_univ_decl_constraints elims univs extensible =
   if List.is_empty elims && List.is_empty univs && extensible then mt ()
   else pr_spcbar () ++ prlist_with_sep pr_comma pr_elim_constraint elims ++
          prlist_with_sep pr_comma pr_uconstraint univs ++
@@ -112,9 +112,9 @@ let pr_universe_decl l =
   | None -> mt ()
   | Some l ->
     str"@{" ++
-    pr_sort_poly_decl_qualities l.sort_poly_decl_qualities l.sort_poly_decl_extensible_qualities ++
-    pr_sort_poly_decl_instance l.sort_poly_decl_instance l.sort_poly_decl_extensible_instance ++
-    pr_sort_poly_decl_constraints l.sort_poly_decl_elim_constraints l.sort_poly_decl_univ_constraints l.sort_poly_decl_extensible_constraints ++
+    pr_univ_decl_qualities l.univdecl_qualities l.univdecl_extensible_qualities ++
+    pr_univ_decl_instance l.univdecl_instance l.univdecl_extensible_instance ++
+    pr_univ_decl_constraints l.univdecl_elim_constraints l.univdecl_univ_constraints l.univdecl_extensible_constraints ++
     str "}"
 
 let pr_cumul_univ_decl l =
@@ -123,9 +123,9 @@ let pr_cumul_univ_decl l =
   | None -> mt ()
   | Some l ->
     str"@{" ++
-    pr_sort_poly_decl_qualities l.sort_poly_decl_qualities l.sort_poly_decl_extensible_qualities ++
-    pr_cumul_sort_poly_decl_instance l.sort_poly_decl_instance l.sort_poly_decl_extensible_instance ++
-    pr_sort_poly_decl_constraints l.sort_poly_decl_elim_constraints l.sort_poly_decl_univ_constraints l.sort_poly_decl_extensible_constraints ++
+    pr_univ_decl_qualities l.univdecl_qualities l.univdecl_extensible_qualities ++
+    pr_cumul_univ_decl_instance l.univdecl_instance l.univdecl_extensible_instance ++
+    pr_univ_decl_constraints l.univdecl_elim_constraints l.univdecl_univ_constraints l.univdecl_extensible_constraints ++
     str "}"
 
 let pr_ident_decl (lid, l) =

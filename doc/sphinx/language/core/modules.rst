@@ -73,7 +73,7 @@ together, as well as a means of massive abstraction.
       | ( @module_type )
       | @module_type @module_expr_atom
       | @module_type with @with_declaration
-      with_declaration ::= Definition @qualid {? @sort_poly_decl } := @term
+      with_declaration ::= Definition @qualid {? @univ_decl } := @term
       | Module @qualid := @qualid
       module_expr_atom ::= @qualid
       | ( @module_expr_atom )

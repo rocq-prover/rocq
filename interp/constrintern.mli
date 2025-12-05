@@ -268,18 +268,18 @@ val interp_elim_constraint
   -> Sorts.ElimConstraint.t
 
 (** Local universe and constraint declarations. *)
-val interp_sort_poly_decl : Environ.env -> sort_poly_decl_expr ->
-                            Evd.evar_map * UState.sort_poly_decl
+val interp_univ_decl : Environ.env -> universe_decl_expr ->
+  Evd.evar_map * UState.universe_decl
 
-val interp_sort_poly_decl_opt : Environ.env -> sort_poly_decl_expr option ->
-                                Evd.evar_map * UState.sort_poly_decl
+val interp_univ_decl_opt : Environ.env -> universe_decl_expr option ->
+  Evd.evar_map * UState.universe_decl
 
-val interp_cumul_sort_poly_decl_opt : Environ.env -> cumul_univ_decl_expr option ->
-  Evd.evar_map * UState.sort_poly_decl * Entries.variance_entry
+val interp_cumul_univ_decl_opt : Environ.env -> cumul_univ_decl_expr option ->
+  Evd.evar_map * UState.universe_decl * Entries.variance_entry
 (** BEWARE the variance entry needs to be adjusted by
    [ComInductive.variance_of_entry] if the instance is extensible. *)
 
-val interp_mutual_sort_poly_decl_opt : Environ.env -> sort_poly_decl_expr option list ->
-  Evd.evar_map * UState.sort_poly_decl
+val interp_mutual_univ_decl_opt : Environ.env -> universe_decl_expr option list ->
+  Evd.evar_map * UState.universe_decl
 (** Check that all defined udecls of a list of udecls associated to a mutual definition
     are the same and interpret this common udecl *)

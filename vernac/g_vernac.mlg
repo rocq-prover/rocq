@@ -212,18 +212,18 @@ let test_variance_ident =
     lk_kws ["=";"+";"*"] >> lk_ident
   end
 
-let test_doublepipe_sort_poly_decl =
+let test_doublepipe_univ_decl =
   let open Procq.Lookahead in
-  to_entry "test_doublepipe_sort_poly_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_doublepipe_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_ident_list >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
-let test_doublepipe_cumul_sort_poly_decl =
+let test_doublepipe_cumul_univ_decl =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_ident) in
-  to_entry "test_doublepipe_cumul_sort_poly_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_doublepipe_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
-let test_semicolon_cumul_sort_poly_decl =
+let test_semicolon_cumul_univ_decl =
   let open Procq.Lookahead in
-  to_entry "test_semicolon_cumul_sort_poly_decl" (lk_ident_list >> lk_kw ";")
+  to_entry "test_semicolon_cumul_univ_decl" (lk_ident_list >> lk_kw ";")
 
 let test_univ_cst =
   let open Procq.Lookahead in
@@ -245,7 +245,7 @@ let rec univ_constraints = function
 (* Gallina declarations *)
 GRAMMAR EXTEND Gram
   GLOBAL: gallina gallina_ext thm_token def_token assumption_token def_body of_type of_type_inst
-    record_field notation_declaration decl_notations fix_definition ident_decl sort_poly_decl inductive_or_record_definition;
+    record_field notation_declaration decl_notations fix_definition ident_decl univ_decl inductive_or_record_definition;
 
   gallina:
       (* Definition, Theorem, Variable, Axiom, ... *)
@@ -303,7 +303,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Universes"; l = LIST1 identref -> { VernacUniverse l }
       | IDENT "Sort"; l = LIST1 identref -> { VernacSort l }
       | IDENT "Sorts"; l = LIST1 identref -> { VernacSort l }
-      | IDENT "Constraint"; l = LIST1 sort_poly_constraint SEP "," -> { VernacConstraint l }
+      | IDENT "Constraint"; l = LIST1 sort_constraint SEP "," -> { VernacConstraint l }
       | IDENT "Rewrite"; IDENT "Rule"; id = identref; ":="; OPT"|"; rules = LIST1 rewrite_rule SEP "|" ->
           { VernacAddRewRule (id, rules) }
       | IDENT "Rewrite"; IDENT "Rules"; id = identref; ":="; OPT"|"; rules = LIST1 rewrite_rule SEP "|" ->
@@ -347,53 +347,53 @@ GRAMMAR EXTEND Gram
       | IDENT "Inline" -> { DefaultInline }
       | -> { NoInline } ] ]
   ;
-  sort_poly_constraint:
+  sort_constraint:
     [ [ test_univ_cst; l = universe_name;
         ord = [ "<" -> { Univ.UnivConstraint.Lt } | "=" -> { Univ.UnivConstraint.Eq } | "<=" -> { Univ.UnivConstraint.Le } ];
         r = universe_name -> { UnivCst (l, ord, r) }
         | l = sort_quality_var; "->"; r = sort_quality_var
           -> { ElimCst (l, Sorts.ElimConstraint.ElimTo, r) } ] ]
   ;
-  sort_poly_decl_constraints:
-    [ [ "|"; l' = LIST0 sort_poly_constraint SEP ",";
+  univ_decl_constraints:
+    [ [ "|"; l' = LIST0 sort_constraint SEP ",";
         ext = [ "+" -> { true } | -> { false } ]; "}" -> { (l',ext) }
       | ext = [ "}" -> { true } | bar_cbrace -> { false } ] -> { ([], ext) } ] ]
   ;
-  sort_poly_decl:
-    [ [ "@{" ; test_doublepipe_sort_poly_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];  l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
-         cs = sort_poly_decl_constraints
+  univ_decl:
+    [ [ "@{" ; test_doublepipe_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];  l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
+         cs = univ_decl_constraints
          ->
          { let open UState in
            G_constr.warn_old_sort_syntax ~loc:pipe_loc ();
-         { sort_poly_decl_qualities = l0;
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = l0;
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
     | "@{" ; l0 = LIST0 identref; ";";  l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
-        cs = sort_poly_decl_constraints
+        cs = univ_decl_constraints
         ->
          { let open UState in
-         { sort_poly_decl_qualities = l0;
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = l0;
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
     | "@{" ; l = LIST0 identref; ext = [ "+" -> { true } | -> { false } ];
-         cs = sort_poly_decl_constraints
+         cs = univ_decl_constraints
          ->
          { let open UState in
-         { sort_poly_decl_qualities = [];
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = [];
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
     ] ]
   ;
   variance:
@@ -409,53 +409,53 @@ GRAMMAR EXTEND Gram
            between "+" before ident (covariance) and trailing "+" (extra univs allowed) *)
     ] ]
   ;
-  cumul_sort_poly_decl:
-    [ [ "@{" ; test_doublepipe_cumul_sort_poly_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];
+  cumul_univ_decl:
+    [ [ "@{" ; test_doublepipe_cumul_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];
         l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
-         cs = sort_poly_decl_constraints
+         cs = univ_decl_constraints
          ->
          { let open UState in
            G_constr.warn_old_sort_syntax ~loc:pipe_loc ();
-         { sort_poly_decl_qualities = l0;
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = l0;
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
 
-       | "@{" ; test_semicolon_cumul_sort_poly_decl; l0 = LIST0 identref; ";";
+       | "@{" ; test_semicolon_cumul_univ_decl; l0 = LIST0 identref; ";";
         l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
-         cs = sort_poly_decl_constraints
+         cs = univ_decl_constraints
          ->
          { let open UState in
-         { sort_poly_decl_qualities = l0;
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = l0;
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
 
        | "@{" ; l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
-         cs = sort_poly_decl_constraints
+         cs = univ_decl_constraints
          ->
          { let open UState in
-         { sort_poly_decl_qualities = [];
-           sort_poly_decl_extensible_qualities = false;
-           sort_poly_decl_elim_constraints = elim_constraints @@ fst cs;
-           sort_poly_decl_instance = l;
-           sort_poly_decl_extensible_instance = ext;
-           sort_poly_decl_univ_constraints = univ_constraints @@ fst cs;
-           sort_poly_decl_extensible_constraints = snd cs } }
+         { univdecl_qualities = [];
+           univdecl_extensible_qualities = false;
+           univdecl_elim_constraints = elim_constraints @@ fst cs;
+           univdecl_instance = l;
+           univdecl_extensible_instance = ext;
+           univdecl_univ_constraints = univ_constraints @@ fst cs;
+           univdecl_extensible_constraints = snd cs } }
     ] ]
   ;
   ident_decl:
-    [ [ i = identref; l = OPT sort_poly_decl -> { (i, l) }
+    [ [ i = identref; l = OPT univ_decl -> { (i, l) }
   ] ]
   ;
   cumul_ident_decl:
-    [ [ i = identref; l = OPT cumul_sort_poly_decl -> { (i, l) }
+    [ [ i = identref; l = OPT cumul_univ_decl -> { (i, l) }
   ] ]
   ;
   inductive_token:
@@ -558,7 +558,7 @@ GRAMMAR EXTEND Gram
   rw_pattern:
     [ [ p = lconstr -> { p } ] ];
   rewrite_rule:
-    [ [ u = OPT [ u = sort_poly_decl; "|-" -> { u }];
+    [ [ u = OPT [ u = univ_decl; "|-" -> { u }];
         lhs = rw_pattern; "=>" ; rhs = lconstr ->
         { (u, lhs, rhs)
         } ] ]
@@ -809,7 +809,7 @@ GRAMMAR EXTEND Gram
     [ [ qid = qualid -> { qid } | "("; me = module_expr_atom; ")" -> { me } ] ]
   ;
   with_declaration:
-    [ [ "Definition"; fqid = fullyqualid; udecl = OPT sort_poly_decl; ":="; c = Constr.lconstr ->
+    [ [ "Definition"; fqid = fullyqualid; udecl = OPT univ_decl; ":="; c = Constr.lconstr ->
           { CWith_Definition (fqid,udecl,c) }
       | IDENT "Module"; fqid = fullyqualid; ":="; qid = qualid ->
           { CWith_Module (fqid,qid) }
@@ -868,7 +868,7 @@ GRAMMAR EXTEND Gram
           LIST1 [ v=strategy_level; "["; q=LIST1 smart_global; "]" -> { (v,q) } ] ->
             { VernacSynPure (VernacSetStrategy l) }
       (* Canonical structure *)
-      | IDENT "Canonical"; OPT [ IDENT "Structure" -> {()} ]; qid = global; ud = OPT [ u = OPT sort_poly_decl; d = def_body -> { (u,d) } ] ->
+      | IDENT "Canonical"; OPT [ IDENT "Structure" -> {()} ]; qid = global; ud = OPT [ u = OPT univ_decl; d = def_body -> { (u,d) } ] ->
           { match ud with
            | None ->
              VernacSynPure (VernacCanonical CAst.(make ?loc:qid.CAst.loc @@ AN qid))
@@ -879,7 +879,7 @@ GRAMMAR EXTEND Gram
           { VernacSynPure (VernacCanonical CAst.(make ~loc @@ ByNotation ntn)) }
 
       (* Coercions *)
-      | IDENT "Coercion"; qid = global; ud = OPT [ u = OPT sort_poly_decl; d = def_body -> { u, d } ] ->
+      | IDENT "Coercion"; qid = global; ud = OPT [ u = OPT univ_decl; d = def_body -> { u, d } ] ->
           { match ud with Some (u, d) -> let s = coerce_reference_to_id qid in
           VernacSynPure (VernacDefinition ((NoDischarge,Coercion),((CAst.make ?loc:qid.CAst.loc (Name s)),u),d))
           | None -> VernacSynPure (VernacCoercion (CAst.make ~loc @@ AN qid, None)) }

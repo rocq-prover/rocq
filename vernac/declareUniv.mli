@@ -25,7 +25,7 @@ val name_mono_section_univs : Univ.Level.Set.t -> unit
 val do_universe : poly:bool -> lident list -> unit
 
 (** Command [Constraint]. *)
-val do_constraint : poly:bool -> Constrexpr.sort_poly_constraint_expr list -> unit
+val do_constraint : poly:bool -> Constrexpr.sort_constraint_expr list -> unit
 
 val add_constraint_source : GlobRef.t -> Univ.ContextSet.t -> unit
 

@@ -172,7 +172,7 @@ let declare_projection {CAst.v=name; loc} instance_id r =
   in
   let types = Some (it_mkProd_or_LetIn typ ctx) in
   let kind = Decls.(IsDefinition Definition) in
-  let impargs, udecl = [], UState.default_sort_poly_decl in
+  let impargs, udecl = [], UState.default_univ_decl in
   let cinfo = Declare.CInfo.make ?loc ~name ~impargs ~typ:types () in
   let info = Declare.Info.make ~kind ~udecl ~poly () in
   let _r : GlobRef.t =
@@ -198,7 +198,7 @@ let add_morphism_as_parameter atts m n : unit =
   let evd = Evd.from_env env in
   let poly = atts.polymorphic in
   let kind = Decls.(IsAssumption Logical) in
-  let impargs, udecl = [], UState.default_sort_poly_decl in
+  let impargs, udecl = [], UState.default_univ_decl in
   let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
   let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
   let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in

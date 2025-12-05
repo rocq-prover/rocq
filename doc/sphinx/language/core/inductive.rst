@@ -31,7 +31,7 @@ Inductive types
    .. insertprodn inductive_definition constructor
 
    .. prodn::
-      inductive_definition ::= @ident {? @cumul_sort_poly_decl } {* @binder } {? %| {* @binder } } {? : @type } := {? {? %| } {+| @constructor } } {? @decl_notations }
+      inductive_definition ::= @ident {? @cumul_univ_decl } {* @binder } {? %| {* @binder } } {? : @type } := {? {? %| } {+| @constructor } } {? @decl_notations }
       constructor ::= {* #[ {+, @attribute } ] } @ident {* @binder } {? @of_type_inst }
 
    Defines one or more

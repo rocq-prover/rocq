@@ -338,7 +338,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
   let is_template =
     List.exists (fun { DataI.arity; _} -> Option.cata check_anonymous_type true arity) records in
   let unconstrained_sorts = not flags.poly && not def && is_template in
-  let sigma, udecl, variances = Constrintern.interp_cumul_sort_poly_decl_opt env0 udecl in
+  let sigma, udecl, variances = Constrintern.interp_cumul_univ_decl_opt env0 udecl in
   let () = List.iter check_parameters_must_be_named params in
   let sigma, (impls_env, ((_env1,params), impls, _paramlocs)) =
     Constrintern.interp_context_evars ~program_mode:false ~unconstrained_sorts env0 sigma params in
@@ -379,7 +379,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
       | _ -> assert false
     in
     let projname = CAst.map Nameops.Name.get_id projname in
-    let univs = Evd.check_sort_poly_decl ~poly:flags.poly sigma udecl in
+    let univs = Evd.check_univ_decl ~poly:flags.poly sigma udecl in
     (* definitional classes are encoded as 1 constructor with 1
        field whose type is the projection type *)
     let projimpls = match field_impls with

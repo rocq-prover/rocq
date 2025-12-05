@@ -918,7 +918,7 @@ gallina: [
 | "Universes" LIST1 identref
 | "Sort" LIST1 identref
 | "Sorts" LIST1 identref
-| "Constraint" LIST1 sort_poly_constraint SEP ","
+| "Constraint" LIST1 sort_constraint SEP ","
 | "Rewrite" "Rule" identref ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 | "Rewrite" "Rules" identref ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 ]
@@ -965,20 +965,20 @@ inline: [
 |
 ]
 
-sort_poly_constraint: [
+sort_constraint: [
 | test_univ_cst universe_name [ "<" | "=" | "<=" ] universe_name
 | sort_quality_var "->" sort_quality_var
 ]
 
-sort_poly_decl_constraints: [
-| "|" LIST0 sort_poly_constraint SEP "," [ "+" | ] "}"
+univ_decl_constraints: [
+| "|" LIST0 sort_constraint SEP "," [ "+" | ] "}"
 | [ "}" | bar_cbrace ]
 ]
 
-sort_poly_decl: [
-| "@{" test_doublepipe_sort_poly_decl LIST0 identref "|" LIST0 identref [ "+" | ] sort_poly_decl_constraints
-| "@{" LIST0 identref ";" LIST0 identref [ "+" | ] sort_poly_decl_constraints
-| "@{" LIST0 identref [ "+" | ] sort_poly_decl_constraints
+univ_decl: [
+| "@{" test_doublepipe_univ_decl LIST0 identref "|" LIST0 identref [ "+" | ] univ_decl_constraints
+| "@{" LIST0 identref ";" LIST0 identref [ "+" | ] univ_decl_constraints
+| "@{" LIST0 identref [ "+" | ] univ_decl_constraints
 ]
 
 variance: [
@@ -992,18 +992,18 @@ variance_identref: [
 | test_variance_ident variance identref
 ]
 
-cumul_sort_poly_decl: [
-| "@{" test_doublepipe_cumul_sort_poly_decl LIST0 identref "|" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
-| "@{" test_semicolon_cumul_sort_poly_decl LIST0 identref ";" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
-| "@{" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
+cumul_univ_decl: [
+| "@{" test_doublepipe_cumul_univ_decl LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" test_semicolon_cumul_univ_decl LIST0 identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 ]
 
 ident_decl: [
-| identref OPT sort_poly_decl
+| identref OPT univ_decl
 ]
 
 cumul_ident_decl: [
-| identref OPT cumul_sort_poly_decl
+| identref OPT cumul_univ_decl
 ]
 
 inductive_token: [
@@ -1083,7 +1083,7 @@ rw_pattern: [
 ]
 
 rewrite_rule: [
-| OPT [ sort_poly_decl "|-" ] rw_pattern "=>" lconstr
+| OPT [ univ_decl "|-" ] rw_pattern "=>" lconstr
 ]
 
 scheme: [
@@ -1175,9 +1175,9 @@ gallina_ext: [
 | "Transparent" OPT "!" LIST1 smart_global
 | "Opaque" OPT "!" LIST1 smart_global
 | "Strategy" LIST1 [ strategy_level "[" LIST1 smart_global "]" ]
-| "Canonical" OPT "Structure" global OPT [ OPT sort_poly_decl def_body ]
+| "Canonical" OPT "Structure" global OPT [ OPT univ_decl def_body ]
 | "Canonical" OPT "Structure" by_notation
-| "Coercion" global OPT [ OPT sort_poly_decl def_body ]
+| "Coercion" global OPT [ OPT univ_decl def_body ]
 | "Identity" "Coercion" identref ":" coercion_class ">->" coercion_class
 | "Coercion" global ":" coercion_class ">->" coercion_class
 | "Coercion" by_notation ":" coercion_class ">->" coercion_class
@@ -1275,7 +1275,7 @@ module_expr_atom: [
 ]
 
 with_declaration: [
-| "Definition" fullyqualid OPT sort_poly_decl ":=" Constr.lconstr
+| "Definition" fullyqualid OPT univ_decl ":=" Constr.lconstr
 | "Module" fullyqualid ":=" qualid
 ]
 

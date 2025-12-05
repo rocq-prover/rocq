@@ -236,21 +236,19 @@ val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
 
 val collapse_sort_variables : ?except:QVar.Set.t -> t -> t
 
-type ('a, 'b, 'c, 'd) gen_sort_poly_decl = {
-  sort_poly_decl_qualities : 'a;
-  sort_poly_decl_extensible_qualities : bool;
-  sort_poly_decl_elim_constraints : 'b;
-  sort_poly_decl_instance : 'c; (* Declared universes *)
-  sort_poly_decl_extensible_instance : bool; (* Can new universes be added *)
-  sort_poly_decl_univ_constraints : 'd; (* Declared univ constraints *)
-  sort_poly_decl_extensible_constraints : bool; (* Can new constraints (elim or univ) be added *) }
+type ('a, 'b, 'c, 'd) gen_universe_decl = {
+  univdecl_qualities : 'a;
+  univdecl_extensible_qualities : bool;
+  univdecl_elim_constraints : 'b;
+  univdecl_instance : 'c; (* Declared universes *)
+  univdecl_extensible_instance : bool; (* Can new universes be added *)
+  univdecl_univ_constraints : 'd; (* Declared univ constraints *)
+  univdecl_extensible_constraints : bool; (* Can new constraints (elim or univ) be added *) }
 
-type sort_poly_decl =
-  (QVar.t list, Sorts.ElimConstraints.t, Level.t list, Univ.UnivConstraints.t) gen_sort_poly_decl
+type universe_decl =
+  (QVar.t list, Sorts.ElimConstraints.t, Level.t list, Univ.UnivConstraints.t) gen_universe_decl
 
-val default_sort_poly_decl : sort_poly_decl
-
-val sort_poly_decl_csts : sort_poly_decl -> PConstraints.t
+val default_univ_decl : universe_decl
 
 (** [check_poly_decl ctx decl]
 
@@ -263,13 +261,13 @@ val sort_poly_decl_csts : sort_poly_decl -> PConstraints.t
    When polymorphic, the universes corresponding to
    [decl.univdecl_instance] come first in the order defined by that
    list. *)
-val check_sort_poly_decl : poly:bool -> t -> sort_poly_decl -> named_universes_entry
-val check_sort_poly_decl_rev : t -> sort_poly_decl -> t * UVars.UContext.t
+val check_univ_decl : poly:bool -> t -> universe_decl -> named_universes_entry
+val check_univ_decl_rev : t -> universe_decl -> t * UVars.UContext.t
 val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
-val check_mono_sort_poly_decl : t -> sort_poly_decl -> Univ.ContextSet.t
+val check_mono_univ_decl : t -> universe_decl -> Univ.ContextSet.t
 
-val check_template_sort_poly_decl : t -> template_qvars:QVar.Set.t -> sort_poly_decl -> PConstraints.ContextSet.t
+val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> PConstraints.ContextSet.t
 
 val check_mono_sort_constraints : PConstraints.ContextSet.t -> Univ.ContextSet.t
 

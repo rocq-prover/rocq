@@ -938,32 +938,32 @@ let constrain_variables diff uctx =
   let local, vars = UnivFlex.constrain_variables diff uctx.univ_variables uctx.local in
   { uctx with local; univ_variables = vars }
 
-type ('a, 'b, 'c, 'd) gen_sort_poly_decl = {
-  sort_poly_decl_qualities : 'a;
-  sort_poly_decl_extensible_qualities : bool;
-  sort_poly_decl_elim_constraints : 'b;
-  sort_poly_decl_instance : 'c; (* Declared universes *)
-  sort_poly_decl_extensible_instance : bool; (* Can new universes be added *)
-  sort_poly_decl_univ_constraints : 'd; (* Declared univ constraints *)
-  sort_poly_decl_extensible_constraints : bool; (* Can new constraints (elim or univ) be added *) }
+type ('a, 'b, 'c, 'd) gen_universe_decl = {
+  univdecl_qualities : 'a;
+  univdecl_extensible_qualities : bool;
+  univdecl_elim_constraints : 'b;
+  univdecl_instance : 'c; (* Declared universes *)
+  univdecl_extensible_instance : bool; (* Can new universes be added *)
+  univdecl_univ_constraints : 'd; (* Declared univ constraints *)
+  univdecl_extensible_constraints : bool; (* Can new constraints (elim or univ) be added *) }
 
-type sort_poly_decl =
-  (QVar.t list, Sorts.ElimConstraints.t, Level.t list, Univ.UnivConstraints.t) gen_sort_poly_decl
+type universe_decl =
+  (QVar.t list, Sorts.ElimConstraints.t, Level.t list, Univ.UnivConstraints.t) gen_universe_decl
 
-let default_sort_poly_decl =
-  { sort_poly_decl_qualities = [];
+let default_univ_decl =
+  { univdecl_qualities = [];
     (* in practice non named qualities will get collapsed for toplevel definitions,
        but side effects see named qualities from the surrounding definitions
        while using default_univ_decl *)
-    sort_poly_decl_extensible_qualities = true;
-    sort_poly_decl_elim_constraints = ElimConstraints.empty;
-    sort_poly_decl_instance = [];
-    sort_poly_decl_extensible_instance = true;
-    sort_poly_decl_univ_constraints = UnivConstraints.empty;
-    sort_poly_decl_extensible_constraints = true }
+    univdecl_extensible_qualities = true;
+    univdecl_elim_constraints = ElimConstraints.empty;
+    univdecl_instance = [];
+    univdecl_extensible_instance = true;
+    univdecl_univ_constraints = UnivConstraints.empty;
+    univdecl_extensible_constraints = true }
 
-let sort_poly_decl_csts decl =
-  PConstraints.make decl.sort_poly_decl_elim_constraints decl.sort_poly_decl_univ_constraints
+let univ_decl_csts decl =
+  PConstraints.make decl.univdecl_elim_constraints decl.univdecl_univ_constraints
 
 let pr_error_unbound_universes quals univs names =
   let open Pp in
@@ -1030,11 +1030,11 @@ let () = CErrors.register_handler (function
     | _ -> None)
 
 let universe_context_inst decl qvars levels names =
-  let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.sort_poly_decl_qualities in
-  let leftus = List.fold_left (fun acc l -> Level.Set.remove l acc) levels decl.sort_poly_decl_instance in
+  let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.univdecl_qualities in
+  let leftus = List.fold_left (fun acc l -> Level.Set.remove l acc) levels decl.univdecl_instance in
   let () =
-    let unboundqs = if decl.sort_poly_decl_extensible_qualities then QSet.empty else leftqs in
-    let unboundus = if decl.sort_poly_decl_extensible_instance then Level.Set.empty else leftus in
+    let unboundqs = if decl.univdecl_extensible_qualities then QSet.empty else leftqs in
+    let unboundus = if decl.univdecl_extensible_instance then Level.Set.empty else leftus in
     if not (QSet.is_empty unboundqs && Level.Set.is_empty unboundus)
     then error_unbound_universes unboundqs unboundus names
   in
@@ -1043,10 +1043,10 @@ let universe_context_inst decl qvars levels names =
   in
   let leftus = UContext.sort_levels (Array.of_list (Level.Set.elements leftus)) in
   let instq = Array.append
-      (Array.map_of_list (fun q -> QVar q) decl.sort_poly_decl_qualities)
+      (Array.map_of_list (fun q -> QVar q) decl.univdecl_qualities)
       leftqs
   in
-  let instu = Array.append (Array.of_list decl.sort_poly_decl_instance) leftus in
+  let instu = Array.append (Array.of_list decl.univdecl_instance) leftus in
   let inst = Instance.of_array (instq,instu) in
   inst
 
@@ -1080,9 +1080,9 @@ let check_implication uctx (elim_csts,univ_csts) (elim_csts',univ_csts') =
   check_univ_implication uctx univ_csts univ_csts';
   check_elim_implication uctx elim_csts elim_csts'
 
-let check_template_sort_poly_decl uctx ~template_qvars decl =
+let check_template_univ_decl uctx ~template_qvars decl =
   let () =
-    match List.filter (fun q -> not @@ QSet.mem q template_qvars) decl.sort_poly_decl_qualities with
+    match List.filter (fun q -> not @@ QSet.mem q template_qvars) decl.univdecl_qualities with
     | (_ :: _) as qvars ->
       CErrors.user_err
         Pp.(str "Qualities " ++ prlist_with_sep spc (pr_uctx_qvar uctx) qvars ++
@@ -1093,66 +1093,66 @@ let check_template_sort_poly_decl uctx ~template_qvars decl =
   in
   let levels, csts = uctx.local in
   let () =
-    let prefix = decl.sort_poly_decl_instance in
-    if not decl.sort_poly_decl_extensible_instance
+    let prefix = decl.univdecl_instance in
+    if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.sort_poly_decl_extensible_constraints then uctx.local
+  if decl.univdecl_extensible_constraints then uctx.local
   else begin
     check_implication uctx
-      (sort_poly_decl_csts decl) csts;
-    levels, (decl.sort_poly_decl_elim_constraints,decl.sort_poly_decl_univ_constraints)
+      (univ_decl_csts decl) csts;
+    levels, (decl.univdecl_elim_constraints,decl.univdecl_univ_constraints)
   end
 
-let check_mono_sort_poly_decl uctx decl =
+let check_mono_univ_decl uctx decl =
   (* Note: if [decl] is [default_univ_decl], behave like [uctx.local] *)
   let () =
-    if not (List.is_empty decl.sort_poly_decl_qualities)
+    if not (List.is_empty decl.univdecl_qualities)
     || not (QSet.is_empty (QState.undefined uctx.sort_variables))
     then CErrors.user_err Pp.(str "Monomorphic declarations may not have sort variables.")
   in
   let levels, csts = uctx.local in
   let () =
-    let prefix = decl.sort_poly_decl_instance in
-    if not decl.sort_poly_decl_extensible_instance
+    let prefix = decl.univdecl_instance in
+    if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.sort_poly_decl_extensible_constraints then check_mono_sort_constraints uctx.local
+  if decl.univdecl_extensible_constraints then check_mono_sort_constraints uctx.local
   else
     let () = assert (Sorts.ElimConstraints.is_empty (fst csts)) in
-    let () = check_implication uctx (sort_poly_decl_csts decl) csts in
-    levels, decl.sort_poly_decl_univ_constraints
+    let () = check_implication uctx (univ_decl_csts decl) csts in
+    levels, decl.univdecl_univ_constraints
 
-let check_sort_poly_univ_decl uctx decl =
+let check_poly_univ_decl uctx decl =
   (* Note: if [decl] is [default_univ_decl], behave like [context uctx] *)
   let levels, (elim_csts,univ_csts) = uctx.local in
   let qvars = QState.undefined uctx.sort_variables in
   let inst = universe_context_inst decl qvars levels uctx.names in
   let nas = compute_instance_binders uctx inst in
-  let univ_csts = if decl.sort_poly_decl_extensible_constraints then univ_csts
+  let univ_csts = if decl.univdecl_extensible_constraints then univ_csts
     else begin
       check_univ_implication uctx
-        decl.sort_poly_decl_univ_constraints
+        decl.univdecl_univ_constraints
         univ_csts;
-      decl.sort_poly_decl_univ_constraints
+      decl.univdecl_univ_constraints
     end
   in
-  let elim_csts = if decl.sort_poly_decl_extensible_constraints then elim_csts
+  let elim_csts = if decl.univdecl_extensible_constraints then elim_csts
     else begin
       check_elim_implication uctx
-        decl.sort_poly_decl_elim_constraints
+        decl.univdecl_elim_constraints
         elim_csts;
-      decl.sort_poly_decl_elim_constraints
+      decl.univdecl_elim_constraints
     end
   in
   let uctx = UContext.make nas (inst, (elim_csts,univ_csts)) in
   uctx
 
-let check_sort_poly_decl ~poly uctx decl =
+let check_univ_decl ~poly uctx decl =
   let (binders, _) = uctx.names in
   let entry =
-    if poly then Polymorphic_entry (check_sort_poly_univ_decl uctx decl)
-    else Monomorphic_entry (check_mono_sort_poly_decl uctx decl)
+    if poly then Polymorphic_entry (check_poly_univ_decl uctx decl)
+    else Monomorphic_entry (check_mono_univ_decl uctx decl)
   in
   entry, binders
 
@@ -1451,37 +1451,37 @@ let minimize uctx =
         minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
 
 let universe_context_inst_decl decl qvars levels names =
-  let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.sort_poly_decl_qualities in
-  let leftus = List.fold_left (fun acc l -> Level.Set.remove l acc) levels decl.sort_poly_decl_instance in
+  let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.univdecl_qualities in
+  let leftus = List.fold_left (fun acc l -> Level.Set.remove l acc) levels decl.univdecl_instance in
   let () =
-    let unboundqs = if decl.sort_poly_decl_extensible_qualities then QSet.empty else leftqs in
-    let unboundus = if decl.sort_poly_decl_extensible_instance then Level.Set.empty else leftus in
+    let unboundqs = if decl.univdecl_extensible_qualities then QSet.empty else leftqs in
+    let unboundus = if decl.univdecl_extensible_instance then Level.Set.empty else leftus in
     if not (QSet.is_empty unboundqs && Level.Set.is_empty unboundus)
     then error_unbound_universes unboundqs unboundus names
   in
-  let instq = Array.map_of_list (fun q -> QVar q) decl.sort_poly_decl_qualities in
-  let instu = Array.of_list decl.sort_poly_decl_instance in
+  let instq = Array.map_of_list (fun q -> QVar q) decl.univdecl_qualities in
+  let instu = Array.of_list decl.univdecl_instance in
   let inst = Instance.of_array (instq,instu) in
   inst
 
-let check_sort_poly_decl_rev uctx decl =
+let check_univ_decl_rev uctx decl =
   let levels, (elim_csts,univ_csts as csts) = uctx.local in
   let qvars = QState.undefined uctx.sort_variables in
   let inst = universe_context_inst_decl decl qvars levels uctx.names in
   let nas = compute_instance_binders uctx inst in
-  let () = check_implication uctx csts (sort_poly_decl_csts decl)
+  let () = check_implication uctx csts (univ_decl_csts decl)
   in
   let uctx = fix_undefined_variables uctx in
   let uctx, univ_csts =
-    if decl.sort_poly_decl_extensible_constraints
+    if decl.univdecl_extensible_constraints
     then uctx, univ_csts
-    else restrict_univ_constraints uctx decl.sort_poly_decl_univ_constraints,
+    else restrict_univ_constraints uctx decl.univdecl_univ_constraints,
          univ_csts
   in
   let uctx, elim_csts =
-    if decl.sort_poly_decl_extensible_constraints
+    if decl.univdecl_extensible_constraints
     then uctx, elim_csts
-    else restrict_elim_constraints QGraph.Rigid uctx decl.sort_poly_decl_elim_constraints,
+    else restrict_elim_constraints QGraph.Rigid uctx decl.univdecl_elim_constraints,
          elim_csts
   in
   let uctx' = UContext.make nas (inst, (elim_csts,univ_csts)) in
