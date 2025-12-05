@@ -1419,9 +1419,10 @@ let rec glob_of_pat
       let map decl pat = NamedDecl.get_id decl, pat in
       let l = List.filter filter @@ List.map2 map hyps l in
       let id = match Evd.evar_ident evk sigma with
-      | None -> Id.of_string "__"
-      | Some id -> id
+      | None -> "__"
+      | Some id -> Libnames.string_of_path id
       in
+      let id = Id.of_string_soft id in
       GEvar (CAst.make id,List.map (fun (id,c) -> (CAst.make id, glob_of_pat of_extra avoid env sigma c)) l)
   | PRel n ->
       let id = try match lookup_name_of_rel n env with

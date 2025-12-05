@@ -23,7 +23,7 @@ type scope_delimiter = delimiter_depth * scope_name
 type goal_reference =
   | OpenSubgoals
   | NthGoal of int
-  | GoalId of Id.t
+  | GoalId of qualid
 
 type debug_univ_name =
   | NamedUniv of qualid

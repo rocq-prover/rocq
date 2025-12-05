@@ -1340,8 +1340,8 @@ command: [
 
 | DELETE "Show"
 | DELETE "Show" natural
-| DELETE "Show" fullyqualid
-| "Show" OPT [ fullyqualid | natural ]
+| DELETE "Show" qualid
+| "Show" OPT [ qualid | natural ]
 | DELETE "Show" "Ltac" "Profile"
 | REPLACE "Show" "Ltac" "Profile" "CutOff" integer
 | WITH "Show" "Ltac" "Profile" OPT [ "CutOff" integer | string ]
@@ -1561,7 +1561,7 @@ vernac_toplevel: [
 | DELETE vernac_control
 | DELETE "Show" "."
 | DELETE "Show" natural "."
-| REPLACE "Show" "Diffs" ident "."
+| REPLACE "Show" "Diffs" qualid "."
 | WITH "Show" "Diffs" ident
 ]
 

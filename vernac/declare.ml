@@ -2376,8 +2376,12 @@ let finish_proved_equations ~pm ~kind ~hook i entries types sigma0 =
     CList.fold_left2_map (fun sigma (_evar_env, ev, _evi, local_context, _type) entry ->
         let id =
           match Evd.evar_ident ev sigma0 with
-          | Some id -> id
-          | None -> let n = !obls in incr obls; Nameops.add_suffix i ("_obligation_" ^ string_of_int n)
+          | Some id -> Libnames.basename id (* XXX: should deambiguate somehow *)
+          | None ->
+            let n = !obls in
+            let () = incr obls in
+            let id = Nameops.add_suffix i ("_obligation_" ^ string_of_int n) in
+            id
         in
         let body, opaque = match entry.proof_entry_body with Default { body; opaque } -> body, opaque | _ -> assert false in
         let body, typ, args = ProofEntry.shrink_entry local_context body entry.proof_entry_type in

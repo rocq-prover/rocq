@@ -111,7 +111,7 @@ let evar_suggested_name env sigma evk =
   let open Evd in
   let base_id evk' evi =
   match evar_ident evk' sigma with
-  | Some id -> id
+  | Some id -> Libnames.basename id
   | None -> match Evd.evar_source evi with
   | _,Evar_kinds.ImplicitArg (c,(n,id),b) -> id
   | _,Evar_kinds.VarInstance id -> id
@@ -138,7 +138,7 @@ match evar_ident evk sigma with
 | None ->
   str "?" ++ Id.print (evar_suggested_name env sigma evk)
 | Some id ->
-  str "?" ++ Id.print id
+  str "?" ++ Libnames.pr_path id
 
 let pr_decl env sigma (decl,ok) =
   let open NamedDecl in

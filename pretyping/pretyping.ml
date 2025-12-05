@@ -601,7 +601,7 @@ let new_typed_evar env sigma ?naming ?rrpat ~src tycon =
     let sigma, ty = new_type_evar env sigma ~src in
     let sigma, c = new_evar env sigma ~src ?rrpat ?naming ty in
     let evk = fst (destEvar sigma c) in
-    let ido = Evd.evar_ident evk sigma in
+    let ido = Option.map Libnames.basename (Evd.evar_ident evk sigma) in
     let src = (fst src,Evar_kinds.EvarType (ido,evk)) in
     let sigma = update_source sigma (fst (destEvar sigma ty)) src in
     sigma, c, ty
@@ -774,7 +774,7 @@ struct
          sous-contexte du contexte courant, et qu'il n'y a pas de Rel "caché" *)
       let id = interp_ltac_id env id in
       let sigma, evk =
-        match Evd.evar_key id sigma with
+        match Evd.evar_key (Libnames.make_path DirPath.empty id) sigma (* XXX: handle qualids *) with
         | evk -> sigma, evk
         | exception Not_found ->
             if flags.undeclared_evars_rr then

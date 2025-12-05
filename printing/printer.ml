@@ -1057,7 +1057,7 @@ let pr_goal_by_id ?(flags=current_combined()) ?(oldp=None) ~proof id =
     let g = Evd.evar_key id sigma in
     let goal_map = get_goal_map oldp proof in
     let ogoal = get_ogoal goal_map g in
-    pr_selected_subgoal ~flags ~ogoal (pr_id id) sigma g
+    pr_selected_subgoal ~flags ~ogoal (Libnames.pr_path id) sigma g
   with Not_found -> user_err Pp.(str "No such goal.")
 
 (** print a goal identified by the goal id as it appears in -emacs mode.

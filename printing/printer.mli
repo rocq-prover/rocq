@@ -266,7 +266,7 @@ val pr_assumptionset : ?flags:PrintingFlags.t ->
   env -> evar_map -> types ContextObjectMap.t -> Pp.t
 
 val pr_goal_by_id : ?flags:PrintingFlags.t ->
-  ?oldp:Proof.t option option -> proof:Proof.t -> Id.t -> Pp.t
+  ?oldp:Proof.t option option -> proof:Proof.t -> Libnames.full_path -> Pp.t
 val pr_goal_emacs : ?flags:PrintingFlags.t ->
   proof:Proof.t option -> int -> int -> Pp.t
 

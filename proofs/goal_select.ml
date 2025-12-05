@@ -8,8 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Names
-
 (* spiwack: I'm choosing, for now, to have [goal_selector] be a
    different type than [goal_reference] mostly because if it makes sense
    to print a goal that is out of focus (or already solved) it doesn't
@@ -23,7 +21,7 @@ type t =
 let select_nth n = SelectList [NthSelector n]
 
 let pr_id_selector id =
-  Pp.(str "[" ++ Id.print id ++ str "]")
+  Pp.(str "[" ++ Libnames.pr_path id ++ str "]")
 
 let pr_range_selector = let open Proofview in function
   | NthSelector i -> Pp.int i

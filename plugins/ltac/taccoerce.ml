@@ -254,7 +254,9 @@ let coerce_to_ident_not_fresh sigma v =
        | Evar (kn,_) ->
         begin match Evd.evar_ident kn sigma with
         | None -> fail ()
-        | Some id -> id
+        | Some id ->
+          let (dp, id) = Libnames.repr_path id in
+          if DirPath.is_empty dp then id else fail ()
         end
        | Const (cst,_) -> Constant.label cst
        | Construct (cstr,_) ->
