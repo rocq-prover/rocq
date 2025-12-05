@@ -720,16 +720,6 @@ let remove d e =
   { d with undf_evars; defn_evars; future_goals;
            evar_flags; candidate_evars }
 
-let undefine sigma e concl =
-  let EvarInfo evi = find sigma e in
-  let evi = { evi with
-    evar_body = Evar_empty;
-    evar_concl = Undefined concl;
-    evar_candidates = Undefined None;
-    evar_abstract_arguments = Undefined Abstraction.identity;
-  } in
-  add (remove sigma e) e evi
-
 let find_defined d e = EvMap.find_opt e d.defn_evars
 
 let find_undefined d e = EvMap.find e d.undf_evars

@@ -156,7 +156,7 @@ let unif_redex env sigma0 nsigma p t = (* t is a hint for the redex of p *)
   let t, _, _, sigma = saturate ~beta:true env p.pat_sigma t (List.length evs) in
   let sigma = Evd.merge_universe_context sigma ucst in
   match p.pat_pat with
-  | X_In_T (e, p) -> { pat_sigma = sigma; pat_pat = E_As_X_In_T (t, e, p) }
+  | X_In_T p -> { pat_sigma = sigma; pat_pat = E_As_X_In_T (t, p) }
   | _ ->
     try { p with pat_sigma = unify_HO env sigma t (fst (redex_of_pattern env p)) }
     with e when CErrors.noncritical e -> p

@@ -45,9 +45,9 @@ ARGUMENT EXTEND rpattern
   | [ "in" lconstr(x) "in" lconstr(c) ] ->
     { mk_rpattern (In_X_In_T (mk_lterm x None, mk_lterm c None)) }
   | [ lconstr(e) "in" lconstr(x) "in" lconstr(c) ] ->
-    { mk_rpattern (E_In_X_In_T (mk_lterm e None, mk_lterm x None, mk_lterm c None)) }
+    { mk_rpattern (E_In_X_In_T (mk_lterm e None, (mk_lterm x None, mk_lterm c None))) }
   | [ lconstr(e) "as" lconstr(x) "in" lconstr(c) ] ->
-    { mk_rpattern (E_As_X_In_T (mk_lterm e None, mk_lterm x None, mk_lterm c None)) }
+    { mk_rpattern (E_As_X_In_T (mk_lterm e None, (mk_lterm x None, mk_lterm c None))) }
 END
 
 {

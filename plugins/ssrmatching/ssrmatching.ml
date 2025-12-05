@@ -121,8 +121,6 @@ let isGHole c = match DAst.get c with GHole _ -> true | _ -> false
 let mkCHole ~loc = CAst.make ?loc @@ CHole (None)
 let mkCLambda ?loc name ty t = CAst.make ?loc @@
    CLambdaN ([CLocalAssum([CAst.make ?loc name], None, Default Explicit, ty)], t)
-let mkCLetIn ?loc name bo t = CAst.make ?loc @@
-   CLetIn ((CAst.make ?loc name), bo, None, t)
 let mkCCast ?loc t ty = CAst.make ?loc @@ CCast (t, Some DEFAULTcast, ty)
 
 (** Constructors for rawconstr *)
@@ -954,39 +952,51 @@ let mk_tpattern_matcher ?(all_instances=false)
   find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
   conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats occ_state
 
-type ('ident, 'term) ssrpattern =
+type ('inpat, 'term) ssrpattern =
   | T of 'term
   | In_T of 'term
-  | X_In_T of 'ident * 'term
-  | In_X_In_T of 'ident * 'term
-  | E_In_X_In_T of 'term * 'ident * 'term
-  | E_As_X_In_T of 'term * 'ident * 'term
+  | X_In_T of 'inpat
+  | In_X_In_T of 'inpat
+  | E_In_X_In_T of 'term * 'inpat
+  | E_As_X_In_T of 'term * 'inpat
+
+let pr_in_pattern pr_ident pr_term (x, t) =
+  pr_ident x ++ str " in " ++ pr_term t
 
 let pr_pattern pr_ident pr_term = function
   | T t -> pr_term t
   | In_T t -> str "in " ++ pr_term t
-  | X_In_T (x,t) -> pr_ident x ++ str " in " ++ pr_term t
-  | In_X_In_T (x,t) -> str "in " ++ pr_ident x ++ str " in " ++ pr_term t
-  | E_In_X_In_T (e,x,t) ->
-      pr_term e ++ str " in " ++ pr_ident x ++ str " in " ++ pr_term t
-  | E_As_X_In_T (e,x,t) ->
-      pr_term e ++ str " as " ++ pr_ident x ++ str " in " ++ pr_term t
+  | X_In_T p -> pr_in_pattern pr_ident pr_term p
+  | In_X_In_T p -> str "in " ++ pr_in_pattern pr_ident pr_term p
+  | E_In_X_In_T (e, p) ->
+      pr_term e ++ str " in " ++ pr_in_pattern pr_ident pr_term p
+  | E_As_X_In_T (e, p) ->
+      pr_term e ++ str " as " ++ pr_in_pattern pr_ident pr_term p
 
 let pr_hole pr_constr e = pr_constr (EConstr.mkEvar e)
+
+type in_pattern = {
+  in_hole : EConstr.existential;
+  in_func : EConstr.t;
+  in_patt : EConstr.t; (* in_patt := in_func{#1 := in_hole} *)
+}
+
+let pr_in_pattern_aux pr_constr { in_hole = x; in_patt = t} =
+  pr_hole pr_constr x ++ str " in " ++ pr_constr t
 
 let pr_pattern_aux pr_constr = function
   | T t -> pr_constr t
   | In_T t -> str "in " ++ pr_constr t
-  | X_In_T (x,t) -> pr_hole pr_constr x ++ str " in " ++ pr_constr t
-  | In_X_In_T (x,t) -> str "in " ++ pr_hole pr_constr x ++ str " in " ++ pr_constr t
-  | E_In_X_In_T (e,x,t) ->
-      pr_constr e ++ str " in " ++ pr_hole pr_constr x ++ str " in " ++ pr_constr t
-  | E_As_X_In_T (e,x,t) ->
-      pr_constr e ++ str " as " ++ pr_hole pr_constr x ++ str " in " ++ pr_constr t
+  | X_In_T p -> pr_in_pattern_aux pr_constr p
+  | In_X_In_T p -> str "in " ++ pr_in_pattern_aux pr_constr p
+  | E_In_X_In_T (e, p) ->
+      pr_constr e ++ str " in " ++ pr_in_pattern_aux pr_constr p
+  | E_As_X_In_T (e, p) ->
+      pr_constr e ++ str " as " ++ pr_in_pattern_aux pr_constr p
 
 type pattern = {
   pat_sigma : Evd.evar_map;
-  pat_pat : (EConstr.existential, EConstr.t) ssrpattern;
+  pat_pat : (in_pattern, EConstr.t) ssrpattern;
 }
 
 let pp_pattern env { pat_sigma = sigma; pat_pat = p } =
@@ -1074,39 +1084,47 @@ let glob_cpattern gs p =
      | CNotation(_,(InConstrEntry,"( _ as _ in _ )"), ([t1; t2; t3], [], [], [])) ->
          check_var t2; encode k "As" [fst (glob t1); bind_in t2 t3]
      | _ -> glob_ssrterm gs orig
-;;
+
+let glob_in_pattern s (x, t) =
+  (x, glob_ssrterm s t)
 
 let glob_rpattern s p =
   match p with
   | T t -> T (glob_cpattern s t)
   | In_T t -> In_T (glob_ssrterm s t)
-  | X_In_T(x,t) -> X_In_T (x,glob_ssrterm s t)
-  | In_X_In_T(x,t) -> In_X_In_T (x,glob_ssrterm s t)
-  | E_In_X_In_T(e,x,t) -> E_In_X_In_T (glob_ssrterm s e,x,glob_ssrterm s t)
-  | E_As_X_In_T(e,x,t) -> E_As_X_In_T (glob_ssrterm s e,x,glob_ssrterm s t)
+  | X_In_T p -> X_In_T (glob_in_pattern s p)
+  | In_X_In_T p -> In_X_In_T (glob_in_pattern s p)
+  | E_In_X_In_T (e, p) -> E_In_X_In_T (glob_ssrterm s e, glob_in_pattern s p)
+  | E_As_X_In_T (e, p) -> E_As_X_In_T (glob_ssrterm s e, glob_in_pattern s p)
 
 let subst_ssrterm s {kind; pattern; interpretation} =
   {kind; pattern=Tacsubst.subst_glob_constr_and_expr s pattern; interpretation}
 
+let subst_in_pattern s (x, t) =
+  (x, subst_ssrterm s t)
+
 let subst_rpattern s = function
   | T t -> T (subst_ssrterm s t)
   | In_T t -> In_T (subst_ssrterm s t)
-  | X_In_T(x,t) -> X_In_T (x,subst_ssrterm s t)
-  | In_X_In_T(x,t) -> In_X_In_T (x,subst_ssrterm s t)
-  | E_In_X_In_T(e,x,t) -> E_In_X_In_T (subst_ssrterm s e,x,subst_ssrterm s t)
-  | E_As_X_In_T(e,x,t) -> E_As_X_In_T (subst_ssrterm s e,x,subst_ssrterm s t)
+  | X_In_T p -> X_In_T (subst_in_pattern s p)
+  | In_X_In_T p -> In_X_In_T (subst_in_pattern s p)
+  | E_In_X_In_T (e, p) -> E_In_X_In_T (subst_ssrterm s e, subst_in_pattern s p)
+  | E_As_X_In_T (e, p) -> E_As_X_In_T (subst_ssrterm s e, subst_in_pattern s p)
 
 let interp_ssrterm ist {kind; pattern; _} = {kind; pattern; interpretation = Some ist}
+
+let interp_inpattern s (x, t) =
+  (interp_ssrterm s x, interp_ssrterm s t)
 
 let interp_rpattern s = function
   | T t -> T (interp_ssrterm s t)
   | In_T t -> In_T (interp_ssrterm s t)
-  | X_In_T(x,t) -> X_In_T (interp_ssrterm s x,interp_ssrterm s t)
-  | In_X_In_T(x,t) -> In_X_In_T (interp_ssrterm s x,interp_ssrterm s t)
-  | E_In_X_In_T(e,x,t) ->
-    E_In_X_In_T (interp_ssrterm s e,interp_ssrterm s x,interp_ssrterm s t)
-  | E_As_X_In_T(e,x,t) ->
-    E_As_X_In_T (interp_ssrterm s e,interp_ssrterm s x,interp_ssrterm s t)
+  | X_In_T p -> X_In_T (interp_inpattern s p)
+  | In_X_In_T p -> In_X_In_T (interp_inpattern s p)
+  | E_In_X_In_T (e, p) ->
+    E_In_X_In_T (interp_ssrterm s e, interp_inpattern s p)
+  | E_As_X_In_T (e, p) ->
+    E_As_X_In_T (interp_ssrterm s e, interp_inpattern s p)
 
 let interp_rpattern0 ist _ _ t = interp_rpattern ist t
 
@@ -1114,7 +1132,7 @@ let tag_of_cpattern p = p.kind
 let loc_of_cpattern = loc_ofCG
 type occ = (bool * int list) option
 
-type rpattern = (cpattern, cpattern) ssrpattern
+type rpattern = (cpattern * cpattern, cpattern) ssrpattern
 let pr_rpattern = pr_pattern pr_cpattern pr_cpattern
 
 let wit_rpatternty = add_genarg "rpatternty" (fun env sigma -> pr_pattern pr_cpattern pr_cpattern)
@@ -1173,8 +1191,8 @@ let pr_ist { lfun= lfun } =
 let decode_pattern ?wit_ssrpatternarg env sigma0 red =
   pp(lazy(str"interpreting: " ++ pr_rpattern red));
   let xInT x y = X_In_T(x,y) and inXInT x y = In_X_In_T(x,y) in
-  let inT x = In_T x and eInXInT e x t = E_In_X_In_T(e,x,t) in
-  let eAsXInT e x t = E_As_X_In_T(e,x,t) in
+  let inT x = In_T x and eInXInT e x t = E_In_X_In_T (e, (x, t)) in
+  let eAsXInT e x t = E_As_X_In_T (e, (x, t)) in
   let mkG ?(k=NoFlag) x ist = {kind = k; pattern = (x,None); interpretation = ist } in
   let decode ({interpretation=ist; _} as t) ?reccall f g =
     try match DAst.get (pf_intern_term env sigma0 t) with
@@ -1217,8 +1235,8 @@ let decode_pattern ?wit_ssrpatternarg env sigma0 red =
     | In_T t -> decode t inXInT inT
     | X_In_T (e,t) ->  decode t (eInXInT e) (fun x -> xInT (id_of_Cterm e) x)
     | In_X_In_T (e,t) -> inXInT (id_of_Cterm e) t
-    | E_In_X_In_T (e,x,rp) -> eInXInT e (id_of_Cterm x) rp
-    | E_As_X_In_T (e,x,rp) -> eAsXInT e (id_of_Cterm x) rp in
+    | E_In_X_In_T (e, (x, rp)) -> eInXInT e (id_of_Cterm x) rp
+    | E_As_X_In_T (e, (x, rp)) -> eAsXInT e (id_of_Cterm x) rp in
     decode_red red in
   pp(lazy(str"decoded as: " ++ pr_pattern_w_ids red));
   red
@@ -1230,15 +1248,15 @@ let add_pattern_type env sigma0 red (ty,ist) =
   let red =
   match red with
   | T t -> T (combineCG t ty (mkCCast ?loc:(loc_ofCG t)) mkRCast)
-  | X_In_T (x,t) ->
+  | X_In_T (x, t) ->
       let gty = pf_intern_term env sigma0 ty in
-      E_As_X_In_T (mkG (mkRCast mkRHole gty) (ist_of ty), x, t)
-  | E_In_X_In_T (e,x,t) ->
+      E_As_X_In_T (mkG (mkRCast mkRHole gty) (ist_of ty), (x, t))
+  | E_In_X_In_T (e, (x, t)) ->
       let ty = mkG (pf_intern_term env sigma0 ty) (ist_of ty) in
-      E_In_X_In_T (combineCG e ty (mkCCast ?loc:(loc_ofCG t)) mkRCast, x, t)
-  | E_As_X_In_T (e,x,t) ->
+      E_In_X_In_T (combineCG e ty (mkCCast ?loc:(loc_ofCG t)) mkRCast, (x, t))
+  | E_As_X_In_T (e, (x, t)) ->
       let ty = mkG (pf_intern_term env sigma0 ty) (ist_of ty) in
-      E_As_X_In_T (combineCG e ty (mkCCast ?loc:(loc_ofCG t)) mkRCast, x, t)
+      E_As_X_In_T (combineCG e ty (mkCCast ?loc:(loc_ofCG t)) mkRCast, (x, t))
   | red -> red in
   pp(lazy(str"typed as: " ++ pr_pattern_w_ids red));
   red
@@ -1274,6 +1292,24 @@ let cleanup_XinE env sigma0 (h_k, _) x rp sigma =
       sigma new_evars in
   sigma
 
+let mk_in_pattern env sigma0 (x, rp) =
+  let sigma = sigma0 in
+  let ist = match rp.interpretation with
+  | None -> CErrors.user_err (Pp.str "interpreting a term with no ist")
+  | Some ist -> ist
+  in
+  let src = Loc.tag (BinderType (Name x)) in
+  let sigma, (ty, s) = Evarutil.new_type_evar env sigma Evd.univ_flexible_alg in
+  let na = Context.make_annot (Name x) (Retyping.relevance_of_sort s) in
+  let nenv = EConstr.push_rel (Context.Rel.Declaration.LocalAssum (na, ty)) env in
+  let sigma, rp0 = Tacinterp.interp_open_constr ist nenv sigma rp.pattern in
+  let sigma, h = Evarutil.new_evar env sigma ~src ty in
+  let h = EConstr.destEvar sigma h in
+  let sigma = cleanup_XinE env sigma0 h x rp0 sigma in
+  let rp = EConstr.Vars.subst1 (EConstr.mkEvar h) (Evarutil.nf_evar sigma rp0) in
+  let in_pat = { in_hole = h; in_patt = rp; in_func = rp0 } in
+  sigma, in_pat
+
 let interp_pattern ?wit_ssrpatternarg env sigma0 red redty =
   pp(lazy(str"interpreting: " ++ pr_rpattern red));
   let red = decode_pattern ?wit_ssrpatternarg env sigma0 red in
@@ -1281,32 +1317,20 @@ let interp_pattern ?wit_ssrpatternarg env sigma0 red redty =
     match redty with
     | None -> red
     | Some ty -> add_pattern_type env sigma0 red ty in
-  let mkXLetIn ?loc x {kind; pattern=(g,c); interpretation} = match c with
-  | Some b -> {kind; pattern=(g,Some (mkCLetIn ?loc x (mkCHole ~loc) b)); interpretation}
-  | None -> { kind
-            ; pattern = DAst.make ?loc @@ GLetIn
-                  (x, None, DAst.make ?loc @@ GHole (GBinderType x), None, g), None
-            ; interpretation} in
   match red with
   | T t -> let sigma, t = interp_term env sigma0 t in { pat_sigma = sigma; pat_pat = T t }
   | In_T t -> let sigma, t = interp_term env sigma0 t in { pat_sigma = sigma; pat_pat = In_T t }
-  | X_In_T (x, rp) | In_X_In_T (x, rp)
-  | E_In_X_In_T(_, x, rp) | E_As_X_In_T (_, x, rp) ->
-    let rp = mkXLetIn (Name x) rp in
-    let sigma, rp = interp_term env sigma0 rp in
-    let _, h, _, rp = EConstr.destLetIn sigma rp in
-    let h = EConstr.destEvar sigma h in
-    let sigma = cleanup_XinE env sigma0 h x rp sigma in
-    let rp = EConstr.Vars.subst1 (EConstr.mkEvar h) (Evarutil.nf_evar sigma rp) in
+  | X_In_T p | In_X_In_T p | E_In_X_In_T (_, p) | E_As_X_In_T (_, p) ->
+    let sigma, in_pat = mk_in_pattern env sigma0 p in
     let sigma, p = match red with
-      | X_In_T _ -> sigma, X_In_T (h,rp)
-      | In_X_In_T _ -> sigma, In_X_In_T (h,rp)
-      | E_In_X_In_T (e,_,_) ->
+      | X_In_T _ -> sigma, X_In_T in_pat
+      | In_X_In_T _ -> sigma, In_X_In_T in_pat
+      | E_In_X_In_T (e, _) ->
         let sigma, e = interp_term env sigma e in
-        sigma, E_In_X_In_T (e,h,rp)
-      | E_As_X_In_T (e,_,_) ->
+        sigma, E_In_X_In_T (e, in_pat)
+      | E_As_X_In_T (e, _) ->
         let sigma, e = interp_term env sigma e in
-        sigma, E_As_X_In_T (e,h,rp)
+        sigma, E_As_X_In_T (e, in_pat)
       | T _ | In_T _ -> assert false
     in
     { pat_sigma = sigma; pat_pat = p }
@@ -1325,16 +1349,19 @@ let noindex = Some(false,[])
 let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst) =
   let rigid ev = Evd.mem sigma0 ev in
   let fs sigma x = Reductionops.nf_evar sigma x in
-  let pop_evar sigma e p =
+  let pop_evar sigma { in_hole = (e, args); in_patt = p; in_func = fp } =
     let EvarInfo e_def = Evd.find sigma e in
     let e_body = match Evd.evar_body e_def with Evar_defined c -> c
     | _ -> errorstrm (str "Matching the pattern " ++ pr_econstr_env env0 sigma0 p ++
           str " did not instantiate ?" ++ int (Evar.repr e) ++ spc () ++
           str "Does the variable bound by the \"in\" construct occur "++
           str "in the pattern?") in
-    let ty = Retyping.get_type_of (Evd.evar_filtered_env env0 e_def) sigma (EConstr.mkEvar (e, Evd.evar_identity_subst e_def)) in
-    let sigma = Evd.undefine sigma e ty [@@ocaml.warning "-3"] in
-    sigma, e_body in
+    (* This code is very suspect because the returned value is the same as p up to
+       evar expansion *)
+    let fp = Reductionops.nf_evar sigma fp in
+    let fp = EConstr.Vars.subst1 (EConstr.mkEvar (e, args)) fp in
+    fp, e_body
+  in
   let mk_upat_for ?hack ~rigid (sigma, t) =
     mk_tpattern ?hack ~rigid env0 t L2R (fs sigma t) (empty_tpatterns sigma)
   in
@@ -1349,10 +1376,10 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let concl = find_T env0 concl0 1 ~k:do_subst in
     let _, _, (_, _, us, _) = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = (X_In_T (hole, p) | In_X_In_T (hole, p)) } ->
+  | Some { pat_sigma = sigma; pat_pat = (X_In_T p | In_X_In_T p) } ->
+    let { in_hole = hole; in_patt = p } as p0 = p in
     let p = fs sigma p in
     let occ = match pattern with Some { pat_pat = X_In_T _ } -> occ | _ -> noindex in
-    let ex = fst hole in
     let hole = EConstr.mkEvar hole in
     let rp = mk_upat_for ~hack:true ~rigid (sigma, p) in
     let find_T, end_T = mk_tpattern_matcher sigma0 noindex rp in
@@ -1361,14 +1388,14 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_X, end_X = mk_tpattern_matcher ?raise_NoMatch sigma occ holep in
     let concl = find_T env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h
+      let p, e_body = pop_evar p_sigma p0 in
+      fs p_sigma (find_X env p h
         ~k:(fun env _ -> do_subst env e_body))) in
     let _ = end_X () in let _, _, (_, _, us, _) = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = E_In_X_In_T (e, hole, p) } ->
+  | Some { pat_sigma = sigma; pat_pat = E_In_X_In_T (e, p) } ->
+    let { in_hole = hole; in_patt = p } as p0 = p in
     let p, e = fs sigma p, fs sigma e in
-    let ex = fst hole in
     let hole = EConstr.mkEvar hole in
     let rp = mk_upat_for ~hack:true ~rigid (sigma, p) in
     let find_T, end_T = mk_tpattern_matcher sigma0 noindex rp in
@@ -1378,15 +1405,15 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_E, end_E = mk_tpattern_matcher ?raise_NoMatch sigma0 occ re in
     let concl = find_T env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h ~k:(fun env c _ h ->
+      let p, e_body = pop_evar p_sigma p0 in
+      fs p_sigma (find_X env p h ~k:(fun env c _ h ->
         find_E env e_body h ~k:do_subst))) in
     let _, _, (_, _, us, _) = end_E () in
     let _ = end_X () in let _ = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = E_As_X_In_T (e, hole, p) } ->
+  | Some { pat_sigma = sigma; pat_pat = E_As_X_In_T (e, p) } ->
+    let { in_hole = hole; in_patt = p } as p0 = p in
     let p, e = fs sigma p, fs sigma e in
-    let ex = fst hole in
     let hole = EConstr.mkEvar hole in
     let rp =
       let e_sigma = unify_HO env0 sigma hole e in
@@ -1397,8 +1424,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_X, end_X = mk_tpattern_matcher sigma occ holep in
     let concl = find_TE env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h ~k:(fun env c _ h ->
+      let p, e_body = pop_evar p_sigma p0 in
+      fs p_sigma (find_X env p h ~k:(fun env c _ h ->
         let e_sigma = unify_HO env sigma e_body e in
         let e_body = fs e_sigma e in
         do_subst env e_body e_body h))) in
@@ -1407,8 +1434,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
 
 let redex_of_pattern { pat_sigma = sigma; pat_pat = p } = match p with
 | In_T _ | In_X_In_T _ -> None
-| X_In_T (e, _) -> Some (sigma, EConstr.mkEvar e)
-| T e | E_As_X_In_T (e, _, _) | E_In_X_In_T (e, _, _) -> Some (sigma, e)
+| X_In_T { in_hole = e } -> Some (sigma, EConstr.mkEvar e)
+| T e | E_As_X_In_T (e, _) | E_In_X_In_T (e, _) -> Some (sigma, e)
 
 let redex_of_pattern_nf env p =
   let sigma, e = match redex_of_pattern p with

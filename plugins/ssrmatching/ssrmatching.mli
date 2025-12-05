@@ -35,17 +35,19 @@ exception NoMatch
 exception NoProgress
 
 (** AST for [rpattern] (and consequently [cpattern]) *)
-type ('ident, 'term) ssrpattern =
+type ('inpat, 'term) ssrpattern =
   | T of 'term
   | In_T of 'term
-  | X_In_T of 'ident * 'term
-  | In_X_In_T of 'ident * 'term
-  | E_In_X_In_T of 'term * 'ident * 'term
-  | E_As_X_In_T of 'term * 'ident * 'term
+  | X_In_T of 'inpat
+  | In_X_In_T of 'inpat
+  | E_In_X_In_T of 'term * 'inpat
+  | E_As_X_In_T of 'term * 'inpat
+
+type in_pattern
 
 type pattern = {
   pat_sigma : Evd.evar_map;
-  pat_pat : (EConstr.existential, EConstr.t) ssrpattern;
+  pat_pat : (in_pattern, EConstr.t) ssrpattern;
 }
 
 val pp_pattern : env -> pattern -> Pp.t
@@ -53,7 +55,7 @@ val pp_pattern : env -> pattern -> Pp.t
 (** The type of rewrite patterns, the patterns of the [rewrite] tactic.
     These patterns also include patterns that identify all the subterms
     of a context (i.e. "in" prefix) *)
-type rpattern = (cpattern, cpattern) ssrpattern
+type rpattern = (cpattern * cpattern, cpattern) ssrpattern
 val pr_rpattern : rpattern -> Pp.t
 
 (** Extracts the redex and applies to it the substitution part of the pattern.
@@ -251,7 +253,7 @@ sig
   val subst_rpattern : Mod_subst.substitution -> rpattern -> rpattern
   val interp_rpattern : Geninterp.interp_sign -> env -> evar_map -> rpattern -> rpattern
   val pr_rpattern : rpattern -> Pp.t
-  val mk_rpattern : (cpattern, cpattern) ssrpattern -> rpattern
+  val mk_rpattern : (cpattern * cpattern, cpattern) ssrpattern -> rpattern
   val mk_lterm : Constrexpr.constr_expr -> Geninterp.interp_sign option -> cpattern
   val mk_term : ssrtermkind -> Constrexpr.constr_expr -> Geninterp.interp_sign option -> cpattern
 
