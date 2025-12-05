@@ -181,9 +181,23 @@ struct
       [split] is pattern-matching. *)
 
   type ('a, 'i, 'o, 'e) t =
-      { iolist : 'r. 'i -> ('e -> 'r NonLogical.t) ->
-                     ('a -> 'o -> ('e -> 'r NonLogical.t) -> 'r NonLogical.t) ->
-                     'r NonLogical.t }
+    { iolist : 'r. 'i -> ('e -> 'r) -> ('a -> 'o -> ('e -> 'r) -> 'r) -> 'r }
+  (* IMPORTANT: to play well with side-effects, all functions involved in the
+     above type must have AT LEAST the same arity as the one implied by their
+     type. This is to ensure that applying them to the expected arguments only
+     triggers side-effects once fully applied. If OCaml had a type for pure
+     functions a ~> b ⊆ a -> b, we could write this type instead as
+
+     type ('a, 'i, 'o, 'e) t =
+      { iolist : 'r. 'i ~> ('e -> 'r) ~> ('a ~> 'o ~> ('e -> 'r) -> 'r) -> 'r }
+
+     Alternatively we could use records but then it would incur a runtime
+     overhead.
+
+     An easy way to ensure that is to eta-expand the functions on sight.
+
+     Since the type is abstract in the API, this means we must locally enforce
+     this property only in this module. *)
 
   let return x =
     { iolist = fun s nil cons -> cons x s nil }
@@ -209,7 +223,7 @@ struct
     { iolist = fun s nil cons -> m.iolist s nil (fun _ s next -> cons () s next) }
 
   let lift m =
-    { iolist = fun s nil cons -> NonLogical.(m >>= fun x -> cons x s nil) }
+    { iolist = fun s nil cons -> cons (m ()) s nil }
 
   (** State related *)
 
@@ -242,35 +256,34 @@ struct
 
   (** For [reflect] and [split] see the "Backtracking, Interleaving,
       and Terminating Monad Transformers" paper.  *)
-  type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_ NonLogical.t
+  type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_
   and ('a, 'e) reified_ = {r : 'e -> ('a, 'e) reified} [@@unboxed]
 
-  let rec reflect (m : ('a * 'o, 'e) reified) =
-    { iolist = fun s0 nil cons ->
-      let next = function
+  let rec reflect0 : type r. _ -> _ -> _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
+    fun e m s0 nil cons ->
+      match m e with
       | Nil e -> nil e
-      | Cons ((x, s), {r=l}) -> cons x s (fun e -> (reflect (l e)).iolist s0 nil cons)
-      in
-      NonLogical.(m >>= next)
-    }
+      | Cons ((x, s), {r=l}) -> cons x s (fun e -> reflect0 e l s0 nil cons)
+
+  let reflect (e : 'e) (m : 'e -> ('a * 'o, 'e) reified) =
+    { iolist = fun s0 nil cons -> reflect0 e m s0 nil cons }
 
   let split m : (_ list_view, _, _, _) t =
-    let rnil e = NonLogical.return (Nil e) in
-    let rcons p s l = NonLogical.return (Cons ((p, s), {r=l})) in
+    let rnil e = Nil e in
+    let rcons p s l = Cons ((p, s), {r=l}) in
     { iolist = fun s nil cons ->
-      let open NonLogical in
-      m.iolist s rnil rcons >>= begin function
+      begin match m.iolist s rnil rcons with
       | Nil e -> cons (Nil e) s nil
       | Cons ((x, s), {r=l}) ->
-        let l e = reflect (l e) in
+        let l e = reflect e l in
         cons (Cons (x, l)) s nil
       end }
 
   let run m s =
-    let rnil e = NonLogical.return (Nil e) in
+    let rnil e = Nil e in
     let rcons x s l =
       let p = (x, s) in
-      NonLogical.return (Cons (p, {r=l}))
+      Cons (p, {r=l})
     in
     m.iolist s rnil rcons
 
@@ -379,10 +392,10 @@ struct
 
   let run m r s =
     let s = { wstate = P.wunit; ustate = P.uunit; rstate = r; sstate = s } in
-    let rnil e = NonLogical.return (Nil e) in
+    let rnil e = Nil e in
     let rcons x s l =
       let p = (x, s.sstate, s.wstate, s.ustate) in
-      NonLogical.return (Cons (p, {r=l}))
+      Cons (p, {r=l})
     in
     m.iolist s rnil rcons
 
