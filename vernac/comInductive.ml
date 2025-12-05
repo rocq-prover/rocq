@@ -516,7 +516,7 @@ type should_template =
 
 let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
-  let uentry, _ as ubinders = Evd.check_sort_poly_decl ~poly sigma udecl in
+  let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
   let uentry, global = match uentry with
     | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, PConstraints.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
@@ -533,7 +533,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
       template_qvars sigma
   in
   let uctx =
-    UState.check_template_sort_poly_decl (Evd.ustate sigma) ~template_qvars udecl
+    UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
   let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
@@ -682,7 +682,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_sort_poly_decl_opt env udecl in
+  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =

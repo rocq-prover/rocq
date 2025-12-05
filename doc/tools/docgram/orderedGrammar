@@ -108,7 +108,7 @@ assumpt: [
 ]
 
 ident_decl: [
-| ident OPT sort_poly_decl
+| ident OPT univ_decl
 ]
 
 of_type: [
@@ -321,21 +321,21 @@ sort_quality_var: [
 | qualid
 ]
 
-sort_poly_decl: [
-| "@{" OPT [ LIST0 ident [ "|" | ";" ] ] LIST0 ident OPT "+" OPT [ "|" LIST0 sort_poly_constraint SEP "," OPT "+" ] "}"
+univ_decl: [
+| "@{" OPT [ LIST0 ident [ "|" | ";" ] ] LIST0 ident OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 ]
 
-cumul_sort_poly_decl: [
-| "@{" OPT [ LIST0 ident [ "|" | ";" ] ] LIST0 ( OPT [ "+" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_poly_constraint SEP "," OPT "+" ] "}"
+cumul_univ_decl: [
+| "@{" OPT [ LIST0 ident [ "|" | ";" ] ] LIST0 ( OPT [ "+" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 ]
 
-sort_poly_constraint: [
+sort_constraint: [
 | universe_name [ "<" | "=" | "<=" ] universe_name
 | sort_quality_var "->" sort_quality_var
 ]
 
-sort_poly_decl_constraints: [
-| "|" LIST0 sort_poly_constraint SEP "," [ "+" | ] "}"
+univ_decl_constraints: [
+| "|" LIST0 sort_constraint SEP "," [ "+" | ] "}"
 | [ "}" | "|}" ]
 ]
 
@@ -565,7 +565,7 @@ field_val: [
 ]
 
 inductive_definition: [
-| ident OPT cumul_sort_poly_decl LIST0 binder OPT [ "|" LIST0 binder ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] OPT decl_notations
+| ident OPT cumul_univ_decl LIST0 binder OPT [ "|" LIST0 binder ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] OPT decl_notations
 ]
 
 constructor: [
@@ -589,7 +589,7 @@ rw_pattern: [
 ]
 
 rewrite_rule: [
-| OPT [ sort_poly_decl "|-" ] rw_pattern "=>" term
+| OPT [ univ_decl "|-" ] rw_pattern "=>" term
 ]
 
 scheme_kind: [
@@ -640,7 +640,7 @@ module_type: [
 ]
 
 with_declaration: [
-| "Definition" qualid OPT sort_poly_decl ":=" term
+| "Definition" qualid OPT univ_decl ":=" term
 | "Module" qualid ":=" qualid
 ]
 
@@ -946,7 +946,7 @@ command: [
 | "Universes" LIST1 ident
 | "Sort" LIST1 ident
 | "Sorts" LIST1 ident
-| "Constraint" LIST1 sort_poly_constraint SEP ","
+| "Constraint" LIST1 sort_constraint SEP ","
 | "Rewrite" [ "Rule" | "Rules" ] ident ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 | "CoInductive" inductive_definition LIST0 ( "with" inductive_definition )
 | "CoInductive" record_definition LIST0 ( "with" record_definition )
