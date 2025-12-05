@@ -103,6 +103,9 @@ let pp_parray pr a =
 let pp_constr_parray = pp_parray pr_constr
 let pp_fconstr_parray = pp_parray (fun f -> pr_constr (CClosure.term_of_fconstr f))
 
+let pplift el =
+  pp @@ Esubst.Internal.pp_lift el
+
 let ppfsubst s =
   let (s, k) = Esubst.Internal.repr s in
   let sep () = str ";" ++ spc () in

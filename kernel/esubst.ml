@@ -19,8 +19,8 @@ open Util
 (*********************)
 
 (* Explicit lifts and basic operations *)
-(* Invariant to preserve in this module: no lift contains two consecutive
-    [ELSHFT] nor two consecutive [ELLFT]. *)
+(* Invariant to preserve in this module: no lift contains an [ELLFT] of [ELID],
+    two consecutive [ELLFT] or two consecutive [ELSHFT]. *)
 
 (* Terminology comes from substitution calculi (see e.g. Hardin et al.).
    That is, what is called a lift in Rocq is made of what is called in
@@ -29,9 +29,15 @@ open Util
    can be iterated as represented in the type [lift] *)
 type lift =
   | ELID
-  | ELSHFT of lift * int (* ELSHFT(l,n) == lift of n, then apply lift l *)
-  | ELLFT of int * lift  (* ELLFT(n,l)  == apply l to de Bruijn > n *)
-                         (*                 i.e under n binders *)
+  (** [id] in substitution calculi; for all [Γ], [Γ ⊢ ELID : Γ] *)
+
+  | ELSHFT of lift * int
+  (** [↑^n ∘ σ] in substitution calculi (i.e. a shift of [n], then [σ]);
+      assuming [Γ ⊢ σ : Δ, Ξ] and [n = |Ξ|], then [Γ ⊢ ELSHFT (σ, n) : Δ] *)
+
+  | ELLFT of int * lift
+  (** [⇑^n(σ)] in substitution calculi (i.e. [σ] under [n] binders);
+      assuming [Γ ⊢ σ : Δ] and [n = |Ξ|], then [Γ, Ξ ⊢ ELLFT (n, σ) : Δ, Ξ] *)
 
 let el_id = ELID
 
@@ -267,6 +273,69 @@ let rec lift_subst mk e s = match s with
 
 module Internal =
 struct
+
+(** More intuitive representation for weakenings
+    Instead of using ELSHFT (s ⟼ ↑^n ∘ s), uses WEAK (s ⟼ s ∘ ↑^n) *)
+type weakening =
+  | ID
+  (** [id] in substitution calculi; for all [Γ], [Γ ⊢ ID : Γ] *)
+
+  | LIFT of int * weakening
+  (** [⇑^n(σ)] in substitution calculi (i.e. [σ] under [n] binders);
+      assuming [Γ ⊢ σ : Δ] and [n = |Ξ|], then [Γ, Ξ ⊢ LIFT (n, σ) : Δ, Ξ] *)
+
+  | WEAK of int * weakening
+  (** [σ ∘ ↑^n] in substitution calculi (i.e. [σ], then a shift of [n]);
+      assuming [Γ ⊢ σ : Δ] and [n = |Ξ|], then [Γ, Ξ ⊢ WEAK (n, σ) : Δ] *)
+
+(* compose a relocation of magnitude n *)
+let weak n = function
+  | WEAK (k, w) -> WEAK (k+n, w)
+  | w           -> WEAK (n, w)
+
+(** Assuming [Γ ⊢ σ : Δ] and [|Ξ| = n], then [Γ, Ξ ⊢ weak n σ : Δ] *)
+let weak n w = if Int.equal n 0 then w else weak n w
+
+(* cross n binders *)
+let lift n = function
+  | ID          -> ID
+  | LIFT (k, w) -> LIFT (n+k, w)
+  | w           -> LIFT (n, w)
+
+(** Assuming [Γ ⊢ σ : Δ] and [|Ξ| = n], then [Γ, Ξ ⊢ lift n σ : Δ, Ξ] *)
+let lift n w = if Int.equal n 0 then w else lift n w
+
+let rec weakening_of_lift pending =
+  function
+  | ELID -> ID
+  | ELSHFT (el, k) -> weak k (weakening_of_lift (pending+k) el)
+  | ELLFT (k, el) ->
+    if k > pending then
+      lift (k - pending) (weakening_of_lift 0 el)
+    else
+      weakening_of_lift (pending - k) el
+let weakening_of_lift el = weakening_of_lift 0 el
+
+let rec weakening_to_lift =
+  function
+  | ID -> ELID
+  | LIFT (k, w) -> el_shft_rec k (weakening_to_lift w)
+  | WEAK (k, w) ->
+      el_shft_rec k (el_liftn_rec k (weakening_to_lift w))
+[@@warning "-unused-value-declaration"]
+
+let rec pp_weakening =
+  let open Pp in
+  function
+  | ID -> str "keep..]"
+  | LIFT (k, w) ->
+      str "keep " ++ int k ++ str ";" ++ spc () ++ pp_weakening w
+  | WEAK (k, w) ->
+      str "drop " ++ int k ++ str ";" ++ spc () ++ pp_weakening w
+let pp_weakening w = Pp.(str "[" ++ pp_weakening w)
+
+let pp_lift w = pp_weakening (weakening_of_lift w)
+
 
 type 'a or_rel = REL of int | VAL of int * 'a
 

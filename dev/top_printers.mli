@@ -61,6 +61,7 @@ val ppglob_constr : 'a Glob_term.glob_constr_g -> unit
 val pppattern : Pattern.constr_pattern -> unit
 val ppfconstr : CClosure.fconstr -> unit
 val pphconstr : HConstr.t -> unit
+val pplift : Esubst.lift -> unit
 val ppfsubst : CClosure.fconstr Esubst.subs -> unit
 
 val ppnumtokunsigned : NumTok.Unsigned.t -> unit
