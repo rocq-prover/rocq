@@ -216,6 +216,21 @@ val of_reference : GlobRef.t -> valexpr
 val to_reference : valexpr -> GlobRef.t
 val reference : GlobRef.t repr
 
+val of_modpath : ModPath.t -> valexpr
+val to_modpath : valexpr -> ModPath.t
+val modpath : ModPath.t repr
+
+module ModField : sig
+  type t =
+    | Ref of GlobRef.t
+    | Submodule of ModPath.t
+    | Rewrule
+end
+
+val of_module_field : ModField.t -> valexpr
+val to_module_field : valexpr -> ModField.t
+val module_field : ModField.t repr
+
 val of_ext : 'a Val.tag -> 'a -> valexpr
 val to_ext : 'a Val.tag -> valexpr -> 'a
 val repr_ext : 'a Val.tag -> 'a repr
