@@ -150,6 +150,7 @@ let define ?loc internal role id c poly uctx sch =
   let avoid = Id.Set.of_list @@ List.map (fun cst -> Constant.label cst) avoid in
   let id = compute_name internal id avoid in
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
+  let uctx = UState.normalize_variables uctx in
   let uctx = UState.minimize uctx in
   let c = UState.nf_universes uctx c in
   let uctx = UState.restrict uctx (Vars.universes_of_constr c) in

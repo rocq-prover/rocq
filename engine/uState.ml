@@ -74,7 +74,6 @@ module QState : sig
   val collapse_above_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> t -> t
   val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
-  val of_set : QVar.Set.t -> t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
   val set_elims : QGraph.t -> t -> t
@@ -228,12 +227,6 @@ let add ~check_fresh ~rigid q m =
     above_prop = m.above_prop;
     elims = add_quality m.elims;
     initial_elims = add_quality m.initial_elims }
-
-let of_set qs =
-  let empty_qmap = QMap.bind (fun _ -> None) qs in
-  let g = QVar.Set.fold (fun v -> QGraph.add_quality (QVar v)) qs QGraph.initial_graph in
-  { rigid = QSet.empty; qmap = empty_qmap; above_prop = QSet.empty;
-    elims = g; initial_elims = g }
 
 let of_elims elims =
   let qs = QGraph.qvar_domain elims in
@@ -494,12 +487,6 @@ let univ_entry ~poly uctx =
       Monomorphic_entry uctx
   in
   entry, binders
-
-let of_context_set ((qs,us),csts) =
-  let sort_variables = QState.of_set qs in
-  { empty with
-    local = (us,csts);
-    sort_variables;}
 
 type universe_opt_subst = UnivFlex.t
 
