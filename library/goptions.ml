@@ -378,96 +378,52 @@ type 'a getter = { get : unit -> 'a }
 
 type 'a opt_decl = ?stage:Summary.Stage.t -> ?depr:Deprecation.t -> key:option_name -> value:'a -> unit -> 'a getter
 
-let declare_int_option_and_ref ?(stage=Interp) ?depr ~key ~(value:int) () =
+let declare_interpreted_option_and_ref from to_ ~stage ?depr ~key kind ~value () =
   let r_opt = ref value in
-  let optwrite v = r_opt := Option.default value v in
-  let optread () = Some !r_opt in
-  let () = declare_option ~kind:IntKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread;
-      optwrite;
-    } in
-  { get = fun () -> !r_opt }
-
-let declare_intopt_option_and_ref ?(stage=Interp) ?depr ~key ~value () =
-  let r_opt = ref value in
-  let optwrite v = r_opt := v in
-  let optread () = !r_opt in
-  let () = declare_option ~kind:IntKind {
+  let optwrite v = r_opt := from v in
+  let optread () = to_ !r_opt in
+  let () = declare_option ~kind {
       optstage = stage;
       optdepr = depr;
       optkey = key;
       optread; optwrite
     } in
-  { get = optread }
+  { get = fun () -> !r_opt }
+
+let declare_int_option_and_ref ?(stage=Interp) ?depr ~key ~(value:int) () =
+  let from v = Option.default value v in
+  let to_ v = Some v in
+  declare_interpreted_option_and_ref from to_ ~stage ?depr ~key IntKind ~value ()
+
+let declare_intopt_option_and_ref ?(stage=Interp) ?depr ~key ~value () =
+  declare_interpreted_option_and_ref Fun.id Fun.id ~stage ?depr ~key IntKind ~value ()
 
 let declare_nat_option_and_ref ?(stage=Interp) ?depr ~key ~(value:int) () =
   assert (value >= 0);
-  let r_opt = ref value in
-  let optwrite v =
+  let from v =
     let v = Option.default value v in
     if v < 0 then
       CErrors.user_err Pp.(str "This option expects a non-negative value.");
-    r_opt := v
+    v
   in
-  let optread () = Some !r_opt in
-  let () = declare_option ~kind:IntKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread; optwrite
-    } in
-  { get = fun () -> !r_opt }
+  let to_ v = Some v in
+  declare_interpreted_option_and_ref from to_ ~stage ?depr ~key IntKind ~value ()
 
 let declare_bool_option_and_ref ?(stage=Interp) ?depr ~key ~(value:bool) () =
-  let r_opt = ref value in
-  let optwrite v = r_opt := v in
-  let optread () = !r_opt in
-  let () = declare_option ~kind:BoolKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread; optwrite
-    } in
-  { get = optread }
+  declare_interpreted_option_and_ref Fun.id Fun.id ~stage ?depr ~key BoolKind ~value ()
 
 let declare_string_option_and_ref ?(stage=Interp) ?depr ~key ~(value:string) () =
-  let r_opt = ref value in
-  let optwrite v = r_opt := Option.default value v in
-  let optread () = Some !r_opt in
-  let () = declare_option ~kind:StringOptKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread; optwrite
-    } in
-  { get = fun () -> !r_opt }
+  let from v = Option.default value v in
+  let to_ v = Some v in
+  declare_interpreted_option_and_ref from to_ ~stage ?depr ~key StringOptKind ~value ()
 
 let declare_stringopt_option_and_ref ?(stage=Interp) ?depr ~key ~value () =
-  let r_opt = ref value in
-  let optwrite v = r_opt := v in
-  let optread () = !r_opt in
-  let () = declare_option ~kind:StringOptKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread; optwrite
-    } in
-  { get = optread }
+  declare_interpreted_option_and_ref Fun.id Fun.id ~stage ?depr ~key StringOptKind ~value ()
 
 let declare_interpreted_string_option_and_ref from_string to_string ?(stage=Interp) ?depr ~key ~(value:'a) () =
-  let r_opt = ref value in
-  let optwrite v = r_opt := Option.default value @@ Option.map from_string v in
-  let optread () = Some (to_string !r_opt) in
-  let () = declare_option ~kind:StringOptKind {
-      optstage = stage;
-      optdepr = depr;
-      optkey = key;
-      optread; optwrite
-    } in
-  { get = fun () -> !r_opt }
+  let from v = Option.default value @@ Option.map from_string v in
+  let to_ v = Some (to_string v) in
+  declare_interpreted_option_and_ref from to_ ~stage ?depr ~key StringOptKind ~value ()
 
 (* 3- User accessible commands *)
 

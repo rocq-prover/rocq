@@ -156,6 +156,16 @@ type 'a getter = { get : unit -> 'a }
 
 type 'a opt_decl = ?stage:Summary.Stage.t -> ?depr:Deprecation.t -> key:option_name -> value:'a -> unit -> 'a getter
 
+val declare_interpreted_option_and_ref :
+  ('a -> 'b) -> ('b -> 'a) ->
+  stage:Summary.Stage.t ->
+  ?depr:Deprecation.t ->
+  key:option_name ->
+  'a option_kind ->
+  value:'b ->
+  unit ->
+  'b getter
+
 val declare_int_option_and_ref : int opt_decl
 val declare_intopt_option_and_ref : int option opt_decl
 val declare_nat_option_and_ref : int opt_decl
