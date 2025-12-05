@@ -49,7 +49,7 @@ Rewrite rules
   .. insertprodn rewrite_rule rewrite_rule
 
   .. prodn::
-     rewrite_rule ::= {? @sort_poly_decl %|- } @rw_pattern => @term
+     rewrite_rule ::= {? @univ_decl %|- } @rw_pattern => @term
 
 Declares a named block of rewrite rules. The name is declared in the same namespace as constants and inductives.
 

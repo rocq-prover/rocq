@@ -217,10 +217,10 @@ let do_assumptions ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
   let udecl, l = match scope with
     | Locality.Global import_behavior -> process_assumptions_udecls l
     | Locality.Discharge -> None, process_assumptions_no_udecls l in
-  let sigma, udecl = interp_sort_poly_decl_opt env udecl in
+  let sigma, udecl = interp_univ_decl_opt env udecl in
   let coercions, ctx = local_binders_of_decls ~poly l in
   let sigma, ctx = interp_context_gen ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
-  let univs = Evd.check_sort_poly_decl ~poly sigma udecl in
+  let univs = Evd.check_univ_decl ~poly sigma udecl in
   declare_context ~try_global_assum_as_instance:false ~scope ~univs ?user_warns ~inline ctx
 
 let warn_context_outside_section =

@@ -129,9 +129,9 @@ end
 
 module SynterpActions : ModActions with
   type env = unit with
-  type typexpr = Constrexpr.sort_poly_decl_expr option * Constrexpr.constr_expr =
+  type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr =
 struct
-  type typexpr = Constrexpr.sort_poly_decl_expr option * Constrexpr.constr_expr
+  type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr
   type env = unit
   let stage = Summary.Stage.Synterp
   let substobjs_table_name = "MODULE-SYNTAX-SUBSTOBJS"
@@ -772,7 +772,7 @@ end
 
 module SynterpVisitor : StagedModS
   with type env = SynterpActions.env
-  with type typexpr = Constrexpr.sort_poly_decl_expr option * Constrexpr.constr_expr
+  with type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr
   = StagedMod(SynterpActions)
 
 module InterpVisitor : StagedModS
@@ -784,7 +784,7 @@ module InterpVisitor : StagedModS
 
 type current_module_syntax_info = {
   cur_mp : ModPath.t;
-  cur_typ : ((Constrexpr.sort_poly_decl_expr option * Constrexpr.constr_expr) module_alg_expr * int option) option;
+  cur_typ : ((Constrexpr.universe_decl_expr option * Constrexpr.constr_expr) module_alg_expr * int option) option;
   cur_mbids : MBId.t list;
 }
 
