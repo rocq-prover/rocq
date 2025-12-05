@@ -47,8 +47,11 @@ val check_keyword : string -> unit
 
 val add_keyword_tok : keyword_state -> 'c Tok.p -> keyword_state
 
-(** When string is not an ident, returns a keyword. *)
-val terminal : keyword_state -> string -> string Tok.p
+(** When string is not an ident, returns a keyword.
+    (returns [PIDENT (Some _)] for idents which have been declared as keywords,
+    as the keyword state is not checked)
+*)
+val terminal : string -> string Tok.p
 
 (** Precondition: the input is a number (c.f. [NumTok.t]) *)
 val terminal_number : string -> NumTok.Unsigned.t Tok.p

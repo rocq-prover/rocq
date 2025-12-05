@@ -23,18 +23,16 @@ type 'c p =
   | PQUOTATION : string -> string p
   | PEOI : unit p
 
-let pattern_strings : type c. c p -> string * string option =
-  function
-  | PKEYWORD s -> "", Some s
-  | PIDENT s -> "IDENT", s
-  | PFIELD s -> "FIELD", s
-  | PNUMBER None -> "NUMBER", None
-  | PNUMBER (Some n) -> "NUMBER", Some (NumTok.Unsigned.sprint n)
-  | PSTRING s -> "STRING", s
-  | PLEFTQMARK -> "LEFTQMARK", None
-  | PBULLET s -> "BULLET", s
-  | PQUOTATION lbl -> "QUOTATION", Some lbl
-  | PEOI -> "EOI", None
+let pattern_exact : type c. c p -> bool = function
+  | PKEYWORD _ -> true
+  | PIDENT id -> Option.has_some id
+  | PFIELD s -> Option.has_some s
+  | PNUMBER n -> Option.has_some n
+  | PSTRING s -> Option.has_some s
+  | PLEFTQMARK -> false
+  | PBULLET s -> Option.has_some s
+  | PQUOTATION _ -> true
+  | PEOI -> false
 
 type t =
   | KEYWORD of string
