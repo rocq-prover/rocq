@@ -481,9 +481,7 @@ module Search = struct
       (Libnames.dummy_full_path, true, Context.Named.empty, Hints.Modes.empty,
        Hint_db.empty TransparentState.full true, QGraph.initial_graph)
 
-  let make_autogoal_hints only_classes (modes,st as mst) gl =
-    let env = Proofview.Goal.env gl in
-    let sigma = Proofview.Goal.sigma gl in
+  let make_autogoal_hints env sigma only_classes (modes,st as mst) =
     let sign = EConstr.named_context env in
     let qvars = Evd.elim_graph sigma in
     let (dir, onlyc, sign', cached_modes, cached_hints, qvars') = !autogoal_cache in
@@ -498,8 +496,8 @@ module Search = struct
       let hints = make_hints env sigma mst only_classes sign in
       autogoal_cache := (cwd, only_classes, sign, modes, hints, qvars); hints
 
-  let make_autogoal mst only_classes dep cut best_effort i g =
-    let hints = make_autogoal_hints only_classes mst g in
+  let make_autogoal env sigma mst only_classes dep cut best_effort i =
+    let hints = make_autogoal_hints env sigma only_classes mst in
     { search_hints = hints;
       search_depth = [i]; last_tac = lazy (str"none");
       search_dep = dep;
@@ -749,6 +747,7 @@ module Search = struct
             (header ++ spc() ++ str "failed with: " ++ pr_internal_exception ie))
       in
       let tac_of gls i j = Goal.enter begin fun gl' ->
+        let env = Proofview.Goal.env gl' in
         let sigma' = Goal.sigma gl' in
         let () = ppdebug 0 (fun () ->
             pr_depth (succ j :: i :: info.search_depth) ++ str" : " ++
@@ -760,7 +759,7 @@ module Search = struct
           then
             let st = Hint_db.transparent_state info.search_hints in
             let modes = Hint_db.modes info.search_hints in
-            make_autogoal_hints info.search_only_classes (modes,st) gl'
+            make_autogoal_hints env sigma' info.search_only_classes (modes,st)
           else info.search_hints
         in
         let dep' = info.search_dep || Proofview.unifiable sigma' (Goal.goal gl') gls in
@@ -914,20 +913,20 @@ module Search = struct
                               Proofview.tclZERO ~info e))
 
   let search_tac mst only_classes best_effort dep hints depth =
-    let open Proofview in
-    let tac sigma gls i =
-      Goal.enter begin fun gl ->
+    let tac gls i =
+      Proofview.Goal.enter begin fun gl ->
+        let env = Proofview.Goal.env gl in
+        let sigma = Proofview.Goal.sigma gl in
         let i = succ i in
-        let dep = dep || Proofview.unifiable sigma (Goal.goal gl) gls in
-        let info = make_autogoal mst only_classes dep (cut_of_hints hints) best_effort i gl in
+        let dep = dep || Proofview.unifiable sigma (Proofview.Goal.goal gl) gls in
+        let info = make_autogoal env sigma mst only_classes dep (cut_of_hints hints) best_effort i in
         search_tac hints depth 1 info
       end
     in
       Proofview.Unsafe.tclGETGOALS >>= fun gls ->
       let gls = CList.map Proofview.drop_state gls in
-      Proofview.tclEVARMAP >>= fun sigma ->
       let j = List.length gls in
-      search_fixpoint ~best_effort ~allow_out_of_order:true (List.init j (fun i -> tac sigma gls i))
+      search_fixpoint ~best_effort ~allow_out_of_order:true (List.init j (fun i -> tac gls i))
 
   let fix_iterative t =
     let rec aux depth =
