@@ -504,7 +504,20 @@ let subst_context e ctx =
   in
   snd @@ subst_context ctx
 
-(* The inverse of mk_clos: move back to constr *)
+(** The inverse of mk_clos: move back to constr
+    Assuming [Γ ⊢ lfts : Δ] and [Δ ⊢ v],
+    we get [Γ ⊢ to_constr lfts v]
+
+    Crucially, in the case of [FLIFT]s which are the sole reason
+    why lifts are needed here, we have the following:
+    assuming [Γ ⊢ lfts : Δ, Δ'] and [Δ, Δ' ⊢ FLIFT(|Δ'|, v)] (i.e. [Δ ⊢ v])
+    we get [Γ ⊢ el_shft n lfts : Δ]; so [Γ ⊢ to_constr (el_shftn n lfts) v]
+
+    In cases like [FCLOS(t, σ)] where substitutions happen,
+    we have [Γ ⊢ lfts : Δ], [Δ ⊢ σ : Ξ] and [Ξ ⊢ v]
+    so we compute [Γ ⊢ comp_subs lfts σ : Ξ]
+    where [comp_subs lfts σ] returns a constr substitution,
+    that can be applied to [v] *)
 let rec to_constr lfts v =
   match v.term with
     | FRel i -> mkRel (reloc_rel i lfts)
