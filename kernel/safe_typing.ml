@@ -554,9 +554,6 @@ let push_context_set ~strict cst senv =
       univ = Univ.ContextSet.union cst senv.univ;
       sections }
 
-let add_constraints cst senv =
-  push_context_set ~strict:true cst senv
-
 let push_qualities src qs senv =
   if Sorts.QVar.Set.is_empty (fst qs) && Sorts.ElimConstraints.is_empty (snd qs) then senv
   else
@@ -1147,7 +1144,7 @@ let fill_opaque { opq_univs = ctx; opq_handle = i; opq_nonce = n; _ } senv =
   (* TODO: Drop the the monomorphic constraints, they should really be internal
      but the higher levels use them haphazardly. *)
   let senv = match ctx with
-  | Opaqueproof.PrivateMonomorphic ctx -> add_constraints ctx senv
+  | Opaqueproof.PrivateMonomorphic ctx -> push_context_set ~strict:true ctx senv
   | Opaqueproof.PrivatePolymorphic _ -> senv
   in
   (* Mark the constant as having been checked *)
@@ -1820,9 +1817,6 @@ let register_inductive ind prim senv =
   check_register_ind ind prim senv.env;
   let action = Retroknowledge.Register_ind(prim,ind) in
   add_retroknowledge action senv
-
-let add_constraints c =
-  add_constraints (Univ.Level.Set.empty, c)
 
 (* NB: The next old comment probably refers to [propagate_loads] above.
    When a Require is done inside a module, we'll redo this require

@@ -64,7 +64,6 @@ val add_mind :
   MutInd.t * IndTyping.NotPrimRecordReason.t option
 
 (** Extra universe constraints *)
-val add_constraints : Univ.UnivConstraints.t -> unit
 val add_univ_constraints : Univ.UnivConstraints.t -> unit
 
 val push_context_set : Univ.ContextSet.t -> unit

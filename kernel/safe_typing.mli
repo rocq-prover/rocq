@@ -155,9 +155,6 @@ val add_modtype :
 val push_context_set :
   strict:bool -> Univ.ContextSet.t -> safe_transformer0
 
-val add_constraints :
-  Univ.UnivConstraints.t -> safe_transformer0
-
 (** Adding global sort qualities *)
 
 val push_qualities : QGraph.constraint_source -> Sorts.QContextSet.t -> safe_transformer0
