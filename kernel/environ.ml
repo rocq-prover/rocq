@@ -454,13 +454,6 @@ let map_universes f env = set_universes (f env.env_universes) env
 
 let map_qualities f env = set_qualities (f env.env_qualities) env
 
-let add_constraints src (elim_csts,univ_csts as c) env =
-  if PConstraints.is_empty c
-  then env
-  else
-    map_qualities (QGraph.merge_constraints src elim_csts) @@
-      map_universes (UGraph.merge_constraints univ_csts) env
-
 let check_univ_constraints univ_csts env =
   UGraph.check_constraints univ_csts env.env_universes
 
@@ -477,8 +470,6 @@ let add_universes ~strict ctx g =
   UGraph.merge_constraints (UVars.UContext.univ_constraints ctx) g
 
 let set_qualities g env = {env with env_qualities = g}
-
-let map_qualities f env = set_qualities (f env.env_qualities) env
 
 let add_qualities src ctx g =
   let qs, _ = UVars.Instance.to_array (UVars.UContext.instance ctx) in

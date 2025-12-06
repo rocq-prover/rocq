@@ -372,10 +372,6 @@ val lookup_modtype : ModPath.t -> env -> module_type_body
 
 (** {5 Universe constraints } *)
 
-val add_constraints : QGraph.constraint_source -> PConstraints.t -> env -> env
-(** Add universe constraints to the environment.
-    @raise UniverseInconsistency. *)
-
 val check_univ_constraints : Univ.UnivConstraints.t -> env -> bool
 (** Check universe constraints are satifiable in the environment. *)
 
