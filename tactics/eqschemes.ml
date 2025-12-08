@@ -196,7 +196,7 @@ let get_non_sym_eq_data env (ind,u) =
 (*                                                                    *)
 (**********************************************************************)
 
-let build_sym_scheme env _handle ind =
+let build_sym_scheme env _handle ind _ =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
   let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
     get_sym_eq_data env indu in
@@ -230,11 +230,12 @@ let build_sym_scheme env _handle ind =
             mkRel 1 (* varH *),
             [|cstr (nrealargs+1)|])))))
   in
-  c, UState.of_context_set ctx
+  Some (c, UState.of_context_set ctx)
 
 let sym_scheme_kind =
-  declare_individual_scheme_object "sym"
-  build_sym_scheme
+  declare_individual_scheme_object (["Symmetry"], None)
+    (fun id -> match id with None -> "sym" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "sym")
+    build_sym_scheme
 
 (**********************************************************************)
 (* Build the involutivity of symmetry for an inductive type           *)
@@ -256,7 +257,7 @@ let const_of_scheme kind env handle ind ctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
   with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme)
 
-let build_sym_involutive_scheme env handle ind =
+let build_sym_involutive_scheme env handle ind _ =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
   let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
     get_sym_eq_data env indu in
@@ -301,12 +302,14 @@ let build_sym_involutive_scheme env handle ind =
                NoInvert,
                mkRel 1 (* varH *),
                [|mkApp(eqrefl,[|applied_ind_C;cstr (nrealargs+1)|])|])))))
-  in (c, UState.of_context_set ctx)
+  in Some (c, UState.of_context_set ctx)
 
+(* Symmetry Involutive *)
 let sym_involutive_scheme_kind =
-  declare_individual_scheme_object "sym_involutive"
-  ~deps:(fun _ ind -> [SchemeIndividualDep (ind, sym_scheme_kind)])
-  build_sym_involutive_scheme
+  declare_individual_scheme_object (["Symmetry";"Involutive"], None)
+    (fun id -> match id with None -> "sym_involutive" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "sym_involutive")
+    ~deps:(fun _ ind _ -> [SchemeIndividualDep (ind, sym_scheme_kind, true)])
+    build_sym_involutive_scheme
 
 (**********************************************************************)
 (* Build the left-to-right rewriting lemma for conclusion associated  *)
@@ -461,7 +464,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
        [|main_body|]))
    else
      main_body))))))
-  in (c, UState.of_context_set ctx)
+  in Some (c, UState.of_context_set ctx)
 
 (**********************************************************************)
 (* Build the left-to-right rewriting lemma for hypotheses associated  *)
@@ -554,7 +557,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
           (if dep then realsign_ind_P 1 applied_ind_P' else realsign_P 2) s)
       (mkNamedLambda (make_annot varHC sr) applied_PC'
         (mkVar varHC))|]))))))
-  in c, UState.of_context_set ctx
+  in Some (c, UState.of_context_set ctx)
 
 (**********************************************************************)
 (* Build the right-to-left rewriting lemma for hypotheses associated  *)
@@ -674,7 +677,7 @@ let fix_r2l_forward_rew_scheme env (c, ctx') =
               (EConstr.Unsafe.to_constr (Reductionops.whd_beta env sigma
                 (EConstr.of_constr (applist (c,
                   Context.Rel.instance_list mkRel 3 indargs @ [mkRel 1;mkRel 3;mkRel 2]))))))))
-      in c', ctx'
+      in Some (c', ctx')
   | _ -> anomaly (Pp.str "Ill-formed non-dependent left-to-right rewriting scheme.")
 
 (**********************************************************************)
@@ -704,7 +707,7 @@ let build_r2l_rew_scheme dep env ind k =
   let sigma, k = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma k in
   let (sigma, c) = build_case_analysis_scheme env sigma indu dep k in
   let (c, _) = Indrec.eval_case_analysis c in
-  EConstr.Unsafe.to_constr c, Evd.ustate sigma
+  Some (EConstr.Unsafe.to_constr c, Evd.ustate sigma)
 
 (**********************************************************************)
 (* Register the rewriting schemes                                     *)
@@ -716,14 +719,15 @@ let build_r2l_rew_scheme dep env ind k =
 (* Gamma |- P p1..pn H   ==>   Gamma |- P a1..an C                    *)
 (* with H:I p1..pn a1..an in Gamma                                    *)
 (**********************************************************************)
+(* Reverse Dependent Rewrite *)
 let rew_l2r_dep_scheme_kind =
-  declare_individual_scheme_object "rew_r_dep"
-  ~deps:(fun _ ind -> [
-    SchemeIndividualDep (ind, sym_scheme_kind);
-    SchemeIndividualDep (ind, sym_involutive_scheme_kind);
-  ])
-  (fun env handle ind ->
-    build_l2r_rew_scheme true env handle ind UnivGen.QualityOrSet.qtype)
+  declare_individual_scheme_object (["Left2Right"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+    (fun id -> match id with None -> "rew_r_dep" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew_r_dep")
+    ~deps:(fun _ ind _ -> [
+          SchemeIndividualDep (ind, sym_scheme_kind, true);
+          SchemeIndividualDep (ind, sym_involutive_scheme_kind, true);
+        ])
+    (fun env handle ind _ -> build_l2r_rew_scheme true env handle ind UnivGen.QualityOrSet.qtype)
 
 (**********************************************************************)
 (* Dependent rewrite from right-to-left in conclusion                 *)
@@ -731,9 +735,11 @@ let rew_l2r_dep_scheme_kind =
 (* with H:I a1..an in Gamma (non symmetric case)                      *)
 (* or   H:I b1..bn a1..an in Gamma (symmetric case)                   *)
 (**********************************************************************)
+(* Dependent Rewrite *)
 let rew_r2l_dep_scheme_kind =
-  declare_individual_scheme_object "rew_dep"
-  (fun env _ ind -> build_r2l_rew_scheme true env ind UnivGen.QualityOrSet.qtype)
+  declare_individual_scheme_object (["Right2Left"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+    (fun id -> match id with None -> "rew_dep" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew_dep")
+    (fun env _ ind _ -> build_r2l_rew_scheme true env ind UnivGen.QualityOrSet.qtype)
 
 (**********************************************************************)
 (* Dependent rewrite from right-to-left in hypotheses                 *)
@@ -741,9 +747,11 @@ let rew_r2l_dep_scheme_kind =
 (* with H:I a1..an in Gamma (non symmetric case)                      *)
 (* or   H:I b1..bn a1..an in Gamma (symmetric case)                   *)
 (**********************************************************************)
+(* Forward Dependent Rewrite *) 
 let rew_r2l_forward_dep_scheme_kind =
-  declare_individual_scheme_object "rew_fwd_dep"
-  (fun env _ ind -> build_r2l_forward_rew_scheme true env ind UnivGen.QualityOrSet.qtype)
+  declare_individual_scheme_object (["Forward"; "Right2Left"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+    (fun id -> match id with None -> "rew_fwd_dep" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew_fwd_dep")
+    (fun env _ ind _ -> Some (build_r2l_forward_rew_scheme true env ind UnivGen.QualityOrSet.qtype))
 
 (**********************************************************************)
 (* Dependent rewrite from left-to-right in hypotheses                 *)
@@ -751,9 +759,11 @@ let rew_r2l_forward_dep_scheme_kind =
 (* Gamma, P p1..pn H |- D   ==>   Gamma, P a1..an C |- D              *)
 (* with H:I p1..pn a1..an in Gamma                                    *)
 (**********************************************************************)
+(* Forward Reverse Dependent Rewrite *)
 let rew_l2r_forward_dep_scheme_kind =
-  declare_individual_scheme_object "rew_fwd_r_dep"
-  (fun env _ ind -> build_l2r_forward_rew_scheme true env ind UnivGen.QualityOrSet.qtype)
+  declare_individual_scheme_object (["Forward"; "Left2Right"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  (fun id -> match id with None -> "rew_fwd_r_dep" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew_fwd_r_dep")
+  (fun env _ ind _ -> build_l2r_forward_rew_scheme true env ind UnivGen.QualityOrSet.qtype)
 
 (**********************************************************************)
 (* Non-dependent rewrite from either left-to-right in conclusion or   *)
@@ -764,10 +774,12 @@ let rew_l2r_forward_dep_scheme_kind =
 (* this is not a problem; we need though a fix to adjust it to the    *)
 (* standard form of schemes in Rocq)                                  *)
 (**********************************************************************)
+(* Reverse Rewrite *)
 let rew_l2r_scheme_kind =
-  declare_individual_scheme_object "rew_r"
-  (fun env _ ind -> fix_r2l_forward_rew_scheme env
-     (build_r2l_forward_rew_scheme false env ind UnivGen.QualityOrSet.qtype))
+  declare_individual_scheme_object (["Left2Right"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+    (fun id -> match id with None -> "rew_r" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew_r")
+    (fun env _ ind _ -> fix_r2l_forward_rew_scheme env
+        (build_r2l_forward_rew_scheme false env ind UnivGen.QualityOrSet.qtype))
 
 (**********************************************************************)
 (* Non-dependent rewrite from either right-to-left in conclusion or   *)
@@ -775,9 +787,11 @@ let rew_l2r_scheme_kind =
 (* since r2l_rew works in the non-symmetric case as well as without   *)
 (* introducing commutative cuts, we adopt it                          *)
 (**********************************************************************)
+(* Rewrite *)
 let rew_r2l_scheme_kind =
-  declare_individual_scheme_object "rew"
-  (fun env _ ind -> build_r2l_rew_scheme false env ind UnivGen.QualityOrSet.qtype)
+  declare_individual_scheme_object (["Right2Left"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+    (fun id -> match id with None -> "rew" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "rew")
+    (fun env _ ind _ -> build_r2l_rew_scheme false env ind UnivGen.QualityOrSet.qtype)
 
 (* End of rewriting schemes *)
 
@@ -796,7 +810,7 @@ let rew_r2l_scheme_kind =
 
 (* TODO: extend it to types with more than one index *)
 
-let build_congr env (eq,refl,ctx) ind =
+let build_congr env (eq,refl,ctx) ind _ =
   let (ind,u as indu), ctx = with_context_set ctx
     (UnivGen.fresh_inductive_instance env ind) in
   let (mib,mip) = lookup_mind_specif env ind in
@@ -860,9 +874,11 @@ let build_congr env (eq,refl,ctx) ind =
        [|mkApp (refl,
           [|mkVar varB;
             mkApp (mkVar varf, [|lift (mip.mind_nrealargs+3) b|])|])|])))))))
-  in c, UState.of_context_set ctx
+  in Some (c, UState.of_context_set ctx)
 
-let congr_scheme_kind = declare_individual_scheme_object "congr"
-  (fun env _ ind ->
-     (* May fail if equality is not defined *)
-   build_congr env (get_rocq_eq env UnivGen.empty_sort_context) ind)
+(* Congruence *)
+let congr_scheme_kind = declare_individual_scheme_object (["Congruence"], None)
+    (fun id -> match id with None -> "congr" | Some i -> (Id.to_string i.mind_typename) ^ "_" ^ "congr")
+    (fun env _ ind ->
+       (* May fail if equality is not defined *)
+       build_congr env (get_rocq_eq env UnivGen.empty_sort_context) ind)
