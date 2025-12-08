@@ -279,27 +279,6 @@ let dest_lam_assum_expand env c =
     let ctx', _ = Reduction.whd_decompose_prod_decls env t in
     ctx'@ctx, mkApp (lift (Context.Rel.length ctx') c, Context.Rel.instance mkRel 0 ctx')
 
-let pred_context env ci params u nas =
-  let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-  let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
-  let self =
-    let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
-    let inst = UVars.Instance.(abstract_instance (length u)) in
-    mkApp (mkIndU (ci.ci_ind, inst), args)
-  in
-  let na = Context.make_annot Anonymous mip.mind_relevance in
-  let realdecls = RelDecl.LocalAssum (na, self) :: realdecls in
-  Inductive.instantiate_context u paramsubst nas realdecls
-
-let branch_context env ci params u nas i =
-  let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-  let ctx, _ = List.chop mip.mind_consnrealdecls.(i) (fst mip.mind_nf_lc.(i)) in
-  Inductive.instantiate_context u paramsubst nas ctx
-
 let build_beq_scheme_deps env kn =
   let inds = get_inductive_deps ~noprop:true env kn in
   List.map (fun ind -> Ind_tables.SchemeMutualDep (ind, !beq_scheme_kind_aux ())) inds
@@ -452,18 +431,20 @@ let build_beq_scheme env handle kn =
       (* in the restricted translation, only types are translated and
          the return predicate is necessarily a type *)
       let p = mkProd (Context.anonR, t, p) in
-      let lbr = Array.mapi (fun i (names, t) ->
-        let ctx = branch_context env ci pms u names i in
-        let env_lift' = List.fold_right push_env_lift ctx env_lift in
-        match translate_type_eq env_lift' na (mkRel 1) t with
-        | None -> None
-        | Some t_eq -> Some (names, mkLambda (na, t, t_eq))) lbr in
-      if Array.for_all Option.has_some lbr then
-        let lbr = Array.map Option.get lbr in
-        let case = mkCase (ci, u, pms, ((pnames, p), r), iv, translate_term env_lift tm, lbr) in
-        Some (mkApp (case, [|c|]))
-      else
-        None
+      ( try
+          let lbr =
+            Inductive.case_map_branches env (ci.ci_ind, u) pms lbr
+              ( fun ctx (names, t) ->
+                let env_lift' = List.fold_right push_env_lift ctx env_lift in
+                match translate_type_eq env_lift' na (mkRel 1) t with
+                | None -> raise_notrace Exit
+                | Some t_eq -> names, mkLambda (na, t, t_eq)
+              )
+          in
+          let case = mkCase (ci, u, pms, ((pnames, p), r), iv, translate_term env_lift tm, lbr) in
+          Some (mkApp (case, [|c|]))
+        with Exit -> None
+      )
 
     (* TODO: in parallel with traversing Fix in translate_term_eq to
        look for types, traverse Fix to look for Type here *)
@@ -553,7 +534,7 @@ let build_beq_scheme env handle kn =
     | Proj _ | Construct _ | CoFix _ -> None
 
     | Case (ci, u, pms, ((pnames,p), r), iv, tm, lbr) ->
-      let pctx = pred_context env ci pms u pnames in
+      let lctx, pctx = Inductive.case_expand_contexts env (ci.ci_ind, u) pms pnames lbr in
       let env_lift_pred = List.fold_right push_env_lift pctx env_lift in
       let n = Array.length pnames in
       let c =
@@ -565,8 +546,7 @@ let build_beq_scheme env handle kn =
           Array.map (fun (names, br) -> (names, let q = Array.length names in liftn n (n+q+1) br)) lbr) in
       let p = translate_type_eq env_lift_pred Context.anonR c p in
       let lbr = Array.mapi (fun i (names, t) ->
-        let ctx = branch_context env ci pms u names i in
-        let env_lift' = List.fold_right push_env_lift ctx env_lift in
+        let env_lift' = List.fold_right push_env_lift lctx.(i) env_lift in
         match translate_term_eq env_lift' t with
         | None -> None
         | Some t_eq -> Some (names, t_eq)) lbr in

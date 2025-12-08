@@ -324,9 +324,10 @@ and nf_atom_type env sigma atom =
       let nparams = mib.mind_nparams in
       let params,realargs = Array.chop nparams allargs in
       let pctx =
-        let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        let realdecls = List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt in
         let nas = List.rev_map get_annot realdecls @ [nameR (Id.of_string "c")] in
-        expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
+        let params = Declareops.case_parameter_context_specif mib u params in
+        Declareops.case_arity_context_specif mip params (ind, u) (Array.of_list nas)
       in
       let p, relevance = nf_predicate env sigma ind mip params p pctx in
       (* Calcul du type des branches *)

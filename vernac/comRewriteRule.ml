@@ -198,35 +198,15 @@ let rec safe_pattern_of_constr_aux ~loc env evd usubst depth state t = Constr.ki
       let state, (head, elims) = safe_pattern_of_constr_aux ~loc env evd usubst depth state f in
       let state, pargs = Array.fold_left_map (safe_arg_pattern_of_constr ~loc env evd usubst depth) state args in
       state, (head, elims @ [PEApp pargs])
-  | Case (ci, u, params, (ret, _), _, c, brs) ->
-      let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
-
+  | Case (ci, u, params, ((nas, p), _), _, c, brs) ->
+      let bctxs, pctx = Inductive.case_expand_contexts env (ci.ci_ind, u) params nas brs in
       let state, (head, elims) = safe_pattern_of_constr_aux ~loc env evd usubst depth state c in
-
-      let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-      let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-
       let state, pret =
-        let (nas, p) = ret in
-        let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
-        let self =
-          let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
-          let inst = UVars.Instance.(abstract_instance (length u)) in
-          mkApp (mkIndU (ci.ci_ind, inst), args)
-        in
-        let na = Context.make_annot Anonymous mip.mind_relevance in
-        let realdecls = Context.Rel.Declaration.LocalAssum (na, self) :: realdecls in
-        let realdecls =
-          Inductive.instantiate_context u paramsubst nas realdecls
-        in
-        let p_env = Environ.push_rel_context realdecls env in
+        let p_env = Environ.push_rel_context pctx env in
         safe_arg_pattern_of_constr ~loc p_env evd usubst (depth + Array.length nas) state p
       in
       let do_one_branch i state (nas, br) =
-        let (ctx, cty) = mip.mind_nf_lc.(i) in
-        let bctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
-        let bctx = Inductive.instantiate_context u paramsubst nas bctx in
-        let br_env = Environ.push_rel_context bctx env in
+        let br_env = Environ.push_rel_context bctxs.(i) env in
         safe_arg_pattern_of_constr ~loc br_env evd usubst (depth + Array.length nas) state br
       in
       let state, pbrs = Array.fold_left_map_i do_one_branch state brs in

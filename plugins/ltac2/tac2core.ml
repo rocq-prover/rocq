@@ -541,13 +541,13 @@ let () =
       Tac2ffi.of_constructor cstr;
       Tac2ffi.of_instance u;
     |]
-  | Case (ci, u, pms, c, iv, t, bl) ->
+  | Case (ci, u, pms, (c, r), iv, t, bl) ->
     (* FIXME: also change representation Ltac2-side? *)
-    let (ci, c, iv, t, bl) = EConstr.expand_case env sigma (ci, u, pms, c, iv, t, bl) in
-    let c = on_snd (EConstr.ERelevance.kind sigma) c in
+    let bl, c = EConstr.case_expand env (ci.ci_ind, u) pms c bl in
+    let r = EConstr.ERelevance.kind sigma r in
     v_blk 13 [|
       Tac2ffi.of_case ci;
-      Tac2ffi.(of_pair of_constr of_relevance c);
+      Tac2ffi.(of_pair of_constr of_relevance (c, r));
       of_case_invert iv;
       Tac2ffi.of_constr t;
       Tac2ffi.of_array Tac2ffi.of_constr bl;

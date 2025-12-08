@@ -252,11 +252,8 @@ let rec infer_fterm cv_pb infos variances hd stk =
     let variances = infer_vect infos variances elems in
     infer_stack infos variances stk
 
-  | FCaseInvert (ci, u, pms, p, _, _, br, e) ->
-    let mib = Environ.lookup_mind (fst ci.ci_ind) (info_env (fst infos)) in
-    let (_, (p, _), _, _, br) =
-      Inductive.expand_case_specif mib (ci, u, pms, p, NoInvert, mkProp, br)
-    in
+  | FCaseInvert (ci, u, pms, (p, _), _, _, br, e) ->
+    let br, p = Inductive.case_expand (info_env (fst infos)) (ci.ci_ind, u) pms p br in
     let infer c variances = infer_fterm CONV infos variances (mk_clos e c) [] in
     let variances = infer p variances in
     Array.fold_right infer br variances
@@ -276,10 +273,8 @@ and infer_stack infos variances (stk:CClosure.stack) =
       | Zfix (fx,a) ->
         let variances = infer_fterm CONV infos variances fx [] in
         infer_stack infos variances a
-      | ZcaseT (ci,u,pms,p,br,e) ->
-        let dummy = mkProp in
-        let case = (ci, u, pms, p, NoInvert, dummy, br) in
-        let (_, (p, _), _, _, br) = Inductive.expand_case (info_env (fst infos)) case in
+      | ZcaseT (ci,u,pms,(p,_),br,e) ->
+        let br, p = Inductive.case_expand (info_env (fst infos)) (ci.ci_ind, u) pms p br in
         let variances = infer_fterm CONV infos variances (mk_clos e p) [] in
         infer_vect infos variances (Array.map (mk_clos e) br)
       | Zshift _ -> variances

@@ -286,9 +286,10 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       let nparams = mib.mind_nparams in
       let params,realargs = Util.Array.chop nparams allargs in
       let pctx =
-        let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        let realdecls = List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt in
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
-        expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
+        let params = Declareops.case_parameter_context_specif mib u params in
+        Declareops.case_arity_context_specif mip params (ind, u) (Array.of_list nas)
       in
       let p, relevance = nf_predicate env sigma (ind,u) mip params (type_of_switch sw) pctx in
       (* Calcul du type des branches *)

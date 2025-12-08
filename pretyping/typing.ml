@@ -565,9 +565,9 @@ let rec execute env sigma cstr =
         let sigma, ty = type_of_constructor env sigma ctor in
         sigma, make_judge cstr ty
 
-    | Case (ci, u, pms, p, iv, c, lf) ->
-        let case = (ci, u, pms, p, iv, c, lf) in
-        let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
+    | Case (ci, u, pms, (p, rp), iv, c, lf) ->
+        let case = (ci, u, pms, (p, rp), iv, c, lf) in
+        let lf, p = EConstr.case_expand env (ci.ci_ind, u) pms p lf in
         let sigma, cj = execute env sigma c in
         let sigma, pj = execute env sigma p in
         let sigma, lfj = execute_array env sigma lf in
@@ -789,11 +789,11 @@ let rec recheck_against env sigma good c =
     | _, (Evar _ | Fix _ | CoFix _ | LetIn _ | Array _) ->
      default ()
 
-    | Case (gci, gu, gpms, gp, giv, gc, glf),
-      Case (ci, u, pms, p, iv, c, lf) ->
-      let (gci, (gp,_), giv, gc, glf) = EConstr.expand_case env sigma (gci, gu, gpms, gp, giv, gc, glf) in
-      let case = (ci, u, pms, p, iv, c, lf) in
-      let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
+    | Case (gci, gu, gpms, (gp, _), giv, gc, glf),
+      Case (ci, u, pms, (p, rp), iv, c, lf) ->
+      let glf, gp = EConstr.case_expand env (gci.ci_ind, gu) gpms gp glf in
+      let case = (ci, u, pms, (p, rp), iv, c, lf) in
+      let lf, p = EConstr.case_expand env (ci.ci_ind, u) pms p lf in
       let sigma, changedc, cj = recheck_against env sigma gc c in
       let sigma, changedp, pj = recheck_against env sigma gp p in
       let (sigma, changedlf), lfj =

@@ -265,59 +265,18 @@ let ind_relevance kn env = match Indmap_env.find_opt kn env.irr_inds with
 
 (** {6 Changes of representation of Case nodes} *)
 
-(** Provided:
-    - a universe instance [u]
-    - a term substitution [subst]
-    - name replacements [nas]
-    [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
-    while replacing names using [nas] (order reversed)
-*)
-let instantiate_context u subst nas ctx =
-  let open Context.Rel.Declaration in
-  let get_binder i na =
-    Context.
-    { binder_name = nas.(i).binder_name;
-      binder_relevance = UVars.subst_instance_relevance u na.binder_relevance }
-  in
-  let rec instantiate i ctx = match ctx with
-  | [] -> assert (Int.equal i (-1)); []
-  | LocalAssum (na, ty) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    let na = get_binder i na in
-    LocalAssum (na, ty) :: ctx
-  | LocalDef (na, ty, bdy) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    let bdy = substnl subst i (subst_instance_constr u bdy) in
-    let na = get_binder i na in
-    LocalDef (na, ty, bdy) :: ctx
-  in
-  instantiate (Array.length nas - 1) ctx
+let instantiate_context = Declareops.instantiate_context
 
 let expand_arity (mib, mip) (ind, u) params nas =
-  let open Context.Rel.Declaration in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let params = Vars.subst_of_rel_context_instance paramdecl params in
-  let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
-  let self =
-    let u = UVars.Instance.abstract_instance (UVars.Instance.length u) in
-    let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
-    mkApp (mkIndU (ind, u), args)
-  in
-  let na = Context.make_annot Anonymous mip.mind_relevance in
-  let realdecls = LocalAssum (na, self) :: realdecls in
-  instantiate_context u params nas realdecls
+  let ps = Declareops.case_parameter_context_specif mib u params in
+  Declareops.case_arity_context_specif mip ps (ind, u) nas
 
 let expand_branch_contexts (mib, mip) u params br =
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-  let build_one_branch i (nas, _) (ctx, _) =
-    let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
-    let ctx = instantiate_context u paramsubst nas ctx in
-    ctx
+  let ps = Declareops.case_parameter_context_specif mib u params in
+  let build_one_branch i =
+    Declareops.case_branch_context_specif mip ps u (fst br.(i)) i
   in
-  Array.map2_i build_one_branch br mip.mind_nf_lc
+  Array.init (Array.length br) build_one_branch
 
 
 let mem_mind kn env = Mindmap_env.mem kn env.env_inductives

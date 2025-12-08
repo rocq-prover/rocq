@@ -33,6 +33,66 @@ let safe_flags oracle = {
   allow_uip = false;
 }
 
+(** {5 Utilities to build the rel_context of a Case} *)
+
+(** Provided:
+    - a universe instance [u]
+    - a term substitution [subst]
+    - name replacements [nas]
+    [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
+    while replacing names using [nas] (order reversed)
+*)
+let instantiate_context u subst nas ctx =
+  let open Vars in
+  let open Context.Rel.Declaration in
+  let get_binder i na =
+    Context.
+    { binder_name = nas.(i).binder_name;
+      binder_relevance = UVars.subst_instance_relevance u na.binder_relevance }
+  in
+  let rec instantiate i ctx = match ctx with
+  | [] -> assert (Int.equal i (-1)); []
+  | LocalAssum (na, ty) :: ctx ->
+    let ctx = instantiate (pred i) ctx in
+    let ty = substnl subst i (subst_instance_constr u ty) in
+    let na = get_binder i na in
+    LocalAssum (na, ty) :: ctx
+  | LocalDef (na, ty, bdy) :: ctx ->
+    let ctx = instantiate (pred i) ctx in
+    let ty = substnl subst i (subst_instance_constr u ty) in
+    let bdy = substnl subst i (subst_instance_constr u bdy) in
+    let na = get_binder i na in
+    LocalDef (na, ty, bdy) :: ctx
+  in
+  instantiate (Array.length nas - 1) ctx
+
+let case_parameter_context_specif mib u =
+  Vars.subst_of_rel_context_instance (Vars.subst_instance_context u mib.mind_params_ctxt)
+
+let case_arity_context_specif mip paramsubst (ind, u) nas =
+  let open Constr in
+  let open Names in
+  let realdecls = List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt in
+  let self =
+    let u = UVars.Instance.(abstract_instance (length u)) in
+    let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
+    mkApp (mkIndU (ind, u), args)
+  in
+  let na = Context.make_annot Anonymous mip.mind_relevance in
+  instantiate_context u paramsubst nas (LocalAssum (na, self) :: realdecls)
+
+let case_branch_context_specif mip paramsubst u nas i =
+  let binds = List.firstn (mip.mind_consnrealdecls.(i)) (fst mip.mind_nf_lc.(i)) in
+  instantiate_context u paramsubst nas binds
+
+let case_expand_contexts_specif (mib, mip) (ind, u) pms nas bl =
+  let ps = case_parameter_context_specif mib u pms in
+  let build_one_branch i =
+    case_branch_context_specif mip ps u (fst bl.(i)) i
+  in
+  Array.init (Array.length bl) build_one_branch,
+  case_arity_context_specif mip ps (ind, u) nas
+
 (** {6 Arities } *)
 
 let hcons_template_universe ar =

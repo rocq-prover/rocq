@@ -595,55 +595,77 @@ let iter sigma f c =
     List.iter (fun c -> f c) args
   | _ -> Constr.iter f c
 
-let expand_case env _sigma (ci, u, pms, p, iv, c, bl) =
+let unsafe_to_binder_annot_array (nas : Name.t binder_annot array) =
+  let nas : Name.t Constr.binder_annot array =
+    match Evd.MiniEConstr.unsafe_relevance_eq with
+    | Refl -> nas
+  in
+  nas
+
+let case_branch_context env (ind, u) pms nas i =
   let u = EInstance.unsafe_to_instance u in
   let pms = unsafe_to_constr_array pms in
-  let p = unsafe_to_return p in
-  let iv = unsafe_to_case_invert iv in
-  let c = unsafe_to_constr c in
-  let bl = unsafe_to_branches bl in
-  let (ci, (p,r), iv, c, bl) = Inductive.expand_case env (ci, u, pms, p, iv, c, bl) in
-  let p = of_constr p in
-  let r = ERelevance.make r in
-  let c = of_constr c in
-  let iv = of_case_invert iv in
-  let bl = of_constr_array bl in
-  (ci, (p,r), iv, c, bl)
+  let nas = unsafe_to_binder_annot_array nas in
+  let ctx = Inductive.case_branch_context env (ind, u) pms nas i in
+  Evd.MiniEConstr.of_rel_context ctx
 
-let annotate_case env sigma (ci, u, pms, p, iv, c, bl as case) =
-  let (_, (p,r), _, _, bl) = expand_case env sigma case in
-  let p =
-    (* Too bad we need to fetch this data in the environment, should be in the
-      case_info instead. *)
-    let _, mip = Environ.lookup_mind_specif env ci.ci_ind in
-    decompose_lambda_n_decls sigma (mip.Declarations.mind_nrealdecls + 1) p
+let case_arity_context env (ind, u) pms nas =
+  let u = EInstance.unsafe_to_instance u in
+  let pms = unsafe_to_constr_array pms in
+  let nas = unsafe_to_binder_annot_array nas in
+  let mib, mip = Environ.lookup_mind_specif env ind in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  let ctx = Declareops.case_arity_context_specif mip ps (ind, u) nas in
+  Evd.MiniEConstr.of_rel_context ctx
+
+let case_expand_contexts env (ind, u) pms nas bl =
+  let mib, mip = Environ.lookup_mind_specif env ind in
+  let u = EInstance.unsafe_to_instance u in
+  let pms = unsafe_to_constr_array pms in
+  let nas = unsafe_to_binder_annot_array nas in
+  let bl = unsafe_to_branches bl in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  let build_one_branch i =
+    Evd.MiniEConstr.of_rel_context (Declareops.case_branch_context_specif mip ps u (fst bl.(i)) i)
   in
-  let mk_br c n = decompose_lambda_n_decls sigma n c in
-  let bl = Array.map2 mk_br bl ci.ci_cstr_ndecls in
-  (ci, u, pms, (p,r), iv, c, bl)
+  let pctx = Declareops.case_arity_context_specif mip ps (ind, u) nas in
+  Array.init (Array.length bl) build_one_branch,
+  Evd.MiniEConstr.of_rel_context pctx
+
+let case_map_branches env (ind, u) pms bl f =
+  let u = EInstance.unsafe_to_instance u in
+  let pms = unsafe_to_constr_array pms in
+  let bl = unsafe_to_branches bl in
+  let f' ctx ((nas : Name.t Constr.binder_annot array), br) =
+    let nas : Name.t binder_annot array =
+      match Evd.MiniEConstr.unsafe_relevance_eq with
+      | Refl -> nas
+    in
+    f (Evd.MiniEConstr.of_rel_context ctx) (nas, of_constr br)
+  in
+  Inductive.case_map_branches env (ind, u) pms bl f'
+
+let case_expand env (ind, u) pms (nas, p) bl =
+  let u = EInstance.unsafe_to_instance u in
+  let pms = unsafe_to_constr_array pms in
+  let p = unsafe_to_constr p in
+  (* All relevances must be identical *)
+  let nas = unsafe_to_binder_annot_array nas in
+  let bl = unsafe_to_branches bl in
+  let bl, p = Inductive.case_expand env (ind, u) pms (nas, p) bl in
+  of_constr_array bl, of_constr p
+
+let expand_case env _sigma (ci, u, pms, (p, r), iv, c, bl) =
+  let bl, p = case_expand env (ci.ci_ind, u) pms p bl in
+  ci, (p, r), iv, c, bl
+
+let annotate_case env sigma (ci, u, pms, ((nas, p), r), iv, c, bl) =
+  let blctx, pctx = case_expand_contexts env (ci.ci_ind, u) pms nas bl in
+  let mk_br ctx (_, br) = ctx, br in
+  ci, u, pms, ((pctx, p), r), iv, c, Array.map2 mk_br blctx bl
 
 let expand_branch env _sigma u pms (ind, i) (nas, _br) =
-  let open Declarations in
-  let u = EInstance.unsafe_to_instance u in
-  let pms = unsafe_to_constr_array pms in
-  let mib, mip = Environ.lookup_mind_specif env ind in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl pms in
-  let (ctx, _) = mip.mind_nf_lc.(i - 1) in
-  let (ctx, _) = List.chop mip.mind_consnrealdecls.(i - 1) ctx in
-  let nas =
-    let gen : type a b. (a,b) eq -> (_,a) Context.pbinder_annot array ->
-      (_,b) Context.pbinder_annot array =
-      fun Refl x -> x
-    in
-    gen unsafe_relevance_eq nas
-  in
-  let ans = Inductive.instantiate_context u paramsubst nas ctx in
-  let ans : rel_context =
-    match Evd.MiniEConstr.(unsafe_eq, unsafe_relevance_eq) with
-    | Refl, Refl -> ans
-  in
-  ans
+  case_branch_context env (ind, u) pms nas (i - 1)
 
 let contract_case env _sigma (ci, (p,r), iv, c, bl) =
   let p = unsafe_to_constr p in
@@ -673,10 +695,10 @@ let iter_with_full_binders env sigma g f n c =
   | Evar ((_,l) as ev) ->
     let l = Evd.expand_existential sigma ev in
     List.iter (fun c -> f n c) l
-  | Case (ci,u,pms,p,iv,c,bl) ->
-    let (ci, _, pms, (p,_), iv, c, bl) = annotate_case env sigma (ci, u, pms, p, iv, c, bl) in
-    let f_ctx (ctx, c) = f (List.fold_right g ctx n) c in
-    Array.Fun1.iter f n pms; f_ctx p; iter_invert (f n) iv; f n c; Array.iter f_ctx bl
+  | Case (ci,u,pms,(p,_),iv,c,bl) ->
+    let blctx, pctx = case_expand_contexts env (ci.ci_ind, u) pms (fst p) bl in
+    let f_ctx ctx (_, c) = f (List.fold_right g ctx n) c in
+    Array.Fun1.iter f n pms; f_ctx pctx p; iter_invert (f n) iv; f n c; Array.iter2 f_ctx blctx bl
   | Proj (_,_,c) -> f n c
   | Fix (_,(lna,tl,bl)) ->
     Array.iter (f n) tl;
@@ -1091,6 +1113,26 @@ match unsafe_eq with
 | Refl -> Vars.esubst
 
 end
+
+let case_parameter_context_specif mib u pms =
+  let u = EInstance.unsafe_to_instance u in
+  let pms = unsafe_to_constr_array pms in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  cast_list (sym unsafe_eq) ps
+
+let case_arity_context_specif mip ps (ind, u) nas =
+  let u = EInstance.unsafe_to_instance u in
+  let nas = unsafe_to_binder_annot_array nas in
+  let ps = cast_list unsafe_eq ps in
+  let ctx = Declareops.case_arity_context_specif mip ps (ind, u) nas in
+  Evd.MiniEConstr.of_rel_context ctx
+
+let case_branch_context_specif mip ps u nas i =
+  let u = EInstance.unsafe_to_instance u in
+  let nas = unsafe_to_binder_annot_array nas in
+  let ps = cast_list unsafe_eq ps in
+  let ctx = Declareops.case_branch_context_specif mip ps u nas i in
+  Evd.MiniEConstr.of_rel_context ctx
 
 (* Constructs either [forall x:t, c] or [let x:=b:t in c] *)
 let mkProd_or_LetIn decl c =

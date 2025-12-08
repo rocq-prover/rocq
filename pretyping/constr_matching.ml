@@ -360,10 +360,13 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     sorec (push_binder na1 na2 t2 ctx) (EConstr.push_rel (LocalDef (na2,c2,t2)) env)
       (add_binders na1 na2 binding_vars (sorec ctx env subst c1 c2)) d1 d2
 
-  | PIf (a1, b1, b1'), Case (ci, u2, pms2, p2, iv, a2, ([|_; _|] as br2)) ->
-    let (_, _, _, p2, _, _, br2) = EConstr.annotate_case env sigma (ci, u2, pms2, p2, iv, a2, br2) in
-    let ctx_b2,b2 = br2.(0) in
-    let ctx_b2',b2' = br2.(1) in
+  | PIf (a1, b1, b1'), Case (ci, u2, pms2, p2, iv, a2, [|nas2, b2; nas2', b2'|]) ->
+    let ctx_b2, ctx_b2' =
+      let mib, mip = Environ.lookup_mind_specif env ci.ci_ind in
+      let ps = EConstr.case_parameter_context_specif mib u2 pms2 in
+      EConstr.case_branch_context_specif mip ps u2 nas2 0,
+      EConstr.case_branch_context_specif mip ps u2 nas2' 1
+    in
     let n = Context.Rel.length ctx_b2 in
     let n' = Context.Rel.length ctx_b2' in
     if Vars.noccur_between sigma 1 n b2 && Vars.noccur_between sigma 1 n' b2' then
@@ -377,8 +380,8 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     else
       raise PatternMatchingFailure
 
-  | PCase (ci1, p1, a1, br1), Case (ci2, u2, pms2, p2, iv, a2, br2) ->
-    let (_, _, _, (p2,_), _, _, br2) = EConstr.annotate_case env sigma (ci2, u2, pms2, p2, iv, a2, br2) in
+  | PCase (ci1, p1, a1, br1), Case (ci2, u2, pms2, ((nas2, p2), _), iv, a2, br2) ->
+    let br2ctx, p2ctx = EConstr.case_expand_contexts env (ci2.ci_ind, u2) pms2 nas2 br2 in
     let n2 = Array.length br2 in
     let () = match ci1.cip_ind with
     | None -> ()
@@ -414,12 +417,12 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
       (* (ind,j+1) is normally known to be a correct constructor
           and br2 a correct match over the same inductive *)
       assert (j < n2);
-      sorec_under_ctx subst (n, c) br2.(j)
+      sorec_under_ctx subst (n, c) (br2ctx.(j), snd br2.(j))
     in
     let subst = sorec ctx env subst a1 a2 in
     let subst = match p1 with
     | None -> subst
-    | Some p1 -> sorec_under_ctx subst p1 p2
+    | Some p1 -> sorec_under_ctx subst p1 (p2ctx, p2)
     in
     List.fold_left chk_branch subst br1
 
@@ -561,26 +564,17 @@ let sub_match ?(closed=true) env sigma pat c =
        | [app';c] -> mk_ctx (mkApp (app',[|c|]))
        | _ -> assert false in
      try_aux [(env, app); (env, Array.last lc)] mk_ctx next
-  | Case (ci,u,pms,hd0,iv,c1,lc0) ->
-      let _, mip = Environ.lookup_mind_specif env ci.ci_ind in
-      let (_, (hd,hdr), _, _, br) = expand_case env sigma (ci, u, pms, hd0, iv, c1, lc0) in
-      let hd =
-        let (ctx, hd) = decompose_lambda_decls sigma hd in
-        (push_rel_context ctx env, hd)
-      in
-      let map i br =
-        let decls = mip.Declarations.mind_consnrealdecls.(i) in
-        let (ctx, c) = decompose_lambda_n_decls sigma decls br in
-        (push_rel_context ctx env, c)
-      in
-      let lc = Array.to_list (Array.mapi map br) in
+  | Case (ci,u,pms,((nas0,hd0),hdr),iv,c1,lc0) ->
+      let lcctx, hdctx = EConstr.case_expand_contexts env (ci.ci_ind, u) pms nas0 lc0 in
+      let hd = push_rel_context hdctx env, hd0 in
+      let lc = List.init (Array.length lc0) (fun i -> push_rel_context lcctx.(i) env, snd lc0.(i)) in
       let next_mk_ctx = function
       | c1 :: rem ->
         let pms, rem = List.chop (Array.length pms) rem in
         let pms = Array.of_list pms in
         let hd, lc = match rem with [] -> assert false | x :: l -> (x, l) in
-        let hd = (fst (fst hd0), hd) in
-        let map_br (nas, _) br = (nas, br) in
+        let hd = nas0, hd in
+        let map_br (nas, _) br = nas, br in
         mk_ctx (mkCase (ci,u,pms,(hd,hdr),iv,c1,Array.map2 map_br lc0 (Array.of_list lc)))
       | _ -> assert false
       in

@@ -449,15 +449,33 @@ val fresh_global :
 
 val expand_case : Environ.env -> Evd.evar_map ->
   case -> (t,t,ERelevance.t) Inductive.pexpanded_case
+[@@deprecated "(9.1) Use [case_expand]"]
 
 val annotate_case : Environ.env -> Evd.evar_map -> case ->
   case_info * EInstance.t * t array * ((rel_context * t) * ERelevance.t) * case_invert * t * (rel_context * t) array
+[@@deprecated "(9.1) Use [case_expand_contexts]"]
 (** Same as above, but doesn't turn contexts into binders *)
 
 val expand_branch : Environ.env -> Evd.evar_map ->
   EInstance.t -> t array -> constructor -> case_branch -> rel_context
+[@@deprecated "(9.1) Use [case_branch_context]"]
 (** Given a universe instance and parameters for the inductive type,
     constructs the typed context in which the branch lives. *)
+
+(* case_expand_contexts_specif is not used, put it here if required *)
+val case_parameter_context_specif : Declarations.mutual_inductive_body -> EInstance.t -> constr array -> Vars.substl
+val case_branch_context_specif : Declarations.one_inductive_body -> Vars.substl -> EInstance.t -> Name.t binder_annot array -> int -> rel_context
+(* 0 indexed constructor, so given Construct (sp, n) the number to give is n - 1 *)
+val case_arity_context_specif : Declarations.one_inductive_body -> Vars.substl -> inductive puniverses -> Name.t binder_annot array -> rel_context
+ 
+val case_expand_contexts : env -> inductive puniverses -> t array -> Name.t binder_annot array -> case_branch array -> rel_context array * rel_context
+val case_branch_context : env -> inductive puniverses -> t array -> Name.t binder_annot array -> int -> rel_context
+(* 0 indexed constructor, so given a constructor (sp, n) the number to give is n - 1 *)
+val case_arity_context : env -> inductive puniverses -> t array -> Name.t binder_annot array -> rel_context
+
+val case_map_branches : env -> inductive puniverses -> t array -> case_branch array -> (rel_context -> case_branch -> 'a) -> 'a array
+val case_expand : env -> inductive puniverses -> t array -> case_branch -> case_branch array -> t array * t
+(* 4th argument is the return clause without the relevance *)
 
 val contract_case : Environ.env -> Evd.evar_map ->
   (t,t,ERelevance.t) Inductive.pexpanded_case -> case

@@ -240,8 +240,8 @@ let retype ?metas ?(polyprop=true) sigma =
       end
     | Ind ind -> Inductiveops.e_type_of_inductive env sigma ind
     | Construct c -> Inductiveops.e_type_of_constructor env sigma c
-    | Case (ci,u,pms,p,iv,c,lf) ->
-        let (_,(p,_),iv,c,lf) = EConstr.expand_case env sigma (ci,u,pms,p,iv,c,lf) in
+    | Case (ci,u,pms,((nas,p),_),iv,c,lf) ->
+        let p = EConstr.it_mkLambda_or_LetIn p (EConstr.case_arity_context env (ci.ci_ind,u) pms nas) in
         let Inductiveops.IndType(indf,realargs) =
           let t = type_of env c in
           try Inductiveops.find_rectype env sigma t

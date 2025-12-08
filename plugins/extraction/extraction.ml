@@ -737,10 +737,10 @@ let rec extract_term table env sg mle mlt c args =
         (* we unify it with an fresh copy of the stored type of [Rel n]. *)
         let extract_rel mlt = put_magic (mlt, Mlenv.get mle n) (MLrel n)
         in extract_app table env sg mle mlt extract_rel args
-    | Case (ci, u, pms, r, iv, c0, br) ->
+    | Case (ci, u, pms, _, _, c0, br) ->
         (* If invert_case then this is a match that will get erased later, but right now we don't care. *)
-        let (ip, r, iv, c0, br) = EConstr.expand_case env sg (ci, u, pms, r, iv, c0, br) in
         let ip = ci.ci_ind in
+        let br = EConstr.case_map_branches env (ci.ci_ind, u) pms br (fun ctx (_, br) -> EConstr.it_mkLambda_or_LetIn br ctx) in
         extract_app table env sg mle mlt (extract_case table env sg mle (ip, u, c0, br)) args
     | Fix ((_,i),recd) ->
         extract_app table env sg mle mlt (extract_fix table env sg mle i recd) args

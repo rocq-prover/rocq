@@ -959,11 +959,10 @@ and reduce_projection infos env sigma p ~npars c =
 and reduce_case infos env sigma (ci, u, pms, p, iv, c, lf) =
   let* f, (hd, args) = whd_construct infos env sigma (c, []) in
   match EConstr.kind sigma hd with
-  | Construct ((_, i as cstr),u) ->
+  | Construct ((_, i),u) ->
     let real_cargs = List.skipn ci.ci_npar args in
-    let br = lf.(i - 1) in
-    let ctx = EConstr.expand_branch env sigma u pms cstr br in
-    let br = it_mkLambda_or_LetIn (snd br) ctx in
+    let nas, br = lf.(i - 1) in
+    let br = EConstr.it_mkLambda_or_LetIn br (EConstr.case_branch_context env (ci.ci_ind, u) pms nas (i - 1)) in
     Reduced (applist (br, real_cargs))
   | CoFix (bodynum,(names,_,_) as cofix) ->
     let cofix_def = contract_cofix env sigma f cofix in

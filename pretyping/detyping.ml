@@ -8,8 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-module CVars = Vars
-
 open Pp
 open CErrors
 open Util
@@ -43,80 +41,60 @@ let nongoal (f:detyping_flags) = { f with flg_isgoal = false }
 (** Reimplementation of kernel case expansion functions in more lenient way *)
 module RobustExpand :
 sig
-val return_clause : Environ.env -> Evd.evar_map -> Ind.t ->
-  EInstance.t -> EConstr.t array -> EConstr.case_return -> rel_context * EConstr.t
-val branch : Environ.env -> Evd.evar_map -> Construct.t ->
+val arity : Environ.env -> Evd.evar_map -> Ind.t ->
   EInstance.t -> EConstr.t array -> EConstr.case_branch -> rel_context * EConstr.t
+val branch : Environ.env -> Evd.evar_map -> Construct.t ->
+  EInstance.t -> EConstr.t array -> Name.t EConstr.binder_annot array -> rel_context
+val map_branches : Environ.env -> Evd.evar_map -> inductive ->
+  EInstance.t -> EConstr.t array -> EConstr.case_branch array -> (EConstr.t -> rel_context -> 'a) -> 'a array
 end =
 struct
-open CVars
 open Declarations
-open UVars
-open Constr
 
-let instantiate_context u subst nas ctx =
-  let rec instantiate i ctx = match ctx with
-  | [] -> []
-  | LocalAssum (_, ty) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    LocalAssum (nas.(i), ty) :: ctx
-  | LocalDef (_, ty, bdy) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    let bdy = substnl subst i (subst_instance_constr u bdy) in
-    LocalDef (nas.(i), ty, bdy) :: ctx
+let case_prep env ind u params =
+  let () = if not @@ Environ.mem_mind (fst ind) env then raise_notrace Exit in
+  let mib, mip = Environ.lookup_mind_specif env ind in
+  let ps = EConstr.case_parameter_context_specif mib u params in
+  ps, mip
+
+let dummy_ctx nas =
+  let dummy na = LocalAssum (na, EConstr.mkProp) in
+  List.rev (Array.map_to_list dummy nas)
+
+let case_branch_context mip ps u nas i =
+  let () = if not (Int.equal (Array.length nas) mip.mind_consnrealdecls.(i)) then raise_notrace Exit in
+  EConstr.case_branch_context_specif mip ps u nas i
+
+let arity env sigma ind u params ((nas : Name.t EConstr.binder_annot array), p) =
+  let ctx =
+    try
+      let ps, mip = case_prep env ind u params in
+      let () = if not (Int.equal (Array.length nas) (mip.mind_nrealdecls + 1)) then raise_notrace Exit in
+      EConstr.case_arity_context_specif mip ps (ind, u) nas
+    with e when CErrors.noncritical e -> dummy_ctx nas
   in
-  let () = if not (Int.equal (Array.length nas) (List.length ctx)) then raise_notrace Exit in
-  instantiate (Array.length nas - 1) ctx
+  ctx, EConstr.it_mkLambda_or_LetIn p ctx
 
-let return_clause env sigma ind u params ((nas, p),_) =
-  let nas : Name.t EConstr.binder_annot array = nas in
+let branch env sigma (ind, i) u params (nas : Name.t EConstr.binder_annot array) =
   try
-    let u = EConstr.Unsafe.to_instance u in
-    let params = EConstr.Unsafe.to_constr_array params in
-    let nas : Name.t Constr.binder_annot array =
-      match EConstr.Unsafe.relevance_eq with Refl -> nas
-    in
-    let () = if not @@ Environ.mem_mind (fst ind) env then raise_notrace Exit in
-    let mib = Environ.lookup_mind (fst ind) env in
-    let mip = mib.mind_packets.(snd ind) in
-    let paramdecl = subst_instance_context u mib.mind_params_ctxt in
-    let paramsubst = subst_of_rel_context_instance paramdecl params in
-    let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
-    let self =
-      let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
-      let inst = Instance.(abstract_instance (length u)) in
-      mkApp (mkIndU (ind, inst), args)
-    in
-    let na = Context.make_annot Anonymous mip.mind_relevance in
-    let realdecls = LocalAssum (na, self) :: realdecls in
-    let realdecls = instantiate_context u paramsubst nas realdecls in
-    List.map EConstr.of_rel_decl realdecls, p
-  with e when CErrors.noncritical e ->
-    let dummy na = LocalAssum (na, EConstr.mkProp) in
-    List.rev (Array.map_to_list dummy nas), p
+    let ps, mip = case_prep env ind u params in
+    case_branch_context mip ps u nas (i - 1)
+  with e when CErrors.noncritical e -> dummy_ctx nas
 
-let branch env sigma (ind, i) u params (nas, br) =
-  let nas : Name.t EConstr.binder_annot array = nas in
+let map_branches env sigma ind u params brs f =
   try
-    let u = EConstr.Unsafe.to_instance u in
-    let params = EConstr.Unsafe.to_constr_array params in
-    let nas : Name.t Constr.binder_annot array =
-      match EConstr.Unsafe.relevance_eq with Refl -> nas
+    let ps, mip = case_prep env ind u params in
+    let map i =
+      let nas, br = brs.(i) in
+      let ctx =
+        try case_branch_context mip ps u nas i
+        with e when CErrors.noncritical e -> dummy_ctx nas
+      in
+      f br ctx
     in
-    let () = if not @@ Environ.mem_mind (fst ind) env then raise_notrace Exit in
-    let mib = Environ.lookup_mind (fst ind) env in
-    let mip = mib.mind_packets.(snd ind) in
-    let paramdecl = subst_instance_context u mib.mind_params_ctxt in
-    let paramsubst = subst_of_rel_context_instance paramdecl params in
-    let (ctx, _) = mip.mind_nf_lc.(i - 1) in
-    let ctx, _ = List.chop mip.mind_consnrealdecls.(i - 1) ctx in
-    let ctx = instantiate_context u paramsubst nas ctx in
-    List.map EConstr.of_rel_decl ctx, br
+    Array.init (Array.length brs) map
   with e when CErrors.noncritical e ->
-    let dummy na = LocalAssum (na, EConstr.mkProp) in
-    List.rev (Array.map_to_list dummy nas), br
+    Array.map (fun (nas, br) -> f br (dummy_ctx nas)) brs
 
 end
 
@@ -475,10 +453,7 @@ let decomp_branch flags e sigma (ctx, c) =
   aux n [] e (EConstr.it_mkLambda_or_LetIn c ctx)
 
 let rec build_tree ~flags na isgoal e sigma (ci, u, pms, cl) =
-  let map i br =
-    RobustExpand.branch (snd (snd e)) sigma (ci.ci_ind, i + 1) u pms br
-  in
-  let cl = Array.mapi map cl in
+  let cl = RobustExpand.map_branches (snd (snd e)) sigma ci.ci_ind u pms cl (fun br ctx -> ctx, br) in
   let mkpat n rhs pl =
     let na = update_name ~flags sigma na rhs in
     na, DAst.make @@ PatCstr((ci.ci_ind,n+1),pl,na) in
@@ -571,7 +546,7 @@ let get_cstr_tags env ind bl =
     let map (nas, _) = Array.map_to_list (fun _ -> false) nas in
     Array.map map bl
 
-let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs, params, p, iv, c, bl) =
+let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs, params, ((nas, ret), _ as p), iv, c, bl) =
   let synth_type = flags.flg.synth_match_return in
   let tomatch = detype c in
   let tomatch =
@@ -599,8 +574,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
       Anonymous, None, None
     else
       let ind_tags = get_ind_tag (snd env) ci.ci_ind p in
-      let (ctx, p) = RobustExpand.return_clause (snd env) sigma ci.ci_ind univs params p in
-      let p = EConstr.it_mkLambda_or_LetIn p ctx in
+      let ctx, p = RobustExpand.arity (snd env) sigma ci.ci_ind univs params (fst p) in
       let p = detype p in
       let nl,typ = it_destRLambda_or_LetIn_names ind_tags p in
       let n,typ = match DAst.get typ with
@@ -628,23 +602,15 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
   in
   match tag, aliastyp with
   | LetStyle, None ->
-    let map i br =
-      let (ctx, body) = RobustExpand.branch (snd env) sigma (ci.ci_ind, i + 1) univs params br in
-      EConstr.it_mkLambda_or_LetIn body ctx
-    in
     let constagsl = get_cstr_tags (snd env) ci.ci_ind bl in
-    let bl = Array.mapi map bl in
+    let bl = RobustExpand.map_branches (snd env) sigma ci.ci_ind univs params bl EConstr.it_mkLambda_or_LetIn in
     let bl' = Array.map detype bl in
     let (nal,d) = it_destRLambda_or_LetIn_names constagsl.(0) bl'.(0) in
     GLetTuple (nal,(alias,pred),tomatch,d)
   | IfStyle, None ->
       if Array.for_all (fun br -> is_nondep_branch sigma br) bl then
-        let map i br =
-          let ctx, body = RobustExpand.branch (snd env) sigma (ci.ci_ind, i + 1) univs params br in
-          EConstr.it_mkLambda_or_LetIn body ctx
-        in
         let constagsl = get_cstr_tags (snd env) ci.ci_ind bl in
-        let bl = Array.mapi map bl in
+        let bl = RobustExpand.map_branches (snd env) sigma ci.ci_ind univs params bl EConstr.it_mkLambda_or_LetIn in
         let bl' = Array.map detype bl in
         let nondepbrs = Array.map2 extract_nondep_branches bl' constagsl in
         GIf (tomatch,(alias,pred), nondepbrs.(0), nondepbrs.(1))
@@ -937,9 +903,9 @@ and detype_eqns d flags avoid env sigma computable constructs bl =
     Array.to_list
       (Array.map2 (detype_eqn d flags avoid env sigma u pms) constructs bl)
 
-and detype_eqn d flags avoid env sigma u pms constr br =
-  let ctx, body = RobustExpand.branch (snd env) sigma constr u pms br in
-  let branch = EConstr.it_mkLambda_or_LetIn body ctx in
+and detype_eqn d flags avoid env sigma u pms constr (nas, br) =
+  let ctx = RobustExpand.branch (snd env) sigma constr u pms nas in
+  let br = EConstr.it_mkLambda_or_LetIn br ctx in
   let make_pat decl avoid env b ids =
     if flags.flg.wildcard && not !Flags.in_debugger && noccurn sigma 1 b then
       DAst.make @@ PatVar Anonymous,avoid,(add_name (set_name Anonymous decl) env),ids
@@ -964,7 +930,7 @@ and detype_eqn d flags avoid env sigma u pms constr br =
 
       | _ -> assert false
   in
-  buildrec Id.Set.empty [] avoid env (List.length ctx) branch
+  buildrec Id.Set.empty [] avoid env (List.length ctx) br
 
 and detype_binder d flags bk avoid env sigma decl c =
   let na = get_name decl in

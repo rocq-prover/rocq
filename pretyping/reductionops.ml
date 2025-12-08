@@ -440,10 +440,10 @@ struct
     let n = nargs kargs in
     (List.skipn (n+1) kargs, strip_n_app n stk)
 
-  let expand_case env sigma ((ci, u, pms, t, iv, br) : case_stk) =
-    let dummy = mkProp in
-    let (ci, u, pms, t, _, _, br) = EConstr.annotate_case env sigma (ci, u, pms, t, iv, dummy, br) in
-    (ci, u, pms, t, br)
+  let expand_case env sigma ((ci, u, pms, ((nas, t), r), iv, br) : case_stk) =
+    let brctx, tctx = EConstr.case_expand_contexts env (ci.ci_ind, u) pms nas br in
+    let br = Array.map2 (fun ctx y -> ctx, snd y) brctx br in
+    ci, u, pms, ((tctx, t), r), br
 
 end
 
@@ -696,16 +696,17 @@ let debug_RAKAM = CDebug.create ~name:"RAKAM" ()
 let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
   let args = Stack.tail ci.ci_npar args in
   let args = Option.get (Stack.list_of_app_stack args) in
-  let br = lf.(i - 1) in
-  if Int.equal ci.ci_cstr_nargs.(i - 1) ci.ci_cstr_ndecls.(i - 1) then
+  let i = i - 1 in
+  let nas, br = lf.(i) in
+  if Int.equal ci.ci_cstr_nargs.(i) ci.ci_cstr_ndecls.(i) then
     (* No let-bindings *)
     let subst = List.rev args in
-    Vars.substl subst (snd br)
+    Vars.substl subst br
   else
     (* For backwards compat with unification, we do not reduce the let-bindings
        upfront. *)
-    let ctx = expand_branch env sigma u pms (ind, i) br in
-    applist (it_mkLambda_or_LetIn (snd br) ctx, args)
+    let ctx = EConstr.case_branch_context env (ci.ci_ind, u) pms nas i in
+    applist (EConstr.it_mkLambda_or_LetIn br ctx, args)
 
 
 exception PatternFailure
@@ -789,12 +790,11 @@ and apply_rule whrec env sigma ctx psubst es stk =
       let args, s = extract_n_stack [] np s in
       let psubst = List.fold_left2 (match_arg_pattern whrec env sigma ctx) psubst pargs args in
       apply_rule whrec env sigma ctx psubst e s
-  | Declarations.PECase (pind, pret, pbrs) :: e, Stack.Case (ci, u, pms, p, iv, brs) :: s ->
+  | Declarations.PECase (pind, pret, pbrs) :: e, Stack.Case (ci, u, pms, ((nas, p), _), iv, brs) :: s ->
       if not @@ QInd.equal env pind ci.ci_ind then raise PatternFailure;
-      let dummy = mkProp in
-      let (_, _, _, ((ntys_ret, ret), _), _, _, brs) = EConstr.annotate_case env sigma (ci, u, pms, p, NoInvert, dummy, brs) in
-      let psubst = match_arg_pattern whrec env sigma (ntys_ret @ ctx) psubst pret ret in
-      let psubst = Array.fold_left2 (fun psubst pat (ctx', br) -> match_arg_pattern whrec env sigma (ctx' @ ctx) psubst pat br) psubst pbrs brs in
+      let brctx, ntys_ret = EConstr.case_expand_contexts env (ci.ci_ind, u) pms nas brs in
+      let psubst = match_arg_pattern whrec env sigma (ntys_ret @ ctx) psubst pret p in
+      let psubst = Array.fold_left3 (fun psubst pat ctx' (_, br) -> match_arg_pattern whrec env sigma (ctx' @ ctx) psubst pat br) psubst pbrs brctx brs in
       apply_rule whrec env sigma ctx psubst e s
   | Declarations.PEProj proj :: e, Stack.Proj (proj', r) :: s ->
       if not @@ QProjection.Repr.equal env proj (Projection.repr proj') then raise PatternFailure;

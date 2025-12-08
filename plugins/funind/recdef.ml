@@ -433,10 +433,10 @@ let rec travel_aux jinfo continuation_tac (expr_info : constr infos) =
             ++ Printer.pr_leconstr_env env sigma expr_info.info
             ++ str " can not contain a recursive call to "
             ++ Id.print expr_info.f_id ++ str ".") )
-      | Case (ci, u, pms, t, iv, a, l) ->
-        let (ci, t, iv, a, l) = EConstr.expand_case env sigma (ci, u, pms, t, iv, a, l) in
+      | Case (ci, u, pms, (t, r), iv, a, l) ->
+        let l, t = EConstr.case_expand env (ci.ci_ind, u) pms t l in
         let continuation_tac_a =
-          jinfo.casE (travel jinfo) (ci, t, iv, a, l) expr_info continuation_tac
+          jinfo.casE (travel jinfo) (ci, (t, r), iv, a, l) expr_info continuation_tac
         in
         travel jinfo continuation_tac_a
           {expr_info with info = a; is_main_branch = false; is_final = false}

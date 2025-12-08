@@ -279,6 +279,7 @@ val template_polymorphic_pind : pinductive -> env -> bool
     less general type to make it easy to use this function on Case nodes. *)
 val expand_arity : Declarations.mind_specif -> pinductive -> constr array ->
   Name.t binder_annot array -> rel_context
+[@@deprecated "(9.1) Use [case_arity_context_specif] in Declareops"]
 
 (** Given an inductive type and its parameters, builds the context of the return
     clause, including the inductive being eliminated. The additional binder
@@ -286,6 +287,7 @@ val expand_arity : Declarations.mind_specif -> pinductive -> constr array ->
     less general type to make it easy to use this function on Case nodes. *)
 val expand_branch_contexts : Declarations.mind_specif -> UVars.Instance.t -> constr array ->
   (Name.t binder_annot array * 'a) array -> rel_context array
+[@@deprecated "(9.1) Use [case_map_branches] in Inducive or [case_branch_context_specif] in Declareops"]
 
 (** [instantiate_context u subst nas ctx] applies both [u] and [subst]
   to [ctx] while replacing names using [nas] (order reversed). In particular,

@@ -147,6 +147,7 @@ val inductive_params : mind_specif -> int
     less general type to make it easy to use this function on Case nodes. *)
 val expand_arity : mind_specif -> pinductive -> constr array ->
   Name.t binder_annot array -> rel_context
+[@@deprecated "(9.1) Use [case_arity_context_specif] in Declareops"]
 
 (** Given an inductive type and its parameters, builds the context of the return
     clause, including the inductive being eliminated. The additional binder
@@ -154,6 +155,7 @@ val expand_arity : mind_specif -> pinductive -> constr array ->
     less general type to make it easy to use this function on Case nodes. *)
 val expand_branch_contexts : mind_specif -> UVars.Instance.t -> constr array ->
   (Name.t binder_annot array * 'a) array -> rel_context array
+[@@deprecated "(9.1) Use [case_map_branches] or [case_branch_context_specif] in Declareops"]
 
 type ('constr,'types,'r) pexpanded_case =
   (case_info * ('constr * 'r) * 'constr pcase_invert * 'constr * 'constr array)
@@ -164,8 +166,19 @@ type expanded_case = (constr,types,Sorts.relevance) pexpanded_case
     lambda and let abstractions in front of the return clause and the pattern
     branches. *)
 val expand_case : env -> case -> expanded_case
+[@@deprecated "(9.1) Use [case_expand]"]
 
 val expand_case_specif : mutual_inductive_body -> case -> expanded_case
+[@@deprecated "(9.1) Use [case_expand_specif] in Declareops"]
+
+val case_expand_contexts : env -> pinductive -> constr array -> Name.t binder_annot array -> case_branch array -> rel_context array * rel_context
+(* case_arity_context is unused, this is where it would go *)
+val case_branch_context : env -> pinductive -> constr array -> Name.t binder_annot array -> int -> rel_context
+(* 0 indexed constructor, so given a constructor (sp, n) the number to give is n - 1 *)
+
+val case_map_branches : env -> pinductive -> constr array -> case_branch array -> (rel_context -> case_branch -> 'b) -> 'b array
+val case_expand : env -> pinductive -> constr array -> case_branch -> case_branch array -> constr array * types
+(* 4th argument is the return clause without the relevance *)
 
 (** Dual operation of the above. Fails if the return clause or branch has not
     the expected form. *)
