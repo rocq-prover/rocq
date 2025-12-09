@@ -19,16 +19,18 @@ type number_option =
   | After of PrimNotations.numnot_option
   | Via of number_string_via
 
-val vernac_number_notation : locality_flag ->
-                             qualid ->
-                             qualid -> qualid ->
-                             number_option list ->
-                             Notation_term.scope_name -> unit
+val vernac_number_notation : Summary.Interp.mut ->
+  locality_flag ->
+  qualid ->
+  qualid -> qualid ->
+  number_option list ->
+  Notation_term.scope_name -> unit
 
 (** * String notation *)
 
-val vernac_string_notation : locality_flag ->
-                             qualid ->
-                             qualid -> qualid ->
-                             number_string_via option ->
-                             Notation_term.scope_name -> unit
+val vernac_string_notation : Summary.Interp.mut ->
+  locality_flag ->
+  qualid ->
+  qualid -> qualid ->
+  number_string_via option ->
+  Notation_term.scope_name -> unit

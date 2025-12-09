@@ -14,10 +14,10 @@ open Environ
 
 (* -------------------------------------------------------------------------- *)
 
-(** Declare an inductive block can be eliminated dependently *)
-val declare_prop_but_default_dependent_elim : inductive -> unit
+(** Declare an inductive should be eliminated dependently even though it's in Prop *)
+val declare_prop_but_default_dependent_elim : Summary.Interp.mut -> inductive -> unit
 
-(** Check if an inductive block can be eliminated dependently *)
+(** Check if an inductive should be eliminated dependently even though it's in Prop *)
 val is_prop_but_default_dependent_elim : inductive -> bool
 
 (** Returns [QType] if the inductive block can be eliminated dependently,

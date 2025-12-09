@@ -25,7 +25,7 @@ exception ModuleInternalizationError of module_internalization_error
 
 type module_kind = Module | ModType | ModAny
 
-type module_struct_expr = (sort_poly_decl_expr option * constr_expr) Declarations.module_alg_expr
+type module_struct_expr = (universe_decl_expr option * constr_expr) Declarations.module_alg_expr
 
 let error_not_a_module_loc ~info kind loc qid =
   let e = match kind with
@@ -133,10 +133,10 @@ let rec intern_module_ast kind m = match m with
 let interp_with_decl env base kind = function
   | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
   | WithDef(fqid,(udecl,c)) ->
-    let sigma, udecl = interp_sort_poly_decl_opt env udecl in
+    let sigma, udecl = interp_univ_decl_opt env udecl in
     let c, ectx = interp_constr env sigma c in
     let poly = lookup_polymorphism env base kind fqid in
-    begin match fst (UState.check_sort_poly_decl ~poly ectx udecl) with
+    begin match fst (UState.check_univ_decl ~poly ectx udecl) with
       | UState.Polymorphic_entry ctx ->
         let inst, ctx = UVars.abstract_universes ctx in
         let c = EConstr.Vars.subst_univs_level_constr (UVars.make_instance_subst inst) c in

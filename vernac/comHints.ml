@@ -14,7 +14,7 @@ open Names
 (** (Partial) implementation of the [Hint] command; some more
    functionality still lives in tactics/hints.ml *)
 
-let project_hint ~poly pri l2r r =
+let project_hint sum ~poly pri l2r r =
   let open EConstr in
   let open Rocqlib in
   let gr = Smartlocate.global_with_alias r in
@@ -57,7 +57,7 @@ let project_hint ~poly pri l2r r =
     Declare.(DefinitionEntry (definition_entry ~univs:ctx ~opaque:false c))
   in
   let c =
-    Declare.declare_constant ~local:Locality.ImportDefaultBehavior ~name
+    Declare.declare_constant sum ~local:Locality.ImportDefaultBehavior ~name
       ~kind:Decls.(IsDefinition Definition)
       cb
   in
@@ -78,7 +78,7 @@ let rectify_hint_constr h = match h with
   | CAppExpl ((qid, None), []) -> Some qid
   | _ -> None
 
-let interp_hints ~poly h =
+let interp_hints sum ~poly h =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let fref r =
@@ -118,7 +118,7 @@ let interp_hints ~poly h =
   match h with
   | HintsResolve lhints -> HintsResolveEntry (List.map fres lhints)
   | HintsResolveIFF (l2r, lc, n) ->
-    HintsResolveEntry (List.map (project_hint ~poly n l2r) lc)
+    HintsResolveEntry (List.map (project_hint sum ~poly n l2r) lc)
   | HintsImmediate lhints -> HintsImmediateEntry (List.map fi lhints)
   | HintsUnfold lhints -> HintsUnfoldEntry (List.map fr lhints)
   | HintsTransparency (t, b) -> HintsTransparencyEntry (ft t, b)

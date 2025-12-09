@@ -171,9 +171,9 @@ DELETE: [
 | test_old_sort_qvar
 | test_sort_qvar
 | test_ltac2_ident
-| test_doublepipe_sort_poly_decl
-| test_doublepipe_cumul_sort_poly_decl
-| test_semicolon_cumul_sort_poly_decl
+| test_doublepipe_univ_decl
+| test_doublepipe_cumul_univ_decl
+| test_semicolon_cumul_univ_decl
 | test_univ_cst
 ]
 
@@ -648,18 +648,18 @@ univ_level_or_quality: [
 | WITH "0"
 ]
 
-sort_poly_decl: [
-| REPLACE "@{" LIST0 identref ";" LIST0 identref [ "+" | ] sort_poly_decl_constraints
-| WITH    "@{" OPT [ LIST0 identref [ "|" | ";" ] ] LIST0 identref  OPT "+"  OPT [ "|" LIST0 sort_poly_constraint SEP "," OPT "+" ] "}"
-| DELETE "@{" LIST0 identref [ "+" | ] sort_poly_decl_constraints
-| DELETE "@{" LIST0 identref "|" LIST0 identref [ "+" | ] sort_poly_decl_constraints
+univ_decl: [
+| REPLACE "@{" LIST0 identref ";" LIST0 identref [ "+" | ] univ_decl_constraints
+| WITH    "@{" OPT [ LIST0 identref [ "|" | ";" ] ] LIST0 identref  OPT "+"  OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+| DELETE "@{" LIST0 identref [ "+" | ] univ_decl_constraints
+| DELETE "@{" LIST0 identref "|" LIST0 identref [ "+" | ] univ_decl_constraints
 ]
 
-cumul_sort_poly_decl: [
-| REPLACE "@{" LIST0 identref ";" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
-| WITH "@{" OPT [ LIST0 identref [ "|" | ";" ] ] LIST0 variance_identref    OPT "+"   OPT [ "|" LIST0 sort_poly_constraint SEP "," OPT "+" ] "}"
-| DELETE "@{" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
-| DELETE "@{" LIST0 identref "|" LIST0 variance_identref [ "+" | ] sort_poly_decl_constraints
+cumul_univ_decl: [
+| REPLACE "@{" LIST0 identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| WITH "@{" OPT [ LIST0 identref [ "|" | ";" ] ] LIST0 variance_identref    OPT "+"   OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+| DELETE "@{" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| DELETE "@{" LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 ]
 
 of_type: [
@@ -734,9 +734,9 @@ gallina_ext: [
 
 (* Per @Zimmi48, the global (qualid) must be a simple identifier if def_body is present
    Note that smart_global is "qualid | by_notation" and that
-   ident_decl is "ident OPT sort_poly_decl"; move
+   ident_decl is "ident OPT univ_decl"; move
  *)
-| REPLACE "Canonical" OPT "Structure" global OPT [ OPT sort_poly_decl def_body ]
+| REPLACE "Canonical" OPT "Structure" global OPT [ OPT univ_decl def_body ]
 | WITH "Canonical" OPT "Structure" ident_decl def_body
 | REPLACE "Canonical" OPT "Structure" by_notation
 | WITH "Canonical" OPT "Structure" smart_global
@@ -746,8 +746,8 @@ gallina_ext: [
 | WITH "Coercion" smart_global OPT [ ":" coercion_class ">->" coercion_class ]
 
 (* semantically restricted per https://github.com/rocq-prover/rocq/pull/12936#discussion_r492705820 *)
-(* global OPT sort_poly_decl is just ident_decl, the first OPT is moved to the rule above *)
-| REPLACE "Coercion" global OPT [ OPT sort_poly_decl def_body ]
+(* global OPT univ_decl is just ident_decl, the first OPT is moved to the rule above *)
+| REPLACE "Coercion" global OPT [ OPT univ_decl def_body ]
 | WITH "Coercion" ident_decl def_body
 
 | REPLACE "Include" "Type" module_type_inl LIST0 ext_module_type

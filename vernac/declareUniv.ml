@@ -56,24 +56,24 @@ let do_univ_name ~check i dp src (id,univ) =
   if check then check_exists_universe sp;
   Nametab.push_universe i sp univ
 
-let cache_univ_names (prefix, (src, univs)) =
+let cache_univ_names (prefix, (src, univs)) _sum =
   let depth = Lib.sections_depth () in
   let dp = Libnames.path_pop_n_suffixes depth prefix.Libobject.obj_path in
   List.iter (do_univ_name ~check:true (Nametab.Until 1) dp src) univs
 
-let load_univ_names i (prefix, (src, univs)) =
+let load_univ_names i (prefix, (src, univs)) _sum =
   List.iter (do_univ_name ~check:false (Nametab.Until i) prefix.Libobject.obj_path src) univs
 
-let open_univ_names i (prefix, (src, univs)) =
+let open_univ_names i (prefix, (src, univs)) _sum =
   List.iter (do_univ_name ~check:false (Nametab.Exactly i) prefix.Libobject.obj_path src) univs
 
-let discharge_univ_names = function
+let discharge_univ_names _sum = function
   | BoundUniv, _ -> None
   | (QualifiedUniv _ | UnqualifiedUniv), _ as x -> Some x
 
 let input_univ_names : universe_name_decl -> Libobject.obj =
   let open Libobject in
-  declare_named_object_gen
+  Interp.declare_named_object_gen
     { (default_object "Global universe name state") with
       cache_function = cache_univ_names;
       load_function = load_univ_names;
@@ -81,9 +81,9 @@ let input_univ_names : universe_name_decl -> Libobject.obj =
       discharge_function = discharge_univ_names;
       classify_function = (fun _ -> Escape) }
 
-let input_univ_names (src, l) =
+let input_univ_names sum (src, l) =
   if CList.is_empty l then ()
-  else Lib.add_leaf (input_univ_names (src, l))
+  else Lib.Interp.add_leaf sum (input_univ_names (src, l))
 
 let invent_name prefix (named,cnt) u =
   let rec aux i =
@@ -107,25 +107,25 @@ let do_sort_name ~check i dp (id,quality) =
   if check then check_exists_sort sp;
   Nametab.Quality.push i sp quality
 
-let cache_sort_names (prefix, decl) =
+let cache_sort_names (prefix, decl) _sum =
   let depth = Lib.sections_depth () in
   let dp = Libnames.path_pop_n_suffixes depth prefix.Libobject.obj_path in
   List.iter (do_sort_name ~check:true (Nametab.Until 1) dp) decl.sdecl_named
 
-let load_sort_names i (prefix, decl) =
+let load_sort_names i (prefix, decl) _sum =
   List.iter (do_sort_name ~check:false (Nametab.Until i) prefix.Libobject.obj_path) decl.sdecl_named
 
-let open_sort_names i (prefix, decl) =
+let open_sort_names i (prefix, decl) _sum =
   List.iter (do_sort_name ~check:false (Nametab.Exactly i) prefix.Libobject.obj_path) decl.sdecl_named
 
-let discharge_sort_names decl =
+let discharge_sort_names _sum decl =
   match decl.sdecl_src with
   | BoundQuality -> None
   | UnqualifiedQuality -> Some decl
 
 let input_sort_names : sort_name_decl -> Libobject.obj =
   let open Libobject in
-  declare_named_object_gen
+  Interp.declare_named_object_gen
     { (default_object "Global sort name state") with
       cache_function = cache_sort_names;
       load_function = load_sort_names;
@@ -133,9 +133,9 @@ let input_sort_names : sort_name_decl -> Libobject.obj =
       discharge_function = discharge_sort_names;
       classify_function = (fun a -> Escape) }
 
-let input_sort_names (src, l) =
+let input_sort_names sum (src, l) =
   if CList.is_empty l then ()
-  else Lib.add_leaf (input_sort_names { sdecl_src = src; sdecl_named = l })
+  else Lib.Interp.add_leaf sum (input_sort_names { sdecl_src = src; sdecl_named = l })
 
 
 let label_of = let open GlobRef in function
@@ -146,7 +146,7 @@ let label_of = let open GlobRef in function
   CErrors.anomaly ~label:"declare_univ_binders"
     Pp.(str "declare_univ_binders on a constructor reference")
 
-let declare_univ_binders gr (univs, pl) =
+let declare_univ_binders sum gr (univs, pl) =
   let l = label_of gr in
   match univs with
   | UState.Polymorphic_entry _ -> ()
@@ -171,9 +171,9 @@ let declare_univ_binders gr (univs, pl) =
         aux, (id,univ) :: univs)
         (Level.Set.diff levels named) ((pl,0),univs)
     in
-    input_univ_names (QualifiedUniv (DirPath.make [l]), univs)
+    input_univ_names sum (QualifiedUniv (DirPath.make [l]), univs)
 
-let name_mono_section_univs univs =
+let name_mono_section_univs sum univs =
   if Level.Set.is_empty univs then ()
   else
   let prefix = Lib.cwd () in
@@ -187,9 +187,9 @@ let name_mono_section_univs univs =
       aux, (id,univ) :: univs)
       univs ((Id.Map.empty, 0), [])
   in
-  input_univ_names (QualifiedUniv sections, univs)
+  input_univ_names sum (QualifiedUniv sections, univs)
 
-let do_universe ~poly l =
+let do_universe sum ~poly l =
   let in_section = Lib.sections_are_opened () in
   let () =
     if poly && not in_section then
@@ -198,7 +198,7 @@ let do_universe ~poly l =
   in
   let l = List.map (fun {CAst.v=id} -> (id, UnivGen.new_univ_global ())) l in
   let src = if poly then BoundUniv else UnqualifiedUniv in
-  let () = input_univ_names (src, l) in
+  let () = input_univ_names sum (src, l) in
   match poly with
   | false ->
     let ctx = List.fold_left (fun ctx (_,qid) -> Level.Set.add (Level.make qid) ctx)
@@ -214,7 +214,7 @@ let do_universe ~poly l =
     in
     Global.push_section_context ctx
 
-let do_sort ~poly l =
+let do_sort sum ~poly l =
   let in_section = Lib.sections_are_opened () in
   let () =
     if poly && not in_section then
@@ -223,7 +223,7 @@ let do_sort ~poly l =
   in
   let l = List.map (fun {CAst.v=id} -> (id, UnivGen.new_sort_global id)) l in
   let src = if poly then BoundQuality else UnqualifiedQuality in
-  let () = input_sort_names (src, l) in
+  let () = input_sort_names sum (src, l) in
   match poly with
   | false ->
     let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
@@ -266,24 +266,24 @@ let do_constraint ~poly l =
 
 let constraint_sources = Summary.ref ~name:"univ constraint sources" []
 
-let cache_constraint_source x = constraint_sources := x :: !constraint_sources
+let cache_constraint_source x _sum = constraint_sources := x :: !constraint_sources
 
 let constraint_sources () = !constraint_sources
 
 let constraint_obj =
-  Libobject.declare_object {
+  Libobject.Interp.declare_object {
     (Libobject.default_object "univ constraint sources") with
     cache_function = cache_constraint_source;
     load_function = (fun _ c -> cache_constraint_source c);
-    discharge_function = (fun x -> Some x);
+    discharge_function = (fun _sum x -> Some x);
     classify_function = (fun _ -> Escape);
   }
 
 (* XXX this seems like it could be merged with declare_univ_binders
    main issue is the filtering or redundant constraints (needed for perf / smaller vo file sizes) *)
-let add_constraint_source x ctx =
+let add_constraint_source sum x ctx =
   let _, csts = ctx in
   if Univ.UnivConstraints.is_empty csts then ()
   else
     let v = x, csts in
-    Lib.add_leaf (constraint_obj v)
+    Lib.Interp.add_leaf sum (constraint_obj v)

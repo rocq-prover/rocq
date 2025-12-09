@@ -80,22 +80,22 @@ let intern_notation_entry = function
 
 let entry_buf = Buffer.create 64
 
-let pr_entry e =
+let pr_entry sum e =
   let () = Buffer.clear entry_buf in
   let ft = Format.formatter_of_buffer entry_buf in
-  let () = Procq.Entry.print ft e in
+  let () = Procq.Entry.print ft e sum in
   str (Buffer.contents entry_buf)
 
 let error_unknown_entry ?loc name =
   user_err ?loc Pp.(str "Unknown or unprintable grammar entry " ++ str name ++ str".")
 
-let pr_grammar_subset grammar =
+let pr_grammar_subset sum grammar =
   let pp = String.Map.mapi (fun name l -> match l with
       | []  -> assert false
       | entries ->
         str "Entry " ++ str name ++ str " is" ++ fnl() ++
         prlist_with_sep (fun () -> str "or" ++ fnl())
-          (fun (Procq.Entry.Any e) -> pr_entry e)
+          (fun (Procq.Entry.Any e) -> pr_entry sum e)
           entries)
       grammar
   in
@@ -125,24 +125,24 @@ let is_known = let open Procq.Entry in function
     | [] -> None
     | entries -> Some entries
 
-let full_grammar () =
+let full_grammar sum =
   let open Pvernac.Vernac_ in
   let open Procq.Entry in
   let proof_modes = List.map (fun (_,Pvernac.ProofMode e) -> Any e.command_entry)
       (CString.Map.bindings (Pvernac.list_proof_modes()))
   in
   let entries = (Any main_entry) :: (Any noedit_mode) :: proof_modes in
-  Procq.Entry.accumulate_in entries
+  Procq.Entry.accumulate_in entries sum
 
 let same_entry (Procq.Entry.Any e) (Procq.Entry.Any e') = (Obj.magic e) == (Obj.magic e')
 
-let pr_grammar = function
+let pr_grammar sum = function
   | [] ->
-    let grammar = full_grammar () in
-    pr_grammar_subset grammar
+    let grammar = full_grammar sum in
+    pr_grammar_subset sum grammar
   | ["Full"] ->
-    let grammar = Procq.Entry.all_in () in
-    pr_grammar_subset grammar
+    let grammar = Procq.Entry.all_in sum in
+    pr_grammar_subset sum grammar
   | names ->
     let known, other = List.fold_left (fun (known,other) name ->
         match is_known name with
@@ -151,7 +151,7 @@ let pr_grammar = function
         ([],[])
         names
     in
-    let grammar = if List.is_empty other then String.Map.empty else full_grammar () in
+    let grammar = if List.is_empty other then String.Map.empty else full_grammar sum in
     let () = List.iter (fun name ->
         if not (String.Map.mem name grammar)
         then error_unknown_entry name)
@@ -168,38 +168,39 @@ let pr_grammar = function
           grammar)
         grammar known
     in
-    pr_grammar_subset grammar
+    pr_grammar_subset sum grammar
 
 let custom_grammars = ref []
 
 let register_custom_grammar_for_print h = custom_grammars := h :: !custom_grammars
 
-let () = register_custom_grammar_for_print @@ fun name ->
+let () = register_custom_grammar_for_print @@ fun sum name ->
   try
     let name = intern_custom_name name in
-    let constr_entry, _ = Egramrocq.find_custom_entry name in
+    let constr_entry, _ = Egramrocq.find_custom_entry sum name in
     Some [Procq.Entry.Any constr_entry]
   with UnknownCustomEntry _ ->
     None
 
-let get_custom_grammars name =
-  let entries = List.filter_map (fun f -> f name) !custom_grammars in
+let get_custom_grammars sum name =
+  let entries = List.filter_map (fun f -> f sum name) !custom_grammars in
   match entries with
   | [] -> raise (UnknownCustomEntry name)
   | _ :: _ -> List.flatten entries
 
-let pr_custom_grammar name =
-  let entries = get_custom_grammars name in
+let pr_custom_grammar sum name =
+  let entries = get_custom_grammars sum name in
   let add_entry map (Procq.Entry.Any e as any) =
     String.Map.update (Procq.Entry.name e)
       (fun entries -> Some (any :: Option.default [] entries))
       map
   in
   let map = List.fold_left add_entry String.Map.empty entries in
-  pr_grammar_subset map
+  pr_grammar_subset sum map
 
-let pr_keywords () =
-  Pp.prlist_with_sep Pp.fnl Pp.str (CString.Set.elements (CLexer.keywords (Procq.get_keyword_state())))
+let pr_keywords sum =
+  Pp.prlist_with_sep Pp.fnl Pp.str @@
+  CString.Set.elements @@ CLexer.keywords @@ Procq.get_keyword_state sum
 
 (** **************************************************************** **)
 (** Parse a format (every terminal starting with a letter or a single
@@ -783,9 +784,9 @@ let prod_entry_type = function
   | ETConstr (s,_,p) -> ETProdConstr (s,p)
   | ETPattern (_,n) -> ETProdPattern (pattern_entry_level n)
 
-let keyword_needed need s =
+let keyword_needed sum need s =
   (* Ensure that IDENT articulation terminal symbols are keywords *)
-  match Procq.terminal s with
+  match CLexer.terminal s with
   | Tok.PIDENT (Some k) ->
     if need then
       Flags.if_verbose Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
@@ -804,14 +805,14 @@ let keyword_needed need s =
     need
   | _ -> true
 
-let make_production ({notation_level = lev}, _) etyps symbols =
+let make_production sum ({notation_level = lev}, _) etyps symbols =
   let rec aux need = function
     | [] -> [[]]
     | NonTerminal m :: l ->
         let typ = prod_entry_type (List.assoc m etyps) in
         distribute [GramConstrNonTerminal (typ, Some m)] (aux (is_not_small_constr typ) l)
     | Terminal s :: l ->
-        let keyword = keyword_needed need s in
+        let keyword = keyword_needed sum need s in
         distribute [GramConstrTerminal (keyword,s)] (aux false l)
     | Break _ :: l ->
         aux need l
@@ -820,7 +821,7 @@ let make_production ({notation_level = lev}, _) etyps symbols =
           (List.map (function Terminal s -> [s]
             | Break _ -> []
             | _ -> anomaly (Pp.str "Found a non terminal token in recursive notation separator.")) sl) in
-        let tkl = List.map_i (fun i x -> let need = (i=0) in (keyword_needed need x, x)) 0 tkl in
+        let tkl = List.map_i (fun i x -> let need = (i=0) in (keyword_needed sum need x, x)) 0 tkl in
         match List.assoc x etyps with
         | ETConstr (s,_,(lev,_ as typ)) ->
             let p,l' = include_possible_similar_trailing_pattern (s,lev) etyps sl l in
@@ -944,7 +945,7 @@ let specific_format_to_declare (specific,ntn as specific_ntn) rules =
 type syntax_extension_obj =
   locality_flag * (notation * syntax_extension)
 
-let check_and_extend_constr_grammar ntn rule =
+let check_and_extend_constr_grammar sum ntn rule =
   try
     let ntn_for_grammar = rule.notgram_notation in
     if notation_eq ntn ntn_for_grammar then raise Not_found;
@@ -961,7 +962,7 @@ let check_and_extend_constr_grammar ntn rule =
       error_parsing_incompatible_level ntn ntn_for_grammar oldprec oldtyps prec typs;
     if oldparsing = None then raise Not_found
   with Not_found ->
-    Egramrocq.extend_constr_grammar rule
+    Egramrocq.extend_constr_grammar sum rule
 
 let warn_prefix_incompatible_level =
   CWarnings.create ~name:"notation-incompatible-prefix"
@@ -992,7 +993,7 @@ let check_prefix_incompatible_level ntn prec nottyps =
          warn_prefix_incompatible_level (pref, ntn, pref_prec, pref_nottyps, prec, nottyps);
      with Not_found | Failure _ -> ()
 
-let cache_one_syntax_extension (ntn,synext) =
+let cache_one_syntax_extension (ntn,synext) sum =
   let prec = synext.synext_level in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
@@ -1017,28 +1018,24 @@ let cache_one_syntax_extension (ntn,synext) =
       None in
   (* Declare the parsing rule *)
   begin match oldparsing, synext.synext_notgram with
-  | None, Some grams -> List.iter (check_and_extend_constr_grammar ntn) grams
+  | None, Some grams -> List.iter (check_and_extend_constr_grammar sum ntn) grams
   | _ -> (* The grammars rules are canonically derived from the string and the precedence*) ()
   end;
   (* Printing *)
   Option.iter (declare_generic_notation_printing_rules ntn) synext.synext_notprint
 
-let cache_syntax_extension (_, sy) =
-  cache_one_syntax_extension sy
-
-let subst_syntax_extension (subst, (local, (ntn, synext))) =
-  (local, (ntn, synext))
+let cache_syntax_extension (_, sy) sum =
+  cache_one_syntax_extension sy sum
 
 let classify_syntax_definition (local, _) =
   if local then Dispose else Substitute
 
 let inSyntaxExtension : syntax_extension_obj -> obj =
-  declare_object
+  Libobject.Synterp.declare_object
     {(default_object "SYNTAX-EXTENSION") with
-     object_stage = Summary.Stage.Synterp;
      open_function = simple_open ~cat:notation_cat cache_syntax_extension;
      cache_function = cache_syntax_extension;
-     subst_function = subst_syntax_extension;
+     subst_function = ident_subst_function;
      classify_function = classify_syntax_definition}
 
 (** ******************************************************************** **)
@@ -1659,7 +1656,7 @@ type notation_obj = {
   notobj_specific_pp_rules : notation_printing_rules option;
 }
 
-let load_notation_common silently_define_scope_if_undefined _ nobj =
+let load_notation_common silently_define_scope_if_undefined _ nobj _sum =
   (* When the default shall be to require that a scope already exists *)
   (* the call to ensure_scope will have to be removed *)
   if silently_define_scope_if_undefined then
@@ -1672,7 +1669,7 @@ let load_notation_common silently_define_scope_if_undefined _ nobj =
 let load_notation =
   load_notation_common true
 
-let open_notation nobj =
+let open_notation nobj _sum =
   let scope = nobj.notobj_scope in
   let (ntn, df) = nobj.notobj_notation in
   let pat = nobj.notobj_interp in
@@ -1689,48 +1686,48 @@ let open_notation nobj =
        Ppextend.declare_specific_notation_printing_rules (scope,ntn) pp_sy
    | None -> ())
 
-let cache_notation o =
-  load_notation_common false 1 o;
-  open_notation o
+let cache_notation o sum =
+  load_notation_common false 1 o sum;
+  open_notation o sum
 
-let subst_notation (subst, nobj) =
+let subst_notation _sum subst nobj =
   { nobj with notobj_interp = subst_interpretation subst nobj.notobj_interp; }
 
 let classify_notation nobj =
   if nobj.notobj_local then Dispose else Substitute
 
 let inNotation : notation_obj -> obj =
-  declare_object {(default_object "NOTATION") with
-       open_function = simple_open ~cat:notation_cat open_notation;
-       cache_function = cache_notation;
-       subst_function = subst_notation;
-       load_function = load_notation;
-       classify_function = classify_notation}
+  Libobject.Interp.declare_object
+    {(default_object "NOTATION") with
+     open_function = simple_open ~cat:notation_cat open_notation;
+     cache_function = cache_notation;
+     subst_function = subst_notation;
+     load_function = load_notation;
+     classify_function = classify_notation}
 
 (**********************************************************************)
 (* Registration of interpretation scopes opening/closing              *)
 
-let cache_scope (local,op,sc) =
+let cache_scope (local,op,sc) _sum =
   if op then Notation.open_scope sc else Notation.close_scope sc
 
-let subst_scope (subst,sc) = sc
-
-let discharge_scope (local,_,_ as o) =
+let discharge_scope _sum (local,_,_ as o) =
   if local then None else Some o
 
 let classify_scope (local,_,_) =
   if local then Dispose else Substitute
 
 let inScope : bool * bool * scope_name -> obj =
-  declare_object {(default_object "SCOPE") with
-      cache_function = cache_scope;
-      open_function = simple_open ~cat:notation_cat cache_scope;
-      subst_function = subst_scope;
-      discharge_function = discharge_scope;
-      classify_function = classify_scope }
+  Libobject.Interp.declare_object
+    {(default_object "SCOPE") with
+     cache_function = cache_scope;
+     open_function = simple_open ~cat:notation_cat cache_scope;
+     subst_function = ident_subst_function;
+     discharge_function = discharge_scope;
+     classify_function = classify_scope }
 
-let open_close_scope local ~to_open sc =
-  Lib.add_leaf (inScope (local,to_open,normalize_scope sc))
+let open_close_scope sum local ~to_open sc =
+  Lib.Interp.add_leaf sum (inScope (local,to_open,normalize_scope sc))
 
 (**********************************************************************)
 
@@ -1740,10 +1737,11 @@ let with_lib_stk_protection f x =
   let& () = Util.protect_state ~freeze ~unfreeze in
   f x
 
-let with_syntax_protection f x =
+let with_syntax_protection f sum =
   with_lib_stk_protection
-    (Procq.with_grammar_rule_protection
-       (with_notation_protection f)) x
+    (fun () -> Procq.with_grammar_rule_protection sum
+        (fun sum -> with_notation_protection (fun () -> f sum) ()))
+    ()
 
 (** **************************************************************** **)
 (** Recovering existing syntax                                       **)
@@ -1774,10 +1772,10 @@ let recover_squash_syntax sy =
 (** **************************************************************** **)
 (** Main entry point for building parsing and printing rules         **)
 
-let make_pa_rule (typs,symbols) parsing_data =
+let make_pa_rule sum (typs,symbols) parsing_data =
   let { ntn_for_grammar; prec_for_grammar; typs_for_grammar; need_squash } = parsing_data in
   let assoc = recompute_assoc typs in
-  let prod = make_production prec_for_grammar typs symbols in
+  let prod = make_production sum prec_for_grammar typs symbols in
   let sy = {
     notgram_level = prec_for_grammar;
     notgram_assoc = assoc;
@@ -1802,10 +1800,10 @@ let make_pp_rule level (typs,symbols) fmt =
   | Some fmt ->
      hunks_of_format (level, List.split typs) (symbols, fmt)
 
-let make_parsing_rules main_data (sd : SynData.syn_data) =
+let make_parsing_rules sum main_data (sd : SynData.syn_data) =
   let open SynData in
   if main_data.onlyprinting then None
-  else Some (make_pa_rule sd.pa_syntax_data sd.not_data)
+  else Some (make_pa_rule sum sd.pa_syntax_data sd.not_data)
 
 (** **************************************************************** **)
 (** Main functions about notations                                   **)
@@ -1840,11 +1838,11 @@ let make_generic_printing_rules reserved main_data ntn sd =
   with Not_found ->
     Some (make_rule (make_pp_rule level sd.pp_syntax_data main_data.format))
 
-let make_syntax_rules reserved main_data ntn sd =
+let make_syntax_rules sum reserved main_data ntn sd =
   let open SynData in
   List.iter (fun f -> f ()) sd.msgs;
   (* Prepare the parsing and printing rules *)
-  let pa_rules = make_parsing_rules main_data sd in
+  let pa_rules = make_parsing_rules sum main_data sd in
   let pp_rules = make_generic_printing_rules reserved main_data ntn sd in
   {
     synext_level    = sd.level;
@@ -1930,7 +1928,7 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
 
 (* Notations without interpretation (Reserved Notation) *)
 
-let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
+let add_reserved_notation sum ~local ~infix ({CAst.loc;v=df},mods) =
   let (main_data,mods) = interp_non_syntax_modifiers ~reserved:true ~infix ~abbrev:false None mods in
   let mods = interp_modifiers main_data.entry mods in
   let notation_symbols, is_prim_token = analyze_notation_tokens ~onlyprinting:main_data.onlyprinting ~infix main_data.entry df in
@@ -1938,8 +1936,8 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   let ntn = make_notation_key main_data.entry notation_symbols.symbols in
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-  let synext = make_syntax_rules true main_data ntn sd in
-  Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
+  let synext = make_syntax_rules (Summary.Synterp.get sum) true main_data ntn sd in
+  Lib.Synterp.add_leaf sum (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =
   notation_declaration * notation_main_data * notation_symbols * notation * syntax_rules
@@ -1966,20 +1964,20 @@ let prepare_where_notation ntn_decl =
         user_err Pp.(str "Parsing rule for this notation has to be previously declared.") in
     (ntn_decl, main_data, notation_symbols, ntn, syntax_rules)
 
-let add_notation_interpretation ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
+let add_notation_interpretation sum ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
   let notation = make_notation_interpretation ~local main_data notation_symbols ntn syntax_rules df env c sc in
-  Lib.add_leaf (inNotation notation);
+  Lib.Interp.add_leaf sum (inNotation notation);
   Dumpglob.dump_notation (CAst.make ?loc ntn) sc true
 
 (* interpreting a where clause *)
-let set_notation_for_interpretation env impls (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
+let set_notation_for_interpretation sum env impls (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
   let notation = make_notation_interpretation ~local:true main_data notation_symbols ntn syntax_rules df env ~impls c sc in
-  Lib.add_leaf (inNotation notation);
-  Option.iter (fun sc -> Lib.add_leaf (inScope (false,true,sc))) sc
+  cache_notation notation sum;
+  Option.iter (fun sc -> cache_scope (false,true,sc) sum) sc
 
-let build_notation_syntax ~local ~infix user_warns ntn_decl =
+let build_notation_syntax sum ~local ~infix user_warns ntn_decl =
   let { ntn_decl_string = {CAst.loc;v=df}; ntn_decl_modifiers = modifiers; ntn_decl_interp = c } = ntn_decl in
   (* Extract the modifiers not affecting the parsing rule *)
   let (main_data,syntax_modifiers) = interp_non_syntax_modifiers ~reserved:false ~infix ~abbrev:false user_warns modifiers in
@@ -1997,20 +1995,24 @@ let build_notation_syntax ~local ~infix user_warns ntn_decl =
     with NoSyntaxRule ->
       (* Try to determine a default syntax rule *)
       let sd = compute_syntax_data ~local main_data notation_symbols ntn NotationMods.default in
-      SpecificSyntax (make_syntax_rules false main_data ntn sd))
+      SpecificSyntax (make_syntax_rules sum false main_data ntn sd))
 
   | _ ->
     let mods = interp_modifiers main_data.entry syntax_modifiers in
     let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-    SpecificSyntax (make_syntax_rules false main_data ntn sd)
+    SpecificSyntax (make_syntax_rules sum false main_data ntn sd)
   in
   main_data, notation_symbols, ntn, syntax_rules, c, df
 
-let add_notation_syntax ~local ~infix user_warns ntn_decl =
+let add_notation_syntax sum ~local ~infix user_warns ntn_decl =
   (* Build or rebuild the syntax rules *)
-  let main_data, notation_symbols, ntn, syntax_rules, c, df = build_notation_syntax ~local ~infix user_warns ntn_decl in
+  let main_data, notation_symbols, ntn, syntax_rules, c, df =
+    build_notation_syntax (Summary.Synterp.get sum) ~local ~infix user_warns ntn_decl
+  in
   (* Declare syntax *)
-  syntax_rules_iter (fun sy -> Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
+  syntax_rules_iter (fun sy ->
+      Lib.Synterp.add_leaf sum (inSyntaxExtension (local,(ntn,sy))))
+    syntax_rules;
   let ntn_decl_string = CAst.make ?loc:ntn_decl.ntn_decl_string.CAst.loc df in
   let ntn_decl = { ntn_decl with ntn_decl_interp = c; ntn_decl_string } in
   ntn_decl, main_data, notation_symbols, ntn, syntax_rules
@@ -2024,7 +2026,7 @@ type scope_command =
   | ScopeDelimRemove
   | ScopeClasses of add_scope_where option * scope_class list
 
-let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,o) =
+let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,o) _sum =
   let declare_scope_if_needed =
     if silently_define_scope_if_undefined then Notation.declare_scope
     else Notation.ensure_scope in
@@ -2039,7 +2041,7 @@ let load_scope_command_common silently_define_scope_if_undefined _ (local,scope,
 let load_scope_command =
   load_scope_command_common true
 
-let open_scope_command (noexport,scope,o) =
+let open_scope_command (noexport,scope,o) _sum =
   match o with
   | ScopeDeclare -> ()
   | ScopeDelimAdd dlm -> Notation.declare_delimiters scope dlm
@@ -2048,11 +2050,11 @@ let open_scope_command (noexport,scope,o) =
     let local = Lib.sections_are_opened () in
     List.iter (Notation.declare_scope_class local scope ?where) cl
 
-let cache_scope_command o =
-  load_scope_command_common false 1 o;
-  open_scope_command o
+let cache_scope_command o sum =
+  load_scope_command_common false 1 o sum;
+  open_scope_command o sum
 
-let subst_scope_command (subst,(noexport,scope,o as x)) = match o with
+let subst_scope_command _sum subst (noexport,scope,o as x) = match o with
   | ScopeClasses (where, cl) ->
       let env = Global.env () in
       let cl' = List.map_filter (subst_scope_class env subst) cl in
@@ -2066,24 +2068,25 @@ let classify_scope_command (noexport, _, _) =
   if noexport then Dispose else Substitute
 
 let inScopeCommand : locality_flag * scope_name * scope_command -> obj =
-  declare_object {(default_object "DELIMITERS") with
-      cache_function = cache_scope_command;
-      open_function = simple_open ~cat:notation_cat open_scope_command;
-      load_function = load_scope_command;
-      subst_function = subst_scope_command;
-      classify_function = classify_scope_command}
+  Libobject.Interp.declare_object
+    {(default_object "DELIMITERS") with
+     cache_function = cache_scope_command;
+     open_function = simple_open ~cat:notation_cat open_scope_command;
+     load_function = load_scope_command;
+     subst_function = subst_scope_command;
+     classify_function = classify_scope_command}
 
-let declare_scope local scope =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDeclare))
+let declare_scope sum local scope =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDeclare))
 
-let add_delimiters local scope key =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDelimAdd key))
+let add_delimiters sum local scope key =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDelimAdd key))
 
-let remove_delimiters local scope =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeDelimRemove))
+let remove_delimiters sum local scope =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeDelimRemove))
 
-let add_class_scope local scope where cl =
-  Lib.add_leaf (inScopeCommand(local,scope,ScopeClasses (where, cl)))
+let add_class_scope sum local scope where cl =
+  Lib.Interp.add_leaf sum (inScopeCommand(local,scope,ScopeClasses (where, cl)))
 
 let interp_abbreviation_modifiers modl =
   let mods, skipped = interp_non_syntax_modifiers ~reserved:false ~infix:false ~abbrev:true None modl in
@@ -2092,7 +2095,7 @@ let interp_abbreviation_modifiers modl =
     user_err ?loc:modifier.CAst.loc (str "Abbreviations don't support " ++ Ppvernac.pr_syntax_modifier modifier));
   (mods.onlyparsing, mods.itemscopes)
 
-let add_abbreviation ~local user_warns env ident (vars,c) modl =
+let add_abbreviation sum ~local user_warns env ident (vars,c) modl =
   let (only_parsing, scopes) = interp_abbreviation_modifiers modl in
   let vars = List.map (fun v -> v, List.assoc_opt v scopes) vars in
   let acvars,pat,reversibility =
@@ -2116,12 +2119,12 @@ let add_abbreviation ~local user_warns env ident (vars,c) modl =
   let interp = make_interpretation_vars ~default_if_binding:AsAnyPattern [] acvars level (List.map in_pat vars) in
   let vars = List.map (fun (x,_) -> (x, Id.Map.find x interp)) vars in
   let onlyparsing = only_parsing || fst (printability None [] vars false reversibility pat) in
-  Abbreviation.declare ~local user_warns ident ~onlyparsing (vars,pat)
+  Abbreviation.declare sum ~local user_warns ident ~onlyparsing (vars,pat)
 
 (**********************************************************************)
 (* Activating/deactivating notations                                  *)
 
-let cache_notation_toggle (local,(on,all,pat)) =
+let cache_notation_toggle (local,(on,all,pat)) _sum =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let flags = PrintingFlags.Extern.current() in
@@ -2129,7 +2132,7 @@ let cache_notation_toggle (local,(on,all,pat)) =
   let prglob c = Printer.pr_glob_constr_env ~flags env sigma c in
   toggle_notations ~on ~all ~verbose:(not !Flags.quiet) prglob pat
 
-let subst_notation_toggle (subst,(local,(on,all,pat))) =
+let subst_notation_toggle _sum subst (local,(on,all,pat)) =
   let {notation_entry_pattern; interp_rule_key_pattern; use_pattern;
        scope_pattern; interpretation_pattern} = pat in
   let interpretation_pattern = Option.map (subst_interpretation subst) interpretation_pattern in
@@ -2141,47 +2144,46 @@ let classify_notation_toggle (local,_) =
   if local then Dispose else Substitute
 
 let inNotationActivation : locality_flag * (bool * bool * notation_query_pattern) -> obj =
-  declare_object {(default_object "NOTATION-TOGGLE") with
-      cache_function = cache_notation_toggle;
-      open_function = simple_open cache_notation_toggle;
-      subst_function = subst_notation_toggle;
-      classify_function = classify_notation_toggle}
+  Libobject.Interp.declare_object
+    {(default_object "NOTATION-TOGGLE") with
+     cache_function = cache_notation_toggle;
+     open_function = simple_open cache_notation_toggle;
+     subst_function = subst_notation_toggle;
+     classify_function = classify_notation_toggle}
 
-let declare_notation_toggle local ~on ~all s =
-  Lib.add_leaf (inNotationActivation (local,(on,all,s)))
+let declare_notation_toggle sum local ~on ~all s =
+  Lib.Interp.add_leaf sum (inNotationActivation (local,(on,all,s)))
 
 (** **************************************************************** **)
 (** Declaration of custom entries                                    **)
 
-let load_custom_entry i ((sp,kn),local) =
+let load_custom_entry i ((sp,kn),local) sum =
   Nametab.CustomEntries.push (Until i) sp kn;
   add_custom_compat kn;
-  Egramrocq.create_custom_entry kn;
+  Egramrocq.create_custom_entry sum kn;
   let () = if local then
       custom_entry_locality := CustomName.Set.add kn !custom_entry_locality
   in
   ()
 
-let import_custom_entry i ((sp,kn),_) =
+let import_custom_entry i ((sp,kn),_) _sum =
   Nametab.CustomEntries.push (Exactly i) sp kn
 
-let cache_custom_entry o = load_custom_entry 1 o
-
-let subst_custom_entry (subst,x) = x
+let cache_custom_entry o sum = load_custom_entry 1 o sum
 
 let classify_custom_entry local =
   if local then Dispose else Substitute
 
 let inCustomEntry : Id.t -> locality_flag -> obj =
-  declare_named_object {(default_object "CUSTOM-ENTRIES") with
-      object_stage = Summary.Stage.Synterp;
-      cache_function = cache_custom_entry;
-      load_function = load_custom_entry;
-      open_function = filtered_open import_custom_entry;
-      subst_function = subst_custom_entry;
-      classify_function = classify_custom_entry}
+  Libobject.Synterp.declare_named_object
+    {(default_object "CUSTOM-ENTRIES") with
+     cache_function = cache_custom_entry;
+     load_function = load_custom_entry;
+     open_function = filtered_open import_custom_entry;
+     subst_function = ident_subst_function;
+     classify_function = classify_custom_entry}
 
-let declare_custom_entry local s =
+let declare_custom_entry sum local s =
   let () = if List.mem (Id.to_string s) ["constr";"pattern";"ident";"global";"binder";"bigint"] then
       user_err Pp.(quote (Id.print s) ++ str " is a reserved entry name.")
   in
@@ -2189,4 +2191,4 @@ let declare_custom_entry local s =
     if Nametab.CustomEntries.exists (Lib.make_path s) then
       user_err Pp.(Id.print s ++ str " already exists.")
   in
-  Lib.add_leaf (inCustomEntry s local)
+  Lib.Synterp.add_leaf sum (inCustomEntry s local)

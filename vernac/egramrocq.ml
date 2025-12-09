@@ -283,6 +283,7 @@ let pattern_custom_map : Constrexpr.cases_pattern_expr Entry.t CustomName.Map.t 
 
 let make_custom_interp field prefix = {
   eext_fun = (fun kn e state ->
+      let state = FullState.gramstate state in
       let map = Option.default CustomName.Map.empty (GramState.get state field) in
       let map = CustomName.Map.add kn e map in
       GramState.set state field map);
@@ -295,13 +296,12 @@ let constr_custom_entry : (CustomName.t, Constrexpr.constr_expr) entry_command =
 let pattern_custom_entry : (CustomName.t, Constrexpr.cases_pattern_expr) entry_command =
   create_entry_command "pattern" (make_custom_interp pattern_custom_map "pattern:")
 
-let create_custom_entry s =
-  let () = extend_entry_command constr_custom_entry s in
-  let () = extend_entry_command pattern_custom_entry s in
+let create_custom_entry sum s =
+  let () = extend_entry_command sum constr_custom_entry s in
+  let () = extend_entry_command sum pattern_custom_entry s in
   ()
 
-let find_custom_entry s =
-  let state = gramstate() in
+let find_custom_entry_g state s =
   let find_aux field = match GramState.get state field with
   | None -> raise Not_found
   | Some m -> CustomName.Map.find s m
@@ -310,12 +310,14 @@ let find_custom_entry s =
   with Not_found ->
     anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
 
+let find_custom_entry sum e = find_custom_entry_g (Procq.gramstate sum) e
+
 (** This computes the name of the level where to add a new rule *)
-let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =
-  fun {notation_entry = custom; notation_level = level} forpat ->
+let interp_constr_entry_key : type r. _ -> _ -> r target -> r Entry.t * int option =
+  fun state {notation_entry = custom; notation_level = level} forpat ->
   match custom with
   | InCustomEntry s ->
-     (let (entry_for_constr, entry_for_patttern) = find_custom_entry s in
+     (let (entry_for_constr, entry_for_patttern) = find_custom_entry_g state s in
      match forpat with
      | ForConstr -> entry_for_constr, Some level
      | ForPattern -> entry_for_patttern, Some level)
@@ -326,14 +328,15 @@ let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =
     else Constr.term, Some level
   | ForPattern -> Constr.pattern, Some level
 
-let target_entry : type s. notation_entry -> s target -> s Entry.t = function
+let target_entry : type s. _ -> notation_entry -> s target -> s Entry.t = fun state entry target ->
+  match entry with
 | InConstrEntry ->
-   (function
+   (match target with
    | ForConstr -> Constr.term
    | ForPattern -> Constr.pattern)
 | InCustomEntry s ->
-   let (entry_for_constr, entry_for_patttern) = find_custom_entry s in
-   function
+   let (entry_for_constr, entry_for_patttern) = find_custom_entry_g state s in
+   match target with
    | ForConstr -> entry_for_constr
    | ForPattern -> entry_for_patttern
 
@@ -365,14 +368,14 @@ type ('s, 'a) mayrec_symbol =
 | MayRecNo : ('s, Gramlib.Grammar.norec, 'a) Symbol.t -> ('s, 'a) mayrec_symbol
 | MayRecMay : ('s, Gramlib.Grammar.mayrec, 'a) Symbol.t -> ('s, 'a) mayrec_symbol
 
-let symbol_of_target : type s. _ -> _ -> _ -> _ -> s target -> (s, s) mayrec_symbol = fun custom p assoc from forpat ->
+let symbol_of_target : type s. _ -> _ -> _ -> _ -> _ -> s target -> (s, s) mayrec_symbol = fun state custom p assoc from forpat ->
   if is_binder_level custom from p
   then
     (* Prevent self *)
-    MayRecNo (Procq.Symbol.nterml (target_entry custom forpat) "200")
+    MayRecNo (Procq.Symbol.nterml (target_entry state custom forpat) "200")
   else if is_self custom from p then MayRecMay Procq.Symbol.self
   else
-    let g = target_entry custom forpat in
+    let g = target_entry state custom forpat in
     let lev = adjust_level custom assoc from p in
     begin match lev with
     | DefaultLevel -> MayRecNo (Procq.Symbol.nterm g)
@@ -380,14 +383,14 @@ let symbol_of_target : type s. _ -> _ -> _ -> _ -> s target -> (s, s) mayrec_sym
     | NumLevel lev -> MayRecNo (Procq.Symbol.nterml g (string_of_int lev))
     end
 
-let rec symbol_of_entry : type s r. _ -> _ -> (s, r) entry -> (s, r) mayrec_symbol = fun assoc from typ -> match typ with
-| TTConstr (s, p, forpat) -> symbol_of_target s p assoc from forpat
+let rec symbol_of_entry : type s r. _ -> _ -> _ -> (s, r) entry -> (s, r) mayrec_symbol = fun state assoc from typ -> match typ with
+| TTConstr (s, p, forpat) -> symbol_of_target state s p assoc from forpat
 | TTConstrList (s, typ', [], forpat) ->
-  begin match symbol_of_target s typ' assoc from forpat with
+  begin match symbol_of_target state s typ' assoc from forpat with
   | MayRecNo s -> MayRecNo (Procq.Symbol.list1 s)
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1 s) end
 | TTConstrList (s, typ', tkl, forpat) ->
-  begin match symbol_of_target s typ' assoc from forpat with
+  begin match symbol_of_target state s typ' assoc from forpat with
   | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl))
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl)) end
 | TTPattern p -> MayRecNo (Procq.Symbol.nterml Constr.pattern (string_of_int p))
@@ -395,11 +398,11 @@ let rec symbol_of_entry : type s r. _ -> _ -> (s, r) entry -> (s, r) mayrec_symb
 | TTClosedBinderListPure [] -> MayRecNo (Procq.Symbol.list1 (Procq.Symbol.nterm Constr.binder))
 | TTClosedBinderListPure tkl -> MayRecNo (Procq.Symbol.list1sep (Procq.Symbol.nterm Constr.binder) (make_sep_rules tkl))
 | TTClosedBinderListOther (typ,[]) ->
-  begin match symbol_of_entry assoc from typ with
+  begin match symbol_of_entry state assoc from typ with
   | MayRecNo s -> MayRecNo (Procq.Symbol.list1 s)
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1 s) end
 | TTClosedBinderListOther (typ,tkl) ->
-  begin match symbol_of_entry assoc from typ with
+  begin match symbol_of_entry state assoc from typ with
   | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl))
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl)) end
 | TTIdent -> MayRecNo (Procq.Symbol.nterm Prim.identref)
@@ -524,7 +527,7 @@ let rec ty_erase : type s a r. (s, a, r) ty_rule -> (s, a, r) mayrec_rule = func
 type ('self, 'r) any_ty_rule =
 | AnyTyRule : ('self, 'act, Loc.t -> 'r) ty_rule -> ('self, 'r) any_ty_rule
 
-let make_ty_rule assoc from forpat prods =
+let make_ty_rule state assoc from forpat prods =
   let rec make_ty_rule = function
   | [] -> AnyTyRule TyStop
   | GramConstrTerminal (kw,s) :: rem ->
@@ -534,7 +537,7 @@ let make_ty_rule assoc from forpat prods =
   | GramConstrNonTerminal (e, var) :: rem ->
     let AnyTyRule r = make_ty_rule rem in
     let TTAny e = interp_entry forpat e in
-    let s = symbol_of_entry assoc from e in
+    let s = symbol_of_entry state assoc from e in
     let bind = match var with None -> false | Some _ -> true in
     AnyTyRule (TyNext (r, TyNonTerm (forpat, e, s, bind)))
   | GramConstrListMark (n, b, p) :: rem ->
@@ -547,26 +550,26 @@ let target_to_bool : type r. r target -> bool = function
 | ForConstr -> false
 | ForPattern -> true
 
-let prepare_empty_levels forpat (where,(pos,p4assoc,name)) =
+let prepare_empty_levels state forpat (where,(pos,p4assoc,name)) =
   let empty = match pos with
   | ReuseFirst -> Procq.Reuse (None, [])
   | ReuseLevel n -> Procq.Reuse (Some (constr_level n), [])
   | NewFirst -> Procq.Fresh (Gramlib.Gramext.First, [(name, p4assoc, [])])
   | NewAfter n -> Procq.Fresh (Gramlib.Gramext.After (constr_level n), [(name, p4assoc, [])])
   in
-  ExtendRule (target_entry where forpat, empty)
+  ExtendRule (target_entry state where forpat, empty)
 
 let different_levels (custom,opt_level) (custom',string_level) =
   match opt_level with
   | None -> true
   | Some level -> not (notation_entry_eq custom custom') || level <> int_of_string string_level
 
-let rec pure_sublevels' assoc from forpat level = function
+let rec pure_sublevels' state assoc from forpat level = function
 | [] -> []
 | GramConstrNonTerminal (e,_) :: rem ->
-   let rem = pure_sublevels' assoc from forpat level rem in
+   let rem = pure_sublevels' state assoc from forpat level rem in
    let push where p rem =
-     match symbol_of_target where p assoc from forpat with
+     match symbol_of_target state where p assoc from forpat with
      | MayRecNo sym ->
        (match Procq.level_of_nonterm sym with
         | None -> rem
@@ -579,7 +582,7 @@ let rec pure_sublevels' assoc from forpat level = function
    | ETProdPattern i -> push InConstrEntry (NumLevel i,InternalProd) rem
    | ETProdConstr (s,p) -> push s p rem
    | _ -> rem)
-| (GramConstrTerminal _ | GramConstrListMark _) :: rem -> pure_sublevels' assoc from forpat level rem
+| (GramConstrTerminal _ | GramConstrListMark _) :: rem -> pure_sublevels' state assoc from forpat level rem
 
 let make_act : type r. r target -> _ -> r gen_eval = function
 | ForConstr -> fun notation loc env ->
@@ -589,17 +592,17 @@ let make_act : type r. r target -> _ -> r gen_eval = function
   let env = (env.constrs, env.constrlists, env.binders) in
   CAst.make ~loc @@ CPatNotation (None, notation, env, [])
 
-let extend_constr state forpat ng =
+let extend_constr gstate levstate forpat ng =
   let {notation_entry = custom; notation_level = _} as fromlev,_ = ng.notgram_level in
   let assoc = ng.notgram_assoc in
-  let (entry, level) = interp_constr_entry_key fromlev forpat in
-  let fold (accu, state) pt =
-    let AnyTyRule r = make_ty_rule assoc fromlev forpat pt in
-    let pure_sublevels = pure_sublevels' assoc fromlev forpat level pt in
+  let (entry, level) = interp_constr_entry_key gstate fromlev forpat in
+  let fold (accu, levstate) pt =
+    let AnyTyRule r = make_ty_rule gstate assoc fromlev forpat pt in
+    let pure_sublevels = pure_sublevels' gstate assoc fromlev forpat level pt in
     let isforpat = target_to_bool forpat in
-    let needed_levels, state = register_empty_levels state isforpat pure_sublevels in
+    let needed_levels, state = register_empty_levels levstate isforpat pure_sublevels in
     let (pos,p4assoc,name), state = find_position state custom isforpat assoc level in
-    let empty_rules = List.map (prepare_empty_levels forpat) needed_levels in
+    let empty_rules = List.map (prepare_empty_levels gstate forpat) needed_levels in
     let empty = { constrs = []; constrlists = []; binders = []; binderlists = [] } in
     let act = ty_eval r (make_act forpat ng.notgram_notation) empty in
     let rule =
@@ -617,7 +620,7 @@ let extend_constr state forpat ng =
     let r = ExtendRule (entry, rule) in
     (accu @ empty_rules @ [r], state)
   in
-  List.fold_left fold ([], state) ng.notgram_prods
+  List.fold_left fold ([], levstate) ng.notgram_prods
 
 let constr_levels = GramState.field "constr_levels"
 
@@ -631,23 +634,24 @@ let warn_disj_pattern_notation =
   CWarnings.create ~name:"disj-pattern-notation" ~category:CWarnings.CoreCategories.syntax ~default:CWarnings.Disabled pp
 
 let extend_constr_notation ng state =
+  let state = FullState.gramstate state in
   let levels = match GramState.get state constr_levels with
   | None -> default_levels
   | Some lev -> lev
   in
   (* Add the notation in constr *)
-  let (r, levels) = extend_constr levels ForConstr ng in
+  let (r, levels) = extend_constr state levels ForConstr ng in
   (* Add the notation in cases_pattern, unless it would disrupt *)
   (* parsing nested disjunctive patterns. *)
   let (r', levels) =
     if is_disjunctive_pattern_rule ng then begin
        warn_disj_pattern_notation ng;
        ([], levels)
-    end else extend_constr levels ForPattern ng in
+    end else extend_constr state levels ForPattern ng in
   let state = GramState.set state constr_levels levels in
   (r @ r', state)
 
 let constr_grammar : one_notation_grammar grammar_command =
   create_grammar_command "Notation" { gext_fun = extend_constr_notation; gext_eq = (==) (* FIXME *) }
 
-let extend_constr_grammar ntn = extend_grammar_command ~ignore_kw:false constr_grammar ntn
+let extend_constr_grammar sum ntn = extend_grammar_command ~ignore_kw:false sum constr_grammar ntn

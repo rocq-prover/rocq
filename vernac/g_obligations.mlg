@@ -82,27 +82,28 @@ END
 
 VERNAC COMMAND EXTEND Solve_Obligations CLASSIFIED AS SIDEFF STATE program
 | [ "Solve" "Obligations" "of" identref(name) withtac(t) ] ->
-    { solve_obligations (Some name.CAst.v) (Option.map interp_gen t) }
+    { solve_obligations summary (Some name.CAst.v) (Option.map interp_gen t) }
 | [ "Solve" "Obligations" withtac(t) ] ->
-    { solve_obligations None (Option.map interp_gen t) }
+    { solve_obligations summary None (Option.map interp_gen t) }
 END
 
 VERNAC COMMAND EXTEND Solve_All_Obligations CLASSIFIED AS SIDEFF STATE program
 | [ "Solve" "All" "Obligations" withtac(t) ] ->
-    { solve_all_obligations (Option.map interp_gen t) }
+    { solve_all_obligations summary (Option.map interp_gen t) }
 END
 
 VERNAC COMMAND EXTEND Admit_Obligations CLASSIFIED AS SIDEFF STATE program
-| [ "Admit" "Obligations" "of" identref(name) ] -> { admit_obligations (Some name.CAst.v) }
-| [ "Admit" "Obligations" ] -> { admit_obligations None }
+| [ "Admit" "Obligations" "of" identref(name) ] -> { admit_obligations summary (Some name.CAst.v) }
+| [ "Admit" "Obligations" ] -> { admit_obligations summary None }
 END
 
 VERNAC COMMAND EXTEND Set_Solver CLASSIFIED AS SIDEFF
 | #[ locality = Tactic_option.tac_option_locality; ] [ "Obligation" "Tactic" ":=" generic_tactic(t) ] -> {
-        set_default_tactic
-          locality
-          (Gentactic.intern (Global.env()) t);
-  }
+  set_default_tactic
+    summary
+    locality
+    (Gentactic.intern (Global.env()) t);
+}
 END
 
 VERNAC COMMAND EXTEND Show_Solver CLASSIFIED AS QUERY

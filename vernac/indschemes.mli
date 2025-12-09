@@ -18,13 +18,13 @@ type resolved_scheme = Names.Id.t CAst.t * Indrec.dep_flag * Names.inductive * U
 
 (** Build and register the boolean equalities associated to an inductive type *)
 
-val declare_beq_scheme : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
+val declare_beq_scheme : Summary.Interp.mut -> ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
 
-val declare_eq_decidability : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
+val declare_eq_decidability : Summary.Interp.mut -> ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
 
 (** Build and register rewriting schemes for an equality-like inductive type *)
 
-val declare_rewriting_schemes : ?loc:Loc.t -> inductive -> unit
+val declare_rewriting_schemes : Summary.Interp.mut -> ?loc:Loc.t -> inductive -> unit
 
 (** Mutual Minimality/Induction scheme.
     [force_mutual] forces the construction of eliminators having the same predicates and
@@ -33,23 +33,26 @@ val declare_rewriting_schemes : ?loc:Loc.t -> inductive -> unit
     By default [isrec] is [true].
  *)
 
-val do_mutual_induction_scheme : register:bool -> ?force_mutual:bool
+val do_mutual_induction_scheme : Summary.Interp.mut -> register:bool -> ?force_mutual:bool
   -> Environ.env -> ?isrec:bool -> resolved_scheme list -> unit
 
 (** Main calls to interpret the Scheme command *)
 
-val do_scheme : register:bool -> Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
+val do_scheme : Summary.Interp.mut ->
+  register:bool -> Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
 
 (** Main call to Scheme Equality command *)
 
-val do_scheme_equality : ?locmap:Ind_tables.Locmap.t -> Vernacexpr.equality_scheme_type -> Libnames.qualid Constrexpr.or_by_notation -> unit
+val do_scheme_equality : Summary.Interp.mut -> ?locmap:Ind_tables.Locmap.t ->
+  Vernacexpr.equality_scheme_type -> Libnames.qualid Constrexpr.or_by_notation -> unit
 
 (** Combine a list of schemes into a conjunction of them *)
 
 val build_combined_scheme : env -> Constant.t list -> Evd.evar_map * constr * types
 
-val do_combined_scheme : lident -> Constant.t list -> unit
+val do_combined_scheme : Summary.Interp.mut ->
+  lident -> Constant.t list -> unit
 
 (** Hook called at each inductive type definition *)
 
-val declare_default_schemes : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
+val declare_default_schemes : Summary.Interp.mut -> ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit

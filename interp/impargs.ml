@@ -551,7 +551,7 @@ let implicits_of_global ref =
 let cache_implicits_decl (ref, imps) =
   implicits_table := GlobRefMap.add (Global.env ()) ref imps !implicits_table
 
-let load_implicits _ (_,l) = List.iter cache_implicits_decl l
+let load_implicits _ (_,l) _sum = List.iter cache_implicits_decl l
 
 let cache_implicits o =
   load_implicits 1 o
@@ -559,7 +559,7 @@ let cache_implicits o =
 let subst_implicits_decl subst (r,imps as o) =
   let r' = fst (subst_global subst r) in if r==r' then o else (r',imps)
 
-let subst_implicits (subst,(req,l)) =
+let subst_implicits _sum subst (req,l) =
   (ImplLocal,List.Smart.map (subst_implicits_decl subst) l)
 
 (* This was moved out of lib.ml, however it is not stored with regular
@@ -601,7 +601,7 @@ let add_section_impls vars extra_impls (cond,impls) =
   let p = List.length vars - List.length extra_impls in
   adjust_side_condition p cond, extra_impls @ List.map (Option.map (lift_implicits p)) impls
 
-let discharge_implicits (req,l) =
+let discharge_implicits _sum (req,l) =
   match req with
   | ImplLocal -> None
   | ImplMutualInductive _ | ImplInteractive _ | ImplConstant _ ->
@@ -615,7 +615,7 @@ let discharge_implicits (req,l) =
        with Not_found -> l in
      Some (req,l')
 
-let rebuild_implicits (req,l) =
+let rebuild_implicits _sum (req,l) =
   match req with
   | ImplLocal -> assert false
   | ImplConstant flags ->
@@ -657,7 +657,7 @@ type implicits_obj =
       (GlobRef.t * implicits_list list) list
 
 let inImplicits : implicits_obj -> obj =
-  declare_object {(default_object "IMPLICITS") with
+  Libobject.Interp.declare_object {(default_object "IMPLICITS") with
     cache_function = cache_implicits;
     load_function = load_implicits;
     subst_function = subst_implicits;
@@ -667,32 +667,33 @@ let inImplicits : implicits_obj -> obj =
 
 let is_local local ref = local || isVarRef ref && Global.is_in_section ref
 
-let declare_implicits_gen req flags ref =
+let declare_implicits_gen sum req flags ref =
   let imps = compute_global_implicits flags ref in
-  Lib.add_leaf (inImplicits (req,[ref,imps]))
+  Lib.Interp.add_leaf sum (inImplicits (req,[ref,imps]))
 
-let declare_implicits local ref =
+let declare_implicits sum local ref =
   let flags = { !implicit_args with auto = true } in
   let req =
     if is_local local ref then ImplLocal else ImplInteractive(flags,ImplAuto) in
-    declare_implicits_gen req flags ref
+    declare_implicits_gen sum req flags ref
 
-let declare_var_implicits id ~impl =
+let declare_var_implicits sum id ~impl =
   let flags = !implicit_args in
   sec_implicits := Id.Map.add id impl !sec_implicits;
-  declare_implicits_gen ImplLocal flags (GlobRef.VarRef id)
+  declare_implicits_gen sum ImplLocal flags (GlobRef.VarRef id)
 
-let declare_constant_implicits con =
+let declare_constant_implicits sum con =
   let flags = !implicit_args in
-    declare_implicits_gen (ImplConstant flags) flags (GlobRef.ConstRef con)
+    declare_implicits_gen sum (ImplConstant flags) flags (GlobRef.ConstRef con)
 
-let declare_mib_implicits kn =
+let declare_mib_implicits sum kn =
   let flags = !implicit_args in
   let imps = Array.map_to_list
     (fun (ind,cstrs) -> ind::(Array.to_list cstrs))
-    (compute_mib_implicits flags kn) in
-    Lib.add_leaf
-      (inImplicits (ImplMutualInductive (kn,flags),List.flatten imps))
+    (compute_mib_implicits flags kn)
+  in
+  Lib.Interp.add_leaf sum
+    (inImplicits (ImplMutualInductive (kn,flags),List.flatten imps))
 
 (* Declare manual implicits *)
 type manual_implicits = (Name.t * bool) option CAst.t list
@@ -719,7 +720,7 @@ let projection_implicits env p impls =
   let npars = Projection.npars p in
   CList.skipn_at_best npars impls
 
-let declare_manual_implicits local ref ?enriching l =
+let declare_manual_implicits sum local ref ?enriching l =
   let flags = !implicit_args in
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -732,11 +733,11 @@ let declare_manual_implicits local ref ?enriching l =
     if is_local local ref then ImplLocal
     else ImplInteractive(flags,ImplManual (List.length autoimpls))
   in
-  Lib.add_leaf (inImplicits (req,[ref,l]))
+  Lib.Interp.add_leaf sum (inImplicits (req,[ref,l]))
 
-let maybe_declare_manual_implicits local ref ?enriching l =
+let maybe_declare_manual_implicits sum local ref ?enriching l =
   if List.exists (fun x -> x.CAst.v <> None) l then
-    declare_manual_implicits local ref ?enriching l
+    declare_manual_implicits sum local ref ?enriching l
 
 let set_name (na',x,y as pos) = function
   | Name _ as na -> (na,x,y)
@@ -767,7 +768,7 @@ let compute_implicit_statuses autoimps l =
     | [], _::_ -> assert false
   in aux 1 (autoimps, l)
 
-let set_implicits local ref l =
+let set_implicits sum local ref l =
   let flags = !implicit_args in
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -795,7 +796,7 @@ let set_implicits local ref l =
     if is_local local ref then ImplLocal
     else ImplInteractive(flags,ImplManual (List.length autoimpls))
   in
-  Lib.add_leaf (inImplicits (req,[ref,l']))
+  Lib.Interp.add_leaf sum (inImplicits (req,[ref,l']))
 
 let extract_impargs_data impls =
   let rec aux p = function

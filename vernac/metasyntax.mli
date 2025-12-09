@@ -24,6 +24,7 @@ type notation_interpretation_decl
     declaration. *)
 
 val add_notation_syntax :
+  Summary.Synterp.mut ->
   local:bool ->
   infix:bool ->
   UserWarn.t option ->
@@ -32,19 +33,20 @@ val add_notation_syntax :
 (** Add syntax rules for a (constr) notation in the environment *)
 
 val add_notation_interpretation :
+  Summary.Interp.mut ->
   local:bool -> env -> notation_interpretation_decl -> unit
 (** Declare the interpretation of a notation *)
 
 (** Declaring scopes, delimiter keys and default scopes *)
 
-val declare_scope : locality_flag -> scope_name -> unit
-val add_delimiters : locality_flag -> scope_name -> string -> unit
-val remove_delimiters : locality_flag -> scope_name -> unit
-val add_class_scope : locality_flag -> scope_name -> add_scope_where option -> scope_class list -> unit
+val declare_scope : Summary.Interp.mut -> locality_flag -> scope_name -> unit
+val add_delimiters : Summary.Interp.mut -> locality_flag -> scope_name -> string -> unit
+val remove_delimiters : Summary.Interp.mut -> locality_flag -> scope_name -> unit
+val add_class_scope : Summary.Interp.mut -> locality_flag -> scope_name -> add_scope_where option -> scope_class list -> unit
 
 (** Scope opening *)
 
-val open_close_scope : locality_flag -> to_open:bool -> scope_name -> unit
+val open_close_scope : Summary.Interp.mut -> locality_flag -> to_open:bool -> scope_name -> unit
 
 (** Add a notation interpretation associated to a "where" clause (already has pa/pp rules) *)
 
@@ -53,35 +55,40 @@ val prepare_where_notation :
   (** Interpret the modifiers of a where-notation *)
 
 val set_notation_for_interpretation :
-  env -> Constrintern.internalization_env -> notation_interpretation_decl -> unit
-  (** Set the interpretation of the where-notation for interpreting a mutual block *)
+  Summary.Interp.mut -> env -> Constrintern.internalization_env -> notation_interpretation_decl -> unit
+(** Set the interpretation of the where-notation for interpreting a mutual block.
+    Does not add persistent state (libobject). *)
 
 (** Add only the parsing/printing rule of a notation *)
 
 val add_reserved_notation :
-  local:bool -> infix:bool -> (lstring * syntax_modifier CAst.t list) -> unit
+  Summary.Synterp.mut -> local:bool -> infix:bool -> (lstring * syntax_modifier CAst.t list) -> unit
 
 (** Add a syntactic definition (as in "Notation f := ...") *)
 
-val add_abbreviation : local:Libobject.locality -> Globnames.extended_global_reference UserWarn.with_qf option -> env ->
+val add_abbreviation : Summary.Interp.mut ->
+  local:Libobject.locality -> Globnames.extended_global_reference UserWarn.with_qf option -> env ->
   Id.t -> Id.t list * constr_expr -> syntax_modifier CAst.t list -> unit
 
 (** Print the Camlp5 state of a grammar *)
 
-val pr_grammar : string list -> Pp.t
-val pr_custom_grammar : Libnames.qualid -> Pp.t
-val pr_keywords : unit -> Pp.t
+val pr_grammar : Summary.Synterp.t -> string list -> Pp.t
+val pr_custom_grammar : Summary.Synterp.t -> Libnames.qualid -> Pp.t
+val pr_keywords : Summary.Synterp.t -> Pp.t
 
 (** Register a handler for Print Custom Grammar. The handler should
     return [None] for unknown entries and [Some] of the associated
     entries for known entries. *)
-val register_custom_grammar_for_print : (Libnames.qualid -> Procq.Entry.any_t list option) -> unit
+val register_custom_grammar_for_print :
+  (Summary.Synterp.t -> Libnames.qualid -> Procq.Entry.any_t list option) -> unit
 
-val with_syntax_protection : ('a -> 'b) -> 'a -> 'b
+(* XXX also handles interp phase summaries *)
+val with_syntax_protection : (Summary.Synterp.mut -> 'a) -> Summary.Synterp.t -> 'a
 
-val declare_notation_toggle : locality_flag -> on:bool -> all:bool -> Notation.notation_query_pattern -> unit
+val declare_notation_toggle : Summary.Interp.mut ->
+  locality_flag -> on:bool -> all:bool -> Notation.notation_query_pattern -> unit
 
-val declare_custom_entry : locality_flag -> Id.t -> unit
+val declare_custom_entry : Summary.Synterp.mut -> locality_flag -> Id.t -> unit
 (** Declare given string as a custom grammar entry *)
 
 val intern_custom_name : Libnames.qualid -> Globnames.CustomName.t

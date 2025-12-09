@@ -366,9 +366,10 @@ let native_name_from_filename f =
     which recursively loads its dependencies)
 *)
 
-let register_library m =
+let register_library sum m =
   let l = m.library_data in
   Declaremods.Interp.register_library
+    sum
     m.library_name
     l.md_compiled
     l.md_objects
@@ -377,9 +378,10 @@ let register_library m =
   ;
   register_native_library m.library_name
 
-let register_library_syntax (root, m) =
+let register_library_syntax sum (root, m) =
   let l = m.library_data in
   Declaremods.Synterp.register_library
+    sum
     m.library_name
     l.md_syntax_objects;
   register_loaded_library ~root m
@@ -388,21 +390,21 @@ let register_library_syntax (root, m) =
    - called at module or module type closing when a Require occurs in
      the module or module type
    - not called from a library (i.e. a module identified with a file) *)
-let load_require _ needed =
-  List.iter register_library needed
+let load_require _ needed sum =
+  List.iter (register_library sum) needed
 
   (* [needed] is the ordered list of libraries not already loaded *)
 let cache_require o =
   load_require 1 o
 
-let discharge_require o = Some o
+let discharge_require _sum o = Some o
 
 (* open_function is never called from here because an Anticipate object *)
 
 type require_obj = library_t list
 
 let in_require : require_obj -> obj =
-  declare_object
+  Libobject.Interp.declare_object
     {(default_object "REQUIRE") with
      cache_function = cache_require;
      load_function = load_require;
@@ -410,22 +412,21 @@ let in_require : require_obj -> obj =
      discharge_function = discharge_require;
      classify_function = (fun o -> Anticipate) }
 
-let load_require_syntax _ needed =
-  List.iter register_library_syntax needed
+let load_require_syntax _ needed sum =
+  List.iter (register_library_syntax sum) needed
 
 let cache_require_syntax o =
   load_require_syntax 1 o
 
-let discharge_require_syntax o = Some o
+let discharge_require_syntax _sum o = Some o
 
 (* open_function is never called from here because an Anticipate object *)
 
 type require_obj_syntax = (bool * library_t) list
 
 let in_require_syntax : require_obj_syntax -> obj =
-  declare_object
+  Libobject.Synterp.declare_object
     {(default_object "REQUIRE-SYNTAX") with
-     object_stage = Summary.Stage.Synterp;
      cache_function = cache_require_syntax;
      load_function = load_require_syntax;
      open_function = (fun _ _ -> assert false);
@@ -440,14 +441,14 @@ let warn_require_in_module =
     (fun () -> strbrk "Use of “Require” inside a module is fragile." ++ spc() ++
                strbrk "It is not recommended to use this functionality in finished proof scripts.")
 
-let require_library_from_dirpath needed =
+let require_library_from_dirpath sum needed =
   if Lib.is_module_or_modtype () then warn_require_in_module ();
-  Lib.add_leaf (in_require needed)
+  Lib.Interp.add_leaf sum (in_require needed)
 
-let require_library_syntax_from_dirpath ~intern modrefl =
+let require_library_syntax_from_dirpath sum ~intern modrefl =
   let needed, contents = List.fold_left (rec_intern_library ~intern) ([], DirPath.Map.empty) modrefl in
   let needed = List.rev_map (fun (root, dir) -> root, DirPath.Map.find dir contents) needed in
-  Lib.add_leaf (in_require_syntax needed);
+  Lib.Synterp.add_leaf sum (in_require_syntax needed);
   List.map snd needed
 
 (************************************************************************)

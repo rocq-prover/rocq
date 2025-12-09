@@ -94,7 +94,7 @@ module type RefConvertArg = sig
   val subst : Mod_subst.substitution -> t -> t
 
   val check_local : Libobject.locality -> t -> unit
-  val discharge : t -> t
+  val discharge : Summary.Interp.t -> t -> t
   (** Elements which cannot be discharged should only be added with Local *)
 
   val printer : t -> Pp.t
@@ -108,7 +108,7 @@ module MakeRefTable :
 sig
   val v : unit -> A.Set.t
   val active : A.t -> bool
-  val set : Libobject.locality -> A.t -> bool -> unit
+  val set : Summary.Interp.mut -> Libobject.locality -> A.t -> bool -> unit
 end
 
 
@@ -134,6 +134,15 @@ type 'a option_sig = {
   optwrite   : 'a -> unit
 }
 
+(** Variant where the reader and setter act on the summary instead of imperative state *)
+type ('a,'summary,'summary_mut) option_sig_sum = {
+  optstage_s : ('summary,'summary_mut) Summary.StageG.t;
+  optdepr_s : Deprecation.t option;
+  optkey_s : option_name;
+  optread_s : 'summary -> 'a;
+  optwrite_s : 'summary_mut -> 'a -> unit;
+}
+
 (** The [preprocess] function is triggered before setting the option. It can be
     used to emit a warning on certain values, and clean-up the final value.
 
@@ -144,6 +153,11 @@ type 'a option_sig = {
     [StringOptKind] should be preferred to [StringKind] because it supports "Unset". *)
 val declare_option   : ?preprocess:('a -> 'a) -> ?no_summary:bool ->
   kind:'a option_kind -> 'a option_sig -> unit
+
+(** Like [declare_option] but the option state already exists in the summary *)
+val declare_option_s : ?preprocess:('a -> 'a) -> kind:'a option_kind ->
+  ('a,_,_) option_sig_sum ->
+  unit
 
 val declare_append_only_option : ?preprocess:(string -> string) -> sep:string ->
   string option_sig -> unit
@@ -179,8 +193,8 @@ val declare_interpreted_string_option_and_ref : (string -> 'a) -> ('a -> string)
 module OptionMap : CSig.MapS with type key = option_name
 
 type 'a table_of_A =  {
-  add : Environ.env -> Libobject.locality -> 'a -> unit;
-  remove : Environ.env -> Libobject.locality -> 'a -> unit;
+  add : Summary.Interp.mut -> Environ.env -> Libobject.locality -> 'a -> unit;
+  remove : Summary.Interp.mut -> Environ.env -> Libobject.locality -> 'a -> unit;
   mem : Environ.env -> 'a -> unit;
   print : unit -> unit;
 }
@@ -193,16 +207,16 @@ val get_ref_table :
 (** The first argument is a locality flag.
     If [stage] is provided, the option is set/unset only if it is declared in the corresponding stage.
     If omitted, the option is always set/unset. *)
-val set_int_option_value_gen    : ?locality:option_locality -> ?stage:Summary.Stage.t -> option_name -> int option -> unit
-val set_bool_option_value_gen   : ?locality:option_locality -> ?stage:Summary.Stage.t -> option_name -> bool   -> unit
-val set_string_option_value_gen : ?locality:option_locality -> ?stage:Summary.Stage.t -> option_name -> string -> unit
-val unset_option_value_gen : ?locality:option_locality -> ?stage:Summary.Stage.t -> option_name -> unit
+val set_int_option_value_gen    : ?locality:option_locality -> ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> int option -> unit
+val set_bool_option_value_gen   : ?locality:option_locality -> ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> bool   -> unit
+val set_string_option_value_gen : ?locality:option_locality -> ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> string -> unit
+val unset_option_value_gen : ?locality:option_locality -> ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> unit
 
-val set_int_option_value    : ?stage:Summary.Stage.t -> option_name -> int option -> unit
-val set_bool_option_value   : ?stage:Summary.Stage.t -> option_name -> bool   -> unit
-val set_string_option_value : ?stage:Summary.Stage.t -> option_name -> string -> unit
+val set_int_option_value    : ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> int option -> unit
+val set_bool_option_value   : ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> bool   -> unit
+val set_string_option_value : ('summary,'summary_mut) Summary.StageG.t -> 'summary_mut -> option_name -> string -> unit
 
-val print_option_value : option_name -> unit
+val print_option_value : Summary.Interp.t -> option_name -> unit
 
 type option_value =
   | BoolValue   of bool
@@ -214,13 +228,10 @@ type table_value =
   | StringRefValue of string
   | QualidRefValue of Libnames.qualid
 
-(** [get_option_value key] returns [None] if option with name [key] was not found. *)
-val get_option_value : option_name -> (unit -> option_value) option
-
 type 'a check_and_cast = { check_and_cast : 'b. 'a -> 'b option_kind -> 'b }
 
-val set_option_value : ?locality:option_locality -> ?stage:Summary.Stage.t ->
-  'a check_and_cast -> option_name -> 'a -> unit
+val set_option_value : ?locality:option_locality -> ('summary,'summary_mut) Summary.StageG.t ->
+  'a check_and_cast -> 'summary_mut -> option_name -> 'a -> unit
 (** [set_option_value ?locality f name v] sets [name] to the result of
     applying [f] to [v] and [name]'s option kind. Use for behaviour
     depending on the type of the option, eg erroring when ['a] doesn't
@@ -232,11 +243,11 @@ type option_state = {
   opt_value : option_value;
 }
 
-val get_tables : unit -> option_state OptionMap.t
-val print_tables : unit -> Pp.t
+val get_tables : Summary.Interp.t -> option_state OptionMap.t
+val print_tables : Summary.Interp.t -> Pp.t
 
-type iter_table_aux = { aux : 'a. 'a table_of_A -> Environ.env -> 'a -> unit }
-val iter_table : Environ.env -> iter_table_aux -> option_name -> table_value list -> unit
+type iter_table_aux = { aux : 'a. 'a table_of_A -> 'a -> unit }
+val iter_table : iter_table_aux -> option_name -> table_value list -> unit
 
 val error_undeclared_key : option_name -> 'a
 

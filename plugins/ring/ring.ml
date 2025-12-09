@@ -176,7 +176,7 @@ let ic env sigma c =
 let ic_unsafe env sigma c = (*FIXME remove *)
   fst (Constrintern.interp_constr env sigma c)
 
-let decl_constant name univs c =
+let decl_constant sum name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
   let univs = UState.restrict_universe_context univs vars in
@@ -186,13 +186,13 @@ let decl_constant name univs c =
   let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)
   UnsafeMonomorphic.mkConst
-    (declare_constant ~name
+    (declare_constant sum ~name
        ~kind:Decls.(IsProof Lemma)
        (DefinitionEntry (definition_entry ~opaque:true ~types ~univs c)))
 
-let decl_constant na suff univs c =
+let decl_constant sum na suff univs c =
   let na = Namegen.next_global_ident_away (Global.safe_env ()) (Nameops.add_suffix na suff) Id.Set.empty in
-  decl_constant na univs c
+  decl_constant sum na univs c
 
 (* Calling a global tactic *)
 let ltac_call tac (args:glob_tactic_arg list) =
@@ -366,10 +366,10 @@ let find_ring_structure env sigma l =
              spc() ++ str"\"" ++ pr_econstr_env env sigma ty ++ str"\"."))
     | [] -> assert false
 
-let add_entry e =
+let add_entry e _sum =
   from_carrier := Cmap.add e.ring_carrier e !from_carrier
 
-let subst_th (subst,th) =
+let subst_th _sum subst th =
   let c' = subst_mps subst th.ring_carrier in
   let eq' = subst_mps subst th.ring_req in
   let set' = subst_mps subst th.ring_setoid in
@@ -411,7 +411,7 @@ let subst_th (subst,th) =
 
 
 let theory_to_obj : ring_info -> obj =
-  declare_object @@ global_object_nodischarge "tactic-new-ring-theory"
+  Libobject.Interp.declare_object @@ global_object_nodischarge "tactic-new-ring-theory"
     ~cache:add_entry
     ~subst:(Some subst_th)
 
@@ -567,7 +567,7 @@ let interp_div env sigma div =
       plapp sigma rocq_Some [|carrier;spec|]
        (* Same remark on ill-typed terms ... *)
 
-let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign div =
+let add_theory0 sum env sigma name rth eqth morphth cst_tac (pre,post) power sign div =
   check_required_library (cdir@["Ring_base"]);
   let (kind,r,zero,one,add,mul,sub,opp,req) = dest_ring env sigma rth in
   let (sigma, sth,ext) = build_setoid_params env sigma r add mul opp req eqth in
@@ -582,9 +582,9 @@ let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign di
   let lemma2 = params.(4) in
 
   let lemma1 =
-    decl_constant name "_ring_lemma1" ctx lemma1 in
+    decl_constant sum name "_ring_lemma1" ctx lemma1 in
   let lemma2 =
-    decl_constant name "_ring_lemma2" ctx lemma2 in
+    decl_constant sum name "_ring_lemma2" ctx lemma2 in
   let cst_tac =
     interp_cst_tac env sigma morphth kind (zero,one,add,mul,opp) cst_tac in
   let pretac =
@@ -599,7 +599,7 @@ let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign di
   let req = EConstr.to_constr sigma req in
   let sth = EConstr.to_constr sigma sth in
   let _ =
-    Lib.add_leaf
+    Lib.Interp.add_leaf sum
       (theory_to_obj
         { ring_name = name;
           ring_carrier = r;
@@ -646,12 +646,12 @@ let process_ring_mods env sigma l =
   let k = match !kind with Some k -> k | None -> Abstract in
   (k, !set, !cst_tac, !pre, !post, !power, !sign, !div)
 
-let add_theory id rth l =
+let add_theory sum id rth l =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma, rth = ic env sigma rth in
   let (k,set,cst,pre,post,power,sign, div) = process_ring_mods env sigma l in
-  add_theory0 env sigma id rth set k cst (pre,post) power sign div
+  add_theory0 sum env sigma id rth set k cst (pre,post) power sign div
 
 (*****************************************************************************)
 (* The tactics consist then only in a lookup in the ring database and
@@ -800,10 +800,10 @@ let find_field_structure env sigma l =
              spc()++str"\""++pr_econstr_env env sigma ty++str"\"."))
     | [] -> assert false
 
-let add_field_entry e =
+let add_field_entry e _sum =
   field_from_carrier := Cmap.add e.field_carrier e !field_from_carrier
 
-let subst_th (subst,th) =
+let subst_th _sum subst th =
   let c' = subst_mps subst th.field_carrier in
   let eq' = subst_mps subst th.field_req in
   let thm1' = subst_mps subst th.field_ok in
@@ -841,7 +841,7 @@ let subst_th (subst,th) =
       field_post_tac = posttac' }
 
 let ftheory_to_obj : field_info -> obj =
-  declare_object @@ global_object_nodischarge "tactic-new-field-theory"
+  Libobject.Interp.declare_object @@ global_object_nodischarge "tactic-new-field-theory"
     ~cache:add_field_entry
     ~subst:(Some subst_th)
 
@@ -860,7 +860,7 @@ let field_equality env sigma r inv req =
         error "field inverse should be declared as a morphism" in
     sigma, inv_m_lem
 
-let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) power sign odiv =
+let add_field_theory0 sum env sigma name fth eqth morphth cst_tac inj (pre,post) power sign odiv =
   let open Constr in
   check_required_library (cdir@["Field_tac"]);
   let (sigma,fth) = ic env sigma fth in
@@ -868,7 +868,7 @@ let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) pow
     dest_field env sigma fth in
   let (sigma,sth,ext) = build_setoid_params env sigma r add mul opp req eqth in
   let eqth = Some(sth,ext) in
-  let _ = add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign odiv in
+  let () = add_theory0 sum env sigma name rth eqth morphth cst_tac (pre,post) power sign odiv in
   let sigma, (pow_tac, pspec) = interp_power env sigma power in
   let sigma, sspec = interp_sign env sigma sign in
   let sigma, dspec = interp_div env sigma odiv in
@@ -885,15 +885,15 @@ let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) pow
     match inj with
       | Some thm -> mkApp(params.(8),[|EConstr.to_constr sigma thm|])
       | None -> params.(7) in
-  let lemma1 = decl_constant name "_field_lemma1"
+  let lemma1 = decl_constant sum name "_field_lemma1"
     ctx lemma1 in
-  let lemma2 = decl_constant name "_field_lemma2"
+  let lemma2 = decl_constant sum name "_field_lemma2"
     ctx lemma2 in
-  let lemma3 = decl_constant name "_field_lemma3"
+  let lemma3 = decl_constant sum name "_field_lemma3"
     ctx lemma3 in
-  let lemma4 = decl_constant name "_field_lemma4"
+  let lemma4 = decl_constant sum name "_field_lemma4"
     ctx lemma4 in
-  let cond_lemma = decl_constant name "_lemma5"
+  let cond_lemma = decl_constant sum name "_lemma5"
     ctx cond_lemma in
   let cst_tac =
     interp_cst_tac env sigma morphth kind (zero,one,add,mul,opp) cst_tac in
@@ -907,8 +907,8 @@ let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) pow
       | _ -> CAst.make (TacId []) in
   let r = EConstr.to_constr sigma r in
   let req = EConstr.to_constr sigma req in
-  let _ =
-    Lib.add_leaf
+  let () =
+    Lib.Interp.add_leaf sum
       (ftheory_to_obj
         { field_name = name;
           field_carrier = r;
@@ -947,11 +947,11 @@ let process_field_mods env sigma l =
   let k = match !kind with Some k -> k | None -> Abstract in
   (env, sigma, k, !set, !inj, !cst_tac, !pre, !post, !power, !sign, !div)
 
-let add_field_theory id t mods =
+let add_field_theory sum id t mods =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let (env,sigma,k,set,inj,cst_tac,pre,post,power,sign,div) = process_field_mods env sigma mods in
-  add_field_theory0 env sigma id t set k cst_tac inj (pre,post) power sign div
+  add_field_theory0 sum env sigma id t set k cst_tac inj (pre,post) power sign div
 
 let ltac_field_structure e =
   let req = carg e.field_req in

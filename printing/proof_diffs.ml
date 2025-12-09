@@ -87,10 +87,11 @@ let cprintf s = cfprintf !log_out_ch s
 [@@@ocaml.warning "+32"]
 
 let tokenize_string s =
+  (* FIXME (cf proof_diffs_test, eg '()' should be a single token *)
+  let kwstate = CLexer.empty_keyword_state in
   (* todo: cLexer changes buff as it proceeds.  Seems like that should be saved, too.
      But I don't understand how it's used--it looks like things get appended to it but
      it never gets cleared. *)
-  let kwstate = Procq.get_keyword_state() in
   let rec stream_tok acc str =
     let e = Gramlib.LStream.next kwstate str in
     match e with

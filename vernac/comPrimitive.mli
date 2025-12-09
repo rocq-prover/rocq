@@ -9,8 +9,9 @@
 (************************************************************************)
 
 val do_primitive
-  : Names.lident
-  -> Constrexpr.sort_poly_decl_expr option
+  : Summary.Interp.mut
+  -> Names.lident
+  -> Constrexpr.universe_decl_expr option
   -> CPrimitives.op_or_type
   -> Constrexpr.constr_expr option
   -> unit

@@ -21,12 +21,12 @@ module GlobalSafeEnv : sig
   val set_safe_env : Safe_typing.safe_environment -> unit
   val is_joined_environment : unit -> bool
   val is_curmod_library : unit -> bool
-  val global_env_summary_tag : Safe_typing.safe_environment Summary.Dyn.tag
+  val global_env_summary_tag : Safe_typing.safe_environment Summary.Interp.tag
 
 end = struct
 
 let global_env, global_env_summary_tag =
-  Summary.ref_tag ~name:global_env_summary_name Safe_typing.empty_environment
+  Summary.Interp.ref_tag ~name:global_env_summary_name Safe_typing.empty_environment
 
 let is_joined_environment () =
   Safe_typing.is_joined_environment !global_env
@@ -65,14 +65,16 @@ let globalize f =
       let res,env = f (safe_env ()) in GlobalSafeEnv.set_safe_env env; res)
     ()
 
-let globalize0_with_summary fs f =
+let globalize0_with_summary summary fs f =
+  let open Summary.Interp in
   let env = prof (fun () -> f (safe_env ())) () in
-  Summary.Interp.unfreeze_summaries fs;
+  let () = unfreeze_summaries fs summary in
   GlobalSafeEnv.set_safe_env env
 
-let globalize_with_summary fs f =
+let globalize_with_summary summary fs f =
+  let open Summary.Interp in
   let res,env = prof (fun () -> f (safe_env ())) () in
-  Summary.Interp.unfreeze_summaries fs;
+  let () = unfreeze_summaries fs summary in
   GlobalSafeEnv.set_safe_env env;
   res
 
@@ -106,7 +108,7 @@ let add_module id me inl = globalize (Safe_typing.add_module id me inl)
 let add_include me ismod inl = globalize (Safe_typing.add_include me ismod inl)
 
 let open_section () = globalize0 Safe_typing.open_section
-let close_section fs = globalize0_with_summary fs Safe_typing.close_section
+let close_section summary fs = globalize0_with_summary summary fs Safe_typing.close_section
 let sections_are_opened () = Safe_typing.sections_are_opened (safe_env())
 
 let sections () = Safe_typing.sections_of_safe_env @@ safe_env ()
@@ -151,11 +153,11 @@ let discharge_proj_repr p =
 let start_module id = globalize (Safe_typing.start_module id)
 let start_modtype id = globalize (Safe_typing.start_modtype id)
 
-let end_module fs id mtyo =
-  globalize_with_summary fs (Safe_typing.end_module id mtyo)
+let end_module summary fs id mtyo =
+  globalize_with_summary summary fs (Safe_typing.end_module id mtyo)
 
-let end_modtype fs id =
-  globalize_with_summary fs (Safe_typing.end_modtype id)
+let end_modtype summary fs id =
+  globalize_with_summary summary fs (Safe_typing.end_modtype id)
 
 let add_module_parameter mbid mte inl =
   globalize (Safe_typing.add_module_parameter mbid mte inl)

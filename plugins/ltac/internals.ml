@@ -244,7 +244,7 @@ let infoH ~pstate (tac : raw_tactic_expr) : unit =
   in
   ignore (Declare.Proof.by (Global.env ()) tac pstate)
 
-let declare_equivalent_keys c c' =
+let declare_equivalent_keys sum c c' =
   let get_key c =
     let env = Global.env () in
     let evd = Evd.from_env env in
@@ -255,5 +255,5 @@ let declare_equivalent_keys c c' =
   let k1 = get_key c in
   let k2 = get_key c' in
     match k1, k2 with
-    | Some k1, Some k2 -> Keys.declare_equiv_keys k1 k2
+    | Some k1, Some k2 -> Keys.declare_equiv_keys sum k1 k2
     | _ -> ()

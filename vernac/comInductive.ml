@@ -516,7 +516,7 @@ type should_template =
 
 let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
-  let uentry, _ as ubinders = Evd.check_sort_poly_decl ~poly sigma udecl in
+  let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
   let uentry, global = match uentry with
     | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
@@ -533,7 +533,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
       template_qvars sigma
   in
   let uctx =
-    UState.check_template_sort_poly_decl (Evd.ustate sigma) ~template_qvars udecl
+    UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
   (* XXX: it should be fine to drop the sort constraints but it should be reflected in the API *)
   let elim_constraints = PConstraints.ContextSet.elim_constraints uctx in
@@ -685,7 +685,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   default_dep_elim, mind_ent, ubinders, global_univs
 
 let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
-  let sigma, udecl, variances = interp_cumul_sort_poly_decl_opt env udecl in
+  let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
     interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
@@ -723,7 +723,7 @@ let maybe_unify_params_in env_ar_par sigma ~ninds ~nparams ~binders:k c =
   in
   aux (env_ar_par,k) sigma c
 
-let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notations ~private_ind =
+let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) notations ~private_ind =
   check_all_names_different env0 indl;
   List.iter check_param paramsl;
   if not (List.is_empty uparamsl) && not (List.is_empty notations)
@@ -766,16 +766,18 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   let ntn_impls = compute_internalization_env env_uparams sigma Inductive indnames fullarities indimpls in
 
   let (sigma, _), constructors =
-    Metasyntax.with_syntax_protection (fun () ->
+    Metasyntax.with_syntax_protection (fun _synsum ->
+        snd @@ Summary.Interp.with_mut (fun sum ->
         (* Temporary declaration of notations and scopes *)
-        List.iter (Metasyntax.set_notation_for_interpretation env_params ntn_impls) notations;
+        List.iter (Metasyntax.set_notation_for_interpretation sum env_params ntn_impls) notations;
         (* Interpret the constructor types *)
         List.fold_left2_map
           (fun (sigma, ind_rel) ind arity ->
             interp_cstrs env_ar_params (sigma, ind_rel) impls ctx_params_lifted
               ind (EConstr.Vars.liftn ninds (Rel.length ctx_params + 1) arity))
           (sigma, ninds) indl arities)
-      ()
+          sum)
+      sum.synterp
   in
 
   let nparams = Context.Rel.length ctx_params in
@@ -909,7 +911,7 @@ let rec count_binder_expr = function
   | CLocalPattern {CAst.loc} :: _ ->
     Loc.raise ?loc (Gramlib.Grammar.ParseError "pattern with quote not allowed here")
 
-let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let interp_mutual_inductive sum ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let indlocs = List.map (fun ((n,_,_,constructors),_) ->
       let conslocs = List.map (fun (_,(c,_)) -> c.CAst.loc) constructors in
       n.CAst.loc, conslocs)
@@ -925,23 +927,23 @@ let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~u
       | NonUniformParameters -> ([], params, indl), None
   in
   let env = Environ.update_typing_flags ?typing_flags env in
-  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen ~flags env udecl indl where_notations ~private_ind in
+  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen sum ~flags env udecl indl where_notations ~private_ind in
   let open Mind_decl in
   { mie; default_dep_elim; nuparams; univ_binders; implicits; uctx; where_notations; coercions; indlocs }
 
-let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let do_mutual_inductive sum ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let open Mind_decl in
   let env = Global.env () in
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
-    interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
+    interp_mutual_inductive (Summary.Interp.get sum) ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
-  ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
+  ignore (DeclareInd.declare_mutual_inductive_with_eliminations sum ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)
-  List.iter (Metasyntax.add_notation_interpretation ~local:false (Global.env ())) where_notations;
+  List.iter (Metasyntax.add_notation_interpretation sum ~local:false (Global.env ())) where_notations;
   (* Declare the coercions *)
-  List.iter (fun qid -> ComCoercion.try_add_new_coercion (Nametab.locate qid) ~local:false ~reversible:true) coercions
+  List.iter (fun qid -> ComCoercion.try_add_new_coercion sum (Nametab.locate qid) ~local:false ~reversible:true) coercions
 
 (** Prepare a "match" template for a given inductive type.
     For each branch of the match, we list the constructor name

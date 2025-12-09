@@ -95,18 +95,18 @@ let () =
       optwrite = (fun b -> rewriting_flag := b) }
 
 (* Util *)
-let define ~poly ?loc name sigma c types =
+let define sum ~poly ?loc name sigma c types =
   let univs = Evd.univ_entry ~poly sigma in
   let entry = Declare.definition_entry ~univs ?types c in
   let kind = Decls.(IsDefinition Scheme) in
-  let kn = Declare.declare_constant ?loc ~kind ~name (Declare.DefinitionEntry entry) in
+  let kn = Declare.declare_constant sum ?loc ~kind ~name (Declare.DefinitionEntry entry) in
   Declare.definition_message name;
   kn
 
 (* Boolean equality *)
 
-let declare_beq_scheme_gen ?locmap names kn =
-  ignore (define_mutual_scheme ?locmap beq_scheme_kind names kn)
+let declare_beq_scheme_gen sum ?locmap names kn =
+  ignore (define_mutual_scheme ?locmap sum beq_scheme_kind names kn)
 
 let debug = CDebug.create ~name:"indschemes" ()
 
@@ -118,8 +118,8 @@ let alarm what internal msg =
     None
   | UserIndividualRequest -> Some msg
 
-let try_declare_scheme ?locmap what f internal names kn =
-  try f ?locmap names kn
+let try_declare_scheme ?locmap what f sum internal names kn =
+  try f sum ?locmap names kn
   with e when CErrors.noncritical e ->
   let e = Exninfo.capture e in
   let rec extract_exn = function Logic_monad.TacticFailure e -> extract_exn e | e -> e in
@@ -184,19 +184,19 @@ let beq_scheme_msg mind =
     pr_enum (fun ind -> quote (Printer.pr_inductive (Global.env()) ind))
     (List.init (Array.length mib.mind_packets) (fun i -> (mind,i)))
 
-let declare_beq_scheme_with ?locmap l kn =
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserIndividualRequest l kn
+let declare_beq_scheme_with sum ?locmap l kn =
+  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen sum UserIndividualRequest l kn
 
-let try_declare_beq_scheme ?locmap kn =
+let try_declare_beq_scheme sum ?locmap kn =
   (* TODO: handle Fix, eventually handle
       proof-irrelevance; improve decidability by depending on decidability
       for the parameters rather than on the bl and lb properties *)
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserAutomaticRequest [] kn
+  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen sum UserAutomaticRequest [] kn
 
-let declare_beq_scheme ?locmap mi = declare_beq_scheme_with ?locmap [] mi
+let declare_beq_scheme sum ?locmap mi = declare_beq_scheme_with ?locmap sum [] mi
 
 (* Case analysis schemes *)
-let declare_one_case_analysis_scheme ?loc ind =
+let declare_one_case_analysis_scheme sum ?loc ind =
   let (mib, mip) as specif = Global.lookup_inductive ind in
   let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let dep, suff =
@@ -212,11 +212,11 @@ let declare_one_case_analysis_scheme ?loc ind =
   in
   let kelim = Inductiveops.elim_sort (mib,mip) in
   if Inductive.raw_eliminates_to kelim Sorts.Quality.qtype then
-    define_individual_scheme ?loc dep id ind
+    define_individual_scheme sum ?loc dep id ind
 
 (* Induction/recursion schemes *)
 
-let declare_one_induction_scheme ?loc ind =
+let declare_one_induction_scheme sum ?loc ind =
   let (mib,mip) as specif = Global.lookup_inductive ind in
   let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let from_prop = Sorts.Quality.is_qprop kind in
@@ -253,57 +253,57 @@ let declare_one_induction_scheme ?loc ind =
           (* the auto generated eliminator may be called "rect" instead of eg "rect_dep" *)
           Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ "_" ^ suff))
       in
-      define_individual_scheme ?loc kind id ind)
+      define_individual_scheme sum ?loc kind id ind)
          elims
 
-let declare_induction_schemes ?(locmap=Locmap.default None) kn =
+let declare_induction_schemes sum ?(locmap=Locmap.default None) kn =
   let mib = Global.lookup_mind kn in
   if mib.mind_finite <> Declarations.CoFinite then begin
     for i = 0 to Array.length mib.mind_packets - 1 do
       let loc = Ind_tables.Locmap.lookup ~locmap (kn,i) in
-      declare_one_induction_scheme (kn,i) ?loc;
+      declare_one_induction_scheme sum (kn,i) ?loc;
     done;
   end
 
 (* Decidable equality *)
 
-let declare_eq_decidability_gen ?locmap names kn =
+let declare_eq_decidability_gen sum ?locmap names kn =
   let mib = Global.lookup_mind kn in
   if mib.mind_finite <> Declarations.CoFinite then
-    define_mutual_scheme ?locmap eq_dec_scheme_kind names kn
+    define_mutual_scheme sum ?locmap eq_dec_scheme_kind names kn
 
 let eq_dec_scheme_msg ind = (* TODO: mutual inductive case *)
   str "Decidable equality on " ++ quote (Printer.pr_inductive (Global.env()) ind)
 
-let declare_eq_decidability_scheme_with ?locmap l kn =
+let declare_eq_decidability_scheme_with sum ?locmap l kn =
   try_declare_scheme ?locmap (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserIndividualRequest l kn
+    declare_eq_decidability_gen sum UserIndividualRequest l kn
 
-let try_declare_eq_decidability ?locmap kn =
+let try_declare_eq_decidability sum ?locmap kn =
   try_declare_scheme ?locmap (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserAutomaticRequest [] kn
+    declare_eq_decidability_gen sum UserAutomaticRequest [] kn
 
-let declare_eq_decidability ?locmap mi = declare_eq_decidability_scheme_with ?locmap [] mi
+let declare_eq_decidability sum ?locmap mi = declare_eq_decidability_scheme_with ?locmap sum [] mi
 
 let ignore_error f x =
   try f x with e when CErrors.noncritical e -> ()
 
-let declare_rewriting_schemes ?loc ind =
+let declare_rewriting_schemes sum ?loc ind =
   if Hipattern.is_inductive_equality (Global.env ()) ind then begin
     (* Expect the equality to be symmetric *)
-    ignore_error (define_individual_scheme ?loc sym_scheme_kind None) ind;
-    define_individual_scheme ?loc rew_r2l_scheme_kind None ind;
-    define_individual_scheme ?loc rew_r2l_dep_scheme_kind None ind;
-    define_individual_scheme ?loc rew_r2l_forward_dep_scheme_kind None ind;
+    ignore_error (define_individual_scheme sum ?loc sym_scheme_kind None) ind;
+    define_individual_scheme sum ?loc rew_r2l_scheme_kind None ind;
+    define_individual_scheme sum ?loc rew_r2l_dep_scheme_kind None ind;
+    define_individual_scheme sum ?loc rew_r2l_forward_dep_scheme_kind None ind;
     (* These ones expect the equality to be symmetric; the first one also *)
     (* needs eq *)
-    ignore_error (define_individual_scheme rew_l2r_scheme_kind None) ind;
+    ignore_error (define_individual_scheme sum rew_l2r_scheme_kind None) ind;
     ignore_error
-      (define_individual_scheme ?loc sym_involutive_scheme_kind None) ind;
+      (define_individual_scheme sum ?loc sym_involutive_scheme_kind None) ind;
     ignore_error
-      (define_individual_scheme ?loc rew_l2r_dep_scheme_kind None) ind;
+      (define_individual_scheme sum ?loc rew_l2r_dep_scheme_kind None) ind;
     ignore_error
-      (define_individual_scheme ?loc rew_l2r_forward_dep_scheme_kind None) ind
+      (define_individual_scheme sum ?loc rew_l2r_forward_dep_scheme_kind None) ind
   end
 
 let warn_cannot_build_congruence =
@@ -311,11 +311,11 @@ let warn_cannot_build_congruence =
          (fun () ->
           strbrk "Cannot build congruence scheme because eq is not found")
 
-let declare_congr_scheme ?loc ind =
+let declare_congr_scheme sum ?loc ind =
   let env = Global.env () in
   if Hipattern.is_inductive_equality env ind then begin
     match Rocqlib.lib_ref_opt "core.eq.type" with
-    | Some _ -> define_individual_scheme ?loc congr_scheme_kind None ind
+    | Some _ -> define_individual_scheme sum ?loc congr_scheme_kind None ind
     | None -> warn_cannot_build_congruence ()
   end
 
@@ -374,7 +374,7 @@ let name_and_process_scheme env = function
     let newref = CAst.make newid in
     (newref, sch_isdep sch_type, ind, sch_sort)
 
-let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true) l =
+let do_mutual_induction_scheme sum ~register ?(force_mutual=false) env ?(isrec=true) l =
   let sigma = Evd.from_env env in
   let _,_,ind,_ = match l with | x::_ -> x | [] -> assert false in
   let sigma, (ind, inst) = Evd.fresh_inductive_instance env sigma ~rigid:UnivRigid ind in
@@ -404,7 +404,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     let decltype = Retyping.get_type_of env sigma decl in
     let decltype = EConstr.to_constr sigma decltype in
     let decl = EConstr.to_constr sigma decl in
-    let cst = define ?loc ~poly fi sigma decl (Some decltype) in
+    let cst = define sum ?loc ~poly fi sigma decl (Some decltype) in
     let kind =
       let open Elimschemes in
       let open UnivGen.QualityOrSet in
@@ -422,13 +422,13 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     | None -> ()
     | Some kind ->
       (* TODO locality *)
-      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, Names.GlobRef.ConstRef cst)
+      DeclareScheme.declare_scheme sum SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, Names.GlobRef.ConstRef cst)
   in
   let () = List.iter2 declare listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in
   Declare.fixpoint_message None lrecnames
 
-let do_scheme ~register env l =
+let do_scheme sum ~register env l =
   let isrec = match l with
     | [_, sch] -> sch_isrec sch.sch_type
     | _ ->
@@ -437,17 +437,17 @@ let do_scheme ~register env l =
       else CErrors.user_err Pp.(str "Mutually defined schemes should be recursive.")
   in
   let lnamedepindsort = List.map (name_and_process_scheme env) l in
-  do_mutual_induction_scheme ~register env ~isrec lnamedepindsort
+  do_mutual_induction_scheme sum ~register env ~isrec lnamedepindsort
 
-let do_scheme_equality ?locmap sch id =
+let do_scheme_equality sum ?locmap sch id =
   let mind,_ as ind = smart_ind id in
   match sch with
   | SchemeBooleanEquality | SchemeEquality ->
-    declare_beq_scheme ?locmap mind;
-    if sch = SchemeEquality then declare_eq_decidability ?locmap mind
+    declare_beq_scheme sum ?locmap mind;
+    if sch = SchemeEquality then declare_eq_decidability sum ?locmap mind
   | SchemeRewriting ->
     let loc = Option.bind locmap (fun locmap -> Locmap.lookup ~locmap ind) in
-    declare_rewriting_schemes ?loc ind
+    declare_rewriting_schemes sum ?loc ind
 
 (**********************************************************************)
 (* Combined scheme *)
@@ -526,7 +526,7 @@ let build_combined_scheme env schemes =
   let sigma = Typing.check env sigma (EConstr.of_constr body) (EConstr.of_constr typ) in
   (sigma, body, typ)
 
-let do_combined_scheme name csts =
+let do_combined_scheme sum name csts =
   let open CAst in
   let sigma,body,typ = build_combined_scheme (Global.env ()) csts in
   (* It is possible for the constants to have different universe
@@ -536,25 +536,25 @@ let do_combined_scheme name csts =
      some other polymorphism they can also manually define the
      combined scheme. *)
   let poly = Global.is_polymorphic (Names.GlobRef.ConstRef (List.hd csts)) in
-  ignore (define ~poly ?loc:name.loc name.v sigma body (Some typ));
+  ignore (define sum ~poly ?loc:name.loc name.v sigma body (Some typ));
   Declare.fixpoint_message None [name.v]
 
 (**********************************************************************)
 
-let map_inductive_block ?(locmap=Locmap.default None) f kn n =
+let map_inductive_block sum ?(locmap=Locmap.default None) f kn n =
   for i=0 to n-1 do
     let loc = Ind_tables.Locmap.lookup ~locmap (kn,i) in
-    f ?loc (kn,i)
+    f sum ?loc (kn,i)
   done
 
-let declare_default_schemes ?locmap kn =
+let declare_default_schemes sum ?locmap kn =
   let mib = Global.lookup_mind kn in
   let n = Array.length mib.mind_packets in
   if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
      && mib.mind_typing_flags.check_positive then
-    declare_induction_schemes kn ?locmap;
-  if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
-  if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
-  if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
-  if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
-  if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
+    declare_induction_schemes sum kn ?locmap;
+  if !case_flag then map_inductive_block sum ?locmap declare_one_case_analysis_scheme kn n;
+  if is_eq_flag() then try_declare_beq_scheme sum kn ?locmap;
+  if !eq_dec_flag then try_declare_eq_decidability sum kn ?locmap;
+  if !rewriting_flag then map_inductive_block sum ?locmap declare_congr_scheme kn n;
+  if !rewriting_flag then map_inductive_block sum ?locmap declare_rewriting_schemes kn n

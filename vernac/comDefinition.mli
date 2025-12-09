@@ -26,7 +26,8 @@ val interp_definition
   -> Evd.evar_map * (EConstr.t * EConstr.t option) * Impargs.manual_implicits
 
 val do_definition
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> name:Id.t
   -> ?scope:Locality.definition_scope
@@ -36,7 +37,7 @@ val do_definition
   -> kind:Decls.definition_object_kind
   -> ?using:Vernacexpr.section_subset_expr
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
-  -> sort_poly_decl_expr option
+  -> universe_decl_expr option
   -> local_binder_expr list
   -> red_expr option
   -> constr_expr
@@ -44,7 +45,8 @@ val do_definition
   -> unit
 
 val do_definition_program
-  : ?loc:Loc.t
+  : Summary.Interp.mut
+  -> ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> pm:Declare.OblState.t
   -> name:Id.t
@@ -55,7 +57,7 @@ val do_definition_program
   -> kind:Decls.logical_kind
   -> ?using:Vernacexpr.section_subset_expr
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
-  -> sort_poly_decl_expr option
+  -> universe_decl_expr option
   -> local_binder_expr list
   -> red_expr option
   -> constr_expr
@@ -74,7 +76,7 @@ val do_definition_interactive
   -> kind:Decls.logical_kind
   -> ?using:Vernacexpr.section_subset_expr
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
-  -> sort_poly_decl_expr option
+  -> universe_decl_expr option
   -> local_binder_expr list
   -> constr_expr
   -> Declare.Proof.t
@@ -90,7 +92,7 @@ val do_definition_refine
   -> kind:Decls.logical_kind
   -> ?using:Vernacexpr.section_subset_expr
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
-  -> sort_poly_decl_expr option
+  -> universe_decl_expr option
   -> local_binder_expr list
   -> constr_expr
   -> constr_expr option

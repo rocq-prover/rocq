@@ -477,7 +477,7 @@ let warn_implicit_create_hint_db =
   CWarnings.create ~name:"implicit-create-rewrite-hint-db" ~category:Deprecation.Version.v9_2
     (fun db -> strbrk "Implicitly declaring Rewrite hint databases is deprecated. Please explicitly create " ++ quote (str db))
 
-let cache_db db = match String.Map.find_opt db.db_name !rewtab with
+let cache_db db _sum = match String.Map.find_opt db.db_name !rewtab with
 | None ->
   rewtab := String.Map.add db.db_name empty_rewrite_db !rewtab
 | Some _ -> warn_create_hintdb db
@@ -489,18 +489,18 @@ let classify_db db =
 
 let inDB : db_obj -> Libobject.obj =
   let open Libobject in
-  declare_object {(default_object "AUTOREWRITE_DB") with
+  Interp.declare_object {(default_object "AUTOREWRITE_DB") with
     cache_function = cache_db;
     load_function = load_db;
-    subst_function = (fun (_, x) -> x);
+    subst_function = ident_subst_function;
     classify_function = classify_db; }
 
-let create_rewrite_hint_db ~local ~name =
+let create_rewrite_hint_db sum ~local ~name =
   let hint = { db_local = local; db_name = name } in
-  Lib.add_leaf (inDB hint)
+  Lib.Interp.add_leaf sum (inDB hint)
 
 (* Functions necessary to the library object declaration *)
-let cache_hintrewrite (rbase,lrl) =
+let cache_hintrewrite (rbase,lrl) _sum =
   let base = try raw_find_base rbase with Not_found -> empty_rewrite_db in
   let fold accu r = {
     rdb_hintdn = HintDN.add (Global.env ()) r.rew_pat r accu.rdb_hintdn;
@@ -510,7 +510,7 @@ let cache_hintrewrite (rbase,lrl) =
   let base = List.fold_left fold base lrl in
   rewtab := String.Map.add rbase base !rewtab
 
-let subst_hintrewrite (subst,(rbase,list as node)) =
+let subst_hintrewrite _sum subst (rbase,list as node) =
   let subst_hint subst hint =
     let id' = subst_kn subst hint.rew_id in
     let cst' = subst_mps subst hint.rew_lemma in
@@ -530,10 +530,10 @@ let subst_hintrewrite (subst,(rbase,list as node)) =
 (* Declaration of the Hint Rewrite library object *)
 let inHintRewrite : Libobject.locality * (string * rew_rule list) -> Libobject.obj =
   let open Libobject in
-  declare_object @@ object_with_locality ~cat:Hints.hint_cat "HINT_REWRITE_GLOBAL"
+  Interp.declare_object @@ object_with_locality ~cat:Hints.hint_cat "HINT_REWRITE_GLOBAL"
     ~cache:cache_hintrewrite
     ~subst:(Some subst_hintrewrite)
-    ~discharge:(fun _ -> assert false)
+    ~discharge:(fun _ _ -> assert false)
 
 type hypinfo = {
   hyp_ty : EConstr.types;
@@ -575,7 +575,7 @@ let find_applied_relation ?loc env sigma c left2right =
 type raw_rew_rule = (constr PConstraints.in_poly_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
 
 (* To add rewriting rules to a base *)
-let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
+let add_rew_rules sum ~locality base (lrul:raw_rew_rule list) =
   let () = Locality.check_locality_nodischarge locality in
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -590,13 +590,13 @@ let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
       rew_tac = Option.map intern t }
   in
   let lrul = List.map map lrul in
-  Lib.add_leaf (inHintRewrite (locality,(base,lrul)))
+  Lib.Interp.add_leaf sum (inHintRewrite (locality,(base,lrul)))
 
 
 let check_declared db =
   if not (String.Map.mem db !rewtab) then warn_implicit_create_hint_db db
 
-let add_rewrite_hint ~locality ~poly bases ort t lcsr =
+let add_rewrite_hint sum ~locality ~poly bases ort t lcsr =
   let () = List.iter check_declared bases in
   let env = Global.env() in
   let sigma = Evd.from_env env in
@@ -614,5 +614,5 @@ let add_rewrite_hint ~locality ~poly bases ort t lcsr =
     in
     CAst.make ?loc:(Constrexpr_ops.constr_loc ce) ((c, ctx), ort, t) in
   let eqs = List.map f lcsr in
-  let add_hints base = add_rew_rules ~locality base eqs in
+  let add_hints base = add_rew_rules sum ~locality base eqs in
   List.iter add_hints bases

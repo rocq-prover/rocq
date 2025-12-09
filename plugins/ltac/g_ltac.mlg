@@ -374,7 +374,7 @@ VERNAC { tactic_mode } EXTEND VernacSolveParallel STATE proof
     } -> {
       let t, abstract = rm_abstract t in
       let t = Tacinterp.hide_interp { Tacinterp.global = true; ast = t; } in
-      ComTactic.solve_parallel ~info t ~abstract
+      ComTactic.solve_parallel (Summary.Interp.get summary) ~info t ~abstract
     }
 END
 
@@ -424,10 +424,10 @@ VERNAC COMMAND EXTEND VernacTacticNotation
   { VtSideff ([], VtNow) } SYNTERP AS tacobj {
     let n = Option.default 0 n in
     let local = Locality.make_module_locality locality in
-    Tacentries.add_tactic_notation_syntax local n ?deprecation r
+    Tacentries.add_tactic_notation_syntax summary local n ?deprecation r
   } ->
   {
-    Tacentries.add_tactic_notation ?deprecation tacobj e
+    Tacentries.add_tactic_notation summary ?deprecation tacobj e
   }
 END
 
@@ -474,7 +474,7 @@ VERNAC COMMAND EXTEND VernacDeclareTacticDefinition
       | TacticDefinition ({CAst.v=r},_) -> r
       | TacticRedefinition (qid,_) -> qualid_basename qid) l, VtLater)
   } -> {
-         Tacentries.register_ltac raw_attributes l;
+         Tacentries.register_ltac summary raw_attributes l;
   }
 END
 

@@ -61,8 +61,10 @@ val find_Function_infos : Constant.t -> function_info option
 val find_Function_of_graph : inductive -> function_info option
 
 (* WARNING: To be used just after the graph definition !!! *)
-val add_Function : bool -> Constant.t -> unit
-val update_Function : function_info -> unit
+val add_Function : Summary.Interp.mut ->
+  bool -> Constant.t -> unit
+val update_Function : Summary.Interp.mut ->
+  function_info -> unit
 
 (** debugging *)
 val pr_info : Environ.env -> Evd.evar_map -> function_info -> Pp.t
@@ -114,4 +116,4 @@ val compose_prod :
 
 type tcc_lemma_value = Undefined | Value of Constr.t | Not_needed
 
-val funind_purify : ('a -> 'b) -> 'a -> 'b
+val funind_purify : Summary.Interp.mut -> ('a -> 'b) -> 'a -> 'b

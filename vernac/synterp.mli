@@ -36,7 +36,7 @@ type synterp_entry =
       Library.library_t list * DirPath.t list * Vernacexpr.export_with_cats option * (qualid * Vernacexpr.import_filter_expr) list
   | EVernacImport of (Vernacexpr.export_flag * Libobject.open_filter) *
       (Names.ModPath.t CAst.t * Vernacexpr.import_filter_expr) list
-  | EVernacDeclareMLModule of Mltop.interp_fun
+  | EVernacDeclareMLModule of bool * Summary.Interp.any_summary list * Mltop.interp_fun
   | EVernacDeclareModule of Lib.export * lident *
       Declaremods.module_params_expr *
       module_entry
@@ -69,6 +69,7 @@ exception NotFoundLibrary of Names.DirPath.t option * Libnames.qualid
 (** [synterp_require] performs the syntactic interpretation phase of `Require`
     commands *)
 val synterp_require :
+  Summary.Synterp.mut ->
   intern:Library.Intern.t ->
   Libnames.qualid option ->
   Vernacexpr.export_with_cats option ->
@@ -77,6 +78,7 @@ val synterp_require :
 
 (** [synterp_control] is the main entry point of the syntactic interpretation phase *)
 val synterp_control :
+  Summary.Synterp.mut ->
   intern:Library.Intern.t ->
   Vernacexpr.vernac_control ->
   vernac_control_entry

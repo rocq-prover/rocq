@@ -26,6 +26,7 @@ type norec
 type mayrec
 
 module type S = sig
+  type gstate
   type keyword_state
   type te
   type 'c pattern
@@ -56,6 +57,9 @@ module type S = sig
   type 'a mod_estate
   (** Read/write entry state *)
 
+  type 'a mod_estate'
+  (** Read/write entry state, unsynchronized *)
+
   module Parsable : sig
     type t
     val make : ?loc:Loc.t -> (unit,char) Stream.t -> t
@@ -66,18 +70,18 @@ module type S = sig
 
   module Entry : sig
     type 'a t
-    val make : string -> 'a t mod_estate
+    val make : string -> 'a t mod_estate'
     val parse : 'a t -> Parsable.t -> 'a with_gstate
     val name : 'a t -> string
-    type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
-    val of_parser : string -> 'a parser_fun -> 'a t mod_estate
+    type 'a parser_fun = { parser_fun : gstate -> (keyword_state,te) LStream.t -> 'a parser_v }
+    val of_parser : string -> 'a parser_fun -> 'a t mod_estate'
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
-    val print : Format.formatter -> 'a t -> unit with_estate
+    val print : Format.formatter -> 'a t -> unit with_gstate
     val is_empty : 'a t -> bool with_estate
 
     type any_t = Any : 'a t -> any_t
     val accumulate_in : any_t list -> any_t list CString.Map.t with_estate
-    val all_in : unit -> any_t list CString.Map.t with_estate
+    val all_in : any_t list CString.Map.t with_estate
   end
 
   module rec Symbol : sig
@@ -143,6 +147,7 @@ end
 (* Interface private to clients  *)
 module type ExtS = sig
 
+  type synterp_state
   type keyword_state
 
   module EState : sig
@@ -153,17 +158,20 @@ module type ExtS = sig
     type t = {
       estate : EState.t;
       kwstate : keyword_state;
+      synstate : synterp_state;
       recover : bool;
       has_non_assoc : bool;
     }
   end
 
   include S
-    with type keyword_state := keyword_state
+    with type gstate := GState.t
+     and type keyword_state := keyword_state
      and type 'a with_gstate := GState.t -> 'a
      and type 'a with_kwstate := keyword_state -> 'a
      and type 'a with_estate := EState.t -> 'a
      and type 'a mod_estate := EState.t -> EState.t * 'a
+     and type 'a mod_estate' := EState.t -> EState.t * 'a
 
   type 's add_kw = { add_kw : 'c. 's -> 'c pattern -> 's }
 
@@ -186,7 +194,8 @@ end
       type (instead of (string * string)); the module parameter
       must specify a way to show them as (string * string) *)
 
-module GMake (L : Plexing.S) : ExtS
-  with type keyword_state := L.keyword_state
+module GMake (Syn : sig type t end) (L : Plexing.S) : ExtS
+  with type synterp_state := Syn.t
+   and type keyword_state := L.keyword_state
    and type te := L.te
    and type 'c pattern := 'c L.pattern
