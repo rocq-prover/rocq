@@ -341,7 +341,7 @@ let make_template_univ_names (u:UVars.Instance.t) : UVars.bound_names =
   {quals = Array.make qlen Anonymous; univs = Array.make ulen Anonymous}
 
 let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
-| Monomorphic_ind_entry | Polymorphic_ind_entry _ -> mie, None, None
+| Monomorphic_ind_entry | Polymorphic_ind_entry _ -> None, None
 | Template_ind_entry {uctx; default_univs} ->
   let ((template_qvars, _), (template_univs, _ as template_uctx) as template_context) =
     UVars.UContext.to_context_set uctx
@@ -500,7 +500,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     qsubst, usubst
   in
 
-  mie, Some template_usubst, Some {
+  Some template_usubst, Some {
     template_param_arguments;
     template_context;
     template_concl;
@@ -547,7 +547,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   assert (List.is_empty (Environ.rel_context env));
 
   (* universes *)
-  let mie, template_usubst, template = get_template mie in
+  let template_usubst, template = get_template mie in
 
   let env_univs =
     match mie.mind_entry_universes with
