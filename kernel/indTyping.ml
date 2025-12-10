@@ -336,14 +336,10 @@ let check_no_increment ~template_univs u =
     CErrors.user_err
       Pp.(str "Template polymorphism with conclusion strictly larger than a bound universe not supported.")
 
-let make_template_univ_names (u:UVars.Instance.t) : UVars.bound_names =
-  let qlen, ulen = UVars.Instance.length u in
-  {quals = Array.make qlen Anonymous; univs = Array.make ulen Anonymous}
-
 let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
 | Monomorphic_ind_entry | Polymorphic_ind_entry _ -> None, None
 | Template_ind_entry {uctx; default_univs} ->
-  let ((template_qvars, _), (template_univs, _ as template_uctx) as template_context) =
+  let ((template_qvars, _), (template_univs, _ as template_uctx)) =
     UVars.UContext.to_context_set uctx
   in
   let params = mie.mind_entry_params in
@@ -354,11 +350,8 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
   in
   let () = check_unbounded_from_below template_uctx in
 
-  let template_context =
-    UVars.UContext.of_context_set make_template_univ_names template_context
-  in
   let template_abstract, template_context =
-    let inst, ctx = UVars.abstract_universes template_context in
+    let inst, ctx = UVars.abstract_universes uctx in
     UVars.make_instance_subst inst, ctx
   in
 
