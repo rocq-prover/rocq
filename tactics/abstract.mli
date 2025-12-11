@@ -23,7 +23,7 @@ val tclABSTRACT : ?opaque:bool -> Id.t option -> unit Proofview.tactic -> unit P
 
 val declare_abstract :
   (  name:Names.Id.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> sign:EConstr.named_context
   -> secsign:Environ.named_context_val
   -> opaque:bool

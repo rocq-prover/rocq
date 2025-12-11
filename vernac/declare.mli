@@ -100,7 +100,7 @@ module Info : sig
   (** Note that [opaque] doesn't appear here as it is not known at the
      start of the proof in the interactive case. *)
   val make
-    : ?poly:bool
+   : ?poly:PolyFlags.t
     -> ?inline : bool
     -> ?kind : Decls.logical_kind
     (** Theorem, etc... *)
@@ -433,7 +433,7 @@ type constant_entry =
   | SymbolEntry of symbol_entry
 
 val prepare_parameter
-  : poly:bool
+  : poly:PolyFlags.t
   -> udecl:UState.universe_decl
   -> types:EConstr.types
   -> Evd.evar_map
@@ -478,7 +478,7 @@ val fixpoint_message : int array option -> Id.t list -> unit
 val build_by_tactic
   :  Environ.env
   -> uctx:UState.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> typ:EConstr.types
   -> unit Proofview.tactic
   -> Constr.constr * Constr.types option * UState.named_universes_entry * bool * UState.t
@@ -545,6 +545,7 @@ val default_tactic : unit Proofview.tactic ref
 (** Prepare API, to be removed once we provide the corresponding 1-step API *)
 val prepare_obligations
   :  name:Id.t
+  -> PolyFlags.t
   -> ?types:EConstr.t
   -> body:EConstr.t
   -> Environ.env

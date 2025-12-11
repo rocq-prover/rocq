@@ -88,7 +88,7 @@ end
 module Info = struct
 
   type t =
-    { poly : bool
+    { poly : PolyFlags.t
     ; inline : bool
     ; kind : Decls.logical_kind
     ; udecl : UState.universe_decl
@@ -102,7 +102,7 @@ module Info = struct
 
   (** Note that [opaque] doesn't appear here as it is not known at the
      start of the proof in the interactive case. *)
-  let make ?(poly=false) ?(inline=false) ?(kind=Decls.(IsDefinition Definition))
+  let make ?(poly = PolyFlags.default) ?(inline=false) ?(kind=Decls.(IsDefinition Definition))
       ?(udecl=UState.default_univ_decl) ?(scope=Locality.default_scope)
       ?(clearbody=false) ?hook ?typing_flags ?user_warns ?(ntns=[]) () =
     { poly; inline; kind; udecl; scope; hook; typing_flags; clearbody; user_warns; ntns }
@@ -256,7 +256,7 @@ let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl bo
   UState.check_mono_univ_decl uctx_body udecl
 
 let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ =
-  let utyp = UState.univ_entry ~poly:false initial_euctx in
+  let utyp = UState.univ_entry ~poly:PolyFlags.default initial_euctx in
   let _, used_univs = universes_of_body_type ~used_univs body typ in
   let ubody =
     let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
@@ -267,10 +267,10 @@ let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_uni
     UState.check_mono_univ_decl uctx_body udecl in
   initial_euctx, utyp, used_univs, Default { body; opaque = Opaque (ubody, eff) }
 
-let make_univs_immediate_private_poly ~uctx ~udecl ~eff ~used_univs body typ =
+let make_univs_immediate_private_poly ~poly ~uctx ~udecl ~eff ~used_univs body typ =
   let used_univs_typ, used_univs = universes_of_body_type ~used_univs body typ in
   let uctx' = UState.restrict uctx used_univs_typ in
-  let utyp = UState.check_univ_decl ~poly:true uctx' udecl in
+  let utyp = UState.check_univ_decl ~poly uctx' udecl in
   let ubody =
     let uctx = UState.restrict uctx used_univs in
     let uctx = PConstraints.ContextSet.diff (UState.context_set uctx) (UState.context_set uctx') in
@@ -305,11 +305,12 @@ let make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs bod
 let make_univs_immediate ~poly ?keep_body_ucst_separate ~opaque ~uctx ~udecl ~eff ~used_univs body typ =
   (* allow_deferred case *)
   match keep_body_ucst_separate with
-  | Some initial_euctx when not poly -> make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ
+  | Some initial_euctx when not (PolyFlags.level_polymorphic poly) ->
+    make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ
   | _ ->
   (* private_poly_univs case *)
-  if poly && opaque && private_poly_univs ()
-  then make_univs_immediate_private_poly ~uctx ~udecl ~eff ~used_univs body typ
+  if PolyFlags.level_polymorphic poly && opaque && private_poly_univs ()
+  then make_univs_immediate_private_poly ~poly ~uctx ~udecl ~eff ~used_univs body typ
   else make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs body typ
 
 (** [univsbody] are universe-constraints attached to the body-only,
@@ -924,7 +925,7 @@ let process_proof ~info:Info.({ udecl; poly }) ?(is_telescope=false) = function
            (* Testing if evar-closed? *)
            let initial_typ = Evarutil.nf_evars_universes sigma (EConstr.Unsafe.to_constr initial_typ) in
            (* The flags keep_body_ucst_separate, opaque, etc. should be consistent with evar-closedness? *)
-           let univs = UState.univ_entry ~poly:false initial_euctx in
+           let univs = UState.univ_entry ~poly:PolyFlags.default initial_euctx in
            let body = Future.chain body_typ_uctx (fun ((body, _typ), uctx, eff) ->
                let uctx = make_univs_deferred_private_mono ~initial_euctx ~uctx ~udecl body (Some initial_typ) in
                ((body, uctx), eff)) in
@@ -1132,7 +1133,7 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let gref = List.hd (declare_possibly_mutual_definitions ~info ~cinfo:[cinfo] ~obls obj) in
   gref, uctx
 
-let prepare_obligations ~name ?types ~body env sigma =
+let prepare_obligations ~name poly ?types ~body env sigma =
   let env = Global.env () in
   let types = match types with
     | Some t -> t
@@ -1232,7 +1233,7 @@ module ProgramDecl = struct
         , b )
     in
     let prg_uctx =
-      if info.Info.poly then UState.make_flexible_nonalgebraic uctx
+      if PolyFlags.is_polymorphic info.Info.poly then uctx
       else
         (* declare global univs of the main constant before we do obligations *)
         let uctx = UState.collapse_sort_variables uctx in
@@ -1240,7 +1241,7 @@ module ProgramDecl = struct
         let () = Global.push_context_set ctx in
         let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
         let () = DeclareUniv.declare_univ_binders (ConstRef cst)
-            (UState.univ_entry ~poly:false uctx)
+            (UState.univ_entry ~poly:info.Info.poly uctx)
         in
         UState.Internal.reboot (Global.env()) uctx
     in
@@ -1352,7 +1353,7 @@ let universes_of_decl body typ =
 
 let update_global_obligation_uctx prg uctx =
   let uctx =
-    if prg.prg_info.Info.poly then
+    if PolyFlags.level_polymorphic prg.prg_info.Info.poly then
       (* Accumulate the polymorphic constraints *)
       UState.union prg.prg_uctx uctx
     else
@@ -1375,7 +1376,7 @@ let declare_obligation prg obl ~uctx ~types ~body =
     let opaque = (not force) && opaque in
     let poly = prg.prg_info.Info.poly in
     let ctx, body, ty, args =
-      if not poly then shrink_body body types
+      if not (PolyFlags.is_polymorphic poly) then shrink_body body types
       else ([], body, types, [||])
     in
     let uctx' = UState.restrict uctx (universes_of_decl body types) in
@@ -1393,7 +1394,7 @@ let declare_obligation prg obl ~uctx ~types ~body =
     definition_message obl.obl_name;
     let prg = update_global_obligation_uctx prg uctx in
     let body =
-      if poly then DefinedObl (constant, inst)
+      if PolyFlags.is_polymorphic poly then DefinedObl (constant, inst)
       else
         let const = mkConstU (constant, inst) in
         TermObl (it_mkLambda_or_LetIn_or_clean (mkApp (const, args)) ctx)
@@ -1740,7 +1741,7 @@ let obligation_admitted_terminator ~pm typ {name; num; auto; check_final} declar
     | true, Evar_kinds.Expand | true, Evar_kinds.Define true -> err_not_transp ()
     | _ -> ()
   in
-  let mono_uctx_extra = if prg.prg_info.Info.poly then UState.empty else prg.prg_uctx in
+  let mono_uctx_extra = if PolyFlags.level_polymorphic prg.prg_info.Info.poly then UState.empty else prg.prg_uctx in
   let cst, univs = declare_fun ~uctx ~mono_uctx_extra typ in
   let inst = instance_of_univs univs in
   let obl = {obl with obl_body = Some (DefinedObl (cst, inst))} in
@@ -2881,7 +2882,7 @@ let program_inference_hook env sigma ev =
     else
       let c, sigma =
         Proof_.refine_by_tactic ~name:(Id.of_string "program_subproof")
-          ~poly:false env sigma concl (Tacticals.tclSOLVE [tac])
+          ~poly:PolyFlags.default env sigma concl (Tacticals.tclSOLVE [tac])
       in
       Some (sigma, c)
   with
@@ -2912,7 +2913,7 @@ let declare_entry ?loc ~name ?scope ~kind ?user_warns ?hook ~impargs ~uctx entry
 
 let declare_definition_full ~info ~cinfo ~opaque ~body ?using sigma =
   let c, uctx = declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma in
-  c, if info.poly then PConstraints.ContextSet.empty else UState.context_set uctx
+  c, if PolyFlags.is_polymorphic info.poly then PConstraints.ContextSet.empty else UState.context_set uctx
 
 let declare_definition ~info ~cinfo ~opaque ~body ?using sigma =
   declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma |> fst

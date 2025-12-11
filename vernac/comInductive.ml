@@ -28,8 +28,7 @@ open EConstr
 module RelDecl = Context.Rel.Declaration
 
 type flags = {
-  poly : bool;
-  cumulative : bool;
+  poly : PolyFlags.t;
   template : bool option;
   finite : Declarations.recursivity_kind;
   mode : Hints.hint_mode list option;
@@ -145,8 +144,8 @@ let intern_ind_arity env sigma ind =
   let template_syntax = if pseudo_poly then SyntaxAllowsTemplatePoly else SyntaxNoTemplatePoly in
   (constr_loc ind.ind_arity, c, impls, template_syntax)
 
-let pretype_ind_arity ~unconstrained_sorts env sigma (loc, c, impls, template_syntax) =
-  let flags = { Pretyping.all_no_fail_flags with unconstrained_sorts } in
+let pretype_ind_arity ~unconstrained_sorts ~poly env sigma (loc, c, impls, template_syntax) =
+  let flags = { Pretyping.all_no_fail_flags with unconstrained_sorts ; poly } in
   let sigma,t = understand_tcc ~flags env sigma ~expected_type:IsType c in
   match Reductionops.sort_of_arity env sigma t with
   | exception Reduction.NotArity ->
@@ -267,7 +266,7 @@ let prop_lowering_candidates evd ~arities_explicit inds =
   candidates
 
 let include_constructor_argument evd ~poly ~ctor_sort ~inductive_sort =
-  if poly then
+  if PolyFlags.level_polymorphic poly then
     (* We ignore the quality when comparing the sorts: it has an impact
        on squashing in the kernel but cannot cause a universe error. *)
     let univ_of_sort s =
@@ -553,7 +552,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   sigma, Template_ind_entry {uctx; default_univs}, ubinders, global
 
 let should_template ~user_template ~poly =
-match user_template, poly with
+match user_template, PolyFlags.level_polymorphic poly with
 | Some true, true ->
   user_err Pp.(strbrk "Template-polymorphism and universe polymorphism are not compatible.")
 | Some false, _ | None, true ->
@@ -627,7 +626,6 @@ let variance_of_entry ~cumulative ~variances uctx =
 let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
   let {
     poly;
-    cumulative;
     template;
     finite;
   } = flags in
@@ -670,7 +668,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       })
       indnames arities constructors
   in
-  let variance = variance_of_entry ~cumulative ~variances univ_entry in
+  let variance = variance_of_entry ~cumulative:(PolyFlags.cumulative poly) ~variances univ_entry in
   (* Build the mutual inductive entry *)
   let mind_ent =
     { mind_entry_params = ctx_params;
@@ -733,7 +731,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   let ninds = List.length indl in
 
   (* In case of template polymorphism, we need to compute more constraints *)
-  let unconstrained_sorts = not flags.poly in
+  let unconstrained_sorts = not (PolyFlags.level_polymorphic flags.poly) in
 
   let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl, variances) =
     interp_params ~unconstrained_sorts env0 udecl uparamsl paramsl
@@ -742,7 +740,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   (* Interpret the arities *)
   let arities = List.map (intern_ind_arity env_params sigma) indl in
 
-  let sigma, arities = List.fold_left_map (pretype_ind_arity ~unconstrained_sorts env_params) sigma arities in
+  let sigma, arities = List.fold_left_map (pretype_ind_arity ~unconstrained_sorts ~poly:flags.poly env_params) sigma arities in
   let arities, relevances, template_syntax, indimpls = List.split4 arities in
 
   let lift_ctx n ctx =

@@ -235,13 +235,13 @@ type inference_flags = {
   fail_evar : bool;
   expand_evars : bool;
   program_mode : bool;
-  polymorphic : bool;
+  poly : PolyFlags.t;
   undeclared_evars_rr: bool;
   unconstrained_sorts : bool;
 }
 
 type pretype_flags = {
-  poly : bool;
+  poly : PolyFlags.t;
   resolve_tc : bool;
   program_mode : bool;
   use_coercions : bool;
@@ -1682,7 +1682,7 @@ let ise_pretype_gen (flags : inference_flags) env sigma lvar kind c =
   let pretype_flags = {
     program_mode = flags.program_mode;
     use_coercions = flags.use_coercions;
-    poly = flags.polymorphic;
+    poly = flags.poly;
     undeclared_evars_rr = flags.undeclared_evars_rr;
     unconstrained_sorts = flags.unconstrained_sorts;
     resolve_tc = match flags.use_typeclasses with
@@ -1716,7 +1716,7 @@ let default_inference_flags fail = {
   fail_evar = fail;
   expand_evars = true;
   program_mode = false;
-  polymorphic = false;
+  poly = PolyFlags.default;
   undeclared_evars_rr = false;
   unconstrained_sorts = false;
 }
@@ -1728,7 +1728,7 @@ let no_classes_no_fail_inference_flags = {
   fail_evar = false;
   expand_evars = true;
   program_mode = false;
-  polymorphic = false;
+  poly = PolyFlags.default;
   undeclared_evars_rr = false;
   unconstrained_sorts = false;
 }

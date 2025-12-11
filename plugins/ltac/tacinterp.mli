@@ -42,7 +42,7 @@ module TacStore : Store.S with
 (** Signature for interpretation: val\_interp and interpretation functions *)
 type interp_sign = Geninterp.interp_sign =
   { lfun : value Id.Map.t
-  ; poly : bool
+  ; poly : PolyFlags.t
   ; extra : TacStore.t }
 
 open Genintern

@@ -44,7 +44,7 @@ let rec fill_assumptions env sigma = function
 let start_deriving ~atts bl suchthat name : Declare.Proof.t =
 
   let scope, _local, poly, program_mode, user_warns, typing_flags, using, clearbody =
-    atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
+    atts.scope, atts.locality, atts.poly,  atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
   if program_mode then CErrors.user_err (Pp.str "Program mode not supported.");
 
   let env = Global.env () in
@@ -56,7 +56,8 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
   let locs = List.rev locs in
   let sigma, env', ctx' = fill_assumptions env sigma ctx' in
   let sigma = Evd.shelve sigma (List.map fst (Evar.Map.bindings (Evd.undefined_map sigma))) in
-  let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls env' sigma ~impls:impls_env suchthat in
+  let flags = { Pretyping.all_no_fail_flags with poly } in
+  let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls ~flags env' sigma ~impls:impls_env suchthat in
   (* create the initial goals for the proof: |- Type ; |- ?1 ; f:=?2 |- suchthat *)
   let goals =
     let open Proofview in
@@ -69,7 +70,7 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
             aux (EConstr.push_named d env) sigma ctx)) in
     aux env sigma ctx' in
   let kind = Decls.(IsDefinition Definition) in
-  let info = Declare.Info.make ~poly:(Attributes.is_universe_polymorphism ()) ~kind () in
+  let info = Declare.Info.make ~poly ~kind () in
   let extract_manual = function Some Impargs.{ impl_pos = (na,_,_); impl_expl = Manual; impl_max } -> Some (na, impl_max) | _ -> None in
   let cinfo =
     let open Declare.CInfo in

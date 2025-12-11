@@ -114,8 +114,8 @@ type t =
      list is empty when the proof is fully unfocused. *)
   ; name : Names.Id.t
   (** the name of the theorem whose proof is being constructed *)
-  ; poly : bool
-  (** polymorphism *)
+  ; poly : PolyFlags.t
+  (** Universe polymorphism *)
   ; typing_flags : Declarations.typing_flags option
   }
 
@@ -364,8 +364,8 @@ type data =
   (** A representation of the focus stack *)
   ; name : Names.Id.t
   (** The name of the theorem whose proof is being constructed *)
-  ; poly : bool
-  (** Locality, polymorphism, and "kind" [Coercion, Definition, etc...] *)
+  ; poly : PolyFlags.t
+  (** Universe polymorphism *)
   }
 
 let data { proofview; focus_stack; entry; name; poly } =

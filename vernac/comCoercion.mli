@@ -32,7 +32,7 @@ val try_add_new_coercion : GlobRef.t -> local:bool ->
    transparent constant which unfolds to some class [tg]; it declares
    an identity coercion from [cst] to [tg], named something like
    ["Id_cst_tg"] *)
-val try_add_new_coercion_subclass : ?loc:Loc.t -> cl_typ -> local:bool -> poly:bool ->
+val try_add_new_coercion_subclass : ?loc:Loc.t -> cl_typ -> local:bool -> poly:PolyFlags.t ->
   reversible:bool -> unit
 
 (** [try_add_new_coercion_with_source ref s src] declares [ref] as a coercion
@@ -46,11 +46,11 @@ val try_add_new_coercion_with_source : GlobRef.t -> local:bool ->
 val try_add_new_identity_coercion
   : lident
   -> local:bool
-  -> poly:bool -> source:cl_typ -> target:cl_typ -> unit
+  -> poly:PolyFlags.t -> source:cl_typ -> target:cl_typ -> unit
 
 val add_coercion_hook : reversible:bool -> Declare.Hook.t
 
-val add_subclass_hook : poly:bool -> reversible:bool -> Declare.Hook.t
+val add_subclass_hook : poly:PolyFlags.t -> reversible:bool -> Declare.Hook.t
 
 val class_of_global : GlobRef.t -> cl_typ
 

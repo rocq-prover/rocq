@@ -26,7 +26,7 @@ val existing_instance : ?loc:Loc.t -> Hints.hint_locality -> GlobRef.t -> Vernac
 
 val new_instance_interactive
   : locality:Hints.hint_locality
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
@@ -38,7 +38,7 @@ val new_instance_interactive
 
 val new_instance
   : locality:Hints.hint_locality
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
@@ -50,7 +50,7 @@ val new_instance
 val new_instance_program
   : locality:Hints.hint_locality
   -> pm:Declare.OblState.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
@@ -62,7 +62,7 @@ val new_instance_program
 val declare_new_instance
   : locality:Hints.hint_locality
   -> program_mode:bool
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> ident_decl
   -> local_binder_expr list
   -> constr_expr

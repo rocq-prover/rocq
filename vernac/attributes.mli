@@ -52,6 +52,7 @@ end
 val raw_attributes : vernac_flags attribute
 
 val polymorphic : bool attribute
+val poly : PolyFlags.assumption_or_definition -> PolyFlags.t attribute
 val program : bool attribute
 val template : bool option attribute
 val unfold_fix : bool attribute

@@ -135,7 +135,7 @@ let tactic_infer_flags with_evar = Pretyping.{
   fail_evar = not with_evar;
   expand_evars = true;
   program_mode = false;
-  polymorphic = false;
+  poly = PolyFlags.default;
   undeclared_evars_rr = false;
   unconstrained_sorts = false;
 }

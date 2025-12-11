@@ -33,8 +33,8 @@ val do_mutually_recursive
      (* Hide body if in sections *)
   -> kind:Decls.logical_kind
      (* Logical kind: Theorem, Definition, Fixpoint, etc.*)
-  -> poly:bool
-     (* Use universe polymorphism *)
+  -> poly:PolyFlags.t
+     (* Use universe /sort polymorphism and cumulativity *)
   -> ?typing_flags:Declarations.typing_flags
   -> ?user_warns:Globnames.extended_global_reference UserWarn.with_qf
      (* Warnings and deprecations *)

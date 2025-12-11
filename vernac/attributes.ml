@@ -294,6 +294,94 @@ let polymorphic =
   | Some b -> return b
   | None -> return (is_universe_polymorphism())
 
+let cumulative_inductive_option_name = ["Polymorphic"; "Inductive"; "Cumulativity"]
+let is_polymorphic_inductive_cumulativity =
+  let b = ref None in
+  let read () = match !b with None -> is_universe_polymorphism () | Some b -> b in
+  let write d =
+    if d && not (is_universe_polymorphism()) then
+      CErrors.user_err Pp.(str "Cannot set polymorphic inductive cumulativity status when not in universe polymorphism mode")
+    else b := Some d
+  in
+  let () = let open Goptions in
+    declare_bool_option
+      { optstage = Summary.Stage.Interp;
+        optdepr  = None;
+        optkey   = cumulative_inductive_option_name;
+        optread  = read;
+        optwrite = write }
+  in
+  read
+
+let cumulative_definitions_option_name = ["Polymorphic"; "Definitions"; "Cumulativity"]
+let is_polymorphic_definitions_cumulativity =
+  let b = ref None in
+  let read () = match !b with None -> is_universe_polymorphism () | Some b -> b in
+  let write d =
+    if d && not (is_universe_polymorphism()) then
+      CErrors.user_err Pp.(str "Cannot set polymorphic definitions cumulativity status when not in universe polymorphism mode")
+    else b := Some d
+  in
+  let () = let open Goptions in
+    declare_bool_option
+      { optstage = Summary.Stage.Interp;
+        optdepr  = None;
+        optkey   = cumulative_definitions_option_name;
+        optread  = read;
+        optwrite = write }
+  in
+  read
+
+let cumulative_assumptions_option_name = ["Polymorphic"; "Assumptions"; "Cumulativity"]
+let is_polymorphic_assumptions_cumulativity =
+  let b = ref false in
+  let () = let open Goptions in
+    declare_bool_option
+      { optstage = Summary.Stage.Interp;
+        optdepr  = None;
+        optkey   = cumulative_assumptions_option_name;
+        optread  = (fun () -> !b);
+        optwrite = (fun d -> b := d) }
+  in
+  fun () -> !b
+
+let cumulative assordef =
+  qualify_attribute ukey (bool_attribute ~name:"cumulative") >>= function
+  | Some b -> return b
+  | None ->
+    match assordef with
+    | PolyFlags.Assumption -> return (is_polymorphic_assumptions_cumulativity())
+    | PolyFlags.Inductive -> return (is_polymorphic_inductive_cumulativity())
+    | PolyFlags.Definition -> return (is_polymorphic_definitions_cumulativity())
+
+
+let sort_key = "sorts"
+
+let implicit_sort_polymorphism_option_name = ["Implicit"; "Sort"; "Polymorphism"]
+
+let is_implicit_sort_polymorphism =
+  let b = ref false in
+  let write d =
+    if d && not (is_universe_polymorphism()) then
+      CErrors.user_err Pp.(str "Cannot set polymorphic definitions implicit sort polymorphism status when not in universe polymorphism mode")
+    else b := d
+  in
+
+  let () = let open Goptions in
+    declare_bool_option
+      { optstage = Summary.Stage.Interp;
+        optdepr  = None;
+        optkey   = implicit_sort_polymorphism_option_name;
+        optread  = (fun () -> !b);
+        optwrite = write }
+  in
+  fun () -> !b
+
+let implicit_sort_polymorphic =
+  qualify_attribute sort_key (bool_attribute ~name:"implicit_sort_polymorphic") >>= function
+  | Some b -> return b
+  | None -> return (is_implicit_sort_polymorphism())
+
 let template =
   qualify_attribute ukey
     (bool_attribute ~name:"template")
@@ -450,3 +538,9 @@ let bind_scope_where =
   ]
 
 let raw_attributes : _ attribute = fun flags -> [], flags
+
+let poly assordef atts =
+  let f, ((level_polymorphic, cumulative), implicit_sort_polymorphic) =
+    Notations.(polymorphic ++ cumulative assordef ++ implicit_sort_polymorphic) atts
+  in
+  f, PolyFlags.make ~level_polymorphic ~cumulative ~implicit_sort_polymorphic

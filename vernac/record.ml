@@ -46,7 +46,7 @@ let { Goptions.get = typeclasses_default_mode } =
     ~value:Hints.ModeOutput
     ()
 
-let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
+let interp_fields_evars ~poly env sigma ~ninds ~nparams impls_env nots l =
   let _, sigma, impls, locs, newfs, _ =
     List.fold_left2
       (fun (env, sigma, uimpls, locs, params, impls_env) no d ->
@@ -57,11 +57,11 @@ let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
              (* before the one of t otherwise (see #13166) *)
              let t = if bl = [] then t else mkCProdN bl t in
              let sigma, t, impl =
-               ComAssumption.interp_assumption ~program_mode:false env sigma impls_env [] t in
+               ComAssumption.interp_assumption ~program_mode:false ~poly env sigma impls_env [] t in
              sigma, (id, None, t), impl, loc
            | Vernacexpr.DefExpr({CAst.v=id; loc},bl,b,t) ->
              let sigma, (b, t), impl =
-               ComDefinition.interp_definition ~program_mode:false env sigma impls_env bl None b t in
+               ComDefinition.interp_definition ~program_mode:false ~poly env sigma impls_env bl None b t in
              let t = match t with Some t -> t | None -> Retyping.get_type_of env sigma b in
              sigma, (id, Some b, t), impl, loc
          in
@@ -337,7 +337,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
      any Set <= i constraint for universes that might actually be instantiated with Prop. *)
   let is_template =
     List.exists (fun { DataI.arity; _} -> Option.cata check_anonymous_type true arity) records in
-  let unconstrained_sorts = not flags.poly && not def && is_template in
+  let unconstrained_sorts = not (PolyFlags.is_polymorphic flags.poly) && not def && is_template in
   let sigma, udecl, variances = Constrintern.interp_cumul_univ_decl_opt env0 udecl in
   let () = List.iter check_parameters_must_be_named params in
   let sigma, (impls_env, ((_env1,params), impls, _paramlocs)) =
@@ -358,7 +358,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
   let ninds = List.length arities in
   let nparams = List.length params in
   let fold sigma { DataI.nots; fs; _ } =
-    interp_fields_evars env_ar_params sigma ~ninds ~nparams impls_env nots fs
+    interp_fields_evars ~poly:flags.poly env_ar_params sigma ~ninds ~nparams impls_env nots fs
   in
   let (sigma, fields) = List.fold_left_map fold sigma records in
   let field_impls, locs, fields = List.split3 fields in
@@ -720,6 +720,7 @@ module Record_decl = struct
     records : Data.t list;
     projections_kind : Decls.definition_object_kind;
     indlocs : DeclareInd.indlocs;
+    poly : PolyFlags.t
   }
 end
 
@@ -811,12 +812,13 @@ let pre_process_structure udecl kind ~flags ~primitive_proj (records : Ast.t lis
     Decls.(match kind_class kind with NotClass -> StructureComponent | _ -> Method) in
   entry, projections_kind, decl_data, indlocs
 
-let interp_structure_core (entry:RecordEntry.t) ~projections_kind ~indlocs data =
+let interp_structure_core (entry:RecordEntry.t) ~projections_kind ~indlocs ~poly data =
   let open Record_decl in
   { entry;
     projections_kind;
     records = data;
     indlocs;
+    poly
   }
 
 let interp_structure ~flags udecl kind ~primitive_proj records =
@@ -826,7 +828,7 @@ let interp_structure ~flags udecl kind ~primitive_proj records =
   match entry with
   | DefclassEntry _ -> assert false
   | RecordEntry entry ->
-    interp_structure_core entry ~projections_kind ~indlocs data
+    interp_structure_core entry ~projections_kind ~indlocs ~poly:flags.poly data
 
 module Declared = struct
   type t =
@@ -1074,7 +1076,8 @@ let definition_structure ~flags udecl kind ~primitive_proj (records : Ast.t list
       let data = match data with [x] -> x | _ -> assert false in
       declare_class_constant entry data
     | RecordEntry entry ->
-      let structure = interp_structure_core entry ~projections_kind ~indlocs data in
+       let structure = interp_structure_core entry ~projections_kind ~indlocs
+                         ~poly:flags.poly data in
       declare_structure structure ~schemes:flags.schemes
   in
   if kind_class kind <> NotClass then declare_class ~mode:flags.mode declared;

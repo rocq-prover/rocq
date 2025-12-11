@@ -25,7 +25,7 @@ let tactic_infer_flags with_evar = Pretyping.{
   fail_evar = not with_evar;
   expand_evars = true;
   program_mode = false;
-  polymorphic = false;
+  poly = PolyFlags.default;
   undeclared_evars_rr = false;
   unconstrained_sorts = false;
 }
@@ -33,7 +33,7 @@ let tactic_infer_flags with_evar = Pretyping.{
 (** FIXME: export a better interface in Tactics *)
 let delayed_of_tactic tac env sigma =
   let _, pv = Proofview.init sigma [] in
-  let name, poly = Id.of_string "ltac2_delayed", false in
+  let name, poly = Id.of_string "ltac2_delayed", PolyFlags.default in
   let c, pv, _, _, _ = Proofview.apply ~name ~poly env tac pv in
   let _, sigma = Proofview.proofview pv in
   (sigma, c)
