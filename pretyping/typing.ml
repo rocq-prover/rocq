@@ -71,7 +71,7 @@ let fresh_template_context env0 sigma ind (mib, _ as spec) ?(refresh_all=false) 
   freshen 0 env0 sigma [] [] ctx
 
 let get_template_parameters env sigma ind ?refresh_all args =
-  let spec = Inductive.lookup_mind_specif env ind in
+  let spec = lookup_mind_specif env ind in
   fresh_template_context env sigma ind spec ?refresh_all args
 
 let type_judgment env sigma j =
@@ -136,7 +136,7 @@ let judge_of_applied ~check env sigma funj argjv =
   sigma, { uj_val = (mkApp (j_val funj, Array.map j_val argjv)); uj_type = typ }
 
 let judge_of_applied_inductive_knowing_parameters ~check env sigma (ind, u) argjv =
-  let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
+  let (mib,_ as specif) = lookup_mind_specif env ind in
   let () = if check then Reductionops.check_hyps_inclusion env sigma (GR.IndRef ind) mib.mind_hyps in
   let sigma, paramstyp = fresh_template_context env sigma ind specif argjv in
   let u0 = EInstance.kind sigma u in
@@ -146,7 +146,7 @@ let judge_of_applied_inductive_knowing_parameters ~check env sigma (ind, u) argj
   judge_of_applied ~check env sigma funj argjv
 
 let judge_of_applied_constructor_knowing_parameters ~check env sigma ((ind, _ as cstr), u) argjv =
-  let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
+  let (mib,_ as specif) = lookup_mind_specif env ind in
   let () = if check then Reductionops.check_hyps_inclusion env sigma (GR.IndRef ind) mib.mind_hyps in
   let sigma, paramstyp = fresh_template_context env sigma ind specif argjv in
   let u0 = EInstance.kind sigma u in
@@ -426,7 +426,7 @@ let type_of_constant env sigma (c,u) =
 
 let type_of_inductive env sigma (ind,u) =
   let open Declarations in
-  let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
+  let (mib,_ as specif) = lookup_mind_specif env ind in
   let () = Reductionops.check_hyps_inclusion env sigma (GR.IndRef ind) mib.mind_hyps in
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_inductive (specif,u) in
@@ -435,7 +435,7 @@ let type_of_inductive env sigma (ind,u) =
 
 let type_of_constructor env sigma ((ind,_ as ctor),u) =
   let open Declarations in
-  let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
+  let (mib,_ as specif) = lookup_mind_specif env ind in
   let () = Reductionops.check_hyps_inclusion env sigma (GR.IndRef ind) mib.mind_hyps in
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_constructor (ctor,u) specif in
@@ -565,9 +565,9 @@ let rec execute env sigma cstr =
         let sigma, ty = type_of_constructor env sigma ctor in
         sigma, make_judge cstr ty
 
-    | Case (ci, u, pms, p, iv, c, lf) ->
-        let case = (ci, u, pms, p, iv, c, lf) in
-        let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
+    | Case (ci, u, pms, (p, rp), iv, c, lf) ->
+        let case = (ci, u, pms, (p, rp), iv, c, lf) in
+        let lf, p = EConstr.case_expand env (ci.ci_ind, u) pms p lf in
         let sigma, cj = execute env sigma c in
         let sigma, pj = execute env sigma p in
         let sigma, lfj = execute_array env sigma lf in
@@ -789,11 +789,11 @@ let rec recheck_against env sigma good c =
     | _, (Evar _ | Fix _ | CoFix _ | LetIn _ | Array _) ->
      default ()
 
-    | Case (gci, gu, gpms, gp, giv, gc, glf),
-      Case (ci, u, pms, p, iv, c, lf) ->
-      let (gci, (gp,_), giv, gc, glf) = EConstr.expand_case env sigma (gci, gu, gpms, gp, giv, gc, glf) in
-      let case = (ci, u, pms, p, iv, c, lf) in
-      let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
+    | Case (gci, gu, gpms, (gp, _), giv, gc, glf),
+      Case (ci, u, pms, (p, rp), iv, c, lf) ->
+      let glf, gp = EConstr.case_expand env (gci.ci_ind, gu) gpms gp glf in
+      let case = (ci, u, pms, (p, rp), iv, c, lf) in
+      let lf, p = EConstr.case_expand env (ci.ci_ind, u) pms p lf in
       let sigma, changedc, cj = recheck_against env sigma gc c in
       let sigma, changedp, pj = recheck_against env sigma gp p in
       let (sigma, changedlf), lfj =

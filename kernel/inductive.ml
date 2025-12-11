@@ -23,12 +23,7 @@ open Type_errors
 open Context.Rel.Declaration
 open Sorts
 
-(* raises an anomaly if not an inductive type *)
-let lookup_mind_specif env (kn,tyi) =
-  let mib = Environ.lookup_mind kn env in
-  if tyi >= Array.length mib.mind_packets then
-    user_err Pp.(str "Inductive.lookup_mind_specif: invalid inductive index");
-  (mib, mib.mind_packets.(tyi))
+let lookup_mind_specif = Environ.lookup_mind_specif
 
 let find_rectype ?evars env c =
   let (t, l) = decompose_app_list (whd_all ?evars env c) in
@@ -482,53 +477,72 @@ let is_primitive_record (_,mip) =
 
 (** {6 Changes of representation of Case nodes} *)
 
-(** Provided:
-    - a universe instance [u]
-    - a term substitution [subst]
-    - name replacements [nas]
-    [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
-    while replacing names using [nas] (order reversed)
-*)
-let instantiate_context = Environ.instantiate_context
+let instantiate_context = Declareops.instantiate_context
 
-let expand_arity = Environ.expand_arity
+let expand_arity (mib, mip) (ind, u) params nas =
+  let ps = Declareops.case_parameter_context_specif mib u params in
+  Declareops.case_arity_context_specif mip ps (ind, u) nas
 
-let expand_branch_contexts = Environ.expand_branch_contexts
+let expand_branch_contexts (mib, mip) u params br =
+  let ps = Declareops.case_parameter_context_specif mib u params in
+  let build_one_branch i =
+    Declareops.case_branch_context_specif mip ps u (fst br.(i)) i
+  in
+  Array.init (Array.length br) build_one_branch
 
 type ('constr,'types,'r) pexpanded_case =
   (case_info * ('constr * 'r) * 'constr pcase_invert * 'constr * 'constr array)
 
 type expanded_case = (constr,types,Sorts.relevance) pexpanded_case
 
-let expand_case_specif mib (ci, u, params, (p,rp), iv, c, br) =
-  (* Γ ⊢ c : I@{u} params args *)
-  (* Γ, indices, self : I@{u} params indices ⊢ p : Type *)
-  let mip = mib.mind_packets.(snd ci.ci_ind) in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-  (* Expand the return clause *)
-  let ep =
-    let (nas, p) = p in
-    let realdecls = expand_arity (mib, mip) (ci.ci_ind, u) params nas in
-    Term.it_mkLambda_or_LetIn p realdecls
+let expand_case_specif mib (ci, u, params, ((nas, p),rp), iv, c, br) =
+  let ps = Declareops.case_parameter_context_specif mib u params in
+  let ind = ci.ci_ind in
+  let mip = mib.mind_packets.(snd ind) in
+  let build_one_branch i =
+    Term.it_mkLambda_or_LetIn
+      (snd br.(i))
+      (Declareops.case_branch_context_specif mip ps u (fst br.(i)) i)
   in
-  (* Expand the branches *)
-  let ebr =
-    let build_one_branch i (nas, br) (ctx, _) =
-      let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
-      let ctx = instantiate_context u paramsubst nas ctx in
-      Term.it_mkLambda_or_LetIn br ctx
-    in
-    Array.map2_i build_one_branch br mip.mind_nf_lc
-  in
-  (ci, (ep,rp), iv, c, ebr)
+  ci,
+  (Term.it_mkLambda_or_LetIn p (Declareops.case_arity_context_specif mip ps (ind, u) nas), rp),
+  iv,
+  c,
+  Array.init (Array.length br) build_one_branch
 
-let expand_case env (ci, _, _, _, _, _, _ as case) =
-  let specif = Environ.lookup_mind (fst ci.ci_ind) env in
-  expand_case_specif specif case
+let case_expand_contexts env indu =
+  Declareops.case_expand_contexts_specif (lookup_mind_specif env (fst indu)) indu
+
+let case_branch_context env (ind, u) pms =
+  let mib, mip = lookup_mind_specif env ind in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  Declareops.case_branch_context_specif mip ps u
+
+let case_map_branches env (ind, u) pms bl f =
+  let mib, mip = lookup_mind_specif env ind in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  let build_one_branch i =
+    f (case_branch_context_specif mip ps u (fst bl.(i)) i) bl.(i)
+  in
+  Array.init (Array.length bl) build_one_branch
+
+let case_expand env (ind, u) pms (nas, p) bl =
+  let mib, mip = lookup_mind_specif env ind in
+  let ps = Declareops.case_parameter_context_specif mib u pms in
+  let build_one_branch i =
+    Term.it_mkLambda_or_LetIn
+      (snd bl.(i))
+      (Declareops.case_branch_context_specif mip ps u (fst bl.(i)) i)
+  in
+  Array.init (Array.length bl) build_one_branch,
+  Term.it_mkLambda_or_LetIn p (Declareops.case_arity_context_specif mip ps (ind, u) nas)
+
+let expand_case env (ci, u, pms, (p, rp), iv, c, br) =
+  let br, p = case_expand env (ci.ci_ind, u) pms p br in
+  ci, (p, rp), iv, c, br
 
 let contract_case env (ci, (p,rp), iv, c, br) =
-  let (mib, mip) = lookup_mind_specif env ci.ci_ind in
+  let mib, mip = lookup_mind_specif env ci.ci_ind in
   let (arity, p) = Term.decompose_lambda_n_decls (mip.mind_nrealdecls + 1) p in
   let (u, pms) = match arity with
   | LocalAssum (_, ty) :: _ ->
@@ -1103,8 +1117,8 @@ let rec subterm_specif cache ?evars renv stack t =
   let f,l = decompose_app_list (whd_all ?evars renv.env t) in
     match kind f with
     | Rel k -> subterm_var k renv
-    | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
-      let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
+    | Case (ci, u, pms, (p, _), _, c, lbr) -> (* iv ignored: it's just a cache *)
+      let lbr, p = case_expand renv.env (ci.ci_ind, u) pms p lbr in
       let stack' = push_stack_closures renv l stack in
       let stack' = filter_stack_domain cache stack_element_specif Fun.id ?evars renv.env p stack' in
       let cases_spec =
@@ -1405,8 +1419,8 @@ let check_one_fix cache ?evars renv recpos trees def =
                 | LocalAssum _ -> None
                 | LocalDef (_,c,_) -> Some (lift p c, []))
 
-        | Case (ci, u, pms, ret, iv, c_0, br) -> (* iv ignored: it's just a cache *)
-            let (ci, (p,_), _iv, c_0, brs) = expand_case renv.env (ci, u, pms, ret, iv, c_0, br) in
+        | Case (ci, u, pms, (ret, _), _, c_0, br) -> (* iv ignored: it's just a cache *)
+            let brs, p = case_expand renv.env (ci.ci_ind, u) pms ret br in
             let needreduce_c_0, rs = check_rec_call renv rs c_0 in
             let rs = check_inert_subterm_rec_call renv rs p in
             (* compute the recarg info for the arguments of each branch *)
@@ -1660,7 +1674,7 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
                   try find_inductive ?evars env a
                   with Not_found ->
                     raise_err env i (RecursionNotOnInductiveType a) in
-                let mib,_ = lookup_mind_specif env (out_punivs mind) in
+                let mib = lookup_mind (fst (out_punivs mind)) env in
                 if mib.mind_finite != Finite then
                   raise_err env i (RecursionNotOnInductiveType a);
                 (mind, (env', b))
@@ -1789,9 +1803,9 @@ let check_one_cofix cache ?evars env nbfix def deftype =
             else
               raise (CoFixGuardError (env,UnguardedRecursiveCall c))
 
-        | Case (ci, u, pms, p, iv, tm, br) -> (* iv ignored: just a cache *)
+        | Case (ci, u, pms, (p, _), _, tm, br) -> (* iv ignored: just a cache *)
           begin
-            let (_, (p,_), _iv, tm, vrest) = expand_case env (ci, u, pms, p, iv, tm, br) in
+            let vrest, p = case_expand env (ci.ci_ind, u) pms p br in
             let tree = match restrict_spec cache ?evars env (Subterm (Int.Set.empty, Strict, tree)) p with
             | Dead_code -> assert false
             | Subterm (_, _, tree') -> tree'

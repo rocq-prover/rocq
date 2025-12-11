@@ -240,8 +240,8 @@ let retype ?metas ?(polyprop=true) sigma =
       end
     | Ind ind -> Inductiveops.e_type_of_inductive env sigma ind
     | Construct c -> Inductiveops.e_type_of_constructor env sigma c
-    | Case (ci,u,pms,p,iv,c,lf) ->
-        let (_,(p,_),iv,c,lf) = EConstr.expand_case env sigma (ci,u,pms,p,iv,c,lf) in
+    | Case (ci,u,pms,((nas,p),_),iv,c,lf) ->
+        let p = EConstr.it_mkLambda_or_LetIn p (EConstr.case_arity_context env (ci.ci_ind,u) pms nas) in
         let Inductiveops.IndType(indf,realargs) =
           let t = type_of env c in
           try Inductiveops.find_rectype env sigma t
@@ -306,7 +306,7 @@ let retype ?metas ?(polyprop=true) sigma =
       let ty = type_of_global_reference_knowing_parameters env c args in
       strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
     | Construct ((ind, i as ctor), u) ->
-      let mib, mip = Inductive.lookup_mind_specif env ind in
+      let mib, mip = lookup_mind_specif env ind in
       let ty =
         if mib.mind_nparams <= Array.length args then
         (* Fully applied parameters, we do not have to substitute *)

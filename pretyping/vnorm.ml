@@ -101,7 +101,7 @@ let construct_of_constr_const env sigma tag typ =
 let construct_of_constr_block = construct_of_constr false
 
 let type_of_ind env (ind, u) =
-  type_of_inductive (Inductive.lookup_mind_specif env ind, u)
+  type_of_inductive (lookup_mind_specif env ind, u)
 
 let get_case_annot decls =
   Array.map_of_list (fun decl -> get_annot decl) (List.rev decls)
@@ -282,13 +282,14 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
   | Zswitch sw :: stk ->
       assert (from = 0) ;
       let ((mind,_ as ind), u), allargs = find_rectype_a env sigma (EConstr.of_constr t) in
-      let (mib,mip) = Inductive.lookup_mind_specif env ind in
+      let mib, mip = lookup_mind_specif env ind in
       let nparams = mib.mind_nparams in
       let params,realargs = Util.Array.chop nparams allargs in
       let pctx =
-        let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        let realdecls = List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt in
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
-        expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
+        let params = Declareops.case_parameter_context_specif mib u params in
+        Declareops.case_arity_context_specif mip params (ind, u) (Array.of_list nas)
       in
       let p, relevance = nf_predicate env sigma (ind,u) mip params (type_of_switch sw) pctx in
       (* Calcul du type des branches *)
@@ -314,7 +315,7 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
   | Zproj p :: stk ->
     let () = assert (from = 0) in
     let ((ind, u), args) = Inductiveops.find_mrectype env sigma (EConstr.of_constr t) in
-    let (mib, mip) = Inductive.lookup_mind_specif env ind in
+    let mib, mip = lookup_mind_specif env ind in
     let pars = List.firstn mib.mind_nparams args in
     let ty = match mip.mind_record with
     | NotRecord | FakeRecord -> assert false

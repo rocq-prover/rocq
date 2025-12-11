@@ -378,13 +378,14 @@ let make_case_or_projections naming_vars mdecl ind indb u key_uparams key_nupara
                  let branch a b = branch a b state in
                  return @@ Array.mapi branch indb.mind_nf_lc in
 
-  let* case_info, pred, case_invert, c, branches =
+  let* branches, pred =
     let* env = get_env in
     let* sigma = get_sigma in
-    let* case_pred = case_pred in
+    let* case_pred, r = case_pred in
     let* branches = branches in
-      return @@ EConstr.expand_case env sigma (case_info, u, params, case_pred, case_invert, tm_match, branches) in
+    let branches, case_pred = EConstr.case_expand env (case_info.ci_ind, u) params case_pred branches in
+    return (branches, (case_pred, r)) in
 
   let* env = get_env in
   let* sigma = get_sigma in
-  return @@ Inductiveops.simple_make_case_or_project env sigma case_info pred case_invert c branches
+  return @@ Inductiveops.simple_make_case_or_project env sigma case_info pred case_invert tm_match branches

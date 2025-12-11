@@ -10,10 +10,25 @@
 
 open Declarations
 open Mod_subst
+open Names
+open Constr
 open UVars
 
 (** Operations concerning types in [Declarations] :
     [constant_body], [mutual_inductive_body], [module_body] ... *)
+
+(** {5 Utilities to build the rel_context of a Case} *)
+
+val case_expand_contexts_specif : mind_specif -> pinductive -> constr array -> Name.t binder_annot array -> case_branch array -> rel_context array * rel_context
+val case_parameter_context_specif : mutual_inductive_body -> Instance.t -> constr array -> Vars.substl
+val case_branch_context_specif : one_inductive_body -> Vars.substl -> Instance.t -> Name.t binder_annot array -> int -> rel_context
+(* 0 indexed constructor, so given Construct (sp, n) the number to give is n - 1 *)
+val case_arity_context_specif : one_inductive_body -> Vars.substl -> pinductive -> Name.t binder_annot array -> rel_context
+
+val instantiate_context : Instance.t -> Vars.substl -> Name.t binder_annot array -> rel_context -> rel_context
+(** [instantiate_context u subst nas ctx] applies both [u] and [subst]
+    to [ctx] while replacing names using [nas] (order reversed). In particular,
+    assumes that [ctx] and [nas] have the same length. *)
 
 val universes_context : universes -> AbstractContext.t
 

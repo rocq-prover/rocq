@@ -951,7 +951,7 @@ let compute_case_signature env mind dep names_info =
     (OtherArg, false, not (CVars.noccurn 1 c)) :: check_branch c
   | _ -> []
   in
-  let (mib, mip) = Inductive.lookup_mind_specif env mind in
+  let mib, mip = lookup_mind_specif env mind in
   let find_branches k =
     let (ctx, typ) = mip.mind_nf_lc.(k) in
     let argctx = List.firstn mip.mind_consnrealdecls.(k) ctx in

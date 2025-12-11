@@ -618,13 +618,13 @@ let type_of_global_in_context env r =
     let univs = Declareops.constant_polymorphic_context cb in
     cb.Declarations.const_type, univs
   | IndRef ind ->
-    let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
+    let (mib,_ as specif) = lookup_mind_specif env ind in
     let univs = Declareops.inductive_polymorphic_context mib in
     let inst = UVars.make_abstract_instance univs in
     Inductive.type_of_inductive (specif, inst), univs
   | ConstructRef cstr ->
     let (mib,_ as specif) =
-      Inductive.lookup_mind_specif env (inductive_of_constructor cstr)
+      lookup_mind_specif env (inductive_of_constructor cstr)
     in
     let univs = Declareops.inductive_polymorphic_context mib in
     let inst = UVars.make_abstract_instance univs in
@@ -761,7 +761,7 @@ and execute_aux tbl env cstr =
 
         in
         let () = check_mind env (fst ci.ci_ind) in
-        let mib, mip = Inductive.lookup_mind_specif env ci.ci_ind in
+        let mib, mip = lookup_mind_specif env ci.ci_ind in
         let pmst = execute_array tbl env pms in
         let pms = Array.map self pms in
         let cst, params = match mib.mind_template with

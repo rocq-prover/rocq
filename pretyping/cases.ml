@@ -331,7 +331,7 @@ let try_find_ind env sigma typ realnames =
   let (IndType(indf,realargs) as ind) = find_rectype env sigma typ in
   let () =
     let (ind, _), _ = Inductiveops.dest_ind_family indf in
-    let specif = Inductive.lookup_mind_specif env ind in
+    let specif = lookup_mind_specif env ind in
     if Inductive.is_private specif then raise Not_found
   in
   let names =
@@ -1263,7 +1263,7 @@ let rec irrefutable env pat = match DAst.get pat with
   | PatVar name -> true
   | PatCstr (cstr,args,_) ->
       let ind = inductive_of_constructor cstr in
-      let (_,mip) = Inductive.lookup_mind_specif env ind in
+      let _, mip = lookup_mind_specif env ind in
       let one_constr = Int.equal (Array.length mip.mind_user_lc) 1 in
       one_constr && List.for_all (irrefutable env) args
 
@@ -2113,7 +2113,7 @@ let expected_elimination_sorts env sigma tomatchl =
       | NotInd _ -> None
       | IsInd (_,IndType(indf,_),_) ->
         let (ind, u), _ = dest_ind_family indf in
-        Inductiveops.is_squashed sigma (Inductive.lookup_mind_specif env ind, u))
+        Inductiveops.is_squashed sigma (lookup_mind_specif env ind, u))
     tomatchl
 
 (* Builds the predicate. If the predicate is dependent, its context is

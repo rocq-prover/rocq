@@ -611,7 +611,7 @@ let drop_local_defs params decls args =
     aux decls args
 
 let add_patterns_for_params_remove_local_defs env (ind,j) l =
-  let (mib,mip) = Inductive.lookup_mind_specif env ind in
+  let mib, mip = Environ.lookup_mind_specif env ind in
   let nparams = mib.Declarations.mind_nparams in
   let l =
     if mip.mind_consnrealdecls.(j-1) = mip.mind_consnrealargs.(j-1) then

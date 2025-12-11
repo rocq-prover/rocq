@@ -25,7 +25,7 @@ type template_arity =
   | IndType of Declarations.template_universes * rel_context * Sorts.t
 
 let get_template_arity env ind ~ctoropt =
-  let mib, mip = Inductive.lookup_mind_specif env ind in
+  let mib, mip = Environ.lookup_mind_specif env ind in
   let template = match mib.mind_template with
     | None -> assert false
     | Some t -> t

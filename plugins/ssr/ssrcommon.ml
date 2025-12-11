@@ -776,7 +776,7 @@ let saturate ?(beta=false) ?(bi_types=false) env sigma c ?ty m =
         begin match EConstr.kind sigma c with
         | Ind (ind,_) ->
           let sigma, univs = Typing.get_template_parameters env sigma ind ~refresh_all:true [||] in
-          let specif = Inductive.lookup_mind_specif env ind in
+          let specif = Environ.lookup_mind_specif env ind in
           let typ, csts = Inductive.type_of_inductive_knowing_parameters
               (specif,UVars.Instance.empty)
               univs
@@ -785,7 +785,7 @@ let saturate ?(beta=false) ?(bi_types=false) env sigma c ?ty m =
           sigma, EConstr.of_constr typ
         | Construct ((ind,_ as ctor),_) ->
           let sigma, univs = Typing.get_template_parameters env sigma ind ~refresh_all:true [||] in
-          let specif = Inductive.lookup_mind_specif env ind in
+          let specif = Environ.lookup_mind_specif env ind in
           let typ, csts = Inductive.type_of_constructor_knowing_parameters
               (ctor,UVars.Instance.empty)
               specif

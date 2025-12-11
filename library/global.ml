@@ -170,8 +170,8 @@ let named_context_val () = Environ.named_context_val (env())
 
 let lookup_named id = Environ.lookup_named id (env())
 let lookup_constant kn = Environ.lookup_constant kn (env())
-let lookup_inductive ind = Inductive.lookup_mind_specif (env()) ind
-let lookup_pinductive (ind,_) = Inductive.lookup_mind_specif (env()) ind
+let lookup_inductive ind = Environ.lookup_mind_specif (env()) ind
+let lookup_pinductive (ind,_) = Environ.lookup_mind_specif (env()) ind
 let lookup_mind kn = Environ.lookup_mind kn (env())
 
 let lookup_module mp = Environ.lookup_module mp (env())

@@ -250,6 +250,10 @@ val add_mind : MutInd.t -> mutual_inductive_body -> env -> env
    raises an anomaly if the required path is not found *)
 val lookup_mind : MutInd.t -> env -> mutual_inductive_body
 
+(** Fetching information in the environment about an inductive type.
+    Raises an anomaly if the inductive type is not found. *)
+val lookup_mind_specif : env -> inductive -> mind_specif
+
 val mem_mind : MutInd.t -> env -> bool
 
 val ind_relevance : inductive -> env -> Sorts.relevance
@@ -275,6 +279,7 @@ val template_polymorphic_pind : pinductive -> env -> bool
     less general type to make it easy to use this function on Case nodes. *)
 val expand_arity : Declarations.mind_specif -> pinductive -> constr array ->
   Name.t binder_annot array -> rel_context
+[@@deprecated "(9.1) Use [case_arity_context_specif] in Declareops"]
 
 (** Given an inductive type and its parameters, builds the context of the return
     clause, including the inductive being eliminated. The additional binder
@@ -282,12 +287,14 @@ val expand_arity : Declarations.mind_specif -> pinductive -> constr array ->
     less general type to make it easy to use this function on Case nodes. *)
 val expand_branch_contexts : Declarations.mind_specif -> UVars.Instance.t -> constr array ->
   (Name.t binder_annot array * 'a) array -> rel_context array
+[@@deprecated "(9.1) Use [case_map_branches] in Inducive or [case_branch_context_specif] in Declareops"]
 
 (** [instantiate_context u subst nas ctx] applies both [u] and [subst]
   to [ctx] while replacing names using [nas] (order reversed). In particular,
   assumes that [ctx] and [nas] have the same length. *)
 val instantiate_context : UVars.Instance.t -> Vars.substl -> Name.t binder_annot array ->
   rel_context -> rel_context
+[@@deprecated "(9.1) Use [instantiate_context] in Inductive"]
 
 
 (** {6 Name quotients} *)

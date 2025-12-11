@@ -1522,7 +1522,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
           funs_constr graphs_constr
       in
       let ((kn, _) as graph_ind), u = destInd !evd graphs_constr.(0) in
-      let mib, _mip = Inductive.lookup_mind_specif env graph_ind in
+      let mib = Environ.lookup_mind (fst graph_ind) env in
       let sigma, scheme =
         let sigma, inds = CArray.fold_left_map_i (fun i sigma _ ->
             let sigma, s = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma UnivGen.QualityOrSet.qtype in

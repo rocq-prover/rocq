@@ -149,7 +149,7 @@ let type_of_global_ref gr =
       let knd = try Decls.variable_kind v with Not_found -> IsDefinition Definition in
       "var" ^ type_of_logical_kind knd
     | IndRef ind ->
-        let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
+        let (mib,oib) = Environ.lookup_mind_specif (Global.env ()) ind in
           if oib.Declarations.mind_record <> Declarations.NotRecord then
             begin match mib.Declarations.mind_finite with
             | Finite -> "indrec"

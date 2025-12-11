@@ -923,20 +923,16 @@ let make_leibniz_proof env c ty r =
       rew_from = subst1 r.rew_from c; rew_to = subst1 r.rew_to c; rew_prf = prf }
 
 let fold_match ?(force=false) env sigma c =
-  let case = destCase sigma c in
-  let (ci, (p,_), iv, c, brs) = EConstr.expand_case env sigma case in
+  let ci, u, pms, ((nas, p), r), iv, c, brs = destCase sigma c in
+  let brsctx, pctx = EConstr.case_expand_contexts env (ci.ci_ind, u) pms nas brs in
   let cty = Retyping.get_type_of env sigma c in
   let dep, pred, sk =
-    let env', ctx, body =
-      let ctx, pred = decompose_lambda_decls sigma p in
-      let env' = push_rel_context ctx env in
-        env', ctx, pred
-    in
-    let sortp = Retyping.get_sort_quality_of env' sigma body in
+    let env' = push_rel_context pctx env in
+    let sortp = Retyping.get_sort_quality_of env' sigma p in
     let sortc = Retyping.get_sort_quality_of env sigma cty in
-    let dep = not (noccurn sigma 1 body) in
+    let dep = not (noccurn sigma 1 p) in
     let pred = if dep then p else
-        it_mkProd_or_LetIn (subst1 mkProp body) (List.tl ctx)
+        it_mkProd_or_LetIn (subst1 mkProp p) (List.tl pctx)
     in
     let sk =
       (* not sure how correct this is *)
@@ -964,8 +960,11 @@ let fold_match ?(force=false) env sigma c =
     in
     let ind, args = Inductiveops.find_mrectype env sigma cty in
     let pars, args = List.chop ci.ci_npar args in
-    let meths = Array.to_list brs in
-      applist (sk, pars @ [pred] @ meths @ args @ [c])
+    let meths =
+      List.init (Array.length brs)
+        (fun i -> it_mkLambda_or_LetIn (snd brs.(i)) brsctx.(i))
+    in
+    applist (sk, pars @ [pred] @ meths @ args @ [c])
   in
     sk, app
 
@@ -1195,8 +1194,8 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
           | Fail | Identity -> b'
         in state, res
 
-      | Case (ci, u, pms, p, iv, c, brs) ->
-        let (ci, (p,rp), iv, c, brs) = EConstr.expand_case env (goalevars evars) (ci, u, pms, p, iv, c, brs) in
+      | Case (ci, u, pms, (p, rp), iv, c, brs) ->
+        let brs, p = EConstr.case_expand env (ci.ci_ind, u) pms p brs in
         let cty = Retyping.get_type_of env (goalevars evars) c in
         let evars', eqty = app_poly_sort prop env evars rocq_eq [| cty |] in
         let cstr' = Some eqty in
