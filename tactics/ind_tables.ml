@@ -215,7 +215,9 @@ let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i a
     | Some id -> id
     | None -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff) in
   let role = Evd.Schema (ind, kind) in
-  let const, eff = define ?loc internal role id c (Declareops.inductive_is_polymorphic mib) ctx eff in
+  let poly, cumulative = Declareops.inductive_is_polymorphic mib, Declareops.inductive_is_cumulative mib in
+  let poly = PolyFlags.make ~univ_poly:poly ~cumulative ~collapse_sort_variables:true in
+  let const, eff = define ?loc internal role id c poly ctx eff in
   const, eff
 
 and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
@@ -239,7 +241,9 @@ and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~interna
   let fold i effs id cl =
     let role = Evd.Schema ((mind, i), kind)in
     let loc = Locmap.lookup ~locmap (mind,i) in
-    let cst, effs = define ?loc internal role id cl (Declareops.inductive_is_polymorphic mib) ctx effs in
+    (* FIXME cumulativity not supported? *)
+    let poly = PolyFlags.of_univ_poly (Declareops.inductive_is_polymorphic mib) in
+    let cst, effs = define ?loc internal role id cl poly ctx effs in
     (effs, cst)
   in
   let (eff, consts) = Array.fold_left2_map_i fold eff ids cl in

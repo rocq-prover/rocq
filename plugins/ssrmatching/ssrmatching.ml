@@ -1497,7 +1497,10 @@ let fill_occ_term env sigma0 cl occ (sigma, t) =
 let cpattern_of_id id =
   { kind= NoFlag
   ; pattern = DAst.make @@ GRef (GlobRef.VarRef  id, None), None
-  ; interpretation = Some Geninterp.({ lfun = Id.Map.empty; poly = false; extra = Tacinterp.TacStore.empty })}
+  ; interpretation =
+      Some Geninterp.({ lfun = Id.Map.empty;
+                        poly = PolyFlags.default;
+                        extra = Tacinterp.TacStore.empty })}
 
 let is_wildcard ({pattern = (l, r); _} : cpattern) : bool = match DAst.get l, r with
   | _, Some { CAst.v = CHole _ } | GHole _, None -> true

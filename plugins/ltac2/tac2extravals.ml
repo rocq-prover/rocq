@@ -233,7 +233,7 @@ let () =
     let ist = Tac2interp.get_env @@ GlobEnv.lfun env in
     let () = assert (Id.Set.subset ids (Id.Map.domain ist.env_ist)) in
     let tac = Proofview.tclIGNORE (Tac2interp.interp ist tac) in
-    let name, poly = Id.of_string "ltac2", poly in
+    let name = Id.of_string "ltac2" in
     let sigma, concl = match tycon with
     | Some ty -> sigma, ty
     | None -> GlobEnv.new_type_evar env sigma ~src:(loc,Evar_kinds.InternalHole)

@@ -81,7 +81,7 @@ type inference_flags = {
   fail_evar : bool;
   expand_evars : bool;
   program_mode : bool;
-  polymorphic : bool;
+  poly : PolyFlags.t;
   undeclared_evars_rr : bool;
   unconstrained_sorts : bool;
 }
@@ -176,7 +176,7 @@ val ise_pretype_gen :
 (** {6 Open-recursion style pretyper} *)
 
 type pretype_flags = {
-  poly : bool;
+  poly: PolyFlags.t;
   resolve_tc : bool;
   program_mode : bool;
   use_coercions : bool;

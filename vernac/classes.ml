@@ -414,7 +414,7 @@ let do_instance_subst_constructor_and_ty subst k ctx =
   let term = it_mkLambda_or_LetIn app ctx in
   term, termtype
 
-let do_instance_resolve_TC termtype sigma env =
+let do_instance_resolve_TC ~poly termtype sigma env =
   let sigma = Evarutil.nf_evar_map sigma in
   let sigma = Typeclasses.resolve_typeclasses ~filter:Typeclasses.no_goals_or_obligations ~fail:true env sigma in
   (* Try resolving fields that are typeclasses automatically. *)
@@ -487,7 +487,7 @@ let do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly cty k ctx 
         else
           None, it_mkProd_or_LetIn cty ctx
       in
-      let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+      let termtype, sigma = do_instance_resolve_TC ~poly termtype sigma env in
       term, termtype, sigma
   in
   Flags.silently (fun () ->
@@ -499,7 +499,7 @@ let do_instance env env' sigma ?hook ~locality ~poly cty k ctx ctx' pri decl imp
   let term, termtype, sigma =
     interp_props ~program_mode:false env' cty k ctx ctx' subst sigma props
   in
-  let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+  let termtype, sigma = do_instance_resolve_TC ~poly termtype sigma env in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
   declare_instance_constant pri locality imps ?hook id decl poly sigma term termtype
 
@@ -514,9 +514,10 @@ let do_instance_program ~pm env env' sigma ?hook ~locality ~poly cty k ctx ctx' 
       let term, termtype =
         do_instance_subst_constructor_and_ty subst k (ctx' @ ctx) in
       term, termtype, sigma in
-  let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+  let termtype, sigma = do_instance_resolve_TC ~poly termtype sigma env in
   if not (Evd.has_undefined sigma) && not (Option.is_empty opt_props) then
-    let () = declare_instance_constant pri locality imps ?hook id decl poly sigma term termtype in
+    let () = declare_instance_constant pri locality imps ?hook id decl poly
+               sigma term termtype in
     pm
   else
     declare_instance_program pm env sigma ~locality ~poly id pri imps decl term termtype
@@ -540,10 +541,10 @@ let typeclass_univ_instance env (cl, u) =
     clu_projs = cl.cl_projs;
   }
 
-let interp_instance_context ~program_mode env ctx pl tclass =
+let interp_instance_context ~program_mode ~poly env ctx pl tclass =
   let sigma, decl = interp_univ_decl_opt env pl in
-  let sigma, (impls, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode env sigma ctx in
-  let flags = Pretyping.{ all_no_fail_flags with program_mode } in
+  let sigma, (impls, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode ~poly env sigma ctx in
+  let flags = Pretyping.{ all_no_fail_flags with program_mode ; poly } in
   let sigma, (c', imps') = interp_type_evars_impls ~flags ~impls env' sigma tclass in
   let imps = imps @ imps' in
   let ctx', c = decompose_prod_decls sigma c' in
@@ -571,10 +572,10 @@ let id_of_class env ref =
           mip.(0).Declarations.mind_typename
     | _ -> assert false
 
-let new_instance_common ~program_mode env instid ctx cl =
+let new_instance_common ~program_mode ~poly env instid ctx cl =
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    interp_instance_context ~program_mode env ctx pl cl
+    interp_instance_context ~program_mode ~poly env ctx pl cl
   in
   (* The name generator should not be here *)
   let id = instid |> CAst.map (function
@@ -591,14 +592,14 @@ let new_instance_interactive ~locality ~poly instid ctx cl
     pri opt_props =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:false env instid ctx cl in
+    new_instance_common ~program_mode:false ~poly env instid ctx cl in
   id, do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly
     cty k ctx ctx' pri decl imps subst id opt_props
 
 let new_instance_program ~locality ~pm ~poly instid ctx cl opt_props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:true env instid ctx cl in
+    new_instance_common ~program_mode:true ~poly env instid ctx cl in
   let pm =
     do_instance_program ~pm env env' sigma ?hook ~locality ~poly
       cty k ctx ctx' pri decl imps subst id opt_props in
@@ -607,7 +608,7 @@ let new_instance_program ~locality ~pm ~poly instid ctx cl opt_props ?hook pri =
 let new_instance ~locality ~poly instid ctx cl props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:false env instid ctx cl in
+    new_instance_common ~program_mode:false ~poly env instid ctx cl in
   do_instance env env' sigma ?hook ~locality ~poly
     cty k ctx ctx' pri decl imps subst id props;
   id
@@ -616,7 +617,7 @@ let declare_new_instance ~locality ~program_mode ~poly instid ctx cl pri =
   let env = Global.env() in
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    interp_instance_context ~program_mode env ctx pl cl
+    interp_instance_context ~program_mode ~poly env ctx pl cl
   in
   do_declare_instance sigma ~locality ~poly k ctx ctx' pri decl imps subst instid
 

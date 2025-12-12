@@ -45,8 +45,8 @@ type data = private
   (** A representation of the focus stack *)
   ; name : Names.Id.t
   (** The name of the theorem whose proof is being constructed *)
-  ; poly : bool;
-  (** polymorphism *)
+  ; poly : PolyFlags.t
+  (** Universe polymorphism *)
   }
 
 val data : t -> data
@@ -54,13 +54,13 @@ val data : t -> data
 (*** General proof functions ***)
 val start
   :  name:Names.Id.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> ?typing_flags:Declarations.typing_flags
   -> Evd.evar_map -> (Environ.env * EConstr.types) list -> t
 
 val dependent_start
   :  name:Names.Id.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> ?typing_flags:Declarations.typing_flags
   -> Proofview.telescope -> t
 
@@ -201,7 +201,7 @@ val use_unification_heuristics : unit -> bool
 
 val refine_by_tactic
   :  name:Names.Id.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> Environ.env
   -> Evd.evar_map
   -> EConstr.types

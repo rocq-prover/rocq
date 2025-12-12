@@ -169,11 +169,11 @@ val interp_type_evars : ?program_mode:bool -> env -> evar_map ->
 
 (** Accepting unresolved evars and giving back the manual implicit arguments *)
 
-val interp_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
+val interp_constr_evars_impls : ?program_mode:bool -> ?poly:PolyFlags.t -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr ->
   evar_map * (constr * Impargs.manual_implicits)
 
-val interp_casted_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
+val interp_casted_constr_evars_impls : ?program_mode:bool -> ?poly:PolyFlags.t -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> types ->
   evar_map * (constr * Impargs.manual_implicits)
 
@@ -217,14 +217,14 @@ val interp_binder_evars : env -> evar_map -> Name.t -> constr_expr -> evar_map *
 *)
 
 val interp_context_evars :
-  ?program_mode:bool -> ?unconstrained_sorts:bool -> ?impl_env:internalization_env ->
+  ?program_mode:bool -> ?unconstrained_sorts:bool -> ?poly:PolyFlags.t -> ?impl_env:internalization_env ->
   env -> evar_map -> local_binder_expr list ->
   evar_map * (internalization_env * ((env * rel_context) * Impargs.manual_implicits * Loc.t option list))
 
 (** Interpret named contexts *)
 
 val interp_named_context_evars :
-  ?program_mode:bool -> ?unconstrained_sorts:bool -> ?impl_env:internalization_env -> ?autoimp_enable:bool ->
+  ?program_mode:bool -> ?unconstrained_sorts:bool -> ?poly:PolyFlags.t -> ?impl_env:internalization_env -> ?autoimp_enable:bool ->
   env -> evar_map -> local_binder_expr list ->
   evar_map * (internalization_env * ((env * named_context) * Impargs.manual_implicits * Loc.t option list))
 

@@ -1027,7 +1027,7 @@ module Search = struct
       *   let Proof.{ name; poly } = Proof.data Proof_global.(give_me_the_proof ()) in
       *   name, poly
       * with | Proof_global.NoCurrentProof -> *)
-       Id.of_string "instance", false
+       Id.of_string "instance", PolyFlags.default
     in
     let tac =
       if get_debug () > 1 then Proofview.Trace.record_info_trace tac
@@ -1321,7 +1321,7 @@ let resolve_one_typeclass ?db env sigma concl =
   let entry, pv = Proofview.init sigma [env, concl] in
   let pv =
     let name = Names.Id.of_string "legacy_pe" in
-    match Proofview.apply ~name ~poly:false (Global.env ()) tac pv with
+    match Proofview.apply ~name ~poly:PolyFlags.default (Global.env ()) tac pv with
     | (_, final, _, _, _) -> final
     | exception (Logic_monad.TacticFailure (Tacticals.FailError _)) ->
       raise Not_found

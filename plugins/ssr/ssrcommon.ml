@@ -173,7 +173,7 @@ let interp_refine env sigma ist ~concl rc =
     fail_evar = false;
     expand_evars = true;
     program_mode = false;
-    polymorphic = false;
+    poly = PolyFlags.default;
     undeclared_evars_rr = false;
     unconstrained_sorts = false;
   }
@@ -453,7 +453,7 @@ let call_on_evar env sigma tac e =
     let tac = Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state e] <*> tac in
     let _, init = Proofview.init sigma [] in
     let name = Names.Id.of_string "legacy_pe" in
-    let (_, final, _, _, _) = Proofview.apply ~name ~poly:false env tac init in
+    let (_, final, _, _, _) = Proofview.apply ~name ~poly:PolyFlags.default env tac init in
     let (gs, final) = Proofview.proofview final in
     let () = if (gs <> []) then errorstrm (str "Should we tell the user?") in
     final

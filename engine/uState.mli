@@ -89,7 +89,7 @@ val context : t -> UVars.UContext.t
 
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
-val univ_entry : poly:bool -> t -> named_universes_entry
+val univ_entry : poly:PolyFlags.t -> t -> named_universes_entry
 (** Pick from {!context} or {!context_set} based on [poly]. *)
 
 val universe_binders : t -> UnivNames.universe_binders
@@ -261,7 +261,7 @@ val default_univ_decl : universe_decl
    When polymorphic, the universes corresponding to
    [decl.univdecl_instance] come first in the order defined by that
    list. *)
-val check_univ_decl : poly:bool -> t -> universe_decl -> named_universes_entry
+val check_univ_decl : poly:PolyFlags.t -> t -> universe_decl -> named_universes_entry
 val check_univ_decl_rev : t -> universe_decl -> t * UVars.UContext.t
 val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 

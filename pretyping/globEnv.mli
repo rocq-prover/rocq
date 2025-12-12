@@ -22,7 +22,7 @@ type t
 (** To embed constr in glob_constr *)
 
 type 'a obj_interp_fun =
-  ?loc:Loc.t -> poly:bool -> t -> Evd.evar_map -> Evardefine.type_constraint ->
+  ?loc:Loc.t -> poly:PolyFlags.t -> t -> Evd.evar_map -> Evardefine.type_constraint ->
   'a -> unsafe_judgment * Evd.evar_map
 
 val register_constr_interp0 :
@@ -94,5 +94,5 @@ val interp_ltac_id : t -> Id.t -> Id.t
 (** Interpreting a generic argument, typically a "ltac:(...)", taking
     into account the possible renaming *)
 
-val interp_glob_genarg : ?loc:Loc.t -> poly:bool -> t -> evar_map -> Evardefine.type_constraint ->
+val interp_glob_genarg : ?loc:Loc.t -> poly:PolyFlags.t -> t -> evar_map -> Evardefine.type_constraint ->
   Genarg.glob_generic_argument -> unsafe_judgment * evar_map

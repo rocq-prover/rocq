@@ -368,7 +368,7 @@ let warn_rewrite_rules_break_SR =
     Pp.(fun reason ->
         str "This rewrite rule breaks subject reduction" ++ spc() ++ reason)
 
-let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
+let interp_rule ~poly (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
   let env = Global.env () in
   let evd = Evd.from_env env in
 
@@ -421,9 +421,10 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs_loc = rhs.CAst.loc in
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
-  let flags = { Pretyping.no_classes_no_fail_inference_flags with undeclared_evars_rr = true; expand_evars = false; solve_unification_constraints = false } in
+  let flags = { Pretyping.no_classes_no_fail_inference_flags with
+    undeclared_evars_rr = true; expand_evars = false;
+    solve_unification_constraints = false; poly } in
   let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
-
   let evd = Evd.minimize_universes evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
   let evd = Evd.restrict_universe_context evd uvars in
@@ -466,7 +467,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   (* The udecl constraints (or, if none, the lhs constraints) must imply those of the rhs *)
   let evd = Evd.set_universe_context evd uctx in
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd rhs) in
-  let flags = Pretyping.no_classes_no_fail_inference_flags in
+  let flags = { Pretyping.no_classes_no_fail_inference_flags with poly } in
   let evd', rhs =
     try Pretyping.understand_tcc ~flags env evd ~expected_type:(OfType typ) rhs
     with Pretype_errors.PretypeError (env', evd', e) ->
@@ -540,8 +541,8 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   head_symbol, { nvars = (nvars' - 1, nvarqs', nvarus'); lhs_pat = head_umask, elims; rhs }
 
-let do_rules id rules =
+let do_rules ~poly id rules =
   let env = Global.env () in
   if not @@ Environ.rewrite_rules_allowed env then raise Environ.(RewriteRulesNotAllowed Rule);
-  let body = { rewrules_rules = List.map interp_rule rules } in
+  let body = { rewrules_rules = List.map (interp_rule ~poly) rules } in
   Global.add_rewrite_rules id body

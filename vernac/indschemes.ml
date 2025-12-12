@@ -96,6 +96,9 @@ let () =
 
 (* Util *)
 let define ~poly ?loc name sigma c types =
+  let poly =
+    PolyFlags.of_univ_poly poly (* FIXME sortpoly and cumulative not supported *)
+  in
   let univs = Evd.univ_entry ~poly sigma in
   let entry = Declare.definition_entry ~univs ?types c in
   let kind = Decls.(IsDefinition Scheme) in

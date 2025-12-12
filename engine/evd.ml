@@ -1023,7 +1023,7 @@ let check_univ_decl ~poly evd decl = UState.check_univ_decl ~poly evd.universes 
 
 let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   let () =
-    if with_obls && not poly &&
+    if with_obls && not @@ PolyFlags.univ_poly poly &&
        (not udecl.UState.univdecl_extensible_instance
         || not udecl.UState.univdecl_extensible_constraints)
     then

@@ -32,17 +32,18 @@ let init_setoid () =
   else Rocqlib.check_required_library ["Corelib";"Setoids";"Setoid"]
 
 type rewrite_attributes = {
-  polymorphic : bool;
+  poly : PolyFlags.t;
   locality : Hints.hint_locality;
 }
 
 let rewrite_attributes =
   let open Attributes.Notations in
-  Attributes.(polymorphic ++ locality) >>= fun (polymorphic, locality) ->
+  Attributes.(poly PolyFlags.Definition ++ locality) >>=
+  fun (poly, locality) ->
   let locality =
     if Locality.make_section_locality locality then Hints.Local else SuperGlobal
   in
-  Attributes.Notations.return { polymorphic; locality }
+  Attributes.Notations.return { poly; locality }
 
 (** Utility functions *)
 
@@ -68,9 +69,9 @@ let declare_an_instance {CAst.v=n; loc} s args =
 let declare_instance a aeq n s = declare_an_instance n s [a;aeq]
 
 let anew_instance atts binders (name,t) fields =
-  let _id = Classes.new_instance ~poly:atts.polymorphic
-      name binders t (true, CAst.make @@ CRecord (fields))
-      ~locality:atts.locality Hints.empty_hint_info
+  let _id = Classes.new_instance ~poly:atts.poly ~locality:atts.locality
+    name binders t (true, CAst.make @@ CRecord (fields))
+    Hints.empty_hint_info
   in
   ()
 
@@ -145,6 +146,7 @@ let proper_projection env sigma r ty =
 let declare_projection {CAst.v=name; loc} instance_id r =
   let env = Global.env () in
   let poly = Environ.is_polymorphic env r in
+  let poly = PolyFlags.of_univ_poly poly (* FIXME: cumulativity not handled *) in
   let sigma = Evd.from_env env in
   let sigma,c = Evd.fresh_global env sigma r in
   let ty = Retyping.get_type_of env sigma c in
@@ -196,11 +198,10 @@ let add_morphism_as_parameter atts m n : unit =
   let instance_id = add_suffix n "_Proper" in
   let env = Global.env () in
   let evd = Evd.from_env env in
-  let poly = atts.polymorphic in
   let kind = Decls.(IsAssumption Logical) in
   let impargs, udecl = [], UState.default_univ_decl in
   let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
-  let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
+  let evd, pe = Declare.prepare_parameter ~poly:atts.poly ~udecl ~types evd in
   let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
   Classes.Internal.add_instance
@@ -213,7 +214,6 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   let env = Global.env () in
   let evd = Evd.from_env env in
   let evd, morph = Rewrite.Internal.build_morphism_signature env evd m in
-  let poly = atts.polymorphic in
   let kind = Decls.(IsDefinition Instance) in
   let hook { Declare.Hook.S.dref; _ } = dref |> function
     | GlobRef.ConstRef cst ->
@@ -226,7 +226,7 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   Flags.silently
     (fun () ->
        let cinfo = Declare.CInfo.make ?loc:instance_id.loc ~name:instance_id.v ~typ:morph () in
-       let info = Declare.Info.make ~poly ~hook ~kind () in
+       let info = Declare.Info.make ~poly:atts.poly ~hook ~kind () in
        let lemma = Declare.Proof.start ~cinfo ~info evd in
        fst (Declare.Proof.by (Global.env ()) tactic lemma)) ()
 
@@ -240,7 +240,7 @@ let add_morphism atts ~tactic binders m s n =
        [cHole; s; m])
   in
   let _id, lemma = Classes.new_instance_interactive
-      ~locality:atts.locality ~poly:atts.polymorphic
+      ~locality:atts.locality ~poly:atts.poly
       instance_name binders instance_t
       ~tac:tactic ~hook:(declare_projection n instance_id)
       Hints.empty_hint_info None

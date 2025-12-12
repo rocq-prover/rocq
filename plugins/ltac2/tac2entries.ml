@@ -1270,8 +1270,8 @@ let perform_eval ~pstate e =
     match pstate with
     | None ->
       let sigma = Evd.from_env env in
-      let name, poly = Id.of_string "ltac2", false in
-      Proof.start ~name ~poly sigma []
+      let name = Id.of_string "ltac2" in
+      Proof.start ~name ~poly:PolyFlags.default sigma []
     | Some pstate ->
       Declare.Proof.get pstate
   in

@@ -186,7 +186,7 @@ let lookup_renamed globenv id =
     Evarutil.ext_rev_subst ext id
 
 type 'a obj_interp_fun =
-  ?loc:Loc.t -> poly:bool -> t -> Evd.evar_map -> Evardefine.type_constraint ->
+  ?loc:Loc.t -> poly:PolyFlags.t -> t -> Evd.evar_map -> Evardefine.type_constraint ->
   'a -> unsafe_judgment * Evd.evar_map
 
 module ConstrInterpObj =

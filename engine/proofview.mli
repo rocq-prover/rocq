@@ -157,7 +157,7 @@ type +'a tactic
     {!Logic_monad.TacticFailure}*)
 val apply
   :  name:Names.Id.t
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> Environ.env
   -> 'a tactic
   -> proofview
@@ -449,7 +449,7 @@ val tclTIMEOUT  : int   -> 'a tactic -> 'a tactic
 val tclTIME : string option -> 'a tactic -> 'a tactic
 
 (** Internal, don't use. *)
-val tclProofInfo : (Names.Id.t * bool) tactic
+val tclProofInfo : (Names.Id.t * PolyFlags.t) tactic
 [@@ocaml.deprecated "(8.10) internal, don't use"]
 
 (** {7 Unsafe primitives} *)
