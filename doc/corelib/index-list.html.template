@@ -146,6 +146,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Ltac2/Ltac1CompatNotations.v
     theories/Ltac2/Message.v
     theories/Ltac2/Meta.v
+    theories/Ltac2/Module.v
     theories/Ltac2/Notations.v
     theories/Ltac2/Option.v
     theories/Ltac2/Pattern.v
