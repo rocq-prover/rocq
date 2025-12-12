@@ -161,7 +161,7 @@ let bind_kind = let open Sorts in function
     q, u
 
 (* Add a binding for a parameter binding qbind and ubind to su. *)
-let cons_subst bind su (qsubst,usubst) =
+let cons_subst bind su (qsubst, usubst) =
   let qbind, ubind = bind_kind bind in
   let qsubst = match qbind with
     | None -> qsubst
@@ -209,31 +209,31 @@ let make_subst defaults =
   let rec make subst = function
     | LocalDef _ :: sign, exp, args ->
         make subst (sign, exp, args)
-    | _d::sign, None::exp, args ->
+    | _d :: sign, None :: exp, args ->
         let args = match args with _::args -> args | [] -> [] in
         make subst (sign, exp, args)
-    | LocalAssum (_,t)::sign, Some bind::exp, a::args ->
+    | LocalAssum (_, t) :: sign, Some bind :: exp, a :: args ->
         (* [default] is used in error messages (e.g. when the user gave SProp) *)
         let _, default = Term.destArity t in
         let s = a ~default in
         make (cons_subst bind s subst) (sign, exp, args)
-    | LocalAssum _ :: sign, Some bind::exp, [] ->
-      make (cons_default_subst bind defaults subst) (sign, exp, [])
+    | LocalAssum _ :: sign, Some bind :: exp, [] ->
+        make (cons_default_subst bind defaults subst) (sign, exp, [])
     | _sign, [], _ ->
         (* Uniform parameters are exhausted *)
         subst
     | [], _, _ ->
         assert false
   in
-  make (Int.Map.empty,Int.Map.empty)
+  make (Int.Map.empty, Int.Map.empty)
 
-let template_subst_universe (_,usubst) u =
+let template_subst_universe lvl_substs u =
   let supern u n = iterate Universe.super n u in
-  let map (u,n) =
+  let map (u, n) =
     match Level.var_index u with
     | None -> Universe.maken u n
     | Some u ->
-      let u = Int.Map.get u usubst in
+      let u = Int.Map.get u lvl_substs in
       supern u n
   in
   match List.map map (Universe.repr u) with
@@ -241,18 +241,18 @@ let template_subst_universe (_,usubst) u =
   | u :: rest ->
     List.fold_left Universe.sup u rest
 
-let template_subst_sort (subst : template_subst) = function
+let template_subst_sort (quality_substs, lvl_substs) = function
 | Sorts.Prop | Sorts.Set | Sorts.SProp as s -> s
 | Sorts.Type u ->
-  Sorts.sort_of_univ (template_subst_universe subst u)
-| Sorts.QSort (q,u) ->
+  Sorts.sort_of_univ (template_subst_universe lvl_substs u)
+| Sorts.QSort (q, u) ->
   let q = match Sorts.QVar.var_index q with
     | None -> Sorts.Quality.QVar q
-    | Some q -> Int.Map.get q (fst subst)
+    | Some q -> Int.Map.get q quality_substs
   in
   (* shortcut for impredicative quality *)
   if Sorts.Quality.(equal qprop q) then Sorts.prop
-  else Sorts.make q (template_subst_universe subst u)
+  else Sorts.make q (template_subst_universe lvl_substs u)
 
 let rec template_subst_ctx accu subs ctx params = match ctx, params with
 | [], [] -> accu
@@ -269,7 +269,7 @@ let rec template_subst_ctx accu subs ctx params = match ctx, params with
 
 let template_subst_ctx subst ctx params = template_subst_ctx [] subst ctx params
 
-let instantiate_template_constraints subst templ =
+let instantiate_template_constraints (quality_substs, lvl_substs) templ =
   let cstrs = UVars.UContext.constraints (UVars.AbstractContext.repr templ.template_context) in
   let foldq (q, cst, q') accq =
     let substq q = match q with
@@ -278,14 +278,14 @@ let instantiate_template_constraints subst templ =
          begin
            match QVar.var_index q' with
            | None -> q
-           | Some q' -> Int.Map.get q' (fst subst)
+           | Some q' -> Int.Map.get q' quality_substs
          end in
     ElimConstraints.add (substq q, cst, substq q') accq in
   let foldu (u, cst, v) accu =
     (* v is not a local universe by the unbounded from below property *)
     let u = match Level.var_index u with
       | None -> Universe.make u
-      | Some u -> Int.Map.get u (snd subst)
+      | Some u -> Int.Map.get u lvl_substs
     in
     (* if qsort, it is above prop *)
     let fold accu (u, n) = match n, cst with
@@ -304,7 +304,7 @@ let instantiate_template_universes mib args =
   | Some t -> t
   in
   let ctx = List.rev mib.mind_params_ctxt in
-  let subst = make_subst templ.template_defaults (ctx,templ.template_param_arguments,args) in
+  let subst = make_subst templ.template_defaults (ctx, templ.template_param_arguments, args) in
   let ctx = template_subst_ctx subst ctx templ.template_param_arguments in
   let cstrs = instantiate_template_constraints subst templ in
   (cstrs, ctx, subst)
@@ -331,10 +331,10 @@ let type_of_inductive_gen ((mib,mip),u) paramtyps =
     let cst = instantiate_inductive_constraints mib u in
     subst_instance_constr u mip.mind_user_arity, cst
   | Some templ ->
-    let cst, params, subst = instantiate_template_universes mib paramtyps in
+    let cstrs, params, subst = instantiate_template_universes mib paramtyps in
     let ctx = (List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt) @ params in
     let s = template_subst_sort subst templ.template_concl in
-    Term.mkArity (ctx, s), cst
+    Term.mkArity (ctx, s), cstrs
 
 let type_of_inductive pind =
   let (ty, _cst) = type_of_inductive_gen pind [] in

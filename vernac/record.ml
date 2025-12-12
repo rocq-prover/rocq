@@ -46,46 +46,46 @@ let { Goptions.get = typeclasses_default_mode } =
     ~value:Hints.ModeOutput
     ()
 
-let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
+let interp_fields_evars env sigma ~ninds ~nparams impls_env fld_notations flds =
   let _, sigma, impls, locs, newfs, _ =
     List.fold_left2
-      (fun (env, sigma, uimpls, locs, params, impls_env) no d ->
-         let sigma, (i, b, t), impl, loc = match d with
-           | Vernacexpr.AssumExpr({CAst.v=id; loc},bl,t) ->
-             (* Temporary compatibility with the type-classes heuristics *)
-             (* which are applied after the interpretation of bl and *)
-             (* before the one of t otherwise (see #13166) *)
-             let t = if bl = [] then t else mkCProdN bl t in
-             let sigma, t, impl =
-               ComAssumption.interp_assumption ~program_mode:false env sigma impls_env [] t in
-             sigma, (id, None, t), impl, loc
-           | Vernacexpr.DefExpr({CAst.v=id; loc},bl,b,t) ->
-             let sigma, (b, t), impl =
-               ComDefinition.interp_definition ~program_mode:false env sigma impls_env bl None b t in
-             let t = match t with Some t -> t | None -> Retyping.get_type_of env sigma b in
-             sigma, (id, Some b, t), impl, loc
-         in
-         let r = Retyping.relevance_of_type env sigma t in
-         let impls_env =
-           match i with
-           | Anonymous -> impls_env
-           | Name id ->
-             Id.Map.add id (Constrintern.compute_internalization_data env sigma id Constrintern.Method t impl) impls_env
-         in
-         let d = match b with
-           | None -> LocalAssum (make_annot i r,t)
-           | Some b -> LocalDef (make_annot i r,b,t)
-         in
-         List.iter (Metasyntax.set_notation_for_interpretation env impls_env) no;
-         (EConstr.push_rel d env, sigma, impl :: uimpls, loc :: locs, d::params, impls_env))
-      (env, sigma, [], [], [], impls_env) nots l
+      (fun (env, sigma, uimpls, locs, params, impls_env) fld_notation d ->
+        let sigma, (i, b, t), impl, loc = match d with
+          | Vernacexpr.AssumExpr({CAst.v=id; loc},bl,t) ->
+            (* Temporary compatibility with the type-classes heuristics *)
+            (* which are applied after the interpretation of bl and *)
+            (* before the one of t otherwise (see #13166) *)
+            let t = if bl = [] then t else mkCProdN bl t in
+            let sigma, t, impl =
+              ComAssumption.interp_assumption ~program_mode:false env sigma impls_env [] t in
+            sigma, (id, None, t), impl, loc
+          | Vernacexpr.DefExpr({CAst.v=id; loc},bl,b,t) ->
+            let sigma, (b, t), impl =
+              ComDefinition.interp_definition ~program_mode:false env sigma impls_env bl None b t in
+            let t = match t with Some t -> t | None -> Retyping.get_type_of env sigma b in
+            sigma, (id, Some b, t), impl, loc
+        in
+        let r = Retyping.relevance_of_type env sigma t in
+        let impls_env =
+          match i with
+          | Anonymous -> impls_env
+          | Name id ->
+            Id.Map.add id (Constrintern.compute_internalization_data env sigma id Constrintern.Method t impl) impls_env
+        in
+        let d = match b with
+          | None -> LocalAssum (make_annot i r, t)
+          | Some b -> LocalDef (make_annot i r, b, t)
+        in
+        List.iter (Metasyntax.set_notation_for_interpretation env impls_env) fld_notation;
+        (EConstr.push_rel d env, sigma, impl :: uimpls, loc :: locs, d :: params, impls_env))
+      (env, sigma, [], [], [], impls_env) fld_notations flds
   in
-  let _, _, sigma = Context.Rel.fold_outside ~init:(env,0,sigma) (fun f (env,k,sigma) ->
+  let _, _, sigma = Context.Rel.fold_outside ~init:(env, 0, sigma) (fun f (env, k, sigma) ->
       let sigma = RelDecl.fold_constr (fun c sigma ->
           ComInductive.maybe_unify_params_in env sigma ~ninds ~nparams ~binders:k c)
           f sigma
       in
-      EConstr.push_rel f env, k+1, sigma)
+      EConstr.push_rel f env, k + 1, sigma)
       newfs
   in
   sigma, (impls, locs, newfs)
@@ -563,7 +563,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
   let ccl = subst_projection fid subst ti in
   let body, p_opt = match decl with
     | LocalDef (_,ci,_) -> subst_projection fid subst ci, None
-    | LocalAssum ({binder_relevance=rci},_) ->
+    | LocalAssum ({ binder_relevance = rci }, _) ->
       (* [ccl] is defined in context [params;x:rp] *)
       (* [ccl'] is defined in context [params;x:rp;x:rp] *)
       if primitive then
@@ -638,7 +638,7 @@ let build_proj env mib indsp primitive x rp lifted_fields paramdecls paramargs ~
    projections and then calls [build_proj] for each one. *)
 let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   let env = Global.env() in
-  let (mib,mip) = Global.lookup_inductive indsp in
+  let (mib, mip) = Global.lookup_inductive indsp in
   let uinstance =
     UVars.Instance.abstract_instance @@
     UVars.AbstractContext.size @@
@@ -652,7 +652,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
   let fields, _ = mip.mind_nf_lc.(0) in
   let fields = List.firstn mip.mind_consnrealdecls.(0) fields in
   let paramdecls = Inductive.inductive_paramdecls (mib, uinstance) in
-  let r = mkIndU (indsp,uinstance) in
+  let r = mkIndU (indsp, uinstance) in
   let rp = applist (r, Context.Rel.instance_list mkRel 0 paramdecls) in
   let paramargs = Context.Rel.instance_list mkRel 1 paramdecls in (*def in [[params;x:rp]]*)
   let x = make_annot (Name inhabitant_id) (Inductive.relevance_of_ind_body mip uinstance) in

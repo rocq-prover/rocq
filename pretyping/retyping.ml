@@ -366,6 +366,7 @@ let get_sort_quality_of ?(polyprop=true) env sigma t =
 
 let get_sort_of ?(polyprop=true) env sigma t =
   let _,f,_ = retype ~polyprop sigma in anomaly_on_error (f env) t
+
 let type_of_global_reference_knowing_parameters env sigma c args =
   let _,_,f = retype sigma in anomaly_on_error (f env c) args
 

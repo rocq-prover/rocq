@@ -502,7 +502,7 @@ struct
   include S
 
   let pr prl c =
-    v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
+    v 0 (prlist_with_sep spc (fun (u1, op, u2) ->
       hov 0 (prl u1 ++ UnivConstraint.pr_kind op ++ prl u2))
         (elements c))
 

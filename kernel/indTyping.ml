@@ -89,14 +89,14 @@ let add_squash q info =
     (* XXX dedup insertion *)
     { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
 
-let compute_elim_squash ?(is_real_arg=false) env u info =
+let compute_elim_squash ?(is_real_arg=false) env sort info =
   let open Sorts.Quality in
   let info = if not is_real_arg then info
     else match info.record_arg_info with
       | HasRelevantArg -> info
-      | NoRelevantArg -> match u with
+      | NoRelevantArg -> match sort with
         | Sorts.SProp -> info
-        | QSort (q,_) ->
+        | QSort (q, _) ->
            if Environ.Internal.is_above_prop env q
               || equal (QVar q) (Sorts.quality info.ind_univ)
           then { info with record_arg_info = HasRelevantArg }
@@ -105,25 +105,25 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
   in
   if (Environ.type_in_type env) then info
   else
-    let indu = info.ind_univ
+    let ind_sort = info.ind_univ
     and check_univ_consistency f induu uu =
       if UGraph.check_leq (universes env) uu induu
       then f info
-      else { info with missing = u :: info.missing } in
-    if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-          if Sorts.Quality.is_impredicative (Sorts.quality indu)
+      else { info with missing = sort :: info.missing } in
+    if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality ind_sort) (Sorts.quality sort) then
+          if Sorts.Quality.is_impredicative (Sorts.quality ind_sort)
           then
-            match u with
+            match sort with
             | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
             | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
             | SProp | Prop -> info
           else check_univ_consistency (fun x -> x)
-                 (Sorts.univ_of_sort indu)
-                 (Sorts.univ_of_sort u)
+                 (Sorts.univ_of_sort ind_sort)
+                 (Sorts.univ_of_sort sort)
     else
       let check_univ_consistency_squash quality =
         check_univ_consistency (add_squash quality) in
-      match indu, u with
+      match ind_sort, sort with
       | QSort (_, indu), Type uu ->
          check_univ_consistency_squash qtype indu uu
       | QSort (_, indu), QSort (cq, uu) ->
@@ -135,7 +135,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
          add_squash (QVar q) info
       | QSort (q, _), (SProp | Prop) ->
          if Environ.Internal.is_above_prop env q then info
-         else add_squash (Sorts.quality u) info
+         else add_squash (Sorts.quality sort) info
       | _, _ -> { info with ind_squashed = Some AlwaysSquashed }
 
 let check_context_univs ~ctor env info ctx =
@@ -181,12 +181,12 @@ let check_constructor_univs env_ar_par info (args,_) =
   (* We ignore the output, positivity will check that it's the expected inductive type *)
   check_context_univs ~ctor:true env_ar_par info args
 
-let check_constructors env_ar_par isrecord params lc (arity,indices,univ_info) =
+let check_constructors env_ar_par is_record params lc (arity, indices, univ_info) =
   let lc = Array.map_of_list (fun c -> (Typeops.infer_type env_ar_par c).utj_val) lc in
   let splayed_lc = Array.map (Reduction.whd_decompose_prod_decls env_ar_par) lc in
   let univ_info =
     (* SProp and sort poly primitive records are OK, if we squash and become fakerecord also OK *)
-    if isrecord then univ_info
+    if is_record then univ_info
     else match Array.length lc with
     (* Empty type: sort poly must squash *)
     | 0 -> compute_elim_squash env_ar_par Sorts.sprop univ_info

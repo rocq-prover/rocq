@@ -117,7 +117,7 @@ let enforce_constraint cst g = match enforce_constraint0 cst g with
 
 let merge_constraints csts g = UnivConstraints.fold enforce_constraint csts g
 
-let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
+let check_constraint { graph = g; type_in_type; _ } (u, d, v) =
   type_in_type
   || match d with
   | Le -> G.check_leq g u v

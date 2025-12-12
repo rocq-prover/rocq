@@ -703,7 +703,7 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
   let () = Global.push_context_set ctx in
   let kn = Global.add_constant ?typing_flags name decl in
   let () =
-    let is_new_constraint (u,_,v as c) =
+    let is_new_constraint (u, _, v as c) =
       match UGraph.check_declared_universes before_univs Univ.Level.Set.(add u (add v empty)) with
       | Ok () -> not (UGraph.check_constraint before_univs c)
       | Error _ -> true

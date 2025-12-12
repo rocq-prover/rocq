@@ -170,7 +170,7 @@ struct
     let u = Array.fold_left (fun acc x -> Level.Set.add x acc) Level.Set.empty xu in
     q, u
 
-  let pr prq prl ?variance (q,u) =
+  let pr prq prl ?variance (q, u) =
     let ppu i u =
       let v = Option.map (fun v -> v.(i)) variance in
       pr_opt_no_spc Variance.pr v ++ prl u

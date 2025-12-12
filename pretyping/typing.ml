@@ -150,8 +150,8 @@ let judge_of_applied_constructor_knowing_parameters ~check env sigma ((ind, _ as
   let () = if check then Reductionops.check_hyps_inclusion env sigma (GR.IndRef ind) mib.mind_hyps in
   let sigma, paramstyp = fresh_template_context env sigma ind specif argjv in
   let u0 = EInstance.kind sigma u in
-  let ty, csts = Inductive.type_of_constructor_knowing_parameters (cstr, u0) specif paramstyp in
-  let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
+  let ty, cstrs = Inductive.type_of_constructor_knowing_parameters (cstr, u0) specif paramstyp in
+  let sigma = Evd.add_poly_constraints QGraph.Internal sigma cstrs in
   let funj = { uj_val = mkConstructU (cstr, u); uj_type = (EConstr.of_constr (rename_type env ty (GR.ConstructRef cstr))) } in
   judge_of_applied ~check env sigma funj argjv
 
@@ -502,11 +502,11 @@ let check_binder_relevance env sigma s decl =
     | (Prop | Set | Type _), Irrelevant -> Impossible
     | SProp, Irrelevant -> Trivial
     | SProp, Relevant -> Impossible
-    | QSort (_,l), RelevanceVar q' -> DummySort (ESorts.make (Sorts.qsort q' l))
+    | QSort (_, l), RelevanceVar q' -> DummySort (ESorts.make (Sorts.qsort q' l))
     | (SProp | Prop | Set), RelevanceVar q ->
       DummySort (ESorts.make (Sorts.qsort q Univ.Universe.type0))
     | Type l, RelevanceVar q -> DummySort (ESorts.make (Sorts.qsort q l))
-    | QSort (_,l), Relevant ->
+    | QSort (_, l), Relevant ->
        begin
          match ERelevance.kind sigma (ESorts.relevance_of_sort s) with
          | Irrelevant -> Impossible

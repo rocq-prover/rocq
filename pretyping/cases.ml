@@ -2111,7 +2111,7 @@ let prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs ars
 let expected_elimination_sorts env sigma tomatchl =
   List.map_filter (fun (_,tm) -> match tm with
       | NotInd _ -> None
-      | IsInd (_,IndType(indf,_),_) ->
+      | IsInd (_, IndType (indf, _), _) ->
         let (ind, u), _ = dest_ind_family indf in
         Inductiveops.is_squashed sigma (Inductive.lookup_mind_specif env ind, u))
     tomatchl
