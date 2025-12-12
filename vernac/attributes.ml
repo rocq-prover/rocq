@@ -357,13 +357,13 @@ let cumulative assordef =
 
 let sort_key = "sorts"
 
-let implicit_sort_polymorphism_option_name = ["Implicit"; "Sort"; "Polymorphism"]
+let collapse_sorts_to_type_option_name = ["Collapse"; "Sorts"; "ToType"]
 
-let is_implicit_sort_polymorphism =
-  let b = ref false in
+let is_collapse_sorts_to_type =
+  let b = ref true in
   let write d =
-    if d && not (is_universe_polymorphism()) then
-      CErrors.user_err Pp.(str "Cannot set polymorphic definitions implicit sort polymorphism status when not in universe polymorphism mode")
+    if not d && not (is_universe_polymorphism()) then
+      CErrors.user_err Pp.(str "Cannot avoid sort metavariables from collapsing to type in universe monomomorphic mode")
     else b := d
   in
 
@@ -371,16 +371,16 @@ let is_implicit_sort_polymorphism =
     declare_bool_option
       { optstage = Summary.Stage.Interp;
         optdepr  = None;
-        optkey   = implicit_sort_polymorphism_option_name;
+        optkey   = collapse_sorts_to_type_option_name;
         optread  = (fun () -> !b);
         optwrite = write }
   in
   fun () -> !b
 
-let implicit_sort_polymorphic =
-  qualify_attribute sort_key (bool_attribute ~name:"implicit_sort_polymorphic") >>= function
+let collapse_sorts_to_type =
+  qualify_attribute sort_key (bool_attribute ~name:"collapse_sorts_to_type") >>= function
   | Some b -> return b
-  | None -> return (is_implicit_sort_polymorphism())
+  | None -> return (is_collapse_sorts_to_type())
 
 let template =
   qualify_attribute ukey
@@ -540,7 +540,7 @@ let bind_scope_where =
 let raw_attributes : _ attribute = fun flags -> [], flags
 
 let poly assordef atts =
-  let f, ((univ_polymorphic, cumulative), implicit_sort_polymorphic) =
-    Notations.(polymorphic ++ cumulative assordef ++ implicit_sort_polymorphic) atts
+  let f, ((univ_polymorphic, cumulative), collapse_sorts_to_type) =
+    Notations.(polymorphic ++ cumulative assordef ++ collapse_sorts_to_type) atts
   in
-  f, PolyFlags.make ~univ_polymorphic ~cumulative ~implicit_sort_polymorphic
+  f, PolyFlags.make ~univ_polymorphic ~cumulative ~collapse_sorts_to_type

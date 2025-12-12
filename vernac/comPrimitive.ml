@@ -55,7 +55,7 @@ let do_primitive id udecl prim typopt =
     let poly =
       PolyFlags.make
         ~univ_polymorphic
-        ~implicit_sort_polymorphic:false
+        ~collapse_sorts_to_type:true
         ~cumulative:univ_polymorphic (* FIXME, should be a param? *)
     in
     let univ_entry = Evd.check_univ_decl ~poly evd udecl in
