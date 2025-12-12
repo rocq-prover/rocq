@@ -992,6 +992,8 @@ let () = define "current_exninfo" (unit @-> tac exninfo) @@ fun () ->
 
 let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
 
+let () = define "print_err" (err @-> ret pp) @@ fun (e,_) -> CErrors.print e
+
 (** Control *)
 
 (** exn -> 'a *)
