@@ -266,7 +266,7 @@ let prop_lowering_candidates evd ~arities_explicit inds =
   candidates
 
 let include_constructor_argument evd ~poly ~ctor_sort ~inductive_sort =
-  if PolyFlags.univ_polymorphic poly then
+  if PolyFlags.univ_poly poly then
     (* We ignore the quality when comparing the sorts: it has an impact
        on squashing in the kernel but cannot cause a universe error. *)
     let univ_of_sort s =
@@ -552,7 +552,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   sigma, Template_ind_entry {uctx; default_univs}, ubinders, global
 
 let should_template ~user_template ~poly =
-match user_template, PolyFlags.univ_polymorphic poly with
+match user_template, PolyFlags.univ_poly poly with
 | Some true, true ->
   user_err Pp.(strbrk "Template-polymorphism and universe polymorphism are not compatible.")
 | Some false, _ | None, true ->
@@ -731,7 +731,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   let ninds = List.length indl in
 
   (* In case of template polymorphism, we need to compute more constraints *)
-  let unconstrained_sorts = not (PolyFlags.univ_polymorphic flags.poly) in
+  let unconstrained_sorts = not (PolyFlags.univ_poly flags.poly) in
 
   let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl, variances) =
     interp_params ~unconstrained_sorts env0 udecl uparamsl paramsl

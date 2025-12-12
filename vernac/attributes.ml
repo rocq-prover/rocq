@@ -357,13 +357,13 @@ let cumulative assordef =
 
 let sort_key = "sorts"
 
-let collapse_sorts_to_type_option_name = ["Collapse"; "Sorts"; "ToType"]
+let collapse_sort_variables_option_name = ["Collapse"; "Sort"; "Variables"]
 
-let is_collapse_sorts_to_type =
+let is_collapse_sort_variables =
   let b = ref true in
   let write d =
     if not d && not (is_universe_polymorphism()) then
-      CErrors.user_err Pp.(str "Cannot avoid sort metavariables from collapsing to type in universe monomomorphic mode")
+      CErrors.user_err Pp.(str "Cannot avoid sort metavariables from collapsing to Type in universe monomomorphic mode")
     else b := d
   in
 
@@ -371,16 +371,16 @@ let is_collapse_sorts_to_type =
     declare_bool_option
       { optstage = Summary.Stage.Interp;
         optdepr  = None;
-        optkey   = collapse_sorts_to_type_option_name;
+        optkey   = collapse_sort_variables_option_name;
         optread  = (fun () -> !b);
         optwrite = write }
   in
   fun () -> !b
 
-let collapse_sorts_to_type =
-  qualify_attribute sort_key (bool_attribute ~name:"collapse_sorts_to_type") >>= function
+let collapse_sort_variables =
+  qualify_attribute sort_key (bool_attribute ~name:"collapse_sort_variables") >>= function
   | Some b -> return b
-  | None -> return (is_collapse_sorts_to_type())
+  | None -> return (is_collapse_sort_variables())
 
 let template =
   qualify_attribute ukey
@@ -540,7 +540,10 @@ let bind_scope_where =
 let raw_attributes : _ attribute = fun flags -> [], flags
 
 let poly assordef atts =
-  let f, ((univ_polymorphic, cumulative), collapse_sorts_to_type) =
-    Notations.(polymorphic ++ cumulative assordef ++ collapse_sorts_to_type) atts
-  in
-  f, PolyFlags.make ~univ_polymorphic ~cumulative ~collapse_sorts_to_type
+  let atts, univ_poly = polymorphic atts in
+  if univ_poly then
+    let atts, (cumulative, collapse_sort_variables) =
+      Notations.(cumulative assordef ++ collapse_sort_variables) atts
+    in
+    atts, PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables
+  else atts, PolyFlags.default
