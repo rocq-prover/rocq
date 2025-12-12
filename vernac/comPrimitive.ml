@@ -51,12 +51,12 @@ let do_primitive id udecl prim typopt =
     let evd = Evd.restrict_universe_context evd uvars in
     let typ = EConstr.to_constr evd typ in
     (* TODO check variances *)
-    let level_polymorphic = not (UVars.AbstractContext.is_empty auctx) in
+    let univ_polymorphic = not (UVars.AbstractContext.is_empty auctx) in
     let poly =
       PolyFlags.make
-        ~level_polymorphic
+        ~univ_polymorphic
         ~implicit_sort_polymorphic:false
-        ~cumulative:level_polymorphic (* FIXME, should be a param? *)
+        ~cumulative:univ_polymorphic (* FIXME, should be a param? *)
     in
     let univ_entry = Evd.check_univ_decl ~poly evd udecl in
     let entry = Declare.primitive_entry ~types:(typ, univ_entry) prim in

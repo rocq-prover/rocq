@@ -137,7 +137,7 @@ let interp_with_decl env base kind = function
     let c, ectx = interp_constr env sigma c in
     let poly = lookup_polymorphism env base kind fqid in
     let poly =
-      PolyFlags.of_level_poly poly (* MS: FIXME: no sortpoly/cumulative support *)
+      PolyFlags.of_univ_poly poly (* MS: FIXME: no sortpoly/cumulative support *)
     in
     begin match fst (UState.check_univ_decl ~poly ectx udecl) with
       | UState.Polymorphic_entry ctx ->

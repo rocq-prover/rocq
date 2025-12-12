@@ -540,7 +540,7 @@ let bind_scope_where =
 let raw_attributes : _ attribute = fun flags -> [], flags
 
 let poly assordef atts =
-  let f, ((level_polymorphic, cumulative), implicit_sort_polymorphic) =
+  let f, ((univ_polymorphic, cumulative), implicit_sort_polymorphic) =
     Notations.(polymorphic ++ cumulative assordef ++ implicit_sort_polymorphic) atts
   in
-  f, PolyFlags.make ~level_polymorphic ~cumulative ~implicit_sort_polymorphic
+  f, PolyFlags.make ~univ_polymorphic ~cumulative ~implicit_sort_polymorphic

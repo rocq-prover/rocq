@@ -337,7 +337,7 @@ let typecheck_params_and_fields ~kind ~(flags:ComInductive.flags) ~primitive_pro
      any Set <= i constraint for universes that might actually be instantiated with Prop. *)
   let is_template =
     List.exists (fun { DataI.arity; _} -> Option.cata check_anonymous_type true arity) records in
-  let unconstrained_sorts = not (PolyFlags.is_polymorphic flags.poly) && not def && is_template in
+  let unconstrained_sorts = not (PolyFlags.univ_polymorphic flags.poly) && not def && is_template in
   let sigma, udecl, variances = Constrintern.interp_cumul_univ_decl_opt env0 udecl in
   let () = List.iter check_parameters_must_be_named params in
   let sigma, (impls_env, ((_env1,params), impls, _paramlocs)) =

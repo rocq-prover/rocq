@@ -1710,7 +1710,7 @@ let vernac_identity_coercion ~atts id qids qidt =
   let local = enforce_locality local in
   let target = cl_of_qualid qidt in
   let source = cl_of_qualid qids in
-  let poly = PolyFlags.of_level_poly poly (* FIXME cumulativity not handled *) in
+  let poly = PolyFlags.of_univ_poly poly (* FIXME cumulativity not handled *) in
   ComCoercion.try_add_new_identity_coercion id ~local ~poly ~source ~target
 
 (* Type classes *)
@@ -1811,7 +1811,7 @@ let vernac_hints ~atts dbnames h =
       Hints.create_hint_db false db TransparentState.empty false
   in
   let () = List.iter check_db dbnames in
-  let poly = PolyFlags.of_level_poly poly (* FIXME cumulativity not handled *) in
+  let poly = PolyFlags.of_univ_poly poly (* FIXME cumulativity not handled *) in
   Hints.add_hints ~locality dbnames (ComHints.interp_hints ~poly h)
 
 let warn_deprecated_notation_for_abbreviation =

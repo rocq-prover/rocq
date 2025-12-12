@@ -164,7 +164,7 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let typ = EConstr.of_constr typ in
   let info = Declare.Info.make ?hook ~poly ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~args ~impargs () in
-  let evd = if PolyFlags.level_polymorphic poly then evd else Evd.fix_undefined_variables evd in
+  let evd = if PolyFlags.univ_polymorphic poly then evd else Evd.fix_undefined_variables evd in
   Declare.Proof.start_definition ~info ~cinfo ?using evd
 
 let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags ~kind ?using ?user_warns udecl bl c ctypopt =
@@ -179,7 +179,7 @@ let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags 
 
   let info = Declare.Info.make ?hook ~poly ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
-  let evd = if PolyFlags.level_polymorphic poly then evd else Evd.fix_undefined_variables evd in
+  let evd = if PolyFlags.univ_polymorphic poly then evd else Evd.fix_undefined_variables evd in
 
   let future_goals, evd = Evd.pop_future_goals evd in
   let gls = List.rev (Evd.FutureGoals.comb future_goals) in

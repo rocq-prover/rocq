@@ -481,7 +481,7 @@ let check_mono_sort_constraints uctx =
 let univ_entry ~poly uctx =
   let (binders, _) = uctx.names in
   let entry =
-    if PolyFlags.is_polymorphic poly then Polymorphic_entry (context uctx)
+    if PolyFlags.univ_polymorphic poly then Polymorphic_entry (context uctx)
     else
       let uctx = check_mono_sort_constraints (context_set uctx) in
       Monomorphic_entry uctx
@@ -1151,7 +1151,7 @@ let check_poly_univ_decl uctx decl =
 let check_univ_decl ~poly uctx decl =
   let (binders, _) = uctx.names in
   let entry =
-    if PolyFlags.is_polymorphic poly then Polymorphic_entry (check_poly_univ_decl uctx decl)
+    if PolyFlags.univ_polymorphic poly then Polymorphic_entry (check_poly_univ_decl uctx decl)
     else Monomorphic_entry (check_mono_univ_decl uctx decl)
   in
   entry, binders

@@ -146,7 +146,7 @@ let proper_projection env sigma r ty =
 let declare_projection {CAst.v=name; loc} instance_id r =
   let env = Global.env () in
   let poly = Environ.is_polymorphic env r in
-  let poly = PolyFlags.of_level_poly poly (* FIXME: cumulativity not handled *) in
+  let poly = PolyFlags.of_univ_poly poly (* FIXME: cumulativity not handled *) in
   let sigma = Evd.from_env env in
   let sigma,c = Evd.fresh_global env sigma r in
   let ty = Retyping.get_type_of env sigma c in

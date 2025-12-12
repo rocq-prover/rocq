@@ -170,7 +170,7 @@ let local_binders_of_decls ~poly l =
         | Vernacexpr.AddCoercion -> List.fold_right (fun id -> Id.Set.add id.CAst.v) idl coercions in
       let make_name id = CAst.make ?loc:id.CAst.loc (Name id.CAst.v) in
       let make_assum idl = Constrexpr.(CLocalAssum (List.map make_name idl,None,Default Glob_term.Explicit,c)) in
-      let decl = if PolyFlags.level_polymorphic poly then
+      let decl = if PolyFlags.univ_polymorphic poly then
         (* Separate declarations so that A B : Type puts A and B in different levels. *)
         List.map (fun id -> make_assum [id]) idl
       else
