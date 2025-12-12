@@ -377,7 +377,7 @@ val downcast : Evar.t-> etypes -> evar_map -> evar_map
 
 (** {6 Evar names} *)
 
-val evar_ident : Evar.t -> evar_map -> Id.t option
+val evar_ident : Evar.t -> evar_map -> Libnames.full_path option
 
 val evar_has_name : Evar.t -> evar_map -> bool
 
@@ -387,7 +387,7 @@ val add_name : Evar.t -> Id.t -> ?parent:Evar.t -> evar_map -> evar_map
 
 val transfer_name : Evar.t -> Evar.t -> evar_map -> evar_map
 
-val evar_key : Id.t -> evar_map -> Evar.t
+val evar_key : Libnames.full_path -> evar_map -> Evar.t
 
 val dependent_evar_ident : Evar.t -> evar_map -> Id.t
 

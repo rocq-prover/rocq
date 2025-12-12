@@ -25,40 +25,28 @@ let { Goptions.get = generate_goal_names } =
 
 (** Internal representation of qualified evar names.
 
-    Example: "x.y.z" is represented as [{ basename: "z"; path: ["y"; "x"] }]
-
-    To convert to and from [Id.t] (with dots), use [EvarQualid.to_id] and [EvarQualid.of_id]. *)
+    Example: "x.y.z" is represented as [{ basename: "z"; path: ["y"; "x"] }] *)
 module EvarQualid :
 sig
   type t =
     { basename: Id.t;
       path: Id.t list }
-
-  val of_list : Id.t list -> t
-  val of_id : Id.t -> t
-
-  val to_id : t -> Id.t
+  val make : Libnames.full_path -> t
+  val repr : t -> Libnames.full_path
 end =
 struct
   type t =
     { basename: Id.t;
       path: Id.t list }
 
-  let of_list l =
-    match List.rev l with
-    | basename :: path -> { basename; path }
-    | [] -> failwith "of_list"
+  let make path =
+    let (dp, id) = Libnames.repr_path path in
+    { basename = id; path = DirPath.repr dp }
 
-  let of_id id =
-    let parts = String.split_on_char '.' (Id.to_string id) in
-    of_list (List.map Id.of_string parts)
+  let repr { basename; path } =
+    Libnames.make_path (DirPath.make path) basename
 
-  let to_id { basename; path } =
-    let parts = List.rev_map Id.to_string (basename :: path) in
-    Id.of_string_soft (String.concat "." parts)
 end
-
-let of_list l = EvarQualid.to_id (EvarQualid.of_list l)
 
 (** Module for evar name resolution, using a reversed trie.
 
@@ -359,12 +347,16 @@ let name_of ev evn =
   | Some name ->
      let conflicts = NameResolution.find name evn.name_resolution in
      begin match conflicts with
-     | [_] -> Some (EvarQualid.to_id name)
+     | [_] -> Some (EvarQualid.repr name)
      | _ ->
         (* If the qualified name is ambiguous, we append a suffix corresponding to the insertion index in the list. *)
+        let { EvarQualid.basename; path } = name in
         let i = CList.length conflicts - CList.index Evar.equal ev conflicts - 1 in
-        if i == -1 then Some (EvarQualid.to_id name)
-        else Some (EvarQualid.to_id EvarQualid.{ name with basename = Id.of_string @@ (Id.to_string name.basename) ^ (string_of_int i) })
+        let basename =
+          if Int.equal i (-1) then basename
+          else Id.of_string ((Id.to_string name.basename) ^ (string_of_int i))
+        in
+        Some (Libnames.make_path (DirPath.make path) basename)
      end
   | None -> None
 
@@ -380,8 +372,8 @@ let has_unambiguous_name ev evn =
      end
   | None -> false
 
-let resolve id evn =
-  let qualid = EvarQualid.of_id id in
+let resolve fp evn =
+  let qualid = EvarQualid.make fp in
   let evs = NameResolution.find qualid evn.name_resolution in
   let open Pp in
   match evs with
@@ -389,4 +381,5 @@ let resolve id evn =
   | [ev] ->
      if EvSet.mem ev evn.removed_evars then raise Not_found
      else ev
-  | _ :: _ :: _ -> CErrors.user_err (str "Ambiguous name " ++ Id.print id )
+  | _ :: _ :: _ ->
+    CErrors.user_err (str "Ambiguous evar name " ++ Libnames.pr_path fp)
