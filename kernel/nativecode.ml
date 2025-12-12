@@ -2257,7 +2257,7 @@ let compile_mind mb mind stack =
     let projs = match ob.mind_record with
     | NotRecord | FakeRecord -> []
     | PrimRecord info ->
-      let _, _, _, pbs = info in
+      let _, _, _, pbs, _ = info in
       Array.fold_left_i add_proj [] pbs
     in
     projs @ gtype :: accu :: stack

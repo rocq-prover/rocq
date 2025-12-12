@@ -33,6 +33,7 @@ type inductive_arity = { user_arity : Constr.types; sort : Sorts.t }
       (variance for section universes is at the beginning of the array)
     - record entry (checked to be OK)
     - if primitive record was requested and not ok, the reason why it's not ok
+    - if primitive record but relevance check should be redone at eta conversion
     - parameters
     - for each inductive,
       (arity * constructors) (with params)
@@ -47,6 +48,7 @@ val typecheck_inductive : env -> sec_univs:UVars.Instance.t option
   * UVars.Variance.t array option
   * Names.Id.t array option option
   * NotPrimRecordReason.t option
+  * bool
   * Constr.rel_context
   * ((inductive_arity * Constr.types array) *
      (Constr.rel_context * (Constr.rel_context * Constr.types) array) *

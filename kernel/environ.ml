@@ -728,7 +728,7 @@ let lookup_projection p env =
   match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord -> anomaly ~label:"lookup_projection" Pp.(str "not a projection")
   | PrimRecord infos ->
-    let _,_,rs,typs = infos in
+    let _,_,rs,typs, _ = infos in
     let arg = Projection.arg p in
     rs.(arg), typs.(arg)
 
@@ -738,7 +738,7 @@ let get_projection env ind ~proj_arg =
 
 let get_projections env ind =
   let mib = lookup_mind (fst ind) env in
-  Declareops.inductive_make_projections ind mib
+  fst @@ Declareops.inductive_make_projections ind mib
 
 (* Mutual Inductives *)
 let polymorphic_ind (mind,_i) env =

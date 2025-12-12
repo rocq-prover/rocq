@@ -470,6 +470,10 @@ let is_set = function
   | Set -> true
   | SProp | Prop | Type _ | QSort _ -> false
 
+let is_qsort = function
+  | QSort _ -> true
+  | _ -> false
+
 let is_small = function
   | SProp | Prop | Set -> true
   | Type _ | QSort _ -> false
@@ -565,6 +569,10 @@ let relevance_of_sort = function
   | SProp -> Irrelevant
   | Prop | Set | Type _ -> Relevant
   | QSort (q, _) -> RelevanceVar q
+
+let is_relevant = function
+  | Relevant -> true
+  | Irrelevant | RelevanceVar _ -> false
 
 let debug_print = function
   | SProp -> Pp.(str "SProp")
