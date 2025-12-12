@@ -204,10 +204,10 @@ let build_functional_principle env (sigma : Evd.evar_map) old_princ_type sorts f
   let ftac = proof_tac funs mutr_nparams in
   let uctx = Evd.ustate sigma in
   let typ = EConstr.of_constr new_principle_type in
-  let body, typ, univs, _safe, _uctx =
+  let body, typ, univs, _safe, uctx =
     Subproof.build_by_tactic env ~uctx ~poly:PolyFlags.default ~typ ftac
   in
-  (* uctx was ignored before *)
+  let sigma = Evd.set_universe_context sigma uctx in
   let hook = Declare.Hook.make (hook new_principle_type) in
   (body, typ, univs, hook, sigma)
 
