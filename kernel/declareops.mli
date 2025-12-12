@@ -12,6 +12,8 @@ open Declarations
 open Mod_subst
 open UVars
 
+module RelDecl = Context.Rel.Declaration
+
 (** Operations concerning types in [Declarations] :
     [constant_body], [mutual_inductive_body], [module_body] ... *)
 
@@ -59,6 +61,12 @@ val subst_mind_body : substitution -> mutual_inductive_body -> mutual_inductive_
 val subst_rewrite_rules : substitution -> rewrite_rules_body -> rewrite_rules_body
 
 val mind_ntypes : mutual_inductive_body -> int
+
+(** Given given the number of uniform parameters (w/o let-ins) split parameters
+    between uniform parameters and non-uniform parameters.
+    Let-ins between the last uniform parameter and the first non-uniform
+    parameter are included in the uniform parameters. *)
+val split_uparans_nuparams : int -> ('a, 'b, 'c) RelDecl.pt list -> ('a, 'b, 'c) RelDecl.pt list * ('a, 'b, 'c) RelDecl.pt list
 
 val inductive_polymorphic_context : mutual_inductive_body -> AbstractContext.t
 

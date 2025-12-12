@@ -194,3 +194,20 @@ let eta_expand ?evars env t ty =
   let t = Term.applistc (Vars.lift d t) eta_args in
   let t = Term.it_mkLambda_or_LetIn t (List.firstn d ctxt) in
   Term.it_mkLambda_or_LetIn t ctxt'
+
+let eta_expand_instantiation ?evars env inst ctxt =
+  let ctxt = Array.of_list @@ List.rev ctxt in
+  let eta_inst = Array.copy inst in
+  let subst = ref [] in
+  let i = ref 0 in
+  for j = 0 to Array.length ctxt -1 do
+    let decl = ctxt.(j) in
+    match get_value decl with
+    | Some bd -> subst := bd::!subst
+    | None -> let ty = substl !subst @@ get_type decl in
+              let eta_t = eta_expand ?evars env inst.(!i) ty in
+              eta_inst.(!i) <- eta_t;
+              subst := eta_t::!subst;
+              i := 1 + !i
+  done;
+  eta_inst
