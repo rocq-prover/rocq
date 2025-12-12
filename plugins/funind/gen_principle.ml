@@ -204,10 +204,10 @@ let build_functional_principle env (sigma : Evd.evar_map) old_princ_type sorts f
   let ftac = proof_tac funs mutr_nparams in
   let uctx = Evd.ustate sigma in
   let typ = EConstr.of_constr new_principle_type in
-  let body, typ, univs, _safe, _uctx =
+  let body, typ, univs, _safe, uctx =
     Declare.build_by_tactic env ~uctx ~poly:PolyFlags.default ~typ ftac
   in
-  (* uctx was ignored before *)
+  let sigma = Evd.set_universe_context sigma uctx in
   let hook = Declare.Hook.make (hook new_principle_type) in
   (body, typ, univs, hook, sigma)
 
@@ -228,7 +228,7 @@ let change_property_sort evd toSort princ princName =
           let (l, _, r) = Sorts.QCumulConstraints.find_first (fun cst -> not @@ Sorts.QCumulConstraint.trivial cst) qcsts in
           raise (QGraph.EliminationError (QualityInconsistency (None, (Equal, l, r, None))))
         end;
-        Global.add_univ_constraints ucsts;
+        Global.push_context_set (Sorts.levels s, ucsts);
         Term.compose_prod args (Constr.mkSort toSort) )
   in
   let evd, princName_as_constr =

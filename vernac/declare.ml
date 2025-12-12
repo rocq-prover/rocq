@@ -2213,6 +2213,23 @@ let by env tac pf =
   let sideff = SideEff.concat eff pf.sideff in
   { pf with proof; sideff }, safe
 
+let freshen_instance univs = match univs with
+| UState.Monomorphic_entry uctx, unames ->
+  (* Freshen the universe levels *)
+  let (us, ucst) = uctx in
+  let uctx = (Sorts.QVar.Set.empty, us), (Sorts.ElimConstraints.empty, ucst) in
+  let usubst, ((_qs, us), (_qcst, ucst)) = UnivGen.fresh_sort_context_instance uctx in
+  let uctx = us, ucst in
+  (* Add equality constraints between the local universes and the fresh ones *)
+  let fold u v accu =
+    let cst = Univ.UnivConstraints.singleton (u, Eq, v) in
+    Univ.ContextSet.add_constraints cst accu
+  in
+  let guctx = Univ.Level.Map.fold fold (snd usubst) uctx in
+  guctx, (UState.Monomorphic_entry uctx, unames), usubst
+| UState.Polymorphic_entry _, _ ->
+  Univ.ContextSet.empty, univs, UVars.empty_sort_subst
+
 let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
   let cinfo = [CInfo.make ?loc ~name ~typ:() ()] in
@@ -2227,10 +2244,18 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
     let uctx = UState.restrict proof.output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
+  (* TODO: uctx levels are almost immediately demoted, we should do this directly instead *)
+  let uctx, univs, usubst = freshen_instance univs in
+  let body  = Vars.subst_univs_level_constr usubst body in
+  let types = Option.map (fun c -> Vars.subst_univs_level_constr usubst c) types in
   let entry = definition_entry_core ~univs ?types body in
-  (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data pf.proof in
-  let sigma = Evd.set_universe_context sigma proof.output_ustate in
+  let sigma =
+    (* XXX overwriting the context in polymorphic mode breaks a lot of invariants,
+       but it is hard to fix locally without wreaking havoc elsewhere *)
+    if PolyFlags.univ_poly poly then Evd.set_universe_context sigma proof.output_ustate
+    else Evd.merge_universe_context_set Evd.univ_rigid sigma uctx
+  in
   entry, status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
@@ -2245,7 +2270,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
      (but due to #13324 we still want to inline them) *)
   let body = ce.proof_entry_body in
   let effs = SideEff.make @@ Evd.eval_side_effects sigma in
-  let body, _uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
+  let body, uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
   body, ce.proof_entry_type, ce.proof_entry_universes, status, uctx
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
