@@ -71,35 +71,35 @@ let build_induction_scheme_in_type env dep sort ind =
 
 let rect_dep =
   declare_individual_scheme_object "rect_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.qtype x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env true QualityOrSet.qtype x)
 
 let rec_dep =
   declare_individual_scheme_object "rec_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.set x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env true QualityOrSet.set x)
 
 let ind_dep =
   declare_individual_scheme_object "ind_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.prop x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env true QualityOrSet.prop x)
 
 let sind_dep =
   declare_individual_scheme_object "sind_dep"
-    (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.sprop x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env true QualityOrSet.sprop x)
 
 let rect_nodep =
   declare_individual_scheme_object "rect_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.qtype x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env false QualityOrSet.qtype x)
 
 let rec_nodep =
   declare_individual_scheme_object "rec_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.set x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env false QualityOrSet.set x)
 
 let ind_nodep =
   declare_individual_scheme_object "ind_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.prop x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env false QualityOrSet.prop x)
 
 let sind_nodep =
   declare_individual_scheme_object "sind_nodep"
-    (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.sprop x)
+    (fun _sum env _ x -> build_induction_scheme_in_type env false QualityOrSet.sprop x)
 
 let elim_scheme ~dep ~to_kind =
   let open QualityOrSet in
@@ -202,16 +202,16 @@ let build_case_analysis_scheme_in_type env dep sort ind =
 
 let case_dep =
   declare_individual_scheme_object "case_dep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.qtype x)
+    (fun _sum env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.qtype x)
 
 let case_nodep =
   declare_individual_scheme_object "case_nodep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.qtype x)
+    (fun _sum env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.qtype x)
 
 let casep_dep =
   declare_individual_scheme_object "casep_dep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.prop x)
+    (fun _sum env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.prop x)
 
 let casep_nodep =
   declare_individual_scheme_object "casep_nodep"
-    (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.prop x)
+    (fun _sum env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.prop x)

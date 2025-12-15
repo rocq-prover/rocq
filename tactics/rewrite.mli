@@ -79,13 +79,13 @@ val cl_rewrite_clause :
   bool -> Locus.occurrences -> Id.t option -> unit Proofview.tactic
 
 val is_applied_rewrite_relation :
-  env -> evar_map -> rel_context -> constr -> types option
+  Summary.Interp.t -> env -> evar_map -> rel_context -> constr -> types option
 
-val get_reflexive_proof : env -> evar_map -> constr -> constr -> evar_map * constr
+val get_reflexive_proof : Summary.Interp.t -> env -> evar_map -> constr -> constr -> evar_map * constr
 
-val get_symmetric_proof : env -> evar_map -> constr -> constr -> evar_map * constr
+val get_symmetric_proof : Summary.Interp.t -> env -> evar_map -> constr -> constr -> evar_map * constr
 
-val get_transitive_proof : env -> evar_map -> constr -> constr -> evar_map * constr
+val get_transitive_proof : Summary.Interp.t -> env -> evar_map -> constr -> constr -> evar_map * constr
 
 val setoid_symmetry : unit Proofview.tactic
 
@@ -98,6 +98,7 @@ val setoid_transitivity : constr option -> unit Proofview.tactic
 
 val apply_strategy :
   strategy ->
+  Summary.Interp.t ->
   Environ.env ->
   Names.Id.Set.t ->
   constr ->
@@ -146,8 +147,10 @@ val build_signature :
   (types * types option) option list ->
   (types * types option) option ->
   Evd.evar_map * constr * (constr * t option) list
-val build_morphism_signature : Environ.env -> Evd.evar_map -> Constrexpr.constr_expr -> Evd.evar_map * t
-val default_morphism : Environ.env -> Evd.evar_map ->
+val build_morphism_signature : Summary.Interp.t ->
+  Environ.env -> Evd.evar_map -> Constrexpr.constr_expr -> Evd.evar_map * t
+val default_morphism : Summary.Interp.t ->
+  Environ.env -> Evd.evar_map ->
   (types * types option) option list *
   (types * types option) option ->
   constr -> Evd.evar_map * constr * t

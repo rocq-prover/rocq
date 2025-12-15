@@ -37,7 +37,8 @@ val add_setoid
   -> unit
 
 val add_morphism_interactive
-  : rewrite_attributes
+  : Summary.Interp.t
+  -> rewrite_attributes
   -> tactic:unit Proofview.tactic
   -> constr_expr
   -> lident
@@ -47,7 +48,8 @@ val add_morphism_as_parameter : Summary.Interp.mut ->
   rewrite_attributes -> constr_expr -> lident -> unit
 
 val add_morphism
-  : rewrite_attributes
+  : Summary.Interp.t
+  -> rewrite_attributes
   -> tactic:unit Proofview.tactic
   -> local_binder_expr list
   -> constr_expr

@@ -210,7 +210,8 @@ module Proof : sig
 
   (** Pretty much internal, used by the Lemma vernaculars *)
   val start_definition
-    :  info:Info.t
+    : Summary.Interp.t
+    -> info:Info.t
     -> cinfo:EConstr.t CInfo.t
     -> ?using:Vernacexpr.section_subset_expr
     -> Evd.evar_map
@@ -262,7 +263,8 @@ module Proof : sig
   (** [by env tac] applies tactic [tac] to the 1st subgoal of the current
       focused proof.
       Returns [false] if an unsafe tactic has been used. *)
-  val by : Environ.env -> unit Proofview.tactic -> t -> t * bool
+  val by : Summary.Interp.t ->
+    Environ.env -> unit Proofview.tactic -> t -> t * bool
 
   (** Operations on ongoing proofs *)
   val get : t -> Proof.t
@@ -489,7 +491,8 @@ val fixpoint_message : int array option -> Id.t list -> unit
 
 (** Semantics of this function is a bit dubious, use with care *)
 val build_by_tactic
-  :  Environ.env
+  : Summary.Interp.t
+  -> Environ.env
   -> uctx:UState.t
   -> poly:bool
   -> typ:EConstr.types
@@ -606,13 +609,14 @@ val add_mutual_definitions :
 
 (** Implementation of the [Obligation n of id with tac] command *)
 val obligation :
-     int * Names.Id.t option
+  Summary.Interp.t
+  -> int * Names.Id.t option
   -> pm:OblState.t
   -> Gentactic.glob_generic_tactic option
   -> Proof.t
 
 (** Implementation of the [Next Obligation of id with tac] and [Final Obligation of id with tac] commands *)
-val next_obligation :
+val next_obligation : Summary.Interp.t ->
   pm:OblState.t -> ?final:bool -> Names.Id.t option -> Gentactic.glob_generic_tactic option -> Proof.t
 
 (** Implementation of the [Solve Obligations of id with tac] command *)
@@ -636,7 +640,8 @@ val admit_obligations : Summary.Interp.mut ->
 
 val check_program_libraries : unit -> unit
 
-val program_inference_hook : Environ.env -> Evd.evar_map -> Evar.t -> (Evd.evar_map * EConstr.t) option
+val program_inference_hook : Summary.Interp.t ->
+  Environ.env -> Evd.evar_map -> Evar.t -> (Evd.evar_map * EConstr.t) option
 
 end
 

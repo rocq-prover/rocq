@@ -94,10 +94,10 @@ let app_poly_sort b =
   if b then app_poly_nocheck
   else app_poly_check
 
-let find_class_proof proof_type proof_method env evars carrier relation =
+let find_class_proof proof_type proof_method sum env evars carrier relation =
   try
     let evars, goal = app_poly_check env evars proof_type [| carrier ; relation |] in
-    let evars', c = Class_tactics.resolve_one_typeclass env (goalevars evars) goal in
+    let evars', c = Class_tactics.resolve_one_typeclass sum env (goalevars evars) goal in
       if extends_undefined (goalevars evars) evars' then raise Not_found
       else app_poly_check env (evars',cstrevars evars) proof_method [| carrier; relation; c |]
   with e when CErrors.noncritical e -> raise Not_found
@@ -173,12 +173,12 @@ let decompose_app_rel_error env evd t =
   | Some e -> e
   | None -> error_no_relation ()
 
-let decompose_applied_relation env sigma (c,l) =
+let decompose_applied_relation sum env sigma (c,l) =
   let open Context.Rel.Declaration in
   let ctype = Retyping.get_type_of env sigma c in
   let find_rel ty =
     let sigma, cl = EClause.make_evar_clause env sigma ty in
-    let sigma = EClause.solve_evar_clause env sigma true cl l in
+    let sigma = EClause.solve_evar_clause sum env sigma true cl l in
     let { EClause.cl_holes = holes; EClause.cl_concl = t } = cl in
     match decompose_app_rel env sigma t with
     | None -> None
@@ -436,7 +436,7 @@ end) = struct
     | Some codom -> decomp_pointwise env (goalevars sigma) 1 codom
 
   (** Looking up declared rewrite relations (instances of [RewriteRelation]) *)
-  let is_applied_rewrite_relation env sigma rels t =
+  let is_applied_rewrite_relation sum env sigma rels t =
     match EConstr.kind sigma t with
     | App (c, args) when Array.length args >= 2 ->
       let head = if isApp sigma c then fst (destApp sigma c) else c in
@@ -450,7 +450,7 @@ end) = struct
               let (evars, evset), inst =
                 app_poly env' (sigma,Evar.Set.empty)
                   rewrite_relation_class [| ty1; equiv |] in
-              let sigma, _ = Class_tactics.resolve_one_typeclass env' evars inst in
+              let sigma, _ = Class_tactics.resolve_one_typeclass sum env' evars inst in
               (* We check that the relation is homogeneous *after* launching resolution,
                  as this convertibility test might be expensive in general (e.g. this
                  slows down mathcomp-odd-order). *)
@@ -609,7 +609,7 @@ let general_rewrite_unif_flags () =
   }
 
 (** FIXME: write this in the new monad interface *)
-let solve_remaining_by env sigma holes by =
+let solve_remaining_by sum env sigma holes by =
   match by with
   | None -> sigma
   | Some tac ->
@@ -635,7 +635,7 @@ let solve_remaining_by env sigma holes by =
         let env = Evd.evar_env env evi in
         let ty = Evd.evar_concl evi in
         let name, poly = Id.of_string "rewrite", false in
-        let c, sigma = Proof.refine_by_tactic ~name ~poly env sigma ty solve_tac in
+        let c, sigma = Proof.refine_by_tactic sum ~name ~poly env sigma ty solve_tac in
         Evd.define evk c sigma
     in
     List.fold_left solve sigma indep
@@ -670,13 +670,16 @@ type rewrite_result =
 | Identity
 | Success of rewrite_result_info
 
-type 'a strategy_input = { state : 'a ; (* a parameter: for instance, a state *)
-                           env : Environ.env ;
-                           unfresh : Id.Set.t; (* Unfresh names *)
-                           term1 : constr ;
-                           ty1 : types ; (* first term and its type (convertible to rew_from) *)
-                           cstr : (bool (* prop *) * constr option) ;
-                           evars : evars }
+type 'a strategy_input = {
+  state : 'a ; (* a parameter: for instance, a state *)
+  summary : Summary.Interp.t;
+  env : Environ.env ;
+  unfresh : Id.Set.t; (* Unfresh names *)
+  term1 : constr ;
+  ty1 : types ; (* first term and its type (convertible to rew_from) *)
+  cstr : (bool (* prop *) * constr option) ;
+  evars : evars;
+}
 
 type 'a pure_strategy = { strategy :
   'a strategy_input ->
@@ -684,13 +687,13 @@ type 'a pure_strategy = { strategy :
 
 type strategy = unit pure_strategy
 
-let symmetry env sort rew =
+let symmetry sum env sort rew =
   let { rew_evars = evars; rew_car = car; } = rew in
   let (rew_evars, rew_prf) = match rew.rew_prf with
   | RewCast _ -> (rew.rew_evars, rew.rew_prf)
   | RewPrf (rel, prf) ->
     try
-      let evars, symprf = get_symmetric_proof sort env evars car rel in
+      let evars, symprf = get_symmetric_proof sort sum env evars car rel in
       let prf = mkApp (symprf, [| rew.rew_from ; rew.rew_to ; prf |]) in
       (evars, RewPrf (rel, prf))
     with Not_found ->
@@ -700,13 +703,13 @@ let symmetry env sort rew =
   { rew with rew_from = rew.rew_to; rew_to = rew.rew_from; rew_prf; rew_evars; }
 
 (* Matching/unifying the rewriting rule against [t] *)
-let unify_eqn { car; rel; prf; c1; c2; holes; sort } l2r flags env (sigma, cstrs) by t =
+let unify_eqn sum { car; rel; prf; c1; c2; holes; sort } l2r flags env (sigma, cstrs) by t =
   try
     let left = if l2r then c1 else c2 in
-    let _, sigma = Unification.w_unify ~flags env sigma CONV left t in
-    let sigma = TC.resolve_typeclasses ~filter:(no_constraints cstrs)
+    let _, sigma = Unification.w_unify sum ~flags env sigma CONV left t in
+    let sigma = TC.resolve_typeclasses sum ~filter:(no_constraints cstrs)
       ~fail:true env sigma in
-    let sigma = solve_remaining_by env sigma holes by in
+    let sigma = solve_remaining_by sum env sigma holes by in
     let nf c = Reductionops.nf_evar sigma c in
     let c1 = nf c1 and c2 = nf c2
     and rew_car = nf car and rel = nf rel
@@ -719,24 +722,24 @@ let unify_eqn { car; rel; prf; c1; c2; holes; sort } l2r flags env (sigma, cstrs
       let rew_evars = sigma, cstrs in
       let rew_prf = RewPrf (rel, prf) in
       let rew = { rew_evars; rew_prf; rew_car; rew_from = c1; rew_to = c2; } in
-      let rew = if l2r then rew else symmetry env sort rew in
+      let rew = if l2r then rew else symmetry sum env sort rew in
       Some rew
     end
   with
   | e when noncritical e -> None
 
-let unify_abs (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
+let unify_abs sum (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
   try
     let left = if l2r then c1 else c2 in
     (* The pattern is already instantiated, so the next w_unify is
        basically an eq_constr, except when preexisting evars occur in
        either the lemma or the goal, in which case the eq_constr also
        solved this evars *)
-    let _, sigma = Unification.w_unify ~flags:rewrite_unif_flags env sigma CONV left t in
+    let _, sigma = Unification.w_unify sum ~flags:rewrite_unif_flags env sigma CONV left t in
     let rew_evars = sigma, cstrs in
     let rew_prf = RewPrf (rel, prf) in
     let rew = { rew_car = car; rew_from = c1; rew_to = c2; rew_prf; rew_evars; } in
-    let rew = if l2r then rew else symmetry env sort rew in
+    let rew = if l2r then rew else symmetry sum env sort rew in
     Some rew
   with
   | e when noncritical e -> None
@@ -873,18 +876,18 @@ let apply_rule unify : occurrences_count pure_strategy =
     }
 
 let with_no_bindings (c : delayed_open_constr) : delayed_open_constr_with_bindings =
-  (); fun env sigma ->
-    let (sigma, c) = c env sigma in
+  (); fun sum env sigma ->
+    let (sigma, c) = c sum env sigma in
     (sigma, (c, NoBindings))
 
 let apply_lemma l2r flags oc by loccs : strategy =
   let oc = with_no_bindings oc in
-  let strategy ({ state = () ; env ; term1 = t ; evars = (sigma, cstrs) } as input) =
-    let sigma, c = oc env sigma in
-    let sigma, rew = decompose_applied_relation env sigma c in
+  let strategy ({ state = () ; summary; env ; term1 = t ; evars = (sigma, cstrs) } as input) =
+    let sigma, c = oc summary env sigma in
+    let sigma, rew = decompose_applied_relation summary env sigma c in
     let evars = (sigma, cstrs) in
     let unify env evars t =
-      let rew = unify_eqn rew l2r flags env evars by t in
+      let rew = unify_eqn summary rew l2r flags env evars by t in
       match rew with
       | None -> None
       | Some rew -> Some rew
@@ -980,7 +983,7 @@ let unfold_match env sigma sk app =
 let is_rew_cast = function RewCast _ -> true | _ -> false
 
 let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
-  let aux { state ; env ; unfresh ;
+  let aux { state ; summary; env ; unfresh ;
                 term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars } =
     let cstr' = Option.map (fun c -> (ty, Some c)) cstr in
       match EConstr.kind (goalevars evars) t with
@@ -993,11 +996,14 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                     state, (None :: acc, evars, progress)
                   else
                     let evars, argty = get_type_of_refresh env evars arg in
-                    let state, res = s.strategy { state ; env ;
-                                                  unfresh ;
-                                                  term1 = arg ;        ty1 = argty ;
-                                                  cstr = (prop,None) ;
-                                                  evars } in
+                    let state, res = s.strategy {
+                        summary;
+                        state ; env ;
+                        unfresh ;
+                        term1 = arg ;        ty1 = argty ;
+                        cstr = (prop,None) ;
+                        evars }
+                    in
                     let res' =
                       match res with
                       | Identity ->
@@ -1049,9 +1055,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                     evars, Some cstr', m, mty, args, Array.of_list args
                   | None -> evars, None, m, mty, argsl, args
               in
-              let state, m' = s.strategy { state ; env ; unfresh ;
-                                           term1 = m ; ty1 = mty ;
-                                           cstr = (prop, cstr') ; evars } in
+              let state, m' = s.strategy {
+                  summary;
+                  state ; env ; unfresh ;
+                  term1 = m ; ty1 = mty ;
+                  cstr = (prop, cstr') ; evars }
+              in
                 match m' with
                 | Fail -> rewrite_args state None (* Standard path, try rewrite on arguments *)
                 | Identity -> rewrite_args state (Some false)
@@ -1086,6 +1095,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
         let arg = Array.last args in
         let evars, argty = get_type_of_refresh env evars arg in
         let input = {
+          summary;
           state; env; unfresh;
           term1 = arg; ty1 = argty;
           cstr = (prop, None); evars }
@@ -1121,9 +1131,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
             else TypeGlobal.arrow_morphism
           in
           let (evars', mor), unfold = arr env evars n.binder_name tx tb x b in
-          let state, res = s.strategy { state ; env ; unfresh ;
-                                 term1 = mor ; ty1 = ty ;
-                                 cstr = (prop,cstr) ; evars = evars' } in
+          let state, res = s.strategy {
+              summary;
+              state ; env ; unfresh ;
+              term1 = mor ; ty1 = ty ;
+              cstr = (prop,cstr) ; evars = evars' }
+          in
           let res =
             match res with
             | Success r -> Success { r with rew_to = unfold (goalevars r.rew_evars) r.rew_to }
@@ -1139,9 +1152,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
               let forall = if prop then PropGlobal.rocq_forall else TypeGlobal.rocq_forall in
                 (app_poly_sort prop env evars forall [| dom; lam |]), TypeGlobal.unfold_forall
           in
-          let state, res = s.strategy { state ; env ; unfresh ;
-                                 term1 = app ; ty1 = ty ;
-                                 cstr = (prop,cstr) ; evars = evars' } in
+          let state, res = s.strategy {
+              summary;
+              state ; env ; unfresh ;
+              term1 = app ; ty1 = ty ;
+              cstr = (prop,cstr) ; evars = evars' }
+          in
           let res =
             match res with
             | Success r -> Success { r with rew_to = unfold (goalevars r.rew_evars) r.rew_to }
@@ -1171,10 +1187,13 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
         let env' = EConstr.push_rel (LocalAssum (n', t)) env in
         let bty = Retyping.get_type_of env' (goalevars evars) b in
         let unlift = if prop then PropGlobal.unlift_cstr else TypeGlobal.unlift_cstr in
-        let state, b' = s.strategy { state ; env = env' ; unfresh ;
-                                     term1 = b ; ty1 = bty ;
-                                     cstr = (prop, unlift env evars cstr) ;
-                                     evars } in
+        let state, b' = s.strategy {
+            summary;
+            state ; env = env' ; unfresh ;
+            term1 = b ; ty1 = bty ;
+            cstr = (prop, unlift env evars cstr) ;
+            evars }
+        in
         let res =
           match b' with
           | Success r ->
@@ -1200,9 +1219,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
         let cty = Retyping.get_type_of env (goalevars evars) c in
         let evars', eqty = app_poly_sort prop env evars rocq_eq [| cty |] in
         let cstr' = Some eqty in
-        let state, c' = s.strategy { state ; env ; unfresh ;
-                                     term1 = c ; ty1 = cty ;
-                                     cstr = (prop, cstr') ; evars = evars' } in
+        let state, c' = s.strategy {
+            summary;
+            state ; env ; unfresh ;
+            term1 = c ; ty1 = cty ;
+            cstr = (prop, cstr') ; evars = evars' }
+        in
         let state, res =
           match c' with
           | Success r ->
@@ -1218,9 +1240,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                   if not (Option.is_empty found) then
                     (state, found, fun x -> lift 1 br :: acc x)
                   else
-                    let state, res = s.strategy { state ; env ; unfresh ;
-                                                  term1 = br ; ty1 = ty ;
-                                                  cstr = (prop,cstr) ; evars } in
+                    let state, res = s.strategy {
+                        summary;
+                        state ; env ; unfresh ;
+                        term1 = br ; ty1 = ty ;
+                        cstr = (prop,cstr) ; evars }
+                    in
                       match res with
                       | Success r -> (state, Some r, fun x -> mkRel 1 :: acc x)
                       | Fail | Identity -> (state, None, fun x -> lift 1 br :: acc x))
@@ -1235,9 +1260,12 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
               match try Some (fold_match env (goalevars evars) t) with Not_found -> None with
               | None -> state, c'
               | Some (cst, t') ->
-                 let state, res = s.strategy { state ; env ; unfresh ;
-                                        term1 = t' ; ty1 = ty ;
-                                        cstr = (prop,cstr) ; evars } in
+                let state, res = s.strategy {
+                    summary;
+                    state ; env ; unfresh ;
+                    term1 = t' ; ty1 = ty ;
+                    cstr = (prop,cstr) ; evars }
+                in
                 let res =
                   match res with
                   | Success prf ->
@@ -1258,14 +1286,14 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
 (** Requires transitivity of the rewrite step, if not a reduction.
     Not tail-recursive. *)
 
-let transitivity state env unfresh cstr (res : rewrite_result_info) (next : 'a pure_strategy) :
+let transitivity summary state env unfresh cstr (res : rewrite_result_info) (next : 'a pure_strategy) :
     'a * rewrite_result =
   let cstr = match cstr with
     | _, Some _ -> cstr
     | prop, None -> prop, get_opt_rew_rel res.rew_prf
   in
   let state, nextres =
-    next.strategy { state; env; unfresh; cstr;
+    next.strategy { summary; state; env; unfresh; cstr;
                     term1 = res.rew_to;
                     ty1 = res.rew_car;
                     evars = res.rew_evars; }
@@ -1345,12 +1373,12 @@ module Strategies =
                                                              }
 
     let seq first snd : 'a pure_strategy = { strategy =
-      fun ({ env ; unfresh ; cstr } as input) ->
+      fun ({ summary; env ; unfresh ; cstr } as input) ->
         let state, res = first.strategy input in
           match res with
           | Fail -> state, Fail
           | Identity -> snd.strategy { input with state }
-          | Success res -> transitivity state env unfresh cstr res snd
+          | Success res -> transitivity summary state env unfresh cstr res snd
                                            }
 
     let seqs strs = List.fold_left seq id strs
@@ -1417,7 +1445,7 @@ module Strategies =
           choice tac (apply_lemma l2r rewrite_unif_flags c by AllOccurrences)
         ) fail cs
 
-    let inj_open hint = (); fun _env sigma ->
+    let inj_open hint = (); fun _sum _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
       let subst, ctx = UnivGen.fresh_universe_context_set_instance ctx in
       let subst = Sorts.QVar.Map.empty, subst in
@@ -1459,12 +1487,12 @@ module Strategies =
                                rew_evars = sigma, cstrevars evars }
                                                            }
 
-    let run_fold_in env evars c term typ : rewrite_result =
+    let run_fold_in sum env evars c term typ : rewrite_result =
       let unfolded = match Tacred.red_product env (goalevars evars) c with
         | None -> user_err Pp.(str "fold: the term is not unfoldable!")
         | Some c -> c
       in try
-        let _, sigma = Unification.w_unify env (goalevars evars) CONV ~flags:(Unification.elim_flags ()) unfolded term in
+        let _, sigma = Unification.w_unify sum env (goalevars evars) CONV ~flags:(Unification.elim_flags ()) unfolded term in
         let c' = Reductionops.nf_evar sigma c in
         Success { rew_car = typ; rew_from = term; rew_to = c';
                          rew_prf = RewCast DEFAULTcast;
@@ -1472,14 +1500,14 @@ module Strategies =
       with e when CErrors.noncritical e -> Fail
 
     let fold (c : Evd.econstr) : 'a pure_strategy =
-      { strategy = fun { state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
-            state, run_fold_in env evars c t ty
+      { strategy = fun { summary; state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
+            state, run_fold_in summary env evars c t ty
       }
 
     let fold_glob c : 'a pure_strategy =
-      { strategy = fun { state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
-            let sigma, c = Pretyping.understand_tcc env (goalevars evars) c in
-            state, run_fold_in env (sigma, cstrevars evars) c t ty
+      { strategy = fun { summary; state ; env ; term1 = t ; ty1 = ty ; cstr ; evars } ->
+            let sigma, c = Pretyping.understand_tcc summary env (goalevars evars) c in
+            state, run_fold_in summary env (sigma, cstrevars evars) c t ty
       }
 end
 
@@ -1490,12 +1518,12 @@ end
     mode *)
 
 let rewrite_with l2r flags c occs : strategy = { strategy =
-  fun ({ state = () } as input) ->
+  fun ({ summary; state = () } as input) ->
     let unify env evars t =
       let (sigma, cstrs) = evars in
-      let sigma, cbl = c env sigma in
-      let sigma, rew = decompose_applied_relation env sigma cbl in
-      unify_eqn rew l2r flags env (sigma, cstrs) None t
+      let sigma, cbl = c summary env sigma in
+      let sigma, rew = decompose_applied_relation summary env sigma cbl in
+      unify_eqn summary rew l2r flags env (sigma, cstrs) None t
     in
     let app = apply_rule unify in
     let strat =
@@ -1507,17 +1535,20 @@ let rewrite_with l2r flags c occs : strategy = { strategy =
     ((), res)
                                                }
 
-let apply_strategy (s : strategy) env unfresh concl (prop, cstr) evars =
+let apply_strategy (s : strategy) summary env unfresh concl (prop, cstr) evars =
   let evars, ty = get_type_of_refresh env evars concl in
-  let _, res = s.strategy { state = () ; env ; unfresh ;
-                            term1 = concl ; ty1 = ty ;
-                            cstr = (prop, Some cstr) ; evars } in
+  let _, res = s.strategy {
+      summary;
+      state = () ; env ; unfresh ;
+      term1 = concl ; ty1 = ty ;
+      cstr = (prop, Some cstr) ; evars }
+  in
   res
 
-let solve_constraints env (evars,cstrs) =
+let solve_constraints sum env (evars,cstrs) =
   let oldtcs = Evd.get_typeclass_evars evars in
   let evars' = Evd.set_typeclass_evars evars cstrs in
-  let evars' = TC.resolve_typeclasses env ~filter:TC.all_evars ~fail:true evars' in
+  let evars' = TC.resolve_typeclasses sum env ~filter:TC.all_evars ~fail:true evars' in
   Evd.set_typeclass_evars evars' oldtcs
 
 let nf_zeta =
@@ -1536,7 +1567,7 @@ let () = CErrors.register_handler begin function
 | _ -> None
 end
 
-let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : result =
+let cl_rewrite_clause_aux ?(abs=None) strat sum env avoid sigma concl is_hyp : result =
   let sigma, sort = Typing.sort_of env sigma concl in
   let evdref = ref sigma in
   let evars = (!evdref, Evar.Set.empty) in
@@ -1551,13 +1582,13 @@ let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : resul
       evars, (prop, t)
     | Some _ -> evars, (prop, arrow)
   in
-  let eq = apply_strategy strat env avoid concl cstr evars in
+  let eq = apply_strategy strat sum env avoid concl cstr evars in
   match eq with
   | Fail -> None
   | Identity -> Some None
   | Success res ->
     let (_, cstrs) = res.rew_evars in
-    let evars = solve_constraints env res.rew_evars in
+    let evars = solve_constraints sum env res.rew_evars in
     let iter ev = if not (Evd.is_defined evars ev) then raise (UnsolvedConstraints (env, evars, ev)) in
     let () = Evar.Set.iter iter cstrs in
     let newt = res.rew_to in
@@ -1637,6 +1668,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
     let env = Proofview.Goal.env gl in
     let state = Proofview.Goal.state gl in
     let sigma = Proofview.Goal.sigma gl in
+    let sum = Proofview.Goal.summary gl in
     let ty = match clause with
     | None -> concl
     | Some id -> EConstr.of_constr (Environ.named_type id env)
@@ -1652,7 +1684,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
     in
     try
       let res =
-        cl_rewrite_clause_aux ?abs strat env Id.Set.empty sigma ty clause
+        cl_rewrite_clause_aux ?abs strat sum env Id.Set.empty sigma ty clause
       in
       let sigma = match origsigma with None -> sigma | Some sigma -> sigma in
       treat sigma res state <*>
@@ -1811,8 +1843,8 @@ let rec strategy_of_ast bindings = function
   | StratHints (old, id) -> if old then Strategies.old_hints id else Strategies.hints id
   | StratTerms l -> Strategies.lemmas (List.map (fun (_, c) -> (c, true, None)) l)
   | StratEval r -> { strategy =
-    (fun ({ state = () ; env ; evars } as input) ->
-     let (sigma, r_interp) = r env (goalevars evars) in
+    (fun ({ summary; state = () ; env ; evars } as input) ->
+     let (sigma, r_interp) = r summary env (goalevars evars) in
      (Strategies.reduce r_interp).strategy { input with
                                              evars = (sigma,cstrevars evars) }) }
   | StratFold c -> Strategies.fold_glob (fst c)
@@ -1833,8 +1865,8 @@ let proper_projection env sigma r ty =
                   Array.append args [| instarg |]) in
   sigma, it_mkLambda_or_LetIn app ctx
 
-let build_morphism_signature env sigma m =
-  let m,ctx = Constrintern.interp_constr env sigma m in
+let build_morphism_signature sum env sigma m =
+  let m,ctx = Constrintern.interp_constr sum env sigma m in
   let sigma = Evd.from_ctx ctx in
   let t = Retyping.get_type_of env sigma m in
   let cstrs =
@@ -1858,36 +1890,36 @@ let build_morphism_signature env sigma m =
     cstrs
   in
   let morph = e_app_poly env evd PropGlobal.proper_type [| t; sig_; m |] in
-  let evd = solve_constraints env !evd in
+  let evd = solve_constraints sum env !evd in
   evd, morph
 
-let default_morphism env sigma sign m =
+let default_morphism sum env sigma sign m =
   let t = Retyping.get_type_of env sigma m in
   let sigma, _, sign, cstrs =
     PropGlobal.build_signature (sigma, Evar.Set.empty) env t (fst sign) (snd sign)
   in
   let sigma, morph = app_poly_check env sigma PropGlobal.proper_type [| t; sign; m |] in
-  let sigma, mor = Class_tactics.resolve_one_typeclass env (goalevars sigma) morph in
+  let sigma, mor = Class_tactics.resolve_one_typeclass sum env (goalevars sigma) morph in
   let sigma, proj = proper_projection env sigma mor morph in
   sigma, mor, proj
 
 (** Bind to "rewrite" too *)
 
 (* Find a subterm which matches the pattern to rewrite for "rewrite" *)
-let unification_rewrite l2r c1 c2 sigma prf car rel but env =
+let unification_rewrite sum l2r c1 c2 sigma prf car rel but env =
   let ((_, sigma), c') =
     try
       (* ~flags:(false,true) to allow to mark occurrences that must not be
          rewritten simply by replacing them with let-defined definitions
          in the context *)
-      Unification.w_unify_to_subterm
+      Unification.w_unify_to_subterm sum
        ~flags:rewrite_unif_flags
         env sigma ((if l2r then c1 else c2),but)
     with
     | ex when Pretype_errors.precatchable_exception ex ->
         (* ~flags:(true,true) to make Ring work (since it really
            exploits conversion) *)
-      Unification.w_unify_to_subterm
+      Unification.w_unify_to_subterm sum
         ~flags:rewrite_conv_unif_flags
         env sigma ((if l2r then c1 else c2),but)
   in
@@ -1907,20 +1939,22 @@ let get_hyp gl (c,l) clause l2r =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
-  let sigma, hi = decompose_applied_relation env sigma (c, l) in
+  let sum = Proofview.Goal.summary gl in
+  let sigma, hi = decompose_applied_relation sum env sigma (c, l) in
   let but = match clause with
     | Some id -> Tacmach.pf_get_hyp_typ id gl
     | None -> Reductionops.nf_evar sigma concl
   in
-  unification_rewrite l2r hi.c1 hi.c2 sigma hi.prf hi.car hi.rel but env
+  unification_rewrite sum l2r hi.c1 hi.c2 sigma hi.prf hi.car hi.rel but env
 
 let general_rewrite_flags = { under_lambdas = false; on_morphisms = true }
 
 (** Setoid rewriting when called with "rewrite" *)
 let general_s_rewrite cl l2r occs (c,l) ~new_goals =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let abs, evd, res, sort = get_hyp gl (c,l) cl l2r in
-  let unify env evars t = unify_abs res l2r sort env evars t in
+  let unify env evars t = unify_abs sum res l2r sort env evars t in
   let app = apply_rule unify in
   let recstrat aux = Strategies.choice app (subterm true general_rewrite_flags aux) in
   let substrat = Strategies.fix recstrat in
@@ -1963,6 +1997,7 @@ let setoid_proof ty fn fallback =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     Proofview.tclORELSE
       begin
         try
@@ -1970,7 +2005,7 @@ let setoid_proof ty fn fallback =
           let (sigma, t) = Typing.type_of env sigma rel in
           let car = snd (List.hd (fst (Reductionops.whd_decompose_prod env sigma t))) in
           (try init_relation_classes () with e when CErrors.noncritical e -> raise Not_found);
-          fn env sigma car rel
+          fn sum env sigma car rel
         with e when CErrors.noncritical e ->
           (* XXX what is the right test here as to whether e can be converted ? *)
           let e, info = Exninfo.capture e in
@@ -1995,34 +2030,34 @@ let setoid_proof ty fn fallback =
 let tac_open ((evm,_), c) tac =
     (tclTHEN (Proofview.Unsafe.tclEVARS evm) (tac c))
 
-let poly_proof getp gett env evm car rel =
+let poly_proof getp gett sum env evm car rel =
   if Sorts.is_prop (sort_of_rel env evm rel) then
-    getp env (evm,Evar.Set.empty) car rel
-  else gett env (evm,Evar.Set.empty) car rel
+    getp sum env (evm,Evar.Set.empty) car rel
+  else gett sum env (evm,Evar.Set.empty) car rel
 
 let setoid_reflexivity =
   setoid_proof "reflexive"
-    (fun env evm car rel ->
+    (fun sum env evm car rel ->
      tac_open (poly_proof PropGlobal.get_reflexive_proof
                           TypeGlobal.get_reflexive_proof
-                          env evm car rel)
+                          sum env evm car rel)
               (fun c -> tclCOMPLETE (apply c)))
     (reflexivity_red true)
 
 let setoid_symmetry =
   setoid_proof "symmetric"
-    (fun env evm car rel ->
+    (fun sum env evm car rel ->
       tac_open
         (poly_proof PropGlobal.get_symmetric_proof TypeGlobal.get_symmetric_proof
-           env evm car rel)
+           sum env evm car rel)
         (fun c -> apply c))
     (symmetry_red true)
 
 let setoid_transitivity c =
   setoid_proof "transitive"
-    (fun env evm car rel ->
+    (fun sum env evm car rel ->
       tac_open (poly_proof PropGlobal.get_transitive_proof TypeGlobal.get_transitive_proof
-           env evm car rel)
+           sum env evm car rel)
         (fun proof -> match c with
         | None -> eapply proof
         | Some c -> apply_with_bindings (proof,ImplicitBindings [ c ])))
@@ -2054,8 +2089,8 @@ let _ = Hook.set Tactics.setoid_symmetry setoid_symmetry
 let _ = Hook.set Tactics.setoid_symmetry_in setoid_symmetry_in
 let _ = Hook.set Tactics.setoid_transitivity setoid_transitivity
 
-let get_lemma_proof f env evm x y =
-  let (evm, _), c = f env (evm,Evar.Set.empty) x y in
+let get_lemma_proof f sum env evm x y =
+  let (evm, _), c = f sum env (evm,Evar.Set.empty) x y in
     evm, c
 
 let get_reflexive_proof =

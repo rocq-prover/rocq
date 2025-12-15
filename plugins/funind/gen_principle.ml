@@ -14,6 +14,8 @@ open Indfun_common
 module RelDecl = Context.Rel.Declaration
 module ERelevance = EConstr.ERelevance
 
+let (!!) = Summary.Interp.get
+
 let observe_tac s =
   observe_tac ~header:(Pp.str "observation") (fun _ _ -> Pp.str s)
 
@@ -42,10 +44,10 @@ let build_newrecursive sum lnameargsardef =
     List.fold_left
       (fun (env, impls) {Vernacexpr.fname = {CAst.v = recname}; binders; rtype} ->
         let arityc = Constrexpr_ops.mkCProdN binders rtype in
-        let arity, _ctx = Constrintern.interp_type env0 sigma arityc in
+        let arity, _ctx = Constrintern.interp_type sum env0 sigma arityc in
         let evd = Evd.from_env env0 in
         let evd, (_, (_, impls', _locs)) =
-          Constrintern.interp_context_evars ~program_mode:false env evd binders
+          Constrintern.interp_context_evars ~program_mode:false sum env evd binders
         in
         let impl =
           Constrintern.compute_internalization_data env0 evd recname
@@ -185,7 +187,7 @@ let prepare_body {Vernacexpr.binders} rt =
   let fun_args, rt' = chop_rlambda_n n rt in
   (fun_args, rt')
 
-let build_functional_principle env (sigma : Evd.evar_map) old_princ_type sorts funs
+let build_functional_principle sum env (sigma : Evd.evar_map) old_princ_type sorts funs
     _i proof_tac hook =
   (* First we get the type of the old graph principle *)
   let mutr_nparams =
@@ -206,7 +208,7 @@ let build_functional_principle env (sigma : Evd.evar_map) old_princ_type sorts f
   let uctx = Evd.ustate sigma in
   let typ = EConstr.of_constr new_principle_type in
   let body, typ, univs, _safe, _uctx =
-    Declare.build_by_tactic env ~uctx ~poly:false ~typ ftac
+    Declare.build_by_tactic sum env ~uctx ~poly:false ~typ ftac
   in
   (* uctx was ignored before *)
   let hook = Declare.Hook.make (hook new_principle_type) in
@@ -300,7 +302,7 @@ let generate_functional_principle sum (evd : Evd.evar_map ref) old_princ_type so
         register_with_sort UnivGen.QualityOrSet.set )
     in
     let body, types, univs, hook, sigma0 =
-      build_functional_principle (Global.env ()) !evd old_princ_type new_sorts funs i proof_tac
+      build_functional_principle !!sum (Global.env ()) !evd old_princ_type new_sorts funs i proof_tac
         hook
     in
     evd := sigma0;
@@ -1342,7 +1344,7 @@ let make_scheme sum evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityO
   in
   let body, typ, univs, _hook, sigma0 =
     try
-      build_functional_principle (Global.env ()) !evd first_type (Array.of_list sorts)
+      build_functional_principle !!sum (Global.env ()) !evd first_type (Array.of_list sorts)
         this_block_funs 0
         (Functional_principles_proofs.prove_princ_for_struct sum evd false 0
            (Array.of_list (List.map fst funs)))
@@ -1396,7 +1398,7 @@ let make_scheme sum evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityO
                We fall back to the previous method
             *)
             let body, typ, univs, _hook, sigma0 =
-              build_functional_principle (Global.env ()) !evd
+              build_functional_principle !!sum (Global.env ()) !evd
                 (List.nth other_princ_types (!i - 1))
                 (Array.of_list sorts) this_block_funs !i
                 (Functional_principles_proofs.prove_princ_for_struct sum evd false
@@ -1484,7 +1486,7 @@ let derive_correctness sum (funs : Constant.t EConstr.puniverses list) (graphs :
           let info = Declare.Info.make () in
           let cinfo = Declare.CInfo.make ~name:lem_id ~typ () in
           let lemma = Declare.Proof.start ~cinfo ~info !evd in
-          let lemma = fst @@ Declare.Proof.by (Global.env ()) (proving_tac i) lemma in
+          let lemma = fst @@ Declare.Proof.by !!sum (Global.env ()) (proving_tac i) lemma in
           let (_ : _ list) =
             Declare.Proof.save_regular sum ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
@@ -1552,7 +1554,7 @@ let derive_correctness sum (funs : Constant.t EConstr.puniverses list) (graphs :
           let lemma = Declare.Proof.start ~cinfo sigma ~info in
           let lemma =
             fst
-              (Declare.Proof.by (Global.env ())
+              (Declare.Proof.by !!sum (Global.env ())
                  (observe_tac
                     ("prove completeness (" ^ Id.to_string f_id ^ ")")
                     (proving_tac i))
@@ -1755,7 +1757,7 @@ let do_generate_principle_aux sum pconstants on_error register_built
           CErrors.user_err
             (Pp.str "Body of Function must be given.")
       in
-      let recdefs, rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
+      let recdefs, rec_impls = build_newrecursive !!sum fixpoint_exprl in
       let using_lemmas = [] in
       let pre_hook sum pconstants =
         generate_principle sum
@@ -1775,7 +1777,7 @@ let do_generate_principle_aux sum pconstants on_error register_built
         | _ -> assert false
       in
       let fixpoint_exprl = [fixpoint_expr] in
-      let recdefs, rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
+      let recdefs, rec_impls = build_newrecursive !!sum fixpoint_exprl in
       let using_lemmas = [] in
       let body =
         match body_def with
@@ -1810,7 +1812,7 @@ let do_generate_principle_aux sum pconstants on_error register_built
         List.map (function {Vernacexpr.fname} -> fname.CAst.v) fixpoint_exprl
       in
       (* ok all the expressions are structural *)
-      let recdefs, _rec_impls = build_newrecursive (Summary.Interp.get sum) fixpoint_exprl in
+      let recdefs, _rec_impls = build_newrecursive !!sum fixpoint_exprl in
       let is_rec = List.exists (is_rec fix_names) recdefs in
       let lemma, evd, pconstants =
         if register_built then register_struct sum is_rec (rec_order, fixpoint_exprl)

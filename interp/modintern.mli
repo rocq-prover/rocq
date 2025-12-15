@@ -41,5 +41,5 @@ val intern_module_ast :
   module_kind -> module_ast -> module_struct_expr * ModPath.t * module_kind
 
 (** Module interpretation, i.e. from module expression to typed module entry *)
-val interp_module_ast :
+val interp_module_ast : Summary.Interp.t ->
   env -> module_kind -> ModPath.t -> module_struct_expr -> module_struct_entry * Univ.ContextSet.t

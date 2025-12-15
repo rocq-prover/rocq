@@ -309,8 +309,9 @@ let install_path_printer f = path_printer := f
 let print_path x = !path_printer x
 
 let path_comparator :
-  (Environ.env -> Evd.evar_map -> cl_typ -> inheritance_path -> inheritance_path -> bool) ref =
-  ref (fun _ _ _ _ _ -> false)
+  (Summary.Interp.t -> Environ.env -> Evd.evar_map ->
+   cl_typ -> inheritance_path -> inheritance_path -> bool) ref =
+  ref (fun _ _ _ _ _ _ -> false)
 
 let install_path_comparator f = path_comparator := f
 
@@ -338,7 +339,7 @@ let different_class_params env ci =
     | CL_CONST c -> Environ.is_polymorphic env (GlobRef.ConstRef c)
     | _ -> false
 
-let add_coercion_in_graph env sigma ?(update=false) ic =
+let add_coercion_in_graph sum env sigma ?(update=false) ic =
   let source = ic.coe_source in
   let target = ic.coe_target in
   let source_info = class_info source in
@@ -369,7 +370,7 @@ let add_coercion_in_graph env sigma ?(update=false) ic =
          (ClTypSet.diff
             (ClTypSet.inter between_ij target_info.cl_reachable_from)
             j_info.cl_reachable_from) &&
-       not (compare_path env sigma i p q)
+       not (compare_path (Summary.Interp.get sum) env sigma i p q)
     then
       ambig_paths := (ij, p, q) :: !ambig_paths
   in
@@ -464,11 +465,11 @@ let add_class env sigma cl =
       cl_reachable_to = cl_singleton;
       cl_repr = cl }
 
-let declare_coercion env sigma ?update c =
+let declare_coercion sum env sigma ?update c =
   let () = add_class env sigma c.coe_source in
   let () = add_class env sigma c.coe_target in
   let () = add_coercion c.coe_value c in
-  add_coercion_in_graph env sigma ?update c
+  add_coercion_in_graph sum env sigma ?update c
 
 (* For printing purpose *)
 let classes () =

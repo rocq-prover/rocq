@@ -42,7 +42,8 @@ val mk_clenv_from_n : env -> evar_map -> int -> EConstr.constr * EConstr.types -
 
 (** {6 linking of clenvs } *)
 
-val clenv_instantiate : ?flags:unify_flags -> ?submetas:(metavariable list * Unification.Meta.t) ->
+val clenv_instantiate : Summary.Interp.t ->
+  ?flags:unify_flags -> ?submetas:(metavariable list * Unification.Meta.t) ->
   metavariable -> clausenv -> (constr * types) -> clausenv
 
 (** {6 Bindings } *)
@@ -58,11 +59,11 @@ val clenv_missing : clausenv -> Names.Name.t list * int
 (** the arity of the lemma is fixed
    the optional int tells how many prods of the lemma have to be used
    use all of them if None *)
-val make_clenv_binding_apply :
+val make_clenv_binding_apply : Summary.Interp.t ->
   env -> evar_map -> int option -> EConstr.constr * EConstr.constr -> constr bindings ->
    clausenv
 
-val make_clenv_binding :
+val make_clenv_binding : Summary.Interp.t ->
   env -> evar_map -> EConstr.constr * EConstr.constr -> constr bindings -> clausenv
 
 (** if the clause is a product, add an extra meta for this product *)

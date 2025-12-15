@@ -22,6 +22,8 @@ let () = CErrors.register_handler begin function
 | _ -> None
 end
 
+let (!!) = Summary.Interp.get
+
 module TC = Typeclasses
 
 let classes_dirpath =
@@ -199,7 +201,7 @@ let add_morphism_as_parameter sum atts m n : unit =
   let poly = atts.polymorphic in
   let kind = Decls.(IsAssumption Logical) in
   let impargs, udecl = [], UState.default_univ_decl in
-  let evd, types = Rewrite.Internal.build_morphism_signature env evd m in
+  let evd, types = Rewrite.Internal.build_morphism_signature !!sum env evd m in
   let evd, pe = Declare.prepare_parameter ~poly ~udecl ~types evd in
   let cst = Declare.declare_constant sum ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
@@ -207,12 +209,12 @@ let add_morphism_as_parameter sum atts m n : unit =
     (PropGlobal.proper_class ()) Hints.empty_hint_info atts.locality cst;
   declare_projection sum n instance_id cst
 
-let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
+let add_morphism_interactive sum atts ~tactic m n : Declare.Proof.t =
   init_setoid ();
   let instance_id = add_suffix n "_Proper" in
   let env = Global.env () in
   let evd = Evd.from_env env in
-  let evd, morph = Rewrite.Internal.build_morphism_signature env evd m in
+  let evd, morph = Rewrite.Internal.build_morphism_signature sum env evd m in
   let poly = atts.polymorphic in
   let kind = Decls.(IsDefinition Instance) in
   let hook sum { Declare.Hook.S.dref; _ } = dref |> function
@@ -228,9 +230,9 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
        let cinfo = Declare.CInfo.make ?loc:instance_id.loc ~name:instance_id.v ~typ:morph () in
        let info = Declare.Info.make ~poly ~hook ~kind () in
        let lemma = Declare.Proof.start ~cinfo ~info evd in
-       fst (Declare.Proof.by (Global.env ()) tactic lemma)) ()
+       fst (Declare.Proof.by sum (Global.env ()) tactic lemma)) ()
 
-let add_morphism atts ~tactic binders m s n =
+let add_morphism sum atts ~tactic binders m s n =
   init_setoid ();
   let instance_id = add_suffix n "_Proper" in
   let instance_name = (CAst.make ?loc:instance_id.loc @@ Name instance_id.v),None in
@@ -239,7 +241,7 @@ let add_morphism atts ~tactic binders m s n =
       ((Libnames.qualid_of_string "Corelib.Classes.Morphisms.Proper",None),
        [cHole; s; m])
   in
-  let _id, lemma = Classes.new_instance_interactive
+  let _id, lemma = Classes.new_instance_interactive sum
       ~locality:atts.locality ~poly:atts.polymorphic
       instance_name binders instance_t
       ~tac:tactic ~hook:(fun sum gr -> declare_projection sum n instance_id gr)

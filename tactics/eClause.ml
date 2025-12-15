@@ -135,17 +135,17 @@ let evar_of_binder holes = function
   with e when CErrors.noncritical e ->
     user_err Pp.(str "No such binder.")
 
-let define_with_type sigma env ev c =
+let define_with_type sum sigma env ev c =
   let open EConstr in
   let t = Retyping.get_type_of env sigma ev in
   let ty = Retyping.get_type_of env sigma c in
   let j = Environ.make_judge c ty in
-  let (sigma, j, _trace) = Coercion.inh_conv_coerce_to ~program_mode:false ~resolve_tc:true env sigma j t in
+  let (sigma, j, _trace) = Coercion.inh_conv_coerce_to ~program_mode:false ~resolve_tc:true sum env sigma j t in
   let (ev, _) = destEvar sigma ev in
   let sigma = Evd.define ev j.Environ.uj_val sigma in
   sigma
 
-let solve_evar_clause env sigma hyp_only clause = function
+let solve_evar_clause sum env sigma hyp_only clause = function
 | NoBindings -> sigma
 | ImplicitBindings largs ->
   let open EConstr in
@@ -168,7 +168,7 @@ let solve_evar_clause env sigma hyp_only clause = function
   let evs = List.map_filter map holes in
   let len = List.length evs in
   if Int.equal len (List.length largs) then
-    let fold sigma ev arg = define_with_type sigma env ev arg in
+    let fold sigma ev arg = define_with_type sum sigma env ev arg in
     let sigma = List.fold_left2 fold sigma evs largs in
     sigma
   else
@@ -177,7 +177,7 @@ let solve_evar_clause env sigma hyp_only clause = function
   let () = check_bindings lbind in
   let fold sigma {CAst.v=(binder, c)} =
     let ev = evar_of_binder clause.cl_holes binder in
-    define_with_type sigma env ev c
+    define_with_type sum sigma env ev c
   in
   let sigma = List.fold_left fold sigma lbind in
   sigma

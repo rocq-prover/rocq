@@ -111,7 +111,7 @@ let mk_nat env sigma n =
     | n -> mkApp (c_S, [| buildup (n - 1) |]) in
   if n <= 0 then sigma, c_O else sigma, buildup n
 
-let example_classes n =
+let example_classes sum n =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma, c_n = mk_nat env sigma n in
@@ -135,7 +135,7 @@ let example_classes n =
 (* Question to coq developers: why do we pass two evd arguments to
    solve_remaining_evars? Is the choice of sigma0 relevant here? *)
   let sigma = Pretyping.solve_remaining_evars
-    (Pretyping.default_inference_flags true) env sigma ~initial:sigma0 in
+    sum (Pretyping.default_inference_flags true) env sigma ~initial:sigma0 in
   let sigma, final_type = Typing.type_of env sigma proved_equality in
   Feedback.msg_notice (Printer.pr_econstr_env env sigma proved_equality)
 

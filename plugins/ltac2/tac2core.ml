@@ -165,15 +165,16 @@ let assert_focussed =
   | [] | _ :: _ :: _ -> throw Tac2ffi.err_notfocussed
 
 let pf_apply ?(catch_exceptions=false) f =
-  let f env sigma = wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f env sigma) in
+  let f sum env sigma = wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f sum env sigma) in
   Proofview.Goal.goals >>= function
   | [] ->
     Proofview.tclENV >>= fun env ->
     Proofview.tclEVARMAP >>= fun sigma ->
-    f env sigma
+    Proofview.tclSummary >>= fun sum ->
+    f sum env sigma
   | [gl] ->
     gl >>= fun gl ->
-    f (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
+    f (Proofview.Goal.summary gl) (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
 
@@ -195,19 +196,19 @@ let () = define "message_to_string" (pp @-> ret string) Pp.string_of_ppcmds
 
 let () =
   define "message_of_constr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
+  pf_apply @@ fun sum env sigma -> return (Printer.pr_econstr_env env sigma c)
 
 let () =
   define "message_of_lconstr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
+  pf_apply @@ fun sum env sigma -> return (Printer.pr_leconstr_env env sigma c)
 
 let () =
   define "message_of_preterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_glob_env env sigma c)
+  pf_apply @@ fun sum env sigma -> return (Printer.pr_closed_glob_env env sigma c)
 
 let () =
   define "message_of_lpreterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
+  pf_apply @@ fun sum env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
 
 let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
@@ -309,7 +310,7 @@ let () =
     | FmtConstr ->
       let (c, args) = pop1 args in
       let c = to_constr c in
-      pf_apply begin fun env sigma ->
+      pf_apply begin fun sum env sigma ->
         let pp = Printer.pr_econstr_env env sigma c in
         eval (Pp.app accu pp) args fmt
       end
@@ -469,7 +470,7 @@ let () =
 (** constr -> constr *)
 let () =
   define "constr_type" (constr @-> tac valexpr) @@ fun c ->
-  let get_type env sigma =
+  let get_type sum env sigma =
     let (sigma, t) = Typing.type_of env sigma c in
     let t = Tac2ffi.of_constr t in
     Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
@@ -681,7 +682,7 @@ let () =
 
 let () =
   define "constr_check" (constr @-> tac valexpr) @@ fun c ->
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   try
     let (sigma, _) = Typing.type_of env sigma c in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
@@ -803,15 +804,15 @@ let () = define "expected_without_type_constraint" (ret expected_type)
 
 let () =
   define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) @@ fun flags expected_type c ->
-  let pretype env sigma =
-    let sigma, t = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
+  let pretype sum env sigma =
+    let sigma, t = Pretyping.understand_uconstr sum ~flags ~expected_type env sigma c in
     Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
   in
   pf_apply ~catch_exceptions:true pretype
 
 let () =
   define "constr_binder_make" (option ident @-> constr @-> tac binder) @@ fun na ty ->
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   match Retyping.relevance_of_type env sigma ty with
   | rel ->
     let na = match na with None -> Anonymous | Some id -> Name id in
@@ -888,7 +889,7 @@ let () =
 
 let () =
   define "pattern_matches" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   let ans =
     try Some (Constr_matching.matches env sigma pat c)
     with Constr_matching.PatternMatchingFailure -> None
@@ -910,13 +911,13 @@ let () =
     let ans = Id.Map.bindings sub in
     Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
   in
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
 let () =
   define "pattern_matches_vect" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   let ans =
     try Some (Constr_matching.matches env sigma pat c)
     with Constr_matching.PatternMatchingFailure -> None
@@ -938,7 +939,7 @@ let () =
     let ans = Array.map_of_list snd ans in
     Proofview.tclOR (return (m_ctx,ans)) (fun _ -> of_ans s)
   in
-  pf_apply @@ fun env sigma ->
+  pf_apply @@ fun sum env sigma ->
   let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
   of_ans ans
 
@@ -1099,7 +1100,7 @@ let () =
 (** ident -> constr *)
 let () =
   define "hyp" (ident @-> tac constr) @@ fun id ->
-  pf_apply @@ fun env _ ->
+  pf_apply @@ fun _ env _ ->
   let mem = try ignore (Environ.lookup_named id env); true with Not_found -> false in
   if mem then return (EConstr.mkVar id)
   else Tacticals.tclZEROMSG
@@ -1107,7 +1108,7 @@ let () =
 
 let () =
   define "hyp_value" (ident @-> tac (option constr)) @@ fun id ->
-  pf_apply @@ fun env _ ->
+  pf_apply @@ fun _ env _ ->
   match EConstr.lookup_named id env with
   | d -> return (Context.Named.Declaration.get_value d)
   | exception Not_found ->
@@ -1116,7 +1117,7 @@ let () =
 
 let () =
   define "hyps" (unit @-> tac valexpr) @@ fun _ ->
-  pf_apply @@ fun env _ ->
+  pf_apply @@ fun _ env _ ->
   let open Context in
   let open Named.Declaration in
   let hyps = List.rev (Environ.named_context env) in

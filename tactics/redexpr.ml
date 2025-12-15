@@ -600,10 +600,10 @@ module Interp = struct
 
   type ('constr,'evref,'pat,'usr) interp_env = {
     interp_occurrence_var : lident -> int list;
-    interp_constr : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr;
-    interp_constr_list : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr list;
+    interp_constr : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr;
+    interp_constr_list : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr list;
     interp_evaluable : Environ.env -> Evd.evar_map -> 'evref -> Evaluable.t;
-    interp_pattern : Environ.env -> Evd.evar_map -> 'pat -> constr_pattern;
+    interp_pattern : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'pat -> constr_pattern;
     interp_evaluable_or_pattern : Environ.env -> Evd.evar_map
       -> 'evref -> (Evaluable.t, constr_pattern) Util.union;
   }
@@ -616,15 +616,15 @@ module Interp = struct
     in
     Locusops.occurrences_map (List.concat_map map) occs
 
-  let interp_constr_with_occurrences ist env sigma (occs,c) =
-    let (sigma,c_interp) = ist.interp_constr env sigma c in
+  let interp_constr_with_occurrences ist sum env sigma (occs,c) =
+    let (sigma,c_interp) = ist.interp_constr sum env sigma c in
     sigma , (interp_occurrences ist occs, c_interp)
 
   let interp_evaluable ist env sigma r = ist.interp_evaluable env sigma r
 
-  let interp_closed_typed_pattern_with_occurrences ist env sigma (occs, p) =
+  let interp_closed_typed_pattern_with_occurrences ist sum env sigma (occs, p) =
     let p = match p with
-      | Inr p -> Inr (ist.interp_pattern env sigma p)
+      | Inr p -> Inr (ist.interp_pattern sum env sigma p)
       | Inl r -> ist.interp_evaluable_or_pattern env sigma r
     in
     interp_occurrences ist occs, p
@@ -635,10 +635,10 @@ module Interp = struct
   let interp_flag ist env sigma red =
     { red with rConst = List.map (interp_evaluable ist env sigma) red.rConst }
 
-  let interp_red_expr ist env sigma = function
+  let interp_red_expr ist sum env sigma = function
     | Unfold l -> sigma , Unfold (List.map (interp_unfold ist env sigma) l)
     | Fold l ->
-      let (sigma,l_interp) = List.fold_left_map (ist.interp_constr_list env) sigma l in
+      let (sigma,l_interp) = List.fold_left_map (ist.interp_constr_list sum env) sigma l in
       sigma , Fold (List.flatten l_interp)
     | Cbv f -> sigma , Cbv (interp_flag ist env sigma f)
     | Cbn f -> sigma , Cbn (interp_flag ist env sigma f)
@@ -646,29 +646,29 @@ module Interp = struct
     | Pattern l ->
       let (sigma,l_interp) =
         Evd.MonadR.List.map_right
-          (fun c sigma -> interp_constr_with_occurrences ist env sigma c) l sigma
+          (fun c sigma -> interp_constr_with_occurrences ist sum env sigma c) l sigma
       in
       sigma , Pattern l_interp
     | Simpl (f,o) ->
       sigma , Simpl (interp_flag ist env sigma f,
-                     Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
+                     Option.map (interp_closed_typed_pattern_with_occurrences ist sum env sigma) o)
     | CbvVm o ->
-      sigma , CbvVm (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
+      sigma , CbvVm (Option.map (interp_closed_typed_pattern_with_occurrences ist sum env sigma) o)
     | CbvNative o ->
-      sigma , CbvNative (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
+      sigma , CbvNative (Option.map (interp_closed_typed_pattern_with_occurrences ist sum env sigma) o)
     | (Red |  Hnf | ExtraRedExpr _  | UserRed _ as r) -> sigma , r
 
-  let interp_constr env sigma c =
+  let interp_constr sum env sigma c =
     let flags = Pretyping.all_and_fail_flags in
-    Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c
+    Pretyping.understand_ltac sum flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c
 
-  let interp_constr_list env sigma c =
-    let sigma, c = interp_constr env sigma c in
+  let interp_constr_list sum env sigma c =
+    let sigma, c = interp_constr sum env sigma c in
     sigma, [c]
 
-  let interp_pattern env sigma c =
+  let interp_pattern sum env sigma c =
     let flags = { Pretyping.no_classes_no_fail_inference_flags with expand_evars = false } in
-    let sigma, c = Pretyping.understand_ltac flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c in
+    let sigma, c = Pretyping.understand_ltac sum flags env sigma Glob_ops.empty_lvar WithoutTypeConstraint c in
     Patternops.legacy_bad_pattern_of_constr env sigma c
 
   let without_ltac = {
@@ -683,6 +683,6 @@ module Interp = struct
 
 end
 
-let interp_redexp_no_ltac env sigma r =
+let interp_redexp_no_ltac sum env sigma r =
   let r = Intern.(intern_red_expr (from_env env) r) in
-  Interp.(interp_red_expr without_ltac) env sigma r
+  Interp.(interp_red_expr without_ltac) sum env sigma r

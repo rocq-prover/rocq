@@ -16,6 +16,8 @@ open Glob_term
 open Notation
 open PrimNotations
 
+let (!!) = Summary.Interp.get
+
 module CSet = CSet.Make (Constr)
 module CMap = CMap.Make (Constr)
 
@@ -115,17 +117,17 @@ let locate_float () =
   | q_float ->
     [ { kind = Float64; typ = gref q_float }; ]
 
-let has_type env sigma f ty =
+let has_type sum env sigma f ty =
   let c = DAst.make @@ GCast (f, Some Constr.DEFAULTcast, ty) in
   let flags = Pretyping.{ all_and_fail_flags with use_coercions = false } in
-  try let _ = Pretyping.understand ~flags env sigma c in true
+  try let _ = Pretyping.understand ~flags sum env sigma c in true
   with Pretype_errors.PretypeError _ -> false
 
 let q_option () = Rocqlib.lib_ref_opt "core.option.type"
 
 let q_result () = Rocqlib.lib_ref_opt "core.result.type"
 
-let is_to_target env sigma f cty {kind; typ} =
+let is_to_target sum env sigma f cty {kind; typ} =
   let (>>?) opt f = match opt with
     | None -> false
     | Some x -> f x
@@ -136,15 +138,15 @@ let is_to_target env sigma f cty {kind; typ} =
   let app x y = DAst.make @@ GApp (gref x,[y]) in
   let app2 x y z = DAst.make @@ GApp (gref x,[y;z]) in
   let ghole = DAst.make @@ GHole GInternalHole in
-  if has_type env sigma f (arrow typ cty) then
+  if has_type sum env sigma f (arrow typ cty) then
     Some (kind, Direct)
-  else if q_option() >>? fun q_opt -> has_type env sigma f (arrow typ (app q_opt cty)) then
+  else if q_option() >>? fun q_opt -> has_type sum env sigma f (arrow typ (app q_opt cty)) then
     Some (kind, Option)
-  else if q_result() >>? fun q_result -> has_type env sigma f (arrow typ (app2 q_result cty ghole)) then
+  else if q_result() >>? fun q_result -> has_type sum env sigma f (arrow typ (app2 q_result cty ghole)) then
     Some (kind, Error)
   else None
 
-let is_from_target env sigma g cty {kind; typ} =
+let is_from_target sum env sigma g cty {kind; typ} =
   let (>>?) opt f = match opt with
     | None -> false
     | Some x -> f x
@@ -155,11 +157,11 @@ let is_from_target env sigma g cty {kind; typ} =
   let app x y = DAst.make @@ GApp (gref x,[y]) in
   let app2 x y z = DAst.make @@ GApp (gref x,[y;z]) in
   let ghole = DAst.make @@ GHole GInternalHole in
-  if has_type env sigma g (arrow cty typ) then
+  if has_type sum env sigma g (arrow cty typ) then
     Some (kind, Direct)
-  else if q_option() >>? fun q_opt -> has_type env sigma g (arrow cty (app q_opt typ)) then
+  else if q_option() >>? fun q_opt -> has_type sum env sigma g (arrow cty (app q_opt typ)) then
     Some (kind, Option)
-  else if q_result() >>? fun q_result -> has_type env sigma g (arrow cty (app2 q_result typ ghole)) then
+  else if q_result() >>? fun q_result -> has_type sum env sigma g (arrow cty (app2 q_result typ ghole)) then
     Some (kind, Error)
   else None
 
@@ -427,7 +429,7 @@ type target_type =
   | TargetInd of (inductive * Constr.t option list)
   | TargetPrim of GlobRef.t * GlobRef.t list * required_module
 
-let locate_global_inductive_with_params allow_params qid =
+let locate_global_inductive_with_params sum allow_params qid =
   if not allow_params then raise Not_found else
     match Nametab.locate_extended qid with
     | Globnames.TrueGlobal _ -> raise Not_found
@@ -442,12 +444,12 @@ let locate_global_inductive_with_params allow_params qid =
               let c, _ =
                 let env = Global.env () in
                 let sigma = Evd.from_env env in
-                Pretyping.understand env sigma g in
+                Pretyping.understand sum env sigma g in
               Some (EConstr.Unsafe.to_constr c)) l
     | _ -> raise Not_found
 
-let locate_global_inductive_or_int63_or_float env allow_params qid =
-  try TargetInd (locate_global_inductive_with_params allow_params qid)
+let locate_global_inductive_or_int63_or_float sum env allow_params qid =
+  try TargetInd (locate_global_inductive_with_params sum allow_params qid)
   with Not_found ->
     let int63n = "num.int63.type" in
     let int63c = "num.int63.wrap_int" in
@@ -494,7 +496,7 @@ let vernac_number_notation sum local ty f g opts scope =
   let ty_name = ty in
   let ty, via =
     match via with None -> ty, via | Some (ty', a) -> ty', Some (ty, a) in
-  let tyc_params = locate_global_inductive_or_int63_or_float env (via = None) ty in
+  let tyc_params = locate_global_inductive_or_int63_or_float !!sum env (via = None) ty in
   let to_ty = Smartlocate.global_with_alias f in
   let of_ty = Smartlocate.global_with_alias g in
   let cty = intern_cref env sigma ty in
@@ -502,14 +504,14 @@ let vernac_number_notation sum local ty f g opts scope =
   let g_name, g = g, intern_cref env sigma g in
   (* Check the type of f *)
   let to_kind =
-    match List.find_map (fun target -> is_to_target env sigma f cty target) targets with
+    match List.find_map (fun target -> is_to_target !!sum env sigma f cty target) targets with
     | Some v -> v
     | None -> type_error_to f_name ty
   in
   (* Check the type of g *)
   let cty = match tyc_params with TargetPrim (c, _, _) -> gref c | TargetInd _ -> cty in
   let of_kind =
-    match List.find_map (fun target -> is_from_target env sigma g cty target) targets with
+    match List.find_map (fun target -> is_from_target !!sum env sigma g cty target) targets with
     | Some v -> v
     | None -> type_error_of g_name ty
   in
@@ -539,8 +541,8 @@ let vernac_number_notation sum local ty f g opts scope =
 
 (** * String notation *)
 
-let locate_global_inductive_or_pstring env allow_params qid =
-  try TargetInd (locate_global_inductive_with_params allow_params qid)
+let locate_global_inductive_or_pstring sum env allow_params qid =
+  try TargetInd (locate_global_inductive_with_params sum allow_params qid)
   with Not_found ->
     let pstringn = "strings.pstring.type" in
     let pstringc = "strings.pstring.wrap_string" in
@@ -591,7 +593,7 @@ let vernac_string_notation sum local ty f g via scope =
   let ty_name = ty in
   let ty, via =
     match via with None -> ty, via | Some (ty', a) -> ty', Some (ty, a) in
-  let tyc_params = locate_global_inductive_or_pstring env (via = None) ty in
+  let tyc_params = locate_global_inductive_or_pstring !!sum env (via = None) ty in
   let to_ty = Smartlocate.global_with_alias f in
   let of_ty = Smartlocate.global_with_alias g in
   let f_name, f = f, intern_cref env sigma f in
@@ -599,13 +601,13 @@ let vernac_string_notation sum local ty f g via scope =
   let cty = intern_cref env sigma ty in
   (* Check the type of f *)
   let to_kind =
-    match List.find_map (fun target -> is_to_target env sigma f cty target) targets with
+    match List.find_map (fun target -> is_to_target !!sum env sigma f cty target) targets with
     | Some v -> v
     | None -> type_error_to f_name ty
   in
   (* Check the type of g *)
   let of_kind =
-    match List.find_map (fun target -> is_from_target env sigma g cty target) targets with
+    match List.find_map (fun target -> is_from_target !!sum env sigma g cty target) targets with
     | Some v -> v
     | None -> type_error_of g_name ty
   in

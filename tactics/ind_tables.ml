@@ -20,6 +20,7 @@ open Declarations
 open Constr
 open Util
 
+let (!!) = Summary.Interp.get
 
 (**********************************************************************)
 (* Registering schemes in the environment *)
@@ -33,9 +34,9 @@ let push_handle eff =
   Proofview.Unsafe.tclEVARS sigma
 
 type mutual_scheme_object_function =
-  Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
+  Summary.Interp.t -> Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
 type individual_scheme_object_function =
-  Environ.env -> handle -> inductive -> constr Evd.in_ustate
+  Summary.Interp.t -> Environ.env -> handle -> inductive -> constr Evd.in_ustate
 
 type 'a scheme_kind = string
 
@@ -207,9 +208,9 @@ let globally_declare_schemes sch =
   Global.Internal.reset_safe_env (Evd.get_senv_side_effects sch.sch_eff)
 
 (* Assumes that dependencies are already defined *)
-let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i as ind) eff =
+let rec define_individual_scheme_base sum ?loc kind suff f ~internal idopt (mind,i as ind) eff =
   let env = get_env eff in
-  let (c, ctx) = f env eff.sch_eff ind in
+  let (c, ctx) = f sum env eff.sch_eff ind in
   let mib = Environ.lookup_mind mind env in
   let id = match idopt with
     | Some id -> id
@@ -218,20 +219,20 @@ let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i a
   let const, eff = define ?loc internal role id c (Declareops.inductive_is_polymorphic mib) ctx eff in
   const, eff
 
-and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
+and define_individual_scheme sum ?loc kind ~internal names (mind,i as ind) eff =
   match Hashtbl.find scheme_object_table kind with
   | _,MutualSchemeFunction _ -> assert false
   | s,IndividualSchemeFunction (f, deps) ->
     let env = get_env eff in
     let deps = match deps with None -> [] | Some deps -> deps env ind in
-    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
-    let _, eff = define_individual_scheme_base ?loc kind s f ~internal names ind eff in
+    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence sum eff dep) eff deps in
+    let _, eff = define_individual_scheme_base sum ?loc kind s f ~internal names ind eff in
     eff
 
 (* Assumes that dependencies are already defined *)
-and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
+and define_mutual_scheme_base sum ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
   let env = get_env eff in
-  let (cl, ctx) = f env eff.sch_eff mind in
+  let (cl, ctx) = f sum env eff.sch_eff mind in
   let mib = Environ.lookup_mind mind env in
   let ids = Array.init (Array.length mib.mind_packets) (fun i ->
       try Int.List.assoc i names
@@ -245,24 +246,24 @@ and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~interna
   let (eff, consts) = Array.fold_left2_map_i fold eff ids cl in
   consts, eff
 
-and define_mutual_scheme ?locmap kind ~internal names mind eff =
+and define_mutual_scheme sum ?locmap kind ~internal names mind eff =
   match Hashtbl.find scheme_object_table kind with
   | _,IndividualSchemeFunction _ -> assert false
   | s,MutualSchemeFunction (f, deps) ->
     let env = get_env eff in
     let deps = match deps with None -> [] | Some deps -> deps env mind in
-    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
-    let _, eff = define_mutual_scheme_base ?locmap kind s f ~internal names mind eff in
+    let eff = List.fold_left (fun eff dep -> declare_scheme_dependence sum eff dep) eff deps in
+    let _, eff = define_mutual_scheme_base sum ?locmap kind s f ~internal names mind eff in
     eff
 
-and declare_scheme_dependence eff sd =
+and declare_scheme_dependence sum eff sd =
 match sd with
 | SchemeIndividualDep (ind, kind) ->
   if local_check_scheme kind ind eff then eff
-  else define_individual_scheme kind ~internal:true None ind eff
+  else define_individual_scheme sum kind ~internal:true None ind eff
 | SchemeMutualDep (mind, kind) ->
   if local_check_scheme kind (mind, 0) eff then eff
-  else define_mutual_scheme kind ~internal:true [] mind eff
+  else define_mutual_scheme sum kind ~internal:true [] mind eff
 
 let find_scheme kind (mind,i as ind) =
   let open Proofview.Notations in
@@ -273,6 +274,7 @@ let find_scheme kind (mind,i as ind) =
 let force_find_scheme kind (mind,i as ind) =
   let open Proofview.Notations in
   Proofview.tclEVARMAP >>= fun sigma ->
+  Proofview.tclSummary >>= fun sum ->
   let eff = Evd.eval_side_effects sigma in
   match local_lookup_scheme eff kind ind with
   | Some s ->
@@ -285,15 +287,15 @@ let force_find_scheme kind (mind,i as ind) =
         let env = Safe_typing.env_of_safe_env senv in
         let deps = match deps with None -> [] | Some deps -> deps env ind in
         let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence sum eff dep) sch deps in
+        let c, eff = define_individual_scheme_base sum kind s f ~internal:true None ind eff in
         eff, c
       | s,MutualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
         let deps = match deps with None -> [] | Some deps -> deps env mind in
         let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence sum eff dep) sch deps in
+        let ca, eff = define_mutual_scheme_base sum kind s f ~internal:true [] mind eff in
         eff, ca.(i)
       in
       let sigma = Evd.emit_side_effects eff.sch_eff sigma in
@@ -310,14 +312,14 @@ let register_schemes sum sch =
 
 let define_individual_scheme sum ?loc kind names ind =
   let sch = empty_schemes Evd.empty_side_effects in
-  let eff = define_individual_scheme ?loc kind ~internal:false names ind sch in
+  let eff = define_individual_scheme !!sum ?loc kind ~internal:false names ind sch in
   let () = globally_declare_schemes eff in
   let () = register_schemes sum eff in
   redeclare_schemes sum eff
 
 let define_mutual_scheme sum ?locmap kind names mind =
   let sch = empty_schemes Evd.empty_side_effects in
-  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind sch in
+  let eff = define_mutual_scheme !!sum ?locmap kind ~internal:false names mind sch in
   let () = globally_declare_schemes eff in
   let () = register_schemes sum eff in
   redeclare_schemes sum eff

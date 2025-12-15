@@ -96,22 +96,25 @@ module Interp : sig
 
   type ('constr,'evref,'pat,'usr) interp_env = {
     interp_occurrence_var : lident -> int list;
-    interp_constr : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr;
-    interp_constr_list : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr list;
+    interp_constr : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr;
+    interp_constr_list : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr list;
     interp_evaluable : Environ.env -> Evd.evar_map -> 'evref -> Evaluable.t;
-    interp_pattern : Environ.env -> Evd.evar_map -> 'pat -> constr_pattern;
+    interp_pattern : Summary.Interp.t -> Environ.env -> Evd.evar_map -> 'pat -> constr_pattern;
     interp_evaluable_or_pattern : Environ.env -> Evd.evar_map
       -> 'evref -> (Evaluable.t, constr_pattern) Util.union;
   }
 
-  val interp_red_expr : ('constr,'evref,'pat,'usr) interp_env -> Environ.env -> Evd.evar_map
-    -> ('constr,'evref,'pat, int Locus.or_var, Genarg.glevel user_red_expr) red_expr_gen -> Evd.evar_map * red_expr
+  val interp_red_expr : ('constr,'evref,'pat,'usr) interp_env -> Summary.Interp.t ->
+    Environ.env -> Evd.evar_map ->
+    ('constr,'evref,'pat, int Locus.or_var, Genarg.glevel user_red_expr) red_expr_gen ->
+    Evd.evar_map * red_expr
 
   val without_ltac : (Glob_term.glob_constr, Evaluable.t, Glob_term.glob_constr, 'usr) interp_env
 
 end
 
-val interp_redexp_no_ltac : Environ.env -> Evd.evar_map -> raw_red_expr -> Evd.evar_map * red_expr
+val interp_redexp_no_ltac : Summary.Interp.t ->
+  Environ.env -> Evd.evar_map -> raw_red_expr -> Evd.evar_map * red_expr
 
 module User :
 sig

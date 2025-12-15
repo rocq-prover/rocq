@@ -386,24 +386,24 @@ let dump_n x =
       what to consider as a constant (see [parse_constant])
    *)
 
-let is_declared_term env evd t =
+let is_declared_term sum env evd t =
   match EConstr.kind evd t with
   | Const _ | Construct _ -> (
     (* Restrict typeclass resolution to trivial cases *)
     let typ = Retyping.get_type_of env evd t in
     try
       ignore
-        (Class_tactics.resolve_one_typeclass env evd
+        (Class_tactics.resolve_one_typeclass sum env evd
            (EConstr.mkApp (Lazy.force rocq_DeclaredConstant, [|typ; t|])));
       true
     with Not_found -> false )
   | _ -> false
 
-let rec is_ground_term env evd term =
+let rec is_ground_term sum env evd term =
   match EConstr.kind evd term with
   | App (c, args) ->
-    is_declared_term env evd c && Array.for_all (is_ground_term env evd) args
-  | Const _ | Construct _ -> is_declared_term env evd term
+    is_declared_term sum env evd c && Array.for_all (is_ground_term sum env evd) args
+  | Const _ | Construct _ -> is_declared_term sum env evd term
   | _ -> false
 
 let parse_z sigma term =
@@ -748,7 +748,7 @@ end
     * This is the big generic function for expression parsers.
     *)
 
-let parse_expr (genv, sigma) parse_constant parse_exp ops_spec env term =
+let parse_expr sum (genv, sigma) parse_constant parse_exp ops_spec env term =
   if debug then
     Feedback.msg_debug
       (Pp.str "parse_expr: " ++ Printer.pr_leconstr_env genv sigma term);
@@ -762,7 +762,7 @@ let parse_expr (genv, sigma) parse_constant parse_exp ops_spec env term =
       let expr2, env = parse_expr env t2 in
       (op expr1 expr2, env)
     in
-    try (Mc.PEc (parse_constant (genv, sigma) term), env)
+    try (Mc.PEc (parse_constant sum (genv, sigma) term), env)
     with ParseError -> (
       match EConstr.kind sigma term with
       | App (t, args) -> (
@@ -814,17 +814,17 @@ let rop_spec =
   ; (rocq_Ropp, Opp)
   ; (rocq_Rpower, Power) ]
 
-let parse_constant parse ((genv : Environ.env), sigma) t = parse sigma t
+let parse_constant parse sum ((genv : Environ.env), sigma) t = parse sigma t
 
 (** [parse_more_constant parse gl t] returns the reification of term [t].
       If [t] is a ground term, then it is first reduced to normal form
       before using a 'syntactic' parser *)
-let parse_more_constant parse (genv, sigma) t =
-  try parse (genv, sigma) t
+let parse_more_constant (sum:Summary.Interp.t) parse (genv, sigma) t =
+  try parse sum (genv, sigma) t
   with ParseError ->
     if debug then Feedback.msg_debug Pp.(str "try harder");
-    if is_ground_term genv sigma t then
-      parse (genv, sigma) (Redexpr.cbv_vm genv sigma t)
+    if is_ground_term sum genv sigma t then
+      parse sum (genv, sigma) (Redexpr.cbv_vm genv sigma t)
     else raise ParseError
 
 let zconstant = parse_constant parse_z
@@ -835,17 +835,17 @@ let nconstant = parse_constant parse_nat
       which can be arithmetic expressions (without variables).
       [parse_constant_expr] returns a constant if the argument is an expression without variables. *)
 
-let rec parse_zexpr gl =
-  parse_expr gl zconstant
+let rec parse_zexpr sum gl =
+  parse_expr sum gl zconstant
     (fun expr (x : EConstr.t) ->
-      let z = parse_zconstant gl x in
+      let z = parse_zconstant sum gl x in
       match z with
       | Mc.Zneg _ -> Mc.PEc Mc.Z0
       | _ -> Mc.PEpow (expr, Mc.Z.to_N z))
     zop_spec
 
-and parse_zconstant gl e =
-  let e, _ = parse_zexpr gl (Env.empty gl) e in
+and parse_zconstant sum gl e =
+  let e, _ = parse_zexpr sum gl (Env.empty gl) e in
   match Mc.zeval_const e with None -> raise ParseError | Some z -> z
 
 (* NB: R is a different story.
@@ -859,7 +859,7 @@ let rconst_assoc =
   ; (rocq_Rmult, fun x y -> Mc.CMult (x, y))
     (*      rocq_Rdiv   , (fun x y -> Mc.CMult(x,Mc.CInv y)) ;*) ]
 
-let rconstant (genv, sigma) term =
+let rconstant sum (genv, sigma) term =
   let rec rconstant term =
     match EConstr.kind sigma term with
     | Const x ->
@@ -883,30 +883,30 @@ let rconstant (genv, sigma) term =
         | op when EConstr.eq_constr sigma op (Lazy.force rocq_Rpower) ->
           Mc.CPow
             ( rconstant args.(0)
-            , Mc.Inr (parse_more_constant nconstant (genv, sigma) args.(1)) )
+            , Mc.Inr (parse_more_constant sum nconstant (genv, sigma) args.(1)) )
         | op when EConstr.eq_constr sigma op (Lazy.force rocq_IQR) ->
-          Mc.CQ (qconstant (genv, sigma) args.(0))
+          Mc.CQ (qconstant sum (genv, sigma) args.(0))
         | op when EConstr.eq_constr sigma op (Lazy.force rocq_IZR) ->
-          Mc.CZ (parse_more_constant zconstant (genv, sigma) args.(0))
+          Mc.CZ (parse_more_constant sum zconstant (genv, sigma) args.(0))
         | _ -> raise ParseError ) )
     | _ -> raise ParseError
   in
   rconstant term
 
-let rconstant (genv, sigma) term =
+let rconstant sum (genv, sigma) term =
   if debug then
     Feedback.msg_debug
       (Pp.str "rconstant: " ++ Printer.pr_leconstr_env genv sigma term ++ fnl ());
-  let res = rconstant (genv, sigma) term in
+  let res = rconstant sum (genv, sigma) term in
   if debug then (
     Printf.printf "rconstant -> %a\n" pp_Rcst res;
     flush stdout );
   res
 
-let parse_qexpr gl =
-  parse_expr gl qconstant
+let parse_qexpr sum gl =
+  parse_expr sum gl qconstant
     (fun expr x ->
-      let exp = zconstant gl x in
+      let exp = zconstant sum gl x in
       match exp with
       | Mc.Zneg _ -> (
         match expr with
@@ -917,14 +917,14 @@ let parse_qexpr gl =
         Mc.PEpow (expr, exp))
     qop_spec
 
-let parse_rexpr (genv, sigma) =
-  parse_expr (genv, sigma) rconstant
+let parse_rexpr sum (genv, sigma) =
+  parse_expr sum (genv, sigma) rconstant
     (fun expr x ->
       let exp = Mc.N.of_nat (parse_nat sigma x) in
       Mc.PEpow (expr, exp))
     rop_spec
 
-let parse_arith parse_op parse_expr (k : Mc.kind) env cstr (genv, sigma) =
+let parse_arith parse_op parse_expr (k : Mc.kind) sum env cstr (genv, sigma) =
   if debug then
     Feedback.msg_debug
       ( Pp.str "parse_arith: "
@@ -933,8 +933,8 @@ let parse_arith parse_op parse_expr (k : Mc.kind) env cstr (genv, sigma) =
   match EConstr.kind sigma cstr with
   | App (op, args) ->
     let op, lhs, rhs = parse_op (genv, sigma) k (op, args) in
-    let e1, env = parse_expr (genv, sigma) env lhs in
-    let e2, env = parse_expr (genv, sigma) env rhs in
+    let e1, env = parse_expr sum (genv, sigma) env lhs in
+    let e2, env = parse_expr sum (genv, sigma) env rhs in
     ({Mc.flhs = e1; Mc.fop = op; Mc.frhs = e2}, env)
   | _ -> failwith "error : parse_arith(2)"
 
@@ -2040,6 +2040,7 @@ let micromega_genr prover tac =
       let sigma = Proofview.Goal.sigma gl in
       let genv = Proofview.Goal.env gl in
       let concl = Proofview.Goal.concl gl in
+      let sum = Proofview.Goal.summary gl in
       try
         let hyps, concl, env =
           parse_goal (genv, sigma) parse_arith

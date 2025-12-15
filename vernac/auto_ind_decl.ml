@@ -304,7 +304,7 @@ let build_beq_scheme_deps env kn =
   let inds = get_inductive_deps ~noprop:true env kn in
   List.map (fun ind -> Ind_tables.SchemeMutualDep (ind, !beq_scheme_kind_aux ())) inds
 
-let build_beq_scheme env handle kn =
+let build_beq_scheme _sum env handle kn =
   check_bool_is_defined ();
   (* predef coq's boolean type *)
   (* here I leave the Naming thingy so that the type of
@@ -1175,7 +1175,7 @@ repeat ( apply andb_prop in z;let z1:= fresh "Z" in destruct z as [z1 z]).
       ]
     end
 
-let make_bl_scheme env handle mind =
+let make_bl_scheme sum env handle mind =
   let mib = Environ.lookup_mind mind env in
   if not (Int.equal (Array.length mib.mind_packets) 1) then
     CErrors.user_err
@@ -1194,7 +1194,7 @@ let make_bl_scheme env handle mind =
   let bl_goal = EConstr.of_constr bl_goal in
   let poly = Declareops.inductive_is_polymorphic mib in
   let uctx = if poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) bl_goal)) else uctx in
-  let (ans, _, _, _, uctx) = Declare.build_by_tactic ~poly env ~uctx ~typ:bl_goal
+  let (ans, _, _, _, uctx) = Declare.build_by_tactic ~poly sum env ~uctx ~typ:bl_goal
     (compute_bl_tact handle (ind, EConstr.EInstance.make u) lnamesparrec nparrec)
   in
   ([|ans|], uctx)
@@ -1308,7 +1308,7 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
       ]
     end
 
-let make_lb_scheme env handle mind =
+let make_lb_scheme sum env handle mind =
   let mib = Environ.lookup_mind mind env in
   if not (Int.equal (Array.length mib.mind_packets) 1) then
     CErrors.user_err
@@ -1327,7 +1327,7 @@ let make_lb_scheme env handle mind =
   let lb_goal = EConstr.of_constr lb_goal in
   let poly = Declareops.inductive_is_polymorphic mib in
   let uctx = if poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) lb_goal)) else uctx in
-  let (ans, _, _, _, ctx) = Declare.build_by_tactic ~poly env ~uctx ~typ:lb_goal
+  let (ans, _, _, _, ctx) = Declare.build_by_tactic sum ~poly env ~uctx ~typ:lb_goal
     (compute_lb_tact handle ind lnamesparrec nparrec)
   in
   ([|ans|], ctx)
@@ -1503,7 +1503,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
       end
     end
 
-let make_eq_decidability env handle mind =
+let make_eq_decidability sum env handle mind =
   let mib = Environ.lookup_mind mind env in
   if not (Int.equal (Array.length mib.mind_packets) 1) then
     raise DecidabilityMutualNotSupported;
@@ -1520,7 +1520,7 @@ let make_eq_decidability env handle mind =
   let dec_goal = EConstr.of_constr (compute_dec_goal env (ind,u) lnamesparrec nparrec) in
   let poly = Declareops.inductive_is_polymorphic mib in
   let uctx = if poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) dec_goal)) else uctx in
-  let (ans, _, _, _, ctx) = Declare.build_by_tactic ~poly env ~uctx
+  let (ans, _, _, _, ctx) = Declare.build_by_tactic sum ~poly env ~uctx
       ~typ:dec_goal (compute_dec_tact handle (ind,u) lnamesparrec nparrec)
   in
   ([|ans|], ctx)

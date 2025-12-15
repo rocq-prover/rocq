@@ -64,8 +64,8 @@ let intern_constr_tacexpr ist c =
 let interp_constr flags ist c =
   let open Pretyping in
   let ist = to_lvar ist in
-  Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
-    let (sigma, c) = understand_ltac flags env sigma ist WithoutTypeConstraint c in
+  Tac2core.pf_apply ~catch_exceptions:true begin fun sum env sigma ->
+    let (sigma, c) = understand_ltac sum flags env sigma ist WithoutTypeConstraint c in
     let c = Tac2ffi.of_constr c in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
     Proofview.tclUNIT c
@@ -140,7 +140,7 @@ let () =
   in
   let interp env c =
     let ist = to_lvar env in
-    Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
+    Tac2core.pf_apply ~catch_exceptions:true begin fun sum env sigma ->
       let c = Patternops.interp_pattern env sigma ist c in
       return (Tac2ffi.of_pattern c)
     end
@@ -228,7 +228,7 @@ let () =
 (** Ltac2 in terms *)
 
 let () =
-  let interp ?loc ~poly env sigma tycon (ids, tac) =
+  let interp sum ?loc ~poly env sigma tycon (ids, tac) =
     (* Syntax prevents bound notation variables in constr quotations *)
     let ist = Tac2interp.get_env @@ GlobEnv.lfun env in
     let () = assert (Id.Set.subset ids (Id.Map.domain ist.env_ist)) in
@@ -238,7 +238,7 @@ let () =
     | Some ty -> sigma, ty
     | None -> GlobEnv.new_type_evar env sigma ~src:(loc,Evar_kinds.InternalHole)
     in
-    let c, sigma = Proof.refine_by_tactic ~name ~poly (GlobEnv.renamed_env env) sigma concl tac in
+    let c, sigma = Proof.refine_by_tactic sum ~name ~poly (GlobEnv.renamed_env env) sigma concl tac in
     let j = { Environ.uj_val = c; Environ.uj_type = concl } in
     (j, sigma)
   in
@@ -256,7 +256,7 @@ let check_judge ?loc env sigma tycon j =
     in
     {j with Environ.uj_type = ty}, sigma
 
-let interp_constr_var_as_constr ?loc env sigma tycon id =
+let interp_constr_var_as_constr _sum ?loc env sigma tycon id =
   let ist = Tac2interp.get_env @@ GlobEnv.lfun env in
   let env = GlobEnv.renamed_env env in
   let c = Id.Map.find id ist.env_ist in
@@ -265,7 +265,7 @@ let interp_constr_var_as_constr ?loc env sigma tycon id =
   let j = { Environ.uj_val = c; uj_type = t } in
   check_judge ?loc env sigma tycon j
 
-let interp_preterm_var_as_constr ?loc env sigma tycon id =
+let interp_preterm_var_as_constr sum ?loc env sigma tycon id =
   let open Ltac_pretype in
   let ist = Tac2interp.get_env @@ GlobEnv.lfun env in
   let env = GlobEnv.renamed_env env in
@@ -283,7 +283,7 @@ let interp_preterm_var_as_constr ?loc env sigma tycon id =
     | Some ty -> OfType ty
     | None -> WithoutTypeConstraint
   in
-  let sigma, t, ty = Pretyping.understand_ltac_ty flags env sigma vars tycon term in
+  let sigma, t, ty = Pretyping.understand_ltac_ty sum flags env sigma vars tycon term in
   Environ.make_judge t ty, sigma
 
 exception NotFoundHypVar of Id.t * Id.t
@@ -296,7 +296,7 @@ let () = CErrors.register_handler @@ function
             (fun () -> quote (Id.print id0)))
   | _ -> None
 
-let interp_hyp_var_as_constr ?loc globenv sigma tycon id0 =
+let interp_hyp_var_as_constr _sum ?loc globenv sigma tycon id0 =
   let ist = Tac2interp.get_env @@ GlobEnv.lfun globenv in
   let env = GlobEnv.renamed_env globenv in
   let v = Id.Map.find id0 ist.env_ist in
@@ -309,14 +309,14 @@ let interp_hyp_var_as_constr ?loc globenv sigma tycon id0 =
   check_judge ?loc env sigma tycon j
 
 let () =
-  let interp ?loc ~poly env sigma tycon (kind,id) =
+  let interp sum ?loc ~poly env sigma tycon (kind,id) =
     let f = match kind with
       | ConstrVar -> interp_constr_var_as_constr
       | PretermVar -> interp_preterm_var_as_constr
       | HypVar -> interp_hyp_var_as_constr
       | PatternVar -> assert false
     in
-    f ?loc env sigma tycon id
+    f sum ?loc env sigma tycon id
   in
   GlobEnv.register_constr_interp0 wit_ltac2_var_quotation interp
 

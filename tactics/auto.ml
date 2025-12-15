@@ -69,12 +69,13 @@ let exact h =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let sum = Proofview.Goal.summary gl in
     let sigma, c = Hints.fresh_hint env sigma h in
     let sigma, t = Typing.type_of env sigma c in
     let concl = Proofview.Goal.concl gl in
     if occur_existential sigma t || occur_existential sigma concl then
       try
-        let _, sigma = Unification.w_unify env sigma CONV ~flags:auto_unif_flags concl t in
+        let _, sigma = Unification.w_unify sum env sigma CONV ~flags:auto_unif_flags concl t in
         Proofview.Unsafe.tclEVARSADVANCE sigma <*>
         exact_no_check c
       with e when CErrors.noncritical e -> Proofview.tclZERO e
@@ -342,13 +343,14 @@ let gen_trivial ?(debug=Off) lems dbnames =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let sum = Proofview.Goal.summary gl in
     let db_list =
       match dbnames with
       | Some dbnames -> make_db_list dbnames
       | None -> current_pure_db ()
     in
     let d = mk_trivial_dbg debug in
-    let local_db = make_local_hint_db env sigma false lems in
+    let local_db = make_local_hint_db sum env sigma false lems in
     tclTRY_dbg d (trivial_fail_db d db_list local_db)
   end
 
@@ -365,7 +367,8 @@ let search d n db_list lems =
   let make_local_db gl =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    make_local_hint_db env sigma false lems
+    let sum = Proofview.Goal.summary gl in
+    make_local_hint_db sum env sigma false lems
   in
   let rec search d n local_db =
     if Int.equal n 0 then

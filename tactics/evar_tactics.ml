@@ -40,7 +40,7 @@ let define_and_solve_constraints evk c env evd =
     | Success evd -> evd
     | UnifFailure _ -> user_err Pp.(str "Instance does not satisfy the constraints.")
 
-let w_refine evk rawc env sigma =
+let w_refine sum evk rawc env sigma =
   let evi =
     try Evd.find_undefined sigma evk
     with Not_found ->
@@ -61,7 +61,7 @@ let w_refine evk rawc env sigma =
       unconstrained_sorts = false;
     } in
     let expected_type = Pretyping.OfType (Evd.evar_concl evi) in
-    try Pretyping.understand_uconstr ~flags ~expected_type env sigma rawc
+    try Pretyping.understand_uconstr sum ~flags ~expected_type env sigma rawc
     with e when CErrors.noncritical e ->
       let loc = Glob_ops.loc_of_glob_constr rawc.term in
       user_err ?loc
@@ -77,7 +77,8 @@ let instantiate_evar evk rawc =
   Proofview.tclENV >>= fun env ->
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
-  let sigma' = w_refine evk rawc env sigma in
+  let sum = Proofview.Goal.summary gl in
+  let sigma' = w_refine sum evk rawc env sigma in
   Proofview.Unsafe.tclEVARS sigma'
   end
 

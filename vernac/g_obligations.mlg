@@ -16,6 +16,8 @@ DECLARE GLOBAL PLUGIN
 
 {
 
+let (!!) = Summary.Interp.get
+
 open Stdarg
 
 let (set_default_tactic, get_default_tactic, print_default_tactic) =
@@ -60,8 +62,8 @@ END
 
 open Declare.Obls
 
-let obligation ~pm obl tac = with_tac (fun t -> obligation ~pm obl t) tac
-let next_obligation ~pm ?final obl tac = with_tac (fun t -> next_obligation ~pm ?final obl t) tac
+let obligation sum ~pm obl tac = with_tac (fun t -> obligation sum ~pm obl t) tac
+let next_obligation sum ~pm ?final obl tac = with_tac (fun t -> next_obligation sum ~pm ?final obl t) tac
 
 let classify_obbl _ = Vernacextend.(VtStartProof (Doesn'tGuaranteeOpacity,[]))
 
@@ -69,15 +71,15 @@ let classify_obbl _ = Vernacextend.(VtStartProof (Doesn'tGuaranteeOpacity,[]))
 
 VERNAC COMMAND EXTEND Obligations CLASSIFIED BY { classify_obbl } STATE declare_program
 | [ "Obligation" natural(num) "of" identref(name) withtac(tac) ] ->
-    { obligation (num, Some name.CAst.v) tac }
+    { obligation !!summary (num, Some name.CAst.v) tac }
 | [ "Obligation" natural(num) withtac(tac) ] ->
-    { obligation (num, None) tac }
+    { obligation !!summary (num, None) tac }
 | [ "Next" "Obligation" "of" identref(name) withtac(tac) ] ->
-    { next_obligation (Some name.CAst.v) tac }
-| [ "Next" "Obligation" withtac(tac) ] -> { next_obligation None tac }
+    { next_obligation !!summary (Some name.CAst.v) tac }
+| [ "Next" "Obligation" withtac(tac) ] -> { next_obligation !!summary None tac }
 | [ "Final" "Obligation" "of" identref(name) withtac(tac) ] ->
-    { next_obligation ~final:true (Some name.CAst.v) tac }
-| [ "Final" "Obligation" withtac(tac) ] -> { next_obligation ~final:true None tac }
+    { next_obligation !!summary ~final:true (Some name.CAst.v) tac }
+| [ "Final" "Obligation" withtac(tac) ] -> { next_obligation !!summary ~final:true None tac }
 END
 
 VERNAC COMMAND EXTEND Solve_Obligations CLASSIFIED AS SIDEFF STATE program

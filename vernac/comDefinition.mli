@@ -15,7 +15,8 @@ open Constrexpr
 (** {6 Definitions/Let} *)
 
 val interp_definition
-  :  program_mode:bool
+  : Summary.Interp.t
+  -> program_mode:bool
   -> Environ.env
   -> Evd.evar_map
   -> Constrintern.internalization_env
@@ -65,7 +66,8 @@ val do_definition_program
   -> Declare.OblState.t
 
 val do_definition_interactive
-  : ?loc:Loc.t
+  : Summary.Interp.t
+  -> ?loc:Loc.t
   -> program_mode:bool
   -> ?hook:Declare.Hook.t
   -> name:Id.t
@@ -82,7 +84,8 @@ val do_definition_interactive
   -> Declare.Proof.t
 
 val do_definition_refine
-  : ?loc:Loc.t
+  : Summary.Interp.t
+  -> ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> name:Id.t
   -> scope:Locality.definition_scope

@@ -160,7 +160,7 @@ let isAppInd env sigma c =
 
 (** Generic argument-based globbing/typing utilities *)
 
-let interp_refine env sigma ist ~concl rc =
+let interp_refine sum env sigma ist ~concl rc =
   let constrvars = Tacinterp.extract_ltac_constr_values ist env in
   let vars = { Glob_ops.empty_lvar with
     Ltac_pretype.ltac_constrs = constrvars; ltac_genargs = ist.Tacinterp.lfun
@@ -178,7 +178,7 @@ let interp_refine env sigma ist ~concl rc =
     unconstrained_sorts = false;
   }
   in
-  let sigma, c = Pretyping.understand_ltac flags env sigma vars kind rc in
+  let sigma, c = Pretyping.understand_ltac sum flags env sigma vars kind rc in
 (*   ppdebug(lazy(str"sigma@interp_refine=" ++ pr_evar_map None sigma)); *)
   debug_ssr (fun () -> str"c@interp_refine=" ++ Printer.pr_econstr_env env sigma c);
   (sigma, c)
@@ -390,11 +390,11 @@ let ssrevaltac ist gtac = Tacinterp.tactic_of_value ist gtac
 
 let env_size env = List.length (Environ.named_context env)
 
-let resolve_typeclasses env sigma ~where ~fail =
+let resolve_typeclasses sum env sigma ~where ~fail =
   let filter =
     let evset = Evarutil.undefined_evars_of_term sigma where in
     fun k _ -> Evar.Set.mem k evset in
-  Typeclasses.resolve_typeclasses ~filter ~fail env sigma
+  Typeclasses.resolve_typeclasses ~filter ~fail sum env sigma
 
 let abs_evars env sigma0 ?(rigid = []) (sigma, c0) =
   let c0 = Evarutil.nf_evar sigma c0 in
@@ -448,12 +448,12 @@ let abs_evars env sigma0 ?(rigid = []) (sigma, c0) =
 let ssrautoprop_tac = ref (Proofview.Goal.enter (fun gl -> assert false))
 
 (* Thanks to Arnaud Spiwack for this snippet *)
-let call_on_evar env sigma tac e =
+let call_on_evar sum env sigma tac e =
   try
     let tac = Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state e] <*> tac in
     let _, init = Proofview.init sigma [] in
     let name = Names.Id.of_string "legacy_pe" in
-    let (_, final, _, _, _) = Proofview.apply ~name ~poly:false env tac init in
+    let (_, final, _, _, _) = Proofview.apply sum ~name ~poly:false env tac init in
     let (gs, final) = Proofview.proofview final in
     let () = if (gs <> []) then errorstrm (str "Should we tell the user?") in
     final
@@ -464,7 +464,7 @@ let call_on_evar env sigma tac e =
 open Pp
 module Intset = Evar.Set
 
-let abs_evars_pirrel env sigma0 (sigma, c0) =
+let abs_evars_pirrel sum env sigma0 (sigma, c0) =
   let c0 = Evarutil.nf_evar sigma c0 in
   let nenv = env_size env in
   let abs_evar n k =
@@ -499,7 +499,7 @@ let abs_evars_pirrel env sigma0 (sigma, c0) =
     if evplist = [] then evlist, [], sigma else
     List.fold_left (fun (ev, evp, sigma) (i, (_,t,_,_) as p) ->
       try
-        let sigma = call_on_evar env sigma !ssrautoprop_tac i in
+        let sigma = call_on_evar sum env sigma !ssrautoprop_tac i in
         List.filter (fun (j,_) -> j <> i) ev, evp, sigma
       with e when CErrors.noncritical e -> ev, p::evp, sigma) (evlist, [], sigma) (List.rev evplist) in
   let c0 = Evarutil.nf_evar sigma c0 in
@@ -677,13 +677,13 @@ let rewritetac ?(under=false) dir c =
 
 type name_hint = (int * EConstr.types array) option ref
 
-let abs_ssrterm ?(resolve_typeclasses=false) ist env sigma t =
+let abs_ssrterm sum ?(resolve_typeclasses=false) ist env sigma t =
   let sigma0 = sigma in
   let sigma, ct = interp_term env sigma ist t in
   let t =
     if not resolve_typeclasses then (sigma, ct)
     else
-       let sigma = Typeclasses.resolve_typeclasses ~fail:false env sigma in
+       let sigma = Typeclasses.resolve_typeclasses ~fail:false sum env sigma in
        sigma, Evarutil.nf_evar sigma ct in
   let c, abstracted_away, ucst = abs_evars env sigma0 t in
   let n = List.length abstracted_away in
@@ -728,7 +728,7 @@ let mkCCast ?loc t ty = CAst.make ?loc @@ CCast (t, Some DEFAULTcast, ty)
 let rec isCHoles = function { CAst.v = CHole _ } :: cl -> isCHoles cl | cl -> cl = []
 let rec isCxHoles = function ({ CAst.v = CHole _ }, None) :: ch -> isCxHoles ch | _ -> false
 
-let pf_interp_ty ?(resolve_typeclasses=false) env sigma0 ist ty =
+let pf_interp_ty sum ?(resolve_typeclasses=false) env sigma0 ist ty =
    let n_binders = ref 0 in
    let ty = match ty with
    | a, (t, None) ->
@@ -757,7 +757,7 @@ let pf_interp_ty ?(resolve_typeclasses=false) env sigma0 ist ty =
    let ty =
      if not resolve_typeclasses then ty
      else
-       let sigma = Typeclasses.resolve_typeclasses ~fail:false env sigma in
+       let sigma = Typeclasses.resolve_typeclasses ~fail:false sum env sigma in
        sigma, Evarutil.nf_evar sigma cty in
    let c, evs, ucst = abs_evars env sigma0 ty in
    let n = List.length evs in
@@ -924,8 +924,9 @@ let refine_with ?(first_goes_last=false) ?beta ?(with_evars=true) oc =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let uct = Evd.ustate (fst oc) in
-  let n, oc = abs_evars_pirrel env sigma oc in
+  let n, oc = abs_evars_pirrel sum env sigma oc in
   Proofview.Unsafe.tclEVARS (Evd.set_universe_context sigma uct) <*>
   Proofview.tclORELSE (applyn ~with_evars ~first_goes_last ?beta n oc)
     (fun _ -> Proofview.tclZERO dependent_apply_error)

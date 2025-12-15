@@ -130,11 +130,11 @@ let rec intern_module_ast kind m = match m with
       let decl = intern_with_decl decl in
       (MEwith(me,decl), base, kind)
 
-let interp_with_decl env base kind = function
+let interp_with_decl sum env base kind = function
   | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
   | WithDef(fqid,(udecl,c)) ->
     let sigma, udecl = interp_univ_decl_opt env udecl in
-    let c, ectx = interp_constr env sigma c in
+    let c, ectx = interp_constr sum env sigma c in
     let poly = lookup_polymorphism env base kind fqid in
     begin match fst (UState.check_univ_decl ~poly ectx udecl) with
       | UState.Polymorphic_entry ctx ->
@@ -147,17 +147,17 @@ let interp_with_decl env base kind = function
         WithDef (fqid,(c, None)), ctx
     end
 
-let rec interp_module_ast env kind base m cst = match m with
+let rec interp_module_ast sum env kind base m cst = match m with
 | MEident mp ->
   MEident mp, cst
 | MEapply (me,mp) ->
-  let me', cst = interp_module_ast env kind base me cst in
+  let me', cst = interp_module_ast sum env kind base me cst in
   MEapply(me',mp), cst
 | MEwith(me,decl) ->
-  let me, cst = interp_module_ast env kind base me cst in
-  let decl, cst' = interp_with_decl env base kind decl in
+  let me, cst = interp_module_ast sum env kind base me cst in
+  let decl, cst' = interp_with_decl sum env base kind decl in
   let cst = Univ.ContextSet.union cst cst' in
   MEwith(me,decl), cst
 
-let interp_module_ast env kind base m =
-  interp_module_ast env kind base m Univ.ContextSet.empty
+let interp_module_ast sum env kind base m =
+  interp_module_ast sum env kind base m Univ.ContextSet.empty

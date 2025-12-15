@@ -14,6 +14,8 @@ module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
 module ERelevance = EConstr.ERelevance
 
+let (!!) = Summary.Interp.get
+
 let observe strm = if do_observe () then Feedback.msg_debug strm else ()
 
 (*let observennl strm =
@@ -299,12 +301,12 @@ let build_constructors_of_type env ind' argl =
 (* Main functions *)
 (******************)
 
-let raw_push_named (na, raw_value, raw_typ) env =
+let raw_push_named sum (na, raw_value, raw_typ) env =
   match na with
   | Anonymous -> env
   | Name id -> (
     let typ, _ =
-      Pretyping.understand env (Evd.from_env env)
+      Pretyping.understand sum env (Evd.from_env env)
         ~expected_type:Pretyping.IsType raw_typ
     in
     let na = make_annot id ERelevance.relevant in
@@ -463,7 +465,7 @@ let rec pattern_to_term_and_type env typ =
 
 let pr_glob_constr_env env x = pr_glob_constr_env env (Evd.from_env env) x
 
-let rec build_entry_lc env sigma funnames avoid rt :
+let rec build_entry_lc sum env sigma funnames avoid rt :
     glob_constr build_entry_return =
   observe (str " Entering : " ++ pr_glob_constr_env env rt);
   let open CAst in
@@ -479,7 +481,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
         (* create the arguments lists of constructors and combine them *)
           (fun arg ctxt_argsl ->
           let arg_res =
-            build_entry_lc env sigma funnames ctxt_argsl.to_avoid arg
+            build_entry_lc sum env sigma funnames ctxt_argsl.to_avoid arg
           in
           combine_results combine_args arg_res ctxt_argsl)
         args (mk_result [] [] avoid)
@@ -496,7 +498,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
           | GLambda (na, _, _, nat, b) -> GLetIn (na, None, u, None, aux b l)
           | _ -> GApp (t, l) )
       in
-      build_entry_lc env sigma funnames avoid (aux f args)
+      build_entry_lc sum env sigma funnames avoid (aux f args)
     | GVar id when Id.Set.mem id funnames ->
       (* if we have [f t1 ... tn] with [f]$\in$[fnames]
          then we create a fresh variable [res],
@@ -506,7 +508,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
          The "value" of this branch is then simply [res]
       *)
       (* XXX here and other [understand] calls drop the ctx *)
-      let rt_as_constr, ctx = Pretyping.understand env (Evd.from_env env) rt in
+      let rt_as_constr, ctx = Pretyping.understand sum env (Evd.from_env env) rt in
       let rt_typ = Retyping.get_type_of env (Evd.from_env env) rt_as_constr in
       let res_raw_type =
         Detyping.detype Detyping.Now
@@ -556,14 +558,14 @@ let rec build_entry_lc env sigma funnames avoid rt :
           (Name new_id, new_b, new_avoid)
         | _ -> (n, b, avoid)
       in
-      build_entry_lc env sigma funnames avoid
+      build_entry_lc sum env sigma funnames avoid
         (mkGLetIn (new_n, v, t, mkGApp (new_b, args)))
     | GCases _ | GIf _ | GLetTuple _ | GProj _ ->
       (* we have [(match e1, ...., en with ..... end) t1 tn]
          we first compute the result from the case and
          then combine each of them with each of args one
       *)
-      let f_res = build_entry_lc env sigma funnames args_res.to_avoid f in
+      let f_res = build_entry_lc sum env sigma funnames args_res.to_avoid f in
       combine_results combine_app f_res args_res
     | GCast (b, _, _) ->
       (* for an applied cast we just trash the cast part
@@ -571,7 +573,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
 
          WARNING: We need to restart since [b] itself should be an application term
       *)
-      build_entry_lc env sigma funnames avoid (mkGApp (b, args))
+      build_entry_lc sum env sigma funnames avoid (mkGApp (b, args))
     | GRec _ -> user_err Pp.(str "Not handled GRec")
     | GProd _ -> user_err Pp.(str "Cannot apply a type")
     | GInt _ -> user_err Pp.(str "Cannot apply an integer")
@@ -585,7 +587,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
         (* create the arguments lists of constructors and combine them *)
           (fun arg ctxt_argsl ->
           let arg_res =
-            build_entry_lc env sigma funnames ctxt_argsl.to_avoid arg
+            build_entry_lc sum env sigma funnames ctxt_argsl.to_avoid arg
           in
           combine_results combine_args arg_res ctxt_argsl)
         (params@[c]) (mk_result [] [] avoid) in
@@ -602,14 +604,14 @@ let rec build_entry_lc env sigma funnames avoid rt :
        then the one corresponding to the type
        and combine the two result
     *)
-    let t_res = build_entry_lc env sigma funnames avoid t in
+    let t_res = build_entry_lc sum env sigma funnames avoid t in
     let new_n =
       match n with
       | Name _ -> n
       | Anonymous -> Name (Indfun_common.fresh_id [] "_x")
     in
-    let new_env = raw_push_named (new_n, None, t) env in
-    let b_res = build_entry_lc new_env sigma funnames avoid b in
+    let new_env = raw_push_named sum (new_n, None, t) env in
+    let b_res = build_entry_lc sum new_env sigma funnames avoid b in
     combine_results (combine_lam new_n) t_res b_res
   | GProd (n, _, _, t, b) ->
     (* we first compute the list of constructor
@@ -617,9 +619,9 @@ let rec build_entry_lc env sigma funnames avoid rt :
        then the one corresponding to the type
        and combine the two result
     *)
-    let t_res = build_entry_lc env sigma funnames avoid t in
-    let new_env = raw_push_named (n, None, t) env in
-    let b_res = build_entry_lc new_env sigma funnames avoid b in
+    let t_res = build_entry_lc sum env sigma funnames avoid t in
+    let new_env = raw_push_named sum (n, None, t) env in
+    let b_res = build_entry_lc sum new_env sigma funnames avoid b in
     if List.length t_res.result = 1 && List.length b_res.result = 1 then
       combine_results (combine_prod2 n) t_res b_res
     else combine_results (combine_prod n) t_res b_res
@@ -634,8 +636,8 @@ let rec build_entry_lc env sigma funnames avoid rt :
       | None -> v
       | Some t -> DAst.make ?loc:rt.loc @@ GCast (v, Some DEFAULTcast, t)
     in
-    let v_res = build_entry_lc env sigma funnames avoid v in
-    let v_as_constr, ctx = Pretyping.understand env (Evd.from_env env) v in
+    let v_res = build_entry_lc sum env sigma funnames avoid v in
+    let v_as_constr, ctx = Pretyping.understand sum env (Evd.from_env env) v in
     let v_type = Retyping.get_type_of env (Evd.from_env env) v_as_constr in
     let v_r = ERelevance.relevant in
     (* TODO relevance *)
@@ -647,16 +649,16 @@ let rec build_entry_lc env sigma funnames avoid rt :
           (NamedDecl.LocalDef (make_annot id v_r, v_as_constr, v_type))
           env
     in
-    let b_res = build_entry_lc new_env sigma funnames avoid b in
+    let b_res = build_entry_lc sum new_env sigma funnames avoid b in
     combine_results (combine_letin n) v_res b_res
   | GCases (_, _, el, brl) ->
     (* we create the discrimination function
        and treat the case itself
     *)
     let make_discr = make_discr_match brl in
-    build_entry_lc_from_case env sigma funnames make_discr el brl avoid
+    build_entry_lc_from_case sum env sigma funnames make_discr el brl avoid
   | GIf (b, (na, e_option), lhs, rhs) ->
-    let b_as_constr, ctx = Pretyping.understand env (Evd.from_env env) b in
+    let b_as_constr, ctx = Pretyping.understand sum env (Evd.from_env env) b in
     let b_typ = Retyping.get_type_of env (Evd.from_env env) b_as_constr in
     let ind, _ =
       try Inductiveops.find_inductive env (Evd.from_env env) b_typ
@@ -673,12 +675,12 @@ let rec build_entry_lc env sigma funnames avoid rt :
     in
     let match_expr = mkGCases (None, [(b, (Anonymous, None))], brl) in
     (* 		Pp.msgnl (str "new case := " ++ Printer.pr_glob_constr match_expr); *)
-    build_entry_lc env sigma funnames avoid match_expr
+    build_entry_lc sum env sigma funnames avoid match_expr
   | GLetTuple (nal, _, b, e) ->
     let nal_as_glob_constr =
       List.map (function Name id -> mkGVar id | Anonymous -> mkGHole ()) nal
     in
-    let b_as_constr, ctx = Pretyping.understand env (Evd.from_env env) b in
+    let b_as_constr, ctx = Pretyping.understand sum env (Evd.from_env env) b in
     let b_typ = Retyping.get_type_of env (Evd.from_env env) b_as_constr in
     let ind, _ =
       try Inductiveops.find_inductive env (Evd.from_env env) b_typ
@@ -692,12 +694,12 @@ let rec build_entry_lc env sigma funnames avoid rt :
     assert (Int.equal (Array.length case_pats) 1);
     let br = CAst.make ([], [case_pats.(0)], e) in
     let match_expr = mkGCases (None, [(b, (Anonymous, None))], [br]) in
-    build_entry_lc env sigma funnames avoid match_expr
+    build_entry_lc sum env sigma funnames avoid match_expr
   | GRec _ -> user_err Pp.(str "Not handled GRec")
-  | GCast (b, _, _) -> build_entry_lc env sigma funnames avoid b
+  | GCast (b, _, _) -> build_entry_lc sum env sigma funnames avoid b
   | GArray _ -> user_err Pp.(str "Not handled GArray")
 
-and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
+and build_entry_lc_from_case sum env sigma funname make_discr (el : tomatch_tuples)
     (brl : Glob_term.cases_clauses) avoid : glob_constr build_entry_return =
   match el with
   | [] -> assert false (* this case correspond to match <nothing> with .... !*)
@@ -714,7 +716,7 @@ and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
       List.fold_right
         (fun (case_arg, _) ctxt_argsl ->
           let arg_res =
-            build_entry_lc env sigma funname ctxt_argsl.to_avoid case_arg
+            build_entry_lc sum env sigma funname ctxt_argsl.to_avoid case_arg
           in
           combine_results combine_args arg_res ctxt_argsl)
         el (mk_result [] [] avoid)
@@ -723,7 +725,7 @@ and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
       List.map
         (fun (case_arg, _) ->
           let case_arg_as_constr, ctx =
-            Pretyping.understand env (Evd.from_env env) case_arg
+            Pretyping.understand sum env (Evd.from_env env) case_arg
           in
           Retyping.get_type_of env (Evd.from_env env) case_arg_as_constr)
         el
@@ -733,7 +735,7 @@ and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
       List.map
         (fun ca ->
           let res =
-            build_entry_lc_from_case_term env sigma types funname make_discr []
+            build_entry_lc_from_case_term sum env sigma types funname make_discr []
               brl case_resl.to_avoid ca
           in
           res)
@@ -745,7 +747,7 @@ and build_entry_lc_from_case env sigma funname make_discr (el : tomatch_tuples)
           (fun acc r -> List.union Id.equal acc r.to_avoid)
           [] results }
 
-and build_entry_lc_from_case_term env sigma types funname make_discr
+and build_entry_lc_from_case_term sum env sigma types funname make_discr
     patterns_to_prevent brl avoid matched_expr =
   match brl with
   | [] -> (* computed_branches  *) {result = []; to_avoid = avoid}
@@ -791,7 +793,7 @@ and build_entry_lc_from_case_term env sigma types funname make_discr
            as much as possible)
         *)
     let brl'_res =
-      build_entry_lc_from_case_term env sigma types funname make_discr
+      build_entry_lc_from_case_term sum env sigma types funname make_discr
         ((unify_with_those_patterns, not_those_patterns) :: patterns_to_prevent)
         brl' avoid matched_expr
     in
@@ -855,7 +857,7 @@ and build_entry_lc_from_case_term env sigma types funname make_discr
       else []
     in
     (* We compute the result of the value returned by the branch*)
-    let return_res = build_entry_lc new_env sigma funname new_avoid return in
+    let return_res = build_entry_lc sum new_env sigma funname new_avoid return in
     (* and combine it with the preconds computed for this branch *)
     let this_branch_res =
       List.map
@@ -911,7 +913,7 @@ exception Continue
    rebuild the globalized constructors expression.
    eliminates some meaningless equalities, applies some rewrites......
 *)
-let rec rebuild_cons env nb_args relname args crossed_types depth rt =
+let rec rebuild_cons sum env nb_args relname args crossed_types depth rt =
   observe (str "rebuilding : " ++ pr_glob_constr_env env rt);
   let open Context.Rel.Declaration in
   let open CAst in
@@ -931,12 +933,12 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         let new_t =
           mkGApp (mkGVar (mk_rel_id this_relname), List.tl args' @ [res_rt])
         in
-        let t', ctx = Pretyping.understand env (Evd.from_env env) new_t in
+        let t', ctx = Pretyping.understand sum env (Evd.from_env env) new_t in
         let r = ERelevance.relevant in
         (* TODO relevance *)
         let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
         let new_b, id_to_exclude =
-          rebuild_cons new_env nb_args relname args new_crossed_types
+          rebuild_cons sum new_env nb_args relname args new_crossed_types
             (depth + 1) b
         in
         (mkGProd (n, new_t, new_b), Id.Set.filter not_free_in_t id_to_exclude)
@@ -954,7 +956,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       try
         observe (str "computing new type for eq : " ++ pr_glob_constr_env env rt);
         let t' =
-          try fst (Pretyping.understand env (Evd.from_env env) t) (*FIXME*)
+          try fst (Pretyping.understand sum env (Evd.from_env env) t) (*FIXME*)
           with e when CErrors.noncritical e -> raise Continue
         in
         let is_in_b = is_free_in id b in
@@ -969,13 +971,13 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         (* TODO relevance *)
         let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
         let new_b, id_to_exclude =
-          rebuild_cons new_env nb_args relname new_args new_crossed_types
+          rebuild_cons sum new_env nb_args relname new_args new_crossed_types
             (depth + 1) subst_b
         in
         (mkGProd (n, t, new_b), id_to_exclude)
       with Continue ->
         let jmeq = GlobRef.IndRef (fst (EConstr.destInd Evd.empty (jmeq ()))) in
-        let ty', ctx = Pretyping.understand env (Evd.from_env env) ty in
+        let ty', ctx = Pretyping.understand sum env (Evd.from_env env) ty in
         let ind, args' =
           Inductiveops.find_inductive env Evd.(from_env env) ty'
         in
@@ -1005,7 +1007,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         observe
           (str "computing new type for jmeq : " ++ pr_glob_constr_env env eq');
         let eq'_as_constr, ctx =
-          Pretyping.understand env (Evd.from_env env) eq'
+          Pretyping.understand sum env (Evd.from_env env) eq'
         in
         observe (str " computing new type for jmeq : done");
         let sigma = Evd.(from_env env) in
@@ -1054,13 +1056,13 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
         in
         let subst_b = if is_in_b then b else replace_var_by_term id rt b in
         let new_env =
-          let t', ctx = Pretyping.understand env (Evd.from_env env) eq' in
+          let t', ctx = Pretyping.understand sum env (Evd.from_env env) eq' in
           let r = ERelevance.relevant in
           (* TODO relevance *)
           EConstr.push_rel (LocalAssum (make_annot n r, t')) env
         in
         let new_b, id_to_exclude =
-          rebuild_cons new_env nb_args relname new_args new_crossed_types
+          rebuild_cons sum new_env nb_args relname new_args new_crossed_types
             (depth + 1) subst_b
         in
         (mkGProd (n, eq', new_b), id_to_exclude)
@@ -1086,17 +1088,17 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
                   , acc ))
               b l
           in
-          rebuild_cons env nb_args relname args crossed_types depth new_rt
+          rebuild_cons sum env nb_args relname args crossed_types depth new_rt
         else raise Continue
       with Continue -> (
         observe
           (str "computing new type for prod : " ++ pr_glob_constr_env env rt);
-        let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+        let t', ctx = Pretyping.understand sum env (Evd.from_env env) t in
         let r = ERelevance.relevant in
         (* TODO relevance *)
         let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
         let new_b, id_to_exclude =
-          rebuild_cons new_env nb_args relname args new_crossed_types
+          rebuild_cons sum new_env nb_args relname args new_crossed_types
             (depth + 1) b
         in
         match n with
@@ -1106,12 +1108,12 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
       )
     | _ -> (
       observe (str "computing new type for prod : " ++ pr_glob_constr_env env rt);
-      let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+      let t', ctx = Pretyping.understand sum env (Evd.from_env env) t in
       let r = ERelevance.relevant in
       (* TODO relevance *)
       let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
       let new_b, id_to_exclude =
-        rebuild_cons new_env nb_args relname args new_crossed_types (depth + 1)
+        rebuild_cons sum new_env nb_args relname args new_crossed_types (depth + 1)
           b
       in
       match n with
@@ -1123,14 +1125,14 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     let not_free_in_t id = not (is_free_in id t) in
     let new_crossed_types = t :: crossed_types in
     observe (str "computing new type for lambda : " ++ pr_glob_constr_env env rt);
-    let t', ctx = Pretyping.understand env (Evd.from_env env) t in
+    let t', ctx = Pretyping.understand sum env (Evd.from_env env) t in
     match n with
     | Name id ->
       let r = ERelevance.relevant in
       (* TODO relevance *)
       let new_env = EConstr.push_rel (LocalAssum (make_annot n r, t')) env in
       let new_b, id_to_exclude =
-        rebuild_cons new_env nb_args relname
+        rebuild_cons sum new_env nb_args relname
           (args @ [mkGVar id])
           new_crossed_types (depth + 1) b
       in
@@ -1150,14 +1152,14 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     in
     let not_free_in_t id = not (is_free_in id t) in
     let evd = Evd.from_env env in
-    let t', ctx = Pretyping.understand env evd t in
+    let t', ctx = Pretyping.understand sum env evd t in
     let evd = Evd.from_ctx ctx in
     let type_t' = Retyping.get_type_of env evd t' in
     let new_env =
       EConstr.push_rel (LocalDef (make_annot n ERelevance.relevant, t', type_t')) env
     in
     let new_b, id_to_exclude =
-      rebuild_cons new_env nb_args relname args (t :: crossed_types) (depth + 1)
+      rebuild_cons sum new_env nb_args relname args (t :: crossed_types) (depth + 1)
         b
     in
     match n with
@@ -1171,14 +1173,14 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     assert (Option.is_empty rto);
     let not_free_in_t id = not (is_free_in id t) in
     let new_t, id_to_exclude' =
-      rebuild_cons env nb_args relname args crossed_types depth t
+      rebuild_cons sum env nb_args relname args crossed_types depth t
     in
-    let t', ctx = Pretyping.understand env (Evd.from_env env) new_t in
+    let t', ctx = Pretyping.understand sum env (Evd.from_env env) new_t in
     let r = ERelevance.relevant in
     (* TODO relevance *)
     let new_env = EConstr.push_rel (LocalAssum (make_annot na r, t')) env in
     let new_b, id_to_exclude =
-      rebuild_cons new_env nb_args relname args (t :: crossed_types) (depth + 1)
+      rebuild_cons sum new_env nb_args relname args (t :: crossed_types) (depth + 1)
         b
     in
     (* 	  match n with  *)
@@ -1190,10 +1192,10 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
   | _ -> (mkGApp (mkGVar relname, args @ [rt]), Id.Set.empty)
 
 (* debugging wrapper *)
-let rebuild_cons env nb_args relname args crossed_types rt =
+let rebuild_cons sum env nb_args relname args crossed_types rt =
   (*   observennl  (str "rebuild_cons : rt := "++ pr_glob_constr rt ++  *)
   (* 		 str "nb_args := " ++ str (string_of_int nb_args)); *)
-  let res = rebuild_cons env nb_args relname args crossed_types 0 rt in
+  let res = rebuild_cons sum env nb_args relname args crossed_types 0 rt in
   (*   observe (str " leads to "++ pr_glob_constr (fst res)); *)
   res
 
@@ -1336,7 +1338,7 @@ let do_build_inductive sum evd (funconstants : pconstant list)
           evd rt)
       rta
   in
-  let resa = Array.map (build_entry_lc env evd funnames_as_set []) rta in
+  let resa = Array.map (build_entry_lc !!sum env evd funnames_as_set []) rta in
   let env_with_graphs =
     let rel_arity i funargs =
       (* Rebuilding arities (with parameters) *)
@@ -1375,7 +1377,7 @@ let do_build_inductive sum evd (funconstants : pconstant list)
     Util.Array.fold_left2
       (fun env rel_name rel_ar ->
         let rex =
-          fst (Constrintern.interp_constr env evd rel_ar)
+          fst (Constrintern.interp_constr !!sum env evd rel_ar)
         in
         let r = ERelevance.relevant in
         (* TODO relevance *)
@@ -1390,7 +1392,7 @@ let do_build_inductive sum evd (funconstants : pconstant list)
           let rt = compose_glob_context result.context result.value in
           let nb_args = List.length funsargs.(i) in
           (*  with_full_print (fun rt -> Pp.msgnl (str "glob constr " ++ pr_glob_constr rt)) rt; *)
-          fst (rebuild_cons env_with_graphs nb_args relnames.(i) [] [] rt))
+          fst (rebuild_cons !!sum env_with_graphs nb_args relnames.(i) [] [] rt))
       res.result
   in
   (* adding names to constructors  *)

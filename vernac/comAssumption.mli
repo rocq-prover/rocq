@@ -92,7 +92,8 @@ val do_context
 
 (** Interpret a declaration of the form [binders |- typ] as a type *)
 val interp_assumption
-  :  program_mode:bool
+  : Summary.Interp.t
+  -> program_mode:bool
   -> Environ.env
   -> Evd.evar_map
   -> Constrintern.internalization_env
@@ -103,7 +104,8 @@ val interp_assumption
 (** The first half of the context command, returning the declarations
     in the same order as [Context], using de Bruijn indices (used by Elpi) *)
 val interp_context
-  :  Environ.env
+  : Summary.Interp.t
+  -> Environ.env
   -> Evd.evar_map
   -> local_binder_expr list
   -> Evd.evar_map * (Id.t * Constr.t option * Constr.t * Glob_term.binding_kind) list

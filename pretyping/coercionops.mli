@@ -70,7 +70,7 @@ val class_args_of : env -> evar_map -> types -> constr list
 val subst_coercion : substitution -> coe_info_typ -> coe_info_typ
 
 (** Set [update] to update an already declared coercion (default [false]). *)
-val declare_coercion : env -> evar_map -> ?update:bool -> coe_info_typ -> unit
+val declare_coercion : Summary.Interp.mut -> env -> evar_map -> ?update:bool -> coe_info_typ -> unit
 
 (** {6 Access to coercions infos } *)
 val coercion_exists : coe_typ -> bool
@@ -101,7 +101,7 @@ val path_is_reversible : inheritance_path -> bool
 val install_path_printer :
   ((cl_typ * cl_typ) * inheritance_path -> Pp.t) -> unit
 val install_path_comparator :
-  (env -> evar_map -> cl_typ -> inheritance_path -> inheritance_path -> bool) -> unit
+  (Summary.Interp.t -> env -> evar_map -> cl_typ -> inheritance_path -> inheritance_path -> bool) -> unit
 (**/**)
 
 (** {6 This is for printing purpose } *)

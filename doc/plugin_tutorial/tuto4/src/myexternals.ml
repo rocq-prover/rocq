@@ -134,7 +134,7 @@ let () = define "check_in_goal" (ident @-> tac custom) @@ fun id ->
   (* pf_apply gives us the "current" environment, ie the global env if
      no goals are focused and the current goal env if 1 goal is
      focused. If >1 goals are focused it throws an exception. *)
-  Tac2core.pf_apply @@ fun env sigma ->
+  Tac2core.pf_apply @@ fun sum env sigma ->
   match EConstr.lookup_named id env with
   | exception Not_found -> return A
   | d -> return (B (Context.Named.Declaration.get_type d))

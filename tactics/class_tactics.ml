@@ -456,6 +456,7 @@ module Intpart = Unionfind.Make(Evar.Set)(Evar.Map)
 
 type solver = { solver :
   ?db:hint_db ->
+  Summary.Interp.t ->
   Environ.env ->
   Evd.evar_map ->
   depth:int option ->
@@ -1016,7 +1017,7 @@ module Search = struct
     evm, sorted_goals
 
 
-  let run_on_goals env evm tac ~goals =
+  let run_on_goals sum env evm tac ~goals =
     let goalsl = List.map Proofview.with_empty_state goals in
     let tac = Proofview.Unsafe.tclNEWGOALS goalsl <*> tac in
     let _, pv = Proofview.init evm [] in
@@ -1034,7 +1035,7 @@ module Search = struct
       else tac
     in
     let (), pv', _, unsafe, info =
-      try Proofview.apply ~name ~poly env tac pv
+      try Proofview.apply sum ~name ~poly env tac pv
       with Logic_monad.TacticFailure _ -> raise Not_found
     in
     let () =
@@ -1074,20 +1075,20 @@ module Search = struct
   (** Typeclasses eauto is an eauto which tries to resolve only
       goals of typeclass type, and assumes that the initially selected
       evars in evd are independent of the rest of the evars *)
-  let typeclasses_eauto env evd ~goals ?depth ~unique ~best_effort st hints =
+  let typeclasses_eauto sum env evd ~goals ?depth ~unique ~best_effort st hints =
     let only_classes = true in
     let dep = unique in
     NewProfile.profile "typeclass search" (fun () ->
-      run_on_goals env evd (eauto_tac_stuck st ~unique ~only_classes ~best_effort ~depth ~dep hints) ~goals) ()
+      run_on_goals sum env evd (eauto_tac_stuck st ~unique ~only_classes ~best_effort ~depth ~dep hints) ~goals) ()
 
-  let typeclasses_resolve : solver = { solver = fun ?db env evd ~depth ~unique ~best_effort ~goals ->
+  let typeclasses_resolve : solver = { solver = fun ?db sum env evd ~depth ~unique ~best_effort ~goals ->
     let db = match db with
     | None -> searchtable_map typeclasses_db
     | Some db -> db
     in
     let st = Hint_db.transparent_state db in
     let modes = Hint_db.modes db in
-    typeclasses_eauto env evd ~goals ?depth ~best_effort ~unique (modes,st) [db]
+    typeclasses_eauto sum env evd ~goals ?depth ~best_effort ~unique (modes,st) [db]
   }
 end
 
@@ -1224,7 +1225,7 @@ let find_solver env evd (s : Intpart.set) =
 
 (** If [do_split] is [true], we try to separate the problem in
     several components and then solve them separately *)
-let resolve_all_evars depth unique env p oevd fail =
+let resolve_all_evars depth unique sum env p oevd fail =
   let () =
     ppdebug 0 (fun () ->
         str"Calling typeclass resolution with flags: "++
@@ -1253,7 +1254,7 @@ let resolve_all_evars depth unique env p oevd fail =
           | Some (goals, nongoals) ->
             let solver = find_solver env evd comp in
             let evd, sorted_goals = Search.preprocess_goals evd goals in
-            let finished, evd = solver.solver env evd ~goals:sorted_goals ~best_effort:true ~depth ~unique in
+            let finished, evd = solver.solver sum env evd ~goals:sorted_goals ~best_effort:true ~depth ~unique in
             let evd = Search.post_process_goals ~goals ~nongoals ~sigma:evd ~finished in
             if has_undefined p oevd evd then
               let () = if finished then ppdebug 1 (fun () ->
@@ -1291,22 +1292,22 @@ let classes_transparent_state db () =
   try Hint_db.transparent_state db
   with Not_found -> TransparentState.empty
 
-let resolve_typeclass_evars depth unique env evd filter fail =
+let resolve_typeclass_evars sum depth unique env evd filter fail =
   let evd =
     try Evarconv.solve_unif_constraints_with_heuristics
       ~flags:(Evarconv.default_flags_of (classes_transparent_state None ())) env evd
     with e when CErrors.noncritical e -> evd
   in
-    resolve_all_evars depth unique env
+    resolve_all_evars depth unique sum env
       (initial_select_evars env filter) evd fail
 
-let solve_inst env evd filter unique fail =
-  resolve_typeclass_evars (get_typeclasses_depth ()) unique env evd filter fail
+let solve_inst sum env evd filter unique fail =
+  resolve_typeclass_evars sum (get_typeclasses_depth ()) unique env evd filter fail
 
 let () =
   Typeclasses.set_solve_all_instances solve_inst
 
-let resolve_one_typeclass ?db env sigma concl =
+let resolve_one_typeclass sum ?db env sigma concl =
   let db = match db with
   | None -> searchtable_map typeclasses_db
   | Some db -> db
@@ -1321,7 +1322,7 @@ let resolve_one_typeclass ?db env sigma concl =
   let entry, pv = Proofview.init sigma [env, concl] in
   let pv =
     let name = Names.Id.of_string "legacy_pe" in
-    match Proofview.apply ~name ~poly:false (Global.env ()) tac pv with
+    match Proofview.apply sum ~name ~poly:false (Global.env ()) tac pv with
     | (_, final, _, _, _) -> final
     | exception (Logic_monad.TacticFailure (Tacticals.FailError _)) ->
       raise Not_found
@@ -1330,7 +1331,7 @@ let resolve_one_typeclass ?db env sigma concl =
   let term = match Proofview.partial_proof entry pv with [t] -> t | _ -> assert false in
   evd, term
 
-let () = (Typeclasses.set_solve_one_instance[@warning "-3"]) resolve_one_typeclass
+let () = (Typeclasses.set_solve_one_instance[@warning "-3"]) (resolve_one_typeclass ?db:None)
 
 (** Take the head of the arity of a constr.
     Used in the partial application tactic. *)
@@ -1382,10 +1383,11 @@ let resolve_tc c =
   let open Proofview.Notations in
   Proofview.tclENV >>= fun env ->
   Proofview.tclEVARMAP >>= fun sigma ->
+  Proofview.tclSummary >>= fun sum ->
   let depth = get_typeclasses_depth () in
   let unique = get_typeclasses_unique_solutions () in
   let evars = Evarutil.undefined_evars_of_term sigma c in
   let filter = (fun ev _ -> Evar.Set.mem ev evars) in
   let fail = true in
-  let sigma = resolve_all_evars depth unique env (initial_select_evars env filter) sigma fail in
+  let sigma = resolve_all_evars depth unique sum env (initial_select_evars env filter) sigma fail in
   Proofview.Unsafe.tclEVARS sigma

@@ -62,7 +62,8 @@ val make_evar_clause : env -> evar_map -> ?len:int -> EConstr.types ->
     type together with the list of holes generated. Assumes that [t] is
     well-typed in the environment. *)
 
-val solve_evar_clause : env -> evar_map -> bool -> clause -> EConstr.constr bindings ->
+val solve_evar_clause : Summary.Interp.t ->
+  env -> evar_map -> bool -> clause -> EConstr.constr bindings ->
   evar_map
 (** [solve_evar_clause env sigma hyps cl bl] tries to solve the holes contained
     in [cl] according to the [bl] argument. Assumes that [bl] are well-typed in

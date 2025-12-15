@@ -308,7 +308,7 @@ let update_sigma_univs ugraph p =
 
 (*** Tactics ***)
 
-let run_tactic env tac pr =
+let run_tactic sum env tac pr =
   let open Proofview.Notations in
   let tac =
     (* include the future goals in the shelf *)
@@ -318,7 +318,7 @@ let run_tactic env tac pr =
   in
   let { name; poly; proofview } = pr in
   let (result,proofview,env,status,info_trace) =
-    Proofview.apply ~name ~poly env tac proofview
+    Proofview.apply ~name ~poly sum env tac proofview
   in
   let sigma = Proofview.return proofview in
   (* cleanup any shelved goals that got defined
@@ -425,7 +425,7 @@ let solve_constraints =
   Proofview.tclOR Refine.solve_constraints
     (fun (e,info) -> Proofview.tclZERO ~info (FailedConstraints e))
 
-let solve ?with_end_tac env gi info_lvl tac pr =
+let solve ?with_end_tac sum env gi info_lvl tac pr =
     let tac = match with_end_tac with
       | None -> tac
       | Some etac -> Proofview.tclTHEN tac etac in
@@ -444,7 +444,7 @@ let solve ?with_end_tac env gi info_lvl tac pr =
       else tac
     in
     let env = Environ.update_typing_flags ?typing_flags:pr.typing_flags env in
-    let (p, (env, status, info), ()) = run_tactic env tac pr in
+    let (p, (env, status, info), ()) = run_tactic sum env tac pr in
     let sigma = (data p).sigma in
     let () =
       match info_lvl with
@@ -456,7 +456,7 @@ let solve ?with_end_tac env gi info_lvl tac pr =
 (**********************************************************************)
 (* Shortcut to build a term using tactics *)
 
-let refine_by_tactic ~name ~poly env sigma ty tac =
+let refine_by_tactic sum ~name ~poly env sigma ty tac =
   (* Save the initial side-effects to restore them afterwards. *)
   let eff = Evd.eval_side_effects sigma in
   let old_len = Safe_typing.length_private @@ Evd.seff_private eff in
@@ -465,7 +465,7 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
   (* Start a proof *)
   let prf = start ~name ~poly sigma [env, ty] in
   let (prf, _, ()) =
-    try run_tactic env tac prf
+    try run_tactic sum env tac prf
     with Logic_monad.TacticFailure e as src ->
       (* Catch the inner error of the monad tactic *)
       let (_, info) = Exninfo.capture src in

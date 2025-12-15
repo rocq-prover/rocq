@@ -31,15 +31,15 @@ let tactic_infer_flags with_evar = Pretyping.{
 }
 
 (** FIXME: export a better interface in Tactics *)
-let delayed_of_tactic tac env sigma =
+let delayed_of_tactic tac sum env sigma =
   let _, pv = Proofview.init sigma [] in
   let name, poly = Id.of_string "ltac2_delayed", false in
-  let c, pv, _, _, _ = Proofview.apply ~name ~poly env tac pv in
+  let c, pv, _, _, _ = Proofview.apply sum ~name ~poly env tac pv in
   let _, sigma = Proofview.proofview pv in
   (sigma, c)
 
-let delayed_of_thunk r tac env sigma =
-  delayed_of_tactic (thaw tac) env sigma
+let delayed_of_thunk r tac sum env sigma =
+  delayed_of_tactic (thaw tac) sum env sigma
 
 let mk_bindings = function
 | ImplicitBindings l -> Tactypes.ImplicitBindings l
@@ -166,9 +166,10 @@ let specialize c pat =
 
 let change pat c cl =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let c subst env sigma =
     let subst = Array.map_of_list snd (Id.Map.bindings subst) in
-    Tacred.Changed (delayed_of_tactic (c subst) env sigma)
+    Tacred.Changed (delayed_of_tactic (c subst) sum env sigma)
   in
   let cl = mk_clause cl in
   Tactics.change ~check:true pat c cl
@@ -205,11 +206,11 @@ struct
     Rewrite.Strategies.old_hints (Id.to_string i)
 
   let one_lemma c l2r =
-    let c env sigma = Pretyping.understand_uconstr env sigma c in
+    let c sum env sigma = Pretyping.understand_uconstr sum env sigma c in
     Rewrite.Strategies.one_lemma c l2r None AllOccurrences
 
   let lemmas cs =
-    let mk_c c = (); fun env sigma -> Pretyping.understand_uconstr env sigma c in
+    let mk_c c = (); fun sum env sigma -> Pretyping.understand_uconstr sum env sigma c in
     let mk_c c = (mk_c c, true, None) in
     let cs = List.map mk_c cs in
     Rewrite.Strategies.lemmas cs
@@ -261,7 +262,7 @@ let reduce_in red cl =
   Tactics.reduce red cl
 
 let reduce_constr red c =
-  Tac2core.pf_apply begin fun env sigma ->
+  Tac2core.pf_apply begin fun sum env sigma ->
     let (redfun, _) = Redexpr.reduction_of_red_expr env red in
     let (sigma, ans) = redfun env sigma c in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
@@ -323,8 +324,9 @@ let on_destruction_arg tac ev arg =
       c >>= fun (c, lbind) ->
       let lbind = mk_bindings lbind in
       Proofview.tclEVARMAP >>= fun sigma' ->
+      Proofview.tclSummary >>= fun sum ->
       let flags = tactic_infer_flags ev in
-      let (sigma', c) = Tactics.finish_evar_resolution ~flags env sigma' (Some sigma, c) in
+      let (sigma', c) = Tactics.finish_evar_resolution sum ~flags env sigma' (Some sigma, c) in
       Proofview.tclUNIT (Some sigma', Tactics.ElimOnConstr (c, lbind))
     | ElimOnIdent id -> Proofview.tclUNIT (None, Tactics.ElimOnIdent CAst.(make id))
     | ElimOnAnonHyp n -> Proofview.tclUNIT (None, Tactics.ElimOnAnonHyp n)
@@ -359,7 +361,7 @@ let autorewrite ~all by ids cl =
 
 (** Auto *)
 
-let delayed_of_globref gr = (); fun env sigma ->
+let delayed_of_globref gr = (); fun sum env sigma ->
   Evd.fresh_global env sigma gr
 
 let trivial debug lems dbs =

@@ -156,7 +156,8 @@ type +'a tactic
     selected. If there is no success, fails with
     {!Logic_monad.TacticFailure}*)
 val apply
-  :  name:Names.Id.t
+  : Summary.Interp.t
+  -> name:Names.Id.t
   -> poly:bool
   -> Environ.env
   -> 'a tactic
@@ -394,6 +395,8 @@ val numgoals : int tactic
 
 (** {7 Access primitives} *)
 
+val tclSummary : Summary.Interp.t tactic
+
 (** [tclEVARMAP] doesn't affect the proof, it returns the current
     [evar_map]. *)
 val tclEVARMAP : Evd.evar_map tactic
@@ -552,6 +555,7 @@ module Goal : sig
   val concl : t -> constr
   val relevance : t -> ERelevance.t
   val hyps : t -> named_context
+  val summary : t -> Summary.Interp.t
   val env : t -> Environ.env
   val sigma : t -> Evd.evar_map
   val state : t -> Proofview_monad.StateStore.t

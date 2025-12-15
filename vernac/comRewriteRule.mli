@@ -14,6 +14,7 @@ val do_symbols : Summary.Interp.mut ->
   -> unit
 
 val do_rules :
+  Summary.Interp.mut ->
   Names.Id.t ->
   (Constrexpr.universe_decl_expr option * Constrexpr.constr_expr * Constrexpr.constr_expr) list ->
   unit

@@ -118,7 +118,7 @@ let functional_induction with_clean c princl pat =
           (fun c pat ->
             ( ( None
               , ElimOnConstr
-                  (fun env sigma -> (sigma, (c, Tactypes.NoBindings))) )
+                  (fun _sum env sigma -> (sigma, (c, Tactypes.NoBindings))) )
             , (None, pat)
             , None ))
           (args @ c_list) encoded_pat_as_patlist

@@ -27,6 +27,8 @@ open Tacticals
 open Tactics
 open Context.Named.Declaration
 
+let (!!) = Summary.Interp.get
+
 module NamedDecl = Context.Named.Declaration
 
 let no_inductive_inconstr env sigma constr =
@@ -180,7 +182,7 @@ let compute_first_inversion_scheme env sigma ind sort dep_option =
    scheme on sort [sort]. Depending on the value of [dep_option] it will
    build a dependent lemma or a non-dependent one *)
 
-let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
+let inversion_scheme sum ~name ~poly env sigma t sort dep_option inv_op =
   let (env,i) = add_prods_sign env sigma t in
   let ind =
     try find_rectype env sigma i
@@ -199,7 +201,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
     (str"Computed inversion goal was not closed in initial signature.");
   *)
   let pf = Proof.start ~name ~poly (Evd.from_ctx (ustate sigma)) [invEnv,invGoal] in
-  let pf, _, () = Proof.run_tactic env (tclTHEN intro (onLastHypId inv_op)) pf in
+  let pf, _, () = Proof.run_tactic sum env (tclTHEN intro (onLastHypId inv_op)) pf in
   let pfterm = List.hd (Proof.partial_proof pf) in
   let global_named_context = Global.named_context_val () in
   let ownSign = ref begin
@@ -229,7 +231,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
   invProof, sigma
 
 let add_inversion_lemma sum ~poly (name:lident) env sigma t sort dep inv_op =
-  let invProof, sigma = inversion_scheme ~name:name.v ~poly env sigma t sort dep inv_op in
+  let invProof, sigma = inversion_scheme (Summary.Interp.get sum) ~name:name.v ~poly env sigma t sort dep inv_op in
   let cinfo = Declare.CInfo.make ?loc:name.loc ~name:name.v ~typ:None () in
   let info = Declare.Info.make ~poly ~kind:Decls.(IsProof Lemma) () in
   let _ : Names.GlobRef.t =
@@ -243,7 +245,7 @@ let add_inversion_lemma sum ~poly (name:lident) env sigma t sort dep inv_op =
 let add_inversion_lemma_exn sum ~poly na com comsort bool tac =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  let c, uctx = Constrintern.interp_type env sigma com in
+  let c, uctx = Constrintern.interp_type !!sum env sigma com in
   let sigma = Evd.from_ctx uctx in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:univ_rigid sigma comsort in
   add_inversion_lemma sum ~poly na env sigma c sort bool tac
@@ -256,6 +258,7 @@ let lemInv id c =
   Proofview.Goal.enter begin fun gls ->
   let env = Proofview.Goal.env gls in
   let sigma = Proofview.Goal.sigma gls in
+  let sum = Proofview.Goal.summary gls in
   let clause = Clenv.mk_clenv_from env sigma (c, Retyping.get_type_of env sigma c) in
   let mv = let mvs = Clenv.clenv_arguments clause in
     if List.is_empty mvs then
@@ -265,7 +268,7 @@ let lemInv id c =
     else List.last mvs
   in
   try
-    let clause = Clenv.clenv_instantiate mv clause (EConstr.mkVar id, Typing.type_of_variable env id) in
+    let clause = Clenv.clenv_instantiate sum mv clause (EConstr.mkVar id, Typing.type_of_variable env id) in
     Clenv.res_pf clause ~flags:(Unification.elim_flags ()) ~with_evars:false
   with
     | Failure _ | UserError _ ->

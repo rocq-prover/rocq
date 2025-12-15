@@ -17,6 +17,8 @@ open Tactypes
 open Tactics
 open Proofview.Notations
 
+let (!!) = Summary.Interp.get
+
 let assert_succeeds tac =
   let open Proofview in
   let exception Succeeded in
@@ -28,7 +30,8 @@ let mytclWithHoles tac with_evars c =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let sigma',c = Tactics.force_destruction_arg with_evars env sigma c in
+    let sum = Proofview.Goal.summary gl in
+    let sigma',c = Tactics.force_destruction_arg sum with_evars env sigma c in
     Tacticals.tclWITHHOLES with_evars (tac with_evars (Some c)) sigma'
   end
 
@@ -66,14 +69,14 @@ let discr_main c = elimOnConstrWithHoles Equality.discr_tac false c
 
 let discrHyp id =
   Proofview.tclEVARMAP >>= fun sigma ->
-  discr_main (fun env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
+  discr_main (fun _sum env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
 
 let injection_main with_evars c =
  elimOnConstrWithHoles (Equality.injClause None None) with_evars c
 
 let injHyp id =
   Proofview.tclEVARMAP >>= fun sigma ->
-  injection_main false (fun env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
+  injection_main false (fun _sum env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
 
 let constr_flags () = Pretyping.{
   use_coercions = true;
@@ -90,6 +93,7 @@ let constr_flags () = Pretyping.{
 let refine_tac ist ~simple ~with_classes c =
   let with_classes = if with_classes then Pretyping.UseTC else Pretyping.NoUseTC in
   Proofview.Goal.enter begin fun gl ->
+    let sum = Proofview.Goal.summary gl in
     let concl = Proofview.Goal.concl gl in
     let env = Proofview.Goal.env gl in
     let flags =
@@ -97,7 +101,7 @@ let refine_tac ist ~simple ~with_classes c =
     let expected_type = Pretyping.OfType concl in
     let c = Tacinterp.type_uconstr ~flags ~expected_type ist c in
     let update = begin fun sigma ->
-      c env sigma
+      c sum env sigma
     end in
     let refine = Refine.refine ~typecheck:false update in
     if simple then refine
@@ -190,11 +194,12 @@ let decompose l c =
 
 let exact ist (c : Ltac_pretype.closed_glob_constr) =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let expected_type = Pretyping.OfType concl in
-  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c env sigma in
+  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c sum env sigma in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
   end
 
@@ -209,7 +214,7 @@ let exact ist (c : Ltac_pretype.closed_glob_constr) =
    TODO: Have something similar (better?) in the xml protocol.
    NOTE: some tactics delete hypothesis and reuse names (induction,
    destruct), this is not detected by this tactical. *)
-let infoH ~pstate (tac : raw_tactic_expr) : unit =
+let infoH sum ~pstate (tac : raw_tactic_expr) : unit =
   let oldhyps =
     try snd @@ Declare.Proof.get_goal_context pstate 1
     with Proof.NoSuchGoal _ -> Global.env ()
@@ -242,13 +247,13 @@ let infoH ~pstate (tac : raw_tactic_expr) : unit =
         ++  (str "</infoH>")) in
     Proofview.tclUNIT ()
   in
-  ignore (Declare.Proof.by (Global.env ()) tac pstate)
+  ignore (Declare.Proof.by sum (Global.env ()) tac pstate)
 
 let declare_equivalent_keys sum c c' =
   let get_key c =
     let env = Global.env () in
     let evd = Evd.from_env env in
-    let (evd, c) = Constrintern.interp_open_constr env evd c in
+    let (evd, c) = Constrintern.interp_open_constr !!sum env evd c in
     let kind c = EConstr.kind evd c in
     Keys.constr_key env kind c
   in

@@ -41,7 +41,7 @@ let rec fill_assumptions env sigma = function
     (which can contain references to [f]) in the context extended by
     [f:=?x]. When the proof ends, [f] is defined as the value of [?x]
     and [lemma] as the proof. *)
-let start_deriving ~atts bl suchthat name : Declare.Proof.t =
+let start_deriving sum ~atts bl suchthat name : Declare.Proof.t =
 
   let scope, _local, poly, program_mode, user_warns, typing_flags, using, clearbody =
     atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
@@ -50,13 +50,13 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let () = List.iter check_allowed_binders bl in
-  let sigma, (impls_env, ((env', ctx'), _, locs)) = Constrintern.interp_named_context_evars env sigma bl in
+  let sigma, (impls_env, ((env', ctx'), _, locs)) = Constrintern.interp_named_context_evars sum env sigma bl in
   (* ctx' is in reverse order (last binder first), so reverse it before processing *)
   let ctx' = List.rev ctx' in
   let locs = List.rev locs in
   let sigma, env', ctx' = fill_assumptions env sigma ctx' in
   let sigma = Evd.shelve sigma (List.map fst (Evar.Map.bindings (Evd.undefined_map sigma))) in
-  let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls env' sigma ~impls:impls_env suchthat in
+  let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls sum env' sigma ~impls:impls_env suchthat in
   (* create the initial goals for the proof: |- Type ; |- ?1 ; f:=?2 |- suchthat *)
   let goals =
     let open Proofview in
@@ -81,4 +81,4 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
     [make ?loc:name.CAst.loc ~name:name.CAst.v ~typ:() ~impargs ()] in
   let lemma = Declare.Proof.start_derive ~name:name.v ~info ~cinfo goals in
   Declare.Proof.map lemma ~f:(fun p ->
-      Util.pi1 @@ Proof.run_tactic env Proofview.(tclFOCUS 1 1 shelve) p)
+      Util.pi1 @@ Proof.run_tactic sum env Proofview.(tclFOCUS 1 1 shelve) p)

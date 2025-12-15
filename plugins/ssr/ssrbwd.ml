@@ -69,6 +69,7 @@ let interp_agens ist env sigma ~concl gagens =
 
 let apply_rconstr ?ist t =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let cl = Proofview.Goal.concl gl in
@@ -81,7 +82,7 @@ let apply_rconstr ?ist t =
   let rec loop i =
     if i > n then
       errorstrm Pp.(str"Cannot apply lemma "++pr_glob_constr_env env sigma t)
-    else try understand_tcc env sigma ~expected_type:(OfType cl) (mkRlemma i)
+    else try understand_tcc sum env sigma ~expected_type:(OfType cl) (mkRlemma i)
       with e when CErrors.noncritical e -> loop (i + 1) in
   refine_with (loop 0)
   end

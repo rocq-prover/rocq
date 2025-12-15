@@ -42,17 +42,18 @@ let ssrposetac (id, (_, t)) =
   Tactics.pose_tac (Name id) t
   end
 
-let redex_of_pattern_tc env p =
+let redex_of_pattern_tc sum env p =
   let sigma, e = match redex_of_pattern p with
   | None -> CErrors.anomaly (str "pattern without redex.")
   | Some (sigma, e) -> sigma, e
   in
-  let sigma = Typeclasses.resolve_typeclasses ~fail:false env sigma in
+  let sigma = Typeclasses.resolve_typeclasses ~fail:false sum env sigma in
   Evarutil.nf_evar sigma e, Evd.ustate sigma
 
 let ssrsettac id ((_, (pat, pty)), (_, occ)) =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let cl = Proofview.Goal.concl gl in
@@ -62,7 +63,7 @@ let ssrsettac id ((_, (pat, pty)), (_, occ)) =
   let pat = interp_cpattern env sigma pat pty in
   let (c, ucst), cl =
     try fill_occ_pattern ~raise_NoMatch:true env sigma cl pat occ 1
-    with NoMatch -> redex_of_pattern_tc env pat, cl in
+    with NoMatch -> redex_of_pattern_tc sum env pat, cl in
   let sigma = Evd.merge_universe_context sigma ucst in
   if Termops.occur_existential sigma c then errorstrm(str"The pattern"++spc()++
     pr_econstr_pat env sigma c++spc()++str"did not match and has holes."++spc()++
