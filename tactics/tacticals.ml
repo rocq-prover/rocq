@@ -413,9 +413,10 @@ let tclMAPDELAYEDWITHHOLES accept_unresolved_holes l tac =
     | [] -> tclUNIT ()
     | x :: l ->
       Proofview.Goal.enter begin fun gl ->
+        let sum = Proofview.Goal.summary gl in
         let env = Proofview.Goal.env gl in
         let sigma_initial = Proofview.Goal.sigma gl in
-        let (sigma, x) = x env sigma_initial in
+        let (sigma, x) = x sum env sigma_initial in
         Proofview.Unsafe.tclEVARS sigma <*> tac x >>= fun () -> aux l >>= fun () ->
         if accept_unresolved_holes then
           tclUNIT ()
@@ -467,17 +468,19 @@ let tclWITHHOLES accept_unresolved_holes tac sigma =
 
 let tactic_of_delayed d =
   Proofview.Goal.enter_one ~__LOC__ @@ fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let sigma, v = d env sigma in
+  let sigma, v = d sum env sigma in
   Proofview.Unsafe.tclEVARS sigma <*>
   tclUNIT v
 
 let tclDELAYEDWITHHOLES check x tac =
   Proofview.Goal.enter begin fun gl ->
+    let sum = Proofview.Goal.summary gl in
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let (sigma, x) = x env sigma in
+    let (sigma, x) = x sum env sigma in
     tclWITHHOLES check (tac x) sigma
   end
 

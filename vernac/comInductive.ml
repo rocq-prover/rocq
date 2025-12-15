@@ -25,6 +25,8 @@ open Context.Rel.Declaration
 open Entries
 open EConstr
 
+let (!!) = Summary.Interp.get
+
 module RelDecl = Context.Rel.Declaration
 
 type flags = {
@@ -145,9 +147,9 @@ let intern_ind_arity env sigma ind =
   let template_syntax = if pseudo_poly then SyntaxAllowsTemplatePoly else SyntaxNoTemplatePoly in
   (constr_loc ind.ind_arity, c, impls, template_syntax)
 
-let pretype_ind_arity ~unconstrained_sorts env sigma (loc, c, impls, template_syntax) =
+let pretype_ind_arity sum ~unconstrained_sorts env sigma (loc, c, impls, template_syntax) =
   let flags = { Pretyping.all_no_fail_flags with unconstrained_sorts } in
-  let sigma,t = understand_tcc ~flags env sigma ~expected_type:IsType c in
+  let sigma,t = understand_tcc sum ~flags env sigma ~expected_type:IsType c in
   match Reductionops.sort_of_arity env sigma t with
   | exception Reduction.NotArity ->
     user_err ?loc (str "Not an arity")
@@ -169,7 +171,7 @@ let model_conclusion env sigma ind_rel params n arity_indices =
       arity_indices (sigma, []) in
   sigma, mkApp (mkApp (model_head, model_params), Array.of_list (List.rev model_indices))
 
-let interp_cstrs env (sigma, ind_rel) impls params ind arity =
+let interp_cstrs sum env (sigma, ind_rel) impls params ind arity =
   let cnames,ctyps = List.split ind.ind_lc in
   let arity_indices, cstr_sort = Reductionops.splay_arity env sigma arity in
   (* Interpret the constructor types *)
@@ -179,7 +181,7 @@ let interp_cstrs env (sigma, ind_rel) impls params ind arity =
                   use_typeclasses = UseTCForConv;
                   solve_unification_constraints = false }
     in
-    let sigma, (ctyp, cimpl) = interp_type_evars_impls ~flags env sigma ~impls ctyp in
+    let sigma, (ctyp, cimpl) = interp_type_evars_impls sum ~flags env sigma ~impls ctyp in
     let ctx, concl = Reductionops.whd_decompose_prod_decls env sigma ctyp in
     let concl_env = EConstr.push_rel_context ctx env in
     let sigma_with_model_evars, model =
@@ -684,12 +686,12 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   in
   default_dep_elim, mind_ent, ubinders, global_univs
 
-let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
+let interp_params sum ~unconstrained_sorts env udecl uparamsl paramsl =
   let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
-    interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
+    interp_context_evars sum ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
-    interp_context_evars ~program_mode:false ~unconstrained_sorts ~impl_env:uimpls env_uparams sigma paramsl
+    interp_context_evars sum ~program_mode:false ~unconstrained_sorts ~impl_env:uimpls env_uparams sigma paramsl
   in
   (* Names of parameters as arguments of the inductive type (defs removed) *)
   sigma, env_params, (ctx_params, env_uparams, ctx_uparams,
@@ -736,13 +738,13 @@ let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) no
   let unconstrained_sorts = not flags.poly in
 
   let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl, variances) =
-    interp_params ~unconstrained_sorts env0 udecl uparamsl paramsl
+    interp_params sum ~unconstrained_sorts env0 udecl uparamsl paramsl
   in
 
   (* Interpret the arities *)
   let arities = List.map (intern_ind_arity env_params sigma) indl in
 
-  let sigma, arities = List.fold_left_map (pretype_ind_arity ~unconstrained_sorts env_params) sigma arities in
+  let sigma, arities = List.fold_left_map (pretype_ind_arity sum ~unconstrained_sorts env_params) sigma arities in
   let arities, relevances, template_syntax, indimpls = List.split4 arities in
 
   let lift_ctx n ctx =
@@ -773,7 +775,7 @@ let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) no
         (* Interpret the constructor types *)
         List.fold_left2_map
           (fun (sigma, ind_rel) ind arity ->
-            interp_cstrs env_ar_params (sigma, ind_rel) impls ctx_params_lifted
+            interp_cstrs !!sum env_ar_params (sigma, ind_rel) impls ctx_params_lifted
               ind (EConstr.Vars.liftn ninds (Rel.length ctx_params + 1) arity))
           (sigma, ninds) indl arities)
           sum)
@@ -807,7 +809,7 @@ let interp_mutual_inductive_gen sum env0 ~flags udecl (uparamsl,paramsl,indl) no
   let fullarities = List.map (fun c -> EConstr.it_mkProd_or_LetIn c ctx_uparams) fullarities in
   let env_ar = push_types env0 indnames relevances fullarities in
   (* Try further to solve evars, and instantiate them *)
-  let sigma = solve_remaining_evars all_and_fail_flags env_params sigma in
+  let sigma = solve_remaining_evars sum all_and_fail_flags env_params sigma in
   let impls =
     List.map2 (fun indimpls cimpls ->
         indimpls, List.map (fun impls ->
@@ -935,7 +937,7 @@ let do_mutual_inductive sum ~flags ?typing_flags udecl indl ~private_ind ~unifor
   let open Mind_decl in
   let env = Global.env () in
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
-    interp_mutual_inductive (Summary.Interp.get sum) ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
+    interp_mutual_inductive !!sum ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)

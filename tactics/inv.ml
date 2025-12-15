@@ -312,11 +312,13 @@ let error_too_many_names pats =
   let loc = Loc.merge_opt (List.hd pats).CAst.loc (List.last pats).CAst.loc in
   Proofview.tclENV >>= fun env ->
   Proofview.tclEVARMAP >>= fun sigma ->
+  Proofview.tclSummary >>= fun sum ->
   tclZEROMSG ?loc (
     str "Unexpected " ++
     str (String.plural (List.length pats) "introduction pattern") ++
-    str ": " ++ pr_enum (Miscprint.pr_intro_pattern
-                           (fun c -> Printer.pr_econstr_env env sigma (snd (c env (Evd.from_env env))))) pats ++
+    str ": " ++ pr_enum (Miscprint.pr_intro_pattern (fun c ->
+        let sigma, c = c sum env sigma in
+        Printer.pr_econstr_env env sigma c)) pats ++
     str ".")
 
 let get_names (allow_conj,issimple) ({CAst.loc;v=pat} as x) = match pat with

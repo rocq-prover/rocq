@@ -58,13 +58,15 @@ val is_ground : constr -> unit Proofview.tactic
 
 val autoapply : constr -> hint_db_name -> unit Proofview.tactic
 
-val resolve_one_typeclass : ?db:hint_db -> Environ.env -> Evd.evar_map -> types -> Evd.evar_map * constr
+val resolve_one_typeclass : Summary.Interp.t ->
+  ?db:hint_db -> Environ.env -> Evd.evar_map -> types -> Evd.evar_map * constr
 (** Tries to find a solution for the given type. Raises Not_found it it fails. *)
 
 val resolve_tc : constr -> unit Proofview.tactic
 
 type solver = { solver :
   ?db:hint_db ->
+  Summary.Interp.t ->
   Environ.env ->
   Evd.evar_map ->
   depth:int option ->

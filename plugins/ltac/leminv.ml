@@ -180,7 +180,7 @@ let compute_first_inversion_scheme env sigma ind sort dep_option =
    scheme on sort [sort]. Depending on the value of [dep_option] it will
    build a dependent lemma or a non-dependent one *)
 
-let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
+let inversion_scheme sum ~name ~poly env sigma t sort dep_option inv_op =
   let (env,i) = add_prods_sign env sigma t in
   let ind =
     try find_rectype env sigma i
@@ -199,7 +199,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
     (str"Computed inversion goal was not closed in initial signature.");
   *)
   let pf = Proof.start ~name ~poly (Evd.from_ctx (ustate sigma)) [invEnv,invGoal] in
-  let pf, _, () = Proof.run_tactic env (tclTHEN intro (onLastHypId inv_op)) pf in
+  let pf, _, () = Proof.run_tactic sum env (tclTHEN intro (onLastHypId inv_op)) pf in
   let pfterm = List.hd (Proof.partial_proof pf) in
   let global_named_context = Global.named_context_val () in
   let ownSign = ref begin
@@ -229,7 +229,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
   invProof, sigma
 
 let add_inversion_lemma sum ~poly (name:lident) env sigma t sort dep inv_op =
-  let invProof, sigma = inversion_scheme ~name:name.v ~poly env sigma t sort dep inv_op in
+  let invProof, sigma = inversion_scheme (Summary.Interp.get sum) ~name:name.v ~poly env sigma t sort dep inv_op in
   let cinfo = Declare.CInfo.make ?loc:name.loc ~name:name.v ~typ:None () in
   let info = Declare.Info.make ~poly ~kind:Decls.(IsProof Lemma) () in
   let _ : Names.GlobRef.t =

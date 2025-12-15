@@ -443,7 +443,7 @@ let mkExistential ?(src=(Loc.tag Evar_kinds.InternalHole)) env sigma =
   let sigma, (e, u) = Evarutil.new_type_evar env sigma ~src:src univ_flexible_alg in
   sigma, e
 
-let adjust_tomatch_to_pattern ~program_mode sigma pb ((current,typ),deps,dep) =
+let adjust_tomatch_to_pattern sum ~program_mode sigma pb ((current,typ),deps,dep) =
   (* Ideally, we could find a common inductive type to which both the
      term to match and the patterns coerce *)
   (* In practice, we coerce the term to match if it is not already an
@@ -470,7 +470,7 @@ let adjust_tomatch_to_pattern ~program_mode sigma pb ((current,typ),deps,dep) =
                   raise (PretypeError (!!(pb.env), sigma, CannotUnify (indt, typ, Some e)))
                 | sigma -> sigma, current
               else
-                let sigma, j, _trace = Coercion.inh_conv_coerce_to ?loc ~program_mode ~resolve_tc:true !!(pb.env) sigma (make_judge current typ) indt in
+                let sigma, j, _trace = Coercion.inh_conv_coerce_to sum ?loc ~program_mode ~resolve_tc:true !!(pb.env) sigma (make_judge current typ) indt in
                 sigma, j.uj_val
             in
             sigma, (current, try_find_ind !!(pb.env) sigma indt names))
@@ -1451,7 +1451,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
 
 (**********************************************************************)
 (* Main compiling descent *)
-let compile ~program_mode sigma pb =
+let compile sum ~program_mode sigma pb =
   let hypnaming = VarSet.variables (Global.env ()) in
   let rec compile sigma pb =
     match pb.tomatch with
@@ -1463,7 +1463,7 @@ let compile ~program_mode sigma pb =
 
 (* Case splitting *)
   and match_current sigma pb (initial,tomatch) =
-    let sigma, tm = adjust_tomatch_to_pattern ~program_mode sigma pb tomatch in
+    let sigma, tm = adjust_tomatch_to_pattern sum ~program_mode sigma pb tomatch in
     let pb,tomatch = adjust_predicate_from_tomatch tomatch tm pb in
     let ((current,typ),deps,dep) = tomatch in
     match typ with
@@ -1841,7 +1841,7 @@ let build_tycon ?loc env tycon_env s subst tycon extenv sigma t =
  * further explanations
  *)
 
-let build_inversion_problem ~program_mode loc env sigma tms t =
+let build_inversion_problem sum ~program_mode loc env sigma tms t =
   let hypnaming = VarSet.variables (Global.env ()) in
   let make_patvar t (subst,avoid) =
     let id = next_name_away (named_hd !!env sigma t Anonymous) avoid in
@@ -1970,7 +1970,7 @@ let build_inversion_problem ~program_mode loc env sigma tms t =
       caseloc   = loc;
       casestyle = RegularStyle;
       typing_function = build_tycon ?loc env pb_env s subst} in
-  let _used, sigma, j = compile ~program_mode sigma pb in
+  let _used, sigma, j = compile sum ~program_mode sigma pb in
   (sigma, j.uj_val)
 
 (* Here, [pred] is assumed to be in the context built from all *)
@@ -2025,11 +2025,11 @@ let extract_arity_signature ?(dolift=true) env0 tomatchl tmsign =
     | _ -> assert false
   in List.rev (buildrec 0 (tomatchl,tmsign))
 
-let inh_conv_coerce_to_tycon ?loc ~program_mode env sigma j tycon =
+let inh_conv_coerce_to_tycon sum ?loc ~program_mode env sigma j tycon =
   match tycon with
     | Some p ->
       let (evd,v,_trace) =
-        Coercion.inh_conv_coerce_to ?loc ~program_mode ~resolve_tc:true env sigma
+        Coercion.inh_conv_coerce_to sum ?loc ~program_mode ~resolve_tc:true env sigma
           ~flags:(default_flags_of TransparentState.full) j p
       in
       (evd,v)
@@ -2124,7 +2124,7 @@ let expected_elimination_sorts env sigma tomatchl =
  * Each matched term is independently considered dependent or not.
  *)
 
-let prepare_predicate ?loc ~program_mode typing_fun env sigma tomatchs arsign tycon pred =
+let prepare_predicate sum ?loc ~program_mode typing_fun env sigma tomatchs arsign tycon pred =
   let refresh_tycon sigma t =
     (* If we put the typing constraint in the term, it has to be
        refreshed to preserve the invariant that no algebraic universe
@@ -2146,7 +2146,7 @@ let prepare_predicate ?loc ~program_mode typing_fun env sigma tomatchs arsign ty
              sigma, t in
         (* First strategy: we build an "inversion" predicate, also replacing the *)
         (* dependencies with existential variables *)
-        let sigma1,pred1 = build_inversion_problem loc ~program_mode env sigma tomatchs t in
+        let sigma1,pred1 = build_inversion_problem sum loc ~program_mode env sigma tomatchs t in
         (* Optional second strategy: we abstract the tycon wrt to the dependencies *)
         let p2 =
           prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs arsign t in
@@ -2695,7 +2695,7 @@ let context_of_arsign l =
     l ([], 0)
   in x
 
-let compile_program_cases ?loc style (typing_function, sigma) tycon env
+let compile_program_cases sum ?loc style (typing_function, sigma) tycon env
     (predopt, tomatchl, eqns) =
   let hypnaming = VarSet.variables (Global.env ()) in
   let typing_fun tycon env sigma = function
@@ -2794,7 +2794,7 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
       casestyle= style;
       typing_function = typing_function } in
 
-  let used, sigma, j = compile ~program_mode:true sigma pb in
+  let used, sigma, j = compile sum ~program_mode:true sigma pb in
     (* We check for unused patterns *)
     check_unused_pattern !!env used matx;
     let body = it_mkLambda_or_LetIn (applist (j.uj_val, args)) lets in
@@ -2808,9 +2808,9 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
 (**************************************************************************)
 (* Main entry of the matching compilation                                 *)
 
-let compile_cases ?loc ~program_mode style (typing_fun, sigma) tycon env (predopt, tomatchl, eqns) =
+let compile_cases sum ?loc ~program_mode style (typing_fun, sigma) tycon env (predopt, tomatchl, eqns) =
   if predopt == None && program_mode && Program.is_program_cases () then
-    compile_program_cases ?loc style (typing_fun, sigma)
+    compile_program_cases sum ?loc style (typing_fun, sigma)
       tycon env (predopt, tomatchl, eqns)
   else
 
@@ -2825,7 +2825,7 @@ let compile_cases ?loc ~program_mode style (typing_fun, sigma) tycon env (predop
      with the type of arguments to match; if none is provided, we
      build alternative possible predicates *)
   let arsign = extract_arity_signature !!env tomatchs tomatchl in
-  let preds = prepare_predicate ?loc ~program_mode typing_fun predenv sigma tomatchs arsign tycon predopt in
+  let preds = prepare_predicate sum ?loc ~program_mode typing_fun predenv sigma tomatchs arsign tycon predopt in
 
   let compile_for_one_predicate (sigma,nal,pred) =
     (* We push the initial terms to match and push their alias to rhs' envs *)
@@ -2871,10 +2871,10 @@ let compile_cases ?loc ~program_mode style (typing_fun, sigma) tycon env (predop
         casestyle = style;
         typing_function = typing_fun } in
 
-    let used, sigma, j = compile ~program_mode sigma pb in
+    let used, sigma, j = compile sum ~program_mode sigma pb in
 
     (* We coerce to the tycon (if an elim predicate was provided) *)
-    let sigma, j = inh_conv_coerce_to_tycon ?loc ~program_mode !!env sigma j tycon in
+    let sigma, j = inh_conv_coerce_to_tycon sum ?loc ~program_mode !!env sigma j tycon in
     used, sigma, j
   in
 

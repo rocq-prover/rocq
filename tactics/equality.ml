@@ -127,14 +127,14 @@ let side_tac tac sidetac =
   | None -> tac
   | Some sidetac -> tclTHENSFIRSTn tac [|Proofview.tclUNIT ()|] sidetac
 
-let instantiate_lemma_all env flags eqclause l2r concl =
+let instantiate_lemma_all sum env flags eqclause l2r concl =
   let (_, args) = decompose_app (Clenv.clenv_evd eqclause) (Clenv.clenv_type eqclause) in
   let arglen = Array.length args in
   let () = if arglen < 2 then user_err Pp.(str "The term provided is not an applied relation.") in
   let c1 = args.(arglen - 2) in
   let c2 = args.(arglen - 1) in
   let metas = Clenv.clenv_meta_list eqclause in
-  w_unify_to_subterm_all ~metas ~flags env (Clenv.clenv_evd eqclause)
+  w_unify_to_subterm_all ~metas ~flags sum env (Clenv.clenv_evd eqclause)
     ((if l2r then c1 else c2),concl)
 
 let rewrite_conv_closed_core_unif_flags = {
@@ -279,12 +279,13 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     let typ = match cls with
     | None -> concl
     | Some id -> Tacmach.pf_get_hyp_typ id gl
     in
     let ty = it_mkProd_or_LetIn (applist (eqn, args)) ctx in
-    let eqclause = Clenv.make_clenv_binding env sigma (c, ty) l in
+    let eqclause = Clenv.make_clenv_binding sum env sigma (c, ty) l in
     let try_clause (metas, evd') =
       let clenv = Clenv.update_clenv_evd eqclause evd' metas in
       let clenv = Clenv.clenv_pose_dependent_evars ~with_evars:true clenv in
@@ -295,11 +296,11 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
       side_tac (general_elim_clause0 eqclause) tac
     | FirstSolved ->
       let flags = make_flags frzevars sigma rewrite_unif_flags (lazy Evar.Set.empty) in
-      let cs = instantiate_lemma_all env flags eqclause l2r typ in
+      let cs = instantiate_lemma_all sum env flags eqclause l2r typ in
       tclFIRST (List.map try_clause cs)
     | AllMatches ->
       let flags = make_flags frzevars sigma rewrite_unif_flags (lazy Evar.Set.empty) in
-      let cs = instantiate_lemma_all env flags eqclause l2r typ in
+      let cs = instantiate_lemma_all sum env flags eqclause l2r typ in
       tclMAP try_clause cs
   end
 
@@ -419,11 +420,11 @@ let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
     let sigma , app = Typing.checked_appvect env sigma has_J_class [| eq |] in
     (sigma , (app, indarg))
 
-let lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+let lookup_eq_eliminator_tc sum env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
   let sigma, (query,indarg) = lookup_eq_eliminator env sigma eq
       ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort in
   let db = Hints.searchtable_map rewrite_db in
-  let (sigma , c) = Class_tactics.resolve_one_typeclass ~db env sigma query in
+  let (sigma , c) = Class_tactics.resolve_one_typeclass ~db sum env sigma query in
   let hd , _ = EConstr.decompose_app sigma c in
   let c_name , _ = Constr.destConst (EConstr.to_constr sigma hd) in
   let c = Reductionops.whd_const c_name env sigma c in
@@ -435,7 +436,7 @@ let which_equality_opt env sigma c =
     | None -> None in
   Option.List.flatten @@ List.map (find_eq env sigma c) ["eq";"identity"]
 
-let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+let lookup_eq_eliminator_with_error sum env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
   let which_eq = which_equality_opt env sigma eq in
   let eq_scheme = Option.List.flatten @@ List.map (fun name -> eq_scheme_name name dep l2r inccl (ESorts.quality sigma p_sort) (ESorts.is_set sigma p_sort)) which_eq in
   match eq_scheme with
@@ -445,14 +446,14 @@ let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sor
     (sigma , mkConstU (c,u)), indarg
   | _ ->
     try
-      lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
+      lookup_eq_eliminator_tc sum env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
     with Not_found -> user_err Pp.(
       str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
       str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
       str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
 
-let lookup_eq_eliminator_opt env sigma eq ~dep ~inccl l2r ~c_sort ~e_sort ~p_sort =
-  try Some (lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort)
+let lookup_eq_eliminator_opt sum env sigma eq ~dep ~inccl l2r ~c_sort ~e_sort ~p_sort =
+  try Some (lookup_eq_eliminator_with_error sum env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort)
   with _ -> None
 
 type eq_scheme_kind = Minimality of UnivGen.QualityOrSet.t | Rewriting | Equality
@@ -486,6 +487,7 @@ let find_elim lft2rgt dep inccl type_of_cls (ctx, hdcncl, args) =
   Proofview.Goal.enter_one begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let gen_elim () =
      match EConstr.kind sigma hdcncl with
     | Ind (ind,u) ->
@@ -502,7 +504,7 @@ let find_elim lft2rgt dep inccl type_of_cls (ctx, hdcncl, args) =
     let e_sort = Retyping.get_sort_of env' sigma (mkApp (hdcncl, args)) in
     let c_sort = Retyping.get_sort_of env' sigma args.(0) in
     let p_sort = Retyping.get_sort_of env sigma type_of_cls in
-    match lookup_eq_eliminator_opt env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
+    match lookup_eq_eliminator_opt sum env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
     | Some ((sigma, c),indarg) ->
         Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (c,indarg)
     | None -> gen_elim ()
@@ -646,8 +648,9 @@ let apply_special_clear_request clear_flag f =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
+    let sum = Proofview.Goal.summary gl in
     try
-      let (sigma, (c, bl)) = f env sigma in
+      let (sigma, (c, bl)) = f sum env sigma in
       let c = try Some (destVar sigma c) with DestKO -> None in
       apply_clear_request clear_flag (use_clear_hyp_by_default ()) c
     with
@@ -665,7 +668,8 @@ let general_multi_rewrite with_evars l cl tac =
     Proofview.Goal.enter begin fun gl ->
       let sigma = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
-      let (sigma, c) = f env sigma in
+      let sum = Proofview.Goal.summary gl in
+      let (sigma, c) = f sum env sigma in
       tclWITHHOLES with_evars
         (general_rewrite_clause l2r with_evars ?tac c cl) sigma
     end
@@ -1136,7 +1140,8 @@ let discrimination_pf e (eq,_,s,(t,t1,t2)) discriminator p_sort =
   Proofview.Goal.enter_one begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let ((sigma, c),_) = lookup_eq_eliminator_with_error env sigma eq
+    let sum = Proofview.Goal.summary gl in
+    let ((sigma, c),_) = lookup_eq_eliminator_with_error sum env sigma eq
       ~dep:false ~inccl:true ~l2r:(Some false)
       ~e_sort:s
       ~c_sort:(Retyping.get_sort_of env sigma t)
@@ -1198,9 +1203,9 @@ let discrEq eq =
       discr_positions env sigma eq cpath discr
   end
 
-let make_clause with_evars env sigma t lbindc =
+let make_clause sum with_evars env sigma t lbindc =
   let sigma', eq_clause = EClause.make_evar_clause env sigma t in
-  let sigma' = EClause.solve_evar_clause env sigma' false eq_clause lbindc in
+  let sigma' = EClause.solve_evar_clause sum env sigma' false eq_clause lbindc in
   let () = if not with_evars then EClause.check_evar_clause env sigma sigma' eq_clause in
   sigma', eq_clause
 
@@ -1209,10 +1214,11 @@ let onEquality with_evars tac (c,lbindc) =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let state = Proofview.Goal.state gl in
+  let sum = Proofview.Goal.summary gl in
   let t = Retyping.get_type_of env sigma c in
   let s = Retyping.get_sort_of env sigma t in
   let t' = try snd (Tacred.reduce_to_quantified_ind env sigma t) with UserError _ -> t in
-  let sigma, eq_clause = make_clause with_evars env sigma t' lbindc in
+  let sigma, eq_clause = make_clause sum with_evars env sigma t' lbindc in
   let filter h =
     if h.EClause.hole_deps then None
     else

@@ -974,10 +974,10 @@ let current_struct () =
 
 (** Prepare the module type list for check of subtypes *)
 
-let build_subtypes env mp args mtys =
+let build_subtypes sum env mp args mtys =
   let (ctx, ans) = List.fold_left_map
     (fun ctx (mte,base,kind,inl) ->
-      let mte, ctx' = Modintern.interp_module_ast env Modintern.ModType base mte in
+      let mte, ctx' = Modintern.interp_module_ast sum env Modintern.ModType base mte in
       let env = Environ.push_context_set  ~strict:true ctx' env in
       let ctx = Univ.ContextSet.union ctx ctx' in
       let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
@@ -1006,7 +1006,7 @@ let build_subtypes env mp args mtys =
 
 let intern_arg sum (acc, cst) (mbidl,(mty, base, kind, inl)) =
   let env = Global.env() in
-  let (mty, cst') = Modintern.interp_module_ast env kind base mty in
+  let (mty, cst') = Modintern.interp_module_ast !!sum env kind base mty in
   let () = Global.push_context_set cst' in
   let () =
     let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
@@ -1052,7 +1052,7 @@ let start_module_core sum id args res =
   let env = Global.env () in
   let res_entry_o, subtyps, ctx' = match res with
     | Enforce (mte, base, kind, inl) ->
-        let (mte, ctx) = Modintern.interp_module_ast env kind base mte in
+        let (mte, ctx) = Modintern.interp_module_ast !!sum env kind base mte in
         let env = Environ.push_context_set ctx env in
         (* We check immediately that mte is well-formed *)
         let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
@@ -1060,7 +1060,7 @@ let start_module_core sum id args res =
         let ctx = Univ.ContextSet.add_constraints cst ctx in
         Some (mte, inl), [], ctx
     | Check resl ->
-      let typs, ctx = build_subtypes env mp params resl in
+      let typs, ctx = build_subtypes !!sum env mp params resl in
       None, typs, ctx
   in
   let () = Global.push_context_set ctx' in
@@ -1140,7 +1140,7 @@ let declare_module summary id args res mexpr_o =
   let mexpr_entry_o, inl_expr, ctx' = match mexpr_o with
     | None -> None, default_inline_level (), Univ.ContextSet.empty
     | Some (mte, base, kind, inl) ->
-      let (mte, ctx) = Modintern.interp_module_ast env kind base mte in
+      let (mte, ctx) = Modintern.interp_module_ast !!summary env kind base mte in
       Some mte, inl, ctx
   in
   let env = Environ.push_context_set ctx' env in
@@ -1250,7 +1250,7 @@ let start_modtype_core sum id args mtys =
   let params, params_ctx = RawModOps.Interp.intern_args sum args in
   let () = Global.push_context_set params_ctx in
   let env = Global.env () in
-  let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes env mp params mtys in
+  let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes !!sum env mp params mtys in
   let () = Global.push_context_set sub_mty_ctx in
   mp, params, sub_mty_l, Univ.ContextSet.union params_ctx sub_mty_ctx
 
@@ -1287,7 +1287,7 @@ let declare_modtype summary id args mtys (mte,base,kind,inl) =
      then we adds the module parameters to the global env. *)
   let mp, params, sub_mty_l, ctx = start_modtype_core summary id args mtys in
   let env = Global.env () in
-  let mte, mte_ctx = Modintern.interp_module_ast env kind base mte in
+  let mte, mte_ctx = Modintern.interp_module_ast !!summary env kind base mte in
   let () = Global.push_context_set mte_ctx in
   let env = Global.env () in
   (* We check immediately that mte is well-formed *)
@@ -1397,7 +1397,7 @@ let type_of_incl env is_mod = function
 
 let declare_one_include_core sum (me,base,kind,inl) =
   let env = Global.env() in
-  let me, cst = Modintern.interp_module_ast env kind base me in
+  let me, cst = Modintern.interp_module_ast sum env kind base me in
   let () = Global.push_context_set cst in
   let env = Global.env () in
   let is_mod = (kind == Modintern.Module) in

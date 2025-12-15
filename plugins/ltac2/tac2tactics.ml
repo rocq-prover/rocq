@@ -31,15 +31,15 @@ let tactic_infer_flags with_evar = Pretyping.{
 }
 
 (** FIXME: export a better interface in Tactics *)
-let delayed_of_tactic tac env sigma =
+let delayed_of_tactic tac sum env sigma =
   let _, pv = Proofview.init sigma [] in
   let name, poly = Id.of_string "ltac2_delayed", false in
-  let c, pv, _, _, _ = Proofview.apply ~name ~poly env tac pv in
+  let c, pv, _, _, _ = Proofview.apply sum ~name ~poly env tac pv in
   let _, sigma = Proofview.proofview pv in
   (sigma, c)
 
-let delayed_of_thunk r tac env sigma =
-  delayed_of_tactic (thaw tac) env sigma
+let delayed_of_thunk r tac sum env sigma =
+  delayed_of_tactic (thaw tac) sum env sigma
 
 let mk_bindings = function
 | ImplicitBindings l -> Tactypes.ImplicitBindings l
@@ -166,9 +166,9 @@ let specialize c pat =
 
 let change pat c cl =
   Proofview.Goal.enter begin fun gl ->
-  let c subst env sigma =
+  let c subst sum env sigma =
     let subst = Array.map_of_list snd (Id.Map.bindings subst) in
-    Tacred.Changed (delayed_of_tactic (c subst) env sigma)
+    Tacred.Changed (delayed_of_tactic (c subst) sum env sigma)
   in
   let cl = mk_clause cl in
   Tactics.change ~check:true pat c cl

@@ -24,6 +24,8 @@ open Constrexpr_ops
 open Context.Rel.Declaration
 open Structures
 
+let (!!) = Summary.Interp.get
+
 module RelDecl = Context.Rel.Declaration
 
 (********** definition d'un record (structure) **************)
@@ -57,11 +59,11 @@ let interp_fields_evars sum env sigma ~ninds ~nparams impls_env nots l =
              (* before the one of t otherwise (see #13166) *)
              let t = if bl = [] then t else mkCProdN bl t in
              let sigma, t, impl =
-               ComAssumption.interp_assumption ~program_mode:false env sigma impls_env [] t in
+               ComAssumption.interp_assumption !!sum ~program_mode:false env sigma impls_env [] t in
              sigma, (id, None, t), impl, loc
            | Vernacexpr.DefExpr({CAst.v=id; loc},bl,b,t) ->
              let sigma, (b, t), impl =
-               ComDefinition.interp_definition ~program_mode:false env sigma impls_env bl None b t in
+               ComDefinition.interp_definition !!sum ~program_mode:false env sigma impls_env bl None b t in
              let t = match t with Some t -> t | None -> Retyping.get_type_of env sigma b in
              sigma, (id, Some b, t), impl, loc
          in
@@ -157,7 +159,7 @@ let is_sort_variable sigma s =
       then Some l
       else None
 
-let build_type_telescope ~unconstrained_sorts newps env0 sigma { DataI.arity; _ } = match arity with
+let build_type_telescope sum ~unconstrained_sorts newps env0 sigma { DataI.arity; _ } = match arity with
   | None ->
     let sigma, s = Evd.new_sort_variable Evd.univ_flexible_alg sigma in
     sigma, (EConstr.mkSort s, s)
@@ -172,7 +174,7 @@ let build_type_telescope ~unconstrained_sorts newps env0 sigma { DataI.arity; _ 
     let sigma, s =
       let t = Constrintern.intern_gen IsType ~impls env sigma t in
       let flags = { Pretyping.all_no_fail_flags with program_mode = false; unconstrained_sorts } in
-      Pretyping.understand_tcc ~flags env sigma ~expected_type:IsType t
+      Pretyping.understand_tcc sum ~flags env sigma ~expected_type:IsType t
     in
     let sred = Reductionops.whd_allnolet env sigma s in
     (match EConstr.kind sigma sred with
@@ -341,9 +343,9 @@ let typecheck_params_and_fields sum ~kind ~(flags:ComInductive.flags) ~primitive
   let sigma, udecl, variances = Constrintern.interp_cumul_univ_decl_opt env0 udecl in
   let () = List.iter check_parameters_must_be_named params in
   let sigma, (impls_env, ((_env1,params), impls, _paramlocs)) =
-    Constrintern.interp_context_evars ~program_mode:false ~unconstrained_sorts env0 sigma params in
+    Constrintern.interp_context_evars !!sum ~program_mode:false ~unconstrained_sorts env0 sigma params in
   let sigma, typs =
-    List.fold_left_map (build_type_telescope ~unconstrained_sorts params env0) sigma records in
+    List.fold_left_map (build_type_telescope !!sum ~unconstrained_sorts params env0) sigma records in
   let typs, aritysorts = List.split typs in
   let arities = List.map (fun typ -> EConstr.it_mkProd_or_LetIn typ params) typs in
   let relevances = List.map (fun s -> EConstr.ESorts.relevance_of_sort s) aritysorts in
@@ -364,7 +366,7 @@ let typecheck_params_and_fields sum ~kind ~(flags:ComInductive.flags) ~primitive
   let field_impls, locs, fields = List.split3 fields in
   let field_impls = List.map (List.map (adjust_field_implicits ~isclass (params,impls))) field_impls in
   let sigma =
-    Pretyping.solve_remaining_evars Pretyping.all_and_fail_flags env_ar_params sigma in
+    Pretyping.solve_remaining_evars !!sum Pretyping.all_and_fail_flags env_ar_params sigma in
   if def then
     (* XXX to fix: if we enter [Class Foo : typ := Bar : nat.], [typ] will get unfolded here *)
     let sigma, sort, projtyp = def_class_levels ~def ~env_ar_params sigma aritysorts fields in

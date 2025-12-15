@@ -19,6 +19,8 @@ open Constrexpr
 open Constrintern
 open Vernacexpr
 
+let (!!) = Summary.Interp.get
+
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
 
@@ -351,20 +353,20 @@ let interp_rec_annot ~program_mode ~function_mode env sigma fixl ctxl ccll rec_o
     | CCoFixRecOrder -> nowf (), {possibly_cofix = true; possible_fix_indices = List.map (fun _ -> []) fixl}
     | CUnknownRecOrder -> nowf (), RecLemmas.find_mutually_recursive_statements sigma ctxl ccll
 
-let interp_fix_context ~program_mode env sigma {Vernacexpr.binders} =
-  let sigma, (impl_env, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode env sigma binders in
+let interp_fix_context sum ~program_mode env sigma {Vernacexpr.binders} =
+  let sigma, (impl_env, ((env', ctx), imps, _locs)) = interp_context_evars sum ~program_mode env sigma binders in
   sigma, (env', ctx, impl_env, imps)
 
-let interp_fix_ccl ~program_mode sigma impls env fix =
+let interp_fix_ccl sum ~program_mode sigma impls env fix =
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let sigma, (c, impl) = interp_type_evars_impls ~flags ~impls env sigma fix.Vernacexpr.rtype in
+  let sigma, (c, impl) = interp_type_evars_impls sum ~flags ~impls env sigma fix.Vernacexpr.rtype in
   let r = Retyping.relevance_of_type env sigma c in
   sigma, (c, r, impl)
 
-let interp_fix_body ~program_mode env_rec ctx sigma impls fix ccl =
+let interp_fix_body sum ~program_mode env_rec ctx sigma impls fix ccl =
   Option.cata (fun body ->
     let env_rec_ctx = push_rel_context ctx env_rec in
-    let sigma, body = interp_casted_constr_evars ~program_mode env_rec_ctx sigma ~impls body ccl in
+    let sigma, body = interp_casted_constr_evars sum ~program_mode env_rec_ctx sigma ~impls body ccl in
     sigma, Some (it_mkLambda_or_LetIn body ctx)) (sigma, None) fix.Vernacexpr.body_def
 
 let build_fix_type sigma ctx ccl (_, extradecl) =
@@ -403,7 +405,7 @@ type ('constr, 'relevance) fix_data = {
   fixwfs   : (rel_declaration * EConstr.t * EConstr.t * EConstr.t) option list;
 }
 
-let interp_wf ~program_mode env sigma recname ctx ccl = function
+let interp_wf sum ~program_mode env sigma recname ctx ccl = function
   | None -> sigma, ((false, []), None, [])
   | Some (r, measure) ->
     (* We have to insert an argument for the measure/wellfoundedness *)
@@ -411,10 +413,10 @@ let interp_wf ~program_mode env sigma recname ctx ccl = function
     let impl = CAst.make (Some (Name recproofid, true)) in
     (* The well-founded relation *)
     let env_ctx = push_rel_context ctx env in
-    let sigma, (rel, _) = interp_constr_evars_impls ~program_mode env sigma r in
+    let sigma, (rel, _) = interp_constr_evars_impls sum ~program_mode env sigma r in
     let relargty = Hipattern.is_homogeneous_relation ?loc:(Constrexpr_ops.constr_loc r) env_ctx sigma rel in
     (* The measure *)
-    let sigma, measure = interp_casted_constr_evars ~program_mode env_ctx sigma measure relargty in
+    let sigma, measure = interp_casted_constr_evars sum ~program_mode env_ctx sigma measure relargty in
     let sigma, after, extradecl =
       if program_mode then
         let len = Context.Rel.length ctx in
@@ -440,13 +442,13 @@ let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl
   let sigma, decl = interp_mutual_univ_decl_opt env (List.map (fun Vernacexpr.{univs} -> univs) fixl) in
   let sigma, (fixenv, fixctxs, fixctximpenvs, fixctximps) =
     on_snd List.split4 @@
-      List.fold_left_map (fun sigma -> interp_fix_context ~program_mode env sigma) sigma fixl in
+      List.fold_left_map (fun sigma -> interp_fix_context !!sum ~program_mode env sigma) sigma fixl in
   let sigma, (fixccls,fixrs,fixcclimps) =
     on_snd List.split3 @@
-      List.fold_left3_map (interp_fix_ccl ~program_mode) sigma fixctximpenvs fixenv fixl in
+      List.fold_left3_map (interp_fix_ccl !!sum ~program_mode) sigma fixctximpenvs fixenv fixl in
   let fixwfs, possible_guard = interp_rec_annot ~program_mode ~function_mode env sigma fixl fixctxs fixccls rec_order in
   let sigma, (fixextras, fixwfs, fixwfimps) =
-    on_snd List.split3 @@ (List.fold_left4_map (interp_wf ~program_mode env) sigma fixnames fixctxs fixccls fixwfs) in
+    on_snd List.split3 @@ (List.fold_left4_map (interp_wf !!sum ~program_mode env) sigma fixnames fixctxs fixccls fixwfs) in
   let fixtypes = List.map3 (build_fix_type sigma) fixctxs fixccls fixextras in
   let sigma, rec_sign =
     List.fold_left4
@@ -464,7 +466,7 @@ let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl
     let force = List.map (fun (_,extra) -> Id.Set.of_list (List.map_filter (fun d -> Nameops.Name.to_option (RelDecl.get_name d)) extra)) fixextras in
     let dummy_fixtypes = List.map3 (build_dummy_fix_type sigma) fixctxs fixccls fixextras in
     let impls = compute_internalization_env env sigma ~force Recursive fixnames dummy_fixtypes fixrecimps in
-    Metasyntax.with_syntax_protection (fun _sum ->
+    Metasyntax.with_syntax_protection (fun _synsum ->
       List.iter (Metasyntax.set_notation_for_interpretation sum env impls) fixntns;
       List.fold_left5_map
         (fun sigma fixctximpenv (after,extradecl) ctx body ccl ->
@@ -472,7 +474,7 @@ let interp_mutual_definition sum env ~program_mode ~function_mode rec_order fixl
            let env', ctx =
              if after then env, List.map NamedDecl.to_rel_decl rec_sign @ ctx
              else push_named_context rec_sign env, extradecl@ctx in
-           interp_fix_body ~program_mode env' ctx sigma impls body (Vars.lift (Context.Rel.length extradecl) ccl))
+           interp_fix_body !!sum ~program_mode env' ctx sigma impls body (Vars.lift (Context.Rel.length extradecl) ccl))
         sigma fixctximpenvs fixextras fixctxs fixl fixccls)
       sum.synterp
   in
@@ -503,7 +505,7 @@ let interp_fixpoint_short sum rec_order fixpoint_exprl =
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   let sigma = Evd.minimize_universes sigma in
-  let sigma = Pretyping.(solve_remaining_evars all_no_fail_flags env sigma) in
+  let sigma = Pretyping.(solve_remaining_evars !!sum all_no_fail_flags env sigma) in
   let typel = (ground_fixpoint env sigma fix).fixtypes in
   typel, sigma
 
@@ -528,10 +530,10 @@ let out_def = function
   | Some def -> def
   | None -> CErrors.user_err Pp.(str "Program Fixpoint needs defined bodies.")
 
-let build_program_fixpoint env sigma rec_sign possible_guard fixnames fixrs fixdefs fixtypes fixwfs =
+let build_program_fixpoint sum env sigma rec_sign possible_guard fixnames fixrs fixdefs fixtypes fixwfs =
   assert (List.for_all Option.is_empty fixwfs);
   (* Get the interesting evars, those that were not instantiated *)
-  let sigma = Typeclasses.resolve_typeclasses ~filter:Typeclasses.no_goals ~fail:true env sigma in
+  let sigma = Typeclasses.resolve_typeclasses sum ~filter:Typeclasses.no_goals ~fail:true env sigma in
   (* Solve remaining evars *)
   let sigma = Evarutil.nf_evar_map_undefined sigma in
   let fixdefs = List.map out_def fixdefs in
@@ -545,20 +547,20 @@ let build_program_fixpoint env sigma rec_sign possible_guard fixnames fixrs fixd
     ignore (Pretyping.esearch_guard env sigma possible_guard fixdecls) in
   List.split3 (List.map3 (collect_evars env sigma rec_sign) fixnames fixdefs fixtypes)
 
-let finish_obligations env sigma rec_sign possible_guard poly udecl = function
+let finish_obligations sum env sigma rec_sign possible_guard poly udecl = function
   | {fixnames=[recname];fixrs;fixdefs=[body];fixtypes=[ccl];fixctxs=[ctx];fiximps=[imps];fixntns;fixwfs=[Some wf]} ->
     let sigma = Evarutil.nf_evar_map sigma in (* use nf_evar_map_undefined?? *)
     let sigma, recname, body, ccl, impls, obls, hook = build_wellfounded env sigma poly udecl recname ctx (Option.get body) ccl imps wf in
     let fixrs = List.map (EConstr.ERelevance.kind sigma) fixrs in
     sigma, {fixnames=[recname];fixrs;fixdefs=[Some body];fixtypes=[ccl];fixctxs=[ctx];fiximps=[impls];fixntns;fixwfs=[Some wf]}, [obls], hook
   | {fixnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs} ->
-    let fixdefs, fixtypes, obls = build_program_fixpoint env sigma rec_sign possible_guard fixnames fixrs fixdefs fixtypes fixwfs in
+    let fixdefs, fixtypes, obls = build_program_fixpoint sum env sigma rec_sign possible_guard fixnames fixrs fixdefs fixtypes fixwfs in
     let fixrs = List.map (EConstr.ERelevance.kind sigma) fixrs in
     sigma, {fixnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs}, obls, None
 
-let finish_regular env sigma use_inference_hook fix =
-  let inference_hook = if use_inference_hook then Some Declare.Obls.program_inference_hook else None in
-  let sigma = Pretyping.(solve_remaining_evars ?hook:inference_hook all_no_fail_flags env sigma) in
+let finish_regular sum env sigma use_inference_hook fix =
+  let inference_hook = if use_inference_hook then Some (Declare.Obls.program_inference_hook sum) else None in
+  let sigma = Pretyping.(solve_remaining_evars sum ?hook:inference_hook all_no_fail_flags env sigma) in
   sigma, ground_fixpoint env sigma fix, [], None
 
 let do_mutually_recursive sum ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
@@ -584,8 +586,8 @@ let do_mutually_recursive sum ?pm ~refine ~program_mode ?(use_inference_hook=fal
 
   let sigma, ({fixdefs=bodies;fixrs;fixtypes;fixwfs} as fix), obls, hook =
     match pm with
-    | Some pm -> finish_obligations env sigma rec_sign possible_guard poly udecl fix
-    | None -> finish_regular env sigma use_inference_hook fix in
+    | Some pm -> finish_obligations !!sum env sigma rec_sign possible_guard poly udecl fix
+    | None -> finish_regular !!sum env sigma use_inference_hook fix in
   let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
   let cinfo = build_recthms fix in
   match pm with

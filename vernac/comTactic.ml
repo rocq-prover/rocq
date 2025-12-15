@@ -70,11 +70,11 @@ let use_end_tac ~with_end_tac end_tac =
     Option.map Gentactic.interp end_tac
   end
 
-let solve_core ~pstate n ~info ?(with_end_tac=CAst.make false) t =
+let solve_core sum ~pstate n ~info ?(with_end_tac=CAst.make false) t =
   let pstate, status = Declare.Proof.map_fold_endline ~f:(fun etac p ->
       let with_end_tac = use_end_tac ~with_end_tac etac in
       let info = Option.append info (print_info_trace ()) in
-      let (p,status) = Proof.solve (Global.env ()) n info t ?with_end_tac p in
+      let (p,status) = Proof.solve sum (Global.env ()) n info t ?with_end_tac p in
       (* in case a strict subtree was completed,
          go back to the top of the prooftree *)
       let p = Proof.maximal_unfocus Vernacentries.command_focus p in
@@ -83,9 +83,9 @@ let solve_core ~pstate n ~info ?(with_end_tac=CAst.make false) t =
   if not status then Feedback.feedback Feedback.AddedAxiom;
   pstate
 
-let solve ~pstate n ~info ?with_end_tac t =
+let solve sum ~pstate n ~info ?with_end_tac t =
   let t = interp_tac t in
-  solve_core ~pstate n ~info t ?with_end_tac
+  solve_core sum ~pstate n ~info t ?with_end_tac
 
 let check_par_applicable pstate =
   Declare.Proof.fold pstate ~f:(fun p ->
@@ -105,7 +105,7 @@ let par_implementation : parallel_solver ref = ref (fun sum ~pstate ~info t ~abs
   let t = Proofview.Goal.enter (fun _ ->
     if abstract then Abstract.tclABSTRACT None ~opaque:true t else t) 
   in
-  solve_core ~pstate Goal_select.SelectAll ~info t)
+  solve_core sum ~pstate Goal_select.SelectAll ~info t)
 
 let set_par_implementation f = par_implementation := f
 

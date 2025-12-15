@@ -120,7 +120,7 @@ val make_unresolvables : (Evar.t -> bool) -> evar_map -> evar_map
 val is_class_evar : env -> evar_map -> undefined evar_info -> bool
 val is_class_type : env -> evar_map -> EConstr.types -> bool
 
-val resolve_typeclasses : ?filter:evar_filter -> ?unique:bool ->
+val resolve_typeclasses : Summary.Interp.t -> ?filter:evar_filter -> ?unique:bool ->
   ?fail:bool -> env -> evar_map -> evar_map
 
 val get_filtered_typeclass_evars : evar_filter -> evar_map -> Evar.Set.t
@@ -130,15 +130,16 @@ val error_unresolvable : env -> evar_map -> Evar.Set.t -> 'a
 (** A plugin can override the TC resolution engine by calling these two APIs.
     Beware this action is not registed in the summary (the Undo system) so
     it is up to the plugin to do so. *)
-val set_solve_all_instances : (env -> evar_map -> evar_filter -> bool -> bool -> evar_map) -> unit
+val set_solve_all_instances : (Summary.Interp.t -> env -> evar_map -> evar_filter -> bool -> bool -> evar_map) -> unit
 
 val get_typeclasses_unique_solutions : unit -> bool
 
 val is_maybe_class_type : env -> evar_map -> EConstr.types -> bool
 
 (* Deprecated *)
-val resolve_one_typeclass : ?unique:bool -> env -> evar_map -> EConstr.types -> evar_map * EConstr.constr
+val resolve_one_typeclass : Summary.Interp.t ->
+  ?unique:bool -> env -> evar_map -> EConstr.types -> evar_map * EConstr.constr
 [@@deprecated "(9.0) Use Class_tactics.resolve_one_typeclass (\"unique\" argument was ignored)"]
 
-val set_solve_one_instance : (env -> evar_map -> EConstr.types -> evar_map * EConstr.constr) -> unit
+val set_solve_one_instance : (Summary.Interp.t -> env -> evar_map -> EConstr.types -> evar_map * EConstr.constr) -> unit
 [@@deprecated "(9.0) For internal use only"]

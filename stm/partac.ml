@@ -114,7 +114,7 @@ end = struct (* {{{ *)
           let pstate =
             Declare.Proof.map pstate ~f:(Proof.focus focus_cond () r_goalno) in
           let pstate =
-            ComTactic.solve ~pstate
+            ComTactic.solve !sum ~pstate
               Goal_select.SelectAll ~info:None tactic ~with_end_tac:(CAst.make false) in
           let { Proof.sigma } = Declare.Proof.fold pstate ~f:Proof.data in
           let EvarInfo evi = Evd.find sigma r_goal in
@@ -209,7 +209,7 @@ let enable_par ~spawn_args ~nworkers = ComTactic.set_par_implementation
     let results = get_results results in
     let p,_,() =
       NewProfile.profile "partac.assign" (fun () ->
-          Proof.run_tactic (Global.env())
+          Proof.run_tactic sum (Global.env())
             (assign_tac ~abstract results) p)
         ()
     in

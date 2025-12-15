@@ -217,17 +217,17 @@ let get_filtered_typeclass_evars filter evd =
   let check ev = filter ev (lazy (snd (Evd.evar_source (Evd.find_undefined evd ev)))) in
   Evar.Set.filter check tcs
 
-let solve_all_instances_hook = ref (fun env evd filter unique fail -> assert false)
+let solve_all_instances_hook = ref (fun sum env evd filter unique fail -> (assert false : evar_map))
 
-let solve_all_instances env evd filter unique fail =
-  !solve_all_instances_hook env evd filter unique fail
+let solve_all_instances sum env evd filter unique fail =
+  !solve_all_instances_hook sum env evd filter unique fail
 
 let set_solve_all_instances f = solve_all_instances_hook := f
 
-let resolve_typeclasses ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
+let resolve_typeclasses sum ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
     ?(fail=true) env evd =
   if not (has_typeclasses filter evd) then evd
-  else solve_all_instances env evd filter unique fail
+  else solve_all_instances sum env evd filter unique fail
 
 (** In case of unsatisfiable constraints, build a nice error message *)
 
@@ -248,9 +248,9 @@ let error_unresolvable env evd comp =
 
 (** Deprecated *)
 
-let solve_one_instance = ref (fun env evm t -> assert false)
+let solve_one_instance = ref (fun sum env evm t -> assert false)
 
-let resolve_one_typeclass ?unique:_ env evm t =
-  !solve_one_instance env evm t
+let resolve_one_typeclass sum ?unique:_ env evm t =
+  !solve_one_instance sum env evm t
 
 let set_solve_one_instance f = solve_one_instance := f

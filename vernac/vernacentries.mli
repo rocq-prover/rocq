@@ -9,6 +9,7 @@
 (************************************************************************)
 
 val check_may_eval :
+  Summary.Interp.t ->
   Environ.env ->
   Evd.evar_map ->
   Redexpr.raw_red_expr option ->

@@ -101,12 +101,14 @@ val all_and_fail_flags : inference_flags
     but unresolved evars can remain. The difference is in whether the
     evar_map is modified explicitly or by side-effect. *)
 
-val understand_tcc : ?flags:inference_flags -> env -> evar_map ->
+val understand_tcc : Summary.Interp.t ->
+  ?flags:inference_flags -> env -> evar_map ->
   ?expected_type:typing_constraint -> glob_constr -> evar_map * constr
 
 (** As [understand_tcc] but also returns the type of the elaborated term.
     The [expand_evars] flag is not applied to the type (only to the term). *)
-val understand_tcc_ty : ?flags:inference_flags -> env -> evar_map ->
+val understand_tcc_ty : Summary.Interp.t ->
+  ?flags:inference_flags -> env -> evar_map ->
   ?expected_type:typing_constraint -> glob_constr -> evar_map * constr * types
 
 (** More general entry point with evars from ltac *)
@@ -121,11 +123,13 @@ val understand_tcc_ty : ?flags:inference_flags -> env -> evar_map ->
     constraint: tell if interpreted as a possibly constrained term or a type
 *)
 
-val understand_ltac : inference_flags ->
+val understand_ltac : Summary.Interp.t ->
+  inference_flags ->
   env -> evar_map -> ltac_var_map ->
   typing_constraint -> glob_constr -> evar_map * EConstr.t
 
-val understand_ltac_ty : inference_flags ->
+val understand_ltac_ty : Summary.Interp.t ->
+  inference_flags ->
   env -> evar_map -> ltac_var_map ->
   typing_constraint -> glob_constr -> evar_map * EConstr.t * EConstr.types
 
@@ -135,10 +139,12 @@ val understand_ltac_ty : inference_flags ->
     heuristics (but no external tactic solver hook), as well as to
     ensure that conversion problems are all solved and that no
     unresolved evar remains, expanding evars. *)
-val understand : ?flags:inference_flags -> ?expected_type:typing_constraint ->
+val understand : Summary.Interp.t ->
+  ?flags:inference_flags -> ?expected_type:typing_constraint ->
   env -> evar_map -> glob_constr -> constr Evd.in_ustate
 
 val understand_uconstr :
+  Summary.Interp.t ->
   ?flags:inference_flags -> ?expected_type:typing_constraint ->
   env -> evar_map -> Ltac_pretype.closed_glob_constr -> evar_map * EConstr.t
 
@@ -153,7 +159,8 @@ type inference_hook = env -> evar_map -> Evar.t -> (evar_map * constr) option
 (* For simplicity, it is assumed that current map has no other evars
    with candidate and no other conversion problems that the one in
    [pending], however, it can contain more evars than the pending ones. *)
-val solve_remaining_evars : ?hook:inference_hook -> inference_flags ->
+val solve_remaining_evars : Summary.Interp.t ->
+  ?hook:inference_hook -> inference_flags ->
   env -> ?initial:evar_map -> (* current map *) evar_map -> evar_map
 
 (** Checking evars and pending conversion problems are all solved,
@@ -170,6 +177,7 @@ val check_evars : env -> ?initial:evar_map -> evar_map -> constr -> unit
 (**/**)
 (** Internal of Pretyping... *)
 val ise_pretype_gen :
+  Summary.Interp.t ->
   inference_flags -> env -> evar_map ->
   ltac_var_map -> typing_constraint -> glob_constr -> evar_map * constr * types
 
@@ -184,7 +192,7 @@ type pretype_flags = {
   unconstrained_sorts : bool;
 }
 
-type 'a pretype_fun = ?loc:Loc.t -> flags:pretype_flags -> Evardefine.type_constraint -> GlobEnv.t -> evar_map -> evar_map * 'a
+type 'a pretype_fun = Summary.Interp.t -> ?loc:Loc.t -> flags:pretype_flags -> Evardefine.type_constraint -> GlobEnv.t -> evar_map -> evar_map * 'a
 
 type pretyper = {
   pretype_ref : pretyper -> GlobRef.t * glob_instance option -> unsafe_judgment pretype_fun;
@@ -220,4 +228,4 @@ type pretyper = {
 val default_pretyper : pretyper
 (** Rocq vanilla pretyper. *)
 
-val eval_pretyper : pretyper -> flags:pretype_flags -> Evardefine.type_constraint -> GlobEnv.t -> evar_map -> glob_constr -> evar_map * unsafe_judgment
+val eval_pretyper : pretyper -> Summary.Interp.t -> flags:pretype_flags -> Evardefine.type_constraint -> GlobEnv.t -> evar_map -> glob_constr -> evar_map * unsafe_judgment

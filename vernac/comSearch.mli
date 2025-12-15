@@ -12,7 +12,7 @@ open Vernacexpr
 
 (* Interpretation of search commands *)
 
-val interp_search_request :
+val interp_search_request : Summary.Interp.t ->
   Environ.env ->
   Evd.evar_map ->
   bool * Vernacexpr.search_request ->

@@ -16,6 +16,8 @@ open Constrintern
 open Impargs
 open Pretyping
 
+let (!!) = Summary.Interp.get
+
 module NamedDecl = Context.Named.Declaration
 
 (* 2| Variable/Hypothesis/Parameter/Axiom declarations *)
@@ -93,10 +95,10 @@ let declare_global sum ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~uni
 let declare_axiom sum ~coe ~local ~kind ?user_warns ~univs ~impargs ~inline ~name typ =
   declare_global sum ~coe ~try_assum_as_instance:false ~local ~kind:(Decls.IsAssumption kind) ?user_warns ~univs ~impargs ~inline ~name None typ
 
-let interp_assumption ~program_mode env sigma impl_env bl c =
+let interp_assumption sum ~program_mode env sigma impl_env bl c =
   let flags = { Pretyping.all_no_fail_flags with program_mode } in
-  let sigma, (impls, ((env_bl, ctx), impls1, _locs)) = interp_context_evars ~program_mode ~impl_env env sigma bl in
-  let sigma, (ty, impls2) = interp_type_evars_impls ~flags env_bl sigma ~impls c in
+  let sigma, (impls, ((env_bl, ctx), impls1, _locs)) = interp_context_evars sum ~program_mode ~impl_env env sigma bl in
+  let sigma, (ty, impls2) = interp_type_evars_impls sum ~flags env_bl sigma ~impls c in
   let ty = EConstr.it_mkProd_or_LetIn ty ctx in
   sigma, ty, impls1@impls2
 
@@ -185,11 +187,11 @@ let find_binding_kind id impls =
     | _ -> None in
   Option.default Explicit (CList.find_map find impls)
 
-let interp_context_gen ~program_mode ~kind ~autoimp_enable ~coercions env sigma l =
+let interp_context_gen sum ~program_mode ~kind ~autoimp_enable ~coercions env sigma l =
   let initial = sigma in
-  let sigma, (ienv, ((env, ctx), impls, locs)) = interp_named_context_evars ~program_mode ~autoimp_enable env sigma l in
+  let sigma, (ienv, ((env, ctx), impls, locs)) = interp_named_context_evars sum ~program_mode ~autoimp_enable env sigma l in
   (* Note, we must use the normalized evar from now on! *)
-  let sigma = solve_remaining_evars all_and_fail_flags env ~initial sigma in
+  let sigma = solve_remaining_evars sum all_and_fail_flags env ~initial sigma in
   let sigma, ctx = Evarutil.finalize sigma @@ fun nf ->
     List.map (NamedDecl.map_constr_het (fun x -> x) nf) ctx
   in
@@ -219,7 +221,7 @@ let do_assumptions sum ~program_mode ~poly ~scope ~kind ?user_warns ~inline l =
     | Locality.Discharge -> None, process_assumptions_no_udecls l in
   let sigma, udecl = interp_univ_decl_opt env udecl in
   let coercions, ctx = local_binders_of_decls ~poly l in
-  let sigma, ctx = interp_context_gen ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
+  let sigma, ctx = interp_context_gen !!sum ~program_mode ~kind ~autoimp_enable:true ~coercions env sigma ctx in
   let univs = Evd.check_univ_decl ~poly sigma udecl in
   declare_context sum ~try_global_assum_as_instance:false ~scope ~univs ?user_warns ~inline ctx
 
@@ -255,17 +257,17 @@ let do_context sum ~program_mode ~poly ctx =
     if sec then Discharge
     else Global (if Lib.is_modtype () then ImportDefaultBehavior else ImportNeedQualified)
   in
-  let sigma, ctx = interp_context_gen ~program_mode ~kind:Context ~autoimp_enable:false ~coercions:Id.Set.empty env sigma ctx in
+  let sigma, ctx = interp_context_gen !!sum ~program_mode ~kind:Context ~autoimp_enable:false ~coercions:Id.Set.empty env sigma ctx in
   let univs = Evd.univ_entry ~poly sigma in
   declare_context sum ~try_global_assum_as_instance:true ~scope ~univs ~inline:Declaremods.NoInline ctx
 
 (* API compatibility (used in Elpi) *)
 
-let interp_context env sigma ctx =
+let interp_context sum env sigma ctx =
   let reverse_rel_context_of_reverse_named_context ctx =
     List.rev (snd (List.fold_left_i (fun n (subst, ctx) (id,b,t,impl) ->
         let decl = (id, Option.map (Vars.subst_vars subst) b, Vars.subst_vars subst t, impl) in
         (id :: subst, decl :: ctx)) 1 ([],[]) ctx)) in
-  let sigma, ctx = interp_context_gen ~program_mode:false ~kind:Context ~autoimp_enable:false ~coercions:Id.Set.empty env sigma ctx in
+  let sigma, ctx = interp_context_gen sum ~program_mode:false ~kind:Context ~autoimp_enable:false ~coercions:Id.Set.empty env sigma ctx in
   let ctx = List.map (fun (id,b,t,(impl,_,_,_)) -> (id.CAst.v,b,t,impl)) ctx in
   sigma, reverse_rel_context_of_reverse_named_context ctx

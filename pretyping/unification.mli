@@ -100,6 +100,7 @@ val is_keyed_unification : unit -> bool
 
 (** The "unique" unification function *)
 val w_unify :
+  Summary.Interp.t ->
   ?metas:Meta.t ->
   env -> evar_map -> conv_pb -> ?flags:unify_flags -> constr -> constr -> Meta.t * evar_map
 
@@ -107,20 +108,24 @@ val w_unify :
    subterm of [t]. Constraints are added to [m] and the matched
    subterm of [t] is also returned. *)
 val w_unify_to_subterm :
+  Summary.Interp.t ->
   ?metas:Meta.t ->
   env -> evar_map -> ?flags:unify_flags -> constr * constr -> (Meta.t * evar_map) * constr
 
 val w_unify_to_subterm_all :
+  Summary.Interp.t ->
   ?metas:Meta.t ->
   env -> evar_map -> ?flags:unify_flags -> constr * constr -> (Meta.t * evar_map) list
 
 val w_unify_meta_types :
+  Summary.Interp.t ->
   ?metas:Meta.t ->
   env -> ?flags:unify_flags -> evar_map -> Meta.t * evar_map
 
 (** [w_coerce_to_type env evd c ctyp typ] tries to coerce [c] of type
    [ctyp] so that its gets type [typ]; [typ] may contain metavariables *)
 val w_coerce_to_type :
+  Summary.Interp.t ->
   ?metas:Meta.t ->
   env -> evar_map -> constr -> types -> types ->
   evar_map * Meta.t * constr
@@ -140,7 +145,8 @@ type 'r abstraction_result =
     named_declaration list * Names.Id.t option *
     types * (evar_map * constr) option
 
-val make_abstraction : env -> evar_map -> constr ->
+val make_abstraction : Summary.Interp.t ->
+  env -> evar_map -> constr ->
   abstraction_request -> 'r abstraction_result
 
 val pose_all_metas_as_evars : metas:Meta.t -> env -> evar_map -> constr -> evar_map * Meta.t * constr

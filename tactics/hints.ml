@@ -1476,8 +1476,8 @@ let default_prepare_hint_ident = Id.of_string "H"
 
 exception Found of constr * types
 
-let prepare_hint env init (sigma,c) =
-  let sigma = Typeclasses.resolve_typeclasses ~fail:false env sigma in
+let prepare_hint sum env init (sigma,c) =
+  let sigma = Typeclasses.resolve_typeclasses sum ~fail:false env sigma in
   (* We re-abstract over uninstantiated evars and universes.
      It is actually a bit stupid to generalize over evars since the first
      thing make_resolves will do is to re-instantiate the products *)
@@ -1552,9 +1552,9 @@ let warn_non_reference_hint_using =
   CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.deprecated
     Pp.(fun (env, sigma, c) -> str "Use of the non-reference term " ++ pr_leconstr_env env sigma c ++ str " in \"using\" clauses is deprecated")
 
-let expand_constructor_hints env sigma lems =
+let expand_constructor_hints sum env sigma lems =
   List.map_append (fun lem ->
-    let evd, lem = lem env sigma in
+    let evd, lem = lem sum env sigma in
     let lem0 = drop_extra_implicit_args evd lem in
     match EConstr.kind evd lem0 with
     | Ind (ind,u) ->
@@ -1565,18 +1565,18 @@ let expand_constructor_hints env sigma lems =
     | Construct (cstr, _) -> [IsGlobRef (GlobRef.ConstructRef cstr)]
     | _ ->
       let () = warn_non_reference_hint_using (env, evd, lem) in
-      let (c, ctx) = prepare_hint env sigma (evd,lem) in
+      let (c, ctx) = prepare_hint sum env sigma (evd,lem) in
       let ctx = if UnivGen.is_empty_sort_context ctx then None else Some ctx in
       [IsConstr (c, ctx)]) lems
 (* builds a hint database from a constr signature *)
 (* typically used with (lid, ltyp) = pf_hyps_types <some goal> *)
 
-let constructor_hints env sigma eapply lems =
-  let lems = expand_constructor_hints env sigma lems in
+let constructor_hints sum env sigma eapply lems =
+  let lems = expand_constructor_hints sum env sigma lems in
   List.map_append (fun lem ->
       make_resolves env sigma (eapply, true) empty_hint_info ~check:true lem) lems
 
-let make_local_hint_db env sigma ts eapply lems =
+let make_local_hint_db sum env sigma ts eapply lems =
   let sign = EConstr.named_context env in
   let ts = match ts with
     | None -> Hint_db.transparent_state (searchtable_map "core")
@@ -1585,10 +1585,10 @@ let make_local_hint_db env sigma ts eapply lems =
   let hintlist = List.map_append (fun decl -> make_resolve_hyp env sigma (Named.Declaration.get_id decl)) sign in
   Hint_db.empty ts false
   |> Hint_db.add_list env sigma hintlist
-  |> Hint_db.add_list env sigma (constructor_hints env sigma eapply lems)
+  |> Hint_db.add_list env sigma (constructor_hints sum env sigma eapply lems)
 
-let make_local_hint_db env sigma ?ts eapply lems =
-  make_local_hint_db env sigma ts eapply lems
+let make_local_hint_db sum env sigma ?ts eapply lems =
+  make_local_hint_db sum env sigma ts eapply lems
 
 let make_db_list dbnames =
   let fold (core, nocore) db =

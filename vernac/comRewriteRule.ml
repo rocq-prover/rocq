@@ -11,6 +11,8 @@
 open Util
 open Names
 
+let (!!) = Summary.Interp.get
+
 let maybe_error_many_udecls = function
 | ({CAst.loc;v=id}, Some _) ->
   CErrors.user_err ?loc
@@ -42,7 +44,7 @@ let do_symbol sum ~poly ~unfold_fix udecl (id, typ) =
   let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
   let evd, (typ, impls) =
     Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
-      env evd typ
+      !!sum env evd typ
   in
   Pretyping.check_evars_are_solved ~program_mode:false env evd;
   let evd = Evd.minimize_universes evd in
@@ -368,7 +370,7 @@ let warn_rewrite_rules_break_SR =
     Pp.(fun reason ->
         str "This rewrite rule breaks subject reduction" ++ spc() ++ reason)
 
-let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
+let interp_rule sum (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
   let env = Global.env () in
   let evd = Evd.from_env env in
 
@@ -422,7 +424,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with undeclared_evars_rr = true; expand_evars = false; solve_unification_constraints = false } in
-  let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
+  let evd, lhs, typ = Pretyping.understand_tcc_ty sum ~flags env evd lhs in
 
   let evd = Evd.minimize_universes evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
@@ -468,11 +470,11 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd rhs) in
   let flags = Pretyping.no_classes_no_fail_inference_flags in
   let evd', rhs =
-    try Pretyping.understand_tcc ~flags env evd ~expected_type:(OfType typ) rhs
+    try Pretyping.understand_tcc ~flags sum env evd ~expected_type:(OfType typ) rhs
     with Pretype_errors.PretypeError (env', evd', e) ->
       warn_rewrite_rules_break_SR ?loc:rhs_loc
         Pp.(surround (str "the replacement term doesn't have the type of the pattern") ++ str "." ++ fnl () ++ Himsg.explain_pretype_error env' evd' e);
-      Pretyping.understand_tcc ~flags env evd rhs
+      Pretyping.understand_tcc ~flags sum env evd rhs
   in
 
   let evd' = Evd.minimize_universes evd' in
@@ -540,8 +542,8 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   head_symbol, { nvars = (nvars' - 1, nvarqs', nvarus'); lhs_pat = head_umask, elims; rhs }
 
-let do_rules id rules =
+let do_rules sum id rules =
   let env = Global.env () in
   if not @@ Environ.rewrite_rules_allowed env then raise Environ.(RewriteRulesNotAllowed Rule);
-  let body = { rewrules_rules = List.map interp_rule rules } in
+  let body = { rewrules_rules = List.map (interp_rule (Summary.Interp.get sum)) rules } in
   Global.add_rewrite_rules id body

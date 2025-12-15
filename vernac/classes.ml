@@ -22,6 +22,8 @@ open Context.Rel.Declaration
 open Class_tactics
 open Libobject
 
+let (!!) = Summary.Interp.get
+
 module RelDecl = Context.Rel.Declaration
 
 let warn_default_mode = CWarnings.create ~name:"class-declaration-default-mode" ~category:CWarnings.CoreCategories.automation
@@ -289,14 +291,14 @@ type typeclass_in_univs = {
 
 (* Declare everything in the parameters as implicit, and the class instance as well *)
 
-let type_ctx_instance ~program_mode env sigma ctx inst subst =
+let type_ctx_instance sum ~program_mode env sigma ctx inst subst =
   let open Vars in
   let rec aux (sigma, subst) l ctx = match ctx, l with
     | LocalAssum _ :: _, [] | [], _ :: _ -> assert false
     | LocalAssum (_,t) :: ctx, c :: l ->
       let t' = substl subst t in
       let (sigma, c') =
-        interp_casted_constr_evars ~program_mode env sigma c t'
+        interp_casted_constr_evars sum ~program_mode env sigma c t'
       in
       aux (sigma, c' :: subst) l ctx
     | LocalDef (_,b,_) :: ctx, l ->
@@ -356,7 +358,7 @@ let declare_instance_program sum pm env sigma ~locality ~poly {CAst.v=name;loc} 
   let info = Declare.Info.make ~udecl ~poly ~kind ~hook () in
   Declare.Obls.add_definition sum ~pm ~info ~cinfo ~opaque:false ~uctx ~body obls
 
-let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impargs udecl ids term termtype =
+let declare_instance_open sum sigma ?hook ~tac ~locality ~poly (id:lident) pri impargs udecl ids term termtype =
   (* spiwack: it is hard to reorder the actions to do
      the pretyping after the proof has opened. As a
      consequence, we use the low-level primitives to code
@@ -383,15 +385,15 @@ let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impar
           Tactics.reduce_after_refine;
         ]
       in
-      let lemma, _ = Declare.Proof.by (Global.env ()) init_refine lemma in
+      let lemma, _ = Declare.Proof.by sum (Global.env ()) init_refine lemma in
       lemma
     | None ->
-      let lemma, _ = Declare.Proof.by (Global.env ()) (Tactics.auto_intros_tac ids) lemma in
+      let lemma, _ = Declare.Proof.by sum (Global.env ()) (Tactics.auto_intros_tac ids) lemma in
       lemma
   in
   match tac with
   | Some tac ->
-    let lemma, _ = Declare.Proof.by (Global.env ()) tac lemma in
+    let lemma, _ = Declare.Proof.by sum (Global.env ()) tac lemma in
     lemma
   | None ->
     lemma
@@ -415,11 +417,11 @@ let do_instance_subst_constructor_and_ty subst k ctx =
   let term = it_mkLambda_or_LetIn app ctx in
   term, termtype
 
-let do_instance_resolve_TC termtype sigma env =
+let do_instance_resolve_TC sum termtype sigma env =
   let sigma = Evarutil.nf_evar_map sigma in
-  let sigma = Typeclasses.resolve_typeclasses ~filter:Typeclasses.no_goals_or_obligations ~fail:true env sigma in
+  let sigma = Typeclasses.resolve_typeclasses sum ~filter:Typeclasses.no_goals_or_obligations ~fail:true env sigma in
   (* Try resolving fields that are typeclasses automatically. *)
-  let sigma = Typeclasses.resolve_typeclasses ~filter:Typeclasses.all_evars ~fail:false env sigma in
+  let sigma = Typeclasses.resolve_typeclasses sum ~filter:Typeclasses.all_evars ~fail:false env sigma in
   let sigma = Evarutil.nf_evar_map_undefined sigma in
   (* Beware of this step, it is required as to minimize universes. *)
   let sigma = Evd.minimize_universes sigma in
@@ -427,7 +429,7 @@ let do_instance_resolve_TC termtype sigma env =
   Pretyping.check_evars env sigma termtype;
   termtype, sigma
 
-let do_instance_type_ctx_instance props k env' ctx' sigma ~program_mode subst =
+let do_instance_type_ctx_instance sum props k env' ctx' sigma ~program_mode subst =
   let get_id qid = CAst.make ?loc:qid.CAst.loc @@ qualid_basename qid in
   let props, rest =
     List.fold_left
@@ -456,29 +458,29 @@ let do_instance_type_ctx_instance props k env' ctx' sigma ~program_mode subst =
     unbound_method env' sigma k.clu_impl (get_id n)
   | [] ->
     let sigma, res =
-      type_ctx_instance ~program_mode
+      type_ctx_instance sum ~program_mode
         (push_rel_context ctx' env') sigma k.clu_props props subst in
     res, sigma
 
-let interp_props ~program_mode env' cty k ctx ctx' subst sigma = function
+let interp_props sum ~program_mode env' cty k ctx ctx' subst sigma = function
   | (true, { CAst.v = CRecord fs; loc }) ->
     check_duplicate ?loc fs;
-    let subst, sigma = do_instance_type_ctx_instance fs k env' ctx' sigma ~program_mode subst in
+    let subst, sigma = do_instance_type_ctx_instance sum fs k env' ctx' sigma ~program_mode subst in
     let term, termtype =
       do_instance_subst_constructor_and_ty subst k (ctx' @ ctx) in
     term, termtype, sigma
   | (_, term) ->
     let sigma, def =
-      interp_casted_constr_evars ~program_mode env' sigma term cty in
+      interp_casted_constr_evars sum ~program_mode env' sigma term cty in
     let termtype = it_mkProd_or_LetIn cty ctx in
     let term = it_mkLambda_or_LetIn def ctx in
     term, termtype, sigma
 
-let do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly cty k ctx ctx' pri decl imps subst id opt_props =
+let do_instance_interactive sum env env' sigma ?hook ~tac ~locality ~poly cty k ctx ctx' pri decl imps subst id opt_props =
   let term, termtype, sigma = match opt_props with
     | Some props ->
       on_pi1 (fun x -> Some x)
-        (interp_props ~program_mode:false env' cty k ctx ctx' subst sigma props)
+        (interp_props sum ~program_mode:false env' cty k ctx ctx' subst sigma props)
     | None ->
       let term, termtype =
         if k.clu_trivial then
@@ -488,20 +490,20 @@ let do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly cty k ctx 
         else
           None, it_mkProd_or_LetIn cty ctx
       in
-      let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+      let termtype, sigma = do_instance_resolve_TC sum termtype sigma env in
       term, termtype, sigma
   in
   Flags.silently (fun () ->
-      declare_instance_open sigma ?hook ~tac ~locality ~poly
+      declare_instance_open sum sigma ?hook ~tac ~locality ~poly
         id pri imps decl (List.map RelDecl.get_name ctx) term termtype)
     ()
 
 let do_instance sum env env' sigma ?hook ~locality ~poly
     cty k ctx ctx' pri decl imps subst id props =
   let term, termtype, sigma =
-    interp_props ~program_mode:false env' cty k ctx ctx' subst sigma props
+    interp_props !!sum ~program_mode:false env' cty k ctx ctx' subst sigma props
   in
-  let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+  let termtype, sigma = do_instance_resolve_TC !!sum termtype sigma env in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
   declare_instance_constant sum pri locality imps ?hook id decl poly sigma term termtype
 
@@ -510,14 +512,14 @@ let do_instance_program sum ~pm env env' sigma ?hook ~locality ~poly
   let term, termtype, sigma =
     match opt_props with
     | Some props ->
-      interp_props ~program_mode:true env' cty k ctx ctx' subst sigma props
+      interp_props !!sum ~program_mode:true env' cty k ctx ctx' subst sigma props
     | None ->
       let subst, sigma =
-        do_instance_type_ctx_instance [] k env' ctx' sigma ~program_mode:true subst in
+        do_instance_type_ctx_instance !!sum [] k env' ctx' sigma ~program_mode:true subst in
       let term, termtype =
         do_instance_subst_constructor_and_ty subst k (ctx' @ ctx) in
       term, termtype, sigma in
-  let termtype, sigma = do_instance_resolve_TC termtype sigma env in
+  let termtype, sigma = do_instance_resolve_TC !!sum termtype sigma env in
   if not (Evd.has_undefined sigma) && not (Option.is_empty opt_props) then
     let () = declare_instance_constant sum pri locality imps ?hook id decl poly sigma term termtype in
     pm
@@ -543,11 +545,13 @@ let typeclass_univ_instance env (cl, u) =
     clu_projs = cl.cl_projs;
   }
 
-let interp_instance_context ~program_mode env ctx pl tclass =
+let interp_instance_context sum ~program_mode env ctx pl tclass =
   let sigma, decl = interp_univ_decl_opt env pl in
-  let sigma, (impls, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode env sigma ctx in
+  let sigma, (impls, ((env', ctx), imps, _locs)) =
+    interp_context_evars sum ~program_mode env sigma ctx
+  in
   let flags = Pretyping.{ all_no_fail_flags with program_mode } in
-  let sigma, (c', imps') = interp_type_evars_impls ~flags ~impls env' sigma tclass in
+  let sigma, (c', imps') = interp_type_evars_impls sum ~flags ~impls env' sigma tclass in
   let imps = imps @ imps' in
   let ctx', c = decompose_prod_decls sigma c' in
   let ctx'' = ctx' @ ctx in
@@ -562,7 +566,7 @@ let interp_instance_context ~program_mode env ctx pl tclass =
       cl.clu_context (args, [])
   in
   let sigma = Evarutil.nf_evar_map sigma in
-  let sigma = resolve_typeclasses ~filter:Typeclasses.all_evars ~fail:true env sigma in
+  let sigma = resolve_typeclasses ~filter:Typeclasses.all_evars ~fail:true sum env sigma in
   sigma, cl, u, c', ctx', ctx, imps, args, decl
 
 let id_of_class env ref =
@@ -574,10 +578,10 @@ let id_of_class env ref =
           mip.(0).Declarations.mind_typename
     | _ -> assert false
 
-let new_instance_common ~program_mode env instid ctx cl =
+let new_instance_common sum ~program_mode env instid ctx cl =
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    interp_instance_context ~program_mode env ctx pl cl
+    interp_instance_context sum ~program_mode env ctx pl cl
   in
   (* The name generator should not be here *)
   let id = instid |> CAst.map (function
@@ -589,19 +593,19 @@ let new_instance_common ~program_mode env instid ctx cl =
   let env' = push_rel_context ctx env in
   id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl
 
-let new_instance_interactive ~locality ~poly instid ctx cl
+let new_instance_interactive sum ~locality ~poly instid ctx cl
     ?(tac:unit Proofview.tactic option) ?hook
     pri opt_props =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:false env instid ctx cl in
-  id, do_instance_interactive env env' sigma ?hook ~tac ~locality ~poly
+    new_instance_common sum ~program_mode:false env instid ctx cl in
+  id, do_instance_interactive sum env env' sigma ?hook ~tac ~locality ~poly
     cty k ctx ctx' pri decl imps subst id opt_props
 
 let new_instance_program sum ~locality ~pm ~poly instid ctx cl opt_props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:true env instid ctx cl in
+    new_instance_common !!sum ~program_mode:true env instid ctx cl in
   let pm =
     do_instance_program sum ~pm env env' sigma ?hook ~locality ~poly
       cty k ctx ctx' pri decl imps subst id opt_props in
@@ -610,7 +614,7 @@ let new_instance_program sum ~locality ~pm ~poly instid ctx cl opt_props ?hook p
 let new_instance sum ~locality ~poly instid ctx cl props ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    new_instance_common ~program_mode:false env instid ctx cl in
+    new_instance_common !!sum ~program_mode:false env instid ctx cl in
   do_instance sum env env' sigma ?hook ~locality ~poly
     cty k ctx ctx' pri decl imps subst id props;
   id
@@ -619,7 +623,7 @@ let declare_new_instance sum ~locality ~program_mode ~poly instid ctx cl pri =
   let env = Global.env() in
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
-    interp_instance_context ~program_mode env ctx pl cl
+    interp_instance_context !!sum ~program_mode env ctx pl cl
   in
   do_declare_instance sum sigma ~locality ~poly k ctx ctx' pri decl imps subst instid
 

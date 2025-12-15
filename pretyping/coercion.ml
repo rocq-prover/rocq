@@ -363,8 +363,8 @@ let coerce_itf ?loc env sigma v t c1 =
   let sigma, coercion = coerce ?loc env sigma t c1 in
   app_coercion env sigma coercion v
 
-let saturate_evd env sigma =
-  Typeclasses.resolve_typeclasses
+let saturate_evd sum env sigma =
+  Typeclasses.resolve_typeclasses sum
     ~filter:Typeclasses.no_goals ~fail:false env sigma
 
 type coercion_trace =
@@ -592,13 +592,13 @@ let inh_app_fun_core ~program_mode ?(use_coercions=true) env sigma body typ =
       else Exninfo.iraise (NoCoercion,info)
 
 (* Try to coerce to a funclass; returns [j] if no coercion is applicable *)
-let inh_app_fun ~program_mode ~resolve_tc ?use_coercions env sigma ?(flags=default_flags_of env) body typ =
+let inh_app_fun sum ~program_mode ~resolve_tc ?use_coercions env sigma ?(flags=default_flags_of env) body typ =
   try
     try inh_app_fun_core ~program_mode ?use_coercions env sigma body typ
     with
     | NoCoercion when resolve_tc
       && (get_use_typeclasses_for_conversion ()) ->
-        inh_app_fun_core ~program_mode ?use_coercions env (saturate_evd env sigma) body typ
+        inh_app_fun_core ~program_mode ?use_coercions env (saturate_evd sum env sigma) body typ
   with
   | NoCoercion -> match apply_hooks env sigma ~flags (force_app_body body) ~inferred:typ ~expected:Product with
     | Some (sigma, r, typ) -> (sigma, start_app_body sigma r, typ, ReplaceCoe r)
@@ -756,7 +756,7 @@ let default_flags_of env sigma =
   { (default_flags_of env) with allowed_evars = Evarsolve.allow_all_but_rrpat_evars sigma }
 
 (* Look for cj' obtained from cj by inserting coercions, s.t. cj'.typ = t *)
-let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags_of env sigma) cj t =
+let inh_conv_coerce_to_gen sum ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags_of env sigma) cj t =
   let (sigma, val', otrace) =
     try
       let (sigma, val', trace) = inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ~flags rigidonly cj.uj_val cj.uj_type t in
@@ -774,7 +774,7 @@ let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidon
         error_actual_type ?loc ~info env best_failed_sigma cj t e
       | NoSubtacCoercion as exn ->
         let _, info = Exninfo.capture exn in
-        let sigma' = saturate_evd env sigma in
+        let sigma' = saturate_evd sum env sigma in
           try
             if sigma' == sigma then
               error_actual_type ?loc ~info env best_failed_sigma cj t e
@@ -796,7 +796,7 @@ let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidon
     | Some _ -> Exninfo.iraise iexn
     | None -> Exninfo.iraise (e, Loc.add_loc info (Option.get loc))
 
-let inh_conv_coerce_to ?loc ~program_mode ~resolve_tc ?use_coercions env sigma ?flags =
-  inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions false ?flags env sigma
-let inh_conv_coerce_rigid_to ?loc ~program_mode ~resolve_tc ?use_coercions env sigma ?flags =
-  inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions true ?flags env sigma
+let inh_conv_coerce_to sum ?loc ~program_mode ~resolve_tc ?use_coercions env sigma ?flags =
+  inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions sum false ?flags env sigma
+let inh_conv_coerce_rigid_to sum ?loc ~program_mode ~resolve_tc ?use_coercions env sigma ?flags =
+  inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions sum true ?flags env sigma

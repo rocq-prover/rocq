@@ -226,10 +226,10 @@ let check_source = function
 | Some (CL_FUN as s) -> raise (CoercionError (ForbiddenSourceClass s))
 | _ -> ()
 
-let cache_coercion ?(update=false) c _sum =
+let cache_coercion ?(update=false) c sum =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  Coercionops.declare_coercion env sigma ~update c
+  Coercionops.declare_coercion sum env sigma ~update c
 
 let discharge_coercion _sum c =
   if c.coe_local then None

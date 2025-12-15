@@ -23,6 +23,7 @@ val register_tactic_interpreter :
     after having interpreted the tactic, and after the tactic runs it
     unfocus as much as needed to put a goal under focus. *)
 val solve :
+  Summary.Interp.t ->
   pstate:Declare.Proof.t ->
   Goal_select.t ->
   info:int option ->

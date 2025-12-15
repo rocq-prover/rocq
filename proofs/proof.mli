@@ -160,7 +160,7 @@ val no_focused_goal : t -> bool
 (* the returned boolean signal whether an unsafe tactic has been
    used. In which case it is [false]. *)
 val run_tactic
-  :  Environ.env
+  : Summary.Interp.t -> Environ.env
   -> 'a Proofview.tactic -> t -> t * (Environ.env*bool*Proofview_monad.Info.tree) * 'a
 
 val maximal_unfocus : 'a focus_kind -> t -> t
@@ -189,6 +189,7 @@ val all_goals : t -> Evar.Set.t
 
 val solve :
      ?with_end_tac:unit Proofview.tactic
+  -> Summary.Interp.t
   -> Environ.env
   -> Goal_select.t
   -> int option
@@ -200,7 +201,8 @@ val solve :
 val use_unification_heuristics : unit -> bool
 
 val refine_by_tactic
-  :  name:Names.Id.t
+  : Summary.Interp.t
+  -> name:Names.Id.t
   -> poly:bool
   -> Environ.env
   -> Evd.evar_map

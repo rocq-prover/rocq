@@ -66,14 +66,14 @@ let discr_main c = elimOnConstrWithHoles Equality.discr_tac false c
 
 let discrHyp id =
   Proofview.tclEVARMAP >>= fun sigma ->
-  discr_main (fun env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
+  discr_main (fun _sum env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
 
 let injection_main with_evars c =
  elimOnConstrWithHoles (Equality.injClause None None) with_evars c
 
 let injHyp id =
   Proofview.tclEVARMAP >>= fun sigma ->
-  injection_main false (fun env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
+  injection_main false (fun _sum env sigma -> (sigma, (EConstr.mkVar id, NoBindings)))
 
 let constr_flags () = Pretyping.{
   use_coercions = true;
@@ -90,6 +90,7 @@ let constr_flags () = Pretyping.{
 let refine_tac ist ~simple ~with_classes c =
   let with_classes = if with_classes then Pretyping.UseTC else Pretyping.NoUseTC in
   Proofview.Goal.enter begin fun gl ->
+    let sum = Proofview.Goal.summary gl in
     let concl = Proofview.Goal.concl gl in
     let env = Proofview.Goal.env gl in
     let flags =
@@ -97,7 +98,7 @@ let refine_tac ist ~simple ~with_classes c =
     let expected_type = Pretyping.OfType concl in
     let c = Tacinterp.type_uconstr ~flags ~expected_type ist c in
     let update = begin fun sigma ->
-      c env sigma
+      c sum env sigma
     end in
     let refine = Refine.refine ~typecheck:false update in
     if simple then refine
@@ -190,11 +191,12 @@ let decompose l c =
 
 let exact ist (c : Ltac_pretype.closed_glob_constr) =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let expected_type = Pretyping.OfType concl in
-  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c env sigma in
+  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c sum env sigma in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
   end
 

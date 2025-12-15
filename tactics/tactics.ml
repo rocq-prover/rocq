@@ -1157,18 +1157,18 @@ let map_destruction_arg f sigma = function
   | clear_flag,ElimOnIdent id as x -> (sigma,x)
 
 
-let finish_evar_resolution ?(flags=Pretyping.all_and_fail_flags) env current_sigma (pending,c) =
-  let sigma = Pretyping.solve_remaining_evars flags env current_sigma ?initial:pending in
+let finish_evar_resolution sum ?(flags=Pretyping.all_and_fail_flags) env current_sigma (pending,c) =
+  let sigma = Pretyping.solve_remaining_evars sum flags env current_sigma ?initial:pending in
   (sigma, nf_evar sigma c)
 
-let finish_delayed_evar_resolution with_evars env sigma f =
-  let (sigma', (c, lbind)) = f env sigma in
+let finish_delayed_evar_resolution sum with_evars env sigma f =
+  let (sigma', (c, lbind)) = f sum env sigma in
   let flags = tactic_infer_flags with_evars in
-  let (sigma', c) = finish_evar_resolution ~flags env sigma' (Some sigma,c) in
+  let (sigma', c) = finish_evar_resolution sum ~flags env sigma' (Some sigma,c) in
   (sigma', (c, lbind))
 
-let force_destruction_arg with_evars env sigma c =
-  map_destruction_arg (finish_delayed_evar_resolution with_evars env) sigma c
+let force_destruction_arg sum with_evars env sigma c =
+  map_destruction_arg (finish_delayed_evar_resolution sum with_evars env) sigma c
 
 (****************************************)
 (* tactic "cut" (actually modus ponens) *)
@@ -1226,9 +1226,9 @@ let do_replace id = function
    [Ti] and the first one (resp last one) being [G] whose hypothesis
    [id] is replaced by P using the proof given by [tac] *)
 
-let clenv_refine_in with_evars targetid replace env sigma0 clenv =
+let clenv_refine_in sum with_evars targetid replace env sigma0 clenv =
   let clenv = Clenv.clenv_pose_dependent_evars ~with_evars clenv in
-  let evd = Typeclasses.resolve_typeclasses ~fail:(not with_evars) env (clenv_evd clenv) in
+  let evd = Typeclasses.resolve_typeclasses sum ~fail:(not with_evars) env (clenv_evd clenv) in
   let clenv = Clenv.update_clenv_evd clenv evd (Clenv.clenv_meta_list clenv) in
   let new_hyp_typ = clenv_type clenv in
   if not with_evars then check_unresolved_evars_of_metas sigma0 clenv;
@@ -1279,6 +1279,7 @@ let general_elim_clause0 with_evars flags (submetas, c, ty) elim =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let clause, bindings, index =  match elim with
   | ElimConstant (elimc, i) ->
     let elimt = Retyping.get_type_of env sigma elimc in
@@ -1292,12 +1293,12 @@ let general_elim_clause0 with_evars flags (submetas, c, ty) elim =
     let elimt = Retyping.get_type_of env sigma elimc in
     (elimc, elimt), lbindelimc, None
   in
-  let elimclause = make_clenv_binding env sigma clause bindings in
+  let elimclause = make_clenv_binding sum env sigma clause bindings in
   let indmv =
     try nth_arg index (clenv_arguments elimclause)
     with Failure _ | Invalid_argument _ -> TacticErrors.ill_formed_elimination_type ()
   in
-  let elimclause = clenv_instantiate ~flags ~submetas indmv elimclause (c, ty) in
+  let elimclause = clenv_instantiate sum ~flags ~submetas indmv elimclause (c, ty) in
   Clenv.res_pf elimclause ~with_evars ~with_classes:true ~flags
   end
 
@@ -1305,6 +1306,7 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elimc indarg =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let elimt = Retyping.get_type_of env sigma elimc in
   let elimt = Reductionops.whd_all env sigma elimt in
   let i = match indarg with
@@ -1322,11 +1324,11 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elimc indarg =
     | [a] -> a
     | _ -> TacticErrors.ill_formed_elimination_type ()
   in
-  let elimclause = clenv_instantiate ~flags ~submetas indmv elimclause (c, ty) in
+  let elimclause = clenv_instantiate sum ~flags ~submetas indmv elimclause (c, ty) in
   let hyp = mkVar id in
   let hyp_typ = Retyping.get_type_of env sigma hyp in
   let elimclause =
-    try clenv_instantiate ~flags hypmv elimclause (hyp, hyp_typ)
+    try clenv_instantiate ~flags sum  hypmv elimclause (hyp, hyp_typ)
     with PretypeError (env,evd,NoOccurrenceFound (op,_)) ->
       (* Set the hypothesis name in the message *)
       raise (PretypeError (env,evd,NoOccurrenceFound (op,Some id)))
@@ -1334,17 +1336,18 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elimc indarg =
   let new_hyp_typ  = clenv_type elimclause in
   if EConstr.eq_constr sigma hyp_typ new_hyp_typ then
     TacticErrors.nothing_to_rewrite id;
-  clenv_refine_in with_evars id true env sigma elimclause
+  clenv_refine_in sum with_evars id true env sigma elimclause
   end
 
 let general_elim with_evars clear_flag (c, lbindc) elim =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let ct = Retyping.get_type_of env sigma c in
   let id = try Some (destVar sigma c) with DestKO -> None in
   let t = try snd (reduce_to_quantified_ind env sigma ct) with UserError _ -> ct in
-  let indclause = make_clenv_binding env sigma (c, t) lbindc in
+  let indclause = make_clenv_binding sum env sigma (c, t) lbindc in
   let flags = elim_flags () in
   let metas = clenv_meta_list indclause in
   let submetas = (clenv_arguments indclause, metas) in
@@ -1366,6 +1369,7 @@ let general_case_analysis_in_context with_evars clear_flag (c,lbindc) =
   let sigma = Proofview.Goal.sigma gl in
   let env = Proofview.Goal.env gl in
   let concl = Proofview.Goal.concl gl in
+  let sum = Proofview.Goal.summary gl in
   let state = Proofview.Goal.state gl in
   let ct = Retyping.get_type_of env sigma c in
   let (mind, _), t = reduce_to_quantified_ind env sigma ct in
@@ -1374,7 +1378,7 @@ let general_case_analysis_in_context with_evars clear_flag (c,lbindc) =
     else default_case_analysis_dependence env mind
   in
   let id = try Some (destVar sigma c) with DestKO -> None in
-  let indclause = make_clenv_binding env sigma (c, t) lbindc in
+  let indclause = make_clenv_binding sum env sigma (c, t) lbindc in
   let indclause = Clenv.clenv_pose_dependent_evars ~with_evars:true indclause in
   let argtype = clenv_type indclause in (* Guaranteed to be meta-free *)
   let tac =
@@ -1589,6 +1593,7 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
   Proofview.Goal.enter begin fun gl ->
   let concl = Proofview.Goal.concl gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let id = try Some (destVar sigma c) with DestKO -> None in
   let concl_nprod = nb_prod_modulo_zeta sigma concl in
   let rec try_main_apply with_destruct c =
@@ -1609,7 +1614,7 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
       try
         let n = nb_prod_modulo_zeta sigma thm_ty - nprod in
         if n < 0 then TacticErrors.not_enough_premises ();
-        let clause = make_clenv_binding_apply env sigma (Some n) (c,thm_ty) lbind in
+        let clause = make_clenv_binding_apply sum env sigma (Some n) (c,thm_ty) lbind in
         Clenv.res_pf clause ~with_classes ~with_evars ~flags
       with exn when noncritical exn ->
         let exn, info = Exninfo.capture exn in
@@ -1700,7 +1705,7 @@ let apply_list = function
 
 exception UnableToApply
 
-let progress_with_clause env flags (id, t) clause mvs =
+let progress_with_clause sum env flags (id, t) clause mvs =
   let innerclause = mk_clenv_from_n env (clenv_evd clause) 0 (mkVar id, t) in
   if List.is_empty mvs then raise UnableToApply;
   let f mv =
@@ -1708,7 +1713,7 @@ let progress_with_clause env flags (id, t) clause mvs =
       let metas = clenv_meta_list innerclause in
       let submetas = (clenv_arguments innerclause, metas) in
       try
-        Some (clenv_instantiate mv ~flags ~submetas clause (mkVar id, clenv_type innerclause))
+        Some (clenv_instantiate sum mv ~flags ~submetas clause (mkVar id, clenv_type innerclause))
       with e when noncritical e ->
       match clenv_push_prod innerclause with
       | Some (_, _, innerclause) -> find innerclause
@@ -1720,10 +1725,10 @@ let progress_with_clause env flags (id, t) clause mvs =
   | Some v -> v
   | None -> raise UnableToApply
 
-let apply_in_once_main flags (id, t) env sigma (loc,d,lbind) =
+let apply_in_once_main sum flags (id, t) env sigma (loc,d,lbind) =
   let thm = nf_betaiota env sigma (Retyping.get_type_of env sigma d) in
   let rec aux clause mvs =
-    try progress_with_clause env flags (id, t) clause mvs
+    try progress_with_clause sum env flags (id, t) clause mvs
     with e when CErrors.noncritical e ->
     let e' = Exninfo.capture e in
     match clenv_push_prod clause with
@@ -1733,7 +1738,7 @@ let apply_in_once_main flags (id, t) env sigma (loc,d,lbind) =
       | UnableToApply -> TacticErrors.unable_to_apply_lemma ?loc env sigma thm t
       | _ -> Exninfo.iraise e'
   in
-  let clenv = make_clenv_binding env sigma (d,thm) lbind in
+  let clenv = make_clenv_binding sum env sigma (d,thm) lbind in
   let mvs = List.rev (clenv_independent clenv) in
   aux clenv mvs
 
@@ -1741,6 +1746,7 @@ let apply_in_once ?(respect_opaque = false) with_delta
     with_destruct with_evars naming id (clear_flag,{ CAst.loc; v= d,lbind}) tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let t' = Tacmach.pf_get_hyp_typ id gl in
   let targetid = find_name true (LocalAssum (make_annot Anonymous Sorts.Relevant,t')) naming gl in
   let replace = Id.equal id targetid in
@@ -1756,9 +1762,9 @@ let apply_in_once ?(respect_opaque = false) with_delta
     let flags =
       if with_delta then default_unify_flags () else default_no_delta_unify_flags ts in
     try
-      let clause = apply_in_once_main flags (id, t') env sigma (loc,c,lbind) in
+      let clause = apply_in_once_main sum flags (id, t') env sigma (loc,c,lbind) in
       let cleartac = apply_clear_request clear_flag false idc <*> clear idstoclear in
-      let refine = Tacticals.tclTHENFIRST (clenv_refine_in with_evars targetid replace env sigma clause) cleartac in
+      let refine = Tacticals.tclTHENFIRST (clenv_refine_in sum with_evars targetid replace env sigma clause) cleartac in
       Tacticals.tclTHENFIRST (replace_error_option err refine) (tac targetid)
     with e when with_destruct && CErrors.noncritical e ->
       let err = Option.default (Exninfo.capture e) err in
@@ -1844,8 +1850,9 @@ let exact_proof c =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let concl = Proofview.Goal.concl gl in
+  let sum = Proofview.Goal.summary gl in
   Refine.refine ~typecheck:false begin fun sigma ->
-    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags env sigma c concl
+    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags sum env sigma c concl
   end
   end
 
@@ -2541,8 +2548,9 @@ let letin_tac with_eq id c ty occs =
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let ccl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     let abs = AbstractExact (id,c,ty,occs,true) in
-    let (id,_,depdecls,lastlhyp,ccl,res) = make_abstraction env sigma ccl abs in
+    let (id,_,depdecls,lastlhyp,ccl,res) = make_abstraction sum env sigma ccl abs in
     (* We keep the original term to match but record the potential side-effects
        of unifying universes. *)
     let (sigma, c) = match res with
@@ -2558,11 +2566,12 @@ let letin_pat_tac with_evars with_eq id c occs =
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let ccl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     let check t = true in
     let abs = AbstractPattern (false,check,id,c,occs) in
-    let (id,_,depdecls,lastlhyp,ccl,res) = make_abstraction env sigma ccl abs in
+    let (id,_,depdecls,lastlhyp,ccl,res) = make_abstraction sum env sigma ccl abs in
     let (sigma, c) = match res with
-    | None -> finish_evar_resolution ~flags:(tactic_infer_flags with_evars) env sigma c
+    | None -> finish_evar_resolution sum ~flags:(tactic_infer_flags with_evars) env sigma c
     | Some res -> res in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
     (letin_tac_gen with_eq (id,depdecls,lastlhyp,ccl,c) None)
@@ -3162,6 +3171,7 @@ let unify ?(state=TransparentState.full) x y =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   try
     let core_flags =
       { (default_unify_flags ()).core_unify_flags with
@@ -3173,7 +3183,7 @@ let unify ?(state=TransparentState.full) x y =
       merge_unify_flags = core_flags;
       subterm_unify_flags = { core_flags with modulo_delta = TransparentState.empty } }
     in
-    let _, sigma = w_unify env sigma Conversion.CONV ~flags x y in
+    let _, sigma = w_unify sum env sigma Conversion.CONV ~flags x y in
     Proofview.Unsafe.tclEVARS sigma
   with e when noncritical e ->
     let e, info = Exninfo.capture e in

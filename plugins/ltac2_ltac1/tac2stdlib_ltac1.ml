@@ -62,7 +62,8 @@ and to_intro_pattern_action : Tactypes.delayed_open_constr Tactypes.intro_patter
     let c =
       let open Proofview in
       Goal.enter_one ~__LOC__ @@ fun gl ->
-      let sigma, c = c (Goal.env gl) (Goal.sigma gl) in
+      let sum = Proofview.Goal.summary gl in
+      let sigma, c = c sum (Goal.env gl) (Goal.sigma gl) in
       Proofview.Unsafe.tclEVARS sigma >>= fun () ->
       tclUNIT c
     in

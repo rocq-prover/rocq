@@ -176,7 +176,7 @@ module P = struct
   type s = proofview * Environ.env
 
   (** Recording info trace (true) or not. *)
-  type e = { trace: bool; name : Names.Id.t; poly : bool }
+  type e = { trace: bool; name : Names.Id.t; poly : bool; summary : Summary.Interp.t }
 
   (** Status (safe/unsafe) * shelved goals * given up *)
   type w = bool

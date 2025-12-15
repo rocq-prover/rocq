@@ -431,30 +431,30 @@ let replace_clenv_metas env sigma clnv =
 
 exception ClenvCannotUnify of env * evar_map * clausenv * econstr * econstr * unification_error option
 
-let clenv_unify ?(flags=default_unify_flags ()) cv_pb t1 t2 clenv =
+let clenv_unify sum ?(flags=default_unify_flags ()) cv_pb t1 t2 clenv =
   try
     let metas = clenv.metam in
-    let metas, sigma = w_unify ~metas ~flags clenv.env clenv.evd cv_pb t1 t2 in
+    let metas, sigma = w_unify sum ~metas ~flags clenv.env clenv.evd cv_pb t1 t2 in
     update_clenv_evd clenv sigma metas
   with Pretype_errors.(PretypeError (env, sigma, CannotUnify (t1, t2, reason))) as exn ->
     let _, info = Exninfo.capture exn in
     Exninfo.iraise (ClenvCannotUnify (env, sigma, clenv, t1, t2, reason), info)
 
 
-let clenv_unify_meta_types ?(flags=default_unify_flags ()) clenv =
+let clenv_unify_meta_types sum ?(flags=default_unify_flags ()) clenv =
   try
     let metas = clenv.metam in
-    let metas, sigma = w_unify_meta_types ~metas ~flags:flags clenv.env clenv.evd in
+    let metas, sigma = w_unify_meta_types sum ~metas ~flags:flags clenv.env clenv.evd in
     update_clenv_evd clenv sigma metas
   with Pretype_errors.(PretypeError (env, sigma, CannotUnify (t1, t2, reason))) as exn ->
     let _, info = Exninfo.capture exn in
     Exninfo.iraise (ClenvCannotUnify (env, sigma, clenv, t1, t2, reason), info)
 
-let clenv_unique_resolver ?(flags=default_unify_flags ()) clenv concl =
+let clenv_unique_resolver sum ?(flags=default_unify_flags ()) clenv concl =
   let metas = meta_handler clenv.metam in
   let (hd, _) = decompose_app clenv.evd (whd_nored ~metas clenv.env clenv.evd (fst clenv.templtyp)) in
-  let clenv = if isMeta clenv.evd hd then clenv_unify_meta_types ~flags clenv else clenv in
-  clenv_unify CUMUL ~flags (clenv_type clenv) concl clenv
+  let clenv = if isMeta clenv.evd hd then clenv_unify_meta_types sum ~flags clenv else clenv in
+  clenv_unify sum CUMUL ~flags (clenv_type clenv) concl clenv
 
 let adjust_meta_source ~metas evd mv = function
   | loc,Evar_kinds.VarInstance id ->
@@ -562,7 +562,7 @@ let fchain_flags () =
   { (default_unify_flags ()) with
     allow_K_in_toplevel_higher_order_unification = true }
 
-let clenv_instantiate ?(flags=fchain_flags ()) ?submetas mv clenv (c, ty) =
+let clenv_instantiate sum ?(flags=fchain_flags ()) ?submetas mv clenv (c, ty) =
   let clenv, c = match submetas with
   | None -> clenv, c
   | Some (metas, metam) ->
@@ -580,7 +580,7 @@ let clenv_instantiate ?(flags=fchain_flags ()) ?submetas mv clenv (c, ty) =
     { clenv with metas = metas }, c
   in
   (* unify the type of the template of [nextclenv] with the type of [mv] *)
-  let clenv = clenv_unify ~flags CUMUL ty (clenv_meta_type ~metas:clenv.metam clenv.env clenv.evd mv) clenv in
+  let clenv = clenv_unify ~flags sum CUMUL ty (clenv_meta_type ~metas:clenv.metam clenv.env clenv.evd mv) clenv in
   let evd, metam = clenv_assign ~metas:clenv.metam clenv.env clenv.evd mv c in
   update_clenv_evd clenv evd metam
 
@@ -662,14 +662,14 @@ let error_already_defined b =
         anomaly
           Pp.(str "Position " ++ int n ++ str" already defined.")
 
-let clenv_unify_binding_type ~metas env sigma c t u =
+let clenv_unify_binding_type sum ~metas env sigma c t u =
   if isMeta sigma (fst (decompose_app sigma (whd_nored ~metas:(meta_handler metas) env sigma u))) then
     (* Not enough information to know if some subtyping is needed *)
     Meta.CoerceToType, metas, sigma, c
   else
     (* Enough information so as to try a coercion now *)
     try
-      let sigma, metas, c = w_coerce_to_type ~metas env sigma c t u in
+      let sigma, metas, c = w_coerce_to_type sum ~metas env sigma c t u in
       Meta.TypeProcessed, metas, sigma, c
     with
       | PretypeError (_,_,ActualTypeNotCoercible (_,_,
@@ -678,14 +678,14 @@ let clenv_unify_binding_type ~metas env sigma c t u =
       | e when precatchable_exception e ->
           Meta.TypeNotProcessed, metas, sigma, c
 
-let clenv_assign_binding clenv k c =
+let clenv_assign_binding sum clenv k c =
   let k_typ = hnf_constr clenv.env clenv.evd (clenv_meta_type ~metas:clenv.metam clenv.env clenv.evd k) in
   let c_typ = nf_betaiota clenv.env clenv.evd (Retyping.get_type_of clenv.env clenv.evd c) in
-  let status, metas, sigma, c = clenv_unify_binding_type ~metas:clenv.metam clenv.env clenv.evd c c_typ k_typ in
+  let status, metas, sigma, c = clenv_unify_binding_type sum ~metas:clenv.metam clenv.env clenv.evd c c_typ k_typ in
   let sigma, metas = Meta.meta_assign k (c, status) metas sigma in
   update_clenv_evd clenv sigma metas
 
-let clenv_match_args bl clenv =
+let clenv_match_args sum bl clenv =
   if List.is_empty bl then
     clenv
   else
@@ -699,7 +699,7 @@ let clenv_match_args bl clenv =
           if EConstr.eq_constr clenv.evd body.rebus c then clenv
           else error_already_defined b
         | None ->
-          clenv_assign_binding clenv k c)
+          clenv_assign_binding sum clenv k c)
       clenv bl
 
 let error_not_right_number_missing_arguments n =
@@ -707,19 +707,19 @@ let error_not_right_number_missing_arguments n =
     Pp.(strbrk "Not the right number of missing arguments (expected " ++
         int n ++ str ").")
 
-let clenv_constrain_dep_args hyps_only bl clenv =
+let clenv_constrain_dep_args sum hyps_only bl clenv =
   if List.is_empty bl then
     clenv
   else
     let occlist = clenv_dependent_gen ~metas:clenv.metam hyps_only clenv.env clenv.evd (clenv_type clenv) in
     if Int.equal (List.length occlist) (List.length bl) then
-      List.fold_left2 clenv_assign_binding clenv occlist bl
+      List.fold_left2 (clenv_assign_binding sum) clenv occlist bl
     else
       if hyps_only then
         (* Tolerance for compatibility <= 8.3 *)
         let occlist' = clenv_dependent_gen ~metas:clenv.metam hyps_only ~iter:false clenv.env clenv.evd (clenv_type clenv) in
         if Int.equal (List.length occlist') (List.length bl) then
-          List.fold_left2 clenv_assign_binding clenv occlist' bl
+          List.fold_left2 (clenv_assign_binding sum) clenv occlist' bl
         else
           error_not_right_number_missing_arguments (List.length occlist)
       else
@@ -932,12 +932,13 @@ let dft = default_unify_flags
 let res_pf ?(with_evars=false) ?(with_classes=true) ?(flags=dft ()) clenv =
   Proofview.Goal.enter begin fun gl ->
     let concl = Proofview.Goal.concl gl in
-    let clenv = clenv_unique_resolver ~flags clenv concl in
+    let sum = Proofview.Goal.summary gl in
+    let clenv = clenv_unique_resolver sum ~flags clenv concl in
     let metas, sigma = pose_dependent_evars ~with_evars ~metas:clenv.metam clenv.env clenv.evd (clenv_type clenv) in
     let sigma =
       if with_classes then
         let sigma =
-          Typeclasses.resolve_typeclasses ~filter:Typeclasses.all_evars
+          Typeclasses.resolve_typeclasses sum ~filter:Typeclasses.all_evars
             ~fail:(not with_evars) clenv.env sigma
         in
         (* After an apply, all the subgoals including those dependent shelved ones are in
@@ -1016,6 +1017,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
+  let sum = Proofview.Goal.summary gl in
   (* Extract inductive data from the argument. *)
   let hd, args = decompose_app sigma typ in
   (* Workaround to #5645: reduce_to_atomic_ind produces ill-typed terms *)
@@ -1049,8 +1051,8 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let depargs = Array.append indices [|indarg|] in
   let templtyp = if dep then mkApp (mkMeta mvP, depargs) else mkApp (mkMeta mvP, indices) in
   let flags = elim_flags () in
-  let metas, sigma = w_unify_meta_types ~metas ~flags env sigma in
-  let metas, sigma = w_unify ~metas ~flags env sigma CUMUL templtyp concl in
+  let metas, sigma = w_unify_meta_types sum ~metas ~flags env sigma in
+  let metas, sigma = w_unify sum ~metas ~flags env sigma CUMUL templtyp concl in
   let pred = Meta.meta_instance metas env sigma (mkMeta mvP) in
 
   (* Create the branch types *)
@@ -1076,7 +1078,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   (* After an apply, all the subgoals including those dependent shelved ones are in
     the hands of the user and resolution won't be called implicitely on them. *)
   let sigma =
-    Typeclasses.resolve_typeclasses ~filter:Typeclasses.all_evars
+    Typeclasses.resolve_typeclasses sum ~filter:Typeclasses.all_evars
       ~fail:(not with_evars) env sigma
   in
   let sigma = Typeclasses.make_unresolvables (fun x -> true) sigma in
@@ -1134,8 +1136,9 @@ let unify ?(flags=fail_quick_unif_flags) ~cv_pb m =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     try
-      let _, sigma = w_unify ~metas:Meta.empty env sigma cv_pb ~flags m concl in
+      let _, sigma = w_unify sum ~metas:Meta.empty env sigma cv_pb ~flags m concl in
       Proofview.Unsafe.tclEVARSADVANCE sigma
     with e when CErrors.noncritical e ->
       let info = Exninfo.reify () in
@@ -1145,17 +1148,17 @@ let unify ?(flags=fail_quick_unif_flags) ~cv_pb m =
 (****************************************************************)
 (* Clausal environment for an application *)
 
-let make_clenv_binding_gen hyps_only n env sigma (c,t) = function
+let make_clenv_binding_gen sum hyps_only n env sigma (c,t) = function
   | ImplicitBindings largs ->
       let clause = mk_clenv_from_env env sigma n (c,t) in
-      clenv_constrain_dep_args hyps_only largs clause
+      clenv_constrain_dep_args sum hyps_only largs clause
   | ExplicitBindings lbind ->
-      let clause = mk_clenv_from_env env sigma n (c, t) in clenv_match_args lbind clause
+      let clause = mk_clenv_from_env env sigma n (c, t) in clenv_match_args sum lbind clause
   | NoBindings ->
       mk_clenv_from_env env sigma n (c,t)
 
-let make_clenv_binding_apply env sigma n = make_clenv_binding_gen true n env sigma
-let make_clenv_binding env sigma = make_clenv_binding_gen false None env sigma
+let make_clenv_binding_apply sum env sigma n = make_clenv_binding_gen sum true n env sigma
+let make_clenv_binding sum env sigma = make_clenv_binding_gen sum false None env sigma
 
 (****************************************************************)
 (* Pretty-print *)

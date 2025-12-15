@@ -847,17 +847,17 @@ let vernac_definition_name lid local =
   in
   lid.v
 
-let vernac_definition_interactive ~atts (discharge, kind) (lid, udecl) bl t =
+let vernac_definition_interactive ~atts sum (discharge, kind) (lid, udecl) bl t =
   let open DefAttributes in
   let scope, local, poly, program_mode, user_warns, typing_flags, using, clearbody =
     atts.scope, atts.locality, atts.polymorphic, atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
   let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
   let hook = vernac_definition_hook ~canonical_instance ~local ~poly ~reversible kind in
   let name = vernac_definition_name lid scope in
-  ComDefinition.do_definition_interactive ?loc:lid.loc ~typing_flags ~program_mode ~name ~poly ~scope ?clearbody:atts.clearbody
+  ComDefinition.do_definition_interactive sum ?loc:lid.loc ~typing_flags ~program_mode ~name ~poly ~scope ?clearbody:atts.clearbody
     ~kind:(Decls.IsDefinition kind) ?user_warns ?using:atts.using ?hook udecl bl t
 
-let vernac_definition_refine ~atts (discharge, kind) (lid, udecl) bl red_option c typ_opt =
+let vernac_definition_refine ~atts sum (discharge, kind) (lid, udecl) bl red_option c typ_opt =
   if Option.has_some red_option then
     CErrors.user_err ?loc:c.loc Pp.(str "Cannot use Eval with #[refine].");
   let open DefAttributes in
@@ -866,7 +866,7 @@ let vernac_definition_refine ~atts (discharge, kind) (lid, udecl) bl red_option 
   let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
   let hook = vernac_definition_hook ~canonical_instance ~local ~poly kind ~reversible in
   let name = vernac_definition_name lid scope in
-  ComDefinition.do_definition_refine ~name ?loc:lid.loc
+  ComDefinition.do_definition_refine sum ~name ?loc:lid.loc
     ?clearbody ~poly ~typing_flags ~scope ~kind:(Decls.IsDefinition kind)
     ?user_warns ?using udecl bl c typ_opt ?hook
 
@@ -882,7 +882,7 @@ let vernac_definition ~atts ~pm sum (discharge, kind) (lid, udecl) bl red_option
     | Some r ->
       let env = Global.env () in
       let sigma = Evd.from_env env in
-      Some (snd (Redexpr.interp_redexp_no_ltac env sigma r)) in
+      Some (snd (Redexpr.interp_redexp_no_ltac !!sum env sigma r)) in
   if program_mode then
     let kind = Decls.IsDefinition kind in
     ComDefinition.do_definition_program sum ?loc:lid.loc ~pm ~name
@@ -906,7 +906,7 @@ let vernac_start_proof ~atts sum kind l =
   match l with
   | [] -> assert false
   | [({v=name; loc},udecl),(bl,typ)] ->
-    ComDefinition.do_definition_interactive ?loc
+    ComDefinition.do_definition_interactive !!sum ?loc
       ~typing_flags ~program_mode ~name ~poly ?clearbody ~scope
       ~kind:(Decls.IsProof kind) ?user_warns ?using udecl bl typ
   | ((lid,_),_) :: _ ->
@@ -935,7 +935,7 @@ let vernac_exact_proof ~lemma ~pm sum c =
   deprecated_exact_proof ();
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
      called only at the beginning of a proof. *)
-  let lemma, status = Declare.Proof.by (Global.env ()) (Tactics.exact_proof c) lemma in
+  let lemma, status = Declare.Proof.by !!sum (Global.env ()) (Tactics.exact_proof c) lemma in
   let pm, _ = Declare.Proof.save sum ~pm ~proof:lemma ~opaque:Opaque ~idopt:None in
   if not status then Feedback.feedback Feedback.AddedAxiom;
   pm
@@ -1756,13 +1756,13 @@ let vernac_instance_program ~atts ~pm sum name bl t props info =
   let pm, _id = Classes.new_instance_program sum ~pm ~locality ~poly name bl t props info in
   pm
 
-let vernac_instance_interactive ~atts name bl t info props =
+let vernac_instance_interactive sum ~atts name bl t info props =
   Dumpglob.dump_constraint (fst name) false "inst";
   let locality, poly =
     Attributes.(parse (Notations.(hint_locality ++ polymorphic))) atts
   in
   let _id, pstate =
-    Classes.new_instance_interactive ~locality ~poly name bl t info props in
+    Classes.new_instance_interactive sum ~locality ~poly name bl t info props in
   pstate
 
 let vernac_instance ~atts sum name bl t props info =
@@ -1865,11 +1865,11 @@ let default_env () = {
   ninterp_rec_vars = Id.Map.empty;
 }
 
-let vernac_reserve bl =
+let vernac_reserve sum bl =
   let sb_decl = (fun (idl,c) ->
     let env = Global.env() in
     let sigma = Evd.from_env env in
-    let t,ctx = Constrintern.interp_type env sigma c in
+    let t,ctx = Constrintern.interp_type !!sum env sigma c in
     let t =
       let flags = { (PrintingFlags.Detype.current()) with universes = false } in
       Detyping.detype Detyping.Now ~flags env (Evd.from_ctx ctx) t
@@ -2110,9 +2110,9 @@ let query_command_selector ?loc = function
   | _ -> user_err ?loc
       (str "Query commands only support the single numbered goal selector.")
 
-let check_may_eval env sigma redexp rc =
+let check_may_eval sum env sigma redexp rc =
   let gc = Constrintern.intern_unknown_if_term_or_type env sigma rc in
-  let sigma, c = Pretyping.understand_tcc env sigma gc in
+  let sigma, c = Pretyping.understand_tcc sum env sigma gc in
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   Evarconv.check_problems_are_solved env sigma;
   let sigma = Evd.minimize_universes sigma in
@@ -2135,7 +2135,7 @@ let check_may_eval env sigma redexp rc =
   let sigma, c = match redexp with
     | None -> sigma, c
     | Some r ->
-      let sigma, r = Redexpr.interp_redexp_no_ltac env sigma r in
+      let sigma, r = Redexpr.interp_redexp_no_ltac sum env sigma r in
       let r, _ = Redexpr.reduction_of_red_expr env r in
       let sigma, c = r env sigma c in
       sigma, c
@@ -2150,23 +2150,23 @@ let check_may_eval env sigma redexp rc =
   let hdr = if Option.has_some redexp then str "     = " else mt() in
   hdr ++ pp ++ Printer.pr_universe_ctx_set sigma (us,csts)
 
-let vernac_check_may_eval ~pstate redexp glopt rc =
+let vernac_check_may_eval sum ~pstate redexp glopt rc =
   let glopt = query_command_selector glopt in
   let sigma, env = get_current_context_of_args ~pstate glopt in
-  check_may_eval env sigma redexp rc
+  check_may_eval sum env sigma redexp rc
 
 let vernac_declare_reduction ~local sum s r =
   let local = Option.default false local in
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  Redexpr.declare_red_expr sum local s (snd (Redexpr.interp_redexp_no_ltac env sigma r))
+  Redexpr.declare_red_expr sum local s (snd (Redexpr.interp_redexp_no_ltac !!sum env sigma r))
 
   (* The same but avoiding the current goal context if any *)
-let vernac_global_check c =
+let vernac_global_check sum c =
   let env = Global.env() in
   let sigma = Evd.from_env env in
   let c = Constrintern.intern_constr env sigma c in
-  let sigma, c = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
+  let sigma, c = Pretyping.understand_tcc sum ~flags:Pretyping.all_and_fail_flags env sigma c in
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let uctx = Evd.universe_context_set sigma in
@@ -2645,20 +2645,20 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     if refine then
       vtopenproof(fun sum ->
-        with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
-         vernac_definition_refine dkind lid bl red_option c typ)
+        with_def_attributes !!sum ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+         vernac_definition_refine !!sum dkind lid bl red_option c typ)
     else
       vtmodifyprogram (fun ~pm sum ->
-        with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+        with_def_attributes !!sum ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
         vernac_definition ~pm sum dkind lid bl red_option c typ)
   | VernacDefinition ((discharge,kind as dkind),lid,ProveBody(bl,typ)) ->
     let coercion = match kind with Decls.Coercion -> true | _ -> false in
     vtopenproof(fun sum ->
-      with_def_attributes (Summary.Interp.get sum) ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
-       vernac_definition_interactive dkind lid bl typ)
+      with_def_attributes !!sum ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+       vernac_definition_interactive !!sum dkind lid bl typ)
 
   | VernacStartTheoremProof (k,l) ->
-    vtopenproof(fun sum -> with_def_attributes (Summary.Interp.get sum) ~atts vernac_start_proof sum k l)
+    vtopenproof(fun sum -> with_def_attributes !!sum ~atts vernac_start_proof sum k l)
   | VernacExactProof c ->
     vtcloseproof (fun ~lemma ~pm sum ->
         unsupported_attributes atts;
@@ -2666,7 +2666,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacAssumption ((discharge,kind),nl,l) ->
     vtdefault(fun sum ->
-        with_def_attributes (Summary.Interp.get sum) ~atts
+        with_def_attributes !!sum ~atts
           ~discharge:(discharge,
                       "\"Variable\" or \"Hypothesis\"",
                       "\"#[local] Parameter\" or \"#[local] Axiom\"")
@@ -2688,14 +2688,14 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge, "\"Let Fixpoint\"", "\"#[local] Fixpoint\"" in
     (if opens then
       vtopenproof (fun sum ->
-           let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
+           let pm, proof = with_def_attributes !!sum ~discharge ~atts
                (vernac_fixpoint ~refine ~pm:None sum) l
            in
            assert (Option.is_empty pm);
            Option.get proof)
      else
        vtmodifyprogram (fun ~pm sum ->
-           let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
+           let pm, proof = with_def_attributes !!sum ~discharge ~atts
                (vernac_fixpoint ~refine ~pm:(Some pm) sum) l in
            assert (Option.is_empty proof);
            Option.get pm))
@@ -2706,13 +2706,13 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge,  "\"Let CoFixpoint\"", "\"#[local] CoFixpoint\"" in
     (if opens then
       vtopenproof (fun sum ->
-        let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
+        let pm, proof = with_def_attributes !!sum ~discharge ~atts
             (vernac_cofixpoint ~refine ~pm:None sum) l in
         assert (Option.is_empty pm);
         Option.get proof)
     else
       vtmodifyprogram (fun ~pm sum ->
-        let pm, proof = with_def_attributes (Summary.Interp.get sum) ~discharge ~atts
+        let pm, proof = with_def_attributes !!sum ~discharge ~atts
             (vernac_cofixpoint ~refine ~pm:(Some pm) sum) l in
         assert (Option.is_empty proof);
         Option.get pm))
@@ -2738,9 +2738,9 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     vtdefault(fun _sum -> vernac_constraint ~poly:(only_polymorphism atts) l)
 
   | VernacAddRewRule (id, c) ->
-    vtdefault (fun _sum ->
+    vtdefault (fun sum ->
         unsupported_attributes atts;
-        ComRewriteRule.do_rules id.v c)
+        ComRewriteRule.do_rules sum id.v c)
 
   (* Gallina extensions *)
 
@@ -2766,13 +2766,13 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
       vtmodifyprogram (fun ~pm sum -> vernac_instance_program sum ~pm ~atts name bl t props info)
     else begin match props with
     | None ->
-       vtopenproof (fun _sum ->
-        vernac_instance_interactive ~atts name bl t info None)
+       vtopenproof (fun sum ->
+        vernac_instance_interactive ~atts !!sum name bl t info None)
     | Some props ->
       let atts, refine = Attributes.parse_with_extra Classes.refine_att atts in
       if refine then
-        vtopenproof (fun _sum ->
-          vernac_instance_interactive ~atts name bl t info (Some props))
+        vtopenproof (fun sum ->
+          vernac_instance_interactive ~atts !!sum name bl t info (Some props))
       else
         vtdefault (fun sum ->
           vernac_instance sum ~atts name bl t props info)
@@ -2812,9 +2812,9 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
           (ComArguments.vernac_arguments sum qid args more_implicits flags))
 
   | VernacReserve bl ->
-    vtdefault(fun _sum ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        vernac_reserve bl)
+        vernac_reserve sum bl)
 
   | VernacGeneralizable gen ->
     vtdefault(fun sum -> with_locality ~atts vernac_generalizable sum gen)
@@ -2847,19 +2847,19 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         Vernacoptions.vernac_print_option !!sum key)
 
   | VernacCheckMayEval (r,g,c) ->
-    vtreadproofopt(fun ~pstate _sum ->
+    vtreadproofopt(fun ~pstate sum ->
         unsupported_attributes atts;
         Feedback.msg_notice @@
-        vernac_check_may_eval ~pstate r g c)
+        vernac_check_may_eval !!sum ~pstate r g c)
 
   | VernacDeclareReduction (s,r) ->
     vtdefault(fun sum ->
         with_locality ~atts vernac_declare_reduction sum s r)
 
   | VernacGlobalCheck c ->
-    vtdefault(fun _sum ->
+    vtdefault(fun sum ->
         unsupported_attributes atts;
-        Feedback.msg_notice @@ vernac_global_check c)
+        Feedback.msg_notice @@ vernac_global_check !!sum c)
 
   | VernacPrint p ->
     unsupported_attributes atts;

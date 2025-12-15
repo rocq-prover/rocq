@@ -140,9 +140,9 @@ let tactic_infer_flags with_evar = Pretyping.{
   unconstrained_sorts = false;
 }
 
-let onOpenInductionArg env sigma tac = function
+let onOpenInductionArg sum env sigma tac = function
   | clear_flag,ElimOnConstr f ->
-      let (sigma', cbl) = f env sigma in
+      let (sigma', cbl) = f sum env sigma in
       Tacticals.tclTHEN
         (Proofview.Unsafe.tclEVARS sigma')
         (tac clear_flag (Some sigma,cbl))
@@ -316,15 +316,17 @@ let expand_hyp id =
 
 let warn_unused_intro_pattern =
   CWarnings.create ~name:"unused-intro-pattern" ~category:CWarnings.CoreCategories.tactics
-    (fun (env,sigma,names) ->
+    (fun (sum, env,sigma,names) ->
        strbrk"Unused introduction " ++ str (String.plural (List.length names) "pattern") ++
        str": " ++ prlist_with_sep spc
-         (Miscprint.pr_intro_pattern
-            (fun c -> Printer.pr_econstr_env env sigma (snd (c env sigma)))) names)
+         (Miscprint.pr_intro_pattern (fun c ->
+              let sigma, c = c sum env sigma in
+              Printer.pr_econstr_env env sigma c))
+         names)
 
-let check_unused_names env sigma names =
+let check_unused_names sum env sigma names =
   if not (List.is_empty names) then
-    warn_unused_intro_pattern (env, sigma, names)
+    warn_unused_intro_pattern (sum, env, sigma, names)
 
 let intropattern_of_name gl avoid = function
   | Anonymous -> IntroNaming IntroAnonymous
@@ -446,10 +448,11 @@ let induct_discharge with_evars dests avoid' tac (avoid,ra) names =
         peel_tac ra' dests names thin)
         end
     | [] ->
-        Proofview.Goal.enter begin fun gl ->
+      Proofview.Goal.enter begin fun gl ->
+        let sum = Proofview.Goal.summary gl in
         let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
-        check_unused_names env sigma names;
+        check_unused_names sum env sigma names;
         Tacticals.tclTHEN (clear_wildcards thin) (tac dests)
         end
   in
@@ -1034,7 +1037,7 @@ let is_functional_induction env sigma elimc =
 (* Instantiate all meta variables of elimclause using lid, some elts
    of lid are parameters (first ones), the other are
    arguments. Returns the clause obtained.  *)
-let recolle_clenv i params args elimclause gl = (* XXX don't take a gl *)
+let recolle_clenv sum i params args elimclause gl = (* XXX don't take a gl *)
   let lindmv = Array.of_list (clenv_arguments elimclause) in
   let k = match i with None -> Array.length lindmv - List.length args | Some i -> i in
   (* parameters correspond to first elts of lid. *)
@@ -1046,7 +1049,7 @@ let recolle_clenv i params args elimclause gl = (* XXX don't take a gl *)
     (fun e acc ->
       let x, i = e in
       let y = Tacmach.pf_get_hyp_typ x gl in
-      let elimclause' = clenv_instantiate i acc (mkVar x, y) in
+      let elimclause' = clenv_instantiate sum i acc (mkVar x, y) in
       elimclause')
     (List.rev clauses)
     elimclause
@@ -1059,6 +1062,7 @@ let induction_tac with_evars params indvars (elim, elimt) =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sum = Proofview.Goal.summary gl in
   let clause, bindings, index = match elim with
   | ElimConstant c ->
     let i = index_of_ind_arg sigma elimt in
@@ -1067,9 +1071,9 @@ let induction_tac with_evars params indvars (elim, elimt) =
     (elimc, elimt), lbindelimc, None
   in
   (* elimclause contains this: (elimc ?i ?j ?k...?l) *)
-  let elimclause = make_clenv_binding env sigma clause bindings in
+  let elimclause = make_clenv_binding sum env sigma clause bindings in
   (* elimclause' is built from elimclause by instantiating all args and params. *)
-  let elimclause = recolle_clenv index params indvars elimclause gl in
+  let elimclause = recolle_clenv sum index params indvars elimclause gl in
   Clenv.res_pf ~with_evars ~flags:(elim_flags ()) elimclause
   end
 
@@ -1244,7 +1248,7 @@ let clear_unselected_context id inhyps cls =
   | None -> Proofview.tclUNIT ()
   end
 
-let use_bindings env sigma elim must_be_closed (c,lbind) typ =
+let use_bindings sum env sigma elim must_be_closed (c,lbind) typ =
   let typ =
     (* Normalize [typ] until the induction reference becomes plainly visible *)
     match elim with
@@ -1267,7 +1271,7 @@ let use_bindings env sigma elim must_be_closed (c,lbind) typ =
   in
   let rec find_clause typ =
     try
-      let indclause = make_clenv_binding env sigma (c,typ) lbind in
+      let indclause = make_clenv_binding sum env sigma (c,typ) lbind in
       if must_be_closed && occur_meta (clenv_evd indclause) (clenv_value indclause) then
         error NeedFullyAppliedArgument;
       (* We lose the possibility of coercions in with-bindings *)
@@ -1282,20 +1286,20 @@ let use_bindings env sigma elim must_be_closed (c,lbind) typ =
   in
   find_clause typ
 
-let check_expected_type env sigma (elimc,bl) elimt =
+let check_expected_type sum env sigma (elimc,bl) elimt =
   (* Compute the expected template type of the term in case a using
      clause is given *)
   let sign,_ = whd_decompose_prod env sigma elimt in
   let n = List.length sign in
   if n == 0 then error SchemeDontApply;
   let sigma,cl = EClause.make_evar_clause env sigma ~len:(n - 1) elimt in
-  let sigma = EClause.solve_evar_clause env sigma true cl bl in
+  let sigma = EClause.solve_evar_clause sum env sigma true cl bl in
   let (_,u,_) = destProd sigma (whd_all env sigma cl.cl_concl) in
   fun t -> match Evarconv.unify_leq_delay env sigma t u with
     | _sigma -> true
     | exception Evarconv.UnableToUnify _ -> false
 
-let check_enough_applied env sigma elim =
+let check_enough_applied sum env sigma elim =
   (* A heuristic to decide whether the induction arg is enough applied *)
   match elim with
   | None ->
@@ -1312,7 +1316,7 @@ let check_enough_applied env sigma elim =
           fun _ -> true
       | Some _ ->
           (* Last argument is supposed to be the induction argument *)
-          check_expected_type env sigma elimc elimt
+          check_expected_type sum env sigma elimc elimt
 
 let guard_no_unifiable = Proofview.guard_no_unifiable >>= function
   | None -> Proofview.tclUNIT ()
@@ -1328,10 +1332,11 @@ let pose_induction_arg_then isrec with_evars (is_arg_pure_hyp,from_prefix) elim
   let sigma = Proofview.Goal.sigma gl in
   let env = Proofview.Goal.env gl in
   let ccl = Proofview.Goal.concl gl in
-  let check = check_enough_applied env sigma elim in
-  let sigma', c, _ = use_bindings env sigma elim false (c0,lbind) t0 in
+  let sum = Proofview.Goal.summary gl in
+  let check = check_enough_applied sum env sigma elim in
+  let sigma', c, _ = use_bindings sum env sigma elim false (c0,lbind) t0 in
   let abs = AbstractPattern (from_prefix,check,Name id,(pending,c),cls) in
-  let (id,sign,_,lastlhyp,ccl,res) = make_abstraction env sigma' ccl abs in
+  let (id,sign,_,lastlhyp,ccl,res) = make_abstraction sum env sigma' ccl abs in
   match res with
   | None ->
       (* pattern not found *)
@@ -1340,7 +1345,7 @@ let pose_induction_arg_then isrec with_evars (is_arg_pure_hyp,from_prefix) elim
       (* we restart using bindings after having tried type-class
          resolution etc. on the term given by the user *)
       let flags = tactic_infer_flags (with_evars && (* do not give a success semantics to edestruct on an open term yet *) false) in
-      let (sigma, c0) = finish_evar_resolution ~flags env sigma (pending,c0) in
+      let (sigma, c0) = finish_evar_resolution ~flags sum env sigma (pending,c0) in
       let tac =
       (if isrec then
           (* Historically, induction has side conditions last *)
@@ -1351,7 +1356,7 @@ let pose_induction_arg_then isrec with_evars (is_arg_pure_hyp,from_prefix) elim
       (Tacticals.tclTHENLIST [
         Refine.refine_with_principal ~typecheck:false begin fun sigma ->
           let b = not with_evars && with_eq != None in
-          let sigma, c, t = use_bindings env sigma elim b (c0,lbind) t0 in
+          let sigma, c, t = use_bindings sum env sigma elim b (c0,lbind) t0 in
           mkletin_goal env sigma with_eq false (id,lastlhyp,ccl,c) (Some t)
         end;
         if with_evars then Proofview.shelve_unifiable else guard_no_unifiable;
@@ -1395,6 +1400,7 @@ let induction_gen ~clear_flag ~isrec ~with_evars elim
   let env = Proofview.Goal.env gl in
   let evd = Proofview.Goal.sigma gl in
   let ccl = Proofview.Goal.concl gl in
+  let sum = Proofview.Goal.summary gl in
   let cls = Option.default allHypsAndConcl cls in
   let t = typ_of env evd c in
   let is_arg_pure_hyp =
@@ -1402,7 +1408,7 @@ let induction_gen ~clear_flag ~isrec ~with_evars elim
     && lbind == NoBindings && not with_evars && Option.is_empty eqname
     && clear_flag == None
     && has_generic_occurrences_but_goal cls (destVar evd c) env evd ccl in
-  let enough_applied = check_enough_applied env evd elim t in
+  let enough_applied = check_enough_applied sum env evd elim t in
   if is_arg_pure_hyp && enough_applied then
     (* First case: induction on a variable already in an inductive type and
        with maximal abstraction over the variable.
@@ -1485,6 +1491,7 @@ let induction_destruct isrec with_evars (lc,elim) =
   | [] -> assert false (* ensured by syntax, but if called inside caml? *)
   | [c,(eqname,names as allnames),cls] ->
     Proofview.Goal.enter begin fun gl ->
+    let sum = Proofview.Goal.summary gl in
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     match elim with
@@ -1492,18 +1499,19 @@ let induction_destruct isrec with_evars (lc,elim) =
       (* Standard induction on non-standard induction schemes *)
       (* will be removable when is_functional_induction will be more clever *)
       if not (Option.is_empty cls) then error (UnsupportedInClause true);
-      let _,c = force_destruction_arg false env sigma c in
+      let _,c = force_destruction_arg sum false env sigma c in
       onInductionArg
         (fun _clear_flag c ->
           induction_gen_l isrec with_evars elim names
             [with_no_bindings c,eqname]) c
     | _ ->
       (* standard induction *)
-      onOpenInductionArg env sigma
+      onOpenInductionArg sum env sigma
       (fun clear_flag c -> induction_gen ~clear_flag ~isrec ~with_evars elim (c,allnames) cls) c
     end
   | _ ->
     Proofview.Goal.enter begin fun gl ->
+    let sum = Proofview.Goal.summary gl in
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     match elim with
@@ -1516,18 +1524,18 @@ let induction_destruct isrec with_evars (lc,elim) =
       let l = List.tl lc in
       (* TODO *)
       Tacticals.tclTHEN
-        (onOpenInductionArg env sigma (fun clear_flag a ->
+        (onOpenInductionArg sum env sigma (fun clear_flag a ->
           induction_gen ~clear_flag ~isrec ~with_evars None (a,b) cl) a)
         (Tacticals.tclMAP (fun (a,b,cl) ->
           Proofview.Goal.enter begin fun gl ->
           let env = Proofview.Goal.env gl in
           let sigma = Proofview.Goal.sigma gl in
-          onOpenInductionArg env sigma (fun clear_flag a ->
+          onOpenInductionArg sum env sigma (fun clear_flag a ->
             induction_gen ~clear_flag ~isrec:false ~with_evars None (a,b) cl) a
           end) l)
     | Some elim ->
       (* Several induction hyps with induction scheme *)
-      let lc = List.map (on_pi1 (fun c -> snd (force_destruction_arg false env sigma c))) lc in
+      let lc = List.map (on_pi1 (fun c -> snd (force_destruction_arg sum false env sigma c))) lc in
       let newlc =
         List.map (fun (x,(eqn,names),cls) ->
           if cls != None then error UnsupportedEqnClause;

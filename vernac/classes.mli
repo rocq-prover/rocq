@@ -27,7 +27,8 @@ val existing_instance : Summary.Interp.mut ->
 (** globality, reference, optional priority and pattern information *)
 
 val new_instance_interactive
-  : locality:Hints.hint_locality
+  : Summary.Interp.t
+  -> locality:Hints.hint_locality
   -> poly:bool
   -> name_decl
   -> local_binder_expr list

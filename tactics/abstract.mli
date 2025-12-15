@@ -22,7 +22,8 @@ val cache_term_by_tactic_then
 val tclABSTRACT : ?opaque:bool -> Id.t option -> unit Proofview.tactic -> unit Proofview.tactic
 
 val declare_abstract :
-  (  name:Names.Id.t
+  ( Summary.Interp.t
+  -> name:Names.Id.t
   -> poly:bool
   -> sign:EConstr.named_context
   -> secsign:Environ.named_context_val

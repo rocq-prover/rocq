@@ -16,6 +16,8 @@ open Names
 open Safe_typing
 module NamedDecl = Context.Named.Declaration
 
+let (!!) = Summary.Interp.get
+
 (* Hooks naturally belong here as they apply to both definitions and lemmas *)
 module Hook = struct
   module S = struct
@@ -1917,7 +1919,7 @@ let start_equations ~name ~info ~hook ~types sigma goals =
   let proof_ending = Proof_ending.End_equations {hook; i=name; types; sigma} in
   start_dependent ~name ~cinfo:[] ~info ~proof_ending goals
 
-let start_definition ~info ~cinfo ?using sigma =
+let start_definition sum ~info ~cinfo ?using sigma =
   let { CInfo.name; typ; args } = cinfo in
   let init_tac = Tactics.auto_intros_tac args in
   let pinfo = Proof_info.make ~cinfo:[{cinfo with typ = ()}] ~info () in
@@ -1925,7 +1927,7 @@ let start_definition ~info ~cinfo ?using sigma =
   let using = Option.map (interp_proof_using_cinfo env sigma [cinfo]) using in
   let lemma = start_proof_core ~name ~pinfo ?using sigma [None, typ] in
   map lemma ~f:(fun p ->
-      pi1 @@ Proof.run_tactic Global.(env ()) init_tac p)
+      pi1 @@ Proof.run_tactic sum Global.(env ()) init_tac p)
 
 let start_mutual_definitions sum ~info ~cinfo ~bodies ~possible_guard ?using sigma =
   let intro_tac { CInfo.args; _ } = Tactics.auto_intros_tac args in
@@ -1953,7 +1955,7 @@ let start_mutual_definitions sum ~info ~cinfo ~bodies ~possible_guard ?using sig
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
     let lemma = start_proof_core ~name ~pinfo ?using sigma goals in
     let lemma = map lemma ~f:(fun p ->
-        pi1 @@ Proof.run_tactic Global.(env ()) (Proofview.tclFOCUS 1 (List.length thms) (Proofview.tclDISPATCH init_tac)) p) in
+        pi1 @@ Proof.run_tactic !!sum Global.(env ()) (Proofview.tclFOCUS 1 (List.length thms) (Proofview.tclDISPATCH init_tac)) p) in
     let () =
       (* Temporary declaration of notations for the time of the proofs *)
       let ntn_env =
@@ -1989,7 +1991,7 @@ let start_mutual_definitions_refine sum ~info ~cinfo ~bodies ~possible_guard ?us
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
     let lemma = start_proof_core ~name ~pinfo ?using sigma goals in
     let lemma = map lemma ~f:(fun p ->
-        pi1 @@ Proof.run_tactic Global.(env ())
+        pi1 @@ Proof.run_tactic !!sum Global.(env ())
           (Tacticals.tclTHENLIST [
             Proofview.tclFOCUS 1 (List.length thms) (Proofview.tclDISPATCH init_tac);
             Proofview.Unsafe.tclNEWGOALS (CList.map Proofview.with_empty_state gls);
@@ -2219,19 +2221,19 @@ let update_sigma_univs ugraph p =
 
 let next = let n = ref 0 in fun () -> incr n; !n
 
-let by env tac pf =
-  let pf, safe = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
+let by sum env tac pf =
+  let pf, safe = map_fold ~f:(Proof.solve sum env (Goal_select.select_nth 1) None tac) pf in
   let proof, eff = register_side_effects pf.proof in
   let sideff = SideEff.concat eff pf.sideff in
   { pf with proof; sideff }, safe
 
-let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
+let build_constant_by_tactic sum ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
   let cinfo = [CInfo.make ?loc ~name ~typ:() ()] in
   let info = Info.make ~poly () in
   let pinfo = Proof_info.make ~cinfo ~info () in
   let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
-  let pf, status = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
+  let pf, status = map_fold ~f:(Proof.solve sum env (Goal_select.select_nth 1) None tac) pf in
   let proof = close_proof ?warn_incomplete ~keep_body_ucst_separate:false ~opaque:Vernacexpr.Transparent pf in
   let _eff, entries = process_proof ~info proof.proof_object in (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data pf.proof in
@@ -2242,11 +2244,11 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
   | _ ->
     CErrors.anomaly Pp.(str "[build_constant_by_tactic] close_proof returned more than one proof term, or a non transparent one.")
 
-let build_by_tactic env ~uctx ~poly ~typ tac =
+let build_by_tactic sum env ~uctx ~poly ~typ tac =
   let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
-  let ce, status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
+  let ce, status, sigma = build_constant_by_tactic sum ~name ~env ~sigma ~sign ~poly typ tac in
   let uctx = Evd.ustate sigma in
   (* ignore side effect universes:
      we don't reset the global env in this code path so the side effects are still present
@@ -2257,9 +2259,9 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let body, _uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
   body, ce.proof_entry_type, ce.proof_entry_universes, status, uctx
 
-let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
+let declare_abstract sum ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
-    try build_constant_by_tactic ~warn_incomplete:false ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
+    try build_constant_by_tactic sum ~warn_incomplete:false ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
     with Logic_monad.TacticFailure e as src ->
     (* if the tactic [tac] fails, it reports a [TacticFailure e],
        which is an error irrelevant to the proof system (in fact it
@@ -2571,7 +2573,7 @@ let warn_solve_errored =
         ; fnl ()
         ; str "This will become an error in the future" ])
 
-let solve_by_tac prg obls i tac =
+let solve_by_tac sum prg obls i tac =
   let obl = obls.(i) in
   let obl = subst_deps_obl obls obl in
   let tac = Option.(default !default_tactic (append tac obl.obl_tac)) in
@@ -2582,7 +2584,7 @@ let solve_by_tac prg obls i tac =
   try
     let env = Global.env () in
     let body, types, _univs, _, uctx =
-      build_by_tactic env ~uctx ~poly ~typ:(EConstr.of_constr obl.obl_type) tac in
+      build_by_tactic sum env ~uctx ~poly ~typ:(EConstr.of_constr obl.obl_type) tac in
     Inductiveops.control_only_guard env (Evd.from_ctx uctx) (EConstr.of_constr body);
     Some (body, types, uctx)
   with
@@ -2600,7 +2602,7 @@ let solve_by_tac prg obls i tac =
     None
 
 let solve_and_declare_by_tac sum prg obls i tac =
-  match solve_by_tac prg obls i tac with
+  match solve_by_tac !!sum prg obls i tac with
   | None -> None
   | Some (t, ty, uctx) ->
     let obl = obls.(i) in
@@ -2657,7 +2659,7 @@ let auto_solve_obligations sum ~pm n ?oblset tac : State.t * progress =
   let prg = get_unique_prog ~pm n in
   solve_prg_obligations sum ~pm prg ?oblset tac
 
-let solve_obligation ?check_final prg num tac =
+let solve_obligation sum ?check_final prg num tac =
   let user_num = succ num in
   let { obls; remaining=rem } = Internal.get_obligations prg in
   let obl = obls.(num) in
@@ -2689,7 +2691,7 @@ let solve_obligation ?check_final prg num tac =
   let poly = Internal.get_poly prg in
   let info = Info.make ~kind ~poly () in
   let lemma = Proof.start_core ~cinfo ~info ~proof_ending ?using evd  in
-  let lemma = fst @@ Proof.by (Global.env ()) !default_tactic lemma in
+  let lemma = fst @@ Proof.by sum (Global.env ()) !default_tactic lemma in
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
 
@@ -2704,14 +2706,14 @@ let solve_all_obligations sum ~pm tac =
       solve_prg_obligations sum ~pm v tac |> fst)
 
 (** Implements [Obligation n of name with tac] *)
-let obligation (user_num, name) ~pm tac =
+let obligation sum (user_num, name) ~pm tac =
   let num = pred user_num in
   let prg = get_unique_prog ~pm name in
   let { obls; remaining } = Internal.get_obligations prg in
   if num >= 0 && num < Array.length obls then
     let obl = obls.(num) in
     match obl.obl_body with
-    | None -> solve_obligation prg num tac
+    | None -> solve_obligation sum prg num tac
     | Some r -> Error.already_solved user_num
   else Error.unknown_obligation num
 
@@ -2831,7 +2833,7 @@ let rec admit_prog sum ~pm prg =
     | Some i -> i
     | None -> CErrors.anomaly (Pp.str "Could not find a solvable obligation.")
   in
-  let proof = solve_obligation prg i None in
+  let proof = solve_obligation !!sum prg i None in
   let pm = Proof.save_admitted sum ~pm ~proof in
   match ProgMap.find_opt (Internal.get_name prg) pm with
   | Some prg -> admit_prog sum ~pm (CEphemeron.get prg)
@@ -2854,7 +2856,7 @@ let admit_obligations sum ~pm name =
     pm
 
 (** Implements [Next Obligation of name with tac] and [Final Obligation of name with tac] *)
-let next_obligation ~pm ?(final=false) name tac =
+let next_obligation sum ~pm ?(final=false) name tac =
   let prg = match name with
     | None ->
       begin match State.first_pending pm with
@@ -2878,13 +2880,13 @@ let next_obligation ~pm ?(final=false) name tac =
       | None -> Some AllFinal
       | Some name -> Some (SpecificFinal name)
   in
-  solve_obligation ?check_final prg i tac
+  solve_obligation sum ?check_final prg i tac
 
 let check_program_libraries () =
   Rocqlib.check_required_library Rocqlib.datatypes_module_name;
   Rocqlib.check_required_library ["Corelib";"Init";"Specif"]
 
-let program_inference_hook env sigma ev =
+let program_inference_hook sum env sigma ev =
   let tac = !default_tactic in
   let evi = Evd.find_undefined sigma ev in
   let evi = Evarutil.nf_evar_info sigma evi in
@@ -2896,7 +2898,7 @@ let program_inference_hook env sigma ev =
     then None
     else
       let c, sigma =
-        Proof_.refine_by_tactic ~name:(Id.of_string "program_subproof")
+        Proof_.refine_by_tactic sum ~name:(Id.of_string "program_subproof")
           ~poly:false env sigma concl (Tacticals.tclSOLVE [tac])
       in
       Some (sigma, c)

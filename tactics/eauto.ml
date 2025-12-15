@@ -208,6 +208,7 @@ module Search = struct
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
+    let sum = Proofview.Goal.summary gl in
     let hyps = EConstr.named_context env in
     let db = db env sigma in
     let secvars = secvars_of_hyps hyps in
@@ -226,7 +227,7 @@ module Search = struct
       let mkdb env sigma =
         let hyps' = EConstr.named_context env in
           if hyps' == hyps then db
-          else make_local_hint_db env sigma ~ts:TransparentState.full true local_lemmas
+          else make_local_hint_db sum env sigma ~ts:TransparentState.full true local_lemmas
       in
       let tacs = e_possible_resolve env sigma dblist db secvars concl in
       let tacs = List.sort compare tacs in
@@ -355,8 +356,9 @@ let make_initial_state evk dbg n localdb =
 
 let e_search_auto ?(debug = Off) ?depth lems db_list =
   Proofview.Goal.enter begin fun gl ->
+  let sum = Proofview.Goal.summary gl in
   let p = Option.default default_search_depth depth in
-  let local_db env sigma = make_local_hint_db env sigma ~ts:TransparentState.full true lems in
+  let local_db env sigma = make_local_hint_db sum env sigma ~ts:TransparentState.full true lems in
   let d = mk_eauto_dbg debug in
   let debug = match d with Debug -> true | Info | Off -> false in
   let tac s = Search.search ~debug db_list lems s in

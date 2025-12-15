@@ -179,11 +179,13 @@ val onInductionArg :
   (clear_flag -> constr with_bindings -> unit Proofview.tactic) ->
     constr with_bindings destruction_arg -> unit Proofview.tactic
 
-val force_destruction_arg : evars_flag -> env -> evar_map ->
-    delayed_open_constr_with_bindings destruction_arg ->
-    evar_map * constr with_bindings destruction_arg
+val force_destruction_arg : Summary.Interp.t ->
+  evars_flag -> env -> evar_map ->
+  delayed_open_constr_with_bindings destruction_arg ->
+  evar_map * constr with_bindings destruction_arg
 
-val finish_evar_resolution : ?flags:Pretyping.inference_flags ->
+val finish_evar_resolution : Summary.Interp.t ->
+  ?flags:Pretyping.inference_flags ->
   env -> evar_map -> (evar_map option * constr) -> evar_map * constr
 
 (** {6 Pattern introduction tactics. } *)

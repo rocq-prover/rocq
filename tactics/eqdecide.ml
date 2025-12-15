@@ -109,7 +109,7 @@ let inj_flags = Some {
   }
 
 let discrHyp id =
-  let c env sigma = (sigma, (mkVar id, NoBindings)) in
+  let c _sum _env sigma = (sigma, (mkVar id, NoBindings)) in
   let tac c = Equality.discr_tac false (Some (None, ElimOnConstr c)) in
   Tacticals.tclDELAYEDWITHHOLES false c tac
 
@@ -155,7 +155,7 @@ let eqCase tac =
   tclTHEN intro (onLastHypId tac)
 
 let injHyp id =
-  let c env sigma = (sigma, (mkVar id, NoBindings)) in
+  let c _sum _env sigma = (sigma, (mkVar id, NoBindings)) in
   let tac c = Equality.injClause inj_flags None false (Some (None, ElimOnConstr c)) in
   Tacticals.tclDELAYEDWITHHOLES false c tac
 

@@ -67,20 +67,20 @@ let kind_searcher env = Decls.(function
     let instances = Typeclasses.all_instances () in
     Inr (fun gr -> List.exists (fun c -> Environ.QGlobRef.equal env c.Typeclasses.is_impl gr) instances))
 
-let interp_constr_pattern env sigma ?(expected_type=Pretyping.WithoutTypeConstraint) c =
+let interp_constr_pattern sum env sigma ?(expected_type=Pretyping.WithoutTypeConstraint) c =
   let c = Constrintern.intern_gen expected_type ~pattern_mode:true env sigma c in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with expand_evars = false } in
-  let sigma, c = Pretyping.understand_tcc ~flags env sigma ~expected_type c in
+  let sigma, c = Pretyping.understand_tcc ~flags sum env sigma ~expected_type c in
   (* FIXME: it is necessary to be unsafe here because of the way we handle
      evars in the pretyper. Sometimes they get solved eagerly. *)
   Patternops.legacy_bad_pattern_of_constr env sigma c
 
-let interp_search_item env sigma =
+let interp_search_item sum env sigma =
   function
   | SearchSubPattern ((where,head),pat) ->
       let expected_type = Pretyping.(if head then IsType else WithoutTypeConstraint) in
       let pat =
-        try interp_constr_pattern env sigma ~expected_type pat
+        try interp_constr_pattern sum env sigma ~expected_type pat
         with e when CErrors.noncritical e ->
           (* We cannot ensure (yet?) that a typable pattern will
              actually be typed, consider e.g. (forall A, A -> A /\ A)
@@ -103,9 +103,9 @@ let interp_search_item env sigma =
      | Inl k -> GlobSearchKind k
      | Inr f -> GlobSearchFilter f
 
-let rec interp_search_request env sigma = function
-  | b, SearchLiteral i -> b, GlobSearchLiteral (interp_search_item env sigma i)
-  | b, SearchDisjConj l -> b, GlobSearchDisjConj (List.map (List.map (interp_search_request env sigma)) l)
+let rec interp_search_request sum env sigma = function
+  | b, SearchLiteral i -> b, GlobSearchLiteral (interp_search_item sum env sigma i)
+  | b, SearchDisjConj l -> b, GlobSearchDisjConj (List.map (List.map (interp_search_request sum env sigma)) l)
 
 (* 05f22a5d6d5b8e3e80f1a37321708ce401834430 introduced the
    `search_output_name_only` option to avoid excessive printing when
@@ -156,7 +156,7 @@ let interp_search sum env sigma s r =
   | SearchRewrite c ->
       (Search.search_rewrite sum env sigma (get_pattern c) r |> Search.prioritize_search) pr_search
   | Search sl ->
-      (Search.search sum env sigma (List.map (interp_search_request env Evd.(from_env env)) sl) r |>
+      (Search.search sum env sigma (List.map (interp_search_request sum env Evd.(from_env env)) sl) r |>
        Search.prioritize_search) pr_search);
   if !warnlist <> [] then
   Feedback.msg_notice (str "(" ++

@@ -40,7 +40,7 @@ let name_op_to_name ~name_op ~name suffix =
   | Some s -> s
   | None -> Nameops.add_suffix name suffix
 
-let declare_abstract = ref (fun ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl ->
+let declare_abstract = ref (fun sum ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl ->
   CErrors.anomaly (Pp.str "Abstract declaration hook not registered"))
 
 let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
@@ -52,6 +52,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let sum = Proofview.Goal.summary gl in
     (* XXX we cannot use [tclENV] here because toplevel callers may pass wrong
        named contexts when nesting abstracts. See #5641. *)
     let section_sign = Global.named_context_val () in
@@ -87,7 +88,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
          tac)
     in
     let sigma, lem, args, safe =
-      !declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl
+      !declare_abstract sum ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl
     in
     let pose_tac = match name_op with
     | None -> Proofview.tclUNIT ()

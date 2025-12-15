@@ -243,10 +243,10 @@ module Proof = Logical
 type +'a tactic = 'a Proof.t
 
 (** Applies a tactic to the current proofview. *)
-let apply ~name ~poly env t sp =
+let apply summary ~name ~poly env t sp =
   let open Logic_monad in
   NewProfile.profile "Proofview.apply" (fun () ->
-  let ans = Proof.repr (Proof.run t P.{trace=false; name; poly} (sp,env)) in
+  let ans = Proof.repr (Proof.run t P.{trace=false; name; poly; summary} (sp,env)) in
   let ans = Logic_monad.NonLogical.run ans in
   match ans with
   | Nil (e, info) -> Exninfo.iraise (TacticFailure e, info)
@@ -1069,6 +1069,11 @@ let tclProofInfo =
   Logical.current >>= fun P.{name; poly} ->
   tclUNIT (name, poly)
 
+let tclSummary =
+  let open Proof in
+  Logical.current >>= fun P.{summary} ->
+  tclUNIT summary
+
 (** {7 Unsafe primitives} *)
 
 module Unsafe = struct
@@ -1144,6 +1149,7 @@ let catchable_exception = function
 module Goal = struct
 
   type t = {
+    summary : Summary.Interp.t;
     env : Environ.env;
     sigma : Evd.evar_map;
     concl : EConstr.constr ;
@@ -1153,6 +1159,7 @@ module Goal = struct
 
   let state { state=state } = state
 
+  let summary {summary} = summary
   let env {env} = env
   let sigma {sigma} = sigma
   let hyps {env} = EConstr.named_context env
@@ -1160,18 +1167,20 @@ module Goal = struct
   let relevance {sigma; self} =
     Evd.evar_relevance (Evd.find_undefined sigma self)
 
-  let gmake_with info env sigma goal state =
-    { env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
-      sigma = sigma ;
-      concl = Evd.evar_concl info;
-      state = state ;
-      self = goal }
+  let gmake_with info summary env sigma goal state = {
+    summary;
+    env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+    sigma = sigma ;
+    concl = Evd.evar_concl info;
+    state = state ;
+    self = goal;
+  }
 
-  let gmake env sigma goal =
+  let gmake sum env sigma goal =
     let state = get_state goal in
     let goal = drop_state goal in
     let info = Evd.find_undefined sigma goal in
-    gmake_with info env sigma goal state
+    gmake_with info sum env sigma goal state
 
   let enter f =
     let f gl = InfoL.tag (Info.DBranch) (f gl) in
@@ -1179,7 +1188,8 @@ module Goal = struct
     iter_goal begin fun goal ->
       Env.get >>= fun env ->
       tclEVARMAP >>= fun sigma ->
-      try f (gmake env sigma goal)
+      tclSummary >>= fun sum ->
+      try f (gmake sum env sigma goal)
       with e when catchable_exception e ->
         let (e, info) = Exninfo.capture e in
         tclZERO ~info e
@@ -1192,7 +1202,8 @@ module Goal = struct
     | [goal] -> begin
        Env.get >>= fun env ->
        tclEVARMAP >>= fun sigma ->
-       try f (gmake env sigma goal)
+       tclSummary >>= fun sum ->
+       try f (gmake sum env sigma goal)
        with e when catchable_exception e ->
          let (e, info) = Exninfo.capture e in
          tclZERO ~info e
@@ -1211,10 +1222,12 @@ module Goal = struct
         let gl =
           Env.get >>= fun env ->
           tclEVARMAP >>= fun sigma ->
+          tclSummary >>= fun summary ->
           let state = get_state goal in
           let goal = drop_state goal in
           let EvarInfo info = Evd.find sigma goal in
           let goal = {
+            summary;
             env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
             sigma = sigma ;
             concl = Evd.evar_concl oinfo;

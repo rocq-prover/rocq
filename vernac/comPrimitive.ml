@@ -10,6 +10,8 @@
 
 open Names
 
+let (!!) = Summary.Interp.get
+
 let declare sum ?loc id entry =
   let _ : Constant.t =
     Declare.declare_constant sum ?loc ~name:id ~kind:Decls.IsPrimitive (Declare.PrimitiveEntry entry)
@@ -37,7 +39,7 @@ let do_primitive sum id udecl prim typopt =
     let expected_typ = EConstr.of_constr @@ Typeops.type_of_prim_or_type env u prim in
     let evd, (typ,impls) =
       Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
-        env evd typ
+        !!sum env evd typ
     in
     let evd = try Evarconv.unify_delay env evd typ expected_typ
       with Evarconv.UnableToUnify (evd,e) as exn ->

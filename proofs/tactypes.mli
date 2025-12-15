@@ -42,7 +42,7 @@ type 'a bindings =
 
 type 'a with_bindings = 'a * 'a bindings
 
-type 'a delayed_open = Environ.env -> Evd.evar_map -> Evd.evar_map * 'a
+type 'a delayed_open = Summary.Interp.t -> Environ.env -> Evd.evar_map -> Evd.evar_map * 'a
 
 type delayed_open_constr = EConstr.constr delayed_open
 type delayed_open_constr_with_bindings = EConstr.constr with_bindings delayed_open

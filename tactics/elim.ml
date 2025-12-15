@@ -28,6 +28,7 @@ let general_elim_using mk_elim (ind, u, args) id = match mk_elim with
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let sum = Proofview.Goal.summary gl in
     let sort = Retyping.get_sort_quality_of env sigma (Proofview.Goal.concl gl) in
     let flags = Unification.elim_flags () in
     let gr = Elimschemes.lookup_eliminator env ind sort in
@@ -36,7 +37,7 @@ let general_elim_using mk_elim (ind, u, args) id = match mk_elim with
     (* applying elimination_scheme just a little modified *)
     let elimclause = Clenv.mk_clenv_from env sigma (elim, elimt) in
     let indmv = List.last (Clenv.clenv_arguments elimclause) in
-    let elimclause = Clenv.clenv_instantiate indmv elimclause (mkVar id, mkApp (mkIndU (ind, u), args)) in
+    let elimclause = Clenv.clenv_instantiate sum indmv elimclause (mkVar id, mkApp (mkIndU (ind, u), args)) in
     Clenv.res_pf ~flags elimclause
   end
 

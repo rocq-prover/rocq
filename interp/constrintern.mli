@@ -142,42 +142,52 @@ val default : Interner.t
 (** Main interpretation functions, using type class inference,
     expecting evars and pending problems to be all resolved *)
 
-val interp_constr : ?flags:inference_flags -> ?expected_type:typing_constraint -> env -> evar_map -> ?impls:internalization_env ->
+val interp_constr : Summary.Interp.t ->
+  ?flags:inference_flags -> ?expected_type:typing_constraint -> env -> evar_map -> ?impls:internalization_env ->
   constr_expr -> constr Evd.in_ustate
 
-val interp_casted_constr : ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
+val interp_casted_constr : Summary.Interp.t ->
+  ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
   constr_expr -> types -> constr Evd.in_ustate
 
-val interp_type : ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
+val interp_type : Summary.Interp.t ->
+  ?flags:inference_flags -> env -> evar_map -> ?impls:internalization_env ->
   constr_expr -> types Evd.in_ustate
 
 (** Main interpretation function expecting all postponed problems to
     be resolved, but possibly leaving evars. *)
 
-val interp_open_constr : ?expected_type:typing_constraint -> env -> evar_map -> constr_expr -> evar_map * constr
+val interp_open_constr : Summary.Interp.t ->
+  ?expected_type:typing_constraint -> env -> evar_map -> constr_expr -> evar_map * constr
 
 (** Accepting unresolved evars *)
 
-val interp_constr_evars : ?program_mode:bool -> env -> evar_map ->
+val interp_constr_evars : Summary.Interp.t ->
+  ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> evar_map * constr
 
-val interp_casted_constr_evars : ?flags:Pretyping.inference_flags -> ?program_mode:bool -> env -> evar_map ->
+val interp_casted_constr_evars : Summary.Interp.t ->
+  ?flags:Pretyping.inference_flags -> ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> types -> evar_map * constr
 
-val interp_type_evars : ?program_mode:bool -> env -> evar_map ->
+val interp_type_evars : Summary.Interp.t ->
+  ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> evar_map * types
 
 (** Accepting unresolved evars and giving back the manual implicit arguments *)
 
-val interp_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
+val interp_constr_evars_impls : Summary.Interp.t ->
+  ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr ->
   evar_map * (constr * Impargs.manual_implicits)
 
-val interp_casted_constr_evars_impls : ?program_mode:bool -> env -> evar_map ->
+val interp_casted_constr_evars_impls : Summary.Interp.t ->
+  ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> types ->
   evar_map * (constr * Impargs.manual_implicits)
 
-val interp_type_evars_impls : ?flags:inference_flags -> env -> evar_map ->
+val interp_type_evars_impls : Summary.Interp.t ->
+  ?flags:inference_flags -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr ->
   evar_map * (types * Impargs.manual_implicits)
 
@@ -205,10 +215,12 @@ val interp_reference : ltac_sign -> qualid -> glob_constr
 
 (** Interpret binders *)
 
-val interp_binder  : env -> evar_map -> Name.t -> constr_expr ->
+val interp_binder : Summary.Interp.t ->
+  env -> evar_map -> Name.t -> constr_expr ->
   types Evd.in_ustate
 
-val interp_binder_evars : env -> evar_map -> Name.t -> constr_expr -> evar_map * types
+val interp_binder_evars : Summary.Interp.t ->
+  env -> evar_map -> Name.t -> constr_expr -> evar_map * types
 
 (** Interpret contexts: returns extended env and context.
 
@@ -216,14 +228,14 @@ val interp_binder_evars : env -> evar_map -> Name.t -> constr_expr -> evar_map *
     in reverse order and omitting letins.
 *)
 
-val interp_context_evars :
+val interp_context_evars : Summary.Interp.t ->
   ?program_mode:bool -> ?unconstrained_sorts:bool -> ?impl_env:internalization_env ->
   env -> evar_map -> local_binder_expr list ->
   evar_map * (internalization_env * ((env * rel_context) * Impargs.manual_implicits * Loc.t option list))
 
 (** Interpret named contexts *)
 
-val interp_named_context_evars :
+val interp_named_context_evars : Summary.Interp.t ->
   ?program_mode:bool -> ?unconstrained_sorts:bool -> ?impl_env:internalization_env -> ?autoimp_enable:bool ->
   env -> evar_map -> local_binder_expr list ->
   evar_map * (internalization_env * ((env * named_context) * Impargs.manual_implicits * Loc.t option list))
