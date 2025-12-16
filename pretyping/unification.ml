@@ -653,7 +653,7 @@ let default_unify_flags () =
 }
 
 let set_no_delta_core_flags flags = { flags with
-  modulo_conv_on_closed_terms = None;
+  modulo_conv_on_closed_terms = Some TransparentState.empty;
   modulo_delta = TransparentState.empty;
   check_applied_meta_types = false;
   use_pattern_unification = false;
