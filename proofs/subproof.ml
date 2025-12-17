@@ -109,20 +109,10 @@ let shrink_entry sign body typ =
 
 let freshen_instance univs = match univs with
 | UState.Monomorphic_entry uctx, unames ->
-  (* Freshen the universe levels *)
-  let (us, ucst) = uctx in
-  let uctx = (Sorts.QVar.Set.empty, us), (Sorts.ElimConstraints.empty, ucst) in
-  let usubst, ((_qs, us), (_qcst, ucst)) = UnivGen.fresh_sort_context_instance uctx in
-  let uctx = us, ucst in
-  (* Add equality constraints between the local universes and the fresh ones *)
-  let fold u v accu =
-    let cst = Univ.UnivConstraints.singleton (u, Eq, v) in
-    Univ.ContextSet.add_constraints cst accu
-  in
-  let guctx = Univ.Level.Map.fold fold (snd usubst) uctx in
-  guctx, (UState.Monomorphic_entry uctx, unames), usubst
+  let guctx = (Univ.Level.Set.empty, snd uctx) in
+  guctx, (UState.Monomorphic_entry uctx, unames)
 | UState.Polymorphic_entry _, _ ->
-  Univ.ContextSet.empty, univs, UVars.empty_sort_subst
+  Univ.ContextSet.empty, univs
 
 let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
@@ -149,9 +139,7 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
   (* TODO: uctx levels are almost immediately demoted, we should do this directly instead *)
-  let uctx, univs, usubst = freshen_instance univs in
-  let body  = Vars.subst_univs_level_constr usubst body in
-  let typ = Vars.subst_univs_level_constr usubst typ in
+  let uctx, univs = freshen_instance univs in
   let { Proof.sigma } = Proof.data proof in
   let sigma =
     (* XXX overwriting the context in polymorphic mode breaks a lot of invariants,
