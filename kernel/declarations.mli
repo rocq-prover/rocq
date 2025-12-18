@@ -151,16 +151,22 @@ v}
     - The identifier for the binder name of the record in primitive projections.
     - The constants associated to each projection.
     - The projection types (under parameters).
+    - The recheck at eta conversion flag
 
     The kernel does not exploit the difference between [NotRecord] and
     [FakeRecord]. It is mostly used by extraction, and should be extruded from
     the kernel at some point.
 *)
+type has_eta = AlwaysEta | MaybeEta | NoEta
 
 type record_info =
 | NotRecord
 | FakeRecord
-| PrimRecord of (Id.t * Id.t array * Sorts.relevance array * types array)
+| PrimRecord of { id : Id.t
+                ; projections : Id.t array
+                ; relevances : Sorts.relevance array
+                ; tys : types array
+                ; has_eta : has_eta }
 
 type squash_info =
   | AlwaysSquashed

@@ -320,7 +320,7 @@ let print_primitive_record recflag mipv =
   | PrimRecord _ ->
     let eta = match recflag with
       | CoFinite | Finite -> str" without eta conversion"
-      | BiFinite -> str " with eta conversion"
+      | BiFinite -> str " with eta conversion" (* TODO: Update *)
     in
     [Id.print mip.mind_typename ++ str" has primitive projections" ++ eta ++ str"."]
   | FakeRecord | NotRecord -> []

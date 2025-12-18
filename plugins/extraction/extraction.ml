@@ -253,9 +253,8 @@ let relevance_of_projection_repr mip p =
   match mip.mind_record with
   | NotRecord | FakeRecord ->
     CErrors.anomaly ~label:"relevance_of_projection" Pp.(str "not a projection")
-  | PrimRecord infos ->
-    let _,_,rs,_ = infos in
-    rs.(Names.Projection.Repr.arg p)
+  | PrimRecord { relevances; _ } ->
+    relevances.(Names.Projection.Repr.arg p)
 
 (** Because of automatic unboxing the easy way [mk_def c] on the
    constant body of primitive projections doesn't work. We pretend
@@ -287,9 +286,8 @@ let fake_match_projection env p =
   let relevance = relevance_of_projection_repr mip p in
   let x = match mip.mind_record with
     | NotRecord | FakeRecord -> assert false
-    | PrimRecord info ->
-      let x, _, _, _ = info in
-      make_annot (Name x) mip.mind_relevance
+    | PrimRecord { id; _ } ->
+      make_annot (Name id) mip.mind_relevance
   in
   let indty = mkApp (indu, Context.Rel.instance mkRel 0 paramslet) in
   let rec fold arg j subst = function
