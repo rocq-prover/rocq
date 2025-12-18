@@ -677,6 +677,30 @@ let unify_quality univs c s1 s2 l =
         c (Sorts.quality s1) (Sorts.quality s2) l.local_sorts;
   }
 
+let is_local_constraint uctx (cst : UnivProblem.t) =
+  let (_, (_, ucst)) = uctx.local in
+  let slevel s = match s with
+  | SProp -> None
+  | Prop -> None
+  | Set -> Some Level.set
+  | Type u -> Universe.level u
+  | QSort _ -> None
+  in
+  match cst with
+  | QEq _ -> false
+  | QLeq _ -> false
+  | ULe (s1, s2) ->
+    begin match slevel s1, slevel s2 with
+    | Some l1, Some l2 -> UnivConstraints.mem (l1, Le, l2) ucst
+    | _ -> false
+    end
+  | UEq (s1, s2) ->
+    begin match slevel s1, slevel s2 with
+    | Some l1, Some l2 -> UnivConstraints.mem (l1, Eq, l2) ucst || UnivConstraints.mem (l2, Eq, l1) ucst
+    | _ -> false
+    end
+  | ULub _ | UWeak _ -> false
+
 let process_constraints uctx cstrs =
   let open UnivSubst in
   let open UnivProblem in
@@ -766,6 +790,7 @@ let process_constraints uctx cstrs =
   let unify_universes cst local =
     let cst = nf_constraint local.local_sorts cst in
     if UnivProblem.is_trivial cst then local
+    else if is_local_constraint uctx cst then local
     else
       (* TODO sort_inconsistency should be able to handle raw
          qualities instead of having to make a dummy sort *)
