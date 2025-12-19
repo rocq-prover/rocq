@@ -493,10 +493,12 @@ let build_inductive env ~sec_univs names prv univs template variance
       | Some (Some rid) ->
         (** The elimination criterion ensures that all projections can be defined. *)
         let (projections, relevances, tys) = compute_projections (kn, i) ~nparamargs ~nf_lc ~consnrealdecls in
+        begin match not_prim_or_has_eta with
         (* It must have eta information *)
-        assert (Option.has_some not_prim_or_has_eta);
-        assert (Result.is_ok @@ Option.get not_prim_or_has_eta);
-        PrimRecord { id = rid.(i); projections; relevances; tys; has_eta = Result.get_ok @@ Option.get not_prim_or_has_eta}
+        | None | Some (Error _) -> assert false
+        | Some Ok has_eta ->
+          PrimRecord { id = rid.(i); projections; relevances; tys; has_eta }
+        end
       | Some None -> FakeRecord
       | None -> NotRecord
     in

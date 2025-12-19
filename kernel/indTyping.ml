@@ -575,14 +575,14 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
       (* We check if it can actually have primitive projections & eta *)
       match check_record data with
       | Result.Ok has_eta -> data, record, Some (Result.Ok has_eta)
-      | Result.Error reason ->
+      | Result.Error _ as reason ->
         (* if someone tried to declare a record as SProp but it can't
            be primitive we must squash. *)
         let data = List.map (fun (a, b, univs) ->
             a, b, compute_elim_squash env_ar_par Sorts.prop univs)
             data
         in
-        data, Some None, Some (Result.Error reason) (* back to FakeRecord with a reason why *)
+        data, Some None, Some reason (* back to FakeRecord with a reason why *)
   in
 
   let variance = match mie.mind_entry_variance with
