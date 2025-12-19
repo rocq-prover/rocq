@@ -88,6 +88,8 @@ module Extern : sig
     (* This governs printing of projections using the dot notation symbols *)
     projections : bool;
     float : bool;
+    (* This governs printing fully qualified names for global references *)
+    fully_qualified : bool;
     factorize_eqns : FactorizeEqns.t;
     (* XXX depth? *)
   }

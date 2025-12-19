@@ -1097,6 +1097,20 @@ Printing constructions in full
 
       .. see a contrived example here: https://github.com/rocq-prover/rocq/pull/11718#discussion_r415481854
 
+.. flag:: Printing Fully Qualified
+
+   When this :term:`flag` is turned on, all global references (constants, inductives,
+   constructors, section variables) are printed using their fully qualified names, which include
+   the full module path. This is useful when there are multiple constants with the
+   same short name in different modules, and you want to clearly distinguish them.
+
+   For example, if you have both ``Foo.ax`` and ``Bar.ax`` defined, turning on this
+   flag will ensure they are printed as ``Module.Foo.ax`` and ``Module.Bar.ax``
+   respectively (where ``Module`` is the top-level module name), rather than
+   potentially ambiguous short names.
+
+   This flag is off by default.
+
 .. _controlling-typing-flags:
 
 Controlling Typing Flags

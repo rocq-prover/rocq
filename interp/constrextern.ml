@@ -109,7 +109,14 @@ let my_extern_reference = ref default_extern_reference
 let set_extern_reference f = my_extern_reference := f
 let get_extern_reference () = !my_extern_reference
 
-let extern_reference ?loc vars l = !my_extern_reference vars l
+let extern_reference ?loc ?(fully_qualified=false) vars l =
+  if fully_qualified then
+    (* Use full path from nametab; fallback to qualid_of_global if not found
+       (e.g., for variables or references not in the global environment) *)
+    try Libnames.qualid_of_path ?loc (Nametab.path_of_global l)
+    with Not_found -> qualid_of_global l
+  else
+    !my_extern_reference vars l
 
 (**********************************************************************)
 (* utilities                                                          *)
@@ -273,7 +280,7 @@ let extern_record_pattern ~flags cstrsp args =
             acc
           | Some c, _ ->
             let loc = pat.CAst.loc in
-            (extern_reference ?loc Id.Set.empty (GlobRef.ConstRef c), pat) :: acc
+            (extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified ?loc Id.Set.empty (GlobRef.ConstRef c), pat) :: acc
           | _ -> raise No_match in
         ip q tail acc
       | _ -> assert false
@@ -317,7 +324,7 @@ let rec extern_cases_pattern_in_scope ~flags ((custom,(lev_after:int option)),sc
             match extern_record_pattern ~flags cstrsp args with
             | Some l -> CPatRecord l
             | None ->
-                  let c = extern_reference vars (GlobRef.ConstructRef cstrsp) in
+                  let c = extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified vars (GlobRef.ConstructRef cstrsp) in
                   if Constrintern.get_asymmetric_patterns () then
                     if pattern_printable_in_both_syntax ~flags cstrsp
                     then CPatCstr (c, None, args)
@@ -430,7 +437,7 @@ let extern_ind_pattern_in_scope ~flags (custom,scopes as allscopes) vars ind arg
   (* pboutill: There are letins in pat which is incompatible with notations and
      not explicit application. *)
   if !Flags.in_debugger then
-    let c = extern_reference vars (GlobRef.IndRef ind) in
+    let c = extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified vars (GlobRef.IndRef ind) in
     let args = List.map (extern_cases_pattern_in_scope ~flags allscopes vars) args in
     CAst.make @@ CPatCstr (c, Some args, [])
   else
@@ -440,7 +447,7 @@ let extern_ind_pattern_in_scope ~flags (custom,scopes as allscopes) vars ind arg
       extern_notation_ind_pattern ~flags allscopes vars ind args
           (uninterp_ind_pattern_notations (Global.env ()) ind)
     with No_match ->
-      let c = extern_reference vars (GlobRef.IndRef ind) in
+      let c = extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified vars (GlobRef.IndRef ind) in
       let args = List.map (extern_cases_pattern_in_scope ~flags allscopes vars) args in
       let tags = Inductiveops.inductive_alltags (Global.env()) ind in
       match drop_implicits_in_patt ~flags (GlobRef.IndRef ind) 0 ~tags args with
@@ -561,7 +568,7 @@ let extern_record ~flags ref args =
             | arg :: tail ->
                let arg = Lazy.force arg in
                let loc = arg.CAst.loc in
-               let ref = extern_reference ?loc Id.Set.empty (GlobRef.ConstRef c) in
+               let ref = extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified ?loc Id.Set.empty (GlobRef.ConstRef c) in
                ip q tail ((ref, arg) :: acc)
     in
     Some (List.rev (ip projs args []))
@@ -824,9 +831,9 @@ let extern_instance uvars = function
     Some (ql,ul)
   | None -> None
 
-let extern_ref {vars; uvars} ref us =
+let extern_ref {vars; uvars; flags} ref us =
   extern_global (select_stronger_impargs (implicits_of_global ref))
-    (extern_reference vars ref) (extern_instance uvars us)
+    (extern_reference ~fully_qualified:flags.ExternFlags.fully_qualified vars ref) (extern_instance uvars us)
 
 let extern_var ?loc id = CRef (qualid_of_ident ?loc id,None)
 
@@ -936,7 +943,7 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
              (* Otherwise... *)
                extern_applied_ref ~flags inctx
                  (select_stronger_impargs (implicits_of_global ref))
-                 (ref,extern_reference ?loc eenv.vars ref) (extern_instance eenv.uvars us) args)
+                 (ref,extern_reference ~fully_qualified:eenv.flags.fully_qualified ?loc eenv.vars ref) (extern_instance eenv.uvars us) args)
          | GProj (f,params,c) ->
              extern_applied_proj depth inctx scopes eenv f params c args
          | _ ->
@@ -1314,7 +1321,7 @@ and extern_applied_proj depth inctx scopes eenv (cst,us) params c extraargs =
   let args = fill_arg_scopes args subscopes (snd scopes) in
   let args = extern_args (extern depth true) eenv args in
   let imps = select_stronger_impargs (implicits_of_global ref) in
-  let f = extern_reference eenv.vars ref in
+  let f = extern_reference ~fully_qualified:eenv.flags.fully_qualified eenv.vars ref in
   let us = extern_instance eenv.uvars us in
   extern_projection ~flags:eenv.flags inctx (f,us) nparams args imps
 

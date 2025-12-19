@@ -1,0 +1,13 @@
+use_foo = Foo.ax
+     : Corelib.Init.Logic.False
+use_bar = Bar.ax
+     : Corelib.Init.Logic.False
+use_foo = PrintFullyQualified.Foo.ax
+     : Corelib.Init.Logic.False
+use_bar = PrintFullyQualified.Bar.ax
+     : Corelib.Init.Logic.False
+use_nested =
+PrintFullyQualified.Outer.Inner.def
+     : Corelib.Init.Datatypes.nat
+use_nested = Outer.Inner.def
+     : nat

@@ -160,6 +160,13 @@ let { Goptions.get = print_float } =
     ~value:true
     ()
 
+(* extern *)
+let { Goptions.get = print_fully_qualified } =
+  Goptions.declare_bool_option_and_ref
+    ~key:["Printing";"Fully";"Qualified"]
+    ~value:false
+    ()
+
 module PrintingInductiveMake (Test : sig
     val encode : Environ.env -> Libnames.qualid -> Names.inductive
     val member_message : Pp.t -> bool -> Pp.t
@@ -335,6 +342,7 @@ module Extern = struct
     raw_literals : bool;
     projections : bool;
     float : bool;
+    fully_qualified : bool;
     factorize_eqns : FactorizeEqns.t;
     (* XXX depth? *)
   }
@@ -351,6 +359,7 @@ module Extern = struct
     raw_literals = !print_raw_literal;
     projections = !print_projections;
     float = print_float();
+    fully_qualified = print_fully_qualified();
     factorize_eqns = FactorizeEqns.current_ignore_raw();
   }
 
