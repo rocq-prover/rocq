@@ -308,7 +308,7 @@ let make_allowed_elimination_actions sigma s =
       then Some sigma
       else
         try Some (Evd.set_elim_to sigma indq sq)
-        with UGraph.UniverseInconsistency _ -> None }
+        with QGraph.EliminationError _ | UGraph.UniverseInconsistency _ -> None }
 
 let make_allowed_elimination sigma ((_, mip), _ as specifu) s =
   match mip.mind_record with
