@@ -310,7 +310,6 @@ let ppuniverse_context_future c =
     ppuniverse_context ctx
 let ppuniverses u = pp (UGraph.pr_universes Level.raw_pr (UGraph.repr u))
 let ppqualities q = pp (QGraph.pr_qualities Quality.raw_pr q)
-let ppqgraph q = pp (QGraph.pr Sorts.QVar.raw_pr q)
 let ppelim_constraints cstrs = pp (Sorts.ElimConstraints.pr Sorts.QVar.raw_pr cstrs)
 let ppnamedcontextval e =
   let env = Global.env () in

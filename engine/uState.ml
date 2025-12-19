@@ -261,10 +261,12 @@ let collapse ?(except=QSet.empty) m =
 
 let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   let open Pp in
+  (* Print the QVar, e.g. α1 *)
   let prqvar q = match prqvar_opt q with
     | None -> QVar.raw_pr q
     | Some qid -> Libnames.pr_qualid qid
   in
+  (* Print the "body" of the QVar, e.g. α1 := Type, α2 >= Prop *)
   let prbody u = function
   | None ->
     if is_above_prop m u then str " >= Prop"
@@ -275,12 +277,14 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
     let q = Quality.pr prqvar q in
     str " := " ++ q
   in
+  (* Print the "name" (given by the user) of the Qvar, e.g. α1 (named s) *)
   let prqvar_name q =
     match prqvar_opt q with
-    | None -> mt()
+    | None -> mt ()
     | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
-  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap) ++ str " |= " ++ QGraph.pr prqvar elims)
+  let prqvar_full (q1, q2) = QVar.raw_pr q1 ++ prbody q1 q2 ++ prqvar_name q1 in
+  hov 0 (prlist_with_sep fnl prqvar_full (QMap.bindings qmap) ++ str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities Quality.raw_pr elims))
 
 let elims m = m.elims
 

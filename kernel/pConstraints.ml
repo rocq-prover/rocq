@@ -62,8 +62,8 @@ let filter_univs f (qc, lc) =
 let pr prv prl (qc, lc) =
   let open Pp in
   let sep = if ElimConstraints.is_empty qc || UnivConstraints.is_empty lc
-            then mt()
-            else str ", " in
+            then mt ()
+            else pr_comma () in
   v 0 (ElimConstraints.pr prv qc ++ sep ++ UnivConstraints.pr prl lc)
 
 module HPConstraints =
