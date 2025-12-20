@@ -482,8 +482,8 @@ let add_symdef nt file symdef_map =
   in
   symdef_map := StringMap.add nt (Filename.basename file::ent) !symdef_map
 
-let rec edit_SELF nt cur_level next_level right_assoc inner prod =
-  let subedit sym = List.hd (edit_SELF nt cur_level next_level right_assoc true [sym]) in
+let rec edit_SELF nt cur_level next_level left_assoc right_assoc inner prod =
+  let subedit sym = List.hd (edit_SELF nt cur_level next_level left_assoc right_assoc true [sym]) in
   let len = List.length prod in
   List.mapi (fun i sym ->
     match sym with
@@ -493,7 +493,7 @@ let rec edit_SELF nt cur_level next_level right_assoc inner prod =
       if inner then
         Snterm nt (* first level *)
       else if i = 0 then
-        Snterm cur_level
+        (if left_assoc then Snterm cur_level else Snterm next_level)
       else if i + 1 = len then
         (if right_assoc then Snterm cur_level else Snterm next_level)
       else
@@ -507,7 +507,7 @@ let rec edit_SELF nt cur_level next_level right_assoc inner prod =
     | Slist0sep (sym, sep) -> Slist0sep ((subedit sym), (subedit sep))
     | Sopt sym -> Sopt (subedit sym)
     | Sparen syms -> Sparen (List.map (fun sym -> subedit sym) syms)
-    | Sprod prods -> Sprod (List.map (fun prod -> edit_SELF nt cur_level next_level right_assoc true prod) prods)
+    | Sprod prods -> Sprod (List.map (fun prod -> edit_SELF nt cur_level next_level left_assoc right_assoc true prod) prods)
     | Sedit _ -> sym
     | Sedit2 _ -> sym)
   prod
@@ -614,7 +614,13 @@ let read_mlg g is_edit ast file level_renames symdef_map =
               let cur_level = nt ^ level in
               let next_level = nt ^
                   if i+1 < len then (get_label (List.nth rules (i+1)).grule_label) else "" in
-              let right_assoc = (rule.grule_assoc = Some RightA) in
+              let (left_assoc, right_assoc) =
+                match rule.grule_assoc with
+                | Some NonA | None -> (false, false)
+                | Some LeftA -> (true, false)
+                | Some RightA -> (false, true)
+                | Some BothA -> (true, true)
+              in
 
               if i = 0 && cur_level <> nt && not (StringMap.mem nt !level_renames) then begin
                 level_renames := StringMap.add nt cur_level !level_renames;
@@ -622,7 +628,7 @@ let read_mlg g is_edit ast file level_renames symdef_map =
               let cvted = List.map cvt_gram_prod rule.grule_prods in
               (* edit names for levels *)
               (* See https://camlp5.github.io/doc/html/grammars.html#b:Associativity *)
-              let edited = List.map (fun (loc,prod) -> loc, edit_SELF nt cur_level next_level right_assoc false prod) cvted in
+              let edited = List.map (fun (loc,prod) -> loc, edit_SELF nt cur_level next_level left_assoc right_assoc false prod) cvted in
               let prods_to_add =
                 if cur_level <> nt && i+1 < len then
                   edited @ [None,[Snterm next_level]]
