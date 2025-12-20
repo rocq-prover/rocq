@@ -1,0 +1,17 @@
+File "./output/ltac2_print_exn.v", line 11, characters 0-23:
+The command has indeed failed with message:
+hello
+Backtrace:
+Call foo
+Prim <rocq-runtime.plugins.ltac2:zero>
+
+File "./output/ltac2_print_exn.v", line 24, characters 0-23:
+The command has indeed failed with message:
+Uncaught Ltac2 exception: WithTerm constr:(?X1)
+File "./output/ltac2_print_exn.v", line 33, characters 0-23:
+The command has indeed failed with message:
+test ?X1
+File "./output/ltac2_print_exn.v", line 38, characters 0-23:
+The command has indeed failed with message:
+Uncaught Ltac2 exception: Tactic_failure (Some message:(hello))
+Custom Ltac2 printer failed: Uncaught Ltac2 exception: Assertion_failure
