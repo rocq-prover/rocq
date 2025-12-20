@@ -1716,3 +1716,13 @@ let inferred_universes elims =
 end
 
 let inferred_universes env = Infer.inferred_universes (Environ.qualities env)
+
+let eta_expand env sigma t ty =
+  of_constr @@ Reduction.eta_expand ~evars:(Evd.evar_handler sigma) env
+    (MiniEConstr.unsafe_to_constr t) (MiniEConstr.unsafe_to_constr ty)
+
+let eta_expand_instantiation env sigma inst ctxt =
+  let inst = Array.map (MiniEConstr.unsafe_to_constr) inst in
+  let ctxt =  List.map (MiniEConstr.unsafe_to_rel_decl) ctxt in
+  let eta_inst = Reduction.eta_expand_instantiation ~evars:(Evd.evar_handler sigma) env inst ctxt in
+  Array.map of_constr eta_inst

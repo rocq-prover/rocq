@@ -42,26 +42,26 @@ open Evd
 open EConstr
 open Names
 open Declarations
+open Environ
 
-(** Type of access keys for the State API *)
-type access_key
 module State :
   sig
     type state
 
-    type 'a t = state -> 'a
-
+    (* Monads *)
+    type 'a t = state -> evar_map * 'a
     val return : 'a -> 'a t
+    val bind : 'a t -> ('a -> 'b t) -> 'b t
+    val map : ('a -> 'b) -> 'a t -> 'b t
+    val run : env -> evar_map -> 'a t -> evar_map * 'a
 
-    val get_env : Environ.env t
-    val get_sigma : evar_map t
-    val get_names : Nameops.Fresh.t t
-    val get_state : state t
-
-    (** Create a new state out of an environment [env] and evar_map [sigma] with:
-      - The set of names is computed out of [env]
-      - The substitution is empty *)
-    val make : Environ.env -> evar_map -> state
+    (* Access the current state *)
+    val get_env     : env t
+    val get_sigma   : evar_map t
+    val get_names   : Nameops.Fresh.t t
+    val get_state   : state t
+    val get_context : rel_context t
+    val update_sigma : state -> evar_map -> state
 
   (** {6 Weaken Functions From the Former Context to the New Context } *)
 
@@ -73,6 +73,12 @@ module State :
 
     (** Weaken a context defined in the former context by applying [state.subst]. *)
     val weaken_context : rel_context -> rel_context t
+
+  (** {6 Access Key } *)
+
+  (** Type of access keys for the State API *)
+  type access_key
+  val make_key : int -> access_key t
 
   (** {6 Push Functions } *)
 
@@ -104,7 +110,7 @@ module State :
 
     (** Compute the debruijn variables associated
         to a list of [access_key] in the context [s : state]. *)
-    val get_terms : access_key list -> (constr list) t
+    val get_terms : access_key list -> (constr array) t
 
     (** {7 Access Types } *)
 
@@ -122,7 +128,7 @@ module State :
 
     (** Compute the type of the variable associated
         to a list of [access_key] in the context [s : state]. *)
-    val get_types : access_key list -> (types list) t
+    val get_types : access_key list -> (types array) t
 
     (** {7 Access Binder Annotations } *)
 
@@ -140,12 +146,20 @@ module State :
 
     (** Compute the [binder_annot] of the variable associated to a list of
         [access_key] in the context [s : state]. *)
-    val get_anames : access_key list -> (Name.t binder_annot list) t
+    val get_anames : access_key list -> (Name.t binder_annot array) t
+
+  (** {6 Debug Functions } *)
+  val list_mapi : (int -> 'a -> 'b t) -> 'a list -> 'b list t
+  val array_mapi : (int -> 'a -> 'b t) -> 'a array -> 'b array t
+  val array_map2i : (int -> 'a -> 'b -> 'c t) -> 'a array -> 'b array -> 'c array t
 
   (** {6 Debug Functions } *)
 
     (** Print function for debugging. *)
-    val print_state : (Environ.env -> evar_map -> constr -> Pp.t) -> Pp.t t
+    (* val print_state : (env -> evar_map -> constr -> Pp.t) -> Pp.t t *)
+
+    (** Print function for debugging. *)
+    (* val print_substitution : (env -> evar_map -> constr -> Pp.t) -> Pp.t t *)
   end
 
 open State
@@ -191,6 +205,26 @@ val naming_hd_fresh : naming_scheme
 (** [naming_hd_fresh] if [true], [naming_id] otherwise  *)
 val naming_hd_fresh_dep : bool -> naming_scheme
 
+(** {6 Functions on Terms } *)
+
+
+(** Reduce and decompose a term preserving letin *)
+val ind_relevance : one_inductive_body -> einstance -> erelevance t
+
+val whd_decompose_prod_decls : constr -> (rel_context * constr) t
+
+val decompose_lambda_decls : constr -> (rel_context * constr) t
+
+val decompose_app : constr -> (constr * constr array) t
+
+val eta_expand_instantiation : constr array -> rel_context -> constr array t
+
+val retyping_sort_of : constr -> esorts t
+
+val typing_checked_appvect : constr -> constr array -> constr t
+
+val fresh_global : GlobRef.t -> constr t
+
 (** {6 Create a New Lambda, Product, or LetIn } *)
 
 (** Status of the variable to bind *)
@@ -199,6 +233,10 @@ type freshness = Fresh | Old
 (** Which binders to bind *)
 type binder = Lambda | Prod
 
+val fid : ('a -> 'b) -> 'a -> 'b
+val fopt : ('a -> 'b) -> 'a option -> 'b option
+val fropt : ('a -> 'b) -> ('c * 'a) option -> ('c * 'b) option
+
 (** Add a declaration to the state given its [freshness] and a [naming_scheme],
     for a body defined in the updated state. *)
 val add_decl : freshness -> naming_scheme -> rel_declaration ->
@@ -206,30 +244,17 @@ val add_decl : freshness -> naming_scheme -> rel_declaration ->
 
 (** Bind a declaration with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
     for a body defined in the updated state. *)
-val build_binder : binder -> freshness -> naming_scheme -> rel_declaration ->
-  (access_key -> constr t) -> constr t
+val build_binder : ((constr -> constr) -> 'a -> 'b) -> binder -> freshness -> naming_scheme -> rel_declaration ->
+  (access_key -> 'a t) -> 'b t
 
 (** Create a new [binder] using a [naming_scheme], for a body in the updated state.
     When creating a fresh binder, the type of the variable needs to type check in the current context. *)
-val make_binder : binder -> naming_scheme -> Name.t binder_annot -> types ->
-  (access_key -> constr t) -> constr t
+val make_binder : ((constr -> constr) -> 'a -> 'b) -> binder -> naming_scheme -> Name.t binder_annot -> types ->
+  (access_key -> 'a t) -> 'b t
 
 (** Keep a former [binder] using a [naming_scheme], for a body defined in the updated state. *)
-val keep_binder : binder -> naming_scheme -> Name.t binder_annot -> types ->
-  (access_key -> constr t) -> constr t
-
-(** Bind a declaration with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
-    for an optional body defined in the updated state. *)
-val build_binder_opt : binder -> freshness -> naming_scheme -> rel_declaration ->
-  (access_key -> (constr option) t) -> (constr option) t
-
-(** Create a new [binder] using a [naming_scheme], for an optional body in the updated state. *)
-val make_binder_opt : binder -> naming_scheme -> Name.t binder_annot -> types ->
-  (access_key -> (constr option) t) -> (constr option) t
-
-(** Keep a former [binder] using a [naming_scheme], for an optional body in the updated state. *)
-val keep_binder_opt : binder -> naming_scheme -> Name.t binder_annot -> types ->
-  (access_key -> (constr option) t) -> (constr option) t
+val keep_binder : ((constr -> constr) -> 'a -> 'b) -> binder -> naming_scheme -> Name.t binder_annot -> types ->
+  (access_key -> 'a t) -> 'b t
 
 (** {6 Create Lambda, Product, or LetIn for Context} *)
 
@@ -238,16 +263,6 @@ val keep_binder_opt : binder -> naming_scheme -> Name.t binder_annot -> types ->
 val add_context : freshness -> naming_scheme -> rel_context ->
   (access_key list -> 'a t) -> 'a t
 
-(** Bind a context with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
-    for a body defined in the updated state. *)
-val closure_context : binder -> freshness -> naming_scheme -> rel_context ->
-  (access_key list -> constr t) -> constr t
-
-(** Bind a context with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
-    for an optional body defined in the updated state. *)
-val closure_context_opt : binder -> freshness -> naming_scheme -> rel_context ->
-  (access_key list -> (constr option) t) -> (constr option) t
-
 (** Add a context to the state given its [freshness] and a [naming_scheme],
     for a body defined in the updated state, where the [access_key] are split
     between [key_vars, key_letin, key_both]. *)
@@ -255,16 +270,20 @@ val add_context_sep : freshness -> naming_scheme -> rel_context ->
   (access_key list * access_key list * access_key list -> 'a t) -> 'a t
 
 (** Bind a context with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
-    for a body defined in the updated state, where the [access_key] are split
-    between [key_vars, key_letin, key_both]. *)
-val closure_context_sep : binder -> freshness -> naming_scheme -> rel_context ->
-  (access_key list * access_key list * access_key list -> constr t) -> constr t
+    for a body defined in the updated state. *)
+val closure_context : ((constr -> constr) -> 'a -> 'a) -> binder -> freshness ->
+  naming_scheme -> rel_context -> (access_key list -> 'a t) -> 'a t
 
 (** Bind a context with [binder] or [LetIn], given its [freshness] and a [naming_scheme],
-    for an optional body defined in the updated state, where the [access_key] are split
+    for a body defined in the updated state, where the [access_key] are split
     between [key_vars, key_letin, key_both]. *)
-val closure_context_sep_opt : binder -> freshness -> naming_scheme -> rel_context ->
-  (access_key list * access_key list * access_key list -> (constr option) t) -> (constr option) t
+val closure_context_sep : ((constr -> constr) -> 'a -> 'a) -> binder -> freshness -> naming_scheme ->
+  rel_context -> (access_key list * access_key list * access_key list -> 'a t) -> 'a t
+
+(** Decompose a [constr] as [binder(s) local hd], then rebind it as
+    [binder(s) local, binder hd, cc] *)
+val rebind : ((constr -> constr) -> 'a -> 'a) -> binder -> freshness -> naming_scheme -> constr ->
+  (access_key list * access_key -> 'a t) -> 'a t
 
 (** [reads cxt binder cc_letin cc_var] go through a context [cxt],
     apply [binder] to each context declaration [decl] to it,
@@ -285,11 +304,11 @@ val iterate_ctors : mutual_inductive_body -> one_inductive_body -> einstance ->
 
 (** Create a term refering to an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
-val make_ind : inductive * EInstance.t -> access_key list -> access_key list -> access_key list -> state -> constr
+val make_ind : inductive * EInstance.t -> access_key list -> access_key list -> access_key list -> constr t
 
 (** Create a term refering to the constructor of an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
-val make_cst : inductive * EInstance.t -> int -> access_key list -> access_key list -> constr list -> state -> constr
+val make_cst : inductive * EInstance.t -> int -> access_key list -> access_key list -> constr array -> constr t
 
 (** Create a term refering to an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
@@ -304,12 +323,12 @@ val get_indices : one_inductive_body -> einstance -> rel_context t
   - A [naming_scheme] for the fresh indices, and arguments
   - The [mutual_inductive_body], [inductive], [one_inductive_body], [instance] on which the match is performed
   - The access keys for its uniform and non-uniform parameters
-  - The parameters [constr array], and indices [constr list] of the term being matched
+  - The parameters [constr array], and indices [constr array] of the term being matched
   - The return type of the match [access_key list -> access_key -> constr t]
   - The [relevance] of the match
   - The term being matched [constr]
   *)
 val make_case_or_projections : naming_scheme -> mutual_inductive_body -> inductive -> one_inductive_body ->
-  einstance -> access_key list -> access_key list -> constr array -> constr list ->
+  einstance -> access_key list -> access_key list -> constr array -> constr array ->
   (access_key list -> access_key -> types t) -> erelevance -> constr ->
   (access_key list * access_key list * access_key list * int -> constr t) -> constr t
