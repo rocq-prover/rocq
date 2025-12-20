@@ -38,7 +38,7 @@ let relevance_of_projection_repr env (p, u) =
   | NotRecord | FakeRecord ->
     CErrors.anomaly ~label:"relevance_of_projection" Pp.(str "not a projection")
   | PrimRecord infos ->
-    let _,_,rs,_ = infos in
+    let _, _, rs, _, _ = infos in
     UVars.subst_instance_relevance u rs.(Names.Projection.Repr.arg p)
 
 let relevance_of_projection env (p,u) =

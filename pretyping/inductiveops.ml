@@ -607,7 +607,7 @@ let compute_projections env (kn, i as ind) =
   | NotRecord | FakeRecord ->
     anomaly Pp.(str "Trying to build primitive projections for a non-primitive record")
   | PrimRecord info ->
-    let id, _, _, _ = info in
+    let id, _, _, _, _ = info in
     make_annot (Name id) (ERelevance.make mib.mind_packets.(i).mind_relevance)
   in
   let pkt = mib.mind_packets.(i) in

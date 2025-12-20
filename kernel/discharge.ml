@@ -125,11 +125,11 @@ let cook_one_ind info cache ~params ~ntypes mip =
   let mind_record = match mip.mind_record with
     | NotRecord -> NotRecord
     | FakeRecord -> FakeRecord
-    | PrimRecord (id,projs,relevances,tys) ->
+    | PrimRecord (id, projs, relevances, tys, recheck) ->
       let data =
         let tys = Array.map (cook_projection cache ~params) tys in
         let relevances = Array.map (lift_relevance info) relevances in
-        (id,projs,relevances,tys)
+        (id, projs, relevances, tys, recheck)
       in
       PrimRecord data
   in
