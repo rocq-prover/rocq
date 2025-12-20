@@ -1917,6 +1917,11 @@ let clear_body idl =
     let sigma = Proofview.Goal.sigma gl in
     let ctx = named_context env in
     let ids = Id.Set.of_list idl in
+    let () =
+      match Id.Set.find_first_opt (fun v -> not (mem_named v env)) ids with
+      | Some v -> TacticErrors.variable_has_no_value v
+      | None -> ()
+    in
     (* We assume the context to respect dependencies *)
     let rec fold ids ctx =
       if Id.Set.is_empty ids then

@@ -194,6 +194,9 @@ let map_named_val f ctxt =
 let push_named d env =
   {env with env_named_context = push_named_context_val d env.env_named_context}
 
+let mem_named id env =
+  Id.Map.mem id env.env_named_context.env_named_map
+
 let lookup_named id env =
   Id.Map.find id env.env_named_context.env_named_map
 
