@@ -2213,6 +2213,13 @@ let by env tac pf =
   let sideff = SideEff.concat eff pf.sideff in
   { pf with proof; sideff }, safe
 
+let freshen_instance univs = match univs with
+| UState.Monomorphic_entry uctx, unames ->
+  let guctx = (Univ.Level.Set.empty, snd uctx) in
+  guctx, (UState.Monomorphic_entry uctx, unames)
+| UState.Polymorphic_entry _, _ ->
+  Univ.ContextSet.empty, univs
+
 let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
   let cinfo = [CInfo.make ?loc ~name ~typ:() ()] in
@@ -2227,10 +2234,16 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
     let uctx = UState.restrict proof.output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
+  (* TODO: mono levels are almost immediately demoted, we should do this directly instead *)
+  let uctx, univs = freshen_instance univs in
   let entry = definition_entry_core ~univs ?types body in
-  (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data pf.proof in
-  let sigma = Evd.set_universe_context sigma proof.output_ustate in
+  let sigma =
+    (* XXX overwriting the context in polymorphic mode breaks a lot of invariants,
+       but it is hard to fix locally without wreaking havoc elsewhere *)
+    if PolyFlags.univ_poly poly then Evd.set_universe_context sigma proof.output_ustate
+    else Evd.merge_universe_context_set Evd.univ_rigid sigma uctx
+  in
   entry, status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
@@ -2245,7 +2258,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
      (but due to #13324 we still want to inline them) *)
   let body = ce.proof_entry_body in
   let effs = SideEff.make @@ Evd.eval_side_effects sigma in
-  let body, _uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
+  let body, uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
   body, ce.proof_entry_type, ce.proof_entry_universes, status, uctx
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
