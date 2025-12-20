@@ -250,7 +250,20 @@ and traverse_object access (curr, data, ax2ty) body obj =
     if already_in then data, ax2ty
     else match body () (* Beware: this can be very costly *) with
     | None ->
-      GlobRef.Map_env.add obj None data, ax2ty
+      (* This is an axiom. Always traverse its type to find dependencies *)
+      let data = GlobRef.Map_env.add obj None data in
+      begin match obj with
+      | GlobRef.ConstRef kn ->
+        let cb = lookup_constant kn in
+        let typ = cb.Declarations.const_type in
+        let _, data, ax2ty =
+          traverse access obj Context.Rel.empty
+                   (GlobRef.Set_env.empty, data, ax2ty) typ in
+        data, ax2ty
+      (* VarRef, IndRef and ConstructRef don't need recursive type traversal.
+         For VarRef (section variables), the dependencies are already tracked.
+         For IndRef and ConstructRef, dependencies are handled by traverse_inductive *)
+      | GlobRef.VarRef _ | GlobRef.IndRef _ | GlobRef.ConstructRef _ -> data, ax2ty end
     | Some body ->
       let contents,data,ax2ty =
         traverse access obj Context.Rel.empty
