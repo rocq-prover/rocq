@@ -17,9 +17,9 @@ open Pputils
 
 let pr_tacref avoid kn =
   try Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid (TacConstant kn))
-  with Not_found when !Flags.in_debugger || KerName.Map.mem kn (Tac2env.globals()) ->
-    str (ModPath.to_string (KerName.modpath kn))
-    ++ str"." ++ Id.print (KerName.label kn)
+  with Not_found when !Flags.in_debugger || TacConstant.Map.mem kn (Tac2env.globals()) ->
+    str (ModPath.to_string (TacConstant.modpath kn))
+    ++ str"." ++ Id.print (TacConstant.label kn)
     ++ if !Flags.in_debugger then mt() else str " (* local *)"
 
 (** Utils *)
