@@ -37,9 +37,8 @@ let relevance_of_projection_repr env (p, u) =
   match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord ->
     CErrors.anomaly ~label:"relevance_of_projection" Pp.(str "not a projection")
-  | PrimRecord infos ->
-    let _,_,rs,_ = infos in
-    UVars.subst_instance_relevance u rs.(Names.Projection.Repr.arg p)
+  | PrimRecord { relevances; _ }->
+    UVars.subst_instance_relevance u relevances.(Names.Projection.Repr.arg p)
 
 let relevance_of_projection env (p,u) =
   relevance_of_projection_repr env (Names.Projection.repr p,u)

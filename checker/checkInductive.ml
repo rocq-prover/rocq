@@ -39,7 +39,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
       let get_id p =
         match p.mind_record with
         | NotRecord | FakeRecord -> assert false
-        | PrimRecord (x,_,_,_) -> x
+        | PrimRecord {id; _ } -> id
       in
       Some (Some (Array.map get_id mb.mind_packets))
   in
@@ -162,7 +162,7 @@ let eq_in_context (ctx1, t1) (ctx2, t2) =
 
 let check_same_record r1 r2 = match r1, r2 with
   | NotRecord, NotRecord | FakeRecord, FakeRecord -> true
-  | PrimRecord (_,_,r1,tys1), PrimRecord (_,_,r2,tys2) ->
+  | PrimRecord { relevances = r1; tys = tys1 ; _ }, PrimRecord { relevances = r2; tys = tys2 ; _ } ->
     (* The kernel doesn't care about the names, we just need to check
        that the saved types are correct. *)
     Array.equal Sorts.relevance_equal r1 r2 &&

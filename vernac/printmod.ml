@@ -128,7 +128,7 @@ let print_one_inductive env sigma mib ((_,i) as ind) =
   let isrecord = match mip.mind_record with
     | NotRecord -> None
     | FakeRecord -> Some Anonymous
-    | PrimRecord (id,_,_,_) -> Some (Name id)
+    | PrimRecord { id; _ } -> Some (Name id)
   in
   if Option.has_some isrecord then assert (Array.length cstrtypes = 1);
   let inst =

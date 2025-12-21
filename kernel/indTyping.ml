@@ -227,12 +227,15 @@ module NotPrimRecordReason = struct
 
 end
 
+(* Checks whether the record can have primitive projections, and if so, whether it has eta *)
 let check_record data =
   let open NotPrimRecordReason in
-  List.find_map (fun (_,(_,splayed_lc),info) ->
-      if Option.has_some info.ind_squashed
+  List.fold_left (fun res (_, (_, splayed_lc), info) ->
+      if Result.is_error res
+      then res
+      else if Option.has_some info.ind_squashed
       (* records must have all projections definable -> equivalent to not being squashed *)
-      then Some MustNotBeSquashed
+      then Result.Error MustNotBeSquashed
       else
         let res = match splayed_lc with
           (* records must have 1 constructor with at least 1 argument, and no anonymous fields *)
@@ -249,13 +252,19 @@ let check_record data =
             else None
           | _ -> CErrors.anomaly ~label:"Indtyping.check_record" Pp.(str "not 1 constructor")
         in
-        if Option.has_some res then res
-        else (* relevant records must have at least 1 relevant argument *)
-        if (match info.record_arg_info with
-            | HasRelevantArg -> false
-            | NoRelevantArg -> not @@ Sorts.is_sprop info.ind_univ)
-        then Some MustHaveRelevantProj
-        else None)
+        match res with
+        | Some reason -> Result.Error reason
+        | None -> (* Otherwise, we allow primitive projections but check if it has eta *)
+            match info.record_arg_info with
+            | HasRelevantArg -> Result.Ok AlwaysEta
+            | NoRelevantArg ->
+              (* If there is no relevant projection, then we consider the sort of the record to decide if it has eta *)
+              match info.ind_univ with
+              | SProp -> Result.Ok AlwaysEta
+              | Set | Type _ | Prop -> Result.Ok NoEta (* Set, Type and Prop don't have eta *)
+              | QSort _ ->  Result.Ok MaybeEta (* For sort variables it depends on how they are instantiated *)
+    )
+    (Result.Ok MaybeEta)
     data
 
 (* Template univs must be unbounded from below for subject reduction
@@ -560,19 +569,20 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   in
 
   let record = mie.mind_entry_record in
-  let data, record, why_not_prim_record = match record with
-    | None | Some None -> data, record, None
-    | Some (Some _) ->
+  let data, record, not_prim_reason_or_has_eta = match record with
+    | None | Some None -> data, record, None (* NotRecord or FakeRecord *)
+    | Some (Some _) -> (* PrimRecord *)
+      (* We check if it can actually have primitive projections & eta *)
       match check_record data with
-      | None -> data, record, None
-      | Some _ as reason ->
+      | Result.Ok has_eta -> data, record, Some (Result.Ok has_eta)
+      | Result.Error _ as reason ->
         (* if someone tried to declare a record as SProp but it can't
            be primitive we must squash. *)
-        let data = List.map (fun (a,b,univs) ->
-            a,b,compute_elim_squash env_ar_par Sorts.prop univs)
+        let data = List.map (fun (a, b, univs) ->
+            a, b, compute_elim_squash env_ar_par Sorts.prop univs)
             data
         in
-        data, Some None, reason
+        data, Some None, Some reason (* back to FakeRecord with a reason why *)
   in
 
   let variance = match mie.mind_entry_variance with
@@ -623,4 +633,4 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     Environ.push_rel_context ctx env
   in
 
-  env_ar_par, univs, template, variance, record, why_not_prim_record, params, Array.of_list data
+  env_ar_par, univs, template, variance, record, not_prim_reason_or_has_eta, params, Array.of_list data
