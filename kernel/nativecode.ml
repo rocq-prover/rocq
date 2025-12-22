@@ -835,8 +835,6 @@ let hash_global g =
     combinesmall 7 (combine (Ind.UserOrd.hash ind) (Array.fold_left hash_aux 0 arr))
   | Gcomment s -> combinesmall 8 (String.hash s)
 
-let global_stack = ref ([] : global list)
-
 module HashedTypeGlobal = struct
   type t = global
   let equal = eq_global
@@ -853,6 +851,7 @@ type cenv = {
   mutable norm_ctr : int;
   mutable normtbl_ctr : int;
   global_tbl : gname HashtblGlobal.t;
+  mutable global_stack : global list;
 }
 
 let make_cenv () = {
@@ -863,6 +862,7 @@ let make_cenv () = {
   norm_ctr = -1;
   normtbl_ctr = -1;
   global_tbl = HashtblGlobal.create 91;
+  global_stack = [];
 }
 
 let fresh_lname cenv n =
@@ -900,8 +900,9 @@ let mkForceCofix cenv prefix ind arg =
 let push_global cenv gn t =
   try HashtblGlobal.find cenv.global_tbl t
   with Not_found ->
-    (global_stack := t :: !global_stack;
-    HashtblGlobal.add cenv.global_tbl t gn; gn)
+    let () = cenv.global_stack <- t :: cenv.global_stack in
+    let () = HashtblGlobal.add cenv.global_tbl t gn in
+    gn
 
 let push_global_let cenv gn body =
   push_global cenv gn (Glet (gn,body))
@@ -1561,7 +1562,7 @@ let compile_prim env decl cond paux =
 
 let mllambda_of_lambda cenv univ constpref constlazy mindpref auxdefs l t =
   let env = empty_env cenv univ constpref constlazy mindpref in
-  global_stack := auxdefs;
+  let () = cenv.global_stack <- auxdefs in
   let ml = ml_of_lam env l t in
   let fv_rel = !(env.env_urel) in
   let fv_named = !(env.env_named) in
@@ -1573,10 +1574,10 @@ let mllambda_of_lambda cenv univ constpref constlazy mindpref auxdefs l t =
   let params =
     List.append (List.map get_lname fv_rel) (List.map get_lname fv_named) in
   if List.is_empty params then
-    (!global_stack, ([],[]), ml)
+    (cenv.global_stack, ([],[]), ml)
   (* final result : global list, fv, ml *)
   else
-    (!global_stack, (fv_named, fv_rel), mkMLlam (Array.of_list params) ml)
+    (cenv.global_stack, (fv_named, fv_rel), mkMLlam (Array.of_list params) ml)
 
 (** Code optimization **)
 
