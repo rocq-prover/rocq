@@ -20,6 +20,7 @@ to OCaml code. *)
 type cenv
 
 val make_cenv : unit -> cenv
+val get_cenv_symbols : cenv -> symbols
 
 type global
 
@@ -30,9 +31,6 @@ val keep_debug_files : unit -> bool
 val pp_global : Format.formatter -> global -> unit
 
 val mk_open : string -> global
-
-(* Precomputed values for a compilation unit *)
-val clear_symbols : unit -> unit
 
 val get_value : symbols -> int -> Nativevalues.t
 
@@ -52,10 +50,8 @@ val get_instance : symbols -> int -> UVars.Instance.t
 
 val get_proj : symbols -> int -> inductive * int
 
-val get_symbols : unit -> symbols
-
 type code_location_updates
-type linkable_code = global list * code_location_updates
+type linkable_code = global list * symbols * code_location_updates
 
 val empty_updates : code_location_updates
 

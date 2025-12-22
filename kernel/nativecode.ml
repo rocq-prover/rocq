@@ -201,10 +201,6 @@ end
 
 module HashtblSymbol = Hashtbl.Make(HashedTypeSymbol)
 
-let symb_tbl = HashtblSymbol.create 211
-
-let clear_symbols () = HashtblSymbol.clear symb_tbl
-
 let get_value tbl i =
   match tbl.(i) with
     | SymbValue v -> v
@@ -249,22 +245,6 @@ let get_proj tbl i =
   match tbl.(i) with
     | SymbProj p -> p
     | _ -> anomaly (Pp.str "get_proj failed.")
-
-let push_symbol x =
-  try HashtblSymbol.find symb_tbl x
-  with Not_found ->
-    let i = HashtblSymbol.length symb_tbl in
-    HashtblSymbol.add symb_tbl x i; i
-
-let symbols_tbl_name = Ginternal "symbols_tbl"
-
-let get_symbols () =
-  match HashtblSymbol.to_seq symb_tbl () with
-  | Nil -> [||]
-  | Cons ((x,_), rest) ->
-    let tbl = Array.make (HashtblSymbol.length symb_tbl) x in
-    Seq.iter (fun (x, i) -> tbl.(i) <- x) rest;
-    tbl
 
 (** Lambda to Mllambda **)
 
@@ -852,6 +832,7 @@ type cenv = {
   mutable normtbl_ctr : int;
   global_tbl : gname HashtblGlobal.t;
   mutable global_stack : global list;
+  symb_tbl : arity HashtblSymbol.t;
 }
 
 let make_cenv () = {
@@ -863,6 +844,7 @@ let make_cenv () = {
   normtbl_ctr = -1;
   global_tbl = HashtblGlobal.create 91;
   global_stack = [];
+  symb_tbl = HashtblSymbol.create 211;
 }
 
 let fresh_lname cenv n =
@@ -918,6 +900,21 @@ let push_global_cofix cenv gn params self =
 
 let push_global_case cenv gn params annot a accu bs =
   push_global cenv gn (Gletcase (gn, params, annot, a, accu, bs))
+
+let push_symbol cenv x =
+  try HashtblSymbol.find cenv.symb_tbl x
+  with Not_found ->
+    let i = HashtblSymbol.length cenv.symb_tbl in
+    let () = HashtblSymbol.add cenv.symb_tbl x i in
+    i
+
+let get_cenv_symbols cenv =
+  match HashtblSymbol.to_seq cenv.symb_tbl () with
+  | Nil -> [||]
+  | Cons ((x,_), rest) ->
+    let tbl = Array.make (HashtblSymbol.length cenv.symb_tbl) x in
+    let () = Seq.iter (fun (x, i) -> tbl.(i) <- x) rest in
+    tbl
 
 (* Compares [t1] and [t2] up to alpha-equivalence. [t1] and [t2] may contain
    free variables. *)
@@ -1074,6 +1071,8 @@ let fv_args env fvn fvr =
       args
     end
 
+let symbols_tbl_name = Ginternal "symbols_tbl"
+
 let get_value_code i =
   MLprimitive (Get_value,
     [|MLglobal symbols_tbl_name; MLint i|])
@@ -1202,7 +1201,7 @@ let cast_to_int v =
 let ml_of_instance env u =
   if UVars.Instance.is_empty u then [||]
   else
-    let i = push_symbol (SymbInstance u) in
+    let i = push_symbol env.env_cenv (SymbInstance u) in
     let u_code = get_instance_code i in
     let u_code = match env.env_univ with
     | UGlobal -> u_code
@@ -1224,7 +1223,7 @@ let ml_of_instance env u =
     [|MLprimitive (MLmagic, [|u_code|])|]
 
 let ml_of_sort env s =
-  let i = push_symbol (SymbSort s) in
+  let i = push_symbol env.env_cenv (SymbSort s) in
   let s_code = get_sort_code i in
   let s_code = match env.env_univ with
   | UGlobal | ULocal None -> s_code
@@ -1308,7 +1307,7 @@ let compile_prim env decl cond paux =
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
   | Levar(evk, args) ->
-     let i = push_symbol (SymbEvar evk) in
+     let i = push_symbol env.env_cenv (SymbEvar evk) in
      (** Arguments are *not* reversed in evar instances in native compilation *)
      let args = MLarray(Array.map (ml_of_lam env l) args) in
      MLprimitive (Mk_evar, [|get_evar_code i; args|])
@@ -1316,7 +1315,7 @@ let compile_prim env decl cond paux =
       let dom = ml_of_lam env l dom in
       let codom = ml_of_lam env l codom in
       let n = get_prod_name codom in
-      let i = push_symbol (SymbName n) in
+      let i = push_symbol env.env_cenv (SymbName n) in
       MLprimitive (Mk_prod, [|get_name_code i;dom;codom|])
   | Llam(ids,body) ->
     let lnames,env = push_rels env ids in
@@ -1386,7 +1385,7 @@ let compile_prim env decl cond paux =
       let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
       let cn_fv = mkMLapp (MLglobal cn) (fv_args env_c fvn fvr) in
          (* remark : the call to fv_args does not add free variables in env_c *)
-      let i = push_symbol (SymbMatch annot) in
+      let i = push_symbol env.env_cenv (SymbMatch annot) in
       let accu =
         MLprimitive (Mk_sw,
               [| get_match_code i; MLprimitive (Cast_accu, [|la_uid|]);
@@ -1552,7 +1551,7 @@ let compile_prim env decl cond paux =
     let def = ml_of_lam env l def in
     MLprimitive (MLparray_of_array, [| MLarray (Array.map (ml_of_lam env l) t); def |])
   | Lval v ->
-      let i = push_symbol (SymbValue v) in get_value_code i
+      let i = push_symbol env.env_cenv (SymbValue v) in get_value_code i
   | Lsort s ->
     ml_of_sort env s
   | Lind (ind, u) ->
@@ -2190,7 +2189,7 @@ let compile_constant cenv env sigma con cb =
       debug_native_compiler (fun () -> Pp.str "Optimized mllambda code");
       code
     | _ ->
-        let i = push_symbol (SymbConst con) in
+        let i = push_symbol cenv (SymbConst con) in
         let args =
           if no_univs then [|get_const_code i; ml_empty_instance|]
           else [|get_const_code i|]
@@ -2224,7 +2223,7 @@ let compile_mind cenv mb mind stack =
   let f i stack ob =
     let ind = (mind, i) in
     let gtype = Gtype(ind, ob.mind_reloc_tbl) in
-    let j = push_symbol (SymbInd ind) in
+    let j = push_symbol cenv (SymbInd ind) in
     let name = Gind ("", ind) in
     let accu =
       let args =
@@ -2248,7 +2247,7 @@ let compile_mind cenv mb mind stack =
       let cargs = Array.init arity
         (fun i -> if Int.equal i proj_arg then Some ci_uid else None)
       in
-      let i = push_symbol (SymbProj (ind, proj_arg)) in
+      let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
       let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
       let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
       let code = MLmatch(asw,MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
@@ -2279,7 +2278,7 @@ type code_location_update = {
 type code_location_updates =
   code_location_update Mindmap_env.t * code_location_update Cmap_env.t
 
-type linkable_code = global list * code_location_updates
+type linkable_code = global list * symbols * code_location_updates
 
 let empty_updates = Mindmap_env.empty, Cmap_env.empty
 
@@ -2380,7 +2379,6 @@ let mk_internal_let s code =
 
 (* ML Code for conversion function *)
 let mk_conv_code env sigma prefix t1 t2 =
-  clear_symbols ();
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
@@ -2404,10 +2402,10 @@ let mk_conv_code env sigma prefix t1 t2 =
   let header = Glet(Ginternal "symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "()")|])) in
-  header::gl, (mind_updates, const_updates)
+  let symbols = get_cenv_symbols cenv in
+  header::gl, symbols, (mind_updates, const_updates)
 
 let mk_norm_code env sigma prefix t =
-  clear_symbols ();
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
@@ -2422,7 +2420,8 @@ let mk_norm_code env sigma prefix t =
   let header = Glet(Ginternal "symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "()")|])) in
-  header::gl, (mind_updates, const_updates)
+  let symbols = get_cenv_symbols cenv in
+  header::gl, symbols, (mind_updates, const_updates)
 
 let mk_library_header (symbols : Nativevalues.symbols) =
   let symbols = Format.sprintf "(str_decode \"%s\")" (str_encode symbols) in

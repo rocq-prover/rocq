@@ -73,7 +73,6 @@ let dump_library mp env mod_expr =
   match mod_expr with
   | NoFunctor struc ->
       let t0 = Sys.time () in
-      clear_symbols ();
       let cenv = Nativecode.make_cenv () in
       let mlcode =
         List.fold_left (translate_field mp cenv env) [] struc
@@ -81,5 +80,6 @@ let dump_library mp env mod_expr =
       let t1 = Sys.time () in
       let time_info = Format.sprintf "Time spent generating this code: %.5fs" (t1-.t0) in
       let mlcode = add_header_comment (List.rev mlcode) time_info in
-      mlcode, get_symbols ()
+      let symbols = Nativecode.get_cenv_symbols cenv in
+      mlcode, symbols
   | _ -> assert false

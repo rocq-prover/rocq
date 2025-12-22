@@ -494,7 +494,7 @@ let native_norm env sigma c ty =
     let print_timing = get_timing_enabled () in
     let ml_filename, prefix = Nativelib.get_ml_filename () in
     let tnc0 = Unix.gettimeofday () in
-    let code, upd = mk_norm_code env (evars_of_evar_map sigma) prefix c in
+    let code, symbols, upd = mk_norm_code env (evars_of_evar_map sigma) prefix c in
     let tnc1 = Unix.gettimeofday () in
     let time_info = Format.sprintf "native_compute: Conversion to native code done in %.5f" (tnc1 -. tnc0) in
     if print_timing then Feedback.msg_info (Pp.str time_info);
@@ -505,7 +505,7 @@ let native_norm env sigma c ty =
     if print_timing then Feedback.msg_info (Pp.str time_info);
     let profiler_pid = if profile then start_profiler () else None in
     let t0 = Unix.gettimeofday () in
-    let (rt1, _) = Nativelib.execute_library ~prefix fn upd in
+    let (rt1, _) = Nativelib.execute_library ~prefix fn symbols upd in
     let rt1 = Option.get rt1 in
     let t1 = Unix.gettimeofday () in
     if profile then stop_profiler profiler_pid;
