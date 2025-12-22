@@ -9,14 +9,14 @@ Fail Check fun (A:Set) => A : Type@{s;_}.
 
 Check fun (A:Type@{s;Set}) => A : Type@{s;_}.
 
+Sort S1.
+
 Section S.
-  Sort S1.
   Local Set Universe Polymorphism.
   Sort S2.
 
   Axiom foo : Type@{S1;Set} -> Type@{S2;Set}.
   Check foo.
-
 End S.
 
 About foo.

@@ -121,6 +121,10 @@ struct
     | Unif _ -> true
     | (Var _ | Global _) -> false
 
+  let is_global = function
+  | Global _ -> true
+  | (Unif _ | Var _) -> false
+
   module Self = struct type nonrec t = t let compare = compare end
   module Set =
   struct

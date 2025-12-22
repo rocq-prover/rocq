@@ -54,6 +54,7 @@ sig
   val of_repr : repr -> t
 
   val is_unif : t -> bool
+  val is_global : t -> bool
 
   module Set : sig
     include CSig.SetS with type elt = t
