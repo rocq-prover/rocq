@@ -145,36 +145,6 @@ let gname_hash gn = match gn with
 | Gnamed id -> combinesmall 10 (Id.hash id)
 | Gproj (s, p, i) -> combinesmall 11 (combine (String.hash s) (combine (Ind.UserOrd.hash p) i))
 
-let case_ctr = ref (-1)
-
-let fresh_gcase l =
-  incr case_ctr;
-  Gcase (l,!case_ctr)
-
-let pred_ctr = ref (-1)
-
-let fresh_gpred l =
-  incr pred_ctr;
-  Gpred (l,!pred_ctr)
-
-let fixtype_ctr = ref (-1)
-
-let fresh_gfixtype l =
-  incr fixtype_ctr;
-  Gfixtype (l,!fixtype_ctr)
-
-let norm_ctr = ref (-1)
-
-let fresh_gnorm l =
-  incr norm_ctr;
-  Gnorm (l,!norm_ctr)
-
-let normtbl_ctr = ref (-1)
-
-let fresh_gnormtbl l =
-  incr normtbl_ctr;
-  Gnormtbl (l,!normtbl_ctr)
-
 (* We compare only what is relevant for generation of ml code *)
 let eq_annot_sw asw1 asw2 =
   Ind.UserOrd.equal asw1.asw_ind asw2.asw_ind &&
@@ -877,17 +847,47 @@ module HashtblGlobal = Hashtbl.Make(HashedTypeGlobal)
 
 type cenv = {
   mutable lname_ctr : int;
+  mutable case_ctr : int;
+  mutable pred_ctr : int;
+  mutable fixtype_ctr : int;
+  mutable norm_ctr : int;
+  mutable normtbl_ctr : int;
   global_tbl : gname HashtblGlobal.t;
 }
 
 let make_cenv () = {
   lname_ctr = -1;
+  case_ctr = -1;
+  pred_ctr = -1;
+  fixtype_ctr = -1;
+  norm_ctr = -1;
+  normtbl_ctr = -1;
   global_tbl = HashtblGlobal.create 91;
 }
 
 let fresh_lname cenv n =
   let () = cenv.lname_ctr <- cenv.lname_ctr + 1 in
   { lname = n; luid = cenv.lname_ctr }
+
+let fresh_gcase cenv l =
+  let () = cenv.case_ctr <- cenv.case_ctr + 1 in
+  Gcase (l, cenv.case_ctr)
+
+let fresh_gpred cenv l =
+  let () = cenv.pred_ctr <- cenv.pred_ctr + 1 in
+  Gpred (l, cenv.pred_ctr)
+
+let fresh_gfixtype cenv l =
+  let () = cenv.fixtype_ctr <- cenv.fixtype_ctr + 1 in
+  Gfixtype (l, cenv.fixtype_ctr)
+
+let fresh_gnorm cenv l =
+  let () = cenv.norm_ctr <- cenv.norm_ctr + 1 in
+  Gnorm (l, cenv.norm_ctr)
+
+let fresh_gnormtbl cenv l =
+  let () = cenv.normtbl_ctr <- cenv.normtbl_ctr + 1 in
+  Gnormtbl (l, cenv.normtbl_ctr)
 
 let mkForceCofix cenv prefix ind arg =
   let name = fresh_lname cenv Anonymous in
@@ -1359,7 +1359,7 @@ let compile_prim env decl cond paux =
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
       }, finite in
       let env_p = restart_env env in
-      let pn = fresh_gpred l in
+      let pn = fresh_gpred env.env_cenv l in
       let mlp = ml_of_lam env_p l p in
       let mlp = generalize_fv env_p mlp in
       let (pfvn,pfvr) = !(env_p.env_named), !(env_p.env_urel) in
@@ -1379,7 +1379,7 @@ let compile_prim env decl cond paux =
                                   (NonConstPattern (i-nbconst+1,lnames), ml_of_lam env_c l body)
                               )
       in
-      let cn = fresh_gcase l in
+      let cn = fresh_gcase env.env_cenv l in
       (* Compilation of accu branch *)
       let pred = MLapp(MLglobal pn, fv_args env_c pfvn pfvr) in
       let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
@@ -1423,7 +1423,7 @@ let compile_prim env decl cond paux =
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
-      let gft = fresh_gfixtype l in
+      let gft = fresh_gfixtype env.env_cenv l in
       let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
@@ -1446,7 +1446,7 @@ let compile_prim env decl cond paux =
         let paramsi,letsi =
           Array.of_list (List.rev paramsi), Array.of_list (List.rev letsi)
         in
-        t_norm_f.(i) <- fresh_gnorm l;
+        t_norm_f.(i) <- fresh_gnorm env.env_cenv l;
         let bodyi = ml_of_lam envi l bodyi in
         t_params.(i) <- paramsi;
         let bodyi = Array.fold_right (mk_let envi) letsi bodyi in
@@ -1459,7 +1459,7 @@ let compile_prim env decl cond paux =
       let norm_params = Array.append fv_params lf in
       let t_norm_f = Array.mapi (fun i body ->
         push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl l in
+      let norm = fresh_gnormtbl env.env_cenv l in
       let norm = push_global_norm env.env_cenv norm fv_params
          (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of fix *)
@@ -1490,14 +1490,14 @@ let compile_prim env decl cond paux =
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = Array.map (fun id -> MLlocal id) params_t in
-      let gft = fresh_gfixtype l in
+      let gft = fresh_gfixtype env.env_cenv l in
       let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
       let lf,env_n = push_rels env_t ids in
       let t_params = Array.make ndef [||] in
-      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm l) in
+      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm env.env_cenv l) in
       let ml_of_fix i body =
         let idsi,bodyi = decompose_Llam body in
         let paramsi, envi = push_rels env_n idsi in
@@ -1512,14 +1512,14 @@ let compile_prim env decl cond paux =
       let norm_params = Array.append fv_params lf in
       let t_norm_f = Array.mapi (fun i body ->
         push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl l in
+      let norm = fresh_gnormtbl env.env_cenv l in
       let norm = push_global_norm env.env_cenv norm fv_params
         (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of cofix *)
       let fv_args = fv_args env fvn fvr in
       let mk_norm = MLapp(MLglobal norm, fv_args') in
 
-      let knot = fresh_gnormtbl l in
+      let knot = fresh_gnormtbl env.env_cenv l in
       let map i g =
         (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
         let unit = fresh_lname env.env_cenv Anonymous in
