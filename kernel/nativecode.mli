@@ -66,7 +66,7 @@ val is_loaded_native_file : string -> bool
 val compile_constant_field : cenv -> env -> Constant.t ->
   global list -> constant_body -> global list
 
-val compile_mind_field : ModPath.t -> Id.t ->
+val compile_mind_field : cenv -> ModPath.t -> Id.t ->
   global list -> mutual_inductive_body -> global list
 
 val compile_rewrite_rules : env -> Id.t ->

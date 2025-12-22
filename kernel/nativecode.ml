@@ -46,12 +46,6 @@ module LNord =
 module LNmap = Map.Make(LNord)
 module LNset = Set.Make(LNord)
 
-let lname_ctr = ref (-1)
-
-let fresh_lname n =
-  incr lname_ctr;
-  { lname = n; luid = !lname_ctr }
-
 let rec is_lazy env t =
   match Constr.kind t with
   | App _ | LetIn _ | Case _ | Proj _ -> true
@@ -787,14 +781,6 @@ let mkMLapp f args =
     | MLapp(f,args') -> MLapp(f,Array.append args' args)
     | _ -> MLapp(f,args)
 
-let mkForceCofix prefix ind arg =
-  let name = fresh_lname Anonymous in
-  MLlet (name, arg,
-    MLif (
-      MLisaccu (prefix, ind, MLlocal name),
-      MLprimitive (Force_cofix, [|MLlocal name|]),
-      MLlocal name))
-
 let empty_params = [||]
 
 let decompose_MLlam c =
@@ -890,12 +876,26 @@ end
 module HashtblGlobal = Hashtbl.Make(HashedTypeGlobal)
 
 type cenv = {
+  mutable lname_ctr : int;
   global_tbl : gname HashtblGlobal.t;
 }
 
 let make_cenv () = {
+  lname_ctr = -1;
   global_tbl = HashtblGlobal.create 91;
 }
+
+let fresh_lname cenv n =
+  let () = cenv.lname_ctr <- cenv.lname_ctr + 1 in
+  { lname = n; luid = cenv.lname_ctr }
+
+let mkForceCofix cenv prefix ind arg =
+  let name = fresh_lname cenv Anonymous in
+  MLlet (name, arg,
+    MLif (
+      MLisaccu (prefix, ind, MLlocal name),
+      MLprimitive (Force_cofix, [|MLlocal name|]),
+      MLlocal name))
 
 let push_global cenv gn t =
   try HashtblGlobal.find cenv.global_tbl t
@@ -958,7 +958,7 @@ let restart_env env =
   empty_env env.env_cenv env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix
 
 let push_rel env id =
-  let local = fresh_lname id.binder_name in
+  let local = fresh_lname env.env_cenv id.binder_name in
   local, { env with
            env_rel = MLlocal local :: env.env_rel;
            env_bound = env.env_bound + 1
@@ -967,7 +967,7 @@ let push_rel env id =
 let push_rels env ids =
   let lnames, env_rel =
     Array.fold_left (fun (names,env_rel) id ->
-      let local = fresh_lname id.binder_name in
+      let local = fresh_lname env.env_cenv id.binder_name in
       (local::names, MLlocal local::env_rel)) ([],env.env_rel) ids in
   Array.of_list (List.rev lnames), { env with
                           env_rel = env_rel;
@@ -981,19 +981,19 @@ let get_rel env id i =
     let i = i - env.env_bound in
     try Int.List.assoc i !(env.env_urel)
     with Not_found ->
-      let local = MLlocal (fresh_lname id) in
+      let local = MLlocal (fresh_lname env.env_cenv id) in
       env.env_urel := (i,local) :: !(env.env_urel);
       local
 
 let get_var env id =
   try Id.List.assoc id !(env.env_named)
   with Not_found ->
-    let local = MLlocal (fresh_lname (Name id)) in
+    let local = MLlocal (fresh_lname env.env_cenv (Name id)) in
     env.env_named := (id, local)::!(env.env_named);
     local
 
-let fresh_univ () =
-  fresh_lname (Name (Id.of_string "univ"))
+let fresh_univ cenv () =
+  fresh_lname cenv (Name (Id.of_string "univ"))
 
 (*s Traduction of lambda to mllambda *)
 
@@ -1187,7 +1187,7 @@ let extract_prim env ml_of l =
       PAprim (prefix, kn, p, args)
     | Lrel _ | Lvar _ | Luint _ | Lval _ | Lconst _ -> PAml (ml_of l)
     | _ ->
-      let x = fresh_lname Anonymous in
+      let x = fresh_lname env.env_cenv Anonymous in
       decl := (x,ml_of l)::!decl;
       PAml (MLlocal x) in
   let res = aux l in
@@ -1366,7 +1366,7 @@ let compile_prim env decl cond paux =
       let pn = push_global_let env.env_cenv pn mlp in
       (* Compilation of the case *)
       let env_c = restart_env env in
-      let a_uid = fresh_lname Anonymous in
+      let a_uid = fresh_lname env.env_cenv Anonymous in
       let la_uid = MLlocal a_uid in
       (* compilation of branches *)
       let nbconst = Array.length bs.constant_branches in
@@ -1400,7 +1400,7 @@ let compile_prim env decl cond paux =
       let arg = ml_of_lam env l a in
       let force =
         if finite <> CoFinite then arg
-        else mkForceCofix annot.asw_prefix annot.asw_ind arg in
+        else mkForceCofix env.env_cenv annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
       (* let type_f fvt = [| type fix |]
@@ -1522,7 +1522,7 @@ let compile_prim env decl cond paux =
       let knot = fresh_gnormtbl l in
       let map i g =
         (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
-        let unit = fresh_lname Anonymous in
+        let unit = fresh_lname env.env_cenv Anonymous in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
           MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
@@ -2140,7 +2140,7 @@ and apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
   let lvl = Context.Rel.length (rel_context env) in
   let fv_rel = List.map (fun (n,_) -> MLglobal (Grel (lvl-n))) fv_rel in
   let fv_named = List.map (fun (id,_) -> MLglobal (Gnamed id)) fv_named in
-  let aux_name = fresh_lname Anonymous in
+  let aux_name = fresh_lname cenv Anonymous in
   auxdefs, MLlet(aux_name, ml, mkMLapp (MLlocal aux_name) (Array.of_list (fv_rel@fv_named)))
 
 and compile_rel cenv env sigma univ auxdefs n =
@@ -2178,7 +2178,7 @@ let compile_constant cenv env sigma con cb =
         if no_univs then
           compile_with_fv ~wrap cenv env sigma (ULocal None) [] (Some l) code
         else
-          let univ = fresh_univ () in
+          let univ = fresh_univ cenv () in
           let (auxdefs,code) = compile_with_fv ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
           (auxdefs,mkMLlam [|univ|] code)
       in
@@ -2217,7 +2217,7 @@ let is_code_loaded name =
       if is_loaded_native_file s then true
       else (name := NotLinked; false)
 
-let compile_mind mb mind stack =
+let compile_mind cenv mb mind stack =
   let u = Declareops.inductive_polymorphic_context mb in
   (** Generate data for every block *)
   let f i stack ob =
@@ -2239,11 +2239,11 @@ let compile_mind mb mind stack =
       (* Building info *)
       let asw = { asw_ind = ind; asw_prefix = "";
                   asw_reloc = tbl } in
-      let c_uid = fresh_lname Anonymous in
-      let cf_uid = fresh_lname Anonymous in
+      let c_uid = fresh_lname cenv Anonymous in
+      let cf_uid = fresh_lname cenv Anonymous in
       let tag, arity = tbl.(0) in
       assert (arity > 0);
-      let ci_uid = fresh_lname Anonymous in
+      let ci_uid = fresh_lname cenv Anonymous in
       let cargs = Array.init arity
         (fun i -> if Int.equal i proj_arg then Some ci_uid else None)
       in
@@ -2254,7 +2254,7 @@ let compile_mind mb mind stack =
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
-        else mkForceCofix "" ind (MLlocal c_uid)
+        else mkForceCofix cenv "" ind (MLlocal c_uid)
       in
       let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
@@ -2282,7 +2282,7 @@ type linkable_code = global list * code_location_updates
 
 let empty_updates = Mindmap_env.empty, Cmap_env.empty
 
-let compile_mind_deps env prefix
+let compile_mind_deps cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib,nameref,_ = lookup_mind_key mind env in
   if is_code_loaded nameref
@@ -2290,7 +2290,7 @@ let compile_mind_deps env prefix
   then init
   else
     let comp_stack =
-      compile_mind mib mind comp_stack
+      compile_mind cenv mib mind comp_stack
     in
     let upd = {
       upd_info = nameref;
@@ -2304,7 +2304,7 @@ let compile_mind_deps env prefix
 let compile_deps cenv env sigma prefix init t =
   let rec aux env lvl init t =
   match kind t with
-  | Ind ((mind,_),_u) -> compile_mind_deps env prefix init mind
+  | Ind ((mind,_),_u) -> compile_mind_deps cenv env prefix init mind
   | Const (c, _u) ->
     let c, _ = get_alias env sigma c in
     let cb,(nameref,_),_ = lookup_constant_key c env in
@@ -2327,13 +2327,13 @@ let compile_deps cenv env sigma prefix init t =
       let comp_stack = code@comp_stack in
       let const_updates = Cmap_env.add c upd const_updates in
       comp_stack, (mind_updates, const_updates)
-  | Construct (((mind,_),_),_u) -> compile_mind_deps env prefix init mind
+  | Construct (((mind,_),_),_u) -> compile_mind_deps cenv env prefix init mind
   | Proj (p,_,c) ->
-    let init = compile_mind_deps env prefix init (Projection.mind p) in
+    let init = compile_mind_deps cenv env prefix init (Projection.mind p) in
     aux env lvl init c
   | Case (ci, _u, _pms, _p, _iv, _c, _ac) ->
       let mind = fst ci.ci_ind in
-      let init = compile_mind_deps env prefix init mind in
+      let init = compile_mind_deps cenv env prefix init mind in
       fold_constr_with_binders succ (aux env) lvl init t
   | Var id ->
     let open Context.Named.Declaration in
@@ -2359,9 +2359,9 @@ let compile_constant_field cenv env con acc cb =
     let gl = compile_constant cenv env (empty_evars env) con cb in
     gl@acc
 
-let compile_mind_field mp l acc mb =
+let compile_mind_field cenv mp l acc mb =
   let mind = MutInd.make2 mp l in
-  compile_mind mb mind acc
+  compile_mind cenv mb mind acc
 
 let warn_native_rules =
   CWarnings.create ~name:"native-rewrite-rules"
