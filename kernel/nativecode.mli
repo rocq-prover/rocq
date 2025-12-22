@@ -17,6 +17,10 @@ open Nativevalues
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
+type cenv
+
+val make_cenv : unit -> cenv
+
 type global
 
 val debug_native_compiler : CDebug.t
@@ -53,15 +57,13 @@ val get_symbols : unit -> symbols
 type code_location_updates
 type linkable_code = global list * code_location_updates
 
-val clear_global_tbl : unit -> unit
-
 val empty_updates : code_location_updates
 
 val register_native_file : string -> unit
 
 val is_loaded_native_file : string -> bool
 
-val compile_constant_field : env -> Constant.t ->
+val compile_constant_field : cenv -> env -> Constant.t ->
   global list -> constant_body -> global list
 
 val compile_mind_field : ModPath.t -> Id.t ->
