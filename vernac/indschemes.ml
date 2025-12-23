@@ -217,7 +217,7 @@ let try_declare_eq_decidability ?locmap kn =
     if mib.mind_finite <> Declarations.CoFinite then
       try
         define_mutual_scheme ?locmap ~intern:true eq_dec_scheme_kind [] [kn,0]
-      with _ -> ()
+      with  e when CErrors.noncritical e -> ()
   
 let declare_eq_decidability ?locmap mi = declare_eq_decidability_scheme_with ?locmap [] mi
 

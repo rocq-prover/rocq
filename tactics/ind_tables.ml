@@ -345,7 +345,7 @@ let force_find_scheme kind (mind,i as ind) =
       let eff, ans = match Hashtbl.find scheme_object_table kind with
       | s,IndividualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env ind true in (* /!\ true *)
+        let deps = match deps with None -> [] | Some deps -> deps env ind true in
         let sch = empty_schemes eff in
         begin match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps with
           | None -> assert false
@@ -358,7 +358,7 @@ let force_find_scheme kind (mind,i as ind) =
         end
       | s,MutualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env mind true in (* /!\ true *)
+        let deps = match deps with None -> [] | Some deps -> deps env mind true in
         let sch = empty_schemes eff in
         begin match Option.List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps with
           | None -> assert false

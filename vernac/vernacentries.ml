@@ -2391,9 +2391,9 @@ let vernac_register ~atts qid r =
       if Ind_tables.is_declared_scheme_object scheme_kind then
         scheme_kind
       else
-        let (name,qual) = old_scheme_name_to_new scheme_name in
-        let fallback = (name,qual,is_mutual) in
-        if Ind_tables.is_declared_scheme_object fallback then
+        let (name,r_qual) = old_scheme_name_to_new scheme_name in
+        let fallback = (name,r_qual,is_mutual) in
+        if Ind_tables.is_declared_scheme_object fallback && (qual = None) then
           fallback
         else
           CErrors.user_err Pp.(str ("unknown scheme kind " ^ String.concat " " scheme_name))
