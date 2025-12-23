@@ -61,9 +61,10 @@ let filter_univs f (qc, lc) =
 
 let pr prv prl (qc, lc) =
   let open Pp in
-  let ppelim = if ElimConstraints.is_empty qc then mt()
-               else ElimConstraints.pr prv qc ++ str"," in
-  v 0 (ppelim ++ UnivConstraints.pr prl lc)
+  let sep = if ElimConstraints.is_empty qc || UnivConstraints.is_empty lc
+            then mt()
+            else str ", " in
+  v 0 (ElimConstraints.pr prv qc ++ sep ++ UnivConstraints.pr prl lc)
 
 module HPConstraints =
   Hashcons.Make(
