@@ -41,6 +41,8 @@ module QualityOrSet : sig
 
   val all_constants : t list
   val all : t list
+
+  val family_to_str : t -> string 
 end
 
 type univ_length_mismatch = {

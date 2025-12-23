@@ -26,15 +26,10 @@ open Ind_tables
 open Auto_ind_decl
 open Eqschemes
 open Elimschemes
-open Sorts
 
 (** Data of an inductive scheme with name resolved *)
-type resolved_scheme = Names.Id.t CAst.t * Indrec.dep_flag * Names.inductive * UnivGen.QualityOrSet.t
+type resolved_scheme = Names.Id.t CAst.t * string list * Names.inductive * UnivGen.QualityOrSet.t option
 
-(** flag for internal message display *)
-type internal_flag =
-  | UserAutomaticRequest (* kernel action, a message is displayed *)
-  | UserIndividualRequest   (* user action, a message is displayed *)
 
 (* Flags governing automatic synthesis of schemes *)
 
@@ -111,90 +106,28 @@ let define ~poly ?loc name sigma c types =
 let declare_beq_scheme_gen ?locmap names kn =
   ignore (define_mutual_scheme ?locmap beq_scheme_kind names kn)
 
-let debug = CDebug.create ~name:"indschemes" ()
-
-let alarm what internal msg =
-  match internal with
-  | UserAutomaticRequest ->
-    debug Pp.(fun () ->
-        hov 0 msg ++ fnl () ++ what ++ str " not defined.");
-    None
-  | UserIndividualRequest -> Some msg
-
-let try_declare_scheme ?locmap what f internal names kn =
-  try f ?locmap names kn
-  with e when CErrors.noncritical e ->
-  let e = Exninfo.capture e in
-  let rec extract_exn = function Logic_monad.TacticFailure e -> extract_exn e | e -> e in
-  let msg = match extract_exn (fst e) with
-    | ParameterWithoutEquality cst ->
-        alarm what internal
-          (str "Boolean equality not found for parameter " ++ Printer.pr_global cst ++
-           str".")
-    | InductiveWithProduct ->
-        alarm what internal
-          (str "Unable to decide equality of functional arguments.")
-    | InductiveWithSort ->
-        alarm what internal
-          (str "Unable to decide equality of type arguments.")
-    | NonSingletonProp ind ->
-        alarm what internal
-          (str "Cannot extract computational content from proposition " ++
-           quote (Printer.pr_inductive (Global.env()) ind) ++ str ".")
-    | EqNotFound ind' ->
-        alarm what internal
-          (str "Boolean equality on " ++
-           quote (Printer.pr_inductive (Global.env()) ind') ++
-           strbrk " is missing.")
-    | UndefinedCst s ->
-        alarm what internal
-          (strbrk "Required constant " ++ str s ++ str " undefined.")
-    | DeclareUniv.AlreadyDeclared (kind, id) as exn ->
-      let msg = CErrors.print exn in
-      alarm what internal msg
-    | DecidabilityMutualNotSupported ->
-        alarm what internal
-          (str "Decidability lemma for mutual inductive types not supported.")
-    | EqUnknown s ->
-         alarm what internal
-           (str "Found unsupported " ++ str s ++ str " while building Boolean equality.")
-    | NoDecidabilityCoInductive ->
-         alarm what internal
-           (str "Scheme Equality is only for inductive types.")
-    | DecidabilityIndicesNotSupported ->
-         alarm what internal
-           (str "Inductive types with indices not supported.")
-    | ConstructorWithNonParametricInductiveType ind ->
-         alarm what internal
-           (strbrk "Unsupported constructor with an argument whose type is a non-parametric inductive type." ++
-            strbrk " Type " ++ quote (Printer.pr_inductive (Global.env()) ind) ++
-            str " is applied to an argument which is not a variable.")
-    | InternalDependencies ->
-         alarm what internal
-           (strbrk "Inductive types with internal dependencies in constructors not supported.")
-    | e ->
-        alarm what internal
-          (str "Unexpected error during scheme creation: " ++ CErrors.print e)
-  in
-  match msg with
-  | None -> ()
-  | Some msg -> Exninfo.iraise (CErrors.UserError msg, snd e)
-
-let beq_scheme_msg mind =
-  let mib = Global.lookup_mind mind in
-  (* TODO: mutual inductive case *)
-  str "Boolean equality on " ++
-    pr_enum (fun ind -> quote (Printer.pr_inductive (Global.env()) ind))
-    (List.init (Array.length mib.mind_packets) (fun i -> (mind,i)))
-
 let declare_beq_scheme_with ?locmap l kn =
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserIndividualRequest l kn
+  declare_beq_scheme_gen ?locmap l [kn,0]
+
+open Auto_ind_decl
+
+let debug = CDebug.create ~name:"indschemes" ()
 
 let try_declare_beq_scheme ?locmap kn =
   (* TODO: handle Fix, eventually handle
       proof-irrelevance; improve decidability by depending on decidability
       for the parameters rather than on the bl and lb properties *)
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserAutomaticRequest [] kn
+  let mib = Global.lookup_mind kn in
+  let n = Array.length mib.mind_packets in
+  let rec mk_list l i =
+    if i >= n then l
+    else mk_list (List.append l [(kn,i)]) (i+1)
+  in
+  let l = mk_list [] 0 in
+  try (define_mutual_scheme ?locmap beq_scheme_kind [] l)
+  with CErrors.UserError e ->
+    (debug Pp.(fun () ->
+        hov 0 e ++ fnl () ++ str "Boolean Equality" ++ str " not defined."))
 
 let declare_beq_scheme ?locmap mi = declare_beq_scheme_with ?locmap [] mi
 
@@ -273,19 +206,19 @@ let declare_induction_schemes ?(locmap=Locmap.default None) kn =
 let declare_eq_decidability_gen ?locmap names kn =
   let mib = Global.lookup_mind kn in
   if mib.mind_finite <> Declarations.CoFinite then
-    define_mutual_scheme ?locmap eq_dec_scheme_kind names kn
+    define_mutual_scheme ?locmap eq_dec_scheme_kind names [(kn,0)]
 
-let eq_dec_scheme_msg ind = (* TODO: mutual inductive case *)
-  str "Decidable equality on " ++ quote (Printer.pr_inductive (Global.env()) ind)
 
 let declare_eq_decidability_scheme_with ?locmap l kn =
-  try_declare_scheme ?locmap (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserIndividualRequest l kn
+  declare_eq_decidability_gen ?locmap l kn
 
 let try_declare_eq_decidability ?locmap kn =
-  try_declare_scheme ?locmap (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserAutomaticRequest [] kn
-
+    let mib = Global.lookup_mind kn in
+    if mib.mind_finite <> Declarations.CoFinite then
+      try
+        define_mutual_scheme ?locmap ~intern:true eq_dec_scheme_kind [] [kn,0]
+      with  e when CErrors.noncritical e -> ()
+  
 let declare_eq_decidability ?locmap mi = declare_eq_decidability_scheme_with ?locmap [] mi
 
 let ignore_error f x =
@@ -324,36 +257,6 @@ let declare_congr_scheme ?loc ind =
 
 (* Scheme command *)
 
-(* Boolean on scheme_type cheking if it considered dependent *)
-let sch_isdep = function
-| SchemeInduction  | SchemeElimination -> true
-| SchemeMinimality | SchemeCase        -> false
-
-let sch_isrec = function
-| SchemeInduction | SchemeMinimality -> true
-| SchemeElimination | SchemeCase -> false
-
-(* Generate suffix for scheme given a target sort *)
-let scheme_suffix_gen {sch_type; sch_sort} sort =
-  let open Quality in
-  (* The _ind/_rec_/case suffix *)
-  let ind_suffix = match sch_isrec sch_type, sch_sort with
-    | true  , Qual (QConstant QSProp | QConstant QProp) -> "_ind"
-    | true  , _ -> "_rec"
-    | false , _ -> "_case" in
-  (* SProp and Type have an auxillary ending to the _ind suffix *)
-  let aux_suffix = match sch_sort with
-    | Qual (QConstant QSProp) -> "s"
-    | Qual (QConstant QType) -> "t"
-    | _ -> "" in
-  (* Some schemes are deliminated with _dep or no_dep *)
-  let dep_suffix = match sch_isdep sch_type , sort with
-    | true  , QConstant QProp  -> "_dep"
-    | false , QConstant QType
-    | false , QConstant QSProp -> "_nodep"
-    | _ , _                    -> "" in
-  ind_suffix ^ aux_suffix ^ dep_suffix
-
 let smart_ind qid =
   let ind = Smartlocate.smart_global_inductive qid in
   if Dumpglob.dump() then Dumpglob.add_glob ?loc:qid.loc (IndRef ind);
@@ -364,19 +267,36 @@ let smart_ind qid =
    eliminator and its sort. *)
 let name_and_process_scheme env = function
   | (Some id, {sch_type; sch_qualid; sch_sort}) ->
-    (id, sch_isdep sch_type, smart_ind sch_qualid, sch_sort)
-  | (None, ({sch_type; sch_qualid; sch_sort} as sch)) ->
-    (* If no name has been provided, we build one from the types of the ind requested *)
+    (id, sch_type, smart_ind sch_qualid, sch_sort)
+  | (None, {sch_type; sch_qualid; sch_sort}) ->
     let ind = smart_ind sch_qualid in
-    let sort_of_ind =
-      Elimschemes.pseudo_sort_quality_for_elim ind
-        (snd (Inductive.lookup_mind_specif env ind))
+    let suffix =
+      try Ind_tables.get_suff sch_type sch_sort
+      with Not_found -> (fun _ -> "default")
     in
-    let suffix = scheme_suffix_gen sch sort_of_ind in
-    let newid = Nameops.add_suffix (Nametab.basename_of_global (Names.GlobRef.IndRef ind)) suffix in
+    let (mind,one_ind) = Global.lookup_inductive ind in
+    let newid = Names.Id.of_string (suffix (Some one_ind)) in
     let newref = CAst.make newid in
-    (newref, sch_isdep sch_type, ind, sch_sort)
+    (newref,sch_type, ind, sch_sort)
 
+let do_scheme ~register ?(force_mutual=false) env l =
+  let l = List.map (name_and_process_scheme env) l in
+  match l with
+  (* if calling with one inductiv try define individual scheme *)
+  | ({CAst.v},kind,(mutind,i as ind),sort)::[] ->
+    (try
+      define_individual_scheme (kind,sort,false) (Some v) ind
+     with Not_found ->
+      define_mutual_scheme (kind,sort,true) [(i,v)] [ind])
+  | ({CAst.v},kind,(mutind,i),sort)::lrecspec ->
+    let lnames = List.map (fun ({CAst.v},kind,(mutind,j),sort) -> (j,v)) l in
+    let linds = List.map (fun ({CAst.v},kind,(mutind,j),sort) -> (mutind,j)) l in
+    (try 
+      define_mutual_scheme (kind,sort,true) lnames linds
+    with Not_found -> CErrors.user_err Pp.(str "Mutually defined schemes should be recursive."))
+  | _ -> (failwith "do_mutual_scheme expects a non empty list of inductive types.")
+
+(* TODO : redifine do_mutual_induction_scheme using do_mutual_scheme *)
 let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true) l =
   let sigma = Evd.from_env env in
   let _,_,ind,_ = match l with | x::_ -> x | [] -> assert false in
@@ -425,32 +345,16 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     | None -> ()
     | Some kind ->
       (* TODO locality *)
-      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, Names.GlobRef.ConstRef cst)
+      DeclareScheme.declare_scheme SuperGlobal kind (ind, Names.GlobRef.ConstRef cst)
   in
   let () = List.iter2 declare listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in
   Declare.fixpoint_message None lrecnames
 
-let do_scheme ~register env l =
-  let isrec = match l with
-    | [_, sch] -> sch_isrec sch.sch_type
-    | _ ->
-      if List.for_all (fun (_,sch) -> sch_isrec sch.sch_type) l
-      then true
-      else CErrors.user_err Pp.(str "Mutually defined schemes should be recursive.")
-  in
-  let lnamedepindsort = List.map (name_and_process_scheme env) l in
-  do_mutual_induction_scheme ~register env ~isrec lnamedepindsort
-
-let do_scheme_equality ?locmap sch id =
+let do_scheme_rewriting ?locmap id =
   let mind,_ as ind = smart_ind id in
-  match sch with
-  | SchemeBooleanEquality | SchemeEquality ->
-    declare_beq_scheme ?locmap mind;
-    if sch = SchemeEquality then declare_eq_decidability ?locmap mind
-  | SchemeRewriting ->
-    let loc = Option.bind locmap (fun locmap -> Locmap.lookup ~locmap ind) in
-    declare_rewriting_schemes ?loc ind
+  let loc = Option.bind locmap (fun locmap -> Locmap.lookup ~locmap ind) in
+  declare_rewriting_schemes ?loc ind
 
 (**********************************************************************)
 (* Combined scheme *)
@@ -558,6 +462,6 @@ let declare_default_schemes ?locmap kn =
     declare_induction_schemes kn ?locmap;
   if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
-  if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
+  if !eq_dec_flag then try_declare_eq_decidability ?locmap kn;
   if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n

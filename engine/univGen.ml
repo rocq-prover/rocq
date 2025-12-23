@@ -72,6 +72,15 @@ module QualityOrSet = struct
 
   let all_constants = Set :: List.map (fun q -> Qual q) Quality.all_constants
   let all = Set :: List.map (fun q -> Qual q) Quality.all
+
+  let family_to_str = function
+  | Set -> "InSet"
+  | Qual a -> begin match a with
+      | Quality.QConstant Quality.QSProp -> "InSProp"
+      | Quality.QConstant Quality.QProp -> "InProp"
+      | Quality.QConstant Quality.QType -> "InType"
+      | Quality.QVar _ -> "InQSort"
+    end
 end
 
 type sort_context_set = (QVar.Set.t * Univ.Level.Set.t) * PConstraints.t

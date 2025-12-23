@@ -18,20 +18,26 @@ open Constr
 
 type mutual
 type individual
-type 'a scheme_kind
+
+module Key = DeclareScheme.Key
+
+(* scheme_name * sort * is_mutual *)
+type 'a scheme_kind = Key.t
 
 type handle
 
 val push_handle : handle -> unit Proofview.tactic
 
+(* Dependency of a scheme on another scheme: (inductive, kind, internal) *)
 type scheme_dependency =
-| SchemeMutualDep of MutInd.t * mutual scheme_kind
-| SchemeIndividualDep of inductive * individual scheme_kind
+| SchemeMutualDep of Names.MutInd.t * mutual scheme_kind * bool
+| SchemeIndividualDep of inductive * individual scheme_kind * bool
 
+(* Scheme builders. [bool] = is_dep. [None] = silent failure. *)
 type mutual_scheme_object_function =
-  Environ.env -> handle -> MutInd.t -> constr array Evd.in_ustate
+  Environ.env -> handle -> inductive list -> bool -> constr array Evd.in_ustate option
 type individual_scheme_object_function =
-  Environ.env -> handle -> inductive -> constr Evd.in_ustate
+  Environ.env -> handle -> inductive -> bool -> constr Evd.in_ustate option
 
 (** Main functions to register a scheme builder. Note these functions
    are not safe to be used by plugins as their effects won't be undone
@@ -47,26 +53,25 @@ type individual_scheme_object_function =
     inductive's name.
 *)
 
-val declare_mutual_scheme_object : string ->
-  ?suff:string ->
-  ?deps:(Environ.env -> MutInd.t -> scheme_dependency list) ->
+val declare_mutual_scheme_object : string list * UnivGen.QualityOrSet.t option ->
+  (Declarations.one_inductive_body option -> string) ->
+  ?deps:(Environ.env -> Names.MutInd.t -> bool -> scheme_dependency list) ->
   mutual_scheme_object_function -> mutual scheme_kind
 
-val declare_individual_scheme_object : string ->
-  ?suff:string ->
-  ?deps:(Environ.env -> inductive -> scheme_dependency list) ->
+val declare_individual_scheme_object : string list * UnivGen.QualityOrSet.t option ->
+  (Declarations.one_inductive_body option -> string) ->
+  ?deps:(Environ.env -> inductive -> bool -> scheme_dependency list) ->
   individual_scheme_object_function ->
   individual scheme_kind
 
-val is_declared_scheme_object : string -> bool
+val is_declared_scheme_object : Key.t -> bool
 (** Is the string used as the name of a [scheme_kind]? *)
 
-val scheme_kind_name : _ scheme_kind -> string
-(** Name of a [scheme_kind]. Can be used to register with DeclareScheme. *)
-
+val get_suff : string list -> UnivGen.QualityOrSet.t option -> Declarations.one_inductive_body option -> string
+  
 (** Force generation of a (mutually) scheme with possibly user-level names *)
 
-val define_individual_scheme : ?loc:Loc.t -> individual scheme_kind ->
+val define_individual_scheme : ?loc:Loc.t -> ?intern:bool -> individual scheme_kind ->
   Id.t option -> inductive -> unit
 
 module Locmap : sig
@@ -81,8 +86,8 @@ module Locmap : sig
   val lookup : locmap:t -> Names.inductive -> Loc.t option
 end
 
-val define_mutual_scheme : ?locmap:Locmap.t -> mutual scheme_kind ->
-  (int * Id.t) list -> MutInd.t -> unit
+val define_mutual_scheme : ?locmap:Locmap.t -> ?intern:bool -> mutual scheme_kind ->
+  (int * Id.t) list -> inductive list -> unit
 
 (** Main function to retrieve a scheme in the cache *)
 val find_scheme : 'a scheme_kind -> inductive -> GlobRef.t option Proofview.tactic
