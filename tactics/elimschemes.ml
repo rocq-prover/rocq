@@ -66,7 +66,7 @@ let build_mutual_induction_scheme_in_type env dep sort isrec l =
     let _, ctx = Typeops.type_of_global_in_context env (Names.GlobRef.IndRef (ind,0)) in
     let u, ctx = UnivGen.fresh_instance_from ctx None in
     let u = EConstr.EInstance.make u in
-    let sigma = Evd.from_ctx (UState.of_context_set ctx) in
+    let sigma = Evd.from_ctx (UState.merge_sort_context ~sideff:false UnivRigid QGraph.Internal (UState.from_env env) ctx) in
     sigma, u
   in
   let n = List.length l in
@@ -86,8 +86,7 @@ let build_mutual_induction_scheme_in_type env dep sort isrec l =
     if isrec then Indrec.build_mutual_induction_scheme env sigma ~force_mutual:false tmp_lrecspec inst
     else
       List.fold_left_map (fun sigma (ind,dep,sort) ->
-          let sigma, c = Indrec.build_case_analysis_scheme env sigma ind dep sort in
-          let c, _ = Indrec.eval_case_analysis c in
+          let sigma, c, _ = Indrec.build_case_analysis_scheme env sigma ind dep sort in
           sigma, c)
         sigma lrecspec
   in

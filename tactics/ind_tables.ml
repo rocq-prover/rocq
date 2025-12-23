@@ -278,12 +278,9 @@ and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~interna
     | Some (cl, ctx) -> 
       let mib = Environ.lookup_mind mind env in
       let ids =
-        if Array.length cl <> List.length names then
-          Array.init (Array.length mib.mind_packets) (fun i ->
-              try (i,Int.List.assoc i names)
-              with Not_found -> (i,Id.of_string (suff (Some mib.mind_packets.(i)))))
-        else
-          Array.of_list names
+        Array.init (Array.length mib.mind_packets) (fun i ->
+            try Int.List.assoc i names
+            with Not_found -> Id.of_string (suff (Some mib.mind_packets.(i))))
       in
       let fold i effs id cl =
         let role = Evd.Schema ((mind, i), kind)in
