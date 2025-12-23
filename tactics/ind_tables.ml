@@ -105,10 +105,6 @@ let declare_individual_scheme_object key suff ?deps f =
 
 let is_declared_scheme_object key = Hashtbl.mem scheme_object_table key
 
-let scheme_kind_name (key : _ scheme_kind) : Key.t = key
-
-let scheme_key (key : Key.t) : _ scheme_kind  = key
-
 let get_suff sch_type sch_sort =
   try
     fst (

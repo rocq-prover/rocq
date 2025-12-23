@@ -2322,6 +2322,38 @@ let vernac_locate ~pstate query =
   | LocateOther (s, qid) -> Prettyp.print_located_other env s qid
   | LocateFile f -> locate_file f
 
+let old_scheme_name_to_new sch =
+  match sch with
+  (* tactics/eqschemes.ml *)
+  | ["sym"] -> (["Symmetry"], None)
+  | ["sym_involutive"] -> (["Symmetry";"Involutive"], None)
+  | ["rew_r_dep"] -> (["Left2Right"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["rew_dep"] -> (["Right2Left"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["rew_fwd_dep"] -> (["Forward"; "Right2Left"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["rew_fwd_r_dep"] -> (["Forward"; "Left2Right"; "Dependent"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["rew_r"] -> (["Left2Right"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["rew"] -> (["Right2Left"; "Rewrite"], Some UnivGen.QualityOrSet.qtype)
+  | ["congr"] -> (["Congruence"], None)
+  (* tactics/elimschemes.ml *)
+  | ["rect_dep"] -> (["Induction"], Some UnivGen.QualityOrSet.qtype)
+  | ["rec_dep"] -> (["Induction"], Some UnivGen.QualityOrSet.set)
+  | ["ind_dep"] -> (["Induction"], Some UnivGen.QualityOrSet.prop)
+  | ["sind_dep"] -> (["Induction"], Some UnivGen.QualityOrSet.sprop)
+  | ["rect_nodep"] -> (["Minimality"], Some UnivGen.QualityOrSet.qtype)
+  | ["rec_nodep"] -> (["Minimality"], Some UnivGen.QualityOrSet.set)
+  | ["ind_nodep"] -> (["Minimality"], Some UnivGen.QualityOrSet.prop)
+  | ["sind_nodep"] -> (["Minimality"], Some UnivGen.QualityOrSet.sprop)
+  | ["case_dep"] -> (["Elimination"], Some UnivGen.QualityOrSet.qtype)
+  | ["case_nodep"] -> (["Case"], Some UnivGen.QualityOrSet.qtype)
+  | ["casep_dep"] -> (["Elimination"], Some UnivGen.QualityOrSet.prop)
+  | ["casep_nodep"] -> (["Case"], Some UnivGen.QualityOrSet.prop)
+  (* vernac/auto_ind_decl.ml *)
+  | ["beq"] -> (["Boolean";"Equality"], Some UnivGen.QualityOrSet.qtype)
+  | ["dec_bl"] -> (["Boolean";"Leibniz"],Some UnivGen.QualityOrSet.qtype)
+  | ["dec_lb"] -> (["Leibniz";"Boolean"], Some UnivGen.QualityOrSet.qtype)
+  | ["eq_dec"] -> (["Equality"], Some UnivGen.QualityOrSet.qtype)
+  | _ -> CErrors.user_err Pp.(str ("unknown scheme kind " ^ (String.concat " " sch)))
+
 let vernac_register ~atts qid r =
   let gr = Smartlocate.global_with_alias qid in
   match r with
@@ -2355,12 +2387,20 @@ let vernac_register ~atts qid r =
       Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
   | RegisterScheme { inductive; scheme_kind = (scheme_name,qual,is_mutual) as scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
-    let () = if not (Ind_tables.is_declared_scheme_object scheme_kind) then
-        CErrors.user_err Pp.(str ("unknown scheme kind " ^ (String.concat " " scheme_name)))
+    let norm_kind =
+      if Ind_tables.is_declared_scheme_object scheme_kind then
+        scheme_kind
+      else
+        let (name,qual) = old_scheme_name_to_new scheme_name in
+        let fallback = (name,qual,is_mutual) in
+        if Ind_tables.is_declared_scheme_object fallback then
+          fallback
+        else
+          CErrors.user_err Pp.(str ("unknown scheme kind " ^ String.concat " " scheme_name))
     in
     let ind = Smartlocate.global_inductive_with_alias inductive in
     Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
-    DeclareScheme.declare_scheme local scheme_kind (ind,gr)
+    DeclareScheme.declare_scheme local norm_kind (ind, gr)
 
 let vernac_library_attributes atts =
   if Global.is_curmod_library () && not (Lib.sections_are_opened ()) then

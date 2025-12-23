@@ -245,7 +245,7 @@ let lookup_eliminator_by_name env ind_sp s =
 let deprecated_lookup_by_name =
   CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
     Pp.(fun (env,ind,to_kind,r) ->
-        let pp_scheme () s = str (match scheme_kind_name s with (ss,_,_) -> String.concat " " ss) in
+        let pp_scheme () s = str (match s with (ss,_,_) -> String.concat " " ss) in
         fmt "Found unregistered eliminator %t for %t by name.@ \
              Use \"Register Scheme\" with it instead@ \
              (\"as %a\" if dependent or \"as %a\" if non dependent)."

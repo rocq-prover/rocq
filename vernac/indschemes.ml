@@ -285,14 +285,14 @@ let do_scheme ~register ?(force_mutual=false) env l =
   (* if calling with one inductiv try define individual scheme *)
   | ({CAst.v},kind,(mutind,i as ind),sort)::[] ->
     (try
-      define_individual_scheme (scheme_key (kind,sort,false)) (Some v) ind
+      define_individual_scheme (kind,sort,false) (Some v) ind
      with Not_found ->
-      define_mutual_scheme (scheme_key (kind,sort,true)) [(i,v)] [ind])
+      define_mutual_scheme (kind,sort,true) [(i,v)] [ind])
   | ({CAst.v},kind,(mutind,i),sort)::lrecspec ->
     let lnames = List.map (fun ({CAst.v},kind,(mutind,j),sort) -> (j,v)) l in
     let linds = List.map (fun ({CAst.v},kind,(mutind,j),sort) -> (mutind,j)) l in
     (try 
-      define_mutual_scheme (scheme_key (kind,sort,true)) lnames linds
+      define_mutual_scheme (kind,sort,true) lnames linds
     with Not_found -> CErrors.user_err Pp.(str "Mutually defined schemes should be recursive."))
   | _ -> (failwith "do_mutual_scheme expects a non empty list of inductive types.")
 
@@ -345,7 +345,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     | None -> ()
     | Some kind ->
       (* TODO locality *)
-      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, Names.GlobRef.ConstRef cst)
+      DeclareScheme.declare_scheme SuperGlobal kind (ind, Names.GlobRef.ConstRef cst)
   in
   let () = List.iter2 declare listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in

@@ -67,11 +67,6 @@ val declare_individual_scheme_object : string list * UnivGen.QualityOrSet.t opti
 val is_declared_scheme_object : Key.t -> bool
 (** Is the string used as the name of a [scheme_kind]? *)
 
-val scheme_kind_name : _ scheme_kind -> Key.t
-(** Name of a [scheme_kind]. Can be used to register with DeclareScheme. *)
-
-val scheme_key : Key.t -> _ scheme_kind
-
 val get_suff : string list -> UnivGen.QualityOrSet.t option -> Declarations.one_inductive_body option -> string
   
 (** Force generation of a (mutually) scheme with possibly user-level names *)
