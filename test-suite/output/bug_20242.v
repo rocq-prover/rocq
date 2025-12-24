@@ -1,4 +1,4 @@
-Polymorphic Record foo@{s;u|} (x : Type@{s;u}) := {}.
+Polymorphic Record foo@{s;u|} (x : Univ@{s;u}) := {}.
 Inductive sEmpty : SProp := .
 Module Type A. Axiom A : Type. Axiom B : foo A. End A.
 Unset Universe Checking.

@@ -259,10 +259,13 @@ let squash_elim_sort sigma squash rtnsort =
      add_unif_if_cannot_elim_into Evd.set_eq_sort Sorts.sprop
      (* Squashed inductive in SProp, return sort must be SProp. *)
   | SquashToQuality (QConstant QType) ->
-         add_unif_if_cannot_elim_into Evd.set_leq_sort Sorts.set
+     add_unif_if_cannot_elim_into Evd.set_leq_sort Sorts.set
      (* Sort poly squash to type *)
   | SquashToQuality (QVar q) ->
-     add_unif_if_cannot_elim_into Evd.set_leq_sort (Sorts.qsort q Univ.Universe.type0)
+     let q' = ESorts.quality sigma rtnsort in
+     if Inductive.eliminates_to (Evd.elim_graph sigma) (QVar q) q'
+     then sigma
+     else Evd.set_elim_to sigma (QVar q) q'
 
 (* [s] is the sort of an inductive definition. *)
 let loc_indsort_to_quality sigma u s =
@@ -302,16 +305,15 @@ let make_allowed_elimination_actions sigma s =
   ; squashed_to_set_above = (
     try Some (Evd.set_leq_sort sigma s ESorts.set)
     with UGraph.UniverseInconsistency _ -> None)
-  ; squashed_to_quality =
-      fun indq -> let sq = EConstr.ESorts.quality sigma s in
-               if Inductive.eliminates_to (Evd.elim_graph sigma) indq sq
-               then Some sigma
-               else
-                 let mk q = ESorts.make @@ Sorts.make q Univ.Universe.type0 in
-                 try Some (Evd.set_leq_sort sigma (mk sq) (mk indq))
-                 with UGraph.UniverseInconsistency _ -> None }
+  ; squashed_to_quality = fun indq ->
+      let sq = EConstr.ESorts.quality sigma s in
+      if Inductive.eliminates_to (Evd.elim_graph sigma) indq sq
+      then Some sigma
+      else
+        try Some (Evd.set_elim_to sigma indq sq)
+        with UGraph.UniverseInconsistency _ -> None }
 
-let make_allowed_elimination sigma ((_,mip),_ as specifu) s =
+let make_allowed_elimination sigma ((_, mip), _ as specifu) s =
   match mip.mind_record with
   | PrimRecord _ -> Some sigma
   | NotRecord | FakeRecord ->

@@ -2,7 +2,7 @@
 
 Set Universe Polymorphism.
 
-Inductive and@{s;u v|} (A:Type@{s;u}) (B:Type@{s;v}) : Type@{s;max(u,v)} := conj (_:A) (_:B).
+Inductive and@{s;u v|} (A:Univ@{s;u}) (B:Univ@{s;v}) : Univ@{s;max(u,v)} := conj (_:A) (_:B).
 
 Lemma foo (A B:Prop) (x:and A B) : A.
 Proof.

@@ -242,7 +242,8 @@ let pr_sort_expr : sort_expr -> Pp.t = function
   | None, UNamed [CProp, 0] -> tag_type (str "Prop")
   | None, UNamed [CSet, 0] -> tag_type (str "Set")
   | None, UAnonymous {rigid=UnivRigid} -> tag_type (str "Type")
-  | u -> hov 0 (tag_type (str "Type") ++ pr_univ_annot pr_quality_univ u)
+  | None, u -> hov 0 (tag_type (str "Type") ++ pr_univ_annot pr_univ u)
+  | u -> hov 0 (tag_type (str "Univ") ++ pr_univ_annot pr_quality_univ u)
 
 let pr_qualid sp =
   let (sl, id) = repr_qualid sp in

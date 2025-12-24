@@ -168,7 +168,6 @@ DELETE: [
 | test_variance_ident
 | test_qualid_with_or_lpar_or_rbrac
 | test_leftsquarebracket_equal
-| test_old_sort_qvar
 | test_sort_qvar
 | test_ltac2_ident
 | test_doublepipe_univ_decl
@@ -336,10 +335,8 @@ scope_delimiter: [
 ]
 
 sort: [
-| REPLACE "Type" "@{" reference ";" universe "}"
-| WITH "Type" "@{" OPT [ qualid [ "|" | ";" ] ] universe "}"
 | DELETE "Type" "@{" universe "}"
-| DELETE "Type" "@{" reference "|" universe "}"
+| DELETE "Univ" "@{" universe "}"
 ]
 
 term100: [

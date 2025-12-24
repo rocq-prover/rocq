@@ -445,7 +445,7 @@ Defined.
 (** As an alternate formulation, one may also directly refer to predicates
  [eq] and [lt] for specifying a comparison, rather that fully-applied
  propositions. This [CompSpec] is now a particular case of [CompareSpec]. *)
-
+Set Debug "backtrace".
 Definition CompSpec {A} (eq lt : A->A->Prop)(x y:A) : comparison -> Prop :=
  CompareSpec (eq x y) (lt x y) (lt y x).
 

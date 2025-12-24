@@ -24,7 +24,7 @@ Notation "~ x" := (not x) : type_scope.
 
 Register not as core.not.type.
 
-Polymorphic Inductive eq@{s s';u v|} (A:Type@{s;u}) (x:A) : A -> Type@{s';v} :=
+Polymorphic Inductive eq@{s s';u v|} (A:Univ@{s;u}) (x:A) : A -> Univ@{s';v} :=
     eq_refl : x = x :>A
 
 where "x = y :> A" := (@eq A x y) : type_scope.
@@ -32,15 +32,15 @@ where "x = y :> A" := (@eq A x y) : type_scope.
 Arguments eq {A} x _.
 Arguments eq_refl {A x} , [A] x.
 
-Polymorphic Definition eq_elim@{s s' ; u v w |} [A:Type@{s;u}] [x:A]
-  (P : forall a : A, x = a :> A -> Type@{s';w}) :
+Polymorphic Definition eq_elim@{s s' ; u v w |} [A:Univ@{s;u}] [x:A]
+  (P : forall a : A, x = a :> A -> Univ@{s';w}) :
   P x (eq_refl@{s s';u v} x) -> forall [a : A] (e : x = a :> A), P a e :=
   fun t _ e => match e with eq_refl => t end.
 
 Polymorphic Definition eq_ind@{s ; u|} [A] [x] P := @eq_elim@{s Prop;u Set Set} A x (fun a _ => P a).
 
-Polymorphic Definition eq_singleton@{s s' ; u v|} [A:Type@{s;u}] [x:A]
-  (P : forall a : A, (eq@{s Prop;u Set} x a) -> Type@{s';v}) :
+Polymorphic Definition eq_singleton@{s s' ; u v|} [A:Univ@{s;u}] [x:A]
+  (P : forall a : A, (eq@{s Prop;u Set} x a) -> Univ@{s';v}) :
   P x (eq_refl x) -> forall [a : A] (e : x = a :> A), P a e :=
   fun t _ e => match e with eq_refl => t end.
 
@@ -78,21 +78,21 @@ Register Scheme eq_ind as ind_nodep for eq.
 
   Section equality.
 
-    Theorem eq_sym@{s;u|} (A : Type@{s;u}) (x y : A) : x = y -> y = x.
+    Theorem eq_sym@{s;u|} (A : Univ@{s;u}) (x y : A) : x = y -> y = x.
     Proof.
       destruct 1; trivial.
     Defined.
 
     Register eq_sym as core.eq.sym.
 
-    Theorem eq_trans@{s;u|} (A : Type@{s;u}) (x y z : A) : x = y -> y = z -> x = z.
+    Theorem eq_trans@{s;u|} (A : Univ@{s;u}) (x y z : A) : x = y -> y = z -> x = z.
     Proof.
       destruct 2; trivial.
     Defined.
 
     Register eq_trans as core.eq.trans.
 
-    Theorem f_equal@{s s';u v|} (A : Type@{s;u}) (B : Type@{s';v})
+    Theorem f_equal@{s s';u v|} (A : Univ@{s;u}) (B : Univ@{s';v})
       (x y : A) (f : A -> B) : x = y -> f x = f y.
     Proof.
       destruct 1; trivial.

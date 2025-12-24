@@ -1,11 +1,11 @@
 Set Universe Polymorphism.
 
-Inductive eq@{s;u|} (A:Type@{s;u}) (x:A) : A -> Prop :=
+Inductive eq@{s;u|} (A:Univ@{s;u}) (x:A) : A -> Prop :=
   eq_refl : eq A x x.
 
 Scheme Rewriting for eq.
 
-Inductive bool@{s; |} : Type@{s;Set} := true | false.
+Inductive bool@{s; |} : Univ@{s;0} := true | false.
 
 Lemma foo@{s; |} : forall (b : bool@{s;}),
     eq _ b true ->

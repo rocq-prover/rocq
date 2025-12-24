@@ -320,7 +320,11 @@ let inductive_levels env evd ~poly ~indnames ~arities_explicit arities ctors =
       inds
   in
 
-  let candidates = prop_lowering_candidates evd ~arities_explicit inds in
+  (* Or should inductive_levels be cut off earlier, e.g. at L646 ? *)
+  let candidates = if not @@ PolyFlags.collapse_sort_variables poly
+                   then []
+                   else prop_lowering_candidates evd ~arities_explicit inds
+  in
   (* Do the lowering. We forget about the generated universe for the
      lowered inductive and rely on universe restriction to get rid of
      it.
@@ -514,7 +518,7 @@ type should_template =
   | NotTemplate
 
 let nontemplate_univ_entry ~poly sigma udecl =
-  let sigma = Evd.collapse_sort_variables sigma in
+  let sigma = Evd.collapse_sort_variables ~to_type:(PolyFlags.collapse_sort_variables poly) sigma in
   let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
   let uentry, global = match uentry with
     | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
@@ -643,7 +647,8 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
 
      We also need to restrict to avoid seeing spurious bounds from below
      (ie v <= template_u with v getting restricted away). *)
-  let sigma = Evd.minimize_universes ~collapse_sort_variables:false sigma in
+  let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
+  let sigma = Evd.minimize_universes ~collapse_sort_variables:(not collapse_sort_variables) ~to_type:collapse_sort_variables sigma in
   let sigma = restrict_inductive_universes sigma ctx_params arities constructors in
 
   let sigma, univ_entry, ubinders, global_univs =
@@ -679,12 +684,12 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   in
   default_dep_elim, mind_ent, ubinders, global_univs
 
-let interp_params ~unconstrained_sorts env udecl uparamsl paramsl =
+let interp_params ~unconstrained_sorts ~poly env udecl uparamsl paramsl =
   let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
   let sigma, (uimpls, ((env_uparams, ctx_uparams), useruimpls, _locs)) =
-    interp_context_evars ~program_mode:false ~unconstrained_sorts env sigma uparamsl in
+    interp_context_evars ~program_mode:false ~unconstrained_sorts ~poly env sigma uparamsl in
   let sigma, (impls, ((env_params, ctx_params), userimpls, _locs)) =
-    interp_context_evars ~program_mode:false ~unconstrained_sorts ~impl_env:uimpls env_uparams sigma paramsl
+    interp_context_evars ~program_mode:false ~unconstrained_sorts ~poly ~impl_env:uimpls env_uparams sigma paramsl
   in
   (* Names of parameters as arguments of the inductive type (defs removed) *)
   sigma, env_params, (ctx_params, env_uparams, ctx_uparams,
@@ -731,7 +736,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
   let unconstrained_sorts = not (PolyFlags.univ_poly flags.poly) in
 
   let sigma, env_params, (ctx_params, env_uparams, ctx_uparams, userimpls, useruimpls, impls, udecl, variances) =
-    interp_params ~unconstrained_sorts env0 udecl uparamsl paramsl
+    interp_params ~unconstrained_sorts ~poly:flags.poly env0 udecl uparamsl paramsl
   in
 
   (* Interpret the arities *)
@@ -862,19 +867,22 @@ let extract_params indl =
     | Some (ind',p',_,_) ->
       error_differing_params ~kind:"inductive" (ind,params) (ind',p')
 
-let extract_inductive indl =
-  List.map (fun ({CAst.v=indname},_,ar,lc) -> {
+let extract_inductive ~poly indl =
+  let open Constrexpr_ops in
+  let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
+  let default_arity = if collapse_sort_variables then expr_Type_sort else expr_Univ_sort in
+  List.map (fun ({CAst.v=indname}, _, ar, lc) -> {
     ind_name = indname;
     ind_arity_explicit = Option.has_some ar;
-    ind_arity = Option.default (CAst.make @@ CSort Constrexpr_ops.expr_Type_sort) ar;
-    ind_lc = List.map (fun (_,({CAst.v=id},t)) -> (id,t)) lc
+    ind_arity = Option.default (CAst.make @@ CSort default_arity) ar;
+    ind_lc = List.map (fun (_, ({CAst.v=id}, t)) -> (id, t)) lc
   }) indl
 
-let extract_mutual_inductive_declaration_components indl =
+let extract_mutual_inductive_declaration_components ~poly indl =
   let indl,ntnl = List.split indl in
   let params = extract_params indl in
   let coes = extract_coercions indl in
-  let indl = extract_inductive indl in
+  let indl = extract_inductive ~poly indl in
   (params,indl), coes, List.flatten ntnl
 
 type uniform_inductive_flag =
@@ -910,7 +918,7 @@ let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~u
       n.CAst.loc, conslocs)
       indl
   in
-  let (params,indl),coercions,ntns = extract_mutual_inductive_declaration_components indl in
+  let (params,indl),coercions,ntns = extract_mutual_inductive_declaration_components ~poly:flags.poly indl in
   let where_notations = List.map Metasyntax.prepare_where_notation ntns in
   (* Interpret the types *)
   let indl, nuparams = match params with

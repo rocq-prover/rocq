@@ -41,18 +41,18 @@ About sunit.
 
 Set Universe Polymorphism.
 
-Polymorphic Inductive sempty@{q; |} : Type@{q;Set} := .
+Polymorphic Inductive sempty@{q; |} : Univ@{q;Set} := .
 
 About sempty.
 
 Polymorphic Inductive ssig@{q1 q2 q3;a b|}
-  (A:Type@{q1;a})
-  (B:A -> Type@{q2;b})
-  : Type@{q3;max(a,b)}
+  (A:Univ@{q1;a})
+  (B:A -> Univ@{q2;b})
+  : Univ@{q3;max(a,b)}
   := sexist (a:A) (b:B a).
 
 About ssig.
 
-Polymorphic Inductive BoxP@{q;a|} (A:Type@{q;a}) : Prop := boxP (_:A).
+Polymorphic Inductive BoxP@{q;a|} (A:Univ@{q;a}) : Prop := boxP (_:A).
 
 About BoxP.
