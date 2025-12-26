@@ -68,7 +68,7 @@ module Internal = struct
 
   let print_rel_context env sigma =
     hv 0 (fold_rel_context
-            (fun env d pps -> pps ++ ws 2 ++ pr_rel_decl env sigma d)
+            (fun env d pps -> pps ++ str "\n" ++ pr_rel_decl env sigma d)
             env ~init:(mt ()))
 
   let print_env env sigma =

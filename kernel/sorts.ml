@@ -109,7 +109,7 @@ struct
     | Var q -> Printf.sprintf "β%d" q
     | Unif (s,q) ->
       let s = if CString.is_empty s then "" else s^"." in
-      Printf.sprintf "%sα%d" s q
+      Printf.sprintf "%ss%d" s q
     | Global id -> Printf.sprintf "γ%s" (QGlobal.to_string id)
 
   let raw_pr q = Pp.str (to_string q)

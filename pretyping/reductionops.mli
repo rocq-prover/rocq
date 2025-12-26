@@ -311,3 +311,6 @@ exception AnomalyInConversion of exn
 
 (* inferred_universes just gathers the constraints. *)
 val inferred_universes : env -> (UGraph.t * Univ.UnivConstraints.t, Conversion.graph_inconsistency) Conversion.universe_compare
+
+val eta_expand : env -> evar_map -> etypes -> etypes -> etypes
+val eta_expand_instantiation : env -> evar_map -> constr array -> rel_context -> constr array

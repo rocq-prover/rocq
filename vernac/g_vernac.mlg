@@ -282,6 +282,8 @@ GRAMMAR EXTEND Gram
           { VernacCoFixpoint (NoDischarge, corecs) }
       | IDENT "Let"; "CoFixpoint"; corecs = LIST1 cofix_definition SEP "with" ->
           { VernacCoFixpoint (DoDischarge, corecs) }
+      | IDENT "Scheme"; IDENT "All"; IDENT "for" ; id = smart_global ->
+          { VernacSchemeAll id }
       | IDENT "Scheme"; l = LIST1 scheme SEP "with" -> { VernacScheme l }
       | IDENT "Scheme"; IDENT "Equality"; IDENT "for" ; id = smart_global ->
           { VernacSchemeEquality (SchemeEquality,id) }

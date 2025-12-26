@@ -45,3 +45,5 @@ end
 
 val declare_primitive_projection :
   Names.Projection.Repr.t -> Names.Constant.t -> unit
+
+val do_scheme_sparse_parametricity : Libnames.qualid Constrexpr.or_by_notation -> unit

@@ -88,6 +88,8 @@ sig
   val mk_name : Id.t -> t
   (** constructor *)
 
+  val map_id : (Id.t -> Id.t) -> t -> t
+
   val is_anonymous : t -> bool
   (** Return [true] iff a given name is [Anonymous]. *)
 

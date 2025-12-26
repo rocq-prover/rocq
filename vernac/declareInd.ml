@@ -267,3 +267,55 @@ struct
   type nonrec inductive_obj = inductive_obj
   let objInductive = objInductive
 end
+
+let smart_ind qid =
+  let ind = Smartlocate.smart_global_inductive qid in
+  if Dumpglob.dump() then Dumpglob.add_glob ?loc:qid.loc (IndRef ind);
+  ind
+
+let do_scheme_sparse_parametricity_aux id =
+  (* Recover Info *)
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let kn,_ as ind = smart_ind id in
+  let mib = Environ.lookup_mind kn env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
+  (* Generation of the Sparse Parametricity *)
+  let (sigma, mentry) = Sparse_parametricity.gen_sparse_parametricity env sigma kn u mib in
+  (* Simplify Univ *)
+  let uctx = Evd.ustate sigma in
+  let univs = UState.univ_entry ~poly:true uctx in
+  (* Declaration and Register *)
+  let kn_nested = declare_mutual_inductive_with_eliminations mentry univs [] in
+  let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
+              SuperGlobal "All" ((kn,i), GlobRef.IndRef (kn_nested,i))
+            ) mib.mind_packets in
+  (kn, mib, kn_nested)
+
+let do_scheme_one_fundamental_theorem kn mib kn_nested focus =
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma (kn,focus) in
+  let (sigma, thm) = Sparse_parametricity.gen_fundamental_theorem env sigma kn kn_nested focus u mib in
+  let uctx = Evd.ustate sigma in
+  let info = Declare.Info.make ~poly:true () in
+  let suffix v = Id.of_string @@ Id.to_string v ^ "_all_forall" in
+  let fth_name = suffix mib.mind_packets.(focus).mind_typename in
+  let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
+  let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
+  let _ = DeclareScheme.declare_scheme SuperGlobal "AllForall" ((kn,focus), fth_ref) in
+  ()
+
+let warn_fail_AllForall =
+  CWarnings.create ~name:"warn_fail_AllForall" ~category:CWarnings.CoreCategories.automation
+  Pp.(fun (ind_nested) ->
+    str " Automatic generation of the Forall theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    str " failed." ++ str " Please report at " ++ str Coq_config.wwwbugtracker ++ str ".")
+
+let do_scheme_sparse_parametricity id =
+  let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in
+  Array.iteri (fun focus _ ->
+    (* do_scheme_one_fundamental_theorem kn mib kn_nested focus *)
+    try do_scheme_one_fundamental_theorem kn mib kn_nested focus with
+    | _ -> warn_fail_AllForall (kn_nested, focus)
+  ) mib.mind_packets

@@ -18,7 +18,7 @@ open Constr
 
 type mutual
 type individual
-type 'a scheme_kind
+type 'a scheme_kind = string
 
 type handle
 

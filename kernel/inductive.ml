@@ -322,7 +322,8 @@ let check_instance mib u =
   if not (match mib.mind_universes with
       | Monomorphic -> Instance.is_empty u
       | Polymorphic uctx -> Instance.length u = AbstractContext.size uctx)
-  then CErrors.anomaly Pp.(str "bad instance length on mutind.")
+  then CErrors.anomaly Pp.(str "bad instance length on mutind "
+  ++ Id.print mib.mind_packets.(0).mind_typename)
 
 let type_of_inductive_gen ((mib,mip),u) paramtyps =
   check_instance mib u;

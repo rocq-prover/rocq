@@ -421,6 +421,7 @@ type nonrec synpure_vernac_expr =
   | VernacInductive of inductive_kind * (inductive_expr * notation_declaration list) list
   | VernacFixpoint of discharge * fixpoints_expr
   | VernacCoFixpoint of discharge * cofixpoints_expr
+  | VernacSchemeAll of  Libnames.qualid Constrexpr.or_by_notation
   | VernacScheme of (lident option * scheme) list
   | VernacSchemeEquality of equality_scheme_type * Libnames.qualid Constrexpr.or_by_notation
   | VernacCombinedScheme of lident * lident list

@@ -249,8 +249,7 @@ let subst_mind_body subst mib =
     mind_univ_hyps = UVars.Instance.empty;
     mind_nparams = mib.mind_nparams;
     mind_nparams_rec = mib.mind_nparams_rec;
-    mind_params_ctxt =
-      Context.Rel.map (subst_mps subst) mib.mind_params_ctxt;
+    mind_params_ctxt = Context.Rel.map (subst_mps subst) mib.mind_params_ctxt;
     mind_packets = Array.Smart.map (subst_mind_packet subst) mib.mind_packets ;
     mind_universes = mib.mind_universes;
     mind_template = mib.mind_template;
@@ -261,6 +260,26 @@ let subst_mind_body subst mib =
   }
 
 let mind_ntypes mib = Array.length mib.mind_packets
+
+let chop_letin n l =
+  let open RelDecl in
+  let rec goto i acc = function
+    | h :: t ->
+      begin match h with
+      | LocalAssum _ -> if Int.equal i 0 then (List.rev acc, h::t) else goto (pred i) (h :: acc) t
+      | LocalDef _ -> goto i (h :: acc) t
+      end
+    | [] -> if Int.equal i 0 then (List.rev acc, []) else failwith "goto"
+  in
+  goto n [] l
+
+(** Given given the number of uniform parameters (w/o let-ins) split parameters
+    between uniform parameters and non-uniform parameters.
+    Let-ins between the last uniform parameter and the first non-uniform
+    parameter are included in the uniform parameters. *)
+let split_uparans_nuparams nparams_rec params_ctxt =
+  let (uparams, nuparams) = chop_letin nparams_rec @@ List.rev params_ctxt in
+  (List.rev uparams, List.rev nuparams)
 
 let inductive_polymorphic_context mib =
   universes_context mib.mind_universes

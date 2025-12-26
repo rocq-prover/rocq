@@ -48,8 +48,10 @@ then, in i{^ th} block, [mind_entry_params] is [xn:Xn;...;x1:X1];
 type one_inductive_entry = {
   mind_entry_typename : Id.t;
   mind_entry_arity : constr;
+  (* [mind_entry_arity] is typed in the context of [mind_entry_params] *)
   mind_entry_consnames : Id.t list;
   mind_entry_lc : constr list;
+  (* [mind_entry_lc] is typed in the context of [mind_entry_params] *)
 }
 
 type mutual_inductive_entry = {

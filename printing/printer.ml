@@ -215,7 +215,7 @@ let safe_gen f env sigma c = match safe_extern_wrapper f env sigma c with
 let safe_pr_lconstr_env ?flags = safe_gen (pr_lconstr_env ?flags)
 let safe_pr_constr_env ?flags = safe_gen (pr_constr_env ?flags)
 
-let q_ident = Id.of_string "α"
+let q_ident = Id.of_string "s"
 
 let u_ident = Id.of_string "u"
 
