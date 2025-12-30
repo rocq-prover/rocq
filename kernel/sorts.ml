@@ -392,7 +392,7 @@ end
 
 let enforce_eq_cumul_quality a b csts =
   if Quality.equal a b then csts
-  else QCumulConstraints.add (a,QCumulConstraint.Eq,b) csts
+  else ElimConstraints.add (a, ElimConstraint.Equal, b) csts
 
 module QUConstraints = struct
 

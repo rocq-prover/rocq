@@ -1216,13 +1216,13 @@ let checked_sort_cmp_universes pb s0 s1 univs =
   | CONV -> check_eq univs s0 s1
 
 let check_convert_instances ~flex:_ u u' univs =
-  let csts = UVars.enforce_eq_instances u u' (Sorts.QCumulConstraints.empty,UnivConstraints.empty) in
-  if Evd.check_quconstraints univs csts then Result.Ok univs else Result.Error None
+  let csts = UVars.enforce_eq_instances u u' (Sorts.ElimConstraints.empty, UnivConstraints.empty) in
+  if Evd.check_poly_constraints univs csts then Result.Ok univs else Result.Error None
 
 (* general conversion and inference functions *)
 let check_inductive_instances cv_pb variance u1 u2 univs =
   let csts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if (Evd.check_quconstraints univs csts) then Result.Ok univs
+  if (Evd.check_poly_constraints univs csts) then Result.Ok univs
   else Result.Error None
 
 let checked_universes =
@@ -1693,8 +1693,8 @@ let infer_convert_instances elims ~flex u u' (univs, cstrs as cuniv) =
     if UGraph.check_eq_instances elims univs u u' then Result.Ok cuniv
     else Result.Error None
   else try
-    let qcstrs, ucstrs as cstrs' = UVars.enforce_eq_instances u u' Sorts.QUConstraints.empty in
-    if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcstrs) elims then
+    let qcstrs, ucstrs as cstrs' = UVars.enforce_eq_instances u u' PConstraints.empty in
+    if QGraph.check_constraints qcstrs elims then
       Result.Ok (UGraph.merge_constraints ucstrs univs, UnivConstraints.union cstrs ucstrs)
     else Result.Error None
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
@@ -1702,7 +1702,7 @@ let infer_convert_instances elims ~flex u u' (univs, cstrs as cuniv) =
 
 let infer_inductive_instances elims cv_pb variance u1 u2 (univs,csts) =
   let qcsts, csts' = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) elims then
+  if QGraph.check_constraints qcsts elims then
     match UGraph.merge_constraints csts' univs with
     | univs -> Result.Ok (univs, Univ.UnivConstraints.union csts csts')
     | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))

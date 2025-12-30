@@ -178,7 +178,7 @@ module QCumulConstraints : sig
   val to_elims : t -> ElimConstraints.t
 end
 
-val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
+val enforce_eq_cumul_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
 module QUConstraints : sig
 

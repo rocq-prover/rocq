@@ -175,9 +175,9 @@ let convert_instances_cumul pb var u u' (s, check) =
 let get_cumulativity_constraints cv_pb variance u u' =
   match cv_pb with
   | CONV ->
-    UVars.enforce_eq_variance_instances variance u u' Sorts.QUConstraints.empty
+    UVars.enforce_eq_variance_instances variance u u' PConstraints.empty
   | CUMUL ->
-    UVars.enforce_leq_variance_instances variance u u' Sorts.QUConstraints.empty
+    UVars.enforce_leq_variance_instances variance u u' PConstraints.empty
 
 let inductive_cumulativity_arguments (mind,ind) =
   mind.Declarations.mind_nparams +
@@ -973,7 +973,7 @@ let check_convert_instances ~flex:_ u u' (elims, univs as state) =
 (* general conversion and inference functions *)
 let check_inductive_instances cv_pb variance u1 u2 (elims, univs as state) =
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) elims && UGraph.check_constraints ucsts univs
+  if QGraph.check_constraints qcsts elims && UGraph.check_constraints ucsts univs
   then Result.Ok state
   else Result.Error None
 
