@@ -1668,8 +1668,8 @@ open Conversion
 let infer_eq elims (univs, cstrs as cuniv) s s' =
   if UGraph.check_eq_sort elims univs s s' then Result.Ok cuniv
   else try
-    let qcsts', ucstrs' as cstrs' = UnivSubst.enforce_eq_sort s s' Sorts.QUConstraints.empty in
-    if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts') elims then
+    let qcsts', ucstrs' as cstrs' = UnivSubst.enforce_eq_sort s s' UnivProblem.QUConstraints.empty in
+    if QGraph.check_constraints (UnivProblem.QCumulConstraints.to_elims qcsts') elims then
       Result.Ok (UGraph.merge_constraints ucstrs' univs, UnivConstraints.union cstrs ucstrs')
     else Result.Error None
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
@@ -1678,7 +1678,7 @@ let infer_leq elims (univs, cstrs as cuniv) s s' =
   if UGraph.check_leq_sort elims univs s s' then Result.Ok cuniv
   else match UnivSubst.enforce_leq_alg_sort s s' univs with
   | (qcsts, ucsts), ugraph ->
-    if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) elims then
+    if QGraph.check_constraints (UnivProblem.QCumulConstraints.to_elims qcsts) elims then
       Result.Ok (univs, UnivConstraints.union cstrs ucsts)
     else Result.Error None
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))

@@ -889,7 +889,7 @@ let problem_of_univ_constraints cstrs =
     cstrs UnivProblem.Set.empty
 
 let problem_of_qcumul_constraints qcstrs =
-  Sorts.QCumulConstraints.fold (fun (l,d,r) cstrs ->
+  UnivProblem.QCumulConstraints.fold (fun (l,d,r) cstrs ->
       match d with
       | Eq -> UnivProblem.Set.add (QEq (l,r)) cstrs
       | Leq -> UnivProblem.Set.add (QLeq (l,r)) cstrs)
@@ -920,7 +920,7 @@ let add_quconstraints uctx (qcstrs,ucstrs) =
   add_constraints QGraph.Static uctx (UnivProblem.Set.union ucstrs qcstrs)
 
 let check_qconstraints uctx csts =
-  Sorts.QCumulConstraints.for_all (fun (l,k,r) ->
+  UnivProblem.QCumulConstraints.for_all (fun (l,k,r) ->
     let l = nf_quality uctx l in
     let r = nf_quality uctx r in
     match k with

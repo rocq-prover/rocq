@@ -223,9 +223,9 @@ let change_property_sort evd toSort princ princName =
           Term.decompose_prod (EConstr.Unsafe.to_constr (get_type decl))
         in
         let s = Constr.destSort ty in
-        let qcsts, ucsts = UnivSubst.enforce_leq_sort toSort s Sorts.QUConstraints.empty in
-        if not (Sorts.QCumulConstraints.trivial qcsts) then begin
-          let (l, _, r) = Sorts.QCumulConstraints.find_first (fun cst -> not @@ Sorts.QCumulConstraint.trivial cst) qcsts in
+        let qcsts, ucsts = UnivSubst.enforce_leq_sort toSort s UnivProblem.QUConstraints.empty in
+        if not (UnivProblem.QCumulConstraints.trivial qcsts) then begin
+          let (l, _, r) = UnivProblem.QCumulConstraints.find_first (fun cst -> not @@ UnivProblem.QCumulConstraint.trivial cst) qcsts in
           raise (QGraph.EliminationError (QualityInconsistency (None, (Equal, l, r, None))))
         end;
         Global.add_univ_constraints ucsts;

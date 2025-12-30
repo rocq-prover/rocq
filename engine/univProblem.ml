@@ -136,3 +136,62 @@ let compare_cumulative_instances  cv_pb variances u u' cstrs =
        | Invariant ->
          Set.add (UEq (make u, make u')) cstrs)
     cstrs variances us us'
+
+module QCumulConstraint = struct
+  type kind = Eq | Leq
+
+  let eq_kind : kind -> kind -> bool = (=)
+  let compare_kind : kind -> kind -> int = Stdlib.compare
+
+  let pr_kind (c : kind) = match c with
+    | Eq -> Pp.str "="
+    | Leq -> Pp.str "<="
+
+  type t = Quality.t * kind * Quality.t
+
+  let equal (a,k,b) (a',k',b') =
+    eq_kind k k' && Quality.equal a a' && Quality.equal b b'
+
+  let compare (a,k,b) (a',k',b') =
+    let c = compare_kind k k' in
+    if c <> 0 then c
+    else
+      let c = Quality.compare a a' in
+      if c <> 0 then c
+      else Quality.compare b b'
+
+  let pr prq (a,k,b) =
+    let open Pp in
+    hov 1 (Quality.pr prq a ++ spc() ++ pr_kind k ++ spc() ++ Quality.pr prq b)
+
+  let raw_pr x = pr QVar.raw_pr x
+
+  let trivial ((a,(Eq|Leq),b) : t) = Quality.equal a b
+
+  let to_elim ((a,(Eq|Leq),b) : t) : ElimConstraint.t = ElimConstraint.(a, Equal, b)
+end
+
+module QCumulConstraints = struct include CSet.Make(QCumulConstraint)
+  let pr prq c =
+    let open Pp in
+    v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
+      hov 0 (Quality.pr prq u1 ++ QCumulConstraint.pr_kind op ++ Quality.pr prq u2))
+       (elements c))
+
+  let trivial = for_all QCumulConstraint.trivial
+
+  let to_elims s =
+    to_seq s
+    |> Seq.map QCumulConstraint.to_elim
+    |> ElimConstraints.of_seq
+end
+
+module QUConstraints = struct
+
+  type t = QCumulConstraints.t * UnivConstraints.t
+
+  let empty = QCumulConstraints.empty, UnivConstraints.empty
+
+  let union (qcsts,ucsts) (qcsts',ucsts') =
+    QCumulConstraints.union qcsts qcsts', UnivConstraints.union ucsts ucsts'
+end
