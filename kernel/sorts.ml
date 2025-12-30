@@ -394,12 +394,6 @@ let enforce_eq_cumul_quality a b csts =
   if Quality.equal a b then csts
   else QCumulConstraints.add (a,QCumulConstraint.Eq,b) csts
 
-let enforce_leq_quality a b csts =
-  if Quality.equal a b then csts
-  else match a, b with
-    | Quality.(QConstant QProp), Quality.(QConstant QType) -> csts
-    | _ -> QCumulConstraints.add (a,QCumulConstraint.Leq,b) csts
-
 module QUConstraints = struct
 
   type t = QCumulConstraints.t * UnivConstraints.t

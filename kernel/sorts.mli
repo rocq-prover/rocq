@@ -180,8 +180,6 @@ end
 
 val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
 
-val enforce_leq_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
-
 module QUConstraints : sig
 
   type t = QCumulConstraints.t * Univ.UnivConstraints.t
