@@ -91,7 +91,7 @@ sig
   val shortest_name : EvarQualid.t -> Evar.t -> t -> EvarQualid.t
 
   (** Returns the list of bindings for the given qualified name. *)
-  val find : EvarQualid.t -> t -> Evar.t list
+  val find : EvarQualid.t -> t -> Evar.Set.t
 
   (** Returns true if there exists a binding that has the given basename. *)
   val mem_basename : Id.t -> t -> bool
@@ -100,27 +100,27 @@ struct
   (** Represents a trie node. For code deduplication reasons, the root is also a node
       with an empty value. *)
   type t =
-    { value: Evar.t list;
+    { value: Evar.Set.t;
       children: t Id.Map.t }
 
   open EvarQualid
 
   let empty =
-    { value = []; children = Id.Map.empty }
+    { value = Evar.Set.empty; children = Id.Map.empty }
 
   let is_empty { value; children } =
-    CList.is_empty value && Id.Map.is_empty children
+    Evar.Set.is_empty value && Id.Map.is_empty children
 
   let rec add path ev node =
     match path with
     | segment :: rest ->
        let update = function
          | Some child -> Some (add rest ev child)
-         | None -> Some { value = [ev]; children = Id.Map.empty }
+         | None -> Some { value = Evar.Set.singleton ev; children = Id.Map.empty }
        in
        { node with children = Id.Map.update segment update node.children }
     | [] ->
-       { node with value = ev :: node.value }
+       { node with value = Evar.Set.add ev node.value }
 
   let add { basename; path } ev trie = add (basename :: path) ev trie
 
@@ -129,12 +129,12 @@ struct
     | segment :: rest ->
        { node with children = Id.Map.modify segment (fun _ child -> transfer rest ev ev' child) node.children }
     | [] ->
-       { node with value = ev' :: CList.remove Evar.equal ev node.value }
+       { node with value = Evar.Set.add ev' (Evar.Set.remove ev node.value) }
 
   let transfer { basename; path } ev ev' trie = transfer (basename :: path) ev ev' trie
 
   let[@tail_mod_cons] rec shortest_name path ev node =
-    if CList.mem ev node.value then []
+    if Evar.Set.mem ev node.value then []
     else
       match path with
       | segment :: rest -> segment :: shortest_name rest ev (Id.Map.find segment node.children)
@@ -150,7 +150,7 @@ struct
     | segment :: rest ->
        begin match Id.Map.find_opt segment node.children with
        | Some segment -> find rest segment
-       | None -> []
+       | None -> Evar.Set.empty
        end
     | [] -> node.value
 
@@ -167,7 +167,7 @@ struct
        (* Prune empty nodes. *)
        if is_empty node then None else Some node
     | [] ->
-       let node = { node with value = CList.remove Evar.equal ev node.value } in
+       let node = { node with value = Evar.Set.remove ev node.value } in
        if is_empty node then None else Some node
 
   let remove { basename; path } ev trie =
@@ -261,12 +261,14 @@ let add_fresh basename ev ?parent evn =
     | None -> evn
   in
   let qualid = EvarQualid.{ basename; path = path ev evn } in
-  match NameResolution.find qualid evn.name_resolution with
-  | [] -> add basename ev evn (* No need to give the parent since it's already registered *)
-  | _ ->
-     (* Generate a fresh basename and try again. *)
-     let basename, fresh_gen = Fresh.fresh basename evn.fresh_gen in
-     add basename ev { evn with fresh_gen }
+  let ans = NameResolution.find qualid evn.name_resolution in
+  if Evar.Set.is_empty ans then
+    (* No need to give the parent since it's already registered *)
+    add basename ev evn
+  else
+    (* Generate a fresh basename and try again. *)
+    let basename, fresh_gen = Fresh.fresh basename evn.fresh_gen in
+    add basename ev { evn with fresh_gen }
 
 let rec remove ev evn =
   match EvMap.find_opt ev evn.basename_map with
@@ -342,44 +344,60 @@ let transfer_name ev ev' evn =
   in
   { evn with basename_map; name_resolution; parent_map; children_map }
 
+type set_kind =
+| SetEmpty
+| SetSingleton of Evar.t
+| SetOther
+
+let classify_set s =
+  if Evar.Set.is_empty s then SetEmpty
+  else
+    let evk = Evar.Set.choose s in
+    let s = Evar.Set.remove evk s in
+    if Evar.Set.is_empty s then SetSingleton evk
+    else SetOther
+
 let name_of ev evn =
   match shortest_name ev evn with
-  | Some name ->
-     let conflicts = NameResolution.find name evn.name_resolution in
-     begin match conflicts with
-     | [_] -> Some (EvarQualid.repr name)
-     | _ ->
-        (* If the qualified name is ambiguous, we append a suffix corresponding to the insertion index in the list. *)
-        let { EvarQualid.basename; path } = name in
-        let i = CList.length conflicts - CList.index Evar.equal ev conflicts - 1 in
-        let basename =
-          if Int.equal i (-1) then basename
-          else Id.of_string ((Id.to_string name.basename) ^ (string_of_int i))
-        in
-        Some (Libnames.make_path (DirPath.make path) basename)
-     end
   | None -> None
+  | Some name ->
+    let conflicts = NameResolution.find name evn.name_resolution in
+    (* TODO: we should the caller handle the conflict themselves instead of
+       generating nonsensical names in linear time. *)
+    match classify_set conflicts with
+    | SetEmpty | SetSingleton _ -> Some (EvarQualid.repr name)
+    | SetOther ->
+      let nconflicts = Evar.Set.cardinal conflicts in
+      (* If the qualified name is ambiguous, we append a suffix corresponding to the index in the list. *)
+      let { EvarQualid.basename; path } = name in
+      let i = nconflicts - CList.index Evar.equal ev (Evar.Set.elements conflicts) - 1 in
+      let basename =
+        if Int.equal i (-1) then basename
+        else Id.of_string ((Id.to_string name.basename) ^ (string_of_int i))
+      in
+      Some (Libnames.make_path (DirPath.make path) basename)
 
 let has_name ev evn =
   not (EvSet.mem ev evn.removed_evars) && EvMap.mem ev evn.basename_map
 
 let has_unambiguous_name ev evn =
   match shortest_name ev evn with
-  | Some name ->
-     begin match NameResolution.find name evn.name_resolution with
-     | [e] when Evar.equal e ev -> not (EvSet.mem ev evn.removed_evars)
-     | _ -> false
-     end
   | None -> false
+  | Some name ->
+    let ans = NameResolution.find name evn.name_resolution in
+    match classify_set ans with
+    | SetEmpty | SetOther -> false
+    | SetSingleton e ->
+      Evar.equal e ev && not (EvSet.mem ev evn.removed_evars)
 
 let resolve fp evn =
   let qualid = EvarQualid.make fp in
   let evs = NameResolution.find qualid evn.name_resolution in
   let open Pp in
-  match evs with
-  | [] -> raise Not_found
-  | [ev] ->
-     if EvSet.mem ev evn.removed_evars then raise Not_found
-     else ev
-  | _ :: _ :: _ ->
+  match classify_set evs with
+  | SetEmpty -> raise Not_found
+  | SetSingleton ev ->
+    if EvSet.mem ev evn.removed_evars then raise Not_found
+    else ev
+  | SetOther ->
     CErrors.user_err ?loc:fp.loc (str "Ambiguous evar name " ++ Libnames.pr_qualid fp ++ str ".")
