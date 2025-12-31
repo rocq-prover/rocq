@@ -129,6 +129,7 @@ rule extend = parse
 | "LEFTA" { LEFTA }
 | "RIGHTA" { RIGHTA }
 | "NONA" { NONA }
+| "BOTHA" { BOTHA }
 | "IGNORE" { IGNORE }
 | "KEYWORDS" { KEYWORDS }
 (** Standard *)

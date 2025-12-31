@@ -158,7 +158,7 @@ to apply specific treatments accordingly.
    term_match ::= match {+, @case_item } {? return @term100 } with {? %| } {*| @eqn } end
    case_item ::= @term100 {? as @name } {? in @pattern }
    eqn ::= {+| {+, @pattern } } => @term
-   pattern ::= @pattern : @term
+   pattern ::= @pattern10 : @term
    | @pattern10
    pattern10 ::= @pattern10 as @name
    | @pattern10 {* @pattern1 }
