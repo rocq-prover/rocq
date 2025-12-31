@@ -86,7 +86,7 @@ Module Inference.
   (* implicit instance of zog gets a variable which then gets unified with s from the type of A *)
   Definition zag@{s; |} (A:Type@{s;Set}) := zog A.
 
-  (* implicit type of A gets unified to Type@{s|Set} *)
+  (* implicit type of A gets unified to Type@{s;Set} *)
   Definition zig@{s; |} A := zog@{s;} A.
 
   (* Unfortunately casting a hole to a sort (while typing A on the

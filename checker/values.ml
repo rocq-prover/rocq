@@ -440,7 +440,7 @@ let v_squash_info = v_sum "squash_info" 1 [|[|v_set v_quality|]|]
 
 let v_record_info =
   v_sum "record_info" 2
-    [| [| v_tuple "record" [| v_id; v_array v_id; v_array v_relevance; v_array v_constr |] |] |]
+    [| [| v_tuple "record" [| v_id; v_array v_id; v_array v_relevance; v_array v_constr; v_bool |] |] |]
 
 let v_one_ind = v_tuple "one_inductive_body"
   [|v_id;

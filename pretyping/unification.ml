@@ -1024,7 +1024,7 @@ let is_eta_constructor_app env sigma ts f l1 term =
     let mib = lookup_mind mind env in
       (match mib.mind_packets.(i).mind_record with
       | PrimRecord info when mib.Declarations.mind_finite == Declarations.BiFinite &&
-          let (_, projs, _, _) = info in
+          let (_, projs, _, _, _) = info in
           Array.length projs == Array.length l1 - mib.Declarations.mind_nparams ->
         (* Check that the other term is neutral *)
         is_neutral env sigma ts term

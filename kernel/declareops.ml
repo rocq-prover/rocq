@@ -213,10 +213,10 @@ let subst_mind_record subst r = match r with
 | NotRecord -> NotRecord
 | FakeRecord -> FakeRecord
 | PrimRecord infos ->
-  let map (id, ps, rs, pb as info) =
+  let map (id, ps, rs, pb, recheck as info) =
     let pb' = Array.Smart.map (subst_mps subst) pb in
     if pb' == pb then info
-    else (id, ps, rs, pb')
+    else (id, ps, rs, pb', recheck)
   in
   let infos' = map infos in
   if infos' == infos then r else PrimRecord infos'
@@ -278,7 +278,7 @@ let inductive_make_projection ind mib ~proj_arg =
   | NotRecord | FakeRecord ->
     CErrors.anomaly Pp.(str "inductive_make_projection: not a primitive record.")
   | PrimRecord infos ->
-    let _, labs, rs, _ = infos in
+    let _, labs, rs, _, _ = infos in
     if proj_arg < 0 || Array.length labs <= proj_arg
     then CErrors.anomaly Pp.(str "inductive_make_projection: invalid proj_arg.");
     let p = Names.Projection.Repr.make ind
@@ -290,14 +290,14 @@ let inductive_make_projection ind mib ~proj_arg =
 
 let inductive_make_projections ind mib =
   match mib.mind_packets.(snd ind).mind_record with
-  | NotRecord | FakeRecord -> None
+  | NotRecord | FakeRecord -> None, false
   | PrimRecord infos ->
-    let _, labs, relevances, _ = infos in
+    let _, labs, relevances, _, recheck_at_eta = infos in
     let projs = Array.map2_i (fun proj_arg lab r ->
         Names.Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg lab, r)
         labs relevances
     in
-    Some projs
+    (Some projs, recheck_at_eta)
 
 (** {6 Hash-consing of inductive declarations } *)
 
