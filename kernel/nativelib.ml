@@ -74,8 +74,11 @@ let get_include_dirs () =
 (* Pointer to the function linking an ML object into Rocq's toplevel *)
 let load_obj = ref (fun _x -> () : string -> unit)
 
+let rsymbols = ref Nativevalues.empty_symbols
 let rt1 = ref None
 let rt2 = ref None
+
+let get_symbols () = !rsymbols
 
 let get_ml_filename () =
   let temp_dir = Lazy.force my_temp_dir in
@@ -176,9 +179,10 @@ let compile_library (code, symb) fn =
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
-let execute_library ~prefix f upds =
-  rt1 := None;
-  rt2 := None;
+let execute_library ~prefix f symbols upds =
+  let () = rt1 := None in
+  let () = rt2 := None in
+  let () = rsymbols := symbols in
   if not (Sys.file_exists f) then
     CErrors.user_err Pp.(str "Cannot find native compiler file " ++ str f);
   if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;

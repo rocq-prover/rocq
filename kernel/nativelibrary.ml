@@ -17,34 +17,34 @@ open Nativecode
 (** This file implements separate compilation for libraries in the native
 compiler *)
 
-let rec translate_mod mp env mod_expr acc =
+let rec translate_mod mp cenv env mod_expr acc =
   match mod_expr with
   | NoFunctor struc ->
-    List.fold_left (translate_field mp env) acc struc
+    List.fold_left (translate_field mp cenv env) acc struc
   | MoreFunctor _ -> acc
 
 (* XXX I believe it makes no sense to extract module types *)
-and translate_modtype mp env mod_expr reso acc =
+and translate_modtype mp cenv env mod_expr reso acc =
   match mod_expr with
   | NoFunctor struc ->
     let env' = add_structure mp struc reso env in
-    List.fold_left (translate_field mp env') acc struc
+    List.fold_left (translate_field mp cenv env') acc struc
   | MoreFunctor _ -> acc
 
-and translate_field mp env acc (l,x) =
+and translate_field mp cenv env acc (l,x) =
   match x with
   | SFBconst cb ->
      let con = Constant.make2 mp l in
      (debug_native_compiler (fun () ->
         let msg = Printf.sprintf "Compiling constant %s..." (Constant.to_string con) in
         Pp.str msg));
-     compile_constant_field env con acc cb
+     compile_constant_field cenv env con acc cb
   | SFBmind mb ->
      (debug_native_compiler (fun () ->
         let id = mb.mind_packets.(0).mind_typename in
         let msg = Printf.sprintf "Compiling inductive %s..." (Id.to_string id) in
         Pp.str msg));
-     compile_mind_field mp l acc mb
+     compile_mind_field cenv mp l acc mb
   | SFBrules rrb ->
      (debug_native_compiler (fun () ->
         let msg = Printf.sprintf "Not Compiling rules %s..." (Id.to_string l) in
@@ -57,7 +57,7 @@ and translate_field mp env acc (l,x) =
           Printf.sprintf "Compiling module %s..." (ModPath.to_string mp)
         in
         Pp.str msg));
-     translate_mod mp env (mod_type md) acc
+     translate_mod mp cenv env (mod_type md) acc
   | SFBmodtype mdtyp ->
      let mp = MPdot (mp, l) in
      (debug_native_compiler (fun () ->
@@ -65,7 +65,7 @@ and translate_field mp env acc (l,x) =
           Printf.sprintf "Compiling module type %s..." (ModPath.to_string mp)
         in
         Pp.str msg));
-     translate_modtype mp env (mod_type mdtyp) (mod_delta mdtyp) acc
+     translate_modtype mp cenv env (mod_type mdtyp) (mod_delta mdtyp) acc
 
 (* This function expects the contents of the module to be part of [env] already *)
 let dump_library mp env mod_expr =
@@ -73,13 +73,13 @@ let dump_library mp env mod_expr =
   match mod_expr with
   | NoFunctor struc ->
       let t0 = Sys.time () in
-      clear_global_tbl ();
-      clear_symbols ();
+      let cenv = Nativecode.make_cenv () in
       let mlcode =
-        List.fold_left (translate_field mp env) [] struc
+        List.fold_left (translate_field mp cenv env) [] struc
       in
       let t1 = Sys.time () in
       let time_info = Format.sprintf "Time spent generating this code: %.5fs" (t1-.t0) in
       let mlcode = add_header_comment (List.rev mlcode) time_info in
-      mlcode, get_symbols ()
+      let symbols = Nativecode.get_cenv_symbols cenv in
+      mlcode, symbols
   | _ -> assert false

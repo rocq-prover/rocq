@@ -46,12 +46,6 @@ module LNord =
 module LNmap = Map.Make(LNord)
 module LNset = Set.Make(LNord)
 
-let lname_ctr = ref (-1)
-
-let fresh_lname n =
-  incr lname_ctr;
-  { lname = n; luid = !lname_ctr }
-
 let rec is_lazy env t =
   match Constr.kind t with
   | App _ | LetIn _ | Case _ | Proj _ -> true
@@ -151,36 +145,6 @@ let gname_hash gn = match gn with
 | Gnamed id -> combinesmall 10 (Id.hash id)
 | Gproj (s, p, i) -> combinesmall 11 (combine (String.hash s) (combine (Ind.UserOrd.hash p) i))
 
-let case_ctr = ref (-1)
-
-let fresh_gcase l =
-  incr case_ctr;
-  Gcase (l,!case_ctr)
-
-let pred_ctr = ref (-1)
-
-let fresh_gpred l =
-  incr pred_ctr;
-  Gpred (l,!pred_ctr)
-
-let fixtype_ctr = ref (-1)
-
-let fresh_gfixtype l =
-  incr fixtype_ctr;
-  Gfixtype (l,!fixtype_ctr)
-
-let norm_ctr = ref (-1)
-
-let fresh_gnorm l =
-  incr norm_ctr;
-  Gnorm (l,!norm_ctr)
-
-let normtbl_ctr = ref (-1)
-
-let fresh_gnormtbl l =
-  incr normtbl_ctr;
-  Gnormtbl (l,!normtbl_ctr)
-
 (* We compare only what is relevant for generation of ml code *)
 let eq_annot_sw asw1 asw2 =
   Ind.UserOrd.equal asw1.asw_ind asw2.asw_ind &&
@@ -237,10 +201,6 @@ end
 
 module HashtblSymbol = Hashtbl.Make(HashedTypeSymbol)
 
-let symb_tbl = HashtblSymbol.create 211
-
-let clear_symbols () = HashtblSymbol.clear symb_tbl
-
 let get_value tbl i =
   match tbl.(i) with
     | SymbValue v -> v
@@ -285,22 +245,6 @@ let get_proj tbl i =
   match tbl.(i) with
     | SymbProj p -> p
     | _ -> anomaly (Pp.str "get_proj failed.")
-
-let push_symbol x =
-  try HashtblSymbol.find symb_tbl x
-  with Not_found ->
-    let i = HashtblSymbol.length symb_tbl in
-    HashtblSymbol.add symb_tbl x i; i
-
-let symbols_tbl_name = Ginternal "symbols_tbl"
-
-let get_symbols () =
-  match HashtblSymbol.to_seq symb_tbl () with
-  | Nil -> [||]
-  | Cons ((x,_), rest) ->
-    let tbl = Array.make (HashtblSymbol.length symb_tbl) x in
-    Seq.iter (fun (x, i) -> tbl.(i) <- x) rest;
-    tbl
 
 (** Lambda to Mllambda **)
 
@@ -787,14 +731,6 @@ let mkMLapp f args =
     | MLapp(f,args') -> MLapp(f,Array.append args' args)
     | _ -> MLapp(f,args)
 
-let mkForceCofix prefix ind arg =
-  let name = fresh_lname Anonymous in
-  MLlet (name, arg,
-    MLif (
-      MLisaccu (prefix, ind, MLlocal name),
-      MLprimitive (Force_cofix, [|MLlocal name|]),
-      MLlocal name))
-
 let empty_params = [||]
 
 let decompose_MLlam c =
@@ -879,8 +815,6 @@ let hash_global g =
     combinesmall 7 (combine (Ind.UserOrd.hash ind) (Array.fold_left hash_aux 0 arr))
   | Gcomment s -> combinesmall 8 (String.hash s)
 
-let global_stack = ref ([] : global list)
-
 module HashedTypeGlobal = struct
   type t = global
   let equal = eq_global
@@ -889,30 +823,98 @@ end
 
 module HashtblGlobal = Hashtbl.Make(HashedTypeGlobal)
 
-let global_tbl = HashtblGlobal.create 19991
+type cenv = {
+  mutable lname_ctr : int;
+  mutable case_ctr : int;
+  mutable pred_ctr : int;
+  mutable fixtype_ctr : int;
+  mutable norm_ctr : int;
+  mutable normtbl_ctr : int;
+  global_tbl : gname HashtblGlobal.t;
+  mutable global_stack : global list;
+  symb_tbl : arity HashtblSymbol.t;
+}
 
-let clear_global_tbl () = HashtblGlobal.clear global_tbl
+let make_cenv () = {
+  lname_ctr = -1;
+  case_ctr = -1;
+  pred_ctr = -1;
+  fixtype_ctr = -1;
+  norm_ctr = -1;
+  normtbl_ctr = -1;
+  global_tbl = HashtblGlobal.create 91;
+  global_stack = [];
+  symb_tbl = HashtblSymbol.create 211;
+}
 
-let push_global gn t =
-  try HashtblGlobal.find global_tbl t
+let fresh_lname cenv n =
+  let () = cenv.lname_ctr <- cenv.lname_ctr + 1 in
+  { lname = n; luid = cenv.lname_ctr }
+
+let fresh_gcase cenv l =
+  let () = cenv.case_ctr <- cenv.case_ctr + 1 in
+  Gcase (l, cenv.case_ctr)
+
+let fresh_gpred cenv l =
+  let () = cenv.pred_ctr <- cenv.pred_ctr + 1 in
+  Gpred (l, cenv.pred_ctr)
+
+let fresh_gfixtype cenv l =
+  let () = cenv.fixtype_ctr <- cenv.fixtype_ctr + 1 in
+  Gfixtype (l, cenv.fixtype_ctr)
+
+let fresh_gnorm cenv l =
+  let () = cenv.norm_ctr <- cenv.norm_ctr + 1 in
+  Gnorm (l, cenv.norm_ctr)
+
+let fresh_gnormtbl cenv l =
+  let () = cenv.normtbl_ctr <- cenv.normtbl_ctr + 1 in
+  Gnormtbl (l, cenv.normtbl_ctr)
+
+let mkForceCofix cenv prefix ind arg =
+  let name = fresh_lname cenv Anonymous in
+  MLlet (name, arg,
+    MLif (
+      MLisaccu (prefix, ind, MLlocal name),
+      MLprimitive (Force_cofix, [|MLlocal name|]),
+      MLlocal name))
+
+let push_global cenv gn t =
+  try HashtblGlobal.find cenv.global_tbl t
   with Not_found ->
-    (global_stack := t :: !global_stack;
-    HashtblGlobal.add global_tbl t gn; gn)
+    let () = cenv.global_stack <- t :: cenv.global_stack in
+    let () = HashtblGlobal.add cenv.global_tbl t gn in
+    gn
 
-let push_global_let gn body =
-  push_global gn (Glet (gn,body))
+let push_global_let cenv gn body =
+  push_global cenv gn (Glet (gn,body))
 
-let push_global_fixtype gn params body =
-  push_global gn (Gtblfixtype (gn,params,body))
+let push_global_fixtype cenv gn params body =
+  push_global cenv gn (Gtblfixtype (gn,params,body))
 
-let push_global_norm gn params body =
-  push_global gn (Gtblnorm (gn, params, body))
+let push_global_norm cenv gn params body =
+  push_global cenv gn (Gtblnorm (gn, params, body))
 
-let push_global_cofix gn params self =
-  push_global gn (Gtblcofix (gn, params, self))
+let push_global_cofix cenv gn params self =
+  push_global cenv gn (Gtblcofix (gn, params, self))
 
-let push_global_case gn params annot a accu bs =
-  push_global gn (Gletcase (gn, params, annot, a, accu, bs))
+let push_global_case cenv gn params annot a accu bs =
+  push_global cenv gn (Gletcase (gn, params, annot, a, accu, bs))
+
+let push_symbol cenv x =
+  try HashtblSymbol.find cenv.symb_tbl x
+  with Not_found ->
+    let i = HashtblSymbol.length cenv.symb_tbl in
+    let () = HashtblSymbol.add cenv.symb_tbl x i in
+    i
+
+let get_cenv_symbols cenv =
+  match HashtblSymbol.to_seq cenv.symb_tbl () with
+  | Nil -> [||]
+  | Cons ((x,_), rest) ->
+    let tbl = Array.make (HashtblSymbol.length cenv.symb_tbl) x in
+    let () = Seq.iter (fun (x, i) -> tbl.(i) <- x) rest in
+    tbl
 
 (* Compares [t1] and [t2] up to alpha-equivalence. [t1] and [t2] may contain
    free variables. *)
@@ -935,9 +937,10 @@ type env =
       env_const_prefix : Constant.t -> prefix;
       env_const_lazy : Constant.t -> bool;
       env_mind_prefix : MutInd.t -> prefix;
+      env_cenv : cenv;
     }
 
-let empty_env univ get_const const_lazy get_mind =
+let empty_env cenv univ get_const const_lazy get_mind =
   { env_rel = [];
     env_bound = 0;
     env_urel = ref [];
@@ -946,13 +949,14 @@ let empty_env univ get_const const_lazy get_mind =
     env_const_prefix = get_const;
     env_const_lazy = const_lazy;
     env_mind_prefix = get_mind;
+    env_cenv = cenv;
   }
 
 let restart_env env =
-  empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix
+  empty_env env.env_cenv env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix
 
 let push_rel env id =
-  let local = fresh_lname id.binder_name in
+  let local = fresh_lname env.env_cenv id.binder_name in
   local, { env with
            env_rel = MLlocal local :: env.env_rel;
            env_bound = env.env_bound + 1
@@ -961,7 +965,7 @@ let push_rel env id =
 let push_rels env ids =
   let lnames, env_rel =
     Array.fold_left (fun (names,env_rel) id ->
-      let local = fresh_lname id.binder_name in
+      let local = fresh_lname env.env_cenv id.binder_name in
       (local::names, MLlocal local::env_rel)) ([],env.env_rel) ids in
   Array.of_list (List.rev lnames), { env with
                           env_rel = env_rel;
@@ -975,19 +979,19 @@ let get_rel env id i =
     let i = i - env.env_bound in
     try Int.List.assoc i !(env.env_urel)
     with Not_found ->
-      let local = MLlocal (fresh_lname id) in
+      let local = MLlocal (fresh_lname env.env_cenv id) in
       env.env_urel := (i,local) :: !(env.env_urel);
       local
 
 let get_var env id =
   try Id.List.assoc id !(env.env_named)
   with Not_found ->
-    let local = MLlocal (fresh_lname (Name id)) in
+    let local = MLlocal (fresh_lname env.env_cenv (Name id)) in
     env.env_named := (id, local)::!(env.env_named);
     local
 
-let fresh_univ () =
-  fresh_lname (Name (Id.of_string "univ"))
+let fresh_univ cenv () =
+  fresh_lname cenv (Name (Id.of_string "univ"))
 
 (*s Traduction of lambda to mllambda *)
 
@@ -1066,6 +1070,8 @@ let fv_args env fvn fvr =
       done;
       args
     end
+
+let symbols_tbl_name = Ginternal "symbols_tbl"
 
 let get_value_code i =
   MLprimitive (Get_value,
@@ -1181,7 +1187,7 @@ let extract_prim env ml_of l =
       PAprim (prefix, kn, p, args)
     | Lrel _ | Lvar _ | Luint _ | Lval _ | Lconst _ -> PAml (ml_of l)
     | _ ->
-      let x = fresh_lname Anonymous in
+      let x = fresh_lname env.env_cenv Anonymous in
       decl := (x,ml_of l)::!decl;
       PAml (MLlocal x) in
   let res = aux l in
@@ -1195,7 +1201,7 @@ let cast_to_int v =
 let ml_of_instance env u =
   if UVars.Instance.is_empty u then [||]
   else
-    let i = push_symbol (SymbInstance u) in
+    let i = push_symbol env.env_cenv (SymbInstance u) in
     let u_code = get_instance_code i in
     let u_code = match env.env_univ with
     | UGlobal -> u_code
@@ -1217,7 +1223,7 @@ let ml_of_instance env u =
     [|MLprimitive (MLmagic, [|u_code|])|]
 
 let ml_of_sort env s =
-  let i = push_symbol (SymbSort s) in
+  let i = push_symbol env.env_cenv (SymbSort s) in
   let s_code = get_sort_code i in
   let s_code = match env.env_univ with
   | UGlobal | ULocal None -> s_code
@@ -1301,7 +1307,7 @@ let compile_prim env decl cond paux =
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
   | Levar(evk, args) ->
-     let i = push_symbol (SymbEvar evk) in
+     let i = push_symbol env.env_cenv (SymbEvar evk) in
      (** Arguments are *not* reversed in evar instances in native compilation *)
      let args = MLarray(Array.map (ml_of_lam env l) args) in
      MLprimitive (Mk_evar, [|get_evar_code i; args|])
@@ -1309,7 +1315,7 @@ let compile_prim env decl cond paux =
       let dom = ml_of_lam env l dom in
       let codom = ml_of_lam env l codom in
       let n = get_prod_name codom in
-      let i = push_symbol (SymbName n) in
+      let i = push_symbol env.env_cenv (SymbName n) in
       MLprimitive (Mk_prod, [|get_name_code i;dom;codom|])
   | Llam(ids,body) ->
     let lnames,env = push_rels env ids in
@@ -1353,14 +1359,14 @@ let compile_prim env decl cond paux =
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
       }, finite in
       let env_p = restart_env env in
-      let pn = fresh_gpred l in
+      let pn = fresh_gpred env.env_cenv l in
       let mlp = ml_of_lam env_p l p in
       let mlp = generalize_fv env_p mlp in
       let (pfvn,pfvr) = !(env_p.env_named), !(env_p.env_urel) in
-      let pn = push_global_let pn mlp in
+      let pn = push_global_let env.env_cenv pn mlp in
       (* Compilation of the case *)
       let env_c = restart_env env in
-      let a_uid = fresh_lname Anonymous in
+      let a_uid = fresh_lname env.env_cenv Anonymous in
       let la_uid = MLlocal a_uid in
       (* compilation of branches *)
       let nbconst = Array.length bs.constant_branches in
@@ -1373,13 +1379,13 @@ let compile_prim env decl cond paux =
                                   (NonConstPattern (i-nbconst+1,lnames), ml_of_lam env_c l body)
                               )
       in
-      let cn = fresh_gcase l in
+      let cn = fresh_gcase env.env_cenv l in
       (* Compilation of accu branch *)
       let pred = MLapp(MLglobal pn, fv_args env_c pfvn pfvr) in
       let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
       let cn_fv = mkMLapp (MLglobal cn) (fv_args env_c fvn fvr) in
          (* remark : the call to fv_args does not add free variables in env_c *)
-      let i = push_symbol (SymbMatch annot) in
+      let i = push_symbol env.env_cenv (SymbMatch annot) in
       let accu =
         MLprimitive (Mk_sw,
               [| get_match_code i; MLprimitive (Cast_accu, [|la_uid|]);
@@ -1387,14 +1393,14 @@ let compile_prim env decl cond paux =
                  cn_fv |]) in
 (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
       let case = generalize_fv env_c body in *)
-      let cn = push_global_case cn (Array.append (fv_params env_c) [|a_uid|])
+      let cn = push_global_case env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
         annot la_uid accu (merge_branches br)
       in
       (* Final result *)
       let arg = ml_of_lam env l a in
       let force =
         if finite <> CoFinite then arg
-        else mkForceCofix annot.asw_prefix annot.asw_ind arg in
+        else mkForceCofix env.env_cenv annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
       (* let type_f fvt = [| type fix |]
@@ -1417,8 +1423,8 @@ let compile_prim env decl cond paux =
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
-      let gft = fresh_gfixtype l in
-      let gft = push_global_fixtype gft params_t ml_t in
+      let gft = fresh_gfixtype env.env_cenv l in
+      let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
@@ -1440,7 +1446,7 @@ let compile_prim env decl cond paux =
         let paramsi,letsi =
           Array.of_list (List.rev paramsi), Array.of_list (List.rev letsi)
         in
-        t_norm_f.(i) <- fresh_gnorm l;
+        t_norm_f.(i) <- fresh_gnorm env.env_cenv l;
         let bodyi = ml_of_lam envi l bodyi in
         t_params.(i) <- paramsi;
         let bodyi = Array.fold_right (mk_let envi) letsi bodyi in
@@ -1452,9 +1458,9 @@ let compile_prim env decl cond paux =
       let fv_args' = Array.map (fun id -> MLlocal id) fv_params in
       let norm_params = Array.append fv_params lf in
       let t_norm_f = Array.mapi (fun i body ->
-        push_global_let (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl l in
-      let norm = push_global_norm norm fv_params
+        push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
+      let norm = fresh_gnormtbl env.env_cenv l in
+      let norm = push_global_norm env.env_cenv norm fv_params
          (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of fix *)
       let fv_args = fv_args env fvn fvr in
@@ -1484,14 +1490,14 @@ let compile_prim env decl cond paux =
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = Array.map (fun id -> MLlocal id) params_t in
-      let gft = fresh_gfixtype l in
-      let gft = push_global_fixtype gft params_t ml_t in
+      let gft = fresh_gfixtype env.env_cenv l in
+      let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
       let lf,env_n = push_rels env_t ids in
       let t_params = Array.make ndef [||] in
-      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm l) in
+      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm env.env_cenv l) in
       let ml_of_fix i body =
         let idsi,bodyi = decompose_Llam body in
         let paramsi, envi = push_rels env_n idsi in
@@ -1505,18 +1511,18 @@ let compile_prim env decl cond paux =
       let fv_args' = Array.map (fun id -> MLlocal id) fv_params in
       let norm_params = Array.append fv_params lf in
       let t_norm_f = Array.mapi (fun i body ->
-        push_global_let (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl l in
-      let norm = push_global_norm norm fv_params
+        push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
+      let norm = fresh_gnormtbl env.env_cenv l in
+      let norm = push_global_norm env.env_cenv norm fv_params
         (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of cofix *)
       let fv_args = fv_args env fvn fvr in
       let mk_norm = MLapp(MLglobal norm, fv_args') in
 
-      let knot = fresh_gnormtbl l in
+      let knot = fresh_gnormtbl env.env_cenv l in
       let map i g =
         (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
-        let unit = fresh_lname Anonymous in
+        let unit = fresh_lname env.env_cenv Anonymous in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
           MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
@@ -1529,7 +1535,7 @@ let compile_prim env decl cond paux =
         mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
       in
       (* Tie the knot *)
-      let knot = push_global_cofix knot fv_params (Array.mapi map t_norm_f) in
+      let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
       MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
 
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
@@ -1545,7 +1551,7 @@ let compile_prim env decl cond paux =
     let def = ml_of_lam env l def in
     MLprimitive (MLparray_of_array, [| MLarray (Array.map (ml_of_lam env l) t); def |])
   | Lval v ->
-      let i = push_symbol (SymbValue v) in get_value_code i
+      let i = push_symbol env.env_cenv (SymbValue v) in get_value_code i
   | Lsort s ->
     ml_of_sort env s
   | Lind (ind, u) ->
@@ -1553,9 +1559,9 @@ let compile_prim env decl cond paux =
      let uargs = ml_of_instance env u in
      mkMLapp (MLglobal (Gind (prefix, ind))) uargs
 
-let mllambda_of_lambda univ constpref constlazy mindpref auxdefs l t =
-  let env = empty_env univ constpref constlazy mindpref in
-  global_stack := auxdefs;
+let mllambda_of_lambda cenv univ constpref constlazy mindpref auxdefs l t =
+  let env = empty_env cenv univ constpref constlazy mindpref in
+  let () = cenv.global_stack <- auxdefs in
   let ml = ml_of_lam env l t in
   let fv_rel = !(env.env_urel) in
   let fv_named = !(env.env_named) in
@@ -1567,10 +1573,10 @@ let mllambda_of_lambda univ constpref constlazy mindpref auxdefs l t =
   let params =
     List.append (List.map get_lname fv_rel) (List.map get_lname fv_named) in
   if List.is_empty params then
-    (!global_stack, ([],[]), ml)
+    (cenv.global_stack, ([],[]), ml)
   (* final result : global list, fv, ml *)
   else
-    (!global_stack, (fv_named, fv_rel), mkMLlam (Array.of_list params) ml)
+    (cenv.global_stack, (fv_named, fv_rel), mkMLlam (Array.of_list params) ml)
 
 (** Code optimization **)
 
@@ -2103,22 +2109,22 @@ let pp_global fmt g =
       Format.fprintf fmt "@[(* %s *)@]@." s
 
 (** Compilation of elements in environment **)
-let rec compile_with_fv ?(wrap = fun t -> t) env sigma univ auxdefs l t =
+let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
   let const_prefix c = get_const_prefix env c in
   let const_lazy = get_const_lazy env in
   let mind_prefix c = get_mind_prefix env c in
-  let (auxdefs,(fv_named,fv_rel),ml) = mllambda_of_lambda univ const_prefix const_lazy mind_prefix auxdefs l t in
+  let (auxdefs,(fv_named,fv_rel),ml) = mllambda_of_lambda cenv univ const_prefix const_lazy mind_prefix auxdefs l t in
   let ml = wrap ml in
   if List.is_empty fv_named && List.is_empty fv_rel then (auxdefs,ml)
-  else apply_fv env sigma univ (fv_named,fv_rel) auxdefs ml
+  else apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml
 
-and apply_fv env sigma univ (fv_named,fv_rel) auxdefs ml =
+and apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
   let get_rel_val (n,_) auxdefs =
     (*
     match !(lookup_rel_native_val n env) with
     | NVKnone ->
     *)
-        compile_rel env sigma univ auxdefs n
+        compile_rel cenv env sigma univ auxdefs n
 (*    | NVKvalue (v,d) -> assert false *)
   in
   let get_named_val (id,_) auxdefs =
@@ -2126,7 +2132,7 @@ and apply_fv env sigma univ (fv_named,fv_rel) auxdefs ml =
     match !(lookup_named_native_val id env) with
     | NVKnone ->
         *)
-        compile_named env sigma univ auxdefs id
+        compile_named cenv env sigma univ auxdefs id
 (*    | NVKvalue (v,d) -> assert false *)
   in
   let auxdefs = List.fold_right get_rel_val fv_rel auxdefs in
@@ -2134,32 +2140,32 @@ and apply_fv env sigma univ (fv_named,fv_rel) auxdefs ml =
   let lvl = Context.Rel.length (rel_context env) in
   let fv_rel = List.map (fun (n,_) -> MLglobal (Grel (lvl-n))) fv_rel in
   let fv_named = List.map (fun (id,_) -> MLglobal (Gnamed id)) fv_named in
-  let aux_name = fresh_lname Anonymous in
+  let aux_name = fresh_lname cenv Anonymous in
   auxdefs, MLlet(aux_name, ml, mkMLapp (MLlocal aux_name) (Array.of_list (fv_rel@fv_named)))
 
-and compile_rel env sigma univ auxdefs n =
+and compile_rel cenv env sigma univ auxdefs n =
   let open Context.Rel.Declaration in
   let decl = lookup_rel n env in
   let n = List.length (rel_context env) - n in
   match decl with
   | LocalDef (_,t,_) ->
       let code = lambda_of_constr env sigma t in
-      let auxdefs,code = compile_with_fv env sigma univ auxdefs None code in
+      let auxdefs,code = compile_with_fv cenv env sigma univ auxdefs None code in
       Glet(Grel n, code)::auxdefs
   | LocalAssum _ ->
       Glet(Grel n, MLprimitive (Mk_rel n, [||]))::auxdefs
 
-and compile_named env sigma univ auxdefs id =
+and compile_named cenv env sigma univ auxdefs id =
   let open Context.Named.Declaration in
   match lookup_named id env with
   | LocalDef (_,t,_) ->
       let code = lambda_of_constr env sigma t in
-      let auxdefs,code = compile_with_fv env sigma univ auxdefs None code in
+      let auxdefs,code = compile_with_fv cenv env sigma univ auxdefs None code in
       Glet(Gnamed id, code)::auxdefs
   | LocalAssum _ ->
       Glet(Gnamed id, MLprimitive (Mk_var id, [||]))::auxdefs
 
-let compile_constant env sigma con cb =
+let compile_constant cenv env sigma con cb =
     let no_univs = UVars.AbstractContext.is_constant (Declareops.constant_polymorphic_context cb) in
     begin match cb.const_body with
     | Def t ->
@@ -2170,10 +2176,10 @@ let compile_constant env sigma con cb =
       let l = Constant.label con in
       let auxdefs,code =
         if no_univs then
-          compile_with_fv ~wrap env sigma (ULocal None) [] (Some l) code
+          compile_with_fv ~wrap cenv env sigma (ULocal None) [] (Some l) code
         else
-          let univ = fresh_univ () in
-          let (auxdefs,code) = compile_with_fv ~wrap env sigma (ULocal (Some univ)) [] (Some l) code in
+          let univ = fresh_univ cenv () in
+          let (auxdefs,code) = compile_with_fv ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
           (auxdefs,mkMLlam [|univ|] code)
       in
       debug_native_compiler (fun () -> Pp.str "Generated mllambda code");
@@ -2183,7 +2189,7 @@ let compile_constant env sigma con cb =
       debug_native_compiler (fun () -> Pp.str "Optimized mllambda code");
       code
     | _ ->
-        let i = push_symbol (SymbConst con) in
+        let i = push_symbol cenv (SymbConst con) in
         let args =
           if no_univs then [|get_const_code i; ml_empty_instance|]
           else [|get_const_code i|]
@@ -2211,13 +2217,13 @@ let is_code_loaded name =
       if is_loaded_native_file s then true
       else (name := NotLinked; false)
 
-let compile_mind mb mind stack =
+let compile_mind cenv mb mind stack =
   let u = Declareops.inductive_polymorphic_context mb in
   (** Generate data for every block *)
   let f i stack ob =
     let ind = (mind, i) in
     let gtype = Gtype(ind, ob.mind_reloc_tbl) in
-    let j = push_symbol (SymbInd ind) in
+    let j = push_symbol cenv (SymbInd ind) in
     let name = Gind ("", ind) in
     let accu =
       let args =
@@ -2233,22 +2239,22 @@ let compile_mind mb mind stack =
       (* Building info *)
       let asw = { asw_ind = ind; asw_prefix = "";
                   asw_reloc = tbl } in
-      let c_uid = fresh_lname Anonymous in
-      let cf_uid = fresh_lname Anonymous in
+      let c_uid = fresh_lname cenv Anonymous in
+      let cf_uid = fresh_lname cenv Anonymous in
       let tag, arity = tbl.(0) in
       assert (arity > 0);
-      let ci_uid = fresh_lname Anonymous in
+      let ci_uid = fresh_lname cenv Anonymous in
       let cargs = Array.init arity
         (fun i -> if Int.equal i proj_arg then Some ci_uid else None)
       in
-      let i = push_symbol (SymbProj (ind, proj_arg)) in
+      let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
       let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
       let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
       let code = MLmatch(asw,MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
-        else mkForceCofix "" ind (MLlocal c_uid)
+        else mkForceCofix cenv "" ind (MLlocal c_uid)
       in
       let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
@@ -2272,11 +2278,11 @@ type code_location_update = {
 type code_location_updates =
   code_location_update Mindmap_env.t * code_location_update Cmap_env.t
 
-type linkable_code = global list * code_location_updates
+type linkable_code = global list * symbols * code_location_updates
 
 let empty_updates = Mindmap_env.empty, Cmap_env.empty
 
-let compile_mind_deps env prefix
+let compile_mind_deps cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib,nameref,_ = lookup_mind_key mind env in
   if is_code_loaded nameref
@@ -2284,7 +2290,7 @@ let compile_mind_deps env prefix
   then init
   else
     let comp_stack =
-      compile_mind mib mind comp_stack
+      compile_mind cenv mib mind comp_stack
     in
     let upd = {
       upd_info = nameref;
@@ -2295,10 +2301,10 @@ let compile_mind_deps env prefix
 
 (* This function compiles all necessary dependencies of t, and generates code in
    reverse order, as well as linking information updates *)
-let compile_deps env sigma prefix init t =
+let compile_deps cenv env sigma prefix init t =
   let rec aux env lvl init t =
   match kind t with
-  | Ind ((mind,_),_u) -> compile_mind_deps env prefix init mind
+  | Ind ((mind,_),_u) -> compile_mind_deps cenv env prefix init mind
   | Const (c, _u) ->
     let c, _ = get_alias env sigma c in
     let cb,(nameref,_),_ = lookup_constant_key c env in
@@ -2313,7 +2319,7 @@ let compile_deps env sigma prefix init t =
            aux env lvl init t
         | _ -> init
       in
-      let code = compile_constant env sigma c cb in
+      let code = compile_constant cenv env sigma c cb in
       let upd = {
         upd_info = nameref;
         upd_prefix = prefix;
@@ -2321,13 +2327,13 @@ let compile_deps env sigma prefix init t =
       let comp_stack = code@comp_stack in
       let const_updates = Cmap_env.add c upd const_updates in
       comp_stack, (mind_updates, const_updates)
-  | Construct (((mind,_),_),_u) -> compile_mind_deps env prefix init mind
+  | Construct (((mind,_),_),_u) -> compile_mind_deps cenv env prefix init mind
   | Proj (p,_,c) ->
-    let init = compile_mind_deps env prefix init (Projection.mind p) in
+    let init = compile_mind_deps cenv env prefix init (Projection.mind p) in
     aux env lvl init c
   | Case (ci, _u, _pms, _p, _iv, _c, _ac) ->
       let mind = fst ci.ci_ind in
-      let init = compile_mind_deps env prefix init mind in
+      let init = compile_mind_deps cenv env prefix init mind in
       fold_constr_with_binders succ (aux env) lvl init t
   | Var id ->
     let open Context.Named.Declaration in
@@ -2349,13 +2355,13 @@ let compile_deps env sigma prefix init t =
   in
   aux env 0 init t
 
-let compile_constant_field env con acc cb =
-    let gl = compile_constant env (empty_evars env) con cb in
+let compile_constant_field cenv env con acc cb =
+    let gl = compile_constant cenv env (empty_evars env) con cb in
     gl@acc
 
-let compile_mind_field mp l acc mb =
+let compile_mind_field cenv mp l acc mb =
   let mind = MutInd.make2 mp l in
-  compile_mind mb mind acc
+  compile_mind cenv mb mind acc
 
 let warn_native_rules =
   CWarnings.create ~name:"native-rewrite-rules"
@@ -2373,20 +2379,19 @@ let mk_internal_let s code =
 
 (* ML Code for conversion function *)
 let mk_conv_code env sigma prefix t1 t2 =
-  clear_symbols ();
-  clear_global_tbl ();
+  let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
-    compile_deps env sigma prefix init t1
+    compile_deps cenv env sigma prefix init t1
   in
   let gl, (mind_updates, const_updates) =
     let init = (gl, (mind_updates, const_updates)) in
-    compile_deps env sigma prefix init t2
+    compile_deps cenv env sigma prefix init t2
   in
   let code1 = lambda_of_constr env sigma t1 in
   let code2 = lambda_of_constr env sigma t2 in
-  let (gl,code1) = compile_with_fv env sigma UGlobal gl None code1 in
-  let (gl,code2) = compile_with_fv env sigma UGlobal gl None code2 in
+  let (gl,code1) = compile_with_fv cenv env sigma UGlobal gl None code1 in
+  let (gl,code2) = compile_with_fv cenv env sigma UGlobal gl None code2 in
   let t1 = mk_internal_let "t1" code1 in
   let t2 = mk_internal_let "t2" code2 in
   let g1 = MLglobal (Ginternal "t1") in
@@ -2397,17 +2402,17 @@ let mk_conv_code env sigma prefix t1 t2 =
   let header = Glet(Ginternal "symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "()")|])) in
-  header::gl, (mind_updates, const_updates)
+  let symbols = get_cenv_symbols cenv in
+  header::gl, symbols, (mind_updates, const_updates)
 
 let mk_norm_code env sigma prefix t =
-  clear_symbols ();
-  clear_global_tbl ();
+  let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
-    compile_deps env sigma prefix init t
+    compile_deps cenv env sigma prefix init t
   in
   let code = lambda_of_constr env sigma t in
-  let (gl,code) = compile_with_fv env sigma UGlobal gl None code in
+  let (gl,code) = compile_with_fv cenv env sigma UGlobal gl None code in
   let t1 = mk_internal_let "t1" code in
   let g1 = MLglobal (Ginternal "t1") in
   let setref = Glet(Ginternal "_", MLsetref("rt1",g1)) in
@@ -2415,7 +2420,8 @@ let mk_norm_code env sigma prefix t =
   let header = Glet(Ginternal "symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "()")|])) in
-  header::gl, (mind_updates, const_updates)
+  let symbols = get_cenv_symbols cenv in
+  header::gl, symbols, (mind_updates, const_updates)
 
 let mk_library_header (symbols : Nativevalues.symbols) =
   let symbols = Format.sprintf "(str_decode \"%s\")" (str_encode symbols) in
