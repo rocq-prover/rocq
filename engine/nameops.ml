@@ -103,7 +103,7 @@ let make_ident sa = function
 
 let root_of_id id =
   let suffixstart = cut_ident true id in
-  Id.of_string (String.sub (Id.to_string id) 0 suffixstart)
+  Id.of_string_soft (String.sub (Id.to_string id) 0 suffixstart)
 
 (* Return the same identifier as the original one but whose {i subscript} is incremented.
    If the original identifier does not have a suffix, [0] is appended to it.
