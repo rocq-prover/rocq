@@ -35,7 +35,8 @@ type quality_inconsistency =
     (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
-  | IllegalConstraint
+  | IllegalConstraintFromSProp of Quality.t
+  | IllegalConstantConstraint of Quality.constant * Quality.constant
   | CreatesForbiddenPath of Quality.t * Quality.t
   | MultipleDominance of Quality.t * Quality.t * Quality.t
   | QualityInconsistency of quality_inconsistency
