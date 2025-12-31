@@ -1,0 +1,8 @@
+Axioms:
+B : A -> Prop
+A : Prop
+Axioms:
+R : forall x : P, Q x
+Q : P -> Prop
+P : Type
+Closed under the global context
