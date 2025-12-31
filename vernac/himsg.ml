@@ -885,18 +885,6 @@ let explain_non_linear_unification env sigma m t =
   strbrk " which would require to abstract twice on " ++
   pr_leconstr_env env sigma t ++ str "."
 
-let explain_unsatisfied_quconstraints env sigma (qcsts,ucsts) =
-  let ucsts = Univ.UnivConstraints.filter (fun cst -> not @@ UGraph.check_constraint (Evd.universes sigma) cst) ucsts in
-  let qcsts = Sorts.QCumulConstraints.filter (fun cst -> not @@ Sorts.QCumulConstraint.trivial cst) qcsts in
-  let univ_str = if Univ.UnivConstraints.is_empty ucsts
-                 then mt()
-                 else spc() ++ Univ.UnivConstraints.pr (Termops.pr_evd_level sigma) ucsts in
-  let elim_str = if Sorts.QCumulConstraints.is_empty qcsts
-                 then mt()
-                 else spc() ++ Sorts.QCumulConstraints.pr (Termops.pr_evd_qvar sigma) qcsts in
-  strbrk "Unsatisfied constraints:" ++ univ_str ++ elim_str ++
-    spc () ++ str "(maybe a bugged tactic)."
-
 let explain_unsatisfied_poly_constraints env sigma (elim_csts,univ_csts) =
   let univ_csts = Univ.UnivConstraints.filter (fun cst -> not @@ UGraph.check_constraint (Evd.universes sigma) cst) univ_csts in
   let elim_csts = Sorts.ElimConstraints.filter (fun cst -> not @@ QGraph.check_constraint (Evd.elim_graph sigma) cst) elim_csts in
@@ -918,11 +906,6 @@ let explain_unsatisfied_univ_constraints env sigma cst =
 let explain_unsatisfied_elim_constraints env sigma cst =
   strbrk "Unsatisfied elimination constraints: " ++
   Sorts.ElimConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
-  spc() ++ str "(maybe a bugged tactic)."
-
-let explain_unsatisfied_qcumul_constraints env sigma cst =
-  strbrk "Unsatisfied quality cumulativity constraints: " ++
-  Sorts.QCumulConstraints.pr (Termops.pr_evd_qvar sigma) cst ++
   spc() ++ str "(maybe a bugged tactic)."
 
 let explain_undeclared_universes env sigma l =
@@ -1061,14 +1044,10 @@ let explain_type_error env sigma err =
      explain_wrong_case_info env ind ci
   | UnsatisfiedPConstraints cst ->
     explain_unsatisfied_poly_constraints env sigma cst
-  | UnsatisfiedQUConstraints cst ->
-    explain_unsatisfied_quconstraints env sigma cst
   | UnsatisfiedUnivConstraints cst ->
     explain_unsatisfied_univ_constraints env sigma cst
   | UnsatisfiedElimConstraints cst ->
     explain_unsatisfied_elim_constraints env sigma cst
-  | UnsatisfiedQCumulConstraints cst ->
-    explain_unsatisfied_qcumul_constraints env sigma cst
   | UndeclaredUniverses l ->
     explain_undeclared_universes env sigma l
   | UndeclaredQualities l ->

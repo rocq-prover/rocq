@@ -160,37 +160,7 @@ val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimCons
 
 val enforce_elim_to_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
-module QCumulConstraint : sig
-  type kind = Eq | Leq
-  type t = Quality.t * kind * Quality.t
-
-  val trivial : t -> bool
-  val to_elim : t -> ElimConstraint.t
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-  val raw_pr : t -> Pp.t
-end
-
-module QCumulConstraints : sig
-  include CSig.SetS with type elt = QCumulConstraint.t
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
-  val trivial : t -> bool
-  val to_elims : t -> ElimConstraints.t
-end
-
-val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
-
-val enforce_leq_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
-
-module QUConstraints : sig
-
-  type t = QCumulConstraints.t * Univ.UnivConstraints.t
-
-  val union : t -> t -> t
-
-  val empty : t
-end
+val enforce_eq_cumul_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
 type t = private
   | SProp

@@ -49,3 +49,33 @@ val enforce_eq_instances_univs : bool -> Instance.t constraint_function
 val enforce_eq_qualities : Sorts.Quality.t array constraint_function
 
 val compare_cumulative_instances : Conversion.conv_pb -> Variance.t array -> Instance.t constraint_function
+
+module QCumulConstraint : sig
+  open Sorts
+  type kind = Eq | Leq
+  type t = Quality.t * kind * Quality.t
+
+  val trivial : t -> bool
+  val to_elim : t -> ElimConstraint.t
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val raw_pr : t -> Pp.t
+end
+
+module QCumulConstraints : sig
+  open Sorts
+  include CSig.SetS with type elt = QCumulConstraint.t
+  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val trivial : t -> bool
+  val to_elims : t -> ElimConstraints.t
+end
+
+module QUConstraints : sig
+
+  type t = QCumulConstraints.t * Univ.UnivConstraints.t
+
+  val union : t -> t -> t
+
+  val empty : t
+end

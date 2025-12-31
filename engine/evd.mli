@@ -276,7 +276,7 @@ val add_univ_constraints : evar_map -> Univ.UnivConstraints.t -> evar_map
 
 val add_poly_constraints : QGraph.constraint_source -> evar_map -> PConstraints.t -> evar_map
 
-val add_quconstraints : evar_map -> Sorts.QUConstraints.t -> evar_map
+val add_quconstraints : evar_map -> UnivProblem.QUConstraints.t -> evar_map
 
 val undefined_map : evar_map -> undefined evar_info Evar.Map.t
 (** Access the undefined evar mapping directly. *)
@@ -606,7 +606,7 @@ val check_leq : evar_map -> esorts -> esorts -> bool
 
 val check_univ_constraints : evar_map -> Univ.UnivConstraints.t -> bool
 val check_elim_constraints : evar_map -> Sorts.ElimConstraints.t -> bool
-val check_quconstraints : evar_map -> Sorts.QUConstraints.t -> bool
+val check_quconstraints : evar_map -> UnivProblem.QUConstraints.t -> bool
 val check_poly_constraints : evar_map -> PConstraints.t -> bool
 
 val ustate : evar_map -> UState.t

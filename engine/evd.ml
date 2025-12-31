@@ -844,7 +844,7 @@ let add_quconstraints d c =
   { d with universes = UState.add_quconstraints d.universes c }
 
 let add_constraints d c =
-  { d with universes = UState.add_constraints QGraph.Internal d.universes c Sorts.ElimConstraints.empty }
+  { d with universes = UState.add_constraints QGraph.Internal d.universes c }
 
 (*** /Lifting... ***)
 
