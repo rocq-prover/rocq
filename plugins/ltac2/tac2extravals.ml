@@ -225,6 +225,36 @@ let () =
   } in
   define_ml_object Tac2quote.wit_reference obj
 
+let () =
+  let intern ist qid =
+    let m =
+      try Nametab.Modules.locate qid
+      with Not_found ->
+      try Nametab.ModTypes.locate qid
+      with Not_found ->
+      match Nametab.OpenMods.locate qid with
+      | DirOpenModule m | DirOpenModtype m -> m
+      | DirOpenSection _ ->
+        CErrors.user_err ?loc:qid.loc Pp.(Libnames.pr_qualid qid ++ str " is a section, expected a module.")
+      | exception Not_found ->
+        CErrors.user_err ?loc:qid.loc Pp.(str "Unknown module " ++ Libnames.pr_qualid qid ++ str ".")
+    in
+    GlbVal m, gtypref t_module
+  in
+  let subst s c = Mod_subst.subst_mp s c in
+  let interp _ m = return (Tac2ffi.of_modpath m) in
+  (* XXX nametab based print? share code with tac2core if so *)
+  let print _ _ m = str "module:(" ++ ModPath.print m ++ str ")" in
+  let raw_print _ _ r = str "module:(" ++ Libnames.pr_qualid r ++ str ")" in
+  let obj = {
+    ml_intern = intern;
+    ml_subst = subst;
+    ml_interp = interp;
+    ml_print = print;
+    ml_raw_print = raw_print;
+  } in
+  define_ml_object Tac2quote.wit_module obj
+
 (** Ltac2 in terms *)
 
 let () =
@@ -707,6 +737,7 @@ let () = add_expr_syntax_class "assert" q_assert Tac2quote.of_assertion
 let () = add_expr_syntax_class "constr_matching" q_constr_matching Tac2quote.of_constr_matching
 let () = add_expr_syntax_class "goal_matching" q_goal_matching Tac2quote.of_goal_matching
 let () = add_expr_syntax_class "format" Procq.Prim.lstring Tac2quote.of_format
+let () = add_expr_syntax_class "module" Procq.Prim.qualid Tac2quote.of_module
 
 let () = add_generic_syntax_class "pattern" Procq.Constr.constr Tac2quote.wit_pattern
 
