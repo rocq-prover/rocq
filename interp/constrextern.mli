@@ -49,7 +49,7 @@ val extern_constr : ?inctx:bool -> ?scope:scope_name ->
   flags:PrintingFlags.t -> env -> Evd.evar_map -> constr -> constr_expr
 val extern_constr_in_scope : ?inctx:bool -> scope_name ->
   flags:PrintingFlags.t -> env -> Evd.evar_map -> constr -> constr_expr
-val extern_reference : ?loc:Loc.t -> Id.Set.t -> GlobRef.t -> qualid
+val extern_reference : ?loc:Loc.t -> ?fully_qualified:bool -> Id.Set.t -> GlobRef.t -> qualid
 val extern_type : ?goal_concl_style:bool ->
   flags:PrintingFlags.t -> env -> Evd.evar_map ->
   ?impargs:Glob_term.binding_kind list -> types -> constr_expr
