@@ -303,7 +303,7 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
     | None -> mt()
     | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
-  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap))
+  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap) ++ str " |= " ++ QGraph.pr prqvar elims)
 
 let elims m = m.elims
 
@@ -689,6 +689,7 @@ let process_constraints uctx cstrs =
     Sorts.subst_fn ((qnormalize sorts), subst_univs_universe normalize) s
   in
   let nf_constraint sorts = function
+    | QElimTo (a, b) -> QElimTo (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QLeq (a, b) -> QLeq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QEq (a, b) -> QEq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | ULub (u, v) -> ULub (level_subst_of normalize u, level_subst_of normalize v)
@@ -773,6 +774,7 @@ let process_constraints uctx cstrs =
       match cst with
     | QEq (a, b) -> unify_quality univs CONV (mk a) (mk b) local
     | QLeq (a, b) -> unify_quality univs CUMUL (mk a) (mk b) local
+    | QElimTo (a, b) -> { local with local_cst = PConstraints.add_quality (a, ElimTo, b) local.local_cst }
     | ULe (l, r) ->
       let local = unify_quality univs CUMUL l r local in
       let l = normalize_sort local.local_sorts l in
@@ -953,6 +955,11 @@ let check_constraint uctx (c:UnivProblem.t) =
         | QConstant QProp, QVar q -> QState.is_above_prop uctx.sort_variables q
         | (QConstant _ | QVar _), _ -> false
       end
+  | QElimTo (a,b) ->
+    let a = nf_quality uctx a in
+    let b = nf_quality uctx b in
+    Quality.equal a b ||
+      Inductive.eliminates_to (QState.elims uctx.sort_variables) a b
   | ULe (u,v) -> UGraph.check_leq_sort (elim_graph uctx) uctx.universes u v
   | UEq (u,v) -> UGraph.check_eq_sort (elim_graph uctx) uctx.universes u v
   | ULub (u,v) -> UGraph.check_eq_level uctx.universes u v

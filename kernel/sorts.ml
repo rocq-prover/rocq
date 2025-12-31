@@ -316,7 +316,7 @@ module ElimConstraints = struct include Stdlib.Set.Make(ElimConstraint)
   let pr prq c =
     let open Pp in
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
-      hov 0 (Quality.pr prq u1 ++ ElimConstraint.pr_kind op ++ Quality.pr prq u2))
+      hov 0 (Quality.pr prq u1 ++ spc() ++ ElimConstraint.pr_kind op ++ spc() ++ Quality.pr prq u2))
        (elements c))
 
   module HConstraints = CSet.Hashcons(ElimConstraint)(struct
