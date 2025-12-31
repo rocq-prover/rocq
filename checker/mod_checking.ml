@@ -225,7 +225,13 @@ let rec check_mexpr env opac mse mp_mse res = match mse with
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
     let state = ((Environ.qualities env, Environ.universes env), Conversion.checked_universes) in
     let _ : QGraph.t * UGraph.t = Subtyping.check_subtypes state env mp (MPbound farg_id) farg_b in
-    let subst = Mod_subst.map_mbid farg_id mp (Mod_subst.empty_delta_resolver mp) in
+    let mp_delta =
+      let mb = lookup_module mp env in
+      match mod_type mb with
+      | NoFunctor _ -> mod_delta mb
+      | MoreFunctor _ -> Mod_subst.empty_delta_resolver mp
+    in
+    let subst = Mod_subst.map_mbid farg_id mp mp_delta in
     Modops.subst_signature subst mp_mse fbody_b, Mod_subst.subst_codom_delta_resolver subst delta
   | MEwith _ -> CErrors.user_err Pp.(str "Unsupported 'with' constraint in module implementation")
 
