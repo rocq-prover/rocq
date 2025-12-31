@@ -245,15 +245,15 @@ type +'a tactic = 'a Proof.t
 (** Applies a tactic to the current proofview. *)
 let apply ~name ~poly env t sp =
   let open Logic_monad in
-  NewProfile.profile "Proofview.apply" (fun () ->
-  let ans = Proof.repr (Proof.run t P.{trace=false; name; poly} (sp,env)) in
-  let ans = Logic_monad.NonLogical.run ans in
-  match ans with
+  NewProfile.profile "Proofview.apply" begin fun () ->
+  match Proof.repr (Proof.run t P.{trace=false; name; poly} (sp,env)) with
   | Nil (e, info) -> Exninfo.iraise (TacticFailure e, info)
   | Cons ((r, (state, env), status, info), _) ->
-    r, state, env, status, Trace.to_tree info)
-    ()
-
+    r, state, env, status, Trace.to_tree info
+  | exception (Exception e as src) ->
+    let (src, info) = Exninfo.capture src in
+    Exninfo.iraise (e, info)
+  end ()
 
 (** {7 Monadic primitives} *)
 
@@ -1022,7 +1022,7 @@ let tclTIMEOUTF n t =
   Proof.current >>= fun envvar ->
   Proof.lift begin
     let open Logic_monad.NonLogical in
-    timeout n (Proof.repr (Proof.run t envvar initial)) >>= fun r ->
+    timeout n (make (fun () -> Proof.repr (Proof.run t envvar initial))) >>= fun r ->
     match r with
     | Error info -> return (Util.Inr (Logic_monad.Tac_Timeout, info))
     | Ok (Logic_monad.Nil e) -> return (Util.Inr e)
