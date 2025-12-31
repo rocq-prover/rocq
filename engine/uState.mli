@@ -126,7 +126,7 @@ val add_poly_constraints : QGraph.constraint_source -> t -> PConstraints.t -> t
 
 val add_quconstraints : t -> Sorts.QUConstraints.t -> t
 
-val add_constraints : QGraph.constraint_source -> t -> UnivProblem.Set.t -> ElimConstraints.t -> t
+val add_constraints : QGraph.constraint_source -> t -> UnivProblem.Set.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)

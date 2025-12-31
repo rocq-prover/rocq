@@ -865,10 +865,9 @@ let process_constraints uctx cstrs =
   let () = warn_template uctx (PConstraints.univs local.local_cst) in
   !vars, extra, local.local_cst, local.local_sorts
 
-let add_constraints src uctx cstrs elim_cstrs =
+let add_constraints src uctx cstrs =
   let univs, local = uctx.local in
   let vars, extra, local', sorts = process_constraints uctx cstrs in
-  let local' = PConstraints.union local' (PConstraints.of_qualities elim_cstrs) in
   { uctx with
     local = (univs, PConstraints.union local local');
     univ_variables = vars;
@@ -896,25 +895,29 @@ let problem_of_qcumul_constraints qcstrs =
       | Leq -> UnivProblem.Set.add (QLeq (l,r)) cstrs)
     qcstrs UnivProblem.Set.empty
 
-let add_univ_constraints_gen src uctx cstrs elim_cstrs =
-  let cstrs = problem_of_univ_constraints cstrs in
-  add_constraints src uctx cstrs elim_cstrs
-
 let add_univ_constraints uctx cstrs =
-  add_univ_constraints_gen QGraph.Static uctx cstrs ElimConstraints.empty
+  let cstrs = problem_of_univ_constraints cstrs in
+  add_constraints QGraph.Static uctx cstrs
 
-let add_elim_constraints src uctx cstrs =
-  add_constraints src uctx UnivProblem.Set.empty cstrs
-
-let add_poly_constraints src uctx (qcstrs,ucstrs) =
-  add_univ_constraints_gen src uctx ucstrs qcstrs
+let add_poly_constraints src uctx (qcstrs, ucstrs) =
+  let ucstrs = problem_of_univ_constraints ucstrs in
+  (* XXX when elimination constraints become available in unification we should
+     rely on it rather than playing this little dance *)
+  let fold (s1, pb, s2) (qeq, qelm) = match pb with
+  | ElimConstraint.ElimTo -> (qeq, ElimConstraints.add (s1, pb, s2) qelm)
+  | ElimConstraint.Equal -> (UnivProblem.Set.add (QEq (s1, s2)) qeq, qelm)
+  in
+  let qeq, qcstrs = ElimConstraints.fold fold qcstrs (UnivProblem.Set.empty, ElimConstraints.empty) in
+  let uctx = add_constraints src uctx (UnivProblem.Set.union ucstrs qeq) in
+  let local = on_snd (fun cst -> PConstraints.union cst (PConstraints.of_qualities qcstrs)) uctx.local in
+  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx qcstrs cst) uctx.sort_variables in
+  { uctx with local; sort_variables }
 
 let add_quconstraints uctx (qcstrs,ucstrs) =
   let ucstrs = problem_of_univ_constraints ucstrs in
   let qcstrs = problem_of_qcumul_constraints qcstrs in
   (* Here the source shouldn't matter as there are no elim constraints *)
   add_constraints QGraph.Static uctx (UnivProblem.Set.union ucstrs qcstrs)
-    ElimConstraints.empty
 
 let check_qconstraints uctx csts =
   Sorts.QCumulConstraints.for_all (fun (l,k,r) ->
@@ -1224,10 +1227,10 @@ let restrict_univ_constraints uctx csts =
 let restrict_elim_constraints src uctx csts =
   let levels, (elim_csts,univ_csts) = uctx.local in
   let g = initial_elim_graph uctx in
-  let uctx' = { uctx with local = (levels,(ElimConstraints.empty,univ_csts));
-                          sort_variables = QState.set_elims g uctx.sort_variables } in
-  add_elim_constraints src uctx' csts
-
+  (* XXX we are wreaking havoc with elimination constraints *)
+  let sort_variables = QState.set_elims g uctx.sort_variables in
+  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx elim_csts cst) sort_variables in
+  { uctx with local = (levels, (csts, univ_csts)); sort_variables }
 
 type rigid =
   | UnivRigid
