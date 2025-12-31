@@ -7,7 +7,7 @@ Record G (A : Type) := { c : A; d : F }.
 
 Check c.
 End Prim.
-Module Univ.
+Module Universe.
 Set Universe Polymorphism.
 Set Implicit Arguments.
 Record Foo (A : Type) := { foo : A }.
@@ -27,7 +27,7 @@ Section bla.
   Record bar := { baz : nat; def := 0; baz' : forall x, x = baz \/ x = def }.
 End bla.
 
-End Univ.
+End Universe.
 
 Set Primitive Projections.
 Unset Elimination Schemes.

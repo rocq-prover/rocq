@@ -6,7 +6,7 @@ ALGEBRAIC UNIVERSES:
 FLEXIBLE UNIVERSES:
  
 SORTS:
- 
+  |= Prop -> SProp , Type -> Prop , Type -> SProp
 WEAK CONSTRAINTS:
  
 
@@ -28,9 +28,9 @@ FLEXIBLE UNIVERSES:
  ShowUnivs.26
  ShowUnivs.24
 SORTS:
- α1 := Type
+ α1 := α3
  α2 := Type
- α3 := α1
+ α3 := Type |= α1 -> α2 , α1 -> α3 , α1 -> Prop , α1 -> SProp , α1 -> Type , α2 -> α1 , α2 -> α3 , α2 -> Prop , α2 -> SProp , α2 -> Type , α3 -> α1 , α3 -> α2 , α3 -> Prop , α3 -> SProp , α3 -> Type , Prop -> SProp , Type -> α1 , Type -> α2 , Type -> α3 , Type -> Prop , Type -> SProp
 WEAK CONSTRAINTS:
  
 

@@ -1033,7 +1033,7 @@ let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   in
   let vars = List.fold_left (fun acc b -> Univ.Level.Set.union acc (Vars.universes_of_constr b)) Univ.Level.Set.empty terms in
   let uctx = ustate sigma in
-  let uctx = UState.collapse_sort_variables uctx in
+  let uctx = UState.collapse_sort_variables ~to_type:(PolyFlags.collapse_sort_variables poly) uctx in
   let uctx = UState.restrict uctx vars in
   ignore (UState.check_univ_decl ~poly uctx udecl)
 
@@ -1179,6 +1179,9 @@ let set_above_prop evd q =
   add_constraints evd @@
     UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q))
 
+let set_elim_to evd q1 q2 =
+  add_constraints evd @@ UnivProblem.Set.singleton (QElimTo (q1, q2))
+
 let check_eq evd s s' =
   let quals = elim_graph evd in
   let ustate = evd.universes in
@@ -1213,13 +1216,13 @@ let nf_univ_variables evd =
   let uctx = UState.normalize_variables evd.universes in
   {evd with universes = uctx}
 
-let collapse_sort_variables ?except evd =
-  let universes = UState.collapse_sort_variables ?except evd.universes in
+let collapse_sort_variables ?except ?(to_type = true) evd =
+  let universes = UState.collapse_sort_variables ?except ~to_type evd.universes in
   { evd with universes }
 
-let minimize_universes ?(collapse_sort_variables=true) evd =
+let minimize_universes ?(collapse_sort_variables=true) ?(to_type = true) evd =
   let uctx' = if collapse_sort_variables
-    then UState.collapse_sort_variables evd.universes
+    then UState.collapse_sort_variables ~to_type evd.universes
     else evd.universes
   in
   let uctx' = UState.normalize_variables uctx' in

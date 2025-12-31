@@ -73,6 +73,7 @@ install_printer Top_printers.pperelevance
 install_printer Top_printers.ppqvar
 install_printer Top_printers.ppuni_level
 install_printer Top_printers.ppqvarset
+install_printer Top_printers.ppqset
 install_printer Top_printers.ppuniverse_set
 install_printer Top_printers.ppuniverse_instance
 install_printer Top_printers.ppuniverse_einstance
@@ -90,6 +91,8 @@ install_printer Top_printers.ppuniverseconstraints
 install_printer Top_printers.ppuniverse_context_future
 install_printer Top_printers.ppuniverses
 install_printer Top_printers.ppqualities
+install_printer Top_printers.ppqgraph
+install_printer Top_printers.ppelim_constraints
 install_printer Top_printers.pp_partialfsubst
 install_printer Top_printers.pp_partialsubst
 install_printer Top_printers.ppnamedcontextval

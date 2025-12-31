@@ -443,8 +443,8 @@ Proof. exact: rest step. Qed.
 
 Register ssr_have as plugins.ssreflect.ssr_have.
 
-Polymorphic Lemma ssr_have_upoly@{s1 s2;u1 u2}
-  (Plemma : Type@{s1;u1})  (Pgoal : Type@{s2;u2})
+Polymorphic Lemma ssr_have_upoly@{s1 s2;u1 u2|}
+  (Plemma : Univ@{s1;u1})  (Pgoal : Univ@{s2;u2})
   (step : Plemma) (rest : Plemma -> Pgoal) : Pgoal.
 Proof. exact: rest step. Qed.
 

@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 
-Lemma foo@{s; |} (A:Type@{s;Set}) (a:A) : A.
+Lemma foo@{s; |} (A:Univ@{s;Set}) (a:A) : A.
 Proof.
   exact a.
 Qed.

@@ -1,10 +1,10 @@
 Set Universe Polymorphism.
 Set Implicit Arguments.
-Cumulative Record prod@{s;*a *b|} (A : Type@{s;a}) (B : Type@{s;b}) : Type@{s;max(a,b)} := pair {
+Cumulative Record prod@{s;a b} (A : Univ@{s;a}) (B : Univ@{s;b}) : Univ@{s;max(a,b)} := pair {
   fst : A;
   snd : B
   }.
-Definition flip_prod@{s;a b|} [A : Type@{s;a}] [B : Type@{s;b}] (v : prod A B) : prod B A
+Definition flip_prod@{s;a b} [A : Univ@{s;a}] [B : Univ@{s;b}] (v : prod A B) : prod B A
   := {| fst := snd v; snd := fst v |}.
 
 (* We need to specify univs here (maybe will be fixed someday?) *)

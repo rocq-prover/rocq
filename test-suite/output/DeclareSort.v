@@ -1,20 +1,20 @@
 Sort s.
 Sort s'.
 
-Fail Check fun (A:Type@{s;Set}) => A : Type@{s';_}.
+Fail Check fun (A:Univ@{s;Set}) => A : Univ@{s';_}.
 
-Fail Check fun (A:Type@{s;Set}) => A : Type.
+Fail Check fun (A:Univ@{s;Set}) => A : Type.
 
-Fail Check fun (A:Set) => A : Type@{s;_}.
+Fail Check fun (A:Set) => A : Univ@{s;_}.
 
-Check fun (A:Type@{s;Set}) => A : Type@{s;_}.
+Check fun (A:Univ@{s;Set}) => A : Univ@{s;_}.
 
 Section S.
   Sort S1.
   Local Set Universe Polymorphism.
   Sort S2.
 
-  Axiom foo : Type@{S1;Set} -> Type@{S2;Set}.
+  Axiom foo : Univ@{S1;Set} -> Univ@{S2;Set}.
   Check foo.
 
 End S.
@@ -28,7 +28,7 @@ Check foo : _ -> Set.
 
 Fail Check foo : SProp -> _.
 Fail Check foo : Set -> _.
-Check foo : Type@{S1;Set} -> Set.
+Check foo : Univ@{S1;Set} -> Set.
 
 Module Type T.
   Module M.

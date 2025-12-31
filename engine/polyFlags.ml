@@ -28,6 +28,8 @@ let collapse_sort_variables x = x.collapse_sort_variables
 let univ_poly x = x.univ_poly
 let cumulative x = x.cumulative
 
+let set_collapse_sort_variables p b = { p with collapse_sort_variables = b }
+
 let pr f =
   let open Pp in
   str "{ univ_poly = " ++ bool f.univ_poly ++ spc () ++

@@ -2,16 +2,16 @@ Module Type Universe.
 Parameter U : nat.
 End Universe.
 
-Module Univ_prop (Univ : Universe).
-Include Univ.
+Module Univ_prop (U : Universe).
+Include U.
 End Univ_prop.
 
-Module Monad (Univ : Universe).
-Module UP := Univ_prop Univ.
+Module Monad (U : Universe).
+Module UP := Univ_prop U.
 End Monad.
 
-Module Rules (Univ:Universe).
-Module MP := Monad Univ.
+Module Rules (U : Universe).
+Module MP := Monad U.
 Include MP.
 Import UP.
 Definition M := UP.U.    (* anomaly here *)
