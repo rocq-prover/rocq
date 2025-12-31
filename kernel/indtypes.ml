@@ -467,7 +467,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
   Array.of_list (List.rev pbs)
 
 let build_inductive env ~sec_univs names prv univs template variance
-    paramsctxt kn isrecord isfinite inds nmr recargs =
+    paramsctxt kn isrecord isfinite inds nmr recargs not_prim_or_has_eta =
   let ntypes = Array.length inds in
   (* Compute the set of used section variables *)
   let hyps = used_section_variables env inds in
@@ -492,11 +492,13 @@ let build_inductive env ~sec_univs names prv univs template variance
     let mind_record = match isrecord with
       | Some (Some rid) ->
         (** The elimination criterion ensures that all projections can be defined. *)
-        let data =
-          let labs, rs, projs = compute_projections (kn, i) ~nparamargs ~nf_lc ~consnrealdecls in
-          (rid.(i), labs, rs, projs)
-        in
-        PrimRecord data
+        let (projections, relevances, tys) = compute_projections (kn, i) ~nparamargs ~nf_lc ~consnrealdecls in
+        begin match not_prim_or_has_eta with
+        (* It must have eta information *)
+        | None | Some (Error _) -> assert false
+        | Some Ok has_eta ->
+          PrimRecord { id = rid.(i); projections; relevances; tys; has_eta }
+        end
       | Some None -> FakeRecord
       | None -> NotRecord
     in
@@ -569,7 +571,7 @@ let build_inductive env ~sec_univs names prv univs template variance
 
 let check_inductive env ~sec_univs kn mie =
   (* First type-check the inductive definition *)
-  let (env_ar_par, univs, template, variance, record, why_not_prim_record, paramsctxt, inds) =
+  let (env_ar_par, univs, template, variance, record, not_prim_reason_or_has_eta, paramsctxt, inds) =
     IndTyping.typecheck_inductive env ~sec_univs mie
   in
   (* Then check positivity conditions *)
@@ -585,6 +587,13 @@ let check_inductive env ~sec_univs kn mie =
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
       paramsctxt kn record mie.mind_entry_finite
-      inds nmr recargs
+      inds nmr recargs not_prim_reason_or_has_eta
+  in
+  (* From this point onward, we only care if there is a reason why
+     the primitive projection was not possible *)
+  (* XXX: Why thread this result back and not just warn when getting the reason? *)
+  let why_not_prim_record = match not_prim_reason_or_has_eta with
+    | None | Some (Result.Ok _) -> None
+    | Some (Result.Error reason) -> Some reason
   in
   mib, why_not_prim_record

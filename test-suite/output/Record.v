@@ -94,8 +94,6 @@ Module WhyNotPrim.
 
   Record noprojs := { y := 0 }.
 
-  Record norelevantprojs (A:SProp) := { z : A }.
-
   Record anonproj := { _ : nat }.
 
 End WhyNotPrim.

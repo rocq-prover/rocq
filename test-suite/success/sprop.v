@@ -41,14 +41,11 @@ Proof.
   reflexivity.
 Defined.
 
-(* Primitive record with all fields in SProp has the eta property of SProp so must be SProp. *)
-Fail Record rBox (A:SProp) : Prop := rmkbox { runbox : A }.
-Section Opt.
-  Local Unset Primitive Projections.
-  Record rBox (A:SProp) : Prop := rmkbox { runbox : A }.
-End Opt.
+(* Primitive record in Prop with all fields in SProp does not have the eta property of SProp
+  but can be defined regardless. *)
+Record rBox (A:SProp) : Prop := rmkbox { runbox : A }.
 
-(* Check that defining as an emulated record worked *)
+(* Check that defining record without eta *)
 Check runbox.
 
 (* Check that it doesn't have eta *)

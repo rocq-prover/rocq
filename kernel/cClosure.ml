@@ -950,7 +950,12 @@ let eta_expand_ind_stack env (ind,u) m (f, s') =
   (* disallow eta-exp for non-primitive records *)
   if not (mib.mind_finite == BiFinite) then raise Not_found;
   match Declareops.inductive_make_projections ind mib with
-  | Some projs ->
+  | Some (projs, has_eta) ->
+    let () =
+      match has_eta with
+      | NoEta | MaybeEta -> raise Not_found (* TODO: Add the MaybeEta case *)
+      | AlwaysEta -> ()
+    in
     (* (Construct, pars1 .. parsm :: arg1...argn :: []) ~= (f, s') ->
            arg1..argn ~= (proj1 t...projn t) where t = zip (f,s') *)
     let pars = mib.Declarations.mind_nparams in

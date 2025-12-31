@@ -32,7 +32,7 @@ type inductive_arity = { user_arity : Constr.types; sort : Sorts.t }
     - checked variance info
       (variance for section universes is at the beginning of the array)
     - record entry (checked to be OK)
-    - if primitive record was requested and not ok, the reason why it's not ok
+    - if primitive record was requested, either: (1) if it's not ok, then why, or (2) whether it has eta
     - parameters
     - for each inductive,
       (arity * constructors) (with params)
@@ -46,7 +46,7 @@ val typecheck_inductive : env -> sec_univs:UVars.Instance.t option
   * template_universes option
   * UVars.Variance.t array option
   * Names.Id.t array option option
-  * NotPrimRecordReason.t option
+  * (Declarations.has_eta, NotPrimRecordReason.t) result option
   * Constr.rel_context
   * ((inductive_arity * Constr.types array) *
      (Constr.rel_context * (Constr.rel_context * Constr.types) array) *

@@ -730,10 +730,9 @@ let lookup_projection p env =
    then anomaly ~label:"lookup_projection" Pp.(str "Bad number of parameters on projection."));
   match mib.mind_packets.(i).mind_record with
   | NotRecord | FakeRecord -> anomaly ~label:"lookup_projection" Pp.(str "not a projection")
-  | PrimRecord infos ->
-    let _,_,rs,typs = infos in
+  | PrimRecord { relevances; tys; _ } ->
     let arg = Projection.arg p in
-    rs.(arg), typs.(arg)
+    relevances.(arg), tys.(arg)
 
 let get_projection env ind ~proj_arg =
   let mib = lookup_mind (fst ind) env in
@@ -741,7 +740,7 @@ let get_projection env ind ~proj_arg =
 
 let get_projections env ind =
   let mib = lookup_mind (fst ind) env in
-  Declareops.inductive_make_projections ind mib
+  Option.map fst @@ Declareops.inductive_make_projections ind mib
 
 (* Mutual Inductives *)
 let polymorphic_ind (mind,_i) env =

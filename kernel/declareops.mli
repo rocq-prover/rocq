@@ -72,7 +72,7 @@ val inductive_make_projection : Names.inductive -> mutual_inductive_body -> proj
   Names.Projection.Repr.t * Sorts.relevance
 
 val inductive_make_projections : Names.inductive -> mutual_inductive_body ->
-  (Names.Projection.Repr.t * Sorts.relevance) array option
+  ((Names.Projection.Repr.t * Sorts.relevance) array * has_eta) option
 
 (** {6 Kernel flags} *)
 
