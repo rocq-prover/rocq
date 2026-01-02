@@ -40,4 +40,7 @@ let declare_scheme local kind indcl =
 
 let lookup_scheme kind ind = CString.Map.find kind (Indmap_env.find ind !scheme_map)
 
+let lookup_scheme_opt kind ind =
+  try Some (lookup_scheme kind ind) with Not_found -> None
+
 let all_schemes () = !scheme_map

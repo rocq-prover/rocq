@@ -767,3 +767,30 @@ let control_only_guard env sigma c =
     raise (Pretype_errors.PretypeError
              (env, sigma,
               TypingError (Pretype_errors.of_type_error e)))
+
+(** Generalize template polymorphic universe variables, subtitute the instance,
+    and returns the context of parameters, the new evar_map, and the
+    substitution for the template variable if there is one. *)
+let paramdecls_fresh_template sigma (mib,u) =
+  match mib.mind_template with
+  | None ->
+    let params = Inductive.inductive_paramdecls (mib, EConstr.Unsafe.to_instance u) in
+    sigma, EConstr.of_rel_context params, None
+  | Some templ ->
+    assert (EConstr.EInstance.is_empty u);
+    let sigma, univs = List.fold_left_map (fun sigma -> function
+        | None -> sigma, (fun ~default -> assert false)
+        | Some s ->
+          let sigma, u = match snd (Inductive.Template.bind_kind s) with
+            | None -> sigma, Univ.Universe.type0
+            | Some _ ->
+              let sigma, u = Evd.new_univ_level_variable UState.univ_rigid sigma in
+              sigma, Univ.Universe.make u
+          in
+          sigma, fun ~default -> Inductive.TemplateUniv u)
+        sigma
+        templ.template_param_arguments
+    in
+    let csts, params, sub = Inductive.instantiate_template_universes mib univs in
+    let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
+    (sigma, EConstr.of_rel_context params, Some sub)

@@ -229,6 +229,12 @@ val compute_projections : Environ.env -> inductive -> (constr * types) array
 (********************)
 val control_only_guard : env -> Evd.evar_map -> EConstr.types -> unit
 
+(** Generalize template polymorphic universe variables, subtitute the instance,
+    and returns the context of parameters, the new evar_map, and the
+    substitution for the template variable if there is one. *)
+val paramdecls_fresh_template : evar_map -> mutual_inductive_body * einstance ->
+  evar_map * rel_context * Inductive.template_subst option
+
 module Internal : sig
   (* FIXME hack for the [QVar]s, see the implementation for more information. *)
   val nf_relevance : Evd.evar_map -> Sorts.relevance -> Sorts.relevance
