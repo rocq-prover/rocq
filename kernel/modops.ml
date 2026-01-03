@@ -54,6 +54,15 @@ type signature_mismatch_error =
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
 
+type with_constraint_error =
+  | WithTypeMismatch of env * types * types
+  | WithBodyMismatch of env * constr * constr
+  | WithUniverseMismatch of Conversion.graph_inconsistency
+  | WithConstraintsMismatch of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
+  | WithPolymorphicMismatch of bool
+  | WithCannotConstrainPrimitive
+  | WithCannotConstrainSymbol
+
 type subtyping_trace_elt =
   | Submodule of Id.t
   | FunctorArgument of int
@@ -68,7 +77,7 @@ type module_typing_error =
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
-  | IncorrectWithConstraint of Id.t
+  | IncorrectWithConstraint of Id.t * with_constraint_error
   | GenerativeModuleExpected of Id.t
   | LabelMissing of Id.t * string
   | IncludeRestrictedFunctor of ModPath.t
@@ -102,8 +111,8 @@ let error_not_a_module_label s =
 let error_not_a_constant l =
   raise (ModuleTypingError (NotAConstant l))
 
-let error_incorrect_with_constraint l =
-  raise (ModuleTypingError (IncorrectWithConstraint l))
+let error_incorrect_with_constraint l err =
+  raise (ModuleTypingError (IncorrectWithConstraint (l, err)))
 
 let error_generative_module_expected l =
   raise (ModuleTypingError (GenerativeModuleExpected l))
