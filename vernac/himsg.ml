@@ -1378,9 +1378,58 @@ let explain_not_a_module_label l =
 let explain_not_a_constant l =
   quote (Id.print l) ++ str " is not a constant."
 
-let explain_incorrect_label_constraint l =
-  str "Incorrect constraint for label " ++
-  quote (Id.print l) ++ str "."
+let explain_with_constraint_error = function
+  | WithTypeMismatch (env, actual, expected) ->
+      let actual, expected = pr_explicit env (Evd.from_env env)
+        (EConstr.of_constr actual) (EConstr.of_constr expected) in
+      str "expected type" ++ spc () ++ expected ++ spc () ++
+      str "but found type" ++ spc () ++ actual
+  | WithBodyMismatch (env, actual, expected) ->
+      let sigma = Evd.from_env env in
+      let actual = Printer.pr_constr_env env sigma actual in
+      let expected = Printer.pr_constr_env env sigma expected in
+      str "expected body" ++ spc () ++ expected ++ spc () ++
+      str "but found body" ++ spc () ++ actual
+  | WithUniverseMismatch incon ->
+      begin match incon with
+      | Conversion.Univ incon ->
+          str "the universe constraints are inconsistent: " ++
+          UGraph.explain_universe_inconsistency
+            Sorts.QVar.raw_pr
+            UnivNames.pr_level_with_global_universes
+            incon
+      | Conversion.Qual incon ->
+          str "the quality constraints are inconsistent: " ++
+          QGraph.explain_elimination_error Sorts.QVar.raw_pr incon
+      end
+  | WithConstraintsMismatch { got; expect } ->
+      let open UVars in
+      let pr_auctx auctx =
+        let sigma = Evd.from_ctx
+            (UState.of_names
+               (Printer.universe_binders_with_opt_names auctx None))
+        in
+        let uctx = AbstractContext.repr auctx in
+        Printer.pr_universe_instance_binder sigma
+          (UContext.instance uctx)
+          (UContext.univ_constraints uctx)
+      in
+      str "incompatible polymorphic binders: got" ++ spc () ++ h (pr_auctx got) ++ spc() ++
+      str "but expected" ++ spc() ++ h (pr_auctx expect) ++
+      (if not (UVars.eq_sizes (AbstractContext.size got) (AbstractContext.size expect)) then mt() else
+         fnl() ++ str "(incompatible constraints)")
+  | WithPolymorphicMismatch b ->
+      let status b = if b then str"polymorphic" else str"monomorphic" in
+      str "a " ++ status b ++ str " declaration was expected, but a " ++
+      status (not b) ++ str " declaration was found"
+  | WithCannotConstrainPrimitive ->
+      str "cannot constrain a primitive"
+  | WithCannotConstrainSymbol ->
+      str "cannot constrain a symbol"
+
+let explain_incorrect_with_constraint l err =
+  str "Incorrect constraint for label " ++ quote (Id.print l) ++ str ": " ++
+  explain_with_constraint_error err
 
 let explain_generative_module_expected l =
   str "The module " ++ Id.print l ++ str " is not generative." ++
@@ -1406,7 +1455,7 @@ let explain_module_error = function
   | NoSuchLabel (l,mp) -> explain_no_such_label l mp
   | NotAModuleLabel l -> explain_not_a_module_label l
   | NotAConstant l -> explain_not_a_constant l
-  | IncorrectWithConstraint l -> explain_incorrect_label_constraint l
+  | IncorrectWithConstraint (l, err) -> explain_incorrect_with_constraint l err
   | GenerativeModuleExpected l -> explain_generative_module_expected l
   | LabelMissing (l,s) -> explain_label_missing l s
   | IncludeRestrictedFunctor mp -> explain_include_restricted_functor mp

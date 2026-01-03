@@ -108,6 +108,15 @@ type signature_mismatch_error =
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
 
+type with_constraint_error =
+  | WithTypeMismatch of env * types * types
+  | WithBodyMismatch of env * constr * constr
+  | WithUniverseMismatch of Conversion.graph_inconsistency
+  | WithConstraintsMismatch of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
+  | WithPolymorphicMismatch of bool
+  | WithCannotConstrainPrimitive
+  | WithCannotConstrainSymbol
+
 type subtyping_trace_elt =
   | Submodule of Id.t
   | FunctorArgument of int
@@ -122,7 +131,7 @@ type module_typing_error =
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
-  | IncorrectWithConstraint of Id.t
+  | IncorrectWithConstraint of Id.t * with_constraint_error
   | GenerativeModuleExpected of Id.t
   | LabelMissing of Id.t * string
   | IncludeRestrictedFunctor of ModPath.t
@@ -143,7 +152,7 @@ val error_not_a_module_label : Id.t -> 'a
 
 val error_not_a_constant : Id.t -> 'a
 
-val error_incorrect_with_constraint : Id.t -> 'a
+val error_incorrect_with_constraint : Id.t -> with_constraint_error -> 'a
 
 val error_generative_module_expected : Id.t -> 'a
 
