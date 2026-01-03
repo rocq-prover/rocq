@@ -934,6 +934,7 @@ command: [
 | "Let" "Fixpoint" fix_definition LIST0 ( "with" fix_definition )
 | "CoFixpoint" cofix_definition LIST0 ( "with" cofix_definition )
 | "Let" "CoFixpoint" cofix_definition LIST0 ( "with" cofix_definition )
+| "Scheme" "All" "for" reference OPT [ "with" LIST1 boolean SEP "," ]
 | "Scheme" OPT ( ident ":=" ) scheme_kind LIST0 ( "with" OPT ( ident ":=" ) scheme_kind )
 | "Scheme" "Rewriting" "for" reference
 | "Scheme" OPT "Boolean" "Equality" "for" reference
@@ -1062,6 +1063,11 @@ starred_ident_ref: [
 
 dirpath: [
 | LIST0 ( ident "." ) ident
+]
+
+boolean: [
+| "true"
+| "false"
 ]
 
 setting_name: [

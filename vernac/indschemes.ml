@@ -17,6 +17,7 @@
    declaring new schemes *)
 
 open Pp
+open Names
 open Util
 open Declarations
 open Term
@@ -543,6 +544,79 @@ let do_combined_scheme name csts =
   Declare.fixpoint_message None [name.v]
 
 (**********************************************************************)
+(* Scheme for the all predicate and its theorem *)
+
+(** Depth Generation of all predicate at definition of a new inductive type *)
+let default_all_depth = 0
+
+let { Goptions.get = default_all_depth } =
+  Goptions.declare_int_option_and_ref ~key:["All";"Depth"] ~value:default_all_depth ()
+
+let default_all_depth kn =
+  let mib = Global.lookup_mind kn in
+  if Inductiveops.mis_is_nested kn mib
+  then default_all_depth () -1
+  else default_all_depth ()
+
+let do_scheme_all_predicate declare_schemes kn mib strpos sAll keyAll =
+  (* generate all predicate *)
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma (kn,0) in
+  let (sigma, mentry) = AllScheme.generate_all_predicate env sigma kn u mib strpos sAll in
+  let uctx = Evd.ustate sigma in
+  (* declare it *)
+  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:false ~cumulative:false in
+  let univs = UState.univ_entry ~poly:poly_flag uctx in
+  let kn_nested = DeclareInd.declare_mutual_inductive_with_eliminations declare_schemes mentry univs [] in
+  (* register it *)
+  let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
+              SuperGlobal keyAll ((kn,i), GlobRef.IndRef (kn_nested,i))
+            ) mib.mind_packets in
+  kn_nested
+
+let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
+  (* generate all theorem *)
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~sort_rigid:true ~rigid:UState.univ_rigid env sigma (kn,focus) in
+  let (sigma, thm) = AllScheme.generate_all_theorem env sigma kn kn_nested focus u mib strpos in
+  (* declare it *)
+  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:false ~cumulative:false in
+  let info = Declare.Info.make ~poly:poly_flag () in
+  let add_suffix v = Id.of_string @@ Id.to_string v ^ sAllThm in
+  let fth_name = add_suffix mib.mind_packets.(focus).mind_typename in
+  let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
+  let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
+  (* register it *)
+  let _ = DeclareScheme.declare_scheme SuperGlobal keyAllThm ((kn,focus), fth_ref) in
+  ()
+
+let warn_fail_all_theorem =
+  CWarnings.create ~name:"warn_fail_AllForall" ~category:CWarnings.CoreCategories.automation
+  Pp.(fun (ind_nested) ->
+    str " Automatic generation of the Forall theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    str " failed." ++ str " Please report at " ++ str Coq_config.wwwbugtracker ++ str ".")
+
+let do_all_forall declare_schemes kn strpos =
+  let env = Global.env () in
+  let mib = Environ.lookup_mind kn env in
+  let (strpos, (sAll, sAllThm), (keyAll, keyAllThm)) =
+        AllScheme.compute_positive_uparams_and_suffix env kn mib strpos in
+  if List.exists (fun b -> b) strpos then
+  let kn_nested = do_scheme_all_predicate declare_schemes kn mib strpos sAll keyAll in
+  Array.iteri (fun focus _ ->
+    (* do_scheme_all_theorem kn mib kn_nested focus strpos *)
+    try do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm with
+    | _ -> warn_fail_all_theorem (kn_nested, focus)
+  ) mib.mind_packets
+
+let do_scheme_all declare_schemes id strpos =
+  let kn,_ = smart_ind id in
+  do_all_forall declare_schemes kn strpos
+
+
+(**********************************************************************)
 
 let map_inductive_block ?(locmap=Locmap.default None) f kn n =
   for i=0 to n-1 do
@@ -550,14 +624,18 @@ let map_inductive_block ?(locmap=Locmap.default None) f kn n =
     f ?loc (kn,i)
   done
 
-let declare_default_schemes ?locmap kn =
+let rec declare_default_schemes_depth all_depth ?locmap kn =
   let mib = Global.lookup_mind kn in
   let n = Array.length mib.mind_packets in
   if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
      && mib.mind_typing_flags.check_positive then
     declare_induction_schemes kn ?locmap;
+  if all_depth > 0 then do_all_forall (declare_default_schemes_depth (all_depth-1)) kn None;
   if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
   if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
   if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
+
+let declare_default_schemes ?locmap kn =
+  declare_default_schemes_depth ?locmap (default_all_depth kn) kn

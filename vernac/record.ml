@@ -842,7 +842,9 @@ let declare_structure (decl:Record_decl.t) ~schemes =
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
   let default_dep_elim = List.map (fun x -> x.RecordEntry.default_dep_elim) decl.entry.ind_infos in
   let kn =
-    DeclareInd.declare_mutual_inductive_with_eliminations decl.entry.mie
+    DeclareInd.declare_mutual_inductive_with_eliminations
+      Indschemes.declare_default_schemes
+      decl.entry.mie
       decl.entry.ubinders
       impls
       ~indlocs:decl.indlocs

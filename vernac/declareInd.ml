@@ -197,6 +197,7 @@ let schemes_attr =
 
 let declare_mutual_inductive_with_eliminations
     ?typing_flags ?(indlocs=[]) ?default_dep_elim ?(schemes=Default)
+    (declare_schemes : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit)
     mie ubinders impls =
   (* spiwack: raises an error if the structure is supposed to be non-recursive,
         but isn't *)
@@ -258,7 +259,7 @@ let declare_mutual_inductive_with_eliminations
     | None -> ()
     | Default ->
       if Option.has_some mie.mind_entry_private then ()
-      else Indschemes.declare_default_schemes mind ~locmap
+      else declare_schemes ~locmap:locmap mind
   in
   mind
 

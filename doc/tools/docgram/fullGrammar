@@ -460,6 +460,11 @@ lstring: [
 | string
 ]
 
+boolean: [
+| "true"
+| "false"
+]
+
 integer: [
 | bigint
 ]
@@ -905,6 +910,7 @@ gallina: [
 | "Let" "Fixpoint" LIST1 fix_definition SEP "with"
 | "CoFixpoint" LIST1 cofix_definition SEP "with"
 | "Let" "CoFixpoint" LIST1 cofix_definition SEP "with"
+| "Scheme" "All" "for" smart_global OPT [ "with" LIST1 boolean SEP "," ]
 | "Scheme" LIST1 scheme SEP "with"
 | "Scheme" "Equality" "for" smart_global
 | "Scheme" "Boolean" "Equality" "for" smart_global

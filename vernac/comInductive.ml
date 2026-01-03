@@ -932,7 +932,8 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   (* Declare the global universes *)
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
-  ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
+  ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs
+    Indschemes.declare_default_schemes mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)
   List.iter (Metasyntax.add_notation_interpretation ~local:false (Global.env ())) where_notations;
   (* Declare the coercions *)

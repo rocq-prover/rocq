@@ -151,6 +151,7 @@ module Prim :
     val ident_decl : ident_decl Entry.t
     val pattern_ident : lident Entry.t
     val bignat : string Entry.t
+    val boolean : bool Entry.t
     val natural : int Entry.t
     val bigint : string Entry.t
     val integer : int Entry.t

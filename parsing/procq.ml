@@ -306,6 +306,7 @@ module Prim =
     (* Typically for tactic or vernac extensions *)
     let preident = Entry.make "preident"
     let ident = Entry.make "ident"
+    let boolean = Entry.make "boolean"
     let natural = Entry.make "natural"
     let integer = Entry.make "integer"
     let bignat = Entry.make "bignat"

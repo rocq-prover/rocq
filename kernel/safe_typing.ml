@@ -1619,7 +1619,7 @@ let import lib vmtab vodigest senv =
     sections;
   }
 
-(** {6 Interactive sections *)
+(** {6 Interactive sections} *)
 
 let open_section senv =
   let custom = {

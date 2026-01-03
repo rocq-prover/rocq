@@ -187,6 +187,7 @@ let classify_vernac e =
     | VernacComments _
     | VernacAttributes _
     | VernacSchemeEquality _
+    | VernacSchemeAll _
     | VernacAddRewRule _
     | VernacDeclareInstance _ -> VtSideff ([], VtLater)
     (* Who knows *)

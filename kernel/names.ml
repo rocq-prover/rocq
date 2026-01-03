@@ -85,6 +85,10 @@ struct
   let mk_name id =
     Name id
 
+  let map_id f = function
+    | Anonymous -> Anonymous
+    | Name id -> Name (f id)
+
   let is_anonymous = function
     | Anonymous -> true
     | Name _ -> false

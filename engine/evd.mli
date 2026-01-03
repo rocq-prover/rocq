@@ -580,7 +580,8 @@ val universe_binders : evar_map -> UnivNames.universe_binders
 
 val new_univ_level_variable : ?loc:Loc.t -> ?name:Id.t -> rigid -> evar_map -> evar_map * Univ.Level.t
 val new_quality_variable : ?loc:Loc.t -> ?name:Id.t -> evar_map -> evar_map * Sorts.QVar.t
-val new_sort_variable : ?loc:Loc.t -> rigid -> evar_map -> evar_map * esorts
+val new_sort_info : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Names.Id.t -> rigid -> evar_map -> evar_map * Sorts.QVar.t * Univ.Universe.t
+val new_sort_variable : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Names.Id.t -> rigid -> evar_map -> evar_map * esorts
 
 val add_forgotten_univ : evar_map -> Univ.Level.t -> evar_map
 
@@ -635,9 +636,9 @@ val set_universe_context : evar_map -> UState.t -> evar_map
 
 val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
 
-val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> QGraph.constraint_source -> evar_map -> UnivGen.sort_context_set -> evar_map
+val merge_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?sideff:bool -> rigid -> QGraph.constraint_source -> evar_map -> UnivGen.sort_context_set -> evar_map
 
-val with_sort_context_set : ?loc:Loc.t -> rigid -> QGraph.constraint_source -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
+val with_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> rigid -> QGraph.constraint_source -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
 
 val nf_univ_variables : evar_map -> evar_map
 
@@ -657,7 +658,7 @@ val fresh_sort_in_quality : ?loc:Loc.t -> ?rigid:rigid
   -> evar_map -> UnivGen.QualityOrSet.t -> evar_map * esorts
 val fresh_constant_instance : ?loc:Loc.t -> ?rigid:rigid
   -> env -> evar_map -> Constant.t -> evar_map * Constant.t puniverses
-val fresh_inductive_instance : ?loc:Loc.t -> ?rigid:rigid
+val fresh_inductive_instance : ?loc:Loc.t -> ?sort_rigid:bool -> ?rigid:rigid
   -> env -> evar_map -> inductive -> evar_map * inductive puniverses
 val fresh_constructor_instance : ?loc:Loc.t -> ?rigid:rigid
   -> env -> evar_map -> constructor -> evar_map * constructor puniverses
