@@ -188,8 +188,6 @@ module Internal : sig
 
   val pr_mult : ssrmult -> Pp.t
 
-  val is_ssr_loaded : unit -> bool
-
   val pr_hpats : ssrhpats -> Pp.t
 
   val pr_fwd : (Ssrast.ssrfwdkind * Ssrast.ssrbindfmt list) * Ssrast.ast_closure_term -> Pp.t
