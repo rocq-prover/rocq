@@ -107,6 +107,13 @@ let shrink_entry sign body typ =
   let (body, typ, args) = shrink ctx sign body typ [] in
   body, typ, args
 
+let freshen_instance univs = match univs with
+| UState.Monomorphic_entry uctx, unames ->
+  let guctx = (Univ.Level.Set.empty, snd uctx) in
+  guctx, (UState.Monomorphic_entry uctx, unames)
+| UState.Polymorphic_entry _, _ ->
+  Univ.ContextSet.empty, univs
+
 let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
   let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
@@ -131,9 +138,15 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
-  (* FIXME: return the locally introduced effects *)
+  (* TODO: uctx levels are almost immediately demoted, we should do this directly instead *)
+  let uctx, univs = freshen_instance univs in
   let { Proof.sigma } = Proof.data proof in
-  let sigma = Evd.set_universe_context sigma output_ustate in
+  let sigma =
+    (* XXX overwriting the context in polymorphic mode breaks a lot of invariants,
+       but it is hard to fix locally without wreaking havoc elsewhere *)
+    if PolyFlags.univ_poly poly then Evd.set_universe_context sigma output_ustate
+    else Evd.merge_universe_context_set Evd.univ_rigid sigma uctx
+  in
   (univs, body, typ), status, sigma
 
 let next = let n = ref 0 in fun () -> incr n; !n
