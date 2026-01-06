@@ -189,7 +189,7 @@ Keywords
 
     _ Axiom CoFixpoint Definition Fixpoint Hypothesis Parameter Prop
     SProp Set Theorem Type Variable as at cofix else end
-    fix for forall fun if in let match return then where with
+    fix for forall fun if in is isn't let match of return then where with
 
   The following are keywords defined in notations or plugins loaded in the :term:`prelude`::
 
@@ -212,7 +212,7 @@ Other tokens
   The following character sequences are tokens defined in notations or plugins
   loaded in the :term:`prelude`::
 
-    && ** ++ ... .1 .2 ::= <-> <> >=  /\ \/ || ^ ~
+    && ** ++ ... .1 .2 ::= <-> <> >= /\ \/ || ^ ~  // //= /= =^~
 
   Note that loading additional modules or plugins may expand the set of defined
   tokens.

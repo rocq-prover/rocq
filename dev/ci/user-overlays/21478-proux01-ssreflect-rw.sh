@@ -1,0 +1,16 @@
+overlay bedrock2 https://github.com/proux01/bedrock2 rocq21478 21478
+overlay color https://github.com/proux01/color rocq21478 21478
+overlay compcert https://github.com/proux01/CompCert rocq21478 21478
+overlay coqprime https://github.com/proux01/coqprime rocq21478 21478
+overlay coqutil https://github.com/proux01/coqutil rocq21478 21478
+overlay fiat_crypto https://github.com/proux01/fiat-crypto rocq21478 21478
+overlay fiat_crypto_legacy https://github.com/proux01/fiat-crypto rocq21478_legacy 21478
+overlay fiat_parsers https://github.com/proux01/fiat rocq21478 21478
+overlay itree https://github.com/proux01/InteractionTrees rocq21478 21478
+overlay kami https://github.com/proux01/kami rocq21478 21478
+overlay mtac2 https://github.com/proux01/Mtac2 rocq21478 21478
+overlay relation_algebra https://github.com/proux01/relation-algebra rocq21478 21478
+overlay stdlib https://github.com/proux01/stdlib rocq21478 21478
+overlay stdpp https://gitlab.mpi-sws.org/proux/stdpp rocq21478 21478
+overlay unimath https://github.com/proux01/UniMath rocq21478 21478
+overlay verdi https://github.com/proux01/verdi rocq21478 21478
