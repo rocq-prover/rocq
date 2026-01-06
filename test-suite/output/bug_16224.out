@@ -2,6 +2,9 @@
 [cic] : Cic >-> A (reversible)
 [rc] : Rc >-> A (reversible)
 [ric] : Ric >-> A (reversible)
+[NonPropType.callee] : NonPropType.call_of >-> Sortclass
+[NonPropType.frame; NonPropType.callee] : NonPropType.type >-> Sortclass
+[NonPropType.frame] : NonPropType.type >-> NonPropType.call_of
 ric : Ric -> A
 cic : Cic -> A
 ri : Ri -> A

@@ -20,6 +20,7 @@ le_sind:
   forall n0 : nat, n <= n0 -> P n0
 false: bool
 true: bool
+NonPropType.test_of: bool -> Set
 is_true: bool -> Prop
 eq_true: bool -> Prop
 negb: bool -> bool
@@ -29,88 +30,105 @@ reflect: Prop -> bool -> Set
 andb: bool -> bool -> bool
 orb: bool -> bool -> bool
 Nat.even: nat -> bool
+NonPropType.result: nonPropType -> bool
 Nat.odd: nat -> bool
 BoolSpec: Prop -> Prop -> bool -> Prop
+Number.uint_beq: Number.uint -> Number.uint -> bool
+Nat.eqb: nat -> nat -> bool
+Hexadecimal.uint_beq: Hexadecimal.uint -> Hexadecimal.uint -> bool
 Decimal.uint_beq: Decimal.uint -> Decimal.uint -> bool
 Nat.leb: nat -> nat -> bool
 Decimal.decimal_beq: Decimal.decimal -> Decimal.decimal -> bool
-Number.uint_beq: Number.uint -> Number.uint -> bool
+NonPropType.call_of: unit -> bool -> Type
 Number.signed_int_beq: Number.signed_int -> Number.signed_int -> bool
 Decimal.signed_int_beq: Decimal.signed_int -> Decimal.signed_int -> bool
-Nat.eqb: nat -> nat -> bool
-Hexadecimal.uint_beq: Hexadecimal.uint -> Hexadecimal.uint -> bool
 Nat.ltb: nat -> nat -> bool
-Number.number_beq: Number.number -> Number.number -> bool
+Nat.testbit: nat -> nat -> bool
 Hexadecimal.signed_int_beq:
   Hexadecimal.signed_int -> Hexadecimal.signed_int -> bool
+Number.number_beq: Number.number -> Number.number -> bool
 Hexadecimal.hexadecimal_beq:
   Hexadecimal.hexadecimal -> Hexadecimal.hexadecimal -> bool
-Nat.testbit: nat -> nat -> bool
+NonPropType.Test: forall result : bool, unit -> NonPropType.test_of result
+NonPropType.condition:
+  forall [result : bool], NonPropType.test_of result -> unit
+NonPropType.callee:
+  forall [condition : unit] [result : bool],
+  NonPropType.call_of condition result -> Type
+NonPropType.Call:
+  forall (condition : unit) (result : bool),
+  Type -> NonPropType.call_of condition result
 Nat.bitwise: (bool -> bool -> bool) -> nat -> nat -> nat -> nat
-eq_true_rew_r:
-  forall [b : bool] (P : bool -> Type), P b -> eq_true b -> P true
-eq_true_rew:
-  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
-bool_rec: forall P : bool -> Set, P true -> P false -> forall b : bool, P b
-eq_true_rec_r:
-  forall (P : bool -> Set) [b : bool], P b -> eq_true b -> P true
-eq_true_ind:
-  forall P : bool -> Prop, P true -> forall [b : bool], eq_true b -> P b
-eq_true_rect:
-  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
-eq_true_rect_r:
-  forall (P : bool -> Type) [b : bool], P b -> eq_true b -> P true
-eq_true_rec:
-  forall P : bool -> Set, P true -> forall [b : bool], eq_true b -> P b
 eq_true_ind_r:
   forall (P : bool -> Prop) [b : bool], P b -> eq_true b -> P true
 bool_ind: forall P : bool -> Prop, P true -> P false -> forall b : bool, P b
+eq_true_ind:
+  forall P : bool -> Prop, P true -> forall [b : bool], eq_true b -> P b
+eq_true_rew:
+  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
 eq_true_sind:
   forall P : bool -> SProp, P true -> forall [b : bool], eq_true b -> P b
 bool_sind:
   forall P : bool -> SProp, P true -> P false -> forall b : bool, P b
 bool_rect: forall P : bool -> Type, P true -> P false -> forall b : bool, P b
+eq_true_rect:
+  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
+eq_true_rew_r:
+  forall [b : bool] (P : bool -> Type), P b -> eq_true b -> P true
+eq_true_rec_r:
+  forall (P : bool -> Set) [b : bool], P b -> eq_true b -> P true
+eq_true_rect_r:
+  forall (P : bool -> Type) [b : bool], P b -> eq_true b -> P true
+eq_true_rec:
+  forall P : bool -> Set, P true -> forall [b : bool], eq_true b -> P b
+bool_rec: forall P : bool -> Set, P true -> P false -> forall b : bool, P b
 bool_of_sumbool:
   forall [A B : Prop], {A} + {B} -> {b : bool | if b then A else B}
 sumbool_of_bool: forall b : bool, {b = true} + {b = false}
+NonPropType.check:
+  forall [result : bool] [test : NonPropType.test_of result],
+  NonPropType.call_of (NonPropType.condition test) result -> nonPropType
+NonPropType.Check:
+  forall [result : bool] [test : NonPropType.test_of result],
+  NonPropType.call_of (NonPropType.condition test) result -> nonPropType
 Decimal.internal_signed_int_dec_lb:
   forall x y : Decimal.signed_int, x = y -> Decimal.signed_int_beq x y = true
-Number.internal_signed_int_dec_lb1:
-  forall x y : Number.signed_int, x = y -> Number.signed_int_beq x y = true
-Number.internal_signed_int_dec_bl1:
-  forall x y : Number.signed_int, Number.signed_int_beq x y = true -> x = y
 Decimal.internal_signed_int_dec_bl:
   forall x y : Decimal.signed_int, Decimal.signed_int_beq x y = true -> x = y
 Hexadecimal.internal_hexadecimal_dec_lb:
   forall x y : Hexadecimal.hexadecimal,
   x = y -> Hexadecimal.hexadecimal_beq x y = true
+Hexadecimal.internal_hexadecimal_dec_bl:
+  forall x y : Hexadecimal.hexadecimal,
+  Hexadecimal.hexadecimal_beq x y = true -> x = y
+Decimal.internal_decimal_dec_bl:
+  forall x y : Decimal.decimal, Decimal.decimal_beq x y = true -> x = y
+Number.internal_signed_int_dec_lb1:
+  forall x y : Number.signed_int, x = y -> Number.signed_int_beq x y = true
+Number.internal_signed_int_dec_bl1:
+  forall x y : Number.signed_int, Number.signed_int_beq x y = true -> x = y
+Number.internal_number_dec_bl:
+  forall x y : Number.number, Number.number_beq x y = true -> x = y
+Byte.to_bits:
+  Byte.byte ->
+  bool * (bool * (bool * (bool * (bool * (bool * (bool * bool))))))
+Number.internal_uint_dec_bl1:
+  forall x y : Number.uint, Number.uint_beq x y = true -> x = y
+Hexadecimal.internal_signed_int_dec_bl0:
+  forall x y : Hexadecimal.signed_int,
+  Hexadecimal.signed_int_beq x y = true -> x = y
+Decimal.internal_decimal_dec_lb:
+  forall x y : Decimal.decimal, x = y -> Decimal.decimal_beq x y = true
+Number.internal_uint_dec_lb1:
+  forall x y : Number.uint, x = y -> Number.uint_beq x y = true
 Hexadecimal.internal_signed_int_dec_lb0:
   forall x y : Hexadecimal.signed_int,
   x = y -> Hexadecimal.signed_int_beq x y = true
 Number.internal_number_dec_lb:
   forall x y : Number.number, x = y -> Number.number_beq x y = true
-Hexadecimal.internal_signed_int_dec_bl0:
-  forall x y : Hexadecimal.signed_int,
-  Hexadecimal.signed_int_beq x y = true -> x = y
-Number.internal_uint_dec_lb1:
-  forall x y : Number.uint, x = y -> Number.uint_beq x y = true
-Number.internal_uint_dec_bl1:
-  forall x y : Number.uint, Number.uint_beq x y = true -> x = y
-Decimal.internal_decimal_dec_bl:
-  forall x y : Decimal.decimal, Decimal.decimal_beq x y = true -> x = y
-Number.internal_number_dec_bl:
-  forall x y : Number.number, Number.number_beq x y = true -> x = y
 Byte.of_bits:
   bool * (bool * (bool * (bool * (bool * (bool * (bool * bool)))))) ->
   Byte.byte
-Byte.to_bits:
-  Byte.byte ->
-  bool * (bool * (bool * (bool * (bool * (bool * (bool * bool))))))
-Decimal.internal_decimal_dec_lb:
-  forall x y : Decimal.decimal, x = y -> Decimal.decimal_beq x y = true
-Hexadecimal.internal_hexadecimal_dec_bl:
-  forall x y : Hexadecimal.hexadecimal,
-  Hexadecimal.hexadecimal_beq x y = true -> x = y
 eq_true_rew_fwd_dep:
   forall [b : bool] (H : eq_true b)
     (P : forall b0 : bool, eq_true b0 -> Type),
@@ -118,14 +136,6 @@ eq_true_rew_fwd_dep:
 eq_true_rew_dep:
   forall P : forall b : bool, eq_true b -> Type,
   P true is_eq_true -> forall [b : bool] (e : eq_true b), P b e
-Decimal.internal_uint_dec_bl:
-  forall x : Decimal.uint,
-  (fun x0 : Decimal.uint =>
-   forall y : Decimal.uint, Decimal.uint_beq x0 y = true -> x0 = y) x
-Decimal.internal_uint_dec_lb:
-  forall x : Decimal.uint,
-  (fun x0 : Decimal.uint =>
-   forall y : Decimal.uint, x0 = y -> Decimal.uint_beq x0 y = true) x
 Hexadecimal.internal_uint_dec_lb0:
   forall x : Hexadecimal.uint,
   (fun x0 : Hexadecimal.uint =>
@@ -134,9 +144,17 @@ Hexadecimal.internal_uint_dec_bl0:
   forall x : Hexadecimal.uint,
   (fun x0 : Hexadecimal.uint =>
    forall y : Hexadecimal.uint, Hexadecimal.uint_beq x0 y = true -> x0 = y) x
-andb_prop: forall a b : bool, (a && b)%bool = true -> a = true /\ b = true
+Decimal.internal_uint_dec_lb:
+  forall x : Decimal.uint,
+  (fun x0 : Decimal.uint =>
+   forall y : Decimal.uint, x0 = y -> Decimal.uint_beq x0 y = true) x
+Decimal.internal_uint_dec_bl:
+  forall x : Decimal.uint,
+  (fun x0 : Decimal.uint =>
+   forall y : Decimal.uint, Decimal.uint_beq x0 y = true -> x0 = y) x
 andb_true_intro:
   forall [b1 b2 : bool], b1 = true /\ b2 = true -> (b1 && b2)%bool = true
+andb_prop: forall a b : bool, (a && b)%bool = true -> a = true /\ b = true
 bool_eq_rec:
   forall (b : bool) (P : bool -> Set),
   (b = true -> P true) -> (b = false -> P false) -> P b
@@ -151,8 +169,13 @@ BoolSpec_ind:
   forall [P Q : Prop] (P0 : bool -> Prop),
   (P -> P0 true) ->
   (Q -> P0 false) -> forall [b : bool], BoolSpec P Q b -> P0 b
-reflect_ind:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Prop),
+reflect_rect:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Type),
+  (forall p : P, P0 true (ReflectT P p)) ->
+  (forall n : ~ P, P0 false (ReflectF P n)) ->
+  forall [b : bool] (r : reflect P b), P0 b r
+reflect_rec:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Set),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
@@ -161,13 +184,8 @@ reflect_sind:
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
-reflect_rect:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Type),
-  (forall p : P, P0 true (ReflectT P p)) ->
-  (forall n : ~ P, P0 false (ReflectF P n)) ->
-  forall [b : bool] (r : reflect P b), P0 b r
-reflect_rec:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Set),
+reflect_ind:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Prop),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
