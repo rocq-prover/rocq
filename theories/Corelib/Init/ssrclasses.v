@@ -19,6 +19,8 @@
  [Require Import ssreflect] does not [Require Import RelationClasses],
  and conversely. **)
 
+Require Import Logic.
+
 Section Defs.
   Context {A : Type}.
   Class Reflexive (R : A -> A -> Prop) :=

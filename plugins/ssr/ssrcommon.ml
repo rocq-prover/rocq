@@ -251,7 +251,7 @@ let add_internal_name pt = internal_names := pt :: !internal_names
 let is_internal_name s = List.exists (fun p -> p s) !internal_names
 
 let mk_internal_id s =
-  let s' = Printf.sprintf "_%s_" s in
+  let s' = Printf.sprintf "‗%s‗" s in
   let s' = String.map (fun c -> if c = ' ' then '_' else c) s' in
   add_internal_name ((=) s'); Id.of_string s'
 
@@ -262,19 +262,22 @@ let skip_digits s =
   let n = String.length s in
   let rec loop i = if i < n && is_digit s.[i] then loop (i + 1) else i in loop
 
-let mk_tagged_id t i = Id.of_string (Printf.sprintf "%s%d_" t i)
+let mk_tagged_id t i = Id.of_string (Printf.sprintf "%s%d‗" t i)
+(* [is_dll s n] test if character at pos [n] of [s] is UTF8 double low line '‗'.
+   Assumes [n] <= [String.length n - 3]. *)
+let is_dll s n = s.[n] = '\226' && s.[n+1] = '\128' && s.[n+2] = '\151'
 let is_tagged t s =
-  let n = String.length s - 1 and m = String.length t in
-  m < n && s.[n] = '_' && same_prefix s t m && skip_digits s m = n
+  let n = String.length s and m = String.length t in
+  m < n - 3 && is_dll s (n - 3) && same_prefix s t m && skip_digits s m = n - 3
 
-let evar_tag = "_evar_"
+let evar_tag = "‗evar_"
 let _ = add_internal_name (is_tagged evar_tag)
 let mk_evar_name n = Name (mk_tagged_id evar_tag n)
 
 let ssr_anon_hyp = "Hyp"
 
-let wildcard_tag = "_the_"
-let wildcard_post = "_wildcard_"
+let wildcard_tag = "‗the_"
+let wildcard_post = "_wildcard‗"
 let has_wildcard_tag s =
   let n = String.length s in let m = String.length wildcard_tag in
   let m' = String.length wildcard_post in
@@ -283,19 +286,19 @@ let has_wildcard_tag s =
   skip_digits s m = n - m' - 2
 let _ = add_internal_name has_wildcard_tag
 
-let discharged_tag = "_discharged_"
+let discharged_tag = "‗discharged_"
 let mk_discharged_id id =
-  Id.of_string (Printf.sprintf "%s%s_" discharged_tag (Id.to_string id))
+  Id.of_string (Printf.sprintf "%s%s‗" discharged_tag (Id.to_string id))
 let has_discharged_tag s =
-  let m = String.length discharged_tag and n = String.length s - 1 in
-  m < n && s.[n] = '_' && same_prefix s discharged_tag m
+  let m = String.length discharged_tag and n = String.length s in
+  m < n - 3 && is_dll s (n - 3) && same_prefix s discharged_tag m
 let _ = add_internal_name has_discharged_tag
 let is_discharged_id id = has_discharged_tag (Id.to_string id)
 
 let max_suffix m (t, j0 as tj0) id  =
-  let s = Id.to_string id in let n = String.length s - 1 in
-  let dn = String.length t - 1 - n in let i0 = j0 - dn in
-  if not (i0 >= m && s.[n] = '_' && same_prefix s t m) then tj0 else
+  let s = Id.to_string id in let n = String.length s - 3 in
+  let dn = String.length t - 3 - n in let i0 = j0 - dn in
+  if not (i0 >= m && is_dll s n && same_prefix s t m) then tj0 else
   let rec loop i =
     if i < i0 && s.[i] = '0' then loop (i + 1) else
     if (if i < i0 then skip_digits s i = n else le_s_t i) then s, i else tj0
@@ -309,9 +312,9 @@ let max_suffix m (t, j0 as tj0) id  =
 let mk_anon_id t gl_ids =
   let gl_ids = List.map NamedDecl.get_id (EConstr.named_context_of_val gl_ids) in
   let m, si0, id0 =
-    let s = ref (Printf.sprintf  "_%s_" t) in
-    if is_internal_name !s then s := "_" ^ !s;
-    let n = String.length !s - 1 in
+    let s = ref (Printf.sprintf  "‗%s‗" t) in
+    if is_internal_name !s then s := "‗" ^ !s;
+    let n = String.length !s - 3 in
     let rec loop i j =
       let d = !s.[i] in if not (is_digit d) then i + 1, j else
       loop (i - 1) (if d = '0' then j else i) in
@@ -320,10 +323,12 @@ let mk_anon_id t gl_ids =
   let s, i = List.fold_left (max_suffix m) si0 gl_ids in
   let open Bytes in
   let s = of_string s in
-  let n = length s - 1 in
+  let n = length s - 3 in
+  let cat_dll s =
+    set s (n + 1) '\226'; set s (n + 2) '\128'; cat s (of_string "\151") in
   let rec loop i =
     if get s i = '9' then (set s i '0'; loop (i - 1)) else
-    if i < m then (set s n '0'; set s m '1'; cat s (of_string "_")) else
+    if i < m then (set s n '0'; set s m '1'; cat_dll s) else
     (set s i (Char.chr (Char.code (get s i) + 1)); s) in
   Id.of_string_soft (Bytes.to_string (loop (n - 1)))
 
@@ -551,7 +556,7 @@ let nb_evar_deps = function
     let s = Id.to_string id in
     if not (is_tagged evar_tag s) then 0 else
     let m = String.length evar_tag in
-    (try int_of_string (String.sub s m (String.length s - 1 - m)) with e when CErrors.noncritical e -> 0)
+    (try int_of_string (String.sub s m (String.length s - 3 - m)) with e when CErrors.noncritical e -> 0)
   | _ -> 0
 
 let type_id env sigma t = Id.of_string (Namegen.hdchar env sigma t)

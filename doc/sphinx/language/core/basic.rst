@@ -212,7 +212,7 @@ Other tokens
   The following character sequences are tokens defined in notations or plugins
   loaded in the :term:`prelude`::
 
-    && ** ++ ... .1 .2 ::= <-> <> >=  /\ \/ || ^ ~
+    && ** ++ ... .1 .2 ::= <-> <> >= /\ \/ || ^ ~  // //= /= =^~
 
   Note that loading additional modules or plugins may expand the set of defined
   tokens.
