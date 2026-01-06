@@ -41,15 +41,6 @@ open Ssrequality
 open Ssripats
 open Libobject
 
-(** Ssreflect load check. *)
-
-(* To allow ssrcoq to be fully compatible with the "plain" Rocq, we only*)
-(* turn on its incompatible features (the new rewrite syntax) when the  *)
-(* theory library (ssreflect.v) has actually been imported.             *)
-(* This is done thanks to the "SSRRewriteLoaded" option.                *)
-
-let is_ssr_rewrite_loaded = Pptactic.ssr_rewrite_loaded
-
 }
 
 DECLARE PLUGIN "rocq-runtime.plugins.ssreflect"
@@ -1579,7 +1570,7 @@ END
 {
 
 let sq_brace_tacnames =
-   ["first"; "solve"; "do"; "rewrite"; "have"; "suffices"; "wlog"]
+   ["first"; "solve"; "do"; "rewrite"; "rw"; "have"; "suffices"; "wlog"]
    (* "by" is a keyword *)
 
 let test_ssrseqvar =
@@ -1725,7 +1716,6 @@ module Internal = struct
   let pr_intros = pr_intros
   let pr_view = pr_view
   let pr_mult = pr_mult
-  let is_ssr_rewrite_loaded = is_ssr_rewrite_loaded
   let pr_hpats = pr_hpats
   let pr_fwd = pr_fwd
   let pr_hint = pr_hint

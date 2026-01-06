@@ -55,11 +55,11 @@ such as tactics to mix forward steps and generalizations as
 |SSR| adopts the point of view that rewriting, definition
 expansion and partial evaluation participate all to a same concept of
 rewriting a goal in a larger sense. As such, all these functionalities
-are provided by the :tacn:`rewrite <rewrite (ssreflect)>` tactic.
+are provided by the :tacn:`rw` tactic.
 
 |SSR| includes a little language of patterns to select subterms in
 tactics or tacticals where it matters. Its most notable application is
-in the :tacn:`rewrite <rewrite (ssreflect)>` tactic, where patterns are
+in the :tacn:`rw` tactic, where patterns are
 used to specify where the rewriting step has to take place.
 
 Finally, |SSR| supports so-called reflection steps, typically
@@ -68,8 +68,7 @@ logical view of a concept.
 
 To conclude, it is worth mentioning that |SSR| tactics can be mixed
 with non-|SSR| tactics in the same proof, or in the same Ltac
-expression. The few exceptions to this statement are described in
-section :ref:`compatibility_issues_ssr`.
+expression.
 
 
 Acknowledgments
@@ -86,9 +85,15 @@ Usage
 Getting started
 ~~~~~~~~~~~~~~~
 
-To be available, the tactics presented in this manual need the
-following minimal set of libraries to be loaded: ``ssreflect.v``,
-``ssrfun.v`` and ``ssrbool.v``.
+To be available, the tactics presented in this manual need
+``ssreflect_rw.v`` to be loaded.
+
+.. note::
+   One can also load ``ssreflect.v`` to get the deprecated ``rewrite``
+   tactic alias for :tacn:`rw` as well as the ``if <term> is <pattern then _ else _``
+   and ``if <term> isn't <pattern then _ else _`` syntactic sugars for matches
+   and an ``if <term> then _ else _`` syntax specialised to booleans.
+
 Moreover, these tactics come with a methodology
 specific to the authors of |SSR| and which requires a few options
 to be set in a different way than in their default way. All in all,
@@ -96,7 +101,7 @@ this corresponds to working in the following context:
 
 .. rocqtop:: in
 
-   From Corelib Require Import ssreflect ssrfun ssrbool.
+   From Corelib Require Import ssreflect_rw.
    Set Implicit Arguments.
    Unset Strict Implicit.
    Unset Printing Implicit Defensive.
@@ -104,64 +109,6 @@ this corresponds to working in the following context:
 .. seealso::
    :flag:`Implicit Arguments`, :flag:`Strict Implicit`,
    :flag:`Printing Implicit Defensive`
-
-.. _compatibility_issues_ssr:
-
-
-Compatibility issues
-~~~~~~~~~~~~~~~~~~~~
-
-Requiring the above modules creates an environment that is mostly
-compatible with the rest of Rocq, up to a few discrepancies.
-
-
-+ New keywords (``is``) might clash with variable, constant, tactic or
-  tactical names, or with quasi-keywords in tactic or
-  notation commands.
-+ New tactic(al)s names (:tacn:`last`, :tacn:`done`, :tacn:`have`, :tacn:`suffices`,
-  :tacn:`suff`, :tacn:`without loss`, :tacn:`wlog`, :tacn:`congr`, :tacn:`unlock`)
-  might clash with user tactic names.
-+ The extensions to the :tacn:`rewrite` tactic are partly incompatible with those
-  available in current versions of Rocq; in particular, ``rewrite .. in
-  (type of k)`` or ``rewrite .. in *`` or any other variant of :tacn:`rewrite`
-  will not work, and the |SSR| syntax and semantics for occurrence selection
-  and rule chaining are different. Use an explicit rewrite direction
-  (``rewrite <- …`` or ``rewrite -> …``) to access the Rocq rewrite tactic.
-+ New symbols (``//``, ``/=``, ``//=``) might clash with adjacent
-  existing symbols.
-  This can be avoided by inserting white spaces.
-+ New constant and theorem names might clash with the user theory.
-  This can be avoided by not importing all of |SSR|:
-
-  .. rocqtop:: in
-
-     From Corelib Require ssreflect.
-     Import ssreflect.SsrSyntax.
-
-  Note that the full
-  syntax of |SSR|’s rewrite and reserved identifiers are enabled
-  only if the ssreflect module has been required and if ``SsrSyntax`` has
-  been imported. Thus a file that requires (without importing) ``ssreflect``
-  and imports ``SsrSyntax`` can be required and imported without
-  automatically enabling |SSR|’s extended rewrite syntax and
-  reserved identifiers.
-+ Some user notations (in particular, defining an infix ``;``) might
-  interfere with the "open term", parenthesis-free syntax of tactics
-  such as :tacn:`have`, :tacn:`set (ssreflect)` and :tacn:`pose (ssreflect)`.
-+ The generalization of ``if`` statements to non-Boolean conditions is turned off
-  by |SSR|, because it is mostly subsumed by Coercion to ``bool`` of the
-  ``sumXXX`` types (declared in ``ssrfun.v``) and the
-  :n:`if @term is @pattern then @term else @term` construct
-  (see :ref:`pattern_conditional_ssr`).  To use the
-  generalized form, turn off the |SSR| Boolean ``if`` notation using the command:
-  ``Close Scope boolean_if_scope``.
-+ The following flags can be unset to make |SSR| more compatible with
-  parts of Rocq.
-
-.. flag:: SsrRewrite
-
-   Controls whether the incompatible rewrite syntax is enabled (the default).
-   Disabling the :term:`flag` makes the syntax compatible with other parts of Rocq.
 
 Gallina extensions
 --------------------
@@ -204,7 +151,7 @@ construct differs from the latter as follows.
 
     .. rocqtop:: reset none
 
-       From Corelib Require Import ssreflect.
+       From Corelib Require Import ssreflect_rw.
        Set Implicit Arguments.
        Unset Strict Implicit.
        Unset Printing Implicit Defensive.
@@ -244,7 +191,8 @@ dependent pattern matching and for aliasing the pattern (see
 Pattern conditional
 ~~~~~~~~~~~~~~~~~~~
 
-The following construct can be used for a refutable pattern matching,
+When doing ``From Corelib Require Import ssreflect`` (not ``ssreflect_rw``),
+the following construct can be used for a refutable pattern matching,
 that is, pattern testing:
 
 .. prodn::
@@ -262,15 +210,16 @@ example, the null and all list function(al)s can be defined as follows:
 
     .. rocqtop:: reset none
 
-       From Corelib Require Import ssreflect.
        Set Implicit Arguments.
        Unset Strict Implicit.
        Unset Printing Implicit Defensive.
-       Section Test.
 
    .. rocqtop:: all
 
-      Variable d: Set.
+      From Corelib Require Import ssreflect.
+
+      Section Test.
+      Variable d : Set.
       Definition null (s : list d) :=
         if s is nil then true else false.
       Variable a : d -> bool.
@@ -298,13 +247,15 @@ The latter appears to be marginally shorter, but it is quite
 ambiguous, and indeed often requires an explicit annotation
 ``(term : {_} + {_})`` to type check, which evens the character count.
 
-Therefore, |SSR| restricts by default the condition of a plain ``if``
+Therefore, ``From Corelib Require Import ssreflect`` restricts by default the condition of a plain ``if``
 construct to the standard ``bool`` type; this avoids spurious type
 annotations.
 
 .. example::
 
-   .. rocqtop:: all
+   .. rocqtop:: reset all
+
+      From Corelib Require Import ssreflect.
 
       Definition orb b1 b2 := if b1 then true else b2.
 
@@ -363,7 +314,7 @@ expressions such as
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -388,7 +339,7 @@ each point of use; e.g., the above definition can be written:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -433,16 +384,12 @@ Anonymous arguments
 
 When in a definition, the type of a certain argument is mandatory, but
 not its name, one usually uses “arrow” abstractions for prenex
-arguments, or the ``(_ : term)`` syntax for inner arguments. In |SSR|,
-the latter can be replaced by the open syntax ``of term`` or
-(equivalently) ``& term``, which are both syntactically equivalent to a
-``(_ : term)`` expression. This feature almost behaves as the
-following extension of the binder syntax:
+arguments, or the ``(_ : term)`` syntax for inner arguments.
+The latter can be replaced by the open syntax ``& term``,
+which is syntactically equivalent to a
+``(_ : term)`` expression.
 
-.. prodn::
-   binder += {| & @term | of @term }
-
-Caveat: ``& T`` and ``of T`` abbreviations have to appear at the end
+Caveat: ``& T`` abbreviations have to appear at the end
 of a binder list. For instance, the usual two-constructor polymorphic
 type list, i.e., the one of the standard ``List`` library, can be
 defined by the following declaration:
@@ -451,14 +398,13 @@ defined by the following declaration:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
 
   .. rocqtop:: all
 
-     Inductive list (A : Type) : Type := nil | cons of A & list A.
+     Inductive list (A : Type) : Type := nil | cons & A & list A.
 
 
 Wildcards
@@ -505,7 +451,7 @@ For example, the tactic :tacn:`pose (ssreflect)` supports parameters:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -620,7 +566,7 @@ where:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -668,7 +614,7 @@ conditions.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -689,7 +635,7 @@ conditions.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -710,7 +656,7 @@ Moreover:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -730,7 +676,7 @@ Moreover:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -763,7 +709,7 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -785,7 +731,7 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -806,7 +752,7 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -837,7 +783,7 @@ selection.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -854,7 +800,7 @@ only one occurrence of the selected term.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -885,7 +831,7 @@ context of a goal thanks to the ``in`` tactical.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
 
      .. rocqtop:: all
 
@@ -901,7 +847,7 @@ context of a goal thanks to the ``in`` tactical.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
 
      .. rocqtop:: all
 
@@ -1017,7 +963,7 @@ constants to the goal.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1078,7 +1024,7 @@ The ``:`` tactical is used to operate on an element in the context.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -1173,7 +1119,7 @@ The move tactic.
 
       .. rocqtop:: reset all
 
-         Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Goal not False.
          move.
 
@@ -1243,7 +1189,7 @@ The elim tactic
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -1283,7 +1229,7 @@ existential metavariables of sort :g:`Prop`.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1430,7 +1376,7 @@ If the tactic is ``move`` or ``case`` and an equation :token:`ident` is given, t
 (step 3) for :token:`d_item` is suppressed (see Section :ref:`generation_of_equations_ssr`).
 
 Intro patterns (see Section :ref:`introduction_ssr`)
-and the ``rewrite`` tactic (see Section :ref:`rewriting_ssr`)
+and the ``rw`` tactic (see Section :ref:`rewriting_ssr`)
 let one place a :token:`clear_switch` in the middle of other items
 (namely identifiers, views and rewrite rules).  This can trigger the
 addition of proof context items to the ones being explicitly
@@ -1463,7 +1409,7 @@ context to interpret wildcards; in particular, it can accommodate the
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1701,7 +1647,7 @@ Intro patterns
   (resp. :token:`occ_switch` ``<-``)
   pops the top assumption (which should be a rewritable proposition) into an
   anonymous fact, rewrites (resp. rewrites right to left) the goal with this
-  fact (using the |SSR| ``rewrite`` tactic described in Section
+  fact (using the |SSR| ``rw`` tactic described in Section
   :ref:`rewriting_ssr`, and honoring the optional occurrence selector), and
   finally deletes the anonymous fact from the context.
 ``[`` :token:`i_item` * ``| … |`` :token:`i_item` * ``]``
@@ -1755,12 +1701,14 @@ Clears are deferred until the end of the intro pattern.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect ssrbool.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
 
    .. rocqtop:: all
+
+      From Corelib Require Import ssrbool.
 
       Lemma test x y : Nat.leb 0 x = true -> (Nat.leb 0 x) && (Nat.leb y 2) = true.
       move=> {x} ->.
@@ -1816,7 +1764,7 @@ Block introduction
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -1869,7 +1817,7 @@ deal with the possible parameters of the constants introduced.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1888,7 +1836,7 @@ under fresh |SSR| names.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1955,7 +1903,7 @@ be substituted.
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -2061,20 +2009,20 @@ of the time more than two levels of indentation.
 Here is a fragment of such a structured script::
 
     case E1: (abezoutn _ _) => [[| k1] [| k2]].
-    - rewrite !muln0 !gexpn0 mulg1 => H1.
-      move/eqP: (sym_equal F0); rewrite -H1 orderg1 eqn_mul1.
+    - rw !muln0 !gexpn0 mulg1 => H1.
+      move/eqP: (sym_equal F0); rw -H1 orderg1 eqn_mul1.
       by case/andP; move/eqP.
-    - rewrite muln0 gexpn0 mulg1 => H1.
+    - rw muln0 gexpn0 mulg1 => H1.
       have F1: t %| t * S k2.+1 - 1.
-        apply: (@dvdn_trans (orderg x)); first by rewrite F0; exact: dvdn_mull.
-        rewrite orderg_dvd; apply/eqP; apply: (mulgI x).
-        rewrite -{1}(gexpn1 x) mulg1 gexpn_add leq_add_sub //.
+        apply: (@dvdn_trans (orderg x)); first by rw F0; exact: dvdn_mull.
+        rw orderg_dvd; apply/eqP; apply: (mulgI x).
+        rw -{1}(gexpn1 x) mulg1 gexpn_add leq_add_sub //.
         by move: P1; case t.
-      rewrite dvdn_subr in F1; last by exact: dvdn_mulr.
-      + rewrite H1 F0 -{2}(muln1 (p ^ l)); congr (_ * _).
-        by apply/eqP; rewrite -dvdn1.
+      rw dvdn_subr in F1; last by exact: dvdn_mulr.
+      + rw H1 F0 -{2}(muln1 (p ^ l)); congr (_ * _).
+        by apply/eqP; rw -dvdn1.
       + by move: P1; case: (t) => [| [| s1]].
-    - rewrite muln0 gexpn0 mul1g => H1.
+    - rw muln0 gexpn0 mul1g => H1.
     ...
 
 
@@ -2109,7 +2057,7 @@ with a ``by``, like in:
 
 .. rocqdoc::
 
-   by apply/eqP; rewrite -dvdn1.
+   by apply/eqP; rw -dvdn1.
 
 .. tacn:: done
    :name: done
@@ -2128,7 +2076,7 @@ with a ``by``, like in:
 
       Ltac done :=
         trivial; hnf; intros; solve
-         [ do ![solve [trivial | apply: sym_equal; trivial]
+         [ do ![solve [trivial | simple refine (@sym_equal _ _ _ _); trivial]
                | discriminate | contradiction | split]
          | match goal with H : ~ _ |- _ => solve [case H; trivial] end ].
 
@@ -2174,19 +2122,19 @@ is equivalent to:
 
    .. rocqdoc::
 
-      by rewrite my_lemma1.
+      by rw my_lemma1.
 
    succeeds, then the tactic:
 
    .. rocqdoc::
 
-      by rewrite my_lemma1; apply my_lemma2.
+      by rw my_lemma1; apply my_lemma2.
 
    usually fails since it is equivalent to:
 
    .. rocqdoc::
 
-      by (rewrite my_lemma1; apply my_lemma2).
+      by (rw my_lemma1; apply my_lemma2).
 
 
 .. _selectors_ssr:
@@ -2256,7 +2204,7 @@ to the others.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -2322,14 +2270,14 @@ For instance, the tactic:
 
 .. rocqdoc::
 
-   tactic; do 1? rewrite mult_comm.
+   tactic; do 1? rw mult_comm.
 
 rewrites at most one time the lemma ``mult_comm`` in all the subgoals
 generated by tactic, whereas the tactic:
 
 .. rocqdoc::
 
-   tactic; do 2! rewrite mult_comm.
+   tactic; do 2! rw mult_comm.
 
 rewrites exactly two times the lemma ``mult_comm`` in all the subgoals
 generated by ``tactic``, and fails if this rewrite is not possible in some
@@ -2354,7 +2302,7 @@ already presented the *localization* tactical ``in``, whose general syntax is:
 
 where :token:`ident` is a name in the
 context. On the left side of ``in``,
-:token:`tactic` can be ``move``, ``case``, ``elim``, ``rewrite``, ``set``,
+:token:`tactic` can be ``move``, ``case``, ``elim``, ``rw``, ``set``,
 or any tactic formed with the general iteration tactical ``do`` (see Section
 :ref:`iteration_ssr`).
 
@@ -2375,14 +2323,14 @@ between standard Ltac ``in`` and the |SSR| tactical in.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
 
   .. rocqtop:: all
 
-     Ltac mytac H := rewrite H.
+     Ltac mytac H := rw H.
 
      Lemma test x y (H1 : x = y) (H2 : y = 3) : x + y = 6.
      do [mytac H2] in H1 *.
@@ -2393,7 +2341,7 @@ between standard Ltac ``in`` and the |SSR| tactical in.
 By default, ``in`` keeps the body of local definitions. To erase the body
 of a local definition during the generalization phase, the name of the
 local definition must be written between parentheses, like in
-``rewrite H in H1 (def_n) H2.``
+``rw H in H1 (def_n) H2.``
 
 .. tacv:: @tactic in {+ {| @clear_switch | {? @}@ident | ( @ident ) | ( {? @}@ident := @c_pattern ) } } {? * }
 
@@ -2450,7 +2398,7 @@ the holes are abstracted in term.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2464,7 +2412,7 @@ the holes are abstracted in term.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2482,7 +2430,7 @@ tactic:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2526,7 +2474,7 @@ statement is very short, basically when it fits in one line like in:
 
 .. rocqdoc::
 
-   have H23 : 3 + 2 = 2 + 3 by rewrite addnC.
+   have H23 : 3 + 2 = 2 + 3 by rw addnC.
 
 The possibility of using :token:`i_item` supplies a very concise syntax for
 the further use of the intermediate step. For instance,
@@ -2535,7 +2483,7 @@ the further use of the intermediate step. For instance,
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2563,7 +2511,7 @@ destruction of existential assumptions like in the tactic:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2590,7 +2538,7 @@ term for the intermediate lemma, using tactics of the form:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2610,15 +2558,17 @@ The following example requires the mathcomp and mczify libraries.
 
 .. example::
 
-  .. rocqtop:: reset none warn extra-mathcomp extra-mczify
-
-     From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat zify.
+  .. rocqtop:: reset none
 
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
+     Set Warnings "-notation-overridden".
 
   .. rocqtop:: all extra-mathcomp extra-mczify
+
+     From Corelib Require Import ssreflect_rw.
+     From mathcomp Require Import ssrfun ssrbool ssrnat zify.
 
      Lemma test : True.
      have H x (y : nat) : 2 * x + y = x + x + y by lia.
@@ -2732,7 +2682,7 @@ typeclass inference.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
 
      Axiom ty : Type.
      Axiom t : ty.
@@ -2877,15 +2827,18 @@ simplifies a proof. Here is an example showing the beginning of the
 proof that quotient and reminder of natural number euclidean division
 are unique.
 
-The following example requires the mathcomp and mczify libraries.
+The following example requires the mathcomp library.
 
 .. example::
 
-  .. rocqtop:: reset none warn extra-mathcomp
+  .. rocqtop:: reset none
 
-     From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat.
+     Set Warnings "-notation-overridden".
 
   .. rocqtop:: all extra-mathcomp
+
+     From Corelib Require Import ssreflect_rw.
+     From mathcomp Require Import ssrfun ssrbool ssrnat.
 
      Lemma quo_rem_unicity d q1 q2 r1 r2 :
        q1*d + r1 = q2*d + r2 -> r1 < d -> r2 < d -> (q1, r1) = (q2, r2).
@@ -2908,7 +2861,7 @@ pattern will be used to process its instance.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrfun ssrbool.
+     From Corelib Require Import ssreflect_rw ssrfun ssrbool.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2958,7 +2911,7 @@ illustrated in the following example.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2977,7 +2930,7 @@ illustrated in the following example.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3002,7 +2955,7 @@ intermediate results handled are properties of effectively computable
 functions. The most efficient means of establishing such results are
 computation and simplification of expressions involving such
 functions, i.e., rewriting. |SSR| therefore includes an
-extended ``rewrite`` tactic that unifies and combines most of the
+extended ``rw`` tactic that unifies and combines most of the
 rewriting functionalities.
 
 
@@ -3021,8 +2974,7 @@ The main features of the rewrite tactic are:
 
 The general form of an |SSR| rewrite tactic is:
 
-.. tacn:: rewrite {+ @rstep }
-   :name: rewrite (ssreflect)
+.. tacn:: rw {+ @rstep }
    :undocumented:
 
 The combination of a rewrite tactic with the ``in`` tactical (see Section
@@ -3072,7 +3024,7 @@ operation should be performed.
   :token:`r_item` is actually processed and is complemented with the name of
   the rewrite rule if and only if it is a simple proof context entry [#10]_.
   As a consequence, one can
-  write ``rewrite {}H`` to rewrite with ``H`` and dispose ``H`` immediately
+  write ``rw {}H`` to rewrite with ``H`` and dispose ``H`` immediately
   afterwards.
   This behavior can be avoided by putting parentheses around the rewrite rule.
 
@@ -3084,16 +3036,16 @@ A :token:`r_item` can be one of the following.
   :ref:`introduction_ssr`). Simplification operations are intertwined with the possible
   other rewrite operations specified by the list of :token:`r_item`.
 + A *folding/unfolding* :token:`r_item`. The tactic
-  ``rewrite /term`` unfolds the
+  ``rw /term`` unfolds the
   :term:`head constant` of ``term`` in every occurrence of the first matching of
   ``term`` in the goal. In particular, if ``my_def`` is a (local or global)
-  defined constant, the tactic ``rewrite /my_def.`` is analogous to:
+  defined constant, the tactic ``rw /my_def.`` is analogous to:
   ``unfold my_def``.
-  Conversely, ``rewrite -/my_def.`` is equivalent to ``fold my_def``.
+  Conversely, ``rw -/my_def.`` is equivalent to ``fold my_def``.
   When an unfold :token:`r_item` is combined with a
   redex pattern, a conversion
   operation is performed. A tactic of the form
-  ``rewrite -[term1]/term2.``
+  ``rw -[term1]/term2.``
   is equivalent to ``change term1 with term2.`` If ``term2`` is a
   single constant and ``term1`` head symbol is not ``term2``, then the head
   symbol of ``term1`` is repeatedly unfolded until ``term2`` appears.
@@ -3103,15 +3055,15 @@ A :token:`r_item` can be one of the following.
       ``eq`` is the Leibniz equality or a registered setoid
       equality;
     + a list of terms ``(t1 ,…,tn)``, each ``ti`` having a type as above, and
-      the tactic ``rewrite r_prefix (t1 ,…,tn ).``
-      is equivalent to ``do [rewrite r_prefix t1 | … | rewrite r_prefix tn ].``;
+      the tactic ``rw r_prefix (t1 ,…,tn ).``
+      is equivalent to ``do [rw r_prefix t1 | … | rw r_prefix tn ].``;
     + an anonymous rewrite lemma ``(_ : term)``, where ``term`` has a type as above.
 
   .. example::
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect.
+        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -3121,7 +3073,7 @@ A :token:`r_item` can be one of the following.
         Definition double x := x + x.
         Definition ddouble x := double (double x).
         Lemma test x : ddouble x = 4 * x.
-        rewrite [ddouble _]/double.
+        rw [ddouble _]/double.
 
   .. warning::
 
@@ -3135,13 +3087,13 @@ A :token:`r_item` can be one of the following.
 
      .. rocqtop:: all fail
 
-        rewrite -[f y]/(y + _).
+        rw -[f y]/(y + _).
 
      but the following script succeeds
 
      .. rocqtop:: all
 
-        rewrite -[f y x]/(y + _).
+        rw -[f y x]/(y + _).
 
 
 .. flag:: SsrOldRewriteGoalsOrder
@@ -3172,7 +3124,7 @@ In a rewrite tactic of the form:
 
 .. rocqdoc::
 
-   rewrite occ_switch [term1]term2.
+   rw occ_switch [term1]term2.
 
 ``term1`` is the explicit rewrite redex and ``term2`` is the rewrite rule.
 This execution of this tactic unfolds as follows.
@@ -3215,7 +3167,7 @@ tactic:
 
 .. rocqdoc::
 
-   rewrite /my_def {2}[f _]/= my_eq //=.
+   rw /my_def {2}[f _]/= my_eq //=.
 
 
 unfolds ``my_def`` in the goal, simplifies the second occurrence of the
@@ -3230,7 +3182,7 @@ proof of basic results on natural numbers arithmetic.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3242,11 +3194,11 @@ proof of basic results on natural numbers arithmetic.
      Axiom addSnnS : forall m n, S m + n = m + S n.
 
      Lemma addnCA m n p : m + (n + p) = n + (m + p).
-     by elim: m p => [ | m Hrec] p; rewrite ?addSnnS -?addnS.
+     by elim: m p => [ | m Hrec] p; rw ?addSnnS -?addnS.
      Qed.
 
      Lemma addnC n m : m + n = n + m.
-     by rewrite -{1}[n]addn0 addnCA addn0.
+     by rw -{1}[n]addn0 addnCA addn0.
      Qed.
 
 Note the use of the ``?`` switch for parallel rewrite operations in the
@@ -3266,7 +3218,7 @@ side of the equality the user wants to rewrite.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3274,7 +3226,7 @@ side of the equality the user wants to rewrite.
   .. rocqtop:: all
 
      Lemma test (H : forall t u, t + u = u + t) x y : x + y = y + x.
-     rewrite [y + _]H.
+     rw [y + _]H.
 
 Note that if this first pattern matching is not compatible with the
 :token:`r_item`, the rewrite fails, even if the goal contains a
@@ -3286,7 +3238,7 @@ the equality.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3294,7 +3246,7 @@ the equality.
   .. rocqtop:: all
 
      Lemma test (H : forall t u, t + u * 0 = t) x y : x + y * 4 + 2 * 0 = x + 2 * 0.
-     Fail rewrite [x + _]H.
+     Fail rw [x + _]H.
 
   Indeed, the left-hand side of ``H`` does not match
   the redex identified by the pattern ``x + y * 4``.
@@ -3309,7 +3261,7 @@ Occurrence switches and redex switches
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3317,7 +3269,7 @@ Occurrence switches and redex switches
   .. rocqtop:: all
 
      Lemma test x y : x + y + 0 = x + y + y + 0 + 0 + (x + y + 0).
-     rewrite {2}[_ + y + 0](_: forall z, z + 0 = z).
+     rw {2}[_ + y + 0](_: forall z, z + 0 = z).
 
 The second subgoal is generated by the use of an anonymous lemma in
 the rewrite tactic. The effect of the tactic on the initial goal is to
@@ -3338,7 +3290,7 @@ repetition.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3346,7 +3298,7 @@ repetition.
   .. rocqtop:: all
 
      Lemma test x y (z : nat) : x + 1 = x + y + 1.
-     rewrite 2!(_ : _ + 1 = z).
+     rw 2!(_ : _ + 1 = z).
 
 This last tactic generates *three* subgoals because
 the second rewrite operation specified with the ``2!`` multiplier
@@ -3368,7 +3320,7 @@ rewrite operations prescribed by the rules on the current goal.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3382,7 +3334,7 @@ rewrite operations prescribed by the rules on the current goal.
      Hypothesis eqac : a = c.
 
      Lemma test : a = a.
-     rewrite (eqab, eqac).
+     rw (eqab, eqac).
 
   Indeed, rule ``eqab`` is the first to apply among the ones
   gathered in the tuple passed to the rewrite tactic. This multirule
@@ -3393,8 +3345,8 @@ rewrite operations prescribed by the rules on the current goal.
 
      Definition multi1 := (eqab, eqac).
 
-  In this case, the tactic ``rewrite multi1`` is a synonym for
-  ``rewrite (eqab, eqac)``.
+  In this case, the tactic ``rw multi1`` is a synonym for
+  ``rw (eqab, eqac)``.
 
 More precisely, a multirule rewrites the first subterm to which one of
 the rules applies in a left-to-right traversal of the goal, with the
@@ -3412,7 +3364,7 @@ literal matches have priority.
       Definition multi2 := (eqab, eqd0).
 
       Lemma test : d = b.
-      rewrite multi2.
+      rw multi2.
 
    Indeed, rule ``eqd0`` applies without unfolding the
    definition of ``d``.
@@ -3430,7 +3382,7 @@ repeated anew.
      Definition multi3 := (eq_adda_b, eq_adda_c, eqb0).
 
      Lemma test : 1 + a = 12 + a.
-     rewrite 2!multi3.
+     rw 2!multi3.
 
   It uses ``eq_adda_b`` then ``eqb0`` on the left-hand
   side only. Without the bound ``2``, one would obtain ``0 = 0``.
@@ -3441,7 +3393,7 @@ to (universally) quantify over the parameters of a subset of rules (as
 there is special code that will omit unnecessary quantifiers for rules
 that can be syntactically extracted). It is also possible to reverse
 the direction of a rule subset, using a special dedicated syntax: the
-tactic rewrite ``(=^~ multi1)`` is equivalent to ``rewrite multi1_rev``.
+tactic rewrite ``(=^~ multi1)`` is equivalent to ``rw multi1_rev``.
 
 .. example::
 
@@ -3484,7 +3436,7 @@ the efficient operations, we gather all these rules in the definition
 
    Definition trecE := (addE, (doubleE, oddE), (mulE, add_mulE, (expE, mul_expE))).
 
-The tactic ``rewrite !trecE.``
+The tactic ``rw !trecE.``
 restores the naive version of each operation in a goal involving the
 efficient ones, e.g., for the purpose of a correctness proof.
 
@@ -3493,16 +3445,16 @@ Wildcards vs abstractions
 `````````````````````````
 
 The rewrite tactic supports :token:`r_item`\s containing holes. For example, in
-the tactic ``rewrite (_ : _ * 0 = 0).``,
+the tactic ``rw (_ : _ * 0 = 0).``,
 the term ``_ * 0 = 0`` is interpreted as ``forall n : nat, n * 0 = 0.``
 Anyway this tactic is *not* equivalent to
-``rewrite (_ : forall x, x * 0 = 0).``.
+``rw (_ : forall x, x * 0 = 0).``.
 
 .. example::
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3512,13 +3464,13 @@ Anyway this tactic is *not* equivalent to
   .. rocqtop:: all
 
      Lemma test y z : y * 0 + y * (z * 0) = 0.
-     rewrite (_ : _ * 0 = 0).
+     rw (_ : _ * 0 = 0).
 
   while the other tactic results in
 
   .. rocqtop:: all restart abort
 
-     rewrite (_ : forall x, x * 0 = 0).
+     rw (_ : forall x, x * 0 = 0).
 
   The first tactic requires you to prove the instance of the (missing)
   lemma that was used, while the latter requires you prove the quantified
@@ -3552,7 +3504,7 @@ cases.
 
     .. rocqtop:: reset none
 
-       From Corelib Require Import ssreflect.
+       From Corelib Require Import ssreflect_rw.
        Set Implicit Arguments.
        Unset Strict Implicit.
        Unset Printing Implicit Defensive.
@@ -3567,7 +3519,7 @@ cases.
 
        Lemma test : f 3 + f 3 = f 6.
        (* we call the standard rewrite tactic here *)
-       rewrite -> H.
+       rewrite H.
 
     This rewriting is not possible in |SSR|, because
     there is no occurrence of the head symbol ``f`` of the rewrite rule in the
@@ -3575,23 +3527,23 @@ cases.
 
     .. rocqtop:: all restart fail
 
-       rewrite H.
+       rw H.
 
     Rewriting with ``H`` first requires unfolding the occurrences of
     ``f``
     where the substitution is to be performed (here there is a single such
-    occurrence), using tactic ``rewrite /f`` (for a global replacement of
-    ``f`` by ``g``) or ``rewrite pattern/f``, for a finer selection.
+    occurrence), using tactic ``rw /f`` (for a global replacement of
+    ``f`` by ``g``) or ``rw pattern/f``, for a finer selection.
 
     .. rocqtop:: all restart
 
-       rewrite /f H.
+       rw /f H.
 
     Alternatively, one can override the pattern inferred from ``H``
 
     .. rocqtop:: all restart
 
-       rewrite [f _]H.
+       rw [f _]H.
 
 
 Existential metavariables and rewriting
@@ -3610,13 +3562,14 @@ corresponding new goals will be generated.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrfun ssrbool.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
      Set Warnings "-notation-overridden".
 
   .. rocqtop:: all abort
+
+     From Corelib Require Import ssreflect ssrfun ssrbool.
 
      Axiom leq : nat -> nat -> bool.
      Notation "m <= n" := (leq m n) : nat_scope.
@@ -3630,11 +3583,11 @@ corresponding new goals will be generated.
      Axiom insubT : forall n x Px, insub n x = Some (Sub x Px).
 
      Lemma test (x : 'I_2) y : Some x = insub 2 y.
-     rewrite insubT.
+     rw insubT.
 
   Since the argument corresponding to ``Px`` is not supplied by the user, the
   resulting goal should be ``Some x = Some (Sub y ?Goal).``
-  Instead, |SSR| ``rewrite`` tactic hides the existential variable.
+  Instead, |SSR| ``rw`` tactic hides the existential variable.
 
   As in :ref:`apply_ssr`, the ``ssrautoprop`` tactic is used to try to
   solve the existential variable.
@@ -3642,7 +3595,7 @@ corresponding new goals will be generated.
   .. rocqtop:: all abort
 
      Lemma test (x : 'I_2) y (H : y < 2) : Some x = insub 2 y.
-     rewrite insubT.
+     rw insubT.
 
 
 As a temporary limitation, this behavior is available only if the
@@ -3667,7 +3620,7 @@ complete terms, as shown by the simple example below.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -3690,7 +3643,7 @@ complete terms, as shown by the simple example below.
 
    .. rocqtop:: all fail
 
-      rewrite eq_map.
+      rw eq_map.
 
    as we need to explicitly provide the non-inferable argument ``F2``,
    which corresponds here to the term we want to obtain *after* the
@@ -3699,8 +3652,8 @@ complete terms, as shown by the simple example below.
 
    .. rocqtop:: all abort
 
-      rewrite (@eq_map _ (fun _ : nat => 0)).
-        by move=> m; rewrite subnn.
+      rw (@eq_map _ (fun _ : nat => 0)).
+        by move=> m; rw subnn.
 
    The :tacn:`under` tactic lets one perform the same operation in a more
    convenient way:
@@ -3708,7 +3661,7 @@ complete terms, as shown by the simple example below.
    .. rocqtop:: all abort
 
       Lemma example_map l : sumlist (map (fun m => m - m) l) = 0.
-      under eq_map => m do rewrite subnn.
+      under eq_map => m do rw subnn.
 
 
 The under tactic
@@ -3746,7 +3699,7 @@ Let us redo the running example in interactive mode.
 
       Lemma example_map l : sumlist (map (fun m => m - m) l) = 0.
       under eq_map => m.
-        rewrite subnn.
+        rw subnn.
         over.
 
 The execution of the Ltac expression:
@@ -3755,8 +3708,8 @@ The execution of the Ltac expression:
 
 involves the following steps.
 
-1. It performs a :n:`rewrite @term`
-   without failing like in the first example with ``rewrite eq_map.``,
+1. It performs a :n:`rw @term`
+   without failing like in the first example with ``rw eq_map.``,
    but creating evars (see :tacn:`evar`). If :n:`term` is prefixed by
    a pattern or an occurrence selector, then the modifiers are honoured.
 
@@ -3774,7 +3727,8 @@ involves the following steps.
    registered relations (w.r.t. Class ``RewriteRelation``) between a
    term and an evar, e.g., ``m - m = ?F2 m`` in the running example.
    (This support for setoid-like relations is enabled as soon as one does
-   both ``Require Import ssreflect.`` and ``Require Setoid.``)
+   both ``From Corelib Require Import ssreflect_rw.``
+   and ``From Corelib Require Setoid.``)
 
 5. If so :tacn:`under` protects these n goals against an
    accidental instantiation of the evar.
@@ -3858,7 +3812,7 @@ Notes:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect.
+      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -3922,7 +3876,7 @@ Notes:
         \sum_(0 <= i < m | prime i) \sum_(0 <= j < n | odd j) (j + i).
       under eq_bigr => i prime_i do
         under eq_big => [ j | j odd_j ] do
-          [ rewrite (muln1 j) | rewrite (addnC i j) ].
+          [ rw (muln1 j) | rw (addnC i j) ].
 
    Remark how the final goal uses the name ``i`` (the name given in the
    intro pattern) rather than ``a`` in the binder of the first summation.
@@ -3965,21 +3919,22 @@ selective rewriting, blocking on the fly the reduction in the term ``t``.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrfun ssrbool.
-     From Corelib Require Import ListDef.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssreflect ssrfun ssrbool.
+     From Corelib Require Import ListDef.
+     Section Test.
 
      Variable A : Type.
      Fixpoint has (p : A -> bool) (l : list A) : bool :=
        if l is cons x l then p x || (has p l) else false.
 
      Lemma test p x y l (H : p x = true) : has p ( x :: y :: l) = true.
-     rewrite {2}[cons]lock /= -lock.
+     rw {2}[cons]lock /= -lock.
 
 It is sometimes desirable to globally prevent a definition from being
 expanded by simplification; this is done by adding ``locked`` in the
@@ -3989,7 +3944,7 @@ definition.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4000,7 +3955,7 @@ definition.
       Definition lid := locked (fun x : nat => x).
 
       Lemma test : lid 3 = 3.
-      rewrite /=.
+      rw /=.
       unlock lid.
 
 .. tacn:: unlock {? @occ_switch } @ident
@@ -4060,7 +4015,7 @@ arithmetic operations. We define for instance:
 The operation ``addn`` behaves exactly like ``plus``, except that
 ``(addn (S n) m)`` will not simplify spontaneously to
 ``(S (addn n m))`` (the two terms, however, are convertible).
-In addition, the unfolding step ``rewrite /addn``
+In addition, the unfolding step ``rw /addn``
 will replace ``addn`` directly with ``plus``, so the ``nosimpl`` form is
 essentially invisible.
 
@@ -4102,11 +4057,10 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
-         Section Test.
 
       .. rocqtop:: all
 
@@ -4129,13 +4083,13 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
-         Section Test.
 
       .. rocqtop:: all
+
+         From Corelib Require Import ssreflect.
 
          Definition f n :=
            if n is 0 then plus else mult.
@@ -4152,18 +4106,17 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
-         Section Test.
 
       .. rocqtop:: all
 
          Lemma test n m (Hnm : m <= n) : S m + (S n - S m) = S n.
-         congr S; rewrite -/plus.
+         congr S; rw -/plus.
 
-      The tactic ``rewrite -/plus`` folds back the expansion of ``plus``,
+      The tactic ``rw -/plus`` folds back the expansion of ``plus``,
       which was necessary for matching both sides of the equality with
       an application of ``S``.
 
@@ -4173,11 +4126,10 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect.
+         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
-         Section Test.
 
       .. rocqtop:: all
 
@@ -4240,7 +4192,7 @@ in the second column.
 
 The rewrite tactic supports two more patterns obtained prefixing the
 first two with ``in``. The intended meaning is that the pattern identifies
-all subterms of the specified context. The ``rewrite`` tactic will infer a
+all subterms of the specified context. The ``rw`` tactic will infer a
 pattern for the redex looking at the rule used for rewriting.
 
 .. list-table::
@@ -4274,11 +4226,11 @@ consider the goal ``a = b`` and the tactic
 
 .. rocqdoc::
 
-   rewrite [in X in _ = X]rule.
+   rw [in X in _ = X]rule.
 
 It rewrites all occurrences of the left hand side of ``rule``
 inside ``b``  only (``a``, and the hidden type of the equality, are ignored). Note that the
-variant ``rewrite [X in _ = X]rule`` would have rewritten ``b``
+variant ``rw [X in _ = X]rule`` would have rewritten ``b``
 exactly (i.e., it would only work if ``b`` and the left-hand side
 of rule can be unified).
 
@@ -4353,17 +4305,16 @@ parentheses are required around more complex patterns.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
 
      Lemma test a b : a + b + 1 = b + (a + 1).
      set t := (X in _ = X).
-     rewrite {}/t.
+     rw {}/t.
      set t := (a + _ in X in _ = X).
 
 
@@ -4392,11 +4343,10 @@ Contextual patterns in rewrite
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
 
@@ -4408,7 +4358,7 @@ Contextual patterns in rewrite
      Axiom addnC : forall m n, m + n = n + m.
 
      Lemma test x y z f : (x.+1 + y) + f (x.+1 + y) (z + (x + y).+1) = 0.
-     rewrite [in f _ _]addSn.
+     rw [in f _ _]addSn.
 
   Note: the simplification rule ``addSn`` is applied only under the ``f``
   symbol.
@@ -4416,7 +4366,7 @@ Contextual patterns in rewrite
 
   .. rocqtop:: all
 
-     rewrite addSn -[X in _ = X]addn0.
+     rw addSn -[X in _ = X]addn0.
 
   Note that the right-hand side of ``addn0`` is undetermined, but the
   rewrite pattern specifies the redex explicitly. The right-hand side
@@ -4429,13 +4379,13 @@ Contextual patterns in rewrite
 
   .. rocqtop:: all
 
-     rewrite -{2}[in X in _ = X](addn0 0).
+     rw -{2}[in X in _ = X](addn0 0).
 
   The following tactic is quite tricky:
 
   .. rocqtop:: all
 
-     rewrite [_.+1 in X in f _ X](addnC x.+1).
+     rw [_.+1 in X in f _ X](addnC x.+1).
 
   The explicit redex ``_.+1`` is important, since its :term:`head constant` ``S``
   differs from the head constant inferred from
@@ -4455,7 +4405,7 @@ Contextual patterns in rewrite
 
   .. rocqtop:: all
 
-     rewrite [x.+1 + y as X in f X _]addnC.
+     rw [x.+1 + y as X in f X _]addnC.
 
 
 Patterns for recurrent contexts
@@ -4482,7 +4432,7 @@ Shortcuts defined this way can be freely used in place of the trailing
 .. rocqdoc::
 
    set rhs := RHS.
-   rewrite [in RHS]rule.
+   rw [in RHS]rule.
    case: (a + _ in RHS).
 
 
@@ -4556,13 +4506,14 @@ generation (see Section :ref:`generation_of_equations_ssr`).
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ListDef.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssreflect ListDef.
+     Section Test.
 
      Variable d : Type.
      Fixpoint add_last (s : list d) (z : d) {struct s} : list d :=
@@ -4631,7 +4582,7 @@ Here is an example of a regular, but nontrivial, eliminator.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4645,9 +4596,9 @@ Here is an example of a regular, but nontrivial, eliminator.
                                      end -> P _x m) -> forall n : nat, P n (plus m n).
      Admitted.
 
-     Section Test.
-
   .. rocqtop:: all
+
+     From Corelib Require Import ssreflect.
 
      Fixpoint plus (m n : nat) {struct n} : nat :=
        if n is S p then S (plus m p) else m.
@@ -4669,10 +4620,10 @@ Here is an example of a regular, but nontrivial, eliminator.
   .. rocqtop:: reset none
 
      From Corelib Require Import ssreflect.
+
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
      Fixpoint plus (m n : nat) {struct n} : nat :=
        if n is S p then S (plus m p) else m.
@@ -4700,6 +4651,7 @@ Here is an example of a regular, but nontrivial, eliminator.
   .. rocqtop:: reset none
 
      From Corelib Require Import ssreflect.
+
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4735,11 +4687,10 @@ Here is an example of a truncated eliminator:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqdoc::
 
@@ -4799,7 +4750,7 @@ disjunction.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4820,7 +4771,7 @@ disjunction.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4855,7 +4806,7 @@ equation-name generation mechanism (see Section :ref:`generation_of_equations_ss
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4888,7 +4839,7 @@ relevant for the current goal.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4932,11 +4883,10 @@ assumption to some given arguments.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
 
@@ -4961,13 +4911,15 @@ bookkeeping steps.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
+     Section Test.
 
      Variables P Q: bool -> Prop.
      Hypothesis PQequiv : forall a b, P (a || b) <-> Q a.
@@ -5017,7 +4969,7 @@ analysis:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5034,13 +4986,14 @@ analysis
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
 
      Lemma test b : b || ~~ b = true.
      by case: b.
@@ -5124,7 +5077,7 @@ Let us compare the respective behaviors of ``andE`` and ``andP``.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw ssrbool.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5165,13 +5118,14 @@ The view mechanism is compatible with reflect predicates.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all abort
+
+     From Corelib Require Import ssrbool.
 
      Lemma test (a b : bool) (Ha : a) (Hb : b) : a /\ b.
      apply/andP.
@@ -5283,13 +5237,14 @@ but they also allow complex transformation, involving negations.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
 
      Check introN.
 
@@ -5316,16 +5271,17 @@ actually uses its propositional interpretation.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
 
+     From Corelib Require Import ssrbool.
+
      Lemma test (a b : bool) (pab : b && a) : b.
-     have /andP [pa ->] : (a && b) by rewrite andbC.
+     have /andP [pa ->] : (a && b) by rw andbC.
 
 Interpreting goals
 ``````````````````
@@ -5379,13 +5335,14 @@ In this context, the identity view can be used when no view has to be applied:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
 
      Lemma test (b1 b2 b3 : bool) : ~~ (b1 || b2) = b3.
      apply/idP/idP.
@@ -5395,13 +5352,14 @@ In this context, the identity view can be used when no view has to be applied:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
 
      Lemma test (b1 b2 b3 : bool) : ~~ (b1 || b2) = b3.
      apply/norP/idP.
@@ -5471,14 +5429,16 @@ pass a given hypothesis to a lemma.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect ssrbool.
+     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
-     Section Test.
-     Variables P Q R : Prop.
 
   .. rocqtop:: all
+
+     From Corelib Require Import ssrbool.
+     Section Test.
+     Variables P Q R : Prop.
 
      Variable P2Q : P -> Q.
      Variable Q2R : Q -> R.
@@ -5504,8 +5464,8 @@ The following intro pattern ltac views are provided:
 
 One can call rewrite from an intro pattern, use with parsimony:
 
-+ ``/[1! rules]`` shortcut for ``rewrite rules``
-+ ``/[! rules]`` shortcut for ``rewrite !rules``
++ ``/[1! rules]`` shortcut for ``rw rules``
++ ``/[! rules]`` shortcut for ``rw !rules``
 
 
 Synopsis and Index
@@ -5641,7 +5601,7 @@ respectively.
 
    case analysis (see :ref:`the_defective_tactics_ssr`)
 
-.. tacv:: rewrite {+ @r_step }
+.. tacv:: rw {+ @r_step }
 
    rewrite (see :ref:`rewriting_ssr`)
 
@@ -5774,3 +5734,54 @@ Commands
   Proof`` command of Rocq proof mode.
 .. [#10] A simple proof context entry is a naked identifier (i.e., not between
   parentheses) designating a context entry that is not a section variable.
+
+.. _compatibility_issues_ssr:
+
+
+Compatibility issues
+~~~~~~~~~~~~~~~~~~~~
+
+Requiring the module `ssreflect_rw` from `Corelib`
+creates an environment that is mostly
+compatible with the rest of Rocq, up to a few discrepancies.
+
++ New tactic(al)s names (:tacn:`last`, :tacn:`done`, :tacn:`have`, :tacn:`suffices`,
+  :tacn:`suff`, :tacn:`without loss`, :tacn:`wlog`, :tacn:`congr`, :tacn:`unlock`)
+  might clash with user tactic names.
++ New symbols (``//``, ``/=``, ``//=``) might clash with adjacent
+  existing symbols.
+  This can be avoided by inserting white spaces.
++ Some user notations (in particular, defining an infix ``;``) might
+  interfere with the "open term", parenthesis-free syntax of tactics
+  such as :tacn:`have`, :tacn:`set (ssreflect)` and :tacn:`pose (ssreflect)`.
+
+In addition, requiring the backward compatibility module `ssreflect` from `Corelib`
+creates an environment that is mostly
+compatible with the rest of Rocq, up to a few discrepancies.
+
++ New keywords (``is``) might clash with variable, constant, tactic or
+  tactical names, or with quasi-keywords in tactic or
+  notation commands.
++ The extensions to the :tacn:`rewrite` tactic are partly incompatible with those
+  available in current versions of Rocq; in particular, ``rewrite .. in
+  (type of k)`` or ``rewrite .. in *`` or any other variant of :tacn:`rewrite`
+  will not work, and the |SSR| syntax and semantics for occurrence selection
+  and rule chaining are different. Use an explicit rewrite direction
+  (``rewrite <- …`` or ``rewrite -> …``) to access the Rocq rewrite tactic.
++ The generalization of ``if`` statements to non-Boolean conditions is turned off
+  by |SSR|, because it is mostly subsumed by Coercion to ``bool`` of the
+  ``sumXXX`` types (declared in ``ssrfun.v``) and the
+  :n:`if @term is @pattern then @term else @term` construct
+  (see :ref:`pattern_conditional_ssr`).  To use the
+  generalized form, turn off the |SSR| Boolean ``if`` notation using the command:
+  ``Close Scope boolean_if_scope``.
++ The following flag can be unset to make |SSR| more compatible with
+  parts of Rocq.
+
+.. flag:: SsrRewrite
+
+   Controls whether the incompatible rewrite syntax is enabled (the default).
+   Disabling the :term:`flag` makes the syntax compatible with other parts of Rocq.
+   Note that this ``rewrite`` syntax, now superseded by ``rw``, is
+   only activated when explicitly requiring the backward compatibility
+   module ``From Corelib Require Import ssreflect.``.

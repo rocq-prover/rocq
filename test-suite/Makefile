@@ -500,7 +500,7 @@ $(addsuffix .log,$(wildcard output-coqchk/*.v)): %.v.log: %.v %.out $(PREREQUISI
 	  output=$*.out.real; \
 	  export LC_CTYPE=C; \
 	  export LANG=C; \
-	  $(call WITH_TIMER,$(patsubst %.v.log,%.chk.log,$@),$(coqchk) -o -silent $(call get_coqchk_prog_args,"$<") -Q $(shell dirname $<) "" -norec $(shell basename $< .v) > $$output 2>&1) ; \
+	  $(call WITH_TIMER,$(patsubst %.v.log,%.chk.log,$@),$(coqchk) -o -silent $(call get_coqchk_prog_args,"$<") -Q $(shell dirname $<) "" $(shell basename $< .v) > $$output 2>&1) ; \
 	  diff -a -u --strip-trailing-cr $*.out $$output 2>&1; R=$$?; times; \
 	  if [ $$R = 0 ]; then \
 	    echo $(log_success); \
