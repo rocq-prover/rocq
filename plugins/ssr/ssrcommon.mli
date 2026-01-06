@@ -149,6 +149,9 @@ val mkSsrConst : Environ.env -> Evd.evar_map -> string -> Evd.evar_map * EConstr
 
 val is_discharged_id : Id.t -> bool
 val mk_discharged_id : Id.t -> Id.t
+(* [is_dll s n] test if character at pos [n] of [s] is UTF8 double low line '‗'.
+   Assumes [n] < [String.length n - 3]. *)
+val is_dll : string -> int -> bool
 val is_tagged : string -> string -> bool
 val has_discharged_tag : string -> bool
 val ssrqid : string -> Libnames.qualid
