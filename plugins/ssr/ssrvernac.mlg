@@ -353,5 +353,3 @@ GRAMMAR EXTEND Gram
     [ IDENT "type"; "of"; c = Constr.constr -> { Tacexpr.ConstrTypeOf c }]
   ];
 END
-
-(* vim: set filetype=ocaml foldmethod=marker: *)

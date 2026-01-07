@@ -1752,5 +1752,3 @@ module Internal = struct
 end
 
 }
-
-(* vim: set filetype=ocaml foldmethod=marker: *)
