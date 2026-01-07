@@ -379,7 +379,8 @@ let get_template_binding_arity sigma c =
       end
     | QSort (q,u) ->
       begin match Univ.Universe.level u with
-      | Some l -> Some (decls, Some q, l)
+      | Some l ->
+        if Univ.Level.is_set l then None else Some (decls, Some q, l)
       | None -> None
       end
     | _ -> None
