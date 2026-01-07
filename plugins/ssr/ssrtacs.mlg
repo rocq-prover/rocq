@@ -1050,5 +1050,3 @@ TACTIC EXTEND under
     Ssrfwd.undertac ~pad_intro:true ist (Some [IPatAnon All]) arg h
     }
 END
-
-(* vim: set filetype=ocaml foldmethod=marker: *)
