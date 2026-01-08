@@ -181,5 +181,14 @@ module List =
       | Some y -> y :: aux f l
     in
     try Some (aux f l) with Exit -> None
-
+      
+  let fold_left f init lst =
+    let rec aux acc = function
+      | [] -> Some acc
+      | x :: xs ->
+        match f acc x with
+        | None -> None
+        | Some acc' -> aux acc' xs
+    in
+    aux init lst
 end

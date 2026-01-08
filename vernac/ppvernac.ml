@@ -436,21 +436,13 @@ let pr_onescheme (idop, {sch_type; sch_qualid; sch_sort}) =
   let str_identifier = match idop with
     | Some id -> pr_lident id ++ str " :="
     | None -> str "" in
-  let str_scheme = match sch_type with
-    | SchemeInduction ->  keyword "Induction for"
-    | SchemeMinimality ->  keyword "Minimality for"
-    | SchemeElimination ->  keyword "Elimination for"
-    | SchemeCase -> keyword "Case for" in
-  hov 0 str_identifier ++ spc () ++ hov 0 (str_scheme ++ spc() ++ pr_smart_global sch_qualid)
-    ++ spc () ++ hov 0 (keyword "Sort" ++ spc() ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr sch_sort)
-
-let pr_equality_scheme_type sch id =
-  let str_scheme = match sch with
-  | SchemeBooleanEquality -> keyword "Boolean Equality"
-  | SchemeEquality -> keyword "Equality"
-  | SchemeRewriting -> keyword "Rewriting"
+  let str_scheme = keyword (String.concat "_" sch_type) ++ keyword "for" in
+  let sort = match sch_sort with
+    | Some sch -> UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr sch
+    | None -> keyword "None"
   in
-  hov 0 (str_scheme ++ str " for" ++ spc() ++ pr_smart_global id)
+  hov 0 str_identifier ++ spc () ++ hov 0 (str_scheme ++ spc() ++ pr_smart_global sch_qualid)
+    ++ spc () ++ hov 0 sort
 
 let begin_of_inductive = function
   | [] -> 0
@@ -984,9 +976,9 @@ let pr_synpure_vernac_expr v =
       hov 2 (keyword "Scheme" ++ spc() ++
              prlist_with_sep (fun _ -> fnl() ++ keyword "with" ++ spc ()) pr_onescheme l)
     )
-  | VernacSchemeEquality (sch,id) ->
+  | VernacSchemeRewriting id ->
     return (
-      hov 2 (keyword "Scheme " ++ pr_equality_scheme_type sch id)
+      hov 2 (keyword "Scheme " ++ hov 0 (keyword "Rewriting" ++ str " for" ++ spc() ++ pr_smart_global id))
     )
   | VernacCombinedScheme (id, l) ->
     return (
@@ -1271,11 +1263,11 @@ let pr_synpure_vernac_expr v =
         (keyword "Register" ++ spc() ++ pr_qualid qid ++ spc () ++ str "as"
          ++ spc () ++ pr_qualid name)
     )
-  | VernacRegister (qid, RegisterScheme {inductive; scheme_kind}) ->
+  | VernacRegister (qid, RegisterScheme { inductive; scheme_kind = (scheme_name,qual,is_mutual) }) ->
     return (
       hov 2
         (keyword "Register" ++ spc() ++ keyword "Scheme" ++ spc() ++ pr_qualid qid ++ spc () ++ str "as"
-         ++ spc () ++ pr_qualid scheme_kind ++ spc() ++ str "for" ++ spc() ++ pr_qualid inductive)
+         ++ spc () ++ Pp.prlist Pp.str scheme_name ++ spc() ++ str "for" ++ spc() ++ pr_qualid inductive)
     )
   | VernacRegister (qid, RegisterInline) ->
     return (
