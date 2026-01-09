@@ -2240,6 +2240,8 @@ rewstrategy1: [
 | "terms" LIST0 one_term
 | "eval" red_expr
 | "fold" one_term
+| "matches" one_term
+| "tactic" ltac_expr
 | rewstrategy0
 | "old_hints" ident
 ]

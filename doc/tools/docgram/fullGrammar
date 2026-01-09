@@ -2408,6 +2408,8 @@ rewstrategy1: [
 | "terms" LIST0 constr
 | "eval" red_expr
 | "fold" constr
+| "matches" constr
+| "tactic" tactic
 | rewstrategy0
 ]
 

@@ -68,17 +68,21 @@ END
 
 let subst_strategy sub = map_strategy
     (Tacsubst.subst_glob_constr_and_expr sub)
+    (fun (x, y, z) -> (x, Tacsubst.subst_glob_constr_and_expr sub y, z))
     (Tacsubst.subst_glob_red_expr sub)
     (fun x -> x)
+    (Tacsubst.subst_tactic sub)
 
 let pr_strategy _ _ _ (s : strategy) = Pp.str "<strategy>"
-let pr_raw_strategy env sigma prc prlc _ (s : Tacexpr.raw_strategy) =
+let pr_raw_strategy env sigma prc prlc prt (s : Tacexpr.raw_strategy) =
   let prr = Pptactic.pr_red_expr env sigma (prc, prlc, Pputils.pr_or_by_notation Libnames.pr_qualid, prc,Pputils.pr_or_var Pp.int, Redexpr.pr_raw_user_red_expr) in
-  Rewrite.pr_strategy (prc env sigma) prr Pputils.pr_lident s
-let pr_glob_strategy env sigma prc prlc _ (s : Tacexpr.glob_strategy) =
+  Rewrite.pr_strategy (prc env sigma) (prc env sigma) prr Pputils.pr_lident (prt env sigma Constrexpr.LevelSome) s
+let pr_glob_strategy env sigma prc prlc prt (s : Tacexpr.glob_strategy) =
   let prcst = Pputils.pr_or_var Pptactic.(pr_and_short_name (pr_evaluable_reference_env env)) in
   let prr = Pptactic.pr_red_expr env sigma (prc, prlc, prcst, prc, Pputils.pr_or_var Pp.int, Redexpr.pr_glob_user_red_expr) in
-  Rewrite.pr_strategy (prc env sigma) prr Id.print s
+  let prpat (_, c, _) = prc env sigma c in
+  let prt = prt env sigma Constrexpr.LevelSome in
+  Rewrite.pr_strategy (prc env sigma) prpat prr Id.print prt s
 
 }
 
@@ -124,6 +128,8 @@ GRAMMAR EXTEND Gram
       | IDENT "terms"; h = LIST0 constr -> { StratTerms h }
       | IDENT "eval"; r = red_expr -> { StratEval r }
       | IDENT "fold"; c = constr -> { StratFold c }
+      | IDENT "matches"; c = constr -> { StratMatches c }
+      | IDENT "tactic"; c = tactic -> { StratTactic c }
       | h = rewstrategy0 -> { h } ] ]
   ;
   rewstrategy0:

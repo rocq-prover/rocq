@@ -227,6 +227,22 @@ let to_inversion_kind v = match Value.to_int v with
 
 let inversion_kind = make_to_repr to_inversion_kind
 
+let to_rewrite_success v : Rewrite.rewrite_result_info = match Value.to_tuple v with
+| [| rel; rhs; prf |] ->
+   { rew_rel = Value.to_constr rel;
+     rew_to = Value.to_constr rhs;
+     rew_prf = Value.to_constr prf }
+| _ -> assert false
+
+let to_rewrite_result v : Rewrite.rewrite_result = match v with
+| ValBlk (0, [| s |]) ->  Success (to_rewrite_success s)
+| ValInt 0 -> Identity
+| ValInt 1 -> Fail
+| _ -> assert false
+
+let rewrite_result = make_to_repr to_rewrite_result
+
+
 let to_move_location = function
 | ValInt 0 -> Logic.MoveFirst
 | ValInt 1 -> Logic.MoveLast
@@ -541,6 +557,15 @@ let () =
     (reduction @-> ret rewstrategy)
     Rewrite.Strategies.reduce
 
+let () =
+  define "rewstrat_matches"
+    (pattern @-> ret rewstrategy)
+    Rewrite.Strategies.matches
+
+let () =
+  define "rewstrat_tactic"
+    (fun3 constr constr (option constr) rewrite_result @-> ret rewstrategy)
+    Tac2tactics.wrap_tactic_call
 
 let () =
   define "tac_inversion"
