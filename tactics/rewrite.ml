@@ -653,7 +653,7 @@ type rewrite_proof =
   | RewCast of cast_kind
   (** A proof of convertibility (with casts) *)
 
-type rewrite_result_info = {
+type internal_rewrite_result_info = {
   rew_car : constr ;
   (** A type *)
   rew_from : constr ;
@@ -665,10 +665,38 @@ type rewrite_result_info = {
   rew_evars : evars;
 }
 
+type rewrite_result_info =
+  { rew_rel: constr; rew_to : constr; rew_prf : constr }
+
 type rewrite_result =
 | Fail
 | Identity
 | Success of rewrite_result_info
+
+type internal_rewrite_result =
+| Fail
+| Identity
+| Success of internal_rewrite_result_info
+
+let apply_subst sigma vars x =
+  let rec substrec n c = match kind sigma c with
+    | Var x ->
+       begin match vars x with
+       | var -> EConstr.Vars.lift n var
+       | exception Not_found -> c
+       end
+    | _ -> EConstr.map_with_binders sigma succ substrec n c
+  in
+  substrec 0 x
+
+let subst_rewrite_result sigma subst (r : rewrite_result) =
+  match r with
+  | Fail | Identity -> r
+  | Success {rew_rel; rew_to; rew_prf} ->
+     let rew_rel = apply_subst sigma subst rew_rel in
+     let rew_to = apply_subst sigma subst rew_to in
+     let rew_prf = apply_subst sigma subst rew_prf in
+     Success {rew_rel; rew_to; rew_prf}
 
 type 'a strategy_input = { state : 'a ; (* a parameter: for instance, a state *)
                            env : Environ.env ;
@@ -680,7 +708,7 @@ type 'a strategy_input = { state : 'a ; (* a parameter: for instance, a state *)
 
 type 'a pure_strategy = { strategy :
   'a strategy_input ->
-  'a * rewrite_result (* the updated state and the "result" *) }
+  'a * internal_rewrite_result (* the updated state and the "result" *) }
 
 type strategy = unit pure_strategy
 
@@ -756,7 +784,7 @@ let make_eq env sigma =
 let make_eq_refl env sigma =
   new_global env sigma Rocqlib.(lib_ref "core.eq.refl")
 
-let get_rew_prf env evars r = match r.rew_prf with
+let get_rew_prf env evars (r : internal_rewrite_result_info) = match r.rew_prf with
   | RewPrf (rel, prf) -> evars, (rel, prf)
   | RewCast c ->
     let evars, eq = make_eq env evars in
@@ -1018,7 +1046,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                   if Array.exists
                     (function
                       | None -> false
-                      | Some r -> not (is_rew_cast r.rew_prf)) args'
+                      | Some (r : internal_rewrite_result_info) -> not (is_rew_cast r.rew_prf)) args'
                   then
                     let evars', prf, car, rel, c2 =
                       resolve_morphism env m args args' (prop, cstr') evars'
@@ -1031,7 +1059,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                     let args' = Array.map2
                       (fun aorig anew ->
                         match anew with None -> aorig
-                        | Some r -> r.rew_to) args args'
+                        | Some (r : internal_rewrite_result_info) -> r.rew_to) args args'
                     in
                     let res = { rew_car = ty; rew_from = t;
                                 rew_to = mkApp (m, args'); rew_prf = RewCast DEFAULTcast;
@@ -1258,8 +1286,8 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
 (** Requires transitivity of the rewrite step, if not a reduction.
     Not tail-recursive. *)
 
-let transitivity state env unfresh cstr (res : rewrite_result_info) (next : 'a pure_strategy) :
-    'a * rewrite_result =
+let transitivity state env unfresh cstr (res : internal_rewrite_result_info) (next : 'a pure_strategy) :
+    'a * internal_rewrite_result =
   let cstr = match cstr with
     | _, Some _ -> cstr
     | prop, None -> prop, get_opt_rew_rel res.rew_prf
@@ -1417,6 +1445,77 @@ module Strategies =
           choice tac (apply_lemma l2r rewrite_unif_flags c by AllOccurrences)
         ) fail cs
 
+    let matches p : unit pure_strategy =
+      let strategy ({ env = env ; term1 = t ; ty1 = ty ; cstr = cstr ; evars = evars } as state) =
+        if Constr_matching.is_matching env (goalevars evars) p t then
+          state.state, Identity
+        else state.state, Fail
+      in
+      { strategy }
+
+    (* Produces the type [existsT (R : relation carrier), R lhs ?rhs] *)
+    let make_tactic_goal env evars prop cstr carrier lhs =
+      let open EConstr in
+      let evars, rhs = new_cstr_evar evars env carrier in
+      let evars, rev =
+        match cstr with
+        | Some rel -> evars, rel
+        | None ->
+           let mkr = if prop then PropGlobal.mk_relation else TypeGlobal.mk_relation in
+           let evars, rty = mkr env evars carrier in
+           new_cstr_evar evars env rty
+      in
+      evars, rev, rhs, applistc rev [lhs; rhs]
+
+    let extract_proof env sigma rel prf =
+      let open EConstr in
+      let hd, args = decompose_app sigma prf in
+      if is_lib_ref env sigma "core.eq.refl" hd then RewCast DEFAULTcast
+      else RewPrf (rel, prf)
+
+    let ltac1_tactic_call (tac : unit Proofview.tactic) : 'a pure_strategy =
+      let strategy ({ env = env ; term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars = evars } as state) =
+        let evars, rev, rhsev, goalty = make_tactic_goal env evars prop cstr ty t in
+        let entry, pv = Proofview.init (goalevars evars) [env, goalty] in
+        let res =
+          try Some (Proofview.apply ~name:(Id.of_string "rewrite")
+                      ~poly:PolyFlags.default env tac pv)
+          with Logic_monad.TacticFailure _ -> None in
+        match res with
+        | None -> state.state, Fail
+        | Some (res, pv, _, _, _) ->
+           let sigma = Proofview.return pv in
+           let prf =
+             match Proofview.partial_proof entry pv with
+             | [c] -> extract_proof env sigma rev c
+             | _ -> assert false
+           in
+           let rinfo = { rew_car = ty; rew_from = t; rew_to = rhsev;
+                         rew_prf = prf; rew_evars = (sigma, cstrevars evars) } in
+           state.state, Success rinfo
+      in
+      { strategy }
+
+    let tactic_call (tac : env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> rewrite_result Proofview.tactic) : 'a pure_strategy =
+      let strategy ({ env = env ; term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars = evars } as state) =
+        let sigma = goalevars evars in
+        let entry, pv = Proofview.init sigma [] in
+        let secenv = reset_with_named_context (Global.named_context_val ()) env in
+        let (res, pv, _, _, _) =
+          Proofview.apply ~name:(Id.of_string "rewrite")
+                ~poly:PolyFlags.default secenv (tac ~env:env ~carrier:ty ~lhs:t ~rel:cstr) pv in
+        match res with
+        | Identity -> state.state, Identity
+        | Fail -> state.state, Fail
+        | Success { rew_to; rew_prf; rew_rel } ->
+           let sigma = Proofview.return pv in
+           let rew_prf = extract_proof env sigma rew_rel rew_prf in
+           let rinfo = { rew_car = ty; rew_from = t; rew_to; rew_prf;
+                         rew_evars = (sigma, cstrevars evars) } in
+           state.state, Success rinfo
+      in
+      { strategy }
+
     let inj_open hint = (); fun _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
       let subst, ctx = UnivGen.fresh_sort_context_instance ctx in
@@ -1458,7 +1557,7 @@ module Strategies =
                                rew_evars = sigma, cstrevars evars }
                                                            }
 
-    let run_fold_in env evars c term typ : rewrite_result =
+    let run_fold_in env evars c term typ : internal_rewrite_result =
       let unfolded = match Tacred.red_product env (goalevars evars) c with
         | None -> user_err Pp.(str "fold: the term is not unfoldable!")
         | Some c -> c
@@ -1704,32 +1803,36 @@ type binary_strategy =
 
 type nary_strategy = Choice
 
-type ('constr,'redexpr,'id) strategy_ast =
+type ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast =
   | StratId | StratFail | StratRefl
-  | StratUnary of unary_strategy * ('constr,'redexpr,'id) strategy_ast
+  | StratUnary of unary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
   | StratBinary of
-      binary_strategy * ('constr,'redexpr,'id) strategy_ast * ('constr,'redexpr,'id) strategy_ast
-  | StratNAry of nary_strategy * ('constr,'redexpr,'id) strategy_ast list
+      binary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
+  | StratNAry of nary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast list
   | StratConstr of 'constr * bool
   | StratTerms of 'constr list
   | StratHints of bool * string
   | StratEval of 'redexpr
   | StratFold of 'constr
   | StratVar of 'id
-  | StratFix of 'id * ('constr,'redexpr,'id) strategy_ast
+  | StratFix of 'id * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
+  | StratMatches of 'constr_pattern
+  | StratTactic of 'tactic
 
-let rec map_strategy f g h = function
+let rec map_strategy f g h i j = function
   | StratId | StratFail | StratRefl as s -> s
-  | StratUnary (s, str) -> StratUnary (s, map_strategy f g h str)
-  | StratBinary (s, str, str') -> StratBinary (s, map_strategy f g h str, map_strategy f g h str')
-  | StratNAry (s, strs) -> StratNAry (s, List.map (map_strategy f g h) strs)
+  | StratUnary (s, str) -> StratUnary (s, map_strategy f g h i j str)
+  | StratBinary (s, str, str') -> StratBinary (s, map_strategy f g h i j str, map_strategy f g h i j str')
+  | StratNAry (s, strs) -> StratNAry (s, List.map (map_strategy f g h i j) strs)
   | StratConstr (c, b) -> StratConstr (f c, b)
   | StratTerms l -> StratTerms (List.map f l)
   | StratHints (b, id) -> StratHints (b, id)
-  | StratEval r -> StratEval (g r)
+  | StratEval r -> StratEval (h r)
   | StratFold c -> StratFold (f c)
-  | StratVar id -> StratVar (h id)
-  | StratFix (id, s) -> StratFix (h id, map_strategy f g h s)
+  | StratVar id -> StratVar (i id)
+  | StratFix (id, s) -> StratFix (i id, map_strategy f g h i j s)
+  | StratMatches c -> StratMatches (g c)
+  | StratTactic t -> StratTactic (j t)
 
 let pr_ustrategy = function
 | Subterms -> str "subterms"
@@ -1745,17 +1848,17 @@ let pr_ustrategy = function
 
 let paren p = str "(" ++ p ++ str ")"
 
-let rec pr_strategy0 prc prr prid = function
+let rec pr_strategy0 prc prcp prr prid prtac = function
 | StratId -> str "id"
 | StratFail -> str "fail"
 | StratRefl -> str "refl"
-| str -> paren (pr_strategy prc prr prid str)
+| str -> paren (pr_strategy prc prcp prr prid prtac str)
 
-and pr_strategy1 prc prr prid = function
+and pr_strategy1 prc prcp prr prid prtac = function
 | StratUnary (s, str) ->
-  pr_ustrategy s ++ spc () ++ pr_strategy1 prc prr prid str
+  pr_ustrategy s ++ spc () ++ pr_strategy1 prc prcp prr prid prtac str
 | StratNAry (Choice, strs) ->
-  str "choice" ++ brk (1,2) ++ prlist_with_sep spc (fun str -> hov 0 (pr_strategy0 prc prr prid str)) strs
+  str "choice" ++ brk (1,2) ++ prlist_with_sep spc (fun str -> hov 0 (pr_strategy0 prc prcp prr prid prtac str)) strs
 | StratConstr (c, true) -> prc c
 | StratConstr (c, false) -> str "<-" ++ spc () ++ prc c
 | StratVar id -> prid id
@@ -1765,23 +1868,26 @@ and pr_strategy1 prc prr prid = function
   str cmd ++ spc () ++ str id
 | StratEval r -> str "eval" ++ spc () ++ prr r
 | StratFold c -> str "fold" ++ spc () ++ prc c
-| str -> pr_strategy0 prc prr prid str
+| StratMatches p -> str "pattern" ++ spc () ++ prcp p
+| StratTactic t -> str"tactic" ++ spc () ++ prtac t
+| str -> pr_strategy0 prc prcp prr prid prtac str
 
-and pr_strategy2 prc prr prid = function
+and pr_strategy2 prc prcp prr prid prtac = function
 | StratBinary (Compose, str1, str2) ->
-  pr_strategy2 prc prr prid str1 ++ str ";" ++ spc () ++ hov 0 (pr_strategy1 prc prr prid str2)
-| str -> hov 0 (pr_strategy1 prc prr prid str)
+  pr_strategy2 prc prcp prr prid prtac str1 ++ str ";" ++ spc () ++ hov 0 (pr_strategy1 prc prcp prr prid prtac str2)
+| str -> hov 0 (pr_strategy1 prc prcp prr prid prtac str)
 
-and pr_strategy prc prr prid = function
-| StratFix (id,s) -> str "fix" ++ spc() ++ prid id ++ spc() ++ str ":=" ++ spc() ++ hov 0 (pr_strategy1 prc prr prid s)
-| str -> pr_strategy2 prc prr prid str
+and pr_strategy prc prcp prr prid prtac = function
+| StratFix (id,s) -> str "fix" ++ spc() ++ prid id ++ spc() ++ str ":=" ++ spc() ++ hov 0 (pr_strategy1 prc prcp prr prid prtac s)
+| str -> pr_strategy2 prc prcp prr prid prtac str
 
-let rec strategy_of_ast bindings = function
+let strategy_of_ast bindings strat =
+  let rec aux bindings = function
   | StratId -> Strategies.id
   | StratFail -> Strategies.fail
   | StratRefl -> Strategies.refl
   | StratUnary (f, s) ->
-    let s' = strategy_of_ast bindings s in
+    let s' = aux bindings s in
     let f' = match f with
       | Subterms -> Strategies.all_subterms
       | Subterm -> Strategies.one_subterm
@@ -1795,13 +1901,13 @@ let rec strategy_of_ast bindings = function
       | Repeat -> Strategies.repeat
     in f' s'
   | StratBinary (f, s, t) ->
-    let s' = strategy_of_ast bindings s in
-    let t' = strategy_of_ast bindings t in
+    let s' = aux bindings s in
+    let t' = aux bindings t in
     let f' = match f with
       | Compose -> Strategies.seq
     in f' s' t'
   | StratNAry (Choice, strs) ->
-    let strs = List.map (strategy_of_ast bindings) strs in
+    let strs = List.map (aux bindings) strs in
     begin match strs with
       | [] -> assert false
       | s::strs -> List.fold_left Strategies.choice s strs
@@ -1815,10 +1921,12 @@ let rec strategy_of_ast bindings = function
      (Strategies.reduce r_interp).strategy { input with
                                              evars = (sigma,cstrevars evars) }) }
   | StratFold c -> Strategies.fold_glob (fst c)
-
   | StratVar id -> Id.Map.get id bindings
+  | StratFix (id, s) -> Strategies.fix (fun self -> aux (Id.Map.add id self bindings) s)
+  | StratMatches p -> Strategies.matches p
+  | StratTactic t -> Strategies.ltac1_tactic_call t
+  in aux bindings strat
 
-  | StratFix (id, s) -> Strategies.fix (fun self -> strategy_of_ast (Id.Map.add id self bindings) s)
 
 let strategy_of_ast s = strategy_of_ast Id.Map.empty s
 

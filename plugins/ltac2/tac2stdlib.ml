@@ -227,6 +227,22 @@ let to_inversion_kind v = match Value.to_int v with
 
 let inversion_kind = make_to_repr to_inversion_kind
 
+let to_rewrite_success v : Rewrite.rewrite_result_info = match Value.to_tuple v with
+| [| rel; rhs; prf |] ->
+   { rew_rel = Value.to_constr rel;
+     rew_to = Value.to_constr rhs;
+     rew_prf = Value.to_constr prf }
+| _ -> assert false
+
+let to_rewrite_result v : Rewrite.rewrite_result = match v with
+| ValBlk (0, [| s |]) ->  Success (to_rewrite_success s)
+| ValInt 0 -> Identity
+| ValInt 1 -> Fail
+| _ -> assert false
+
+let rewrite_result = make_to_repr to_rewrite_result
+
+
 let to_move_location = function
 | ValInt 0 -> Logic.MoveFirst
 | ValInt 1 -> Logic.MoveLast
@@ -541,6 +557,42 @@ let () =
     (reduction @-> ret rewstrategy)
     Rewrite.Strategies.reduce
 
+let () =
+  define "rewstrat_matches"
+    (pattern @-> ret rewstrategy)
+    Rewrite.Strategies.matches
+
+let wrap_tactic_call f =
+  let open Evarutil in
+  let open Proofview in
+  let open Proofview.Notations in
+  let wrapf ~env ~carrier ~lhs ~rel =
+    Proofview.tclBIND Proofview.tclEVARMAP @@ fun sigma ->
+      let ectx = ext_named_context_of_env ~hypnaming:Evarutil.VarSet.empty env sigma in
+      let subst = ext_csubst ectx in
+      let carriern = Evarutil.csubst_subst sigma subst carrier in
+      let lhsn = Evarutil.csubst_subst sigma subst lhs in
+      let reln = Option.map (Evarutil.csubst_subst sigma subst) rel in
+      let sigma, unit = Evd.fresh_global env sigma (Rocqlib.lib_ref "core.unit.type") in
+      let sigma, unitval = Evd.fresh_global env sigma (Rocqlib.lib_ref "core.unit.tt") in
+      let sigma, goalev = Evd.new_pure_evar ~relevance:EConstr.ERelevance.relevant (ext_named_context_val ectx) sigma unit in
+      Unsafe.tclEVARS sigma <*>
+      Unsafe.tclNEWGOALS [with_empty_state goalev] <*>
+        f carriern lhsn reln >>= fun res ->
+      tclEVARMAP >>= fun sigma ->
+      if Evd.is_defined sigma goalev then
+        Tacticals.tclZEROMSG Pp.(str"The tactic called by a strategy should not solve the goal, it is provided as read-only information")
+      else
+        let rev_subst = ext_rev_subst ectx in
+        let res = Rewrite.subst_rewrite_result sigma rev_subst res in
+
+        Unsafe.tclEVARS (Evd.define goalev unitval sigma) <*> tclUNIT res
+  in Rewrite.Strategies.tactic_call wrapf
+
+let () =
+  define "rewstrat_tactic"
+    (fun3 constr constr (option constr) rewrite_result @-> ret rewstrategy)
+    wrap_tactic_call
 
 let () =
   define "tac_inversion"
