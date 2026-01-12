@@ -254,18 +254,18 @@ let compute_implicits_names env sigma t =
   let open Context.Rel.Declaration in
   let rec aux env names t = match whd_prod env sigma t with
   | Some (na, a, b) ->
-    let rels,ids = Termops.free_rels_and_unqualified_refs sigma a in
-    aux (push_rel (LocalAssum (na,a)) env) ((na.Context.binder_name,rels,ids)::names) b
+    let rels = Termops.free_rels sigma a in
+    aux (push_rel (LocalAssum (na,a)) env) ((na.Context.binder_name,rels)::names) b
   | None ->
-    let rels,ids = Termops.free_rels_and_unqualified_refs sigma t in
-    let rec set_names (allrels,ids) = function
+    let rels = Termops.free_rels sigma t in
+    let rec set_names allrels = function
     | [] -> (1,1,[])
-    | (na,rels',ids')::names ->
-      let (absolute_pos,nnondep,names) = set_names (rels'::allrels,Id.Set.union ids ids') names in
+    | (na,rels')::names ->
+      let (absolute_pos,nnondep,names) = set_names (rels'::allrels) names in
       let isdep = List.exists_i (fun i rels -> Int.Set.mem i rels) 1 allrels in
       let nnondep',dep_pos = if isdep then nnondep, None else nnondep + 1, Some nnondep in
       (absolute_pos+1,nnondep',(na,absolute_pos,dep_pos)::names) in
-    let _,_,names = set_names ([rels],ids) names in
+    let _,_,names = set_names [rels] names in
     List.rev names
   in
   NewProfile.profile "compute_implicits_names" (fun () -> aux env [] t) ()
