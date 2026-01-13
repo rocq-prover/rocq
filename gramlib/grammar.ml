@@ -1580,6 +1580,7 @@ module Parsable = struct
       let e = match e with
         | [], [] -> ""
         | toks, pats ->
+          if List.length pats > 3 then "" else
           let open Pp in
           let pp = str ":" ++ spc() ++ str "after " ++ prlist_with_sep spc (fun x -> str @@ L.tok_text x) toks ++ pr_comma() ++
                    str "expected " ++ pr_choice (fun (TPattern x) -> str @@ L.tok_pattern_text x) pats
