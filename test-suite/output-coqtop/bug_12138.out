@@ -2,53 +2,11 @@
 Rocq < Rocq < Rocq < Toplevel input, characters 0-1:
 > {
 > ^
-Error:
-Syntax error: illegal begin of toplevel:vernac_toplevel: after , expected 'Drop', 'Quit', 'BackTo', end of input, 'Symbol',
-'Symbols', 'Fixpoint', 'CoFixpoint', 'Let', 'Scheme', 'Combined', 'Register',
-'Primitive', 'Universe', 'Universes', 'Sort', 'Sorts', 'Constraint',
-'Rewrite', 'Theorem', 'Lemma', 'Fact', 'Remark', 'Corollary', 'Proposition',
-'Property', 'Hypothesis', 'Variable', 'Axiom', 'Parameter', 'Conjecture',
-'Hypotheses', 'Variables', 'Axioms', 'Parameters', 'Conjectures',
-'Definition', 'Example', 'SubClass', 'Variant', 'Record', 'Structure',
-'Class', 'Inductive', 'CoInductive', 'Transparent', 'Opaque', 'Strategy',
-'Canonical', 'Identity', 'Coercion', 'Context', 'Instance', 'Existing',
-'Arguments', 'Implicit', 'Generalizable', 'Module', 'Section', 'End',
-'Collection', 'Require', 'From', 'Import', 'Export', 'Include', 'String',
-'Number', 'infoH', 'Optimize', 'Unshelve', 'Derive', 'Typeclasses', 'Ltac',
-'Tactic', 'Preterm', 'Obligations', 'Admit', 'Solve', 'Final', 'Next',
-'Obligation', 'Goal', 'Proof', 'Abort', 'Admitted', 'Qed', 'Save', 'Defined',
-'Restart', 'Undo', 'Focus', 'Unfocus', 'Unfocused', 'Show', 'Guarded',
-'Validate', 'Create', 'Hint', 'Reset', 'Back', 'Debug', 'Comments',
-'Attributes', 'Pwd', 'Cd', 'Load', 'Declare', 'Locate', 'Type', 'Inspect',
-'Set', 'Unset', 'Print', 'Add', 'Test', 'Remove', 'Open', 'Close', 'Delimit',
-'Undelimit', 'Bind', 'Infix', 'Notation', 'Reserved', 'Enable', 'Disable',
-'Eval', 'Compute', 'Check', 'About', 'SearchPattern', 'SearchRewrite' or
-'Search'.
+Error: Syntax error: illegal begin of toplevel:vernac_toplevel.
 
 Rocq < Rocq < Rocq < Toplevel input, characters 58-59:
 > }
 > ^
-Error:
-Syntax error: illegal begin of toplevel:vernac_toplevel: after , expected 'Drop', 'Quit', 'BackTo', end of input, 'Symbol',
-'Symbols', 'Fixpoint', 'CoFixpoint', 'Let', 'Scheme', 'Combined', 'Register',
-'Primitive', 'Universe', 'Universes', 'Sort', 'Sorts', 'Constraint',
-'Rewrite', 'Theorem', 'Lemma', 'Fact', 'Remark', 'Corollary', 'Proposition',
-'Property', 'Hypothesis', 'Variable', 'Axiom', 'Parameter', 'Conjecture',
-'Hypotheses', 'Variables', 'Axioms', 'Parameters', 'Conjectures',
-'Definition', 'Example', 'SubClass', 'Variant', 'Record', 'Structure',
-'Class', 'Inductive', 'CoInductive', 'Transparent', 'Opaque', 'Strategy',
-'Canonical', 'Identity', 'Coercion', 'Context', 'Instance', 'Existing',
-'Arguments', 'Implicit', 'Generalizable', 'Module', 'Section', 'End',
-'Collection', 'Require', 'From', 'Import', 'Export', 'Include', 'String',
-'Number', 'infoH', 'Optimize', 'Unshelve', 'Derive', 'Typeclasses', 'Ltac',
-'Tactic', 'Preterm', 'Obligations', 'Admit', 'Solve', 'Final', 'Next',
-'Obligation', 'Goal', 'Proof', 'Abort', 'Admitted', 'Qed', 'Save', 'Defined',
-'Restart', 'Undo', 'Focus', 'Unfocus', 'Unfocused', 'Show', 'Guarded',
-'Validate', 'Create', 'Hint', 'Reset', 'Back', 'Debug', 'Comments',
-'Attributes', 'Pwd', 'Cd', 'Load', 'Declare', 'Locate', 'Type', 'Inspect',
-'Set', 'Unset', 'Print', 'Add', 'Test', 'Remove', 'Open', 'Close', 'Delimit',
-'Undelimit', 'Bind', 'Infix', 'Notation', 'Reserved', 'Enable', 'Disable',
-'Eval', 'Compute', 'Check', 'About', 'SearchPattern', 'SearchRewrite' or
-'Search'.
+Error: Syntax error: illegal begin of toplevel:vernac_toplevel.
 
 
