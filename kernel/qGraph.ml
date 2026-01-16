@@ -168,6 +168,8 @@ let update_dominance_if_valid g (q1,k,q2) =
      else
        match q1, q2 with
        | (Quality.QConstant _ | Quality.QVar _), Quality.QConstant _ -> assert false
+       | Quality.QVar qv1, Quality.QVar qv2 when QVar.equal qv1 qv2 -> assert false
+        (* It makes no sense to update or delay the dominance of a sort variable when it eliminates to itself *)
        | Quality.QVar qv1, Quality.QVar qv2 ->
           (* 3 cases:
              - if [qv1] is a global, treat as constants.
@@ -226,8 +228,10 @@ let enforce_constraint (q1, k, q2) g =
   | None ->
      let e = lazy (G.get_explanation (q1,to_graph_cstr k,q2) g.graph) in
      raise @@ EliminationError (QualityInconsistency (None, (k, q1, q2, Some (Path e))))
-  | Some g ->
-    dominance_check g (q1, k, q2)
+  | Some graph ->
+    let g = { g with graph } in
+    if Quality.equal q1 q2 then g
+    else dominance_check g (q1, k, q2)
 
 let merge_constraints csts g = ElimConstraints.fold enforce_constraint csts g
 
@@ -292,7 +296,8 @@ let merge g g' =
              (fun q acc -> try add_quality q acc with _ -> acc) qs g in
   Quality.Set.fold
     (fun q -> Quality.Set.fold
-             (fun q' acc -> if eliminates_to g' q q'
+             (fun q' acc -> if Quality.equal q q' then acc
+                         else if eliminates_to g' q q'
                          then enforce_eliminates_to q q' acc
                          else acc) qs) qs g
 
