@@ -82,10 +82,10 @@ term200: [
 ]
 
 term100: [
-| term100 "<:" term200
-| term100 "<<:" term200
-| term100 ":>" term200
-| term100 ":" term200
+| term99 "<:" term200
+| term99 "<<:" term200
+| term99 ":>" term200
+| term99 ":" term200
 | term99
 ]
 
@@ -268,7 +268,7 @@ pattern200: [
 ]
 
 pattern100: [
-| pattern100 ":" term200
+| pattern99 ":" term200
 | pattern99
 ]
 
@@ -1305,8 +1305,8 @@ ssexpr35: [
 ]
 
 ssexpr50: [
-| ssexpr50 "-" ssexpr0
-| ssexpr50 "+" ssexpr0
+| ssexpr0 "-" ssexpr0
+| ssexpr0 "+" ssexpr0
 | ssexpr0
 ]
 
@@ -2204,9 +2204,9 @@ ltac_expr3: [
 ]
 
 ltac_expr2: [
-| ltac_expr2 "+" ltac_expr2
+| ltac_expr1l "+" ltac_expr2
 | "tryif" ltac_expr5 "then" ltac_expr5 "else" ltac_expr2
-| ltac_expr2 "||" ltac_expr2
+| ltac_expr1l "||" ltac_expr2
 | ltac_expr1l
 ]
 
@@ -2702,7 +2702,7 @@ tac2pat3: [
 ]
 
 tac2pat2: [
-| tac2pat2 "::" tac2pat2      (* ltac2 plugin *)
+| tac2pat1 "::" tac2pat2      (* ltac2 plugin *)
 | tac2pat1      (* ltac2 plugin *)
 ]
 
@@ -2731,7 +2731,7 @@ atomic_tac2pat: [
 ]
 
 ltac2_expr6: [
-| ltac2_expr6 ";" ltac2_expr6      (* ltac2 plugin *)
+| ltac2_expr5 ";" ltac2_expr6      (* ltac2 plugin *)
 | ltac2_expr5      (* ltac2 plugin *)
 ]
 
@@ -2748,12 +2748,12 @@ ltac2_expr4: [
 ]
 
 ltac2_expr3: [
-| ltac2_expr3 "," LIST1 ltac2_expr2 SEP ","      (* ltac2 plugin *)
+| ltac2_expr2 "," LIST1 ltac2_expr2 SEP ","      (* ltac2 plugin *)
 | ltac2_expr2      (* ltac2 plugin *)
 ]
 
 ltac2_expr2: [
-| ltac2_expr2 "::" ltac2_expr2      (* ltac2 plugin *)
+| ltac2_expr1 "::" ltac2_expr2      (* ltac2 plugin *)
 | ltac2_expr1      (* ltac2 plugin *)
 ]
 
@@ -2844,12 +2844,12 @@ let_binder: [
 ]
 
 ltac2_type5: [
-| ltac2_type5 "->" ltac2_type5      (* ltac2 plugin *)
+| ltac2_type2 "->" ltac2_type5      (* ltac2 plugin *)
 | ltac2_type2      (* ltac2 plugin *)
 ]
 
 ltac2_type2: [
-| ltac2_type2 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
+| ltac2_type1 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
 | ltac2_type1      (* ltac2 plugin *)
 ]
 

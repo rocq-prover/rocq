@@ -99,8 +99,8 @@ in turn have higher precedence than `;`, which is part of :token:`ltac_expr4`.
    | @ltac_expr3
    ltac_expr3 ::= @l3_tactic
    | @ltac_expr2
-   ltac_expr2 ::= @ltac_expr2 + @ltac_expr2
-   | @ltac_expr2 %|| @ltac_expr2
+   ltac_expr2 ::= @ltac_expr1 + @ltac_expr2
+   | @ltac_expr1 %|| @ltac_expr2
    | @l2_tactic
    | @ltac_expr1
    ltac_expr1 ::= @tactic_value
