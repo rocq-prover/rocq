@@ -400,6 +400,20 @@ The :term:`flag`, :term:`option` and :term:`table`
 mechanisms are used to modify the behavior of Rocq more globally in a
 document or project.
 
+.. _good_defaults:
+
+The default value of some settings is not the one that would be recommended
+today for compatibility reasons. We provide a *good default* file in the Corelib
+which can be imported as follows:
+
+.. rocqtop:: in
+
+   From Corelib Require Import GoodDefaults_2025.
+
+This file is versioned to account for the changes in recommendations as the Rocq
+practice evolves. The 2025 edition will remain available without change after
+future versions are released.
+
 .. _attributes:
 
 Attributes
