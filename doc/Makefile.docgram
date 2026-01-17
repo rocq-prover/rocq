@@ -38,7 +38,7 @@ REAL_DOC_MLGS := $(wildcard */*.mlg plugins/*/*.mlg)
 # omit SSR MLGS and chapter for now
 SSR_MLGS := \
 	plugins/ssr/ssrparser.mlg plugins/ssr/ssrtacs.mlg plugins/ssr/ssrvernac.mlg \
-  plugins/ssrmatching/g_ssrmatching.mlg
+  plugins/ssrmatching/g_ssrmatching.mlg plugins/ssrrewrite/ssrrewrite.mlg
 REAL_DOC_MLGS := $(filter-out $(SSR_MLGS),$(REAL_DOC_MLGS))
 SSR_RSTS := doc/sphinx/proof-engine/ssreflect-proof-language.rst
 DOC_RSTS := $(filter-out $(SSR_RSTS),$(DOC_RSTS))

@@ -7,16 +7,16 @@ ci_dir="$(dirname "$0")"
 
 git_download iris_examples
 
-# Extract required version of Iris (avoiding "+" which does not work on MacOS :( *)
-iris_CI_REF=$(grep -F '"rocq-iris-heap-lang"' < "${CI_BUILD_DIR}/iris_examples/coq-iris-examples.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
-[ -n "$iris_CI_REF" ] || { echo "Could not find Iris dependency version" && exit 1; }
+# # Extract required version of Iris (avoiding "+" which does not work on MacOS :( *)
+# iris_CI_REF=$(grep -F '"rocq-iris-heap-lang"' < "${CI_BUILD_DIR}/iris_examples/coq-iris-examples.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
+# [ -n "$iris_CI_REF" ] || { echo "Could not find Iris dependency version" && exit 1; }
 
 # Download Iris
 git_download iris
 
-# Extract required version of std++
-stdpp_CI_REF=$(grep -F '"rocq-stdpp"' < "${CI_BUILD_DIR}/iris/rocq-iris.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
-[ -n "$stdpp_CI_REF" ] || { echo "Could not find stdpp dependency version" && exit 1; }
+# # Extract required version of std++
+# stdpp_CI_REF=$(grep -F '"rocq-stdpp"' < "${CI_BUILD_DIR}/iris/rocq-iris.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
+# [ -n "$stdpp_CI_REF" ] || { echo "Could not find stdpp dependency version" && exit 1; }
 
 # Download std++
 git_download stdpp

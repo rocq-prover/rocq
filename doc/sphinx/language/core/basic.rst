@@ -193,7 +193,7 @@ Keywords
 
   The following are keywords defined in notations or plugins loaded in the :term:`prelude`::
 
-    by exists exists2 using
+    by exists exists2 is isn't of using
 
   Note that loading additional modules or plugins may expand the set of reserved
   keywords.
@@ -212,7 +212,8 @@ Other tokens
   The following character sequences are tokens defined in notations or plugins
   loaded in the :term:`prelude`::
 
-    && ** ++ ... .1 .2 ::= <-> <> >=  /\ \/ || ^ ~
+    && (* ** *) ++ ... .1 .2 // //= /=
+    ::= <-> <> <hidden =^~ >= /\ \/ || ^ ~
 
   Note that loading additional modules or plugins may expand the set of defined
   tokens.

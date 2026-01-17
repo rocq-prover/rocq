@@ -26,6 +26,9 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/Init/Peano.v
     theories/Corelib/Init/Specif.v
     theories/Corelib/Init/Sumbool.v
+    theories/Corelib/Init/ssrmatching.v
+    theories/Corelib/Init/ssrclasses.v
+    theories/Corelib/Init/ssreflect_rw.v
     theories/Corelib/Init/Tactics.v
     theories/Corelib/Init/Tauto.v
     theories/Corelib/Init/Wf.v
@@ -111,8 +114,6 @@ through the <tt>Require Import</tt> command.</p>
     small scale reflection formalization technique
   </dt>
   <dd>
-    theories/Corelib/ssrmatching/ssrmatching.v
-    theories/Corelib/ssr/ssrclasses.v
     theories/Corelib/ssr/ssreflect.v
     theories/Corelib/ssr/ssrbool.v
     theories/Corelib/ssr/ssrfun.v

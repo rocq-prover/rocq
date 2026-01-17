@@ -13,8 +13,8 @@ destruct 1.
 exact _'f.
 Abort.
 
-Inductive ____ :=.
-Lemma bob : (sigT (fun x : nat => ____)) -> ____.
+Inductive ____foo :=.
+Lemma bob : (sigT (fun x : nat => ____foo)) -> ____foo.
 destruct 1.
-exact x0.
+exact ____f.
 Abort.

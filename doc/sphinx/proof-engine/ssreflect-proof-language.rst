@@ -111,45 +111,15 @@ this corresponds to working in the following context:
 Compatibility issues
 ~~~~~~~~~~~~~~~~~~~~
 
-Requiring the above modules creates an environment that is mostly
+Requiring `ssreflect` from `Corelib` creates an environment that is mostly
 compatible with the rest of Rocq, up to a few discrepancies.
 
-
-+ New keywords (``is``) might clash with variable, constant, tactic or
-  tactical names, or with quasi-keywords in tactic or
-  notation commands.
-+ New tactic(al)s names (:tacn:`last`, :tacn:`done`, :tacn:`have`, :tacn:`suffices`,
-  :tacn:`suff`, :tacn:`without loss`, :tacn:`wlog`, :tacn:`congr`, :tacn:`unlock`)
-  might clash with user tactic names.
-+ Identifiers with both leading and trailing ``_``, such as ``_x_``, are
-  reserved by |SSR| and cannot appear in scripts.
 + The extensions to the :tacn:`rewrite` tactic are partly incompatible with those
   available in current versions of Rocq; in particular, ``rewrite .. in
   (type of k)`` or ``rewrite .. in *`` or any other variant of :tacn:`rewrite`
   will not work, and the |SSR| syntax and semantics for occurrence selection
   and rule chaining are different. Use an explicit rewrite direction
   (``rewrite <- …`` or ``rewrite -> …``) to access the Rocq rewrite tactic.
-+ New symbols (``//``, ``/=``, ``//=``) might clash with adjacent
-  existing symbols.
-  This can be avoided by inserting white spaces.
-+ New constant and theorem names might clash with the user theory.
-  This can be avoided by not importing all of |SSR|:
-
-  .. rocqtop:: in
-
-     From Corelib Require ssreflect.
-     Import ssreflect.SsrSyntax.
-
-  Note that the full
-  syntax of |SSR|’s rewrite and reserved identifiers are enabled
-  only if the ssreflect module has been required and if ``SsrSyntax`` has
-  been imported. Thus a file that requires (without importing) ``ssreflect``
-  and imports ``SsrSyntax`` can be required and imported without
-  automatically enabling |SSR|’s extended rewrite syntax and
-  reserved identifiers.
-+ Some user notations (in particular, defining an infix ``;``) might
-  interfere with the "open term", parenthesis-free syntax of tactics
-  such as :tacn:`have`, :tacn:`set (ssreflect)` and :tacn:`pose (ssreflect)`.
 + The generalization of ``if`` statements to non-Boolean conditions is turned off
   by |SSR|, because it is mostly subsumed by Coercion to ``bool`` of the
   ``sumXXX`` types (declared in ``ssrfun.v``) and the

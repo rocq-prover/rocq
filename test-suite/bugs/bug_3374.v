@@ -24,7 +24,7 @@ Axiom dirprodtosetquot : forall { X Y : UU } ( RX : hrel X ) ( RY : hrel Y ) (cd
 Definition iscomprelfun2 { X Y : UU } ( R : hrel X ) ( f : X -> X -> Y )
   := forall x x' x0 x0' : X , R x x' ->  R x0 x0' ->  paths ( f x x0 ) ( f x' x0' ) .
 Axiom setquotuniv : forall  { X : UU } ( R : hrel X ) ( Y : hSet ) ( f : X -> Y ) ( c : setquot R ), Y .
-Definition setquotuniv2  { X : UU } ( R : hrel X ) ( Y : hSet ) ( f : X -> X -> Y ) ( is : iscomprelfun2 R f ) ( c c0 : setquot R )
+Definition setquotuniv2  { X : UU } ( R : hrel X ) ( Y : hSet ) ( f : X -> X -> Y ) ( isf : iscomprelfun2 R f ) ( c c0 : setquot R )
 : Y .
 Proof.
   intros .

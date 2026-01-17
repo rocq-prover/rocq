@@ -122,10 +122,10 @@ project corn "https://github.com/coq-community/corn" "master"
 # Iris is not enough. Ping @RalfJung and @robbertkrebbers if you need the
 # versions of stdpp or Iris to be bumped. Perennial also has its own pinned
 # versions of stdpp and Iris; ping @tchajed and @zeldovich to get that bumped.
-project stdpp "https://gitlab.mpi-sws.org/iris/stdpp" ""
+project stdpp "https://gitlab.mpi-sws.org/iris/stdpp" "master"
 # Contact @RalfJung, @robbertkrebbers on github
 
-project iris "https://gitlab.mpi-sws.org/iris/iris" ""
+project iris "https://gitlab.mpi-sws.org/iris/iris" "master"
 # Contact @RalfJung, @robbertkrebbers on github
 
 project autosubst "https://github.com/coq-community/autosubst" "master"
