@@ -465,7 +465,25 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           in
           let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
           let () = Control.check_for_interrupt () in
-          if Conv_oracle.oracle_order oracle l2r (to_er fl1) (to_er fl2) then
+          (* Determine which constant to unfold first *)
+          let unfold_left =
+            let order = Conv_oracle.oracle_compare oracle (to_er fl1) (to_er fl2) in
+            match order with
+            | Conv_oracle.Left -> true
+            | Conv_oracle.Right -> false
+            | Conv_oracle.Same ->
+              (* When oracle doesn't prefer either, optionally use dependency heuristic *)
+              let env = CClosure.info_env infos.cnv_inf in
+              if (Environ.typing_flags env).unfold_dep_heuristic then
+                match fl1, fl2 with
+                | ConstKey (cst1, _), ConstKey (cst2, _) ->
+                  if Cset_env.mem cst2 (Environ.constant_dependencies env cst1) then true
+                  else if Cset_env.mem cst1 (Environ.constant_dependencies env cst2) then false
+                  else l2r
+                | _ -> l2r
+              else l2r
+          in
+          if unfold_left then
             let appr1 = whd_stack ninfos infos.lft_tab t1 v1 in
             eqwhnf cv_pb l2r infos (lft1, appr1) appr2 cuniv
           else

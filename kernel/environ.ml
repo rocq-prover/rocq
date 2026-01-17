@@ -48,6 +48,8 @@ type link_info =
 
 type constant_key = constant_body * (link_info ref * key) * KerName.t
 
+type dep_cache = Cset_env.t option ref
+
 type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = {
@@ -82,6 +84,7 @@ type env = {
   irr_inds : Sorts.relevance Indmap_env.t;
   constant_hyps : Id.Set.t Cmap_env.t;
   inductive_hyps : Id.Set.t Mindmap_env.t;
+  constant_deps : dep_cache Cmap_env.t;
 }
 
 type rewrule_not_allowed = Symb | Rule
@@ -117,6 +120,7 @@ let empty_env = {
   vm_library = Vmlibrary.empty;
   retroknowledge = Retroknowledge.empty;
   rewrite_rules_allowed = false;
+  constant_deps = Cmap_env.empty;
 }
 
 
@@ -546,6 +550,7 @@ let same_flags {
      conv_oracle;
      indices_matter;
      share_reduction;
+     unfold_dep_heuristic;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -558,6 +563,7 @@ let same_flags {
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
+  unfold_dep_heuristic == alt.unfold_dep_heuristic &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&
@@ -608,6 +614,8 @@ let no_link_info = NotLinked
 let add_constant_key kn cb linkinfo env =
   let new_constants =
     Cmap_env.add kn (cb,(ref linkinfo, ref None), Constant.canonical kn) env.env_constants in
+  let constant_deps =
+    Cmap_env.add kn (ref None) env.constant_deps in
   let irr_constants = if cb.const_relevance != Sorts.Relevant
     then Cmap_env.add kn cb.const_relevance env.irr_constants
     else env.irr_constants
@@ -620,7 +628,7 @@ let add_constant_key kn cb linkinfo env =
       Cmap_env.add kn [] env.symb_pats
     | _ -> env.symb_pats
   in
-  { env with constant_hyps; irr_constants; symb_pats; env_constants = new_constants }
+  { env with constant_hyps; irr_constants; symb_pats; env_constants = new_constants; constant_deps }
 
 let add_constant kn cb env =
   add_constant_key kn cb no_link_info env
@@ -817,6 +825,26 @@ let lookup_constructor_variables (ind,_) env =
 let constant_context env c =
   let cb = lookup_constant c env in
   Declareops.constant_polymorphic_context cb
+
+let rec constant_dependencies env kn =
+  match Cmap_env.find_opt kn env.env_constants, Cmap_env.find_opt kn env.constant_deps with
+  | None, _ | _, None -> Cset_env.empty
+  | Some (body, _, _), Some cache ->
+    match !cache with
+    | Some deps -> deps
+    | None ->
+      let deps = match body.const_body with
+      | Def c ->
+        let rec compute_dependencies accu c = match kind c with
+        | Const (kn, _) ->
+          Cset_env.fold Cset_env.add (constant_dependencies env kn) (Cset_env.add kn accu)
+        | _ -> Constr.fold compute_dependencies accu c
+        in
+        compute_dependencies Cset_env.empty c
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> Cset_env.empty
+      in
+      cache := Some deps;
+      deps
 
 let universes_of_global env r =
   let open GlobRef in

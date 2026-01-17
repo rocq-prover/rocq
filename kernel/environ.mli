@@ -211,6 +211,10 @@ val constant_value_and_type : env -> Constant.t puniverses ->
     polymorphic *)
 val constant_context : env -> Constant.t -> AbstractContext.t
 
+(** Returns the set of constants that appear in the body of the given constant.
+    Returns empty set for axioms, opaque definitions, and primitives. *)
+val constant_dependencies : env -> Constant.t -> Cset_env.t
+
 (* These functions should be called under the invariant that [env]
    already contains the constraints corresponding to the constant
    application. *)
