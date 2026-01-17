@@ -313,6 +313,31 @@ let is_polymorphic_inductive_cumulativity =
   in
   read
 
+let sort_key = "collapse_sort_variables"
+
+let should_collapse_sort_variables_option_name = ["Collapse"; "Sorts"; "ToType"]
+let should_collapse_sort_variables =
+  let b = ref true in
+  let write d =
+    if not d && not (is_universe_polymorphism()) then
+      CErrors.user_err Pp.(str "Sort metavariables must be collapsed to Type in universe monomorphic constructions")
+    else b := d
+  in
+  let () = let open Goptions in
+    declare_bool_option
+      { optstage = Summary.Stage.Interp;
+        optdepr  = None;
+        optkey   = should_collapse_sort_variables_option_name;
+        optread  = (fun () -> !b);
+        optwrite = write }
+  in
+  fun () -> !b
+
+let collapse_sort_variables =
+  qualify_attribute sort_key (bool_attribute ~name:"collapse_sort_variables") >>= function
+  | Some b -> return b
+  | None -> return (should_collapse_sort_variables())
+
 let cumulative kind =
   match kind with
   | PolyFlags.Inductive ->
@@ -331,7 +356,8 @@ let poly kind atts =
     let atts, cumulative =
       cumulative kind atts
     in
-    atts, PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables:true
+    let atts, collapse_sort_variables = collapse_sort_variables atts in
+    atts, PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables
   else atts, PolyFlags.default
 
 let poly_def = poly PolyFlags.Definition

@@ -58,6 +58,7 @@ SProp
 Set
 Theorem
 Type
+Univ
 Variable
 [
 \/

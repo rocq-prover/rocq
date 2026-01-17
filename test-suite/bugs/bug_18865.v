@@ -1,11 +1,11 @@
 #[universes(polymorphic)]
-Inductive sig@{s s' s''|u v| } {A:Type@{s|u}} (P:A -> Type@{s'|v}) : Type@{s''|max(u,v)} :=
+Inductive sig@{s s' s''|u v| } {A:Univ@{s;u}} (P:A -> Univ@{s';v}) : Univ@{s'';max(u,v)} :=
     exist : forall x:A, P x -> sig P.
 
 Notation "{ x : A & P }" := (sig (A:=A) (fun x => P)) (at level 0, x at level 99) : type_scope.
 
 #[universes(polymorphic)]
-Definition proj1_sig@{s s'|u v| } {A:Type@{s|u}} {P:A -> Type@{s'|v}} (e:sig@{_ _ s|_ _} P) :=
+Definition proj1_sig@{s s'|u v| } {A:Univ@{s;u}} {P:A -> Univ@{s';v}} (e:sig@{_ _ s|_ _} P) :=
   match e with
   | exist _ a b => a
   end.

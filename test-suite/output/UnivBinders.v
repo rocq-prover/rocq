@@ -256,11 +256,11 @@ Module SortPoly.
 
   Definition idu@{u} (A:Type@{u}) (a:A) := a.
 
-  Definition id@{s|u|} (A:Type@{s|u}) (a:A) := a.
+  Definition id@{s|u|} (A:Univ@{s;u}) (a:A) := a.
 
-  Definition id2@{s;u} (A:Type@{s;u}) (a:A) := a.
+  Definition id2@{s;u} (A:Univ@{s;u}) (a:A) := a.
 
-  Definition id3@{s ; u | Set < u} (A:Type@{s;u}) (a:A) := a.
+  Definition id3@{s ; u | Set < u} (A:Univ@{s;u}) (a:A) := a.
 
   Check id@{Prop|Set}.
   Check id@{SProp;Set}.

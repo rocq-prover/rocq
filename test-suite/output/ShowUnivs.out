@@ -31,9 +31,9 @@ FLEXIBLE UNIVERSES:
  ShowUnivs.26
  ShowUnivs.24
 SORTS:
- α1 := Type
+ α1 := α3
  α2 := Type
- α3 := α1 |=
+ α3 := Type |=
    α1 <-> Type
    α2 <-> Type
    α3 <-> α1

@@ -27,9 +27,10 @@ sort: [
 | "SProp"
 | "Type"
 | "Type" "@{" "_" "}"
-| "Type" "@{" test_old_sort_qvar reference "|" universe "}"
-| "Type" "@{" test_sort_qvar reference ";" universe "}"
 | "Type" "@{" universe "}"
+| "Univ" "@{" test_sort_qvar reference ";" universe_opt "}"
+| "Univ" "@{" universe "}"
+| "Univ"
 ]
 
 sort_quality_or_set: [
@@ -62,9 +63,13 @@ universe_expr: [
 | natural
 ]
 
+universe_opt: [
+| universe
+| "_"
+]
+
 universe: [
 | "max" "(" LIST1 universe_expr SEP "," ")"
-| "_"
 | universe_expr
 ]
 

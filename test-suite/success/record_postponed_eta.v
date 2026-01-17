@@ -1,6 +1,6 @@
 Set Primitive Projections.
 
-Record RTypeToSProp (A : SProp) : Type := {
+Record RTypeToSProp (A : SProp) : Univ := {
   f1 : A
 }.
 
@@ -28,11 +28,11 @@ Proof. intros A r2. Fail reflexivity. Abort.
 
 Set Universe Polymorphism.
 
-Record RSToSProp@{s;u|s -> SProp} (A : SProp) : Type@{s;u} := {
+Record RSToSProp@{s;u|s -> SProp} (A : SProp) : Univ@{s;u} := {
   f3 : A
 }.
 
-Inductive eq@{s s'; u} (A : Type@{s;u}) (a : A) : A -> Prop :=
+Inductive eq@{s s'; u} (A : Univ@{s;u}) (a : A) : A -> Prop :=
   eq_refl : eq A a a.
 
 Arguments eq {_}.
@@ -52,7 +52,7 @@ Set Debug "cClosure".
 Goal forall (A:SProp) (r2 : RSToSProp@{SProp;0} A), eq r2 {| f3 := r2.(f3 A) |}.
 Proof. intros A r2. reflexivity. Qed.
 
-Record RSToS'@{s1 s2;u1 u2| s2 -> s1 +} (A : Type@{s1;u1}): Type@{s2;u2} := {
+Record RSToS'@{s1 s2;u1 u2| s2 -> s1 +} (A : Univ@{s1;u1}): Univ@{s2;u2} := {
   f4 : A
 }.
 
@@ -107,15 +107,15 @@ Section Sorts.
   Constraint s' -> s.
 
   (* Conversion when record and field are instantiated to the different sorts fails correctly *)
-  Goal forall (A:Type@{s;0}) (r2 : RSToS'@{s s';0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
+  Goal forall (A:Univ@{s;0}) (r2 : RSToS'@{s s';0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
   Proof. intros A r2. Fail reflexivity. Abort.
   (* The command has indeed failed with message:
     In environment
-    A : Type@{s ; _}
+    A : Univ@{s ; _}
     r2 : RSToS' A
     Unable to unify "{| f4 := f4 _ r2 |}" with "r2". *)
 
   (* Conversion when record and field are instantiated to the same sort (Type) still fails correctly because we haven't implemented it *)
-  Goal forall (A:Type@{s;0}) (r2 : RSToS'@{s s;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
+  Goal forall (A:Univ@{s;0}) (r2 : RSToS'@{s s;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
   Proof. intros A r2. Fail reflexivity. Abort.
 End Sorts.

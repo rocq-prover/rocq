@@ -280,18 +280,23 @@ sort: [
 | "SProp"
 | "Type"
 | "Type" "@{" "_" "}"
-| "Type" "@{" OPT [ qualid [ "|" | ";" ] ] universe "}"
+| "Univ" "@{" qualid ";" universe_opt "}"
+| "Univ"
 ]
 
 universe: [
 | "max" "(" LIST1 universe_expr SEP "," ")"
-| "_"
 | universe_expr
 ]
 
 universe_expr: [
 | universe_name OPT ( "+" natural )
 | natural
+]
+
+universe_opt: [
+| universe
+| "_"
 ]
 
 universe_name: [

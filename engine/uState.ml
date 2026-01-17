@@ -95,7 +95,7 @@ module QState : sig
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
-  val collapse : ?except:QVar.Set.t -> t -> t
+  val collapse : ?except:QVar.Set.t -> ?to_type:bool -> t -> t
   val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
@@ -153,8 +153,9 @@ let set q qv m =
         if is_above_prop m q
         then QSet.add qv (QSet.remove q m.above_prop)
         else m.above_prop in
-      Some { rigid = m.rigid; qmap = QMap.add q (Some (QVar qv)) m.qmap; above_prop;
-             elims = enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
+      Some { m with
+            qmap = QMap.add q (Some (QVar qv)) m.qmap; above_prop;
+            elims = enforce_eq (QVar qv) (QVar q) m.elims }
   | q, (QConstant qc as qv) ->
     if qc == QSProp && (is_above_prop m q || eliminates_to_prop m q) then None
     else if QSet.mem q m.rigid then None
@@ -178,9 +179,11 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
   | Some local -> local
   | None -> fail ()
   end
-| QVar qv1, QVar qv2 -> begin match set qv1 q2 local with
+| QVar qv1, QVar qv2 -> begin match set qv2 q1 local with
+    (* XXX: With this order of qv1, qv2, q1 and q2, elaborated sorts and constraints work,
+     * but it seems very adhoc and unclear how it works *)
     | Some local -> local
-    | None -> match set qv2 q1 local with
+    | None -> match set qv1 q2 local with
       | Some local -> local
       | None -> fail ()
   end
@@ -275,13 +278,22 @@ let collapse_above_prop ~to_prop m =
          )
          m.qmap m
 
-let collapse ?(except=QSet.empty) m =
+let collapse ?(except=QSet.empty) ?(to_type = true) m =
+  let free_qualities = QMap.fold (fun q v fqs -> if Option.is_empty v then QSet.add q fqs else fqs) m.qmap QSet.empty in
+  let eliminates_to q q' =
+    not @@ QVar.equal q q' && QGraph.eliminates_to m.elims (QVar q') (QVar q) &&
+      not @@ QSet.mem q' m.above_prop
+  in
   QMap.fold (fun q v m ->
            match v with
            | Some _ -> m
            | None -> if QSet.mem q m.rigid || QSet.mem q except then m
-                    else Option.get (set q qtype m))
-         m.qmap m
+                    else if QSet.mem q m.above_prop
+                        then if QSet.exists (eliminates_to q) free_qualities
+                              then Option.get (set q qprop m)
+                              else Option.get (set q qtype m)
+                        else if to_type then Option.get (set q qtype m) else m)
+          m.qmap m
 
 let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   let open Pp in
@@ -329,7 +341,8 @@ let normalize_elim_constraints m cstrs =
   let can_drop (q1,_,q2) = not (is_instantiated q1 && is_instantiated q2) in
   let subst_cst (q1,c,q2) = (subst q1,c,subst q2) in
   let cstrs = ElimConstraints.map subst_cst cstrs in
-  ElimConstraints.filter can_drop cstrs
+  let cstrs = ElimConstraints.filter can_drop cstrs in
+  ElimConstraints.filter (fun (q1, _, q2) -> not @@ Quality.equal q1 q2) cstrs
 end
 
 module UPairSet = UnivMinim.UPairSet
@@ -1469,8 +1482,8 @@ let collapse_above_prop_sort_variables ~to_prop uctx =
   let sorts = QState.collapse_above_prop ~to_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
-let collapse_sort_variables ?except uctx =
-  let sorts = QState.collapse ?except uctx.sort_variables in
+let collapse_sort_variables ?except ?(to_type = true) uctx =
+  let sorts = QState.collapse ?except ~to_type uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
 let minimize uctx =

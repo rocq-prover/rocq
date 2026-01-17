@@ -80,16 +80,10 @@ let test_array_closing =
     lk_kw "|" >> lk_kw "]" >> check_no_space
   end
 
-let test_old_sort_qvar =
-  let open Procq.Lookahead in
-  to_entry "test_old_sort_qvar" begin
-    lk_ident >> lk_list lk_field >> lk_kw "|"
-  end
-
 let test_sort_qvar =
   let open Procq.Lookahead in
   to_entry "test_sort_qvar" begin
-    lk_ident >> lk_list lk_field >> lk_kw ";"
+    (lk_ident <+> lk_kw "Type") >> lk_list lk_field >> lk_kws [";"]
   end
 
 let warn_old_sort_syntax =
@@ -149,14 +143,11 @@ GRAMMAR EXTEND Gram
       | "SProp" -> { None, UNamed [CSProp, 0] }
       | "Type" -> { None, UAnonymous {rigid=UnivRigid} }
       | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivFlexible false} }
-      | "Type"; "@{"; test_old_sort_qvar; q = reference; pipe_loc = [ "|" -> { loc } ]; u = universe; "}" -> {
-          warn_old_sort_syntax ~loc:pipe_loc ();
-          Some (CQVar q), u
-        }
-      | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
-          Some (CQVar q), u
-        }
-      | "Type"; "@{"; u = universe; "}" -> { None, u } ] ]
+      | "Type"; "@{"; u = universe; "}" -> { None, UNamed u }
+      | "Univ"; "@{"; test_sort_qvar; q = reference; ";"; u = universe_opt; "}" -> { Some (CQVar q), u }
+      | "Univ"; "@{"; u = universe; "}" -> { Some (CQAnon (Some loc)), UNamed u }
+      | "Univ" -> { Some (CQAnon (Some loc)), UAnonymous {rigid=UnivFlexible false} }
+      ] ]
   ;
   sort_quality_or_set:
     [ [ "Prop" -> { UnivGen.QualityOrSet.prop }
@@ -183,10 +174,13 @@ GRAMMAR EXTEND Gram
     [ [ id = universe_name; n = universe_increment -> { (id,n) }
       | n = natural -> { CSet, n } ] ]
   ;
+  universe_opt:
+    [ [ u = universe -> { UNamed u }
+      | "_" -> { UAnonymous { rigid = UnivFlexible false } } ] ]
+  ;
   universe:
-    [ [ IDENT "max"; "("; ids = LIST1 universe_expr SEP ","; ")" -> { UNamed ids }
-      | "_" -> { UAnonymous { rigid = UnivFlexible false } }
-      | u = universe_expr -> { UNamed [u] } ] ]
+    [ [ IDENT "max"; "("; ids = LIST1 universe_expr SEP ","; ")" -> { ids }
+      | u = universe_expr -> { [u] } ] ]
   ;
   lconstr:
     [ [ c = term LEVEL "200" -> { c } ] ]

@@ -1626,7 +1626,14 @@ let check_one_fix cache ?evars renv recpos trees def =
   | NeedReduce (env,err) -> raise (FixGuardError (env,err))
   | NoNeedReduce -> ()
 
-let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies as recdef)) =
+let raise_fix_guard_err_fn env recdef names =
+  let fixenv = push_rec_types recdef env in
+  let vdefj = judgment_of_fixpoint recdef in
+  let raise_err env i err =
+    error_ill_formed_rec_body env (Type_errors.FixGuardError err) names i fixenv vdefj in
+  raise_err
+
+let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as recdef)) =
   let nbfix = Array.length bodies in
   if Int.equal nbfix 0
     || not (Int.equal (Array.length nvect) nbfix)
@@ -1636,9 +1643,7 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
     || bodynum >= nbfix
   then anomaly (Pp.str "Ill-formed fix term.");
   let fixenv = push_rec_types recdef env in
-  let vdefj = judgment_of_fixpoint recdef in
-  let raise_err env i err =
-    error_ill_formed_rec_body env (Type_errors.FixGuardError err) names i fixenv vdefj in
+  let raise_err = raise_fix_guard_err_fn env recdef names in
   (* Check the i-th definition with recarg k *)
   let find_ind i k def =
     (* check fi does not appear in the k+1 first abstractions,
@@ -1662,12 +1667,12 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
             else anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
         | _ -> raise_err env i (NotEnoughAbstractionInFixBody k)
     in
-    let ((ind, inst), _) as res = check_occur fixenv 1 def in
-    let _, mip = lookup_mind_specif env ind in
+    let ((ind, inst), bs) = check_occur fixenv 1 def in
     (* recursive sprop means non record with projections -> squashed *)
-    let () =
-      if Environ.is_type_in_type env (GlobRef.IndRef ind) then ()
+    let sorts_opt =
+      if Environ.is_type_in_type env (GlobRef.IndRef ind) then None
       else
+        let _, mip = lookup_mind_specif env ind in
         let sind = UVars.subst_instance_sort inst mip.mind_sort in
         let u = Sorts.univ_of_sort sind in
         (* This is an approximation: a [Relevant] variable might be of sort [Prop]
@@ -1678,39 +1683,55 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
           | Irrelevant -> Sorts.sprop
           | Relevant -> Sorts.prop
           | RelevanceVar q -> Sorts.qsort q u in
-        let elim_to = match elim_to with
-          | Some f -> f
-          | None -> eliminates_to (Environ.qualities env) in
-        if not (is_allowed_fixpoint elim_to sind bsort) then
-          raise_err env i @@ FixpointOnNonEliminable (sind, bsort)
+        Some (sind, bsort)
     in
-    res
+    ind, bs, sorts_opt
   in
   (* Do it on every fixpoint *)
   let rv = Array.map2_i find_ind nvect bodies in
-  (Array.map fst rv, Array.map snd rv)
+  (Array.map (fun (minds, _, _) -> minds) rv,
+   Array.map (fun (_, rdef, _) -> rdef) rv,
+   Array.map (fun (_, _, sorts_opt) -> sorts_opt) rv)
 
 
-let check_fix ?evars ?elim_to env ((nvect,_),(names,_,bodies as recdef) as fix) =
+let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as fix) =
   let cache = Cache.create () in
-  let (minds, rdef) = inductive_of_mutfix ?evars ?elim_to env fix in
+(* For elaboration of elimination constraints, we need to update the evar_map with
+   the possibly new constraints (see e.g. [esearch_guard] (Pretyping)). We expose this
+   function to be used for this purpose, while check_fix performs the normal check,
+   failing when elimination constraints are not satisfied. *)
+  let (minds, rdef, sorts_opt) = inductive_of_mutfix ?evars env fix in
   let flags = Environ.typing_flags env in
+  let raise_err = raise_fix_guard_err_fn env recdef names in
   if flags.check_guarded then
     let get_tree (kn,i) =
       let mib = Environ.lookup_mind kn env in
       mib.mind_packets.(i).mind_recargs
     in
-    let trees = Array.map (fun (mind,_) -> get_tree mind) minds in
-    for i = 0 to Array.length bodies - 1 do
-      let (fenv,body) = rdef.(i) in
-      let renv = make_renv fenv nvect.(i) trees.(i) in
-      try check_one_fix cache ?evars renv nvect trees body
-      with FixGuardError (fixenv,err) ->
-        error_ill_formed_rec_body fixenv (Type_errors.FixGuardError err) names i
-          (push_rec_types recdef env) (judgment_of_fixpoint recdef)
-    done
+    let trees = Array.map get_tree minds in
+    let () =
+      for i = 0 to Array.length bodies - 1 do
+        let (fenv, body) = rdef.(i) in
+        let renv = make_renv fenv nvect.(i) trees.(i) in
+        try check_one_fix cache ?evars renv nvect trees body
+        with FixGuardError (err_env, err) -> raise_err err_env i err
+      done
+    in
+    sorts_opt
   else
-    ()
+    sorts_opt
+
+let check_fix ?evars env (_, (names, _, _ as recdef) as fix) =
+  let sorts_opts = check_fix_pre_sorts ?evars env fix in
+  let raise_err = raise_fix_guard_err_fn env recdef names in
+  let elim_to = eliminates_to (Environ.qualities env) in
+  Array.iteri (fun i sort_opt ->
+      match sort_opt with
+      | None -> ()
+      | Some (ind_sort, binder_sort) ->
+        if not (is_allowed_fixpoint elim_to ind_sort binder_sort) then
+          raise_err env i @@ FixpointOnNonEliminable (ind_sort, binder_sort)
+    ) sorts_opts
 
 (************************************************************************)
 (* Co-fixpoints. *)

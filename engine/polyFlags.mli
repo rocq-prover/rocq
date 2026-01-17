@@ -33,6 +33,9 @@ val univ_poly : t -> bool
 val collapse_sort_variables : t -> bool
 val cumulative : t -> bool
 
+(** Setters *)
+val set_collapse_sort_variables : t -> bool -> t
+
 (** Pretty print *)
 val pr : t -> Pp.t
 
