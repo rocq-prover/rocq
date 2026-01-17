@@ -839,30 +839,54 @@ let rec recheck_against env sigma good c =
 
     | App (gf, gargs),
       App (f, args) ->
-      if Array.length gargs <> Array.length args then
-        let sigma, _, fj = recheck_against env sigma gf f in
-        let sigma, jl = execute_array env sigma args in
-        (match EConstr.kind sigma f with
+      let glen = Array.length gargs in
+      let len = Array.length args in
+      if glen < len then
+        (* We are rechecking f a1 ... an x1 ... xk against gf y1 ... yk with n > 0  *)
+        let pre, args = Array.chop (len - glen) args in
+        let sigma, fj = execute env sigma f in
+        let sigma, prej = execute_array env sigma pre in
+        let (sigma, changedargs), argsj =
+          Array.fold_left2_map (fun (sigma, changed) good c ->
+              let sigma, changed', t = recheck_against env sigma good c in
+              (sigma, merge_changes changed changed'), t)
+            (sigma, Same) gargs args
+        in
+        let jl = Array.append prej argsj in
+        begin match EConstr.kind sigma f with
          | Ind (ind, u) when EInstance.is_empty u && Environ.template_polymorphic_ind ind env ->
            maybe_changed (judge_of_applied_inductive_knowing_parameters ~check:true env sigma (ind, u) jl)
          | Construct (cstr, u) when EInstance.is_empty u && Environ.template_polymorphic_ind (fst cstr) env ->
            maybe_changed (judge_of_applied_constructor_knowing_parameters ~check:true env sigma (cstr, u) jl)
          | _ ->
            (* No template polymorphism *)
-           maybe_changed (judge_of_apply env sigma fj jl))
-      else begin
+           maybe_changed (judge_of_apply env sigma fj jl)
+        end
+      else
+        (* We are rechecking f x1 ... xk against gf a1 ... an y1 ... yk with n >= 0 *)
+        let pre, gargs = if len < glen then Array.chop (glen - len) gargs else [||], gargs in
         let (sigma, changedargs), jl =
           Array.fold_left2_map (fun (sigma,changed) good c ->
               let sigma, changed', t = recheck_against env sigma good c in
               (sigma, merge_changes changed changed'), (changed', t))
             (sigma,Same) gargs args
         in
-        let sigma, changedf, fj = recheck_against env sigma gf f in
+        let sigma, changedf, fj =
+          if Int.equal glen len then recheck_against env sigma gf f
+          else
+            let sigma, fj = execute env sigma f in
+            let bodyonly = lazy begin
+              let good = mkApp (gf, pre) in
+              EConstr.eq_constr sigma (Retyping.get_type_of env sigma good) fj.uj_type
+            end in
+            let change = Changed {bodyonly} in
+            sigma, change, fj
+        in
         if unchanged changedargs && bodyonly changedf
         then assume_unchanged_type sigma
         else
           (* XXX could exploit change info when template *)
-          (match EConstr.kind sigma f with
+          begin match EConstr.kind sigma f with
            | Ind (ind, u) when EInstance.is_empty u && Environ.template_polymorphic_ind ind env ->
              let jl = Array.map snd jl in
              maybe_changed (judge_of_applied_inductive_knowing_parameters ~check:true env sigma (ind, u) jl)
@@ -871,8 +895,8 @@ let rec recheck_against env sigma good c =
              maybe_changed (judge_of_applied_constructor_knowing_parameters ~check:true env sigma (cstr, u) jl)
            | _ ->
              (* No template polymorphism *)
-             maybe_changed (judge_of_apply_against env sigma changedf fj jl))
-      end
+             maybe_changed (judge_of_apply_against env sigma changedf fj jl)
+          end
 
     | Lambda (_, gc1, gc2),
       Lambda (name, c1, c2) ->
