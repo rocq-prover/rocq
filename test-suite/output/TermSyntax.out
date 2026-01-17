@@ -7,5 +7,6 @@ Z0 * Z0 : Z
 File "./output/TermSyntax.v", line 11, characters 17-22:
 The command has indeed failed with message:
 Unknown interpretation for notation "{ _ ; _ }".
+This notation is available in b_scope.
 fun '(exist _ x _) => x
      : b -> bool
