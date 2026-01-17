@@ -170,9 +170,8 @@ let declare_object_gen odecl =
 let make_oname { obj_path; obj_mp } id =
   Libnames.add_path_suffix obj_path id, Names.KerName.make obj_mp id
 
-let declare_named_object_full odecl =
+let declare_named_object_full oname odecl =
   let odecl =
-    let oname = make_oname in
     { object_name = odecl.object_name;
       object_stage = odecl.object_stage;
       cache_function = (fun (p, (id, o)) -> odecl.cache_function (oname p id, o));
@@ -186,10 +185,12 @@ let declare_named_object_full odecl =
   in
   declare_object_gen odecl
 
-let declare_named_object odecl =
-  let tag = declare_named_object_full odecl in
+let declare_named_object oname odecl =
+  let tag = declare_named_object_full oname odecl in
   let infun id v = Dyn.Dyn (tag, (id, v)) in
   infun
+
+let declare_named_object_gen_full odecl = declare_object_gen odecl
 
 let declare_named_object_gen odecl =
   let tag = declare_object_gen odecl in
