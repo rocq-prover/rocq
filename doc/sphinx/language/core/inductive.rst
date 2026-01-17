@@ -48,12 +48,19 @@ Inductive types
    possible (for instance :n:`@ident`\ ``_rect`` may be impossible to derive
    when :n:`@ident` is a proposition).
 
+   This commands supports :attr:`schemes` to control the automatic
+   generation of inductive principles.
+
    .. flag:: Dependent Proposition Eliminators
 
       The inductive principles express dependent elimination when the
       inductive type allows it (always true when not using
       :flag:`Primitive Projections`), except by default when the
       inductive is explicitly declared in `Prop`.
+
+      The dependent elimination corresponds to the "Induction"
+      :n:`@scheme_type`, and non-dependent elimination to
+      "Minimality".
 
       Explicitly `Prop` inductive types declared when this flag is
       enabled also automatically declare dependent inductive
