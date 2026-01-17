@@ -338,6 +338,7 @@ The term "0" has type "nat" while it is expected to have type "Type".
 File "./output/Notations5.v", line 418, characters 13-18:
 The command has indeed failed with message:
 Unknown interpretation for notation "_ + _".
+This notation is currently disabled in nat_scope and type_scope.
 Some 0
      : option nat
 File "./output/Notations5.v", line 425, characters 13-14:
@@ -352,3 +353,4 @@ Nat.add 0 0
 File "./output/Notations5.v", line 438, characters 13-18:
 The command has indeed failed with message:
 Unknown interpretation for notation "_ + _".
+This notation is currently disabled in nat_scope and type_scope.

@@ -488,18 +488,21 @@ let update_notation_data (scopt,ntn) use data table =
     let printingdata = if exists then printingdata else (true,data) :: printingdata in
     NotationMap.add ntn (parsingdata, printingdata) table, None
 
-let rec find_interpretation ntn find = function
-  | [] -> raise Not_found
-  | OpenScopeItem scope :: scopes ->
-      (try let n = find scope in (n,Some scope)
-       with Not_found -> find_interpretation ntn find scopes)
-  | LonelyNotationItem ntn'::scopes when notation_eq ntn' ntn ->
-      (try let n = find default_scope in (n,None)
-       with Not_found ->
-         (* e.g. because single notation only for constr, not cases_pattern *)
-         find_interpretation ntn find scopes)
-  | LonelyNotationItem _::scopes ->
-      find_interpretation ntn find scopes
+let find_one_interpretation ntn find = function
+  | OpenScopeItem scope ->
+    (try let n = find scope in Some (n,Some scope)
+     with Not_found -> None)
+  | LonelyNotationItem ntn' when notation_eq ntn' ntn ->
+    (try let n = find default_scope in Some (n,None)
+     with Not_found ->
+       (* e.g. because single notation only for constr, not cases_pattern *)
+       None)
+  | LonelyNotationItem _ -> None
+
+let find_interpretation ntn find scopes =
+  match List.find_map (find_one_interpretation ntn find) scopes with
+  | Some v -> v
+  | None -> raise Not_found
 
 let find_notation ntn sc =
   match fst (NotationMap.find ntn (find_scope sc).notations) with
@@ -551,6 +554,53 @@ let warn_notation =
   UserWarn.create_depr_and_user_warnings ~object_name:"Notation" ~warning_name_base:"notation"
     pr_notation ()
 
+exception UnknownInterp of notation * scopes
+
+let explain_unknown_interp ntn scopes =
+  let find_inactive sc =
+    match fst (NotationMap.find ntn (find_scope sc).notations) with
+    | OnlyParsingData (active,_) | ParsingAndPrintingData (active,_,_) -> assert (not active)
+    | NoParsingData -> raise Not_found
+  in
+  let inactive_in_scope = List.filter_map (fun sc ->
+      Option.map snd @@ find_one_interpretation ntn find_inactive sc)
+      scopes
+  in
+  let unused_scope_map = List.fold_left (fun scope_map -> function
+      | OpenScopeItem sc -> String.Map.remove sc scope_map
+      | LonelyNotationItem ntn' ->
+        if notation_eq ntn ntn' then String.Map.remove default_scope scope_map
+        else scope_map)
+      !scope_map scopes
+  in
+  let out_of_scope = String.Map.fold (fun sc data acc ->
+      match fst (NotationMap.find ntn data.notations) with
+      | OnlyParsingData _ | ParsingAndPrintingData _ ->
+        let sc = if String.equal sc default_scope then None else Some sc in
+        sc :: acc
+      | NoParsingData | exception Not_found -> acc)
+      unused_scope_map []
+  in
+  let pr_scope = function
+    | None -> str "the default scope"
+    | Some sc -> str sc
+  in
+  let details = if CList.is_empty inactive_in_scope then begin
+      if (CList.is_empty out_of_scope) then mt()
+      else
+        spc() ++ str "This notation is available in " ++
+        pr_enum pr_scope out_of_scope ++ str "."
+    end
+    else
+      spc() ++ str "This notation is currently disabled in " ++
+      pr_enum pr_scope inactive_in_scope ++ str "."
+  in
+  str "Unknown interpretation for notation " ++ pr_notation ntn ++ str "." ++ details
+
+let () = CErrors.register_handler @@ function
+  | UnknownInterp (ntn,scopes) -> Some (explain_unknown_interp ntn scopes)
+  | _ -> None
+
 let interp_notation ?loc ntn local_scopes =
   let scopes = make_current_scopes local_scopes in
   try
@@ -559,8 +609,8 @@ let interp_notation ?loc ntn local_scopes =
     n.not_interp, (n.not_location, sc)
   with Not_found as exn ->
     let _, info = Exninfo.capture exn in
-    user_err ?loc ~info
-      (str "Unknown interpretation for notation " ++ pr_notation ntn ++ str ".")
+    let info = Option.cata (Loc.add_loc info) info loc in
+    Exninfo.iraise (UnknownInterp (ntn,scopes), info)
 
 let has_active_parsing_rule_in_scope ntn sc =
   try
