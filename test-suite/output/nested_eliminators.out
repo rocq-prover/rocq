@@ -1564,7 +1564,7 @@ list_all_forall is universe polymorphic
 Arguments list_all_forall A%_type_scope (PA HPA)%_function_scope l
 list_all_forall is transparent
 Expands to: Constant nested_eliminators.SortPoly.list_all_forall
-Declared in library nested_eliminators, line 368, characters 2-22
+Declared in library nested_eliminators, line 366, characters 2-116
 Inductive
 list_all_all@{α α0 α1 ; u u0 u1 u2} (A : Type@{α ; u})
 (PA : A -> Type@{α0 ; u1}) (PPA : forall a : A, PA a -> Type@{α1 ; u2})
@@ -1598,7 +1598,7 @@ Arguments list_all_all_forall A%_type_scope (PA PPA HPPA)%_function_scope
   l l0
 list_all_all_forall is transparent
 Expands to: Constant nested_eliminators.SortPoly.list_all_all_forall
-Declared in library nested_eliminators, line 372, characters 2-26
+Declared in library nested_eliminators, line 366, characters 2-116
 MRT_ind@{} :
 forall P : MRT -> Prop,
 (forall l : list@{Type ; Set Set} MRT,
@@ -1622,7 +1622,7 @@ Arguments SRT_sind (P SRTnode)%_function_scope s
 SRT_sind is transparent
 Expands to: Constant nested_eliminators.SortPoly.SRT_sind
 Declared in library nested_eliminators, line 381, characters 2-57
-File "./output/nested_eliminators.v", line 398, characters 2-60:
+File "./output/nested_eliminators.v", line 400, characters 2-60:
 The command has indeed failed with message:
 MRT is nested using list. No scheme for list is registered as All.
 [register-all,automation,default]
@@ -1634,4 +1634,4 @@ MRT_ind is not universe polymorphic
 Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.TestWarning.MRT_ind
-Declared in library nested_eliminators, line 403, characters 2-55
+Declared in library nested_eliminators, line 405, characters 2-55
