@@ -204,6 +204,8 @@ val relevance_subst_fn : (QVar.t -> Quality.t) -> relevance -> relevance
 
 val relevance_of_sort : t -> relevance
 
+val is_relevant : relevance -> bool
+
 val debug_print : t -> Pp.t
 val pr : (QVar.t -> Pp.t) -> (Univ.Universe.t -> Pp.t) -> t -> Pp.t
 val raw_pr : t -> Pp.t

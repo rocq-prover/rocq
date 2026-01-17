@@ -157,7 +157,7 @@ v}
     [FakeRecord]. It is mostly used by extraction, and should be extruded from
     the kernel at some point.
 *)
-type has_eta = AlwaysEta | NoEta
+type has_eta = AlwaysEta | MaybeEta | NoEta
 
 type record_info =
 | NotRecord

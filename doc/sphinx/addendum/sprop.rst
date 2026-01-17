@@ -145,6 +145,31 @@ are allowed and have η-conversion.
                 s = {| spr1 := s.(spr1 A P); spr2 := s.(spr2 A P) |}.
    Proof. intros A P s. reflexivity. Qed.
 
+Sort polymorphic primitive records are allowed and η-conversion depends on
+the actual instantiation of sorts.
+
+.. rocqdoc::
+    Inductive eq@{s s'; u} (A : Type@{s;u}) (a : A) : A -> Prop :=
+      eq_refl : eq A a a.
+
+    Arguments eq {_}.
+    Arguments eq_refl {_ _}.
+
+   Record RSToS'@{s s'; u u'| s' -> s +} (A : Type@{s;u}): Type@{s';u'} := {
+     rsprj : A
+   }.
+
+   (* Conversion when record is in Type and field in SProp fails correctly *)
+   Goal forall (A:SProp) (rs : RSToS'@{SProp Type; 0 0} A),
+                  eq rs {| rsprj := rs.(rsprj A) |}.
+   Proof. intros A rs. Fail reflexivity. Abort.
+
+   (* Conversion when record and field are instantiated to SProp checks correctly *)
+   Goal forall (A:SProp) (rs : RSToS'@{SProp SProp; 0 0} A),
+                  eq rs {| rsprj := rs.(rsprj A) |}.
+   Proof. intros A rs. reflexivity. Qed.
+
+
 Encodings for strict propositions
 ---------------------------------
 

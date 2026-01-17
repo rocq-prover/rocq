@@ -497,6 +497,10 @@ let relevance_of_sort = function
   | Prop | Set | Type _ -> Relevant
   | QSort (q, _) -> RelevanceVar q
 
+let is_relevant = function
+  | Relevant -> true
+  | Irrelevant | RelevanceVar _ -> false
+
 let debug_print = function
   | SProp -> Pp.(str "SProp")
   | Prop -> Pp.(str "Prop")

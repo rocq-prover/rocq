@@ -261,7 +261,7 @@ let check_record data =
               match info.ind_univ with
               | SProp -> Result.Ok AlwaysEta
               | Set | Type _ | Prop -> Result.Ok NoEta (* Set, Type and Prop don't have eta *)
-              | QSort _ ->  Result.Ok NoEta (* For sort variables it now defaults to not having eta *)
+              | QSort _ ->  Result.Ok MaybeEta (* For sort variables it depends on the instantiation *)
     )
     (Result.Ok NoEta)
     data

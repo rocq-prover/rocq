@@ -322,6 +322,7 @@ let print_primitive_record recflag mipv =
       | CoFinite | Finite -> str " without eta conversion"
       | BiFinite -> match has_eta with
                     | NoEta -> str " without eta conversion"
+                    | MaybeEta -> str " with eta conversion depending on sort instantiation"
                     | AlwaysEta -> str " with eta conversion"
     in
     [Id.print mip.mind_typename ++ str" has primitive projections" ++ eta ++ str"."]

@@ -47,7 +47,6 @@ Proof. intros A r2. Fail reflexivity. Abort.
     r2 : RSToProp A
     Unable to unify "{| f3 := f3 _ r2 |}" with "r2". *)
 
-Set Debug "cClosure".
 (* Conversion when record and field are instantiated to SProp checks correctly *)
 Goal forall (A:SProp) (r2 : RSToSProp@{SProp;0} A), eq r2 {| f3 := r2.(f3 A) |}.
 Proof. intros A r2. reflexivity. Qed.
@@ -78,17 +77,17 @@ Proof. intros A r2. Fail reflexivity. Abort.
 Goal forall (A:SProp) (r2 : RSToS'@{SProp SProp;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
 Proof. intros A r2. reflexivity. Qed.
 
-(* Conversion when record and field are instantiated to the same sort (Type) still fails correctly because we haven't implemented it *)
+(* Conversion when record and field are instantiated to the same sort (Type) checks correctly *)
 Goal forall (A:Set) (r2 : RSToS'@{Type Type;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
-Proof. intros A r2. Fail reflexivity. Abort.
+Proof. intros A r2. reflexivity. Qed.
 
-(* Conversion when record and field are instantiated to the same sort (Prop) still fails correctly because we haven't implemented it *)
+(* Conversion when record and field are instantiated to the same sort (Prop) checks correctly *)
 Goal forall (A:Prop) (r2 : RSToS'@{Prop Prop;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
-Proof. intros A r2. Fail reflexivity. Abort.
+Proof. intros A r2. reflexivity. Qed.
 
-(* Conversion when record is in Type and field is in Prop still fails correctly because we haven't implemented it *)
+(* Conversion when record is in Type and field is in Prop checks correctly *)
 Goal forall (A:Prop) (r2 : RSToS'@{Prop Type;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
-Proof. intros A r2. Fail reflexivity. Abort.
+Proof. intros A r2. reflexivity. Qed.
 
 Section Sorts.
   Sort s s'.
@@ -115,7 +114,7 @@ Section Sorts.
     r2 : RSToS' A
     Unable to unify "{| f4 := f4 _ r2 |}" with "r2". *)
 
-  (* Conversion when record and field are instantiated to the same sort (Type) still fails correctly because we haven't implemented it *)
+  (* Conversion when record and field are instantiated to the same sort (Type) checks correctly *)
   Goal forall (A:Type@{s;0}) (r2 : RSToS'@{s s;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
-  Proof. intros A r2. Fail reflexivity. Abort.
+  Proof. intros A r2. reflexivity. Qed.
 End Sorts.
