@@ -112,7 +112,9 @@ Module Inductives.
   Inductive foo2@{s; |} := Foo2 : Type@{s;Set} -> foo2.
   Check foo2_rect.
 
-  Inductive foo3@{s; |} (A:Type@{s;Set}) := Foo3 : A -> foo3 A.
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail Inductive foo3@{s; |} (A:Type@{s;Set}) := Foo3 : A -> foo3 A.
+  Inductive foo3@{s; |Type->s} (A:Type@{s;Set}) := Foo3 : A -> foo3 A.
   Check foo3_rect.
 
   Fail Inductive foo4@{s;u v|v < u} : Type@{v} := C (_:Type@{s;u}).
@@ -213,7 +215,9 @@ Module Inductives.
   Definition R5f1_sprop (A:SProp) (r:R5 A) : A := let (f) := r in f.
   Fail Definition R5f1_prop (A:Prop) (r:R5 A) : A := let (f) := r in f.
 
-  Record R6@{s; |} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail Record R6@{s; |} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
+  Record R6@{s; |Type->s} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
   Check fun (A:SProp) (x y : R6 A) =>
           eq_refl : Conversion.box _ x.(R6f1 _) = Conversion.box _ y.(R6f1 _).
   Fail Check fun (A:Prop) (x y : R6 A) =>
@@ -221,9 +225,15 @@ Module Inductives.
   Fail Check fun (A:SProp) (x y : R6 A) =>
           eq_refl : Conversion.box _ x.(R6f2 _) = Conversion.box _ y.(R6f2 _).
 
-  #[projections(primitive=no)] Record R7@{s; |} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail #[projections(primitive=no)] Record R7@{s; |} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
+  #[projections(primitive=no)] Record R7@{s; |Type -> s} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
   Check R7@{SProp;} : SProp -> Set.
   Check R7@{Type;} : Set -> Set.
+  #[universes(polymorphic=no)]
+  Sort s7.
+  Fail Check R7@{s7;} : 𝒰@{s7;0} -> Set.
+  (* This expression would enforce a non-declared elimination constraint between Type and s7 *)
 
   Inductive sigma@{s;u v|} (A:Type@{s;u}) (B:A -> Type@{s;v}) : Type@{s;max(u,v)}
     := pair : forall x : A, B x -> sigma A B.
@@ -286,7 +296,10 @@ Module Inductives.
 
   Arguments exist3 {_ _}.
 
-  Definition π1@{s s';u v|} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail Definition π1@{s s';u v|} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
     match p return A with exist3 a _ => a end.
-
+  Definition π1@{s s';u v|Type -> s} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
+    match p return A with exist3 a _ => a end.
+  (* s s' ; u v |= Type -> s *)
 End Inductives.
