@@ -9,6 +9,7 @@ Arguments make {_} _ _.
 
 Primitive get : forall A, array A -> int -> A := #array_get.
 Arguments get {_} _ _.
+Register get as prim.array.get.
 
 Primitive default : forall A, array A -> A:= #array_default.
 Arguments default {_} _.
