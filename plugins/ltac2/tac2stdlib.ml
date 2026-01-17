@@ -752,3 +752,117 @@ let () =
 
 let () = define "f_equal" (unit @-> tac unit) @@ fun () ->
     Tac2tactics.f_equal
+
+(** Assumptions *)
+
+let tac_assumptions add_opaque add_transparent st refs =
+  Tac2core.pf_apply @@ fun env _sigma ->
+  let access = Library.indirect_accessor [@@warning "-3"] in
+  let result = Assumptions.assumptions ~add_opaque ~add_transparent access st refs in
+  let bindings = Printer.ContextObjectMap.bindings result in
+  let converted = List.map (fun (obj, typ) ->
+    (obj, EConstr.of_constr typ)
+  ) bindings in
+  return converted
+
+let () =
+  define "env_assumptions"
+    (bool @-> bool @-> transparent_state @-> list reference @-> tac (list (pair assumption_data constr)))
+    tac_assumptions
+
+(** Assumption accessors *)
+
+let assumption_reference obj =
+  let open Printer in
+  let open Names.GlobRef in
+  match obj with
+  | Variable id -> VarRef id
+  | Axiom (Constant kn, _) -> ConstRef kn
+  | Axiom (Positive m, _) -> IndRef (m, 0)
+  | Axiom (Guarded gr, _) -> gr
+  | Axiom (TypeInType gr, _) -> gr
+  | Axiom (UIP m, _) -> IndRef (m, 0)
+  | Opaque kn -> ConstRef kn
+  | Transparent kn -> ConstRef kn
+
+let () =
+  define "env_assumption_reference"
+    (assumption_data @-> ret reference)
+    assumption_reference
+
+let assumption_is_axiom obj =
+  let open Printer in
+  match obj with
+  | Axiom (Constant _, _) -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_is_axiom"
+    (assumption_data @-> ret bool)
+    assumption_is_axiom
+
+let assumption_is_opaque obj =
+  let open Printer in
+  match obj with
+  | Opaque _ -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_is_opaque"
+    (assumption_data @-> ret bool)
+    assumption_is_opaque
+
+let assumption_is_transparent obj =
+  let open Printer in
+  match obj with
+  | Transparent _ -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_is_transparent"
+    (assumption_data @-> ret bool)
+    assumption_is_transparent
+
+let assumption_assumes_positive obj =
+  let open Printer in
+  match obj with
+  | Axiom (Positive _, _) -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_assumes_positive"
+    (assumption_data @-> ret bool)
+    assumption_assumes_positive
+
+let assumption_assumes_guarded obj =
+  let open Printer in
+  match obj with
+  | Axiom (Guarded _, _) -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_assumes_guarded"
+    (assumption_data @-> ret bool)
+    assumption_assumes_guarded
+
+let assumption_assumes_type_in_type obj =
+  let open Printer in
+  match obj with
+  | Axiom (TypeInType _, _) -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_assumes_type_in_type"
+    (assumption_data @-> ret bool)
+    assumption_assumes_type_in_type
+
+let assumption_assumes_uip obj =
+  let open Printer in
+  match obj with
+  | Axiom (UIP _, _) -> true
+  | _ -> false
+
+let () =
+  define "env_assumption_assumes_uip"
+    (assumption_data @-> ret bool)
+    assumption_assumes_uip

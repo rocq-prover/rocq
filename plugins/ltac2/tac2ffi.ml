@@ -61,6 +61,7 @@ let val_pretype_flags = Val.create "pretype_flags"
 let val_expected_type = Val.create "expected_type"
 let val_reduction = Val.create "reduction"
 let val_rewstrategy = Val.create "rewstrategy"
+let val_assumption_data : Printer.context_object Val.tag = Val.create "assumption_data"
 
 let extract_val (type a) (type b) (tag : a Val.tag) (tag' : b Val.tag) (v : b) : a =
 match Val.eq tag tag' with
@@ -479,3 +480,7 @@ let reference = {
   r_of = of_reference;
   r_to = to_reference;
 }
+
+let of_assumption_data c = of_ext val_assumption_data c
+let to_assumption_data c = to_ext val_assumption_data c
+let assumption_data = repr_ext val_assumption_data

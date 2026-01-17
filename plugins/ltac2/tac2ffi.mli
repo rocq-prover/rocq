@@ -216,6 +216,10 @@ val of_reference : GlobRef.t -> valexpr
 val to_reference : valexpr -> GlobRef.t
 val reference : GlobRef.t repr
 
+val of_assumption_data : Printer.context_object -> valexpr
+val to_assumption_data : valexpr -> Printer.context_object
+val assumption_data : Printer.context_object repr
+
 val of_ext : 'a Val.tag -> 'a -> valexpr
 val to_ext : 'a Val.tag -> valexpr -> 'a
 val repr_ext : 'a Val.tag -> 'a repr
