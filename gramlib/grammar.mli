@@ -31,7 +31,11 @@ module type S = sig
   type 'c pattern
   type ty_pattern = TPattern : 'a pattern -> ty_pattern
 
-  type peek_error = unit
+  type peek_error = te list * ty_pattern list
+
+  val empty_error : peek_error
+
+  val merge_errors : peek_error -> peek_error -> peek_error
 
   type 'a parser_v = ('a, peek_error) result
   (** Recoverable parsing errors are signaled use [Error]. To be
@@ -40,6 +44,8 @@ module type S = sig
 
       Other errors are signaled using the [ParseError] exception or
       even arbitrary exceptions. *)
+
+  val add_error : peek_error -> 'a parser_v -> 'a parser_v
 
   (** Type combinators to factor the module type between explicit
       state passing in Grammar and global state in Procq *)

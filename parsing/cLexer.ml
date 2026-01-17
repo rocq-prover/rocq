@@ -756,6 +756,7 @@ module MakeLexer (Diff : sig val mode : bool end)
   type nonrec keyword_state = keyword_state
   type te = Tok.t
   type 'c pattern = 'c Tok.p
+  let tok_eq = Tok.equal
   let tok_pattern_eq = Tok.equal_p
   let tok_pattern_exact = Tok.pattern_exact
   let tok_pattern_strings = pattern_strings
@@ -777,7 +778,8 @@ module MakeLexer (Diff : sig val mode : bool end)
            Option.iter (fun loc -> cur_loc := after loc) loc;
            Exninfo.iraise (exn, info))
   let tok_match = Tok.match_pattern
-  let tok_text = Tok.token_text
+  let tok_text = Tok.extract_string false
+  let tok_pattern_text = Tok.pattern_text
 
   (* The state of the lexer visible from outside *)
   module State = struct

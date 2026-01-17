@@ -267,7 +267,7 @@ let parse_to_dot =
     | Some (Tok.KEYWORD ("."|"...")) -> Ok ()
     | Some Tok.EOI -> Ok ()
     | Some _ -> dot kwstate st
-    | None -> Error ()
+    | None -> assert false (* should get EOI first *)
   in
   Procq.Entry.(of_parser "Coqtoplevel.dot" { parser_fun = dot })
 
