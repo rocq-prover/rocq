@@ -48,6 +48,32 @@ type link_info =
 
 type constant_key = constant_body * (link_info ref * key) * KerName.t
 
+module DepCache :
+sig
+  type t
+  val empty : t
+  val get : Constant.t -> t -> (Cset_env.t, Cset_env.t -> unit) union
+  val fresh : t -> t
+end =
+struct
+
+type t = Cset_env.t Cmap_env.t ref option
+
+let empty = None
+
+let get kn cache = match cache with
+| None -> Inr ignore
+| Some cache ->
+  match Cmap_env.find_opt kn !cache with
+  | None -> Inr (fun s -> cache := Cmap_env.add kn s !cache)
+  | Some s -> Inl s
+
+let fresh = function
+| None -> Some (ref Cmap_env.empty)
+| Some cache -> Some (ref !cache)
+
+end
+
 type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = {
@@ -82,6 +108,7 @@ type env = {
   irr_inds : Sorts.relevance Indmap_env.t;
   constant_hyps : Id.Set.t Cmap_env.t;
   inductive_hyps : Id.Set.t Mindmap_env.t;
+  constant_deps : DepCache.t CEphemeron.key;
 }
 
 type rewrule_not_allowed = Symb | Rule
@@ -117,6 +144,7 @@ let empty_env = {
   vm_library = Vmlibrary.empty;
   retroknowledge = Retroknowledge.empty;
   rewrite_rules_allowed = false;
+  constant_deps = CEphemeron.create DepCache.empty;
 }
 
 
@@ -548,6 +576,7 @@ let same_flags {
      conv_oracle;
      indices_matter;
      share_reduction;
+     unfold_dep_heuristic;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -561,6 +590,7 @@ let same_flags {
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
+  unfold_dep_heuristic == alt.unfold_dep_heuristic &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&
@@ -624,7 +654,15 @@ let add_constant_key kn cb linkinfo env =
       Cmap_env.add kn [] env.symb_pats
     | _ -> env.symb_pats
   in
-  { env with constant_hyps; irr_constants; symb_pats; env_constants = new_constants }
+  let constant_deps =
+    (* when replacing a previous constant, invalidate the cache *)
+    if Cmap_env.mem kn env.env_constants then DepCache.empty
+    else match CEphemeron.get env.constant_deps with
+    | cache -> cache
+    | exception CEphemeron.InvalidKey -> DepCache.empty
+  in
+  let constant_deps = CEphemeron.create @@ DepCache.fresh constant_deps in
+  { env with constant_hyps; irr_constants; symb_pats; env_constants = new_constants; constant_deps }
 
 let add_constant kn cb env =
   add_constant_key kn cb no_link_info env
@@ -1090,6 +1128,36 @@ struct
 end
 
 module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
+
+let rec constant_dependencies_with_cache env cache kn =
+  match DepCache.get kn cache with
+  | Inl deps -> deps
+  | Inr set ->
+    match Cmap_env.find_opt kn env.env_constants with
+    | None -> Cset_env.empty
+    | Some (body, _, _) ->
+      let deps = match body.const_body with
+      | Def c ->
+        let rec compute_dependencies accu c = match kind c with
+        | Const (kn, _) ->
+          Cset_env.fold Cset_env.add (constant_dependencies_with_cache env cache kn) (Cset_env.add kn accu)
+        | _ -> Constr.fold compute_dependencies accu c
+        in
+        compute_dependencies Cset_env.empty c
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> Cset_env.empty
+      in
+      let () = set deps in
+      deps
+
+let constant_dependencies env kn =
+  let cache =
+    try CEphemeron.get env.constant_deps
+    with CEphemeron.InvalidKey -> DepCache.empty
+  in
+  constant_dependencies_with_cache env cache kn
+
+let constant_depends_on env cst1 cst2 =
+  Cset_env.mem cst2 (constant_dependencies env cst1)
 
 module Internal = struct
   let push_template_context uctx env =

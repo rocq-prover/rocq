@@ -249,6 +249,9 @@ let set_strategy k l =
 let set_share_reduction b =
   globalize0 (Safe_typing.set_share_reduction b)
 
+let set_unfold_dep_heuristic b =
+  globalize0 (Safe_typing.set_unfold_dep_heuristic b)
+
 let set_VM b = globalize0 (Safe_typing.set_VM b)
 let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)
 

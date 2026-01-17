@@ -113,34 +113,45 @@ let get_transp_state { var_trstate; cst_trstate; prj_trstate; _ } =
   let open TransparentState in
   { tr_var = var_trstate; tr_cst = cst_trstate ; tr_prj = prj_trstate }
 
-let dep_order l2r k1 k2 =
+type order = Left | Right | Same
+
+let dep_order k1 k2 =
   match k1, k2 with
-  | None, None -> l2r
-  | None, _    -> true
-  | Some _, None -> false
+  | None, None -> Same
+  | None, _    -> Left
+  | Some _, None -> Right
   | Some k1, Some k2 ->
   match k1, k2 with
-  | EvalVarRef _, EvalVarRef _ -> l2r
-  | EvalVarRef _, (EvalConstRef _ | EvalProjectionRef _) -> true
-  | EvalConstRef _, EvalVarRef _ -> false
-  | EvalConstRef _, EvalProjectionRef _ -> l2r
-  | EvalConstRef _, EvalConstRef _ -> l2r
-  | EvalProjectionRef _, EvalVarRef _ -> false
-  | EvalProjectionRef _, EvalConstRef _ -> l2r
-  | EvalProjectionRef _, EvalProjectionRef _ -> l2r
+  | EvalVarRef _, EvalVarRef _ -> Same
+  | EvalVarRef _, (EvalConstRef _ | EvalProjectionRef _) -> Left
+  | EvalConstRef _, EvalVarRef _ -> Right
+  | EvalConstRef _, EvalProjectionRef _ -> Same
+  | EvalConstRef _, EvalConstRef _ -> Same
+  | EvalProjectionRef _, EvalVarRef _ -> Right
+  | EvalProjectionRef _, EvalConstRef _ -> Same
+  | EvalProjectionRef _, EvalProjectionRef _ -> Same
+
+(* Compare two constants based on their oracle levels.
+   Returns Same when both have equal levels and same key type. *)
+let oracle_compare o k1 k2 =
+  let s1 = match k1 with None -> Expand | Some k1 -> get_strategy o k1 in
+  let s2 = match k2 with None -> Expand | Some k2 -> get_strategy o k2 in
+  match s1, s2 with
+  | Expand, Expand -> dep_order k1 k2
+  | Expand, (Opaque | Level _) -> Left
+  | (Opaque | Level _), Expand -> Right
+  | Opaque, Opaque -> dep_order k1 k2
+  | Level _, Opaque -> Left
+  | Opaque, Level _ -> Right
+  | Level n1, Level n2 ->
+     if Int.equal n1 n2 then dep_order k1 k2
+     else if n1 < n2 then Left
+     else Right
 
 (* Unfold the first constant only if it is "more transparent" than the
    second one. In case of tie, use the recommended default. *)
 let oracle_order o l2r k1 k2 =
-  let s1 = match k1 with None -> Expand | Some k1 -> get_strategy o k1 in
-  let s2 = match k2 with None -> Expand | Some k2 -> get_strategy o k2 in
-  match s1, s2 with
-  | Expand, Expand -> dep_order l2r k1 k2
-  | Expand, (Opaque | Level _) -> true
-  | (Opaque | Level _), Expand -> false
-  | Opaque, Opaque -> dep_order l2r k1 k2
-  | Level _, Opaque -> true
-  | Opaque, Level _ -> false
-  | Level n1, Level n2 ->
-     if Int.equal n1 n2 then dep_order l2r k1 k2
-     else n1 < n2
+  match oracle_compare o k1 k2 with
+  | Left -> true
+  | Right -> false
+  | Same -> l2r
