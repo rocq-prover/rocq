@@ -214,6 +214,10 @@ val constant_value_and_type : env -> Constant.t puniverses ->
     polymorphic *)
 val constant_context : env -> Constant.t -> AbstractContext.t
 
+(** Returns the set of constants that appear in the body of the given constant.
+    Returns empty set for axioms, opaque definitions, and primitives. *)
+val constant_dependencies : env -> Constant.t -> Cset.t
+
 (* These functions should be called under the invariant that [env]
    already contains the constraints corresponding to the constant
    application. *)
@@ -496,8 +500,10 @@ module Internal : sig
 
   module View :
   sig
+    type dep_cache = Cset.t option ref
+
     type t = {
-      env_constants : constant_key Cmap_env.t;
+      env_constants : (constant_key * dep_cache) Cmap_env.t;
       env_inductives : mind_key Mindmap_env.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
