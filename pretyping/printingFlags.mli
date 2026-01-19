@@ -89,7 +89,8 @@ module Extern : sig
     projections : bool;
     float : bool;
     factorize_eqns : FactorizeEqns.t;
-    (* XXX depth? *)
+    (* None = unlimited *)
+    depth : int option;
   }
 
   val make_raw : t -> t
@@ -123,3 +124,5 @@ module PrintingInductiveMake (_ : sig
   : Goptions.RefConvertArg
     with type t = Names.inductive
      and module Set = Names.Indset_env
+
+val set_extern_depth : int option -> unit

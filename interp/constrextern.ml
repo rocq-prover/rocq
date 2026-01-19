@@ -857,7 +857,7 @@ let max_depth = ref None
 
 let set_max_depth d = max_depth := d
 
-let init_depth () = match !max_depth with
+let init_depth flags = match flags.ExternFlags.depth with
   | None -> Unlimited
   | Some max -> Until { current = 0; max }
 
@@ -1318,14 +1318,14 @@ and extern_applied_proj depth inctx scopes eenv (cst,us) params c extraargs =
   let us = extern_instance eenv.uvars us in
   extern_projection ~flags:eenv.flags inctx (f,us) nparams args imps
 
-let extern inctx scopes eenv c : constr_expr = extern (init_depth()) inctx scopes eenv c
+let extern inctx scopes eenv c : constr_expr = extern (init_depth eenv.flags) inctx scopes eenv c
 
 let extern_glob_constr eenv c =
   extern false ((constr_some_level,None),([],[])) eenv c
 
 let extern_glob_type ?impargs eenv c =
   let c = Option.fold_right insert_impargs impargs c in
-  extern_typ (init_depth()) ((constr_some_level,None),([],[])) eenv c
+  extern_typ (init_depth eenv.flags) ((constr_some_level,None),([],[])) eenv c
 
 (******************************************************************)
 (* Main translation function from constr -> constr_expr *)
@@ -1546,4 +1546,4 @@ let extern_rel_context ~(flags:PrintingFlags.t) env sigma sign =
   let a = detype_rel_context Detyping.Later ~flags:flags.detype ([],env) sigma sign in
   let eenv = extern_env env sigma ~flags:flags.extern in
   let a = List.map (extended_glob_local_binder_of_decl) a in
-  pi3 (extern_local_binder (init_depth()) ((constr_some_level,None),([],[])) eenv a)
+  pi3 (extern_local_binder (init_depth eenv.flags) ((constr_some_level,None),([],[])) eenv a)

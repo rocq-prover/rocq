@@ -160,6 +160,11 @@ let { Goptions.get = print_float } =
     ~value:true
     ()
 
+(* extern (option handled by topfmt) *)
+let extern_depth = ref None
+let set_extern_depth d = extern_depth := d
+let extern_depth() = !extern_depth
+
 module PrintingInductiveMake (Test : sig
     val encode : Environ.env -> Libnames.qualid -> Names.inductive
     val member_message : Pp.t -> bool -> Pp.t
@@ -336,7 +341,7 @@ module Extern = struct
     projections : bool;
     float : bool;
     factorize_eqns : FactorizeEqns.t;
-    (* XXX depth? *)
+    depth : int option;
   }
 
   let current_ignore_raw () = {
@@ -352,6 +357,7 @@ module Extern = struct
     projections = !print_projections;
     float = print_float();
     factorize_eqns = FactorizeEqns.current_ignore_raw();
+    depth = extern_depth();
   }
 
   let make_raw flags = {
