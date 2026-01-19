@@ -6,11 +6,15 @@
 (ocamllex lexer)
 
 (rule
- (targets static_toplevel_libs.ml)
+ (targets static_toplevel_libs.ml.gen)
  (deps %{workspace_root}/_build/install/%{context_name}/lib/rocq-runtime/META)
  (action
   (with-stdout-to %{targets}
    (run ocamlfind query -recursive -predicates native rocq-runtime.toplevel
         -prefix "let static_toplevel_libs = [\n"
-        -format "\"%p\";"
+        -format "  \"%p\";"
         -suffix "\n]\n"))))
+
+(rule
+ (alias static_libs_check)
+ (action (diff static_toplevel_libs.ml static_toplevel_libs.ml.gen)))

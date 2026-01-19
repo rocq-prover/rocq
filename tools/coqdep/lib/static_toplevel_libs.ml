@@ -1,0 +1,32 @@
+let static_toplevel_libs = [
+  "str";
+  "unix";
+  "rocq-runtime.coqworkmgrapi";
+  "findlib.internal";
+  "findlib";
+  "threads";
+  "rocq-runtime.clib";
+  "rocq-runtime.config";
+  "rocq-runtime.boot";
+  "rocq-runtime.coqargs";
+  "dynlink";
+  "findlib.dynload";
+  "rocq-runtime.perf";
+  "rocq-runtime.lib";
+  "rocq-runtime.gramlib";
+  "rocq-runtime.vm";
+  "rocq-runtime.kernel";
+  "rocq-runtime.library";
+  "rocq-runtime.engine";
+  "rocq-runtime.pretyping";
+  "zarith";
+  "rocq-runtime.interp";
+  "rocq-runtime.parsing";
+  "rocq-runtime.proofs";
+  "rocq-runtime.printing";
+  "rocq-runtime.tactics";
+  "rocq-runtime.vernac";
+  "rocq-runtime.sysinit";
+  "rocq-runtime.stm";
+  "rocq-runtime.toplevel";
+]

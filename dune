@@ -21,11 +21,11 @@
 
 (alias
  (name default)
- (deps rocq-runtime.install coq-core.install rocq-core.install coqide-server.install))
+ (deps (alias_rec static_libs_check) rocq-runtime.install coq-core.install rocq-core.install coqide-server.install))
 
 (alias
  (name runtime)
- (deps rocq-runtime.install coq-core.install))
+ (deps (alias_rec static_libs_check) rocq-runtime.install coq-core.install))
 
 (install
  (section lib)
