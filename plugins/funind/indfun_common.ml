@@ -103,7 +103,8 @@ let full_detype_flags () =
 
 let full_extern_flags () =
   let flags = PrintingFlags.Extern.current() in
-  PrintingFlags.Extern.make_raw flags
+  let flags = PrintingFlags.Extern.make_raw flags in
+  { flags with depth = None }
 
 let extern_env_full_printing () =
   Constrextern.empty_extern_env ~flags:(full_extern_flags())
