@@ -129,6 +129,7 @@ module Interner : sig
   ; prim : t -> prim_token fn
   ; delimiters : t -> (delimiter_depth * string * constr_expr) fn
   ; array : t -> (instance_expr option * constr_expr array * constr_expr * constr_expr) fn
+  ; letimport : t -> (qualid * ModPath.t * constr_expr) fn
   }
 
   val eval : t -> constr_expr_r fn
@@ -283,3 +284,7 @@ val interp_mutual_univ_decl_opt : Environ.env -> universe_decl_expr option list 
   Evd.evar_map * UState.universe_decl
 (** Check that all defined udecls of a list of udecls associated to a mutual definition
     are the same and interpret this common udecl *)
+
+type with_local_import = { with_local_import : 'a. ModPath.t -> (unit -> 'a) -> 'a }
+
+val set_with_local_import : with_local_import -> unit

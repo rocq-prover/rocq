@@ -1736,3 +1736,62 @@ let process_module_binding mbid me =
   InterpVisitor.load_module 1 sp mp sobjs
 
 let () = append_end_library_hook Profile_tactic.do_print_results_at_close
+
+let with_local_import mp f =
+  let synst = Summary.Synterp.freeze_summaries () in
+  let intst = Summary.Interp.freeze_summaries () in
+  let k () =
+    let () = Flags.with_modified_ref Flags.in_synterp_phase (fun _ -> None) (fun () ->
+        Synterp.import_module Libobject.unfiltered ~export:Import mp) ()
+    in
+    let () = Interp.import_module Libobject.unfiltered ~export:Import mp in
+    f ()
+  in
+  let unfreeze () =
+    Summary.Synterp.unfreeze_summaries synst;
+    Summary.Interp.unfreeze_summaries intst
+  in
+  Util.try_finally k () unfreeze ()
+
+let () = Constrintern.set_with_local_import { with_local_import }
+
+let parse_let_import kws strm =
+  let open Gramlib in
+  let open Tok in
+  let (let*) = Result.bind in
+  let* qid_start = match LStream.peek_nth kws 0 strm with
+    | Some (IDENT id) -> Ok id
+    | _ -> Error ()
+  in
+  let qid_start_loc = LStream.max_peek_loc strm in
+  let rec parse_qid loc acc n =
+    match LStream.peek_nth kws n strm with
+    | Some (FIELD id) -> parse_qid (LStream.max_peek_loc strm) (id::acc) (n+1)
+    | _ -> Ok (loc, acc, n)
+  in
+  let* qid_end_loc, qid, n = parse_qid qid_start_loc [qid_start] 1 in
+  let qid_loc = Loc.merge qid_start_loc qid_end_loc in
+  let qid = List.map Names.Id.of_string qid in
+  let qid = match qid with
+    | id :: path -> Libnames.make_qualid ~loc:qid_loc (Names.DirPath.make path) id
+    | [] -> assert false
+  in
+  let* () = match LStream.peek_nth kws n strm with
+    | Some (KEYWORD "in") -> Ok ()
+    | _ -> Error ()
+  in
+  let () = LStream.njunk kws (n+1) strm in
+  let mp =
+    try Nametab.locate_module qid
+    with Not_found ->
+      CErrors.user_err ?loc:qid.loc Pp.(str "Cannot find module " ++ Libnames.pr_qualid qid)
+  in
+  let old_st = Summary.Synterp.freeze_summaries() in
+  let k () =
+    let () = Synterp.import_module Libobject.unfiltered ~export:Import mp in
+    let* c = Procq.Entry.parse_token_stream Procq.Constr.lconstr strm in
+    Ok (CAst.make ?loc:c.loc (Constrexpr.CLetImport (qid,mp,c)))
+  in
+  Util.try_finally k () Summary.Synterp.unfreeze_summaries old_st
+
+let let_import = Procq.Entry.of_parser "let_import" { parser_fun = parse_let_import }

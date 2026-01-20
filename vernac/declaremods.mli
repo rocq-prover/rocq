@@ -186,3 +186,8 @@ val debug_print_modtab : unit -> Pp.t
 
 val process_module_binding :
   MBId.t -> (Constr.t * UVars.AbstractContext.t option) Declarations.module_alg_expr -> unit
+
+(* parses AFTER "let Import" *)
+val let_import : Constrexpr.constr_expr Procq.Entry.t
+
+val with_local_import : ModPath.t -> (unit -> 'a) -> 'a

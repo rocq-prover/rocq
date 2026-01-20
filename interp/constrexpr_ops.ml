@@ -277,11 +277,15 @@ module EqGen (A:sig val constr_expr_eq : constr_expr -> constr_expr -> bool end)
         Array.equal constr_expr_eq t1 t2 &&
         constr_expr_eq def1 def2 && constr_expr_eq ty1 ty2 &&
         Option.equal instance_expr_eq u1 u2
+      | CLetImport (qid1,mp1,c1), CLetImport (qid2,mp2,c2) ->
+        qualid_eq qid1 qid2 &&
+        ModPath.equal mp1 mp2 &&
+        constr_expr_eq c1 c2
       | (CRef _ | CFix _ | CCoFix _ | CProdN _ | CLambdaN _ | CLetIn _ | CAppExpl _
         | CApp _ | CProj _ | CRecord _ | CCases _ | CLetTuple _ | CIf _ | CHole _
         | CGenarg _ | CGenargGlob _
         | CPatVar _ | CEvar _ | CSort _ | CCast _ | CNotation _ | CPrim _
-        | CGeneralization _ | CDelimiters _ | CArray _), _ -> false
+        | CGeneralization _ | CDelimiters _ | CArray _ | CLetImport _), _ -> false
 
 end
 
@@ -405,6 +409,7 @@ let fold_constr_expr_with_binders g f n acc = CAst.with_val (function
     | CCoFix (_,_) ->
       Feedback.msg_warning (strbrk "Capture check in multiple binders not done"); acc
     | CArray (_u,t,def,ty) -> f n (f n (Array.fold_left (f n) acc t) def) ty
+    | CLetImport (_,_,c) -> f n acc c
     | CHole _ | CGenarg _ | CGenargGlob _ | CEvar _ | CPatVar _ | CSort _ | CPrim _ | CRef _ ->
       acc
   )
@@ -528,6 +533,7 @@ let map_constr_expr_with_binders g f e = CAst.map (function
           (id,r,bl',t',d')) dl)
     | CArray (u, t, def, ty) ->
       CArray (u, Array.map (f e) t, f e def, f e ty)
+    | CLetImport (qid,mp,c) -> CLetImport (qid,mp,f e c)
     | CHole _ | CGenarg _ | CGenargGlob _ | CEvar _ | CPatVar _ | CSort _
     | CPrim _ | CRef _ as x -> x
   )
@@ -663,8 +669,10 @@ let rec coerce_to_cases_pattern_expr c = CAst.map_with_loc (fun ?loc -> function
     CErrors.user_err ?loc
                       (str "This expression should be coercible to a pattern.")
   | CArray _ ->
-    CErrors.user_err ?loc
-                      (str "Arrays in patterns not supported.")) c
+    CErrors.user_err ?loc (str "Arrays in patterns not supported.")
+  | CLetImport _ -> CErrors.user_err ?loc (str "let Import in patterns not supported.")
+  ) c
+
 
 let isCSort a =
   match a.CAst.v with Constrexpr.CSort _ -> true | _ -> false
