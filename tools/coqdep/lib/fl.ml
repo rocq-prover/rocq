@@ -72,12 +72,16 @@ let findlib_resolve ~package =
   let cmxs_file = List.map relative_if_dune cmxss in
   (meta_file, cmxs_file)
 
-let static_libs = CString.Set.of_list Static_toplevel_libs.static_toplevel_libs
+let static_libs () =
+  let packages = Findlib.package_deep_ancestors coqc_predicates ["rocq-runtime.toplevel"] in
+  CString.Set.of_list packages
+
+let static_libs = Lazy.from_fun static_libs
 
 let findlib_deep_resolve ~package =
   let packages = Findlib.package_deep_ancestors coqc_predicates [package] in
   let packages = CList.filter (fun package ->
-      not (CString.Set.mem package static_libs))
+      not (CString.Set.mem package (Lazy.force static_libs)))
       packages
   in
   List.fold_left (fun (metas,cmxss) package ->
