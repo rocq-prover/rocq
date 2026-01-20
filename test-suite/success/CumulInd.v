@@ -4,6 +4,15 @@ Fail Inductive foo@{+u} : Prop := .
 Fail Polymorphic Inductive foo@{*u} : Prop := .
 Inductive foo@{=u} : Prop := .
 
+(* Cumulative attr forbidden without univ poly on *)
+Fail Cumulative Inductive bar@{u} : Prop := .
+
+(* option allowed but does nothing until univ poly is on *)
+Set Polymorphic Inductive Cumulativity.
+
+Fail Inductive bar@{*u} : Prop := .
+Succeed Polymorphic  Inductive bar@{*u} : Prop := .
+
 Set Universe Polymorphism.
 Set Polymorphic Inductive Cumulativity.
 

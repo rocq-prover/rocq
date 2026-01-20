@@ -294,45 +294,27 @@ let polymorphic =
   | Some b -> return b
   | None -> return (is_universe_polymorphism())
 
-let cumulative_inductive_option_name = ["Polymorphic"; "Inductive"; "Cumulativity"]
-let is_polymorphic_inductive_cumulativity =
-  let b = ref None in
-  let read () = match !b with None -> is_universe_polymorphism () | Some b -> b in
-  let write d =
-    if d && not (is_universe_polymorphism()) then
-      CErrors.user_err Pp.(str "Cannot set polymorphic inductive cumulativity status when not in universe polymorphism mode")
-    else b := Some d
-  in
-  let () = let open Goptions in
-    declare_bool_option
-      { optstage = Summary.Stage.Interp;
-        optdepr  = None;
-        optkey   = cumulative_inductive_option_name;
-        optread  = read;
-        optwrite = write }
-  in
-  read
+let { Goptions.get = is_polymorphic_inductive_cumulativity } =
+  Goptions.declare_bool_option_and_ref ~key:["Polymorphic"; "Inductive"; "Cumulativity"] ~value:false ()
 
 let cumulative kind =
   match kind with
-  | PolyFlags.Inductive ->
-     begin
-       qualify_attribute ukey (bool_attribute ~name:"cumulative") >>= function
-       | Some b -> return b
-       | None -> return (is_polymorphic_inductive_cumulativity())
-     end
+  | PolyFlags.Inductive -> qualify_attribute ukey (bool_attribute ~name:"cumulative")
   | PolyFlags.Assumption | PolyFlags.Definition ->
      (* Not yet supported *)
-     return false
+     return None
 
-let poly kind atts =
-  let atts, univ_poly = polymorphic atts in
-  if univ_poly then
-    let atts, cumulative =
-      cumulative kind atts
-    in
-    atts, PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables:true
-  else atts, PolyFlags.default
+let poly kind =
+  (polymorphic ++ cumulative kind) >>= fun (univ_poly, cumulative) ->
+  let cumulative =
+    match cumulative with
+    | None -> if univ_poly then is_polymorphic_inductive_cumulativity() else false
+    | Some b ->
+      if b && not univ_poly then
+        CErrors.user_err Pp.(str "Cannot set polymorphic inductive cumulativity status when not in universe polymorphism mode.")
+      else b
+  in
+  return (PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables:true)
 
 let poly_def = poly PolyFlags.Definition
 
