@@ -10,3 +10,13 @@ plugin(byte) = "fake.cma"
 plugin(native) = "fake.cmxs"
 )
 )
+package "toplevel" (
+  directory = "toplevel"
+  version = "dev"
+  description = "Rocq's Interactive Shell [terminal-based]"
+  requires = "zarith"
+  archive(byte) = "toplevel.cma"
+  archive(native) = "toplevel.cmxa"
+  plugin(byte) = "toplevel.cma"
+  plugin(native) = "toplevel.cmxs"
+)
