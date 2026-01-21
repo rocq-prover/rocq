@@ -1596,8 +1596,7 @@ antiquotations are introduced by the syntax :n:`$@lident`.
 A few other specific syntactic classes exist to handle Ltac1-like syntax, but their use is
 discouraged and they are thus not documented.
 
-For now there is no way to declare new syntactic classes from the Ltac2 side, but this is
-planned.
+New syntactic classes may be declared from the Ltac2 side using :cmd:`Ltac2 Custom Entry`.
 
 Other nonterminals that have syntactic classes are listed here.
 
