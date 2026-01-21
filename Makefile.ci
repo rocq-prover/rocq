@@ -89,7 +89,6 @@ CI_TARGETS= \
     ci-oddorder \
     ci-paco \
     ci-parsec \
-    ci-perennial \
     ci-quickchick_test \
     ci-refman \
     ci-rewriter \
@@ -230,8 +229,6 @@ ci-vst: ci-compcert
 ci-compcert: ci-menhir ci-flocq
 
 ci-paramcoq: ci-stdlib
-
-ci-perennial: ci-stdlib
 
 ci-aac_tactics: ci-stdlib
 ci-relation_algebra: ci-aac_tactics ci-mathcomp
