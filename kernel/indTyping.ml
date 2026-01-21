@@ -103,40 +103,38 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
           else info
         | Prop | Set | Type _ -> { info with record_arg_info = HasRelevantArg }
   in
-  if (Environ.type_in_type env) then info
+  let indu = info.ind_univ
+  and check_univ_consistency f induu uu =
+    if UGraph.check_leq (universes env) uu induu
+    then f info
+    else { info with missing = u :: info.missing } in
+  if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
+        if Sorts.Quality.is_impredicative (Sorts.quality indu)
+        then
+          match u with
+          | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
+          | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
+          | SProp | Prop -> info
+        else check_univ_consistency (fun x -> x)
+                (Sorts.univ_of_sort indu)
+                (Sorts.univ_of_sort u)
   else
-    let indu = info.ind_univ
-    and check_univ_consistency f induu uu =
-      if UGraph.check_leq (universes env) uu induu
-      then f info
-      else { info with missing = u :: info.missing } in
-    if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-          if Sorts.Quality.is_impredicative (Sorts.quality indu)
-          then
-            match u with
-            | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
-            | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
-            | SProp | Prop -> info
-          else check_univ_consistency (fun x -> x)
-                 (Sorts.univ_of_sort indu)
-                 (Sorts.univ_of_sort u)
-    else
-      let check_univ_consistency_squash quality =
-        check_univ_consistency (add_squash quality) in
-      match indu, u with
-      | QSort (_, indu), Type uu ->
-         check_univ_consistency_squash qtype indu uu
-      | QSort (_, indu), QSort (cq, uu) ->
-         check_univ_consistency_squash (QVar cq) indu uu
-      | QSort (q, indu), Set ->
-         if Environ.Internal.is_above_prop env q then info
-         else check_univ_consistency_squash qtype indu Universe.type0
-      | (SProp | Prop), QSort (q, _) ->
-         add_squash (QVar q) info
-      | QSort (q, _), (SProp | Prop) ->
-         if Environ.Internal.is_above_prop env q then info
-         else add_squash (Sorts.quality u) info
-      | _, _ -> { info with ind_squashed = Some AlwaysSquashed }
+    let check_univ_consistency_squash quality =
+      check_univ_consistency (add_squash quality) in
+    match indu, u with
+    | QSort (_, indu), Type uu ->
+        check_univ_consistency_squash qtype indu uu
+    | QSort (_, indu), QSort (cq, uu) ->
+        check_univ_consistency_squash (QVar cq) indu uu
+    | QSort (q, indu), Set ->
+        if Environ.Internal.is_above_prop env q then info
+        else check_univ_consistency_squash qtype indu Universe.type0
+    | (SProp | Prop), QSort (q, _) ->
+        add_squash (QVar q) info
+    | QSort (q, _), (SProp | Prop) ->
+        if Environ.Internal.is_above_prop env q then info
+        else add_squash (Sorts.quality u) info
+    | _, _ -> { info with ind_squashed = Some AlwaysSquashed }
 
 let check_context_univs ~ctor env info ctx =
   let check_one d (info,env) =

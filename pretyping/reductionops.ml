@@ -1393,7 +1393,7 @@ let infer_conv_ustate ?(catch_incon=true) ?(pb=Conversion.CUMUL)
         with
         | Result.Ok cstr -> Some cstr
         | Result.Error None -> None
-        | Result.Error (Some e) -> raise (UGraph.UniverseInconsistency e)
+        | Result.Error (Some e) -> Empty.abort e
   with
   | UGraph.UniverseInconsistency _ when catch_incon -> None
   | e ->
