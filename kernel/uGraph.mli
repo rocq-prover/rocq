@@ -16,7 +16,7 @@ type t
 
 val set_type_in_type : bool -> t -> t
 
-(** When [type_in_type], functions adding constraints do not fail and
+(** When [type_in_type], functions adding level constraints do not fail and
    may instead ignore inconsistent constraints.
 
     Checking functions such as [check_leq] always return [true].
@@ -64,13 +64,11 @@ val check_constraints : UnivConstraints.t -> t -> bool
 
 val check_eq_sort : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Sorts.t -> Sorts.t -> bool
 (** Checks whether (i) the first quality is equal to the second and (ii)
-    that the universe of the first one is equal to the universe of the second one.
-    When [type_in_type], only checks relevance. *)
+    that the universe of the first one is equal to the universe of the second one. *)
 
 val check_leq_sort : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Sorts.t -> Sorts.t -> bool
 (** Checks whether (i) the second quality eliminates into the first and (ii)
-    that the universe of the first one is below the universe of the second one.
-    When [type_in_type], only checks relevance. *)
+    that the universe of the first one is below the universe of the second one. *)
 
 val enforce_leq_alg : Univ.Universe.t -> Univ.Universe.t -> t -> Univ.UnivConstraints.t * t
 

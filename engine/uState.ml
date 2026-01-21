@@ -76,7 +76,13 @@ type uinfo = {
 
 open Quality
 
+exception SortInconsistency of UGraph.univ_inconsistency
+
 let sort_inconsistency ?explain cst l r =
+  let explain = Option.map (fun p -> UGraph.Other p) explain in
+  raise (SortInconsistency (None, (cst, l, r, explain)))
+
+let univ_inconsistency ?explain cst l r =
   let explain = Option.map (fun p -> UGraph.Other p) explain in
   raise (UGraph.UniverseInconsistency (None, (cst, l, r, explain)))
 
@@ -488,10 +494,9 @@ let union uctx uctx' =
       Level.Set.fold (fun u g -> UGraph.add_universe u ~strict:false g) newus g
     in
     let fail_union s q1 q2 =
-      if UGraph.type_in_type uctx.universes then s
-      else CErrors.user_err
-          Pp.(str "Could not merge universe contexts: could not unify" ++ spc() ++
-             Quality.raw_pr q1 ++ strbrk " and " ++ Quality.raw_pr q2 ++ str ".")
+      CErrors.user_err
+        Pp.(str "Could not merge universe contexts: could not unify" ++ spc() ++
+           Quality.raw_pr q1 ++ strbrk " and " ++ Quality.raw_pr q2 ++ str ".")
     in
       { names;
         local = local;
@@ -712,8 +717,7 @@ let warn_template uctx csts =
     do_warn_template (uctx,csts)
 
 let unify_quality univs c s1 s2 l =
-  let fail () = if UGraph.type_in_type univs then l.local_sorts
-    else sort_inconsistency (get_constraint c) s1 s2
+  let fail () = sort_inconsistency (get_constraint c) s1 s2
   in
   { l with
     local_sorts = QState.unify_quality ~fail
@@ -748,20 +752,20 @@ let process_constraints uctx cstrs =
     in
     if UGraph.check_eq_sort Sorts.Quality.equal univs ls s then local
     else if is_uset l then match classify s with
-    | USmall _ -> sort_inconsistency Eq set s
+    | USmall _ -> univ_inconsistency Eq set s
     | ULevel r ->
       if is_local r then
         let () = instantiate_variable r Universe.type0 vars in
         add_univ_local (Level.set, Eq, r) local
       else
-        sort_inconsistency Eq set s
+        univ_inconsistency Eq set s
     | UMax (u, _)| UAlgebraic u ->
       if univ_level_mem Level.set u then
         let inst = univ_level_rem Level.set u u in
         enforce_leq_up inst Level.set local
       else
-        sort_inconsistency Eq ls s
-    else sort_inconsistency Eq ls s
+        univ_inconsistency Eq ls s
+    else univ_inconsistency Eq ls s
   in
   let equalize_variables fo l' r' local =
     if Level.equal l' r' then local
@@ -790,7 +794,7 @@ let process_constraints uctx cstrs =
     else
       if univ_level_mem l ru then
         enforce_leq_up inst l local
-      else sort_inconsistency Eq (sort_of_univ (Universe.make l)) (sort_of_univ ru)
+      else univ_inconsistency Eq (sort_of_univ (Universe.make l)) (sort_of_univ ru)
   in
   let equalize_universes l r local = match classify l, classify r with
   | USmall l', (USmall _ | ULevel _ | UMax _ | UAlgebraic _) ->
@@ -804,7 +808,7 @@ let process_constraints uctx cstrs =
   | (UAlgebraic _ | UMax _), (UAlgebraic _ | UMax _) ->
     (* both are algebraic *)
     if UGraph.check_eq_sort Sorts.Quality.equal univs l r then local
-    else sort_inconsistency Eq l r
+    else univ_inconsistency Eq l r
   in
   let unify_universes cst local =
     let cst = nf_constraint local.local_sorts cst in
@@ -825,7 +829,7 @@ let process_constraints uctx cstrs =
       | UAlgebraic _ | UMax _ ->
         if UGraph.check_leq_sort Sorts.Quality.equal univs l r then local
         else
-          sort_inconsistency Le l r
+          univ_inconsistency Le l r
             ~explain:(Pp.str "(cannot handle algebraic on the right)")
       | USmall r' ->
         (* Invariant: there are no universes u <= Set in the graph. Except for
@@ -835,28 +839,28 @@ let process_constraints uctx cstrs =
         else begin match classify l with
         | UAlgebraic _ ->
           (* l contains a +1 and r=r' small so l <= r impossible *)
-          sort_inconsistency Le l r
+          univ_inconsistency Le l r
         | USmall l' ->
           if UGraph.check_leq_sort Sorts.Quality.equal univs l r then local
-          else sort_inconsistency Le l r
+          else univ_inconsistency Le l r
         | ULevel l' ->
           if is_uset r' && is_local l' then
             (* Unbounded universe constrained from above, we equalize it *)
             let () = instantiate_variable l' Universe.type0 vars in
             add_univ_local (l', Eq, Level.set) local
           else
-            sort_inconsistency Le l r
+            univ_inconsistency Le l r
         | UMax (_, levels) ->
           if is_uset r' then
             let fold l' local =
               let l = sort_of_univ @@ Universe.make l' in
               if Level.is_set l' || is_local l' then
                 equalize_variables false l' Level.set local
-              else sort_inconsistency Le l r
+              else univ_inconsistency Le l r
             in
             Level.Set.fold fold levels local
           else
-            sort_inconsistency Le l r
+            univ_inconsistency Le l r
         end
       | ULevel r' ->
         (* We insert the constraint in the graph even if the graph
@@ -872,7 +876,7 @@ let process_constraints uctx cstrs =
           { local with local_above_prop = Level.Set.add r' local.local_above_prop }
         | USmall USProp ->
           if UGraph.type_in_type univs then local
-          else sort_inconsistency Le l r
+          else univ_inconsistency Le l r
         | USmall USet ->
           add_univ_local (Level.set, Le, r') local
         | ULevel l' ->
@@ -895,8 +899,12 @@ let process_constraints uctx cstrs =
       equalize_universes l r local
   in
   let unify_universes cst local =
-    if not (UGraph.type_in_type univs) then unify_universes cst local
-    else try unify_universes cst local with UGraph.UniverseInconsistency _ -> local
+    try unify_universes cst local
+    with
+      | SortInconsistency e as exn ->
+        let info = Exninfo.info exn in
+        Exninfo.iraise (UGraph.UniverseInconsistency e, info)
+      | UGraph.UniverseInconsistency _ when UGraph.type_in_type univs -> local
   in
   let local = {
     local_cst = PConstraints.empty;
