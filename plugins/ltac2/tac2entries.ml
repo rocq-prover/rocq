@@ -9,7 +9,7 @@
 (************************************************************************)
 
 (* must be before open Libobject, otherwise Dyn is Libobject.Dyn *)
-module SynclassDyn = Dyn.Make()
+module DynMake = Dyn.Make
 
 open Pp
 open Util
@@ -607,38 +607,7 @@ let import_type qid as_id =
 
 (** Parsing *)
 
-type 'a token =
-| TacTerm of string
-| TacNonTerm of Name.t * 'a
-
-type syntax_class_rule =
-| SyntaxRule : (raw_tacexpr, _, 'a) Procq.Symbol.t * ('a -> raw_tacexpr) -> syntax_class_rule
-
 module Tac2Custom = KerName
-
-type used_levels = Int.Set.t Tac2Custom.Map.t
-
-let no_used_levels = Tac2Custom.Map.empty
-
-let union_used_levels a b =
-  Tac2Custom.Map.union (fun _ a b -> Some (Int.Set.union a b)) a b
-
-(* hardcoded syntactic classes, from ltac2 or further plugins *)
-type 'glb syntax_class_decl = {
-  intern_synclass : sexpr list -> used_levels * 'glb;
-  interp_synclass : 'glb -> syntax_class_rule;
-}
-
-type syntax_class = SynclassDyn.t
-
-module SynclassInterpMap = SynclassDyn.Map(struct
-    type 'a t = 'a -> syntax_class_rule
-  end)
-
-let syntax_class_interns : (sexpr list -> used_levels * SynclassDyn.t) Id.Map.t ref =
-  ref Id.Map.empty
-
-let syntax_class_interps = ref SynclassInterpMap.empty
 
 module CustomV = struct
   include Tac2Custom
@@ -695,6 +664,178 @@ let inCustomEntry : Id.t -> bool -> Libobject.obj =
     classify_function = (fun local -> if local then Dispose else Substitute);
   }
 
+module Syntax = struct
+
+  module DynEntry = DynMake()
+
+  module EntryMap = DynEntry.Map(struct type 'a t = 'a Procq.Entry.t end)
+
+  let entries = ref EntryMap.empty
+
+  (* NB someday we may want to allow registering more custom entry kinds
+     instead of handling custom constr and custom ltac2 specially *)
+  type 'a entry =
+    | RegisteredEntry of 'a DynEntry.tag
+    | CustomConstr : Globnames.CustomName.t -> Constrexpr.constr_expr entry
+    | CustomLtac2 : Tac2Custom.t -> raw_tacexpr entry
+
+  let register_entry ?name entry =
+    let name = Option.default (Procq.Entry.name entry) name in
+    let tag = DynEntry.create name in
+    entries := EntryMap.add tag entry !entries;
+    RegisteredEntry tag
+
+  let get_entry : type a. a entry -> a Procq.Entry.t = function
+    | RegisteredEntry e -> EntryMap.find e !entries
+    | CustomConstr e -> fst @@ Egramrocq.find_custom_entry e
+    | CustomLtac2 e -> find_custom_entry e
+
+  type 'a t =
+    | NTerm of 'a entry
+    | NTerml of 'a entry * string
+    | List0 : 'a t * string option -> 'a list t
+    | List1 : 'a t * string option -> 'a list t
+    | Opt : 'a t -> 'a option t
+    | Self : raw_tacexpr t
+    | Next : raw_tacexpr t
+    | Token of 'a Tok.p
+    | Tokens : Procq.ty_pattern list -> unit t
+    | Seq of 'a seq
+
+  and _ seq =
+    | Nil : unit seq
+    | Snoc : 'a seq * 'b t -> ('a * 'b) seq
+    (* We use snoc lists for seq because that works better when translating to Procq.Rule.t
+       (the same argument is on the outside of the tuple ['r] and of the function type ['f]) *)
+
+  type _ rec_ =
+    | NoRec : Gramlib.Grammar.norec rec_
+    | MayRec
+
+  type 'a symbol = Symb : 'mayrec rec_ * (raw_tacexpr, 'mayrec, 'a) Procq.Symbol.t -> 'a symbol
+
+  (* Procq.Rule.t contains the type ['fulla] parsed by the whole seq in it last argument.
+     We connect it to the type ['a] involved in the head of the seq using this GADT.
+     (and also handle mayrec) *)
+  type ('a,'fulla) rule =
+      Rule :
+        'mayrec rec_ *
+        (('a -> 'fulla) -> 'f) *
+        (raw_tacexpr, 'mayrec, 'f, Loc.t -> 'fulla) Procq.Rule.t ->
+        ('a,'fulla) rule
+
+  let norec s = Symb (NoRec, s)
+
+  let rec to_symbol : type a. a t -> a symbol = fun s ->
+    let open Procq.Symbol in
+    match s with
+    | NTerm e -> norec @@ nterm (get_entry e)
+    | NTerml (e, lev) -> norec @@ nterml (get_entry e) lev
+    | List0 (s, None) ->
+      let Symb (mayrec, s) = to_symbol s in
+      Symb (mayrec, list0 s)
+    | List0 (s, Some sep) ->
+      let Symb (mayrec, s) = to_symbol s in
+      let sep = tokens [TPattern (CLexer.terminal sep)] in
+      Symb (mayrec, list0sep s sep)
+    | List1 (s, None) ->
+      let Symb (mayrec, s) = to_symbol s in
+      Symb (mayrec, list1 s)
+    | List1 (s, Some sep) ->
+      let Symb (mayrec, s) = to_symbol s in
+      let sep = tokens [TPattern (CLexer.terminal sep)] in
+      Symb (mayrec, list1sep s sep)
+    | Opt s ->
+      let Symb (mayrec, s) = to_symbol s in
+      Symb (mayrec, opt s)
+    | Self -> Symb (MayRec, self)
+    | Next -> Symb (MayRec, next)
+    | Token p -> norec @@ token p
+    | Tokens l -> norec @@ tokens l
+    | Seq s -> seq_to_symbol s
+
+  and seq_to_rule : type a fulla. a seq -> (a,fulla) rule =
+    fun s ->
+    match s with
+    | Nil -> Rule (NoRec, (fun f (_:Loc.t) -> f ()), Procq.Rule.stop)
+    | Snoc (hd, x) ->
+      let Rule (rechd, f, hd) = seq_to_rule hd in
+      let Symb (recx, x) = to_symbol x in
+      let f (g:a -> fulla) x = f (fun hd -> g (hd, x)) in
+      match rechd, recx with
+      | NoRec, NoRec ->
+        let rule = Procq.Rule.next_norec hd x in
+        Rule (NoRec, f, rule)
+      | MayRec, _ | _, MayRec ->
+        let rule = Procq.Rule.next hd x in
+        Rule (MayRec, f, rule)
+
+  and seq_to_symbol : type a. a seq -> a symbol = fun s ->
+    let open Procq.Symbol in
+    let Rule (mayrec, f, r) = seq_to_rule s in
+    match mayrec with
+    | MayRec ->
+      CErrors.user_err Pp.(str "Recursive symbols (self / next) are not allowed in local rules.")
+    | NoRec -> norec @@ rules [Procq.Rules.make r (f (fun (x:a) -> x))]
+
+  let constr = register_entry Procq.Constr.constr
+  let lconstr = register_entry Procq.Constr.lconstr
+  let term = register_entry Procq.Constr.term
+
+  let custom_constr c = CustomConstr c
+  let custom_ltac2 c = CustomLtac2 c
+
+  let ltac2_expr = register_entry Pltac.ltac2_expr
+
+  let nterm e = NTerm e
+  let nterml e lev = NTerml (e, lev)
+  let list0 ?sep s = List0 (s, sep)
+  let list1 ?sep s = List1 (s, sep)
+  let opt s = Opt s
+  let self = Self
+  let next = Next
+  let token p = Token p
+  let tokens l = Tokens l
+
+  let seq s = Seq s
+  let nil = Nil
+  let snoc a b = Snoc (a, b)
+
+end
+
+type 'a token =
+| TacTerm of string
+| TacNonTerm of Name.t * 'a
+
+type syntax_class_rule =
+| SyntaxRule : 'a Syntax.t * ('a -> raw_tacexpr) -> syntax_class_rule
+
+type used_levels = Int.Set.t Tac2Custom.Map.t
+
+let no_used_levels = Tac2Custom.Map.empty
+
+let union_used_levels a b =
+  Tac2Custom.Map.union (fun _ a b -> Some (Int.Set.union a b)) a b
+
+(* hardcoded syntactic classes, from ltac2 or further plugins *)
+type 'glb syntax_class_decl = {
+  intern_synclass : sexpr list -> used_levels * 'glb;
+  interp_synclass : 'glb -> syntax_class_rule;
+}
+
+module SynclassDyn = DynMake()
+
+type syntax_class = SynclassDyn.t
+
+module SynclassInterpMap = SynclassDyn.Map(struct
+    type 'a t = 'a -> syntax_class_rule
+  end)
+
+let syntax_class_interns : (sexpr list -> used_levels * SynclassDyn.t) Id.Map.t ref =
+  ref Id.Map.empty
+
+let syntax_class_interps = ref SynclassInterpMap.empty
+
 let check_custom_entry_name id =
   (* XXX allow it anyway? the name can be accessed by qualifying it *)
   if Id.Map.mem id !syntax_class_interns then
@@ -729,7 +870,7 @@ let terminal_synclass_tag : string SynclassDyn.tag = SynclassDyn.create "<termin
 
 let interp_terminal str : syntax_class_rule =
   let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
-  SyntaxRule (Procq.Symbol.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
+  SyntaxRule (Syntax.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
 
 let () =
   syntax_class_interps := SynclassInterpMap.add terminal_synclass_tag interp_terminal !syntax_class_interps
@@ -741,12 +882,12 @@ type custom_synclass_data = {
 
 let interp_custom_entry data : syntax_class_rule =
   let ename = data.custom_synclass_name in
-  let entry = find_custom_entry ename in
+  let entry = Syntax.custom_ltac2 ename in
   match data.custom_synclass_level with
   | None ->
-    SyntaxRule (Procq.Symbol.nterm entry, (fun expr -> expr))
+    SyntaxRule (Syntax.nterm entry, (fun expr -> expr))
   | Some lev ->
-    SyntaxRule (Procq.Symbol.nterml entry (level_name lev), (fun expr -> expr))
+    SyntaxRule (Syntax.nterml entry (level_name lev), (fun expr -> expr))
 
 let custom_synclass_tag : custom_synclass_data SynclassDyn.tag = SynclassDyn.create "<custom>"
 
@@ -869,6 +1010,7 @@ let rec get_rule (tok : SynclassDyn.t token list) : krule = match tok with
 | TacNonTerm (na, v) :: tok ->
   let SyntaxRule (syntax_class, inj) = interp_syntax_class v in
   let KRule (rule, act) = get_rule tok in
+  let Syntax.Symb (_,syntax_class) = Syntax.to_symbol syntax_class in
   let rule = Procq.Rule.next rule syntax_class in
   let act k e = act (fun loc acc -> k loc ((na, inj e) :: acc)) in
   KRule (rule, act)
