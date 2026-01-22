@@ -122,7 +122,9 @@ value rocq_tcode_array(value tcodes) {
 
    The last few instructions invoke the code pointer stored in rocq_accumulate_addr.
    This variable is initialized using field 2 of the closure passed as parameter
-   (i.e., "accumulate"), which is the pointer to the arity-2 direct call. */
+   (i.e., "accumulate"), which is the pointer to the arity-2 direct call.
+
+   Keep the compile-time checks in sync with rocq_configure.c */
 
 #if defined(__GNUC__) && defined(__amd64__)
 static code_t rocq_accumulate_addr asm("rocq_accumulate_addr") __attribute__((used));

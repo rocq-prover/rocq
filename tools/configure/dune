@@ -1,7 +1,11 @@
 (library
  (name conf)
  (modules :standard \ configure)
- (libraries unix str))
+ (libraries unix str)
+ (foreign_stubs
+  (language c)
+  (names rocq_configure)
+  (flags :standard)))
 
 (executable
  (name configure)
