@@ -115,7 +115,9 @@ value rocq_tcode_array(value tcodes) {
 
    Since the word before the branch indicates to the garbage collector
    that this block should be ignored, the code pointer can be used
-   inside blocks that do not have tag 247. */
+   inside blocks that do not have tag 247.
+
+   Keep the compile-time checks in sync with rocq_configure.c */
 
 #if defined(__GNUC__) && defined(__amd64__)
 
