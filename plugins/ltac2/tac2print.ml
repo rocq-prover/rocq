@@ -716,8 +716,8 @@ let pr_rawexpr_gen lvl ~avoid c =
     let pr_arg (pat, arg, ty) =
       let bnd = match ty with
         | Some ty ->
-          paren (pr_name pat.CAst.v ++ spc() ++ str ":" ++ spc() ++ pr_glbtype_gen tynames T5_l ty)
-        | None -> pr_name pat.CAst.v
+          paren (pr_name pat ++ spc() ++ str ":" ++ spc() ++ pr_glbtype_gen tynames T5_l ty)
+        | None -> pr_name pat
       in
       hov (-2) (bnd  ++ str " :=" ++ spc() ++ hov 2 (pr_rawexpr E5 avoid arg))
     in

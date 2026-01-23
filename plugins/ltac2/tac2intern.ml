@@ -1120,7 +1120,7 @@ let expand_notation ?loc el kn =
           | Anonymous -> None, argtys
           | Name id -> Some (Id.Map.get id argtys), Id.Map.remove id argtys
         in
-        argtys ,(na, arg, argty))
+        argtys, (na.CAst.v, arg, argty))
         argtys
         el
     in
@@ -1391,12 +1391,12 @@ let rec intern_rec env tycon {loc;v=e} =
   in
   let args = List.map (fun (na, arg, ty) ->
       let ty = Option.map (subst_type tysubst) ty in
-      let () = match na.CAst.v, ty with
+      let () = match na, ty with
         | Anonymous, None | Name _, Some _ -> ()
         | Anonymous, Some _ | Name _, None -> assert false
       in
       let e, _ = intern_rec env ty arg in
-      na.CAst.v, e)
+      na, e)
       args
   in
   if CList.is_empty args then body, ty

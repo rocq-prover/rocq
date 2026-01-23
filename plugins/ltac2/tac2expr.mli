@@ -173,7 +173,7 @@ type raw_tacexpr_r =
 | CTacPrj of raw_tacexpr * ltac_projection or_relid
 | CTacSet of raw_tacexpr * ltac_projection or_relid * raw_tacexpr
 | CTacExt : ('a, _) Tac2dyn.Arg.tag * 'a -> raw_tacexpr_r
-| CTacGlb of int * (lname * raw_tacexpr * int glb_typexpr option) list * glb_tacexpr * int glb_typexpr
+| CTacGlb of int * (Name.t * raw_tacexpr * int glb_typexpr option) list * glb_tacexpr * int glb_typexpr
 (** CTacGlb is essentially an expanded typed notation.
     Arguments bound with Anonymous have no type constraint. *)
 
