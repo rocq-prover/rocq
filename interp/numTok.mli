@@ -75,6 +75,7 @@ module Unsigned :
 sig
   type t
   val equal : t -> t -> bool
+  val compare : t -> t -> int
   val is_nat : t -> bool
   val to_nat : t -> string option
 

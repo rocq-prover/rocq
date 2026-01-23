@@ -1108,8 +1108,24 @@ let warn_useless_record_with = CWarnings.create ~name:"ltac2-useless-record-with
         str "All the fields are explicitly listed in this record:" ++
         spc() ++ str "the 'with' clause is useless.")
 
-let expand_notation ?loc el kn =
-  match Tac2env.interp_notation kn with
+type notation_data =
+  | UntypedNota of raw_tacexpr
+  | TypedNota of {
+      nota_prms : int;
+      nota_argtys : int glb_typexpr Id.Map.t;
+      nota_ty : int glb_typexpr;
+      nota_body : glb_tacexpr;
+    }
+
+let interp_notation = ref (fun ?loc _ -> assert false)
+
+let set_interp_notation f = interp_notation := f
+let interp_notation ?loc (syn:tacsyn) : _ * _ =
+  !interp_notation ?loc syn
+
+let expand_notation ?loc syn =
+  let data, el = interp_notation ?loc syn in
+  match data with
   | UntypedNota body ->
     let el = List.map (fun (pat, e) -> CAst.map (fun na -> CPatVar na) pat, e) el in
     let v = if CList.is_empty el then body else CAst.make ?loc @@ CTacLet(false, el, body) in
@@ -1255,8 +1271,8 @@ let rec intern_rec env tycon {loc;v=e} =
   let ids = List.fold_left fold Id.Set.empty el in
   if is_rec then intern_let_rec env loc el tycon e
   else intern_let env loc ids el tycon e
-| CTacSyn (el, kn) ->
-  let v = expand_notation ?loc el kn in
+| CTacSyn syn ->
+  let v = expand_notation ?loc syn in
   intern_rec env tycon v
 | CTacCnv (e, tc) ->
   let tc = intern_type env tc in
@@ -1699,8 +1715,8 @@ let globalize_gen ~tacext ids tac =
       in
       let bnd = List.map map bnd in
       CAst.make ?loc @@ CTacLet (isrec, bnd, e)
-    | CTacSyn (el, kn) ->
-      let v = expand_notation ?loc el kn in
+    | CTacSyn syn ->
+      let v = expand_notation ?loc syn in
       globalize ids v
     | CTacCnv (e, t) ->
       let e = globalize ids e in
@@ -1802,7 +1818,7 @@ let intern_notation_data ids body =
     let argtys = Id.Map.map (fun ty -> normalize env (count, vars) ty) argtys in
     let ty = normalize env (count, vars) ty in
     let prms = !count in
-    Tac2env.TypedNota {
+    TypedNota {
       nota_prms = prms;
       nota_argtys = argtys;
       nota_ty = ty;
@@ -1810,7 +1826,7 @@ let intern_notation_data ids body =
     }
   else
     let body = globalize ids body in
-    Tac2env.UntypedNota body
+    UntypedNota body
 
 (** Registering *)
 

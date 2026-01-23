@@ -113,6 +113,13 @@ struct
   let equal n1 n2 =
     String.(equal n1.int n2.int && equal n1.frac n2.frac && equal n1.exp n2.exp)
 
+  let compare n1 n2 =
+    let c = String.compare n1.int n2.int in
+    if c <> 0 then c
+    else let c = String.compare n1.frac n2.frac in
+      if c <> 0 then c
+      else String.compare n1.exp n2.exp
+
   let parse =
     let buff = ref (Bytes.create 80) in
     let store len x =
