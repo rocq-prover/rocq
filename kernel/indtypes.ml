@@ -154,8 +154,8 @@ if Int.equal nmr 0 then 0 else
      (i.e. range of inductives is [n; n+ntypes-1])
    [lra] is the list of recursive tree of each variable
  *)
-let ienv_push_var (env, n, ntypes, lra) (x,a,ra) =
-  (push_rel (LocalAssum (x, a)) env, n+1, ntypes, { head = Norec; node = ra } :: lra)
+let ienv_push_var (env, n, ntypes, lra) (x, a) =
+  (push_rel (LocalAssum (x, a)) env, n+1, ntypes, { head = Norec; node = mk_norec } :: lra)
 
 let ienv_push_inductive (env, n, ntypes, ra_env) ((mi,u),lrecparams) =
   let auxntyp = 1 in
@@ -178,7 +178,7 @@ let rec ienv_decompose_prod (env,_,_,_ as ienv) n c =
     let c' = whd_all env c in
     match kind c' with
         Prod(na,a,b) ->
-          let ienv' = ienv_push_var ienv (na,a,mk_norec) in
+          let ienv' = ienv_push_var ienv (na, a) in
           ienv_decompose_prod ienv' (n-1) b
       | _ -> assert false
 
@@ -217,9 +217,9 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
               | None when chkpos ->
                   failwith_non_pos_list n ntypes [b]
               | None ->
-                  check_strict_positivity (ienv_push_var ienv (na, b, mk_norec)) nmr d
+                  check_strict_positivity (ienv_push_var ienv (na, b)) nmr d
               | Some b ->
-                  check_strict_positivity (ienv_push_var ienv (na, b, mk_norec)) nmr d)
+                  check_strict_positivity (ienv_push_var ienv (na, b)) nmr d)
         | Rel k ->
             (match List.nth_opt ra_env (k-1) with
             | Some { head = ra; node = rarg } ->
@@ -337,7 +337,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
               if not recursive && not (noccur_between n ntypes b) then
                 raise (InductiveError (env,Type_errors.BadEntry));
               let nmr',recarg = check_strict_positivity ienv nmr b in
-              let ienv' = ienv_push_var ienv (na,b,mk_norec) in
+              let ienv' = ienv_push_var ienv (na, b) in
                 check_constr_rec ienv' nmr' (recarg::lrec) d
           | hd ->
             let () =
