@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <caml/config.h>
 #include <caml/memory.h>
 #include "rocq_fix_code.h"
 #include "rocq_instruct.h"
@@ -119,6 +120,13 @@ value rocq_tcode_array(value tcodes) {
 
    Keep the compile-time checks in sync with rocq_configure.c */
 
+#if defined(NO_NAKED_POINTERS)
+
+__attribute__((weak))
+void caml_curry2_1() {
+  abort();
+}
+
 #if defined(__GNUC__) && defined(__amd64__)
 
 asm(".align 8\n\t"
@@ -134,14 +142,23 @@ asm(".align 4\n\t"
     "jmp caml_curry2_1\n");
 
 #else
-
-void rocq_curry2_1() {
-  abort();
-}
-
+#define no_native_compute
 #endif
 
 value rocq_curry2_1_addr(value) {
+#ifdef no_native_compute
+  return (value)NULL;
+#else
   extern void rocq_curry2_1();
   return (value)&rocq_curry2_1;
+#endif
 }
+
+#else // not NO_NAKED_POINTERS
+
+value rocq_curry2_1_addr(value) {
+  extern void caml_curry2_1() __attribute__((weak));
+  return (value)&caml_curry2_1;
+}
+
+#endif
