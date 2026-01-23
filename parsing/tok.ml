@@ -63,6 +63,34 @@ let equal_p (type a b) (t1 : a p) (t2 : b p) : (a, b) Util.eq option =
   | PEOI, PEOI -> Some Util.Refl
   | _ -> None
 
+let compare_p (type a b) (t1 : a p) (t2 : b p) : int =
+  match t1, t2 with
+  | PIDENT None, PIDENT None -> 0
+  | PIDENT None, _ -> -1
+  | _, PIDENT None -> 1
+  | (PIDENT (Some s1) | PKEYWORD s1), (PIDENT (Some s2) | PKEYWORD s2) -> String.compare s1 s2
+  | (PIDENT (Some _) | PKEYWORD _), _ -> -1
+  | _, (PIDENT (Some _) | PKEYWORD _) -> 1
+  | PFIELD s1, PFIELD s2 -> Option.compare String.compare s1 s2
+  | PFIELD _, _ -> -1
+  | _, PFIELD _ -> 1
+  | PNUMBER n1, PNUMBER n2 -> Option.compare NumTok.Unsigned.compare n1 n2
+  | PNUMBER _, _ -> -1
+  | _, PNUMBER _ -> 1
+  | PSTRING s1, PSTRING s2 -> Option.compare String.compare s1 s2
+  | PSTRING _, _ -> -1
+  | _, PSTRING _ -> 1
+  | PLEFTQMARK, PLEFTQMARK -> 0
+  | PLEFTQMARK, _ -> -1
+  | _, PLEFTQMARK -> 1
+  | PBULLET s1, PBULLET s2 -> Option.compare String.compare s1 s2
+  | PBULLET _, _ -> -1
+  | _, PBULLET _ -> 1
+  | PQUOTATION s1, PQUOTATION s2 -> String.compare s1 s2
+  | PQUOTATION _, _ -> -1
+  | _, PQUOTATION _ -> 1
+  | PEOI, PEOI -> 0
+
 let token_text : type c. c p -> string = function
   | PKEYWORD t -> "'" ^ t ^ "'"
   | PIDENT None -> "identifier"

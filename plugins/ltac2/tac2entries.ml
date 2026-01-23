@@ -9,6 +9,7 @@
 (************************************************************************)
 
 (* must be before open Libobject, otherwise Dyn is Libobject.Dyn *)
+module type ValueS = Dyn.ValueS
 module DynMake = Dyn.Make
 
 open Pp
@@ -690,6 +691,25 @@ module Syntax = struct
     | CustomConstr e -> fst @@ Egramrocq.find_custom_entry e
     | CustomLtac2 e -> find_custom_entry e
 
+  let entry_equal : type a b. a entry -> b entry -> (a, b) Util.eq option = fun a b ->
+    match a, b with
+    | RegisteredEntry a, RegisteredEntry b -> DynEntry.eq a b
+    | CustomConstr a, CustomConstr b ->
+      if Globnames.CustomName.equal a b then Some Refl else None
+    | CustomLtac2 a, CustomLtac2 b ->
+      if Tac2Custom.equal a b then Some Refl else None
+    | (RegisteredEntry _ | CustomConstr _ | CustomLtac2 _), _ -> None
+
+  let entry_compare : type a b. a entry -> b entry -> int = fun a b ->
+    match a, b with
+    | RegisteredEntry a, RegisteredEntry b -> DynEntry.compare a b
+    | RegisteredEntry _, _ -> -1
+    | _, RegisteredEntry _ -> 1
+    | CustomConstr a, CustomConstr b -> Globnames.CustomName.compare a b
+    | CustomConstr _, _ -> -1
+    | _, CustomConstr _ -> 1
+    | CustomLtac2 a, CustomLtac2 b -> Tac2Custom.compare a b
+
   type 'a t =
     | NTerm of 'a entry
     | NTerml of 'a entry * string
@@ -720,7 +740,7 @@ module Syntax = struct
   type ('a,'fulla) rule =
       Rule :
         'mayrec rec_ *
-        (('a -> 'fulla) -> 'f) *
+        (('a -> Loc.t -> 'fulla) -> 'f) *
         (raw_tacexpr, 'mayrec, 'f, Loc.t -> 'fulla) Procq.Rule.t ->
         ('a,'fulla) rule
 
@@ -757,11 +777,11 @@ module Syntax = struct
   and seq_to_rule : type a fulla. a seq -> (a,fulla) rule =
     fun s ->
     match s with
-    | Nil -> Rule (NoRec, (fun f (_:Loc.t) -> f ()), Procq.Rule.stop)
+    | Nil -> Rule (NoRec, (fun f (loc:Loc.t) -> f () loc), Procq.Rule.stop)
     | Snoc (hd, x) ->
       let Rule (rechd, f, hd) = seq_to_rule hd in
       let Symb (recx, x) = to_symbol x in
-      let f (g:a -> fulla) x = f (fun hd -> g (hd, x)) in
+      let f (g:a -> Loc.t -> fulla) x = f (fun hd loc -> g (hd, x) loc) in
       match rechd, recx with
       | NoRec, NoRec ->
         let rule = Procq.Rule.next_norec hd x in
@@ -776,7 +796,7 @@ module Syntax = struct
     match mayrec with
     | MayRec ->
       CErrors.user_err Pp.(str "Recursive symbols (self / next) are not allowed in local rules.")
-    | NoRec -> norec @@ rules [Procq.Rules.make r (f (fun (x:a) -> x))]
+    | NoRec -> norec @@ rules [Procq.Rules.make r (f (fun (x:a) (_:Loc.t) -> x))]
 
   let constr = register_entry Procq.Constr.constr
   let lconstr = register_entry Procq.Constr.lconstr
@@ -800,6 +820,135 @@ module Syntax = struct
   let seq s = Seq s
   let nil = Nil
   let snoc a b = Snoc (a, b)
+
+  let rec equal : type a b. a t -> b t -> (a, b) Util.eq option = fun a b ->
+    match a, b with
+    | NTerm a, NTerm b -> entry_equal a b
+    | NTerml (a, leva), NTerml (b, levb) ->
+      let e = entry_equal a b in
+      if Option.has_some e && String.equal leva levb then e
+      else None
+    | List0 (a, sepa), List0 (b, sepb) ->
+      begin match equal a b with
+      | None -> None
+      | Some Refl -> if Option.equal String.equal sepa sepb then Some Refl else None
+      end
+    | List1 (a, sepa), List1 (b, sepb) ->
+      begin match equal a b with
+      | None -> None
+      | Some Refl -> if Option.equal String.equal sepa sepb then Some Refl else None
+      end
+    | Opt a, Opt b ->
+      begin match equal a b with
+      | None -> None
+      | Some Refl -> Some Refl
+      end
+    | Self, Self -> Some Refl
+    | Next, Next -> Some Refl
+    | Token a, Token b -> Tok.equal_p a b
+    | Tokens a, Tokens b ->
+      let eq (Procq.TPattern p1) (Procq.TPattern p2) = Option.has_some (Tok.equal_p p1 p2) in
+      if CList.for_all2eq eq a b then Some Refl else None
+    | Seq s1, Seq s2  -> equal_seq s1 s2
+    | (NTerm _ | NTerml _ | List0 _ | List1 _ | Opt _
+      | Self | Next | Token _ | Tokens _ | Seq _), _ ->
+      None
+
+  and equal_seq : type a b. a seq -> b seq -> (a, b) Util.eq option = fun a b ->
+    match a, b with
+    | Nil, Nil -> Some Refl
+    | Snoc (a1, a2), Snoc (b1, b2) ->
+      begin match equal_seq a1 b1 with
+      | None -> None
+      | Some Refl -> match equal a2 b2 with
+        | None -> None
+        | Some Refl -> Some Refl
+      end
+    | (Nil | Snoc _), _ -> None
+
+  let rec compare : type a b. a t -> b t -> int = fun a b ->
+    match a, b with
+    | NTerm a, NTerm b -> entry_compare a b
+    | NTerm _, _ -> -1
+    | _, NTerm _ -> 1
+    | NTerml (a, leva), NTerml (b, levb) ->
+      let e = entry_compare a b in
+      if e <> 0 then e else String.compare leva levb
+    | NTerml _, _ -> -1
+    | _, NTerml _ -> 1
+    | List0 (a, sepa), List0 (b, sepb) ->
+      begin match compare a b with
+      | 0 -> Option.compare String.compare sepa sepb
+      | c -> c
+      end
+    | List0 _, _ -> -1
+    | _, List0 _ -> 1
+    | List1 (a, sepa), List1 (b, sepb) ->
+      begin match compare a b with
+      | 0 -> Option.compare String.compare sepa sepb
+      | c -> c
+      end
+    | List1 _, _ -> -1
+    | _, List1 _ -> 1
+    | Opt a, Opt b -> compare a b
+    | Opt _, _ -> -1
+    | _, Opt _ -> 1
+    | Self, Self -> 0
+    | Self, _ -> -1
+    | _, Self -> 1
+    | Next, Next -> 0
+    | Next, _ -> -1
+    | _, Next -> 1
+    (* XXX treating [PIDENT (Some s)] and [PKEYWORD s] as equal may be
+       questionable, consider moving Tok.compare_p to this file (only
+       user at this time) and comparing them to be different
+       (AFAICT compare = 0 -> equal = Some Refl is the more important invariant,
+       we don't care as much about the other direction) *)
+    | Token a, Token b -> Tok.compare_p a b
+    | Token _, _ -> -1
+    | _, Token _ -> 1
+    | Tokens a, Tokens b ->
+      let cmp (Procq.TPattern p1) (Procq.TPattern p2) = Tok.compare_p p1 p2 in
+      CList.compare cmp a b
+    | Tokens _, _ -> -1
+    | _, Tokens _ -> 1
+    | Seq s1, Seq s2  -> compare_seq s1 s2
+
+  and compare_seq : type a b. a seq -> b seq -> int = fun a b ->
+    match a, b with
+    | Nil, Nil -> 0
+    | Nil, _ -> -1
+    | _, Nil -> 1
+    | Snoc (a1, a2), Snoc (b1, b2) ->
+      begin match compare_seq a1 b1 with
+      | 0 -> compare a2 b2
+      | c -> c
+      end
+end
+
+module ParsedNota = struct
+  (* parsing rule + which entry it is in *)
+  (* XXX also include level? *)
+  type 'a t = 'a Syntax.seq * Tac2Custom.t option
+
+  type any = Any : _ t -> any
+
+  let compare (a1,a2) (b1,b2) =
+    let c = Option.compare Tac2Custom.compare a2 b2 in
+    if c <> 0 then c else Syntax.compare_seq a1 b1
+
+  module Any = struct
+    type t = any
+    let compare (Any x) (Any y) = compare x y
+  end
+  module AnyMap = CMap.Make(Any)
+end
+
+module TacSyn = struct
+  type t = WithArgs : 'a ParsedNota.t * 'a -> t
+
+  let make (x:t) : tacsyn = Obj.magic x
+  let get (x:tacsyn) : t = Obj.magic x
 
 end
 
@@ -962,13 +1111,6 @@ let parse_token = function
   let loc = loc_of_token tok in
   CErrors.user_err ?loc (str "Invalid parsing token")
 
-let name_of_token = function
-  | SexprStr _ -> Anonymous
-  | SexprRec (_, na, _) -> check_name na
-  | tok ->
-    let loc = loc_of_token tok in
-    CErrors.user_err ?loc (str "Invalid parsing token")
-
 let rec print_syntax_class = function
 | SexprStr s -> str s.CAst.v
 | SexprInt i -> int i.CAst.v
@@ -986,39 +1128,27 @@ end
 let intern_syntax_class = ParseToken.intern_syntax_class
 
 type synext = {
-  synext_kn : KerName.t;
-  (* for printing, XXX print the internalized version? *)
-  synext_raw : sexpr list;
   synext_used : used_levels;
-  synext_tok : SynclassDyn.t token list;
-  synext_entry : Tac2Custom.t option * int;
-  synext_loc : bool;
-  synext_depr : Deprecation.t option;
+  synext_tok : ParsedNota.any;
+  synext_level : int;
+  synext_local : bool;
 }
-
-type krule =
-| KRule :
-  (raw_tacexpr, _, 'act, Loc.t -> raw_tacexpr) Procq.Rule.t *
-  ((Loc.t -> (Name.t * raw_tacexpr) list -> raw_tacexpr) -> 'act) -> krule
 
 let interp_syntax_class (SynclassDyn.Dyn (tag, data)) =
   let interp = SynclassInterpMap.find tag !syntax_class_interps in
   interp data
 
-let rec get_rule (tok : SynclassDyn.t token list) : krule = match tok with
-| [] -> KRule (Procq.Rule.stop, fun k loc -> k loc [])
-| TacNonTerm (na, v) :: tok ->
-  let SyntaxRule (syntax_class, inj) = interp_syntax_class v in
-  let KRule (rule, act) = get_rule tok in
-  let Syntax.Symb (_,syntax_class) = Syntax.to_symbol syntax_class in
-  let rule = Procq.Rule.next rule syntax_class in
-  let act k e = act (fun loc acc -> k loc ((na, inj e) :: acc)) in
-  KRule (rule, act)
+type any_seq = AnySeq : _ Syntax.seq -> any_seq
+
+let rec get_nota_parsing (tok : SynclassDyn.t token list) : any_seq = match tok with
+| [] -> AnySeq Nil
+| TacNonTerm (_, v) :: tok ->
+  let SyntaxRule (syntax_class, _) = interp_syntax_class v in
+  let AnySeq rest = get_nota_parsing tok in
+  AnySeq (Snoc (rest, syntax_class))
 | TacTerm t :: tok ->
-  let KRule (rule, act) = get_rule tok in
-  let rule = Procq.(Rule.next rule (Symbol.token (CLexer.terminal t))) in
-  let act k _ = act k in
-  KRule (rule, act)
+  let AnySeq rest = get_nota_parsing tok in
+  AnySeq (Snoc (rest, Syntax.token (CLexer.terminal t)))
 
 let deprecated_ltac2_notation =
   Deprecation.create_warning
@@ -1060,22 +1190,15 @@ let check_levels st used_levels =
   Tac2Custom.Map.iter iter used_levels
 
 let perform_notation syn st =
-  let tok = syn.synext_tok in
+  let Any parsing = syn.synext_tok in
   let used = syn.synext_used in
-  let KRule (rule, act) = get_rule tok in
-  let mk loc args =
-    let () = match syn.synext_depr with
-    | None -> ()
-    | Some depr -> deprecated_ltac2_notation ~loc (syn.synext_raw, depr)
-    in
-    let map (na, e) =
-      ((CAst.make ?loc:e.loc na), e)
-    in
-    let bnd = List.map map args in
-    CAst.make ~loc @@ CTacSyn (bnd, syn.synext_kn)
+  let rule, entry = parsing in
+  let Rule (_, f, rule) = Syntax.seq_to_rule rule in
+  let g args loc =
+    CAst.make ~loc @@ CTacSyn (TacSyn.make @@ WithArgs (parsing, args))
   in
-  let rule = Procq.Production.make rule (act mk) in
-  let entry, lev = syn.synext_entry in
+  let rule = Procq.Production.make rule (f g) in
+  let lev = syn.synext_level in
   let st, fresh = fresh_level st entry lev in
   let () = check_levels st used in
   let pos = Some (level_name lev) in
@@ -1097,13 +1220,11 @@ let ltac2_notation =
 let cache_synext syn =
   Procq.extend_grammar_command ~ignore_kw:false ltac2_notation syn
 
-let subst_synext (subst, syn) =
-  let kn = Mod_subst.subst_kn subst syn.synext_kn in
-  if kn == syn.synext_kn then syn
-  else { syn with synext_kn = kn }
+(* XXX missing subst on custom entries, including recursively in SynclassDyn.t *)
+let subst_synext (subst, syn) = syn
 
 let classify_synext o =
-  if o.synext_loc then Dispose else Substitute
+  if o.synext_local then Dispose else Substitute
 
 let ltac2_notation_cat = Libobject.create_category "ltac2.notations"
 
@@ -1113,13 +1234,58 @@ let inTac2Notation : synext -> obj =
      cache_function  = cache_synext;
      open_function   = simple_open ~cat:ltac2_notation_cat cache_synext;
      subst_function = subst_synext;
-     classify_function = classify_synext}
+     classify_function = classify_synext;
+  }
 
-let cache_synext_interp (local,kn,tac) =
-  Tac2env.define_notation kn tac
+type 'body notation_interp = {
+  nota_local : bool;
+  (* sexpr used for printing deprecation message, XXX print the internalized version? *)
+  nota_raw : sexpr list;
+  nota_depr : Deprecation.t option;
+  nota_parsing : ParsedNota.any;
+  nota_tok : SynclassDyn.t token list;
+  nota_body : 'body;
+}
+
+let notation_data = Summary.ref ~name:"tac2notation-data" ParsedNota.AnyMap.empty
+
+let rec interp_notation_args : type a. a Syntax.seq -> _ -> a -> _ = fun parsing toks args ->
+  match parsing, toks, args with
+  | Nil, (_::_), ()
+  | Snoc _, [], (_, _) -> assert false
+  | Nil, [], () -> []
+  | Snoc (hd, _), TacTerm _ :: toks, (args, _) -> interp_notation_args hd toks args
+  | Snoc (hd, x), TacNonTerm (na, tok) :: toks, (args, arg) ->
+    let SyntaxRule (x', inj) = interp_syntax_class tok in
+    let Refl = match Syntax.equal x x' with
+      | None -> assert false
+      | Some e -> e
+    in
+    let arg = inj arg in
+    (* XXX loc (only used for untyped notations though) *)
+    (CAst.make na, arg) :: interp_notation_args hd toks args
+
+(* to have scoped notations: add a scope stack argument here,
+   per-scope notations in the notation_data map, and user syntax for
+   scopes *)
+let interp_notation ?loc syn
+  : notation_data * (lname * raw_tacexpr) list =
+  let WithArgs ((rule, _ as parsing), args) = TacSyn.get syn in
+  let data : notation_data notation_interp = ParsedNota.AnyMap.get (Any parsing) !notation_data in
+  let () = match data.nota_depr with
+    | None -> ()
+    | Some depr -> deprecated_ltac2_notation ?loc (data.nota_raw, depr)
+  in
+  let args = interp_notation_args rule data.nota_tok args in
+  data.nota_body, args
+
+let () = Tac2intern.set_interp_notation interp_notation
+
+let cache_synext_interp data =
+  notation_data := ParsedNota.AnyMap.add data.nota_parsing data !notation_data
 
 let subst_notation_data subst = function
-  | Tac2env.UntypedNota body as n ->
+  | UntypedNota body as n ->
     let body' = Tac2subst.subst_rawexpr subst body in
     if body' == body then n else UntypedNota body'
   | TypedNota { nota_prms=prms; nota_argtys=argtys; nota_ty=ty; nota_body=body } as n ->
@@ -1129,16 +1295,16 @@ let subst_notation_data subst = function
     if body' == body && argtys' == argtys && ty' == ty then n
     else TypedNota {nota_body=body'; nota_argtys=argtys'; nota_ty=ty'; nota_prms=prms}
 
-let subst_synext_interp (subst, (local,kn,tac as o)) =
-  let tac' = subst_notation_data subst tac in
-  let kn' = Mod_subst.subst_kn subst kn in
-  if kn' == kn && tac' == tac then o else
-  (local, kn', tac')
+(* XXX missing subst on custom entries, recursively in SynclassDyn.t *)
+let subst_synext_interp (subst, data) =
+  let body' = subst_notation_data subst data.nota_body in
+  if body' == data.nota_body then data else
+  { data with nota_body = body' }
 
-let classify_synext_interp (local,_,_) =
-  if local then Dispose else Substitute
+let classify_synext_interp data =
+  if data.nota_local then Dispose else Substitute
 
-let inTac2NotationInterp : (bool*KerName.t*Tac2env.notation_data) -> obj =
+let inTac2NotationInterp : _ -> obj =
   declare_object {(default_object "TAC2-NOTATION-INTERP") with
      cache_function  = cache_synext_interp;
      open_function   = simple_open ~cat:ltac2_notation_cat cache_synext_interp;
@@ -1176,30 +1342,9 @@ let inTac2Abbreviation : Id.t -> abbreviation -> obj =
      subst_function = subst_abbreviation;
      classify_function = classify_abbreviation}
 
-let rec string_of_syntax_class = function
-| SexprStr s -> Printf.sprintf "str(%s)" s.CAst.v
-| SexprInt i -> Printf.sprintf "int(%i)" i.CAst.v
-| SexprRec (_, {v=na}, []) -> Option.cata string_of_qualid "_" na
-| SexprRec (_, {v=na}, e) ->
-  Printf.sprintf "%s(%s)" (Option.cata string_of_qualid "_" na) (String.concat " " (List.map string_of_syntax_class e))
-
-let string_of_token = function
-| SexprStr {v=s} -> Printf.sprintf "str(%s)" s
-| SexprRec (_, {v=na}, [tok]) -> string_of_syntax_class tok
-| _ -> assert false
-
-let make_fresh_key tokens =
-  let prods = String.concat "_" (List.map string_of_token tokens) in
-  (* We embed the hash of the kernel name in the label so that the identifier
-      should be mostly unique. This ensures that including two modules
-      together won't confuse the corresponding labels. *)
-  let hash = (ModPath.hash (Lib.current_mp ())) land 0x7FFFFFFF in
-  let lbl = Id.of_string_soft (Printf.sprintf "%s_%08X" prods hash) in
-  Lib.make_kn lbl
-
-type notation_interpretation_data =
-| Abbreviation of Id.t * Deprecation.t option * raw_tacexpr
-| Synext of bool * KerName.t * Id.Set.t * raw_tacexpr
+type 'body notation_interpretation_data =
+| Abbreviation of Id.t * Deprecation.t option * 'body
+| Synext of 'body notation_interp
 
 type notation_target = qualid option * int option
 
@@ -1241,13 +1386,6 @@ let register_notation atts tkn (entry,lev) body =
   | _ ->
     let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
     let local = Option.default false local in
-    (* Check that the tokens make sense *)
-    let entries = List.map ParseToken.name_of_token tkn in
-    let fold accu tok = match tok with
-    | Name id -> Id.Set.add id accu
-    | Anonymous -> accu
-    in
-    let ids = List.fold_left fold Id.Set.empty entries in
     let entry = match entry with
       | Some entry ->
         if qualid_eq entry tactic_qualid then None
@@ -1279,30 +1417,41 @@ let register_notation atts tkn (entry,lev) body =
           | _ -> 5
           end
     in
-    let key = make_fresh_key tkn in
     let tokens = List.rev_map ParseToken.parse_token tkn in
     let used, tokens = List.split tokens in
     let used = List.fold_left union_used_levels no_used_levels used in
+    let AnySeq parsing = get_nota_parsing tokens in
+    let parsing = ParsedNota.Any (parsing, entry) in
     let ext = {
-      synext_kn = key;
-      synext_raw = tkn;
       synext_used = used;
-      synext_tok = tokens;
-      synext_entry = (entry,lev);
-      synext_loc = local;
-      synext_depr = deprecation;
+      synext_tok = parsing;
+      synext_level = lev;
+      synext_local = local;
     } in
     Lib.add_leaf (inTac2Notation ext);
-    Synext (local,key,ids,body)
+    Synext {
+      nota_local = local;
+      nota_raw = tkn;
+      nota_depr = deprecation;
+      nota_parsing = parsing;
+      nota_tok = tokens;
+      nota_body = body;
+    }
 
 let register_notation_interpretation = function
   | Abbreviation (id, deprecation, body) ->
     let body = Tac2intern.globalize Id.Set.empty body in
     let abbr = { abbr_body = body; abbr_depr = deprecation } in
     Lib.add_leaf (inTac2Abbreviation id abbr)
-  | Synext (local,kn,ids,body) ->
-    let data = intern_notation_data ids body in
-    Lib.add_leaf (inTac2NotationInterp (local,kn,data))
+  | Synext data ->
+    let accumulate_ids acc = function
+      | TacTerm _ -> acc
+      | TacNonTerm (Anonymous, _) -> acc
+      | TacNonTerm (Name id, _) -> Id.Set.add id acc
+    in
+    let ids = List.fold_left accumulate_ids Id.Set.empty data.nota_tok in
+    let body = intern_notation_data ids data.nota_body in
+    Lib.add_leaf (inTac2NotationInterp { data with nota_body = body })
 
 type redefinition = {
   redef_local : Libobject.locality;

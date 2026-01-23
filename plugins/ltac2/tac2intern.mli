@@ -11,12 +11,21 @@
 open Names
 open Tac2expr
 
+type notation_data =
+  | UntypedNota of raw_tacexpr
+  | TypedNota of {
+      nota_prms : int;
+      nota_argtys : int glb_typexpr Id.Map.t;
+      nota_ty : int glb_typexpr;
+      nota_body : glb_tacexpr;
+    }
+
 type context = (Id.t * type_scheme) list
 
 val intern : strict:bool -> context -> raw_tacexpr -> glb_tacexpr * type_scheme
 val intern_typedef : (KerName.t * int) Id.Map.t -> raw_quant_typedef -> glb_quant_typedef
 val intern_open_type : raw_typexpr -> type_scheme
-val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2env.notation_data
+val intern_notation_data : Id.Set.t -> raw_tacexpr -> notation_data
 
 (** [check_unused] is default true *)
 val genintern_warn_not_unit : ?check_unused:bool ->
@@ -70,3 +79,6 @@ val error_nparams_mismatch : ?loc:Loc.t -> int -> int -> 'a
 (** Misc *)
 
 val drop_ltac2_env : Genintern.Store.t -> Genintern.Store.t
+
+val set_interp_notation :
+  (?loc:Loc.t -> tacsyn -> notation_data * (lname * raw_tacexpr) list) -> unit

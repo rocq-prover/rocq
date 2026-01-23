@@ -43,6 +43,7 @@ sig
 
   val create : string -> 'a tag
   val eq : 'a tag -> 'b tag -> ('a, 'b) CSig.eq option
+  val compare : 'a tag -> 'b tag -> int
   val repr : 'a tag -> string
 
   val dump : unit -> (int * string) list
@@ -102,6 +103,8 @@ module Self : PreS = struct
     end;
     dyntab := Int.Map.add hash s !dyntab;
     hash
+
+  let compare = Int.compare
 
   let eq : 'a 'b. 'a tag -> 'b tag -> ('a, 'b) CSig.eq option =
     fun h1 h2 -> if Int.equal h1 h2 then Some (Obj.magic CSig.Refl) else None
