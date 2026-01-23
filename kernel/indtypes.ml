@@ -63,6 +63,8 @@ type ill_formed_ind =
 
 exception IllFormedInd of ill_formed_ind
 
+type rdecl = { head : recarg; node : wf_paths }
+
 (* [mind_extract_params mie] extracts the params from an inductive types
    declaration, and checks that they are all present (and all the same)
    for all the given types. *)
@@ -153,7 +155,7 @@ if Int.equal nmr 0 then 0 else
    [lra] is the list of recursive tree of each variable
  *)
 let ienv_push_var (env, n, ntypes, lra) (x,a,ra) =
-  (push_rel (LocalAssum (x,a)) env, n+1, ntypes, (Norec,ra)::lra)
+  (push_rel (LocalAssum (x, a)) env, n+1, ntypes, { head = Norec; node = ra } :: lra)
 
 let ienv_push_inductive (env, n, ntypes, ra_env) ((mi,u),lrecparams) =
   let auxntyp = 1 in
@@ -165,8 +167,8 @@ let ienv_push_inductive (env, n, ntypes, ra_env) ((mi,u),lrecparams) =
     let decl = LocalAssum (anon, hnf_prod_applist env ty lrecparams) in
     push_rel decl env in
   let ra_env' =
-    (Mrec (RecArgInd mi),(Rtree.mk_rec_calls 1).(0)) ::
-    List.map (fun (r,t) -> (r,Rtree.lift 1 t)) ra_env in
+    { head = Mrec (RecArgInd mi); node = (Rtree.mk_rec_calls 1).(0) } ::
+    List.map (fun { head = r; node = t } -> { head = r; node = Rtree.lift 1 t }) ra_env in
   (* New index of the inductive types *)
   let newidx = n + auxntyp in
   (env', newidx, ntypes, ra_env')
@@ -220,7 +222,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
                   check_strict_positivity (ienv_push_var ienv (na, b, mk_norec)) nmr d)
         | Rel k ->
             (match List.nth_opt ra_env (k-1) with
-            | Some (ra,rarg) ->
+            | Some { head = ra; node = rarg } ->
             let largs = List.map (whd_all env) largs in
             let nmr1 =
               (match ra with
@@ -312,7 +314,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
     (* We model the primitive type c X1 ... Xn as if it had one constructor
        C : X1 -> ... -> Xn -> c X1 ... Xn
        The subterm relation is defined for each primitive in `inductive.ml`. *)
-    let ra_env = List.map (fun (r,t) -> (r,Rtree.lift 1 t)) ra_env in
+    let ra_env = List.map (fun { head = r; node = t } -> { head = r; node = Rtree.lift 1 t }) ra_env in
     let ienv = (env,n,ntypes,ra_env) in
     let nmr',recargs = List.fold_left_map (check_strict_positivity ienv) nmr largs in
     (nmr', (Rtree.mk_rec [| mk_paths (Mrec (RecArgPrim c)) [| recargs |] |]).(0))
@@ -377,13 +379,13 @@ let check_positivity ~chkpos kn names env_ar_par paramsctxt finite inds =
   let ntypes = Array.length inds in
   let recursive = finite != BiFinite in
   if not recursive && Array.length inds <> 1 then raise (InductiveError (env_ar_par,Type_errors.BadEntry));
-  let rc = Array.mapi (fun j t -> (Mrec (RecArgInd (kn,j)),t)) (Rtree.mk_rec_calls ntypes) in
+  let rc = Array.mapi (fun j t -> { head = Mrec (RecArgInd (kn, j)); node = t }) (Rtree.mk_rec_calls ntypes) in
   let ra_env_ar = Array.rev_to_list rc in
   let nparamsctxt = Context.Rel.length paramsctxt in
   let nmr = Context.Rel.nhyps paramsctxt in
   let check_one i (_,lcnames) (nindices,lc) =
     let ra_env_ar_par =
-      List.init nparamsctxt (fun _ -> (Norec,mk_norec)) @ ra_env_ar in
+      List.init nparamsctxt (fun _ -> { head = Norec; node = mk_norec }) @ ra_env_ar in
     let ienv = (env_ar_par, 1+nparamsctxt, ntypes, ra_env_ar_par) in
     check_positivity_one ~chkpos recursive ienv paramsctxt (kn,i) nindices lcnames lc
   in
