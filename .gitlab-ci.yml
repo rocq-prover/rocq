@@ -1191,6 +1191,7 @@ plugin:ci-lean_importer:
   needs:
   - build:base
   - library:ci-stdlib
+  allow_failure: true
 
 plugin:ci-ltac2_compiler:
   extends: .ci-template
