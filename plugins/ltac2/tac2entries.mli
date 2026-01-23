@@ -27,7 +27,7 @@ val register_primitive : ?deprecation:Deprecation.t -> ?local:bool ->
 
 val register_struct : Attributes.vernac_flags -> strexpr -> unit
 
-type notation_interpretation_data
+type _ notation_interpretation_data
 
 type notation_target = qualid option * int option
 
@@ -36,12 +36,12 @@ val pr_register_notation : sexpr list -> notation_target -> raw_tacexpr -> Pp.t
 val pr_register_abbreviation : Id.t CAst.t -> raw_tacexpr -> Pp.t
 
 val register_notation : Attributes.vernac_flags -> sexpr list ->
-  notation_target -> raw_tacexpr -> notation_interpretation_data
+  notation_target -> 'body -> 'body notation_interpretation_data
 
 val register_abbreviation : Attributes.vernac_flags -> Id.t CAst.t ->
-  raw_tacexpr -> notation_interpretation_data
+  'body -> 'body notation_interpretation_data
 
-val register_notation_interpretation : notation_interpretation_data -> unit
+val register_notation_interpretation : raw_tacexpr notation_interpretation_data -> unit
 
 val register_custom_entry : lident -> unit
 
