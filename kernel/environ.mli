@@ -211,6 +211,19 @@ val constant_value_and_type : env -> Constant.t puniverses ->
     polymorphic *)
 val constant_context : env -> Constant.t -> AbstractContext.t
 
+(** Cache for constant dependencies, protected by an ephemeron so that it can be
+    safely cached and invalidated when the environment changes. *)
+type dep_cache
+
+(** Returns a reference to the dependency cache. The cache is protected by an
+    ephemeron, so this should be fetched once at the start of reduction and reused. *)
+val get_dep_cache : env -> dep_cache
+
+(** Returns the set of constants that appear in the body of the given constant.
+    Returns empty set for axioms, opaque definitions, and primitives.
+    Takes a pre-fetched cache reference for efficiency. *)
+val constant_dependencies_with_cache : env -> dep_cache -> Constant.t -> Cset_env.t
+
 (** Returns the set of constants that appear in the body of the given constant.
     Returns empty set for axioms, opaque definitions, and primitives. *)
 val constant_dependencies : env -> Constant.t -> Cset_env.t

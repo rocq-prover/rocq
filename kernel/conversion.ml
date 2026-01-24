@@ -200,6 +200,7 @@ type 'e conv_tab = {
   lft_tab : clos_tab;
   rgt_tab : clos_tab;
   err_ret : 'e -> payload;
+  dep_cache : Environ.dep_cache;
 }
 (** Invariant: for any tl ∈ lft_tab and tr ∈ rgt_tab, there is no mutable memory
     location contained both in tl and in tr. *)
@@ -477,8 +478,8 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
               if (Environ.typing_flags env).unfold_dep_heuristic then
                 match fl1, fl2 with
                 | ConstKey (cst1, _), ConstKey (cst2, _) ->
-                  if Cset_env.mem cst2 (Environ.constant_dependencies env cst1) then true
-                  else if Cset_env.mem cst1 (Environ.constant_dependencies env cst2) then false
+                  if Cset_env.mem cst2 (Environ.constant_dependencies_with_cache env infos.dep_cache cst1) then true
+                  else if Cset_env.mem cst1 (Environ.constant_dependencies_with_cache env infos.dep_cache cst2) then false
                   else l2r
                 | _ -> l2r
               else l2r
@@ -961,6 +962,7 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
         lft_tab = create_tab ();
         rgt_tab = create_tab ();
         err_ret = box;
+        dep_cache = Environ.get_dep_cache env;
       } in
       try Result.Ok (ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs)
       with
@@ -1009,7 +1011,9 @@ let () =
       let box = Empty.abort in
       let state = info_univs infos in
       let qual_equal q1 q2 = CClosure.eq_quality infos q1 q2 in
-      let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box } in
+      let env = info_env infos in
+      let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box;
+                    dep_cache = Environ.get_dep_cache env } in
       let state', _ = ccnv CONV false infos el_id el_id a b (state, checked_universes_gen qual_equal) in
       assert (state==state');
       true
