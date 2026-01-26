@@ -116,7 +116,8 @@ value rocq_tcode_array(value tcodes) {
 
    Since the word before the branch indicates to the garbage collector
    that this block should be ignored, the code pointer can be used
-   inside blocks that do not have tag 247.
+   inside blocks that do not have tag 247. This 2043 value is the
+   result of Caml_out_of_heap_header(2, Abstract_tag).
 
    Keep the compile-time checks in sync with rocq_configure.c */
 
@@ -130,14 +131,14 @@ void caml_curry2_1() {
 #if defined(__GNUC__) && defined(__amd64__)
 
 asm(".align 8\n\t"
-    ".quad 3067\n"
+    ".quad 2043\n"
     "rocq_curry2_1:\n\t"
     "jmp caml_curry2_1\n");
 
 #elif defined(__GNUC__) && defined(__i386__)
 
 asm(".align 4\n\t"
-    ".long 3067\n"
+    ".long 2043\n"
     "rocq_curry2_1:\n\t"
     "jmp caml_curry2_1\n");
 
