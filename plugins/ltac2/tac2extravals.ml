@@ -449,11 +449,11 @@ let () =
 (** Built-in notation entries *)
 
 let add_syntax_class_full s f =
-  Tac2entries.register_syntax_class (Id.of_string s) f
+  Tac2syn.register_syntax_class (Id.of_string s) f
 
 let add_syntax_class s intern f =
   add_syntax_class_full s {
-    intern_synclass = (fun s -> Tac2entries.no_used_levels, intern s);
+    intern_synclass = (fun s -> Tac2syn.no_used_levels, intern s);
     interp_synclass = (fun s -> f s);
   }
 
@@ -463,19 +463,19 @@ let syntax_class_fail s args =
 
 let q_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0))
 
-module TacSyn = Tac2entries.Syntax
+module TacSyn = Tac2syn.Syntax
 
 let add_expr_syntax_class0 name entry f =
   add_syntax_class name begin function
   | [] -> ()
   | arg -> syntax_class_fail name arg
   end begin fun () ->
-    Tac2entries.SyntaxRule (TacSyn.nterm entry, f)
+    Tac2syn.SyntaxRule (TacSyn.nterm entry, f)
   end
 
 let add_expr_syntax_class name entry f =
   (* XXX name for register_entry? *)
-  let entry = Tac2entries.Syntax.register_entry entry in
+  let entry = Tac2syn.Syntax.register_entry entry in
   add_expr_syntax_class0 name entry f
 
 let add_generic_syntax_class s entry arg =
@@ -488,7 +488,7 @@ let () = add_syntax_class "keyword" begin function
 | arg -> syntax_class_fail "keyword" arg
   end begin fun s ->
     let syntax_class = TacSyn.token (Tok.PKEYWORD s) in
-    Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+    Tac2syn.SyntaxRule (syntax_class, (fun _ -> q_unit))
   end
 
 let () = add_syntax_class "terminal" begin function
@@ -496,66 +496,66 @@ let () = add_syntax_class "terminal" begin function
 | arg -> syntax_class_fail "terminal" arg
   end begin fun s ->
     let syntax_class = TacSyn.token (CLexer.terminal s) in
-    Tac2entries.SyntaxRule (syntax_class, (fun _ -> q_unit))
+    Tac2syn.SyntaxRule (syntax_class, (fun _ -> q_unit))
   end
 
 let () = add_syntax_class_full "list0" {
   intern_synclass = begin function
   | [tok] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, (subclass, None)
   | [tok; SexprStr {v=str}] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, (subclass, Some str)
   | arg -> syntax_class_fail "list0" arg
   end;
   interp_synclass = begin function
   | subclass, None ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let syntax_class = TacSyn.list0 syntax_class in
     let act l = Tac2quote.of_list act l in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   | subclass, Some sep ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let syntax_class = TacSyn.list0 syntax_class ~sep in
     let act l = Tac2quote.of_list act l in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end;
 }
 
 let () = add_syntax_class_full "list1" {
   intern_synclass = begin function
   | [tok] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, (subclass, None)
   | [tok; SexprStr {v=str}] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, (subclass, Some str)
   | arg -> syntax_class_fail "list1" arg
   end;
   interp_synclass = begin function
   | subclass, None ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let syntax_class = TacSyn.list1 syntax_class in
     let act l = Tac2quote.of_list act l in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   | subclass, Some sep ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let syntax_class = TacSyn.list1 syntax_class ~sep in
     let act l = Tac2quote.of_list act l in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end;
 }
 
 let () = add_syntax_class_full "opt" {
   intern_synclass = begin function
   | [tok] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, subclass
   | arg -> syntax_class_fail "opt" arg
   end;
   interp_synclass = begin fun subclass ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let syntax_class = TacSyn.opt syntax_class in
     let act opt = match opt with
       | None ->
@@ -563,7 +563,7 @@ let () = add_syntax_class_full "opt" {
       | Some x ->
         CAst.make @@ CTacApp (CAst.make @@ CTacCst (AbsKn (Other c_some)), [act x])
     in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end;
 }
 
@@ -573,7 +573,7 @@ let () = add_syntax_class "self" begin function
   end begin fun () ->
     let syntax_class = TacSyn.self in
     let act tac = tac in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end
 
 let () = add_syntax_class "next" begin function
@@ -582,7 +582,7 @@ let () = add_syntax_class "next" begin function
   end begin fun () ->
     let syntax_class = TacSyn.next in
     let act tac = tac in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end
 
 let () = add_syntax_class "tactic" begin function
@@ -596,20 +596,20 @@ let () = add_syntax_class "tactic" begin function
   end begin fun lev ->
     let syntax_class = TacSyn.nterml TacSyn.ltac2_expr (string_of_int lev) in
     let act tac = tac in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end
 
 let () = add_syntax_class_full "thunk" {
   intern_synclass = begin function
   | [tok] ->
-    let used, subclass = Tac2entries.intern_syntax_class tok in
+    let used, subclass = Tac2syn.intern_syntax_class tok in
     used, subclass
   | arg -> syntax_class_fail "thunk" arg
   end;
   interp_synclass = begin fun subclass ->
-    let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.interp_syntax_class subclass in
+    let Tac2syn.SyntaxRule (syntax_class, act) = Tac2syn.interp_syntax_class subclass in
     let act e = Tac2quote.thunk (act e) in
-    Tac2entries.SyntaxRule (syntax_class, act)
+    Tac2syn.SyntaxRule (syntax_class, act)
   end;
 }
 
@@ -702,14 +702,14 @@ let add_constr_classes (name,lname) quote =
     let s = name in
     add_syntax_class s (constr_args s) begin function (symb,delimiters) ->
       let act e = quote ?delimiters:(Some delimiters) e in
-      Tac2entries.SyntaxRule (constr_symb symb, act)
+      Tac2syn.SyntaxRule (constr_symb symb, act)
     end
   in
   let () =
     let s = lname in
     add_syntax_class s (constr_delimiters s) begin function delimiters ->
       let act e = quote ?delimiters:(Some delimiters) e in
-      Tac2entries.SyntaxRule (TacSyn.nterm TacSyn.lconstr, act)
+      Tac2syn.SyntaxRule (TacSyn.nterm TacSyn.lconstr, act)
     end
   in
   ()
@@ -744,7 +744,7 @@ let () = add_expr_syntax_class "goal_matching" q_goal_matching Tac2quote.of_goal
 let () = add_expr_syntax_class "format" Procq.Prim.lstring Tac2quote.of_format
 let () = add_expr_syntax_class "module" Procq.Prim.qualid Tac2quote.of_module
 
-let () = add_generic_syntax_class "pattern" Tac2entries.Syntax.constr Tac2quote.wit_pattern
+let () = add_generic_syntax_class "pattern" Tac2syn.Syntax.constr Tac2quote.wit_pattern
 
 (** seq syntax class, a bit hairy.
     We interprete nary seq as a sequence of binary seqs terminated by generating a unit.
@@ -768,7 +768,7 @@ let rec interp_seq_rule = function
     SeqRule (TacSyn.nil, (fun () -> Tac2quote.of_tuple []))
   | (skipx,synx) :: rest ->
     let SeqRule (synrest, frest) = interp_seq_rule rest in
-    let Tac2entries.SyntaxRule (synx, fx) = Tac2entries.interp_syntax_class synx in
+    let Tac2syn.SyntaxRule (synx, fx) = Tac2syn.interp_syntax_class synx in
     let f (rest, x) =
       if skipx then frest rest
       else
@@ -781,17 +781,17 @@ let rec interp_seq_rule = function
 let interp_seq_rule toks =
   let SeqRule (syn, f) = interp_seq_rule (List.rev toks) in
   let f x = Tac2quote.of_tuple @@ List.rev @@ dest_tuple_expr @@ f x in
-  Tac2entries.SyntaxRule (TacSyn.seq syn, f)
+  Tac2syn.SyntaxRule (TacSyn.seq syn, f)
 
 let intern_seq_rule toks =
   List.fold_left_map (fun used tok ->
-      let used', rule = Tac2entries.intern_syntax_class tok in
+      let used', rule = Tac2syn.intern_syntax_class tok in
       let skip = match tok with
         | SexprStr _ -> true (* Leave out mere strings *)
         | _ -> false
       in
-      Tac2entries.union_used_levels used used', (skip, rule))
-    Tac2entries.no_used_levels
+      Tac2syn.union_used_levels used used', (skip, rule))
+    Tac2syn.no_used_levels
     toks
 
 let () = add_syntax_class_full "seq" {
