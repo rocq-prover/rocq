@@ -1108,23 +1108,8 @@ let warn_useless_record_with = CWarnings.create ~name:"ltac2-useless-record-with
         str "All the fields are explicitly listed in this record:" ++
         spc() ++ str "the 'with' clause is useless.")
 
-type notation_data =
-  | UntypedNota of raw_tacexpr
-  | TypedNota of {
-      nota_prms : int;
-      nota_argtys : int glb_typexpr Id.Map.t;
-      nota_ty : int glb_typexpr;
-      nota_body : glb_tacexpr;
-    }
-
-let interp_notation = ref (fun ?loc _ -> assert false)
-
-let set_interp_notation f = interp_notation := f
-let interp_notation ?loc (syn:tacsyn) : _ * _ =
-  !interp_notation ?loc syn
-
 let expand_notation ?loc syn =
-  let data, el = interp_notation ?loc syn in
+  let data, el = Tac2syn.interp_notation ?loc syn in
   match data with
   | UntypedNota body ->
     let el = List.map (fun (pat, e) -> CAst.map (fun na -> CPatVar na) pat, e) el in
@@ -1818,7 +1803,7 @@ let intern_notation_data ids body =
     let argtys = Id.Map.map (fun ty -> normalize env (count, vars) ty) argtys in
     let ty = normalize env (count, vars) ty in
     let prms = !count in
-    TypedNota {
+    Tac2syn.TypedNota {
       nota_prms = prms;
       nota_argtys = argtys;
       nota_ty = ty;
