@@ -226,7 +226,7 @@ subproject riscv_coq bedrock2 "deps/riscv-coq" "https://github.com/mit-plv/riscv
 ########################################################################
 # coq_dpdgraph
 ########################################################################
-project coq_dpdgraph 'https://github.com/coq-community/coq-dpdgraph' '1127fdc17f99a514e579954162c4ce47d1dd9589'
+project coq_dpdgraph 'https://github.com/coq-community/coq-dpdgraph' '7a0fba21287dd8889c55e6611f8ba219d012b81b'
 # Contact @Karmaki, @ybertot on github
 
 ########################################################################
