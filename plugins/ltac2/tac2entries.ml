@@ -653,16 +653,20 @@ let warn_deprecated_notation_for_abbreviation =
     CWarnings.create ~name:"ltac2-notation-for-abbreviation" ~category:Deprecation.Version.v9_2
       Pp.(fun () -> strbrk "Use of \"Ltac2 Notation\" keyword for abbreviations is deprecated, use \"Ltac2 Abbreviation\" instead.")
 
-let register_notation atts tkn (entry,lev) body =
-  match tkn, entry, lev with
-  | [SexprRec (_, {loc;v=Some id}, [])], None, None ->
+let is_abbrev_target target =
+  let open Tac2syn in
+  Option.is_empty target.target_entry && Option.is_empty target.target_level
+
+let register_notation atts tkn target body =
+  match tkn, is_abbrev_target target with
+  | [SexprRec (_, {loc;v=Some id}, [])], true ->
     warn_deprecated_notation_for_abbreviation ();
     let id = if qualid_is_ident id then qualid_basename id
       else CErrors.user_err ?loc:id.loc Pp.(str "Must be an identifier.")
     in
     register_abbreviation atts CAst.(make ?loc id) body
   | _ ->
-    let data = Tac2syn.register_notation atts tkn (entry,lev) body in
+    let data = Tac2syn.register_notation atts tkn target body in
     Synext data
 
 let register_notation_interpretation = function
