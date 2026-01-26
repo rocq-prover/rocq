@@ -101,7 +101,7 @@ project unimath 'https://github.com/UniMath/UniMath' '7563807290859c82b029534d91
 project unicoq 'https://github.com/unicoq/unicoq' 'd52374ca86e3885197f114555e742420fa9bbe94'
 # Contact @beta-ziliani, @Janno, @mattam82 on github
 
-project mtac2 'https://github.com/Mtac2/Mtac2' '29abcd6fe3dbfb5372e57bf97b88c6f910aff44b'
+project mtac2 'https://github.com/Mtac2/Mtac2' 'fe8b6049835caa793436e277a64ee7e4910f7b04'
 # Contact @beta-ziliani, @Janno, @mattam82 on github
 
 ########################################################################
