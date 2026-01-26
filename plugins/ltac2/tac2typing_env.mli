@@ -24,6 +24,8 @@ type t
 (** default strict:true *)
 val empty_env : ?strict:bool -> unit -> t
 
+val scopes : t -> Tac2syn.Tac2Scope.t list
+
 val set_rec : (KerName.t * int) Id.Map.t -> t -> t
 
 val reject_unbound_tvar : t -> t

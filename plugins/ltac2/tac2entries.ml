@@ -635,9 +635,9 @@ let inTac2Abbreviation : Id.t -> abbreviation -> Libobject.obj =
      classify_function = (fun _ -> Substitute);
 }
 
-type 'body notation_interpretation_data =
+type ('scope,'body) notation_interpretation_data =
 | Abbreviation of Id.t * Deprecation.t option * 'body
-| Synext of 'body Tac2syn.notation_interpretation
+| Synext of ('scope, 'body) Tac2syn.notation_interpretation
 
 let pr_register_abbreviation id body =
   let open Pp in
@@ -656,6 +656,7 @@ let warn_deprecated_notation_for_abbreviation =
 let is_abbrev_target target =
   let open Tac2syn in
   Option.is_empty target.target_entry && Option.is_empty target.target_level
+  && Option.is_empty target.target_scope
 
 let register_notation atts tkn target body =
   match tkn, is_abbrev_target target with

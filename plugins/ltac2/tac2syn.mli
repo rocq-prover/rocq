@@ -9,7 +9,22 @@
 (************************************************************************)
 
 open Names
+open Libnames
 open Tac2expr
+
+module Tac2Scope : module type of KerName
+
+module ScopeTab : Nametab.NAMETAB with type elt = Tac2Scope.t
+
+val declare_scope : Id.t -> unit
+
+val open_scope : Libobject.locality -> qualid -> unit
+
+val close_scope : Libobject.locality -> qualid -> unit
+
+val default_scope : unit -> Tac2Scope.t
+
+val current_scopes : unit -> Tac2Scope.t list
 
 module Tac2Custom : module type of KerName
 
@@ -101,27 +116,28 @@ type notation_data =
       nota_body : glb_tacexpr;
     }
 
-val interp_notation : ?loc:Loc.t -> tacsyn -> notation_data * (lname * raw_tacexpr) list
+val interp_notation : ?loc:Loc.t -> Tac2Scope.t list -> tacsyn -> notation_data * (lname * raw_tacexpr) list
 
-type 'body notation_interpretation
+type ('scope, 'body) notation_interpretation
 
 val ltac2_notation_cat : Libobject.category
 
 type notation_target = {
-  target_entry : Libnames.qualid option;
+  target_entry : qualid option;
   target_level : int option;
+  target_scope : qualid option;
 }
 
 val pr_register_notation : sexpr list -> notation_target -> raw_tacexpr -> Pp.t
 
 val register_notation : Attributes.vernac_flags -> sexpr list ->
-  notation_target -> 'body -> 'body notation_interpretation
+  notation_target -> 'body -> (qualid option, 'body) notation_interpretation
 (** Does not handle the deprecated abbreviation syntax *)
 
-val intern_notation_interpretation : (Id.Set.t -> 'raw -> 'glb) -> 'raw notation_interpretation ->
-  'glb notation_interpretation
+val intern_notation_interpretation : (Id.Set.t -> 'raw -> 'glb) -> (qualid option, 'raw) notation_interpretation ->
+  (Tac2Scope.t, 'glb) notation_interpretation
 
-val register_notation_interpretation : notation_data notation_interpretation -> unit
+val register_notation_interpretation : (Tac2Scope.t, notation_data) notation_interpretation -> unit
 
 val register_custom_entry : lident -> unit
 

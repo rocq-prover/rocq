@@ -2421,7 +2421,7 @@ SPLICE: [
 | tac2rec_fields
 | mut_flag
 | tac2rec_fieldexprs
-| syn_level
+| syn_target
 | firstorder_rhs
 | firstorder_using
 | ref_or_pattern_occ

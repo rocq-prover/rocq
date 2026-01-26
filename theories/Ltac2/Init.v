@@ -15,6 +15,8 @@ Declare ML Module "rocq-runtime.plugins.ltac2_ltac1".
 
 #[export] Set Default Proof Mode "Ltac2".
 
+#[global] Ltac2 Open Scope core.
+
 (** Primitive types *)
 
 Ltac2 Type int.
