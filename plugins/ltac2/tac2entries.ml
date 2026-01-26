@@ -22,6 +22,7 @@ open Nametab
 open Tac2expr
 open Tac2print
 open Tac2intern
+open Tac2subst
 
 (** Grammar entries *)
 
@@ -977,10 +978,10 @@ let cache_synext_interp (local,kn,tac) =
 
 let subst_notation_data subst = function
   | Tac2env.UntypedNota body as n ->
-    let body' = Tac2intern.subst_rawexpr subst body in
+    let body' = Tac2subst.subst_rawexpr subst body in
     if body' == body then n else UntypedNota body'
   | TypedNota { nota_prms=prms; nota_argtys=argtys; nota_ty=ty; nota_body=body } as n ->
-    let body' = Tac2intern.subst_expr subst body in
+    let body' = Tac2subst.subst_expr subst body in
     let argtys' = Id.Map.Smart.map (subst_type subst) argtys in
     let ty' = subst_type subst ty in
     if body' == body && argtys' == argtys && ty' == ty then n
@@ -1200,7 +1201,7 @@ let open_redefinition (_,redef as o) =
 
 let subst_redefinition (subst, redef) =
   let kn = Mod_subst.subst_kn subst redef.redef_kn in
-  let body = Tac2intern.subst_expr subst redef.redef_body in
+  let body = subst_expr subst redef.redef_body in
   if kn == redef.redef_kn && body == redef.redef_body then redef
   else { redef_local = redef.redef_local;
          redef_kn = kn;
