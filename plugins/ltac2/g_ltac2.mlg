@@ -987,7 +987,7 @@ let rules = [
 
 let pr_ltac2entry = Tac2print.pr_strexpr
 let pr_ltac2expr e = Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty e
-let pr_ltac2def_syn (a,b,c) = Tac2entries.pr_register_notation a b c
+let pr_ltac2def_syn (a,b,c) = Tac2syn.pr_register_notation a b c
 let pr_ltac2abbrev_syn (a,c) = Tac2entries.pr_register_abbreviation a c
 
 }
@@ -1038,7 +1038,7 @@ VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
   Tac2entries.import_type qid id
   }
 | [ "Ltac2" "Custom" "Entry" identref(id) ] => { Vernacextend.(VtSideff ([], VtNow)) } SYNTERP AS _ {
-  Tac2entries.register_custom_entry id
+  Tac2syn.register_custom_entry id
   } -> {
   ()
 }
