@@ -107,7 +107,10 @@ type 'body notation_interpretation
 
 val ltac2_notation_cat : Libobject.category
 
-type notation_target = Libnames.qualid option * int option
+type notation_target = {
+  target_entry : Libnames.qualid option;
+  target_level : int option;
+}
 
 val pr_register_notation : sexpr list -> notation_target -> raw_tacexpr -> Pp.t
 

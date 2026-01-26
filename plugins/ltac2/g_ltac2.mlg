@@ -458,14 +458,16 @@ GRAMMAR EXTEND Gram
         { SexprRec (loc, id, tok) }
     ] ]
   ;
-  syn_level:
-    [ [ -> { None, None }
-      | ":"; n = Prim.natural -> { None, Some n }
-      | ":"; id = qualid; n = OPT [ "("; n = Prim.natural; ")" -> { n } ] -> { Some id, n }
+  syn_target:
+    [ [ -> { { Tac2syn.target_entry = None; target_level = None } }
+      | ":"; n = Prim.natural -> { { Tac2syn.target_entry = None; target_level = Some n } }
+      | ":"; id = qualid; n = OPT [ "("; n = Prim.natural; ")" -> { n } ] -> {
+          { Tac2syn.target_entry = Some id; target_level = n }
+        }
     ] ]
   ;
   tac2def_syn:
-    [ [ toks = LIST1 ltac2_syntax_class; n = syn_level; ":=";
+    [ [ toks = LIST1 ltac2_syntax_class; n = syn_target; ":=";
         e = ltac2_expr ->
         { (toks, n, e) }
     ] ]
