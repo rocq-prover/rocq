@@ -106,10 +106,13 @@ module QState : sig
 end =
 struct
 
+type node =
+| Equiv of Quality.t
+| Canonical of { rigid : bool }
+(** Rigid variables may not be set to another *)
+
 type t = {
-  rigid : QSet.t;
-  (** Rigid variables, may not be set to another *)
-  qmap : Quality.t option QMap.t;
+  qmap : node QMap.t;
   (* TODO: use a persistent union-find structure *)
   above_prop : QSet.t;
   (** Set for quality variables known to be either in Prop or Type.
@@ -122,51 +125,63 @@ type t = {
 
 type elt = QVar.t
 
-let empty = { rigid = QSet.empty; qmap = QMap.empty; above_prop = QSet.empty;
+let empty = { qmap = QMap.empty; above_prop = QSet.empty;
               elims = QGraph.initial_graph; initial_elims = QGraph.initial_graph }
 
 let rec repr q m = match QMap.find q m.qmap with
-| None -> QVar q
-| Some (QVar q) -> repr q m
-| Some (QConstant _ as q) -> q
+| Canonical _ -> QVar q
+| Equiv (QVar q) -> repr q m
+| Equiv (QConstant _ as q) -> q
 | exception Not_found -> QVar q
+
+type repr =
+| ReprConstant of Quality.constant
+| ReprVar of QVar.t * bool
+
+let rec repr_node q m = match QMap.find q m.qmap with
+| Canonical { rigid } -> ReprVar (q, rigid)
+| Equiv (QVar q) -> repr_node q m
+| Equiv (QConstant qc) -> ReprConstant qc
+| exception Not_found -> ReprVar (q, true) (* a bit dubious but missing variables are considered rigid *)
 
 let is_above_prop m q = QSet.mem q m.above_prop
 
 let eliminates_to_prop m q =
   QGraph.eliminates_to_prop m.elims (QVar q)
 
-let is_rigid m q = QSet.mem q m.rigid || not (QMap.mem q m.qmap)
+let is_rigid m q = match repr_node q m with
+| ReprVar (_, rigid) -> rigid
+| ReprConstant _ -> true
 
 let set q qv m =
-  let q = repr q m in
-  let q = match q with QVar q -> q | QConstant _ -> assert false in
-  let qv = match qv with QVar qv -> repr qv m | (QConstant _ as qv) -> qv in
+  let q = repr_node q m in
+  let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
+  let qv = match qv with QVar qv -> repr_node qv m | QConstant qc -> ReprConstant qc in
   let enforce_eq q1 q2 g = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
   match q, qv with
-  | q, QVar qv ->
+  | q, ReprVar (qv, _qvrigd) ->
     if QVar.equal q qv then Some m
-    else
-    if QSet.mem q m.rigid then None
+    else if rigid then None
     else
       let above_prop =
         if is_above_prop m q
         then QSet.add qv (QSet.remove q m.above_prop)
         else m.above_prop in
-      Some { rigid = m.rigid; qmap = QMap.add q (Some (QVar qv)) m.qmap; above_prop;
+      Some { qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
              elims = enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
-  | q, (QConstant qc as qv) ->
+  | q, ReprConstant qc ->
     if qc == QSProp && (is_above_prop m q || eliminates_to_prop m q) then None
-    else if QSet.mem q m.rigid then None
+    else if rigid then None
     else
-      Some { m with rigid = m.rigid; qmap = QMap.add q (Some qv) m.qmap;
+      let qv = QConstant qc in
+      Some { m with qmap = QMap.add q (Equiv qv) m.qmap;
                     above_prop = QSet.remove q m.above_prop;
                     elims = enforce_eq qv (QVar q) m.elims }
 
 let set_above_prop q m =
-  let q = repr q m in
-  let q = match q with QVar q -> q | QConstant _ -> assert false in
-  if QSet.mem q m.rigid then None
+  let q = repr_node q m in
+  let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
+  if rigid then None
   else Some { m with above_prop = QSet.add q m.above_prop }
 
 let unify_quality ~fail c q1 q2 local = match q1, q2 with
@@ -205,9 +220,10 @@ let nf_quality m = function
 
 let add_qvars m qmap qs =
   let g = m.initial_elims in
-  let filter v = match QMap.find v qmap with
-    | None | exception Not_found -> true
-    | _ -> false in
+  let filter v = match QMap.find_opt v qmap with
+  | None | Some (Canonical _) -> true
+  | Some (Equiv _) -> false
+  in
   (* Here, we filter instead of enforcing equality due to the collapse:
      simply enforcing equality may lead to inconsistencies after it *)
   let qs = QVar.Set.filter filter qs in
@@ -218,21 +234,24 @@ let union ~fail s1 s2 =
   let extra = ref [] in
   let qmap = QMap.union (fun qk q1 q2 ->
       match q1, q2 with
-      | Some q, None | None, Some q -> Some (Some q)
-      | None, None -> Some None
-      | Some q1, Some q2 ->
+      | Equiv q, (Canonical _) | (Canonical _), Equiv q -> Some (Equiv q)
+      | Canonical { rigid = r1 }, Canonical { rigid = r2 } ->
+        (* XXX this looks wrong, but this preserves the previous behaviour *)
+        Some (Canonical { rigid = r1 || r2 })
+      | Equiv q1, Equiv q2 ->
         let () = if not (Quality.equal q1 q2) then extra := (q1,q2) :: !extra in
-        Some (Some q1))
+        Some (Equiv q1))
       s1.qmap s2.qmap
   in
   let extra = !extra in
   let qs = QVar.Set.union (QGraph.qvar_domain s1.elims) (QGraph.qvar_domain s2.elims) in
-  let filter v = match QMap.find v qmap with
-    | None | exception Not_found -> true
-    | _ -> false in
+  let filter v = match QMap.find_opt v qmap with
+  | None | Some (Canonical _) -> true
+  | Some (Equiv _) -> false
+  in
   let above_prop = QSet.filter filter @@ QSet.union s1.above_prop s2.above_prop in
   let elims = add_qvars s2 qmap qs in
-  let s = { rigid = QSet.union s1.rigid s2.rigid; qmap; above_prop;
+  let s = { qmap; above_prop;
             elims; initial_elims = elims } in
   List.fold_left (fun s (q1,q2) ->
       let q1 = nf_quality s q1 and q2 = nf_quality s q2 in
@@ -246,8 +265,7 @@ let add ~check_fresh ~rigid q m =
     try QGraph.add_quality (QVar q) g
     with QGraph.AlreadyDeclared as e -> if check_fresh then raise e else g
   in
-  { rigid = if rigid then QSet.add q m.rigid else m.rigid;
-    qmap = QMap.add q None m.qmap;
+  { qmap = QMap.add q (Canonical { rigid }) m.qmap;
     above_prop = m.above_prop;
     elims = add_quality m.elims;
     initial_elims = add_quality m.initial_elims }
@@ -257,18 +275,22 @@ let of_elims elims =
   let initial_elims =
     QSet.fold (fun v -> QGraph.add_quality (QVar v)) qs (QGraph.initial_graph) in
   let initial_elims = QGraph.update_rigids elims initial_elims in
-  { empty with rigid = qs; elims; initial_elims }
+  { empty with elims; initial_elims }
 
 (* XXX what about qvars in the elimination graph? *)
 let undefined m =
-  let mq = QMap.filter (fun _ v -> Option.is_empty v) m.qmap in
+  let filter _ v = match v with
+  | Canonical _ -> true
+  | Equiv _ -> false
+  in
+  let mq = QMap.filter filter m.qmap in
   QMap.domain mq
 
 let collapse_above_prop ~to_prop m =
   QMap.fold (fun q v m ->
            match v with
-           | Some _ -> m
-           | None ->
+           | Equiv _ -> m
+           | Canonical _ ->
               if not @@ is_above_prop m q then m else
                 if to_prop then Option.get (set q qprop m)
                 else Option.get (set q qtype m)
@@ -278,12 +300,12 @@ let collapse_above_prop ~to_prop m =
 let collapse ?(except=QSet.empty) m =
   QMap.fold (fun q v m ->
            match v with
-           | Some _ -> m
-           | None -> if QSet.mem q m.rigid || QSet.mem q except then m
+           | Equiv _ -> m
+           | Canonical { rigid } -> if rigid || QSet.mem q except then m
                     else Option.get (set q qtype m))
          m.qmap m
 
-let pr prqvar_opt ({ qmap; elims; rigid } as m) =
+let pr prqvar_opt ({ qmap; elims } as m) =
   let open Pp in
   (* Print the QVar using its name if any, e.g. "α1" or "s" *)
   let prqvar q = match prqvar_opt q with
@@ -292,20 +314,19 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   in
   (* Print the "body" of the QVar, e.g. "α1 := Type", "α2 >= Prop" *)
   let prbody u = function
-  | None ->
+  | Canonical { rigid } ->
     if is_above_prop m u then str " >= Prop"
-    else if QSet.mem u rigid then
+    else if rigid then
       str " (rigid)"
     else mt ()
-  | Some q ->
+  | Equiv q ->
     let q = Quality.pr prqvar q in
     str " := " ++ q
   in
   (* Print the "name" (given by the user) of the Qvar, e.g. "(named s)" *)
-  let prqvar_name q =
-    match prqvar_opt q with
-    | None -> mt ()
-    | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
+  let prqvar_name q = match prqvar_opt q with
+  | None -> mt ()
+  | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
   let prqvar_full (q1, q2) = QVar.raw_pr q1 ++ prbody q1 q2 ++ prqvar_name q1 in
   hov 0 (prlist_with_sep fnl prqvar_full (QMap.bindings qmap) ++
