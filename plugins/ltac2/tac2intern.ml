@@ -1108,8 +1108,8 @@ let warn_useless_record_with = CWarnings.create ~name:"ltac2-useless-record-with
         str "All the fields are explicitly listed in this record:" ++
         spc() ++ str "the 'with' clause is useless.")
 
-let expand_notation ?loc syn =
-  let data, el = Tac2syn.interp_notation ?loc syn in
+let expand_notation ?loc scopes syn =
+  let data, el = Tac2syn.interp_notation ?loc scopes syn in
   match data with
   | UntypedNota body ->
     let el = List.map (fun (pat, e) -> CAst.map (fun na -> CPatVar na) pat, e) el in
@@ -1257,7 +1257,7 @@ let rec intern_rec env tycon {loc;v=e} =
   if is_rec then intern_let_rec env loc el tycon e
   else intern_let env loc ids el tycon e
 | CTacSyn syn ->
-  let v = expand_notation ?loc syn in
+  let v = expand_notation ?loc (Tac2typing_env.scopes env) syn in
   intern_rec env tycon v
 | CTacCnv (e, tc) ->
   let tc = intern_type env tc in
@@ -1661,7 +1661,7 @@ let get_projection0 var = match var with
 type raw_ext = RawExt : ('a, _) Tac2dyn.Arg.tag * 'a -> raw_ext
 
 let globalize_gen ~tacext ids tac =
-  let rec globalize ids ({loc;v=er} as e) = match er with
+  let rec globalize (scopes,ids as env) ({loc;v=er} as e) = match er with
     | CTacAtm _ -> e
     | CTacRef ref ->
       let mem id = Id.Set.mem id ids in
@@ -1682,67 +1682,67 @@ let globalize_gen ~tacext ids tac =
       in
       let bnd, ids = List.fold_left fold ([], ids) bnd in
       let bnd = List.rev bnd in
-      let e = globalize ids e in
+      let e = globalize (scopes,ids) e in
       CAst.make ?loc @@ CTacFun (bnd, e)
     | CTacApp (e, el) ->
-      let e = globalize ids e in
-      let el = List.map (fun e -> globalize ids e) el in
+      let e = globalize env e in
+      let el = List.map (fun e -> globalize env e) el in
       CAst.make ?loc @@ CTacApp (e, el)
     | CTacLet (isrec, bnd, e) ->
       let fold accu (pat, _) = ids_of_pattern accu pat in
       let ext = List.fold_left fold Id.Set.empty bnd in
       let eids = Id.Set.union ext ids in
-      let e = globalize eids e in
+      let e = globalize (scopes,eids) e in
       let map (qid, e) =
         let ids = if isrec then eids else ids in
         let qid = globalize_pattern ids qid in
-        (qid, globalize ids e)
+        (qid, globalize (scopes,ids) e)
       in
       let bnd = List.map map bnd in
       CAst.make ?loc @@ CTacLet (isrec, bnd, e)
     | CTacSyn syn ->
-      let v = expand_notation ?loc syn in
-      globalize ids v
+      let v = expand_notation ?loc scopes syn in
+      globalize env v
     | CTacCnv (e, t) ->
-      let e = globalize ids e in
+      let e = globalize env e in
       CAst.make ?loc @@ CTacCnv (e, t)
     | CTacSeq (e1, e2) ->
-      let e1 = globalize ids e1 in
-      let e2 = globalize ids e2 in
+      let e1 = globalize env e1 in
+      let e2 = globalize env e2 in
       CAst.make ?loc @@ CTacSeq (e1, e2)
     | CTacIft (e, e1, e2) ->
-      let e = globalize ids e in
-      let e1 = globalize ids e1 in
-      let e2 = globalize ids e2 in
+      let e = globalize env e in
+      let e1 = globalize env e1 in
+      let e2 = globalize env e2 in
       CAst.make ?loc @@ CTacIft (e, e1, e2)
     | CTacCse (e, bl) ->
-      let e = globalize ids e in
-      let bl = List.map (fun b -> globalize_case ids b) bl in
+      let e = globalize env e in
+      let bl = List.map (fun b -> globalize_case env b) bl in
       CAst.make ?loc @@ CTacCse (e, bl)
     | CTacRec (def, r) ->
-      let def = Option.map (globalize ids) def in
+      let def = Option.map (globalize env) def in
       let map (p, e) =
         let p = get_projection0 p in
-        let e = globalize ids e in
+        let e = globalize env e in
         (AbsKn p, e)
       in
       CAst.make ?loc @@ CTacRec (def, List.map map r)
     | CTacPrj (e, p) ->
-      let e = globalize ids e in
+      let e = globalize env e in
       let p = get_projection0 p in
       CAst.make ?loc @@ CTacPrj (e, AbsKn p)
     | CTacSet (e, p, e') ->
-      let e = globalize ids e in
+      let e = globalize env e in
       let p = get_projection0 p in
-      let e' = globalize ids e' in
+      let e' = globalize env e' in
       CAst.make ?loc @@ CTacSet (e, AbsKn p, e')
     | CTacExt (tag, arg) -> tacext ?loc (RawExt (tag, arg))
     | CTacGlb (prms, args, body, ty) ->
-      let args = List.map (fun (na, arg, ty) -> na, globalize ids arg, ty) args in
+      let args = List.map (fun (na, arg, ty) -> na, globalize env arg, ty) args in
       CAst.make ?loc @@ CTacGlb (prms, args, body, ty)
 
-  and globalize_case ids (p, e) =
-    (globalize_pattern ids p, globalize ids e)
+  and globalize_case (_, ids as env) (p, e) =
+    (globalize_pattern ids p, globalize env e)
 
   and globalize_pattern ids ({loc;v=pr} as p) = match pr with
     | CPatVar _ | CPatAtm _ -> p
@@ -1768,7 +1768,7 @@ let globalize_gen ~tacext ids tac =
       CAst.make ?loc @@ CPatRecord (List.map map pats)
 
   in
-  globalize ids tac
+  globalize (Tac2syn.current_scopes() ,ids) tac
 
 let globalize ids tac =
   let tacext ?loc (RawExt (tag,_)) =

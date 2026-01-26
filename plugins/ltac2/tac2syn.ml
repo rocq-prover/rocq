@@ -21,6 +21,102 @@ let check_lowercase {loc;v=id} =
 
 let internal_ltac2_expr = Procq.Entry.make "ltac2_expr"
 
+module Tac2Scope = KerName
+
+module ScopeV = struct
+  include Tac2Scope
+  let is_var _ = None
+  let stage = Summary.Stage.Synterp
+  let summary_name = "ltac2_scopetab"
+end
+module ScopeTab = Nametab.EasyNoWarn(ScopeV)()
+
+let find_scope sc =
+  try ScopeTab.locate sc
+  with Not_found ->
+    CErrors.user_err ?loc:sc.loc Pp.(str "Unknown Ltac2 scope " ++ Libnames.pr_qualid sc ++ str ".")
+
+let load_scope i ((sp,kn),()) =
+  ScopeTab.push (Until i) sp kn
+
+let import_scope i ((sp,kn),()) =
+  ScopeTab.push (Exactly i) sp kn
+
+let cache_scope o =
+  load_scope 1 o;
+  import_scope 1 o
+
+let inScope : Id.t -> unit -> Libobject.obj =
+  let open Libobject in
+  declare_named_object {
+    (default_object "Ltac2 notation scope") with
+    object_stage = Interp;
+    cache_function = cache_scope;
+    load_function = load_scope;
+    open_function = filtered_open import_scope;
+    subst_function = (fun (_,()) -> ());
+    classify_function = (fun () -> Substitute);
+  }
+
+let declare_scope id =
+  let () = if ScopeTab.exists (Lib.make_path id) then
+      CErrors.user_err Pp.(str "Ltac2 notation scope " ++ Id.print id ++ str " already exists.")
+  in
+  Lib.add_leaf (inScope id ())
+
+let current_scopes = Summary.ref ~name:"ltac2-current-scopes" []
+
+type open_close_scope = Open | Close
+
+let cache_open_close_scope (sc,openclose) =
+  match openclose with
+  | Open -> current_scopes := sc :: (List.remove Tac2Scope.equal sc !current_scopes)
+  | Close -> current_scopes := List.remove Tac2Scope.equal sc !current_scopes
+
+let inOpenCloseScope =
+  Libobject.declare_object @@
+  Libobject.object_with_locality "Ltac2 open/close scope"
+    ~cache:cache_open_close_scope
+    ~subst:(Some (fun (subst,(sc,openclose)) -> Mod_subst.subst_kn subst sc, openclose))
+    ~discharge:(fun x -> x)
+
+let open_close_scope local sc openclose =
+  let sc = find_scope sc in
+  Lib.add_leaf (inOpenCloseScope (local,(sc,openclose)))
+
+let open_scope local sc = open_close_scope local sc Open
+let close_scope local sc = open_close_scope local sc Close
+
+let default_scope = Summary.ref ~name:"ltac2-default-scope" None
+
+let cache_default_scope sc =
+  let () = if Option.has_some !default_scope then
+      CErrors.user_err Pp.(str "Declare ML Module for the Ltac2 plugin in multiple Rocq modules is not supported.")
+  in
+  default_scope := Some sc
+
+let inDefaultScope =
+  Libobject.declare_object @@
+  Libobject.superglobal_object "ltac2 default scope"
+    ~cache:cache_default_scope
+    ~subst:None
+    ~discharge:(fun _ -> assert false)
+
+let declare_default_scope () =
+  let sc = Id.of_string "core" in
+  declare_scope sc;
+  let sc = ScopeTab.locate (Libnames.qualid_of_ident sc) in
+  Lib.add_leaf (inDefaultScope sc)
+
+let () =
+  Mltop.(declare_cache_obj_full (interp_only_obj declare_default_scope) "rocq-runtime.plugins.ltac2")
+
+let default_scope () = match !default_scope with
+  | Some v -> v
+  | None -> assert false
+
+let current_scopes () = !current_scopes
+
 module Tac2Custom = KerName
 
 module CustomV = struct
@@ -658,17 +754,19 @@ type notation_data =
       nota_body : glb_tacexpr;
     }
 
-type 'body notation_interpretation = {
+type ('scope,'body) notation_interpretation = {
   nota_local : bool;
   (* sexpr used for printing deprecation message, XXX print the internalized version? *)
   nota_raw : sexpr list;
   nota_depr : Deprecation.t option;
   nota_parsing : ParsedNota.any;
+  nota_scope : 'scope;
   nota_tok : SynclassDyn.t token list;
   nota_body : 'body;
 }
 
-let notation_data = Summary.ref ~name:"tac2notation-data" ParsedNota.AnyMap.empty
+let notation_data : (Tac2Scope.t, notation_data) notation_interpretation Tac2Scope.Map.t ParsedNota.AnyMap.t ref =
+  Summary.ref ~name:"tac2notation-data" ParsedNota.AnyMap.empty
 
 let rec interp_notation_args : type a. a Syntax.seq -> _ -> a -> _ = fun parsing toks args ->
   match parsing, toks, args with
@@ -689,11 +787,21 @@ let rec interp_notation_args : type a. a Syntax.seq -> _ -> a -> _ = fun parsing
 (* to have scoped notations: add a scope stack argument here,
    per-scope notations in the notation_data map, and user syntax for
    scopes *)
-let interp_notation ?loc syn
+let interp_notation ?loc scopes syn
   : notation_data * (lname * raw_tacexpr) list =
   let WithArgs ((rule, _ as parsing), args) = TacSyn.get syn in
-  let data : notation_data notation_interpretation =
+  let data =
+    (* NB no Reserve Notation for ltac2 so can't have a notation without interp data *)
     ParsedNota.AnyMap.get (Any parsing) !notation_data
+  in
+  let data = match List.find_map (fun sc -> Tac2Scope.Map.find_opt sc data) scopes with
+    | Some data -> data
+    | None ->
+      CErrors.user_err ?loc
+        Pp.(str "Unknown interpretation for Ltac2 notation in currently open scopes" ++ spc() ++
+            str "(notation available in scopes: " ++
+            pr_enum (fun (sc,_) -> ScopeTab.pr sc) (Tac2Scope.Map.bindings data) ++
+            str ").")
   in
   let () = match data.nota_depr with
     | None -> ()
@@ -703,7 +811,12 @@ let interp_notation ?loc syn
   data.nota_body, args
 
 let cache_synext_interp data =
-  notation_data := ParsedNota.AnyMap.add data.nota_parsing data !notation_data
+  let add_data m =
+    let m = Option.default Tac2Scope.Map.empty m in
+    let m = Tac2Scope.Map.add data.nota_scope data m in
+    Some m
+  in
+  notation_data := ParsedNota.AnyMap.update data.nota_parsing add_data !notation_data
 
 let subst_notation_data subst = function
   | UntypedNota body as n ->
@@ -734,6 +847,7 @@ let inTac2NotationInterp : _ -> Libobject.obj =
 type notation_target = {
   target_entry : qualid option;
   target_level : int option;
+  target_scope : qualid option;
 }
 
 let pr_register_notation tkn target body =
@@ -803,6 +917,7 @@ let register_notation atts tkn target body =
     nota_depr = deprecation;
     nota_parsing = parsing;
     nota_tok = tokens;
+    nota_scope = target.target_scope;
     nota_body = body;
   }
 
@@ -814,7 +929,11 @@ let intern_notation_interpretation intern_body data =
   in
   let ids = List.fold_left accumulate_ids Id.Set.empty data.nota_tok in
   let body = intern_body ids data.nota_body in
-  { data with nota_body = body }
+  let scope = match data.nota_scope with
+    | None -> default_scope()
+    | Some sc -> find_scope sc
+  in
+  { data with nota_body = body; nota_scope = scope }
 
 let register_notation_interpretation data =
   Lib.add_leaf (inTac2NotationInterp data)

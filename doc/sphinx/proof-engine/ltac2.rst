@@ -1256,7 +1256,7 @@ Match on values
 Notations
 ---------
 
-.. cmd:: Ltac2 Notation {+ @ltac2_syntax_class } {? {| : @natural | : @qualid {? ( @natural ) } } } := @ltac2_expr
+.. cmd:: Ltac2 Notation {+ @ltac2_syntax_class } {? {| : @natural | : @qualid {? ( @natural ) } } } {? % @qualid } := @ltac2_expr
 
    .. todo seems like name maybe should use lident rather than ident, considering:
 
@@ -1281,6 +1281,15 @@ Notations
    provided, if the notation starts with a string which is an
    identifier (e.g. `"apply"`) the level is `1`, otherwise it is `5`.
    Custom entries must have explicit levels.
+
+   :n:`% @qualid` is the scope of the notation. By default it is
+   `Ltac2.Init.core`, which is automatically declared by the Ltac2
+   plugin. Scopes make it possible to have multiple notations with
+   identical parsing rules but different interpretations. The
+   interpretation is controlled by the stack of currently open scopes
+   (c.f. :cmd:`Ltac2 Open Scope` and :cmd:`Ltac2 Close Scope`),
+   looking in the first scope starting from the top of the stack for a
+   matching notation.
 
    When the notation is used, the values are substituted
    into the right-hand side.  In the following example, `x` is the formal parameter name and
@@ -1367,6 +1376,25 @@ Notations
    .. exn:: Notation levels must range between 0 and 6.
 
       The level of a notation must be an integer between 0 and 6 inclusive.
+
+.. cmd:: Ltac2 Declare Scope @ident
+
+   Declare a new Ltac2 notation scope in the current module.
+
+.. cmd:: Ltac2 Open Scope @qualid
+
+   Add a scope to the current stack.  If the scope is already present,
+   the command moves it to the top of the stack.
+
+   This command supports locality attributes :attr:`global`, :attr:`export` and :attr:`local`.
+   In sections the default is `local`, otherwise it is `export`.
+
+.. cmd:: Ltac2 Close Scope @qualid
+
+   Remove a scope from the current stack.
+
+   This command supports locality attributes :attr:`global`, :attr:`export` and :attr:`local`.
+   In sections the default is `local`, otherwise it is `export`.
 
 .. cmd:: Ltac2 Custom Entry @ident
 
