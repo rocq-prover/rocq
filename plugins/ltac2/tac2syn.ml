@@ -731,11 +731,14 @@ let inTac2NotationInterp : _ -> Libobject.obj =
      classify_function = (fun data -> if data.nota_local then Dispose else Substitute);
 }
 
-type notation_target = qualid option * int option
+type notation_target = {
+  target_entry : qualid option;
+  target_level : int option;
+}
 
-let pr_register_notation tkn (entry,lev) body =
+let pr_register_notation tkn target body =
   let open Pp in
-  let pptarget = match entry, lev with
+  let pptarget = match target.target_entry, target.target_level with
     | None, None -> mt()
     | None, Some lev -> spc() ++ str ": " ++ int lev
     | Some entry, None -> spc() ++ str ": " ++ pr_qualid entry
@@ -748,10 +751,10 @@ let pr_register_notation tkn (entry,lev) body =
 
 let tactic_qualid = qualid_of_ident (Id.of_string "tactic")
 
-let register_notation atts tkn (entry,lev) body =
+let register_notation atts tkn target body =
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
   let local = Option.default false local in
-  let entry = match entry with
+  let entry = match target.target_entry with
     | Some entry ->
       if qualid_eq entry tactic_qualid then None
       else begin
@@ -762,13 +765,13 @@ let register_notation atts tkn (entry,lev) body =
   in
   (* Globalize so that names are absolute *)
   let lev = if Option.has_some entry then
-      let lev = match lev with
+      let lev = match target.target_level with
         | Some lev -> lev
         | None -> CErrors.user_err Pp.(str "Custom entry level must be explicit.")
       in
       let () = if lev < 0 then CErrors.user_err Pp.(str "Custom entry levels must be nonnegative.") in
       lev
-    else match lev with
+    else match target.target_level with
       | Some n ->
         let () =
           if n < 0 || n > 6 then
