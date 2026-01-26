@@ -25,17 +25,18 @@ val import_type : qualid -> Id.t -> unit
 val register_primitive : ?deprecation:Deprecation.t -> ?local:bool ->
   Names.lident -> raw_typexpr -> ml_tactic_name -> unit
 
-type _ notation_interpretation_data
+type ('scope,'body) notation_interpretation_data
 
 val pr_register_abbreviation : Id.t CAst.t -> raw_tacexpr -> Pp.t
 
 val register_notation : Attributes.vernac_flags -> sexpr list ->
-  Tac2syn.notation_target -> 'body -> 'body notation_interpretation_data
+  Tac2syn.notation_target -> 'body -> (qualid option, 'body) notation_interpretation_data
 
 val register_abbreviation : Attributes.vernac_flags -> Id.t CAst.t ->
-  'body -> 'body notation_interpretation_data
+  'body -> (_ option, 'body) notation_interpretation_data
 
-val register_notation_interpretation : raw_tacexpr notation_interpretation_data -> unit
+val register_notation_interpretation
+  : (qualid option, raw_tacexpr) notation_interpretation_data -> unit
 
 val register_struct : Attributes.vernac_flags -> strexpr -> unit
 
