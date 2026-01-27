@@ -1221,33 +1221,33 @@ Generation of induction principles with ``Scheme``
 
 .. _scheme_example:
 
-   .. example:: `Scheme` commands with various :n:`@scheme_type`\s
+.. example:: `Scheme` commands with various :n:`@scheme_type`\s
 
-      Let us demonstrate the difference between the Scheme commands.
+   Let us demonstrate the difference between the Scheme commands.
 
-      .. rocqtop:: all
+   .. rocqtop:: all
 
-         Unset Elimination Schemes.
+      Unset Elimination Schemes.
 
-         Inductive Nat :=
-         | z : Nat
-         | s : Nat -> Nat.
+      Inductive Nat :=
+      | z : Nat
+      | s : Nat -> Nat.
 
-         (* dependent, recursive *)
-         Scheme Induction for Nat Sort Set.
-         About Nat_rec.
+      (* dependent, recursive *)
+      Scheme Induction for Nat Sort Set.
+      About Nat_rec.
 
-         (* non-dependent, recursive *)
-         Scheme Minimality for Nat Sort Set.
-         About Nat_rec_nodep.
+      (* non-dependent, recursive *)
+      Scheme Minimality for Nat Sort Set.
+      About Nat_rec_nodep.
 
-         (* dependent, non-recursive *)
-         Scheme Elimination for Nat Sort Set.
-         About Nat_case.
+      (* dependent, non-recursive *)
+      Scheme Elimination for Nat Sort Set.
+      About Nat_case.
 
-         (* non-dependent, non-recursive *)
-         Scheme Case for Nat Sort Set.
-         About Nat_case_nodep.
+      (* non-dependent, non-recursive *)
+      Scheme Case for Nat Sort Set.
+      About Nat_case_nodep.
 
 Automatic declaration of schemes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
