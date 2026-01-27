@@ -784,6 +784,7 @@ define globvorule=
   $(1).vo $(1).glob &: $(1).v | $$(VDFILE)
 	$$(SHOW)ROCQ compile $(1).v
 	$$(HIDE)$$(TIMER) $$(ROCQ) compile $$(COQDEBUG) $$(TIMING_ARG) $$(PROFILE_ARG) $$(COQFLAGS) $$(COQLIBS) $(1).v
+	$$(HIDE)rm -f $(1).vos $(1).vok && touch $(1).vos $(1).vok # make empty vos and vok files
 	$$(HIDE)$$(PROFILE_ZIP)
 ifeq ($(COQDONATIVE), "yes")
 	$$(SHOW)COQNATIVE $(1).vo
@@ -796,6 +797,7 @@ else
 $(VOFILES): %.vo: %.v | $(VDFILE)
 	$(SHOW)ROCQ compile $<
 	$(HIDE)$(TIMER) $(ROCQ) compile $(COQDEBUG) $(TIMING_ARG) $(PROFILE_ARG) $(COQFLAGS) $(COQLIBS) $<
+	$(HIDE)rm -f $@s $@k && touch $@s $@k # make empty vos and vok files
 	$(HIDE)$(PROFILE_ZIP)
 ifeq ($(COQDONATIVE), "yes")
 	$(SHOW)COQNATIVE $@
@@ -817,6 +819,7 @@ $(VFILES:.v=.vos): %.vos: %.v
 
 $(VFILES:.v=.vok): %.vok: %.v
 	$(SHOW)ROCQ compile -vok $<
+	$(HIDE)rm -f $@ && touch $@ # make empty vok file
 	$(HIDE)$(TIMER) $(ROCQ) compile -vok $(COQDEBUG) $(COQFLAGS) $(COQLIBS) $<
 
 $(addsuffix .timing.diff,$(VFILES)): %.timing.diff : %.before-timing %.after-timing

@@ -45,7 +45,6 @@ let native_obj_files ~install ~tname { prefix; name; _ } =
 
 let base_obj_files coq_module =
   [ mod_to_obj coq_module ~ext:".glob"
-  ; mod_to_obj coq_module ~ext:".vos"
   ; mod_to_obj coq_module ~ext:".vo"
   ]
 
