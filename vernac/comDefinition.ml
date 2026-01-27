@@ -68,7 +68,7 @@ let protect_pattern_in_binder bl c ctypopt =
           evd, mkLambda (x,t,c)
         | LetIn (x,b,t,c) ->
           let evd,c = aux (push_rel (LocalDef (x,b,t)) env) evd c in
-          evd, mkLetIn (x,t,b,c)
+          evd, mkLetIn (x,b,t,c)
         | Case (ci,u,pms,p,iv,a,bl) ->
           let (ci, p, iv, a, bl) = EConstr.expand_case env evd (ci, u, pms, p, iv, a, bl) in
           let evd,bl = Array.fold_left_map (aux env) evd bl in
