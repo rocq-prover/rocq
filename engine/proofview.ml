@@ -1004,9 +1004,9 @@ let tclPROGRESS t =
     let info = Exninfo.reify () in
     tclZERO ~info (CErrors.UserError Pp.(str "Failed to progress."))
 
-let _ = CErrors.register_handler begin function
+let () = CErrors.register_handler begin function
   | Logic_monad.Tac_Timeout ->
-    Some (Pp.str "[Proofview.tclTIMEOUT] Tactic timeout!")
+    Some (Pp.str "Tactic timeout!")
   | _ -> None
 end
 
