@@ -978,6 +978,231 @@ Similar to universes, fresh global sorts can be declared with the :cmd:`Sort`.
     (* All sort declarations of the section are bound, even the unused one. *)
     About arr1.
 
+.. _Template-polymorphism:
+
+Template polymorphism
+---------------------
+
+Template polymorphism is a variant of universe polymorphism for
+inductive types (and inductive families) whose shape allows inferring
+the universe instance from the parameters. Template polymorphic
+inductives appear in terms without an explicit universe instance (for
+instance if `prod` is template polymorphic then `prod nat nat` is a
+fully explicit term, if it is universe polymorphic it would be
+`prod@{Set Set} nat nat`).
+
+Additionally template polymorphism implements sort polymorphism
+restricted to the sorts `Prop` and `Type`
+(for instance `prod True True : Prop`).
+
+Template polymorphic inductive declarations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A template polymorphic inductive is polymorphic over some specific
+universe levels and sort variables which are introduced by the inductive's declaration.
+These levels are called "template (polymorphic) levels" and sorts.
+
+A type of the shape `Type@{s;u}` or `forall ..., Type@{s;u}` (i.e. a
+type of types or type families) is called an "arity". `Type@{s;u}` is
+the "conclusion" of the arity. The type of an inductive is always an
+arity, and for short we say "the inductive's conclusion" instead of
+"the inductive's type's conclusion". Template polymorphism also
+involves parameters of the inductive whose types are arities.
+
+An inductive may be template polymorphic when
+
+- it is the only inductive of its block (the combination of template
+  polymorphism and mutual inductives is not supported).
+
+- the template levels appear linearly in the conclusions of parameters
+  which are arities. Such conclusions must have only that level as its universe
+  (i.e. `Type@{s;u}` where `u` is a template level, not `Type@{s;max(u,v)}` or `Type@{u+1}`).
+  Each template level is said to be "bound" by the parameter in whose type it appears.
+
+- the template levels may also appear in the inductive's conclusion,
+  and appear nowhere else (not in non-arity parameters, not in
+  the domains of arity parameters, not in the indices, and not
+  in the constructor arguments and return types).
+
+- template levels which appear in the inductive's conclusion do
+  not appear with an increment (i.e. if `u` is a template level it
+  does not appear as `u+1`).
+
+  This restriction prevents generating increments higher than 1 by
+  applying template inductives to themselves, i.e. if `I : Type@{u} ->
+  Type@{u + 1}` was template polymorphic and `X:Type@{i}` then `I
+  (I X) : Type@{i + 2}`. It is necessary as the current universe
+  checking cannot handle such increments properly, but this
+  restriction may be removed in the future.
+
+- the template sorts appear in the conclusions of parameters (not
+  necessarily linearly), may appear in the inductive's conclusion, and
+  appear nowhere else.
+
+- for each template universe `u`, there are no constraints of the form
+  `v <= u` ("no constraints from below").
+
+These requirements are more than sufficient to ensure that if the
+inductive was declared universe polymorphic and cumulative then all
+template levels would be irrelevant. The "no constraints from below"
+requirement is needed for subject reduction (preservation of typing by
+reduction) in terms involving partially applied template polymorphic
+inductives. Linearity of template universes and not supporting mutual
+inductives make implementation of template polymorphism easier.
+
+.. warning::
+
+   The restriction that universes are introduced by the inductive
+   declaration prevents inductive types declared in sections from being
+   template-polymorphic on universes introduced previously in the
+   section: they cannot parameterize over the universes introduced with
+   section variables that become parameters at section closing time, as
+   these may be shared with other definitions from the same section
+   which can impose constraints on them.
+
+.. note::
+
+   Currently user syntax does not support explicit sort polymorphism
+   annotations (`@{s;...}`) in template polymorphic declarations. The
+   sorts must be left implicit and will be automatically inferred.
+
+.. example::
+
+   .. rocqtop:: in reset
+
+      Inductive option (A:Type) : Type :=
+      | None : option A
+      | Some : A -> option A.
+
+      Inductive prod A B := pair : A -> B -> prod A B.
+
+   .. rocqtop:: all
+
+      Set Printing Universes.
+      About option.
+      About prod.
+
+   Since the sort polymorphism of template inductives cannot be
+   specified in the user syntax, it is instead described by the
+   "can/cannot be instantiated to `Prop`" mention in :cmd:`About`'s
+   output. Since `option` has 2 constructors, it cannot be
+   instantiated to `Prop` i.e. it is not sort polymorphic.
+
+Using template polymorphic inductives
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For each template universe `u` bound by parameter `A` of an inductive
+`I`, when `I` is applied such that `A` is instantiated with a term of
+type `forall ..., Type@{q;i}` (where `i` may be an algebraic
+universe), `u` is instantiated by `i` in the inductive's conclusion
+and in the constraints (which must be of the form `u <= x` where `x`
+is a global universe due to the "no constraints from below"
+requirement).
+
+Each template sort `s` is instantiated by the supremum of the `q`
+appearing in the conclusions of the types of arguments provided for
+parameters binding `s`. This is well-defined because template sorts
+may only be instantiated by `Prop` and `Type` and variable sorts
+restricted to these 2 ground sorts.
+
+If the inductive is partially applied, leftover parameters act as
+though they were given an argument at a default global universe and at
+sort `Type`.
+
+.. warning::
+
+   Partially applied template polymorphic inductives lead to
+   constraints between global universes, which can cause complex universe inconsistencies.
+
+.. example::
+
+   As mentioned previously, `option` is not sort polymorphic:
+
+   .. rocqtop:: all
+
+      Check fun A:Prop => option A.
+
+   but it is universe polymorphic:
+
+   .. rocqtop:: all
+
+      Check fun A:Set => option A.
+      Check option Set.
+
+.. example::
+
+   `prod` is sort polymorphic, but restricted to `Prop` and `Type`:
+
+   .. rocqtop:: all
+
+      Check fun A:Prop => prod A A.
+      Fail Check fun A:SProp =>  prod A A.
+
+   When only one of the arguments is `Prop`, the supremum of the sorts is `Type`:
+
+   .. rocqtop:: all
+
+      Check prod True nat.
+
+   This is also the case when partially applied to a `Prop`, and we
+   can see the use of the default universe `prod.u1` for the second
+   parameter:
+
+   .. rocqtop:: all
+
+      Check prod True.
+
+Controlling template polymorphism
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. flag:: Auto Template Polymorphism
+
+   This :term:`flag`, enabled by default, makes every inductive type declared
+   at level `Type` (without an explicit universe instance or hiding it behind a
+   definition) template polymorphic if possible.
+
+   This can be prevented using the :attr:`universes(template=no) <universes(template)>`
+   attribute.
+
+   Template polymorphism and full universe polymorphism (see Chapter
+   :ref:`polymorphicuniverses`) are incompatible, so if the latter is
+   enabled (through the :flag:`Universe Polymorphism` flag or the
+   :attr:`universes(polymorphic)` attribute) it will prevail over
+   automatic template polymorphism.
+
+.. warn:: Automatically declaring @ident as template polymorphic.
+
+   Warning ``auto-template`` can be used (it is off by default) to
+   find which types are implicitly declared template polymorphic by
+   :flag:`Auto Template Polymorphism`.
+
+   An inductive type can be forced to be template polymorphic using
+   the :attr:`universes(template)` attribute: in this case, the
+   warning is not emitted.
+
+.. attr:: universes(template{? = {| yes | no } })
+   :name: universes(template)
+
+   This :term:`boolean attribute` can be used to explicitly declare an
+   inductive type as template polymorphic, whether the :flag:`Auto
+   Template Polymorphism` flag is on or off.
+
+   .. exn:: Template-polymorphism and universe polymorphism are not compatible
+
+      This attribute cannot be used in a full universe polymorphic
+      context, i.e. if the :flag:`Universe Polymorphism` flag is on or
+      if the :attr:`universes(polymorphic)` attribute is used.
+
+   .. warn:: This inductive type has no template universes
+      :name: no-template-universe
+
+      The attribute was used but the inductive definition does not
+      satisfy the criterion to be template polymorphic.
+
+   When ``universes(template=no)`` is used, it will prevent an
+   inductive type from being template polymorphic, even if the :flag:`Auto
+   Template Polymorphism` flag is on.
+
 .. _universe-polymorphism-in-sections:
 
 Universe polymorphism and sections
