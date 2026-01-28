@@ -24,10 +24,10 @@ patterns. As an extension, multiple nested patterns or disjunction of
 patterns are allowed, as in ML-like languages
 (cf. :ref:`multiple-patterns` and :ref:`nested-patterns`).
 
-The extension just acts as a macro that is expanded during parsing
-into a sequence of match on simple patterns. Especially, a
-construction defined using the extended match is generally printed
-under its expanded form (see :flag:`Printing Matching`).
+The extension is expanded during :term:`type inference` into a
+sequence of match on simple patterns. Printing by default attempts to
+reconstruct the factorized syntax (see :flag:`Printing Matching`), but
+is often not successful and prints the expanded form.
 
 .. _if-then-else:
 
