@@ -131,26 +131,22 @@ pattern can either be done using :g:`match` or the :g:`let` construction
 If term inhabits an inductive type with one constructor `C`, we have an
 equivalence between
 
-::
-
-   let (ident₁, …, identₙ) [dep_ret_type] := term in term'
+:n:`let ( {* @name__i } ) {? {? as @name__as } return @term__ret } := @term__0 in @term__1`
 
 and
 
-::
+:n:`match @term__0 {? {? as @name__as } return @term__ret } with C {* @name__i } => @term__1 end`
 
-   match term [dep_ret_type] with
-   C ident₁ … identₙ => term'
-   end
+(if the parameters of `C` are implicit arguments or :flag:`Asymmetric Patterns` is set).
 
+In practice type inference may use slightly different heuristics for the different syntaxes.
 
 Second destructuring let syntax
 +++++++++++++++++++++++++++++++
 
-Another destructuring let syntax is available for inductive types with
-one constructor by giving an arbitrary pattern instead of just a tuple
-for all the arguments. For example, the preceding example can be
-written:
+Another destructuring let syntax is available by giving an arbitrary
+pattern (which must be irrefutable) instead of just a tuple for all
+the arguments. For example, the preceding example can be written:
 
 .. rocqtop:: reset all
 
@@ -170,9 +166,26 @@ patterns to do the deconstruction. For example:
    Definition proj1_sig' (A:Set) (P:A->Prop) (t:{ x:A | P x }) : A :=
    let 'x With p := t in x.
 
+We can also match on multiple constructors:
+
+.. rocqtop:: all
+
+   Check fun A (x : A + A) => let '(inl y | inr y) := x in y.
+
 When printing definitions which are written using this construct it
 takes precedence over let printing directives for the datatype under
 consideration (see Section :ref:`controlling-match-pp`).
+
+In general
+
+:n:`let ' @pattern {? in @pattern__in } := @term__0 {? return @term__ret } in @term__1`
+
+is desugared into
+
+:n:`match @term__0 {? as @name__as } {? in @pattern__in } {? return @term__ret } with @pattern => @term__1 end`
+
+where if :n:`@pattern` is a name then it is used to provide
+:n:`@name__as`, otherwise the `as` annotation is left implicit.
 
 .. note::
 
