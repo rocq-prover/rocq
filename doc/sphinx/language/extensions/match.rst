@@ -93,10 +93,10 @@ constructions. There are two variants of them.
    | let ' @pattern {? in @pattern } := @term {? return @term100 } in @term
 
 
-.. _first-destructuring-let:
+.. _let-tuple:
 
-First destructuring let syntax
-++++++++++++++++++++++++++++++
+Let-tuple syntax
+++++++++++++++++
 
 .. todo add "irrefutable pattern" to the glossary
 
@@ -141,8 +141,8 @@ and
 
 In practice type inference may use slightly different heuristics for the different syntaxes.
 
-Second destructuring let syntax
-+++++++++++++++++++++++++++++++
+Let-pattern syntax
+++++++++++++++++++
 
 Another destructuring let syntax is available by giving an arbitrary
 pattern (which must be irrefutable) instead of just a tuple for all
@@ -189,10 +189,10 @@ where if :n:`@pattern` is a name then it is used to provide
 
 .. note::
 
-   In the first destructuring let syntax, `let (x, y) := ...` handles
+   In the "let-tuple" syntax, `let (x, y) := ...` handles
    any inductive type with a unique constructor and 2 arguments.
 
-   In the second syntax, `let '(x, y) := ...` handles the inductive
+   In the "let-pattern" syntax, `let '(x, y) := ...` handles the inductive
    type whose constructor is produced by the `(_, _)` notation (by
    default `prod` whose constructor is `pair`).
 
@@ -303,7 +303,7 @@ Printing matching on irrefutable patterns
 ++++++++++++++++++++++++++++++++++++++++++
 
 If an inductive type has just one constructor, pattern matching can be
-written using the :ref:`first destructuring let syntax <first-destructuring-let>`.
+written using the :ref:`let-tuple syntax <let-tuple>`.
 
 .. table:: Printing Let @qualid
 
