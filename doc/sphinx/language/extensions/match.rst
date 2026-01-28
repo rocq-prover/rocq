@@ -175,6 +175,14 @@ When printing definitions which are written using this construct it
 takes precedence over let printing directives for the datatype under
 consideration (see Section :ref:`controlling-match-pp`).
 
+.. note::
+
+   In the first destructuring let syntax, `let (x, y) := ...` handles
+   any inductive type with a unique constructor and 2 arguments.
+
+   In the second syntax, `let '(x, y) := ...` handles the inductive
+   type whose constructor is produced by the `(_, _)` notation (by
+   default `prod` whose constructor is `pair`).
 
 .. _controlling-match-pp:
 
