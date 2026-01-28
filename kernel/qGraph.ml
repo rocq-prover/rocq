@@ -154,11 +154,31 @@ let rec update_dominance g q qv =
     | Some q' -> update_dominant_if_related g qv q' q in
   match QMap.find_opt qv g.delayed_check with
   | None -> g'
-  | Some qs ->
-     let g' = QSet.fold (fun v g -> Option.bind g (fun g -> update_dominance g q v)) qs g' in
-     match g' with
-     | Some graph -> Some { graph with delayed_check = QMap.set qv QSet.empty g.delayed_check }
-     | None -> None
+  | Some delayed_qs ->
+    (* When two sort variables are `set` to each other, e.g. uState, (q1 <-> q2), without being
+       dominated, then both delay the domination check of each other:
+       delayed_check[q1] = {q2}
+       delayed_check[q2] = {q1}
+
+       When one of them becomes dominated, e.g. q1 dominated by Type, then we need to clear up
+       any occurrence of it in the delayed check of the other, e.g. remove q1 from delayed_check[q2].
+       Otherwise, we end up in a loop. *)
+    let remove_qv_from_delayed delayed_q delayed_check =
+      match QMap.find_opt delayed_q delayed_check with
+      | None -> delayed_check
+      | Some dqs ->
+        QMap.set delayed_q (QSet.remove qv dqs) delayed_check
+    in
+    let clearup_cyclic_delay graph =
+      QSet.fold (fun delayed_q acc_graph ->
+        { acc_graph with delayed_check = remove_qv_from_delayed delayed_q acc_graph.delayed_check })
+        delayed_qs graph
+    in
+    let g' = Option.map clearup_cyclic_delay g' in
+    let g' = QSet.fold (fun v g -> Option.bind g (fun g -> update_dominance g q v)) delayed_qs g' in
+    match g' with
+    | Some graph -> Some { graph with delayed_check = QMap.set qv QSet.empty g.delayed_check }
+    | None -> None
 
 let update_dominance_if_valid g (q1,k,q2) =
   match k with
@@ -295,10 +315,10 @@ let merge g g' =
              (fun q acc -> try add_quality q acc with _ -> acc) qs g in
   Quality.Set.fold
     (fun q -> Quality.Set.fold
-             (fun q' acc -> if Quality.equal q q' then acc
-                         else if eliminates_to g' q q'
-                         then enforce_eliminates_to q q' acc
-                         else acc) qs) qs g
+      (fun q' acc -> if Quality.equal q q' then acc
+        else if eliminates_to g' q q'
+        then enforce_eliminates_to q q' acc
+        else acc) qs) qs g
 
 let is_empty g = QVar.Set.is_empty (qvar_domain g)
 

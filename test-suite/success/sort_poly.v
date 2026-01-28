@@ -112,9 +112,7 @@ Module Inductives.
   Inductive foo2@{s; |} := Foo2 : Type@{s;Set} -> foo2.
   Check foo2_rect.
 
-  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
-  Fail Inductive foo3@{s; |} (A:Type@{s;Set}) := Foo3 : A -> foo3 A.
-  Inductive foo3@{s; |Type->s} (A:Type@{s;Set}) := Foo3 : A -> foo3 A.
+  Inductive foo3@{s;|} (A:Type@{s;Set}) : Type := Foo3 : A -> foo3 A.
   Check foo3_rect.
 
   Fail Inductive foo4@{s;u v|v < u} : Type@{v} := C (_:Type@{s;u}).

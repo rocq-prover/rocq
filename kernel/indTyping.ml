@@ -131,7 +131,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       | QSort (q, indu), Set ->
          if Environ.Internal.is_above_prop env q then info
          else check_univ_consistency_squash qtype indu Universe.type0
-      | (SProp | Prop), QSort (q, _) ->
+      | (SProp | Prop | Type _ | Set), QSort (q, _) ->
          add_squash (QVar q) info
       | QSort (q, _), (SProp | Prop) ->
          if Environ.Internal.is_above_prop env q then info
