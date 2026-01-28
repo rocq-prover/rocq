@@ -184,8 +184,10 @@ let args_options = Arg.align [
   " No links to Rocq standard library";
   "--external", arg_url_path (fun url lp -> Index.add_external_library lp url),
   "<url> <d>  Set URL for external library <d>";
-  "--coqlib_url", arg_string (fun p u -> { p with coqlib_url = u }),
-  "<url> Set URL for Rocq standard library (default: " ^ Coq_config.wwwstdlib ^ ")";
+  "--corelib_url", arg_string (fun p u -> { p with corelib_url = u }),
+  "<url> Set URL for Rocq standard library (default: " ^ Coq_config.wwwcorelib ^ ")";
+  "--coqlib_url", arg_string (fun p u -> { p with corelib_url = u }),
+  "<url> Set URL for Rocq standard library (default: " ^ Coq_config.wwwcorelib ^ ") (deprecated, use --corelib_url)";
   "--coqlib", arg_string (fun p d -> { p with coqlib = Some d }),
   "<dir> Set the path where Rocq files are installed";
   "-R", arg_path (fun p l -> { p with paths = l :: !prefs.paths }),
