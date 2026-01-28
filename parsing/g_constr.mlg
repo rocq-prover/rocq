@@ -294,19 +294,11 @@ GRAMMAR EXTEND Gram
         po = as_return_type; ":="; c1 = term LEVEL "200"; "in";
         c2 = term LEVEL "200" ->
         { CAst.make ~loc @@ CLetTuple (lb,po,c1,c2) }
-      | "let"; "'"; p = pattern LEVEL "200"; ":="; c1 = term LEVEL "200";
+      | "let"; "'"; p = pattern LEVEL "200"; t = OPT [ "in"; t = pattern LEVEL "200" -> { t } ];
+        ":="; c1 = term LEVEL "200"; rt = OPT case_type;
         "in"; c2 = term LEVEL "200" ->
         { CAst.make ~loc @@
-          CCases (LetPatternStyle, None,    [c1, None, None],       [CAst.make ~loc ([[p]], c2)]) }
-      | "let"; "'"; p = pattern LEVEL "200"; ":="; c1 = term LEVEL "200";
-        rt = case_type; "in"; c2 = term LEVEL "200" ->
-        { CAst.make ~loc @@
-          CCases (LetPatternStyle, Some rt, [c1, aliasvar p, None], [CAst.make ~loc ([[p]], c2)]) }
-      | "let"; "'"; p = pattern LEVEL "200"; "in"; t = pattern LEVEL "200";
-        ":="; c1 = term LEVEL "200"; rt = case_type;
-        "in"; c2 = term LEVEL "200" ->
-        { CAst.make ~loc @@
-          CCases (LetPatternStyle, Some rt, [c1, aliasvar p, Some t], [CAst.make ~loc ([[p]], c2)]) }
+          CCases (LetPatternStyle, rt, [c1, aliasvar p, t], [CAst.make ~loc ([[p]], c2)]) }
       | "if"; c = term LEVEL "200"; po = as_return_type;
         "then"; b1 = term LEVEL "200";
         "else"; b2 = term LEVEL "200" ->

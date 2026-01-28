@@ -90,8 +90,7 @@ constructions. There are two variants of them.
 
 .. prodn::
    destructuring_let ::= let ( {*, @name } ) {? {? as @name } return @term100 } := @term in @term
-   | let ' @pattern := @term {? return @term100 } in @term
-   | let ' @pattern in @pattern := @term return @term100 in @term
+   | let ' @pattern {? in @pattern } := @term {? return @term100 } in @term
 
 
 .. _first-destructuring-let:
