@@ -16,6 +16,7 @@ type t =
   ; noglob : bool
   ; ml_path : string list
   ; vo_path : (bool * string * string) list
+  ; packages : string list
   ; dyndep : string
   ; worker : string option
   ; files : string list
