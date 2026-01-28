@@ -94,6 +94,8 @@ constructions. There are two variants of them.
    | let ' @pattern in @pattern := @term return @term100 in @term
 
 
+.. _first-destructuring-let:
+
 First destructuring let syntax
 ++++++++++++++++++++++++++++++
 
@@ -283,7 +285,7 @@ Printing matching on irrefutable patterns
 ++++++++++++++++++++++++++++++++++++++++++
 
 If an inductive type has just one constructor, pattern matching can be
-written using the first destructuring let syntax.
+written using the :ref:`first destructuring let syntax <first-destructuring-let>`.
 
 .. table:: Printing Let @qualid
 
