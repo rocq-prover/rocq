@@ -267,11 +267,11 @@ type (_, _) entry =
 | TTBigint : ('r, string) entry
 | TTBinder : bool -> ('self, kinded_cases_pattern_expr) entry
 | TTConstr : notation_entry * prod_info * 'r target -> ('r, 'r) entry
-| TTConstrList : notation_entry * prod_info * (bool * string) list * 'r target -> ('r, 'r list) entry
+| TTConstrList : notation_entry * prod_info * ty_pattern list * 'r target -> ('r, 'r list) entry
 | TTPattern : int -> ('self, cases_pattern_expr) entry
 | TTOpenBinderList : ('self, local_binder_expr list) entry
-| TTClosedBinderListPure : (bool * string) list -> ('self, local_binder_expr list list) entry
-| TTClosedBinderListOther : ('self, 'a) entry * (bool * string) list -> ('self, 'a list) entry
+| TTClosedBinderListPure : ty_pattern list -> ('self, local_binder_expr list list) entry
+| TTClosedBinderListOther : ('self, 'a) entry * ty_pattern list -> ('self, 'a list) entry
 
 type _ any_entry = TTAny : ('s, 'r) entry -> 's any_entry
 
@@ -349,18 +349,6 @@ let is_binder_level custom {notation_entry = custom'; notation_level = fromlev} 
     custom = InConstrEntry && custom' = InConstrEntry && fromlev = 200
   | _ -> false
 
-let make_pattern (keyword,s) =
-   if keyword then TPattern (Tok.PKEYWORD s) else
-     match NumTok.Unsigned.parse_string s with
-     | Some n -> TPattern (Tok.PNUMBER (Some n))
-     | None ->
-     match String.unquote_coq_string s with
-     | Some s -> TPattern (Tok.PSTRING (Some s))
-     | None -> TPattern (Tok.PIDENT (Some s))
-
-let make_sep_rules tkl =
-  Procq.Symbol.tokens (List.map make_pattern tkl)
-
 type ('s, 'a) mayrec_symbol =
 | MayRec : ('s, _, 'a) Symbol.t -> ('s, 'a) mayrec_symbol
 
@@ -386,17 +374,17 @@ let rec symbol_of_entry : type s r. _ -> _ -> (s, r) entry -> (s, r) mayrec_symb
   MayRec (Procq.Symbol.list1 s)
 | TTConstrList (s, typ', tkl, forpat) ->
   let MayRec s = symbol_of_target s typ' assoc from forpat in
-  MayRec (Procq.Symbol.list1sep s (make_sep_rules tkl))
+  MayRec (Procq.Symbol.list1sep s (Procq.Symbol.tokens tkl))
 | TTPattern p -> MayRec (Procq.Symbol.nterml Constr.pattern (string_of_int p))
 | TTOpenBinderList -> MayRec (Procq.Symbol.nterm Constr.open_binders)
 | TTClosedBinderListPure [] -> MayRec (Procq.Symbol.list1 (Procq.Symbol.nterm Constr.binder))
-| TTClosedBinderListPure tkl -> MayRec (Procq.Symbol.list1sep (Procq.Symbol.nterm Constr.binder) (make_sep_rules tkl))
+| TTClosedBinderListPure tkl -> MayRec (Procq.Symbol.list1sep (Procq.Symbol.nterm Constr.binder) (Procq.Symbol.tokens tkl))
 | TTClosedBinderListOther (typ,[]) ->
   let MayRec s = symbol_of_entry assoc from typ in
   MayRec (Procq.Symbol.list1 s)
 | TTClosedBinderListOther (typ,tkl) ->
   let MayRec s = symbol_of_entry assoc from typ in
-  MayRec (Procq.Symbol.list1sep s (make_sep_rules tkl))
+  MayRec (Procq.Symbol.list1sep s (Procq.Symbol.tokens tkl))
 | TTIdent -> MayRec (Procq.Symbol.nterm Prim.identref)
 | TTName -> MayRec (Procq.Symbol.nterm Prim.name)
 | TTBinder true -> MayRec (Procq.Symbol.nterm Constr.one_open_binder)
@@ -515,9 +503,8 @@ type ('self, 'r) any_ty_rule =
 let make_ty_rule assoc from forpat prods =
   let rec make_ty_rule = function
   | [] -> AnyTyRule TyStop
-  | GramConstrTerminal (kw,s) :: rem ->
+  | GramConstrTerminal (TPattern tk) :: rem ->
     let AnyTyRule r = make_ty_rule rem in
-    let TPattern tk = make_pattern (kw,s) in
     AnyTyRule (TyNext (r, TyTerm tk))
   | GramConstrNonTerminal e :: rem ->
     let AnyTyRule r = make_ty_rule rem in

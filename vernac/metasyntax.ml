@@ -738,7 +738,7 @@ let distribute a ll = List.map (fun l -> a @ l) ll
 
 let expand_list_rule s typ tkl x n p ll =
   let main = GramConstrNonTerminal (ETProdConstr (s,typ)) in
-  let tks = List.map (fun (kw,s) -> GramConstrTerminal (kw, s)) tkl in
+  let tks = List.map (fun tk -> GramConstrTerminal tk) tkl in
   let rec aux i hds ll =
   if i < p then aux (i+1) (main :: tks @ hds) ll
   else if Int.equal i (p+n) then
@@ -781,26 +781,32 @@ let prod_entry_type = function
   | ETConstr (s,_,p) -> ETProdConstr (s,p)
   | ETPattern (_,n) -> ETProdPattern (pattern_entry_level n)
 
-let keyword_needed need s =
+let terminal need_keyword s : Procq.ty_pattern =
   (* Ensure that IDENT articulation terminal symbols are keywords *)
   match CLexer.terminal s with
-  | Tok.PIDENT (Some k) ->
-    if need then
+  | Tok.PIDENT (Some k) as p ->
+    if need_keyword then begin
       Flags.if_verbose Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
-    need
+      TPattern (PKEYWORD s)
+    end
+    else TPattern p
   | _ ->
   match NumTok.Unsigned.parse_string s with
   | Some n ->
-    if need then
+    if need_keyword then begin
       Flags.if_verbose Feedback.msg_info (str "Number '" ++ NumTok.Unsigned.print n ++ str "' now a keyword");
-    need
+      TPattern (PKEYWORD s)
+    end
+    else TPattern (PNUMBER (Some n))
   | None ->
   match String.unquote_coq_string s with
-  | Some _ ->
-    if need then
+  | Some s' ->
+    if need_keyword then begin
       Flags.if_verbose Feedback.msg_info (str "String '" ++ str s ++ str "' now a keyword");
-    need
-  | _ -> true
+      TPattern (PKEYWORD s)
+    end
+    else TPattern (PSTRING (Some s'))
+  | _ -> TPattern (PKEYWORD s)
 
 let make_production ({notation_level = lev}, _) etyps symbols =
   let rec aux need = function
@@ -809,8 +815,8 @@ let make_production ({notation_level = lev}, _) etyps symbols =
         let typ = prod_entry_type (List.assoc m etyps) in
         distribute [GramConstrNonTerminal typ] (aux (is_not_small_constr typ) l)
     | Terminal s :: l ->
-        let keyword = keyword_needed need s in
-        distribute [GramConstrTerminal (keyword,s)] (aux false l)
+        let terminal = terminal need s in
+        distribute [GramConstrTerminal terminal] (aux false l)
     | Break _ :: l ->
         aux need l
     | SProdList (x,sl) :: l ->
@@ -818,7 +824,7 @@ let make_production ({notation_level = lev}, _) etyps symbols =
           (List.map (function Terminal s -> [s]
             | Break _ -> []
             | _ -> anomaly (Pp.str "Found a non terminal token in recursive notation separator.")) sl) in
-        let tkl = List.map_i (fun i x -> let need = (i=0) in (keyword_needed need x, x)) 0 tkl in
+        let tkl = List.map_i (fun i x -> let need = (i=0) in (terminal need x)) 0 tkl in
         match List.assoc x etyps with
         | ETConstr (s,_,(lev,_ as typ)) ->
             let p,l' = include_possible_similar_trailing_pattern (s,lev) etyps sl l in

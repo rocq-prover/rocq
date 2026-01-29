@@ -9,7 +9,7 @@
 (************************************************************************)
 
 type grammar_constr_prod_item =
-  | GramConstrTerminal of bool (* true = in keyword position *) * string
+  | GramConstrTerminal of Procq.ty_pattern
   | GramConstrNonTerminal of Extend.constr_prod_entry_key
   | GramConstrListMark of int * bool * int
     (* tells action rule to make a list of the n previous parsed items;
