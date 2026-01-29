@@ -16,10 +16,6 @@ open Common_compile
 (* File Compilation                                                           *)
 (******************************************************************************)
 
-let create_empty_file filename =
-  let f = open_out filename in
-  close_out f
-
 let source ldir file = Loc.InFile {
     dirpath=Some (Names.DirPath.to_string ldir);
     file = file;
@@ -40,12 +36,6 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
   in
   let long_f_dot_in, long_f_dot_out =
     ensure_exists_with_prefix ~src:f_in ~tgt:f_out ~src_ext:ext_in ~tgt_ext:ext_out in
-  let dump_empty_vos () =
-    let long_f_dot_vos = (safe_chop_extension long_f_dot_out) ^ ".vos" in
-    create_empty_file long_f_dot_vos in
-  let dump_empty_vok () =
-    let long_f_dot_vok = (safe_chop_extension long_f_dot_out) ^ ".vok" in
-    create_empty_file long_f_dot_vok in
   match mode with
   | BuildVo | BuildVok ->
       let doc, sid = Topfmt.(in_phase ~phase:LoadingPrelude)
@@ -75,18 +65,14 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
       let () = Stm.join ~doc:state.doc in
       let wall_clock2 = Unix.gettimeofday () in
       (* In .vo production, dump a complete .vo file. *)
-      if mode = BuildVo
-        then Library.save_library_to ~output_native_objects Library.ProofsTodoNone ldir long_f_dot_out;
-      Aux_file.record_in_aux_at "vo_compile_time"
-        (Printf.sprintf "%.3f" (wall_clock2 -. wall_clock1));
-      Aux_file.stop_aux_file ();
-      (* Additionally, dump an empty .vos file to make sure that
-        stale ones are never loaded *)
-      if mode = BuildVo then
-        dump_empty_vos();
-      (* In both .vo, and .vok production mode, dump an empty .vok file to
-         indicate that proofs are ok. *)
-      dump_empty_vok();
+      let () = if mode = BuildVo then
+          Library.save_library_to ~output_native_objects Library.ProofsTodoNone ldir long_f_dot_out
+      in
+      let () = Aux_file.record_in_aux_at "vo_compile_time"
+          (Printf.sprintf "%.3f" (wall_clock2 -. wall_clock1))
+      in
+      let () = Aux_file.stop_aux_file () in
+      ()
 
   | BuildVos ->
       let doc, sid = Topfmt.(in_phase ~phase:LoadingPrelude)
