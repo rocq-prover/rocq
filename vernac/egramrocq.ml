@@ -549,7 +549,7 @@ let prepare_empty_levels forpat (where,(pos,p4assoc,name)) =
 let different_levels (custom,opt_level) (custom',string_level) =
   match opt_level with
   | None -> true
-  | Some level -> not (notation_entry_eq custom custom') || level <> int_of_string string_level
+  | Some level -> not (notation_entry_eq custom custom' && Int.equal level string_level)
 
 let rec pure_sublevels' assoc from forpat level = function
 | [] -> []
@@ -560,8 +560,9 @@ let rec pure_sublevels' assoc from forpat level = function
      match Procq.level_of_nonterm sym with
      | None -> rem
      | Some i ->
+       let i = int_of_string i in
        if different_levels (from.notation_entry,level) (where,i) then
-         (where,int_of_string i) :: rem
+         (where,i) :: rem
        else rem
    in
    (match e with
