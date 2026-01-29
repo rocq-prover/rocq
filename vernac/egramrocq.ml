@@ -461,7 +461,7 @@ match e with
 
 type (_, _) ty_symbol =
 | TyTerm : 'a Tok.p -> ('s, 'a) ty_symbol
-| TyNonTerm : 's target * ('s, 'a) entry * ('s, 'a) mayrec_symbol * bool -> ('s, 'a) ty_symbol
+| TyNonTerm : 's target * ('s, 'a) entry * ('s, 'a) mayrec_symbol -> ('s, 'a) ty_symbol
 
 type ('self, _, 'r) ty_rule =
 | TyStop : ('self, 'r, 'r) ty_rule
@@ -475,9 +475,7 @@ let rec ty_eval : type s a. (s, a, Loc.t -> s) ty_rule -> s gen_eval -> s env ->
   fun f env loc -> f loc env
 | TyNext (rem, TyTerm _) ->
   fun f env _ -> ty_eval rem f env
-| TyNext (rem, TyNonTerm (_, _, _, false)) ->
-  fun f env _ -> ty_eval rem f env
-| TyNext (rem, TyNonTerm (forpat, e, _, true)) ->
+| TyNext (rem, TyNonTerm (forpat, e, _)) ->
   fun f env v ->
     ty_eval rem f (push_item forpat e env v)
 | TyMark (n, b, p, rem) ->
@@ -507,7 +505,7 @@ let rec ty_erase : type s a r. (s, a, r) ty_rule -> (s, a, r) mayrec_rule = func
 | TyNext (rem, TyTerm tok) ->
    let MayRecR rem = ty_erase rem in
    MayRecR (Rule.next rem (Symbol.token tok))
-| TyNext (rem, TyNonTerm (_, _, MayRec s, _)) ->
+| TyNext (rem, TyNonTerm (_, _, MayRec s)) ->
    let MayRecR rem = ty_erase rem in
    MayRecR (Rule.next rem s)
 
@@ -521,12 +519,11 @@ let make_ty_rule assoc from forpat prods =
     let AnyTyRule r = make_ty_rule rem in
     let TPattern tk = make_pattern (kw,s) in
     AnyTyRule (TyNext (r, TyTerm tk))
-  | GramConstrNonTerminal (e, var) :: rem ->
+  | GramConstrNonTerminal e :: rem ->
     let AnyTyRule r = make_ty_rule rem in
     let TTAny e = interp_entry forpat e in
     let s = symbol_of_entry assoc from e in
-    let bind = match var with None -> false | Some _ -> true in
-    AnyTyRule (TyNext (r, TyNonTerm (forpat, e, s, bind)))
+    AnyTyRule (TyNext (r, TyNonTerm (forpat, e, s)))
   | GramConstrListMark (n, b, p) :: rem ->
     let AnyTyRule r = make_ty_rule rem in
     AnyTyRule (TyMark (n, b, p, r))
@@ -553,7 +550,7 @@ let different_levels (custom,opt_level) (custom',string_level) =
 
 let rec pure_sublevels' assoc from forpat level = function
 | [] -> []
-| GramConstrNonTerminal (e,_) :: rem ->
+| GramConstrNonTerminal e :: rem ->
    let rem = pure_sublevels' assoc from forpat level rem in
    let push where p rem =
      let MayRec sym = symbol_of_target where p assoc from forpat in

@@ -25,7 +25,6 @@ open Libobject
 open Constrintern
 open Libnames
 open Notation
-open Nameops
 open Globnames
 
 (** Intern custom entry names (with compat layer) *)
@@ -738,15 +737,14 @@ let distribute a ll = List.map (fun l -> a @ l) ll
      t;sep;t;...;t;sep;t;...;t;sep;t;LIST1(t,sep) *)
 
 let expand_list_rule s typ tkl x n p ll =
-  let camlp5_message_name = Some (add_suffix x ("_"^string_of_int n)) in
-  let main = GramConstrNonTerminal (ETProdConstr (s,typ), camlp5_message_name) in
+  let main = GramConstrNonTerminal (ETProdConstr (s,typ)) in
   let tks = List.map (fun (kw,s) -> GramConstrTerminal (kw, s)) tkl in
   let rec aux i hds ll =
   if i < p then aux (i+1) (main :: tks @ hds) ll
   else if Int.equal i (p+n) then
     let hds =
       GramConstrListMark (p+n,true,p) :: hds
-      @	[GramConstrNonTerminal (ETProdConstrList (s, typ,tkl), Some x)] in
+      @	[GramConstrNonTerminal (ETProdConstrList (s, typ,tkl))] in
     distribute hds ll
   else
     distribute (GramConstrListMark (i+1,false,p) :: hds @ [main]) ll @
@@ -809,7 +807,7 @@ let make_production ({notation_level = lev}, _) etyps symbols =
     | [] -> [[]]
     | NonTerminal m :: l ->
         let typ = prod_entry_type (List.assoc m etyps) in
-        distribute [GramConstrNonTerminal (typ, Some m)] (aux (is_not_small_constr typ) l)
+        distribute [GramConstrNonTerminal typ] (aux (is_not_small_constr typ) l)
     | Terminal s :: l ->
         let keyword = keyword_needed need s in
         distribute [GramConstrTerminal (keyword,s)] (aux false l)
@@ -829,16 +827,16 @@ let make_production ({notation_level = lev}, _) etyps symbols =
             check_open_binder o sl x;
             let typ = if o then (assert (tkl = []); ETBinderOpen) else ETBinderClosed (None,tkl) in
             distribute
-              [GramConstrNonTerminal (ETProdBinderList typ, Some x)] (aux false l)
+              [GramConstrNonTerminal (ETProdBinderList typ)] (aux false l)
         | ETIdent ->
             distribute
-              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some ETProdIdent,tkl)), Some x)] (aux false l)
+              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some ETProdIdent,tkl)))] (aux false l)
         | ETName ->
             distribute
-              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some ETProdName,tkl)), Some x)] (aux false l)
+              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some ETProdName,tkl)))] (aux false l)
         | ETPattern (st,n) ->
             distribute
-              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some (ETProdPattern (pattern_entry_level n)),tkl)), Some x)] (aux false l)
+              [GramConstrNonTerminal (ETProdBinderList (ETBinderClosed (Some (ETProdPattern (pattern_entry_level n)),tkl)))] (aux false l)
         | _ ->
            user_err Pp.(str "Components of recursive patterns in notation must be terms or binders.") in
   let need = (* a leading ident/number factorizes iff at level 0 *) lev <> 0 in

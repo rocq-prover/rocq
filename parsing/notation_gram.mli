@@ -8,11 +8,9 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Names
-
 type grammar_constr_prod_item =
   | GramConstrTerminal of bool (* true = in keyword position *) * string
-  | GramConstrNonTerminal of Extend.constr_prod_entry_key * Id.t option
+  | GramConstrNonTerminal of Extend.constr_prod_entry_key
   | GramConstrListMark of int * bool * int
     (* tells action rule to make a list of the n previous parsed items;
        concat with last parsed list when true; additionally release

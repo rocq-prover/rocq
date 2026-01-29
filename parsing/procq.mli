@@ -82,11 +82,9 @@ end
         |
         | translated to a parsing production by Metasyntax.make_production
         V
-      [GramConstrNonTerminal (ETConstr (NextLevel,(BorderProd Left,LeftA)),
-                              Some "x");
+      [GramConstrNonTerminal (ETConstr (NextLevel,(BorderProd Left,LeftA)));
        GramConstrTerminal ("","+");
-       GramConstrNonTerminal (ETConstr (NextLevel,(BorderProd Right,LeftA)),
-                              Some "y")]
+       GramConstrNonTerminal (ETConstr (NextLevel,(BorderProd Right,LeftA)))]
        : grammar_constr_prod_item list
         |
         | Egrammar.make_constr_prod_item
