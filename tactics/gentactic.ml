@@ -18,8 +18,6 @@ let of_raw_genarg x = x
 
 let to_raw_genarg x = x
 
-let of_glob_genarg x = x
-
 let print_raw = Pputils.pr_raw_generic
 
 let print_glob = Pputils.pr_glb_generic

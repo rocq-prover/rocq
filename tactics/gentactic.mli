@@ -20,10 +20,6 @@ type glob_generic_tactic
 val of_raw_genarg : Genarg.raw_generic_argument -> raw_generic_tactic
 (** The genarg must have registrations for all the following APIs. *)
 
-val of_glob_genarg : Genarg.glob_generic_argument -> glob_generic_tactic
-(** The genarg must have registrations for all the following APIs
-    except those operating at the "raw" level. *)
-
 val print_raw : Environ.env -> Evd.evar_map -> ?level:Constrexpr.entry_relative_level ->
   raw_generic_tactic -> Pp.t
 
