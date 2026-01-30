@@ -16,6 +16,7 @@ type norec
 type mayrec
 
 module type S = sig
+  type level
   type keyword_state
   type te
   type 'c pattern
@@ -78,7 +79,7 @@ module type S = sig
 
     type ('self, 'trec, 'a) t
     val nterm : 'a Entry.t -> ('self, norec, 'a) t
-    val nterml : 'a Entry.t -> string -> ('self, norec, 'a) t
+    val nterml : 'a Entry.t -> level -> ('self, norec, 'a) t
     val list0 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
     val list0sep :
       ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
@@ -119,16 +120,16 @@ module type S = sig
   end
 
   type 'a single_extend_statement =
-    string option * Gramext.g_assoc option * 'a Production.t list
+    level option * Gramext.g_assoc option * 'a Production.t list
 
   type 'a extend_statement =
-  | Reuse of string option * 'a Production.t list
-  | Fresh of Gramext.position * 'a single_extend_statement list
+  | Reuse of level option * 'a Production.t list
+  | Fresh of level Gramext.position * 'a single_extend_statement list
 
   val generalize_symbol : ('a, 'tr, 'c) Symbol.t -> ('b, norec, 'c) Symbol.t option
 
   (* Used in custom entries, should tweak? *)
-  val level_of_nonterm : _ Symbol.t -> string option
+  val level_of_nonterm : _ Symbol.t -> level option
 
 end
 
@@ -167,13 +168,22 @@ module type ExtS = sig
 
 end
 
+module type LevelS =
+sig
+  type t
+  val equal : t -> t -> bool
+  val print : t -> string
+end
+
 (* Implementation *)
-module GMake (L : Plexing.S) : ExtS
+module GMake (L : Plexing.S) (Level : LevelS) : ExtS
   with type keyword_state := L.keyword_state
    and type te := L.te
    and type 'c pattern := 'c L.pattern
+   and type level := Level.t
 = struct
 
+type level = Level.t
 type te = L.te
 type 'c pattern = 'c L.pattern
 type ty_pattern = TPattern : 'a pattern -> ty_pattern
@@ -222,7 +232,7 @@ type ('self, 'trec, 'a) ty_symbol =
 | Snext : ('self, mayrec, 'self) ty_symbol
 | Snterm : 'a ty_entry -> ('self, norec, 'a) ty_symbol
     (* norec but the entry can nevertheless introduce a loop with the current entry*)
-| Snterml : 'a ty_entry * string -> ('self, norec, 'a) ty_symbol
+| Snterml : 'a ty_entry * level -> ('self, norec, 'a) ty_symbol
 | Stree : ('self, 'trec, Loc.t -> 'a) ty_tree -> ('self, 'trec, 'a) ty_symbol
 
 and ('self, 'trec, 'a) ty_tree =
@@ -242,7 +252,7 @@ type ('self, _, _, 'r) ty_rule =
 
 type ('trecs, 'trecp, 'a) ty_rec_level = {
   assoc : g_assoc;
-  lname : string option;
+  lname : level option;
   lsuffix : ('a, 'trecs, 'a -> Loc.t -> 'a) ty_tree;
   lprefix : ('a, 'trecp, Loc.t -> 'a) ty_tree;
 }
@@ -328,7 +338,7 @@ let rec eq_symbol : type s r1 r2 a1 a2. (s, r1, a1) ty_symbol -> (s, r2, a2) ty_
   match s1, s2 with
     Snterm e1, Snterm e2 -> eq_entry e1 e2
   | Snterml (e1, l1), Snterml (e2, l2) ->
-    if String.equal l1 l2 then eq_entry e1 e2 else None
+    if Level.equal l1 l2 then eq_entry e1 e2 else None
   | Slist0 s1, Slist0 s2 ->
     begin match eq_symbol s1 s2 with None -> None | Some Refl -> Some Refl end
   | Slist0sep (s1, sep1), Slist0sep (s2, sep2) ->
@@ -591,7 +601,7 @@ let srules (type self a) (rl : a ty_rules list) : (self, norec, a) ty_symbol =
 
 let is_level_labelled n (Level lev) =
   match lev.lname with
-    Some n1 -> n = n1
+    Some n1 -> Level.equal n n1
   | None -> false
 
 let insert_level (type s tr p k) entry_name (symbols : (s, tr, p) ty_symbols) (pf : (p, k, Loc.t -> s) rel_prod) (action : k) (slev : s ty_level) : s ty_level =
@@ -623,7 +633,7 @@ let empty_lev lname assoc =
   {assoc = assoc; lname = lname; lsuffix = DeadEnd; lprefix = DeadEnd}
 
 let err_no_level lev e =
-  let msg = sprintf "Grammar.extend: No level labelled \"%s\" in entry \"%s\"" lev e in
+  let msg = sprintf "Grammar.extend: No level labelled \"%s\" in entry \"%s\"" (Level.print lev) e in
   failwith msg
 
 let get_position entry position levs =
@@ -721,11 +731,11 @@ let insert_tokens {add_kw} lstate symbols =
   linsert lstate symbols
 
 type 'a single_extend_statement =
-  string option * Gramext.g_assoc option * 'a ty_production list
+  level option * Gramext.g_assoc option * 'a ty_production list
 
 type 'a extend_statement =
-| Reuse of string option * 'a ty_production list
-| Fresh of Gramext.position * 'a single_extend_statement list
+| Reuse of level option * 'a ty_production list
+| Fresh of level Gramext.position * 'a single_extend_statement list
 
 let add_prod add_kw entry (lstate, lev) (TProd (symbols, action)) =
   let MayRecRule symbols = change_to_self entry symbols in
@@ -820,7 +830,7 @@ let rec print_symbol : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> un
   | Stokens pl -> print_tokens kwstate ppf pl
   | Snterml (e, l) ->
       fprintf ppf "%s%s@ LEVEL@ %a" e.ename ""
-        print_str l
+        print_str (Level.print l)
   | s -> (print_symbol1 kwstate) ppf s
 and print_symbol1 : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
   fun kwstate ppf ->
@@ -866,7 +876,7 @@ let print_levels kwstate ppf elev =
        in
        fprintf ppf "@[<hov 2>";
        begin match lev.lname with
-           Some n -> fprintf ppf "%a@;<1 2>" print_str n
+           Some n -> fprintf ppf "%a@;<1 2>" print_str (Level.print n)
          | None -> ()
        end;
        begin match lev.assoc with
@@ -891,7 +901,7 @@ let name_of_symbol : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> string =
   fun entry ->
   function
     Snterm e -> "[" ^ e.ename ^ "]"
-  | Snterml (e, l) -> "[" ^ e.ename ^ " level " ^ l ^ "]"
+  | Snterml (e, l) -> "[" ^ e.ename ^ " level " ^ Level.print l ^ "]"
   | Sself -> "[" ^ entry.ename ^ "]"
   | Snext -> "[" ^ entry.ename ^ "]"
   | Stoken tok -> L.tok_text tok
@@ -1008,7 +1018,7 @@ exception TokenListFailed : 's ty_entry * 'a * ('s, 'tr, 'a) ty_symbol * ('s, 'b
 let level_number entry lab =
   let rec lookup levn =
     function
-      [] -> failwith ("unknown level " ^ lab)
+      [] -> failwith ("unknown level " ^ Level.print lab)
     | lev :: levs ->
         if is_level_labelled lab lev then levn else lookup (succ levn) levs
   in
@@ -1703,7 +1713,7 @@ module rec Symbol : sig
   type ('self, 'trec, 'a) t = ('self, 'trec, 'a) ty_symbol
 
   val nterm : 'a Entry.t -> ('self, norec, 'a) t
-  val nterml : 'a Entry.t -> string -> ('self, norec, 'a) t
+  val nterml : 'a Entry.t -> level -> ('self, norec, 'a) t
   val list0 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
   val list0sep :
     ('self, 'trec, 'a) t -> ('self, norec, unit) t ->

@@ -12,8 +12,15 @@ open Util
 open Genarg
 open Gramlib
 
+module Level =
+struct
+type t = string
+let equal = String.equal
+let print s = s
+end
+
 (** The parser of Rocq *)
-include Grammar.GMake(CLexer.Lexer)
+include Grammar.GMake(CLexer.Lexer)(Level)
 
 (** Marshallable representation of grammar extensions *)
 
