@@ -135,7 +135,9 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string "temporary_proof" in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
-  let (univs, body, typ), status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
+  (* status doesn't matter: any given up evars can't be in the body/typ
+     (we would get OpenProof exception) and we drop the evar part of the evar map *)
+  let (univs, body, typ), _status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
   let uctx = Evd.ustate sigma in
   (* ignore side effect universes:
      we don't reset the global env in this code path so the side effects are still present
@@ -144,7 +146,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let effs = Evd.seff_private @@ Evd.eval_side_effects sigma in
   let body, ctx = Safe_typing.inline_private_constants env ((body, Univ.ContextSet.empty), effs) in
   let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
-  body, typ, univs, status, uctx
+  body, typ, univs, uctx
 
 let build_by_tactic_opt env ~uctx ~poly ~typ tac =
   try Some (build_by_tactic env ~uctx ~poly ~typ tac)
