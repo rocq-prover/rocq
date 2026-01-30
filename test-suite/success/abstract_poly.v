@@ -12,7 +12,7 @@ intros m n P e p.
 abstract (rewrite e in p; exact p).
 Defined.
 
-Check foo_subproof@{Set Set}.
+Check foo_subproof@{Set Set Set Set}.
 
 Lemma bar : forall (m n : unit) (P : unit -> Type), path m n -> P m -> P n.
 Proof.
@@ -20,4 +20,4 @@ intros m n P e p.
 abstract (rewrite e in p; exact p).
 Defined.
 
-Check bar_subproof@{Set Set}.
+Check bar_subproof@{Set Set Set Set}.

@@ -134,13 +134,14 @@ let interp_with_decl env base kind = function
   | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
   | WithDef(fqid,(udecl,c)) ->
     let sigma, udecl = interp_univ_decl_opt env udecl in
-    let c, ectx = interp_constr env sigma c in
     let poly = lookup_polymorphism env base kind fqid in
-    let sigma = UnivVariances.register_universe_variances_of env (Evd.from_ctx ectx) c in
-    let sigma = Evd.minimize_universes sigma in
     let poly =
       PolyFlags.of_univ_poly poly (* MS: FIXME: no sortpoly/cumulative support *)
     in
+    let flags = { Pretyping.all_and_fail_flags with poly } in
+    let c, ectx = interp_constr ~flags env sigma c in
+    let sigma = UnivVariances.register_universe_variances_of env (Evd.from_ctx ectx) c in
+    let sigma = Evd.minimize_universes sigma in
     begin match (UState.check_univ_decl ~poly ~kind:PolyFlags.Definition
       (Evd.ustate sigma) udecl).universes_entry_universes with
       | UState.Polymorphic_entry (ctx, variances) ->
