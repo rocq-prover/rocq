@@ -35,6 +35,14 @@ exception ConstructorWithNonParametricInductiveType of inductive
 exception DecidabilityIndicesNotSupported
 exception InternalDependencies
 
+let check_appvect c args tac =
+  let open Proofview in
+  let open Proofview.Notations in
+  Goal.enter (fun gl ->
+    let env = Goal.env gl and sigma = Goal.sigma gl in
+    let sigma, ct = Typing.checked_appvect env sigma c args in
+    Unsafe.tclEVARS sigma <*> tac ct)
+
 let named_hd env t na = Namegen.named_hd env (Evd.from_env env) (EConstr.of_constr t) na
 let name_assumption env = function
 | RelDecl.LocalAssum (na,t) -> RelDecl.LocalAssum (Context.map_annot (named_hd env t) na, t)
@@ -937,12 +945,9 @@ let do_replace_lb handle aavoid narg p q =
                           v
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 1) v))
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 2) v)
-        in let app =  if Array.is_empty lb_args
-                       then lb_type_of_p else mkApp (lb_type_of_p,lb_args)
-           in
-           Tacticals.tclTHENLIST [
+        in Tacticals.tclTHENLIST [
              Proofview.Unsafe.tclEVARS sigma;
-             Equality.replace p q ; Tactics.apply app ; Auto.default_auto]
+             Equality.replace p q ; check_appvect lb_type_of_p lb_args Tactics.apply ; Auto.default_auto]
   end
 
 (* used in the bool -> leb side *)
@@ -996,13 +1001,10 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 1) v))
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 2) v )
                 in
-                let app =  if Array.is_empty bl_args
-                           then bl_t1 else mkApp (bl_t1,bl_args)
-                in
                 Tacticals.tclTHENLIST [
                   Proofview.Unsafe.tclEVARS sigma;
                   Equality.replace_by t1 t2
-                    (Tacticals.tclTHEN (Tactics.apply app) (Auto.default_auto)) ;
+                    (Tacticals.tclTHEN (check_appvect bl_t1 bl_args Tactics.apply) (Auto.default_auto)) ;
                   aux q1 q2 ]
               )
         )
@@ -1469,7 +1471,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                     (* left *)
                     Tacticals.tclTHENLIST [
                         simplest_left;
-                        apply (EConstr.mkApp(blI,Array.map EConstr.mkVar xargs));
+                        check_appvect blI (Array.map EConstr.mkVar xargs) apply;
                         Auto.default_auto
                       ]
                   ;
@@ -1485,7 +1487,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                           assert_by (Name freshH3)
                             (EConstr.of_constr (mkApp(eq,[|bb;mkApp(eqI,[|mkVar freshm;mkVar freshm|]);tt|])))
                             (Tacticals.tclTHENLIST [
-                                 apply (EConstr.mkApp(lbI,Array.map EConstr.mkVar xargs));
+                                 check_appvect lbI (Array.map EConstr.mkVar xargs) apply;
                                  Auto.default_auto
                             ]);
                           Equality.general_rewrite ~where:(Some freshH3) ~l2r:true
