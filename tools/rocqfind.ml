@@ -75,7 +75,8 @@ module S = Set.Make(String)
 let done_dirs = ref S.empty
 
 let output_I pkg =
-  let dir = pkg.Fl_package_base.package_dir in
+  (* For sub-packages, the dir with the META is not the package dir. *)
+  let dir = Filename.dirname pkg.Fl_package_base.package_meta in
   if not (S.mem dir !done_dirs) then begin
     done_dirs := S.add dir !done_dirs;
     Format.printf "-I %s\n%!" (Filename.quote dir)
