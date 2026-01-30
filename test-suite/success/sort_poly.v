@@ -205,9 +205,7 @@ Module Inductives.
 
   (* non SProp instantiation must be squashed *)
   Fail Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
-  Fail #[warnings="-non-primitive-record"]
-    Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
-  #[warnings="-non-primitive-record,-cannot-define-projection"]
+  #[warnings="-non-primitive-record"]
     Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
   Fail Check R5f1.
   Definition R5f1_sprop (A:SProp) (r:R5 A) : A := let (f) := r in f.
@@ -223,15 +221,9 @@ Module Inductives.
   Fail Check fun (A:SProp) (x y : R6 A) =>
           eq_refl : Conversion.box _ x.(R6f2 _) = Conversion.box _ y.(R6f2 _).
 
-  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
-  Fail #[projections(primitive=no)] Record R7@{s; |} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
-  #[projections(primitive=no)] Record R7@{s; |Type -> s} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
+  #[projections(primitive=no)] Record R7@{s; |} (A:Type@{s;Set}) := { R7f1 : A; R7f2 : nat }.
   Check R7@{SProp;} : SProp -> Set.
   Check R7@{Type;} : Set -> Set.
-  #[universes(polymorphic=no)]
-  Sort s7.
-  Fail Check R7@{s7;} : 𝒰@{s7;0} -> Set.
-  (* This expression would enforce a non-declared elimination constraint between Type and s7 *)
 
   Inductive sigma@{s;u v|} (A:Type@{s;u}) (B:A -> Type@{s;v}) : Type@{s;max(u,v)}
     := pair : forall x : A, B x -> sigma A B.
