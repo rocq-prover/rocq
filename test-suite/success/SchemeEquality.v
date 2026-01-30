@@ -33,11 +33,10 @@ End C.
 Module D.
   Set Universe Polymorphism.
   Inductive unit := tt.
+
   Scheme Equality for unit.
 
   Inductive prod (A B:Type) := pair : A -> B -> prod A B.
-  Set Debug "backtrace".
-  Set Debug "univMinim".
   Scheme Equality for prod.
 
   (* With an indirection *)

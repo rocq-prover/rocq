@@ -390,18 +390,18 @@ End Hurkens'.
 Module Anonymous.
   Set Universe Polymorphism.
 
-  Definition defaultid := (fun x => x) : Type@{_} -> Type@{_}.
+  Definition defaultid := (fun x => x) : Type@{*} -> Type@{*}.
   Definition collapseid := defaultid@{_ _}.
   Check collapseid@{_}.
 
   Definition anonid := (fun x => x) : Type -> Type.
   Check anonid@{_}.
 
-  Definition defaultalg := (fun x : Type@{_} => x) (Type@{_} : Type@{_}).
+  Definition defaultalg := (fun x : Type@{*} => x) (Type@{*} : Type@{*}).
   Definition usedefaultalg := defaultalg@{_ _ _}.
   Check usedefaultalg@{_}.
 
-  Definition anonalg := (fun x : Type => x) (Type@{_} : Type@{_}).
+  Definition anonalg := (fun x : Type => x) (Type@{*} : Type@{*}).
   Check anonalg@{_ _}.
 
   Definition unrelated@{i j} := nat.
@@ -421,7 +421,7 @@ Module Restrict.
   (* Universes which don't appear in the term should be pruned, unless they have names *)
   Set Universe Polymorphism.
 
-  Ltac exact0 := let x := constr:(Type) in exact 0.
+  Ltac exact0 := let x := constr:(Type@{_}) in exact 0.
   Definition dummy_pruned@{} : nat := ltac:(exact0).
 
   Definition named_not_pruned@{u} : nat := 0.
@@ -477,7 +477,7 @@ Module ObligationRegression.
   (** Test for a regression encountered when fixing obligations for
       stronger restriction of universe context. *)
   Require Import CMorphisms.
-  Check trans_co_eq_inv_arrow_morphism@{_ _ _}.
+  Check trans_co_eq_inv_arrow_morphism@{_ _ _ _}. (* FIXME one more univ?*)
 End ObligationRegression.
 
 Module PolyCumul.

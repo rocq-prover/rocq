@@ -257,11 +257,11 @@ Proof. firstorder. Qed.
 (** Essential subrelation instances for [iffT] and [arrow]. *)
 
 #[global]
-Instance iffT_arrow_subrelation : subrelation iffT arrow | 2.
+Instance iffT_arrow_subrelation@{i} : subrelation iffT@{i i} arrow@{i i} | 2.
 Proof. firstorder. Qed.
 
 #[global]
-Instance iffT_flip_arrow_subrelation : subrelation iffT (flip arrow) | 2.
+Instance iffT_flip_arrow_subrelation@{i} : subrelation iffT@{i i} (flip arrow@{i i}) | 2.
 Proof. firstorder. Qed.
 
 (** We use an extern hint to help unification. *)
@@ -712,8 +712,7 @@ split.
   + left. apply transitivity with y; auto.
   + left. eapply H1; try eassumption.
     * apply reflexivity.
-    * now apply symmetry.
-  + left. eapply H1; [eassumption|apply reflexivity|eassumption].
+  + left. refine (snd (H1 _ _ _ _ _ _) _); [eassumption|apply reflexivity|eassumption].
   + right. apply transitivity with y; auto.
 Qed.
 

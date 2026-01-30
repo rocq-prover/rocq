@@ -1,4 +1,4 @@
-From Stdlib Require Import CRelationClasses.
+From Corelib Require Import CRelationClasses.
 
 Definition Tnat : Type := nat.
 Inductive Trel : crelation Tnat := Tdiag a : Trel a a.
@@ -21,10 +21,8 @@ Section Morph.
 
   Lemma FS : F Srel tt tt.
   Proof.
-  Fail reflexivity.
-  apply F_refl. exact Sdiag.
+    reflexivity.
   Qed.
-
 End Morph.
 
 Require Import TestSuite.admit.
@@ -321,7 +319,7 @@ Proof.
 Qed.
 Unset Strict Universe Declaration.
 #[universes(polymorphic), export]
-Instance All_proper {A : Type@{a}} : (* FIXME: removing @{a} does the wrong minimization *)
+Instance All_proper {A} :
   CMorphisms.Proper ((pointwise_relation A iffT) ==> peq ==> iffT) All.
 Proof.
   intros f g Hfg x y e. destruct e. split; apply All_impl, Hfg.

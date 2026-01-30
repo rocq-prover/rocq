@@ -112,7 +112,6 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
     in
     let () = if not @@ Proof.is_done proof then raise OpenProof in
     let evd = UnivVariances.register_universe_variances_of_eproofs pfenv evd [body, typ] in
-    let evd = Evd.minimize_universes ~partial:true evd in
     let to_constr c = match EConstr.to_constr_opt evd c with
     | Some p -> p
     | None -> raise OpenProof
