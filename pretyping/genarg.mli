@@ -36,7 +36,7 @@
       (VernacProof, HintsExtern, Hint Rewrite, etc).
 
       Must be registered with [Genintern.register_intern0] and
-      [Genintern.register_interp0].
+      [Geninterp.register_interp0].
 
       The glob level can be kept (currently with Hint Extern and Hint
       Rewrite) so [Gensubst.register_subst0] is also needed.
@@ -63,7 +63,7 @@
       then used in TACTIC EXTEND.
 
       Must be registered with [Genintern.register_intern0],
-      [Gensubst.register_subst0] and [Genintern.register_interp0].
+      [Gensubst.register_subst0] and [Geninterp.register_interp0].
 
       Must be registered with [Procq.register_grammar] as tactic extend
       only gets the genarg as argument so must get the grammar from
@@ -71,7 +71,7 @@
 
       They must be associated with a [Geninterp.Val.tag] using [Geninterp.register_val0]
       (which creates a fresh tag if passed [None]).
-      Note: although [Genintern.register_interp0] registers a producer
+      Note: although [Geninterp.register_interp0] registers a producer
       of arbitrary [Geninterp.Val.t], tactic_extend requires them to be of the tag
       registered by [Geninterp.register_val0] to work properly.
 
