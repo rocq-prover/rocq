@@ -1433,7 +1433,12 @@ let () =
   ltop (LevelLe 0)
 
 let () =
-  let pr_unit _env _sigma _ _ _ _ () = str "()" in
-  let printer env sigma _ _ prtac = prtac env sigma in
-  declare_extra_genarg_pprule_with_level wit_ltac printer printer pr_unit
-  ltop (LevelLe 0)
+  let printer f x =
+    Genprint.PrinterNeedsLevel {
+      default_already_surrounded = ltop;
+      default_ensure_surrounded = LevelLe 0;
+      printer = (fun env sigma n -> f env sigma n x);
+    }
+  in
+  Gentactic.register_print wit_ltac (printer pr_raw_tactic_level)
+    (printer (fun env _sigma n x -> pr_glob_tactic_level env n x))
