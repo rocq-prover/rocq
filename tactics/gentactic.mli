@@ -11,8 +11,7 @@
 open Util
 open Names
 
-(** Generic tactic expressions.
-    Internally implemented using [Genarg]. *)
+(** Generic tactic expressions. *)
 
 type raw_generic_tactic
 
@@ -50,6 +49,3 @@ val register_interp : (_, 'glb) tag -> (Geninterp.Val.t Id.Map.t -> 'glb -> unit
 val interp : ?lfun:Geninterp.Val.t Id.Map.t -> glob_generic_tactic -> unit Proofview.tactic
 
 val wit_generic_tactic : raw_generic_tactic Genarg.vernac_genarg_type
-
-val to_raw_genarg : raw_generic_tactic -> Genarg.raw_generic_argument
-(** For serlib *)

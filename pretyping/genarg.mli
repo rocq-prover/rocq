@@ -32,15 +32,6 @@
 
       NB: only the base [ExtraArg] is allowed here.
 
-    - tactic arguments to commands defined without depending on ltac_plugin
-      (VernacProof, HintsExtern, Hint Rewrite, etc).
-
-      The use of genargs is hidden behind abstract type
-      [Gentactic.tag], and the gentactic register functions must be
-      used. Currently this subcontracts to the genarg infrastructure
-      (eg Genintern) but will probably become independent in the
-      future.
-
     - vernac arguments, used by vernac extend. Usually declared in mlg
       using VERNAC ARGUMENT EXTEND then used in VERNAC EXTEND.
 

@@ -8,56 +8,104 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Util
 open Names
 
-type raw_generic_tactic = Genarg.raw_generic_argument
+module TDyn = Dyn.Make()
 
-type glob_generic_tactic = Genarg.glob_generic_argument
+type ('raw, 'glb) tag = ('raw * 'glb) TDyn.tag
 
-type ('raw, 'glob) tag = ('raw, 'glob, Empty.t) Genarg.genarg_type
+type raw_generic_tactic = Raw : ('raw, _) tag * 'raw -> raw_generic_tactic
 
-let make name = Genarg.make0 name
+type glob_generic_tactic = Glb : (_, 'glb) tag * 'glb -> glob_generic_tactic
+
+let make name : _ tag = TDyn.create name
 
 let empty = make "empty"
 
 let of_raw (type a) (tag:(a, _) tag) (x:a) : raw_generic_tactic =
-  GenArg (Rawwit tag, x)
+  Raw (tag, x)
 
-let to_raw_genarg x = x
+module Print = struct
+  type _ t = Print : {
+      raw_print : 'raw Genprint.printer;
+      glb_print : 'glb Genprint.printer;
+    } -> ('raw * 'glb) t
+end
 
-let register_print = Genprint.register_noval_print0
+module PrintMap = TDyn.Map(Print)
 
-let print_raw = Pputils.pr_raw_generic
+let printers = ref PrintMap.empty
 
-let print_glob = Pputils.pr_glb_generic
+let register_print tag raw_print glb_print =
+  assert (not @@ PrintMap.mem tag !printers);
+  printers := PrintMap.add tag (Print {raw_print; glb_print}) !printers
 
-let register_subst = Gensubst.register_subst0
+let apply_printer env sigma level = function
+  | Genprint.PrinterBasic pp -> pp env sigma
+  | Genprint.PrinterNeedsLevel { default_already_surrounded; printer } ->
+    let level = Option.default default_already_surrounded level in
+    printer env sigma level
 
-let subst = Gensubst.generic_substitute
+let print_raw env sigma ?level (Raw (tag, v)) =
+  let Print {raw_print} = PrintMap.find tag !printers in
+  apply_printer env sigma level (raw_print v)
 
-let register_intern = Genintern.register_intern0
+let print_glob env sigma ?level (Glb (tag, v)) =
+  let Print {glb_print} = PrintMap.find tag !printers in
+  apply_printer env sigma level (glb_print v)
 
-let intern ?(strict=true) env ?(ltacvars=Id.Set.empty) v =
+module Subst = struct
+  type _ t = Subst : 'glb Gensubst.subst_fun -> (_ * 'glb) t
+end
+
+module SubstMap = TDyn.Map(Subst)
+
+let substs = ref SubstMap.empty
+
+let register_subst tag subst =
+  assert (not @@ SubstMap.mem tag !substs);
+  substs := SubstMap.add tag (Subst subst) !substs
+
+let subst subst (Glb (tag, v)) =
+  let Subst f = SubstMap.find tag !substs in
+  Glb (tag, f subst v)
+
+module Intern = struct
+  (* XXX change type to match how it's called instead of reusing Genintern.intern_fun *)
+  type _ t = Intern : ('raw, 'glb) Genintern.intern_fun -> ('raw * 'glb) t
+end
+
+module InternMap = TDyn.Map(Intern)
+
+let interns = ref InternMap.empty
+
+let register_intern tag intern =
+  assert (not @@ InternMap.mem tag !interns);
+  interns := InternMap.add tag (Intern intern) !interns
+
+let intern ?(strict=true) env ?(ltacvars=Id.Set.empty) (Raw (tag, v)) =
+  let Intern intern = InternMap.find tag !interns in
   let ist = { (Genintern.empty_glob_sign ~strict env) with ltacvars } in
-  let _, v = Genintern.generic_intern ist v in
-  v
+  let _, v = intern ist v in
+  Glb (tag, v)
 
 type 'glb interp_fun = Geninterp.Val.t Id.Map.t -> 'glb -> unit Proofview.tactic
 
-module InterpObj =
+module Interp =
 struct
-  type ('raw, 'glb, 'top) obj = 'glb interp_fun
-  let name = "gentactic.interp"
-  let default _ = None
+  type _ t = Interp : 'glb interp_fun -> (_ * 'glb) t
 end
 
-module Interp = Genarg.Register(InterpObj)
+module InterpMap = TDyn.Map(Interp)
 
-let register_interp = Interp.register0
+let interps = ref InterpMap.empty
 
-let interp ?(lfun=Id.Map.empty) (Genarg.GenArg (Glbwit tag, v)) =
-  let interp : _ interp_fun = Interp.obj tag in
+let register_interp tag interp =
+  assert (not @@ InterpMap.mem tag !interps);
+  interps := InterpMap.add tag (Interp interp) !interps
+
+let interp ?(lfun=Id.Map.empty) (Glb (tag, v)) =
+  let Interp interp = InterpMap.find tag !interps in
   interp lfun v
 
 let wit_generic_tactic = Genarg.make0 "generic_tactic"
