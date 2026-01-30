@@ -58,13 +58,16 @@ let build_induction_scheme_in_sort_var env dep ind =
   let sigma, pind =
     Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind
   in
+  (* Get new sort for output *)
   let sigma, pred_sort = Evd.new_sort_variable UnivRigid sigma in
   let pred_quality = EConstr.ESorts.quality sigma pred_sort in
+  (* Get sort of inductive *)
   let _, ind_sort =
     EConstr.destArity sigma
       (Retyping.get_type_of env sigma (EConstr.mkIndU pind))
   in
   let ind_quality = EConstr.ESorts.quality sigma ind_sort in
+  (* Set elimination constraint from inductive to output's sort *)
   let sigma = Evd.set_elim_to sigma ind_quality pred_quality in
   let sigma, c = build_induction_scheme env sigma pind dep pred_sort in
   (EConstr.to_constr sigma c, Evd.ustate sigma)
