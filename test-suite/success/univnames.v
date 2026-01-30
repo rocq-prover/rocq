@@ -10,7 +10,7 @@ Definition baz@{i j} (A : Type@{i}) (B : Type@{j}) := (A * B)%type.
 
 Definition usingmax@{i j} (A : Type@{i}) (B : Type@{j}) : Type := (A * B)%type.
 
-Fail Definition bad@{i j} (A : Type@{i}) (B : Type@{j}) : Type@{_} := (A * B)%type.
+Fail Definition bad@{i j} (A : Type@{i}) (B : Type@{j}) : Type@{*} := (A * B)%type.
 
 Fail Definition bad@{i} (A : Type@{i}) (B : Type@{j}) : Type := (A * B)%type.
 
