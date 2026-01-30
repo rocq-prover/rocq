@@ -11,7 +11,7 @@ End GlobalReference.
 
 Module TypeLiteral.
 
-  Notation type := Type@{_}.
+  Notation type := Type@{*}.
   Check type@{Set}.
   Check type@{Prop}.
 
@@ -23,7 +23,7 @@ Module ExplicitSort.
   Fail Check foo@{Set}.
   Fail Check foo@{u}.
 
-  Notation bar := Type@{_}.
+  Notation bar := Type@{*}.
   Check bar@{u}.
 End ExplicitSort.
 
