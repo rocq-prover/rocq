@@ -529,7 +529,9 @@ let out_def = function
   | None -> CErrors.user_err Pp.(str "Program Fixpoint needs defined bodies.")
 
 let build_program_fixpoint env sigma rec_sign possible_guard fixnames fixrs fixdefs fixtypes fixwfs =
-  assert (List.for_all Option.is_empty fixwfs);
+  let () = if not @@ List.for_all Option.is_empty fixwfs then
+      CErrors.user_err Pp.(str "Well-founded fixpoints not allowed in mutually recursive blocks.")
+  in
   (* Get the interesting evars, those that were not instantiated *)
   let sigma = Typeclasses.resolve_typeclasses ~filter:Typeclasses.no_goals ~fail:true env sigma in
   (* Solve remaining evars *)
