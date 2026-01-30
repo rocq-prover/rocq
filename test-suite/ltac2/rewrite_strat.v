@@ -256,4 +256,13 @@ Module StratLtac2Tactic.
     now reflexivity.
   Qed.
 
+  Ltac2 failing () :=
+    fun _carrier lhs _rel => exact tt; Strategy.Identity.
+
+  (* This example goes under binders to apply a rewrite only once *)
+  Lemma failure_test (b : bool) : forall (v : nat), (v + 2) = S (S v).
+  Proof.
+    Fail rewrite_strat (topdown (tactic (failing ()))) None.
+  Abort.
+
 End StratLtac2Tactic.
