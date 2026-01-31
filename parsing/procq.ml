@@ -103,24 +103,22 @@ let make_entry_unsync make remake () =
 
 let add_kw = { add_kw = CLexer.add_keyword_tok }
 
-let no_add_kw = { add_kw = fun () _ -> () }
-
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
   let { GState.estate; kwstate; recover; has_non_assoc } = gstate() in
   let estate, entry = Entry.make "epsilon" estate in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [r]]) in
-  let estate, kwstate = safe_extend add_kw estate kwstate entry ext in
+  let estate = safe_extend estate entry ext in
+  let kwstate = add_extend_kws add_kw kwstate ext in
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
   try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
 
 let extend_gstate ~ignore_kw {GState.kwstate; estate; recover; has_non_assoc} e ext =
-  let estate, kwstate =
-    if ignore_kw then
-      let estate, () = safe_extend no_add_kw estate () e ext in
-      estate, kwstate
-    else safe_extend add_kw estate kwstate e ext
+  let estate = safe_extend estate e ext in
+  let kwstate =
+    if ignore_kw then kwstate
+    else add_extend_kws add_kw kwstate ext
   in
   {GState.kwstate; estate; recover; has_non_assoc}
 
