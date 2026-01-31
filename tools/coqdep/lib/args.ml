@@ -16,6 +16,7 @@ type t =
   ; noglob : bool
   ; ml_path : string list
   ; vo_path : (bool * string * string) list
+  ; packages : string list
   ; dyndep : string
   ; worker : string option
   ; files : string list
@@ -29,6 +30,7 @@ let make () =
   ; noglob = false
   ; ml_path = []
   ; vo_path = []
+  ; packages = []
   ; dyndep = "both"
   ; worker = None
   ; files = []
@@ -51,6 +53,7 @@ let usage () =
   eprintf "  -I dir : add (non recursively) dir to ocaml path\n";
   eprintf "  -R dir logname : add and import dir recursively to rocq load path under logical name logname\n";
   eprintf "  -Q dir logname : add (recursively) and open (non recursively) dir to rocq load path under logical name logname\n";
+  eprintf "  -package pkg : add the given Rocq (findlib) package to the load path\n";
   eprintf "  -vos : also output dependencies about .vos files\n";
   eprintf "  -exclude-dir dir : skip subdirectories named 'dir' during -R/-Q search\n";
   eprintf "  -coqlib dir : set the rocq core library directory\n";
@@ -101,6 +104,8 @@ let parse st args =
     | "-R" :: r :: ln :: ll -> parse (add_vo_path st (true, r, ln)) ll
     | "-Q" :: r :: ln :: ll -> parse (add_vo_path st (false, r, ln)) ll
     | ("-Q"|"-R") :: ([] | [_]) -> usage ()
+    | "-package" :: p :: ll -> parse { st with packages = p :: st.packages } ll
+    | "-package" :: [] -> usage ()
     | "-exclude-dir" :: r :: ll -> System.exclude_directory r; parse st ll
     | "-exclude-dir" :: [] -> usage ()
     | "-coqlib" :: r :: ll -> parse { st with coqlib = Some r } ll
@@ -122,5 +127,6 @@ let parse st args =
   { st with
     ml_path = List.rev st.ml_path
   ; vo_path = List.rev st.vo_path
+  ; packages = List.rev st.packages
   ; files = List.rev st.files
   }

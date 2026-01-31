@@ -331,6 +331,38 @@ let add_include st (rc, r, ln) =
   else
     Loadpath.add_q_include st r ln
 
+let add_packages st ps =
+  let ps =
+    let open Fl_package_base in
+    try requires_deeply ~preds:[] ps with
+    | No_such_package (p, _) ->
+      CErrors.user_err Pp.(str "Failed to locate package " ++ str p)
+    | Package_loop p ->
+      CErrors.user_err Pp.(str "Dependency loop on package: " ++ str p)
+  in
+  let query p =
+    let p =
+      let open Fl_package_base in
+      try Fl_package_base.query p with No_such_package (p, info) ->
+        CErrors.user_err Pp.(str "Failed to query package: " ++ str p)
+    in
+    let rocqpath =
+      try Some (Fl_metascanner.lookup "rocqpath" [] p.package_defs)
+      with Not_found -> None
+    in
+    (rocqpath, p)
+  in
+  let ps = List.map query ps in
+  let add_Q (rocq_path, p) =
+    (* Ignore non-Rocq packages. *)
+    Option.iter (fun rocq_path ->
+      let dir = p.Fl_package_base.package_dir in
+      let dir = Filename.concat dir "rocq.d" in
+      add_include st (false, dir, rocq_path)
+    ) rocq_path
+  in
+  List.iter add_Q ps
+
 let findlib_init dirs =
   let env_ocamlpath =
     try [Sys.getenv "OCAMLPATH"]
@@ -357,6 +389,7 @@ let init ~make_separator_hack args =
       ml_path @ Boot.Env.Path.[to_string @@ relative (Boot.Env.runtimelib env) ".."]
   in
   findlib_init ml_path;
+  if args.Args.packages <> [] then add_packages loadpath args.Args.packages;
   List.iter (add_include loadpath) args.Args.vo_path;
   Makefile.set_dyndep args.Args.dyndep;
   rocqenv, { State.vAccu = []; loadpath; separator_hack = make_separator_hack }
