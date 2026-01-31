@@ -800,8 +800,6 @@ To be able to instantiate a sort with `Prop` or `SProp`, we must
 quantify over :gdef:`sort qualities`. Definitions which quantify over
 sort qualities are called :gdef:`sort polymorphic`.
 
-All sort quality variables must be explicitly bound.
-
 .. rocqtop:: all
 
    Polymorphic Definition sort@{s ; u} := Type@{s;u}.
@@ -854,6 +852,29 @@ witness these temporary variables.
 
 Sort polymorphic inductives may be declared when every instantiation
 is valid.
+
+.. flag:: Collapse Sorts ToType
+
+   When set, unbound sort variables are collapsed to `Type` during minimization of universes.
+   Unsetting this flag will preserve sort variables during implicit elaboration of sort-polymorphic terms,
+   if :flag:`Universe Polymorphism` is set.
+   The flag is set by default.
+
+   For instance, defining the `list` type, without explicit sorts, should elaborate two implicit ones:
+   One for the type of parameter `A`, and one for the `list` type itself.
+
+   .. rocqtop:: all
+
+      Unset Collapse Sorts ToType.
+
+      Inductive list (A : Type) : Type :=
+      | nil : list A
+      | cons : A -> list A -> list A.
+
+      Set Printing Universes.
+      About list.
+
+      Set Collapse Sorts ToType.
 
 .. _elim-constraints:
 
@@ -953,7 +974,10 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
 
    As with universe level constraints, elimination constraints can be elaborated
    automatically if the constraints are denoted extensible with `+` **or** if they
-   are totally omitted. For instance, the two following definitions are legal.
+   are totally omitted. In addition, when unsetting :flag:`Collapse Sorts ToType`,
+   the definition may be left completely implicit, elaborating both sort variables and
+   elimination constraints.
+   For instance, the three following definitions are legal.
 
    .. rocqtop:: all
 
@@ -970,6 +994,16 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
         (A:Type@{sl;ul}) (B:Type@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Type@{s';u'})
         (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
         (v : sum@{sl sr s;ul ur} A B) : P v :=
+            match v with
+                | inl x => fl x
+                | inr y => fr y
+                end.
+
+      Unset Collapse Sorts ToType.
+
+      Definition sum_elim_implicit (A B : Type) (P : sum A B -> Type)
+        (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
+        (v : sum A B) : P v :=
             match v with
                 | inl x => fl x
                 | inr y => fr y

@@ -172,6 +172,9 @@ Module Inductives.
     (f : foo6@{s';})
     : P f
     := match f with Foo6 => H end.
+  (* The command has indeed failed with message:
+     Elimination constraints are not implied by the ones declared:
+     s' -> s *)
 
   Inductive foo7@{s; |} : Type@{s;Set} := Foo7_1 | Foo7_2.
   Fail Check foo7_sind.
@@ -205,11 +208,8 @@ Module Inductives.
 
   (* non SProp instantiation must be squashed *)
   Fail Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
-  Fail #[warnings="-non-primitive-record"]
+  #[warnings="-non-primitive-record"]
     Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
-  #[warnings="-non-primitive-record,-cannot-define-projection"]
-    Record R5@{s; |} (A:Type@{s;Set}) : SProp := { R5f1 : A}.
-  Fail Check R5f1.
   Definition R5f1_sprop (A:SProp) (r:R5 A) : A := let (f) := r in f.
   Fail Definition R5f1_prop (A:Prop) (r:R5 A) : A := let (f) := r in f.
 

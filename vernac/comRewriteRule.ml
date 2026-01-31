@@ -40,12 +40,13 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   let id = id.CAst.v in
   let env = Global.env () in
   let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
+  let flags = { Pretyping.all_no_fail_flags with poly } in
   let evd, (typ, impls) =
-    Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)
+    Constrintern.(interp_type_evars_impls ~flags ~impls:empty_internalization_env)
       env evd typ
   in
   Pretyping.check_evars_are_solved ~program_mode:false env evd;
-  let evd = Evd.minimize_universes evd in
+  let evd = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) evd in
   let _qvars, uvars = EConstr.universes_of_constr evd typ in
   let evd = Evd.restrict_universe_context evd uvars in
   let typ = EConstr.to_constr evd typ in
@@ -368,7 +369,7 @@ let warn_rewrite_rules_break_SR =
     Pp.(fun reason ->
         str "This rewrite rule breaks subject reduction" ++ spc() ++ reason)
 
-let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
+let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
   let env = Global.env () in
   let evd = Evd.from_env env in
 
@@ -421,12 +422,12 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs_loc = rhs.CAst.loc in
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
-  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables:false in
+  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with
     undeclared_evars_rr = true; expand_evars = false;
     solve_unification_constraints = false; poly } in
   let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
-  let evd = Evd.minimize_universes evd in
+  let evd = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
   let evd = Evd.restrict_universe_context evd uvars in
   let uctx, uctx' = UState.check_univ_decl_rev (Evd.ustate evd) udecl in
@@ -476,8 +477,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
         Pp.(surround (str "the replacement term doesn't have the type of the pattern") ++ str "." ++ fnl () ++ Himsg.explain_pretype_error env' evd' e);
       Pretyping.understand_tcc ~flags env evd rhs
   in
-
-  let evd' = Evd.minimize_universes evd' in
+  let evd' = Evd.minimize_universes ~to_type:collapse_sort_variables evd' in
   let _qvars', uvars' = EConstr.universes_of_constr evd' rhs in
   let evd' = Evd.restrict_universe_context evd' (Univ.Level.Set.union uvars uvars') in
   let fail pp = warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(surround (str "universe inconsistency") ++ str"." ++ spc() ++ str "Missing constraints: " ++ pp) in
@@ -542,8 +542,8 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
 
   head_symbol, { nvars = (nvars' - 1, nvarqs', nvarus'); lhs_pat = head_umask, elims; rhs }
 
-let do_rules id rules =
+let do_rules ?(collapse_sort_variables = true) id rules =
   let env = Global.env () in
   if not @@ Environ.rewrite_rules_allowed env then raise Environ.(RewriteRulesNotAllowed Rule);
-  let body = { rewrules_rules = List.map interp_rule rules } in
+  let body = { rewrules_rules = List.map (interp_rule ~collapse_sort_variables) rules } in
   Global.add_rewrite_rules id body

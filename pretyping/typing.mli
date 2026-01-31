@@ -37,6 +37,8 @@ val solve_evars : env -> evar_map -> constr -> evar_map * constr
 val check_allowed_sort : env -> evar_map -> inductive puniverses -> constr -> constr ->
   evar_map * ERelevance.t
 
+val check_fix_with_elims : env -> evar_map -> Constr.fixpoint -> evar_map
+
 (** Raise an error message if bodies have types not unifiable with the
     expected ones *)
 val check_type_fixpoint : ?loc:Loc.t -> env -> evar_map ->
