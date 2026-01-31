@@ -379,8 +379,7 @@ term_let: [
 
 destructuring_let: [
 | "let" "(" LIST0 name SEP "," ")" OPT [ OPT [ "as" name ] "return" term100 ] ":=" term "in" term
-| "let" "'" pattern ":=" term OPT ( "return" term100 ) "in" term
-| "let" "'" pattern "in" pattern ":=" term "return" term100 "in" term
+| "let" "'" pattern OPT [ "in" pattern ] ":=" term OPT ( "return" term100 ) "in" term
 ]
 
 term_forall_or_fun: [
