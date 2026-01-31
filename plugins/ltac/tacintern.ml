@@ -776,7 +776,7 @@ let () =
   Genintern.register_intern0 wit_hyp (lift intern_hyp);
   Genintern.register_intern0 wit_tactic (lift intern_tactic_or_tacarg);
   Genintern.register_intern0 wit_ltac_in_term (lift intern_ltac_in_term);
-  Genintern.register_intern0 wit_ltac (lift intern_ltac);
+  Gentactic.register_intern wit_ltac (lift intern_ltac);
   Genintern.register_intern0 wit_quant_hyp (lift intern_quantified_hypothesis);
   Genintern.register_intern0 wit_constr (fun ist c -> (ist,intern_constr ist c));
   Genintern.register_intern0 wit_uconstr (fun ist c -> (ist,intern_constr ist c));

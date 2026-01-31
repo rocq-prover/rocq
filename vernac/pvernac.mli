@@ -53,7 +53,7 @@ val main_entry : proof_mode option -> vernac_control option Entry.t
 
 type proof_mode_entry = ProofMode : {
     command_entry : Vernacexpr.vernac_expr Entry.t;
-    wit_tactic_expr : ('raw,_,unit) Genarg.genarg_type;
+    wit_tactic_expr : ('raw,_) Gentactic.tag;
     tactic_expr_entry : 'raw Entry.t;
 } -> proof_mode_entry
 

@@ -32,7 +32,7 @@ let wit_tactic : (raw_tactic_expr, glob_tactic_expr, Val.t) genarg_type =
 
 let wit_ltac_in_term = make0 "ltac_in_term"
 
-let wit_ltac = make0 ~dyn:(val_tag (topwit Stdarg.wit_unit)) "ltac"
+let wit_ltac = Gentactic.make "ltac"
 
 let wit_destruction_arg =
   make0 "destruction_arg"

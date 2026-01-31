@@ -12,7 +12,7 @@ open Procq
 
 type proof_mode_entry = ProofMode : {
   command_entry : Vernacexpr.vernac_expr Entry.t;
-  wit_tactic_expr : ('raw,_,unit) Genarg.genarg_type;
+  wit_tactic_expr : ('raw,_) Gentactic.tag;
   tactic_expr_entry : 'raw Entry.t;
 } -> proof_mode_entry
 
@@ -47,7 +47,7 @@ let noedit_tactic_expr = Entry.make "noedit_tactic_expr"
 
 let noedit_mode_entry = ProofMode {
   command_entry = noedit_mode;
-  wit_tactic_expr = Stdarg.wit_unit;
+  wit_tactic_expr = Gentactic.empty;
   tactic_expr_entry = noedit_tactic_expr;
 }
 
@@ -103,7 +103,7 @@ module Vernac_ =
       let mode = get_default_proof_mode () in
       let ProofMode mode = find_proof_mode mode in
       let+ v = Procq.Entry.parse_token_stream mode.tactic_expr_entry strm in
-      Gentactic.of_raw_genarg Genarg.(in_gen (rawwit mode.wit_tactic_expr) v)
+      Gentactic.of_raw mode.wit_tactic_expr v
 
     let command_entry =
       Procq.Entry.(of_parser "command_entry"

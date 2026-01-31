@@ -2147,8 +2147,13 @@ let () =
   register_interp0 wit_tactic interp
 
 let () =
-  let interp ist tac = eval_tactic_ist ist tac >>= fun () -> Ftactic.return () in
-  register_interp0 wit_ltac interp
+  let interp lfun tac =
+    let open Proofview.Notations in
+    Proofview.tclProofInfo[@ocaml.warning"-3"] >>= fun (_name, poly) ->
+    let ist = { lfun; poly; extra = TacStore.empty } in
+    eval_tactic_ist ist tac
+  in
+  Gentactic.register_interp wit_ltac interp
 
 let () =
   register_interp0 wit_uconstr (fun ist c -> Ftactic.enter begin fun gl ->

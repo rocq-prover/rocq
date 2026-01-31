@@ -308,10 +308,7 @@ type var_quotation_kind =
 
 let wit_ltac2_constr = Genarg.make0 "ltac2:in-constr"
 let wit_ltac2_var_quotation = Genarg.make0 "ltac2:quotation"
-let wit_ltac2_tac = Genarg.make0 "ltac2:tactic"
-
-let () = Geninterp.register_val0 wit_ltac2_tac
-    (Some (Geninterp.val_tag (Genarg.topwit Stdarg.wit_unit)))
+let wit_ltac2_tac = Gentactic.make "ltac2:tactic"
 
 let is_constructor_id id =
   let id = Id.to_string id in
