@@ -735,6 +735,12 @@ let intern_strategy ist s =
     | StratHints (b, id) -> StratHints (b, id)
     | StratEval r -> StratEval (intern_red_expr ist r)
     | StratFold c -> StratFold (intern_constr ist c)
+    | StratMatches c ->
+       let _, ip = intern_constr_pattern ist ~as_type:false ~ltacvars:Id.Set.empty c in
+       StratMatches ip
+    | StratTactic t ->
+       let it = intern_tactic_or_tacarg ist t in
+       StratTactic it
   in
   aux Id.Set.empty s
 

@@ -750,12 +750,6 @@ let interp_red_expr ist env sigma r =
   in
   Redexpr.Interp.interp_red_expr ist env sigma r
 
-let interp_strategy ist _env _sigma s =
-  let interp_redexpr r = fun env sigma -> interp_red_expr ist env sigma r in
-  let interp_constr c = (fst c, fun env sigma -> interp_open_constr ist env sigma c) in
-  let s = Rewrite.map_strategy interp_constr interp_redexpr (fun x -> x) s in
-  Rewrite.strategy_of_ast s
-
 let interp_may_eval f ist env sigma = function
   | ConstrEval (r,c) ->
       let (sigma,redexp) = interp_red_expr ist env sigma r in
@@ -1979,6 +1973,14 @@ let eval_tactic t =
 let eval_tactic_ist ist t =
   Proofview.tclLIFT (db_initialize false) <*>
   eval_tactic_ist ist t
+
+let interp_strategy ist env sigma s =
+  let interp_redexpr r = fun env sigma -> interp_red_expr ist env sigma r in
+  let interp_constr c = (fst c, fun env sigma -> interp_open_constr ist env sigma c) in
+  let interp_pattern (_, p, up) = Patternops.interp_pattern env sigma Glob_ops.empty_lvar up in
+  let s = Rewrite.map_strategy interp_constr interp_pattern interp_redexpr
+            (fun x -> x) (interp_tactic ist) s in
+  Rewrite.strategy_of_ast s
 
 (** FFI *)
 

@@ -120,6 +120,23 @@ Module Strategy.
   Ltac2 @external fix_ : (t -> t) -> t :=
     "rocq-runtime.plugins.ltac2" "rewstrat_fix".
 
+  (** The identity if the pattern matching succeeds, fails otherwise *)
+  Ltac2 @external matches : pattern -> t :=
+    "rocq-runtime.plugins.ltac2" "rewstrat_matches".
+
+  (** The rewrite success datatype, where [prf] should be of type [rel lhs rhs] *)
+  Ltac2 Type rewrite_success := { rel : constr; rhs : constr; prf : constr }.
+
+  (** A rewrite result can be any of a success, and identity step (no progress), or a failure *)
+  Ltac2 Type rewrite_result := [ Success (rewrite_success) | Identity | Fail ].
+
+  (** The [tactic f] strategy applies [f] to the carrier type, and current subterm [t] being rewriten,
+      with an optional relation constraint. The tactic is applied to no goals, it should hence
+      stay unfocused. The tactic should return a [rewrite_result] indicating success s, failure or no progress.
+      The success record should contain a proof of [rel t rhs]. *)
+  Ltac2 @external tactic : (constr -> constr -> constr option -> rewrite_result) -> t :=
+    "rocq-runtime.plugins.ltac2" "rewstrat_tactic".
+
 End Strategy.
 
 (* Tactics *)
