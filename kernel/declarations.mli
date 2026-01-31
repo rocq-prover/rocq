@@ -83,6 +83,9 @@ type typing_flags = {
   share_reduction : bool;
   (** Use by-need reduction algorithm *)
 
+  unfold_dep_heuristic : bool;
+  (** If [true], use dependency heuristic when unfolding constants during conversion *)
+
   enable_VM : bool;
   (** If [false], all VM conversions fall back to interpreted ones *)
 

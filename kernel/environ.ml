@@ -48,6 +48,8 @@ type link_info =
 
 type constant_key = constant_body * (link_info ref * key) * KerName.t
 
+type dep_cache = Cset_env.t Cmap_env.t ref
+
 type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = {
@@ -82,6 +84,7 @@ type env = {
   irr_inds : Sorts.relevance Indmap_env.t;
   constant_hyps : Id.Set.t Cmap_env.t;
   inductive_hyps : Id.Set.t Mindmap_env.t;
+  constant_deps : dep_cache CEphemeron.key;
 }
 
 type rewrule_not_allowed = Symb | Rule
@@ -117,6 +120,7 @@ let empty_env = {
   vm_library = Vmlibrary.empty;
   retroknowledge = Retroknowledge.empty;
   rewrite_rules_allowed = false;
+  constant_deps = CEphemeron.create (ref Cmap_env.empty);
 }
 
 
@@ -546,6 +550,7 @@ let same_flags {
      conv_oracle;
      indices_matter;
      share_reduction;
+     unfold_dep_heuristic;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -558,6 +563,7 @@ let same_flags {
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
+  unfold_dep_heuristic == alt.unfold_dep_heuristic &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&
@@ -817,6 +823,34 @@ let lookup_constructor_variables (ind,_) env =
 let constant_context env c =
   let cb = lookup_constant c env in
   Declareops.constant_polymorphic_context cb
+
+let get_dep_cache env =
+  try CEphemeron.get env.constant_deps
+  with CEphemeron.InvalidKey -> ref Cmap_env.empty
+
+let rec constant_dependencies_with_cache env cache kn =
+  match Cmap_env.find_opt kn !cache with
+  | Some deps -> deps
+  | None ->
+    match Cmap_env.find_opt kn env.env_constants with
+    | None -> Cset_env.empty
+    | Some (body, _, _) ->
+      let deps = match body.const_body with
+      | Def c ->
+        let rec compute_dependencies accu c = match kind c with
+        | Const (kn, _) ->
+          Cset_env.fold Cset_env.add (constant_dependencies_with_cache env cache kn) (Cset_env.add kn accu)
+        | _ -> Constr.fold compute_dependencies accu c
+        in
+        compute_dependencies Cset_env.empty c
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> Cset_env.empty
+      in
+      cache := Cmap_env.add kn deps !cache;
+      deps
+
+let constant_dependencies env kn =
+  let cache = get_dep_cache env in
+  constant_dependencies_with_cache env cache kn
 
 let universes_of_global env r =
   let open GlobRef in
