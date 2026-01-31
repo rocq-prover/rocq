@@ -2002,7 +2002,8 @@ let rec add_args id new_args =
       CErrors.anomaly ~label:"add_args " (Pp.str "CGeneralization.")
     | CDelimiters _ ->
       CErrors.anomaly ~label:"add_args " (Pp.str "CDelimiters.")
-    | CArray _ -> CErrors.anomaly ~label:"add_args " (Pp.str "CArray."))
+    | CArray _ -> CErrors.anomaly ~label:"add_args " (Pp.str "CArray.")
+    | CLetImport _ -> CErrors.anomaly ~label:"add_args " (Pp.str "CLetImport."))
 
 let rec get_args b t :
     Constrexpr.local_binder_expr list
