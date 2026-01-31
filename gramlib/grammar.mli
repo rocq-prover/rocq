@@ -136,7 +136,8 @@ module type S = sig
   val generalize_symbol : ('a, 'tr, 'c) Symbol.t -> ('b, norec, 'c) Symbol.t option
 
   (* Used in custom entries, should tweak? *)
-  val level_of_nonterm : ('a, norec, 'c) Symbol.t -> string option
+  (** If the symbol is [nterml] returns the level, otherwise [None] *)
+  val level_of_nonterm : _ Symbol.t -> string option
 
 end
 

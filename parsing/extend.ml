@@ -66,7 +66,7 @@ type 'custom simple_constr_prod_entry_key =
 
 type binder_target = ForBinder | ForTerm
 
-type binder_entry_kind = ETBinderOpen | ETBinderClosed of constr_prod_entry_key option * (bool * string) list
+type binder_entry_kind = ETBinderOpen | ETBinderClosed of constr_prod_entry_key option * Procq.ty_pattern list
 
 and constr_prod_entry_key =
   | ETProdIdent           (* Parsed as an ident *)
@@ -76,7 +76,7 @@ and constr_prod_entry_key =
   | ETProdOneBinder of bool (* Parsed as name, or name:type or 'pattern, possibly in closed form *)
   | ETProdConstr of Constrexpr.notation_entry * (production_level * production_position) (* Parsed as constr or custom when extending a constr or custom entry; parsed as pattern or custom pattern when extending a pattern or custom pattern entry *)
   | ETProdPattern of int  (* Parsed as pattern as a binder (as subpart of a constr) *)
-  | ETProdConstrList of Constrexpr.notation_entry * (production_level * production_position) * (bool * string) list (* Parsed as a non-empty list of constr or custom entry *)
+  | ETProdConstrList of Constrexpr.notation_entry * (production_level * production_position) * Procq.ty_pattern list (* Parsed as a non-empty list of constr or custom entry *)
   | ETProdBinderList of binder_entry_kind  (* Parsed as non-empty list of local binders *)
 
 (** {5 AST for user-provided entries} *)
