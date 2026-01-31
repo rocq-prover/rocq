@@ -1627,7 +1627,7 @@ let build_ui () =
         browse notebook#current_term.messages#default_route#add_string Coq_config.wwwrefman);
     item "Browse Coq Library" ~label:"Browse Coq _Library" ~accel:"<Primary><Shift>F1" ~stock:`HELP
       ~callback:(fun _ ->
-        browse notebook#current_term.messages#default_route#add_string Coq_config.wwwstdlib);
+        browse notebook#current_term.messages#default_route#add_string Coq_config.wwwcorelib);
     item "Help for keyword" ~label:"Help for _keyword" ~accel:"F1"
       ~callback:(fun _ -> on_current_term (fun sn ->
         browse_keyword sn.messages#default_route#add_string (get_current_word sn)));

@@ -51,7 +51,7 @@ type t = {
   glob_source : glob_source_t;
   quiet : bool;
   externals : bool;
-  coqlib_url : string;
+  corelib_url : string;
   paths : (string * string) list;
   encoding : encoding_t;
   interpolate : bool;

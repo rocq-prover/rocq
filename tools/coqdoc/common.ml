@@ -46,7 +46,7 @@ type t = {
   glob_source : glob_source_t;
   quiet : bool;
   externals : bool;
-  coqlib_url: string;
+  corelib_url: string;
   paths : (string * string) list;
   encoding : encoding_t;
   interpolate : bool;
@@ -81,7 +81,7 @@ let default : t = {
   glob_source = DotGlob;
   quiet = true;
   externals = true;
-  coqlib_url = Coq_config.wwwstdlib;
+  corelib_url = Coq_config.wwwcorelib;
   paths = [];
   encoding = {
     charset = "iso-8859-1";
