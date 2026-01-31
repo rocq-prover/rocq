@@ -63,7 +63,21 @@ let equal_p (type a b) (t1 : a p) (t2 : b p) : (a, b) Util.eq option =
   | PEOI, PEOI -> Some Util.Refl
   | _ -> None
 
-let token_text : type c. c p -> string = function
+let equal a b = match a, b with
+  | KEYWORD a, KEYWORD b -> String.equal a b
+  | IDENT a, IDENT b -> String.equal a b
+  | FIELD a, FIELD b -> String.equal a b
+  | NUMBER a, NUMBER b -> NumTok.Unsigned.equal a b
+  | STRING a, STRING b -> String.equal a b
+  | LEFTQMARK, LEFTQMARK -> true
+  | BULLET a, BULLET b -> String.equal a b
+  | QUOTATION (a1,a2), QUOTATION (b1,b2) -> String.equal a1 b1 && String.equal a2 b2
+  | EOI, EOI -> true
+  | (KEYWORD _ | IDENT _ | FIELD _ | NUMBER _ | STRING _
+    | LEFTQMARK | BULLET _ | QUOTATION _ | EOI), _ ->
+    false
+
+let pattern_text : type c. c p -> string = function
   | PKEYWORD t -> "'" ^ t ^ "'"
   | PIDENT None -> "identifier"
   | PIDENT (Some t) -> "'" ^ t ^ "'"

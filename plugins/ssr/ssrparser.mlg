@@ -249,30 +249,30 @@ let test_ssrslashnum b1 b2 kwstate strm =
              if not b2 then Ok () else begin
                match LStream.peek_nth kwstate 3 strm with
                | Some (Tok.NUMBER _) -> Ok ()
-               | _ -> Error ()
+               | _ -> Error empty_error
              end
-         | _ -> Error ())
+         | _ -> Error empty_error)
       | Some (Tok.KEYWORD "/") when not b1 ->
          (match LStream.peek_nth kwstate 2 strm with
          | Some (Tok.KEYWORD "=") when not b2 -> Ok ()
          | Some (Tok.NUMBER _) when b2 ->
            (match LStream.peek_nth kwstate 3 strm with
            | Some (Tok.KEYWORD "=") -> Ok ()
-           | _ -> Error ())
+           | _ -> Error empty_error)
          | _ when not b2 -> Ok ()
-         | _ -> Error ())
+         | _ -> Error empty_error)
       | Some (Tok.KEYWORD "=") when not b1 && not b2 -> Ok ()
-      | _ -> Error ())
+      | _ -> Error empty_error)
   | Some (Tok.KEYWORD "//") when not b1 ->
          (match LStream.peek_nth kwstate 1 strm with
          | Some (Tok.KEYWORD "=") when not b2 -> Ok ()
          | Some (Tok.NUMBER _) when b2 ->
            (match LStream.peek_nth kwstate 2 strm with
            | Some (Tok.KEYWORD "=") -> Ok ()
-           | _ -> Error ())
+           | _ -> Error empty_error)
          | _ when not b2 -> Ok ()
-         | _ -> Error ())
-  | _ -> Error ()
+         | _ -> Error empty_error)
+  | _ -> Error empty_error
 
 let test_ssrslashnum10 = test_ssrslashnum true false
 let test_ssrslashnum11 = test_ssrslashnum true true
@@ -281,8 +281,8 @@ let test_ssrslashnum00 = test_ssrslashnum false false
 
 let negate_parser f x y =
   match f x y with
-  | Error () -> Ok ()
-  | Ok _ -> Error ()
+  | Error _ -> Ok ()
+  | Ok _ -> Error empty_error
 
 let test_not_ssrslashnum =
   Procq.Entry.(of_parser
@@ -480,7 +480,7 @@ let input_ssrtermkind kwstate strm = match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "(") -> Ok InParens
   | Some (Tok.KEYWORD "@") -> Ok WithAt
   | Some _ -> Ok NoFlag
-  | None -> Error () (* NB this never happens, instead we get a EOI token *)
+  | None -> assert false (* NB this never happens, instead we get a EOI token *)
 
 let ssrtermkind = Procq.Entry.(of_parser "ssrtermkind" { parser_fun = input_ssrtermkind })
 
@@ -837,7 +837,7 @@ let reject_ssrhid kwstate strm =
   match LStream.peek_nth kwstate 0 strm with
   | Some (Tok.KEYWORD "[") ->
       (match LStream.peek_nth kwstate 1 strm with
-      | Some (Tok.KEYWORD ":") -> Error ()
+      | Some (Tok.KEYWORD ":") -> Error empty_error
       | _ -> Ok ())
   | _ -> Ok ()
 
@@ -847,9 +847,9 @@ let rec reject_binder crossed_paren k kwstate s =
   match LStream.peek_nth kwstate k s with
   | Some (Tok.KEYWORD "(") when not crossed_paren -> reject_binder true (k+1) kwstate s
   | Some (Tok.IDENT _) when crossed_paren -> reject_binder true (k+1) kwstate s
-  | Some (Tok.KEYWORD ":" | Tok.KEYWORD ":=") when crossed_paren -> Error ()
-  | Some (Tok.KEYWORD ")") when crossed_paren -> Error ()
-  | _ -> if crossed_paren then Ok () else Error ()
+  | Some (Tok.KEYWORD ":" | Tok.KEYWORD ":=") when crossed_paren -> Error empty_error
+  | Some (Tok.KEYWORD ")") when crossed_paren -> Error empty_error
+  | _ -> if crossed_paren then Ok () else Error empty_error
 
 let _test_nobinder = Procq.Entry.(of_parser "test_nobinder" { parser_fun = reject_binder false 0 })
 
