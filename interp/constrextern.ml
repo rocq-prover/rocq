@@ -84,25 +84,14 @@ let extern_evar n l = CEvar (n,l)
     For instance, in the debugger the tables of global references
     may be inaccurate *)
 
-let rec dirpath_of_modpath = function
-  | MPfile dp -> dp
-  | MPbound mbid -> let (_,id,_) = MBId.repr mbid in DirPath.make [id]
-  | MPdot (t, l) -> Libnames.add_dirpath_suffix (dirpath_of_modpath t) l
-
-let qualid_of_global = function
-  | GlobRef.VarRef id -> Libnames.qualid_of_ident id
-  (* We rely on the tacite invariant that the label of a constant is used to build its internal name *)
-  | GlobRef.ConstRef cst -> Libnames.make_qualid (dirpath_of_modpath (Constant.modpath cst)) (Constant.label cst)
-  (* We rely on the tacite invariant that an inductive block inherits the name of its first type *)
-  | GlobRef.IndRef (ind,0) -> Libnames.make_qualid (dirpath_of_modpath (MutInd.modpath ind)) (MutInd.label ind)
-  (* These are hacks *)
-  | GlobRef.IndRef (ind,n) -> Libnames.make_qualid (dirpath_of_modpath (MutInd.modpath ind)) (Id.of_string_soft ("<inductive:" ^ Id.to_string (MutInd.label ind) ^ ":" ^ string_of_int n ^ ">"))
-  | GlobRef.ConstructRef ((ind,0),p) -> Libnames.make_qualid (dirpath_of_modpath (MutInd.modpath ind)) (Id.of_string_soft ("<constructor:" ^ Id.to_string (MutInd.label ind) ^ ":" ^ string_of_int (p+1) ^ ">"))
-  | GlobRef.ConstructRef ((ind,n),p) -> Libnames.make_qualid (dirpath_of_modpath (MutInd.modpath ind)) (Id.of_string_soft ("<constructor:" ^ Id.to_string (MutInd.label ind) ^ ":" ^ string_of_int n ^ ":" ^ string_of_int (p+1) ^ ">"))
-
 let default_extern_reference ?loc vars r =
   try Nametab.shortest_qualid_of_global ?loc vars r
-  with Not_found -> qualid_of_global r
+  with Not_found ->
+  match r with
+  | ConstRef c when ModPath.equal (Lib.current_mp()) (Constant.modpath c) ->
+    (* assume this is a side effect not yet in the nametab *)
+    Libnames.qualid_of_ident ?loc (Constant.label c)
+  | _ -> raise Not_found
 
 let my_extern_reference = ref default_extern_reference
 
