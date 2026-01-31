@@ -644,7 +644,7 @@ let pr_rawexpr_gen lvl ~avoid c =
       | E1 | E2 | E3 | E4 | E5 -> fun x -> x
     in
     paren (hov 0 (pr_rawexpr E0 avoid hd ++ spc() ++ pr_sequence (pr_rawexpr E0 avoid) args))
-  | CTacSyn (_,kn) -> fmt "<notation %t>" (fun () -> KerName.print kn)
+  | CTacSyn _ -> fmt "<notation>" (* TODO *)
   | CTacLet (isrec, bnd, e) ->
     let paren = match lvl with
       | E0 | E1 | E2 | E3 | E4 -> paren
