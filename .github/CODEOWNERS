@@ -7,15 +7,21 @@
 
 /CONTRIBUTING.md            @rocq-prover/contributing-process-maintainers
 
+.mailmap                    @rocq-prover/contributing-process-maintainers
+
+CREDITS                     @rocq-prover/contributing-process-maintainers
+LICENSE                     @rocq-prover/contributing-process-maintainers
+
+########## Fallback for /dev/ ###########
+
+/dev/                       @rocq-prover/dev-tools-maintainers
+
 ########## Build system ##########
 
 /Makefile                       @rocq-prover/build-maintainers
-/dev/tools/make_git_revision.sh @rocq-prover/build-maintainers
 
 /configure                      @rocq-prover/build-maintainers
-/tools/configure/*              @rocq-prover/build-maintainers
-
-/tools/coqdep/                  @rocq-prover/build-maintainers
+/config/                        @rocq-prover/build-maintainers
 
 /boot/                          @rocq-prover/build-maintainers
 
@@ -48,6 +54,8 @@
 
 /doc/                  @rocq-prover/doc-maintainers
 /dev/doc/              @rocq-prover/doc-maintainers
+
+*.mld                  @rocq-prover/doc-maintainers
 
 /doc/changelog/*/*.rst
 /dev/doc/changes.md
@@ -108,9 +116,11 @@
 /kernel/vconv.*   @rocq-prover/vm-native-maintainers
 /kernel/genOpcodeFiles.* @rocq-prover/vm-native-maintainers
 
-/kernel/sorts.*   @rocq-prover/universes-maintainers
-/kernel/uGraph.*  @rocq-prover/universes-maintainers
-/kernel/univ.*    @rocq-prover/universes-maintainers
+/kernel/sorts.*         @rocq-prover/universes-maintainers
+/kernel/uGraph.*        @rocq-prover/universes-maintainers
+/kernel/univ.*          @rocq-prover/universes-maintainers
+/kernel/pConstraints.*  @rocq-prover/universes-maintainers
+/kernel/qGraph.*        @rocq-prover/universes-maintainers
 
 ########## Library ##########
 
@@ -124,49 +134,49 @@
 
 ########## Standard library and plugins ##########
 
-/theories/Corelib/         @rocq-prover/stdlib-maintainers
+/theories/Corelib/              @rocq-prover/stdlib-maintainers
 
-/theories/Corelib/Classes/        @rocq-prover/typeclasses-maintainers
+/theories/Corelib/Classes/      @rocq-prover/typeclasses-maintainers
 
 
-/theories/Corelib/Compat/  @rocq-prover/compat-maintainers
+/theories/Corelib/Compat/       @rocq-prover/compat-maintainers
 
-/plugins/btauto/          @rocq-prover/btauto-maintainers
+/plugins/btauto/                @rocq-prover/btauto-maintainers
 
-/plugins/cc/           @rocq-prover/cc-maintainers
+/plugins/cc/                    @rocq-prover/cc-maintainers
 
-/plugins/derive/       @rocq-prover/derive-maintainers
-/theories/Corelib/derive/      @rocq-prover/derive-maintainers
+/plugins/derive/                @rocq-prover/derive-maintainers
+/theories/Corelib/derive/       @rocq-prover/derive-maintainers
 
-/plugins/extraction/         @rocq-prover/extraction-maintainers
-/theories/Corelib/extraction/        @rocq-prover/extraction-maintainers
+/plugins/extraction/            @rocq-prover/extraction-maintainers
+/theories/Corelib/extraction/   @rocq-prover/extraction-maintainers
 
-/plugins/firstorder/          @rocq-prover/firstorder-maintainers
+/plugins/firstorder/            @rocq-prover/firstorder-maintainers
 
-/plugins/funind/       @rocq-prover/funind-maintainers
+/plugins/funind/                @rocq-prover/funind-maintainers
 
-/plugins/ltac/         @rocq-prover/ltac-maintainers
+/plugins/ltac/                  @rocq-prover/ltac-maintainers
 
-/plugins/micromega/    @rocq-prover/micromega-maintainers
+/plugins/micromega/             @rocq-prover/micromega-maintainers
 
-/plugins/nsatz/        @rocq-prover/nsatz-maintainers
+/plugins/nsatz/                 @rocq-prover/nsatz-maintainers
 
-/plugins/ring/  @rocq-prover/ring-maintainers
+/plugins/ring/                  @rocq-prover/ring-maintainers
 
-/plugins/ssrmatching/  @rocq-prover/ssreflect-maintainers
-/theories/Corelib/ssrmatching/ @rocq-prover/ssreflect-maintainers
+/plugins/ssrmatching/           @rocq-prover/ssreflect-maintainers
+/theories/Corelib/ssrmatching/  @rocq-prover/ssreflect-maintainers
 
-/plugins/ssr/          @rocq-prover/ssreflect-maintainers
-/theories/Corelib/ssr/         @rocq-prover/ssreflect-maintainers
+/plugins/ssr/                   @rocq-prover/ssreflect-maintainers
+/theories/Corelib/ssr/          @rocq-prover/ssreflect-maintainers
 
-/test-suite/ssr/       @rocq-prover/ssreflect-maintainers
+/test-suite/ssr/                @rocq-prover/ssreflect-maintainers
 
-/plugins/syntax/       @rocq-prover/parsing-maintainers
+/plugins/syntax/                @rocq-prover/parsing-maintainers
 
-/plugins/rtauto/       @rocq-prover/rtauto-maintainers
+/plugins/rtauto/                @rocq-prover/rtauto-maintainers
 
-/plugins/ltac2/        @rocq-prover/ltac2-maintainers
-/theories/Ltac2    @rocq-prover/ltac2-maintainers
+/plugins/ltac2/                 @rocq-prover/ltac2-maintainers
+/theories/Ltac2                 @rocq-prover/ltac2-maintainers
 
 ########## Pretyper ##########
 
@@ -198,29 +208,35 @@
 
 ########## Number ##########
 
-/interp/numTok.*                     @rocq-prover/number-maintainers
-/kernel/float64*                     @rocq-prover/number-maintainers
-/kernel/uint63*                      @rocq-prover/number-maintainers
-/plugins/syntax/g_number_string.mlg  @rocq-prover/number-maintainers
+/interp/numTok.*                           @rocq-prover/number-maintainers
+/kernel/float64*                           @rocq-prover/number-maintainers
+/kernel/uint63*                            @rocq-prover/number-maintainers
+/plugins/syntax/g_number_string.mlg        @rocq-prover/number-maintainers
 /plugins/syntax/int63_syntax_plugin.mllib  @rocq-prover/number-maintainers
-/plugins/syntax/number.ml            @rocq-prover/number-maintainers
+/plugins/syntax/number.ml                  @rocq-prover/number-maintainers
 /plugins/syntax/number_string_notation_plugin.mllib  @rocq-prover/number-maintainers
-/test-suite/output/*Number*          @rocq-prover/number-maintainers
-/test-suite/primitive/float/         @rocq-prover/number-maintainers
-/test-suite/primitive/sint63/        @rocq-prover/number-maintainers
-/test-suite/primitive/uint63/        @rocq-prover/number-maintainers
-/theories/Corelib/Init/Decimal.v             @rocq-prover/number-maintainers
-/theories/Corelib/Init/Hexadecimal.v         @rocq-prover/number-maintainers
-/theories/Corelib/Init/Nat.v                 @rocq-prover/number-maintainers
-/theories/Corelib/Init/Number.v              @rocq-prover/number-maintainers
-/theories/Corelib/Numbers/                   @rocq-prover/number-maintainers
-/theories/Corelib/Floats/                    @rocq-prover/number-maintainers
+/test-suite/output/*Number*                @rocq-prover/number-maintainers
+/test-suite/primitive/float/               @rocq-prover/number-maintainers
+/test-suite/primitive/sint63/              @rocq-prover/number-maintainers
+/test-suite/primitive/uint63/              @rocq-prover/number-maintainers
+/theories/Corelib/Init/Decimal.v           @rocq-prover/number-maintainers
+/theories/Corelib/Init/Hexadecimal.v       @rocq-prover/number-maintainers
+/theories/Corelib/Init/Nat.v               @rocq-prover/number-maintainers
+/theories/Corelib/Init/Number.v            @rocq-prover/number-maintainers
+/theories/Corelib/Numbers/                 @rocq-prover/number-maintainers
+/theories/Corelib/Floats/                  @rocq-prover/number-maintainers
 
 ########## Tools ##########
+
+/tools/                   @rocq-prover/dev-tools-maintainers
+
+/tools/configure/*        @rocq-prover/build-maintainers
+/tools/coqdep/            @rocq-prover/build-maintainers
 
 /tools/coqdoc/            @rocq-prover/coqdoc-maintainers
 /test-suite/coqdoc/       @rocq-prover/coqdoc-maintainers
 /tools/coqwc*             @rocq-prover/coqdoc-maintainers
+/tools/rocqwc*            @rocq-prover/coqdoc-maintainers
 /test-suite/coqwc/        @rocq-prover/coqdoc-maintainers
 
 /tools/coq_makefile*      @rocq-prover/coq-makefile-maintainers
@@ -230,14 +246,16 @@
 /tools/TimeFileMaker.py   @rocq-prover/coq-makefile-maintainers
 /tools/make-*-tim*.py     @rocq-prover/coq-makefile-maintainers
 
-/tools/coq_tex*        @silene
+/tools/coq_tex*           @silene
+/tools/rocqtex*           @silene
 # Secondary maintainer @gares
 
 ########## Toplevel ##########
 
-/toplevel/   @rocq-prover/toplevel-maintainers
-/topbin/     @rocq-prover/toplevel-maintainers
-/sysinit/    @rocq-prover/toplevel-maintainers
+/toplevel/        @rocq-prover/toplevel-maintainers
+/topbin/          @rocq-prover/toplevel-maintainers
+/sysinit/         @rocq-prover/toplevel-maintainers
+/dev/ml_toplevel/ @rocq-prover/toplevel-maintainers
 
 ########## Vernacular ##########
 
@@ -258,10 +276,17 @@
 
 ########## Developer tools ##########
 
-/dev/tools/ @rocq-prover/dev-tools-maintainers
+/dev/tools/                 @rocq-prover/dev-tools-maintainers
+
+/dev/tools/make_git_revision.sh @rocq-prover/build-maintainers
+
+.gitattributes              @rocq-prover/dev-tools-maintainers
+.gitignore                  @rocq-prover/dev-tools-maintainers
+.ocp-indent                 @rocq-prover/dev-tools-maintainers
 
 ########## Dune  ##########
 
-/.ocamlinit  @rocq-prover/build-maintainers
-*dune*       @rocq-prover/build-maintainers
-*.opam       @rocq-prover/build-maintainers @erikmd
+/.ocamlinit      @rocq-prover/build-maintainers
+*dune*           @rocq-prover/build-maintainers
+*.opam           @rocq-prover/build-maintainers @Justme0606
+*.opam.template  @rocq-prover/build-maintainers @Justme0606
