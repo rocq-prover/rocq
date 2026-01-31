@@ -23,6 +23,7 @@ include Gramlib.Grammar.S
    and type 'a with_kwstate := 'a
    and type 'a with_estate := 'a
    and type 'a mod_estate := 'a
+   and type level := string
 
 module Lookahead : sig
   type t

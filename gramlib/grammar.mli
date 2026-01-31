@@ -26,6 +26,7 @@ type norec
 type mayrec
 
 module type S = sig
+  type level
   type keyword_state
   type te
   type 'c pattern
@@ -84,7 +85,7 @@ module type S = sig
 
     type ('self, 'trec, 'a) t
     val nterm : 'a Entry.t -> ('self, norec, 'a) t
-    val nterml : 'a Entry.t -> string -> ('self, norec, 'a) t
+    val nterml : 'a Entry.t -> level -> ('self, norec, 'a) t
     val list0 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
     val list0sep :
       ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
@@ -125,19 +126,19 @@ module type S = sig
   end
 
   type 'a single_extend_statement =
-    string option * Gramext.g_assoc option * 'a Production.t list
+    level option * Gramext.g_assoc option * 'a Production.t list
 
   type 'a extend_statement =
-  | Reuse of string option * 'a Production.t list
+  | Reuse of level option * 'a Production.t list
     (** Extend an existing level by its optional given name. If None, picks the topmost level. *)
-  | Fresh of Gramext.position * 'a single_extend_statement list
+  | Fresh of level Gramext.position * 'a single_extend_statement list
     (** Create a level at the given position. *)
 
   val generalize_symbol : ('a, 'tr, 'c) Symbol.t -> ('b, norec, 'c) Symbol.t option
 
   (* Used in custom entries, should tweak? *)
   (** If the symbol is [nterml] returns the level, otherwise [None] *)
-  val level_of_nonterm : _ Symbol.t -> string option
+  val level_of_nonterm : _ Symbol.t -> level option
 
 end
 
@@ -177,6 +178,13 @@ module type ExtS = sig
 
 end
 
+module type LevelS =
+sig
+  type t
+  val equal : t -> t -> bool
+  val print : t -> string
+end
+
 (** Signature type of the functor [Grammar.GMake]. The types and
     functions are almost the same than in generic interface, but:
     -      Grammars are not values. Functions holding a grammar as parameter
@@ -187,7 +195,8 @@ end
       type (instead of (string * string)); the module parameter
       must specify a way to show them as (string * string) *)
 
-module GMake (L : Plexing.S) : ExtS
+module GMake (L : Plexing.S) (Level : LevelS) : ExtS
   with type keyword_state := L.keyword_state
    and type te := L.te
    and type 'c pattern := 'c L.pattern
+   and type level := Level.t
