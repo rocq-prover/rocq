@@ -166,6 +166,7 @@ through the <tt>Require Import</tt> command.</p>
 
   <dt id="Compat"> <a href="#Compat"><b>Compat</b></a>:
     Compatibility wrappers for previous versions of Coq
+     and recommended options at the time of a given Rocq release
   </dt>
   <dd>
     theories/Corelib/Compat/Coq818.v
@@ -173,6 +174,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/Compat/Coq820.v
     theories/Corelib/Compat/Rocq90.v
     theories/Corelib/Compat/Rocq91.v
+    theories/Corelib/Compat/GoodDefaults_2025.v
     theories/Ltac2/Compat/Coq818.v
     theories/Ltac2/Compat/Coq819.v
   </dd>
