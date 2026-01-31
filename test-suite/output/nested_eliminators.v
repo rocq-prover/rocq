@@ -361,15 +361,15 @@ Module SortPoly.
   (* Example with a sort polymorphic containers *)
   Set Universe Polymorphism.
 
+  Set Depth Scheme All 2.
+
   Inductive list@{sA;uA uR} (A : Type@{sA;uA}) : Type@{sA; uR} :=
   | nil : list A
   | cons : A -> list A -> list A.
 
-  Scheme All for list.
   Print list_all.
   About list_all_forall.
 
-  Scheme All for list_all.
   Print list_all_all.
   About list_all_all_forall.
 
@@ -388,6 +388,8 @@ End SortPoly.
 
 
 Module TestWarning.
+
+  Set Depth Scheme All 0.
 
   Set Warnings "+register-all".
 
