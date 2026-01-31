@@ -8,6 +8,583 @@ Recent changes
 
    .. include:: ../unreleased.rst
 
+Version 9.2
+-----------
+
+.. contents::
+   :local:
+   :depth: 1
+
+Summary of changes
+~~~~~~~~~~~~~~~~~~
+
+We highlight some of the most impactful changes here:
+
+- Records in `Type` and `Prop`, with only fields in `SProp`,
+  can now have primitive projections but without eta conversion.
+- Reenable support for `native_compute` when compiled with OCaml 5.
+  As it relies on some architecture-specific code, only some x86 setups
+  are supported for now
+- Implicit elaboration of :ref:`elimination constraints <elim-constraints>`
+- Tactics such as :tacn:`induction` find eliminators (like `nat_rect`)
+  through the :cmd:`Register Scheme` table (which is automatically populated by :cmd:`Scheme` and automatic scheme declarations)
+  instead of by name (the lookup by name remains for now for backward compatibility)
+- congruence tactics now handle primitive ints, floats and strings
+- Induction hypotheses are now generated for nested arguments provided
+  a `All` predicate, and a theorem to prove it have been registered with
+  the keys `All` and `AllForall`.
+- Add a `Scheme All` command to generate the `All` predicate and its theorem
+  for inductive types used for the eliminators of nested inductive types
+- :cmd:`Ltac2 Custom Entry` making it possible to define more complex :cmd:`Ltac2 Notation`\s
+  and many other additions to Ltac2 (see below for details).
+  attribute :attr:`schemes` to control automatic scheme declaration
+  (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
+  fixes `#19480 <https://github.com/rocq-prover/rocq/issues/19480>`_,
+  by Gaëtan Gilbert).
+- Parsing of elimination constraints in prenex polymorphic definitions
+  as well as in constraints declaration :g:`Constraint s1 -> s2.`
+- A :cmd:`Create Rewrite HintDb` command to explicitly declare
+  rewrite hint databases
+- :cmd:`Scheme Rewriting` to explicitly declare rewriting schemes for a given inductive
+- :flag:`Printing Fully Qualified` to print all names (global references, modules,
+  module types, universes, etc) using fully qualified paths
+- Goal names can be automatically generated for :tacn:`induction`,
+  :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
+
+
+See the `Changes in 9.2.0`_ section below for the detailed list of changes,
+including potentially breaking changes marked with **Changed**.
+Rocq's `reference manual for 9.2 <https://rocq-prover.org/doc/v9.2/refman>`_,
+documentation of the 9.2 `corelib <https://rocq-prover.org/doc/v9.2/corelib>`__
+and `developer documentation of the 9.2 ML API <https://rocq-prover.org/doc/v9.2/api>`_
+are also available.
+
+Théo Zimmermann, with help from Jason Gross and Gaëtan Gilbert, maintained
+`coqbot <https://github.com/rocq-prover/bot>`__ used to run Rocq's CI and other
+pull request management tasks.
+
+Jason Gross maintained the `bug minimizer <https://github.com/JasonGross/coq-tools>`_
+and its `automatic use through coqbot <https://github.com/rocq-prover/rocq/wiki/Coqbot-minimize-feature>`_.
+
+Ali Caglayan, Emilio Jesús Gallego Arias, Rudi Grinberg and Rodolphe Lepigre maintained the
+`Dune build system for OCaml and Coq/Rocq <https://github.com/ocaml/dune/>`_
+used to build the Rocq Prover itself and many Rocq projects.
+
+The `opam repository <https://github.com/coq/opam>`_ for Rocq packages has been maintained by
+Guillaume Claret, Guillaume Melquiond, Karl Palmskog, Matthieu Sozeau
+and Enrico Tassi with contributions from many users. The up-to-date list
+of packages is `available on the Rocq website <https://rocq-prover.org/packages>`_.
+
+Erik Martin-Dorel maintained the
+`Rocq Docker images <https://hub.docker.com/r/rocq/rocq-prover>`_ and
+the `docker-keeper <https://gitlab.com/erikmd/docker-keeper>`_ compiler
+used to build and keep those images up to date (note that the tool is not Rocq specific).
+Erik Martin-Dorel and Théo Zimmermann maintained the
+`docker-coq-action <https://github.com/coq-community/docker-coq-action>`_
+container action (which is applicable to any opam project hosted on GitHub).
+
+Cyril Cohen, Vincent Laporte, Pierre Roux and Théo Zimmermann
+maintained the `Nix toolbox <https://github.com/coq-community/coq-nix-toolbox>`_.
+The docker-coq-action and the Nix toolbox are used by many Rocq projects for continuous integration.
+
+Rocq 9.2 was made possible thanks to the following 35 reviewers:
+Eric Bistal, Dan Christensen, Cyril Cohen, Pierre Corbineau, Pierre Courtieu,
+Julien Cretin, Tomás Díaz, Andres Erbsen, Jian Fang, Jim Fehrle, Gaëtan Gilbert,
+Jason Gross, Hugo Herbelin, Emilio Jesús Gallego Arias, Ralf Jung, Jan-Oliver Kaiser,
+Thomas Lamiaux, Olivier Laurent, Rodolphe Lepigre, Rodolphe Lepigre, Yann Leray,
+Kenji Maillard, Guillaume Melquiond, Guillaume Munch-Maccagnoni, Karl Palmskog,
+Clément Pit-Claudel, Pierre-Marie Pédrot, Pierre Rousselin, Pierre Roux, Radosław Rowicki,
+Matthieu Sozeau, Nicolas Tabareau, Enrico Tassi, Li-yao Xia, Théo Zimmermann.
+
+See the `Rocq Team <https://rocq-prover.org/rocq-team>`_ page for
+more details on Rocq's development teams.
+
+The 43 contributors to the 9.2 version are:
+CharlesCNorton, Ilan, JasonGross, JeanCASPAR, quarkcool, Lionel Blatter, Mathis Bouverot,
+Jeffrey Chang, Owen Conoly, Quentin Corradi, Julien Cretin, Tomás Díaz, Andres Erbsen,
+Jim Fehrle, Gaëtan Gilbert, Jason Gross, Dario Halilovic, Hugo Herbelin,
+Emilio Jesús Gallego Arias, Jan-Oliver Kaiser, Thomas Lamiaux, Rodolphe Lepigre,
+Yann Leray, Gregory Malecha, Bruno Martinez, Guillaume Melquiond, Jan Midtgaard,
+Patrick Nicodemus, Charles Norton, Claude Opus 4.5, Clément Pit-Claudel, Pierre-Marie Pédrot,
+Johann Rosain, Dan Rostovtsev, Pierre Rousselin, Pierre Roux, Matthieu Sozeau, Nicolas Tabareau,
+Enrico Tassi, Laurent Thery, Quentin Vermande, Théo Winterhalter, Théo Zimmermann.
+
+The Rocq community at large helped improve this new version via
+the GitHub issue and pull request system,
+the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
+`Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
+
+Nicolas Tabareau is the release managers of Rocq 9.2.
+This release is the result of 397 merged PRs, closing 56 issues.
+
+| Nantes, MArch 2026
+| Nicolas Tabareau for the Rocq development team
+
+Changes in 9.2.0
+~~~~~~~~~~~~~~~~
+
+.. contents::
+   :local:
+
+
+Kernel
+^^^^^^
+
+- **Changed:**
+  Records in `Type` and `Prop`, with only fields in `SProp`,
+  can now have primitive projections but without eta conversion.
+  (`#21438 <https://github.com/rocq-prover/rocq/pull/21438>`_,
+  by Tomas Diaz).
+- **Changed:**
+  Error messages for module signature mismatches and "with Definition"
+  constraint failures are now more detailed
+  (`#21465 <https://github.com/rocq-prover/rocq/pull/21465>`_,
+  fixes `#21464 <https://github.com/rocq-prover/rocq/issues/21464>`_,
+  by Jason Gross).
+- **Changed:**
+  Reenable support for `native_compute` when compiled with OCaml 5. As it relies on some architecture-specific code, only some x86 setups are supported for now
+  (`#21540 <https://github.com/rocq-prover/rocq/pull/21540>`_,
+  fixes `#13940 <https://github.com/rocq-prover/rocq/issues/13940>`_,
+  by Guillaume Melquiond).
+- **Removed:**
+  the ability to define monomorphic sorts within sections
+  (`#21451 <https://github.com/rocq-prover/rocq/pull/21451>`_,
+  by Pierre-Marie Pédrot).
+
+Specification language, type inference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Added:**
+  when a reference is not found in the current environment, the error suggests similar names
+  (`#20662 <https://github.com/rocq-prover/rocq/pull/20662>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  implicit elaboration of :ref:`elimination constraints <elim-constraints>`
+  (`#21417 <https://github.com/rocq-prover/rocq/pull/21417>`_,
+  by Tomas Diaz).
+
+Notations
+^^^^^^^^^
+
+- **Changed:**
+  :cmd:`Abbreviation` no longer adds a printing rule when a surrounding module is imported
+  (i.e. when it would need to print a qualified name). :attr:`global` can be used
+  to retrieve the previous behavior
+  (`#20816 <https://github.com/rocq-prover/rocq/pull/20816>`_,
+  fixes `#20668 <https://github.com/rocq-prover/rocq/issues/20668>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`custom entry <Declare Custom Entry>` names are now qualified.
+  A compatibility layer provides deprecated access with unqualified names without needing to import their module, as long as it is unambiguous
+  (`#20857 <https://github.com/rocq-prover/rocq/pull/20857>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  the ``notation-incompatible-prefix`` no longer warns about
+  common prefixes followed by terminal symbols. For instance
+  ``"x #0`` and ``"x #0 #1"`` are not incompatible since our
+  parser isn't exactly LL1, considering successive terminal
+  symbols as a single token. Note that this change has an
+  impact on the default levels of such notations
+  (`#21159 <https://github.com/rocq-prover/rocq/pull/21159>`_,
+  by Pierre Roux).
+- **Deprecated:**
+  use of "Notation" keyword for :cmd:`abbreviations <Abbreviation>`,
+  use "Abbreviation" instead
+  (`#20855 <https://github.com/rocq-prover/rocq/pull/20855>`_,
+  by Pierre Roux).
+- **Added:**
+  a warning for non closed notations at level 0
+  (`#21107 <https://github.com/rocq-prover/rocq/pull/21107>`_,
+  by Pierre Roux).
+
+Tactics
+^^^^^^^
+
+- **Changed:**
+  tactics such as :tacn:`induction` find eliminators (like `nat_rect`)
+  through the :cmd:`Register Scheme` table (which is automatically populated by :cmd:`Scheme` and automatic scheme declarations)
+  instead of by name (the lookup by name remains for now for backward compatibility)
+  (`#20614 <https://github.com/rocq-prover/rocq/pull/20614>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  type class hints without hypotheses used via functor
+  applications are applied with their type from the module
+  type rather than the module instance
+  (`#21193 <https://github.com/rocq-prover/rocq/pull/21193>`_,
+  by Pierre-Marie Pédrot).
+- **Removed:**
+  the implicit call to `auto with *` in intuition solver, that
+  was deprecated since 8.17
+  (`#21129 <https://github.com/rocq-prover/rocq/pull/21129>`_,
+  fixes `#4949 <https://github.com/rocq-prover/rocq/issues/4949>`_,
+  by Pierre-Marie Pédrot).
+- **Removed:**
+  the `destauto` tactic, which was deprecated in 8.20
+  (`#21172 <https://github.com/rocq-prover/rocq/pull/21172>`_,
+  fixes `#11537 <https://github.com/rocq-prover/rocq/issues/11537>`__,
+  by Pierre-Marie Pédrot).
+- **Deprecated:**
+  tactics such as :tacn:`induction` finding eliminators (like `nat_rect`) by name
+  instead of through the :cmd:`Register Scheme` table (which is automatically populated by :cmd:`Scheme` and automatic scheme declarations)
+  (`#20614 <https://github.com/rocq-prover/rocq/pull/20614>`_,
+  by Gaëtan Gilbert).
+- **Deprecated:**
+  dynamically generating schemes when needed in tactics.
+  This was mostly used for rewriting and equality schemes of the registered equality type
+  (`eq` when using the Corelib) for tactics such as :tacn:`discriminate`.
+  These schemes are now explicitly declared for `eq` in the Corelib
+  (`#21245 <https://github.com/rocq-prover/rocq/pull/21245>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  congruence tactics now handle primitive ints, floats and strings
+  (`#20810 <https://github.com/rocq-prover/rocq/pull/20810>`_,
+  fixes `#20011 <https://github.com/rocq-prover/rocq/issues/20011>`_,
+  by Pierre-Marie Pédrot).
+- **Added:**
+  Induction hypotheses are now generated for nested arguments provided
+  a `All` predicate, and a theorem to prove it have been registered with
+  the keys `All` and `AllForall`.
+  (`#21356 <https://github.com/rocq-prover/rocq/pull/21356>`_,
+  by Thomas Lamiaux).
+- **Added:**
+  Add a `Scheme All` command to generate the `All` predicate and its theorem
+  for inductive types used for the eliminators of nested inductive types
+  (`#21429 <https://github.com/rocq-prover/rocq/pull/21429>`_,
+  by Thomas Lamiaux).
+- **Fixed:**
+  ``setoid_rewrite`` now correctly picks up ``Params`` instances when rewriting in ``Type``
+  (`#20045 <https://github.com/rocq-prover/rocq/pull/20045>`_,
+  fixes `#20044 <https://github.com/rocq-prover/rocq/issues/20044>`_,
+  by quarkcool).
+- **Fixed:**
+  a sequence `Import M. Remove Hints h. Import M.` where `M` exports hints `h` would not re-add `h` after its removal
+  (`#20698 <https://github.com/rocq-prover/rocq/pull/20698>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  Canonical structure resolution in tactic unification in presence of
+  universe polymorphism (`#20780 <https://github.com/rocq-prover/rocq/pull/20780>`_,
+  fixes `#20779 <https://github.com/rocq-prover/rocq/issues/20779>`_,
+  by Matthieu Sozeau).
+- **Fixed:**
+  rewrite hints are controlled by the `hints` import category
+  (`#21108 <https://github.com/rocq-prover/rocq/pull/21108>`_,
+  fixes `#21106 <https://github.com/rocq-prover/rocq/issues/21106>`_,
+  by Gaëtan Gilbert).
+
+Ltac2 language
+^^^^^^^^^^^^^^
+
+- **Changed:**
+  :cmd:`Ltac2 Notation` without an explicit level puts the notation at level `1` instead of `5`
+  when it starts with a string which is an identifier.
+  Various notations have consequently changed level (e.g. `apply`).
+  (`#20759 <https://github.com/rocq-prover/rocq/pull/20759>`_,
+  fixes `#20616 <https://github.com/rocq-prover/rocq/issues/20616>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  well parenthesized notations (`match!`, `lazy_match!`, etc) are now at level `0` instead of `5`,
+  and `now` is at level `1` instead of `6` (its argument is still at level `6`)
+  (`#20759 <https://github.com/rocq-prover/rocq/pull/20759>`_,
+  by Gaëtan Gilbert).
+- **Deprecated:**
+  use of "Notation" keyword for :cmd:`abbreviations <Ltac2 Abbreviation>`,
+  use "Abbreviation" instead
+  (`#20855 <https://github.com/rocq-prover/rocq/pull/20855>`_,
+  by Pierre Roux).
+- **Deprecated:**
+  syntactic classes parsing terms (`constr`, `lconstr`, etc.)
+  taking more than one :n:`@scope_key` argument without qualifying it with `delimiters`
+  (e.g. `constr(type, function)` should be `constr(delimiters(type, function))`
+  but a single argument like `constr(type)` is not deprecated).
+  See :n:`@ltac2_constr_synclass_arg`
+  (`#21285 <https://github.com/rocq-prover/rocq/pull/21285>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :cmd:`Ltac2 Custom Entry` making it possible to define more complex :cmd:`Ltac2 Notation`\s
+  (`#20561 <https://github.com/rocq-prover/rocq/pull/20561>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  ``Ltac2.Reference.equal``
+  (`#20794 <https://github.com/coq/coq/pull/20794>`_,
+  by Pierre Rousselin).
+- **Added:**
+  :cmd:`Ltac2 Set` supports :attr:`local` and :attr:`export`
+  (the default behaviour of `local` in sections and `export` outside sections has not changed)
+  (`#20882 <https://github.com/rocq-prover/rocq/pull/20882>`_,
+  fixes `#20879 <https://github.com/rocq-prover/rocq/issues/20879>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  ``Ltac2.Option.filter``
+  (`#21023 <https://github.com/rocq-prover/rocq/pull/21023>`_,
+  by Jason Gross).
+- **Added:**
+  :ref:`syntactic class <syntactic_classes>` `lpreterm` parsing terms
+  at precedence levl 200 and interpreting them as preterms
+  (`#21094 <https://github.com/rocq-prover/rocq/pull/21094>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  `Ltac2.Message.of_lconstr` to print terms without surrounding parentheses
+  (`#21096 <https://github.com/rocq-prover/rocq/pull/21096>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  module `Ltac2.Constr.Relevance` for APIs about proof relevance annotations
+  (`#21162 <https://github.com/rocq-prover/rocq/pull/21162>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  APIs for module introspection in `Ltac2.Module`
+  (`#21178 <https://github.com/rocq-prover/rocq/pull/21178>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :ref:`syntactic_classes` parsing terms support parsing at a specific level
+  and parsing :ref:`custom-entries`
+  (`#21215 <https://github.com/rocq-prover/rocq/pull/21215>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  `Ltac2.Unification.solve_constraints` (cf :tacn:`solve_constraints`)
+  (`#21222 <https://github.com/rocq-prover/rocq/pull/21222>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  `Ltac2.Constant.print`, `Ltac2.Ind.print`, `Ltac2.Constructor.print`,
+  `Ltac2.Proj.print`, `Ltac2.Ident.print`, `Ltac2.Message.of_preterm`
+  (`#21239 <https://github.com/rocq-prover/rocq/pull/21239>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  APIs `Control.print_err` and `Control.print_exn` which may be used to customize printing of Ltac2 errors
+  (`#21252 <https://github.com/rocq-prover/rocq/pull/21252>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :cmd:`Ltac2 Set` supports attribute :attr:`global`
+  (`#21264 <https://github.com/rocq-prover/rocq/pull/21264>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :flag:`Ltac2 Backtrace Compact` to reduce the output of :flag:`Ltac2 Backtrace`
+  (`#21299 <https://github.com/rocq-prover/rocq/pull/21299>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  `Message.of_exninfo` and `Control.current_exninfo`
+  (`#21334 <https://github.com/rocq-prover/rocq/pull/21334>`_,
+  fixes `#21312 <https://github.com/rocq-prover/rocq/issues/21312>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  associativity of `::` in Ltac2 `match` patterns (:n:`@tac2pat2`)
+  (`#21054 <https://github.com/rocq-prover/rocq/pull/21054>`_,
+  fixes `#21045 <https://github.com/rocq-prover/rocq/issues/21045>`_,
+  by Gaëtan Gilbert).
+
+SSReflect
+^^^^^^^^^
+
+- **Changed:**
+  rewrite pattern selection algorithm made more robust in face of changes
+  to implicit arguments shape. This changes can result in a different
+  pattern selection in some corner cases.
+  The option `Set SsrMatching LegacyFoUnif` can be used to obtain the
+  previous behavior when repairing scripts
+  (`#20707 <https://github.com/rocq-prover/rocq/pull/20707>`_,
+  fixes `#16763 <https://github.com/rocq-prover/rocq/issues/16763>`_,
+  by Enrico Tassi with help from Georges Gonthier, Pierre Roux and
+  Quentin Vermande).
+- **Changed:**
+  level of notation ``'Under[ _ ]`` in `ssrunder.v` from 8 to 0
+  (`#21107 <https://github.com/rocq-prover/rocq/pull/21107>`_,
+  by Pierre Roux).
+- **Changed:**
+  level of ``tactic => intro_pattern`` notation to a left-associative
+  notation level with higher priority than level 3, rather than being
+  repeated in levels 3 (right-associative) and 4 (left-associative)
+  (`#21244 <https://github.com/rocq-prover/rocq/pull/21244>`_,
+  by Pierre Roux).
+
+Commands and options
+^^^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  Default patterns displayed by :cmd:`Print HintDb` now show
+  pattern holes using the name from the original theorem
+  (e.g. :n:`?n` instead of :n:`?M3135`)
+  (`#20827 <https://github.com/rocq-prover/rocq/pull/20827>`_,
+  by Jim Fehrle).
+- **Changed:**
+  :cmd:`Show` and :n:`Show goalnum` now show diffs (if enabled) in rocqtop.
+  Added :cmd:`Show Diffs` :n:`goalname` to show diffs for a named goal.
+  For emacs support; still no diffs shown for these commands in other
+  IDEs
+  (`#21103 <https://github.com/rocq-prover/rocq/pull/21103>`_,
+  fixes `#20793 <https://github.com/rocq-prover/rocq/issues/20793>`_,
+  by Jim Fehrle).
+- **Changed:**
+  `_rec` schemes are not defined using `_rect` schemes anymore.
+  In particular `eq_rec` is not defined using `eq_rect`
+  (`#21241 <https://github.com/rocq-prover/rocq/pull/21241>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  Generalize :cmd:`Register Scheme` from constants to constants, or inductive types, or constructors
+  (`#21326 <https://github.com/rocq-prover/rocq/pull/21326>`_,
+  by Thomas Lamiaux).
+- **Changed:**
+  :cmd:`Derive` names the existential variables it generates according using the name of the constant they will define
+  (e.g. `Derive X in X as x` binds `X` to an evar named `?X` instead of an anonymous evar (which would print as `?Goal`))
+  (`#21332 <https://github.com/rocq-prover/rocq/pull/21332>`_,
+  by Gaëtan Gilbert).
+- **Changed:**
+  Generalized universe polymorphism flag structure (ML API change)
+  (`#21419 <https://github.com/rocq-prover/rocq/pull/21419>`_,
+  by Matthieu Sozeau).
+- **Changed:**
+  :cmd:`Print Assumptions` now recurses into the types of axioms
+  (`#21437 <https://github.com/rocq-prover/rocq/pull/21437>`_,
+  fixes `#21436 <https://github.com/rocq-prover/rocq/issues/21436>`_,
+  by Jason Gross).
+- **Changed:**
+  :cmd:`Print Assumptions`, :cmd:`Print Opaque Dependencies`, :cmd:`Print
+  Transparent Dependencies`, and :cmd:`Print All Dependencies` now accept lists
+  of globals instead of single references
+  (`#21477 <https://github.com/rocq-prover/rocq/pull/21477>`_,
+  by Jason Gross).
+- **Removed:**
+  flag `Loose Hint Behavior` which appears to have behaved as `Strict` regardless of how it was set for the last few versions
+  (`#20698 <https://github.com/rocq-prover/rocq/pull/20698>`_,
+  by Gaëtan Gilbert).
+- **Deprecated:**
+  implicitly creating hint databases when declaring hints.
+  (`#21114 <https://github.com/rocq-prover/rocq/pull/21114>`_,
+  fixes `#4117 <https://github.com/rocq-prover/rocq/issues/4117>`_,
+  by Pierre-Marie Pédrot).
+- **Deprecated:**
+  creating implicitly rewrite hint databases through the
+  :cmd:`Hint Rewrite` command. One must now do it explicitly
+  through :cmd:`Create Rewrite HintDb`
+  (`#21206 <https://github.com/rocq-prover/rocq/pull/21206>`_,
+  by Pierre-Marie Pédrot).
+- **Added:**
+  Additional documentation of Create HintDb (discriminated), proof search
+  tactic performance, matching process and hint transparency
+  (`#19761 <https://github.com/rocq-prover/rocq/pull/19761>`_,
+  by Jim Fehrle).
+- **Added:**
+  attribute :attr:`schemes` to control automatic scheme declaration
+  (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
+  fixes `#19480 <https://github.com/rocq-prover/rocq/issues/19480>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Parsing of elimination constraints in prenex polymorphic definitions
+  as well as in constraints declaration :g:`Constraint s1 -> s2.`
+  (`#21195 <https://github.com/rocq-prover/rocq/pull/21195>`_,
+  by Johann Rosain).
+- **Added:**
+  a :cmd:`Create Rewrite HintDb` command to explicitly declare
+  rewrite hint databases
+  (`#21203 <https://github.com/rocq-prover/rocq/pull/21203>`_,
+  by Pierre-Marie Pédrot).
+- **Added:**
+  :cmd:`Scheme Rewriting` to explicitly declare rewriting schemes for a given inductive
+  (`#21248 <https://github.com/rocq-prover/rocq/pull/21248>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :flag:`Printing Fully Qualified` to print all names (global references, modules,
+  module types, universes, etc) using fully qualified paths
+  (`#21443 <https://github.com/rocq-prover/rocq/pull/21443>`_,
+  fixes `#11852 <https://github.com/rocq-prover/rocq/issues/11852>`_,
+  by Jason Gross).
+- **Fixed:**
+  Properly test for duplicate names in mutual blocks
+  (`#21082 <https://github.com/rocq-prover/rocq/pull/21082>`_,
+  fixes `#20766 <https://github.com/rocq-prover/rocq/issues/20766>`_,
+  by Yann Leray).
+- **Fixed:**
+  Fix Derive command to handle dependent types correctly
+  (`#21313 <https://github.com/rocq-prover/rocq/pull/21313>`_,
+  fixes `#21292 <https://github.com/rocq-prover/rocq/issues/21292>`_,
+  by copilot-swe-agent[bot]).
+- **Fixed:** fallback printing of inductives using
+  ``<inductive:Foo:0>`` should be rarer (it should in any case only
+  happen rarely from module errors) (`#21473
+  <https://github.com/rocq-prover/rocq/pull/21473>`_, by Jason Gross).
+
+Command-line tools
+^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  in ``-emacs`` mode, goals are no longer spontaneously printed
+  (`#21038 <https://github.com/rocq-prover/rocq/pull/21038>`_,
+  fixes `#21035 <https://github.com/rocq-prover/rocq/issues/21035>`_,
+  by Pierre Roux).
+- **Changed:**
+  `rocq compile` does not create empty `.vos` and `.vok` files anymore,
+  their creation is left to the makefile generated by `rocq makefile`.
+  Other build system may choose to create these empty files at their discretion
+  (`#21548 <https://github.com/rocq-prover/rocq/pull/21548>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  :ref:`rocq doc <rocqdoc>` replaces `@@TITLE@@` with the page title in custom HTML headers
+  (`#20907 <https://github.com/rocq-prover/rocq/pull/20907>`_,
+  fixes `#2511 <https://github.com/rocq-prover/rocq/issues/2511>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  ``rocq dep`` now handles non .vo dependencies from the ``ROCQPATH``
+  environment variable
+  (`#20878 <https://github.com/rocq-prover/rocq/pull/20878>`_,
+  fixes `#20835 <https://github.com/rocq-prover/rocq/issues/20835>`_,
+  by Gaëtan Gilbert).
+
+Corelib
+^^^^^^^
+
+- **Changed:**
+  Level of ``_~0`` and ``_~1`` reserved notations (used for positive
+  numbers) from level 7 to level 1
+  (`#17876 <https://github.com/rocq-prover/rocq/pull/17876>`_,
+  by Pierre Roux).
+- **Changed:**
+  level of postfix notations in `PrimArray` to level 1
+  (`#21211 <https://github.com/rocq-prover/rocq/pull/21211>`_,
+  by Pierre Roux).
+- **Changed:**
+  rewriting schemes for `eq·` and `eq_true` are explicitly declared in `Init.Logic`
+  instead of dynamically when a tactic needs them.
+  For instance `EqdepFacts.internal_eq_rew_dep` does not exist anymore and instead `Logic.eq_rew_dep` is available
+  (`#21248 <https://github.com/rocq-prover/rocq/pull/21248>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  a slightly more general variant of Fix_eq which is sometimes more convenient
+  (`#20018 <https://github.com/rocq-prover/rocq/pull/20018>`_,
+  by Owen Conoly).
+
+Infrastructure and dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Extraction
+^^^^^^^^^^
+
+- **Fixed:**
+  Added "effect" as a recognized keyword for ocaml extraction
+  (`#21350 <https://github.com/rocq-prover/rocq/pull/21350>`_,
+  fixes `#21176 <https://github.com/rocq-prover/rocq/issues/21176>`_,
+  by Dan Rostovtsev).
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- **Changed:**
+  The unification algorithm (evarconv) may need to unfold its two input terms to succeed. Now, when one of the terms is an evar, it instantiates it with the folded version of the other term. In other words, tactics now unfold less than before, which may change the behavior of subsequent tactics.
+  (`#19987 <https://github.com/rocq-prover/rocq/pull/19987>`_,
+  by Quentin Vermande).
+- **Changed:**
+  Hypotheses of generated induction schemes use the constructor name instead of `f`, `f0`, etc
+  (`#20813 <https://github.com/rocq-prover/rocq/pull/20813>`_,
+  by Dario Halilovic).
+- **Changed:**
+  use `Gc.ramp_up` while executing :cmd:`Require` on OCaml 5.4 and later.
+  This should partially mitigate the performance lost since OCaml 4.14
+  (`#21306 <https://github.com/rocq-prover/rocq/pull/21306>`_,
+  by Gaëtan Gilbert).
+- **Added:**
+  Goal names can be automatically generated for :tacn:`induction`,
+  :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
+  (`#20809 <https://github.com/rocq-prover/rocq/pull/20809>`_,
+  by Dario Halilovic).
+
+
 Version 9.1
 -----------
 

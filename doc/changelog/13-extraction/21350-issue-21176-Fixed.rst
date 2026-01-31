@@ -1,5 +1,0 @@
-- **Fixed:**
-  Added "effect" as a recognized keyword for ocaml extraction
-  (`#21350 <https://github.com/rocq-prover/rocq/pull/21350>`_,
-  fixes `#21176 <https://github.com/rocq-prover/rocq/issues/21176>`_,
-  by Dan Rostovtsev).
