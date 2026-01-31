@@ -1,8 +1,9 @@
-File "./output/bug_20242.v", line 5, characters 49-60:
+File "./output/bug_20242.v", line 6, characters 52-63:
 The command has indeed failed with message:
-Signature components for field B do not match: expected type
-"foo@{Type ; A.A.u0} bug_20242.B.A" but found type
-"foo@{SProp ; bug_20242.26} bug_20242.B.A".
+Signature components for field B do not match:
+conversion of polymorphic values generates additional constraints: 
+""foo@{Type ; Set} bug_20242.B.A@{Var(0)}"" compared to 
+""foo@{Type ; Var(0)} bug_20242.B.A@{Var(0)}"".
 Error: The module B needs to be closed.
 
 
