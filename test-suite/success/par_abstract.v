@@ -4,7 +4,6 @@ Lemma foo : True * Type.
 Proof.
   split.
   par: abstract (exact I || exact T).
-  Set Debug "univMinim". (* FIXME: non optimal minimisation, probably due to univ merges with UnivRigid *)
 Defined.
 
 (* Yes, these names are generated hence
