@@ -1571,7 +1571,9 @@ let restrict_uctx uctx keep =
     uctx'
 
 let restrict uctx vars =
-  let vars = Level.Set.union uctx.local_variables vars in
+  let vars =
+    Id.Map.fold (fun id l vars -> Level.Set.add l vars) (snd (fst uctx.names)) vars
+  in
   restrict_uctx uctx vars
 
 let restrict_even_binders uctx vars = restrict_uctx uctx vars
