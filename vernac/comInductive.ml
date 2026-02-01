@@ -651,7 +651,11 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~a
                 ~cumulative:(PolyFlags.cumulative poly) env_ar_params sigma ~udecl
                 ~params:ctx_params ~arities ~constructors in
   let sigma = Evd.minimize_universes_no_collapse sigma in
+  let arities = List.map Evarutil.(nf_evar sigma) arities in
+  let constructors = List.map (on_snd (List.map (Evarutil.nf_evar sigma))) constructors in
+  let ctx_params = Evarutil.nf_rel_context_evar sigma ctx_params in
   let sigma = restrict_inductive_universes sigma ctx_params arities constructors in
+  (* This sigma has no subsititution for universes that were removed by restriction, hence the [nf_evar] calls above. *)
 
   let sigma, univ_entry, ubinders, global_univs =
     inductive_univs sigma ~user_template:template ~poly udecl

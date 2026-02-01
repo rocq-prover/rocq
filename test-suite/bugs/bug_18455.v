@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 Set Implicit Arguments.
-Cumulative Record prod@{s;*a *b|} (A : Type@{s;a}) (B : Type@{s;b}) : Type@{s;max(a,b)} := pair {
+Cumulative Record prod@{s;a b|} (A : Type@{s;a}) (B : Type@{s;b}) : Type@{s;max(a,b)} := pair {
   fst : A;
   snd : B
   }.
