@@ -25,7 +25,6 @@ open Context.Rel.Declaration
 open Entries
 open EConstr
 
-let debug = CDebug.create ~name:"comInductive"()
 module RelDecl = Context.Rel.Declaration
 
 type flags = {
@@ -169,7 +168,7 @@ let model_conclusion env sigma ind_rel params n arity_indices =
       arity_indices (sigma, []) in
   sigma, mkApp (mkApp (model_head, model_params), Array.of_list (List.rev model_indices))
 
-let interp_cstrs env (sigma, ind_rel) impls params ind arity =
+let interp_cstrs ~poly env (sigma, ind_rel) impls params ind arity =
   let cnames,ctyps = List.split ind.ind_lc in
   let arity_indices, cstr_sort = Reductionops.splay_arity env sigma arity in
   (* Interpret the constructor types *)
@@ -177,7 +176,8 @@ let interp_cstrs env (sigma, ind_rel) impls params ind arity =
     let flags =
       Pretyping.{ all_no_fail_flags with
                   use_typeclasses = UseTCForConv;
-                  solve_unification_constraints = false }
+                  solve_unification_constraints = false;
+                  poly }
     in
     let sigma, (ctyp, cimpl) = interp_type_evars_impls ~flags env sigma ~impls ctyp in
     let ctx, concl = Reductionops.whd_decompose_prod_decls env sigma ctyp in
@@ -627,7 +627,6 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~a
     template;
     finite;
   } = flags in
-  debug Pp.(fun () -> str"interp_mutual, cumulative = " ++ bool (PolyFlags.cumulative poly));
   (* Compute renewed arities *)
   let ctor_args =  List.map (fun (_,tys) ->
       List.map (fun ty ->
@@ -767,7 +766,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
         (* Interpret the constructor types *)
         List.fold_left2_map
           (fun (sigma, ind_rel) ind arity ->
-            interp_cstrs env_ar_params (sigma, ind_rel) impls ctx_params_lifted
+            interp_cstrs ~poly:flags.poly env_ar_params (sigma, ind_rel) impls ctx_params_lifted
               ind (EConstr.Vars.liftn ninds (Rel.length ctx_params + 1) arity))
           (sigma, ninds) indl arities)
       ()
