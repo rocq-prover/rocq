@@ -211,13 +211,14 @@ let rewrite_db = "rewrite_instances"
 let tclNOTSAMEGOAL tac =
   let goal gl = Proofview.Goal.goal gl in
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let ev = goal gl in
     tac >>= fun () ->
     Proofview.Goal.goals >>= fun gls ->
     let check accu gl' =
       gl' >>= fun gl' ->
-      let accu = accu || Proofview.Progress.goal_equal
+      let accu = accu || Proofview.Progress.goal_equal env
                             ~evd:sigma ~extended_evd:(Proofview.Goal.sigma gl') ev (goal gl')
       in
       Proofview.tclUNIT accu

@@ -946,14 +946,16 @@ let () =
 let to_bool = function
   Result.Ok _ -> true | Result.Error () -> false
 
-let conv_inst u1 u2 state =
-  if UGraph.check_eq_instances Sorts.Quality.equal state u1 u2 then Result.Ok state else Result.Error ()
-let cumul_inst ~nargs cv_pb variances u1 u2 (univs as gs) =
-  if check_cumul_instances_univs Sorts.Quality.equal ~flex:false cv_pb ~nargs variances u1 u2 univs then Result.Ok gs else Result.Error ()
+let conv_inst qeq u1 u2 state =
+  if UGraph.check_eq_instances qeq state u1 u2 then Result.Ok state else Result.Error ()
+let cumul_inst qeq ~nargs cv_pb variances u1 u2 (univs as gs) =
+  if check_cumul_instances_univs qeq ~flex:false cv_pb ~nargs variances u1 u2 univs then Result.Ok gs else Result.Error ()
 
-let cumul_head_instances env univs cv_pb head u1 u2 =
+let cumul_head_instances_gen env qeq univs cv_pb head u1 u2 =
   match head with
   | Some (gr, nargs) ->
+    let conv_inst = conv_inst qeq in
+    let cumul_inst = cumul_inst qeq in
     debug Pp.(fun () -> str"cumul_head_instances for " ++ GlobRef.print gr ++ str " applied to " ++ int nargs ++ str "arguments");
     let nargs = UVars.NumArgs nargs in
     (try match gr with
@@ -963,9 +965,12 @@ let cumul_head_instances env univs cv_pb head u1 u2 =
       to_bool @@ UCompare.convert_inductives_gen conv_inst cumul_inst env cv_pb ind ~nargs u1 u2 univs
     | GlobRef.ConstructRef cst ->
       to_bool @@ UCompare.convert_constructors_gen conv_inst cumul_inst env cst ~nargs u1 u2 univs
-    | GlobRef.VarRef _ -> UGraph.check_eq_instances Sorts.Quality.equal univs u1 u2
+    | GlobRef.VarRef _ -> UGraph.check_eq_instances qeq univs u1 u2
     with UCompare.MustExpand -> false)
-  | None -> UGraph.check_eq_instances Sorts.Quality.equal univs u1 u2
+  | None -> UGraph.check_eq_instances qeq univs u1 u2
+
+let cumul_head_instances env univs cv_pb head u1 u2 =
+  cumul_head_instances_gen env Sorts.Quality.equal univs cv_pb head u1 u2
 
 let eq_existential eq (evk1, args1) (evk2, args2) =
   Evar.equal evk1 evk2 && SList.equal eq args1 args2

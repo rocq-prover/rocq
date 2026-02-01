@@ -170,11 +170,12 @@ val kind_of_term_upto : evar_map -> Constr.constr ->
     [u] is interpreted in [extended_evd]. The universe constraints in
     [extended_evd] are assumed to be an extension of those in [evd]. *)
 val eq_constr_univs_test :
-    evd:Evd.evar_map ->
-    extended_evd:Evd.evar_map ->
-    constr ->
-    constr ->
-    bool
+  Environ.env ->
+  evd:Evd.evar_map ->
+  extended_evd:Evd.evar_map ->
+  constr ->
+  constr ->
+  bool
 
 type compare_result =
   | UnivInconsistency of UGraph.univ_inconsistency
