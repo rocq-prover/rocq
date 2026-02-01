@@ -1,7 +1,7 @@
 
 Record foo := { f : Type }.
 
-Fail Canonical Structure xx@{} := {| f := Type@{_} |}.
+Fail Canonical Structure xx@{} := {| f := Type@{*} |}.
 
 Canonical Structure xx@{i} := {| f := Type@{i} |}.
 
