@@ -354,10 +354,9 @@ let () =
   let interp _ist tac =
     (* XXX should we be doing something with the ist? *)
     let tac = Tac2interp.(interp empty_environment) tac in
-    Proofview.tclBIND tac (fun _ ->
-        Ftactic.return (Geninterp.Val.inject (Geninterp.val_tag (topwit Stdarg.wit_unit)) ()))
+    Proofview.tclIGNORE tac
   in
-  Geninterp.register_interp0 wit_ltac2_tac interp
+  Gentactic.register_interp wit_ltac2_tac interp
 
 let () =
   let interp env sigma ist (kind,id) =
@@ -443,8 +442,7 @@ let () =
       Tac2print.pr_rawexpr_gen ~avoid:Id.Set.empty E5 e)
   in
   let pr_glb e = Genprint.PrinterBasic (fun _ _ -> Tac2print.pr_glbexpr ~avoid:Id.Set.empty e) in
-  let pr_top () = assert false in
-  Genprint.register_print0 wit_ltac2_tac pr_raw pr_glb pr_top
+  Gentactic.register_print wit_ltac2_tac pr_raw pr_glb
 
 (** Built-in notation entries *)
 
