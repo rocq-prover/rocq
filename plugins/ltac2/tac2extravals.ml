@@ -11,7 +11,6 @@
 open Util
 open Pp
 open Names
-open Genarg
 open Tac2ffi
 open Tac2env
 open Tac2expr
@@ -34,8 +33,8 @@ let gtypref kn = GTypRef (Other kn, [])
 
 let of_glob_constr (c:Glob_term.glob_constr) =
   match DAst.get c with
-  | GGenarg (GenArg (Glbwit tag, v)) ->
-    begin match genarg_type_eq tag wit_ltac2_var_quotation with
+  | GGenarg (Glb (tag, v)) ->
+    begin match GenConstr.eq tag wit_ltac2_var_quotation with
     | Some Refl ->
       begin match (fst v) with
       | ConstrVar -> GlbTacexpr (GTacVar (snd v))
@@ -390,7 +389,7 @@ let () =
         | HypVar -> str "hyp:"
       in
       str "$" ++ ppkind ++ Id.print id) in
-  Genprint.register_noval_print0 wit_ltac2_var_quotation pr_raw pr_glb
+  Genprint.register_constr_print wit_ltac2_var_quotation pr_raw pr_glb
 
 let () =
   let subs ntnvars globs (ids, tac as orig) =
@@ -434,7 +433,7 @@ let () =
     *)
     Genprint.PrinterBasic Pp.(fun _env _sigma -> ids ++ Tac2print.pr_glbexpr ~avoid:Id.Set.empty e)
   in
-  Genprint.register_noval_print0 wit_ltac2_constr pr_raw pr_glb
+  Genprint.register_constr_print wit_ltac2_constr pr_raw pr_glb
 
 let () =
   let pr_raw e = Genprint.PrinterBasic (fun _ _ ->

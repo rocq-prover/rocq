@@ -1207,7 +1207,7 @@ let rec subst_glob_constr env subst = DAst.map (function
     else GHole nknd
 
   | GGenarg arg as raw ->
-    let arg' = Gensubst.generic_substitute subst arg in
+    let arg' = Gensubst.constr_subst subst arg in
     if arg' == arg then raw
     else GGenarg arg'
 

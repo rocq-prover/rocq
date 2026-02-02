@@ -164,10 +164,10 @@ and constr_expr_r =
   | CIf of constr_expr * (lname option * constr_expr option)
          * constr_expr * constr_expr
   | CHole   of Evar_kinds.glob_evar_kind option
-  | CGenarg of Genarg.raw_generic_argument
+  | CGenarg of GenConstr.raw
 
   (* because print for genargs wants to print directly the glob without an extern phase (??) *)
-  | CGenargGlob of Genarg.glob_generic_argument
+  | CGenargGlob of GenConstr.glb
 
   | CPatVar of Pattern.patvar
   | CEvar   of Glob_term.existential_name CAst.t * (lident * constr_expr) list

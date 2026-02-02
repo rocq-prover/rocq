@@ -1420,17 +1420,24 @@ let () =
   ltop (LevelLe 0)
 
 let () =
-  declare_extra_genarg_pprule_with_level wit_ltac_in_term
-    (fun env sigma _ _ prtac l tac -> prtac env sigma l tac)
-    (fun env sigma _ _ prtac l (used_ntnvars,tac) ->
-       let ppids =
-         let ids = Id.Set.elements used_ntnvars in
-         if List.is_empty ids then mt()
-         else hov 0 (pr_sequence Id.print ids ++ str " |-") ++ spc()
-       in
-       hov 2 (ppids ++ prtac env sigma l tac))
-    (fun env sigma _ _ _ _ tac -> Util.Empty.abort tac)
-  ltop (LevelLe 0)
+  let printer f x =
+    Genprint.PrinterNeedsLevel {
+      default_already_surrounded = ltop;
+      default_ensure_surrounded = LevelLe 0;
+      printer = (fun env sigma n -> f env sigma n x);
+    }
+  in
+  let pr_glob_tac_in_term env sigma l (used_ntnvars,tac) =
+    let ppids =
+      let ids = Id.Set.elements used_ntnvars in
+      if List.is_empty ids then mt()
+      else hov 0 (pr_sequence Id.print ids ++ str " |-") ++ spc()
+    in
+    hov 2 (ppids ++ pr_glob_tactic_level env l tac)
+  in
+  Genprint.register_constr_print wit_ltac_in_term
+    (printer pr_raw_tactic_level)
+    (printer pr_glob_tac_in_term)
 
 let () =
   let printer f x =

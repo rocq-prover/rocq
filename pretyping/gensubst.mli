@@ -21,3 +21,7 @@ val generic_substitute : glob_generic_argument subst_fun
 
 val register_subst0 : ('raw, 'glb, 'top) genarg_type ->
   'glb subst_fun -> unit
+
+val constr_subst : GenConstr.glb subst_fun
+
+val register_constr_subst : (_, 'glb) GenConstr.tag -> 'glb subst_fun -> unit

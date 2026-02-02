@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Genarg
 open Names
 open Libnames
 open Nametab
@@ -181,7 +180,7 @@ val ltac1_prefix : ModPath.t
 
 (** {5 Generic arguments} *)
 
-val wit_ltac2_constr : (raw_tacexpr, Id.Set.t * glb_tacexpr, Util.Empty.t) genarg_type
+val wit_ltac2_constr : (raw_tacexpr, Id.Set.t * glb_tacexpr) GenConstr.tag
 (** Ltac2 quotations in Gallina terms *)
 
 val wit_ltac2_tac : (raw_tacexpr, glb_tacexpr) Gentactic.tag
@@ -193,7 +192,7 @@ type var_quotation_kind =
   | PatternVar
   | HypVar
 
-val wit_ltac2_var_quotation : (lident option * lident, var_quotation_kind * Id.t, Util.Empty.t) genarg_type
+val wit_ltac2_var_quotation : (lident option * lident, var_quotation_kind * Id.t) GenConstr.tag
 (** Ltac2 quotations for variables "$x" or "$kind:foo" in Gallina terms.
     NB: "$x" means "$constr:x" *)
 

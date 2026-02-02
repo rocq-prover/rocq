@@ -191,17 +191,13 @@ type 'a obj_interp_fun =
 
 module ConstrInterpObj =
 struct
-  type ('r, 'g, 't) obj = 'g obj_interp_fun
-  let name = "constr_interp"
-  let default _ = None
+  type ('r, 'g) t = 'g obj_interp_fun
 end
 
-module ConstrInterp = Genarg.Register(ConstrInterpObj)
+module ConstrInterp = GenConstr.Register(ConstrInterpObj)
 
-let register_constr_interp0 = ConstrInterp.register0
+let register_constr_interp0 = ConstrInterp.register
 
-let interp_glob_genarg ?loc ~poly env sigma ty arg =
-  let open Genarg in
-  let GenArg (Glbwit tag, arg) = arg in
-  let interp = ConstrInterp.obj tag in
+let interp_glob_genarg ?loc ~poly env sigma ty (GenConstr.Glb (tag, arg)) =
+  let interp = ConstrInterp.get tag in
   interp ?loc ~poly env sigma ty arg

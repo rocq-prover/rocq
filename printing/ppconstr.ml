@@ -623,28 +623,25 @@ let pr_cast = let open Constr in function
     | None -> str ":>"
 
 type raw_or_glob_genarg =
-  | Rawarg of Genarg.raw_generic_argument
-  | Globarg of Genarg.glob_generic_argument
+  | Rawarg of GenConstr.raw
+  | Globarg of GenConstr.glb
 
 let pr_genarg return arg =
   (* In principle this may use the env/sigma, in practice not sure if it
      does except through pr_constr_expr in beautify mode. *)
   let env = Global.env() in
   let sigma = Evd.from_env env in
-  let name, parg = let open Genarg in
+  let name, parg =
     match arg with
-    | Globarg arg ->
-      let GenArg (Glbwit tag, _) = arg in
-      begin match tag with
-      | ExtraArg tag -> ArgT.repr tag, Pputils.pr_glb_generic env sigma arg
-      | _ -> assert false
-      end
-    | Rawarg arg ->
-      let GenArg (Rawwit tag, _) = arg in
-      begin match tag with
-      | ExtraArg tag -> ArgT.repr tag, Pputils.pr_raw_generic env sigma arg
-      | _ -> assert false
-      end
+    | Globarg (Glb (tag, _) as arg) ->
+      GenConstr.repr tag, Genprint.glb_print_constr arg
+    | Rawarg (Raw (tag, _) as arg) ->
+      GenConstr.repr tag, Genprint.raw_print_constr arg
+  in
+  let parg = match parg with
+    | PrinterBasic pp -> pp env sigma
+    | PrinterNeedsLevel { default_already_surrounded = level; printer } ->
+      printer env sigma level
   in
   let name =
     (* cheat the name system

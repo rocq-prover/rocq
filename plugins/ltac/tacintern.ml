@@ -701,7 +701,7 @@ let used_all_ntnvars ntnvars =
   in
   Id.Map.domain ntnvars
 
-let intern_ltac_in_term ist tac =
+let intern_ltac_in_term ?loc:_ ist tac =
   let tac = intern_tactic_or_tacarg ist tac in
   used_all_ntnvars ist.intern_sign.notation_variable_status, tac
 
@@ -775,7 +775,7 @@ let () =
   Genintern.register_intern0 wit_ident intern_ident';
   Genintern.register_intern0 wit_hyp (lift intern_hyp);
   Genintern.register_intern0 wit_tactic (lift intern_tactic_or_tacarg);
-  Genintern.register_intern0 wit_ltac_in_term (lift intern_ltac_in_term);
+  Genintern.register_intern_constr wit_ltac_in_term intern_ltac_in_term;
   Gentactic.register_intern wit_ltac (lift intern_ltac);
   Genintern.register_intern0 wit_quant_hyp (lift intern_quantified_hypothesis);
   Genintern.register_intern0 wit_constr (fun ist c -> (ist,intern_constr ist c));

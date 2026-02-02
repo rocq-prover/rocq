@@ -170,13 +170,16 @@ let is_tac_in_term ?extra_scope { annotation; body; glob_env; interp_env } =
     in
     (* We unravel notations *)
     let g = intern_constr_expr ist sigma body in
+    let default = tclUNIT (`Term (annotation, interp_env, g)) in
     match DAst.get g with
-    | Glob_term.GGenarg x
-      when Genarg.has_type x (Genarg.glbwit Tacarg.wit_ltac_in_term)
-      ->
-      let _, tac = Genarg.out_gen (Genarg.glbwit Tacarg.wit_ltac_in_term) x in
-      tclUNIT (`Tac tac)
-    | _ -> tclUNIT (`Term (annotation, interp_env, g))
+    | Glob_term.GGenarg (Glb (tag, v)) ->
+      begin match GenConstr.eq tag Tacarg.wit_ltac_in_term with
+      | None -> default
+      | Some Refl ->
+        let (_used_ntn_vars, v): Id.Set.t * Tacexpr.glob_tactic_expr = v in
+        tclUNIT (`Tac v)
+      end
+    | _ -> default
 end)
 
 (* To inject a constr into a glob_constr we use an Ltac variable *)

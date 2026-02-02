@@ -2176,8 +2176,8 @@ module Interner = struct
   ; lettuple : t -> (lname list * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; if_ : t -> (constr_expr * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; hole : t -> Evar_kinds.glob_evar_kind option fn
-  ; genarg : t -> Genarg.raw_generic_argument fn
-  ; genargglob : t -> Genarg.glob_generic_argument fn
+  ; genarg : t -> GenConstr.raw fn
+  ; genargglob : t -> GenConstr.glb fn
   ; patvar : t -> (Pattern.patvar) fn
   ; evar : t -> (Glob_term.existential_name CAst.t * (lident * constr_expr) list) fn
   ; sort : t -> sort_expr fn
@@ -2741,10 +2741,10 @@ let genarg self genv env lvar ?loc gen =
     strict_check = match env.strict_check with None -> false | Some b -> b;
   } in
   let intern = if env.pattern_mode
-    then Genintern.generic_intern_pat ?loc
-    else Genintern.generic_intern
+    then Genintern.generic_intern_pat
+    else Genintern.generic_intern_constr
   in
-  let (_, glb) = intern ist gen in
+  let glb = intern ?loc ist gen in
   DAst.make ?loc @@
   GGenarg glb
 

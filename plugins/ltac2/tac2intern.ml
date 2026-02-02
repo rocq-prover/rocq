@@ -2107,7 +2107,7 @@ let genintern ?check_unused ist locals expected v =
 
 let () =
   let open Genintern in
-  let intern ist tac =
+  let intern ?loc ist tac =
     let t_preterm = monomorphic (GTypRef (Other t_preterm, [])) in
     let ntn_vars = ist.intern_sign.notation_variable_status in
     let locals =
@@ -2128,9 +2128,9 @@ let () =
           CErrors.user_err ?loc:tac.loc Pp.(str "Cannot use binder notation variable " ++ Id.print id ++ str " as a preterm."))
         ids
     in
-    (ist, (ids, v))
+    (ids, v)
   in
-  Genintern.register_intern0 wit_ltac2_constr intern
+  Genintern.register_intern_constr wit_ltac2_constr intern
 
 let () =
   let open Genintern in
@@ -2142,10 +2142,10 @@ let () =
   in
   Gentactic.register_intern wit_ltac2_tac intern
 
-let () = Gensubst.register_subst0 wit_ltac2_constr (fun s (ids, e) -> ids, subst_expr s e)
+let () = Gensubst.register_constr_subst wit_ltac2_constr (fun s (ids, e) -> ids, subst_expr s e)
 let () = Gentactic.register_subst wit_ltac2_tac subst_expr
 
-let intern_var_quotation_gen ~ispat ist (kind, { CAst.v = id; loc }) =
+let intern_var_quotation_gen ?loc ~ispat ist (kind, { CAst.v = id; loc }) =
   let open Genintern in
   let kind = match kind with
     | None -> ConstrVar
@@ -2196,11 +2196,11 @@ let intern_var_quotation_gen ~ispat ist (kind, { CAst.v = id; loc }) =
   in
   let t = fresh_mix_type_scheme env t in
   let () = unify ?loc env t (GTypRef (Other typ, [])) in
-  (ist, (kind, id))
+  (kind, id)
 
-let intern_var_quotation = intern_var_quotation_gen ~ispat:false
+let intern_var_quotation ?loc = intern_var_quotation_gen ?loc ~ispat:false
 
-let () = Genintern.register_intern0 wit_ltac2_var_quotation intern_var_quotation
+let () = Genintern.register_intern_constr wit_ltac2_var_quotation intern_var_quotation
 
 let intern_var_quotation_pat ?loc ist v =
   intern_var_quotation_gen ~ispat:true ist v
@@ -2208,4 +2208,4 @@ let intern_var_quotation_pat ?loc ist v =
 let () = Genintern.register_intern_pat wit_ltac2_var_quotation
     intern_var_quotation_pat
 
-let () = Gensubst.register_subst0 wit_ltac2_var_quotation (fun _ v -> v)
+let () = Gensubst.register_constr_subst wit_ltac2_var_quotation (fun _ v -> v)

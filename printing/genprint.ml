@@ -114,6 +114,9 @@ type ('raw, 'glb, 'top) genprinter = {
   top : 'top -> top_printer_result;
 }
 
+let basic_default name =
+  PrinterBasic (fun env sigma -> str "<genarg:" ++ str name ++ str ">")
+
 module PrintObj =
 struct
   type ('raw, 'glb, 'top) obj = ('raw, 'glb, 'top) genprinter
@@ -158,3 +161,21 @@ let top_print wit v = (Print.obj wit).top v
 let generic_raw_print (GenArg (Rawwit w, v)) = raw_print w v
 let generic_glb_print (GenArg (Glbwit w, v)) = glb_print w v
 let generic_top_print (GenArg (Topwit w, v)) = top_print w v
+
+module CPrintObj = struct
+  type ('raw, 'glb) t = ('raw -> printer_result) * ('glb -> printer_result)
+end
+
+module CPrint = GenConstr.Register(CPrintObj)
+
+let register_constr_print tag raw glb = CPrint.register tag (raw, glb)
+
+let raw_print_constr (GenConstr.Raw (tag, v)) =
+  match CPrint.find_opt tag with
+  | None -> basic_default (GenConstr.repr tag)
+  | Some (ppraw, _) -> ppraw v
+
+let glb_print_constr (GenConstr.Glb (tag, v)) =
+  match CPrint.find_opt tag with
+  | None -> basic_default (GenConstr.repr tag)
+  | Some (_, ppglb) -> ppglb v

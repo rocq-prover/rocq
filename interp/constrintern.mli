@@ -118,8 +118,8 @@ module Interner : sig
   ; lettuple : t -> (lname list * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; if_ : t -> (constr_expr * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; hole : t -> Evar_kinds.glob_evar_kind option fn
-  ; genarg : t -> Genarg.raw_generic_argument fn
-  ; genargglob : t -> Genarg.glob_generic_argument fn
+  ; genarg : t -> GenConstr.raw fn
+  ; genargglob : t -> GenConstr.glb fn
   ; patvar : t -> (Pattern.patvar) fn
   ; evar : t -> (Glob_term.existential_name CAst.t * (lident * constr_expr) list) fn
   ; sort : t -> sort_expr fn
