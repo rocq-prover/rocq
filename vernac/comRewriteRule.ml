@@ -122,7 +122,7 @@ let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u :
   let stateq, maskq = Array.fold_left_map (safe_quality_pattern_of_quality ~loc evd qsubst) stateq q
   in
   let stateu, masku = Array.fold_left_map (fun stateu lvlold ->
-      (* MS TODO Check correctness of Option.get *)
+      (* MS TODO Check correctness of Option.get / Ask @yannl35133 *)
       let lvlnew = Univ.Level.var_index @@ Option.get (Univ.Universe.level (UVars.subst_univs_level_universe usubst lvlold)) in
       Option.fold_right (update_invtblu1 ~loc evd lvlold) lvlnew stateu, lvlnew
     ) stateu u
@@ -425,7 +425,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs_loc = rhs.CAst.loc in
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
-  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables:false in
+  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables:true in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with
     undeclared_evars_rr = true; expand_evars = false;
     solve_unification_constraints = false; poly } in
