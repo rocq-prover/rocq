@@ -19,13 +19,13 @@ the return type has sort "Type" while it should be SProp.
 Elimination of an inductive object of sort SProp
 is not allowed on a predicate in sort "Type"
 because strict proofs can be eliminated only to build strict proofs.
-fooSProp_inds :
+fooSProp_sind :
 forall P : fooSProp -> SProp, P aSP -> P bSP -> forall f : fooSProp, P f
 
-fooSProp_inds is not universe polymorphic
-Arguments fooSProp_inds P%_function_scope aSP bSP f
-fooSProp_inds is transparent
-Expands to: Constant SchemeNames.fooSProp_inds
+fooSProp_sind is not universe polymorphic
+Arguments fooSProp_sind P%_function_scope aSP bSP f
+fooSProp_sind is transparent
+Expands to: Constant SchemeNames.fooSProp_sind
 Declared in library SchemeNames, line 13, characters 7-48
 File "./output/SchemeNames.v", line 23, characters 2-48:
 The command has indeed failed with message:
@@ -48,12 +48,12 @@ the return type has sort "Type" while it should be SProp.
 Elimination of an inductive object of sort SProp
 is not allowed on a predicate in sort "Type"
 because strict proofs can be eliminated only to build strict proofs.
-fooSProp_inds_nodep : forall P : SProp, P -> P -> fooSProp -> P
+fooSProp_sind_nodep : forall P : SProp, P -> P -> fooSProp -> P
 
-fooSProp_inds_nodep is not universe polymorphic
-Arguments fooSProp_inds_nodep P%_type_scope aSP bSP f
-fooSProp_inds_nodep is transparent
-Expands to: Constant SchemeNames.fooSProp_inds_nodep
+fooSProp_sind_nodep is not universe polymorphic
+Arguments fooSProp_sind_nodep P%_type_scope aSP bSP f
+fooSProp_sind_nodep is transparent
+Expands to: Constant SchemeNames.fooSProp_sind_nodep
 Declared in library SchemeNames, line 22, characters 7-49
 File "./output/SchemeNames.v", line 32, characters 2-49:
 The command has indeed failed with message:
@@ -76,13 +76,13 @@ the return type has sort "Type" while it should be SProp.
 Elimination of an inductive object of sort SProp
 is not allowed on a predicate in sort "Type"
 because strict proofs can be eliminated only to build strict proofs.
-fooSProp_cases :
+fooSProp_scase :
 forall P : fooSProp -> SProp, P aSP -> P bSP -> forall f : fooSProp, P f
 
-fooSProp_cases is not universe polymorphic
-Arguments fooSProp_cases P%_function_scope aSP bSP f
-fooSProp_cases is transparent
-Expands to: Constant SchemeNames.fooSProp_cases
+fooSProp_scase is not universe polymorphic
+Arguments fooSProp_scase P%_function_scope aSP bSP f
+fooSProp_scase is transparent
+Expands to: Constant SchemeNames.fooSProp_scase
 Declared in library SchemeNames, line 31, characters 7-50
 File "./output/SchemeNames.v", line 41, characters 2-42:
 The command has indeed failed with message:
@@ -105,12 +105,12 @@ the return type has sort "Type" while it should be SProp.
 Elimination of an inductive object of sort SProp
 is not allowed on a predicate in sort "Type"
 because strict proofs can be eliminated only to build strict proofs.
-fooSProp_cases_nodep : forall P : SProp, P -> P -> fooSProp -> P
+fooSProp_scase_nodep : forall P : SProp, P -> P -> fooSProp -> P
 
-fooSProp_cases_nodep is not universe polymorphic
-Arguments fooSProp_cases_nodep P%_type_scope aSP bSP f
-fooSProp_cases_nodep is transparent
-Expands to: Constant SchemeNames.fooSProp_cases_nodep
+fooSProp_scase_nodep is not universe polymorphic
+Arguments fooSProp_scase_nodep P%_type_scope aSP bSP f
+fooSProp_scase_nodep is transparent
+Expands to: Constant SchemeNames.fooSProp_scase_nodep
 Declared in library SchemeNames, line 40, characters 7-43
 File "./output/SchemeNames.v", line 49, characters 2-36:
 The command has indeed failed with message:
@@ -130,13 +130,13 @@ the return type has sort "Type" while it should be SProp or Prop.
 Elimination of an inductive object of sort Prop
 is not allowed on a predicate in sort "Type"
 because proofs can be eliminated only to build proofs.
-fooProp_inds_dep :
+fooProp_sind_dep :
 forall P : fooProp -> SProp, P aP -> P bP -> forall f : fooProp, P f
 
-fooProp_inds_dep is not universe polymorphic
-Arguments fooProp_inds_dep P%_function_scope aP bP f
-fooProp_inds_dep is transparent
-Expands to: Constant SchemeNames.fooProp_inds_dep
+fooProp_sind_dep is not universe polymorphic
+Arguments fooProp_sind_dep P%_function_scope aP bP f
+fooProp_sind_dep is transparent
+Expands to: Constant SchemeNames.fooProp_sind_dep
 Declared in library SchemeNames, line 59, characters 7-47
 fooProp_ind_dep :
 forall P : fooProp -> Prop, P aP -> P bP -> forall f : fooProp, P f
@@ -160,12 +160,12 @@ the return type has sort "Type" while it should be SProp or Prop.
 Elimination of an inductive object of sort Prop
 is not allowed on a predicate in sort "Type"
 because proofs can be eliminated only to build proofs.
-fooProp_inds : forall P : SProp, P -> P -> fooProp -> P
+fooProp_sind : forall P : SProp, P -> P -> fooProp -> P
 
-fooProp_inds is not universe polymorphic
-Arguments fooProp_inds P%_type_scope aP bP f
-fooProp_inds is transparent
-Expands to: Constant SchemeNames.fooProp_inds
+fooProp_sind is not universe polymorphic
+Arguments fooProp_sind P%_type_scope aP bP f
+fooProp_sind is transparent
+Expands to: Constant SchemeNames.fooProp_sind
 Declared in library SchemeNames, line 69, characters 7-48
 fooProp_ind : forall P : Prop, P -> P -> fooProp -> P
 
@@ -188,13 +188,13 @@ the return type has sort "Type" while it should be SProp or Prop.
 Elimination of an inductive object of sort Prop
 is not allowed on a predicate in sort "Type"
 because proofs can be eliminated only to build proofs.
-fooProp_cases_dep :
+fooProp_scase_dep :
 forall P : fooProp -> SProp, P aP -> P bP -> forall f : fooProp, P f
 
-fooProp_cases_dep is not universe polymorphic
-Arguments fooProp_cases_dep P%_function_scope aP bP f
-fooProp_cases_dep is transparent
-Expands to: Constant SchemeNames.fooProp_cases_dep
+fooProp_scase_dep is not universe polymorphic
+Arguments fooProp_scase_dep P%_function_scope aP bP f
+fooProp_scase_dep is transparent
+Expands to: Constant SchemeNames.fooProp_scase_dep
 Declared in library SchemeNames, line 79, characters 7-49
 fooProp_case_dep :
 forall P : fooProp -> Prop, P aP -> P bP -> forall f : fooProp, P f
@@ -218,12 +218,12 @@ the return type has sort "Type" while it should be SProp or Prop.
 Elimination of an inductive object of sort Prop
 is not allowed on a predicate in sort "Type"
 because proofs can be eliminated only to build proofs.
-fooProp_cases : forall P : SProp, P -> P -> fooProp -> P
+fooProp_scase : forall P : SProp, P -> P -> fooProp -> P
 
-fooProp_cases is not universe polymorphic
-Arguments fooProp_cases P%_type_scope aP bP f
-fooProp_cases is transparent
-Expands to: Constant SchemeNames.fooProp_cases
+fooProp_scase is not universe polymorphic
+Arguments fooProp_scase P%_type_scope aP bP f
+fooProp_scase is transparent
+Expands to: Constant SchemeNames.fooProp_scase
 Declared in library SchemeNames, line 89, characters 7-42
 fooProp_case : forall P : Prop, P -> P -> fooProp -> P
 
@@ -236,13 +236,13 @@ File "./output/SchemeNames.v", line 99, characters 2-35:
 The command has indeed failed with message:
 Cannot extract computational content from proposition 
 "fooProp".
-fooSet_inds :
+fooSet_sind :
 forall P : fooSet -> SProp, P aS -> P bS -> forall f : fooSet, P f
 
-fooSet_inds is not universe polymorphic
-Arguments fooSet_inds P%_function_scope aS bS f
-fooSet_inds is transparent
-Expands to: Constant SchemeNames.fooSet_inds
+fooSet_sind is not universe polymorphic
+Arguments fooSet_sind P%_function_scope aS bS f
+fooSet_sind is transparent
+Expands to: Constant SchemeNames.fooSet_sind
 Declared in library SchemeNames, line 109, characters 2-41
 fooSet_ind :
 forall P : fooSet -> Prop, P aS -> P bS -> forall f : fooSet, P f
@@ -267,12 +267,12 @@ Arguments fooSet_rect P%_function_scope aS bS f
 fooSet_rect is transparent
 Expands to: Constant SchemeNames.fooSet_rect
 Declared in library SchemeNames, line 112, characters 2-40
-fooSet_inds_nodep : forall P : SProp, P -> P -> fooSet -> P
+fooSet_sind_nodep : forall P : SProp, P -> P -> fooSet -> P
 
-fooSet_inds_nodep is not universe polymorphic
-Arguments fooSet_inds_nodep P%_type_scope aS bS f
-fooSet_inds_nodep is transparent
-Expands to: Constant SchemeNames.fooSet_inds_nodep
+fooSet_sind_nodep is not universe polymorphic
+Arguments fooSet_sind_nodep P%_type_scope aS bS f
+fooSet_sind_nodep is transparent
+Expands to: Constant SchemeNames.fooSet_sind_nodep
 Declared in library SchemeNames, line 121, characters 2-42
 fooSet_ind_nodep : forall P : Prop, P -> P -> fooSet -> P
 
@@ -295,13 +295,13 @@ Arguments fooSet_rect_nodep P%_type_scope aS bS f
 fooSet_rect_nodep is transparent
 Expands to: Constant SchemeNames.fooSet_rect_nodep
 Declared in library SchemeNames, line 124, characters 2-41
-fooSet_cases :
+fooSet_scase :
 forall P : fooSet -> SProp, P aS -> P bS -> forall f : fooSet, P f
 
-fooSet_cases is not universe polymorphic
-Arguments fooSet_cases P%_function_scope aS bS f
-fooSet_cases is transparent
-Expands to: Constant SchemeNames.fooSet_cases
+fooSet_scase is not universe polymorphic
+Arguments fooSet_scase P%_function_scope aS bS f
+fooSet_scase is transparent
+Expands to: Constant SchemeNames.fooSet_scase
 Declared in library SchemeNames, line 136, characters 2-43
 fooSet_case :
 forall P : fooSet -> Prop, P aS -> P bS -> forall f : fooSet, P f
@@ -327,12 +327,12 @@ Arguments fooSet'_caset P%_function_scope aS' bS' f
 fooSet'_caset is transparent
 Expands to: Constant SchemeNames.fooSet'_caset
 Declared in library SchemeNames, line 139, characters 2-43
-fooSet_cases_nodep : forall P : SProp, P -> P -> fooSet -> P
+fooSet_scase_nodep : forall P : SProp, P -> P -> fooSet -> P
 
-fooSet_cases_nodep is not universe polymorphic
-Arguments fooSet_cases_nodep P%_type_scope aS bS f
-fooSet_cases_nodep is transparent
-Expands to: Constant SchemeNames.fooSet_cases_nodep
+fooSet_scase_nodep is not universe polymorphic
+Arguments fooSet_scase_nodep P%_type_scope aS bS f
+fooSet_scase_nodep is transparent
+Expands to: Constant SchemeNames.fooSet_scase_nodep
 Declared in library SchemeNames, line 148, characters 2-36
 fooSet_case_nodep : forall P : Prop, P -> P -> fooSet -> P
 
@@ -387,13 +387,13 @@ Arguments internal_fooSet_dec_lb x y _
 internal_fooSet_dec_lb is transparent
 Expands to: Constant SchemeNames.internal_fooSet_dec_lb
 Declared in library SchemeNames, line 160, characters 2-29
-fooType_inds :
+fooType_sind :
 forall P : fooType -> SProp, P aT -> P bT -> forall f : fooType, P f
 
-fooType_inds is not universe polymorphic
-Arguments fooType_inds P%_function_scope aT bT f
-fooType_inds is transparent
-Expands to: Constant SchemeNames.fooType_inds
+fooType_sind is not universe polymorphic
+Arguments fooType_sind P%_function_scope aT bT f
+fooType_sind is transparent
+Expands to: Constant SchemeNames.fooType_sind
 Declared in library SchemeNames, line 175, characters 2-42
 fooType_ind :
 forall P : fooType -> Prop, P aT -> P bT -> forall f : fooType, P f
@@ -419,12 +419,12 @@ Arguments fooType_rect P%_function_scope aT bT f
 fooType_rect is transparent
 Expands to: Constant SchemeNames.fooType_rect
 Declared in library SchemeNames, line 178, characters 2-41
-fooType_inds_nodep : forall P : SProp, P -> P -> fooType -> P
+fooType_sind_nodep : forall P : SProp, P -> P -> fooType -> P
 
-fooType_inds_nodep is not universe polymorphic
-Arguments fooType_inds_nodep P%_type_scope aT bT f
-fooType_inds_nodep is transparent
-Expands to: Constant SchemeNames.fooType_inds_nodep
+fooType_sind_nodep is not universe polymorphic
+Arguments fooType_sind_nodep P%_type_scope aT bT f
+fooType_sind_nodep is transparent
+Expands to: Constant SchemeNames.fooType_sind_nodep
 Declared in library SchemeNames, line 187, characters 2-43
 fooType_ind_nodep : forall P : Prop, P -> P -> fooType -> P
 
@@ -447,13 +447,13 @@ Arguments fooType_rect_nodep P%_type_scope aT bT f
 fooType_rect_nodep is transparent
 Expands to: Constant SchemeNames.fooType_rect_nodep
 Declared in library SchemeNames, line 190, characters 2-42
-fooType_cases :
+fooType_scase :
 forall P : fooType -> SProp, P aT -> P bT -> forall f : fooType, P f
 
-fooType_cases is not universe polymorphic
-Arguments fooType_cases P%_function_scope aT bT f
-fooType_cases is transparent
-Expands to: Constant SchemeNames.fooType_cases
+fooType_scase is not universe polymorphic
+Arguments fooType_scase P%_function_scope aT bT f
+fooType_scase is transparent
+Expands to: Constant SchemeNames.fooType_scase
 Declared in library SchemeNames, line 202, characters 2-44
 fooType_case :
 forall P : fooType -> Prop, P aT -> P bT -> forall f : fooType, P f
@@ -479,12 +479,12 @@ Arguments fooType'_caset P%_function_scope aT' bT' f
 fooType'_caset is transparent
 Expands to: Constant SchemeNames.fooType'_caset
 Declared in library SchemeNames, line 205, characters 2-44
-fooType_cases_nodep : forall P : SProp, P -> P -> fooType -> P
+fooType_scase_nodep : forall P : SProp, P -> P -> fooType -> P
 
-fooType_cases_nodep is not universe polymorphic
-Arguments fooType_cases_nodep P%_type_scope aT bT f
-fooType_cases_nodep is transparent
-Expands to: Constant SchemeNames.fooType_cases_nodep
+fooType_scase_nodep is not universe polymorphic
+Arguments fooType_scase_nodep P%_type_scope aT bT f
+fooType_scase_nodep is transparent
+Expands to: Constant SchemeNames.fooType_scase_nodep
 Declared in library SchemeNames, line 214, characters 2-37
 fooType_case_nodep : forall P : Prop, P -> P -> fooType -> P
 
