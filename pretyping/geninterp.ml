@@ -86,20 +86,3 @@ type interp_sign =
   { lfun : Val.t Id.Map.t
   ; poly : PolyFlags.t
   ; extra : TacStore.t }
-
-type ('glb, 'top) interp_fun = interp_sign -> 'glb -> 'top Ftactic.t
-
-module InterpObj =
-struct
-  type ('raw, 'glb, 'top) obj = ('glb, Val.t) interp_fun
-  let name = "interp"
-  let default _ = None
-end
-
-module Interp = Register(InterpObj)
-
-let interp = Interp.obj
-
-let generic_interp ist (GenArg (Glbwit wit, v)) = interp wit ist v
-
-let register_interp0 = Interp.register0
