@@ -21,34 +21,31 @@ Summary of changes
 We highlight some of the most impactful changes here:
 
 - Records in `Type` and `Prop`, with only fields in `SProp`,
-  can now have primitive projections but without eta conversion.
-- Reenable support for `native_compute` when compiled with OCaml 5.
+  can now have :ref:`primitive projections but without eta conversion<92etarecord>`.
+- :ref:`Reenable support for `native_compute`<92native>`` when compiled with OCaml 5.
   As it relies on some architecture-specific code, only some x86 setups
   are supported for now
-- Implicit elaboration of :ref:`elimination constraints <elim-constraints>`
+- Implicit elaboration of :ref:`elimination constraints <92elimconstraints>`
 - Tactics such as :tacn:`induction` find eliminators (like `nat_rect`)
   through the :cmd:`Register Scheme` table (which is automatically populated by :cmd:`Scheme` and automatic scheme declarations)
   instead of by name (the lookup by name remains for now for backward compatibility)
-- congruence tactics now handle primitive ints, floats and strings
-- Induction hypotheses are now generated for nested arguments provided
+- congruence tactics now :ref:`handle primitive ints, floats and strings<92congruence>`
+- :ref:`Induction hypotheses are now generated for nested arguments<92nested>` provided
   a `All` predicate, and a theorem to prove it have been registered with
   the keys `All` and `AllForall`.
-- Add a `Scheme All` command to generate the `All` predicate and its theorem
+- Add a `Scheme All` command to :ref:`generate the `All` predicate<92nestedscheme>` and its theorem
   for inductive types used for the eliminators of nested inductive types
-- :cmd:`Ltac2 Custom Entry` making it possible to define more complex :cmd:`Ltac2 Notation`\s
+- :cmd:`Ltac2 Custom Entry` making it possible to define :ref:`more complex :cmd:`Ltac2 Notation`\s<92ltac2>`
   and many other additions to Ltac2 (see below for details).
-  attribute :attr:`schemes` to control automatic scheme declaration
+- attribute :attr:`schemes` to :ref:`control automatic scheme declaration<92scheme>`
   (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
   fixes `#19480 <https://github.com/rocq-prover/rocq/issues/19480>`_,
   by Gaëtan Gilbert).
-- Parsing of elimination constraints in prenex polymorphic definitions
+- :ref:`Parsing of elimination constraints<92elimparsing>` in prenex polymorphic definitions
   as well as in constraints declaration :g:`Constraint s1 -> s2.`
-- A :cmd:`Create Rewrite HintDb` command to explicitly declare
-  rewrite hint databases
-- :cmd:`Scheme Rewriting` to explicitly declare rewriting schemes for a given inductive
-- :flag:`Printing Fully Qualified` to print all names (global references, modules,
+- :flag:`Printing Fully Qualified` to :ref:`print all names<92printfully>` (global references, modules,
   module types, universes, etc) using fully qualified paths
-- Goal names can be automatically generated for :tacn:`induction`,
+- :ref:`Goal names can be automatically generated<92goalnames>` for :tacn:`induction`,
   :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
 
 
@@ -130,6 +127,8 @@ Changes in 9.2.0
 Kernel
 ^^^^^^
 
+.. _92etarecord:
+
 - **Changed:**
   Records in `Type` and `Prop`, with only fields in `SProp`,
   can now have primitive projections but without eta conversion.
@@ -141,6 +140,7 @@ Kernel
   (`#21465 <https://github.com/rocq-prover/rocq/pull/21465>`_,
   fixes `#21464 <https://github.com/rocq-prover/rocq/issues/21464>`_,
   by Jason Gross).
+.. _92native:
 - **Changed:**
   Reenable support for `native_compute` when compiled with OCaml 5. As it relies on some architecture-specific code, only some x86 setups are supported for now
   (`#21540 <https://github.com/rocq-prover/rocq/pull/21540>`_,
@@ -158,8 +158,11 @@ Specification language, type inference
   when a reference is not found in the current environment, the error suggests similar names
   (`#20662 <https://github.com/rocq-prover/rocq/pull/20662>`_,
   by Gaëtan Gilbert).
+
+.. _92elimconstaints:
+
 - **Added:**
-  implicit elaboration of :ref:`elimination constraints <elim-constraints>`
+  implicit elaboration of :ref:`elimination constraints <92elimconstraints>`
   (`#21417 <https://github.com/rocq-prover/rocq/pull/21417>`_,
   by Tomas Diaz).
 
@@ -235,17 +238,26 @@ Tactics
   These schemes are now explicitly declared for `eq` in the Corelib
   (`#21245 <https://github.com/rocq-prover/rocq/pull/21245>`_,
   by Gaëtan Gilbert).
+
+.. _92congruence:
+
 - **Added:**
   congruence tactics now handle primitive ints, floats and strings
   (`#20810 <https://github.com/rocq-prover/rocq/pull/20810>`_,
   fixes `#20011 <https://github.com/rocq-prover/rocq/issues/20011>`_,
   by Pierre-Marie Pédrot).
+
+.. _92nested:
+
 - **Added:**
   Induction hypotheses are now generated for nested arguments provided
   a `All` predicate, and a theorem to prove it have been registered with
   the keys `All` and `AllForall`.
   (`#21356 <https://github.com/rocq-prover/rocq/pull/21356>`_,
   by Thomas Lamiaux).
+
+.. _92nestedscheme:
+
 - **Added:**
   Add a `Scheme All` command to generate the `All` predicate and its theorem
   for inductive types used for the eliminators of nested inductive types
@@ -299,6 +311,9 @@ Ltac2 language
   See :n:`@ltac2_constr_synclass_arg`
   (`#21285 <https://github.com/rocq-prover/rocq/pull/21285>`_,
   by Gaëtan Gilbert).
+
+.. _92ltac2:
+
 - **Added:**
   :cmd:`Ltac2 Custom Entry` making it possible to define more complex :cmd:`Ltac2 Notation`\s
   (`#20561 <https://github.com/rocq-prover/rocq/pull/20561>`_,
@@ -461,6 +476,9 @@ Commands and options
   tactic performance, matching process and hint transparency
   (`#19761 <https://github.com/rocq-prover/rocq/pull/19761>`_,
   by Jim Fehrle).
+
+.. _92scheme:
+
 - **Added:**
   attribute :attr:`schemes` to control automatic scheme declaration
   (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
@@ -480,6 +498,9 @@ Commands and options
   :cmd:`Scheme Rewriting` to explicitly declare rewriting schemes for a given inductive
   (`#21248 <https://github.com/rocq-prover/rocq/pull/21248>`_,
   by Gaëtan Gilbert).
+
+.. _92printfully:
+
 - **Added:**
   :flag:`Printing Fully Qualified` to print all names (global references, modules,
   module types, universes, etc) using fully qualified paths
@@ -578,6 +599,9 @@ Miscellaneous
   This should partially mitigate the performance lost since OCaml 4.14
   (`#21306 <https://github.com/rocq-prover/rocq/pull/21306>`_,
   by Gaëtan Gilbert).
+
+.. _92goalnames:
+
 - **Added:**
   Goal names can be automatically generated for :tacn:`induction`,
   :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
