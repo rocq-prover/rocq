@@ -83,7 +83,6 @@ let rect_dep =
   declare_individual_scheme_object "rect_dep"
     (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.qtype x)
 
-
 let rec_dep =
   declare_individual_scheme_object "rec_dep"
     (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.set x)
