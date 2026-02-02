@@ -55,7 +55,6 @@ Proof.
   induction n; simpl; intros.
   destruct X. exists center0. intros. apply (paths_lift _ _ _  (contr0 y)).
 
-  rewrite paths_change.
   apply IHn, X.
 Defined.
 
