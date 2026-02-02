@@ -192,6 +192,8 @@ let args_options = Arg.align [
   "<dir> <coqdir>  Map physical dir to Rocq dir";
   "-Q", arg_path (fun p l -> { p with paths = l :: !prefs.paths }),
   "<dir> <coqdir>  Map physical dir to Rocq dir";
+  "-package", arg_string (fun p s -> { p with packages = s :: !prefs.packages }),
+  "<pkg>  Add mapping for the given package and its dependencies";
   "--latin1", arg_set (fun p -> {p with encoding = { charset = "iso-8859-1";
                                                      inputenc = "latin1";
                                                      latin1 = true;
@@ -249,8 +251,14 @@ let parse_args ~prog args =
   let new_argv = Array.of_list (prog::new_argv) in
   argv := new_argv;
   current := 0;
-  try
-    Arg.parse_argv new_argv args_options add_input_files usage_msg
-  with
-  | Arg.Bad s -> Printf.eprintf "%s" s
-  | Arg.Help s -> Printf.printf "%s" s
+  let _ =
+    try
+      Arg.parse_argv new_argv args_options add_input_files usage_msg
+    with
+    | Arg.Bad s -> Printf.eprintf "%s" s
+    | Arg.Help s -> Printf.printf "%s" s
+  in
+  List.iter (fun p ->
+    let path = (normalize_path p.Rocq_package.dir, p.Rocq_package.logpath) in
+    prefs := { !prefs with paths = path :: !prefs.paths }
+  ) (Rocq_package.resolve !prefs.packages)

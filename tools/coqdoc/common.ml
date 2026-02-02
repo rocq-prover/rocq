@@ -48,6 +48,7 @@ type t = {
   externals : bool;
   coqlib_url: string;
   paths : (string * string) list;
+  packages : string list;
   encoding : encoding_t;
   interpolate : bool;
   raw_comments : bool;
@@ -83,6 +84,7 @@ let default : t = {
   externals = true;
   coqlib_url = Coq_config.wwwstdlib;
   paths = [];
+  packages = [];
   encoding = {
     charset = "iso-8859-1";
     inputenc = "";
