@@ -1978,9 +1978,9 @@ let interp_strategy ist env sigma s =
   let interp_redexpr r = fun env sigma -> interp_red_expr ist env sigma r in
   let interp_constr c = (fst c, fun env sigma -> interp_open_constr ist env sigma c) in
   let interp_pattern (_, p, up) = Patternops.interp_pattern env sigma Glob_ops.empty_lvar up in
-  let s = Rewrite.map_strategy interp_constr interp_pattern interp_redexpr
+  let s = RewriteStratAst.map_strategy interp_constr interp_pattern interp_redexpr
             (fun x -> x) (interp_tactic ist) s in
-  Rewrite.strategy_of_ast s
+  RewriteStratAst.strategy_of_ast s
 
 (** FFI *)
 

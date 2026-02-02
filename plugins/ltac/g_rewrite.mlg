@@ -20,6 +20,7 @@ open Genintern
 open Geninterp
 open Extraargs
 open Rewrite
+open RewriteStratAst
 open ComRewrite
 open Stdarg
 open Tactypes
@@ -66,7 +67,8 @@ END
 
 {
 
-let subst_strategy sub = map_strategy
+let subst_strategy sub =
+  RewriteStratAst.map_strategy
     (Tacsubst.subst_glob_constr_and_expr sub)
     (fun (x, y, z) -> (x, Tacsubst.subst_glob_constr_and_expr sub y, z))
     (Tacsubst.subst_glob_red_expr sub)
@@ -76,13 +78,13 @@ let subst_strategy sub = map_strategy
 let pr_strategy _ _ _ (s : strategy) = Pp.str "<strategy>"
 let pr_raw_strategy env sigma prc prlc prt (s : Tacexpr.raw_strategy) =
   let prr = Pptactic.pr_red_expr env sigma (prc, prlc, Pputils.pr_or_by_notation Libnames.pr_qualid, prc,Pputils.pr_or_var Pp.int, Redexpr.pr_raw_user_red_expr) in
-  Rewrite.pr_strategy (prc env sigma) (prc env sigma) prr Pputils.pr_lident (prt env sigma Constrexpr.LevelSome) s
+  RewriteStratAst.pr_strategy (prc env sigma) (prc env sigma) prr Pputils.pr_lident (prt env sigma Constrexpr.LevelSome) s
 let pr_glob_strategy env sigma prc prlc prt (s : Tacexpr.glob_strategy) =
   let prcst = Pputils.pr_or_var Pptactic.(pr_and_short_name (pr_evaluable_reference_env env)) in
   let prr = Pptactic.pr_red_expr env sigma (prc, prlc, prcst, prc, Pputils.pr_or_var Pp.int, Redexpr.pr_glob_user_red_expr) in
   let prpat (_, c, _) = prc env sigma c in
   let prt = prt env sigma Constrexpr.LevelSome in
-  Rewrite.pr_strategy (prc env sigma) prpat prr Id.print prt s
+  RewriteStratAst.pr_strategy (prc env sigma) prpat prr Id.print prt s
 
 }
 
