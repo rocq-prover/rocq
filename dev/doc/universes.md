@@ -224,3 +224,10 @@ In tactics:
   universes. `change` uses conversion while `pattern` only does
   syntactic matching up-to unification of universes.
 - `apply`, `refine` use unification up to universes.
+
+Notes on update to algebraic universes and variances
+-----------------------------------------------------------------
+
+- When displaying goals, compaction of contexts is *not* done disregarding
+  universes (eq_constr in compact_named_context), resulting in potentially
+  different display.

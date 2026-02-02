@@ -45,7 +45,7 @@ Fail change 0 with true.
 Abort.
 
 Goal nat = nat.
-  pose (nat : Type@{_}) as n.
+  pose (nat : Type) as n.
   Fail change nat with n. (* Error: Replacement would lead to an ill-typed term. *)
 Abort.
 

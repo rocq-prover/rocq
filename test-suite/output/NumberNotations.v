@@ -466,7 +466,7 @@ Module Test20.
   Eval cbv in (_ : known_type bool) : ty.
   Eval cbv in (_ : known_type Prop) : ty.
   Eval cbv in (_ : known_type Set) : ty.
-  Eval cbv in (_ : known_type Type@{_}) : ty.
+  Eval cbv in (_ : known_type Type@{*}) : ty.
   Local Set Printing All.
   Check let v := 0%kt in v : ty.
   Check let v := 1%kt in v : ty.
