@@ -309,6 +309,7 @@ let print_usage_channel co command =
   output_string co
 "  -Q dir coqdir          map physical dir to logical coqdir\
 \n  -R dir coqdir          synonymous for -Q\
+\n  -package pkg           add mapping for the given package and its dependencies\
 \n\
 \n\
 \n  -boot                  boot mode\
@@ -338,6 +339,7 @@ type opts = {
   coqlib : string option;
   vo_path : (string * DirPath.t) list;
   ml_path : string list;
+  packages : string list;
 }
 
 let rec parse_args (args : string list) accu =
@@ -356,6 +358,9 @@ let rec parse_args (args : string list) accu =
     let p = Loadpath.dirpath_of_string p in
     let accu = { accu with vo_path = (d, p) :: accu.vo_path } in
     parse_args rem accu
+  | "-package" :: p :: rem ->
+    let accu = { accu with packages = p :: accu.packages } in
+    parse_args rem accu
   | "-I" :: _d :: rem ->
     (* Ignore *)
     parse_args rem accu
@@ -373,11 +378,18 @@ let rec parse_args (args : string list) accu =
     let args_msg = String.concat " " args in
     CErrors.user_err Pp.(str "parse args error, too many arguments: " ++ str args_msg)
 
+let resolve_packages opts =
+  List.fold_left (fun opts p ->
+    let logpath = Loadpath.dirpath_of_string p.Rocq_package.logpath in
+    { opts with vo_path = (p.Rocq_package.dir, logpath) :: opts.vo_path }
+  ) opts (Rocq_package.resolve opts.packages)
+
 let () =
   let _ = Feedback.add_feeder fb_handler in
   try
-    let opts = { boot = false; coqlib = None; vo_path = []; ml_path = [] } in
+    let opts = { boot = false; coqlib = None; vo_path = []; ml_path = []; packages = [] } in
     let opts, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) opts in
+    let opts = resolve_packages opts in
     let () = init_load_path ~boot:opts.boot
         ~coqlib:opts.coqlib
         ~vo_path:(List.rev opts.vo_path)
