@@ -20,34 +20,30 @@ Summary of changes
 
 We highlight some of the most impactful changes here:
 
+- :ref:`Reenable support for `native_compute`<92native>` when compiled with OCaml 5.
+  As it relies on some architecture-specific code, only some x86 setups are supported for now
 - Records in `Type` and `Prop`, with only fields in `SProp`,
   can now have :ref:`primitive projections but without eta conversion<92etarecord>`.
-- :ref:`Reenable support for `native_compute`<92native>`` when compiled with OCaml 5.
-  As it relies on some architecture-specific code, only some x86 setups
-  are supported for now
 - Implicit elaboration of :ref:`elimination constraints <92elimconstraints>`
+- :ref:`Parsing of elimination constraints<92elimparsing>` in prenex polymorphic definitions
+  as well as in constraints declaration :g:`Constraint s1 -> s2.`
+- :ref:`Induction hypotheses are now generated for nested arguments<92nested>` provided
+  an `All` predicate, and a theorem to prove it, have been registered with
+  the keys `All` and `AllForall`.
+- Add a `Scheme All` command to :ref:`generate the All predicate<92nestedscheme>` and its theorem
+  for inductive types used for the eliminators of nested inductive types
 - Tactics such as :tacn:`induction` find eliminators (like `nat_rect`)
   through the :cmd:`Register Scheme` table (which is automatically populated by :cmd:`Scheme` and automatic scheme declarations)
   instead of by name (the lookup by name remains for now for backward compatibility)
-- congruence tactics now :ref:`handle primitive ints, floats and strings<92congruence>`
-- :ref:`Induction hypotheses are now generated for nested arguments<92nested>` provided
-  a `All` predicate, and a theorem to prove it have been registered with
-  the keys `All` and `AllForall`.
-- Add a `Scheme All` command to :ref:`generate the `All` predicate<92nestedscheme>` and its theorem
-  for inductive types used for the eliminators of nested inductive types
-- :cmd:`Ltac2 Custom Entry` making it possible to define :ref:`more complex :cmd:`Ltac2 Notation`\s<92ltac2>`
-  and many other additions to Ltac2 (see below for details).
-- attribute :attr:`schemes` to :ref:`control automatic scheme declaration<92scheme>`
-  (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
-  fixes `#19480 <https://github.com/rocq-prover/rocq/issues/19480>`_,
-  by Gaëtan Gilbert).
-- :ref:`Parsing of elimination constraints<92elimparsing>` in prenex polymorphic definitions
-  as well as in constraints declaration :g:`Constraint s1 -> s2.`
-- :flag:`Printing Fully Qualified` to :ref:`print all names<92printfully>` (global references, modules,
-  module types, universes, etc) using fully qualified paths
+- attribute :attr:`schemes` to :ref:`control automatic scheme declaration<92scheme>`.
 - :ref:`Goal names can be automatically generated<92goalnames>` for :tacn:`induction`,
   :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
-
+- congruence tactics now :ref:`handle primitive ints, floats and strings<92congruence>`
+- :cmd:`Ltac2 Custom Entry` making it possible to define :ref:`more complex<92ltac2>` :cmd:`Ltac2 Notation`\s
+  and many other additions to Ltac2 (see below for details).
+- :flag:`Printing Fully Qualified` to :ref:`print all names<92printfully>` (global references, modules,
+  module types, universes, etc) using fully qualified paths
+- :ref:`Generalized universe polymorphism flag<92mlapi>` structure (ML API change)
 
 See the `Changes in 9.2.0`_ section below for the detailed list of changes,
 including potentially breaking changes marked with **Changed**.
@@ -88,7 +84,7 @@ Rocq 9.2 was made possible thanks to the following 35 reviewers:
 Eric Bistal, Dan Christensen, Cyril Cohen, Pierre Corbineau, Pierre Courtieu,
 Julien Cretin, Tomás Díaz, Andres Erbsen, Jian Fang, Jim Fehrle, Gaëtan Gilbert,
 Jason Gross, Hugo Herbelin, Emilio Jesús Gallego Arias, Ralf Jung, Jan-Oliver Kaiser,
-Thomas Lamiaux, Olivier Laurent, Rodolphe Lepigre, Rodolphe Lepigre, Yann Leray,
+Thomas Lamiaux, Olivier Laurent, Rodolphe Lepigre, Yann Leray,
 Kenji Maillard, Guillaume Melquiond, Guillaume Munch-Maccagnoni, Karl Palmskog,
 Clément Pit-Claudel, Pierre-Marie Pédrot, Pierre Rousselin, Pierre Roux, Radosław Rowicki,
 Matthieu Sozeau, Nicolas Tabareau, Enrico Tassi, Li-yao Xia, Théo Zimmermann.
@@ -97,12 +93,12 @@ See the `Rocq Team <https://rocq-prover.org/rocq-team>`_ page for
 more details on Rocq's development teams.
 
 The 43 contributors to the 9.2 version are:
-CharlesCNorton, Ilan, JasonGross, JeanCASPAR, quarkcool, Lionel Blatter, Mathis Bouverot,
+Charles C Norton, Ilan, Jean Caspar, quarkcool, Lionel Blatter, Mathis Bouverot,
 Jeffrey Chang, Owen Conoly, Quentin Corradi, Julien Cretin, Tomás Díaz, Andres Erbsen,
 Jim Fehrle, Gaëtan Gilbert, Jason Gross, Dario Halilovic, Hugo Herbelin,
 Emilio Jesús Gallego Arias, Jan-Oliver Kaiser, Thomas Lamiaux, Rodolphe Lepigre,
 Yann Leray, Gregory Malecha, Bruno Martinez, Guillaume Melquiond, Jan Midtgaard,
-Patrick Nicodemus, Charles Norton, Claude Opus 4.5, Clément Pit-Claudel, Pierre-Marie Pédrot,
+Patrick Nicodemus, Charles Norton, Clément Pit-Claudel, Pierre-Marie Pédrot,
 Johann Rosain, Dan Rostovtsev, Pierre Rousselin, Pierre Roux, Matthieu Sozeau, Nicolas Tabareau,
 Enrico Tassi, Laurent Thery, Quentin Vermande, Théo Winterhalter, Théo Zimmermann.
 
@@ -111,10 +107,10 @@ the GitHub issue and pull request system,
 the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
 `Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
 
-Nicolas Tabareau is the release managers of Rocq 9.2.
+Nicolas Tabareau is the release manager of Rocq 9.2.
 This release is the result of 397 merged PRs, closing 56 issues.
 
-| Nantes, MArch 2026
+| Nantes, March 2026
 | Nicolas Tabareau for the Rocq development team
 
 Changes in 9.2.0
@@ -140,7 +136,9 @@ Kernel
   (`#21465 <https://github.com/rocq-prover/rocq/pull/21465>`_,
   fixes `#21464 <https://github.com/rocq-prover/rocq/issues/21464>`_,
   by Jason Gross).
-.. _92native:
+
+  .. _92native:
+
 - **Changed:**
   Reenable support for `native_compute` when compiled with OCaml 5. As it relies on some architecture-specific code, only some x86 setups are supported for now
   (`#21540 <https://github.com/rocq-prover/rocq/pull/21540>`_,
@@ -159,10 +157,10 @@ Specification language, type inference
   (`#20662 <https://github.com/rocq-prover/rocq/pull/20662>`_,
   by Gaëtan Gilbert).
 
-.. _92elimconstaints:
+  .. _92elimconstraints:
 
 - **Added:**
-  implicit elaboration of :ref:`elimination constraints <92elimconstraints>`
+  implicit elaboration of elimination constraints
   (`#21417 <https://github.com/rocq-prover/rocq/pull/21417>`_,
   by Tomas Diaz).
 
@@ -239,7 +237,7 @@ Tactics
   (`#21245 <https://github.com/rocq-prover/rocq/pull/21245>`_,
   by Gaëtan Gilbert).
 
-.. _92congruence:
+  .. _92congruence:
 
 - **Added:**
   congruence tactics now handle primitive ints, floats and strings
@@ -247,16 +245,16 @@ Tactics
   fixes `#20011 <https://github.com/rocq-prover/rocq/issues/20011>`_,
   by Pierre-Marie Pédrot).
 
-.. _92nested:
+  .. _92nested:
 
 - **Added:**
   Induction hypotheses are now generated for nested arguments provided
-  a `All` predicate, and a theorem to prove it have been registered with
+  an `All` predicate, and a theorem to prove it, have been registered with
   the keys `All` and `AllForall`.
   (`#21356 <https://github.com/rocq-prover/rocq/pull/21356>`_,
   by Thomas Lamiaux).
 
-.. _92nestedscheme:
+  .. _92nestedscheme:
 
 - **Added:**
   Add a `Scheme All` command to generate the `All` predicate and its theorem
@@ -282,6 +280,22 @@ Tactics
   (`#21108 <https://github.com/rocq-prover/rocq/pull/21108>`_,
   fixes `#21106 <https://github.com/rocq-prover/rocq/issues/21106>`_,
   by Gaëtan Gilbert).
+- **Changed:**
+  The unification algorithm (evarconv) may need to unfold its two input terms to succeed. Now, when one of the terms is an evar, it instantiates it with the folded version of the other term. In other words, tactics now unfold less than before, which may change the behavior of subsequent tactics.
+  (`#19987 <https://github.com/rocq-prover/rocq/pull/19987>`_,
+  by Quentin Vermande).
+- **Changed:**
+  Hypotheses of generated induction schemes use the constructor name instead of `f`, `f0`, etc
+  (`#20813 <https://github.com/rocq-prover/rocq/pull/20813>`_,
+  by Dario Halilovic).
+
+  .. _92goalnames:
+
+- **Added:**
+  Goal names can be automatically generated for :tacn:`induction`,
+  :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
+  (`#20809 <https://github.com/rocq-prover/rocq/pull/20809>`_,
+  by Dario Halilovic).
 
 Ltac2 language
 ^^^^^^^^^^^^^^
@@ -312,7 +326,7 @@ Ltac2 language
   (`#21285 <https://github.com/rocq-prover/rocq/pull/21285>`_,
   by Gaëtan Gilbert).
 
-.. _92ltac2:
+  .. _92ltac2:
 
 - **Added:**
   :cmd:`Ltac2 Custom Entry` making it possible to define more complex :cmd:`Ltac2 Notation`\s
@@ -334,7 +348,7 @@ Ltac2 language
   by Jason Gross).
 - **Added:**
   :ref:`syntactic class <syntactic_classes>` `lpreterm` parsing terms
-  at precedence levl 200 and interpreting them as preterms
+  at precedence level 200 and interpreting them as preterms
   (`#21094 <https://github.com/rocq-prover/rocq/pull/21094>`_,
   by Gaëtan Gilbert).
 - **Added:**
@@ -441,6 +455,9 @@ Commands and options
   (e.g. `Derive X in X as x` binds `X` to an evar named `?X` instead of an anonymous evar (which would print as `?Goal`))
   (`#21332 <https://github.com/rocq-prover/rocq/pull/21332>`_,
   by Gaëtan Gilbert).
+
+  .. _92mlapi:
+
 - **Changed:**
   Generalized universe polymorphism flag structure (ML API change)
   (`#21419 <https://github.com/rocq-prover/rocq/pull/21419>`_,
@@ -477,13 +494,16 @@ Commands and options
   (`#19761 <https://github.com/rocq-prover/rocq/pull/19761>`_,
   by Jim Fehrle).
 
-.. _92scheme:
+  .. _92scheme:
 
 - **Added:**
   attribute :attr:`schemes` to control automatic scheme declaration
   (`#21163 <https://github.com/rocq-prover/rocq/pull/21163>`_,
   fixes `#19480 <https://github.com/rocq-prover/rocq/issues/19480>`_,
   by Gaëtan Gilbert).
+
+  .. _92elimparsing:
+
 - **Added:**
   Parsing of elimination constraints in prenex polymorphic definitions
   as well as in constraints declaration :g:`Constraint s1 -> s2.`
@@ -499,7 +519,7 @@ Commands and options
   (`#21248 <https://github.com/rocq-prover/rocq/pull/21248>`_,
   by Gaëtan Gilbert).
 
-.. _92printfully:
+  .. _92printfully:
 
 - **Added:**
   :flag:`Printing Fully Qualified` to print all names (global references, modules,
@@ -516,7 +536,7 @@ Commands and options
   Fix Derive command to handle dependent types correctly
   (`#21313 <https://github.com/rocq-prover/rocq/pull/21313>`_,
   fixes `#21292 <https://github.com/rocq-prover/rocq/issues/21292>`_,
-  by copilot-swe-agent[bot]).
+  by Jason Gross).
 - **Fixed:** fallback printing of inductives using
   ``<inductive:Foo:0>`` should be rarer (it should in any case only
   happen rarely from module errors) (`#21473
@@ -561,7 +581,7 @@ Corelib
   (`#21211 <https://github.com/rocq-prover/rocq/pull/21211>`_,
   by Pierre Roux).
 - **Changed:**
-  rewriting schemes for `eq·` and `eq_true` are explicitly declared in `Init.Logic`
+  rewriting schemes for `eq` and `eq_true` are explicitly declared in `Init.Logic`
   instead of dynamically when a tactic needs them.
   For instance `EqdepFacts.internal_eq_rew_dep` does not exist anymore and instead `Logic.eq_rew_dep` is available
   (`#21248 <https://github.com/rocq-prover/rocq/pull/21248>`_,
@@ -587,26 +607,10 @@ Miscellaneous
 ^^^^^^^^^^^^^
 
 - **Changed:**
-  The unification algorithm (evarconv) may need to unfold its two input terms to succeed. Now, when one of the terms is an evar, it instantiates it with the folded version of the other term. In other words, tactics now unfold less than before, which may change the behavior of subsequent tactics.
-  (`#19987 <https://github.com/rocq-prover/rocq/pull/19987>`_,
-  by Quentin Vermande).
-- **Changed:**
-  Hypotheses of generated induction schemes use the constructor name instead of `f`, `f0`, etc
-  (`#20813 <https://github.com/rocq-prover/rocq/pull/20813>`_,
-  by Dario Halilovic).
-- **Changed:**
   use `Gc.ramp_up` while executing :cmd:`Require` on OCaml 5.4 and later.
   This should partially mitigate the performance lost since OCaml 4.14
   (`#21306 <https://github.com/rocq-prover/rocq/pull/21306>`_,
   by Gaëtan Gilbert).
-
-.. _92goalnames:
-
-- **Added:**
-  Goal names can be automatically generated for :tacn:`induction`,
-  :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
-  (`#20809 <https://github.com/rocq-prover/rocq/pull/20809>`_,
-  by Dario Halilovic).
 
 
 Version 9.1
@@ -939,7 +943,7 @@ Ltac2 language
   (`#20656 <https://github.com/rocq-prover/rocq/pull/20656>`_,
   by Gaëtan Gilbert).
 
-.. _91ltac2notationfix:
+  .. _91ltac2notationfix:
 
 - **Fixed:**
   Ltac2 in terms in notations is more aware of the notation variables it uses,
@@ -1017,7 +1021,7 @@ Commands and options
   fixes `#20042 <https://github.com/rocq-prover/rocq/issues/20042>`_,
   by Gaëtan Gilbert).
 
-.. _91refinedef:
+  .. _91refinedef:
 
 - **Added:**
   support for the :attr:`refine` attribute to definitions and (co)fixpoints
@@ -1081,7 +1085,7 @@ Infrastructure and dependencies
   (`#20576 <https://github.com/rocq-prover/rocq/pull/20576>`_,
   by Gaëtan Gilbert).
 
-.. _91relocatable:
+  .. _91relocatable:
 
 - **Added:**
   Rocq can be compile-time configured to be relocatable,
