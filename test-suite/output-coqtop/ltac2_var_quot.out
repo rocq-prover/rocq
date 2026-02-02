@@ -12,19 +12,19 @@ Error: Unbound value x
 
 Rocq < Rocq < Toplevel input, characters 7-11:
 > Check $ x.
->       ^
+>       ^^^^
 Error:
 Syntax error: 'Constraint' or [lconstr] expected after 'Check' (in [query_command]).
 
 Rocq < Rocq < Toplevel input, characters 7-18:
 > Check $ preterm:x.
->       ^
+>       ^^^^^^^^^^^
 Error:
 Syntax error: 'Constraint' or [lconstr] expected after 'Check' (in [query_command]).
 
 Rocq < Rocq < Toplevel input, characters 7-20:
 > Check $ preterm : x.
->       ^
+>       ^^^^^^^^^^^^^
 Error:
 Syntax error: 'Constraint' or [lconstr] expected after 'Check' (in [query_command]).
 
@@ -50,7 +50,7 @@ Error: Unbound value preterm
 
 Rocq < Rocq < Toplevel input, characters 7-19:
 > Check $ preterm :x.
->       ^
+>       ^^^^^^^^^^^^
 Error:
 Syntax error: 'Constraint' or [lconstr] expected after 'Check' (in [query_command]).
 
