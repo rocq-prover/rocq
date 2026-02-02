@@ -85,6 +85,7 @@ type coqargs_pre = {
 
   ml_includes : string list;
   vo_includes : vo_path list;
+  packages : string list;
 
   load_vernacular_list : (string * bool) list;
   injections  : injection_command list;
@@ -143,6 +144,7 @@ let default_pre = {
   load_rcfile  = true;
   ml_includes  = [];
   vo_includes  = [];
+  packages = [];
   load_vernacular_list = [];
   injections   = [];
 }
@@ -169,6 +171,19 @@ let add_ml_include opts s =
 let add_vo_include opts unix_path rocq_path implicit =
   let v = { unix_path; rocq_path; implicit; } in
   { opts with pre = { opts.pre with vo_includes = v :: opts.pre.vo_includes }}
+
+let add_package opts p =
+  { opts with pre = { opts.pre with packages = p :: opts.pre.packages }}
+
+let resolve_packages args =
+  let packages = Rocq_package.resolve args.pre.packages in
+  let add p vo_includes =
+    let unix_path = p.Rocq_package.dir in
+    let rocq_path = p.Rocq_package.logpath in
+    { unix_path; rocq_path; implicit = false } :: vo_includes
+  in
+  let vo_includes = List.fold_right add packages args.pre.vo_includes in
+  { args with pre = { args.pre with vo_includes } }
 
 let add_vo_require opts d ?(allow_failure=false) p export =
   { opts with pre = { opts.pre with injections = RequireInjection {lib=d; prefix=p; export; allow_failure} :: opts.pre.injections }}
@@ -257,7 +272,7 @@ let parse_args ~init arglist : t * string list =
   let extras = ref [] in
   let rec parse oval = match !args with
   | [] ->
-    (oval, List.rev !extras)
+    (resolve_packages oval, List.rev !extras)
   | opt :: rem ->
     args := rem;
     let next () = match !args with
@@ -281,6 +296,9 @@ let parse_args ~init arglist : t * string list =
          option. The above line should be removed once we require an
          updated version of Dune. *)
       add_vo_include oval d p true
+    | "-package" ->
+      let p = next () in
+      add_package oval p
 
     (* Options with one arg *)
     |"-coqlib" ->
