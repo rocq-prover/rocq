@@ -103,6 +103,15 @@ let set_include d p =
   let p = dirpath_of_string p in
   push_include (d,p)
 
+(* Used by option -package. *)
+let packages = ref []
+let add_package p = packages := p :: !packages
+
+let resolve_packages () =
+  let ps = Rocq_package.resolve !packages in
+  packages := [];
+  List.iter (fun p -> set_include p.Rocq_package.dir p.Rocq_package.logpath) ps
+
 (* Initializes the LoadPath *)
 let init_load_path rocqenv =
   (* the to_string casting won't be necessary once Boot handles
@@ -373,6 +382,9 @@ let parse_args argv =
     | ("-Q"|"-R") :: d :: p :: rem -> set_include d p;parse rem
     | ("-Q"|"-R") :: ([] | [_]) -> usage 1
 
+    | "-package" :: p :: rem -> add_package p; parse rem
+    | "-package" :: [] -> usage 1
+
     | "-d" :: s :: rem ->
       CDebug.set_flags s;
       parse rem
@@ -437,6 +449,7 @@ let init_with_argv argv =
       | Env coqenv -> init_load_path coqenv
     in
     (* additional loadpath, given with -R/-Q options *)
+    resolve_packages ();
     NewProfile.profile "add_load_paths" (fun () ->
         List.iter
           (fun (unix_path, rocq_root) -> add_rec_path ~unix_path ~rocq_root)
