@@ -13,12 +13,8 @@ Entry binder_constr is
   | "fun"; open_binders; "=>"; term LEVEL "200"
   | "let"; "fix"; fix_decl; "in"; term LEVEL "200"
   | "let"; "cofix"; cofix_body; "in"; term LEVEL "200"
-  | "let"; "'"; pattern LEVEL "200"; ":="; term LEVEL "200"; "in"; term LEVEL
-    "200"
-  | "let"; "'"; pattern LEVEL "200"; ":="; term LEVEL "200"; case_type; "in";
-    term LEVEL "200"
-  | "let"; "'"; pattern LEVEL "200"; "in"; pattern LEVEL "200"; ":="; term
-    LEVEL "200"; case_type; "in"; term LEVEL "200"
+  | "let"; "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
+    term LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
   | "let"; name; binders; let_type_cstr; ":="; term LEVEL "200"; "in"; term
     LEVEL "200"
   | "let"; [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
