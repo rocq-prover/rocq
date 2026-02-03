@@ -8,7 +8,7 @@ ci_dir="$(dirname "$0")"
 git_download iris_examples
 
 # Extract required version of Iris (avoiding "+" which does not work on MacOS :( *)
-iris_CI_REF=$(grep -F '"rocq-iris-heap-lang"' < "${CI_BUILD_DIR}/iris_examples/coq-iris-examples.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
+iris_CI_REF=$(grep -F '"rocq-iris-heap-lang"' < "${CI_BUILD_DIR}"/iris_examples/*-iris-examples.opam | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
 [ -n "$iris_CI_REF" ] || { echo "Could not find Iris dependency version" && exit 1; }
 
 # Download Iris
