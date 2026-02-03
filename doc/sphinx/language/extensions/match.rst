@@ -82,8 +82,9 @@ declared as such (see :ref:`controlling-match-pp`).
 Irrefutable patterns: the destructuring let variants
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pattern-matching on terms inhabiting inductive type having only one
-constructor can be alternatively written using :g:`let … in …`
+Pattern-matching where all cases are captured by a single pattern
+(":gdef:`irrefutable pattern`", typically for inductive types with a single
+constructor) can be alternatively written using :g:`let … in …`
 constructions. There are two variants of them.
 
 .. insertprodn destructuring_let destructuring_let
@@ -97,8 +98,6 @@ constructions. There are two variants of them.
 
 Let-tuple syntax
 ++++++++++++++++
-
-.. todo add "irrefutable pattern" to the glossary
 
 The expression :n:`let ( {*, @ident__i } ) := @term__0 in @term__1`
 performs case analysis on :n:`@term__0` whose type must be an
