@@ -164,6 +164,22 @@ a global build. This is very convenient when using `merlin` as you
 will get a coherent view of all the broken plugins, with full
 incremental cross-project rebuild.
 
+### Merlin for plugins in _build_ci
+
+Merlin can be made to use the locally built Rocq when looking at plugins files in `_build_ci`.
+
+- for plugins built with `rocq makefile` (eg `bignums`): add `make
+  .merlin` to the CI script (after "configure" commands if any), or
+  source `ci-env.sh` and run `make .merlin` in the plugin's directory.
+
+- for plugins built with `dune`: use composed build: uncomment `(dirs
+  (:standard _build_ci))` in Rocq's toplevel `dune` file, then run
+  `dune build @check`. Do not commit the modified Rocq dune file.
+
+  `dune build @check` will test every project in your `_build_ci`
+  which has dune files. To restrict to a specific project `foo`, add a
+  file `_build_ci/dune` containing `(dirs foo)`.
+
 Advanced GitLab CI information
 ------------------------------
 
