@@ -1215,11 +1215,11 @@ Ltac bool_congr :=
  different predicate type for each predicate parameter of each section or
  lemma.
    In detail, we ensure that the head normal form of mem A is always of the
- eta-long MemPred (fun x => pA x) form, where pA is the pred interpretation of
+ eta-long Mem (fun x => pA x) form, where pA is the pred interpretation of
  A following its predType pT, i.e., the _expansion_ of topred A. For a pred T
- evar ?P, (mem ?P) converts MemPred (fun x => ?P x), whose argument is a Miller
+ evar ?P, (mem ?P) converts Mem (fun x => ?P x), whose argument is a Miller
  pattern and therefore always unify: unifying (mem A) with (mem ?P) always
- yields ?P = pA, because the rigid constant MemPred aligns the unification.
+ yields ?P = pA, because the rigid constant Mem aligns the unification.
  Furthermore, we ensure pA is always either A or toP .... A where toP ... is
  the expansion of @topred T pT, and toP is declared as a Coercion, so pA will
  _display_ as A in either case, and the instances of @mem T (predPredType T) pA
