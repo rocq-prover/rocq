@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # For compat with OSX which has a non-gnu sed which doesn't support -z
-SED=`(which gsed || which sed) 2> /dev/null`
+SED=`(command -v gsed || command -v sed) 2> /dev/null`
 
 if [ $# != 1 ]; then
   echo "usage: $0 rev0..rev1"
