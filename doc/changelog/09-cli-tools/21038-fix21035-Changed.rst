@@ -1,5 +1,0 @@
-- **Changed:**
-  in ``-emacs`` mode, goals are no longer spontaneously printed
-  (`#21038 <https://github.com/rocq-prover/rocq/pull/21038>`_,
-  fixes `#21035 <https://github.com/rocq-prover/rocq/issues/21035>`_,
-  by Pierre Roux).
