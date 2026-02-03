@@ -12,8 +12,8 @@ exception ParseError of string
 
 (* Functorial interface *)
 
-type norec
-type mayrec
+type norec = private [`NoRec]
+type mayrec = private [`MayRec]
 
 module type S = sig
   type keyword_state
