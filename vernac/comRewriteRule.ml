@@ -122,10 +122,12 @@ let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u :
   let stateq, maskq = Array.fold_left_map (safe_quality_pattern_of_quality ~loc evd qsubst) stateq q
   in
   let stateu, masku = Array.fold_left_map (fun stateu lvlold ->
-      (* MS TODO Check correctness of Option.get / Ask @yannl35133 *)
-      let lvlnew = Univ.Level.var_index @@ Option.get (Univ.Universe.level (UVars.subst_univs_level_universe usubst lvlold)) in
-      Option.fold_right (update_invtblu1 ~loc evd lvlold) lvlnew stateu, lvlnew
-    ) stateu u
+   let levopt = Univ.Universe.level (UVars.subst_univs_level_universe usubst lvlold) in
+   match levopt with
+   | Some lev -> let lvlnew = Univ.Level.var_index lev in
+                 Option.fold_right (update_invtblu1 ~loc evd lvlold) lvlnew stateu, lvlnew
+   | None -> CErrors.user_err ?loc Pp.(str"Only level variables may appear in a universe pattern"))
+   stateu u
   in
   (state, stateq, stateu), (maskq, masku)
 
