@@ -63,7 +63,7 @@ val has_natdynlink : bool
 
 (* used in coqdoc *)
 val wwwcoq : string
-val wwwstdlib : string
+val wwwcorelib : string
 
 (* used in rocqide *)
 val wwwrefman : string
