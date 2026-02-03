@@ -1857,8 +1857,8 @@ let get_variances uctx = uctx.variances
 let set_variances uctx variances = { uctx with variances = Some variances }
 
 let warn_no_variances =
-  CWarnings.create ~name:"minimization without variances" ~category:CWarnings.CoreCategories.universes ~default:CWarnings.Enabled
-    Pp.(fun () -> str"Calling minimization without variance information is a noop, see dev/doc/changes.md for an explanation.")
+  CWarnings.create ~name:"minimization-without-variances" ~category:CWarnings.CoreCategories.universes ~default:CWarnings.Enabled
+    Pp.(fun () -> str"Calling minimization without variance information is a noop, see dev/doc/universes.md for an explanation.")
 
 let update_variances_qvars qs variances =
   let upd vocc =
