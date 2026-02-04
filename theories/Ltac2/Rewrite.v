@@ -120,6 +120,36 @@ Module Strategy.
   Ltac2 @external fix_ : (t -> t) -> t :=
     "rocq-runtime.plugins.ltac2" "rewstrat_fix".
 
+  (** The identity if the pattern matching succeeds, fails otherwise *)
+  Ltac2 @external matches : pattern -> t :=
+    "rocq-runtime.plugins.ltac2" "rewstrat_matches".
+
+  (** The rewrite success datatype, where [prf] should be of type [rel lhs rhs] *)
+  Ltac2 Type rewrite_success := { rel : constr; rhs : constr; prf : constr }.
+
+  (** A rewrite result can be any of a success, and identity step (no progress), or a failure *)
+  Ltac2 Type rewrite_result := [ Success (rewrite_success) | Identity | Fail ].
+
+  (** The [tactic f] strategy applies [f] to arguments [ty], [lhs] and [rel],
+      where [lhs] is the subterm being rewritten, of type [ty], and
+      an optional relation constraint [rel] is given.
+
+      The tactic is applied to a single goal of type [unit] whose context
+      corresponds to the context of the term to rewrite (i.e. the context of the
+      goal at the start of the [rewrite_strat] call extended with the binders
+      that were traversed to attain this subterm. The tactic should return a
+      [rewrite_result] indicating success, failure or no progress and should
+      *not* solve the goal. Solving the goal is an error that aborts the
+      [rewrite_strat] call. The success record contains the chosen relation
+      [rel], new right hand-side [rhs] and a proof [prf] of [rel t rhs].
+
+      If the proof [prf] is syntactically [eq_refl _], then the witness
+      of the rewriting is simply a *conversion* requiring no explicit
+      proof and no congruence lemmas for the context of the rewrite.
+   *)
+  Ltac2 @external tactic : (constr -> constr -> constr option -> rewrite_result) -> t :=
+    "rocq-runtime.plugins.ltac2" "rewstrat_tactic".
+
 End Strategy.
 
 (* Tactics *)

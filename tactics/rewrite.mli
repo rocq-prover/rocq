@@ -27,48 +27,46 @@ type binary_strategy =
 
 type nary_strategy = Choice
 
-type ('constr,'redexpr,'id) strategy_ast =
+type ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast =
   | StratId | StratFail | StratRefl
-  | StratUnary of unary_strategy * ('constr,'redexpr,'id) strategy_ast
+  | StratUnary of unary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
   | StratBinary of
-      binary_strategy * ('constr,'redexpr,'id) strategy_ast * ('constr,'redexpr,'id) strategy_ast
-  | StratNAry of nary_strategy * ('constr,'redexpr,'id) strategy_ast list
+      binary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
+  | StratNAry of nary_strategy * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast list
   | StratConstr of 'constr * bool
   | StratTerms of 'constr list
   | StratHints of bool * string
   | StratEval of 'redexpr
   | StratFold of 'constr
   | StratVar of 'id
-  | StratFix of 'id * ('constr,'redexpr,'id) strategy_ast
-
+  | StratFix of 'id * ('constr,'constr_pattern,'redexpr,'id,'tactic) strategy_ast
+  | StratMatches of 'constr_pattern
+  | StratTactic of 'tactic
 type rewrite_proof =
   | RewPrf of constr * constr
   | RewCast of Constr.cast_kind
 
 type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
-type rewrite_result_info = {
-  rew_car : constr;
-  rew_from : constr;
-  rew_to : constr;
-  rew_prf : rewrite_proof;
-  rew_evars : evars;
-}
+type rewrite_result_info =
+  { rew_rel: constr; rew_to : constr; rew_prf : constr }
 
 type rewrite_result =
 | Fail
 | Identity
 | Success of rewrite_result_info
 
+val subst_rewrite_result : Evd.evar_map -> (Id.t -> constr) -> rewrite_result -> rewrite_result
+
 type strategy
 
-val strategy_of_ast : (Glob_term.glob_constr * constr delayed_open, Redexpr.red_expr delayed_open, Id.t) strategy_ast -> strategy
+val strategy_of_ast : (Glob_term.glob_constr * constr delayed_open, Pattern.constr_pattern, Redexpr.red_expr delayed_open, Id.t, unit Proofview.tactic) strategy_ast -> strategy
 
-val map_strategy : ('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) ->
-  ('a, 'c, 'e) strategy_ast -> ('b, 'd, 'f) strategy_ast
+val map_strategy : ('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> ('g -> 'h) -> ('i -> 'j) ->
+  ('a, 'c, 'e, 'g, 'i) strategy_ast -> ('b, 'd, 'f, 'h, 'j) strategy_ast
 
-val pr_strategy : ('a -> Pp.t) -> ('b -> Pp.t) -> ('c -> Pp.t) ->
-  ('a, 'b, 'c) strategy_ast -> Pp.t
+val pr_strategy : ('a -> Pp.t) -> ('b -> Pp.t) -> ('c -> Pp.t) -> ('d -> Pp.t) -> ('e -> Pp.t) ->
+  ('a, 'b, 'c, 'd, 'e) strategy_ast -> Pp.t
 
 (** Entry point for user-level "rewrite_strat" *)
 val cl_rewrite_clause_strat : strategy -> Id.t option -> unit Proofview.tactic
@@ -94,15 +92,6 @@ val setoid_symmetry_in : Id.t -> unit Proofview.tactic
 val setoid_reflexivity : unit Proofview.tactic
 
 val setoid_transitivity : constr option -> unit Proofview.tactic
-
-
-val apply_strategy :
-  strategy ->
-  Environ.env ->
-  Names.Id.Set.t ->
-  constr ->
-  bool * constr ->
-  evars -> rewrite_result
 
 module Strategies :
 sig
@@ -137,6 +126,10 @@ sig
 
   val fold : Evd.econstr -> strategy
   val fold_glob : Glob_term.glob_constr -> strategy
+
+  val matches : Pattern.constr_pattern -> strategy
+
+  val tactic_call : (env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> rewrite_result Proofview.tactic) -> strategy
 end
 
 module Internal :

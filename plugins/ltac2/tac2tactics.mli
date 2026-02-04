@@ -131,3 +131,5 @@ val congruence : int option -> constr list option -> unit Proofview.tactic
 val simple_congruence : int option -> constr list option -> unit Proofview.tactic
 
 val f_equal : unit Proofview.tactic
+
+val wrap_tactic_call : (constr -> constr -> constr option -> Rewrite.rewrite_result Proofview.tactic) -> Rewrite.strategy

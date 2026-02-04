@@ -9,9 +9,11 @@ This chapter presents the extension of several equality related
 tactics to work over user-defined structures (called setoids) that are
 equipped with ad-hoc equivalence relations meant to behave as
 equalities. Actually, the tactics have also been generalized to
-relations weaker than equivalences (e.g. rewriting systems). The
-toolbox also extends the automatic rewriting capabilities of the
-system, allowing the specification of custom strategies for rewriting.
+relations weaker than equivalences (e.g. rewriting systems).
+The toolbox also extends the automatic rewriting capabilities of the
+system, allowing the specification of :ref:`custom strategies <strategies4rewriting>`
+for rewriting *or* applying :ref:`conversions <applyingconversionrules>` (in that case,
+requiring no proof terms).
 
 This documentation is adapted from the previous setoid documentation
 by Claudio Sacerdoti Coen (based on previous work by Clément Renard).
@@ -1009,6 +1011,17 @@ on the programmable rewriting strategies with generic traversals by Visser et al
 the Stratego transformation language :cite:`Visser01`. Rewriting strategies
 are applied using the :tacn:`rewrite_strat` tactic.
 
+The :tacn:`rewrite_strat` tactic is more general than :tacn:`setoid_rewrite` as
+it can also be used to apply arbitrary :ref:`conversion strategies <applyingconversionrules>`
+in terms, that need not be justified by proof terms and congruence lemmas, as
+all terms are congruent for conversion in Rocq's theory. For example,
+the `eval` and `fold` strategies do not produce proofs: they can be used to apply
+:ref:`conversions <Conversion-rules>` at selected subterms. The :n:`tactic` strategy
+further allows arbitrary customization of strategies through :ref:`Ltac1 <ltac>` or :ref:`Ltac2 <ltac2>` tactics.
+
+The following describes the :ref:`Ltac1 <ltac>` version of the strategies. An :ref:`Ltac2 <ltac2>` version
+with the same primitives is available in the :g:`Ltac2.Rewrite` module.
+
 .. insertprodn rewstrategy rewstrategy0
 
 .. prodn::
@@ -1030,6 +1043,8 @@ are applied using the :tacn:`rewrite_strat` tactic.
    | terms {* @one_term }
    | eval @red_expr
    | fold @one_term
+   | matches @one_term
+   | tactic @ltac_expr
    | @rewstrategy0
    | old_hints @ident
    rewstrategy0 ::= @one_term
@@ -1052,6 +1067,12 @@ are applied using the :tacn:`rewrite_strat` tactic.
 
 :n:`<- @one_term`
    lemma, right to left
+
+:n:`terms {* @one_term }`
+   rewrite with any of the lemmas
+
+:n:`hints @ident`
+   rewrite with any of the rewrite hints from the given rewrite hint database
 
 :n:`progress @rewstrategy1`
    progress
@@ -1090,33 +1111,62 @@ are applied using the :tacn:`rewrite_strat` tactic.
    rewriting :n:`(a && b) && c` with `andbC` gives :n:`c && (a && b)`.
 
 :n:`bottomup @rewstrategy1`
-   bottom-up
+   bottom-up: recursively processes subterms of the term before applying the strategy
 
 :n:`topdown @rewstrategy1`
-   top-down
-
-:n:`hints @ident`
-   apply hints from hint database
-
-:n:`terms {* @one_term }`
-   any of the terms
+   top-down: applies the strategy or goes into subterms, recursively
 
 :n:`eval @red_expr`
-   apply reduction
+   apply a reduction, see :ref:`conversions <applyingconversionrules>`.
+   This is a conversion rule.
 
 :n:`fold @term`
-   unify
+   if the current term unifies with :n:`@term`, replace it with :n:`@term`.
+   This is a conversion rule.
 
 :n:`fix @ident := @rewstrategy1`
    fixpoint operator, where :math:`\texttt{fix }f := v` evaluates to
    :math:`\subst{v}{f}{(\texttt{fix }f := v)}`
 
 :n:`( @rewstrategy )`
-   to be documented
+   parenthesizes for disambiguation, applies :n:`@rewstrategy`
 
 :n:`old_hints @ident`
    to be documented
 
+:n:`matches @one_term`
+   This strategy is the identity (:n:`id`) if the current term matches
+   the given pattern, and :n:`fail` otherwise.
+
+:n:`tactic @ltac_expr`
+   The tactic is applied to a goal of shape :n:`?R lhs ?rhs` in the environment
+   of `lhs`. It can instantiate the relation
+   :n:`?R` and right-hand-side :n:`?rhs` with terms of its choice.
+   The tactic must solve the goal to succeed. This inserts
+   the proof term as a witness of a rewriting from :n:`lhs` to :n:`?rhs` using relation :n:`?R`.
+   The following strategy starts from the new term :n:`?rhs`. If the tactic fails, the
+   strategy fails.
+
+   The :ref:`Ltac2 <ltac2>` variant has a different interface. :n:`Ltac2.Strategy.tactic` takes
+   a tactic of type :n:`constr -> constr -> constr option -> rewrite_result` parameterized by a
+   carrier type, the left-hand side :n:`lhs` (of the carrier type) to be rewritten and an optional
+   relation on the carrier type.  It returns an :n:`Ltac2.Strategy.rewrite_result`.
+   The tactic is run on a single goal of type :n:`unit` and context the environment of the :n:`lhs` term. It should not solve the goal, but rather simply return a :n:`rewrite_result`. The result can be:
+
+   + a :n:`Success s` where :n:`s : Ltac2.Strategy.rewrite_success` is a record containing
+     a relation :n:`rel`, a right-hand-side :n:`rhs` and a proof :n:`prf` which should be
+     of type :n:`rel lhs rhs`.
+
+   + a :n:`Fail` constructor indicating the strategy failed, i.e. behaving like :n:`fail`.
+
+   + an :n:`Identity` constructor indicating the strategy succeeded with no rewrite, i.e.,
+     behaving like :n:`id`.
+
+   A failure of the tactic is raised to the toplevel :tacn:`rewrite_strat` call.
+   In both cases, if the successful proof :n:`prf` is syntactically of the shape
+   :n:`core.eq.refl ?carrier ?t`, the rewrite is turned into a *conversion*, which
+   just corresponds to a type cast in the proof term and does not require inferring
+   congruence proofs as conversion is applicable anywhere in a term.
 
 Conceptually, a few of these are defined in terms of the others:
 
@@ -1159,6 +1209,9 @@ expression (see :ref:`applyingconversionrules`) and succeeds
 if it reduces the subterm under consideration. The ``fold`` strategy takes
 a :token:`term` and tries to *unify* it to the current subterm, converting it to :token:`term`
 on success. It is stronger than the tactic ``fold``.
+
+The ``tactic`` strategy allows to express custom rewriting strategies and
+subterm selection choices.
 
 .. note::
    The symbol ';' is used to separate sequences of tactics as well as

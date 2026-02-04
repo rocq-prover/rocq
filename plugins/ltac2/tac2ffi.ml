@@ -204,6 +204,23 @@ let fun2 arg1 arg2 res = {
   r_to = to_fun2 arg1.r_of arg2.r_of res.r_to;
 }
 
+type ('a, 'b, 'c, 'd) fun3 = 'a -> 'b -> 'c -> 'd Proofview.tactic
+
+let of_fun3 to_arg1 to_arg2 to_arg3 of_res f =
+  of_closure (mk_closure (arity_suc (arity_suc arity_one)) (fun x y z ->
+      Proofview.Monad.map of_res @@
+      f (to_arg1 x) (to_arg2 y) (to_arg3 z)))
+
+let to_fun3 of_arg1 of_arg2 of_arg3 to_res f x y z =
+  Proofview.Monad.map to_res @@
+  apply (to_closure f) [of_arg1 x; of_arg2 y; of_arg3 z]
+
+let fun3 arg1 arg2 arg3 res = {
+  r_of = of_fun3 arg1.r_to arg2.r_to arg3.r_to res.r_of;
+  r_to = to_fun3 arg1.r_of arg2.r_of arg3.r_of res.r_to;
+}
+
+
 let of_ext tag c =
   ValExt (tag, c)
 
