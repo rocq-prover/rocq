@@ -522,6 +522,32 @@ Miscellaneous
   (`#20670 <https://github.com/rocq-prover/rocq/pull/20670>`_,
   by Gaëtan Gilbert).
 
+Changes in 9.1.1
+~~~~~~~~~~~~~~~~
+
+.. contents::
+   :local:
+
+Specification language, type inference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Fixed:** anomaly when defining a sort polymorphic inductive
+  without enabling :flag:`Universe Polymorphism`
+  (`#21479 <https://github.com/rocq-prover/rocq/pull/21479>`_,
+  fixes `#21476 <https://github.com/rocq-prover/rocq/issues/21476>`_,
+  by Yann Leray)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- **Fixed:** compatibility with OCaml 5.4 with warnings as errors
+  (`#21261 <https://github.com/rocq-prover/rocq/pull/21261>`_,
+  by Yann Leray)
+- **Fixed:** compatibility with OCaml 5.5 with warnings as errors
+  (`#21584 <https://github.com/rocq-prover/rocq/pull/21584>`_,
+  by Yann Leray and Kate Deplaix)
+- **Changed:** various documentation updates
+
 Version 9.0
 -----------
 
