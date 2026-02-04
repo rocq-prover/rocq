@@ -237,7 +237,7 @@ END
    This variable i then can be used in the interpretation rule.
 
    To see value of which Ocaml types can be bound this way,
-   look at the wit_* function declared in interp/stdarg.mli
+   look at the wit_* function declared in tactics/stdarg.mli
    (in the Coq's codebase). There are more examples in tuto1.
 
    If we drop the wit_ prefix, we will get the token
