@@ -1,11 +1,11 @@
-(lang dune 3.8)
+(lang dune 3.21)
 (name rocq-prover)
 
 ; We use directory targets in documentation
 (using directory-targets 0.1)
 
 ; We need this for when we use the dune.disabled files instead of our rule_gen
-(using coq 0.8)
+(using rocq 0.11)
 
 (formatting
  (enabled_for ocaml))
