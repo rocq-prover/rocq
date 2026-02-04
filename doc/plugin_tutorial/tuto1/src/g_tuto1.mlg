@@ -22,7 +22,7 @@ open Stdarg
 (*
  * This command prints an input from the user.
  *
- * A list with allowable inputs can be found in interp/stdarg.mli,
+ * A list with allowable inputs can be found in tactics/stdarg.mli,
  * plugin/ltac/extraargs.mli, and plugin/ssr/ssrparser.mli
  * (remove the wit_ prefix), but not all of these are allowable
  * (unit and bool, for example, are not usable from within here).
