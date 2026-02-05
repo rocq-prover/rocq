@@ -582,7 +582,9 @@ let push_subst eqs graph =
   let fold l (local, u) (graph, equivs) =
     let graph, equivs' =
       try UGraph.set l u graph
-      with Loop_checking.NotCanonical | Loop_checking.OccurCheck -> UGraph.enforce_constraint (Universe.make l, Eq, u) graph
+      with Loop_checking.NotCanonical
+         | Loop_checking.OccurCheck
+         | Loop_checking.InconsistentEquality -> UGraph.enforce_constraint (Universe.make l, Eq, u) graph
     in
     graph, (l, u) :: List.map (fun (l, u) -> l, Universe.of_expr u) equivs' @ equivs
   in
