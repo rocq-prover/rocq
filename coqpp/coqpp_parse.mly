@@ -160,14 +160,9 @@ glob_printed_opt:
 | GLOB_PRINTED BY CODE { Some $3 }
 ;
 
-interpreted_modifier_opt:
-| { None }
-| LBRACKET IDENT RBRACKET { Some $2 }
-;
-
 interpreted_opt:
 | { None }
-| INTERPRETED interpreted_modifier_opt BY CODE { Some ($2,$4) }
+| INTERPRETED BY CODE { Some $3 }
 ;
 
 globalized_opt:
