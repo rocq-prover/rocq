@@ -854,7 +854,9 @@ let instantiate_variable l (b : Universe.t) local =
      str"Constraints: :" ++ pr_graph local.universes);
   let universes, equivs =
     try UGraph.set l b local.universes
-    with UGraph.InconsistentEquality ->
+    with Loop_checking.NotCanonical
+       | Loop_checking.OccurCheck -> UGraph.enforce_constraint (Universe.make l, Eq, b) local.universes
+       | UGraph.InconsistentEquality ->
       debug Pp.(fun () -> str"Inconsistent equality!");
       sort_inconsistency Eq (Sorts.sort_of_univ (Universe.make l)) (Sorts.sort_of_univ b)
   in
