@@ -27,7 +27,7 @@ val build_by_tactic :
   uctx:UState.t -> poly:PolyFlags.t ->
   typ:EConstr.types ->
   unit Proofview.tactic ->
-  Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t
+  Constr.constr * Constr.types * UState.named_universes_entry * UState.t
 (** Semantics of this function is a bit dubious, use with care *)
 
 val build_by_tactic_opt :
@@ -35,7 +35,7 @@ val build_by_tactic_opt :
   uctx:UState.t -> poly:PolyFlags.t ->
   typ:EConstr.types ->
   unit Proofview.tactic ->
-  (Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t) option
+  (Constr.constr * Constr.types * UState.named_universes_entry * UState.t) option
 (** Same as above but returns None rather than an exception if the proof is not finished *)
 
 val declare_abstract :

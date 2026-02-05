@@ -1195,7 +1195,7 @@ let make_bl_scheme env handle mind =
   let univ_poly = Declareops.inductive_is_polymorphic mib in
   let poly = PolyFlags.of_univ_poly univ_poly in (* FIXME cumulativity not handled *)
   let uctx = if univ_poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) bl_goal)) else uctx in
-  let (ans, _, _, _, uctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:bl_goal
+  let (ans, _, _, uctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:bl_goal
     (compute_bl_tact handle (ind, EConstr.EInstance.make u) lnamesparrec nparrec)
   in
   ([|ans|], uctx)
@@ -1329,7 +1329,7 @@ let make_lb_scheme env handle mind =
   let poly = Declareops.inductive_is_polymorphic mib in
   let uctx = if poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) lb_goal)) else uctx in
   let poly = PolyFlags.of_univ_poly poly (* FIXME cumulativity not handled *) in
-  let (ans, _, _, _, ctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:lb_goal
+  let (ans, _, _, ctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:lb_goal
     (compute_lb_tact handle ind lnamesparrec nparrec)
   in
   ([|ans|], ctx)
@@ -1524,7 +1524,7 @@ let make_eq_decidability env handle mind =
   (* FIXME: cumulativity not handled *)
   let poly = PolyFlags.of_univ_poly univ_poly in
   let uctx = if univ_poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ctx uctx) dec_goal)) else uctx in
-  let (ans, _, _, _, ctx) = Subproof.build_by_tactic ~poly env ~uctx
+  let (ans, _, _, ctx) = Subproof.build_by_tactic ~poly env ~uctx
       ~typ:dec_goal (compute_dec_tact handle (ind,u) lnamesparrec nparrec)
   in
   ([|ans|], ctx)

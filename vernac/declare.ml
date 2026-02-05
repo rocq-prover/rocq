@@ -2466,14 +2466,13 @@ let solve_by_tac prg obls i tac =
   let uctx = Internal.get_uctx prg in
   let uctx = UState.update_sigma_univs uctx (Global.universes ()) in
   let poly = Internal.get_poly prg in
-  (* the status of [build_by_tactic] is dropped. *)
   try
     let env = Global.env () in
     let typ = EConstr.of_constr obl.obl_type in
     (* If the proof is open we absorb the error and leave the obligation open *)
     match Subproof.build_by_tactic_opt env ~uctx ~poly ~typ tac with
     | None -> None
-    | Some (body, types, _univs, _, uctx) ->
+    | Some (body, types, _univs, uctx) ->
       let () = Inductiveops.control_only_guard env (Evd.from_ctx uctx) (EConstr.of_constr body) in
       Some (body, types, uctx)
   with
