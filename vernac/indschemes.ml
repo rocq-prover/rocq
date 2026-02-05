@@ -335,23 +335,24 @@ let sch_isrec = function
 (* Generate suffix for scheme given a target sort *)
 let scheme_suffix_gen {sch_type; sch_sort} sort =
   let open Quality in
-  (* The _ind/_rec_/case suffix *)
   let ind_suffix = match sch_isrec sch_type, sch_sort with
-    | true  , Qual (QConstant QSProp | QConstant QProp) -> "_ind"
-    | true  , _ -> "_rec"
-    | false , _ -> "_case" in
-  (* SProp and Type have an auxillary ending to the _ind suffix *)
-  let aux_suffix = match sch_sort with
-    | Qual (QConstant QSProp) -> "s"
-    | Qual (QConstant QType) -> "t"
-    | _ -> "" in
+    (* The elimination suffix _ind/_sind/_rec/_rect *)
+    | true  , Qual (QConstant QProp) -> "_ind"
+    | true  , Qual (QConstant QSProp) -> "_sind"
+    | true  , Qual (QConstant QType) -> "_rect"
+    | true  , Set -> "_rec"
+    (* The _case suffix *)
+    | false , Qual (QConstant QSProp) -> "_scase"
+    | false , Qual (QConstant QType) -> "_caset"
+    | false , _ -> "_case"
+    | _     , Qual (QVar _) -> assert false in
   (* Some schemes are deliminated with _dep or no_dep *)
   let dep_suffix = match sch_isdep sch_type , sort with
     | true  , QConstant QProp  -> "_dep"
     | false , QConstant QType
     | false , QConstant QSProp -> "_nodep"
     | _ , _                    -> "" in
-  ind_suffix ^ aux_suffix ^ dep_suffix
+  ind_suffix ^ dep_suffix
 
 let smart_ind qid =
   let ind = Smartlocate.smart_global_inductive qid in
