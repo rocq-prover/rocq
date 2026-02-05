@@ -118,7 +118,8 @@ let simplify_variables solve_flexibles above_prop above_zero partial ctx flex va
   in
   let collapse_to_zero u acc =
     try instantiate_variable u Universe.type0 acc
-    with UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
+    with Loop_checking.NotCanonical -> assert false
+       | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
   in
   let maximize u (ctx, flex, variances, graph as acc) =
     match UGraph.maximize u graph with
@@ -263,7 +264,8 @@ let new_minimize_weak ctx flex weak (g, variances) =
             let g, equivs = UGraph.set a b g in
             debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
             update_equivs_bound (ctx, flex, variances, g) a b equivs
-          with UGraph.InconsistentEquality | UGraph.OccurCheck -> acc)
+           with Loop_checking.NotCanonical -> assert false
+              | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc)
         | _, _, _ -> (* One universe is not irrelevant *)
           (ctx, flex, variances, g)
       in
