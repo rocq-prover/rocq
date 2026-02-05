@@ -841,7 +841,7 @@ let in_tacval =
     let tac = MLTacMap.get tac.tacval_tac !ml_table in
     tac args
   in
-  let () = Geninterp.register_interp0 wit interp_fun in
+  let () = Tacinterp.Register.register_interp0 wit interp_fun in
   (fun v -> Genarg.in_gen (Genarg.Glbwit wit) v)
 
 
@@ -879,7 +879,7 @@ type 'b argument_subst =
 
 type ('b, 'c) argument_interp =
 | ArgInterpRet : ('c, 'c) argument_interp
-| ArgInterpFun : ('b, Val.t) interp_fun -> ('b, 'c) argument_interp
+| ArgInterpFun : ('b, Val.t) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
 | ArgInterpWit : ('a, 'b, 'r) Genarg.genarg_type -> ('b, 'c) argument_interp
 | ArgInterpSimple :
   (Geninterp.interp_sign -> Environ.env -> Evd.evar_map -> 'b -> 'c) -> ('b, 'c) argument_interp
@@ -909,7 +909,7 @@ match arg.arg_subst with
     let ans = Genarg.out_gen (glbwit wit) (Tacsubst.subst_genarg s (Genarg.in_gen (glbwit wit) v)) in
     ans
 
-let interp_fun (type a b c) name (arg : (a, b, c) tactic_argument) (tag : c Val.tag) : (b, Val.t) interp_fun =
+let interp_fun (type a b c) name (arg : (a, b, c) tactic_argument) (tag : c Val.tag) : (b, Val.t) Tacinterp.Register.interp_fun =
 match arg.arg_interp with
 | ArgInterpRet -> (fun ist v -> Ftactic.return (Geninterp.Val.inject tag v))
 | ArgInterpFun f -> f
@@ -935,7 +935,7 @@ let argument_extend (type a b c) ~plugin ~name ~ignore_kw (arg : (a, b, c) tacti
     let () = register_val0 wit (Some tag) in
     tag
   in
-  let () = register_interp0 wit (interp_fun name arg tag) in
+  let () = Tacinterp.Register.register_interp0 wit (interp_fun name arg tag) in
   let entry = match arg.arg_parsing with
   | Vernacextend.Arg_alias e ->
     let () = Procq.register_grammar wit e in

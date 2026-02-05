@@ -151,3 +151,11 @@ val interp_intro_pattern : interp_sign -> Environ.env -> Evd.evar_map ->
 
 val default_ist : unit -> Geninterp.interp_sign
 (** Empty ist with debug set on the current value. *)
+
+module Register :
+sig
+type ('glb, 'top) interp_fun = interp_sign -> 'glb -> 'top Ftactic.t
+
+val register_interp0 :
+  ('raw, 'glb, 'top) genarg_type -> ('glb, Geninterp.Val.t) interp_fun -> unit
+end

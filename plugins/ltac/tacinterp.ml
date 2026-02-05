@@ -40,6 +40,27 @@ open Proofview.Notations
 open Context.Named.Declaration
 open Ltac_pretype
 
+module Register =
+struct
+type ('glb, 'top) interp_fun = Geninterp.interp_sign -> 'glb -> 'top Ftactic.t
+
+module InterpObj =
+struct
+  type ('raw, 'glb, 'top) obj = ('glb, Val.t) interp_fun
+  let name = "interp"
+  let default _ = None
+end
+
+module Interp = Register(InterpObj)
+
+let interp = Interp.obj
+
+let generic_interp ist (GenArg (Glbwit wit, v)) = interp wit ist v
+
+let register_interp0 = Interp.register0
+
+end
+
 let do_profile trace ?count_call tac =
   Profile_tactic.do_profile_gen (function
       | (_, c) :: _ -> Some (Pptactic.pp_ltac_call_kind c)
@@ -1572,7 +1593,7 @@ and interp_genarg ist x : Val.t Ftactic.t =
       interp_genarg ist (Genarg.in_gen (glbwit wit2) q) >>= fun q ->
       Ftactic.return (Val.Dyn (Val.typ_pair, (p, q)))
     | ExtraArg s ->
-      Geninterp.generic_interp ist x0
+      Register.generic_interp ist x0
 
 (** returns [true] for genargs which have the same meaning
     independently of goals. *)
@@ -2065,7 +2086,7 @@ let register_interp0 wit f =
   let interp ist v =
     f ist v >>= fun v -> Ftactic.return (Val.inject (val_tag wit) v)
   in
-  Geninterp.register_interp0 wit interp
+  Register.register_interp0 wit interp
 
 let def_intern ist x = (ist, x)
 let def_subst _ x = x
