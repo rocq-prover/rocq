@@ -154,14 +154,8 @@ val default_ist : unit -> Geninterp.interp_sign
 
 module Register :
 sig
-open Genarg
-open Geninterp
 type ('glb, 'top) interp_fun = interp_sign -> 'glb -> 'top Ftactic.t
 
-val interp : ('raw, 'glb, 'top) genarg_type -> ('glb, Val.t) interp_fun
-
-val generic_interp : (glob_generic_argument, Val.t) interp_fun
-
 val register_interp0 :
-  ('raw, 'glb, 'top) genarg_type -> ('glb, Val.t) interp_fun -> unit
+  ('raw, 'glb, 'top) genarg_type -> ('glb, Geninterp.Val.t) interp_fun -> unit
 end
