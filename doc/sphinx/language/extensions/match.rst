@@ -24,10 +24,10 @@ patterns. As an extension, multiple nested patterns or disjunction of
 patterns are allowed, as in ML-like languages
 (cf. :ref:`multiple-patterns` and :ref:`nested-patterns`).
 
-The extension just acts as a macro that is expanded during parsing
-into a sequence of match on simple patterns. Especially, a
-construction defined using the extended match is generally printed
-under its expanded form (see :flag:`Printing Matching`).
+The extension is expanded during :term:`type inference` into a
+sequence of match on simple patterns. Printing by default attempts to
+reconstruct the factorized syntax (see :flag:`Printing Matching`), but
+is often not successful and prints the expanded form.
 
 .. _if-then-else:
 
@@ -82,24 +82,22 @@ declared as such (see :ref:`controlling-match-pp`).
 Irrefutable patterns: the destructuring let variants
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pattern-matching on terms inhabiting inductive type having only one
-constructor can be alternatively written using :g:`let … in …`
+Pattern-matching where all cases are captured by a single pattern
+(":gdef:`irrefutable pattern`", typically for inductive types with a single
+constructor) can be alternatively written using :g:`let … in …`
 constructions. There are two variants of them.
 
 .. insertprodn destructuring_let destructuring_let
 
 .. prodn::
    destructuring_let ::= let ( {*, @name } ) {? {? as @name } return @term100 } := @term in @term
-   | let ' @pattern := @term {? return @term100 } in @term
-   | let ' @pattern in @pattern := @term return @term100 in @term
+   | let ' @pattern {? in @pattern } := @term {? return @term100 } in @term
 
 
-First destructuring let syntax
-++++++++++++++++++++++++++++++
+.. _let-tuple:
 
-.. todo explain that this applies to all of the "let" constructs (Gallina, Ltac1 and Ltac2)
-   also add "irrefutable pattern" to the glossary
-   note that in Ltac2 an upper case ident is a constructor, lower case is a variable
+Let-tuple syntax
+++++++++++++++++
 
 The expression :n:`let ( {*, @ident__i } ) := @term__0 in @term__1`
 performs case analysis on :n:`@term__0` whose type must be an
@@ -132,26 +130,22 @@ pattern can either be done using :g:`match` or the :g:`let` construction
 If term inhabits an inductive type with one constructor `C`, we have an
 equivalence between
 
-::
-
-   let (ident₁, …, identₙ) [dep_ret_type] := term in term'
+:n:`let ( {* @name__i } ) {? {? as @name__as } return @term__ret } := @term__0 in @term__1`
 
 and
 
-::
+:n:`match @term__0 {? {? as @name__as } return @term__ret } with C {* @name__i } => @term__1 end`
 
-   match term [dep_ret_type] with
-   C ident₁ … identₙ => term'
-   end
+(if the parameters of `C` are implicit arguments or :flag:`Asymmetric Patterns` is set).
 
+In practice type inference may use slightly different heuristics for the different syntaxes.
 
-Second destructuring let syntax
-+++++++++++++++++++++++++++++++
+Let-pattern syntax
+++++++++++++++++++
 
-Another destructuring let syntax is available for inductive types with
-one constructor by giving an arbitrary pattern instead of just a tuple
-for all the arguments. For example, the preceding example can be
-written:
+Another destructuring let syntax is available by giving an arbitrary
+pattern (which must be irrefutable) instead of just a tuple for all
+the arguments. For example, the preceding example can be written:
 
 .. rocqtop:: reset all
 
@@ -171,10 +165,35 @@ patterns to do the deconstruction. For example:
    Definition proj1_sig' (A:Set) (P:A->Prop) (t:{ x:A | P x }) : A :=
    let 'x With p := t in x.
 
+We can also match on multiple constructors:
+
+.. rocqtop:: all
+
+   Check fun A (x : A + A) => let '(inl y | inr y) := x in y.
+
 When printing definitions which are written using this construct it
 takes precedence over let printing directives for the datatype under
 consideration (see Section :ref:`controlling-match-pp`).
 
+In general
+
+:n:`let ' @pattern {? in @pattern__in } := @term__0 {? return @term__ret } in @term__1`
+
+is desugared into
+
+:n:`match @term__0 {? as @name__as } {? in @pattern__in } {? return @term__ret } with @pattern => @term__1 end`
+
+where if :n:`@pattern` is a name then it is used to provide
+:n:`@name__as`, otherwise the `as` annotation is left implicit.
+
+.. note::
+
+   In the "let-tuple" syntax, `let (x, y) := ...` handles
+   any inductive type with a unique constructor and 2 arguments.
+
+   In the "let-pattern" syntax, `let '(x, y) := ...` handles the inductive
+   type whose constructor is produced by the `(_, _)` notation (by
+   default `prod` whose constructor is `pair`).
 
 .. _controlling-match-pp:
 
@@ -283,7 +302,7 @@ Printing matching on irrefutable patterns
 ++++++++++++++++++++++++++++++++++++++++++
 
 If an inductive type has just one constructor, pattern matching can be
-written using the first destructuring let syntax.
+written using the :ref:`let-tuple syntax <let-tuple>`.
 
 .. table:: Printing Let @qualid
 
