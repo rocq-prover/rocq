@@ -18,6 +18,7 @@ let set_local_flags flags env =
     check_guarded = flags.check_guarded;
     check_positive = flags.check_positive;
     check_universes = flags.check_universes;
+    check_eliminations = flags.check_eliminations;
     conv_oracle = flags.conv_oracle;
     share_reduction = flags.share_reduction;
     allow_uip = flags.allow_uip;

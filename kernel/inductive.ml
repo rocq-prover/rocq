@@ -1666,6 +1666,7 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
     let _, mip = lookup_mind_specif env ind in
     (* recursive sprop means non record with projections -> squashed *)
     let () =
+      if Environ.ind_ignores_elim_constraints env ind then () else
       let sind = UVars.subst_instance_sort inst mip.mind_sort in
       let u = Sorts.univ_of_sort sind in
       (* This is an approximation: a [Relevant] variable might be of sort [Prop]

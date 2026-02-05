@@ -103,6 +103,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
           else info
         | Prop | Set | Type _ -> { info with record_arg_info = HasRelevantArg }
   in
+  if Environ.ignore_elim_constraints env then info else
   let indu = info.ind_univ
   and check_univ_consistency f induu uu =
     if UGraph.check_leq (universes env) uu induu

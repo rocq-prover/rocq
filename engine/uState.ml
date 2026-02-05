@@ -494,6 +494,7 @@ let union uctx uctx' =
       Level.Set.fold (fun u g -> UGraph.add_universe u ~strict:false g) newus g
     in
     let fail_union s q1 q2 =
+      if QGraph.ignore_constraints (QState.elims uctx.sort_variables) then s else
       CErrors.user_err
         Pp.(str "Could not merge universe contexts: could not unify" ++ spc() ++
            Quality.raw_pr q1 ++ strbrk " and " ++ Quality.raw_pr q2 ++ str ".")
@@ -716,8 +717,10 @@ let warn_template uctx csts =
   if not @@ UnivConstraints.is_empty csts then
     do_warn_template (uctx,csts)
 
-let unify_quality univs c s1 s2 l =
-  let fail () = sort_inconsistency (get_constraint c) s1 s2
+let unify_quality c s1 s2 l =
+  let fail () =
+    if QGraph.ignore_constraints (QState.elims l.local_sorts) then l.local_sorts else
+    sort_inconsistency (get_constraint c) s1 s2
   in
   { l with
     local_sorts = QState.unify_quality ~fail
@@ -818,11 +821,11 @@ let process_constraints uctx cstrs =
          qualities instead of having to make a dummy sort *)
       let mk q = Sorts.make q Universe.type0 in
       match cst with
-    | QEq (a, b) -> unify_quality univs CONV (mk a) (mk b) local
-    | QLeq (a, b) -> unify_quality univs CUMUL (mk a) (mk b) local
+    | QEq (a, b) -> unify_quality CONV (mk a) (mk b) local
+    | QLeq (a, b) -> unify_quality CUMUL (mk a) (mk b) local
     | QElimTo (a, b) -> { local with local_cst = PConstraints.add_quality (a, ElimTo, b) local.local_cst }
     | ULe (l, r) ->
-      let local = unify_quality univs CUMUL l r local in
+      let local = unify_quality CUMUL l r local in
       let l = normalize_sort local.local_sorts l in
       let r = normalize_sort local.local_sorts r in
       begin match classify r with
@@ -893,7 +896,7 @@ let process_constraints uctx cstrs =
       then { local with local_weak = UPairSet.add (l, r) local.local_weak }
       else local
     | UEq (l, r) ->
-      let local = unify_quality univs CONV l r local in
+      let local = unify_quality CONV l r local in
       let l = normalize_sort local.local_sorts l in
       let r = normalize_sort local.local_sorts r in
       equalize_universes l r local
@@ -901,6 +904,8 @@ let process_constraints uctx cstrs =
   let unify_universes cst local =
     try unify_universes cst local
     with
+      | SortInconsistency e
+        when QGraph.ignore_constraints (QState.elims local.local_sorts) -> local
       | SortInconsistency e as exn ->
         let info = Exninfo.info exn in
         Exninfo.iraise (UGraph.UniverseInconsistency e, info)

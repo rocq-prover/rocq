@@ -78,6 +78,7 @@ val qvars : env -> Sorts.QVar.Set.t
 val typing_flags    : env -> typing_flags
 val is_impredicative_set : env -> bool
 val type_in_type : env -> bool
+val ignore_elim_constraints : env -> bool
 val deactivated_guard : env -> bool
 val indices_matter : env -> bool
 
@@ -472,6 +473,8 @@ val remove_hyps : Id.Set.t -> (Constr.named_declaration -> Constr.named_declarat
 val is_polymorphic : env -> Names.GlobRef.t -> bool
 val is_template_polymorphic : env -> GlobRef.t -> bool
 val is_type_in_type : env -> GlobRef.t -> bool
+
+val ind_ignores_elim_constraints : env -> inductive -> bool
 
 (** {5 VM and native} *)
 

@@ -94,6 +94,7 @@ type t =
     ground_and_global_sorts: Quality.Set.t;
     dominant: Quality.t QMap.t;
     delayed_check: QSet.t QMap.t;
+    ignore_constraints: bool;
   }
 
 type path_explanation = G.explanation Lazy.t
@@ -122,6 +123,9 @@ type elimination_error =
   | QualityInconsistency of quality_inconsistency
 
 exception EliminationError of elimination_error
+
+let set_ignore_constraints b g = {g with ignore_constraints=b}
+let ignore_constraints g = g.ignore_constraints
 
 let non_refl_pairs l =
   let fold x =
@@ -225,6 +229,7 @@ let enforce_func k q1 q2 g = match k with
 let enforce_constraint (q1, k, q2) g =
   match enforce_func k q1 q2 g with
   | None ->
+     if ignore_constraints g then g else
      let e = lazy (G.get_explanation (q1,to_graph_cstr k,q2) g.graph) in
      raise @@ EliminationError (QualityInconsistency (None, (k, q1, q2, Some (Path e))))
   | Some g ->
@@ -232,8 +237,10 @@ let enforce_constraint (q1, k, q2) g =
 
 let merge_constraints csts g = ElimConstraints.fold enforce_constraint csts g
 
-let check_constraint g (q1, k, q2) = match k with
-| ElimConstraint.ElimTo -> G.check_leq g.graph q1 q2
+let check_constraint g (q1, k, q2) =
+  ignore_constraints g ||
+  match k with
+  | ElimConstraint.ElimTo -> G.check_leq g.graph q1 q2
 
 let check_constraints csts g = ElimConstraints.for_all (check_constraint g) csts
 
@@ -271,9 +278,11 @@ let initial_graph =
     rigid_paths = p;
     ground_and_global_sorts = Quality.Set.of_list Quality.all_constants;
     dominant = QMap.empty;
-    delayed_check = QMap.empty; }
+    delayed_check = QMap.empty;
+    ignore_constraints = false }
 
 let eliminates_to g q q' =
+  ignore_constraints g ||
   G.check_leq g.graph q q'
 
 let update_rigids g g' =

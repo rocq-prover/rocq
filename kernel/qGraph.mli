@@ -24,6 +24,15 @@ end
 
 type t
 
+val set_ignore_constraints : bool -> t -> t
+
+(** When [ignore_constraints], functions adding sort constraints do not fail and
+   may instead ignore inconsistent constraints. Breaks the system.
+
+    Checking functions such as [elim_to] always return [true].
+*)
+val ignore_constraints : t -> bool
+
 type path_explanation
 
 type explanation =

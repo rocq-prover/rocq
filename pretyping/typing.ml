@@ -525,7 +525,10 @@ let check_binder_relevance env sigma s decl =
   | None ->
     (* TODO always anomaly *)
     let rs = ESorts.relevance_of_sort s in
-    let () = warn_bad_relevance_binder env sigma rs decl in
+    let () =
+      if Environ.ignore_elim_constraints env then () else
+      warn_bad_relevance_binder env sigma rs decl
+    in
     sigma, set_annot { (get_annot decl) with binder_relevance = rs } decl
 
 (* cstr must be in n.f. w.r.t. evars and execute returns a judgement

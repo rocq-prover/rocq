@@ -22,6 +22,7 @@ let noh hcons x = snd (hcons x)
 let safe_flags oracle = {
   check_guarded = true;
   check_positive = true;
+  check_eliminations = true;
   check_universes = true;
   conv_oracle = oracle;
   share_reduction = true;

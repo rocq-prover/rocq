@@ -1148,6 +1148,7 @@ let set_eq_sort evd s1 s2 =
   match is_eq_sort s1 s2 with
   | None -> evd
   | Some (u1, u2) ->
+    if QGraph.ignore_constraints (UState.elim_graph evd.universes) then evd else
     add_constraints evd
       (UnivProblem.Set.singleton (UnivProblem.UEq (u1,u2)))
 
