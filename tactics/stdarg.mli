@@ -39,7 +39,7 @@ val wit_nat_or_var : (int or_var, int or_var, int) genarg_type
 
 val wit_ident : Id.t uniform_genarg_type
 
-val wit_identref : (lident, lident, Id.t) genarg_type
+val wit_identref : lident vernac_genarg_type
 
 val wit_hyp : (lident, lident, Id.t) genarg_type
 
