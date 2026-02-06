@@ -1046,7 +1046,7 @@ constants to the goal.
       move=> m n le_n_m.
 
    where ``move`` does nothing, but ``=> m n le_m_n`` changes
-   the variables and assumption of the goal in the constants
+   the variables and assumption of the goal into the constants
    ``m n : nat`` and the fact ``le_n_m : n <= m``, thus exposing the
    conclusion ``m - n + n = m``.
 
