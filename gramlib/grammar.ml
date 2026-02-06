@@ -156,9 +156,11 @@ module type ExtS = sig
      and type 'a with_estate := EState.t -> 'a
      and type 'a mod_estate := EState.t -> EState.t * 'a
 
+  val safe_extend : EState.t -> 'a Entry.t -> 'a extend_statement -> EState.t
+
   type 's add_kw = { add_kw : 'c. 's -> 'c pattern -> 's }
 
-  val safe_extend : 's add_kw -> EState.t -> 's -> 'a Entry.t -> 'a extend_statement -> EState.t * 's
+  val add_extend_kws : 's add_kw -> 's -> _ extend_statement -> 's
 
   module Unsafe : sig
     val existing_entry : EState.t -> 'a Entry.t -> EState.t
@@ -686,40 +688,6 @@ let rec change_to_self : type s trec a r. s ty_entry -> (s, trec, a, r) ty_rule 
   let MayRecSymbol t = change_to_self0 e t in
   MayRecRule (TNext (MayRec2, r, t))
 
-type 's add_kw = { add_kw : 'c. 's -> 'c pattern -> 's }
-
-let insert_tokens {add_kw} lstate symbols =
-  let rec insert : type s trec a. _ -> (s, trec, a) ty_symbol -> _ =
-    fun lstate -> function
-    | Slist0 s -> insert lstate s
-    | Slist1 s -> insert lstate s
-    | Slist0sep (s, t) -> let lstate = insert lstate s in insert lstate t
-    | Slist1sep (s, t) -> let lstate = insert lstate s in insert lstate t
-    | Sopt s -> insert lstate s
-    | Stree t -> tinsert lstate t
-    | Stoken tok -> add_kw lstate tok
-    | Stokens (TPattern tok::_) ->
-      (* Only the first token is liable to trigger a keyword effect *)
-      add_kw lstate tok
-    | Stokens [] -> assert false
-    | Snterm _
-    | Snterml _
-    | Snext
-    | Sself -> lstate
-  and tinsert : type s tr a. _ -> (s, tr, a) ty_tree -> _ =
-    fun lstate -> function
-      Node (_, {node = s; brother = bro; son = son}) ->
-      let lstate = insert lstate s in
-      let lstate = tinsert lstate bro in
-      tinsert lstate son
-    | LocAct _ | DeadEnd -> lstate
-  and linsert : type s tr p. _ -> (s, tr, p) ty_symbols -> _ =
-    fun lstate -> function
-      | TNil -> lstate
-      | TCns (_, s, r) -> let lstate = insert lstate s in linsert lstate r
-  in
-  linsert lstate symbols
-
 type 'a single_extend_statement =
   string option * Gramext.g_assoc option * 'a ty_production list
 
@@ -727,13 +695,57 @@ type 'a extend_statement =
 | Reuse of string option * 'a ty_production list
 | Fresh of Gramext.position * 'a single_extend_statement list
 
-let add_prod add_kw entry (lstate, lev) (TProd (symbols, action)) =
+type 's add_kw = { add_kw : 'c. 's -> 'c pattern -> 's }
+
+let rec add_symbol_kws : type s trec a. _ -> _ -> (s, trec, a) ty_symbol -> _ =
+  fun add_kw lstate -> function
+  | Slist0 s -> add_symbol_kws add_kw lstate s
+  | Slist1 s -> add_symbol_kws add_kw lstate s
+  | Slist0sep (s, t) -> let lstate = add_symbol_kws add_kw lstate s in add_symbol_kws add_kw lstate t
+  | Slist1sep (s, t) -> let lstate = add_symbol_kws add_kw lstate s in add_symbol_kws add_kw lstate t
+  | Sopt s -> add_symbol_kws add_kw lstate s
+  | Stree t -> add_tree_kws add_kw lstate t
+  | Stoken tok -> add_kw.add_kw lstate tok
+  | Stokens (TPattern tok::_) ->
+    (* Only the first token is liable to trigger a keyword effect *)
+    add_kw.add_kw lstate tok
+  | Stokens [] -> assert false
+  | Snterm _
+  | Snterml _
+  | Snext
+  | Sself -> lstate
+
+and add_tree_kws : type s tr a. _ -> _ -> (s, tr, a) ty_tree -> _ =
+  fun add_kw lstate -> function
+  | Node (_, {node = s; brother = bro; son = son}) ->
+    let lstate = add_symbol_kws add_kw lstate s in
+    let lstate = add_tree_kws add_kw lstate bro in
+    add_tree_kws add_kw lstate son
+  | LocAct _ | DeadEnd -> lstate
+
+let rec add_rule_kws : type s trr k r. _ -> _ -> (s, trr, k, r) ty_rule -> _ =
+  fun add_kw lstate -> function
+  | TStop -> lstate
+  | TNext (_, r, s) ->
+    let lstate = add_symbol_kws add_kw lstate s in
+    add_rule_kws add_kw lstate r
+
+let add_production_kws add_kw lstate (TProd (r, _)) = add_rule_kws add_kw lstate r
+
+let add_extend_kws add_kw lstate ext =
+  let add_ps lstate ps =
+    List.fold_left (fun lstate p -> add_production_kws add_kw lstate p) lstate ps
+  in
+  match ext with
+  | Reuse (_, ps) -> add_ps lstate ps
+  | Fresh (_, ps) -> List.fold_left (fun lstate (_, _, ps) -> add_ps lstate ps) lstate ps
+
+let add_prod entry lev (TProd (symbols, action)) =
   let MayRecRule symbols = change_to_self entry symbols in
   let AnyS (symbols, pf) = get_symbols symbols in
-  let lstate = insert_tokens add_kw lstate symbols in
-  lstate, insert_level entry.ename symbols pf action lev
+  insert_level entry.ename symbols pf action lev
 
-let levels_of_rules add_kw lstate entry edata st =
+let levels_of_rules entry edata st =
   let elev =
     match edata.edesc with
       Dlevels elev -> elev
@@ -742,20 +754,20 @@ let levels_of_rules add_kw lstate entry edata st =
         failwith msg
   in
   match st with
-  | Reuse (name, []) -> lstate, elev
+  | Reuse (name, []) -> elev
   | Reuse (name, prods) ->
     let (levs1, lev, levs2) = get_level entry name elev in
-    let lstate, lev = List.fold_left (fun lev prod -> add_prod add_kw entry lev prod) (lstate, lev) prods in
-    lstate, levs1 @ [lev] @ levs2
+    let lev = List.fold_left (fun lev prod -> add_prod entry lev prod) lev prods in
+    levs1 @ [lev] @ levs2
   | Fresh (position, rules) ->
     let (levs1, levs2) = get_position entry position elev in
-    let fold (lstate, levs) (lname, assoc, prods) =
+    let fold levs (lname, assoc, prods) =
       let lev = empty_lev lname assoc in
-      let lstate, lev = List.fold_left (fun lev prod -> add_prod add_kw entry lev prod) (lstate, lev) prods in
-      lstate, lev :: levs
+      let lev = List.fold_left (fun lev prod -> add_prod entry lev prod) lev prods in
+      lev :: levs
     in
-    let lstate, levs = List.fold_left fold (lstate, []) rules in
-    lstate, levs1 @ List.rev levs @ levs2
+    let levs = List.fold_left fold [] rules in
+    levs1 @ List.rev levs @ levs2
 
 type 's ex_symbols =
 | ExS : ('s, 'tr, 'p) ty_symbols -> 's ex_symbols
@@ -1512,14 +1524,12 @@ let add_entry otag estate e v =
   assert (not (EState.mem (DMap.tag_of_onetag e.etag) estate));
   EState.add otag v estate
 
-let extend_entry add_kw estate kwstate entry statement =
-  let kwstate = ref kwstate in
+let extend_entry estate entry statement =
   let estate = modify_entry estate entry (fun edata ->
-      let kwstate', elev = levels_of_rules add_kw !kwstate entry edata statement in
-      kwstate := kwstate';
+      let elev = levels_of_rules entry edata statement in
       make_entry_data entry elev)
   in
-  estate, !kwstate
+  estate
 
 (* Normal interface *)
 
