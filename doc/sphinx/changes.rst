@@ -4794,7 +4794,7 @@ Ltac2 language
   by Jason Gross).
 - **Added:**
   ``Ltac2.Option.equal``
-  (`#16538 <https://github.com/rocq-prover/rocq/pull/16538>`_,
+  (`#16539 <https://github.com/rocq-prover/rocq/pull/16539>`_,
   by Jason Gross).
 - **Added:**
   syntax for Ltac2 record update ``{ foo with field := bar }``
