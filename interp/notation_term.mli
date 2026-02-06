@@ -16,8 +16,7 @@ open Glob_term
 (** [notation_constr] is the subtype of [glob_constr] allowed in syntactic
     extensions (i.e. notations).
     No location since intended to be substituted at any place of a text.
-    Complex expressions such as fixpoints and cofixpoints are excluded,
-    as well as non global expressions such as existential variables. *)
+    Non global expressions such as existential variables are not allowed. *)
 
 type notation_constr =
   (* Part common to [glob_constr] and [cases_pattern] *)
