@@ -126,7 +126,7 @@ val substnl : substl -> int -> constr -> constr
 (** [substl σ c] is a short-hand for [substnl σ 0 c] *)
 val substl : substl -> constr -> constr
 
-(** [substl a c] is a short-hand for [substnl [a] 0 c] *)
+(** [subst1 a c] is a short-hand for [substnl [a] 0 c] *)
 val subst1 : constr -> constr -> constr
 
 (** [substnl_decl [a₁;...;an] k Ω] substitutes in parallel [a₁], ..., [an] for
