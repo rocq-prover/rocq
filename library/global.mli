@@ -198,6 +198,9 @@ val set_unfold_dep_heuristic : bool -> unit
 val set_VM : bool -> unit
 val set_native_compiler : bool -> unit
 
+(** {6 Cumulativity inference settings } *)
+val set_cumulativity_zeta : bool -> unit
+
 (* Modifies the global state, registering new universes *)
 
 val current_modpath : unit -> ModPath.t

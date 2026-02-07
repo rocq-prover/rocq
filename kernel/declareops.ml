@@ -27,6 +27,7 @@ let safe_flags oracle = {
   conv_oracle = oracle;
   share_reduction = true;
   unfold_dep_heuristic = false;
+  cumulativity_zeta = false;
   enable_VM = true;
   enable_native_compiler = true;
   indices_matter = true;

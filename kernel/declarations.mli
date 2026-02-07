@@ -89,6 +89,10 @@ type typing_flags = {
   unfold_dep_heuristic : bool;
   (** If [true], use dependency heuristic when unfolding constants during conversion *)
 
+  cumulativity_zeta : bool;
+  (** Reduce let-bound variables during cumulativity inference
+      (can have a huge performance impact) *)
+
   enable_VM : bool;
   (** If [false], all VM conversions fall back to interpreted ones *)
 

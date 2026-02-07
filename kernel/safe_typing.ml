@@ -340,6 +340,10 @@ let set_unfold_dep_heuristic b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with unfold_dep_heuristic = b } senv
 
+let set_cumulativity_zeta b senv =
+  let flags = Environ.typing_flags senv.env in
+  set_typing_flags { flags with cumulativity_zeta = b } senv
+
 let set_VM b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with enable_VM = b } senv
