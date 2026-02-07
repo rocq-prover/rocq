@@ -1980,6 +1980,14 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
+      optkey   = ["Kernel"; "Cumulativity"; "Zeta"];
+      optread  = (fun () -> (Global.typing_flags ()).Declarations.cumulativity_zeta);
+      optwrite = Global.set_cumulativity_zeta }
+
+let () =
+  declare_bool_option
+    { optstage = Summary.Stage.Interp;
+      optdepr  = None;
       optkey   = ["Printing";"Compact";"Contexts"];
       optread  = (fun () -> Printer.get_compact_context());
       optwrite = (fun b -> Printer.set_compact_context b) }

@@ -354,7 +354,7 @@ let v_cst_def =
 let v_typing_flags =
   v_tuple "typing_flags"
     [|v_bool; v_bool; v_bool;
-      v_oracle; v_bool; v_bool;
+      v_oracle; v_bool; v_bool; v_bool;
       v_bool; v_bool; v_bool; v_bool; v_bool|]
 
 let v_variance = v_enum "variance" 4

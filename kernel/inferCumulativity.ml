@@ -673,11 +673,21 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     infer_stack variance infos variances stk
 
   | FCaseInvert (ci, u, _, p, _, _, br, e) ->
-    infer_case cv_pb variance infos variances ci u p br e
+     infer_case cv_pb variance infos variances ci u p br e
+
+  | FLetIn (_na, b, _ty, body, usubs) ->
+     if Vars.noccurn 1 body then
+       infer_fterm cv_pb variance infos variances (mk_clos usubs (Vars.subst1 (Constr.mkSort Sorts.prop) body)) stk
+     else begin
+         debug_infer_term Pp.(fun () -> str"infer_term at LetIn: " ++ Inf.pr Level.raw_pr variances ++ Constr.debug_print (CClosure.term_of_fconstr b));
+         let variances = infer_fterm Conv variance infos variances b [] in
+         infer_fterm cv_pb variance infos variances (mk_clos usubs (Vars.subst1 (Constr.mkSort Sorts.prop) body)) stk
+       end
+
   (* Removed by whnf *)
   | FLOCKED -> assert false
   | FCaseT _ -> assert false
-  | FLetIn _ -> assert false
+  (* | FLetIn _ -> assert false *\) *)
   | FApp _ -> assert false
   | FLIFT _ -> assert false
   | FCLOS _ -> assert false
@@ -738,9 +748,9 @@ and infer_stack variance infos variances (stk:CClosure.stack) =
 and infer_vect cv_pb variance infos variances v =
   Array.fold_left (fun variances c -> infer_fterm cv_pb variance infos variances c []) variances v
 
-let infer_infos env ~evars =
+let infer_infos ~fl env ~evars =
   let open CClosure in
-  let reds = RedFlags.red_add_transparent RedFlags.betaiotazeta TransparentState.full in
+  let reds = RedFlags.red_add_transparent fl TransparentState.full in
   (create_clos_infos reds ~evars env, create_tab ())
 
 let variance_of_cv_pb = function
@@ -749,14 +759,18 @@ let variance_of_cv_pb = function
   | InvCumul -> Contravariant
 
 let infer_term (cumul_cv_pb, typing_cv_pb) env ~evars variances c =
-  let infos = infer_infos env ~evars in
   let variance = variance_of_cv_pb typing_cv_pb in
   let is_type = if Inf.get_position variances == Position.InTerm then IsTerm else IsType in
   let () = debug_infer_term Pp.(fun () -> pr_mode (if Inf.get_infer_mode variances then Infer else Check) ++ spc () ++
     str"at position " ++ Position.pr (Inf.get_position variances) ++
     str", cumul cv_pb = " ++ pr_cumul_pb cumul_cv_pb ++
     str", typing variance = " ++ Variance.pr variance ++ spc () ++
-    str" term: " ++ Constr.debug_print c ++ fnl ()) in
+                                            str" term: " ++ Constr.debug_print c ++ fnl ()) in
+  (* let fl = if Inf.get_infer_mode variances then (\* Infer *\) RedFlags.betaiota else RedFlags.betaiotazeta in *)
+  let fl =
+    if (Environ.typing_flags env).Declarations.cumulativity_zeta then RedFlags.betaiotazeta else RedFlags.betaiota
+  in
+  let infos = infer_infos ~fl env ~evars in
   let status = infer_fterm cumul_cv_pb (is_type, variance) infos variances (CClosure.inject c) [] in
   debug_infer_term Pp.(fun () -> Inf.pr Level.raw_pr variances ++ fnl () ++ str" -> " ++ fnl () ++ Inf.pr Level.raw_pr status);
   status
@@ -790,7 +804,7 @@ let infer_context env ~evars ?(shift = 0) ?(binder_pos = fun i -> Position.InBin
 let whd_decompose_lambda env ?(evars = CClosure.default_evar_handler env) c =
   let open Context.Rel.Declaration in
   let rec decrec env m c =
-    let infos = infer_infos env ~evars in
+    let infos = infer_infos ~fl:(RedFlags.betaiotazeta) env ~evars in
     let t = CClosure.whd_val (fst infos) (snd infos) (CClosure.inject c) in
     match kind t with
       | Lambda (n,a,c0) ->
@@ -803,7 +817,7 @@ let whd_decompose_lambda env ?(evars = CClosure.default_evar_handler env) c =
 let whd_decompose_prod env ?(evars = CClosure.default_evar_handler env) c =
   let open Context.Rel.Declaration in
   let rec decrec env m c =
-    let infos = infer_infos env ~evars in
+    let infos = infer_infos ~fl:(RedFlags.betaiotazeta) env ~evars in
     let t = CClosure.whd_val (fst infos) (snd infos) (CClosure.inject c) in
     match kind t with
     | Prod (n,a,c0) ->
@@ -814,7 +828,7 @@ let whd_decompose_prod env ?(evars = CClosure.default_evar_handler env) c =
   decrec env Context.Rel.empty c
 
 let whd_decompose_fix env ?(evars = CClosure.default_evar_handler env) c =
-  let infos = infer_infos env ~evars in
+  let infos = infer_infos ~fl:(RedFlags.betaiotazeta) env ~evars in
   let t = CClosure.whd_val (fst infos) (snd infos) (CClosure.inject c) in
   match kind t with
   | Fix (recinfo, defs) -> Some (recinfo, defs)
@@ -860,11 +874,11 @@ let infer_definition_core env ?(evars = CClosure.default_evar_handler env) ~infe
       let variances = Inf.start ~infer_in_type (Array.map (fun (l, occ) -> (l, Option.map (VarianceOccurrence.lift shift) occ)) variances) Position.InType in
       infer_named_context env ~evars variances ctx
   in
-  debug Pp.(fun () -> str"infer_definition: " ++ Inf.pr Level.raw_pr variances ++
+  debug_infer_def Pp.(fun () -> str"infer_definition: " ++ Inf.pr Level.raw_pr variances ++
     str" in type: " ++ Constr.debug_print typ ++ spc () ++
     str " and body; " ++ pr_opt Constr.debug_print body);
   let variances = infer_type env ~evars ~shift variances typ in
-  debug Pp.(fun () -> str"infer_definition after type: " ++ Inf.pr Level.raw_pr variances);
+  debug_infer_def Pp.(fun () -> str"infer_definition after type: " ++ Inf.pr Level.raw_pr variances);
   let variances = Option.cata (infer_body (Cumul, Cumul) env ~evars ~shift variances) variances body in
   debug Pp.(fun () -> str"infer_definition finished with: " ++ Inf.pr Level.raw_pr variances);
   shift, Inf.finish env variances

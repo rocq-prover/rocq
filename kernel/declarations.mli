@@ -83,6 +83,10 @@ type typing_flags = {
   share_reduction : bool;
   (** Use by-need reduction algorithm *)
 
+  cumulativity_zeta : bool;
+  (** Reduce let-bound variables during cumulativity inference
+      (can have a huge performance impact) *)
+
   enable_VM : bool;
   (** If [false], all VM conversions fall back to interpreted ones *)
 

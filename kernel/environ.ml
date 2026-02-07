@@ -556,6 +556,7 @@ let same_flags {
      conv_oracle;
      indices_matter;
      share_reduction;
+     cumulativity_zeta;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -568,6 +569,7 @@ let same_flags {
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
+  cumulativity_zeta == alt.cumulativity_zeta &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&

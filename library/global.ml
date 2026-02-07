@@ -252,6 +252,9 @@ let set_strategy k l =
 let set_share_reduction b =
   globalize0 (Safe_typing.set_share_reduction b)
 
+let set_cumulativity_zeta b =
+  globalize0 (Safe_typing.set_cumulativity_zeta b)
+
 let set_VM b = globalize0 (Safe_typing.set_VM b)
 let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)
 
