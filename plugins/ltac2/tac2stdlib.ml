@@ -824,6 +824,12 @@ let () =
     (ident @-> transparent_state @-> ret bool) @@ fun v ts ->
     Id.Pred.mem v ts.tr_var
 
+let () =
+  define "get_hints" (string @-> ret (option (list hint))) Tac2hints.get_hints
+
+let () =
+  define "run_hint" (hint @-> tac unit) Tac2hints.run_hint
+
 (** Tactics around Evarconv unification (in [Ltac2/Unification.v]). *)
 
 let to_conv_pb v = match Tac2ffi.to_int v with

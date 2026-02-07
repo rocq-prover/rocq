@@ -26,6 +26,9 @@ val auto_flags_of_state : TransparentState.t -> Unification.unify_flags
 (** Try unification with the precompiled clause, then use registered Apply *)
 val unify_resolve : Unification.unify_flags -> hint -> unit Proofview.tactic
 
+(** The `exact` strategy used by auto *)
+val exact : Hints.hint -> unit Proofview.tactic
+
 (** [ConclPattern concl pat tacast]:
    if the term concl matches the pattern pat, (in sense of
    [Pattern.somatches], then replace [?1] [?2] metavars in tacast by the
