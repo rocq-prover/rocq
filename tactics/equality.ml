@@ -316,15 +316,15 @@ let (forward_general_setoid_rewrite_clause, general_setoid_rewrite_clause) = Hoo
 let scheme_name dep lft2rgt inccl =
   match dep, lft2rgt, inccl with
     (* Non dependent case *)
-    | false, Some true, true -> rew_l2r_scheme_kind
-    | false, Some true, false -> rew_r2l_scheme_kind
-    | false, _, false -> rew_l2r_scheme_kind
-    | false, _, true -> rew_r2l_scheme_kind
+    | false, true, true -> rew_l2r_scheme_kind
+    | false, true, false -> rew_r2l_scheme_kind
+    | false, false, false -> rew_l2r_scheme_kind
+    | false, false, true -> rew_r2l_scheme_kind
     (* Dependent case *)
-    | true, Some true, true -> rew_l2r_dep_scheme_kind
-    | true, Some true, false -> rew_l2r_forward_dep_scheme_kind
-    | true, _, true -> rew_r2l_dep_scheme_kind
-    | true, _, false -> rew_r2l_forward_dep_scheme_kind
+    | true, true, true -> rew_l2r_dep_scheme_kind
+    | true, true, false -> rew_l2r_forward_dep_scheme_kind
+    | true, false, true -> rew_r2l_dep_scheme_kind
+    | true, false, false -> rew_r2l_forward_dep_scheme_kind
 
 let lib_ref_opt_pos name pos =
   match Rocqlib.lib_ref_opt name with
@@ -336,27 +336,27 @@ let lib_ref_opt_pos name pos =
 let eq_scheme_pattern dep lft2rgt inccl target is_set = let open Sorts.Quality in
   match dep, lft2rgt, inccl, target , is_set with
     (* Non dependent case *)
-    | false, Some true, true , QConstant QType , false -> Some ("rect_r")
-    | false, Some true, true , QConstant QType , true -> Some ("rec_r")
-    | false, Some true, true , QConstant QProp , _ -> Some ("ind_r")
-    | false, Some true, true , QConstant QSProp , _ -> Some ("sind_r")
-    | false, Some true, false , QConstant QType , false -> Some ("rect")
-    | false, Some true, false , QConstant QType , true -> Some ("rec")
-    | false, Some true, false , QConstant QProp , _ -> Some ("ind")
-    | false, Some true, false , QConstant QSProp , _ -> Some ("sind")
-    | false, _ , false , QConstant QType , false -> Some ("rect_r")
-    | false, _ , false , QConstant QType , true -> Some ("rec_r")
-    | false, _ , false , QConstant QProp , _ -> Some ("ind_r")
-    | false, _ , false , QConstant QSProp , _ -> Some ("sind_r")
-    | false, _ , true , QConstant QProp , _ -> Some ("ind")
-    | false, _ , true , QConstant QSProp , _ -> Some ("sind")
-    | false, _ , true , QConstant QType , false -> Some ("rect")
-    | false, _ , true , QConstant QType , true -> Some ("rec")
+    | false, true, true , QConstant QType , false -> Some ("rect_r")
+    | false, true, true , QConstant QType , true -> Some ("rec_r")
+    | false, true, true , QConstant QProp , _ -> Some ("ind_r")
+    | false, true, true , QConstant QSProp , _ -> Some ("sind_r")
+    | false, true, false , QConstant QType , false -> Some ("rect")
+    | false, true, false , QConstant QType , true -> Some ("rec")
+    | false, true, false , QConstant QProp , _ -> Some ("ind")
+    | false, true, false , QConstant QSProp , _ -> Some ("sind")
+    | false, false, false , QConstant QType , false -> Some ("rect_r")
+    | false, false, false , QConstant QType , true -> Some ("rec_r")
+    | false, false, false , QConstant QProp , _ -> Some ("ind_r")
+    | false, false, false , QConstant QSProp , _ -> Some ("sind_r")
+    | false, false, true , QConstant QProp , _ -> Some ("ind")
+    | false, false, true , QConstant QSProp , _ -> Some ("sind")
+    | false, false, true , QConstant QType , false -> Some ("rect")
+    | false, false, true , QConstant QType , true -> Some ("rec")
     (* Dependent case *)
-    | true, Some true, true , QConstant QType , _ -> Some ("rect_r_dep")
-    | true, Some true, true , QConstant QProp , _ -> Some ("ind_r_dep")
-    | true, _ , true , QConstant QType , _  -> Some ("rect_dep")
-    | true, _ , true , QConstant QProp , _  -> Some ("ind_dep")
+    | true, true, true , QConstant QType , _ -> Some ("rect_r_dep")
+    | true, true, true , QConstant QProp , _ -> Some ("ind_r_dep")
+    | true, false, true , QConstant QType , _  -> Some ("rect_dep")
+    | true, false, true , QConstant QProp , _  -> Some ("ind_dep")
     | _ , _, _ , _ , _ -> None
 
 let eq_scheme_name name dep lft2rgt inccl target is_set =
@@ -368,15 +368,15 @@ let eq_scheme_name name dep lft2rgt inccl target is_set =
 let has_J_ref dep lft2rgt inccl =
   match dep, lft2rgt, inccl with
     (* Non dependent case *)
-    | false, Some true, true -> Rocqlib.lib_ref "core.Has_Leibniz_r" , AtPosition 5
-    | false, Some true, false -> Rocqlib.lib_ref "core.Has_Leibniz" , AtPosition 5
-    | false, _, false -> Rocqlib.lib_ref "core.Has_Leibniz_r" , AtPosition 5
-    | false, _, true -> Rocqlib.lib_ref "core.Has_Leibniz" , AtPosition 5
+    | false, true, true -> Rocqlib.lib_ref "core.Has_Leibniz_r" , AtPosition 5
+    | false, true, false -> Rocqlib.lib_ref "core.Has_Leibniz" , AtPosition 5
+    | false, false, false -> Rocqlib.lib_ref "core.Has_Leibniz_r" , AtPosition 5
+    | false, false, true -> Rocqlib.lib_ref "core.Has_Leibniz" , AtPosition 5
     (* Dependent case *)
-    | true, Some true, true -> Rocqlib.lib_ref "core.Has_J_r" , AtPosition 5
-    | true, Some true, false -> Rocqlib.lib_ref "core.Has_J_r_forward" , AtPosition 4
-    | true, _, true -> Rocqlib.lib_ref "core.Has_J" , AtPosition 5
-    | true, _, false -> Rocqlib.lib_ref "core.Has_J_forward" , AtPosition 4
+    | true, true, true -> Rocqlib.lib_ref "core.Has_J_r" , AtPosition 5
+    | true, true, false -> Rocqlib.lib_ref "core.Has_J_r_forward" , AtPosition 4
+    | true, false, true -> Rocqlib.lib_ref "core.Has_J" , AtPosition 5
+    | true, false, false -> Rocqlib.lib_ref "core.Has_J_forward" , AtPosition 4
 
 let level_init l sigma =
   let rec aux l sigma =
@@ -533,7 +533,7 @@ let leibniz_rewrite_ebindings_clause cls lft2rgt tac c ((_, hdcncl, _) as t) l w
   let inccl = Option.is_empty cls in
   find_elim lft2rgt dep inccl type_of_cls t >>= fun (elim, indarg) ->
       general_elim_clause with_evars frzevars tac cls c t l
-      (match lft2rgt with None -> false | Some b -> b) elim indarg
+      lft2rgt elim indarg
   end
 
 let adjust_rewriting_direction args lft2rgt =
@@ -543,10 +543,10 @@ let adjust_rewriting_direction args lft2rgt =
     (* more natural to see -> as the rewriting to the constant *)
     if not lft2rgt then
       user_err Pp.(str "Rewriting non-symmetric equality not allowed from right-to-left.");
-    None
+    false
   | _ ->
     (* other equality *)
-    Some lft2rgt
+    lft2rgt
 
 let rewrite_side_tac tac sidetac = side_tac tac (Option.map fst sidetac)
 
@@ -1150,7 +1150,7 @@ let discrimination_pf e (eq,_,s,(t,t1,t2)) discriminator p_sort =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let ((sigma, c),_) = lookup_eq_eliminator_with_error env sigma eq
-      ~dep:false ~inccl:true ~l2r:(Some false)
+      ~dep:false ~inccl:true ~l2r:false
       ~e_sort:s
       ~c_sort:(Retyping.get_sort_of env sigma t)
       ~p_sort in
