@@ -111,7 +111,8 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
     | _ -> assert false
     in
     let () = if not @@ Proof.is_done proof then raise OpenProof in
-    let evd = Evd.minimize_universes evd in
+    let evd = UnivVariances.register_universe_variances_of_eproofs pfenv evd [body, typ] in
+    let evd = if PolyFlags.collapse_sort_variables poly then Evd.collapse_sort_variables evd else evd in
     let to_constr c = match EConstr.to_constr_opt evd c with
     | Some p -> p
     | None -> raise OpenProof
@@ -124,7 +125,7 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
     let used_univs = Vars.universes_of_constr typ in
     let used_univs = Vars.universes_of_constr body ~init:used_univs in
     let uctx = UState.restrict output_ustate used_univs in
-    UState.check_univ_decl ~poly uctx UState.default_univ_decl
+    UState.check_univ_decl ~poly ~kind:PolyFlags.Definition uctx UState.default_univ_decl
   in
   (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data proof in
@@ -155,7 +156,7 @@ let build_by_tactic_opt env ~uctx ~poly ~typ tac =
 let extract_monomorphic = function
   | UState.Monomorphic_entry ctx ->
     Entries.Monomorphic_entry, ctx
-  | UState.Polymorphic_entry uctx -> Entries.Polymorphic_entry uctx, Univ.ContextSet.empty
+  | UState.Polymorphic_entry (uctx, variances) -> Entries.Polymorphic_entry (uctx, variances), Univ.ContextSet.empty
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
@@ -176,7 +177,7 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
     (* No side-effects in the entry, they already exist in the ambient environment *)
     let effs = Evd.eval_side_effects sigma in
     let de, ctx =
-      let univ_entry, ctx = extract_monomorphic (fst univs) in
+      let univ_entry, ctx = extract_monomorphic univs.universes_entry_universes in
       if not opaque then
         Safe_typing.DefinitionEff { Entries.definition_entry_body = body;
           definition_entry_secctx = None;
@@ -206,9 +207,10 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
     Evd.push_side_effects ~ts name de ctx effs
   in
   let sigma = Evd.emit_side_effects effs sigma in
-  let inst = match univs with
-  | UState.Monomorphic_entry _, _ -> UVars.Instance.empty
-  | UState.Polymorphic_entry uctx, _ -> UVars.UContext.instance uctx
+  let inst = match univs.universes_entry_universes with
+  | UState.Monomorphic_entry _ -> UVars.Instance.empty
+  | UState.Polymorphic_entry (uctx, _variances) ->
+     UVars.Instance.of_level_instance @@ UVars.UContext.instance uctx
   in
   let lem = EConstr.of_constr (Constr.mkConstU (cst, inst)) in
   sigma, lem, args, safe

@@ -211,13 +211,14 @@ let rewrite_db = "rewrite_instances"
 let tclNOTSAMEGOAL tac =
   let goal gl = Proofview.Goal.goal gl in
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let ev = goal gl in
     tac >>= fun () ->
     Proofview.Goal.goals >>= fun gls ->
     let check accu gl' =
       gl' >>= fun gl' ->
-      let accu = accu || Proofview.Progress.goal_equal
+      let accu = accu || Proofview.Progress.goal_equal env
                             ~evd:sigma ~extended_evd:(Proofview.Goal.sigma gl') ev (goal gl')
       in
       Proofview.tclUNIT accu
@@ -385,7 +386,7 @@ let level_init l sigma =
     | levels :: ls ->
       let sigma , new_level = Evd.new_univ_level_variable UState.univ_flexible sigma in
       let sigma , r = aux ls sigma in
-      sigma , new_level :: r
+      sigma , Univ.Universe.make new_level :: r
   in aux l sigma
 
 let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
@@ -404,7 +405,7 @@ let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
       let body = EConstr.mkApp (Vars.lift 1 f , [| mkRel 1 |] ) in
       EConstr.mkLambda (EConstr.nameR name, typ , body) in
   (* This patch is to handle template poly equality with carrier in Prop, because of cumulatitivty of Prop into Type *)
-  let c_type = EConstr.mkSort (ESorts.make (Sorts.make c_quality (Univ.Universe.make (List.hd univs)))) in
+  let c_type = EConstr.mkSort (ESorts.make (Sorts.make c_quality (List.hd univs))) in
   let eq = eta_expand (Id.of_string "A") c_type eq in
   let sigma , has_J_class = Evd.fresh_global ~names env sigma has_elim_ref in
   if dep then

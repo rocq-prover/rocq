@@ -168,6 +168,7 @@ val set_impredicative_set : bool -> safe_transformer0
 val set_indices_matter : bool -> safe_transformer0
 val set_typing_flags : Declarations.typing_flags -> safe_transformer0
 val set_share_reduction : bool -> safe_transformer0
+val set_cumulativity_zeta : bool -> safe_transformer0
 val set_check_guarded : bool -> safe_transformer0
 val set_check_positive : bool -> safe_transformer0
 val set_check_universes : bool -> safe_transformer0
