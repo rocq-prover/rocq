@@ -27,7 +27,7 @@ type conditions =
   | FirstSolved (* Use the first match whose side-conditions are solved *)
   | AllMatches (* Rewrite all matches whose side-conditions are solved *)
 
-val lookup_eq_eliminator_with_error : Environ.env -> Evd.evar_map -> Evd.econstr ->
+val lookup_eq_eliminator_with_error : ?het_eq:bool -> Environ.env -> Evd.evar_map -> Evd.econstr ->
   dep:orientation -> inccl:orientation -> l2r:orientation option ->
   c_sort:ESorts.t ->
   e_sort:ESorts.t ->
