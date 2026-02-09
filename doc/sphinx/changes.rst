@@ -108,7 +108,7 @@ the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
 `Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
 
 Nicolas Tabareau is the release manager of Rocq 9.2.
-This release is the result of 486 merged PRs, closing 4 issues.
+This release is the result of 486 merged PRs, closing 80 issues.
 
 | Nantes, March 2026
 | Nicolas Tabareau for the Rocq development team
@@ -705,7 +705,7 @@ the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
 `Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
 
 Gaëtan Gilbert and Pierre-Marie Pédrot are the release managers of Rocq 9.1.
-This release is the result of 397 merged PRs, closing 56 issues.
+This release is the result of 397 merged PRs, closing 66 issues.
 
 | Nantes, September 2025
 | Gaëtan Gilbert and Pierre-Marie Pédrot for the Rocq development team
