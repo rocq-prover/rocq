@@ -35,8 +35,9 @@ Entry term is
       term LEVEL "200"
     | [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
       term LEVEL "200"; "in"; term LEVEL "200" ]
-  | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
-    term LEVEL "200"
+  | "if"; term LEVEL "200";
+    [ "is"; if_dthen; if_else
+    | as_return_type; "then"; term LEVEL "200"; "else"; term LEVEL "200" ]
   | "fix"; fix_decls
   | "cofix"; cofix_decls ]
 | "9" LEFTA

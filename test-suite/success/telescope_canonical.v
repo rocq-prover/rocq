@@ -1,9 +1,9 @@
-Structure Inner := mkI { is :> Type }.
+Structure Inner := mkI { ins :> Type }.
 Structure Outer := mkO { os :> Inner }.
 Canonical Structure natInner := mkI nat.
 Canonical Structure natOuter := mkO natInner.
 Definition hidden_nat := nat.
-Axiom P : forall S : Outer, is (os S) -> Prop.
+Axiom P : forall S : Outer, ins (os S) -> Prop.
 Lemma test1 (n : hidden_nat) : P _ n.
 Admitted.
 
