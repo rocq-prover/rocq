@@ -1059,6 +1059,10 @@ struct
   let pretype_app self (f, args) =
     fun ?loc ~flags tycon env sigma ->
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
+    if CList.is_empty args then
+      (* "@foo" produces "GApp (foo, [])" *)
+      pretype tycon env sigma f
+    else
     let sigma, fj = pretype empty_tycon env sigma f in
     let floc = loc_of_glob_constr f in
     let length = List.length args in
