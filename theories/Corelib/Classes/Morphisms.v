@@ -165,6 +165,17 @@ Ltac reflexive_proxy_tac A R :=
 #[global]
 Hint Extern 1 (@ReflexiveProxy ?A ?R) => reflexive_proxy_tac A R : typeclass_instances.
 
+Section ForallRelation.
+  Let U := Type.
+  Context {A : U} (P : A -> U).
+
+  (** Dependent pointwise lifting of a relation on the range. *)
+  Definition forall_relation
+             (sig : forall a, relation (P a)) : relation (forall x, P x) :=
+    fun f g => forall a, sig a (f a) (g a).
+
+End ForallRelation.
+
 (** Notations reminiscent of the old syntax for declaring morphisms. *)
 Declare Scope signature_scope.
 Delimit Scope signature_scope with signature.
@@ -179,6 +190,10 @@ Module ProperNotations.
 
   Notation " R --> R' " := (@respectful _ _ (flip (R%signature)) (R'%signature))
     (right associativity, at level 55) : signature_scope.
+
+  Notation "'forallR' x .. y , R" :=
+    (@forall_relation _ _ (fun x => .. (@forall_relation _ _ (fun y => R%signature)) ..))
+    (right associativity, at level 55, x binder, y binder) : signature_scope.
 
 End ProperNotations.
 
@@ -232,12 +247,6 @@ Section Relations.
   
   Definition forall_def : Type := forall x : A, P x.
   
-  (** Dependent pointwise lifting of a relation on the range. *)
-  
-  Definition forall_relation 
-             (sig : forall a, relation (P a)) : relation (forall x, P x) :=
-    fun f g => forall a, sig a (f a) (g a).
-
   Lemma pointwise_pointwise (R : relation B) :
     relation_equivalence (pointwise_relation A R) (@eq A ==> R).
   Proof. intros. split; reduce; subst; firstorder. Qed.
@@ -279,7 +288,7 @@ Section Relations.
   
   (** For dependent function types. *)
   Lemma forall_subrelation (R S : forall x : A, relation (P x)) :
-    (forall a, subrelation (R a) (S a)) -> subrelation (forall_relation R) (forall_relation S).
+    (forall a, subrelation (R a) (S a)) -> subrelation (forall_relation _ R) (forall_relation _ S).
   Proof. intros H x y H0 a. apply H. apply H0. Qed.
 End Relations.
 
@@ -662,9 +671,19 @@ Proof.
   - apply NB. apply H. apply NA. apply H0.
 Qed.
 
+Lemma flip_forall {A : Type} {B : A -> Type} (R R' : forall a, relation (B a))
+  `(N : forall a, Normalizes (B a) (R a) (flip (R' a))) :
+  Normalizes (forall a, B a) (forall_relation R) (flip (forall_relation R')).
+Proof.
+intros F G. split.
+- intros H a. specialize (H a). now apply (N a) in H.
+- intros H a. specialize (H a). now apply (N a) in H.
+Qed.
+
 Ltac normalizes :=
   match goal with
     | [ |- Normalizes _ (respectful _ _) _ ] => class_apply @flip_arrow
+    | [ |- Normalizes _ (forall_relation _) _ ] => class_apply @flip_forall
     | _ => class_apply @flip_atom
   end.
 
