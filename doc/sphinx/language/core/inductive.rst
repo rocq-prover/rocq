@@ -32,7 +32,7 @@ Inductive types
 
    .. prodn::
       inductive_definition ::= @ident {? @cumul_univ_decl } {* @binder } {? %| {* @binder } } {? : @type } := {? {? %| } {+| @constructor } } {? @decl_notations }
-      constructor ::= {* #[ {+, @attribute } ] } @ident {* @binder } {? @of_type_inst }
+      constructor ::= {* #[ {+, @attribute } ] } @ident {* @binder } {? of {+& @term99 } } {? @of_type_inst }
 
    Defines one or more
    inductive types and its constructors.  Rocq generates
@@ -99,6 +99,9 @@ Inductive types
 
    Constructor :n:`@ident`\s can come with :n:`@binder`\s, in which case
    the actual type of the constructor is :n:`forall {* @binder }, @type`.
+
+   :n:`{? of {+& @term99 } }`
+     `of T1 & ... & Tn` is syntactic sugar for anonymous binders `(_ : T1) ... (_ : Tn)`.
 
    .. exn:: Non strictly positive occurrence of @ident in @type.
 
