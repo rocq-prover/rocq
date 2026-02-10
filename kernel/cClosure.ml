@@ -1492,29 +1492,27 @@ type (_, _) escape =
 module RedPattern :
 sig
 
-type ('constr, 'stack, 'context) resume_state
+type resume_state
 
-type ('constr, 'stack, 'context, _) depth =
-  | Nil: ('constr * 'stack, 'ret) escape -> ('constr, 'stack, 'context, 'ret) depth
-  | Cons: ('constr, 'stack, 'context) resume_state * ('constr, 'stack, 'context, 'ret) depth -> ('constr, 'stack, 'context, 'ret) depth
+type _ depth =
+  | Nil: (fconstr * stack, 'ret) escape -> 'ret depth
+  | Cons: resume_state * 'ret depth -> 'ret depth
 
-type 'a patstate = (fconstr, stack, rel_context, 'a) depth
+val match_symbol : ('a, 'a depth) reduction -> clos_infos -> Table.t ->
+  pat_state:'a depth -> table_key -> UVars.Instance.t * bool * machine_rewrite_rule list -> stack -> 'a
 
-val match_symbol : ('a, 'a patstate) reduction -> clos_infos -> Table.t ->
-  pat_state:(fconstr, stack, rel_context, 'a) depth -> table_key -> UVars.Instance.t * bool * machine_rewrite_rule list -> stack -> 'a
-
-val match_head : ('a, 'a patstate) reduction -> clos_infos -> Table.t ->
-  pat_state:(fconstr, stack, rel_context, 'a) depth -> (fconstr, stack, rel_context) resume_state -> fconstr -> stack -> 'a
+val match_head : ('a, 'a depth) reduction -> clos_infos -> Table.t ->
+  pat_state:'a depth -> resume_state -> fconstr -> stack -> 'a
 
 end =
 struct
 
-type 'constr partial_subst = {
-  subst: ('constr, Sorts.Quality.t, Univ.Level.t) Partial_subst.t;
+type partial_subst = {
+  subst: (fconstr, Sorts.Quality.t, Univ.Level.t) Partial_subst.t;
   rhs: constr;
 }
 
-type 'constr subst_status = Dead | Live of 'constr partial_subst
+type subst_status = Dead | Live of partial_subst
 
 type 'a status =
   | Check of 'a
@@ -1533,20 +1531,33 @@ type ('a, 'b) next =
   | Continue of 'a
   | Return of 'b
 
-type ('constr, 'stack, 'context) state =
-  | LocStart of { elims: pattern_elimination list status array; context: 'context; head: 'constr; stack: 'stack; next: ('constr, 'stack, 'context) state_next }
-  | LocArg of { patterns: pattern_argument status array; context: 'context; arg: 'constr; next: ('constr, 'stack, 'context) state }
+type state =
+  | LocStart of {
+      elims: pattern_elimination list status array;
+      context: rel_context;
+      head: fconstr;
+      stack: stack;
+      next: state_next;
+    }
+  | LocArg of {
+      patterns: pattern_argument status array;
+      context: rel_context;
+      arg: fconstr;
+      next: state;
+    }
 
-and ('constr, 'stack, 'context) state_next = (('constr, 'stack, 'context) state, bool * 'constr * 'stack) next
+and state_next = (state, bool * fconstr * stack) next
 
-type ('constr, 'stack, 'context) resume_state =
-  { states: 'constr subst_status array; context: 'context; patterns: head_elimination status array; next: ('constr, 'stack, 'context) state }
+type resume_state = {
+  states: subst_status array;
+  context: rel_context;
+  patterns: head_elimination status array;
+  next: state;
+}
 
-type ('constr, 'stack, 'context, _) depth =
-  | Nil: ('constr * 'stack, 'ret) escape -> ('constr, 'stack, 'context, 'ret) depth
-  | Cons: ('constr, 'stack, 'context) resume_state * ('constr, 'stack, 'context, 'ret) depth -> ('constr, 'stack, 'context, 'ret) depth
-
-type 'a patstate = (fconstr, stack, rel_context, 'a) depth
+type _ depth =
+  | Nil: (fconstr * stack, 'ret) escape -> 'ret depth
+  | Cons: resume_state * 'ret depth -> 'ret depth
 
 let extract_or_kill filter a status =
   let step elim status =
@@ -1592,7 +1603,7 @@ let extract_or_kill4 filter a status =
   in
   Array.split4 @@ Array.map2 step a status
 
-let rec match_main : type a. (a, a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, a) depth -> _ -> _ -> a =
+let rec match_main : type a. (a, a depth) reduction -> _ -> _ -> pat_state:a depth -> _ -> _ -> a =
   fun red info tab ~pat_state states loc ->
   if Array.for_all (function Dead -> true | Live _ -> false) states then match_kill red info tab ~pat_state loc else
   match [@ocaml.warning "-4"] loc with
@@ -1614,7 +1625,7 @@ let rec match_main : type a. (a, a patstate) reduction -> _ -> _ -> pat_state:(f
   | LocStart { elims; context; head; stack; next } ->
       match_elim red info tab ~pat_state next context states elims head stack
 
-and match_kill : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, 'a) depth -> _ -> 'a =
+and match_kill : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> 'a =
   fun red info tab ~pat_state -> function
   | LocArg { next; _ } -> match_kill red info tab ~pat_state next
   | LocStart { head; stack; next; _ } ->
@@ -1623,7 +1634,7 @@ and match_kill : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr
       | Continue next -> match_kill red info tab ~pat_state next
       | Return k -> try_unfoldfix red info tab ~pat_state k
 
-and match_endstack : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(_, _, _, 'a) depth -> _ -> _ -> 'a =
+and match_endstack : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> 'a =
   fun red info tab ~pat_state states next ->
   match next with
   | Continue next -> match_main red info tab ~pat_state states next
@@ -1631,7 +1642,7 @@ and match_endstack : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(_, 
       assert (Array.for_all (function Dead -> true | Live _ -> false) states);
       try_unfoldfix red info tab ~pat_state k
 
-and try_unfoldfix : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(_, _, _, 'a) depth -> _ -> 'a =
+and try_unfoldfix : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> 'a =
   fun red info tab ~pat_state (b, m, stk) ->
   if not b then red.red_ret info tab ~pat_state ~failed:true (m, stk) else
   let rarg, stack = strip_update_shift_absorb_app m stk in
@@ -1642,7 +1653,7 @@ and try_unfoldfix : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(_, _
     red.red_knit info tab ~pat_state fxe fxbd stk'
   | _ -> red.red_ret info tab ~pat_state ~failed:true (m, stk)
 
-and match_elim : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, 'a) depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
+and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
   fun red info tab ~pat_state next context states elims head stk ->
   match stk with
   | Zapp args :: s ->
@@ -1708,7 +1719,7 @@ and match_elim : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr
       let states = extract_or_kill (function [], subst -> Some subst | _ -> None) elims states in
       match_endstack red info tab ~pat_state states next
 
-and match_arg : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, 'a) depth -> _ -> _ -> _ -> _ -> _ -> 'a =
+and match_arg : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> 'a =
   fun red info tab ~pat_state next context states patterns t ->
   let match_deeper = ref false in
   let t' = it_mkLambda_or_LetIn info context t in
@@ -1725,7 +1736,7 @@ and match_arg : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr,
   else
     match_main red info tab ~pat_state states next
 
-and match_head : 'a. ('a, 'a patstate) reduction -> _ -> _ -> pat_state:(fconstr, stack, _, 'a) depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
+and match_head : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
   fun red info tab ~pat_state next context states patterns t stk ->
   match [@ocaml.warning "-4"] t.term with
   | FInd (ind', u) ->
@@ -1881,7 +1892,7 @@ let match_head red info tab ~pat_state { states; context; patterns; next } m stk
 
 end
 
-type 'a depth = 'a RedPattern.patstate
+type 'a depth = 'a RedPattern.depth
 
 (* Computes a weak head normal form from the result of knh. *)
 let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
@@ -1903,12 +1914,7 @@ let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
             (* Similarly to fix, partially applied primitives are not Ntrl! *)
             knr_ret info tab ~pat_state (m, stk)
         | Symbol (u, b, r) ->
-          let red = {
-            red_kni = kni;
-            red_knit = knit;
-            red_ret = knr_ret;
-          } in
-          RedPattern.match_symbol red info tab ~pat_state fl (u, b, r) stk
+          RedPattern.match_symbol knred info tab ~pat_state fl (u, b, r) stk
         | Undef _ | OpaqueDef _ -> (set_ntrl m; knr_ret info tab ~pat_state (m,stk)))
   | FConstruct (c,_) ->
      let use_match = red_set info.i_flags fMATCH in
@@ -1998,12 +2004,7 @@ and knr_ret : type a. _ -> _ -> pat_state: a depth -> ?failed: _ -> _ -> a =
   match pat_state with
   | RedPattern.Cons (patt, pat_state) ->
       let m, stk = i in
-      let red = {
-        red_kni = kni;
-        red_knit = knit;
-        red_ret = knr_ret;
-      } in
-      RedPattern.match_head red info tab ~pat_state patt m stk
+      RedPattern.match_head knred info tab ~pat_state patt m stk
   | RedPattern.Nil b ->
       match b with No -> i | Yes -> if failed then None else Some i
 
@@ -2043,7 +2044,7 @@ and case_inversion info tab ci u params indices v = match v with
     then Some v else None
 | _ -> assert false
 
-let knred = {
+and knred : 'a. ('a, 'a RedPattern.depth) reduction = {
   red_kni = kni;
   red_knit = knit;
   red_ret = knr_ret;
