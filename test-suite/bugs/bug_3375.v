@@ -8,7 +8,7 @@ Definition UU := Set.
 Definition dirprod ( X Y : UU ) := sigT ( fun x : X => Y ) .
 Definition dirprodpair { X Y : UU } := existT ( fun x : X => Y ) .
 Definition hProp := sigT (fun X : Type => admit).
-Axiom hProppair : forall ( X : UU ) ( is : admit ), hProp.
+Axiom hProppair : forall ( X : UU ) ( _ : admit ), hProp.
 Definition hProptoType := @projT1 _ _ : hProp -> Type .
 Coercion hProptoType: hProp >-> Sortclass.
 Definition ishinh_UU ( X : UU ) : UU := forall P: Set, ( ( X -> P ) -> P ).

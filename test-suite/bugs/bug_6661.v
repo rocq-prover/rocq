@@ -123,10 +123,10 @@ Defined.
 
 Definition iscontr@{i} (T:Type@{i}) : Type@{i} := ∑ cntr:T, ∏ t:T, t=cntr.
 
-Lemma proofirrelevancecontr {X : UU} (is : iscontr X) (x x' : X) : x = x'.
+Lemma proofirrelevancecontr {X : UU} (isc : iscontr X) (x x' : X) : x = x'.
 Proof.
   intros.
-  induction is as [y fe].
+  induction isc as [y fe].
   exact (fe x @ !(fe x')).
 Defined.
 
@@ -214,10 +214,10 @@ Section isweqcontrtounit.
   (* Constraint uu0 < i. *)
 
   (* Without this constraint, we get i = uu0 in the next definition *)
-  Lemma isweqcontrtounit@{} {T : Type@{i}} (is : iscontr@{i} T) : isweq@{i} (λ _:T, tt).
+  Lemma isweqcontrtounit@{} {T : Type@{i}} (isc : iscontr@{i} T) : isweq@{i} (λ _:T, tt).
   Proof.
     intros. intro y. induction y.
-    induction is as [c h].
+    induction isc as [c h].
     split with (hfiberpair@{i i i} _ c (idpath tt)).
     intros ha.
     induction ha as [x e].
