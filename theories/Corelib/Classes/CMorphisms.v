@@ -437,7 +437,7 @@ Section GenericInstances.
     Proper R' (m x).
   Proof. simpl_crelation. Qed.
   
-  Class Params {A} (of : A) (arity : nat).
+  Class Params {A} (from : A) (arity : nat).
     
   Lemma flip_respectful {A B} (R : crelation A) (R' : crelation B) :
     relation_equivalence (flip (R ==> R')) (flip R ==> flip R').
