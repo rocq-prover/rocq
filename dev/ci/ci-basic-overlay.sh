@@ -549,5 +549,5 @@ project autosubst_ocaml "https://github.com/uds-psl/autosubst-ocaml" "master"
 ########################################################################
 # Trakt
 ########################################################################
-project trakt "https://github.com/ecranceMERCE/trakt" "coq-master"
+project trakt "https://github.com/rocq-trakt/trakt" "coq-master"
 # Contact @ckeller on github
