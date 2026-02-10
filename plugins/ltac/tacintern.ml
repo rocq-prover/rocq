@@ -716,15 +716,16 @@ let glob_tactic_env l env x =
   intern_pure_tactic { (Genintern.empty_glob_sign ~strict:true env) with ltacvars } x
 
 let intern_strategy ist s =
+  let open RewriteStratAst in
   let rec aux stratvars = function
-    | Rewrite.StratVar x ->
+    | StratVar x ->
       (* We could make this whole branch assert false, since it's
          unreachable except from plugins. But maybe it's useful if any
          plug-in wants to craft a strategy by hand. *)
-      if Id.Set.mem x.v stratvars then Rewrite.StratVar x.v
+      if Id.Set.mem x.v stratvars then StratVar x.v
       else CErrors.user_err ?loc:x.loc Pp.(str "Unbound strategy" ++ spc() ++ Id.print x.v)
     | StratConstr ({ v = CRef (qid, None) }, true) when idset_mem_qualid qid stratvars ->
-      let (_, x) = repr_qualid qid in Rewrite.StratVar x
+      let (_, x) = repr_qualid qid in StratVar x
     | StratConstr (c, b) -> StratConstr (intern_constr ist c, b)
     | StratFix (x, s) -> StratFix (x.v, aux (Id.Set.add x.v stratvars) s)
     | StratId | StratFail | StratRefl as s -> s

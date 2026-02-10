@@ -378,8 +378,8 @@ type atomic_tactic_expr =
 
 (** Misc *)
 
-type raw_strategy = (constr_expr, constr_expr, Redexpr.raw_red_expr, lident, raw_tactic_expr) Rewrite.strategy_ast
-type glob_strategy = (Genintern.glob_constr_and_expr, Genintern.glob_constr_pattern_and_expr, Redexpr.glob_red_expr, Id.t, glob_tactic_expr) Rewrite.strategy_ast
+type raw_strategy = (constr_expr, constr_expr, Redexpr.raw_red_expr, lident, raw_tactic_expr) RewriteStratAst.strategy_ast
+type glob_strategy = (Genintern.glob_constr_and_expr, Genintern.glob_constr_pattern_and_expr, Redexpr.glob_red_expr, Id.t, glob_tactic_expr) RewriteStratAst.strategy_ast
 
 (** Traces *)
 
