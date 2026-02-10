@@ -388,7 +388,7 @@ let level_init l sigma =
       sigma , new_level :: r
   in aux l sigma
 
-let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
+let lookup_eq_eliminator env sigma eq het_eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
   let has_elim_ref , indarg = has_J_ref dep l2r inccl in
   let has_refl_ref = Rocqlib.lib_ref "core.Has_refl" in
   let c_quality = ESorts.quality sigma c_sort in
@@ -400,12 +400,22 @@ let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
   let p_level = Sorts.univ_of_sort (ESorts.kind sigma p_sort) in
   let sigma , univs = level_init [ c_level; e_level; p_level ] sigma in
   let names = EInstance.make @@ UVars.Instance.of_array (Array.of_list qs, Array.of_list univs) in
+  (* eta-expansion for equality fun A => eq A *)
   let eta_expand name typ f =
       let body = EConstr.mkApp (Vars.lift 1 f , [| mkRel 1 |] ) in
       EConstr.mkLambda (EConstr.nameR name, typ , body) in
+  (* Special eta-expansion for heterogeneous equality fun A x => JMeq A x A *)
+  let eta_expand_het_eq name namevar typ f =
+      let body = EConstr.mkApp (Vars.lift 2 f , [| mkRel 2 |] ) in
+      let body = EConstr.mkApp (body , [| mkRel 1 |] ) in
+      let body = EConstr.mkApp (body , [| mkRel 2 |] ) in
+      let body = EConstr.mkLambda (EConstr.nameR namevar, mkRel 1 , body) in
+      EConstr.mkLambda (EConstr.nameR name, typ , body) in
   (* This patch is to handle template poly equality with carrier in Prop, because of cumulatitivty of Prop into Type *)
   let c_type = EConstr.mkSort (ESorts.make (Sorts.make c_quality (Univ.Universe.make (List.hd univs)))) in
-  let eq = eta_expand (Id.of_string "A") c_type eq in
+  let eq = if het_eq
+    then eta_expand_het_eq (Id.of_string "A") (Id.of_string "x") c_type eq
+    else eta_expand (Id.of_string "A") c_type eq in
   let sigma , has_J_class = Evd.fresh_global ~names env sigma has_elim_ref in
   if dep then
     let has_refl_names =
@@ -419,8 +429,8 @@ let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
     let sigma , app = Typing.checked_appvect env sigma has_J_class [| eq |] in
     (sigma , (app, indarg))
 
-let lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
-  let sigma, (query,indarg) = lookup_eq_eliminator env sigma eq
+let lookup_eq_eliminator_tc env sigma eq het_eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+  let sigma, (query,indarg) = lookup_eq_eliminator env sigma eq het_eq
       ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort in
   let db = Hints.searchtable_map rewrite_db in
   let (sigma , c) = Class_tactics.resolve_one_typeclass ~db env sigma query in
@@ -435,7 +445,7 @@ let which_equality_opt env sigma c =
     | None -> None in
   Option.List.flatten @@ List.map (find_eq env sigma c) ["eq";"identity"]
 
-let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
+let lookup_eq_eliminator_with_error ?(het_eq=false) env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
   let which_eq = which_equality_opt env sigma eq in
   let eq_scheme = Option.List.flatten @@ List.map (fun name -> eq_scheme_name name dep l2r inccl (ESorts.quality sigma p_sort) (ESorts.is_set sigma p_sort)) which_eq in
   match eq_scheme with
@@ -445,14 +455,14 @@ let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sor
     (sigma , mkConstU (c,u)), indarg
   | _ ->
     try
-      lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
+      lookup_eq_eliminator_tc env sigma eq het_eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
     with Not_found -> user_err Pp.(
       str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
       str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
       str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
 
-let lookup_eq_eliminator_opt env sigma eq ~dep ~inccl l2r ~c_sort ~e_sort ~p_sort =
-  try Some (lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort)
+let lookup_eq_eliminator_opt env sigma eq ~dep het_eq ~inccl l2r ~c_sort ~e_sort ~p_sort =
+  try Some (lookup_eq_eliminator_with_error ~het_eq env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort)
   with _ -> None
 
 type eq_scheme_kind = Minimality of UnivGen.QualityOrSet.t | Rewriting | Equality
@@ -495,14 +505,17 @@ let find_elim lft2rgt dep inccl type_of_cls (ctx, hdcncl, args) =
       Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (gref, UnknownPosition)
     | _ -> assert false
   in
-  if List.length args = 3
+  let nb_args = List.length args in
+  let maybe_eq = nb_args == 3 in
+  let maybe_het_eq = nb_args == 4 in
+  if maybe_eq || maybe_het_eq
   then
     let env' = EConstr.push_rel_context ctx env in
     let args = Array.of_list args in
     let e_sort = Retyping.get_sort_of env' sigma (mkApp (hdcncl, args)) in
     let c_sort = Retyping.get_sort_of env' sigma args.(0) in
     let p_sort = Retyping.get_sort_of env sigma type_of_cls in
-    match lookup_eq_eliminator_opt env sigma hdcncl ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
+    match lookup_eq_eliminator_opt env sigma hdcncl maybe_het_eq ~dep ~inccl lft2rgt ~c_sort ~e_sort ~p_sort with
     | Some ((sigma, c),indarg) ->
         Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (c,indarg)
     | None -> gen_elim ()
