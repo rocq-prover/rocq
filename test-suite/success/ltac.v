@@ -202,12 +202,12 @@ Abort.
 
 (* Utilisation de let rec sans arguments *)
 
-Ltac is :=
+Ltac rec_intros :=
   let rec i := match goal with |- ?A -> ?B => intro; i | _ => idtac end in
   i.
 
 Goal True -> True -> True.
-is.
+rec_intros.
 exact I.
 Abort.
 
