@@ -14,6 +14,12 @@ Parsing_rect is defined
 Parsing_ind is defined
 Parsing_rec is defined
 Parsing_sind is defined
+Parsing_all is defined
+Parsing_all_rect is defined
+Parsing_all_ind is defined
+Parsing_all_rec is defined
+Parsing_all_sind is defined
+Parsing_all_forall is defined
 
 Rocq < Rocq < 
 Rocq < Rocq < Identifier 'op22' now a keyword

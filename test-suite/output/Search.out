@@ -35,11 +35,11 @@ Decimal.uint_beq: Decimal.uint -> Decimal.uint -> bool
 Nat.leb: nat -> nat -> bool
 Decimal.decimal_beq: Decimal.decimal -> Decimal.decimal -> bool
 Number.uint_beq: Number.uint -> Number.uint -> bool
-Number.signed_int_beq: Number.signed_int -> Number.signed_int -> bool
+Nat.ltb: nat -> nat -> bool
 Decimal.signed_int_beq: Decimal.signed_int -> Decimal.signed_int -> bool
 Nat.eqb: nat -> nat -> bool
 Hexadecimal.uint_beq: Hexadecimal.uint -> Hexadecimal.uint -> bool
-Nat.ltb: nat -> nat -> bool
+Number.signed_int_beq: Number.signed_int -> Number.signed_int -> bool
 Number.number_beq: Number.number -> Number.number -> bool
 Hexadecimal.signed_int_beq:
   Hexadecimal.signed_int -> Hexadecimal.signed_int -> bool
@@ -47,81 +47,82 @@ Hexadecimal.hexadecimal_beq:
   Hexadecimal.hexadecimal -> Hexadecimal.hexadecimal -> bool
 Nat.testbit: nat -> nat -> bool
 Nat.bitwise: (bool -> bool -> bool) -> nat -> nat -> nat -> nat
+eq_true_rect_r:
+  forall (P : bool -> Type) [b : bool], P b -> eq_true b -> P true
+bool_ind: forall P : bool -> Prop, P true -> P false -> forall b : bool, P b
 eq_true_rew_r:
   forall [b : bool] (P : bool -> Type), P b -> eq_true b -> P true
-eq_true_rew:
+bool_sind:
+  forall P : bool -> SProp, P true -> P false -> forall b : bool, P b
+bool_rect: forall P : bool -> Type, P true -> P false -> forall b : bool, P b
+eq_true_rect:
   forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
 bool_rec: forall P : bool -> Set, P true -> P false -> forall b : bool, P b
 eq_true_rec_r:
   forall (P : bool -> Set) [b : bool], P b -> eq_true b -> P true
-eq_true_ind:
-  forall P : bool -> Prop, P true -> forall [b : bool], eq_true b -> P b
-eq_true_rect:
-  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
-eq_true_rect_r:
-  forall (P : bool -> Type) [b : bool], P b -> eq_true b -> P true
-eq_true_rec:
-  forall P : bool -> Set, P true -> forall [b : bool], eq_true b -> P b
 eq_true_ind_r:
   forall (P : bool -> Prop) [b : bool], P b -> eq_true b -> P true
-bool_ind: forall P : bool -> Prop, P true -> P false -> forall b : bool, P b
+eq_true_rew:
+  forall P : bool -> Type, P true -> forall [b : bool], eq_true b -> P b
 eq_true_sind:
   forall P : bool -> SProp, P true -> forall [b : bool], eq_true b -> P b
-bool_sind:
-  forall P : bool -> SProp, P true -> P false -> forall b : bool, P b
-bool_rect: forall P : bool -> Type, P true -> P false -> forall b : bool, P b
+eq_true_rec:
+  forall P : bool -> Set, P true -> forall [b : bool], eq_true b -> P b
+eq_true_ind:
+  forall P : bool -> Prop, P true -> forall [b : bool], eq_true b -> P b
+BoolSpec_all:
+  forall [P : Prop],
+  (P -> Type@{β0 ; _}) ->
+  forall [Q : Prop],
+  (Q -> Type@{β1 ; _}) -> forall [b : bool], BoolSpec P Q b -> Prop
 bool_of_sumbool:
   forall [A B : Prop], {A} + {B} -> {b : bool | if b then A else B}
 sumbool_of_bool: forall b : bool, {b = true} + {b = false}
-Decimal.internal_signed_int_dec_lb:
-  forall x y : Decimal.signed_int, x = y -> Decimal.signed_int_beq x y = true
-Number.internal_signed_int_dec_lb1:
-  forall x y : Number.signed_int, x = y -> Number.signed_int_beq x y = true
-Number.internal_signed_int_dec_bl1:
-  forall x y : Number.signed_int, Number.signed_int_beq x y = true -> x = y
-Decimal.internal_signed_int_dec_bl:
-  forall x y : Decimal.signed_int, Decimal.signed_int_beq x y = true -> x = y
+Number.internal_uint_dec_bl1:
+  forall x y : Number.uint, Number.uint_beq x y = true -> x = y
 Hexadecimal.internal_hexadecimal_dec_lb:
   forall x y : Hexadecimal.hexadecimal,
   x = y -> Hexadecimal.hexadecimal_beq x y = true
-Hexadecimal.internal_signed_int_dec_lb0:
-  forall x y : Hexadecimal.signed_int,
-  x = y -> Hexadecimal.signed_int_beq x y = true
-Number.internal_number_dec_lb:
-  forall x y : Number.number, x = y -> Number.number_beq x y = true
-Hexadecimal.internal_signed_int_dec_bl0:
-  forall x y : Hexadecimal.signed_int,
-  Hexadecimal.signed_int_beq x y = true -> x = y
-Number.internal_uint_dec_lb1:
-  forall x y : Number.uint, x = y -> Number.uint_beq x y = true
-Number.internal_uint_dec_bl1:
-  forall x y : Number.uint, Number.uint_beq x y = true -> x = y
-Decimal.internal_decimal_dec_bl:
-  forall x y : Decimal.decimal, Decimal.decimal_beq x y = true -> x = y
-Number.internal_number_dec_bl:
-  forall x y : Number.number, Number.number_beq x y = true -> x = y
-Byte.of_bits:
-  bool * (bool * (bool * (bool * (bool * (bool * (bool * bool)))))) ->
-  Byte.byte
 Byte.to_bits:
   Byte.byte ->
   bool * (bool * (bool * (bool * (bool * (bool * (bool * bool))))))
-Decimal.internal_decimal_dec_lb:
-  forall x y : Decimal.decimal, x = y -> Decimal.decimal_beq x y = true
+Number.internal_uint_dec_lb1:
+  forall x y : Number.uint, x = y -> Number.uint_beq x y = true
+Byte.of_bits:
+  bool * (bool * (bool * (bool * (bool * (bool * (bool * bool)))))) ->
+  Byte.byte
+Hexadecimal.internal_signed_int_dec_lb0:
+  forall x y : Hexadecimal.signed_int,
+  x = y -> Hexadecimal.signed_int_beq x y = true
+Decimal.internal_signed_int_dec_bl:
+  forall x y : Decimal.signed_int, Decimal.signed_int_beq x y = true -> x = y
+Decimal.internal_decimal_dec_bl:
+  forall x y : Decimal.decimal, Decimal.decimal_beq x y = true -> x = y
+Number.internal_signed_int_dec_lb1:
+  forall x y : Number.signed_int, x = y -> Number.signed_int_beq x y = true
+Number.internal_number_dec_lb:
+  forall x y : Number.number, x = y -> Number.number_beq x y = true
 Hexadecimal.internal_hexadecimal_dec_bl:
   forall x y : Hexadecimal.hexadecimal,
   Hexadecimal.hexadecimal_beq x y = true -> x = y
+Number.internal_signed_int_dec_bl1:
+  forall x y : Number.signed_int, Number.signed_int_beq x y = true -> x = y
+Hexadecimal.internal_signed_int_dec_bl0:
+  forall x y : Hexadecimal.signed_int,
+  Hexadecimal.signed_int_beq x y = true -> x = y
+Decimal.internal_signed_int_dec_lb:
+  forall x y : Decimal.signed_int, x = y -> Decimal.signed_int_beq x y = true
+Decimal.internal_decimal_dec_lb:
+  forall x y : Decimal.decimal, x = y -> Decimal.decimal_beq x y = true
+Number.internal_number_dec_bl:
+  forall x y : Number.number, Number.number_beq x y = true -> x = y
+eq_true_rew_dep:
+  forall P : forall b : bool, eq_true b -> Type,
+  P true is_eq_true -> forall [b : bool] (e : eq_true b), P b e
 eq_true_rew_fwd_dep:
   forall [b : bool] (H : eq_true b)
     (P : forall b0 : bool, eq_true b0 -> Type),
   P b H -> P true is_eq_true
-eq_true_rew_dep:
-  forall P : forall b : bool, eq_true b -> Type,
-  P true is_eq_true -> forall [b : bool] (e : eq_true b), P b e
-Decimal.internal_uint_dec_bl:
-  forall x : Decimal.uint,
-  (fun x0 : Decimal.uint =>
-   forall y : Decimal.uint, Decimal.uint_beq x0 y = true -> x0 = y) x
 Decimal.internal_uint_dec_lb:
   forall x : Decimal.uint,
   (fun x0 : Decimal.uint =>
@@ -134,6 +135,10 @@ Hexadecimal.internal_uint_dec_bl0:
   forall x : Hexadecimal.uint,
   (fun x0 : Hexadecimal.uint =>
    forall y : Hexadecimal.uint, Hexadecimal.uint_beq x0 y = true -> x0 = y) x
+Decimal.internal_uint_dec_bl:
+  forall x : Decimal.uint,
+  (fun x0 : Decimal.uint =>
+   forall y : Decimal.uint, Decimal.uint_beq x0 y = true -> x0 = y) x
 andb_prop: forall a b : bool, (a && b)%bool = true -> a = true /\ b = true
 andb_true_intro:
   forall [b1 b2 : bool], b1 = true /\ b2 = true -> (b1 && b2)%bool = true
@@ -143,21 +148,27 @@ bool_eq_rec:
 bool_eq_ind:
   forall (b : bool) (P : bool -> Prop),
   (b = true -> P true) -> (b = false -> P false) -> P b
-BoolSpec_sind:
-  forall [P Q : Prop] (P0 : bool -> SProp),
-  (P -> P0 true) ->
-  (Q -> P0 false) -> forall [b : bool], BoolSpec P Q b -> P0 b
 BoolSpec_ind:
   forall [P Q : Prop] (P0 : bool -> Prop),
   (P -> P0 true) ->
   (Q -> P0 false) -> forall [b : bool], BoolSpec P Q b -> P0 b
-reflect_ind:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Prop),
+BoolSpec_sind:
+  forall [P Q : Prop] (P0 : bool -> SProp),
+  (P -> P0 true) ->
+  (Q -> P0 false) -> forall [b : bool], BoolSpec P Q b -> P0 b
+BoolSpec_all_forall:
+  forall [P : Prop] (PP : P -> Type@{β0 ; _}),
+  (forall p : P, PP p) ->
+  forall [Q : Prop] (PQ : Q -> Type@{β1 ; _}),
+  (forall q : Q, PQ q) ->
+  forall [b : bool] (b0 : BoolSpec P Q b), BoolSpec_all PP PQ b0
+reflect_rec:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Set),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
-reflect_sind:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> SProp),
+reflect_ind:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Prop),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
@@ -166,8 +177,8 @@ reflect_rect:
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
-reflect_rec:
-  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Set),
+reflect_sind:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> SProp),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
@@ -179,6 +190,18 @@ bool_choice:
   forall [S : Set] [R1 R2 : S -> Prop],
   (forall x : S, {R1 x} + {R2 x}) ->
   {f : S -> bool | forall x : S, f x = true /\ R1 x \/ f x = false /\ R2 x}
+BoolSpec_all_sind:
+  forall [P : Prop] [PP : P -> Type@{β0 ; _}] [Q : Prop]
+    [PQ : Q -> Type@{β1 ; _}] (P0 : forall b : bool, BoolSpec P Q b -> SProp),
+  (forall p : P, PP p -> P0 true (BoolSpecT Q p)) ->
+  (forall q : Q, PQ q -> P0 false (BoolSpecF P q)) ->
+  forall [b : bool] [b0 : BoolSpec P Q b], BoolSpec_all PP PQ b0 -> P0 b b0
+BoolSpec_all_ind:
+  forall [P : Prop] [PP : P -> Type@{β0 ; _}] [Q : Prop]
+    [PQ : Q -> Type@{β1 ; _}] (P0 : forall b : bool, BoolSpec P Q b -> Prop),
+  (forall p : P, PP p -> P0 true (BoolSpecT Q p)) ->
+  (forall q : Q, PQ q -> P0 false (BoolSpecF P q)) ->
+  forall [b : bool] [b0 : BoolSpec P Q b], BoolSpec_all PP PQ b0 -> P0 b b0
 mult_n_O: forall n : nat, 0 = n * 0
 plus_O_n: forall n : nat, 0 + n = n
 plus_n_O: forall n : nat, n = n + 0

@@ -2,7 +2,7 @@ File "./output/bug_20242.v", line 5, characters 49-60:
 The command has indeed failed with message:
 Signature components for field B do not match: expected type
 "foo@{Type ; A.A.u0} bug_20242.B.A" but found type
-"foo@{SProp ; bug_20242.26} bug_20242.B.A".
+"foo@{SProp ; bug_20242.32} bug_20242.B.A".
 Error: The module B needs to be closed.
 
 

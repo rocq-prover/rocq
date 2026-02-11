@@ -203,9 +203,9 @@ block).
 foo@{i} = Type@{M.i} -> Type@{i}
      : Type@{max(M.i+1,i+1)}
 (* i |=  *)
-Type@{u0} -> Type@{UnivBinders.83}
-     : Type@{max(u0+1,UnivBinders.83+1)}
-(* {UnivBinders.83} |=  *)
+Type@{u0} -> Type@{UnivBinders.89}
+     : Type@{max(u0+1,UnivBinders.89+1)}
+(* {UnivBinders.89} |=  *)
 bind_univs.mono = Type@{bind_univs.mono.u}
      : Type@{bind_univs.mono.u+1}
 bind_univs.poly@{u} = Type@{u}

@@ -1346,7 +1346,7 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
       To prevent this, `Depth Scheme All` controls to which depth should the `All` predicate be generated.
       For instance, at depth `1`, the `All` predicate for `prod` will be
       generated, `prod_all`, but the `All` predicate for `prod_all` will not be generated.
-      Its default value is `0`.
+      Its default value is `1`.
 
       The depth for nested inductive types is `Depth Scheme All -1` as if `X` is nested with `Y`,
       then `X_all` is nested with `Y_all`, and the eliminator for `X_all` requires `Y_all_all`.
@@ -1392,11 +1392,9 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
    parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
    `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
    Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
-   They can be generated with :cmd:`Scheme All` command.
 
    .. rocqtop:: all
 
-      Scheme All for prod.
       Print prod_all.
       About prod_all_forall.
 
