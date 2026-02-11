@@ -161,9 +161,9 @@ let subst_tacref subst ref = match ref with
 | AbsKn (TacConstant kn) ->
   let kn' = subst_kn subst kn in
   if kn' == kn then ref else AbsKn (TacConstant kn')
-| AbsKn (TacAlias kn) ->
+| AbsKn (TacAbbrev kn) ->
   let kn' = subst_kn subst kn in
-  if kn' == kn then ref else AbsKn (TacAlias kn')
+  if kn' == kn then ref else AbsKn (TacAbbrev kn')
 
 let subst_projection subst prj = match prj with
 | RelId _ -> prj
