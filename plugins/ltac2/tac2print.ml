@@ -590,7 +590,7 @@ let pr_rawexpr_gen lvl ~avoid c =
   | CTacAtm a -> pr_atom a
   | CTacRef (RelId qid) -> Libnames.pr_qualid qid
   | CTacRef (AbsKn (TacConstant r)) -> pr_tacref avoid r
-  | CTacRef (AbsKn (TacAlias _ as r)) -> Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid r)
+  | CTacRef (AbsKn (TacAbbrev _ as r)) -> Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid r)
   | CTacCst (RelId qid) -> Libnames.pr_qualid qid
   | CTacCst (AbsKn (Tuple 0)) -> str "()"
   | CTacCst (AbsKn (Tuple n)) -> CErrors.anomaly ?loc Pp.(str "Incorrect tuple.")

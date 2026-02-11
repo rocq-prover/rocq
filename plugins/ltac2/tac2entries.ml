@@ -1008,15 +1008,15 @@ type abbreviation = {
 }
 
 let perform_abbreviation visibility ((sp, kn), abbr) =
-  let () = Tac2env.push_ltac visibility sp (TacAlias kn) in
-  Tac2env.define_alias ?deprecation:abbr.abbr_depr kn abbr.abbr_body
+  let () = Tac2env.push_ltac visibility sp (TacAbbrev kn) in
+  Tac2env.define_abbrev ?deprecation:abbr.abbr_depr kn abbr.abbr_body
 
 let load_abbreviation i obj = perform_abbreviation (Until i) obj
 let open_abbreviation i obj = perform_abbreviation (Exactly i) obj
 
 let cache_abbreviation ((sp, kn), abbr) =
-  let () = Tac2env.push_ltac (Until 1) sp (TacAlias kn) in
-  Tac2env.define_alias ?deprecation:abbr.abbr_depr kn abbr.abbr_body
+  let () = Tac2env.push_ltac (Until 1) sp (TacAbbrev kn) in
+  Tac2env.define_abbrev ?deprecation:abbr.abbr_depr kn abbr.abbr_body
 
 let subst_abbreviation (subst, abbr) =
   let body' = subst_rawexpr subst abbr.abbr_body in
@@ -1233,7 +1233,7 @@ let register_redefinition ~local qid old ({loc=eloc} as e) =
   in
   let kn = match kn with
   | TacConstant kn -> kn
-  | TacAlias _ ->
+  | TacAbbrev _ ->
     user_err ?loc:qid.CAst.loc (str "Cannot redefine syntactic abbreviations")
   in
   let data = Tac2env.interp_global kn in
@@ -1474,8 +1474,8 @@ let print_tacref ~print_def qid = function
     let data = Tac2env.interp_global kn in
     let info = Option.map fst (Tac2env.get_compiled_global kn) in
     print_constant ~print_def qid data ?info
-  | TacAlias kn ->
-    let { Tac2env.alias_body = body } = Tac2env.interp_alias kn in
+  | TacAbbrev kn ->
+    let { Tac2env.abbrev_body = body } = Tac2env.interp_abbrev kn in
     str "Notation" ++ spc() ++ pr_qualid qid ++ str " :=" ++ spc()
     ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body
 
@@ -1530,7 +1530,7 @@ let () =
     let hdr = match kn with
       | Type _ -> str "Ltac2 Type"
       | TacRef (TacConstant _) -> str "Ltac2"
-      | TacRef (TacAlias _) -> str "Ltac2 Notation"
+      | TacRef (TacAbbrev _) -> str "Ltac2 Notation"
       | Constructor _ -> str "Ltac2 Constructor"
     in
     hdr ++ spc () ++ pr_path (path_of_object kn)
