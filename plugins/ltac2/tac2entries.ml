@@ -1599,8 +1599,9 @@ let typecheck_expr e =
 
 let globalize_expr e =
   let avoid = Id.Set.empty in
-  let e = Tac2intern.debug_globalize_allow_ext avoid e in
-  Feedback.msg_notice (Tac2print.pr_rawexpr_gen E5 ~avoid e)
+  let e, t, errors = Tac2intern.intern_accumulate_errors ~strict:false [] e in
+  (* XXX print type and errors? *)
+  Feedback.msg_notice (Tac2print.pr_glbexpr_gen E5 ~avoid e)
 
 (** Calling tactics *)
 

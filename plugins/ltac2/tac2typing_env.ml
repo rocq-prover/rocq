@@ -105,6 +105,9 @@ type mix_type_scheme = int * mix_var glb_typexpr
    so instead we use mutation to detect them *)
 type used = { mutable used : bool }
 
+(* TODO delay printing? but printing depends on env which is mutable *)
+type error = Pp.t Loc.located
+
 type t = {
   env_var : (mix_type_scheme * used) Id.Map.t;
   (** Type schemes of bound variables *)
@@ -118,16 +121,29 @@ type t = {
   (** Recursive type definitions *)
   env_strict : bool;
   (** True iff in strict mode *)
+  env_errs : error list ref option;
+  (** [None] if raise on first error, [Some] if accumulate errors *)
 }
 
-let empty_env ?(strict=true) () = {
+let empty_env ?(strict=true) ?(accumulate_errors=false) () = {
   env_var = Id.Map.empty;
   env_cst = UF.create ();
   env_als = ref Id.Map.empty;
   env_opn = true;
   env_rec = Id.Map.empty;
   env_strict = strict;
+  env_errs = if accumulate_errors then Some (ref []) else None;
 }
+
+let add_error ?loc env msg =
+  match env.env_errs with
+  | None -> CErrors.user_err ?loc msg
+  | Some errs -> errs := (loc,msg) :: !errs
+
+let get_errors env =
+  match env.env_errs with
+  | None -> assert false
+  | Some errs -> !errs
 
 let env_strict env = env.env_strict
 
@@ -328,7 +344,7 @@ let rec unify0 env t1 t2 = match kind env t1, kind env t2 with
 let unify ?loc env t1 t2 =
   try unify0 env t1 t2
   with CannotUnify (u1, u2) ->
-    CErrors.user_err ?loc Pp.(str "This expression has type" ++ spc () ++ pr_glbtype env t1 ++
+    add_error env ?loc Pp.(str "This expression has type" ++ spc () ++ pr_glbtype env t1 ++
       spc () ++ str "but an expression was expected of type" ++ spc () ++ pr_glbtype env t2)
 
 let unify_arrow ?loc env ft args =
@@ -343,12 +359,17 @@ let unify_arrow ?loc env ft args =
     let () = unify ?loc env (GTypVar id) (GTypArrow (t, ft)) in
     iter ft args true
   | GTypRef _, _ :: _ ->
-    if is_fun then
-      CErrors.user_err ?loc Pp.(str "This function has type" ++ spc () ++ pr_glbtype env ft0 ++
-        spc () ++ str "and is applied to too many arguments")
-    else
-      CErrors.user_err ?loc Pp.(str "This expression has type" ++ spc () ++ pr_glbtype env ft0 ++
-        spc () ++ str "and is not a function")
+    let () =
+      if is_fun then
+        add_error env ?loc
+          Pp.(str "This function has type" ++ spc () ++ pr_glbtype env ft0 ++
+              spc () ++ str "and is applied to too many arguments")
+      else
+        add_error env ?loc
+          Pp.(str "This expression has type" ++ spc () ++ pr_glbtype env ft0 ++
+              spc () ++ str "and is not a function")
+    in
+    GTypVar (fresh_id env)
   in
   iter ft args false
 

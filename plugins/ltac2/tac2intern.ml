@@ -1076,9 +1076,12 @@ let tycon_fun_body ?loc env tycon dom =
     let () = unify ?loc env (GTypArrow (dom,codom)) tycon in
     codom
   | GTypRef _ ->
-    CErrors.user_err ?loc
-      Pp.(str "This expression should not be a function, the expected type is" ++ spc() ++
-          pr_glbtype env tycon ++ str ".")
+    let () =
+      add_error env ?loc
+        Pp.(str "This expression should not be a function, the expected type is" ++ spc() ++
+            pr_glbtype env tycon ++ str ".")
+    in
+    GTypVar (fresh_id env)
 
 let tycon_app ?loc env ~ft t =
   match kind env t with
@@ -1093,14 +1096,16 @@ let tycon_app ?loc env ~ft t =
       | GTypArrow _ -> true
       | _ -> false
     in
-    if is_fun then
-      CErrors.user_err ?loc
+    let () = if is_fun then
+      add_error env ?loc
         Pp.(str "This function has type" ++ spc() ++ pr_glbtype env ft ++
             spc() ++ str "and is applied to too many arguments.")
     else
-      CErrors.user_err ?loc
+      add_error env ?loc
         Pp.(str "This expression has type" ++ spc() ++ pr_glbtype env ft ++ str"." ++
             spc() ++ str "It is not a function and cannot be applied.")
+    in
+    GTypVar (fresh_id env), GTypVar (fresh_id env)
 
 let warn_useless_record_with = CWarnings.create ~name:"ltac2-useless-record-with" ~default:AsError
     ~category:CWarnings.CoreCategories.ltac2
@@ -1521,29 +1526,32 @@ and intern_constructor env loc tycon kn args = match kn with
   else
     error_nargs_mismatch ?loc kn nargs (List.length args)
 | Tuple n ->
-  let () = if not (Int.equal n (List.length args)) then begin
-      if Int.equal 0 n then
-        (* parsing [() bla] produces [CTacApp (Tuple 0, [bla])] but parsing
-           [((), ()) bla] produces [CTacApp (CTacApp (Tuple 2, [(); ()]), [bla])]
-           so we only need to produce a sensible error for [Tuple 0] *)
-        let t = GTypRef (Tuple 0, []) in
-        CErrors.user_err ?loc Pp.(
-            str "This expression has type" ++ spc () ++ pr_glbtype env t ++
-            spc () ++ str "and is not a function")
-      else assert false
-    end
-  in
-  let types = List.init n (fun i -> GTypVar (fresh_id env)) in
-  let ans = GTypRef (Tuple n, types) in
-  let ans = match tycon with
-    | None -> ans
-    | Some tycon ->
-      let () = unify ?loc env ans tycon in
-      tycon
-  in
-  let map arg tpe = intern_rec_with_constraint env arg tpe in
-  let args = List.map2 map args types in
-  GTacCst (Tuple n, 0, args), ans
+  if not (Int.equal n (List.length args)) then begin
+    assert (Int.equal 0 n);
+    (* parsing [() bla] produces [CTacApp (Tuple 0, [bla])] but parsing
+         [((), ()) bla] produces [CTacApp (CTacApp (Tuple 2, [(); ()]), [bla])]
+         so we only need to produce a sensible error for [Tuple 0] *)
+    let t = GTypRef (Tuple 0, []) in
+    let () =
+      add_error env ?loc Pp.(
+        str "This expression has type" ++ spc () ++ pr_glbtype env t ++
+        spc () ++ str "and is not a function.")
+    in
+    let args = List.map (fun arg -> fst @@ intern_rec env None arg) args in
+    GTacApp (GTacCst (Tuple 0, 0, []), args), GTypVar (fresh_id env)
+  end
+  else
+    let types = List.init n (fun i -> GTypVar (fresh_id env)) in
+    let ans = GTypRef (Tuple n, types) in
+    let ans = match tycon with
+      | None -> ans
+      | Some tycon ->
+        let () = unify ?loc env ans tycon in
+        tycon
+    in
+    let map arg tpe = intern_rec_with_constraint env arg tpe in
+    let args = List.map2 map args types in
+    GTacCst (Tuple n, 0, args), ans
 
 and intern_case env loc e tycon pl =
   let e, et = intern_rec env None e in
@@ -1582,6 +1590,17 @@ let intern ~strict ctx e =
   let vars = ref TVar.Map.empty in
   let t = normalize env (count, vars) t in
   (e, (!count, t))
+
+let intern_accumulate_errors ~strict ctx e =
+  let env = empty_env ~strict ~accumulate_errors:true () in
+  (* XXX not doing check_unused_variables *)
+  let fold accu (id, t) = push_name (Name id) (polymorphic t) accu in
+  let env = List.fold_left fold env ctx in
+  let (e, t) = intern_rec env None e in
+  let count = ref 0 in
+  let vars = ref TVar.Map.empty in
+  let t = normalize env (count, vars) t in
+  (e, (!count, t), get_errors env)
 
 let intern_typedef self (ids, t) : glb_quant_typedef =
   let env = set_rec self (empty_env ()) in
@@ -1774,10 +1793,6 @@ let globalize ids tac =
     let arg = str (Tac2dyn.Arg.repr tag) in
     CErrors.user_err ?loc (str "Cannot globalize generic arguments of type" ++ spc () ++ arg)
   in
-  globalize_gen ~tacext ids tac
-
-let debug_globalize_allow_ext ids tac =
-  let tacext ?loc (RawExt (tag,arg)) = CAst.make ?loc @@ CTacExt (tag,arg) in
   globalize_gen ~tacext ids tac
 
 let { Goptions.get = typed_notations } =
