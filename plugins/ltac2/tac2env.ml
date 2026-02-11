@@ -38,7 +38,9 @@ type projection_data = {
 }
 
 type abbrev_data = {
-  abbrev_body : raw_tacexpr;
+  abbrev_prms : int;
+  abbrev_ty : int glb_typexpr;
+  abbrev_body : glb_tacexpr;
   abbrev_depr : Deprecation.t option;
 }
 
@@ -117,9 +119,8 @@ let define_type kn e =
 
 let interp_type kn = KerName.Map.find kn ltac_state.contents.ltac_types
 
-let define_abbrev ?deprecation kn tac =
+let define_abbrev kn data =
   let state = !ltac_state in
-  let data = { abbrev_body = tac; abbrev_depr = deprecation } in
   ltac_state := { state with ltac_abbrevs = KerName.Map.add kn data state.ltac_abbrevs }
 
 let interp_abbrev kn = KerName.Map.find kn ltac_state.contents.ltac_abbrevs

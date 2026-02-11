@@ -86,11 +86,13 @@ val interp_projection : ltac_projection -> projection_data
 (** {5 Toplevel definition of abbreviations} *)
 
 type abbrev_data = {
-  abbrev_body : raw_tacexpr;
+  abbrev_prms : int;
+  abbrev_ty : int glb_typexpr;
+  abbrev_body : glb_tacexpr;
   abbrev_depr : Deprecation.t option;
 }
 
-val define_abbrev : ?deprecation:Deprecation.t -> ltac_constant -> raw_tacexpr -> unit
+val define_abbrev : ltac_constant -> abbrev_data -> unit
 val interp_abbrev : ltac_constant -> abbrev_data
 
 (** {5 Toplevel definition of notations} *)

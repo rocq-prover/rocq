@@ -1002,30 +1002,27 @@ let inTac2NotationInterp : (bool*KerName.t*Tac2env.notation_data) -> obj =
      subst_function = subst_synext_interp;
      classify_function = classify_synext_interp}
 
-type abbreviation = {
-  abbr_body : raw_tacexpr;
-  abbr_depr : Deprecation.t option;
-}
-
 let perform_abbreviation visibility ((sp, kn), abbr) =
   let () = Tac2env.push_ltac visibility sp (TacAbbrev kn) in
-  Tac2env.define_abbrev ?deprecation:abbr.abbr_depr kn abbr.abbr_body
+  Tac2env.define_abbrev kn abbr
 
 let load_abbreviation i obj = perform_abbreviation (Until i) obj
 let open_abbreviation i obj = perform_abbreviation (Exactly i) obj
 
 let cache_abbreviation ((sp, kn), abbr) =
   let () = Tac2env.push_ltac (Until 1) sp (TacAbbrev kn) in
-  Tac2env.define_abbrev ?deprecation:abbr.abbr_depr kn abbr.abbr_body
+  Tac2env.define_abbrev kn abbr
 
 let subst_abbreviation (subst, abbr) =
-  let body' = subst_rawexpr subst abbr.abbr_body in
-  if body' == abbr.abbr_body then abbr
-  else { abbr_body = body'; abbr_depr = abbr.abbr_depr }
+  let open Tac2env in
+  let ty' = subst_type subst abbr.abbrev_ty in
+  let body' = subst_expr subst abbr.abbrev_body in
+  if ty' == abbr.abbrev_ty && body' == abbr.abbrev_body then abbr
+  else { abbr with abbrev_body = body'; abbrev_ty = ty'; }
 
 let classify_abbreviation o = Substitute
 
-let inTac2Abbreviation : Id.t -> abbreviation -> obj =
+let inTac2Abbreviation : Id.t -> Tac2env.abbrev_data -> obj =
   declare_named_object {(default_object "TAC2-ABBREVIATION") with
      cache_function  = cache_abbreviation;
      load_function   = load_abbreviation;
@@ -1154,8 +1151,7 @@ let register_notation atts tkn (entry,lev) body =
 
 let register_notation_interpretation = function
   | Abbreviation (id, deprecation, body) ->
-    let body = Tac2intern.globalize Id.Set.empty body in
-    let abbr = { abbr_body = body; abbr_depr = deprecation } in
+    let abbr = Tac2intern.intern_abbrev deprecation body in
     Lib.add_leaf (inTac2Abbreviation id abbr)
   | Synext (local,kn,ids,body) ->
     let data = intern_notation_data ids body in
@@ -1477,7 +1473,7 @@ let print_tacref ~print_def qid = function
   | TacAbbrev kn ->
     let { Tac2env.abbrev_body = body } = Tac2env.interp_abbrev kn in
     str "Notation" ++ spc() ++ pr_qualid qid ++ str " :=" ++ spc()
-    ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body
+    ++ Tac2print.pr_glbexpr_gen E5 ~avoid:Id.Set.empty body
 
 let print_constructor qid kn =
   let cdata = Tac2env.interp_constructor kn in
