@@ -56,12 +56,6 @@ val check_subtype : type_scheme -> type_scheme -> bool
 (** [check_subtype t1 t2] returns [true] iff all values of instances of type [t1]
     also have type [t2]. *)
 
-(** {5 Notations} *)
-
-val globalize : Id.Set.t -> raw_tacexpr -> raw_tacexpr
-(** Replaces all qualified identifiers by their corresponding kernel name. The
-    set represents bound variables in the context. *)
-
 (** Errors *)
 
 val error_nargs_mismatch : ?loc:Loc.t -> ltac_constructor -> int -> int -> 'a
