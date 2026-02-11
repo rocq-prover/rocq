@@ -1113,6 +1113,14 @@ let warn_useless_record_with = CWarnings.create ~name:"ltac2-useless-record-with
         str "All the fields are explicitly listed in this record:" ++
         spc() ++ str "the 'with' clause is useless.")
 
+let expand_abbrev ?loc kn =
+  let e =
+    try Tac2env.interp_abbrev kn
+    with Not_found ->
+      CErrors.anomaly (str "Missing hardwired abbrev " ++ KerName.print kn)
+  in
+  CAst.make ?loc @@ CTacGlb (e.abbrev_prms, [], e.abbrev_body, e.abbrev_ty)
+
 let expand_notation ?loc scopes syn =
   let data, el = Tac2syn.interp_notation ?loc scopes syn in
   match data with
@@ -1180,13 +1188,9 @@ let rec intern_rec env tycon {loc;v=e} =
     let () = check_deprecated_ltac2 ?loc qid (TacConstant kn) in
     check (GTacRef kn, fresh_type_scheme env sch)
   | ArgArg (TacAbbrev kn) ->
-    let e =
-      try Tac2env.interp_abbrev kn
-      with Not_found ->
-        CErrors.anomaly (str "Missing hardwired abbrev " ++ KerName.print kn)
-    in
+    let e = expand_abbrev ?loc kn in
     let () = check_deprecated_ltac2 ?loc qid (TacAbbrev kn) in
-    intern_rec env tycon e.abbrev_body
+    intern_rec env tycon e
   end
 | CTacCst qid ->
   let kn = get_constructor env qid in
@@ -1222,7 +1226,7 @@ let rec intern_rec env tycon {loc;v=e} =
   | ArgArg (TacAbbrev kn) -> kn
   | ArgVar _ | (ArgArg (TacConstant _)) -> assert false
   in
-  let e = Tac2env.interp_abbrev kn in
+  let e = expand_abbrev ?loc:aloc kn in
   let () = check_deprecated_ltac2 ?loc:aloc qid (TacAbbrev kn) in
   let map arg =
     (* Thunk abbrev arguments *)
@@ -1232,7 +1236,7 @@ let rec intern_rec env tycon {loc;v=e} =
     CAst.make ?loc @@ CTacFun ([var], arg)
   in
   let args = List.map map args in
-  intern_rec env tycon (CAst.make ?loc @@ CTacApp (e.abbrev_body, args))
+  intern_rec env tycon (CAst.make ?loc @@ CTacApp (e, args))
 | CTacApp (f, args) ->
   let loc = f.loc in
   let (f, ft) = intern_rec env None f in
@@ -1796,6 +1800,19 @@ let globalize ids tac =
     CErrors.user_err ?loc (str "Cannot globalize generic arguments of type" ++ spc () ++ arg)
   in
   globalize_gen ~tacext ids tac
+
+let intern_abbrev depr body =
+  let env = empty_env ~strict:true UnivNames.empty_binders () in
+  let body, ty = intern_rec env None body in
+  let count = ref 0 in
+  let vars = ref TVar.Map.empty in
+  let ty = normalize env (count, vars) ty in
+  let prms = !count in
+  { abbrev_body = body;
+    abbrev_ty = ty;
+    abbrev_prms = prms;
+    abbrev_depr = depr;
+  }
 
 let { Goptions.get = typed_notations } =
   Goptions.declare_bool_option_and_ref

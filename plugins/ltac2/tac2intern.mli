@@ -17,6 +17,7 @@ val intern : strict:bool -> UnivNames.universe_binders -> context -> raw_tacexpr
 val intern_typedef : (KerName.t * int) Id.Map.t -> raw_quant_typedef -> glb_quant_typedef
 val intern_open_type : raw_typexpr -> type_scheme
 val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2syn.notation_data
+val intern_abbrev : Deprecation.t option -> raw_tacexpr -> Tac2env.abbrev_data
 
 val intern_accumulate_errors : strict:bool -> context -> raw_tacexpr ->
   glb_tacexpr * type_scheme * Pp.t Loc.located list
