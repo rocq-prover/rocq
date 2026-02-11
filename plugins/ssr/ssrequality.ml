@@ -407,7 +407,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
           let sigma, predty = Typing.type_of penv sigma pred in
           let p_sort = Retyping.get_sort_of penv sigma pred in
           sigma, predty, p_sort in
-        let (sigma, elim), _ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(Some (dir = L2R)) ~c_sort ~e_sort ~p_sort in
+        let (sigma, elim), _ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(dir = L2R) ~c_sort ~e_sort ~p_sort in
         sigma, { Environ.uj_val = mkLambda (id, rdx_ty, pred); uj_type = mkProd (id, rdx_ty, predty) } , elim
       in
       let elimT = Retyping.get_type_of env sigma elim in
