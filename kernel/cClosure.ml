@@ -1634,16 +1634,14 @@ and match_kill : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
       | Continue next -> match_kill red info tab ~pat_state next
       | Return k -> try_unfoldfix red info tab ~pat_state k
 
-and match_endstack : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> 'a =
-  fun red info tab ~pat_state states next ->
+and match_endstack red info tab ~pat_state states next =
   match next with
   | Continue next -> match_main red info tab ~pat_state states next
   | Return k ->
       assert (Array.for_all (function Dead -> true | Live _ -> false) states);
       try_unfoldfix red info tab ~pat_state k
 
-and try_unfoldfix : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> 'a =
-  fun red info tab ~pat_state (b, m, stk) ->
+and try_unfoldfix red info tab ~pat_state (b, m, stk) =
   if not b then red.red_ret info tab ~pat_state ~failed:true (m, stk) else
   let rarg, stack = strip_update_shift_absorb_app m stk in
   match [@ocaml.warning "-4"] stack with
@@ -1736,8 +1734,7 @@ and match_arg : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> 
   else
     match_main red info tab ~pat_state states next
 
-and match_head : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
-  fun red info tab ~pat_state next context states patterns t stk ->
+and match_head red info tab ~pat_state next context states patterns t stk =
   match [@ocaml.warning "-4"] t.term with
   | FInd (ind', u) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -1895,8 +1892,7 @@ end
 type 'a depth = 'a RedPattern.depth
 
 (* Computes a weak head normal form from the result of knh. *)
-let rec knr : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
-  fun info tab ~pat_state m stk ->
+let rec knr info tab ~pat_state m stk =
   match m.term with
   | FLambda(n,tys,f,e) when red_set info.i_flags fBETA ->
       (match get_args n tys f e stk with
@@ -2009,12 +2005,10 @@ and knr_ret : type a. _ -> _ -> pat_state: a depth -> ?failed: _ -> _ -> a =
       match b with No -> i | Yes -> if failed then None else Some i
 
 (* Computes the weak head normal form of a term *)
-and kni : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> 'a =
-  fun info tab ~pat_state m stk ->
+and kni info tab ~pat_state m stk =
   let (hm,s) = knh info m stk in
   knr info tab ~pat_state hm s
-and knit : 'a. _ -> _ -> pat_state: 'a depth -> _ -> _ -> _ -> 'a =
-  fun info tab ~pat_state e t stk ->
+and knit info tab ~pat_state e t stk =
   let (ht,s) = knht info e t stk in
   knr info tab ~pat_state ht s
 
