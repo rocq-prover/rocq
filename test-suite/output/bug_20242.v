@@ -1,5 +1,6 @@
 Polymorphic Record foo@{s;u|} (x : Type@{s;u}) := {}.
-Inductive sEmpty : SProp := .
-Module Type A. Axiom A : Type. Axiom B : foo A. End A.
-Unset Universe Checking.
-Module B <: A. Axiom A : SProp. Axiom B : foo A. Fail End B.
+
+Set Universe Polymorphism.
+
+Module Type A. Axiom A@{i} : Type@{i}. Axiom B : foo A. End A.
+Module B <: A. Axiom A@{i} : Prop. Axiom B : foo A. Fail End B.

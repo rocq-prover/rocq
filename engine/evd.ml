@@ -1148,11 +1148,9 @@ let set_eq_sort evd s1 s2 =
   match is_eq_sort s1 s2 with
   | None -> evd
   | Some (u1, u2) ->
-    if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
-      add_constraints evd
-        (UnivProblem.Set.singleton (UnivProblem.UEq (u1,u2)))
-    else
-      evd
+    if QGraph.ignore_constraints (UState.elim_graph evd.universes) then evd else
+    add_constraints evd
+      (UnivProblem.Set.singleton (UnivProblem.UEq (u1,u2)))
 
 let set_eq_level d u1 u2 =
   add_univ_constraints d (Univ.enforce_eq_level u1 u2 Univ.UnivConstraints.empty)
@@ -1170,10 +1168,8 @@ let set_leq_sort evd s1 s2 =
   match is_eq_sort s1 s2 with
   | None -> evd
   | Some (u1, u2) ->
-     if not (UGraph.type_in_type (UState.ugraph evd.universes)) then
-       add_constraints evd @@
-         UnivProblem.Set.singleton (UnivProblem.ULe (u1,u2))
-     else evd
+    add_constraints evd @@
+      UnivProblem.Set.singleton (UnivProblem.ULe (u1,u2))
 
 let set_eq_qualities evd q1 q2 =
   add_constraints evd @@ UnivProblem.Set.singleton (QEq (q1, q2))

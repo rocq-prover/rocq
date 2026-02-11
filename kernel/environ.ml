@@ -349,6 +349,7 @@ let is_impredicative_sort env = function
   | Sorts.Type _ | Sorts.QSort _ -> false
 
 let type_in_type env = not (typing_flags env).check_universes
+let ignore_elim_constraints env = not (typing_flags env).check_eliminations
 let deactivated_guard env = not (typing_flags env).check_guarded
 
 let indices_matter env = env.env_typing_flags.indices_matter
@@ -543,6 +544,7 @@ let same_flags {
      check_guarded;
      check_positive;
      check_universes;
+     check_eliminations;
      conv_oracle;
      indices_matter;
      share_reduction;
@@ -555,6 +557,7 @@ let same_flags {
   check_guarded == alt.check_guarded &&
   check_positive == alt.check_positive &&
   check_universes == alt.check_universes &&
+  check_eliminations == alt.check_eliminations &&
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
@@ -572,6 +575,7 @@ let set_typing_flags c env =
   else
     let env = { env with env_typing_flags = c } in
     let env = set_type_in_type (not c.check_universes) env in
+    let env = { env with env_qualities = QGraph.set_ignore_constraints (not c.check_eliminations) env.env_qualities } in
     env
 
 let update_typing_flags ?typing_flags env =
@@ -982,6 +986,9 @@ let is_type_in_type env r =
   | ConstRef c -> type_in_type_constant c env
   | IndRef ind -> type_in_type_ind ind env
   | ConstructRef cstr -> type_in_type_ind (inductive_of_constructor cstr) env
+
+let ind_ignores_elim_constraints env (mind, _) =
+  not (lookup_mind mind env).mind_typing_flags.check_eliminations
 
 let vm_library env = env.vm_library
 

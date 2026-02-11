@@ -77,6 +77,9 @@ type typing_flags = {
   check_universes : bool;
   (** If [false] universe constraints are not checked *)
 
+  check_eliminations : bool;
+  (** If [false] sort elimination constraints are not checked. Breaks the system *)
+
   conv_oracle : Conv_oracle.oracle;
   (** Unfolding strategies for conversion *)
 

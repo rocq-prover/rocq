@@ -129,29 +129,21 @@ let check_constraints csts g = UnivConstraints.for_all (check_constraint g) csts
 let is_above_prop ugraph q =
   Sorts.QVar.Set.mem q ugraph.above_prop_qvars
 
-let check_type_in_type_qualities q1 q2 =
-  let open Sorts.Quality in
-  if Sorts.Quality.equal q1 q2 then true
-  else
-    match q1, q2 with
-    | QConstant (QSProp | QProp), _ | _, QConstant (QSProp | QProp) -> true
-    | (QConstant _ | QVar _), _ -> false
-
 let check_eq_sort qeq univs s1 s2 =
-  if type_in_type univs then
-    check_eq univs (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) ||
-      check_type_in_type_qualities (Sorts.quality s1) (Sorts.quality s2)
-  else
-    let u1 = Sorts.univ_of_sort s1 in
-    let u2 = Sorts.univ_of_sort s2 in
-    let q1 = Sorts.quality s1 in
-    let q2 = Sorts.quality s2 in
-    qeq q1 q2 && check_eq univs u1 u2
+  let u1 = Sorts.univ_of_sort s1 in
+  let u2 = Sorts.univ_of_sort s2 in
+  let q1 = Sorts.quality s1 in
+  let q2 = Sorts.quality s2 in
+  qeq q1 q2 && (type_in_type univs || check_eq univs u1 u2)
 
 let check_leq_sort qeq univs s1 s2 =
   if type_in_type univs then
-    check_leq univs (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) ||
-      check_type_in_type_qualities (Sorts.quality s1) (Sorts.quality s2)
+    let q1 = Sorts.quality s1 in
+    let q2 = Sorts.quality s2 in
+    let open Sorts.Quality in
+    match q1, q2 with
+    | QConstant QProp, QConstant QType -> true
+    | _ -> qeq q1 q2
   else
     match s1, s2 with
     | (SProp, SProp) | (Prop, Prop) | (Set, Set) -> true

@@ -526,8 +526,8 @@ let check_binder_relevance env sigma s decl =
     (* TODO always anomaly *)
     let rs = ESorts.relevance_of_sort s in
     let () =
-      if not (UGraph.type_in_type (Evd.universes sigma))
-      then warn_bad_relevance_binder env sigma rs decl
+      if Environ.ignore_elim_constraints env then () else
+      warn_bad_relevance_binder env sigma rs decl
     in
     sigma, set_annot { (get_annot decl) with binder_relevance = rs } decl
 

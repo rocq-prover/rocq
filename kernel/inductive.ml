@@ -1666,23 +1666,22 @@ let inductive_of_mutfix ?evars ?elim_to env ((nvect,bodynum),(names,types,bodies
     let _, mip = lookup_mind_specif env ind in
     (* recursive sprop means non record with projections -> squashed *)
     let () =
-      if Environ.is_type_in_type env (GlobRef.IndRef ind) then ()
-      else
-        let sind = UVars.subst_instance_sort inst mip.mind_sort in
-        let u = Sorts.univ_of_sort sind in
-        (* This is an approximation: a [Relevant] variable might be of sort [Prop]
-           or [Type]. As we only care about the quality, we have to be conservative
-           here, i.e., every relevant sort (so, [Prop] or above) can be eliminated
-           into any other relevant sort. *)
-        let bsort = match names.(i).Context.binder_relevance with
-          | Irrelevant -> Sorts.sprop
-          | Relevant -> Sorts.prop
-          | RelevanceVar q -> Sorts.qsort q u in
-        let elim_to = match elim_to with
-          | Some f -> f
-          | None -> eliminates_to (Environ.qualities env) in
-        if not (is_allowed_fixpoint elim_to sind bsort) then
-          raise_err env i @@ FixpointOnNonEliminable (sind, bsort)
+      if Environ.ind_ignores_elim_constraints env ind then () else
+      let sind = UVars.subst_instance_sort inst mip.mind_sort in
+      let u = Sorts.univ_of_sort sind in
+      (* This is an approximation: a [Relevant] variable might be of sort [Prop]
+          or [Type]. As we only care about the quality, we have to be conservative
+          here, i.e., every relevant sort (so, [Prop] or above) can be eliminated
+          into any other relevant sort. *)
+      let bsort = match names.(i).Context.binder_relevance with
+        | Irrelevant -> Sorts.sprop
+        | Relevant -> Sorts.prop
+        | RelevanceVar q -> Sorts.qsort q u in
+      let elim_to = match elim_to with
+        | Some f -> f
+        | None -> eliminates_to (Environ.qualities env) in
+      if not (is_allowed_fixpoint elim_to sind bsort) then
+        raise_err env i @@ FixpointOnNonEliminable (sind, bsort)
     in
     res
   in
