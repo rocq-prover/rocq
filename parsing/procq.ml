@@ -274,7 +274,8 @@ let eoi_entry en =
    (use eoi_entry) *)
 
 let parse_string f ?loc x =
-  let strm = Stream.of_string x in
+  let offset = loc |> Option.map (fun loc -> loc.Loc.bp) in
+  let strm = Stream.of_string ?offset x in
   Entry.parse f (Parsable.make ?loc strm)
 
 module GrammarObj =
