@@ -832,15 +832,8 @@ let pr ~flags lev_after prec = function
   | { CAst.v = CAppExpl ((f,us),[]) } -> str "@" ++ pr_cref f us
   | c -> pr ~flags lev_after prec c
 
-let transf env sigma c =
-  if !Flags.beautify_file then
-    let r = Constrintern.intern_gen ~strict_check:false WithoutTypeConstraint env sigma c in
-    let eenv = Constrextern.extern_env env sigma ~flags:(PrintingFlags.Extern.current()) in
-    Constrextern.extern_glob_constr eenv r
-  else c
-
 let pr_expr ~flags env sigma lev_after prec c =
-  pr ~flags lev_after prec (transf env sigma c)
+  pr ~flags lev_after prec c
 
 let pr_simpleconstr_env ~flags env sigma c = pr_expr ~flags env sigma no_after lsimpleconstr c
 let pr_top_env ~flags env sigma = pr_expr ~flags env sigma no_after ltop
