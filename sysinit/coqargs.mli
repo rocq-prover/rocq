@@ -59,7 +59,6 @@ type coqargs_config = {
   native_include_dirs : CUnix.physical_path list;
   output_directory : CUnix.physical_path option;
   exclude_dirs : CUnix.physical_path list;
-  beautify : bool;
   quiet : bool;
   time : time_config option;
   test_mode : bool;

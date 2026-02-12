@@ -50,6 +50,8 @@ module type S = sig
 
     val comments : t -> ((int * int) * string) list
 
+    val drop_comments : t -> unit
+
     val loc : t -> Loc.t
     (** [loc pa] Return parsing position for [pa] *)
 
@@ -1592,6 +1594,8 @@ module Parsable = struct
     {pa_tok_strm = ts; lexer_state}
 
   let comments p = L.State.get_comments !(p.lexer_state)
+
+  let drop_comments p = p.lexer_state := L.State.drop_comments !(p.lexer_state)
 
   let loc t = LStream.current_loc t.pa_tok_strm
   let consume { pa_tok_strm } len kwstate = LStream.njunk kwstate len pa_tok_strm

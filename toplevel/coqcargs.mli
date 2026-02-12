@@ -32,6 +32,7 @@ type t =
   ; compile_file: (string * bool) option  (* bool is verbosity  *)
   ; compilation_output_name : string option
 
+  ; beautify : bool
   ; echo : bool
 
   ; glob_out    : glob_output option

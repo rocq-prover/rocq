@@ -490,7 +490,7 @@ let adjust_implicit_arguments ~flags inctx n args impl =
           (flags.ExternFlags.implicits && flags.ExternFlags.implicits_explicit_args) ||
           (is_needed_for_correct_partial_application tail imp) ||
           (flags.ExternFlags.implicits_defensive &&
-           (not (is_inferable_implicit inctx n imp) || !Flags.beautify) &&
+           (not (is_inferable_implicit inctx n imp)) &&
            is_significant_implicit (Lazy.force a))
         in
         if visible then

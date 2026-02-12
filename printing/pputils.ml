@@ -15,19 +15,17 @@ open Locus
 
 let beautify_comments = ref []
 
-let rec split_comments comacc acc pos = function
-  | [] -> beautify_comments := List.rev acc; comacc
-  | ((b,e),c as com)::coms ->
-      (* Take all comments that terminates before pos, or begin exactly
-         at pos (used to print comments attached after an expression) *)
-      if e<=pos || pos=b then split_comments (c::comacc) acc pos coms
-      else split_comments comacc (com::acc) pos coms
-
-let extract_comments pos = split_comments [] [] pos !beautify_comments
+let extract_comments pos =
+  (* Take all comments that terminates before pos, or begin exactly
+     at pos (used to print comments attached after an expression) *)
+  let is_before ((b,e),_) = e <= pos || Int.equal pos b in
+  let before, after = List.partition is_before !beautify_comments in
+  beautify_comments := after;
+  List.rev_map snd before
 
 let pr_located pr (loc, x) =
   match loc with
-  | Some loc when !Flags.beautify ->
+  | Some loc ->
     let (b, e) = Loc.unloc loc in
     (* Side-effect: order matters *)
     let before = Pp.comment (extract_comments b) in

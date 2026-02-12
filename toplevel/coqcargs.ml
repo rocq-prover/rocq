@@ -20,6 +20,7 @@ type t =
   ; compile_file: (string * bool) option  (* bool is verbosity  *)
   ; compilation_output_name : string option
 
+  ; beautify : bool
   ; echo : bool
 
   ; glob_out    : glob_output option
@@ -33,6 +34,7 @@ let default =
   ; compile_file = None
   ; compilation_output_name = None
 
+  ; beautify = true
   ; echo = false
 
   ; glob_out = None
@@ -106,6 +108,7 @@ let parse arglist : t =
         (* Non deprecated options *)
         | "-output-context" ->
           { oval with output_context = true }
+        |"-beautify" -> { oval with beautify = true }
         (* Verbose == echo mode *)
         | "-verbose" ->
           echo := true;
