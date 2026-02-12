@@ -886,7 +886,7 @@ let set_keep_equality = KeepEqualitiesTable.set
 
 let keep_head_inductive sigma c =
   (* Note that we do not weak-head normalize c before checking it is an
-     applied inductive, because [get_sort_sort_of] did not use to either.
+     applied inductive, because [get_sort_of] did not use to either.
      As a matter of fact, if it reduces to an applied template inductive
      type but is not syntactically equal to it, it will fail to project. *)
   let _, hd = EConstr.decompose_prod sigma c in
@@ -896,14 +896,15 @@ let keep_head_inductive sigma c =
   | _ -> false
 
 let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
-  let project env posn t1 t2 =
+  let project env posn allowed_elim t1 t2 =
     let ty1 = get_type_of env sigma t1 in
     let keep =
       if keep_head_inductive sigma ty1 then true
       else
         let s = get_sort_quality_of env sigma ty1 in
         (keep_proofs || not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.prop)) &&
-        not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.sprop)
+        not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.sprop) &&
+        allowed_elim
     in
     if keep then [(List.rev posn,t1,t2)] else []
   in
@@ -911,36 +912,39 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
   let eqqual = Sorts.quality (ESorts.kind sigma eqsort) in
   let goalsort = ESorts.kind sigma goalsort in
   let false_inst = UVars.Instance.(of_array ([|eqqual|], [||])) in
-  let rec findrec posn t1 t2 =
+  let rec findrec posn s t1 t2 =
     let hd1,args1 = whd_all_stack env sigma t1 in
     let hd2,args2 = whd_all_stack env sigma t2 in
+    let ty1 = get_type_of env sigma t1 in
+    let s1 = UnivGen.QualityOrSet.quality @@ get_sort_quality_of env sigma ty1 in
+    let g = Environ.qualities env in
+    let allowed_elim_on_sort = eliminates_to g s s1 in
     match (EConstr.kind sigma hd1, EConstr.kind sigma hd2) with
       | Construct ((ind1,i1 as sp1),u1), Construct (sp2,_)
           when Int.equal (List.length args1) (constructor_nallargs env sp1)
             ->
-          let mind_specif = lookup_mind_specif env ind1 in
+          let (mib,mip) as mind_specif = lookup_mind_specif env ind1 in
           let false_mind_specif = lookup_mind_specif env false_ref in
           let ind_allowed_elim = Inductive.is_allowed_elimination env (mind_specif, EInstance.kind sigma u1) Sorts.type1 in
           let eq_allowed_elim = Inductive.is_allowed_elimination env (false_mind_specif, false_inst) goalsort in
              (* both sides are fully applied constructors, so either we descend,
              or we can discriminate here. *)
-          if Environ.QConstruct.equal env sp1 sp2 then
+          if Environ.QConstruct.equal env sp1 sp2 && allowed_elim_on_sort then
             let nparams = inductive_nparams env ind1 in
             let params1,rargs1 = List.chop nparams args1 in
             let _,rargs2 = List.chop nparams args2 in
-            let (mib,mip) = lookup_mind_specif env ind1 in
             let ctxt = (get_constructor ((ind1,u1),mib,mip,params1) i1).cs_args in
             let adjust i = CVars.adjust_rel_to_rel_context ctxt (i+1) - 1 in
             List.flatten
-              (List.map2_i (fun i -> findrec ((sp1,adjust i)::posn))
+              (List.map2_i (fun i -> findrec ((sp1,adjust i)::posn) s1)
                 0 rargs1 rargs2)
-          else if (ind_allowed_elim && eq_allowed_elim) && not no_discr
+          else if (ind_allowed_elim && eq_allowed_elim && allowed_elim_on_sort) && not no_discr
           then (* see build_discriminator *)
             raise (DiscrFound (List.rev posn, DConstruct (sp1, sp2)))
           else
           (* if we cannot eliminate to Type, we cannot discriminate but we
              may still try to project *)
-          project env posn (applist (hd1,args1)) (applist (hd2,args2))
+          project env posn allowed_elim_on_sort (applist (hd1,args1)) (applist (hd2,args2))
       | Int i1, Int i2 ->
         if Uint63.equal i1 i2 then []
         else raise (DiscrFound (List.rev posn, DInt (i1, i2)))
@@ -956,10 +960,12 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
           if is_conv env sigma t1_0 t2_0 then
             []
           else
-            project env posn t1_0 t2_0
+            project env posn allowed_elim_on_sort t1_0 t2_0
   in
   try
-    Inr (findrec [] t1 t2)
+    let ty1 = get_type_of env sigma t1 in
+    let s = UnivGen.QualityOrSet.quality @@ get_sort_quality_of env sigma ty1 in
+    Inr (findrec [] s t1 t2)
   with DiscrFound (path, d) ->
     Inl (path, d)
 
