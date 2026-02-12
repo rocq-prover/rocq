@@ -45,10 +45,6 @@ let in_ml_toplevel = ref false
 
 let in_synterp_phase = ref None
 
-(* Translate *)
-let beautify = ref false
-let beautify_file = ref false
-
 (* Silent / Verbose *)
 let quiet = ref false
 let silently f x = with_option quiet f x

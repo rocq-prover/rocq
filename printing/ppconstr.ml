@@ -184,7 +184,7 @@ let pr_generalization bk c =
   str "`" ++ str hd ++ c ++ str tl
 
 let pr_com_at n =
-  if !Flags.beautify && not (Int.equal n 0) then comment (Pputils.extract_comments n)
+  if not (Int.equal n 0) then comment (Pputils.extract_comments n)
   else mt()
 
 let pr_with_comments ?loc pp = pr_located (fun x -> x) (loc, pp)

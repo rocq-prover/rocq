@@ -20,6 +20,8 @@ type t =
   ; compile_file: string option
   ; compilation_output_name : string option
 
+  ; beautify : bool
+
   ; glob_out    : glob_output option
 
   ; output_context : bool
@@ -30,6 +32,8 @@ let default =
 
   ; compile_file = None
   ; compilation_output_name = None
+
+  ; beautify = false
 
   ; glob_out = None
 
@@ -100,6 +104,7 @@ let parse arglist : t =
         (* Non deprecated options *)
         | "-output-context" ->
           { oval with output_context = true }
+        |"-beautify" -> { oval with beautify = true }
         (* Output filename *)
         | "-o" ->
           { oval with compilation_output_name = Some (next ()) }

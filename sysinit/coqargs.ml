@@ -64,7 +64,6 @@ type coqargs_config = {
   native_include_dirs : CUnix.physical_path list;
   output_directory : CUnix.physical_path option;
   exclude_dirs : CUnix.physical_path list;
-  beautify : bool;
   quiet : bool;
   time : time_config option;
   test_mode : bool;
@@ -127,7 +126,6 @@ let default_config = {
   native_include_dirs = [];
   output_directory = None;
   exclude_dirs = [];
-  beautify = false;
   quiet = false;
   time = None;
   test_mode = false;
@@ -376,7 +374,6 @@ let parse_args ~init arglist : t * string list =
 
     (* Options with zero arg *)
     |"-test-mode" -> { oval with config = { oval.config with test_mode = true } }
-    |"-beautify" -> { oval with config = { oval.config with beautify = true } }
     |"-config"|"--config" -> set_query oval PrintConfig
 
     |"-bt" -> add_set_debug oval "backtrace"

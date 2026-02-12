@@ -108,7 +108,9 @@ let sized_str n s = Ppcmd_sized_string (n,s)
 let brk (a,b) = Ppcmd_print_break (a,b)
 let fnl  ()   = Ppcmd_force_newline
 let ws n      = Ppcmd_print_break (n,0)
-let comment l = Ppcmd_comment l
+let comment = function
+  | [] -> Ppcmd_empty
+  | l -> Ppcmd_comment l
 
 (* derived commands *)
 let mt    () = Ppcmd_empty
@@ -146,19 +148,12 @@ let qstring s = str (CString.quote_coq_string s)
 let qs = qstring
 let quote s = h (str "\"" ++ s ++ str "\"")
 
-let rec pr_com ft s =
-  let (s1,os) =
-    try
-      let n = String.index s '\n' in
-      String.sub s 0 n, Some (String.sub s (n+1) (String.length s - n - 1))
-    with Not_found -> s,None in
-  Format.pp_print_as ft (utf8_length s1) s1;
-  match os with
-      Some s2 -> Format.pp_force_newline ft (); pr_com ft s2
-    | None -> ()
-
 let pr_com ft s =
-  pr_com ft s;
+  let lines = String.split_on_char '\n' s in
+  List.iteri (fun i line ->
+      let () = if i <> 0 then Format.pp_force_newline ft () in
+      Format.pp_print_as ft (utf8_length line) line)
+    lines;
   Format.pp_print_break ft 0 0
 
 let start_pfx = "start."
@@ -381,14 +376,16 @@ let pp_as_format ?(with_tags=false) pp =
     | Pp_hovbox i -> if i = 0 then () else fprintf fmt "<%d>" i
   in
   let close_box () = fprintf fmt "%s" "@]" in
-  let rec pprec pp =
-  match pp with
-  | Ppcmd_empty -> ()
-  | Ppcmd_string s ->
+  let pp_string s =
     if has_format_special s then begin
       fprintf fmt "%%s";
       args := s :: !args
     end else fprintf fmt "%s" s
+  in
+  let rec pprec pp =
+  match pp with
+  | Ppcmd_empty -> ()
+  | Ppcmd_string s -> pp_string s
   | Ppcmd_sized_string (n, s) ->
     fprintf fmt "@<%d>%%s" n;
     args := s :: !args
@@ -410,8 +407,18 @@ let pp_as_format ?(with_tags=false) pp =
       | _ -> fprintf fmt "%s<%d %d>" "@;" nspaces offset
     end
   | Ppcmd_force_newline -> fprintf fmt "%s" "@."
-  | Ppcmd_comment [] -> ()
-  | Ppcmd_comment _ -> failwith "not implemented pp_as_format on nonempty Ppcmd_comment"
+  | Ppcmd_comment com ->
+    let pr_com_as_format com =
+      let lines = String.split_on_char '\n' com in
+      let () =
+        List.iteri (fun i line ->
+            let () = if i <> 0 then fprintf fmt "%s" "@." in
+            pp_string line)
+          lines
+      in
+      fprintf fmt "%s" "@<0 0>;"
+    in
+    List.iter pr_com_as_format com
   in
   let () = pprec pp in
   let buf = return () in
