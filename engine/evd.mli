@@ -503,8 +503,7 @@ val set_extra_data : Store.t -> evar_map -> evar_map
 
 (** {5 The state monad with state an evar map} *)
 
-module MonadR : Monad.S with type +'a t = evar_map -> evar_map * 'a
-module Monad  : Monad.S with type +'a t = evar_map -> 'a * evar_map
+module Monad : Monad.S with type +'a t = evar_map -> evar_map * 'a
 
 (** Unification constraints *)
 type conv_pb = Conversion.conv_pb

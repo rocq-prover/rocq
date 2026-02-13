@@ -645,7 +645,7 @@ module Interp = struct
     | Lazy f -> sigma , Lazy (interp_flag ist env sigma f)
     | Pattern l ->
       let (sigma,l_interp) =
-        Evd.MonadR.List.map_right
+        Evd.Monad.List.map_right
           (fun c sigma -> interp_constr_with_occurrences ist env sigma c) l sigma
       in
       sigma , Pattern l_interp
