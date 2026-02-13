@@ -22,8 +22,7 @@ open Environ
     A unification state (of type [evar_map]) is primarily a finite mapping
     from existential variables to records containing the type of the evar
     ([evar_concl]), the context under which it was introduced ([evar_hyps])
-    and its definition ([evar_body]). [evar_extra] is used to add any other
-    kind of information.
+    and its definition ([evar_body]).
 
     It also contains conversion constraints, debugging information and
     information about meta variables. *)
@@ -490,10 +489,7 @@ val add_constraints : evar_map -> UnivProblem.Set.t -> evar_map
 
   Evar maps can contain arbitrary data, allowing to use an extensible state.
   As evar maps are theoretically used in a strict state-passing style, such
-  additional data should be passed along transparently. Some old and bug-prone
-  code tends to drop them nonetheless, so you should keep cautious.
-
-*)
+  additional data should be passed along transparently. *)
 
 module Store : Store.S
 (** Datatype used to store additional information in evar maps. *)
