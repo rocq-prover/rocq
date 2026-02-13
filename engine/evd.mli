@@ -607,7 +607,6 @@ val check_quality_constraints : evar_map -> UVars.QPairSet.t -> bool
 
 val ustate : evar_map -> UState.t
 val elim_graph : evar_map -> QGraph.t
-val evar_universe_context : evar_map -> UState.t [@@deprecated "(9.0) Use [Evd.ustate]"]
 
 val universe_context_set : evar_map -> Univ.ContextSet.t
 val sort_context_set : evar_map -> UnivGen.sort_context_set
@@ -626,8 +625,11 @@ val check_univ_decl : poly:PolyFlags.t -> evar_map -> UState.universe_decl -> US
     starting to build a declaration interactively *)
 val check_univ_decl_early : poly:PolyFlags.t -> with_obls:bool -> evar_map -> UState.universe_decl -> Constr.t list -> unit
 
-val merge_universe_context : evar_map -> UState.t -> evar_map
+val merge_ustate : evar_map -> UState.t -> evar_map
 val set_universe_context : evar_map -> UState.t -> evar_map
+
+val merge_universe_context : evar_map -> UState.t -> evar_map
+[@@deprecated "(9.3) Use [Evd.merge_ustate]"]
 
 val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
 

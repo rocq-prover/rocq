@@ -904,8 +904,10 @@ let has_given_up evd = not (Evar.Set.is_empty evd.given_up)
 
 let has_shelved evd = not (List.for_all List.is_empty evd.shelf)
 
-let merge_universe_context evd uctx' =
+let merge_ustate evd uctx' =
   { evd with universes = UState.union evd.universes uctx' }
+
+let merge_universe_context = merge_ustate
 
 let set_universe_context evd uctx' =
   { evd with universes = uctx' }
@@ -1007,8 +1009,6 @@ let ustate d = d.universes
 
 let elim_graph d = UState.elim_graph d.universes
 
-let evar_universe_context d = ustate d
-
 let universe_context_set d = UState.universe_context_set d.universes
 
 let sort_context_set d = UState.sort_context_set d.universes
@@ -1042,35 +1042,34 @@ let universe_subst evd =
   UState.subst evd.universes
 
 let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
-  {evd with universes = UState.merge_universe_context ?loc ~sideff rigid evd.universes uctx'}
+  {evd with universes = UState.merge_universe_context_set ?loc ~sideff rigid evd.universes uctx'}
 
 let merge_sort_context_set ?loc ?sort_rigid ?(sideff=false) ?src rigid evd ctx' =
-  {evd with universes = UState.merge_sort_context ?loc ?sort_rigid ~sideff rigid ?src evd.universes ctx'}
+  {evd with universes = UState.merge_sort_context_set ?loc ?sort_rigid ~sideff rigid ?src evd.universes ctx'}
 
 let with_sort_context_set ?loc ?sort_rigid ?src rigid d (a, ctx) =
   (merge_sort_context_set ?loc ?sort_rigid ?src rigid d ctx, a)
 
 let new_univ_level_variable ?loc ?name rigid evd =
-  let uctx', u = UState.new_univ_variable ?loc rigid name evd.universes in
+  let uctx', u = UState.new_univ_level_variable ?loc rigid name evd.universes in
     ({evd with universes = uctx'}, u)
 
 let new_univ_variable ?loc ?name rigid evd =
-  let uctx', u = UState.new_univ_variable ?loc rigid name evd.universes in
-    ({evd with universes = uctx'}, Univ.Universe.make u)
+  let evd, u = new_univ_level_variable ?loc ?name rigid evd in
+  evd, Univ.Universe.make u
 
 let new_quality_variable ?loc ?name evd =
-  let uctx, q = UState.new_sort_variable ?loc ?name evd.universes in
+  let uctx, q = UState.new_quality_variable ?loc ?name evd.universes in
   {evd with universes = uctx}, q
 
 let new_sort_info ?loc ?sort_rigid ?name rigid sigma =
   let (sigma, u) = new_univ_variable ?loc rigid sigma in
-  let uctx, q = UState.new_sort_variable ?sort_rigid ?name sigma.universes in
+  let uctx, q = UState.new_quality_variable ?sort_rigid ?name sigma.universes in
   ({ sigma with universes = uctx }, q, u)
 
 let new_sort_variable ?loc ?sort_rigid ?name rigid sigma =
-  let (sigma, u) = new_univ_variable ?loc rigid sigma in
-  let uctx, q = UState.new_sort_variable ?loc ?sort_rigid ?name sigma.universes in
-  ({ sigma with universes = uctx }, Sorts.qsort q u)
+  let sigma, q, u = new_sort_info ?loc ?sort_rigid ?name rigid sigma in
+  sigma, Sorts.qsort q u
 
 let add_forgotten_univ d u =
   { d with universes = UState.add_forgotten_univ d.universes u }

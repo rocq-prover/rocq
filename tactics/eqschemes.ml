@@ -82,7 +82,7 @@ let with_context_set ctx (b, ctx') =
   (b, UnivGen.sort_context_union ctx ctx')
 
 let of_context_set env ctx =
-  UState.merge_sort_context ~sideff:false ~src:UState.Internal UnivRigid (UState.from_env env) ctx
+  UState.merge_sort_context_set ~sideff:false ~src:UState.Internal UnivRigid (UState.from_env env) ctx
 
 let build_dependent_inductive ind (mib,mip) =
   let realargs,_ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
