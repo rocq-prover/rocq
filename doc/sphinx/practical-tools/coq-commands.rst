@@ -326,9 +326,6 @@ and ``rocq repl``, unless stated otherwise:
 :-q: Do not to load the default resource file.
 :-l *file*, -load-vernac-source *file*: Load and execute the Rocq
   script from *file.v*.
-:-lv *file*, -load-vernac-source-verbose *file*: Load and execute the
-  Rocq script from *file.v*. Write its contents to the standard output as
-  it is executed.
 :-require *qualid*: Load Rocq compiled library :n:`@qualid`.
   This is equivalent to running :cmd:`Require` :n:`@qualid`
   (note: the short form `-r *qualid*` is intentionally not provided to
@@ -372,8 +369,6 @@ and ``rocq repl``, unless stated otherwise:
   order of command-line options.
 :-load-vernac-object *qualid*: Obsolete synonym of :n:`-require qualid`.
 :-batch: Exit just after argument parsing. Available for ``rocq repl`` only.
-:-verbose: Output the content of the input file as it is compiled.
-  This option is available for ``rocq compile`` only.
 :-native-compiler (yes|no|ondemand): Enable the :tacn:`native_compute`
   reduction machine and precompilation to ``.cmxs`` files for future use
   by :tacn:`native_compute`.

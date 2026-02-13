@@ -24,16 +24,6 @@ let checknav { CAst.loc; v = { expr } }  =
   if is_navigation_vernac expr && not (is_reset expr) then
     CErrors.user_err ?loc (str "Navigation commands forbidden in files.")
 
-(* Echo from a buffer based on position.
-   XXX: Should move to utility file. *)
-let vernac_echo ?loc in_chan = let open Loc in
-  Option.iter (fun loc ->
-      let len = loc.ep - loc.bp in
-      seek_in in_chan loc.bp;
-      Feedback.msg_notice @@ str @@ really_input_string in_chan len
-    ) loc
-
-
 type time_output =
   | ToFeedback
   | ToChannel of Format.formatter
@@ -94,11 +84,10 @@ let interp_vernac ~check ~state ({CAst.loc;_} as com) =
       Exninfo.iraise (reraise, info)
 
 (* Load a vernac file. CErrors are annotated with file and location *)
-let load_vernac_core ~echo ~check ~state ?source file =
+let load_vernac_core ~check ~state ?source file =
   (* Keep in sync *)
   let in_chan = open_utf8_file_in file in
-  let in_echo = if echo then Some (open_utf8_file_in file) else None in
-  let input_cleanup () = close_in in_chan; Option.iter close_in in_echo in
+  let input_cleanup () = close_in in_chan in
 
   let source = Option.default (Loc.InFile {dirpath=None; file}) source in
   let in_pa = Procq.Parsable.make ~loc:Loc.(initial source)
@@ -118,9 +107,6 @@ let load_vernac_core ~echo ~check ~state ?source file =
       input_cleanup ();
       state, ids, Procq.Parsable.comments in_pa
     | Some ast ->
-      (* Printing of AST for -compile-verbose *)
-      Option.iter (vernac_echo ?loc:ast.CAst.loc) in_echo;
-
       checknav ast;
 
       let state =
@@ -223,8 +209,8 @@ let beautify_pass ~doc ~comments ~ids ~filename =
 
 (* Main driver for file loading. For now, we only do one beautify
    pass. *)
-let load_vernac ~echo ~check ~state ?source filename =
-  let ostate, ids, comments = load_vernac_core ~echo ~check ~state ?source filename in
+let load_vernac ~check ~state ?source filename =
+  let ostate, ids, comments = load_vernac_core ~check ~state ?source filename in
   (* Pass for beautify *)
   if !Flags.beautify then beautify_pass ~doc:ostate.State.doc ~comments ~ids:(List.rev ids) ~filename;
   (* End pass *)
