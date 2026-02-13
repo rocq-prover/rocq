@@ -2963,13 +2963,21 @@ let interp_constr_pattern env sigma ?as_type ?strict_check c =
   let ids, pat = intern_constr_pattern env sigma ?as_type ?strict_check c in
   ids, Patternops.interp_pattern env sigma Glob_ops.empty_lvar pat
 
-let intern_core kind env sigma ?strict_check ?(pattern_mode=false) ?(ltacvars=empty_ltac_sign)
-      { Genintern.intern_ids = ids; Genintern.notation_variable_status = vl } c =
+let intern_core kind ?(pattern_mode=false) ist c =
+  let env = ist.Genintern.genv in
+  let sigma = Evd.from_env env in
+  let Genintern.{ intern_ids = ids; notation_variable_status = vl } = ist.intern_sign in
+  let ltacvars = {
+    ltac_vars = ist.ltacvars;
+    ltac_bound = Id.Set.empty;
+    ltac_extra = ist.extra;
+  }
+  in
   let tmp_scope = scope_of_type_kind env sigma kind in
   let impls = empty_internalization_env in
   let k = allowed_binder_kind_of_type_kind kind in
   internalize env
-    {ids; strict_check; pattern_mode;
+    {ids; strict_check = Some ist.strict_check; pattern_mode;
      local_univs = { bound = bound_univs sigma; unb_univs = true };
      tmp_scope; scopes = []; impls;
      binder_block_names = Some (Some k); ntn_binding_ids = Id.Set.empty}

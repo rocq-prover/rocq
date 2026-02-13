@@ -240,11 +240,9 @@ val interp_notation_constr : env -> ?impls:internalization_env ->
   notation_interp_env -> constr_expr ->
   (bool * subscopes * Id.Set.t) Id.Map.t * notation_constr * reversibility_status
 
-(** Idem but to glob_constr (weaker check of binders) *)
-
-val intern_core : typing_constraint ->
-  env -> evar_map -> ?strict_check:bool -> ?pattern_mode:bool -> ?ltacvars:ltac_sign ->
-  Genintern.intern_variable_status -> constr_expr ->
+(** Typically used to internalize a term inside a tactic. *)
+val intern_core : typing_constraint -> ?pattern_mode:bool ->
+  Genintern.glob_sign -> constr_expr ->
   glob_constr
 
 (** Globalization options *)
