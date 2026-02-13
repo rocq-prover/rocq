@@ -17,10 +17,8 @@ type glob_output =
 type t =
   { compilation_mode : compilation_mode
 
-  ; compile_file: (string * bool) option  (* bool is verbosity  *)
+  ; compile_file: string option
   ; compilation_output_name : string option
-
-  ; echo : bool
 
   ; glob_out    : glob_output option
 
@@ -32,8 +30,6 @@ let default =
 
   ; compile_file = None
   ; compilation_output_name = None
-
-  ; echo = false
 
   ; glob_out = None
 
@@ -58,29 +54,27 @@ let arg_error msg = CErrors.user_err msg
 
 let is_dash_argument s = String.length s > 0 && s.[0] = '-'
 
-let add_compile ?echo copts s =
+let add_compile copts s =
   if is_dash_argument s then
     arg_error Pp.(str "Unknown option " ++ str s);
   (* make the file name explicit; needed not to break up Rocq loadpath stuff. *)
-  let echo = Option.default copts.echo echo in
   let s =
     let open Filename in
     if is_implicit s
     then concat current_dir_name s
     else s
   in
-  { copts with compile_file = Some (s,echo) }
+  { copts with compile_file = Some s }
 
-let add_compile ?echo copts v_file =
+let add_compile copts v_file =
   match copts.compile_file with
-  | Some (first,_) ->
+  | Some first ->
     arg_error Pp.(str "More than one file to compile: " ++ str first ++ spc() ++
                   str "and " ++ str v_file)
   | None ->
-    add_compile ?echo copts v_file
+    add_compile copts v_file
 
 let parse arglist : t =
-  let echo = ref false in
   let args = ref arglist in
   let extras = ref [] in
   let rec parse (oval : t) = match !args with
@@ -106,10 +100,6 @@ let parse arglist : t =
         (* Non deprecated options *)
         | "-output-context" ->
           { oval with output_context = true }
-        (* Verbose == echo mode *)
-        | "-verbose" ->
-          echo := true;
-          oval
         (* Output filename *)
         | "-o" ->
           { oval with compilation_output_name = Some (next ()) }

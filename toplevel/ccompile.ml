@@ -22,7 +22,7 @@ let source ldir file = Loc.InFile {
   }
 
 (* Compile a vernac file *)
-let compile opts stm_options injections copts ~echo ~f_in ~f_out =
+let compile opts stm_options injections copts ~f_in ~f_out =
   let open Vernac.State in
   let output_native_objects = match opts.config.native_compiler with
     | NativeOff -> false | NativeOn {ondemand} -> not ondemand
@@ -59,7 +59,7 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
       let wall_clock1 = Unix.gettimeofday () in
       let check = Stm.AsyncOpts.(stm_options.async_proofs_mode = APoff) in
       let source = source ldir long_f_dot_in in
-      let state = Vernac.load_vernac ~echo ~check ~state ~source long_f_dot_in in
+      let state = Vernac.load_vernac ~check ~state ~source long_f_dot_in in
       let fullstate = Stm.finish ~doc:state.doc in
       ensure_no_pending_proofs ~filename:long_f_dot_in fullstate;
       let () = Stm.join ~doc:state.doc in
@@ -84,25 +84,25 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
       let state = Load.load_init_vernaculars opts ~state in
       let ldir = Stm.get_ldir ~doc:state.doc in
       let source = source ldir long_f_dot_in in
-      let state = Vernac.load_vernac ~echo ~check:false ~source ~state long_f_dot_in in
+      let state = Vernac.load_vernac ~check:false ~source ~state long_f_dot_in in
       let state = Stm.finish ~doc:state.doc in
       ensure_no_pending_proofs state ~filename:long_f_dot_in;
       let () = Stm.snapshot_vos ~doc ~output_native_objects ldir long_f_dot_out in
       Stm.reset_task_queue ();
       ()
 
-let compile opts stm_opts copts injections ~echo ~f_in ~f_out =
+let compile opts stm_opts copts injections ~f_in ~f_out =
   ignore(CoqworkmgrApi.get 1);
-  compile opts stm_opts injections copts ~echo ~f_in ~f_out;
+  compile opts stm_opts injections copts ~f_in ~f_out;
   CoqworkmgrApi.giveback 1
 
-let compile_file opts stm_opts copts injections (f_in, echo) =
+let compile_file opts stm_opts copts injections f_in =
   let f_out = copts.compilation_output_name in
   if !Flags.beautify then
     Flags.with_option Flags.beautify_file
-      (fun f_in -> compile opts stm_opts copts injections ~echo ~f_in ~f_out) f_in
+      (fun f_in -> compile opts stm_opts copts injections ~f_in ~f_out) f_in
   else
-    compile opts stm_opts copts injections ~echo ~f_in ~f_out
+    compile opts stm_opts copts injections ~f_in ~f_out
 
 let compile_file opts stm_opts copts injections =
   Option.iter (compile_file opts stm_opts copts injections) copts.compile_file
