@@ -59,10 +59,12 @@ let check_alias key = KerName.Map.mem key !alias_map
 
 (** ML tactic extensions (TacML) *)
 
+module TacStore = Store.Make ()
+
 type interp_sign =
   { lfun : Geninterp.Val.t Id.Map.t
   ; poly : PolyFlags.t
-  ; extra : Geninterp.TacStore.t }
+  ; extra : TacStore.t }
 
 type ml_tactic =
   Geninterp.Val.t list -> interp_sign -> unit Proofview.tactic

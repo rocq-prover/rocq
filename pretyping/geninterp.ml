@@ -10,8 +10,6 @@
 
 open Genarg
 
-module TacStore = Store.Make ()
-
 (** Dynamic toplevel values *)
 
 module ValT = Dyn.Make ()

@@ -18,11 +18,13 @@ open Tactypes
 
 val ltac_trace_info : ltac_stack Exninfo.t
 
+module TacStore = Tacenv.TacStore
+
 (** Signature for interpretation: val\_interp and interpretation functions *)
 type interp_sign = Tacenv.interp_sign =
   { lfun : Geninterp.Val.t Id.Map.t
   ; poly : PolyFlags.t
-  ; extra : Geninterp.TacStore.t }
+  ; extra : TacStore.t }
 
 module Value :
 sig
@@ -40,10 +42,6 @@ end
 
 (** Values for interpretation *)
 type value = Value.t
-
-module TacStore : Store.S with
-  type t = Geninterp.TacStore.t
-  and type 'a field = 'a Geninterp.TacStore.field
 
 open Genintern
 
