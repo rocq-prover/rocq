@@ -93,21 +93,6 @@ type alias_data = {
 val define_alias : ?deprecation:Deprecation.t -> ltac_constant -> raw_tacexpr -> unit
 val interp_alias : ltac_constant -> alias_data
 
-(** {5 Toplevel definition of notations} *)
-
-(* no deprecation info: deprecation warning is emitted by the parser *)
-type notation_data =
-  | UntypedNota of raw_tacexpr
-  | TypedNota of {
-      nota_prms : int;
-      nota_argtys : int glb_typexpr Id.Map.t;
-      nota_ty : int glb_typexpr;
-      nota_body : glb_tacexpr;
-    }
-
-val define_notation : ltac_notation -> notation_data -> unit
-val interp_notation : ltac_notation -> notation_data
-
 (** {5 Name management} *)
 
 val push_ltac : visibility -> full_path -> tacref -> unit

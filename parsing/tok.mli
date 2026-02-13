@@ -34,7 +34,11 @@ type t =
   | QUOTATION of string * string
   | EOI
 
+(** [PIDENT (Some s)] and [PKEYWORD s] are equal *)
 val equal_p : 'a p -> 'b p -> ('a, 'b) Util.eq option
+
+(** Returns 0 iff equal_p returns Some *)
+val compare_p : 'a p -> 'b p -> int
 
 (* pass true for diff_mode *)
 val extract_string : bool -> t -> string

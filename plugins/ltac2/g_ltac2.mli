@@ -39,7 +39,7 @@ val tac2def_typ : Tac2expr.strexpr Procq.Entry.t
 val tac2def_ext : Tac2expr.strexpr Procq.Entry.t
 
 val tac2def_syn :
-  (Tac2expr.sexpr list * Tac2entries.notation_target *
+  (Tac2expr.sexpr list * Tac2syn.notation_target *
    Tac2expr.raw_tacexpr)
   Procq.Entry.t
 
@@ -55,11 +55,11 @@ val wit_ltac2_entry : Tac2expr.strexpr Genarg.vernac_genarg_type
 val ltac2_entry : Tac2expr.strexpr Procq.Entry.t
 
 val wit_ltac2def_syn :
-  (Tac2expr.sexpr list * Tac2entries.notation_target * Tac2expr.raw_tacexpr)
+  (Tac2expr.sexpr list * Tac2syn.notation_target * Tac2expr.raw_tacexpr)
     Genarg.vernac_genarg_type
 
 val ltac2def_syn :
-  (Tac2expr.sexpr list * Tac2entries.notation_target *
+  (Tac2expr.sexpr list * Tac2syn.notation_target *
    Tac2expr.raw_tacexpr)
   Procq.Entry.t
 

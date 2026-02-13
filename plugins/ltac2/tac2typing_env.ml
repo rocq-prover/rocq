@@ -108,6 +108,8 @@ type used = { mutable used : bool }
 type t = {
   env_var : (mix_type_scheme * used) Id.Map.t;
   (** Type schemes of bound variables *)
+  env_scopes : Tac2syn.Tac2Scope.t list;
+  (** Currently open scopes *)
   env_cst : UF.elt glb_typexpr UF.t;
   (** Unification state *)
   env_als : UF.elt Id.Map.t ref;
@@ -122,6 +124,7 @@ type t = {
 
 let empty_env ?(strict=true) () = {
   env_var = Id.Map.empty;
+  env_scopes = Tac2syn.current_scopes();
   env_cst = UF.create ();
   env_als = ref Id.Map.empty;
   env_opn = true;
@@ -130,6 +133,8 @@ let empty_env ?(strict=true) () = {
 }
 
 let env_strict env = env.env_strict
+
+let scopes env = env.env_scopes
 
 let set_rec self env = { env with env_rec = self }
 

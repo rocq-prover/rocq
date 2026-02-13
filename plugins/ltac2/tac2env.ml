@@ -66,17 +66,6 @@ let ltac_state = Summary.ref empty_state ~name:"ltac2-state"
 
 let compiled_tacs = Summary.ref ~local:true ~name:"ltac2-compiled-state" KerName.Map.empty
 
-type notation_data =
-  | UntypedNota of raw_tacexpr
-  | TypedNota of {
-      nota_prms : int;
-      nota_argtys : int glb_typexpr Id.Map.t;
-      nota_ty : int glb_typexpr;
-      nota_body : glb_tacexpr;
-    }
-
-let ltac_notations = Summary.ref KerName.Map.empty ~name:"ltac2-notations"
-
 let define_global kn e =
   let state = !ltac_state in
   ltac_state := { state with ltac_tactics = KerName.Map.add kn e state.ltac_tactics }
@@ -123,11 +112,6 @@ let define_alias ?deprecation kn tac =
   ltac_state := { state with ltac_aliases = KerName.Map.add kn data state.ltac_aliases }
 
 let interp_alias kn = KerName.Map.find kn ltac_state.contents.ltac_aliases
-
-let define_notation kn tac =
-  ltac_notations := KerName.Map.add kn tac !ltac_notations
-
-let interp_notation kn = KerName.Map.find kn !ltac_notations
 
 module ML =
 struct
