@@ -23,6 +23,7 @@ type ntnvar_status = {
 
 type intern_variable_status = {
   intern_ids : Id.Set.t;
+  intern_univs : UnivNames.universe_binders;
   notation_variable_status : ntnvar_status Id.Map.t;
 }
 
@@ -34,16 +35,17 @@ type glob_sign = {
   strict_check : bool;
 }
 
-let empty_intern_sign = {
+let empty_intern_sign univs = {
   intern_ids = Id.Set.empty;
+  intern_univs = univs;
   notation_variable_status = Id.Map.empty;
 }
 
-let empty_glob_sign ~strict env = {
+let empty_glob_sign ~strict env univs = {
   ltacvars = Id.Set.empty;
   genv = env;
   extra = Store.empty;
-  intern_sign = empty_intern_sign;
+  intern_sign = empty_intern_sign univs;
   strict_check = strict;
 }
 

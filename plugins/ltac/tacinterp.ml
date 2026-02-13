@@ -2043,12 +2043,14 @@ let interp_tac_gen lfun avoid_ids debug t =
   Proofview.tclProofInfo [@ocaml.warning "-3"] >>= fun (_name, poly) ->
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let extra = TacStore.set TacStore.empty f_debug debug in
   let extra = TacStore.set extra f_avoid_ids avoid_ids in
   let ist = { lfun; poly; extra } in
   let ltacvars = Id.Map.domain lfun in
+  let univs = Evd.universe_binders sigma in
   eval_tactic_ist ist
-    (intern_pure_tactic { (Genintern.empty_glob_sign ~strict:false env) with ltacvars } t)
+    (intern_pure_tactic { (Genintern.empty_glob_sign ~strict:false env univs) with ltacvars } t)
   end
 
 let interp t = interp_tac_gen Id.Map.empty Id.Set.empty (get_debug()) t
@@ -2062,18 +2064,19 @@ type ltac_expr = {
 (* Used to hide interpretation for pretty-print, now just launch tactics *)
 (* [global] means that [t] should be internalized outside of goals. *)
 let hide_interp {global;ast} =
-  let hide_interp env =
-    let ist = Genintern.empty_glob_sign ~strict:false env in
+  let hide_interp env sigma =
+    let ist = Genintern.empty_glob_sign ~strict:false env (Evd.universe_binders sigma) in
     let te = intern_pure_tactic ist ast in
     let t = eval_tactic te in
     t
   in
   if global then
     Proofview.tclENV >>= fun env ->
-    hide_interp env
+    Proofview.tclEVARMAP >>= fun sigma ->
+    hide_interp env sigma
   else
     Proofview.Goal.enter begin fun gl ->
-      hide_interp (Proofview.Goal.env gl)
+      hide_interp (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
     end
 
 let ComTactic.Interpreter hide_interp = ComTactic.register_tactic_interpreter "ltac1" hide_interp

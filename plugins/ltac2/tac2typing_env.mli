@@ -22,11 +22,13 @@ end
 type t
 
 (** default strict:true *)
-val empty_env : ?strict:bool -> unit -> t
+val empty_env : ?strict:bool -> UnivNames.universe_binders -> unit -> t
 
 val set_rec : (KerName.t * int) Id.Map.t -> t -> t
 
 val reject_unbound_tvar : t -> t
+
+val env_univs : t -> UnivNames.universe_binders
 
 val env_strict : t -> bool
 
