@@ -675,6 +675,28 @@ TACTIC EXTEND optimize_heap
 | [ "optimize_heap" ] -> { Internals.tclOPTIMIZE_HEAP }
 END
 
+{
+  type mem_unit = Mw | Kw
+  let pr_mem_unit _ _ _ = function
+    | Mw -> Pp.str "Mw"
+    | Kw -> Pp.str "kw"
+
+let to_kw n = function
+  | Mw -> { Control.kilowords = Int64.(mul (of_int n) 1000L) }
+  | Kw -> { Control.kilowords = Int64.of_int n }
+}
+
+ARGUMENT EXTEND memory_unit PRINTED BY { pr_mem_unit }
+| [ "Mw" ] -> { Mw }
+| [ "kw" ] -> { Kw }
+END
+
+TACTIC EXTEND alloclimit
+| [ "alloc_limit" natural(n) memory_unit(m) tactic(tac) ] -> {
+  Internals.alloc_limit ist (to_kw n m) tac
+}
+END
+
 VERNAC COMMAND EXTEND infoH CLASSIFIED AS QUERY
 | ![ proof_query ] [ "infoH" tactic(tac) ] -> { Internals.infoH tac }
 END
