@@ -34,10 +34,14 @@ is often not successful and prints the expanded form.
 Pattern-matching on boolean values: the if expression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. insertprodn term_if term_if
+.. insertprodn term_if if_else
 
 .. prodn::
    term_if ::= if @term {? {? as @name } return @term100 } then @term else @term
+   | if @term is @if_dthen @if_else
+   | if @term isn't @if_dthen @if_else
+   if_dthen ::= @pattern {? in @pattern } {? return @term100 } then @term
+   if_else ::= else @term
 
 For inductive types with exactly two constructors and for pattern matching
 expressions that do not depend on the arguments of the constructors, it is possible
@@ -76,6 +80,10 @@ and :n:`@ident__2`, the following terms are equal:
 
 Notice that the printing uses the :g:`if` syntax because :g:`sumbool` is
 declared as such (see :ref:`controlling-match-pp`).
+
+The `if g is c then t else e` and `if g isn't c then t else e`
+syntaxes are syntactic sugar for `match g with c => t | _ => e end`
+and `match g with c => e | _ => t end` respectively.
 
 .. _irrefutable-patterns:
 

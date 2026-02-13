@@ -163,8 +163,18 @@ binder_constr: [
 | "let" [ "(" LIST0 name SEP "," ")" | "()" ] as_return_type ":=" term200 "in" term200
 | "let" "'" pattern200 OPT [ "in" pattern200 ] ":=" term200 OPT case_type "in" term200
 | "if" term200 as_return_type "then" term200 "else" term200
+| "if" term200 "is" if_dthen if_else
+| "if" term200 "isn't" if_dthen if_else
 | "fix" fix_decls
 | "cofix" cofix_decls
+]
+
+if_dthen: [
+| pattern200 OPT [ "in" pattern200 ] OPT case_type "then" lconstr
+]
+
+if_else: [
+| "else" lconstr
 ]
 
 arg: [

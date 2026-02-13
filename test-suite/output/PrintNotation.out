@@ -166,9 +166,9 @@ Notation "{ ' _ : _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, no associativity.
 Notation "{ ' _ : _ & _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, constr, no associativity.
-Notation "if _ is _ then _ else _" at level 200 with arguments constr,
-pattern at level 100 at level 100, constr, constr at next level,
-no associativity.
+Notation "if _ is _ then _ else _" at level 200 with arguments constr
+at level 200, pattern at level 100 at level 100, constr at level 200, constr
+at level 200, no associativity.
 Notation "_ -> _" at level 99 with arguments constr at next level, constr
 at level 200, no associativity.
 Notation "_ <-> _" at level 95 with arguments constr at next level, constr
@@ -263,9 +263,9 @@ Notation "{ ' _ : _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, no associativity.
 Notation "{ ' _ : _ & _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, constr, no associativity.
-Notation "if _ is _ then _ else _" at level 200 with arguments constr,
-pattern at level 100 at level 100, constr, constr at next level,
-no associativity.
+Notation "if _ is _ then _ else _" at level 200 with arguments constr
+at level 200, pattern at level 100 at level 100, constr at level 200, constr
+at level 200, no associativity.
 Notation "{{ _ }}" in Foo at level 0 with arguments custom Foo,
 no associativity.
 Notation "{{ _ }}" in Foo at level 0 with arguments custom Foo,

@@ -264,6 +264,8 @@ binder_constr: [
 | MOVETO term_forall_or_fun "fun" open_binders "=>" term200
 | MOVETO term_let "let" name binders let_type_cstr ":=" term200 "in" term200
 | MOVETO term_if "if" term200 as_return_type "then" term200 "else" term200
+| MOVETO term_if "if" term200 "is" if_dthen if_else
+| MOVETO term_if "if" term200 "isn't" if_dthen if_else
 | MOVETO term_fix "let" "fix" fix_decl "in" term200
 | MOVETO term_cofix "let" "cofix" cofix_body "in" term200
 | MOVETO term_let "let" [ "(" LIST0 name SEP "," ")" | "()" ] as_return_type ":=" term200 "in" term200
