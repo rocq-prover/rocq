@@ -68,7 +68,7 @@ type ast_glob_env = {
 type ast_closure_term = {
   body : Constrexpr.constr_expr;
   glob_env : ast_glob_env option; (* for Tacintern.intern_constr *)
-  interp_env :  Geninterp.interp_sign option; (* for Tacinterp.interp_open_constr_with_bindings *)
+  interp_env :  Tacinterp.interp_sign option; (* for Tacinterp.interp_open_constr_with_bindings *)
   annotation : [ `None | `Parens | `DoubleParens | `At ];
 }
 

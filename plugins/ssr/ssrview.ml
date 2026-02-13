@@ -186,8 +186,8 @@ end)
 let tclINJ_CONSTR_IST ist p =
   let fresh_id = Ssrcommon.mk_internal_id "ssr_inj_constr_in_glob" in
   let ist = {
-    ist with Geninterp.lfun =
-      Id.Map.add fresh_id (Taccoerce.Value.of_constr p) ist.Geninterp.lfun} in
+    ist with Tacinterp.lfun =
+      Id.Map.add fresh_id (Taccoerce.Value.of_constr p) ist.Tacinterp.lfun} in
   tclUNIT (ist,Glob_term.GVar fresh_id)
 
 let mkGHole =

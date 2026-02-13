@@ -148,7 +148,7 @@ let () =
       let ist = { env_ist = Id.Map.empty } in
       let lfun = Tac2interp.set_env ist lfun in
       let ist = Ltac_plugin.Tacinterp.default_ist () in
-      let ist = { ist with Geninterp.lfun = lfun } in
+      let ist = { ist with lfun } in
       let tac = (Ltac_plugin.Tacinterp.eval_tactic_ist ist tac : unit Proofview.tactic) in
       tac >>= fun () ->
       return v_unit
@@ -207,7 +207,7 @@ let () =
       let ist = { env_ist = Id.Map.empty } in
       let lfun = Tac2interp.set_env ist lfun in
       let ist = Ltac_plugin.Tacinterp.default_ist () in
-      let ist = { ist with Geninterp.lfun = lfun } in
+      let ist = { ist with lfun } in
       return (Tac2ffi.repr_of ltac1 (Tacinterp.Value.of_closure ist tac))
     in
     let len = List.length ids in

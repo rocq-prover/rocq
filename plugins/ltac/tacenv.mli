@@ -84,8 +84,15 @@ val ltac_entries : unit -> ltac_entry KerName.Map.t
 
 (** {5 ML tactic extensions} *)
 
+module TacStore : Store.S
+
+type interp_sign =
+  { lfun : Geninterp.Val.t Id.Map.t
+  ; poly : PolyFlags.t
+  ; extra : TacStore.t }
+
 type ml_tactic =
-  Val.t list -> Geninterp.interp_sign -> unit Proofview.tactic
+  Val.t list -> interp_sign -> unit Proofview.tactic
 (** Type of external tactics, used by [TacML]. *)
 
 val register_ml_tactic : ?overwrite:bool -> ml_tactic_name -> ml_tactic array -> unit

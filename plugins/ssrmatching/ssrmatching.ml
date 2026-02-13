@@ -1004,7 +1004,7 @@ let pp_pattern env { pat_sigma = sigma; pat_pat = p } =
 type cpattern =
   { kind : ssrtermkind
   ; pattern : Genintern.glob_constr_and_expr
-  ; interpretation : Geninterp.interp_sign option }
+  ; interpretation : Tacinterp.interp_sign option }
 
 let pr_term {kind; pattern; _} =
   let env = Global.env () in
@@ -1497,7 +1497,7 @@ let cpattern_of_id id =
   { kind= NoFlag
   ; pattern = DAst.make @@ GRef (GlobRef.VarRef  id, None), None
   ; interpretation =
-      Some Geninterp.({ lfun = Id.Map.empty;
+      Some Tacinterp.({ lfun = Id.Map.empty;
                         poly = PolyFlags.default;
                         extra = Tacinterp.TacStore.empty })}
 

@@ -8,10 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Names
 open Genarg
-
-module TacStore = Store.Make ()
 
 (** Dynamic toplevel values *)
 
@@ -79,10 +76,3 @@ let register_val0 wit tag =
   | Some tag -> tag
   in
   ValRepr.register0 wit tag
-
-(** Interpretation functions *)
-
-type interp_sign =
-  { lfun : Val.t Id.Map.t
-  ; poly : PolyFlags.t
-  ; extra : TacStore.t }

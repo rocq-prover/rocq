@@ -117,7 +117,7 @@ val mk_lterm : constr_expr -> ssrterm
 val mk_ast_closure_term :
   [ `None | `Parens | `DoubleParens | `At ] ->
   Constrexpr.constr_expr -> ast_closure_term
-val interp_ast_closure_term : Geninterp.interp_sign -> env -> evar_map -> ast_closure_term -> ast_closure_term
+val interp_ast_closure_term : Tacinterp.interp_sign -> env -> evar_map -> ast_closure_term -> ast_closure_term
 val subst_ast_closure_term : Mod_subst.substitution -> ast_closure_term -> ast_closure_term
 val glob_ast_closure_term : Genintern.glob_sign -> ast_closure_term -> ast_closure_term
 val ssrterm_of_ast_closure_term : ast_closure_term -> ssrterm

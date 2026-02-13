@@ -15,7 +15,7 @@ type glob_constr_with_bindings =
     Genintern.glob_constr_and_expr Tactypes.with_bindings
 
 type glob_constr_with_bindings_sign =
-    Geninterp.interp_sign *
+    Tacinterp.interp_sign *
     Genintern.glob_constr_and_expr Tactypes.with_bindings
 
 val wit_glob_constr_with_bindings :
