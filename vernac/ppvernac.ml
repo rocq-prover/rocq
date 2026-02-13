@@ -192,9 +192,13 @@ let string_of_definition_object_kind = let open Decls in function
     | CanonicalStructure -> "Canonical Structure"
     | Instance -> "Instance"
     | Let -> "Let"
+    | Fixpoint -> "Fixpoint"
+    | CoFixpoint -> "CoFixpoint"
+    | Scheme -> "Scheme"
+    | StructureComponent -> "Field"
+    | Method -> "Method"
     | LetContext -> CErrors.anomaly (Pp.str "Bound to Context.")
-    | (StructureComponent|Scheme|CoFixpoint|Fixpoint|IdentityCoercion|Method) ->
-      CErrors.anomaly (Pp.str "Internal definition kind.")
+    | IdentityCoercion -> CErrors.anomaly (Pp.str "Internal definition kind.")
 
 let string_of_assumption_kind = let open Decls in function
     | Definitional -> "Parameter"
@@ -535,7 +539,7 @@ let pr_notation_declaration ntn_decl =
       ntn_decl_modifiers = modifiers;
       ntn_decl_scope = scopt } = ntn_decl in
   qs ntn ++ spc () ++ str ":=" ++ spc ()
-  ++ Flags.without_option Flags.beautify pr_constr c
+  ++ pr_constr c
   ++ pr_syntax_modifiers modifiers
   ++ pr_opt (fun sc -> spc () ++ str ":" ++ spc () ++ str sc) scopt
 
@@ -543,11 +547,10 @@ let pr_where_notation decl_ntn =
   fnl () ++ keyword "where " ++ pr_notation_declaration decl_ntn
 
 let pr_rec_definition (rec_order, { fname; univs; binders; rtype; body_def; notations }) =
-  let pr_pure_lconstr c = Flags.without_option Flags.beautify pr_lconstr c in
   let annot = pr_guard_annot pr_lconstr_expr binders rec_order in
   pr_ident_decl (fname,univs) ++ pr_binders_arg binders ++ annot
   ++ pr_type_option (fun c -> spc() ++ pr_lconstr_expr c) rtype
-  ++ pr_opt (fun def -> str":=" ++ brk(1,2) ++ pr_pure_lconstr def) body_def
+  ++ pr_opt (fun def -> str":=" ++ brk(1,2) ++ pr_lconstr def) body_def
   ++ prlist pr_where_notation notations
 
 let pr_statement head (idpl,(bl,c)) =
@@ -561,8 +564,7 @@ let pr_rew_rule (ubinders, lhs, rhs) =
   | _ ->
     pr_universe_decl ubinders ++ spc() ++ str"|-"
   in
-  let pr_pure_lconstr c = Flags.without_option Flags.beautify pr_lconstr c in
-  binders ++ pr_pure_lconstr lhs ++ str"==>" ++ pr_pure_lconstr rhs
+  binders ++ pr_lconstr lhs ++ str"==>" ++ pr_lconstr rhs
 
 (**************************************)
 (* Pretty printer for vernac commands *)
@@ -920,7 +922,7 @@ let pr_synpure_vernac_expr v =
   | VernacInductive (f,l) ->
     let pr_constructor ((attr,coe,ins),(id,c)) =
       hov 2 (pr_vernac_attributes attr ++ pr_lident id ++ pr_oc coe ins ++
-             Flags.without_option Flags.beautify pr_spc_lconstr c)
+             pr_spc_lconstr c)
     in
     let pr_constructor_list l = match l with
       | Constructors [] -> mt()

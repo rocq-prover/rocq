@@ -793,6 +793,7 @@ module MakeLexer (Diff : sig val mode : bool end)
     let get () =
       (!comment_begin, Buffer.contents current_comment, !between_commands, !comments)
     let drop () = set (init ())
+    let drop_comments (o,s,b,_) = (o,s,b,[])
     let get_comments (_,_,_,c) = c
 
   end

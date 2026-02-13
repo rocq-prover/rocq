@@ -33,6 +33,19 @@ let vernac_echo ?loc in_chan = let open Loc in
       Feedback.msg_notice @@ str @@ really_input_string in_chan len
     ) loc
 
+let vernac_beautify fmt ast comments =
+  try
+  Pputils.beautify_comments := comments;
+  let loc = Option.cata Loc.unloc (0,0) ast.CAst.loc in
+  let before = Pputils.extract_comments (fst loc) in
+  let before = if CList.is_empty before then mt() else comment before ++ fnl() in
+  let com = Ppvernac.pr_vernac ast ++ fnl() in
+  let after = comment (Pputils.extract_comments (snd loc)) in
+  Pp.pp_with fmt (hov 0 (before ++ com ++ after))
+  with e ->
+    let e, info = Exninfo.capture e in
+    let info = match ast.loc with None -> info | Some loc -> Loc.add_loc info loc  in
+    Exninfo.iraise (e,info)
 
 type time_output =
   | ToFeedback
@@ -94,7 +107,7 @@ let interp_vernac ~check ~state ({CAst.loc;_} as com) =
       Exninfo.iraise (reraise, info)
 
 (* Load a vernac file. CErrors are annotated with file and location *)
-let load_vernac_core ~echo ~check ~state ?source file =
+let load_vernac_core ~beautify ~echo ~check ~state ?source file =
   (* Keep in sync *)
   let in_chan = open_utf8_file_in file in
   let in_echo = if echo then Some (open_utf8_file_in file) else None in
@@ -105,8 +118,7 @@ let load_vernac_core ~echo ~check ~state ?source file =
       (Gramlib.Stream.of_channel in_chan) in
   let open State in
 
-  (* ids = For beautify, list of parsed sids *)
-  let rec loop state ids =
+  let rec loop state =
     let tstart = System.get_time () in
     match
       NewProfile.profile "parse_command" (fun () ->
@@ -115,11 +127,20 @@ let load_vernac_core ~echo ~check ~state ?source file =
         ()
     with
     | None ->
+      let () = beautify |> Option.iter @@ fun beautify ->
+        (* print end of file comments if any *)
+        Pp.pp_with beautify (comment (List.map snd @@ Procq.Parsable.comments in_pa))
+      in
       input_cleanup ();
-      state, ids, Procq.Parsable.comments in_pa
+      state
     | Some ast ->
       (* Printing of AST for -compile-verbose *)
       Option.iter (vernac_echo ?loc:ast.CAst.loc) in_echo;
+
+      let () = beautify |> Option.iter @@ fun beautify ->
+        vernac_beautify beautify ast (Procq.Parsable.comments in_pa);
+        Procq.Parsable.drop_comments in_pa
+      in
 
       checknav ast;
 
@@ -145,9 +166,9 @@ let load_vernac_core ~echo ~check ~state ?source file =
           ()
       in
 
-      (loop [@ocaml.tailcall]) state (state.sid :: ids)
+      (loop [@ocaml.tailcall]) state
   in
-  try loop state []
+  try loop state
   with any ->   (* whatever the exception *)
     let (e, info) = Exninfo.capture any in
     input_cleanup ();
@@ -190,42 +211,22 @@ let set_formatter_translator ch =
   Format.pp_set_max_boxes ft max_int;
   ft
 
-let pr_new_syntax ?loc ft_beautify ocom =
-  let loc = Option.append loc (Option.bind ocom (fun x -> x.CAst.loc)) in
-  let loc = Option.cata Loc.unloc (0,0) loc in
-  let before = comment (Pputils.extract_comments (fst loc)) in
-  let com = Option.cata (fun com -> Ppvernac.pr_vernac com ++ fnl()) (mt ()) ocom in
-  let after = comment (Pputils.extract_comments (snd loc)) in
-  if !Flags.beautify_file then
-    (Pp.pp_with ft_beautify (hov 0 (before ++ com ++ after));
-     Format.pp_print_flush ft_beautify ())
-  else
-    Feedback.msg_info (hov 4 (str"New Syntax:" ++ fnl() ++ (hov 0 com)))
-
-(* load_vernac with beautify *)
-let beautify_pass ~doc ~comments ~ids ~filename =
-  let ft_beautify, close_beautify =
-    if !Flags.beautify_file then
-      let chan_beautify = open_out (filename^beautify_suffix) in
-      set_formatter_translator chan_beautify, fun () -> close_out chan_beautify;
-    else
-      !Topfmt.std_ft, fun () -> ()
-  in
-  (* The interface to the comment printer is imperative, so we first
-     set the comments, then we call print. This has to be done for
-     each file. *)
-  Pputils.beautify_comments := comments;
-  List.iter (fun id -> pr_new_syntax ft_beautify (Stm.get_ast ~doc id)) ids;
-
-  (* Is this called so comments at EOF are printed? *)
-  pr_new_syntax ~loc:(Loc.make_loc (max_int,max_int)) ft_beautify None;
-  close_beautify ()
+let open_beautify filename =
+  let chan_beautify = open_out (filename^beautify_suffix) in
+  let fmt = set_formatter_translator chan_beautify in
+  fmt, fun () -> Format.pp_print_flush fmt(); close_out chan_beautify
 
 (* Main driver for file loading. For now, we only do one beautify
    pass. *)
-let load_vernac ~echo ~check ~state ?source filename =
-  let ostate, ids, comments = load_vernac_core ~echo ~check ~state ?source filename in
-  (* Pass for beautify *)
-  if !Flags.beautify then beautify_pass ~doc:ostate.State.doc ~comments ~ids:(List.rev ids) ~filename;
-  (* End pass *)
+let load_vernac ~beautify ~echo ~check ~state ?source filename =
+  let beautify, close_beautify = if not beautify then None, Fun.id
+    else let fmt, close = open_beautify filename in Some fmt, close
+  in
+  let ostate =
+    Util.try_finally (fun () ->
+        load_vernac_core ~beautify ~echo ~check ~state ?source filename)
+      ()
+      close_beautify
+      ()
+  in
   ostate

@@ -192,12 +192,6 @@ let init_document opts =
   (* Test mode *)
   Flags.test_mode := opts.config.test_mode;
 
-  (* beautify *)
-  if opts.config.beautify then begin
-    Flags.beautify := true;
-    CLexer.record_comments := true;
-  end;
-
   if opts.config.quiet then begin
     Flags.quiet := true;
   end;
