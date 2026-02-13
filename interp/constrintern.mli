@@ -240,7 +240,7 @@ val interp_notation_constr : env -> ?impls:internalization_env ->
   notation_interp_env -> constr_expr ->
   (bool * subscopes * Id.Set.t) Id.Map.t * notation_constr * reversibility_status
 
-(** Typically used to internalize a term inside a tactic *)
+(** Typically used to internalize a term inside a tactic. *)
 val intern_core : typing_constraint -> ?pattern_mode:bool ->
   Genintern.glob_sign -> constr_expr ->
   glob_constr

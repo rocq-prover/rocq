@@ -360,7 +360,7 @@ let register_ltac ?deprecation ?(local = false) ?(mut = false) isrec tactics =
     if isrec then inline_rec_tactic tactics else tactics
   in
   let map (lid, ({loc=eloc} as e)) =
-    let (e, t) = intern ~strict:true [] e in
+    let (e, t) = intern ~strict:true UnivNames.empty_binders [] e in
     let () = check_value ?loc:eloc e in
     let () = check_ltac_exists lid in
     (lid.v, e, t)
@@ -1245,7 +1245,7 @@ let register_redefinition ~local qid old ({loc=eloc} as e) =
   | None -> []
   | Some { CAst.v = id } -> [id, data.Tac2env.gdata_type]
   in
-  let (e, t) = intern ~strict:true ctx e in
+  let (e, t) = intern UnivNames.empty_binders ~strict:true ctx e in
   let () = check_value ?loc:eloc e in
   let () =
     if not (Tac2intern.check_subtype t data.Tac2env.gdata_type) then
@@ -1264,8 +1264,6 @@ let register_redefinition ~local qid old ({loc=eloc} as e) =
 
 let perform_eval ~pstate e =
   let env = Global.env () in
-  let (e, ty) = Tac2intern.intern ~strict:false [] e in
-  let v = Tac2interp.interp Tac2interp.empty_environment e in
   let proof =
     match pstate with
     | None ->
@@ -1275,6 +1273,9 @@ let perform_eval ~pstate e =
     | Some pstate ->
       Declare.Proof.get pstate
   in
+  let { Proof.sigma } = Proof.data proof in
+  let (e, ty) = Tac2intern.intern ~strict:false (Evd.universe_binders sigma) [] e in
+  let v = Tac2interp.interp Tac2interp.empty_environment e in
   let (proof, _, ans) = Proof.run_tactic (Global.env ()) v proof in
   let { Proof.sigma } = Proof.data proof in
   let name = int_name () in
@@ -1589,7 +1590,7 @@ let print_signatures () =
   Feedback.msg_notice (prlist_with_sep fnl pr_entry entries)
 
 let typecheck_expr e =
-  let e, (_,t) = Tac2intern.intern ~strict:false [] e in
+  let e, (_,t) = Tac2intern.intern ~strict:false UnivNames.empty_binders [] e in
   let name = int_name() in
   let pp =
     pr_glbexpr_gen E5 ~avoid:Id.Set.empty e ++ spc() ++
@@ -1606,7 +1607,7 @@ let globalize_expr e =
 
 let ltac2_interp e =
   let loc = e.loc in
-  let (e, t) = intern ~strict:false [] e in
+  let (e, t) = intern ~strict:false UnivNames.empty_binders [] e in
   let () = check_unit ?loc t in
   let tac = Tac2interp.interp Tac2interp.empty_environment e in
   Proofview.tclIGNORE tac

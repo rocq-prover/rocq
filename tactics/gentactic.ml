@@ -85,7 +85,8 @@ let register_intern tag intern =
 
 let intern ?(strict=true) env ?(ltacvars=Id.Set.empty) (Raw (tag, v)) =
   let Intern intern = InternMap.find tag !interns in
-  let ist = { (Genintern.empty_glob_sign ~strict env) with ltacvars } in
+  let ist = Genintern.empty_glob_sign ~strict env UnivNames.empty_binders in
+  let ist = { ist with ltacvars } in
   let _, v = intern ist v in
   Glb (tag, v)
 
