@@ -203,7 +203,7 @@ let rec ienv_decompose_prod (env,_,_,_ as ienv) n c =
       | _ -> assert false
 
 let array_min nmr a = if Int.equal nmr 0 then 0 else
-  Array.fold_left (fun k (nmri,_) -> min k nmri) nmr a
+  Array.fold_left min nmr a
 
 (** [check_positivity_one ienv paramsctxt (mind,i) nnonrecargs lcnames indlc]
     checks the positivity of the [i]-th member of the mutually
@@ -328,7 +328,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
             auxlcvect
         in
         let irecargs = Array.map snd irecargs_nmr
-        and nmr' = array_min nmr irecargs_nmr
+        and nmr' = array_min nmr @@ Array.map fst irecargs_nmr
         in
         let rtree =
           if is_recursive mib.mind_finite then
@@ -393,7 +393,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
       (Array.of_list lcnames) indlc
   in
   let irecargs = Array.map snd irecargs_nmr
-  and nmr' = array_min nmr irecargs_nmr
+  and nmr' = array_min nmr @@ Array.map fst irecargs_nmr
   in (nmr', mk_paths (Mrec (RecArgInd ind)) irecargs)
 
 (** [check_positivity ~chkpos kn env_ar paramsctxt inds] checks that the mutually
@@ -417,9 +417,87 @@ let check_positivity ~chkpos kn names env_ar_par paramsctxt finite inds =
   in
   let irecargs_nmr = Array.map2_i check_one names inds in
   let irecargs = Array.map snd irecargs_nmr
-  and nmr' = array_min nmr irecargs_nmr
+  and nmr' = array_min nmr @@ Array.map fst irecargs_nmr
   in (nmr',Rtree.mk_rec irecargs)
 
+(************************************************************************)
+(************************************************************************)
+(* Compute Uniform Parameters *)
+
+(* This supposes the inductive type has been checked as positive *)
+
+(* Check which parameters are uniform *)
+let check_constant_params env params iargs =
+  let size_ctx = List.length @@ rel_context env in
+  let check_rel i k = Int.equal (size_ctx - i) k in
+  let check_term i t =
+    match kind @@ Reduction.whd_all env t with
+    | Rel k -> check_rel i k
+    |  _ -> false
+  in
+  let rec check_tel nb_up pos_tel tel =
+    match tel with
+    | [] -> nb_up
+    | LocalDef _ ::tel -> check_tel nb_up (pos_tel+1) tel
+    | LocalAssum _ :: tel ->
+      if check_term pos_tel iargs.(nb_up) then
+        check_tel (nb_up+1) (pos_tel+1) tel
+      else nb_up
+  in
+  check_tel 0 0 @@ List.rev params
+
+(** Computes which parameters are uniform for an argument *)
+let rec compute_nb_uparams_one_arg env params nb_nparams arg =
+  let (local_vars, hd) = whd_decompose_prod_decls env arg in
+  let env = push_rel_context local_vars env in
+  let (hd, iargs) = decompose_app hd in
+  match kind hd with
+  | Rel k ->
+      if List.length (rel_context env) < k then
+        let iparams = fst @@ Array.chop nb_nparams iargs in
+        check_constant_params env params iparams
+      else
+        nb_nparams
+  | Ind ((kn_nested, _), _) ->
+    let size_env = List.length @@ rel_context env in
+    let mib_nested = lookup_mind kn_nested env in
+    let uparams_nested = List.rev @@ fst @@
+            Context.Rel.chop_nhyps mib_nested.mind_nparams_rec @@
+            List.rev mib_nested.mind_params_ctxt in
+    let inst_uparams = fst @@ Array.chop mib_nested.mind_nparams_rec iargs in
+    if Array.exists (fun ty -> not @@ closedn size_env ty) inst_uparams then
+      let inst_params = eta_expand_instantiation env inst_uparams uparams_nested in
+      let nb_inst_params = Array.map (fun t ->
+          let (loc, hd) = Term.decompose_lambda_decls t in
+          let env = push_rel_context loc env in
+          compute_nb_uparams_one_arg env params nb_nparams hd
+        ) inst_params
+      in array_min nb_nparams nb_inst_params
+        else nb_nparams
+  | _ -> nb_nparams
+
+(** Computes which parameters are uniform for a telescope of arguments *)
+let compute_nb_uparams_args env params nb_nparams args =
+  let (_, nb_uparams) =
+    List.fold_right (fun arg (env, acc) ->
+        if Option.has_some @@ get_value arg then
+          push_rel arg env, acc
+        else
+          let arg_up = compute_nb_uparams_one_arg env params nb_nparams @@ get_type arg in
+          (push_rel arg env, min acc arg_up)
+      ) args (env, nb_nparams)
+  in nb_uparams
+
+(** Computes which parameters are uniform *)
+let compute_nb_uparams env params inds =
+  let env = set_rel_context_val empty_rel_context_val env in
+  let nb_nparams = Context.Rel.nhyps params in
+  let env = push_rel_context params env in
+  array_min nb_nparams @@ Array.map (fun (_, ctors) ->
+     array_min nb_nparams @@ Array.map (fun (args, _) ->
+      compute_nb_uparams_args env params nb_nparams args)
+    ctors)
+  inds
 
 (************************************************************************)
 (************************************************************************)
@@ -607,10 +685,13 @@ let check_inductive env ~sec_univs kn mie =
   let names = Array.map_of_list (fun entry -> entry.mind_entry_typename, entry.mind_entry_consnames)
       mie.mind_entry_inds
   in
-  let (nmr,recargs) = check_positivity ~chkpos kn names
+  let (_,recargs) = check_positivity ~chkpos kn names
       env_ar_par paramsctxt mie.mind_entry_finite
       (Array.map (fun ((_,lc),(indices,_),_) -> Context.Rel.nhyps indices,lc) inds)
   in
+  (* Compute uniform parameters *)
+  let nmr = compute_nb_uparams env_ar_par paramsctxt @@
+              Array.map (fun (_, x, _) -> x) inds in
   (* Build the inductive packets *)
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
