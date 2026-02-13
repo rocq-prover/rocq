@@ -1740,7 +1740,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           let (sigma,c_interp) = interp_type ist env sigma c in
           sigma , (interp_ident ist env sigma id,n,c_interp) in
         let (sigma,l_interp) =
-          Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l sigma
+          Evd.Monad.List.map_right (fun c sigma -> f sigma c) l sigma
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
         (FixTactics.mutual_fix (interp_ident ist env sigma id) n l_interp)
@@ -1756,7 +1756,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
           let (sigma,c_interp) = interp_type ist env sigma c in
           sigma , (interp_ident ist env sigma id,c_interp) in
         let (sigma,l_interp) =
-          Evd.MonadR.List.map_right (fun c sigma -> f sigma c) l sigma
+          Evd.Monad.List.map_right (fun c sigma -> f sigma c) l sigma
         in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
         (FixTactics.mutual_cofix (interp_ident ist env sigma id) l_interp)

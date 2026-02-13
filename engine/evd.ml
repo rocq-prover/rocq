@@ -1472,7 +1472,7 @@ let set_extra_data extras evd = { evd with extras }
 (*******************************************************************)
 (* The state monad with state an evar map. *)
 
-module MonadR =
+module Monad =
   Monad.Make (struct
 
     type +'a t = evar_map -> evar_map * 'a
@@ -1489,26 +1489,6 @@ module MonadR =
 
     let map f x = fun s ->
       on_snd f (x s)
-
-  end)
-
-module Monad =
-  Monad.Make (struct
-
-    type +'a t = evar_map -> 'a * evar_map
-
-    let return a = fun s -> (a,s)
-
-    let (>>=) x f = fun s ->
-      let (a,s') = x s in
-      f a s'
-
-    let (>>) x y = fun s ->
-      let ((),s') = x s in
-      y s'
-
-    let map f x = fun s ->
-      on_fst f (x s)
 
   end)
 
