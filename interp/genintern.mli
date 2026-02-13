@@ -24,6 +24,7 @@ type ntnvar_status = {
 
 type intern_variable_status = {
   intern_ids : Id.Set.t;
+  intern_univs : UnivNames.universe_binders;
   notation_variable_status : ntnvar_status Id.Map.t;
 }
 
@@ -35,7 +36,7 @@ type glob_sign = {
   strict_check : bool;
 }
 
-val empty_glob_sign : strict:bool -> Environ.env -> glob_sign
+val empty_glob_sign : strict:bool -> Environ.env -> UnivNames.universe_binders -> glob_sign
 
 (** In globalize tactics, we need to keep the initial [constr_expr] to recompute
    in the environment by the effective calls to Intro, Inversion, etc
