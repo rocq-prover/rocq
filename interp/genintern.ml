@@ -63,52 +63,58 @@ struct
   let default _ = None
 end
 
+type ('raw, 'glb) constr_intern_fun = ?loc:Loc.t -> glob_sign -> 'raw -> 'glb
+
+module CInternObj = struct
+  type ('r, 'g) t = ('r, 'g) constr_intern_fun
+end
+
 module NtnSubstObj =
 struct
-  type ('raw, 'glb, 'top) obj = 'glb ntn_subst_fun
-  let name = "notation_subst"
-  let default _ = None
+  type (_, 'glb) t = 'glb ntn_subst_fun
 end
 
 module Intern = Register (InternObj)
-module NtnSubst = Register (NtnSubstObj)
+module CIntern = GenConstr.Register (CInternObj)
+module NtnSubst = GenConstr.Register (NtnSubstObj)
 
 let intern = Intern.obj
 let register_intern0 = Intern.register0
+let register_intern_constr = CIntern.register
 
 let generic_intern ist (GenArg (Rawwit wit, v)) =
   let (ist, v) = intern wit ist v in
   (ist, in_gen (glbwit wit) v)
 
-type ('raw,'glb) intern_pat_fun = ?loc:Loc.t -> ('raw,'glb) intern_fun
+let generic_intern_constr ?loc ist (GenConstr.Raw (tag, v)) =
+  let internf = CIntern.get tag in
+  GenConstr.Glb (tag, internf ?loc ist v)
 
 module InternPatObj = struct
-  type ('raw, 'glb, 'top) obj = ('raw, 'glb) intern_pat_fun
-  let name = "intern_pat"
-  let default tag =
-    Some (fun ?loc ->
-        let name = Genarg.(ArgT.repr tag) in
-        CErrors.user_err ?loc Pp.(str "This quotation is not supported in tactic patterns (" ++ str name ++ str ")"))
+  type ('raw, 'glb) t = ('raw, 'glb) constr_intern_fun
 end
 
-module InternPat = Register (InternPatObj)
+module InternPat = GenConstr.Register (InternPatObj)
 
-let intern_pat = InternPat.obj
+let register_intern_pat = InternPat.register
 
-let register_intern_pat = InternPat.register0
-
-let generic_intern_pat ?loc ist (GenArg (Rawwit wit, v)) =
-  let (ist, v) = intern_pat wit ?loc ist v in
-  (ist, in_gen (glbwit wit) v)
+let generic_intern_pat ?loc ist (GenConstr.Raw (tag, v)) =
+  match InternPat.find_opt tag with
+  | None ->
+    let name = GenConstr.repr tag in
+    CErrors.user_err ?loc Pp.(str "This quotation is not supported in tactic patterns (" ++ str name ++ str ").")
+  | Some internf ->
+    let v = internf ?loc ist v in
+    GenConstr.Glb (tag, v)
 
 (** Notation substitution *)
 
-let substitute_notation = NtnSubst.obj
-let register_ntn_subst0 = NtnSubst.register0
+let substitute_notation = NtnSubst.get
+let register_ntn_subst0 = NtnSubst.register
 
-let generic_substitute_notation avoid env (GenArg (Glbwit wit, v) as orig) =
-  let v' = substitute_notation wit avoid env v in
-  if v' == v then orig else in_gen (glbwit wit) v'
+let generic_substitute_notation avoid env (GenConstr.Glb (tag, v) as orig) =
+  let v' = substitute_notation tag avoid env v in
+  if v' == v then orig else Glb (tag, v')
 
 let with_used_ntnvars ntnvars f =
   let () = Id.Map.iter (fun _ status ->
@@ -135,3 +141,9 @@ let with_used_ntnvars ntnvars f =
     let e = Exninfo.capture e in
     let () = Id.Map.iter (fun _ status -> status.ntnvar_used <- List.tl status.ntnvar_used) ntnvars in
     Exninfo.iraise e
+
+let create_uniform_genconstr name =
+  let tag = GenConstr.create name in
+  let () = register_intern_constr tag (fun ?loc _ v -> v) in
+  let () = Gensubst.register_constr_subst tag (fun _ v -> v) in
+  tag

@@ -48,17 +48,17 @@ type glob_constr_pattern_and_expr = Id.Set.t * glob_constr_and_expr * Pattern.un
 type ('raw, 'glb) intern_fun = glob_sign -> 'raw -> glob_sign * 'glb
 (** The type of functions used for internalizing generic arguments. *)
 
+type ('raw, 'glb) constr_intern_fun = ?loc:Loc.t -> glob_sign -> 'raw -> 'glb
+
 val intern : ('raw, 'glb, 'top) genarg_type -> ('raw, 'glb) intern_fun
 
 val generic_intern : (raw_generic_argument, glob_generic_argument) intern_fun
 
+val generic_intern_constr : (GenConstr.raw, GenConstr.glb) constr_intern_fun
+
 (** {5 Internalization in tactic patterns} *)
 
-type ('raw,'glb) intern_pat_fun = ?loc:Loc.t -> ('raw,'glb) intern_fun
-
-val intern_pat : ('raw, 'glb, 'top) genarg_type -> ('raw, 'glb) intern_pat_fun
-
-val generic_intern_pat : (raw_generic_argument, glob_generic_argument) intern_pat_fun
+val generic_intern_pat : (GenConstr.raw, GenConstr.glb) constr_intern_fun
 
 (** {5 Notation functions} *)
 
@@ -67,20 +67,26 @@ val generic_intern_pat : (raw_generic_argument, glob_generic_argument) intern_pa
    may raise an exception if it fails, None for recursive part variables *)
 type 'glb ntn_subst_fun = ntnvar_status Id.Map.t -> (Id.t -> Glob_term.glob_constr option) -> 'glb -> 'glb
 
-val substitute_notation : ('raw, 'glb, 'top) genarg_type -> 'glb ntn_subst_fun
+val substitute_notation : (_, 'glb) GenConstr.tag -> 'glb ntn_subst_fun
 
-val generic_substitute_notation : glob_generic_argument ntn_subst_fun
+val generic_substitute_notation : GenConstr.glb ntn_subst_fun
 
 (** Registering functions *)
 
 val register_intern0 : ('raw, 'glb, 'top) genarg_type ->
   ('raw, 'glb) intern_fun -> unit
 
-val register_intern_pat : ('raw, 'glb, 'top) genarg_type ->
-  ('raw, 'glb) intern_pat_fun -> unit
+val register_intern_constr : ('raw, 'glb) GenConstr.tag ->
+  ('raw, 'glb) constr_intern_fun -> unit
 
-val register_ntn_subst0 : ('raw, 'glb, 'top) genarg_type ->
-  'glb ntn_subst_fun -> unit
+val register_intern_pat : ('raw, 'glb) GenConstr.tag ->
+  ('raw, 'glb) constr_intern_fun -> unit
+
+val register_ntn_subst0 : (_, 'glb) GenConstr.tag -> 'glb ntn_subst_fun -> unit
 
 (** Used to compute the set of used notation variables during internalization.*)
 val with_used_ntnvars : ntnvar_status Id.Map.t -> (unit -> 'a) -> Id.Set.t * 'a
+
+(** Registers trivial intern and subst functions. Other registers
+    should be done by the caller. *)
+val create_uniform_genconstr : string -> ('a, 'a) GenConstr.tag

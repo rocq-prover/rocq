@@ -27,3 +27,17 @@ let register_subst0 = Subst.register0
 
 let generic_substitute subs (GenArg (Glbwit wit, v)) =
   in_gen (glbwit wit) (substitute wit subs v)
+
+module CSubstObj = struct
+  type (_, 'g) t = 'g subst_fun
+end
+
+module CSubst = GenConstr.Register(CSubstObj)
+
+let register_constr_subst = CSubst.register
+
+let constr_subst subst (GenConstr.Glb (tag, v) as o) =
+  let substf = CSubst.get tag in
+  let v' = substf subst v in
+  if v == v' then o else
+  GenConstr.Glb (tag, v')

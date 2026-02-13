@@ -306,8 +306,8 @@ type var_quotation_kind =
   | PatternVar
   | HypVar
 
-let wit_ltac2_constr = Genarg.make0 "ltac2:in-constr"
-let wit_ltac2_var_quotation = Genarg.make0 "ltac2:quotation"
+let wit_ltac2_constr = GenConstr.create "ltac2:in-constr"
+let wit_ltac2_var_quotation = GenConstr.create "ltac2:quotation"
 let wit_ltac2_tac = Gentactic.make "ltac2:tactic"
 
 let is_constructor_id id =

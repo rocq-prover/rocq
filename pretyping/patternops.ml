@@ -365,7 +365,7 @@ let subst_pattern env sigma subst p =
   subst_pattern_gen (fun _ e -> Util.Empty.abort e) env sigma subst p
 
 let subst_uninstantiated_pattern env sigma subst p =
-  subst_pattern_gen Gensubst.generic_substitute env sigma subst p
+  subst_pattern_gen Gensubst.constr_subst env sigma subst p
 
 let mkPLetIn na b t c = PLetIn(na,b,t,c)
 let mkPProd na t u = PProd(na,t,u)
@@ -389,16 +389,14 @@ type 'a pat_interp_fun = Environ.env -> Evd.evar_map -> Ltac_pretype.ltac_var_ma
 
 module InterpPatObj =
 struct
-  type (_, 'g, _) obj = 'g pat_interp_fun
-  let name = "interp_pat"
-  let default _ = None
+  type (_, 'g) t = 'g pat_interp_fun
 end
 
-module InterpPat = Genarg.Register(InterpPatObj)
+module InterpPat = GenConstr.Register(InterpPatObj)
 
-let interp_pat = InterpPat.obj
+let interp_pat = InterpPat.get
 
-let register_interp_pat = InterpPat.register0
+let register_interp_pat = InterpPat.register
 
 let error_instantiate_pattern id l =
   let is = match l with
@@ -411,7 +409,7 @@ let error_instantiate_pattern id l =
 
 let interp_pattern env sigma ist p =
   let fgen vars = function
-    | Genarg.GenArg (Glbwit tag,g) -> interp_pat tag env sigma ist g
+    | GenConstr.Glb (tag, g) -> interp_pat tag env sigma ist g
   in
   let rec aux vars = function
     | PVar id as x ->
@@ -503,9 +501,9 @@ let rec pat_of_raw metas vars : _ -> _ constr_pattern_r = DAst.with_loc_val (fun
      (try PSort (Glob_ops.glob_sort_quality gs)
       with Glob_ops.ComplexSort -> user_err ?loc (str "Unexpected universe in pattern."))
   | GHole _ -> PMeta None
-  | GGenarg (GenArg (Glbwit tag, _) as g) ->
+  | GGenarg (GenConstr.Glb (tag, _) as g) ->
     let () = if not (InterpPat.mem tag) then
-        let name = Genarg.(ArgT.repr (get_arg_tag tag)) in
+        let name = GenConstr.repr tag in
         user_err ?loc (str "This quotation is not supported in patterns (" ++ str name ++ str ").")
     in
     PExtra g

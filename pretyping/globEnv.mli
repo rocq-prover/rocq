@@ -26,7 +26,7 @@ type 'a obj_interp_fun =
   'a -> unsafe_judgment * Evd.evar_map
 
 val register_constr_interp0 :
-  ('r, 'g, 't) Genarg.genarg_type -> 'g obj_interp_fun -> unit
+  (_, 'g) GenConstr.tag -> 'g obj_interp_fun -> unit
 
 (** {6 Pretyping name management} *)
 
@@ -95,4 +95,4 @@ val interp_ltac_id : t -> Id.t -> Id.t
     into account the possible renaming *)
 
 val interp_glob_genarg : ?loc:Loc.t -> poly:PolyFlags.t -> t -> evar_map -> Evardefine.type_constraint ->
-  Genarg.glob_generic_argument -> unsafe_judgment * evar_map
+  GenConstr.glb -> unsafe_judgment * evar_map

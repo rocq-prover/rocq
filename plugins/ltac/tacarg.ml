@@ -30,7 +30,7 @@ let wit_quantified_hypothesis = wit_quant_hyp
 let wit_tactic : (raw_tactic_expr, glob_tactic_expr, Val.t) genarg_type =
   make0 "tactic"
 
-let wit_ltac_in_term = make0 "ltac_in_term"
+let wit_ltac_in_term = GenConstr.create "ltac_in_term"
 
 let wit_ltac = Gentactic.make "ltac"
 

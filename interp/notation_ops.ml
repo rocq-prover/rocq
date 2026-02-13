@@ -923,7 +923,7 @@ let rec subst_notation_constr subst bound raw =
     else NHole nknd
 
   | NGenarg arg ->
-    let arg' = Gensubst.generic_substitute subst arg in
+    let arg' = Gensubst.constr_subst subst arg in
     if arg' == arg then raw
     else NGenarg arg'
 

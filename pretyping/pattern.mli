@@ -46,7 +46,7 @@ type 'i constr_pattern_r =
 
 type constr_pattern = Util.Empty.t constr_pattern_r
 
-type uninstantiated_pattern = Genarg.glob_generic_argument constr_pattern_r
+type uninstantiated_pattern = GenConstr.glb constr_pattern_r
 
 (** Nota : in a [PCase], the array of branches might be shorter than
     expected, denoting the use of a final "_ => _" branch *)
