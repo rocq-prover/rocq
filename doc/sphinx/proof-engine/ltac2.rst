@@ -1404,8 +1404,10 @@ Abbreviations
 
    :n:`foo 0 ↦ (fun x => x ()) (fun _ => 0)`
 
-   Note that abbreviations are not type checked at all, and may result in typing
-   errors after expansion.
+   Abbreviations are typechecked at declaration time regardless of
+   :flag:`Ltac2 Typed Notations`. Unlike notations, this does not lose
+   any generality because they expand to applications instead of
+   letins.
 
    This command supports the :attr:`deprecated` attribute.
 

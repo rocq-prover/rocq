@@ -13,7 +13,7 @@ Inr : 'b -> ('a, 'b) either
 Triple : 'c -> 'b -> 'a -> ('a, 'b, 'c) triple
 Not_found : exn
 Out_of_bounds : message option -> exn
-Ltac2 Notation nota := () ()
+Ltac2 Notation nota := fun thunk => thunk ()
 Ltac2 Type constr
 Ltac2 Type constr := Init.constr
 ('a, 'b) thing := 'b option

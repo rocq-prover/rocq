@@ -11,3 +11,6 @@ fun (b : bool) =>
       (fun _ => fun (_ : constr array) => false))]
  with (t : constr) := c in
  Pattern.one_match0 t m :'__α : bool)
+File "./output/ltac2_typed_notations.v", line 18, characters 31-32:
+The command has indeed failed with message:
+This expression has type int. It is not a function and cannot be applied.

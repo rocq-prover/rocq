@@ -18,7 +18,7 @@ type lid = Id.t
 type uid = Id.t
 
 type ltac_constant = KerName.t
-type ltac_alias = KerName.t
+type ltac_abbrev = KerName.t
 type ltac_notation = KerName.t
 type ltac_constructor = KerName.t
 type ltac_projection = KerName.t
@@ -26,7 +26,7 @@ type type_constant = KerName.t
 
 type tacref =
 | TacConstant of ltac_constant
-| TacAlias of ltac_alias
+| TacAbbrev of ltac_abbrev
 
 type 'a or_relid =
 | RelId of qualid
