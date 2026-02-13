@@ -215,15 +215,10 @@ let intern_binding_name ist x =
      and if a term w/o ltac vars, check the name is indeed quantified *)
   x
 
-let intern_constr_gen pattern_mode isarity {ltacvars=lfun; genv=env; extra; intern_sign; strict_check} c =
+let intern_constr_gen pattern_mode isarity ist c =
   let scope = if isarity then Pretyping.IsType else Pretyping.WithoutTypeConstraint in
-  let ltacvars = {
-    Constrintern.ltac_vars = lfun;
-    ltac_bound = Id.Set.empty;
-    ltac_extra = extra;
-  } in
-  let c' = Constrintern.intern_core scope ~strict_check ~pattern_mode ~ltacvars env Evd.(from_env env) intern_sign c in
-  (c',if strict_check then None else Some c)
+  let c' = Constrintern.intern_core scope ~pattern_mode ist c in
+  (c',if ist.strict_check then None else Some c)
 
 let intern_constr = intern_constr_gen false false
 let intern_type = intern_constr_gen false true
