@@ -35,7 +35,7 @@ val make_empty_glob_sign : strict:bool -> glob_sign
 val glob_tactic : raw_tactic_expr -> glob_tactic_expr
 
 val glob_tactic_env :
-  Id.t list -> Environ.env -> raw_tactic_expr -> glob_tactic_expr
+  Id.t list -> Environ.env -> UnivNames.universe_binders -> raw_tactic_expr -> glob_tactic_expr
 
 (** Low-level variants *)
 

@@ -44,7 +44,7 @@ type glob_sign = Genintern.glob_sign = {
   strict_check : bool;
 }
 
-let make_empty_glob_sign ~strict = Genintern.empty_glob_sign ~strict (Global.env ())
+let make_empty_glob_sign ~strict = Genintern.empty_glob_sign ~strict (Global.env ()) UnivNames.empty_binders
 
 (* We have identifier <| global_reference <| constr *)
 
@@ -705,10 +705,10 @@ let intern_ltac_in_term ?loc:_ ist tac =
 let glob_tactic x =
   intern_pure_tactic (make_empty_glob_sign ~strict:true) x
 
-let glob_tactic_env l env x =
+let glob_tactic_env l env univs x =
   let ltacvars =
     List.fold_left (fun accu x -> Id.Set.add x accu) Id.Set.empty l in
-  intern_pure_tactic { (Genintern.empty_glob_sign ~strict:true env) with ltacvars } x
+  intern_pure_tactic { (Genintern.empty_glob_sign ~strict:true env univs) with ltacvars } x
 
 let intern_strategy ist s =
   let open RewriteStratAst in
