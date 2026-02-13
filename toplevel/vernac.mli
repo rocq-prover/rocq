@@ -30,8 +30,7 @@ end
     state. *)
 val process_expr : state:State.t -> Vernacexpr.vernac_control -> State.t
 
-(** [load_vernac echo sid file] Loads [file] on top of [sid], will
-    echo the commands if [echo] is set. Callers are expected to handle
-    and print errors in form of exceptions. *)
-val load_vernac : echo:bool -> check:bool ->
+(** [load_vernac sid file] Loads [file] on top of [sid].
+    Callers are expected to handle and print errors in form of exceptions. *)
+val load_vernac : check:bool ->
   state:State.t -> ?source:Loc.source -> string -> State.t
