@@ -100,7 +100,7 @@ let congrtac ((n, t), ty) ist =
   debug_ssr (fun () -> (Pp.str"===congr==="));
   debug_ssr (fun () -> Pp.(str"concl=" ++ Printer.pr_econstr_env env sigma concl));
   let nsigma, _ as it = interp_term env sigma ist t in
-  let sigma = Evd.merge_universe_context sigma (Evd.ustate nsigma) in
+  let sigma = Evd.merge_ustate sigma (Evd.ustate nsigma) in
   let f, _, _ucst = abs_evars env sigma it in
   let ist' = {ist with lfun =
     Id.Map.add pattern_id (Tacinterp.Value.of_constr f) Id.Map.empty } in
@@ -458,7 +458,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   end
 
 let pf_merge_uc_of s sigma =
-  Evd.merge_universe_context sigma (Evd.ustate s)
+  Evd.merge_ustate sigma (Evd.ustate s)
 
 let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let open Proofview.Notations in
@@ -676,7 +676,7 @@ let rwrxtac ?under ?map_redex occ rdx_pat dir rule =
   let concl0 = Reductionops.nf_evar sigma0 concl0 in
   let concl = eval_pattern env0 sigma0 concl0 rdx_pat occ find_R in
   let (d, (_, sigma, uc, t)), rdx = conclude concl in
-  let r = Evd.merge_universe_context sigma uc, t in
+  let r = Evd.merge_ustate sigma uc, t in
   rwcltac ?under ?map_redex concl rdx d r
   end
 

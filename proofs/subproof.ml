@@ -145,7 +145,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
      (but due to #13324 we still want to inline them) *)
   let effs = Evd.seff_private @@ Evd.eval_side_effects sigma in
   let body, ctx = Safe_typing.inline_private_constants env ((body, Univ.ContextSet.empty), effs) in
-  let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
+  let _uctx = UState.merge_universe_context_set ~sideff:true Evd.univ_rigid uctx ctx in
   body, typ, univs, uctx
 
 let build_by_tactic_opt env ~uctx ~poly ~typ tac =

@@ -1282,7 +1282,7 @@ let univ_flexible_alg = UnivFlexible true
 (** ~sideff indicates that it is ok to redeclare a universe.
     Also merges the universe context in the local constraint structures
     and not only in the graph. *)
-let merge_universe_context ?loc ~sideff rigid uctx (levels, ucst) =
+let merge_universe_context_set ?loc ~sideff rigid uctx (levels, ucst) =
   let declare g =
     Level.Set.fold (fun u g ->
         try UGraph.add_universe ~strict:false u g
@@ -1341,9 +1341,9 @@ let merge_sort_variables ?loc ?(sort_rigid=false) ?src ~sideff uctx (qvars, csts
   let local = (us, (Sorts.ElimConstraints.union qcst csts, ucst)) in
   { uctx with local; sort_variables; names }
 
-let merge_sort_context ?loc ?sort_rigid ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
+let merge_sort_context_set ?loc ?sort_rigid ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
   let uctx = merge_sort_variables ?loc ?sort_rigid ?src ~sideff uctx (qvars, qcst) in
-  merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
+  merge_universe_context_set ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
   let (local_univs, local_constraints) = uctx.local in
@@ -1429,7 +1429,7 @@ let add_universe ?loc name strict uctx u =
   in
   { uctx with names; local; initial_universes; universes }
 
-let new_sort_variable ?loc ?(sort_rigid = false) ?name uctx =
+let new_quality_variable ?loc ?(sort_rigid = false) ?name uctx =
   let q = UnivGen.fresh_sort_quality () in
   (* don't need to check_fresh as it's guaranteed new *)
   let sort_variables = QState.add ~check_fresh:false ~rigid:(sort_rigid || Option.has_some name)
@@ -1441,7 +1441,7 @@ let new_sort_variable ?loc ?(sort_rigid = false) ?name uctx =
   in
   { uctx with sort_variables; names }, q
 
-let new_univ_variable ?loc rigid name uctx =
+let new_univ_level_variable ?loc rigid name uctx =
   let u = UnivGen.fresh_level () in
   let uctx =
     match rigid with
@@ -1459,7 +1459,7 @@ let make_with_initial_binders ~qualities univs binders =
   let uctx = make ~qualities univs in
   List.fold_left
     (fun uctx { CAst.loc; v = id } ->
-       fst (new_univ_variable ?loc univ_rigid (Some id) uctx))
+       fst (new_univ_level_variable ?loc univ_rigid (Some id) uctx))
     uctx binders
 
 let from_env ?(binders=[]) env =
