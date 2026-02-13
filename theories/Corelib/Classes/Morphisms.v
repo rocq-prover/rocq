@@ -313,7 +313,15 @@ Ltac proper_subrelation :=
 #[global]
 Hint Extern 5 (@Proper _ ?H _) => proper_subrelation : typeclass_instances.
 
-(** Essential subrelation instances for [iff], [impl] and [pointwise_relation]. *)
+(** Essential subrelation instances for [eq], [iff], [impl] and [pointwise_relation]. *)
+
+#[global]
+Instance eq_flip_impl_subrelation : subrelation eq (Basics.flip Basics.impl).
+Proof. now intros x y ->. Qed.
+
+#[global]
+Instance eq_impl_subrelation : subrelation eq Basics.impl.
+Proof. now intros x y ->. Qed.
 
 #[global]
 Instance iff_impl_subrelation : subrelation iff impl | 2.
