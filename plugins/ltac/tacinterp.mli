@@ -18,6 +18,12 @@ open Tactypes
 
 val ltac_trace_info : ltac_stack Exninfo.t
 
+(** Signature for interpretation: val\_interp and interpretation functions *)
+type interp_sign = Tacenv.interp_sign =
+  { lfun : Geninterp.Val.t Id.Map.t
+  ; poly : PolyFlags.t
+  ; extra : Geninterp.TacStore.t }
+
 module Value :
 sig
   type t = Geninterp.Val.t
@@ -26,7 +32,7 @@ sig
   val of_int : int -> t
   val to_int : t -> int option
   val to_list : t -> t list option
-  val of_closure : Geninterp.interp_sign -> glob_tactic_expr -> t
+  val of_closure : interp_sign -> glob_tactic_expr -> t
   val cast : 'a typed_abstract_argument_type -> Geninterp.Val.t -> 'a
   val apply : t -> t list -> unit Proofview.tactic
   val apply_val : t -> t list -> t Ftactic.t
@@ -38,12 +44,6 @@ type value = Value.t
 module TacStore : Store.S with
   type t = Geninterp.TacStore.t
   and type 'a field = 'a Geninterp.TacStore.field
-
-(** Signature for interpretation: val\_interp and interpretation functions *)
-type interp_sign = Geninterp.interp_sign =
-  { lfun : value Id.Map.t
-  ; poly : PolyFlags.t
-  ; extra : TacStore.t }
 
 open Genintern
 
@@ -64,7 +64,7 @@ val get_debug : unit -> debug_info
 val type_uconstr :
   ?flags:Pretyping.inference_flags ->
   ?expected_type:Pretyping.typing_constraint ->
-  Geninterp.interp_sign -> Ltac_pretype.closed_glob_constr -> constr Tactypes.delayed_open
+  interp_sign -> Ltac_pretype.closed_glob_constr -> constr Tactypes.delayed_open
 
 (** Adds an interpretation function for extra generic arguments *)
 
@@ -149,7 +149,7 @@ val interp_ident : interp_sign -> Environ.env -> Evd.evar_map -> Id.t -> Id.t
 val interp_intro_pattern : interp_sign -> Environ.env -> Evd.evar_map ->
   glob_constr_and_expr intro_pattern_expr CAst.t -> intro_pattern
 
-val default_ist : unit -> Geninterp.interp_sign
+val default_ist : unit -> interp_sign
 (** Empty ist with debug set on the current value. *)
 
 module Register :

@@ -17,7 +17,6 @@ open Locus
 open Constrexpr
 open Glob_term
 open Genintern
-open Geninterp
 open Extraargs
 open Rewrite
 open RewriteStratAst
@@ -38,7 +37,7 @@ DECLARE PLUGIN "rocq-runtime.plugins.ltac"
 
 type constr_expr_with_bindings = constr_expr with_bindings
 type glob_constr_with_bindings = glob_constr_and_expr with_bindings
-type glob_constr_with_bindings_sign = interp_sign * glob_constr_and_expr with_bindings
+type glob_constr_with_bindings_sign = Tacinterp.interp_sign * glob_constr_and_expr with_bindings
 
 let pr_glob_constr_with_bindings_sign env sigma _ _ _ (ge : glob_constr_with_bindings_sign) =
   Printer.pr_glob_constr_env env sigma (fst (fst (snd ge)))

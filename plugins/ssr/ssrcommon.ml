@@ -222,7 +222,7 @@ let glob_ast_closure_term (ist : Genintern.glob_sign) t =
 let subst_ast_closure_term (_s : Mod_subst.substitution) t =
   (* _s makes sense only for glob constr *)
   t
-let interp_ast_closure_term (ist : Geninterp.interp_sign) env sigma t =
+let interp_ast_closure_term (ist : Tacinterp.interp_sign) env sigma t =
   (* sigma is only useful if we want to interp *now*, later we have
    * a potentially different gl.sigma *)
   { t with interp_env = Some ist }

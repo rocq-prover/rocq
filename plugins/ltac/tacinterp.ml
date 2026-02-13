@@ -40,9 +40,15 @@ open Proofview.Notations
 open Context.Named.Declaration
 open Ltac_pretype
 
+(* Signature for interpretation: val_interp and interpretation functions *)
+type interp_sign = Tacenv.interp_sign =
+  { lfun : Geninterp.Val.t Id.Map.t
+  ; poly : PolyFlags.t
+  ; extra : Geninterp.TacStore.t }
+
 module Register =
 struct
-type ('glb, 'top) interp_fun = Geninterp.interp_sign -> 'glb -> 'top Ftactic.t
+type ('glb, 'top) interp_fun = interp_sign -> 'glb -> 'top Ftactic.t
 
 module InterpObj =
 struct
@@ -163,12 +169,6 @@ let f_avoid_ids : Id.Set.t TacStore.field = TacStore.field "f_avoid_ids"
 let f_debug : debug_info TacStore.field = TacStore.field "f_debug"
 let f_trace : ltac_trace TacStore.field = TacStore.field "f_trace"
 let f_loc : Loc.t TacStore.field = TacStore.field "f_loc"
-
-(* Signature for interpretation: val_interp and interpretation functions *)
-type interp_sign = Geninterp.interp_sign =
-  { lfun : value Id.Map.t
-  ; poly : PolyFlags.t
-  ; extra : TacStore.t }
 
 let add_extra_trace trace extra = TacStore.set extra f_trace trace
 let extract_trace ist =
@@ -647,7 +647,7 @@ let constr_flags () = {
 
 (* Interprets a constr; expects evars to be solved *)
 let interp_constr_gen kind ist env sigma c =
-  let flags = { (constr_flags ()) with poly = ist.Geninterp.poly } in
+  let flags = { (constr_flags ()) with poly = ist.poly } in
   interp_gen kind ist false flags env sigma c
 
 let interp_constr = interp_constr_gen WithoutTypeConstraint
@@ -1085,7 +1085,7 @@ let rec read_match_rule ist env sigma = function
 (* Fully evaluate an untyped constr *)
 let type_uconstr ?(flags = (constr_flags ()))
   ?(expected_type = WithoutTypeConstraint) ist c =
-  let flags = { flags with poly = ist.Geninterp.poly } in
+  let flags = { flags with poly = ist.poly } in
   begin fun env sigma ->
     Pretyping.understand_uconstr ~flags ~expected_type env sigma c
   end
