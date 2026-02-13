@@ -112,7 +112,7 @@ Module IfNotations.
 
 Notation "'if' c 'is' p 'then' u 'else' v" :=
   (match c with p => u | _ => v end)
-  (at level 200, p pattern at level 100).
+  (at level 200, c, u, v at level 200, p pattern at level 100).
 
 End IfNotations.
 

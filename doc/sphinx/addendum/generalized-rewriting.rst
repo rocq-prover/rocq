@@ -484,7 +484,7 @@ It is used in two cases:
      constraint can be automatically discharged.
 
    + Compatibility with ssreflect's rewrite:
-     The :tacn:`rewrite (ssreflect)` tactic uses generalized rewriting when possible, by
+     The :tacn:`rw` tactic uses generalized rewriting when possible, by
      checking that a ``RewriteRelation R`` instance exists when rewriting with a
      term of type ``R t u``.
 

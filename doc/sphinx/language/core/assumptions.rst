@@ -20,6 +20,7 @@ Binders
    | @generalizing_binder
    | ( @name : @type %| @term )
    | ' @pattern0
+   | {| of | & } @term99
 
 Various constructions such as :g:`fun`, :g:`forall`, :g:`fix` and :g:`cofix`
 *bind* variables. A binding is represented by an identifier. If the binding
@@ -37,6 +38,8 @@ the latter case is :n:`(@ident := @term)`. In a let-binder, only one
 variable can be introduced at the same time. It is also possible to give
 the type of the variable as follows:
 :n:`(@ident : @type := @term)`.
+
+`of T` and `& T` are syntactic sugar for anonymous binders `(_ : T)`.
 
 `(x : T | P)` is syntactic sugar for `(x : @Stdlib.Init.Specif.sig _ (fun x : T => P))`,
 which would more typically be written `(x : {x : T | P})`.

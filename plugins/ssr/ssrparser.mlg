@@ -41,19 +41,6 @@ open Ssrequality
 open Ssripats
 open Libobject
 
-(** Ssreflect load check. *)
-
-(* To allow ssrcoq to be fully compatible with the "plain" Rocq, we only *)
-(* turn on its incompatible features (the new rewrite syntax, and the   *)
-(* reserved identifiers) when the theory library (ssreflect.v) has      *)
-(* has actually been required, or is being defined. Because this check  *)
-(* needs to be done often (for each identifier lookup), we implement    *)
-(* some caching, repeating the test only when the environment changes.  *)
-(*   We check for protect_term because it is the first constant loaded; *)
-(* ssr_have would ultimately be a better choice.                        *)
-
-let is_ssr_loaded = Pptactic.ssr_loaded
-
 }
 
 DECLARE PLUGIN "rocq-runtime.plugins.ssreflect"
@@ -1583,7 +1570,7 @@ END
 {
 
 let sq_brace_tacnames =
-   ["first"; "solve"; "do"; "rewrite"; "have"; "suffices"; "wlog"]
+   ["first"; "solve"; "do"; "rewrite"; "rw"; "have"; "suffices"; "wlog"]
    (* "by" is a keyword *)
 
 let test_ssrseqvar =
@@ -1635,22 +1622,13 @@ let ltac_expr = Pltac.ltac_expr
 
 {
 
-let { Goptions.get = ssr_reserved_ids } =
-  Goptions.declare_bool_option_and_ref ~stage:Synterp ~key:["SsrIdents"] ~value:true ()
-
 let is_ssr_reserved s =
-  let n = String.length s in n > 2 && s.[0] = '_' && s.[n - 1] = '_'
+  let n = String.length s in n > 6 && is_dll s 0 && is_dll s (n - 3)
 
 let ssr_id_of_string loc s =
-  if is_ssr_reserved s && is_ssr_loaded () then begin
-    if ssr_reserved_ids() then
-      CErrors.user_err ~loc (str ("The identifier " ^ s ^ " is reserved."))
-    else if is_internal_name s then
-      Feedback.msg_warning (str ("Conflict between " ^ s ^ " and ssreflect internal names."))
-    else Feedback.msg_warning (str (
-     "The name " ^ s ^ " fits the _xxx_ format used for anonymous variables.\n"
-  ^ "Scripts with explicit references to anonymous variables are fragile."))
-    end; Id.of_string s
+  if is_ssr_reserved s then begin
+    CErrors.user_err ~loc (str ("The identifier " ^ s ^ " is reserved."))
+  end; Id.of_string s
 
 let ssr_null_entry = Procq.Entry.(of_parser "ssr_null" { parser_fun = fun _ _ -> Ok () })
 
@@ -1663,7 +1641,7 @@ END
 
 {
 
-let perm_tag = "_perm_Hyp_"
+let perm_tag = "‗perm_Hyp_"
 let _ = add_internal_name (is_tagged perm_tag)
 
 }
@@ -1740,7 +1718,6 @@ module Internal = struct
   let pr_intros = pr_intros
   let pr_view = pr_view
   let pr_mult = pr_mult
-  let is_ssr_loaded = is_ssr_loaded
   let pr_hpats = pr_hpats
   let pr_fwd = pr_fwd
   let pr_hint = pr_hint
@@ -1752,5 +1729,3 @@ module Internal = struct
 end
 
 }
-
-(* vim: set filetype=ocaml foldmethod=marker: *)
