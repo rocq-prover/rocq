@@ -21,6 +21,7 @@ let set_local_flags flags env =
     check_eliminations = flags.check_eliminations;
     conv_oracle = flags.conv_oracle;
     share_reduction = flags.share_reduction;
+    unfold_dep_heuristic = flags.unfold_dep_heuristic;
     allow_uip = flags.allow_uip;
     (* These flags may not *)
     enable_VM = envflags.enable_VM;

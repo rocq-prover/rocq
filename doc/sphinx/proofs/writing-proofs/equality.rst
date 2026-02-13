@@ -559,6 +559,22 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
       affects the reduction procedure used by the kernel when
       typechecking. By default sharing is activated.
 
+   .. flag:: Kernel Conversion Dep Heuristic
+
+      This flag controls a heuristic used during conversion when comparing
+      two constants. When enabled, if the two constants have the same
+      strategy level (see :cmd:`Strategy`), the heuristic prefers unfolding
+      the constant that depends on the other.
+
+      For example, if ``c1`` depends on ``c2`` (i.e., ``c1``'s definition mentions ``c2``),
+      then checking ``c1 = c2`` or ``c2 = c1`` will prefer unfolding ``c1`` first.
+      This can significantly speed up conversions in cases where one definition
+      wraps another.
+
+      By default this flag is off, and the conversion algorithm prefers
+      unfolding the right-hand side first when the two constants have the
+      same strategy level.
+
    The call-by-value strategy is the one used in ML languages: the
    arguments of a function call are systematically weakly evaluated
    first. The lazy strategy is similar to how Haskell reduces terms.

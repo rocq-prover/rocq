@@ -20,12 +20,21 @@ type oracle
 
 val empty : oracle
 
+(** Result of oracle comparison *)
+type order = Left | Right | Same
+
 (** Order on section paths for unfolding.
    If [oracle_order kn1 kn2] is true, then unfold kn1 first.
    Note: the oracle does not introduce incompleteness, it only
    tries to postpone unfolding of "opaque" constants. *)
 val oracle_order :
   oracle -> bool -> evaluable option -> evaluable option -> bool
+
+(** Like [oracle_order] but returns [Same] when neither constant is preferred
+    based on the oracle alone. This allows the caller to apply additional
+    heuristics. *)
+val oracle_compare :
+  oracle -> evaluable option -> evaluable option -> order
 
 (** Priority for the expansion of constant in the conversion test.
  * Higher levels means that the expansion is less prioritary.
