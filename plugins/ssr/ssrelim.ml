@@ -145,7 +145,7 @@ let fire_subst sigma t = Reductionops.nf_evar sigma t
 let mkTpat env sigma0 (sigma, t) = (* takes a term, refreshes it and makes a T pattern *)
   let t, evs, ucst = abs_evars env sigma0 (sigma, fire_subst sigma t) in
   let t, _, _, sigma = saturate ~beta:true env sigma t (List.length evs) in
-  { pat_sigma = Evd.merge_universe_context sigma ucst; pat_pat = T t }
+  { pat_sigma = Evd.merge_ustate sigma ucst; pat_pat = T t }
 
 let redex_of_pattern env p = match redex_of_pattern p with
 | None -> CErrors.anomaly (Pp.str "pattern without redex.")
@@ -154,7 +154,7 @@ let redex_of_pattern env p = match redex_of_pattern p with
 let unif_redex env sigma0 nsigma p t = (* t is a hint for the redex of p *)
   let t, evs, ucst = abs_evars env sigma0 (nsigma, fire_subst nsigma t) in
   let t, _, _, sigma = saturate ~beta:true env p.pat_sigma t (List.length evs) in
-  let sigma = Evd.merge_universe_context sigma ucst in
+  let sigma = Evd.merge_ustate sigma ucst in
   match p.pat_pat with
   | X_In_T p -> { pat_sigma = sigma; pat_pat = E_As_X_In_T (t, p) }
   | _ ->
@@ -335,14 +335,14 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
       cl, sigma, post @ [h, p, inf_t, occ]
     else try
       let c, cl, ucst = match_pat env sigma0 p occ h cl in
-      let sigma = Evd.merge_universe_context sigma ucst in
+      let sigma = Evd.merge_ustate sigma ucst in
       let sigma = try unify_HO env sigma inf_t c
                 with exn when CErrors.noncritical exn -> error sigma c inf_t in
       cl, sigma, post
     with
     | NoMatch | NoProgress ->
         let e, ucst = redex_of_pattern env p in
-        let sigma = Evd.merge_universe_context sigma ucst in
+        let sigma = Evd.merge_ustate sigma ucst in
         let e, evs, _ucst = abs_evars env sigma (p.pat_sigma, e) in
         let e, _, _, sigma = saturate ~beta:true env sigma e (List.length evs) in
         let sigma = try unify_HO env sigma inf_t e
@@ -380,7 +380,7 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
           let open Proofview.Notations in
           Proofview.Goal.enter begin fun s ->
           let sigma = Proofview.Goal.sigma s in
-          let sigma = Evd.merge_universe_context sigma ucst in
+          let sigma = Evd.merge_ustate sigma ucst in
           let sigma, shelve = Evar.Map.fold (fun e info (sigma, shelve) ->
               if not @@ Evd.mem sigma e then
                 Evd.add sigma e info, e::shelve else

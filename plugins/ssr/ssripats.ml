@@ -760,7 +760,7 @@ let tclLAST_GEN ~to_ind ((oclr, occ), t) conclusion = tclINDEPENDENTL begin
   else
     if to_ind && occ = None then
       let p, _, ucst' = Ssrcommon.abs_evars env sigma0 (pat.pat_sigma, c) in
-      let sigma = Evd.merge_universe_context sigma ucst' in
+      let sigma = Evd.merge_ustate sigma ucst' in
       Unsafe.tclEVARS sigma <*>
       Ssrcommon.tacTYPEOF p >>= fun pty ->
       (* TODO: check bug: cl0 no lift? *)
