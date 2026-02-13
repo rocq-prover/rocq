@@ -40,11 +40,13 @@ open Proofview.Notations
 open Context.Named.Declaration
 open Ltac_pretype
 
+module TacStore = Tacenv.TacStore
+
 (* Signature for interpretation: val_interp and interpretation functions *)
 type interp_sign = Tacenv.interp_sign =
   { lfun : Geninterp.Val.t Id.Map.t
   ; poly : PolyFlags.t
-  ; extra : Geninterp.TacStore.t }
+  ; extra : TacStore.t }
 
 module Register =
 struct
@@ -161,8 +163,6 @@ let name_vfun appl vle =
   | Some (VFun (appl0,trace,loc,lfun,vars,t)) ->
     of_tacvalue (VFun (combine_appl appl0 appl,trace,loc,lfun,vars,t))
   | Some (VRec _) | None -> vle
-
-module TacStore = Geninterp.TacStore
 
 let f_avoid_ids : Id.Set.t TacStore.field = TacStore.field "f_avoid_ids"
 (* ids inherited from the call context (needed to get fresh ids) *)
