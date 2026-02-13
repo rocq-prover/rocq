@@ -520,27 +520,14 @@ let ungen_upat lhs (c, sigma, uc, t) u =
   c, sigma, uc, {u with up_k = k; up_FO = (Unification.Meta.empty, lhs); up_f = f; up_a = a; up_t = t}
 
 let nb_cs_proj_args env ise pc f u =
-  let open EConstr in
-  let open Structures in
-  let open ValuePattern in
-  let na k =
-    let open CanonicalSolution in
-    let _, { cvalue_arguments } = find env ise (GlobRef.ConstRef pc, k) in
-    List.length cvalue_arguments in
-  let nargs_of_proj t = match EConstr.kind ise t with
-      | App(_,args) -> Array.length args
-      | Proj _ -> 0 (* if splay_app calls expand_projection, this has to be
-                       the number of arguments including the projected *)
-      | _ -> assert false in
-  try match EConstr.kind ise f with
-  | Prod _ -> na Prod_cs
-  | Sort s -> na (Sort_cs (ESorts.quality_or_set ise s))
-  | Const (c',_) when Environ.QConstant.equal env c' pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) when Environ.QConstant.equal env (Names.Projection.constant c') pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) -> let _ = na (Proj_cs (Names.Projection.repr c')) in 0
-  | Var _ | Ind _ | Construct _ | Const _ -> na (Const_cs (fst @@ destRef ise f))
-  | _ -> -1
-  with Not_found -> -1
+  let constr_key = Keys.constr_key env (EConstr.kind ise) in
+  try
+    let k = Option.get (constr_key (EConstr.mkConstU (pc, EConstr.EInstance.empty))) in
+    let k' = Option.get (constr_key f) in
+    if k = k' then -2 else
+    let _, k = Option.get (Keys.equiv_keys k k') in
+    k
+  with _ -> -1
 
 let isEvar_k ise k f =
   match EConstr.kind ise f with Evar (k', _) -> k = k' | _ -> false
@@ -577,7 +564,22 @@ let filter_upat env sigma i0 f n u fpats =
   | KpatRigid when isRigid sigma f -> na
   | KpatFlex -> na
   | KpatProj pc ->
-    let np = na + nb_cs_proj_args env sigma pc f u in if n < np then -1 else np
+    let nc = nb_cs_proj_args env sigma pc f u in
+    let nc = if nc <> -2 then nc else
+      let is_proj =
+        match Environ.constant_opt_value_in env (UVars.in_punivs pc) with
+        | None -> false
+        | Some p ->
+        let rec is_proj c =
+          match Constr.kind c with
+          | Lambda (_, _, t) -> is_proj t
+          | App (hd, _) -> is_proj hd
+          | Proj (p, _, _) -> true
+          | _ -> false in
+        is_proj p in
+      if is_proj then 0 else proj_nparams pc in
+    let np = na + nc in
+    if n < np then -1 else np
   | _ -> -1 in
   if np < na then fpats else
   let () = if !i0 < np then i0 := n in (u, np) :: fpats
