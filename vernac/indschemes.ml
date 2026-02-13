@@ -218,45 +218,61 @@ let declare_one_case_analysis_scheme ?loc ind =
 
 (* Induction/recursion schemes *)
 
-let declare_one_induction_scheme ?loc ind =
-  let (mib,mip) as specif = Global.lookup_inductive ind in
-  let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
-  let from_prop = Sorts.Quality.is_qprop kind in
-  let depelim = Inductiveops.has_dependent_elim specif in
-  let kelim mip = Inductiveops.constant_sorts_below
-              @@ Inductiveops.elim_sort (mib,mip) in
-  let kelim =
-    List.fold_right (fun x acc ->
-      List.intersect UnivGen.QualityOrSet.equal acc x)
-    (List.map kelim (Array.to_list mib.mind_packets))
-    [UnivGen.QualityOrSet.qtype; UnivGen.QualityOrSet.prop; UnivGen.QualityOrSet.set; UnivGen.QualityOrSet.sprop] in
-  let kelim =
-    if Global.sprop_allowed ()
-    then kelim
-    else List.filter (fun s -> not (UnivGen.QualityOrSet.is_sprop s)) kelim
+let declare_one_induction_scheme_poly ?loc ind (mib, mip) q =
+  let scheme_kind =
+    elim_scheme ~dep:true ~to_kind:(UnivGen.QualityOrSet.Qual q)
   in
-  let elims =
-    List.filter (fun (sort,_) -> List.mem_f UnivGen.QualityOrSet.equal sort kelim)
-      [(UnivGen.QualityOrSet.qtype, "rect");
-       (UnivGen.QualityOrSet.prop, "ind");
-       (UnivGen.QualityOrSet.set, "rec");
-       (UnivGen.QualityOrSet.sprop, "sind")]
-  in
-  let elims = List.map (fun (to_kind,dflt_suff) ->
-      if from_prop then elim_scheme ~dep:false ~to_kind, Some dflt_suff
-      else if depelim then elim_scheme ~dep:true ~to_kind, Some dflt_suff
-      else elim_scheme ~dep:false ~to_kind, None)
+  let suff = "_poly_rec" in
+  let id = Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ suff)) in
+  define_individual_scheme ?loc scheme_kind id ind
+
+let declare_one_induction_scheme_const ?loc ind (mib, mip as specif) kind =
+    let from_prop = Sorts.Quality.is_qprop kind in
+    let depelim = Inductiveops.has_dependent_elim specif in
+    let kelim mip = Inductiveops.constant_sorts_below
+      @@ Inductiveops.elim_sort (mib,mip) in
+    let kelim =
+      List.fold_right (fun x acc ->
+          List.intersect UnivGen.QualityOrSet.equal acc x)
+        (List.map kelim (Array.to_list mib.mind_packets))
+        [UnivGen.QualityOrSet.qtype; UnivGen.QualityOrSet.prop; UnivGen.QualityOrSet.set; UnivGen.QualityOrSet.sprop] in
+    let kelim =
+      if Global.sprop_allowed ()
+      then kelim
+      else List.filter (fun s -> not (UnivGen.QualityOrSet.is_sprop s)) kelim
+    in
+    let elims =
+      List.filter (fun (sort, _) -> List.mem_f UnivGen.QualityOrSet.equal sort kelim)
+        (* NB: the order is important, it makes it so that _rec is
+           defined using _rect but _ind is not. *)
+        [(UnivGen.QualityOrSet.qtype, "rect");
+         (UnivGen.QualityOrSet.prop, "ind");
+         (UnivGen.QualityOrSet.set, "rec");
+         (UnivGen.QualityOrSet.sprop, "sind")]
+    in
+    let elims = List.map (fun (to_kind, dflt_suff) ->
+        if from_prop then elim_scheme ~dep:false ~to_kind, Some dflt_suff
+        else if depelim then elim_scheme ~dep:true ~to_kind, Some dflt_suff
+        else elim_scheme ~dep:false ~to_kind, None)
+        elims
+    in
+    List.iter (fun (kind, suff) ->
+        let id = match suff with
+          | None -> None
+          | Some suff ->
+            (* the auto generated eliminator may be called "rect" instead of eg "rect_dep" *)
+            Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ "_" ^ suff))
+        in
+        define_individual_scheme ?loc kind id ind)
       elims
-  in
-  List.iter (fun (kind, suff) ->
-      let id = match suff with
-        | None -> None
-        | Some suff ->
-          (* the auto generated eliminator may be called "rect" instead of eg "rect_dep" *)
-          Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ "_" ^ suff))
-      in
-      define_individual_scheme ?loc kind id ind)
-         elims
+
+let declare_one_induction_scheme ?loc ind =
+  let ((mib, mip) as specif) = Global.lookup_inductive ind in
+  let quality = Elimschemes.pseudo_sort_quality_for_elim ind mip in
+  if Sorts.Quality.is_qvar quality then
+    declare_one_induction_scheme_poly ?loc ind specif quality
+  else
+    declare_one_induction_scheme_const ?loc ind specif quality
 
 let declare_induction_schemes ?(locmap=Locmap.default None) kn =
   let mib = Global.lookup_mind kn in
@@ -415,7 +431,8 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
       else match sort with
         | Qual (QConstant QType) -> Some (if dep then case_dep else case_nodep)
         | Qual (QConstant QProp) -> Some (if dep then casep_dep else casep_nodep)
-        | Set | Qual (QConstant QSProp | QVar _) ->
+        | Qual (QVar _ as q) -> Some (if dep then case_poly_dep q else case_poly_nodep q)
+        | Set | Qual (QConstant QSProp) ->
           (* currently we don't have standard scheme kinds for this *)
           None
     in
