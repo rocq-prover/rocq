@@ -45,14 +45,8 @@ let of_glob_constr (c:Glob_term.glob_constr) =
   | _ -> GlbVal c
 
 let intern_constr ist c =
-  let {Genintern.ltacvars=lfun; genv=env; extra; intern_sign; strict_check} = ist in
   let scope = Pretyping.WithoutTypeConstraint in
-  let ltacvars = {
-    Constrintern.ltac_vars = lfun;
-    ltac_bound = Id.Set.empty;
-    ltac_extra = extra;
-  } in
-  let c' = Constrintern.intern_core scope ~strict_check ~ltacvars env (Evd.from_env env) intern_sign c in
+  let c' = Constrintern.intern_core scope ist c in
   c'
 
 let intern_constr_tacexpr ist c =
