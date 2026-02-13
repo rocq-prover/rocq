@@ -60,3 +60,9 @@
  (package coq-core)
  (modules coq_tex)
  (libraries rocqtex))
+
+(executable
+ (public_name rocqfind)
+ (package rocq-runtime)
+ (modules rocqfind)
+ (libraries findlib))

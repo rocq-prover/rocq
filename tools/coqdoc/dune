@@ -15,7 +15,7 @@
 (library
  (name coqdoclib)
  (modules :standard \ coqdoc)
- (libraries str rocq-runtime.boot rocq-runtime.config rocq-runtime.clib))
+ (libraries str rocq-runtime.boot rocq-runtime.config rocq-runtime.clib rocq-runtime.lib))
 
 (executable
  (name coqdoc)
