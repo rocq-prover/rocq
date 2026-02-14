@@ -1623,9 +1623,6 @@ let solve_constraints env (evars,cstrs) =
   let evars' = TC.resolve_typeclasses env ~filter:TC.all_evars ~fail:true evars' in
   Evd.set_typeclass_evars evars' oldtcs
 
-let nf_zeta =
-  Reductionops.clos_norm_flags (RedFlags.mkflags [RedFlags.fZETA])
-
 exception RewriteFailure of Environ.env * Evd.evar_map * pretype_error
 
 type result = (evar_map * constr option * types) option option
@@ -1667,7 +1664,6 @@ let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : resul
     let res = match res.rew_prf with
       | RewCast c -> None
       | RewPrf (rel, p) ->
-        let p = nf_zeta env evars p in
         let term =
           match abs with
           | None -> p
