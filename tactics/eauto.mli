@@ -16,6 +16,8 @@ val e_assumption : unit Proofview.tactic
 
 val e_give_exact : ?flags:Unification.unify_flags -> constr -> unit Proofview.tactic
 
+val hint_runner : TransparentState.t -> Hints.hint Hints.hint_ast -> unit Proofview.tactic
+
 val gen_eauto : ?debug:debug -> ?depth:int -> delayed_open_constr list ->
   hint_db_name list option -> unit Proofview.tactic
 
