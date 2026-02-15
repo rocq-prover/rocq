@@ -228,6 +228,51 @@ type hint_v = {
   hint_pp : Pp.t lazy_t;
 }
 
+let hint_runner st h =
+    Proofview.Goal.enter begin fun gl ->
+    let open Proofview in
+    let env = Goal.env gl in
+    let concl = Goal.concl gl in
+    let sigma = Goal.sigma gl in
+    let prods, _ = EConstr.decompose_prod_decls sigma concl in
+    let hdc = try Some (decompose_app_bound sigma concl) with Bound -> None in
+    let allowed_evars =
+        let all = Evarsolve.AllowedEvars.all in
+        match hdc with
+        | Some (hd,_) ->
+          begin match Typeclasses.class_info env hd with
+          | Some cl ->
+            if cl.cl_strict then
+              let undefined = lazy (Evarutil.undefined_evars_of_term sigma concl) in
+              let allowed evk = not (Evar.Set.mem evk (Lazy.force undefined)) in
+              Evarsolve.AllowedEvars.from_pred allowed
+            else all
+          | None -> all
+          end
+        | _ -> all
+      in
+  let flags = auto_unif_flags ~allowed_evars st in
+  let nprods = List.length prods in
+  match h with
+  | Res_pf h ->
+    let tac =
+      with_prods nprods h (unify_resolve ~with_evars:false flags h) in
+    Proofview.tclBIND (Proofview.with_shelf tac)
+      (fun (gls, ()) -> shelve_dependencies gls)
+  | ERes_pf h ->
+    let tac =
+      with_prods nprods h (unify_resolve ~with_evars:true flags h) in
+    Proofview.tclBIND (Proofview.with_shelf tac)
+      (fun (gls, ()) -> shelve_dependencies gls)
+  | Give_exact h ->
+    e_give_exact flags h
+  | Res_pf_THEN_trivial_fail h ->
+    with_prods nprods h (unify_resolve ~with_evars:true flags h)
+  | Unfold_nth c ->
+    Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
+  | Extern (p, tacast) -> conclPattern concl p tacast
+    end
+
 (** Hack to properly solve dependent evars that are typeclasses *)
 let rec e_trivial_fail_db db_list local_db secvars =
   let open Tacticals in
@@ -261,45 +306,16 @@ let rec e_trivial_fail_db db_list local_db secvars =
 
 and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
   let prods, concl = EConstr.decompose_prod_decls sigma concl0 in
-  let nprods = List.length prods in
-  let allowed_evars =
-    let all = Evarsolve.AllowedEvars.all in
-    match hdc with
-    | Some (hd,_) ->
-      begin match Typeclasses.class_info env hd with
-      | Some cl ->
-        if cl.cl_strict then
-          let undefined = lazy (Evarutil.undefined_evars_of_term sigma concl) in
-          let allowed evk = not (Evar.Set.mem evk (Lazy.force undefined)) in
-          Evarsolve.AllowedEvars.from_pred allowed
-        else all
-      | None -> all
-      end
-    | _ -> all
-  in
-  let tac_of_hint (flags,h) =
+  let tac_of_hint (st,h) =
     let name = FullHint.name h in
-    let tac = function
-      | Res_pf h ->
-        let tac =
-          with_prods nprods h (unify_resolve ~with_evars:false flags h) in
-        Proofview.tclBIND (Proofview.with_shelf tac)
-          (fun (gls, ()) -> shelve_dependencies gls)
-      | ERes_pf h ->
-        let tac =
-          with_prods nprods h (unify_resolve ~with_evars:true flags h) in
-        Proofview.tclBIND (Proofview.with_shelf tac)
-          (fun (gls, ()) -> shelve_dependencies gls)
-      | Give_exact h ->
-        e_give_exact flags h
-      | Res_pf_THEN_trivial_fail h ->
-        let fst = with_prods nprods h (unify_resolve ~with_evars:true flags h) in
-        let snd = if complete then Tacticals.tclIDTAC
+    let tac h =
+      let base_tac = hint_runner st h in
+      match h with
+      | Res_pf_THEN_trivial_fail _ ->
+        let then_tac = if complete then Tacticals.tclIDTAC
           else e_trivial_fail_db db_list local_db secvars in
-        Tacticals.tclTHEN fst snd
-      | Unfold_nth c ->
-        Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
-      | Extern (p, tacast) -> conclPattern concl0 p tacast
+        Tacticals.tclTHEN base_tac then_tac
+      | _ -> base_tac
     in
     let tac = FullHint.run h tac in
     let tac = if complete then Tacticals.tclCOMPLETE tac else tac in
@@ -328,8 +344,8 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
     let hintl =
       CList.map
         (fun (db, m, tacs) ->
-          let flags = auto_unif_flags ~allowed_evars (Hint_db.transparent_state db) in
-          m, List.map (fun x -> tac_of_hint (flags, x)) tacs)
+          let ts = Hint_db.transparent_state db in
+          m, List.map (fun x -> tac_of_hint (ts, x)) tacs)
         hintl
     in
     let modes, hintl = List.split hintl in
