@@ -170,11 +170,6 @@ val of_transparent_state : TransparentState.t -> valexpr
 val to_transparent_state : valexpr -> TransparentState.t
 val transparent_state : TransparentState.t repr
 
-(* Is this the right place to define this? *)
-val of_hint : Tac2hints.hint -> valexpr
-val to_hint : valexpr -> Tac2hints.hint
-val hint : Tac2hints.hint repr
-
 val of_pretype_flags : Pretyping.inference_flags -> valexpr
 val to_pretype_flags : valexpr -> Pretyping.inference_flags
 val pretype_flags : Pretyping.inference_flags repr
