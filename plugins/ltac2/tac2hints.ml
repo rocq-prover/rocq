@@ -2,14 +2,10 @@ type hint_db = Hints.Hint_db.t
 type hint = Hints.FullHint.t
 
 
-(*
-   Given a hint database name as a string, return an optional hint_db
-*)
+(* Given a hint database name as a string, return an optional hint_db *)
 let get_hint_db db_name = try Some (Hints.searchtable_map db_name) with Not_found -> None
 
-(*
-   Compute all applicable hints, given a hint database
-*)
+(* Compute all applicable hints, given a hint database *)
 let get_applicable_hints db =
   Proofview.Goal.enter_one begin fun gl ->
     let hint_lst =  try
@@ -22,3 +18,6 @@ let get_applicable_hints db =
     with Hints.Bound -> [] in
     Proofview.tclUNIT hint_lst
   end
+
+(* Run a hint, using auto's strategy (for now)*)
+let run_hint h = Hints.FullHint.run h Auto.hint_runner

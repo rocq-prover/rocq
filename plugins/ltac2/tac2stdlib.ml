@@ -830,6 +830,9 @@ let () =
 let () =
   define "get_applicable_hints" (hint_db @-> tac (list hint)) Tac2hints.get_applicable_hints
 
+let () =
+  define "run_hint" (hint @-> tac unit) Tac2hints.run_hint
+
 (** Tactics around Evarconv unification (in [Ltac2/Unification.v]). *)
 
 let to_conv_pb v = match Tac2ffi.to_int v with

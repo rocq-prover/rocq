@@ -9,3 +9,7 @@ Ltac2 @ external get_hint_db: string -> (hint_db) option :=
 
 Ltac2 @ external get_applicable_hints: hint_db -> hint list :=
     "rocq-runtime.plugins.ltac2" "get_applicable_hints".
+
+
+(* TODO: Add different strategies for running hints - auto / eauto / tc_eauto *)
+Ltac2 @ external run_hint: hint -> unit := "rocq-runtime.plugins.ltac2" "run_hint".
