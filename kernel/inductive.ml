@@ -673,7 +673,8 @@ type subterm_spec =
 let is_norec_path t = match Rtree.dest_head t with
 | Norec -> true
 | Mrec _ -> false
-| exception (Failure _) -> false
+| exception Failure _ ->
+  anomaly ~label:"rtree" Pp.(str "Non-closed recursive tree during guard checking.")
 
 let inter_recarg r1 r2 = if eq_recarg r1 r2 then Some r1 else None
 
