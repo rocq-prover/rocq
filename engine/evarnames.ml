@@ -262,6 +262,7 @@ let add_fresh basename ev ?parent evn =
   in
   let qualid = EvarQualid.{ basename; path = path ev evn } in
   let ans = NameResolution.find qualid evn.name_resolution in
+  let ans = Evar.Set.diff ans evn.removed_evars in
   if Evar.Set.is_empty ans then
     (* No need to give the parent since it's already registered *)
     add basename ev evn
@@ -362,6 +363,7 @@ let name_of ev evn =
   | None -> None
   | Some name ->
     let conflicts = NameResolution.find name evn.name_resolution in
+    let conflicts = Evar.Set.diff conflicts evn.removed_evars in
     (* TODO: we should the caller handle the conflict themselves instead of
        generating nonsensical names in linear time. *)
     match classify_set conflicts with
@@ -385,6 +387,7 @@ let has_unambiguous_name ev evn =
   | None -> false
   | Some name ->
     let ans = NameResolution.find name evn.name_resolution in
+    let ans = Evar.Set.diff ans evn.removed_evars in
     match classify_set ans with
     | SetEmpty | SetOther -> false
     | SetSingleton e ->
@@ -393,6 +396,8 @@ let has_unambiguous_name ev evn =
 let resolve fp evn =
   let qualid = EvarQualid.make fp in
   let evs = NameResolution.find qualid evn.name_resolution in
+  (* Do not consider removed evars as conflicts for name resolution *)
+  let evs = Evar.Set.diff evs evn.removed_evars in
   let open Pp in
   match classify_set evs with
   | SetEmpty -> raise Not_found
