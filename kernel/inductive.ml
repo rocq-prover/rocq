@@ -960,9 +960,8 @@ let get_recargs_approx cache ?evars env tree ind args =
     if is_norec_path tree then tree
     else
     let mib = Environ.lookup_mind mind env in
-    let auxnpar = mib.mind_nparams_rec in
-    let nonrecpar = mib.mind_nparams - auxnpar in
-    let (lpar,_) = List.chop auxnpar largs in
+    let nonrecpar = mib.mind_nparams - mib.mind_nparams_rec in
+    let (lpar,_) = List.chop mib.mind_nparams_rec largs in
     let auxntyp = Declareops.mind_ntypes mib in
     (* Extends the environment with a variable corresponding to
              the inductive def *)
@@ -978,7 +977,7 @@ let get_recargs_approx cache ?evars env tree ind args =
     in
     let mk_irecargs j mip =
       (* The nested inductive type with parameters removed *)
-      let auxlcvect = abstract_mind_lc auxntyp auxnpar mind mip.mind_nf_lc in
+      let auxlcvect = abstract_mind_lc auxntyp mib.mind_nparams_rec mind mip.mind_nf_lc in
       let paths = Array.mapi
         (fun k c ->
          let c' = hnf_prod_applist ?evars env' c lpar' in
@@ -1054,8 +1053,8 @@ let restrict_spec cache ?evars env spec p =
     | Dead_code -> spec
     | Subterm (l, st, tree) ->
       let recargs = get_recargs_approx cache ?evars env tree i args in
-      let recargs = inter_wf_paths tree recargs in
-      Subterm (l, st, recargs)
+      let tree = inter_wf_paths tree recargs in
+      Subterm (l, st, tree)
     | _ -> assert false
     end
   | _ -> Not_subterm
@@ -1087,16 +1086,17 @@ let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p 
           else
             let sarg = lazy begin match Lazy.force spec with
             | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
-            | Subterm (l, s, path) ->
-              let recargs = get_recargs_approx cache ?evars env path ind args in
-              let path = inter_wf_paths path recargs in
-              Subterm (l, s, path)
+            | Subterm (l, s, tree) ->
+              let recargs = get_recargs_approx cache ?evars env tree ind args in
+              let tree = inter_wf_paths tree recargs in
+              Subterm (l, s, tree)
             end in
             SArg sarg
         | _ -> SArg (set_iota_specif (lazy Not_subterm))
         in
         elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
-      | _ -> List.fold_right (fun _ l -> SArg (set_iota_specif (lazy Not_subterm)) :: l) stack []
+      | _ ->
+        List.map (fun _ -> SArg (set_iota_specif (lazy Not_subterm))) stack
   in
   filter_stack env 0 ar stack
 
