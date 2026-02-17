@@ -495,7 +495,7 @@ let get_indices indb u =
 let make_case_or_projections naming_vars mib ind indb u key_uparams key_nuparams params indices mk_case_pred case_relevance tm_match tc =
   let* env = get_env in
   let* sigma = get_sigma in
-  let case_info = Inductiveops.make_case_info env ind RegularStyle in
+  let case_info = Inductiveops.make_case_info env ind MatchStyle in
 
   let case_invert =
     if Inductiveops.Internal.should_invert_case env sigma (ERelevance.kind sigma case_relevance) case_info

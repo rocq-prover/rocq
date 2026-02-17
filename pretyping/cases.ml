@@ -1968,7 +1968,7 @@ let build_inversion_problem ~program_mode loc env sigma tms t =
       history   = start_history n;
       mat       = main_eqn :: catch_all_eqn;
       caseloc   = loc;
-      casestyle = RegularStyle;
+      casestyle = MatchStyle;
       typing_function = build_tycon ?loc env pb_env s subst} in
   let _used, sigma, j = compile ~program_mode sigma pb in
   (sigma, j.uj_val)

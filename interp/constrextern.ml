@@ -1475,7 +1475,7 @@ let rec glob_of_pat
           ((List.hd nas, Some (CAst.make (ind, List.tl nas))), Some p)
         | _ -> anomaly (Pp.str "PCase with non-trivial predicate but unknown inductive.")
       in
-      GCases (Constr.RegularStyle,rtn,[glob_of_pat of_extra avoid env sigma tm,indnames],mat)
+      GCases (Constr.MatchStyle,rtn,[glob_of_pat of_extra avoid env sigma tm,indnames],mat)
   | PFix ((ln,i),(lna,tl,bl)) ->
      let def_avoid, def_env, lfi =
        Array.fold_left

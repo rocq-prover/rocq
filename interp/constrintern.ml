@@ -2676,7 +2676,7 @@ let cases self genv env lvar ?loc (sty, rtnpo, tms, eqns) =
         if List.for_all (irrefutable genv) thepats then [] else
           [CAst.make @@ ([],List.make (List.length thepats) (DAst.make @@ PatVar Anonymous), (* "|_,..,_" *)
                          DAst.make @@ GHole(GImpossibleCase))]   (* "=> _" *) in
-      Some (DAst.make @@ GCases(RegularStyle,sub_rtn,sub_tms,main_sub_eqn::catch_all_sub_eqn))
+      Some (DAst.make @@ GCases(MatchStyle,sub_rtn,sub_tms,main_sub_eqn::catch_all_sub_eqn))
   in
   let eqns' = List.map (intern_eqn self genv env lvar (List.length tms)) eqns in
   DAst.make ?loc @@

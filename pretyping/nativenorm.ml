@@ -341,7 +341,7 @@ and nf_atom_type env sigma atom =
       let branchs = Array.mapi mkbranch bsw in
       let tcase = build_case_type (pctx, p) realargs a in
       let p = (get_case_annot pctx, p) in
-      let ci = Inductiveops.make_case_info env ind RegularStyle in
+      let ci = Inductiveops.make_case_info env ind MatchStyle in
       let iv = if Inductiveops.Internal.should_invert_case env sigma relevance ci then
           CaseInvert {indices=realargs}
         else NoInvert
