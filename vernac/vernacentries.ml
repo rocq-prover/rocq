@@ -1853,7 +1853,7 @@ let vernac_reserve bl =
     let t,ctx = Constrintern.interp_type env sigma c in
     let t =
       let flags = { (PrintingFlags.Detype.current()) with universes = false } in
-      Detyping.detype Detyping.Now ~flags env (Evd.from_ctx ctx) t
+      Detyping.detype Detyping.Now ~flags env (Evd.from_ustate ctx) t
     in
     let t,_ = Notation_ops.notation_constr_of_glob_constr (default_env ()) t in
     Reserve.declare_reserved_type idl t)

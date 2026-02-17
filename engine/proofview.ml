@@ -1103,7 +1103,7 @@ module Unsafe = struct
     Pv.modify (fun ps -> { solution = evd; comb = undefined evd ps.comb })
 
   let tclEVARUNIVCONTEXT ctx =
-    Pv.modify (fun ps -> { ps with solution = Evd.set_universe_context ps.solution ctx })
+    Pv.modify (fun ps -> { ps with solution = Evd.set_ustate ps.solution ctx })
 
   let push_future_goals p =
     { p with solution = Evd.push_future_goals p.solution }

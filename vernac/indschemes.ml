@@ -570,10 +570,10 @@ let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
   let uctx = UState.normalize_variables uctx in
   let uctx = UState.minimize uctx in
-  let sigma = Evd.set_universe_context sigma uctx in
+  let sigma = Evd.set_ustate sigma uctx in
   let thm = UState.nf_universes uctx (EConstr.to_constr sigma thm) in
   let uctx = UState.restrict uctx (Vars.universes_of_constr thm) in
-  let sigma = Evd.set_universe_context sigma uctx in
+  let sigma = Evd.set_ustate sigma uctx in
   (* declare it *)
   let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:true ~cumulative:true in
   let info = Declare.Info.make ~poly:poly_flag () in

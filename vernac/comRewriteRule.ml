@@ -48,7 +48,7 @@ let do_symbol ~poly ~unfold_fix udecl (id, typ) =
   Pretyping.check_evars_are_solved ~program_mode:false env evd;
   let evd = Evd.minimize_universes ~poly evd in
   let _qvars, uvars = EConstr.universes_of_constr evd typ in
-  let evd = Evd.restrict_universe_context evd uvars in
+  let evd = Evd.restrict_ustate evd uvars in
   let typ = EConstr.to_constr evd typ in
   let univs = Evd.check_univ_decl ~poly evd udecl in
   let entry = Declare.symbol_entry ~univs ~unfold_fix typ in
@@ -434,7 +434,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
   let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
   let evd = Evd.minimize_universes ~poly evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
-  let evd = Evd.restrict_universe_context evd uvars in
+  let evd = Evd.restrict_ustate evd uvars in
   let uctx, uctx' = UState.check_univ_decl_rev (Evd.ustate evd) udecl in
 
   let usubst =
@@ -472,7 +472,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
 
   (* 3. Read right hand side *)
   (* The udecl constraints (or, if none, the lhs constraints) must imply those of the rhs *)
-  let evd = Evd.set_universe_context evd uctx in
+  let evd = Evd.set_ustate evd uctx in
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd rhs) in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with poly } in
   let evd', rhs =
@@ -484,7 +484,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
   in
   let evd' = Evd.minimize_universes ~poly evd' in
   let _qvars', uvars' = EConstr.universes_of_constr evd' rhs in
-  let evd' = Evd.restrict_universe_context evd' (Univ.Level.Set.union uvars uvars') in
+  let evd' = Evd.restrict_ustate evd' (Univ.Level.Set.union uvars uvars') in
   let fail pp = warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(surround (str "universe inconsistency") ++ str"." ++ spc() ++ str "Missing constraints: " ++ pp) in
   let () = UState.check_uctx_impl ~fail (Evd.ustate evd) (Evd.ustate evd') in
   let evd = evd' in

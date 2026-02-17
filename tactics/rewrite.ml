@@ -1805,7 +1805,7 @@ let proper_projection env sigma r ty =
 
 let build_morphism_signature env sigma m =
   let m,ctx = Constrintern.interp_constr env sigma m in
-  let sigma = Evd.from_ctx ctx in
+  let sigma = Evd.from_ustate ctx in
   let t = Retyping.get_type_of env sigma m in
   let cstrs =
     let rec aux t =

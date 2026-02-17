@@ -1151,7 +1151,7 @@ let rec rebuild_cons env nb_args relname args crossed_types depth rt =
     let not_free_in_t id = not (is_free_in id t) in
     let evd = Evd.from_env env in
     let t', ctx = Pretyping.understand env evd t in
-    let evd = Evd.from_ctx ctx in
+    let evd = Evd.from_ustate ctx in
     let type_t' = Retyping.get_type_of env evd t' in
     let new_env =
       EConstr.push_rel (LocalDef (make_annot n ERelevance.relevant, t', type_t')) env
