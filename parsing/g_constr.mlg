@@ -508,7 +508,9 @@ GRAMMAR EXTEND Gram
         { List.map (fun (n, b, t) -> CLocalAssum ([n], None, Generalized (MaxImplicit, b), t)) tc }
       | "`["; tc = LIST1 typeclass_constraint SEP "," ; "]" ->
         { List.map (fun (n, b, t) -> CLocalAssum ([n], None, Generalized (NonMaxImplicit, b), t)) tc }
-      | "'"; p = pattern LEVEL "0" -> { [CLocalPattern p] } ] ]
+      | "'"; p = pattern LEVEL "0" -> { [CLocalPattern p] }
+      | "&"; c = term LEVEL "99" ->
+        { [CLocalAssum ([CAst.make ~loc Anonymous], None, Default Explicit, c)] } ] ]
   ;
   one_open_binder:
     [ [ na = name -> { (pat_of_name na, Explicit) }

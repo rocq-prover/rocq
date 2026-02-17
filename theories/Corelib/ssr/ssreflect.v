@@ -231,7 +231,7 @@ Variant put vT sT (v1 v2 : vT) (s : sT) : Prop := Put.
 
 Definition get vT sT v s (p : @put vT sT v v s) := let: Put _ _ _ := p in s.
 
-Definition get_by vT sT of sT -> vT := @get vT sT.
+Definition get_by vT sT & sT -> vT := @get vT sT.
 
 End TheCanonical.
 

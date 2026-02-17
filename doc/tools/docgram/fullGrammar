@@ -348,6 +348,7 @@ closed_binder: [
 | "`{" LIST1 typeclass_constraint SEP "," "}"
 | "`[" LIST1 typeclass_constraint SEP "," "]"
 | "'" pattern0
+| "&" term99
 ]
 
 one_open_binder: [
