@@ -19,7 +19,10 @@ Notation "[ x ; y ; .. ; z ]" :=  (cons x (cons y .. (cons z nil) ..))
 Open Scope list_scope.
 Open Scope float_scope.
 
-Section __WORK_AROUND_COQBUG_4790.
+Module Type T. End T.
+
+(* use empty type to avoid native compiling expanded values  *)
+Module Tests : T.
 (** *************************************************************************)
 (** * Specifying the arguments to test on *)
 (** EDIT HERE TO ADD MORE TESTS *)
@@ -408,24 +411,24 @@ Definition combine_annotations (orig : list ANNOTATED_BARE_SPEC) (result : list 
     Reductions like [cbv] and [lazy] and the [vm] are mostly
     indifferent.  So we maintain both [_red] versions for [simpl] and
     [cbn] and non-[_red] versions for [native_compute]. *)
-(** We make [_red] definitions [Let] statements, to work around
+(** We make [_red] definitions [Definition] statements, to work around
     COQBUG(https://github.com/rocq-prover/rocq/issues/4790) and avoid stack
     overflows in COQNATIVE *)
 
 (** * 1. Test the specs *)
 Section TestSpecs.
 
-Time Let specs_red : list ANNOTATED_BARE_SPEC
+Time Definition specs_red : list ANNOTATED_BARE_SPEC
   := Eval cbv [spec_list instantiate_all_ways] in instantiate_all_ways spec_list. (* 0.911 secs *)
 
-Let bare_specs_red : list BARE_SPEC
+Definition bare_specs_red : list BARE_SPEC
   := Eval cbv [map_fst specs_red] in map_fst specs_red.
 
-Time Let bare_specs_vm : list BARE_SPEC
+Time Definition bare_specs_vm : list BARE_SPEC
   := Eval vm_compute in bare_specs_red. (* 1.934 secs *)
 
 (** ** Fuse in the annotations so that we can report errors nicely *)
-Time Let results_vm : list ANNOTATED_BARE_SPEC
+Time Definition results_vm : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations bare_specs_vm specs_red] in combine_annotations specs_red bare_specs_vm. (* 1.374 secs *)
 
 (** ** Report results *)
@@ -441,17 +444,17 @@ Axiom wrong_spec : forall x, (- x)%float = PrimFloat.abs x.
 
 Definition wrong_spec_list : list SPEC := cons ( `wrong_spec ) nil.
 
-Let wrong_specs : list ANNOTATED_BARE_SPEC
+Definition wrong_specs : list ANNOTATED_BARE_SPEC
   := Eval cbv [wrong_spec_list instantiate_all_ways] in instantiate_all_ways wrong_spec_list.
 
-Let wrong_bare_specs : list BARE_SPEC
+Definition wrong_bare_specs : list BARE_SPEC
   := Eval cbv [map_fst wrong_specs] in map_fst wrong_specs.
 
-Let wrong_bare_specs_vm : list BARE_SPEC
+Definition wrong_bare_specs_vm : list BARE_SPEC
   := Eval vm_compute in wrong_bare_specs.
 
 (** ** Fuse in the annotations so that we can report errors nicely *)
-Let wrong_results_vm : list ANNOTATED_BARE_SPEC
+Definition wrong_results_vm : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations wrong_bare_specs_vm wrong_specs] in combine_annotations wrong_specs wrong_bare_specs_vm.
 
 (** ** Report results *)
@@ -470,11 +473,11 @@ End NegativeTest.
 
 Definition op_specs : list ANNOTATED_BARE_SPEC
   := instantiate_all_ways_nored op_spec_list.
-Time Let op_specs_red : list ANNOTATED_BARE_SPEC
+Time Definition op_specs_red : list ANNOTATED_BARE_SPEC
   := Eval cbv [instantiate_all_ways op_spec_list] in instantiate_all_ways op_spec_list. (* 0.883 secs *)
 Definition op_bare_specs : list BARE_SPEC
   := map fst op_specs.
-Let op_bare_specs_red : list BARE_SPEC
+Definition op_bare_specs_red : list BARE_SPEC
   := Eval cbv [map_fst op_specs_red] in map_fst op_specs_red.
 
 (** Machinery for evaluating independently the LHS of specs *)
@@ -502,13 +505,13 @@ Fixpoint merge_lhs (ls : list BARE_SPEC) (result : hlist) : list BARE_SPEC
      end.
 
 (** 0. evaluate [op_specs] with [vm_compute] *)
-Let op_bare_specs_vm : list BARE_SPEC
+Definition op_bare_specs_vm : list BARE_SPEC
   := Eval vm_compute in op_bare_specs_red.
 
 (** 1. [extract_lhs] of [op_specs] *)
 Definition LHS_op : hlist
   := extract_lhs op_bare_specs.
-Let LHS_op_red : hlist
+Definition LHS_op_red : hlist
   := Eval cbv [op_bare_specs_red extract_lhs] in extract_lhs op_bare_specs_red.
 
 (** 2. evaluate LHS with each mechanism *)
@@ -519,7 +522,7 @@ Let LHS_op_red : hlist
 (** ** [vm_compute] is ommited as it is the reference *)
 (** ** [native_compute] *)
 (** Native is slow at compiling big code, so we start from smaller code *)
-Let LHS_op_native := Eval native_compute in extract_lhs op_bare_specs.
+Definition LHS_op_native := Eval native_compute in extract_lhs op_bare_specs.
 
 (** ** [hnf] *)
 (** recursively applies hnf to all elements of the list *)
@@ -531,48 +534,48 @@ Ltac2 rec eval_hnf_hlist (c : constr) : constr
          '(hcons $h $t)
      | hnil => 'hnil
      end.
-Time Let LHS_op_hnf := ltac2:(let l := Std.eval_hnf 'LHS_op_red in let x := eval_hnf_hlist l in exact $x). (* 16.309 secs *)
+Time Definition LHS_op_hnf := ltac2:(let l := Std.eval_hnf 'LHS_op_red in let x := eval_hnf_hlist l in exact $x). (* 16.309 secs *)
 
 (** ** [cbn] *)
-Time Let LHS_op_cbn := Eval cbn in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.25 secs *)
+Time Definition LHS_op_cbn := Eval cbn in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.25 secs *)
 
 (** ** [simpl] *)
-Time Let LHS_op_simpl := Eval simpl in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.296 secs *)
+Time Definition LHS_op_simpl := Eval simpl in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.296 secs *)
 
 (** ** [cbv] *)
-Time Let LHS_op_cbv := Eval cbv in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.292 secs *)
+Time Definition LHS_op_cbv := Eval cbv in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.292 secs *)
 
 (** ** [lazy] *)
-Time Let LHS_op_lazy := Eval lazy in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.259 secs *)
+Time Definition LHS_op_lazy := Eval lazy in ltac2:(let l := Std.eval_hnf 'LHS_op_red in exact $l). (* 0.259 secs *)
 
 (** 3. [merge_lhs] with results of 2. and 0. *)
 
 (** ** fuse the results of vm RHS (vm because it's fast) back into cbn/hnf/simpl LHS for comparison *)
-Let op_bare_specs_native : list BARE_SPEC
+Definition op_bare_specs_native : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_native] in merge_lhs op_bare_specs_vm LHS_op_native.
-Let op_bare_specs_hnf : list BARE_SPEC
+Definition op_bare_specs_hnf : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_hnf] in merge_lhs op_bare_specs_vm LHS_op_hnf.
-Let op_bare_specs_cbn : list BARE_SPEC
+Definition op_bare_specs_cbn : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_cbn] in merge_lhs op_bare_specs_vm LHS_op_cbn.
-Let op_bare_specs_simpl : list BARE_SPEC
+Definition op_bare_specs_simpl : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_simpl] in merge_lhs op_bare_specs_vm LHS_op_simpl.
-Let op_bare_specs_cbv : list BARE_SPEC
+Definition op_bare_specs_cbv : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_cbv] in merge_lhs op_bare_specs_vm LHS_op_cbv.
-Let op_bare_specs_lazy : list BARE_SPEC
+Definition op_bare_specs_lazy : list BARE_SPEC
   := Eval cbv [merge_lhs op_bare_specs_vm LHS_op_lazy] in merge_lhs op_bare_specs_vm LHS_op_lazy.
 
 (** ** Fuse in the annotations so that we can report errors nicely *)
-Time Let op_results_native : list ANNOTATED_BARE_SPEC
+Time Definition op_results_native : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_native] in combine_annotations op_specs_red op_bare_specs_native. (* 0.826 secs *)
-Time Let op_results_hnf : list ANNOTATED_BARE_SPEC
+Time Definition op_results_hnf : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_hnf] in combine_annotations op_specs_red op_bare_specs_hnf. (* 0.83 secs *)
-Time Let op_results_cbn : list ANNOTATED_BARE_SPEC
+Time Definition op_results_cbn : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_cbn] in combine_annotations op_specs_red op_bare_specs_cbn. (* 0.83 secs *)
-Time Let op_results_simpl : list ANNOTATED_BARE_SPEC
+Time Definition op_results_simpl : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_simpl] in combine_annotations op_specs_red op_bare_specs_simpl. (* 0.865 secs *)
-Time Let op_results_cbv : list ANNOTATED_BARE_SPEC
+Time Definition op_results_cbv : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_cbv] in combine_annotations op_specs_red op_bare_specs_cbv. (* 0.845 secs *)
-Time Let op_results_lazy : list ANNOTATED_BARE_SPEC
+Time Definition op_results_lazy : list ANNOTATED_BARE_SPEC
   := Eval cbv [combine_annotations op_specs_red op_bare_specs_lazy] in combine_annotations op_specs_red op_bare_specs_lazy. (* 0.812 secs *)
 
 (** ** Report results *)
@@ -583,5 +586,4 @@ Ltac2 Eval report_results "cbn" 'op_results_cbn.
 Ltac2 Eval report_results "simpl" 'op_results_simpl.
 Ltac2 Eval report_results "cbv" 'op_results_cbv.
 Ltac2 Eval report_results "lazy" 'op_results_lazy.
-
-End __WORK_AROUND_COQBUG_4790.
+End Tests.
