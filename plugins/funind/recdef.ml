@@ -1512,7 +1512,7 @@ let com_terminate interactive_proof tcc_lemma_name tcc_lemma_ref is_mes
   in
   try
     let sigma, new_goal_type = build_new_goal_type lemma in
-    let sigma = Evd.from_ctx (Evd.ustate sigma) in
+    let sigma = Evd.from_ustate (Evd.ustate sigma) in
     open_new_goal ~lemma start_proof sigma using_lemmas tcc_lemma_ref
       (Some tcc_lemma_name) new_goal_type
   with EmptySubgoals ->
@@ -1552,7 +1552,7 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
     | GlobRef.ConstRef c -> is_opaque_constant c
     | _ -> anomaly ~label:"terminate_lemma" (Pp.str "not a constant.")
   in
-  let evd = Evd.from_ctx uctx in
+  let evd = Evd.from_ustate uctx in
   let f_constr = constr_of_monomorphic_global (Global.env ()) f_ref in
   let equation_lemma_type = subst1 f_constr equation_lemma_type in
   let info = Declare.Info.make () in
@@ -1689,7 +1689,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   in
   let relation, evuctx = interp_constr env_with_pre_rec_args evd r in
   let () = check_relation_type env_with_pre_rec_args evd relation in
-  let evd = Evd.from_ctx evuctx in
+  let evd = Evd.from_ustate evuctx in
   let tcc_lemma_name = add_suffix function_name "_tcc" in
   let tcc_lemma_constr = ref Undefined in
   (* let _ = Pp.msgnl (fun _ _ -> str "relation := " ++ Printer.pr_lconstr_env env_with_pre_rec_args relation) in *)

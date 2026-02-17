@@ -604,7 +604,7 @@ let restrict_inductive_universes sigma ctx_params arities constructors =
   let uvars = List.fold_left (fun acc d -> Context.Rel.Declaration.fold_constr merge_universes_of_constr d acc) uvars ctx_params in
   let uvars = List.fold_right merge_universes_of_constr arities uvars in
   let uvars = List.fold_right (fun (_,ctypes) -> List.fold_right merge_universes_of_constr ctypes) constructors uvars in
-  Evd.restrict_universe_context sigma uvars
+  Evd.restrict_ustate sigma uvars
 
 let check_trivial_variances variances =
   Array.iter (function

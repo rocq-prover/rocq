@@ -1308,7 +1308,7 @@ let explain_not_match_error = function
   | IncompatibleUnivConstraints { got; expect } ->
     let open UVars in
     let pr_auctx auctx =
-      let sigma = Evd.from_ctx
+      let sigma = Evd.from_ustate
           (UState.of_names
              (Printer.universe_binders_with_opt_names auctx None))
       in

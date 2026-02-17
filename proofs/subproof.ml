@@ -134,13 +134,13 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
   in
   (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data proof in
-  let sigma = Evd.set_universe_context sigma output_ustate in
+  let sigma = Evd.set_ustate sigma output_ustate in
   (univs, body, typ), status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string "temporary_proof" in
   let sign = Environ.(val_of_named_context (named_context env)) in
-  let sigma = Evd.from_ctx uctx in
+  let sigma = Evd.from_ustate uctx in
   (* status doesn't matter: any given up evars can't be in the body/typ
      (we would get OpenProof exception) and we drop the evar part of the evar map *)
   let (univs, body, typ), _status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in

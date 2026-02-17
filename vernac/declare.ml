@@ -1018,7 +1018,7 @@ let declare_possibly_mutual_parameters ~info ~cinfo ?(mono_uctx_extra=UState.emp
       let typ = Vars.replace_vars subst typ in
       let pe = {
           parameter_entry_secctx = sec_vars;
-          parameter_entry_type = Evarutil.nf_evars_universes (Evd.from_ctx uctx) typ;
+          parameter_entry_type = Evarutil.nf_evars_universes (Evd.from_ustate uctx) typ;
           parameter_entry_universes = univs;
           parameter_entry_inline_code = None;
         } in
@@ -1061,7 +1061,7 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible
   let possible_guard, fixrelevances = possible_guard in
   let fixtypes = List.map (fun CInfo.{typ} -> typ) cinfo in
   let rec_declaration = prepare_recursive_declaration cinfo fixtypes fixrelevances bodies in
-  let bodies_types, sigma, indexes = make_recursive_bodies ~sigma:(Evd.from_ctx uctx) env ~typing_flags ~rec_declaration ~possible_guard in
+  let bodies_types, sigma, indexes = make_recursive_bodies ~sigma:(Evd.from_ustate uctx) env ~typing_flags ~rec_declaration ~possible_guard in
   let uctx = Evd.ustate sigma in
   let entries = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let entries_for_using = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
@@ -1537,7 +1537,7 @@ let subst_prog subst prg =
 
 let declare_definition ~pm prg =
   let varsubst = obligation_substitution true prg in
-  let sigma = Evd.from_ctx prg.prg_uctx in
+  let sigma = Evd.from_ustate prg.prg_uctx in
   let body, types = subst_prog varsubst prg in
   let body, types = EConstr.(of_constr body, of_constr types) in
   let cinfo = { prg.prg_cinfo with CInfo.typ = Some types } in
@@ -1557,7 +1557,7 @@ let declare_mutual_definitions ~pm l =
   let defobl x =
     let oblsubst = obligation_substitution true x in
     let subs, typ = subst_prog oblsubst x in
-    let sigma = Evd.from_ctx x.prg_uctx in
+    let sigma = Evd.from_ustate x.prg_uctx in
     let term = EConstr.of_constr subs in
     let typ = EConstr.of_constr typ in
     let term = EConstr.to_constr sigma term in
@@ -1682,7 +1682,7 @@ let obligation_terminator ~pm ~entry ~eff ~uctx ~oinfo:{name; num; auto; check_f
   in
   (* TODO: we always inline effects here, maybe we could export them when transparent? *)
   let body, uctx = inline_private_constants ~uctx env (body, eff) in
-  let sigma = Evd.from_ctx uctx in
+  let sigma = Evd.from_ustate uctx in
   Inductiveops.control_only_guard (Global.env ()) sigma
     (EConstr.of_constr body);
   (* Declare the obligation ourselves and drop the hook *)
@@ -2249,7 +2249,7 @@ let save_admitted ~pm ~proof =
   let iproof = get proof in
   let Proof.{ entry; poly } = Proof.data iproof in
   let typs = List.map pi3 (Proofview.initial_goals entry) in
-  let sigma = Evd.from_ctx proof.initial_euctx in
+  let sigma = Evd.from_ustate proof.initial_euctx in
   List.iter (check_type_evars_solved (Global.env()) sigma) typs;
   let sec_vars = compute_proof_using_for_admitted proof.pinfo proof typs iproof in
   let sigma = Evd.minimize_universes ~poly sigma in
@@ -2484,7 +2484,7 @@ let solve_by_tac prg obls i tac =
     match Subproof.build_by_tactic_opt env ~uctx ~poly ~typ tac with
     | None -> None
     | Some (body, types, _univs, uctx) ->
-      let () = Inductiveops.control_only_guard env (Evd.from_ctx uctx) (EConstr.of_constr body) in
+      let () = Inductiveops.control_only_guard env (Evd.from_ustate uctx) (EConstr.of_constr body) in
       Some (body, types, uctx)
   with
   | Tacticals.FailError (_, s) as exn ->
@@ -2568,7 +2568,7 @@ let solve_obligation ?check_final prg num tac =
   in
   let obl = subst_deps_obl obls obl in
   let kind = kind_of_obligation (snd obl.obl_status) in
-  let evd = Evd.from_ctx (Internal.get_uctx prg) in
+  let evd = Evd.from_ustate (Internal.get_uctx prg) in
   let evd = Evd.update_sigma_univs (Global.universes ()) evd in
   let auto ~pm n oblset tac = fst (auto_solve_obligations ~pm n ~oblset tac) in
   let proof_ending =

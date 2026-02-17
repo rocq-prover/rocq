@@ -198,7 +198,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
     user_err
     (str"Computed inversion goal was not closed in initial signature.");
   *)
-  let pf = Proof.start ~name ~poly (Evd.from_ctx (ustate sigma)) [invEnv,invGoal] in
+  let pf = Proof.start ~name ~poly (Evd.from_ustate (ustate sigma)) [invEnv,invGoal] in
   let pf, _, () = Proof.run_tactic env (tclTHEN intro (onLastHypId inv_op)) pf in
   let pfterm = List.hd (Proof.partial_proof pf) in
   let global_named_context = Global.named_context_val () in
@@ -244,7 +244,7 @@ let add_inversion_lemma_exn ~poly na com comsort bool tac =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let c, uctx = Constrintern.interp_type env sigma com in
-  let sigma = Evd.from_ctx uctx in
+  let sigma = Evd.from_ustate uctx in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:univ_rigid sigma comsort in
   add_inversion_lemma ~poly na env sigma c sort bool tac
 
