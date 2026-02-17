@@ -88,6 +88,11 @@ Ltac2 @ external new_goal : evar -> unit := "rocq-runtime.plugins.ltac2" "new_go
     already defined in the current state, don't do anything. Panics if the
     evar is not in the current state. *)
 
+Ltac2 @external reorder_goals : int list -> unit := "rocq-runtime.plugins.ltac2" "reorder_goals".
+(** [reorder_goals l] reorders the goals according to (1-indexed) list [l]:
+    goal [i] after executing the tactic was goal [nth l (i-1)] before executing the tactic.
+    Throws if [l] is not a permutation of ints from [1] to [numgoals()]. *)
+
 Ltac2 @ external unshelve : (unit -> 'a) -> 'a := "rocq-runtime.plugins.ltac2" "unshelve".
 (** Runs the closure, then unshelves existential variables added to the
     shelf by its execution, prepending them to the current goal.
