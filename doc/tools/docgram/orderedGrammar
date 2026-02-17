@@ -405,6 +405,7 @@ binder: [
 | generalizing_binder
 | "(" name ":" type "|" term ")"
 | "'" pattern0
+| "&" term99
 ]
 
 implicit_binders: [
