@@ -612,19 +612,18 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
       n, aliastyp, Some typ
   in
   let constructs = Array.init (Array.length bl) (fun i -> (ci.ci_ind,i+1)) in
-  let tag = let st = ci.ci_pp_info.style in
-    try
-      if flags.flg.always_regular_match_style then
-        RegularStyle
-      else if st == LetPatternStyle then
-        st
-      else if PrintingLet.active ci.ci_ind then
-        LetStyle
-      else if PrintingIf.active ci.ci_ind then
-        IfStyle
-      else
-        st
-    with Not_found -> st
+  let tag =
+    let tag = ci.ci_pp_info.style in
+    if flags.flg.always_regular_match_style then
+      RegularStyle
+    else if tag == LetPatternStyle then
+      tag
+    else if PrintingLet.active ci.ci_ind then
+      LetStyle
+    else if PrintingIf.active ci.ci_ind then
+      IfStyle
+    else
+      tag
   in
   match tag, aliastyp with
   | LetStyle, None ->
