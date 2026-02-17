@@ -94,6 +94,9 @@ let { Goptions.get = print_relevances } =
     ~value:false
     ()
 
+(* detyping *)
+let always_print_regular_match_style = make_flag ["Printing";"Regular";"Matches"] false
+
 (* detyping.ml but extern time *)
 let { Goptions.get = print_factorize_match_patterns } =
   Goptions.declare_bool_option_and_ref
@@ -253,9 +256,9 @@ module Detype = struct
     primproj_params = print_primproj_params();
     unfolded_primproj_as_match = print_unfolded_primproj_asmatch();
     match_paramunivs = print_match_paramunivs();
+    always_regular_match_style = !always_print_regular_match_style;
 
     (* not yet exposed (except through Printing All) *)
-    always_regular_match_style = false;
     nonpropositional_letin_types = false;
   }
 

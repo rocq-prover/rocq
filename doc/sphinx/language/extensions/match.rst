@@ -348,6 +348,19 @@ This example emphasizes what the printing settings offer.
 
        Print snd.
 
+Printing regular match syntax
++++++++++++++++++++++++++++++
+
+.. flag:: Printing Regular Matches
+
+   When enabled, this flag makes printing avoid the alternate case
+   analysis syntaxes (with :ref:`if <if-then-else>` and :ref:`let
+   <irrefutable-patterns>`), overriding :table:`Printing If` and
+   :table:`Printing Let` and disregarding the syntax used to input the
+   case analysis (so e.g. `let 'tt := tt in tt` will be printed using `match`).
+
+   This flag is off by default.
+
 Conventions about unused pattern-matching variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
