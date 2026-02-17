@@ -1435,64 +1435,63 @@ struct
       try find_rectype !!env sigma cj.uj_type
       with Not_found ->
         let cloc = loc_of_glob_constr c in
-          error_case_not_inductive ?loc:cloc !!env sigma cj in
+        error_case_not_inductive ?loc:cloc !!env sigma cj in
     let cstrs = get_constructors !!env indf in
-      if not (Int.equal (Array.length cstrs) 2) then
-        user_err ?loc
-                      (str "If is only for inductive types with two constructors.");
-
-      let arsgn, indr =
-        let arsgn = get_arity !!env indf in
-        (* Make dependencies from arity signature impossible *)
-        List.map (set_name Anonymous) arsgn, Inductiveops.relevance_of_inductive_family !!env indf
-      in
-      let nar = List.length arsgn in
-      let indt = build_dependent_inductive !!env indf in
-      let psign = LocalAssum (make_annot na indr, indt) :: arsgn in (* For locating names in [po] *)
-      let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
-      let hypnaming = VarSet.variables (Global.env ()) in
-      let psign,env_p = push_rel_context ~hypnaming sigma psign predenv in
-      let sigma, pred, p = match po with
-        | Some p ->
-          let sigma, pj = eval_type_pretyper self ~flags empty_valcon env_p sigma p in
-          let ccl = nf_evar sigma pj.utj_val in
-          let pred = it_mkLambda_or_LetIn ccl psign in
-          let typ = lift (- nar) (beta_applist sigma (pred,[cj.uj_val])) in
-          sigma, pred, typ
-        | None ->
-          let sigma, p = match tycon with
-            | Some ty -> sigma, ty
-            | None -> new_type_evar env sigma ~src:(loc,Evar_kinds.CasesType false)
-          in
-          sigma, it_mkLambda_or_LetIn (lift (nar+1) p) psign, p in
-      let pred = nf_evar sigma pred in
-      let p = nf_evar sigma p in
-      let f sigma cs b =
-        let n = Context.Rel.length cs.cs_args in
-        let pi = lift n pred in (* liftn n 2 pred ? *)
-        let pi = beta_applist sigma (pi, [build_dependent_constructor cs]) in
-        let cs_args = cs.cs_args in
-        let cs_args = Context.Rel.map (whd_betaiota !!env sigma) cs_args in
-        let csgn =
-          List.map (set_name Anonymous) cs_args
+    let () = if not (Int.equal (Array.length cstrs) 2) then
+        CErrors.user_err ?loc (str "If is only for inductive types with two constructors.")
+    in
+    let arsgn, indr =
+      let arsgn = get_arity !!env indf in
+      (* Make dependencies from arity signature impossible *)
+      List.map (set_name Anonymous) arsgn, Inductiveops.relevance_of_inductive_family !!env indf
+    in
+    let nar = List.length arsgn in
+    let indt = build_dependent_inductive !!env indf in
+    let psign = LocalAssum (make_annot na indr, indt) :: arsgn in (* For locating names in [po] *)
+    let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
+    let hypnaming = VarSet.variables (Global.env ()) in
+    let psign,env_p = push_rel_context ~hypnaming sigma psign predenv in
+    let sigma, pred, p = match po with
+      | Some p ->
+        let sigma, pj = eval_type_pretyper self ~flags empty_valcon env_p sigma p in
+        let ccl = nf_evar sigma pj.utj_val in
+        let pred = it_mkLambda_or_LetIn ccl psign in
+        let typ = lift (- nar) (beta_applist sigma (pred,[cj.uj_val])) in
+        sigma, pred, typ
+      | None ->
+        let sigma, p = match tycon with
+          | Some ty -> sigma, ty
+          | None -> new_type_evar env sigma ~src:(loc,Evar_kinds.CasesType false)
         in
-        let _,env_c = push_rel_context ~hypnaming sigma csgn env in
-        let sigma, bj = pretype (mk_tycon pi) env_c sigma b in
-        sigma, it_mkLambda_or_LetIn bj.uj_val cs_args in
-      let sigma, b1 = f sigma cstrs.(0) b1 in
-      let sigma, b2 = f sigma cstrs.(1) b2 in
-      let sigma, v =
-        let ind,_ = dest_ind_family indf in
-        let pred = nf_evar sigma pred in
-        let sigma, rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val pred in
-        let ci = make_case_info !!env (fst ind) IfStyle in
-        sigma, mkCase (EConstr.contract_case !!env sigma
-                  (ci, (pred,rci),
-                   make_case_invert !!env sigma indty ~case_relevance:rci ci, cj.uj_val,
-                   [|b1;b2|]))
+        sigma, it_mkLambda_or_LetIn (lift (nar+1) p) psign, p in
+    let pred = nf_evar sigma pred in
+    let p = nf_evar sigma p in
+    let f sigma cs b =
+      let n = Context.Rel.length cs.cs_args in
+      let pi = lift n pred in (* liftn n 2 pred ? *)
+      let pi = beta_applist sigma (pi, [build_dependent_constructor cs]) in
+      let cs_args = cs.cs_args in
+      let cs_args = Context.Rel.map (whd_betaiota !!env sigma) cs_args in
+      let csgn =
+        List.map (set_name Anonymous) cs_args
       in
-      let cj = { uj_val = v; uj_type = p } in
-      discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma cj tycon
+      let _,env_c = push_rel_context ~hypnaming sigma csgn env in
+      let sigma, bj = pretype (mk_tycon pi) env_c sigma b in
+      sigma, it_mkLambda_or_LetIn bj.uj_val cs_args in
+    let sigma, b1 = f sigma cstrs.(0) b1 in
+    let sigma, b2 = f sigma cstrs.(1) b2 in
+    let sigma, v =
+      let ind,_ = dest_ind_family indf in
+      let pred = nf_evar sigma pred in
+      let sigma, rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val pred in
+      let ci = make_case_info !!env (fst ind) IfStyle in
+      sigma, mkCase (EConstr.contract_case !!env sigma
+                       (ci, (pred,rci),
+                        make_case_invert !!env sigma indty ~case_relevance:rci ci, cj.uj_val,
+                        [|b1;b2|]))
+    in
+    let cj = { uj_val = v; uj_type = p } in
+    discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma cj tycon
 
   let pretype_cast self (c, k, t) =
     fun ?loc ~flags tycon env sigma ->
