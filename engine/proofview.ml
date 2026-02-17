@@ -977,7 +977,6 @@ module Progress = struct
   let goal_equal ~evd ~extended_evd evar extended_evar =
     let EvarInfo evi = Evd.find evd evar in
     let EvarInfo extended_evi = Evd.find extended_evd extended_evar in
-    if Obj.magic evi == extended_evi then true else
     if not (Evar.equal evar extended_evar) && Evd.mem evd extended_evar then false else
     if fast_eq_evar_info evi extended_evi then
       eq_evar_info evd extended_evd evi extended_evi
