@@ -393,8 +393,7 @@ let has_unambiguous_name ev evn =
     let matches = get_matching_evars name evn in
     match classify_set matches with
     | SetEmpty | SetOther -> false
-    | SetSingleton e ->
-      Evar.equal e ev && not (EvSet.mem ev evn.removed_evars)
+    | SetSingleton e -> Evar.equal e ev
 
 let resolve fp evn =
   let qualid = EvarQualid.make fp in
@@ -402,8 +401,6 @@ let resolve fp evn =
   let open Pp in
   match classify_set evs with
   | SetEmpty -> raise Not_found
-  | SetSingleton ev ->
-    if EvSet.mem ev evn.removed_evars then raise Not_found
-    else ev
+  | SetSingleton ev -> ev
   | SetOther ->
     CErrors.user_err ?loc:fp.loc (str "Ambiguous evar name " ++ Libnames.pr_qualid fp ++ str ".")
