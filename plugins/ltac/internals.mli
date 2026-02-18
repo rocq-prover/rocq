@@ -31,7 +31,7 @@ val with_delayed_uconstr : Tacinterp.interp_sign ->
 val replace_in_clause_maybe_by : Tacinterp.interp_sign -> bool option ->
   closed_glob_constr -> EConstr.constr ->
   Locus.clause -> Tacinterp.Value.t option -> unit tactic
-val replace_term : Geninterp.interp_sign -> bool option -> closed_glob_constr ->
+val replace_term : Tacinterp.interp_sign -> bool option -> closed_glob_constr ->
   Locus.clause -> unit tactic
 
 val discrHyp : Names.Id.t -> unit tactic
@@ -59,7 +59,7 @@ val tclOPTIMIZE_HEAP : unit tactic
 
 val onSomeWithHoles : ('a option -> unit tactic) -> 'a Tactypes.delayed_open option -> unit tactic
 
-val exact : Geninterp.interp_sign -> Ltac_pretype.closed_glob_constr -> unit Proofview.tactic
+val exact : Tacinterp.interp_sign -> Ltac_pretype.closed_glob_constr -> unit Proofview.tactic
 
 (** {5 Commands} *)
 

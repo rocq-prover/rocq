@@ -77,7 +77,7 @@ val print_ltac : Libnames.qualid -> Pp.t
 
 type (_, 'a) ml_ty_sig =
 | MLTyNil : ('a, 'a) ml_ty_sig
-| MLTyArg : ('r, 'a) ml_ty_sig -> (Geninterp.Val.t -> 'r, 'a) ml_ty_sig
+| MLTyArg : ('r, 'a) ml_ty_sig -> (Tacinterp.Value.t -> 'r, 'a) ml_ty_sig
 
 val ml_tactic_extend : plugin:string -> name:string -> local:locality_flag ->
   ?deprecation:Deprecation.t -> ('r, unit Proofview.tactic) ml_ty_sig -> 'r -> unit
@@ -88,14 +88,14 @@ val ml_tactic_extend : plugin:string -> name:string -> local:locality_flag ->
     argument. *)
 
 val ml_val_tactic_extend : plugin:string -> name:string -> local:locality_flag ->
-  ?deprecation:Deprecation.t -> ('r, Geninterp.Val.t Ftactic.t) ml_ty_sig -> 'r -> unit
+  ?deprecation:Deprecation.t -> ('r, Tacinterp.Value.t Ftactic.t) ml_ty_sig -> 'r -> unit
 (** Same as {!ml_tactic_extend} but the function can return an argument
     instead. *)
 
 (** {5 TACTIC EXTEND} *)
 
 type _ ty_sig =
-| TyNil : (Geninterp.interp_sign -> unit Proofview.tactic) ty_sig
+| TyNil : (Tacinterp.interp_sign -> unit Proofview.tactic) ty_sig
 | TyIdent : string * 'r ty_sig -> 'r ty_sig
 | TyArg : ('a, 'b, 'c) Extend.ty_user_symbol * 'r ty_sig -> ('c -> 'r) ty_sig
 
@@ -106,8 +106,8 @@ val tactic_extend : string -> string -> level:Int.t ->
 
 val eval_of_ty_ml :
   ty_ml ->
-  Geninterp.Val.t list ->
-  Geninterp.interp_sign ->
+  Tacinterp.Value.t list ->
+  Tacinterp.interp_sign ->
   unit Proofview.tactic
 
 (** grammar rule for [add_tactic_notation] *)
@@ -155,10 +155,10 @@ type 'b argument_subst =
 
 type ('b, 'c) argument_interp =
 | ArgInterpRet : ('c, 'c) argument_interp
-| ArgInterpFun : ('b, Geninterp.Val.t) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
+| ArgInterpFun : ('b, Tacinterp.Value.t) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
 | ArgInterpWit : ('a, 'b, 'r) Genarg.genarg_type -> ('b, 'c) argument_interp
 | ArgInterpSimple :
-  (Geninterp.interp_sign -> Environ.env -> Evd.evar_map -> 'b -> 'c) -> ('b, 'c) argument_interp
+  (Tacinterp.interp_sign -> Environ.env -> Evd.evar_map -> 'b -> 'c) -> ('b, 'c) argument_interp
 
 type ('a, 'b, 'c) tactic_argument = {
   arg_parsing : 'a Vernacextend.argument_rule;

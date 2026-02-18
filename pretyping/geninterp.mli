@@ -11,7 +11,6 @@
 (** Interpretation functions for generic arguments and interpreted Ltac
     values. *)
 
-open Names
 open Genarg
 
 (** {6 Dynamic toplevel values} *)
@@ -57,12 +56,3 @@ val register_val0 : ('raw, 'glb, 'top) genarg_type -> 'top Val.tag option -> uni
 (** Register the representation of a generic argument. If no tag is given as
     argument, a new fresh tag with the same name as the argument is associated
     to the generic type. *)
-
-(** {6 Interpretation functions} *)
-
-module TacStore : Store.S
-
-type interp_sign =
-  { lfun : Val.t Id.Map.t
-  ; poly : PolyFlags.t
-  ; extra : TacStore.t }

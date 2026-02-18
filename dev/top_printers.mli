@@ -203,7 +203,7 @@ val ppgenarginfo : Geninterp.Val.t -> unit
 
 val ppgenargargt : ('a, 'b, 'c) Genarg.ArgT.tag -> unit
 
-val ppist : Geninterp.interp_sign -> unit
+val ppist : Ltac_plugin.Tacinterp.interp_sign -> unit
 
 val raw_string_of_ref : ?loc:Loc.t -> Names.Id.Set.t -> Names.GlobRef.t -> Libnames.qualid
 val short_string_of_ref : ?loc:Loc.t -> Names.Id.Set.t -> Names.GlobRef.t -> Libnames.qualid

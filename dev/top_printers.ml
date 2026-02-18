@@ -653,7 +653,7 @@ let ppgenargargt arg = pp (str (Genarg.ArgT.repr arg))
 
 let ppist ist =
   let pr id arg = prgenarginfo arg in
-  pp (pridmap pr ist.Geninterp.lfun)
+  pp (pridmap pr ist.Ltac_plugin.Tacinterp.lfun)
 
 (**********************************************************************)
 (* Vernac-level debugging commands                                    *)

@@ -14,6 +14,7 @@ open Environ
 open Evd
 open Constr
 open Genintern
+open Ltac_plugin.Tacinterp
 
 (** ******** Small Scale Reflection pattern matching facilities ************* *)
 
@@ -26,7 +27,7 @@ type ssrtermkind = | InParens | WithAt | NoFlag | Cpattern
 type cpattern =
   { kind : ssrtermkind
   ; pattern : Genintern.glob_constr_and_expr
-  ; interpretation : Geninterp.interp_sign option }
+  ; interpretation : interp_sign option }
 val pr_cpattern : cpattern -> Pp.t
 
 (** Pattern interpretation and matching *)
@@ -75,7 +76,7 @@ val interp_rpattern :
     [ty] is an optional type for the redex of [cpat] *)
 val interp_cpattern :
   Environ.env -> Evd.evar_map ->
-  cpattern -> (glob_constr_and_expr * Geninterp.interp_sign) option ->
+  cpattern -> (glob_constr_and_expr * interp_sign) option ->
     pattern
 
 (** The set of occurrences to be matched. The boolean is set to true
@@ -251,15 +252,15 @@ sig
   val wit_rpatternty : (rpattern, rpattern, rpattern) Genarg.genarg_type
   val glob_rpattern : Genintern.glob_sign -> rpattern -> rpattern
   val subst_rpattern : Mod_subst.substitution -> rpattern -> rpattern
-  val interp_rpattern : Geninterp.interp_sign -> env -> evar_map -> rpattern -> rpattern
+  val interp_rpattern : interp_sign -> env -> evar_map -> rpattern -> rpattern
   val pr_rpattern : rpattern -> Pp.t
   val mk_rpattern : (cpattern * cpattern, cpattern) ssrpattern -> rpattern
-  val mk_lterm : Constrexpr.constr_expr -> Geninterp.interp_sign option -> cpattern
-  val mk_term : ssrtermkind -> Constrexpr.constr_expr -> Geninterp.interp_sign option -> cpattern
+  val mk_lterm : Constrexpr.constr_expr -> interp_sign option -> cpattern
+  val mk_term : ssrtermkind -> Constrexpr.constr_expr -> interp_sign option -> cpattern
 
   val glob_cpattern : Genintern.glob_sign -> cpattern -> cpattern
   val subst_ssrterm : Mod_subst.substitution -> cpattern -> cpattern
-  val interp_ssrterm : Geninterp.interp_sign -> env -> evar_map -> cpattern -> cpattern
+  val interp_ssrterm : interp_sign -> env -> evar_map -> cpattern -> cpattern
   val pr_ssrterm : cpattern -> Pp.t
 end
 
