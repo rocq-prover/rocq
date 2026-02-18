@@ -851,6 +851,11 @@ let () = define "constr_relevance_relevant" (ret relevance) Sorts.Relevant
 let () = define "constr_relevance_irrelevant" (ret relevance) Sorts.Irrelevant
 
 let () =
+  define "constr_relevance_of_sort" (sort @-> eret relevance) @@ fun s _ sigma ->
+  let open EConstr in
+  ERelevance.kind sigma @@ ESorts.relevance_of_sort s
+
+let () =
   define "constr_has_evar" (constr @-> tac bool) @@ fun c ->
   Proofview.tclEVARMAP >>= fun sigma ->
   return (Evarutil.has_undefined_evars sigma c)

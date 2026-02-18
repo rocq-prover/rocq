@@ -60,6 +60,10 @@ Module Relevance.
   Ltac2 @external irrelevant : t
     := "rocq-runtime.plugins.ltac2" "constr_relevance_irrelevant".
 
+  (** Produce the relevance of the given sort (SProp -> irrelevant, etc). *)
+  Ltac2 @external of_sort : sort -> t
+    := "rocq-runtime.plugins.ltac2" "constr_relevance_of_sort".
+
 End Relevance.
 
 Module Unsafe.
