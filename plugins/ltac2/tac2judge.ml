@@ -151,10 +151,6 @@ let () = define "push_named_def" (ident @-> termj @-> tac local_env) @@ fun id j
   else
     push_named_def_tac j.env id j.term j.typ (Retyping.relevance_of_term env sigma j.term)
 
-let () = define "term_of_termj" (termj @-> ret constr) @@ fun t -> t.term
-
-let () = define "type_of_typej" (typej @-> ret constr) @@ fun t -> t.term
-
 let understand_uconstr_ty ~flags ~expected_type env sigma c =
   let open Ltac_pretype in
   let { closure; term } = c in
@@ -199,3 +195,13 @@ let () = define "message_of_env" (local_env @-> tac pp) @@ fun ctx ->
 
 let () = define "message_of_constr_in_env" (local_env @-> constr @-> tac pp) @@ fun ctx c ->
   pf_apply_in ctx @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
+
+let () = define "term_of_termj" (termj @-> ret constr) @@ fun t -> t.term
+
+let () = define "type_of_typej" (typej @-> ret constr) @@ fun t -> t.term
+
+let () = define "unsafe_typej" (local_env @-> constr @-> sort @-> ret typej) @@ fun ctx t s ->
+  { env = ctx; term=t; typ=s }
+
+let () = define "unsafe_termj" (constr @-> typej @-> ret termj) @@ fun c j ->
+  { env = j.env; term=c; typ=j.term }
