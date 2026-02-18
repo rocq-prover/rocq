@@ -834,8 +834,7 @@ let in_tacval =
   let subst_fun s v = v in
   let () = Genintern.register_intern0 wit intern_fun in
   let () = Gensubst.register_subst0 wit subst_fun in
-  (* No need to register a value tag for it via register_val0 since we will
-     never access this genarg directly. *)
+  let () = Geninterp.register_val0 wit (Some Any) in
   let interp_fun ist tac =
     let args = List.map (fun id -> Id.Map.get id ist.Tacinterp.lfun) tac.tacval_var in
     let tac = MLTacMap.get tac.tacval_tac !ml_table in
@@ -879,8 +878,8 @@ type 'b argument_subst =
 
 type ('b, 'c) argument_interp =
 | ArgInterpRet : ('c, 'c) argument_interp
-| ArgInterpFun : ('b, Val.t) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
-| ArgInterpWit : ('a, 'b, 'r) Genarg.genarg_type -> ('b, 'c) argument_interp
+| ArgInterpFun : ('b, 'c) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
+| ArgInterpWit : ('a, 'b, 'c) Genarg.genarg_type -> ('b, 'c) argument_interp
 | ArgInterpSimple :
   (Tacinterp.interp_sign -> Environ.env -> Evd.evar_map -> 'b -> 'c) -> ('b, 'c) argument_interp
 
@@ -909,18 +908,18 @@ match arg.arg_subst with
     let ans = Genarg.out_gen (glbwit wit) (Tacsubst.subst_genarg s (Genarg.in_gen (glbwit wit) v)) in
     ans
 
-let interp_fun (type a b c) name (arg : (a, b, c) tactic_argument) (tag : c Val.tag) : (b, Val.t) Tacinterp.Register.interp_fun =
+let interp_fun (type a b c) name (arg : (a, b, c) tactic_argument) (tag : c Val.tag) : (b, c) Tacinterp.Register.interp_fun =
 match arg.arg_interp with
-| ArgInterpRet -> (fun ist v -> Ftactic.return (Geninterp.Val.inject tag v))
+| ArgInterpRet -> (fun ist v -> Ftactic.return v)
 | ArgInterpFun f -> f
 | ArgInterpWit wit ->
-  (fun ist x -> Tacinterp.interp_genarg ist (Genarg.in_gen (glbwit wit) x))
+  (fun ist x -> Tacinterp.interp_genarg wit ist x)
 | ArgInterpSimple f ->
   (fun ist v -> Ftactic.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let v = f ist env sigma v in
-    Ftactic.return (Geninterp.Val.inject tag v)
+    Ftactic.return v
   end)
 
 let argument_extend (type a b c) ~plugin ~name ~ignore_kw (arg : (a, b, c) tactic_argument) =
