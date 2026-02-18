@@ -140,6 +140,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Ltac2/Ind.v
     theories/Ltac2/Init.v
     theories/Ltac2/Int.v
+    theories/Ltac2/Judge.v
     theories/Ltac2/Lazy.v
     theories/Ltac2/List.v
     theories/Ltac2/Ltac1.v
