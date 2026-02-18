@@ -695,6 +695,10 @@ let () =
     EConstr.Vars.liftn
 
 let () =
+  define "subst_vars" (list ident @-> constr @-> eret constr) @@ fun ids c _env sigma ->
+  EConstr.Vars.subst_vars sigma ids c
+
+let () =
   define "constr_substnl" (list constr @-> int @-> constr @-> ret constr)
     EConstr.Vars.substnl
 
