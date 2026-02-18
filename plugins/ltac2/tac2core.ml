@@ -67,23 +67,6 @@ open Tac2quote.Refs
 
 let v_blk = Valexpr.make_block
 
-let of_relevance = function
-  | Sorts.Relevant -> ValInt 0
-  | Sorts.Irrelevant -> ValInt 1
-  | Sorts.RelevanceVar q -> ValBlk (0, [|of_qvar q|])
-
-let to_relevance = function
-  | ValInt 0 -> Sorts.Relevant
-  | ValInt 1 -> Sorts.Irrelevant
-  | ValBlk (0, [|qvar|]) ->
-    let qvar = to_qvar qvar in
-    Sorts.RelevanceVar qvar
-  | _ -> assert false
-
-(* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
-   ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
-let relevance = make_repr of_relevance to_relevance
-
 let of_rec_declaration (nas, ts, cs) =
   let binders = Array.map2 (fun na t -> (na, t)) nas ts in
   (Tac2ffi.of_array of_binder binders,
@@ -176,6 +159,21 @@ let pf_apply ?(catch_exceptions=false) f =
     f (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
+
+let local_of_env env : local_env = {
+  local_named = Environ.named_context_val env;
+  local_rel = Environ.rel_context_val env;
+}
+
+let reset_local_env env ctx =
+  let env = Environ.reset_with_named_context ctx.local_named env in
+  Environ.set_rel_context_val ctx.local_rel env
+
+let pf_apply_in ?(catch_exceptions=false) ctx f =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  Proofview.tclENV >>= fun genv ->
+  let env = reset_local_env genv ctx in
+  wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f env sigma)
 
 open Tac2externals
 
@@ -1043,6 +1041,20 @@ let () =
   | Proofview.Fail e -> return (Error e)
   end
 
+let () = define "global_env" (unit @-> eret local_env) @@ fun () env _ ->
+  local_of_env env
+
+let () = define "goal_env" (unit @-> tac local_env) @@ fun () ->
+  Proofview.Goal.goals >>= function
+  | [gl] ->
+    gl >>= fun gl ->
+    return (local_of_env (Proofview.Goal.env gl))
+  | [] | _ :: _ :: _ ->
+    throw err_notfocussed
+
+let () = define "current_env" (unit @-> tac local_env) @@ fun () ->
+  pf_apply @@ fun env _ -> return (local_of_env env)
+
 let () =
   define "numgoals" (unit @-> tac int) @@ fun () ->
   Proofview.numgoals
@@ -1114,7 +1126,7 @@ let () =
   let len = List.length gls in
   let l = Array.of_list l in
   if not (is_permutation len l) then
-    throw (err_invalid_arg (Pp.str "reorder_goals"))
+    throw (err_invalid_arg (Some (Pp.str "reorder_goals")))
   else
     let gls = Array.of_list gls in
     let gls = List.init len (fun i -> gls.(l.(i) - 1)) in
