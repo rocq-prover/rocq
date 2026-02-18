@@ -854,6 +854,16 @@ let () =
   ERelevance.kind sigma @@ ESorts.relevance_of_sort s
 
 let () =
+  define "relevance_of_term_in_env" (local_env @-> constr @-> tac relevance) @@ fun ctx t ->
+  pf_apply_in ctx @@ fun env sigma ->
+  return (EConstr.Unsafe.to_relevance @@ Retyping.relevance_of_term env sigma t)
+
+let () =
+  define "relevance_of_type_in_env" (local_env @-> constr @-> tac relevance) @@ fun ctx t ->
+  pf_apply_in ctx @@ fun env sigma ->
+  return (EConstr.Unsafe.to_relevance @@ Retyping.relevance_of_type env sigma t)
+
+let () =
   define "constr_has_evar" (constr @-> tac bool) @@ fun c ->
   Proofview.tclEVARMAP >>= fun sigma ->
   return (Evarutil.has_undefined_evars sigma c)

@@ -39,6 +39,18 @@ Ltac2 @ external type : binder -> constr := "rocq-runtime.plugins.ltac2" "constr
 Ltac2 @ external relevance : binder -> relevance := "rocq-runtime.plugins.ltac2" "constr_binder_relevance".
 (** Retrieve the relevance of a binder. *)
 
+Module UnsafeEnv.
+    (** Early declaration, see [Relevance.UnsafeEnv]. *)
+    Local Ltac2 @external relevance_of_type_in_env : env -> constr -> relevance
+      := "rocq-runtime.plugins.ltac2" "relevance_of_type_in_env".
+
+    (** From arguments [Γ] [na] [t] produces the binder for [na : t],
+        retyping [t] in [Γ] to get its relevance. *)
+    Ltac2 make_in_ctx (ctx : env) (na : ident option) (t : constr) : binder :=
+      let r := relevance_of_type_in_env ctx t in
+      Constr.Binder.unsafe_make na r t.
+End UnsafeEnv.
+
 End Binder.
 
 Module Relevance.
@@ -63,6 +75,22 @@ Module Relevance.
   (** Produce the relevance of the given sort (SProp -> irrelevant, etc). *)
   Ltac2 @external of_sort : sort -> t
     := "rocq-runtime.plugins.ltac2" "constr_relevance_of_sort".
+
+  Module UnsafeEnv.
+
+    (** From arguments [Γ] and [c], if [c] is a valid term in [Γ] return its relevance as a term
+        (faster than retyping but not quite constant time).
+        Does not check that [c] is a valid term in [Γ]. *)
+    Ltac2 @external relevance_of_term_in_env : env -> constr -> t
+      := "rocq-runtime.plugins.ltac2" "relevance_of_term_in_env".
+
+    (** From arguments [Γ] and [c], if [c] is a valid type in [Γ] return its relevance as a type
+        (by retyping).
+        Does not check that [c] is a valid type in [Γ]. *)
+    Ltac2 @external relevance_of_type_in_env : env -> constr -> t
+      := "rocq-runtime.plugins.ltac2" "relevance_of_type_in_env".
+
+  End UnsafeEnv.
 
 End Relevance.
 
