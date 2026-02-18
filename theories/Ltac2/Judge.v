@@ -104,3 +104,53 @@ Ltac2 @external pretype_in_expecting : Constr.Pretype.Flags.t -> preterm -> type
 (** Print the given environment. Named and local variables are not distinguished. *)
 Ltac2 @external message_of_env : env -> message
   := "rocq-runtime.plugins.ltac2" "message_of_env".
+
+Module UnsafeEnv.
+(** Functions in this module may be unsafe in two ways:
+    - The function expectes invariants on the arguments to be true but does not check them.
+      Typically [termj] does not check that its arguments are related.
+    - Calling the function is safe, but combining it with safe functions is not.
+      Typically [term_of_termj] is safe, but calling [Std.eval_cbv] on the result is not safe.
+ *)
+
+  (** From argument [Γ ⊢ c : t] return [c]. *)
+  Ltac2 @external term_of_termj : termj -> constr
+    := "rocq-runtime.plugins.ltac2" "term_of_termj".
+
+  (** From argument [Γ ⊢ t : s] return [t]. *)
+  Ltac2 @external type_of_typej : typej -> constr
+    := "rocq-runtime.plugins.ltac2" "type_of_typej".
+
+  (** From arguments [Γ] [t] and [s] return [Γ ⊢ t : s] without checking anything. *)
+  Ltac2 @external typej : env -> constr -> sort -> typej
+    := "rocq-runtime.plugins.ltac2" "unsafe_typej".
+
+  (** From arguments [c] and [Γ ⊢ t : s] return [Γ ⊢ c : t] without checking anything. *)
+  Ltac2 @external termj : constr -> typej -> termj
+    := "rocq-runtime.plugins.ltac2" "unsafe_termj".
+
+  (** From arguments [Γ] [id] [t] and [r], produces [Γ, id : t]
+      assuming [t] has relevance [r].
+      Throws if [id] is already bound in [Γ].
+      Does not check anything else (e.g. that [t] is valid or has relevance [r] in [Γ]). *)
+  Ltac2 @external push_named_assum : env -> ident -> constr -> Constr.Relevance.t -> env
+    := "rocq-runtime.plugins.ltac2" "unsafe_push_named_assum".
+
+  (** From arguments [Γ] [id] [c] [t] and [r], produces [Γ, id := c : t]
+      assuming [t] has relevance [r].
+      Throws if [id] is already bound in [Γ].
+      Does not check anything else. *)
+  Ltac2 @external push_named_def : env -> ident -> constr -> constr -> Constr.Relevance.t -> env
+    := "rocq-runtime.plugins.ltac2" "unsafe_push_named_def".
+
+  (** Produces the [binder] corresponding to a type judgement and a name.
+
+      Safe to call, but [binder] does not retain context information
+      so using the resulting value with safe APIs
+      (eg [Std.eval_hnf (Constr.Binder.type (of_typej ...))])
+      is not safe. *)
+  Ltac2 binder_of_typej (na : ident option) (j : typej) : binder :=
+    Constr.Binder.unsafe_make na (Constr.Relevance.of_sort (sort_of_typej j)) (type_of_typej j).
+
+
+End UnsafeEnv.
