@@ -32,5 +32,5 @@ val process_expr : state:State.t -> Vernacexpr.vernac_control -> State.t
 
 (** [load_vernac sid file] Loads [file] on top of [sid].
     Callers are expected to handle and print errors in form of exceptions. *)
-val load_vernac : check:bool ->
+val load_vernac : ?beautify:bool -> check:bool ->
   state:State.t -> ?source:Loc.source -> string -> State.t

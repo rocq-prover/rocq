@@ -32,6 +32,8 @@ type t =
   ; compile_file: string option  (* bool is verbosity  *)
   ; compilation_output_name : string option
 
+  ; beautify : bool
+
   ; glob_out    : glob_output option
 
   ; output_context : bool

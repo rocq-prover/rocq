@@ -461,8 +461,7 @@ and ``rocq repl``, unless stated otherwise:
   removed tokens.  Requires that ``-color`` is enabled.  (see Section
   :ref:`showing_diffs`).
 :-beautify: Pretty-print each command to *file.beautified* when
-  compiling *file.v*, in order to get old-fashioned
-  syntax/definitions/notations.
+  compiling *file.v*. Very buggy.
 :-emacs, -ide-slave: Start a special toplevel to communicate with a
   specific IDE.
 :-impredicative-set: Change the logical theory of Rocq by declaring the

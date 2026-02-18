@@ -42,10 +42,6 @@ val in_ml_toplevel : bool ref
 (* Used to check stages are used correctly. *)
 val in_synterp_phase : bool option ref
 
-(* Beautify command line flags, should move to printing? *)
-val beautify : bool ref
-val beautify_file : bool ref
-
 (* Rocq quiet mode. Note that normal mode is called "verbose" here,
    whereas [quiet] suppresses normal output such as goals in rocq repl *)
 val quiet : bool ref

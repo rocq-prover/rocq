@@ -32,6 +32,7 @@ module type S = sig
     val get : unit -> t
     val drop : unit -> unit
     val get_comments : t -> ((int * int) * string) list
+    val drop_comments : t -> t
   end
 
 end
