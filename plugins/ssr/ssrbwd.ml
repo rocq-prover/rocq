@@ -151,7 +151,7 @@ let inner_ssrapplytac gviews (ggenl, gclr) ist =
     let env = Proofview.Goal.env gl in
     let concl = Proofview.Goal.concl gl in
     let clr', lemma = interp_agens ist env sigma ~concl agens in
-    let sigma = Evd.merge_universe_context sigma (Evd.ustate (fst lemma)) in
+    let sigma = Evd.merge_ustate sigma (Evd.ustate (fst lemma)) in
     Tacticals.tclTHENLIST [Proofview.Unsafe.tclEVARS sigma; cleartac clr; refine_with ~beta:true lemma; cleartac clr']
   | _, _ ->
     Tacticals.tclTHENLIST [apply_top_tac; cleartac clr]))

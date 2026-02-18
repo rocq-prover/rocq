@@ -63,7 +63,7 @@ let ssrsettac id ((_, (pat, pty)), (_, occ)) =
   let (c, ucst), cl =
     try fill_occ_pattern ~raise_NoMatch:true env sigma cl pat occ 1
     with NoMatch -> redex_of_pattern_tc env pat, cl in
-  let sigma = Evd.merge_universe_context sigma ucst in
+  let sigma = Evd.merge_ustate sigma ucst in
   if Termops.occur_existential sigma c then errorstrm(str"The pattern"++spc()++
     pr_econstr_pat env sigma c++spc()++str"did not match and has holes."++spc()++
     str"Did you mean pose?") else

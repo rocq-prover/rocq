@@ -703,7 +703,7 @@ let declare_private_constant ?role ?ts ~name ~opaque de effs =
 
 let inline_private_constants ~uctx env (body, eff) =
   let body, ctx = Safe_typing.inline_private_constants env (body, SideEff.get eff) in
-  let uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
+  let uctx = UState.merge_universe_context_set ~sideff:true Evd.univ_rigid uctx ctx in
   body, uctx
 
 (** Declaration of section variables and local definitions *)

@@ -687,7 +687,7 @@ let abs_ssrterm ?(resolve_typeclasses=false) ist env sigma t =
        sigma, Evarutil.nf_evar sigma ct in
   let c, abstracted_away, ucst = abs_evars env sigma0 t in
   let n = List.length abstracted_away in
-  let sigma = Evd.merge_universe_context sigma0 ucst in
+  let sigma = Evd.merge_ustate sigma0 ucst in
   let t = abs_cterm env sigma n c in
   sigma, t, n
 
@@ -761,7 +761,7 @@ let pf_interp_ty ?(resolve_typeclasses=false) env sigma0 ist ty =
        sigma, Evarutil.nf_evar sigma cty in
    let c, evs, ucst = abs_evars env sigma0 ty in
    let n = List.length evs in
-   let sigma0 = Evd.merge_universe_context sigma0 ucst in
+   let sigma0 = Evd.merge_ustate sigma0 ucst in
    let lam_c = abs_cterm env sigma0 n c in
    let ctx, c = EConstr.decompose_lambda_n_assum sigma n lam_c in
    sigma0, n, EConstr.it_mkProd_or_LetIn c ctx, lam_c
@@ -1049,7 +1049,7 @@ let get_hyp env sigma id =
 (* XXX the k of the redex should percolate out *)
 let pf_interp_gen_aux env sigma ~concl to_ind ((oclr, occ), t) =
   let pat = interp_cpattern env sigma t None in (* UGLY API *)
-  let sigma = Evd.merge_universe_context sigma (Evd.ustate @@ pat.pat_sigma) in
+  let sigma = Evd.merge_ustate sigma (Evd.ustate @@ pat.pat_sigma) in
   let sigma, c, cl = fill_rel_occ_pattern env sigma concl pat occ in
   let clr = interp_clr sigma (oclr, (tag_of_cpattern t, c)) in
   if not(occur_existential sigma c) then
@@ -1062,7 +1062,7 @@ let pf_interp_gen_aux env sigma ~concl to_ind ((oclr, occ), t) =
     else let sigma, ccl =  pf_mkprod env sigma c cl in false, pat, ccl, c, clr, sigma
   else if to_ind && occ = None then
     let p, evs, ucst' = abs_evars env sigma (pat.pat_sigma, c) in
-    let sigma = Evd.merge_universe_context sigma ucst' in
+    let sigma = Evd.merge_ustate sigma ucst' in
     if List.is_empty evs then anomaly "occur_existential but no evars" else
     let sigma, pty, rp = pfe_type_relevance_of env sigma p in
     false, pat, EConstr.mkProd (make_annot (constr_name sigma c) rp, pty, concl), p, clr, sigma
@@ -1131,7 +1131,7 @@ let abs_wgen env sigma keep_let f gen (args,c) =
   | _, Some ((x, "@"), Some p) ->
      let x = hoi_id x in
      let cp = interp_cpattern env sigma p None in
-     let sigma = Evd.merge_universe_context sigma (Evd.ustate cp.pat_sigma) in
+     let sigma = Evd.merge_ustate sigma (Evd.ustate cp.pat_sigma) in
      let sigma, t, c = fill_rel_occ_pattern env sigma c cp None in
      evar_closed t p;
      let ut = red_product_skip_id env sigma t in
@@ -1140,7 +1140,7 @@ let abs_wgen env sigma keep_let f gen (args,c) =
   | _, Some ((x, _), Some p) ->
      let x = hoi_id x in
      let cp = interp_cpattern env sigma p None in
-     let sigma = Evd.merge_universe_context sigma (Evd.ustate cp.pat_sigma) in
+     let sigma = Evd.merge_ustate sigma (Evd.ustate cp.pat_sigma) in
      let sigma, t, c = fill_rel_occ_pattern env sigma c cp None in
      evar_closed t p;
      let sigma, ty, r = pfe_type_relevance_of env sigma t in
