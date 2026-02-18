@@ -56,7 +56,7 @@ val path_pop_n_suffixes : int -> full_path -> full_path
 val path_pop_suffix : full_path -> full_path
 
 (** The prefix of the path *)
-val dirpath : full_path -> DirPath.t [@@deprecated "Compose [dirpath_of_path] and [pop_dirpath]"]
+val dirpath : full_path -> DirPath.t [@@deprecated "(9.1) Compose [dirpath_of_path] and [pop_dirpath]"]
 val basename : full_path -> Id.t
 
 (** The full path as a [DirPath.t]. *)

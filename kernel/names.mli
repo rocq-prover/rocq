@@ -162,8 +162,8 @@ sig
   module Map : Map.ExtS with type key = t and module Set := Set
 end
 
-module DPset = DirPath.Set [@@deprecated "Use DirPath.Set"]
-module DPmap = DirPath.Map [@@deprecated "Use DirPath.Map"]
+module DPset = DirPath.Set [@@deprecated "(9.2) Use DirPath.Set"]
+module DPmap = DirPath.Map [@@deprecated "(9.2) Use DirPath.Map"]
 
 (** {6 Unique names for bound modules} *)
 
@@ -203,8 +203,8 @@ sig
 
 end
 
-module MBIset = MBId.Set [@@deprecated "Use MBId.Set"]
-module MBImap = MBId.Map [@@deprecated "Use MBId.Map"]
+module MBIset = MBId.Set [@@deprecated "(9.2) Use MBId.Set"]
+module MBImap = MBId.Map [@@deprecated "(9.2) Use MBId.Map"]
 
 (** {6 The module part of the kernel name } *)
 
@@ -243,8 +243,8 @@ sig
 
 end
 
-module MPset = ModPath.Set [@@deprecated "Use ModPath.Set"]
-module MPmap = ModPath.Map [@@deprecated "Use ModPath.Map"]
+module MPset = ModPath.Set [@@deprecated "(9.2) Use ModPath.Set"]
+module MPmap = ModPath.Map [@@deprecated "(9.2) Use ModPath.Map"]
 
 (** {6 The absolute names of objects seen by kernel } *)
 
@@ -283,9 +283,9 @@ sig
 
 end
 
-module KNset = KerName.Set [@@deprecated "Use KerName.Set"]
-module KNpred = KerName.Pred [@@deprecated "Use KerName.Pred"]
-module KNmap = KerName.Map [@@deprecated "Use KerName.Map"]
+module KNset = KerName.Set [@@deprecated "(9.2) Use KerName.Set"]
+module KNpred = KerName.Pred [@@deprecated "(9.2) Use KerName.Pred"]
+module KNmap = KerName.Map [@@deprecated "(9.2) Use KerName.Map"]
 
 (** {6 Signature for quotiented names} *)
 
