@@ -860,6 +860,12 @@ let () =
   Proofview.tclEVARMAP >>= fun sigma ->
   return (Evarutil.has_undefined_evars sigma c)
 
+let () =
+  define "sort_of_product"  (sort @-> sort @-> eret sort) @@ fun s1 s2 env _ ->
+  (* XXX ESorts.kind instead of Unsafe? only matters for impredicative set AFAICT *)
+  let f s = EConstr.Unsafe.to_sorts s in
+  EConstr.ESorts.make @@ Typeops.sort_of_product env (f s1) (f s2)
+
 (** Uint63 *)
 
 let () = define "uint63_compare" (uint63 @-> uint63 @-> ret int) Uint63.compare

@@ -157,6 +157,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Ltac2/Ref.v
     theories/Ltac2/Reference.v
     theories/Ltac2/Rewrite.v
+    theories/Ltac2/Sort.v
     theories/Ltac2/Std.v
     theories/Ltac2/String.v
     theories/Ltac2/TransparentState.v
