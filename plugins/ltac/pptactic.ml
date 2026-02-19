@@ -144,29 +144,15 @@ let string_of_genarg_arg (ArgumentType arg) =
       let (v1, v2) = unbox v Val.typ_pair in
       str "(" ++ pr_value lev v1 ++ str ", " ++ pr_value lev v2 ++ str ")"
     else
-      let Val.Dyn (tag, x) = v in
-      let name = Val.repr tag in
-      let default = str "<" ++ str name ++ str ">" in
-      match ArgT.name name with
-      | None -> default
-      | Some (ArgT.Any arg) ->
-        let wit = ExtraArg arg in
-        match val_tag (Topwit wit) with
-        | Val.Base t ->
-          begin match Val.eq t tag with
-          | None -> default
-          | Some Refl ->
-             let open Genprint in
-             match generic_top_print (in_gen (Topwit wit) x) with
-             | TopPrinterBasic pr -> pr ()
-             | TopPrinterNeedsContext pr ->
-               let env = Global.env() in
-               pr env (Evd.from_env env)
-             | TopPrinterNeedsContextAndLevel { default_ensure_surrounded; printer } ->
-               let env = Global.env() in
-               printer env (Evd.from_env env) default_ensure_surrounded
-          end
-        | _ -> default
+      let open Genprint in
+      match generic_val_print v with
+      | TopPrinterBasic pr -> pr ()
+      | TopPrinterNeedsContext pr ->
+        let env = Global.env() in
+        pr env (Evd.from_env env)
+      | TopPrinterNeedsContextAndLevel { default_ensure_surrounded; printer } ->
+        let env = Global.env() in
+        printer env (Evd.from_env env) default_ensure_surrounded
 
   let pr_with_occurrences prvar pr c = Ppred.pr_with_occurrences prvar pr keyword c
   let pr_red_expr env sigma pr c = Ppred.pr_red_expr_env env sigma pr keyword c

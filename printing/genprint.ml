@@ -111,7 +111,6 @@ let _ =
 type ('raw, 'glb, 'top) genprinter = {
   raw : 'raw -> printer_result;
   glb : 'glb -> printer_result;
-  top : 'top -> top_printer_result;
 }
 
 let basic_default name =
@@ -126,7 +125,6 @@ struct
     let printer = {
       raw = (fun _ -> PrinterBasic (fun env sigma -> str "<genarg:" ++ str name ++ str ">"));
       glb = (fun _ -> PrinterBasic (fun env sigma -> str "<genarg:" ++ str name ++ str ">"));
-      top = (fun _ -> TopPrinterBasic (fun () -> str "<genarg:" ++ str name ++ str ">"));
     } in
     Some printer
 end
@@ -134,7 +132,7 @@ end
 module Print = Register (PrintObj)
 
 let register_print0 wit raw glb top =
-  let printer = { raw; glb; top; } in
+  let printer = { raw; glb; } in
   Print.register0 wit printer;
   match val_tag (Topwit wit), wit with
   | Val.Base t, ExtraArg t' when Geninterp.Val.repr t = ArgT.repr t' ->
@@ -144,23 +142,19 @@ let register_print0 wit raw glb top =
      ()
 
 let register_noval_print0 wit raw glb =
-  let top = Util.Empty.abort in
-  let printer = { raw; glb; top; } in
+  let printer = { raw; glb; } in
   Print.register0 wit printer
 
 let register_vernac_print0 wit raw =
   let glb = Util.Empty.abort in
-  let top = Util.Empty.abort in
-  let printer = { raw; glb; top; } in
+  let printer = { raw; glb; } in
   Print.register0 wit printer
 
 let raw_print wit v = (Print.obj wit).raw v
 let glb_print wit v = (Print.obj wit).glb v
-let top_print wit v = (Print.obj wit).top v
 
 let generic_raw_print (GenArg (Rawwit w, v)) = raw_print w v
 let generic_glb_print (GenArg (Glbwit w, v)) = glb_print w v
-let generic_top_print (GenArg (Topwit w, v)) = top_print w v
 
 module CPrintObj = struct
   type ('raw, 'glb) t = ('raw -> printer_result) * ('glb -> printer_result)
