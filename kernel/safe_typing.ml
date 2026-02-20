@@ -335,6 +335,10 @@ let set_share_reduction b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with share_reduction = b } senv
 
+let set_unfold_dep_heuristic b senv =
+  let flags = Environ.typing_flags senv.env in
+  set_typing_flags { flags with unfold_dep_heuristic = b } senv
+
 let set_VM b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with enable_VM = b } senv
