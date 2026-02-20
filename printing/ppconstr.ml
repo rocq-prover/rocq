@@ -707,6 +707,13 @@ let pr ~flags pr sep lev_after inherited a =
                  ++ keyword "in") ++
           pr spc lev_after ltop b))
       lletin
+  | CLetImport (qid,mp,b) ->
+    return (fun lev_after ->
+        hv 0 (
+          hov 2 (keyword "let Import" ++ spc() ++ pr_qualid qid ++ keyword "in") ++
+          (* XXX may be unprintable without importing *)
+          pr spc lev_after ltop b))
+      lletin
   | CProj (true,(f,us),l,c) ->
     let l = List.map (function (c,None) -> c | _ -> assert false) l in
     return (fun lev_after -> pr_proj (pr mt) pr_appexpl c (f,us) l) lproj
