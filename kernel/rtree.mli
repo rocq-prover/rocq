@@ -109,3 +109,39 @@ val kind : 'a t -> 'a kind
 val repr : 'a t -> 'a rtree
 
 end
+
+module Automaton :
+sig
+
+type 'a rtree = 'a t
+
+type state
+
+type 'a t
+
+(** Compile a regular tree into an automaton, not necessarily minimal *)
+val make : 'a rtree -> 'a t
+
+(** Get the initial state of the automaton *)
+val initial : 'a t -> state
+
+(** Get the data associated to a given state in the automaton *)
+val data : 'a t -> state -> 'a
+
+(** Get the transitions of the automaton from a given state *)
+val transitions : 'a t -> state -> state array array
+
+(** Move the automaton into the given state *)
+val move : 'a t -> state -> 'a t
+
+(** Given a comparison function on the data, produce a minimal automata *)
+val compact  : ('a -> 'a -> int) -> 'a t -> 'a t
+
+(** Intersection of two automata given an intersection on data. Does not
+    produce a minimal automata on general. *)
+val inter : ('a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
+
+(** Equality of minimal automata, i.e. only valid after compaction *)
+val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+end

@@ -664,30 +664,68 @@ let size_glb s1 s2 =
        empty type
  *)
 
-let inter_recarg r1 r2 = if eq_recarg r1 r2 then Some r1 else None
+module RecArg =
+struct
+let compare_recarg_type t1 t2 = match t1, t2 with
+| RecArgInd ind1, RecArgInd ind2 -> Names.Ind.UserOrd.compare ind1 ind2
+| RecArgInd _, RecArgPrim _ -> -1
+| RecArgPrim c1, RecArgPrim c2 -> Names.Constant.UserOrd.compare c1 c2
+| RecArgPrim _, RecArgInd _ -> 1
+
+let compare r1 r2 = match r1, r2 with
+| Norec, Norec -> 0
+| Norec, Mrec _ -> -1
+| Mrec t1, Mrec t2 -> compare_recarg_type t1 t2
+| Mrec _, Norec -> 1
+
+let meet r1 r2 = match r1, r2 with
+| Mrec _, Mrec _ ->
+  let () = assert (eq_recarg r1 r2) in
+  r1
+| Norec, Norec -> Norec
+| (Norec, Mrec _) | (Mrec _, Norec) -> Norec
+
+end
 
 module WfPaths :
 sig
 type t
 val make : wf_paths -> t
-val repr : t -> wf_paths
 val inter : t -> t -> t
 val restrict : t -> wf_paths -> t
 val dest_subterms : t -> t list array
 val is_norec : t -> bool
 val is_inductive : env -> inductive -> t -> bool
 val is_primitive : env -> Constant.t -> t -> bool
+val equal : t -> t -> bool
 end =
 struct
-type t = wf_paths
-let make x = x
-let repr x = x
-let inter t1 t2 = Rtree.inter Declareops.eq_recarg inter_recarg Norec t1 t2
-let restrict = inter
 
-let dest_subterms = dest_subterms
+module Atm = Rtree.Automaton
 
-let is_norec t = match Rtree.dest_head t with
+type t = recarg Atm.t
+
+let make path =
+  let automaton = Atm.make path in
+  Atm.compact RecArg.compare automaton
+
+let inter t1 t2 =
+  let automaton = Atm.inter RecArg.meet t1 t2 in
+  if automaton == t1 then t1 else Atm.compact RecArg.compare automaton
+
+let restrict t p =
+  let automaton = Atm.inter RecArg.meet t (make p) in
+  Atm.compact RecArg.compare automaton
+
+let dest_subterms t =
+  let trans = Atm.transitions t (Atm.initial t) in
+  let map v = Array.map_to_list (fun tgt -> Atm.move t tgt) v in
+  Array.map map trans
+
+let dest_recarg t =
+  Atm.data t (Atm.initial t)
+
+let is_norec t = match dest_recarg t with
 | Norec -> true
 | Mrec _ -> false
 | exception Failure _ ->
@@ -701,6 +739,9 @@ let is_primitive env cst t = match dest_recarg t with
 | Mrec (RecArgPrim c) -> QConstant.equal env cst c
 | Norec | Mrec _ -> false
 
+let equal t1 t2 =
+  Atm.equal eq_recarg t1 t2
+
 end
 
 type subterm_spec =
@@ -708,8 +749,6 @@ type subterm_spec =
   | Dead_code
   | Not_subterm
   | Internally_bound_subterm of Int.Set.t
-
-let incl_wf_paths = Rtree.incl Declareops.eq_recarg inter_recarg Norec
 
 let spec_of_tree internal t =
   if WfPaths.is_norec t then Not_subterm
@@ -1295,7 +1334,7 @@ type check_subterm_result =
 let check_is_subterm x tree =
   match Lazy.force x with
   | Subterm (need_reduce,Strict,tree') ->
-    if incl_wf_paths tree (WfPaths.repr tree') then NeedReduceSubterm need_reduce
+    if WfPaths.equal tree tree' then NeedReduceSubterm need_reduce
     else InvalidSubterm
   | Dead_code -> NeedReduceSubterm Int.Set.empty
   | Not_subterm | Subterm (_,Large,_) -> InvalidSubterm
@@ -1741,12 +1780,12 @@ let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as 
     if flags.check_guarded then
       let get_tree (kn,i) =
         let mib = Environ.lookup_mind kn env in
-        mib.mind_packets.(i).mind_recargs
+        WfPaths.make mib.mind_packets.(i).mind_recargs
       in
       let trees = Array.map get_tree inds in
       for i = 0 to Array.length bodies - 1 do
         let (fenv, body) = rdef.(i) in
-        let renv = make_renv fenv nvect.(i) (WfPaths.make trees.(i)) in
+        let renv = make_renv fenv nvect.(i) trees.(i) in
         try check_one_fix cache ?evars renv nvect trees body
         with FixGuardError (err_env, err) -> raise_err err_env i err
       done
