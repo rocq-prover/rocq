@@ -328,12 +328,23 @@ let judge_of_cast env sigma cj k tj =
   sigma, { uj_val = mkCast (cj.uj_val, k, expected_type);
            uj_type = expected_type }
 
+let check_fix_with_elims env sigma fix =
+  let evars = Evd.evar_handler sigma in
+  let sorts_opt = check_fix_pre_sorts ~evars env fix in
+  Option.fold_left (List.fold_left (fun sigma (ind_sort, out_sort) ->
+      let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
+      if not (is_allowed_fixpoint elim_to ind_sort out_sort) then
+        Evd.set_elim_to sigma (Sorts.quality ind_sort) (Sorts.quality out_sort)
+      else
+        sigma
+    )) sigma sorts_opt
+
 let check_fix env sigma pfix =
   let inj c = EConstr.to_constr ~abort_on_undefined_evars:false sigma c in
   let (idx, (ids, cs, ts)) = pfix in
   let ids = Array.map EConstr.Unsafe.to_binder_annot ids in
-  let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
-  check_fix ~evars:(Evd.evar_handler sigma) ~elim_to env (idx, (ids, Array.map inj cs, Array.map inj ts))
+  let fix = (idx, (ids, Array.map inj cs, Array.map inj ts)) in
+  check_fix_with_elims env sigma fix
 
 let check_cofix env sigma pcofix =
   let inj c = EConstr.to_constr sigma c in
@@ -583,7 +594,7 @@ let rec execute env sigma cstr =
     | Fix ((vn,i as vni),recdef) ->
         let sigma, (_,tys,_ as recdef') = execute_recdef env sigma recdef in
         let fix = (vni,recdef') in
-        check_fix env sigma fix;
+        let sigma = check_fix env sigma fix in
         sigma, make_judge (mkFix fix) tys.(i)
 
     | CoFix (i,recdef) ->

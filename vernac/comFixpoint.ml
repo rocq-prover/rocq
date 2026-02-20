@@ -352,7 +352,7 @@ let interp_rec_annot ~program_mode ~function_mode env sigma fixl ctxl ccll rec_o
     | CUnknownRecOrder -> nowf (), RecLemmas.find_mutually_recursive_statements sigma ctxl ccll
 
 let interp_fix_context ~program_mode ~poly env sigma {Vernacexpr.binders} =
-  let sigma, (impl_env, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode env sigma binders in
+  let sigma, (impl_env, ((env', ctx), imps, _locs)) = interp_context_evars ~program_mode ~poly env sigma binders in
   sigma, (env', ctx, impl_env, imps)
 
 let interp_fix_ccl ~program_mode ~poly sigma impls env fix =
@@ -580,7 +580,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
 
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
-  let sigma = Evd.minimize_universes sigma in
+  let sigma = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) sigma in
 
   let sigma, ({fixdefs=bodies;fixrs;fixtypes;fixwfs} as fix), obls, hook =
     match pm with

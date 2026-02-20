@@ -695,7 +695,8 @@ let push_section_context uctx senv =
     Sorts.QVar.is_global q &&
     not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
   in
-  let () = assert (Sorts.QVar.Set.for_all check_quality (fst qctx)) in
+  if not @@ Sorts.QVar.Set.for_all check_quality (fst qctx) then
+    CErrors.user_err Pp.(str "Implicit section-wide sort variables and elimination constraints are not allowed.");
   let check_fresh u = match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton u) with
   | Result.Ok _ -> assert false
   | Result.Error _ -> ()
