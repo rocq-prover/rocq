@@ -11,6 +11,10 @@ Entry binder_constr is
   | "exists"; open_binders; ","; term LEVEL "200"
   | "forall"; open_binders; ","; term LEVEL "200"
   | "fun"; open_binders; "=>"; term LEVEL "200"
+  | "let"; ":"; ssr_mpat; ":="; lconstr; "in"; lconstr
+  | "let"; ":"; ssr_mpat; ":="; lconstr; ssr_rtype; "in"; lconstr
+  | "let"; ":"; ssr_mpat; "in"; pattern; ":="; lconstr; ssr_rtype; "in";
+    lconstr
   | "let"; "fix"; fix_decl; "in"; term LEVEL "200"
   | "let"; "cofix"; cofix_body; "in"; term LEVEL "200"
   | "let"; "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
@@ -40,7 +44,8 @@ Entry term is
   [ SELF; "<:"; term LEVEL "200"
   | SELF; "<<:"; term LEVEL "200"
   | SELF; ":>"; term LEVEL "200"
-  | SELF; ":"; term LEVEL "200" ]
+  | SELF; ":"; term LEVEL "200"
+  | "=^~"; NEXT ]
 | "99" RIGHTA
   [ SELF; "->"; term LEVEL "200" ]
 | "95" RIGHTA
@@ -100,7 +105,17 @@ Entry term is
   | SELF; "%"; IDENT
   | SELF; "%_"; IDENT ]
 | "0" LEFTA
-  [ "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "&"; term LEVEL
+  [ "["; "!"; term LEVEL "200"; "]"
+  | "["; NUMBER "1"; "!"; term LEVEL "200"; "]"
+  | "["; IDENT "dup"; "]"
+  | "["; IDENT "swap"; "]"
+  | "["; IDENT "apply"; "]"
+  | "["; IDENT "elaborate"; term LEVEL "200"; "]"
+  | "["; IDENT "unlockable"; "fun"; term LEVEL "200"; "]"
+  | "(*******"; "//"; "/="; "//="; "*******)"
+  | "{"; IDENT "type"; IDENT "of"; term LEVEL "200"; "for"; term LEVEL "200";
+    "}"
+  | "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "&"; term LEVEL
     "200"; "}"
   | "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "}"
   | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "&"; term LEVEL
@@ -126,6 +141,12 @@ Entry term is
   | "{"; term LEVEL "99"; "|"; term LEVEL "200"; "}"
   | "{"; term LEVEL "99"; "}"
   | IDENT "ltac"; ":"; "("; ltac_expr; ")"
+  | "("; term LEVEL "200"; "as"; term LEVEL "200"; "in"; term LEVEL "200";
+    ")"
+  | "("; term LEVEL "200"; "as"; term LEVEL "200"; ")"
+  | "("; term LEVEL "200"; "in"; term LEVEL "200"; "in"; term LEVEL "200";
+    ")"
+  | "("; term LEVEL "200"; "in"; term LEVEL "200"; ")"
   | "("; term LEVEL "200"; ","; term LEVEL "200"; ","; LIST1 (term LEVEL
     "200") SEP ","; ")"
   | "("; term LEVEL "200"; ","; term LEVEL "200"; ")"

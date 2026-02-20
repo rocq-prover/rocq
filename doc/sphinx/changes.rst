@@ -10079,7 +10079,7 @@ Changes in 8.11+beta1
   relation. More precisely, assume the given context lemma has type
   `forall f1 f2, .. -> (forall i, R1 (f1 i) (f2 i)) -> R2 f1 f2`.  The
   first step performed by :tacn:`under` (since Coq 8.10) amounts to
-  calling the tactic :tacn:`rewrite <rewrite (ssreflect)>`, which
+  calling the tactic :tacn:`rewrite <rw>`, which
   itself relies on :tacn:`setoid_rewrite` if need be. So this step was
   already compatible with a double implication or setoid equality for
   the conclusion head symbol `R2`. But a further step consists in
@@ -11109,7 +11109,7 @@ Many bug fixes and documentation improvements, in particular:
   by Andreas Lynge, review by Enrico Tassi)
 - Make the ``rewrite /t`` tactic work together with
   :flag:`Universe Polymorphism`.
-  This makes :tacn:`rewrite <rewrite (ssreflect)>` compatible with the HoTT
+  This makes :tacn:`rewrite <rw>` compatible with the HoTT
   library https://github.com/HoTT/HoTT
   (`#10305 <https://github.com/rocq-prover/rocq/pull/10305>`_,
   fixes `#9336 <https://github.com/rocq-prover/rocq/issues/9336>`_,

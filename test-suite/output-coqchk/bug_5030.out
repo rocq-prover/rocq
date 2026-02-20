@@ -6,7 +6,14 @@ CONTEXT SUMMARY
   
 * Theory: Rewrite rules are not allowed
   
-* Axioms: <none>
+* Axioms:
+    Corelib.Init.ssrunder.Under_rel.over_rel_done
+    Corelib.Init.ssrunder.Under_rel.Under_rel
+    Corelib.Init.ssrunder.Under_rel.Under_relE
+    Corelib.Init.ssrunder.Under_rel.under_rel_done
+    Corelib.Init.ssrunder.Under_rel.Over_rel
+    Corelib.Init.ssrunder.Under_rel.Under_rel_from_rel
+    Corelib.Init.ssrunder.Under_rel.over_rel
   
 * Constants/Inductives relying on type-in-type: <none>
   
