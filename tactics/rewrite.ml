@@ -547,7 +547,7 @@ let rewrite_transparent_state () =
   Hints.Hint_db.transparent_state (Hints.searchtable_map rewrite_db)
 
 let rewrite_core_unif_flags = {
-  Unification.modulo_conv_on_closed_terms = None;
+  Unification.modulo_conv_on_closed_terms = Some TransparentState.empty;
   Unification.use_metas_eagerly_in_conv_on_closed_terms = true;
   Unification.use_evars_eagerly_in_conv_on_closed_terms = true;
   Unification.modulo_delta = TransparentState.empty;
