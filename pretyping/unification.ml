@@ -852,7 +852,7 @@ let expand_table_key ~metas ts env sigma args = function
         end
         | exception NotEvaluableConst _ -> None
       else None
-  | VarKey id -> (try named_body id env |> Option.map (fun c -> (EConstr.of_constr c, args)) with Not_found -> None)
+  | VarKey id -> named_body id env |> Option.map (fun c -> (EConstr.of_constr c, args))
   | RelKey _ -> None
 
 let unfold_projection env p r stk =
@@ -885,12 +885,14 @@ let subterm_restriction opt flags =
 let key_of env sigma b flags f =
   if subterm_restriction b flags then None else
   match EConstr.kind sigma f with
-  | Const (cst, u) when is_transparent env (Evaluable.EvalConstRef cst) &&
+  | Const (cst, u) when Environ.evaluable_constant cst env &&
+      is_transparent env (Evaluable.EvalConstRef cst) &&
       (Structures.PrimitiveProjections.is_transparent_constant flags.modulo_delta cst
        || PrimitiveProjections.mem cst) ->
       let u = EInstance.kind sigma u in
       Some (IsKey (ConstKey (cst, u)))
-  | Var id when is_transparent env (Evaluable.EvalVarRef id) &&
+  | Var id when Environ.evaluable_named id env &&
+      is_transparent env (Evaluable.EvalVarRef id) &&
       TransparentState.is_transparent_variable flags.modulo_delta id ->
     Some (IsKey (VarKey id))
   | Proj (p, r, c) when Names.Projection.unfolded p
@@ -1227,11 +1229,17 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
 
         (* eta-expansion *)
         | Lambda (na,t1,c1), _ when flags.modulo_eta ->
-            unirec_rec (push (na,t1) curenvnb) CONV {opt with at_top = true} substn
-              c1 (mkApp (lift 1 cN,[|mkRel 1|]))
+           (try
+              unirec_rec (push (na,t1) curenvnb) CONV {opt with at_top = true} substn
+                c1 (mkApp (lift 1 cN,[|mkRel 1|]))
+           with ex when precatchable_exception ex ->
+             unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
         | _, Lambda (na,t2,c2) when flags.modulo_eta ->
+           (try
             unirec_rec (push (na,t2) curenvnb) CONV {opt with at_top = true} substn
               (mkApp (lift 1 cM,[|mkRel 1|])) c2
+            with ex when precatchable_exception ex ->
+              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
 
         (* For records *)
         | App (f1, l1), _ when flags.modulo_eta &&
@@ -1589,7 +1597,9 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       let fold u1 u s = unirec_rec curenvnb pb opt' s u1 (substl ks u) in
       let foldl acc l1 l2 =
         try List.fold_right2 fold l1 l2 acc
-        with Invalid_argument _ -> assert false (* check_conv_record ensures lengths coincide *)
+        with Invalid_argument _ ->
+          (* assert false (\* check_conv_record ensures lengths coincide *\) *)
+          error_cannot_unify (fst curenvnb) sigma (cM,cN)
       in
       let substn = foldl substn us2 us in
       let substn = match params1 with None -> substn | Some params1 -> foldl substn params1 params in
