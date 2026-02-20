@@ -19,6 +19,8 @@ Entry binder_constr is
     LEVEL "200"
   | "let"; [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
     term LEVEL "200"; "in"; term LEVEL "200"
+  | "if"; term LEVEL "200"; "is"; if_dthen; if_else
+  | "if"; term LEVEL "200"; "isn't"; if_dthen; if_else
   | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
     term LEVEL "200"
   | "fix"; fix_decls

@@ -44,17 +44,15 @@ IGNORE KEYWORDS
 
 (* global syntactic changes and vernacular commands *)
 
-(** Alternative notations for "match" and anonymous arguments. *)(* ************)
+(** Alternative notations for anonymous arguments. *)(* ************)
 
 (* Syntax:                                                        *)
-(*  if <term> is <pattern> then ... else ...                      *)
-(*  if <term> is <pattern> [in ..] return ... then ... else ...   *)
 (*  let: <pattern> := <term> in ...                               *)
 (*  let: <pattern> [in ...] := <term> return ... in ...           *)
 (* The scope of a top-level 'as' in the pattern extends over the  *)
-(* 'return' type (dependent if/let).                              *)
+(* 'return' type (dependent let).                              *)
 (* Note that the optional "in ..." appears next to the <pattern>  *)
-(* rather than the <term> in then "let:" syntax. The alternative  *)
+(* rather than the <term> in the "let:" syntax. The alternative   *)
 (* would lead to ambiguities in, e.g.,                            *)
 (* let: p1 := (*v---INNER LET:---v *)                             *)
 (*   let: p2 := let: p3 := e3 in k return t in k2 in k1 return t' *)
@@ -65,9 +63,6 @@ IGNORE KEYWORDS
 (* display style -- why aren't these strings?); also, the v8.1    *)
 (* pretty-printer only allows extension hooks for printing        *)
 (* integer or string literals.                                    *)
-(*   Also note that in the v8 grammar "is" needs to be a keyword; *)
-(* as this can't be done from an ML extension file, the new       *)
-(* syntax will only work when ssreflect.v is imported.            *)
 
 let no_ct = None, None and no_rt = None
 let aliasvar = function
@@ -76,7 +71,6 @@ let aliasvar = function
 let mk_cnotype mp = aliasvar mp, None
 let mk_ctype mp t = aliasvar mp, Some t
 let mk_rtype t = Some t
-let mk_dthen ?loc (mp, ct, rt) c = (CAst.make ?loc (mp, c)), ct, rt
 let mk_let ?loc rt ct mp c1 =
   CAst.make ?loc @@ CCases (LetPatternStyle, rt, ct, [CAst.make ?loc (mp, c1)])
 let mk_pat c (na, t) = (c, na, t)
@@ -87,25 +81,8 @@ GRAMMAR EXTEND Gram
   GLOBAL: binder_constr;
   ssr_rtype: [[ "return"; t = term LEVEL "100" -> { mk_rtype t } ]];
   ssr_mpat: [[ p = pattern -> { [[p]] } ]];
-  ssr_dpat: [
-    [ mp = ssr_mpat; "in"; t = pattern; rt = ssr_rtype -> { mp, mk_ctype mp t, rt }
-    | mp = ssr_mpat; rt = ssr_rtype -> { mp, mk_cnotype mp, rt }
-    | mp = ssr_mpat -> { mp, no_ct, no_rt }
-  ] ];
-  ssr_dthen: [[ dp = ssr_dpat; "then"; c = lconstr -> { mk_dthen ~loc dp c } ]];
-  ssr_elsepat: [[ "else" -> { [[CAst.make ~loc @@ CPatAtom None]] } ]];
-  ssr_else: [[ mp = ssr_elsepat; c = lconstr -> { CAst.make ~loc (mp, c) } ]];
   binder_constr: TOP [
-    [ "if"; c = term LEVEL "200"; "is"; db1 = ssr_dthen; b2 = ssr_else ->
-      { let b1, ct, rt = db1 in CAst.make ~loc @@ CCases (MatchStyle, rt, [mk_pat c ct], [b1; b2]) }
-    | "if"; c = term LEVEL "200";"isn't";db1 = ssr_dthen; b2 = ssr_else ->
-      { let b1, ct, rt = db1 in
-      let b1, b2 = let open CAst in
-        let {loc=l1; v=(p1, r1)}, {loc=l2; v=(p2, r2)} = b1, b2 in
-        (make ?loc:l1 (p1, r2), make ?loc:l2 (p2, r1))
-      in
-      CAst.make ~loc @@ CCases (MatchStyle, rt, [mk_pat c ct], [b1; b2]) }
-    | "let"; ":"; mp = ssr_mpat; ":="; c = lconstr; "in"; c1 = lconstr ->
+    [ "let"; ":"; mp = ssr_mpat; ":="; c = lconstr; "in"; c1 = lconstr ->
       { mk_let ~loc no_rt [mk_pat c no_ct] mp c1 }
     | "let"; ":"; mp = ssr_mpat; ":="; c = lconstr;
       rt = ssr_rtype; "in"; c1 = lconstr ->
