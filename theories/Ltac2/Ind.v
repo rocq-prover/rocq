@@ -9,6 +9,7 @@
 (************************************************************************)
 
 From Ltac2 Require Import Init.
+From Ltac2 Require Import Std.
 
 Ltac2 Type t := inductive.
 (** An [inductive] is a name of a mutually inductive type and the index of an
@@ -82,3 +83,18 @@ Ltac2 @external print : t -> message
   := "rocq-runtime.plugins.ltac2" "ind_print".
 (** Print the inductive using the shortest qualified identifier which refers to it.
     Does not avoid variable names in the current or global environment. *)
+
+(** {2 Scheme lookup} *)
+
+Ltac2 @ external scheme_lookup : string -> t -> Std.reference option
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_lookup".
+(** [scheme_lookup kind ind] looks up the scheme registered under [kind] for
+    inductive [ind]. Returns [None] if no such scheme is registered. Common
+    scheme kind strings include ["rect_dep"], ["ind_dep"], ["rec_dep"],
+    ["sind_dep"], ["rect_nodep"], ["ind_nodep"], ["rec_nodep"], ["sind_nodep"],
+    ["case_dep"], ["case_nodep"], ["casep_dep"], ["casep_nodep"]. *)
+
+Ltac2 @ external scheme_kind_exists : string -> bool
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_exists".
+(** Returns [true] if a scheme builder has been registered under the given
+    kind string. *)
