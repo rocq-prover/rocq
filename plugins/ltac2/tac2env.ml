@@ -37,9 +37,11 @@ type projection_data = {
   pdata_indx : int;
 }
 
-type alias_data = {
-  alias_body : raw_tacexpr;
-  alias_depr : Deprecation.t option;
+type abbrev_data = {
+  abbrev_prms : int;
+  abbrev_ty : int glb_typexpr;
+  abbrev_body : glb_tacexpr;
+  abbrev_depr : Deprecation.t option;
 }
 
 type ltac_state = {
@@ -47,7 +49,7 @@ type ltac_state = {
   ltac_constructors : constructor_data KerName.Map.t;
   ltac_projections : projection_data KerName.Map.t;
   ltac_types : glb_quant_typedef KerName.Map.t;
-  ltac_aliases : alias_data KerName.Map.t;
+  ltac_abbrevs : abbrev_data KerName.Map.t;
 }
 
 let empty_state = {
@@ -55,7 +57,7 @@ let empty_state = {
   ltac_constructors = KerName.Map.empty;
   ltac_projections = KerName.Map.empty;
   ltac_types = KerName.Map.empty;
-  ltac_aliases = KerName.Map.empty;
+  ltac_abbrevs = KerName.Map.empty;
 }
 
 type compile_info = {
@@ -117,12 +119,11 @@ let define_type kn e =
 
 let interp_type kn = KerName.Map.find kn ltac_state.contents.ltac_types
 
-let define_alias ?deprecation kn tac =
+let define_abbrev kn data =
   let state = !ltac_state in
-  let data = { alias_body = tac; alias_depr = deprecation } in
-  ltac_state := { state with ltac_aliases = KerName.Map.add kn data state.ltac_aliases }
+  ltac_state := { state with ltac_abbrevs = KerName.Map.add kn data state.ltac_abbrevs }
 
-let interp_alias kn = KerName.Map.find kn ltac_state.contents.ltac_aliases
+let interp_abbrev kn = KerName.Map.find kn ltac_state.contents.ltac_abbrevs
 
 let define_notation kn tac =
   ltac_notations := KerName.Map.add kn tac !ltac_notations
@@ -154,16 +155,16 @@ let interp_primitive name = MLMap.find name !primitive_map
 
 type tacref = Tac2expr.tacref =
 | TacConstant of ltac_constant
-| TacAlias of ltac_alias
+| TacAbbrev of ltac_abbrev
 
 module TacRef =
 struct
 type t = tacref
 let compare r1 r2 = match r1, r2 with
 | TacConstant c1, TacConstant c2 -> KerName.compare c1 c2
-| TacAlias c1, TacAlias c2 -> KerName.compare c1 c2
-| TacConstant _, TacAlias _ -> -1
-| TacAlias _, TacConstant _ -> 1
+| TacAbbrev c1, TacAbbrev c2 -> KerName.compare c1 c2
+| TacConstant _, TacAbbrev _ -> -1
+| TacAbbrev _, TacConstant _ -> 1
 
 let equal r1 r2 = compare r1 r2 == 0
 end
