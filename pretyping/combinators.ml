@@ -276,5 +276,5 @@ let make_selector env sigma ~pos ~special ~default c ctype =
   let brl =
     List.map build_branch(List.interval 1 (Array.length mip.mind_consnames)) in
   let rci = ERelevance.relevant in (* TODO relevance *)
-  let ci = make_case_info env ind RegularStyle in
+  let ci = make_case_info env ind MatchStyle in
   Inductiveops.make_case_or_project env sigma indt ci (p, rci) c (Array.of_list brl)

@@ -24,7 +24,7 @@ let mkGApp (rt, rtl) = DAst.make @@ GApp (rt, rtl)
 let mkGLambda (n, t, b) = DAst.make @@ GLambda (n, None, Explicit, t, b)
 let mkGProd (n, t, b) = DAst.make @@ GProd (n, None, Explicit, t, b)
 let mkGLetIn (n, b, t, c) = DAst.make @@ GLetIn (n, None, b, t, c)
-let mkGCases (rto, l, brl) = DAst.make @@ GCases (RegularStyle, rto, l, brl)
+let mkGCases (rto, l, brl) = DAst.make @@ GCases (MatchStyle, rto, l, brl)
 
 let mkGHole () =
   DAst.make

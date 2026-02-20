@@ -305,7 +305,7 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       let branchs = Array.mapi mkbranch bsw in
       let tcase = build_case_type (pctx, p) realargs c in
       let p = (get_case_annot pctx, p) in
-      let ci = Inductiveops.make_case_info env ind RegularStyle in
+      let ci = Inductiveops.make_case_info env ind MatchStyle in
       let iv = if Inductiveops.Internal.should_invert_case env sigma relevance ci then
           CaseInvert {indices=realargs}
         else NoInvert

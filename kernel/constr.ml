@@ -37,7 +37,7 @@ type metavariable = int
 type cast_kind = VMcast | NATIVEcast | DEFAULTcast
 
 (* This defines Cases annotations *)
-type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle
+type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle
 type case_printing =
   { style     : case_style }
 
@@ -1283,7 +1283,7 @@ struct
     | IfStyle -> 1
     | LetPatternStyle -> 2
     | MatchStyle -> 3
-    | RegularStyle -> 4 in
+    in
     h1
   let hash ~hind ci =
     let h1 = hind in

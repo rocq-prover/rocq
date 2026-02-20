@@ -991,7 +991,7 @@ let build_case_analysis env sigma (ind, u) params pred indices indarg dep knd =
 
   match projs with
   | None ->
-    let ci = make_case_info env ind RegularStyle in
+    let ci = make_case_info env ind MatchStyle in
     let pbody =
       mkApp
         (pred,

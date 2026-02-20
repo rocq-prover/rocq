@@ -369,7 +369,7 @@ GRAMMAR EXTEND Gram
   ;
   term_match:
     [ [ "match"; ci = LIST1 case_item SEP ","; ty = OPT case_type; "with";
-        br = branches; "end" -> { CAst.make ~loc @@ CCases(RegularStyle,ty,ci,br) } ] ]
+        br = branches; "end" -> { CAst.make ~loc @@ CCases(MatchStyle,ty,ci,br) } ] ]
   ;
   case_item:
     [ [ c = term LEVEL "100";
