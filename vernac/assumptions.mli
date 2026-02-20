@@ -23,7 +23,7 @@ open Printer
 *)
 val traverse :
   Global.indirect_accessor -> GlobRef.t list ->
-    (GlobRef.Set_env.t * GlobRef.Set_env.t option GlobRef.Map_env.t *
+    (int GlobRef.Map_env.t * int GlobRef.Map_env.t option GlobRef.Map_env.t *
      (GlobRef.t * Constr.rel_context * types) list GlobRef.Map_env.t)
 
 (** Collects all the assumptions (optionally including opaque definitions)

@@ -23,6 +23,11 @@ open Mod_declarations
 
 module NamedDecl = Context.Named.Declaration
 
+(** Multiset add: increment the count for [gref] in the map *)
+let multiset_add gref m =
+  let n = try GlobRef.Map_env.find gref m with Not_found -> 0 in
+  GlobRef.Map_env.add gref (n + 1) m
+
 (** For a constant c in a module sealed by an interface (M:T and
     not M<:T), [Global.lookup_constant] may return a [constant_body]
     without body. We fix this by looking in the implementation
@@ -236,7 +241,7 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
       let ax2ty =
         try let l = GlobRef.Map_env.find obj ax2ty in GlobRef.Map_env.add obj (ty::l) ax2ty
         with Not_found -> GlobRef.Map_env.add obj [ty] ax2ty in
-      (GlobRef.Set_env.add obj curr, data, ax2ty)
+      (multiset_add obj curr, data, ax2ty)
     | _ ->
         fold_with_full_binders
           Context.Rel.add (traverse access current) ctx accu t
@@ -258,7 +263,7 @@ and traverse_object access (curr, data, ax2ty) body obj =
         let typ = cb.Declarations.const_type in
         let _, data, ax2ty =
           traverse access obj Context.Rel.empty
-                   (GlobRef.Set_env.empty, data, ax2ty) typ in
+                   (GlobRef.Map_env.empty, data, ax2ty) typ in
         data, ax2ty
       (* VarRef, IndRef and ConstructRef don't need recursive type traversal.
          For VarRef (section variables), the dependencies are already tracked.
@@ -267,10 +272,10 @@ and traverse_object access (curr, data, ax2ty) body obj =
     | Some body ->
       let contents,data,ax2ty =
         traverse access obj Context.Rel.empty
-                 (GlobRef.Set_env.empty,data,ax2ty) body in
+                 (GlobRef.Map_env.empty,data,ax2ty) body in
       GlobRef.Map_env.add obj (Some contents) data, ax2ty
   in
-  (GlobRef.Set_env.add obj curr, data, ax2ty)
+  (multiset_add obj curr, data, ax2ty)
 
 (** Collects the references occurring in the declaration of mutual inductive
     definitions. All the constructors and names of a mutual inductive
@@ -283,12 +288,12 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
       where I_0, I_1, ... are in the same mutual definition and c_ij
       are all their constructors. *)
    if
-     (* recursive call: *) GlobRef.Set_env.mem firstind_ref curr ||
+     (* recursive call: *) GlobRef.Map_env.mem firstind_ref curr ||
      (* already in: *) GlobRef.Map_env.mem firstind_ref data
    then data, ax2ty
    else
      (* Take into account potential recursivity of ind in itself *)
-     let curr = GlobRef.Set_env.add firstind_ref GlobRef.Set_env.empty in
+     let curr = multiset_add firstind_ref GlobRef.Map_env.empty in
      let accu = (curr, data, ax2ty) in
      let mib = lookup_mind mind in
      (* Collects references of parameters *)
@@ -313,7 +318,7 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
      in
      (* Maps all these dependencies to inductives and constructors*)
      let data =
-       let contents = GlobRef.Set_env.remove firstind_ref contents in
+       let contents = GlobRef.Map_env.remove firstind_ref contents in
        Array.fold_left_i (fun n data oib ->
        let ind = (mind, n) in
        let data = GlobRef.Map_env.add (GlobRef.IndRef ind) (Some contents) data in
@@ -323,7 +328,7 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
      in
      (data, ax2ty)
   in
-  (GlobRef.Set_env.add obj curr, data, ax2ty)
+  (multiset_add obj curr, data, ax2ty)
 
 (** Collects references in a rel_context. *)
 and traverse_context access current ctx accu ctxt =
@@ -344,7 +349,7 @@ let traverse access grs =
   List.fold_left (fun accu gr ->
     let t, _ = UnivGen.fresh_global_instance env gr in
     traverse access gr Context.Rel.empty accu t
-  ) (GlobRef.Set_env.empty, GlobRef.Map_env.empty, GlobRef.Map_env.empty) grs
+  ) (GlobRef.Map_env.empty, GlobRef.Map_env.empty, GlobRef.Map_env.empty) grs
 
 (** Hopefully bullet-proof function to recover the type of a constant. It just
     ignores all the universe stuff. There are many issues that can arise when
