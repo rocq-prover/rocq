@@ -164,8 +164,8 @@ let set q qv m =
   let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
   let qv = match qv with QVar qv -> repr_node qv m | QConstant qc -> ReprConstant qc in
   let enforce_eq q1 q2 g = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
-  match q, qv with
-  | q, ReprVar (qv, _qvrigd) ->
+  match qv with
+  | ReprVar (qv, _qvrigd) ->
     if QVar.equal q qv then Some m
     else if rigid then None
     else
@@ -173,9 +173,9 @@ let set q qv m =
         if is_above_prop m q
         then QSet.add qv (QSet.remove q m.above_prop)
         else m.above_prop in
-      Some { qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
-             elims = enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
-  | q, ReprConstant qc ->
+      Some { m with qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
+                    elims = enforce_eq (QVar qv) (QVar q) m.elims; }
+  | ReprConstant qc ->
     if qc == QSProp && (is_above_prop m q || eliminates_to_prop m q) then None
     else if rigid then None
     else

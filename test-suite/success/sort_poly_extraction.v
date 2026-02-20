@@ -31,7 +31,7 @@ Definition foo1 := foo@{Type SProp|}.
 
 Inductive T@{s| |} : Type@{s|Set} := O : T | S : T -> T.
 
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |Type->s1, Type->s2} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 
 Definition bar (A : Type) (x : A) := 0.
 
@@ -44,11 +44,11 @@ Extraction TestCompile Foo.
 (* Check module subtyping *)
 
 Module Type S.
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |Type->s1, Type->s2} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 End S.
 
 Module Bar : S.
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |Type->s1, Type->s2} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 End Bar.
 
 Extraction TestCompile Bar.
