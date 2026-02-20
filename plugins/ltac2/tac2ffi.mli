@@ -275,3 +275,4 @@ val err_outofbounds : exn
 val err_notfound : exn
 val err_matchfailure : exn
 val err_division_by_zero : exn
+val err_invalid_arg : Pp.t -> exn

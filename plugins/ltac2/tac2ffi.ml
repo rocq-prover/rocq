@@ -277,21 +277,6 @@ let rocq_core n = Names.(KerName.make Tac2env.rocq_prefix (Id.of_string_soft n))
 
 let internal_err = rocq_core "Internal"
 
-let err_notfocussed =
-  LtacError (rocq_core "Not_focussed", [||])
-
-let err_outofbounds =
-  LtacError (rocq_core "Out_of_bounds", [||])
-
-let err_notfound =
-  LtacError (rocq_core "Not_found", [||])
-
-let err_matchfailure =
-  LtacError (rocq_core "Match_failure", [||])
-
-let err_division_by_zero =
-  LtacError (rocq_core "Division_by_zero", [||])
-
 let of_exninfo = of_ext val_exninfo
 let to_exninfo = to_ext val_exninfo
 
@@ -514,3 +499,21 @@ let reference = {
   r_of = of_reference;
   r_to = to_reference;
 }
+
+let err_notfocussed =
+  LtacError (rocq_core "Not_focussed", [||])
+
+let err_outofbounds =
+  LtacError (rocq_core "Out_of_bounds", [||])
+
+let err_notfound =
+  LtacError (rocq_core "Not_found", [||])
+
+let err_matchfailure =
+  LtacError (rocq_core "Match_failure", [||])
+
+let err_division_by_zero =
+  LtacError (rocq_core "Division_by_zero", [||])
+
+let err_invalid_arg msg =
+  LtacError (rocq_core "Invalid_argument", [|of_option of_pp (Some msg)|])
