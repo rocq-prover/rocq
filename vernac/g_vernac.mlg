@@ -639,9 +639,17 @@ GRAMMAR EXTEND Gram
         { (oc,(idl,c)) } ] ]
   ;
 
+  constructor_binders:
+    [ [ l1 = binders; l2 = OPT [ "of"; l = LIST1 term LEVEL "99" SEP "&" -> { l } ] ->
+        { let anon c =
+            let n = CAst.make ?loc:c.CAst.loc Anonymous in
+            CLocalAssum ([n], None, Default Explicit, c) in
+          l1 @ List.map anon (Option.default [] l2) } ] ]
+  ;
+
   constructor_type:
-    [[ l = binders;
-      t= [ coe = of_type_inst; c = lconstr ->
+    [[ l = constructor_binders;
+       t = [ coe = of_type_inst; c = lconstr ->
                     { fun l attr id -> ((attr, fst coe, snd coe),(id,mkProdCN ~loc l c)) }
             |  ->
                  { fun l attr id -> ((attr,NoCoercion,NoInstance),(id,mkProdCN ~loc l (CAst.make ~loc @@ CHole (None)))) } ]
