@@ -90,6 +90,10 @@ val find_scheme : 'a scheme_kind -> inductive -> GlobRef.t option Proofview.tact
 (** Generates the scheme if not found *)
 val force_find_scheme : 'a scheme_kind -> inductive -> GlobRef.t Proofview.tactic
 
+(** Like [force_find_scheme] but takes a scheme kind string instead of a
+    typed [scheme_kind]. *)
+val force_find_scheme_string : string -> inductive -> GlobRef.t Proofview.tactic
+
 (** Like [find_scheme] but does not generate a constant on the fly *)
 val lookup_scheme : 'a scheme_kind -> inductive -> GlobRef.t option
 
