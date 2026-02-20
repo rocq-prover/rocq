@@ -175,6 +175,7 @@ let rec prj : type a. a Val.tag -> Val.t -> a = fun tag v -> match tag with
 | Val.Pair (tag1, tag2) ->
   let (x, y) = unbox Val.typ_pair v (to_pair v) in
   (prj tag1 x, prj tag2 y)
+| Val.Any -> v
 | Val.Base t ->
   let Val.Dyn (t', x) = v in
   match Val.eq t t' with

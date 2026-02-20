@@ -66,7 +66,8 @@ val type_uconstr :
 
 (** Adds an interpretation function for extra generic arguments *)
 
-val interp_genarg : interp_sign -> glob_generic_argument -> Value.t Ftactic.t
+val interp_genarg : (_, 'glb, 'top) genarg_type -> interp_sign -> 'glb -> 'top Ftactic.t
+val generic_interp_genarg : interp_sign -> glob_generic_argument -> Value.t Ftactic.t
 
 (** Interprets any expression *)
 val val_interp : interp_sign -> glob_tactic_expr -> (value -> unit Proofview.tactic) -> unit Proofview.tactic
@@ -155,5 +156,5 @@ sig
 type ('glb, 'top) interp_fun = interp_sign -> 'glb -> 'top Ftactic.t
 
 val register_interp0 :
-  ('raw, 'glb, 'top) genarg_type -> ('glb, Geninterp.Val.t) interp_fun -> unit
+  ('raw, 'glb, 'top) genarg_type -> ('glb, 'top) interp_fun -> unit
 end
