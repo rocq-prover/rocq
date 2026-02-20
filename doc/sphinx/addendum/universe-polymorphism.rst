@@ -612,7 +612,7 @@ Printing universes
    names (adjusting constraints to preserve the implied transitive
    constraints between kept universes). :n:`@debug_univ_name` is
    :n:`@qualid` for named universes (e.g. `eq.u0`), and :n:`@string`
-   for raw universe expressions (e.g. `"Stdlib.Init.Logic.1"`).
+   for raw universe expressions (e.g. `"Corelib.Init.Logic.1"`).
 
    By default when printing a subgraph `Print Universes` attempts to
    find and print the source of the constraints. This can be
