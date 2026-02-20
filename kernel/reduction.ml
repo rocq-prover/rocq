@@ -194,3 +194,19 @@ let eta_expand ?evars env t ty =
   let t = Term.applistc (Vars.lift d t) eta_args in
   let t = Term.it_mkLambda_or_LetIn t (List.firstn d ctxt) in
   Term.it_mkLambda_or_LetIn t ctxt'
+
+let eta_expand_instantiation ?evars env inst ctxt =
+  let open Context.Rel.Declaration in
+  let eta_inst = Array.make (Array.length inst) mkProp in
+  let rec fold subst i = function
+  | [] -> assert (Array.length inst = i)
+  | LocalAssum (_, ty) :: ctx ->
+    let ty = substl subst ty in
+    let eta_t = eta_expand ?evars env inst.(i) ty in
+    let () = eta_inst.(i) <- eta_t in
+    fold (eta_t :: subst) (i + 1) ctx
+  | LocalDef (_, bd, _) :: ctx ->
+    fold (bd :: subst) i ctx
+  in
+  let () = fold [] 0 (List.rev ctxt) in
+  eta_inst

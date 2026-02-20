@@ -80,3 +80,51 @@ BoxP@{q ; a} may only be eliminated to produce values whose type is SProp or Pro
 Arguments BoxP A%_type_scope
 Expands to: Inductive Inductive.BoxP
 Declared in library Inductive, line 56, characters 22-26
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+File "./output/Inductive.v", line 62, characters 0-74:
+Warning: Cut is nested using Box. No scheme for Box is registered as All.
+[register-all,automation,default]
+Cut_ind@{u} :
+forall P : forall x : unit, Cut@{u} x -> Prop,
+(forall (x : unit) (b : Box@{u u} (fun n : unit => Cut@{u} n)),
+ P x (triv@{u} x b)) ->
+forall (x : unit) (c : Cut@{u} x), P x c
+(* u |=  *)
+
+Cut_ind is universe polymorphic
+Arguments Cut_ind (P triv)%_function_scope x c
+Cut_ind is transparent
+Expands to: Constant Inductive.Cut_ind
+Declared in library Inductive, line 62, characters 0-74
