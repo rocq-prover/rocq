@@ -26,6 +26,8 @@ type search_strategy = Dfs | Bfs
 
 val set_typeclasses_strategy : search_strategy -> unit
 
+val hint_runner : TransparentState.t -> Hints.hint Hints.hint_ast -> unit Proofview.tactic
+
 val typeclasses_eauto :
   ?only_classes:bool
   (** Should non-class goals be shelved and resolved at the end. Default: false *)

@@ -98,6 +98,21 @@ let e_exact _flags h =
   let flags = eauto_unif_flags in
   Hints.hint_res_pf ~with_evars:false ~with_classes:false ~flags h
 
+let hint_runner ts =
+  let st = auto_flags_of_state ts in
+  function
+  | Res_pf h -> unify_resolve st h
+  | ERes_pf h -> unify_e_resolve st h
+  | Give_exact h -> e_exact st h
+  | Res_pf_THEN_trivial_fail h -> unify_e_resolve st h
+  | Unfold_nth c -> reduce (Unfold [AllOccurrences,c]) onConcl
+  | Extern (pat, tacast) ->
+    Proofview.Goal.enter begin fun gl ->
+      let concl = Proofview.Goal.concl gl in
+      conclPattern concl pat tacast
+    end
+
+
 let rec e_trivial_fail_db db_list local_db =
   let next = Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
@@ -125,24 +140,22 @@ and e_my_find_search env sigma db_list local_db secvars concl =
   let hint_of_db = hintmap_of env sigma secvars concl in
   let hintl =
       List.map_append (fun db ->
-        let flags = auto_flags_of_state (Hint_db.transparent_state db) in
-          List.map (fun x -> flags, x) (hint_of_db db)) (local_db::db_list)
+        let ts = Hint_db.transparent_state db in
+        List.map (fun x -> ts, x) (hint_of_db db)) (local_db::db_list)
   in
   let tac_of_hint =
-    fun (st, h) ->
+    fun (ts, h) ->
       let priority = match FullHint.repr h with
       | Unfold_nth _ -> 1
       | _ -> FullHint.priority h
       in
-      let tac = function
-      | Res_pf h -> unify_resolve st h
-      | ERes_pf h -> unify_e_resolve st h
-      | Give_exact h -> e_exact st h
-      | Res_pf_THEN_trivial_fail h ->
-        Tacticals.tclTHEN (unify_e_resolve st h)
-          (e_trivial_fail_db db_list local_db)
-      | Unfold_nth c -> reduce (Unfold [AllOccurrences,c]) onConcl
-      | Extern (pat, tacast) -> conclPattern concl pat tacast
+      let tac h =
+        let base_tac = hint_runner ts h in
+        match h with
+        | Res_pf_THEN_trivial_fail _ ->
+          Tacticals.tclTHEN base_tac
+            (e_trivial_fail_db db_list local_db)
+        | _ -> base_tac
       in
       (* We cannot determine statically the cost of subgoals of an Extern hint,
          so approximate it by the hint's priority. *)
