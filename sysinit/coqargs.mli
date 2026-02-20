@@ -79,6 +79,7 @@ type coqargs_pre = {
 
   ml_includes : CUnix.physical_path list;
   vo_includes : vo_path list;
+  packages : string list;
 
   load_vernacular_list : string list;
   injections  : injection_command list;

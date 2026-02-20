@@ -32,6 +32,7 @@ type 'a project = {
   ml_includes : path sourced list;
   r_includes  : (path * logic_path) sourced list;
   q_includes  : (path * logic_path) sourced list;
+  packages : string list;
   extra_args : string sourced list;
   defs : (string * string) sourced list;
 
@@ -57,6 +58,7 @@ let mk_project project_file makefile native_compiler extra_data = {
   meta_file = Absent;
   r_includes = [];
   q_includes = [];
+  packages = [];
   extra_args = [];
   defs = [];
 
@@ -236,6 +238,9 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
        updated version of Dune. *)
     aux { proj with r_includes = proj.r_includes @ [sourced (mk_path d,lp)] } r
 
+  | "-package" :: p :: r ->
+    aux { proj with packages = p :: proj.packages } r
+
   | "-native-compiler" :: flag :: r ->
     let proj = parse_native ~warning_fn ~error proj flag in
     aux proj r
@@ -310,8 +315,16 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
           end else
               raise (Parsing_error ("Unknown option " ^ f)) in
       aux proj r
- in
+  in
   let proj = aux proj args in
+  let resolve_packages proj =
+    let ps = Rocq_package.resolve proj.packages in
+    List.fold_left (fun proj Rocq_package.{dir; logpath} ->
+      let inc = sourced (mk_path dir, logpath) in
+      { proj with q_includes = proj.q_includes @ [inc] }
+    ) proj ps
+  in
+  let proj = resolve_packages proj in
   (* Short-circuit -native-compiler options passed via -args *)
   let rec filter_extra proj = function
   | [] -> { proj with extra_args = [] }
