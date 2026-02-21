@@ -1,4 +1,4 @@
-(lang dune 3.8)
+(lang dune 3.21)
 (name rocq-prover)
 
 ; We use directory targets in documentation
@@ -20,6 +20,7 @@
 (homepage https://rocq-prover.org/)
 (documentation "https://rocq-prover.org/docs/")
 (version dev)
+(maintenance_intent "(any)")
 
 ; Note that we use rocq-runtime.opam.template to have dune add the correct opam
 ; prefix for configure
