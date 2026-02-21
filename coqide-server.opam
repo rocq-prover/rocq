@@ -21,7 +21,7 @@ homepage: "https://rocq-prover.org/"
 doc: "https://rocq-prover.org/docs/"
 bug-reports: "https://github.com/rocq-prover/rocq/issues"
 depends: [
-  "dune" {>= "3.8"}
+  "dune" {>= "3.21"}
   "rocq-runtime" {= version}
   "odoc" {with-doc}
 ]
@@ -40,3 +40,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/rocq-prover/rocq.git"
+x-maintenance-intent: ["(any)"]
