@@ -1,4 +1,4 @@
-(lang dune 2.0)
+(lang dune 3.21)
 
 ; Add custom flags here. Default developer profile is `dev`
 (context (opam (switch 4.14.0)))

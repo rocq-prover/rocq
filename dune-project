@@ -1,11 +1,11 @@
-(lang dune 3.8)
+(lang dune 3.21)
 (name rocq-prover)
 
 ; We use directory targets in documentation
 (using directory-targets 0.1)
 
 ; We need this for when we use the dune.disabled files instead of our rule_gen
-(using coq 0.8)
+(using rocq 0.11)
 
 (formatting
  (enabled_for ocaml))
@@ -20,6 +20,7 @@
 (homepage https://rocq-prover.org/)
 (documentation "https://rocq-prover.org/docs/")
 (version dev)
+(maintenance_intent "(any)")
 
 ; Note that we use rocq-runtime.opam.template to have dune add the correct opam
 ; prefix for configure
@@ -148,6 +149,7 @@ development of interactive proofs."))
 
 (package
  (name rocq-test-suite)
+ (allow_empty)
  (depends
   (rocq-core (= :version))
   coqide-server
