@@ -38,7 +38,7 @@ variable can be introduced at the same time. It is also possible to give
 the type of the variable as follows:
 :n:`(@ident : @type := @term)`.
 
-`(x : T | P)` is syntactic sugar for `(x : @Stdlib.Init.Specif.sig _ (fun x : T => P))`,
+`(x : T | P)` is syntactic sugar for `(x : @Corelib.Init.Specif.sig _ (fun x : T => P))`,
 which would more typically be written `(x : {x : T | P})`.
 Since `(x : T | P)` uses `sig` directly,
 changing the notation `{x : T | P}`
