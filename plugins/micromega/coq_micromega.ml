@@ -329,7 +329,7 @@ exception ParseError
 (* A simple but useful getter function *)
 
 let get_left_construct sigma term =
-  match EConstr.kind sigma term with
+  match EConstr.kind_nonat sigma term with
   | Construct ((_, i), _) -> (i, [||])
   | App (l, rst) -> (
     match EConstr.kind sigma l with
@@ -387,7 +387,7 @@ let dump_n x =
    *)
 
 let is_declared_term env evd t =
-  match EConstr.kind evd t with
+  match EConstr.kind_nonat evd t with
   | Const _ | Construct _ -> (
     (* Restrict typeclass resolution to trivial cases *)
     let typ = Retyping.get_type_of env evd t in
@@ -400,7 +400,7 @@ let is_declared_term env evd t =
   | _ -> false
 
 let rec is_ground_term env evd term =
-  match EConstr.kind evd term with
+  match EConstr.kind_nonat evd term with
   | App (c, args) ->
     is_declared_term env evd c && Array.for_all (is_ground_term env evd) args
   | Const _ | Construct _ -> is_declared_term env evd term

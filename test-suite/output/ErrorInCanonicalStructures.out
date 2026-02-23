@@ -5,4 +5,4 @@ Expected an instance of a record or structure.
 File "./output/ErrorInCanonicalStructures.v", line 7, characters 0-29:
 The command has indeed failed with message:
 Could not declare a canonical structure bar.
-Expected an instance of a record or structure.
+Expected a record or structure constructor applied to arguments.

@@ -553,9 +553,9 @@ let map_left2 f a g b =
 let map_constr_with_binders_left_to_right env sigma g f l c =
   let open RelDecl in
   let open EConstr in
-  match EConstr.kind sigma c with
+  match EConstr.kind_nonat sigma c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> c
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> c
   | Cast (b,k,t) ->
     let b' = f l b in
     let t' = f l t in
@@ -631,7 +631,7 @@ let map_constr_with_full_binders env sigma g f l cstr =
   let open EConstr in
   match EConstr.kind sigma cstr with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> cstr
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> cstr
   | Cast (c,k, t) ->
       let c' = f l c in
       let t' = f l t in
@@ -703,7 +703,7 @@ let fold_constr_with_full_binders env sigma g f n acc c =
   let open EConstr.Vars in
   let open Context.Rel.Declaration in
   match EConstr.kind sigma c with
-  | Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _ | Construct _  | Int _ | Float _ | String _ -> acc
+  | Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _ | Construct _  | Nat _ | Int _ | Float _ | String _ -> acc
   | Cast (c,_, t) -> f n (f n acc c) t
   | Prod (na,t,c) -> f (g (LocalAssum (na,t)) n) (f n acc t) c
   | Lambda (na,t,c) -> f (g (LocalAssum (na,t)) n) (f n acc t) c
@@ -1359,6 +1359,11 @@ let constr_ord_int f t1 t2 =
     | CoFix _, _ -> -1 | _, CoFix _ -> 1
     | Proj (p1,_r1,c1), Proj (p2,_r2,c2) -> compare [(Projection.CanOrd.compare, p1, p2); (f, c1, c2)]
     | Proj _, _ -> -1 | _, Proj _ -> 1
+    | Nat (ind1,n1), Nat (ind2,n2) ->
+      let c = Ind.CanOrd.compare ind1 ind2 in
+      if c <> 0 then c else Z.compare n1 n2
+    | Nat _, _ -> -1
+    | _, Nat _ -> -1
     | Int i1, Int i2 -> Uint63.compare i1 i2
     | Int _, _ -> -1 | _, Int _ -> 1
     | Float f1, Float f2 -> Float64.total_compare f1 f2
@@ -1419,6 +1424,7 @@ let rec hash t =
     | String s -> combinesmall 20 (Pstring.hash s)
     | Array(u,t,def,ty) ->
       combinesmall 21 (combine4 (Instance.hash u) (hash_term_array t) (hash def) (hash ty))
+    | Nat (ind,i) -> combinesmall 22 (combine (Ind.CanOrd.hash ind) (Z.hash i))
 
 and hash_invert = function
   | NoInvert -> 0

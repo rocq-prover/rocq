@@ -1591,7 +1591,7 @@ let explain_inductive_error env = function
 
 (* Primitive errors *)
 
-let explain_incompatible_prim_declarations (type a) (act:a Primred.action_kind) (x:a) (y:a) =
+let explain_incompatible_prim_declarations (type a) (act:a Primred.action_error) (x:a) (y:a) =
   let open Primred in
   let env = Global.env() in
   (* The newer constant/inductive (either coming from Primitive or a
@@ -1610,6 +1610,10 @@ let explain_incompatible_prim_declarations (type a) (act:a Primred.action_kind) 
   | IncompatInd ind ->
     let px = try pr_inductive env x with Not_found -> MutInd.print (fst x) in
     str "Cannot declare " ++ px ++ str " as primitive " ++ str (CPrimitives.prim_ind_to_string ind) ++
+    str ": " ++ pr_inductive env y ++ str " is already declared."
+  | IncompatNat ->
+    let px = try pr_inductive env x with Not_found -> MutInd.print (fst x) in
+    str "Cannot declare " ++ px ++ str " as primitive nat" ++
     str ": " ++ pr_inductive env y ++ str " is already declared."
 
 (* Recursion schemes errors *)

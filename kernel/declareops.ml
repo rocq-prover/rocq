@@ -269,6 +269,7 @@ let subst_mind_body subst mib =
     mind_sec_variance = mib.mind_sec_variance;
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
+    mind_is_nat = (assert (not mib.mind_is_nat); false);
   }
 
 let mind_ntypes mib = Array.length mib.mind_packets

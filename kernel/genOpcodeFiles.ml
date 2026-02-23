@@ -80,7 +80,9 @@ let opcodes =
     "MAKEBLOCK2", 1;
     "MAKEBLOCK3", 1;
     "MAKEBLOCK4", 1;
+    "MAKESUCC", 0;
     "SWITCH", -1;
+    "SWITCHNAT", 4;
     "PUSHFIELDS", 1;
     "GETFIELD0", 0;
     "GETFIELD1", 0;

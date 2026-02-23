@@ -562,6 +562,14 @@ let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
   in
   Vars.substl subst (snd br)
 
+let get_nat_branch ind n br =
+  if Z.equal n Z.zero then
+    let _nas, br = br.(0) in
+    br
+  else
+    let _nas, br = br.(1) in
+    let n = Z.pred n in
+    Vars.subst1 (mkNat ind n) br
 
 exception PatternFailure
 
@@ -915,6 +923,53 @@ let rec whd_state_gen ?csts flags env sigma =
           end
         |_, (Stack.App _)::_ -> assert false
         |_, _ -> fold ()
+      else fold ()
+
+    | Nat (ind,n) ->
+      let use_match = RedFlags.red_set flags RedFlags.fMATCH in
+      let use_fix = RedFlags.red_set flags RedFlags.fFIX in
+      if use_match || use_fix then
+        match stack with
+        | (Stack.Case((_,_,_,_,_,br),_)::s') when use_match ->
+          let r = get_nat_branch ind n br in
+          whrec Cst_stack.empty (r, s')
+        | (Stack.Fix (f,s',cst_l)::s'') when use_fix ->
+          let out_sk = s' @ (Stack.append_app [|x|] s'') in
+          reduce_and_refold_fix whrec env sigma cst_l f out_sk
+        | (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
+          begin match remains with
+          | [] ->
+            (match const with
+             | Stack.Cst_const const ->
+               (match constant_opt_value_in env const with
+                | None -> fold ()
+                | Some body ->
+                  let const = (fst const, EInstance.make (snd const)) in
+                  let body = EConstr.of_constr body in
+                  let cst_l = Cst_stack.add_cst ~volatile (mkConstU const) cst_l in
+                  whrec cst_l (body, s' @ (Stack.append_app [|x|] s'')))
+             | Stack.Cst_proj (p,r) ->
+               let stack = s' @ (Stack.append_app [|x|] s'') in
+               match Stack.strip_n_app 0 stack with
+               | None -> assert false
+               | Some (_,arg,s'') ->
+                 whrec Cst_stack.empty (arg, Stack.Proj (p,r,cst_l) :: s''))
+          | next :: remains' -> match Stack.strip_n_app (next-curr-1) s'' with
+            | None -> fold ()
+            | Some (bef,arg,s''') ->
+              let cst_l = Stack.Cst
+                  { const;
+                    curr=next;
+                    volatile;
+                    remains=remains';
+                    params=s' @ (Stack.append_app [|x|] bef);
+                    cst_l;
+                  }
+              in
+              whrec Cst_stack.empty (arg, cst_l :: s''')
+          end
+        | (Stack.App _ | Proj _ | Primitive _)::_ -> assert false
+        | _ -> fold ()
       else fold ()
 
     | CoFix cofix ->

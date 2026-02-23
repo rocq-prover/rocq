@@ -516,6 +516,7 @@ let emit_instr env = function
   | Kmakeblock(n, t) ->
       if 0 < n && n < 4 then (out env(opMAKEBLOCK1 + n - 1); out_int env t)
       else (out env opMAKEBLOCK; out_int env n; out_int env t)
+  | Kmakesucc -> out env opMAKESUCC
   | Kmakeswitchblock(typlbl,swlbl,annot,sz) ->
       out env opMAKESWITCHBLOCK;
       out_label env typlbl; out_label env swlbl;
@@ -530,6 +531,10 @@ let emit_instr env = function
       let org = env.out_position in
       Array.iter (out_label_with_orig env org) tbl_const;
       Array.iter (out_label_with_orig env org) tbl_block
+  | Kswitchnat (l0, lAcc, lS, lZ) ->
+    out env opSWITCHNAT;
+    let org = env.out_position in
+    Array.iter (out_label_with_orig env org) [|l0;lAcc;lS;lZ|]
   | Kpushfields n ->
       out env opPUSHFIELDS;out_int env n
   | Kfield n ->

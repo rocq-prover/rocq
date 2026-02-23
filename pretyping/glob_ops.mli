@@ -53,6 +53,8 @@ val cases_pattern_loc : 'a cases_pattern_g -> Loc.t option
 
 val cases_predicate_names : 'a tomatch_tuples_g -> Name.t list
 
+val unfold_nat : ?loc:Loc.t -> inductive -> Z.t -> _ glob_constr_g
+
 (** Apply a list of arguments to a glob_constr *)
 val mkGApp : ?loc:Loc.t -> 'a glob_constr_g -> 'a glob_constr_g list -> 'a glob_constr_g
 

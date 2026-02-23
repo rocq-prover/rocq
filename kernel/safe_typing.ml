@@ -1326,7 +1326,8 @@ let add_mind l mie senv =
     let senv = push_context_set ~strict:true (levels, uctx) senv in
     senv
   in
-  (kn, why_not_prim_record), add_checked_mind kn mib senv
+  let senv = add_checked_mind kn mib senv in
+  (kn, why_not_prim_record), senv
 
 let add_mind ?typing_flags l mie senv =
   with_typing_flags ?typing_flags senv ~f:(add_mind l mie)

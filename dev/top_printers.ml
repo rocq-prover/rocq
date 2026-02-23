@@ -43,6 +43,8 @@ let ppexninfo e =
 
 let ppfuture kx = pp (Future.print (fun _ -> str "_") kx)
 
+let ppZ z = pp (str (Z.to_string z))
+
 (* name printers *)
 let ppid id = pp (Id.print id)
 let ppmbid mbid = pp (str (MBId.debug_to_string mbid))
@@ -408,6 +410,7 @@ let constr_display csr =
       ^(Array.fold_right (fun x i -> (name_display x)^(if not(i="")
         then (";"^i) else "")) lna "")^","
       ^(array_display bl)^")"
+  | Nat (ind,n) -> "Nat("^(MutInd.to_string (fst ind))^Z.to_string n^")"
   | Int i ->
       "Int("^(Uint63.to_string i)^")"
   | Float f ->
@@ -570,6 +573,8 @@ let print_pure_constr csr =
           print_cut();
         done
       in print_string"{"; print_fix (); print_string"}"
+  | Nat (ind,n) ->
+     print_string ("Nat("^MutInd.to_string (fst ind)^(Z.to_string n)^")")
   | Int i ->
      print_string ("Int("^(Uint63.to_string i)^")")
   | Float f ->

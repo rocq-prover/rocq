@@ -77,6 +77,7 @@ and ppwhd whd =
   | Vcofix _ -> print_string "cofix"
   | Vconst i -> print_string "C(";print_int i;print_string")"
   | Vblock b -> ppvblock b
+  | Vnat n -> printf "nat(%s)" (Z.to_string n)
   | Vint64 i -> printf "int64(%LiL)" i
   | Vfloat64 f -> printf "float64(%.17g)" f
   | Vstring s -> printf "string(%S)" (Pstring.to_string s)

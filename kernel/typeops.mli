@@ -77,6 +77,7 @@ val check_hyps_inclusion : env -> ?evars:CClosure.evar_handler ->
 
 (** Types for primitives *)
 
+val type_of_nat : env -> inductive -> Z.t -> types
 val type_of_int : env -> types
 val type_of_float : env -> types
 val type_of_string : env -> types

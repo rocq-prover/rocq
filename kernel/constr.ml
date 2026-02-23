@@ -112,6 +112,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Float     of Float64.t
   | String    of Pstring.t
   | Array     of 'univs * 'constr array * 'constr * 'types
+  | Nat of inductive * Z.t
 
 (* constr is the fixpoint of the previous type. *)
 type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term [@@unboxed]
@@ -149,6 +150,13 @@ let rec kind_nocast_gen kind c =
   | k -> k
 
 let kind_nocast c = kind_nocast_gen kind c
+
+let kind_nonat c =
+  match kind c with
+  | Nat (ind,n) ->
+    if Z.equal n Z.zero then Construct (in_punivs (ind,1))
+    else App (T (Construct (in_punivs (ind,2))), [|T (Nat (ind,Z.pred n))|])
+  | k -> k
 
 (**********************************************************************)
 (*          Non primitive term destructors                            *)
@@ -360,6 +368,7 @@ let of_kind = function
 | Sort Sorts.SProp -> mkSProp
 | Sort Sorts.Prop -> mkProp
 | Sort Sorts.Set -> mkSet
+| Nat (_,i) as k -> assert (Z.leq Z.zero i); T k
 | k -> T k
 
 (* Construct a type *)
@@ -455,6 +464,16 @@ let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstructRef c -> mkConstructU (c,u)
   | VarRef x -> mkVar x
 
+let mkNat ind i = of_kind @@ Nat (ind,i)
+
+let ctor_of_nat natind i =
+  let ctor = if Z.equal i Z.zero then 1 else 2 in
+  natind, ctor
+
+let unfold_nat natind n =
+    if Z.equal n Z.zero then mkConstruct (natind, 1)
+  else mkApp (mkConstruct (natind, 2), [|mkNat natind (Z.sub n Z.one)|])
+
 (* Constructs a primitive integer *)
 let mkInt i = of_kind @@ Int i
 
@@ -488,7 +507,7 @@ let fold_invert f acc = function
 
 let fold f acc c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> acc
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> acc
   | Cast (c,_,t) -> f (f acc c) t
   | Prod (_,t,c) -> f (f acc t) c
   | Lambda (_,t,c) -> f (f acc t) c
@@ -516,7 +535,7 @@ let iter_invert f = function
 
 let iter f c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> ()
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> ()
   | Cast (c,_,t) -> f c; f t
   | Prod (_,t,c) -> f t; f c
   | Lambda (_,t,c) -> f t; f c
@@ -538,7 +557,7 @@ let iter f c = match kind c with
 
 let iter_with_binders g f n c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> ()
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> ()
   | Cast (c,_,t) -> f n c; f n t
   | Prod (_,t,c) -> f n t; f (g n) c
   | Lambda (_,t,c) -> f n t; f (g n) c
@@ -571,7 +590,7 @@ let iter_with_binders g f n c = match kind c with
 let fold_constr_with_binders g f n acc c =
   match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> acc
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> acc
   | Cast (c,_, t) -> f n (f n acc c) t
   | Prod (_na,t,c) -> f (g  n) (f n acc t) c
   | Lambda (_na,t,c) -> f (g  n) (f n acc t) c
@@ -635,7 +654,7 @@ let map_invert f = function
 
 let map f c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> c
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> c
   | Cast (b,k,t) ->
       let b' = f b in
       let t' = f t in
@@ -720,7 +739,7 @@ let fold_map_return_predicate f accu (p,r as v) =
 
 let fold_map f accu c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> accu, c
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> accu, c
   | Cast (b,k,t) ->
       let accu, b' = f accu b in
       let accu, t' = f accu t in
@@ -788,7 +807,7 @@ let fold_map f accu c = match kind c with
 
 let map_with_binders g f l c0 = match kind c0 with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> c0
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> c0
   | Cast (c, k, t) ->
     let c' = f l c in
     let t' = f l t in
@@ -898,12 +917,32 @@ let eq_invert eq iv1 iv2 =
 let eq_under_context eq (_nas1, p1) (_nas2, p2) =
   eq p1 p2
 
+let eq_nat_gen ind n kind c =
+  let rec aux n c =
+    match kind_nocast_gen kind c with
+    | Nat (ind',n') -> Z.equal n n' && Ind.CanOrd.equal ind ind'
+    | Construct ((ind',1),_) -> Z.equal n Z.zero && Ind.CanOrd.equal ind ind'
+    | App (hd, [|a|]) ->
+      begin match kind_nocast_gen kind hd with
+      | Construct ((ind',2),_) ->
+        Ind.CanOrd.equal ind ind' &&
+        aux (Z.pred n) a
+      | _ -> false
+      end
+    | _ -> false
+  in
+  aux n c
+
 let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq leq nargs t1 t2 =
   match kind_nocast_gen kind1 t1, kind_nocast_gen kind2 t2 with
   | Cast _, _ | _, Cast _ -> assert false (* kind_nocast *)
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
+  | Nat (ind1,n1), Nat (ind2,n2) ->
+    Z.equal n1 n2 && Ind.CanOrd.equal ind1 ind2
+  | Nat (ind1,n1), _ -> eq_nat_gen ind1 n1 kind2 t2
+  | _, Nat (ind2,n2) -> eq_nat_gen ind2 n2 kind1 t1
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
@@ -1104,6 +1143,7 @@ let hasheq_kind t1 t2 =
       && array_eqeq lna1 lna2
       && array_eqeq tl1 tl2
       && array_eqeq bl1 bl2
+    | Nat (ind1,i1), Nat (ind2,i2) -> ind1 == ind2 && Z.equal i1 i2
     | Int i1, Int i2 -> i1 == i2
     | Float f1, Float f2 -> Float64.equal f1 f2
     | String s1, String s2 -> Pstring.equal s1 s2
@@ -1111,7 +1151,7 @@ let hasheq_kind t1 t2 =
       u1 == u2 && def1 == def2 && ty1 == ty2 && array_eqeq t1 t2
     | (Rel _ | Meta _ | Var _ | Sort _ | Cast _ | Prod _ | Lambda _ | LetIn _
       | App _ | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _
-      | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+      | Fix _ | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 let hasheq t1 t2 = hasheq_kind (kind t1) (kind t2)
 
@@ -1311,6 +1351,9 @@ let rec hash_term (t : t) : int * (constr,constr,_,_,_) kind_of_term =
     let hty, ty = sh_rec ty in
     let h = combine4 hu ht hdef hty in
     (combinesmall 21 h, Array(u,t,def,ty))
+  | Nat (ind,i) ->
+    let hind, ind = hcons_ind ind in
+    combinesmall 22 (combine hind (Z.hash i)), Nat (ind, i)
 
 and sh_invert civ iv = match civ, iv with
   | NoInvert, NoInvert -> 0, NoInvert
@@ -1460,6 +1503,9 @@ let rec debug_print c =
            Name.print na.binder_name ++ str":" ++ debug_print ty ++
            cut() ++ str":=" ++ debug_print bd) (Array.to_list fixl)) ++
          str"}")
+  | Nat (ind,i) ->
+    str "Nat(" ++ MutInd.print (fst ind) ++ pr_comma () ++ int (snd ind) ++ pr_comma() ++
+    str (Z.to_string i) ++ str ")"
   | Int i -> str"Int("++str (Uint63.to_string i) ++ str")"
   | Float i -> str"Float("++str (Float64.to_string i) ++ str")"
   | String s -> str"String("++str (Printf.sprintf "%S" (Pstring.to_string s)) ++ str")"

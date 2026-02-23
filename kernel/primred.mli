@@ -2,11 +2,12 @@ open Names
 open Environ
 
 (** {5 Reduction of primitives} *)
-type _ action_kind =
-  | IncompatTypes : _ CPrimitives.prim_type -> Constant.t action_kind
-  | IncompatInd : _ CPrimitives.prim_ind -> inductive action_kind
+type _ action_error =
+  | IncompatTypes : _ CPrimitives.prim_type -> Constant.t action_error
+  | IncompatInd : _ CPrimitives.prim_ind -> inductive action_error
+  | IncompatNat : inductive action_error
 
-type exn += IncompatibleDeclarations : 'a action_kind * 'a * 'a -> exn
+type exn += IncompatibleDeclarations : 'a action_error * 'a * 'a -> exn
 
 (** May raise [IncomtibleDeclarations] *)
 val add_retroknowledge : env -> Retroknowledge.action -> env

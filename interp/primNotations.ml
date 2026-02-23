@@ -187,6 +187,7 @@ type 'a token_kind =
 | TConst of Constant.t * 'a list
 | TInd of inductive * 'a list
 | TConstruct of constructor * 'a list
+| TNat of inductive * Z.t
 | TInt of Uint63.t
 | TFloat of Float64.t
 | TString of Pstring.t
@@ -216,6 +217,7 @@ let kind c =
   | Float f -> TFloat f
   | String s -> TString s
   | Array (_, t, u, v) -> TArray (t, u, v)
+  | Nat (ind,n) -> TNat (ind,n)
   | Rel _ | Meta _ | Evar _ | Cast _ | Prod _ | Lambda _ | LetIn _ | App _
   | Proj _ | Case _ | Fix _ | CoFix _ -> TOther
 
@@ -299,6 +301,15 @@ let rec check_glob env sigma g c =
        try List.fold_left2_map (check_glob env) sigma gcl (Array.to_list gc'a)
        with Invalid_argument _ -> raise NotAValidPrimToken in
      sigma, mkApp (c, Array.of_list cl)
+  | Glob_term.GNat (ind,n), Constr.Nat (ind',n')
+    when Z.equal n n' && Environ.QInd.equal env ind ind' ->
+    sigma, mkNat ind n
+  | GNat (ind, n), (Construct _ | App _) ->
+    let g = Glob_ops.unfold_nat ?loc:g.loc ind n in
+    check_glob env sigma g c
+  | (GRef (ConstructRef _, None) | GApp _), Nat (ind, n) ->
+    let c = Constr.unfold_nat ind n in
+    check_glob env sigma g c
   | Glob_term.GInt i, Constr.Int i' when Uint63.equal i i' -> sigma, mkInt i
   | Glob_term.GFloat f, Constr.Float f' when Float64.equal f f' -> sigma, mkFloat f
   | Glob_term.GString s, Constr.String s' when Pstring.equal s s' -> sigma, mkString s
@@ -331,9 +342,24 @@ let rec constr_of_glob to_post post env sigma g =
          if List.exists (function ToPostHole _ -> false | _ -> true) a then raise NotAValidPrimToken;
          constr_of_globref env sigma r
       end
+  | GNat (ind,n) ->
+    let ctor = GlobRef.ConstructRef (ctor_of_nat ind n) in
+    let o = List.find_opt (fun (_,r',_) -> Environ.QGlobRef.equal env ctor r') post in
+    begin match o with
+    | None -> sigma, mkNat ind n
+    | Some _ ->
+      let ctor = DAst.make ?loc:g.loc @@ GRef (ctor, None) in
+      let g = if Z.equal n Z.zero then ctor
+        else DAst.make ?loc:g.loc @@ GApp (ctor, [DAst.make ?loc:g.loc @@ GNat (ind, Z.pred n)])
+      in
+      constr_of_glob to_post post env sigma g
+    end
   | Glob_term.GApp (gc, gcl) ->
       let o = match DAst.get gc with
         | Glob_term.GRef (r, _) -> List.find_opt (fun (_,r',_) -> Environ.QGlobRef.equal env r r') post
+        | GNat (ind,n) ->
+          let r = GlobRef.ConstructRef (ctor_of_nat ind n) in
+          List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
         | _ -> None in
       begin match o with
       | None ->
@@ -390,6 +416,7 @@ let rec glob_of_constr token_kind ?loc env sigma c = match Constr.kind c with
   | Const (c, _) -> DAst.make ?loc (Glob_term.GRef (GlobRef.ConstRef c, None))
   | Ind (ind, _) -> DAst.make ?loc (Glob_term.GRef (GlobRef.IndRef ind, None))
   | Var id -> DAst.make ?loc (Glob_term.GRef (GlobRef.VarRef id, None))
+  | Nat (ind,n) -> DAst.make ?loc (Glob_term.GNat (ind,n))
   | Int i -> DAst.make ?loc (Glob_term.GInt i)
   | Float f -> DAst.make ?loc (Glob_term.GFloat f)
   | String s -> DAst.make ?loc (Glob_term.GString s)
@@ -425,6 +452,7 @@ let rec glob_of_token token_kind ?loc env sigma c = match TokenValue.kind c with
     let ce = DAst.make ?loc (Glob_term.GRef (GlobRef.VarRef id, None)) in
     let cel = List.map (glob_of_token token_kind ?loc env sigma) l in
     mkGApp ?loc ce cel
+  | TNat (ind,n) -> DAst.make ?loc (GNat (ind,n))
   | TInt i -> DAst.make ?loc (Glob_term.GInt i)
   | TFloat f -> DAst.make ?loc (Glob_term.GFloat f)
   | TString s -> DAst.make ?loc (Glob_term.GString s)
@@ -451,11 +479,21 @@ let no_such_prim_token uninterpreted_token_kind ?loc ?errmsg ty =
     pr_opt (fun errmsg -> surround errmsg) errmsg)
 
 let rec postprocess env token_kind ?loc ty to_post post g =
-  let g', gl = match DAst.get g with Glob_term.GApp (g, gl) -> g, gl | _ -> g, [] in
+  let g', gl = match DAst.get g with
+    | Glob_term.GApp (g, gl) -> g, gl
+    | GNat (ind,n) ->
+      let r = DAst.make @@ GRef (GlobRef.ConstructRef (ctor_of_nat ind n), None) in
+      if Z.equal n Z.zero then r, []
+      else r, [DAst.make @@ GNat (ind, Z.pred n)]
+    | _ -> g, []
+  in
   let o =
     match DAst.get g' with
     | Glob_term.GRef (r, None) ->
-       List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
+      List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
+    | GNat (ind,n) ->
+      let r = GlobRef.ConstructRef (ctor_of_nat ind n) in
+      List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
     | _ -> None in
   match o with None -> g | Some (_, r, a) ->
   let rec f n a gl = match a, gl with

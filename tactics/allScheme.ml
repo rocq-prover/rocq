@@ -967,6 +967,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
       mind_entry_universes = Polymorphic_ind_entry uctx;
       mind_entry_variance = Some (Array.make ulen None);
       mind_entry_private = mib.mind_private;
+      mind_entry_is_nat = false;
       }
   in
   (* DEBUG FUNCTIONS *)

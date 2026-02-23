@@ -312,23 +312,6 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     | _ -> raise PatternMatchingFailure
     end
 
-  | PApp (c1, arg1), App (c2, arg2) ->
-    begin match c1, EConstr.kind sigma c2 with
-    | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
-      raise PatternMatchingFailure
-    | PProj (pr1,c1), Proj (pr,_,c) ->
-      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
-      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
-    | _, Proj (pr,_,c) ->
-      begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
-      | term -> sorec ctx env subst p term
-      | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
-      end
-    | _ ->
-      let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
-      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
-    end
-
   | PApp (c, args), Proj (pr, _, c2) ->
     begin match c with
     | PRef (GlobRef.ConstRef c1) when not (Environ.QConstant.equal env c1 (Projection.constant pr)) ->
@@ -343,6 +326,50 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
   | PProj (p1, c1), Proj (p2, _, c2) ->
     if Environ.QProjection.equal env p1 p2 then sorec ctx env subst c1 c2
     else raise PatternMatchingFailure
+
+  | PApp (c1, arg1), App (c2, arg2) when isProj sigma c2 ->
+    let (pr, _, c) = destProj sigma c2 in
+    begin match c1 with
+    | PRef (GlobRef.ConstRef r) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
+      raise PatternMatchingFailure
+    | PProj (pr1,c1) ->
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
+    | _ ->
+      begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
+      | term -> sorec ctx env subst p term
+      | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
+      end
+    end
+
+  | PNat (ind1,n1), Nat (ind2,n2) ->
+    if Z.equal n1 n2 && Environ.QInd.equal env ind1 ind2 then subst
+    else raise PatternMatchingFailure
+
+  | PNat (ind,n), Construct ((ind',1),_) ->
+    if Z.equal n Z.zero && Environ.QInd.equal env ind ind' then subst
+    else raise PatternMatchingFailure
+
+  | PNat (ind,n), App (c2, arg2) ->
+    if Array.length arg2 <> 1 then raise PatternMatchingFailure
+    else begin match kind sigma c2 with
+      | Construct ((ind',2),_) when Environ.QInd.equal env ind ind' ->
+        sorec ctx env subst (PNat (ind,Z.pred n)) arg2.(0)
+      | _ -> raise PatternMatchingFailure
+    end
+
+  | PRef (ConstructRef (ind,1)), Nat (ind',n) ->
+    if Z.equal n Z.zero && Environ.QInd.equal env ind ind' then subst
+    else raise PatternMatchingFailure
+
+  | PApp (_, arg1), Nat (ind',n) ->
+    if Z.equal n Z.zero || Array.length arg1 <> 1 then
+      raise PatternMatchingFailure
+    else sorec ctx env subst p (EConstr.unfold_nat ind' n)
+
+  | PApp (c1, arg1), App (c2, arg2) ->
+    let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
+    Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
 
   | PProd (na1, c1, d1), Prod (na2, c2, d2) ->
     sorec (push_binder na1 na2 c2 ctx) (EConstr.push_rel (LocalAssum (na2,c2)) env)
@@ -460,7 +487,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | (PRef _ | PVar _ | PRel _ | PApp _ | PProj _ | PLambda _
       | PProd _ | PLetIn _ | PSort _ | PIf _ | PCase _
-      | PFix _ | PCoFix _| PEvar _ | PInt _ | PFloat _
+      | PFix _ | PCoFix _| PEvar _ | PNat _ | PInt _ | PFloat _
       | PString _ | PArray _), _ -> raise PatternMatchingFailure
 
   | PExtra e, _ -> Util.Empty.abort e
@@ -526,7 +553,8 @@ let sub_match ?(closed=true) env sigma pat c =
   let open EConstr in
   let rec aux env c mk_ctx next =
   let here = authorized_occ env sigma closed pat c mk_ctx in
-  let next () = match EConstr.kind sigma c with
+  let next () = match EConstr.kind_nonat sigma c with
+  | Nat _ -> assert false (* nonat *)
   | Cast (c1,k,c2) ->
       let next_mk_ctx = function
       | [c1] -> mk_ctx (mkCast (c1, k, c2))

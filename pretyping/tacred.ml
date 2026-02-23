@@ -428,7 +428,7 @@ let compute_constant_coelimination infos env sigma ref u =
           assert (List.is_empty args);
           let open Context.Rel.Declaration in
           srec (push_rel (LocalAssum (id,t)) env) ((id,t)::all_abs) lastref lastu g
-      | Construct _ ->
+      | Construct _ | Nat _ ->
           let c = it_mkLambda (applist (c', args)) all_abs in
           CoEliminationConstruct c
       | Int _ | Float _ | String _ | Array _ (* reduced by primitives *) ->
@@ -589,7 +589,7 @@ let contract_cofix env sigma f (bodynum,(_names,_types,bodies as typedbodies) as
     bodies.(bodynum)
 
 let reducible_construct sigma c = match EConstr.kind sigma c with
-| Construct _ | CoFix _ (* reduced by case *)
+| Nat _ | Construct _ | CoFix _ (* reduced by case *)
 | Int _ | Float _ | String _ | Array _ (* reduced by primitives *) -> true
 | _ -> false
 
@@ -815,7 +815,7 @@ and reduce_params infos env sigma stack l =
       let arg = List.nth stack i in
       let* rarg = whd_construct_stack infos env sigma arg in
       match EConstr.kind sigma (fst rarg) with
-      | Construct _ | Int _ | Float _ | String _ | Array _ ->
+      | Nat _ | Construct _ | Int _ | Float _ | String _ | Array _ ->
         redp (List.assign stack i (applist rarg)) l
       | _ -> NotReducible
   in
@@ -913,7 +913,7 @@ and reduce_fix infos env sigma f fix stack =
   | Some (recargnum,recarg) ->
     let* (recarg'hd,_ as recarg') = whd_construct_stack infos env sigma recarg in
     match EConstr.kind sigma recarg'hd with
-    | Construct _ ->
+    | Construct _ | Nat _ ->
       let stack' = List.assign stack recargnum (applist recarg') in
       Reduced (contract_fix env sigma f fix, stack')
     | _ -> NotReducible
@@ -948,6 +948,16 @@ and reduce_case infos env sigma (ci, u, pms, p, iv, c, lf) =
     let ctx = EConstr.expand_branch env sigma u pms cstr br in
     let br = it_mkLambda_or_LetIn (snd br) ctx in
     Reduced (applist (br, real_cargs))
+  | Nat (ind,n) ->
+    if Z.equal n Z.zero then
+      let _, br = lf.(0) in
+      Reduced br
+    else
+      let br = lf.(1) in
+      let cstr = ctor_of_nat ind n in
+      let ctx = EConstr.expand_branch env sigma u pms cstr br in
+      let br = it_mkLambda_or_LetIn (snd br) ctx in
+      Reduced (applist (br, [mkNat ind (Z.pred n)]))
   | CoFix (bodynum,(names,_,_) as cofix) ->
     let cofix_def = contract_cofix env sigma f cofix in
     (* If the cofix_def does not reduce to a constructor, do we

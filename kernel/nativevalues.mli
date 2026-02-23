@@ -97,6 +97,12 @@ val mk_bool : bool -> t
 
 val mk_int : int -> t
 
+val mk_nat : string -> t
+
+val mk_succ : t -> t
+
+val force_nat : t -> t
+
 val mk_uint : Uint63.t -> t
 
 val mk_float : Float64.t -> t

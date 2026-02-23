@@ -52,7 +52,7 @@ let rec is_lazy env t =
   | Array (_, t, d, _) -> Array.exists (fun t -> is_lazy env t) t || is_lazy env d
   | Cast (c, _, _) | Prod (_, c, _) -> is_lazy env c
   | Const (c, _) -> get_const_lazy env c
-  | Rel _ | Meta _ | Var _ | Sort _ | Ind _ | Construct _ | Int _
+  | Rel _ | Meta _ | Var _ | Sort _ | Ind _ | Construct _ | Nat _ | Int _
   | Float _ | String _ | Lambda _ | Evar _ | Fix _ | CoFix _ ->
     false
 
@@ -292,6 +292,9 @@ type primitive =
   | Lazy
   | Coq_primitive of CPrimitives.t * bool (* check for accu *)
   | Mk_empty_instance
+  | Mk_nat
+  | Mk_succ
+  | Force_nat
 
 let eq_primitive p1 p2 =
   match p1, p2 with
@@ -333,6 +336,9 @@ let eq_primitive p1 p2 =
   | Get_symbols, Get_symbols
   | Lazy, Lazy
   | Mk_empty_instance, Mk_empty_instance
+  | Mk_nat, Mk_nat
+  | Mk_succ, Mk_succ
+  | Force_nat, Force_nat
     -> true
 
   | Mk_fix (rp1, i1), Mk_fix (rp2, i2) -> Int.equal i1 i2 && eq_rec_pos rp1 rp2
@@ -384,7 +390,10 @@ let eq_primitive p1 p2 =
     | Get_symbols
     | Lazy
     | Coq_primitive _
-    | Mk_empty_instance), _
+    | Mk_empty_instance
+    | Mk_nat
+    | Mk_succ
+    | Force_nat), _
     -> false
 
 let primitive_hash = function
@@ -436,6 +445,9 @@ let primitive_hash = function
   | Lazy -> 42
   | Mk_empty_instance -> 43
   | Mk_string -> 44
+  | Mk_nat -> 45
+  | Mk_succ -> 46
+  | Force_nat -> 47
 
 type mllambda =
   | MLlocal        of lname
@@ -450,6 +462,7 @@ type mllambda =
                               (* argument, prefix, accu branch, branches *)
   | MLconstruct    of string * inductive * int * mllambda array
                    (* prefix, inductive name, tag, arguments *)
+  | MLnat          of Z.t
   | MLint          of int
   | MLuint         of Uint63.t
   | MLfloat        of Float64.t
@@ -523,6 +536,7 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
       Ind.UserOrd.equal ind1 ind2 &&
       Int.equal tag1 tag2 &&
       Array.equal (eq_mllambda gn1 gn2 n env1 env2) args1 args2
+  | MLnat n1, MLnat n2 -> Z.equal n1 n2
   | MLint i1, MLint i2 ->
       Int.equal i1 i2
   | MLuint i1, MLuint i2 ->
@@ -544,7 +558,7 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
     String.equal s1 s2 && Ind.UserOrd.equal ind1 ind2 &&
     eq_mllambda gn1 gn2 n env1 env2 ml1 ml2
   | (MLlocal _ | MLglobal _ | MLprimitive _ | MLlam _ | MLletrec _ | MLlet _ |
-    MLapp _ | MLif _ | MLmatch _ | MLconstruct _ | MLint _ | MLuint _ |
+    MLapp _ | MLif _ | MLmatch _ | MLconstruct _ | MLnat _ | MLint _ | MLuint _ |
     MLfloat _ | MLstring _ | MLsetref _ | MLsequence _ |
     MLarray _ | MLisaccu _), _ -> false
 
@@ -637,6 +651,7 @@ let rec hash_mllambda gn n env t =
       combinesmall 17 (Float64.hash f)
   | MLstring s ->
       combinesmall 18 (Pstring.hash s)
+  | MLnat n -> combinesmall 19 (Z.hash n)
 
 and hash_mllambda_letrec gn n env init defs =
   let hash_def (_,args,ml) =
@@ -670,7 +685,7 @@ let fv_lam l =
     match l with
     | MLlocal l ->
         if LNset.mem l bind then fv else LNset.add l fv
-    | MLglobal _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> fv
+    | MLglobal _ | MLnat _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> fv
     | MLprimitive (_, args) ->
         let fv_arg arg fv = aux arg bind fv in
         Array.fold_right fv_arg args fv
@@ -1352,12 +1367,12 @@ let compile_prim env decl cond paux =
          (* Remark: if we do not want to compile the predicate we
             should a least compute the fv, then store the lambda representation
             of the predicate (not the mllambda) *)
-      let annot, finite =
-        let (ci, tbl, finite) = annot in {
+      let annot, finite, is_nat =
+        let { ci; reloc = tbl; finite; is_nat } = annot in {
           asw_ind = ci.ci_ind;
           asw_reloc = tbl;
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
-      }, finite in
+      }, finite, is_nat in
       let env_p = restart_env env in
       let pn = fresh_gpred env.env_cenv l in
       let mlp = ml_of_lam env_p l p in
@@ -1398,10 +1413,13 @@ let compile_prim env decl cond paux =
       in
       (* Final result *)
       let arg = ml_of_lam env l a in
-      let force =
+      let arg = if is_nat then MLprimitive (Force_nat, [|arg|])
+        else arg
+      in
+      let arg =
         if finite <> CoFinite then arg
         else mkForceCofix env.env_cenv annot.asw_prefix annot.asw_ind arg in
-      mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
+      mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|arg|]
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
       (* let type_f fvt = [| type fix |]
          let norm_f1 fv f1 .. fn params1 = body1
@@ -1538,6 +1556,13 @@ let compile_prim env decl cond paux =
       let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
       MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
 
+  | Lnat n ->
+    if Obj.is_int (Obj.repr n) then
+      MLprimitive (Mk_int, [|MLint (Obj.magic n)|])
+    else MLprimitive (Mk_nat, [|MLnat n|])
+
+  | Lmakesucc v -> MLprimitive (Mk_succ, [|ml_of_lam env l v|])
+
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
 
   | Lmakeblock (cn,tag,args) ->
@@ -1584,7 +1609,7 @@ let mllambda_of_lambda cenv univ constpref constlazy mindpref auxdefs l t =
 
 let can_subst l =
   match l with
-  | MLlocal _ | MLint _ | MLuint _ | MLglobal _ -> true
+  | MLlocal _ | MLnat _ | MLint _ | MLuint _ | MLglobal _ -> true
   | _ -> false
 
 let subst s l =
@@ -1593,7 +1618,7 @@ let subst s l =
     let rec aux l =
       match l with
       | MLlocal id -> (try LNmap.find id s with Not_found -> l)
-      | MLglobal _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
+      | MLglobal _ | MLnat _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
       | MLprimitive (p, args) -> MLprimitive (p, Array.map aux args)
       | MLlam(params,body) -> MLlam(params, aux body)
       | MLletrec(defs,body) ->
@@ -1664,7 +1689,7 @@ let optimize gdef l =
   let rec optimize s l =
     match l with
     | MLlocal id -> (try LNmap.find id s with Not_found -> l)
-    | MLglobal _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
+    | MLglobal _ | MLnat _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
     | MLprimitive (p, args) ->
         MLprimitive (p, Array.map (optimize s) args)
     | MLlam(params,body) ->
@@ -1870,6 +1895,7 @@ let pp_mllam fmt l =
     | MLconstruct(prefix,ind,tag,args) ->
         Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
           (string_of_construct prefix ~constant:false ind tag) pp_cargs args
+    | MLnat n -> Format.fprintf fmt "%S" (Z.to_bits n)
     | MLint i -> pp_int fmt i
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
@@ -2007,6 +2033,9 @@ let pp_mllam fmt l =
     | Mk_float -> Format.fprintf fmt "mk_float"
     | Mk_string -> Format.fprintf fmt "mk_string"
     | Mk_int -> Format.fprintf fmt "mk_int"
+    | Mk_nat -> Format.fprintf fmt "mk_nat"
+    | Mk_succ -> Format.fprintf fmt "mk_succ"
+    | Force_nat -> Format.fprintf fmt "force_nat"
     | Val_to_int -> Format.fprintf fmt "val_to_int"
     | Mk_evar -> Format.fprintf fmt "mk_evar_accu"
     | MLand -> Format.fprintf fmt "(&&)"

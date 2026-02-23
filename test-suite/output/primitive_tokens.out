@@ -9,32 +9,14 @@ end
      : bool
 {| field := 7 |}
      : test
-S
-  (S
-     (S
-        (S
-           (S
-              (S
-                 (S
-                    (S
-                       (S
-                          (S
-                             (S
-                                (S
-                                   (S
-                                      (S
-                                         (S
-                                            (S
-                                               (S
-                                                 (S
-                                                 (S (S (S (S (S (S ...)))))))))))))))))))))))
+0x4d2
      : nat
-Nat.add (S O) (S (S O))
+Nat.add 0x1 0x2
      : nat
-match S O with
+match 0x1 with
 | S O => true
 | _ => false
 end
      : bool
-{| field := S (S (S (S (S (S (S O)))))) |}
+{| field := 0x7 |}
      : test
