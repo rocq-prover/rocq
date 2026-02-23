@@ -295,6 +295,7 @@ type 'a prim_type =
   | PT_array : (Instance.t * ind_or_type) prim_type
 
 and 'a prim_ind =
+  | PIT_nat : unit prim_ind
   | PIT_bool : unit prim_ind
   | PIT_carry : ind_or_type prim_ind
   | PIT_pair : (ind_or_type * ind_or_type) prim_ind
@@ -561,6 +562,7 @@ type op_or_type =
   | OT_const of const
 
 let prim_ind_to_string (type a) (p : a prim_ind) = match p with
+  | PIT_nat -> "nat"
   | PIT_bool -> "bool"
   | PIT_carry -> "carry"
   | PIT_pair -> "pair"

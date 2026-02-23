@@ -48,6 +48,7 @@ type fterm =
   | FProd of Name.t binder_annot * fconstr * constr * usubs
   | FLetIn of Name.t binder_annot * fconstr * fconstr * constr * usubs
   | FEvar of Evar.t * constr list * usubs * evar_repack
+  | FNat of Z.t
   | FInt of Uint63.t
   | FFloat of Float64.t
   | FString of Pstring.t
@@ -107,6 +108,8 @@ val inject : constr -> fconstr
 
 val mk_clos      : usubs -> constr -> fconstr
 val mk_clos_vect : usubs -> constr array -> fconstr array
+
+val mkFNat : Z.t -> fconstr
 
 val zip : fconstr -> stack -> fconstr
 

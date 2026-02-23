@@ -187,6 +187,7 @@ type 'a token_kind =
 | TConst of Constant.t * 'a list
 | TInd of inductive * 'a list
 | TConstruct of constructor * 'a list
+| TNat of Z.t
 | TInt of Uint63.t
 | TFloat of Float64.t
 | TString of Pstring.t
@@ -216,6 +217,7 @@ let kind c =
   | Float f -> TFloat f
   | String s -> TString s
   | Array (_, t, u, v) -> TArray (t, u, v)
+  | Nat n -> TNat n
   | Rel _ | Meta _ | Evar _ | Cast _ | Prod _ | Lambda _ | LetIn _ | App _
   | Proj _ | Case _ | Fix _ | CoFix _ -> TOther
 
@@ -299,6 +301,7 @@ let rec check_glob env sigma g c =
        try List.fold_left2_map (check_glob env) sigma gcl (Array.to_list gc'a)
        with Invalid_argument _ -> raise NotAValidPrimToken in
      sigma, mkApp (c, Array.of_list cl)
+  | Glob_term.GNat n, Constr.Nat n' when Z.equal n n' -> sigma, mkNat n
   | Glob_term.GInt i, Constr.Int i' when Uint63.equal i i' -> sigma, mkInt i
   | Glob_term.GFloat f, Constr.Float f' when Float64.equal f f' -> sigma, mkFloat f
   | Glob_term.GString s, Constr.String s' when Pstring.equal s s' -> sigma, mkString s
@@ -362,6 +365,7 @@ let rec constr_of_glob to_post post env sigma g =
          let sigma,cl = aux sigma a gcl in
          sigma,mkApp (c, Array.of_list cl)
       end
+  | Glob_term.GNat n -> sigma, mkNat n
   | Glob_term.GInt i -> sigma, mkInt i
   | Glob_term.GFloat f -> sigma, mkFloat f
   | Glob_term.GString s -> sigma, mkString s
@@ -390,6 +394,7 @@ let rec glob_of_constr token_kind ?loc env sigma c = match Constr.kind c with
   | Const (c, _) -> DAst.make ?loc (Glob_term.GRef (GlobRef.ConstRef c, None))
   | Ind (ind, _) -> DAst.make ?loc (Glob_term.GRef (GlobRef.IndRef ind, None))
   | Var id -> DAst.make ?loc (Glob_term.GRef (GlobRef.VarRef id, None))
+  | Nat n -> DAst.make ?loc (Glob_term.GNat n)
   | Int i -> DAst.make ?loc (Glob_term.GInt i)
   | Float f -> DAst.make ?loc (Glob_term.GFloat f)
   | String s -> DAst.make ?loc (Glob_term.GString s)
@@ -425,6 +430,7 @@ let rec glob_of_token token_kind ?loc env sigma c = match TokenValue.kind c with
     let ce = DAst.make ?loc (Glob_term.GRef (GlobRef.VarRef id, None)) in
     let cel = List.map (glob_of_token token_kind ?loc env sigma) l in
     mkGApp ?loc ce cel
+  | TNat n -> DAst.make ?loc (GNat n)
   | TInt i -> DAst.make ?loc (Glob_term.GInt i)
   | TFloat f -> DAst.make ?loc (Glob_term.GFloat f)
   | TString s -> DAst.make ?loc (Glob_term.GString s)

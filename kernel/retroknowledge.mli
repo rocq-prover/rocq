@@ -30,6 +30,7 @@ type retroknowledge = {
                     (* PNormal, NNormal, PSubn, NSubn,
                        PZero, NZero, PInf, NInf,
                        NaN *)
+    retro_nat : inductive option;
 }
 
 val empty : retroknowledge

@@ -927,6 +927,8 @@ let rec whd_state_gen flags ?metas env sigma =
         |_, _ -> fold ()
       else fold ()
 
+    | Nat _ -> failwith "TODO"
+
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
         match Stack.strip_app stack with
@@ -1014,6 +1016,8 @@ let local_whd_state_gen flags ?metas env sigma =
         |_, (Stack.App _)::_ -> assert false
         |_, _ -> s
       else s
+
+    | Nat _ -> failwith "TODO"
 
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
@@ -1118,7 +1122,7 @@ let shrink_eta sigma c =
         | _ -> x
       else x
     | Meta _ | App _ | Case _ | Fix _ | Construct _ | CoFix _ | Evar _ | Rel _ | Var _ | Sort _ | Prod _
-    | LetIn _ | Const _  | Ind _ | Proj _ | Int _ | Float _ | String _ | Array _ -> x
+    | LetIn _ | Const _  | Ind _ | Proj _ | Nat _ | Int _ | Float _ | String _ | Array _ -> x
   in
   whrec c
 

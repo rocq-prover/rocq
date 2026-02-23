@@ -614,7 +614,7 @@ let sub_match ?(closed=true) env sigma pat c =
     in
     let sub = (env,def) :: (env,ty) :: subargs env t in
     try_aux sub next_mk_ctx next
-  | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Int _|Float _|String _ ->
+  | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Nat _|Int _|Float _|String _ ->
     next ()
   in
   here next

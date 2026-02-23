@@ -36,6 +36,7 @@ type retroknowledge = {
                     (* PNormal, NNormal, PSubn, NSubn,
                        PZero, NZero, PInf, NInf,
                        NaN *)
+    retro_nat : inductive option;
 }
 
 let empty = {
@@ -49,6 +50,7 @@ let empty = {
     retro_cmp = None;
     retro_f_cmp = None;
     retro_f_class = None;
+    retro_nat = None;
 }
 
 type action =

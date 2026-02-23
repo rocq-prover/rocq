@@ -498,6 +498,9 @@ val retroknowledge : env -> Retroknowledge.retroknowledge
 val constant_depends_on : env -> Constant.t -> Constant.t -> bool
 
 (** {5 Internals} *)
+val is_nat : env -> inductive -> bool
+val ctor_of_nat : env -> Z.t -> constructor
+val unfold_nat : env -> Z.t -> constr
 
 module Internal : sig
   (** Makes the qvars treated as above prop.

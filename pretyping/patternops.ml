@@ -219,7 +219,8 @@ let pattern_of_constr ~broken env sigma t =
        let push env na2 c2 = push_rel (LocalAssum (na2,c2)) env in
        let env' = Array.fold_left2 push env lna tl in
        PCoFix (ln,(Array.map binder_name lna,Array.map (pattern_of_constr env) tl,
-                  Array.map (pattern_of_constr env') bl))
+                   Array.map (pattern_of_constr env') bl))
+    | Nat n -> pattern_of_constr env (Environ.unfold_nat env n) (* XXX optimized Nat pattern *)
     | Int i -> PInt i
     | Float f -> PFloat f
     | String s -> PString s
@@ -586,6 +587,8 @@ let rec pat_of_raw metas vars : _ -> _ constr_pattern_r = DAst.with_loc_val (fun
       let cl = Array.map (fun (ctx,cl) -> it_mkPLambda_or_LetIn cl ctx) ctxtl in
       let names = Array.map (fun id -> Name id) ids in
       PCoFix (n, (names, tl, cl))
+
+  | GNat _ -> failwith "TODO"
 
   | GInt i -> PInt i
   | GFloat f -> PFloat f

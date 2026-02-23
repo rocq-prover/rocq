@@ -317,6 +317,7 @@ let rec compare_under e1 c1 e2 c2 =
     end
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
+  | Nat i1, Nat i2 -> Z.equal i1 i2 (* XXX also try to fast check nat vs constructor? *)
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
@@ -358,7 +359,7 @@ let rec compare_under e1 c1 e2 c2 =
     && compare_under e1 ty1 e2 ty2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+    | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 
 let rec fast_test lft1 term1 lft2 term2 = match fterm_of term1, fterm_of term2 with
@@ -678,6 +679,37 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
             eqappr cv_pb l2r infos (lft1,(hd1,v1)) (lft2,(hd2,v2)) cuniv
       else raise NotConvertible
 
+    | FNat n1, FNat n2 ->
+      let () = assert_reduced_constructor v1 in
+      let () = assert_reduced_constructor v2 in
+      if Z.equal n1 n2 then cuniv
+      else raise NotConvertible
+
+    (* XXX should we expect reduction to turn fconstruct into fnat when possible? *)
+    | FNat n1, FConstruct (((ind2,j2),_),args2) ->
+      let () = assert_reduced_constructor v1 in
+      let () = assert_reduced_constructor v2 in
+      let natind = Option.get (Environ.retroknowledge @@ info_env infos.cnv_inf).retro_nat in
+      if not (Ind.CanOrd.equal natind ind2) then raise NotConvertible
+      else if Z.equal n1 Z.zero then
+        if Int.equal j2 1 && Array.is_empty args2 then cuniv
+        else raise NotConvertible
+      else if Int.equal j2 2 && Int.equal (Array.length args2) 1 then
+        ccnv CONV l2r infos lft1 lft2 (mkFNat (Z.sub n1 Z.one)) args2.(0) cuniv
+      else raise NotConvertible
+
+    | FConstruct (((ind1,j1),_),args1), FNat n2 ->
+      let () = assert_reduced_constructor v1 in
+      let () = assert_reduced_constructor v2 in
+      let natind = Option.get (Environ.retroknowledge @@ info_env infos.cnv_inf).retro_nat in
+      if not (Ind.CanOrd.equal ind1 natind) then raise NotConvertible
+      else if Z.equal n2 Z.zero then
+        if Int.equal j1 1 && Array.is_empty args1 then cuniv
+        else raise NotConvertible
+      else if Int.equal j1 2 && Int.equal (Array.length args1) 1 then
+        ccnv CONV l2r infos lft1 lft2 args1.(0) (mkFNat (Z.sub n2 Z.one)) cuniv
+      else raise NotConvertible
+
     (* Eta expansion of records *)
     | (FConstruct (((ind1,j1),u1), _),_) ->
       let () = assert_reduced_constructor v1 in
@@ -812,7 +844,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
        | (FLOCKED,_) | (_,FLOCKED) ) -> assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
-       | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
+       | FProd _ | FEvar _ | FNat _ | FInt _ | FFloat _ | FString _
        | FArray _ | FIrrelevant), _ -> raise NotConvertible
 
 and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
