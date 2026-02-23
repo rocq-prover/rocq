@@ -1,0 +1,5 @@
+- **Fixed:**
+  Inductives living in a universe with a global sort stop trying to be template polymorphic
+  (`#21665 <https://github.com/rocq-prover/rocq/pull/21665>`_,
+  fixes `#21664 <https://github.com/rocq-prover/rocq/issues/21664>`_,
+  by Yann Leray).
