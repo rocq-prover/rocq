@@ -52,7 +52,7 @@ let rec is_lazy env t =
   | Array (_, t, d, _) -> Array.exists (fun t -> is_lazy env t) t || is_lazy env d
   | Cast (c, _, _) | Prod (_, c, _) -> is_lazy env c
   | Const (c, _) -> get_const_lazy env c
-  | Rel _ | Meta _ | Var _ | Sort _ | Ind _ | Construct _ | Int _
+  | Rel _ | Meta _ | Var _ | Sort _ | Ind _ | Construct _ | Nat _ | Int _
   | Float _ | String _ | Lambda _ | Evar _ | Fix _ | CoFix _ ->
     false
 
@@ -1537,6 +1537,8 @@ let compile_prim env decl cond paux =
       (* Tie the knot *)
       let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
       MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
+
+  | Lnat _ -> failwith "TODO"
 
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
 

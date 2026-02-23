@@ -700,6 +700,7 @@ let notation_constr_and_vars_of_glob_constr recvars a =
     if Option.is_empty k then forgetful := { !forgetful with forget_volatile_cast = true };
     NCast (aux c, k, aux t)
   | GSort s -> NSort s
+  | GNat _ -> failwith "TODO"
   | GInt i -> NInt i
   | GFloat f -> NFloat f
   | GString s -> NString s
@@ -1629,7 +1630,7 @@ let rec match_ inner u alp metas sigma a1 a2 =
 
   | (GRef _ | GVar _ | GEvar _ | GPatVar _ | GApp _ | GProj _ | GLambda _ | GProd _
      | GLetIn _ | GCases _ | GLetTuple _ | GIf _ | GRec _ | GSort _ | GHole _ | GGenarg _
-     | GCast _ | GInt _ | GFloat _ | GString _ | GArray _), _ -> raise No_match
+     | GCast _ | GNat _ | GInt _ | GFloat _ | GString _ | GArray _), _ -> raise No_match
 
 and match_in_type u alp metas sigma t = function
   | None -> sigma

@@ -566,6 +566,8 @@ let rec compile_lam env cenv lam sz cont =
   match node lam with
   | Lrel(_, i) -> pos_rel i cenv sz :: cont
 
+  | Lnat _ -> failwith "TODO"
+
   | Lint i -> compile_structured_constant cenv (Const_b0 i) sz cont
 
   | Lval v -> compile_structured_constant cenv (Const_val (get_lval v)) sz cont

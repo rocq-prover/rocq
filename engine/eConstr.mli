@@ -179,6 +179,7 @@ val mkFix : (t, t, ERelevance.t) pfixpoint -> t
 val mkCoFix : (t, t, ERelevance.t) pcofixpoint -> t
 val mkArrow : t -> ERelevance.t  -> t -> t
 val mkArrowR : t -> t -> t
+val mkNat : Z.t -> t
 val mkInt : Uint63.t -> t
 val mkFloat : Float64.t -> t
 val mkString : Pstring.t -> t
@@ -463,6 +464,8 @@ val expand_branch : Environ.env -> Evd.evar_map ->
 
 val contract_case : Environ.env -> Evd.evar_map ->
   (t,t,ERelevance.t) Inductive.pexpanded_case -> case
+
+val unfold_nat : Environ.env -> Z.t -> constr
 
 (** {5 Extra} *)
 

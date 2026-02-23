@@ -917,6 +917,8 @@ let rec whd_state_gen ?csts flags env sigma =
         |_, _ -> fold ()
       else fold ()
 
+    | Nat _ -> failwith "TODO"
+
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
         match Stack.strip_app stack with

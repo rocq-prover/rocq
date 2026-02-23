@@ -934,7 +934,7 @@ let is_rigid_head sigma flags t =
   match EConstr.kind sigma t with
   | Const (cst,u) -> not (Structures.PrimitiveProjections.is_transparent_constant flags.modulo_delta cst)
   | Ind (i,u) -> true
-  | Construct _ | Int _ | Float _ | String _ | Array _ -> true
+  | Construct _ | Nat _ | Int _ | Float _ | String _ | Array _ -> true
   | Fix _ | CoFix _ -> true
   | Rel _ | Var _ | Meta _ | Evar _ | Sort _ | Cast (_, _, _) | Prod _
     | Lambda _ | LetIn _ | App (_, _) | Case _
@@ -1037,7 +1037,7 @@ let rec is_neutral env sigma ts t =
     | Evar _ | Meta _ -> true
     | Case (_, _, _, _, _, c, _) -> is_neutral env sigma ts c
     | Proj (p, _, c) -> is_neutral env sigma ts c
-    | Lambda _ | LetIn _ | Construct _ | CoFix _ | Int _ | Float _ | String _ | Array _ -> false
+    | Lambda _ | LetIn _ | Construct _ | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _ -> false
     | Sort _ | Cast (_, _, _) | Prod (_, _, _) | Ind _ -> false (* Really? *)
     | Fix _ -> false (* This is an approximation *)
     | App _ -> assert false
@@ -2320,7 +2320,7 @@ let get_max_rel_array sigma v = Array.fold_left (fun accu c -> max accu (get_max
 let anorec = AOther [||]
 
 let rec make sigma c0 = match EConstr.kind sigma c0 with
-| (Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _ | Int _ | Float _ | String _) ->
+| (Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _ | Nat _ | Int _ | Float _ | String _) ->
   { proj = c0; self = anorec; data = 0 }
 | Rel n ->
   { proj = c0; self = anorec; data = n }
@@ -2537,6 +2537,8 @@ let w_unify_to_subterm_all ~metas env evd ?(flags=default_unify_flags ()) (op,cl
                 let c1 = mkApp (f,Array.sub args 0 (n-1)) in
                 let c2 = args.(n-1) in
                 bind (matchrec c1) (matchrec c2)
+
+            | Nat n -> matchrec (EConstr.unfold_nat env n) (* XXX seems very bad performance wise *)
 
             | Case(_,_,_,_,_,c,lf) -> (* does not search in the predicate *)
                 bind (matchrec c) (bind_iter matchrec (Array.map snd lf))

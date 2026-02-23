@@ -1037,6 +1037,11 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
     let c = extern depth true (fst scopes,(scl, snd (snd scopes))) eenv c in
     CCast (c, k, c')
 
+  | GNat n ->
+     extern_prim_token_delimiter_if_required
+       (Number NumTok.(Signed.of_bigint CHex n))
+       "nat" "nat_scope" (snd scopes)
+
   | GInt i ->
      extern_prim_token_delimiter_if_required
        (Number NumTok.(Signed.of_bigint CHex (Z.of_int64 (Uint63.to_int64 i))))

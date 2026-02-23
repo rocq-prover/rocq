@@ -1137,6 +1137,19 @@ end
 
 module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
+let is_nat env ind =
+  Option.equal (QInd.equal env) (Some ind) env.retroknowledge.retro_nat
+
+let ctor_of_nat env i =
+  let natind = Option.get (retroknowledge env).retro_nat in
+  let ctor = if Z.equal i Z.zero then 1 else 2 in
+  natind, ctor
+
+let unfold_nat env n =
+  let natind = Option.get (retroknowledge env).retro_nat in
+  if Z.equal n Z.zero then UnsafeMonomorphic.mkConstruct (natind, 1)
+  else mkApp (UnsafeMonomorphic.mkConstruct (natind, 2), [|mkNat (Z.sub n Z.one)|])
+
 let rec constant_dependencies_with_cache env cache kn =
   match DepCache.get kn cache with
   | Inl deps -> deps

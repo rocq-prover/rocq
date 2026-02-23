@@ -52,6 +52,7 @@ type cbv_value =
   | COFIX of cofixpoint * cbv_value subs * cbv_value array
   | CONSTRUCT of constructor UVars.puniverses * cbv_value array
   | PRIMITIVE of CPrimitives.t * pconstant * cbv_value array
+  | NAT of Z.t
   | ARRAY of UVars.Instance.t * cbv_value Parray.t * cbv_value
   | SYMBOL of { cst: Constant.t UVars.puniverses; unfoldfix: bool; rules: Declarations.machine_rewrite_rule list; stk: cbv_stack }
 
@@ -99,6 +100,7 @@ let rec shift_value n = function
       CONSTRUCT (c, Array.map (shift_value n) args)
   | PRIMITIVE(op,c,args) ->
       PRIMITIVE(op,c,Array.map (shift_value n) args)
+  | NAT _ as v -> v
   | ARRAY (u,t,ty) ->
       ARRAY(u, Parray.map (shift_value n) t, shift_value n ty)
   | SYMBOL s -> SYMBOL { s with stk = shift_stack n s.stk }
@@ -198,7 +200,7 @@ let strip_appl head stack =
     | COFIX (cofix,env,app) -> (COFIX(cofix,env,[||]), stack_vect_app app stack)
     | CONSTRUCT (c,app) -> (CONSTRUCT(c,[||]), stack_vect_app app stack)
     | PRIMITIVE(op,c,app) -> (PRIMITIVE(op,c,[||]), stack_vect_app app stack)
-    | LETIN _ | VAL _ | STACK _ | PROD _ | LAMBDA _ | ARRAY _ | SYMBOL _ -> (head, stack)
+    | LETIN _ | VAL _ | STACK _ | PROD _ | LAMBDA _ | NAT _ | ARRAY _ | SYMBOL _ -> (head, stack)
 
 let destack head stack =
   match head with
@@ -208,7 +210,7 @@ let destack head stack =
   | PRIMITIVE(op,c,app) -> (PRIMITIVE(op,c,[||]), stack_vect_app app stack)
   | STACK (k, v, stk) -> (shift_value k v, stack_concat (shift_stack k stk) stack)
   | SYMBOL ({ stk } as s) -> (SYMBOL { s with stk=TOP }, stack_concat stk stack)
-  | LETIN _ | VAL _ | PROD _ | LAMBDA _ | ARRAY _ -> (head, stack)
+  | LETIN _ | VAL _ | PROD _ | LAMBDA _ | NAT _ | ARRAY _ -> (head, stack)
 
 let rec fixp_reducible_symb_stk = function
   | TOP -> true
@@ -224,7 +226,7 @@ let fixp_reducible flgs ((reci,i),_) stk =
         | [] -> false
         | v :: appl ->
           if Int.equal n 0 then match v with
-          | CONSTRUCT _ -> true
+          | CONSTRUCT _ | NAT _ -> true
           | SYMBOL { unfoldfix=true; stk; _ } ->
               fixp_reducible_symb_stk stk
           | _ -> false
@@ -436,6 +438,7 @@ and reify_value = function (* reduction under binders *)
       mkApp(mkConstructU c, Array.map reify_value args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c, Array.map reify_value args)
+  | NAT n -> mkNat n
   | ARRAY (u,t,ty) ->
     let t, def = Parray.to_array t in
       mkArray(u, Array.map reify_value t, reify_value def, reify_value ty)
@@ -578,7 +581,13 @@ let rec norm_head info env t stack =
       (LAMBDA(List.length ctxt, List.rev ctxt,b,env), stack)
   | Fix fix -> (FIX(fix,env,[||]), stack)
   | CoFix cofix -> (COFIX(cofix,env,[||]), stack)
-  | Construct c -> (CONSTRUCT(c, [||]), stack)
+  | Construct ((ind,j),_ as c) ->
+    if Environ.is_nat info.env ind then match j, stack with
+      | 1, _ -> NAT Z.zero, stack
+      | 2, APP ([NAT n], stack) -> NAT (Z.succ n), stack
+      | 2, _ -> (CONSTRUCT(c, [||]), stack)
+      | _ -> assert false
+    else (CONSTRUCT(c, [||]), stack)
 
   | Array(u,t,def,ty) ->
     let ty = cbv_stack_term info TOP env ty in
@@ -588,6 +597,8 @@ let rec norm_head info env t stack =
       (fun i -> cbv_stack_term info TOP env t.(i))
       (cbv_stack_term info TOP env def) in
     (ARRAY (u,t,ty), stack)
+
+  | Nat n -> (NAT n, stack)
 
   (* neutral cases *)
   | (Sort _ | Meta _ | Ind _ | Int _ | Float _ | String _) -> (VAL(0, t), stack)
@@ -687,6 +698,16 @@ and cbv_stack_value info env = function
     in
     cbv_stack_term info stk env (snd br.(n-1))
 
+  (* unlike CONSTRUCT this is the only NAT case (no APP/PROJ at the head of the stack by typing) *)
+  | NAT n, CASE (_,_,_,br,_,_,env,stk) when red_set info.reds fMATCH ->
+    if Z.equal n Z.zero then
+      let _, br = br.(0) in
+      cbv_stack_term info stk env br
+    else
+      let env = subs_cons (NAT (Z.pred n)) env in
+      let _, br = br.(1) in
+      cbv_stack_term info stk env br
+
   (* constructor in a Projection -> IOTA *)
   | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
     when red_set info.reds fMATCH && Projection.unfolded p ->
@@ -696,6 +717,8 @@ and cbv_stack_value info env = function
   (* may be reduced later by application *)
   | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
   | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
+  | CONSTRUCT (((ind,2),_),[||]), APP([NAT n], TOP) when Environ.is_nat info.env ind ->
+    NAT (Z.succ n)
   | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
 
   (* primitive apply to arguments *)
@@ -987,6 +1010,7 @@ and cbv_norm_value info = function
       mkApp(mkConstructU c, Array.map (cbv_norm_value info) args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c,Array.map (cbv_norm_value info) args)
+  | NAT n -> mkNat n
   | ARRAY (u,t,ty) ->
     let ty = cbv_norm_value info ty in
     let t, def = Parray.to_array t in

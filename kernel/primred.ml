@@ -46,6 +46,12 @@ let add_retroknowledge retro action =
 
   | Register_ind(pit,ind) ->
     begin match pit with
+      | PIT_nat ->
+        let r =
+          match retro.retro_nat with
+          | None -> ind
+          | Some (ind' as t) -> check_same_inds pit ind ind'; t in
+        { retro with retro_nat = Some r }
       | PIT_bool ->
         let r =
           match retro.retro_bool with

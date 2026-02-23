@@ -112,6 +112,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Float     of Float64.t
   | String    of Pstring.t
   | Array     of 'univs * 'constr array * 'constr * 'types
+  | Nat of Z.t
 
 (* constr is the fixpoint of the previous type. *)
 type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term [@@unboxed]
@@ -360,6 +361,7 @@ let of_kind = function
 | Sort Sorts.SProp -> mkSProp
 | Sort Sorts.Prop -> mkProp
 | Sort Sorts.Set -> mkSet
+| Nat i as k -> assert (Z.leq Z.zero i); T k
 | k -> T k
 
 (* Construct a type *)
@@ -455,6 +457,8 @@ let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstructRef c -> mkConstructU (c,u)
   | VarRef x -> mkVar x
 
+let mkNat i = of_kind @@ Nat i
+
 (* Constructs a primitive integer *)
 let mkInt i = of_kind @@ Int i
 
@@ -488,7 +492,7 @@ let fold_invert f acc = function
 
 let fold f acc c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> acc
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> acc
   | Cast (c,_,t) -> f (f acc c) t
   | Prod (_,t,c) -> f (f acc t) c
   | Lambda (_,t,c) -> f (f acc t) c
@@ -516,7 +520,7 @@ let iter_invert f = function
 
 let iter f c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> ()
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> ()
   | Cast (c,_,t) -> f c; f t
   | Prod (_,t,c) -> f t; f c
   | Lambda (_,t,c) -> f t; f c
@@ -538,7 +542,7 @@ let iter f c = match kind c with
 
 let iter_with_binders g f n c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> ()
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> ()
   | Cast (c,_,t) -> f n c; f n t
   | Prod (_,t,c) -> f n t; f (g n) c
   | Lambda (_,t,c) -> f n t; f (g n) c
@@ -571,7 +575,7 @@ let iter_with_binders g f n c = match kind c with
 let fold_constr_with_binders g f n acc c =
   match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> acc
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> acc
   | Cast (c,_, t) -> f n (f n acc c) t
   | Prod (_na,t,c) -> f (g  n) (f n acc t) c
   | Lambda (_na,t,c) -> f (g  n) (f n acc t) c
@@ -635,7 +639,7 @@ let map_invert f = function
 
 let map f c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> c
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> c
   | Cast (b,k,t) ->
       let b' = f b in
       let t' = f t in
@@ -720,7 +724,7 @@ let fold_map_return_predicate f accu (p,r as v) =
 
 let fold_map f accu c = match kind c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> accu, c
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> accu, c
   | Cast (b,k,t) ->
       let accu, b' = f accu b in
       let accu, t' = f accu t in
@@ -788,7 +792,7 @@ let fold_map f accu c = match kind c with
 
 let map_with_binders g f l c0 = match kind c0 with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> c0
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> c0
   | Cast (c, k, t) ->
     let c' = f l c in
     let t' = f l t in
@@ -904,6 +908,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
+  | Nat i1, Nat i2 -> Z.equal i1 i2 (* XXX nat vs constructor? *)
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
@@ -942,7 +947,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
     eq 0 def1 def2 && eq 0 ty1 ty2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+    | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 (* [compare_head_gen_leq u s eq leq c1 c2] compare [c1] and [c2] using [eq] to compare
    the immediate subterms of [c1] of [c2] for conversion if needed, [leq] for cumulativity,
@@ -1074,6 +1079,8 @@ let constr_ord_int f t1 t2 =
     | CoFix _, _ -> -1 | _, CoFix _ -> 1
     | Proj (p1,_r1,c1), Proj (p2,_r2,c2) -> compare [(Projection.CanOrd.compare, p1, p2); (f, c1, c2)]
     | Proj _, _ -> -1 | _, Proj _ -> 1
+    | Nat i1, Nat i2 -> Z.compare i1 i2
+    | Nat _, _ -> -1 | _, Nat _ -> 1
     | Int i1, Int i2 -> Uint63.compare i1 i2
     | Int _, _ -> -1 | _, Int _ -> 1
     | Float f1, Float f2 -> Float64.total_compare f1 f2
@@ -1179,6 +1186,7 @@ let hasheq_kind t1 t2 =
       && array_eqeq lna1 lna2
       && array_eqeq tl1 tl2
       && array_eqeq bl1 bl2
+    | Nat i1, Nat i2 -> Z.equal i1 i2
     | Int i1, Int i2 -> i1 == i2
     | Float f1, Float f2 -> Float64.equal f1 f2
     | String s1, String s2 -> Pstring.equal s1 s2
@@ -1186,7 +1194,7 @@ let hasheq_kind t1 t2 =
       u1 == u2 && def1 == def2 && ty1 == ty2 && array_eqeq t1 t2
     | (Rel _ | Meta _ | Var _ | Sort _ | Cast _ | Prod _ | Lambda _ | LetIn _
       | App _ | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _
-      | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+      | Fix _ | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 let hasheq t1 t2 = hasheq_kind (kind t1) (kind t2)
 
@@ -1255,6 +1263,7 @@ let rec hash t =
     | String s -> combinesmall 20 (Pstring.hash s)
     | Array(u,t,def,ty) ->
       combinesmall 21 (combine4 (Instance.hash u) (hash_term_array t) (hash def) (hash ty))
+    | Nat i -> combinesmall 22 (Z.hash i)
 
 and hash_invert = function
   | NoInvert -> 0
@@ -1446,6 +1455,7 @@ let rec hash_term (t : t) : int * (constr,constr,_,_,_) kind_of_term =
     let hty, ty = sh_rec ty in
     let h = combine4 hu ht hdef hty in
     (combinesmall 21 h, Array(u,t,def,ty))
+  | Nat i as t -> combinesmall 22 (Z.hash i), t
 
 and sh_invert civ iv = match civ, iv with
   | NoInvert, NoInvert -> 0, NoInvert
@@ -1595,6 +1605,7 @@ let rec debug_print c =
            Name.print na.binder_name ++ str":" ++ debug_print ty ++
            cut() ++ str":=" ++ debug_print bd) (Array.to_list fixl)) ++
          str"}")
+  | Nat i -> str "Nat(" ++ str (Z.to_string i) ++ str ")"
   | Int i -> str"Int("++str (Uint63.to_string i) ++ str")"
   | Float i -> str"Float("++str (Float64.to_string i) ++ str")"
   | String s -> str"String("++str (Printf.sprintf "%S" (Pstring.to_string s)) ++ str")"

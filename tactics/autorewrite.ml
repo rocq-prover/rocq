@@ -212,6 +212,7 @@ struct
       (* UnsafeMonomorphic is fine because the term will only be used
          by pat_of_constr which ignores universes *)
       pat_of_constr (mkApp (UnsafeMonomorphic.mkConst (Projection.constant p), [|c|]))
+    | Nat n -> pat_of_constr (Environ.unfold_nat env n) (* optimized Nat? *)
     | Int i -> Some (DInt i, [])
     | Float f -> Some (DFloat f, [])
     | String s -> Some (DString s, [])

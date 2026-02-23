@@ -315,6 +315,11 @@ let type_of_prim_type _env u (type a) (prim : a CPrimitives.prim_type) = match p
     | _ -> anomaly Pp.(str"universe instance for array type should have length 1")
     end
 
+let type_of_nat env =
+match (Environ.retroknowledge env).Retroknowledge.retro_nat with
+  | Some c -> UnsafeMonomorphic.mkInd c
+  | None -> CErrors.user_err Pp.(str"The type nat must be registered before this construction can be typechecked.")
+
 let type_of_int env =
   match (Environ.retroknowledge env).Retroknowledge.retro_int63 with
   | Some c -> UnsafeMonomorphic.mkConst c
@@ -816,6 +821,7 @@ and execute_aux tbl env cstr =
       fix_ty
 
     (* Primitive types *)
+    | Nat n -> assert (Z.leq Z.zero n); type_of_nat env
     | Int _ -> type_of_int env
     | Float _ -> type_of_float env
     | String _ -> type_of_string env
@@ -945,6 +951,11 @@ let type_of_prim env u t =
   let float_ty () = type_of_float env in
   let string_ty () = type_of_string env in
   let array_ty u a = mkApp(type_of_array env u, [|a|]) in
+  let nat_ty () =
+    match (Environ.retroknowledge env).Retroknowledge.retro_nat with
+    | Some ind -> UM.mkInd ind
+    | None -> CErrors.user_err Pp.(str"The type bool must be registered before this primitive.")
+  in
   let bool_ty () =
     match (Environ.retroknowledge env).Retroknowledge.retro_bool with
     | Some ((ind,_),_) -> UM.mkInd ind
@@ -983,6 +994,7 @@ let type_of_prim env u t =
     | PT_array -> array_ty (fst t) (tr_type (snd t))
   in
   let tr_ind (tr_type : ind_or_type -> constr) (type t) (i : t prim_ind) (a : t) = match i, a with
+    | PIT_nat, () -> nat_ty ()
     | PIT_bool, () -> bool_ty ()
     | PIT_carry, t -> carry_ty (tr_type t)
     | PIT_pair, (t1, t2) -> pair_ty (tr_type t1) (tr_type t2)

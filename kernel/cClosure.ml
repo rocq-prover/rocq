@@ -96,6 +96,7 @@ and fterm =
   | FProd of Name.t binder_annot * fconstr * constr * usubs
   | FLetIn of Name.t binder_annot * fconstr * fconstr * constr * usubs
   | FEvar of Evar.t * constr list * usubs * evar_repack
+  | FNat of Z.t
   | FInt of Uint63.t
   | FFloat of Float64.t
   | FString of Pstring.t
@@ -235,7 +236,7 @@ let usubs_shft (n,(e,u)) = subs_shft (n, e), u
    when the lift is 0. *)
 let rec lft_fconstr n ft =
   match ft.term with
-    | (FInd _|FConstruct (_,[||])|FFlex(ConstKey _|VarKey _)|FInt _|FFloat _|FString _|FIrrelevant) -> ft
+    | (FInd _|FConstruct (_,[||])|FFlex(ConstKey _|VarKey _)|FNat _|FInt _|FFloat _|FString _|FIrrelevant) -> ft
     | FRel i -> {mark=ft.mark;term=FRel(i+n)}
     | FLambda(k,tys,f,e) -> {mark=Cstr; term=FLambda(k,tys,f,usubs_shft(n,e))}
     | FFix(fx,e) ->
@@ -321,6 +322,8 @@ let destFLambda clos_fun t =
     (usubst_binder e na,clos_fun e ty,{mark=t.mark;term=FLambda(n-1,tys,b,usubs_lift e)})
   | _ -> assert false
 
+let mkFNat n = {mark = Cstr; term = FNat n}
+
 (* Optimization: do not enclose variables in a closure.
    Makes variable access much faster *)
 let mk_clos (e:usubs) t =
@@ -334,6 +337,7 @@ let mk_clos (e:usubs) t =
     | Meta _ -> {mark = Ntrl; term = FAtom t }
     | Ind kn -> {mark = Ntrl; term = FInd (usubst_punivs e kn) }
     | Construct kn -> {mark = Cstr; term = FConstruct (usubst_punivs e kn,[||]) }
+    | Nat n -> mkFNat n
     | Int i -> {mark = Cstr; term = FInt i}
     | Float f -> {mark = Cstr; term = FFloat f}
     | String s -> {mark = Cstr; term = FString s}
@@ -593,6 +597,8 @@ let rec to_constr lfts v =
       repack (ev, List.map (fun a -> subst_constr subs a) args)
     | FLIFT (k,a) -> to_constr (el_shft k lfts) a
 
+    | FNat n ->
+       Constr.mkNat n
     | FInt i ->
        Constr.mkInt i
     | FFloat f ->
@@ -937,6 +943,15 @@ let get_branch infos ci pms cterm br e =
     in
     let ext = push (Array.length args - 1) [] ctx in
     (br, usubs_consv (Array.rev_of_list ext) e)
+
+let get_nat_branch n br e =
+  if Z.equal n Z.zero then
+    let _nas, br = br.(0) in
+    br, e
+  else
+    let _nas, br = br.(1) in
+    let n = Z.sub n Z.one in
+    br, usubs_cons {mark = Cstr; term = FNat n} e
 
 (** [eta_expand_ind_stack env ind c s t] computes stacks corresponding
     to the conversion of the eta expansion of t, considered as an inhabitant
@@ -1387,6 +1402,7 @@ let rec knh info m stk =
        | None -> (m, stk)
        | Some s -> knh info c (s :: zupdate info m stk))
     | FConstruct _ -> strip_update_shift_absorb_app m stk
+    | FNat _ -> strip_update_shift_absorb_app m stk
 
 (* cases where knh stops *)
     | (FFlex _|FLetIn _|FEvar _|FCaseInvert _|FIrrelevant|
@@ -1426,7 +1442,7 @@ and knht info e t stk =
       | Some s -> knht info e c (s :: stk)
       end
     | Construct _ -> knh info (mk_clos e t) stk
-    | (Ind _|Const _|Var _|Meta _ | Sort _ | Int _|Float _|String _) -> (mk_clos e t, stk)
+    | (Ind _|Const _|Var _|Meta _ | Sort _ | Nat _|Int _|Float _|String _) -> (mk_clos e t, stk)
     | CoFix cfx ->
       { mark = Cstr; term = FCoFix (cfx,e) }, stk
     | Lambda _ -> { mark = Cstr ; term = mk_lambda e t }, stk
@@ -1896,22 +1912,22 @@ let rec knr info tab ~pat_state m stk =
      let use_match = red_set info.i_flags fMATCH in
      let use_fix = red_set info.i_flags fFIX in
      if use_match || use_fix then
-      (match [@ocaml.warning "-4"] m,  stk with
-        | (_, Zapp _ :: _) -> assert false (* knh *)
-        | (c, ZcaseT(ci,_,pms,_,br,e)::s) when use_match ->
+      (match [@ocaml.warning "-4"] stk with
+        | (Zapp _ :: _) -> assert false (* knh *)
+        | (ZcaseT(ci,_,pms,_,br,e)::s) when use_match ->
             assert (ci.ci_npar>=0);
             (* instance on the case and instance on the constructor are compatible by typing *)
-            let (br, e) = get_branch info ci pms c br e in
+            let (br, e) = get_branch info ci pms m br e in
             knit info tab ~pat_state e br s
-        | (rarg, Zfix(fx,par)::s) when use_fix ->
-            let stk' = par @ append_stack [|rarg|] s in
+        | (Zfix(fx,par)::s) when use_fix ->
+            let stk' = par @ append_stack [|m|] s in
             let (fxe,fxbd) = contract_fix_vect fx.term in
             knit info tab ~pat_state fxe fxbd stk'
-        | (m, Zproj (p,_)::s) when use_match ->
+        | (Zproj (p,_)::s) when use_match ->
             let rargs = drop_parameters (Projection.Repr.npars p) m in
             let rarg = rargs.(Projection.Repr.arg p) in
             kni info tab ~pat_state rarg s
-        | (m, s) ->
+        | s ->
           if is_irrelevant_constructor info c then
             knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
           else
@@ -1919,6 +1935,26 @@ let rec knr info tab ~pat_state m stk =
      else if is_irrelevant_constructor info c then
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
      else
+       knr_ret info tab ~pat_state (m, stk)
+  | FNat n ->
+    let use_match = red_set info.i_flags fMATCH in
+    let use_fix = red_set info.i_flags fFIX in
+    if use_match || use_fix then
+      (match [@ocaml.warning "-4"] stk with
+       | (Zapp _ :: _) -> assert false (* knh *)
+       | (ZcaseT(ci,_,_,_,br,e)::s) when use_match ->
+         assert (ci.ci_npar>=0);
+         (* instance on the case and instance on the constructor are compatible by typing *)
+         let (br, e) = get_nat_branch n br e in
+         knit info tab ~pat_state e br s
+       | (Zfix(fx,par)::s) when use_fix ->
+         let stk' = par @ append_stack [|m|] s in
+         let (fxe,fxbd) = contract_fix_vect fx.term in
+         knit info tab ~pat_state fxe fxbd stk'
+       | (Zproj _::_) ->
+         assert false
+       | s -> knr_ret info tab ~pat_state (m,s))
+    else
       knr_ret info tab ~pat_state (m, stk)
   | FCoFix ((i, (lna, _, _)), e) ->
     if is_irrelevant info (usubst_relevance e (lna.(i)).binder_relevance) then
@@ -2036,7 +2072,7 @@ let kh info tab v stk = fapp_stack(kni info tab v stk)
       calls itself recursively. *)
 
 let is_val v = match v.term with
-| FAtom _ | FRel _   | FInd _ | FConstruct (_,[||]) | FInt _ | FFloat _ | FString _ -> true
+| FAtom _ | FRel _   | FInd _ | FConstruct (_,[||]) | FNat _ | FInt _ | FFloat _ | FString _ -> true
 | FFlex _ -> v.mark == Ntrl
 | FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _
 | FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _ -> false
@@ -2065,7 +2101,7 @@ and klt info tab e t = match kind t with
     if hd' == hd && args' == args then t
     else mkApp (hd', args')
   | Var _ | Const _ | CoFix _ | Lambda _ | Fix _ | Prod _ | Evar _ | Case _
-  | Cast _ | LetIn _ | Proj _ | Array _ | Rel _ | Meta _ | Sort _ | Int _
+  | Cast _ | LetIn _ | Proj _ | Array _ | Rel _ | Meta _ | Sort _ | Nat _ | Int _
   | Float _ | String _ ->
     let share = info.i_cache.i_share in
     let (nm,s) = knit info tab e t [] in
@@ -2091,7 +2127,7 @@ and klt info tab e t = match kind t with
   let (nm,s) = knit info tab e t [] in
   let () = if share then ignore (fapp_stack (nm, s)) in (* to unlock Zupdates! *)
   zip_term info tab (norm_head info tab nm) s
-| Meta _ | Sort _ | Ind _ | Construct _ | Int _ | Float _ | String _ ->
+| Meta _ | Sort _ | Ind _ | Construct _ | Nat _ | Int _ | Float _ | String _ ->
   subst_instance_constr (snd e) t
 
 (* no redex: go up for atoms and already normalized terms, go down
@@ -2141,7 +2177,7 @@ and norm_head info tab m =
         mkArray (u, a, def, ty)
       | FConstruct (c,args) -> mkApp (mkConstructU c, Array.map (kl info tab) args)
       | FLOCKED | FRel _ | FAtom _ | FFlex _ | FInd _
-      | FApp _ | FCaseT _ | FCaseInvert _ | FLIFT _ | FCLOS _ | FInt _
+      | FApp _ | FCaseT _ | FCaseInvert _ | FLIFT _ | FCLOS _ | FNat _ | FInt _
       | FFloat _ | FString _ -> term_of_fconstr m
       | FIrrelevant -> assert false (* only introduced when converting *)
 

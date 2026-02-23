@@ -85,6 +85,11 @@ let equiv_keys k k' =
 
 let mkKGlob env gr = KGlob (Environ.QGlobRef.canonize env gr)
 
+let mkKNat env i =
+  let natind = Option.get (Environ.retroknowledge env).retro_nat in
+  let ctor = if Z.equal i Z.zero then 1 else 2 in
+  mkKGlob env (ConstructRef (natind, ctor))
+
 (** Registration of keys as an object *)
 
 let load_keys _ (ref,ref') =
@@ -128,6 +133,7 @@ let constr_key env kind c =
       | Const (c, _) -> mkKGlob env (GlobRef.ConstRef c)
       | Ind (i, u) -> mkKGlob env (GlobRef.IndRef i)
       | Construct (c,u) -> mkKGlob env (GlobRef.ConstructRef c)
+      | Nat i -> mkKNat env i
       | Var id -> mkKGlob env (GlobRef.VarRef id)
       | App (f, _) -> aux f
       | Proj (p, _, _) -> mkKGlob env (GlobRef.ConstRef (Projection.constant p))

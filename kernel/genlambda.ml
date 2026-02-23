@@ -39,6 +39,7 @@ type 'v node =
 | Lparray       of 'v lambda array * 'v lambda
 | Lmakeblock    of inductive * int * 'v lambda array
   (* inductive name, constructor tag, arguments *)
+| Lnat of Z.t
 | Luint         of Uint63.t
 | Lfloat        of Float64.t
 | Lstring       of Pstring.t
@@ -155,6 +156,7 @@ let rec pp_lam lam =
       (str "(makeblock " ++ int tag ++ spc() ++
        prlist_with_sep spc pp_lam (Array.to_list args) ++
        str")")
+  | Lnat i -> str (Z.to_string i)
   | Luint i -> str (Uint63.to_string i)
   | Lfloat f -> str (Float64.to_string f)
   | Lstring s -> str (Printf.sprintf "%S" (Pstring.to_string s))
@@ -232,7 +234,7 @@ let decompose_Llam_Llet lam =
 
 let map_lam_with_binders g f n lam =
   match lam.node with
-  | Lrel _ | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lint _ | Luint _
+  | Lrel _ | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lnat _ | Lint _ | Luint _
   | Lfloat _ | Lstring _ -> lam
   | Levar (evk, args) ->
     let args' = Array.Smart.map (f n) args in
@@ -301,7 +303,7 @@ let map_lam_with_binders g f n lam =
 let free_rels lam =
   let rec aux k accu lam = match node lam with
   | Lrel (_, n) -> if n >= k then Int.Set.add (n - k + 1) accu else accu
-  | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lint _ | Luint _
+  | Lvar _  | Lconst _ | Lval _ | Lsort _ | Lind _ | Lnat _ | Lint _ | Luint _
   | Lfloat _ | Lstring _ -> accu
   | Levar (_, args) ->
     Array.fold_left (fun accu lam -> aux k accu lam) accu args
@@ -380,7 +382,7 @@ let lam_subst_args subst args =
 (* Invariant: Terms in [subst] are already simplified and can be substituted *)
 
 let can_subst lam = match node lam with
-| Lrel _ | Lvar _ | Lconst _ | Luint _
+| Lrel _ | Lvar _ | Lconst _ | Lnat _ | Luint _
 | Lval _ | Lsort _ | Lind _ -> true
 | Levar _ | Lprod _ | Llam _ | Llet _ | Lapp _ | Lcase _ | Lfix _ | Lcofix _
 | Lparray _ | Lmakeblock _ | Lfloat _ | Lstring _ | Lprim _ | Lproj _ -> false
@@ -463,7 +465,7 @@ let rec occurrence k kind lam =
     if n = k then
       if kind then false else raise Not_found
     else kind
-  | Lvar _  | Lconst _  | Lval _ | Lsort _ | Lind _ | Lint _ | Luint _
+  | Lvar _  | Lconst _  | Lval _ | Lsort _ | Lind _ | Lnat _ | Lint _ | Luint _
   | Lfloat _ | Lstring _ -> kind
   | Levar (_, args) ->
     occurrence_args k kind args
@@ -509,7 +511,7 @@ let occur_once lam =
 
 let is_value lam = match node lam with
 | Lrel _ | Lvar _ | Lconst _ | Luint _
-| Lval _ | Lsort _ | Lind _ | Lint _ | Llam _ | Lfix _ | Lcofix _ | Lfloat _ | Lstring _ -> true
+| Lval _ | Lsort _ | Lind _ | Lnat _ | Lint _ | Llam _ | Lfix _ | Lcofix _ | Lfloat _ | Lstring _ -> true
 | Levar _ | Lprod _ | Llet _ | Lapp _ | Lcase _
 | Lparray _ | Lmakeblock _ | Lprim _ | Lproj _ -> false
 
@@ -756,6 +758,8 @@ let rec lambda_of_constr cache env sigma c =
       let rec_bodies = Array.map2 map rec_bodies type_bodies in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
       mknode @@ Lcofix(init, (names, ltypes, lbodies))
+
+  | Nat i -> mknode @@ Lnat i
 
   | Int i -> mknode @@ Luint i
 

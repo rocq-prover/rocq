@@ -1775,6 +1775,13 @@ let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) (mb, ob as spec
        "th constructor does not have the expected type") in
   let check_type_cte pos = check_type pos ind in
   match r with
+  | CPrimitives.PIT_nat ->
+    check_nparams 0;
+    check_nconstr 2;
+    check_name 0 "O";
+    check_type_cte 0;
+    check_name 1 "S";
+    check_type 1 (Term.mkArrow ind Relevant ind)
   | CPrimitives.PIT_bool ->
     check_nparams 0;
     check_nconstr 2;

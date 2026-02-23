@@ -50,6 +50,7 @@ let rec head_bound sigma t = match EConstr.kind sigma t with
 | Var id -> GlobRef.VarRef id
 | Proj (p, _, _) -> GlobRef.ConstRef (Projection.constant p)
 | Cast (c, _, _) -> head_bound sigma c
+| Nat n -> failwith "TODO"
 | Evar _ | Rel _ | Meta _ | Sort _ | Fix _ | Lambda _
 | CoFix _ | Int _ | Float _ | String _ | Array _ -> raise Bound
 
