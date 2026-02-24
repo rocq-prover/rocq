@@ -391,12 +391,15 @@ let get_template_binding_arity sigma c =
   | _ -> None
 
 let non_template_levels sigma ~params ~arity ~constructors =
+  let (let+) x f = Result.map f x  in
   let ctx, u = EConstr.destArity sigma arity in
   (* locally making the conclusion qvar above_prop means its
      appearances in relevance marks aren't counted *)
-  let sigma = match ESorts.kind sigma u with
-    | QSort (q, _) -> Evd.set_above_prop sigma (QVar q)
-    | _ -> sigma
+  let+ sigma = match ESorts.kind sigma u with
+    | QSort (q, _) ->
+      if Sorts.QVar.is_unif q then Ok (Evd.set_above_prop sigma (QVar q))
+      else Error "Cannot handle template polymorphism when the conclusion is a global sort."
+    | _ -> Ok sigma
   in
   let add_levels c levels = EConstr.universes_of_constr sigma ~init:levels c in
   let levels = Sorts.QVar.Set.empty, Univ.Level.Set.empty in
@@ -464,7 +467,8 @@ let unbounded_from_below u cstrs =
    (starting from the most recent and ignoring let-definitions) is not
    template or is Some u_k if its level is u_k and is template. *)
 let template_polymorphic_univs sigma ~params ~arity ~constructors =
-  let non_template_qvars, non_template_levels =
+  let (let+) x f = Result.map f x  in
+  let+ non_template_qvars, non_template_levels =
     non_template_levels sigma ~params ~arity ~constructors
   in
   let fold_params accu decl = match decl with
@@ -569,10 +573,7 @@ let inductive_univs sigma ~user_template ~poly udecl ~indnames ~ctx_params ~arit
   | MaybeTemplate { force_template; } ->
     let info = match List.combine3 arities constructors template_syntax with
     | [arity, (_cnames, constructors), SyntaxAllowsTemplatePoly] ->
-      let pseudo_sort_poly, template_univs =
-        template_polymorphic_univs sigma ~params:ctx_params ~arity ~constructors
-      in
-      Ok (template_univs, pseudo_sort_poly)
+      template_polymorphic_univs sigma ~params:ctx_params ~arity ~constructors
     | [_, _, SyntaxNoTemplatePoly] ->
       Error "Template polymorphism needs a syntactic sort for the inductive's conclusion."
     | _ :: _ :: _ -> Error "Template-polymorphism not allowed with mutual inductives."
@@ -582,7 +583,7 @@ let inductive_univs sigma ~user_template ~poly udecl ~indnames ~ctx_params ~arit
     | Error _, false ->
       nontemplate_univ_entry ~poly sigma udecl
     | Error msg, true -> CErrors.user_err Pp.(str msg)
-    | Ok (template_univs, pseudo_sort_poly), _ ->
+    | Ok (pseudo_sort_poly, template_univs), _ ->
       let has_template = not @@ Univ.Level.Set.is_empty template_univs in
       if force_template || should_auto_template (List.hd indnames) has_template then
         let () = if not has_template then warn_no_template_universe () in
