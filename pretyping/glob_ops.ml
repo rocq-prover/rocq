@@ -129,8 +129,7 @@ let case_style_eq s1 s2 = let open Constr in match s1, s2 with
   | IfStyle, IfStyle -> true
   | LetPatternStyle, LetPatternStyle -> true
   | MatchStyle, MatchStyle -> true
-  | RegularStyle, RegularStyle -> true
-  | (LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle), _ -> false
+  | (LetStyle | IfStyle | LetPatternStyle | MatchStyle), _ -> false
 
 let rec mk_cases_pattern_eq g p1 p2 = match DAst.get p1, DAst.get p2 with
   | PatVar na1, PatVar na2 -> g na1 na2

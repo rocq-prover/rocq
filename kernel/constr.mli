@@ -23,7 +23,7 @@ type metavariable = int
 
 (** {6 Case annotation } *)
 type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle
-  | RegularStyle (** infer printing form from number of constructor *)
+
 type case_printing =
   { style     : case_style }
 

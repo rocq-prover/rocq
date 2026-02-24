@@ -615,7 +615,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
   let tag =
     let tag = ci.ci_pp_info.style in
     if flags.flg.always_regular_match_style then
-      RegularStyle
+      MatchStyle
     else if tag == LetPatternStyle then
       tag
     else if PrintingLet.active ci.ci_ind then

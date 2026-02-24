@@ -1500,7 +1500,7 @@ let make_projection env sigma params cstr sign elim i n c (ind, u) =
              (UnivGen.QualityOrSet.of_quality @@ Inductiveops.elim_sort specif) ksort then
           let arity = List.firstn mip.mind_nrealdecls mip.mind_arity_ctxt in
           let mknas ctx = Array.of_list (List.rev_map get_annot ctx) in
-          let ci = Inductiveops.make_case_info env ind RegularStyle in
+          let ci = Inductiveops.make_case_info env ind MatchStyle in
           let br = [| mknas cs_args, b |] in
           let args = Context.Rel.instance mkRel 0 sign in
           let indr = ERelevance.make @@

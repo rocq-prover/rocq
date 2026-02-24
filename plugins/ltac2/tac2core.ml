@@ -718,7 +718,7 @@ let () =
   define "constr_case" (inductive @-> tac valexpr) @@ fun ind ->
   Proofview.tclENV >>= fun env ->
   try
-    let ans = Inductiveops.make_case_info env ind Constr.RegularStyle in
+    let ans = Inductiveops.make_case_info env ind Constr.MatchStyle in
     return (Tac2ffi.of_case ans)
   with e when CErrors.noncritical e ->
     throw Tac2ffi.err_notfound
