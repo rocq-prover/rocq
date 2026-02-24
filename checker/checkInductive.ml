@@ -172,7 +172,7 @@ let check_same_record r1 r2 = match r1, r2 with
 let check_packet mind ind
     { mind_typename; mind_arity_ctxt; mind_user_arity; mind_record; mind_sort; mind_consnames; mind_user_lc;
       mind_nrealargs; mind_nrealdecls; mind_squashed; mind_nf_lc;
-      mind_consnrealargs; mind_consnrealdecls; mind_recargs; mind_relevance;
+      mind_consnrealargs; mind_consnrealdecls; mind_recargs; mind_automaton; mind_relevance;
       mind_nb_constant; mind_nb_args; mind_reloc_tbl } =
   let check = check mind in
 
@@ -195,6 +195,7 @@ let check_packet mind ind
   check "mind_consnrealdecls" (Array.equal Int.equal ind.mind_consnrealdecls mind_consnrealdecls);
 
   check "mind_recargs" (Rtree.equal eq_recarg ind.mind_recargs mind_recargs);
+  check "mind_automaton" (Rtree.Automaton.equal eq_recarg ind.mind_automaton mind_automaton);
 
   check "mind_relevant" (Sorts.relevance_equal ind.mind_relevance mind_relevance);
 

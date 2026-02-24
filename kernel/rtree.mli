@@ -144,4 +144,7 @@ val inter : ('a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
 (** Equality of minimal automata, i.e. only valid after compaction *)
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 
+(** Map the data of each node *)
+val map : ('a -> 'b) -> 'a t -> 'b t
+
 end

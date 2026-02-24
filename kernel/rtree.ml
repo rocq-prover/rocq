@@ -453,4 +453,9 @@ let equal eqf { init = i1; states = st1 } { init = i2; states = st2 } =
   | _ -> true
   | exception Different -> false
 
+let map f { init; states } =
+  let map (v, tr) = f v, tr in
+  let states = Array.map map states in
+  { init; states }
+
 end
