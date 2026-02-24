@@ -101,7 +101,16 @@ term10: [
 | term10 LIST1 arg
 | "@" global univ_annot LIST0 term9
 | "@" pattern_ident LIST1 identref
-| binder_constr
+| "forall" open_binders "," term200
+| "fun" open_binders "=>" term200
+| "let" name binders let_type_cstr ":=" term200 "in" term200
+| "let" "fix" fix_decl "in" term200
+| "let" "cofix" cofix_body "in" term200
+| "let" [ "(" LIST0 name SEP "," ")" | "()" ] as_return_type ":=" term200 "in" term200
+| "let" "'" pattern200 OPT [ "in" pattern200 ] ":=" term200 OPT case_type "in" term200
+| "if" term200 as_return_type "then" term200 "else" term200
+| "fix" fix_decls
+| "cofix" cofix_decls
 | term9
 ]
 
@@ -152,19 +161,6 @@ fields_def: [
 
 field_def: [
 | global binders ":=" lconstr
-]
-
-binder_constr: [
-| "forall" open_binders "," term200
-| "fun" open_binders "=>" term200
-| "let" name binders let_type_cstr ":=" term200 "in" term200
-| "let" "fix" fix_decl "in" term200
-| "let" "cofix" cofix_body "in" term200
-| "let" [ "(" LIST0 name SEP "," ")" | "()" ] as_return_type ":=" term200 "in" term200
-| "let" "'" pattern200 OPT [ "in" pattern200 ] ":=" term200 OPT case_type "in" term200
-| "if" term200 as_return_type "then" term200 "else" term200
-| "fix" fix_decls
-| "cofix" cofix_decls
 ]
 
 arg: [
