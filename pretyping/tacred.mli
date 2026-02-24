@@ -42,11 +42,6 @@ val is_evaluable : Environ.env -> Evd.evar_map -> Evaluable.t -> bool
 exception NotEvaluableRef of GlobRef.t
 val error_not_evaluable : ?loc:Loc.t -> GlobRef.t -> 'a
 
-val evaluable_of_global_reference :
-  Environ.env -> GlobRef.t -> Evaluable.t
-(** Fails on opaque constants and variables
-    (both those without bodies and those marked Opaque in the conversion oracle). *)
-
 val soft_evaluable_of_global_reference :
   ?loc:Loc.t -> GlobRef.t -> Evaluable.t
 (** Succeeds for any constant or variable even if marked opaque or otherwise not evaluable. *)
