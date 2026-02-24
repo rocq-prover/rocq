@@ -1,29 +1,3 @@
-Entry binder_constr is
-[ LEFTA
-  [ "exists2"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; ","; term LEVEL
-    "200"; "&"; term LEVEL "200"
-  | "exists2"; "'"; pattern LEVEL "0"; ","; term LEVEL "200"; "&"; term LEVEL
-    "200"
-  | "exists2"; name; ":"; term LEVEL "200"; ","; term LEVEL "200"; "&"; term
-    LEVEL "200"
-  | "exists2"; name; ","; term LEVEL "200"; "&"; term LEVEL "200"
-  | "exists"; "!"; open_binders; ","; term LEVEL "200"
-  | "exists"; open_binders; ","; term LEVEL "200"
-  | "forall"; open_binders; ","; term LEVEL "200"
-  | "fun"; open_binders; "=>"; term LEVEL "200"
-  | "let"; "fix"; fix_decl; "in"; term LEVEL "200"
-  | "let"; "cofix"; cofix_body; "in"; term LEVEL "200"
-  | "let"; "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
-    term LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
-  | "let"; name; binders; let_type_cstr; ":="; term LEVEL "200"; "in"; term
-    LEVEL "200"
-  | "let"; [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
-    term LEVEL "200"; "in"; term LEVEL "200"
-  | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
-    term LEVEL "200"
-  | "fix"; fix_decls
-  | "cofix"; cofix_decls ] ]
-
 Entry constr is
 [ LEFTA
   [ "@"; global; univ_annot
@@ -85,9 +59,31 @@ Entry term is
   [ SELF; "^"; term LEVEL "30" ]
 | "10" LEFTA
   [ SELF; LIST1 arg
+  | "exists2"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; ","; term LEVEL
+    "200"; "&"; term LEVEL "200"
+  | "exists2"; "'"; pattern LEVEL "0"; ","; term LEVEL "200"; "&"; term LEVEL
+    "200"
+  | "exists2"; name; ":"; term LEVEL "200"; ","; term LEVEL "200"; "&"; term
+    LEVEL "200"
+  | "exists2"; name; ","; term LEVEL "200"; "&"; term LEVEL "200"
+  | "exists"; "!"; open_binders; ","; term LEVEL "200"
+  | "exists"; open_binders; ","; term LEVEL "200"
   | "@"; global; univ_annot; LIST0 NEXT
   | "@"; pattern_ident; LIST1 identref
-  | binder_constr ]
+  | "forall"; open_binders; ","; term LEVEL "200"
+  | "fun"; open_binders; "=>"; term LEVEL "200"
+  | "let"; "fix"; fix_decl; "in"; term LEVEL "200"
+  | "let"; "cofix"; cofix_body; "in"; term LEVEL "200"
+  | "let"; "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
+    term LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
+  | "let"; name; binders; let_type_cstr; ":="; term LEVEL "200"; "in"; term
+    LEVEL "200"
+  | "let"; [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
+    term LEVEL "200"; "in"; term LEVEL "200"
+  | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
+    term LEVEL "200"
+  | "fix"; fix_decls
+  | "cofix"; cofix_decls ]
 | "9" LEFTA
   [ ".."; term LEVEL "0"; ".." ]
 | "8" LEFTA

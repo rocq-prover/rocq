@@ -259,7 +259,7 @@ term_forall_or_fun: [
 | "forall" open_binders "," type
 ]
 
-binder_constr: [
+term10: [
 | DELETE "forall" open_binders "," term200
 | MOVETO term_forall_or_fun "fun" open_binders "=>" term200
 | MOVETO term_let "let" name binders let_type_cstr ":=" term200 "in" term200
@@ -2320,7 +2320,6 @@ SPLICE: [
 | ext_module_expr
 | ext_module_type
 | test
-| binder_constr
 | atomic_constr
 | let_type_cstr
 | name_colon

@@ -166,8 +166,8 @@ Notation "{ ' _ : _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, no associativity.
 Notation "{ ' _ : _ & _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, constr, no associativity.
-Notation "if _ is _ then _ else _" at level 200 with arguments constr,
-pattern at level 100 at level 100, constr, constr at next level,
+Notation "if _ is _ then _ else _" at level 10 with arguments constr, pattern
+at level 100 at level 100, constr, constr at level below 200,
 no associativity.
 Notation "_ -> _" at level 99 with arguments constr at next level, constr
 at level 200, no associativity.
@@ -263,8 +263,8 @@ Notation "{ ' _ : _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, no associativity.
 Notation "{ ' _ : _ & _ & _ }" at level 0 with arguments strict pattern
 at level 0, constr, constr, constr, no associativity.
-Notation "if _ is _ then _ else _" at level 200 with arguments constr,
-pattern at level 100 at level 100, constr, constr at next level,
+Notation "if _ is _ then _ else _" at level 10 with arguments constr, pattern
+at level 100 at level 100, constr, constr at level below 200,
 no associativity.
 Notation "{{ _ }}" in Foo at level 0 with arguments custom Foo,
 no associativity.
@@ -325,9 +325,9 @@ The command has indeed failed with message:
 "exists x .. y , p" cannot be interpreted as a known notation. Make sure that
 symbols are surrounded by spaces and that holes are explicitly denoted by
 "_".
-Notation "exists _ .. _ , _" at level 200 with arguments binder, constr
+Notation "exists _ .. _ , _" at level 10 with arguments binder, constr
 at level 200, right associativity.
-Notation "exists _ .. _ , _" at level 200 with arguments binder, constr
+Notation "exists _ .. _ , _" at level 10 with arguments binder, constr
 at level 200, right associativity.
 File "./output/PrintNotation.v", line 193, characters 2-37:
 The command has indeed failed with message:

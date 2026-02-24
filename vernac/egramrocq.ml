@@ -310,21 +310,24 @@ let find_custom_entry s =
   with Not_found ->
     anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
 
-(** This computes the name of the level where to add a new rule *)
-let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =
+(** This computes the name of the entry where to add a new rule
+    + a hack for backwards compat of binder_constr being moved from 200 to 10:
+    the first int is the real level, the second int is the level to use for considering associativity
+*)
+let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int * bool =
   fun {notation_entry = custom; notation_level = level} forpat ->
   match custom with
   | InCustomEntry s ->
      (let (entry_for_constr, entry_for_patttern) = find_custom_entry s in
      match forpat with
-     | ForConstr -> entry_for_constr, Some level
-     | ForPattern -> entry_for_patttern, Some level)
+     | ForConstr -> entry_for_constr, level, false
+     | ForPattern -> entry_for_patttern, level, false)
   | InConstrEntry ->
   match forpat with
   | ForConstr ->
-    if level = 200 then Constr.binder_constr, None
-    else Constr.term, Some level
-  | ForPattern -> Constr.pattern, Some level
+    let level, hack = if level = 200 then 10, true else level, false in
+    Constr.term, level, hack
+  | ForPattern -> Constr.pattern, level, false
 
 let target_entry : type s. notation_entry -> s target -> s Entry.t = function
 | InConstrEntry ->
@@ -566,13 +569,14 @@ let make_act : type r. r target -> _ -> r gen_eval = function
 let extend_constr state forpat ng =
   let {notation_entry = custom; notation_level = _} as fromlev,_ = ng.notgram_level in
   let assoc = ng.notgram_assoc in
-  let (entry, level) = interp_constr_entry_key fromlev forpat in
+  let (entry, level, hack) = interp_constr_entry_key fromlev forpat in
+  let assoc = if hack then None else assoc in
   let fold (accu, state) pt =
     let AnyTyRule r = make_ty_rule assoc fromlev forpat pt in
-    let pure_sublevels = pure_sublevels' assoc fromlev forpat level pt in
+    let pure_sublevels = pure_sublevels' assoc fromlev forpat (Some level) pt in
     let isforpat = target_to_bool forpat in
     let needed_levels, state = register_empty_levels state isforpat pure_sublevels in
-    let (pos,p4assoc,name), state = find_position state custom isforpat assoc level in
+    let (pos,p4assoc,name), state = find_position state custom isforpat assoc (Some level) in
     let empty_rules = List.map (prepare_empty_levels forpat) needed_levels in
     let empty = { constrs = []; constrlists = []; binders = []; binderlists = [] } in
     let act = ty_eval r (make_act forpat ng.notgram_notation) empty in

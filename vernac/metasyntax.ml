@@ -102,10 +102,9 @@ let pr_grammar_subset grammar =
   prlist_with_sep fnl (fun (_,pp) -> pp) pp
 
 let is_known = let open Procq.Entry in function
-  | "constr" | "term" | "binder_constr" ->
+  | "constr" | "term" ->
     Some [ Any Procq.Constr.constr;
       Any Procq.Constr.lconstr;
-      Any Procq.Constr.binder_constr;
       Any Procq.Constr.term;
     ]
   | "vernac" ->
@@ -998,6 +997,12 @@ let check_prefix_incompatible_level ntn prec nottyps =
 
 let cache_one_syntax_extension (ntn,synext) =
   let prec = synext.synext_level in
+  let prec = match fst prec with
+    | { notation_entry = InConstrEntry; notation_level = 200 } ->
+      (* binder_constr backwards compat hack, cf egramrocq interp_constr_entry_key *)
+      { notation_entry = InConstrEntry; notation_level = 10 }, snd prec
+    | _ -> prec
+  in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
     try
@@ -1928,6 +1933,22 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
     notobj_specific_pp_rules = sy_pp_rules;
   }
 
+let warn_at_level_200 =
+  CWarnings.create ~name:"at-level-200-changed" ~category:Deprecation.Version.v9_3 ~default:Disabled
+    Pp.(fun () ->
+        str "For backwards compatibility notations declared at level 200" ++ spc() ++
+        str "are actually at level 10, with any right-recursion being at level 200." ++ spc() ++
+        str "In the future level 200 will be treated as a normal level." ++ spc() ++
+        str "To keep the current behaviour, use \"at level 10\"," ++ spc() ++
+        str "remove any \"right associativity\" annotation," ++ spc() ++
+        str "and if right recursive add \"x at level 200\" where \"x\" is the last argument.")
+
+let warn_at_level_200 synext =
+  match fst synext.synext_level with
+  | { notation_entry = InConstrEntry; notation_level = 200 } ->
+    warn_at_level_200 ()
+  | _ -> ()
+
 (* Notations without interpretation (Reserved Notation) *)
 
 let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
@@ -1939,6 +1960,7 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
   let synext = make_syntax_rules true main_data ntn sd in
+  let () = warn_at_level_200 synext in
   Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =
@@ -2010,7 +2032,9 @@ let add_notation_syntax ~local ~infix user_warns ntn_decl =
   (* Build or rebuild the syntax rules *)
   let main_data, notation_symbols, ntn, syntax_rules, c, df = build_notation_syntax ~local ~infix user_warns ntn_decl in
   (* Declare syntax *)
-  syntax_rules_iter (fun sy -> Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
+  syntax_rules_iter (fun sy ->
+      warn_at_level_200 sy;
+      Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
   let ntn_decl_string = CAst.make ?loc:ntn_decl.ntn_decl_string.CAst.loc df in
   let ntn_decl = { ntn_decl with ntn_decl_interp = c; ntn_decl_string } in
   ntn_decl, main_data, notation_symbols, ntn, syntax_rules
