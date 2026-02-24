@@ -286,9 +286,9 @@ where
      : nat
 File "./output/Notations4.v", line 542, characters 0-78:
 The command has indeed failed with message:
-Notation "func _ .. _ , _" is already defined at level 200 with arguments
-binder, constr at next level while it is now required to be at level 200
-with arguments constr, constr at next level.
+Notation "func _ .. _ , _" is already defined at level 10 with arguments
+binder, constr at level below 200 while it is now required to be at level 10
+with arguments constr, constr at level below 200.
 File "./output/Notations4.v", line 547, characters 0-57:
 The command has indeed failed with message:
 Notation "[[ _ ]]" is already defined at level 0 with arguments custom foo

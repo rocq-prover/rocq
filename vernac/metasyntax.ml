@@ -102,10 +102,9 @@ let pr_grammar_subset grammar =
   prlist_with_sep fnl (fun (_,pp) -> pp) pp
 
 let is_known = let open Procq.Entry in function
-  | "constr" | "term" | "binder_constr" ->
+  | "constr" | "term" ->
     Some [ Any Procq.Constr.constr;
       Any Procq.Constr.lconstr;
-      Any Procq.Constr.binder_constr;
       Any Procq.Constr.term;
     ]
   | "vernac" ->
@@ -915,6 +914,7 @@ let warn_incompatible_format =
 
 type syntax_extension = {
   synext_level : level;
+  synext_hack_level : bool;
   synext_nottyps : constr_entry_key list;
   synext_notgram : notation_grammar option;
   synext_notprint : generic_notation_printing_rules option;
@@ -998,6 +998,12 @@ let check_prefix_incompatible_level ntn prec nottyps =
 
 let cache_one_syntax_extension (ntn,synext) =
   let prec = synext.synext_level in
+  let prec =
+    if synext.synext_hack_level then
+      (* binder_constr backwards compat hack *)
+      { notation_entry = InConstrEntry; notation_level = 10 }, snd prec
+    else prec
+  in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
     try
@@ -1502,6 +1508,7 @@ type syn_pa_data = {
     prec_for_grammar : level;
     typs_for_grammar : constr_entry_key list;
     need_squash : bool;
+    needs_hack : bool;
   }
 
 module SynData = struct
@@ -1604,12 +1611,21 @@ let compute_syntax_data ~local main_data notation_symbols ntn mods =
   if main_data.itemscopes <> [] then user_err (str "General notations don't support 'in scope'.");
   let {recvars;mainvars;symbols} = notation_symbols in
   let assoc = Option.append mods.assoc (Some Gramlib.Gramext.NonA) in
-  let _ = check_useless_entry_types recvars mainvars mods.etyps in
+  let () = check_useless_entry_types recvars mainvars mods.etyps in
 
   (* Notations for interp and grammar  *)
   let ntn_prefix = longest_common_prefix_level ntn in
   let level = default_prefix_level ntn_prefix mods.level in
   let msgs,n = find_precedence main_data.entry level mods.etyps symbols main_data.onlyprinting in
+  let ntn_prefix = if Int.equal n 200 then
+      ntn_prefix |> Option.map @@ fun (prefix,plevel,args) ->
+      (* binder_constr backwards compat hack: pretend that the prefix
+         was found at level 200 if this notation was declared at level 200
+         and the prefix was at level 10 (n = 200 only if mods.level = Some 200). *)
+      if Int.equal plevel 10 then prefix, 200, args
+      else prefix, plevel, args
+    else ntn_prefix
+  in
   let symbols_for_grammar =
     if main_data.entry = InConstrEntry then remove_curly_brackets symbols else symbols in
   let need_squash = not (List.equal Notation.symbol_eq symbols symbols_for_grammar) in
@@ -1628,11 +1644,18 @@ let compute_syntax_data ~local main_data notation_symbols ntn mods =
   check_locality_compatibility local main_data.entry sy_typs;
   let pa_sy_data = (sy_typs_for_grammar,symbols_for_grammar) in
   let pp_sy_data = (sy_typs,symbols) in
+  let needs_hack =
+    match main_data.entry, n, sy_typs_for_grammar with
+    | _, _, (_, ETConstr (InConstrEntry, _, (_, BorderProd (Left, _)))) :: _ -> false
+    | InConstrEntry, 200, _ -> true
+    | _ -> false
+  in
   let sy_fulldata = {
       ntn_for_grammar;
       prec_for_grammar = ({notation_entry = main_data.entry; notation_level = n}, prec_for_grammar);
       typs_for_grammar = List.map snd sy_typs_for_grammar;
-      need_squash
+      need_squash;
+      needs_hack;
     } in
 
   (* Return relevant data for interpretation and for parsing/printing *)
@@ -1758,6 +1781,7 @@ let recover_notation_syntax ntn =
     let pp_rule = try Some (find_generic_notation_printing_rule ntn) with Not_found -> None in
     {
       synext_level = prec;
+      synext_hack_level = false;
       synext_nottyps = pa_typs;
       synext_notgram = pa_rule;
       synext_notprint = pp_rule;
@@ -1775,11 +1799,12 @@ let recover_squash_syntax sy =
 (** Main entry point for building parsing and printing rules         **)
 
 let make_pa_rule (typs,symbols) parsing_data =
-  let { ntn_for_grammar; prec_for_grammar; typs_for_grammar; need_squash } = parsing_data in
+  let { ntn_for_grammar; prec_for_grammar; typs_for_grammar; need_squash; needs_hack } = parsing_data in
   let assoc = recompute_assoc typs in
   let prod = make_production prec_for_grammar typs symbols in
   let sy = {
     notgram_level = prec_for_grammar;
+    notgram_needs_hack = needs_hack;
     notgram_assoc = assoc;
     notgram_notation = ntn_for_grammar;
     notgram_prods = prod;
@@ -1848,6 +1873,7 @@ let make_syntax_rules reserved main_data ntn sd =
   let pp_rules = make_generic_printing_rules reserved main_data ntn sd in
   {
     synext_level    = sd.level;
+    synext_hack_level = sd.not_data.needs_hack;
     synext_nottyps = List.map snd sd.subentries;
     synext_notgram  = pa_rules;
     synext_notprint = pp_rules;
@@ -1928,6 +1954,19 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
     notobj_specific_pp_rules = sy_pp_rules;
   }
 
+(* close #21670 once this hack is removed *)
+let warn_at_level_200 =
+  CWarnings.create ~name:"at-level-200-changed" ~category:Deprecation.Version.v9_3 ~default:Disabled
+    Pp.(fun () ->
+        str "For backwards compatibility non left recursive notations declared at level 200" ++ spc() ++
+        str "are actually at level 10, with any right-recursion being at level 200." ++ spc() ++
+        str "In the future level 200 will be treated as a normal level." ++ spc() ++
+        str "To keep the current behaviour, use \"at level 10\"," ++ spc() ++
+        str "remove any \"right associativity\" annotation," ++ spc() ++
+        str "and if right recursive add \"x at level 200\" where \"x\" is the last argument.")
+
+let warn_at_level_200 synext = if synext.synext_hack_level then warn_at_level_200 ()
+
 (* Notations without interpretation (Reserved Notation) *)
 
 let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
@@ -1939,6 +1978,7 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
   let synext = make_syntax_rules true main_data ntn sd in
+  let () = warn_at_level_200 synext in
   Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
 
 type notation_interpretation_decl =
@@ -2010,7 +2050,9 @@ let add_notation_syntax ~local ~infix user_warns ntn_decl =
   (* Build or rebuild the syntax rules *)
   let main_data, notation_symbols, ntn, syntax_rules, c, df = build_notation_syntax ~local ~infix user_warns ntn_decl in
   (* Declare syntax *)
-  syntax_rules_iter (fun sy -> Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
+  syntax_rules_iter (fun sy ->
+      warn_at_level_200 sy;
+      Lib.add_leaf (inSyntaxExtension (local,(ntn,sy)))) syntax_rules;
   let ntn_decl_string = CAst.make ?loc:ntn_decl.ntn_decl_string.CAst.loc df in
   let ntn_decl = { ntn_decl with ntn_decl_interp = c; ntn_decl_string } in
   ntn_decl, main_data, notation_symbols, ntn, syntax_rules

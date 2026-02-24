@@ -345,7 +345,6 @@ module Constr =
     let term = Entry.make "term"
     let constr_eoi = eoi_entry constr
     let lconstr = Entry.make "lconstr"
-    let binder_constr = Entry.make "binder_constr"
     let ident = Entry.make "ident"
     let global = Entry.make "global"
     let universe_name = Entry.make "universe_name"
