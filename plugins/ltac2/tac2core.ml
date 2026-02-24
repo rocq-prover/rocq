@@ -1081,6 +1081,30 @@ let () =
     Proofview.tclUNIT ()
   else throw Tac2ffi.err_notfound
 
+let is_permutation len l =
+  if not (Int.equal len (Array.length l)) then false else
+  let items = Array.make len false in
+  (* returns true iff [l] (seen as a 1-indexed list) maps ints in [1; len] to [1; len] injectively.
+     Thanks to pigeonhole theorem this means [l] is a permutation of [1; len]. *)
+  Array.for_all (fun x ->
+      if 1 <= x && x <= len && not items.(x-1) then
+        let () = items.(x-1) <- true in
+        true
+      else false)
+    l
+
+let () =
+  define "reorder_goals" (list int @-> tac unit) @@ fun l ->
+  Proofview.Unsafe.tclGETGOALS >>= fun gls ->
+  let len = List.length gls in
+  let l = Array.of_list l in
+  if not (is_permutation len l) then
+    throw (err_invalid_arg (Pp.str "reorder_goals"))
+  else
+    let gls = Array.of_list gls in
+    let gls = List.init len (fun i -> gls.(l.(i) - 1)) in
+    Proofview.Unsafe.tclSETGOALS gls
+
 let () =
   define "unshelve" (thunk valexpr @-> tac valexpr) @@ fun t ->
   Proofview.with_shelf (thaw t) >>= fun (gls,v) ->
