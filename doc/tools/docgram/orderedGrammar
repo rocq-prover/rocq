@@ -369,6 +369,16 @@ cofix_body: [
 
 term_if: [
 | "if" term OPT [ OPT [ "as" name ] "return" term100 ] "then" term "else" term
+| "if" term "is" if_dthen if_else
+| "if" term "isn't" if_dthen if_else
+]
+
+if_dthen: [
+| pattern OPT [ "in" pattern ] OPT ( "return" term100 ) "then" term
+]
+
+if_else: [
+| "else" term
 ]
 
 term_let: [

@@ -303,9 +303,25 @@ GRAMMAR EXTEND Gram
         "then"; b1 = term LEVEL "200";
         "else"; b2 = term LEVEL "200" ->
         { CAst.make ~loc @@ CIf (c, po, b1, b2) }
+      | "if"; c = term LEVEL "200"; "is"; db1 = if_dthen; b2 = if_else ->
+        { let b1, (na, t), rt = db1 in
+          CAst.make ~loc @@ CCases (MatchStyle, rt, [c, na, t], [b1; b2]) }
+      | "if"; c = term LEVEL "200"; "isn't"; db1 = if_dthen; b2 = if_else ->
+        { let b1, (na, t), rt = db1 in
+          let b1, b2 = let open CAst in
+            let {loc=l1; v=(p1, r1)}, {loc=l2; v=(p2, r2)} = b1, b2 in
+            (make ?loc:l1 (p1, r2), make ?loc:l2 (p2, r1)) in
+          CAst.make ~loc @@ CCases (MatchStyle, rt, [c, na, t], [b1; b2]) }
       | "fix"; c = fix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CFix (id,dcls) }
       | "cofix"; c = cofix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CCoFix (id,dcls) } ] ]
   ;
+  if_dthen:
+    [ [ mp = pattern; t = OPT ["in"; t = pattern -> { t } ]; rt = OPT case_type; "then"; c = lconstr ->
+        { let ct = match t, rt with None, None -> None | _ -> aliasvar mp in
+          (CAst.make ~loc ([[mp]], c)), (ct, t), rt } ]];
+  if_else:
+    [ [ mp = [ "else" -> { CAst.make ~loc @@ CPatAtom None } ]; c = lconstr ->
+        { CAst.make ~loc ([[mp]], c) } ]];
   arg:
     [ [ test_lpar_id_coloneq; "("; id = identref; ":="; c = lconstr; ")" -> { (c,Some (CAst.make ?loc:id.CAst.loc @@ ExplByName id.CAst.v)) }
       | test_lpar_nat_coloneq; "("; n = natural; ":="; c = lconstr; ")" -> { (c,Some (CAst.make ~loc @@ ExplByPos n)) }
