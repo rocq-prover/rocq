@@ -564,7 +564,7 @@ struct
   let get_parray evd e =
     match EConstr.kind evd e with
     | Array(_u,t,def,_ty) -> Parray.of_array t def
-    | _ -> raise Not_found
+    | _ -> raise Primred.NativeDestKO
 
   let mkInt env i =
     mkInt i
