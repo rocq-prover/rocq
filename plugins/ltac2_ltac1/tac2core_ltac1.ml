@@ -242,19 +242,24 @@ let () =
 
 (** Ltac2 in Ltac1 *)
 
+let make0 name =
+  let wit = Genarg.make0 name in
+  let () = Geninterp.register_val0 wit (Some Any) in
+  wit
+
 (** Embedding Ltac2 closures of type [Ltac1.t -> Ltac1.t] inside Ltac1. There is
     no relevant data because arguments are passed by conventional names. *)
-let wit_ltac2_val : (Util.Empty.t, unit, Util.Empty.t) genarg_type =
-  Genarg.make0 "ltac2:Ltac1.lambda"
+let wit_ltac2_val : (Util.Empty.t, unit, Geninterp.Val.t) genarg_type =
+  make0 "ltac2:Ltac1.lambda"
 
 (** Ltac2 quotations in Ltac1 code *)
-let wit_ltac2in1 : (Id.t CAst.t list * raw_tacexpr, Id.t list * glb_tacexpr, Util.Empty.t) genarg_type
-  = Genarg.make0 "ltac2in1"
+let wit_ltac2in1 : (Id.t CAst.t list * raw_tacexpr, Id.t list * glb_tacexpr, Geninterp.Val.t) genarg_type
+  = make0 "ltac2in1"
 
 (** Ltac2 quotations in Ltac1 returning Ltac1 values.
     When ids are bound interning turns them into Ltac1.lambda. *)
-let wit_ltac2in1_val : (Id.t CAst.t list * raw_tacexpr, glb_tacexpr, Util.Empty.t) genarg_type
-  = Genarg.make0 "ltac2in1val"
+let wit_ltac2in1_val : (Id.t CAst.t list * raw_tacexpr, glb_tacexpr, Geninterp.Val.t) genarg_type
+  = make0 "ltac2in1val"
 
 let pr_ltac2in1_ids ids =
   if List.is_empty ids then mt ()
@@ -269,7 +274,7 @@ let () =
     Genprint.PrinterBasic Pp.(fun _env _sigma ->
         pr_ltac2in1_ids ids ++ Tac2print.pr_glbexpr ~avoid:(Id.Set.of_list ids) e)
   in
-  Genprint.register_noval_print0 wit_ltac2in1 pr_raw pr_glb
+  Genprint.register_print0 wit_ltac2in1 pr_raw pr_glb Genprint.generic_val_print
 
 let () =
   let pr_raw (ids, e) = Genprint.PrinterBasic (fun _env _sigma ->
@@ -280,7 +285,7 @@ let () =
     Genprint.PrinterBasic (fun _env _sigma ->
         Tac2print.pr_glbexpr ~avoid:Id.Set.empty e)
   in
-  Genprint.register_noval_print0 wit_ltac2in1_val pr_raw pr_glb
+  Genprint.register_print0 wit_ltac2in1_val pr_raw pr_glb Genprint.generic_val_print
 
 let () =
   let open Tac2typing_env in

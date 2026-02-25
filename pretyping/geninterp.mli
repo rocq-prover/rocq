@@ -21,13 +21,14 @@ sig
 
   val create : string -> 'a typ
 
+  type t = Dyn : 'a typ * 'a -> t
+
   type _ tag =
   | Base : 'a typ -> 'a tag
   | List : 'a tag -> 'a list tag
   | Opt : 'a tag -> 'a option tag
   | Pair : 'a tag * 'b tag -> ('a * 'b) tag
-
-  type t = Dyn : 'a typ * 'a -> t
+  | Any : t tag
 
   val eq : 'a typ -> 'b typ -> ('a, 'b) CSig.eq option
   val repr : 'a typ -> string

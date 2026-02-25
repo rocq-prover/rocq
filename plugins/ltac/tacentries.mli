@@ -155,8 +155,8 @@ type 'b argument_subst =
 
 type ('b, 'c) argument_interp =
 | ArgInterpRet : ('c, 'c) argument_interp
-| ArgInterpFun : ('b, Tacinterp.Value.t) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
-| ArgInterpWit : ('a, 'b, 'r) Genarg.genarg_type -> ('b, 'c) argument_interp
+| ArgInterpFun : ('b, 'c) Tacinterp.Register.interp_fun -> ('b, 'c) argument_interp
+| ArgInterpWit : ('a, 'b, 'c) Genarg.genarg_type -> ('b, 'c) argument_interp
 | ArgInterpSimple :
   (Tacinterp.interp_sign -> Environ.env -> Evd.evar_map -> 'b -> 'c) -> ('b, 'c) argument_interp
 
