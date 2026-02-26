@@ -6,7 +6,7 @@
    Expected coqc runtime on this file: 0.159 sec *)
 Declare Scope type_scope.
 Reserved Notation "'exists' x .. y , p"
-  (at level 200, x binder, right associativity,
+  (at level 10, x binder, p at level 200,
    format "'[' 'exists'  '/  ' x  ..  y ,  '/  ' p ']'").
 
 Reserved Notation "x -> y" (at level 99, right associativity, y at level 200).

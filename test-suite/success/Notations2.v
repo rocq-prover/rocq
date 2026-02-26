@@ -93,8 +93,8 @@ Check fun A (x :prod' bool A) => match x with ##### 0 y 0 => 2 | _ => 1 end.
 
 (* 10. Check computation of binding variable through other notations *)
 (* it should be detected as binding variable and the scopes not being checked *)
-Notation "'FUNNAT' i => t" := (fun i : nat => i = t) (at level 200).
-Notation "'Funnat' i => t" := (FUNNAT i => t + i%nat) (at level 200).
+Notation "'FUNNAT' i => t" := (fun i : nat => i = t) (at level 10, t at level 200).
+Notation "'Funnat' i => t" := (FUNNAT i => t + i%nat) (at level 10, t at level 200).
 
 (* 11. Notations with needed factorization of a recursive pattern *)
 (* See https://github.com/rocq-prover/rocq/issues/6078#issuecomment-342287412 *)
@@ -123,7 +123,7 @@ End M13.
 (* 14. Check that a notation with a "ident" binder does not include a pattern *)
 Module M14.
 Notation "'myexists' x , p" := (ex (fun x => p))
-  (at level 200, x ident, p at level 200, right associativity) : type_scope.
+  (at level 10, x ident, p at level 200) : type_scope.
 Check myexists I, I = 0. (* Should not be seen as a constructor *)
 End M14.
 

@@ -185,7 +185,7 @@ End SingleQuotes.
 
 Module Recursive.
   Reserved Notation "'exists' x .. y , p"
-    (at level 200, x binder, right associativity,
+    (at level 10, x binder, p at level 200,
     format "'[' 'exists'  '/  ' x  ..  y ,  '/  ' p ']'").
   Fail Print Notation "exists x .. y , p".
   Print Notation "'exists' x .. y , p".

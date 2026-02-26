@@ -5,7 +5,7 @@ Definition bar{A}(a b: nat)(k: nat -> A): A :=
   k (a - b).
 
 Notation "'let/c' x := r 'in' b" := (r (fun x => b))
-  (x binder, at level 200, right associativity,
+  (x binder, at level 10, b at level 200, right associativity,
    format "'[hv' 'let/c'  x  :=  r  'in'  '//' b ']'").
 
 Definition chain(x y: nat): Prop :=

@@ -3,7 +3,7 @@ Rocq <
 Rocq < 1 goal
   
   ============================
-  (exists n : nat, n = 5 \/ True) /\ (exists m : nat, m = 6 \/ True)
+  (exists n : nat, n = 5 \/ True) /\ exists m : nat, m = 6 \/ True
 
 (dependent evars: ; in current goal:)
 

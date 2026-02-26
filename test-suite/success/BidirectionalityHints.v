@@ -86,10 +86,10 @@ Definition texist {TT : tele} (Ψ : TT -> Prop) : Prop :=
 Arguments texist {!_} _ /.
 
 Notation "'∀..' x .. y , P" := (tforall (fun x => .. (tforall (fun y => P)) .. ))
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "∀..  x  ..  y ,  P").
 Notation "'∃..' x .. y , P" := (texist (fun x => .. (texist (fun y => P)) .. ))
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "∃..  x  ..  y ,  P").
 
 (** The actual test case *)
