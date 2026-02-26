@@ -1,9 +1,9 @@
 
 Notation "'∏'  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 
 Notation "'λ' x .. y , t" := (fun x => .. (fun y => t) ..)
-  (at level 200, x binder, y binder, right associativity).
+  (at level 10, x binder, y binder, t at level 200).
 
 Reserved Notation "X ≃ Y" (at level 80, no associativity).
 
@@ -20,7 +20,7 @@ Arguments pr1 {_ _} _.
 Arguments pr2 {_ _} _.
 
 Notation "'∑'  x .. y , P" := (total2 (λ x, .. (total2 (λ y, P)) ..))
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 
 
 

@@ -42,14 +42,15 @@ Check ($ 5).
 (* Check regression of bug #2087 *)
 
 Notation "'exists' x , P" := (x, P)
-   (at level 200, x ident, right associativity,	only parsing).
+   (at level 10, x ident, P at level 200, only parsing).
 
 Definition foo P := let '(exists x, Q) := P in x = Q :> nat.
 
 (* Check empty levels when extending binder_constr *)
+(* XXX this may be nonsense now that binder_constr doesn't exist *)
 
 Notation "'exists' x >= y , P" := (exists x, x >= y /\ P)%nat
-   (at level 200, x ident, right associativity, y at level 69).
+   (at level 10, x ident, P at level 200, y at level 69).
 
 (* This used to loop at some time before r12491 *)
 
@@ -93,7 +94,7 @@ Abort.
    used in cases pattern (bug #2724 in 8.3 and 8.4beta) *)
 
 Notation "'FORALL'  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 
 Fail Check fun x => match x with S (FORALL x, _) => 0 end.
 

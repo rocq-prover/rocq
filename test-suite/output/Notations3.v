@@ -30,7 +30,7 @@ Set Printing Notations.
 
 Notation "'ETA' x .. y , f" :=
   (fun x => .. (fun y => (.. (f x) ..) y ) ..)
-  (at level 200, x binder, y binder).
+  (at level 10, f at level 200, x binder, y binder).
 Check ETA (x:nat) (y:nat), Nat.add.
 Check ETA (x y:nat), Nat.add.
 Check ETA x y, Nat.add.
@@ -40,19 +40,19 @@ Set Printing Notations.
 Check ETA x y, le_S.
 
 Notation "'CURRY' x .. y , f" := (fun x => .. (fun y => f (x, .. (y,tt) ..)) ..)
-  (at level 200, x binder, y binder).
+  (at level 10, f at level 200, x binder, y binder).
 Check fun f => CURRY (x:nat) (y:bool), f.
 
 Notation "'CURRYINV' x .. y , f" := (fun x => .. (fun y => f (y, .. (x,tt) ..)) ..)
-  (at level 200, x binder, y binder).
+  (at level 10, f at level 200, x binder, y binder).
 Check fun f => CURRYINV (x:nat) (y:bool), f.
 
 Notation "'CURRYLEFT' x .. y , f" := (fun x => .. (fun y => f (.. (tt,x) .., y)) ..)
-  (at level 200, x binder, y binder).
+  (at level 10, f at level 200, x binder, y binder).
 Check fun f => CURRYLEFT (x:nat) (y:bool), f.
 
 Notation "'CURRYINVLEFT' x .. y , f" := (fun x => .. (fun y => f (.. (tt,y) .., x)) ..)
-  (at level 200, x binder, y binder).
+  (at level 10, f at level 200, x binder, y binder).
 Check fun f => CURRYINVLEFT (x:nat) (y:bool), f.
 
 (**********************************************************************)
@@ -177,7 +177,7 @@ Check {{0,1,2,3}}.
 (* Test printing of #5608                                             *)
 
 Reserved Notation "'letpair' x [1] = { A } ; 'return' ( b0 , b1 , .. , b2 )"
-  (at level 200, format "'letpair'  x  [1]  =  { A } ; '//' 'return'  ( b0 ,  b1 ,  .. ,  b2 )").
+  (at level 10, format "'letpair'  x  [1]  =  { A } ; '//' 'return'  ( b0 ,  b1 ,  .. ,  b2 )").
 Notation "'letpair' x [1] = { a } ; 'return' ( b0 , b1 , .. , b2 )" :=
   (let x:=a in ( .. (b0,b1) .., b2)).
 Check letpair x [1] = {0}; return (1,2,3,4).
@@ -196,23 +196,23 @@ Notation "{ { xL | xR // xcut } }" := (xL+xR+xcut)
 Check 1+1+1.
 
 (* Test presence of notation variables in the recursive parts (introduced in dfdaf4de) *)
-Notation "!!! x .. y , b" := ((fun x => b), .. ((fun y => b), True) ..) (at level 200, x binder).
+Notation "!!! x .. y , b" := ((fun x => b), .. ((fun y => b), True) ..) (at level 10, b at level 200, x binder).
 Check !!! (x y:nat), True.
 
 (* Test contraction of "forall x, let 'pat := x in ..." into "forall 'pat, ..." *)
 (* for isolated "forall" (was not working already in 8.6) *)
-Notation "! x .. y , A" := (id (forall x, .. (id (forall y, A)) .. )) (at level 200, x binder).
+Notation "! x .. y , A" := (id (forall x, .. (id (forall y, A)) .. )) (at level 10, A at level 200, x binder).
 Check ! '(x,y), x+y=0.
 
 (* Check that the terminator of a recursive pattern is interpreted in
    the correct environment of bindings *)
-Notation "'exists_mixed' x .. y , P" := (ex (fun x => forall z:nat, .. (ex (fun y => forall z:nat, z=0 /\ P)) ..)) (at level 200, x binder).
+Notation "'exists_mixed' x .. y , P" := (ex (fun x => forall z:nat, .. (ex (fun y => forall z:nat, z=0 /\ P)) ..)) (at level 10, P at level 200, x binder).
 Check exists_mixed x y '(u,t), x+y=0/\u+t=0.
 Check exists_mixed x y '(z,t), x+y=0/\z+t=0.
 
 (* Check that intermediary let-in are inserted in between instances of
    the repeated pattern *)
-Notation "'exists_true' x .. y , P" := (exists x, True /\ .. (exists y, True /\ P) ..) (at level 200, x binder).
+Notation "'exists_true' x .. y , P" := (exists x, True /\ .. (exists y, True /\ P) ..) (at level 10, P at level 200, x binder).
 Check exists_true '(x,y) (u:=0) '(z,t), x+y=0/\z+t=0.
 
 (* Check that generalized binders are correctly interpreted *)
@@ -236,7 +236,7 @@ Check {{D 1, 2 }}.
 #[warning="-closed-notation-not-level-0"]
 Notation "! x .. y # A #" :=
   ((forall x, x=x), .. ((forall y, y=y), A) ..)
-  (at level 200, x binder).
+  (at level 10, x binder).
 Check ! a b : nat # True #.
 Check ((forall x, x=0), nat). (* should not use the notation *)
 
@@ -252,12 +252,12 @@ Check @@ a b : nat # a=b # b=a #.
 
 Notation "'exists_non_null' x .. y  , P" :=
   (ex (fun x => x <> 0 /\ .. (ex (fun y => y <> 0 /\ P)) ..))
-  (at level 200, x binder).
+  (at level 10, P at level 200, x binder).
 Check exists_non_null x y z t , x=y/\z=t.
 
 Notation "'forall_non_null' x .. y  , P" :=
   (forall x, x <> 0 -> .. (forall y, y <> 0 -> P) ..)
-  (at level 200, x binder).
+  (at level 10, P at level 200, x binder).
 Check forall_non_null x y z t , x=y/\z=t.
 
 (* Examples where the recursive pattern is in reverse order *)
@@ -284,7 +284,7 @@ Set Printing Notations.
 Module IfPat.
 Notation "'if' t 'is' n .+ 1 'then' p 'else' q" :=
   (match t with S n => p | 0 => q end)
-  (at level 200).
+  (at level 10, q at level 200).
 Check fun x => if x is n.+1 then n else 1.
 End IfPat.
 
@@ -294,7 +294,7 @@ Check {'(x,y)|x+y=0}.
 
 Module D.
 Notation "'exists2'' x , p & q" := (ex2 (fun x => p) (fun x => q))
-  (at level 200, x pattern, p at level 200, right associativity,
+  (at level 10, x pattern, p at level 200, q at level 200,
     format "'[' 'exists2''  '/  ' x ,  '/  ' '[' p  &  '/' q ']' ']'")
   : type_scope.
 
@@ -308,7 +308,7 @@ Module E.
 Inductive myex2 {A:Type} (P Q:A -> Prop) : Prop :=
   myex_intro2 : forall x:A, P x -> Q x -> myex2 P Q.
 Notation "'myexists2' x : A , p & q" := (myex2 (A:=A) (fun x => p) (fun x => q))
-  (at level 200, x name, A at level 200, p at level 200, right associativity,
+  (at level 10, x name, A at level 200, p, q at level 200,
     format "'[' 'myexists2'  '/  ' x  :  A ,  '/  ' '[' p  &  '/' q ']' ']'")
   : type_scope.
 Check myex2 (fun x => let '(y,z) := x in y>z) (fun x => let '(y,z) := x in z>y).
@@ -318,12 +318,12 @@ End E.
 
 Parameter myex : forall {A}, (A -> Prop) -> Prop.
 Notation "'myexists' x , p" := (myex (fun x => p))
-  (at level 200, x pattern, p at level 200, right associativity).
+  (at level 10, x pattern, p at level 200).
 
 (* A canonical example of a notation with recursive binders *)
 
 Notation "∀  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 
 (* Check that printing 'pat uses an "as" when the variable bound to
    the pattern is dependent. We check it for the three kinds of
@@ -346,7 +346,7 @@ Check ∀ '(((x,y),true)|((x,y),false)), x>y.
 Module IfPat2.
 Notation "'if' c 'is' p 'then' u 'else' v" :=
   (match c with p => u | _ => v end)
-  (at level 200, p pattern at level 100).
+  (at level 10, v at level 200, p pattern at level 100).
 Check fun p => if p is S n then n else 0.
 Check fun p => if p is Lt then 1 else 0.
 End IfPat2.
@@ -444,7 +444,7 @@ End GoalConclBox.
 Module PartOfIssue17094.
 
 Notation "'FORALL' x .. y , P" := (forall x , .. (forall y , P) .. )
-  (at level 200, x constr at level 8 as pattern, right associativity,
+  (at level 10, x constr at level 8 as pattern, P at level 200,
       format "'[  ' '[  ' 'FORALL'  x  ..  y ']' ,  '/' P ']'") : type_scope.
 Notation "[[ x , y ]]" := (x, y).
 Check FORALL [[a , b]], a - b = 0.
@@ -481,7 +481,7 @@ Module PartOfIssue17094Pattern.
 (* The same but referring this time to a pattern *)
 
 Notation "'FORALL' x .. y , P" := (forall x , .. (forall y , P) .. )
-  (at level 200, x constr at level 8 as pattern, right associativity,
+  (at level 10, x constr at level 8 as pattern, P at level 200,
       format "'[  ' '[  ' 'FORALL'  x  ..  y ']' ,  '/' P ']'") : type_scope.
 Notation "[[ x , y ]]" := (x,y) (x pattern, y pattern).
 Check FORALL [[a , b]], a - b = 0.
@@ -495,7 +495,7 @@ Module PartOfIssue17094Ident.
 Declare Custom Entry quoted_binder'.
 Notation "x" := x (in custom quoted_binder' at level 0, x ident).
 Notation "'FORALL' x .. y , P" := (forall x , .. (forall y , P) .. )
-  (at level 200, x custom quoted_binder' as pattern, right associativity,
+  (at level 10, x custom quoted_binder' as pattern, P at level 200,
    format "'[  ' '[  ' 'FORALL'  x  ..  y ']' ,  '/' P ']'") : type_scope.
 
 (* Note: notation not used for printing because no rule to print "a:nat" and "b:nat" *)

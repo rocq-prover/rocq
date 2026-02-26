@@ -7,7 +7,7 @@ Tactic Notation "admit" := abstract case proof_admitted.
 Global Set Universe Polymorphism.
 Global Set Asymmetric Patterns.
 Notation "'exists' x .. y , p" := (sigT (fun x => .. (sigT (fun y => p)) ..))
-  (at level 200, x binder, right associativity,
+  (at level 10, x binder, p at level 200,
    format "'[' 'exists'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 Definition relation (A : Type) := A -> A -> Type.

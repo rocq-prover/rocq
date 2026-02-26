@@ -73,7 +73,7 @@ lose their role as parameters. For example:
 
 .. rocqtop:: in
 
-   Notation "'IF' c1 'then' c2 'else' c3" := (c1 /\ c2 \/ ~ c1 /\ c3) (at level 200, right associativity).
+   Notation "'IF' c1 'then' c2 'else' c3" := (c1 /\ c2 \/ ~ c1 /\ c3) (at level 10, c3 at level 200).
 
 Symbols that start with a single quote followed by at least 2
 characters must be single quoted.  For example, the symbol `'ab` is
@@ -323,7 +323,7 @@ The second, more powerful control on printing is by using :n:`@syntax_modifier`\
 .. rocqtop:: all
 
    Notation "'If' c1 'then' c2 'else' c3" := (IF_then_else c1 c2 c3)
-   (at level 200, right associativity, format
+   (at level 10, c3 at level 200, format
    "'[v   ' 'If'  c1 '/' '[' 'then'  c2  ']' '/' '[' 'else'  c3 ']' ']'").
 
 .. rocqtop:: all
@@ -877,7 +877,7 @@ Here is the basic example of a notation using a binder:
 .. rocqtop:: in
 
    Notation "'sigma' x : A , B" := (sigT (fun x : A => B))
-     (at level 200, x name, A at level 200, right associativity).
+     (at level 10, x name, A, B at level 200).
 
 The binding variables in the right-hand side that occur as a parameter
 of the notation (here :g:`x`) dynamically bind all the occurrences
@@ -905,7 +905,7 @@ binder. Here is an example:
 .. rocqtop:: in reset
 
    Notation "'subset' ' p , P " := (sig (fun p => P))
-     (at level 200, p pattern, format "'subset'  ' p ,  P").
+     (at level 10, p pattern, P at level 200, format "'subset'  ' p ,  P").
 
 .. rocqtop:: all
 
@@ -928,9 +928,9 @@ variable. Here is an example showing the difference:
 .. rocqtop:: in
 
    Notation "'subset_bis' ' p , P" := (sig (fun p => P))
-     (at level 200, p strict pattern).
+     (at level 10, P at level 200, p strict pattern).
    Notation "'subset_bis' p , P " := (sig (fun p => P))
-     (at level 200, p name).
+     (at level 10, P at level 200, p name).
 
 .. rocqtop:: all
 
@@ -1020,7 +1020,7 @@ notation
 
 .. rocqtop:: in
 
-   Notation "'exists_different' n" := (exists p:nat, p<>n) (at level 200).
+   Notation "'exists_different' n" := (exists p:nat, p<>n) (at level 10, n at level 200).
 
 the next command fails because p does not bind in the instance of n.
 
@@ -1148,7 +1148,7 @@ is:
 
    Notation "'exists' x .. y , p" :=
      (ex (fun x => .. (ex (fun y => p)) ..))
-     (at level 200, x binder, y binder, right associativity).
+     (at level 10, x binder, y binder, p at level 200).
 
 The principle is the same as in :ref:`RecursiveNotations`
 except that in the iterator
@@ -1181,7 +1181,7 @@ example of recursive notation with closed binders:
 
    Notation "'mylet' f x .. y :=  t 'in' u":=
      (let f := fun x => .. (fun y => t) .. in u)
-     (at level 200, x closed binder, y closed binder, right associativity).
+     (at level 10, x closed binder, y closed binder, u at level 200).
 
 A recursive pattern for binders can be used in position of a recursive
 pattern for terms. Here is an example:
@@ -1190,7 +1190,7 @@ pattern for terms. Here is an example:
 
    Notation "'FUNAPP' x .. y , f" :=
      (fun x => .. (fun y => (.. (f x) ..) y ) ..)
-     (at level 200, x binder, y binder, right associativity).
+     (at level 10, x binder, y binder, f at level 200).
 
 If an occurrence of the :math:`[~]_E` is not in position of a binding
 variable but of a term, it is the name used in the binding which is
@@ -1200,7 +1200,7 @@ used. Here is an example:
 
    Notation "'exists_non_null' x .. y  , P" :=
      (ex (fun x => x <> 0 /\ .. (ex (fun y => y <> 0 /\ P)) ..))
-     (at level 200, x binder).
+     (at level 10, x binder, P at level 200).
 
 Predefined entries
 ~~~~~~~~~~~~~~~~~~

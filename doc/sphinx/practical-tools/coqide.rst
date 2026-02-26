@@ -434,10 +434,10 @@ mathematical symbols ∀ and ∃, you may define:
 .. rocqtop:: in
 
    Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-     (at level 200, x binder, y binder, right associativity)
+     (at level 10, x binder, y binder, P at level 200)
      : type_scope.
    Notation "∃ x .. y , P" := (exists x, .. (exists y, P) ..)
-     (at level 200, x binder, y binder, right associativity)
+     (at level 10, x binder, y binder, P at level 200)
      : type_scope.
 
 A small set of such notations are already defined in the Coq library

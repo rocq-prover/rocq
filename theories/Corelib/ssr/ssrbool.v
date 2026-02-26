@@ -388,7 +388,7 @@ Reserved Notation "[ 'predC' A ]" (at level 0,
 Reserved Notation "[ 'preim' f 'of' A ]" (at level 0,
   format "[ 'preim'  f  'of'  A ]").
 
-Reserved Notation "\unless C , P" (at level 200, C at level 100,
+Reserved Notation "\unless C , P" (at level 10, C at level 100, P at level 200,
   format "'[hv' \unless  C , '/ '  P ']'").
 
 Reserved Notation "{ 'for' x , P }" (at level 0,

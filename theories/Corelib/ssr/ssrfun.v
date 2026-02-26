@@ -232,7 +232,7 @@ Reserved Notation "f ^~ y" (at level 10, y at level 8, no associativity,
 Reserved Notation "@^~ x" (at level 10, x at level 8, no associativity,
   format "@^~  x").
 Reserved Notation "[ 'eta' f ]" (at level 0, format "[ 'eta'  f ]").
-Reserved Notation "'fun' => E" (at level 200, format "'fun' =>  E").
+Reserved Notation "'fun' => E" (at level 10, E at level 200, format "'fun' =>  E").
 
 Reserved Notation "[ 'fun' : T => E ]" (at level 0,
   format "'[hv' [ 'fun' :  T  => '/ '  E ] ']'").

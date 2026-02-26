@@ -1,5 +1,5 @@
 Reserved Notation "'slet' x .. y := A 'in' b"
-  (at level 200, x binder, y binder, b at level 200, format "'slet'  x .. y  :=  A  'in' '//' b").
+  (at level 10, x binder, y binder, b at level 200, format "'slet'  x .. y  :=  A  'in' '//' b").
 Reserved Notation "T x [1] = { A } ; 'return' ( b0 , b1 , .. , b2 )"
   (at level 199, format "T  x [1]  =  { A } ; '//' 'return'  ( b0 ,  b1 ,  .. ,  b2 )").
 

@@ -4,7 +4,7 @@ Declare Custom Entry expr.
 Module A.
 
 Notation "p" := (p) (in custom expr at level 150, p constr, right associativity).
-Notation "** X" := (X) (at level 200, X custom expr at level 150).
+Notation "** X" := (X) (at level 10, X custom expr at level 150).
 Lemma t : ** True.
 Abort.
 
@@ -15,7 +15,7 @@ End A.
 Module B.
 
 Notation "p" := (p) (in custom expr at level 100, p constr (* at level 200 *)).
-Notation "** X" := (X) (at level 200, X custom expr at level 150).
+Notation "** X" := (X) (at level 10, X custom expr at level 150).
 Lemma t : ** True.
 Abort.
 
