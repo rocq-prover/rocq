@@ -105,11 +105,11 @@ Local Abbreviation RocqGenericDependentIf c x R vT vF :=
   (if c as x return R then vT else vF) (only parsing).
 
 (** Reserve notation that introduced in this file. **)
-Reserved Notation "'if' c 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'then' vT 'else' vF" (at level 10,
   c, vT, vF at level 200).
-Reserved Notation "'if' c 'return' R 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'return' R 'then' vT 'else' vF" (at level 10,
   c, R, vT, vF at level 200).
-Reserved Notation "'if' c 'as' x 'return' R 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'as' x 'return' R 'then' vT 'else' vF" (at level 10,
   c, R, vT, vF at level 200, x name).
 
 Reserved Notation "[ 'the' sT 'of' v 'by' f ]" (at level 0,

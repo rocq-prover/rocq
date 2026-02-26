@@ -18,10 +18,10 @@ Notation "x .1" := (@projT1 _ _ x) : core_scope.
 Notation "x .2" := (@projT2 _ _ x) : core_scope.
 Notation "'exists' x .. y , P"
   := (sigT (fun x => .. (sigT (fun y => P)) ..))
-       (at level 200, x binder, y binder, right associativity) : type_scope.
+       (at level 10, P at level 200, x binder, y binder, right associativity) : type_scope.
 Notation "∃ x .. y , P"
   := (sigT (fun x => .. (sigT (fun y => P)) ..))
-       (at level 200, x binder, y binder, right associativity) : type_scope.
+       (at level 10, P at level 200, x binder, y binder, right associativity) : type_scope.
 
 Definition prod A B := sigT (fun _ : A => B).
 Notation "A * B" := (prod A B) (at level 40, left associativity) : type_scope.
