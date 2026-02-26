@@ -348,6 +348,7 @@ closed_binder: [
 | "`{" LIST1 typeclass_constraint SEP "," "}"
 | "`[" LIST1 typeclass_constraint SEP "," "]"
 | "'" pattern0
+| "&" term99
 ]
 
 one_open_binder: [
@@ -1135,8 +1136,12 @@ assumpt: [
 | LIST1 ident_decl of_type lconstr
 ]
 
+constructor_binders: [
+| binders OPT [ "of" LIST1 term99 SEP "&" ]
+]
+
 constructor_type: [
-| binders [ of_type_inst lconstr | ]
+| constructor_binders [ of_type_inst lconstr | ]
 ]
 
 constructor: [

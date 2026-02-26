@@ -1457,8 +1457,8 @@ assumpt: [
 ]
 
 constructor_type: [
-| REPLACE binders [ of_type_inst lconstr | ]
-| WITH binders OPT of_type_inst
+| REPLACE constructor_binders [ of_type_inst lconstr | ]
+| WITH constructor_binders OPT of_type_inst
 ]
 
 (* todo: is this really correct? Search for "Pvernac.register_proof_mode" *)
@@ -2299,6 +2299,7 @@ SPLICE: [
 | preident
 | lpar_id_coloneq
 | binders
+| constructor_binders
 | check_module_types
 | decl_sep
 | function_fix_definition (* loses funind annotation *)
