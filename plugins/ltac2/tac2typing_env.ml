@@ -118,18 +118,23 @@ type t = {
   (** Recursive type definitions *)
   env_strict : bool;
   (** True iff in strict mode *)
+  env_univs : UnivNames.universe_binders;
+  (** Local universe names *)
 }
 
-let empty_env ?(strict=true) () = {
+let empty_env ?(strict=true) univs () = {
   env_var = Id.Map.empty;
   env_cst = UF.create ();
   env_als = ref Id.Map.empty;
   env_opn = true;
   env_rec = Id.Map.empty;
   env_strict = strict;
+  env_univs = univs;
 }
 
 let env_strict env = env.env_strict
+
+let env_univs env = env.env_univs
 
 let set_rec self env = { env with env_rec = self }
 

@@ -192,7 +192,7 @@ let check_elt_empty loc env t = match kind env t with
     user_err ?loc (str "Type" ++ spc () ++ pr_glbtype env t ++ spc () ++ str "is not an empty type")
 
 let check_unit ?loc t =
-  let env = empty_env () in
+  let env = empty_env UnivNames.empty_binders () in
   (* Should not matter, t should be closed. *)
   let t = fresh_type_scheme env t in
   let maybe_unit = match kind env t with
@@ -1371,7 +1371,7 @@ let rec intern_rec env tycon {loc;v=e} =
   (* External objects do not have access to the named context because this is
      not stable by dynamic semantics. *)
   let genv = Global.env_of_context Environ.empty_named_context_val in
-  let ist = empty_glob_sign ~strict:(env_strict env) genv in
+  let ist = empty_glob_sign ~strict:(env_strict env) genv (env_univs env) in
   let ist = { ist with extra = Store.set ist.extra ltac2_env env } in
   let arg, tpe = obj.ml_intern ist arg in
   let e = match arg with
@@ -1572,8 +1572,8 @@ and intern_case env loc e tycon pl =
 
 type context = (Id.t * type_scheme) list
 
-let intern ~strict ctx e =
-  let env = empty_env ~strict () in
+let intern ~strict univs ctx e =
+  let env = empty_env ~strict univs () in
   (* XXX not doing check_unused_variables *)
   let fold accu (id, t) = push_name (Name id) (polymorphic t) accu in
   let env = List.fold_left fold env ctx in
@@ -1584,7 +1584,8 @@ let intern ~strict ctx e =
   (e, (!count, t))
 
 let intern_typedef self (ids, t) : glb_quant_typedef =
-  let env = set_rec self (empty_env ()) in
+  (* univs should not matter for Ltac2 types *)
+  let env = set_rec self (empty_env UnivNames.empty_binders ()) in
   (* Initialize type parameters *)
   let map id = get_alias id env in
   let ids = List.map map ids in
@@ -1627,7 +1628,7 @@ let intern_typedef self (ids, t) : glb_quant_typedef =
   | CTydOpn -> (count, GTydOpn)
 
 let intern_open_type t =
-  let env = empty_env () in
+  let env = empty_env UnivNames.empty_binders () in
   let t = intern_type env t in
   let count = ref 0 in
   let vars = ref TVar.Map.empty in
@@ -1637,7 +1638,7 @@ let intern_open_type t =
 (** Subtyping *)
 
 let check_subtype t1 t2 =
-  let env = empty_env () in
+  let env = empty_env UnivNames.empty_binders () in
   let t1 = fresh_type_scheme env t1 in
   (* We build a substitution mimicking rigid variable by using dummy tuples *)
   let rigid i = GTypRef (Tuple (i + 1), []) in
@@ -1786,7 +1787,7 @@ let { Goptions.get = typed_notations } =
 
 let intern_notation_data ids body =
   if typed_notations () then
-    let env = empty_env ~strict:true () in
+    let env = empty_env ~strict:true UnivNames.empty_binders () in
     let fold id (env,argtys) =
       let ty = GTypVar (fresh_id env) in
       let env = push_name (Name id) (monomorphic ty) env in
@@ -2087,7 +2088,7 @@ let genintern_core ?(check_unused=true) ist locals expected v =
   let env = match Genintern.Store.get ist.extra ltac2_env with
     | None ->
       (* Only happens when Ltac2 is called from a toplevel ltac1 quotation *)
-      empty_env ~strict:ist.strict_check ()
+      empty_env ~strict:ist.strict_check ist.intern_sign.intern_univs ()
     | Some env -> env
   in
   let env = List.fold_left (fun env (na,t) -> push_name na t env) env locals in
@@ -2136,7 +2137,7 @@ let () =
   let open Genintern in
   let intern ist tac =
     (* XXX should we try to get an env from the ist? *)
-    let env = empty_env ~strict:ist.strict_check () in
+    let env = empty_env ~strict:ist.strict_check ist.intern_sign.intern_univs () in
     let tac, _ = intern_rec env (Some (GTypRef (Tuple 0, []))) tac in
     ist, tac
   in
@@ -2180,7 +2181,7 @@ let intern_var_quotation_gen ?loc ~ispat ist (kind, { CAst.v = id; loc }) =
   let env = match Genintern.Store.get ist.extra ltac2_env with
     | None ->
       (* Only happens when Ltac2 is called from a constr or ltac1 quotation *)
-      empty_env ~strict:ist.strict_check ()
+      empty_env ~strict:ist.strict_check ist.intern_sign.intern_univs ()
     | Some env -> env
   in
   (* Special handling of notation variables *)

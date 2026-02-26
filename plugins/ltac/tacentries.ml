@@ -350,7 +350,7 @@ let add_glob_tactic_notation_syntax local ~level ?deprecation prods forml =
 
 let add_tactic_notation ?deprecation tacobj e =
   let ids = List.map_filter cons_production_parameter tacobj.tacobj_tacgram.tacgram_prods in
-  let tac = Tacintern.glob_tactic_env ids (Global.env()) e in
+  let tac = Tacintern.glob_tactic_env ids (Global.env()) UnivNames.empty_binders e in
   add_glob_tactic_notation ?deprecation tacobj ids tac
 
 let add_tactic_notation_syntax local n ?deprecation prods =
@@ -380,7 +380,9 @@ let extend_atomic_tactic name entries =
       let default = epsilon_value inj e in
       match default with
       | None -> raise NonEmptyArgument
-      | Some def -> Tacintern.intern_tactic_or_tacarg (Genintern.empty_glob_sign ~strict:true Environ.empty_env) def
+      | Some def ->
+        Tacintern.intern_tactic_or_tacarg
+          (Genintern.empty_glob_sign ~strict:true Environ.empty_env UnivNames.empty_binders) def
     in
     try Some (hd, List.map empty_value rem) with NonEmptyArgument -> None
   in
