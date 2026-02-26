@@ -122,6 +122,7 @@ let classify =
     mk_lookup_table_from_unicode_tables_for IdentSep
       [
         single 0x005F;             (* Underscore.                       *)
+        single 0x2017;             (* Double low line.                  *)
         single 0x00A0;             (* Non breaking space, overrides Sep *)
       ];
     mk_lookup_table_from_unicode_tables_for IdentPart

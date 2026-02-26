@@ -500,10 +500,10 @@ let string_of_genarg_arg (ArgumentType arg) =
 (* When the [ssreflect.SsrSynax] module is imported, ssreflect
    operates in reduced compatibility mode. During printing, we try to
    account for this when this module is imported. *)
-let { Goptions.get = ssr_loaded } =
-  Goptions.declare_bool_option_and_ref ~stage:Synterp ~key:["SSR";"Loaded"] ~value:false ()
+let { Goptions.get = ssr_rewrite_loaded } =
+  Goptions.declare_bool_option_and_ref ~stage:Synterp ~key:["SSRRewrite";"Loaded"] ~value:false ()
 
-  let pr_orient b = if b then if ssr_loaded () then str "-> " else mt () else str "<- "
+  let pr_orient b = if b then if ssr_rewrite_loaded () then str "-> " else mt () else str "<- "
 
   let pr_multi = let open Equality in function
     | Precisely 1 -> mt ()

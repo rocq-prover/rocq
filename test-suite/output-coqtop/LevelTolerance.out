@@ -567,6 +567,9 @@ Rocq < Rocq < Entry ltac_expr is
   [ IDENT "atom5" ]
 | "4" LEFTA
   [ SELF; IDENT "post44"
+  | SELF; ";"; IDENT "first"; ssr_first_else
+  | SELF; ";"; IDENT "first"; ssrseqarg
+  | SELF; ";"; IDENT "last"; ssrseqarg
   | SELF; ";"; SELF
   | SELF; ";"; tactic_then_locality; for_each_goal; "]"
   | IDENT "pre43"; NEXT
@@ -575,6 +578,9 @@ Rocq < Rocq < Entry ltac_expr is
 | "3" RIGHTA
   [ "atom3"
   | IDENT "try"; SELF
+  | IDENT "do"; ssrmmod; ssrdotac; ssrclauses; LIST0 ssrintros_ne
+  | IDENT "do"; ssrortacarg; ssrclauses; LIST0 ssrintros_ne
+  | IDENT "do"; nat_or_var; ssrmmod; ssrdotac; ssrclauses; LIST0 ssrintros_ne
   | IDENT "do"; nat_or_var; SELF
   | IDENT "timeout"; nat_or_var; SELF
   | IDENT "time"; OPT string; SELF
@@ -582,6 +588,7 @@ Rocq < Rocq < Entry ltac_expr is
   | IDENT "progress"; SELF
   | IDENT "once"; SELF
   | IDENT "exactly_once"; SELF
+  | IDENT "abstract"; ssrdgens
   | IDENT "abstract"; NEXT; "using"; ident
   | IDENT "abstract"; NEXT
   | IDENT "only"; goal_selector; ":"; SELF ]
@@ -594,7 +601,7 @@ Rocq < Rocq < Entry ltac_expr is
   | "atom2"
   | IDENT "tryif"; SELF; "then"; SELF; "else"; SELF ]
 | "1l" LEFTA
-  [  ]
+  [ SELF; ssrintros_ne ]
 | "1" RIGHTA
   [ "atom1"
   | "fun"; LIST1 input_fun; "=>"; ltac_expr LEVEL "5"
@@ -614,6 +621,7 @@ Rocq < Rocq < Entry ltac_expr is
 | "0" LEFTA
   [ "("; SELF; ")"
   | "["; ">"; for_each_goal; "]"
+  | ssrparentacarg
   | tactic_atom ] ]
 
 Entry simple_tactic is
@@ -623,6 +631,35 @@ Entry simple_tactic is
   | IDENT "firstorder"; OPT tactic; firstorder_using
   | IDENT "congruence"; OPT natural; "with"; LIST1 constr
   | IDENT "congruence"; OPT natural
+  | IDENT "under"; ssrrwarg; IDENT "do"; ssrhint3arg
+  | IDENT "under"; ssrrwarg; ssrintros_ne; IDENT "do"; ssrhint3arg
+  | IDENT "under"; ssrrwarg; ssrintros_ne
+  | IDENT "under"; ssrrwarg
+  | IDENT "generally"; IDENT "have"; ssrclear; ssr_idcomma; ssrhpats_nobs;
+    ssrwlogfwd; ssrhint
+  | IDENT "gen"; IDENT "have"; ssrclear; ssr_idcomma; ssrhpats_nobs;
+    ssrwlogfwd; ssrhint
+  | IDENT "without"; IDENT "loss"; IDENT "suffices"; ssrhpats_nobs;
+    ssrwlogfwd; ssrhint
+  | IDENT "without"; IDENT "loss"; IDENT "suff"; ssrhpats_nobs; ssrwlogfwd;
+    ssrhint
+  | IDENT "without"; IDENT "loss"; ssrhpats_nobs; ssrwlogfwd; ssrhint
+  | IDENT "wlog"; IDENT "suffices"; ssrhpats_nobs; ssrwlogfwd; ssrhint
+  | IDENT "wlog"; IDENT "suff"; ssrhpats_nobs; ssrwlogfwd; ssrhint
+  | IDENT "wlog"; ssrhpats_nobs; ssrwlogfwd; ssrhint
+  | IDENT "suffices"; IDENT "have"; ssrhpats_nobs; ssrhavefwd
+  | IDENT "suffices"; ssrsufffwd
+  | IDENT "suff"; IDENT "have"; ssrhpats_nobs; ssrhavefwd
+  | IDENT "suff"; ssrsufffwd
+  | IDENT "have"; IDENT "suffices"; ssrhpats_nobs; ssrhavefwd
+  | IDENT "have"; IDENT "suff"; ssrhpats_nobs; ssrhavefwd
+  | IDENT "have"; ssrhavefwdwbinders
+  | IDENT "unlock"; ssrunlockargs; ssrclauses
+  | IDENT "rw"; ssrrwargs; ssrclauses
+  | IDENT "ssrinstancesofruleR2L"; ssrterm
+  | IDENT "ssrinstancesofruleL2R"; ssrterm
+  | IDENT "congr"; ssrcongrarg
+  | "by"; ssrhintarg
   | IDENT "dintuition"; tactic
   | IDENT "dintuition"
   | IDENT "intuition"; tactic
@@ -641,14 +678,19 @@ Entry simple_tactic is
   | IDENT "clearbody"; LIST1 hyp
   | IDENT "clear"; IDENT "dependent"; hyp
   | IDENT "clear"; "-"; LIST1 hyp
+  | IDENT "clear"; natural
   | IDENT "clear"; LIST0 hyp
   | IDENT "revert"; IDENT "dependent"; hyp
   | IDENT "revert"; LIST1 hyp
   | IDENT "rename"; LIST1 rename SEP ","
+  | IDENT "move"; ssrmovearg; ssrrpat
+  | IDENT "move"; ssrmovearg; ssrclauses
+  | IDENT "move"; ssrrpat
   | IDENT "move"; hyp; "at"; IDENT "top"
   | IDENT "move"; hyp; "at"; IDENT "bottom"
   | IDENT "move"; hyp; IDENT "after"; hyp
   | IDENT "move"; hyp; IDENT "before"; hyp
+  | IDENT "move"
   | IDENT "intro"; "at"; IDENT "top"
   | IDENT "intro"; "at"; IDENT "bottom"
   | IDENT "intro"; IDENT "after"; hyp
@@ -678,7 +720,10 @@ Entry simple_tactic is
   | IDENT "right"; "with"; bindings
   | IDENT "eleft"; "with"; bindings
   | IDENT "left"; "with"; bindings
+  | IDENT "exact"; "<:"; lconstr
+  | IDENT "exact"; ssrexactarg
   | IDENT "exact"; uconstr
+  | IDENT "exact"
   | IDENT "with_strategy"; strategy_level_or_var; "["; LIST1 smart_global;
     "]"; ltac_expr LEVEL "3"
   | IDENT "guard"; test
@@ -796,16 +841,23 @@ Entry simple_tactic is
   | IDENT "apply"; "<-"; constr
   | IDENT "apply"; "->"; constr; "in"; hyp
   | IDENT "apply"; "->"; constr
+  | IDENT "apply"; ssrapplyarg
   | IDENT "apply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "apply"
   | IDENT "eapply"; LIST1 constr_with_bindings_arg SEP ","; in_hyp_as
+  | IDENT "elim"; ssrarg; ssrclauses
   | IDENT "elim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "elim"
   | IDENT "eelim"; constr_with_bindings_arg; OPT eliminator
+  | IDENT "case"; ssrcasearg; ssrclauses
   | IDENT "case"; induction_clause_list
+  | IDENT "case"
   | IDENT "ecase"; induction_clause_list
   | "fix"; ident; natural; "with"; LIST1 fixdecl
   | "fix"; ident; natural
   | "cofix"; ident; "with"; LIST1 cofixdecl
   | "cofix"; ident
+  | IDENT "set"; ssrfwdid; ssrsetfwd; ssrclauses
   | IDENT "set"; bindings_with_parameters; clause
   | IDENT "set"; constr; as_name; clause
   | IDENT "eset"; bindings_with_parameters; clause
@@ -823,6 +875,9 @@ Entry simple_tactic is
   | IDENT "pose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
     lconstr; ")"
   | IDENT "pose"; IDENT "proof"; lconstr; as_ipat
+  | IDENT "pose"; ssrfixfwd
+  | IDENT "pose"; ssrcofixfwd
+  | IDENT "pose"; ssrfwdid; ssrposefwd
   | IDENT "pose"; bindings_with_parameters
   | IDENT "pose"; constr; as_name
   | IDENT "epose"; IDENT "proof"; lpar_id_coloneq; "("; identref; ":=";
@@ -902,6 +957,91 @@ Entry simple_tactic is
 Entry tactic_value is
 [ LEFTA
   [ IDENT "firstorder_using"; ":"; "("; firstorder_using; ")"
+  | IDENT "ssr_idcomma"; ":"; "("; ssr_idcomma; ")"
+  | IDENT "ssrwlogfwd"; ":"; "("; ssrwlogfwd; ")"
+  | IDENT "ssrsufffwd"; ":"; "("; ssrsufffwd; ")"
+  | IDENT "ssrunlockargs"; ":"; "("; ssrunlockargs; ")"
+  | IDENT "ssrunlockarg"; ":"; "("; ssrunlockarg; ")"
+  | IDENT "ssrrwargs"; ":"; "("; ssrrwargs; ")"
+  | IDENT "ssrrwarg"; ":"; "("; ssrrwarg; ")"
+  | IDENT "ssrpattern_ne_squarep"; ":"; "("; ssrpattern_ne_squarep; ")"
+  | IDENT "ssrpattern_squarep"; ":"; "("; ssrpattern_squarep; ")"
+  | IDENT "ssrrule"; ":"; "("; ssrrule; ")"
+  | IDENT "ssrrule_ne"; ":"; "("; ssrrule_ne; ")"
+  | IDENT "ssrrwocc"; ":"; "("; ssrrwocc; ")"
+  | IDENT "ssrcongrarg"; ":"; "("; ssrcongrarg; ")"
+  | IDENT "ssrexactarg"; ":"; "("; ssrexactarg; ")"
+  | IDENT "ssrapplyarg"; ":"; "("; ssrapplyarg; ")"
+  | IDENT "ssragens"; ":"; "("; ssragens; ")"
+  | IDENT "ssragen"; ":"; "("; ssragen; ")"
+  | IDENT "ssrcasearg"; ":"; "("; ssrcasearg; ")"
+  | IDENT "ssrmovearg"; ":"; "("; ssrmovearg; ")"
+  | IDENT "ssrarg"; ":"; "("; ssrarg; ")"
+  | IDENT "ssreqid"; ":"; "("; ssreqid; ")"
+  | IDENT "ssrdgens"; ":"; "("; ssrdgens; ")"
+  | IDENT "ssrdgens_tl"; ":"; "("; ssrdgens_tl; ")"
+  | IDENT "ssrgen"; ":"; "("; ssrgen; ")"
+  | IDENT "ssrseqdir"; ":"; "("; ssrseqdir; ")"
+  | IDENT "ssrseqarg"; ":"; "("; ssrseqarg; ")"
+  | IDENT "ssrdoarg"; ":"; "("; ssrdoarg; ")"
+  | IDENT "ssrhavefwdwbinders"; ":"; "("; ssrhavefwdwbinders; ")"
+  | IDENT "ssrhavefwd"; ":"; "("; ssrhavefwd; ")"
+  | IDENT "ssrsetfwd"; ":"; "("; ssrsetfwd; ")"
+  | IDENT "ssrcofixfwd"; ":"; "("; ssrcofixfwd; ")"
+  | IDENT "ssrfixfwd"; ":"; "("; ssrfixfwd; ")"
+  | IDENT "ssrposefwd"; ":"; "("; ssrposefwd; ")"
+  | IDENT "ssrstruct"; ":"; "("; ssrstruct; ")"
+  | IDENT "ssrbinder"; ":"; "("; ssrbinder; ")"
+  | IDENT "ssrbvar"; ":"; "("; ssrbvar; ")"
+  | IDENT "ssrfwd"; ":"; "("; ssrfwd; ")"
+  | IDENT "ssrclauses"; ":"; "("; ssrclauses; ")"
+  | IDENT "ssrclausehyps"; ":"; "("; ssrclausehyps; ")"
+  | IDENT "ssrwgen"; ":"; "("; ssrwgen; ")"
+  | IDENT "ssrhint"; ":"; "("; ssrhint; ")"
+  | IDENT "ssrortacarg"; ":"; "("; ssrortacarg; ")"
+  | IDENT "ssrhint3arg"; ":"; "("; ssrhint3arg; ")"
+  | IDENT "ssrhintarg"; ":"; "("; ssrhintarg; ")"
+  | IDENT "ssrortacs"; ":"; "("; ssrortacs; ")"
+  | IDENT "ssrfwdid"; ":"; "("; ssrfwdid; ")"
+  | IDENT "ssrintrosarg"; ":"; "("; ssrintrosarg; ")"
+  | IDENT "ssrintros"; ":"; "("; ssrintros; ")"
+  | IDENT "ssrintros_ne"; ":"; "("; ssrintros_ne; ")"
+  | IDENT "ssrrpat"; ":"; "("; ssrrpat; ")"
+  | IDENT "ssrhpats_nobs"; ":"; "("; ssrhpats_nobs; ")"
+  | IDENT "ssrhpats_wtransp"; ":"; "("; ssrhpats_wtransp; ")"
+  | IDENT "ssrhpats"; ":"; "("; ssrhpats; ")"
+  | IDENT "ssripats_ne"; ":"; "("; ssripats_ne; ")"
+  | IDENT "ssrcpat"; ":"; "("; ssrcpat; ")"
+  | IDENT "ssriorpat"; ":"; "("; ssriorpat; ")"
+  | IDENT "ssripats"; ":"; "("; ssripats; ")"
+  | IDENT "ssripat"; ":"; "("; ssripat; ")"
+  | IDENT "ident_no_do"; ":"; "("; ident_no_do; ")"
+  | IDENT "ssrfwdview"; ":"; "("; ssrfwdview; ")"
+  | IDENT "ssrbwdview"; ":"; "("; ssrbwdview; ")"
+  | IDENT "ast_closure_lterm"; ":"; "("; ast_closure_lterm; ")"
+  | IDENT "ast_closure_term"; ":"; "("; ast_closure_term; ")"
+  | IDENT "ssrterm"; ":"; "("; ssrterm; ")"
+  | IDENT "ssrdocc"; ":"; "("; ssrdocc; ")"
+  | IDENT "ssrmult"; ":"; "("; ssrmult; ")"
+  | IDENT "ssrmult_ne"; ":"; "("; ssrmult_ne; ")"
+  | IDENT "ssrocc"; ":"; "("; ssrocc; ")"
+  | IDENT "ssrindex"; ":"; "("; ssrindex; ")"
+  | IDENT "ssrclear"; ":"; "("; ssrclear; ")"
+  | IDENT "ssrclear_ne"; ":"; "("; ssrclear_ne; ")"
+  | IDENT "ssrsimpl_ne"; ":"; "("; ssrsimpl_ne; ")"
+  | IDENT "ssrhoi_id"; ":"; "("; ssrhoi_id; ")"
+  | IDENT "ssrhoi_hyp"; ":"; "("; ssrhoi_hyp; ")"
+  | IDENT "ssrhyp"; ":"; "("; ssrhyp; ")"
+  | IDENT "ssrtclarg"; ":"; "("; ssrtacarg; ")"
+  | IDENT "ssrtac3arg"; ":"; "("; ssrtac3arg; ")"
+  | IDENT "ssrtacarg"; ":"; "("; ssrtacarg; ")"
+  | IDENT "ssrviewposspc"; ":"; "("; ssrviewpos; ")"
+  | IDENT "ssrviewpos"; ":"; "("; ssrviewpos; ")"
+  | IDENT "ssrhintref"; ":"; "("; ssrhintref; ")"
+  | IDENT "ssrpatternarg"; ":"; "("; rpattern; ")"
+  | IDENT "lcpattern"; ":"; "("; lcpattern; ")"
+  | IDENT "cpattern"; ":"; "("; cpattern; ")"
+  | IDENT "rpattern"; ":"; "("; rpattern; ")"
   | IDENT "test"; ":"; "("; test; ")"
   | IDENT "comparison"; ":"; "("; comparison; ")"
   | IDENT "opthints"; ":"; "("; opthints; ")"

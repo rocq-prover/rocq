@@ -1,6 +1,6 @@
 theories/Corelib/derive/Derive.v
 theories/Corelib/ssr/ssrsetoid.v
-theories/Corelib/ssr/ssrunder.v
+theories/Corelib/Init/ssrunder.v
 theories/Corelib/extraction/Extraction.v
 theories/Corelib/extraction/ExtrHaskellBasic.v
 theories/Corelib/extraction/ExtrOcamlBasic.v

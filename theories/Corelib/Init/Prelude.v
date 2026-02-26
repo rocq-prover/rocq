@@ -24,6 +24,7 @@ Require Export Corelib.Init.Ltac.
 Require Export Corelib.Init.Tactics.
 Require Export Corelib.Init.Tauto.
 Require Export Corelib.Init.Sumbool.
+Require Export ssreflect_rw.
 (* Some initially available plugins. See also:
    - ltac_plugin (in Ltac)
    - tauto_plugin (in Tauto).

@@ -7,19 +7,20 @@ le_S_n: forall n m : nat, S n <= S m -> n <= m
 false: bool
 true: bool
 negb: bool -> bool
-xorb: bool -> bool -> bool
 andb: bool -> bool -> bool
-orb: bool -> bool -> bool
+xorb: bool -> bool -> bool
 implb: bool -> bool -> bool
+orb: bool -> bool -> bool
+NonPropType.result: nonPropType -> bool
 Nat.odd: nat -> bool
 Nat.even: nat -> bool
 Number.uint_beq: Number.uint -> Number.uint -> bool
 Nat.testbit: nat -> nat -> bool
+Nat.leb: nat -> nat -> bool
 Nat.eqb: nat -> nat -> bool
+Nat.ltb: nat -> nat -> bool
 Hexadecimal.hexadecimal_beq:
   Hexadecimal.hexadecimal -> Hexadecimal.hexadecimal -> bool
-Nat.ltb: nat -> nat -> bool
-Nat.leb: nat -> nat -> bool
 Number.number_beq: Number.number -> Number.number -> bool
 Number.signed_int_beq: Number.signed_int -> Number.signed_int -> bool
 Hexadecimal.signed_int_beq:

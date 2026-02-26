@@ -10,6 +10,8 @@ open Ssrparser
 
 val wit_ssrarg : ssrarg Genarg.uniform_genarg_type
 val wit_ssrrwarg : ssrrwarg Genarg.uniform_genarg_type
+val ssrrwargs : ssrrwarg list Procq.Entry.t
+val pr_ssrrwargs : 'a -> 'b -> 'c -> ssrrwarg list -> Pp.t
 val wit_ssrrwargs : ssrrwarg list Genarg.uniform_genarg_type
 
 val wit_ssrseqdir : ssrdir Genarg.uniform_genarg_type

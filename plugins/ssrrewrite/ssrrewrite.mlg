@@ -1,0 +1,134 @@
+(************************************************************************)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
+(*  v      *         Copyright INRIA, CNRS and contributors             *)
+(* <O___,, * (see version control and CREDITS file for authors & dates) *)
+(*   \VV/  **************************************************************)
+(*    //   *    This file is distributed under the terms of the         *)
+(*         *     GNU Lesser General Public License Version 2.1          *)
+(*         *     (see LICENSE file for the text of the license)         *)
+(************************************************************************)
+
+{
+
+open Names
+open Constrexpr
+open Procq.Constr
+open Ltac_plugin
+open Ssreflect_plugin.Ssrtacticals
+open Ssreflect_plugin.Ssrequality
+open Ssreflect_plugin.Ssrparser
+open Ssreflect_plugin.Ssrtacs
+
+}
+
+DECLARE PLUGIN "rocq-runtime.plugins.ssreflect_rewrite"
+
+(* type ssrrwargs = ssrrwarg list *)
+
+ARGUMENT EXTEND ssrrewriteargs TYPED AS ssrrwarg list PRINTED BY { pr_ssrrwargs }
+END
+
+{
+
+let ssr_rewrite_syntax = Summary.ref ~name:"SSR:rewrite" true
+
+let () =
+  Goptions.(declare_bool_option
+    { optstage = Summary.Stage.Synterp;
+      optkey   = ["SsrRewrite"];
+      optread  = (fun _ -> !ssr_rewrite_syntax);
+      optdepr  = None;
+      optwrite = (fun b -> ssr_rewrite_syntax := b) })
+
+let lbrace = Char.chr 123
+(** Workaround to a limitation of coqpp *)
+
+let test_ssr_rewrite_syntax =
+  let test kwstate strm =
+    if not !ssr_rewrite_syntax then Error () else
+    if Pptactic.ssr_rewrite_loaded () then Ok () else
+    match LStream.peek_nth kwstate 0 strm with
+    | Some (Tok.KEYWORD key) when List.mem key.[0] [lbrace; '['; '/'] -> Ok ()
+    | _ -> Error () in
+  Procq.Entry.(of_parser "test_ssr_rewrite_syntax" { parser_fun = test })
+
+}
+
+GRAMMAR EXTEND Gram
+  GLOBAL: ssrrewriteargs;
+  ssrrewriteargs: TOP [[ test_ssr_rewrite_syntax; a = ssrrwargs -> { a } ]];
+END
+
+(** The "rewrite" tactic *)
+
+TACTIC EXTEND ssrrewrite
+  | [ "rewrite" ssrrewriteargs(args) ssrclauses(clauses) ] ->
+    { tclCLAUSES (ssrrewritetac ist args) clauses }
+END
+
+{
+
+(* global syntactic changes and vernacular commands *)
+
+(** Alternative notations for "match" and anonymous arguments. *)(* ************)
+
+(* Syntax:                                                        *)
+(*  if <term> is <pattern> then ... else ...                      *)
+(*  if <term> is <pattern> [in ..] return ... then ... else ...   *)
+(* The scope of a top-level 'as' in the pattern extends over the  *)
+(* 'return' type (dependent if/let).                              *)
+(* in b       (*^--ALTERNATIVE INNER LET--------^ *)              *)
+
+(* Caveat : There is no pretty-printing support, since this would *)
+(* require a modification to the Rocq kernel (adding a new match  *)
+(* display style -- why aren't these strings?); also, the v8.1    *)
+(* pretty-printer only allows extension hooks for printing        *)
+(* integer or string literals.                                    *)
+(*   Also note that in the v8 grammar "is" needs to be a keyword; *)
+(* as this can't be done from an ML extension file, the new       *)
+(* syntax will only work when ssreflect.v is imported.            *)
+
+let no_ct = None, None and no_rt = None
+let aliasvar = function
+  | [[{ CAst.v = CPatAlias (_, na); loc }]] -> Some na
+  | _ -> None
+let mk_cnotype mp = aliasvar mp, None
+let mk_ctype mp t = aliasvar mp, Some t
+let mk_rtype t = Some t
+let mk_dthen ?loc (mp, ct, rt) c = (CAst.make ?loc (mp, c)), ct, rt
+let mk_pat c (na, t) = (c, na, t)
+
+}
+
+GRAMMAR EXTEND Gram
+  GLOBAL: binder_constr;
+  ssr_rtype: [[ "return"; t = term LEVEL "100" -> { mk_rtype t } ]];
+  ssr_mpat: [[ p = pattern -> { [[p]] } ]];
+  ssr_dpat: [
+    [ mp = ssr_mpat; "in"; t = pattern; rt = ssr_rtype -> { mp, mk_ctype mp t, rt }
+    | mp = ssr_mpat; rt = ssr_rtype -> { mp, mk_cnotype mp, rt }
+    | mp = ssr_mpat -> { mp, no_ct, no_rt }
+  ] ];
+  ssr_dthen: [[ dp = ssr_dpat; "then"; c = lconstr -> { mk_dthen ~loc dp c } ]];
+  ssr_elsepat: [[ "else" -> { [[CAst.make ~loc @@ CPatAtom None]] } ]];
+  ssr_else: [[ mp = ssr_elsepat; c = lconstr -> { CAst.make ~loc (mp, c) } ]];
+  binder_constr: TOP [
+    [ "if"; c = term LEVEL "200"; "is"; db1 = ssr_dthen; b2 = ssr_else ->
+      { let b1, ct, rt = db1 in CAst.make ~loc @@ CCases (MatchStyle, rt, [mk_pat c ct], [b1; b2]) }
+    | "if"; c = term LEVEL "200";"isn't";db1 = ssr_dthen; b2 = ssr_else ->
+      { let b1, ct, rt = db1 in
+      let b1, b2 = let open CAst in
+        let {loc=l1; v=(p1, r1)}, {loc=l2; v=(p2, r2)} = b1, b2 in
+        (make ?loc:l1 (p1, r2), make ?loc:l2 (p2, r1))
+      in
+      CAst.make ~loc @@ CCases (MatchStyle, rt, [mk_pat c ct], [b1; b2]) }
+  ] ];
+END
+
+GRAMMAR EXTEND Gram
+  GLOBAL: closed_binder;
+  closed_binder: TOP [
+    [ ["of" -> { () } | "&" -> { () } ]; c = term LEVEL "99" ->
+      { [CLocalAssum ([CAst.make ~loc Anonymous], None, Default Explicit, c)] }
+  ] ];
+END

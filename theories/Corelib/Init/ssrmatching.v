@@ -10,6 +10,8 @@
 
 (* (c) Copyright 2006-2015 Microsoft Corporation and Inria.                  *)
 
+Require Import Logic.
+
 Declare ML Module "rocq-runtime.plugins.ssrmatching".
 
 Module SsrMatchingSyntax.
