@@ -84,7 +84,7 @@ let value_of_evaluable_ref env sigma evref u =
   | Evaluable.EvalProjectionRef _ ->
     assert false (* TODO *)
 
-let soft_evaluable_of_global_reference ?loc = function
+let evaluable_of_global_reference ?loc = function
   | GlobRef.ConstRef cst ->
     begin
       match Structures.PrimitiveProjections.find_opt cst with
@@ -93,6 +93,8 @@ let soft_evaluable_of_global_reference ?loc = function
     end
   | GlobRef.VarRef id -> Evaluable.EvalVarRef id
   | r -> error_not_evaluable ?loc r
+
+let soft_evaluable_of_global_reference = evaluable_of_global_reference
 
 let global_of_evaluable_reference = function
   | Evaluable.EvalConstRef cst -> GlobRef.ConstRef cst

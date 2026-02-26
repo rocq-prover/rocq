@@ -42,9 +42,13 @@ val is_evaluable : Environ.env -> Evd.evar_map -> Evaluable.t -> bool
 exception NotEvaluableRef of GlobRef.t
 val error_not_evaluable : ?loc:Loc.t -> GlobRef.t -> 'a
 
-val soft_evaluable_of_global_reference :
+val evaluable_of_global_reference :
   ?loc:Loc.t -> GlobRef.t -> Evaluable.t
 (** Succeeds for any constant or variable even if marked opaque or otherwise not evaluable. *)
+
+val soft_evaluable_of_global_reference :
+  ?loc:Loc.t -> GlobRef.t -> Evaluable.t
+[@@deprecated "(9.3) Use evaluable_of_global_reference."]
 
 val global_of_evaluable_reference :
   Evaluable.t -> GlobRef.t

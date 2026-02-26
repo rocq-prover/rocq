@@ -64,11 +64,6 @@ let project_hint ~poly pri l2r r =
   let info = {Typeclasses.hint_priority = pri; hint_pattern = None} in
   (info, true, GlobRef.ConstRef c)
 
-(* Only error when we have to (axioms may be instantiated if from functors)
-   XXX maybe error if not from a functor argument?
- *)
-let soft_evaluable = Tacred.soft_evaluable_of_global_reference
-
 (* Slightly more lenient global hint syntax for backwards compatibility *)
 let rectify_hint_constr h = match h with
 | Vernacexpr.HintsReference qid -> Some qid
@@ -86,7 +81,7 @@ let interp_hints ~poly h =
     Dumpglob.add_glob ?loc:r.CAst.loc gr;
     gr
   in
-  let fr r = soft_evaluable ?loc:r.CAst.loc (fref r) in
+  let fr r = Tacred.evaluable_of_global_reference ?loc:r.CAst.loc (fref r) in
   let fi c =
     match rectify_hint_constr c with
     | Some c ->
