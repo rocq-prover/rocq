@@ -490,6 +490,15 @@ val no_link_info : link_info
 val set_retroknowledge : env -> Retroknowledge.retroknowledge -> env
 val retroknowledge : env -> Retroknowledge.retroknowledge
 
+(** {5 Dependency analysis} *)
+
+(** [constant_depends_on c1 c2] is true when [c2] appears in the transitive set of
+    constants reachable from the body of [c1]. Axioms, opaque definitions,
+    and primitives have no body and thus no dependencies. *)
+val constant_depends_on : env -> Constant.t -> Constant.t -> bool
+
+(** {5 Internals} *)
+
 module Internal : sig
   (** Makes the qvars treated as above prop.
       Do not use outside kernel inductive typechecking. *)
