@@ -1934,7 +1934,7 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
   }
 
 let warn_at_level_200 =
-  CWarnings.create ~name:"at-level-200-changed" ~category:Deprecation.Version.v9_3 ~default:Disabled
+  CWarnings.create ~name:"at-level-200-changed" ~category:Deprecation.Version.v9_3
     Pp.(fun () ->
         str "For backwards compatibility notations declared at level 200" ++ spc() ++
         str "are actually at level 10, with any right-recursion being at level 200." ++ spc() ++
