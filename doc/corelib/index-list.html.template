@@ -40,6 +40,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/BinNums/PosDef.v
     theories/Corelib/BinNums/NatDef.v
     theories/Corelib/BinNums/IntDef.v
+    theories/Corelib/BinNums/RatDef.v
   </dd>
 
   <dt id="Cyclic"> <a href="#Cyclic"><b>Cyclic</b></a>:
@@ -191,5 +192,26 @@ through the <tt>Require Import</tt> command.</p>
   <dd>
     theories/Corelib/Strings/PrimString.v
     theories/Corelib/Strings/PrimStringAxioms.v
+  </dd>
+
+  <dt id="ring"> <a href="#ring"><b>ring</b></a>:
+    Computational part of the ring and field tactics
+  </dt>
+  <dd>
+    theories/Corelib/ring/ring_checker.v
+    theories/Corelib/ring/ring_eval.v
+    theories/Corelib/ring/field_checker.v
+    theories/Corelib/ring/field_eval.v
+  </dd>
+
+  <dt id="micromega"> <a href="#micromega"><b>micromega</b></a>:
+    The micromega tactics
+  </dt>
+  <dd>
+    theories/Corelib/micromega/micromega_formula.v
+    theories/Corelib/micromega/micromega_witness.v
+    theories/Corelib/micromega/micromega_tactics.v
+    theories/Corelib/micromega/micromega_checker.v
+    theories/Corelib/micromega/micromega_eval.v
   </dd>
 </dl>
