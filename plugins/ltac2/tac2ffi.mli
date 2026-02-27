@@ -170,6 +170,14 @@ val of_transparent_state : TransparentState.t -> valexpr
 val to_transparent_state : valexpr -> TransparentState.t
 val transparent_state : TransparentState.t repr
 
+val of_hint_db : Tac2hints.hint_db -> valexpr
+val to_hint_db : valexpr -> Tac2hints.hint_db
+val hint_db : Tac2hints.hint_db repr
+
+val of_hint : Tac2hints.hint -> valexpr
+val to_hint : valexpr -> Tac2hints.hint
+val hint : Tac2hints.hint repr
+
 val of_pretype_flags : Pretyping.inference_flags -> valexpr
 val to_pretype_flags : valexpr -> Pretyping.inference_flags
 val pretype_flags : Pretyping.inference_flags repr

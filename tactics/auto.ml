@@ -280,6 +280,29 @@ let intro_register dbg kont db =
       Tacticals.onLastDecl (fun decl -> kont (extend_local_db decl db))
     end
 
+let hint_runner =
+  function
+    | Res_pf h -> unify_resolve_nodelta h
+    | ERes_pf _ -> Proofview.Goal.enter (fun gl ->
+        let info = Exninfo.reify () in
+        Tacticals.tclZEROMSG ~info (str "eres_pf"))
+    | Give_exact h  -> exact h
+    | Res_pf_THEN_trivial_fail h ->  unify_resolve_nodelta h
+    | Unfold_nth c ->
+      Proofview.Goal.enter begin fun gl ->
+       if exists_evaluable_reference (Proofview.Goal.env gl) c then
+         Tacticals.tclPROGRESS (reduce (Unfold [AllOccurrences,c]) Locusops.onConcl)
+       else
+         let info = Exninfo.reify () in
+         Tacticals.tclFAIL ~info (str"Unbound reference")
+       end
+    | Extern (p, tacast) ->
+      Proofview.Goal.enter begin fun gl ->
+        let concl = Proofview.Goal.concl gl in
+        conclPattern concl p tacast
+       end
+
+
 let rec trivial_fail_db dbg db_list local_db =
   Proofview.tclINDEPENDENT @@
     Tacticals.tclORELSE0 (dbg_assumption dbg) @@
@@ -303,28 +326,12 @@ let rec trivial_fail_db dbg db_list local_db =
     end
 
 and tac_of_hint dbg db_list local_db concl =
-  let tactic = function
-    | Res_pf h -> unify_resolve_nodelta h
-    | ERes_pf _ -> Proofview.Goal.enter (fun gl ->
-        let info = Exninfo.reify () in
-        Tacticals.tclZEROMSG ~info (str "eres_pf"))
-    | Give_exact h  -> exact h
-    | Res_pf_THEN_trivial_fail h ->
-      Tacticals.tclTHEN
-        (unify_resolve_nodelta h)
-        (* With "(debug) trivial", we shouldn't end here, and
-           with "debug auto" we don't display the details of inner trivial *)
-        (trivial_fail_db (no_dbg dbg) db_list local_db)
-    | Unfold_nth c ->
-      Proofview.Goal.enter begin fun gl ->
-       if exists_evaluable_reference (Proofview.Goal.env gl) c then
-         Tacticals.tclPROGRESS (reduce (Unfold [AllOccurrences,c]) Locusops.onConcl)
-       else
-         let info = Exninfo.reify () in
-         Tacticals.tclFAIL ~info (str"Unbound reference")
-       end
-    | Extern (p, tacast) ->
-      conclPattern concl p tacast
+  let tactic h =
+    let runner = hint_runner h in
+    match h with
+    | Res_pf_THEN_trivial_fail _ ->
+            Tacticals.tclTHEN runner (trivial_fail_db (no_dbg dbg) db_list local_db)
+    | _ -> runner
   in
   let pr_hint h env sigma =
     let origin = match FullHint.database h with
