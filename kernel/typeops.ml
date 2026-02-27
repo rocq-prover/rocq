@@ -528,7 +528,7 @@ let should_invert_case env r ci =
 let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
   let (params, realargs) = List.chop mib.mind_nparams largs in
   (* Check that the type of the scrutinee is <= the expected argument type *)
-  let iter p1 p2 = match Conversion.conv ~l2r:true env p1 p2 with
+  let iter p1 p2 = match Conversion.conv ~l2r:L2R env p1 p2 with
   | Result.Ok () -> ()
   | Result.Error () -> raise NotConvertible
   in
