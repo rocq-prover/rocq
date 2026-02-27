@@ -1432,7 +1432,7 @@ let iter_let_aux tac =
       init_cache ();
       Tacticals.tclMAP (do_let tac) sign)
 
-let iter_let (tac : Ltac_plugin.Tacinterp.Value.t) =
+let iter_let (tac : Ltac_plugin.Tacexpr.tacvalue) =
   iter_let_aux (fun (id : Names.Id.t) t ty ->
       Ltac_plugin.Tacinterp.Value.apply tac
         [ Ltac_plugin.Tacinterp.Value.of_constr (EConstr.mkVar id)

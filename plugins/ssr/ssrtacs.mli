@@ -17,7 +17,7 @@ val wit_ssrseqdir : ssrdir Genarg.uniform_genarg_type
 val wit_ssrsufffwd :
   (Tacexpr.raw_tactic_expr ffwbinders,
    Tacexpr.glob_tactic_expr ffwbinders,
-   Geninterp.Val.t ffwbinders) Genarg.genarg_type
+   Tacexpr.tacvalue ffwbinders) Genarg.genarg_type
 
 val wit_ssrcasearg : (cpattern ssragens) ssrmovearg Genarg.uniform_genarg_type
 val wit_ssrmovearg : (cpattern ssragens) ssrmovearg Genarg.uniform_genarg_type

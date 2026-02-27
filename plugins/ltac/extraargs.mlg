@@ -266,11 +266,15 @@ let pr_by_arg_tac env sigma _prc _prlc prtac opt_c =
     | None -> mt ()
     | Some t -> hov 2 (str "by" ++ spc () ++ prtac env sigma (Constrexpr.LevelLe 3) t)
 
+let top_pr_by_arg_tac env sigma prc prlc _prtac opt_c =
+  pr_by_arg_tac env sigma prc prlc (fun env _ _ t -> Pptactic.pr_tacvalue env t) opt_c
 }
 
 ARGUMENT EXTEND by_arg_tac
   TYPED AS tactic option
-  PRINTED BY { pr_by_arg_tac env sigma }
+  PRINTED BY { top_pr_by_arg_tac env sigma }
+  RAW_PRINTED BY { pr_by_arg_tac env sigma }
+  GLOB_PRINTED BY { pr_by_arg_tac env sigma }
 | [ "by" tactic3(c) ] -> { Some c }
 | [ ] -> { None }
 END

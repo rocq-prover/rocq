@@ -25,7 +25,7 @@ val havetac : ist ->
            ((((Ssrast.ssrclear option * Ssrast.ssripat list) * Ssrast.ssripats) *
              Ssrast.ssripats) *
             (((Ssrast.ssrfwdkind * 'a) * ast_closure_term) *
-             (bool * Tacinterp.Value.t option list))) ->
+             (bool * Tacexpr.tacvalue option list))) ->
            bool ->
            bool -> unit Proofview.tactic
 
@@ -44,7 +44,7 @@ val wlogtac :
     list *
     ('c *
        ast_closure_term) ->
-  Ltac_plugin.Tacinterp.Value.t Ssrast.ssrhint ->
+  Tacexpr.tacvalue Ssrast.ssrhint ->
   bool ->
   [< `Gen of Names.Id.t option option | `NoGen > `NoGen ] ->
   unit Proofview.tactic
@@ -55,7 +55,7 @@ val sufftac :
      Ssrast.ssripat list) *
     (('a *
         ast_closure_term) *
-       (bool * Tacinterp.Value.t option list)) ->
+       (bool * Tacexpr.tacvalue option list)) ->
   unit Proofview.tactic
 
 (* pad_intro (by default false) indicates whether the intro-pattern
@@ -67,7 +67,7 @@ val undertac :
   ?pad_intro:bool ->
   Ltac_plugin.Tacinterp.interp_sign ->
   Ssrast.ssripats option -> Ssrequality.ssrrwarg ->
-  Ltac_plugin.Tacinterp.Value.t Ssrast.ssrhint -> unit Proofview.tactic
+  Tacexpr.tacvalue Ssrast.ssrhint -> unit Proofview.tactic
 
 val overtac :
   unit Proofview.tactic

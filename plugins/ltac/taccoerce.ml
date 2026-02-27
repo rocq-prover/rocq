@@ -44,13 +44,13 @@ let pr_value env v =
      pr_with_env (fun env sigma -> printer env sigma default_already_surrounded)
 
 (** Abstract application, to print ltac functions *)
-type appl =
+type appl = Tacexpr.appl =
   | UnnamedAppl (** For generic applications: nothing is printed *)
   | GlbAppl of (Names.KerName.t * Val.t list) list
        (** For calls to global constants, some may alias other. *)
 
 (* Values for interpretation *)
-type tacvalue =
+type tacvalue = Tacexpr.tacvalue =
   | VFun of
       appl *
       Tacexpr.ltac_trace *
@@ -59,17 +59,6 @@ type tacvalue =
       Name.t list * (* binders *)
       Tacexpr.glob_tactic_expr (* body *)
   | VRec of Val.t Id.Map.t ref * Tacexpr.glob_tactic_expr
-
-let tacvalue_tag : tacvalue Val.typ =
-  let tag = Val.create "tacvalue" in
-  let pr = function
-    | VFun (a,_,loc,ids,l,tac) ->
-      let tac = if List.is_empty l then tac else CAst.make ?loc @@ Tacexpr.TacFun (l,tac) in
-      let pr_env env sigma = if Id.Map.is_empty ids then mt () else cut () ++ str "where" ++ Id.Map.fold (fun id c pp -> cut () ++ Id.print id ++ str " := " ++ pr_value (Some (env,sigma)) c ++ pp) ids (mt ()) in
-      Genprint.TopPrinterNeedsContext (fun env sigma -> v 0 (hov 0 (Pptactic.pr_glob_tactic env tac) ++ pr_env env sigma))
-    | _ -> Genprint.TopPrinterBasic (fun _ -> str "<tactic closure>") in
-  let () = Genprint.register_val_print0 tag pr in
-  tag
 
 let constr_context_tag : Constr_matching.context Val.typ =
   let tag = Val.create "constr_context" in
@@ -108,6 +97,8 @@ module Value =
 struct
 
 type t = Val.t
+
+let tacvalue_tag = val_tag (topwit wit_tactic)
 
 let of_tacvalue v = Val.Dyn (tacvalue_tag, v)
 

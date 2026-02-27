@@ -31,7 +31,7 @@ DECLARE PLUGIN "rocq-runtime.plugins.ltac"
 
 TACTIC EXTEND assert_succeeds
 | [ "assert_succeeds" tactic3(tac) ]
-  -> { Internals.assert_succeeds (Tacinterp.tactic_of_value ist tac) }
+  -> { Internals.assert_succeeds (Tacinterp.tactic_of_tacvalue ist tac) }
 END
 
 TACTIC EXTEND replace
@@ -179,7 +179,7 @@ TACTIC EXTEND autorewrite
     { auto_multi_rewrite  l ( cl) }
 | [ "autorewrite" "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
     {
-      auto_multi_rewrite_with (Tacinterp.tactic_of_value ist t) l cl
+      auto_multi_rewrite_with (Tacinterp.tactic_of_tacvalue ist t) l cl
    }
 END
 
@@ -187,7 +187,7 @@ TACTIC EXTEND autorewrite_star
 | [ "autorewrite" "*" "with" ne_preident_list(l) clause(cl) ] ->
     { auto_multi_rewrite ~conds:AllMatches l cl }
 | [ "autorewrite" "*" "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
-  { auto_multi_rewrite_with ~conds:AllMatches (Tacinterp.tactic_of_value ist t) l cl }
+  { auto_multi_rewrite_with ~conds:AllMatches (Tacinterp.tactic_of_tacvalue ist t) l cl }
 END
 
 (**********************************************************************)
@@ -195,8 +195,8 @@ END
 
 {
 
-let rewrite_star ist clause orient occs c (tac : Geninterp.Val.t option) =
-  let tac' = Option.map (fun t -> Tacinterp.tactic_of_value ist t, FirstSolved) tac in
+let rewrite_star ist clause orient occs c (tac : Tacexpr.tacvalue option) =
+  let tac' = Option.map (fun t -> Tacinterp.tactic_of_tacvalue ist t, FirstSolved) tac in
   Internals.with_delayed_uconstr ist c
     (fun c -> general_rewrite ~where:clause ~l2r:orient occs ?tac:tac' ~freeze:true ~dep:true ~with_evars:true (c,NoBindings))
 
@@ -420,12 +420,12 @@ let add_transitivity_lemma left lem =
 (* Vernacular syntax *)
 
 TACTIC EXTEND stepl
-| ["stepl" constr(c) "by" tactic(tac) ] -> { step true c (Tacinterp.tactic_of_value ist tac) }
+| ["stepl" constr(c) "by" tactic(tac) ] -> { step true c (Tacinterp.tactic_of_tacvalue ist tac) }
 | ["stepl" constr(c) ] -> { step true c (Proofview.tclUNIT ()) }
 END
 
 TACTIC EXTEND stepr
-| ["stepr" constr(c) "by" tactic(tac) ] -> { step false c (Tacinterp.tactic_of_value ist tac) }
+| ["stepr" constr(c) "by" tactic(tac) ] -> { step false c (Tacinterp.tactic_of_tacvalue ist tac) }
 | ["stepr" constr(c) ] -> { step false c (Proofview.tclUNIT ()) }
 END
 
@@ -472,9 +472,9 @@ END
 
 TACTIC EXTEND transparent_abstract
 | [ "transparent_abstract" tactic3(t) ] -> { Proofview.Goal.enter begin fun gl ->
-    Abstract.tclABSTRACT ~opaque:false None (Tacinterp.tactic_of_value ist t) end; }
+    Abstract.tclABSTRACT ~opaque:false None (Tacinterp.tactic_of_tacvalue ist t) end; }
 | [ "transparent_abstract" tactic3(t) "using" ident(id) ] -> { Proofview.Goal.enter begin fun gl ->
-    Abstract.tclABSTRACT ~opaque:false (Some id) (Tacinterp.tactic_of_value ist t) end; }
+    Abstract.tclABSTRACT ~opaque:false (Some id) (Tacinterp.tactic_of_tacvalue ist t) end; }
 END
 
 (* ********************************************************************* *)
@@ -683,6 +683,6 @@ END
 
 TACTIC EXTEND with_strategy
 | [ "with_strategy" strategy_level_or_var(v) "[" ne_smart_global_list(q) "]" tactic3(tac) ] -> {
-  with_set_strategy [(v, q)] (Tacinterp.tactic_of_value ist tac)
+  with_set_strategy [(v, q)] (Tacinterp.tactic_of_tacvalue ist tac)
 }
 END

@@ -244,6 +244,10 @@ let val_of_id id =
 
 let find_cut _ ist =
   let k = Id.Map.find (Names.Id.of_string "k") ist.lfun in
+  let k = match Taccoerce.Value.to_tacvalue k with
+    | Some k -> k
+    | None -> CErrors.user_err Pp.(str "Argument to find_cut should be a tactic.")
+  in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
   let hyps0 = Proofview.Goal.hyps gl in

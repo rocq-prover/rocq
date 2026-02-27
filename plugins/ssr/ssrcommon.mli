@@ -157,7 +157,7 @@ val nbargs_open_constr : Environ.env -> Evd.evar_map * EConstr.t -> int
 val pf_nbargs : Environ.env -> Evd.evar_map -> EConstr.t -> int
 
 val ssrevaltac :
-  Tacinterp.interp_sign -> Tacinterp.Value.t -> unit Proofview.tactic
+  Tacinterp.interp_sign -> Tacexpr.tacvalue -> unit Proofview.tactic
 
 val convert_concl_no_check : EConstr.t -> unit Proofview.tactic
 val convert_concl : check:bool -> EConstr.t -> unit Proofview.tactic

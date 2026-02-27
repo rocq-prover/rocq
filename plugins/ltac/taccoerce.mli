@@ -22,12 +22,12 @@ exception CannotCoerceTo of string
 (** Exception raised whenever a coercion failed. *)
 
 (** Abstract application, to print ltac functions *)
-type appl =
+type appl = Tacexpr.appl =
   | UnnamedAppl (** For generic applications: nothing is printed *)
   | GlbAppl of (Names.KerName.t * Val.t list) list
        (** For calls to global constants, some may alias other. *)
 
-type tacvalue =
+type tacvalue = Tacexpr.tacvalue =
   | VFun of appl * Tacexpr.ltac_trace * Loc.t option * Val.t Id.Map.t *
       Name.t list * Tacexpr.glob_tactic_expr
   | VRec of Val.t Id.Map.t ref * Tacexpr.glob_tactic_expr
