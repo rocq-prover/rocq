@@ -53,7 +53,7 @@ let with_delayed_uconstr ist c tac =
 
 let replace_in_clause_maybe_by ist dir_opt c1 c2 cl tac =
   with_delayed_uconstr ist c1
-  (fun c1 -> Equality.replace_in_clause_maybe_by dir_opt c1 c2 cl (Option.map (Tacinterp.tactic_of_value ist) tac))
+  (fun c1 -> Equality.replace_in_clause_maybe_by dir_opt c1 c2 cl (Option.map (Tacinterp.tactic_of_tacvalue ist) tac))
 
 let replace_term ist dir_opt c cl =
   with_delayed_uconstr ist c (fun c -> Equality.replace_term dir_opt c cl)
@@ -163,7 +163,7 @@ let is_const x =
     | _ -> Tacticals.tclFAIL (Pp.str "not a constant")
 
 let unshelve ist t =
-  Proofview.with_shelf (Tacinterp.tactic_of_value ist t) >>= fun (gls, ()) ->
+  Proofview.with_shelf (Tacinterp.tactic_of_tacvalue ist t) >>= fun (gls, ()) ->
   let gls = List.map Proofview.with_empty_state gls in
   Proofview.Unsafe.tclGETGOALS >>= fun ogls ->
   Proofview.Unsafe.tclSETGOALS (gls @ ogls)

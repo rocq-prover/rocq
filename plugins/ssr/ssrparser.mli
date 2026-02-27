@@ -13,12 +13,12 @@
 open Ltac_plugin
 
 val ssrtacarg : Tacexpr.raw_tactic_expr Procq.Entry.t
-val wit_ssrtacarg : (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Geninterp.Val.t) Genarg.genarg_type
+val wit_ssrtacarg : (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Tacexpr.tacvalue) Genarg.genarg_type
 val pr_ssrtacarg : Environ.env -> Evd.evar_map -> 'a -> 'b ->
   (Environ.env -> Evd.evar_map -> Constrexpr.entry_relative_level -> 'c) -> 'c
 
 val ssrtclarg : Tacexpr.raw_tactic_expr Procq.Entry.t
-val wit_ssrtclarg : (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Geninterp.Val.t) Genarg.genarg_type
+val wit_ssrtclarg : (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Tacexpr.tacvalue) Genarg.genarg_type
 val pr_ssrtclarg : Environ.env -> Evd.evar_map -> 'a -> 'b ->
   (Environ.env -> Evd.evar_map -> Constrexpr.entry_relative_level -> 'c -> 'd) -> 'c -> 'd
 
@@ -31,28 +31,28 @@ open Ssrast
 
 type ssrfwdview = ast_closure_term list
 
-val wit_ssrseqarg : (Tacexpr.raw_tactic_expr ssrseqarg, Tacexpr.glob_tactic_expr ssrseqarg, Geninterp.Val.t ssrseqarg) Genarg.genarg_type
+val wit_ssrseqarg : (Tacexpr.raw_tactic_expr ssrseqarg, Tacexpr.glob_tactic_expr ssrseqarg, Tacexpr.tacvalue ssrseqarg) Genarg.genarg_type
 
 val wit_ssrintros_ne : ssripats Genarg.uniform_genarg_type
 val wit_ssrintrosarg :
   (Tacexpr.raw_tactic_expr * ssripats,
    Tacexpr.glob_tactic_expr * ssripats,
-   Geninterp.Val.t * ssripats) Genarg.genarg_type
+   Tacexpr.tacvalue * ssripats) Genarg.genarg_type
 
 val wit_ssripatrep : ssripat Genarg.uniform_genarg_type
 val wit_ssrclauses : clauses Genarg.uniform_genarg_type
 val wit_ssrhavefwdwbinders :
   (Tacexpr.raw_tactic_expr fwdbinders,
    Tacexpr.glob_tactic_expr fwdbinders,
-   Tacinterp.Value.t fwdbinders) Genarg.genarg_type
+   Tacexpr.tacvalue fwdbinders) Genarg.genarg_type
 val wit_ssrhintarg :
   (Tacexpr.raw_tactic_expr ssrhint,
    Tacexpr.glob_tactic_expr ssrhint,
-   Tacinterp.Value.t ssrhint) Genarg.genarg_type
+   Tacexpr.tacvalue ssrhint) Genarg.genarg_type
 val wit_ssrhint3arg :
   (Tacexpr.raw_tactic_expr ssrhint,
    Tacexpr.glob_tactic_expr ssrhint,
-   Tacinterp.Value.t ssrhint) Genarg.genarg_type
+   Tacexpr.tacvalue ssrhint) Genarg.genarg_type
 
 val wit_ssrfwdid : Names.Id.t Genarg.uniform_genarg_type
 
@@ -62,12 +62,12 @@ val wit_ssrsetfwd :
 val wit_ssrdoarg :
   (Tacexpr.raw_tactic_expr ssrdoarg,
    Tacexpr.glob_tactic_expr ssrdoarg,
-   Tacinterp.Value.t ssrdoarg) Genarg.genarg_type
+   Tacexpr.tacvalue ssrdoarg) Genarg.genarg_type
 
 val wit_ssrhint :
   (Tacexpr.raw_tactic_expr ssrhint,
    Tacexpr.glob_tactic_expr ssrhint,
-   Tacinterp.Value.t ssrhint) Genarg.genarg_type
+   Tacexpr.tacvalue ssrhint) Genarg.genarg_type
 
 val ssrhpats : ssrhpats Procq.Entry.t
 val wit_ssrhpats : ssrhpats Genarg.uniform_genarg_type
@@ -79,7 +79,7 @@ val wit_ssrposefwd : (ssrfwdfmt * ast_closure_term) Genarg.uniform_genarg_type
 val wit_ssrhavefwd
   : ((ssrfwdfmt * ast_closure_term) * Tacexpr.raw_tactic_expr ssrhint
     , (ssrfwdfmt * ast_closure_term) * Tacexpr.glob_tactic_expr ssrhint
-    , (ssrfwdfmt * ast_closure_term) * Geninterp.Val.t ssrhint)
+    , (ssrfwdfmt * ast_closure_term) * Tacexpr.tacvalue ssrhint)
     Genarg.genarg_type
 
 val wit_ssrrpat : ssripat Genarg.uniform_genarg_type
@@ -267,13 +267,13 @@ val wit_ssrmult_ne : (int * ssrmmod) Genarg.uniform_genarg_type
 val wit_ssrortacarg :
   (Tacexpr.raw_tactic_expr ssrhint,
    bool * Ltac_plugin.Tacexpr.glob_tactic_expr option list,
-   bool * Geninterp.Val.t option list)
+   bool * Tacexpr.tacvalue option list)
     Genarg.genarg_type
 
 val wit_ssrortacs :
   (Tacexpr.raw_tactic_expr option list,
    Tacexpr.glob_tactic_expr option list,
-   Geninterp.Val.t option list)
+   Tacexpr.tacvalue option list)
     Genarg.genarg_type
 
 val wit_ssrsimpl_ne :
@@ -282,4 +282,4 @@ val wit_ssrsimpl_ne :
 val wit_ssrstruct : Names.Id.t option Genarg.uniform_genarg_type
 
 val wit_ssrtac3arg :
-    (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Geninterp.Val.t) Genarg.genarg_type
+    (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Tacexpr.tacvalue) Genarg.genarg_type

@@ -61,7 +61,7 @@ let gen_ground_tac ist taco ids bases =
   Proofview.Goal.enter begin fun gl ->
       let solver=
         match taco with
-        | Some tac -> tactic_of_value ist tac
+        | Some tac -> tactic_of_tacvalue ist tac
         | None-> default_solver ()
       in
       let startseq k =

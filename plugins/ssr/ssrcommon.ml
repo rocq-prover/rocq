@@ -357,7 +357,7 @@ let red_product_skip_id env sigma c = match EConstr.kind sigma c with
   | App(hd,args) when Array.length args = 1 && is_id_constr sigma hd -> args.(0)
   | _ -> match Tacred.red_product env sigma c with Some c -> c | None -> c
 
-let ssrevaltac ist gtac = Tacinterp.tactic_of_value ist gtac
+let ssrevaltac ist gtac = Tacinterp.tactic_of_tacvalue ist gtac
 
 (** Open term to lambda-term coercion  *)(* {{{ ************************************)
 

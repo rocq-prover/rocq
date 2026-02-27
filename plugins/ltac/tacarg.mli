@@ -42,7 +42,7 @@ val wit_quantified_hypothesis : quantified_hypothesis uniform_genarg_type
 
 (** Generic arguments based on Ltac. *)
 
-val wit_tactic : (raw_tactic_expr, glob_tactic_expr, Geninterp.Val.t) genarg_type
+val wit_tactic : (raw_tactic_expr, glob_tactic_expr, tacvalue) genarg_type
 
 val wit_ltac_in_term : (raw_tactic_expr, Names.Id.Set.t * glob_tactic_expr) GenConstr.tag
 

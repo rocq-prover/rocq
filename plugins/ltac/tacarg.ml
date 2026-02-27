@@ -27,7 +27,7 @@ let wit_open_constr_with_bindings = make0 "open_constr_with_bindings"
 let wit_bindings = make0 "bindings"
 let wit_quantified_hypothesis = wit_quant_hyp
 
-let wit_tactic : (raw_tactic_expr, glob_tactic_expr, Val.t) genarg_type =
+let wit_tactic : (raw_tactic_expr, glob_tactic_expr, tacvalue) genarg_type =
   make0 "tactic"
 
 let wit_ltac_in_term = GenConstr.create "ltac_in_term"

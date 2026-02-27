@@ -3,5 +3,6 @@ The command has indeed failed with message:
 The term "I" has type "True"
 which should be Set, Prop or Type.
 In nested Ltac calls to "c", "abs", "transparent_abstract (tactic3)", 
-"b", "a", "pose (I : I)" and "(I : I)", last term evaluation failed.
+"$1" (bound to b ltac:(())), "b", "a", "pose (I : I)" and 
+"(I : I)", last term evaluation failed.
 

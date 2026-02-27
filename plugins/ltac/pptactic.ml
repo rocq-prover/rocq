@@ -91,7 +91,7 @@ type 'a extra_genarg_printer =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> tacvalue -> Pp.t) ->
   'a -> Pp.t
 
 type 'a raw_extra_genarg_printer_with_level =
@@ -112,7 +112,7 @@ type 'a extra_genarg_printer_with_level =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> tacvalue -> Pp.t) ->
   entry_relative_level -> 'a -> Pp.t
 
 let string_of_genarg_arg (ArgumentType arg) =
@@ -1400,9 +1400,25 @@ let () =
   register_basic_print0 Stdarg.wit_pre_ident str str str;
   register_basic_print0 Stdarg.wit_string qstring qstring qstring
 
+let pr_tacvalue env = function
+  | VFun (a,_,loc,ids,l,tac) ->
+    let open Pp in
+    let tac = if List.is_empty l then tac else CAst.make ?loc @@ Tacexpr.TacFun (l,tac) in
+    let pr_env env =
+      if Id.Map.is_empty ids then mt ()
+      else
+        cut () ++ str "where" ++
+        Id.Map.fold (fun id c pp ->
+            cut () ++ Id.print id ++ str " := " ++ pr_value ltop c ++ pp)
+          ids (mt ())
+    in
+    v 0 (hov 0 (pr_glob_tactic env tac) ++ pr_env env)
+  | VRec _ -> str "<tactic closure>"
+
 let () =
   let printer env sigma _ _ prtac = prtac env sigma in
-  declare_extra_genarg_pprule_with_level wit_tactic printer printer printer
+  let top_print env sigma _ _ _ _ = pr_tacvalue env in
+  declare_extra_genarg_pprule_with_level wit_tactic printer printer top_print
   ltop (LevelLe 0)
 
 let () =

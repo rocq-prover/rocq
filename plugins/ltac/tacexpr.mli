@@ -397,3 +397,14 @@ type ltac_trace = ltac_stack * Geninterp.Val.t Id.Map.t list
 type tacdef_body =
   | TacticDefinition of lident * raw_tactic_expr (* indicates that user employed ':=' in Ltac body *)
   | TacticRedefinition of qualid * raw_tactic_expr (* indicates that user employed '::=' in Ltac body *)
+
+(** Abstract application, to print ltac functions *)
+type appl =
+  | UnnamedAppl (** For generic applications: nothing is printed *)
+  | GlbAppl of (Names.KerName.t * Geninterp.Val.t list) list
+       (** For calls to global constants, some may alias other. *)
+
+type tacvalue =
+  | VFun of appl * ltac_trace * Loc.t option * Geninterp.Val.t Id.Map.t *
+      Name.t list * glob_tactic_expr
+  | VRec of Geninterp.Val.t Id.Map.t ref * glob_tactic_expr

@@ -30,7 +30,7 @@ val with_delayed_uconstr : Tacinterp.interp_sign ->
   closed_glob_constr -> (EConstr.constr -> unit tactic) -> unit tactic
 val replace_in_clause_maybe_by : Tacinterp.interp_sign -> bool option ->
   closed_glob_constr -> EConstr.constr ->
-  Locus.clause -> Tacinterp.Value.t option -> unit tactic
+  Locus.clause -> Tacexpr.tacvalue option -> unit tactic
 val replace_term : Tacinterp.interp_sign -> bool option -> closed_glob_constr ->
   Locus.clause -> unit tactic
 
@@ -51,7 +51,7 @@ val is_constructor : EConstr.t -> unit tactic
 val is_proj : EConstr.t -> unit tactic
 val is_const : EConstr.t -> unit tactic
 
-val unshelve : Tacinterp.interp_sign -> Tacinterp.Value.t -> unit tactic
+val unshelve : Tacinterp.interp_sign -> Tacexpr.tacvalue -> unit tactic
 
 val decompose : EConstr.t list -> EConstr.t -> unit tactic
 
