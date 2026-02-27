@@ -762,8 +762,21 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                 default ()
               | x -> x)
           | _, Evar ev when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
-            (match solve_simple_eqn (conv_fun evar_conv_x) flags env evd
-              (position_problem false pbty,ev,term1) with
+            (match ise_try evd [(fun evd ->
+              let (term1, sk1) = (whd_nored_state env evd (term1,Stack.empty)) in
+              match flex_kind_of_term flags env evd term1 sk1, Stack.list_of_app_stack sk1 with
+              | (Rigid | MaybeFlexible _), _ | _, None -> UnifFailure (evd, NotSameHead)
+              | Flexible (sp1, al1), Some lF ->
+                let ev = (sp1, al1) in
+                (match is_unification_pattern_evar env evd ev lF term2 with
+                | None -> UnifFailure (evd, NotSameHead)
+                | Some l1' -> (* Miller-Pfenning's patterns unification *)
+                  let term2 = solve_pattern_eqn env evd l1' term2 in
+                    solve_simple_eqn (conv_fun evar_conv_x) flags env evd
+                      (position_problem true pbty,ev,term2)));
+              (fun evd ->
+                solve_simple_eqn (conv_fun evar_conv_x) flags env evd
+                (position_problem false pbty,ev,term1))] with
               | UnifFailure (_, (OccurCheck _ | NotClean _)) ->
                 (* OccurCheck: eta-expansion could solve
                      ?X = {| foo := ?X.(foo) |}

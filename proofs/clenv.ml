@@ -1048,6 +1048,8 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let templtyp = if dep then mkApp (mkMeta mvP, depargs) else mkApp (mkMeta mvP, indices) in
   let flags = elim_flags () in
   let metas, sigma = w_unify_meta_types ~metas ~flags env sigma in
+  (* When instantiating mvP, we look for the arguments in the term without conversion. *)
+  let flags = {flags with subterm_unify_flags = {flags.subterm_unify_flags with modulo_conv_on_closed_terms = None}} in
   let metas, sigma = w_unify ~metas ~flags env sigma CUMUL templtyp concl in
   let pred = Meta.meta_instance metas env sigma (mkMeta mvP) in
 
