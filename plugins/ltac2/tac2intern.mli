@@ -19,6 +19,9 @@ val intern_typedef : (KerName.t * int) Id.Map.t -> raw_quant_typedef -> glb_quan
 val intern_open_type : raw_typexpr -> type_scheme
 val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2env.notation_data
 
+val intern_accumulate_errors : strict:bool -> context -> raw_tacexpr ->
+  glb_tacexpr * type_scheme * Pp.t Loc.located list
+
 (** [check_unused] is default true *)
 val genintern_warn_not_unit : ?check_unused:bool ->
   Genintern.glob_sign ->
@@ -65,10 +68,6 @@ val subst_rawexpr : substitution -> raw_tacexpr -> raw_tacexpr
 val globalize : Id.Set.t -> raw_tacexpr -> raw_tacexpr
 (** Replaces all qualified identifiers by their corresponding kernel name. The
     set represents bound variables in the context. *)
-
-val debug_globalize_allow_ext : Id.Set.t -> raw_tacexpr -> raw_tacexpr
-(** Variant of globalize which can accept CTacExt using the provided function.
-    Intended for debugging. *)
 
 (** Errors *)
 

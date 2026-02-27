@@ -417,7 +417,6 @@ let () =
   let pr_raw e = Genprint.PrinterBasic (fun _env _sigma ->
       let avoid = Id.Set.empty in
       (* FIXME avoid set, same as pr_glb *)
-      let e = Tac2intern.debug_globalize_allow_ext avoid e in
       Tac2print.pr_rawexpr_gen ~avoid E5 e) in
   let pr_glb (ids, e) =
     let ids =
@@ -437,7 +436,6 @@ let () =
 
 let () =
   let pr_raw e = Genprint.PrinterBasic (fun _ _ ->
-      let e = Tac2intern.debug_globalize_allow_ext Id.Set.empty e in
       Tac2print.pr_rawexpr_gen ~avoid:Id.Set.empty E5 e)
   in
   let pr_glb e = Genprint.PrinterBasic (fun _ _ -> Tac2print.pr_glbexpr ~avoid:Id.Set.empty e) in
