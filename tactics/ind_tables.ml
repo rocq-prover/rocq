@@ -306,6 +306,8 @@ let force_find_scheme kind (mind,i as ind) =
       let e, info = Exninfo.capture e in
       Proofview.tclZERO ~info e
 
+let force_find_scheme_string = force_find_scheme
+
 let register_schemes sch =
   let iter (id, kn, loc, univs) =
     !register_definition_scheme ~internal:false ~name:id ~const:kn ~univs ?loc ()
