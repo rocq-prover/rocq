@@ -1067,7 +1067,7 @@ GRAMMAR EXTEND Gram
 END
 
 GRAMMAR EXTEND Gram
-  GLOBAL: command query_command coercion_class gallina_ext search_query search_queries;
+  GLOBAL: command query_command coercion_class gallina_ext search_query search_queries binder_constr;
 
   gallina_ext: TOP
     [ [ IDENT "Export"; "Set"; table = setting_name; v = option_setting ->
@@ -1075,7 +1075,8 @@ GRAMMAR EXTEND Gram
       | IDENT "Export"; IDENT "Unset"; table = setting_name ->
           { VernacSynterp (VernacSetOption (true, table, OptionUnset)) }
     ] ];
-
+  binder_constr: TOP
+    [ [ "let"; IDENT "Import"; c = let_import -> { c } ] ];
   command:
     [ [ IDENT "Comments"; l = LIST0 comment -> { VernacSynPure (VernacComments l) }
 

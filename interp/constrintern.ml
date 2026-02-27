@@ -2187,6 +2187,7 @@ module Interner = struct
   ; prim : t -> prim_token fn
   ; delimiters : t -> (delimiter_depth * string * constr_expr) fn
   ; array : t -> (instance_expr option * constr_expr array * constr_expr * constr_expr) fn
+  ; letimport : t -> (qualid * ModPath.t * constr_expr) fn
   }
 
   let eval (self : t) genv env lvar ?loc = function
@@ -2240,7 +2241,8 @@ module Interner = struct
       self.delimiters self genv env lvar ?loc (depth, key, e)
     | CArray (u,t,def,ty) ->
       self.array self genv env lvar ?loc (u,t,def,ty)
-
+    | CLetImport (qid,mp,c) ->
+      self.letimport self genv env lvar ?loc (qid,mp,c)
 end
 
 let smart_gapp f loc = function
@@ -2814,6 +2816,17 @@ let array self genv env lvar ?loc (u,t,def,ty) =
   let intern env = intern self genv env lvar in
   DAst.make ?loc @@ GArray(intern_instance ~local_univs:env.local_univs u, Array.map (intern env) t, intern env def, intern env ty)
 
+type with_local_import = { with_local_import : 'a. ModPath.t -> (unit -> 'a) -> 'a }
+
+let with_local_import = Stdlib.ref { with_local_import = (fun _ _ -> assert false) }
+
+let set_with_local_import f = with_local_import := f
+
+let with_local_import mp f = (!with_local_import).with_local_import mp f
+
+let letimport self genv env lvar ?loc (qid,mp,c) =
+  with_local_import mp (fun () -> (intern self genv env lvar c : glob_constr))
+
 let default : Interner.t =
   { ref
   ; fix
@@ -2840,6 +2853,7 @@ let default : Interner.t =
   ; prim
   ; delimiters
   ; array
+  ; letimport
   }
 
 let internalize genv env lvar c =
