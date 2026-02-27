@@ -36,7 +36,7 @@ type compile_info = {
 val set_compiled_global : ltac_constant -> compile_info -> valexpr -> unit
 val get_compiled_global : ltac_constant -> (compile_info * valexpr) option
 
-val globals : unit -> global_data KerName.Map.t
+val globals : unit -> global_data TacConstant.Map.t
 
 (** {5 Toplevel definition of types} *)
 
@@ -90,8 +90,8 @@ type alias_data = {
   alias_depr : Deprecation.t option;
 }
 
-val define_alias : ?deprecation:Deprecation.t -> ltac_constant -> raw_tacexpr -> unit
-val interp_alias : ltac_constant -> alias_data
+val define_alias : ?deprecation:Deprecation.t -> ltac_alias -> raw_tacexpr -> unit
+val interp_alias : ltac_alias -> alias_data
 
 (** {5 Toplevel definition of notations} *)
 
