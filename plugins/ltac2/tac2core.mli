@@ -13,7 +13,16 @@ open Names
 val throw : ?info:Exninfo.info -> exn -> 'a Proofview.tactic
 
 (** [catch_exceptions] default false *)
-val pf_apply : ?catch_exceptions:bool -> (Environ.env -> Evd.evar_map -> 'a Proofview.tactic) -> 'a Proofview.tactic
+val pf_apply : ?catch_exceptions:bool ->
+  (Environ.env -> Evd.evar_map -> 'a Proofview.tactic) ->
+  'a Proofview.tactic
+
+val pf_apply_in : ?catch_exceptions:bool ->
+  Tac2ffi.local_env ->
+  (Environ.env -> Evd.evar_map -> 'a Proofview.tactic) ->
+  'a Proofview.tactic
+
+val reset_local_env : Environ.env -> Tac2ffi.local_env -> Environ.env
 
 (** Adds ltac2 backtrace. With [passthrough:false] (default), acts
     like [Proofview.wrap_exceptions] + Ltac2 backtrace handling. *)
