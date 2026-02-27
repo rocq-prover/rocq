@@ -274,7 +274,7 @@ val native_infer_conv : ?pb:conv_pb -> env -> evar_map -> constr -> constr ->
   evar_map option
 
 type genconv = {
-  genconv : 'a 'err. conv_pb -> l2r:bool -> Evd.evar_map -> TransparentState.t ->
+  genconv : 'a 'err. conv_pb -> l2r:Conversion.firstorder_mode -> Evd.evar_map -> TransparentState.t ->
     Environ.env -> ('a, 'err) Conversion.generic_conversion_function
 }
 

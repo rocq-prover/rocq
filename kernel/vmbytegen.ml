@@ -975,6 +975,7 @@ let warn_compile_error =
     Vmerrors.pr_error
 
 let compile ~fail_on_error ~uinstance env sigma c =
+  if not (typing_flags env).enable_VM then None else
   try NewProfile.profile "vm_compile" (fun () -> Some (compile ~uinstance env sigma c)) ()
   with Vmerrors.CompileError msg as exn ->
     let exn = Exninfo.capture exn in
