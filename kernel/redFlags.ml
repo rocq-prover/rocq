@@ -11,34 +11,53 @@
 open Util
 open Names
 
-type reds = {flags : int; ts : TransparentState.t}
+module Flags = struct
+  type t = int
+
+  let none   : t = 0b000000
+  let mask   : t = 0b111111
+
+  let fBETA  : t = 0b000001
+  let fDELTA : t = 0b000010
+  let fMATCH : t = 0b000100
+  let fFIX   : t = 0b001000
+  let fCOFIX : t = 0b010000
+  let fZETA  : t = 0b100000
+
+  let (+) = (lor)
+  let (-) f1 f2 = f1 land (mask lxor f2)
+
+  let set f1 f2 = f1 land f2 != 0
+end
+
+type reds = {flags : Flags.t; ts : TransparentState.t}
 
 type red_kind =
-  | FLAG of int
+  | FLAG of Flags.t
   | CONST of Constant.t
   | PROJ of Projection.Repr.t
   | VAR of Id.t
 
-let fBETA  = FLAG 0b000001
-let fDELTA = FLAG 0b000010
-let fMATCH = FLAG 0b000100
-let fFIX   = FLAG 0b001000
-let fCOFIX = FLAG 0b010000
-let fZETA  = FLAG 0b100000
+let fBETA = FLAG Flags.fBETA
+let fDELTA = FLAG Flags.fDELTA
+let fMATCH = FLAG Flags.fMATCH
+let fFIX   = FLAG Flags.fFIX
+let fCOFIX = FLAG Flags.fCOFIX
+let fZETA  = FLAG Flags.fZETA
 let fCONST kn = CONST kn
 let fPROJ p = PROJ p
 let fVAR id = VAR id
 
-let no_red = {flags = 0; ts = TransparentState.empty}
+let no_red = {flags = Flags.none; ts = TransparentState.empty}
 
 let red_add ({flags; ts} as red) = function
-  | FLAG f -> {red with flags = flags lor f}
+  | FLAG f -> {red with flags = Flags.(flags + f)}
   | CONST kn -> {red with ts = {ts with tr_cst = Cpred.add kn ts.tr_cst}}
   | PROJ p -> {red with ts = {ts with tr_prj = PRpred.add p ts.tr_prj}}
   | VAR id -> {red with ts = {ts with tr_var = Id.Pred.add id ts.tr_var}}
 
 let red_sub ({flags; ts} as red) = function
-  | FLAG f -> {red with flags = flags land (0b111111 lxor f)}
+  | FLAG f -> {red with flags = Flags.(flags - f)}
   | CONST kn -> {red with ts = {ts with tr_cst = Cpred.remove kn ts.tr_cst}}
   | PROJ p -> {red with ts = {ts with tr_prj = PRpred.remove p ts.tr_prj}}
   | VAR id -> { red with ts = {ts with tr_var = Id.Pred.remove id ts.tr_var}}
@@ -49,13 +68,16 @@ let red_add_list = List.fold_left red_add
 let red_transparent red = red.ts
 let red_add_transparent red ts = {red with ts}
 
+let red_flags red = red.flags
+let set_red_flags red flags = {red with flags}
+
 let mkflags = List.fold_left red_add no_red
 
 let mkfullflags =
   List.fold_left red_add { no_red with ts = TransparentState.full }
 
 let red_set red = function
-  | FLAG f -> red.flags land f != 0
+  | FLAG f -> Flags.set red.flags f
   | CONST kn -> TransparentState.is_transparent_constant red.ts kn
   | PROJ p -> TransparentState.is_transparent_projection red.ts p
   | VAR id -> TransparentState.is_transparent_variable red.ts id
