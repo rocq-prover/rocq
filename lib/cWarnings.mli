@@ -135,3 +135,6 @@ module CoreCategories : sig
 end
 
 val warn_ignored_coqlib : unit -> unit
+
+val warn_no_memprof : ?loc:Loc.t -> unit -> unit
+(** Unconditionally print the warning, does not check if memprof is available. *)

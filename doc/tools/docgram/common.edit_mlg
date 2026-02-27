@@ -951,6 +951,10 @@ simple_occurrences: [
 (* placeholder (yuck) *)
 ]
 
+SPLICE: [
+| memory_unit
+]
+
 simple_tactic: [
 | REPLACE "assert" "(" identref ":" lconstr ")" by_tactic
 | WITH "assert" "(" identref ":" type ")" by_tactic
@@ -1574,6 +1578,8 @@ control_flag: [
 | WITH "Redirect" ne_string sentence
 | REPLACE "Timeout" natural
 | WITH "Timeout" natural sentence
+| REPLACE "AllocLimit" natural [ "Mw" | "kw" ]
+| WITH "AllocLimit" natural [ "Mw" | "kw" ] sentence
 | REPLACE "Fail"
 | WITH "Fail" sentence
 | REPLACE "Succeed"

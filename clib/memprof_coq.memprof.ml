@@ -1,6 +1,12 @@
 (* From memprof_limits, see also https://gitlab.com/gadmm/memprof-limits/-/issues/7 *)
 
+let is_real_memprof = true
+
 let is_interrupted () = Memprof_limits.is_interrupted () [@@inline]
+
+let limit_allocations = Memprof_limits.limit_allocations
+
+let start_memprof_limits = Memprof_limits.start_memprof_limits
 
 module Resource_bind = Memprof_limits.Resource_bind
 

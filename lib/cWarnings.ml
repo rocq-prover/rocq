@@ -461,3 +461,6 @@ let warn_ignored_coqlib = create ~name:"boot-ignored-coqlib" ~category:CoreCateg
 
 (* loc doesn't make sense for this warning and gets in the way *)
 let warn_ignored_coqlib () = warn_ignored_coqlib ()
+
+let warn_no_memprof = create ~name:"no-memprof-limits" ~category:CoreCategories.vernacular
+    Pp.(fun () -> str "Allocation limit ignored: memprof-limits was not installed when Rocq was compiled.")

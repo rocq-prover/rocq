@@ -1455,6 +1455,7 @@ let pr_control_flag (p : control_flag) =
     | ControlProfile f -> keyword "Profile" ++ pr_opt qstring f
     | ControlRedirect s -> keyword "Redirect" ++ spc() ++ qs s
     | ControlTimeout n -> keyword "Timeout " ++ int n
+    | ControlAllocLimit n -> keyword "AllocLimit " ++ int64 Int64.(div n.kilowords 1000L)
     | ControlFail -> keyword "Fail"
     | ControlSucceed -> keyword "Succeed"
   in
