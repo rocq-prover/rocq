@@ -93,6 +93,16 @@ let rec decompose_term env sigma t =
         ATerm.mkConstructor env { ci_constr = Int i; ci_arity = 0; ci_nhyps = 0 }
     | Float f ->
         ATerm.mkConstructor env { ci_constr = Float f; ci_arity = 0; ci_nhyps = 0 }
+    | Array (uvars, vals, def, ty) ->
+        let length = Array.length vals in
+        let uvars = EInstance.kind sigma uvars in
+        let head =
+          ATerm.mkConstructor env
+            { ci_constr = Array {uvars; length}; ci_arity = length + 2; ci_nhyps = length + 1 }
+        in
+        let head = ATerm.mkAppli (head, decompose_term env sigma ty) in
+        let head = ATerm.mkAppli (head, decompose_term env sigma def) in
+        Array.fold_left (fun s t-> ATerm.mkAppli (s,decompose_term env sigma t)) head vals
     | _ ->
        let t = Termops.strip_outer_cast sigma t in
        if closed0 sigma t then ATerm.mkSymb (EConstr.to_constr ~abort_on_undefined_evars:false sigma t) else raise Not_found
@@ -321,6 +331,18 @@ let rec proof_term env sigma (typ, lhs, rhs) p = match p.p_rule with
   let g = constr_of_term p1.p_rhs in
   let t = constr_of_term p2.p_lhs in
   let u = constr_of_term p2.p_rhs in
+  debug_congruence Pp.(fun () ->
+      str "Congr" ++ spc () ++ str "f" ++ spc () ++ str "=" ++ spc () ++
+      Printer.pr_econstr_env env sigma f);
+  debug_congruence Pp.(fun () ->
+      str "Congr" ++ spc () ++ str "g" ++ spc () ++ str "=" ++ spc () ++
+      Printer.pr_econstr_env env sigma g);
+  debug_congruence Pp.(fun () ->
+      str "Congr" ++ spc () ++ str "t" ++ spc () ++ str "=" ++ spc () ++
+      Printer.pr_econstr_env env sigma t);
+  debug_congruence Pp.(fun () ->
+      str "Congr" ++ spc () ++ str "u" ++ spc () ++ str "=" ++ spc () ++
+      Printer.pr_econstr_env env sigma u);
   let sigma, funty = type_and_refresh_ env sigma f in
   let sigma, argty = type_and_refresh_ env sigma t in
   let id = fresh_id env (Id.of_string "f") in
@@ -352,6 +374,41 @@ let rec proof_term env sigma (typ, lhs, rhs) p = match p.p_rule with
   let sigma, proj = Ccprojectability.build_projection env sigma cstr argind typ default special argty in
   let sigma, prf = proof_term env sigma (argty, ti, tj) prf in
   app_global_ env sigma _f_equal [|argty; typ; proj; ti; tj; prf|]
+| InjectArray (prf, nargs, argind) ->
+  (* prf : ⊢ v = w : Ind(args) *)
+  let ti = constr_of_term prf.p_lhs in
+  let tj = constr_of_term prf.p_rhs in
+  let real_index =
+    (* The default element is encoded as the first argument. *)
+    if Int.equal argind 1 then
+      (* Projecting out the default element is achieved by an out of bound
+         access via [get]. *)
+      nargs + 1
+    else
+      argind - 2
+  in
+  let sigma, array_ty = type_and_refresh_ env sigma ti in
+  let uvars, elem_ty =
+    let ty = Reductionops.whd_all env sigma array_ty in
+    let c, args = decompose_app sigma ty in
+    let uvars = match kind sigma c with
+    | Const (_, u) -> u
+    | _ -> assert false
+    in
+    uvars, args.(0)
+  in
+  let array_get =
+    mkRef (Rocqlib.lib_ref "prim.array.get", uvars)
+  in
+  let proj =
+    mkLambda (
+      Context.make_annot Name.Anonymous EConstr.ERelevance.relevant,
+      array_ty,
+      mkApp (array_get, [|elem_ty; mkRel 1; mkInt (Uint63.of_int real_index)|])
+    )
+  in
+  let sigma, prf = proof_term env sigma (array_ty, ti, tj) prf in
+  app_global_ env sigma _f_equal [|array_ty; elem_ty; proj; ti; tj; prf|]
 
 let proof_tac (typ, lhs, rhs) p : unit Proofview.tactic =
   Proofview.Goal.enter begin fun gl ->
@@ -477,6 +534,8 @@ let cc_tactic depth additional_terms b =
         | Goal ->
           let lhs = constr_of_term ta in
           let rhs = constr_of_term tb in
+          debug_congruence Pp.(fun () -> str "lhs" ++ spc () ++ str "=" ++ spc () ++ Printer.pr_econstr_env env sigma lhs);
+          debug_congruence Pp.(fun () -> str "rhs" ++ spc () ++ str "=" ++ spc () ++ Printer.pr_econstr_env env sigma rhs);
           let sigma, typ = type_and_refresh_ env sigma lhs in
           Proofview.Unsafe.tclEVARS sigma <*> proof_tac (typ, lhs, rhs) p
         | Hyp id -> refute_tac (EConstr.of_constr id) ta tb p

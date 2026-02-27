@@ -24,6 +24,11 @@ type rule =
 | Inject of proof * Constr.pconstructor * int * int
   (** ⊢ ci v = ci w :: Ind(args) -> ⊢ v = w :: T
       where T is the type of the n-th argument of ci, assuming they coincide *)
+| InjectArray of proof * int * int
+  (** ⊢ v = w :: array -> ⊢ v.[n] = w.[n] :: T
+      where T is the type of the n-th argument of ci, assuming they coincide.
+      NOTE:
+  *)
 and proof =
     private {p_lhs:ATerm.t;p_rhs:ATerm.t;p_rule:rule}
 
