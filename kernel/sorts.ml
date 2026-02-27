@@ -57,6 +57,11 @@ struct
     | Unif _ -> None
     | Global _ -> None
 
+  let name = function
+  | Global id -> Some id
+  | Var _ -> None
+  | Unif _ -> None
+
   let hash = function
     | Var q -> Hashset.Combine.combinesmall 1 q
     | Unif (s,q) -> Hashset.Combine.(combinesmall 2 (combine (CString.hash s) q))
@@ -253,13 +258,14 @@ module Quality = struct
   module Map = CMap.Make(Self)
 
   type 'q pattern =
-    | PQVar of 'q | PQConstant of constant
+    | PQVar of 'q | PQConstant of constant | PQGlobal of QGlobal.t
 
   let pattern_match ps s qusubst =
     match ps, s with
     | PQConstant qc, QConstant qc' -> if Constants.equal qc qc' then Some qusubst else None
+    | PQGlobal qg, QVar (QVar.Global qg') -> if QGlobal.equal qg qg' then Some qusubst else None
     | PQVar qio, q -> Some (Partial_subst.maybe_add_quality qio q qusubst)
-    | PQConstant _, QVar _ -> None
+    | (PQConstant _ | PQGlobal _), (QConstant _ | QVar _) -> None
 end
 
 module ElimConstraint = struct
@@ -520,7 +526,7 @@ let pr prv pru = function
 let raw_pr = pr QVar.raw_pr Univ.Universe.raw_pr
 
 type ('q, 'u) pattern =
-  | PSProp | PSSProp | PSSet | PSType of 'u | PSQSort of 'q * 'u
+  | PSProp | PSSProp | PSSet | PSType of 'u | PSGlobal of QGlobal.t * 'u | PSQSort of 'q * 'u
 
 let extract_level u =
   match Universe.level u with
@@ -539,5 +545,6 @@ let pattern_match ps s qusubst =
   | PSSet, Set -> Some qusubst
   | PSType uio, Set -> Some (Partial_subst.maybe_add_univ uio Univ.Level.set qusubst)
   | PSType uio, Type u -> Some (Partial_subst.maybe_add_univ uio (extract_level u) qusubst)
+  | PSGlobal (qg, uio), QSort (QVar.Global qg', u) -> if QGlobal.equal qg qg' then Some (Partial_subst.maybe_add_univ uio (extract_level u) qusubst) else None
   | PSQSort (qio, uio), s -> Some (qusubst |> Partial_subst.maybe_add_quality qio (quality s) |> Partial_subst.maybe_add_univ uio (extract_sort_level s))
-  | (PSProp | PSSProp | PSSet | PSType _), _ -> None
+  | (PSProp | PSSProp | PSSet | PSType _ | PSGlobal _), _ -> None

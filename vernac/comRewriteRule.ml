@@ -113,9 +113,11 @@ let safe_quality_pattern_of_quality ~loc evd qsubst stateq q =
   match Sorts.Quality.(subst (subst_fn qsubst) q) with
   | QConstant qc -> stateq, PQConstant qc
   | QVar qv ->
-    let qio = Sorts.QVar.var_index qv in
-    let stateq = Option.fold_right (update_invtblq1 ~loc evd q) qio stateq in
-    stateq, PQVar qio
+    match Sorts.QVar.repr qv with
+    | Global qg -> stateq, PQGlobal qg
+    | Var qi ->
+        update_invtblq1 ~loc evd q qi stateq, PQVar (Some qi)
+    | Unif _ -> stateq, PQVar None
 
 let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u : state * _ =
   let (q, u) = u |> UVars.Instance.to_array in
@@ -148,8 +150,9 @@ let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s 
   | Prop -> state, PSProp
   | Set -> state, PSSet
   | QSort (qold, u) ->
+      let qv = match Sorts.Quality.subst_fn qsubst qold with QConstant _ -> assert false | QVar qv -> qv in
       let sq, bq =
-        match Sorts.Quality.(var_index @@ subst_fn qsubst qold) with
+        match Sorts.QVar.var_index qv with
         | Some q -> update_invtblq1 ~loc evd (QVar qold) q sq, Some q
         | None -> sq, None
       in
@@ -158,7 +161,9 @@ let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s 
         | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
         | None -> su, None
       in
-      (st, sq, su), PSQSort (bq, ba)
+      match Sorts.QVar.name qv with
+      | Some qg -> (st, sq, su), PSGlobal (qg, ba)
+      | None -> (st, sq, su), PSQSort (bq, ba)
 
 
 let warn_irrelevant_pattern =
@@ -510,6 +515,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
           Pp.(str "Sort variable " ++ Termops.pr_evd_qvar evd q ++ str " appears in the replacement but does not appear in the pattern.")
     | Some n when n < 0 || n > nvarqs' -> CErrors.anomaly Pp.(str "Unknown sort variable in rewrite rule.")
     | Some _ -> ()
+    | None when Option.has_some (Sorts.QVar.name q) -> ()
     | None ->
         if not @@ Sorts.QVar.Set.mem q (evd |> Evd.sort_context_set |> fst |> fst) then
           CErrors.user_err ?loc:rhs_loc

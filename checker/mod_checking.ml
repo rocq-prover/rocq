@@ -92,7 +92,7 @@ let check_quality_mask env qmask lincheck =
   let open Sorts.Quality in
   match qmask with
   | PQConstant QSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_not_allowed_sprop env
-  | PQConstant (QProp | QType) -> lincheck
+  | PQConstant (QProp | QType) | PQGlobal _ -> lincheck
   | PQVar qio -> Partial_subst.maybe_add_quality qio () lincheck
 
 let check_instance_mask env udecl umask lincheck =
@@ -141,6 +141,7 @@ and get_holes_profiles_head env nargs ndecls lincheck = function
       check_instance_mask env mib.mind_universes u lincheck
   | PHInt _  | PHFloat _ | PHString _ -> lincheck
   | PHSort PSSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_not_allowed_sprop env
+  | PHSort PSGlobal (_, io)
   | PHSort PSType io -> Partial_subst.maybe_add_univ io () lincheck
   | PHSort PSQSort (qio, uio) ->
       lincheck
