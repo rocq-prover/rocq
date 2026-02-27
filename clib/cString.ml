@@ -143,6 +143,8 @@ let ordinal n =
   in
   string_of_int n ^ s
 
+(* this and edit_distance copied from ocaml stdlib *)
+
 let uchar_array_of_utf_8_string s =
   let slen = length s in (* is an upper bound on Uchar.t count *)
   let uchars = Array.make slen Uchar.max in
@@ -208,6 +210,53 @@ let edit_distance ?(limit = Stdlib.Int.max_int) s0 s1 =
   let row = Array.make (len1 + 1) ignore in
   let d = loop row_minus2 row_minus1 row 1 len0 limit s0 s1 in
   if d > limit then limit else d
+
+(* modified from edit_distance to match a substring *)
+let edit_distance_substring ?(limit = Stdlib.Int.max_int) ~pattern:s0 s1 =
+  let[@inline] minimum a b c = Stdlib.Int.min a (Stdlib.Int.min b c) in
+  (* XXX we should be able to cache s0
+     instead recomputing every time we do the check *)
+  let s0, len0 = uchar_array_of_utf_8_string s0 in
+  let s1, len1 = uchar_array_of_utf_8_string s1 in
+  if len0 - len1 >= limit then limit else
+    let rec loop row_minus2 row_minus1 row i len0 limit s0 s1 =
+      if i > len0 then Array.fold_left Stdlib.Int.min Stdlib.Int.max_int row_minus1 else
+        let len1 = Array.length row - 1 in
+        let row_min = ref Stdlib.Int.max_int in
+        row.(0) <- i;
+        (* stdlib has some limit-based shortcuts here but naively
+           copying them doesn't work for substring matching *)
+        for j = 1 to len1 do
+          let cost = if Uchar.equal s0.(i-1) s1.(j-1) then 0 else 1 in
+          let min = minimum
+              (row_minus1.(j-1) + cost) (* substitute *)
+              (row_minus1.(j) + 1)      (* delete *)
+              (row.(j-1) + 1)           (* insert *)
+          in
+          let min =
+            if (i > 1 && j > 1 &&
+                Uchar.equal s0.(i-1) s1.(j-2) &&
+                Uchar.equal s0.(i-2) s1.(j-1))
+            then Stdlib.Int.min min (row_minus2.(j-2) + cost) (* transpose *)
+            else min
+          in
+          row.(j) <- min;
+          row_min := Stdlib.Int.min !row_min min;
+        done;
+        if !row_min >= limit then (* can no longer decrease *) limit else
+          loop row_minus1 row row_minus2 (i + 1) len0 limit s0 s1
+    in
+    let ignore =
+      (* Value used to make the values around the diagonal stripe ignored
+         by the min computations when we have a limit. *)
+      (* XXX why is max_int + 1 not a problem? *)
+      limit + 1
+    in
+    let row_minus2 = Array.make (len1 + 1) ignore in
+    (* for substring matching row_minus1 starts with constant 0 instead of stdlib (fun x -> x) *)
+    let row_minus1 = Array.make (len1 + 1) 0 in
+    let row = Array.make (len1 + 1) ignore in
+    loop row_minus2 row_minus1 row 1 len0 limit s0 s1
 
 (* string parsing *)
 
