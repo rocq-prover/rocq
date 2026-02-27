@@ -13,6 +13,7 @@
 open Genarg
 open Geninterp
 open Tacexpr
+open Names
 
 let make0 ?dyn name =
   let wit = Genarg.make0 name in
@@ -27,7 +28,19 @@ let wit_open_constr_with_bindings = make0 "open_constr_with_bindings"
 let wit_bindings = make0 "bindings"
 let wit_quantified_hypothesis = wit_quant_hyp
 
-let wit_tactic : (raw_tactic_expr, glob_tactic_expr, Val.t) genarg_type =
+
+(** Abstract application, to print ltac functions *)
+type appl =
+  | UnnamedAppl (** For generic applications: nothing is printed *)
+  | GlbAppl of (Names.KerName.t * Geninterp.Val.t list) list
+       (** For calls to global constants, some may alias other. *)
+
+type tacvalue =
+  | VFun of appl * ltac_trace * Loc.t option * Geninterp.Val.t Id.Map.t *
+      Name.t list * glob_tactic_expr
+  | VRec of Geninterp.Val.t Id.Map.t ref * glob_tactic_expr
+
+let wit_tactic : (raw_tactic_expr, glob_tactic_expr, tacvalue) genarg_type =
   make0 "tactic"
 
 let wit_ltac_in_term = GenConstr.create "ltac_in_term"
