@@ -1071,31 +1071,31 @@ Dune, the standard OCaml build tool, has supported building Rocq libraries since
 .. note::
 
    Dune's Rocq support is still experimental; we strongly recommend
-   using Dune 3.2 or later.
+   using Dune 3.21 or later.
 
 .. note::
 
    The canonical documentation for the Rocq Dune extension is
    maintained upstream; please refer to the `Dune manual
    <https://dune.readthedocs.io/>`_ for up-to-date information. The
-   documentation below is up to date for Dune 3.2
+   documentation below is up to date for Dune 3.21
 
 Building a Rocq project with Dune requires setting up a Dune project
 for your files. This involves adding a ``dune-project`` and
 ``pkg.opam`` file to the root (``pkg.opam`` can be empty or generated
 by Dune itself), and then providing ``dune`` files in the directories
-your ``.v`` files are placed. For the experimental version "0.3" of
-the Coq Dune language, Rocq library stanzas look like:
+your ``.v`` files are placed. For the experimental version "0.11" of
+the Rocq Dune language, Rocq library stanzas look like:
 
 .. code:: scheme
 
-    (coq.theory
+    (rocq.theory
      (name <module_prefix>)
      (package <opam_package>)
      (synopsis <text>)
      (modules <ordered_set_lang>)
      (libraries <ocaml_libraries>)
-     (flags <coq_flags>))
+     (flags <rocq_flags>))
 
 This stanza will build all `.v` files in the given directory, wrapping
 the library under ``<module_prefix>``. If you declare an
@@ -1132,30 +1132,22 @@ syntax for `Declare ML Module`, see example below:
         (name equations_plugin)
         (public_name equations.plugin)
         (flags :standard -warn-error -3-9-27-32-33-50)
-        (libraries coq.plugins.cc coq.plugins.extraction))
+        (libraries rocq-runtime.plugins.cc rocq-runtime.plugins.extraction))
 
-       (coq.pp (modules g_equations))
+       (rocq.pp (modules g_equations))
 
    And a Rocq-specific part that depends on it via the ``libraries`` field:
 
    .. code:: scheme
 
-       (coq.theory
+       (rocq.theory
         (name Equations) ; -R flag
         (package equations)
         (synopsis "Equations Plugin")
-        (libraries coq.plugins.extraction equations.plugin)
+        (libraries rocq-runtime.plugins.extraction equations.plugin)
         (modules :standard \ IdDec NoCycle)) ; exclude some modules that don't build
 
        (include_subdirs qualified)
-
-   For now, each ``.v`` file that loads the plugin must use
-   the following special syntax on its `Declare ML Module`
-   command for compatibility with current Dune versions (as of Coq 8.16):
-
-   .. code:: coq
-
-       Declare ML Module "equations_plugin:equations.plugin".
 
 .. _rocqdep:
 
