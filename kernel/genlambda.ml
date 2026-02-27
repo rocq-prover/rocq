@@ -525,7 +525,7 @@ let rec remove_let subst lam =
   | Lrel(id,i) -> lam_subst_rel lam id i subst
   | Llet(id,def,body) ->
     let def' = remove_let subst def in
-    if occur_once body && is_value body then remove_let (cons def' subst) body
+    if is_value body && occur_once body then remove_let (cons def' subst) body
     else
       let body' = remove_let (lift subst) body in
       if def == def' && body == body' then lam else mknode @@ Llet(id,def',body')
