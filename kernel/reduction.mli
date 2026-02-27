@@ -62,3 +62,5 @@ val dest_arity : ?evars:evar_handler -> env -> types -> Term.arity (* raises Not
 val is_arity : ?evars:evar_handler -> env -> types -> bool
 
 val eta_expand : ?evars:evar_handler -> env -> constr -> types -> constr
+(* Eta expand the instantiation of a context *)
+val eta_expand_instantiation : ?evars:evar_handler -> env -> constr array -> rel_context -> constr array

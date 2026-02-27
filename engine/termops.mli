@@ -126,10 +126,6 @@ val eq_constr : Environ.env -> Evd.evar_map -> constr -> constr -> bool (* FIXME
 
 val eta_reduce_head : Evd.evar_map -> constr -> constr
 
-(* Eta expand the instantiation of a context *)
-val eta_expand_instantiation : ?evars:CClosure.evar_handler -> env ->
-  Constr.constr array -> Constr.rel_context -> Constr.constr array
-
 (** [prod_applist] [forall (x1:B1;...;xn:Bn), B] [a1...an] @return [B[a1...an]] *)
 val prod_applist : Evd.evar_map -> constr -> constr list -> constr
 

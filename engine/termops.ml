@@ -1136,22 +1136,6 @@ let rec eta_reduce_head sigma c =
            | _ -> c)
     | _ -> c
 
-let eta_expand_instantiation ?evars env inst ctxt =
-  let open Context.Rel.Declaration in
-  let eta_inst = Array.make (Array.length inst) mkProp in
-  let rec fold subst i = function
-  | [] -> assert (Array.length inst = i)
-  | LocalAssum (_, ty) :: ctx ->
-    let ty = substl subst ty in
-    let eta_t = Reduction.eta_expand ?evars env inst.(i) ty in
-    let () = eta_inst.(i) <- eta_t in
-    fold (eta_t :: subst) (i + 1) ctx
-  | LocalDef (_, bd, _) :: ctx ->
-    fold (bd :: subst) i ctx
-  in
-  let () = fold [] 0 (List.rev ctxt) in
-  eta_inst
-
 (* iterator on rel context *)
 let process_rel_context f env =
   let sign = named_context_val env in
