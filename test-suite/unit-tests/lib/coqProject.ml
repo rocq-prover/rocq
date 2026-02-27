@@ -29,6 +29,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = [];
       defs = [];
 
@@ -57,6 +58,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = List.map sourced_file ["-w"; "default"; "-w"; "foo"; "-set"; "Default Goal Selector=!"];
       defs = [];
 

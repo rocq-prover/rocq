@@ -53,6 +53,7 @@ type t = {
   externals : bool;
   corelib_url : string;
   paths : (string * string) list;
+  packages : string list;
   encoding : encoding_t;
   interpolate : bool;
   raw_comments : bool;

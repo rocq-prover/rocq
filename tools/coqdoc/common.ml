@@ -48,6 +48,7 @@ type t = {
   externals : bool;
   corelib_url: string;
   paths : (string * string) list;
+  packages : string list;
   encoding : encoding_t;
   interpolate : bool;
   raw_comments : bool;
@@ -83,6 +84,7 @@ let default : t = {
   externals = true;
   corelib_url = Coq_config.wwwcorelib;
   paths = [];
+  packages = [];
   encoding = {
     charset = "iso-8859-1";
     inputenc = "";

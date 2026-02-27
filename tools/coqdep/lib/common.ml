@@ -331,6 +331,12 @@ let add_include st (rc, r, ln) =
   else
     Loadpath.add_q_include st r ln
 
+let add_packages st ps =
+  let add_package p =
+    Loadpath.add_q_include st p.Rocq_package.dir p.Rocq_package.logpath
+  in
+  List.iter add_package (Rocq_package.resolve ps)
+
 let findlib_init dirs =
   let env_ocamlpath =
     try [Sys.getenv "OCAMLPATH"]
@@ -357,6 +363,7 @@ let init ~make_separator_hack args =
       ml_path @ Boot.Env.Path.[to_string @@ relative (Boot.Env.runtimelib env) ".."]
   in
   findlib_init ml_path;
+  add_packages loadpath args.Args.packages;
   List.iter (add_include loadpath) args.Args.vo_path;
   Makefile.set_dyndep args.Args.dyndep;
   rocqenv, { State.vAccu = []; loadpath; separator_hack = make_separator_hack }
