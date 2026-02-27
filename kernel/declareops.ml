@@ -159,6 +159,18 @@ let eq_recarg r1 r2 = match r1, r2 with
 | Mrec t1, Mrec t2 -> eq_recarg_type t1 t2
 | Mrec _, _ -> false
 
+let compare_recarg_type t1 t2 = match t1, t2 with
+| RecArgInd ind1, RecArgInd ind2 -> Names.Ind.UserOrd.compare ind1 ind2
+| RecArgInd _, RecArgPrim _ -> -1
+| RecArgPrim c1, RecArgPrim c2 -> Names.Constant.UserOrd.compare c1 c2
+| RecArgPrim _, RecArgInd _ -> 1
+
+let compare_recarg r1 r2 = match r1, r2 with
+| Norec, Norec -> 0
+| Norec, Mrec _ -> -1
+| Mrec t1, Mrec t2 -> compare_recarg_type t1 t2
+| Mrec _, Norec -> 1
+
 let pr_recarg_type = let open Pp in function
   | RecArgInd (mind,i) ->
      str "Mrec[" ++ Names.MutInd.print mind ++ pr_comma () ++ int i ++ str "]"
@@ -209,6 +221,9 @@ let recarg_length p j =
 
 let subst_wf_paths subst p = Rtree.Smart.map (subst_recarg subst) p
 
+let subst_automaton subst a =
+  Rtree.Automaton.map (fun r -> subst_recarg subst r) a
+
 (** {7 Substitution of inductive declarations } *)
 
 let subst_mind_record subst r = match r with
@@ -234,6 +249,7 @@ let subst_mind_packet subst mbp =
     mind_nrealdecls = mbp.mind_nrealdecls;
     mind_squashed = mbp.mind_squashed;
     mind_recargs = subst_wf_paths subst mbp.mind_recargs (*wf_paths*);
+    mind_automaton = subst_automaton subst mbp.mind_automaton;
     mind_relevance = mbp.mind_relevance;
     mind_nb_constant = mbp.mind_nb_constant;
     mind_nb_args = mbp.mind_nb_args;

@@ -664,27 +664,80 @@ let size_glb s1 s2 =
        empty type
  *)
 
-type subterm_spec =
-    Subterm of (Int.Set.t * size * wf_paths)
-  | Dead_code
-  | Not_subterm
-  | Internally_bound_subterm of Int.Set.t
+module WfPaths :
+sig
+type t
+val make : recarg Rtree.Automaton.t -> t (* must be minimal! *)
+val inter : t -> t -> t
+val restrict : t -> wf_paths -> t
+val dest_subterms : t -> t list array
+val is_norec : t -> bool
+val is_inductive : env -> inductive -> t -> bool
+val is_primitive : env -> Constant.t -> t -> bool
+val equal : t -> t -> bool
+end =
+struct
 
-let is_norec_path t = match Rtree.dest_head t with
+module Atm = Rtree.Automaton
+
+type t = recarg Atm.t
+
+let make0 path =
+  let automaton = Atm.make path in
+  Atm.compact compare_recarg automaton
+
+let make t = t
+
+let meet_recarg r1 r2 = match r1, r2 with
+| Mrec _, Mrec _ ->
+  let () = assert (eq_recarg r1 r2) in
+  r1
+| Norec, Norec -> Norec
+| (Norec, Mrec _) | (Mrec _, Norec) -> Norec
+
+let inter t1 t2 =
+  let automaton = Atm.inter meet_recarg t1 t2 in
+  if automaton == t1 then t1 else Atm.compact compare_recarg automaton
+
+let restrict t p =
+  let automaton = Atm.inter meet_recarg t (make0 p) in
+  Atm.compact compare_recarg automaton
+
+let dest_subterms t =
+  let trans = Atm.transitions t (Atm.initial t) in
+  let map v = Array.map_to_list (fun tgt -> Atm.move t tgt) v in
+  Array.map map trans
+
+let dest_recarg t =
+  Atm.data t (Atm.initial t)
+
+let is_norec t = match dest_recarg t with
 | Norec -> true
 | Mrec _ -> false
 | exception Failure _ ->
   anomaly ~label:"rtree" Pp.(str "Non-closed recursive tree during guard checking.")
 
-let inter_recarg r1 r2 = if eq_recarg r1 r2 then Some r1 else None
+let is_inductive env ind t = match dest_recarg t with
+| Mrec (RecArgInd i) -> QInd.equal env ind i
+| Norec | Mrec (RecArgPrim _) -> false
 
-let inter_wf_paths = Rtree.inter Declareops.eq_recarg inter_recarg Norec
+let is_primitive env cst t = match dest_recarg t with
+| Mrec (RecArgPrim c) -> QConstant.equal env cst c
+| Norec | Mrec _ -> false
 
-let incl_wf_paths = Rtree.incl Declareops.eq_recarg inter_recarg Norec
+let equal t1 t2 =
+  Atm.equal eq_recarg t1 t2
+
+end
+
+type subterm_spec =
+    Subterm of (Int.Set.t * size * WfPaths.t)
+  | Dead_code
+  | Not_subterm
+  | Internally_bound_subterm of Int.Set.t
 
 let spec_of_tree internal t =
-  if is_norec_path t
-  then Not_subterm
+  if WfPaths.is_norec t then Not_subterm
   else Subterm (internal, Strict, t)
 
 let merge_internal_subterms l1 l2 =
@@ -700,7 +753,7 @@ let inter_spec s1 s2 =
   | Subterm (l1,a1,t1), Internally_bound_subterm l2 -> Subterm (merge_internal_subterms l1 l2,a1,t1)
   | Internally_bound_subterm l1, Subterm (l2,a2,t2) -> Subterm (merge_internal_subterms l1 l2,a2,t2)
   | Subterm (l1,a1,t1), Subterm (l2,a2,t2) ->
-     Subterm (merge_internal_subterms l1 l2, size_glb a1 a2, inter_wf_paths t1 t2)
+     Subterm (merge_internal_subterms l1 l2, size_glb a1 a2, WfPaths.inter t1 t2)
 
 let subterm_spec_glb =
   Array.fold_left inter_spec Dead_code
@@ -798,12 +851,7 @@ let lift1_stack = lift_stack 1
 
 let lookup_subterms env ind =
   let (_,mip) = lookup_mind_specif env ind in
-  mip.mind_recargs
-
-let match_inductive ind ra =
-  match ra with
-    | Mrec (RecArgInd i) -> Ind.CanOrd.equal ind i
-    | Norec | Mrec (RecArgPrim _) -> false
+  WfPaths.make mip.mind_automaton
 
 (* In {match c as z in ci y_s return P with | C_i x_s => t end}
    [branches_specif renv c_spec ci] returns an array of x_s specs knowing
@@ -821,18 +869,14 @@ let branches_specif renv c_spec ci =
     | Rtree.Kind.Node (_, v) -> Array.map Array.length v
     | Rtree.Kind.Var _ -> assert false
   in
-  let subterms = lazy begin match Lazy.force c_spec with
-  | Subterm (_, _, t) -> dest_subterms t
-  | Dead_code | Internally_bound_subterm _ | Not_subterm -> assert false
-  end in
   Array.mapi
       (fun i nca -> (* i+1-th cstructor has arity nca *)
          let lvra = lazy
            (match Lazy.force c_spec with
-                Subterm (internal,_,t) when match_inductive ci.ci_ind (dest_recarg t) ->
-                  let vra = Array.of_list (Lazy.force subterms).(i) in
-                  assert (Int.equal nca (Array.length vra));
-                  Array.map (spec_of_tree internal) vra
+                Subterm (internal,_,t) when WfPaths.is_inductive renv.env ci.ci_ind t ->
+                  let vra = (WfPaths.dest_subterms t).(i) in
+                  let () = assert (Int.equal nca (List.length vra)) in
+                  Array.map_of_list (fun t -> spec_of_tree internal t) vra
               | Dead_code -> Array.make nca Dead_code
               | Internally_bound_subterm _ as x -> Array.make nca x
               | Subterm _ | Not_subterm -> Array.make nca Not_subterm) in
@@ -909,15 +953,15 @@ module Cache :
 sig
   type t
   val create : unit -> t
-  val get_inductive_subterms : MutInd.t -> mutual_inductive_body -> t -> wf_paths list array array
+  val get_inductive_subterms : MutInd.t -> mutual_inductive_body -> t -> WfPaths.t list array array
 end =
 struct
-  type ans = wf_paths list array array
+  type ans = WfPaths.t list array array
   type t = ans Mindmap_env.t ref
   let create () = ref Mindmap_env.empty
   let get_inductive_subterms mind mib cache = match Mindmap_env.find_opt mind !cache with
   | None ->
-    let ans = Array.map (fun mip -> dest_subterms mip.mind_recargs) mib.mind_packets in
+    let ans = Array.map (fun mip -> WfPaths.dest_subterms (WfPaths.make mip.mind_automaton)) mib.mind_packets in
     let () = cache := Mindmap_env.add mind ans !cache in
     ans
   | Some ans -> ans
@@ -942,23 +986,19 @@ let get_recargs_approx cache ?evars env tree ind args =
     | Ind ind_kn ->
        (* When the inferred tree allows it, we consider that we have a potential
        nested inductive type *)
-       begin match dest_recarg tree with
-             | Mrec (RecArgInd ind') when QInd.equal env (fst ind_kn) ind' ->
-               build_recargs_nested ienv tree (ind_kn, largs)
-             | Norec | Mrec _ -> mk_norec
-       end
+      if WfPaths.is_inductive env (fst ind_kn) tree then
+        build_recargs_nested ienv tree (ind_kn, largs)
+      else mk_norec
     | Const (c,_) when is_primitive_positive_container env c ->
-       begin match dest_recarg tree with
-             | Mrec (RecArgPrim c') when QConstant.equal env c c' ->
-               build_recargs_nested_primitive ienv tree (c, largs)
-             | Norec | Mrec _ -> mk_norec
-       end
+      if WfPaths.is_primitive env c tree then
+        build_recargs_nested_primitive ienv tree (c, largs)
+      else mk_norec
     | _err ->
        mk_norec
 
   and build_recargs_nested (env,_ra_env as ienv) tree (((mind,i),u), largs) =
     (* If the inferred tree already disallows recursion, no need to go further *)
-    if is_norec_path tree then tree
+    if WfPaths.is_norec tree then mk_norec
     else
     let mib = Environ.lookup_mind mind env in
     let nonrecpar = mib.mind_nparams - mib.mind_nparams_rec in
@@ -973,7 +1013,7 @@ let get_recargs_approx cache ?evars env tree ind args =
     computed statically. This is fine because nested inductive types with
     mutually recursive containers are not supported. *)
     let trees =
-      if Int.equal auxntyp 1 then [|dest_subterms tree|]
+      if Int.equal auxntyp 1 then [|WfPaths.dest_subterms tree|]
       else Cache.get_inductive_subterms mind mib cache
     in
     let mk_irecargs j mip =
@@ -993,12 +1033,12 @@ let get_recargs_approx cache ?evars env tree ind args =
     (Rtree.mk_rec irecargs).(i)
 
   and build_recargs_nested_primitive (env, ra_env) tree (c, largs) =
-    if is_norec_path tree then tree
+    if WfPaths.is_norec tree then mk_norec
     else
     let ntypes = 1 in (* Primitive types are modelled by non-mutual inductive types *)
     let ra_env = List.map (fun (r,t) -> (r,Rtree.lift ntypes t)) ra_env in
     let ienv = (env, ra_env) in
-    let paths = List.map2 (build_recargs ienv) (dest_subterms tree).(0) largs in
+    let paths = List.map2 (build_recargs ienv) (WfPaths.dest_subterms tree).(0) largs in
     let recargs = [| mk_paths (Mrec (RecArgPrim c)) [| paths |] |] in
     (Rtree.mk_rec recargs).(0)
 
@@ -1054,7 +1094,7 @@ let restrict_spec cache ?evars env spec p =
     | Dead_code -> spec
     | Subterm (l, st, tree) ->
       let recargs = get_recargs_approx cache ?evars env tree i args in
-      let tree = inter_wf_paths tree recargs in
+      let tree = WfPaths.restrict tree recargs in
       Subterm (l, st, tree)
     | _ -> assert false
     end
@@ -1089,7 +1129,7 @@ let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p 
             | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
             | Subterm (l, s, tree) ->
               let recargs = get_recargs_approx cache ?evars env tree ind args in
-              let tree = inter_wf_paths tree recargs in
+              let tree = WfPaths.restrict tree recargs in
               Subterm (l, s, tree)
             end in
             SArg sarg
@@ -1180,7 +1220,7 @@ let rec subterm_specif cache ?evars renv stack t =
       (match subt with
        | Subterm (internal, _s, wf) ->
          (* We take the subterm specs of the constructor of the record *)
-         let wf_args = (dest_subterms wf).(0) in
+         let wf_args = (WfPaths.dest_subterms wf).(0) in
          (* We extract the tree of the projected argument *)
          let n = Projection.arg p in
          spec_of_tree internal (List.nth wf_args n)
@@ -1225,7 +1265,7 @@ and primitive_specif cache ?evars renv op args =
     let subt = subterm_specif cache ?evars renv [] arg in
     begin match subt with
     | Subterm (internal, _s, wf) ->
-      let wf_args = (dest_subterms wf).(0) in
+      let wf_args = (WfPaths.dest_subterms wf).(0) in
       spec_of_tree internal (List.nth wf_args 0) (* first and only parameter of `array` *)
     | Dead_code -> Dead_code
     | Not_subterm -> Not_subterm
@@ -1280,7 +1320,7 @@ type check_subterm_result =
 let check_is_subterm x tree =
   match Lazy.force x with
   | Subterm (need_reduce,Strict,tree') ->
-    if incl_wf_paths tree tree' then NeedReduceSubterm need_reduce
+    if WfPaths.equal tree tree' then NeedReduceSubterm need_reduce
     else InvalidSubterm
   | Dead_code -> NeedReduceSubterm Int.Set.empty
   | Not_subterm | Subterm (_,Large,_) -> InvalidSubterm
@@ -1726,7 +1766,7 @@ let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as 
     if flags.check_guarded then
       let get_tree (kn,i) =
         let mib = Environ.lookup_mind kn env in
-        mib.mind_packets.(i).mind_recargs
+        WfPaths.make mib.mind_packets.(i).mind_automaton
       in
       let trees = Array.map get_tree inds in
       for i = 0 to Array.length bodies - 1 do
@@ -1784,13 +1824,13 @@ let check_one_cofix cache ?evars env nbfix def deftype =
             let realargs = List.skipn mib.mind_nparams args in
             let rec process_args_of_constr = function
               | (t::lr), (rar::lrar) ->
-                  if is_norec_path rar then
+                  if WfPaths.is_norec rar then
                     if noccur_with_meta n nbfix t
                     then process_args_of_constr (lr, lrar)
                     else raise (CoFixGuardError
                                  (env,RecCallInNonRecArgOfConstructor t))
                   else begin
-                      check_rec_call env true n rar (dest_subterms rar) t;
+                      check_rec_call env true n rar (WfPaths.dest_subterms rar) t;
                       process_args_of_constr (lr, lrar)
                     end
               | [],_ -> ()
@@ -1829,7 +1869,7 @@ let check_one_cofix cache ?evars env nbfix def deftype =
                if (noccur_with_meta n nbfix p) then
                  if (noccur_with_meta n nbfix tm) then
                    if (List.for_all (noccur_with_meta n nbfix) args) then
-                     let vlra = dest_subterms tree in
+                     let vlra = WfPaths.dest_subterms tree in
                      Array.iter (check_rec_call env alreadygrd n tree vlra) vrest
                    else
                      raise (CoFixGuardError (env,RecCallInCaseFun c))
@@ -1849,7 +1889,7 @@ let check_one_cofix cache ?evars env nbfix def deftype =
 
   let ((mind, _),_) = codomain_is_coind ?evars env deftype in
   let vlra = lookup_subterms env mind in
-  check_rec_call env false 1 vlra (dest_subterms vlra) def
+  check_rec_call env false 1 vlra (WfPaths.dest_subterms vlra) def
 
 (* The  function which checks that the whole block of definitions
    satisfies the guarded condition *)

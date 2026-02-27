@@ -40,6 +40,7 @@ val is_opaque : ('a, 'b) pconstant_body -> bool
 (** {6 Inductive types} *)
 
 val eq_recarg : recarg -> recarg -> bool
+val compare_recarg : recarg -> recarg -> int
 
 val pr_recarg : recarg -> Pp.t
 val pr_wf_paths : wf_paths -> Pp.t
