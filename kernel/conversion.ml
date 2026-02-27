@@ -119,6 +119,11 @@ let pure_stack lfts stk =
 (*                         Conversion                               *)
 (********************************************************************)
 
+type firstorder_mode =
+  | Eager
+  | L2R
+  | R2L
+
 (* Conversion utility functions *)
 
 (* functions of this type are called from the kernel *)
@@ -126,7 +131,7 @@ type 'a kernel_conversion_function = env -> 'a -> 'a -> (unit, unit) result
 
 (* functions of this type can be called from outside the kernel *)
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
+  ?l2r:firstorder_mode -> ?reds:TransparentState.t -> env ->
   ?evars:evar_handler ->
   'a -> 'a -> (unit, unit) result
 
@@ -385,7 +390,12 @@ let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
 and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
   Control.check_for_interrupt ();
   (* First head reduce both terms *)
-  let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
+  let ninfos = match l2r with
+    | Eager ->
+      let all = RedFlags.(red_add_transparent all (red_transparent (info_flags infos.cnv_inf))) in
+      infos_with_reds infos.cnv_inf all
+    | L2R | R2L -> infos_with_reds infos.cnv_inf RedFlags.betaiotazeta
+  in
   let appr1 = whd_stack ninfos infos.lft_tab (fst st1) (snd st1) in
   let appr2 = whd_stack ninfos infos.rgt_tab (fst st2) (snd st2) in
   eqwhnf cv_pb l2r infos (lft1, appr1) (lft2, appr2) cuniv
@@ -467,6 +477,11 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           let () = Control.check_for_interrupt () in
           (* Determine which constant to unfold first *)
           let unfold_left =
+            let l2r = match l2r with
+              | L2R -> true
+              | R2L -> false
+              | Eager -> assert false
+            in
             let order = Conv_oracle.oracle_compare oracle (to_er fl1) (to_er fl2) in
             match order with
             | Conv_oracle.Left -> true
@@ -1010,7 +1025,7 @@ let () =
       let state = info_univs infos in
       let qual_equal q1 q2 = CClosure.eq_quality infos q1 q2 in
       let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box; } in
-      let state', _ = ccnv CONV false infos el_id el_id a b (state, checked_universes_gen qual_equal) in
+      let state', _ = ccnv CONV R2L infos el_id el_id a b (state, checked_universes_gen qual_equal) in
       assert (state==state');
       true
     with
@@ -1019,7 +1034,7 @@ let () =
   in
   CClosure.set_conv conv
 
-let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
+let gen_conv ~typed cv_pb ?(l2r=R2L) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in
   let state = univs in
   let b =

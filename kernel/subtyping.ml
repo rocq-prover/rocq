@@ -89,7 +89,7 @@ let check_conv_error error why state poly pb env a1 a2 =
   if poly then match Conversion.default_conv pb env a1 a2 with
   | Result.Ok () -> fst state
   | Result.Error () ->  error (IncompatiblePolymorphism (env, a1, a2))
-  else match Conversion.generic_conv pb ~l2r:false TransparentState.full env state a1 a2 with
+  else match Conversion.generic_conv pb ~l2r:R2L TransparentState.full env state a1 a2 with
   | Result.Ok state -> state
   | Result.Error None -> error why
   | Result.Error (Some (Univ e)) -> error (IncompatibleUniverses { err = e; env; t1 = a1; t2 = a2 })
