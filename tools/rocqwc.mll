@@ -161,13 +161,28 @@ and proof = parse
   | "Proof" space* '.'
   | "Proof" space+ "with"
   | "Proof" space+ "using"
-           { seen_proof := true; proof lexbuf }
+           { seen_proof := true; started_proof lexbuf }
   | "Proof" space
            { proof_term lexbuf }
   | proof_end
            { seen_proof := true; spec lexbuf }
   | character | _
-           { seen_proof := true; proof lexbuf }
+           { seen_proof := true; started_proof lexbuf }
+  | eof    { () }
+
+(*s Scans the proof after the "Proof" keyword, without again giving special treatment to that keyword. See issue #21422. *)
+
+and started_proof = parse
+  | "(*"   { comment lexbuf; started_proof lexbuf }
+  | '"'    { let n = string lexbuf in plines := !plines + n;
+             seen_proof := true; started_proof lexbuf }
+  | space+ | stars
+           { started_proof lexbuf }
+  | '\n'   { newline (); started_proof lexbuf }
+  | proof_end
+           { seen_proof := true; spec lexbuf }
+  | character | _
+           { seen_proof := true; started_proof lexbuf }
   | eof    { () }
 
 and proof_term = parse
