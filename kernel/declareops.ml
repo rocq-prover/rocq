@@ -19,6 +19,10 @@ let noh hcons x = snd (hcons x)
 (** Operations concernings types in [Declarations] :
     [constant_body], [mutual_inductive_body], [module_body] ... *)
 
+let configure_enabled_native = match Coq_config.native_compiler with
+  | NativeOff -> false
+  | NativeOn _ -> true
+
 let safe_flags oracle = {
   check_guarded = true;
   check_positive = true;
@@ -27,8 +31,8 @@ let safe_flags oracle = {
   conv_oracle = oracle;
   share_reduction = true;
   unfold_dep_heuristic = false;
-  enable_VM = true;
-  enable_native_compiler = true;
+  enable_VM = Coq_config.bytecode_compiler;
+  enable_native_compiler = configure_enabled_native;
   indices_matter = true;
   impredicative_set = false;
   sprop_allowed = true;

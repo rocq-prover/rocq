@@ -598,11 +598,18 @@ let same_flags {
   allow_uip == alt.allow_uip
 [@warning "+9"]
 
+let check_flags c =
+  assert (Coq_config.bytecode_compiler || not c.enable_VM);
+  assert (match Coq_config.native_compiler with
+      | NativeOff -> not c.enable_native_compiler
+      | NativeOn _ -> true)
+
 let set_type_in_type b = map_universes (UGraph.set_type_in_type b)
 
 let set_typing_flags c env =
   if same_flags env.env_typing_flags c then env
   else
+    let () = check_flags c in
     let env = { env with env_typing_flags = c } in
     let env = set_type_in_type (not c.check_universes) env in
     let env = { env with env_qualities = QGraph.set_ignore_constraints (not c.check_eliminations) env.env_qualities } in
