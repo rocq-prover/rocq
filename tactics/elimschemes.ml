@@ -53,6 +53,25 @@ let default_case_analysis_dependence env ind =
 (*             Induction/recursion schemes              *)
 (* **************************************************** *)
 
+let build_induction_scheme_in_sort_var env dep ind =
+  let sigma = Evd.from_env env in
+  let sigma, pind =
+    Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind
+  in
+  (* Get new sort for output *)
+  let sigma, pred_sort = Evd.new_sort_variable UnivRigid sigma in
+  let pred_quality = EConstr.ESorts.quality sigma pred_sort in
+  (* Get sort of inductive *)
+  let _, ind_sort =
+    EConstr.destArity sigma
+      (Retyping.get_type_of env sigma (EConstr.mkIndU pind))
+  in
+  let ind_quality = EConstr.ESorts.quality sigma ind_sort in
+  (* Set elimination constraint from inductive to output's sort *)
+  let sigma = Evd.set_elim_to sigma ind_quality pred_quality in
+  let sigma, c = build_induction_scheme env sigma pind dep pred_sort in
+  (EConstr.to_constr sigma c, Evd.ustate sigma)
+
 let build_induction_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
   let sigma, pind = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
@@ -76,6 +95,10 @@ let sind_dep =
   declare_individual_scheme_object "sind_dep"
     (fun env _ x -> build_induction_scheme_in_type env true QualityOrSet.sprop x)
 
+let poly_dep =
+  declare_individual_scheme_object "poly_dep"
+    (fun env _ x -> build_induction_scheme_in_sort_var env true x)
+
 let rect_nodep =
   declare_individual_scheme_object "rect_nodep"
     (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.qtype x)
@@ -92,6 +115,10 @@ let sind_nodep =
   declare_individual_scheme_object "sind_nodep"
     (fun env _ x -> build_induction_scheme_in_type env false QualityOrSet.sprop x)
 
+let poly_nodep =
+  declare_individual_scheme_object "poly_nodep"
+    (fun env _ x -> build_induction_scheme_in_sort_var env false x)
+
 let elim_scheme ~dep ~to_kind =
   let open QualityOrSet in
   match to_kind with
@@ -100,10 +127,12 @@ let elim_scheme ~dep ~to_kind =
        match q with
        | QConstant QSProp when dep -> sind_dep
        | QConstant QProp when dep -> ind_dep
-       | (QConstant QType | QVar _) when dep -> rect_dep
+       | QConstant QType when dep -> rect_dep
+       | Sorts.Quality.QVar _ when dep -> poly_dep
        | QConstant QSProp -> sind_nodep
        | QConstant QProp -> ind_nodep
-       | QConstant QType | QVar _ -> rect_nodep
+       | QConstant QType -> rect_nodep
+       | Sorts.Quality.QVar _ -> poly_nodep
      end
   | Set -> if dep then rec_dep else rec_nodep
 
@@ -198,6 +227,14 @@ let case_dep =
 let case_nodep =
   declare_individual_scheme_object "case_nodep"
     (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.qtype x)
+
+let case_poly_dep q =
+  declare_individual_scheme_object "case_poly_dep"
+    (fun env _ x -> build_case_analysis_scheme_in_type env true (QualityOrSet.Qual q) x)
+
+let case_poly_nodep q =
+  declare_individual_scheme_object "case_poly_nodep"
+    (fun env _ x -> build_case_analysis_scheme_in_type env false (QualityOrSet.Qual q) x)
 
 let casep_dep =
   declare_individual_scheme_object "casep_dep"
