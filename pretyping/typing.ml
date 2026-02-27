@@ -549,11 +549,21 @@ let rec execute env sigma cstr =
   match EConstr.kind sigma cstr with
     | Meta n -> assert false (* Typing should always be performed on meta-free terms *)
 
-    | Evar ev ->
+    | Evar (n, args as ev) ->
+        let evinfo = Evd.find_undefined sigma n in
+        let sigma, tys = SList.Skip.fold_left_map (fun sigma x -> execute env sigma x) sigma args in
+        let atys = Evd.evar_filtered_context evinfo in
+        let sigma = List.fold_left2 (fun sigma aty ty ->
+          match ty with | None -> sigma | Some ty ->
+          let aty = Context.Named.Declaration.get_type aty in
+          let aty = Evd.instantiate_evar_array sigma evinfo aty args in
+          try Evarconv.unify_leq_delay env sigma ty.uj_type aty
+          with Evarconv.UnableToUnify (sigma,error) ->
+            (* FIXME: Find a suitable error msg. *)
+            error_cannot_unify env sigma ~reason:error (ty.uj_type, aty)
+          ) sigma atys (SList.to_list tys) in
         let ty = EConstr.existential_type sigma ev in
-        let sigma, jty = execute env sigma ty in
-        let sigma, jty = assumption_of_judgment env sigma jty in
-        sigma, { uj_val = cstr; uj_type = jty }
+        sigma, { uj_val = cstr; uj_type = ty }
 
     | Rel n ->
         sigma, judge_of_relative env n
