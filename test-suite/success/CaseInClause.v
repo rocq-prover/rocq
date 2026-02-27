@@ -6,7 +6,7 @@ Check (fun n (x: Vector.t True (S n)) =>
   end).
 
 (* Notation *)
-Notation "A \dots n" := (Vector.t A n) (at level 200).
+Notation "A \dots n" := (Vector.t A n) (at level 10).
 Check (fun m (x: Vector.t nat m) =>
   match x in _ \dots k return Vector.t nat (S k) with
     | Vector.nil _ => Vector.cons _ 0 _ (Vector.nil _)

@@ -122,7 +122,7 @@ let sigref loc = Libnames.qualid_of_string ~loc "Corelib.Init.Specif.sig"
 }
 
 GRAMMAR EXTEND Gram
-  GLOBAL: binder_constr lconstr constr term
+  GLOBAL: lconstr constr term
   universe_name sort sort_quality_or_set sort_quality_var
   global constr_pattern cpattern Constr.ident
   closed_binder open_binders binder binders binders_fixannot
@@ -215,7 +215,40 @@ GRAMMAR EXTEND Gram
         { let { CAst.loc = locid; v = id } = lid in
           let args = List.map (fun x -> CAst.make @@ CRef (qualid_of_ident ?loc:x.CAst.loc x.CAst.v, None), None) args in
           CAst.make ~loc @@ CApp(CAst.make ?loc:locid @@ CPatVar id,args) }
-      | c = binder_constr -> { c } ]
+      | "forall"; bl = open_binders; ","; c = term LEVEL "200" ->
+        { mkProdCN ~loc bl c }
+      | "fun"; bl = open_binders; "=>"; c = term LEVEL "200" ->
+        { mkLambdaCN ~loc bl c }
+      | "let"; id=name; bl = binders; ty = let_type_cstr; ":=";
+        c1 = term LEVEL "200"; "in"; c2 = term LEVEL "200" ->
+        { let ty,c1 = match ty, c1 with
+          | (_,None), { CAst.v = CCast(c, Some DEFAULTcast, t) } -> (Loc.tag ?loc:(constr_loc t) @@ Some t), c (* Tolerance, see G_vernac.def_body *)
+          | _, _ -> ty, c1 in
+          CAst.make ~loc @@ CLetIn(id,mkLambdaCN ?loc:(constr_loc c1) bl c1,
+                 Option.map (mkProdCN ?loc:(fst ty) bl) (snd ty), c2) }
+      | "let"; "fix"; fx = fix_decl; "in"; c = term LEVEL "200" ->
+        { let {CAst.loc=locf;CAst.v=({CAst.loc=li;CAst.v=id} as lid,_,_,_,_,_ as dcl)} = fx in
+          let fix = CAst.make ?loc:locf @@ CFix (lid,[dcl]) in
+          CAst.make ~loc @@ CLetIn( CAst.make ?loc:li @@ Name id,fix,None,c) }
+      | "let"; "cofix"; fx = cofix_body; "in"; c = term LEVEL "200" ->
+        { let {CAst.loc=locf;CAst.v=({CAst.loc=li;CAst.v=id} as lid,_,_,_,_ as dcl)} = fx in
+          let cofix = CAst.make ?loc:locf @@ CCoFix (lid,[dcl]) in
+          CAst.make ~loc @@ CLetIn( CAst.make ?loc:li @@ Name id,cofix,None,c) }
+      | "let"; lb = ["("; l=LIST0 name SEP ","; ")" -> { l } | "()" -> { [] } ];
+        po = as_return_type; ":="; c1 = term LEVEL "200"; "in";
+        c2 = term LEVEL "200" ->
+        { CAst.make ~loc @@ CLetTuple (lb,po,c1,c2) }
+      | "let"; "'"; p = pattern LEVEL "200"; t = OPT [ "in"; t = pattern LEVEL "200" -> { t } ];
+        ":="; c1 = term LEVEL "200"; rt = OPT case_type;
+        "in"; c2 = term LEVEL "200" ->
+        { CAst.make ~loc @@
+          CCases (LetPatternStyle, rt, [c1, aliasvar p, t], [CAst.make ~loc ([[p]], c2)]) }
+      | "if"; c = term LEVEL "200"; po = as_return_type;
+        "then"; b1 = term LEVEL "200";
+        "else"; b2 = term LEVEL "200" ->
+        { CAst.make ~loc @@ CIf (c, po, b1, b2) }
+      | "fix"; c = fix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CFix (id,dcls) }
+      | "cofix"; c = cofix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CCoFix (id,dcls) } ]
     | "9"
       [ ".."; c = term LEVEL "0"; ".." ->
         { CAst.make ~loc @@ CAppExpl ((qualid_of_ident ~loc ldots_var, None),[c]) } ]
@@ -269,42 +302,6 @@ GRAMMAR EXTEND Gram
   field_def:
     [ [ id = global; bl = binders; ":="; c = lconstr ->
         { (id, mkLambdaCN ~loc bl c) } ] ]
-  ;
-  binder_constr:
-    [ [ "forall"; bl = open_binders; ","; c = term LEVEL "200" ->
-        { mkProdCN ~loc bl c }
-      | "fun"; bl = open_binders; "=>"; c = term LEVEL "200" ->
-        { mkLambdaCN ~loc bl c }
-      | "let"; id=name; bl = binders; ty = let_type_cstr; ":=";
-        c1 = term LEVEL "200"; "in"; c2 = term LEVEL "200" ->
-        { let ty,c1 = match ty, c1 with
-          | (_,None), { CAst.v = CCast(c, Some DEFAULTcast, t) } -> (Loc.tag ?loc:(constr_loc t) @@ Some t), c (* Tolerance, see G_vernac.def_body *)
-          | _, _ -> ty, c1 in
-          CAst.make ~loc @@ CLetIn(id,mkLambdaCN ?loc:(constr_loc c1) bl c1,
-                 Option.map (mkProdCN ?loc:(fst ty) bl) (snd ty), c2) }
-      | "let"; "fix"; fx = fix_decl; "in"; c = term LEVEL "200" ->
-        { let {CAst.loc=locf;CAst.v=({CAst.loc=li;CAst.v=id} as lid,_,_,_,_,_ as dcl)} = fx in
-          let fix = CAst.make ?loc:locf @@ CFix (lid,[dcl]) in
-          CAst.make ~loc @@ CLetIn( CAst.make ?loc:li @@ Name id,fix,None,c) }
-      | "let"; "cofix"; fx = cofix_body; "in"; c = term LEVEL "200" ->
-        { let {CAst.loc=locf;CAst.v=({CAst.loc=li;CAst.v=id} as lid,_,_,_,_ as dcl)} = fx in
-          let cofix = CAst.make ?loc:locf @@ CCoFix (lid,[dcl]) in
-          CAst.make ~loc @@ CLetIn( CAst.make ?loc:li @@ Name id,cofix,None,c) }
-      | "let"; lb = ["("; l=LIST0 name SEP ","; ")" -> { l } | "()" -> { [] } ];
-        po = as_return_type; ":="; c1 = term LEVEL "200"; "in";
-        c2 = term LEVEL "200" ->
-        { CAst.make ~loc @@ CLetTuple (lb,po,c1,c2) }
-      | "let"; "'"; p = pattern LEVEL "200"; t = OPT [ "in"; t = pattern LEVEL "200" -> { t } ];
-        ":="; c1 = term LEVEL "200"; rt = OPT case_type;
-        "in"; c2 = term LEVEL "200" ->
-        { CAst.make ~loc @@
-          CCases (LetPatternStyle, rt, [c1, aliasvar p, t], [CAst.make ~loc ([[p]], c2)]) }
-      | "if"; c = term LEVEL "200"; po = as_return_type;
-        "then"; b1 = term LEVEL "200";
-        "else"; b2 = term LEVEL "200" ->
-        { CAst.make ~loc @@ CIf (c, po, b1, b2) }
-      | "fix"; c = fix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CFix (id,dcls) }
-      | "cofix"; c = cofix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CCoFix (id,dcls) } ] ]
   ;
   arg:
     [ [ test_lpar_id_coloneq; "("; id = identref; ":="; c = lconstr; ")" -> { (c,Some (CAst.make ?loc:id.CAst.loc @@ ExplByName id.CAst.v)) }

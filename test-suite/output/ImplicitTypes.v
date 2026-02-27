@@ -33,7 +33,7 @@ Check fix f b n := match n with 0 => b | S p => f b p end.
 (* Check in notations *)
 Module Notation.
   Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-    (at level 200, x binder, y binder, right associativity,
+    (at level 10, P at level 200, x binder, y binder,
     format "'[  ' '[  ' ∀  x  ..  y ']' ,  '/' P ']'") : type_scope.
   Check forall b c, b = c.
   Check forall b1 b2, b1 = b2.

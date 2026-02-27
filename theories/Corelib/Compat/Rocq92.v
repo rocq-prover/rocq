@@ -8,9 +8,9 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** Compatibility file for making Rocq act similar to Coq v9.1 *)
+(** Compatibility file for making Rocq act similar to Coq v9.2 *)
 
-(* When adding Rocq92.v, uncomment the following line *)
-Require Export Corelib.Compat.Rocq92.
+(* When adding Rocq93.v, uncomment the following line *)
+(* Require Export Corelib.Compat.Rocq93. *)
 
-#[export] Set Warnings "-deprecated-since-9.2".
+#[export] Set Warnings "-deprecated-since-9.3".

@@ -76,7 +76,7 @@ Qed.
    notations involving telescopes. *)
 Notation "'λ..' x .. y , e" :=
   (tele_app (tele_bind (fun x => .. (tele_app (tele_bind (fun y => e))) .. )))
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, e at level 200,
    format "'[  ' 'λ..'  x  ..  y ']' ,  e").
 
 (* The testcase *)

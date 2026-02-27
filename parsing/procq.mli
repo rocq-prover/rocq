@@ -173,7 +173,6 @@ module Constr :
     val constr : constr_expr Entry.t
     val constr_eoi : constr_expr Entry.t
     val lconstr : constr_expr Entry.t
-    val binder_constr : constr_expr Entry.t
     val term : constr_expr Entry.t
     val ident : Id.t Entry.t
     val global : qualid Entry.t

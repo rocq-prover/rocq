@@ -328,21 +328,21 @@ Register all as core.all.
 (* Rule order is important to give printing priority to fully typed exists *)
 
 Notation "'exists' x .. y , p" := (ex (fun x => .. (ex (fun y => p)) ..))
-  (at level 200, x binder, right associativity,
+  (at level 10, x binder, p at level 200,
    format "'[' 'exists'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
 Notation "'exists2' x , p & q" := (ex2 (fun x => p) (fun x => q))
-  (at level 200, x name, p at level 200, right associativity) : type_scope.
+  (at level 10, x name, p at level 200, q at level 200) : type_scope.
 Notation "'exists2' x : A , p & q" := (ex2 (A:=A) (fun x => p) (fun x => q))
-  (at level 200, x name, A at level 200, p at level 200, right associativity,
+  (at level 10, x name, A at level 200, p at level 200, q at level 200,
     format "'[' 'exists2'  '/  ' x  :  A ,  '/  ' '[' p  &  '/' q ']' ']'")
   : type_scope.
 
 Notation "'exists2' ' x , p & q" := (ex2 (fun x => p) (fun x => q))
-  (at level 200, x strict pattern, p at level 200, right associativity) : type_scope.
+  (at level 10, x strict pattern, p at level 200, q at level 200) : type_scope.
 Notation "'exists2' ' x : A , p & q" := (ex2 (A:=A) (fun x => p) (fun x => q))
-  (at level 200, x strict pattern, A at level 200, p at level 200, right associativity,
+  (at level 10, x strict pattern, A at level 200, p at level 200, q at level 200,
     format "'[' 'exists2'  '/  ' ' x  :  A ,  '/  ' '[' p  &  '/' q ']' ']'")
   : type_scope.
 
@@ -787,7 +787,7 @@ Definition uniqueness (A:Type) (P:A->Prop) := forall x y, P x -> P y -> x = y.
 
 Notation "'exists' ! x .. y , p" :=
   (ex (unique (fun x => .. (ex (unique (fun y => p))) ..)))
-  (at level 200, x binder, right associativity,
+  (at level 10, x binder, p at level 200,
    format "'[' 'exists'  !  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 

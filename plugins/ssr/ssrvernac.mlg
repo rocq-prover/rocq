@@ -84,7 +84,7 @@ let mk_pat c (na, t) = (c, na, t)
 }
 
 GRAMMAR EXTEND Gram
-  GLOBAL: binder_constr;
+  GLOBAL: term;
   ssr_rtype: [[ "return"; t = term LEVEL "100" -> { mk_rtype t } ]];
   ssr_mpat: [[ p = pattern -> { [[p]] } ]];
   ssr_dpat: [
@@ -95,7 +95,7 @@ GRAMMAR EXTEND Gram
   ssr_dthen: [[ dp = ssr_dpat; "then"; c = lconstr -> { mk_dthen ~loc dp c } ]];
   ssr_elsepat: [[ "else" -> { [[CAst.make ~loc @@ CPatAtom None]] } ]];
   ssr_else: [[ mp = ssr_elsepat; c = lconstr -> { CAst.make ~loc (mp, c) } ]];
-  binder_constr: TOP [
+  term: LEVEL "10" [
     [ "if"; c = term LEVEL "200"; "is"; db1 = ssr_dthen; b2 = ssr_else ->
       { let b1, ct, rt = db1 in CAst.make ~loc @@ CCases (MatchStyle, rt, [mk_pat c ct], [b1; b2]) }
     | "if"; c = term LEVEL "200";"isn't";db1 = ssr_dthen; b2 = ssr_else ->

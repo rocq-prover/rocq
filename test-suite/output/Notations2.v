@@ -38,7 +38,7 @@ Check fun P:nat->nat->Prop => fun x:nat => ex (P x).
 (* Test notations with binders *)
 
 Notation "∃ x .. y , P":= (ex (fun x => .. (ex (fun y => P)) ..))
-  (x binder, y binder, at level 200, right associativity,
+  (x binder, y binder, at level 10, P at level 200,
   format "'[  ' ∃  x  ..  y ']' ,  P").
 
 Check (∃ n p, n+p=0).
@@ -46,12 +46,12 @@ Check (∃ n p, n+p=0).
 Check ∃ (a:=0) (x:nat) y (b:=1) (c:=b) (d:=2) z (e:=3) (f:=4), x+y = z+d.
 
 Notation "∀  x .. y , P":= (forall x, .. (forall y, P) ..)
-  (x binder, at level 200, right associativity).
+  (x binder, at level 10, P at level 200).
 
 Check (∀ n p, n+p=0).
 
 Notation "'λ'  x .. y , P":= (fun x => .. (fun y => P) ..)
-  (y binder, at level 200, right associativity).
+  (y binder, at level 10, P at level 200).
 
 Check (λ n p, n+p=0).
 
@@ -63,8 +63,7 @@ Check `(∀ n p : A, n=p).
 
 Notation "'let'' f x .. y  :=  t 'in' u":=
   (let f := fun x => .. (fun y => t) .. in u)
-  (f name, x closed binder, y closed binder, at level 200,
-   right associativity).
+  (f name, x closed binder, y closed binder, at level 10, u at level 200).
 
 Check let' f x y (a:=0) z (b:bool) := x+y+z+1 in f 0 1 2.
 
@@ -95,8 +94,7 @@ End A.
 
 Notation "'mylet' f [ x ; .. ; y ]  :=  t 'in' u":=
   (let f := fun x => .. (fun y => t) .. in u)
-  (f name, x closed binder, y closed binder, at level 200,
-   right associativity).
+  (f name, x closed binder, y closed binder, at level 10, u at level 200).
 
 Check mylet f [x;y;z;(a:bool)] := x+y+z+1 in f 0 1 2.
 *)

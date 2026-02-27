@@ -106,7 +106,7 @@ Definition h1 := fun x:nat => (fun {x} => x) 0.
 Definition h2 := let g := forall {y}, y=0 in g.
 
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, P at level 200, x binder, y binder, right associativity,
   format "'[  ' '[  ' ∀  x  ..  y ']' ,  '/' P ']'") : type_scope.
 
 Definition l1 := ∀ {x:nat} {y:nat}, x=0.
