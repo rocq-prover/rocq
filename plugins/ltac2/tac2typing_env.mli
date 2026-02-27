@@ -30,6 +30,8 @@ val add_error : ?loc:Loc.t -> t -> Pp.t -> unit
 (** Get accumulated errors. Assertion failure if not in accumulate mode. *)
 val get_errors : t -> Pp.t Loc.located list
 
+val scopes : t -> Tac2syn.Tac2Scope.t list
+
 val set_rec : (KerName.t * int) Id.Map.t -> t -> t
 
 val reject_unbound_tvar : t -> t

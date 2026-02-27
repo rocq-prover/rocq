@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Names
-open Mod_subst
 open Tac2expr
 
 type context = (Id.t * type_scheme) list
@@ -17,7 +16,7 @@ type context = (Id.t * type_scheme) list
 val intern : strict:bool -> context -> raw_tacexpr -> glb_tacexpr * type_scheme
 val intern_typedef : (KerName.t * int) Id.Map.t -> raw_quant_typedef -> glb_quant_typedef
 val intern_open_type : raw_typexpr -> type_scheme
-val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2env.notation_data
+val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2syn.notation_data
 
 val intern_accumulate_errors : strict:bool -> context -> raw_tacexpr ->
   glb_tacexpr * type_scheme * Pp.t Loc.located list
@@ -55,13 +54,6 @@ val check_unit : ?loc:Loc.t -> type_scheme -> unit
 val check_subtype : type_scheme -> type_scheme -> bool
 (** [check_subtype t1 t2] returns [true] iff all values of instances of type [t1]
     also have type [t2]. *)
-
-val subst_type : substitution -> 'a glb_typexpr -> 'a glb_typexpr
-val subst_expr : substitution -> glb_tacexpr -> glb_tacexpr
-val subst_quant_typedef : substitution -> glb_quant_typedef -> glb_quant_typedef
-val subst_type_scheme : substitution -> type_scheme -> type_scheme
-
-val subst_rawexpr : substitution -> raw_tacexpr -> raw_tacexpr
 
 (** {5 Notations} *)
 

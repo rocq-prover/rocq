@@ -55,6 +55,9 @@ sig
   val eq : 'a tag -> 'b tag -> ('a, 'b) CSig.eq option
   (** [eq t1 t2] returns [Some witness] if [t1] is the same as [t2], [None] otherwise. *)
 
+  val compare : 'a tag -> 'b tag -> int
+  (** Invariant: [compare a b = 0] iff [eq a b = Some witness]. *)
+
   val repr : 'a tag -> string
   (** [repr tag] returns the name of the type represented by [tag]. *)
 

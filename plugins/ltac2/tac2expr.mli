@@ -157,13 +157,17 @@ type raw_patexpr_r =
 
 and raw_patexpr = raw_patexpr_r CAst.t
 
+(** This type is equated with a specific type using Obj.magic, not
+    sure if there's a better solution. *)
+type tacsyn
+
 type raw_tacexpr_r =
 | CTacAtm of atom
 | CTacRef of tacref or_relid
 | CTacCst of ltac_constructor or_tuple or_relid
 | CTacFun of raw_patexpr list * raw_tacexpr
 | CTacApp of raw_tacexpr * raw_tacexpr list
-| CTacSyn of (lname * raw_tacexpr) list * KerName.t
+| CTacSyn of tacsyn
 | CTacLet of rec_flag * (raw_patexpr * raw_tacexpr) list * raw_tacexpr
 | CTacCnv of raw_tacexpr * raw_typexpr
 | CTacSeq of raw_tacexpr * raw_tacexpr
