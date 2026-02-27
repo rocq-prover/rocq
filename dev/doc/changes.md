@@ -1,3 +1,11 @@
+## Changes between Rocq 9.2 and Rocq 9.3
+
+### Vernac
+
+- `Assumptions.traverse` now returns `int GlobRef.Map_env.t` (multisets)
+  instead of `GlobRef.Set_env.t` (sets). This allows callers to see how many
+  times each reference appears, useful for dependency analysis tools.
+
 ## Changes between Coq 8.17 and Coq 8.18
 
 ### XML protocol
