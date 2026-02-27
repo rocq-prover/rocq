@@ -43,13 +43,12 @@ exception NotEvaluableRef of GlobRef.t
 val error_not_evaluable : ?loc:Loc.t -> GlobRef.t -> 'a
 
 val evaluable_of_global_reference :
-  Environ.env -> GlobRef.t -> Evaluable.t
-(** Fails on opaque constants and variables
-    (both those without bodies and those marked Opaque in the conversion oracle). *)
+  ?loc:Loc.t -> GlobRef.t -> Evaluable.t
+(** Succeeds for any constant or variable even if marked opaque or otherwise not evaluable. *)
 
 val soft_evaluable_of_global_reference :
   ?loc:Loc.t -> GlobRef.t -> Evaluable.t
-(** Succeeds for any constant or variable even if marked opaque or otherwise not evaluable. *)
+[@@deprecated "(9.3) Use evaluable_of_global_reference."]
 
 val global_of_evaluable_reference :
   Evaluable.t -> GlobRef.t

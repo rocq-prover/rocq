@@ -305,7 +305,7 @@ let evalref_of_globref ?loc r =
     in
     if not is_proof_variable then Dumpglob.add_glob ?loc r
   in
-  Tacred.soft_evaluable_of_global_reference ?loc r
+  Tacred.evaluable_of_global_reference ?loc r
 
 let intern_smart_global ist = function
   | {v=AN r} -> intern_global_reference ist r
