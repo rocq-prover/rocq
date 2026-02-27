@@ -231,6 +231,7 @@ val mkFix : fixpoint -> constr
 type cofixpoint = (constr, types, Sorts.relevance) pcofixpoint
 val mkCoFix : cofixpoint -> constr
 
+val dummy : constr
 
 (** {6 Concrete type for making pattern-matching. } *)
 

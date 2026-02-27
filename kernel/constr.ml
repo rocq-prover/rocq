@@ -450,6 +450,11 @@ let mkMeta  n = of_kind @@  Meta n
 (* Constructs a Variable named id *)
 let mkVar id = of_kind @@ Var id
 
+(** Dummy constr *)
+let dummy =
+  let id = Id.of_string_soft "[DUMMY]" in
+  mkVar id
+
 let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstRef c -> mkConstU (c,u)
   | IndRef ind -> mkIndU (ind,u)
