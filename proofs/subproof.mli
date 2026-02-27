@@ -11,16 +11,18 @@
 val refine_by_tactic
   :  name:Names.Id.t
   -> poly:PolyFlags.t
+  -> ?inline:bool
   -> Environ.env
   -> Evd.evar_map
   -> EConstr.types
   -> unit Proofview.tactic
   -> EConstr.constr * Evd.evar_map
 (** A variant of {!Proof.solve} that handles open terms as well.
-    Caveat: all effects are purged in the returned term at the end, but other
-    evars solved by side-effects are NOT purged, so that unexpected failures may
-    occur. Ideally all code using this function should be rewritten in the
-    monad. *)
+
+    Caveat: when the [inline] flag is set all effects are purged in the returned
+    term at the end, but other evars solved by side-effects are NOT purged, so
+    that unexpected failures may occur. As a result it should not be set in
+    newly written code. *)
 
 val build_by_tactic :
   Environ.env ->
