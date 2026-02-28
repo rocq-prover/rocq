@@ -530,7 +530,7 @@ match l with
 | cons x l => cons (f x) (lmap f l)
 end.
 
-Fixpoint map {A B} (f : A -> B) (t : tree A) {struct t} : tree B :=
+Fail Fixpoint map {A B} (f : A -> B) (t : tree A) {struct t} : tree B :=
 match t with
 | Node _ x l => Node _ (f x) (lmap (map f) l)
 end.
