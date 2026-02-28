@@ -1294,16 +1294,18 @@ let find_uniform_parameters recindx nargs bodies =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
-      (* A recursive reference to the i-th body *)
-      if Int.equal n (nbodies + k - i) then
-        List.fold_left_i (fun j nuniformparams a ->
-            match kind a with
-            | Rel m when Int.equal m (k - j) ->
-              (* a reference to the j-th parameter *)
-              nuniformparams
-            | _ ->
-              (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
-              min j nuniformparams) 0 nuniformparams l
+      (* A recursive reference to one of the mutual fixpoints *)
+      if n > k && n <= k + nbodies then
+        List.fold_left_until (fun j arg ->
+          if j >= nuniformparams then Stop nuniformparams else
+          match kind arg with
+          | Rel m when Int.equal m (k - j) ->
+            (* a reference to the j-th parameter *)
+            Cont (j+1)
+          | _ ->
+            (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
+            Stop j
+          ) 0 l
       else
         nuniformparams
     | _ -> fold_constr_with_binders succ (aux i) k nuniformparams c
@@ -1339,7 +1341,8 @@ let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
     | a :: stack ->
       let uniform, nuniformparams = if nuniformparams = 0 then false, 0 else true, nuniformparams -1 in
       let a =
-        if uniform || Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
+        if uniform then a
+        else if Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
         else
           (* deactivate the status of non-uniform parameters since we
              cannot guarantee that they are preserve in the recursive
@@ -1462,7 +1465,9 @@ let check_one_fix cache ?evars renv recpos trees def =
             let nbodies = Array.length bodies in
             let rs' = Array.fold_left (check_inert_subterm_rec_call renv) (NoNeedReduce::rs) typarray in
             let renv' = push_fix_renv renv recdef in
-            let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
+            let nuniform_max = min (List.length stack) decrArg in
+            (* Ensure that the structural argument is not uniform, so that it stays in [non_absorbed_stack] *)
+            let nuniformparams = find_uniform_parameters recindxs nuniform_max bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
             let fix_stack = filter_fix_stack_domain cache ?evars (redex_level rs) decrArg stack nuniformparams in
             let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) fix_stack else fix_stack in
