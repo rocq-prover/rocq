@@ -1463,8 +1463,9 @@ let check_one_fix cache ?evars renv recpos trees def =
             let nbodies = Array.length bodies in
             let rs' = Array.fold_left (check_inert_subterm_rec_call renv) (NoNeedReduce::rs) typarray in
             let renv' = push_fix_renv renv recdef in
-            let nuniformparams = find_uniform_parameters recindxs (decrArg - 1) bodies in
+            let nuniform_max = min (List.length stack) decrArg in
             (* Ensure that the structural argument is not uniform, so that it stays in [non_absorbed_stack] *)
+            let nuniformparams = find_uniform_parameters recindxs nuniform_max bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
             let fix_stack = filter_fix_stack_domain cache ?evars (redex_level rs) decrArg stack nuniformparams in
             let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) fix_stack else fix_stack in
