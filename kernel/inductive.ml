@@ -1296,14 +1296,16 @@ let find_uniform_parameters recindx nargs bodies =
     | Rel n ->
       (* A recursive reference to one of the mutual fixpoints *)
       if n > k && n <= k + nbodies then
-        List.fold_left_i (fun j nuniformparams a ->
-            match kind a with
-            | Rel m when Int.equal m (k - j) ->
-              (* a reference to the j-th parameter *)
-              nuniformparams
-            | _ ->
-              (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
-              min j nuniformparams) 0 nuniformparams l
+        List.fold_left_until (fun j arg ->
+          if j >= nuniformparams then Stop nuniformparams else
+          match kind arg with
+          | Rel m when Int.equal m (k - j) ->
+            (* a reference to the j-th parameter *)
+            Cont (j+1)
+          | _ ->
+            (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
+            Stop j
+          ) 0 l
       else
         nuniformparams
     | _ -> fold_constr_with_binders succ (aux i) k nuniformparams c
