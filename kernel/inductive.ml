@@ -1286,8 +1286,7 @@ let check_is_subterm x tree =
   | Not_subterm | Subterm (_,Large,_) -> InvalidSubterm
   | Internally_bound_subterm l -> NeedReduceSubterm l
 
-(*
-let find_uniform_parameters recindx nargs bodies =
+let find_uniform_parameters recindx nargs (_, types, bodies) =
   let nbodies = Array.length bodies in
   let min_indx = Array.fold_left min nargs recindx in
   (* We work only on the i-th body but are in the context of n bodies *)
@@ -1309,7 +1308,13 @@ let find_uniform_parameters recindx nargs bodies =
         nuniformparams
     | _ -> fold_constr_with_binders succ (aux i) k nuniformparams c
   in
-  Array.fold_left_i (fun i -> aux i 0) min_indx bodies
+  let ans = Array.fold_left_i (fun i -> aux i 0) min_indx bodies in
+  (* Fixpoint types must have that many head products *)
+  let drop_pi nuniformparams typ =
+    let decls = Term.prod_decls typ in
+    min nuniformparams (Context.Rel.nhyps decls)
+  in
+  Array.fold_left drop_pi ans types
 
 (** Given a fixpoint [fix f x y z n {struct n} := phi(f x y u t, ..., f x y u' t')]
     with [z] not uniform we build in context [x:A, y:B(x), z:C(x,y)] a term
@@ -1317,7 +1322,7 @@ let find_uniform_parameters recindx nargs bodies =
     [forall (z:C(x,y)) (n:I(x,y,z)), T(x,y,z,n)], so that
     [fun x y z => psi z] is of same type as the original term *)
 
-let drop_uniform_parameters nuniformparams bodies =
+let drop_uniform_parameters_bodies nuniformparams bodies =
   let nbodies = Array.length bodies in
   let rec aux i k c =
     let f, l = decompose_app_list c in
@@ -1331,8 +1336,25 @@ let drop_uniform_parameters nuniformparams bodies =
         c
     | _ -> map_with_binders succ (aux i) k c
   in
-  Array.mapi (fun i -> aux i 0) bodies
-*)
+  let drop i body =
+    (* Drop the uniform parameters from fixpoint calls *)
+    let body = aux i 0 body in
+    let decls, body = Term.decompose_lambda_n_assum nuniformparams body in
+    (* Permute the fixpoint variables with the uniform parameters *)
+    let ndecls = List.length decls in
+    let subst = List.init ndecls (fun i -> i + 1 + nbodies) @ List.init nbodies (fun i -> i + 1) in
+    Vars.substl (List.map mkRel subst) body
+  in
+  Array.mapi drop bodies
+
+let drop_uniform_parameters nuniformparams (nas, typs, bodies) =
+  let bodies = drop_uniform_parameters_bodies nuniformparams bodies in
+  let typs = Array.map (fun typ -> Term.decompose_prod_n_assum nuniformparams typ) typs in
+  (* XXX Here we assume that well-typing of a fixpoint implies that all uniform
+     parameters have the same type. This seems very dubious to say the least. *)
+  let udecls, _ = typs.(0) in
+  let typs = Array.map snd typs in
+  udecls, (nas, typs, bodies)
 
 let pop_argument cache ?evars needreduce renv elt stack x a b =
   match needreduce, elt with
@@ -1444,6 +1466,9 @@ let check_one_fix cache ?evars renv recpos trees def =
            then f is guarded with respect to S in (g a1 ... am).
            Eduardo 7/9/98 *)
         | Fix ((recindxs,i),(_,typarray,bodies as recdef) as fix) ->
+          (* Extrude uniform parameters *)
+          let nuniformparams = find_uniform_parameters recindxs (List.length stack) recdef in
+          if Int.equal nuniformparams 0 then
             let decrArg = recindxs.(i) in
             let rs' = Array.fold_left (check_inert_subterm_rec_call renv) (NoNeedReduce::rs) typarray in
             let renv' = push_fix_renv renv recdef in
@@ -1477,6 +1502,11 @@ let check_one_fix cache ?evars renv recpos trees def =
               | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
               | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+          else
+            let udecls, recdef = drop_uniform_parameters nuniformparams recdef in
+            let recindxs = Array.map (fun i -> i - nuniformparams) recindxs in
+            let body = Term.it_mkLambda_or_LetIn (mkFix ((recindxs, i), recdef)) udecls in
+            check_rec_call_stack renv stack rs body
 
         | Const (kn,_u as cu) ->
             check_rec_call_state renv NoNeedReduce stack rs (fun () ->

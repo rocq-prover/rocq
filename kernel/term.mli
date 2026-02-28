@@ -148,6 +148,9 @@ val decompose_lambda_prod_n_decls : int -> constr -> types -> Constr.rel_context
     as given by the decreasing index + 1 *)
 val decompose_lambda_n_assum : int -> constr -> Constr.rel_context * constr
 
+(** Same as above for Prod rather than Lambda *)
+val decompose_prod_n_assum : int -> constr -> Constr.rel_context * constr
+
 (** Idem, counting let-ins *)
 val decompose_lambda_n_decls : int -> constr -> Constr.rel_context * constr
 
