@@ -12,11 +12,17 @@ Fixpoint max_list (p: nat) (l: list nat) : nat :=
   | cons n l' => max_list (Init.Nat.max n p) l'
   end.
 
-Fixpoint map {A B} (f : A -> B) (l : list A) : list B :=
+Section List.
+
+Context {A B : Type}  (f : A -> B).
+
+Fixpoint map (l : list A) : list B :=
 match l with
 | nil => nil
-| cons x l => cons (f x) (map f l)
+| cons x l => cons (f x) (map l)
 end.
+
+End List.
 
 Fixpoint depth (t: tm) : nat :=
   match t with
