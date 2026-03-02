@@ -40,6 +40,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [universe constraints erroneously discarded when forcing an asynchronous proof containing delayed monomorphic constraints inside a universe polymorphic section](#universe-constraints-erroneously-discarded-when-forcing-an-asynchronous-proof-containing-delayed-monomorphic-constraints-inside-a-universe-polymorphic-section)
       - [Set+2 incorrectly simplified to Set+1](#set2-incorrectly-simplified-to-set1)
       - [variance inference for section universes ignored use of section universes in inductives and axioms defined before the inductive being inferred](#variance-inference-for-section-universes-ignored-use-of-section-universes-in-inductives-and-axioms-defined-before-the-inductive-being-inferred)
+      - [Missing substitution for relevance of product domain in lazy](#Missing-substitution-for-relevance-of-product-domain-in-lazy)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -448,6 +449,19 @@ fix.
 - found by: Gilbert and Pédrot
 - exploit: see rocq-prover/rocq#15916
 - risk: could be used inadvertently in developments with complex universe usage, only when using cumulative inductives declared in sections. coqchk still works.
+
+#### Missing substitution for relevance of product domain in lazy
+
+- component: lazy reduction, sort polymorphism
+- introduced: V8.19 (with sort polymorphism, [1e7473812cec](https://github.com/rocq-prover/rocq/commit/1e7473812cec6e735394ca5f5fbefb9c78600893))
+- impacted released versions: V8.19 to V9.1 including patch releases
+- impacted coqchk versions: same
+- fixed in: V9.2 [rocq-prover/rocq#21697](https://github.com/rocq-prover/rocq/pull/21697)
+- found by: Tristan Stérin, Gaëtan Gilbert
+- exploit: not fully worked out, see bug_21691.v for example error
+- risk: low (needs sort polymorphism and to exploit the incorrect
+  substitution from a reduction done by the kernel instead of in the
+  higher layers)
 
 ### Primitive projections
 
