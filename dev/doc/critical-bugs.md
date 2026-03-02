@@ -41,6 +41,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Set+2 incorrectly simplified to Set+1](#set2-incorrectly-simplified-to-set1)
       - [variance inference for section universes ignored use of section universes in inductives and axioms defined before the inductive being inferred](#variance-inference-for-section-universes-ignored-use-of-section-universes-in-inductives-and-axioms-defined-before-the-inductive-being-inferred)
       - [Missing substitution for relevance of product domain in lazy](#Missing-substitution-for-relevance-of-product-domain-in-lazy)
+      - [Missing stack conversion for irrelevant-to-relevant match](#Missing-stack-conversion-for-irrelevant-to-relevant-match)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -462,6 +463,19 @@ fix.
 - risk: low (needs sort polymorphism and to exploit the incorrect
   substitution from a reduction done by the kernel instead of in the
   higher layers)
+
+#### Missing stack conversion for irrelevant-to-relevant match
+
+- component: conversion, SProp
+- introduced: V8.16 ([57081c1ae01a](https://github.com/rocq-prover/rocq/commit/57081c1ae01a742033dec44a2a42bffa08a9f5af))
+  (V8.13 with the introduction of Definitional UIP for the Definitional UIP variant)
+- impacted released versions: V8.16 to V9.1 including patch releases (V8.13 to V9.1 for Definitional UIP variant)
+- impacted coqchk versions: same
+- fixed in: V9.2 [rocq-prover/rocq#21696](https://github.com/rocq-prover/rocq/pull/21696)
+- found by: Tristan Stérin, Gaëtan Gilbert
+- exploit: see bug_21690.v
+- risk: without Definitional UIP, believed to only contradict axioms incompatible with equality reflection (i.e. no axiom-free proof of False).
+  With Definitional UIP, could be used inadvertently.
 
 ### Primitive projections
 
