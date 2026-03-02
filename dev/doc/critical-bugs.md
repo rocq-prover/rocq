@@ -25,6 +25,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker forgot to check non-structural arguments of fixpoint](#guard-checker-forgot-to-check-non-structural-arguments-of-fixpoint)
       - [guard checker incorrectly detects match on match as returning a subterm](#guard-checker-incorrectly-detects-match-on-match-as-returning-a-subterm)
       - [guard checker does incorrect reduction across inner fixpoint, accepting wrong fixpoints](#guard-checker-does-incorrect-reduction-across-inner-fixpoint-accepting-wrong-fixpoints)
+      - [guard checker does not account for cross calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-account-for-cross-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -272,6 +273,16 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: V9.0.1, V9.1.0
 - found by: Yann Leray
 - exploit / GH issue: [#20555](https://github.com/rocq-prover/rocq/issues/20555)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker does not account for cross calls to compute uniform arguments of a nested mutual fixpoint
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1
+- impacted coqchk versions: Same
+- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
+- found by: Tristan Stérin
+- exploit / GH issue: [#21682](https://github.com/rocq-prover/rocq/issues/21682)
 - risk: unknown (no development in CI was affected)
 
 ### Module system
