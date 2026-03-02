@@ -679,6 +679,10 @@ $skipped_packages"
     done
 done
 
+# postprocess full vosize log (sort by % change then absolute change)
+sort -r -n -k 5 -k 4 "$log_dir/vosize.log" > "$log_dir/vosize.sorted.log"
+mv "$log_dir/vosize.sorted.log" "$log_dir/vosize.log"
+
 # Since we do not upload all files, store a list of the files
 # available so that if we at some point want to tweak which files we
 # upload, we'll know which ones are available for upload
