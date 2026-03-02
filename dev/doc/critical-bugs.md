@@ -44,6 +44,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Missing stack conversion for irrelevant-to-relevant match](#Missing-stack-conversion-for-irrelevant-to-relevant-match)
       - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort ](#Incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
       - [Missing universe substitution in primitive array instance in lazy](#Missing-universe-substitution-in-primitive-array-instance-in-lazy)
+      - [double universe substitution in letins from indices in match return clause](#Double-universe-substitution-in-letins-from-indices-in-match-return-clause)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -501,6 +502,19 @@ fix.
 - found by: Tristan Stérin, Gaëtan Gilbert
 - exploit: not fully worked out, see bug_21692.v for example error
 - risk: low, the instance on primitive array literals is irrelevant for conversion
+
+#### Double universe substitution in letins from indices in match return clause
+
+- component: conversion
+- introduced: V8.14 ([d72e5c154f](https://github.com/rocq-prover/rocq/commit/d72e5c154faeea1d55387bc8c039d97f63ebd1c4))
+- impacted released versions: V8.14 to V9.1 including patch releases
+- impacted coqchk versions: same
+- fixed in: V9.2 [rocq-prover/rocq#21688](https://github.com/rocq-prover/pull/21688)
+- found by: Gaëtan Gilbert
+- exploit: no full exploit known, anomaly in bug_21689.v
+- risk: low (needs to use universe substitution in letin from the
+  inductive indices to incorrectly convert match return clauses and
+  somehow derive inconsistency from there)
 
 ### Primitive projections
 

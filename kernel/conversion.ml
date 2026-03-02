@@ -285,12 +285,11 @@ let eta_expand_constructor env ((ind,ctor),u as pctor) =
   let c = Term.it_mkLambda_or_LetIn c ctx in
   inject c
 
-let esubst_of_context ctx u args e =
+let esubst_of_context ctx args e =
   let rec aux lft e args ctx = match ctx with
   | [] -> lft, e
   | None :: ctx -> aux (lft + 1) (usubs_lift e) (usubs_lift args) ctx
   | Some c :: ctx ->
-    let c = Vars.subst_instance_constr u c in
     let c = mk_clos args c in
     aux lft (usubs_cons c e) (usubs_cons c args) ctx
   in
@@ -905,9 +904,9 @@ and convert_under_context l2r infos e1 e2 lft1 lft2 ctx (nas1, c1) (nas2, c2) cu
     let e1 = usubs_liftn n e1 in
     let e2 = usubs_liftn n e2 in
     (n, e1, e2)
-  | Some (ctx, u1, u2, args1, args2) ->
-    let n1, e1 = esubst_of_context ctx u1 args1 e1 in
-    let n2, e2 = esubst_of_context ctx u2 args2 e2 in
+  | Some (ctx, args1, args2) ->
+    let n1, e1 = esubst_of_context ctx args1 e1 in
+    let n2, e2 = esubst_of_context ctx args2 e2 in
     let () = assert (Int.equal n1 n2) in
     n1, e1, e2
   in
@@ -926,7 +925,7 @@ and convert_return_clause mib mip l2r infos e1 e2 l1 l2 u1 u2 pms1 pms2 p1 p2 cu
       let open Context.Rel.Declaration in
       (* Add the inductive binder *)
       let ctx = None :: List.map get_value ctx in
-      Some (ctx, u1, u2, pms1, pms2)
+      Some (ctx, pms1, pms2)
   in
   convert_under_context l2r infos e1 e2 l1 l2 ctx (fst p1) (fst p2) cu
 
@@ -939,7 +938,7 @@ and convert_branches mib mip l2r infos e1 e2 lft1 lft2 u1 u2 pms1 pms2 br1 br2 c
         let ctx = List.map Context.Rel.Declaration.get_value ctx in
         let pms1 = inductive_subst mib u1 pms1 in
         let pms2 = inductive_subst mib u2 pms2 in
-        Some (ctx, u1, u2, pms1, pms2)
+        Some (ctx, pms1, pms2)
     in
     let c1 = br1.(i) in
     let c2 = br2.(i) in
