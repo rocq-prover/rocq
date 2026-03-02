@@ -753,6 +753,10 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       let cuniv = Array.fold_right2 fold pms1 pms2 cuniv in
       let cuniv = Array.fold_right2 fold (get_invert iv1) (get_invert iv2) cuniv in
       let cuniv = convert_return_clause mind mip l2r infos e1 e2 el1 el2 u1 u2 pms1 pms2 p1 p2 cuniv in
+      (* not clear if we need to pass both u1 and u2 as
+         convert_inductives should have enforced that they are
+         equivalent when used to instantiate this inductive's
+         components, but we may as well *)
       let cuniv = convert_branches mind mip l2r infos e1 e2 el1 el2 u1 u2 pms1 pms2 br1 br2 cuniv in
       convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
 
@@ -900,7 +904,7 @@ and convert_return_clause mib mip l2r infos e1 e2 l1 l2 u1 u2 pms1 pms2 p1 p2 cu
     else
       let ctx, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
       let pms1 = inductive_subst mib u1 pms1 in
-      let pms2 = inductive_subst mib u1 pms2 in
+      let pms2 = inductive_subst mib u2 pms2 in
       let open Context.Rel.Declaration in
       (* Add the inductive binder *)
       let ctx = None :: List.map get_value ctx in
