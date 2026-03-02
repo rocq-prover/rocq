@@ -1287,6 +1287,8 @@ let check_is_subterm x tree =
 
 let find_uniform_parameters recindx nargs bodies =
   let nbodies = Array.length bodies in
+  (* Ensure that the structural argument is not uniform,
+     so that it stays in [non_absorbed_stack] *)
   let min_indx = Array.fold_left min nargs recindx in
   (* We work only on the i-th body but are in the context of n bodies *)
   let rec aux i k nuniformparams c =
@@ -1338,7 +1340,10 @@ let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
     | a :: stack ->
       let uniform, nuniformparams = if nuniformparams = 0 then false, 0 else true, nuniformparams -1 in
       let a =
-        if uniform || Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
+        if uniform then a
+        else if Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
+        (* We forget the needreduce status of the structural argument here,
+           since it's checked in [non_absorbed_stack]. *)
         else
           (* deactivate the status of non-uniform parameters since we
              cannot guarantee that they are preserve in the recursive
