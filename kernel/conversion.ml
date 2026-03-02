@@ -429,7 +429,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
         let rn = Range.get (info_relevances infos.cnv_inf) (n - 1) in
         let rm = Range.get (info_relevances infos.cnv_inf) (m - 1) in
         if is_irrelevant infos.cnv_inf rn && is_irrelevant infos.cnv_inf rm then
-          let v1 = CClosure.skip_irrelevant_stack infos.cnv_inf v2 in
+          let v1 = CClosure.skip_irrelevant_stack infos.cnv_inf v1 in
           let v2 = CClosure.skip_irrelevant_stack infos.cnv_inf v2 in
           convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
         else if Int.equal n m then
