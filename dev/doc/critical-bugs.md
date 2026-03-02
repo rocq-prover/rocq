@@ -42,6 +42,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [variance inference for section universes ignored use of section universes in inductives and axioms defined before the inductive being inferred](#variance-inference-for-section-universes-ignored-use-of-section-universes-in-inductives-and-axioms-defined-before-the-inductive-being-inferred)
       - [Missing substitution for relevance of product domain in lazy](#Missing-substitution-for-relevance-of-product-domain-in-lazy)
       - [Missing stack conversion for irrelevant-to-relevant match](#Missing-stack-conversion-for-irrelevant-to-relevant-match)
+      - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort ](#Incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -476,6 +477,18 @@ fix.
 - exploit: see bug_21690.v
 - risk: without Definitional UIP, believed to only contradict axioms incompatible with equality reflection (i.e. no axiom-free proof of False).
   With Definitional UIP, could be used inadvertently.
+
+#### Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort
+
+- component: sections, sort polymorphism
+- introduced: V9.1 ([0706a177b5cb](https://github.com/rocq-prover/rocq/commit/0706a177b5cb4c829108ec8953d6087161ddb8b4))
+- impacted released versions: V9.1 including patch releases
+- impacted coqchk versions: none
+- fixed in: V9.2 [rocq-prover/rocq#21699](https://github.com/rocq-prover/rocq/pull/21699)
+- found by: Tristan Stérin, Gaëtan Gilbert
+- exploit: bug_21694.v
+- risk: needs a sort polymorphic inductive declared in a section with
+  a section polymorphic sort and sort polymorphism in the inductive command (cf bug file)
 
 ### Primitive projections
 
