@@ -43,6 +43,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Missing substitution for relevance of product domain in lazy](#Missing-substitution-for-relevance-of-product-domain-in-lazy)
       - [Missing stack conversion for irrelevant-to-relevant match](#Missing-stack-conversion-for-irrelevant-to-relevant-match)
       - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort ](#Incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
+      - [Missing universe substitution in primitive array instance in lazy](#Missing-universe-substitution-in-primitive-array-instance-in-lazy)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -489,6 +490,17 @@ fix.
 - exploit: bug_21694.v
 - risk: needs a sort polymorphic inductive declared in a section with
   a section polymorphic sort and sort polymorphism in the inductive command (cf bug file)
+
+#### Missing universe substitution in primitive array instance in lazy
+
+- component: lazy, primitive arrays
+- introduced: V8.17 ([2db83c8a7e5b](https://github.com/rocq-prover/rocq/commit/2db83c8a7e5b823d2c8d25ef07dac40b38408d3c))
+- impacted released versions: V8.17 to V9.1 including patch releases
+- impacted coqchk versions: same
+- fixed in: V9.2 [rocq-prover/rocq#21698](https://github.com/rocq-prover/rocq/pull/21698)
+- found by: Tristan Stérin, Gaëtan Gilbert
+- exploit: not fully worked out, see bug_21692.v for example error
+- risk: low, the instance on primitive array literals is irrelevant for conversion
 
 ### Primitive projections
 
