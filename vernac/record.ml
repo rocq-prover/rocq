@@ -580,7 +580,7 @@ let collect_elim_cstrs elim_cstrs_map proj_type =
 
 (* Checks whether the record's quality can be eliminated into the projection's
    quality. If not, then it adds the elimination constraint. *)
-let check_add_elimination_constraints ~primitive (entry, binders as univs) elim_cstrs_map record_quality proj_typ =
+let check_add_elimination_constraints ~primitive univs elim_cstrs_map record_quality proj_typ =
   (* When the record has primitive projections, then the constraints are added to the record itself,
    * not to the projections *)
   if primitive then univs, None
@@ -594,7 +594,7 @@ let check_add_elimination_constraints ~primitive (entry, binders as univs) elim_
     let qgraph = try add_quality proj_quality qgraph with AlreadyDeclared -> qgraph in
     if eliminates_to qgraph record_quality proj_quality then univs, None
     else
-      let entry, new_field_elim_cstrs = match entry with
+      let entry, new_field_elim_cstrs = match univs.UState.universes_entry_universes with
         | UState.Polymorphic_entry (uctx, variances) ->
           let open Sorts in
           let new_elim_cstr = record_quality, ElimConstraint.ElimTo, proj_quality in
@@ -604,9 +604,9 @@ let check_add_elimination_constraints ~primitive (entry, binders as univs) elim_
           let elim_cstrs' = ElimConstraints.union related_elim_cstrs elim_cstrs' in
           let uctx' = UVars.UContext.make (UVars.UContext.names uctx) (UVars.UContext.instance uctx, (elim_cstrs', univ_cstrs)) in
           UState.Polymorphic_entry (uctx', variances), Some elim_cstrs'
-        | _ -> entry, None
+        | u -> u, None
       in
-      (entry, binders), new_field_elim_cstrs
+      UState.{ univs with universes_entry_universes = entry }, new_field_elim_cstrs
 
 (* TODO: refactor the declaration part here; this requires some
    surgery as Evarutil.finalize is called too early in the path *)

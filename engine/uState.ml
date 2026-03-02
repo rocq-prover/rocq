@@ -893,7 +893,7 @@ let instantiate_variable l (b : Universe.t) local =
        | Loop_checking.OccurCheck -> UGraph.enforce_constraint (Universe.make l, Eq, b) local.universes
        | UGraph.InconsistentEquality ->
       debug Pp.(fun () -> str"Inconsistent equality!");
-      sort_inconsistency Eq (Sorts.sort_of_univ (Universe.make l)) (Sorts.sort_of_univ b)
+      univ_inconsistency Eq (Sorts.sort_of_univ (Universe.make l)) (Sorts.sort_of_univ b)
   in
   let equivs = (l, b) :: List.map (fun (l, u) -> l, Universe.of_expr u) equivs in
   debug Pp.(fun () -> str"Equivalences from set: " ++ pr_level_equiv equivs);
@@ -985,13 +985,13 @@ let process_constraints ?src uctx cstrs =
     in
     if UGraph.check_eq_sort Sorts.Quality.equal local.universes ls s then local
     else if is_uset l then match classify s with
-    | USmall _ -> sort_inconsistency Eq set s
+    | USmall _ -> univ_inconsistency Eq set s
     | ULevel (r, _) ->
       if is_flexible local r then
         try instantiate_variable r Universe.type0 local
         with UGraph.OccurCheck -> assert false
       else
-        sort_inconsistency Eq set s
+        univ_inconsistency Eq set s
     | UAlgebraic u ->
       let inst = univ_level_rem Level.set u u in
       let repr = Univ.Universe.repr inst in
@@ -1006,8 +1006,8 @@ let process_constraints ?src uctx cstrs =
               | Some u -> instantiate_univ local (Univ.Universe.repr u)
             with UGraph.OccurCheck -> assert false) local repr
         in instantiate_univ local repr
-      else sort_inconsistency Eq ls s
-    else sort_inconsistency Eq ls s
+      else univ_inconsistency Eq ls s
+    else univ_inconsistency Eq ls s
   in
   let equalize_variables fo l' r' local =
     if Level.equal l' r' then local
@@ -1071,24 +1071,24 @@ let process_constraints ?src uctx cstrs =
                 equalize_variables false l' Level.set local
               else
                 let l = Sorts.sort_of_univ @@ Universe.make l' in
-                sort_inconsistency Le l r
+                univ_inconsistency Le l r
             in
             Level.Set.fold fold (Universe.levels ul) local
           else
-            sort_inconsistency Le l r
+            univ_inconsistency Le l r
         else
           (* l contains a +1 and r=r' small so l <= r impossible *)
-          sort_inconsistency Le l r
+          univ_inconsistency Le l r
       | USmall l' ->
         if UGraph.check_leq_sort Sorts.Quality.equal local.universes l r then local
-        else sort_inconsistency Le l r
+        else univ_inconsistency Le l r
       | ULevel (l', _) ->
         if is_uset r' && is_flexible local l' then
           (* Unbounded universe constrained from above, we equalize it *)
           (try instantiate_variable l' Universe.type0 local
             with UGraph.OccurCheck -> assert false)
         else
-          sort_inconsistency Le l r
+          univ_inconsistency Le l r
       end
     | ULevel (_, r') | UAlgebraic r' ->
       (* We insert the constraint in the graph even if the graph
@@ -1105,7 +1105,7 @@ let process_constraints ?src uctx cstrs =
         { local with minim_extra }
       | USmall USProp ->
         if UGraph.type_in_type local.universes then local
-        else sort_inconsistency Le l r
+        else univ_inconsistency Le l r
       | USmall USet ->
         let minim_extra = UnivMinim.{ local.minim_extra with above_zero = Level.Set.union (Universe.levels r') local.minim_extra.above_zero } in
         let local = { local with minim_extra } in
@@ -1116,7 +1116,7 @@ let process_constraints ?src uctx cstrs =
   in
   let unify_universes cst local =
     let cst = nf_constraint local cst in
-    (* TODO sort_inconsistency should be able to handle raw
+    (* TODO univ_inconsistency should be able to handle raw
        qualities instead of having to make a dummy sort *)
     let mk q = Sorts.make q Universe.type0 in
     if UnivProblem.is_trivial cst then local
@@ -1640,7 +1640,7 @@ let univ_flexible = UnivFlexible
 (** ~sideff indicates that it is ok to redeclare a universe.
     Also merges the universe context in the local constraint structures
     and not only in the graph. *)
-let merge_universe_context ?loc ~sideff rigid uctx uctx' =
+let merge_universe_context_set ?loc ~sideff rigid uctx uctx' =
   if Univ.ContextSet.is_empty uctx' then uctx
   else
     let () = debug Pp.(fun () -> str"merge (sideff: " ++ bool sideff ++ str"):  " ++ Univ.ContextSet.pr (pr_uctx_level uctx) uctx' ++

@@ -2144,7 +2144,7 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
       let rec_declaration = prepare_recursive_declaration pinfo.cinfo fixtypes fixrelevances fixbodies in
       let typing_flags = pinfo.info.typing_flags in
       let proofs, sigma, _ = (make_recursive_bodies ~sigma:evd env ~typing_flags ~possible_guard ~rec_declaration) in
-      proofs, evd
+      proofs
   in
   let proofs = List.map (fun (body, typ) -> (body, Some typ)) proofs in
   let () = if warn_incomplete then check_incomplete_proof evd in
