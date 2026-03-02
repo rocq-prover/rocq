@@ -1009,19 +1009,18 @@ let check_compatibility env pbty flags subst tyM tyN =
       | None -> error_cannot_unify env sigma (m,n)
     else sigma
 
-let check_compatibility_ustate env pbty flags subst tyM tyN =
+let check_compatibility_nounivs env flags subst tyM tyN =
   let sigma = subst.subst_sigma in
   match subst_defined_metas_evars sigma (subst.subst_metam, subst.subst_metas, []) tyM with
-  | None -> UnivProblem.Set.empty
+  | None -> ()
   | Some m ->
   match subst_defined_metas_evars sigma (subst.subst_metam, subst.subst_metas, []) tyN with
-  | None -> UnivProblem.Set.empty
+  | None -> ()
   | Some n ->
     if is_ground_term sigma m && is_ground_term sigma n then
-      match infer_conv_ustate ~pb:pbty ~ts:flags.modulo_delta_types env sigma m n with
-      | Some uprob -> uprob
-      | None -> error_cannot_unify env sigma (m,n)
-    else UnivProblem.Set.empty
+      if is_conv_nounivs ~reds:flags.modulo_delta_types env sigma m n then ()
+      else error_cannot_unify env sigma (m,n)
+    else ()
 
 let rec is_neutral env sigma ts t =
   let (f, l) = decompose_app sigma t in
@@ -1473,22 +1472,18 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
         (* No subterm restriction there, too much incompatibilities
            don't care about universes from comparing the types
         *)
-         let _ : UnivProblem.Set.t =
-           if opt.with_types then
-             try (* Ensure we call conversion on terms of the same type *)
-               let tyM = get_type_of curenv ~lax:true sigma m1 in
-               let tyN = get_type_of curenv ~lax:true sigma n1 in
-               check_compatibility_ustate curenv CUMUL flags substn tyM tyN
-             with RetypeError _ ->
-               (* Renounce, maybe metas/evars prevents typing *) UnivProblem.Set.empty
-           else UnivProblem.Set.empty
-         in
-        match infer_conv_ustate ~pb ~ts:convflags curenv sigma m1 n1 with
-        | Some uprob ->
-          begin match Evd.add_constraints sigma uprob with
-          | sigma -> Some (push_sigma sigma substn)
-          | exception (UGraph.UniverseInconsistency _ | UniversesDiffer) -> None
-          end
+        let () =
+          if opt.with_types then
+            try (* Ensure we call conversion on terms of the same type *)
+              let tyM = get_type_of curenv ~lax:true sigma m1 in
+              let tyN = get_type_of curenv ~lax:true sigma n1 in
+              check_compatibility_nounivs curenv flags substn tyM tyN
+            with RetypeError _ ->
+              (* Renounce, maybe metas/evars prevents typing *) ()
+          else ()
+        in
+        match infer_conv ~pb ~ts:convflags curenv sigma m1 n1 with
+        | Some sigma -> Some (push_sigma sigma substn)
         | None ->
           if is_ground_term sigma m1 && is_ground_term sigma n1 then
             error_cannot_unify curenv sigma (cM,cN)

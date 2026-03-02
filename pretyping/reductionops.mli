@@ -255,6 +255,8 @@ val is_conv : ?reds:TransparentState.t -> env -> evar_map -> constr -> constr ->
 val is_conv_leq : ?reds:TransparentState.t -> env -> evar_map -> constr -> constr -> bool
 val is_fconv : ?reds:TransparentState.t -> conv_pb -> env -> evar_map -> constr -> constr -> bool
 
+val is_conv_nounivs : ?reds:TransparentState.t -> env -> evar_map -> constr -> constr -> bool
+
 (** [infer_conv] Adds necessary universe constraints to the evar map.
     pb defaults to CUMUL and ts to a full transparent state.
     @raise UniverseInconsistency iff catch_incon is set to false,
@@ -262,9 +264,6 @@ val is_fconv : ?reds:TransparentState.t -> conv_pb -> env -> evar_map -> constr 
  *)
 val infer_conv : ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t ->
   env -> evar_map -> constr -> constr -> evar_map option
-
-val infer_conv_ustate : ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t ->
-  env -> evar_map -> constr -> constr -> UnivProblem.Set.t option
 
 (** Conversion with inference of universe constraints *)
 val vm_infer_conv : ?pb:conv_pb -> env -> evar_map -> constr -> constr ->

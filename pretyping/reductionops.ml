@@ -1266,6 +1266,30 @@ let is_conv ?(reds=TransparentState.full) env sigma x y =
 let is_conv_leq ?(reds=TransparentState.full) env sigma x y =
   is_fconv ~reds Conversion.CUMUL env sigma x y
 
+let is_conv_nounivs ?(reds=TransparentState.full) env sigma t1 t2 =
+  if EConstr.eq_constr_nounivs sigma t1 t2 then true
+  else
+    let evars = Evd.evar_handler sigma in
+    let t1 = EConstr.Unsafe.to_constr t1 in
+    let t2 = EConstr.Unsafe.to_constr t2 in
+    try
+      let env = Environ.set_universes (Evd.universes sigma) env in
+      let ignore_univs = let open Conversion in {
+        compare_sorts = (fun _ _ _ () -> Ok ());
+        compare_instances = (fun ~flex:_ _ _ () -> Ok ());
+        compare_cumul_instances = (fun _ _ _ _ () -> Ok ());
+      }
+      in
+      begin match Conversion.generic_conv ~l2r:false CONV ~evars reds env ((), ignore_univs) t1 t2 with
+      | Result.Ok () -> true
+      | Result.Error None -> false
+      | Result.Error (Some e) -> Empty.abort e
+      end
+    with
+    | e ->
+      let e = Exninfo.capture e in
+      report_anomaly e
+
 let sigma_compare_sorts pb s0 s1 sigma =
   match pb with
   | Conversion.CONV ->
@@ -1371,34 +1395,6 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
 
 let infer_conv = infer_conv_gen { genconv = fun pb ~l2r sigma ->
       Conversion.generic_conv pb ~l2r ~evars:(Evd.evar_handler sigma) }
-
-let infer_conv_ustate ?(catch_incon=true) ?(pb=Conversion.CUMUL)
-    ?(ts=TransparentState.full) env sigma x y =
-  try
-      let ans = match pb with
-      | Conversion.CUMUL ->
-          EConstr.leq_constr_universes env sigma x y
-      | Conversion.CONV ->
-          EConstr.eq_constr_universes env sigma x y
-      in
-      match ans with
-      | Some cstr -> Some cstr
-      | None ->
-        let x = EConstr.Unsafe.to_constr x in
-        let y = EConstr.Unsafe.to_constr y in
-        let env = Environ.set_universes (Evd.universes sigma) env in
-        match
-          Conversion.generic_conv pb ~l2r:false ~evars:(Evd.evar_handler sigma) ts
-            env (UnivProblem.Set.empty, univproblem_univ_state) x y
-        with
-        | Result.Ok cstr -> Some cstr
-        | Result.Error None -> None
-        | Result.Error (Some e) -> Empty.abort e
-  with
-  | UGraph.UniverseInconsistency _ when catch_incon -> None
-  | e ->
-    let e = Exninfo.capture e in
-    report_anomaly e
 
 let evars_of_evar_map sigma =
   { Genlambda.evars_val = Evd.evar_handler sigma }
