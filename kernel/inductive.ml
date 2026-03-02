@@ -1294,8 +1294,8 @@ let find_uniform_parameters recindx nargs bodies =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
-      (* A recursive reference to the i-th body *)
-      if Int.equal n (nbodies + k - i) then
+      (* A recursive reference to any one of the mutual fixpoints *)
+      if n > k && n <= k + nbodies then
         List.fold_left_i (fun j nuniformparams a ->
             match kind a with
             | Rel m when Int.equal m (k - j) ->
