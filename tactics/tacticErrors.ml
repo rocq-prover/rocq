@@ -193,7 +193,7 @@ let tactic_interp_error_handler = function
       str "Applied theorem does not have enough premises."
   | NeedDependentProduct ->
       str "Needs a non-dependent product."
-  | _ -> raise Unhandled
+  | _ -> raise_notrace Unhandled
 
 let wrap_unhandled f e =
   try Some (f e)
