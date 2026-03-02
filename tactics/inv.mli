@@ -23,9 +23,6 @@ val inv_clause :
   inversion_kind -> or_and_intro_pattern option -> Id.t list ->
     quantified_hypothesis -> unit Proofview.tactic
 
-val inv : inversion_kind -> or_and_intro_pattern option ->
-  quantified_hypothesis -> unit Proofview.tactic
-
 val dinv : inversion_kind -> constr option ->
   or_and_intro_pattern option -> quantified_hypothesis -> unit Proofview.tactic
 
