@@ -362,6 +362,18 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: see issue
 - risk: could be exploited by mistake when using heavy module machinery
 
+#### Incorrect subtyping rule for universe polymorphic "with Definition".
+
+- component: modules
+- introduced: 8.5
+- impacted released versions: 8.5-9.1
+- impacted coqchk version: none
+- fixed in: V9.2.0
+- found by: Tristan Stérin
+- GH issue number: rocq-prover/rocq#21702
+- exploit: see issue
+- risk: moderate, requires uncommon features
+
 ### Universes
 
 #### issue with two parameters in the same universe level
