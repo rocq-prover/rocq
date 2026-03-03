@@ -349,6 +349,18 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: see issue
 - risk: could be exploited by mistake when using heavy module machinery
 
+#### Missing substitution when strengthening aliased functors
+
+- component: modules
+- introduced: 8.5 for the kernel (c5b699f), 8.10 for the checker (#8773)
+- impacted released versions: 8.5-9.1
+- impacted coqchk version: 8.10-9.1
+- fixed in: V9.2.0
+- found by: Tristan Stérin
+- GH issue number: rocq-prover/rocq#21685
+- exploit: see issue
+- risk: could be exploited by mistake when using heavy module machinery
+
 ### Universes
 
 #### issue with two parameters in the same universe level

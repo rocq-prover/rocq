@@ -270,7 +270,8 @@ let rec strengthen_and_subst_module mb subst mp_from mp_to =
   | NoFunctor struc ->
     let delta_mb = get_global_delta mb in
     let mb_is_an_alias = mp_in_delta mp_from delta_mb in
-    if mb_is_an_alias then subst_module subst_dom subst mp_from mb
+    if mb_is_an_alias then
+      subst_module subst_dom_codom subst mp_from mb
     else
       let reso',struc' =
         strengthen_and_subst_struct struc subst
@@ -331,7 +332,7 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
         let mp_from' = MPdot (mp_from,l) in
         let mp_to' = MPdot (mp_to,l) in
         let mb' = if alias then
-          subst_module subst_dom subst mp_from' mb
+          subst_module subst_dom_codom subst mp_from' mb
         else
           strengthen_and_subst_module mb subst mp_from' mp_to'
         in
