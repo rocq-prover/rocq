@@ -553,7 +553,9 @@ let subset_prefixed_by mp resolver =
   in
   Deltamap.fold mp_prefix kn_prefix resolver (empty_delta_resolver mp)
 
-let subst_dom_delta_resolver subst resolver =
+let subst_dom_delta_resolver mp_from mp_to resolver =
+  let () = assert (ModPath.equal mp_from resolver.Deltamap.root) in
+  let subst = map_mp mp_from mp_to (empty_delta_resolver mp_to) in
   let mp_apply_subst mkey mequ rslv =
     Deltamap.add_mp (subst_mp subst mkey) mequ rslv
   in
@@ -570,8 +572,7 @@ let subst_mp_delta subst mp mkey =
     (* root(resolve) ⊆ mp' *)
       let mp1 = find_prefix resolve mp' in
       let resolve1 = subset_prefixed_by mp1 resolve in
-      (subst_dom_delta_resolver
-         (map_mp mp1 mkey (empty_delta_resolver mkey)) resolve1), mp1
+      subst_dom_delta_resolver mp1 mkey resolve1, mp1
 
 let gen_subst_delta_resolver dom subst resolver =
   let mp_apply_subst mkey mequ rslv =

@@ -94,8 +94,9 @@ val map_mp :
 val join : substitution -> substitution -> substitution
 
 
-(** Apply the substitution on the domain of the resolver  *)
-val subst_dom_delta_resolver : substitution -> delta_resolver -> delta_resolver
+(** [subst_dom_delta_resolver mpfrom mpto delta] substitutes the root of the
+    resolver [delta] from [mpfrom] to [mpto], i.e. performs α-equivalence. *)
+val subst_dom_delta_resolver : ModPath.t -> ModPath.t -> delta_resolver -> delta_resolver
 
 (** Apply the substitution on the codomain of the resolver  *)
 val subst_codom_delta_resolver :
