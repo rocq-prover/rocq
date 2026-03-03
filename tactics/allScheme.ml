@@ -44,9 +44,8 @@ let init_value env uparams =
       | Some _ ->
           aux (push_rel decl env) tel
       | None   ->
-          let ty = Reduction.whd_all env (get_type decl) in
           let (env, init_value) = aux (push_rel decl env) tel in
-          (env, Term.isArity ty :: init_value)
+          (env, Reduction.is_arity env (get_type decl) :: init_value)
     in
     aux env (List.rev uparams)
 
