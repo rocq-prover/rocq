@@ -1635,3 +1635,13 @@ Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.TestWarning.MRT_ind
 Declared in library nested_eliminators, line 403, characters 2-55
+Nester_all@{α ; u} :
+forall X : unit -> P unit,
+(forall u u0 : unit, X u u0 -> Type@{α ; u}) ->
+Nester X -> Type@{max(P.u1,u)}
+(* α ; *u |=  *)
+
+Nester_all is universe polymorphic
+Arguments Nester_all (X PX)%_function_scope n
+Expands to: Inductive nested_eliminators.DeepArities.Nester_all
+Declared in library nested_eliminators, line 417, characters 2-24

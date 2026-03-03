@@ -406,3 +406,15 @@ Module TestWarning.
   About MRT_ind.
 
 End TestWarning.
+
+
+
+Module DeepArities.
+  Definition P A := A -> Type.
+
+  Inductive Nester (X : unit -> P unit) : Type :=
+  | nester_intro : X tt tt -> Nester X.
+  Scheme All for Nester.
+
+  About Nester_all.
+End DeepArities.
