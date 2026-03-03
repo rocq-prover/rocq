@@ -22,7 +22,7 @@ end
 type t
 
 (** default strict:true, accumulate_errors:false *)
-val empty_env : ?strict:bool -> ?accumulate_errors:bool -> unit -> t
+val empty_env : ?strict:bool -> ?accumulate_errors:bool -> UnivNames.universe_binders -> unit -> t
 
 (** In accumulate mode, add the error to the list in the env. Otherwise raise UserError. *)
 val add_error : ?loc:Loc.t -> t -> Pp.t -> unit
@@ -33,6 +33,8 @@ val get_errors : t -> Pp.t Loc.located list
 val set_rec : (KerName.t * int) Id.Map.t -> t -> t
 
 val reject_unbound_tvar : t -> t
+
+val env_univs : t -> UnivNames.universe_binders
 
 val env_strict : t -> bool
 

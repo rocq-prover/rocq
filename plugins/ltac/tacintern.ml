@@ -44,7 +44,7 @@ type glob_sign = Genintern.glob_sign = {
   strict_check : bool;
 }
 
-let make_empty_glob_sign ~strict = Genintern.empty_glob_sign ~strict (Global.env ())
+let make_empty_glob_sign ~strict = Genintern.empty_glob_sign ~strict (Global.env ()) UnivNames.empty_binders
 
 (* We have identifier <| global_reference <| constr *)
 
@@ -215,15 +215,10 @@ let intern_binding_name ist x =
      and if a term w/o ltac vars, check the name is indeed quantified *)
   x
 
-let intern_constr_gen pattern_mode isarity {ltacvars=lfun; genv=env; extra; intern_sign; strict_check} c =
+let intern_constr_gen pattern_mode isarity ist c =
   let scope = if isarity then Pretyping.IsType else Pretyping.WithoutTypeConstraint in
-  let ltacvars = {
-    Constrintern.ltac_vars = lfun;
-    ltac_bound = Id.Set.empty;
-    ltac_extra = extra;
-  } in
-  let c' = Constrintern.intern_core scope ~strict_check ~pattern_mode ~ltacvars env Evd.(from_env env) intern_sign c in
-  (c',if strict_check then None else Some c)
+  let c' = Constrintern.intern_core scope ~pattern_mode ist c in
+  (c',if ist.strict_check then None else Some c)
 
 let intern_constr = intern_constr_gen false false
 let intern_type = intern_constr_gen false true
@@ -710,10 +705,10 @@ let intern_ltac_in_term ?loc:_ ist tac =
 let glob_tactic x =
   intern_pure_tactic (make_empty_glob_sign ~strict:true) x
 
-let glob_tactic_env l env x =
+let glob_tactic_env l env univs x =
   let ltacvars =
     List.fold_left (fun accu x -> Id.Set.add x accu) Id.Set.empty l in
-  intern_pure_tactic { (Genintern.empty_glob_sign ~strict:true env) with ltacvars } x
+  intern_pure_tactic { (Genintern.empty_glob_sign ~strict:true env univs) with ltacvars } x
 
 let intern_strategy ist s =
   let open RewriteStratAst in

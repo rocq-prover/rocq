@@ -123,9 +123,11 @@ type t = {
   (** True iff in strict mode *)
   env_errs : error list ref option;
   (** [None] if raise on first error, [Some] if accumulate errors *)
+  env_univs : UnivNames.universe_binders;
+  (** Local universe names *)
 }
 
-let empty_env ?(strict=true) ?(accumulate_errors=false) () = {
+let empty_env ?(strict=true) ?(accumulate_errors=false) univs () = {
   env_var = Id.Map.empty;
   env_cst = UF.create ();
   env_als = ref Id.Map.empty;
@@ -133,6 +135,7 @@ let empty_env ?(strict=true) ?(accumulate_errors=false) () = {
   env_rec = Id.Map.empty;
   env_strict = strict;
   env_errs = if accumulate_errors then Some (ref []) else None;
+  env_univs = univs;
 }
 
 let add_error ?loc env msg =
@@ -146,6 +149,8 @@ let get_errors env =
   | Some errs -> !errs
 
 let env_strict env = env.env_strict
+
+let env_univs env = env.env_univs
 
 let set_rec self env = { env with env_rec = self }
 

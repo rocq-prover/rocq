@@ -2731,6 +2731,7 @@ let genarg self genv env lvar ?loc gen =
   (* Propagating enough information for mutual interning with tac-in-term *)
   let intern_sign = {
     Genintern.intern_ids = env.ids;
+    Genintern.intern_univs = env.local_univs.bound;
     Genintern.notation_variable_status = ntnvars
   } in
   let ist = {
@@ -2963,14 +2964,28 @@ let interp_constr_pattern env sigma ?as_type ?strict_check c =
   let ids, pat = intern_constr_pattern env sigma ?as_type ?strict_check c in
   ids, Patternops.interp_pattern env sigma Glob_ops.empty_lvar pat
 
-let intern_core kind env sigma ?strict_check ?(pattern_mode=false) ?(ltacvars=empty_ltac_sign)
-      { Genintern.intern_ids = ids; Genintern.notation_variable_status = vl } c =
-  let tmp_scope = scope_of_type_kind env sigma kind in
+let intern_core kind ?(pattern_mode=false) ist c =
+  let env = ist.Genintern.genv in
+  let Genintern.{
+      intern_ids = ids;
+      notation_variable_status = vl;
+      intern_univs = local_univs;
+    } = ist.intern_sign
+  in
+  let ltacvars = {
+    ltac_vars = ist.ltacvars;
+    ltac_bound = Id.Set.empty;
+    ltac_extra = ist.extra;
+  }
+  in
+  (* Evd.from_env: in practice kind is never OfType so evar map doesn't matter
+     maybe should change intern_core API to take is_arity:bool instead of typing constraint? *)
+  let tmp_scope = scope_of_type_kind env (Evd.from_env env) kind in
   let impls = empty_internalization_env in
   let k = allowed_binder_kind_of_type_kind kind in
   internalize env
-    {ids; strict_check; pattern_mode;
-     local_univs = { bound = bound_univs sigma; unb_univs = true };
+    {ids; strict_check = Some ist.strict_check; pattern_mode;
+     local_univs = { bound = local_univs; unb_univs = not ist.strict_check };
      tmp_scope; scopes = []; impls;
      binder_block_names = Some (Some k); ntn_binding_ids = Id.Set.empty}
     (ltacvars, vl) c
