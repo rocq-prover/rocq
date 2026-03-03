@@ -111,6 +111,16 @@ let cook_projection cache ~params t =
   let _, t = decompose_prod_n_decls (Context.Rel.length params + 1 + nrels) t in
   t
 
+let lift_squashed info = let open Declarations in function
+  | AlwaysSquashed -> AlwaysSquashed
+  | SometimesSquashed s ->
+    let s = Sorts.Quality.Set.fold (fun x acc ->
+        let x = lift_quality info x in
+        Sorts.Quality.Set.add x acc)
+        s Sorts.Quality.Set.empty
+    in
+    SometimesSquashed s
+
 let cook_one_ind info cache ~params ~ntypes mip =
   let mind_user_arity = abstract_as_type cache mip.mind_user_arity in
   let mind_sort = abstract_as_sort cache mip.mind_sort in
@@ -130,6 +140,7 @@ let cook_one_ind info cache ~params ~ntypes mip =
         let relevances = Array.map (lift_relevance info) relevances in
         PrimRecord { pinfo with relevances ; tys }
   in
+  let squashed = Option.map (lift_squashed info) mip.mind_squashed in
 
   { mind_typename = mip.mind_typename;
     mind_record;
@@ -140,7 +151,7 @@ let cook_one_ind info cache ~params ~ntypes mip =
     mind_user_lc;
     mind_nrealargs = mip.mind_nrealargs;
     mind_nrealdecls = mip.mind_nrealdecls;
-    mind_squashed = mip.mind_squashed;
+    mind_squashed = squashed;
     mind_nf_lc;
     mind_consnrealargs = mip.mind_consnrealargs;
     mind_consnrealdecls = mip.mind_consnrealdecls;
