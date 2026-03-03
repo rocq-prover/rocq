@@ -577,7 +577,7 @@ let rec to_constr lfts v =
         Term.compose_lam (List.rev tys) f
     | FProd (n, t, c, e) ->
       if is_subs_id (fst e) && is_lift_id lfts then
-        mkProd (n, to_constr lfts t, subst_instance_constr (snd e) c)
+        mkProd (usubst_binder e n, to_constr lfts t, subst_instance_constr (snd e) c)
       else
         let subs' = comp_subs lfts e in
         mkProd (usubst_binder subs' n,
