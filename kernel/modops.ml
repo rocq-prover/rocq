@@ -351,7 +351,7 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
         let mp_from' = MPdot (mp_from,l) in
         let mp_to' = MPdot(mp_to,l) in
         let subst' = add_mp mp_from' mp_to' (empty_delta_resolver mp_to') subst in
-        let mty' = subst_modtype (subst_shallow_dom_codom subst') subst' mp_from' mty in
+        let mty' = subst_modtype subst_dom_codom subst' mp_from' mty in
         let item' = if mty' == mty then item else (l, SFBmodtype mty') in
         add_mp_delta_resolver mp_to' mp_to' reso', item'
   in
