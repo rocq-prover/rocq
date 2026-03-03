@@ -1754,7 +1754,7 @@ let explain_exn_default = function
   | Stack_overflow -> hov 0 (str "Stack overflow.")
   | Sys.Break -> hov 0 (str "User interrupt.")
   (* Otherwise, not handled here *)
-  | _ -> raise Unhandled
+  | _ -> raise_notrace Unhandled
 
 let _ = CErrors.register_handler (wrap_unhandled explain_exn_default)
 
@@ -1823,7 +1823,7 @@ let rec vernac_interp_error_handler = function
   | Environ.RewriteRulesNotAllowed symb_or_rule ->
     error_not_allowed_rewrite_rules symb_or_rule
   | _ ->
-    raise Unhandled
+    raise_notrace Unhandled
 
 let _ = CErrors.register_handler (wrap_unhandled vernac_interp_error_handler)
 

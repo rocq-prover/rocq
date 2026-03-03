@@ -36,18 +36,12 @@ exception AlreadyUsed of Id.t
 let error ?loc e =
   Loc.raise ?loc e
 
-exception Unhandled
-
-let wrap_unhandled f e =
-  try Some (f e)
-  with Unhandled -> None
-
 let tactic_interp_error_handler = function
   | AlreadyUsed id ->
-      Id.print id ++ str " is already used."
-  | _ -> raise Unhandled
+      Some (Id.print id ++ str " is already used.")
+  | _ -> None
 
-let _ = CErrors.register_handler (wrap_unhandled tactic_interp_error_handler)
+let () = CErrors.register_handler tactic_interp_error_handler
 
 let fresh_id_in_env avoid id env =
   let avoid' = ids_of_named_context_val (named_context_val env) in

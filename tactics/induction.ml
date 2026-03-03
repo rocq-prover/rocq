@@ -107,7 +107,7 @@ let tactic_interp_error_handler = function
       str "Don't know where to find some argument."
   | MultipleAsAndUsingClauseOnlyList ->
       str "'as' clause with multiple arguments and 'using' clause can only occur last."
-  | _ -> raise Unhandled
+  | _ -> raise_notrace Unhandled
 
 let _ = CErrors.register_handler (wrap_unhandled tactic_interp_error_handler)
 
