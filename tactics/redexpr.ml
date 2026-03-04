@@ -478,7 +478,7 @@ module Intern = struct
       in
       if not is_proof_variable then Dumpglob.add_glob ?loc r
     in
-    Tacred.soft_evaluable_of_global_reference ?loc r
+    Tacred.evaluable_of_global_reference ?loc r
 
   type ('constr,'ref,'pat) intern_env = {
     strict_check : bool;

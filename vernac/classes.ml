@@ -41,7 +41,6 @@ let set_typeclass_transparency ?typeclasses_db ~locality c b =
 let set_typeclass_transparency_com ~locality refs b =
   let refs = List.map
       (fun x -> Tacred.evaluable_of_global_reference
-          (Global.env ())
           (Smartlocate.global_with_alias x))
       refs
   in
