@@ -566,7 +566,7 @@ fix.
 - introduced: V8.14 ([d72e5c154f](https://github.com/rocq-prover/rocq/commit/d72e5c154faeea1d55387bc8c039d97f63ebd1c4))
 - impacted released versions: V8.14 to V9.1 including patch releases
 - impacted coqchk versions: same
-- fixed in: V9.2 [rocq-prover/rocq#21688](https://github.com/rocq-prover/pull/21688)
+- fixed in: V9.2 [rocq-prover/rocq#21688](https://github.com/rocq-prover/rocq/pull/21688)
 - found by: Gaëtan Gilbert
 - exploit: no full exploit known, anomaly in bug_21689.v
 - risk: low (needs to use universe substitution in letin from the
