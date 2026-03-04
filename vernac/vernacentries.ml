@@ -2151,20 +2151,20 @@ let vernac_declare_reduction ~local s r =
   let sigma = Evd.from_env env in
   Redexpr.declare_red_expr local s (snd (Redexpr.interp_redexp_no_ltac env sigma r))
 
-  (* The same but avoiding the current goal context if any *)
+(* The same as Check but avoiding the current goal context if any *)
 let vernac_global_check c =
   let env = Global.env() in
   let sigma = Evd.from_env env in
   let c = Constrintern.intern_constr env sigma c in
   let sigma, c = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
   let sigma = Evd.collapse_sort_variables sigma in
-  let senv = Global.safe_env() in
-  let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
-  let senv = Safe_typing.push_qualities ~rigid:false (qs, qcst) senv in (* XXX *)
-  let senv = Safe_typing.push_context_set ~strict:false (us, ucst) senv in
   let c = EConstr.to_constr sigma c in
-  let j = Safe_typing.typing senv c in
-  Prettyp.print_safe_judgment j ++
+  let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
+  let env = Environ.push_qualities ~rigid:false (qs, qcst) env in (* XXX always empty due to collapse? *)
+  let env = Environ.push_context_set ~strict:false (us, ucst) env in
+  let j = Typeops.infer env c in
+  let j = { Environ.uj_val = EConstr.of_constr j.uj_val; uj_type = EConstr.of_constr j.uj_type } in
+  Prettyp.print_judgment env (Evd.from_env env) j ++
   Printer.pr_sort_context_set sigma uctx
 
 
