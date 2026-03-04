@@ -440,6 +440,13 @@ Module Inductives.
   (* α α0 ; u |= α -> SProp *)
   About list_idS.
 
+  Fixpoint list_idTS {A : Type} (l : list@{_ Type;_} A) : list A :=
+    match l with
+    | nil => nil
+    | cons x l => cons x (list_idTS l)
+    end.
+  About list_idTS.
+
   Fixpoint map A B f (l : list A) : list B :=
     match l with
     | nil => nil
@@ -495,6 +502,13 @@ Module Inductives.
   Defined.
   (* α ;  |= α -> Type *)
   About bool_to_Prop'.
+
+  Definition bool_idTS (b : bool@{Type;}) : bool :=
+    match b with
+    | true => true
+    | false => false
+    end.
+  About bool_idTS.
 
   #[universes(polymorphic=no)]
   Sort Test.

@@ -192,3 +192,17 @@ Fixpoint list'_idV@{s s0 s';l l'|l <= l', s0 -> s'} {A : Type@{s;l}} (l : List'@
   | nil' => nil'
   | cons' x l => cons' x (list'_idV l)
   end.
+
+Inductive bool@{s;} : Type@{s;Set} := true | false.
+
+Fail Definition bool_idTS@{s;} (b : bool@{Type;}) : bool@{s;} :=
+  match b with
+  | true => true
+  | false => false
+  end.
+
+Definition bool_idTS@{s;| Type -> s} (b : bool@{Type;}) : bool@{s;} :=
+  match b with
+  | true => true
+  | false => false
+  end.
