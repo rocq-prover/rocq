@@ -273,19 +273,15 @@ let functorize_module params mb =
 
 (** Substitutions of modular structures *)
 
-type subst_kind = Dom | Codom | Both | Neither | Shallow of Mod_subst.substitution
+type subst_kind = Codom | Both | Neither
 
-let subst_dom = Dom
 let subst_codom = Codom
 let subst_dom_codom = Both
-let subst_shallow_dom_codom s = Shallow s
 
 let apply_subst skind subst delta = match skind with
-| Dom -> subst_dom_delta_resolver subst delta
 | Codom -> subst_codom_delta_resolver subst delta
 | Both -> subst_dom_codom_delta_resolver subst delta
 | Neither -> delta
-| Shallow subst' -> subst_dom_codom_delta_resolver subst' delta (* ignore subst *)
 
 let is_functor = function
   | NoFunctor _ -> false

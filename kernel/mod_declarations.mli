@@ -96,10 +96,8 @@ val set_retroknowledge : module_body -> Retroknowledge.action list -> module_bod
 (** {6 Substitution} *)
 
 type subst_kind
-val subst_dom : subst_kind
 val subst_codom : subst_kind
 val subst_dom_codom : subst_kind
-val subst_shallow_dom_codom : Mod_subst.substitution -> subst_kind
 
 val subst_signature : subst_kind -> substitution ->
   ModPath.t -> module_signature -> module_signature
