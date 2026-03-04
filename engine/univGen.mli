@@ -40,7 +40,6 @@ module QualityOrSet : sig
   val raw_pr : t -> Pp.t
 
   val all_constants : t list
-  val all : t list
 end
 
 type univ_length_mismatch = {
