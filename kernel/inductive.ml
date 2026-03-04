@@ -1287,22 +1287,26 @@ let check_is_subterm x tree =
 
 let find_uniform_parameters recindx nargs bodies =
   let nbodies = Array.length bodies in
+  (* Ensure that the structural argument is not uniform,
+     so that it stays in [non_absorbed_stack] *)
   let min_indx = Array.fold_left min nargs recindx in
   (* We work only on the i-th body but are in the context of n bodies *)
   let rec aux i k nuniformparams c =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
-      (* A recursive reference to the i-th body *)
-      if Int.equal n (nbodies + k - i) then
-        List.fold_left_i (fun j nuniformparams a ->
-            match kind a with
-            | Rel m when Int.equal m (k - j) ->
-              (* a reference to the j-th parameter *)
-              nuniformparams
-            | _ ->
-              (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
-              min j nuniformparams) 0 nuniformparams l
+      (* A recursive reference to any one of the mutual fixpoints *)
+      if n > k && n <= k + nbodies then
+        List.fold_left_until (fun j arg ->
+          if j >= nuniformparams then Stop nuniformparams else
+          match kind arg with
+          | Rel m when Int.equal m (k - j) ->
+            (* a reference to the j-th parameter *)
+            Cont (j+1)
+          | _ ->
+            (* not a parameter: this puts a bound on the size of an extrudable prefix of uniform arguments *)
+            Stop j
+          ) 0 l
       else
         nuniformparams
     | _ -> fold_constr_with_binders succ (aux i) k nuniformparams c
@@ -1338,7 +1342,10 @@ let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
     | a :: stack ->
       let uniform, nuniformparams = if nuniformparams = 0 then false, 0 else true, nuniformparams -1 in
       let a =
-        if uniform || Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
+        if uniform then a
+        else if Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
+        (* We forget the needreduce status of the structural argument here,
+           since it's checked in [non_absorbed_stack]. *)
         else
           (* deactivate the status of non-uniform parameters since we
              cannot guarantee that they are preserve in the recursive
