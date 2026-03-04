@@ -1450,6 +1450,7 @@ and knht info e t stk =
           { mark = Ntrl; term = FEvar (evk, args, e, repack) }, stk
       end
     | Array(u,t,def,ty) ->
+      let u = usubst_instance e u in
       let len = Array.length t in
       let ty = mk_clos e ty in
       let t = Parray.init (Uint63.of_int len) (fun i -> mk_clos e t.(i)) (mk_clos e def) in
