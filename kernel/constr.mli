@@ -332,7 +332,6 @@ val is_Set  : constr -> bool
 val isprop : constr -> bool
 val is_Type : constr -> bool
 val iskind : constr -> bool
-val is_small : Sorts.t -> bool
 
 (** {6 Term destructors } *)
 (** Destructor operations are partial functions and

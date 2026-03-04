@@ -35,7 +35,6 @@ module ESorts = struct
   let equal sigma s1 s2 =
     Sorts.equal (kind sigma s1) (kind sigma s2)
 
-  let is_small sigma s = Sorts.is_small (kind sigma s)
   let is_prop sigma s = Sorts.is_prop (kind sigma s)
   let is_sprop sigma s = Sorts.is_sprop (kind sigma s)
   let is_set sigma s = Sorts.is_set (kind sigma s)

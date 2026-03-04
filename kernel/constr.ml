@@ -186,7 +186,6 @@ let rec is_Type c = match kind c with
   | Cast (c,_,_) -> is_Type c
   | _ -> false
 
-let is_small = Sorts.is_small
 let iskind c = isprop c || is_Type c
 
 (* Tests if an evar *)

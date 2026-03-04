@@ -407,10 +407,6 @@ let is_set = function
   | Set -> true
   | SProp | Prop | Type _ | QSort _ -> false
 
-let is_small = function
-  | SProp | Prop | Set -> true
-  | Type _ | QSort _ -> false
-
 let levels s = match s with
 | SProp | Prop -> Level.Set.empty
 | Set -> Level.Set.singleton Level.set
