@@ -83,7 +83,7 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
       (* In the spirit of subtyping.check_constant, we accept
          any implementations of parameters and opaque terms,
          as long as they have the right type *)
-      let typ, ctx' =
+      let (univs, typ), ctx' =
         match cb.const_universes, wth.w_univs with
         | Monomorphic, Monomorphic ->
           let error_univ_mismatch env t1 t2 = function
@@ -95,13 +95,13 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
           | Undef _ | OpaqueDef _ ->
             let typ = cb.const_type in
             begin match infer_gen_conv_leq (cst, ustate) env' j.uj_type typ with
-            | Result.Ok cst -> j.uj_type, cst
+            | Result.Ok cst -> (cb.const_universes, cb.const_type), cst
             | Result.Error None -> error (WithSignatureMismatch (NotConvertibleTypeField (env', j.uj_type, typ)))
             | Result.Error (Some e) -> error_univ_mismatch env' j.uj_type typ e
             end
           | Def c' ->
             begin match infer_gen_conv (cst, ustate) env' wth.w_def c' with
-            | Result.Ok cst -> j.uj_type, cst
+            | Result.Ok cst -> (cb.const_universes, cb.const_type), cst
             | Result.Error None -> error (WithSignatureMismatch (NotConvertibleBodyField (Some (env', wth.w_def, c'))))
             | Result.Error (Some e) -> error_univ_mismatch env' wth.w_def c' e
             end
@@ -136,15 +136,23 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
             | Primitive _ -> error WithCannotConstrainPrimitive
             | Symbol _ -> error WithCannotConstrainSymbol
           in
-          j.uj_type, cst
+          (cb.const_universes, cb.const_type), cst
         | Monomorphic, Polymorphic _ -> error (WithSignatureMismatch (PolymorphicStatusExpected true))
         | Polymorphic _, Monomorphic -> error (WithSignatureMismatch (PolymorphicStatusExpected false))
       in
+      (* Here we have two choices for the type of the constant: either pick the
+         type T from module constant or the type U from the with Definition
+         constant, including their universe constraints. In general, we only
+         have U ≤ T, so the corresponding module types will only satisfy
+         MU ≤ MT. In some sense MU is minimal and MT maximal, so both are
+         canonical. Depending on the context, one may be preferred to the
+         other but there is no "best" choice a priori. Some code out there
+         depends on picking MT, so we enshrine this decision here. *)
       let cb' =
         { cb with
           const_body = Def wth.w_def;
           const_type = typ;
-          const_universes = wth.w_univs;
+          const_universes = univs;
           const_body_code = wth.w_bytecode; }
       in
       before@(lab,SFBconst(cb'))::after, ctx'
