@@ -247,7 +247,6 @@ let rec check_mexpression env opac sign mbtyp mp_mse res = match sign with
 
 let rec check_module env opac mp mb opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking module: " ++ str (ModPath.to_string mp));
-  let env = Modops.add_retroknowledge (mod_retroknowledge mb) env in
   let delta_mb = mod_delta mb in
   let opac =
     check_signature env opac (mod_type mb) mp delta_mb opacify

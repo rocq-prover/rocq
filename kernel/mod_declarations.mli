@@ -25,10 +25,9 @@ type module_body = mod_body generic_module_body
 
 type module_type_body = mod_type generic_module_body
 
-(** A [module_type_body] is just a [module_body] with no implementation and
-    also an empty [mod_retroknowledge]. Its [mod_type_alg] contains
-    the algebraic definition of this module type, or [None]
-    if it has been built interactively. *)
+(** A [module_type_body] is just a [module_body] with no implementation. Its
+    [mod_type_alg] contains the algebraic definition of this module type, or
+    [None] if it has been built interactively. *)
 
 type structure_field_body =
   (module_body, module_type_body) Declarations.structure_field_body
@@ -62,14 +61,13 @@ val mod_expr : module_body -> module_implementation
 val mod_type : 'a generic_module_body -> module_signature
 val mod_type_alg : 'a generic_module_body -> module_expression option
 val mod_delta : 'a generic_module_body -> delta_resolver
-val mod_retroknowledge : module_body -> Retroknowledge.action list
 
 val mod_global_delta : 'a generic_module_body -> delta_resolver option
 (** [None] if the argument is a functor, [mod_delta] otherwise *)
 
 (** {6 Builders} *)
 
-val make_module_body : module_signature -> Mod_subst.delta_resolver -> Retroknowledge.action list -> module_body
+val make_module_body : module_signature -> Mod_subst.delta_resolver -> module_body
 val make_module_type : module_signature -> Mod_subst.delta_resolver -> module_type_body
 
 val strengthen_module_body : src:ModPath.t ->
@@ -91,7 +89,6 @@ val functorize_module : (Names.MBId.t * module_type_body) list -> module_body ->
 
 val set_implementation : module_implementation -> module_body -> module_body
 val set_algebraic_type : module_type_body -> module_expression -> module_type_body
-val set_retroknowledge : module_body -> Retroknowledge.action list -> module_body
 
 (** {6 Substitution} *)
 

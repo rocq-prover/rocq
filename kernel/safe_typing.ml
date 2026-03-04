@@ -179,6 +179,7 @@ type compiled_library = {
   comp_sorts : Sorts.QContextSet.t;
   comp_deps : library_info array;
   comp_flags : permanent_flags;
+  comp_retro : Retroknowledge.action list;
 }
 
 type reimport = compiled_library * Vmlibrary.on_disk * vodigest
@@ -731,6 +732,16 @@ let labels_of_mib mib =
   get ()
 
 let add_retroknowledge pttc senv =
+  (* Retroknowledge is only allowed in nested modules *)
+  let rec is_nested = function
+  | LIBRARY -> true
+  | STRUCT ([], senv) -> is_nested senv.modvariant
+  | SIG _ | NONE | STRUCT (_ :: _, _) -> false
+  in
+  let () = if sections_are_opened senv || not (is_nested senv.modvariant) then
+    CErrors.user_err Pp.(str "Registering a kernel type is only allowed at toplevel.")
+  in
+  let () = assert (is_nested senv.modvariant) in
   { senv with
     env = Primred.add_retroknowledge senv.env pttc;
     local_retroknowledge = pttc::senv.local_retroknowledge }
@@ -1107,7 +1118,6 @@ let add_constant l decl senv =
       | Entries.PrimitiveEntry entry ->
         let senv = match entry with
         | { Entries.prim_entry_content = CPrimitives.OT_type t; _ } ->
-          if sections_are_opened senv then CErrors.anomaly (Pp.str "Primitive type not allowed in sections");
           add_retroknowledge (Retroknowledge.Register_type(t,kn)) senv
         | _ -> senv in
         senv, (None, Constant_typing.infer_primitive senv.env entry)
@@ -1406,13 +1416,13 @@ let build_module_body params restype senv =
   let restype' = Option.map (fun (ty,inl) -> (([],ty),inl)) restype in
   let state = check_state senv in
   let vmstate = vm_state senv in
-  let mb, _, vmtab =
+  (* XXX why are we dropping vmtab here? *)
+  let mb, _, _vmtab =
     Mod_typing.finalize_module state vmstate senv.env senv.modpath
       (struc, senv.modresolver) restype'
   in
-  let senv = set_vm_library vmtab senv in
   let mb' = functorize_module params mb in
-  set_retroknowledge mb' senv.local_retroknowledge
+  mb'
 
 (** Returning back to the old pre-interactive-module environment,
     with one extra component and some updated fields
@@ -1452,12 +1462,14 @@ let end_module l restype senv =
   let newenv = Environ.set_qualities (Environ.qualities senv.env) newenv in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
+  let newenv = Modops.add_retroknowledge senv.local_retroknowledge newenv in
   let senv' = propagate_loads { senv with env = newenv } in
   let newenv = Modops.add_module mp mb senv'.env in
   let newresolver = match mod_global_delta mb with
   | None -> oldsenv.modresolver
   | Some delta -> Mod_subst.add_delta_resolver delta oldsenv.modresolver
   in
+  let () = assert (List.is_empty params || List.is_empty senv.local_retroknowledge) in
   (mp, mbids, mod_delta mb),
   propagate_senv (l,SFBmodule mb) newenv newresolver senv' oldsenv
 
@@ -1477,6 +1489,7 @@ let end_modtype l senv =
   let mtb = build_mtb auto_tb senv.modresolver in
   let newenv = Environ.add_modtype mp mtb senv'.env in
   let newresolver = oldsenv.modresolver in
+  let () = assert (List.is_empty senv.local_retroknowledge) in
   (mp,mbids),
   propagate_senv (l,SFBmodtype mtb) newenv newresolver senv' oldsenv
 
@@ -1493,7 +1506,7 @@ let add_include me is_module inl senv =
   let senv = set_vm_library vmtab senv in
   (* Include Self support  *)
   let struc = NoFunctor (List.rev senv.revstruct) in
-  let mb = Mod_declarations.make_module_body struc senv.modresolver [] in
+  let mb = Mod_declarations.make_module_body struc senv.modresolver in
   let rec compute_sign sign resolver =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
@@ -1533,6 +1546,8 @@ let module_of_library lib = lib.comp_mod
 
 let univs_of_library lib = lib.comp_sorts, lib.comp_univs
 
+let retroknowledge_of_library lib = lib.comp_retro
+
 (** FIXME: MS: remove?*)
 let current_modpath senv = senv.modpath
 let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
@@ -1571,7 +1586,7 @@ let export ~output_native_objects senv dir =
   let () = check_current_library dir senv in
   let mp = senv.modpath in
   let str = NoFunctor (List.rev senv.revstruct) in
-  let mb = Mod_declarations.make_module_body str senv.modresolver senv.local_retroknowledge in
+  let mb = Mod_declarations.make_module_body str senv.modresolver in
   let ast, symbols =
     if output_native_objects then
       Nativelibrary.dump_library mp senv.env str
@@ -1590,7 +1605,8 @@ let export ~output_native_objects senv dir =
     comp_univs = senv.univ;
     comp_sorts = senv.qualities;
     comp_deps = Array.of_list comp_deps;
-    comp_flags = permanent_flags
+    comp_flags = permanent_flags;
+    comp_retro = senv.local_retroknowledge;
   } in
   let vmlib = Vmlibrary.export @@ Environ.vm_library senv.env in
   mp, lib, vmlib, (ast, symbols)
@@ -1606,6 +1622,7 @@ let import lib vmtab vodigest senv =
   let mb = lib.comp_mod in
   let univs = lib.comp_univs in
   let qualities = lib.comp_sorts in
+  let retro = lib.comp_retro in
   let check_quality q =
     Sorts.QVar.is_global q &&
     not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
@@ -1613,6 +1630,7 @@ let import lib vmtab vodigest senv =
   let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
   let env = Environ.push_qualities ~rigid:true qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
+  let env = Modops.add_retroknowledge retro env in
   let env = Environ.link_vm_library vmtab env in
   let env =
     let linkinfo = Nativecode.link_info_of_dirpath lib.comp_name in

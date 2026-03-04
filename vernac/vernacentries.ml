@@ -2356,8 +2356,6 @@ let vernac_register ~atts qid r =
     let ns, id = Libnames.repr_qualid n in
     if DirPath.equal (dirpath_of_string "kernel") ns then begin
       unsupported_attributes atts;
-      if Lib.sections_are_opened () then
-        user_err Pp.(str "Registering a kernel type is not allowed in sections.");
       let CPrimitives.PIE pind = match Id.to_string id with
         | "ind_bool" -> CPrimitives.(PIE PIT_bool)
         | "ind_carry" -> CPrimitives.(PIE PIT_carry)
