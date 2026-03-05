@@ -295,7 +295,9 @@ let id_of_name_with_default id = function
   | Name id   -> id
 
 let default_id_of_sort sigma s =
-  if ESorts.is_small sigma s then default_small_ident else default_type_ident
+  match ESorts.kind sigma s with
+  | SProp | Prop | Set -> default_small_ident
+  | Type _ | QSort _ -> default_type_ident
 
 let default_id env sigma decl =
   let open Context.Rel.Declaration in

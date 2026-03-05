@@ -51,7 +51,6 @@ sig
 
   val equal : Evd.evar_map -> t -> t -> bool
 
-  val is_small : Evd.evar_map -> t -> bool
   val is_prop : Evd.evar_map -> t -> bool
   val is_sprop : Evd.evar_map -> t -> bool
   val is_set : Evd.evar_map -> t -> bool

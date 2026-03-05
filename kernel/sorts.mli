@@ -176,7 +176,6 @@ val hash : t -> int
 val is_sprop : t -> bool
 val is_set : t -> bool
 val is_prop : t -> bool
-val is_small : t -> bool
 val quality : t -> Quality.t
 
 val hcons : t Hashcons.f
