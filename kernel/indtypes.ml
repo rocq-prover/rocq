@@ -543,6 +543,10 @@ let build_inductive env ~sec_univs names prv univs template variance
            les tag des constructeur non constant a 1 (0 => accumulator) *)
     in
     let rtbl = Array.map transf consnrealargs in
+    let automaton =
+      let automaton = Rtree.Automaton.make recarg in
+      Rtree.Automaton.compact compare_recarg automaton
+    in
       (* Build the inductive packet *)
       { mind_typename = id;
         mind_record;
@@ -558,6 +562,7 @@ let build_inductive env ~sec_univs names prv univs template variance
         mind_user_lc = lc;
         mind_nf_lc = nf_lc;
         mind_recargs = recarg;
+        mind_automaton = automaton;
         mind_relevance;
         mind_nb_constant = !nconst;
         mind_nb_args = !nblock;

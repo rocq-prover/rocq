@@ -436,6 +436,10 @@ let v_wfp =
       [|v_int;v_array v_wfp|] (* Rtree.Rec *)
     |]))
 
+let v_automaton =
+  v_tuple "automaton"
+    [|v_int; v_array (v_pair v_recarg (v_array (v_array v_int)))|]
+
 let v_squash_info = v_sum "squash_info" 1 [|[|v_set v_quality|]|]
 
 let v_has_eta = v_enum "has_eta" 3
@@ -458,6 +462,7 @@ let v_one_ind = v_tuple "one_inductive_body"
     v_array v_int;
     v_array v_int;
     v_wfp;
+    v_automaton;
     v_relevance;
     v_int;
     v_int;

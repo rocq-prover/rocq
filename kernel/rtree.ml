@@ -244,9 +244,9 @@ let is_infinite cmp t =
   is_inf [] t
 
 (* Pretty-print a tree (not so pretty) *)
-open Pp
 
 let rec pr_tree prl t =
+  let open Pp in
   match t with
     | Var (i,j) -> str"#"++int i++str":"++int j
     | Node(lab,[||]) -> prl lab
@@ -265,3 +265,197 @@ let rec pr_tree prl t =
         else
           hv 2 (str"Rec{"++int i++str","++brk(1,0)++
                  prvect_with_sep pr_comma (pr_tree prl) v++str"}")
+
+module Automaton =
+struct
+
+type 'a rtree = 'a t
+
+type label = { constructor : int; argpos : int }
+
+module Label =
+struct
+  type t = label
+  let compare p q =
+    let c = Int.compare p.constructor q.constructor in
+    if Int.equal c 0 then Int.compare p.argpos q.argpos else c
+end
+
+module H = Hopcroft.Make(Label)
+
+type state = int
+
+type 'a data = {
+  uid : int;
+  elt : 'a Int.Map.t;
+  trs : state array array Int.Map.t;
+}
+
+type 'a t = {
+  init : int;
+  states : ('a * state array array) array;
+}
+
+let initial a = a.init
+let data a i = fst a.states.(i)
+let transitions a i = snd a.states.(i)
+let move a i = { init = i; states = a.states }
+
+let make r =
+  let rec aux env state = function
+  | Var (i, j) ->
+    let vec = Range.get env i in
+    state, vec.(j)
+  | Node (lbl, args) ->
+    let node = state.uid in
+    let state = { state with elt = Int.Map.add node lbl state.elt; uid = state.uid + 1 } in
+    let fold accu v = Array.fold_left_map (fun accu r -> aux env accu r) accu v in
+    let (state, tr) = Array.fold_left_map fold state args in
+    let state = { state with trs = Int.Map.add node tr state.trs } in
+    state, node
+  | Rec (j, v) ->
+    let map = function
+    | Var _ | Rec _ ->
+      assert false (* does not happen for rtrees generated from an inductive *)
+    | Node (lbl, args) -> (lbl, args)
+    in
+    let uid = state.uid in
+    let v = Array.map map v in
+    let self = Array.mapi (fun i _ -> state.uid + i) v in
+    let nelt = Array.fold_left_i (fun i accu (lbl, _) -> Int.Map.add (state.uid + i) lbl accu) state.elt v in
+    let state = { state with elt = nelt; uid = state.uid + Array.length v } in
+    let env = Range.cons self env in
+    let fold pos accu (_lbl, args) =
+      let fold accu v = Array.fold_left_map (fun accu r -> aux env accu r) accu v in
+      let (accu, tr) = Array.fold_left_map fold accu args in
+      { accu with trs = Int.Map.add (uid + pos) tr accu.trs }
+    in
+    let state = Array.fold_left_i fold state v in
+    state, self.(j)
+  in
+  let state, init = aux Range.empty { uid = 0; trs = Int.Map.empty; elt = Int.Map.empty } r in
+  let states = Array.init state.uid (fun i -> Int.Map.find i state.elt, Int.Map.find i state.trs) in
+  { init; states }
+
+let compact (type data) (cmp : data -> data -> int) { init; states } =
+  let module Data = struct type t = data let compare = cmp end in
+  let module LMap = Map.Make(Data) in
+  let fold i accu (label, _) = match LMap.find_opt label accu with
+  | None -> LMap.add label [i] accu
+  | Some l -> LMap.add label (i :: l) accu
+  in
+  let partitions = Array.fold_left_i fold LMap.empty states in
+  let partitions = List.map snd @@ LMap.bindings partitions in
+  let fold src accu (_, trs) =
+    let fold i accu v =
+      let fold j accu dst = { H.src = src; H.lbl = { constructor = i; argpos = j }; H.dst = dst } :: accu in
+      Array.fold_left_i fold accu v
+    in
+    Array.fold_left_i fold accu trs
+  in
+  let transitions = Array.fold_left_i fold [] states in
+  let classes =
+    if List.is_empty transitions then
+      Array.of_list partitions
+    else
+      let automaton = {
+        H.states = Array.length states;
+        H.partitions = partitions;
+        H.transitions = transitions;
+      } in
+      H.reduce automaton
+  in
+  (* Canonicalize transitions *)
+  let fold i accu l = List.fold_left (fun accu orig -> Int.Map.add orig i accu) accu l in
+  let map = Array.fold_left_i fold Int.Map.empty classes in
+  let canon st =
+    let can = match st with
+    | [] -> assert false
+    | can :: _ -> can
+    in
+    let v, tr = states.(can) in
+    let ntr = Array.map (fun v -> Array.map (fun dst -> Int.Map.get dst map) v) tr in
+    v, ntr
+  in
+  let nstates = Array.map canon classes in
+  let ninit = Int.Map.find init map in
+  { init = ninit; states = nstates }
+
+module IntPair = OrderedType.Pair(Int)(Int)
+module IntPairMap = Map.Make(IntPair)
+
+let merge_array f v1 v2 =
+  let len1 = Array.length v1 in
+  let len2 = Array.length v2 in
+  let len = if len1 < len2 then len1 else len2 in
+  Array.init len (fun i -> f v1.(i) v2.(i))
+
+let inter f a1 a2=
+  let { init = i1; states = st1 } = a1 in
+  let { init = i2; states = st2 } = a2 in
+  if Int.equal i1 i2 && st1 == st2 then a1
+  else
+    let rec search seen i1 i2 =
+      if IntPairMap.mem (i1, i2) seen then seen
+      else
+        let (v1, tr1) = st1.(i1) in
+        let (v2, tr2) = st2.(i2) in
+        let v = f v1 v2 in
+        let merge v1 v2 = merge_array (fun t1 t2 -> t1, t2) v1 v2 in
+        let tr = merge_array merge tr1 tr2 in
+        let seen = IntPairMap.add (i1, i2) (v, tr) seen in
+        let fold seen v =
+          let fold seen (tgt1, tgt2) = search seen tgt1 tgt2 in
+          Array.fold_left fold seen v
+        in
+        Array.fold_left fold seen tr
+    in
+    let seen = search IntPairMap.empty i1 i2 in
+    let fold p _ (i, dir, rev) = (i + 1, IntPairMap.add p i dir, Int.Map.add i p rev) in
+    let (_, dir, rev) = IntPairMap.fold fold seen (0, IntPairMap.empty, Int.Map.empty) in
+    let len = IntPairMap.cardinal dir in
+    let mk i =
+      let p = Int.Map.find i rev in
+      let (v, tr) = IntPairMap.find p seen in
+      let ntr = Array.map (fun v -> Array.map (fun p -> IntPairMap.find p dir) v) tr in
+      (v, ntr)
+    in
+    let nstates = Array.init len mk in
+    let ninit = IntPairMap.get (i1, i2) dir in
+    { init = ninit; states = nstates }
+
+exception Different
+
+let check_len v1 v2 =
+  if not (Int.equal (Array.length v1) (Array.length v2)) then raise Different
+
+(* The function below expects the automata to be minimal *)
+let equal eqf { init = i1; states = st1 } { init = i2; states = st2 } =
+  let rec search seen1 seen2 equiv i1 i2 =
+    if IntPairMap.mem (i1, i2) equiv then (seen1, seen2, equiv)
+    else if Int.Set.mem i1 seen1 || Int.Set.mem i2 seen2 then raise Different
+    else
+      let (v1, tr1) = st1.(i1) in
+      let (v2, tr2) = st2.(i2) in
+      let () = if not (eqf v1 v2) then raise Different in
+      let seen1 = Int.Set.add i1 seen1 in
+      let seen2 = Int.Set.add i2 seen2 in
+      let equiv = IntPairMap.add (i1, i2) () equiv in
+      let () = check_len tr1 tr2 in
+      let fold accu v1 v2 =
+        let () = check_len v1 v2 in
+        Array.fold_left2 (fun (seen1, seen2, equiv) tgt1 tgt2 -> search seen1 seen2 equiv tgt1 tgt2) accu v1 v2
+      in
+      Array.fold_left2 fold (seen1, seen2, equiv) tr1 tr2
+  in
+  (Int.equal i1 i2 && st1 == st2) ||
+  match search Int.Set.empty Int.Set.empty IntPairMap.empty i1 i2 with
+  | _ -> true
+  | exception Different -> false
+
+let map f { init; states } =
+  let map (v, tr) = f v, tr in
+  let states = Array.map map states in
+  { init; states }
+
+end
