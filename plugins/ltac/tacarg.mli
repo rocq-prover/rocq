@@ -14,7 +14,6 @@ open Constrexpr
 open Genintern
 open Tactypes
 open Tacexpr
-open Names
 
 (** Tactic related witnesses, could also live in tactics/ if other users *)
 
@@ -43,16 +42,7 @@ val wit_quantified_hypothesis : quantified_hypothesis uniform_genarg_type
 
 (** Generic arguments based on Ltac. *)
 
-(** Abstract application, to print ltac functions *)
-type appl =
-  | UnnamedAppl (** For generic applications: nothing is printed *)
-  | GlbAppl of (Names.KerName.t * Geninterp.Val.t list) list
-       (** For calls to global constants, some may alias other. *)
-
-type tacvalue =
-  | VFun of appl * ltac_trace * Loc.t option * Geninterp.Val.t Id.Map.t *
-      Name.t list * glob_tactic_expr
-  | VRec of Geninterp.Val.t Id.Map.t ref * glob_tactic_expr
+type tacvalue
 
 val wit_tactic : (raw_tactic_expr, glob_tactic_expr, tacvalue) genarg_type
 
@@ -68,3 +58,8 @@ val wit_destruction_arg :
    glob_constr_and_expr with_bindings Tactics.destruction_arg,
    delayed_open_constr_with_bindings Tactics.destruction_arg) genarg_type
 
+module Internal : sig
+
+  val define_tacvalue : unit -> ('a -> tacvalue) * (tacvalue -> 'a)
+
+end

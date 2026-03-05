@@ -165,3 +165,7 @@ val make_constr_printer : (env -> Evd.evar_map -> entry_relative_level -> 'a -> 
   'a Genprint.top_printer
 
 val ssr_loaded : unit -> bool
+
+module Internal : sig
+  val pr_tacvalue_ref : (env -> Tacarg.tacvalue -> Pp.t) ref
+end
