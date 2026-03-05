@@ -648,8 +648,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
 
      We also need to restrict to avoid seeing spurious bounds from below
      (ie v <= template_u with v getting restricted away). *)
-  let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
-  let sigma = Evd.minimize_universes ~collapse_sort_variables:(not collapse_sort_variables) ~to_type:collapse_sort_variables sigma in
+  let sigma = Evd.minimize_universes ~collapse_sort_variables:false sigma in
   let sigma = restrict_inductive_universes sigma ctx_params arities constructors in
 
   let sigma, univ_entry, ubinders, global_univs =
