@@ -44,10 +44,11 @@ struct
     let map q = match q with
     | Sorts.Quality.QConstant (QProp | QSProp) -> false
     | Sorts.Quality.QConstant QType -> true
+    | QGlobal _ -> true
     | Sorts.Quality.QVar qv ->
       match Sorts.QVar.repr qv with
       | Var _ -> CErrors.anomaly (Pp.str "Non-ground instance")
-      | Unif _ | Global _ -> true (* informative by default *)
+      | Unif _ | Secvar _ -> true (* informative by default *)
     in
     Array.map map qvars
 

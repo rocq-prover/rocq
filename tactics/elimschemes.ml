@@ -104,6 +104,8 @@ let elim_scheme ~dep ~to_kind =
        | QConstant QSProp -> sind_nodep
        | QConstant QProp -> ind_nodep
        | QConstant QType | QVar _ -> rect_nodep
+       | QGlobal _ ->
+         CErrors.user_err Pp.(str "Cannot automatically lookup elimination scheme for global sort.")
      end
   | Set -> if dep then rec_dep else rec_nodep
 
@@ -115,6 +117,8 @@ let elimination_suffix =
   | Qual (QConstant QProp) -> "_ind"
   | Qual (QConstant QType) | Qual (QVar _) -> "_rect"
   | Set -> "_rec"
+  | Qual (QGlobal _) ->
+    CErrors.user_err Pp.(str "Cannot automatically lookup elimination scheme for global sort.")
 
 let make_elimination_ident id s = Nameops.add_suffix id (elimination_suffix s)
 
@@ -143,7 +147,8 @@ let lookup_eliminator_by_name env ind_sp s =
         Pp.(strbrk "Cannot find the elimination combinator " ++
             Id.print id ++ strbrk ", the elimination of the inductive definition " ++
             Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind_sp) ++
-            strbrk " on sort " ++ UnivGen.QualityOrSet.pr Sorts.QVar.raw_pr s ++
+            strbrk " on sort " ++
+            UnivGen.QualityOrSet.pr (UnivNames.quality_printer UnivNames.empty_binders) s ++
             strbrk " is probably not allowed.")
 
 let deprecated_lookup_by_name =

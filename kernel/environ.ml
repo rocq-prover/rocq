@@ -374,7 +374,7 @@ let is_impredicative_set env = env.env_typing_flags.impredicative_set
 let is_impredicative_sort env = function
   | Sorts.SProp | Sorts.Prop -> true
   | Sorts.Set -> is_impredicative_set env
-  | Sorts.Type _ | Sorts.QSort _ -> false
+  | Sorts.Type _ | Sorts.VSort _ | Sorts.GSort _-> false
 
 let type_in_type env = not (typing_flags env).check_universes
 let ignore_elim_constraints env = not (typing_flags env).check_eliminations
@@ -388,7 +388,6 @@ let set_universes g env =
   {env with env_universes=g}
 
 let qualities env = env.env_qualities
-let qvars env = QGraph.qvar_domain @@ qualities env
 
 let set_qualities g env =
   {env with env_qualities=g}
@@ -542,10 +541,12 @@ let add_universes_set ~strict (lvl, cstr) g =
 let push_context_set ?(strict=false) ctx env =
   map_universes (add_universes_set ~strict ctx) env
 
-let push_qualities ~rigid (qs, qcsts) env =
-  let () = assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities)) in
-  let fold v = QGraph.add_quality (Sorts.Quality.QVar v) in
-  let g = Sorts.QVar.Set.fold fold qs env.env_qualities in
+let push_qualities qs env =
+  let () = assert Sorts.Quality.Set.(is_empty @@ inter qs (QGraph.domain env.env_qualities)) in
+  let g = Sorts.Quality.Set.fold QGraph.add_quality qs env.env_qualities in
+  set_qualities g env
+
+let merge_elim_constraints ~rigid qcsts env =
   let merge g =
     let g = QGraph.merge_constraints qcsts g in
     if rigid then
@@ -553,7 +554,7 @@ let push_qualities ~rigid (qs, qcsts) env =
       Sorts.ElimConstraints.fold fold qcsts g
     else g
   in
-  map_qualities merge @@ set_qualities g env
+  map_qualities merge env
 
 let push_subgraph (levels, univ_csts) env =
   let add_subgraph g =
@@ -1179,7 +1180,7 @@ module Internal = struct
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;
-      env_qualities : Sorts.QVar.Set.t;
+      env_qualities : Sorts.Quality.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;
       env_typing_flags  : typing_flags;
     }
@@ -1192,7 +1193,7 @@ module Internal = struct
       env_named_context = env.env_named_context;
       env_rel_context = env.env_rel_context;
       env_universes = env.env_universes;
-      env_qualities = QGraph.qvar_domain env.env_qualities;
+      env_qualities = QGraph.domain env.env_qualities;
       env_symb_pats = env.symb_pats;
       env_typing_flags = env.env_typing_flags;
     } [@@ocaml.warning "-42"]

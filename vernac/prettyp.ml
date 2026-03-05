@@ -200,7 +200,7 @@ let template_poly_variables env ind =
   | None -> assert false
   | Some { template_defaults; template_concl } ->
     let pseudo_poly = match template_concl with
-      | QSort (q, _) when Option.has_some (Sorts.QVar.var_index q) -> true
+      | VSort (q, _) when Option.has_some (Sorts.QVar.var_index q) -> true
       | _ -> false
     in
     let _, vars = UVars.Instance.levels template_defaults in
@@ -246,7 +246,8 @@ let print_squash env ref udecl = match ref with
           | Prop -> str "SProp or Prop"
           | Set -> str "SProp, Prop or Set"
           | Type _ -> str "not in a variable sort quality"
-          | QSort (q,_) -> str "in sort quality " ++ Termops.pr_evd_qvar sigma q
+          | GSort (q,_) -> str "in sort quality " ++ Termops.pr_evd_qglobal sigma q
+          | VSort (q,_) -> str "in sort quality " ++ Termops.pr_evd_qvar sigma q
       in
       let unless = match squash with
         | AlwaysSquashed -> str "."
@@ -254,8 +255,9 @@ let print_squash env ref udecl = match ref with
           let target = match inds with
             | SProp | Prop | Set -> target
             | Type _ -> str "instantiated to constant qualities"
-            | QSort (q,_) ->
-              let ppq = Termops.pr_evd_qvar sigma q in
+            | VSort _ | GSort _ ->
+              let q = Sorts.quality inds in
+              let ppq = Sorts.Quality.pr (Evd.quality_printer sigma) q in
               str "equal to the instantiation of " ++ ppq ++ pr_comma() ++
               str "or to qualities smaller" ++ spc() ++
               str "(SProp <= Prop <= Type, and all variables <= Type)" ++ spc() ++
@@ -270,7 +272,7 @@ let print_squash env ref udecl = match ref with
              "quality Prop is equal to the instantiation of q" *)
           pr_comma () ++
           hov 0 (str "unless instantiated such that the " ++ str quality_s ++ str " " ++
-                 pr_enum (Sorts.Quality.pr (Termops.pr_evd_qvar sigma)) qs ++
+                 pr_enum (Sorts.Quality.pr (Evd.quality_printer sigma)) qs ++
                  spc() ++ str is_s ++ str " " ++ target ++ str ".")
       in
       [hv 2 (hov 1 (pr_global ref ++ inst) ++ str " may only be eliminated to produce values whose type is " ++

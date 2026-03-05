@@ -65,6 +65,7 @@ let functional_induction with_clean c princl pat =
             | Qual (QConstant QProp) -> finfo.prop_lemma
             | Set -> finfo.rec_lemma
             | Qual (QConstant QType | QVar _) -> finfo.rect_lemma
+            | Qual (QGlobal _) -> CErrors.user_err Pp.(str "Cannot handle global sort.")
           in
           let sigma, princ =
             (* then we get the principle *)

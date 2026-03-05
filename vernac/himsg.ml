@@ -296,11 +296,12 @@ let explain_elim_arity env sigma ind c okinds =
           (str "Elimination of a sort polymorphic inductive object instantiated to sort Type" ++ spc() ++
            (* NB: this restriction is only for forward compat with possible future sort qualities *)
            str "is not allowed on a predicate in a variable sort quality.")
-      | SquashToQuality (QVar squashq) ->
+      | SquashToQuality (QVar _ | QGlobal _ as squashq) ->
         let ppt = ppt ~ppunivs:true () in
         hov 0
           (str "the return type has sort" ++ spc () ++ ppt ++ spc () ++
-           str "while it should be in a sort " ++ pr_evd_qvar sigma squashq ++ str " eliminates to.") ++
+           str "while it should be in a sort " ++
+           Sorts.Quality.pr (Evd.quality_printer sigma) squashq ++ str " eliminates to.") ++
         fnl () ++
         hov 0
           (str "Elimination of a sort polymorphic inductive object instantiated to a variable sort quality" ++ spc() ++
@@ -428,8 +429,7 @@ let explain_unification_error env sigma p1 p2 = function
      | UnifUnivInconsistency p ->
        [str "universe inconsistency: " ++
         UGraph.explain_universe_inconsistency
-          (Termops.pr_evd_qvar sigma)
-          (Termops.pr_evd_level sigma)
+          (Evd.sort_printer sigma)
           p]
      | CannotSolveConstraint ((pb,env,t,u),e) ->
         let env = make_all_name_different env sigma in
@@ -893,7 +893,7 @@ let explain_unsatisfied_poly_constraints env sigma (elim_csts,univ_csts) =
                  else spc() ++ Univ.UnivConstraints.pr (Termops.pr_evd_level sigma) univ_csts in
   let elim_str = if Sorts.ElimConstraints.is_empty elim_csts
                  then mt()
-                 else spc() ++ Sorts.ElimConstraints.pr (Termops.pr_evd_qvar sigma) elim_csts in
+                 else spc() ++ Sorts.ElimConstraints.pr (Evd.quality_printer sigma) elim_csts in
   strbrk "Unsatisfied constraints:" ++ univ_str ++ elim_str ++
     spc () ++ str "(maybe a bugged tactic)."
 
@@ -910,9 +910,9 @@ let explain_undeclared_universes env sigma l =
   spc () ++ str "(maybe a bugged tactic)."
 
 let explain_undeclared_qualities env sigma l =
-  let n = Sorts.QVar.Set.cardinal l in
+  let n = Sorts.Quality.Set.cardinal l in
   strbrk "Undeclared " ++ str (if n = 1 then "quality" else "qualities") ++ strbrk": " ++
-    prlist_with_sep spc (Termops.pr_evd_qvar sigma) (Sorts.QVar.Set.elements l) ++
+    prlist_with_sep spc (Termops.pr_evd_quality sigma) (Sorts.Quality.Set.elements l) ++
     spc () ++ str "(maybe a bugged tactic)."
 
 let explain_not_allowed_sprop () =
@@ -1288,15 +1288,14 @@ let explain_not_match_error = function
     let t1, t2 = pr_explicit env sigma (EConstr.of_constr t1) (EConstr.of_constr t2) in
     str"the universe constraints are inconsistent:" ++ spc () ++
     UGraph.explain_universe_inconsistency
-      Sorts.QVar.raw_pr
-      UnivNames.pr_level_with_global_universes
+      (UnivNames.sort_printer UnivNames.empty_binders)
       err ++ spc () ++
     str "when comparing" ++ spc () ++ t1 ++ spc () ++
     str "and" ++ spc () ++ t2
   | IncompatibleQualities { err; env; t1; t2 } ->
     let sigma = Evd.from_env env in
     let t1, t2 = pr_explicit env sigma (EConstr.of_constr t1) (EConstr.of_constr t2) in
-    QGraph.explain_elimination_error Sorts.QVar.raw_pr err ++ spc () ++
+    QGraph.explain_elimination_error (UnivNames.quality_printer UnivNames.empty_binders) err ++ spc () ++
     str "when comparing" ++ spc () ++ t1 ++ spc () ++
     str "and" ++ spc () ++ t2
   | IncompatiblePolymorphism (env, t1, t2) ->
@@ -1759,12 +1758,12 @@ let rec vernac_interp_error_handler = function
   | UGraph.UniverseInconsistency i ->
     str "Universe inconsistency." ++ spc() ++
     UGraph.explain_universe_inconsistency
-      UnivNames.pr_quality_with_global_universes
-      UnivNames.pr_level_with_global_universes
-                  i ++ str "."
+      (UnivNames.sort_printer UnivNames.empty_binders)
+      i ++ str "."
   | QGraph.EliminationError i ->
      QGraph.explain_elimination_error
-       UnivNames.pr_quality_with_global_universes i
+       (UnivNames.quality_printer UnivNames.empty_binders)
+       i
   | TypeError(env,te) ->
     let te = of_type_error te in
     explain_type_error env (Evd.from_env env) te

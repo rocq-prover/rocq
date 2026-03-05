@@ -7,7 +7,7 @@ foo Type@{s ; _} S
 File "./output/UnivNotations.v", line 20, characters 13-14:
 The command has indeed failed with message:
 The term "S" has type "Type@{s ; _}" while it is expected to have type 
-"Type" (universe inconsistency: Cannot enforce Type@{s | Set} <=
+"Type" (universe inconsistency: Cannot enforce Type@{s; Set} <=
 UnivNotations.24).
 1 goal
   

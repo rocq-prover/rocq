@@ -197,28 +197,22 @@ let glob_level ?loc evd : glob_level -> _ = function
          str "polymorphic universe instances must be greater or equal to Set.");
     | Some r -> r
 
-let glob_qvar ?loc evd : glob_qvar -> _ = function
-  | GQVar q -> evd, q
+let glob_quality ?loc evd : glob_quality -> _ = function
+  | GQuality q -> evd, q
   | GLocalQVar {v=Anonymous} ->
     let evd, q = new_quality_variable ?loc evd in
-    evd, q
+    evd, QVar q
   | GRawQVar q ->
     let ctx = (Sorts.QVar.Set.singleton q, Univ.Level.Set.empty), PConstraints.empty in
     let evd = Evd.merge_sort_context_set UState.univ_rigid ~src:UState.Static evd ctx in
-    evd, q
+    evd, QVar q
   | GLocalQVar {v=Name id; loc} ->
-    try evd, (Evd.quality_of_name evd id)
+    try evd, QVar (Evd.quality_of_name evd id)
     with Not_found ->
       if not (is_strict_universe_declarations()) then
         let evd, q = new_quality_variable ?loc evd in
-        evd, q
+        evd, QVar q
       else user_err ?loc Pp.(str "Undeclared quality: " ++ Id.print id ++ str".")
-
-let glob_quality ?loc evd = let open Sorts.Quality in function
-  | GQConstant q -> evd, QConstant q
-  | GQualVar (GQVar _ | GLocalQVar _ | GRawQVar _ as q) ->
-    let evd, q = glob_qvar ?loc evd q in
-    evd, QVar q
 
 type inference_hook = env -> evar_map -> Evar.t -> (evar_map * constr) option
 
@@ -245,16 +239,16 @@ type pretype_flags = {
   unconstrained_sorts : bool;
 }
 
-let glob_opt_qvar ?loc ~flags sigma = function
+let glob_opt_quality ?loc ~flags sigma = function
+  | Some q ->
+    let sigma, q = glob_quality ?loc sigma q in
+    sigma, q
   | None ->
     let collapse_sort_variables = PolyFlags.collapse_sort_variables flags.poly in
     if flags.unconstrained_sorts || not collapse_sort_variables then
       let sigma, q = new_quality_variable ?loc sigma in
-      sigma, Some q
-    else sigma, None
-  | Some q ->
-    let sigma, q = glob_qvar ?loc sigma q in
-    sigma, Some q
+      sigma, (QVar q)
+    else sigma, Sorts.Quality.qtype
 
 let sort ?loc ~flags sigma (q, l) = match l with
 | UNamed [] -> assert false
@@ -263,7 +257,7 @@ let sort ?loc ~flags sigma (q, l) = match l with
 | UNamed [GSet, 0] when Option.is_empty q -> sigma, ESorts.set
 | UNamed ((u, n) :: us) ->
   let open Pp in
-  let sigma, q = glob_opt_qvar ?loc ~flags sigma q in
+  let sigma, q = glob_opt_quality ?loc ~flags sigma q in
   let get_level sigma u n = match level_name sigma u with
   | None ->
     user_err ?loc
@@ -285,19 +279,13 @@ let sort ?loc ~flags sigma (q, l) = match l with
   in
   let (sigma, u) = get_level sigma u n in
   let (sigma, u) = List.fold_left fold (sigma, u) us in
-  let s = match q with
-    | None -> Sorts.sort_of_univ u
-    | Some q -> Sorts.qsort q u
-  in
+  let s = Sorts.make q u in
   sigma, ESorts.make s
 | UAnonymous {rigid} ->
-  let sigma, q = glob_opt_qvar ?loc ~flags sigma q in
+  let sigma, q = glob_opt_quality ?loc ~flags sigma q in
   let sigma, l = new_univ_level_variable ?loc rigid sigma in
   let u = Univ.Universe.make l in
-  let s = match q with
-    | None -> Sorts.sort_of_univ u
-    | Some q -> Sorts.qsort q u
-  in
+  let s = Sorts.make q u in
   sigma, ESorts.make s
 
 (* Compute the set of still-undefined initial evars up to restriction
@@ -916,6 +904,11 @@ struct
         | QConstant QSProp, _ | _, QConstant QSProp -> assert false
         | QConstant QProp, q | q, QConstant QProp -> Some q
         | (QConstant QType as q), _ | _, (QConstant QType as q) -> Some q
+        | QGlobal a', QGlobal b' ->
+          (* XXX error since cannot be above prop? *)
+          if Sorts.QGlobal.equal a' b' then Some a
+          else None
+        | QGlobal _, _ | _, QGlobal _ -> None
         | QVar a', QVar b' ->
           if Sorts.QVar.equal a' b' then Some a
           else None
@@ -964,10 +957,7 @@ struct
     let usubst = match ubind with
       | None -> usubst
       | Some ubind ->
-        let u = match s with
-          | SProp | Prop | Set -> Univ.Universe.type0
-          | Type u | QSort (_,u) -> u
-        in
+        let u = Sorts.univ_of_sort s in
         Int.Map.update ubind (function
             | None -> Some u
             | Some _ ->
@@ -1001,7 +991,10 @@ struct
     | Type _ ->
       let sigma, u = Evd.new_univ_level_variable UState.univ_flexible_alg sigma in
       sigma, ESorts.make (Sorts.sort_of_univ (Univ.Universe.make u))
-    | QSort (q,u) ->
+    | GSort (q, _) ->
+      let sigma, u = Evd.new_univ_level_variable UState.univ_flexible_alg sigma in
+      sigma, ESorts.make (Sorts.gsort q (Univ.Universe.make u))
+    | VSort (q,u) ->
       let sigma, q = match Sorts.QVar.var_index q with
         | None -> sigma, q
         | Some _ ->
@@ -1015,7 +1008,7 @@ struct
           let sigma, u = Evd.new_univ_level_variable UState.univ_flexible_alg sigma in
           sigma, Univ.Universe.make u
       in
-      sigma, ESorts.make @@ Sorts.qsort q u
+      sigma, ESorts.make @@ Sorts.vsort q u
 
   let rec apply_template pretype_arg arg_state env sigma body subst boundus todoargs typ =
     let open TemplateArity in

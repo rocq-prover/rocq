@@ -71,7 +71,7 @@ module QualityOrSet = struct
     | Set -> Pp.str"Set"
     | Qual q -> Quality.pr prv q
 
-  let raw_pr = pr Sorts.QVar.raw_pr
+  let raw_pr = pr Sorts.Quality.raw_printer
 
   let all_constants = Set :: List.map (fun q -> Qual q) Quality.all_constants
 end
@@ -91,15 +91,15 @@ let sort_context_union ((qs,us),csts) ((qs',us'),csts') =
 let diff_sort_context ((qs,us),csts) ((qs',us'),csts') =
   (QVar.Set.diff qs qs', Level.Set.diff us us'), PConstraints.diff csts csts'
 
-let pr_sort_context prv prl ((vs, us), cst as ctx) =
+let pr_sort_context printer ((vs, us), cst as ctx) =
   let open Pp in
   if is_empty_sort_context ctx then mt ()
   else
     let vs =
       if Sorts.QVar.Set.is_empty vs then mt ()
-      else Sorts.QVar.Set.pr prv vs ++ pr_semicolon ()
+      else Sorts.QVar.Set.pr printer.Sorts.prq.prvar vs ++ pr_semicolon ()
     in
-    hov 0 (h (vs ++ Level.Set.pr prl us ++ str " |=") ++ brk(1,2) ++ h (PConstraints.pr prv prl cst))
+    hov 0 (h (vs ++ Level.Set.pr printer.pru us ++ str " |=") ++ brk(1,2) ++ h (PConstraints.pr printer cst))
 
 type univ_length_mismatch = {
   gref : GlobRef.t;
@@ -215,6 +215,9 @@ let fresh_sort_in_quality =
   | Qual (QConstant QSProp) -> Sorts.sprop, empty_sort_context
   | Qual (QConstant QProp) -> Sorts.prop, empty_sort_context
   | Set -> Sorts.set, empty_sort_context
+  | Qual (QGlobal _ as q) ->
+    let u = fresh_level () in
+    Sorts.make q (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
   | Qual (QConstant QType | QVar _ (* Treat as Type *)) ->
      let u = fresh_level () in
      sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)

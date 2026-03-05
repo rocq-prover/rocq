@@ -1240,31 +1240,28 @@ let intern_sort_name ~local_univs = function
         else
           CErrors.user_err ?loc:qid.loc Pp.(str "Undeclared universe " ++ pr_qualid qid ++ str".")
 
-let intern_qvar ~local_univs = function
+let intern_quality ~local_univs = function
   | CQAnon loc -> GLocalQVar (CAst.make ?loc Anonymous)
-  | CRawQVar q -> GRawQVar q
+  | CRawQuality (QVar q) -> GRawQVar q
+  | CRawQuality _ -> assert false (* intern on raw quality only used for funind hacks *)
+  | CQConstant q -> GQuality (QConstant q)
   | CQVar qid ->
     let is_id = qualid_is_ident qid in
     let local = if not is_id then None
       else Id.Map.find_opt (qualid_basename qid) (fst local_univs.bound)
     in
     match local with
-    | Some u -> GQVar u
+    | Some u -> GQuality (QVar u)
     | None ->
-      try GQVar (Sorts.QVar.make_global (Nametab.Quality.locate qid))
+      try GQuality (Nametab.Quality.locate qid)
       with Not_found ->
         if is_id && local_univs.unb_univs
         then GLocalQVar (CAst.make ?loc:qid.loc (Name (qualid_basename qid)))
         else
           CErrors.user_err ?loc:qid.loc Pp.(str "Undeclared quality " ++ pr_qualid qid ++ str".")
 
-let intern_quality ~local_univs q =
-  match q with
-  | CQConstant q -> GQConstant q
-  | CQualVar q -> GQualVar (intern_qvar ~local_univs q)
-
 let intern_sort ~local_univs (q,l) =
-  Option.map (intern_qvar ~local_univs) q,
+  Option.map (intern_quality ~local_univs) q,
   map_glob_sort_gen (List.map (on_fst (intern_sort_name ~local_univs))) l
 
 let intern_instance ~local_univs = function
@@ -3156,15 +3153,15 @@ let interp_univ_constraints env evd cstrs =
     with UGraph.UniverseInconsistency e as exn ->
       let _, info = Exninfo.capture exn in
       CErrors.user_err ~info
-        (UGraph.explain_universe_inconsistency (Termops.pr_evd_qvar evd) (Termops.pr_evd_level evd) e)
+        (UGraph.explain_universe_inconsistency (Evd.sort_printer evd) e)
   in
   List.fold_left interp (evd,Univ.UnivConstraints.empty) cstrs
 
 let known_glob_quality evd q =
   match q with
-  | GQConstant q -> Sorts.Quality.QConstant q
-  | GQualVar (GLocalQVar _) -> assert false
-  | GQualVar (GQVar q | GRawQVar q) -> Sorts.Quality.QVar q
+  | GQuality q -> q
+  | GLocalQVar _ -> assert false
+  | GRawQVar q -> QVar q
 
 let interp_known_quality evd q =
   let q = intern_quality ~local_univs:{bound = bound_univs evd; unb_univs=false} q in
@@ -3184,7 +3181,7 @@ let interp_elim_constraints env evd cstrs =
     with QGraph.EliminationError e as exn ->
       let _, info = Exninfo.capture exn in
       CErrors.user_err ~info @@
-        QGraph.explain_elimination_error (Termops.pr_evd_qvar evd) e
+        QGraph.explain_elimination_error (Evd.quality_printer evd) e
   in
   List.fold_left interp (evd, Sorts.ElimConstraints.empty) cstrs
 

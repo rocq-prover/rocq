@@ -750,6 +750,8 @@ module Make (Point:Point) = struct
           arc.ltle csts)
       kept csts
 
+  let mem q g = Index.mem q g.table
+
   let domain g =
     let fold u _ accu = Point.Set.add (Index.repr u g.table) accu in
     PMap.fold fold g.entries Point.Set.empty

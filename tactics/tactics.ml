@@ -297,7 +297,7 @@ let id_of_name_with_default id = function
 let default_id_of_sort sigma s =
   match ESorts.kind sigma s with
   | SProp | Prop | Set -> default_small_ident
-  | Type _ | QSort _ -> default_type_ident
+  | Type _ | GSort _ | VSort _ -> default_type_ident
 
 let default_id env sigma decl =
   let open Context.Rel.Declaration in

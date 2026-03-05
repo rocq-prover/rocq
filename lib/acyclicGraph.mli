@@ -78,6 +78,8 @@ module Make (Point:Point) : sig
 
   val constraints_for : kept:Point.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
 
+  val mem : Point.t -> t -> bool
+
   val domain : t -> Point.Set.t
 
   val choose : (Point.t -> bool) -> t -> Point.t -> Point.t option

@@ -29,8 +29,8 @@ module PContextSet = struct
   let add_level u (univs, cst) =
     Level.Set.add u univs, cst
 
-  let pr prv prl (univs, cst) =
-    UnivGen.pr_sort_context prv prl ((Sorts.QVar.Set.empty, univs), cst)
+  let pr printer (univs, cst) =
+    UnivGen.pr_sort_context printer ((Sorts.QVar.Set.empty, univs), cst)
 
   let univ_context_set (uvars, (_, uctx)) = (uvars, uctx)
   let univ_constraints (_, (_,csts)) = csts
@@ -102,7 +102,7 @@ module QState : sig
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> ?to_type:bool -> t -> t
-  val pr : (QVar.t -> Libnames.qualid option) -> t -> Pp.t
+  val pr : Sorts.Quality.printer -> (QVar.t -> Id.t option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
   val set_elims : QGraph.t -> t -> t
@@ -137,32 +137,40 @@ let empty = { qmap = QMap.empty; above_prop = QSet.empty;
 let rec repr q m = match QMap.find q m.qmap with
 | Canonical _ -> QVar q
 | Equiv (QVar q) -> repr q m
-| Equiv (QConstant _ as q) -> q
+| Equiv (QConstant _ | QGlobal _ as q) -> q
 | exception Not_found -> QVar q
 
 type repr =
 | ReprConstant of Quality.constant
+| ReprGlobal of QGlobal.t
 | ReprVar of QVar.t * bool
 
-let rec repr_node q m = match QMap.find q m.qmap with
+let rec repr_node_qvar q m = match QMap.find q m.qmap with
 | Canonical { rigid } -> ReprVar (q, rigid)
-| Equiv (QVar q) -> repr_node q m
-| Equiv (QConstant qc) -> ReprConstant qc
+| Equiv q -> repr_node q m
 | exception Not_found -> ReprVar (q, true) (* a bit dubious but missing variables are considered rigid *)
+
+and repr_node q m = match q with
+| QVar q -> repr_node_qvar q m
+| (QConstant qc) -> ReprConstant qc
+| (QGlobal q) -> ReprGlobal q
 
 let is_above_prop m q = QSet.mem q m.above_prop
 
 let eliminates_to_prop m q =
   QGraph.eliminates_to_prop m.elims (QVar q)
 
-let is_rigid m q = match repr_node q m with
+let is_rigid m q = match repr_node_qvar q m with
 | ReprVar (_, rigid) -> rigid
-| ReprConstant _ -> true
+| ReprConstant _ | ReprGlobal _ -> true
 
 let set q qv m =
-  let q = repr_node q m in
-  let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
-  let qv = match qv with QVar qv -> repr_node qv m | QConstant qc -> ReprConstant qc in
+  let q = repr_node_qvar q m in
+  let q, rigid = match q with
+    | ReprVar (q, rigid) -> q, rigid
+    | ReprConstant _ | ReprGlobal _ -> assert false
+  in
+  let qv = repr_node qv m in
   let enforce_eq q1 q2 g =
     let ans = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
     let () = QGraph.check_rigid_paths ans in
@@ -188,10 +196,18 @@ let set q qv m =
       Some { m with qmap = QMap.add q (Equiv qv) m.qmap;
                     above_prop = QSet.remove q m.above_prop;
                     elims = enforce_eq qv (QVar q) m.elims }
+  | ReprGlobal qg ->
+    if is_above_prop m q then None
+    else if rigid then None
+    else
+      let qv = QGlobal qg in
+      Some { m with qmap = QMap.add q (Equiv qv) m.qmap;
+                    above_prop = QSet.remove q m.above_prop;
+                    elims = enforce_eq qv (QVar q) m.elims }
 
 let set_above_prop q m =
-  let q = repr_node q m in
-  let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
+  let q = repr_node_qvar q m in
+  let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ | ReprGlobal _ -> assert false in
   if rigid then None
   else Some { m with above_prop = QSet.add q m.above_prop }
 
@@ -199,6 +215,7 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
 | QConstant QType, QConstant QType
 | QConstant QProp, QConstant QProp
 | QConstant QSProp, QConstant QSProp -> local
+| QGlobal q1, QGlobal q2 -> if QGlobal.equal q1 q2 then local else fail ()
 | QConstant QProp, QVar q when c == Conversion.CUMUL ->
   begin match set_above_prop q local with
   | Some local -> local
@@ -210,12 +227,13 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
       | Some local -> local
       | None -> fail ()
   end
-| QVar q, (QConstant (QType | QProp | QSProp) as qv)
-| (QConstant (QType | QProp | QSProp) as qv), QVar q ->
+| QVar q, (QConstant (QType | QProp | QSProp) | QGlobal _ as qv)
+| (QConstant (QType | QProp | QSProp) | QGlobal _ as qv), QVar q ->
   begin match set q qv local with
   | Some local -> local
   | None -> fail ()
   end
+| QGlobal _, QConstant _| QConstant _, QGlobal _ -> fail ()
 | (QConstant QType, QConstant (QProp | QSProp)) -> fail ()
 | (QConstant QProp, QConstant QType) ->
   begin match c with
@@ -226,7 +244,7 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
 | (QConstant QProp, QConstant QSProp) -> fail ()
 
 let nf_quality m = function
-  | QConstant _ as q -> q
+  | QConstant _ | QGlobal _ as q -> q
   | QVar q -> repr q m
 
 let add_qvars m qmap qs =
@@ -284,11 +302,7 @@ let add ~check_fresh ~rigid q m =
     initial_elims = add_quality m.initial_elims }
 
 let of_elims elims =
-  let qs = QGraph.qvar_domain elims in
-  let initial_elims =
-    QSet.fold (fun v -> QGraph.add_quality (QVar v)) qs (QGraph.initial_graph) in
-  let initial_elims = QGraph.update_rigids elims initial_elims in
-  { empty with elims; initial_elims }
+  { empty with elims; initial_elims = elims }
 
 (* XXX what about qvars in the elimination graph? *)
 let undefined m =
@@ -345,13 +359,8 @@ let collapse ?(except=QSet.empty) ?(to_type = true) m =
         else if to_type then Option.get (set q qtype m) else m)
     m.qmap m
 
-let pr prqvar_opt ({ qmap; elims } as m) =
+let pr prqvar local_name ({ qmap; elims } as m) =
   let open Pp in
-  (* Print the QVar using its name if any, e.g. "α1" or "s" *)
-  let prqvar q = match prqvar_opt q with
-    | None -> QVar.raw_pr q
-    | Some qid -> Libnames.pr_qualid qid
-  in
   (* Print the "body" of the QVar, e.g. "α1 := Type", "α2 >= Prop" *)
   let prbody u = function
   | Canonical { rigid } ->
@@ -364,13 +373,13 @@ let pr prqvar_opt ({ qmap; elims } as m) =
     str " := " ++ q
   in
   (* Print the "name" (given by the user) of the Qvar, e.g. "(named s)" *)
-  let prqvar_name q = match prqvar_opt q with
+  let prqvar_name q = match local_name q with
   | None -> mt ()
-  | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
+  | Some qid -> str " (named " ++ Id.print qid ++ str ")"
   in
   let prqvar_full (q1, q2) = QVar.raw_pr q1 ++ prbody q1 q2 ++ prqvar_name q1 in
   hov 0 (prlist_with_sep fnl prqvar_full (QMap.bindings qmap) ++
-    str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities (Quality.pr prqvar) elims))
+    str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities prqvar elims))
 
 let elims m = m.elims
 
@@ -383,7 +392,7 @@ let merge_constraints f m =
 
 let normalize_elim_constraints m cstrs =
   let subst q = match q with
-    | QConstant _ -> q
+    | QConstant _ | QGlobal _ -> q
     | QVar qv -> repr qv m
   in
   let is_instantiated q = is_qconst q || is_qglobal q in
@@ -442,7 +451,7 @@ let get_uname info = match info.uname with
 let qualid_of_qvar_names (bind, (qrev,_)) l =
   try Some (Libnames.qualid_of_ident (get_uname (QVar.Map.find l qrev)))
   with Not_found ->
-    UnivNames.qualid_of_quality bind l
+    UnivNames.qualid_of_quality bind (QVar l)
 
 let qualid_of_level_names (bind, (_,urev)) l =
   try Some (Libnames.qualid_of_ident (get_uname (Level.Map.find l urev)))
@@ -456,20 +465,36 @@ let pr_uctx_qvar_names names l =
   | Some qid -> Libnames.pr_qualid qid
   | None -> QVar.raw_pr l
 
+let quality_printer_names names = {
+  Sorts.Quality.prvar = pr_uctx_qvar_names names;
+  prglobal = (UnivNames.quality_printer (fst names)).prglobal;
+}
+
+let quality_printer uctx = quality_printer_names uctx.names
+
 let pr_uctx_level_names names l =
   match qualid_of_level_names names l with
   | Some qid -> Libnames.pr_qualid qid
   | None -> Level.raw_pr l
 
+let sort_printer_names names = {
+  Sorts.prq = quality_printer_names names;
+  pru = pr_uctx_level_names names;
+}
+
+let sort_printer uctx = sort_printer_names uctx.names
+
 let pr_uctx_level uctx l = pr_uctx_level_names uctx.names l
+
+let pr_uctx_qglobal uctx q =
+  UnivNames.pr_quality_with_global_universes ~binders:(fst uctx.names) (QGlobal q)
 
 let pr_uctx_qvar uctx l = pr_uctx_qvar_names uctx.names l
 
 let merge_univ_constraints uctx cstrs g =
   try UGraph.merge_constraints cstrs g
   with UGraph.UniverseInconsistency (_, i) ->
-    let printers = (pr_uctx_qvar uctx, pr_uctx_level uctx) in
-    raise (UGraph.UniverseInconsistency (Some printers, i))
+    raise (UGraph.UniverseInconsistency (Some (sort_printer uctx), i))
 
 type constraint_source =
 | Internal
@@ -488,8 +513,7 @@ let merge_elim_constraints ?(src = Internal) uctx cstrs g =
       let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
       Sorts.ElimConstraints.fold fold cstrs g
   with QGraph.(EliminationError (QualityInconsistency (_, i))) ->
-    let printer = pr_uctx_qvar uctx in
-    raise (QGraph.(EliminationError (QualityInconsistency (Some printer, i))))
+    raise (QGraph.(EliminationError (QualityInconsistency (Some (quality_printer uctx), i))))
 
 let uname_union s t =
   if s == t then s
@@ -559,7 +583,7 @@ let compute_instance_binders uctx inst =
       begin try Name (get_uname (QVar.Map.find q qrev))
       with Not_found -> Anonymous
       end
-    | QConstant _ -> assert false
+    | QConstant _ | QGlobal _ -> assert false
   in
   let umap lvl =
     try Name (get_uname (Level.Map.find lvl urev))
@@ -664,7 +688,7 @@ let nf_relevance uctx r = match r with
 | RelevanceVar q ->
   match nf_qvar uctx q with
   | QConstant QSProp -> Sorts.Irrelevant
-  | QConstant QProp | QConstant QType -> Sorts.Relevant
+  | QConstant QProp | QConstant QType | QGlobal _ -> Sorts.Relevant
   | QVar q' ->
     (* XXX currently not used in nf_evars_and_universes_opt_subst
        does it matter? *)
@@ -697,7 +721,7 @@ let classify s = match s with
 | Prop -> USmall UProp
 | SProp -> USmall USProp
 | Set -> USmall USet
-| Type u | QSort (_, u) ->
+| Type u | GSort (_, u) | VSort (_, u) ->
   if Universe.is_levels u then match Universe.level u with
   | None -> UMax (u, Universe.levels u)
   | Some u -> ULevel u
@@ -1016,7 +1040,7 @@ let check_constraint uctx (c:UnivProblem.t) =
         match a, b with
         | QConstant QProp, QConstant QType -> true
         | QConstant QProp, QVar q -> QState.is_above_prop uctx.sort_variables q
-        | (QConstant _ | QVar _), _ -> false
+        | (QConstant _ | QVar _ | QGlobal _), _ -> false
       end
   | QElimTo (a, b) ->
     let a = nf_quality uctx a in
@@ -1171,7 +1195,7 @@ let check_elim_implication uctx cstrs cstrs' =
   if ElimConstraints.is_empty cstrs' then ()
   else CErrors.user_err
       Pp.(str "Elimination constraints are not implied by the ones declared: " ++
-          ElimConstraints.pr (pr_uctx_qvar uctx) cstrs')
+          ElimConstraints.pr (quality_printer uctx) cstrs')
 
 let check_implication uctx (elim_csts,univ_csts) (elim_csts',univ_csts') =
   check_univ_implication uctx univ_csts univ_csts';
@@ -1617,7 +1641,7 @@ let check_uctx_impl ~fail uctx uctx' =
     let grext = elim_graph uctx in
     let cstrs' = ElimConstraints.filter (fun c -> not (QGraph.check_constraint grext c)) elim_csts in
     if ElimConstraints.is_empty cstrs' then ()
-    else fail (ElimConstraints.pr (pr_uctx_qvar uctx) cstrs')
+    else fail (ElimConstraints.pr (quality_printer uctx) cstrs')
   in
   ()
 
@@ -1630,17 +1654,22 @@ let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop}} =
     ++ if UPairSet.is_empty weak || Level.Set.is_empty above_prop then mt() else cut () ++
     prlist_with_sep cut (fun u -> h (str "Prop <= " ++ prl u)) (Level.Set.elements above_prop))
 
-let pr_sort_opt_subst uctx = QState.pr (qualid_of_qvar_names uctx.names) uctx.sort_variables
+let pr_sort_opt_subst uctx =
+  let local_name q = try Some (get_uname (QVar.Map.find q (fst @@ snd uctx.names)))
+    with Not_found -> None
+  in
+  QState.pr (quality_printer uctx)
+    local_name
+    uctx.sort_variables
 
 let pr ctx =
   let open Pp in
   let prl = pr_uctx_level ctx in
-  let prq = pr_uctx_qvar ctx in
   if is_empty ctx then mt ()
   else
     v 0
       (str"UNIVERSES:"++brk(0,1)++
-       h (PContextSet.pr prq prl (context_set ctx)) ++ fnl () ++
+       h (PContextSet.pr (sort_printer ctx) (context_set ctx)) ++ fnl () ++
        UnivFlex.pr prl (subst ctx) ++ fnl() ++
        str"SORTS:"++brk(0,1)++
        h (pr_sort_opt_subst ctx) ++ fnl() ++

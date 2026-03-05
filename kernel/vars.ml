@@ -489,8 +489,10 @@ let univs_and_qvars_visitor =
   let visit_sort (qs,us as acc) = function
     | Sorts.Type u ->
       qs, Universe.levels ~init:us u
-    | Sorts.QSort (q,u) ->
-      Sorts.QVar.Set.add q qs, Universe.levels ~init:us u
+    | Sorts.GSort (q,u) ->
+      Sorts.Quality.Set.add (QGlobal q) qs, Universe.levels ~init:us u
+    | Sorts.VSort (q,u) ->
+      Sorts.Quality.Set.add (QVar q) qs, Universe.levels ~init:us u
     | Sorts.(SProp | Prop | Set) -> acc
   in
   let visit_instance (qs,us) u =
@@ -498,7 +500,7 @@ let univs_and_qvars_visitor =
     let qs = Array.fold_left (fun qs q ->
         let open Sorts.Quality in
         match q with
-        | QVar q -> Sorts.QVar.Set.add q qs
+        | QVar _ | QGlobal _ -> Sorts.Quality.Set.add q qs
         | QConstant _ -> qs)
         qs qs'
     in
@@ -507,7 +509,7 @@ let univs_and_qvars_visitor =
   in
   let visit_relevance (qs,us as acc) = let open Sorts in function
       | Irrelevant | Relevant -> acc
-      | RelevanceVar q -> QVar.Set.add q qs, us
+      | RelevanceVar q -> Quality.Set.add (QVar q) qs, us
   in
   {
     visit_sort = visit_sort;
@@ -528,7 +530,7 @@ let visit_kind_univs visit acc c =
     acc
   | _ -> acc
 
-let sort_and_universes_of_constr ?(init=Sorts.QVar.Set.empty,Univ.Level.Set.empty) c =
+let sort_and_universes_of_constr ?(init=Sorts.Quality.Set.empty,Univ.Level.Set.empty) c =
   let rec aux s c =
     let s = visit_kind_univs univs_and_qvars_visitor s (kind c) in
     Constr.fold aux s c
@@ -541,4 +543,4 @@ let sort_and_universes_of_constr ?init c =
     ()
 
 let universes_of_constr ?(init=Univ.Level.Set.empty) c =
-  snd (sort_and_universes_of_constr ~init:(Sorts.QVar.Set.empty,init) c)
+  snd (sort_and_universes_of_constr ~init:(Sorts.Quality.Set.empty,init) c)

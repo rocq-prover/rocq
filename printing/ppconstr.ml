@@ -213,27 +213,24 @@ let pr_univ l =
   | UAnonymous {rigid=UnivRigid} -> tag_type (str "Type")
   | UAnonymous {rigid=UnivFlexible _} -> tag_type (str "_")
 
-let pr_qvar_expr = function
+let pr_quality_expr = function
   | CQAnon _ -> tag_type (str "_")
   | CQVar qid -> tag_type (pr_qualid qid)
-  | CRawQVar q -> tag_type (Sorts.QVar.raw_pr q)
+  | CRawQuality q -> tag_type (Sorts.Quality.raw_pr q)
+  | CQConstant q -> tag_type (Sorts.Quality.Constants.pr q)
 
 let pr_relevance = function
   | CRelevant -> str "Relevant"
   | CIrrelevant -> str "Irrelevant"
-  | CRelevanceVar q -> pr_qvar_expr q
+  | CRelevanceVar q -> pr_quality_expr q
 
 let pr_relevance_info = function
   | None -> mt()
   | Some r -> str "(* " ++ pr_relevance r ++ str " *) "
 
-let pr_quality_expr q = match q with
-  | CQConstant q -> tag_type (Sorts.Quality.Constants.pr q)
-  | CQualVar q -> pr_qvar_expr q
-
 let pr_quality_univ (q, l) = match q with
   | None -> pr_univ l
-  | Some q ->  pr_qvar_expr q ++ spc() ++ str ";" ++ spc () ++ pr_univ l
+  | Some q ->  pr_quality_expr q ++ spc() ++ str ";" ++ spc () ++ pr_univ l
 
 let pr_univ_annot pr x = str "@{" ++ pr x ++ str "}"
 
