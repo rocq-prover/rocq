@@ -1322,7 +1322,7 @@ When generating eliminators for a predicate `P`, if an argument is nested
 with :n:`@reference`, the `All` predicate and its theorem will be looked up with the key
 :n:`All` and :n:`AllForall`, and used to enforce `P` holds on the nested argument.
 
-   .. warn:: @reference is nested using @reference. No Lemma for @reference is registered for @ident
+   .. warn:: @reference is nested using @reference. No Lemma for @reference is registered for @ident. It can be generated using command "Scheme All" e.g. "Scheme All for @ident.".
       :name: register-all
 
       The `All` and `AllForall` predicate need to be defined and registered before the
