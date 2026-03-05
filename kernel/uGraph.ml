@@ -43,8 +43,7 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type univ_variable_printers = (Sorts.QVar.t -> Pp.t) * (Level.t -> Pp.t)
-type univ_inconsistency = univ_variable_printers option * (UnivConstraint.kind * Sorts.t * Sorts.t * explanation option)
+type univ_inconsistency = Sorts.printer option * (UnivConstraint.kind * Sorts.t * Sorts.t * explanation option)
 
 exception UniverseInconsistency of univ_inconsistency
 
@@ -148,11 +147,18 @@ let check_leq_sort qeq univs s1 s2 =
     match s1, s2 with
     | (SProp, SProp) | (Prop, Prop) | (Set, Set) -> true
     | (Prop, (Set | Type _)) -> true
-    | (Prop, QSort (q, _)) -> is_above_prop univs q
+    | (Prop, VQSort (q, _)) -> is_above_prop univs q
     | (Type _ | Set), (Set | Type _) -> check_leq univs (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2)
-    | (QSort (s1, u1), QSort (s2, u2)) -> qeq (Sorts.Quality.QVar s1) (Sorts.Quality.QVar s2) && check_leq univs u1 u2
-    | (QSort (q, u1), Type u2) -> is_above_prop univs q && check_leq univs u1 u2
-    | ((SProp | Prop | Set | Type _ | QSort _), _) -> false
+    | (GQSort (s1, u1), GQSort (s2, u2)) ->
+      qeq (QGlobal s1) (QGlobal s2) && check_leq univs u1 u2
+    | (VQSort (s1, u1), VQSort (s2, u2)) ->
+      qeq (QVar s1) (QVar s2) && check_leq univs u1 u2
+    | (GQSort (s1, u1), VQSort (s2, u2)) ->
+      qeq (QGlobal s1) (QVar s2) && check_leq univs u1 u2
+    | (VQSort (s1, u1), GQSort (s2, u2)) ->
+      qeq (QVar s1) (QGlobal s2) && check_leq univs u1 u2
+    | (VQSort (q, u1), Type u2) -> is_above_prop univs q && check_leq univs u1 u2
+    | ((SProp | Prop | Set | Type _ | GQSort _ | VQSort _), _) -> false
 
 let leq_expr (u,m) (v,n) =
   let d = match m - n with
@@ -251,17 +257,14 @@ let pr_universes prl g = pr_pmap Pp.mt (pr_arc prl) g
 
 open Pp
 
-let explain_universe_inconsistency default_prq default_prl (printers, (o,u,v,p) : univ_inconsistency) =
-  let prq, prl = match printers with
-    | Some (prq, prl) -> prq, prl
-    | None -> default_prq, default_prl
-  in
+let explain_universe_inconsistency default_printer (printer, (o,u,v,p) : univ_inconsistency) =
+  let printer = Option.default default_printer printer in
   let pr_uni u = match u with
   | Sorts.Set -> str "Set"
   | Sorts.Prop -> str "Prop"
   | Sorts.SProp -> str "SProp"
-  | Sorts.Type u -> Universe.pr prl u
-  | Sorts.QSort (q, u) -> str "Type@{" ++ prq q ++ str " | " ++ Universe.pr prl u ++ str"}"
+  | Sorts.Type u -> Universe.pr printer.pru u
+  | Sorts.VQSort _ | GQSort _ -> Sorts.pr printer u
   in
   let pr_rel = function
     | Eq -> str"=" | Lt -> str"<" | Le -> str"<="
@@ -273,8 +276,8 @@ let explain_universe_inconsistency default_prq default_prl (printers, (o,u,v,p) 
       let pstart, p = Lazy.force p in
       if p = [] then mt ()
       else
-        str " because" ++ spc() ++ prl pstart ++
-        prlist (fun (r,v) -> spc() ++ pr_rel r ++ str" " ++ prl v) p
+        str " because" ++ spc() ++ printer.pru pstart ++
+        prlist (fun (r,v) -> spc() ++ pr_rel r ++ str" " ++ printer.pru v) p
   in
     str "Cannot enforce" ++ spc() ++ pr_uni u ++ spc() ++
       pr_rel o ++ spc() ++ pr_uni v ++ reason

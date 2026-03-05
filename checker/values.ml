@@ -188,11 +188,11 @@ let v_univ = v_list v_expr
 let v_qglobal = v_pair v_dp v_id
 
 (* perhaps the "Unif" constructor should be forbidden in vo files *)
-let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_string;v_int|];[|v_qglobal|]|]
+let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_int|];[|v_string;v_int|]|]
 
 let v_constant_quality = v_enum "constant_quality" 3
 
-let v_quality = v_sum "quality" 0 [|[|v_qvar|];[|v_constant_quality|]|]
+let v_quality = v_sum "quality" 0 [|[|v_qvar|];[|v_constant_quality|];[|v_qglobal|]|]
 
 let v_elim_cstrs =
   v_annot_c
@@ -219,11 +219,13 @@ let v_variance = v_enum "variance" 3
 let v_instance = v_annot_c ("instance", v_pair (v_array v_quality) (v_array v_level))
 let v_abs_context = v_tuple "abstract_universe_context" [|v_pair (v_array v_name) (v_array v_name); v_cstrs|]
 let v_univ_context_set = v_tuple "universe_context_set" [|v_hset v_level;v_univ_cstrs|]
-let v_sort_context_set = v_tuple "sort_context_set" [|v_set v_qvar; v_elim_cstrs|]
 
 (** kernel/term *)
 
-let v_sort = v_sum "sort" 3 (*SProp, Prop, Set*) [|[|v_univ(*Type*)|];[|v_qvar;v_univ(*QSort*)|]|]
+let v_sort = v_sum "sort" 3 (*SProp, Prop, Set*)
+    [|[|v_univ(*Type*)|];
+      [|v_qglobal;v_univ|];
+      [|v_qvar;v_univ(*QSort*)|]|]
 
 let v_relevance = v_sum "relevance" 2 [|[|v_qvar|]|]
 let v_binder_annot x = v_tuple "binder_annot" [|x;v_relevance|]
@@ -607,7 +609,14 @@ let v_vodigest = v_sum_c ("module_impl",0, [| [|v_string|]; [|v_string;v_string|
 let v_deps = v_array (v_tuple "dep" [|v_dp;v_vodigest|])
 let v_flags = v_tuple "flags" [|v_bool|] (* Allow Rewrite Rules *)
 let v_compiled_lib =
-  v_tuple "compiled" [|v_dp; v_module; v_univ_context_set; v_sort_context_set; v_deps; v_flags; v_retroknowledge|]
+  v_tuple "compiled"
+    [|v_dp;
+      v_module;
+      v_univ_context_set;
+      (v_pair (v_set v_qglobal) v_elim_cstrs);
+      v_deps;
+      v_flags;
+      v_retroknowledge|]
 
 (** Toplevel structures in a vo (see Cic.mli) *)
 

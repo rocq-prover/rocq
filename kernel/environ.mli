@@ -73,7 +73,6 @@ val set_universes : UGraph.t -> env -> env
 val set_qualities : QGraph.t -> env -> env
 
 val qualities : env -> QGraph.t
-val qvars : env -> Sorts.QVar.Set.t
 
 val typing_flags    : env -> typing_flags
 val is_impredicative_set : env -> bool
@@ -393,10 +392,14 @@ val push_context_set : ?strict:bool -> Univ.ContextSet.t -> env -> env
     context set to the environment. It does not fail even if one of the
     universes is already declared. *)
 
-val push_qualities : rigid:bool -> Sorts.QContextSet.t -> env -> env
+val push_qualities : Sorts.Quality.Set.t -> env -> env
 (** [push_qualities qs env] pushes the set of quality variables and constraints
     in the environment. It fails if a quality variable is already
     declared. *)
+
+val merge_elim_constraints : rigid:bool -> Sorts.ElimConstraints.t -> env -> env
+(** [merge_elim_constraints ~rigid qcsts env] adds the elimination
+    constraints to the graph, rigidly if [rigid]. *)
 
 val push_subgraph : Univ.ContextSet.t -> env -> env
 (** [push_subgraph univs env] adds the universes and constraints in
@@ -516,7 +519,7 @@ module Internal : sig
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;
-      env_qualities : Sorts.QVar.Set.t;
+      env_qualities : Sorts.Quality.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;
       env_typing_flags  : typing_flags;
     }

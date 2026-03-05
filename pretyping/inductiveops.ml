@@ -272,6 +272,9 @@ let squash_elim_sort sigma squash rtnsort =
   | SquashToQuality (QConstant QType) ->
      add_unif_if_cannot_elim_into Evd.set_leq_sort Sorts.set
      (* Sort poly squash to type *)
+  | SquashToQuality (QGlobal _ as q) ->
+    add_unif_if_cannot_elim_into Evd.set_leq_sort (Sorts.make q Univ.Universe.type0)
+    (* sort poly squash to global *)
   | SquashToQuality (QVar q) ->
      let q' = ESorts.quality sigma rtnsort in
      let g = Evd.elim_graph sigma in

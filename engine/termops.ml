@@ -267,7 +267,11 @@ let has_no_evar sigma =
 
 let pr_evd_level sigma = UState.pr_uctx_level (Evd.ustate sigma)
 
+let pr_evd_qglobal sigma = UState.pr_uctx_qglobal (Evd.ustate sigma)
+
 let pr_evd_qvar sigma = UState.pr_uctx_qvar (Evd.ustate sigma)
+
+let pr_evd_quality sigma q = Quality.pr (Evd.quality_printer sigma) q
 
 let reference_of_level sigma l = UState.qualid_of_level (Evd.ustate sigma) l
 
@@ -1033,8 +1037,10 @@ let is_template_polymorphic_ind env sigma f =
 let base_sort_cmp pb s0 s1 =
   match (s0,s1) with
   | SProp, SProp | Prop, Prop | Set, Set | Type _, Type _ -> true
-  | QSort (q1, _), QSort (q2, _) -> Sorts.QVar.equal q1 q2
-  | QSort _, _ | _, QSort _ -> false
+  | VQSort (q1, _), VQSort (q2, _) -> Sorts.QVar.equal q1 q2
+  | VQSort _, _ | _, VQSort _ -> false
+  | GQSort (q1, _), GQSort (q2, _) -> Sorts.QGlobal.equal q1 q2
+  | GQSort _, _ | _, GQSort _ -> false
   | SProp, _ | _, SProp -> false
   | Prop, Set | Prop, Type _ | Set, Type _ -> pb == Conversion.CUMUL
   | Set, Prop | Type _, Prop | Type _, Set -> false

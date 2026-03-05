@@ -73,7 +73,7 @@ type ('constr, 'types, 'r) ptype_error =
       int * (Name.t, 'r) Context.pbinder_annot array * ('constr, 'types) punsafe_judgment array * 'types array
   | UnsatisfiedUnivConstraints of UnivConstraints.t
   | UnsatisfiedPConstraints of PConstraints.t
-  | UndeclaredQualities of Sorts.QVar.Set.t
+  | UndeclaredQualities of Sorts.Quality.Set.t
   | UndeclaredUniverses of Level.Set.t
   | NotAllowedSProp
   | BadBinderRelevance of 'r * ('constr, 'types, 'r) Context.Rel.Declaration.pt

@@ -782,28 +782,24 @@ let extern_glob_sort_name uvars = function
       | None -> CRawType u
     end
 
-let extern_glob_qvar uvars = function
+let extern_glob_quality uvars = function
   | GLocalQVar {v=Anonymous;loc} -> CQAnon loc
   | GLocalQVar {v=Name id; loc} -> CQVar (qualid_of_ident ?loc id)
-  | GRawQVar q -> CRawQVar q
-  | GQVar q -> begin match UnivNames.qualid_of_quality uvars q with
+  | GRawQVar q -> CRawQuality (QVar q)
+  | GQuality q -> begin match UnivNames.qualid_of_quality uvars q with
     | Some qid -> CQVar qid
-    | None -> CRawQVar q
+    | None -> CRawQuality q
     end
 
 let extern_relevance uvars = function
   | GRelevant -> CRelevant
   | GIrrelevant -> CIrrelevant
-  | GRelevanceVar q -> CRelevanceVar (extern_glob_qvar uvars q)
+  | GRelevanceVar q -> CRelevanceVar (extern_glob_quality uvars q)
 
 let extern_relevance_info uvars = Option.map (extern_relevance uvars)
 
-let extern_glob_quality uvars = function
-  | GQConstant q -> CQConstant q
-  | GQualVar q -> CQualVar (extern_glob_qvar uvars q)
-
 let extern_glob_sort uvars (q, l) =
-  Option.map (extern_glob_qvar uvars) q,
+  Option.map (extern_glob_quality uvars) q,
   map_glob_sort_gen (List.map (on_fst (extern_glob_sort_name uvars))) l
 
 let extern_instance uvars = function
@@ -1509,6 +1505,7 @@ let rec glob_of_pat
   | PSort (Qual (QConstant QSProp)) -> GSort Glob_ops.glob_SProp_sort
   | PSort (Qual (QConstant QProp)) -> GSort Glob_ops.glob_Prop_sort
   | PSort (Qual (QConstant QType | QVar _)) -> GSort Glob_ops.glob_Type_sort
+  | PSort (Qual (QGlobal _ as q)) -> GSort (Some (GQuality q), Glob_ops.glob_rigid_univ)
   | PSort Set -> GSort Glob_ops.glob_Set_sort
   | PInt i -> GInt i
   | PFloat f -> GFloat f

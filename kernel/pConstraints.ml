@@ -59,12 +59,12 @@ let filter_qualities f (qc, lc) =
 let filter_univs f (qc, lc) =
   make qc @@ UnivConstraints.filter f lc
 
-let pr prv prl (qc, lc) =
+let pr (printer:Sorts.printer) (qc, lc) =
   let open Pp in
   let sep = if ElimConstraints.is_empty qc || UnivConstraints.is_empty lc
             then mt ()
             else pr_comma () in
-  v 0 (ElimConstraints.pr prv qc ++ sep ++ UnivConstraints.pr prl lc)
+  v 0 (ElimConstraints.pr printer.prq qc ++ sep ++ UnivConstraints.pr printer.pru lc)
 
 module HPConstraints =
   Hashcons.Make(

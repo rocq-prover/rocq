@@ -40,7 +40,7 @@ type explanation =
   | Other of Pp.t
 
 type quality_inconsistency =
-  ((QVar.t -> Pp.t) option) *
+  (Quality.printer option) *
     (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 type elimination_error =
@@ -96,13 +96,15 @@ val eliminates_to_prop : t -> Quality.t -> bool
 
 val sort_eliminates_to : t -> Sorts.t -> Sorts.t -> bool
 
+val mem : Quality.t -> t -> bool
+
 val domain : t -> Quality.Set.t
 val qvar_domain : t -> QVar.Set.t
 
 val is_empty : t -> bool
 
-val pr_qualities : (Quality.t -> Pp.t) -> t -> Pp.t
+val pr_qualities : Quality.printer -> t -> Pp.t
 
-val explain_quality_inconsistency : (QVar.t -> Pp.t) -> explanation option -> Pp.t
+val explain_quality_inconsistency : Quality.printer -> explanation option -> Pp.t
 
-val explain_elimination_error : (QVar.t -> Pp.t) -> elimination_error -> Pp.t
+val explain_elimination_error : Quality.printer -> elimination_error -> Pp.t

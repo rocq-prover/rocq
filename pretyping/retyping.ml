@@ -168,10 +168,7 @@ let bind_template bind_sort s (qsubst,usubst) =
   let usubst = match ubind with
     | None -> usubst
     | Some ubind ->
-      let u = match s with
-        | SProp | Prop | Set -> Univ.Universe.type0
-        | Type u | QSort (_,u) -> u
-      in
+      let u = Sorts.univ_of_sort s in
       Int.Map.update ubind (function
           | None -> Some u
           | Some _ ->
@@ -285,10 +282,8 @@ let retype ?metas ?(polyprop=true) sigma =
     match EConstr.kind sigma t with
     | Cast (c,_, s) when isSort sigma s -> destSort sigma s
     | Sort s ->
-      begin match ESorts.kind sigma s with
-      | SProp | Prop | Set -> ESorts.type1
-      | Type u | QSort (_, u) -> ESorts.make (Sorts.sort_of_univ (Univ.Universe.super u))
-      end
+      let u = Sorts.univ_of_sort @@ ESorts.kind sigma s in
+      ESorts.make (Sorts.sort_of_univ (Univ.Universe.super u))
     | Prod (name,t,c2) ->
       let dom = sort_of env t in
       let rang = sort_of (push_rel (LocalAssum (name,t)) env) c2 in

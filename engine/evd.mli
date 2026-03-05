@@ -607,6 +607,9 @@ val check_quality_constraints : evar_map -> UVars.QPairSet.t -> bool
 val ustate : evar_map -> UState.t
 val elim_graph : evar_map -> QGraph.t
 
+val quality_printer : evar_map -> Sorts.Quality.printer
+val sort_printer : evar_map -> Sorts.printer
+
 val universe_context_set : evar_map -> Univ.ContextSet.t
 val sort_context_set : evar_map -> UnivGen.sort_context_set
 val universe_subst : evar_map -> UnivFlex.t

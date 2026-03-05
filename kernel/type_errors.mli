@@ -75,7 +75,7 @@ type ('constr, 'types, 'r) ptype_error =
       int * (Name.t,'r) Context.pbinder_annot array * ('constr, 'types) punsafe_judgment array * 'types array
   | UnsatisfiedUnivConstraints of UnivConstraints.t
   | UnsatisfiedPConstraints of PConstraints.t
-  | UndeclaredQualities of Sorts.QVar.Set.t
+  | UndeclaredQualities of Sorts.Quality.Set.t
   | UndeclaredUniverses of Level.Set.t
   | NotAllowedSProp
   | BadBinderRelevance of 'r * ('constr, 'types, 'r) Context.Rel.Declaration.pt
@@ -156,7 +156,7 @@ val error_unsatisfied_univ_constraints : env -> Univ.UnivConstraints.t -> 'a
 
 val error_unsatisfied_poly_constraints : env -> PConstraints.t -> 'a
 
-val error_undeclared_qualities : env -> Sorts.QVar.Set.t -> 'a
+val error_undeclared_qualities : env -> Sorts.Quality.Set.t -> 'a
 
 val error_undeclared_universes : env -> Level.Set.t -> 'a
 

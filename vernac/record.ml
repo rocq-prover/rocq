@@ -163,7 +163,7 @@ end
 let is_sort_variable sigma s =
   match EConstr.ESorts.kind sigma s with
   | SProp | Prop | Set -> None
-  | Type u | QSort (_, u) -> match Univ.Universe.level u with
+  | Type u | GQSort (_, u) | VQSort (_, u) -> match Univ.Universe.level u with
     | None -> None
     | Some l ->
       if Univ.Level.Set.mem l (fst (Evd.universe_context_set sigma))

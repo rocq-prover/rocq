@@ -256,7 +256,7 @@ let explain_exn = function
     let msg =
       if CDebug.(get_flag misc) then
         str "." ++ spc() ++
-          UGraph.explain_universe_inconsistency Sorts.QVar.raw_pr Univ.Level.raw_pr i
+          UGraph.explain_universe_inconsistency Sorts.raw_printer i
       else
         mt() in
     hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")
@@ -264,7 +264,7 @@ let explain_exn = function
     let msg =
       if CDebug.(get_flag misc) then
         str "." ++ spc() ++
-          QGraph.explain_elimination_error Sorts.QVar.raw_pr e
+          QGraph.explain_elimination_error Sorts.Quality.raw_printer e
       else
         mt() in
     hov 0 (str "Error: Elimination error" ++ msg ++ str ".")

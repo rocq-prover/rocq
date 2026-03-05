@@ -288,9 +288,7 @@ let universe_binders_with_opt_names orig names =
 
 let pr_sort_context_set sigma c =
   if !PrintingFlags.print_universes && not (UnivGen.is_empty_sort_context c) then
-    let prl = Termops.pr_evd_level sigma in
-    let prv = Termops.pr_evd_qvar sigma in
-    let ctx = UnivGen.pr_sort_context prv prl c in
+    let ctx = UnivGen.pr_sort_context (Evd.sort_printer sigma) c in
     fnl() ++ pr_in_comment (v 0 ctx)
   else
     mt()
@@ -300,8 +298,7 @@ let pr_universe_ctx sigma ?variance c =
     fnl()++
     pr_in_comment
       (v 0
-         (UVars.UContext.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma)
-            ?variance c))
+         (UVars.UContext.pr (Evd.sort_printer sigma) ?variance c))
   else
     mt()
 
@@ -309,9 +306,8 @@ let pr_abstract_universe_ctx sigma ?variance ?priv c =
   let priv = Option.default Univ.ContextSet.empty priv in
   let has_priv = not (Univ.ContextSet.is_empty priv) in
   if !PrintingFlags.print_universes && (not (UVars.AbstractContext.is_empty c) || has_priv) then
-    let prqvar u = Termops.pr_evd_qvar sigma u in
     let prlev u = Termops.pr_evd_level sigma u in
-    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.AbstractContext.pr prqvar prlev ?variance c) in
+    let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.AbstractContext.pr (Evd.sort_printer sigma) ?variance c) in
     let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (Univ.ContextSet.pr prlev priv) else mt() in
     fnl()++pr_in_comment (pub ++ priv)
   else
@@ -329,7 +325,6 @@ let pr_global = pr_global_env Id.Set.empty
 
 let pr_universe_instance_binder evd inst csts =
   let open Univ in
-  let prqvar = Termops.pr_evd_qvar evd in
   let prlev = Termops.pr_evd_level evd in
   let pcsts = if UnivConstraints.is_empty csts then mt()
     else strbrk " | " ++
@@ -337,12 +332,10 @@ let pr_universe_instance_binder evd inst csts =
            (fun (u,d,v) -> hov 0 (prlev u ++ UnivConstraint.pr_kind d ++ prlev v))
            (UnivConstraints.elements csts)
   in
-  str"@{" ++ UVars.Instance.pr prqvar prlev inst ++ pcsts ++ str"}"
+  str"@{" ++ UVars.Instance.pr (Evd.sort_printer evd) inst ++ pcsts ++ str"}"
 
 let pr_universe_instance evd inst =
-  let prqvar = Termops.pr_evd_qvar evd in
-  let prlev = Termops.pr_evd_level evd in
-  str "@{" ++ UVars.Instance.pr prqvar prlev inst ++ str "}"
+  str "@{" ++ UVars.Instance.pr (Evd.sort_printer evd) inst ++ str "}"
 
 let pr_puniverses f env sigma (c,u) =
   if !PrintingFlags.print_universes

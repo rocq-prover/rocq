@@ -105,19 +105,19 @@ let update_invtblq1 ~loc evd qold qvar (curvarq, tbl) =
     | Some k ->
         CErrors.user_err ?loc
           Pp.(str "Sort variable "
-            ++ Sorts.Quality.pr (Termops.pr_evd_qvar evd) qold
+            ++ Sorts.Quality.pr (Evd.quality_printer evd) qold
             ++ str" is bound multiple times in the pattern (holes number "
             ++ int k ++ str" and " ++ int curvarq ++ str").")
 
 let safe_quality_pattern_of_quality ~loc evd qsubst stateq q =
   match Sorts.Quality.(subst (subst_fn qsubst) q) with
   | QConstant qc -> stateq, PQConstant qc
+  | QGlobal qg -> stateq, PQGlobal qg
   | QVar qv ->
     match Sorts.QVar.repr qv with
-    | Global qg -> stateq, PQGlobal qg
-    | Var qi ->
-        update_invtblq1 ~loc evd q qi stateq, PQVar (Some qi)
+    | Var qi -> update_invtblq1 ~loc evd q qi stateq, PQVar (Some qi)
     | Unif _ -> stateq, PQVar None
+    | Secvar _ -> CErrors.user_err ?loc Pp.(str "Section polymorphic sort not supported.")
 
 let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u : state * _ =
   let (q, u) = u |> UVars.Instance.to_array in
@@ -149,21 +149,29 @@ let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s 
   | SProp -> state, PSSProp
   | Prop -> state, PSProp
   | Set -> state, PSSet
-  | QSort (qold, u) ->
-      let qv = match Sorts.Quality.subst_fn qsubst qold with QConstant _ -> assert false | QVar qv -> qv in
-      let sq, bq =
-        match Sorts.QVar.var_index qv with
-        | Some q -> update_invtblq1 ~loc evd (QVar qold) q sq, Some q
-        | None -> sq, None
-      in
-      let su, ba =
-        match universe_level_subst_var_index usubst u with
-        | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
-        | None -> su, None
-      in
-      match Sorts.QVar.name qv with
-      | Some qg -> (st, sq, su), PSGlobal (qg, ba)
-      | None -> (st, sq, su), PSQSort (bq, ba)
+  | GQSort (qg, u) ->
+    let su, ba =
+      match universe_level_subst_var_index usubst u with
+      | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
+      | None -> su, None
+    in
+    (st, sq, su), PSGlobal (qg, ba)
+  | VQSort (qold, u) ->
+    let su, ba =
+      match universe_level_subst_var_index usubst u with
+      | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
+      | None -> su, None
+    in
+    match Sorts.Quality.subst_fn qsubst qold with
+    | QConstant _ -> assert false
+    | QGlobal qg -> (st, sq, su), PSGlobal (qg, ba)
+    | QVar qv ->
+    let sq, bq =
+      match Sorts.QVar.var_index qv with
+      | Some q -> update_invtblq1 ~loc evd (QVar qold) q sq, Some q
+      | None -> sq, None
+    in
+    (st, sq, su), PSQSort (bq, ba)
 
 
 let warn_irrelevant_pattern =
@@ -508,14 +516,17 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
 
   let rhs = Vars.subst_univs_level_constr usubst rhs in
 
-  let test_qvar q =
+  let test_qvar (q:Sorts.Quality.t) =
+    match q with
+    | QGlobal _ -> ()
+    | QConstant _ -> assert false
+    | QVar q ->
     match Sorts.QVar.var_index q with
     | Some -1 ->
         CErrors.user_err ?loc:rhs_loc
           Pp.(str "Sort variable " ++ Termops.pr_evd_qvar evd q ++ str " appears in the replacement but does not appear in the pattern.")
     | Some n when n < 0 || n > nvarqs' -> CErrors.anomaly Pp.(str "Unknown sort variable in rewrite rule.")
     | Some _ -> ()
-    | None when Option.has_some (Sorts.QVar.name q) -> ()
     | None ->
         if not @@ Sorts.QVar.Set.mem q (evd |> Evd.sort_context_set |> fst |> fst) then
           CErrors.user_err ?loc:rhs_loc
@@ -542,7 +553,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
 
   let () =
     let qs, us = Vars.sort_and_universes_of_constr rhs in
-    Sorts.QVar.Set.iter test_qvar qs;
+    Sorts.Quality.Set.iter test_qvar qs;
     Univ.Level.Set.iter test_level us
   in
 

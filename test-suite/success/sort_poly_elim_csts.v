@@ -23,12 +23,14 @@ Section Global.
   Fail Check t@{s Type;Set Set}.
 End Global.
 
+Definition dominant@{Exn Test;|Prop -> Test, Exn -> Test} := tt.
+
 Section Dominant.
   Sort Exn.
 
   Sort Test.
   Constraint Prop -> Test.
-  Fail Constraint Exn -> Test.
+  Succeed Constraint Exn -> Test.
 
   Fail Polymorphic Definition test@{s;l|Prop -> s, Exn -> s} (A : Type@{s;l}) : A := ad A.
 End Dominant.

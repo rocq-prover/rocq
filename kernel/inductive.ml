@@ -132,7 +132,9 @@ let template_univ_quality = function
 let max_template_quality a b =
   let open Sorts.Quality in
   match a, b with
-  | QConstant QSProp, _ | _, QConstant QSProp -> assert false
+  | QConstant QSProp, _ | _, QConstant QSProp
+  | QGlobal _, _ | _, QGlobal _ ->
+    assert false
   | QConstant QProp, q | q, QConstant QProp -> q
   | (QConstant QType as q), _ | _, (QConstant QType as q) -> q
   | QVar a', QVar b' ->
@@ -150,11 +152,11 @@ let univ_bind_kind u =
 
 let bind_kind = let open Sorts in function
   | SProp | Prop | Set -> assert false
-  | Type u ->
+  | Type u | GQSort (_, u) ->
     let u = univ_bind_kind u in
     assert (Option.has_some u);
     None, u
-  | QSort (q,u) ->
+  | VQSort (q,u) ->
     let q = Sorts.QVar.var_index q in
     let u = univ_bind_kind u in
     assert (Option.has_some q || Option.has_some u);
@@ -243,9 +245,9 @@ let template_subst_universe (_,usubst) u =
 
 let template_subst_sort (subst : template_subst) = function
 | Sorts.Prop | Sorts.Set | Sorts.SProp as s -> s
-| Sorts.Type u ->
-  Sorts.sort_of_univ (template_subst_universe subst u)
-| Sorts.QSort (q,u) ->
+| Sorts.Type u | Sorts.GQSort (_, u) as s ->
+  Sorts.make (Sorts.quality s) (template_subst_universe subst u)
+| Sorts.VQSort (q,u) ->
   let q = match Sorts.QVar.var_index q with
     | None -> Sorts.Quality.QVar q
     | Some q -> Int.Map.get q (fst subst)
@@ -273,7 +275,7 @@ let instantiate_template_constraints subst templ =
   let cstrs = UVars.UContext.constraints (UVars.AbstractContext.repr templ.template_context) in
   let foldq (q, cst, q') accq =
     let substq q = match q with
-      | Quality.QConstant _ -> q
+      | Quality.QConstant _ | Quality.QGlobal _ -> q
       | Quality.QVar q' ->
          begin
            match QVar.var_index q' with
@@ -439,7 +441,7 @@ let allowed_elimination_gen g nf_quality actions specifu s =
   | Some SquashToSet ->
     begin match s with
       | SProp|Prop|Set -> actions.squashed_to_set_below
-      | QSort _ | Type _ -> actions.squashed_to_set_above
+      | GQSort _ | VQSort _ | Type _ -> actions.squashed_to_set_above
     end
   | Some (SquashToQuality indq) -> actions.squashed_to_quality indq
 
@@ -1788,7 +1790,7 @@ let sorts_of_mutfix env minds names =
         let out_sort = match names.(i).Context.binder_relevance with
           | Irrelevant -> Sorts.sprop
           | Relevant -> Sorts.prop
-          | RelevanceVar q -> Sorts.qsort q u in
+          | RelevanceVar q -> Sorts.vqsort q u in
         (ind_sort, out_sort) :: sorts
       ) [] minds)
 

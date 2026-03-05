@@ -66,7 +66,7 @@ sig
   val hash : t -> int
   (** Hash value *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : Sorts.printer -> ?variance:Variance.t array -> t -> Pp.t
   (** Pretty-printing, no comments *)
 
   val levels : t -> Quality.Set.t * Level.Set.t
@@ -151,7 +151,7 @@ sig
   val to_context_set : t -> Sorts.QContextSet.t * Univ.ContextSet.t
   (** Discard the names and order of the universes *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : Sorts.printer -> ?variance:Variance.t array -> t -> Pp.t
 end
 (** A value in a universe context. *)
 type 'a in_universe_context = 'a * UContext.t
@@ -195,7 +195,7 @@ sig
   val names : t -> bound_names
   (** Return the names of the bound universe variables *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : Sorts.printer -> ?variance:Variance.t array -> t -> Pp.t
 end
 
 type 'a univ_abstracted = {
@@ -222,7 +222,7 @@ val subst_poly_constraints : sort_level_subst -> PConstraints.t -> PConstraints.
 
 val pr_universe_level_subst : (Level.t -> Pp.t) -> universe_level_subst -> Pp.t
 
-val pr_quality_level_subst : (QVar.t -> Pp.t) -> Quality.t QVar.Map.t -> Pp.t
+val pr_quality_level_subst : Quality.printer -> Quality.t QVar.Map.t -> Pp.t
 
 val empty_sort_subst : sort_level_subst
 

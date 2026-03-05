@@ -355,9 +355,9 @@ let is_closed_sort env s = match env.uinstance with
   in
   match s with
   | Sorts.Set | Sorts.Prop | Sorts.SProp -> true
-  | Sorts.Type u ->
+  | Sorts.Type u | Sorts.GQSort (_, u) ->
     Univ.Universe.for_all (fun (l, _) -> check ulen (Univ.Level.var_index l)) u
-  | Sorts.QSort (q, u) ->
+  | Sorts.VQSort (q, u) ->
     check qlen (Sorts.QVar.var_index q)
     && Univ.Universe.for_all (fun (l, _) -> check ulen (Univ.Level.var_index l)) u
 

@@ -176,7 +176,7 @@ type compiled_library = {
   comp_name : DirPath.t;
   comp_mod : module_body;
   comp_univs : Univ.ContextSet.t;
-  comp_sorts : Sorts.QContextSet.t;
+  comp_sorts : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t;
   comp_deps : library_info array;
   comp_flags : permanent_flags;
   comp_retro : Retroknowledge.action list;
@@ -193,7 +193,7 @@ type required_lib = {
 type section_data = {
   rev_env : Environ.env;
   rev_univ : Univ.ContextSet.t;
-  rev_qualities : Sorts.QVar.Set.t * Sorts.ElimConstraints.t;
+  rev_qualities : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t;
   rev_objlabels : Id.Set.t;
   rev_reimport : reimport list;
   rev_revstruct : structure_body;
@@ -229,8 +229,8 @@ type safe_environment =
     modlabels : Id.Set.t;
     objlabels : Id.Set.t;
     univ : Univ.ContextSet.t;
-    (* maybe should be a qglobal set? *)
-    qualities : Sorts.QVar.Set.t * Sorts.ElimConstraints.t;
+    qualities : Sorts.QGlobal.Set.t;
+    elims : Sorts.ElimConstraints.t;
     future_cst : (Constant_typing.typing_context * safe_environment * Nonce.t) HandleMap.t;
     required : required_lib DirPath.Map.t;
     loads : (ModPath.t * module_body) list;
@@ -262,7 +262,8 @@ let empty_environment =
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
-    qualities = Sorts.QVar.Set.empty, Sorts.ElimConstraints.empty;
+    qualities = Sorts.QGlobal.Set.empty;
+    elims = Sorts.ElimConstraints.empty;
     required = DirPath.Map.empty;
     loads = [];
     local_retroknowledge = [];
@@ -559,25 +560,25 @@ let push_context_set ~strict cst senv =
       univ = Univ.ContextSet.union cst senv.univ;
       sections }
 
-let push_qualities ~rigid qs senv =
-  if Sorts.QVar.Set.is_empty (fst qs) && Sorts.ElimConstraints.is_empty (snd qs) then
+let push_qualities (qs,qcsts) senv =
+  if Sorts.QGlobal.Set.is_empty qs && Sorts.ElimConstraints.is_empty qcsts then
     senv
   else if is_modtype senv then
     CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")
   else if Option.has_some senv.sections then
-    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections")
+    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections.")
   else
-    let check_local qv = match Sorts.QVar.repr qv with
-    | Sorts.QVar.Global gv ->
-      let (dp, _) = Sorts.QGlobal.repr gv in
-      let () = assert (DirPath.equal dp (ModPath.dp senv.modpath)) in
-      assert (not @@ QGraph.is_declared (Sorts.Quality.QVar qv) (Environ.qualities senv.env))
-    | Sorts.QVar.Unif _ | Sorts.QVar.Var _ -> assert false
+    let qs' =
+      Sorts.QGlobal.Set.fold (fun q acc -> Sorts.Quality.Set.add (QGlobal q) acc)
+        qs
+        Sorts.Quality.Set.empty
     in
-    let () = Sorts.QVar.Set.iter check_local (fst qs) in
+    let env = Environ.push_qualities qs' senv.env in
+    let env = Environ.merge_elim_constraints ~rigid:true qcsts env in
     { senv with
-      env = Environ.push_qualities ~rigid qs senv.env ;
-      qualities = Sorts.QContextSet.union qs senv.qualities ;
+      env;
+      qualities = Sorts.QGlobal.Set.union qs senv.qualities;
+      elims = Sorts.ElimConstraints.union qcsts senv.elims;
     }
 
 let is_curmod_library senv =
@@ -697,11 +698,11 @@ let push_section_context uctx senv =
   let senv = { senv with sections=Some sections } in
   let qctx, ctx = UVars.UContext.to_context_set uctx in
   let check_quality q =
-    Sorts.QVar.is_global q &&
+    Sorts.QVar.is_secvar q &&
     not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
   in
   if not @@ Sorts.QVar.Set.for_all check_quality (fst qctx) then
-    CErrors.user_err Pp.(str "Implicit section-wide sort variables and elimination constraints are not allowed.");
+    CErrors.user_err Pp.(str "Implicit section-wide sort variables are not allowed.");
   let check_fresh u = match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton u) with
   | Result.Ok _ -> assert false
   | Result.Error _ -> ()
@@ -710,11 +711,12 @@ let push_section_context uctx senv =
   let env = Environ.push_context_set ~strict:false ctx senv.env in
   (* FIXME: check validity of the sort context *)
   (* FIXME: marking the section-local sorts as rigid makes little sense *)
-  let env = Environ.push_qualities ~rigid:true qctx env in
+  let env = Environ.push_qualities (Sorts.Quality.Set.of_qvars @@ fst qctx) env in
+  let env = Environ.merge_elim_constraints ~rigid:true (snd qctx) env in
   { senv with
     env;
-    univ = Univ.ContextSet.union ctx senv.univ ;
-    qualities = Sorts.QContextSet.union qctx senv.qualities }
+    univ = Univ.ContextSet.union ctx senv.univ;
+  }
 
 (** {6 Insertion of new declarations to current environment } *)
 
@@ -1346,6 +1348,7 @@ let start_mod_modtype ~istype l senv =
     paramresolver = ParamResolver.add_delta_resolver senv.modpath senv.modresolver senv.paramresolver;
     univ = senv.univ;
     qualities = senv.qualities;
+    elims = senv.elims;
     required = senv.required;
     opaquetab = senv.opaquetab;
     sections = None; (* checked in check_empty_context *)
@@ -1576,7 +1579,8 @@ let start_library dir senv =
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
-    qualities = Sorts.QContextSet.empty;
+    qualities = Sorts.QGlobal.Set.empty;
+    elims = Sorts.ElimConstraints.empty;
     loads = [];
     local_retroknowledge = [];
     opaquetab = Opaqueproof.empty_opaquetab;
@@ -1603,7 +1607,7 @@ let export ~output_native_objects senv dir =
     comp_name = dir;
     comp_mod = mb;
     comp_univs = senv.univ;
-    comp_sorts = senv.qualities;
+    comp_sorts = senv.qualities, senv.elims;
     comp_deps = Array.of_list comp_deps;
     comp_flags = permanent_flags;
     comp_retro = senv.local_retroknowledge;
@@ -1624,11 +1628,11 @@ let import lib vmtab vodigest senv =
   let qualities = lib.comp_sorts in
   let retro = lib.comp_retro in
   let check_quality q =
-    Sorts.QVar.is_global q &&
-    not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
+    not (QGraph.is_declared (Sorts.Quality.QGlobal q) (Environ.qualities senv.env))
   in
-  let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
-  let env = Environ.push_qualities ~rigid:true qualities senv.env in
+  let () = assert (Sorts.QGlobal.Set.for_all check_quality (fst qualities)) in
+  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ fst qualities) senv.env in
+  let env = Environ.merge_elim_constraints ~rigid:true (snd qualities) env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Modops.add_retroknowledge retro env in
   let env = Environ.link_vm_library vmtab env in
@@ -1664,7 +1668,7 @@ let open_section senv =
   let custom = {
     rev_env = senv.env;
     rev_univ = senv.univ;
-    rev_qualities = senv.qualities;
+    rev_qualities = senv.qualities, senv.elims;
     rev_objlabels = senv.objlabels;
     rev_reimport = [];
     rev_revstruct = senv.revstruct;
@@ -1683,10 +1687,10 @@ let close_section senv =
      were forced inside the section, they have been turned into global monomorphic
      that are going to be replayed. Those that are not forced are not readded
      by {!add_constant_aux}. *)
-  let { rev_env = env; rev_univ = univ; rev_qualities = qualities; rev_objlabels = objlabels;
+  let { rev_env = env; rev_univ = univ; rev_qualities = (qualities, elims); rev_objlabels = objlabels;
         rev_reimport; rev_revstruct = revstruct; rev_paramresolver = paramresolver } = revert in
   let env = if Environ.rewrite_rules_allowed env0 then Environ.allow_rewrite_rules env else env in
-  let senv = { senv with env; revstruct; sections; univ; qualities; objlabels; paramresolver } in
+  let senv = { senv with env; revstruct; sections; univ; qualities; elims; objlabels; paramresolver } in
   (* Second phase: replay Requires *)
   let senv = List.fold_left (fun senv (lib,vmtab,vodigest) -> snd (import lib vmtab vodigest senv))
       senv (List.rev rev_reimport)

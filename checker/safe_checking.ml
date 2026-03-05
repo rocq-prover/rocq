@@ -18,11 +18,11 @@ let import senv opac clib vmtab digest =
   let env = Safe_typing.env_of_safe_env senv in
   let qualities, univs = Safe_typing.univs_of_library clib in
   let check_quality q =
-    Sorts.QVar.is_global q &&
-    not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities env))
+    not (QGraph.is_declared (Sorts.Quality.QGlobal q) (Environ.qualities env))
   in
-  let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
-  let env = push_qualities ~rigid:true qualities env in
+  let () = assert (Sorts.QGlobal.Set.for_all check_quality (fst qualities)) in
+  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ fst qualities) env in
+  let env = Environ.merge_elim_constraints ~rigid:true (snd qualities) env in
   let env = push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
   let opac = Mod_checking.check_module env opac retro (Names.ModPath.MPfile dp) mb in

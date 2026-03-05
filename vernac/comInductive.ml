@@ -211,10 +211,9 @@ let compute_constructor_levels env evd sign =
           (s :: lev, EConstr.push_rel d env))
     sign ([],env))
 
-let is_flexible_sort evd s = match ESorts.kind evd s with
-| Set | Prop | SProp -> false
-| Type u | QSort (_, u) ->
-  match Univ.Universe.level u with
+let is_flexible_sort evd s =
+  let s = ESorts.kind evd s in
+  match Univ.Universe.level (Sorts.univ_of_sort s) with
   | Some l -> Evd.is_flexible_level evd l
   | None -> false
 
@@ -242,8 +241,8 @@ let prop_lowering_candidates evd ~arities_explicit inds =
     List.for_all
       (List.for_all (fun s -> match ESorts.kind evd s with
            | SProp | Prop -> true
-           | Set -> false
-           | Type _ | QSort _ ->
+           | Set | GQSort _ -> false
+           | Type _ | VQSort _ ->
              not (Evd.check_leq evd ESorts.set s)
              && in_candidates s candidates))
       (Option.List.cons indices ctors)
@@ -273,7 +272,7 @@ let include_constructor_argument evd ~poly ~ctor_sort ~inductive_sort =
       match ESorts.kind evd s with
       | SProp | Prop -> None
       | Set -> Some Univ.Universe.type0
-      | Type u | QSort (_,u) -> Some u
+      | Type u | GQSort (_, u) | VQSort (_,u) -> Some u
     in
     match univ_of_sort ctor_sort, univ_of_sort inductive_sort with
     | _, None ->
@@ -286,7 +285,7 @@ let include_constructor_argument evd ~poly ~ctor_sort ~inductive_sort =
   else
     match ESorts.kind evd ctor_sort with
     | SProp | Prop -> evd
-    | Set | Type _ | QSort _ ->
+    | Set | Type _ | GQSort _ | VQSort _ ->
       Evd.set_leq_sort evd ctor_sort inductive_sort
 
 type default_dep_elim = DeclareInd.default_dep_elim = DefaultElim | PropButDepElim
@@ -375,18 +374,20 @@ let get_template_binding_arity sigma c =
   match EConstr.kind sigma c with
   | Sort s ->
     begin match ESorts.kind sigma s with
-    | Type u ->
+    | GQSort (_, u) | Type u ->
+      if Univ.Universe.is_type0 u then None
+      else
       begin match Univ.Universe.level u with
       | Some l -> Some (decls, None, l)
       | None -> None
       end
-    | QSort (q,u) ->
+    | VQSort (q,u) ->
       begin match Univ.Universe.level u with
       | Some l ->
         if Univ.Level.is_set l then None else Some (decls, Some q, l)
       | None -> None
       end
-    | _ -> None
+    | SProp | Prop | Set -> None
     end
   | _ -> None
 
@@ -396,13 +397,14 @@ let non_template_levels sigma ~params ~arity ~constructors =
   (* locally making the conclusion qvar above_prop means its
      appearances in relevance marks aren't counted *)
   let+ sigma = match ESorts.kind sigma u with
-    | QSort (q, _) ->
+    | VQSort (q, _) ->
       if Sorts.QVar.is_unif q then Ok (Evd.set_above_prop sigma (QVar q))
       else Error "Cannot handle template polymorphism when the conclusion is a global sort."
+    | GQSort _ -> Error "Cannot handle template polymorphism when the conclusion is a global sort."
     | _ -> Ok sigma
   in
   let add_levels c levels = EConstr.universes_of_constr sigma ~init:levels c in
-  let levels = Sorts.QVar.Set.empty, Univ.Level.Set.empty in
+  let levels = Sorts.Quality.Set.empty, Univ.Level.Set.empty in
   let fold_params levels = function
     | LocalDef (_, b, t) -> add_levels b (add_levels t levels)
     | LocalAssum (_, t) ->
@@ -422,7 +424,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
   (* levels with nonzero increment in the conclusion may not be template
      (until constraint checking can handle arbitrary +k, cf #19230) *)
   let concl_univs = match ESorts.kind sigma u with
-    | QSort (_,u) | Sorts.Type u -> Univ.Universe.repr u
+    | VQSort (_,u) | GQSort (_, u) | Type u -> Univ.Universe.repr u
     | SProp | Prop | Set -> []
   in
   let ulevels =
@@ -443,8 +445,8 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
     let ctx, s = destArity sigma arity in
     match ESorts.kind sigma s with
     | SProp | Prop | Set -> None
-    | QSort (q,u) ->
-      if not (Sorts.QVar.Set.mem q non_template_qvars)
+    | VQSort (q,u) ->
+      if not (Sorts.Quality.Set.mem (QVar q) non_template_qvars)
       && Univ.Universe.for_all (fun (u,_) ->
              match Univ.Level.Map.find_opt u template_univs with
              | None | Some None -> false
@@ -452,7 +454,7 @@ let pseudo_sort_poly ~non_template_qvars ~template_univs sigma params arity =
            u
       then Some q
       else None
-    | Type u -> None
+    | GQSort _ | Type _ -> None
 
 let unbounded_from_below u cstrs =
   let open Univ in
