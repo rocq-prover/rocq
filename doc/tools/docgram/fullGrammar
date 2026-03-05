@@ -1875,8 +1875,8 @@ simple_tactic: [
 | "autoapply" constr "with" preident
 | "decide" "equality"
 | "compare" constr constr
-| "rewrite_strat" rewstrategy "in" hyp
-| "rewrite_strat" rewstrategy
+| "rewrite_strat" rewstrategy2 "in" hyp
+| "rewrite_strat" rewstrategy2
 | "rewrite_db" preident "in" hyp
 | "rewrite_db" preident
 | "substitute" orient glob_constr_with_bindings
@@ -2389,12 +2389,11 @@ glob_constr_with_bindings: [
 ]
 
 rewstrategy: [
-| "fix" identref ":=" rewstrategy1
-| ne_rewstrategy1_list_sep_semicolon
 ]
 
-ne_rewstrategy1_list_sep_semicolon: [
-| ne_rewstrategy1_list_sep_semicolon ";" rewstrategy1
+rewstrategy2: [
+| "fix" identref ":=" rewstrategy1
+| LIST1 rewstrategy1 SEP ";"
 | rewstrategy1
 ]
 
@@ -2426,7 +2425,7 @@ rewstrategy0: [
 | "id"
 | "fail"
 | "refl"
-| "(" rewstrategy ")"
+| "(" rewstrategy2 ")"
 ]
 
 id_or_meta: [
