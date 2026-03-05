@@ -1883,7 +1883,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
       end
     | CPatNotation (_,(InConstrEntry,"- _"),([a],[],[]),[]) when is_non_zero_pat a ->
       let p = match a.CAst.v with CPatPrim (Number (_, p)) -> p | _ -> assert false in
-      let pat, _df = Notation.interp_prim_token_cases_pattern_expr ?loc
+      let pat = Notation.interp_prim_token_cases_pattern_expr ?loc
           (check_allowed_ref_in_pat test_kind) (Number (SMinus,p)) scopes in
       rcp_of_glob scopes pat
     | CPatNotation (_,(InConstrEntry,"( _ )"),([a],[],[]),[]) ->
@@ -1901,7 +1901,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
         | DelimUnboundedScope -> [], sc::snd scopes in
       in_pat test_kind scopes e
     | CPatPrim p ->
-      let pat, _df = Notation.interp_prim_token_cases_pattern_expr ?loc
+      let pat = Notation.interp_prim_token_cases_pattern_expr ?loc
           (check_allowed_ref_in_pat test_kind) p scopes in
       rcp_of_glob scopes pat
     | CPatAtom (Some id) ->
@@ -2800,7 +2800,7 @@ let generalization self genv env lvar ?loc (b, c) =
   intern_generalization intern env (snd lvar) loc b c
 
 let prim self genv env lvar ?loc p =
-  let c = fst (Notation.interp_prim_token ?loc p (env.tmp_scope,env.scopes)) in
+  let c = Notation.interp_prim_token ?loc p (env.tmp_scope,env.scopes) in
   apply_impargs self genv env lvar loc c []
 
 let delimiters self genv env lvar ?loc (depth, key, e) =
