@@ -312,8 +312,8 @@ let () =
   in
   Genintern.register_intern0 wit_ltac2in1_val intern
 
-let () = Gensubst.register_subst0 wit_ltac2in1 (fun s (ids, e) -> ids, Tac2intern.subst_expr s e)
-let () = Gensubst.register_subst0 wit_ltac2in1_val Tac2intern.subst_expr
+let () = Gensubst.register_subst0 wit_ltac2in1 (fun s (ids, e) -> ids, Tac2subst.subst_expr s e)
+let () = Gensubst.register_subst0 wit_ltac2in1_val Tac2subst.subst_expr
 
 let () =
   let create name wit =
