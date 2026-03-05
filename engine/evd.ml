@@ -1215,14 +1215,17 @@ let collapse_sort_variables ?except ?(to_type = true) evd =
   let universes = UState.collapse_sort_variables ?except ~to_type evd.universes in
   { evd with universes }
 
-let minimize_universes ?(collapse_sort_variables=true) ?(to_type = true) evd =
-  let uctx' = if collapse_sort_variables
-    then UState.collapse_sort_variables ~to_type evd.universes
-    else evd.universes
-  in
-  let uctx' = UState.normalize_variables uctx' in
+let minimize_universes_no_collapse evd =
+  let uctx' = UState.normalize_variables evd.universes in
   let uctx' = UState.minimize uctx' in
   {evd with universes = uctx'}
+
+let minimize_universes ?(poly=PolyFlags.default) evd =
+  let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
+  let uctx' =
+    UState.collapse_sort_variables ~to_type:collapse_sort_variables evd.universes
+  in
+  minimize_universes_no_collapse {evd with universes = uctx'}
 
 let universe_of_name evd s = UState.universe_of_name evd.universes s
 

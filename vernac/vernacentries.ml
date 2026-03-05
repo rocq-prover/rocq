@@ -186,8 +186,7 @@ let show_top_evars ~proof =
 
 let show_universes ~proof =
   let Proof.{ goals; sigma; poly } = Proof.data proof in
-  let to_type = PolyFlags.collapse_sort_variables poly in
-  let ctx = Evd.sort_context_set (Evd.minimize_universes ~to_type sigma) in
+  let ctx = Evd.sort_context_set (Evd.minimize_universes ~poly sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
        UnivGen.pr_sort_context (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
