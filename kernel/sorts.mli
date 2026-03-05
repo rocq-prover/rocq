@@ -105,8 +105,6 @@ module Quality : sig
   val raw_pr : t -> Pp.t
 
   val all_constants : t list
-  val all : t list
-  (* Returns a dummy variable *)
 
   val hash : t -> int
 

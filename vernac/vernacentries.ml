@@ -1437,14 +1437,14 @@ let add_subnames_of ?loc len n ns full_n ref =
     let ns = Array.fold_left_i (fun j ns _ -> add1 (ConstructRef ((mind,i),j+1)) ns)
         ns mip.mind_consnames
     in
-    List.fold_left (fun ns q ->
-        let s = Elimschemes.elimination_suffix q in
+    let suffixes = List.map Elimschemes.elimination_suffix UnivGen.QualityOrSet.all_constants in
+    List.fold_left (fun ns s ->
         let n_elim = Id.of_string (Id.to_string mip.mind_typename ^ s) in
         match importable_extended_global_of_path ?loc (Libnames.add_path_suffix path_prefix n_elim) with
         | exception Not_found -> ns
         | None -> ns
         | Some ref -> (len, ref) :: ns)
-      ns UnivGen.QualityOrSet.all
+      ns suffixes
 
 let interp_names m ns =
   let dp_m = Nametab.path_of_module m in

@@ -71,7 +71,6 @@ module QualityOrSet = struct
   let raw_pr = pr Sorts.QVar.raw_pr
 
   let all_constants = Set :: List.map (fun q -> Qual q) Quality.all_constants
-  let all = Set :: List.map (fun q -> Qual q) Quality.all
 end
 
 type sort_context_set = (QVar.Set.t * Univ.Level.Set.t) * PConstraints.t

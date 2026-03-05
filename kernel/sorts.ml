@@ -202,7 +202,6 @@ module Quality = struct
   let raw_pr q = pr QVar.raw_pr q
 
   let all_constants = List.map (fun q -> QConstant q) Constants.all
-  let all = var (-1) :: all_constants
 
   let hash = let open Hashset.Combine in function
     | QConstant q -> Constants.hash q
