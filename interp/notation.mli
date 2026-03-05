@@ -108,10 +108,10 @@ val enable_prim_token_interpretation : prim_token_infos -> unit
    given scope context*)
 
 val interp_prim_token : ?loc:Loc.t -> prim_token -> subscopes ->
-  glob_constr * scope_name option
+  glob_constr
 (* This function returns a glob_const representing a pattern *)
 val interp_prim_token_cases_pattern_expr : ?loc:Loc.t -> (Glob_term.glob_constr -> unit) -> prim_token ->
-  subscopes -> glob_constr * scope_name option
+  subscopes -> glob_constr
 
 (** Return the primitive token associated to a [term]/[cases_pattern];
    raise [No_match] if no such token *)

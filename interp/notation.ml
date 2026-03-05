@@ -535,7 +535,7 @@ let interp_prim_token_gen ?loc g p local_scopes =
   let p_as_ntn = try notation_of_prim_token p with Not_found -> InConstrEntry,"" in
   try
     let pat, sc = find_interpretation p_as_ntn (find_prim_token ?loc g p) scopes in
-    pat, sc
+    pat
   with Not_found as exn ->
     let _, info = Exninfo.capture exn in
     user_err ?loc ~info
