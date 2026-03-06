@@ -30,11 +30,11 @@ let get_version () =
   with _ -> Coq_config.version
 
 let short_version () =
-  Printf.sprintf "The Coq Proof Assistant, version %s\n" (get_version ())
+  Printf.sprintf "The Rocq Prover, version %s\n" (get_version ())
 
 let version () =
     Printf.sprintf
-      "The Coq Proof Assistant, version %s\
+      "The Rocq Prover, version %s\
        \nArchitecture %s running %s operating system\
        \nGtk version is %s\
        \nThis is %s \n"
