@@ -301,6 +301,8 @@ type mutual_inductive_body = {
     mind_private : bool option; (** allow pattern-matching: Some true ok, Some false blocked *)
 
     mind_typing_flags : typing_flags; (** typing flags at the time of the inductive creation *)
+
+    mind_is_nat : bool;
 }
 
 type mind_specif = mutual_inductive_body * one_inductive_body

@@ -1275,7 +1275,9 @@ let add_mind l mie senv =
     let senv = push_context_set ~strict:true (levels, uctx) senv in
     senv
   in
-  (kn, why_not_prim_record), add_checked_mind kn mib senv
+  let senv = add_checked_mind kn mib senv in
+  let senv = if mib.mind_is_nat then add_retroknowledge (Register_nat (kn,0)) senv else senv in
+  (kn, why_not_prim_record), senv
 
 let add_mind ?typing_flags l mie senv =
   with_typing_flags ?typing_flags senv ~f:(add_mind l mie)
@@ -1774,13 +1776,6 @@ let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) env =
        "th constructor does not have the expected type") in
   let check_type_cte pos = check_type pos ind in
   match r with
-  | CPrimitives.PIT_nat ->
-    check_nparams 0;
-    check_nconstr 2;
-    check_name 0 "O";
-    check_type_cte 0;
-    check_name 1 "S";
-    check_type 1 (Term.mkArrow ind Relevant ind)
   | CPrimitives.PIT_bool ->
     check_nparams 0;
     check_nconstr 2;

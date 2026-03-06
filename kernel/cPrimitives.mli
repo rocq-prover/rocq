@@ -109,7 +109,6 @@ type 'a prim_type =
   | PT_array : (UVars.Instance.t * ind_or_type) prim_type
 
 and 'a prim_ind =
-  | PIT_nat : unit prim_ind
   | PIT_bool : unit prim_ind
   | PIT_carry : ind_or_type prim_ind
   | PIT_pair : (ind_or_type * ind_or_type) prim_ind

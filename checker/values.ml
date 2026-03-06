@@ -483,7 +483,9 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
     v_opt (v_array v_variance);
     v_opt (v_array v_variance);
     v_opt v_bool;
-    v_typing_flags|]
+    v_typing_flags;
+    v_bool;
+  |]
 
 let v_prim_ind = v_enum "prim_ind" 6
 (* Number of "Register ... as kernel.ind_..." in Primv_int63.v and PrimFloat.v *)
@@ -495,6 +497,7 @@ let v_retro_action =
   v_sum "retro_action" 0 [|
     [|v_prim_ind; v_ind|];
     [|v_prim_type; v_cst|];
+    [|v_ind|]
   |]
 
 let v_retroknowledge =
