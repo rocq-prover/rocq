@@ -1321,6 +1321,7 @@ plugin:ci-stalmarck:
 
 plugin:ci-tactician:
   extends: .ci-template-flambda
+  allow_failure: true # slow overlay merging
 
 plugin:ci-waterproof:
   extends: .ci-template-flambda
