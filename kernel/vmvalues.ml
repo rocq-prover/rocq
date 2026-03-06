@@ -358,6 +358,12 @@ external accumulate : unit -> tcode = "rocq_accumulate"
 external set_bytecode_field : Obj.t -> int -> tcode -> unit = "rocq_set_bytecode_field"
 let accumulate = accumulate ()
 
+external is_int64 : values -> bool = "rocq_is_int64"
+
+let nat_or_int64 v =
+  if is_int64 v then Vint64 (Obj.magic v)
+  else Vnat (Obj.magic v)
+
 let whd_val (v: values) =
   let o = Obj.repr v in
   if Obj.is_int o then Vconst (Obj.obj o)
@@ -375,7 +381,7 @@ let whd_val (v: values) =
       | VCfix -> Vfix (Obj.obj o, None)
       | VCfix_partial -> Vfix (Obj.obj (Obj.field o 2), Some (Obj.obj o))
       | VCaccu -> Vaccu (Aid (RelKey (int_tcode (fun_code o) 1)), [])
-    else if Int.equal tag Obj.custom_tag then Vint64 (Obj.magic v)
+    else if Int.equal tag Obj.custom_tag then nat_or_int64 v
     else if Int.equal tag Obj.double_tag then Vfloat64 (Obj.magic v)
     else if Int.equal tag Obj.string_tag then Vstring (Obj.magic v)
     else
@@ -651,6 +657,7 @@ and pr_kind w =
   | Vcofix _ -> str "Vcofix"
   | Vconst i -> str "Vconst(" ++ int i ++ str ")"
   | Vblock _b -> str "Vblock"
+  | Vnat n -> Format.sprintf "Vnat(%s)" (Z.to_string n) |> str
   | Vint64 i -> i |> Format.sprintf "Vint64(%LiL)" |> str
   | Vfloat64 f -> str "Vfloat64(" ++ str (Float64.(to_string (of_float f))) ++ str ")"
   | Vstring s -> Pstring.to_string s |> Format.sprintf "Vstring(%S)" |> str

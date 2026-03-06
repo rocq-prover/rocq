@@ -38,6 +38,7 @@ type 'v node =
 | Lparray       of 'v lambda array * 'v lambda
 | Lmakeblock    of inductive * int * 'v lambda array
   (* inductive name, constructor tag, arguments *)
+| Lmakesucc     of 'v lambda
 | Lnat of Z.t
 | Luint         of Uint63.t
 | Lfloat        of Float64.t

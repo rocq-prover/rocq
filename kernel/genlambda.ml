@@ -38,7 +38,8 @@ type 'v node =
 | Lint          of int
 | Lparray       of 'v lambda array * 'v lambda
 | Lmakeblock    of inductive * int * 'v lambda array
-  (* inductive name, constructor tag, arguments *)
+(* inductive name, constructor tag, arguments *)
+| Lmakesucc     of 'v lambda
 | Lnat of Z.t
 | Luint         of Uint63.t
 | Lfloat        of Float64.t
@@ -156,6 +157,7 @@ let rec pp_lam lam =
       (str "(makeblock " ++ int tag ++ spc() ++
        prlist_with_sep spc pp_lam (Array.to_list args) ++
        str")")
+  | Lmakesucc arg -> hov 1 (str "(makesucc" ++ spc() ++ pp_lam arg ++ str ")")
   | Lnat i -> str (Z.to_string i)
   | Luint i -> str (Uint63.to_string i)
   | Lfloat f -> str (Float64.to_string f)
@@ -291,6 +293,9 @@ let map_lam_with_binders g f n lam =
   | Lmakeblock (inds, tag, args) ->
     let args' = Array.Smart.map (f n) args in
     if args == args' then lam else mknode @@ Lmakeblock (inds, tag,args')
+  | Lmakesucc arg ->
+    let arg' = f n arg in
+    if arg == arg' then lam else mknode @@ Lmakesucc arg'
   | Lprim(kn,op,args) ->
     let args' = Array.Smart.map (f n) args in
     if args == args' then lam else mknode @@ Lprim(kn,op,args')
@@ -333,6 +338,7 @@ let free_rels lam =
     aux k accu def
   | Lmakeblock (_, _, args) ->
     Array.fold_left (fun accu lam -> aux k accu lam) accu args
+  | Lmakesucc arg -> aux k accu arg
   | Lprim (_, _, args) ->
     Array.fold_left (fun accu lam -> aux k accu lam) accu args
   | Lproj (_, arg) ->
@@ -385,7 +391,7 @@ let can_subst lam = match node lam with
 | Lrel _ | Lvar _ | Lconst _ | Lnat _ | Luint _
 | Lval _ | Lsort _ | Lind _ -> true
 | Levar _ | Lprod _ | Llam _ | Llet _ | Lapp _ | Lcase _ | Lfix _ | Lcofix _
-| Lparray _ | Lmakeblock _ | Lfloat _ | Lstring _ | Lprim _ | Lproj _ -> false
+| Lparray _ | Lmakesucc _ | Lmakeblock _ | Lfloat _ | Lstring _ | Lprim _ | Lproj _ -> false
 | Lint _ -> false (* TODO: allow substitution of integers *)
 
 let simplify lam =
@@ -481,6 +487,7 @@ let rec occurrence k kind lam =
     occurrence_args k (occurrence k kind def) args
   | Lprim(_,_,args) | Lmakeblock(_, _,args) ->
     occurrence_args k kind args
+  | Lmakesucc arg -> occurrence k kind arg
   | Lcase(_, t, a, branches) ->
     let kind = occurrence k (occurrence k kind t) a in
     let r = ref kind in
@@ -513,7 +520,7 @@ let is_value lam = match node lam with
 | Lrel _ | Lvar _ | Lconst _ | Luint _
 | Lval _ | Lsort _ | Lind _ | Lnat _ | Lint _ | Llam _ | Lfix _ | Lcofix _ | Lfloat _ | Lstring _ -> true
 | Levar _ | Lprod _ | Llet _ | Lapp _ | Lcase _
-| Lparray _ | Lmakeblock _ | Lprim _ | Lproj _ -> false
+| Lparray _ | Lmakesucc _ | Lmakeblock _ | Lprim _ | Lproj _ -> false
 
 let rec remove_let subst lam =
   match lam.node with
@@ -543,27 +550,43 @@ let rec get_alias env sigma kn =
 
 (* Translation of constructors *)
 
-let make_args start _end =
-  Array.init (start - _end + 1) (fun i -> mknode @@ Lrel (Anonymous, start - i))
+let make_args start end_ =
+  Array.init (start - end_ + 1) (fun i -> mknode @@ Lrel (Anonymous, start - i))
 
-let expand_constructor ind tag nparams arity =
+let expand_constructor ~is_nat ind tag nparams arity =
   let anon = Context.make_annot Anonymous Sorts.Relevant in (* TODO relevance *)
   let ids = Array.make (nparams + arity) anon in
   if Int.equal arity 0 then mkLlam ids (mknode @@ (Lint tag))
   else
-  let args = make_args arity 1 in
-  mknode @@ Llam(ids, mknode @@ Lmakeblock (ind, tag, args))
+    let body = if is_nat then
+        (* NB treating O as a normal 0-arity ctor ie Lint 0 is fine,
+           so this is only the S case *)
+        let () = assert (Int.equal arity 1) in
+        mknode @@ Lmakesucc (mknode @@ Lrel (Anonymous, 1))
+      else
+        let args = make_args arity 1 in
+        mknode @@ Lmakeblock (ind, tag, args)
+    in
+    mknode @@ Llam(ids, body)
 
-let makeblock as_val ind tag nparams arity args =
+let makeblock ~is_nat as_val ind tag nparams arity args =
   let nargs = Array.length args in
   if nparams > 0 || nargs < arity then
-    mkLapp (expand_constructor ind tag nparams arity) args
+    mkLapp (expand_constructor ~is_nat ind tag nparams arity) args
   else
     (* The constructor is fully applied *)
   if arity = 0 then mknode @@ Lint tag
+  else if is_nat then
+    let () = assert (Int.equal nargs 1) in
+    begin match args.(0).node with
+    | Lnat n -> mknode @@ Lnat (Z.succ n)
+    | Lint n -> mknode @@ Lnat (Z.succ @@ Z.of_int n)
+    | _ -> mknode @@ Lmakesucc args.(0)
+    end
   else match as_val tag args with
   | Some v -> mknode @@ Lval v
-  | None -> mknode @@ Lmakeblock (ind, tag, args)
+  | None ->
+    mknode @@ Lmakeblock (ind, tag, args)
 
 (* Compilation of primitive *)
 
@@ -601,8 +624,8 @@ module Make (Val : S) =
 struct
 
 (* [nparams] is the number of parameters still expected *)
-let makeblock _env ind tag nparams arity args =
-  makeblock Val.as_value ind tag nparams arity args
+let makeblock ~is_nat ind tag nparams arity args =
+  makeblock ~is_nat Val.as_value ind tag nparams arity args
 
 (*i Global environment *)
 
@@ -617,7 +640,12 @@ module Cache =
 
     module ConstrTable = Hashtbl.Make(Construct.UserOrd)
 
-    type constructor_info = tag * int * int (* nparam nrealargs *)
+    type constructor_info = {
+      tag : tag;
+      nparams : int;
+      arity :  int;
+      is_nat : bool;
+    }
 
     let get_construct_info cache env c : constructor_info =
       try ConstrTable.find cache c
@@ -628,7 +656,8 @@ module Cache =
         let () = Val.check_inductive (mind, j) oib in
         let tag,arity = oip.mind_reloc_tbl.(i-1) in
         let nparams = oib.mind_nparams in
-        let r = (tag, nparams, arity) in
+        let is_nat = oib.mind_is_nat in
+        let r = { tag; nparams; arity; is_nat } in
         ConstrTable.add cache c r;
         r
   end
@@ -795,12 +824,12 @@ and lambda_of_app cache env sigma f args =
           mkLapp (mknode @@ Lconst (kn, u)) (lambda_of_args cache env sigma 0 args)
       end
   | Construct ((ind,_ as c),_) ->
-    let tag, nparams, arity = Cache.get_construct_info cache env c in
+    let { Cache.tag; nparams; arity; is_nat } = Cache.get_construct_info cache env c in
     let nargs = Array.length args in
     if nparams < nargs then (* got all parameters *)
       let args = lambda_of_args cache env sigma nparams args in
-      makeblock env ind tag 0 arity args
-    else makeblock env ind tag (nparams - nargs) arity empty_args
+      makeblock ~is_nat ind tag 0 arity args
+    else makeblock ~is_nat ind tag (nparams - nargs) arity empty_args
   | _ ->
       let f = lambda_of_constr cache env sigma f in
       let args = lambda_of_args cache env sigma 0 args in

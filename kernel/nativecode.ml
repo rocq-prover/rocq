@@ -1539,6 +1539,7 @@ let compile_prim env decl cond paux =
       MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
 
   | Lnat _ -> failwith "TODO"
+  | Lmakesucc _ -> failwith "TODO"
 
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
 
