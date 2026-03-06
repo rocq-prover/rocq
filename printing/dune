@@ -4,7 +4,7 @@
  (public_name rocq-runtime.printing)
  (wrapped false)
  (libraries parsing proofs)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.printing)

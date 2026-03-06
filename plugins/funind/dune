@@ -3,7 +3,7 @@
  (public_name rocq-runtime.plugins.funind)
  (synopsis "Rocq's functional induction plugin")
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.extraction)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.funind)

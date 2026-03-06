@@ -15,7 +15,7 @@
  (package coqide-server)
  (modules idetop)
  (libraries rocq-runtime.toplevel coqide-server.protocol platform_specific)
- (flags :standard -open Rocqutils)
+ (flags :standard -open Rocqutils -open Rocqpretyping)
  (link_flags -linkall))
 
 ; IDE Client, we may want to add the macos_prehook.ml conditionally.

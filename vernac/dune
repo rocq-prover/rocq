@@ -7,7 +7,7 @@
  ; until ocaml/dune#4892 fixed
  ; (private_modules comProgramFixpoint egramcoq)
  (libraries tactics parsing findlib.dynload)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.vernac)

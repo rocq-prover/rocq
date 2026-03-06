@@ -8,7 +8,7 @@
  ; but we still want to load_printer ltac2
  ; so that its genarg printers are present in the debugger's printer process
  (libraries rocq-runtime.vernac rocq-runtime.plugins.ltac rocq-runtime.plugins.ltac2)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (library
  (name debugger_support)
@@ -17,7 +17,7 @@
  (wrapped false)
  (modules debugger_support)
  (libraries rocq-runtime.dev)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (rule
   (targets dune-dbg)

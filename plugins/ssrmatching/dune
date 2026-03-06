@@ -3,7 +3,7 @@
  (public_name rocq-runtime.plugins.ssrmatching)
  (synopsis "Rocq ssrmatching plugin")
  (libraries rocq-runtime.plugins.ltac)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.ssrmatching)

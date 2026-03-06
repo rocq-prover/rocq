@@ -5,7 +5,7 @@
  (modules :standard \ tauto)
  (modules_without_implementation tacexpr)
  (libraries rocq-runtime.vernac)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.ltac)
@@ -17,7 +17,7 @@
  (synopsis "Rocq's tauto tactic")
  (modules tauto)
  (libraries rocq-runtime.plugins.ltac)
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.tauto)

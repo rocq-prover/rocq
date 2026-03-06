@@ -9,7 +9,7 @@
   (select memtrace_init.ml from
    (memtrace -> memtrace_init.memtrace.ml)
    (!memtrace -> memtrace_init.default.ml)))
- (flags :standard -open Rocqutils))
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.toplevel)

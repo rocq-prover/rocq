@@ -15,7 +15,7 @@
  (public_name rocq-runtime.plugins.nsatz)
  (synopsis "Rocq's nsatz solver plugin (Ltac1 syntax)")
  (modules g_nsatz)
- (flags :standard -open Nsatz_core_plugin)
+ (flags :standard -open Nsatz_core_plugin -open Rocqpretyping)
  (libraries rocq-runtime.plugins.nsatz_core rocq-runtime.plugins.ltac))
 
 (deprecated_library_name

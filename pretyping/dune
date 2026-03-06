@@ -1,8 +1,8 @@
 (library
- (name pretyping)
+ (name rocqpretyping)
  (synopsis "Rocq's Type Inference Component (Pretyper)")
  (public_name rocq-runtime.pretyping)
- (wrapped false)
+ (wrapped true)
  (modules_without_implementation locus pattern glob_term ltac_pretype)
  (libraries engine)
  (flags :standard -open Rocqutils))
