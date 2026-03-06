@@ -65,8 +65,10 @@ type instruction =
   | Ksubstinstance of UVars.Instance.t
   | Kconst of structured_constant
   | Kmakeblock of int * tag
+  | Kmakesucc
   | Kmakeswitchblock of Label.t * Label.t * annot_switch * int
   | Kswitch of Label.t array * Label.t array
+  | Kswitchnat of Label.t * Label.t * Label.t * Label.t (* 0, accu, S, nonzero Z.t *)
   | Kpushfields of int
   | Kfield of int
   | Ksetfield of int
@@ -152,6 +154,7 @@ let rec pp_instr i =
       str "const " ++ pp_struct_const sc
   | Kmakeblock(n, m) ->
       str "makeblock " ++ int n ++ str ", " ++ int m
+  | Kmakesucc -> str "makesucc"
   | Kmakeswitchblock(lblt,lbls,_,sz) ->
       str "makeswitchblock " ++ pp_lbl lblt ++ str ", " ++
         pp_lbl lbls ++ str ", " ++ int sz
@@ -159,7 +162,9 @@ let rec pp_instr i =
       hv 1 (str "switch " ++
              prlist_with_sep spc pp_lbl (Array.to_list lblc) ++
              str " | " ++
-             prlist_with_sep spc pp_lbl (Array.to_list lblb))
+            prlist_with_sep spc pp_lbl (Array.to_list lblb))
+  | Kswitchnat (l0,lAcc,lS,lZ) ->
+    hv 1 (str "switchnat " ++ prlist_with_sep spc pp_lbl [l0;lAcc;lS;lZ])
   | Kpushfields n -> str "pushfields " ++ int n
   | Kfield n -> str "field " ++ int n
   | Ksetfield n -> str "setfield " ++ int n

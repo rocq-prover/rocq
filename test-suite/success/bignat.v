@@ -33,8 +33,8 @@ Fixpoint tail_addmul r n m :=
 
 Definition tail_mul n m := tail_addmul O n m.
 
-Local Abbreviation ten := (S (S (S (S (S (S (S (S (S (S O)))))))))).
-(* Local Abbreviation ten := ltac:(let c := constr:(ten_raw) in let c := eval cbv in c in exact c) (only parsing). *)
+Local Abbreviation ten_raw := (S (S (S (S (S (S (S (S (S (S O)))))))))).
+Local Abbreviation ten := ltac:(let c := constr:(ten_raw) in let c := eval cbv in c in exact c) (only parsing).
 
 Fixpoint of_uint_acc (d:Decimal.uint)(acc:N) :=
   match d with
@@ -123,3 +123,21 @@ Time Eval cbv in 200 ** 200000000.
 Time Eval cbv in 200 ** 200 ** 200 ** 200 ** 200 ** 200 ** 200 ** 200.
 (* right associativity very important here: it means we have 200 * 7 recursions in mymul
    instead of 200 ^ 7 *)
+
+Definition vmtwo := Eval vm_compute in 1 + 1.
+Check eq_refl : vmtwo = 2.
+Check eq_refl 4 <: vmtwo + 2 = 4.
+
+(* 4611686018427387903 = int63 max_int *)
+Definition vmbig := Eval vm_compute in 2 + 4611686018427387903.
+Check eq_refl : vmbig = 4611686018427387905.
+Check eq_refl vmbig <: vmbig = 4611686018427387905.
+Check eq_refl (S vmbig) <: S vmbig = 4611686018427387906.
+
+Check eq_refl 0 <: pred (pred 1) = 0.
+
+Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred 4611686018427387903)).
+Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred 4611686018427387903)).
+
+Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
+Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).

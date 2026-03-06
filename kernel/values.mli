@@ -16,6 +16,7 @@ type ('value, 'vaccu, 'vfun, 'vprod, 'vfix, 'vcofix, 'vblock) kind =
   | Vcofix of 'vcofix
   | Vconst of int
   | Vblock of 'vblock
+  | Vnat of Z.t
   | Vint64 of int64
   | Vfloat64 of float
   | Vstring of Pstring.t

@@ -29,6 +29,17 @@
 #include "rocq_memory.h"
 #include "rocq_values.h"
 
+value ml_z_succ(value);
+value ml_z_pred(value);
+
+#ifdef ARCH_SIXTYFOUR
+#define Z_MAX_INT       0x3fffffffffffffff
+#define Z_MIN_INT     (-0x4000000000000000)
+#else
+#define Z_MAX_INT       0x3fffffff
+#define Z_MIN_INT     (-0x40000000)
+#endif
+
 #if OCAML_VERSION < 41000
 extern void caml_minor_collection(void);
 
@@ -1041,6 +1052,20 @@ value rocq_interprete
         Next;
       }
 
+      Instruct(MAKESUCC) {
+        print_instr("MAKESUCC");
+        if (Is_accu(accu)) {
+          value block;
+          Rocq_alloc_small(block, 1, 1);
+          Field(block, 0) = accu;
+          accu = block;
+        } else if (Is_long(accu) && accu < Val_long(Z_MAX_INT)) {
+          accu = accu + 2;
+        } else {
+          accu = ml_z_succ(accu);
+        }
+        Next;
+      }
 
 /* Access to components of blocks */
 
@@ -1060,6 +1085,30 @@ value rocq_interprete
           pc += pc[index];
         }
           Next;
+      }
+
+      Instruct(SWITCHNAT) {
+        print_instr("SWITCHNAT");
+        if (Is_long(accu) && Long_val(accu) == 0) {
+          print_instr("0");
+          pc += pc[0];
+        } else if (Is_accu(accu)) {
+          print_instr("accu");
+          pc += pc[1];
+        } else if (Is_block(accu) && Tag_val(accu) == 1) {
+          print_instr("S of unclosed");
+          pc += pc[2];
+        } else if (Is_long(accu)) {
+          print_instr("small nat");
+          /* nonzero nat: cannot underflow */
+          *--sp = accu - 2;
+          pc += pc[3];
+        } else {
+          print_instr("big nat");
+          *--sp = ml_z_pred(accu);
+          pc += pc[3];
+        }
+        Next;
       }
 
       Instruct(PUSHFIELDS){

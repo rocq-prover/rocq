@@ -63,8 +63,10 @@ type instruction =
   | Kmakeblock of (* size: *) int * tag (** allocate an ocaml block. Index 0
                                          ** is accu, all others are popped from
                                          ** the top of the stack  *)
+  | Kmakesucc
   | Kmakeswitchblock of Label.t * Label.t * annot_switch * int
   | Kswitch of Label.t array * Label.t array (** consts,blocks *)
+  | Kswitchnat of Label.t * Label.t * Label.t * Label.t (* 0, accu, S, nonzero Z.t *)
   | Kpushfields of int
   | Kfield of int                       (** accu = accu[n] *)
   | Ksetfield of int                    (** accu[n] = sp[0] ; sp = pop sp *)

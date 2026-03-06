@@ -17,6 +17,10 @@
 #include "rocq_memory.h"
 #include "rocq_values.h"
 #include <memory.h>
+
+#define CAML_INTERNALS
+#include <caml/custom.h>
+
 /* KIND OF VALUES */
 
 #define Setup_for_gc
@@ -165,3 +169,18 @@ value rocq_curry2_1_addr(value) {
 }
 
 #endif
+
+/* although we could try to hack some ocaml code based on [compare] of
+   different custom kinds always producing the same thing, it risks
+   the ocaml compiler making incorrect assumptions that we are calling
+   [compare] is at sensible types.
+
+   For instance [compare Int64.max_int (Obj.magic v)] gets optimized
+   assuming that [v] is a int64.
+*/
+value rocq_is_int64(value v) {
+  if (Is_block(v) && Tag_val(v) == Custom_tag) {
+    return Val_bool(Custom_ops_val(v) == &caml_int64_ops);
+  }
+  return Val_bool(0);
+}
