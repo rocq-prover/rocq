@@ -281,7 +281,10 @@ let warn_lookup_not_found =
       ++ strbrk "No scheme for "
       ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested))
       ++ strbrk " is registered as "
-      ++ strbrk key ++  str "."
+      ++ strbrk key ++  strbrk ". "
+      ++ strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
+      ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested))
+      ++ str ".\"."
     )
 
 (** Lookup the partial [all] predicate for [ind_nested] for [args_are_nested].
