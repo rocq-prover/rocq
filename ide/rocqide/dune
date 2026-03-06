@@ -27,7 +27,8 @@
  (foreign_stubs
   (language c)
   (names rocqide_os_stubs))
- (libraries coqide-server.protocol coqide-server.core lablgtk3-sourceview3 platform_specific))
+ (libraries coqide-server.protocol coqide-server.core lablgtk3-sourceview3 platform_specific)
+ (flags :standard -open Rocqutils))
 
 (library
  (name platform_specific)
@@ -69,7 +70,8 @@
  (package rocqide)
  (modules rocqide_main)
  (modes exe byte)
- (libraries rocqide_gui))
+ (libraries rocqide_gui)
+ (flags :standard -open Rocqutils))
 
 (documentation
  (package rocqide))
