@@ -209,6 +209,7 @@ let cook_inductive info mib =
     mind_sec_variance;
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
+    mind_is_nat = (assert (not mib.mind_is_nat); false);
   }
 
 let cook_rel_context info ctx =

@@ -5,11 +5,12 @@ open Retroknowledge
 open Environ
 open CErrors
 
-type _ action_kind =
-  | IncompatTypes : _ prim_type -> Constant.t action_kind
-  | IncompatInd : _ prim_ind -> inductive action_kind
+type _ action_error =
+  | IncompatTypes : _ prim_type -> Constant.t action_error
+  | IncompatInd : _ prim_ind -> inductive action_error
+  | IncompatNat : inductive action_error
 
-type exn += IncompatibleDeclarations : 'a action_kind * 'a * 'a -> exn
+type exn += IncompatibleDeclarations : 'a action_error * 'a * 'a -> exn
 
 let check_same_types typ c1 c2 =
   if not (Constant.UserOrd.equal c1 c2)
@@ -18,6 +19,10 @@ let check_same_types typ c1 c2 =
 let check_same_inds ind i1 i2 =
   if not (Ind.UserOrd.equal i1 i2)
   then raise (IncompatibleDeclarations (IncompatInd ind, i1, i2))
+
+let check_same_nat i1 i2 =
+  if not (Ind.UserOrd.equal i1 i2)
+  then raise (IncompatibleDeclarations (IncompatNat, i1, i2))
 
 let add_retroknowledge retro action =
   match action with
@@ -46,12 +51,6 @@ let add_retroknowledge retro action =
 
   | Register_ind(pit,ind) ->
     begin match pit with
-      | PIT_nat ->
-        let r =
-          match retro.retro_nat with
-          | None -> ind
-          | Some (ind' as t) -> check_same_inds pit ind ind'; t in
-        { retro with retro_nat = Some r }
       | PIT_bool ->
         let r =
           match retro.retro_bool with
@@ -92,6 +91,12 @@ let add_retroknowledge retro action =
             check_same_inds pit ind ind'; t in
         { retro with retro_f_class = Some r }
     end
+  | Register_nat ind ->
+    let r =
+      match retro.retro_nat with
+      | None -> ind
+      | Some (ind' as t) -> check_same_nat ind ind'; t in
+    { retro with retro_nat = Some r }
 
 let add_retroknowledge env action =
   set_retroknowledge env (add_retroknowledge (Environ.retroknowledge env) action)

@@ -1,7 +1,77 @@
-Register nat as kernel.ind_nat.
+(* TODO tests that declaring a type that doesn't look like nat with
+   primitive_nat is rejected
 
-(* very important: printing with number notations currently very slow *)
-Set Printing All.
+   and that multiple primitive_nat types are rejected
+   (or make it supported then test that) *)
+
+#[primitive_nat]
+Inductive N : Set := O | S (_:N).
+
+Fixpoint add n m {struct n} :=
+  match n with
+  | O => m
+  | S k => S (add k m)
+  end where "a + b" := (add a b) : nat_scope.
+
+Fixpoint mul n m {struct n} :=
+  match n with
+  | O => O
+  | S p => m + p * m
+  end where "a * b" := (mul a b) : nat_scope.
+
+Fixpoint tail_add n m :=
+  match n with
+    | O => m
+    | S n => tail_add n (S m)
+  end.
+
+Fixpoint tail_addmul r n m :=
+  match n with
+    | O => r
+    | S n => tail_addmul (tail_add m r) n m
+  end.
+
+Definition tail_mul n m := tail_addmul O n m.
+
+Local Abbreviation ten := (S (S (S (S (S (S (S (S (S (S O)))))))))).
+(* Local Abbreviation ten := ltac:(let c := constr:(ten_raw) in let c := eval cbv in c in exact c) (only parsing). *)
+
+Fixpoint of_uint_acc (d:Decimal.uint)(acc:N) :=
+  match d with
+  | Decimal.Nil => acc
+  | Decimal.D0 d => of_uint_acc d (tail_mul ten acc)
+  | Decimal.D1 d => of_uint_acc d (S (tail_mul ten acc))
+  | Decimal.D2 d => of_uint_acc d (S (S (tail_mul ten acc)))
+  | Decimal.D3 d => of_uint_acc d (S (S (S (tail_mul ten acc))))
+  | Decimal.D4 d => of_uint_acc d (S (S (S (S (tail_mul ten acc)))))
+  | Decimal.D5 d => of_uint_acc d (S (S (S (S (S (tail_mul ten acc))))))
+  | Decimal.D6 d => of_uint_acc d (S (S (S (S (S (S (tail_mul ten acc)))))))
+  | Decimal.D7 d => of_uint_acc d (S (S (S (S (S (S (S (tail_mul ten acc))))))))
+  | Decimal.D8 d => of_uint_acc d (S (S (S (S (S (S (S (S (tail_mul ten acc)))))))))
+  | Decimal.D9 d => of_uint_acc d (S (S (S (S (S (S (S (S (S (tail_mul ten acc))))))))))
+  end.
+
+Definition of_uint (d:Decimal.uint) := of_uint_acc d O.
+
+Definition of_num_uint (d:Number.uint) :=
+  match d with
+  | Number.UIntDecimal d => Some (of_uint d)
+  | Number.UIntHexadecimal d => None
+  end.
+
+Fixpoint to_little_uint n acc :=
+  match n with
+  | O => acc
+  | S n => to_little_uint n (Decimal.Little.succ acc)
+  end.
+
+Definition to_uint n :=
+  Decimal.rev (to_little_uint n Decimal.zero).
+
+(* printing with num notation currently very slow *)
+Definition to_num_uint (n:N) : option Number.uint := None.
+
+Number Notation N of_num_uint to_num_uint (abstract after 5000) : nat_scope.
 
 Time Eval cbv in 5000000.
 (* without bignat, stack overflows
@@ -13,7 +83,7 @@ Time Eval cbv in 1000 * 1000.
 (* without bignat, stack overflows
    with bignat, 0.1s *)
 
-Register Nat.mul as cbv.mul.
+Register mul as cbv.mul.
 
 Time Eval cbv in 1000 * 1000.
 (* instant *)
@@ -21,7 +91,7 @@ Time Eval cbv in 1000 * 1000.
 Time Eval cbv in 200 * 200 * 200 * 200 * 200 * 200 * 200 * 200.
 (* instant *)
 
-Register Nat.tail_mul as cbv.tail_mul.
+Register tail_mul as cbv.tail_mul.
 Time Eval cbv in 5000000.
 (* instant *)
 Time Eval cbv in 50000000.
@@ -36,6 +106,7 @@ Check eq_refl 0 : pred (pred 1) = 0.
 Time Eval lazy in pred ltac:(let c := eval cbv in 500000000 in exact c).
 (* instant (but big + 1 would stack overflow) *)
 
+(* for testing non registered mul with registered add *)
 Fixpoint mymul n m :=
   match n with
   | O => O
@@ -44,7 +115,7 @@ Fixpoint mymul n m :=
 
 Notation "x ** y" := (mymul x y) (at level 41, right associativity).
 
-Register Nat.add as cbv.add.
+Register add as cbv.add.
 
 Time Eval cbv in 200 ** 200000000.
 (* instant *)
