@@ -1624,7 +1624,8 @@ Expands to: Constant nested_eliminators.SortPoly.SRT_sind
 Declared in library nested_eliminators, line 381, characters 2-57
 File "./output/nested_eliminators.v", line 398, characters 2-60:
 The command has indeed failed with message:
-MRT is nested using list. No scheme for list is registered as All.
+MRT is nested using list. No scheme for list is registered as All. It can be
+generated using command "Scheme All" e.g. "Scheme All for list.".
 [register-all,automation,default]
 MRT_ind :
 forall P : MRT -> Prop,
