@@ -16,6 +16,8 @@ open Util
 
 [@@@ocaml.warning "+9+27"]
 
+type ind_retroknowledge = (int * CPrimitives.prim_ind_ex) option
+
 exception InductiveMismatch of MutInd.t * string
 
 let check mind field b = if not b then raise (InductiveMismatch (mind,field))
@@ -205,7 +207,7 @@ let check_packet mind ind
 
   ()
 
-let check_inductive env mind mb =
+let check_inductive env mind mb retro =
   let entry = to_entry mind mb in
   let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
@@ -215,6 +217,10 @@ let check_inductive env mind mb =
     (* Locally set typing flags for further typechecking *)
     let env = CheckFlags.set_local_flags mb.mind_typing_flags env in
     let mib, not_prim_record = Indtypes.check_inductive env ~sec_univs:None mind entry in
+    let () = match retro with
+    | None -> ()
+    | Some (i, CPrimitives.PIE retro) -> Safe_typing.check_register_ind (mind, i) retro (mib, mib.mind_packets.(i))
+    in
     assert (Option.is_empty not_prim_record);
     mib
   in
@@ -243,8 +249,8 @@ let check_inductive env mind mb =
 
   add_mind mind mb env
 
-let check_inductive env mind mb : Environ.env =
+let check_inductive env mind mb retro : Environ.env =
   NewProfile.profile "check_inductive"
     ~args:(fun () -> [("name", `String (MutInd.to_string mind))])
-    (fun () -> check_inductive env mind mb)
+    (fun () -> check_inductive env mind mb retro)
     ()

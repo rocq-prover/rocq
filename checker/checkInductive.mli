@@ -11,9 +11,11 @@
 open Names
 open Environ
 
+type ind_retroknowledge = (int * CPrimitives.prim_ind_ex) option
+
 exception InductiveMismatch of MutInd.t * string
 (** Some field of the inductive is different from what the kernel infers. *)
 
 (*s The following function does checks on inductive declarations. *)
 
-val check_inductive : env -> MutInd.t -> Declarations.mutual_inductive_body -> env
+val check_inductive : env -> MutInd.t -> Declarations.mutual_inductive_body -> ind_retroknowledge -> env

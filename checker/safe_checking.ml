@@ -24,9 +24,8 @@ let import senv opac clib vmtab digest =
   let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
   let env = push_qualities ~rigid:true qualities env in
   let env = push_context_set ~strict:true univs env in
-  let env = Modops.add_retroknowledge retro env in
   let env = Environ.link_vm_library vmtab env in
-  let opac = Mod_checking.check_module env opac (Names.ModPath.MPfile dp) mb in
+  let opac = Mod_checking.check_module env opac retro (Names.ModPath.MPfile dp) mb in
   let (_,senv) = Safe_typing.import clib vmtab digest senv in senv, opac
 
 let import senv opac clib vmtab digest : _ * _ =

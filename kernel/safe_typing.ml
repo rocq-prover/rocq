@@ -1746,8 +1746,7 @@ let register_inline kn senv =
   let cb = {cb with const_inline_code = true} in
   let env = add_constant kn cb env in { senv with env}
 
-let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) env =
-  let (mb,ob as spec) = Inductive.lookup_mind_specif env ind in
+let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) (mb, ob as spec) =
   let ind = match mb.mind_universes with
     | Polymorphic _ -> CErrors.user_err Pp.(str "A universe monomorphic inductive type is expected.")
     | Monomorphic -> Constr.UnsafeMonomorphic.mkInd ind
@@ -1856,7 +1855,8 @@ let check_register_ind (type t) ind (r : t CPrimitives.prim_ind) env =
     check_type_cte 8
 
 let register_inductive ind prim senv =
-  check_register_ind ind prim senv.env;
+  let spec = Inductive.lookup_mind_specif senv.env ind in
+  let () = check_register_ind ind prim spec in
   let action = Retroknowledge.Register_ind(prim,ind) in
   add_retroknowledge action senv
 
