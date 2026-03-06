@@ -4,7 +4,8 @@
  (public_name rocq-runtime.pretyping)
  (wrapped false)
  (modules_without_implementation locus pattern glob_term ltac_pretype)
- (libraries engine))
+ (libraries engine)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.pretyping)

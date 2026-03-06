@@ -4,7 +4,8 @@
  (synopsis "Rocq's LTAC tactic language")
  (modules :standard \ tauto)
  (modules_without_implementation tacexpr)
- (libraries rocq-runtime.vernac))
+ (libraries rocq-runtime.vernac)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.ltac)
@@ -15,7 +16,8 @@
  (public_name rocq-runtime.plugins.tauto)
  (synopsis "Rocq's tauto tactic")
  (modules tauto)
- (libraries rocq-runtime.plugins.ltac))
+ (libraries rocq-runtime.plugins.ltac)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.tauto)

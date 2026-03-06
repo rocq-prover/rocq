@@ -3,7 +3,8 @@
  (synopsis "Rocq's Term Pretty Printing Library")
  (public_name rocq-runtime.printing)
  (wrapped false)
- (libraries parsing proofs))
+ (libraries parsing proofs)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.printing)

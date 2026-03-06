@@ -3,7 +3,8 @@
  (public_name rocq-runtime.plugins.cc_core)
  (synopsis "Rocq's congruence closure plugin")
  (modules (:standard \ g_congruence))
- (libraries rocq-runtime.tactics))
+ (libraries rocq-runtime.tactics)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.cc_core)

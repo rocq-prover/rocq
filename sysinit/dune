@@ -17,7 +17,8 @@
  (synopsis "Rocq's initialization")
  (wrapped false)
  (modules :standard \ coqargs)
- (libraries rocq-runtime.boot rocq-runtime.vernac coqargs findlib))
+ (libraries rocq-runtime.boot rocq-runtime.vernac coqargs findlib)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.sysinit)

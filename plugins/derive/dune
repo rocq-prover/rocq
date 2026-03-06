@@ -2,7 +2,8 @@
  (name derive_plugin)
  (public_name rocq-runtime.plugins.derive)
  (synopsis "Rocq's derive plugin")
- (libraries rocq-runtime.vernac))
+ (libraries rocq-runtime.vernac)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.derive)

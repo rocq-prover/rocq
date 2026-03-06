@@ -3,7 +3,8 @@
  (public_name rocq-runtime.plugins.nsatz_core)
  (synopsis "Rocq's nsatz solver plugin")
  (modules (:standard \ g_nsatz))
- (libraries rocq-runtime.tactics))
+ (libraries rocq-runtime.tactics)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.nsatz_core)

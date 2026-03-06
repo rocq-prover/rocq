@@ -1,7 +1,8 @@
 (library
  (name tuto2_plugin)
  (public_name rocq-runtime.plugins.tutorial.p2)
- (libraries rocq-runtime.plugins.ltac))
+ (libraries rocq-runtime.plugins.ltac)
+ (flags :standard -open Rocqutils))
 
 (rule
  (targets g_tuto2.ml)

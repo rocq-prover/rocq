@@ -3,7 +3,8 @@
  (public_name rocq-runtime.plugins.number_string_notation)
  (synopsis "Rocq number and string notation plugin")
  (modules g_number_string number_string)
- (libraries rocq-runtime.vernac))
+ (libraries rocq-runtime.vernac)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.number_string_notation)

@@ -4,7 +4,8 @@
  (public_name rocq-runtime.interp)
  (wrapped false)
  (modules_without_implementation constrexpr notation_term)
- (libraries zarith pretyping gramlib))
+ (libraries zarith pretyping gramlib)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.interp)

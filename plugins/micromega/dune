@@ -14,7 +14,7 @@
  (public_name rocq-runtime.plugins.micromega)
  ; be careful not to link the executable to the plugin!
  (modules (:standard \ micromega numCompat mutils sos_types sos_lib sos csdpcert g_zify zify))
- (flags :standard -open Micromega_core_plugin)
+ (flags :standard -open Micromega_core_plugin -open Rocqutils)
  (synopsis "Rocq's micromega plugin")
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.micromega_core))
 
@@ -35,7 +35,8 @@
  (public_name rocq-runtime.plugins.zify)
  (modules g_zify zify)
  (synopsis "Rocq's zify plugin")
- (libraries rocq-runtime.plugins.ltac))
+ (libraries rocq-runtime.plugins.ltac)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.zify)

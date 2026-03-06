@@ -2,7 +2,8 @@
  (name gramlib)
  (public_name rocq-runtime.gramlib)
  (modules_without_implementation plexing)
- (libraries rocq-runtime.lib))
+ (libraries rocq-runtime.lib)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.gramlib)

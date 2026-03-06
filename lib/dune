@@ -1,8 +1,8 @@
 (library
- (name lib)
+ (name rocqutils)
  (synopsis "Rocq's Utility Library [rocq-specific]")
  (public_name rocq-runtime.lib)
- (wrapped false)
+ (wrapped true)
  (modules_without_implementation xml_datatype)
  (libraries
   rocq-runtime.boot rocq-runtime.clib rocq-runtime.config

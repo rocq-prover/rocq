@@ -3,7 +3,7 @@
  (public_name rocq-runtime.plugins.ssreflect)
  (synopsis "Rocq's ssreflect plugin")
  (modules_without_implementation ssrast)
- (flags :standard -open Gramlib)
+ (flags :standard -open Gramlib -open Rocqutils)
  (libraries rocq-runtime.plugins.ssrmatching))
 
 (deprecated_library_name

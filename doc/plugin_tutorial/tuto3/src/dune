@@ -1,7 +1,7 @@
 (library
  (name tuto3_plugin)
  (public_name rocq-runtime.plugins.tutorial.p3)
- (flags :standard -warn-error -3)
+ (flags :standard -warn-error -3 -open Rocqutils)
  (libraries rocq-runtime.plugins.ltac))
 
 (rule
