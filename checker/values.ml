@@ -498,7 +498,7 @@ let v_retro_action =
   |]
 
 let v_retroknowledge =
-  v_sum "module_retroknowledge" 0 [|[|v_list v_retro_action|]|]
+  v_list v_retro_action
 
 let v_puniv = v_opt v_int
 
@@ -594,10 +594,10 @@ let [_v_sfb;_v_struc;_v_sign;_v_mexpr;_v_impl;v_module;_v_modtype] : _ Vector.t 
            [|v_resolver; v_struc|]|])  (* Struct *)
   and v_module =
     v_tuple_c ("module_body",
-           [|v_sum_c ("when_mod_body", 0, [|[|v_impl|]|]);v_sign;v_opt v_mexpr;v_resolver;v_retroknowledge|])
+           [|v_sum_c ("when_mod_body", 0, [|[|v_impl|]|]);v_sign;v_opt v_mexpr;v_resolver|])
   and v_modtype =
     v_tuple_c ("module_type_body",
-           [|v_noimpl;v_sign;v_opt v_mexpr;v_resolver;v_unit|])
+           [|v_noimpl;v_sign;v_opt v_mexpr;v_resolver|])
   in
   [v_sfb;v_struc;v_sign;v_mexpr;v_impl;v_module;v_modtype])
 
@@ -607,7 +607,7 @@ let v_vodigest = v_sum_c ("module_impl",0, [| [|v_string|]; [|v_string;v_string|
 let v_deps = v_array (v_tuple "dep" [|v_dp;v_vodigest|])
 let v_flags = v_tuple "flags" [|v_bool|] (* Allow Rewrite Rules *)
 let v_compiled_lib =
-  v_tuple "compiled" [|v_dp; v_module; v_univ_context_set; v_sort_context_set; v_deps; v_flags|]
+  v_tuple "compiled" [|v_dp; v_module; v_univ_context_set; v_sort_context_set; v_deps; v_flags; v_retroknowledge|]
 
 (** Toplevel structures in a vo (see Cic.mli) *)
 

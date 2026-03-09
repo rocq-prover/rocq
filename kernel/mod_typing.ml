@@ -339,12 +339,12 @@ and translate_modtype state vmstate env mp inl (params,mte) =
 let finalize_module_alg (cst, ustate) (vm, vmstate) env mp (sign,alg,reso) restype = match restype with
   | None ->
     let impl = match alg with Some e -> Algebraic e | None -> FullStruct in
-    let mb = make_module_body sign reso [] in
+    let mb = make_module_body sign reso in
     let mb = set_implementation impl mb in
     mb, cst, vm
   | Some (params_mte,inl) ->
     let res_mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl params_mte in
-    let auto_mtb = Mod_declarations.make_module_body sign reso [] in
+    let auto_mtb = Mod_declarations.make_module_body sign reso in
     (* This function is supposed to be called in a state where the current module
        is about to be closed, so all subcomponents of the module are already
        part of the environment. We only need to add the toplevel module entry. *)

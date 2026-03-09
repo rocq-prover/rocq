@@ -193,8 +193,7 @@ and add_module mp mb linkinfo env =
   match mod_type mb with
   | NoFunctor struc ->
     let delta = get_global_delta mb in
-    add_retroknowledge (mod_retroknowledge mb)
-      (add_structure mp struc delta linkinfo env)
+    add_structure mp struc delta linkinfo env
   | MoreFunctor _ -> env
 
 let add_linked_module mp mb linkinfo env =
