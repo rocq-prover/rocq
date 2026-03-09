@@ -255,6 +255,7 @@ let compare_notation_constr lt var_eq_hole (vars1,vars2) t1 t2 =
     aux vars renaming c1 c2;
     if not (Option.equal cast_kind_eq k1 k2) then raise_notrace Exit;
     aux vars renaming t1 t2
+  | NNat n1, NNat n2 when Z.equal n1 n2 -> ()
   | NInt i1, NInt i2 when Uint63.equal i1 i2 -> ()
   | NFloat f1, NFloat f2 when Float64.equal f1 f2 -> ()
   | NArray(t1,def1,ty1), NArray(t2,def2,ty2) ->
@@ -263,7 +264,7 @@ let compare_notation_constr lt var_eq_hole (vars1,vars2) t1 t2 =
     aux vars renaming ty1 ty2
   | (NRef _ | NVar _ | NApp _ | NProj _ | NHole _ | NGenarg _ | NList _ | NLambda _ | NProd _
     | NBinderList _ | NLetIn _ | NCases _ | NLetTuple _ | NIf _
-    | NRec _ | NSort _ | NCast _ | NInt _ | NFloat _ | NString _ | NArray _), _ -> raise_notrace Exit in
+    | NRec _ | NSort _ | NCast _ | NNat _ | NInt _ | NFloat _ | NString _ | NArray _), _ -> raise_notrace Exit in
   try
     let _ = aux (vars1,vars2) [] t1 t2 in
     if not lt then
@@ -466,6 +467,7 @@ let glob_constr_of_notation_constr_with_binders ?loc g f ?(h=default_binder_stat
   | NHole x  -> GHole x
   | NGenarg arg -> GGenarg arg
   | NRef (x,u) -> GRef (x,u)
+  | NNat n -> GNat n
   | NInt i -> GInt i
   | NFloat f -> GFloat f
   | NString s -> GString s
@@ -700,7 +702,7 @@ let notation_constr_and_vars_of_glob_constr recvars a =
     if Option.is_empty k then forgetful := { !forgetful with forget_volatile_cast = true };
     NCast (aux c, k, aux t)
   | GSort s -> NSort s
-  | GNat _ -> failwith "TODO"
+  | GNat n -> NNat n
   | GInt i -> NInt i
   | GFloat f -> NFloat f
   | GString s -> NString s
@@ -909,6 +911,7 @@ let rec subst_notation_constr subst bound raw =
           NRec (fk,idl,dll',tl',bl')
 
   | NSort _ -> raw
+  | NNat _ -> raw
   | NInt _ -> raw
   | NFloat _ -> raw
   | NString _ -> raw
