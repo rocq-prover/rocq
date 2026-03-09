@@ -1462,8 +1462,8 @@ and knht info e t stk =
       | None -> ({ mark = Red; term = FProj (p, r, mk_clos e c) }, stk)
       | Some s -> knht info e c (s :: stk)
       end
-    | Construct _ -> knh info (mk_clos e t) stk
-    | (Ind _|Const _|Var _|Meta _ | Sort _ | Nat _|Int _|Float _|String _) -> (mk_clos e t, stk)
+    | Construct _ | Nat _ -> knh info (mk_clos e t) stk
+    | (Ind _|Const _|Var _|Meta _ | Sort _|Int _|Float _|String _) -> (mk_clos e t, stk)
     | CoFix cfx ->
       { mark = Cstr; term = FCoFix (cfx,e) }, stk
     | Lambda _ -> { mark = Cstr ; term = mk_lambda e t }, stk
