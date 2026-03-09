@@ -1580,10 +1580,9 @@ let check_one_fix ?evars renv recpos trees def =
               let c = whd_all ?evars renv.env (lift n recArg) in
               let hd, _ = decompose_app_list c in
               match kind hd with
-              (* XXX Nat? *)
-              | Construct _ -> Some (contract_fix fix, absorbed_stack)
+              | Construct _ | Nat _ -> Some (contract_fix fix, absorbed_stack)
               | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
-              | Sort _ | Nat _ | Int _ | Float _ | String _
+              | Sort _ | Int _ | Float _ | String _
               | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
               | Proj _ | Cast _ | Meta _ | Evar _ -> None)
