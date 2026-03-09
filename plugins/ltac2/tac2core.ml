@@ -586,7 +586,7 @@ let () =
       Tac2ffi.of_constr def;
       Tac2ffi.of_constr ty;
     |]
-  | Nat n -> failwith "TODO"
+  | Nat _ -> failwith "TODO"
 
 let () =
   define "constr_make" (valexpr @-> eret constr) @@ fun knd env sigma ->

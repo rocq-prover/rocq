@@ -119,7 +119,7 @@ let head_name sigma c = (* Find the head constant of a constr if any *)
     | Prod (_,_,c) | Lambda (_,_,c) | LetIn (_,_,_,c)
     | Cast (c,_,_) | App (c,_) -> hdrec c
     | Proj (kn,_,_) -> Some (Constant.label (Projection.constant kn))
-    | Nat n -> Some (Nametab.basename_of_global (ConstructRef (ctor_of_nat (Global.env()) n)))
+    | Nat (ind,n) -> Some (Nametab.basename_of_global (ConstructRef (ctor_of_nat ind n)))
     | Const _ | Ind _ | Construct _ | Var _ as c ->
         Some (Nametab.basename_of_global (global_of_constr c))
     | Fix ((_,i),(lna,_,_)) | CoFix (i,(lna,_,_)) ->
@@ -157,7 +157,7 @@ let hdchar env sigma c =
     | Const (kn,_) -> lowercase_first_char (Constant.label kn)
     | Ind (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.IndRef x)) with Not_found when !Flags.in_debugger -> "zz")
     | Construct (x,_) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef x)) with Not_found when !Flags.in_debugger -> "zz")
-    | Nat n -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef (ctor_of_nat env n))) with _ when !Flags.in_debugger -> "zz")
+    | Nat (ind,n) -> (try lowercase_first_char (Nametab.basename_of_global (GlobRef.ConstructRef (ctor_of_nat ind n))) with _ when !Flags.in_debugger -> "zz")
     | Var id  -> lowercase_first_char id
     | Sort s -> sort_hdchar (ESorts.kind sigma s)
     | Rel n ->

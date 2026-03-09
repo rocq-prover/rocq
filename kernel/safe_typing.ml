@@ -1276,7 +1276,6 @@ let add_mind l mie senv =
     senv
   in
   let senv = add_checked_mind kn mib senv in
-  let senv = if mib.mind_is_nat then add_retroknowledge (Register_nat (kn,0)) senv else senv in
   (kn, why_not_prim_record), senv
 
 let add_mind ?typing_flags l mie senv =

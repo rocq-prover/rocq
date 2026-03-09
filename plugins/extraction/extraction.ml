@@ -757,7 +757,10 @@ let rec extract_term table env sg mle mlt c args =
        let r = { glob = GlobRef.VarRef v; inst = InfvInst.empty } in
        let extract_var mlt = put_magic (mlt,vty) (MLglob r) in
        extract_app table env sg mle mlt extract_var args
-    | Nat n -> assert (args = []); extract_term table env sg mle mlt (EConstr.unfold_nat env n) []
+    | Nat (ind,n) ->
+      (* XXX extraction option to use zarith *)
+      assert (args = []);
+      extract_term table env sg mle mlt (EConstr.unfold_nat ind n) []
     | Int i -> assert (args = []); MLuint i
     | Float f -> assert (args = []); MLfloat f
     | String s -> assert (args = []); MLstring s

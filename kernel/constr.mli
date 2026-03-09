@@ -74,7 +74,10 @@ val mkVar : Id.t -> constr
 val mkInt : Uint63.t -> constr
 
 (** Construct an optimized nat. Must be >= 0. *)
-val mkNat : Z.t -> constr
+val mkNat : inductive -> Z.t -> constr
+
+val ctor_of_nat : inductive -> Z.t -> constructor
+val unfold_nat : inductive -> Z.t -> constr
 
 (** Constructs an array *)
 val mkArray : UVars.Instance.t * constr array * constr * types -> constr
@@ -294,7 +297,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Array     of 'univs * 'constr array * 'constr * 'types
   (** [Array (u,vals,def,t)] is an array of [vals] in type [t] with default value [def].
       [u] is a universe containing [t]. *)
-  | Nat of Z.t
+  | Nat of inductive * Z.t
 
 (** User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative

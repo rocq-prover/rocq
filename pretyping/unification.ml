@@ -1313,13 +1313,13 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
             || use_evars_pattern_unification flags && isAllowedEvar sigma flags f2) ->
           unify_app_pattern false curenvnb pb opt substn cM cM [||] cN f2 l2
 
-        | Nat n1, Nat n2 when Z.equal n1 n2 -> substn
+        | Nat (ind1,n1), Nat (ind2,n2) when Z.equal n1 n2 && Environ.QInd.equal env ind1 ind2 -> substn
 
-        | Nat n1, (Construct _ | App _) ->
-          let curm = EConstr.unfold_nat env n1 in
+        | Nat (ind1,n1), (Construct _ | App _) ->
+          let curm = EConstr.unfold_nat ind1 n1 in
           unirec_rec curenvnb pb opt substn ~nargs curm curn
-        | (Construct _ | App _), Nat n2 ->
-          let curn = EConstr.unfold_nat env n2 in
+        | (Construct _ | App _), Nat (ind2,n2) ->
+          let curn = EConstr.unfold_nat ind2 n2 in
           unirec_rec curenvnb pb opt substn ~nargs curm curn
 
         | App (f1,l1), App (f2,l2) ->
@@ -2547,7 +2547,7 @@ let w_unify_to_subterm_all ~metas env evd ?(flags=default_unify_flags ()) (op,cl
                 let c2 = args.(n-1) in
                 bind (matchrec c1) (matchrec c2)
 
-            | Nat n -> matchrec (EConstr.unfold_nat env n) (* XXX seems very bad performance wise *)
+            | Nat (ind,n) -> matchrec (EConstr.unfold_nat ind n) (* XXX seems very bad performance wise *)
 
             | Case(_,_,_,_,_,c,lf) -> (* does not search in the predicate *)
                 bind (matchrec c) (bind_iter matchrec (Array.map snd lf))

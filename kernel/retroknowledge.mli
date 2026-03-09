@@ -30,7 +30,6 @@ type retroknowledge = {
                     (* PNormal, NNormal, PSubn, NSubn,
                        PZero, NZero, PInf, NInf,
                        NaN *)
-    retro_nat : inductive option;
 }
 
 val empty : retroknowledge
@@ -38,7 +37,3 @@ val empty : retroknowledge
 type action =
   | Register_ind : 'a CPrimitives.prim_ind * inductive -> action
   | Register_type : 'a CPrimitives.prim_type * Constant.t -> action
-  | Register_nat : inductive -> action
-  (** Register_nat is not Register_ind because it's done together with
-      declaring the inductive instead of posthoc with a Register
-      command. *)

@@ -614,7 +614,7 @@ let check_primitive_nat univs template params finite inds =
     | Finite -> ()
     | CoFinite | BiFinite -> CErrors.user_err Pp.(str "Primitive nat must be inductive.")
   in
-  let (arity,_),(indices,splayed_lc),squashed = match inds with
+  let (arity,_),(indices,splayed_lc),squashed,_ = match inds with
     | [|i|] -> i
     | _ -> CErrors.user_err Pp.(str "Primitive nat may not be mutual.")
   in

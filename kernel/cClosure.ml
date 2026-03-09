@@ -96,7 +96,7 @@ and fterm =
   | FProd of Name.t binder_annot * fconstr * constr * usubs
   | FLetIn of Name.t binder_annot * fconstr * fconstr * constr * usubs
   | FEvar of Evar.t * constr list * usubs * evar_repack
-  | FNat of Z.t
+  | FNat of inductive * Z.t
   | FInt of Uint63.t
   | FFloat of Float64.t
   | FString of Pstring.t
@@ -322,7 +322,7 @@ let destFLambda clos_fun t =
     (usubst_binder e na,clos_fun e ty,{mark=t.mark;term=FLambda(n-1,tys,b,usubs_lift e)})
   | _ -> assert false
 
-let mkFNat n = {mark = Cstr; term = FNat n}
+let mkFNat ind n = {mark = Cstr; term = FNat (ind, n)}
 
 (* Optimization: do not enclose variables in a closure.
    Makes variable access much faster *)
@@ -337,7 +337,7 @@ let mk_clos (e:usubs) t =
     | Meta _ -> {mark = Ntrl; term = FAtom t }
     | Ind kn -> {mark = Ntrl; term = FInd (usubst_punivs e kn) }
     | Construct kn -> {mark = Cstr; term = FConstruct (usubst_punivs e kn,[||]) }
-    | Nat n -> mkFNat n
+    | Nat (ind,n) -> mkFNat ind n
     | Int i -> {mark = Cstr; term = FInt i}
     | Float f -> {mark = Cstr; term = FFloat f}
     | String s -> {mark = Cstr; term = FString s}
@@ -597,8 +597,8 @@ let rec to_constr lfts v =
       repack (ev, List.map (fun a -> subst_constr subs a) args)
     | FLIFT (k,a) -> to_constr (el_shft k lfts) a
 
-    | FNat n ->
-       Constr.mkNat n
+    | FNat (ind,n) ->
+       Constr.mkNat ind n
     | FInt i ->
        Constr.mkInt i
     | FFloat f ->
@@ -944,14 +944,14 @@ let get_branch infos ci pms cterm br e =
     let ext = push (Array.length args - 1) [] ctx in
     (br, usubs_consv (Array.rev_of_list ext) e)
 
-let get_nat_branch n br e =
+let get_nat_branch ind n br e =
   if Z.equal n Z.zero then
     let _nas, br = br.(0) in
     br, e
   else
     let _nas, br = br.(1) in
-    let n = Z.sub n Z.one in
-    br, usubs_cons {mark = Cstr; term = FNat n} e
+    let n = Z.pred n in
+    br, usubs_cons (mkFNat ind n) e
 
 (** [eta_expand_ind_stack env ind c s t] computes stacks corresponding
     to the conversion of the eta expansion of t, considered as an inhabitant
@@ -1936,7 +1936,7 @@ let rec knr info tab ~pat_state m stk =
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
      else
        knr_ret info tab ~pat_state (m, stk)
-  | FNat n ->
+  | FNat (ind,n) ->
     let use_match = red_set info.i_flags fMATCH in
     let use_fix = red_set info.i_flags fFIX in
     if use_match || use_fix then
@@ -1945,7 +1945,7 @@ let rec knr info tab ~pat_state m stk =
        | (ZcaseT(ci,_,_,_,br,e)::s) when use_match ->
          assert (ci.ci_npar>=0);
          (* instance on the case and instance on the constructor are compatible by typing *)
-         let (br, e) = get_nat_branch n br e in
+         let (br, e) = get_nat_branch ind n br e in
          knit info tab ~pat_state e br s
        | (Zfix(fx,par)::s) when use_fix ->
          let stk' = par @ append_stack [|m|] s in

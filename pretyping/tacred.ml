@@ -957,16 +957,16 @@ and reduce_case infos env sigma (ci, u, pms, p, iv, c, lf) =
     let ctx = EConstr.expand_branch env sigma u pms cstr br in
     let br = it_mkLambda_or_LetIn (snd br) ctx in
     Reduced (applist (br, real_cargs))
-  | Nat n ->
+  | Nat (ind,n) ->
     if Z.equal n Z.zero then
       let _, br = lf.(0) in
       Reduced br
     else
       let br = lf.(1) in
-      let cstr = Environ.ctor_of_nat env n in
+      let cstr = ctor_of_nat ind n in
       let ctx = EConstr.expand_branch env sigma u pms cstr br in
       let br = it_mkLambda_or_LetIn (snd br) ctx in
-      Reduced (applist (br, [mkNat (Z.pred n)]))
+      Reduced (applist (br, [mkNat ind (Z.pred n)]))
   | CoFix (bodynum,(names,_,_) as cofix) ->
     let cofix_def = contract_cofix env sigma f cofix in
     (* If the cofix_def does not reduce to a constructor, do we

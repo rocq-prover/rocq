@@ -20,10 +20,6 @@ let check_same_inds ind i1 i2 =
   if not (Ind.UserOrd.equal i1 i2)
   then raise (IncompatibleDeclarations (IncompatInd ind, i1, i2))
 
-let check_same_nat i1 i2 =
-  if not (Ind.UserOrd.equal i1 i2)
-  then raise (IncompatibleDeclarations (IncompatNat, i1, i2))
-
 let add_retroknowledge retro action =
   match action with
   | Register_type(typ,c) ->
@@ -91,12 +87,6 @@ let add_retroknowledge retro action =
             check_same_inds pit ind ind'; t in
         { retro with retro_f_class = Some r }
     end
-  | Register_nat ind ->
-    let r =
-      match retro.retro_nat with
-      | None -> ind
-      | Some (ind' as t) -> check_same_nat ind ind'; t in
-    { retro with retro_nat = Some r }
 
 let add_retroknowledge env action =
   set_retroknowledge env (add_retroknowledge (Environ.retroknowledge env) action)

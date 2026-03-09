@@ -55,7 +55,7 @@ type cbv_value =
   | COFIX of cofixpoint * cbv_value subs * cbv_value array
   | CONSTRUCT of constructor UVars.puniverses * cbv_value array
   | PRIMITIVE of CPrimitives.t * pconstant * cbv_value array
-  | NAT of Z.t
+  | NAT of inductive * Z.t
   | ARRAY of UVars.Instance.t * cbv_value Parray.t * cbv_value
   | SYMBOL of { cst: Constant.t UVars.puniverses; unfoldfix: bool; rules: Declarations.machine_rewrite_rule list; stk: cbv_stack }
 
@@ -443,7 +443,7 @@ and reify_value = function (* reduction under binders *)
       mkApp(mkConstructU c, Array.map reify_value args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c, Array.map reify_value args)
-  | NAT n -> mkNat n
+  | NAT (ind,n) -> mkNat ind n
   | ARRAY (u,t,ty) ->
     let t, def = Parray.to_array t in
       mkArray(u, Array.map reify_value t, reify_value def, reify_value ty)
@@ -520,8 +520,8 @@ let is_optimized_constant env cst =
 
 let run_optimized_def opt stk =
   match opt, stk with
-  | Add, APP ([NAT n; NAT m], stk) -> Some (NAT (Z.add n m), stk)
-  | Mul, APP ([NAT n; NAT m], stk) -> Some (NAT (Z.mul n m), stk)
+  | Add, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.add n m), stk)
+  | Mul, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.mul n m), stk)
   | (Add | Mul), _ -> None
 
 (* The main recursive functions
@@ -608,8 +608,8 @@ let rec norm_head info env t stack =
   | CoFix cofix -> (COFIX(cofix,env,[||]), stack)
   | Construct ((ind,j),_ as c) ->
     if Environ.is_nat info.env ind then match j, stack with
-      | 1, _ -> NAT Z.zero, stack
-      | 2, APP ([NAT n], stack) -> NAT (Z.succ n), stack
+      | 1, _ -> NAT (ind,Z.zero), stack
+      | 2, APP ([NAT (ind,n)], stack) -> NAT (ind,Z.succ n), stack
       | 2, _ -> (CONSTRUCT(c, [||]), stack)
       | _ -> assert false
     else (CONSTRUCT(c, [||]), stack)
@@ -623,7 +623,7 @@ let rec norm_head info env t stack =
       (cbv_stack_term info TOP env def) in
     (ARRAY (u,t,ty), stack)
 
-  | Nat n -> (NAT n, stack)
+  | Nat (ind,n) -> (NAT (ind,n), stack)
 
   (* neutral cases *)
   | (Sort _ | Meta _ | Ind _ | Int _ | Float _ | String _) -> (VAL(0, t), stack)
@@ -744,12 +744,12 @@ and cbv_stack_value info env = function
     cbv_stack_term info stk env (snd br.(n-1))
 
   (* unlike CONSTRUCT this is the only NAT case (no APP/PROJ at the head of the stack by typing) *)
-  | NAT n, CASE (_,_,_,br,_,_,env,stk) when red_set info.reds fMATCH ->
+  | NAT (ind,n), CASE (_,_,_,br,_,_,env,stk) when red_set info.reds fMATCH ->
     if Z.equal n Z.zero then
       let _, br = br.(0) in
       cbv_stack_term info stk env br
     else
-      let env = subs_cons (NAT (Z.pred n)) env in
+      let env = subs_cons (NAT (ind,Z.pred n)) env in
       let _, br = br.(1) in
       cbv_stack_term info stk env br
 
@@ -762,8 +762,8 @@ and cbv_stack_value info env = function
   (* may be reduced later by application *)
   | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
   | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
-  | CONSTRUCT (((ind,2),_),[||]), APP([NAT n], TOP) when Environ.is_nat info.env ind ->
-    NAT (Z.succ n)
+  | CONSTRUCT (((ind,2),_),[||]), APP([NAT (ind',n)], TOP) when Environ.QInd.equal info.env ind ind' ->
+    NAT (ind,Z.succ n)
   | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
 
   (* primitive apply to arguments *)
@@ -1067,7 +1067,7 @@ and cbv_norm_value info = function
       mkApp(mkConstructU c, Array.map (cbv_norm_value info) args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c,Array.map (cbv_norm_value info) args)
-  | NAT n -> mkNat n
+  | NAT (ind,n) -> mkNat ind n
   | ARRAY (u,t,ty) ->
     let ty = cbv_norm_value info ty in
     let t, def = Parray.to_array t in

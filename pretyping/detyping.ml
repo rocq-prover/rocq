@@ -919,7 +919,7 @@ and detype_r d flags avoid env sigma t =
           avoid env sigma case
     | Fix (nvn,recdef) -> detype_fix (detype d) flags avoid env sigma nvn recdef
     | CoFix (n,recdef) -> detype_cofix (detype d) flags avoid env sigma n recdef
-    | Nat n -> GNat n
+    | Nat (ind,n) -> GNat (ind,n)
     | Int i -> GInt i
     | Float f -> GFloat f
     | String s -> GString s

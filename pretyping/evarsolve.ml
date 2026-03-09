@@ -731,7 +731,7 @@ let make_constructor_subst env sigma sign args =
   | LocalAssum ({ binder_name = id }, _) :: decls, Some (Some a, args) ->
     let accu = fold decls args accu in
     let a = match EConstr.kind sigma a with
-      | Nat n -> EConstr.unfold_nat env n
+      | Nat (ind,n) -> EConstr.unfold_nat ind n
       | _ -> a
     in
     let a', args = decompose_app sigma a in
@@ -1764,7 +1764,7 @@ let rec invert_definition unify flags choose imitate_defs
         progress := true;
         match
           let t = match EConstr.kind !evdref t with
-            | Nat n -> EConstr.unfold_nat env n
+            | Nat (ind,n) -> EConstr.unfold_nat ind n
             | _ -> t
           in
           let c,args = decompose_app !evdref t in

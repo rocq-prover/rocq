@@ -281,7 +281,7 @@ let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_a
     [|v_float64|]; (* Float *)
     [|v_string|]; (* v_string *)
     [|v_instance;v_array v_constr;v_constr;v_constr|]; (* v_array *)
-    [|v_z|]; (* nat *)
+    [|v_ind;v_z|]; (* nat *)
   |]))
 
 let v_rdecl = v_sum "rel_declaration" 0

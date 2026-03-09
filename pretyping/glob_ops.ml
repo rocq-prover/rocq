@@ -213,7 +213,7 @@ let mk_glob_constr_eq f g c1 c2 = match DAst.get c1, DAst.get c2 with
     GlobRef.(CanOrd.equal (ConstRef cst1) (ConstRef cst2)) &&
     Option.equal instance_eq u1 u2 &&
     List.equal f args1 args2 && f c1 c2
-  | GNat i1, GNat i2 -> Z.equal i1 i2
+  | GNat (ind1,i1), GNat (ind2,i2) -> Z.equal i1 i2 && Ind.CanOrd.equal ind1 ind2
   | GInt i1, GInt i2 -> Uint63.equal i1 i2
   | GFloat f1, GFloat f2 -> Float64.equal f1 f2
   | GString s1, GString s2 -> Pstring.equal s1 s2

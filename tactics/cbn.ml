@@ -562,14 +562,14 @@ let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
   in
   Vars.substl subst (snd br)
 
-let get_nat_branch n br =
+let get_nat_branch ind n br =
   if Z.equal n Z.zero then
     let _nas, br = br.(0) in
     br
   else
     let _nas, br = br.(1) in
     let n = Z.pred n in
-    Vars.subst1 (mkNat n) br
+    Vars.subst1 (mkNat ind n) br
 
 exception PatternFailure
 
@@ -925,13 +925,13 @@ let rec whd_state_gen ?csts flags env sigma =
         |_, _ -> fold ()
       else fold ()
 
-    | Nat n ->
+    | Nat (ind,n) ->
       let use_match = RedFlags.red_set flags RedFlags.fMATCH in
       let use_fix = RedFlags.red_set flags RedFlags.fFIX in
       if use_match || use_fix then
         match stack with
         | (Stack.Case((_,_,_,_,_,br),_)::s') when use_match ->
-          let r = get_nat_branch n br in
+          let r = get_nat_branch ind n br in
           whrec Cst_stack.empty (r, s')
         | (Stack.Fix (f,s',cst_l)::s'') when use_fix ->
           let out_sk = s' @ (Stack.append_app [|x|] s'') in

@@ -112,7 +112,7 @@ type 'a glob_constr_r =
   | GGenarg of GenConstr.glb
   | GCast of 'a glob_constr_g * Constr.cast_kind option * 'a glob_constr_g
   | GProj of (Constant.t * glob_instance option) * 'a glob_constr_g list * 'a glob_constr_g
-  | GNat of Z.t
+  | GNat of inductive * Z.t
   | GInt of Uint63.t
   | GFloat of Float64.t
   | GString of Pstring.t

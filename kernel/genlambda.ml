@@ -788,7 +788,7 @@ let rec lambda_of_constr cache env sigma c =
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
       mknode @@ Lcofix(init, (names, ltypes, lbodies))
 
-  | Nat i -> mknode @@ Lnat i
+  | Nat (_,i) -> mknode @@ Lnat i
 
   | Int i -> mknode @@ Luint i
 

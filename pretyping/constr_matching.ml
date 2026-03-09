@@ -342,31 +342,31 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
       end
     end
 
-  | PNat n1, Nat n2 ->
-    if Z.equal n1 n2 then subst
+  | PNat (ind1,n1), Nat (ind2,n2) ->
+    if Z.equal n1 n2 && Environ.QInd.equal env ind1 ind2 then subst
     else raise PatternMatchingFailure
 
-  | PNat n, Construct ((ind,1),_) ->
-    if Z.equal n Z.zero && Environ.is_nat env ind then subst
+  | PNat (ind,n), Construct ((ind',1),_) ->
+    if Z.equal n Z.zero && Environ.QInd.equal env ind ind' then subst
     else raise PatternMatchingFailure
 
-  | PNat n, App (c2, arg2) ->
+  | PNat (ind,n), App (c2, arg2) ->
     if Array.length arg2 <> 1 then raise PatternMatchingFailure
     else begin match kind sigma c2 with
-      | Construct ((ind,2),_) when Environ.is_nat env ind ->
-        sorec ctx env subst (PNat (Z.pred n)) arg2.(0)
+      | Construct ((ind',2),_) when Environ.QInd.equal env ind ind' ->
+        sorec ctx env subst (PNat (ind,Z.pred n)) arg2.(0)
       | _ -> raise PatternMatchingFailure
     end
 
-  | PRef (ConstructRef (ind,1)), Nat n ->
-    if Z.equal n Z.zero && Environ.is_nat env ind then subst
+  | PRef (ConstructRef (ind,1)), Nat (ind',n) ->
+    if Z.equal n Z.zero && Environ.QInd.equal env ind ind' then subst
     else raise PatternMatchingFailure
 
-  | PApp (PRef (ConstructRef (ind,2)), arg1), Nat n ->
+  | PApp (PRef (ConstructRef (ind,2)), arg1), Nat (ind',n) ->
     if Z.equal n Z.zero || Array.length arg1 <> 1 ||
-       not (Environ.is_nat env ind) then
+       not (Environ.QInd.equal env ind ind') then
       raise PatternMatchingFailure
-    else sorec ctx env subst arg1.(0) (mkNat (Z.pred n))
+    else sorec ctx env subst arg1.(0) (mkNat ind' (Z.pred n))
 
   | PApp (c1, arg1), App (c2, arg2) ->
     let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in

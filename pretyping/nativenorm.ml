@@ -207,7 +207,9 @@ let rec nf_val env sigma v typ =
       let body = nf_val env sigma (f (mk_rel_accu lvl)) codom in
       mkLambda(name,dom,body)
   | Vconst n -> construct_of_constr_const env sigma n typ
-  | Vnat n -> mkNat n
+  | Vnat n ->
+    let (ind,_),_ = find_rectype_a env sigma (EConstr.of_constr typ) in
+    mkNat ind n
   | Vint64 i -> i |> Uint63.of_int64 |> mkInt
   | Vfloat64 f -> f |> Float64.of_float |> mkFloat
   | Vstring s -> s |> mkString
