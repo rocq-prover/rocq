@@ -334,9 +334,24 @@ let rec constr_of_glob to_post post env sigma g =
          if List.exists (function ToPostHole _ -> false | _ -> true) a then raise NotAValidPrimToken;
          constr_of_globref env sigma r
       end
+  | GNat n ->
+    let ctor = GlobRef.ConstructRef (Environ.ctor_of_nat env n) in
+    let o = List.find_opt (fun (_,r',_) -> Environ.QGlobRef.equal env ctor r') post in
+    begin match o with
+    | None -> sigma, mkNat n
+    | Some _ ->
+      let ctor = DAst.make ?loc:g.loc @@ GRef (ctor, None) in
+      let g = if Z.equal n Z.zero then ctor
+        else DAst.make ?loc:g.loc @@ GApp (ctor, [DAst.make ?loc:g.loc @@ GNat (Z.pred n)])
+      in
+      constr_of_glob to_post post env sigma g
+    end
   | Glob_term.GApp (gc, gcl) ->
       let o = match DAst.get gc with
         | Glob_term.GRef (r, _) -> List.find_opt (fun (_,r',_) -> Environ.QGlobRef.equal env r r') post
+        | GNat n ->
+          let r = GlobRef.ConstructRef (Environ.ctor_of_nat env n) in
+          List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
         | _ -> None in
       begin match o with
       | None ->
@@ -365,7 +380,6 @@ let rec constr_of_glob to_post post env sigma g =
          let sigma,cl = aux sigma a gcl in
          sigma,mkApp (c, Array.of_list cl)
       end
-  | Glob_term.GNat n -> sigma, mkNat n
   | Glob_term.GInt i -> sigma, mkInt i
   | Glob_term.GFloat f -> sigma, mkFloat f
   | Glob_term.GString s -> sigma, mkString s
@@ -461,7 +475,10 @@ let rec postprocess env token_kind ?loc ty to_post post g =
   let o =
     match DAst.get g' with
     | Glob_term.GRef (r, None) ->
-       List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
+      List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
+    | GNat n ->
+      let r = GlobRef.ConstructRef (Environ.ctor_of_nat env n) in
+      List.find_opt (fun (r',_,_) -> Environ.QGlobRef.equal env r r') post
     | _ -> None in
   match o with None -> g | Some (_, r, a) ->
   let rec f n a gl = match a, gl with
