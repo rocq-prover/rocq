@@ -644,8 +644,10 @@ val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> ?to_type:bool -> evar_
 
 val fix_undefined_variables : evar_map -> evar_map
 
-(** Universe minimization (collapse_sort_variables is true by default) *)
-val minimize_universes : ?collapse_sort_variables:bool -> ?to_type:bool -> evar_map -> evar_map
+val minimize_universes_no_collapse : evar_map -> evar_map
+
+(** Universe minimization *)
+val minimize_universes : ?poly:PolyFlags.t -> evar_map -> evar_map
 
 (** Lift [UState.update_sigma_univs] *)
 val update_sigma_univs : UGraph.t -> evar_map -> evar_map

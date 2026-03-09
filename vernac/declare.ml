@@ -1097,7 +1097,7 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   Option.iter (check_evars_are_solved env sigma) typ;
   check_evars_are_solved env sigma body;
   let poly = info.Info.poly in
-  let sigma = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) sigma in
+  let sigma = Evd.minimize_universes ~poly sigma in
   let body = EConstr.to_constr sigma body in
   let typ = Option.map (EConstr.to_constr sigma) typ in
   let uctx = Evd.ustate sigma in
@@ -1114,8 +1114,7 @@ let prepare_obligations ~name poly ?types ~body env sigma =
     | Some t -> t
     | None -> Retyping.get_type_of env sigma body
   in
-  let to_type = PolyFlags.collapse_sort_variables poly in
-  let sigma, (body, types) = Evarutil.finalize ~abort_on_undefined_evars:false ~to_type
+  let sigma, (body, types) = Evarutil.finalize ~abort_on_undefined_evars:false ~poly
       sigma (fun nf -> nf body, nf types)
   in
   RetrieveObl.check_evars env sigma;
@@ -1127,7 +1126,7 @@ let prepare_obligations ~name poly ?types ~body env sigma =
 let prepare_parameter ~poly ~udecl ~types sigma =
   let env = Global.env () in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
-  let sigma, typ = Evarutil.finalize ~abort_on_undefined_evars:true ~to_type:(PolyFlags.collapse_sort_variables poly)
+  let sigma, typ = Evarutil.finalize ~abort_on_undefined_evars:true ~poly
       sigma (fun nf -> nf types)
   in
   let univs = Evd.check_univ_decl ~poly sigma udecl in
@@ -2089,7 +2088,7 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
     Proof.unfocus_all proof
   in
   let eff = SideEff.make @@ Evd.eval_side_effects evd in
-  let evd = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) evd in
+  let evd = Evd.minimize_universes ~poly evd in
   let to_constr c =
     match EConstr.to_constr_opt evd c with
     | Some p -> p
@@ -2253,7 +2252,7 @@ let save_admitted ~pm ~proof =
   let sigma = Evd.from_ctx proof.initial_euctx in
   List.iter (check_type_evars_solved (Global.env()) sigma) typs;
   let sec_vars = compute_proof_using_for_admitted proof.pinfo proof typs iproof in
-  let sigma = Evd.minimize_universes ~to_type:(PolyFlags.collapse_sort_variables poly) sigma in
+  let sigma = Evd.minimize_universes ~poly sigma in
   let uctx = Evd.ustate sigma in
   let typs = List.map (fun typ -> (EConstr.to_constr sigma typ, uctx)) typs in
   finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs

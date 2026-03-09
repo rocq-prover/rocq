@@ -264,9 +264,8 @@ let def_class_levels ~def ~env_ar_params sigma aritysorts ctors =
     sigma, s, ctor
 
 let finalize_def_class ~poly env sigma ~params ~sort ~projtyp =
-  let to_type = PolyFlags.collapse_sort_variables poly in
   let sigma, (params, sort, typ, projtyp) =
-    Evarutil.finalize ~abort_on_undefined_evars:false ~to_type sigma (fun nf ->
+    Evarutil.finalize ~abort_on_undefined_evars:false ~poly sigma (fun nf ->
         let typ = EConstr.it_mkProd_or_LetIn (EConstr.mkSort sort) params in
         let typ = nf typ in
         (* we know the context is exactly the params because we built typ from mkSort *)
