@@ -41,23 +41,23 @@ type debug = Debug | Info | Off
 
 exception Bound
 
-let rec head_bound sigma t = match EConstr.kind sigma t with
-| Prod (_, _, b)  -> head_bound sigma b
-| LetIn (_, _, _, b) -> head_bound sigma b
-| App (c, _) -> head_bound sigma c
-| Case (_, _, _, _, _, c, _) -> head_bound sigma c
+let rec head_bound env sigma t = match EConstr.kind sigma t with
+| Prod (_, _, b)  -> head_bound env sigma b
+| LetIn (_, _, _, b) -> head_bound env sigma b
+| App (c, _) -> head_bound env sigma c
+| Case (_, _, _, _, _, c, _) -> head_bound env sigma c
 | Ind (ind, _) -> GlobRef.IndRef ind
 | Const (c, _) -> GlobRef.ConstRef c
 | Construct (c, _) -> GlobRef.ConstructRef c
 | Var id -> GlobRef.VarRef id
 | Proj (p, _, _) -> GlobRef.ConstRef (Projection.constant p)
-| Cast (c, _, _) -> head_bound sigma c
-| Nat n -> failwith "TODO"
+| Cast (c, _, _) -> head_bound env sigma c
+| Nat n -> ConstructRef (Environ.ctor_of_nat env n)
 | Evar _ | Rel _ | Meta _ | Sort _ | Fix _ | Lambda _
 | CoFix _ | Int _ | Float _ | String _ | Array _ -> raise Bound
 
-let head_constr sigma c =
-  try head_bound sigma c
+let head_constr env sigma c =
+  try head_bound env sigma c
   with Bound -> user_err (Pp.str "Head identifier must be a constant, section variable, \
                                   (co)inductive type, (co)inductive type constructor, or projection.")
 
@@ -885,7 +885,7 @@ let make_exact_entry env sigma info ?name (c, cty, ctx) =
     | Prod _ -> failwith "make_exact_entry"
     | _ ->
         let hd =
-          try head_bound sigma cty
+          try head_bound env sigma cty
           with Bound -> failwith "make_exact_entry"
         in
         let pri = match info.hint_priority with None -> 0 | Some p -> p in
@@ -912,7 +912,7 @@ let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
     let ce = Clenv.mk_clenv_from env sigma' (c,cty) in
     let c' = Clenv.clenv_type (* ~reduce:false *) ce in
     let hd =
-      try head_bound (Clenv.clenv_evd ce) c'
+      try head_bound env (Clenv.clenv_evd ce) c'
       with Bound -> failwith "make_apply_entry" in
     let miss, hyps = Clenv.clenv_missing ce in
     let nmiss = List.length miss in
@@ -1028,7 +1028,7 @@ let make_trivial env sigma r =
   let c,ctx = fresh_global_or_constr env sigma (IsGlobRef r) in
   let sigma = merge_context_set_opt sigma ctx in
   let t = hnf_constr env sigma (Retyping.get_type_of env sigma c) in
-  let hd = head_constr sigma t in
+  let hd = head_constr env sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
    { pri=1;
@@ -1210,7 +1210,7 @@ let subst_autohint (subst, obj) =
     match t with
     | None -> gr'
     | Some t ->
-      (try head_bound Evd.empty (EConstr.of_constr t.UVars.univ_abstracted_value)
+      (try head_bound (Global.env()) Evd.empty (EConstr.of_constr t.UVars.univ_abstracted_value)
        with Bound -> gr')
   in
   let subst_mps subst c = EConstr.of_constr (subst_mps subst (EConstr.Unsafe.to_constr c)) in
