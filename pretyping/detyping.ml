@@ -338,6 +338,7 @@ let computable sigma (nas, ccl) =
        sinon on perd la réciprocité de la synthèse (qui, lui,
        engendrera un prédicat non dépendant) *)
 
+  not !Flags.in_debugger &&
   noccur_between sigma 1 (Array.length nas) ccl
 
 let lookup_name_as_displayed env sigma t s =
