@@ -312,23 +312,6 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     | _ -> raise PatternMatchingFailure
     end
 
-  | PApp (c1, arg1), App (c2, arg2) ->
-    begin match c1, EConstr.kind sigma c2 with
-    | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
-      raise PatternMatchingFailure
-    | PProj (pr1,c1), Proj (pr,_,c) ->
-      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
-      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
-    | _, Proj (pr,_,c) ->
-      begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
-      | term -> sorec ctx env subst p term
-      | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
-      end
-    | _ ->
-      let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
-      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
-    end
-
   | PApp (c, args), Proj (pr, _, c2) ->
     begin match c with
     | PRef (GlobRef.ConstRef c1) when not (Environ.QConstant.equal env c1 (Projection.constant pr)) ->
@@ -343,6 +326,25 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
   | PProj (p1, c1), Proj (p2, _, c2) ->
     if Environ.QProjection.equal env p1 p2 then sorec ctx env subst c1 c2
     else raise PatternMatchingFailure
+
+  | PApp (c1, arg1), App (c2, arg2) when isProj sigma c2 ->
+    let (pr, _, c) = destProj sigma c2 in
+    begin match c1 with
+    | PRef (GlobRef.ConstRef r) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
+      raise PatternMatchingFailure
+    | PProj (pr1,c1) ->
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
+    | _ ->
+      begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
+      | term -> sorec ctx env subst p term
+      | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
+      end
+    end
+
+  | PApp (c1, arg1), App (c2, arg2) ->
+    let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
+    Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
 
   | PProd (na1, c1, d1), Prod (na2, c2, d2) ->
     sorec (push_binder na1 na2 c2 ctx) (EConstr.push_rel (LocalAssum (na2,c2)) env)
