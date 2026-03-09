@@ -21,68 +21,6 @@ open Mod_subst
 open Pattern
 open Environ
 
-let case_info_pattern_eq env i1 i2 =
-  i1.cip_style == i2.cip_style &&
-  Option.equal (fun i1 i2 -> QInd.equal env i1 i2) i1.cip_ind i2.cip_ind &&
-  i1.cip_extensible == i2.cip_extensible
-
-let rec constr_pattern_eq env (p1:constr_pattern) p2 = match p1, p2 with
-| PRef r1, PRef r2 -> QGlobRef.equal env r1 r2
-| PVar v1, PVar v2 -> Id.equal v1 v2
-| PEvar (ev1, ctx1), PEvar (ev2, ctx2) ->
-  Evar.equal ev1 ev2 && List.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) ctx1 ctx2
-| PRel i1, PRel i2 ->
-  Int.equal i1 i2
-| PApp (t1, arg1), PApp (t2, arg2) ->
-  constr_pattern_eq env t1 t2 && Array.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) arg1 arg2
-| PSoApp (id1, arg1), PSoApp (id2, arg2) ->
-  Id.equal id1 id2 && List.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) arg1 arg2
-| PLambda (v1, t1, b1), PLambda (v2, t2, b2) ->
-  Name.equal v1 v2 && constr_pattern_eq env t1 t2 && constr_pattern_eq env b1 b2
-| PProd (v1, t1, b1), PProd (v2, t2, b2) ->
-  Name.equal v1 v2 && constr_pattern_eq env t1 t2 && constr_pattern_eq env b1 b2
-| PLetIn (v1, b1, t1, c1), PLetIn (v2, b2, t2, c2) ->
-  Name.equal v1 v2 && constr_pattern_eq env b1 b2 &&
-  Option.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) t1 t2 && constr_pattern_eq env c1 c2
-| PSort s1, PSort s2 -> UnivGen.QualityOrSet.equal s1 s2
-| PMeta m1, PMeta m2 -> Option.equal Id.equal m1 m2
-| PIf (t1, l1, r1), PIf (t2, l2, r2) ->
-  constr_pattern_eq env t1 t2 && constr_pattern_eq env l1 l2 && constr_pattern_eq env r1 r2
-| PCase (info1, p1, r1, l1), PCase (info2, p2, r2, l2) ->
-  case_info_pattern_eq env info1 info2 &&
-  Option.equal (fun (nas1, p1) (nas2, p2) -> Array.equal Name.equal nas1 nas2 && constr_pattern_eq env p1 p2) p1 p2 &&
-  constr_pattern_eq env r1 r2 &&
-  List.equal (fun p1 p2 -> pattern_eq env p1 p2) l1 l2
-| PFix ((ln1,i1),f1), PFix ((ln2,i2),f2) ->
-  Array.equal Int.equal ln1 ln2 && Int.equal i1 i2 && rec_declaration_eq env f1 f2
-| PCoFix (i1,f1), PCoFix (i2,f2) ->
-  Int.equal i1 i2 && rec_declaration_eq env f1 f2
-| PProj (p1, t1), PProj (p2, t2) ->
-   QProjection.equal env p1 p2 && constr_pattern_eq env t1 t2
-| PInt i1, PInt i2 ->
-   Uint63.equal i1 i2
-| PFloat f1, PFloat f2 ->
-   Float64.equal f1 f2
-| PString s1, PString s2 ->
-   Pstring.equal s1 s2
-| PArray (t1, def1, ty1), PArray (t2, def2, ty2) ->
-  Array.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) t1 t2 && constr_pattern_eq env def1 def2
-  && constr_pattern_eq env ty1 ty2
-| PExtra e, _ -> Util.Empty.abort e
-| (PRef _ | PVar _ | PEvar _ | PRel _ | PApp _ | PSoApp _
-   | PLambda _ | PProd _ | PLetIn _ | PSort _ | PMeta _
-   | PIf _ | PCase _ | PFix _ | PCoFix _ | PProj _ | PInt _
-   | PFloat _ | PString _ | PArray _), _ -> false
-(** FIXME: fixpoint and cofixpoint should be relativized to pattern *)
-
-and pattern_eq env (i1, j1, p1) (i2, j2, p2) =
-  Int.equal i1 i2 && Array.equal Name.equal j1 j2 && constr_pattern_eq env p1 p2
-
-and rec_declaration_eq env (n1, c1, r1) (n2, c2, r2) =
-  Array.equal Name.equal n1 n2 &&
-  Array.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) c1 c2 &&
-  Array.equal (fun c1 c2 -> constr_pattern_eq env c1 c2) r1 r2
-
 let rec occurn_pattern : 'a. _ -> 'a constr_pattern_r -> _
   = fun (type a) n (p:a constr_pattern_r) -> match p with
   | PRel p -> Int.equal n p
