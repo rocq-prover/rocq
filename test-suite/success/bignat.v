@@ -99,7 +99,7 @@ Time Eval cbv in 50000000.
 Time Eval cbv in 500000000000000000000000000.
 (* still instant *)
 
-Definition pred n := match n with S k => k | 0 => O end.
+Definition pred n := match n with S k => k | 0 => 0 end.
 
 Check eq_refl 0 : pred (pred 1) = 0.
 
