@@ -1998,6 +1998,9 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
     | NRef (g,_) ->
       ensure_kind test_kind ?loc g;
       DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false [] args)
+    | NNat n ->
+      ensure_kind test_kind ?loc (ConstructRef (Environ.ctor_of_nat genv n));
+      DAst.make ?loc @@ rcp_of_nat ?loc genv n
     | NApp (NRef (g,_),ntnpl) ->
       ensure_kind test_kind ?loc g;
       let ntnpl = List.map (in_not test_kind_inner loc scopes fullsubst []) ntnpl in
