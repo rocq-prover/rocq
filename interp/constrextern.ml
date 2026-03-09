@@ -1515,6 +1515,7 @@ let rec glob_of_pat
   | PSort (Qual (QConstant QProp)) -> GSort Glob_ops.glob_Prop_sort
   | PSort (Qual (QConstant QType | QVar _)) -> GSort Glob_ops.glob_Type_sort
   | PSort Set -> GSort Glob_ops.glob_Set_sort
+  | PNat n -> GNat n
   | PInt i -> GInt i
   | PFloat f -> GFloat f
   | PString s -> GString s
