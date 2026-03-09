@@ -724,12 +724,16 @@ type esubst = {
   (** Reverse map of indices in [ealias] containing the corresponding alias *)
 }
 
-let make_constructor_subst sigma sign args =
+let make_constructor_subst env sigma sign args =
   let rec fold decls args accu = match decls, SList.view args with
   | _ :: _, None | [], Some _ -> assert false
   | [], None -> accu
   | LocalAssum ({ binder_name = id }, _) :: decls, Some (Some a, args) ->
     let accu = fold decls args accu in
+    let a = match EConstr.kind sigma a with
+      | Nat n -> EConstr.unfold_nat env n
+      | _ -> a
+    in
     let a', args = decompose_app sigma a in
     begin match EConstr.kind sigma a' with
     | Construct (cstr, _) ->
@@ -1641,7 +1645,7 @@ let rec invert_definition unify flags choose imitate_defs
   let progress = ref false in
   let aliases = make_alias_map env evd in
   let subst = make_projectable_subst aliases evd sign argsv in
-  let cstr_subst = make_constructor_subst evd sign argsv in
+  let cstr_subst = make_constructor_subst env evd sign argsv in
 
   (* Projection *)
   let project_variable t =
@@ -1759,6 +1763,10 @@ let rec invert_definition unify flags choose imitate_defs
     | _ ->
         progress := true;
         match
+          let t = match EConstr.kind !evdref t with
+            | Nat n -> EConstr.unfold_nat env n
+            | _ -> t
+          in
           let c,args = decompose_app !evdref t in
           match EConstr.kind !evdref c with
           | Construct (cstr,u) when noccur_between !evdref 1 k t ->
