@@ -342,6 +342,9 @@ let glob_prim_constr_key c = match DAst.get c with
     end
   | GProj ((cst,_), _, _) -> Some (canonical_gr (GlobRef.ConstRef cst))
   | GNat n ->
+    if !Flags.in_debugger && Option.is_empty (Global.env () |> Environ.retroknowledge).retro_nat
+    then None
+    else
     let c = Environ.ctor_of_nat (Global.env()) n in
     Some (canonical_gr (GlobRef.ConstructRef c))
   | _ -> None
