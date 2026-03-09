@@ -1512,6 +1512,7 @@ let rec glob_of_pat
   | PSort (Qual (QConstant QType | QVar _)) -> GSort Glob_ops.glob_Type_sort
   | PSort (Qual (QGlobal _ as q)) -> GSort (Some (GQuality q), Glob_ops.glob_rigid_univ)
   | PSort Set -> GSort Glob_ops.glob_Set_sort
+  | PNat n -> GNat n
   | PInt i -> GInt i
   | PFloat f -> GFloat f
   | PString s -> GString s

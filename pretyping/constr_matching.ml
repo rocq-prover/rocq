@@ -342,6 +342,32 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
       end
     end
 
+  | PNat n1, Nat n2 ->
+    if Z.equal n1 n2 then subst
+    else raise PatternMatchingFailure
+
+  | PNat n, Construct ((ind,1),_) ->
+    if Z.equal n Z.zero && Environ.is_nat env ind then subst
+    else raise PatternMatchingFailure
+
+  | PNat n, App (c2, arg2) ->
+    if Array.length arg2 <> 1 then raise PatternMatchingFailure
+    else begin match kind sigma c2 with
+      | Construct ((ind,2),_) when Environ.is_nat env ind ->
+        sorec ctx env subst (PNat (Z.pred n)) arg2.(0)
+      | _ -> raise PatternMatchingFailure
+    end
+
+  | PRef (ConstructRef (ind,1)), Nat n ->
+    if Z.equal n Z.zero && Environ.is_nat env ind then subst
+    else raise PatternMatchingFailure
+
+  | PApp (PRef (ConstructRef (ind,2)), arg1), Nat n ->
+    if Z.equal n Z.zero || Array.length arg1 <> 1 ||
+       not (Environ.is_nat env ind) then
+      raise PatternMatchingFailure
+    else sorec ctx env subst arg1.(0) (mkNat (Z.pred n))
+
   | PApp (c1, arg1), App (c2, arg2) ->
     let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
     Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
@@ -462,7 +488,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | (PRef _ | PVar _ | PRel _ | PApp _ | PProj _ | PLambda _
       | PProd _ | PLetIn _ | PSort _ | PIf _ | PCase _
-      | PFix _ | PCoFix _| PEvar _ | PInt _ | PFloat _
+      | PFix _ | PCoFix _| PEvar _ | PNat _ | PInt _ | PFloat _
       | PString _ | PArray _), _ -> raise PatternMatchingFailure
 
   | PExtra e, _ -> Util.Empty.abort e
