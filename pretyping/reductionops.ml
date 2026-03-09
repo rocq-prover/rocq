@@ -707,6 +707,14 @@ let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
     let ctx = expand_branch env sigma u pms (ind, i) br in
     applist (it_mkLambda_or_LetIn (snd br) ctx, args)
 
+let get_nat_branch n br =
+  if Z.equal n Z.zero then
+    let _nas, br = br.(0) in
+    br
+  else
+    let _nas, br = br.(1) in
+    let n = Z.pred n in
+    Vars.subst1 (mkNat n) br
 
 exception PatternFailure
 
@@ -927,7 +935,20 @@ let rec whd_state_gen flags ?metas env sigma =
         |_, _ -> fold ()
       else fold ()
 
-    | Nat _ -> failwith "TODO"
+    | Nat n ->
+      let use_match = RedFlags.red_set flags RedFlags.fMATCH in
+      let use_fix = RedFlags.red_set flags RedFlags.fFIX in
+      if use_match || use_fix then
+        match stack with
+        |(Stack.Case (_,_,_,_,_,br)::s') when use_match ->
+          let r = get_nat_branch n br in
+          whrec (r, s')
+        |(Stack.Fix (f,s')::s'') when use_fix ->
+          let out_sk = s' @ (Stack.append_app [|x|] s'') in
+          whrec (reduce_and_refold_fix env sigma f out_sk)
+        |(Stack.App _| Proj _ | Primitive _)::_ -> assert false
+        | _ -> fold ()
+      else fold ()
 
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
@@ -1017,7 +1038,22 @@ let local_whd_state_gen flags ?metas env sigma =
         |_, _ -> s
       else s
 
-    | Nat _ -> failwith "TODO"
+    | Nat n ->
+      let use_match = RedFlags.red_set flags RedFlags.fMATCH in
+      let use_fix = RedFlags.red_set flags RedFlags.fFIX in
+      begin match stack with
+      |(Stack.Case (_,_,_,_,_,br) :: s') ->
+        if use_match then
+          let r = get_nat_branch n br in
+          whrec (r, s')
+        else s
+      |(Stack.Fix (f,s')::s'') ->
+        if use_fix then
+          whrec (contract_fix sigma f, s' @ (Stack.append_app [|x|] s''))
+        else s
+      |(Stack.App _ | Proj _ | Primitive _)::_ -> assert false
+      | [] -> s
+      end
 
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
