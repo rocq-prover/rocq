@@ -910,13 +910,32 @@ let eq_invert eq iv1 iv2 =
 let eq_under_context eq (_nas1, p1) (_nas2, p2) =
   eq p1 p2
 
+let eq_nat_gen ind n kind c =
+  let rec aux n c =
+    match kind_nocast_gen kind c with
+    | Nat (ind',n') -> Z.equal n n' && Ind.CanOrd.equal ind ind'
+    | Construct ((ind',1),_) -> Z.equal n Z.zero && Ind.CanOrd.equal ind ind'
+    | App (hd, [|a|]) ->
+      begin match kind_nocast_gen kind hd with
+      | Construct ((ind',2),_) ->
+        Ind.CanOrd.equal ind ind' &&
+        aux (Z.pred n) a
+      | _ -> false
+      end
+    | _ -> false
+  in
+  aux n c
+
 let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq leq nargs t1 t2 =
   match kind_nocast_gen kind1 t1, kind_nocast_gen kind2 t2 with
   | Cast _, _ | _, Cast _ -> assert false (* kind_nocast *)
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
-  | Nat (ind1,i1), Nat (ind2,i2) -> Z.equal i1 i2 && Ind.CanOrd.equal ind1 ind2 (* XXX nat vs constructor? *)
+  | Nat (ind1,n1), Nat (ind2,n2) ->
+    Z.equal n1 n2 && Ind.CanOrd.equal ind1 ind2
+  | Nat (ind1,n1), _ -> eq_nat_gen ind1 n1 kind2 t2
+  | _, Nat (ind2,n2) -> eq_nat_gen ind2 n2 kind1 t1
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
@@ -955,7 +974,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
     eq 0 def1 def2 && eq 0 ty1 ty2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Nat _ | Int _ | Float _ | String _ | Array _), _ -> false
+    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 (* [compare_head_gen_leq u s eq leq c1 c2] compare [c1] and [c2] using [eq] to compare
    the immediate subterms of [c1] of [c2] for conversion if needed, [leq] for cumulativity,
