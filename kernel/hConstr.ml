@@ -285,7 +285,7 @@ let hash_kind = let open Hashset.Combine in function
   | Float f -> combinesmall 19 (Float64.hash f)
   | String s -> combinesmall 20 (Pstring.hash s)
   | Array (u,t,def,ty) -> combinesmall 21 (combine4 (UVars.Instance.hash u) (hash_array hash t) def.hash ty.hash)
-  | Nat i -> combinesmall 22 (Z.hash i)
+  | Nat (ind,i) -> combinesmall 22 (combine (Ind.UserOrd.hash ind) (Z.hash i))
 
 let kind_to_constr = function
   | Rel n -> mkRel n
@@ -316,7 +316,7 @@ let kind_to_constr = function
   | Float f -> mkFloat f
   | String s -> mkString s
   | Array (u,t,def,ty) -> mkArray (u,Array.map self t,def.self,ty.self)
-  | Nat i -> mkNat i
+  | Nat (ind,i) -> mkNat ind i
 
 let of_kind_nohashcons = function
   | App (c, [||]) -> c

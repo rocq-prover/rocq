@@ -36,7 +36,6 @@ type retroknowledge = {
                     (* PNormal, NNormal, PSubn, NSubn,
                        PZero, NZero, PInf, NInf,
                        NaN *)
-    retro_nat : inductive option;
 }
 
 let empty = {
@@ -50,10 +49,8 @@ let empty = {
     retro_cmp = None;
     retro_f_cmp = None;
     retro_f_class = None;
-    retro_nat = None;
 }
 
 type action =
   | Register_ind : 'a CPrimitives.prim_ind * inductive -> action
   | Register_type : 'a CPrimitives.prim_type * Constant.t -> action
-  | Register_nat : inductive -> action

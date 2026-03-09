@@ -209,7 +209,7 @@ let mkCoFix f = of_kind (CoFix f)
 let mkProj (p, r, c) = of_kind (Proj (p, r, c))
 let mkArrow t1 r t2 = of_kind (Prod (make_annot Anonymous r, t1, t2))
 let mkArrowR t1 t2 = mkArrow t1 ERelevance.relevant t2
-let mkNat n = of_kind (Nat n)
+let mkNat ind n = of_kind (Nat (ind,n))
 let mkInt i = of_kind (Int i)
 let mkFloat f = of_kind (Float f)
 let mkString s = of_kind (String s)
@@ -660,7 +660,7 @@ let contract_case env _sigma (ci, (p,r), iv, c, bl) =
   let bl = of_branches bl in
   (ci, u, pms, p, iv, c, bl)
 
-let unfold_nat env n = of_constr @@ Environ.unfold_nat env n
+let unfold_nat ind n = of_constr @@ unfold_nat ind n
 
 let iter_with_full_binders env sigma g f n c =
   let open Context.Rel.Declaration in

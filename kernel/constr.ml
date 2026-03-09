@@ -112,7 +112,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Float     of Float64.t
   | String    of Pstring.t
   | Array     of 'univs * 'constr array * 'constr * 'types
-  | Nat of Z.t
+  | Nat of inductive * Z.t
 
 (* constr is the fixpoint of the previous type. *)
 type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term [@@unboxed]
@@ -361,7 +361,7 @@ let of_kind = function
 | Sort Sorts.SProp -> mkSProp
 | Sort Sorts.Prop -> mkProp
 | Sort Sorts.Set -> mkSet
-| Nat i as k -> assert (Z.leq Z.zero i); T k
+| Nat (_,i) as k -> assert (Z.leq Z.zero i); T k
 | k -> T k
 
 (* Construct a type *)
@@ -457,7 +457,15 @@ let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstructRef c -> mkConstructU (c,u)
   | VarRef x -> mkVar x
 
-let mkNat i = of_kind @@ Nat i
+let mkNat ind i = of_kind @@ Nat (ind,i)
+
+let ctor_of_nat natind i =
+  let ctor = if Z.equal i Z.zero then 1 else 2 in
+  natind, ctor
+
+let unfold_nat natind n =
+    if Z.equal n Z.zero then mkConstruct (natind, 1)
+  else mkApp (mkConstruct (natind, 2), [|mkNat natind (Z.sub n Z.one)|])
 
 (* Constructs a primitive integer *)
 let mkInt i = of_kind @@ Int i
@@ -908,7 +916,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
-  | Nat i1, Nat i2 -> Z.equal i1 i2 (* XXX nat vs constructor? *)
+  | Nat (ind1,i1), Nat (ind2,i2) -> Z.equal i1 i2 && Ind.CanOrd.equal ind1 ind2 (* XXX nat vs constructor? *)
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
@@ -1079,7 +1087,9 @@ let constr_ord_int f t1 t2 =
     | CoFix _, _ -> -1 | _, CoFix _ -> 1
     | Proj (p1,_r1,c1), Proj (p2,_r2,c2) -> compare [(Projection.CanOrd.compare, p1, p2); (f, c1, c2)]
     | Proj _, _ -> -1 | _, Proj _ -> 1
-    | Nat i1, Nat i2 -> Z.compare i1 i2
+    | Nat (ind1,i1), Nat (ind2,i2) ->
+      let c = Ind.CanOrd.compare ind1 ind2 in
+      if c <> 0 then c else Z.compare i1 i2
     | Nat _, _ -> -1 | _, Nat _ -> 1
     | Int i1, Int i2 -> Uint63.compare i1 i2
     | Int _, _ -> -1 | _, Int _ -> 1
@@ -1186,7 +1196,7 @@ let hasheq_kind t1 t2 =
       && array_eqeq lna1 lna2
       && array_eqeq tl1 tl2
       && array_eqeq bl1 bl2
-    | Nat i1, Nat i2 -> Z.equal i1 i2
+    | Nat (ind1,i1), Nat (ind2,i2) -> ind1 == ind2 && Z.equal i1 i2
     | Int i1, Int i2 -> i1 == i2
     | Float f1, Float f2 -> Float64.equal f1 f2
     | String s1, String s2 -> Pstring.equal s1 s2
@@ -1263,7 +1273,7 @@ let rec hash t =
     | String s -> combinesmall 20 (Pstring.hash s)
     | Array(u,t,def,ty) ->
       combinesmall 21 (combine4 (Instance.hash u) (hash_term_array t) (hash def) (hash ty))
-    | Nat i -> combinesmall 22 (Z.hash i)
+    | Nat (ind,i) -> combinesmall 22 (combine (Ind.CanOrd.hash ind) (Z.hash i))
 
 and hash_invert = function
   | NoInvert -> 0
@@ -1455,7 +1465,9 @@ let rec hash_term (t : t) : int * (constr,constr,_,_,_) kind_of_term =
     let hty, ty = sh_rec ty in
     let h = combine4 hu ht hdef hty in
     (combinesmall 21 h, Array(u,t,def,ty))
-  | Nat i as t -> combinesmall 22 (Z.hash i), t
+  | Nat (ind,i) ->
+    let hind, ind = hcons_ind ind in
+    combinesmall 22 (combine hind (Z.hash i)), Nat (ind, i)
 
 and sh_invert civ iv = match civ, iv with
   | NoInvert, NoInvert -> 0, NoInvert
@@ -1605,7 +1617,9 @@ let rec debug_print c =
            Name.print na.binder_name ++ str":" ++ debug_print ty ++
            cut() ++ str":=" ++ debug_print bd) (Array.to_list fixl)) ++
          str"}")
-  | Nat i -> str "Nat(" ++ str (Z.to_string i) ++ str ")"
+  | Nat (ind,i) ->
+    str "Nat(" ++ MutInd.print (fst ind) ++ pr_comma () ++ int (snd ind) ++ pr_comma() ++
+    str (Z.to_string i) ++ str ")"
   | Int i -> str"Int("++str (Uint63.to_string i) ++ str")"
   | Float i -> str"Float("++str (Float64.to_string i) ++ str")"
   | String s -> str"String("++str (Printf.sprintf "%S" (Pstring.to_string s)) ++ str")"

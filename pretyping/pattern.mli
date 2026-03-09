@@ -38,7 +38,7 @@ type 'i constr_pattern_r =
       (int * Name.t array * 'i constr_pattern_r) list (** index of constructor, nb of args *)
   | PFix of (int array * int) * (Name.t array * 'i constr_pattern_r array * 'i constr_pattern_r array)
   | PCoFix of int * (Name.t array * 'i constr_pattern_r array * 'i constr_pattern_r array)
-  | PNat of Z.t
+  | PNat of inductive * Z.t
   | PInt of Uint63.t
   | PFloat of Float64.t
   | PString of Pstring.t

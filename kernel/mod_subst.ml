@@ -401,9 +401,6 @@ let subst_retro_action subst action =
   | Register_type(prim,c) ->
     let c' = subst_constant subst c in
     if c == c' then action else Register_type(prim, c')
-  | Register_nat ind ->
-    let ind' = subst_ind subst ind in
-    if ind == ind' then action else Register_nat ind'
 
 let rec map_kn f f' c =
   let func = map_kn f f' in

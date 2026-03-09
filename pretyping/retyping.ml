@@ -274,7 +274,7 @@ let retype ?metas ?(polyprop=true) sigma =
         with Invalid_argument _ -> retype_error BadRecursiveType)
     | Cast (c,_, t) -> t
     | Sort _ | Prod _ -> mkSort (sort_of env cstr)
-    | Nat _ -> EConstr.of_constr (Typeops.type_of_nat env)
+    | Nat (ind,n) -> EConstr.of_constr (Typeops.type_of_nat env ind n)
     | Int _ -> EConstr.of_constr (Typeops.type_of_int env)
     | Float _ -> EConstr.of_constr (Typeops.type_of_float env)
     | String _ -> EConstr.of_constr (Typeops.type_of_string env)

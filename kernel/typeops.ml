@@ -316,10 +316,11 @@ let type_of_prim_type _env u (type a) (prim : a CPrimitives.prim_type) = match p
     | _ -> anomaly Pp.(str"universe instance for array type should have length 1")
     end
 
-let type_of_nat env =
-match (Environ.retroknowledge env).Retroknowledge.retro_nat with
-  | Some c -> UnsafeMonomorphic.mkInd c
-  | None -> CErrors.user_err Pp.(str"The type nat must be registered before this construction can be typechecked.")
+let type_of_nat env ind n =
+  assert (Z.leq Z.zero n);
+  let mib = Environ.lookup_mind (fst ind) env in
+  assert mib.mind_is_nat;
+  UnsafeMonomorphic.mkInd ind
 
 let type_of_int env =
   match (Environ.retroknowledge env).Retroknowledge.retro_int63 with
@@ -839,7 +840,8 @@ and execute_aux tbl env cstr =
       fix_ty
 
     (* Primitive types *)
-    | Nat n -> assert (Z.leq Z.zero n); type_of_nat env
+    | Nat (ind,n) ->
+      type_of_nat env ind n
     | Int _ -> type_of_int env
     | Float _ -> type_of_float env
     | String _ -> type_of_string env

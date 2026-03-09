@@ -1340,14 +1340,14 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | Array _, Array _ ->
           rigids env evd sk1 term1 sk2 term2
 
-        | Nat n1, Construct _ ->
-          let term1 = EConstr.unfold_nat env n1 in
+        | Nat (ind1,n1), Construct _ ->
+          let term1 = EConstr.unfold_nat ind1 n1 in
           let term1, pred1 = decompose_app evd term1 in
           let sk1 = Stack.append_app pred1 sk1 in
           rigids env evd sk1 term1 sk2 term2
 
-        | Construct _, Nat n2 ->
-          let term2 = EConstr.unfold_nat env n2 in
+        | Construct _, Nat (ind2,n2) ->
+          let term2 = EConstr.unfold_nat ind2 n2 in
           let term2, pred2 = decompose_app evd term2 in
           let sk2 = Stack.append_app pred2 sk2 in
           rigids env evd sk1 term1 sk2 term2

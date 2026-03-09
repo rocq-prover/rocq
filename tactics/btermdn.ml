@@ -226,7 +226,7 @@ let constr_val_discr env sigma ts t : constr_res =
         | (Label _ | Nothing) as res -> Label(CaseLabel, PartialConstr res :: stack)
         | Everything -> Everything
       end
-    | Nat n -> decomp stack (EConstr.unfold_nat env n) (* XXX optimized Nat? *)
+    | Nat (ind,n) -> decomp stack (EConstr.unfold_nat ind n) (* XXX optimized Nat? *)
     | Rel _ | Meta _ | LetIn _ | Fix _ | CoFix _
     | Int _ | Float _ | String _ | Array _ -> Nothing
     in

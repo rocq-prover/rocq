@@ -1041,7 +1041,8 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
     let c = extern depth true (fst scopes,(scl, snd (snd scopes))) eenv c in
     CCast (c, k, c')
 
-  | GNat n ->
+  | GNat (_,n) ->
+    (* XXX should use the inductive!! *)
      extern_prim_token_delimiter_if_required
        (Number NumTok.(Signed.of_bigint CHex n))
        "nat" "nat_scope" (snd scopes)
@@ -1515,7 +1516,7 @@ let rec glob_of_pat
   | PSort (Qual (QConstant QProp)) -> GSort Glob_ops.glob_Prop_sort
   | PSort (Qual (QConstant QType | QVar _)) -> GSort Glob_ops.glob_Type_sort
   | PSort Set -> GSort Glob_ops.glob_Set_sort
-  | PNat n -> GNat n
+  | PNat (ind,n) -> GNat (ind,n)
   | PInt i -> GInt i
   | PFloat f -> GFloat f
   | PString s -> GString s

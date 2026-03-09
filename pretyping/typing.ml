@@ -450,13 +450,14 @@ let type_of_constructor env sigma ((ind,_ as ctor),u) =
   let sigma = Evd.add_poly_constraints ~src:UState.Internal sigma csts in
   sigma, (EConstr.of_constr (rename_type env ty (GR.ConstructRef ctor)))
 
-let type_of_nat env = EConstr.of_constr (Typeops.type_of_nat env)
+let type_of_nat env ind n = EConstr.of_constr (Typeops.type_of_nat env ind n)
 
 let type_of_int env = EConstr.of_constr (Typeops.type_of_int env)
 
-let judge_of_nat env n =
+let judge_of_nat env ind n =
   if not @@ Z.leq Z.zero n then CErrors.user_err Pp.(str "Optimized nat should be >= 0.");
-  { uj_val = mkNat n; uj_type = type_of_nat env }
+  if not (Environ.is_nat env ind) then CErrors.user_err Pp.(str "Optimized nat at non-nat type.");
+  { uj_val = mkNat ind n; uj_type = type_of_nat env ind n }
 
 let judge_of_int env v =
   { uj_val = mkInt v; uj_type = type_of_int env }
@@ -662,7 +663,7 @@ let rec execute env sigma cstr =
         let sigma, tj = type_judgment env sigma tj in
         judge_of_cast env sigma cj k tj
 
-    | Nat n -> sigma, judge_of_nat env n
+    | Nat (ind,n) -> sigma, judge_of_nat env ind n
 
     | Int i ->
         sigma, judge_of_int env i
