@@ -479,7 +479,7 @@ let interp_mutual_definition env ~program_mode ~poly ~function_mode rec_order fi
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   let sigma = UnivVariances.register_universe_variances_of_fix env sigma fixtypes fixdefs in
-  let sigma = Evd.minimize_universes ~partial:(List.exists Option.is_empty fixdefs) sigma in
+  let sigma = Evd.minimize_universes ~poly ~partial:(List.exists Option.is_empty fixdefs) sigma in
 
   (* Build the fix declaration block *)
   let fix = {fixnames=fixlnames;fixrs;fixdefs;fixtypes;fixctxs;fiximps;fixntns;fixwfs} in
@@ -507,7 +507,7 @@ let interp_fixpoint_short rec_order fixpoint_exprl =
   let (_, _, sigma),(fix, _, _) = interp_mutual_definition ~program_mode:false ~poly ~function_mode:true env (CFixRecOrder rec_order) fixpoint_exprl in
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
-  let sigma = Evd.minimize_universes sigma in
+  let sigma = Evd.minimize_universes ~poly sigma in
   let sigma = Pretyping.(solve_remaining_evars all_no_fail_flags env sigma) in
   let typel = (ground_fixpoint env sigma fix).fixtypes in
   typel, sigma
