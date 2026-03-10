@@ -18,7 +18,12 @@ open Constr
 
 type reloc_table = (int * int) array
 
-type case_annot = case_info * reloc_table * Declarations.recursivity_kind
+type case_annot = {
+  ci : case_info;
+  reloc : reloc_table;
+  finite : Declarations.recursivity_kind;
+  is_nat : bool;
+}
 
 type 'v node =
 | Lrel          of Name.t * int
@@ -744,7 +749,7 @@ let rec lambda_of_constr cache env sigma c =
     let oib = mib.mind_packets.(i) in
     let tbl = oib.mind_reloc_tbl in
     (* Building info *)
-    let annot_sw = (ci, tbl, mib.mind_finite) in
+    let annot_sw = { ci; reloc = tbl; finite = mib.mind_finite; is_nat = mib.mind_is_nat } in
     (* translation of the argument *)
     let la = lambda_of_constr cache env sigma a in
     (* translation of the type *)

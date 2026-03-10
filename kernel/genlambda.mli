@@ -15,7 +15,12 @@ open Constr
 
 type reloc_table = (int * int) array
 
-type case_annot = case_info * reloc_table * Declarations.recursivity_kind
+type case_annot = {
+  ci : case_info;
+  reloc : reloc_table;
+  finite : Declarations.recursivity_kind;
+  is_nat : bool;
+}
 
 type 'v lambda
 

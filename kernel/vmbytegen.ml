@@ -712,11 +712,11 @@ let rec compile_lam env cenv lam sz cont =
       compile_fv cenv fv.fv_rev sz
         (Kclosurecofix(fv.size, init, lbl_types, lbl_bodies) :: cont)
 
-  | Lcase ((ci, rtbl, _), t, a, branches) ->
+  | Lcase ({ci; reloc = rtbl; finite=_; is_nat}, t, a, branches) ->
       let ind = ci.ci_ind in
       let mib = lookup_mind (fst ind) env.env in
       let oib = mib.mind_packets.(snd ind) in
-      let lbl_nat_s = if mib.mind_is_nat then Some (ref None) else None in
+      let lbl_nat_s = if is_nat then Some (ref None) else None in
       let lbl_consts = Array.make oib.mind_nb_constant Label.no in
       let nallblock = oib.mind_nb_args + 1 in (* +1 : accumulate *)
       let nconst = Array.length branches.constant_branches in
