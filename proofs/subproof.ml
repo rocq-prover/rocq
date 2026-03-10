@@ -123,6 +123,28 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
   let univs =
     let used_univs = Vars.universes_of_constr typ in
     let used_univs = Vars.universes_of_constr body ~init:used_univs in
+    (* Also collect universe levels from the types (and bodies) of free
+       variables referenced via Var nodes, since universes_of_constr does
+       not look through Var nodes into the named context. *)
+    let used_univs =
+      let collect_vars c =
+        let rec aux vars c = match Constr.kind c with
+          | Var id -> Id.Set.add id vars
+          | _ -> Constr.fold aux vars c
+        in
+        aux Id.Set.empty c
+      in
+      let free_vars = collect_vars body in
+      let free_vars = Id.Set.union free_vars (collect_vars typ) in
+      let named_ctx = Environ.named_context pfenv in
+      Id.Set.fold (fun id acc ->
+        let decl = Context.Named.lookup id named_ctx in
+        let acc = Vars.universes_of_constr (NamedDecl.get_type decl) ~init:acc in
+        match NamedDecl.get_value decl with
+        | None -> acc
+        | Some v -> Vars.universes_of_constr v ~init:acc
+      ) free_vars used_univs
+    in
     let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
