@@ -117,6 +117,8 @@ val kind : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t, ERelevance.t) Cons
 val kind_upto : Evd.evar_map -> Constr.t ->
   (Constr.t, Constr.t, Sorts.t, UVars.Instance.t, Sorts.relevance) Constr.kind_of_term
 
+val kind_nonat : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
+
 val to_constr : ?abort_on_undefined_evars:bool -> Evd.evar_map -> t -> Constr.t
 (** Returns the evar-normal form of the argument. Note that this
    function is supposed to be called when the original term has not

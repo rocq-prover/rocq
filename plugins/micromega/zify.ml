@@ -93,6 +93,10 @@ let rec find_option pred l =
   | [] -> raise Not_found
   | e :: l -> ( match pred e with Some r -> r | None -> find_option pred l )
 
+(* Nat handling is quite adhoc, could probably be improved *)
+let destRef_nonat evd h =
+  EConstr.(destRef evd (of_kind @@ kind_nonat evd h))
+
 module ConstrMap = struct
   open Names.GlobRef
 
@@ -104,11 +108,11 @@ module ConstrMap = struct
   let empty = Map.empty
 
   let find evd h m =
-    match Map.find (fst (EConstr.destRef evd h)) m with
+    match Map.find (fst (destRef_nonat evd h)) m with
     | e :: _ -> e
     | [] -> assert false
 
-  let find_all evd h m = Map.find (fst (EConstr.destRef evd h)) m
+  let find_all evd h m = Map.find (fst (destRef_nonat evd h)) m
 
   let fold f m acc =
     Map.fold
@@ -512,6 +516,7 @@ module ECstOp = struct
   let isConstruct evd c =
     match EConstr.kind evd c with
     | Construct _ | Int _ | Float _ -> true
+    | Nat (_,n) -> Z.equal n Z.zero
     | _ -> false
 
   let mk_elt evd i a =
@@ -641,7 +646,7 @@ module MakeTable (E : Elt) : S = struct
 
   let safe_ref evd c =
     try
-      fst (EConstr.destRef evd c)
+      fst (destRef_nonat evd c)
     with DestKO -> CErrors.user_err Pp.(str "Add Zify "++str E.name ++ str ": the term "++
                                           gl_pr_constr c ++ str " should be a global reference")
 
@@ -1056,7 +1061,7 @@ let is_arrow env evd a p1 p2 =
      The function also transforms (x -> y) as (arrow x y) *)
 let get_operator barrow env evd e =
   let e' = EConstr.whd_evar evd e in
-  match EConstr.kind evd e' with
+  match EConstr.kind_nonat evd e' with
   | Prod (a, p1, p2) ->
     if barrow && is_arrow env evd a p1 p2 then (arrow, [|p1; p2|], false)
     else raise Not_found

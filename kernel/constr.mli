@@ -311,6 +311,8 @@ val kind_nocast_gen : ('v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term) ->
 
 val kind_nocast : constr -> (constr, types, Sorts.t, UVars.Instance.t, Sorts.relevance) kind_of_term
 
+val kind_nonat : constr -> (constr, types, Sorts.t, UVars.Instance.t, Sorts.relevance) kind_of_term
+
 (** {6 Simple case analysis} *)
 val isRel  : constr -> bool
 val isRelN : int -> constr -> bool

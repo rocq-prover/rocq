@@ -151,6 +151,13 @@ let rec kind_nocast_gen kind c =
 
 let kind_nocast c = kind_nocast_gen kind c
 
+let kind_nonat c =
+  match kind c with
+  | Nat (ind,n) ->
+    if Z.equal n Z.zero then Construct (in_punivs (ind,1))
+    else App (T (Construct (in_punivs (ind,2))), [|T (Nat (ind,Z.pred n))|])
+  | k -> k
+
 (**********************************************************************)
 (*          Non primitive term destructors                            *)
 (**********************************************************************)
