@@ -35,9 +35,13 @@ val empty : t
 val from_env : Environ.env -> t
 (** Main entry point at the beginning of a declaration. *)
 
-val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
-(** Main entry point when only names matter, e.g. for printing. *)
+val from_auctx : Environ.env -> UVars.AbstractContext.t -> t
+(** Main entry point when the universe declaration has already been computed,
+    e.g. for printing. *)
 
+val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
+[@@deprecated "(9.3) Use [UState.from_uctx]"]
+(** Main entry point when only names matter, e.g. for printing. *)
 
 (** Misc *)
 

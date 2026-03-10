@@ -227,64 +227,49 @@ let q_ident = Id.of_string "α"
 
 let u_ident = Id.of_string "u"
 
-let universe_binders_with_opt_names orig names =
-  let open Univ in
-  let {UVars.quals = qorig; UVars.univs = uorig} = UVars.AbstractContext.names orig in
-  let qorig, uorig as orig = Array.to_list qorig, Array.to_list uorig in
-  let qdecl, udecl = match names with
-  | None -> orig
+(** Replace the names in [uctx] with either:
+    - the exact names in [user_names];
+    - the existing names in [uctx], eventually freshened; or
+    - fresh names generated from the default id *)
+let fill_names ?user_names uctx =
+  let open UVars in
+  let { quals; univs } = AbstractContext.names uctx in
+  let user_qnames, user_unames = match user_names with
+  | None -> Array.map (fun _ -> Anonymous) quals, Array.map (fun _ -> Anonymous) univs
   | Some (gref, (qdecl, udecl)) ->
-    try
-      let qs =
-        List.map2 (fun orig {CAst.v = na} ->
-            match na with
-            | Anonymous -> orig
-            | Name id -> Name id) qorig qdecl
-      in
-      let us =
-        List.map2 (fun orig {CAst.v = na} ->
-            match na with
-            | Anonymous -> orig
-            | Name id -> Name id) uorig udecl
-      in
-      qs, us
-    with Invalid_argument _ ->
+    let quals = Array.map_of_list (fun lname -> lname.CAst.v) qdecl in
+    let univs = Array.map_of_list (fun lname -> lname.CAst.v) udecl in
+    let user_size = Array.length quals, Array.length univs in
+    if not (eq_sizes (AbstractContext.size uctx) user_size) then
       let open UnivGen in
       raise (UniverseLengthMismatch {
           gref;
-          actual = List.length qorig, List.length uorig;
-          expect = List.length qdecl, List.length udecl;
+          actual = AbstractContext.size uctx;
+          expect = Array.length quals, Array.length univs;
         })
+    else quals, univs
   in
-  let fold_qnamed i ((qbind,ubind),(revqbind,revubind) as o) = function
-    | Name id -> let ui = Sorts.QVar.make_var i in
-      (Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)
-    | Anonymous -> o
+  let add_id bounds = function Anonymous -> bounds | Name id -> Id.Set.add id bounds in
+  let boundqs = Array.fold_left add_id Id.Set.empty user_qnames in
+  let boundus = Array.fold_left add_id Id.Set.empty user_unames in
+  let freshen_name bounds user_name name = match user_name, name with
+  | Name id, _ -> bounds, Name id
+  | Anonymous, Anonymous -> bounds, Anonymous
+  | Anonymous, Name id ->
+    let id = Namegen.next_ident_away_from id (fun id -> Id.Set.mem id bounds) in
+    Id.Set.add id bounds, Name id
   in
-  let fold_unamed i ((qbind,ubind),(revqbind,revubind) as o) = function
-    | Name id -> let ui = Level.var i in
-      (qbind, Id.Map.add id ui ubind), (revqbind, Level.Map.add ui id revubind)
-    | Anonymous -> o
+  let boundqs, quals = Array.fold_left2_map freshen_name boundqs user_qnames quals in
+  let boundus, univs = Array.fold_left2_map freshen_name boundus user_unames univs in
+  let gen_name (uid, bounds as acc) = function
+  | Name id -> acc, Name id
+  | Anonymous ->
+    let uid = Namegen.next_ident_away_from uid (fun id -> Id.Set.mem id bounds) in
+    (uid, Id.Set.add uid bounds), Name uid
   in
-  let names = List.fold_left_i fold_qnamed 0 UnivNames.(empty_binders,empty_rev_binders) qdecl in
-  let names = List.fold_left_i fold_unamed 0 names udecl in
-  let fold_qanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
-    | Name _ -> o
-    | Anonymous ->
-      let ui = Sorts.QVar.make_var i in
-      let id = Namegen.next_ident_away_from u_ident (fun id -> Id.Map.mem id qbind) in
-      (id, ((Id.Map.add id ui qbind, ubind), (Sorts.QVar.Map.add ui id revqbind, revubind)))
-  in
-  let fold_uanons i (u_ident, ((qbind,ubind), (revqbind,revubind)) as o) = function
-    | Name _ -> o
-    | Anonymous ->
-      let ui = Level.var i in
-      let id = Namegen.next_ident_away_from u_ident (fun id -> Id.Map.mem id ubind) in
-      (id, ((qbind,Id.Map.add id ui ubind), (revqbind,Level.Map.add ui id revubind)))
-  in
-  let (_, names) = List.fold_left_i fold_qanons 0 (q_ident, names) qdecl in
-  let (_, names) = List.fold_left_i fold_uanons 0 (u_ident, names) udecl in
-  names
+  let _, quals = Array.fold_left_map gen_name (q_ident, boundqs) quals in
+  let _, univs = Array.fold_left_map gen_name (u_ident, boundus) univs in
+  AbstractContext.refine_names { quals; univs } uctx
 
 let pr_sort_context_set sigma c =
   if !PrintingFlags.print_universes && not (UnivGen.is_empty_sort_context c) then

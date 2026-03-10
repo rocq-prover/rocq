@@ -900,6 +900,8 @@ let from_ustate uctx = { empty with universes = uctx }
 
 let from_ctx = from_ustate
 
+let from_auctx e names = { empty with universes = UState.from_auctx e names }
+
 let has_undefined evd = not (EvMap.is_empty evd.undf_evars)
 
 let has_given_up evd = not (Evar.Set.is_empty evd.given_up)

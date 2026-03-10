@@ -57,8 +57,7 @@ let print_ref env reduce ref udecl =
   let typ, univs = Typeops.type_of_global_in_context env ref in
   let inst = UVars.make_abstract_instance univs in
   let udecl = Option.map (fun x -> ref, x) udecl in
-  let bl = Printer.universe_binders_with_opt_names (Environ.universes_of_global env ref) udecl in
-  let sigma = Evd.from_ustate (UState.of_names bl) in
+  let sigma = Evd.from_auctx env (Printer.fill_names ?user_names:udecl univs) in
   let typ =
     if reduce then
       let ctx,ccl = Reductionops.whd_decompose_prod_decls env sigma (EConstr.of_constr typ)
@@ -237,8 +236,7 @@ let print_squash env ref udecl = match ref with
     | Some squash ->
       let univs = Environ.universes_of_global env ref in
       let udecl = Option.map (fun x -> ref, x) udecl in
-      let bl = Printer.universe_binders_with_opt_names univs udecl in
-      let sigma = Evd.from_ustate (UState.of_names bl) in
+      let sigma = Evd.from_auctx env (Printer.fill_names ?user_names:udecl univs) in
       let inst = if fst @@ UVars.AbstractContext.size univs = 0 then mt()
         else Printer.pr_universe_instance sigma (UVars.make_abstract_instance univs)
       in
@@ -576,11 +574,7 @@ let print_constant env ~with_values with_implicit cst udecl =
   let typ = cb.const_type in
   let univs = cb.const_universes in
   let udecl = Option.map (fun x -> GlobRef.ConstRef cst, x) udecl in
-  let uctx =
-    UState.of_names
-      (Printer.universe_binders_with_opt_names (Declareops.constant_polymorphic_context cb) udecl)
-  in
-  let sigma = Evd.from_ustate uctx in
+  let sigma = Evd.from_auctx env (Printer.fill_names ?user_names:udecl (Declareops.constant_polymorphic_context cb)) in
   let impargs = if with_implicit then select_stronger_impargs (implicits_of_global (ConstRef cst)) else [] in
   let impargs = List.map binding_kind_of_status impargs in
   let pptyp = pr_ltype_env env sigma ~impargs typ in

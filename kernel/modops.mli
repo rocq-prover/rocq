@@ -104,7 +104,7 @@ type signature_mismatch_error =
   | IncompatibleUniverses of { err : UGraph.univ_inconsistency; env : env; t1 : types; t2 : types }
   | IncompatibleQualities of { err : QGraph.elimination_error; env : env; t1 : types; t2 : types }
   | IncompatiblePolymorphism of env * types * types
-  | IncompatibleUnivConstraints of { got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
+  | IncompatibleUnivConstraints of { env : env; got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
 
