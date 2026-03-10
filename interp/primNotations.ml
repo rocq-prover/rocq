@@ -473,7 +473,14 @@ let no_such_prim_token uninterpreted_token_kind ?loc ?errmsg ty =
     pr_opt (fun errmsg -> surround errmsg) errmsg)
 
 let rec postprocess env token_kind ?loc ty to_post post g =
-  let g', gl = match DAst.get g with Glob_term.GApp (g, gl) -> g, gl | _ -> g, [] in
+  let g', gl = match DAst.get g with
+    | Glob_term.GApp (g, gl) -> g, gl
+    | GNat (ind,n) ->
+      let r = DAst.make @@ GRef (GlobRef.ConstructRef (ctor_of_nat ind n), None) in
+      if Z.equal n Z.zero then r, []
+      else r, [DAst.make @@ GNat (ind, Z.pred n)]
+    | _ -> g, []
+  in
   let o =
     match DAst.get g' with
     | Glob_term.GRef (r, None) ->
