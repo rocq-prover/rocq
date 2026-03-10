@@ -2328,7 +2328,7 @@ let get_max_rel_array sigma v = Array.fold_left (fun accu c -> max accu (get_max
 
 let anorec = AOther [||]
 
-let rec make sigma c0 = match EConstr.kind sigma c0 with
+let rec make sigma c0 = match EConstr.kind_nonat sigma c0 with
 | (Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _ | Nat _ | Int _ | Float _ | String _) ->
   { proj = c0; self = anorec; data = 0 }
 | Rel n ->

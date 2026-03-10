@@ -141,3 +141,10 @@ Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred 4611
 
 Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
 Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
+
+Goal forall n:N, 0 = n -> 1 = S n.
+Proof.
+  intros n H.
+  rewrite H.
+  reflexivity.
+Qed.

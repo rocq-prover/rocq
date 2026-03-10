@@ -548,7 +548,7 @@ let map_left2 f a g b =
 let map_constr_with_binders_left_to_right env sigma g f l c =
   let open RelDecl in
   let open EConstr in
-  match EConstr.kind sigma c with
+  match EConstr.kind_nonat sigma c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
     | Construct _ | Nat _ | Int _ | Float _ | String _) -> c
   | Cast (b,k,t) ->
