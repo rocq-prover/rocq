@@ -15,3 +15,5 @@ Unset Polymorphic Assumptions Cumulativity.
 
 Module Type A. Axiom A@{i} : Type@{i}. Axiom B : foo A. End A.
 Module B <: A. Axiom A@{i} : Prop. Axiom B : foo A. Fail End B.
+Reset B. Axiom B@{j} : foo@{Type;j} A@{j}. End B.
+End NotIrrel.
