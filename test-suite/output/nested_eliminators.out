@@ -1556,9 +1556,9 @@ Nester_all@{α ; u} :
 forall X : unit -> P unit,
 (forall u u0 : unit, X u u0 -> Type@{α ; u}) ->
 Nester X -> Type@{max(P.u1,u)}
-(* α ; *u |=  *)
+(* α ; u* |=  *)
 
-Nester_all is universe polymorphic
+Nester_all is universe polymorphic and cumulative
 Arguments Nester_all (X PX)%_function_scope n
 Expands to: Inductive nested_eliminators.DeepArities.Nester_all
 Declared in library nested_eliminators, line 417, characters 2-24
