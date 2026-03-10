@@ -767,7 +767,53 @@ let abstract_mind_lc ntyps npars mind lc =
 
 (*****************************************************************************)
 (* Subterm specification *)
-module Subterm = struct
+module Subterm : sig
+
+type size = Large | Strict
+
+(**
+  Possible specifications for a term, from most to least acceptable:
+  - DeadCode: the term has been built by elimination over an empty type;
+  - Vars l: the term is as much of a subterm as the worst of these variables;
+    variables are levels pointing to the redex stack;
+  - Subterm: the term is a [strict|large] subterm of the structural argument;
+    the argument itself is a large subterm, becomes strict after a [match];
+    the wf_paths argument specifies which constructor arguments are recursive,
+    it can never be empty or this downgrades the specification to [NotSubterm];
+    the [int set] is the same as in [Vars l];
+  - NotSubterm: the term is not a subterm in any kind **)
+type t = private
+  | DeadCode
+  | Vars of Int.Set.t
+  | Subterm of size * WfPaths.t * Int.Set.t
+  | NotSubterm
+
+val structural : WfPaths.t -> t
+val strict_subterm : WfPaths.t -> t
+
+val dead_code : t
+val not_subterm : t
+
+val internal : int -> t
+val make_internal : int -> t lazy_t -> t lazy_t
+
+type check_result =
+  | InvalidSubterm
+  | NeedReduce of Int.Set.t
+
+val check : t -> WfPaths.t -> check_result
+
+val inter_spec : t array -> t
+
+val on_branches : env -> inductive -> t lazy_t -> int -> t lazy_t list
+
+val on_projection : t -> int -> t
+val on_array : t -> t
+
+val prune_path : WfPaths.Cache.t -> ?evars:CClosure.evar_handler ->
+  env -> t -> pinductive -> types list -> t
+
+end = struct
 
 type size = Large | Strict
 
@@ -796,9 +842,31 @@ type t =
   | Subterm of size * WfPaths.t * Int.Set.t
   | NotSubterm
 
-let structural tree =
-  Subterm (Large, tree, Int.Set.empty)
+(** Constructor for Subterm, which possibly downgrades to NotSubterm *)
+let spec_of_tree size vars tree =
+  if WfPaths.is_norec tree then
+    NotSubterm
+  else
+    Subterm (size, tree, vars)
 
+let structural tree =
+  spec_of_tree Large Int.Set.empty tree
+
+let strict_subterm tree =
+  spec_of_tree Strict Int.Set.empty tree
+
+let internal n =
+  assert (n >= 1);
+  Vars (Int.Set.singleton n)
+
+let dead_code = DeadCode
+let not_subterm = NotSubterm
+
+let make_internal n spec =
+  lazy begin match Lazy.force spec with
+  | NotSubterm -> internal n
+  | spec -> spec
+  end
 
 type check_result =
   | InvalidSubterm
@@ -814,13 +882,6 @@ let check t tree =
     else
       InvalidSubterm
   | NotSubterm | Subterm (Large, _, _) -> InvalidSubterm
-
-(** Constructor for Subterm, which possibly downgrades to NotSubterm *)
-let spec_of_tree size vars tree =
-  if WfPaths.is_norec tree then
-    NotSubterm
-  else
-    Subterm (size, tree, vars)
 
 let inter_spec s1 s2 =
   match s1, s2 with
@@ -1034,25 +1095,25 @@ let assign_var_spec renv (i,spec) =
   { renv with genv = List.assign renv.genv (i-1) spec }
 
 let push_var_renv renv n (x,ty) =
-  let spec = Lazy.from_val (if n >= 1 then Subterm.Vars (Int.Set.singleton n) else Subterm.NotSubterm) in
+  let spec = Lazy.from_val (Subterm.internal n) in
   push_var renv (x,ty,spec)
 
 (* Fetch recursive information about a variable p *)
 let subterm_var p renv =
   try Lazy.force (List.nth renv.genv (p-1))
-  with Failure _ | Invalid_argument _ -> (* outside context of the fixpoint *) Subterm.NotSubterm
+  with Failure _ | Invalid_argument _ -> (* outside context of the fixpoint *) Subterm.not_subterm
 
 let push_ctxt_renv renv ctxt =
   let n = Context.Rel.length ctxt in
   { env = push_rel_context ctxt renv.env;
     rel_min = renv.rel_min+n;
-    genv = iterate (fun ge -> lazy Subterm.NotSubterm::ge) n renv.genv }
+    genv = iterate (fun ge -> lazy Subterm.not_subterm::ge) n renv.genv }
 
 let push_fix_renv renv (_,v,_ as recdef) =
   let n = Array.length v in
   { env = push_rec_types recdef renv.env;
     rel_min = renv.rel_min+n;
-    genv = iterate (fun ge -> lazy Subterm.NotSubterm::ge) n renv.genv }
+    genv = iterate (fun ge -> lazy Subterm.not_subterm::ge) n renv.genv }
 
 type fix_check_result =
   | NeedReduce of env * fix_guard_error
@@ -1137,11 +1198,11 @@ let restrict_spec cache ?evars env spec p =
     if has_constant_parameters env absctxlen (List.length arctx) i args then spec
     else
       Subterm.prune_path cache ?evars env spec i args
-  | _ -> Subterm.NotSubterm
+  | _ -> Subterm.not_subterm
 
 (* [filter_stack_domain env spec p] restricts the size information in stack to
    what is allowed to enter under a match with predicate p in environment env. *)
-let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p stack =
+let filter_stack_domain cache stack_element_specif not_subterm ?evars env p stack =
   let absctx, ar = Term.decompose_lambda_decls p in
   let absctxlen = Context.Rel.length absctx in
   (* Optimization: if the predicate is not dependent, no restriction is needed
@@ -1165,11 +1226,11 @@ let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p 
           if has_constant_parameters env absctxlen (k + List.length ctx) ind args then SArg spec
           else
             SArg (lazy (Subterm.prune_path cache ?evars env (Lazy.force spec) ind args))
-        | _ -> SArg (set_iota_specif (lazy Subterm.NotSubterm))
+        | _ -> SArg not_subterm
         in
         elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
       | _ ->
-        List.map (fun _ -> SArg (set_iota_specif (lazy Subterm.NotSubterm))) stack
+        List.map (fun _ -> SArg not_subterm) stack
   in
   filter_stack env 0 ar stack
 
@@ -1187,7 +1248,7 @@ let rec subterm_specif cache ?evars renv stack t =
     | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
       let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
       let stack' = push_stack_closures renv l stack in
-      let stack' = filter_stack_domain cache stack_element_specif Fun.id ?evars renv.env p stack' in
+      let stack' = filter_stack_domain cache stack_element_specif (lazy Subterm.not_subterm) ?evars renv.env p stack' in
       let cases_spec = Subterm.on_branches renv.env ci.ci_ind (lazy_subterm_specif cache ?evars renv [] c) in
       let stl =
         Array.mapi (fun i br' ->
@@ -1203,7 +1264,7 @@ let rec subterm_specif cache ?evars renv stack t =
          furthermore when f is applied to a term which is strictly less than
          n, one may assume that x itself is strictly less than n
       *)
-    if not (check_inductive_codomain ?evars renv.env typarray.(i)) then Subterm.NotSubterm
+    if not (check_inductive_codomain ?evars renv.env typarray.(i)) then Subterm.not_subterm
     else
       let (ctxt,clfix) = whd_decompose_prod ?evars renv.env typarray.(i) in
       let oind =
@@ -1211,7 +1272,7 @@ let rec subterm_specif cache ?evars renv stack t =
           try Some(fst (find_inductive ?evars env' clfix))
           with Not_found -> None in
         (match oind with
-        | None -> Subterm.NotSubterm (* happens if fix is polymorphic *)
+        | None -> Subterm.not_subterm (* happens if fix is polymorphic *)
         | Some (ind, _) ->
         let nbfix = Array.length typarray in
         let recargs = WfPaths.lookup_subterms renv.env ind in
@@ -1221,7 +1282,7 @@ let rec subterm_specif cache ?evars renv stack t =
                      (* Why Strict here ? To be general, it could also be
                         Large... *)
           assign_var_spec renv'
-          (nbfix-i, lazy (Subterm.spec_of_tree Strict Int.Set.empty recargs)) in
+          (nbfix-i, lazy (Subterm.strict_subterm recargs)) in
         let decrArg = recindxs.(i) in
         let theBody = bodies.(i)   in
         let nbOfAbst = decrArg+1 in
@@ -1243,7 +1304,7 @@ let rec subterm_specif cache ?evars renv stack t =
         subterm_specif cache ?evars (push_var renv (x,a,spec)) stack' b
 
       (* Metas and evars are considered OK *)
-    | (Meta _|Evar _) -> Subterm.DeadCode
+    | (Meta _|Evar _) -> Subterm.dead_code
 
     | Proj (p, _, c) ->
       let subt = subterm_specif cache ?evars renv stack c in
@@ -1251,16 +1312,16 @@ let rec subterm_specif cache ?evars renv stack t =
 
     | Const c ->
       begin try
-        let _ = Environ.constant_value_in renv.env c in Subterm.NotSubterm
+        let _ = Environ.constant_value_in renv.env c in Subterm.not_subterm
       with
         | NotEvaluableConst (IsPrimitive (_u,op)) when List.length l >= CPrimitives.arity op ->
           primitive_specif cache ?evars renv op l
-        | NotEvaluableConst _ -> Subterm.NotSubterm
+        | NotEvaluableConst _ -> Subterm.not_subterm
       end
 
     | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Ind _
       | Construct _ | CoFix _ | Int _ | Float _ | String _
-      | Array _ -> Subterm.NotSubterm
+      | Array _ -> Subterm.not_subterm
 
 
       (* Other terms are not subterms *)
@@ -1273,7 +1334,7 @@ and stack_element_specif cache ?evars = function
   | SArg x -> x
 
 and extract_stack cache ?evars = function
-   | [] -> lazy Subterm.NotSubterm, []
+   | [] -> lazy Subterm.not_subterm, []
    | elt :: l -> stack_element_specif cache ?evars elt, l
 
 and primitive_specif cache ?evars renv op args =
@@ -1285,12 +1346,7 @@ and primitive_specif cache ?evars renv op args =
     let arg = List.nth args 1 in (* the result is a strict subterm of the second argument *)
     let subt = subterm_specif cache ?evars renv [] arg in
     Subterm.on_array subt
-  | _ -> Subterm.NotSubterm
-
-let set_iota_specif nr spec =
-  lazy (match Lazy.force spec with
-        | Subterm.NotSubterm -> if nr >= 1 then Subterm.Vars (Int.Set.singleton nr) else Subterm.NotSubterm
-        | spec -> spec)
+  | _ -> Subterm.not_subterm
 
 (************************************************************************)
 
@@ -1396,7 +1452,7 @@ let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
           (* deactivate the status of non-uniform parameters since we
              cannot guarantee that they are preserve in the recursive
              calls *)
-          SArg (set_iota_specif nr (lazy Subterm.NotSubterm)) in
+          SArg (Lazy.from_val (Subterm.internal nr)) in
       a :: aux (i+1) nuniformparams stack
   in aux 0 nuniformparams stack
 
@@ -1473,8 +1529,9 @@ let check_one_fix cache ?evars renv recpos trees def =
             (* compute the recarg info for the arguments of each branch *)
             let rs' = NoNeedReduce::rs in
             let nr = redex_level rs' in
-            let case_spec = Subterm.on_branches renv.env ci.ci_ind (set_iota_specif nr (lazy_subterm_specif cache ?evars renv [] c_0)) in
-            let stack' = filter_stack_domain cache stack_element_specif (set_iota_specif nr) ?evars renv.env p stack in
+            let c_spec = Subterm.make_internal nr (lazy_subterm_specif cache ?evars renv [] c_0) in
+            let case_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
+            let stack' = filter_stack_domain cache stack_element_specif (Lazy.from_val (Subterm.internal nr)) ?evars renv.env p stack in
             let rs' =
               Array.fold_left_i (fun k rs' br' ->
                   let stack_br = push_stack_args (case_spec k) stack' in
@@ -1868,7 +1925,7 @@ let check_one_cofix cache ?evars env nbfix def deftype =
         | Case (ci, u, pms, p, iv, tm, br) -> (* iv ignored: just a cache *)
           begin
             let (_, (p,_), _iv, tm, vrest) = expand_case env (ci, u, pms, p, iv, tm, br) in
-            let tree = match restrict_spec cache ?evars env (Subterm.structural tree) p with
+            let tree = match restrict_spec cache ?evars env (Subterm.strict_subterm tree) p with
             | Vars _ | DeadCode -> assert false
             | Subterm (_, tree', _) -> tree'
             | _ -> raise (CoFixGuardError (env, ReturnPredicateNotCoInductive c))
