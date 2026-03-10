@@ -301,7 +301,7 @@ let { Goptions.get = is_polymorphic_definitions_cumulativity } =
   Goptions.declare_bool_option_and_ref ~key:["Polymorphic"; "Definitions"; "Cumulativity"] ~value:true ()
 
 let { Goptions.get = is_polymorphic_assumptions_cumulativity } =
-  Goptions.declare_bool_option_and_ref ~key:["Polymorphic"; "Assumptions"; "Cumulativity"] ~value:true ()
+  Goptions.declare_bool_option_and_ref ~key:["Polymorphic"; "Assumptions"; "Cumulativity"] ~value:false ()
 
 let { Goptions.get = should_collapse_sort_variables  } =
   Goptions.declare_bool_option_and_ref ~key:["Collapse"; "Sorts"; "ToType"] ~value:true ()
