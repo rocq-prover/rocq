@@ -141,7 +141,8 @@ let interp_with_decl env base kind = function
     let flags = { Pretyping.all_and_fail_flags with poly } in
     let c, ectx = interp_constr ~flags env sigma c in
     let sigma = UnivVariances.register_universe_variances_of env (Evd.from_ctx ectx) c in
-    let sigma = Evd.minimize_universes sigma in
+    let sigma = Evd.minimize_universes ~poly sigma in
+    let c = Evarutil.nf_evar sigma c in
     begin match (UState.check_univ_decl ~poly ~kind:PolyFlags.Definition
       (Evd.ustate sigma) udecl).universes_entry_universes with
       | UState.Polymorphic_entry (ctx, variances) ->
