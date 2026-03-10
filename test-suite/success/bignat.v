@@ -134,13 +134,26 @@ Check eq_refl : vmbig = 4611686018427387905.
 Check eq_refl vmbig <: vmbig = 4611686018427387905.
 Check eq_refl (S vmbig) <: S vmbig = 4611686018427387906.
 
+Definition nativetwo := Eval native_compute in 1 + 1.
+Check eq_refl : nativetwo = 2.
+Check eq_refl 4 <<: nativetwo + 2 = 4.
+
+(* 4611686018427387903 = int63 max_int *)
+Definition nativebig := Eval native_compute in 2 + 4611686018427387903.
+Check eq_refl : nativebig = 4611686018427387905.
+Check eq_refl nativebig <<: nativebig = 4611686018427387905.
+Check eq_refl (S nativebig) <<: S nativebig = 4611686018427387906.
+
 Check eq_refl 0 <: pred (pred 1) = 0.
+Check eq_refl 0 <<: pred (pred 1) = 0.
 
 Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred 4611686018427387903)).
 Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred 4611686018427387903)).
+Check eq_refl 4611686018427387900 <<: 4611686018427387900 = pred (pred (pred 4611686018427387903)).
 
 Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
 Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
+Check eq_refl 4611686018427387900 <<: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
 
 Goal forall n:N, 0 = n -> 1 = S n.
 Proof.
