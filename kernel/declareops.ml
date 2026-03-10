@@ -111,8 +111,7 @@ let subst_const_body subst cb =
         const_univ_hyps = UVars.Instance.empty;
         const_body = body';
         const_type = type';
-        const_body_code =
-          Option.map (Vmemitcodes.subst_body_code subst) cb.const_body_code;
+        const_body_code = Vmemitcodes.subst_body_code subst cb.const_body_code;
         const_universes = cb.const_universes;
         const_relevance = cb.const_relevance;
         const_inline_code = cb.const_inline_code;

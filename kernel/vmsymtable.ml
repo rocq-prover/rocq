@@ -265,6 +265,11 @@ let envcache_of_rel i envcache = {
   rel_adjust = envcache.rel_adjust + i
 }
 
+let warn_uncompiled = CWarnings.create ~name:"vm-uncompiled-constant" ~category:CWarnings.CoreCategories.bytecode_compiler ~default:AsError
+    Pp.(fun kn ->
+        str "VM encountered uncompiled constant "++Constant.print kn ++ str "." ++ spc() ++
+        str "Disable this warning to treat it as an opaque constant.")
+
 let rec slot_for_getglobal env sigma kn envcache table =
   let cb = CClosure.lookup_constant_handler env sigma.Genlambda.evars_val kn in
   let rk =
@@ -284,6 +289,9 @@ let rec slot_for_getglobal env sigma kn envcache table =
       set_global v table
     | BCalias kn' -> slot_for_getglobal env sigma kn' envcache table
     | BCconstant -> set_global (val_of_constant kn) table
+    | BCuncompiled ->
+      warn_uncompiled kn;
+      set_global (val_of_constant kn) table
     in
     rk := Some (CEphemeron.create pos);
     pos

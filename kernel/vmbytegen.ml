@@ -539,12 +539,9 @@ let rec compile_fv cenv l sz cont =
 let rec get_alias env kn =
   let cb = lookup_constant kn env in
   let tps = cb.const_body_code in
-    match tps with
-    | None -> kn
-    | Some tps ->
-       (match tps with
-        | BCalias kn' -> get_alias env kn'
-        | _ -> kn)
+  match tps with
+   | BCalias kn' -> get_alias env kn'
+   | _ -> kn
 
 (* Some primitives are not implemented natively by the VM, but calling OCaml
    code instead *)
@@ -987,8 +984,8 @@ let compile ~fail_on_error ~uinstance env sigma c =
     end
 
 let compile_constant_body ~fail_on_error env univs = function
-  | Undef _ | OpaqueDef _ -> Some BCconstant
-  | Primitive _ | Symbol _ -> None
+  | Undef _ | OpaqueDef _ | Primitive _ -> BCconstant
+  | Symbol _ -> BCuncompiled
   | Def body ->
       let instance_size = UVars.AbstractContext.size (Declareops.universes_context univs) in
       let alias =
@@ -1004,11 +1001,12 @@ let compile_constant_body ~fail_on_error env univs = function
             end
         | _ -> None in
       match alias with
-      | Some kn -> Some (BCalias kn)
-      | _ ->
+      | Some kn -> BCalias kn
+      | None ->
         let uinstance = Bound instance_size in
-        let res = compile ~fail_on_error ~uinstance env (empty_evars env) body in
-        Option.map (fun (mask, code, patch) -> BCdefined (mask, code, patch)) res
+        match compile ~fail_on_error ~uinstance env (empty_evars env) body with
+        | None -> BCuncompiled
+        | Some (mask, code, patch) -> BCdefined (mask, code, patch)
 
 let compile ~fail_on_error env sigma c =
   compile ~fail_on_error ~uinstance:Global env sigma c

@@ -128,7 +128,7 @@ type ('opaque, 'bytecode) pconstant_body = {
                                            type-checking. *)
 }
 
-type constant_body = (Opaqueproof.opaque, Vmlibrary.indirect_code option) pconstant_body
+type constant_body = (Opaqueproof.opaque, Vmlibrary.indirect_code) pconstant_body
 
 (** {6 Representation of mutual inductive types in the kernel } *)
 

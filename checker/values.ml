@@ -389,7 +389,7 @@ let v_reloc = v_sum "vm_reloc" 0 [|
 let v_vm_patches = v_tuple "vm_patches" [|v_array v_reloc|]
 
 let v_vm_pbody_code index =
-  v_sum "pbody_code" 1 [|
+  v_sum "pbody_code" 2 [|
     [|v_array v_bool; index; v_vm_patches|];
     [|v_cst|];
   |]
@@ -417,7 +417,7 @@ let v_cb = v_tuple "constant_body"
     v_cst_def;
     v_constr;
     v_relevance;
-    v_opt v_vm_indirect_code;
+    v_vm_indirect_code;
     v_univs;
     v_bool;
     v_typing_flags|]

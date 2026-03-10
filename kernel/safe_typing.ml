@@ -424,7 +424,7 @@ end
 type side_effect = {
   seff_certif : Certificate.t CEphemeron.key;
   seff_constant : Constant.t;
-  seff_body : HConstr.t option * (Constr.t, Vmemitcodes.body_code option) Declarations.pconstant_body;
+  seff_body : HConstr.t option * (Constr.t, Vmemitcodes.body_code) Declarations.pconstant_body;
   seff_univs : Univ.ContextSet.t;
 }
 (* Invariant: For any senv, if [Certificate.safe_extend senv seff_certif] returns [Some certif'] then
@@ -498,12 +498,10 @@ let lift_constant c =
 let push_bytecode vmtab code =
   let open Vmemitcodes in
   let vmtab, code = match code with
-  | None -> vmtab, None
-  | Some (BCdefined (mask, code, patches)) ->
+  | BCdefined (mask, code, patches) ->
     let vmtab, index = Vmlibrary.add code vmtab in
-    vmtab, Some (BCdefined (mask, index, patches))
-  | Some BCconstant -> vmtab, Some BCconstant
-  | Some (BCalias kn) -> vmtab, Some (BCalias kn)
+    vmtab, BCdefined (mask, index, patches)
+  | BCconstant | BCuncompiled | BCalias _ as code -> vmtab, code
   in
   vmtab, code
 

@@ -17,7 +17,7 @@ open Names
 
 (** Main functions for translating module entries *)
 
-type 'a vm_handler = { vm_handler : env -> universes -> Constr.t -> 'a -> 'a * Vmlibrary.indirect_code option }
+type 'a vm_handler = { vm_handler : env -> universes -> Constr.t -> 'a -> 'a * Vmlibrary.indirect_code }
 type 'a vm_state = 'a * 'a vm_handler
 
 (** [translate_module] produces a [module_body] out of a [module_entry].
