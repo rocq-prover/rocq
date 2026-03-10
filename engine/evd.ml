@@ -1038,7 +1038,7 @@ let restrict_universe_context evd vars =
   { evd with universes = UState.restrict evd.universes vars }
 
 let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
-  {evd with universes = UState.merge_universe_context ?loc ~sideff rigid evd.universes uctx'}
+  {evd with universes = UState.merge_universe_context_set ?loc ~sideff rigid evd.universes uctx'}
 
 let merge_sort_context_set ?loc ?sort_rigid ?(sideff=false) ?src rigid evd ctx' =
   {evd with universes = UState.merge_sort_context_set ?loc ?sort_rigid ~sideff rigid ?src evd.universes ctx'}

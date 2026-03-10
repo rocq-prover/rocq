@@ -193,7 +193,7 @@ val univ_flexible : rigid
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?src:constraint_source ->
     sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
-val merge_universe_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
+val merge_universe_context_set : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
 
 val demote_global_univs : Univ.ContextSet.t -> t -> t
 (** After declaring global universes, call this if you want to keep using the UState.

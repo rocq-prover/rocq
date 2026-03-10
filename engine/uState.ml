@@ -1723,7 +1723,7 @@ let merge_sort_variables ?loc ?(sort_rigid=false) ?src ~sideff uctx (qvars, csts
 
 let merge_sort_context_set ?loc ?sort_rigid ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
   let uctx = merge_sort_variables ?loc ?sort_rigid ?src ~sideff uctx (qvars, qcst) in
-  merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
+  merge_universe_context_set ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
   debug Pp.(fun () -> str"demote_global_univs:" ++ Univ.ContextSet.pr Level.raw_pr (lvl_set, univ_csts) ++ fnl () ++ str"From: " ++ pr ~local:false uctx);
