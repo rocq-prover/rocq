@@ -90,8 +90,8 @@ Fail Definition fo@{uu uu} := Type@{uu}.
 Print foo@{E M N}.
 (* Underscores discard the name if there's one. *)
 Print foo@{_ _ _}.
-(* Can use a name for multiple universes *)
-Print foo@{u u IMPORTANT}.
+(* Can highlight a single universe *)
+Print foo@{_ _ IMPORTANT}.
 
 (* Also works for inductives and records. *)
 Print Empty@{E}.
@@ -106,6 +106,14 @@ Fail Print mono@{E}.
 
 (* Not everything can be printed with custom universe names. *)
 Fail Print Stdlib.Init.Logic@{E}.
+
+(* Case where a universe name appears more than one *)
+Section SomeSec0.
+  Universe i.
+  Context (foo : Type@{i}) (bar : Type@{i}).
+  Definition insec0@{i} (baz : Type@{i}) := foo -> bar.
+End SomeSec0.
+About insec0.
 
 (* Nice error when constraints are impossible. *)
 Monomorphic Universes gU gV. Monomorphic Constraint gU < gV.
