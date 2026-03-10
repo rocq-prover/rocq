@@ -161,3 +161,7 @@ Proof.
   rewrite H.
   reflexivity.
 Qed.
+
+Goal 1 = 2 -> False.
+  congruence.
+Qed.
