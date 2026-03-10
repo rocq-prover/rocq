@@ -20,9 +20,7 @@ let empty_binders = Id.Map.empty, Id.Map.empty
 
 let empty_rev_binders = QVar.Map.empty, Level.Map.empty
 
-type univ_name_list = Names.lname list
-
-type full_name_list = lname list * lname list
+type univ_name_list = lname list * lname list
 
 let qualid_of_level (_,ctx) l =
   match Level.name l with

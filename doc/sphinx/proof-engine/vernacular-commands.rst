@@ -16,7 +16,7 @@ Displaying
    .. insertprodn univ_name_list univ_name_list
 
    .. prodn::
-      univ_name_list ::= @%{ {* @name } %}
+      univ_name_list ::= @%{ {* @name } {? ; {* @name } } %}
 
    Displays definitions of terms, including opaque terms, for the object :n:`@reference`.
 
