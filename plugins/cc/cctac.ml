@@ -54,7 +54,8 @@ let whd_in_concl =
 let sf_of env sigma c = ESorts.kind sigma (snd (sort_of env sigma c))
 
 let rec decompose_term env sigma t =
-    match EConstr.kind sigma (whd env sigma t) with
+    (* XXX more efficient Nat handling? *)
+    match EConstr.kind_nonat sigma (whd env sigma t) with
       App (f,args)->
         let tf=decompose_term env sigma f in
         let targs=Array.map (decompose_term env sigma) args in
