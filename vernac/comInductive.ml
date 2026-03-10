@@ -650,7 +650,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~ctx_params ~indnames ~a
   let sigma = UnivVariances.register_universe_variances_of_inductive
                 ~cumulative:(PolyFlags.cumulative poly) env_ar_params sigma ~udecl
                 ~params:ctx_params ~arities ~constructors in
-  let sigma = Evd.minimize_universes_no_collapse sigma in
+  let sigma = Evd.minimize_universes_no_collapse ~partial:false sigma in
   let arities = List.map Evarutil.(nf_evar sigma) arities in
   let constructors = List.map (on_snd (List.map (Evarutil.nf_evar sigma))) constructors in
   let ctx_params = Evarutil.nf_rel_context_evar sigma ctx_params in

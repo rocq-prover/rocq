@@ -1153,8 +1153,14 @@ let process_constraints ?src uctx cstrs =
       equalize_universes false l r local
   in
   let unify_universes cst local =
-    if not (UGraph.type_in_type local.universes) then unify_universes cst local
-    else unify_universes cst local
+    try unify_universes cst local
+    with
+      | SortInconsistency e
+        when QGraph.ignore_constraints (QState.elims local.sort_variables) -> local
+      | SortInconsistency e as exn ->
+        let info = Exninfo.info exn in
+        Exninfo.iraise (UGraph.UniverseInconsistency e, info)
+      | UGraph.UniverseInconsistency _ when UGraph.type_in_type local.universes -> local
   in
   let uctx' = UnivProblem.Set.fold unify_universes cstrs uctx in
   (* FIXME: MS: reinstant warn template on the clauses that are added *)

@@ -1161,7 +1161,6 @@ let prepare_parameter ~poly ~udecl ~types sigma =
   let env = Global.env () in
   Pretyping.check_evars_are_solved ~program_mode:false env sigma;
   let sigma = UnivVariances.register_universe_variances_of_type env sigma types in
-  let collapse = PolyFlags.collapse_sort_variables poly in
   let sigma, typ = Evarutil.finalize ~abort_on_undefined_evars:true ~poly
       sigma (fun nf -> nf types)
   in
