@@ -219,7 +219,7 @@ let strengthen_const mp_from l cb resolver =
     let u = UVars.make_abstract_instance (Declareops.constant_polymorphic_context cb) in
       { cb with
         const_body = Def (mkConstU (con,u));
-        const_body_code = Some (Vmbytegen.compile_alias con) }
+        const_body_code = Vmbytegen.compile_alias con }
 
 let rec strengthen_module mp mb = match mod_type mb with
 | NoFunctor struc ->

@@ -814,11 +814,10 @@ let evar_handler sigma =
     | Def _ | Undef _ | Primitive _ | Symbol _ as body -> body
     in
     let drop_code = function
-    | None -> Vmemitcodes.BCconstant
-    | Some (Vmemitcodes.BCdefined (mask, idx, patch)) ->
+    | Vmemitcodes.BCdefined (mask, idx, patch) ->
       let code () = Environ.lookup_vm_code idx env in
       Vmemitcodes.BCdefined (mask, code, patch)
-    | Some (BCalias _ | BCconstant as code) -> code
+    | BCalias _ | BCconstant | BCuncompiled as code -> code
     in
     { cb with const_body = drop_opaque cb.const_body; const_body_code = drop_code cb.const_body_code }
   in

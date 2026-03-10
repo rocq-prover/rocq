@@ -185,7 +185,7 @@ let factor_fix env sg l cb msb =
 
 let vm_state =
   (* VM bytecode is not needed here *)
-  let vm_handler _ _ _ () = (), None in
+  let vm_handler _ _ _ () = (), Vmemitcodes.BCuncompiled in
   ((), { Mod_typing.vm_handler })
 
 let expand_mexpr env mp me =

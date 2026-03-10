@@ -26,6 +26,7 @@ type 'a pbody_code =
   | BCdefined of bool array * 'a * patches
   | BCalias of Constant.t
   | BCconstant
+  | BCuncompiled
 
 type body_code = to_patch pbody_code
 

@@ -61,7 +61,7 @@ let infer_gen_conv_leq state env c1 c2 =
 type with_body = {
   w_def : Constr.t;
   w_univs : universes;
-  w_bytecode : Vmlibrary.indirect_code option;
+  w_bytecode : Vmlibrary.indirect_code;
 }
 
 let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
@@ -239,7 +239,7 @@ let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
   with
   | Not_found -> error_no_such_label lab mp
 
-type 'a vm_handler = { vm_handler : env -> universes -> Constr.t -> 'a -> 'a * Vmlibrary.indirect_code option }
+type 'a vm_handler = { vm_handler : env -> universes -> Constr.t -> 'a -> 'a * Vmlibrary.indirect_code }
 type 'a vm_state = 'a * 'a vm_handler
 
 let check_with ustate vmstate env mp (sign,reso,cst,vm) = function
