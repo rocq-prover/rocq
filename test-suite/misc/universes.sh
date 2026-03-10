@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sort universes for the whole standard library
+# Sort universes for the whole core library
 EXPECTED_UNIVERSES=2 # Prop is not counted
 $coqc -R misc/universes Universes misc/universes/all_stdlib 2>&1
 $coqc -R misc/universes Universes misc/universes/universes 2>&1
