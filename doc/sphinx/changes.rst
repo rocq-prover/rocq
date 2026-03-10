@@ -2306,7 +2306,7 @@ Tactics
 Ltac language
 ^^^^^^^^^^^^^
 - **Added:**
-  In :tacn:`rewrite_strat`, :n:`@rewstrategy` now supports the fixpoint operator :n:`fix @ident := @rewstrategy1`
+  In :tacn:`rewrite_strat`, :n:`@rewstrategy2` now supports the fixpoint operator :n:`fix @ident := @rewstrategy1`
   (`#18094 <https://github.com/rocq-prover/rocq/pull/18094>`_,
   fixes `#13702 <https://github.com/rocq-prover/rocq/issues/13702>`_,
   by Jason Gross and Gaëtan Gilbert).

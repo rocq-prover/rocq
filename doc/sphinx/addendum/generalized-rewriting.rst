@@ -975,10 +975,10 @@ Strategies for rewriting
 Usage
 ~~~~~
 
-.. tacn:: rewrite_strat @rewstrategy {? in @ident }
+.. tacn:: rewrite_strat @rewstrategy2 {? in @ident }
    :name: rewrite_strat
 
-   Rewrite using :n:`@rewstrategy` in the conclusion or in the hypothesis :n:`@ident`.
+   Rewrite using :n:`@rewstrategy2` in the conclusion or in the hypothesis :n:`@ident`.
 
    .. exn:: Nothing to rewrite.
 
@@ -1022,11 +1022,12 @@ further allows arbitrary customization of strategies through :ref:`Ltac1 <ltac>`
 The following describes the :ref:`Ltac1 <ltac>` version of the strategies. An :ref:`Ltac2 <ltac2>` version
 with the same primitives is available in the :g:`Ltac2.Rewrite` module.
 
-.. insertprodn rewstrategy rewstrategy0
+.. insertprodn rewstrategy2 rewstrategy0
 
 .. prodn::
-   rewstrategy ::= fix @ident := @rewstrategy1
+   rewstrategy2 ::= fix @ident := @rewstrategy1
    | {+; @rewstrategy1 }
+   | @rewstrategy1
    rewstrategy1 ::= <- @one_term
    | progress @rewstrategy1
    | try @rewstrategy1
@@ -1051,7 +1052,7 @@ with the same primitives is available in the :g:`Ltac2.Rewrite` module.
    | fail
    | id
    | refl
-   | ( @rewstrategy )
+   | ( @rewstrategy2 )
 
 :n:`@one_term`
    lemma, left to right
@@ -1080,7 +1081,7 @@ with the same primitives is available in the :g:`Ltac2.Rewrite` module.
 :n:`try @rewstrategy1`
    try catch
 
-:n:`@rewstrategy ; @rewstrategy1`
+:n:`{+; @rewstrategy1 }`
    composition
 
 :n:`choice {+ @rewstrategy0 }`
@@ -1128,8 +1129,8 @@ with the same primitives is available in the :g:`Ltac2.Rewrite` module.
    fixpoint operator, where :math:`\texttt{fix }f := v` evaluates to
    :math:`\subst{v}{f}{(\texttt{fix }f := v)}`
 
-:n:`( @rewstrategy )`
-   parenthesizes for disambiguation, applies :n:`@rewstrategy`
+:n:`( @rewstrategy2 )`
+   parenthesizes for disambiguation, applies :n:`@rewstrategy2`
 
 :n:`old_hints @ident`
    to be documented

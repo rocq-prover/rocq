@@ -101,17 +101,12 @@ END
 GRAMMAR EXTEND Gram
   GLOBAL: rewstrategy;
   rewstrategy:
-    [ NONA
-      [ IDENT "fix"; id = identref; ":="; s = rewstrategy1 -> { StratFix (id, s) }
-      | h = ne_rewstrategy1_list_sep_semicolon -> { h } ] ]
-  ;
-  ne_rewstrategy1_list_sep_semicolon:
-    [ LEFTA
-      [ h = SELF; ";"; h' = rewstrategy1 -> { StratBinary (Compose, h, h') }
-      | h = rewstrategy1 -> { h } ] ]
-  ;
-  rewstrategy1:
-    [ RIGHTA
+    [ "2" NONA
+      [ IDENT "fix"; id = identref; ":="; s = rewstrategy LEVEL "1" -> { StratFix (id, s) }
+      | h = LIST1 rewstrategy LEVEL "1" SEP ";" -> {
+          let x, h = match h with [] -> assert false | x::h -> x, h in
+          List.fold_left (fun a b -> StratBinary (Compose, a, b)) x h } ]
+    | "1" RIGHTA
       [ "<-"; c = constr -> { StratConstr (c, false) }
       | IDENT "subterms"; h = SELF -> { StratUnary (Subterms, h) }
       | IDENT "subterm"; h = SELF -> { StratUnary (Subterm, h) }
@@ -123,18 +118,15 @@ GRAMMAR EXTEND Gram
       | IDENT "try"; h = SELF -> { StratUnary (Try, h) }
       | IDENT "any"; h = SELF -> { StratUnary (Any, h) }
       | IDENT "repeat"; h = SELF -> { StratUnary (Repeat, h) }
-      | IDENT "choice"; h = LIST1 rewstrategy0 -> { StratNAry (Choice, h) }
+      | IDENT "choice"; h = LIST1 rewstrategy LEVEL "0" -> { StratNAry (Choice, h) }
       | IDENT "old_hints"; h = preident -> { StratHints (true, h) }
       | IDENT "hints"; h = preident -> { StratHints (false, h) }
       | IDENT "terms"; h = LIST0 constr -> { StratTerms h }
       | IDENT "eval"; r = red_expr -> { StratEval r }
       | IDENT "fold"; c = constr -> { StratFold c }
       | IDENT "matches"; c = constr -> { StratMatches c }
-      | IDENT "tactic"; c = tactic -> { StratTactic c }
-      | h = rewstrategy0 -> { h } ] ]
-  ;
-  rewstrategy0:
-    [ NONA
+      | IDENT "tactic"; c = tactic -> { StratTactic c } ]
+    | "0" NONA
       [ c = constr -> { StratConstr (c, true) }
       | IDENT "id" -> { StratId }
       | IDENT "fail" -> { StratFail }

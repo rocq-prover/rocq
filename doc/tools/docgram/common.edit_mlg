@@ -1110,9 +1110,9 @@ simple_tactic: [
 | DELETE "setoid_symmetry"
 | REPLACE "setoid_symmetry" "in" hyp
 | WITH "setoid_symmetry" OPT ( "in" hyp )
-| REPLACE "rewrite_strat" rewstrategy "in" hyp
-| WITH "rewrite_strat" rewstrategy OPT ( "in" hyp )
-| DELETE "rewrite_strat" rewstrategy
+| REPLACE "rewrite_strat" rewstrategy2 "in" hyp
+| WITH "rewrite_strat" rewstrategy2 OPT ( "in" hyp )
+| DELETE "rewrite_strat" rewstrategy2
 | REPLACE "protect_fv" string "in" ident
 | WITH "protect_fv" string OPT ( "in" ident )
 | DELETE "protect_fv" string
@@ -2255,14 +2255,7 @@ as_or_and_ipat: [
 | "as" or_and_intropattern
 ]
 
-ne_rewstrategy1_list_sep_semicolon: [
-| DELETE rewstrategy1
-| REPLACE ne_rewstrategy1_list_sep_semicolon ";" rewstrategy1
-| WITH LIST1 rewstrategy1 SEP ";"
-]
-
 SPLICE: [
-| ne_rewstrategy1_list_sep_semicolon
 | clause
 | noedit_mode
 | match_list
