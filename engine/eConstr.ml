@@ -351,6 +351,13 @@ let destRef sigma c = let open GlobRef in match kind sigma c with
   | Construct (c,u) -> ConstructRef c, u
   | _ -> raise DestKO
 
+let kind_nonat sigma c =
+  match kind sigma c with
+  | Nat (ind,n) ->
+    if Z.equal n Z.zero then Construct (in_punivs (ind,1))
+    else App (of_kind (Construct (in_punivs (ind,2))), [|of_kind (Nat (ind,Z.pred n))|])
+  | k -> k
+
 let decompose_app sigma c =
   match kind sigma c with
   | App (f,cl) -> (f, cl)
