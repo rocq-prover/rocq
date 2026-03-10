@@ -8,6 +8,7 @@
     iPoseProof (fupd_mask_frame_r _ _ (E ∖ ↑ N) with "H") as "H"; first set_solver.
     rewrite left_id_L -union_difference_L //. iMod "H" as "[$ H]"; iModIntro.
     iIntros (E') "HP".
-    iPoseProof (fupd_mask_frame_r _ _ E' with "(H HP)") as "H"; first set_solver.
+    (* also works with non-ascii names: *)
+    iPoseΔProof (fupd_mask_frame_r _ _ E' with "(H HP)") as "H"; first set_solver.
     by rewrite left_id_L.
   Qed.
