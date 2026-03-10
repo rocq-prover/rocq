@@ -417,7 +417,7 @@ let empty =
     initial_universes = UGraph.initial_universes;
     minim_extra = UnivMinim.empty_extra; }
 
-let make ~qualities univs =
+let make qualities univs =
   { empty with
     universes = univs;
     initial_universes = univs ;
@@ -1484,18 +1484,7 @@ let new_univ_level_variable ?loc rigid name uctx =
 
 let add_forgotten_univ uctx u = add_universe None true uctx u
 
-let make_with_initial_binders ~qualities univs binders =
-  let uctx = make ~qualities univs in
-  List.fold_left
-    (fun uctx { CAst.loc; v = id } ->
-       fst (new_univ_level_variable ?loc univ_rigid (Some id) uctx))
-    uctx binders
-
-let from_env ?(binders=[]) env =
-  make_with_initial_binders
-    ~qualities:(Environ.qualities env)
-    (Environ.universes env)
-    binders
+let from_env env = make (Environ.qualities env) (Environ.universes env)
 
 let make_nonalgebraic_variable uctx u =
   { uctx with univ_variables = UnivFlex.make_nonalgebraic_variable uctx.univ_variables u }
