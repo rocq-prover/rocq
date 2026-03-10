@@ -219,6 +219,12 @@ let inductive_nalldecls env ind =
 
 (* Others *)
 
+let get_template_instance mib u = match mib.mind_template with
+| None -> u
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty (EConstr.Unsafe.to_instance u)) in
+  EInstance.make templ.template_defaults
+
 let inductive_paramdecls env (ind,u) =
   let u = EConstr.Unsafe.to_instance u in
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
@@ -226,6 +232,7 @@ let inductive_paramdecls env (ind,u) =
 
 let inductive_alldecls env (ind,u) =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
+  let u = get_template_instance mib u in
   Vars.subst_instance_context u (EConstr.of_rel_context mip.mind_arity_ctxt)
 
 let inductive_alltags env ind =

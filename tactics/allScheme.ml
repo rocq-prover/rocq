@@ -76,6 +76,12 @@ let check_strpos_context env uparams default cxt =
         aux (push_rel decl env) (List.map2 (&&) strpos_decl strpos) tel
   in aux env default (List.rev cxt)
 
+let get_inductive_sort (mib, mip) u = match mib.mind_template with
+| None -> UVars.subst_instance_sort u mip.mind_sort
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty u) in
+  UVars.subst_instance_sort templ.template_defaults mip.mind_sort
+
 module Cache =
 struct
 
@@ -621,7 +627,7 @@ let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts_ql =
   (* Recover the sort of the original inductive type *)
   let* sigma = get_sigma in
   let u = EInstance.kind sigma u in
-  let ind_sort = UVars.subst_instance_sort u ind.mind_sort in
+  let ind_sort = get_inductive_sort (mib, ind) u in
   let ind_sort =
     match sub_temp, mib.mind_template with
     | Some sub_temp, Some temp -> Template.template_subst_sort sub_temp temp.template_concl
@@ -1087,7 +1093,8 @@ let generate_all_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : 
     closure_uparams_preds_hold_gen ~mk_pred_hold:true (build_binder fid Lambda) uparams strpos fresh_sorts in
   (* Evd.ustate 2. Fixpoint *)
   let* u_all = array_mapi (fun pos_ind _ -> fresh_inductive_instance (kn_nested, pos_ind)) mib.mind_packets in
-  let relevance_ind ind = Vars.subst_instance_relevance u @@ relevance_of_sort @@ ESorts.make ind.mind_sort in
+  let* sigma = get_sigma in
+  let relevance_ind ind = relevance_of_sort @@ ESorts.make (get_inductive_sort (mib, ind) (EInstance.kind sigma u)) in
   let fix_name pos_ind ind = make_annot (Name (Id.of_string "F")) (relevance_ind ind) in
   let fix_type pos_ind ind = return_type kn kn_nested pos_ind u u_all.(pos_ind) mib key_uparams key_uparams_preds nuparams in
   let fix_rarg pos_ind ind = (mib.mind_nparams - mib.mind_nparams_rec) + ind.mind_nrealargs in

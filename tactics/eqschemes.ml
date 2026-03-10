@@ -91,6 +91,12 @@ let build_dependent_inductive ind (mib,mip) =
        Context.Rel.instance_list mkRel mip.mind_nrealdecls mib.mind_params_ctxt
        @ Context.Rel.instance_list mkRel 0 realargs)
 
+let maybe_template_instance (mib, mip) u = match mib.mind_template with
+| None -> u
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty u) in
+  templ.template_defaults
+
 let named_hd env t na = named_hd env (Evd.from_env env) (EConstr.of_constr t) na
 let name_assumption env = function
 | LocalAssum (na,t) -> LocalAssum (map_annot (named_hd env t) na, t)
@@ -139,6 +145,7 @@ let error msg = user_err Pp.(str msg)
 
 let get_sym_eq_data env (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
+  let u = maybe_template_instance specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -174,6 +181,7 @@ let get_sym_eq_data env (ind,u) =
 
 let get_non_sym_eq_data env (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
+  let u = maybe_template_instance specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -802,6 +810,7 @@ let build_congr env (eq,refl,ctx) ind =
   let (ind,u as indu), ctx = with_context_set ctx
     (UnivGen.fresh_inductive_instance env ind) in
   let (mib,mip) = lookup_mind_specif env ind in
+  let u = maybe_template_instance (mib, mip) u in
   if not (Int.equal (Array.length mib.mind_packets) 1) || not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
   if not (Int.equal mip.mind_nrealargs 1) then

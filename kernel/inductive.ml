@@ -52,7 +52,14 @@ let find_coinductive ?evars env c =
 
 let inductive_params (mib,_) = mib.mind_nparams
 
+let get_template_instance mib u = match mib.mind_template with
+| None -> u
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty u) in
+  templ.template_defaults
+
 let inductive_paramdecls (mib,u) =
+  let u = get_template_instance mib u in
   Vars.subst_instance_context u mib.mind_params_ctxt
 
 let inductive_nnonrecparams mib = mib.mind_nparams - mib.mind_nparams_rec
@@ -85,8 +92,9 @@ let instantiate_params t u args sign =
   substl subs ty
 
 let full_constructor_instantiate (_,u,(mib,_),params) t =
+  let u = get_template_instance mib u in
   let inst_ind = subst_instance_constr u t in
-   instantiate_params inst_ind u params mib.mind_params_ctxt
+  instantiate_params inst_ind u params mib.mind_params_ctxt
 
 (************************************************************************)
 (************************************************************************)
@@ -376,14 +384,16 @@ let constrained_type_of_constructor cstru ind =
 let type_of_constructor_knowing_parameters cstr specif args =
   type_of_constructor_gen cstr specif args
 
-let arities_of_constructors (_,u) (_,mip) =
+let arities_of_constructors (_, u) (mib, mip) =
+  let u = get_template_instance mib u in
   let map (ctx, c) =
     let cty = Term.it_mkProd_or_LetIn c ctx in
     subst_instance_constr u cty
   in
   Array.map map mip.mind_nf_lc
 
-let type_of_constructors (_,u) (_,mip) =
+let type_of_constructors (_, u) (mib, mip) =
+  let u = get_template_instance mib u in
   Array.map (subst_instance_constr u) mip.mind_user_lc
 
 let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t =
@@ -1803,8 +1813,14 @@ let sorts_of_mutfix env minds names =
   if Array.exists ind_ignores_elim_constraints minds then None
   else
     Some (Array.fold_left_i (fun i sorts (ind, inst) ->
-        let _, mip = lookup_mind_specif env ind in
-        let ind_sort = UVars.subst_instance_sort inst mip.mind_sort in
+        let mib, mip = lookup_mind_specif env ind in
+        let ind_sort = match mib.mind_template with
+        | None -> UVars.subst_instance_sort inst mip.mind_sort
+        | Some templ ->
+          let () = assert (UVars.Instance.is_empty inst) in
+          (* suspect, this is always Type currently *)
+          UVars.subst_instance_sort templ.template_defaults mip.mind_sort
+        in
         let u = Sorts.univ_of_sort ind_sort in
         (* This is an approximation: a [Relevant] variable might be of sort [Prop]
            or [Type]. As we only care about the quality, we have to be conservative

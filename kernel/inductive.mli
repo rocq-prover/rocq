@@ -205,6 +205,8 @@ val check_cofix : ?evars:evar_handler -> env -> cofixpoint -> unit
 
 val abstract_mind_lc : int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
 
+val get_template_instance : mutual_inductive_body -> Instance.t -> Instance.t
+
 module Template : sig
   val bind_kind : Sorts.t -> int option * int option
   val template_subst_sort : template_subst -> Sorts.t -> Sorts.t
