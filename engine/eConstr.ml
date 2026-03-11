@@ -245,6 +245,7 @@ let isFix sigma c = match kind sigma c with Fix _ -> true | _ -> false
 let isCoFix sigma c = match kind sigma c with CoFix _ -> true | _ -> false
 let isCase sigma c = match kind sigma c with Case _ -> true | _ -> false
 let isProj sigma c = match kind sigma c with Proj _ -> true | _ -> false
+let isNat sigma c = match kind sigma c with Nat _ -> true | _ -> false
 
 let rec isType sigma c = match kind sigma c with
   | Sort s -> (match ESorts.kind sigma s with
@@ -668,6 +669,10 @@ let contract_case env _sigma (ci, (p,r), iv, c, bl) =
   (ci, u, pms, p, iv, c, bl)
 
 let unfold_nat ind n = of_constr @@ unfold_nat ind n
+let unfold_if_nat sigma c =
+  match kind sigma c with
+  | Nat (ind,n) -> unfold_nat ind n
+  | _ -> c
 
 let iter_with_full_binders env sigma g f n c =
   let open Context.Rel.Declaration in
