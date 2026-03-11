@@ -553,7 +553,8 @@ let sub_match ?(closed=true) env sigma pat c =
   let open EConstr in
   let rec aux env c mk_ctx next =
   let here = authorized_occ env sigma closed pat c mk_ctx in
-  let next () = match EConstr.kind sigma c with
+  let next () = match EConstr.kind_nonat sigma c with
+  | Nat _ -> assert false (* nonat *)
   | Cast (c1,k,c2) ->
       let next_mk_ctx = function
       | [c1] -> mk_ctx (mkCast (c1, k, c2))
@@ -641,7 +642,7 @@ let sub_match ?(closed=true) env sigma pat c =
     in
     let sub = (env,def) :: (env,ty) :: subargs env t in
     try_aux sub next_mk_ctx next
-  | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Nat _|Int _|Float _|String _ ->
+  | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Int _|Float _|String _ ->
     next ()
   in
   here next
