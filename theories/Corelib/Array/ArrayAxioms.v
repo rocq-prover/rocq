@@ -1,5 +1,7 @@
 From Corelib Require Import PrimArray.
 
+Set Universe Polymorphism.
+
 Local Abbreviation in_bounds i t := (PrimInt63.ltb i (length t)).
 
 Axiom get_out_of_bounds : forall A (t:array A) i,
