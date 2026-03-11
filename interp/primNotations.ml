@@ -304,6 +304,12 @@ let rec check_glob env sigma g c =
   | Glob_term.GNat (ind,n), Constr.Nat (ind',n')
     when Z.equal n n' && Environ.QInd.equal env ind ind' ->
     sigma, mkNat ind n
+  | GNat (ind, n), (Construct _ | App _) ->
+    let g = Glob_ops.unfold_nat ?loc:g.loc ind n in
+    check_glob env sigma g c
+  | (GRef (ConstructRef _, None) | GApp _), Nat (ind, n) ->
+    let c = Constr.unfold_nat ind n in
+    check_glob env sigma g c
   | Glob_term.GInt i, Constr.Int i' when Uint63.equal i i' -> sigma, mkInt i
   | Glob_term.GFloat f, Constr.Float f' when Float64.equal f f' -> sigma, mkFloat f
   | Glob_term.GString s, Constr.String s' when Pstring.equal s s' -> sigma, mkString s
