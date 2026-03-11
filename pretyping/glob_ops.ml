@@ -34,6 +34,12 @@ let cases_predicate_names tml =
     | (tm,(na,None)) -> [na]
     | (tm,(na,Some {v=(_,nal)})) -> na::nal) tml)
 
+let unfold_nat ?loc ind n =
+  let mk c = DAst.make ?loc c in
+  let ctor = mk @@ GRef (ConstructRef (Constr.ctor_of_nat ind n), None) in
+  if Z.equal n Z.zero then ctor
+  else mk @@ GApp (ctor, [mk @@ GNat (ind, Z.pred n)])
+
 let mkGApp ?loc p l = DAst.make ?loc @@
   match DAst.get p with
   | GApp (f,l') -> GApp (f,l'@l)

@@ -256,6 +256,7 @@ val isFix : Evd.evar_map -> t -> bool
 val isCoFix : Evd.evar_map -> t -> bool
 val isCase : Evd.evar_map -> t -> bool
 val isProj : Evd.evar_map -> t -> bool
+val isNat : Evd.evar_map -> t -> bool
 
 val isType : Evd.evar_map -> constr -> bool
 
@@ -467,6 +468,7 @@ val contract_case : Environ.env -> Evd.evar_map ->
   (t,t,ERelevance.t) Inductive.pexpanded_case -> case
 
 val unfold_nat : inductive -> Z.t -> constr
+val unfold_if_nat : Evd.evar_map -> constr -> constr
 
 (** {5 Extra} *)
 
