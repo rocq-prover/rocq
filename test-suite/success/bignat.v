@@ -178,6 +178,10 @@ Goal forall x, S x = 1 -> x = 0.
   exact H.
 Qed.
 
+Definition ignore (x y:N) := x.
+
+Check eq_refl : ignore 1 _ = 1.
+
 Require Import ssreflect.
 
 Lemma test (P:N -> bool) : is_true (P 0).

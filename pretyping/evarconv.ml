@@ -1333,12 +1333,16 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | Const _, Const _
         | Ind _, Ind _
         | Construct _, Construct _
-        | Nat _, Nat _
         | Int _, Int _
         | Float _, Float _
         | String _, String _
         | Array _, Array _ ->
           rigids env evd sk1 term1 sk2 term2
+
+        | Nat (ind1,n1), Nat (ind2,n2) ->
+          if Z.equal n1 n2 && QInd.equal env ind1 ind2 then
+            exact_ise_stack2 env evd (evar_conv_x flags) sk1 sk2
+          else UnifFailure (evd, NotSameHead)
 
         | Nat (ind1,n1), Construct _ ->
           let term1 = EConstr.unfold_nat ind1 n1 in
