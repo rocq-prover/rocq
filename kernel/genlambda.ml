@@ -782,7 +782,9 @@ and lambda_of_app cache env sigma f args =
       begin match cb.const_body with
       | Primitive op -> lambda_of_prim env c op (lambda_of_args cache env sigma 0 args)
       | Def csubst -> (* TODO optimize if f is a proj and argument is known *)
-        if cb.const_inline_code then lambda_of_app cache env sigma csubst args
+        if cb.const_inline_code then
+          let csubst = Vars.subst_instance_constr u csubst in
+          lambda_of_app cache env sigma csubst args
         else
           (* Erase unused arguments *)
           let mapi i arg =
