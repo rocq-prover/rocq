@@ -172,6 +172,12 @@ Goal 1 = 2 -> False.
   congruence.
 Qed.
 
+Goal forall x, S x = 1 -> x = 0.
+  intros.
+  match goal with h : ?f _ = ?f _ |- _ => injection h as h end.
+  exact H.
+Qed.
+
 Require Import ssreflect.
 
 Lemma test (P:N -> bool) : is_true (P 0).
