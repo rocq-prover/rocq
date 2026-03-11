@@ -12,8 +12,10 @@ Check t@{s s'';Set Set}.
 (* This should fail though as we don't have [s'' -> s'] or [s'' -> s] declared. *)
 Fail Check t@{s'' s';Set Set}.
 Fail Check t@{s'' s;Set Set}.
+Fail Definition withelim@{|s'' -> s'} := tt.
 
 (* But if we do this, both should work. *)
 Constraint s'' -> s.
 Check t@{s'' s';Set Set}.
 Check t@{s'' s;Set Set}.
+Definition withelim@{|s'' -> s'} := tt.
