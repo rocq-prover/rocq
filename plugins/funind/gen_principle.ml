@@ -1322,7 +1322,7 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
   let first_type, other_princ_types =
     match l_schemes with
     | s :: l_schemes -> (s, l_schemes)
-    | _ -> CErrors.anomaly (Pp.str "")
+    | _ -> assert false
   in
   let opaque =
     let finfos =
