@@ -1483,6 +1483,11 @@ let is_var_term = function
   | GRef (GlobRef.VarRef _,None) -> true
   | _ -> false
 
+let unfold_nat ind n =
+  let ctor = NRef (ConstructRef (Constr.ctor_of_nat ind n), None) in
+  if Z.equal n Z.zero then ctor
+  else NApp (ctor, [NNat (ind, Z.pred n)])
+
 let rec match_ inner u alp metas sigma a1 a2 =
   let open CAst in
   let loc = a1.loc in
@@ -1595,6 +1600,18 @@ let rec match_ inner u alp metas sigma a1 a2 =
      Is that really what we want?
      (Behaviour deliberately introduced in a38fbefca61f3392efe0ba98adfbae138022cce4 AFAICT) *)
   | GSort s1, NSort s2 when glob_sort_eq s1 s2 -> sigma
+
+  | GNat (ind1, n1), NNat (ind2, n2) ->
+    if Z.equal n1 n2 && Ind.CanOrd.equal ind1 ind2 then sigma
+    else raise No_match
+
+  | GNat (ind, n), (NApp (NRef _,_) | NRef _) ->
+    let a1 = Glob_ops.unfold_nat ?loc ind n in
+    match_ inner u alp metas sigma a1 a2
+
+  | (GApp _ | GRef _), NNat (ind, n) ->
+    let a2 = unfold_nat ind n in
+    match_ inner u alp metas sigma a1 a2
 
   | GInt i1, NInt i2 when Uint63.equal i1 i2 -> sigma
   | GFloat f1, NFloat f2 when Float64.equal f1 f2 -> sigma
@@ -1791,6 +1808,11 @@ let rec match_cases_pattern metas (terms,termlists,(),() as sigma) a1 a2 =
         (* Convention: notations to @f don't keep implicit arguments *)
         let no_implicit = le2 = 0 in
         (List.fold_left2 (match_cases_pattern_no_more_args metas) sigma l1' l2),(no_implicit,le2,more_args)
+  | PatCstr ((ind,_),_,_), NNat (ind',n) ->
+    if Ind.CanOrd.equal ind ind' then
+      let a2 = unfold_nat ind' n in
+      match_cases_pattern metas sigma a1 a2
+    else raise No_match
   | r1, NList (x,y,iter,termin,revert) ->
       (match_cases_pattern_list (match_cases_pattern_no_more_args)
         metas (terms,termlists,(),()) a1 x y iter termin revert),(false,0,[])
