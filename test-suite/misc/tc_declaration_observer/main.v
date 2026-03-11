@@ -1,6 +1,6 @@
 Declare ML Module "observer.plugin".
 
-Class Def (A : Type) := { default : A }.
+#[mode="-"] Class Def (A : Type) := { default : A }.
 
 Instance def_nat : Def nat := {| default := 0 |}.
 
