@@ -1054,7 +1054,7 @@ value rocq_interprete
 
       Instruct(MAKESUCC) {
         print_instr("MAKESUCC");
-        if (Is_accu(accu)) {
+        if (Is_block(accu) && Tag_val(accu) != Custom_tag) {
           value block;
           Rocq_alloc_small(block, 1, 1);
           Field(block, 0) = accu;
