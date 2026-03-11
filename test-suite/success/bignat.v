@@ -171,3 +171,10 @@ Qed.
 Goal 1 = 2 -> False.
   congruence.
 Qed.
+
+Require Import ssreflect.
+
+Lemma test (P:N -> bool) : is_true (P 0).
+Proof.
+  elim: 0.
+Abort.
