@@ -160,7 +160,10 @@ exception NoProgress
 
 let unif_EQ env sigma p c =
   let env = Environ.set_universes (Evd.universes sigma) env in
-  Reductionops.is_conv env sigma p c
+  try Reductionops.is_conv env sigma p c
+  with Reductionops.AnomalyInConversion _ ->
+    (* terms are in general not at the same type *)
+    false
 
 let unif_EQ_args env sigma pa a =
   let n = Array.length pa in

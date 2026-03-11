@@ -271,3 +271,10 @@ Qed.
 Definition ignore (x y:N) := x.
 
 Check eq_refl : ignore 1 _ = 1.
+
+Require Import ssreflect.
+
+Lemma test (P:N -> bool) : is_true (P 0).
+Proof.
+  elim: 0.
+Abort.
