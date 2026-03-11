@@ -362,11 +362,10 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     if Z.equal n Z.zero && Environ.QInd.equal env ind ind' then subst
     else raise PatternMatchingFailure
 
-  | PApp (PRef (ConstructRef (ind,2)), arg1), Nat (ind',n) ->
-    if Z.equal n Z.zero || Array.length arg1 <> 1 ||
-       not (Environ.QInd.equal env ind ind') then
+  | PApp (_, arg1), Nat (ind',n) ->
+    if Z.equal n Z.zero || Array.length arg1 <> 1 then
       raise PatternMatchingFailure
-    else sorec ctx env subst arg1.(0) (mkNat ind' (Z.pred n))
+    else sorec ctx env subst p (EConstr.unfold_nat ind' n)
 
   | PApp (c1, arg1), App (c2, arg2) ->
     let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
