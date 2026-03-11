@@ -128,6 +128,9 @@ Definition vmtwo := Eval vm_compute in 1 + 1.
 Check eq_refl : vmtwo = 2.
 Check eq_refl 4 <: vmtwo + 2 = 4.
 
+Definition vmSS x := Eval vm_compute in S (S x).
+Check eq_refl : vmSS = fun x => S (S x).
+
 (* 4611686018427387903 = int63 max_int *)
 Definition vmbig := Eval vm_compute in 2 + 4611686018427387903.
 Check eq_refl : vmbig = 4611686018427387905.
@@ -137,6 +140,9 @@ Check eq_refl (S vmbig) <: S vmbig = 4611686018427387906.
 Definition nativetwo := Eval native_compute in 1 + 1.
 Check eq_refl : nativetwo = 2.
 Check eq_refl 4 <<: nativetwo + 2 = 4.
+
+Definition nativeSS x := Eval native_compute in S (S x).
+Check eq_refl : nativeSS = fun x => S (S x).
 
 (* 4611686018427387903 = int63 max_int *)
 Definition nativebig := Eval native_compute in 2 + 4611686018427387903.
