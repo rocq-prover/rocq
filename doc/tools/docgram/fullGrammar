@@ -1566,7 +1566,7 @@ search_queries: [
 ]
 
 univ_name_list: [
-| "@{" LIST0 name "}"
+| "@{" LIST0 name OPT [ ";" LIST0 name ] "}"
 ]
 
 syntax: [

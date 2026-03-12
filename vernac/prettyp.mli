@@ -41,7 +41,7 @@ val print_safe_judgment : Safe_typing.judgment -> Pp.t
 
 val print_name : Global.indirect_accessor -> env -> Evd.evar_map
   -> qualid Constrexpr.or_by_notation
-  -> UnivNames.full_name_list option
+  -> UnivNames.univ_name_list option
   -> Pp.t
 val print_notation : env -> Evd.evar_map
   -> qualid Constrexpr.notation_entry_gen
@@ -51,7 +51,7 @@ val print_notation : env -> Evd.evar_map
 val print_abbreviation : Global.indirect_accessor -> env -> Evd.evar_map -> KerName.t -> Pp.t
 
 val print_about : env -> Evd.evar_map -> qualid Constrexpr.or_by_notation ->
-  UnivNames.full_name_list option -> Pp.t
+  UnivNames.univ_name_list option -> Pp.t
 val print_impargs : env -> GlobRef.t -> Pp.t
 
 (** Pretty-printing functions for classes and coercions *)

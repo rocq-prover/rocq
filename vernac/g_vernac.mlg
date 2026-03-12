@@ -1327,7 +1327,7 @@ GRAMMAR EXTEND Gram
       ] ]
   ;
   univ_name_list:
-    [ [  "@{" ; l = LIST0 name; "}" -> { [],l } ] ]
+    [ [  "@{" ; l = LIST0 name; l' = OPT [ ";" ; l = LIST0 name -> { l } ] ; "}" -> { match l' with None -> [], l | Some l' -> l, l' } ] ]
   ;
 END
 
