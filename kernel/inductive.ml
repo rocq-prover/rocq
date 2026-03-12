@@ -982,7 +982,7 @@ let get_recargs_approx cache ?evars env tree ind args =
       if WfPaths.is_inductive env (fst ind_kn) tree then
         build_recargs_nested ienv tree (ind_kn, largs)
       else mk_norec
-    | Const (c,_) when is_primitive_positive_container env c ->
+    | Const (c, _) ->
       if WfPaths.is_primitive_positive_container env c tree then
         build_recargs_nested_primitive ienv tree (c, largs)
       else mk_norec
