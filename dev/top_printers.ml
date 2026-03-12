@@ -43,6 +43,8 @@ let ppexninfo e =
 
 let ppfuture kx = pp (Future.print (fun _ -> str "_") kx)
 
+let ppZ z = pp (str (Z.to_string z))
+
 (* name printers *)
 let ppid id = pp (Id.print id)
 let ppmbid mbid = pp (str (MBId.debug_to_string mbid))
