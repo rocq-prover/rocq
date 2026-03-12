@@ -1,3 +1,5 @@
+Require BinNums.
+
 (* TODO tests that declaring a type that doesn't look like nat with
    primitive_nat is rejected
 
@@ -68,10 +70,75 @@ Fixpoint to_little_uint n acc :=
 Definition to_uint n :=
   Decimal.rev (to_little_uint n Decimal.zero).
 
-(* printing with num notation currently very slow *)
-Definition to_num_uint (n:N) : option Number.uint := None.
+Fixpoint sub (n m:N) {struct n} : N :=
+  match n, m with
+  | O, _ => n
+  | S k, O => n
+  | S k, S l => k - l
+  end
+where "a - b" := (sub a b).
 
-Number Notation N of_num_uint to_num_uint (abstract after 5000) : nat_scope.
+Register sub as cbv.sub.
+
+Fixpoint div2r (n:N) :=
+  match n with
+  | O | S O => n
+  | S (S k) => S (div2r k)
+  end.
+
+Register div2r as cbv.div2r.
+
+Definition div2 n := n - div2r n.
+
+Definition rem2 n := n - (let x := div2 n in x + x).
+
+Section S.
+  (* NB: p0 is not part of the recursion ([div2 (S (S n))] is never 0).
+     It's only used when the fixpoint is directly called on 0. *)
+  Variables (P:N -> Type) (p0 : P O) (p1 : P (S O)) (p2 : forall n, P (div2 (S (S n))) -> P (S (S n))).
+
+  Fixpoint rec2 n :=
+    match n return P n with
+    | O => p0
+    | S k =>
+        match k as k' return k = k' -> P (S k') with
+        | O => fun _ => p1
+        | S l =>
+            fun e : k = S l =>
+              p2 l
+                (match e in _ = x return P (x - div2r l) with
+                 | eq_refl => rec2 (k - div2r l)
+                 end)
+        end eq_refl
+    end.
+End S.
+
+Section to_bin.
+  (* section for the import for convenience *)
+  Abbreviation myN := N.
+  Import BinNums.
+
+  (* returns xH for 0 *)
+  Definition to_positive (n:myN) : BinNums.positive :=
+    rec2 (fun _ => positive) xH xH
+      (fun n x => (* x = div2 (2+n), we need to produce 2+n = 2*x + rem2 (2+n) *)
+         match rem2 (S (S n)) with
+         | O => xO x
+         | S _ => xI x
+         end)
+      n.
+
+  Definition to_Z n :=
+    match n with
+    | O => Z0
+    | S _ => Zpos (to_positive n)
+    end.
+End to_bin.
+
+Number Notation N of_num_uint to_Z (abstract after 5000) : nat_scope.
+
+(* printing needs add to be registered to be fast (used in rem2) *)
+Set Printing All.
 
 Time Eval cbv in 5000000.
 (* without bignat, stack overflows
@@ -83,15 +150,24 @@ Time Eval cbv in 1000 * 1000.
 (* without bignat, stack overflows
    with bignat, 0.1s *)
 
-Register mul as cbv.mul.
+Register add as cbv.add.
+
+Unset Printing All.
+
+Time Eval cbv in 5000000.
+(* still 0.8s *)
 
 Time Eval cbv in 1000 * 1000.
-(* instant *)
+(* instant (add used in mul) *)
+
+Register mul as cbv.mul.
 
 Time Eval cbv in 200 * 200 * 200 * 200 * 200 * 200 * 200 * 200.
-(* instant *)
+(* instant (stack overflow without registered mul) *)
 
 Register tail_mul as cbv.tail_mul.
+(* makes parsing fast *)
+
 Time Eval cbv in 5000000.
 (* instant *)
 Time Eval cbv in 50000000.
@@ -114,8 +190,6 @@ Fixpoint mymul n m :=
   end.
 
 Notation "x ** y" := (mymul x y) (at level 41, right associativity).
-
-Register add as cbv.add.
 
 Time Eval cbv in 200 ** 200000000.
 (* instant *)
@@ -160,6 +234,22 @@ Check eq_refl 4611686018427387900 <<: 4611686018427387900 = pred (pred (pred 461
 Check eq_refl 4611686018427387900 : 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
 Check eq_refl 4611686018427387900 <: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
 Check eq_refl 4611686018427387900 <<: 4611686018427387900 = pred (pred (pred (pred (pred (pred (3 + 4611686018427387903)))))).
+
+(* some large number from keyboard mashing (all commands instant including printing) *)
+(* results checked in python 3.13.12 (compute "n * m",
+   "len(bin(n * m)) - 2" (-2 because starts with "0b")
+   and "(n * m).bit_count()" *)
+Definition large := Eval cbv in 534653679184394009346 * 4576931832291539343426.
+Check eq_refl : large = 2447073443510841321595526374542420547659396.
+
+Definition nbits := rec2 (fun _ => N) 0 1 (fun _ x => S x).
+Definition largebits := Eval cbv in nbits large.
+Check eq_refl : largebits = 141.
+
+(* NB [rem2 (S (S n)) = rem2 n] *)
+Definition popcount := rec2 (fun _ => N) 0 1 (fun n x => x + rem2 n).
+Definition largecnt := Eval cbv in popcount large.
+Check eq_refl : largecnt = 69.
 
 Goal forall n:N, 0 = n -> 1 = S n.
 Proof.

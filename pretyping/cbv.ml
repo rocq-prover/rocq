@@ -16,7 +16,7 @@ open Esubst
 
 (**** Call by value reduction ****)
 
-type optimized_def = Add | Mul
+type optimized_def = Add | Mul | Sub | Div2r
 
 (* The type of terms with closure. The meaning of the constructors and
  * the invariants of this datatype are the following:
@@ -516,13 +516,23 @@ let is_optimized_constant env cst =
       "cbv.mul", Mul;
       (* tail_mul and mul behave the same on canonical inputs *)
       "cbv.tail_mul", Mul;
+      "cbv.sub", Sub;
+      "cbv.div2r", Div2r;
     ]
+
+let sub n m =
+  if Z.leq n m then Z.zero
+  else Z.sub n m
+
+let div2r n = Z.sub n (Z.div n (Z.of_int 2))
 
 let run_optimized_def opt stk =
   match opt, stk with
   | Add, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.add n m), stk)
   | Mul, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.mul n m), stk)
-  | (Add | Mul), _ -> None
+  | Sub, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,sub n m), stk)
+  | Div2r, APP ([NAT (ind,n)], stk) -> Some (NAT (ind, div2r n), stk)
+  | (Add | Mul | Sub | Div2r), _ -> None
 
 (* The main recursive functions
  *
