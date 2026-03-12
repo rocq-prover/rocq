@@ -1825,9 +1825,6 @@ let check_fix ?evars env (_, (names, _, _ as recdef) as fix) =
 
 exception CoFixGuardError of env * cofix_guard_error
 
-let anomaly_ill_typed () =
-  anomaly ~label:"check_one_cofix" (Pp.str "too many arguments applied to constructor.")
-
 let rec codomain_is_coind ?evars env c =
   let b = whd_all ?evars env c in
   match kind b with
@@ -1839,7 +1836,7 @@ let rec codomain_is_coind ?evars env c =
           raise (CoFixGuardError (env, CodomainNotInductiveType b)))
 
 let check_one_cofix ?evars env nbfix def deftype =
-  let rec check_rec_call env alreadygrd n tree vlra t =
+  let rec check_rec_call env alreadygrd n tree t =
     if not (noccur_with_meta n nbfix t) then
       let c,args = decompose_app_list (whd_all ?evars env t) in
       match kind c with
@@ -1851,30 +1848,30 @@ let check_one_cofix ?evars env nbfix def deftype =
             else if not(List.for_all (noccur_with_meta n nbfix) args) then
               raise (CoFixGuardError (env,NestedRecursiveOccurrences))
         | Construct ((_,i as cstr_kn),_u)  ->
-            let lra = vlra.(i-1) in
             let mI = inductive_of_constructor cstr_kn in
             let (mib,_mip) = lookup_mind_specif env mI in
             let realargs = List.skipn mib.mind_nparams args in
-            let rec process_args_of_constr = function
-              | (t::lr), (rar::lrar) ->
-                  if WfPaths.is_norec rar then
-                    if noccur_with_meta n nbfix t
-                    then process_args_of_constr (lr, lrar)
-                    else raise (CoFixGuardError
-                                 (env,RecCallInNonRecArgOfConstructor t))
-                  else begin
-                      check_rec_call env true n rar (WfPaths.dest_subterms rar) t;
-                      process_args_of_constr (lr, lrar)
-                    end
-              | [],_ -> ()
-              | _ -> anomaly_ill_typed ()
-            in process_args_of_constr (realargs, Array.to_list lra)
+            let rec process_args_of_constr j = function
+            | [] -> ()
+            | t :: lr ->
+              let rar = WfPaths.dest_subterm tree (i - 1) j in
+              let () =
+                if WfPaths.is_norec rar then
+                  if noccur_with_meta n nbfix t then ()
+                  else
+                    raise (CoFixGuardError (env, RecCallInNonRecArgOfConstructor t))
+                else
+                  check_rec_call env true n rar t
+              in
+              process_args_of_constr (j + 1) lr
+            in
+            process_args_of_constr 0 realargs
 
         | Lambda (x,a,b) ->
             let () = assert (List.is_empty args) in
             if noccur_with_meta n nbfix a then
               let env' = push_rel (LocalAssum (x,a)) env in
-              check_rec_call env' alreadygrd (n+1) tree vlra b
+              check_rec_call env' alreadygrd (n+1) tree b
             else
               raise (CoFixGuardError (env,RecCallInTypeOfAbstraction a))
 
@@ -1884,8 +1881,8 @@ let check_one_cofix ?evars env nbfix def deftype =
               if Array.for_all (noccur_with_meta n nbfix) varit then
                 let nbfix = Array.length vdefs in
                 let env' = push_rec_types recdef env in
-                (Array.iter (check_rec_call env' alreadygrd (n+nbfix) tree vlra) vdefs;
-                 List.iter (check_rec_call env alreadygrd n tree vlra) args)
+                (Array.iter (check_rec_call env' alreadygrd (n+nbfix) tree) vdefs;
+                 List.iter (check_rec_call env alreadygrd n tree) args)
               else
                 raise (CoFixGuardError (env,RecCallInTypeOfDef c))
             else
@@ -1902,8 +1899,7 @@ let check_one_cofix ?evars env nbfix def deftype =
                if (noccur_with_meta n nbfix p) then
                  if (noccur_with_meta n nbfix tm) then
                    if (List.for_all (noccur_with_meta n nbfix) args) then
-                     let vlra = WfPaths.dest_subterms tree in
-                     Array.iter (check_rec_call env alreadygrd n tree vlra) vrest
+                     Array.iter (check_rec_call env alreadygrd n tree) vrest
                    else
                      raise (CoFixGuardError (env,RecCallInCaseFun c))
                  else
@@ -1914,7 +1910,7 @@ let check_one_cofix ?evars env nbfix def deftype =
 
         | Meta _ -> ()
         | Evar _ ->
-            List.iter (check_rec_call env alreadygrd n tree vlra) args
+            List.iter (check_rec_call env alreadygrd n tree) args
         | Rel _ | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Const _
           | Ind _ | Fix _ | Proj _ | Int _ | Float _ | String _
           | Array _ ->
@@ -1922,7 +1918,7 @@ let check_one_cofix ?evars env nbfix def deftype =
 
   let ((mind, _),_) = codomain_is_coind ?evars env deftype in
   let vlra = WfPaths.lookup_subterms env mind in
-  check_rec_call env false 1 vlra (WfPaths.dest_subterms vlra) def
+  check_rec_call env false 1 vlra def
 
 (* The  function which checks that the whole block of definitions
    satisfies the guarded condition *)
