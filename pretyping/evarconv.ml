@@ -534,7 +534,7 @@ let compare_heads pbty env evd ~nargs term term' =
           else compare_constructor_instances evd u u'
       end
   | Construct _, Construct _ -> UnifFailure (evd, NotSameHead)
-  | _, _ -> anomaly (Pp.str "")
+  | _, _ -> assert false
 
 (* This function tries to unify 2 stacks element by element. It works
    from the end to the beginning. If it unifies a non empty suffix of
