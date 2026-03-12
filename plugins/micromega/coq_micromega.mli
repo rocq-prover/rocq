@@ -59,4 +59,4 @@ val wpsatz_Z : int -> Names.Id.t -> EConstr.t -> unit Proofview.tactic
 (** {5 Use Micromega independently from tactics. } *)
 
 (** [dump_proof_term] generates the Rocq representation of a Micromega proof witness *)
-val dump_proof_term : Micromega.zArithProof -> EConstr.t
+val dump_proof_term : Environ.env -> Evd.evar_map -> Micromega.zArithProof -> Evd.evar_map * EConstr.t
