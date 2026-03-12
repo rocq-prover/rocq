@@ -643,6 +643,7 @@ type t
 val lookup_subterms : env -> inductive -> t
 val inter : t -> t -> t
 val restrict : t -> wf_paths -> t
+val dest_subterm : t -> int -> int -> t
 val dest_subterms : t -> t array array
 val is_norec : t -> bool
 val is_inductive : env -> inductive -> t -> bool
@@ -676,6 +677,10 @@ let restrict t p =
   let p = Atm.compact compare_recarg p in
   let automaton = Atm.inter meet_recarg t p in
   Atm.compact compare_recarg automaton
+
+let dest_subterm t i j =
+  let trans = Atm.transitions t (Atm.initial t) in
+  Atm.move t trans.(i).(j)
 
 let dest_subterms t =
   let trans = Atm.transitions t (Atm.initial t) in
@@ -871,20 +876,12 @@ let inter_spec =
   Array.fold_left inter_spec DeadCode
 
 
-let on_constructors discr =
-  (* As computing subterms is more expensive than computing discr
-     (because of dest_subterms), we put it in a single lazy block. *)
-  let subterms = lazy begin match Lazy.force discr with
-    | DeadCode | Vars _ | NotSubterm as spec ->
-      Inl spec
-    | Subterm (_, tree, vars) ->
-      let subtree = WfPaths.dest_subterms tree in
-      let subterms = Array.map (Array.map (spec_of_tree Strict vars)) subtree in
-      Inr subterms
-  end in
-  fun i j -> lazy begin match Lazy.force subterms with
-  | Inl spec -> spec
-  | Inr spec_arr -> spec_arr.(i).(j)
+let on_constructors discr i j =
+  lazy begin match Lazy.force discr with
+  | DeadCode | Vars _ | NotSubterm as spec -> spec
+  | Subterm (_, tree, vars) ->
+    let subtree = WfPaths.dest_subterm tree i j in
+    spec_of_tree Strict vars subtree
   end
 
 let on_branches env ind discr =
