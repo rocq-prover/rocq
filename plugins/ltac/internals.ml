@@ -146,7 +146,7 @@ let is_ind x =
 
 let is_constructor x =
   Proofview.tclEVARMAP >>= fun sigma ->
-  match EConstr.kind sigma x with
+  match EConstr.kind_nonat sigma x with
     | Construct _ -> Proofview.tclUNIT ()
     | _ -> Tacticals.tclFAIL (Pp.str "not a constructor")
 
