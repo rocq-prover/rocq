@@ -17,6 +17,7 @@ val intern : strict:bool -> UnivNames.universe_binders -> context -> raw_tacexpr
 val intern_typedef : (KerName.t * int) Id.Map.t -> raw_quant_typedef -> glb_quant_typedef
 val intern_open_type : raw_typexpr -> type_scheme
 val intern_notation_data : Id.Set.t -> raw_tacexpr -> Tac2syn.notation_data
+val intern_abbrev : Deprecation.t option -> raw_tacexpr -> Tac2env.abbrev_data
 
 val intern_accumulate_errors : strict:bool -> context -> raw_tacexpr ->
   glb_tacexpr * type_scheme * Pp.t Loc.located list
@@ -54,12 +55,6 @@ val check_unit : ?loc:Loc.t -> type_scheme -> unit
 val check_subtype : type_scheme -> type_scheme -> bool
 (** [check_subtype t1 t2] returns [true] iff all values of instances of type [t1]
     also have type [t2]. *)
-
-(** {5 Notations} *)
-
-val globalize : Id.Set.t -> raw_tacexpr -> raw_tacexpr
-(** Replaces all qualified identifiers by their corresponding kernel name. The
-    set represents bound variables in the context. *)
 
 (** Errors *)
 

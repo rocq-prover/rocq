@@ -14,3 +14,5 @@ Ltac2 Globalize fun (b: bool) =>
   | true => true
   | false => false
   end : bool).
+
+Fail Ltac2 Abbreviation bar := 0 0.

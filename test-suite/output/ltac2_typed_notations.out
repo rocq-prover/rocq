@@ -9,3 +9,6 @@ let m :=
     (Pattern.MatchPattern, pat:(false), (fun _ => fun _ => false))]
 with t := c in
 Pattern.one_match0 t m
+File "./output/ltac2_typed_notations.v", line 18, characters 31-32:
+The command has indeed failed with message:
+This expression has type int. It is not a function and cannot be applied.
