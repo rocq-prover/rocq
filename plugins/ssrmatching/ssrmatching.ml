@@ -343,7 +343,7 @@ let unif_end ?(solve_TC=true) env sigma0 ise0 pt ok =
   let c, s, uc, t = nf_open_term sigma0 ise pt in
   let ise1 = create_evar_defs s in
   let ise1 = Evd.set_typeclass_evars ise1 (Evar.Set.filter (fun ev -> Evd.is_undefined ise1 ev) tcs) in
-  let ise1 = Evd.set_universe_context ise1 uc in
+  let ise1 = Evd.set_ustate ise1 uc in
   let ise2 =
     if solve_TC then Typeclasses.resolve_typeclasses ~fail:true env ise1
     else ise1 in
@@ -356,7 +356,7 @@ let unif_end ?(solve_TC=true) env sigma0 ise0 pt ok =
 let unify_HO env sigma0 t1 t2 =
   let sigma = unif_HO env sigma0 t1 t2 in
   let _, sigma, uc, _ = unif_end ~solve_TC:false env sigma0 sigma t2 (fun _ -> true) in
-  Evd.set_universe_context sigma uc
+  Evd.set_ustate sigma uc
 
 (* This is what the definition of iter_constr should be... *)
 let iter_constr_LR sigma f c = match EConstr.kind sigma c with
@@ -1521,7 +1521,7 @@ let ssrpatterntac arg =
   let pat = interp_rpattern env sigma0 arg in
   let (t, uc), concl_x =
     fill_occ_pattern env sigma0 concl0 pat noindex 1 in
-  let sigma = Evd.set_universe_context sigma0 uc in
+  let sigma = Evd.set_ustate sigma0 uc in
   let sigma, tty = Typing.type_of env sigma t in
   let concl = EConstr.mkLetIn (make_annot (Name (Id.of_string "selected")) EConstr.ERelevance.relevant, t, tty, concl_x) in
   Proofview.Unsafe.tclEVARS sigma <*>

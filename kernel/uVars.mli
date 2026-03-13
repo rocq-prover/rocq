@@ -195,6 +195,12 @@ sig
   val names : t -> bound_names
   (** Return the names of the bound universe variables *)
 
+  val constraints : t -> PConstraints.t
+  (** Return the constraints on the universe variables *)
+
+  val refine_names : bound_names -> t -> t
+  (** Use names to name the possibly yet unnamed universes *)
+
   val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
 end
 

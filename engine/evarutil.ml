@@ -42,7 +42,7 @@ let finalize ?abort_on_undefined_evars ?poly sigma f =
     c
   in
   let v = f nf_constr in
-  let sigma = restrict_universe_context sigma !uvars in
+  let sigma = restrict_ustate sigma !uvars in
   sigma, v
 
 (** Term exploration up to instantiation. *)

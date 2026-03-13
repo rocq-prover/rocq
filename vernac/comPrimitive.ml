@@ -46,7 +46,7 @@ let do_primitive id udecl prim typopt =
     Pretyping.check_evars_are_solved ~program_mode:false env evd;
     let evd = Evd.minimize_universes evd in
     let _qvars, uvars = EConstr.universes_of_constr evd typ in
-    let evd = Evd.restrict_universe_context evd uvars in
+    let evd = Evd.restrict_ustate evd uvars in
     let typ = EConstr.to_constr evd typ in
     let univ_poly = not (UVars.AbstractContext.is_empty auctx) in
     let poly = PolyFlags.of_univ_poly univ_poly in

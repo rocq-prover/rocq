@@ -255,7 +255,7 @@ let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl im
   let hook, impls =
     if len > 1 then
       let hook { Declare.Hook.S.dref; uctx; obls; _ } =
-        let update c = CVars.replace_vars obls (evmap mkVar (Evarutil.nf_evar (Evd.from_ctx uctx) c)) in
+        let update c = CVars.replace_vars obls (evmap mkVar (Evarutil.nf_evar (Evd.from_ustate uctx) c)) in
         let tuple_value = update tuple_value in
         let ccl = update ccl in
         let ctx = Context.Rel.map_het (ERelevance.kind sigma) update ctx in

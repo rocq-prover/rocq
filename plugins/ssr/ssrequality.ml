@@ -468,7 +468,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let concl = Proofview.Goal.concl gl in
   let sigma = resolve_typeclasses ~where:r ~fail:false env sigma in
   let r_n, evs, ucst = abs_evars env sigma0 (sigma, r) in
-  let sigma0 = Evd.set_universe_context sigma0 ucst in
+  let sigma0 = Evd.set_ustate sigma0 ucst in
   let n = List.length evs in
   let r_n' = abs_cterm env sigma0 n r_n in
   let r' = EConstr.Vars.subst_var sigma pattern_id r_n' in
@@ -731,10 +731,10 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
     (* Evarmaps below are extensions of sigma, so setting the universe context is correct *)
     let sigma = match rx with
     | None -> sigma
-    | Some { pat_sigma = s } -> Evd.set_universe_context sigma (Evd.ustate s)
+    | Some { pat_sigma = s } -> Evd.set_ustate sigma (Evd.ustate s)
     in
     let t = interp env sigma gt in
-    let sigma = Evd.set_universe_context sigma  (Evd.ustate (fst t)) in
+    let sigma = Evd.set_ustate sigma  (Evd.ustate (fst t)) in
     Proofview.Unsafe.tclEVARS sigma <*>
     (match kind with
     | RWred sim -> simplintac occ rx sim

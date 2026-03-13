@@ -160,10 +160,8 @@ let pr_mutual_inductive_body env mind mib udecl =
        | PrimRecord l -> "Record"
   in
   let udecl = Option.map (fun x -> GlobRef.IndRef (mind,0), x) udecl in
-  let bl = Printer.universe_binders_with_opt_names
-      (Declareops.inductive_polymorphic_context mib) udecl
-  in
-  let sigma = Evd.from_ctx (UState.of_names bl) in
+  let auctx = Printer.fill_names ?user_names:udecl (Declareops.inductive_polymorphic_context mib) in
+  let sigma = Evd.from_auctx env auctx in
 
   hov 0 (def keyword ++ spc () ++
          prlist_with_sep (fun () -> fnl () ++ str"  with ")
@@ -269,25 +267,27 @@ let print_body is_impl extent env mp (l,body) =
     | SFBmodtype _ -> keyword "Module Type" ++ spc () ++ name
     | SFBrules _ -> keyword "Rewrite Rule" ++ spc () ++ name (* TODO: correct? *)
     | SFBconst cb ->
-       let ctx = Declareops.constant_polymorphic_context cb in
-      (match cb.const_body with
-        | Def _ -> def "Definition" ++ spc ()
-        | OpaqueDef _ when is_impl -> def "Theorem" ++ spc ()
-        | _ -> def "Parameter" ++ spc ()) ++ name ++
-      (match extent with
-         | OnlyNames -> mt ()
-         | WithContents ->
-            let bl = Printer.universe_binders_with_opt_names ctx None in
-            let sigma = Evd.from_ctx (UState.of_names bl) in
-            str " :" ++ spc () ++
-            hov 0 (Printer.pr_ltype_env env sigma cb.const_type) ++
-            (match cb.const_body with
-              | Def l when is_impl ->
-                spc () ++
-                hov 2 (str ":= " ++
-                       Printer.pr_lconstr_env env sigma l)
-              | _ -> mt ()) ++ str "." ++
-            Printer.pr_abstract_universe_ctx sigma ctx)
+      let auctx = Declareops.constant_polymorphic_context cb in
+      begin match cb.const_body with
+      | Def _ -> def "Definition" ++ spc ()
+      | OpaqueDef _ when is_impl -> def "Theorem" ++ spc ()
+      | _ -> def "Parameter" ++ spc ()
+      end ++ name ++
+      begin match extent with
+      | OnlyNames -> mt ()
+      | WithContents ->
+        let auctx = Printer.fill_names auctx in
+        let sigma = Evd.from_auctx env auctx in
+        str " :" ++ spc () ++
+        hov 0 (Printer.pr_ltype_env env sigma cb.const_type) ++
+        (match cb.const_body with
+          | Def l when is_impl ->
+            spc () ++
+            hov 2 (str ":= " ++
+                    Printer.pr_lconstr_env env sigma l)
+          | _ -> mt ()) ++ str "." ++
+        Printer.pr_abstract_universe_ctx sigma auctx
+      end
     | SFBmind mib ->
       match extent with
       | WithContents ->

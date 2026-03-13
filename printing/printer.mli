@@ -153,17 +153,15 @@ val pr_universes  : evar_map ->
   ?variance:UVars.Variance.t array -> ?priv:Univ.ContextSet.t ->
   Declarations.universes -> Pp.t
 
-(** [universe_binders_with_opt_names ref l]
+(** [fill_names ref l]
 
-    If [l] is [Some univs] return the universe binders naming the
-   bound levels of [ref] by [univs] (generating names for Anonymous).
-   May error if the lengths mismatch.
-
-    Otherwise return the bound universe names registered for [ref].
-
+    Generates names for Anonymous entries in [ref].
+    If [l] is [Some univs], use first the names in [univs],
+    then those in [ref] and finally generated names.
+    Can raise [UniverseLengthMismatch].
     Inefficient on large contexts due to name generation. *)
-val universe_binders_with_opt_names : UVars.AbstractContext.t ->
-  (GlobRef.t * UnivNames.univ_name_list) option -> UnivNames.universe_binders * UnivNames.rev_binders
+val fill_names : ?user_names:(GlobRef.t * UnivNames.univ_name_list) ->
+  UVars.AbstractContext.t -> UVars.AbstractContext.t
 
 (** Printing global references using names as short as possible *)
 

@@ -384,6 +384,8 @@ struct
 
   let names (nas, _) = nas
 
+  let constraints (_, csts) = csts
+
   let hcons ({quals = qnames; univs = unames}, cst) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in
     let hunames, unames = Hashcons.hashcons_array Names.Name.hcons unames in
@@ -406,6 +408,10 @@ struct
   let repr (names, cst as self) : UContext.t =
     let inst = Instance.abstract_instance (size self) in
     (names, (inst, cst))
+
+  let refine_names names' (names, x) =
+    let merge_names = Array.map2 Names.(fun old refined -> match refined with Anonymous -> old | Name _ -> refined) in
+    ({quals = merge_names names.quals names'.quals; univs = merge_names names.univs names'.univs}, x)
 
   let pr prq pru ?variance ctx = UContext.pr prq pru ?variance (repr ctx)
 
