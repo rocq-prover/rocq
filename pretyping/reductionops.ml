@@ -1237,11 +1237,8 @@ let _ = CErrors.register_handler (function
     | _ -> None)
 
 let report_anomaly (e, info) =
-  let e =
-    if is_sync_anomaly e then AnomalyInConversion e
-    else e
-  in
-  Exninfo.iraise (e, info)
+  if is_sync_anomaly e then ()
+  else Exninfo.iraise (e, info)
 
 module CheckUnivs =
 struct
@@ -1301,7 +1298,8 @@ let is_fconv ?(reds=TransparentState.full) pb env sigma t1 t2 =
     with
     | e ->
       let e = Exninfo.capture e in
-      report_anomaly e
+      report_anomaly e;
+      false
 
 let is_conv ?(reds=TransparentState.full) env sigma x y =
   is_fconv ~reds Conversion.CONV env sigma x y
@@ -1330,7 +1328,8 @@ let is_conv_nounivs ?(reds=TransparentState.full) env sigma t1 t2 =
     with
     | e ->
       let e = Exninfo.capture e in
-      report_anomaly e
+      report_anomaly e;
+      false
 
 let sigma_compare_sorts pb s0 s1 sigma =
   match pb with
@@ -1433,7 +1432,8 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
   | QGraph.EliminationError _ when catch_incon -> None
   | e ->
     let e = Exninfo.capture e in
-    report_anomaly e
+    report_anomaly e;
+    None
 
 let infer_conv = infer_conv_gen { genconv = fun pb ~l2r sigma ->
       Conversion.generic_conv pb ~l2r ~evars:(Evd.evar_handler sigma) }
