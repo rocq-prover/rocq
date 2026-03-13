@@ -2114,10 +2114,10 @@ let check_may_eval env sigma redexp rc =
       Evarutil.j_nf_evar sigma (Retyping.get_judgment_of env sigma c)
     else
       let env = Evarutil.nf_env_evar sigma env in
-      let env = Environ.push_qualities ~rigid:false (qs, fst csts) env in (* XXX *)
-      let env = Environ.push_context_set (us, snd csts) env in
-      let c = EConstr.to_constr sigma c in
+      let env = Environ.set_qualities (Evd.elim_graph sigma) env in
+      let env = Environ.set_universes (Evd.universes sigma) env in
       let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
+      let c = EConstr.to_constr sigma c in
       (* OK to call kernel which does not support evars *)
       Environ.on_judgment EConstr.of_constr (Arguments_renaming.rename_typing env c)
   in
