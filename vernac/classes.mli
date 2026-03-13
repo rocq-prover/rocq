@@ -69,7 +69,7 @@ val declare_new_instance
   -> Vernacexpr.hint_info_expr
   -> unit
 
-val add_class : typeclass -> unit
+val add_class : ?mode:Hints.hint_mode list ->  typeclass -> unit
 
 type instance = {
   class_name : GlobRef.t;
@@ -80,7 +80,7 @@ type instance = {
 
 module Event : sig
   type t =
-    | NewClass of typeclass
+    | NewClass of (Hints.hint_mode list option * typeclass)
     | NewInstance of instance
 end
 

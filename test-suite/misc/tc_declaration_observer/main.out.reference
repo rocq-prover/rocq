@@ -1,4 +1,5 @@
 NewClass Def
+Mode : -
 NewInstance def_nat  
 NewInstance def_bool  33 
 NewInstance def_bool2  21 local

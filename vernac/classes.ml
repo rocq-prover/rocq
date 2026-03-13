@@ -130,7 +130,7 @@ let instance_input : instance -> obj =
 
 module Event = struct
   type t =
-    | NewClass of typeclass
+    | NewClass of (Hints.hint_mode list option * typeclass)
     | NewInstance of instance
 end
 
@@ -254,9 +254,9 @@ let class_input : typeclass -> obj =
       subst_function = subst_class;
     }
 
-let add_class cl =
+let add_class ?mode cl =
   Lib.add_leaf (class_input cl);
-  observe (Event.NewClass cl)
+  observe (Event.NewClass (mode, cl))
 
 let intern_info {hint_priority;hint_pattern} =
   let env = Global.env() in
