@@ -222,7 +222,7 @@ let env_for_mtb_with_def env mp me reso idl =
   let l = List.hd idl in
   let spot = function (l',SFBconst _) -> Id.equal l l' | _ -> false in
   let before = fst (List.split_when spot struc) in
-  Modops.add_structure mp before reso env
+  Environ.Internal.overwrite_structure mp before reso env
 
 let make_cst resolver mp l =
   Mod_subst.constant_of_delta_kn resolver (KerName.make mp l)
