@@ -641,6 +641,7 @@ module WfPaths :
 sig
 type t
 val lookup_subterms : env -> inductive -> t
+val lookup_mutual_subterms : env -> MutInd.t -> t array
 val inter : t -> t -> t
 val restrict : t -> wf_paths -> t
 val dest_subterm : t -> int -> int -> t
@@ -660,6 +661,10 @@ type t = recarg Atm.t
 let lookup_subterms env ind =
   let _, mip = lookup_mind_specif env ind in
   mip.mind_automaton
+
+let lookup_mutual_subterms env mind =
+  let mib = Environ.lookup_mind mind env in
+  Array.map (fun mip -> mip.mind_automaton) mib.mind_packets
 
 let meet_recarg r1 r2 = match r1, r2 with
 | Mrec _, Mrec _ ->
@@ -975,9 +980,8 @@ let get_recargs_approx ?evars env tree ind args =
     computed statically. This is fine because nested inductive types with
     mutually recursive containers are not supported. *)
     let trees =
-      if Int.equal auxntyp 1 then [|WfPaths.dest_subterms tree|]
-      else
-        Array.init auxntyp (fun i -> WfPaths.dest_subterms (WfPaths.lookup_subterms env (mind, i)))
+      if Int.equal auxntyp 1 then [|tree|]
+      else WfPaths.lookup_mutual_subterms env mind
     in
     let mk_irecargs j mip =
       (* The nested inductive type with parameters removed *)
@@ -987,7 +991,7 @@ let get_recargs_approx ?evars env tree ind args =
          let c' = hnf_prod_applist ?evars env' c lpar' in
          (* skip non-recursive parameters *)
          let (ienv',c') = ienv_decompose_prod ?evars ienv' nonrecpar c' in
-         build_recargs_constructors ienv' trees.(j).(k) c')
+         build_recargs_constructors ienv' trees.(j) k c')
         auxlcvect
       in
       mk_paths (Mrec (RecArgInd (mind,j))) paths
@@ -1005,14 +1009,14 @@ let get_recargs_approx ?evars env tree ind args =
     let recargs = [| mk_paths (Mrec (RecArgPrim c)) [| paths |] |] in
     (Rtree.mk_rec recargs).(0)
 
-  and build_recargs_constructors ienv trees c =
+  and build_recargs_constructors ienv trees k c =
     let rec recargs_constr_rec (env,_ra_env as ienv) i lrec c =
       let x,largs = decompose_app_list (whd_all ?evars env c) in
         match kind x with
 
           | Prod (na,b,d) ->
              let () = assert (List.is_empty largs) in
-             let recarg = build_recargs ienv trees.(i) b in
+             let recarg = build_recargs ienv (WfPaths.dest_subterm trees k i) b in
              let ienv' = ienv_push_var ienv (na,b,mk_norec) in
              recargs_constr_rec ienv' (i+1) (recarg::lrec) d
           | _hd ->
