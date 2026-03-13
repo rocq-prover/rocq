@@ -165,6 +165,8 @@ let extract_monomorphic = function
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
+    (* Prevents the nested call to generate the now reserved [name] *)
+    let sigma = Evd.avoid_side_effect_label name sigma in
     try build_constant_by_tactic ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
     with Logic_monad.TacticFailure e as src ->
     (* if the tactic [tac] fails, it reports a [TacticFailure e],

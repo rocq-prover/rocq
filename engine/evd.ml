@@ -1290,6 +1290,11 @@ let push_side_effects ?role ?ts name de ctx effs =
   } in
   kn, effs
 
+let avoid_side_effect_label id sigma =
+  let eff = sigma.effects in
+  let eff = { eff with seff_labels = Id.Set.add id eff.seff_labels } in
+  { sigma with effects = eff }
+
 let seff_mem_label id effs =
   Id.Set.mem id effs.seff_labels
 
