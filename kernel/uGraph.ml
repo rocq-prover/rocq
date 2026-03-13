@@ -208,21 +208,6 @@ let constraints_for ~kept g =
   let add cst accu = UnivConstraints.add cst accu in
   G.constraints_for ~kept g.graph add UnivConstraints.empty
 
-(** Subtyping of polymorphic contexts *)
-
-let check_subtype univs ctxT ctx =
-  (* NB: size check is the only constraint on qualities *)
-  if eq_sizes (AbstractContext.size ctxT) (AbstractContext.size ctx) then
-    let uctx = AbstractContext.repr ctx in
-    let inst = UContext.instance uctx in
-    let cst = UContext.univ_constraints uctx in
-    let cstT = UContext.univ_constraints (AbstractContext.repr ctxT) in
-    let push accu v = add_universe v ~strict:false accu in
-    let univs = Array.fold_left push univs (snd (Instance.to_array inst)) in
-    let univs = merge_constraints cstT univs in
-    check_constraints cst univs
-  else false
-
 (** Instances *)
 
 let check_eq_instances qeq univs t1 t2 =

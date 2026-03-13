@@ -408,6 +408,19 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: see issue
 - risk: moderate, requires uncommon features
 
+#### Subtyping ignored elimination constraints
+
+- component: modules, sort polymorphism
+- introduced: V9.2+rc1
+- impacted released versions: none
+- impacted coqchk versions: none
+- fixed in: V9.2.0
+- found by: Yann Leray
+- GH issue number: rocq-prover/rocq#21750
+- exploit: see issue
+- risk: high when combining module subyping with sort polymorphism
+  (but not possible in non-rc version)
+
 ### Universes
 
 #### issue with two parameters in the same universe level
