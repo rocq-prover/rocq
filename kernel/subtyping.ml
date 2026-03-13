@@ -95,11 +95,33 @@ let check_conv_error error why state poly pb env a1 a2 =
   | Result.Error (Some (Univ e)) -> error (IncompatibleUniverses { err = e; env; t1 = a1; t2 = a2 })
   | Result.Error (Some (Qual e)) -> error (IncompatibleQualities { err = e; env; t1 = a1; t2 = a2 })
 
+(** Subtyping of polymorphic contexts *)
+
+let check_polymorphic_universes env ctxT ctx =
+  if not @@ eq_sizes (AbstractContext.size ctxT) (AbstractContext.size ctx) then false
+  else
+    let uctx = AbstractContext.repr ctx in
+    let inst = UContext.instance uctx in
+    let cst = UContext.univ_constraints uctx in
+    let cstT = UContext.univ_constraints (AbstractContext.repr ctxT) in
+    let qs, us = Instance.to_array inst in
+    let push accu v = UGraph.add_universe v ~strict:false accu in
+    let univs = Array.fold_left push (Environ.universes env) us in
+    let univs = UGraph.merge_constraints cstT univs in
+    if not @@ UGraph.check_constraints cst univs then false
+    else
+      let qcst = UContext.elim_constraints uctx in
+      let qcstT = UContext.elim_constraints (AbstractContext.repr ctxT) in
+      let push acc q = QGraph.add_quality q acc in
+      let qgraph = Array.fold_left push (Environ.qualities env) qs in
+      let qgraph = QGraph.merge_constraints qcstT qgraph in
+      QGraph.check_constraints qcst qgraph
+
 let check_universes error env u1 u2 =
   match u1, u2 with
   | Monomorphic, Monomorphic -> env
   | Polymorphic auctx1, Polymorphic auctx2 ->
-    if not (UGraph.check_subtype (Environ.universes env) auctx2 auctx1) then
+    if not (check_polymorphic_universes env auctx2 auctx1) then
       error (IncompatibleUnivConstraints { got = auctx1; expect = auctx2; } )
     else
       let () = Environ.check_ucontext (UVars.AbstractContext.repr auctx2) env in

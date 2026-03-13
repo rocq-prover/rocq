@@ -105,10 +105,6 @@ val constraints_for : kept:Level.Set.t -> t -> UnivConstraints.t
 val domain : t -> Level.Set.t
 (** Known universes *)
 
-val check_subtype : AbstractContext.t check_function
-(** [check_subtype univ ctx1 ctx2] checks whether [ctx2] is an instance of
-    [ctx1]. *)
-
 (** {6 Dumping} *)
 
 type node =
