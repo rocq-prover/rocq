@@ -136,6 +136,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Ltac2/FMap.v
     theories/Ltac2/FSet.v
     theories/Ltac2/Fresh.v
+    theories/Ltac2/Hints.v
     theories/Ltac2/Ident.v
     theories/Ltac2/Ind.v
     theories/Ltac2/Init.v
