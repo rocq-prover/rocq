@@ -34,7 +34,10 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [module subtyping disrespected squashing status of inductives](#module-subtyping-disrespected-squashing-status-of-inductives)
       - [Functor inlining drops universe substitution](#functor-inlining-drops-universe-substitution)
       - [Primitives are incorrectly considered convertible to anything by module subtyping](#primitives-are-incorrectly-considered-convertible-to-anything-by-module-subtyping)
-      - [missing substitution when strengthening functors](#missing-substitution-when-strengthening-functors)
+      - [Missing substitution when strengthening functors](#missing-substitution-when-strengthening-functors)
+      - [Missing substitution when strengthening aliased functors](#missing-substitution-when-strengthening-aliased-functors)
+      - [Incorrect subtyping rule for universe polymorphic "with Definition".](#incorrect-subtyping-rule-for-universe-polymorphic-with-definition)
+      - [Subtyping ignored elimination constraints](#subtyping-ignored-elimination-constraints)
     - [Universes](#universes)
       - [issue with two parameters in the same universe level](#issue-with-two-parameters-in-the-same-universe-level)
       - [universe polymorphism can capture global universes](#universe-polymorphism-can-capture-global-universes)
@@ -43,11 +46,11 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [universe constraints erroneously discarded when forcing an asynchronous proof containing delayed monomorphic constraints inside a universe polymorphic section](#universe-constraints-erroneously-discarded-when-forcing-an-asynchronous-proof-containing-delayed-monomorphic-constraints-inside-a-universe-polymorphic-section)
       - [Set+2 incorrectly simplified to Set+1](#set2-incorrectly-simplified-to-set1)
       - [variance inference for section universes ignored use of section universes in inductives and axioms defined before the inductive being inferred](#variance-inference-for-section-universes-ignored-use-of-section-universes-in-inductives-and-axioms-defined-before-the-inductive-being-inferred)
-      - [Missing substitution for relevance of product domain in lazy](#Missing-substitution-for-relevance-of-product-domain-in-lazy)
-      - [Missing stack conversion for irrelevant-to-relevant match](#Missing-stack-conversion-for-irrelevant-to-relevant-match)
-      - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort ](#Incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
-      - [Missing universe substitution in primitive array instance in lazy](#Missing-universe-substitution-in-primitive-array-instance-in-lazy)
-      - [double universe substitution in letins from indices in match return clause](#Double-universe-substitution-in-letins-from-indices-in-match-return-clause)
+      - [Missing substitution for relevance of product domain in lazy](#missing-substitution-for-relevance-of-product-domain-in-lazy)
+      - [Missing stack conversion for irrelevant-to-relevant match](#missing-stack-conversion-for-irrelevant-to-relevant-match)
+      - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort](#incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
+      - [Missing universe substitution in primitive array instance in lazy](#missing-universe-substitution-in-primitive-array-instance-in-lazy)
+      - [Double universe substitution in letins from indices in match return clause](#double-universe-substitution-in-letins-from-indices-in-match-return-clause)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -72,9 +75,10 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [conversion would compare the mutated version of primitive arrays instead of undoing mutation where needed](#conversion-would-compare-the-mutated-version-of-primitive-arrays-instead-of-undoing-mutation-where-needed)
       - [tactic code could mutate a global cache of values for section variables](#tactic-code-could-mutate-a-global-cache-of-values-for-section-variables)
       - [incorrect handling of universe polymorphism](#incorrect-handling-of-universe-polymorphism)
-      - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#Forgotten-universe-substitution-with-Register-Inline-on-universe-polymorphic-definition)
+      - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#forgotten-universe-substitution-with-register-inline-on-universe-polymorphic-definition)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
+      - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
     - [Forgetting unsafe flags](#forgetting-unsafe-flags)
       - [unsafe typing flags used inside a section would not be reported by Print Assumptions after closing the section](#unsafe-typing-flags-used-inside-a-section-would-not-be-reported-by-print-assumptions-after-closing-the-section)
     - [Conflicts with axioms in library](#conflicts-with-axioms-in-library)
@@ -84,7 +88,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Incorrect specification of PrimFloat.leb](#incorrect-specification-of-primfloatleb)
       - [Incorrect implementation of SFclassify.](#incorrect-implementation-of-sfclassify)
       - [nativenorm reading back closures as arbitrary floating-point values](#nativenorm-reading-back-closures-as-arbitrary-floating-point-values)
-      - [guard condition issue made it inconsistent with univalence](#guard-condition-issue-made-it-inconsistent-with-univalence)
+      - [guard condition issue made it inconsistent with propositional extensionality in library Sets](#guard-condition-issue-made-it-inconsistent-with-propositional-extensionality-in-library-sets)
     - [Deserialization](#deserialization)
       - [deserialization of .vo data not properly checked](#deserialization-of-vo-data-not-properly-checked)
   - [Probably non exploitable fixed bugs](#probably-non-exploitable-fixed-bugs)
@@ -407,6 +411,19 @@ and lack of checking of relevance marks on constants in coqchk
 - GH issue number: rocq-prover/rocq#21702
 - exploit: see issue
 - risk: moderate, requires uncommon features
+
+#### Subtyping ignored elimination constraints
+
+- component: modules, sort polymorphism
+- introduced: V9.2+rc1
+- impacted released versions: none
+- impacted coqchk versions: none
+- fixed in: V9.2.0
+- found by: Yann Leray
+- GH issue number: rocq-prover/rocq#21750
+- exploit: see issue
+- risk: high when combining module subyping with sort polymorphism
+  (but not possible in non-rc version)
 
 ### Universes
 
