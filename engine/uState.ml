@@ -163,7 +163,11 @@ let set q qv m =
   let q = repr_node q m in
   let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ -> assert false in
   let qv = match qv with QVar qv -> repr_node qv m | QConstant qc -> ReprConstant qc in
-  let enforce_eq q1 q2 g = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
+  let enforce_eq q1 q2 g =
+    let ans = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
+    let () = QGraph.check_rigid_paths ans in
+    ans
+  in
   match qv with
   | ReprVar (qv, _qvrigd) ->
     if QVar.equal q qv then Some m
