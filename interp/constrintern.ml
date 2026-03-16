@@ -3178,7 +3178,7 @@ let interp_elim_constraint evd (q1,k,q2) =
 let interp_elim_constraints env evd cstrs =
   let interp (evd,cstrs) cstr =
     let cstr = interp_elim_constraint evd cstr in
-    try let evd = Evd.add_poly_constraints ~src:UState.Rigid evd @@
+    try let evd = Evd.add_poly_constraints ~src:UState.Internal evd @@
                     PConstraints.of_qualities (Sorts.ElimConstraints.singleton cstr) in
         evd, Sorts.ElimConstraints.add cstr cstrs
     with QGraph.EliminationError e as exn ->
