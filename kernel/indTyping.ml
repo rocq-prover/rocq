@@ -113,7 +113,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
   let indu = info.ind_univ in
 
   if not @@ UGraph.check_leq (universes env) (Sorts.univ_of_sort u) (Sorts.univ_of_sort indu) then
-    if Sorts.Quality.is_impredicative (Sorts.quality indu) then add_squash (Sorts.quality u) info
+    if Environ.is_impredicative_sort env indu then add_squash (Sorts.quality u) info
     else { info with missing = u :: info.missing }
   else if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
     info
