@@ -213,7 +213,7 @@ let declare_one_case_analysis_scheme ?loc ind =
       Some Names.(Id.of_string (Id.to_string mip.mind_typename ^ "_" ^ suff))
   in
   let kelim = Inductiveops.elim_sort (mib,mip) in
-  if Inductive.raw_eliminates_to kelim Sorts.Quality.qtype then
+  if Inductive.raw_eliminates_to (UnivGen.QualityOrSet.quality kelim) Sorts.Quality.qtype then
     define_individual_scheme ?loc dep id ind
 
 (* Induction/recursion schemes *)

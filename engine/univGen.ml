@@ -29,10 +29,13 @@ module QualityOrSet = struct
     | Set, Qual _ -> -1
 
   let eliminates_to a b =
-    let to_qual = function
-      | Set -> Quality.qtype
-      | Qual q -> q
-    in Inductive.raw_eliminates_to (to_qual a) (to_qual b)
+    match a, b with
+    | Set, Qual (QConstant QType) -> false
+    | _ ->
+      let to_qual = function
+        | Set -> Quality.qtype
+        | Qual q -> q
+      in Inductive.raw_eliminates_to (to_qual a) (to_qual b)
 
   let of_quality q = Qual q
   let of_sort s = match s with

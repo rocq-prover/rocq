@@ -24,6 +24,7 @@ module QualityOrSet : sig
   val quality : t -> Sorts.Quality.t
 
   val eliminates_to : t -> t -> bool
+  (** Set is not considered to eliminate to Type by this function *)
 
   val set : t
 
