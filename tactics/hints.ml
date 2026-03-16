@@ -769,8 +769,6 @@ struct
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
 
   let remove env st grs se =
-    let fold accu gr = GlobRef.Set_env.add (Environ.QGlobRef.canonize env gr) accu in
-    let grs = List.fold_left fold GlobRef.Set_env.empty grs in
     let nopat = StoredData.remove env grs se.sentry_nopat in
     let pat = StoredData.remove env grs se.sentry_pat in
     if pat == se.sentry_pat && nopat == se.sentry_nopat then se
@@ -779,9 +777,10 @@ struct
       rebuild_dn st se
 
   let remove_list env grs db =
-    let eq gr1 gr2 = QGlobRef.equal env gr1 gr2 in
+    let fold accu gr = GlobRef.Set_env.add (Environ.QGlobRef.canonize env gr) accu in
+    let grs = List.fold_left fold GlobRef.Set_env.empty grs in
     let filter (_, h) =
-      match h.name with Some gr -> not (List.mem_f eq gr grs) | None -> true in
+      match h.name with Some gr -> not (GlobRef.Set_env.mem gr grs) | None -> true in
     let hintmap = GlobRef.Map.map (fun e -> remove env (dn_ts db) grs e) db.hintdb_map in
     let hintnopat = List.filter filter db.hintdb_nopat in
       { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
