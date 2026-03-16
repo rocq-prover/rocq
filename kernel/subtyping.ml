@@ -100,22 +100,12 @@ let check_conv_error error why state poly pb env a1 a2 =
 let check_polymorphic_universes env ctxT ctx =
   if not @@ eq_sizes (AbstractContext.size ctxT) (AbstractContext.size ctx) then false
   else
-    let uctx = AbstractContext.repr ctx in
-    let inst = UContext.instance uctx in
-    let cst = UContext.univ_constraints uctx in
-    let cstT = UContext.univ_constraints (AbstractContext.repr ctxT) in
-    let qs, us = Instance.to_array inst in
-    let push accu v = UGraph.add_universe v ~strict:false accu in
-    let univs = Array.fold_left push (Environ.universes env) us in
-    let univs = UGraph.merge_constraints cstT univs in
-    if not @@ UGraph.check_constraints cst univs then false
-    else
-      let qcst = UContext.elim_constraints uctx in
-      let qcstT = UContext.elim_constraints (AbstractContext.repr ctxT) in
-      let push acc q = QGraph.add_quality q acc in
-      let qgraph = Array.fold_left push (Environ.qualities env) qs in
-      let qgraph = QGraph.merge_constraints qcstT qgraph in
-      QGraph.check_constraints qcst qgraph
+    let uctxT = AbstractContext.repr ctxT in
+    let () = Environ.check_ucontext uctxT env in
+    let env = Environ.push_context ~strict:false uctxT env in
+    let qcst, ucst = UContext.constraints (AbstractContext.repr ctx) in
+    UGraph.check_constraints ucst (Environ.universes env) &&
+    QGraph.check_constraints qcst (Environ.qualities env)
 
 let check_universes error env u1 u2 =
   match u1, u2 with
