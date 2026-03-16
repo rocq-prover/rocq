@@ -82,12 +82,18 @@ type univ_info =
   }
 
 let add_squash q info =
-  match info.ind_squashed with
-  | None -> { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.singleton q)) }
-  | Some AlwaysSquashed -> info
-  | Some (SometimesSquashed qs) ->
-    (* XXX dedup insertion *)
-    { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
+  match q, Sorts.quality info.ind_univ with
+  | Sorts.Quality.QVar _, _ | _, QVar _ ->
+    begin match info.ind_squashed with
+    | None -> { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.singleton q)) }
+    | Some AlwaysSquashed -> info
+    | Some (SometimesSquashed qs) ->
+      (* XXX dedup insertion *)
+      { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
+    end
+  | _ ->
+    (* no qvar involved: no instantiation can resolve this constraint *)
+    { info with ind_squashed = Some AlwaysSquashed }
 
 let compute_elim_squash ?(is_real_arg=false) env u info =
   let open Sorts.Quality in
@@ -104,38 +110,18 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
         | Prop | Set | Type _ -> { info with record_arg_info = HasRelevantArg }
   in
   if Environ.ignore_elim_constraints env then info else
-  let indu = info.ind_univ
-  and check_univ_consistency f induu uu =
-    if UGraph.check_leq (universes env) uu induu
-    then f info
-    else { info with missing = u :: info.missing } in
-  if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
-        if Sorts.Quality.is_impredicative (Sorts.quality indu)
-        then
-          match u with
-          | Type _ | Set -> { info with ind_squashed = Some AlwaysSquashed }
-          | QSort (q, _) -> add_squash (Sorts.Quality.QVar q) info
-          | SProp | Prop -> info
-        else check_univ_consistency (fun x -> x)
-                (Sorts.univ_of_sort indu)
-                (Sorts.univ_of_sort u)
-  else
-    let check_univ_consistency_squash quality =
-      check_univ_consistency (add_squash quality) in
-    match indu, u with
-    | QSort (_, indu), Type uu ->
-        check_univ_consistency_squash qtype indu uu
-    | QSort (_, indu), QSort (cq, uu) ->
-        check_univ_consistency_squash (QVar cq) indu uu
-    | QSort (q, indu), Set ->
-        if Environ.Internal.is_above_prop env q then info
-        else check_univ_consistency_squash qtype indu Universe.type0
-    | (SProp | Prop), QSort (q, _) ->
-        add_squash (QVar q) info
-    | QSort (q, _), (SProp | Prop) ->
-        if Environ.Internal.is_above_prop env q then info
-        else add_squash (Sorts.quality u) info
-    | _, _ -> { info with ind_squashed = Some AlwaysSquashed }
+  let indu = info.ind_univ in
+
+  if not @@ UGraph.check_leq (universes env) (Sorts.univ_of_sort u) (Sorts.univ_of_sort indu) then
+    if Sorts.Quality.is_impredicative (Sorts.quality indu) then add_squash (Sorts.quality u) info
+    else { info with missing = u :: info.missing }
+  else if Inductive.eliminates_to (Environ.qualities env) (Sorts.quality indu) (Sorts.quality u) then
+    info
+  else match indu, u with
+    (* XXX add a constraint q -> Prop in push_template_context,
+       then we don't need this above_prop test *)
+    | QSort (q, _), (SProp | Prop) when Environ.Internal.is_above_prop env q -> info
+    | _ -> add_squash (Sorts.quality u) info
 
 let check_context_univs ~ctor env info ctx =
   let check_one d (info,env) =
