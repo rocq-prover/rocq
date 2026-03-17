@@ -625,6 +625,16 @@ let variance_of_entry ~cumulative ~variances uctx =
       assert (lvs <= lus);
       Some (Array.append variances (Array.make (lus - lvs) None))
 
+let sort_variance_of_entry ~sort_cumulative uctx =
+  match uctx with
+  | Monomorphic_ind_entry | Template_ind_entry _ -> None
+  | Polymorphic_ind_entry uctx ->
+    if not sort_cumulative then None
+    else
+      let lqs, _ = UVars.UContext.size uctx in
+      if lqs = 0 then None
+      else Some (Array.make lqs None)
+
 let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
   let {
     poly;
@@ -671,6 +681,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       indnames arities constructors
   in
   let variance = variance_of_entry ~cumulative:(PolyFlags.cumulative poly) ~variances univ_entry in
+  let sort_variance = sort_variance_of_entry ~sort_cumulative:(PolyFlags.sort_cumulative poly) univ_entry in
   (* Build the mutual inductive entry *)
   let mind_ent =
     { mind_entry_params = ctx_params;
@@ -680,6 +691,7 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       mind_entry_private = if private_ind then Some false else None;
       mind_entry_universes = univ_entry;
       mind_entry_variance = variance;
+      mind_entry_sort_variance = sort_variance;
     }
   in
   default_dep_elim, mind_ent, ubinders, global_univs

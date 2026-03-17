@@ -106,6 +106,67 @@ end = struct
 end
 open Inf
 
+(** Sort variance inference for quality variables *)
+module SortInf : sig
+  type sort_variances
+  val infer_quality_eq : Sorts.QVar.t -> sort_variances -> sort_variances
+  val infer_quality_leq : Sorts.QVar.t -> sort_variances -> sort_variances
+  val start : (Sorts.QVar.t * Variance.t option) array -> sort_variances
+  val finish : sort_variances -> Variance.t array
+end = struct
+  type inferred = IrrelevantI | CovariantI
+  type mode = Check | Infer
+
+  type sort_variances = {
+    orig_array : (Sorts.QVar.t * Variance.t option) array;
+    qvars : (mode * inferred) Sorts.QVar.Map.t;
+  }
+
+  let to_variance = function
+    | IrrelevantI -> Irrelevant
+    | CovariantI -> Covariant
+
+  let to_variance_opt o = Option.cata to_variance Invariant o
+
+  let infer_quality_eq q (sv : sort_variances) =
+    match Sorts.QVar.Map.find_opt q sv.qvars with
+    | None -> sv
+    | Some (Check, expected) ->
+      let expected = to_variance expected in
+      raise (BadVariance (Level.var 0, expected, Invariant)) (* reuse exception; the level is a dummy *)
+    | Some (Infer, _) ->
+      let qvars = Sorts.QVar.Map.remove q sv.qvars in
+      {sv with qvars}
+
+  let infer_quality_leq q sv =
+    let qvars =
+      Sorts.QVar.Map.update q (function
+        | None -> None
+        | Some (_, CovariantI) as x -> x
+        | Some (Infer, IrrelevantI) -> Some (Infer, CovariantI)
+        | Some (Check, IrrelevantI) ->
+          raise (BadVariance (Level.var 0, Irrelevant, Covariant)))
+        sv.qvars
+    in
+    if qvars == sv.qvars then sv else {sv with qvars}
+
+  let start qs =
+    let qvars = Array.fold_left (fun qvars (q, variance) ->
+        match variance with
+        | None -> Sorts.QVar.Map.add q (Infer, IrrelevantI) qvars
+        | Some Invariant -> qvars
+        | Some Covariant -> Sorts.QVar.Map.add q (Check, CovariantI) qvars
+        | Some Irrelevant -> Sorts.QVar.Map.add q (Check, IrrelevantI) qvars)
+        Sorts.QVar.Map.empty qs
+    in
+    {qvars; orig_array = qs}
+
+  let finish (sv : sort_variances) =
+    Array.map
+      (fun (q, _check) -> to_variance_opt (Option.map snd (Sorts.QVar.Map.find_opt q sv.qvars)))
+      sv.orig_array
+end
+
 let infer_generic_instance_eq variances u =
   Array.fold_left (fun variances u -> infer_level_eq u variances)
     variances
@@ -331,3 +392,96 @@ let infer_inductive ~env_params ~env_ar_par ~arities ~ctors univs =
   | TrivialVariance -> Array.make (Array.length univs) Invariant
   | BadVariance (lev, expected, actual) ->
     Type_errors.error_bad_variance env_params ~lev ~expected ~actual
+
+(** Infer sort (quality) variance by walking arities and constructors.
+    Quality variables that appear in CONV positions become Invariant,
+    those only in CUMUL positions become Covariant, otherwise Irrelevant.
+
+    We reuse the same infrastructure as universe variance inference:
+    walk terms with CClosure, and when we encounter a Sort, extract its
+    quality variable. *)
+
+let infer_sort_quality_of_sort cv_pb sv s =
+  let q = Sorts.quality s in
+  match q with
+  | Sorts.Quality.QVar qv ->
+    begin match cv_pb with
+    | CONV -> SortInf.infer_quality_eq qv sv
+    | CUMUL -> SortInf.infer_quality_leq qv sv
+    end
+  | Sorts.Quality.QConstant _ -> sv
+
+(** Collect all sorts occurring in a term and infer quality variance.
+    We walk the term structure similarly to infer_arity_constructor. *)
+let rec collect_sorts_in_constr cv_pb env sv c =
+  let open Constr in
+  match kind c with
+  | Sort s -> infer_sort_quality_of_sort cv_pb sv s
+  | Prod (_, a, b) ->
+    let sv = collect_sorts_in_constr CONV env sv a in
+    collect_sorts_in_constr cv_pb env sv b
+  | Lambda (_, a, b) ->
+    let sv = collect_sorts_in_constr CONV env sv a in
+    collect_sorts_in_constr CONV env sv b
+  | LetIn (_, b, t, c) ->
+    let sv = collect_sorts_in_constr CONV env sv b in
+    let sv = collect_sorts_in_constr CONV env sv t in
+    collect_sorts_in_constr cv_pb env sv c
+  | App (f, args) ->
+    let sv = collect_sorts_in_constr CONV env sv f in
+    Array.fold_left (fun sv arg -> collect_sorts_in_constr CONV env sv arg) sv args
+  | Ind (_, u) | Const (_, u) ->
+    let qs, _ = UVars.Instance.to_array u in
+    Array.fold_left (fun sv q ->
+      match q with
+      | Sorts.Quality.QVar qv -> SortInf.infer_quality_eq qv sv
+      | _ -> sv) sv qs
+  | Construct (_, u) ->
+    let qs, _ = UVars.Instance.to_array u in
+    Array.fold_left (fun sv q ->
+      match q with
+      | Sorts.Quality.QVar qv -> SortInf.infer_quality_eq qv sv
+      | _ -> sv) sv qs
+  | Case (_, u, _, _, _, _, _) ->
+    let qs, _ = UVars.Instance.to_array u in
+    Array.fold_left (fun sv q ->
+      match q with
+      | Sorts.Quality.QVar qv -> SortInf.infer_quality_eq qv sv
+      | _ -> sv) sv qs
+  | Fix (_, (_, tys, bds)) | CoFix (_, (_, tys, bds)) ->
+    let sv = Array.fold_left (fun sv t -> collect_sorts_in_constr CONV env sv t) sv tys in
+    Array.fold_left (fun sv b -> collect_sorts_in_constr CONV env sv b) sv bds
+  | Cast (c, _, t) ->
+    let sv = collect_sorts_in_constr cv_pb env sv c in
+    collect_sorts_in_constr CONV env sv t
+  | _ -> sv
+
+let infer_sort_arity_constructor is_arity env sv arcn =
+  let typs, codom = Reduction.whd_decompose_prod env arcn in
+  let sv = Context.Rel.fold_outside (fun typ sv ->
+    match typ with
+    | Context.Rel.Declaration.LocalAssum (_, t) -> collect_sorts_in_constr CONV env sv t
+    | Context.Rel.Declaration.LocalDef (_, b, t) ->
+      let sv = collect_sorts_in_constr CONV env sv b in
+      collect_sorts_in_constr CONV env sv t
+  ) typs ~init:sv in
+  if not is_arity then collect_sorts_in_constr CUMUL env sv codom
+  else sv
+
+let infer_sort_variance_core ~env_params ~env_ar_par ~arities ~ctors qvars =
+  let sv = SortInf.start qvars in
+  let sv = List.fold_left (fun sv arity ->
+      infer_sort_arity_constructor true env_params sv arity)
+      sv arities
+  in
+  let sv = List.fold_left
+      (List.fold_left (infer_sort_arity_constructor false env_ar_par))
+      sv ctors
+  in
+  SortInf.finish sv
+
+let infer_sort_variance ~env_params ~env_ar_par ~arities ~ctors qvars =
+  try infer_sort_variance_core ~env_params ~env_ar_par ~arities ~ctors qvars
+  with BadVariance (_lev, _expected, _actual) ->
+    (* If sort variance checking fails, default to all Invariant *)
+    Array.make (Array.length qvars) Invariant

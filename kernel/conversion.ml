@@ -192,6 +192,7 @@ let convert_inductives_gen cmp_instances cmp_cumul cv_pb (mind,ind) nargs u1 u2 
       (* shortcut, not sure if worth doing, could use perf data *)
       if UVars.Instance.equal u1 u2 then Result.Ok s else raise MustExpand
     else
+      let u1, u2 = UVars.normalize_sort_cumul_instances mind.Declarations.mind_sort_variance u1 u2 in
       cmp_cumul cv_pb variances u1 u2 s
 
 type 'e conv_tab = {
@@ -227,7 +228,7 @@ let convert_constructors_gen cmp_instances cmp_cumul (mind, ind, cns) nargs u1 u
     else
       (** By invariant, both constructors have a common supertype,
           so they are convertible _at that type_. *)
-      (* NB: no variance for qualities *)
+      let u1, u2 = UVars.normalize_sort_cumul_instances mind.Declarations.mind_sort_variance u1 u2 in
       let variance = Array.make (snd (UVars.Instance.length u1)) UVars.Variance.Irrelevant in
       cmp_cumul CONV variance u1 u2 s
 

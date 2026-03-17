@@ -427,7 +427,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
   let rhs_loc = rhs.CAst.loc in
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
-  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables in
+  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~sort_cumulative:false ~collapse_sort_variables in
   let flags = { Pretyping.no_classes_no_fail_inference_flags with
     undeclared_evars_rr = true; expand_evars = false;
     solve_unification_constraints = false; poly } in

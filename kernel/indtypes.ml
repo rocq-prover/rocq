@@ -494,7 +494,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
   Array.of_list (List.rev rs),
   Array.of_list (List.rev pbs)
 
-let build_inductive env ~sec_univs names prv univs template variance
+let build_inductive env ~sec_univs names prv univs template variance sort_variance
     paramsctxt kn isrecord isfinite inds nmr recargs not_prim_or_has_eta =
   let ntypes = Array.length inds in
   (* Compute the set of used section variables *)
@@ -579,6 +579,15 @@ let build_inductive env ~sec_univs names prv univs template variance
         Some (Array.sub variance nsecu (Array.length variance - nsecu)),
         Some (Array.sub variance 0 nsecu)
   in
+  let sort_variance, sec_sort_variance = match sort_variance with
+    | None -> None, None
+    | Some sort_variance -> match sec_univs with
+      | None -> Some sort_variance, None
+      | Some sec_univs ->
+        let nsecq, _nsecu = UVars.Instance.length sec_univs in
+        Some (Array.sub sort_variance nsecq (Array.length sort_variance - nsecq)),
+        Some (Array.sub sort_variance 0 nsecq)
+  in
   let univ_hyps = match sec_univs with
     | None -> UVars.Instance.empty
     | Some univs -> univs
@@ -595,6 +604,8 @@ let build_inductive env ~sec_univs names prv univs template variance
     mind_template = template;
     mind_variance = variance;
     mind_sec_variance = sec_variance;
+    mind_sort_variance = sort_variance;
+    mind_sec_sort_variance = sec_sort_variance;
     mind_private = prv;
     mind_typing_flags = Environ.typing_flags env;
   }
@@ -604,7 +615,7 @@ let build_inductive env ~sec_univs names prv univs template variance
 
 let check_inductive env ~sec_univs kn mie =
   (* First type-check the inductive definition *)
-  let (env_ar_par, univs, template, variance, record, not_prim_reason_or_has_eta, paramsctxt, inds) =
+  let (env_ar_par, univs, template, variance, sort_variance, record, not_prim_reason_or_has_eta, paramsctxt, inds) =
     IndTyping.typecheck_inductive env ~sec_univs mie
   in
   (* Then check positivity conditions *)
@@ -618,7 +629,7 @@ let check_inductive env ~sec_univs kn mie =
   in
   (* Build the inductive packets *)
   let mib =
-    build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
+    build_inductive env ~sec_univs names mie.mind_entry_private univs template variance sort_variance
       paramsctxt kn record mie.mind_entry_finite
       inds nmr recargs not_prim_reason_or_has_eta
   in

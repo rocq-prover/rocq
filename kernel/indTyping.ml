@@ -586,6 +586,8 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
         data, Some None, Some reason (* back to FakeRecord with a reason why *)
   in
 
+  let arities_for_variance = List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds in
+  let ctors_for_variance = List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds in
   let variance = match mie.mind_entry_variance with
     | None -> None
     | Some variances ->
@@ -605,11 +607,39 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
             Array.append sec_univs univs
         in
         let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
-            ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
-            ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
+            ~arities:arities_for_variance
+            ~ctors:ctors_for_variance
             univs
         in
         Some variances
+  in
+  let sort_variance = match mie.mind_entry_sort_variance with
+    | None -> None
+    | Some sort_variances ->
+      match mie.mind_entry_universes with
+      | Monomorphic_ind_entry | Template_ind_entry _ ->
+        CErrors.user_err Pp.(str "Inductive cannot be both monomorphic and sort cumulative.")
+      | Polymorphic_ind_entry uctx ->
+        let qualities, _univs = Instance.to_array @@ UContext.instance uctx in
+        let qvars = Array.map (fun q -> match q with
+          | Sorts.Quality.QVar qv -> qv
+          | _ -> assert false) qualities in
+        let qvars = Array.map2 (fun a b -> a,b) qvars sort_variances in
+        let qvars = match sec_univs with
+          | None -> qvars
+          | Some sec_univs ->
+            let sec_qs, _ = UVars.Instance.to_array sec_univs in
+            let sec_qvars = Array.map (fun q -> match q with
+              | Sorts.Quality.QVar qv -> qv, None
+              | _ -> assert false) sec_qs in
+            Array.append sec_qvars qvars
+        in
+        let sort_variances = InferCumulativity.infer_sort_variance ~env_params ~env_ar_par
+            ~arities:arities_for_variance
+            ~ctors:ctors_for_variance
+            qvars
+        in
+        Some sort_variances
   in
 
   (* Abstract universes *)
@@ -634,4 +664,4 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     Environ.push_rel_context ctx env
   in
 
-  env_ar_par, univs, template, variance, record, not_prim_reason_or_has_eta, params, Array.of_list data
+  env_ar_par, univs, template, variance, sort_variance, record, not_prim_reason_or_has_eta, params, Array.of_list data

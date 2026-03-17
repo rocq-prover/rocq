@@ -97,6 +97,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
       mb.mind_packets
   in
   let mind_entry_variance = Option.map (Array.map (fun v -> Some v)) mb.mind_variance in
+  let mind_entry_sort_variance = Option.map (Array.map (fun v -> Some v)) mb.mind_sort_variance in
   {
     mind_entry_record;
     mind_entry_finite = mb.mind_finite;
@@ -104,6 +105,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
     mind_entry_inds;
     mind_entry_universes;
     mind_entry_variance;
+    mind_entry_sort_variance;
     mind_entry_private = mb.mind_private;
   }
 
@@ -210,6 +212,7 @@ let check_inductive env mind mb =
   let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
+        mind_sort_variance; mind_sec_sort_variance;
         mind_private; mind_typing_flags; }
     =
     (* Locally set typing flags for further typechecking *)
@@ -236,6 +239,9 @@ let check_inductive env mind mb =
   check "mind_variance" (Option.equal (Array.equal UVars.Variance.equal)
                            mb.mind_variance mind_variance);
   check "mind_sec_variance" (Option.is_empty mind_sec_variance);
+  check "mind_sort_variance" (Option.equal (Array.equal UVars.Variance.equal)
+                           mb.mind_sort_variance mind_sort_variance);
+  check "mind_sec_sort_variance" (Option.is_empty mind_sec_sort_variance);
   ignore mind_private; (* passed through Indtypes *)
 
   ignore mind_typing_flags;

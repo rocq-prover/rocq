@@ -148,6 +148,7 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
   in
   let env = check_universes error env mib1.mind_universes mib2.mind_universes in
   let () = check_variance error mib1.mind_variance mib2.mind_variance in
+  let () = check_variance error mib1.mind_sort_variance mib2.mind_sort_variance in
   let inst = make_abstract_instance (Declareops.inductive_polymorphic_context mib1) in
   let mib2 =  Declareops.subst_mind_body subst2 mib2 in
   let check_inductive_type cst name t1 t2 =

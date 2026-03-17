@@ -225,6 +225,38 @@ let enforce_leq_variance_instances variances x y (qcs,ucs as orig) =
   let ucs' = Variance.leq_constraints variances xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
+let quality_same_component q1 q2 =
+  let open Quality in
+  match q1, q2 with
+  | QConstant Sorts.Quality.QProp, QConstant Sorts.Quality.QProp -> true
+  | QConstant Sorts.Quality.QProp, QConstant Sorts.Quality.QType -> true
+  | QConstant Sorts.Quality.QType, QConstant Sorts.Quality.QProp -> true
+  | QConstant Sorts.Quality.QType, QConstant Sorts.Quality.QType -> true
+  | QConstant Sorts.Quality.QSProp, QConstant Sorts.Quality.QSProp -> true
+  | QVar v1, QVar v2 -> Sorts.QVar.equal v1 v2
+  | _ -> false
+
+let normalize_sort_cumul_instances sort_variances u1 u2 =
+  match sort_variances with
+  | None -> u1, u2
+  | Some sv ->
+    let q1, l1 = Instance.to_array u1 and q2, l2 = Instance.to_array u2 in
+    let q1 = Array.copy q1 and q2 = Array.copy q2 in
+    let changed = ref false in
+    Array.iteri (fun i v ->
+      match v with
+      | Variance.Irrelevant | Variance.Covariant ->
+        if quality_same_component q1.(i) q2.(i) && not (Quality.equal q1.(i) q2.(i)) then begin
+          q1.(i) <- Quality.qtype;
+          q2.(i) <- Quality.qtype;
+          changed := true
+        end
+      | Variance.Invariant -> ()) sv;
+    if !changed then
+      Instance.of_array (q1, l1), Instance.of_array (q2, l2)
+    else
+      u1, u2
+
 let subst_instance_level s l =
   match Level.var_index l with
   | Some n -> (snd (Instance.to_array s)).(n)

@@ -482,6 +482,8 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
     v_opt v_template_universes;
     v_opt (v_array v_variance);
     v_opt (v_array v_variance);
+    v_opt (v_array v_variance);
+    v_opt (v_array v_variance);
     v_opt v_bool;
     v_typing_flags|]
 

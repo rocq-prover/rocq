@@ -515,6 +515,7 @@ let compare_heads pbty env evd ~nargs term term' =
           if not (is_applied nargs needed)
           then check_strict evd u u'
           else
+            let u, u' = UVars.normalize_sort_cumul_instances mind.mind_sort_variance u u' in
             compare_cumulative_instances pbty evd variances u u'
       end
   | Ind _, Ind _ -> UnifFailure (evd, NotSameHead)
@@ -531,7 +532,9 @@ let compare_heads pbty env evd ~nargs term term' =
           let needed = Conversion.constructor_cumulativity_arguments (mind,ind,ctor) in
           if not (is_applied nargs needed)
           then check_strict evd u u'
-          else compare_constructor_instances evd u u'
+          else
+            let u, u' = UVars.normalize_sort_cumul_instances mind.mind_sort_variance u u' in
+            compare_constructor_instances evd u u'
       end
   | Construct _, Construct _ -> UnifFailure (evd, NotSameHead)
   | _, _ -> assert false

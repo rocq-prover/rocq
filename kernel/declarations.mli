@@ -298,6 +298,13 @@ type mutual_inductive_body = {
        outside sections. The final variance once all sections are
        discharged is [mind_sec_variance ++ mind_variance]. *)
 
+    mind_sort_variance : UVars.Variance.t array option;
+    (** Sort/quality variance info, [None] when no sort cumulativity. *)
+
+    mind_sec_sort_variance : UVars.Variance.t array option;
+    (** Sort variance info for section polymorphic qualities. [None]
+       outside sections. *)
+
     mind_private : bool option; (** allow pattern-matching: Some true ok, Some false blocked *)
 
     mind_typing_flags : typing_flags; (** typing flags at the time of the inductive creation *)

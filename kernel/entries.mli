@@ -65,6 +65,10 @@ type mutual_inductive_entry = {
   (* [None] if non-cumulative, otherwise associates each universe of
      the entry to [None] if to be inferred or [Some v] if to be
      checked. *)
+  mind_entry_sort_variance : variance_entry option;
+  (* [None] if no sort cumulativity, otherwise associates each quality
+     of the entry to [None] if to be inferred or [Some v] if to be
+     checked. *)
   mind_entry_private : bool option;
 }
 

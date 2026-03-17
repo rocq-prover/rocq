@@ -19,3 +19,12 @@ val infer_inductive
   -> (Univ.Level.t * UVars.Variance.t option) array
   (** Universes whose cumulativity we want to infer or check. *)
   -> UVars.Variance.t array
+
+val infer_sort_variance
+  : env_params : Environ.env
+  -> env_ar_par : Environ.env
+  -> arities : Constr.t list
+  -> ctors : Constr.t list list
+  -> (Sorts.QVar.t * UVars.Variance.t option) array
+  (** Quality variables whose sort cumulativity we want to infer or check. *)
+  -> UVars.Variance.t array

@@ -950,6 +950,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
       mind_entry_inds = Array.to_list ind_bodies;
       mind_entry_universes = Polymorphic_ind_entry uctx;
       mind_entry_variance = Some (Array.make ulen None);
+      mind_entry_sort_variance = None;
       mind_entry_private = mib.mind_private;
       }
   in

@@ -270,6 +270,8 @@ let subst_mind_body subst mib =
     mind_template = mib.mind_template;
     mind_variance = mib.mind_variance;
     mind_sec_variance = mib.mind_sec_variance;
+    mind_sort_variance = mib.mind_sort_variance;
+    mind_sec_sort_variance = mib.mind_sec_sort_variance;
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
   }

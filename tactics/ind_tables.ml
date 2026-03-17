@@ -216,7 +216,7 @@ let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i a
     | None -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff) in
   let role = Evd.Schema (ind, kind) in
   let poly, cumulative = Declareops.inductive_is_polymorphic mib, Declareops.inductive_is_cumulative mib in
-  let poly = PolyFlags.make ~univ_poly:poly ~cumulative ~collapse_sort_variables:true in
+  let poly = PolyFlags.make ~univ_poly:poly ~cumulative ~sort_cumulative:false ~collapse_sort_variables:true in
   let const, eff = define ?loc internal role id c poly ctx eff in
   const, eff
 

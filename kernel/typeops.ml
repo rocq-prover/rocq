@@ -539,7 +539,9 @@ let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
      flipped. It is relevant for performance eg in bedrock / Kami. *)
   let qcst, ucst = match mib.mind_variance with
   | None -> UVars.enforce_eq_instances u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
-  | Some variance -> UVars.enforce_leq_variance_instances variance u' u (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
+  | Some variance ->
+    let u', u = UVars.normalize_sort_cumul_instances mib.mind_sort_variance u' u in
+    UVars.enforce_leq_variance_instances variance u' u (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
   in
   let () = check_pconstraints (qcst, ucst) env in
   let subst = Vars.subst_of_rel_context_instance_list pctx (realargs @ [c]) in

@@ -94,6 +94,17 @@ val enforce_eq_instances : Instance.t pconstraints_function
 val enforce_eq_variance_instances : Variance.t array -> Instance.t pconstraints_function
 val enforce_leq_variance_instances : Variance.t array -> Instance.t pconstraints_function
 
+val quality_same_component : Sorts.Quality.t -> Sorts.Quality.t -> bool
+(** Returns [true] if both qualities are in the same connected component:
+    {Prop, Type/Set} or {SProp}. *)
+
+val normalize_sort_cumul_instances : Variance.t array option -> Instance.t -> Instance.t -> Instance.t * Instance.t
+(** [normalize_sort_cumul_instances sort_variances u1 u2] normalizes
+    quality positions with non-Invariant sort variance where both qualities
+    are in the same connected component, replacing both with a canonical
+    representative (QType). This makes the existing quality equality checks
+    pass transparently for sort-cumulative positions. *)
+
 type 'a puniverses = 'a * Instance.t
 val out_punivs : 'a puniverses -> 'a
 val in_punivs : 'a -> 'a puniverses

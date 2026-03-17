@@ -550,7 +550,7 @@ let do_scheme_all_predicate ?all_depth ~declare_mind kn mib strpos sAll keyAll =
   let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma (kn,0) in
   let (uctx, mentry) = AllScheme.generate_all_predicate env sigma kn u mib strpos sAll in
   (* declare it *)
-  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:true ~cumulative:true in
+  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:true ~cumulative:true ~sort_cumulative:false in
   let univs = UState.univ_entry ~poly:poly_flag uctx in
   let kn_nested = declare_mind ?all_depth mentry univs in
   (* register it *)
@@ -575,7 +575,7 @@ let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
   let uctx = UState.restrict uctx (Vars.universes_of_constr thm) in
   let sigma = Evd.set_universe_context sigma uctx in
   (* declare it *)
-  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:true ~cumulative:true in
+  let poly_flag = PolyFlags.make ~univ_poly:true ~collapse_sort_variables:true ~cumulative:true ~sort_cumulative:false in
   let info = Declare.Info.make ~poly:poly_flag () in
   let fth_name = Nameops.add_suffix mib.mind_packets.(focus).mind_typename sAllThm in
   let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in

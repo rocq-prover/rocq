@@ -187,6 +187,17 @@ let cook_inductive info mib =
       in
       Some (Array.append newvariance variance), Some sec_variance
   in
+  let mind_sort_variance, mind_sec_sort_variance =
+    match mib.mind_sort_variance, mib.mind_sec_sort_variance with
+    | None, None -> None, None
+    | None, Some _ | Some _, None -> assert false
+    | Some variance, Some sec_variance ->
+      let qlen = fst (AbstractContext.size (universe_context_of_cooking_info info)) in
+      let sec_variance, newvariance =
+        Array.chop (Array.length sec_variance - qlen) sec_variance
+      in
+      Some (Array.append newvariance variance), Some sec_variance
+  in
   let mind_template = match mib.mind_template with
   | None -> None
   | Some {template_param_arguments=levels; template_context; template_concl; template_defaults;} ->
@@ -206,6 +217,8 @@ let cook_inductive info mib =
     mind_template;
     mind_variance;
     mind_sec_variance;
+    mind_sort_variance;
+    mind_sec_sort_variance;
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
   }

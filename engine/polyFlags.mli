@@ -16,7 +16,7 @@ type t
  *)
 
 (** Raises a user error if [univ_poly = false] and either [collapse_sort_variables = false] or [cumulative = true]. *)
-val make : univ_poly:bool -> collapse_sort_variables:bool -> cumulative:bool -> t
+val make : univ_poly:bool -> collapse_sort_variables:bool -> cumulative:bool -> sort_cumulative:bool -> t
 
 (** The [default] is monomorphic:
     [univ_poly] and [cumulative] are [false], [collapse_sort_variables] is [true] *)
@@ -32,6 +32,7 @@ val of_univ_poly : bool -> t
 val univ_poly : t -> bool
 val collapse_sort_variables : t -> bool
 val cumulative : t -> bool
+val sort_cumulative : t -> bool
 
 (** Pretty print *)
 val pr : t -> Pp.t

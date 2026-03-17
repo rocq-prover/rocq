@@ -433,6 +433,27 @@ Insufficiently restrictive variance annotations lead to errors:
           Defined.
       End down.
 
+Sort Cumulativity
+~~~~~~~~~~~~~~~~~
+
+.. flag:: Polymorphic Inductive Sort Cumulativity
+
+   When this :term:`flag` is on (it is off by default), it enables sort
+   cumulativity for cumulative polymorphic inductive types. This means that
+   sort/quality positions with non-Invariant inferred variance allow sorts in
+   the same connected component to be treated as equivalent. The connected
+   components are:
+
+   - ``{Prop, Type/Set}`` (both "relevant" sorts)
+   - ``{SProp}`` (alone)
+
+   For example, with sort cumulativity enabled, a cumulative polymorphic
+   inductive ``Iso@{s s'; u u'}`` declared at ``Iso@{Prop Prop; Set Set}``
+   can be used where ``Iso@{Type Prop; Set Set}`` is expected, because
+   ``Prop`` and ``Type`` are in the same connected component.
+
+   This flag requires :flag:`Polymorphic Inductive Cumulativity` to be on.
+
 Cumulativity Weak Constraints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
