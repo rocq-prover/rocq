@@ -13,3 +13,8 @@ open Mod_declarations
 open Environ
 
 val check_subtypes : ('a, Conversion.graph_inconsistency) Conversion.universe_state -> env -> ModPath.t -> ModPath.t -> module_type_body -> 'a
+
+val check_polymorphic_universes :
+  Environ.env ->
+  UVars.AbstractContext.t -> UVars.AbstractContext.t ->
+  bool

@@ -110,7 +110,7 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
           end
         | Polymorphic uctx, Polymorphic ctx ->
           let () =
-            if not (UGraph.check_subtype (Environ.universes env) uctx ctx) then
+            if not (Subtyping.check_polymorphic_universes env uctx ctx) then
               error (WithSignatureMismatch (IncompatibleUnivConstraints { got = ctx; expect = uctx }))
           in
           (** Terms are compared in a context with De Bruijn universe indices *)
