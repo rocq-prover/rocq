@@ -12,7 +12,15 @@
     - first string is the full filename, with only its extension removed
     - second string is the absolute version of the previous (via getcwd)
 *)
-type vAccu = (string * string) list
+type vAccu = { acc : (string * string) list; map : string list CString.Map.t }
+
+let add_vAccu (f, f') vAccu =
+  let acc = (f, f') :: vAccu.acc in
+  let old = try CString.Map.find f' vAccu.map with Not_found -> [] in
+  let map = CString.Map.add f' (f :: old) vAccu.map in
+  { acc; map }
+
+let empty_vAccu = { acc = []; map = CString.Map.empty }
 
 let filename_concat ~separator_hack dir name =
   if separator_hack
@@ -28,9 +36,9 @@ let canonize ~separator_hack vAccu f =
       (Loadpath.absolute_dir (Filename.dirname f))
       (Filename.basename f)
   in
-  match List.filter (fun (_,full) -> f' = full) vAccu with
-    | (f,_) :: _ -> f
-    | _ -> f
+  match CString.Map.find_opt f' vAccu.map with
+  | None | Some [] -> f
+  | Some (f :: _) -> f
 
 type what = Library | External
 let str_of_what = function Library -> "library" | External -> "external file"
@@ -254,7 +262,7 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
 
 let compute_deps st =
   let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
-  st.vAccu |> CList.rev_map mk_dep
+  st.vAccu.acc |> CList.rev_map mk_dep
 
 let rec treat_file ~separator_hack vAccu old_dirname old_name =
   let name = Filename.basename old_name
@@ -289,7 +297,7 @@ let rec treat_file ~separator_hack vAccu old_dirname old_name =
        let name = file_name ~separator_hack base dirname in
        let filename_concat = filename_concat ~separator_hack in
        let absname = Loadpath.absolute_file_name ~filename_concat base dirname in
-       (name, absname) :: vAccu
+       add_vAccu (name, absname) vAccu
      | _ -> vAccu)
   | _ -> vAccu
 
@@ -323,7 +331,7 @@ let sort {State.vAccu; separator_hack; loadpath} =
         Format.printf "%s.v " file
     end
   in
-  List.iter (fun (name, _) -> loop name) vAccu
+  List.iter (fun (name, _) -> loop name) vAccu.acc
 
 let add_include st (rc, r, ln) =
   if rc then
@@ -359,4 +367,4 @@ let init ~make_separator_hack args =
   findlib_init ml_path;
   List.iter (add_include loadpath) args.Args.vo_path;
   Makefile.set_dyndep args.Args.dyndep;
-  rocqenv, { State.vAccu = []; loadpath; separator_hack = make_separator_hack }
+  rocqenv, { State.vAccu = empty_vAccu; loadpath; separator_hack = make_separator_hack }
