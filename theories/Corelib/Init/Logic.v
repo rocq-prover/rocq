@@ -283,10 +283,10 @@ Section Projections.
   Variables (A:Prop) (P:A->Prop).
 
   Definition ex_proj1 (x:ex P) : A :=
-    match x with ex_intro _ a _ => a end.
+    match x with ex_intro a _ => a end.
 
   Definition ex_proj2 (x:ex P) : P (ex_proj1 x) :=
-    match x with ex_intro _ _ b => b end.
+    match x with ex_intro _ b => b end.
 
   Register ex_proj1 as core.ex.proj1.
   Register ex_proj2 as core.ex.proj2.
@@ -318,7 +318,7 @@ Section ex2_Projections.
   Variables (A:Prop) (P Q:A->Prop).
 
   Definition ex_proj3 (x:ex2 P Q) : Q (ex_proj1 (ex_of_ex2 x)) :=
-    match x with ex_intro2 _ _ _ _ b => b end.
+    match x with ex_intro2 _ _ b => b end.
 
 End ex2_Projections.
 
@@ -1121,7 +1121,7 @@ Section ex2.
              (p : ex_intro _ u1 u2 = ex_intro _ v1 v2)
     : ex_intro2 _ _ u1 u2 u3 = ex_intro2 _ _ v1 v2 v3
     := rew [fun v3 => _ = ex_intro2 _ _ _ _ v3] (Q_hprop u3 v3) in
-        f_equal (fun u => match u with ex_intro _ u1 u2 => ex_intro2 _ _ u1 u2 u3 end) p.
+        f_equal (fun u => match u with ex_intro u1 u2 => ex_intro2 _ _ u1 u2 u3 end) p.
 
   Definition eq_ex_intro2_hprop {A : Type} {P Q : A -> Prop}
              (P_hprop : forall x (p q : P x), p = q)

@@ -547,9 +547,9 @@ Definition tag := projT1.
 Definition tagged : forall w, T_(tag w) := @projT2 I [eta T_].
 Definition Tagged x := @existT I [eta T_] i x.
 
-Definition tag2 (w : @sigT2 I T_ U_) := let: existT2 _ _ i _ _ := w in i.
-Definition tagged2 w : T_(tag2 w) := let: existT2 _ _ _ x _ := w in x.
-Definition tagged2' w : U_(tag2 w) := let: existT2 _ _ _ _ y := w in y.
+Definition tag2 (w : @sigT2 I T_ U_) := let: existT2 i _ _ := w in i.
+Definition tagged2 w : T_(tag2 w) := let: existT2 _ x _ := w in x.
+Definition tagged2' w : U_(tag2 w) := let: existT2 _ _ y := w in y.
 Definition Tagged2 x y := @existT2 I [eta T_] [eta U_] i x y.
 
 End Tag.
@@ -583,7 +583,7 @@ Variables (T : Type) (P Q : T -> Prop).
 
 Lemma svalP (u : sig P) : P (sval u). Proof. by case: u. Qed.
 
-Definition s2val (u : sig2 P Q) := let: exist2 _ _ x _ _ := u in x.
+Definition s2val (u : sig2 P Q) := let: exist2 x _ _ := u in x.
 
 Lemma s2valP u : P (s2val u). Proof. by case: u. Qed.
 
