@@ -72,6 +72,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [conversion would compare the mutated version of primitive arrays instead of undoing mutation where needed](#conversion-would-compare-the-mutated-version-of-primitive-arrays-instead-of-undoing-mutation-where-needed)
       - [tactic code could mutate a global cache of values for section variables](#tactic-code-could-mutate-a-global-cache-of-values-for-section-variables)
       - [incorrect handling of universe polymorphism](#incorrect-handling-of-universe-polymorphism)
+      - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#Forgotten-universe-substitution-with-Register-Inline-on-universe-polymorphic-definition)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
     - [Forgetting unsafe flags](#forgetting-unsafe-flags)
@@ -848,6 +849,21 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - GH issue number: rocq-prover/rocq#7723
 - exploit: see issue
 - risk: ??
+
+#### Forgotten universe substitution with Register Inline on universe polymorphic definition
+
+- component: VM and native
+- introduced: V8.5
+- impacted released versions: V8.5-V9.1 (all patch versions)
+- impacted coqchk versions: same (only when using -bytecode-compiler yes)
+- fixed in: V9.2.0
+- found by: Gaëtan Gilbert
+- GH issue number: rocq-prover/rocq#21736
+- exploit: see issue
+- risk: requires Register Inline on universe polymorphic constant
+- additional note: does not seem to be exploitable before 8.8 (until 8.6 Register
+  Inline fails with anomaly on universe polymorphic constants, and before
+  8.8 Register Inline only affects native which fails in ocamlopt)
 
 ### Side-effects
 
