@@ -60,7 +60,7 @@ let use_injection_pattern_l2r_order = function
 let { Goptions.get = injection_in_context_flag } =
   declare_bool_option_and_ref
     ~key:["Structural";"Injection"]
-    ~value:false
+    ~value:true
     ()
 
 (* Rewriting tactics *)

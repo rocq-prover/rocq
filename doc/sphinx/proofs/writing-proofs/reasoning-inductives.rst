@@ -816,10 +816,9 @@ This section describes some special purpose tactics to work with
 
    .. flag:: Structural Injection
 
-      When this :term:`flag` is set, :n:`injection @term` erases the original hypothesis
-      and adds the generated equalities as new hypotheses rather than adding them
-      to the current goal as :term:`premises <premise>`, as if giving :n:`injection @term as`
-      (with an empty list of names). This flag is off by default.
+      By default, tactic :n:`injection @term` erases the original hypothesis
+      and adds the generated equalities as new hypotheses. When this :term:`flag`
+      is unset, generated equalities are added to the current goal instead.
 
    .. flag:: Keep Proof Equalities
 
