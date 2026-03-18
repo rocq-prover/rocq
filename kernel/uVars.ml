@@ -212,19 +212,6 @@ let enforce_eq_instances x y (qcs, ucs as orig) =
   let ucs' = CArray.fold_right2 enforce_eq_level xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
-let enforce_eq_variance_instances variances x y (qcs,ucs as orig) =
-  let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
-  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
-  let ucs' = Variance.eq_constraints variances xu yu ucs in
-  if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
-
-let enforce_leq_variance_instances variances x y (qcs,ucs as orig) =
-  let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
-  (* no variance for quality variables -> enforce_eq *)
-  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
-  let ucs' = Variance.leq_constraints variances xu yu ucs in
-  if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
-
 let quality_same_component q1 q2 =
   let open Quality in
   match q1, q2 with
@@ -256,6 +243,21 @@ let normalize_sort_cumul_instances sort_variances u1 u2 =
       Instance.of_array (q1, l1), Instance.of_array (q2, l2)
     else
       u1, u2
+
+let enforce_eq_variance_instances variances ?sort_variance x y (qcs,ucs as orig) =
+  let x, y = normalize_sort_cumul_instances sort_variance x y in
+  let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
+  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
+  let ucs' = Variance.eq_constraints variances xu yu ucs in
+  if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
+
+let enforce_leq_variance_instances variances ?sort_variance x y (qcs,ucs as orig) =
+  let x, y = normalize_sort_cumul_instances sort_variance x y in
+  let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
+  (* no variance for quality variables -> enforce_eq *)
+  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
+  let ucs' = Variance.leq_constraints variances xu yu ucs in
+  if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
 let subst_instance_level s l =
   match Level.var_index l with

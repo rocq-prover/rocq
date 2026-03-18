@@ -127,7 +127,8 @@ let enforce_eq_qualities qs qs' cstrs =
       if Sorts.Quality.equal a b then c else Set.add (QEq (a, b)) c)
     cstrs qs qs'
 
-let compare_cumulative_instances  cv_pb variances u u' cstrs =
+let compare_cumulative_instances  cv_pb variances ?sort_variance u u' cstrs =
+  let u, u' = UVars.normalize_sort_cumul_instances sort_variance u u' in
   let make u = Sorts.sort_of_univ @@ Univ.Universe.make u in
   let qs, us = UVars.Instance.to_array u
   and qs', us' = UVars.Instance.to_array u' in

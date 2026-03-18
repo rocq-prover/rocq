@@ -91,8 +91,8 @@ type 'a pconstraints_function = 'a -> 'a -> QPairSet.t * UnivConstraints.t -> QP
 
 val enforce_eq_instances : Instance.t pconstraints_function
 
-val enforce_eq_variance_instances : Variance.t array -> Instance.t pconstraints_function
-val enforce_leq_variance_instances : Variance.t array -> Instance.t pconstraints_function
+val enforce_eq_variance_instances : Variance.t array -> ?sort_variance:Variance.t array -> Instance.t pconstraints_function
+val enforce_leq_variance_instances : Variance.t array -> ?sort_variance:Variance.t array -> Instance.t pconstraints_function
 
 val quality_same_component : Sorts.Quality.t -> Sorts.Quality.t -> bool
 (** Returns [true] if both qualities are in the same connected component:

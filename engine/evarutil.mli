@@ -180,6 +180,7 @@ val eq_constr_univs_test :
    Additionally flexible universes in irrelevant positions are unified
    if possible. Returns [Inr p] when the former is impossible. *)
 val compare_cumulative_instances : Conversion.conv_pb -> UVars.Variance.t array ->
+  ?sort_variance:UVars.Variance.t array ->
   UVars.Instance.t -> UVars.Instance.t -> evar_map ->
   (evar_map, UGraph.univ_inconsistency) Util.union
 
@@ -188,7 +189,7 @@ val compare_cumulative_instances : Conversion.conv_pb -> UVars.Variance.t array 
 
     But what about qualities?
 *)
-val compare_constructor_instances : evar_map ->
+val compare_constructor_instances : ?sort_variance:UVars.Variance.t array -> evar_map ->
   UVars.Instance.t -> UVars.Instance.t -> (evar_map, UGraph.univ_inconsistency) Util.union
 
 (** {6 Unification problems} *)

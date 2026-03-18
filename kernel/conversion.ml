@@ -151,7 +151,7 @@ type conv_pb =
 type ('a, 'err) universe_compare = {
   compare_sorts : conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
   compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
-  compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
+  compare_cumul_instances : conv_pb -> UVars.Variance.t array -> UVars.Variance.t array option ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
 }
 
@@ -169,15 +169,15 @@ let convert_instances ~flex u u' (s, check) =
 
 exception MustExpand
 
-let convert_instances_cumul pb var u u' (s, check) =
-  (check.compare_cumul_instances pb var u u' s, check)
+let convert_instances_cumul pb var sort_var u u' (s, check) =
+  (check.compare_cumul_instances pb var sort_var u u' s, check)
 
-let get_cumulativity_constraints cv_pb variance u u' =
+let get_cumulativity_constraints cv_pb variance sort_variance u u' =
   match cv_pb with
   | CONV ->
-    UVars.enforce_eq_variance_instances variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
+    UVars.enforce_eq_variance_instances variance ?sort_variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
   | CUMUL ->
-    UVars.enforce_leq_variance_instances variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
+    UVars.enforce_leq_variance_instances variance ?sort_variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
 
 let inductive_cumulativity_arguments (mind,ind) =
   mind.Declarations.mind_nparams +
@@ -192,8 +192,7 @@ let convert_inductives_gen cmp_instances cmp_cumul cv_pb (mind,ind) nargs u1 u2 
       (* shortcut, not sure if worth doing, could use perf data *)
       if UVars.Instance.equal u1 u2 then Result.Ok s else raise MustExpand
     else
-      let u1, u2 = UVars.normalize_sort_cumul_instances mind.Declarations.mind_sort_variance u1 u2 in
-      cmp_cumul cv_pb variances u1 u2 s
+      cmp_cumul cv_pb variances mind.Declarations.mind_sort_variance u1 u2 s
 
 type 'e conv_tab = {
   cnv_inf : clos_infos;
@@ -228,9 +227,8 @@ let convert_constructors_gen cmp_instances cmp_cumul (mind, ind, cns) nargs u1 u
     else
       (** By invariant, both constructors have a common supertype,
           so they are convertible _at that type_. *)
-      let u1, u2 = UVars.normalize_sort_cumul_instances mind.Declarations.mind_sort_variance u1 u2 in
       let variance = Array.make (snd (UVars.Instance.length u1)) UVars.Variance.Irrelevant in
-      cmp_cumul CONV variance u1 u2 s
+      cmp_cumul CONV variance mind.Declarations.mind_sort_variance u1 u2 s
 
 let convert_constructors ctor nargs u1 u2 (s, check) =
   convert_constructors_gen (check.compare_instances ~flex:false) check.compare_cumul_instances
@@ -781,7 +779,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
     | FArray (u1,t1,ty1), FArray (u2,t2,ty2) ->
       let len = Parray.length_int t1 in
       if not (Int.equal len (Parray.length_int t2)) then raise NotConvertible;
-      let cuniv = fail_check infos @@ convert_instances_cumul CONV [|UVars.Variance.Irrelevant|] u1 u2 cuniv in
+      let cuniv = fail_check infos @@ convert_instances_cumul CONV [|UVars.Variance.Irrelevant|] None u1 u2 cuniv in
       let el1 = el_stack lft1 v1 in
       let el2 = el_stack lft2 v2 in
       let cuniv = ccnv CONV l2r infos el1 el2 ty1 ty2 cuniv in
@@ -863,7 +861,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                     let u2 = CClosure.usubst_instance e2 u2 in
                     match mind.Declarations.mind_variance with
                     | None -> convert_instances ~flex:false u1 u2 cu
-                    | Some variances -> convert_instances_cumul CONV variances u1 u2 cu
+                    | Some variances -> convert_instances_cumul CONV variances mind.Declarations.mind_sort_variance u1 u2 cu
                 in
                 let cu = fail_check infos cu in
                 let pms1 = mk_clos_vect e1 pms1 in
@@ -994,8 +992,8 @@ let check_convert_instances qeq = (); fun ~flex:_ u u' state ->
   else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances qeq = (); fun cv_pb variance u1 u2 state ->
-  let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
+let check_inductive_instances qeq = (); fun cv_pb variance sort_variance u1 u2 state ->
+  let qcsts, ucsts = get_cumulativity_constraints cv_pb variance sort_variance u1 u2 in
   let check_quality (q1, q2) = qeq q1 q2 in
   if UVars.QPairSet.for_all check_quality qcsts && UGraph.check_constraints ucsts state
   then Result.Ok state

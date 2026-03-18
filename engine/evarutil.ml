@@ -764,7 +764,8 @@ let subterm_source evk ?where (loc,k) =
 
 (* Add equality constraints for covariant/invariant positions. For
    irrelevant positions, unify universes when flexible. *)
-let compare_cumulative_instances cv_pb variances u u' sigma =
+let compare_cumulative_instances cv_pb variances ?sort_variance u u' sigma =
+  let u, u' = UVars.normalize_sort_cumul_instances sort_variance u u' in
   let open UnivProblem in
   let cstrs = Univ.UnivConstraints.empty in
   let soft = Set.empty in
@@ -788,7 +789,8 @@ let compare_cumulative_instances cv_pb variances u u' sigma =
     Inl (Evd.add_constraints sigma soft)
   | exception UGraph.UniverseInconsistency p -> Inr p
 
-let compare_constructor_instances evd u u' =
+let compare_constructor_instances ?sort_variance evd u u' =
+  let u, u' = UVars.normalize_sort_cumul_instances sort_variance u u' in
   let open UnivProblem in
   let qs, us = UVars.Instance.to_array u
   and qs', us' = UVars.Instance.to_array u' in

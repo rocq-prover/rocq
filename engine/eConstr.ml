@@ -758,8 +758,7 @@ let cmp_inductives cv_pb (mind,ind as spec) nargs u1 u2 cstrs =
     let num_param_arity = Conversion.inductive_cumulativity_arguments spec in
     if not (Int.equal num_param_arity nargs) then enforce_eq_instances_univs false u1 u2 cstrs
     else
-      let u1, u2 = UVars.normalize_sort_cumul_instances mind.Declarations.mind_sort_variance u1 u2 in
-      compare_cumulative_instances cv_pb  variances u1 u2 cstrs
+      compare_cumulative_instances cv_pb variances ?sort_variance:mind.Declarations.mind_sort_variance u1 u2 cstrs
 
 let cmp_constructors (mind, ind, cns as spec) nargs u1 u2 cstrs =
   let open UnivProblem in

@@ -25,7 +25,7 @@ type conv_pb = CONV | CUMUL
 type ('a, 'err) universe_compare = {
   compare_sorts : conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
   compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
-  compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
+  compare_cumul_instances : conv_pb -> UVars.Variance.t array -> UVars.Variance.t array option ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
 }
 
@@ -33,7 +33,7 @@ type ('a, 'err) universe_state = 'a * ('a, 'err) universe_compare
 
 type ('a, 'err) generic_conversion_function = ('a, 'err) universe_state -> constr -> constr -> ('a, 'err option) result
 
-val get_cumulativity_constraints : conv_pb -> UVars.Variance.t array ->
+val get_cumulativity_constraints : conv_pb -> UVars.Variance.t array -> UVars.Variance.t array option ->
   UVars.Instance.t -> UVars.Instance.t -> UVars.QPairSet.t * Univ.UnivConstraints.t
 
 val inductive_cumulativity_arguments : (Declarations.mutual_inductive_body * int) -> int

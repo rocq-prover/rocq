@@ -465,14 +465,14 @@ let rec ise_app_rev_stack2 env f evd revsk1 revsk2 =
 
 (* Add equality constraints for covariant/invariant positions. For
    irrelevant positions, unify universes when flexible. *)
-let compare_cumulative_instances pbty evd variances u u' =
-  match Evarutil.compare_cumulative_instances pbty variances u u' evd with
+let compare_cumulative_instances pbty evd variances ?sort_variance u u' =
+  match Evarutil.compare_cumulative_instances pbty variances ?sort_variance u u' evd with
   | Inl evd ->
     Success evd
   | Inr p -> UnifFailure (evd, UnifUnivInconsistency p)
 
-let compare_constructor_instances evd u u' =
-  match Evarutil.compare_constructor_instances evd u u' with
+let compare_constructor_instances ?sort_variance evd u u' =
+  match Evarutil.compare_constructor_instances ?sort_variance evd u u' with
   | Inl evd ->
     Success evd
   | Inr p -> UnifFailure (evd, UnifUnivInconsistency p)
@@ -515,8 +515,7 @@ let compare_heads pbty env evd ~nargs term term' =
           if not (is_applied nargs needed)
           then check_strict evd u u'
           else
-            let u, u' = UVars.normalize_sort_cumul_instances mind.mind_sort_variance u u' in
-            compare_cumulative_instances pbty evd variances u u'
+            compare_cumulative_instances pbty evd variances ?sort_variance:mind.mind_sort_variance u u'
       end
   | Ind _, Ind _ -> UnifFailure (evd, NotSameHead)
   | Construct (((mi,ind),ctor as cons), u), Construct (cons', u')
@@ -533,8 +532,7 @@ let compare_heads pbty env evd ~nargs term term' =
           if not (is_applied nargs needed)
           then check_strict evd u u'
           else
-            let u, u' = UVars.normalize_sort_cumul_instances mind.mind_sort_variance u u' in
-            compare_constructor_instances evd u u'
+            compare_constructor_instances ?sort_variance:mind.mind_sort_variance evd u u'
       end
   | Construct _, Construct _ -> UnifFailure (evd, NotSameHead)
   | _, _ -> assert false
