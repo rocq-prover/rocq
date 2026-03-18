@@ -64,6 +64,8 @@ let val_float = Val.create "float"
 let val_pstring = Val.create "pstring"
 let val_ind_data : (Names.Ind.t * Declarations.mutual_inductive_body) Val.tag = Val.create "ind_data"
 let val_transparent_state : TransparentState.t Val.tag = Val.create "transparent_state"
+let val_hint_db = Val.create "hint_db"
+let val_hint = Val.create "hint"
 let val_pretype_flags = Val.create "pretype_flags"
 let val_expected_type = Val.create "expected_type"
 let val_reduction = Val.create "reduction"
@@ -428,6 +430,15 @@ let pstring = {
 let of_transparent_state c = of_ext val_transparent_state c
 let to_transparent_state c = to_ext val_transparent_state c
 let transparent_state = repr_ext val_transparent_state
+
+let of_hint_db c = of_ext val_hint_db c
+let to_hint_db c = to_ext val_hint_db c
+let hint_db = repr_ext val_hint_db
+
+let of_hint c = of_ext val_hint c
+let to_hint c = to_ext val_hint c
+let hint = repr_ext val_hint
+
 
 let of_pretype_flags c = of_ext val_pretype_flags c
 let to_pretype_flags c = to_ext val_pretype_flags c
