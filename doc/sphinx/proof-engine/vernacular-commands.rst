@@ -433,6 +433,11 @@ Requests to the environment
 
    Displays all the assumptions (axioms, parameters and
    variables) one or more theorems or definitions depends on.
+   It also reports inductives that rely on indices not mattering
+   (i.e., whose behavior would change under `-indices-matter`),
+   as well as uses of disabled typing flags such as
+   :flag:`Guard Checking`, :flag:`Positivity Checking`,
+   :flag:`Universe Checking`, and :flag:`Definitional UIP`.
 
    The message "Closed under the global context" indicates that all the theorems and
    definitions have no dependencies.

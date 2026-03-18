@@ -423,5 +423,12 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
           let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (UIP m, l)) Constr.mkProp accu
       in
+      let accu =
+        if not (Environ.indices_matter (Global.env ())) then accu
+        else if not (Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mind.mind_packets) then accu
+        else
+          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          ContextObjectMap.add (Axiom (IndicesNotMattering m, l)) Constr.mkProp accu
+      in
       accu
   in GlobRef.Map_env.fold fold graph ContextObjectMap.empty

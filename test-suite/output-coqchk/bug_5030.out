@@ -14,3 +14,7 @@ CONTEXT SUMMARY
   
 * Inductives whose positivity is assumed: <none>
   
+* Inductives relying on indices not mattering:
+    Corelib.Init.Datatypes.eq_true
+    Corelib.Init.Logic.eq
+  

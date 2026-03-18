@@ -62,6 +62,14 @@ let pr_nonpositive env =
   let inds = fold_inductives (fun c cb acc -> if not cb.mind_typing_flags.check_positive then MutInd.to_string c :: acc else acc) env [] in
   pr_assumptions "Inductives whose positivity is assumed" inds
 
+let pr_indices_matter env =
+  let inds = fold_inductives (fun c cb acc ->
+    if cb.mind_typing_flags.indices_matter then acc
+    else if Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) cb.mind_packets
+    then MutInd.to_string c :: acc
+    else acc) env [] in
+  pr_assumptions "Inductives relying on indices not mattering" inds
+
 let print_context env opac =
   if !output_context then begin
     Feedback.msg_notice
@@ -73,7 +81,8 @@ let print_context env opac =
       str "* " ++ hov 0 (pr_axioms env opac ++ fnl()) ++ fnl() ++
       str "* " ++ hov 0 (pr_type_in_type env ++ fnl()) ++ fnl() ++
       str "* " ++ hov 0 (pr_unguarded env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_nonpositive env ++ fnl()))
+      str "* " ++ hov 0 (pr_nonpositive env ++ fnl()) ++ fnl() ++
+      str "* " ++ hov 0 (pr_indices_matter env ++ fnl()))
       )
   end
 
