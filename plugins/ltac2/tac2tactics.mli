@@ -122,6 +122,8 @@ val current_transparent_state : unit -> TransparentState.t tactic
 
 val evarconv_unify : TransparentState.t -> constr -> constr -> unit tactic
 
+val with_strategy : Conv_oracle.level -> GlobRef.t list -> unit thunk -> unit tactic
+
 (** Internal *)
 
 val mk_intro_pattern : intro_pattern -> Tactypes.intro_pattern
