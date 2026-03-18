@@ -85,23 +85,13 @@ Usage
 Getting started
 ~~~~~~~~~~~~~~~
 
-To be available, the tactics presented in this manual need
-``ssreflect_rw.v`` to be loaded.
-
-.. note::
-   One can also load ``ssreflect.v`` to get the deprecated ``rewrite``
-   tactic alias for :tacn:`rw` as well as the ``if <term> is <pattern then _ else _``
-   and ``if <term> isn't <pattern then _ else _`` syntactic sugars for matches
-   and an ``if <term> then _ else _`` syntax specialised to booleans.
-
-Moreover, these tactics come with a methodology
+The tactics presented in this manual come with a methodology
 specific to the authors of |SSR| and which requires a few options
 to be set in a different way than in their default way. All in all,
 this corresponds to working in the following context:
 
 .. rocqtop:: in
 
-   From Corelib Require Import ssreflect_rw.
    Set Implicit Arguments.
    Unset Strict Implicit.
    Unset Printing Implicit Defensive.
@@ -151,7 +141,6 @@ construct differs from the latter as follows.
 
     .. rocqtop:: reset none
 
-       From Corelib Require Import ssreflect_rw.
        Set Implicit Arguments.
        Unset Strict Implicit.
        Unset Printing Implicit Defensive.
@@ -191,7 +180,7 @@ dependent pattern matching and for aliasing the pattern (see
 Pattern conditional
 ~~~~~~~~~~~~~~~~~~~
 
-When doing ``From Corelib Require Import ssreflect`` (not ``ssreflect_rw``),
+When doing ``From Corelib Require Import ssreflect``,
 the following construct can be used for a refutable pattern matching,
 that is, pattern testing:
 
@@ -314,7 +303,6 @@ expressions such as
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -339,7 +327,6 @@ each point of use; e.g., the above definition can be written:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -451,7 +438,6 @@ For example, the tactic :tacn:`pose (ssreflect)` supports parameters:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -566,7 +552,6 @@ where:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -614,7 +599,6 @@ conditions.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -635,7 +619,6 @@ conditions.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -656,7 +639,6 @@ Moreover:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -676,7 +658,6 @@ Moreover:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -709,7 +690,6 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -731,7 +711,6 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -752,7 +731,6 @@ An *occurrence switch* can be:
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -783,7 +761,6 @@ selection.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -800,7 +777,6 @@ only one occurrence of the selected term.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -829,11 +805,7 @@ context of a goal thanks to the ``in`` tactical.
 
   .. example::
 
-     .. rocqtop:: reset none
-
-        From Corelib Require Import ssreflect_rw.
-
-     .. rocqtop:: all
+     .. rocqtop:: reset all
 
         Lemma test x t (Hx : x = 3) : x + t = 4.
         set z := 3 in Hx.
@@ -845,11 +817,7 @@ context of a goal thanks to the ``in`` tactical.
 
   .. example::
 
-     .. rocqtop:: reset none
-
-        From Corelib Require Import ssreflect_rw.
-
-     .. rocqtop:: all
+     .. rocqtop:: reset all
 
         Lemma test x t (Hx : x = 3) : x + t = 4.
         set z := 3 in Hx * .
@@ -963,7 +931,6 @@ constants to the goal.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1024,7 +991,6 @@ The ``:`` tactical is used to operate on an element in the context.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -1119,7 +1085,6 @@ The move tactic.
 
       .. rocqtop:: reset all
 
-         From Corelib Require Import ssreflect_rw.
          Goal not False.
          move.
 
@@ -1189,7 +1154,6 @@ The elim tactic
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -1229,7 +1193,6 @@ existential metavariables of sort :g:`Prop`.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1409,7 +1372,6 @@ context to interpret wildcards; in particular, it can accommodate the
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1701,7 +1663,6 @@ Clears are deferred until the end of the intro pattern.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1764,7 +1725,6 @@ Block introduction
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -1817,7 +1777,6 @@ deal with the possible parameters of the constants introduced.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1836,7 +1795,6 @@ under fresh |SSR| names.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -1903,7 +1861,6 @@ be substituted.
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -2204,7 +2161,6 @@ to the others.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -2323,7 +2279,6 @@ between standard Ltac ``in`` and the |SSR| tactical in.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2398,7 +2353,6 @@ the holes are abstracted in term.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2412,7 +2366,6 @@ the holes are abstracted in term.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2430,7 +2383,6 @@ tactic:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2483,7 +2435,6 @@ the further use of the intermediate step. For instance,
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2511,7 +2462,6 @@ destruction of existential assumptions like in the tactic:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2538,7 +2488,6 @@ term for the intermediate lemma, using tactics of the form:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2567,7 +2516,6 @@ The following example requires the mathcomp and mczify libraries.
 
   .. rocqtop:: all extra-mathcomp extra-mczify
 
-     From Corelib Require Import ssreflect_rw.
      From mathcomp Require Import ssrfun ssrbool ssrnat zify.
 
      Lemma test : True.
@@ -2681,8 +2629,6 @@ Since |SSR| 1.5, the ``have`` tactic behaves as follows with respect to
 typeclass inference.
 
   .. rocqtop:: reset none
-
-     From Corelib Require Import ssreflect_rw.
 
      Axiom ty : Type.
      Axiom t : ty.
@@ -2837,7 +2783,6 @@ The following example requires the mathcomp library.
 
   .. rocqtop:: all extra-mathcomp
 
-     From Corelib Require Import ssreflect_rw.
      From mathcomp Require Import ssrfun ssrbool ssrnat.
 
      Lemma quo_rem_unicity d q1 q2 r1 r2 :
@@ -2861,7 +2806,7 @@ pattern will be used to process its instance.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw ssrfun ssrbool.
+     From Corelib Require Import ssrfun ssrbool.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2911,7 +2856,6 @@ illustrated in the following example.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -2930,7 +2874,6 @@ illustrated in the following example.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3063,7 +3006,6 @@ A :token:`r_item` can be one of the following.
 
      .. rocqtop:: reset none
 
-        From Corelib Require Import ssreflect_rw.
         Set Implicit Arguments.
         Unset Strict Implicit.
         Unset Printing Implicit Defensive.
@@ -3182,7 +3124,6 @@ proof of basic results on natural numbers arithmetic.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3218,7 +3159,6 @@ side of the equality the user wants to rewrite.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3238,7 +3178,6 @@ the equality.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3261,7 +3200,6 @@ Occurrence switches and redex switches
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3290,7 +3228,6 @@ repetition.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3320,7 +3257,6 @@ rewrite operations prescribed by the rules on the current goal.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3454,7 +3390,6 @@ Anyway this tactic is *not* equivalent to
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -3504,7 +3439,6 @@ cases.
 
     .. rocqtop:: reset none
 
-       From Corelib Require Import ssreflect_rw.
        Set Implicit Arguments.
        Unset Strict Implicit.
        Unset Printing Implicit Defensive.
@@ -3620,7 +3554,6 @@ complete terms, as shown by the simple example below.
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -3727,8 +3660,7 @@ involves the following steps.
    registered relations (w.r.t. Class ``RewriteRelation``) between a
    term and an evar, e.g., ``m - m = ?F2 m`` in the running example.
    (This support for setoid-like relations is enabled as soon as one does
-   both ``From Corelib Require Import ssreflect_rw.``
-   and ``From Corelib Require Setoid.``)
+   ``From Corelib Require Setoid.``)
 
 5. If so :tacn:`under` protects these n goals against an
    accidental instantiation of the evar.
@@ -3812,7 +3744,6 @@ Notes:
 
    .. rocqtop:: reset none
 
-      From Corelib Require Import ssreflect_rw.
       Set Implicit Arguments.
       Unset Strict Implicit.
       Unset Printing Implicit Defensive.
@@ -3944,7 +3875,6 @@ definition.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4057,7 +3987,6 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -4106,7 +4035,6 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -4126,7 +4054,6 @@ which the function is supplied:
 
       .. rocqtop:: reset none
 
-         From Corelib Require Import ssreflect_rw.
          Set Implicit Arguments.
          Unset Strict Implicit.
          Unset Printing Implicit Defensive.
@@ -4305,7 +4232,6 @@ parentheses are required around more complex patterns.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4343,7 +4269,6 @@ Contextual patterns in rewrite
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4582,7 +4507,6 @@ Here is an example of a regular, but nontrivial, eliminator.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4687,7 +4611,6 @@ Here is an example of a truncated eliminator:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4750,7 +4673,6 @@ disjunction.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4771,7 +4693,6 @@ disjunction.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4806,7 +4727,6 @@ equation-name generation mechanism (see Section :ref:`generation_of_equations_ss
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4839,7 +4759,6 @@ relevant for the current goal.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4883,7 +4802,6 @@ assumption to some given arguments.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4911,7 +4829,6 @@ bookkeeping steps.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4969,7 +4886,6 @@ analysis:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -4986,7 +4902,6 @@ analysis
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5077,7 +4992,7 @@ Let us compare the respective behaviors of ``andE`` and ``andP``.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw ssrbool.
+     From Corelib Require Import ssrbool.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5118,7 +5033,6 @@ The view mechanism is compatible with reflect predicates.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5237,7 +5151,6 @@ but they also allow complex transformation, involving negations.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5271,7 +5184,6 @@ actually uses its propositional interpretation.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5335,7 +5247,6 @@ In this context, the identity view can be used when no view has to be applied:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5352,7 +5263,6 @@ In this context, the identity view can be used when no view has to be applied:
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5429,7 +5339,6 @@ pass a given hypothesis to a lemma.
 
   .. rocqtop:: reset none
 
-     From Corelib Require Import ssreflect_rw.
      Set Implicit Arguments.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
@@ -5741,21 +5650,7 @@ Commands
 Compatibility issues
 ~~~~~~~~~~~~~~~~~~~~
 
-Requiring the module `ssreflect_rw` from `Corelib`
-creates an environment that is mostly
-compatible with the rest of Rocq, up to a few discrepancies.
-
-+ New tactic(al)s names (:tacn:`last`, :tacn:`done`, :tacn:`have`, :tacn:`suffices`,
-  :tacn:`suff`, :tacn:`without loss`, :tacn:`wlog`, :tacn:`congr`, :tacn:`unlock`)
-  might clash with user tactic names.
-+ New symbols (``//``, ``/=``, ``//=``) might clash with adjacent
-  existing symbols.
-  This can be avoided by inserting white spaces.
-+ Some user notations (in particular, defining an infix ``;``) might
-  interfere with the "open term", parenthesis-free syntax of tactics
-  such as :tacn:`have`, :tacn:`set (ssreflect)` and :tacn:`pose (ssreflect)`.
-
-In addition, requiring the backward compatibility module `ssreflect` from `Corelib`
+Requiring the backward compatibility module `ssreflect` from `Corelib`
 creates an environment that is mostly
 compatible with the rest of Rocq, up to a few discrepancies.
 
