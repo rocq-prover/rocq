@@ -261,7 +261,8 @@ let () =
     | Some ty -> sigma, ty
     | None -> GlobEnv.new_type_evar env sigma ~src:(loc,Evar_kinds.InternalHole)
     in
-    let c, sigma = Subproof.refine_by_tactic ~name ~poly (GlobEnv.renamed_env env) sigma concl tac in
+    let inline = Abstract.get_inline_abstract_subproof () in
+    let c, sigma = Subproof.refine_by_tactic ~inline ~name ~poly (GlobEnv.renamed_env env) sigma concl tac in
     let j = { Environ.uj_val = c; Environ.uj_type = concl } in
     (j, sigma)
   in
