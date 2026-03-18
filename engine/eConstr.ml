@@ -757,7 +757,7 @@ let cmp_inductives cv_pb (mind,ind as spec) nargs u1 u2 cstrs =
   | Some variances ->
     let num_param_arity = Conversion.inductive_cumulativity_arguments spec in
     if not (Int.equal num_param_arity nargs) then enforce_eq_instances_univs false u1 u2 cstrs
-    else compare_cumulative_instances cv_pb  variances u1 u2 cstrs
+    else compare_cumulative_instances cv_pb variances u1 u2 cstrs
 
 let cmp_constructors (mind, ind, cns as spec) nargs u1 u2 cstrs =
   let open UnivProblem in
@@ -783,7 +783,7 @@ let eq_universes env sigma cstrs cv_pb refargs l l' =
     let open UnivProblem in
     match refargs with
     | Some (ConstRef c, 1) when Environ.is_array_type env c ->
-      cstrs := compare_cumulative_instances cv_pb [|UVars.Variance.Irrelevant|] l l' !cstrs;
+      cstrs := compare_cumulative_instances cv_pb UVars.prim_array_variance l l' !cstrs;
       true
     | None | Some (ConstRef _, _) ->
       cstrs := enforce_eq_instances_univs true l l' !cstrs; true

@@ -942,14 +942,14 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   (* build mentry *)
   let mie =
     let uctx = UState.context uctx in
-    let _qlen, ulen = UVars.UContext.size uctx in
+    let qlen, ulen = UVars.UContext.size uctx in
     {
       mind_entry_record = None;
       mind_entry_finite = mib.mind_finite;
       mind_entry_params = EConstr.to_rel_context sigma ctxt_params ;
       mind_entry_inds = Array.to_list ind_bodies;
       mind_entry_universes = Polymorphic_ind_entry uctx;
-      mind_entry_variance = Some (Array.make ulen None);
+      mind_entry_variance = Some (Array.make qlen None, Array.make ulen None);
       mind_entry_private = mib.mind_private;
       }
   in
