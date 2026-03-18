@@ -213,7 +213,9 @@ Module Inductives.
   Definition R5f1_sprop (A:SProp) (r:R5 A) : A := let (f) := r in f.
   Fail Definition R5f1_prop (A:Prop) (r:R5 A) : A := let (f) := r in f.
 
-  Record R6@{s; |} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail Record R6@{s; |} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
+  Record R6@{s; |Type->s} (A:Type@{s;Set}) := { R6f1 : A; R6f2 : nat }.
   Check fun (A:SProp) (x y : R6 A) =>
           eq_refl : Conversion.box _ x.(R6f1 _) = Conversion.box _ y.(R6f1 _).
   Fail Check fun (A:Prop) (x y : R6 A) =>
@@ -286,7 +288,10 @@ Module Inductives.
 
   Arguments exist3 {_ _}.
 
-  Definition π1@{s s';u v|} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
+  (* This is now invalid since Type does not eliminate to arbitrary sorts by default *)
+  Fail Definition π1@{s s';u v|} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
     match p return A with exist3 a _ => a end.
-
+  Definition π1@{s s';u v|Type -> s} {A:Type@{s;u}} {P:A -> Type@{s';v}} (p : sigma3@{_ _ Type;_ _} A P) : A :=
+    match p return A with exist3 a _ => a end.
+  (* s s' ; u v |= Type -> s *)
 End Inductives.

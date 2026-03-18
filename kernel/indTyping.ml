@@ -135,7 +135,13 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
     | QSort (q, _), (SProp | Prop) ->
         if Environ.Internal.is_above_prop env q then info
         else add_squash (Sorts.quality u) info
-    | _, _ -> { info with ind_squashed = Some AlwaysSquashed }
+    | (Type _ | Set), QSort (q, _) -> add_squash (QVar q) info
+    | SProp, (Prop | Type _ | Set) ->
+        { info with ind_squashed = Some AlwaysSquashed }
+    | Prop, (Type _ | Set) -> { info with ind_squashed = Some AlwaysSquashed }
+    (* These cases should not happen because `eliminates_to` above should be true,
+      * e.g., Type -> (S)Prop, SProp -> SProp, etc. *)
+    | (Type _ | Set | SProp | Prop), _ -> assert false
 
 let check_context_univs ~ctor env info ctx =
   let check_one d (info,env) =
