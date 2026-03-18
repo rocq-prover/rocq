@@ -259,14 +259,14 @@ struct
   type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_
   and ('a, 'e) reified_ = {r : 'e -> ('a, 'e) reified} [@@unboxed]
 
-  let rec reflect0 : type r. _ -> _ -> _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
-    fun e m s0 nil cons ->
+  let rec reflect0 : type r. _ -> _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
+    fun e m nil cons ->
       match m e with
       | Nil e -> nil e
-      | Cons ((x, s), {r=l}) -> cons x s (fun e -> reflect0 e l s0 nil cons)
+      | Cons ((x, s), {r=l}) -> cons x s (fun e -> reflect0 e l nil cons)
 
   let reflect (e : 'e) (m : 'e -> ('a * 'o, 'e) reified) =
-    { iolist = fun s0 nil cons -> reflect0 e m s0 nil cons }
+    { iolist = fun _ nil cons -> reflect0 e m nil cons }
 
   let split m : (_ list_view, _, _, _) t =
     let rnil e = Nil e in
