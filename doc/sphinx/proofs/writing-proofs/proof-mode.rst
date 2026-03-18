@@ -1000,8 +1000,7 @@ Proving a subgoal as a separate lemma: abstract
       The abstract tactic, while very useful, still has some known
       limitations.  See `#9146 <https://github.com/rocq-prover/rocq/issues/9146>`_ for more
       details. We recommend caution when using it in some
-      "non-standard" contexts. In particular, ``abstract`` doesn't
-      work properly when used inside quotations ``ltac:(...)``.
+      "non-standard" contexts.
       If used as part of typeclass resolution, it may produce incorrect
       terms when in polymorphic universe mode.
 
@@ -1030,6 +1029,12 @@ Proving a subgoal as a separate lemma: abstract
       .. exn:: Proof is not complete.
          :name: Proof is not complete. (abstract)
          :undocumented:
+
+   .. flag:: Inline Abstract Subproof
+
+      Restore the pre-9.3 behavior of :tacn:`abstract` inside quotations.
+
+      .. deprecated:: 9.3
 
 .. _requestinginformation:
 
