@@ -483,11 +483,11 @@ let is_applied o n = match o with FullyApplied -> true | NumArgs m -> Int.equal 
 
 let compare_heads pbty env evd ~nargs term term' =
   let check_strict evd u u' =
-    let (qcst, ucst) = UVars.enforce_eq_instances u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty) in
+    let (qcst, ucst) = UVars.enforce_eq_instances u u' UVars.empty_unif_constraints in
     try
       let evd = Evd.add_univ_constraints evd ucst in
-      let fold (q1, q2) accu = UnivProblem.Set.add (UnivProblem.QEq (q1, q2)) accu in
-      let qcst = UVars.QPairSet.fold fold qcst UnivProblem.Set.empty in
+      let fold c accu = UnivProblem.Set.add (UnivProblem.of_qunif c) accu in
+      let qcst = UVars.QUnifConstraints.fold fold qcst UnivProblem.Set.empty in
       let evd = Evd.add_constraints evd qcst in
       Success evd
     with UGraph.UniverseInconsistency p -> UnifFailure (evd, UnifUnivInconsistency p)
@@ -497,7 +497,7 @@ let compare_heads pbty env evd ~nargs term term' =
     if is_applied nargs 1 && Environ.is_array_type env c
     then
       let u = EInstance.kind evd u and u' = EInstance.kind evd u' in
-      compare_cumulative_instances pbty evd [|UVars.Variance.Irrelevant|] u u'
+      compare_cumulative_instances pbty evd UVars.prim_array_variance u u'
     else
       let u = EInstance.kind evd u and u' = EInstance.kind evd u' in
       check_strict evd u u'

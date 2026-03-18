@@ -44,7 +44,7 @@ val typecheck_inductive : env -> sec_univs:UVars.Instance.t option
   -> env
   * universes
   * template_universes option
-  * UVars.Variance.t array option
+  * UVars.variances option
   * Names.Id.t array option option
   * (Declarations.has_eta, NotPrimRecordReason.t) result option
   * Constr.rel_context

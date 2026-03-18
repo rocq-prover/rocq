@@ -33,6 +33,10 @@ sig
 
 end
 
+type variances = Variance.t array * Variance.t array
+
+val prim_array_variance : variances
+
 (** {6 Universe instances} *)
 
 module Instance :
@@ -66,7 +70,7 @@ sig
   val hash : t -> int
   (** Hash value *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:variances -> t -> Pp.t
   (** Pretty-printing, no comments *)
 
   val levels : t -> Quality.Set.t * Level.Set.t
@@ -85,14 +89,34 @@ end
 val eq_sizes : int * int -> int * int -> bool
 (** Convenient function to compare the result of Instance.length, UContext.size etc *)
 
-module QPairSet : CSig.SetS with type elt = (Quality.t * Quality.t)
+module QUnifConstraint : sig
+  type kind = Eq | Le | Connected
 
-type 'a pconstraints_function = 'a -> 'a -> QPairSet.t * UnivConstraints.t -> QPairSet.t * UnivConstraints.t
+  type t = Quality.t * kind * Quality.t
+
+  val is_trivial_gen : (Quality.t -> Quality.t -> bool) -> t -> bool
+  val is_trivial : t -> bool
+end
+
+module QUnifConstraints : sig
+  include CSet.ExtS with type elt = QUnifConstraint.t
+
+  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+
+  val is_trivial_gen : (Quality.t -> Quality.t -> bool) -> t -> bool
+  val is_trivial : t -> bool
+end
+
+type unif_constraints = QUnifConstraints.t * UnivConstraints.t
+
+val empty_unif_constraints : unif_constraints
+
+type 'a pconstraints_function = 'a -> 'a -> unif_constraints -> unif_constraints
 
 val enforce_eq_instances : Instance.t pconstraints_function
 
-val enforce_eq_variance_instances : Variance.t array -> Instance.t pconstraints_function
-val enforce_leq_variance_instances : Variance.t array -> Instance.t pconstraints_function
+val enforce_eq_variance_instances : variances -> Instance.t pconstraints_function
+val enforce_leq_variance_instances : variances -> Instance.t pconstraints_function
 
 type 'a puniverses = 'a * Instance.t
 val out_punivs : 'a puniverses -> 'a
@@ -151,7 +175,7 @@ sig
   val to_context_set : t -> Sorts.QContextSet.t * Univ.ContextSet.t
   (** Discard the names and order of the universes *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:variances -> t -> Pp.t
 end
 (** A value in a universe context. *)
 type 'a in_universe_context = 'a * UContext.t
@@ -201,7 +225,7 @@ sig
   val refine_names : bound_names -> t -> t
   (** Use names to name the possibly yet unnamed universes *)
 
-  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+  val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:variances -> t -> Pp.t
 end
 
 type 'a univ_abstracted = {

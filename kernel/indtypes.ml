@@ -575,10 +575,11 @@ let build_inductive env ~sec_univs names prv univs template variance
     | Some variance -> match sec_univs with
       | None -> Some variance, None
       | Some sec_univs ->
-        (* no variance for qualities *)
-        let _nsecq, nsecu = UVars.Instance.length sec_univs in
-        Some (Array.sub variance nsecu (Array.length variance - nsecu)),
-        Some (Array.sub variance 0 nsecu)
+        let qvariance, uvariance = variance in
+        let nsecq, nsecu = UVars.Instance.length sec_univs in
+        let secqv, qv = Array.chop nsecq qvariance in
+        let secuv, uv = Array.chop nsecu uvariance in
+        Some (qv, uv), Some (secqv, secuv)
   in
   let univ_hyps = match sec_univs with
     | None -> UVars.Instance.empty

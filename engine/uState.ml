@@ -99,6 +99,7 @@ module QState : sig
   val is_rigid : t -> QVar.t -> bool
   val is_above_prop : t -> QVar.t -> bool
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
+  val connect_quality : fail:(unit -> t) -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> ?to_type:bool -> t -> t
@@ -224,6 +225,19 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
   end
 | (QConstant QSProp, QConstant (QType | QProp)) -> fail ()
 | (QConstant QProp, QConstant QSProp) -> fail ()
+
+let connect_quality ~fail q1 q2 m = match q1, q2 with
+  | (QConstant QType | QConstant QProp), (QConstant QType | QConstant QProp) -> m
+  | (QConstant QType | QConstant QProp), QVar q
+  | QVar q, (QConstant QType | QConstant QProp) ->
+    begin match set_above_prop q m with
+    | Some m -> m
+    | None -> fail()
+    end
+  | QVar qv1, QVar qv2 ->
+    if is_above_prop m qv1 && is_above_prop m qv2 then m
+    else unify_quality ~fail CONV q1 q2 m
+  | _ -> unify_quality ~fail CONV q1 q2 m
 
 let nf_quality m = function
   | QConstant _ as q -> q
@@ -754,6 +768,17 @@ let unify_quality c s1 s2 l =
         c (Sorts.quality s1) (Sorts.quality s2) l.local_sorts;
   }
 
+let connect_quality s1 s2 l =
+  let fail () =
+    if QGraph.ignore_constraints (QState.elims l.local_sorts) then l.local_sorts else
+    (* XXX CONV? *)
+    sort_inconsistency (get_constraint CONV) s1 s2
+  in
+  { l with
+    local_sorts = QState.connect_quality ~fail
+        (Sorts.quality s1) (Sorts.quality s2) l.local_sorts;
+  }
+
 let process_constraints uctx cstrs =
   let open UnivSubst in
   let open UnivProblem in
@@ -768,6 +793,7 @@ let process_constraints uctx cstrs =
     | QElimTo (a, b) -> QElimTo (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QLeq (a, b) -> QLeq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QEq (a, b) -> QEq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
+    | QConnected (a, b) -> QConnected (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | ULub (u, v) -> ULub (level_subst_of normalize u, level_subst_of normalize v)
     | UWeak (u, v) -> UWeak (level_subst_of normalize u, level_subst_of normalize v)
     | UEq (u, v) -> UEq (normalize_sort sorts u, normalize_sort sorts v)
@@ -851,6 +877,7 @@ let process_constraints uctx cstrs =
     | QEq (a, b) -> unify_quality CONV (mk a) (mk b) local
     | QLeq (a, b) -> unify_quality CUMUL (mk a) (mk b) local
     | QElimTo (a, b) -> { local with local_cst = PConstraints.add_quality (a, ElimTo, b) local.local_cst }
+    | QConnected (a, b) -> connect_quality (mk a) (mk b) local
     | ULe (l, r) ->
       let local = unify_quality CUMUL l r local in
       let l = normalize_sort local.local_sorts l in
@@ -1018,6 +1045,16 @@ let check_constraint uctx (c:UnivProblem.t) =
         | QConstant QProp, QVar q -> QState.is_above_prop uctx.sort_variables q
         | (QConstant _ | QVar _), _ -> false
       end
+  | QConnected (a,b) ->
+    let a = nf_quality uctx a in
+    let b = nf_quality uctx b in
+    QUnifConstraint.is_trivial (a,Connected,b) ||
+    begin match a, b with
+    | (QConstant QType | QConstant QProp), QVar q
+    | QVar q, (QConstant QType | QConstant QProp) -> is_above_prop uctx q
+    | QVar a, QVar b -> is_above_prop uctx a && is_above_prop uctx b
+    | _ -> false
+    end
   | QElimTo (a, b) ->
     let a = nf_quality uctx a in
     let b = nf_quality uctx b in

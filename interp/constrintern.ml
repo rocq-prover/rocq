@@ -3216,13 +3216,15 @@ let interp_univ_decl env decl =
 
 let interp_cumul_univ_decl env decl =
   let open UState in
+  let qvariances = Array.map_of_list snd decl.univdecl_qualities in
+  let qualities = List.map fst decl.univdecl_qualities in
+  let uvariances = Array.map_of_list snd decl.univdecl_instance in
   let binders = List.map fst decl.univdecl_instance in
-  let variances = Array.map_of_list snd decl.univdecl_instance in
   let evd = Evd.from_env env in
   let evd, qualities = List.fold_left_map (fun evd lid ->
       Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
       evd
-      decl.univdecl_qualities
+      qualities
   in
   let evd, instance = List.fold_left_map (fun evd lid ->
       Evd.new_univ_level_variable ?loc:lid.loc univ_rigid ~name:lid.v evd)
@@ -3241,7 +3243,7 @@ let interp_cumul_univ_decl env decl =
     univdecl_extensible_constraints = decl.univdecl_extensible_constraints;
   }
   in
-  evd, decl, variances
+  evd, decl, (qvariances, uvariances)
 
 let interp_univ_decl_opt env l =
   match l with
@@ -3249,7 +3251,7 @@ let interp_univ_decl_opt env l =
   | Some decl -> interp_univ_decl env decl
 
 let interp_cumul_univ_decl_opt env = function
-  | None -> Evd.from_env env, UState.default_univ_decl, [| |]
+  | None -> Evd.from_env env, UState.default_univ_decl, ([| |], [| |])
   | Some decl -> interp_cumul_univ_decl env decl
 
 let interp_mutual_univ_decl_opt env udecls =

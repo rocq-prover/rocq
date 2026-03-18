@@ -49,8 +49,9 @@ type sort_constraint_expr =
   | ElimCst of elim_constraint_expr
 
 type universe_decl_expr = (lident list, elim_constraint_expr list, lident list, univ_constraint_expr list) UState.gen_universe_decl
+type lident_with_variance = lident * UVars.Variance.t option
 type cumul_univ_decl_expr =
-  (lident list, elim_constraint_expr list, (lident * UVars.Variance.t option) list, univ_constraint_expr list) UState.gen_universe_decl
+  (lident_with_variance list, elim_constraint_expr list, lident_with_variance list, univ_constraint_expr list) UState.gen_universe_decl
 
 type ident_decl = lident * universe_decl_expr option
 type cumul_ident_decl = lident * cumul_univ_decl_expr option
