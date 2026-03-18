@@ -1670,54 +1670,20 @@ module Infer = struct
 
 open Sorts
 
-let get_algebraic = function
-| Prop | SProp -> assert false
-| Set -> Universe.type0
-| QSort (_, u) | Type u -> u
+let enforce_eq_sort s1 s2 ucsts =
+  if Sorts.Quality.equal (Sorts.quality s1) (Sorts.quality s2) then
+    UnivSubst.enforce_eq (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) ucsts
+  else
+    raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 
-let is_impredicative_sort = function
-| Prop | SProp -> true
-| _ -> false
-(* Only used for universe level comparisons, so impredicative set is still fine *)
-
-let enforce_eq_sort s1 s2 (qcsts, ucsts as cst) = match s1, s2 with
-| QSort (q1, u1), s2 ->
-  let q2 = quality s2 in
-  let qcsts = UVars.QPairSet.add (QVar q1, q2) qcsts in
-  let ucsts = if is_impredicative_sort s2 then ucsts else UnivSubst.enforce_eq u1 (get_algebraic s2) ucsts in
-  (qcsts, ucsts)
-| s1, QSort (q2, u2) ->
-  let q1 = quality s1 in
-  let qcsts = UVars.QPairSet.add (q1, QVar q2) qcsts in
-  let ucsts = if is_impredicative_sort s2 then ucsts else UnivSubst.enforce_eq (get_algebraic s1) u2 ucsts in
-  (qcsts, ucsts)
-| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> cst
-| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
-| ((Prop | SProp as s1), ((Prop | Set | Type _) as s2)) ->
-  raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
-| (Set | Type _), (Set | Type _) ->
-  let ucsts' = UnivSubst.enforce_eq (get_algebraic s1) (get_algebraic s2) ucsts in
-  if ucsts == ucsts' then cst else (qcsts, ucsts')
-
-let enforce_leq_alg_sort s1 s2 g = match s1, s2 with
-| QSort (q1, u1), s2 ->
-  let q2 = quality s2 in
-  let qcsts = UVars.QPairSet.singleton (QVar q1, q2) in
-  let ucsts, g = if is_impredicative_sort s2 then UnivConstraints.empty, g else UGraph.enforce_leq_alg u1 (get_algebraic s2) g in
-  (qcsts, ucsts), g
-| s1, QSort (q2, u2) ->
-  let q1 = quality s1 in
-  let qcsts = UVars.QPairSet.singleton (q1, QVar q2) in
-  let ucsts, g = if is_impredicative_sort s2 then UnivConstraints.empty, g else UGraph.enforce_leq_alg (get_algebraic s1) u2 g  in
-  (qcsts, ucsts), g
-| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> (UVars.QPairSet.empty, Univ.UnivConstraints.empty), g
-| (Prop, (Set | Type _)) -> (UVars.QPairSet.empty, Univ.UnivConstraints.empty), g
-| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
-| ((SProp as s1), ((Prop | Set | Type _) as s2)) ->
-  raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
-| (Set | Type _), (Set | Type _) ->
-  let ucsts, g = UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g in
-  (UVars.QPairSet.empty, ucsts), g
+let enforce_leq_alg_sort s1 s2 g =
+  match s1, s2 with
+  | Prop, (Set | Type _) -> Univ.UnivConstraints.empty, g
+  | _ ->
+  if Sorts.Quality.equal (Sorts.quality s1) (Sorts.quality s2) then
+    UGraph.enforce_leq_alg (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) g
+  else
+    raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
 
 open Conversion
 
@@ -1728,19 +1694,14 @@ let check_eq_qualities qcst =
 let infer_eq (univs, cstrs as cuniv) s s' =
   if UGraph.check_eq_sort Sorts.Quality.equal univs s s' then Result.Ok cuniv
   else try
-    let qcsts', ucstrs' as cstrs' = enforce_eq_sort s s' (UVars.QPairSet.empty, Univ.UnivConstraints.empty) in
-    if check_eq_qualities qcsts' then
-      Result.Ok (UGraph.merge_constraints ucstrs' univs, UnivConstraints.union cstrs ucstrs')
-    else Result.Error None
+    let ucstrs' = enforce_eq_sort s s' Univ.UnivConstraints.empty in
+    Result.Ok (UGraph.merge_constraints ucstrs' univs, UnivConstraints.union cstrs ucstrs')
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
 let infer_leq (univs, cstrs as cuniv) s s' =
   if UGraph.check_leq_sort Sorts.Quality.equal univs s s' then Result.Ok cuniv
   else match enforce_leq_alg_sort s s' univs with
-  | (qcsts, ucsts), ugraph ->
-    if check_eq_qualities qcsts then
-      Result.Ok (univs, UnivConstraints.union cstrs ucsts)
-    else Result.Error None
+  | ucsts, ugraph -> Result.Ok (univs, UnivConstraints.union cstrs ucsts)
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
 let infer_cmp_universes pb s0 s1 cuniv =
