@@ -2043,6 +2043,14 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
+      optkey   = ["Indices"; "Matter"];
+      optread  = (fun () -> (Global.typing_flags ()).Declarations.indices_matter);
+      optwrite = (fun b -> Global.set_indices_matter b) }
+
+let () =
+  declare_bool_option
+    { optstage = Summary.Stage.Interp;
+      optdepr  = None;
       optkey   = ["Definitional"; "UIP"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.allow_uip);
       optwrite = (fun b -> Global.set_typing_flags
