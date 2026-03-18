@@ -94,6 +94,14 @@ This package includes compatibility binaries to call Rocq
 through previous Coq commands like coqc coqtop,..."))
 
 (package
+ (name coq)
+ (depends
+  (coq-core (= :version))
+  coq-stdlib
+  (coqide-server (= :version)))
+ (synopsis "Compatibility metapackage for Coq after the Rocq renaming"))
+
+(package
  (name rocq-core)
  (depends
   (rocq-runtime (= :version)))
