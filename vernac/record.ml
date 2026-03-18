@@ -482,7 +482,7 @@ let warning_or_error ?loc ~info flags indsp err =
       let err = match te with
         | ElimArity (_, _, Some s) ->
           error_elim_explain (Sorts.quality s)
-            (Inductiveops.elim_sort (Global.lookup_inductive indsp))
+            (UnivGen.QualityOrSet.quality @@ Inductiveops.elim_sort (Global.lookup_inductive indsp))
         | _ -> None
       in
         match err with

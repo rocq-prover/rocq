@@ -342,15 +342,15 @@ let elim_sort (mib,mip) =
      future. *)
   if Option.is_empty mip.mind_squashed &&
        not (is_record && has_args mip && Sorts.is_sprop mip.mind_sort)
-  then Sorts.Quality.qtype
-  else Sorts.quality mip.mind_sort
+  then UnivGen.QualityOrSet.qtype
+  else if Sorts.is_set mip.mind_sort then Set
+  else UnivGen.QualityOrSet.of_quality @@ Sorts.quality mip.mind_sort
 
 let top_allowed_sort env (kn,i as ind) =
   let specif = Inductive.lookup_mind_specif env ind in
   elim_sort specif
 
 let constant_sorts_below top =
-  let top = UnivGen.QualityOrSet.of_quality top in
   List.filter
     (UnivGen.QualityOrSet.eliminates_to top)
     (UnivGen.QualityOrSet.all_constants)
