@@ -8,7 +8,7 @@ Open Scope category_theory_scope.
 Export Corelib.Classes.CMorphisms.
 
 Notation "∀  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity) :
+  (at level 10, x binder, y binder, P at level 200) :
   category_theory_scope.
 
 Notation "x → y" := (x -> y)

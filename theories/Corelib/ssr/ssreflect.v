@@ -92,7 +92,7 @@ Reserved Notation "(* x 'is' y 'of' z 'isn't' // /= //= *)".
 Reserved Notation "<hidden n >" (at level 0, n at level 0,
   format "<hidden  n >").
 #[warning="-postfix-notation-not-level-1"]
-Reserved Notation "T (* n *)" (at level 200, format "T  (* n *)").
+Reserved Notation "T (* n *)" (at level 201, format "T  (* n *)").
 
 End SsrSyntax.
 
@@ -105,11 +105,11 @@ Local Abbreviation RocqGenericDependentIf c x R vT vF :=
   (if c as x return R then vT else vF) (only parsing).
 
 (** Reserve notation that introduced in this file. **)
-Reserved Notation "'if' c 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'then' vT 'else' vF" (at level 10,
   c, vT, vF at level 200).
-Reserved Notation "'if' c 'return' R 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'return' R 'then' vT 'else' vF" (at level 10,
   c, R, vT, vF at level 200).
-Reserved Notation "'if' c 'as' x 'return' R 'then' vT 'else' vF" (at level 200,
+Reserved Notation "'if' c 'as' x 'return' R 'then' vT 'else' vF" (at level 10,
   c, R, vT, vF at level 200, x name).
 
 Reserved Notation "[ 'the' sT 'of' v 'by' f ]" (at level 0,

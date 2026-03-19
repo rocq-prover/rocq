@@ -67,7 +67,7 @@ Notation "t $ r" := (t r)
   (at level 65, right associativity, only parsing).
 Notation "'λ..' x .. y , e" :=
   (tele_app $ tele_bind (fun x => .. (tele_app $ tele_bind (fun y => e)) .. ))
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, e at level 200, x binder, y binder,
    format "'[  ' 'λ..'  x  ..  y ']' ,  e").
 
 (** Telescopic quantifiers *)
@@ -76,7 +76,7 @@ Definition texist {TT : tele} (Ψ : TT -> Prop) : Prop :=
 Arguments texist {!_} _ /.
 
 Notation "'∃..' x .. y , P" := (texist (fun x => .. (texist (fun y => P)) .. ))
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, P at level 200, x binder, y binder,
   format "∃..  x  ..  y ,  P").
 End tele.
 Import tele.

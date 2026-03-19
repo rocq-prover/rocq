@@ -120,7 +120,7 @@ fun x : nat => [x]
      : nat -> nat
 ∀ x : nat, x = x
      : Prop
-File "./output/Notations4.v", line 193, characters 0-160:
+File "./output/Notations4.v", line 193, characters 0-154:
 Warning: Notation "∀ _ .. _ , _" was already defined with a different format
 in scope type_scope. [notation-incompatible-format,parsing,default]
 ∀x : nat,x = x
@@ -284,10 +284,10 @@ where
 ?A : [ |- Type]
 0
      : nat
-File "./output/Notations4.v", line 542, characters 0-78:
+File "./output/Notations4.v", line 542, characters 0-77:
 The command has indeed failed with message:
-Notation "func _ .. _ , _" is already defined at level 200 with arguments
-binder, constr at next level while it is now required to be at level 200
+Notation "func _ .. _ , _" is already defined at level 10 with arguments
+binder, constr at level 200 while it is now required to be at level 10
 with arguments constr, constr at next level.
 File "./output/Notations4.v", line 547, characters 0-57:
 The command has indeed failed with message:

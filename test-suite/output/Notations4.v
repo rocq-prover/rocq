@@ -185,13 +185,13 @@ End Bug_6082.
 Module Bug_7766.
 
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "'[  ' ∀  x  ..  y ']' ,  P") : type_scope.
 
 Check forall (x : nat), x = x.
 
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
    format "∀ x .. y , P") : type_scope.
 
 Check forall (x : nat), x = x.
@@ -399,13 +399,13 @@ Module P.
 
   Module NotationBinderNotMixedWithTerms.
 
-  Notation "!! x , P" := (forall x, P) (at level 200, x pattern).
+  Notation "!! x , P" := (forall x, P) (at level 10, x pattern, P at level 200).
   Check !! nat, nat = true.
 
-  Notation "!!! x , P" := (forall x, P) (at level 200).
+  Notation "!!! x , P" := (forall x, P) (at level 10, P at level 200).
   Check !!! nat, nat = true.
 
-  Notation "!!!! x , P" := (forall x, P) (at level 200, x strict pattern).
+  Notation "!!!! x , P" := (forall x, P) (at level 10, P at level 200, x strict pattern).
   Check !!!! (nat,id), nat = true /\ id = false.
 
   End NotationBinderNotMixedWithTerms.
@@ -418,18 +418,18 @@ Module MorePrecise1.
    notation with unlimited iteration *)
 
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "'[  ' '[  ' ∀  x  ..  y ']' ,  '/' P ']'") : type_scope.
 
 Check forall x, x = 0.
 
 Notation "∀₁ z , P" := (forall z, P)
-  (at level 200, right associativity) : type_scope.
+  (at level 10, P at level 200) : type_scope.
 
 Check forall x, x = 0.
 
 Notation "∀₂ y x , P" := (forall y x, P)
-  (at level 200, right associativity) : type_scope.
+  (at level 10, P at level 200) : type_scope.
 
 Check forall x, x = 0.
 Check forall x y, x + y = 0.
@@ -450,10 +450,10 @@ Notation "%%% [ y ]" := (forall x : nat, x = y) (at level 0).
 
 (* Check that the two previous notations are indeed finer *)
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "'[  ' '[  ' ∀  x  ..  y ']' ,  '/' P ']'").
 Notation "∀' x .. y , P" := (forall y, .. (forall x, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "'[  ' '[  ' ∀'  x  ..  y ']' ,  '/' P ']'").
 
 Check %% [x == 1].
@@ -478,7 +478,7 @@ Module MorePrecise3.
 Notation "%%%" := (forall x, x) (at level 0).
 
 Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, P at level 200,
   format "'[  ' '[  ' ∀  x  ..  y ']' ,  '/' P ']'").
 
 Check %%%.
@@ -538,8 +538,8 @@ End LeadingNumber.
 
 Module Incompatibility.
 
-Notation "'func' x .. y , P" := (fun x => .. (fun y => P) ..) (x binder, y binder, at level 200).
-Fail Notation "'func' x .. y , P" := (pair x .. (pair y P) ..) (at level 200).
+Notation "'func' x .. y , P" := (fun x => .. (fun y => P) ..) (x binder, y binder, at level 10, P at level 200).
+Fail Notation "'func' x .. y , P" := (pair x .. (pair y P) ..) (at level 10).
 
 Declare Custom Entry foo.
 Declare Custom Entry bar.
@@ -551,10 +551,10 @@ End Incompatibility.
 Module RecursivePatternsArgumentsInRecursiveNotations.
 
 Notation "'λ' x .. y , t" := (fun x => .. (fun y => t) ..)
-  (at level 200, x binder, y binder, right associativity,
+  (at level 10, x binder, y binder, t at level 200,
   format "'[  ' '[  ' 'λ'  x  ..  y ']' ,  '/' t ']'").
 
-Notation "'lambda' x .. y , t" := (λ x .. y, t) (at level 200, x binder, y binder).
+Notation "'lambda' x .. y , t" := (λ x .. y, t) (at level 10, x binder, y binder, t at level 200).
 
 Check lambda x y, x+y=0.
 
@@ -594,7 +594,7 @@ Unset Printing Matching.
 
 Notation "'uncurryλ' x1 .. xn => body"
   := (fun x => match x with (pair x x1) => .. (match x with (pair x xn) => let 'tt := x in body end) .. end)
-     (at level 200, x1 binder, xn binder, right associativity).
+     (at level 10, x1 binder, xn binder, body at level 200).
 
 Check uncurryλ a b c => a + b + c.
 
@@ -610,7 +610,7 @@ Check uncurryλ '(a,b) => a + b.
 
 Notation "'lets' x1 .. xn := c 'in' body"
   := (let x1 := c in .. (let xn := c in body) ..)
-     (at level 200, x1 binder, xn binder, right associativity).
+     (at level 10, x1 binder, xn binder, body at level 200).
 
 Check lets a b c := 0 in a + b + c.
 
