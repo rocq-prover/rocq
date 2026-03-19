@@ -188,7 +188,7 @@ module Internal : sig
 
   val pr_mult : ssrmult -> Pp.t
 
-  val is_ssr_loaded : unit -> bool
+  val is_ssr_rewrite_loaded : unit -> bool
 
   val pr_hpats : ssrhpats -> Pp.t
 
