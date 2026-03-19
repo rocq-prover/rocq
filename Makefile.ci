@@ -221,7 +221,7 @@ ci-flocq: ci-stdlib
 
 ci-menhir: ci-stdlib
 
-ci-metarocq: ci-equations
+ci-metarocq: ci-equations ci-ext_lib
 
 ci-neural_net_interp: ci-stdlib
 
