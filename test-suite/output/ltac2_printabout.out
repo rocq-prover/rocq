@@ -3,6 +3,8 @@ snd : 'b * 'a -> 'a
 type : constr -> constr
 Ltac2 type : constr -> constr
       type := @external "rocq-runtime.plugins.ltac2" "constr_type"
+Inductive Corelib.Init.ssreflect_rw.NonPropType.type
+  (shorter name to refer to it in current context is NonPropType.type)
 Ltac2 ltac2_printabout.type
 Ltac2 type : constr -> constr
 None : 'a option
