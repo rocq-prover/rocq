@@ -69,6 +69,8 @@ let mind_check_names env mie =
 
 type record_arg_info =
   | NoRelevantArg
+  | MaybeRelevantArg
+  (** At least one arg with variable relevance. *)
   | HasRelevantArg
   (** HasRelevantArg means when the record is relevant at least one arg is relevant.
       When the record is in a polymorphic sort this can mean one arg is in the same sort. *)
@@ -100,13 +102,13 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
   let info = if not is_real_arg then info
     else match info.record_arg_info with
       | HasRelevantArg -> info
-      | NoRelevantArg -> match u with
+      | NoRelevantArg | MaybeRelevantArg -> match u with
         | Sorts.SProp -> info
         | QSort (q,_) ->
            if Environ.Internal.is_above_prop env q
               || equal (QVar q) (Sorts.quality info.ind_univ)
           then { info with record_arg_info = HasRelevantArg }
-          else info
+          else { info with record_arg_info = MaybeRelevantArg }
         | Prop | Set | Type _ -> { info with record_arg_info = HasRelevantArg }
   in
   if Environ.ignore_elim_constraints env then info else
@@ -241,6 +243,11 @@ let check_record data =
         | None -> (* Otherwise, we allow primitive projections but check if it has eta *)
             match info.record_arg_info with
             | HasRelevantArg -> Result.Ok AlwaysEta
+            | MaybeRelevantArg ->
+              begin match info.ind_univ with
+              | SProp -> Result.Ok AlwaysEta
+              | _ -> Result.Ok MaybeEta
+              end
             | NoRelevantArg ->
               (* If there is no relevant projection, then we consider the sort of the record to decide if it has eta *)
               match info.ind_univ with
