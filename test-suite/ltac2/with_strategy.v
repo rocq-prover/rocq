@@ -45,3 +45,6 @@ Goal myid 0 = 0.
   unfold_myid ().
   reflexivity.
 Qed.
+
+(* test that returning non unit works *)
+Ltac2 Eval TransparentState.with_strategy TransparentState.Expand [] (fun () => Some 1).
