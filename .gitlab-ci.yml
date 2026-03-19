@@ -1202,6 +1202,7 @@ plugin:ci-metarocq:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-equations
+  - library:ci-ext_lib
   stage: build-2
   timeout: 1h 30min
 
