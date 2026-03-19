@@ -121,8 +121,6 @@ compatible with the rest of Rocq, up to a few discrepancies.
 + New tactic(al)s names (:tacn:`last`, :tacn:`done`, :tacn:`have`, :tacn:`suffices`,
   :tacn:`suff`, :tacn:`without loss`, :tacn:`wlog`, :tacn:`congr`, :tacn:`unlock`)
   might clash with user tactic names.
-+ Identifiers with both leading and trailing ``_``, such as ``_x_``, are
-  reserved by |SSR| and cannot appear in scripts.
 + The extensions to the :tacn:`rewrite` tactic are partly incompatible with those
   available in current versions of Rocq; in particular, ``rewrite .. in
   (type of k)`` or ``rewrite .. in *`` or any other variant of :tacn:`rewrite`
@@ -164,17 +162,6 @@ compatible with the rest of Rocq, up to a few discrepancies.
 
    Controls whether the incompatible rewrite syntax is enabled (the default).
    Disabling the :term:`flag` makes the syntax compatible with other parts of Rocq.
-
-.. flag:: SsrIdents
-
-   Controls whether tactics can refer to |SSR|-generated variables that are
-   in the form _xxx_.  Scripts with explicit references to such variables
-   are fragile; they are prone to failure if the proof is later modified or
-   if the details of variable name generation change in future releases of Rocq.
-
-   The default is on, which gives an error message when the user tries to
-   create such identifiers.  Disabling the :term:`flag` generates a warning instead,
-   increasing compatibility with other parts of Rocq.
 
 Gallina extensions
 --------------------
