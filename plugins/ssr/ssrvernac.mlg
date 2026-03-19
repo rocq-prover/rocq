@@ -17,7 +17,6 @@ module CoqConstr = Constr
 open CoqConstr
 open Constrexpr
 open Constrexpr_ops
-open Procq
 open Procq.Prim
 open Procq.Constr
 open Pvernac.Vernac_
@@ -290,58 +289,4 @@ VERNAC COMMAND EXTEND HintView CLASSIFIED AS SIDEFF
           Ssrview.AdaptorDb.declare Ssrview.AdaptorDb.Backward hints
        | Some k ->
           Ssrview.AdaptorDb.declare k hints }
-END
-
-(** Search compatibility *)
-
-{
-
-open G_vernac
-}
-
-GRAMMAR EXTEND Gram
-  GLOBAL: query_command;
-
-  query_command: TOP
-    [ [ IDENT "Search"; s = search_query; l = search_queries; "." ->
-          { let (sl,m) = l in
-            fun g ->
-              Vernacexpr.VernacSearch (Vernacexpr.Search (s::sl),g, m) }
-      ] ]
-;
-END
-
-(** Keyword compatibility fixes. *)
-
-(* Coq v8.1 notation uses "by" and "of" quasi-keywords, i.e., reserved *)
-(* identifiers used as keywords. This is incompatible with ssreflect.v *)
-(* which makes "by" and "of" true keywords, because of technicalities  *)
-(* in the internal lexer-parser API of Rocq. We patch this here by     *)
-(* adding new parsing rules that recognize the new keywords.           *)
-(*   To make matters worse, the Rocq grammar for tactics fails to      *)
-(* export the non-terminals we need to patch. Fortunately, the CamlP5  *)
-(* API provides a backdoor access (with loads of Obj.magic trickery).  *)
-
-(* Coq v8.3 defines "by" as a keyword, some hacks are not needed any   *)
-(* longer and thus comment out. Such comments are marked with v8.3     *)
-
-{
-
-open Pltac
-
-}
-
-GRAMMAR EXTEND Gram
-  GLOBAL: hypident;
-  hypident: TOP [
-  [ "("; IDENT "type"; "of"; id = Prim.identref; ")" -> { id, Locus.InHypTypeOnly }
-  | "("; IDENT "value"; "of"; id = Prim.identref; ")" -> { id, Locus.InHypValueOnly }
-  ] ];
-END
-
-GRAMMAR EXTEND Gram
-  GLOBAL: constr_eval;
-  constr_eval: TOP [
-    [ IDENT "type"; "of"; c = Constr.constr -> { Tacexpr.ConstrTypeOf c }]
-  ];
 END
