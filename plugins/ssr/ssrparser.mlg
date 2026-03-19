@@ -44,10 +44,9 @@ open Libobject
 (** Ssreflect load check. *)
 
 (* To allow ssrcoq to be fully compatible with the "plain" Rocq, we only*)
-(* turn on its incompatible features (the new rewrite syntax, and the   *)
-(* reserved identifiers) when the theory library (ssreflect.v) has      *)
-(* has actually been imported. This is done thanks to the "SSR Loaded"  *)
-(* option.                                                              *)
+(* turn on its incompatible features (the new rewrite syntax) when the  *)
+(* theory library (ssreflect.v) has actually been imported.             *)
+(* This is done thanks to the "SSR Loaded" option.                      *)
 
 let is_ssr_loaded = Pptactic.ssr_loaded
 
@@ -1623,31 +1622,20 @@ let ltac_expr = Pltac.ltac_expr
 
 (* Since Rocq now does repeated internal checks of its external lexical *)
 (* rules, we now need to carve ssreflect reserved identifiers out of   *)
-(* out of the user namespace. We use identifiers of the form _id_ for  *)
-(* this purpose, e.g., we "anonymize" an identifier id as _id_, adding *)
-(* an extra leading _ if this might clash with an internal identifier. *)
-(*    We check for ssreflect identifiers in the ident grammar rule;    *)
-(* when the ssreflect Module is present this is normally an error,     *)
-(* but we provide a compatibility flag to reduce this to a warning.    *)
+(* the user namespace. We use identifiers of the form ‗id‗ for         *)
+(* this purpose, e.g., we "anonymize" an identifier id as ‗id‗, adding *)
+(* an extra leading ‗ if this might clash with an internal identifier. *)
+(*    We check for ssreflect identifiers in the ident grammar rule.    *)
 
 {
 
-let { Goptions.get = ssr_reserved_ids } =
-  Goptions.declare_bool_option_and_ref ~stage:Synterp ~key:["SsrIdents"] ~value:true ()
-
 let is_ssr_reserved s =
-  let n = String.length s in n > 2 && s.[0] = '_' && s.[n - 1] = '_'
+  let n = String.length s in n > 6 && is_dll s 0 && is_dll s (n - 3)
 
 let ssr_id_of_string loc s =
-  if is_ssr_reserved s && is_ssr_loaded () then begin
-    if ssr_reserved_ids() then
-      CErrors.user_err ~loc (str ("The identifier " ^ s ^ " is reserved."))
-    else if is_internal_name s then
-      Feedback.msg_warning (str ("Conflict between " ^ s ^ " and ssreflect internal names."))
-    else Feedback.msg_warning (str (
-     "The name " ^ s ^ " fits the _xxx_ format used for anonymous variables.\n"
-  ^ "Scripts with explicit references to anonymous variables are fragile."))
-    end; Id.of_string s
+  if is_ssr_reserved s then begin
+    CErrors.user_err ~loc (str ("The identifier " ^ s ^ " is reserved."))
+  end; Id.of_string s
 
 let ssr_null_entry = Procq.Entry.(of_parser "ssr_null" { parser_fun = fun _ _ -> Ok () })
 
@@ -1660,7 +1648,7 @@ END
 
 {
 
-let perm_tag = "_perm_Hyp_"
+let perm_tag = "‗perm_Hyp_"
 let _ = add_internal_name (is_tagged perm_tag)
 
 }
