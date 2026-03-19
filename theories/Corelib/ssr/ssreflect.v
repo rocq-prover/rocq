@@ -86,8 +86,8 @@ Module SsrSyntax.
 
 Reserved Notation "(* x 'is' y 'of' z 'isn't' // /= //= *)".
 
-(** Enable SSR features **)
-#[export] Set SSR Loaded.
+(** Enable SSR rewrite compat **)
+#[export] Set SSRRewriteLoaded.
 
 Reserved Notation "<hidden n >" (at level 0, n at level 0,
   format "<hidden  n >").
