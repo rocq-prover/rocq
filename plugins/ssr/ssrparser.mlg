@@ -43,14 +43,11 @@ open Libobject
 
 (** Ssreflect load check. *)
 
-(* To allow ssrcoq to be fully compatible with the "plain" Rocq, we only *)
+(* To allow ssrcoq to be fully compatible with the "plain" Rocq, we only*)
 (* turn on its incompatible features (the new rewrite syntax, and the   *)
 (* reserved identifiers) when the theory library (ssreflect.v) has      *)
-(* has actually been required, or is being defined. Because this check  *)
-(* needs to be done often (for each identifier lookup), we implement    *)
-(* some caching, repeating the test only when the environment changes.  *)
-(*   We check for protect_term because it is the first constant loaded; *)
-(* ssr_have would ultimately be a better choice.                        *)
+(* has actually been imported. This is done thanks to the "SSR Loaded"  *)
+(* option.                                                              *)
 
 let is_ssr_loaded = Pptactic.ssr_loaded
 
