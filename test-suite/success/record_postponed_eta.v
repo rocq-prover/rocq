@@ -118,3 +118,13 @@ Section Sorts.
   Goal forall (A:Type@{s;0}) (r2 : RSToS'@{s s;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
   Proof. intros A r2. reflexivity. Qed.
 End Sorts.
+
+Record MaybeRelevant@{s;+} (A:Type@{s;_}) := { mayberelevant : A }.
+Definition notrelevant@{s;+} (A:Type@{s;_}) (x:MaybeRelevant A) : x = {| mayberelevant := x.(mayberelevant _) |}.
+Proof.
+  Fail reflexivity.
+Abort.
+Definition relevant (A:Prop) (x:MaybeRelevant A) : x = {| mayberelevant := x.(mayberelevant _) |}.
+Proof.
+  reflexivity.
+Qed.
