@@ -988,7 +988,7 @@ let tclPROGRESS t =
   (* [*_test] test absence of progress. [quick_test] is approximate
      whereas [exhaustive_test] is complete. *)
   let quick_test =
-    initial.solution == final.solution && initial.comb == final.comb
+    Evd.defined_map initial.solution == Evd.defined_map final.solution && initial.comb == final.comb
   in
   let test =
     quick_test ||
