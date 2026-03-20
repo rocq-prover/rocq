@@ -48,6 +48,7 @@ open Genintern
 
 val f_avoid_ids : Id.Set.t TacStore.field
 val f_debug : debug_info TacStore.field
+val extract_loc : interp_sign -> Loc.t option
 
 val extract_ltac_constr_values : interp_sign -> Environ.env ->
   Ltac_pretype.constr_under_binders Id.Map.t

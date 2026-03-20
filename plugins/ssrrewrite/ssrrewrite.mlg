@@ -18,6 +18,11 @@ open Ssreflect_plugin.Ssrequality
 open Ssreflect_plugin.Ssrparser
 open Ssreflect_plugin.Ssrtacs
 
+let warn_deprecated_rewrite =
+  CWarnings.create ~name:"rewrite-rw" ~category:Deprecation.Version.v9_3
+    ~quickfix:(fun ~loc () -> [Quickfix.make ~loc (Pp.str "rw")])
+    (fun () -> Pp.str "The 'rewrite' tactic has been renamed 'rw'.")
+
 }
 
 DECLARE PLUGIN "rocq-runtime.plugins.ssreflect_rewrite"
@@ -67,7 +72,10 @@ END
 
 TACTIC EXTEND ssrrewrite
   | [ "rewrite" ssrrewriteargs(args) ssrclauses(clauses) ] ->
-    { tclCLAUSES (ssrrewritetac ist args) clauses }
+    { let loc = Tacinterp.extract_loc ist
+        |> Option.map (fun l -> Loc.sub l 0 7) in
+      warn_deprecated_rewrite ?loc ();
+      tclCLAUSES (ssrrewritetac ist args) clauses }
 END
 
 {
