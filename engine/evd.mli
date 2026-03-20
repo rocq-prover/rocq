@@ -413,6 +413,8 @@ val push_side_effects :
   Id.t -> Safe_typing.side_effect_declaration -> Univ.ContextSet.t ->
   side_effects -> Constant.t * side_effects
 
+val avoid_side_effect_label : Id.t -> evar_map -> evar_map
+
 (** {6 Accessors} *)
 
 val seff_mem_label : Id.t -> side_effects -> bool

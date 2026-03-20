@@ -20,3 +20,5 @@ val cache_term_by_tactic_then
   -> unit Proofview.tactic
 
 val tclABSTRACT : ?opaque:bool -> Id.t option -> unit Proofview.tactic -> unit Proofview.tactic
+
+val get_inline_abstract_subproof : unit -> bool

@@ -106,3 +106,10 @@ let abstract_subproof ~opaque tac =
 
 let tclABSTRACT ?(opaque=true) name_op tac =
   abstract_subproof ~opaque ~name_op tac
+
+let { Goptions.get = get_inline_abstract_subproof } =
+  Goptions.declare_bool_option_and_ref
+    ~depr:(Deprecation.make ~since:"9.3" ())
+    ~key:["Inline"; "Abstract"; "Subproof"]
+    ~value:false
+    ()
