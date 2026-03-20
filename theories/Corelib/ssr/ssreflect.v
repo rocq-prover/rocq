@@ -12,6 +12,9 @@
 
 (** #<style> .doc { font-family: monospace; white-space: pre; } </style># **)
 
+Require Import Logic.
+Require Import Datatypes.
+Require Import Corelib.Init.Ltac.
 Require Import ssrmatching.
 Declare ML Module "rocq-runtime.plugins.ssreflect".
 
