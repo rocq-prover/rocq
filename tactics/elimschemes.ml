@@ -147,7 +147,7 @@ let lookup_eliminator_by_name env ind_sp s =
             strbrk " is probably not allowed.")
 
 let deprecated_lookup_by_name =
-  CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_1
+  CWarnings.create ~name:"deprecated-lookup-elim-by-name" ~category:Deprecation.Version.v9_2
     Pp.(fun (env,ind,to_kind,r) ->
         let pp_scheme () s = str (scheme_kind_name s) in
         fmt "Found unregistered eliminator %t for %t by name.@ \
