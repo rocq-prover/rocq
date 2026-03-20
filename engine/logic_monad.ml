@@ -256,38 +256,37 @@ struct
 
   (** For [reflect] and [split] see the "Backtracking, Interleaving,
       and Terminating Monad Transformers" paper.  *)
-  type ('a, 'e) reified = ('a, ('a, 'e) reified_, 'e) list_view_
-  and ('a, 'e) reified_ = {r : 'e -> ('a, 'e) reified} [@@unboxed]
+  type ('a, 'e) reified = { r : ('a, ('a, 'e) reified, 'e) list_view } [@@unboxed]
 
-  let rec reflect0 : type r. _ -> _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
-    fun e m nil cons ->
-      match m e with
+  let rec reflect0 : type r. _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
+    fun m nil cons ->
+      match m.r with
       | Nil e -> nil e
-      | Cons ((x, s), {r=l}) -> cons x s (fun e -> reflect0 e l nil cons)
+      | Cons ((x, s), l) -> cons x s (fun e -> reflect0 (l e) nil cons)
 
-  let reflect (e : 'e) (m : 'e -> ('a * 'o, 'e) reified) =
-    { iolist = fun _ nil cons -> reflect0 e m nil cons }
+  let reflect (m : ('a * 'o, 'e) reified) =
+    { iolist = fun s0 nil cons -> reflect0 m nil cons }
 
   let split m : (_ list_view, _, _, _) t =
     let rnil e = Nil e in
-    let rcons p s l = Cons ((p, s), {r=l}) in
+    let rcons p s l = Cons ((p, s), (fun e -> {r=l e})) in
     { iolist = fun s nil cons ->
       begin match m.iolist s rnil rcons with
       | Nil e -> cons (Nil e) s nil
-      | Cons ((x, s), {r=l}) ->
-        let l e = reflect e l in
+      | Cons ((x, s), l) ->
+        let l e = reflect (l e) in
         cons (Cons (x, l)) s nil
       end }
 
   let run m s =
-    let rnil e = Nil e in
+    let rnil e = {r=Nil e} in
     let rcons x s l =
       let p = (x, s) in
-      Cons (p, {r=l})
+      {r=Cons (p, l)}
     in
     m.iolist s rnil rcons
 
-  let repr x = x
+  let repr x = x.r
 end
 
 module type Param = sig
@@ -339,7 +338,6 @@ struct
   type iexn = Exninfo.iexn
 
   type 'a reified = ('a, iexn) BackState.reified
-  type 'a reified_ = ('a, iexn) BackState.reified_
 
   (** Inherited from Backstate *)
 
@@ -392,10 +390,10 @@ struct
 
   let run m r s =
     let s = { wstate = P.wunit; ustate = P.uunit; rstate = r; sstate = s } in
-    let rnil e = Nil e in
+    let rnil e = {r=Nil e} in
     let rcons x s l =
       let p = (x, s.sstate, s.wstate, s.ustate) in
-      Cons (p, {r=l})
+      {r=Cons (p, l)}
     in
     m.iolist s rnil rcons
 
