@@ -561,7 +561,12 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Some (Some _) -> (* PrimRecord *)
       (* We check if it can actually have primitive projections & eta *)
       match check_record data with
-      | Result.Ok has_eta -> data, record, Some (Result.Ok has_eta)
+      | Result.Ok has_eta ->
+        let has_eta = match mie.mind_entry_finite with
+          | BiFinite -> has_eta
+          | Finite | CoFinite -> NoEta
+        in
+        data, record, Some (Result.Ok has_eta)
       | Result.Error _ as reason ->
         (* if someone tried to declare a record as SProp but it can't
            be primitive we must squash. *)

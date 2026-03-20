@@ -358,10 +358,42 @@ let constant_sorts_below top =
 let sorts_for_schemes specif =
   constant_sorts_below (elim_sort specif)
 
-let has_dependent_elim (mib,mip) =
+let has_valid_relevance sigma u ind_relevance flds =
+  match ERelevance.kind sigma ind_relevance with
+  | Sorts.Irrelevant -> true
+  | Sorts.Relevant -> Array.exists (fun r -> Sorts.is_relevant @@ ERelevance.kind sigma r) flds
+  | Sorts.RelevanceVar qv ->
+    Array.for_all (fun r -> match ERelevance.kind sigma r with
+        | Sorts.Relevant -> true
+        | Sorts.Irrelevant -> false
+        | Sorts.RelevanceVar qv' -> Sorts.QVar.equal qv qv') flds
+
+let always_dependent_elim (mib,mip) =
   match mip.mind_record with
-  | PrimRecord _ -> mib.mind_finite == BiFinite || mip.mind_relevance == Irrelevant
   | NotRecord | FakeRecord -> true
+  | PrimRecord r -> match r.has_eta with
+    | AlwaysEta -> true
+    | NoEta | MaybeEta -> mip.mind_relevance == Irrelevant
+
+let has_dependent_elim sigma (mib,mip) u =
+  match mip.mind_record with
+  | NotRecord | FakeRecord -> true
+  | PrimRecord r ->
+    match r.has_eta with
+    | AlwaysEta -> true
+    | NoEta ->
+      let ind_relevance =
+        EConstr.Vars.subst_instance_relevance u (ERelevance.make mip.mind_relevance)
+      in
+      ERelevance.is_irrelevant sigma ind_relevance
+    | MaybeEta ->
+      let ind_relevance =
+        EConstr.Vars.subst_instance_relevance u (ERelevance.make mip.mind_relevance)
+      in
+      let flds =
+        Array.map (fun r -> EConstr.Vars.subst_instance_relevance u (ERelevance.make r)) r.relevances
+      in
+      has_valid_relevance sigma u ind_relevance flds
 
 (* Annotation for cases *)
 let make_case_info env ind style =
@@ -465,20 +497,19 @@ let make_case_invert env sigma (IndType (((ind,u),params),indices)) ~case_releva
 let make_project env sigma ind pred c branches ps =
   assert(Array.length branches == 1);
   let na, ty, t = destLambda sigma pred in
+  let _, u = destInd sigma (fst (decompose_app sigma ty)) in
   let mib, mip as specif = Inductive.lookup_mind_specif env ind in
   let () =
     if (* dependent *) not (Vars.noccurn sigma 1 t) &&
-         not (has_dependent_elim specif) then
+         not (has_dependent_elim sigma specif u) then
       Pretype_errors.error_not_allowed_dependent_elimination env sigma false ind
   in
   let branch = branches.(0) in
   let ctx, br = decompose_lambda_n_decls sigma mip.mind_consnrealdecls.(0) branch in
-  let _, u = destInd sigma (fst (decompose_app sigma ty)) in
-  let u = Unsafe.to_instance u in
   let mkProj i c =
     let p, r = ps.(i) in
-    let r = UVars.subst_instance_relevance u r in
-    mkProj (Projection.make p true, ERelevance.make r, c)
+    let r = EConstr.Vars.subst_instance_relevance u (ERelevance.make r) in
+    mkProj (Projection.make p true, r, c)
   in
   let proj = match EConstr.destRel sigma br with
     | exception Constr.DestKO -> None

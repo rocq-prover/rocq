@@ -45,7 +45,7 @@ let pseudo_sort_quality_for_elim ind mip =
 
 let default_case_analysis_dependence env ind =
   let _, mip as specif = Inductive.lookup_mind_specif env ind in
-  Inductiveops.has_dependent_elim specif
+  Inductiveops.always_dependent_elim specif
   && (not (Sorts.is_prop mip.mind_sort) || is_prop_but_default_dependent_elim ind)
 
 

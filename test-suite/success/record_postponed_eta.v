@@ -66,12 +66,16 @@ Proof. intros A r2. Fail reflexivity. Abort.
 
 (* Conversion when record is in Prop and field in SProp fails correctly *)
 Goal forall (A:SProp) (r2 : RSToS'@{SProp Prop;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.
-Proof. intros A r2. Fail reflexivity. Abort.
+Proof.
+  intros A r2.
+  Fail reflexivity.
 (* The command has indeed failed with message:
   In environment
   A : SProp
   r2 : RSToS' A
   Unable to unify "{| f4 := f4 _ r2 |}" with "r2". *)
+  Fail destruct r2. (* prim record must have eta for dependent elim *)
+Abort.
 
 (* Conversion when record and field are instantiated to SProp checks correctly *)
 Goal forall (A:SProp) (r2 : RSToS'@{SProp SProp;0 0} A), eq r2 {| f4 := r2.(f4 A) |}.

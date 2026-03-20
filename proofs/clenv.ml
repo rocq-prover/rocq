@@ -1029,7 +1029,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let () = if Inductive.is_private (mib, mip) then
     user_err Pp.(str "case analysis on a private type is not allowed.") in
   (* check dep elim *)
-  let () = if dep && not (Inductiveops.has_dependent_elim (mib, mip)) then
+  let () = if dep && not (Inductiveops.has_dependent_elim sigma (mib, mip) u) then
     raise (Pretype_errors.error_not_allowed_dependent_elimination env sigma true ind) in
   (* check elim *)
   let sigma =
