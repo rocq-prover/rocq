@@ -113,6 +113,7 @@ through the <tt>Require Import</tt> command.</p>
   <dd>
     theories/Corelib/ssrmatching/ssrmatching.v
     theories/Corelib/ssr/ssrclasses.v
+    theories/Corelib/ssr/ssreflect_rw.v
     theories/Corelib/ssr/ssreflect.v
     theories/Corelib/ssr/ssrbool.v
     theories/Corelib/ssr/ssrfun.v
@@ -173,6 +174,7 @@ through the <tt>Require Import</tt> command.</p>
     theories/Corelib/Compat/Coq820.v
     theories/Corelib/Compat/Rocq90.v
     theories/Corelib/Compat/Rocq91.v
+    theories/Corelib/Compat/Rocq92.v
     theories/Ltac2/Compat/Coq818.v
     theories/Ltac2/Compat/Coq819.v
   </dd>

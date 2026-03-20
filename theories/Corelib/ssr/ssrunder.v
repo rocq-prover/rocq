@@ -19,6 +19,8 @@
  requiring [ssreflect] and use [ssreflect] without requiring [Setoid].
 *)
 
+Require Import Logic.
+Require Import Corelib.Init.Ltac.
 Require Import ssrclasses.
 
 Module Type UNDER_REL.
@@ -55,21 +57,21 @@ Definition Under_rel (A : Type) (eqA : A -> A -> Prop) :=
 Lemma Under_rel_from_rel :
   forall (A : Type) (eqA : A -> A -> Prop) (x y : A),
     @Under_rel A eqA x y -> eqA x y.
-Proof. now trivial. Qed.
+Proof. trivial. Qed.
 Lemma Under_relE (A : Type) (eqA : A -> A -> Prop) :
   @Under_rel A eqA = eqA.
-Proof. now trivial. Qed.
+Proof. trivial. Qed.
 Definition Over_rel := Under_rel.
 Lemma over_rel :
   forall (A : Type) (eqA : A -> A -> Prop) (x y : A),
     @Under_rel A eqA x y = @Over_rel A eqA x y.
-Proof. now trivial. Qed.
+Proof. trivial. Qed.
 Lemma over_rel_done :
   forall (A : Type) (eqA : A -> A -> Prop) (EeqA : Reflexive eqA) (x : A),
     @Over_rel A eqA x x.
-Proof. now unfold Over_rel. Qed.
+Proof. unfold Over_rel; trivial. Qed.
 Lemma under_rel_done :
   forall (A : Type) (eqA : A -> A -> Prop) (EeqA : Reflexive eqA) (x : A),
     @Under_rel A eqA x x.
-Proof. now trivial. Qed.
+Proof. trivial. Qed.
 End Under_rel.
