@@ -287,8 +287,12 @@ val update_sigma_univs : t -> UGraph.t -> t
 (** {5 Pretty-printing} *)
 
 val pr_uctx_level : t -> Univ.Level.t -> Pp.t
+val pr_uctx_qglobal : t -> Sorts.QGlobal.t -> Pp.t
 val pr_uctx_qvar : t -> Sorts.QVar.t -> Pp.t
 val qualid_of_level : t -> Univ.Level.t -> Libnames.qualid option
+
+val quality_printer : t -> Sorts.Quality.printer
+val sort_printer : t -> Sorts.printer
 
 (** Only looks in the local names, not in the nametab. *)
 val id_of_level : t -> Univ.Level.t -> Id.t option

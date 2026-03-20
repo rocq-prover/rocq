@@ -287,29 +287,32 @@ let pprelevance (r:Sorts.relevance) = match r with
   | RelevanceVar q -> pp (surround (str "RelevanceVar " ++ spc() ++ Sorts.QVar.raw_pr q))
 let pperelevance r = pprelevance (EConstr.Unsafe.to_relevance r)
 
+let qprinter = UnivNames.quality_printer UnivNames.empty_binders
+let sprinter = UnivNames.sort_printer UnivNames.empty_binders
 let prlev l = UnivNames.pr_level_with_global_universes l
-let prqvar q = UnivNames.pr_quality_with_global_universes q
+let prqvar q = UnivNames.pr_quality_with_global_universes (QVar q)
+let prquality q = UnivNames.pr_quality_with_global_universes q
 let ppqvarset l = pp (hov 1 (str "{" ++ prlist_with_sep spc prqvar (QVar.Set.elements l) ++ str "}"))
-let ppqset qs = pp (hov 1 (str "{" ++ prlist_with_sep spc (Quality.pr prqvar) (Quality.Set.elements qs) ++ str "}"))
+let ppqset qs = pp (hov 1 (str "{" ++ prlist_with_sep spc prquality (Quality.Set.elements qs) ++ str "}"))
 let ppuniverse_set l = pp (Level.Set.pr prlev l)
-let ppuniverse_instance l = pp (Instance.pr prqvar prlev l)
+let ppuniverse_instance l = pp (Instance.pr sprinter l)
 let ppuniverse_einstance l = ppuniverse_instance (EConstr.Unsafe.to_instance l)
-let ppuniverse_context l = pp (UVars.UContext.pr prqvar prlev l)
+let ppuniverse_context l = pp (UVars.UContext.pr sprinter l)
 let ppuniverse_subst l = pp (UnivSubst.pr_universe_subst Level.raw_pr l)
 let ppuniverse_opt_subst l = pp (UnivFlex.pr Level.raw_pr l)
-let ppqvar_subst l = pp (UVars.pr_quality_level_subst QVar.raw_pr l)
+let ppqvar_subst l = pp (UVars.pr_quality_level_subst Quality.raw_printer l)
 let ppuniverse_level_subst l = pp (UVars.pr_universe_level_subst Level.raw_pr l)
 let pppoly_flags f = pp (PolyFlags.pr f)
 let ppustate l = pp (UState.pr l)
 let ppconstraints c = pp (UnivConstraints.pr Level.raw_pr c)
-let ppqconstraints c = pp (ElimConstraints.pr prqvar c)
+let ppqconstraints c = pp (ElimConstraints.pr qprinter c)
 let ppuniverseconstraints c = pp (UnivProblem.Set.pr c)
 let ppuniverse_context_future c =
   let ctx = Future.force c in
     ppuniverse_context ctx
 let ppuniverses u = pp (UGraph.pr_universes Level.raw_pr (UGraph.repr u))
-let ppqualities q = pp (QGraph.pr_qualities Quality.raw_pr q)
-let ppelim_constraints cstrs = pp (Sorts.ElimConstraints.pr prqvar cstrs)
+let ppqualities q = pp (QGraph.pr_qualities Quality.raw_printer q)
+let ppelim_constraints cstrs = pp (Sorts.ElimConstraints.pr qprinter cstrs)
 let ppnamedcontextval e =
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -325,13 +328,14 @@ let ppaucontext auctx =
   in
   let prqvar l = prgen prqvar Sorts.QVar.var_index qnas l in
   let prlev l = prgen prlev Level.var_index unas l in
-  pp (UContext.pr prqvar prlev (AbstractContext.repr auctx))
+  let prqglobal q = prquality (QGlobal q) in
+  pp (UContext.pr { pru = prlev; prq = { prvar = prqvar; prglobal = prqglobal } } (AbstractContext.repr auctx))
 
 let pp_partialfsubst psubst =
-  pp (Partial_subst.pr (fun f -> pr_constr (CClosure.term_of_fconstr f)) (Quality.pr prqvar) (Universe.pr prlev) psubst)
+  pp (Partial_subst.pr (fun f -> pr_constr (CClosure.term_of_fconstr f)) prquality (Universe.pr prlev) psubst)
 
 let pp_partialsubst psubst =
-  pp (Partial_subst.pr pr_econstr (Quality.pr prqvar) (Universe.pr prlev) psubst)
+  pp (Partial_subst.pr pr_econstr prquality (Universe.pr prlev) psubst)
 
 let ppenv e = pp
   (str "[" ++ pr_named_context_of e Evd.empty ++ str "]" ++ spc() ++
@@ -431,7 +435,8 @@ let constr_display csr =
     | Prop -> "Prop"
     | Type u -> univ_display u;
         "Type("^(string_of_int !cnt)^")"
-    | QSort (q, u) -> univ_display u; Printf.sprintf "QSort(%s, %i)" (Sorts.QVar.to_string q) !cnt
+    | GQSort (q, u) -> univ_display u; Printf.sprintf "GQSort(%s, %i)" (Sorts.QGlobal.to_string q) !cnt
+    | VQSort (q, u) -> univ_display u; Printf.sprintf "VQSort(%s, %i)" (Sorts.QVar.to_string q) !cnt
 
   and universes_display l =
     let qs, us = Instance.to_array l in
@@ -593,8 +598,10 @@ let print_pure_constr csr =
     | Prop -> print_string "Prop"
     | Type u -> open_hbox();
         print_string "Type("; pp (Universe.raw_pr u); print_string ")"; close_box()
-    | QSort (q, u) -> open_hbox();
-        print_string "QSort("; pp (QVar.raw_pr q); print_string ", "; pp (Universe.raw_pr u); print_string ")"; close_box()
+    | GQSort (q, u) -> open_hbox();
+        print_string "GQSort("; pp (str @@ QGlobal.to_string q); print_string ", "; pp (Universe.raw_pr u); print_string ")"; close_box()
+    | VQSort (q, u) -> open_hbox();
+        print_string "VQSort("; pp (QVar.raw_pr q); print_string ", "; pp (Universe.raw_pr u); print_string ")"; close_box()
 
   and name_display x = match x.binder_name with
     | Name id -> print_string (Id.to_string id)

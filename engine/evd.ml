@@ -1015,6 +1015,9 @@ let sort_context_set d = UState.sort_context_set d.universes
 
 let to_universe_context evd = UState.context evd.universes
 
+let quality_printer evd = UState.quality_printer (ustate evd)
+let sort_printer evd = UState.sort_printer (ustate evd)
+
 let univ_entry ~poly evd = UState.univ_entry ~poly evd.universes
 
 let check_univ_decl ~poly evd decl = UState.check_univ_decl ~poly evd.universes decl
@@ -1069,7 +1072,7 @@ let new_sort_info ?loc ?sort_rigid ?name rigid sigma =
 
 let new_sort_variable ?loc ?sort_rigid ?name rigid sigma =
   let sigma, q, u = new_sort_info ?loc ?sort_rigid ?name rigid sigma in
-  sigma, Sorts.qsort q u
+  sigma, Sorts.vqsort q u
 
 let add_forgotten_univ d u =
   { d with universes = UState.add_forgotten_univ d.universes u }

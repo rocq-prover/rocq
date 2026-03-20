@@ -49,6 +49,9 @@ let has_poly_univs sec = sec.has_poly_univs
 
 let all_poly_univs sec = sec.all_poly_univs
 
+let section_qvar_count sec =
+  fst @@ UVars.Instance.length @@ all_poly_univs sec
+
 let map_custom f sec = {sec with custom = f sec.custom}
 
 let add_emap e v (cmap, imap) = match e with

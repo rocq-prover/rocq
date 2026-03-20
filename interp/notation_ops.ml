@@ -88,7 +88,7 @@ let compare_glob_universe_instances lt strictly_lt us1 us2 =
   | None, Some _ -> false
   | Some (ql1,ul1), Some (ql2,ul2) ->
     let is_anon = function
-      | GQualVar (GLocalQVar {v=Anonymous}) -> true
+      | GLocalQVar {v=Anonymous} -> true
       | _ -> false
     in
     CList.for_all2eq (fun q1 q2 ->

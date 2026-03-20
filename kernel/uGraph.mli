@@ -50,8 +50,7 @@ type explanation =
   | Path of path_explanation
   | Other of Pp.t
 
-type univ_variable_printers = (Sorts.QVar.t -> Pp.t) * (Level.t -> Pp.t)
-type univ_inconsistency = univ_variable_printers option * (UnivConstraint.kind * Sorts.t * Sorts.t * explanation option)
+type univ_inconsistency = Sorts.printer option * (UnivConstraint.kind * Sorts.t * Sorts.t * explanation option)
 
 exception UniverseInconsistency of univ_inconsistency
 
@@ -115,8 +114,7 @@ val repr : t -> node Level.Map.t
 
 val pr_universes : (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
 
-val explain_universe_inconsistency : (Sorts.QVar.t -> Pp.t) -> (Level.t -> Pp.t) ->
-  univ_inconsistency -> Pp.t
+val explain_universe_inconsistency : Sorts.printer -> univ_inconsistency -> Pp.t
 
 (** {6 Debugging} *)
 val check_universes_invariants : t -> unit

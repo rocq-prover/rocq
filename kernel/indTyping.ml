@@ -102,12 +102,12 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
       | HasRelevantArg -> info
       | NoRelevantArg -> match u with
         | Sorts.SProp -> info
-        | QSort (q,_) ->
+        | VQSort (q,_) ->
            if Environ.Internal.is_above_prop env q
               || equal (QVar q) (Sorts.quality info.ind_univ)
           then { info with record_arg_info = HasRelevantArg }
           else info
-        | Prop | Set | Type _ -> { info with record_arg_info = HasRelevantArg }
+        | Prop | Set | Type _ | GQSort _ -> { info with record_arg_info = HasRelevantArg }
   in
   if Environ.ignore_elim_constraints env then info else
   let indu = info.ind_univ in
@@ -120,7 +120,7 @@ let compute_elim_squash ?(is_real_arg=false) env u info =
   else match indu, u with
     (* XXX add a constraint q -> Prop in push_template_context,
        then we don't need this above_prop test *)
-    | QSort (q, _), (SProp | Prop) when Environ.Internal.is_above_prop env q -> info
+    | VQSort (q, _), (SProp | Prop) when Environ.Internal.is_above_prop env q -> info
     | _ -> add_squash (Sorts.quality u) info
 
 let check_context_univs ~ctor env info ctx =
@@ -245,8 +245,8 @@ let check_record data =
               (* If there is no relevant projection, then we consider the sort of the record to decide if it has eta *)
               match info.ind_univ with
               | SProp -> Result.Ok AlwaysEta
-              | Set | Type _ | Prop -> Result.Ok NoEta (* Set, Type and Prop don't have eta *)
-              | QSort _ ->  Result.Ok MaybeEta (* For sort variables it depends on the instantiation *)
+              | GQSort _ | Set | Type _ | Prop -> Result.Ok NoEta (* relevant sorts don't have eta *)
+              | VQSort _ ->  Result.Ok MaybeEta (* For sort variables it depends on the instantiation *)
     )
     (Result.Ok NoEta)
     data
@@ -293,7 +293,7 @@ let get_template_binding_arity ~template_univs c =
   match kind c with
   | Sort (Type u as s) ->
     Some (decls, None, check_level u, s)
-  | Sort (QSort (q, u) as s) ->
+  | Sort (VQSort (q, u) as s) ->
     (* XXX check if q is a template qvar in anticipation of global qvars existing *)
     Some (decls, Some q, check_level u, s)
   | _ -> None
@@ -344,7 +344,10 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
      The inductive and binding parameter types must be syntactically arities. *)
   let check_not_appearing c =
     let qs, us = Vars.sort_and_universes_of_constr c in
-    let qappearing = Sorts.QVar.Set.inter qs template_qvars in
+    let qappearing =
+      Sorts.QVar.Set.filter (fun qv -> Sorts.Quality.Set.mem (QVar qv) qs)
+        template_qvars
+    in
     if not (Sorts.QVar.Set.is_empty qappearing) then
       CErrors.user_err
         Pp.(str "Template " ++
@@ -422,11 +425,11 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     let s = destSort s in
     let () = match s with
     | SProp | Prop | Set -> ()
-    | QSort (_, u) ->
+    | VQSort (_, u) ->
       (* typechecking will fail with "unbound qvar" if the quality isn't in template_qvars *)
       check_no_increment ~template_univs u;
       ()
-    | Type u ->
+    | GQSort (_, u) | Type u ->
       check_no_increment ~template_univs u;
       ()
     in
@@ -457,7 +460,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     let qsubst = Array.fold_left2 (fun qsubst bind_q default_q ->
         let open Sorts.Quality in
         match bind_q, default_q with
-        | QConstant _, _ -> assert false
+        | (QConstant _ | QGlobal _), _ -> assert false
         | QVar bind_q, QConstant QType ->
           Sorts.QVar.Map.add bind_q default_q qsubst
         | QVar _, _ -> CErrors.anomaly Pp.(str "Default template quality must be QType."))

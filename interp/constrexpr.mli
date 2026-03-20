@@ -21,22 +21,19 @@ type sort_name_expr =
 
 type univ_level_expr  = sort_name_expr Glob_term.glob_sort_gen
 
-type qvar_expr =
+type quality_expr =
   | CQVar of qualid
   | CQAnon of Loc.t option
-  | CRawQVar of Sorts.QVar.t
-
-type quality_expr =
   | CQConstant of Sorts.Quality.constant
-  | CQualVar of qvar_expr
+  | CRawQuality of Sorts.Quality.t
 
 type relevance_expr =
   | CRelevant | CIrrelevant
-  | CRelevanceVar of qvar_expr
+  | CRelevanceVar of quality_expr
 
 type relevance_info_expr = relevance_expr option
 
-type sort_expr = (qvar_expr option * (sort_name_expr * int) list Glob_term.glob_sort_gen)
+type sort_expr = (quality_expr option * (sort_name_expr * int) list Glob_term.glob_sort_gen)
 
 type instance_expr = quality_expr list * univ_level_expr list
 

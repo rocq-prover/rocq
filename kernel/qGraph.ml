@@ -23,8 +23,9 @@ module ElimTable = struct
     match q, q' with
     | QConstant QType, _ -> true
     | QConstant q, QConstant q' -> const_eliminates_to q q'
+    | QGlobal q, QGlobal q' -> QGlobal.equal q q'
     | QVar q, QVar q' -> QVar.equal q q'
-    | (QConstant _ | QVar _), _ -> false
+    | (QConstant _ | QGlobal _ | QVar _), _ -> false
 end
 
 module G = AcyclicGraph.Make(struct
@@ -104,7 +105,7 @@ type explanation =
   | Other of Pp.t
 
 type quality_inconsistency =
-  ((QVar.t -> Pp.t) option) *
+  (Quality.printer option) *
     (ElimConstraint.kind * Quality.t * Quality.t * explanation option)
 
 (* If s can eliminate to s', we want an edge between s and s'.
@@ -166,40 +167,36 @@ let rec update_dominance g q qv =
      | None -> None
 
 let update_dominance_if_valid g (q1,k,q2) =
+  let open Quality in
   match k with
   | ElimConstraint.ElimTo ->
-     (* if the constraint is s ~> g, dominants are not modified. *)
-     if Quality.is_qconst q2 then Some g
-     else
-       match q1, q2 with
-       | (Quality.QConstant _ | Quality.QVar _), Quality.QConstant _ -> assert false
-       | Quality.QVar qv1, Quality.QVar qv2 ->
-          (* 3 cases:
-             - if [qv1] is a global, treat as constants.
-             - if [qv1] is not dominated, delay the check to when [qv1] gets dominated.
-             - if [qv1] is dominated, try to update the dominance of [qv2]. *)
-          if Quality.is_qglobal q1 then update_dominance g q1 qv2
-          else
-            (match QMap.find_opt qv1 g.dominant with
-            | None ->
-               let add_delayed qs =
-                 Some { g with delayed_check = QMap.set qv1 (QSet.add qv2 qs) g.delayed_check }
-               in
-               (match QMap.find_opt qv1 g.delayed_check with
-               | None -> add_delayed QSet.empty
-               | Some qs -> add_delayed qs)
-            | Some q' -> update_dominance g q' qv2)
-       | Quality.QConstant _, Quality.QVar qv -> update_dominance g q1 qv
+    match q1, q2 with
+    | _, (QConstant _ | QGlobal _) ->
+      (* if the constraint is s ~> g, dominants are not modified. *)
+      Some g
+    | (QConstant _ | QGlobal _), QVar qv -> update_dominance g q1 qv
+    | QVar qv1, QVar qv2 ->
+      (* 2 cases:
+         - if [qv1] is not dominated, delay the check to when [qv1] gets dominated.
+         - if [qv1] is dominated, try to update the dominance of [qv2]. *)
+      (match QMap.find_opt qv1 g.dominant with
+       | None ->
+         let add_delayed qs =
+           Some { g with delayed_check = QMap.set qv1 (QSet.add qv2 qs) g.delayed_check }
+         in
+         (match QMap.find_opt qv1 g.delayed_check with
+          | None -> add_delayed QSet.empty
+          | Some qs -> add_delayed qs)
+       | Some q' -> update_dominance g q' qv2)
 
 let dominance_check g (q1,_,q2 as cstr) =
+  let open Quality in
   let dom_q1 () = match q1 with
-    | Quality.QConstant _ -> q1
-    | Quality.QVar qv ->
-       if Quality.is_qglobal q1 then q1
-       else QMap.find qv g.dominant in
+    | QConstant _ | QGlobal _ -> q1
+    | QVar qv -> QMap.find qv g.dominant in
   let dom_q2 () = match q2 with
-    | Quality.QConstant _ -> assert false
-    | Quality.QVar qv -> QMap.find qv g.dominant in
+    | QConstant _ | QGlobal _ -> assert false
+    | QVar qv -> QMap.find qv g.dominant in
   match update_dominance_if_valid g cstr with
   | None -> raise (EliminationError (MultipleDominance (dom_q2() , q2, dom_q1())))
   | Some g -> g
@@ -250,13 +247,18 @@ let add_quality q g =
   let graph = G.add q g.graph in
   let g = enforce_constraint (Quality.qtype, ElimConstraint.ElimTo, q) { g with graph } in
   let (paths,ground_and_global_sorts) =
-    if Quality.is_qglobal q
+    let is_global = match q with
+      | QGlobal _ -> true
+      | QVar q -> QVar.is_secvar q
+      | QConstant _ -> assert false
+    in
+    if is_global
     then (RigidPaths.add_elim_to Quality.qtype q g.rigid_paths, Quality.Set.add q g.ground_and_global_sorts)
     else (g.rigid_paths,g.ground_and_global_sorts) in
   (* As Type ~> s, set Type to be the dominant sort of q if q is a variable. *)
   let dominant = match q with
-    | Quality.QVar qv -> QMap.add qv Quality.qtype g.dominant
-    | Quality.QConstant _ -> g.dominant in
+    | QVar qv -> QMap.add qv Quality.qtype g.dominant
+    | QConstant _ | QGlobal _ -> g.dominant in
   { g with rigid_paths = paths; ground_and_global_sorts; dominant }
 
 let enforce_eliminates_to s1 s2 g =
@@ -293,6 +295,8 @@ let sort_eliminates_to g s1 s2 =
 
 let eliminates_to_prop g q = eliminates_to g q Quality.qprop
 
+let mem q g = Quality.Set.mem q (G.domain g.graph)
+
 let domain g = G.domain g.graph
 
 let qvar_domain g =
@@ -325,14 +329,14 @@ let pr_arc prq =
   | q1, G.Node ltle ->
     if Quality.Map.is_empty ltle then mt ()
     else
-      prq q1 ++ spc () ++
+      Quality.pr prq q1 ++ spc () ++
       v 0
         (pr_pmap spc (fun (q2, _) ->
-              str "-> " ++ prq q2)
+              str "-> " ++ Quality.pr prq q2)
             ltle) ++
       fnl ()
   | q1, G.Alias q2 ->
-    prq q1  ++ str " <-> " ++ prq q2 ++ fnl ()
+    Quality.pr prq q1  ++ str " <-> " ++ Quality.pr prq q2 ++ fnl ()
 
 let repr g = G.repr g.graph
 

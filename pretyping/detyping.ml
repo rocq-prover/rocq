@@ -285,13 +285,13 @@ let detype_level sigma l =
 let detype_qvar sigma q =
   match UState.id_of_qvar (Evd.ustate sigma) q with
   | Some id -> GLocalQVar (CAst.make (Name id))
-  | None -> GQVar q
+  | None -> GQuality (QVar q)
 
 let detype_quality sigma q =
   let open Sorts.Quality in
   match q with
-  | QConstant q -> GQConstant q
-  | QVar q -> GQualVar (detype_qvar sigma q)
+  | QConstant _ | QGlobal _ -> GQuality q
+  | QVar q -> detype_qvar sigma q
 
 let detype_universe sigma u =
   UNamed (List.map (on_fst (detype_level_name sigma)) (Univ.Universe.repr u))
@@ -304,7 +304,11 @@ let detype_sort ~universes ~qualities sigma = function
       (if universes
        then None, detype_universe sigma u
        else glob_Type_sort)
-  | QSort (q, u) ->
+  | GQSort (q, u) ->
+    let q = Some (GQuality (QGlobal q)) in
+    if universes then q, detype_universe sigma u
+    else q, UAnonymous {rigid=UState.univ_flexible}
+  | VQSort (q, u) ->
     if universes then
       let q = if qualities || Evd.is_rigid_qvar sigma q then
           Some (detype_qvar sigma q)
