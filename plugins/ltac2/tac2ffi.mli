@@ -230,6 +230,10 @@ val of_modpath : ModPath.t -> valexpr
 val to_modpath : valexpr -> ModPath.t
 val modpath : ModPath.t repr
 
+val of_scheme_kind : string -> valexpr
+val to_scheme_kind : valexpr -> string
+val scheme_kind : string repr
+
 module ModField : sig
   type t =
     | Ref of GlobRef.t

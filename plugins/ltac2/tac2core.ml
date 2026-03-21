@@ -1367,14 +1367,38 @@ let () =
 (** Ind schemes *)
 
 let () =
-  define "ind_scheme_lookup" (string @-> inductive @-> ret (option reference))
+  define "ind_scheme_lookup" (scheme_kind @-> inductive @-> ret (option reference))
   @@ fun kind ind ->
   DeclareScheme.lookup_scheme_opt kind ind
 
-let () =
-  define "ind_scheme_kind_exists" (string @-> ret bool)
-  @@ fun kind ->
-  Ind_tables.is_declared_scheme_object kind
+let define_scheme_kind name =
+  define ("ind_scheme_kind_" ^ name) (ret scheme_kind) name
+
+let () = define_scheme_kind "rect_dep"
+let () = define_scheme_kind "rec_dep"
+let () = define_scheme_kind "ind_dep"
+let () = define_scheme_kind "sind_dep"
+let () = define_scheme_kind "rect_nodep"
+let () = define_scheme_kind "rec_nodep"
+let () = define_scheme_kind "ind_nodep"
+let () = define_scheme_kind "sind_nodep"
+let () = define_scheme_kind "case_dep"
+let () = define_scheme_kind "case_nodep"
+let () = define_scheme_kind "casep_dep"
+let () = define_scheme_kind "casep_nodep"
+let () = define_scheme_kind "sym"
+let () = define_scheme_kind "sym_involutive"
+let () = define_scheme_kind "rew"
+let () = define_scheme_kind "rew_dep"
+let () = define_scheme_kind "rew_fwd_dep"
+let () = define_scheme_kind "rew_r"
+let () = define_scheme_kind "rew_r_dep"
+let () = define_scheme_kind "rew_fwd_r_dep"
+let () = define_scheme_kind "congr"
+let () = define_scheme_kind "beq"
+let () = define_scheme_kind "dec_bl"
+let () = define_scheme_kind "dec_lb"
+let () = define_scheme_kind "eq_dec"
 
 (** Proj *)
 
