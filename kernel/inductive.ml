@@ -1373,6 +1373,8 @@ let find_uniform_parameters recindx nargs bodies =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
+      let fold accu c = fold_constr_with_binders succ (aux i) k accu c in
+      let nuniformparams = List.fold_left fold nuniformparams l in
       (* A recursive reference to any one of the mutual fixpoints *)
       if n > k && n <= k + nbodies then
         List.fold_left_until (fun j arg ->
@@ -1403,12 +1405,12 @@ let drop_uniform_parameters nuniformparams bodies =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
+      let l = List.map (fun c -> aux i k c) l in
       (* A recursive reference to the i-th body *)
       if Int.equal n (nbodies + k - i) then
         let new_args = List.skipn_at_best nuniformparams l in
         Term.applist (f, new_args)
-      else
-        c
+      else Term.applist (f, l)
     | _ -> map_with_binders succ (aux i) k c
   in
   Array.mapi (fun i -> aux i 0) bodies
