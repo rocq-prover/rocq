@@ -86,15 +86,119 @@ Ltac2 @external print : t -> message
 
 (** {2 Scheme lookup} *)
 
-Ltac2 @ external scheme_lookup : string -> t -> Std.reference option
+Ltac2 Type scheme_kind.
+(** An abstract type representing a scheme kind. Use the predefined values
+    below to refer to specific scheme kinds. *)
+
+Ltac2 @ external scheme_lookup : scheme_kind -> t -> Std.reference option
   := "rocq-runtime.plugins.ltac2" "ind_scheme_lookup".
 (** [scheme_lookup kind ind] looks up the scheme registered under [kind] for
-    inductive [ind]. Returns [None] if no such scheme is registered. Common
-    scheme kind strings include ["rect_dep"], ["ind_dep"], ["rec_dep"],
-    ["sind_dep"], ["rect_nodep"], ["ind_nodep"], ["rec_nodep"], ["sind_nodep"],
-    ["case_dep"], ["case_nodep"], ["casep_dep"], ["casep_nodep"]. *)
+    inductive [ind]. Returns [None] if no such scheme is registered. *)
 
-Ltac2 @ external scheme_kind_exists : string -> bool
-  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_exists".
-(** Returns [true] if a scheme builder has been registered under the given
-    kind string. *)
+(** {3 Elimination schemes} *)
+
+Ltac2 @ external rect_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rect_dep".
+(** Dependent recursion scheme for Type. *)
+
+Ltac2 @ external rec_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rec_dep".
+(** Dependent recursion scheme for Set. *)
+
+Ltac2 @ external ind_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_ind_dep".
+(** Dependent induction scheme for Prop. *)
+
+Ltac2 @ external sind_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_sind_dep".
+(** Dependent induction scheme for SProp. *)
+
+Ltac2 @ external rect_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rect_nodep".
+(** Non-dependent recursion scheme for Type. *)
+
+Ltac2 @ external rec_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rec_nodep".
+(** Non-dependent recursion scheme for Set. *)
+
+Ltac2 @ external ind_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_ind_nodep".
+(** Non-dependent induction scheme for Prop. *)
+
+Ltac2 @ external sind_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_sind_nodep".
+(** Non-dependent induction scheme for SProp. *)
+
+(** {3 Case analysis schemes} *)
+
+Ltac2 @ external case_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_case_dep".
+(** Dependent case analysis scheme for Type. *)
+
+Ltac2 @ external case_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_case_nodep".
+(** Non-dependent case analysis scheme for Type. *)
+
+Ltac2 @ external casep_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_casep_dep".
+(** Dependent case analysis scheme for Prop. *)
+
+Ltac2 @ external casep_nodep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_casep_nodep".
+(** Non-dependent case analysis scheme for Prop. *)
+
+(** {3 Equality schemes} *)
+
+Ltac2 @ external sym : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_sym".
+(** Symmetry scheme. *)
+
+Ltac2 @ external sym_involutive : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_sym_involutive".
+(** Involutive symmetry scheme. *)
+
+Ltac2 @ external rew : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew".
+(** Right-to-left rewriting scheme. *)
+
+Ltac2 @ external rew_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew_dep".
+(** Right-to-left dependent rewriting scheme. *)
+
+Ltac2 @ external rew_fwd_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew_fwd_dep".
+(** Right-to-left forward dependent rewriting scheme. *)
+
+Ltac2 @ external rew_r : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew_r".
+(** Left-to-right rewriting scheme. *)
+
+Ltac2 @ external rew_r_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew_r_dep".
+(** Left-to-right dependent rewriting scheme. *)
+
+Ltac2 @ external rew_fwd_r_dep : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_rew_fwd_r_dep".
+(** Left-to-right forward dependent rewriting scheme. *)
+
+Ltac2 @ external congr : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_congr".
+(** Congruence scheme. *)
+
+(** {3 Boolean equality and decidability schemes} *)
+
+Ltac2 @ external beq : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_beq".
+(** Boolean equality scheme. *)
+
+Ltac2 @ external dec_bl : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_dec_bl".
+(** Boolean to Leibniz equality scheme. *)
+
+Ltac2 @ external dec_lb : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_dec_lb".
+(** Leibniz to boolean equality scheme. *)
+
+Ltac2 @ external eq_dec : scheme_kind
+  := "rocq-runtime.plugins.ltac2" "ind_scheme_kind_eq_dec".
+(** Decidable equality scheme. *)
