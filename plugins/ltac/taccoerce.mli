@@ -21,17 +21,6 @@ open Tactypes
 exception CannotCoerceTo of string
 (** Exception raised whenever a coercion failed. *)
 
-(** Abstract application, to print ltac functions *)
-type appl =
-  | UnnamedAppl (** For generic applications: nothing is printed *)
-  | GlbAppl of (Names.KerName.t * Val.t list) list
-       (** For calls to global constants, some may alias other. *)
-
-type tacvalue =
-  | VFun of appl * Tacexpr.ltac_trace * Loc.t option * Val.t Id.Map.t *
-      Name.t list * Tacexpr.glob_tactic_expr
-  | VRec of Val.t Id.Map.t ref * Tacexpr.glob_tactic_expr
-
 (** {5 High-level access to values}
 
   The [of_*] functions cast a given argument into a value. The [to_*] do the
@@ -43,8 +32,8 @@ module Value :
 sig
   type t = Val.t
 
-  val of_tacvalue : tacvalue -> t
-  val to_tacvalue : t -> tacvalue option
+  val of_tacvalue : Tacarg.tacvalue -> t
+  val to_tacvalue : t -> Tacarg.tacvalue option
   val of_constr : constr -> t
   val to_constr : t -> constr option
   val of_uconstr : Ltac_pretype.closed_glob_constr -> t

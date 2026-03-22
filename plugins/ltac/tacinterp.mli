@@ -34,10 +34,11 @@ sig
   val of_int : int -> t
   val to_int : t -> int option
   val to_list : t -> t list option
+  val closure : interp_sign -> glob_tactic_expr -> Tacarg.tacvalue
   val of_closure : interp_sign -> glob_tactic_expr -> t
   val cast : 'a typed_abstract_argument_type -> Geninterp.Val.t -> 'a
-  val apply : t -> t list -> unit Proofview.tactic
-  val apply_val : t -> t list -> t Ftactic.t
+  val apply : Tacarg.tacvalue -> t list -> unit Proofview.tactic
+  val apply_val : Tacarg.tacvalue -> t list -> t Ftactic.t
 end
 
 (** Values for interpretation *)
@@ -117,7 +118,8 @@ val eval_tactic : glob_tactic_expr -> unit Proofview.tactic
 val eval_tactic_ist : interp_sign -> glob_tactic_expr -> unit Proofview.tactic
 (** Same as [eval_tactic], but with the provided [interp_sign]. *)
 
-val tactic_of_value : interp_sign -> Value.t -> unit Proofview.tactic
+val tactic_of_value : interp_sign -> Tacarg.tacvalue -> unit Proofview.tactic
+val tactic_of_val : interp_sign -> Value.t -> unit Proofview.tactic
 
 (** Globalization + interpretation *)
 

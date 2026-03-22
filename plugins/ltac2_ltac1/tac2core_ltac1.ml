@@ -51,7 +51,7 @@ let () =
 let () =
   define "ltac1_run" (ltac1 @-> tac unit) @@ fun v ->
   let open Ltac_plugin in
-  Tacinterp.tactic_of_value (Tacinterp.default_ist ()) v
+  Tacinterp.tactic_of_val (Tacinterp.default_ist ()) v
 
 let () =
   define "ltac1_apply" (ltac1 @-> list ltac1 @-> closure @-> tac unit) @@ fun f args k ->

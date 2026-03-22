@@ -91,7 +91,7 @@ type 'a extra_genarg_printer =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> tacvalue -> Pp.t) ->
   'a -> Pp.t
 
 type 'a raw_extra_genarg_printer_with_level =
@@ -112,7 +112,7 @@ type 'a extra_genarg_printer_with_level =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> tacvalue -> Pp.t) ->
   entry_relative_level -> 'a -> Pp.t
 
 let string_of_genarg_arg (ArgumentType arg) =
@@ -1400,9 +1400,14 @@ let () =
   register_basic_print0 Stdarg.wit_pre_ident str str str;
   register_basic_print0 Stdarg.wit_string qstring qstring qstring
 
+let pr_tacvalue_ref = ref (fun _ _ : Pp.t -> assert false)
+
+let pr_tacvalue env v = !pr_tacvalue_ref env v
+
 let () =
   let printer env sigma _ _ prtac = prtac env sigma in
-  declare_extra_genarg_pprule_with_level wit_tactic printer printer printer
+  let top_print env sigma _ _ _ _ v = pr_tacvalue env v in
+  declare_extra_genarg_pprule_with_level wit_tactic printer printer top_print
   ltop (LevelLe 0)
 
 let () =
@@ -1435,3 +1440,7 @@ let () =
   in
   Gentactic.register_print wit_ltac (printer pr_raw_tactic_level)
     (printer (fun env _sigma n x -> pr_glob_tactic_level env n x))
+
+module Internal = struct
+  let pr_tacvalue_ref = pr_tacvalue_ref
+end

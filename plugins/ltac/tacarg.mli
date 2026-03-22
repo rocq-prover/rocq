@@ -42,7 +42,9 @@ val wit_quantified_hypothesis : quantified_hypothesis uniform_genarg_type
 
 (** Generic arguments based on Ltac. *)
 
-val wit_tactic : (raw_tactic_expr, glob_tactic_expr, Geninterp.Val.t) genarg_type
+type tacvalue
+
+val wit_tactic : (raw_tactic_expr, glob_tactic_expr, tacvalue) genarg_type
 
 val wit_ltac_in_term : (raw_tactic_expr, Names.Id.Set.t * glob_tactic_expr) GenConstr.tag
 
@@ -56,3 +58,8 @@ val wit_destruction_arg :
    glob_constr_and_expr with_bindings Tactics.destruction_arg,
    delayed_open_constr_with_bindings Tactics.destruction_arg) genarg_type
 
+module Internal : sig
+
+  val define_tacvalue : unit -> ('a -> tacvalue) * (tacvalue -> 'a)
+
+end

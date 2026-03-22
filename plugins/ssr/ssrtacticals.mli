@@ -15,11 +15,11 @@ open Ssrmatching_plugin
 
 val tclSEQAT :
   Tacinterp.interp_sign ->
-  Tacinterp.Value.t ->
+  Tacarg.tacvalue ->
   Ssrast.ssrdir ->
   int Locus.or_var *
-    (('a * Tacinterp.Value.t option list) *
-       Tacinterp.Value.t option) ->
+    (('a * Tacarg.tacvalue option list) *
+       Tacarg.tacvalue option) ->
   unit Proofview.tactic
 
 val tclCLAUSES :
@@ -33,12 +33,12 @@ val tclCLAUSES :
 
 val hinttac :
            Tacinterp.interp_sign ->
-           bool -> bool * Tacinterp.Value.t option list -> unit Proofview.tactic
+           bool -> bool * Tacarg.tacvalue option list -> unit Proofview.tactic
 
 val ssrdotac :
   Tacinterp.interp_sign ->
   ((int Locus.or_var * Ssrast.ssrmmod) *
-     (bool * Tacinterp.Value.t option list)) *
+     (bool * Tacarg.tacvalue option list)) *
     ((Ssrast.ssrhyps *
         ((Ssrast.ssrhyp_or_id * string) *
            Ssrmatching.cpattern option)

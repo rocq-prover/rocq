@@ -335,7 +335,7 @@ let register_list_tactical name f =
     begin match Tacinterp.Value.to_list v with
     | None -> Tacticals.tclZEROMSG (Pp.str "Expected a list")
     | Some tacs ->
-      let tacs = List.map (fun tac -> Tacinterp.tactic_of_value ist tac) tacs in
+      let tacs = List.map (fun tac -> Tacinterp.tactic_of_val ist tac) tacs in
       f tacs
     end
   | _ -> assert false

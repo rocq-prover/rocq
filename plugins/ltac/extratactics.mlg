@@ -195,7 +195,7 @@ END
 
 {
 
-let rewrite_star ist clause orient occs c (tac : Geninterp.Val.t option) =
+let rewrite_star ist clause orient occs c (tac : Tacarg.tacvalue option) =
   let tac' = Option.map (fun t -> Tacinterp.tactic_of_value ist t, FirstSolved) tac in
   Internals.with_delayed_uconstr ist c
     (fun c -> general_rewrite ~where:clause ~l2r:orient occs ?tac:tac' ~freeze:true ~dep:true ~with_evars:true (c,NoBindings))

@@ -42,7 +42,7 @@ type 'a extra_genarg_printer =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> Tacarg.tacvalue -> Pp.t) ->
   'a -> Pp.t
 
 type 'a raw_extra_genarg_printer_with_level =
@@ -63,7 +63,7 @@ type 'a extra_genarg_printer_with_level =
   Environ.env -> Evd.evar_map ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
   (Environ.env -> Evd.evar_map -> EConstr.constr -> Pp.t) ->
-  (Environ.env -> Evd.evar_map -> entry_relative_level -> Val.t -> Pp.t) ->
+  (Environ.env -> Evd.evar_map -> entry_relative_level -> Tacarg.tacvalue -> Pp.t) ->
   entry_relative_level -> 'a -> Pp.t
 
 val declare_extra_genarg_pprule :
@@ -155,6 +155,8 @@ val pr_match_rule : bool -> ('a -> Pp.t) -> ('b -> Pp.t) ->
 
 val pr_value : entry_relative_level -> Val.t -> Pp.t
 
+val pr_tacvalue : env -> Tacarg.tacvalue -> Pp.t
+
 val pp_ltac_call_kind : ltac_call_kind -> Pp.t
 
 val ltop : entry_relative_level
@@ -163,3 +165,7 @@ val make_constr_printer : (env -> Evd.evar_map -> entry_relative_level -> 'a -> 
   'a Genprint.top_printer
 
 val ssr_loaded : unit -> bool
+
+module Internal : sig
+  val pr_tacvalue_ref : (env -> Tacarg.tacvalue -> Pp.t) ref
+end

@@ -688,7 +688,7 @@ let ltac_ring_structure e =
   [req;sth;ext;morph;th;cst_tac;pow_tac;
    lemma1;lemma2;pretac;posttac]
 
-let ring_lookup (f : Value.t) lH rl t =
+let ring_lookup f lH rl t =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
@@ -967,7 +967,7 @@ let ltac_field_structure e =
   [req;cst_tac;pow_tac;field_ok;field_simpl_ok;field_simpl_eq_ok;
    field_simpl_eq_in_ok;cond_ok;pretac;posttac]
 
-let field_lookup (f : Value.t) lH rl t =
+let field_lookup f lH rl t =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
