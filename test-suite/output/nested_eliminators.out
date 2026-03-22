@@ -1323,7 +1323,29 @@ adequate_all is universe polymorphic
 Arguments adequate_all L (φ Pφ)%_function_scope a
 Expands to: Inductive nested_eliminators.Template.adequate_all
 Declared in library nested_eliminators, line 295, characters 2-131
-File "./output/nested_eliminators.v", line 315, characters 13-21:
+casenat_all@{α ; u} :
+forall P : nat -> Set,
+(forall n : nat, P n -> Type@{α ; u}) -> casenat P -> Type@{max(Set,u)}
+(* α ; *u |=  *)
+
+casenat_all is universe polymorphic
+Arguments casenat_all (P PP)%_function_scope c
+Expands to: Inductive nested_eliminators.Template.casenat_all
+Declared in library nested_eliminators, line 302, characters 2-94
+casenat'_all@{α α0 ; u u0} :
+forall (A : nat -> Set) (PZ : Set),
+(PZ -> Type@{α ; u}) ->
+forall PS : forall n : nat, A n -> Set,
+(forall (n : nat) (a : A n), PS n a -> Type@{α0 ; u0}) ->
+casenat' A PZ PS -> Type@{max(Set,u,u0)}
+(* α α0 ; *u *u0 |=  *)
+
+casenat'_all is universe polymorphic
+Arguments casenat'_all A%_function_scope PZ%_type_scope
+  (PPZ PS PPS)%_function_scope c
+Expands to: Inductive nested_eliminators.Template.casenat'_all
+Declared in library nested_eliminators, line 307, characters 2-147
+File "./output/nested_eliminators.v", line 325, characters 13-21:
 The command has indeed failed with message:
 The reference True_all was not found in the current environment.
 Inductive
@@ -1349,7 +1371,7 @@ list_all_forall is universe polymorphic
 Arguments list_all_forall A%_type_scope (PA HPA)%_function_scope l
 list_all_forall is transparent
 Expands to: Constant nested_eliminators.UnivPoly.list_all_forall
-Declared in library nested_eliminators, line 318, characters 2-88
+Declared in library nested_eliminators, line 328, characters 2-88
 Inductive
 list_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
 (PPA : forall a : A, PA a -> Type@{α0 ; u1})
@@ -1381,7 +1403,7 @@ Arguments list_all_all_forall A%_type_scope (PA PPA HPPA)%_function_scope
   l l0
 list_all_all_forall is transparent
 Expands to: Constant nested_eliminators.UnivPoly.list_all_all_forall
-Declared in library nested_eliminators, line 318, characters 2-88
+Declared in library nested_eliminators, line 328, characters 2-88
 MRT_ind@{} :
 forall P : MRT -> Prop,
 (forall l : list@{Set} MRT,
@@ -1392,7 +1414,7 @@ MRT_ind is universe polymorphic
 Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.UnivPoly.MRT_ind
-Declared in library nested_eliminators, line 327, characters 2-55
+Declared in library nested_eliminators, line 337, characters 2-55
 RoseTree_ind@{u u0} :
 forall (A : Type@{u}) (P : RoseTree@{u u0} A -> Prop),
 (forall a : A, P (RTleaf@{u u0} A a)) ->
@@ -1405,7 +1427,7 @@ RoseTree_ind is universe polymorphic
 Arguments RoseTree_ind A%_type_scope (P RTleaf RTnode)%_function_scope r
 RoseTree_ind is transparent
 Expands to: Constant nested_eliminators.UnivPoly.RoseTree_ind
-Declared in library nested_eliminators, line 332, characters 2-113
+Declared in library nested_eliminators, line 342, characters 2-113
 Inductive
 RoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
   : RoseTree@{u u0} A -> Type@{max(u0,u1,u2)} :=
@@ -1435,7 +1457,7 @@ RoseTree_all_forall is universe polymorphic
 Arguments RoseTree_all_forall A%_type_scope (PA HPA)%_function_scope r
 RoseTree_all_forall is transparent
 Expands to: Constant nested_eliminators.UnivPoly.RoseTree_all_forall
-Declared in library nested_eliminators, line 332, characters 2-113
+Declared in library nested_eliminators, line 342, characters 2-113
 RoseRoseTree_ind@{u u0 u1} :
 forall (A : Type@{u}) (P : RoseRoseTree@{u u0} A -> Prop),
 (forall a : A, P (Nleaf@{u u0} A a)) ->
@@ -1452,7 +1474,7 @@ RoseRoseTree_ind is universe polymorphic
 Arguments RoseRoseTree_ind A%_type_scope (P Nleaf Nnode)%_function_scope r
 RoseRoseTree_ind is transparent
 Expands to: Constant nested_eliminators.UnivPoly.RoseRoseTree_ind
-Declared in library nested_eliminators, line 340, characters 2-136
+Declared in library nested_eliminators, line 350, characters 2-136
 Inductive
 RoseRoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
   : RoseRoseTree@{u u0} A -> Type@{max(u0,u1,u2)} :=
@@ -1486,7 +1508,7 @@ RoseRoseTree_all_forall is universe polymorphic
 Arguments RoseRoseTree_all_forall A%_type_scope (PA HPA)%_function_scope r
 RoseRoseTree_all_forall is transparent
 Expands to: Constant nested_eliminators.UnivPoly.RoseRoseTree_all_forall
-Declared in library nested_eliminators, line 340, characters 2-136
+Declared in library nested_eliminators, line 350, characters 2-136
 ArrowTree3_ind@{u u0} :
 forall (A : Type@{u}) (P : ArrowTree3@{u u0} A -> Prop),
 (forall a : A, P (ATleaf3@{u u0} A a)) ->
@@ -1503,7 +1525,7 @@ ArrowTree3_ind is universe polymorphic
 Arguments ArrowTree3_ind A%_type_scope (P ATleaf3 ATnode3)%_function_scope a
 ArrowTree3_ind is transparent
 Expands to: Constant nested_eliminators.UnivPoly.ArrowTree3_ind
-Declared in library nested_eliminators, line 348, characters 2-140
+Declared in library nested_eliminators, line 358, characters 2-140
 Inductive
 ArrowTree3_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
   : ArrowTree3@{u u0} A -> Type@{max(u0,u1,u2)} :=
@@ -1539,7 +1561,7 @@ ArrowTree3_all_forall is universe polymorphic
 Arguments ArrowTree3_all_forall A%_type_scope (PA HPA)%_function_scope a
 ArrowTree3_all_forall is transparent
 Expands to: Constant nested_eliminators.UnivPoly.ArrowTree3_all_forall
-Declared in library nested_eliminators, line 348, characters 2-140
+Declared in library nested_eliminators, line 358, characters 2-140
 Inductive
 list_all@{α α0 ; u u0 u1} (A : Type@{α ; u}) (PA : A -> Type@{α0 ; u1})
   : list@{α ; u u0} A -> Type@{α ; max(u0,u1)} :=
@@ -1564,7 +1586,7 @@ list_all_forall is universe polymorphic
 Arguments list_all_forall A%_type_scope (PA HPA)%_function_scope l
 list_all_forall is transparent
 Expands to: Constant nested_eliminators.SortPoly.list_all_forall
-Declared in library nested_eliminators, line 368, characters 2-22
+Declared in library nested_eliminators, line 378, characters 2-22
 Inductive
 list_all_all@{α α0 α1 ; u u0 u1 u2} (A : Type@{α ; u})
 (PA : A -> Type@{α0 ; u1}) (PPA : forall a : A, PA a -> Type@{α1 ; u2})
@@ -1598,7 +1620,7 @@ Arguments list_all_all_forall A%_type_scope (PA PPA HPPA)%_function_scope
   l l0
 list_all_all_forall is transparent
 Expands to: Constant nested_eliminators.SortPoly.list_all_all_forall
-Declared in library nested_eliminators, line 372, characters 2-26
+Declared in library nested_eliminators, line 382, characters 2-26
 MRT_ind@{} :
 forall P : MRT -> Prop,
 (forall l : list@{Type ; Set Set} MRT,
@@ -1609,7 +1631,7 @@ MRT_ind is universe polymorphic
 Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.SortPoly.MRT_ind
-Declared in library nested_eliminators, line 376, characters 2-55
+Declared in library nested_eliminators, line 386, characters 2-55
 SRT_sind@{u u0} :
 forall P : SRT@{u} -> SProp,
 (forall l : list@{SProp ; u u} SRT@{u},
@@ -1621,8 +1643,8 @@ SRT_sind is universe polymorphic
 Arguments SRT_sind (P SRTnode)%_function_scope s
 SRT_sind is transparent
 Expands to: Constant nested_eliminators.SortPoly.SRT_sind
-Declared in library nested_eliminators, line 381, characters 2-57
-File "./output/nested_eliminators.v", line 398, characters 2-60:
+Declared in library nested_eliminators, line 391, characters 2-57
+File "./output/nested_eliminators.v", line 408, characters 2-60:
 The command has indeed failed with message:
 MRT is nested using list. No scheme for list is registered as All. It can be
 generated using command "Scheme All" e.g. "Scheme All for list.".
@@ -1635,7 +1657,7 @@ MRT_ind is not universe polymorphic
 Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.TestWarning.MRT_ind
-Declared in library nested_eliminators, line 403, characters 2-55
+Declared in library nested_eliminators, line 413, characters 2-55
 Nester_all@{α ; u} :
 forall X : unit -> P unit,
 (forall u u0 : unit, X u u0 -> Type@{α ; u}) ->
@@ -1645,4 +1667,4 @@ Nester X -> Type@{max(P.u1,u)}
 Nester_all is universe polymorphic
 Arguments Nester_all (X PX)%_function_scope n
 Expands to: Inductive nested_eliminators.DeepArities.Nester_all
-Declared in library nested_eliminators, line 417, characters 2-24
+Declared in library nested_eliminators, line 427, characters 2-24
