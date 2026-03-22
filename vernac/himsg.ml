@@ -923,7 +923,7 @@ let explain_not_allowed_sprop () =
 let explain_not_allowed_dependent_eliminitation env isrec i =
   let open Pp in
   str "Dependent " ++ str (if isrec then "induction" else "case analysis") ++
-  strbrk " is not allowed for " ++ Termops.pr_global_env env (IndRef i) ++ str "." ++
+  strbrk " is not allowed for " ++ Termops.pr_global_env env (IndRef i) ++ str "." ++ spc() ++
   str "Primitive records must have eta conversion to allow dependent elimination."
 
 let pr_relevance sigma r =

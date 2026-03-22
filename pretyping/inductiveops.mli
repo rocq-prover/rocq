@@ -149,7 +149,9 @@ val top_allowed_sort : env -> inductive -> UnivGen.QualityOrSet.t
 
 (** (Co)Inductive records with primitive projections do not have eta-conversion,
     hence no dependent elimination. *)
-val has_dependent_elim : mind_specif -> bool
+val has_dependent_elim : evar_map -> mind_specif -> EInstance.t -> bool
+
+val always_dependent_elim : mind_specif -> bool
 
 (** Primitive projections *)
 val type_of_projection_knowing_arg : env -> evar_map -> Projection.t ->

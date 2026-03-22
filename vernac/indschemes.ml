@@ -203,7 +203,7 @@ let declare_one_case_analysis_scheme ?loc ind =
   let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let dep, suff =
     if Sorts.Quality.is_qprop kind then case_nodep, Some "case"
-    else if not (Inductiveops.has_dependent_elim specif) then
+    else if not (Inductiveops.always_dependent_elim specif) then
       case_nodep, None
     else case_dep, Some "case" in
   let id = match suff with
@@ -222,7 +222,7 @@ let declare_one_induction_scheme ?loc ind =
   let (mib,mip) as specif = Global.lookup_inductive ind in
   let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let from_prop = Sorts.Quality.is_qprop kind in
-  let depelim = Inductiveops.has_dependent_elim specif in
+  let depelim = Inductiveops.always_dependent_elim specif in
   let kelim mip = Inductiveops.constant_sorts_below
               @@ Inductiveops.elim_sort (mib,mip) in
   let kelim =

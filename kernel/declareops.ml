@@ -312,6 +312,28 @@ let inductive_make_projections ind mib =
     in
     Some (projs, has_eta)
 
+let has_valid_relevance u ind_relevance flds =
+  let ind_relevance = UVars.subst_instance_relevance u ind_relevance in
+  let flds = Array.map (UVars.subst_instance_relevance u) flds in
+  match ind_relevance with
+  | Sorts.Irrelevant -> true
+  | Sorts.Relevant -> Array.exists Sorts.is_relevant flds
+  | Sorts.RelevanceVar qv ->
+    Array.for_all (fun r -> match r with
+        | Sorts.Relevant -> true
+        | Sorts.Irrelevant -> false
+        | Sorts.RelevanceVar qv' -> Sorts.QVar.equal qv qv') flds
+
+let is_record_with_eta (_,mip) u =
+  match mip.mind_record with
+  | NotRecord | FakeRecord -> false
+  | PrimRecord r ->
+    match r.has_eta with
+    | NoEta -> false
+    | MaybeEta ->
+      has_valid_relevance u mip.mind_relevance r.relevances
+    | AlwaysEta -> true
+
 (** {6 Hash-consing of inductive declarations } *)
 
 (** Just as for constants, this hash-consing is quite partial *)

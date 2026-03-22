@@ -75,6 +75,8 @@ val inductive_make_projection : Names.inductive -> mutual_inductive_body -> proj
 val inductive_make_projections : Names.inductive -> mutual_inductive_body ->
   ((Names.Projection.Repr.t * Sorts.relevance) array * has_eta) option
 
+val is_record_with_eta : mind_specif -> Instance.t -> bool
+
 (** {6 Kernel flags} *)
 
 (** A default, safe set of flags for kernel type-checking *)
