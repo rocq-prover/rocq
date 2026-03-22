@@ -1408,7 +1408,7 @@ let drop_uniform_parameters nuniformparams bodies =
       let l = List.map (fun c -> aux i k c) l in
       (* A recursive reference to the i-th body *)
       if Int.equal n (nbodies + k - i) then
-        let new_args = List.skipn_at_best nuniformparams l in
+        let new_args = List.skipn nuniformparams l in
         Term.applist (f, new_args)
       else Term.applist (f, l)
     | _ -> map_with_binders succ (aux i) k c
