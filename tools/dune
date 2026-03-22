@@ -16,7 +16,8 @@
 (library
  (name rocqmakefile)
  (modules rocqmakefile)
- (libraries rocq-runtime.boot rocq-runtime.lib))
+ (libraries rocq-runtime.boot rocq-runtime.lib)
+ (flags :standard -open Rocqutils))
 
 (executable
  (name coq_makefile)

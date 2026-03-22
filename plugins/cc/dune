@@ -3,7 +3,8 @@
  (public_name rocq-runtime.plugins.cc_core)
  (synopsis "Rocq's congruence closure plugin")
  (modules (:standard \ g_congruence))
- (libraries rocq-runtime.tactics))
+ (libraries rocq-runtime.tactics)
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.cc_core)
@@ -14,7 +15,7 @@
  (public_name rocq-runtime.plugins.cc)
  (synopsis "Rocq's congruence closure plugin (Ltac1 syntax)")
  (modules g_congruence)
- (flags :standard -open Cc_core_plugin)
+ (flags :standard -open Cc_core_plugin -open Rocqpretyping)
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.cc_core))
 
 (deprecated_library_name
