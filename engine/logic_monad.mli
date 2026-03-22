@@ -145,9 +145,8 @@ module BackState : sig
   val lift : 'a NonLogical.t -> ('a, 's, 's, 'e) t
 
   type ('a, 'e) reified
-  type ('a, 'e) reified_
 
-  val repr : ('a, 'e) reified -> ('a, ('a, 'e) reified_, 'e) list_view_
+  val repr : ('a, 'e) reified -> ('a, ('a, 'e) reified, 'e) list_view
 
   val run : ('a, 'i, 'o, 'e) t -> 'i -> ('a * 'o, 'e) reified
 
@@ -201,9 +200,8 @@ module Logical (P:Param) : sig
   val lift : 'a NonLogical.t -> 'a t
 
   type 'a reified = ('a, Exninfo.iexn) BackState.reified
-  type 'a reified_ = ('a, Exninfo.iexn) BackState.reified_
 
-  val repr : 'a reified -> ('a, 'a reified_, Exninfo.iexn) list_view_
+  val repr : 'a reified -> ('a, 'a reified, Exninfo.iexn) list_view
 
   val run : 'a t -> P.e -> P.s -> ('a * P.s * P.w * P.u) reified
 
