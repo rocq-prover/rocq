@@ -164,14 +164,14 @@ let specialize c pat =
   let pat = Option.map mk_intro_pattern pat in
   Tactics.specialize c pat
 
-let change pat c cl =
+let change ~check pat c cl =
   Proofview.Goal.enter begin fun gl ->
   let c subst env sigma =
     let subst = Array.map_of_list snd (Id.Map.bindings subst) in
     Tacred.Changed (delayed_of_tactic (c subst) env sigma)
   in
   let cl = mk_clause cl in
-  Tactics.change ~check:true pat c cl
+  Tactics.change ~check pat c cl
   end
 
 let rewrite ev rw cl by =
