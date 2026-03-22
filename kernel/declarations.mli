@@ -291,12 +291,11 @@ type mutual_inductive_body = {
 
     mind_template : template_universes option;
 
-    mind_variance : UVars.Variance.t array option; (** Variance info, [None] when non-cumulative. *)
+    mind_variance : UVars.variances option; (** Variance info, [None] when non-cumulative. *)
 
-    mind_sec_variance : UVars.Variance.t array option;
-    (** Variance info for section polymorphic universes. [None]
-       outside sections. The final variance once all sections are
-       discharged is [mind_sec_variance ++ mind_variance]. *)
+    mind_sec_variance : UVars.variances option;
+    (** Variance info for section polymorphic universes.
+        The final variance once all sections are discharged is [mind_sec_variance ++ mind_variance]. *)
 
     mind_private : bool option; (** allow pattern-matching: Some true ok, Some false blocked *)
 

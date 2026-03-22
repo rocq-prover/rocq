@@ -10,7 +10,7 @@ list_all@{α ; u u0} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                forall l : list A,
                list_all@{α ; u u0} A PA l ->
                list_all@{α ; u u0} A PA (cons A a l).
-(* α ; *u *u0 |=  *)
+(* *α ; *u *u0 |=  *)
 
 Arguments list_all A%_type_scope PA%_function_scope l
 Arguments nil_all A%_type_scope PA%_function_scope
@@ -37,7 +37,7 @@ list_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                    list_all_all@{α α0 ; u u0 u1} A PA PPA l l0 ->
                    list_all_all@{α α0 ; u u0 u1} A PA PPA 
                      (cons A a l) (cons_all@{α ; u u0} A PA a p l l0).
-(* α α0 ; *u *u0 *u1 |=  *)
+(* *α *α0 ; *u *u0 *u1 |=  *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
 Arguments nil_all_all A%_type_scope (PA PPA)%_function_scope
@@ -87,12 +87,12 @@ RoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                  list_all@{Type ; u2 u1} (RoseTree A)
                    (RoseTree_all@{α ; u u0 u1 u2} A PA) l ->
                  RoseTree_all@{α ; u u0 u1 u2} A PA (RTnode A l).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments RoseTree_all A%_type_scope PA%_function_scope r
 Arguments RTleaf_all A%_type_scope PA%_function_scope a _
@@ -127,7 +127,7 @@ RoseTreeMut_all@{α ; u} (A : Type@{RoseTreeMut.u0})
                       forall r : RoseTreeMut A,
                       RoseTreeMut_all@{α ; u} A PA r ->
                       forest_all@{α ; u} A PA (forest_cons A a r).
-(* α ; *u |=  *)
+(* *α ; *u |=  *)
 
 Arguments RoseTreeMut_all A%_type_scope PA%_function_scope r
 Arguments node_mut_all A%_type_scope PA%_function_scope f _
@@ -168,7 +168,7 @@ RoseTreeMut_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
                           forest_all_all@{α α0 ; u u0} A PA PPA
                             (forest_cons A a r)
                             (forest_cons_all@{α ; u} A PA a p r r0).
-(* α α0 ; *u *u0 |=  *)
+(* *α *α0 ; *u *u0 |=  *)
 
 Arguments RoseTreeMut_all_all A%_type_scope (PA PPA)%_function_scope r r0
 Arguments node_mut_all_all A%_type_scope (PA PPA)%_function_scope f f _
@@ -206,7 +206,7 @@ RoseTreeMut_all@{α ; u} (A : Type@{RoseTreeMut.u0})
                       forall r : RoseTreeMut A,
                       RoseTreeMut_all@{α ; u} A PA r ->
                       forest_all@{α ; u} A PA (forest_cons A a r).
-(* α ; *u |=  *)
+(* *α ; *u |=  *)
 
 Arguments RoseTreeMut_all A%_type_scope PA%_function_scope r
 Arguments node_mut_all A%_type_scope PA%_function_scope f _
@@ -246,7 +246,7 @@ RoseTreeMut_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
                           forest_all_all@{α α0 ; u u0} A PA PPA
                             (forest_cons A a r)
                             (forest_cons_all@{α ; u} A PA a p r r0).
-(* α α0 ; *u *u0 |=  *)
+(* *α *α0 ; *u *u0 |=  *)
 
 Arguments RoseTreeMut_all_all A%_type_scope (PA PPA)%_function_scope r r0
 Arguments node_mut_all_all A%_type_scope (PA PPA)%_function_scope f f _
@@ -294,12 +294,12 @@ RoseRoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                      (RoseRoseTree_all@{α ; u u0 u1 u2} A PA))
                   p ->
                 RoseRoseTree_all@{α ; u u0 u1 u2} A PA (Nnode A p).
-(* α ; *u *u0 =u1 =u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 =u1 =u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments RoseRoseTree_all A%_type_scope PA%_function_scope r
 Arguments Nleaf_all A%_type_scope PA%_function_scope a _
@@ -343,12 +343,12 @@ ArrowTree1_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                      (ArrowTree1_all@{α ; u u0 u1 u2} A PA) 
                      (l H)) ->
                   ArrowTree1_all@{α ; u u0 u1 u2} A PA (ATnode1 A l).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments ArrowTree1_all A%_type_scope PA%_function_scope a
 Arguments ATleaf1_all A%_type_scope PA%_function_scope a _
@@ -393,12 +393,12 @@ ArrowTree2_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                      ArrowTree2_all@{α ; u u0 u1 u2} A PA (H H0))
                     l ->
                   ArrowTree2_all@{α ; u u0 u1 u2} A PA (ATnode2 A l).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments ArrowTree2_all A%_type_scope PA%_function_scope a
 Arguments ATleaf2_all A%_type_scope PA%_function_scope a _
@@ -446,12 +446,12 @@ ArrowTree3_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                       ArrowTree3_all@{α ; u u0 u1 u2} A PA (H0 H1))
                      (l H)) ->
                   ArrowTree3_all@{α ; u u0 u1 u2} A PA (ATnode3 A l).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments ArrowTree3_all A%_type_scope PA%_function_scope a
 Arguments ATleaf3_all A%_type_scope PA%_function_scope a _
@@ -478,7 +478,7 @@ prod_all@{α α0 ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
                PA a ->
                forall b : B,
                PB b -> prod_all@{α α0 ; u u0 u1 u2} A PA B PB (pair A B a b).
-(* α α0 ; *u *u0 *u1 *u2 |=  *)
+(* *α *α0 ; *u *u0 *u1 *u2 |=  *)
 
 Arguments prod_all A%_type_scope PA%_function_scope 
   B%_type_scope PB%_function_scope p
@@ -512,7 +512,7 @@ prod_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4} (A : Type@{u})
                    prod_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4} A PA PPA B PB
                      PPB (pair A B a b)
                      (pair_all@{α α0 ; u u0 u1 u2} A PA B PB a p b p0).
-(* α α0 α1 α2 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
+(* *α *α0 *α1 *α2 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
 
 Arguments prod_all_all A%_type_scope (PA PPA)%_function_scope 
   B%_type_scope (PB PPB)%_function_scope p p0
@@ -560,12 +560,12 @@ PairTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                   (PairTree A) (PairTree_all@{α ; u u0 u1 u2} A PA)
                   (PairTree A) (PairTree_all@{α ; u u0 u1 u2} A PA) p ->
                 PairTree_all@{α ; u u0 u1 u2} A PA (Pnode A p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments PairTree_all A%_type_scope PA%_function_scope p
 Arguments Pleaf_all A%_type_scope PA%_function_scope a _
@@ -609,12 +609,12 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                   (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) nat
                   (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -658,12 +658,12 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                   (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) nat
                   (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -688,7 +688,7 @@ prod_all_10@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u1})
     pair_all_10 : forall a : A,
                   PA a ->
                   forall b : B, prod_all_10@{α ; u u0 u1} A PA B (pair a b).
-(* α ; *u *u0 *u1 |=  *)
+(* *α ; *u *u0 *u1 |=  *)
 
 Arguments prod_all_10 A%_type_scope PA%_function_scope B%_type_scope p
 Arguments pair_all_10 A%_type_scope PA%_function_scope B%_type_scope a _ b
@@ -716,7 +716,7 @@ prod_all_10_all@{α α0 ; u u0 u1 u2} (A : Type@{u})
                       forall b : B,
                       prod_all_10_all@{α α0 ; u u0 u1 u2} A PA PPA B
                         (pair a b) (pair_all_10@{α ; u u0 u1} A PA B a p b).
-(* α α0 ; *u *u0 *u1 *u2 |=  *)
+(* *α *α0 ; *u *u0 *u1 *u2 |=  *)
 
 Arguments prod_all_10_all A%_type_scope (PA PPA)%_function_scope
   B%_type_scope p p0
@@ -760,12 +760,12 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 prod_all_10@{Type ; u2 Set u1} (LeftTree A)
                   (LeftTree_all@{α ; u u0 u1 u2} A PA) nat p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -809,12 +809,12 @@ RightTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                   (fun _ : nat => unit) (RightTree A)
                   (RightTree_all@{α ; u u0 u1 u2} A PA) p ->
                 RightTree_all@{α ; u u0 u1 u2} A PA (Rnode A p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments RightTree_all A%_type_scope PA%_function_scope r
 Arguments Rleaf_all A%_type_scope PA%_function_scope a _
@@ -842,7 +842,7 @@ vec_all@{α ; u u0} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 forall (n : nat) (v : vec A n),
                 vec_all@{α ; u u0} A PA n v ->
                 vec_all@{α ; u u0} A PA (S n) (vcons A a n v).
-(* α ; *u *u0 |=  *)
+(* *α ; *u *u0 |=  *)
 
 Arguments vec_all A%_type_scope PA%_function_scope n v
 Arguments vnil_all A%_type_scope PA%_function_scope
@@ -873,7 +873,7 @@ vec_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                     vec_all_all@{α α0 ; u u0 u1} A PA PPA 
                       (S n) (vcons A a n v)
                       (vcons_all@{α ; u u0} A PA a p n v v0).
-(* α α0 ; *u *u0 *u1 |=  *)
+(* *α *α0 ; *u *u0 *u1 |=  *)
 
 Arguments vec_all_all A%_type_scope (PA PPA)%_function_scope n v v0
 Arguments vnil_all_all A%_type_scope (PA PPA)%_function_scope
@@ -913,12 +913,12 @@ VecTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                  vec_all@{Type ; u2 u1} (VecTree A)
                    (VecTree_all@{α ; u u0 u1 u2} A PA) n p ->
                  VecTree_all@{α ; u u0 u1 u2} A PA (VNnode A n p).
-(* α ; *u *u0 *u1 *u2 |= Set <= u1
-                         Set <= u2
-                         u <= u1
-                         u <= u2
-                         u0 <= u1
-                         u2 <= u1 *)
+(* *α ; *u *u0 *u1 *u2 |= Set <= u1
+                          Set <= u2
+                          u <= u1
+                          u <= u2
+                          u0 <= u1
+                          u2 <= u1 *)
 
 Arguments VecTree_all A%_type_scope PA%_function_scope v
 Arguments VNleaf_all A%_type_scope PA%_function_scope a _
@@ -954,7 +954,7 @@ All2i_all@{α ; u u0 u1 u2} (A : Type@{u}) (B : Type@{u0})
                      All2i_all@{α ; u u0 u1 u2} A B R PR n 
                        (cons a lA) (cons b lB)
                        (All2i_cons A B R n a b lA lB r a0).
-(* α ; *u *u0 *u1 *u2 |=  *)
+(* *α ; *u *u0 *u1 *u2 |=  *)
 
 Arguments All2i_all (A B)%_type_scope (R PR)%_function_scope n l l a
 Arguments All2i_nil_all (A B)%_type_scope (R PR)%_function_scope n
@@ -1001,7 +1001,7 @@ All2i_all_all@{α α0 ; u u0 u1 u2 u3} (A : Type@{u})
                            (All2i_cons A B R n a b lA lB r a0)
                            (All2i_cons_all@{α ; u u0 u1 u2} A B R PR n a b lA
                               lB r p a0 a1).
-(* α α0 ; *u *u0 *u1 *u2 *u3 |=  *)
+(* *α *α0 ; *u *u0 *u1 *u2 *u3 |=  *)
 
 Arguments All2i_all_all (A B)%_type_scope (R PR PPR)%_function_scope 
   n l l a a0
@@ -1068,7 +1068,7 @@ All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} (A : Type@{u})
                          All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} A B C PC R
                            PR n (cons a lA) (cons b lB)
                            (All2i_bis_cons A B C R n a b lA lB r a0).
-(* α α0 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
+(* *α *α0 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
 
 Arguments All2i_bis_all (A B C)%_type_scope (PC R PR)%_function_scope n l l a
 Arguments All2i_bis_nil_all (A B C)%_type_scope (PC R PR)%_function_scope 
@@ -1127,7 +1127,7 @@ All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6}
                                (All2i_bis_cons A B C R n a b lA lB r a0)
                                (All2i_bis_cons_all@{α α0 ; u u0 u1 u2 u3 u4}
                                   A B C PC R PR n a b lA lB r p a0 a1).
-(* α α0 α1 α2 ; *u *u0 *u1 *u2 *u3 *u4 *u5 *u6 |= 
+(* *α *α0 *α1 *α2 ; *u *u0 *u1 *u2 *u3 *u4 *u5 *u6 |= 
     *)
 
 Arguments All2i_bis_all_all (A B C)%_type_scope
@@ -1184,7 +1184,7 @@ sig_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 PA x ->
                 forall p : P x,
                 PP x p -> sig_all@{α α0 ; u u0 u1} A PA P PP (exist A P x p).
-(* α α0 ; *u *u0 *u1 |=  *)
+(* *α *α0 ; *u *u0 *u1 |=  *)
 
 Arguments sig_all A%_type_scope (PA P PP)%_function_scope s
 Arguments exist_all A%_type_scope (PA P PP)%_function_scope x _ p _
@@ -1208,7 +1208,7 @@ sig_all_10@{α ; u u0} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                    PA x ->
                    forall p : P x,
                    sig_all_10@{α ; u u0} A PA P (exist A P x p).
-(* α ; *u *u0 |=  *)
+(* *α ; *u *u0 |=  *)
 
 Arguments sig_all_10 A%_type_scope (PA P)%_function_scope s
 Arguments exist_all_10 A%_type_scope (PA P)%_function_scope x _ p
@@ -1228,7 +1228,7 @@ sig_all_01@{α ; u u0} (A : Type@{u}) (P : A -> Prop)
 (PP : forall a : A, P a -> Type@{α ; u0}) : sig A P -> Type@{max(u,u0)} :=
     exist_all_01 : forall (x : A) (p : P x),
                    PP x p -> sig_all_01@{α ; u u0} A P PP (exist A P x p).
-(* α ; *u *u0 |=  *)
+(* *α ; *u *u0 |=  *)
 
 Arguments sig_all_01 A%_type_scope (P PP)%_function_scope s
 Arguments exist_all_01 A%_type_scope (P PP)%_function_scope x p _
@@ -1255,7 +1255,7 @@ NestRel_all@{α α0 ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 (and_all@{α0 α0 ; u1 u1} (R x x) (PR x x) (R x x) (PR x x))
                 True (fun _ : True => unit) o ->
               NestRel_all@{α α0 ; u u0 u1 u2} A PA R PR (mkR A R x o).
-(* α α0 ; *u *u0 =u1 *u2 |=  *)
+(* *α =α0 ; *u *u0 =u1 *u2 |=  *)
 
 Arguments NestRel_all A%_type_scope (PA R PR)%_function_scope n
 Arguments mkR_all A%_type_scope (PA R PR)%_function_scope x _ o _
@@ -1285,7 +1285,7 @@ ex_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                    forall p : P x,
                    PP x p ->
                    ex_all@{α α0 ; u u0 u1} A PA P PP (ex_intro A P x p).
-(* α α0 ; *u *u0 *u1 |=  *)
+(* *α *α0 ; *u *u0 *u1 |=  *)
 
 Arguments ex_all A%_type_scope (PA P PP)%_function_scope e
 Arguments ex_intro_all A%_type_scope (PA P PP)%_function_scope x _ p _
@@ -1317,7 +1317,7 @@ Declared in library nested_eliminators, line 295, characters 2-131
 adequate_all@{α ; u u0} :
 forall (L : language) (φ : unit -> Type@{u}),
 (forall u : unit, φ u -> Type@{α ; u0}) -> adequate L φ -> Prop
-(* α ; *u *u0 |=  *)
+(* *α ; *u *u0 |=  *)
 
 adequate_all is universe polymorphic
 Arguments adequate_all L (φ Pφ)%_function_scope a
@@ -1335,7 +1335,7 @@ list_all@{α ; u u0} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                forall l : list@{u} A,
                list_all@{α ; u u0} A PA l ->
                list_all@{α ; u u0} A PA (cons@{u} A a l).
-(* α ; =u *u0 |=  *)
+(* *α ; =u *u0 |=  *)
 
 Arguments list_all A%_type_scope PA%_function_scope l
 Arguments nil_all A%_type_scope PA%_function_scope
@@ -1363,7 +1363,7 @@ list_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                    list_all_all@{α α0 ; u u0 u1} A PA PPA l l0 ->
                    list_all_all@{α α0 ; u u0 u1} A PA PPA 
                      (cons@{u} A a l) (cons_all@{α ; u u0} A PA a p l l0).
-(* α α0 ; =u *u0 *u1 |=  *)
+(* *α *α0 ; =u *u0 *u1 |=  *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
 Arguments nil_all_all A%_type_scope (PA PPA)%_function_scope
@@ -1416,9 +1416,9 @@ RoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
                  list_all@{Type ; u0 u2} (RoseTree@{u u0} A)
                    (RoseTree_all@{α ; u u0 u1 u2} A PA) l ->
                  RoseTree_all@{α ; u u0 u1 u2} A PA (RTnode@{u u0} A l).
-(* α ; =u =u0 *u1 *u2 |= u <= u0
-                         u0 <= u2
-                         u1 <= u2 *)
+(* *α ; =u =u0 *u1 *u2 |= u <= u0
+                          u0 <= u2
+                          u1 <= u2 *)
 
 Arguments RoseTree_all A%_type_scope PA%_function_scope r
 Arguments RTleaf_all A%_type_scope PA%_function_scope a _
@@ -1465,10 +1465,10 @@ RoseRoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
                      (RoseRoseTree_all@{α ; u u0 u1 u2} A PA))
                   p ->
                 RoseRoseTree_all@{α ; u u0 u1 u2} A PA (Nnode@{u u0} A p).
-(* α ; =u =u0 *u1 =u2 |= Set <= u2
-                         u <= u0
-                         u0 <= u2
-                         u1 <= u2 *)
+(* *α ; =u =u0 *u1 =u2 |= Set <= u2
+                          u <= u0
+                          u0 <= u2
+                          u1 <= u2 *)
 
 Arguments RoseRoseTree_all A%_type_scope PA%_function_scope r
 Arguments Nleaf_all A%_type_scope PA%_function_scope a _
@@ -1518,10 +1518,10 @@ ArrowTree3_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
                       ArrowTree3_all@{α ; u u0 u1 u2} A PA (H0 H1))
                      (l H)) ->
                   ArrowTree3_all@{α ; u u0 u1 u2} A PA (ATnode3@{u u0} A l).
-(* α ; =u =u0 *u1 *u2 |= Set <= u2
-                         u <= u0
-                         u0 <= u2
-                         u1 <= u2 *)
+(* *α ; =u =u0 *u1 *u2 |= Set <= u2
+                          u <= u0
+                          u0 <= u2
+                          u1 <= u2 *)
 
 Arguments ArrowTree3_all A%_type_scope PA%_function_scope a
 Arguments ATleaf3_all A%_type_scope PA%_function_scope a _
@@ -1549,7 +1549,7 @@ list_all@{α α0 ; u u0 u1} (A : Type@{α ; u}) (PA : A -> Type@{α0 ; u1})
                forall l : list@{α ; u u0} A,
                list_all@{α α0 ; u u0 u1} A PA l ->
                list_all@{α α0 ; u u0 u1} A PA (cons@{α ; u u0} A a l).
-(* α α0 ; =u =u0 *u1 |= u <= u0 *)
+(* =α *α0 ; =u =u0 *u1 |= u <= u0 *)
 
 Arguments list_all A%_type_scope PA%_function_scope l
 Arguments nil_all A%_type_scope PA%_function_scope
@@ -1580,7 +1580,7 @@ list_all_all@{α α0 α1 ; u u0 u1 u2} (A : Type@{α ; u})
                    list_all_all@{α α0 α1 ; u u0 u1 u2} A PA PPA
                      (cons@{α ; u u0} A a l)
                      (cons_all@{α α0 ; u u0 u1} A PA a p l l0).
-(* α α0 α1 ; =u =u0 *u1 *u2 |= u <= u0 *)
+(* =α *α0 *α1 ; =u =u0 *u1 *u2 |= u <= u0 *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
 Arguments nil_all_all A%_type_scope (PA PPA)%_function_scope
@@ -1640,7 +1640,7 @@ Nester_all@{α ; u} :
 forall X : unit -> P unit,
 (forall u u0 : unit, X u u0 -> Type@{α ; u}) ->
 Nester X -> Type@{max(P.u1,u)}
-(* α ; *u |=  *)
+(* *α ; *u |=  *)
 
 Nester_all is universe polymorphic
 Arguments Nester_all (X PX)%_function_scope n

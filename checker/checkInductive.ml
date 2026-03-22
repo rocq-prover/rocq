@@ -98,7 +98,10 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
       })
       mb.mind_packets
   in
-  let mind_entry_variance = Option.map (Array.map (fun v -> Some v)) mb.mind_variance in
+  let mind_entry_variance = match mb.mind_variance with
+    | None -> None
+    | Some (qv,uv) -> Some (Array.map (fun v -> Some v) qv, Array.map (fun v -> Some v) uv)
+  in
   {
     mind_entry_record;
     mind_entry_finite = mb.mind_finite;
@@ -239,8 +242,9 @@ let check_inductive env mind mb retro =
   check "mind_params_ctxt" (Context.Rel.equal Sorts.relevance_equal Constr.equal mb.mind_params_ctxt mind_params_ctxt);
   ignore mind_universes; (* Indtypes did the necessary checking *)
   check "mind_template" (check_template mb.mind_template mind_template);
-  check "mind_variance" (Option.equal (Array.equal UVars.Variance.equal)
-                           mb.mind_variance mind_variance);
+  check "mind_variance" (Option.equal (fun (q1,u1) (q2,u2) ->
+      Array.equal UVars.Variance.equal q1 q2 && Array.equal UVars.Variance.equal u1 u2)
+      mb.mind_variance mind_variance);
   check "mind_sec_variance" (Option.is_empty mind_sec_variance);
   ignore mind_private; (* passed through Indtypes *)
 

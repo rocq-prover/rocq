@@ -965,8 +965,12 @@ let explain_bad_invert env =
   strbrk "Bad case inversion (maybe a bugged tactic)."
 
 let explain_bad_variance env sigma ~lev ~expected ~actual =
-  fmt "Incorrect variance for universe %t:@ expected %t@ but cannot be less restrictive than %t."
-    (fun () -> Termops.pr_evd_level sigma lev)
+  let pplev = match lev with
+    | Inl lev -> str "universe " ++ Termops.pr_evd_level sigma lev
+    | Inr q -> str "sort " ++ Termops.pr_evd_qvar sigma q
+  in
+  fmt "Incorrect variance for %t:@ expected %t@ but cannot be less restrictive than %t."
+    (fun () -> pplev)
     (fun () -> UVars.Variance.pr expected)
     (fun () -> UVars.Variance.pr actual)
 

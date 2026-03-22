@@ -144,13 +144,13 @@ val pr_sort : ?universes:bool -> ?qualities:bool -> evar_map -> Sorts.t -> Pp.t
 
 val pr_universe_instance   : evar_map -> UVars.Instance.t -> Pp.t
 val pr_universe_instance_binder : evar_map -> UVars.Instance.t -> Univ.UnivConstraints.t -> Pp.t
-val pr_universe_ctx        : evar_map -> ?variance:UVars.Variance.t array ->
+val pr_universe_ctx        : evar_map -> ?variance:UVars.variances ->
   UVars.UContext.t -> Pp.t
-val pr_abstract_universe_ctx : evar_map -> ?variance:UVars.Variance.t array ->
+val pr_abstract_universe_ctx : evar_map -> ?variance:UVars.variances ->
   ?priv:Univ.ContextSet.t -> UVars.AbstractContext.t -> Pp.t
 val pr_sort_context_set : evar_map -> UnivGen.sort_context_set -> Pp.t
 val pr_universes  : evar_map ->
-  ?variance:UVars.Variance.t array -> ?priv:Univ.ContextSet.t ->
+  ?variance:UVars.variances -> ?priv:Univ.ContextSet.t ->
   Declarations.universes -> Pp.t
 
 (** [universe_binders_with_opt_names ref l]

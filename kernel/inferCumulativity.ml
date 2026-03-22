@@ -19,22 +19,29 @@ open Util
 exception TrivialVariance
 
 (** Not the same as Type_errors.BadVariance because we don't have the env where we raise. *)
-exception BadVariance of Level.t * Variance.t * Variance.t
+exception BadVariance of (Level.t, Sorts.QVar.t) union * Variance.t * Variance.t
 (* some ocaml bug is triggered if we make this an inline record *)
 
 exception NotInferring
 
 module Inf : sig
   type variances
+  val infer_quality_eq : Sorts.Quality.t -> variances -> variances
+  val infer_quality_leq : Sorts.Quality.t -> variances -> variances
   val infer_level_eq : Level.t -> variances -> variances
   val infer_level_leq : Level.t -> variances -> variances
 
   val get_infer_mode : variances -> bool
   val set_infer_mode : bool -> variances -> variances
 
-  val start : (Level.t * Variance.t option) array -> variances
-  val finish : variances -> Variance.t array
+  val start :
+    (Sorts.QVar.t * Variance.t option) array ->
+    (Level.t * Variance.t option) array ->
+    variances
+  val finish : variances -> UVars.variances
 end = struct
+  module QVar = Sorts.QVar
+
   type inferred = IrrelevantI | CovariantI
   type mode = Check | Infer
 
@@ -45,7 +52,9 @@ end = struct
      so we stop by raising [TrivialVariance]. The [soft] check comes before that.
   *)
   type variances = {
-    orig_array : (Level.t * Variance.t option) array;
+    orig_qarray : (QVar.t * Variance.t option) array;
+    orig_uarray : (Level.t * Variance.t option) array;
+    quals : (mode * inferred) QVar.Map.t;
     univs : (mode * inferred) Level.Map.t;
     infer_mode : bool;
   }
@@ -59,16 +68,49 @@ end = struct
 
   let to_variance_opt o = Option.cata to_variance Invariant o
 
+  let infer_quality_eq q (variances : variances) =
+    match q with
+    | Sorts.Quality.QConstant _ -> variances
+    | QVar q ->
+    match QVar.Map.find_opt q variances.quals with
+    | None -> variances
+    | Some (Check, expected) ->
+      let expected = to_variance expected in
+      raise (BadVariance (Inr q, expected, Invariant))
+    | Some (Infer, _) ->
+      if not variances.infer_mode then raise NotInferring;
+      let quals = QVar.Map.remove q variances.quals in
+      if QVar.Map.is_empty quals && Level.Map.is_empty variances.univs then raise TrivialVariance;
+      {variances with quals}
+
+  let infer_quality_leq q variances =
+    (* can only set Irrelevant -> Covariant so no TrivialVariance *)
+    match q with
+    | Sorts.Quality.QConstant _ -> variances
+    | QVar q ->
+    let quals =
+      QVar.Map.update q (function
+          | None -> None
+          | Some (_,CovariantI) as x -> x
+          | Some (Infer,IrrelevantI) ->
+            if not variances.infer_mode then raise NotInferring;
+            Some (Infer,CovariantI)
+          | Some (Check,IrrelevantI) ->
+            raise (BadVariance (Inr q, Irrelevant, Covariant)))
+        variances.quals
+    in
+    if quals == variances.quals then variances else {variances with quals}
+
   let infer_level_eq u (variances : variances) =
     match Level.Map.find_opt u variances.univs with
     | None -> variances
     | Some (Check, expected) ->
       let expected = to_variance expected in
-      raise (BadVariance (u, expected, Invariant))
+      raise (BadVariance (Inl u, expected, Invariant))
     | Some (Infer, _) ->
       if not variances.infer_mode then raise NotInferring;
       let univs = Level.Map.remove u variances.univs in
-      if Level.Map.is_empty univs then raise TrivialVariance;
+      if QVar.Map.is_empty variances.quals && Level.Map.is_empty univs then raise TrivialVariance;
       {variances with univs}
 
   let infer_level_leq u variances =
@@ -81,12 +123,20 @@ end = struct
             if not variances.infer_mode then raise NotInferring;
             Some (Infer,CovariantI)
           | Some (Check,IrrelevantI) ->
-            raise (BadVariance (u, Irrelevant, Covariant)))
+            raise (BadVariance (Inl u, Irrelevant, Covariant)))
         variances.univs
     in
     if univs == variances.univs then variances else {variances with univs}
 
-  let start us =
+  let start qs us =
+    let quals = Array.fold_left (fun quals (q,variance) ->
+        match variance with
+        | None -> QVar.Map.add q (Infer,IrrelevantI) quals
+        | Some Invariant -> quals
+        | Some Covariant -> QVar.Map.add q (Check,CovariantI) quals
+        | Some Irrelevant -> QVar.Map.add q (Check,IrrelevantI) quals)
+        QVar.Map.empty qs
+    in
     let univs = Array.fold_left (fun univs (u,variance) ->
         match variance with
         | None -> Level.Map.add u (Infer,IrrelevantI) univs
@@ -95,47 +145,70 @@ end = struct
         | Some Irrelevant -> Level.Map.add u (Check,IrrelevantI) univs)
         Level.Map.empty us
     in
-    if Level.Map.is_empty univs then raise TrivialVariance;
-    {univs; orig_array=us; infer_mode=true}
+    if QVar.Map.is_empty quals && Level.Map.is_empty univs then raise TrivialVariance;
+    {univs; quals; orig_qarray=qs; orig_uarray=us; infer_mode=true}
 
   let finish (variances : variances) =
-    Array.map
-      (fun (u,_check) -> to_variance_opt (Option.map snd (Level.Map.find_opt u variances.univs)))
-      variances.orig_array
+    let quals =
+      Array.map
+        (fun (q,_check) -> to_variance_opt (Option.map snd (QVar.Map.find_opt q variances.quals)))
+        variances.orig_qarray
+    in
+    let univs =
+      Array.map
+        (fun (u,_check) -> to_variance_opt (Option.map snd (Level.Map.find_opt u variances.univs)))
+        variances.orig_uarray
+    in
+    quals, univs
 
 end
 open Inf
 
-let infer_generic_instance_eq variances u =
+let infer_generic_instance_eq variances (q,u) =
+  let variances =
+    Array.fold_left (fun variances q ->
+      infer_quality_eq q variances)
+      variances q
+  in
   Array.fold_left (fun variances u -> infer_level_eq u variances)
     variances
     u
 
-(* no variance for qualities *)
-let instance_univs u = snd (Instance.to_array u)
+let extend_instance sec u =
+  let secq, secu = Instance.to_array sec in
+  let q, u = Instance.to_array u in
+  Array.append secq q, Array.append secu u
 
-let extend_con_instance cb u =
-  (Array.append (instance_univs cb.const_univ_hyps) (instance_univs u))
+let extend_con_instance cb u = extend_instance cb.const_univ_hyps u
 
-let extend_ind_instance mib u =
-  (Array.append (instance_univs mib.mind_univ_hyps) (instance_univs u))
+let extend_ind_instance mib u = extend_instance mib.mind_univ_hyps u
 
 let extended_mind_variance mind =
   match mind.mind_variance, mind.mind_sec_variance with
   | None, None -> None
   | Some _ as variance, None -> variance
   | None, Some _ -> assert false
-  | Some variance, Some sec_variance -> Some (Array.append sec_variance variance)
+  | Some (q1,u1), Some (q2,u2) -> Some (Array.append q2 q1, Array.append u2 u1)
 
-let infer_cumulative_ind_instance cv_pb mind_variance variances u =
+let infer_cumulative_ind_instance cv_pb mind_variance variances (qs,us) =
+  let variances =
+  Array.fold_left2 (fun variances varu q ->
+      match cv_pb, varu with
+      | _, Irrelevant -> variances
+      | _, Invariant | CONV, Covariant -> infer_quality_eq q variances
+      | CUMUL, Covariant -> infer_quality_leq q variances)
+    variances
+    (fst mind_variance)
+    qs
+  in
   Array.fold_left2 (fun variances varu u ->
       match cv_pb, varu with
       | _, Irrelevant -> variances
       | _, Invariant | CONV, Covariant -> infer_level_eq u variances
       | CUMUL, Covariant -> infer_level_leq u variances)
     variances
-    mind_variance
-    u
+    (snd mind_variance)
+    us
 
 let infer_inductive_instance cv_pb env variances ind nargs u =
   let mind = Environ.lookup_mind (fst ind) env in
@@ -160,8 +233,10 @@ let infer_constructor_instance_eq env variances ((mi,ind),ctor) nargs u =
 let infer_sort cv_pb variances s =
   match cv_pb with
   | CONV ->
+    let variances = infer_quality_eq (Sorts.quality s) variances in
     Level.Set.fold infer_level_eq (Sorts.levels s) variances
   | CUMUL ->
+    let variances = infer_quality_leq (Sorts.quality s) variances in
     Level.Set.fold infer_level_leq (Sorts.levels s) variances
 
 let infer_constant env variances (con,u) =
@@ -245,7 +320,8 @@ let rec infer_fterm cv_pb infos variances hd stk =
     in
     infer_stack infos variances stk
   | FArray (u,elemsdef,ty) ->
-    let variances = infer_generic_instance_eq variances (instance_univs u) in
+    (* XXX should be irrelevant? *)
+    let variances = infer_generic_instance_eq variances (Instance.to_array u) in
     let variances = infer_fterm CONV infos variances ty [] in
     let elems, def = Parray.to_array elemsdef in
     let variances = infer_fterm CONV infos variances def [] in
@@ -309,12 +385,17 @@ let infer_arity_constructor is_arity env variances arcn =
   in
   let typs, codom = Reduction.whd_decompose_prod env arcn in
   let env, variances = Context.Rel.fold_outside infer_typ typs ~init:(env, variances) in
-  (* If we have Inductive foo@{i j} : ... -> Type@{i} := C : ... -> foo Type@{j}
+  (* If we have Inductive foo@{q1 q2;i j} : ... -> Type@{q1;i} := C : ... -> foo Type@{q2;j}
+     q1 and q2 are invariant (q1 could be contravariant if we had contravariance),
      i is irrelevant, j is invariant. *)
-  if not is_arity then infer_term CUMUL env variances codom else variances
+  if is_arity then
+    let s = try destSort codom with DestKO -> assert false in
+    infer_quality_eq (Sorts.quality s) variances
+  else
+    infer_term CUMUL env variances codom
 
-let infer_inductive_core ~env_params ~env_ar_par ~arities ~ctors univs =
-  let variances = Inf.start univs in
+let infer_inductive_core ~env_params ~env_ar_par ~arities ~ctors quals univs =
+  let variances = Inf.start quals univs in
   let variances = List.fold_left (fun variances arity ->
       infer_arity_constructor true env_params variances arity)
       variances arities
@@ -325,9 +406,10 @@ let infer_inductive_core ~env_params ~env_ar_par ~arities ~ctors univs =
   in
   Inf.finish variances
 
-let infer_inductive ~env_params ~env_ar_par ~arities ~ctors univs =
-  try infer_inductive_core ~env_params ~env_ar_par ~arities ~ctors univs
+let infer_inductive ~env_params ~env_ar_par ~arities ~ctors quals univs =
+  try infer_inductive_core ~env_params ~env_ar_par ~arities ~ctors quals univs
   with
-  | TrivialVariance -> Array.make (Array.length univs) Invariant
+  | TrivialVariance ->
+    Array.make (Array.length quals) Invariant, Array.make (Array.length univs) Invariant
   | BadVariance (lev, expected, actual) ->
     Type_errors.error_bad_variance env_params ~lev ~expected ~actual

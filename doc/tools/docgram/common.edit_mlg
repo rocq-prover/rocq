@@ -650,10 +650,10 @@ univ_decl: [
 ]
 
 cumul_univ_decl: [
-| REPLACE "@{" LIST0 identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
-| WITH "@{" OPT [ LIST0 identref [ "|" | ";" ] ] LIST0 variance_identref    OPT "+"   OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+| REPLACE "@{" LIST0 variance_identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| WITH "@{" OPT [ LIST0 variance_identref [ "|" | ";" ] ] LIST0 variance_identref    OPT "+"   OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 | DELETE "@{" LIST0 variance_identref [ "+" | ] univ_decl_constraints
-| DELETE "@{" LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| DELETE "@{" LIST0 variance_identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 ]
 
 of_type: [
