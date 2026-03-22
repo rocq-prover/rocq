@@ -56,3 +56,10 @@ About ssig.
 Polymorphic Inductive BoxP@{q;a|} (A:Type@{q;a}) : Prop := boxP (_:A).
 
 About BoxP.
+
+Variant Box (F  : unit -> Type) := .
+
+Inductive Cut (x : unit) : Type :=
+| triv : Box (fun n => Cut n) -> Cut x.
+
+About Cut_ind.
