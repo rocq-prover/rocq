@@ -652,17 +652,17 @@ When we use parameters in patterns there is an error message:
 
 .. flag:: Asymmetric Patterns
 
-   This :term:`flag` (off by default) removes parameters from constructors in patterns:
+   This :term:`flag` (on by default) removes parameters from constructors in patterns:
 
 .. rocqtop:: all
 
-   Set Asymmetric Patterns.
+   Unset Asymmetric Patterns.
    Check (fun l:List nat =>
      match l with
      | nil => nil _
-     | cons _ l' => l'
+     | cons _ _ l' => l'
      end).
-   Unset Asymmetric Patterns.
+   Set Asymmetric Patterns.
 
 Implicit arguments in patterns
 ------------------------------
