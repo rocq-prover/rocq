@@ -14,9 +14,15 @@ open Environ
 (***********************************************************************
   s conversion functions *)
 
+(** Which side to unfold first (default: R2L ie unfold right side first) *)
+type firstorder_mode =
+  | Eager
+  | L2R
+  | R2L
+
 type 'a kernel_conversion_function = env -> 'a -> 'a -> (unit, unit) result
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
+  ?l2r:firstorder_mode -> ?reds:TransparentState.t -> env ->
   ?evars:CClosure.evar_handler ->
   'a -> 'a -> (unit, unit) result
 
@@ -57,7 +63,7 @@ val conv_leq : types extended_conversion_function
 
 (** The failure values depend on the universe state functions
     (for better error messages). *)
-val generic_conv : conv_pb -> l2r:bool
+val generic_conv : conv_pb -> l2r:firstorder_mode
   -> TransparentState.t -> env -> ?evars:CClosure.evar_handler
   -> ('a, 'err) generic_conversion_function
 

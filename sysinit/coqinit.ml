@@ -219,6 +219,11 @@ let require_file ~intern ~prefix ~lib ~export ~allow_failure =
   with (Synterp.UnmappedLibrary _ | Synterp.NotFoundLibrary _) when allow_failure ->
     warn_require_not_found (mfrom, mp)
 
+let warn_no_bytecode =
+  CWarnings.create ~name:"bytecode-compiler-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
+    Pp.(fun () -> str "Bytecode compiler is disabled," ++ spc() ++
+                  str "-bytecode-compiler option ignored.")
+
 let warn_no_native_compiler =
   CWarnings.create_in Nativeconv.w_native_disabled
     Pp.(fun s -> strbrk "Native compiler is disabled," ++
@@ -253,6 +258,7 @@ let handle_injection ~intern = let open Coqargs in function
   | RequireInjection {lib;prefix;export;allow_failure} ->
     require_file ~intern ~lib ~prefix ~export ~allow_failure
   | OptionInjection o -> set_option o
+  | WarnNoBytecode -> warn_no_bytecode ()
   | WarnNoNative s -> warn_no_native_compiler s
   | WarnNativeDeprecated -> warn_deprecated_native_compiler ()
 
