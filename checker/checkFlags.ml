@@ -23,6 +23,7 @@ let set_local_flags flags env =
     share_reduction = flags.share_reduction;
     unfold_dep_heuristic = flags.unfold_dep_heuristic;
     allow_uip = flags.allow_uip;
+    expand_let = flags.expand_let;
     (* These flags may not *)
     enable_VM = envflags.enable_VM;
     enable_native_compiler = envflags.enable_native_compiler;

@@ -577,6 +577,7 @@ let same_flags {
      indices_matter;
      share_reduction;
      unfold_dep_heuristic;
+     expand_let;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -591,6 +592,7 @@ let same_flags {
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
   unfold_dep_heuristic == alt.unfold_dep_heuristic &&
+  expand_let == alt.expand_let &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&
