@@ -136,9 +136,24 @@ let check_context_univs ~ctor env info ctx =
   in
   fst (Context.Rel.fold_outside ~init:(info,env) check_one ctx)
 
+let eq_squashed a b =
+  match a, b with
+  | SometimesSquashed a, SometimesSquashed b -> Sorts.Quality.Set.equal a b
+  | AlwaysSquashed, AlwaysSquashed -> true
+  | (SometimesSquashed _ | AlwaysSquashed), _ -> false
+
 let check_indices_matter env_params info indices =
-  if not (indices_matter env_params) then info
-  else check_context_univs ~ctor:false env_params info indices
+  let with_indices = check_context_univs ~ctor:false env_params info indices in
+  let relies_on_indices_not_mattering =
+    not (Option.equal eq_squashed info.ind_squashed with_indices.ind_squashed)
+    || not (List.equal Sorts.equal info.missing with_indices.missing)
+  in
+  if indices_matter env_params then
+    (* indices constraints are enforced, so this inductive does not
+       rely on indices not mattering *)
+    (with_indices, false)
+  else
+    (info, relies_on_indices_not_mattering)
 
 (* env_ar contains the inductives before the current ones in the block, and no parameters *)
 let check_arity ~template env_params env_ar ind =
@@ -152,7 +167,6 @@ let check_arity ~template env_params env_ar ind =
     missing=[];
   }
   in
-  let univ_info = check_indices_matter env_params univ_info indices in
   (* We do not need to generate the universe of the arity with params;
      if later, after the validation of the inductive definition,
      full_arity is used as argument or subject to cast, an upper
@@ -166,7 +180,7 @@ let check_constructor_univs env_ar_par info (args,_) =
   (* We ignore the output, positivity will check that it's the expected inductive type *)
   check_context_univs ~ctor:true env_ar_par info args
 
-let check_constructors env_ar_par isrecord params lc (arity,indices,univ_info) =
+let check_constructors ~env_params ~env_ar_par isrecord params lc (arity,indices,univ_info) =
   let lc = Array.map_of_list (fun c -> (Typeops.infer_type env_ar_par c).utj_val) lc in
   let splayed_lc = Array.map (Reduction.whd_decompose_prod_decls env_ar_par) lc in
   let univ_info =
@@ -200,7 +214,8 @@ let check_constructors env_ar_par isrecord params lc (arity,indices,univ_info) =
   in
   (* generalize the constructors over the parameters *)
   let lc = Array.map (fun c -> Term.it_mkProd_or_LetIn c params) lc in
-  (arity, lc), (indices, splayed_lc), univ_info
+  let univ_info, relies_on_indices_not_mattering = check_indices_matter env_params univ_info indices in
+  (arity, lc), (indices, splayed_lc), univ_info, relies_on_indices_not_mattering
 
 module NotPrimRecordReason = struct
 
@@ -215,7 +230,7 @@ end
 (* Checks whether the record can have primitive projections, and if so, whether it has eta *)
 let check_record data =
   let open NotPrimRecordReason in
-  List.fold_left (fun res (_, (_, splayed_lc), info) ->
+  List.fold_left (fun res (_, (_, splayed_lc), info, _) ->
       if Result.is_error res then res
       else if Option.has_some info.ind_squashed
       (* records must have all projections definable -> equivalent to not being squashed *)
@@ -480,7 +495,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     template_defaults = default_univs;
   }
 
-let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
+let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info,relies_on_indices_not_mattering) =
   if not (List.is_empty univ_info.missing)
   then raise (InductiveError (env, MissingUnivConstraints (univ_info.missing,univ_info.ind_univ)));
   let arity = Vars.subst_univs_level_constr usubst arity in
@@ -508,7 +523,7 @@ let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info) =
       univ_info.ind_squashed
   in
 
-  (arity,lc), (indices,splayed_lc), squashed
+  (arity,lc), (indices,splayed_lc), squashed, relies_on_indices_not_mattering
 
 let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let () = match mie.mind_entry_inds with
@@ -551,7 +566,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Some None | None -> false
   in
   let data = List.map2 (fun ind data ->
-      check_constructors env_ar_par isrecord params ind.mind_entry_lc data)
+      check_constructors ~env_params ~env_ar_par isrecord params ind.mind_entry_lc data)
       mie.mind_entry_inds data
   in
 
@@ -565,8 +580,8 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
       | Result.Error _ as reason ->
         (* if someone tried to declare a record as SProp but it can't
            be primitive we must squash. *)
-        let data = List.map (fun (a, b, univs) ->
-            a, b, compute_elim_squash env_ar_par Sorts.prop univs)
+        let data = List.map (fun (a, b, univs, im) ->
+            a, b, compute_elim_squash env_ar_par Sorts.prop univs, im)
             data
         in
         data, Some None, Some reason (* back to FakeRecord with a reason why *)

@@ -50,5 +50,6 @@ val typecheck_inductive : env -> sec_univs:UVars.Instance.t option
   * Constr.rel_context
   * ((inductive_arity * Constr.types array) *
      (Constr.rel_context * (Constr.rel_context * Constr.types) array) *
-     squash_info option)
+     squash_info option *
+     bool (** true if the inductive relies on indices not mattering *))
     array

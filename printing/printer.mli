@@ -251,6 +251,7 @@ type axiom =
   | Guarded of GlobRef.t (* a constant whose (co)fixpoints have been assumed to be guarded *)
   | TypeInType of GlobRef.t (* a constant which relies on type in type *)
   | UIP of MutInd.t (* An inductive using the special reduction rule. *)
+  | IndicesNotMattering of MutInd.t (* An inductive relying on indices not mattering. *)
 
 type context_object =
   | Variable of Id.t (* A section variable or a Let definition *)

@@ -16,5 +16,6 @@ CONTEXT SUMMARY
   
 * Inductives relying on indices not mattering:
     Corelib.Init.Datatypes.eq_true
+    indices_matter.M.X
     Corelib.Init.Logic.eq
   

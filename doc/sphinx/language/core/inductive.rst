@@ -914,7 +914,9 @@ or :math:`s_j` must be an impredicative sort (`SProp`, `Prop`, or if `-impredica
 and the `j`\th inductive may not be eliminated to larger sorts:
 
 - for each (non parameter) constructor argument, the universe of its type must be smaller than :math:`s_j`
-- if `-indices-matter` was used, for each index the universe of its type must be smaller than :math:`s_j`
+- if `-indices-matter` was used, for each index the universe of its type must be smaller than :math:`s_j`.
+  When `-indices-matter` is not used, inductives whose indices would contribute
+  universe constraints are printed by :cmd:`Print Assumptions`.
 - if there are 2 or more constructors, `Set` must be smaller than :math:`s_j`
 - unless the inductive is a primitive record, and unless :flag:`Definitional UIP` was used,
   if there is 1 constructor, `Prop` must be smaller than :math:`s_j` (essentially this means :math:`s_j` must not be `SProp`)

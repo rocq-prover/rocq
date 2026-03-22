@@ -255,6 +255,10 @@ type one_inductive_body = {
     mind_relevance : Sorts.relevance;
     (* XXX this is redundant with mind_sort, is it actually worth keeping? *)
 
+    mind_relies_on_indices_not_mattering : bool;
+    (** true if this inductive relies on indices not mattering,
+        i.e. its behavior would change under -indices-matter. *)
+
 (** {8 Datas for bytecode compilation } *)
 
     mind_nb_constant : int; (** number of constant constructor *)
