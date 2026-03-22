@@ -74,22 +74,22 @@ let check_for_coloneq =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | KEYWORD "(" -> skip_to_rpar (p+1) (n+1)
         | KEYWORD ")" -> if Int.equal p 0 then Ok (n+1) else skip_to_rpar (p-1) (n+1)
-        | KEYWORD "." -> Error ()
+        | KEYWORD "." -> Error empty_error
         | _ -> skip_to_rpar p (n+1) in
       let rec skip_names n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | IDENT _ | KEYWORD "_" -> skip_names (n+1)
         | KEYWORD ":" -> skip_to_rpar 0 (n+1) (* skip a constr *)
-        | _ -> Error () in
+        | _ -> Error empty_error in
       let rec skip_binders n =
         match List.last (Gramlib.LStream.npeek kwstate n strm) with
         | KEYWORD "(" -> Result.bind (skip_names (n+1)) skip_binders
         | IDENT _ | KEYWORD "_" -> skip_binders (n+1)
         | KEYWORD ":=" -> Ok ()
-        | _ -> Error () in
+        | _ -> Error empty_error in
       match Gramlib.LStream.peek_nth kwstate 0 strm with
       | Some (KEYWORD "(") -> skip_binders 2
-      | _ -> Error () })
+      | _ -> Error empty_error })
 
 let lookup_at_as_comma =
   let open Procq.Lookahead in
