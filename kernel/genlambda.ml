@@ -543,7 +543,7 @@ let rec get_alias env sigma kn =
   let tps = cb.const_body_code in
   match tps with
   | Vmemitcodes.BCalias kn' -> get_alias env sigma kn'
-  | Vmemitcodes.BCconstant -> kn, [||]
+  | Vmemitcodes.BCconstant | BCuncompiled -> kn, [||]
   | Vmemitcodes.BCdefined (mask, _, _) -> kn, mask
 
 (* Translation of constructors *)

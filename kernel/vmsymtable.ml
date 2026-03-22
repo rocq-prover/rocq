@@ -284,6 +284,8 @@ let rec slot_for_getglobal env sigma kn envcache table =
       set_global v table
     | BCalias kn' -> slot_for_getglobal env sigma kn' envcache table
     | BCconstant -> set_global (val_of_constant kn) table
+    | BCuncompiled ->
+      CErrors.user_err Pp.(str "VM encountered uncompiled constant "++Constant.print kn ++ str ".")
     in
     rk := Some (CEphemeron.create pos);
     pos
