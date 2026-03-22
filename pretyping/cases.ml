@@ -1855,6 +1855,7 @@ let build_inversion_problem ~program_mode loc env sigma tms t =
         let l = List.lastn n (Array.to_list v) in
         let l,acc = List.fold_right_map reveal_pattern l acc in
         DAst.make (PatCstr (cstr,l,Anonymous)), acc
+    | Nat (ind,n) -> reveal_pattern (EConstr.unfold_nat ind n) acc
     | _ -> make_patvar t acc in
   let rec aux n env acc_sign tms acc =
     match tms with

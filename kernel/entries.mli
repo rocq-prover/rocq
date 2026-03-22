@@ -66,6 +66,7 @@ type mutual_inductive_entry = {
      the entry to [None] if to be inferred or [Some v] if to be
      checked. *)
   mind_entry_private : bool option;
+  mind_entry_is_nat : bool;
 }
 
 (** {6 Constants (Definition/Axiom) } *)

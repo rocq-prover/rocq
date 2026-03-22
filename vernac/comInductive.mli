@@ -30,6 +30,7 @@ type uniform_inductive_flag =
 val do_mutual_inductive
   : flags:flags
   -> ?typing_flags:Declarations.typing_flags
+  -> ?is_nat:bool
   -> cumul_univ_decl_expr option
   -> (one_inductive_expr * notation_declaration list) list
   -> private_ind:bool
@@ -68,6 +69,7 @@ val interp_mutual_inductive
   :  env:Environ.env
   -> flags:flags
   -> ?typing_flags:Declarations.typing_flags
+  -> ?is_nat:bool
   -> cumul_univ_decl_expr option
   -> (one_inductive_expr * notation_declaration list) list
   -> private_ind:bool

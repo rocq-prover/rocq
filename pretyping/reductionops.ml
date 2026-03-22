@@ -707,6 +707,14 @@ let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
     let ctx = expand_branch env sigma u pms (ind, i) br in
     applist (it_mkLambda_or_LetIn (snd br) ctx, args)
 
+let get_nat_branch ind n br =
+  if Z.equal n Z.zero then
+    let _nas, br = br.(0) in
+    br
+  else
+    let _nas, br = br.(1) in
+    let n = Z.pred n in
+    Vars.subst1 (mkNat ind n) br
 
 exception PatternFailure
 
@@ -927,6 +935,21 @@ let rec whd_state_gen flags ?metas env sigma =
         |_, _ -> fold ()
       else fold ()
 
+    | Nat (ind,n) ->
+      let use_match = RedFlags.red_set flags RedFlags.fMATCH in
+      let use_fix = RedFlags.red_set flags RedFlags.fFIX in
+      if use_match || use_fix then
+        match stack with
+        |(Stack.Case (_,_,_,_,_,br)::s') when use_match ->
+          let r = get_nat_branch ind n br in
+          whrec (r, s')
+        |(Stack.Fix (f,s')::s'') when use_fix ->
+          let out_sk = s' @ (Stack.append_app [|x|] s'') in
+          whrec (reduce_and_refold_fix env sigma f out_sk)
+        |(Stack.App _| Proj _ | Primitive _)::_ -> assert false
+        | _ -> fold ()
+      else fold ()
+
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
         match Stack.strip_app stack with
@@ -1014,6 +1037,23 @@ let local_whd_state_gen flags ?metas env sigma =
         |_, (Stack.App _)::_ -> assert false
         |_, _ -> s
       else s
+
+    | Nat (ind,n) ->
+      let use_match = RedFlags.red_set flags RedFlags.fMATCH in
+      let use_fix = RedFlags.red_set flags RedFlags.fFIX in
+      begin match stack with
+      |(Stack.Case (_,_,_,_,_,br) :: s') ->
+        if use_match then
+          let r = get_nat_branch ind n br in
+          whrec (r, s')
+        else s
+      |(Stack.Fix (f,s')::s'') ->
+        if use_fix then
+          whrec (contract_fix sigma f, s' @ (Stack.append_app [|x|] s''))
+        else s
+      |(Stack.App _ | Proj _ | Primitive _)::_ -> assert false
+      | [] -> s
+      end
 
     | CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
@@ -1118,7 +1158,7 @@ let shrink_eta sigma c =
         | _ -> x
       else x
     | Meta _ | App _ | Case _ | Fix _ | Construct _ | CoFix _ | Evar _ | Rel _ | Var _ | Sort _ | Prod _
-    | LetIn _ | Const _  | Ind _ | Proj _ | Int _ | Float _ | String _ | Array _ -> x
+    | LetIn _ | Const _  | Ind _ | Proj _ | Nat _ | Int _ | Float _ | String _ | Array _ -> x
   in
   whrec c
 
@@ -1197,11 +1237,8 @@ let _ = CErrors.register_handler (function
     | _ -> None)
 
 let report_anomaly (e, info) =
-  let e =
-    if is_sync_anomaly e then AnomalyInConversion e
-    else e
-  in
-  Exninfo.iraise (e, info)
+  if is_sync_anomaly e then ()
+  else Exninfo.iraise (e, info)
 
 module CheckUnivs =
 struct
@@ -1261,7 +1298,8 @@ let is_fconv ?(reds=TransparentState.full) pb env sigma t1 t2 =
     with
     | e ->
       let e = Exninfo.capture e in
-      report_anomaly e
+      report_anomaly e;
+      false
 
 let is_conv ?(reds=TransparentState.full) env sigma x y =
   is_fconv ~reds Conversion.CONV env sigma x y
@@ -1290,7 +1328,8 @@ let is_conv_nounivs ?(reds=TransparentState.full) env sigma t1 t2 =
     with
     | e ->
       let e = Exninfo.capture e in
-      report_anomaly e
+      report_anomaly e;
+      false
 
 let sigma_compare_sorts pb s0 s1 sigma =
   match pb with
@@ -1393,7 +1432,8 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
   | QGraph.EliminationError _ when catch_incon -> None
   | e ->
     let e = Exninfo.capture e in
-    report_anomaly e
+    report_anomaly e;
+    None
 
 let infer_conv = infer_conv_gen { genconv = fun pb ~l2r sigma ->
       Conversion.generic_conv pb ~l2r ~evars:(Evd.evar_handler sigma) }

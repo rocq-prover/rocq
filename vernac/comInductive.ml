@@ -625,7 +625,7 @@ let variance_of_entry ~cumulative ~variances uctx =
       assert (lvs <= lus);
       Some (Array.append variances (Array.make (lus - lvs) None))
 
-let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
+let interp_mutual_inductive_constr_internal ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind ~is_nat =
   let {
     poly;
     template;
@@ -680,9 +680,14 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
       mind_entry_private = if private_ind then Some false else None;
       mind_entry_universes = univ_entry;
       mind_entry_variance = variance;
+      mind_entry_is_nat = is_nat;
     }
   in
   default_dep_elim, mind_ent, ubinders, global_univs
+
+(* wrapper that just sets is_nat:false *)
+let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
+  interp_mutual_inductive_constr_internal ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind ~is_nat:false
 
 let interp_params ~unconstrained_sorts ~poly env udecl uparamsl paramsl =
   let sigma, udecl, variances = interp_cumul_univ_decl_opt env udecl in
@@ -723,7 +728,7 @@ let maybe_unify_params_in env_ar_par sigma ~ninds ~nparams ~binders:k c =
   in
   aux (env_ar_par,k) sigma c
 
-let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notations ~private_ind =
+let interp_mutual_inductive_gen env0 ~flags ?(is_nat=false) udecl (uparamsl,paramsl,indl) notations ~private_ind =
   check_all_names_different env0 indl;
   List.iter check_param paramsl;
   if not (List.is_empty uparamsl) && not (List.is_empty notations)
@@ -813,7 +818,7 @@ let interp_mutual_inductive_gen env0 ~flags udecl (uparamsl,paramsl,indl) notati
       indimpls cimpls
   in
   let arities_explicit = List.map (fun ar -> ar.ind_arity_explicit) indl in
-  let default_dep_elim, mie, binders, ctx = interp_mutual_inductive_constr ~flags ~sigma ~ctx_params ~udecl ~variances ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind ~indnames in
+  let default_dep_elim, mie, binders, ctx = interp_mutual_inductive_constr_internal ~flags ~sigma ~ctx_params ~udecl ~variances ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind ~indnames ~is_nat in
   (default_dep_elim, mie, binders, impls, ctx)
 
 
@@ -909,7 +914,7 @@ let rec count_binder_expr = function
   | CLocalPattern {CAst.loc} :: _ ->
     Loc.raise ?loc (Gramlib.Grammar.ParseError "pattern with quote not allowed here")
 
-let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let interp_mutual_inductive ~env ~flags ?typing_flags ?is_nat udecl indl ~private_ind ~uniform =
   let indlocs = List.map (fun ((n,_,_,constructors),_) ->
       let conslocs = List.map (fun (_,(c,_)) -> c.CAst.loc) constructors in
       n.CAst.loc, conslocs)
@@ -925,15 +930,15 @@ let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~u
       | NonUniformParameters -> ([], params, indl), None
   in
   let env = Environ.update_typing_flags ?typing_flags env in
-  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen ~flags env udecl indl where_notations ~private_ind in
+  let default_dep_elim, mie, univ_binders, implicits, uctx = interp_mutual_inductive_gen ~flags ?is_nat env udecl indl where_notations ~private_ind in
   let open Mind_decl in
   { mie; default_dep_elim; nuparams; univ_binders; implicits; uctx; where_notations; coercions; indlocs }
 
-let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
+let do_mutual_inductive ~flags ?typing_flags ?is_nat udecl indl ~private_ind ~uniform =
   let open Mind_decl in
   let env = Global.env () in
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
-    interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
+    interp_mutual_inductive ~flags ~env ?is_nat udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)

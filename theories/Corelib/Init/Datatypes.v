@@ -184,6 +184,7 @@ Register BoolSpecF as core.BoolSpec.BoolSpecF.
     Numbers in [nat] can be denoted using a decimal notation;
     e.g. [3%nat] abbreviates [S (S (S O))] *)
 
+#[primitive_nat]
 Inductive nat : Set :=
   | O : nat
   | S : nat -> nat.

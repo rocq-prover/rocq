@@ -494,7 +494,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
   Array.of_list (List.rev rs),
   Array.of_list (List.rev pbs)
 
-let build_inductive env ~sec_univs names prv univs template variance
+let build_inductive env ~is_nat ~sec_univs names prv univs template variance
     paramsctxt kn isrecord isfinite inds nmr recargs not_prim_or_has_eta =
   let ntypes = Array.length inds in
   (* Compute the set of used section variables *)
@@ -597,10 +597,51 @@ let build_inductive env ~sec_univs names prv univs template variance
     mind_sec_variance = sec_variance;
     mind_private = prv;
     mind_typing_flags = Environ.typing_flags env;
+    mind_is_nat = is_nat;
   }
 
 (************************************************************************)
 (************************************************************************)
+
+let check_primitive_nat univs template params finite inds =
+  let () = match univs with Monomorphic -> () | Polymorphic _ ->
+    CErrors.user_err Pp.(str "Primitive nat may not be universe polymorphic.")
+  in
+  let () = if Option.has_some template then CErrors.user_err Pp.(str "Primitive nat may not be template polymorphic.") in
+  let () = if not @@ List.is_empty params then CErrors.user_err Pp.(str "Primitive nat may not have parameters.") in
+  let () = match finite with
+    | Finite -> ()
+    | CoFinite | BiFinite -> CErrors.user_err Pp.(str "Primitive nat must be inductive.")
+  in
+  let (arity,_),(indices,splayed_lc),squashed = match inds with
+    | [|i|] -> i
+    | _ -> CErrors.user_err Pp.(str "Primitive nat may not be mutual.")
+  in
+  let () = if not @@ CList.is_empty indices then
+      CErrors.user_err Pp.(str "Primitive nat must not have indices.")
+  in
+  let () = if not @@ Sorts.is_set arity.IndTyping.sort then
+      (* arguably not needed to check this? *)
+      CErrors.user_err Pp.(str "Primitive nat must be in Set.")
+  in
+  let () = if Option.has_some squashed then
+      CErrors.user_err Pp.(str "Primitive nat may not be squashed.")
+  in
+  let c_0, c_S = match splayed_lc with
+    | [|a;b|] -> a, b
+    | _ -> CErrors.user_err Pp.(str "Primitive nat must have 2 constructors.")
+  in
+  (* no need to check second projection of splayed constructors: no
+     params, no indices and no mutual means guaranteed to be the
+     inductive itself. *)
+  let () = if not @@ CList.is_empty @@ fst c_0 then
+      CErrors.user_err Pp.(str "Primitive nat first constructor (for 0) may not have arguments.")
+  in
+  let () = match fst c_S with
+    | [LocalAssum (_,t)] when isRelN 1 t -> ()
+    | _ -> CErrors.user_err Pp.(str "Invalid second constructor of primitive nat.")
+  in
+  ()
 
 let check_inductive env ~sec_univs kn mie =
   (* First type-check the inductive definition *)
@@ -616,11 +657,13 @@ let check_inductive env ~sec_univs kn mie =
       env_ar_par paramsctxt mie.mind_entry_finite
       (Array.map (fun ((_,lc),(indices,_),_) -> Context.Rel.nhyps indices,lc) inds)
   in
+  let () = if mie.mind_entry_is_nat then check_primitive_nat univs template paramsctxt mie.mind_entry_finite inds in
   (* Build the inductive packets *)
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
       paramsctxt kn record mie.mind_entry_finite
       inds nmr recargs not_prim_reason_or_has_eta
+      ~is_nat:mie.mind_entry_is_nat
   in
   (* From this point onward, we only care if there is a reason why
      the primitive projection was not possible *)

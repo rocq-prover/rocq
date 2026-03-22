@@ -1129,6 +1129,10 @@ end
 
 module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
+let is_nat env ind =
+  let mib = lookup_mind (fst ind) env in
+  mib.mind_is_nat
+
 let rec constant_dependencies_with_cache env cache kn =
   match DepCache.get kn cache with
   | Inl deps -> deps

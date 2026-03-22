@@ -148,9 +148,9 @@ fun x : comparison => match x with
      : comparison -> nat
 fun x : comparison =>
 match x return nat with
-| Eq => S O
-| Lt => O
-| Gt => O
+| Eq => 0x1
+| Lt => 0x0
+| Gt => 0x0
 end
      : forall _ : comparison, nat
 fun x : K => match x with

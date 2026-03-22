@@ -630,6 +630,7 @@ type pretyper = {
   pretype_hole : pretyper -> Evar_kinds.glob_evar_kind -> unsafe_judgment pretype_fun;
   pretype_genarg : pretyper -> GenConstr.glb -> unsafe_judgment pretype_fun;
   pretype_cast : pretyper -> glob_constr * cast_kind option * glob_constr -> unsafe_judgment pretype_fun;
+  pretype_nat : pretyper -> inductive -> Z.t -> unsafe_judgment pretype_fun;
   pretype_int : pretyper -> Uint63.t -> unsafe_judgment pretype_fun;
   pretype_float : pretyper -> Float64.t -> unsafe_judgment pretype_fun;
   pretype_string : pretyper -> Pstring.t -> unsafe_judgment pretype_fun;
@@ -675,6 +676,8 @@ let eval_pretyper self ~flags tycon env sigma t =
     self.pretype_genarg self arg ?loc ~flags tycon env sigma
   | GCast (c, k, t) ->
     self.pretype_cast self (c, k, t) ?loc ~flags tycon env sigma
+  | GNat (ind,n) ->
+    self.pretype_nat self ind n ?loc ~flags tycon env sigma
   | GInt n ->
     self.pretype_int self n ?loc ~flags tycon env sigma
   | GFloat f ->
@@ -1570,6 +1573,10 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
             ?loc:(loc_of_glob_constr c) !!env sigma tj.utj_val v e
         end
 
+  let pretype_nat self ind n ?loc ~flags tycon env sigma =
+    let resj = Typing.judge_of_nat !!env ind n in
+    discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma resj tycon
+
   let pretype_int self i =
     fun ?loc ~flags tycon env sigma ->
         let resj =
@@ -1665,6 +1672,7 @@ let default_pretyper =
     pretype_hole = pretype_hole;
     pretype_genarg = pretype_genarg;
     pretype_cast = pretype_cast;
+    pretype_nat = pretype_nat;
     pretype_int = pretype_int;
     pretype_float = pretype_float;
     pretype_string = pretype_string;

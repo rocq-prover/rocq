@@ -255,6 +255,7 @@ let compare_notation_constr lt var_eq_hole (vars1,vars2) t1 t2 =
     aux vars renaming c1 c2;
     if not (Option.equal cast_kind_eq k1 k2) then raise_notrace Exit;
     aux vars renaming t1 t2
+  | NNat (ind1,n1), NNat (ind2,n2) when Z.equal n1 n2 && Ind.CanOrd.equal ind1 ind2 -> ()
   | NInt i1, NInt i2 when Uint63.equal i1 i2 -> ()
   | NFloat f1, NFloat f2 when Float64.equal f1 f2 -> ()
   | NArray(t1,def1,ty1), NArray(t2,def2,ty2) ->
@@ -263,7 +264,7 @@ let compare_notation_constr lt var_eq_hole (vars1,vars2) t1 t2 =
     aux vars renaming ty1 ty2
   | (NRef _ | NVar _ | NApp _ | NProj _ | NHole _ | NGenarg _ | NList _ | NLambda _ | NProd _
     | NBinderList _ | NLetIn _ | NCases _ | NLetTuple _ | NIf _
-    | NRec _ | NSort _ | NCast _ | NInt _ | NFloat _ | NString _ | NArray _), _ -> raise_notrace Exit in
+    | NRec _ | NSort _ | NCast _ | NNat _ | NInt _ | NFloat _ | NString _ | NArray _), _ -> raise_notrace Exit in
   try
     let _ = aux (vars1,vars2) [] t1 t2 in
     if not lt then
@@ -466,6 +467,7 @@ let glob_constr_of_notation_constr_with_binders ?loc g f ?(h=default_binder_stat
   | NHole x  -> GHole x
   | NGenarg arg -> GGenarg arg
   | NRef (x,u) -> GRef (x,u)
+  | NNat (ind,n) -> GNat (ind,n)
   | NInt i -> GInt i
   | NFloat f -> GFloat f
   | NString s -> GString s
@@ -700,6 +702,7 @@ let notation_constr_and_vars_of_glob_constr recvars a =
     if Option.is_empty k then forgetful := { !forgetful with forget_volatile_cast = true };
     NCast (aux c, k, aux t)
   | GSort s -> NSort s
+  | GNat (ind,n) -> NNat (ind,n)
   | GInt i -> NInt i
   | GFloat f -> NFloat f
   | GString s -> NString s
@@ -908,6 +911,7 @@ let rec subst_notation_constr subst bound raw =
           NRec (fk,idl,dll',tl',bl')
 
   | NSort _ -> raw
+  | NNat _ -> raw
   | NInt _ -> raw
   | NFloat _ -> raw
   | NString _ -> raw
@@ -1479,6 +1483,11 @@ let is_var_term = function
   | GRef (GlobRef.VarRef _,None) -> true
   | _ -> false
 
+let unfold_nat ind n =
+  let ctor = NRef (ConstructRef (Constr.ctor_of_nat ind n), None) in
+  if Z.equal n Z.zero then ctor
+  else NApp (ctor, [NNat (ind, Z.pred n)])
+
 let rec match_ inner u alp metas sigma a1 a2 =
   let open CAst in
   let loc = a1.loc in
@@ -1592,6 +1601,18 @@ let rec match_ inner u alp metas sigma a1 a2 =
      (Behaviour deliberately introduced in a38fbefca61f3392efe0ba98adfbae138022cce4 AFAICT) *)
   | GSort s1, NSort s2 when glob_sort_eq s1 s2 -> sigma
 
+  | GNat (ind1, n1), NNat (ind2, n2) ->
+    if Z.equal n1 n2 && Ind.CanOrd.equal ind1 ind2 then sigma
+    else raise No_match
+
+  | GNat (ind, n), (NApp (NRef _,_) | NRef _) ->
+    let a1 = Glob_ops.unfold_nat ?loc ind n in
+    match_ inner u alp metas sigma a1 a2
+
+  | (GApp _ | GRef _), NNat (ind, n) ->
+    let a2 = unfold_nat ind n in
+    match_ inner u alp metas sigma a1 a2
+
   | GInt i1, NInt i2 when Uint63.equal i1 i2 -> sigma
   | GFloat f1, NFloat f2 when Float64.equal f1 f2 -> sigma
   | GString s1, NString s2 when Pstring.equal s1 s2 -> sigma
@@ -1629,7 +1650,7 @@ let rec match_ inner u alp metas sigma a1 a2 =
 
   | (GRef _ | GVar _ | GEvar _ | GPatVar _ | GApp _ | GProj _ | GLambda _ | GProd _
      | GLetIn _ | GCases _ | GLetTuple _ | GIf _ | GRec _ | GSort _ | GHole _ | GGenarg _
-     | GCast _ | GInt _ | GFloat _ | GString _ | GArray _), _ -> raise No_match
+     | GCast _ | GNat _ | GInt _ | GFloat _ | GString _ | GArray _), _ -> raise No_match
 
 and match_in_type u alp metas sigma t = function
   | None -> sigma
@@ -1787,6 +1808,11 @@ let rec match_cases_pattern metas (terms,termlists,(),() as sigma) a1 a2 =
         (* Convention: notations to @f don't keep implicit arguments *)
         let no_implicit = le2 = 0 in
         (List.fold_left2 (match_cases_pattern_no_more_args metas) sigma l1' l2),(no_implicit,le2,more_args)
+  | PatCstr ((ind,_),_,_), NNat (ind',n) ->
+    if Ind.CanOrd.equal ind ind' then
+      let a2 = unfold_nat ind' n in
+      match_cases_pattern metas sigma a1 a2
+    else raise No_match
   | r1, NList (x,y,iter,termin,revert) ->
       (match_cases_pattern_list (match_cases_pattern_no_more_args)
         metas (terms,termlists,(),()) a1 x y iter termin revert),(false,0,[])

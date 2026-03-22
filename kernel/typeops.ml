@@ -316,6 +316,12 @@ let type_of_prim_type _env u (type a) (prim : a CPrimitives.prim_type) = match p
     | _ -> anomaly Pp.(str"universe instance for array type should have length 1")
     end
 
+let type_of_nat env ind n =
+  assert (Z.leq Z.zero n);
+  let mib = Environ.lookup_mind (fst ind) env in
+  assert mib.mind_is_nat;
+  UnsafeMonomorphic.mkInd ind
+
 let type_of_int env =
   match (Environ.retroknowledge env).Retroknowledge.retro_int63 with
   | Some c -> UnsafeMonomorphic.mkConst c
@@ -834,6 +840,8 @@ and execute_aux tbl env cstr =
       fix_ty
 
     (* Primitive types *)
+    | Nat (ind,n) ->
+      type_of_nat env ind n
     | Int _ -> type_of_int env
     | Float _ -> type_of_float env
     | String _ -> type_of_string env

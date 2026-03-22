@@ -15,8 +15,6 @@ open Pattern
 
 (** {5 Functions on patterns} *)
 
-val constr_pattern_eq : Environ.env -> constr_pattern -> constr_pattern -> bool
-
 val subst_pattern : Environ.env -> Evd.evar_map -> substitution -> constr_pattern -> constr_pattern
 val subst_uninstantiated_pattern : Environ.env -> Evd.evar_map -> substitution -> uninstantiated_pattern -> uninstantiated_pattern
 

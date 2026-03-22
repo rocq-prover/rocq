@@ -880,7 +880,7 @@ let rec adjust_env env = function
   | NCast (c,_,_) -> adjust_env env c
   | NApp _ -> restart_no_binders env
   | NVar _ | NRef _ | NHole _ | NGenarg _ | NCases _ | NLetTuple _ | NIf _
-  | NRec _ | NSort _ | NProj _ | NInt _ | NFloat _ | NString _ | NArray _
+  | NRec _ | NSort _ | NProj _ | NNat _ | NInt _ | NFloat _ | NString _ | NArray _
   | NList _ | NBinderList _ -> env (* to be safe, but restart should be ok *)
 
 let subst_var loc intern_pat intern ntnvars binders (terms, binderopt, _terminopt) (renaming, env) id =
@@ -1784,6 +1784,15 @@ type global_reference_test = {
   test_kind : ?loc:Loc.t -> GlobRef.t -> unit
 }
 
+let rcp_of_nat ?loc ind n =
+  assert (Z.leq Z.zero n);
+  let ctor_S = GlobRef.ConstructRef (ind,2) in
+  let rec aux acc n =
+    if Z.equal n Z.zero then acc
+    else aux (RCPatCstr (ctor_S, [DAst.make ?loc acc])) (Z.pred n)
+  in
+  aux (RCPatCstr (ConstructRef (ind,1), [])) n
+
 let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
   (* At toplevel, Constructors and Inductives are accepted, in recursive calls
      only constructor are allowed *)
@@ -1815,12 +1824,14 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
           List.iter (check_allowed_ref_in_pat test_kind_inner) l
         | _ -> raise Not_found
         end
+      | GNat _ -> ()
       | _ -> raise Not_found)) in
   (* Interpret a primitive notation (part of Glob_ops.cases_pattern_of_glob_constr) *)
   let rec rcp_of_glob scopes x = DAst.(map_with_loc (fun ?loc -> function
     | GVar id -> RCPatAtom (Some (CAst.make ?loc id,scopes))
     | GHole _ -> RCPatAtom None
     | GRef (g,_) -> RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false [] [])
+    | GNat (ind,n) -> rcp_of_nat ?loc ind n
     | GApp (r, l) ->
       begin match DAst.get r with
       | GRef (g,_) ->
@@ -1989,6 +2000,11 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
     | NRef (g,_) ->
       ensure_kind test_kind ?loc g;
       DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false [] args)
+    | NNat (ind,n) ->
+      (* test_kind should return the same on all constructors of nat
+         so no need to call multiple times *)
+      ensure_kind test_kind ?loc (ConstructRef (ctor_of_nat ind n));
+      DAst.make ?loc @@ rcp_of_nat ?loc ind n
     | NApp (NRef (g,_),ntnpl) ->
       ensure_kind test_kind ?loc g;
       let ntnpl = List.map (in_not test_kind_inner loc scopes fullsubst []) ntnpl in

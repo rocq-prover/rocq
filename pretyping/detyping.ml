@@ -338,6 +338,7 @@ let computable sigma (nas, ccl) =
        sinon on perd la réciprocité de la synthèse (qui, lui,
        engendrera un prédicat non dépendant) *)
 
+  not !Flags.in_debugger &&
   noccur_between sigma 1 (Array.length nas) ccl
 
 let lookup_name_as_displayed env sigma t s =
@@ -914,6 +915,7 @@ and detype_r d flags avoid env sigma t =
           avoid env sigma case
     | Fix (nvn,recdef) -> detype_fix (detype d) flags avoid env sigma nvn recdef
     | CoFix (n,recdef) -> detype_cofix (detype d) flags avoid env sigma n recdef
+    | Nat (ind,n) -> GNat (ind,n)
     | Int i -> GInt i
     | Float f -> GFloat f
     | String s -> GString s
@@ -1108,6 +1110,7 @@ let rec subst_glob_constr env subst = DAst.map (function
   | GSort _
   | GVar _
   | GEvar _
+  | GNat _
   | GInt _
   | GFloat _
   | GString _

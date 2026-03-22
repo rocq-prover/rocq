@@ -15,7 +15,12 @@ open Constr
 
 type reloc_table = (int * int) array
 
-type case_annot = case_info * reloc_table * Declarations.recursivity_kind
+type case_annot = {
+  ci : case_info;
+  reloc : reloc_table;
+  finite : Declarations.recursivity_kind;
+  is_nat : bool;
+}
 
 type 'v lambda
 
@@ -38,6 +43,8 @@ type 'v node =
 | Lparray       of 'v lambda array * 'v lambda
 | Lmakeblock    of inductive * int * 'v lambda array
   (* inductive name, constructor tag, arguments *)
+| Lmakesucc     of 'v lambda
+| Lnat of Z.t
 | Luint         of Uint63.t
 | Lfloat        of Float64.t
 | Lstring       of Pstring.t

@@ -569,6 +569,14 @@ let rec compile_lam env cenv lam sz cont =
   match node lam with
   | Lrel(_, i) -> pos_rel i cenv sz :: cont
 
+  | Lnat n ->
+    if Obj.is_int (Obj.repr n) then
+      compile_structured_constant cenv (Const_b0 (Obj.magic n : int)) sz cont
+    else compile_structured_constant cenv (Const_val (Obj.magic n)) sz cont
+
+  | Lmakesucc v ->
+    compile_lam env cenv v sz (Kmakesucc :: cont)
+
   | Lint i -> compile_structured_constant cenv (Const_b0 i) sz cont
 
   | Lval v -> compile_structured_constant cenv (Const_val (get_lval v)) sz cont
@@ -704,10 +712,11 @@ let rec compile_lam env cenv lam sz cont =
       compile_fv cenv fv.fv_rev sz
         (Kclosurecofix(fv.size, init, lbl_types, lbl_bodies) :: cont)
 
-  | Lcase ((ci, rtbl, _), t, a, branches) ->
+  | Lcase ({ci; reloc = rtbl; finite=_; is_nat}, t, a, branches) ->
       let ind = ci.ci_ind in
       let mib = lookup_mind (fst ind) env.env in
       let oib = mib.mind_packets.(snd ind) in
+      let lbl_nat_s = if is_nat then Some (ref None) else None in
       let lbl_consts = Array.make oib.mind_nb_constant Label.no in
       let nallblock = oib.mind_nb_args + 1 in (* +1 : accumulate *)
       let nconst = Array.length branches.constant_branches in
@@ -718,7 +727,8 @@ let rec compile_lam env cenv lam sz cont =
       let branch1, cont = make_branch cont in
       (* Compilation of the return type *)
       let ret_env = { cenv with max_stack_size = ref 0 } in
-      let fcode = compile_lam env ret_env t sz [Kpop sz; Kstop] in
+      let fcode = Kpop sz :: Kstop :: [] in
+      let fcode = compile_lam env ret_env t sz fcode in
       let fcode = ensure_stack_capacity ret_env fcode in
       let lbl_typ,fcode = label_code fcode in
       let () = push_fun env fcode in
@@ -764,6 +774,13 @@ let rec compile_lam env cenv lam sz cont =
         let code_b =
             if tag < Obj.last_non_constant_constructor_tag then begin
                 set_max_stack_size cenv (sz_b + arity);
+                let code_b = match lbl_nat_s with
+                  | None -> code_b
+                  | Some l ->
+                    let lbl, c = label_code code_b in
+                    l := Some lbl;
+                    c
+                in
                 Kpushfields arity :: code_b
               end
             else begin
@@ -789,7 +806,16 @@ let rec compile_lam env cenv lam sz cont =
       in
       lbl_blocks.(0) <- lbl_accu;
 
-      c := Klabel lbl_sw :: Kswitch(lbl_consts,lbl_blocks) :: code_accu;
+      let kswitch = match lbl_nat_s with
+        | None -> Kswitch(lbl_consts,lbl_blocks)
+        | Some { contents = None } -> assert false
+        | Some { contents = Some l } ->
+          match lbl_consts, lbl_blocks with
+          | [|l0|], [|lAcc;lS|] ->
+            Kswitchnat(l0,lAcc,lS,l)
+          | _ -> assert false
+      in
+      c := Klabel lbl_sw :: kswitch :: code_accu;
       let code_sw =
         match branch1 with
         (* spiwack : branch1 can't be a lbl anymore it's a Branch instead

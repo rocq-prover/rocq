@@ -341,6 +341,9 @@ let glob_prim_constr_key c = match DAst.get c with
     | _ -> None
     end
   | GProj ((cst,_), _, _) -> Some (canonical_gr (GlobRef.ConstRef cst))
+  | GNat (ind,n) ->
+    let c = Constr.ctor_of_nat ind n in
+    Some (canonical_gr (GlobRef.ConstructRef c))
   | _ -> None
 
 let check_required_module ?loc sc (sp,d) =

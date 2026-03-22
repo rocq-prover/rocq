@@ -285,6 +285,7 @@ let hash_kind = let open Hashset.Combine in function
   | Float f -> combinesmall 19 (Float64.hash f)
   | String s -> combinesmall 20 (Pstring.hash s)
   | Array (u,t,def,ty) -> combinesmall 21 (combine4 (UVars.Instance.hash u) (hash_array hash t) def.hash ty.hash)
+  | Nat (ind,i) -> combinesmall 22 (combine (Ind.UserOrd.hash ind) (Z.hash i))
 
 let kind_to_constr = function
   | Rel n -> mkRel n
@@ -315,6 +316,7 @@ let kind_to_constr = function
   | Float f -> mkFloat f
   | String s -> mkString s
   | Array (u,t,def,ty) -> mkArray (u,Array.map self t,def.self,ty.self)
+  | Nat (ind,i) -> mkNat ind i
 
 let of_kind_nohashcons = function
   | App (c, [||]) -> c
@@ -452,6 +454,7 @@ and of_constr_aux henv c =
     let _, p = Projection.hcons p in
     let c = of_constr henv c in
     Proj (p,r,c)
+  | Nat _ as t -> t
   | Int _ as t -> t
   | Float _ as t -> t
   | String _ as t -> t

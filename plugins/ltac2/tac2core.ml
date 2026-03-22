@@ -484,7 +484,8 @@ let () =
 let () =
   define "constr_kind" (constr @-> eret valexpr) @@ fun c env sigma ->
   let open Constr in
-  match EConstr.kind sigma c with
+  match EConstr.kind_nonat sigma c with
+  | Nat _ -> assert false (* kind_nonat, XXX change ltac2 type kind or add is_nat API *)
   | Rel n ->
     v_blk 0 [|Tac2ffi.of_int n|]
   | Var id ->

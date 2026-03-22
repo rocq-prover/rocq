@@ -243,6 +243,9 @@ let v_proj = v_tuple "projection" [|v_proj_repr; v_bool|]
 let v_uint63 =
   if Sys.word_size == 64 then v_int else v_int64
 
+(* TODO *)
+let v_z = v_any
+
 let v_constr =
   fix (fun v_constr ->
 let v_prec =
@@ -275,7 +278,8 @@ let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_a
     [|v_uint63|]; (* v_int *)
     [|v_float64|]; (* Float *)
     [|v_string|]; (* v_string *)
-    [|v_instance;v_array v_constr;v_constr;v_constr|] (* v_array *)
+    [|v_instance;v_array v_constr;v_constr;v_constr|]; (* v_array *)
+    [|v_ind;v_z|]; (* nat *)
   |]))
 
 let v_rdecl = v_sum "rel_declaration" 0
@@ -483,7 +487,9 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
     v_opt (v_array v_variance);
     v_opt (v_array v_variance);
     v_opt v_bool;
-    v_typing_flags|]
+    v_typing_flags;
+    v_bool;
+  |]
 
 let v_prim_ind = v_enum "prim_ind" 6
 (* Number of "Register ... as kernel.ind_..." in Primv_int63.v and PrimFloat.v *)
@@ -495,6 +501,7 @@ let v_retro_action =
   v_sum "retro_action" 0 [|
     [|v_prim_ind; v_ind|];
     [|v_prim_type; v_cst|];
+    [|v_ind|]
   |]
 
 let v_retroknowledge =
