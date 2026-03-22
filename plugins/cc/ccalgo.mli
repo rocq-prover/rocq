@@ -21,6 +21,7 @@ type constructor =
 | Int of Uint63.t
 | Float of Float64.t
 | String of Pstring.t
+| Array of {uvars: UVars.Instance.t; length: int}
 
 type cinfo =
     {ci_constr: constructor; (* inductive type *)
