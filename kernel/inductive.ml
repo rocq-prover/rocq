@@ -1181,7 +1181,8 @@ let filter_stack_domain stack_element_specif not_subterm ?evars env p stack =
   let absctxlen = Context.Rel.length absctx in
   (* Optimization: if the predicate is not dependent, no restriction is needed
      and we avoid building the recargs tree. *)
-  if noccur_with_meta 1 absctxlen ar then stack
+  if noccur_with_meta 1 absctxlen ar then
+    stack
   else
     let env = push_rel_context absctx env in
     let rec filter_stack env k ar stack = match stack with
@@ -1197,12 +1198,13 @@ let filter_stack_domain stack_element_specif not_subterm ?evars env p stack =
         let elt = match kind ty with
         | Ind ind ->
           let spec = stack_element_specif ?evars elt in
-          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then SArg spec
+          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then
+            spec
           else
-            SArg (lazy (Subterm.prune_path ?evars env (Lazy.force spec) ind args))
-        | _ -> SArg not_subterm
+            lazy (Subterm.prune_path ?evars env (Lazy.force spec) ind args)
+        | _ -> not_subterm
         in
-        elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
+        SArg elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
       | _ ->
         List.map (fun _ -> SArg not_subterm) stack
   in
