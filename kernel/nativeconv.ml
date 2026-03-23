@@ -31,6 +31,13 @@ let convert_instances ~flex u1 u2 (state, check, box) =
   let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
+let convert_inductives env pb ind u1 u2 ((state, check, box) as cuniv) =
+  match (Environ.lookup_mind ind env).mind_variance with
+  | None -> convert_instances ~flex:false u1 u2 cuniv
+  | Some variances ->
+    let state, check = Conversion.convert_instances_cumul pb variances u1 u2 (state, check) in
+    fail_check state check box
+
 let sort_cmp_universes pb s1 s2 (state, check, box) =
   let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
   fail_check state check box
@@ -103,7 +110,14 @@ and conv_atom env pb lvl a1 a2 cu =
     | Arel i1, Arel i2 ->
         if Int.equal i1 i2 then cu else raise NotConvertible
     | Aind (ind1,u1), Aind (ind2,u2) ->
-       if Ind.CanOrd.equal ind1 ind2 then convert_instances ~flex:false u1 u2 cu
+      if Ind.CanOrd.equal ind1 ind2 then
+        (* Aind is an accumulator but not a neutral, so we always
+           convert at a common type (after applying arguments).
+
+           Therefore if the inductive is not fully applied then the
+           missing parameters have identical types,
+           and we don't need to eta expand to use cumulativity. *)
+        convert_inductives env pb (fst ind1) u1 u2 cu
        else raise NotConvertible
     | Aconstant (c1,u1), Aconstant (c2,u2) ->
        if Constant.CanOrd.equal c1 c2 then convert_instances ~flex:true u1 u2 cu

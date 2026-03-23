@@ -21,6 +21,13 @@ let convert_instances ~flex u1 u2 (state, check, box) =
   let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
+let convert_inductives pb mib u1 u2 ((state, check, box) as cuniv) =
+  match mib.Declarations.mind_variance with
+  | None -> convert_instances ~flex:false u1 u2 cuniv
+  | Some variances ->
+    let state, check = Conversion.convert_instances_cumul pb variances u1 u2 (state, check) in
+    fail_check state check box
+
 let sort_cmp_universes pb s1 s2 (state, check, box) =
   let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
   fail_check state check box
@@ -114,7 +121,8 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
   match a1, a2 with
   | Aind ((mi,_i) as ind1) , Aind ind2 ->
     if Names.Ind.CanOrd.equal ind1 ind2 && compare_stack stk1 stk2 then
-      if UVars.AbstractContext.is_constant (Environ.mind_context env mi) then
+      let mib = Environ.lookup_mind mi env in
+      if UVars.AbstractContext.is_constant (Declareops.inductive_polymorphic_context mib) then
         conv_stack env k stk1 stk2 cu
       else begin
         match stk1 , stk2 with
@@ -123,7 +131,13 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
           assert (0 < nargs args2);
           let u1 = uni_instance (arg args1 0) in
           let u2 = uni_instance (arg args2 0) in
-          let cu = convert_instances ~flex:false u1 u2 cu in
+          (* Aind is an accumulator but not a neutral, so we always
+             convert at a common type (after applying arguments).
+
+             Therefore if the inductive is not fully applied then the
+             missing parameters have identical types,
+             and we don't need to eta expand to use cumulativity. *)
+          let cu = convert_inductives pb mib u1 u2 cu in
           conv_arguments env ~from:1 k args1 args2
             (conv_stack env k stk1' stk2' cu)
         | _, _ -> assert false (* Should not happen if problem is well typed *)

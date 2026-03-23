@@ -45,7 +45,11 @@ val sort_cmp_universes : conv_pb -> Sorts.t -> Sorts.t ->
 (* [flex] should be true for constants, false for inductive types and
 constructors. *)
 val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
-  'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
+  ('a, 'err) universe_state -> ('a, 'err option) result * ('a, 'err) universe_compare
+
+val convert_instances_cumul : conv_pb -> UVars.Variance.t array ->
+  UVars.Instance.t -> UVars.Instance.t ->
+  ('a, 'err) universe_state -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)
 val checked_universes : (UGraph.t, 'err) universe_compare
