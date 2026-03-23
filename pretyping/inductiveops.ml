@@ -357,7 +357,9 @@ let sorts_for_schemes specif =
 
 let has_dependent_elim (mib,mip) =
   match mip.mind_record with
-  | PrimRecord _ -> mib.mind_finite == BiFinite || mip.mind_relevance == Irrelevant
+  | PrimRecord r ->
+    mip.mind_relevance == Irrelevant ||
+    (mib.mind_finite == BiFinite && match r.has_eta with AlwaysEta -> true | NoEta -> false)
   | NotRecord | FakeRecord -> true
 
 (* Annotation for cases *)
