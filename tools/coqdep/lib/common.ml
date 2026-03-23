@@ -159,6 +159,8 @@ module State = struct
   let loadpath x = x.loadpath
 end
 
+exception SyntaxErrorInFile of string
+
 (* recursive because of Load *)
 let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basename =
   (* Visited marks *)
@@ -182,14 +184,20 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
   (* Reading file contents *)
   let f = basename ^ ".v" in
   with_in_channel ~fname:f @@ fun chan ->
-  let buf = Lexing.from_channel chan in
+  (* For lexing efficiency purposes, we ignore the positions in this function.
+     This will force us to reparse the file in case of error to get a proper
+     location, but in practice such errors should be exceedingly rare with
+     rocqdep. This lexer is indeed basically able to handle random nonsense
+     thrown at it. *)
+  let buf = Lexing.from_channel ~with_positions:false chan in
   let open Lexer in
   let rec loop () =
     match coq_action buf with
     | exception Fin_fichier ->
       DepSet.elements !dependencies
-    | exception Syntax_error (i,j) ->
-      Error.cannot_parse f (i,j)
+    | exception Syntax_error _ ->
+      (* The locations are garbage due to with_positions:false, ignore them *)
+      raise (SyntaxErrorInFile f)
     | tok ->  match tok with
       | Require (from, strl) ->
         let from, strl = coq_to_stdlib from strl in
@@ -259,6 +267,25 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
         loop ()
   in
   loop ()
+
+(* Reparse the file to get the error location *)
+let get_parse_error f =
+  with_in_channel ~fname:f @@ fun chan ->
+  let buf = Lexing.from_channel chan in
+  let rec loop () = match Lexer.coq_action buf with
+  | _tok -> loop ()
+  | exception Lexer.Syntax_error (i, j) -> (i, j)
+  | exception Lexer.Fin_fichier ->
+    (* may technically happen due to race conditions, return a dummy value *)
+    (0, 0)
+  in
+  loop ()
+
+let find_dependencies st basename =
+  try find_dependencies st basename
+  with SyntaxErrorInFile f ->
+    let (i, j) = get_parse_error f in
+    Error.cannot_parse f (i, j)
 
 let compute_deps st =
   let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
