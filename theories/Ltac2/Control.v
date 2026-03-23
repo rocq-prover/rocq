@@ -34,7 +34,11 @@ Ltac2 @ external case : (unit -> 'a) -> ('a * (exn -> 'a)) result := "rocq-runti
 - If [t ()] would fail with [e], [case t] returns [Err e].
 - If [t ()] would succeed and evaluate to [v] then [case t] returns [Val (v, h)],
   where [h] is the continuation to execute in case of subsequent failure.
-  [case] reifies a backtracking computation into an inspectable value, it allows the programmer to make explicit the effects which are normally implicit (i.e., they do not appear in the type system).
+  calling [h] resets the backtrackable state to its value when [case] was called.
+
+  [case] reifies a backtracking computation into an inspectable value,
+  it allows the programmer to make explicit the effects which are normally implicit
+  (i.e., they do not appear in the type system).
 *)
 
 Ltac2 once_plus (run : unit -> 'a) (handle : exn -> 'a) : 'a :=
