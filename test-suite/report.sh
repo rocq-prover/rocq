@@ -14,7 +14,11 @@ mkdir "$SAVEDIR"
 FAILED=$(mktemp)
 grep -F 'Error!' -r . -l --null --include="*.log" > "$FAILED"
 
-rsync -a --from0 --files-from="$FAILED" . "$SAVEDIR"
+while IFS= read -r -d '' fname; do
+  mkdir -p "$SAVEDIR/${fname%/*}"
+  cp "$fname" "$SAVEDIR/$fname"
+done < "$FAILED"
+
 cp summary.log "$SAVEDIR"/
 
 # cleanup
