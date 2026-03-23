@@ -808,7 +808,7 @@ let get_projection env ind ~proj_arg =
 
 let get_projections env ind =
   let mib = lookup_mind (fst ind) env in
-  Option.map fst @@ Declareops.inductive_make_projections ind mib
+  Declareops.inductive_make_projections ind mib
 
 (* Mutual Inductives *)
 let polymorphic_ind (mind,_i) env =

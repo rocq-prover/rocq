@@ -73,7 +73,7 @@ val inductive_make_projection : Names.inductive -> mutual_inductive_body -> proj
   Names.Projection.Repr.t * Sorts.relevance
 
 val inductive_make_projections : Names.inductive -> mutual_inductive_body ->
-  ((Names.Projection.Repr.t * Sorts.relevance) array * has_eta) option
+  ((Names.Projection.Repr.t * Sorts.relevance) array) option
 
 val is_record_with_eta : mind_specif -> Instance.t -> bool
 
