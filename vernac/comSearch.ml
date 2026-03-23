@@ -56,7 +56,7 @@ let kind_searcher env = Decls.(function
   | IsDefinition Scheme ->
     let schemes = DeclareScheme.all_schemes () in
     let schemes = lazy begin
-      Indmap_env.fold (fun _ schemes acc ->
+      GlobRef.Map_env.fold (fun _ schemes acc ->
           CString.Map.fold (fun _ c acc ->
             GlobRef.Set_env.add c acc) schemes acc)
         schemes GlobRef.Set_env.empty

@@ -104,7 +104,7 @@ let register_definition_scheme = ref (fun ~internal ~name ~const ~univs ?loc () 
   CErrors.anomaly (Pp.str "scheme registering not registered"))
 
 let lookup_scheme kind ind =
-  try Some (DeclareScheme.lookup_scheme kind ind) with Not_found -> None
+  try Some (DeclareScheme.lookup_scheme kind (GlobRef.IndRef ind)) with Not_found -> None
 
 type schemes = {
   sch_eff : Evd.side_effects;
@@ -120,11 +120,11 @@ let redeclare_schemes { sch_eff = eff } =
   let fold c role accu = match role with
   | Evd.Schema (ind, kind) ->
     try
-      let _ = DeclareScheme.lookup_scheme kind ind in
+      let _ = DeclareScheme.lookup_scheme kind (GlobRef.IndRef ind) in
       accu
     with Not_found ->
       let old = try String.Map.find kind accu with Not_found -> [] in
-      String.Map.add kind ((ind, GlobRef.ConstRef c) :: old) accu
+      String.Map.add kind ((GlobRef.IndRef ind, GlobRef.ConstRef c) :: old) accu
   in
   let schemes = Cmap_env.fold fold (Evd.seff_roles eff) String.Map.empty in
   let iter kind defs = List.iter (DeclareScheme.declare_scheme SuperGlobal kind) defs in

@@ -423,7 +423,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     | None -> ()
     | Some kind ->
       (* TODO locality *)
-      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, cst)
+      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (GlobRef.IndRef ind, cst)
   in
   let () = List.iter2 declare listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in
@@ -555,7 +555,7 @@ let do_scheme_all_predicate ?all_depth ~declare_mind kn mib strpos sAll keyAll =
   let kn_nested = declare_mind ?all_depth mentry univs in
   (* register it *)
   let () = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
-              SuperGlobal keyAll ((kn,i), GlobRef.IndRef (kn_nested,i))
+              SuperGlobal keyAll (GlobRef.IndRef (kn,i), GlobRef.IndRef (kn_nested,i))
             ) mib.mind_packets in
   kn_nested
 
@@ -581,7 +581,7 @@ let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
   let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
   let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:(EConstr.of_constr thm) sigma in
   (* register it *)
-  let () = DeclareScheme.declare_scheme SuperGlobal keyAllThm ((kn,focus), fth_ref) in
+  let () = DeclareScheme.declare_scheme SuperGlobal keyAllThm (GlobRef.IndRef (kn,focus), fth_ref) in
   ()
 
 let do_all_forall ?(user_call_scheme=false) ?all_depth ~declare_mind kn strpos =

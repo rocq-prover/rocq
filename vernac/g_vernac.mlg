@@ -296,7 +296,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Register"; g = global; "as"; quid = qualid ->
           { VernacRegister(g, RegisterCoqlib quid) }
       | IDENT "Register"; IDENT "Scheme"; g = global; "as"; qid = qualid; IDENT "for"; g' = global ->
-        { VernacRegister(g, RegisterScheme {inductive = g'; scheme_kind = qid}) }
+        { VernacRegister(g, RegisterScheme {ref = g'; scheme_kind = qid}) }
       | IDENT "Register"; IDENT "Inline"; g = global ->
           { VernacRegister(g, RegisterInline) }
       | IDENT "Primitive"; id = ident_decl; typopt = OPT [ ":"; typ = lconstr -> { typ } ]; ":="; r = register_token ->
