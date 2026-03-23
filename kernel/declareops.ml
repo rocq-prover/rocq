@@ -305,12 +305,12 @@ let inductive_make_projection ind mib ~proj_arg =
 let inductive_make_projections ind mib =
   match mib.mind_packets.(snd ind).mind_record with
   | NotRecord | FakeRecord -> None
-  | PrimRecord { projections; relevances; has_eta; _ } ->
+  | PrimRecord { projections; relevances; _ } ->
     let projs = Array.map2_i (fun proj_arg lab r ->
         Names.Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg lab, r)
         projections relevances
     in
-    Some (projs, has_eta)
+    Some projs
 
 let has_valid_relevance u ind_relevance flds =
   let ind_relevance = UVars.subst_instance_relevance u ind_relevance in

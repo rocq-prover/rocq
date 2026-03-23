@@ -957,7 +957,7 @@ let eta_expand_ind_stack env (ind,u) m (f, s') =
   in
   match Declareops.inductive_make_projections ind mib with
   | None -> assert false
-  | Some (projs, _) ->
+  | Some projs ->
     (* (Construct, pars1 .. parsm :: arg1...argn :: []) ~= (f, s') ->
            arg1..argn ~= (proj1 t...projn t) where t = zip (f,s') *)
     let pars = mib.Declarations.mind_nparams in
