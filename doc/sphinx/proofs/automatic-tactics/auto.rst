@@ -203,10 +203,6 @@ Tactics
    `*`
      If present, rewrite all occurrences whose side conditions are solved.
 
-     .. todo: This may not always work as described, see #4976 #7672 and
-        https://github.com/rocq-prover/rocq/issues/1933#issuecomment-337497938 as
-        mentioned here: https://github.com/rocq-prover/rocq/pull/13343#discussion_r527801604
-
    :n:`with {+ @ident }`
      Specifies the rewriting rule bases to use.
 

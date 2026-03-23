@@ -300,7 +300,7 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
     | AllMatches ->
       let flags = make_flags frzevars sigma rewrite_unif_flags (lazy Evar.Set.empty) in
       let cs = instantiate_lemma_all env flags eqclause l2r typ in
-      tclMAP try_clause cs
+      tclMAP (fun x -> tclTRY (try_clause x)) cs
   end
 
 (* The next function decides in particular whether to try a regular
