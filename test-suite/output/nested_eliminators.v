@@ -298,6 +298,16 @@ Module Template.
   About adequate_ind.
   About adequate_all.
 
+  (* ISSUE 21710 *)
+  Inductive casenat (P : nat -> Set) : Set :=
+  | casenat_fold : (forall m, P m) -> casenat P.
+
+  About casenat_all.
+
+  Inductive casenat' (A : nat -> Set) (PZ : Set) (PS : forall n, A n -> Set) : Set :=
+  | casenat'_fold : (forall m a, PS m a) -> casenat' A PZ PS.
+
+  About casenat'_all.
 
 End Template.
 

@@ -445,6 +445,7 @@ type argument = rel_context * head_argument
 (** Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is a uniform parameter, Ind, nested or a constant *)
 let view_argument kn mib key_uparams strpos t =
   let* (cxt, hd) = whd_decompose_prod_decls t in
+  let@ _ = add_context Old naming_id cxt in
   let* (hd, iargs) = decompose_app hd in
   let* sigma = get_sigma in
   match kind sigma hd with
