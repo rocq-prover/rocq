@@ -1374,6 +1374,14 @@ let pop_argument cache ?evars needreduce renv elt stack x a b =
 let judgment_of_fixpoint (_, types, bodies) =
   Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
 
+let rec reduce_and_contract_cofix ?evars env c =
+  let c = whd_all ?evars env c in
+  let hd, args = decompose_app c in
+  match kind hd with
+  | CoFix cofix ->
+    reduce_and_contract_cofix ?evars env (mkApp (contract_cofix cofix, args))
+  | _ -> hd, args
+
 (* Check if [def] is a guarded fixpoint body with decreasing arg.
    given [recpos], the decreasing arguments of each mutually defined
    fixpoint. *)
@@ -1440,14 +1448,9 @@ let check_one_fix cache ?evars renv recpos trees def =
             check_rec_call_state renv (needreduce_br ||| needreduce_c_0) stack rs (fun () ->
               (* we try hard to reduce the match away by looking for a
                  constructor in c_0 (we unfold definitions too) *)
-              let c_0 = whd_all ?evars renv.env c_0 in
-              let hd, args = decompose_app_list c_0 in
-              let hd, args = match kind hd with
-              | CoFix cofix ->
-                  decompose_app_list (whd_all ?evars renv.env (Term.applist (contract_cofix cofix, args)))
-              | _ -> hd, args in
+              let hd, args = reduce_and_contract_cofix ?evars renv.env c_0 in
               match kind hd with
-              | Construct cstr -> Some (apply_branch cstr args ci brs, [])
+              | Construct cstr -> Some (apply_branch cstr (Array.to_list args) ci brs, [])
               | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
               | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
@@ -1544,12 +1547,7 @@ let check_one_fix cache ?evars renv recpos trees def =
               check_rec_call_state renv needreduce' stack rs (fun () ->
               (* we try hard to reduce the proj away by looking for a
                  constructor in c (we unfold definitions too) *)
-              let c = whd_all ?evars renv.env c in
-              let hd, args = decompose_app c in
-              let hd, args = match kind hd with
-              | CoFix cofix ->
-                  decompose_app (whd_all ?evars renv.env (mkApp (contract_cofix cofix, args)))
-              | _ -> hd, args in
+              let hd, args = reduce_and_contract_cofix ?evars renv.env c in
               match kind hd with
               | Construct _ -> Some (args.(Projection.npars p + Projection.arg p), [])
               | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
