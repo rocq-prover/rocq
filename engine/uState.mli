@@ -32,19 +32,16 @@ type t
 
 val empty : t
 
-val make : qualities:QGraph.t -> UGraph.t -> t
-[@@ocaml.deprecated "(8.13) Use from_env"]
+val from_env : Environ.env -> t
+(** Main entry point at the beginning of a declaration. *)
 
-val make_with_initial_binders : qualities:QGraph.t -> UGraph.t -> lident list -> t
-[@@ocaml.deprecated "(8.13) Use from_env"]
-
-val from_env : ?binders:lident list -> Environ.env -> t
-(** Main entry point at the beginning of a declaration declaring the
-    binding names as rigid universes. *)
+val from_auctx : Environ.env -> UVars.AbstractContext.t -> t
+(** Main entry point when the universe declaration has already been computed,
+    e.g. for printing. *)
 
 val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
+[@@deprecated "(9.3) Use [UState.from_uctx]"]
 (** Main entry point when only names matter, e.g. for printing. *)
-
 
 (** Misc *)
 

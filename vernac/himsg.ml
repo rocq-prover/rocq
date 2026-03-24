@@ -1305,14 +1305,11 @@ let explain_not_match_error = function
       quote t1 ++ spc () ++
       str "compared to " ++ spc () ++
       quote t2
-  | IncompatibleUnivConstraints { got; expect } ->
+  | IncompatibleUnivConstraints { env; got; expect } ->
     let open UVars in
     let pr_auctx auctx =
-      let sigma = Evd.from_ctx
-          (UState.of_names
-             (Printer.universe_binders_with_opt_names auctx None))
-      in
-      let uctx = AbstractContext.repr auctx in
+      let uctx = UVars.AbstractContext.repr auctx in
+      let sigma = Evd.from_auctx env (Printer.fill_names auctx) in
       Printer.pr_universe_instance_binder sigma
         (UContext.instance uctx)
         (UContext.univ_constraints uctx)

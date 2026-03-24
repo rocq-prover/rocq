@@ -112,7 +112,7 @@ let check_universes error env u1 u2 =
   | Monomorphic, Monomorphic -> env
   | Polymorphic auctx1, Polymorphic auctx2 ->
     if not (check_polymorphic_universes env auctx2 auctx1) then
-      error (IncompatibleUnivConstraints { got = auctx1; expect = auctx2; } )
+      error (IncompatibleUnivConstraints { env; got = auctx1; expect = auctx2; } )
     else
       let () = Environ.check_ucontext (UVars.AbstractContext.repr auctx2) env in
       let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr auctx2) env in

@@ -894,9 +894,13 @@ let empty = {
   extras = Store.empty;
 }
 
-let from_env ?binders e = { empty with universes = UState.from_env ?binders e }
+let from_env e = { empty with universes = UState.from_env e }
 
-let from_ctx uctx = { empty with universes = uctx }
+let from_ustate uctx = { empty with universes = uctx }
+
+let from_ctx = from_ustate
+
+let from_auctx e names = { empty with universes = UState.from_auctx e names }
 
 let has_undefined evd = not (EvMap.is_empty evd.undf_evars)
 
@@ -909,8 +913,10 @@ let merge_ustate evd uctx' =
 
 let merge_universe_context = merge_ustate
 
-let set_universe_context evd uctx' =
+let set_ustate evd uctx' =
   { evd with universes = uctx' }
+
+let set_universe_context = set_ustate
 
 (* TODO: make unique *)
 let add_conv_pb ?(tail=false) pb d =
@@ -1035,8 +1041,10 @@ let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   let uctx = UState.restrict uctx vars in
   ignore (UState.check_univ_decl ~poly uctx udecl)
 
-let restrict_universe_context evd vars =
+let restrict_ustate evd vars =
   { evd with universes = UState.restrict evd.universes vars }
+
+let restrict_universe_context = restrict_ustate
 
 let universe_subst evd =
   UState.subst evd.universes

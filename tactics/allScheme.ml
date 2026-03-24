@@ -956,7 +956,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   in
   (* DEBUG FUNCTIONS *)
   let* env = get_env in
-  let sigma = Evd.set_universe_context sigma uctx in
+  let sigma = Evd.set_ustate sigma uctx in
   let () = dbg Pp.(fun () ->
     let params = EConstr.of_rel_context mie.mind_entry_params in
     let ind = List.hd @@ mie.mind_entry_inds in

@@ -421,13 +421,6 @@ let empty =
     initial_universes = UGraph.initial_universes;
     minim_extra = UnivMinim.empty_extra; }
 
-let make ~qualities univs =
-  { empty with
-    universes = univs;
-    initial_universes = univs ;
-    sort_variables = QState.of_elims qualities
-  }
-
 let is_empty uctx =
   PContextSet.is_empty uctx.local &&
   UnivFlex.is_empty uctx.univ_variables
@@ -609,6 +602,7 @@ let is_above_prop uctx qv = QState.is_above_prop uctx.sort_variables qv
 
 let is_algebraic l uctx = UnivFlex.is_algebraic l uctx.univ_variables
 
+(** Deprecated *)
 let of_names (ubind,(revqbind,revubind)) =
   let revqbind = QVar.Map.map (fun id -> { uname = Some id; uloc = None }) revqbind in
   let revubind = Level.Map.map (fun id -> { uname = Some id; uloc = None }) revubind in
@@ -1451,6 +1445,14 @@ let add_loc l loc (names, (qnames_rev,unames_rev) as orig) =
   | None -> orig
   | Some _ -> (names, (qnames_rev, Level.Map.add l { uname = None; uloc = loc } unames_rev))
 
+let add_quality_variable ?loc ?(check_fresh=true) ~name ~rigid uctx q =
+  let sort_variables = QState.add ~check_fresh ~rigid q uctx.sort_variables in
+  let names = match name with
+    | Some n -> add_qnames ?loc n q uctx.names
+    | None -> add_qloc q loc uctx.names
+  in
+  { uctx with sort_variables; names }
+
 let add_universe ?loc name strict uctx u =
   let initial_universes = UGraph.add_universe ~strict u uctx.initial_universes in
   let universes = UGraph.add_universe ~strict u uctx.universes in
@@ -1465,14 +1467,7 @@ let add_universe ?loc name strict uctx u =
 let new_quality_variable ?loc ?(sort_rigid = false) ?name uctx =
   let q = UnivGen.fresh_sort_quality () in
   (* don't need to check_fresh as it's guaranteed new *)
-  let sort_variables = QState.add ~check_fresh:false ~rigid:(sort_rigid || Option.has_some name)
-      q uctx.sort_variables
-  in
-  let names = match name with
-    | Some n -> add_qnames ?loc n q uctx.names
-    | None -> add_qloc q loc uctx.names
-  in
-  { uctx with sort_variables; names }, q
+  add_quality_variable ?loc ~name ~rigid:(sort_rigid || Option.has_some name) uctx q, q
 
 let new_univ_level_variable ?loc rigid name uctx =
   let u = UnivGen.fresh_level () in
@@ -1488,18 +1483,22 @@ let new_univ_level_variable ?loc rigid name uctx =
 
 let add_forgotten_univ uctx u = add_universe None true uctx u
 
-let make_with_initial_binders ~qualities univs binders =
-  let uctx = make ~qualities univs in
-  List.fold_left
-    (fun uctx { CAst.loc; v = id } ->
-       fst (new_univ_level_variable ?loc univ_rigid (Some id) uctx))
-    uctx binders
+let from_env env =
+  { empty with
+    universes = Environ.universes env;
+    initial_universes = Environ.universes env;
+    sort_variables = QState.of_elims (Environ.qualities env);
+  }
 
-let from_env ?(binders=[]) env =
-  make_with_initial_binders
-    ~qualities:(Environ.qualities env)
-    (Environ.universes env)
-    binders
+let from_auctx env auctx =
+  let ustate = from_env env in
+  let names = AbstractContext.names auctx in
+  let name_to_option = function Name id -> Some id | Anonymous -> None in
+  (* Inlined call to [AbstractContext.repr] to know what qvars, levels and constraints to add *)
+  let ustate = Array.fold_left_i (fun i ustate name -> add_quality_variable ~rigid:true ~name:(name_to_option name) ustate (QVar.make_var i)) ustate names.quals in
+  let ustate = Array.fold_left_i (fun i ustate name -> add_universe (name_to_option name) false ustate (Level.var i)) ustate names.univs in
+  let ustate = add_poly_constraints ustate (AbstractContext.constraints auctx) in
+  ustate
 
 let make_nonalgebraic_variable uctx u =
   { uctx with univ_variables = UnivFlex.make_nonalgebraic_variable uctx.univ_variables u }

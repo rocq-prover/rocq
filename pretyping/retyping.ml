@@ -399,7 +399,7 @@ let reinterpret_get_type_of ~src env sigma c =
 let get_judgment_of env evc c = { uj_val = c; uj_type = get_type_of env evc c }
 
 let get_type_of_constr ?polyprop ?lax env ?(uctx=UState.from_env env) c =
-  EConstr.Unsafe.to_constr (get_type_of ?polyprop ?lax env (Evd.from_ctx uctx) (EConstr.of_constr c))
+  EConstr.Unsafe.to_constr (get_type_of ?polyprop ?lax env (Evd.from_ustate uctx) (EConstr.of_constr c))
 
 (* Returns sorts of a context *)
 let sorts_of_context env evc ctxt =

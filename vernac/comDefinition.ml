@@ -143,7 +143,7 @@ let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_f
     interp_definition ~program_mode:true ~poly env evd empty_internalization_env bl red_option c ctypopt
   in
   let body, typ, uctx, _, obls = Declare.Obls.prepare_obligations ~name poly ~body ?types env evd in
-  Evd.check_univ_decl_early ~poly ~with_obls:true (Evd.from_ctx uctx) udecl [body; typ];
+  Evd.check_univ_decl_early ~poly ~with_obls:true (Evd.from_ustate uctx) udecl [body; typ];
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~impargs () in
   let info = Declare.Info.make ~udecl ~scope ?clearbody ~poly ~kind ?hook ?typing_flags ?user_warns () in
   Declare.Obls.add_definition ~pm ~info ~cinfo ~opaque:false ~body ~uctx ?using obls

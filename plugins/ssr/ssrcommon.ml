@@ -926,7 +926,7 @@ let refine_with ?(first_goes_last=false) ?beta ?(with_evars=true) oc =
   let sigma = Proofview.Goal.sigma gl in
   let uct = Evd.ustate (fst oc) in
   let n, oc = abs_evars_pirrel env sigma oc in
-  Proofview.Unsafe.tclEVARS (Evd.set_universe_context sigma uct) <*>
+  Proofview.Unsafe.tclEVARS (Evd.set_ustate sigma uct) <*>
   Proofview.tclORELSE (applyn ~with_evars ~first_goes_last ?beta n oc)
     (fun _ -> Proofview.tclZERO dependent_apply_error)
   end

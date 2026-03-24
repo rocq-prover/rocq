@@ -163,18 +163,27 @@ type evar_map
 val empty : evar_map
 (** The empty evar map. *)
 
-val from_env : ?binders:lident list -> env -> evar_map
-(** The empty evar map with given universe context, taking its initial
-    universes from env, possibly with initial universe binders. This
-    is the main entry point at the beginning of the process of
+val from_env : env -> evar_map
+(** The empty evar map with given universe context,
+    taking its initial universes from env.
+    This is the main entry point at the beginning of the process of
     interpreting a declaration (e.g. before entering the
     interpretation of a Theorem statement). *)
 
-val from_ctx : UState.t -> evar_map
-(** The empty evar map with given universe context. This is the main
-    entry point when resuming from a already interpreted declaration
-    (e.g.  after having interpreted a Theorem statement and preparing
+val from_ustate : UState.t -> evar_map
+(** The empty evar map with given universe unification state. This is
+    the main entry point when resuming from an already interpreted declaration
+    (e.g. after having interpreted a Theorem statement and preparing
     to open a goal). *)
+
+val from_auctx : Environ.env -> UVars.AbstractContext.t -> evar_map
+(** The empty evar map with given universe context, taking its initial universes
+    from both the env and the variables in the universe context.
+    This is the entry point when restarting from an already finalized declaration
+    (e.g. for printing). *)
+
+val from_ctx : UState.t -> evar_map
+[@@deprecated "(9.3) Use [Evd.from_ustate]"]
 
 val is_empty : evar_map -> bool
 (** Whether an evarmap is empty. *)
@@ -559,8 +568,6 @@ val univ_flexible_alg : rigid
 
 type 'a in_ustate = 'a * UState.t
 
-val restrict_universe_context : evar_map -> Univ.Level.Set.t -> evar_map
-
 (** Raises Not_found if not a name for a universe in this map. *)
 val universe_of_name : evar_map -> Id.t -> Univ.Level.t
 val quality_of_name : evar_map -> Id.t -> Sorts.QVar.t
@@ -626,11 +633,18 @@ val check_univ_decl : poly:PolyFlags.t -> evar_map -> UState.universe_decl -> US
     starting to build a declaration interactively *)
 val check_univ_decl_early : poly:PolyFlags.t -> with_obls:bool -> evar_map -> UState.universe_decl -> Constr.t list -> unit
 
+val restrict_ustate : evar_map -> Univ.Level.Set.t -> evar_map
 val merge_ustate : evar_map -> UState.t -> evar_map
-val set_universe_context : evar_map -> UState.t -> evar_map
+val set_ustate : evar_map -> UState.t -> evar_map
+
+val restrict_universe_context : evar_map -> Univ.Level.Set.t -> evar_map
+[@@deprecated "(9.3) Use [Evd.restrict_ustate]"]
 
 val merge_universe_context : evar_map -> UState.t -> evar_map
 [@@deprecated "(9.3) Use [Evd.merge_ustate]"]
+
+val set_universe_context : evar_map -> UState.t -> evar_map
+[@@deprecated "(9.3) Use [Evd.set_ustate]"]
 
 val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
 
