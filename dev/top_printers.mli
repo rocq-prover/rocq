@@ -98,6 +98,8 @@ val ppevarsubst :
 val ppunbound_ltac_var_map :
   'a Genarg.generic_argument Names.Id.Map.t -> unit
 
+val ppgenlam : _ Genlambda.lambda -> unit
+
 val pr_closure : Ltac_pretype.closure -> Pp.t
 val pr_closed_glob_constr_idmap :
   Ltac_pretype.closed_glob_constr Names.Id.Map.t -> Pp.t

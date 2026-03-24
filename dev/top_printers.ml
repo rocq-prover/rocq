@@ -174,6 +174,8 @@ let prconstrunderbindersidmap = pridmap (fun _ (l,c) ->
 
 let ppconstrunderbindersidmap l = pp (prconstrunderbindersidmap l)
 
+let ppgenlam l = pp (Genlambda.pp_lam l)
+
 let ppunbound_ltac_var_map l = ppidmap (fun _ arg ->
   str"<genarg:" ++ pr_argument_type(genarg_tag arg) ++ str">") l
 
