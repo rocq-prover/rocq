@@ -224,7 +224,7 @@ let genppj f j = let (c,t) = f j in (c ++ str " : " ++ t)
 let ppj j = pp (genppj (envpp pr_ljudge_env) j)
 
 let ppsubst s = pp (Mod_subst.debug_pr_subst s)
-let ppdelta s = pp (Mod_subst.debug_pr_delta s)
+let ppdelta s = pp (Mod_subst.debug_pr_delta (fun c -> pr_constr c.UVars.univ_abstracted_value) s)
 
 let pp_idpred s = pp (pr_idpred s)
 let pp_cpred s = pp (pr_cpred s)
