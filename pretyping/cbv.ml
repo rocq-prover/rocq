@@ -633,99 +633,101 @@ and cbv_stack_term info stack env t =
 and cbv_stack_value info env = function
   (* a lambda meets an application -> BETA *)
   | (LAMBDA (nlams,ctxt,b,env), APP (args, stk))
-      when red_set info.reds fBETA ->
+    when red_set info.reds fBETA ->
     let rec apply env lams args =
       if Int.equal lams 0 then
         let stk = if List.is_empty args then stk else APP (args, stk) in
         cbv_stack_term info stk env b
       else match args with
-      | [] ->
-        let ctxt' = List.skipn (nlams - lams) ctxt in
-        LAMBDA (lams, ctxt', b, env)
-      | v :: args ->
-        let env = subs_cons v env in
-        apply env (lams - 1) args
+        | [] ->
+          let ctxt' = List.skipn (nlams - lams) ctxt in
+          LAMBDA (lams, ctxt', b, env)
+        | v :: args ->
+          let env = subs_cons v env in
+          apply env (lams - 1) args
     in
     apply env nlams args
-    (* a Fix applied enough -> IOTA *)
-    | (FIX(fix,env,[||]), stk)
-        when fixp_reducible info.reds fix stk ->
-        let (envf,redfix) = contract_fixp env fix in
-        cbv_stack_term info stk envf redfix
 
-    (* constructor guard satisfied or Cofix in a Case -> IOTA *)
-    | (COFIX(cofix,env,[||]), stk)
-        when cofixp_reducible info.reds cofix stk->
-        let (envf,redfix) = contract_cofixp env cofix in
-        cbv_stack_term info stk envf redfix
+  (* a Fix applied enough -> IOTA *)
+  | (FIX(fix,env,[||]), stk)
+    when fixp_reducible info.reds fix stk ->
+    let (envf,redfix) = contract_fixp env fix in
+    cbv_stack_term info stk envf redfix
 
-    (* constructor in a Case -> IOTA *)
-    | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
-            when red_set info.reds fMATCH ->
-        let cargs = List.skipn ci.ci_npar args in
-        let env =
-          if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
-            List.fold_left (fun accu v -> subs_cons v accu) env cargs
-          else
-            let mkclos env c = cbv_stack_term info TOP env c in
-            let ctx = expand_branch info.env u pms (sp, n) br in
-            cbv_subst_of_rel_context_instance_list mkclos ctx cargs env
-        in
-        cbv_stack_term info stk env (snd br.(n-1))
+  (* constructor guard satisfied or Cofix in a Case -> IOTA *)
+  | (COFIX(cofix,env,[||]), stk)
+    when cofixp_reducible info.reds cofix stk->
+    let (envf,redfix) = contract_cofixp env cofix in
+    cbv_stack_term info stk envf redfix
 
-    (* constructor of arity 0 in a Case -> IOTA *)
-    | (CONSTRUCT(((sp, n), _),[||]), CASE(u,pms,_,br,_,ci,env,stk))
-            when red_set info.reds fMATCH ->
-        let env =
-          if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
-            env
-          else
-            let mkclos env c = cbv_stack_term info TOP env c in
-            let ctx = expand_branch info.env u pms (sp, n) br in
-            cbv_subst_of_rel_context_instance_list mkclos ctx [] env
-        in
-        cbv_stack_term info stk env (snd br.(n-1))
+  (* constructor in a Case -> IOTA *)
+  | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
+    when red_set info.reds fMATCH ->
+    let cargs = List.skipn ci.ci_npar args in
+    let env =
+      if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
+        List.fold_left (fun accu v -> subs_cons v accu) env cargs
+      else
+        let mkclos env c = cbv_stack_term info TOP env c in
+        let ctx = expand_branch info.env u pms (sp, n) br in
+        cbv_subst_of_rel_context_instance_list mkclos ctx cargs env
+    in
+    cbv_stack_term info stk env (snd br.(n-1))
 
-    (* constructor in a Projection -> IOTA *)
-    | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
-        when red_set info.reds fMATCH && Projection.unfolded p ->
-      let arg = List.nth args (Projection.npars p + Projection.arg p) in
-        cbv_stack_value info env (strip_appl arg stk)
+  (* constructor of arity 0 in a Case -> IOTA *)
+  | (CONSTRUCT(((sp, n), _),[||]), CASE(u,pms,_,br,_,ci,env,stk))
+    when red_set info.reds fMATCH ->
+    let env =
+      if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
+        env
+      else
+        let mkclos env c = cbv_stack_term info TOP env c in
+        let ctx = expand_branch info.env u pms (sp, n) br in
+        cbv_subst_of_rel_context_instance_list mkclos ctx [] env
+    in
+    cbv_stack_term info stk env (snd br.(n-1))
 
-    (* may be reduced later by application *)
-    | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
-    | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
-    | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
+  (* constructor in a Projection -> IOTA *)
+  | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
+    when red_set info.reds fMATCH && Projection.unfolded p ->
+    let arg = List.nth args (Projection.npars p + Projection.arg p) in
+    cbv_stack_value info env (strip_appl arg stk)
 
-    (* primitive apply to arguments *)
-    | (PRIMITIVE(op,(_,u as c),[||]), APP(appl,stk)) ->
-      let nargs = CPrimitives.arity op in
-      begin match List.chop nargs appl with
-      | (args, appl) ->
-        let stk = if List.is_empty appl then stk else stack_app appl stk in
-        begin match VredNative.red_prim info.env () op u (Array.of_list args) with
-        | Some (CONSTRUCT (c, args)) ->
-          (* args must be moved to the stack to allow future reductions *)
-          cbv_stack_value info env (CONSTRUCT(c, [||]), stack_vect_app args stk)
-        | Some v ->  cbv_stack_value info env (v,stk)
-        | None -> mkSTACK(PRIMITIVE(op,c,Array.of_list args), stk)
-        end
-      | exception Failure _ ->
-        (* partial application *)
-              (assert (stk = TOP);
-               PRIMITIVE(op,c,Array.of_list appl))
-        end
-    | SYMBOL ({ cst; rules; stk } as s ), stk' ->
-        let stk = stack_concat stk stk' in
-        begin try
-          let rhs, stack = cbv_apply_rules info env (snd cst) rules stk in
-          cbv_stack_value info env (destack rhs stack)
-        with PatternFailure ->
-          SYMBOL { s with stk }
-        end
+  (* may be reduced later by application *)
+  | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
+  | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
+  | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
 
-    (* definitely a value *)
-    | (head,stk) -> mkSTACK(head, stk)
+  (* primitive apply to arguments *)
+  | (PRIMITIVE(op,(_,u as c),[||]), APP(appl,stk)) ->
+    let nargs = CPrimitives.arity op in
+    begin match List.chop nargs appl with
+    | (args, appl) ->
+      let stk = if List.is_empty appl then stk else stack_app appl stk in
+      begin match VredNative.red_prim info.env () op u (Array.of_list args) with
+      | Some (CONSTRUCT (c, args)) ->
+        (* args must be moved to the stack to allow future reductions *)
+        cbv_stack_value info env (CONSTRUCT(c, [||]), stack_vect_app args stk)
+      | Some v ->  cbv_stack_value info env (v,stk)
+      | None -> mkSTACK(PRIMITIVE(op,c,Array.of_list args), stk)
+      end
+    | exception Failure _ ->
+      (* partial application *)
+      (assert (stk = TOP);
+       PRIMITIVE(op,c,Array.of_list appl))
+    end
+
+  | SYMBOL ({ cst; rules; stk } as s ), stk' ->
+    let stk = stack_concat stk stk' in
+    begin try
+      let rhs, stack = cbv_apply_rules info env (snd cst) rules stk in
+      cbv_stack_value info env (destack rhs stack)
+    with PatternFailure ->
+      SYMBOL { s with stk }
+    end
+
+  (* definitely a value *)
+  | (head,stk) -> mkSTACK(head, stk)
 
 and cbv_value_cache info ref =
   try KeyTable.find info.tab ref with
