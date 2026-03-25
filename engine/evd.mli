@@ -659,7 +659,7 @@ val with_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?src:UState.constr
 
 val nf_univ_variables : evar_map -> evar_map
 
-val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> ?only_above_prop:bool -> evar_map -> evar_map
+val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> only_above_prop:bool -> evar_map -> evar_map
 
 val fix_undefined_variables : evar_map -> evar_map
 

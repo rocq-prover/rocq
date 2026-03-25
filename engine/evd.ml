@@ -1222,7 +1222,7 @@ let nf_univ_variables evd =
   let uctx = UState.normalize_variables evd.universes in
   {evd with universes = uctx}
 
-let collapse_sort_variables ?except ?(only_above_prop = false) evd =
+let collapse_sort_variables ?except ~only_above_prop evd =
   let universes = UState.collapse_sort_variables ?except ~only_above_prop evd.universes in
   { evd with universes }
 

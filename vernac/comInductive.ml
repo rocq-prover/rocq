@@ -537,7 +537,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     | Some q -> QVar.Set.singleton q
     | None -> QVar.Set.empty
   in
-  let sigma = Evd.collapse_sort_variables ~except:template_qvars sigma in
+  let sigma = Evd.collapse_sort_variables ~except:template_qvars ~only_above_prop:false sigma in
   let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
       template_qvars sigma
   in

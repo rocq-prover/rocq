@@ -2164,7 +2164,7 @@ let vernac_global_check c =
   let sigma = Evd.from_env env in
   let c = Constrintern.intern_constr env sigma c in
   let sigma, c = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
-  let sigma = Evd.collapse_sort_variables sigma in
+  let sigma = Evd.collapse_sort_variables ~only_above_prop:false sigma in
   let c = EConstr.to_constr sigma c in
   let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
    (* always empty due to collapse *)

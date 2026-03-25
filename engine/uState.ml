@@ -101,7 +101,7 @@ module QState : sig
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
-  val collapse : ?except:QVar.Set.t -> ?only_above_prop:bool -> t -> t
+  val collapse : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
   val pr : Sorts.Quality.printer -> (QVar.t -> Id.t option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
@@ -324,7 +324,7 @@ let collapse_above_prop ~to_prop m =
          )
          m.qmap m
 
-let collapse ?(except=QSet.empty) ?(only_above_prop = false) m =
+let collapse ?(except=QSet.empty) ~only_above_prop m =
   let free_qualities = QMap.fold (fun q v fqs ->
       match v with
       | Equiv _ -> fqs
@@ -1561,7 +1561,7 @@ let collapse_above_prop_sort_variables ~to_prop uctx =
   let sorts = QState.collapse_above_prop ~to_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
-let collapse_sort_variables ?except ?(only_above_prop = false) uctx =
+let collapse_sort_variables ?except ~only_above_prop uctx =
   let sorts = QState.collapse ?except ~only_above_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
