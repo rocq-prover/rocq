@@ -1040,7 +1040,7 @@ let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   in
   let vars = List.fold_left (fun acc b -> Univ.Level.Set.union acc (Vars.universes_of_constr b)) Univ.Level.Set.empty terms in
   let uctx = ustate sigma in
-  let uctx = UState.collapse_sort_variables ~to_type:(PolyFlags.collapse_sort_variables poly) uctx in
+  let uctx = UState.collapse_sort_variables ~only_above_prop:(not @@ PolyFlags.collapse_sort_variables poly) uctx in
   let uctx = UState.restrict uctx vars in
   ignore (UState.check_univ_decl ~poly uctx udecl)
 
@@ -1222,8 +1222,8 @@ let nf_univ_variables evd =
   let uctx = UState.normalize_variables evd.universes in
   {evd with universes = uctx}
 
-let collapse_sort_variables ?except ?(to_type = true) evd =
-  let universes = UState.collapse_sort_variables ?except ~to_type evd.universes in
+let collapse_sort_variables ?except ?(only_above_prop = false) evd =
+  let universes = UState.collapse_sort_variables ?except ~only_above_prop evd.universes in
   { evd with universes }
 
 let minimize_universes_no_collapse evd =
@@ -1234,7 +1234,7 @@ let minimize_universes_no_collapse evd =
 let minimize_universes ?(poly=PolyFlags.default) evd =
   let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
   let uctx' =
-    UState.collapse_sort_variables ~to_type:collapse_sort_variables evd.universes
+    UState.collapse_sort_variables ~only_above_prop:(not collapse_sort_variables) evd.universes
   in
   minimize_universes_no_collapse {evd with universes = uctx'}
 

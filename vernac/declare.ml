@@ -1212,7 +1212,7 @@ module ProgramDecl = struct
       if PolyFlags.univ_poly poly then uctx
       else
         (* declare global univs of the main constant before we do obligations *)
-        let uctx = UState.collapse_sort_variables ~to_type:(PolyFlags.collapse_sort_variables poly) uctx in
+        let uctx = UState.collapse_sort_variables ~only_above_prop:(not @@ PolyFlags.collapse_sort_variables poly) uctx in
         let ctx = UState.check_mono_sort_constraints uctx in
         let () = Global.push_context_set ctx in
         let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
