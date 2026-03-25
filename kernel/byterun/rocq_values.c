@@ -123,7 +123,7 @@ value rocq_tcode_array(value tcodes) {
 
 #ifdef NO_NATIVE_COMPUTE
 
-value rocq_curry2_1_addr(value) {
+value rocq_curry2_1_addr(value v) {
   return Val_unit;
 }
 
@@ -152,14 +152,14 @@ asm(".align 4\n\t"
 #error "Unsupported architecture for native_compute."
 #endif
 
-value rocq_curry2_1_addr(value) {
+value rocq_curry2_1_addr(value v) {
   extern void rocq_curry2_1();
   return (value)&rocq_curry2_1;
 }
 
 #else // not NO_NAKED_POINTERS
 
-value rocq_curry2_1_addr(value) {
+value rocq_curry2_1_addr(value v) {
   extern void caml_curry2_1() __attribute__((weak));
   return (value)&caml_curry2_1;
 }
