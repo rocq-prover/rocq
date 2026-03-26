@@ -388,8 +388,7 @@ Induction
      It also has a `_dep` or `_nodep` suffix indicating whether it is dependent in the eliminated value
      (i.e. in :cmd:`Scheme`, `Induction` is `_dep` and `Minimality` is `_nodep`).
      When both `_dep` and `_nodep` schemes are registered for the eliminated inductive and goal sort,
-     the `_dep` scheme is used unless the inductive type was explicitly declared
-     in `Prop`.
+     the `_dep` scheme is used if the goal is dependent, and `_nodep` scheme otherwise.
 
      Automatically generated schemes and schemes produced by
      :cmd:`Scheme` are automatically registered. Constants may also be

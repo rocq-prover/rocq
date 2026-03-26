@@ -163,11 +163,11 @@ let lookup_eliminator_by_name env ind s =
   deprecated_lookup_by_name (env,ind,s,r);
   r
 
-let lookup_eliminator env ind s =
+let lookup_eliminator env ?(dep=false) ind s =
   let nodep_scheme_first =
     (* compat, add an option to control this and remove someday *)
     let _, mip = Inductive.lookup_mind_specif env ind in
-    Sorts.is_prop mip.mind_sort && not (is_prop_but_default_dependent_elim ind)
+    dep || (Sorts.is_prop mip.mind_sort && not (is_prop_but_default_dependent_elim ind))
   in
   let schemes =
     List.map (fun dep -> elim_scheme ~dep ~to_kind:s)
