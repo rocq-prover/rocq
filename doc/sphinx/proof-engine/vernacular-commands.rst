@@ -434,7 +434,7 @@ Requests to the environment
    Displays all the assumptions (axioms, parameters and
    variables) one or more theorems or definitions depends on.
    It also reports inductives that rely on indices not mattering
-   (i.e., whose behavior would change under `-indices-matter`),
+   (i.e., whose behavior would change under ``-indices-matter`` or :flag:`Indices Matter`),
    as well as uses of disabled typing flags such as
    :flag:`Guard Checking`, :flag:`Positivity Checking`,
    :flag:`Universe Checking`, and :flag:`Definitional UIP`.
@@ -1148,6 +1148,15 @@ Controlling Typing Flags
 
    This :term:`boolean attribute` is similar to the :flag:`Positivity Checking` flag, but on a per-declaration basis.
    Disable positivity checking locally with ``bypass_check(positivity)``.
+
+.. flag:: Indices Matter
+
+   When this :term:`flag` is set (it is off by default), the types of indices
+   of inductive types contribute universe constraints, just as the types of
+   constructor arguments do.  This has the same effect as the ``-indices-matter``
+   command line argument (see :ref:`command-line-options`).
+   Inductives that rely on indices not mattering are printed by
+   :cmd:`Print Assumptions`.
 
 .. flag:: Universe Checking
 
