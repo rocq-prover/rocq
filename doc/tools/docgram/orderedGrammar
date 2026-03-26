@@ -1004,7 +1004,7 @@ command: [
 | "Eval" red_expr "in" term
 | "Compute" term
 | "Check" term
-| "About" reference OPT univ_name_list
+| "About" OPT "Type" LIST1 [ reference OPT univ_name_list ] SEP ","
 | "SearchPattern" one_pattern OPT ( [ "inside" | "in" | "outside" ] LIST1 qualid )
 | "SearchRewrite" one_pattern OPT ( [ "inside" | "in" | "outside" ] LIST1 qualid )
 | "Search" LIST1 ( search_query ) OPT ( [ "inside" | "in" | "outside" ] LIST1 qualid )

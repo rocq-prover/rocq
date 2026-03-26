@@ -32,6 +32,18 @@ About sym_eq. (* Notation *)
 Arguments eq_refl {A} {x}, {A} x.
 Print eq_refl.
 
+About nat_rect, nat_ind, nat_sind.
+About Type nat_rect, nat_ind, nat_sind.
+
+Goal nat -> bool.
+  intros n.
+  (* Local Context => no difference *)
+  About n.
+  About Type n.
+  (* Global Context *)
+  About nat_ind.
+  About Type nat_ind.
+Abort.
 
 Definition newdef := fun x:nat => x.
 

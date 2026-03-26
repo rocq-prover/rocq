@@ -1403,7 +1403,7 @@ query_command: [
 | "Eval" red_expr "in" lconstr "."
 | "Compute" lconstr "."
 | "Check" lconstr "."
-| "About" smart_global OPT univ_name_list "."
+| "About" OPT "Type" LIST1 [ smart_global OPT univ_name_list ] SEP "," "."
 | "SearchPattern" constr_pattern in_or_out_modules "."
 | "SearchRewrite" constr_pattern in_or_out_modules "."
 | "Search" search_query search_queries "."

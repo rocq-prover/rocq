@@ -1530,8 +1530,8 @@ query_command: [
 | WITH "Compute" lconstr
 | REPLACE "Check" lconstr "."
 | WITH "Check" lconstr
-| REPLACE "About" smart_global OPT univ_name_list "."
-| WITH "About" smart_global OPT univ_name_list
+| REPLACE "About" OPT "Type" LIST1 [ smart_global OPT univ_name_list ] SEP "," "."
+| WITH "About" OPT "Type" LIST1 [ smart_global OPT univ_name_list ] SEP ","
 | REPLACE "SearchPattern" constr_pattern in_or_out_modules "."
 | WITH "SearchPattern" constr_pattern in_or_out_modules
 | REPLACE "SearchRewrite" constr_pattern in_or_out_modules "."

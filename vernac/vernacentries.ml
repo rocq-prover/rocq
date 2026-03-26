@@ -2179,7 +2179,7 @@ let vernac_global_check c =
 (* Printing "About" information of a hypothesis of the current goal.
    We only print the type and a small statement to this comes from the
    goal. Precondition: there must be at least one current goal. *)
-let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
+let print_about_hyp_globs ~pstate ~type_only ?loc ref_or_by_not udecl glopt =
   let exception NoHyp in
   let open Context.Named.Declaration in
   try
@@ -2216,7 +2216,7 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
   with (* fallback to globals *)
     | NoHyp | Not_found ->
     let sigma, env = get_current_or_global_context ~pstate in
-    Prettyp.print_about env sigma ref_or_by_not udecl
+    Prettyp.print_about env sigma ~type_only ref_or_by_not udecl
 
 let prglob_without_notations env sigma c =
   let flags = PrintingFlags.Extern.current() in
@@ -2303,8 +2303,11 @@ let vernac_print =
     Notation.pr_scope (prglob_without_notations env sigma) s
   | PrintVisibility s -> with_proof_env @@ fun env sigma ->
     Notation.pr_visibility (prglob_without_notations env sigma) s
-  | PrintAbout (ref_or_by_not,udecl,glnumopt) -> with_pstate @@
-    print_about_hyp_globs ref_or_by_not udecl glnumopt
+  | PrintAbout (type_only, items, glnumopt) -> with_pstate @@ fun ~pstate ->
+    let pp_one (ref_or_by_not, udecl) =
+      print_about_hyp_globs ~pstate ~type_only ref_or_by_not udecl glnumopt
+    in
+    Pp.prlist_with_sep (fun () -> Pp.fnl () ++ Pp.fnl ()) pp_one items
   | PrintImplicit qid -> with_proof_env @@ fun env _sigma ->
     Prettyp.print_impargs env (smart_global qid)
   | PrintAssumptions (o,t,rs) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->

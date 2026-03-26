@@ -1055,44 +1055,47 @@ let print_notation env sigma entry raw_ntn =
 
 (** Command [About] *)
 
-let print_about_global_reference ?loc env ref udecl =
-  pr_infos_list
-   (print_ref env false ref udecl :: blankline ::
-    print_polymorphism env ref @
-    print_squash env ref udecl @
-    print_name_infos env ref @
-    print_reduction_behaviour ref @
-    print_opacity env ref @
-    print_bidi_hints env ref @
-    [hov 0 (str "Expands to: " ++ pr_located_qualid env (Term ref)) ++
-    loc_info (TrueGlobal ref)])
+let print_about_global_reference ?loc env ~type_only ref udecl =
+  pr_infos_list @@
+    if type_only then
+      [print_ref env false ref udecl ; blankline]
+    else
+      print_ref env false ref udecl :: blankline ::
+      print_polymorphism env ref @
+      print_squash env ref udecl @
+      print_name_infos env ref @
+      print_reduction_behaviour ref @
+      print_opacity env ref @
+      print_bidi_hints env ref @
+      [hov 0 (str "Expands to: " ++ pr_located_qualid env (Term ref)) ++
+      loc_info (TrueGlobal ref)]
 
-let print_about_abbreviation env sigma kn =
+let print_about_abbreviation env sigma ~type_only kn =
   let (vars,c) = glob_constr_of_abbreviation kn in
   let pp = match DAst.get c with
-  | GRef (gref,_udecl) -> (* TODO: don't drop universes? *) [print_about_global_reference env gref None]
+  | GRef (gref,_udecl) -> (* TODO: don't drop universes? *) [print_about_global_reference env ~type_only gref None]
   | _ -> [] in
   print_abbreviation_body env kn (vars,c) ++ fnl () ++
   hov 0 (str "Expands to: " ++ pr_located_qualid env (Abbreviation kn)) ++
   loc_info (Abbrev kn) ++
   with_line_skip pp
 
-let print_about_any ?loc env sigma k udecl =
+let print_about_any ?loc env sigma ~type_only k udecl =
   maybe_error_reject_univ_decl k udecl;
   match k with
-  | Term ref -> Dumpglob.add_glob ?loc ref; print_about_global_reference env ref udecl
-  | Abbreviation kn -> v 0 (print_about_abbreviation env sigma kn)
+  | Term ref -> Dumpglob.add_glob ?loc ref; print_about_global_reference env ~type_only ref udecl
+  | Abbreviation kn -> v 0 (print_about_abbreviation env sigma ~type_only kn)
   | Dir _ | Module _ | ModuleType _ | Undefined _ -> hov 0 (pr_located_qualid env k)
   | Other (obj, info) -> hov 0 (info.about obj)
 
-let print_about env sigma na udecl =
+let print_about env sigma ~type_only na udecl =
   match na with
   | {loc;v=Constrexpr.ByNotation (ntn,sc)} ->
     let ntn, df, sc, c, ref = Notation.interp_notation_as_global_reference_expanded ?loc ~head:false (fun _ -> true) ntn sc in
     print_notation_interpretation env sigma ntn df (Some sc) c ++ fnl () ++ fnl () ++
-    print_about_any ?loc env sigma (Term ref) udecl
+    print_about_any ?loc env sigma ~type_only (Term ref) udecl
   | {loc;v=Constrexpr.AN ref} ->
-      print_about_any ?loc env sigma (locate_any_name ref) udecl
+      print_about_any ?loc env sigma ~type_only (locate_any_name ref) udecl
 
 (* Command [Inspect], for debug *)
 
