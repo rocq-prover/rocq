@@ -144,7 +144,7 @@ git_download()
     mkdir -p "$dest"
     pushd "$dest"
     local commit
-    commit=$(git ls-remote "$giturl" "refs/heads/$ref" | cut -f 1)
+    commit=$(git ls-remote --branches "$giturl" "refs/heads/$ref" | cut -f 1)
     if [[ "$commit" == "" ]]; then
       # $ref must have been a tag or hash, not a branch
       commit="$ref"
