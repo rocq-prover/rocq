@@ -9,6 +9,8 @@ bli : Type
 Axioms:
 seq relies on definitional UIP.
 Axioms:
+ax : nat
+Axioms:
 M.foo : False
 Closed under the global context
 Closed under the global context
