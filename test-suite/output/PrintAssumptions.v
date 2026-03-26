@@ -72,6 +72,19 @@ Module UIP.
   Print Assumptions UIP.
 End UIP.
 
+(** Print Assumptions should also check the type of globals even when
+    they have a body, since they may mention unrelated references. *)
+
+Module TYPES.
+
+Axiom ax : nat.
+Definition ty := (fun _ : nat => nat) ax.
+(* [foo]'s body is [0] which does not mention [ax], but its type [ty] does. *)
+Definition foo : ty := 0.
+Print Assumptions foo.
+
+End TYPES.
+
 (** Print Assumption and Include *)
 
 Module INCLUDE.

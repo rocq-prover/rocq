@@ -268,6 +268,16 @@ and traverse_object access (curr, data, ax2ty) body obj =
       let contents,data,ax2ty =
         traverse access obj Context.Rel.empty
                  (GlobRef.Set_env.empty,data,ax2ty) body in
+      (* Also traverse the type of globals, which may mention unrelated
+         references depending on axioms even if they convert to something else. *)
+      let contents,data,ax2ty = match obj with
+        | GlobRef.ConstRef kn ->
+          let cb = lookup_constant kn in
+          let typ = cb.Declarations.const_type in
+          traverse access obj Context.Rel.empty
+                   (contents,data,ax2ty) typ
+        | _ -> (contents,data,ax2ty)
+      in
       GlobRef.Map_env.add obj (Some contents) data, ax2ty
   in
   (GlobRef.Set_env.add obj curr, data, ax2ty)
