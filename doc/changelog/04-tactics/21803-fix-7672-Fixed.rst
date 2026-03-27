@@ -1,7 +1,0 @@
-- **Fixed:**
-  :n:`autorewrite*` was failing if any of the possible rewritings
-  failed to solve its generated side-conditions
-  (`#21803 <https://github.com/rocq-prover/rocq/pull/21803>`_,
-  fixes `#7672 <https://github.com/rocq-prover/rocq/issues/7672>`_
-  and `#4976 <https://github.com/rocq-prover/rocq/issues/4976>`_,
-  by Matthieu Sozeau).
