@@ -20,6 +20,7 @@ type grammar_constr_prod_item =
 
 type one_notation_grammar = {
   notgram_level : Notationextern.level;
+  notgram_needs_hack : bool;
   notgram_assoc : Gramlib.Gramext.g_assoc option;
   notgram_notation : Constrexpr.notation;
   notgram_prods : grammar_constr_prod_item list list;

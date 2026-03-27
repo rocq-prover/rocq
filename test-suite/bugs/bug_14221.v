@@ -10,7 +10,7 @@ Require Setoid.
 Require Export Corelib.Classes.CMorphisms.
 
 Notation "∀  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity).
+  (at level 10, x binder, y binder, P at level 200).
 
 Class Setoid A := {
   equiv : crelation A;

@@ -19,8 +19,8 @@ Q4) How to use those Forall and Exists pretty symbols?
 R4) Thanks to the Notation features in Coq, you just need to insert these
 	lines in your Coq Buffer :
 ======================================================================
-Notation "∀ x : t, P" := (forall x:t, P) (at level 200, x ident).
-Notation "∃ x : t, P" := (exists x:t, P) (at level 200, x ident).
+Notation "∀ x : t, P" := (forall x:t, P) (at level 10, x ident, P at level 200).
+Notation "∃ x : t, P" := (exists x:t, P) (at level 10, x ident, P at level 200).
 ======================================================================
 Copy/Paste of these lines from this file will not work outside of RocqIDE.
 You need to load a file containing these lines or to enter the "∀" 

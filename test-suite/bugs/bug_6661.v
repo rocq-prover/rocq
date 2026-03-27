@@ -9,9 +9,9 @@
 Require Export Corelib.Init.Notations.
 Require Export Corelib.Init.Ltac.
 Notation "'∏'  x .. y , P" := (forall x, .. (forall y, P) ..)
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 Notation "'λ' x .. y , t" := (fun x => .. (fun y => t) ..)
-  (at level 200, x binder, y binder, right associativity).
+  (at level 10, x binder, y binder, t at level 200).
 Notation "A -> B" := (forall (_ : A), B) : type_scope.
 Reserved Notation "p @ q" (at level 60, right associativity).
 Reserved Notation "! p " (at level 50).
@@ -47,7 +47,7 @@ Arguments pr1 {_ _} _.
 Arguments pr2 {_ _} _.
 
 Notation "'∑'  x .. y , P" := (total2 (λ x, .. (total2 (λ y, P)) ..))
-  (at level 200, x binder, y binder, right associativity) : type_scope.
+  (at level 10, x binder, y binder, P at level 200) : type_scope.
 
 Definition foo (X:Type) (xy : @total2 X (λ _, X)) : X.
   induction xy as [x y].
