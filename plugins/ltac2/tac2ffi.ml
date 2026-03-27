@@ -70,6 +70,7 @@ let val_reduction = Val.create "reduction"
 let val_rewstrategy = Val.create "rewstrategy"
 let val_modpath = Val.create "modpath"
 let val_module_field = Val.create "module_field"
+let val_scheme_kind : string Val.tag = Val.create "scheme_kind"
 
 let extract_val (type a) (type b) (tag : a Val.tag) (tag' : b Val.tag) (v : b) : a =
 match Val.eq tag tag' with
@@ -476,6 +477,10 @@ let instance = repr_ext val_instance
 let of_modpath c = of_ext val_modpath c
 let to_modpath c = to_ext val_modpath c
 let modpath = repr_ext val_modpath
+
+let of_scheme_kind c = of_ext val_scheme_kind c
+let to_scheme_kind c = to_ext val_scheme_kind c
+let scheme_kind = repr_ext val_scheme_kind
 
 let of_module_field c = of_ext val_module_field c
 let to_module_field c = to_ext val_module_field c
