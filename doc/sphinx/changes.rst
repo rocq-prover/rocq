@@ -148,6 +148,13 @@ Kernel
   the ability to define monomorphic sorts within sections
   (`#21451 <https://github.com/rocq-prover/rocq/pull/21451>`_,
   by Pierre-Marie Pédrot).
+- **Fixed:**
+  Fix the detection and treatment of uniform arguments of nested fixpoints
+  (`#21684 <https://github.com/rocq-prover/rocq/pull/21684>`_,
+  fixes `#21682 <https://github.com/rocq-prover/rocq/issues/21682>`_
+  and `#21683 <https://github.com/rocq-prover/rocq/issues/21683>`_
+  and `#21701 <https://github.com/rocq-prover/rocq/issues/21701>`_,
+  by Yann Leray).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -296,6 +303,13 @@ Tactics
   :tacn:`destruct` and :tacn:`eapply` by using the :flag:`Generate Goal Names` flag
   (`#20809 <https://github.com/rocq-prover/rocq/pull/20809>`_,
   by Dario Halilovic).
+- **Fixed:**
+  :n:`autorewrite*` was failing if any of the possible rewritings
+  failed to solve its generated side-conditions
+  (`#21803 <https://github.com/rocq-prover/rocq/pull/21803>`_,
+  fixes `#7672 <https://github.com/rocq-prover/rocq/issues/7672>`_
+  and `#4976 <https://github.com/rocq-prover/rocq/issues/4976>`_,
+  by Matthieu Sozeau).
 
 Ltac2 language
 ^^^^^^^^^^^^^^
@@ -590,6 +604,11 @@ Corelib
   a slightly more general variant of Fix_eq which is sometimes more convenient
   (`#20018 <https://github.com/rocq-prover/rocq/pull/20018>`_,
   by Owen Conoly).
+- **Fixed:**
+  primitive array axioms (in `ArrayAxioms`) are universe polymorphic
+  (they were inadvertently turned monomorphic in the stdlib split)
+  (`#21744 <https://github.com/rocq-prover/rocq/pull/21744>`_,
+  by Gaëtan Gilbert).
 
 Infrastructure and dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
