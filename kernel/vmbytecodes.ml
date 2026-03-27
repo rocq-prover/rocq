@@ -147,7 +147,7 @@ let rec pp_instr i =
   | Kgetglobal idu -> str "getglobal " ++ Constant.print idu
   | Ksubstinstance u ->
     str "subst_instance " ++
-    UVars.Instance.pr Sorts.QVar.raw_pr Univ.Level.raw_pr u
+    UVars.Instance.pr Sorts.raw_printer u
   | Kconst sc ->
       str "const " ++ pp_struct_const sc
   | Kmakeblock(n, m) ->

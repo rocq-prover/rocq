@@ -150,8 +150,7 @@ let type_of_type u =
 
 let type_of_sort = function
   | SProp | Prop | Set -> type1
-  | Type u -> type_of_type u
-  | QSort (_, u) -> type_of_type u
+  | Type u | GSort (_, u) | VSort (_, u) -> type_of_type u
 
 (*s Type of a de Bruijn index. *)
 
@@ -340,30 +339,12 @@ let type_of_array env u =
 (* Type of product *)
 
 let sort_of_product env domsort rangsort =
-  match (domsort, rangsort) with
-    | (_, SProp) | (SProp, _) -> rangsort
-    (* Product rule (s,Prop,Prop) *)
-    | (_,       Prop)  -> rangsort
-    (* Product rule (Prop/Set,Set,Set) *)
-    | ((Prop | Set),  Set) -> rangsort
-    (* Product rule (Type,Set,?) *)
-    | ((Type u1 | QSort (_, u1)), Set) ->
-        if is_impredicative_set env then
-          (* Rule is (Type,Set,Set) in the Set-impredicative calculus *)
-          rangsort
-        else
-          (* Rule is (Type_i,Set,Type_i) in the Set-predicative calculus *)
-          Sorts.sort_of_univ (Universe.sup Universe.type0 u1)
-    (* Product rule (Prop,Type_i,Type_i) *)
-    | (Set,  Type u2)  -> Sorts.sort_of_univ (Universe.sup Universe.type0 u2)
-    | (Set,  QSort (q, u2))  ->
-      Sorts.qsort q (Universe.sup Universe.type0 u2)
-    (* Product rule (Prop,Type_i,Type_i) *)
-    | (Prop, (Type _ | QSort _))  -> rangsort
-    (* Product rule (Type_i,Type_i,Type_i) *)
-    | ((Type u1 | QSort (_, u1)), Type u2) -> Sorts.sort_of_univ (Universe.sup u1 u2)
-    | ((Type u1 | QSort (_, u1)), (QSort (q, u2))) ->
-      Sorts.qsort q (Universe.sup u1 u2)
+  if is_impredicative_sort env rangsort then rangsort
+  else match domsort with
+    | SProp | Prop -> rangsort
+    | _ ->
+    let u1 = univ_of_sort domsort and u2 = univ_of_sort rangsort in
+    Sorts.make (quality rangsort) (Universe.sup u1 u2)
 
 (* [judge_of_product env name (typ1,s1) (typ2,s2)] implements the rule
 
@@ -426,7 +407,8 @@ let make_param_univs env indu spec args argtys =
       | Prop -> TemplateProp
       | Set -> TemplateUniv Universe.type0
       | Type u -> TemplateUniv u
-      | QSort (q,u) ->
+      | GSort _ -> assert false
+      | VSort (q,u) ->
         assert (Environ.Internal.is_above_prop env q);
         TemplateAboveProp (q,u))
     argtys
@@ -675,7 +657,7 @@ and execute_aux tbl env cstr =
     | Sort s ->
       let () = match s with
       | SProp -> if not (Environ.sprop_allowed env) then error_not_allowed_sprop env
-      | QSort _ | Prop | Set | Type _ -> ()
+      | _ -> ()
       in
       type_of_sort s
 
@@ -886,8 +868,8 @@ let execute env c =
 (* Derived functions *)
 
 let check_declared_qualities env qualities =
-  let module S = Sorts.QVar.Set in
-  let unknown = S.diff qualities (Environ.qvars env) in
+  let module S = Sorts.Quality.Set in
+  let unknown = S.diff qualities (QGraph.domain @@ Environ.qualities env) in
   if S.is_empty unknown then ()
   else error_undeclared_qualities env unknown
 

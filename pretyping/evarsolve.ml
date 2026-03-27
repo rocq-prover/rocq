@@ -120,10 +120,7 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
   (* direction: true for fresh universes lower than the existing ones *)
   let refresh_sort status ~direction s =
     let sigma, l = new_univ_level_variable status !evdref in
-    let s' = match ESorts.kind sigma s with
-      | QSort (q, _) -> Sorts.qsort q (Univ.Universe.make l)
-      | _ -> Sorts.sort_of_univ @@ Univ.Universe.make l
-    in
+    let s' = Sorts.make (Sorts.quality @@ ESorts.kind sigma s) (Univ.Universe.make l) in
     let s' = ESorts.make s' in
     evdref := sigma;
     let evd =
@@ -135,7 +132,7 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
     match EConstr.kind !evdref t with
     | Sort s ->
       begin match ESorts.kind !evdref s with
-      | Type u | QSort (_, u) ->
+      | Type u | GSort (_, u) | VSort (_, u) ->
          (* TODO: check if max(l,u) is not ok as well *)
         (match Univ.Universe.level u with
         | None -> refresh_sort status ~direction s

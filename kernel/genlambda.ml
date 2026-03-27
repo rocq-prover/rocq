@@ -70,13 +70,6 @@ let pp_names ids =
 let pp_rel name n =
   Name.print name ++  str "##" ++ int n
 
-let pp_sort s =
-  match s with
-  | Sorts.Set -> str "Set"
-  | Sorts.Prop -> str "Prop"
-  | Sorts.SProp -> str "SProp"
-  | Sorts.Type _ | Sorts.QSort _ -> str "Type"
-
 let pr_con sp = str(Names.Id.to_string (Constant.label sp))
 
 let rec pp_lam lam =
@@ -166,7 +159,7 @@ let rec pp_lam lam =
   | Lfloat f -> str (Float64.to_string f)
   | Lstring s -> str (Printf.sprintf "%S" (Pstring.to_string s))
   | Lval _ -> str "values"
-  | Lsort s -> pp_sort s
+  | Lsort s -> Sorts.raw_pr s
   | Lind ((mind,i), _) -> MutInd.print mind ++ str"#" ++ int i
   | Lprim ((kn,_u),_op,args) ->
      hov 1

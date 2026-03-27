@@ -345,7 +345,7 @@ let scheme_suffix_gen {sch_type; sch_sort} sort =
     | false , Qual (QConstant QSProp) -> "_scase"
     | false , Qual (QConstant QType) -> "_caset"
     | false , _ -> "_case"
-    | _     , Qual (QVar _) -> assert false in
+    | _     , Qual (QVar _ | QGlobal _) -> assert false in
   (* Some schemes are deliminated with _dep or no_dep *)
   let dep_suffix = match sch_isdep sch_type , sort with
     | true  , QConstant QProp  -> "_dep"
@@ -415,7 +415,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
       else match sort with
         | Qual (QConstant QType) -> Some (if dep then case_dep else case_nodep)
         | Qual (QConstant QProp) -> Some (if dep then casep_dep else casep_nodep)
-        | Set | Qual (QConstant QSProp | QVar _) ->
+        | Set | Qual (QConstant QSProp | QVar _ | QGlobal _) ->
           (* currently we don't have standard scheme kinds for this *)
           None
     in

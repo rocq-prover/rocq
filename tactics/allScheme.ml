@@ -526,7 +526,7 @@ let create_fresh_sorts strpos =
   let init = List.make nb_sorts 0 in
   list_mapi (fun _ _ ->
       let* (q,l) = fresh_sort_ql ~sort_rigid:true UnivRigid in
-      return @@ ESorts.make @@ Sorts.qsort q l
+      return @@ ESorts.make @@ Sorts.vsort q l
     ) init
 
 
@@ -623,12 +623,10 @@ let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts_ql =
       return (Some (mkSort u_alg), mkSort u_return_sort)
   in
   (* Compute the new sort, preserving impredicativity *)
-  match ind_sort with
-  | SProp -> return (None, mkSort @@ ESorts.make sprop)
-  | Prop  -> return (None, mkSort @@ ESorts.make prop)
-  | Set -> sort_if_nested is_nested sort_of_univ Univ.Universe.type0
-  | Type u -> sort_if_nested is_nested sort_of_univ u
-  | QSort (q,u) -> sort_if_nested is_nested (qsort q) u
+  let* env = get_env in
+  if Environ.is_impredicative_sort env ind_sort then
+    return (None, mkSort @@ ESorts.make ind_sort)
+  else sort_if_nested is_nested (Sorts.make (Sorts.quality ind_sort)) (univ_of_sort ind_sort)
 
 (** Compute the return sort of each [one_inductive_body], and a a fresh sort to
     handle algebraic constrains if the [one_inductive_body] is nested *)
@@ -913,7 +911,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   (* create fresh sorts, and return types *)
   let* fresh_sorts_ql = create_fresh_sorts_ql strpos in
   let* return_sorts = compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts_ql in
-  let fresh_sorts = List.map (fun (a,b) -> ESorts.make @@ Sorts.qsort a b) fresh_sorts_ql in
+  let fresh_sorts = List.map (fun (a,b) -> ESorts.make @@ Sorts.vsort a b) fresh_sorts_ql in
   (*uparams + preds, nuparams and recover the context of parameters *)
   let@ key_inds = add_inductive kn u mib (Array.map snd return_sorts) uparams strpos fresh_sorts nuparams in
   let@ key_up = context_uparams_preds uparams strpos fresh_sorts in

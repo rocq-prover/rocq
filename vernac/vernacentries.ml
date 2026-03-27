@@ -189,7 +189,7 @@ let show_universes ~proof =
   let ctx = Evd.sort_context_set (Evd.minimize_universes ~poly sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
-       UnivGen.pr_sort_context (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
+       UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx)
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -723,7 +723,7 @@ let print_universes { sort; subgraph; with_sources; file; } =
   end
 
 let print_sorts () =
-  let qualities = Sorts.QVar.Set.elements (Global.qualities ()) in
+  let qualities = Sorts.Quality.Set.elements @@ QGraph.domain @@ Global.elim_graph () in
   let prq = UnivNames.pr_quality_with_global_universes in
   Pp.prlist_with_sep Pp.spc prq qualities
 
@@ -2159,7 +2159,8 @@ let vernac_global_check c =
   let sigma = Evd.collapse_sort_variables sigma in
   let c = EConstr.to_constr sigma c in
   let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
-  let env = Environ.push_qualities ~rigid:false (qs, qcst) env in (* XXX always empty due to collapse? *)
+   (* always empty due to collapse *)
+  let () = assert (Sorts.QContextSet.is_empty (qs, qcst)) in
   let env = Environ.push_context_set ~strict:false (us, ucst) env in
   let j = Typeops.infer env c in
   let j = { Environ.uj_val = EConstr.of_constr j.uj_val; uj_type = EConstr.of_constr j.uj_type } in

@@ -157,7 +157,7 @@ val push_context_set :
 
 (** Adding global sort qualities *)
 
-val push_qualities : rigid:bool -> Sorts.QContextSet.t -> safe_transformer0
+val push_qualities : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t -> safe_transformer0
 
 (* (\** Generator of universes *\) *)
 (* val next_universe : int safe_transformer *)
@@ -239,7 +239,7 @@ type compiled_library
 
 val dirpath_of_library : compiled_library -> DirPath.t
 val module_of_library : compiled_library -> Mod_declarations.module_body
-val univs_of_library : compiled_library -> Sorts.QContextSet.t * Univ.ContextSet.t
+val univs_of_library : compiled_library -> (Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t) * Univ.ContextSet.t
 val retroknowledge_of_library : compiled_library -> Retroknowledge.action list
 val check_flags_for_library : compiled_library -> safe_transformer0
 

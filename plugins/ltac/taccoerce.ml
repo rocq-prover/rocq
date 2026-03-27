@@ -245,10 +245,10 @@ let coerce_to_ident_not_fresh sigma v =
        | Sort s ->
           begin
             match ESorts.kind sigma s with
-            | Sorts.SProp -> Id.of_string "SProp"
-            | Sorts.Prop -> Id.of_string "Prop"
-            | Sorts.Set -> Id.of_string "Set"
-            | Sorts.Type _ | Sorts.QSort _ -> Id.of_string "Type"
+            | SProp -> Id.of_string "SProp"
+            | Prop -> Id.of_string "Prop"
+            | Set -> Id.of_string "Set"
+            | Type _ | VSort _ | GSort _ -> Id.of_string "Type"
           end
        | _ -> fail()
 

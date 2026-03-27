@@ -215,7 +215,7 @@ struct
       | Cst_const (c, u) ->
         if UVars.Instance.is_empty u then Constant.debug_print c
         else str"(" ++ Constant.debug_print c ++ str ", " ++
-          UVars.Instance.pr Sorts.QVar.raw_pr Univ.Level.raw_pr u ++ str")"
+          UVars.Instance.pr Sorts.raw_printer u ++ str")"
       | Cst_proj (p,r) ->
         str".(" ++ Projection.debug_print p ++ str")"
 
@@ -462,7 +462,8 @@ let magically_constant_of_fixbody env sigma (reference, params) bd = function
                     let get u = match u with
                     | Sorts.SProp | Sorts.Prop -> assert false
                     | Sorts.Set -> Level.set
-                    | Sorts.Type u | Sorts.QSort (_, u) -> Option.get (Universe.level u)
+                    | Sorts.Type u | Sorts.GSort (_, u)
+                    | Sorts.VSort (_, u) -> Option.get (Universe.level u)
                     in
                     addus (get u) (get v) acc)
                 csts UVars.empty_sort_subst

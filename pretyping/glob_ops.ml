@@ -44,16 +44,11 @@ let map_glob_decl_left_to_right f (na,r,k,obd,ty) =
   let comp2 = f ty in
   (na,r,k,comp1,comp2)
 
-let glob_qvar_eq g1 g2 = match g1, g2 with
-  | GLocalQVar na1, GLocalQVar na2 -> CAst.eq Name.equal na1 na2
-  | GQVar q1, GQVar q2 -> Sorts.QVar.equal q1 q2
-  | GRawQVar q1, GRawQVar q2 -> Sorts.QVar.equal q1 q2
-  | (GLocalQVar _ | GQVar _ | GRawQVar _), _ -> false
-
 let glob_quality_eq g1 g2 = match g1, g2 with
-  | GQConstant q1, GQConstant q2 -> Sorts.Quality.Constants.equal q1 q2
-  | GQualVar q1, GQualVar q2 -> glob_qvar_eq q1 q2
-  | (GQConstant _ | GQualVar _), _ -> false
+  | GLocalQVar na1, GLocalQVar na2 -> CAst.eq Name.equal na1 na2
+  | GQuality q1, GQuality q2 -> Sorts.Quality.equal q1 q2
+  | GRawQVar q1, GRawQVar q2 -> Sorts.QVar.equal q1 q2
+  | (GLocalQVar _ | GQuality _ | GRawQVar _), _ -> false
 
 let glob_sort_name_eq g1 g2 = match g1, g2 with
   | GSProp, GSProp
@@ -66,7 +61,8 @@ let glob_sort_name_eq g1 g2 = match g1, g2 with
 
 exception ComplexSort
 
-let glob_Type_sort = None, UAnonymous {rigid=UnivRigid}
+let glob_rigid_univ = UAnonymous {rigid=UnivRigid}
+let glob_Type_sort = None, glob_rigid_univ
 let glob_SProp_sort = None, UNamed [GSProp, 0]
 let glob_Prop_sort = None, UNamed [GProp, 0]
 let glob_Set_sort = None, UNamed [GSet, 0]
@@ -82,7 +78,7 @@ let glob_sort_gen_eq f u1 u2 =
   | (UNamed _ | UAnonymous _), _ -> false
 
 let glob_sort_eq (q1, l1) (q2, l2) =
-  Option.equal glob_qvar_eq q1 q2 &&
+  Option.equal glob_quality_eq q1 q2 &&
   glob_sort_gen_eq
     (List.equal (fun (x,m) (y,n) ->
          glob_sort_name_eq x y
@@ -119,7 +115,7 @@ let binding_kind_eq bk1 bk2 = match bk1, bk2 with
 
 let glob_relevance_eq a b = match a, b with
   | GRelevant, GRelevant | GIrrelevant, GIrrelevant -> true
-  | GRelevanceVar q1, GRelevanceVar q2 -> glob_qvar_eq q1 q2
+  | GRelevanceVar q1, GRelevanceVar q2 -> glob_quality_eq q1 q2
   | (GRelevant | GIrrelevant | GRelevanceVar _), _ -> false
 
 let relevance_info_eq = Option.equal glob_relevance_eq

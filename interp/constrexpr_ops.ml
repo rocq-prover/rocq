@@ -33,20 +33,16 @@ let sort_name_expr_eq c1 c2 = match c1, c2 with
   | CRawType u1, CRawType u2 -> Univ.Level.equal u1 u2
   | (CSProp|CProp|CSet|CType _|CRawType _), _ -> false
 
-let qvar_expr_eq c1 c2 = match c1, c2 with
+let quality_expr_eq c1 c2 = match c1, c2 with
   | CQVar q1, CQVar q2 -> Libnames.qualid_eq q1 q2
   | CQAnon _, CQAnon _ -> true
-  | CRawQVar q1, CRawQVar q2 -> Sorts.QVar.equal q1 q2
-  | (CQVar _ | CQAnon _ | CRawQVar _), _ -> false
-
-let quality_expr_eq q1 q2 = match q1, q2 with
+  | CRawQuality q1, CRawQuality q2 -> Sorts.Quality.equal q1 q2
   | CQConstant q1, CQConstant q2 -> Sorts.Quality.Constants.equal q1 q2
-  | CQualVar q1, CQualVar q2 -> qvar_expr_eq q1 q2
-  | (CQConstant _ | CQualVar _), _ -> false
+  | (CQConstant _ | CQVar _ | CQAnon _ | CRawQuality _), _ -> false
 
 let relevance_expr_eq a b = match a, b with
   | CRelevant, CRelevant | CIrrelevant, CIrrelevant -> true
-  | CRelevanceVar q1, CRelevanceVar q2 -> qvar_expr_eq q1 q2
+  | CRelevanceVar q1, CRelevanceVar q2 -> quality_expr_eq q1 q2
   | (CRelevant | CIrrelevant | CRelevanceVar _), _ -> false
 
 let relevance_info_expr_eq = Option.equal relevance_expr_eq
@@ -55,7 +51,7 @@ let univ_level_expr_eq u1 u2 =
   Glob_ops.glob_sort_gen_eq sort_name_expr_eq u1 u2
 
 let sort_expr_eq (q1, l1) (q2, l2) =
-  Option.equal qvar_expr_eq q1 q2 &&
+  Option.equal quality_expr_eq q1 q2 &&
   Glob_ops.glob_sort_gen_eq
     (List.equal (fun (x,m) (y,n) ->
       sort_name_expr_eq x y

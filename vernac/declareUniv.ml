@@ -35,7 +35,7 @@ type sort_source =
 
 type sort_name_decl = {
   sdecl_src : sort_source; (* global sort introduced by some global value *)
-  sdecl_named : (Id.t * Sorts.QGlobal.t) list;
+  sdecl_named : (Id.t * Sorts.Quality.t) list;
 }
 
 let check_exists_universe sp =
@@ -214,31 +214,51 @@ let do_universe ~poly l =
     in
     Global.push_section_context ctx
 
-let do_sort ~poly l =
+let do_sort_mono l =
+  let l = List.map (fun {CAst.v=id} ->
+      let q = UnivGen.new_sort_global id in
+      q, (id, Sorts.Quality.QGlobal q))
+      l
+  in
+  let src = UnqualifiedQuality in
+  let () = input_sort_names (src, List.map snd l) in
+  let qs = List.fold_left  (fun qs (qv, _) -> Sorts.QGlobal.(Set.add qv qs))
+      Sorts.QGlobal.Set.empty l
+  in
+  Global.push_qualities (qs, Sorts.ElimConstraints.empty)
+
+let do_sort_poly l =
   let in_section = Lib.sections_are_opened () in
   let () =
-    if poly && not in_section then
+    if not in_section then
       CErrors.user_err
         (Pp.str"Cannot declare polymorphic sorts outside sections.")
   in
-  let l = List.map (fun {CAst.v=id} -> (id, UnivGen.new_sort_global id)) l in
-  let src = if poly then BoundQuality else UnqualifiedQuality in
+  let new_sort =
+    let n = Section.section_qvar_count @@
+      Option.get @@ Safe_typing.sections_of_safe_env @@
+      Global.safe_env ()
+    in
+    let n = ref n in
+    fun _id ->
+      let x = !n in
+      let () = incr n in
+      let q = Sorts.QVar.make_secvar x in
+      Sorts.Quality.QVar q
+  in
+  let l = List.map (fun {CAst.v=id} -> (id, new_sort id)) l in
+  let src = BoundQuality in
   let () = input_sort_names (src, l) in
-  match poly with
-  | false ->
-    let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
-      Sorts.QVar.Set.empty l
-    in
-    let rigid = false in (* No constraints, rigidity does not matter *)
-    Global.push_qualities ~rigid (qs, Sorts.ElimConstraints.empty) (* XXX *)
-  | true ->
-    let names = CArray.map_of_list (fun (na,_) -> Name na) l in
-    let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in
-    let ctx =
-      UVars.UContext.make {quals=names; univs=[||]}
-        (UVars.Instance.of_array (qs,[||]), PConstraints.empty)
-    in
-    Global.push_section_context ctx
+  let names = CArray.map_of_list (fun (na,_) -> Name na) l in
+  let qs = CArray.map_of_list snd l in
+  let ctx =
+    UVars.UContext.make {quals=names; univs=[||]}
+      (UVars.Instance.of_array (qs,[||]), PConstraints.empty)
+  in
+  Global.push_section_context ctx
+
+let do_sort ~poly l =
+  if poly then do_sort_poly l else do_sort_mono l
 
 let do_constraint ~poly l =
   let evd = Evd.from_env (Global.env ()) in
@@ -255,7 +275,7 @@ let do_constraint ~poly l =
   match poly with
   | false ->
     let qcst, ucst = constraints in
-    let () = Global.push_qualities ~rigid:true (Sorts.QVar.Set.empty, qcst) in (* XXX *)
+    let () = Global.push_qualities (Sorts.QGlobal.Set.empty, qcst) in
     Global.push_context_set (Univ.Level.Set.empty, ucst)
   | true ->
     let uctx = UVars.UContext.make

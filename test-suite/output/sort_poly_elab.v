@@ -505,6 +505,13 @@ Module Inductives.
   Elimination of a sort polymorphic inductive object instantiated to a variable sort quality
   is only allowed on itself or with an explicit elimination constraint to the target sort. *)
 
+  Monomorphic Sort Test2.
+  Monomorphic Inductive testind : Type@{Test2;Set} := testctor.
+  Fail Check (match true@{Test;} return ?[P] with true => testctor | false => testctor end).
+
+  Polymorphic Inductive testind'@{s;} : Type@{s;Set} := testctor'.
+  Check (match true@{Test;} return ?[P] with true => testctor' | false => testctor' end).
+
   (*********************************************)
   (*                  UNIT                     *)
   (*********************************************)

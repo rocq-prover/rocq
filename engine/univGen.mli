@@ -37,7 +37,7 @@ module QualityOrSet : sig
   val is_prop : t -> bool
   val is_sprop : t -> bool
 
-  val pr : (Sorts.QVar.t -> Pp.t) -> t -> Pp.t
+  val pr : Sorts.Quality.printer -> t -> Pp.t
   val raw_pr : t -> Pp.t
 
   val all_constants : t list
@@ -76,8 +76,7 @@ val is_empty_sort_context : sort_context_set -> bool
 
 val diff_sort_context : sort_context_set -> sort_context_set -> sort_context_set
 
-val pr_sort_context : (Sorts.QVar.t -> Pp.t) -> (Univ.Level.Set.elt -> Pp.t) ->
-  sort_context_set -> Pp.t
+val pr_sort_context : Sorts.printer -> sort_context_set -> Pp.t
 
 val fresh_instance : AbstractContext.t -> Instance.t in_sort_context_set
 

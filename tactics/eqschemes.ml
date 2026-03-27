@@ -70,7 +70,7 @@ let xid = Id.of_string "X"
 
 let default_id_of_sort = let open Sorts.Quality in function
   | QConstant QSProp | QConstant QProp -> hid
-  | QConstant QType | QVar _ -> xid
+  | QConstant QType | QVar _ | QGlobal _ -> xid
 
 let default_id_of_ind ind mip =
   default_id_of_sort (Elimschemes.pseudo_sort_quality_for_elim ind mip)

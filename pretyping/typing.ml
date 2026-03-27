@@ -58,7 +58,7 @@ let fresh_template_context env0 sigma ind (mib, _ as spec) ?(refresh_all=false) 
             args
         | Sorts.Prop -> TemplateProp
         | Sorts.Set -> TemplateUniv Univ.Universe.type0
-        | Sorts.Type u | Sorts.QSort (_, u) -> TemplateUniv u
+        | Sorts.Type u | Sorts.GSort (_, u) | Sorts.VSort (_, u) -> TemplateUniv u
         in
         sigma, LocalAssum (na, t), s
       | None ->
@@ -364,18 +364,9 @@ let judge_of_set =
   { uj_val = EConstr.mkSet;
     uj_type = EConstr.mkSort (ESorts.type1) }
 
-let judge_of_type u =
-  let uu = Univ.Universe.super u in
-    { uj_val = EConstr.mkType u;
-      uj_type = EConstr.mkType uu }
-
 let judge_of_sort s =
-  let open Sorts in
-  let u = match s with
-  | Prop | SProp | Set -> Univ.Universe.type1
-  | Type u | QSort (_, u) -> Univ.Universe.super u
-  in
-  { uj_val = EConstr.mkSort (ESorts.make s); uj_type = EConstr.mkType u }
+  let u = Typeops.type_of_sort s in
+  { uj_val = EConstr.mkSort (ESorts.make s); uj_type = EConstr.of_constr u }
 
 let type_of_relative env n =
   EConstr.of_constr (Typeops.type_of_relative env n)
@@ -504,22 +495,22 @@ type relevance_preunify =
 
 let check_binder_relevance env sigma s decl =
   let preunify = match ESorts.kind sigma s, ERelevance.kind sigma (get_relevance decl) with
-    | (Prop | Set | Type _), Relevant -> Trivial
-    | (Prop | Set | Type _), Irrelevant -> Impossible
+    | (Prop | Set | Type _ | GSort _), Relevant -> Trivial
+    | (Prop | Set | Type _ | GSort _), Irrelevant -> Impossible
     | SProp, Irrelevant -> Trivial
     | SProp, Relevant -> Impossible
-    | QSort (_,l), RelevanceVar q' -> DummySort (ESorts.make (Sorts.qsort q' l))
+    | VSort (_,l), RelevanceVar q' -> DummySort (ESorts.make (Sorts.vsort q' l))
     | (SProp | Prop | Set), RelevanceVar q ->
-      DummySort (ESorts.make (Sorts.qsort q Univ.Universe.type0))
-    | Type l, RelevanceVar q -> DummySort (ESorts.make (Sorts.qsort q l))
-    | QSort (_,l), Relevant ->
+      DummySort (ESorts.make (Sorts.vsort q Univ.Universe.type0))
+    | (Type l | GSort (_, l)), RelevanceVar q -> DummySort (ESorts.make (Sorts.vsort q l))
+    | VSort (_,l), Relevant ->
        begin
          match ERelevance.kind sigma (ESorts.relevance_of_sort s) with
          | Irrelevant -> Impossible
          | Relevant -> Trivial
          | RelevanceVar _ -> DummySort (ESorts.make (Sorts.sort_of_univ l))
        end
-    | QSort _, Irrelevant -> DummySort ESorts.sprop
+    | VSort _, Irrelevant -> DummySort ESorts.sprop
   in
   let unify = match preunify with
     | Trivial -> Some sigma
@@ -602,15 +593,10 @@ let rec execute env sigma cstr =
         sigma, make_judge (mkCoFix cofix) tys.(i)
 
     | Sort s ->
-      begin match ESorts.kind sigma s with
-        | SProp ->
-          if Environ.sprop_allowed env then sigma, judge_of_sprop
-          else error_not_allowed_sprop env sigma
-        | Prop -> sigma, judge_of_prop
-        | Set -> sigma, judge_of_set
-        | Type u -> sigma, judge_of_type u
-        | QSort _ as s -> sigma, judge_of_sort s
-      end
+      let s = ESorts.kind sigma s in
+      if not (Environ.sprop_allowed env) && Sorts.is_sprop s then
+        error_not_allowed_sprop env sigma
+      else sigma, judge_of_sort s
 
     | Proj (p, _, c) ->
       let sigma, cj = execute env sigma c in

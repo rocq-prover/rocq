@@ -20,7 +20,13 @@ sig
   val equal : t -> t -> bool
   val hash : t -> int
   val compare : t -> t -> int
+
   val to_string : t -> string
+
+  module Set : sig
+    include CSig.SetS with type elt = t
+    val pr : (elt -> Pp.t) -> t -> Pp.t
+  end
 
 end
 
@@ -29,11 +35,10 @@ sig
   type t
 
   val var_index : t -> int option
-  val name : t -> QGlobal.t option
 
   val make_var : int -> t
+  val make_secvar : int -> t
   val make_unif : string -> int -> t
-  val make_global : QGlobal.t -> t
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
@@ -48,14 +53,14 @@ sig
 
   type repr =
     | Var of int
+    | Secvar of int
     | Unif of string * int
-    | Global of QGlobal.t
 
   val repr : t -> repr
   val of_repr : repr -> t
 
+  val is_secvar : t -> bool
   val is_unif : t -> bool
-  val is_global : t -> bool
 
   module Set : sig
     include CSig.SetS with type elt = t
@@ -67,7 +72,7 @@ end
 
 module Quality : sig
   type constant = QProp | QSProp | QType
-  type t = QVar of QVar.t | QConstant of constant
+  type t = QVar of QVar.t | QConstant of constant | QGlobal of QGlobal.t
 
   module Constants : sig
     val equal : constant -> constant -> bool
@@ -92,15 +97,20 @@ module Quality : sig
   val global : QGlobal.t -> t
   (** [global i] is [QVar (QVar.make_global i)] *)
 
-  val is_var : t -> bool
-
   val var_index : t -> int option
 
   val equal : t -> t -> bool
 
   val compare : t -> t -> int
 
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  type printer = {
+    prvar : QVar.t -> Pp.t;
+    prglobal : QGlobal.t -> Pp.t;
+  }
+
+  val pr : printer -> t -> Pp.t
+
+  val raw_printer : printer
 
   val raw_pr : t -> Pp.t
 
@@ -115,7 +125,13 @@ module Quality : sig
 
   val subst_fn : t QVar.Map.t -> QVar.t -> t
 
-  module Set : CSig.SetS with type elt = t
+  module Set : sig
+    include CSig.SetS with type elt = t
+
+    val of_qvars : QVar.Set.t -> t
+
+    val of_qglobals : QGlobal.Set.t -> t
+  end
 
   module Map : CMap.ExtS with type key = t and module Set := Set
 
@@ -136,13 +152,13 @@ module ElimConstraint : sig
 
   val compare : t -> t -> int
 
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val pr : Quality.printer -> t -> Pp.t
 
   val raw_pr : t -> Pp.t
 end
 
 module ElimConstraints : sig include Stdlib.Set.S with type elt = ElimConstraint.t
-  val pr : (QVar.t -> Pp.t) -> t -> Pp.t
+  val pr : Quality.printer -> t -> Pp.t
 
   val hcons : t Hashcons.f
 end
@@ -151,8 +167,8 @@ module QContextSet :
 sig
   type t = QVar.Set.t * ElimConstraints.t
   val empty : t
+  val is_empty : t -> bool
   val union : t -> t -> t
-  val filter_constant_qualities : t -> t (* XXX: this looks very wrong *)
 end
 
 type t = private
@@ -160,13 +176,15 @@ type t = private
   | Prop
   | Set
   | Type of Univ.Universe.t
-  | QSort of QVar.t * Univ.Universe.t
+  | GSort of QGlobal.t * Univ.Universe.t
+  | VSort of QVar.t * Univ.Universe.t
 
 val sprop : t
 val set  : t
 val prop : t
 val type1  : t
-val qsort : QVar.t -> Univ.Universe.t -> t
+val gsort : QGlobal.t -> Univ.Universe.t -> t
+val vsort : QVar.t -> Univ.Universe.t -> t
 val make : Quality.t -> Univ.Universe.t -> t
 
 val equal : t -> t -> bool
@@ -205,7 +223,16 @@ val relevance_of_sort : t -> relevance
 val is_relevant : relevance -> bool
 
 val debug_print : t -> Pp.t
-val pr : (QVar.t -> Pp.t) -> (Univ.Universe.t -> Pp.t) -> t -> Pp.t
+
+type printer = {
+  prq : Quality.printer;
+  pru : Univ.Level.t -> Pp.t;
+}
+
+val pr : printer -> t -> Pp.t
+
+val raw_printer : printer
+
 val raw_pr : t -> Pp.t
 
 type ('q, 'u) pattern =

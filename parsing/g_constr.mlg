@@ -112,8 +112,8 @@ let force_quality ?loc = function
   | Prop -> CQConstant QProp
   | Set -> CErrors.user_err ?loc Pp.(str "Universe levels cannot be Set.")
   | Type -> CQConstant QType
-  | Anon loc -> CQualVar (CQAnon (Some loc))
-  | Global qid -> CQualVar (CQVar qid)
+  | Anon loc -> CQAnon (Some loc)
+  | Global qid -> CQVar qid
 
 (* XXX use registered ref? but currently constrexpr doesn't have a node for registered refs
    and we can't do [Rocqlib.lib_ref] at parsing time, it's only available in the interp phase. *)
@@ -168,7 +168,7 @@ GRAMMAR EXTEND Gram
     [ [ "Prop" -> { CQConstant Sorts.Quality.QProp }
       | "SProp" -> { CQConstant Sorts.Quality.QSProp }
       | "Type" -> { CQConstant Sorts.Quality.QType }
-      | v = reference -> { CQualVar (CQVar v) } ] ]
+      | v = reference -> { CQVar v } ] ]
   ;
   universe_increment:
     [ [ "+"; n = natural -> { n }

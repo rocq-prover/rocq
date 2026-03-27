@@ -87,7 +87,7 @@ module Instance : sig
 
     val subst_fn : (Sorts.QVar.t -> Quality.t) * (Level.t -> Level.t) -> t -> t
 
-    val pr : (Sorts.QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
+    val pr : Sorts.printer -> ?variance:Variance.t array -> t -> Pp.t
     val levels : t -> Quality.Set.t * Level.Set.t
 
     type ('q, 'u) mask = 'q Quality.pattern array * 'u array
@@ -170,12 +170,12 @@ struct
     let u = Array.fold_left (fun acc x -> Level.Set.add x acc) Level.Set.empty xu in
     q, u
 
-  let pr prq prl ?variance (q,u) =
+  let pr (printer:Sorts.printer) ?variance (q,u) =
     let ppu i u =
       let v = Option.map (fun v -> v.(i)) variance in
-      pr_opt_no_spc Variance.pr v ++ prl u
+      pr_opt_no_spc Variance.pr v ++ printer.pru u
     in
-    (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr prq) q ++ strbrk " ; ")
+    (if Array.is_empty q then mt() else prvect_with_sep spc (Quality.pr printer.prq) q ++ strbrk " ; ")
     ++ prvecti_with_sep spc ppu u
 
   let equal (xq,xu) (yq,yu) =
@@ -241,7 +241,7 @@ let subst_instance_quality s l =
       | Some n -> (fst (Instance.to_array s)).(n)
       | None -> l
     end
-  | Quality.QConstant _ -> l
+  | Quality.QConstant _ | Quality.QGlobal _ -> l
 
 let subst_instance_instance s i =
   let qs, us = Instance.to_array i in
@@ -313,9 +313,9 @@ struct
   let empty = (empty_bound_names, (Instance.empty, PConstraints.empty))
   let is_empty (_, (univs, csts)) = Instance.is_empty univs && PConstraints.is_empty csts
 
-  let pr prq prl ?variance (_, (univs, csts) as uctx) =
+  let pr printer ?variance (_, (univs, csts) as uctx) =
     if is_empty uctx then mt() else
-      h (Instance.pr prq prl ?variance univs ++ str " |= ") ++ h (v 0 (PConstraints.pr prq prl csts))
+      h (Instance.pr printer ?variance univs ++ str " |= ") ++ h (v 0 (PConstraints.pr printer csts))
 
   let hcons ({quals = qnames; univs = unames}, (univs, csts)) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in
@@ -360,7 +360,7 @@ struct
     let us = Array.fold_left (fun acc x -> Level.Set.add x acc) Level.Set.empty us in
     let qs = Array.fold_left (fun acc -> function
         | Sorts.Quality.QVar x -> Sorts.QVar.Set.add x acc
-        | Sorts.Quality.QConstant _ -> assert false)
+        | Sorts.Quality.(QConstant _ | QGlobal _)  -> assert false)
         Sorts.QVar.Set.empty
         qs
     in
@@ -413,7 +413,7 @@ struct
     let merge_names = Array.map2 Names.(fun old refined -> match refined with Anonymous -> old | Name _ -> refined) in
     ({quals = merge_names names.quals names'.quals; univs = merge_names names.univs names'.univs}, x)
 
-  let pr prq pru ?variance ctx = UContext.pr prq pru ?variance (repr ctx)
+  let pr printer ?variance ctx = UContext.pr printer ?variance (repr ctx)
 
 end
 
@@ -463,7 +463,7 @@ let subst_sort_level_qvar subst qv =
   | Some q -> q
 
 let subst_sort_level_quality subst = function
-  | Quality.QConstant _ as q -> q
+  | Quality.(QConstant _ | QGlobal _) as q -> q
   | Quality.QVar q ->
     subst_sort_level_qvar subst q
 
@@ -488,9 +488,9 @@ let subst_poly_constraints (qsubst, usubst) (qctx, uctx) =
 let pr_universe_level_subst prl =
   Level.Map.pr prl (fun u -> str" := " ++ prl u ++ spc ())
 
-let pr_quality_level_subst prl l =
+let pr_quality_level_subst (printer:Quality.printer) l =
   let open Pp in
-  h (prlist_with_sep fnl (fun (u,v) -> prl u ++ str " := " ++ Sorts.Quality.pr prl v)
+  h (prlist_with_sep fnl (fun (u,v) -> printer.prvar u ++ str " := " ++ Sorts.Quality.pr printer v)
        (Sorts.QVar.Map.bindings l))
 
 type sort_level_subst = Quality.t Sorts.QVar.Map.t * universe_level_subst
@@ -519,7 +519,7 @@ let subst_sort_level_qvar (qsubst,_) qv =
   | Some q -> q
 
 let subst_sort_level_quality subst = function
-  | Sorts.Quality.QConstant _ as q -> q
+  | Sorts.Quality.(QConstant _ | QGlobal _) as q -> q
   | Sorts.Quality.QVar q ->
     subst_sort_level_qvar subst q
 
