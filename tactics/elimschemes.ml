@@ -167,7 +167,7 @@ let lookup_eliminator env ?(dep=false) ind s =
   let nodep_scheme_first =
     (* compat, add an option to control this and remove someday *)
     let _, mip = Inductive.lookup_mind_specif env ind in
-    dep || (Sorts.is_prop mip.mind_sort && not (is_prop_but_default_dependent_elim ind))
+    not dep || (Sorts.is_prop mip.mind_sort && not (is_prop_but_default_dependent_elim ind))
   in
   let schemes =
     List.map (fun dep -> elim_scheme ~dep ~to_kind:s)

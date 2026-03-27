@@ -1110,10 +1110,9 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
       let tac = destruct_tac with_evars id dep in
       sigma, false, tac, indsign
     | ElimOver (id, (mind, u)) ->
-       let dep_in_concl = occur_var env sigma id concl in
-       let dep = dep_in_hyps || dep_in_concl in
-       let dep = dep || default_case_analysis_dependence env mind in
-       let sigma, ind = find_ind_eliminator env sigma ~dep:(not dep) mind s in
+       let dep_in_tmpcl = occur_var env sigma id tmpcl in
+       let dep = dep_in_hyps || dep_in_tmpcl in
+       let sigma, ind = find_ind_eliminator env sigma ~dep:dep mind s in
        let elimt = Retyping.get_type_of env sigma (mkConstU ind) in
        let scheme = compute_elim_sig sigma elimt in
        let indsign = compute_scheme_signature sigma scheme id (mkIndU (mind, u)) in
