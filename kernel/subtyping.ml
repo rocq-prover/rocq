@@ -123,8 +123,9 @@ let check_universes error env u1 u2 =
 let check_variance error v1 v2 =
   match v1, v2 with
   | None, None -> ()
-  | Some v1, Some v2 ->
-    if not (Array.for_all2 Variance.check_subtype v2 v1) then
+  | Some (qv1,uv1), Some (qv2,uv2) ->
+    if not (Array.for_all2 Variance.check_subtype qv2 qv1 &&
+            Array.for_all2 Variance.check_subtype uv2 uv1) then
       error IncompatibleVariance
   | None, Some _ -> error (CumulativeStatusExpected true)
   | Some _, None -> error (CumulativeStatusExpected false)

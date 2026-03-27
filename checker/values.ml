@@ -216,6 +216,8 @@ let v_cstrs =
 
 let v_variance = v_enum "variance" 3
 
+let v_variances = v_pair (v_array v_variance) (v_array v_variance)
+
 let v_instance = v_annot_c ("instance", v_pair (v_array v_quality) (v_array v_level))
 let v_abs_context = v_tuple "abstract_universe_context" [|v_pair (v_array v_name) (v_array v_name); v_cstrs|]
 let v_univ_context_set = v_tuple "universe_context_set" [|v_hset v_level;v_univ_cstrs|]
@@ -481,8 +483,9 @@ let v_ind_pack = v_tuple "mutual_inductive_body"
     v_rctxt;
     v_univs; (* universes *)
     v_opt v_template_universes;
-    v_opt (v_array v_variance);
-    v_opt (v_array v_variance);
+    v_opt v_variances;
+    v_opt (let fail = (v_fail "mind_sec_variance should be empty arrays or None") in
+           v_pair (v_array fail) (v_array fail));
     v_opt v_bool;
     v_typing_flags|]
 

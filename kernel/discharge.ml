@@ -180,13 +180,17 @@ let cook_inductive info mib =
     match mib.mind_variance, mib.mind_sec_variance with
     | None, None -> None, None
     | None, Some _ | Some _, None -> assert false
-    | Some variance, Some sec_variance ->
+    | Some (qvariance, uvariance), Some sec_variance ->
       (* no variance for qualities *)
-      let ulen  = snd (AbstractContext.size (universe_context_of_cooking_info info)) in
-      let sec_variance, newvariance =
-        Array.chop (Array.length sec_variance - ulen) sec_variance
+      let qlen, ulen  = AbstractContext.size (universe_context_of_cooking_info info) in
+      let sec_qvariance, newqvariance =
+        Array.chop (Array.length (fst sec_variance) - qlen) (fst sec_variance)
       in
-      Some (Array.append newvariance variance), Some sec_variance
+      let sec_uvariance, newuvariance =
+        Array.chop (Array.length (snd sec_variance) - ulen) (snd sec_variance)
+      in
+      let newvariance = Array.append newqvariance qvariance, Array.append newuvariance uvariance in
+      Some newvariance, Some (sec_qvariance, sec_uvariance)
   in
   let mind_template = match mib.mind_template with
   | None -> None

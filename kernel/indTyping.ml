@@ -601,26 +601,33 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
 
   let variance = match mie.mind_entry_variance with
     | None -> None
-    | Some variances ->
+    | Some (qvariances,uvariances) ->
       match mie.mind_entry_universes with
       | Monomorphic_ind_entry | Template_ind_entry _ ->
         CErrors.user_err Pp.(str "Inductive cannot be both monomorphic and universe cumulative.")
       | Polymorphic_ind_entry uctx ->
         (* no variance for qualities *)
-        let _qualities, univs = Instance.to_array @@ UContext.instance uctx in
-        let univs = Array.map2 (fun a b -> a,b) univs variances in
-        let univs = match sec_univs with
-          | None -> univs
+        let quals, univs = Instance.to_array @@ UContext.instance uctx in
+        let quals = Array.combine quals qvariances in
+        let univs = Array.combine univs uvariances in
+        let quals, univs = match sec_univs with
+          | None -> quals, univs
           | Some sec_univs ->
             (* no variance for qualities *)
-            let _, sec_univs = UVars.Instance.to_array sec_univs in
+            let sec_quals, sec_univs = UVars.Instance.to_array sec_univs in
+            let sec_quals = Array.map (fun u -> u, None) sec_quals in
             let sec_univs = Array.map (fun u -> u, None) sec_univs in
-            Array.append sec_univs univs
+            Array.append sec_quals quals, Array.append sec_univs univs
+        in
+        let quals = Array.map (fun (q,v) -> match q with
+            | Sorts.Quality.QVar q -> q, v
+            | QConstant _ -> assert false)
+            quals
         in
         let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
             ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
             ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
-            univs
+            quals univs
         in
         Some variances
   in

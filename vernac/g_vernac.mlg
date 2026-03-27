@@ -219,11 +219,12 @@ let test_doublepipe_univ_decl =
 let test_doublepipe_cumul_univ_decl =
   let open Procq.Lookahead in
   let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_ident) in
-  to_entry "test_doublepipe_cumul_univ_decl" (lk_ident_list >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
+  to_entry "test_doublepipe_cumul_univ_decl" (lk_list_variance_ident >> lk_kw "|" >> lk_list_variance_ident >> (lk_kw "+" <+> lk_empty) >> (lk_kw "|" <+> lk_kw "|}"))
 
 let test_semicolon_cumul_univ_decl =
   let open Procq.Lookahead in
-  to_entry "test_semicolon_cumul_univ_decl" (lk_ident_list >> lk_kw ";")
+  let lk_list_variance_ident = lk_list (lk_kw "+" <+> lk_kw "*" <+> lk_kw "=" <+> lk_ident) in
+  to_entry "test_semicolon_cumul_univ_decl" (lk_list_variance_ident >> lk_kw ";")
 
 let test_univ_cst =
   let open Procq.Lookahead in
@@ -412,7 +413,7 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   cumul_univ_decl:
-    [ [ "@{" ; test_doublepipe_cumul_univ_decl; l0 = LIST0 identref; pipe_loc = [ "|" -> { loc } ];
+    [ [ "@{" ; test_doublepipe_cumul_univ_decl; l0 = LIST0 variance_identref; pipe_loc = [ "|" -> { loc } ];
         l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->
@@ -426,7 +427,7 @@ GRAMMAR EXTEND Gram
            univdecl_univ_constraints = univ_constraints @@ fst cs;
            univdecl_extensible_constraints = snd cs } }
 
-       | "@{" ; test_semicolon_cumul_univ_decl; l0 = LIST0 identref; ";";
+       | "@{" ; test_semicolon_cumul_univ_decl; l0 = LIST0 variance_identref; ";";
         l = LIST0 variance_identref; ext = [ "+" -> { true } | -> { false } ];
          cs = univ_decl_constraints
          ->

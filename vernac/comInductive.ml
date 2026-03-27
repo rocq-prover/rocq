@@ -606,13 +606,17 @@ let restrict_inductive_universes sigma ctx_params arities constructors =
   let uvars = List.fold_right (fun (_,ctypes) -> List.fold_right merge_universes_of_constr ctypes) constructors uvars in
   Evd.restrict_ustate sigma uvars
 
-let check_trivial_variances variances =
-  Array.iter (function
+let check_trivial_variances (qv,uv) =
+  let check v =
+    Array.iter (function
       | None | Some UVars.Variance.Invariant -> ()
       | Some _ ->
         CErrors.user_err
-          Pp.(strbrk "Universe variance was specified but this inductive will not be cumulative."))
-    variances
+          Pp.(strbrk "Variance was specified but this inductive will not be cumulative."))
+      v
+  in
+  check qv;
+  check uv
 
 let variance_of_entry ~cumulative ~variances uctx =
   match uctx with
@@ -620,10 +624,13 @@ let variance_of_entry ~cumulative ~variances uctx =
   | Polymorphic_ind_entry uctx ->
     if not cumulative then begin check_trivial_variances variances; None end
     else
-      let lvs = Array.length variances in
-      let _, lus = UVars.UContext.size uctx in
-      assert (lvs <= lus);
-      Some (Array.append variances (Array.make (lus - lvs) None))
+      let qv, uv = variances in
+      let lqvs = Array.length qv in
+      let luvs = Array.length uv in
+      let lqs, lus = UVars.UContext.size uctx in
+      assert (lqvs <= lqs && luvs <= lus);
+      Some (Array.append qv (Array.make (lqs - lqvs) None),
+            Array.append uv (Array.make (lus - luvs) None))
 
 let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~indnames ~arities_explicit ~arities ~template_syntax ~constructors ~env_ar ~private_ind =
   let {

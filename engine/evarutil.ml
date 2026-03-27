@@ -766,24 +766,11 @@ let subterm_source evk ?where (loc,k) =
    irrelevant positions, unify universes when flexible. *)
 let compare_cumulative_instances cv_pb variances u u' sigma =
   let open UnivProblem in
-  let cstrs = Univ.UnivConstraints.empty in
-  let soft = Set.empty in
-  let qs, us = UVars.Instance.to_array u
-  and qs', us' = UVars.Instance.to_array u' in
-  let qcstrs = enforce_eq_qualities qs qs' Set.empty in
-  match Evd.add_constraints sigma qcstrs with
-  | exception UGraph.UniverseInconsistency p -> Inr p
-  | sigma ->
-  let cstrs, soft = Array.fold_left3 (fun (cstrs, soft) v u u' ->
-      let open UVars.Variance in
-      match v with
-      | Irrelevant -> cstrs, Set.add (UWeak (u,u')) soft
-      | Covariant when cv_pb == Conversion.CUMUL ->
-        Univ.UnivConstraints.add (u,Univ.UnivConstraint.Le,u') cstrs, soft
-      | Covariant | Invariant -> Univ.UnivConstraints.add (u,Univ.UnivConstraint.Eq,u') cstrs, soft)
-      (cstrs,soft) variances us us'
-  in
-  match Evd.add_univ_constraints sigma cstrs with
+  let cstrs = compare_cumulative_instances cv_pb variances u u' UnivProblem.Set.empty in
+  let is_soft = function UWeak _ -> true | _ -> false in
+  let soft, cstrs = Set.partition is_soft cstrs in
+  let cstrs = Set.force cstrs in
+  match Evd.add_constraints sigma cstrs with
   | sigma ->
     Inl (Evd.add_constraints sigma soft)
   | exception UGraph.UniverseInconsistency p -> Inr p

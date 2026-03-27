@@ -44,3 +44,44 @@ Unset Cumulativity Weak Constraints.
 Fail Definition irrelevant_without_weak@{u} : irrelevant@{u} -> irrelevant := fun x => x.
 Definition irrelevant_without_weak@{u+} : irrelevant@{u} -> irrelevant := fun x => x.
 Check irrelevant_without_weak@{_ _}.
+
+(* sort poly *)
+Inductive eq@{s;u} (A:Type@{s;u}) (a:A) : A -> Prop := refl : eq A a a.
+
+Check eq_refl : eq@{Prop;Set} True = eq@{Type;Set} True.
+
+Record typ@{s;u} : Type@{s;u+1} := mkt { t : Type@{s;u} }.
+
+Monomorphic Universe u.
+Fail Check fun (x:typ@{Prop;Set}) => x : typ@{Type;u}.
+Fail Check fun (x:typ@{Type;Set}) => x : typ@{Prop;u}.
+
+Fail Check fun x:typ@{SProp;Set} => x : typ@{Prop;Set}.
+
+Inductive E@{s;} : Prop := .
+
+Fail Check fun x:E@{SProp;} => x:E@{Prop;}.
+Check fun x:E@{Prop;} => x:E@{Type;}.
+
+Module Type Covariant.
+  Inductive foo@{+s;+u} : Set := .
+End Covariant.
+
+Module Invariant.
+  Inductive foo@{=s;=u} : Set := .
+End Invariant.
+
+Fail Module Invariant' : Covariant := Invariant.
+
+Module Irrelevant.
+  Inductive foo@{*s;*u} : Set := .
+End Irrelevant.
+
+Module Irrelevant' : Covariant := Irrelevant.
+
+Fail Inductive Box@{+s;l} (A : Type@{l}) : Type@{s;l} := box : A -> Box A.
+Inductive Box@{s;l} (A : Type@{l}) : Type@{s;l} := box : A -> Box A.
+
+(* would be inconsistent! *)
+Fail Definition unbox (x : Box@{Prop;Type} Type) :=
+  match (x : Box@{Type;Type} Type) return Type with box _ A => A end.

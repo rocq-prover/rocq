@@ -992,8 +992,8 @@ variance_identref: [
 ]
 
 cumul_univ_decl: [
-| "@{" test_doublepipe_cumul_univ_decl LIST0 identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
-| "@{" test_semicolon_cumul_univ_decl LIST0 identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" test_doublepipe_cumul_univ_decl LIST0 variance_identref "|" LIST0 variance_identref [ "+" | ] univ_decl_constraints
+| "@{" test_semicolon_cumul_univ_decl LIST0 variance_identref ";" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 | "@{" LIST0 variance_identref [ "+" | ] univ_decl_constraints
 ]
 

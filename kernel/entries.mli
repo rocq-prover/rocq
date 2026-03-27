@@ -29,7 +29,7 @@ type inductive_universes_entry =
       default_univs : UVars.Instance.t;
     }
 
-type variance_entry = UVars.Variance.t option array
+type variance_entry = UVars.Variance.t option array * UVars.Variance.t option array
 
 type 'a in_universes_entry = 'a * universes_entry
 
