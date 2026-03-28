@@ -254,7 +254,7 @@ let is_unfoldable kn = match snd (Tac2env.interp_type kn) with
 | GTydDef (Some _) -> true
 | GTydDef None | GTydAlg _ | GTydRec _ | GTydOpn -> false
 
-let unfold env kn args =
+let unfold kn args =
   let (nparams, def) = Tac2env.interp_type kn in
   let def = match def with
   | GTydDef (Some t) -> t
@@ -273,7 +273,7 @@ let rec kind env t = match t with
   | Some t -> kind env t
   end
 | GTypRef (Other kn, tl) ->
-  if is_unfoldable kn then kind env (unfold env kn tl) else t
+  if is_unfoldable kn then kind env (unfold kn tl) else t
 | GTypArrow _ | GTypRef (Tuple _, _) -> t
 
 (** Normalize unification variables without unfolding type aliases *)
