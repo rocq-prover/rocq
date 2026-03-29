@@ -1155,8 +1155,10 @@ Controlling Typing Flags
    of inductive types contribute universe constraints, just as the types of
    constructor arguments do.  This has the same effect as the ``-indices-matter``
    command line argument (see :ref:`command-line-options`).
-   Inductives that rely on indices not mattering are printed by
-   :cmd:`Print Assumptions`.
+
+   When this flag is set, inductives that rely on indices not
+   mattering (which may exist by being declared when the flag was
+   unset) are printed by :cmd:`Print Assumptions`.
 
 .. flag:: Universe Checking
 
