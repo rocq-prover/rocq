@@ -106,7 +106,6 @@ let escape_objects id escape = match escape.escape_objects with
     for Synterp and Interp. *)
 module type ModActions = sig
 
-  type typexpr
   type env
 
   val stage : Summary.Stage.t
@@ -127,11 +126,9 @@ module type ModActions = sig
 
 end
 
-module SynterpActions : ModActions with
-  type env = unit with
-  type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr =
+module SynterpActions : ModActions
+  with type env = unit =
 struct
-  type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr
   type env = unit
   let stage = Summary.Stage.Synterp
   let substobjs_table_name = "MODULE-SYNTAX-SUBSTOBJS"
@@ -166,10 +163,8 @@ struct
 end
 
 module InterpActions : ModActions
-  with type env = Environ.env
-  with type typexpr = Constr.t * UVars.AbstractContext.t option =
+  with type env = Environ.env =
 struct
-  type typexpr = Constr.t * UVars.AbstractContext.t option
   type env = Environ.env
   let stage = Summary.Stage.Interp
   let substobjs_table_name = "MODULE-SUBSTOBJS"
@@ -224,10 +219,9 @@ type module_objects =
 (** The [StagedModS] abstraction describes module operations at a given stage. *)
 module type StagedModS = sig
 
-  type typexpr
   type env
 
-  val get_module_sobjs : bool -> env -> Entries.inline -> typexpr module_alg_expr -> substitutive_objects
+  val get_module_sobjs : bool -> env -> Entries.inline -> _ module_alg_expr -> substitutive_objects
 
   val load_keep : int -> full_path -> ModPath.t -> keep_objects -> unit
   val load_escape : int -> full_path -> ModPath.t -> escape_objects -> unit
@@ -239,7 +233,7 @@ module type StagedModS = sig
 
   val expand_aobjs : Libobject.algebraic_objects -> Libobject.t list
 
-  val get_applications : typexpr module_alg_expr -> ModPath.t * ModPath.t list
+  val get_applications : _ module_alg_expr -> ModPath.t * ModPath.t list
   val debug_print_modtab : unit -> Pp.t
 
   module ModObjs : sig val all : unit -> module_objects ModPath.Map.t end
@@ -296,7 +290,6 @@ and subst_objects subst seg =
   that is common to all stages. *)
 module StagedMod(Actions : ModActions) = struct
 
-type typexpr = Actions.typexpr
 type env = Actions.env
 
 (** ModSubstObjs : a cache of module substitutive objects
@@ -772,12 +765,10 @@ end
 
 module SynterpVisitor : StagedModS
   with type env = SynterpActions.env
-  with type typexpr = Constrexpr.universe_decl_expr option * Constrexpr.constr_expr
   = StagedMod(SynterpActions)
 
 module InterpVisitor : StagedModS
   with type env = InterpActions.env
-  with type typexpr = Constr.t * UVars.AbstractContext.t option
  = StagedMod(InterpActions)
 
 (** {6 Modules : start, end, declare} *)
