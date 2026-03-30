@@ -39,7 +39,7 @@ type inline =
 let default_inline_level = 100
 
 let { Goptions.get = default_inline_level } =
-  Goptions.declare_int_option_and_ref ~key:["Inline";"Level"] ~value:default_inline_level ()
+  Goptions.declare_int_option_and_ref ~stage:Synterp ~key:["Inline";"Level"] ~value:default_inline_level ()
 
 let default_inline_level () = Some (default_inline_level())
 
