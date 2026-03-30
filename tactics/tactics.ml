@@ -3199,38 +3199,6 @@ let evarconv_unify ?(state=TransparentState.full) ?(with_ho=true) x y =
     Proofview.tclZERO ~info (PretypeError (env, sigma, CannotUnify (x, y, None)))
   end
 
-(** [tclWRAPFINALLY before tac finally] runs [before] before each
-    entry-point of [tac] and passes the result of [before] to
-    [finally], which is then run at each exit-point of [tac],
-    regardless of whether it succeeds or fails.  Said another way, if
-    [tac] succeeds, then it behaves as [before >>= fun v -> tac >>= fun
-    ret -> finally v <*> tclUNIT ret]; otherwise, if [tac] fails with
-    [e], it behaves as [before >>= fun v -> finally v <*> tclZERO
-    e].  Note that if [tac] succeeds [n] times before finally failing,
-    [before] and [finally] are both run [n+1] times (once around each
-    succuess, and once more around the final failure). *)
-(* We should probably export this somewhere, but it's not clear
-   where. As per
-   https://github.com/rocq-prover/rocq/pull/12197#discussion_r418480525 and
-   https://gitter.im/coq/coq?at=5ead5c35347bd616304e83ef, we don't
-   export it from Proofview, because it seems somehow not primitive
-   enough.  We don't export it from this file because it is more of a
-   tactical than a tactic.  But we also don't export it from Tacticals
-   because all of the non-New tacticals there operate on `tactic`, not
-   `Proofview.tactic`, and all of the `New` tacticals that deal with
-   multi-success things are focussing, i.e., apply their arguments on
-   each goal separately (and it even says so in the comment on `New`),
-   whereas it's important that `tclWRAPFINALLY` doesn't introduce
-   extra focussing. *)
-let rec tclWRAPFINALLY before tac finally =
-  let open Proofview in
-  let open Proofview.Notations in
-  before >>= fun v -> tclCASE tac >>= function
-  | Fail (e, info) -> finally v >>= fun () -> tclZERO ~info e
-  | Next (ret, tac') -> tclOR
-                          (finally v >>= fun () -> tclUNIT ret)
-                          (fun e -> tclWRAPFINALLY before (tac' e) finally)
-
 let with_set_strategy lvl_ql k =
   let glob_key r =
     match r with
@@ -3254,17 +3222,15 @@ let with_set_strategy lvl_ql k =
     Environ.set_oracle env ts
   in
   let kl = List.concat (List.map (fun (lvl, ql) -> List.map (fun q -> (lvl, glob_key q)) ql) lvl_ql) in
-  tclWRAPFINALLY
-    (Proofview.tclENV >>= fun env ->
-     let orig_kl = get_strategy env kl in
-     let env = set_strategy env kl in
-     Proofview.Unsafe.tclSETENV env <*>
-     Proofview.tclUNIT orig_kl)
-    k
-    (fun orig_kl ->
-       Proofview.tclENV >>= fun env ->
-       let env = set_strategy env orig_kl in
-       Proofview.Unsafe.tclSETENV env)
+  Proofview.tclENV >>= fun env ->
+  let orig_kl = get_strategy env kl in
+  let env = set_strategy env kl in
+  Proofview.Unsafe.tclSETENV env <*>
+  k >>= fun res ->
+  Proofview.tclENV >>= fun env ->
+  let env = set_strategy env orig_kl in
+  Proofview.Unsafe.tclSETENV env <*>
+  Proofview.tclUNIT res
 
 module Simple = struct
   (** Simplified version of some of the above tactics *)
