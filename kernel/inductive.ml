@@ -1084,7 +1084,12 @@ let push_var_renv renv n (x,ty) =
 (* Fetch recursive information about a variable p *)
 let subterm_var p renv =
   try Lazy.force (List.nth renv.genv (p-1))
-  with Failure _ | Invalid_argument _ -> (* outside context of the fixpoint *) Subterm.not_subterm
+  with Failure _ | Invalid_argument _ ->
+    (* Check still that the variable is well scoped *)
+    if 1 <= p && p <= Environ.nb_rel renv.env then
+      Subterm.not_subterm
+    else
+      anomaly ~label:"fixpoint" Pp.(str "Index not found in current environment.")
 
 let push_ctxt_renv renv ctxt =
   let n = Context.Rel.length ctxt in
