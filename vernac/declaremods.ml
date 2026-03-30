@@ -310,37 +310,62 @@ type env = Actions.env
    - A alias (i.e. a module path inside a Ref constructor) should
      never lead to another alias, but rather to a concrete Objs
      constructor.
-
-   We will plug later a handler dealing with missing entries in the
-   cache. Such missing entries may come from inner parts of module
-   types, which aren't registered by the standard libobject machinery.
 *)
 
 module ModSubstObjs :
  sig
    val set : ModPath.t -> substitutive_objects -> unit
    val get : ModPath.t -> substitutive_objects
-   val set_missing_handler : (ModPath.t -> substitutive_objects) -> unit
+   val expand_aobjs : algebraic_objects -> Libobject.t list
+   val expand_sobjs : substitutive_objects -> Libobject.t list
  end =
  struct
    let table =
      Summary.ref ~stage:Actions.stage (ModPath.Map.empty : substitutive_objects ModPath.Map.t)
        ~name:Actions.substobjs_table_name
-   let missing_handler = ref (fun mp -> assert false)
-   let set_missing_handler f = (missing_handler := f)
+
    let set mp objs = (table := ModPath.Map.add mp objs !table)
-   let get mp =
-     try ModPath.Map.find mp !table with Not_found -> !missing_handler mp
+
+   let rec get mp =
+     try ModPath.Map.find mp !table with Not_found ->
+       handle_missing_substobjs mp
+
+   and expand_aobjs = function
+     | Objs o -> o
+     | Ref (mp, sub) ->
+       match get mp with
+       | (_,Objs o) -> subst_objects sub o
+       | _ -> assert false (* Invariant : any alias points to concrete objs *)
+
+   and expand_sobjs (_,aobjs) = expand_aobjs aobjs
+
+   (** {6 Handler for missing entries in ModSubstObjs} *)
+
+   (** Since the inner of Module Types are not added by default to
+       the ModSubstObjs table, we compensate this by explicit traversal
+       of Module Types inner objects when needed. Quite a hack... *)
+
+   and register_mod_objs mp obj =
+     let mp_id mp id = MPdot (mp, id) in
+     match obj with
+     | ModuleObject (id,sobjs) -> set (mp_id mp id) sobjs
+     | ModuleTypeObject (id,sobjs) -> set (mp_id mp id) sobjs
+     | IncludeObject aobjs ->
+       List.iter (register_mod_objs mp) (expand_aobjs aobjs)
+     | _ -> ()
+
+   and handle_missing_substobjs mp = match mp with
+     | MPdot (mp',l) ->
+       let objs = expand_sobjs (get mp') in
+       List.iter (register_mod_objs mp') objs;
+       get mp
+     | _ ->
+       assert false (* Only inner parts of module types should be missing *)
  end
 
-let expand_aobjs = function
-  | Objs o -> o
-  | Ref (mp, sub) ->
-    match ModSubstObjs.get mp with
-      | (_,Objs o) -> subst_objects sub o
-      | _ -> assert false (* Invariant : any alias points to concrete objs *)
+let expand_aobjs = ModSubstObjs.expand_aobjs
 
-let expand_sobjs (_,aobjs) = expand_aobjs aobjs
+let expand_sobjs = ModSubstObjs.expand_sobjs
 
 module Expand =
 struct
@@ -662,33 +687,6 @@ let import_modules ~export mpl =
   | Lib.Export ->
     let entry = ExportObject { mpl } in
     add_leaf_entry entry
-
-(** {6 Handler for missing entries in ModSubstObjs} *)
-
-(** Since the inner of Module Types are not added by default to
-    the ModSubstObjs table, we compensate this by explicit traversal
-    of Module Types inner objects when needed. Quite a hack... *)
-
-let mp_id mp id = MPdot (mp, id)
-
-let rec register_mod_objs mp obj = match obj with
-  | ModuleObject (id,sobjs) -> ModSubstObjs.set (mp_id mp id) sobjs
-  | ModuleTypeObject (id,sobjs) -> ModSubstObjs.set (mp_id mp id) sobjs
-  | IncludeObject aobjs ->
-    List.iter (register_mod_objs mp) (expand_aobjs aobjs)
-  | _ -> ()
-
-let handle_missing_substobjs mp = match mp with
-  | MPdot (mp',l) ->
-    let objs = expand_sobjs (ModSubstObjs.get mp') in
-    List.iter (register_mod_objs mp') objs;
-    ModSubstObjs.get mp
-  | _ ->
-    assert false (* Only inner parts of module types should be missing *)
-
-let () = ModSubstObjs.set_missing_handler handle_missing_substobjs
-
-
 
 (** {6 From module expression to substitutive objects} *)
 
