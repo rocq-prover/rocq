@@ -1758,33 +1758,34 @@ let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as r
   then anomaly (Pp.str "Ill-formed fix term.");
   let fixenv = push_rec_types recdef env in
   let raise_err = raise_fix_guard_err_fn env recdef names in
-  (* Check the i-th definition with recarg k *)
-  let find_ind i k def =
-    (* check fi does not appear in the k+1 first abstractions,
-       gives the type of the k+1-eme abstraction (must be an inductive)  *)
-    let rec check_occur env n def =
-      match kind (whd_all ?evars env def) with
-        | Lambda (x,a,b) ->
-            if noccur_with_meta n nbfix a then
-              let env' = push_rel (LocalAssum (x,a)) env in
-              if Int.equal n (k + 1) then
-                (* get the inductive type of the fixpoint *)
-                let (mind, _) =
-                  try find_inductive ?evars env a
-                  with Not_found ->
-                    raise_err env i (RecursionNotOnInductiveType a) in
-                let mib,_ = lookup_mind_specif env (out_punivs mind) in
-                if mib.mind_finite != Finite then
-                  raise_err env i (RecursionNotOnInductiveType a);
-                (mind, (env', b))
-              else check_occur env' (n+1) b
-            else anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
-        | _ -> raise_err env i (NotEnoughAbstractionInFixBody k)
-    in
-    check_occur fixenv 1 def
+  (* Check the i-th definition with recarg, under k binders *)
+  let rec find_ind env i recarg k def =
+    match kind (whd_all ?evars env def) with
+    | Lambda (na, ty, body) ->
+      (* check no recursive call appear in the recarg+1 first abstractions,
+         gives the type of the recarg+1-th abstraction (must be an inductive) *)
+      let () = if not (noccur_with_meta k nbfix ty) then
+        anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
+      in
+      let env = push_rel (LocalAssum (na, ty)) env in
+      if Int.equal k (recarg + 1) then
+        (* get the inductive type of the fixpoint *)
+        let (mind, _) =
+          try find_inductive ?evars env ty
+          with Not_found ->
+            raise_err env i (RecursionNotOnInductiveType ty)
+        in
+        let mib, _ = lookup_mind_specif env (out_punivs mind)in
+        let () = if mib.mind_finite != Finite then
+          raise_err env i (RecursionNotOnInductiveType ty)
+        in
+        (mind, (env, body))
+      else
+        find_ind env i recarg (k+1) body
+    | _ -> raise_err env i (NotEnoughAbstractionInFixBody recarg)
   in
   (* Do it on every fixpoint *)
-  let rv = Array.map2_i find_ind nvect bodies in
+  let rv = Array.map2_i (fun i recarg def -> find_ind fixenv i recarg 1 def) nvect bodies in
   (Array.map fst rv, Array.map snd rv)
 
 (* Returns the pairs of (inductive sort * output sort) or
