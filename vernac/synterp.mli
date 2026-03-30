@@ -45,6 +45,7 @@ type synterp_entry =
       ((Vernacexpr.export_flag * Libobject.open_filter) * Names.ModPath.t) list *
       module_entry Declaremods.module_signature *
       module_entry list
+  | EVernacAbbrevModule of bool (* local *) * lident * Names.ModPath.t
   | EVernacDeclareModuleType of lident *
       Declaremods.module_params_expr *
       ((Vernacexpr.export_flag * Libobject.open_filter) * Names.ModPath.t) list *

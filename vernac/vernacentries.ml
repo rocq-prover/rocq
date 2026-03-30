@@ -2570,6 +2570,10 @@ let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
        VtNoProof in all cases. *)
     vernac_begin_segment ~interactive:(List.is_empty mexprl) i
 
+  | EVernacAbbrevModule (local, lid, mp) ->
+    (* NB attributes checked in synterp *)
+    vtdefault (fun () -> Declaremods.in_mod_abbrev ~local lid.v mp)
+
   | EVernacDeclareModuleType (lid,bl,argsexport,mtys,exprl) ->
     vernac_begin_segment ~interactive:(List.is_empty exprl) (fun () ->
         unsupported_attributes atts;
