@@ -238,6 +238,7 @@ val pr_evd_level : evar_map -> Univ.Level.t -> Pp.t
 val pr_evd_qglobal : evar_map -> Sorts.QGlobal.t -> Pp.t
 val pr_evd_qvar : evar_map -> Sorts.QVar.t -> Pp.t
 val pr_evd_quality : evar_map -> Sorts.Quality.t -> Pp.t
+val pr_evd_universe : evar_map -> Univ.Universe.t -> Pp.t
 
 module Internal : sig
 
