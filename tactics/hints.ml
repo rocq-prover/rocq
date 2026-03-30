@@ -124,9 +124,6 @@ type 'a hints_path_gen =
 type pre_hints_path = Libnames.qualid hints_path_gen
 type hints_path = GlobRef.t hints_path_gen
 
-type hint_term =
-  | IsGlobRef of GlobRef.t
-
 type 'a with_uid = {
   obj : 'a;
   uid : KerName.t;
@@ -894,9 +891,6 @@ let make_exact_entry env sigma info ?name (c, cty, ctx) =
            db = (); secvars;
            code = with_uid (Give_exact h); })
 
-let name_of_hint = function
-| IsGlobRef gr -> Some gr
-
 let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
   let cty = if hnf then hnf_constr0 env sigma cty else cty in
   match EConstr.kind sigma cty with
@@ -934,15 +928,13 @@ let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
    c is a constr
    cty is the type of constr *)
 
-let fresh_global_or_constr env sigma cr = match cr with
-| IsGlobRef gr ->
+let fresh_global_hint env sigma gr =
   let (c, ctx) = UnivGen.fresh_global_instance env gr in
   let ctx = if Environ.is_polymorphic env gr then Some ctx else None in
   (EConstr.of_constr c, ctx)
 
 let make_resolves env sigma (eapply, hnf) info ~check cr =
-  let name = name_of_hint cr in
-  let c, ctx = fresh_global_or_constr env sigma cr in
+  let c, ctx = fresh_global_hint env sigma cr in
   let cty = Retyping.get_type_of env sigma c in
   let try_apply f =
     try
@@ -953,8 +945,8 @@ let make_resolves env sigma (eapply, hnf) info ~check cr =
     with Failure _ -> None
   in
   let ents = List.map_filter try_apply
-                             [make_exact_entry env sigma info ?name;
-                              make_apply_entry env sigma hnf info ?name]
+                             [make_exact_entry env sigma info ~name:cr;
+                              make_apply_entry env sigma hnf info ~name:cr]
   in
   if check && List.is_empty ents then
     user_err
@@ -1018,7 +1010,7 @@ let make_mode ref m =
 
 let make_trivial env sigma r =
   let name = Some r in
-  let c,ctx = fresh_global_or_constr env sigma (IsGlobRef r) in
+  let c, ctx = fresh_global_hint env sigma r in
   let sigma = merge_context_set_opt sigma ctx in
   let t = hnf_constr env sigma (Retyping.get_type_of env sigma c) in
   let hd = head_constr sigma t in
@@ -1378,7 +1370,7 @@ let add_resolves env sigma clist ~locality dbnames =
     (fun dbname ->
       let r =
         List.flatten (List.map (fun (pri, hnf, gr) ->
-          make_resolves env sigma (true, hnf) pri ~check:true (IsGlobRef gr)) clist)
+          make_resolves env sigma (true, hnf) pri ~check:true gr) clist)
       in
       let check (_, hint) = match hint.code.obj with
       | ERes_pf { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
@@ -1510,10 +1502,10 @@ let expand_constructor_hints env sigma lems =
     match lem with
     | GlobRef.IndRef ind ->
         List.init (nconstructors env ind)
-                  (fun i -> IsGlobRef (GlobRef.ConstructRef ((ind,i+1))))
-    | GlobRef.ConstRef cst -> [IsGlobRef (GlobRef.ConstRef cst)]
-    | GlobRef.VarRef id -> [IsGlobRef (GlobRef.VarRef id)]
-    | GlobRef.ConstructRef cstr -> [IsGlobRef (GlobRef.ConstructRef cstr)]) lems
+                  (fun i -> GlobRef.ConstructRef ((ind,i+1)))
+    | GlobRef.ConstRef cst -> [GlobRef.ConstRef cst]
+    | GlobRef.VarRef id -> [GlobRef.VarRef id]
+    | GlobRef.ConstructRef cstr -> [GlobRef.ConstructRef cstr]) lems
 (* builds a hint database from a constr signature *)
 (* typically used with (lid, ltyp) = pf_hyps_types <some goal> *)
 
@@ -1555,7 +1547,7 @@ let make_db_list dbnames =
   List.map lookup dbnames
 
 let push_resolves env sigma hint db =
-  let entries = make_resolves env sigma (true, false) empty_hint_info ~check:false (IsGlobRef hint) in
+  let entries = make_resolves env sigma (true, false) empty_hint_info ~check:false hint in
   Hint_db.add_list env sigma entries db
 
 let push_resolve_hyp env sigma decl db =
