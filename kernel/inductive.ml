@@ -1293,7 +1293,7 @@ let rec subterm_specif ?evars renv stack t =
     | (Meta _|Evar _) -> Subterm.dead_code
 
     | Proj (p, _, c) ->
-      let subt = subterm_specif ?evars renv stack c in
+      let subt = subterm_specif ?evars renv [] c in
       Subterm.on_projection subt (Projection.arg p)
 
     | Const c ->
