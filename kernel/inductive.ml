@@ -1294,8 +1294,8 @@ let rec subterm_specif ?evars renv stack t =
       let spec,stack' = extract_stack ?evars stack in
         subterm_specif ?evars (push_var renv (x,a,spec)) stack' b
 
-      (* Metas and evars are considered OK *)
-    | (Meta _|Evar _) -> Subterm.dead_code
+      (* Evars are considered OK *)
+    | Evar _ -> Subterm.dead_code
 
     | Proj (p, _, c) ->
       let subt = subterm_specif ?evars renv [] c in
@@ -1309,6 +1309,8 @@ let rec subterm_specif ?evars renv stack t =
           primitive_specif ?evars renv op l
         | NotEvaluableConst _ -> Subterm.not_subterm
       end
+
+    | Meta _ -> assert false
 
     | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Ind _
       | Construct _ | CoFix _ | Int _ | Float _ | String _
@@ -1685,9 +1687,10 @@ let check_one_fix ?evars renv recpos trees def =
             let rs = check_inert_subterm_rec_call renv rs ty in
             rs
 
-        (* l is not checked because it is considered as the meta's context *)
-        | (Evar _ | Meta _) ->
-            rs
+        (* stack is not checked because it will depend on evar definition *)
+        | Evar _ -> rs (* TODO: check if evar has a definition in ?evars *)
+
+        | Meta _ -> assert false
 
   and check_nested_fix_body illformed renv decr stack rs body =
     if Int.equal decr 0 then
@@ -1930,7 +1933,7 @@ let check_one_cofix ?evars env nbfix def deftype =
                  raise (CoFixGuardError (env,RecCallInCasePred c))
            end
 
-        | Meta _ -> ()
+        | Meta _ -> assert false
         | Evar _ ->
             List.iter (check_rec_call env alreadygrd n tree) args
         | Rel _ | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Const _
