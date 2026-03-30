@@ -1259,29 +1259,30 @@ let rec subterm_specif ?evars renv stack t =
         (match oind with
         | None -> Subterm.not_subterm (* happens if fix is polymorphic *)
         | Some (ind, _) ->
+        let stack = push_stack_closures renv l stack in
         let nbfix = Array.length typarray in
         let recargs = WfPaths.lookup_subterms renv.env ind in
                    (* pushing the fixpoints *)
-        let renv' = push_fix_renv renv recdef in
-        let renv' =
+        let renv = push_fix_renv renv recdef in
+        let renv =
                      (* Why Strict here ? To be general, it could also be
                         Large... *)
-          assign_var_spec renv'
+          assign_var_spec renv
           (nbfix-i, lazy (Subterm.strict_subterm recargs)) in
         let decrArg = recindxs.(i) in
         let theBody = bodies.(i)   in
         let nbOfAbst = decrArg+1 in
-        let sign,strippedBody = whd_decompose_lambda_n_assum ?evars renv'.env nbOfAbst theBody in
+        let sign,strippedBody = whd_decompose_lambda_n_assum ?evars renv.env nbOfAbst theBody in
                    (* pushing the fix parameters *)
-        let stack' = push_stack_closures renv l stack in
-        let renv'' = push_ctxt_renv renv' sign in
-        let renv'' =
-          if List.length stack' < nbOfAbst then renv''
+        let renv = push_ctxt_renv renv sign in
+        let renv =
+          if List.length stack < nbOfAbst then renv
           else
-            let decrArg = List.nth stack' decrArg in
+            let decrArg = List.nth stack decrArg in
             let arg_spec = stack_element_specif ?evars decrArg in
-              assign_var_spec renv'' (1, arg_spec) in
-          subterm_specif ?evars renv'' [] strippedBody)
+            assign_var_spec renv (1, arg_spec)
+        in
+        subterm_specif ?evars renv [] strippedBody)
 
     | Lambda (x,a,b) ->
       let () = assert (List.is_empty l) in
