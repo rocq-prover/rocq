@@ -13,3 +13,4 @@
 Require Export Corelib.Compat.Coq819.
 
 #[export] Set Warnings "-deprecated-since-8.19".
+#[export] Unset Asymmetric Patterns.

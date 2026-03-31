@@ -1450,7 +1450,7 @@ Arguments sub_refl {T mp} [x] mp_x.
  rather than topred pT A, had we put mem A := Mem (topred A).
 **)
 Definition mem T (pT : predType T) : pT -> mem_pred T :=
-  let: PredType toP := pT in fun A => Mem [eta toP A].
+  let: PredType _ toP := pT in fun A => Mem [eta toP A].
 Arguments mem {T pT} A : rename, simpl never.
 
 Notation "x \in A" := (in_mem x (mem A)) (only parsing) : bool_scope.
@@ -1624,7 +1624,7 @@ End PredicateSimplification.
 Variant qualifier (q : nat) T := Qualifier of {pred T}.
 
 Coercion has_quality n T (q : qualifier n T) : {pred T} :=
-  fun x => let: Qualifier _ p := q in p x.
+  fun x => let: Qualifier p := q in p x.
 Arguments has_quality n {T}.
 
 Lemma qualifE n T p x : (x \in @Qualifier n T p) = p x. Proof. by []. Qed.
