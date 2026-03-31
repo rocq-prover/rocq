@@ -146,11 +146,22 @@ let indices_matter = ref false
 
 let enable_vm = ref false
 
+let warn_no_bytecode =
+  CWarnings.create ~name:"bytecode-compiler-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
+    Pp.(fun () ->
+        str "Bytecode compiler is disabled," ++ spc() ++
+        str "-bytecode-compiler option ignored.")
+
 let make_senv () =
   let senv = Safe_typing.empty_environment in
   let senv = Safe_typing.set_impredicative_set !impredicative_set senv in
   let senv = Safe_typing.set_indices_matter !indices_matter senv in
-  let senv = Safe_typing.set_VM !enable_vm senv in
+  let senv =
+    if !enable_vm && not Coq_config.bytecode_compiler then begin
+      warn_no_bytecode ();
+      senv
+    end else Safe_typing.set_VM !enable_vm senv
+  in
   let senv = Safe_typing.set_allow_sprop true senv in (* be smarter later *)
   Safe_typing.set_native_compiler false senv
 

@@ -814,7 +814,7 @@ let openmod_syntax_info () = match !openmod_syntax_info with
 
 let vm_state =
   (* VM bytecode is not needed here *)
-  let vm_handler _ _ _ () = (), None in
+  let vm_handler _ _ _ () = (), Vmemitcodes.BCuncompiled in
   ((), { Mod_typing.vm_handler })
 
 module RawModOps = struct
@@ -1001,7 +1001,7 @@ let build_subtypes env mp args mtys =
       let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
       (* functor arguments are already part of the env, we compute the type
          and requantify over them *)
-      let mtb, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
+      let mtb, (_, cst), () = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
       let fold (mbid, mtb, _, _) accu =
         MoreFunctor (mbid, mtb, accu)
       in

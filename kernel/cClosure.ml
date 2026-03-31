@@ -148,11 +148,10 @@ let drop_opaque = function
 | Def _ | Undef _ | Primitive _ | Symbol _ as body -> body
 
 let drop_code env = function
-| None -> Vmemitcodes.BCconstant
-| Some (Vmemitcodes.BCdefined (mask, idx, patch)) ->
+| Vmemitcodes.BCdefined (mask, idx, patch) ->
   let code () = Environ.lookup_vm_code idx env in
   Vmemitcodes.BCdefined (mask, code, patch)
-| Some (BCalias _ | BCconstant as code) -> code
+| (BCalias _ | BCconstant | BCuncompiled as code) -> code
 
 let lookup_constant_handler env sigma cst = match lookup_constant_opt cst env with
 | None -> sigma.abstr_const cst
@@ -430,7 +429,7 @@ end = struct
         if TransparentState.is_transparent_constant ts cst then match cb.const_body with
         | Undef _ | Def _ | OpaqueDef _ | Primitive _ ->
           let mask = match cb.const_body_code with
-          | (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant) -> [||]
+          | (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant | BCuncompiled) -> [||]
           | (Vmemitcodes.BCdefined (mask, _, _)) -> mask
           in
           Def (constant_value_in u cb.const_body, mask)

@@ -30,6 +30,7 @@ type injection_command =
   | RequireInjection of require_injection
   (** Require libraries before the initial state is
       ready. *)
+  | WarnNoBytecode
   | WarnNoNative of string
   (** Used so that "-w -native-compiler-disabled -native-compiler yes"
      does not cause a warning. The native option must be processed

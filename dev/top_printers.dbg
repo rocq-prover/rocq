@@ -41,6 +41,7 @@ install_printer Top_printers.ppmindmapenvgen
 install_printer Top_printers.ppididmap
 install_printer Top_printers.ppconstrunderbindersidmap
 install_printer Top_printers.ppevarsubst
+install_printer Top_printers.ppgenlam
 install_printer Top_printers.ppunbound_ltac_var_map
 install_printer Top_printers.ppclosure
 install_printer Top_printers.ppclosedglobconstr

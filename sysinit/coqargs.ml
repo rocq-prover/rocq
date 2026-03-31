@@ -41,6 +41,7 @@ type require_injection = { lib: string; prefix: string option; export: export_fl
 type injection_command =
   | OptionInjection of (string list * option_command)
   | RequireInjection of require_injection
+  | WarnNoBytecode
   | WarnNoNative of string
   | WarnNativeDeprecated
 
@@ -106,8 +107,6 @@ type t = {
 
 let default_toplevel = "Top"
 
-let default_native = Coq_config.native_compiler
-
 let default_logic_config = {
   impredicative_set = false;
   indices_matter = false;
@@ -120,8 +119,8 @@ let default_config = {
   logic        = default_logic_config;
   rcfile       = None;
   coqlib       = None;
-  enable_VM    = true;
-  native_compiler = default_native;
+  enable_VM    = Coq_config.bytecode_compiler;
+  native_compiler = Coq_config.native_compiler;
   native_output_dir = ".coq-native";
   native_include_dirs = [];
   output_directory = None;
@@ -228,6 +227,10 @@ let parse_option_set opt =
     let len = String.length opt in
     let v = String.sub opt (eqi+1) (len - eqi - 1) in
     to_opt_key (String.sub opt 0 eqi), Some v
+
+let get_bytecode_compiler_warns b =
+  if b && not Coq_config.bytecode_compiler then [WarnNoBytecode]
+  else []
 
 let get_native_compiler s =
   (* We use two boolean flags because the four states make sense, even if
@@ -345,7 +348,10 @@ let parse_args ~init arglist : t * string list =
     |"-w" | "-W" -> add_set_warnings oval (next())
 
     |"-bytecode-compiler" ->
-      { oval with config = { oval.config with enable_VM = get_bool ~opt (next ()) }}
+      let b = get_bool ~opt (next ()) in
+      let warn = get_bytecode_compiler_warns b in
+      { oval with config = { oval.config with enable_VM = b };
+                  pre = { oval.pre with injections = warn @ oval.pre.injections }}
 
     |"-native-compiler" ->
       let native_compiler, warn = get_native_compiler (next ()) in

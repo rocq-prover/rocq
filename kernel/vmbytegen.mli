@@ -20,7 +20,7 @@ val compile :
 
 val compile_constant_body : fail_on_error:bool ->
   env -> universes -> (Constr.t, 'opaque, 'symb) constant_def ->
-  body_code option
+  body_code
 
 (** Shortcut of the previous function used during module strengthening *)
 
