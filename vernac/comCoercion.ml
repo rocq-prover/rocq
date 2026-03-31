@@ -15,7 +15,6 @@ open Names
 open Term
 open Constr
 open Context
-open Vars
 open Environ
 open Coercionops
 open Declare
@@ -174,32 +173,33 @@ let error_not_transparent source =
     (pr_class source ++ str " must be a transparent constant.")
 
 let build_id_coercion ?loc idf_opt source poly =
+  let open EConstr in
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma, vs = match source with
     | CL_CONST sp -> Evd.fresh_global env sigma (GlobRef.ConstRef sp)
     | _ -> error_not_transparent source in
-  let vs = EConstr.Unsafe.to_constr vs in
-  let c = match constant_opt_value_in env (destConst vs) with
+  let c = match constant_opt_value_in env (Constr.destConst (EConstr.Unsafe.to_constr vs)) with
     | Some c -> c
     | None -> error_not_transparent source in
-  let lams,t = decompose_lambda_decls c in
+  let c = EConstr.of_constr c in
+  let lams,t = decompose_lambda_decls sigma c in
+  let vs_app = applistc vs (Context.Rel.instance_list mkRel 0 lams) in
+  let r = Retyping.relevance_of_type (push_rel_context lams env) sigma vs_app in
   let val_f =
-    Term.it_mkLambda_or_LetIn
-      (mkLambda (make_annot (Name Namegen.default_dependent_ident) Sorts.Relevant,
-                 applistc vs (Context.Rel.instance_list mkRel 0 lams),
-                 mkRel 1))
+    it_mkLambda_or_LetIn
+      (mkLambda (make_annot (Name Namegen.default_dependent_ident) r, vs_app, mkRel 1))
        lams
   in
   let typ_f =
-    List.fold_left (fun d c -> Term.mkProd_wo_LetIn c d)
-      (mkProd (make_annot Anonymous Sorts.Relevant, applistc vs (Context.Rel.instance_list mkRel 0 lams), lift 1 t))
+    List.fold_left (fun d c -> mkProd_wo_LetIn c d)
+      (mkProd (make_annot Anonymous r, vs_app, EConstr.Vars.lift 1 t))
       lams
   in
   (* juste pour verification *)
-  let sigma, val_t = Typing.type_of env sigma (EConstr.of_constr val_f) in
+  let sigma, val_t = Typing.type_of env sigma val_f in
   let () =
-    if not (Reductionops.is_conv_leq env sigma val_t (EConstr.of_constr typ_f))
+    if not (Reductionops.is_conv_leq env sigma val_t typ_f)
     then
       user_err  (strbrk
         "Cannot be defined as coercion (maybe a bad number of arguments).")
@@ -208,15 +208,17 @@ let build_id_coercion ?loc idf_opt source poly =
     match idf_opt with
       | Some idf -> idf
       | None ->
-          let cl,u,_ = find_class_type env sigma (EConstr.of_constr t) in
+          let cl,u,_ = find_class_type env sigma t in
           Id.of_string ("Id_"^(ident_key_of_class source)^"_"^
                         (ident_key_of_class cl))
   in
   let univs = Evd.univ_entry ~poly sigma in
+  let val_f = EConstr.to_constr sigma val_f in
+  let typ_f = EConstr.to_constr sigma typ_f in
   let constr_entry = (* Cast is necessary to express [val_f] is identity *)
     DefinitionEntry
       (definition_entry ~types:typ_f ~univs
-         ~inline:true (mkCast (val_f, DEFAULTcast, typ_f)))
+         ~inline:true (Constr.mkCast (val_f, DEFAULTcast, typ_f)))
   in
   let kind = Decls.(IsDefinition IdentityCoercion) in
   let kn = declare_constant ?loc ~name ~kind constr_entry in
