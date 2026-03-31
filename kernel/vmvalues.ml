@@ -100,7 +100,7 @@ let hash_structured_values (v : structured_values) =
 let eq_structured_constant c1 c2 = match c1, c2 with
 | Const_sort s1, Const_sort s2 -> Sorts.equal s1 s2
 | Const_sort _, _ -> false
-| Const_ind i1, Const_ind i2 -> Ind.CanOrd.equal i1 i2
+| Const_ind i1, Const_ind i2 -> Ind.UserOrd.equal i1 i2
 | Const_ind _, _ -> false
 | Const_evar e1, Const_evar e2 -> Evar.equal e1 e2
 | Const_evar _, _ -> false
@@ -121,7 +121,7 @@ let hash_structured_constant c =
   let open Hashset.Combine in
   match c with
   | Const_sort s -> combinesmall 1 (Sorts.hash s)
-  | Const_ind i -> combinesmall 2 (Ind.CanOrd.hash i)
+  | Const_ind i -> combinesmall 2 (Ind.UserOrd.hash i)
   | Const_evar e -> combinesmall 3 (Evar.hash e)
   | Const_b0 t -> combinesmall 4 (Int.hash t)
   | Const_univ_instance u -> combinesmall 5 (UVars.Instance.hash u)
@@ -252,7 +252,7 @@ type id_key =
 | EvarKey of Evar.t
 
 let eq_id_key (k1 : id_key) (k2 : id_key) = match k1, k2 with
-| ConstKey c1, ConstKey c2 -> Constant.CanOrd.equal c1 c2
+| ConstKey c1, ConstKey c2 -> Constant.UserOrd.equal c1 c2
 | VarKey id1, VarKey id2 -> Id.equal id1 id2
 | RelKey n1, RelKey n2 -> Int.equal n1 n2
 | EvarKey evk1, EvarKey evk2 -> Evar.equal evk1 evk2
@@ -443,7 +443,7 @@ struct
   let equal = eq_id_key
   open Hashset.Combine
   let hash : t -> tag = function
-  | ConstKey c -> combinesmall 1 (Constant.CanOrd.hash c)
+  | ConstKey c -> combinesmall 1 (Constant.UserOrd.hash c)
   | VarKey id -> combinesmall 2 (Id.hash id)
   | RelKey i -> combinesmall 3 (Int.hash i)
   | EvarKey evk -> combinesmall 4 (Evar.hash evk)
