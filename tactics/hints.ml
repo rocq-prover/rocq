@@ -29,8 +29,6 @@ open Patternops
 open Tacred
 open Printer
 
-module NamedDecl = Context.Named.Declaration
-
 (****************************************)
 (* General functions                    *)
 (****************************************)
@@ -870,7 +868,15 @@ let secvars_of_constr env sigma c =
 let secvars_of_global env gr =
   secvars_of_idset (vars_of_global env gr)
 
-let make_exact_entry env sigma info ?name (c, cty, ctx) =
+let fresh_global_hint env sigma gr =
+  let (c, ctx) = UnivGen.fresh_global_instance env gr in
+  let c = EConstr.of_constr c in
+  let ctx = if Environ.is_polymorphic env gr then Some ctx else None in
+  let cty = Retyping.get_type_of env sigma c in
+  (c, cty, ctx)
+
+let make_exact_entry env sigma info gr =
+  let (c, cty, ctx) = fresh_global_hint env sigma gr in
   let secvars = secvars_of_constr env sigma c in
   let cty = strip_outer_cast sigma cty in
     match EConstr.kind sigma cty with
@@ -887,11 +893,12 @@ let make_exact_entry env sigma info ?name (c, cty, ctx) =
         in
         let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = 0 } in
         (Some hd,
-         { pri; pat = Some pat; name;
+         { pri; pat = Some pat; name = Some gr;
            db = (); secvars;
            code = with_uid (Give_exact h); })
 
-let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
+let make_apply_entry env sigma hnf info gr =
+  let (c, cty, ctx) = fresh_global_hint env sigma gr in
   let cty = if hnf then hnf_constr0 env sigma cty else cty in
   match EConstr.kind sigma cty with
   | Prod _ ->
@@ -913,13 +920,13 @@ let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
     let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = hyps; } in
     if Int.equal nmiss 0 then
       (Some hd,
-       { pri; pat = Some pat; name;
+       { pri; pat = Some pat; name = Some gr;
          db = ();
          secvars;
          code = with_uid (Res_pf h); })
     else
       (Some hd,
-       { pri; pat = Some pat; name;
+       { pri; pat = Some pat; name = Some gr;
          db = (); secvars;
          code = with_uid (ERes_pf h); })
   | _ -> failwith "make_apply_entry"
@@ -928,41 +935,30 @@ let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
    c is a constr
    cty is the type of constr *)
 
-let fresh_global_hint env sigma gr =
-  let (c, ctx) = UnivGen.fresh_global_instance env gr in
-  let ctx = if Environ.is_polymorphic env gr then Some ctx else None in
-  (EConstr.of_constr c, ctx)
-
 let make_resolves env sigma (eapply, hnf) info ~check cr =
-  let c, ctx = fresh_global_hint env sigma cr in
-  let cty = Retyping.get_type_of env sigma c in
   let try_apply f =
     try
-      let (_, hint) as ans = f (c, cty, ctx) in
+      let (_, hint) as ans = f cr in
       match hint.code.obj with
       | ERes_pf _ -> if not eapply then None else Some ans
       | _ -> Some ans
     with Failure _ -> None
   in
   let ents = List.map_filter try_apply
-                             [make_exact_entry env sigma info ~name:cr;
-                              make_apply_entry env sigma hnf info ~name:cr]
+                             [make_exact_entry env sigma info;
+                              make_apply_entry env sigma hnf info]
   in
   if check && List.is_empty ents then
     user_err
-      (pr_leconstr_env env sigma c ++ spc() ++
+      (Printer.pr_global cr ++ spc() ++
         (if eapply then str"cannot be used as a hint."
         else str "can be used as a hint only for eauto."));
   ents
 
 (* used to add an hypothesis to the local hint database *)
 let make_resolve_hyp env sigma hname =
-  let decl = EConstr.lookup_named hname env in
-  let c = mkVar hname in
   try
-    [make_apply_entry env sigma true empty_hint_info
-       ~name:(GlobRef.VarRef hname)
-       (c, NamedDecl.get_type decl, None)]
+    [make_apply_entry env sigma true empty_hint_info (GlobRef.VarRef hname)]
   with
     | Failure _ -> []
     | e when noncritical e -> anomaly (Pp.str "make_resolve_hyp.")
@@ -1009,16 +1005,15 @@ let make_mode ref m =
     else m'
 
 let make_trivial env sigma r =
-  let name = Some r in
-  let c, ctx = fresh_global_hint env sigma r in
+  let c, cty, ctx = fresh_global_hint env sigma r in
   let sigma = merge_context_set_opt sigma ctx in
-  let t = hnf_constr env sigma (Retyping.get_type_of env sigma c) in
+  let t = hnf_constr env sigma cty in
   let hd = head_constr sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
    { pri=1;
      pat = Some DefaultPattern;
-     name = name;
+     name = Some r;
      db = ();
      secvars = secvars_of_constr env sigma c;
      code= with_uid (Res_pf_THEN_trivial_fail h) })
