@@ -149,6 +149,7 @@ val decompose_lambda_prod_n_decls : int -> constr -> types -> Constr.rel_context
 val decompose_lambda_n_assum : int -> constr -> Constr.rel_context * constr
 
 (** Idem, counting let-ins *)
+val decompose_lambda_n_decls_opt : int -> constr -> (Constr.rel_context * constr) option
 val decompose_lambda_n_decls : int -> constr -> Constr.rel_context * constr
 
 (** Return the premisses/parameters of a type/term (let-in included) *)

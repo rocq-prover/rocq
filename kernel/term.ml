@@ -314,20 +314,25 @@ let decompose_lambda_n_assum n =
    the inner body [T].
    Lets in between are not expanded but turn into local definitions,
    and n is the number of lambdas and lets to decompose. *)
-let decompose_lambda_n_decls n =
+let decompose_lambda_n_decls_opt n c =
   if n < 0 then
     anomaly (str "decompose_lambda_n_decls: integer parameter must be positive.");
   let rec lamdec_rec l n c =
-    if Int.equal n 0 then l,c
+    if Int.equal n 0 then Some (l,c)
     else
       let open Context.Rel.Declaration in
       match kind c with
       | Lambda (x,t,c)  -> lamdec_rec (Context.Rel.add (LocalAssum (x,t)) l) (n-1) c
       | LetIn (x,b,t,c) -> lamdec_rec (Context.Rel.add (LocalDef (x,b,t)) l) (n-1) c
       | Cast (c,_,_)    -> lamdec_rec l n c
-      | _ -> anomaly (str "decompose_lambda_n_decls: not enough declarations.")
+      | _ -> None
   in
-  lamdec_rec Context.Rel.empty n
+  lamdec_rec Context.Rel.empty n c
+
+let decompose_lambda_n_decls n c =
+  match decompose_lambda_n_decls_opt n c with
+  | Some v -> v
+  | None -> anomaly (str "decompose_lambda_n_decls: not enough declarations.")
 
 let prod_decls t = fst (decompose_prod_decls t)
 let prod_n_decls n t = fst (decompose_prod_n_decls n t)
