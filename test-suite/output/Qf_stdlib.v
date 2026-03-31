@@ -13,5 +13,5 @@ Require Import Corelib.ssr.ssrbool.
 From Corelib Require Import ssreflect ssrbool.
 
 (* Note: this tests the two different lookup modes *)
-About Coq.Init.Nat.add.
-Check Coq.Init.Nat.add.
+#[warning="deprecated-dirpath-Coq"] About Coq.Init.Nat.add.
+#[warning="deprecated-dirpath-Coq"] Check Coq.Init.Nat.add.

@@ -1,8 +1,8 @@
-File "./output/Qf_stdlib.v", line 16, characters 6-22:
+File "./output/Qf_stdlib.v", line 16, characters 42-58:
 Warning: Coq.Init.Nat.add has been replaced by Corelib.Init.Nat.add.
 [deprecated-dirpath-Coq,deprecated-since-9.0,deprecated,default]
 Quickfix:
-Replace File "./output/Qf_stdlib.v", line 16, characters 6-22 with Corelib.Init.Nat.add
+Replace File "./output/Qf_stdlib.v", line 16, characters 42-58 with Corelib.Init.Nat.add
 Nat.add : nat -> nat -> nat
 
 Nat.add is not universe polymorphic
@@ -10,10 +10,10 @@ Arguments Nat.add (n m)%_nat_scope
 Nat.add is transparent
 Expands to: Constant Corelib.Init.Nat.add
 Declared in library Corelib.Init.Nat, line 47, characters 9-12
-File "./output/Qf_stdlib.v", line 17, characters 6-22:
+File "./output/Qf_stdlib.v", line 17, characters 42-58:
 Warning: Coq.Init.Nat.add has been replaced by Corelib.Init.Nat.add.
 [deprecated-dirpath-Coq,deprecated-since-9.0,deprecated,default]
 Quickfix:
-Replace File "./output/Qf_stdlib.v", line 17, characters 6-22 with Corelib.Init.Nat.add
+Replace File "./output/Qf_stdlib.v", line 17, characters 42-58 with Corelib.Init.Nat.add
 Nat.add
      : nat -> nat -> nat

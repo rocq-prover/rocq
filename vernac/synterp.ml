@@ -254,7 +254,7 @@ end
 
 let warn_deprecated_from_Coq =
   CWarnings.create ~name:"deprecated-from-Coq"
-    ~category:Deprecation.Version.v9_0
+    ~category:Deprecation.Version.v9_0 ~default:AsError
     ~quickfix:(fun ~loc qid -> [Quickfix.make ~loc (Libnames.pr_qualid qid)])
     (fun (_qid : qualid) -> strbrk
         "\"From Coq\" has been replaced by \"From Stdlib\".")
