@@ -16,12 +16,10 @@ open Constr
 open Context
 open Evd
 open EConstr
-open Vars
 open Environ
 open Mod_subst
 open Globnames
 open Libobject
-open Namegen
 open Libnames
 open Termops
 open Inductiveops
@@ -128,7 +126,6 @@ type hints_path = GlobRef.t hints_path_gen
 
 type hint_term =
   | IsGlobRef of GlobRef.t
-  | IsConstr of constr * UnivGen.sort_context_set option (* None if monomorphic *)
 
 type 'a with_uid = {
   obj : 'a;
@@ -899,7 +896,6 @@ let make_exact_entry env sigma info ?name (c, cty, ctx) =
 
 let name_of_hint = function
 | IsGlobRef gr -> Some gr
-| IsConstr _ -> None
 
 let make_apply_entry env sigma hnf info ?name (c, cty, ctx) =
   let cty = if hnf then hnf_constr0 env sigma cty else cty in
@@ -943,7 +939,6 @@ let fresh_global_or_constr env sigma cr = match cr with
   let (c, ctx) = UnivGen.fresh_global_instance env gr in
   let ctx = if Environ.is_polymorphic env gr then Some ctx else None in
   (EConstr.of_constr c, ctx)
-| IsConstr (c, ctx) -> (c, ctx)
 
 let make_resolves env sigma (eapply, hnf) info ~check cr =
   let name = name_of_hint cr in
@@ -1470,42 +1465,6 @@ type hints_entry =
   | HintsModeEntry of GlobRef.t * hint_mode list
   | HintsExternEntry of hint_info * Gentactic.glob_generic_tactic
 
-let default_prepare_hint_ident = Id.of_string "H"
-
-exception Found of constr * types
-
-let prepare_hint env init (sigma,c) =
-  let sigma = Typeclasses.resolve_typeclasses ~fail:false env sigma in
-  (* We re-abstract over uninstantiated evars and universes.
-     It is actually a bit stupid to generalize over evars since the first
-     thing make_resolves will do is to re-instantiate the products *)
-  let c = Evarutil.nf_evar sigma c in
-  let c = drop_extra_implicit_args sigma c in
-  let vars = ref (collect_vars sigma c) in
-  let subst = ref [] in
-  let rec find_next_evar c = match EConstr.kind sigma c with
-    | Evar (evk,args as ev) ->
-      (* We skip the test whether args is the identity or not *)
-      let t = Evarutil.nf_evar sigma (existential_type sigma ev) in
-      let t = List.fold_right (fun (e,id) c -> replace_term sigma e id c) !subst t in
-      if not (closed0 sigma c) then
-        user_err Pp.(str "Hints with holes dependent on a bound variable not supported.");
-      if occur_existential sigma t then
-        (* Not clever enough to construct dependency graph of evars *)
-        user_err Pp.(str "Not clever enough to deal with evars dependent in other evars.");
-      raise (Found (c,t))
-    | _ -> EConstr.iter sigma find_next_evar c in
-  let rec iter c =
-    try find_next_evar c; c
-    with Found (evar,t) ->
-      let id = next_ident_away_from default_prepare_hint_ident (fun id -> Id.Set.mem id !vars) in
-      vars := Id.Set.add id !vars;
-      subst := (evar,mkVar id)::!subst;
-      mkNamedLambda sigma (make_annot id ERelevance.relevant) t (iter (replace_term sigma evar (mkVar id) c)) in
-  let c' = iter c in
-    let diff = UnivGen.diff_sort_context (Evd.sort_context_set sigma) (Evd.sort_context_set init) in
-    (c', diff)
-
 let warn_non_local_section_hint =
   CWarnings.create ~name:"non-local-section-hint" ~category:CWarnings.CoreCategories.automation
     (fun () -> strbrk "This hint is not local but depends on a section variable. It will disappear when the section is closed.")
@@ -1546,26 +1505,15 @@ let add_hints ~locality dbnames h =
   | HintsExternEntry (info, tacexp) ->
       add_externs info tacexp ~locality dbnames
 
-let warn_non_reference_hint_using =
-  CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.deprecated
-    Pp.(fun (env, sigma, c) -> str "Use of the non-reference term " ++ pr_leconstr_env env sigma c ++ str " in \"using\" clauses is deprecated")
-
 let expand_constructor_hints env sigma lems =
   List.map_append (fun lem ->
-    let evd, lem = lem env sigma in
-    let lem0 = drop_extra_implicit_args evd lem in
-    match EConstr.kind evd lem0 with
-    | Ind (ind,u) ->
+    match lem with
+    | GlobRef.IndRef ind ->
         List.init (nconstructors env ind)
                   (fun i -> IsGlobRef (GlobRef.ConstructRef ((ind,i+1))))
-    | Const (cst, _) -> [IsGlobRef (GlobRef.ConstRef cst)]
-    | Var id -> [IsGlobRef (GlobRef.VarRef id)]
-    | Construct (cstr, _) -> [IsGlobRef (GlobRef.ConstructRef cstr)]
-    | _ ->
-      let () = warn_non_reference_hint_using (env, evd, lem) in
-      let (c, ctx) = prepare_hint env sigma (evd,lem) in
-      let ctx = if UnivGen.is_empty_sort_context ctx then None else Some ctx in
-      [IsConstr (c, ctx)]) lems
+    | GlobRef.ConstRef cst -> [IsGlobRef (GlobRef.ConstRef cst)]
+    | GlobRef.VarRef id -> [IsGlobRef (GlobRef.VarRef id)]
+    | GlobRef.ConstructRef cstr -> [IsGlobRef (GlobRef.ConstructRef cstr)]) lems
 (* builds a hint database from a constr signature *)
 (* typically used with (lid, ltyp) = pf_hyps_types <some goal> *)
 

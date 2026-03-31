@@ -335,6 +335,22 @@ and tac_of_hint dbg db_list local_db concl =
   in
   fun h -> tclLOG dbg (pr_hint h) (FullHint.run h tactic)
 
+let warn_non_reference_hint_using =
+  CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.automation
+    Pp.(fun (env, sigma, c) -> str "Use of the non-reference term " ++ Printer.pr_leconstr_env env sigma c ++ str " in \"using\" clauses is ignored.")
+
+let get_reference_hints env sigma lems =
+  let map lem =
+    let evd, lem = lem env sigma in
+    let lem0 = drop_extra_implicit_args evd lem in
+    match EConstr.destRef evd lem0 with
+    | (gr, _) -> Some gr
+    | exception Constr.DestKO ->
+      let () = warn_non_reference_hint_using (env, evd, lem) in
+      None
+  in
+  List.map_filter map lems
+
 (** The use of the "core" database can be de-activated by passing
     "nocore" amongst the databases. *)
 
@@ -342,6 +358,7 @@ let gen_trivial ?(debug=Off) lems dbnames =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let lems = get_reference_hints env sigma lems in
     let db_list =
       match dbnames with
       | Some dbnames -> make_db_list dbnames
@@ -408,6 +425,9 @@ let default_search_depth = 5
 
 let gen_auto ?(debug=Off) n lems dbnames =
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let lems = get_reference_hints env sigma lems in
     let n = match n with None -> default_search_depth | Some n -> n in
     let db_list =
       match dbnames with

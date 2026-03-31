@@ -85,6 +85,14 @@ Tactics
       variant is very useful for getting a better understanding of automation, or
       to know what lemmas/assumptions were used.
 
+   .. warn:: Use of the non-reference term @term in “using” clauses is ignored
+
+      Any non-reference term passed in a `using` clause is ignored. We
+      recommend adding such hints to the context via the :tacn:`pose proof`
+      tactic instead. For backwards compatibility, we still parse any term
+      in `using` clause for the time being, but you should consider
+      removing them.
+
 .. _info_auto_not_exact:
 
       The tactics shown in the info or debug output currently don't

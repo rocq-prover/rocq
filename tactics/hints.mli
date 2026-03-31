@@ -13,7 +13,6 @@ open Names
 open EConstr
 open Environ
 open Evd
-open Tactypes
 open Typeclasses
 
 (** {6 General functions. } *)
@@ -218,7 +217,7 @@ val push_resolve_hyp :
    Useful to take the current goal hypotheses as hints;
    Boolean tells if lemmas with evars are allowed *)
 
-val make_local_hint_db : env -> evar_map -> ?ts:TransparentState.t -> bool -> delayed_open_constr list -> hint_db
+val make_local_hint_db : env -> evar_map -> ?ts:TransparentState.t -> bool -> GlobRef.t list -> hint_db
 
 val make_db_list : hint_db_name list -> hint_db list
 

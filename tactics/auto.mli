@@ -18,6 +18,8 @@ open Tactypes
 
 val compute_secvars : Proofview.Goal.t -> Id.Pred.t
 
+val get_reference_hints : Environ.env -> Evd.evar_map -> delayed_open_constr list -> GlobRef.t list
+
 (** Default maximum search depth used by [auto] and [trivial]. *)
 val default_search_depth : int
 
