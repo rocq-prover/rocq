@@ -76,7 +76,6 @@ Declare ML Module "rocq-runtime.plugins.ssreflect".
  More information about these definitions and their use can be found in the
  ssreflect manual, and in specific comments below.                           **)
 
-Set Universe Polymorphism.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -403,6 +402,7 @@ Ltac ssrdone0 :=
    | match goal with H : ~ _ |- _ => solve [case H; trivial] end ].
 
 (**  To unlock opaque constants.  **)
+#[universes(template)]
 Structure unlockable T v := Unlockable {unlocked : T; _ : unlocked = v}.
 Lemma unlock T x C : @unlocked T x C = x. Proof. by case: C. Qed.
 
