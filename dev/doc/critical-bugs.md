@@ -29,6 +29,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint](#guard-checker-does-not-check-for-correct-recursive-calls-when-passed-as-uniform-argument-in-a-nested-fixpoint)
       - [guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-count-argument-less-recursive-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
+      - [guard checker sometimes does reduction in the wrong context, accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context,-accepting-wrong-fixpoints)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -321,6 +322,16 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: V9.2.0 ([#21798](https://github.com/rocq-prover/rocq/pull/21798))
 - found by: Pierre-Marie Pédrot
 - exploit / GH issue: [#21797](https://github.com/rocq-prover/rocq/issues/21797)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker sometimes does reduction in the wrong context, accepting wrong fixpoints
+- component: guard checking
+- introduced: V8.16 ([#15453](https://github.com/rocq-prover/rocq/pull/15453))
+- impacted released versions: V8.16, V8.17, V8.19, V8.20, V9.0, V9.1, V9.2.0
+- impacted coqchk versions: Same
+- fixed in: V9.3 ([#21845](https://github.com/rocq-prover/rocq/pull/21845))
+- found by: Yann Leray
+- exploit / GH issue: [#21839](https://github.com/rocq-prover/rocq/issues/21839)
 - risk: unknown (no development in CI was affected)
 
 ### Module system
