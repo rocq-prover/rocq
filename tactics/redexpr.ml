@@ -57,13 +57,12 @@ let { Goptions.get = simplIsCbn } =
 let set_strategy_one ref l =
   Global.set_strategy (Evaluable.to_kevaluable ref) l
 
-let cache_strategy (_,str) =
+let cache_strategy str =
   List.iter
     (fun (lev,ql) -> List.iter (fun q -> set_strategy_one q lev) ql)
     str
 
-let subst_strategy (subs,(local,obj)) =
-  local,
+let subst_strategy (subs,obj) =
   List.Smart.map
     (fun (k,ql as entry) ->
       let ql' = List.Smart.map (Tacred.subst_evaluable_reference subs) ql in
@@ -80,11 +79,7 @@ let map_strategy f l =
               Some q' -> q' :: ql
             | None -> ql) ql [] in
       if List.is_empty ql' then str else (lev,ql')::str) l [] in
-  if List.is_empty l' then None else Some (false,l')
-
-let classify_strategy (local,_) =
-  let open Libobject in
-  if local then Dispose else Substitute
+  if List.is_empty l' then None else Some l'
 
 let disch_ref ref =
   match ref with
@@ -94,22 +89,17 @@ let disch_ref ref =
     Some (Evaluable.EvalProjectionRef p)
   | Evaluable.EvalVarRef id -> if Global.is_in_section (GlobRef.VarRef id) then None else Some ref
 
-let discharge_strategy (local,obj) =
-  if local then None else
+let discharge_strategy obj =
   map_strategy disch_ref obj
 
-type strategy_obj = bool * (Conv_oracle.level * Evaluable.t list) list
+type strategy_obj = (Conv_oracle.level * Evaluable.t list) list
 
-let inStrategy : strategy_obj -> Libobject.obj =
+let inStrategy : _ * strategy_obj -> Libobject.obj =
   let open Libobject in
-  declare_object
-    {(default_object "STRATEGY") with
-     cache_function = cache_strategy;
-     load_function = (fun _ obj -> cache_strategy obj);
-     subst_function = subst_strategy;
-     discharge_function = discharge_strategy;
-     classify_function = classify_strategy;
-    }
+  declare_object @@ object_with_locality "STRATEGY"
+    ~cache:cache_strategy
+    ~subst:(Some subst_strategy)
+    ~discharge:discharge_strategy
 
 let check_not_fully_opaque l ref =
   match ref, l with

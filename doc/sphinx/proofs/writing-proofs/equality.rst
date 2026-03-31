@@ -1011,8 +1011,8 @@ unfolding.  Rocq has multiple notions of opaque:
 
    Marks the specified constants as changeably opaque.
 
-   This command accepts the :attr:`global` attribute.  By default, the scope
-   of :cmd:`Opaque` is limited to the current section or module.
+   This command accepts the :attr:`global` :attr:`local` and :attr:`export` attributes.
+   :attr:`local` is the default.
 
    :cmd:`Opaque` also affects Rocq's conversion algorithm, causing
    it to delay unfolding the specified constants as much as possible when it
@@ -1033,8 +1033,8 @@ unfolding.  Rocq has multiple notions of opaque:
    as :term:`transparent`
    so that tactics may unfold them.  See :cmd:`Opaque` above.
 
-   This command accepts the :attr:`global` attribute.  By default, the scope
-   of :cmd:`Transparent` is limited to the current section or module.
+   This command accepts the :attr:`global` :attr:`local` and :attr:`export` attributes.
+   :attr:`local` is the default.
 
    Note that constants defined by proofs ending with :cmd:`Qed` are
    irreversibly opaque; :cmd:`Transparent` will not make them transparent.
@@ -1078,9 +1078,8 @@ unfolding.  Rocq has multiple notions of opaque:
    with lower level is expanded first. In case of a tie, the second one
    (appearing in the cast type) is expanded.
 
-   This command accepts the :attr:`local` attribute, which limits its effect
-   to the current section or module, in which case the section and module
-   behavior is the same as :cmd:`Opaque` and :cmd:`Transparent` (without :attr:`global`).
+   This command accepts the :attr:`global` :attr:`local` and :attr:`export` attributes.
+   :attr:`global` is the default.
 
    Levels can be one of the following (higher to lower):
 

@@ -2058,7 +2058,7 @@ let () =
     }
 
 let vernac_set_strategy ~local l =
-  let local = Option.default false local in
+  let local = Option.default Libobject.SuperGlobal local in
   let glob_ref r =
     match smart_global r with
       | GlobRef.ConstRef sp ->
@@ -2074,7 +2074,7 @@ let vernac_set_strategy ~local l =
   Redexpr.set_strategy local l
 
 let vernac_set_opacity ~on_proj_constant ~local (v,l) =
-  let local = Option.default true local in
+  let local = Option.default Libobject.Local local in
   let glob_ref r =
     match smart_global r with
       | GlobRef.ConstRef sp ->
@@ -2822,10 +2822,13 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacSetOpacity (qidl, on_proj_constant) ->
     vtdefault(fun () ->
-        with_locality ~atts (vernac_set_opacity ~on_proj_constant) qidl)
+        let local = Attributes.(parse explicit_hint_locality) atts in
+        vernac_set_opacity ~on_proj_constant ~local qidl)
 
   | VernacSetStrategy l ->
-    vtdefault(fun () -> with_locality ~atts vernac_set_strategy l)
+    vtdefault(fun () ->
+        let local = Attributes.(parse explicit_hint_locality) atts in
+        vernac_set_strategy ~local l)
 
   | VernacRemoveOption (key,v) ->
     vtdefault(fun () ->

@@ -59,7 +59,7 @@ val declare_red_expr : bool -> string -> red_expr -> unit
    true, the effect is non-synchronous (i.e. it does not survive
    section and module closure). *)
 val set_strategy :
-  bool -> (Conv_oracle.level * Evaluable.t list) list -> unit
+  Libobject.locality -> (Conv_oracle.level * Evaluable.t list) list -> unit
 
 (** call by value normalisation function using the virtual machine *)
 val cbv_vm : reduction_function
