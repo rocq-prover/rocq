@@ -124,6 +124,7 @@ end = struct
 
     let warn_legacy_loading =
       CWarnings.create ~name:"legacy-loading-removed" ~category:Deprecation.Version.v9_0
+        ~default:AsError
         Pp.(fun name ->
             str "Legacy loading plugin method has been removed from Rocq, \
                  and the `:` syntax is deprecated, and its first \
@@ -140,6 +141,7 @@ end = struct
 
     let warn_coq_core =
       CWarnings.create ~name:"coq-core-plugin" ~category:Deprecation.Version.v9_0
+        ~default:AsError
         Pp.(fun () -> str "\"coq-core\" has been renamed to \"rocq-runtime\".")
 
   end
