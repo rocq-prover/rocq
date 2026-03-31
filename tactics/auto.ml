@@ -337,7 +337,7 @@ and tac_of_hint dbg db_list local_db concl =
 
 let warn_non_reference_hint_using =
   CWarnings.create ~name:"non-reference-hint-using" ~category:CWarnings.CoreCategories.automation
-    Pp.(fun (env, sigma, c) -> str "Use of the non-reference term " ++ Printer.pr_leconstr_env env sigma c ++ str " in \"using\" clauses is ignored")
+    Pp.(fun (env, sigma, c) -> str "Use of the non-reference term " ++ Printer.pr_leconstr_env env sigma c ++ str " in \"using\" clauses is ignored.")
 
 let get_reference_hints env sigma lems =
   let map lem =
