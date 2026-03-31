@@ -60,7 +60,7 @@ let (inRocqlibRef : Libobject.locality * (string * GlobRef.t) -> Libobject.obj) 
   declare_object @@ object_with_locality "COQLIBREF"
     ~cache:cache_ref
     ~subst:(Some ident_subst_function)
-    ~discharge:(fun x -> x)
+    ~discharge:(fun x -> Some x)
 
 (** Replaces a binding ! *)
 let register_ref local s c =

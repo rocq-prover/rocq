@@ -264,7 +264,7 @@ type locality = Local | Export | SuperGlobal
 val object_with_locality : ?stage:Summary.Stage.t -> ?cat:category -> string ->
   cache:('a -> unit) ->
   subst:(Mod_subst.substitution * 'a -> 'a) option ->
-  discharge:('a -> 'a) ->
+  discharge:('a -> 'a option) ->
   (locality * 'a, locality * 'a, locality * 'a) object_declaration
 
 (** Higher-level API for objects with fixed scope.

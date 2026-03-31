@@ -33,7 +33,7 @@ let inScheme : Libobject.locality * (string * (inductive * GlobRef.t)) -> Libobj
   declare_object @@ object_with_locality "SCHEME"
     ~cache:cache_scheme
     ~subst:(Some subst_scheme)
-    ~discharge:(fun x -> x)
+    ~discharge:(fun x -> Some x)
 
 let declare_scheme local kind indcl =
   Lib.add_leaf (inScheme (local,(kind,indcl)))

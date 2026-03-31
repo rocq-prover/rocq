@@ -58,7 +58,7 @@ let inReductionEffect : Libobject.locality * (Constant.t * string) -> obj =
   declare_object @@ object_with_locality "REDUCTION-EFFECT"
     ~cache:cache_reduction_effect
     ~subst:(Some subst_reduction_effect)
-    ~discharge:(fun x -> x)
+    ~discharge:(fun x -> Some x)
 
 let declare_reduction_effect funkey f =
   if String.Map.mem funkey !effect_table then

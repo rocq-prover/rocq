@@ -324,5 +324,5 @@ let object_with_locality ?stage ?cat s ~cache ~subst ~discharge =
          | Local -> None
          | Export | SuperGlobal ->
            let v = discharge v in
-           Some (locality, v));
+           v |> Option.map @@ fun v -> (locality, v));
   }

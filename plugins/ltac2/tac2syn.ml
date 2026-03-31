@@ -78,7 +78,7 @@ let inOpenCloseScope =
   Libobject.object_with_locality "Ltac2 open/close scope"
     ~cache:cache_open_close_scope
     ~subst:(Some (fun (subst,(sc,openclose)) -> Mod_subst.subst_kn subst sc, openclose))
-    ~discharge:(fun x -> x)
+    ~discharge:(fun x -> Some x)
 
 let open_close_scope local sc openclose =
   let sc = find_scope sc in

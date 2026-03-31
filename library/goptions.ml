@@ -108,7 +108,7 @@ module MakeTable =
       in
       Libobject.declare_object @@
       Libobject.object_with_locality ~cat:opts_cat nick
-        ~cache ~subst:(Some subst) ~discharge:(on_snd A.discharge)
+        ~cache ~subst:(Some subst) ~discharge:(fun v -> Some (on_snd A.discharge v))
 
     let add_option local c =
       A.check_local local c;
