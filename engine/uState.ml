@@ -101,7 +101,7 @@ module QState : sig
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
   val collapse_above_prop : to_prop:bool -> t -> t
-  val collapse : ?except:QVar.Set.t -> ?to_type:bool -> t -> t
+  val collapse : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
   val pr : Sorts.Quality.printer -> (QVar.t -> Id.t option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
   val elims : t -> QGraph.t
@@ -324,7 +324,7 @@ let collapse_above_prop ~to_prop m =
          )
          m.qmap m
 
-let collapse ?(except=QSet.empty) ?(to_type = true) m =
+let collapse ?(except=QSet.empty) ~only_above_prop m =
   let free_qualities = QMap.fold (fun q v fqs ->
       match v with
       | Equiv _ -> fqs
@@ -356,7 +356,7 @@ let collapse ?(except=QSet.empty) ?(to_type = true) m =
           if QSet.exists (fun q' -> dominates_above_prop q' q) free_qualities then
             Option.get (set q qprop m)
           else Option.get (set q qtype m)
-        else if to_type then Option.get (set q qtype m) else m)
+        else if not only_above_prop then Option.get (set q qtype m) else m)
     m.qmap m
 
 let pr prqvar local_name ({ qmap; elims } as m) =
@@ -1561,8 +1561,8 @@ let collapse_above_prop_sort_variables ~to_prop uctx =
   let sorts = QState.collapse_above_prop ~to_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
-let collapse_sort_variables ?except ?(to_type = true) uctx =
-  let sorts = QState.collapse ?except ~to_type uctx.sort_variables in
+let collapse_sort_variables ?except ~only_above_prop uctx =
+  let sorts = QState.collapse ?except ~only_above_prop uctx.sort_variables in
   normalize_quality_variables { uctx with sort_variables = sorts }
 
 let minimize uctx =

@@ -524,7 +524,7 @@ type should_template =
   | NotTemplate
 
 let nontemplate_univ_entry ~poly sigma udecl =
-  let sigma = Evd.collapse_sort_variables ~to_type:(PolyFlags.collapse_sort_variables poly) sigma in
+  let sigma = Evd.collapse_sort_variables ~only_above_prop:(not @@ PolyFlags.collapse_sort_variables poly) sigma in
   let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
   let uentry, global = match uentry with
     | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
@@ -537,7 +537,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     | Some q -> QVar.Set.singleton q
     | None -> QVar.Set.empty
   in
-  let sigma = Evd.collapse_sort_variables ~except:template_qvars sigma in
+  let sigma = Evd.collapse_sort_variables ~except:template_qvars ~only_above_prop:false sigma in
   let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
       template_qvars sigma
   in
