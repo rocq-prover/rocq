@@ -1,4 +1,4 @@
-(* Test the nonuniform attribute to silence warnings on coercions
+(* Test the uniform-inheritance warning to silence warnings on coercions
    not satisfying the non uniform inheritance condition. *)
 
 Module Test0.

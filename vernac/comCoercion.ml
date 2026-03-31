@@ -374,8 +374,6 @@ let subclass_hook ~poly ~reversible = Declare.Hook.make @@ fun { scope; dref; _ 
   let loc = Nametab.cci_src_loc (TrueGlobal dref) in
   try_add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
 
-let nonuniform = Attributes.bool_attribute ~name:"nonuniform"
-
 let warn_reverse_no_change =
   CWarnings.create ~name:"reversible-no-change" ~category:CWarnings.CoreCategories.coercions
     (fun () -> str "The reversible attribute is unchanged.")

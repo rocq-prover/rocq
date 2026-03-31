@@ -34,12 +34,6 @@ let warn_legacy_export_set =
   CWarnings.create ~name:"legacy-export-set" ~category:Deprecation.Version.v8_18
     Pp.(fun () -> strbrk "Syntax \"Export Set\" is deprecated, use the attribute syntax \"#[export] Set\" instead.")
 
-let deprecated_nonuniform =
-  CWarnings.create ~name:"deprecated-nonuniform-attribute"
-    ~category:Deprecation.Version.v8_18
-    Pp.(fun () -> strbrk "Attribute '#[nonuniform]' is deprecated, \
-                          use '#[warning=\"-uniform-inheritance\"]' instead.")
-
 let warnings_att =
   Attributes.attribute_of_list [
     "warnings", Attributes.payload_parser ~cat:(^) ~name:"warnings";
@@ -48,12 +42,6 @@ let warnings_att =
 
 let with_generic_atts ~check atts f =
   let atts, warnings = Attributes.parse_with_extra warnings_att atts in
-  let atts, nonuniform = Attributes.parse_with_extra ComCoercion.nonuniform atts in
-  let warnings =
-    let () = if nonuniform <> None && check then deprecated_nonuniform () in
-    if nonuniform <> Some true then warnings else
-      let ui = "-uniform-inheritance" in
-      Some (match warnings with Some w -> w ^ "," ^ ui | None -> ui) in
   match warnings with
   | None -> f ~atts
   | Some warnings ->
