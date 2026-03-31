@@ -81,9 +81,8 @@ module PluginSpec : sig
 
   type t
 
-  (* Main constructor, takes the format used in Declare ML Module.
-     With [usercode:true], warn instead of error on legacy syntax. *)
-  val of_package : ?usercode:bool -> string -> t
+  (* Main constructor, takes the format used in Declare ML Module. *)
+  val of_package : string -> t
 
   val to_package : t -> string
 
@@ -120,54 +119,7 @@ end = struct
   module Set = CSet.Make(Self)
   module Map = CMap.Make(Self)
 
-  module Errors = struct
-
-    let warn_legacy_loading =
-      CWarnings.create ~name:"legacy-loading-removed" ~category:Deprecation.Version.v9_0
-        Pp.(fun name ->
-            str "Legacy loading plugin method has been removed from Rocq, \
-                 and the `:` syntax is deprecated, and its first \
-                 argument ignored; please remove \"" ++
-            str name ++ str ":\" from your Declare ML")
-
-    let plugin_name_invalid_format m =
-      CErrors.user_err
-        Pp.(str Format.(asprintf "%s is not a valid plugin name." m) ++ spc () ++
-            str "It should be a public findlib name, e.g. package-name.foo." ++ spc () ++
-            str "Legacy names followed by a findlib public name, e.g. "++ spc () ++
-            str "legacy_plugin:package-name.plugin," ++ spc() ++
-            str "are not supported anymore.")
-
-    let warn_coq_core =
-      CWarnings.create ~name:"coq-core-plugin" ~category:Deprecation.Version.v9_0
-        Pp.(fun () -> str "\"coq-core\" has been renamed to \"rocq-runtime\".")
-
-  end
-
-  (* We would properly load the rocq-runtime cmxs because of the
-     virtual coq-core findlib package, but we would not initialize the plugin.
-     eg [Declare ML Module "coq-core.plugins.ltac". Ltac foo := idtac.] would fail
-     as the grammar for Ltac is not activated. *)
-  let compat_coq_core lib =
-    let old_prefix = "coq-core.plugins." in
-    if CString.is_prefix old_prefix lib
-    then begin
-      Errors.warn_coq_core ();
-      let old_len = String.length old_prefix in
-      "rocq-runtime.plugins." ^ (CString.sub lib old_len (String.length lib - old_len))
-    end
-    else lib
-
-  let of_package ?(usercode=false) m =
-    let lib = match String.split_on_char ':' m with
-      | [ lib ] -> lib
-      | [cmxs; lib] when usercode ->
-        Errors.warn_legacy_loading cmxs;
-        lib
-      | _ -> Errors.plugin_name_invalid_format m
-    in
-    let lib = if usercode then compat_coq_core lib else lib in
-    { lib }
+  let of_package lib = { lib }
 
   let to_package { lib } = lib
 
@@ -464,7 +416,7 @@ let inMLModule : ml_module_object -> Libobject.obj =
       classify_function = classify_ml_objects }
 
 let declare_ml_modules local mnames =
-  let mnames = List.map (PluginSpec.of_package ~usercode:true) mnames in
+  let mnames = List.map PluginSpec.of_package mnames in
   if Lib.sections_are_opened()
   then CErrors.user_err Pp.(str "Cannot Declare ML Module while sections are opened.");
   let mnames = PluginSpec.add_deps mnames in
