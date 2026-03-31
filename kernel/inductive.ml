@@ -386,16 +386,6 @@ let arities_of_constructors (_,u) (_,mip) =
 let type_of_constructors (_,u) (_,mip) =
   Array.map (subst_instance_constr u) mip.mind_user_lc
 
-let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t =
-  let rec replace_ind k c =
-    let hd, args = decompose_app c in
-    match kind hd with
-    | Ind ((mind',i),_) when MutInd.CanOrd.equal mind mind' ->
-       mkApp (mkRel (ntyps+k-i), Array.map (replace_ind k) args)
-    | _ -> map_with_binders succ replace_ind k c
-  in
-  replace_ind 0 t
-
 (************************************************************************)
 
 (** Elimination functions *)

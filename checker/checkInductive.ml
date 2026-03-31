@@ -25,6 +25,17 @@ let check mind field b = if not b then raise (InductiveMismatch (mind,field))
 let template_univ_entry {template_context; template_defaults=default_univs; _} =
   Entries.Template_ind_entry {uctx = AbstractContext.repr template_context; default_univs}
 
+let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t =
+  let open Constr in
+  let rec replace_ind k c =
+    let hd, args = decompose_app c in
+    match kind hd with
+    | Ind ((mind',i),_) when MutInd.CanOrd.equal mind mind' ->
+       mkApp (mkRel (ntyps+k-i), Array.map (replace_ind k) args)
+    | _ -> map_with_binders succ replace_ind k c
+  in
+  replace_ind 0 t
+
 let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
   let open Entries in
   let nparams = List.length mb.mind_params_ctxt in (* include letins *)
@@ -90,7 +101,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
         mind_entry_arity;
         mind_entry_consnames = Array.to_list ind.mind_consnames;
         mind_entry_lc = Array.map_to_list (fun c ->
-            let c = Inductive.abstract_constructor_type_relatively_to_inductive_types_context ntyps mind c in
+            let c = abstract_constructor_type_relatively_to_inductive_types_context ntyps mind c in
             let ctx, c = Term.decompose_prod_n_decls nparams c in
             ignore ctx; (* we will check that the produced user_lc is equal to the input *)
             c
