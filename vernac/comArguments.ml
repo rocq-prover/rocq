@@ -59,6 +59,7 @@ let warn_arguments_assert =
 
 let warn_scope_delimiter_depth =
   CWarnings.create ~name:"argument-scope-delimiter" ~category:Deprecation.Version.v8_19
+    ~default:AsError
     Pp.(fun () ->
         strbrk "The '%' scope delimiter in 'Arguments' commands is deprecated, " ++
         strbrk "use '%_' instead (available since 8.19). The '%' syntax will be " ++
