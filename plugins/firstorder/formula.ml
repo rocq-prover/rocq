@@ -45,7 +45,7 @@ val repr : uid -> int
 end =
 struct
 
-module CM = Map.Make(Constr)
+module CM = Map.Make(Termops.ConstrData)
 
 type t = {
   max_uid : int;

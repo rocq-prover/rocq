@@ -239,6 +239,16 @@ val pr_evd_qglobal : evar_map -> Sorts.QGlobal.t -> Pp.t
 val pr_evd_qvar : evar_map -> Sorts.QVar.t -> Pp.t
 val pr_evd_quality : evar_map -> Sorts.Quality.t -> Pp.t
 
+(* Treat terms as a concrete data type with an otherwise unspecified
+   representation. You should be wary about the lack of invariants of this API. *)
+module ConstrData :
+sig
+type t = Constr.t
+val compare : t -> t -> int
+val equal : t -> t -> bool
+val hash : t -> int
+end
+
 module Internal : sig
 
 (** NOTE: to print terms you always want to use functions in
