@@ -113,6 +113,7 @@ through the <tt>Require Import</tt> command.</p>
   <dd>
     theories/Corelib/ssrmatching/ssrmatching.v
     theories/Corelib/ssr/ssrclasses.v
+    theories/Corelib/ssr/ssreflect_rw.v
     theories/Corelib/ssr/ssreflect.v
     theories/Corelib/ssr/ssrbool.v
     theories/Corelib/ssr/ssrfun.v

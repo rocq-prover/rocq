@@ -445,7 +445,7 @@ Lemma frefl f : eqfun f f. Proof. by []. Qed.
 Lemma fsym f g : eqfun f g -> eqfun g f. Proof. by move=> eq_fg x. Qed.
 
 Lemma ftrans f g h : eqfun f g -> eqfun g h -> eqfun f h.
-Proof. by move=> eq_fg eq_gh x; rewrite eq_fg. Qed.
+Proof. by move=> eq_fg eq_gh x; rw eq_fg. Qed.
 
 Lemma rrefl r : eqrel r r. Proof. by []. Qed.
 
@@ -470,7 +470,7 @@ Definition catcomp g f := comp f g.
 Definition pcomp (f : B -> option A) (g : C -> option B) x := obind f (g x).
 
 Lemma eq_comp f f' g g' : f =1 f' -> g =1 g' -> comp f g =1 comp f' g'.
-Proof. by move=> eq_ff' eq_gg' x; rewrite /comp eq_gg' eq_ff'. Qed.
+Proof. by move=> eq_ff' eq_gg' x; rw /comp eq_gg' eq_ff'. Qed.
 
 End Composition.
 
@@ -509,7 +509,7 @@ Proof. by []. Qed.
 Lemma omap_id (x : option rT) : omap id x = x. Proof. by case: x. Qed.
 
 Lemma eq_omap (h : aT -> rT) : f =1 h -> omap f =1 omap h.
-Proof. by move=> Ef [?|] //=; rewrite Ef. Qed.
+Proof. by move=> Ef [?|] //=; rw Ef. Qed.
 
 Lemma omapEapp : omap f = oapp (olift f) None.
 Proof. by []. Qed.
@@ -680,7 +680,7 @@ Lemma can_pcan g : cancel g -> pcancel (fun y => Some (g y)).
 Proof. by move=> fK x; congr (Some _). Qed.
 
 Lemma pcan_inj g : pcancel g -> injective.
-Proof. by move=> fK x y /(congr1 g); rewrite !fK => [[]]. Qed.
+Proof. by move=> fK x y /(congr1 g); rw !fK => [[]]. Qed.
 
 Lemma can_inj g : cancel g -> injective.
 Proof. by move/can_pcan; apply: pcan_inj. Qed.
@@ -707,7 +707,7 @@ Proof. by move=> injf [?|] [?|] //= [/injf->]. Qed.
 
 Lemma omapK {aT rT : Type} (f : aT -> rT) (g : rT -> aT) :
   cancel f g -> cancel (omap f) (omap g).
-Proof. by move=> fK [?|] //=; rewrite fK. Qed.
+Proof. by move=> fK [?|] //=; rw fK. Qed.
 
 Lemma of_voidK T : pcancel (of_void T) [fun _ => None].
 Proof. by case. Qed.
@@ -736,28 +736,28 @@ Lemma inj_compr : injective (f \o h) -> injective h.
 Proof. by move=> injfh x y /(congr1 f) /injfh. Qed.
 
 Lemma can_comp f' h' : cancel f f' -> cancel h h' -> cancel (f \o h) (h' \o f').
-Proof. by move=> fK hK x; rewrite /= fK hK. Qed.
+Proof. by move=> fK hK x; rw /= fK hK. Qed.
 
 Lemma pcan_pcomp f' h' :
   pcancel f f' -> pcancel h h' -> pcancel (f \o h) (pcomp h' f').
-Proof. by move=> fK hK x; rewrite /pcomp fK /= hK. Qed.
+Proof. by move=> fK hK x; rw /pcomp fK /= hK. Qed.
 
 Lemma ocan_comp [fo : B -> option A] [ho : C -> option B]
     [f' : A -> B] [h' : B -> C] :
   ocancel fo f' -> ocancel ho h' -> ocancel (obind fo \o ho) (h' \o f').
 Proof.
-move=> fK hK c /=; rewrite -[RHS]hK/=; case hcE : (ho c) => [b|]//=.
-by rewrite -[b in RHS]fK; case: (fo b) => //=; have := hK c; rewrite hcE.
+move=> fK hK c /=; rw -[RHS]hK/=; case hcE : (ho c) => [b|]//=.
+by rw -[b in RHS]fK; case: (fo b) => //=; have := hK c; rw hcE.
 Qed.
 
 Lemma eq_inj : injective f -> f =1 g -> injective g.
-Proof. by move=> injf eqfg x y; rewrite -2!eqfg; apply: injf. Qed.
+Proof. by move=> injf eqfg x y; rw -2!eqfg; apply: injf. Qed.
 
 Lemma eq_can f' g' : cancel f f' -> f =1 g -> f' =1 g' -> cancel g g'.
-Proof. by move=> fK eqfg eqfg' x; rewrite -eqfg -eqfg'. Qed.
+Proof. by move=> fK eqfg eqfg' x; rw -eqfg -eqfg'. Qed.
 
 Lemma inj_can_eq f' : cancel f f' -> injective f' -> cancel g f' -> f =1 g.
-Proof. by move=> fK injf' gK x; apply: injf'; rewrite fK. Qed.
+Proof. by move=> fK injf' gK x; apply: injf'; rw fK. Qed.
 
 End InjectionsTheory.
 
@@ -775,7 +775,7 @@ Proof. by case: bijf => g fK _; apply: can_inj fK. Qed.
 Lemma bij_can_sym f' : cancel f' f <-> cancel f f'.
 Proof.
 split=> fK; first exact: inj_can_sym fK bij_inj.
-by case: bijf => h _ hK x; rewrite -[x]hK fK.
+by case: bijf => h _ hK x; rw -[x]hK fK.
 Qed.
 
 Lemma bij_can_eq f' f'' : cancel f f' -> cancel f f'' -> f' =1 f''.
