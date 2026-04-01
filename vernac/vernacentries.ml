@@ -1309,17 +1309,22 @@ let dump_inductive indl_for_glob decl =
     | Inductive _ -> ()
   end
 
+let is_nat_attr = Attributes.key_value_attribute ~key:"primitive_nat" ~empty:() ~values:[]
+
 let vernac_inductive ~atts kind indl =
   let open Preprocessed_Mind_decl in
+  let atts, is_nat = Attributes.parse_with_extra is_nat_attr atts in
+  let is_nat = match is_nat with None -> false | Some () -> true in
   let indl_for_glob, decl = preprocess_inductive_decl ~atts kind indl in
   dump_inductive indl_for_glob decl;
   match decl with
   | Record { flags; kind; udecl; primitive_proj; records } ->
+    let () = if is_nat then CErrors.user_err Pp.(str "\"primitive_nat\" not supported for records.") in
     let _ : _ list =
       Record.definition_structure ~flags udecl kind ~primitive_proj records in
     ()
   | Inductive { flags; udecl; typing_flags; private_ind; uniform; inductives } ->
-    ComInductive.do_mutual_inductive ~flags udecl inductives ?typing_flags ~private_ind ~uniform
+    ComInductive.do_mutual_inductive ~flags udecl inductives ?typing_flags ~private_ind ~uniform ~is_nat
 
 let preprocess_inductive_decl ~atts kind indl =
   snd @@ preprocess_inductive_decl ~atts kind indl

@@ -107,6 +107,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
     mind_entry_universes;
     mind_entry_variance;
     mind_entry_private = mb.mind_private;
+    mind_entry_is_nat = mb.mind_is_nat;
   }
 
 let check_abstract_uctx a b =
@@ -218,7 +219,9 @@ let check_inductive env mind mb retro =
   let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
-        mind_private; mind_typing_flags; }
+        mind_private; mind_typing_flags;
+        mind_is_nat;
+      }
     =
     (* Locally set typing flags for further typechecking *)
     let env = CheckFlags.set_local_flags mb.mind_typing_flags env in
@@ -252,6 +255,8 @@ let check_inductive env mind mb retro =
 
   ignore mind_typing_flags;
   (* TODO non oracle flags *)
+
+  check "mind_is_nat" (Bool.equal mb.mind_is_nat mind_is_nat);
 
   add_mind mind mb env
 

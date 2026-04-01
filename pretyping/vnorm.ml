@@ -86,6 +86,8 @@ let construct_of_constr const env sigma tag typ =
   match Constr.kind t with
   | Ind ((mind,_ as ind), u as indu) ->
     let mib,mip = lookup_mind_specif env ind in
+    if mib.mind_is_nat && const then mkNat ind (Z.of_int tag), mkIndU indu
+    else
     let nparams = mib.mind_nparams in
     let i = invert_tag const tag mip.mind_reloc_tbl in
     let params = Array.sub allargs 0 nparams in
@@ -182,6 +184,9 @@ and nf_whd env sigma whd typ =
       let capp,ctyp = construct_of_constr_block env sigma tag typ in
       let args = nf_bargs env sigma b ofs ctyp in
       mkApp(capp,args)
+  | Vnat n ->
+    let ((ind,_),_) = find_rectype_a env sigma (EConstr.of_constr typ) in
+    mkNat ind n
   | Vint64 i -> i |> Uint63.of_int64 |> mkInt
   | Vfloat64 f -> f |> Float64.of_float |> mkFloat
   | Vstring s -> s |> mkString

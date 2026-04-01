@@ -117,6 +117,8 @@ val kind : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t, ERelevance.t) Cons
 val kind_upto : Evd.evar_map -> Constr.t ->
   (Constr.t, Constr.t, Sorts.t, UVars.Instance.t, Sorts.relevance) Constr.kind_of_term
 
+val kind_nonat : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
+
 val to_constr : ?abort_on_undefined_evars:bool -> Evd.evar_map -> t -> Constr.t
 (** Returns the evar-normal form of the argument. Note that this
    function is supposed to be called when the original term has not
@@ -179,6 +181,7 @@ val mkFix : (t, t, ERelevance.t) pfixpoint -> t
 val mkCoFix : (t, t, ERelevance.t) pcofixpoint -> t
 val mkArrow : t -> ERelevance.t  -> t -> t
 val mkArrowR : t -> t -> t
+val mkNat : inductive -> Z.t -> t
 val mkInt : Uint63.t -> t
 val mkFloat : Float64.t -> t
 val mkString : Pstring.t -> t
@@ -253,6 +256,7 @@ val isFix : Evd.evar_map -> t -> bool
 val isCoFix : Evd.evar_map -> t -> bool
 val isCase : Evd.evar_map -> t -> bool
 val isProj : Evd.evar_map -> t -> bool
+val isNat : Evd.evar_map -> t -> bool
 
 val isType : Evd.evar_map -> constr -> bool
 
@@ -463,6 +467,9 @@ val expand_branch : Environ.env -> Evd.evar_map ->
 
 val contract_case : Environ.env -> Evd.evar_map ->
   (t,t,ERelevance.t) Inductive.pexpanded_case -> case
+
+val unfold_nat : inductive -> Z.t -> constr
+val unfold_if_nat : Evd.evar_map -> constr -> constr
 
 (** {5 Extra} *)
 

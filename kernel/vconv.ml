@@ -93,6 +93,8 @@ and conv_whd env pb k whd1 whd2 cu =
         done;
         !rcu
       else raise NotConvertible
+  | Vnat n1, Vnat n2 ->
+    if Z.equal n1 n2 then cu else raise NotConvertible
   | Vint64 i1, Vint64 i2 ->
     if Int64.equal i1 i2 then cu else raise NotConvertible
   | Vfloat64 f1, Vfloat64 f2 ->
@@ -112,7 +114,7 @@ and conv_whd env pb k whd1 whd2 cu =
      (* on the fly eta expansion *)
       conv_val env CONV (k+1) (apply_whd k whd1) (apply_whd k whd2) cu
 
-  | Vprod _, _ | Vfix _, _ | Vcofix _, _  | Vconst _, _ | Vint64 _, _
+  | Vprod _, _ | Vfix _, _ | Vcofix _, _  | Vconst _, _ | Vnat _, _ | Vint64 _, _
   | Vfloat64 _, _ | Vstring _, _ | Varray _, _ | Vblock _, _ | Vaccu _, _ -> raise NotConvertible
 
 

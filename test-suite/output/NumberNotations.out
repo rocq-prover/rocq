@@ -362,18 +362,18 @@ where
      : Fin.t (S (S (S (S ?n))))
 where
 ?n : [ |- nat]
-@Fin.F1 (S (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.F1 (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.FS (S O) (@Fin.F1 O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
+@Fin.F1 0x2 : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S 0x1) (@Fin.F1 0x1) : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S (S 0x0)) (@Fin.FS (S 0x0) (@Fin.F1 0x0)) : Fin.t 0x3
+     : Fin.t 0x3
 File "./output/NumberNotations.v", line 705, characters 11-12:
 The command has indeed failed with message:
 The term
  "@Fin.FS (S (S (S ?n))) (@Fin.FS (S (S ?n)) (@Fin.FS (S ?n) (@Fin.F1 ?n)))"
 has type "Fin.t (S (S (S (S ?n))))" while it is expected to have type
- "Fin.t (S (S (S O)))".
+ "Fin.t 0x3".
 0
      : list unit
 1
@@ -408,13 +408,13 @@ Ip1 nat nat 1
      : Ip nat nat
 Ip3 1 nat nat
      : Ip nat nat
-Ip0 nat bool O
+Ip0 nat bool 0x0
      : Ip nat bool
-Ip1 bool nat (S O)
+Ip1 bool nat 0x1
      : Ip nat bool
-Ip2 nat (S (S O)) bool
+Ip2 nat 0x2 bool
      : Ip nat bool
-Ip3 (S (S (S O))) nat bool
+Ip3 0x3 nat bool
      : Ip nat bool
 0
      : 0 = 0
@@ -432,7 +432,7 @@ eq_refl
      : id 0 = id 0
 2
      : extra_list_unit
-cons O unit tt (cons O unit tt (nil O unit))
+cons 0x0 unit tt (cons 0x0 unit tt (nil 0x0 unit))
      : extra_list unit
 0
      : Set
@@ -492,18 +492,18 @@ where
      : Fin.t (S (S (S (S ?n))))
 where
 ?n : [ |- nat]
-@Fin.F1 (S (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.F1 (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.FS (S O) (@Fin.F1 O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
+@Fin.F1 0x2 : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S 0x1) (@Fin.F1 0x1) : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S (S 0x0)) (@Fin.FS (S 0x0) (@Fin.F1 0x0)) : Fin.t 0x3
+     : Fin.t 0x3
 File "./output/NumberNotations.v", line 942, characters 11-12:
 The command has indeed failed with message:
 The term
  "@Fin.FS (S (S (S ?n))) (@Fin.FS (S (S ?n)) (@Fin.FS (S ?n) (@Fin.F1 ?n)))"
 has type "Fin.t (S (S (S (S ?n))))" while it is expected to have type
- "Fin.t (S (S (S O)))".
+ "Fin.t 0x3".
 0
      : Fin.t (S ?n)
 where
@@ -546,18 +546,18 @@ where
      : Fin.t (S (S (S (S ?n))))
 where
 ?n : [ |- nat : Set]
-@Fin.F1 (S (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.F1 (S O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
-@Fin.FS (S (S O)) (@Fin.FS (S O) (@Fin.F1 O)) : Fin.t (S (S (S O)))
-     : Fin.t (S (S (S O)))
+@Fin.F1 0x2 : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S 0x1) (@Fin.F1 0x1) : Fin.t 0x3
+     : Fin.t 0x3
+@Fin.FS (S (S 0x0)) (@Fin.FS (S 0x0) (@Fin.F1 0x0)) : Fin.t 0x3
+     : Fin.t 0x3
 File "./output/NumberNotations.v", line 996, characters 11-12:
 The command has indeed failed with message:
 The term
  "@Fin.FS (S (S (S ?n))) (@Fin.FS (S (S ?n)) (@Fin.FS (S ?n) (@Fin.F1 ?n)))"
 has type "Fin.t (S (S (S (S ?n))))" while it is expected to have type
- "Fin.t (S (S (S O)))".
+ "Fin.t 0x3".
 0%float
      : float
 1%float

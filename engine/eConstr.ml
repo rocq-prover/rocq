@@ -99,7 +99,7 @@ struct
     (* Despite the type, the sparse list contains no default element *)
     SList.Skip.iter (f h) args
   | Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-  | Construct _ | Int _ | Float _ | String _ -> ()
+  | Construct _ | Nat _ | Int _ | Float _ | String _ -> ()
   | Cast (c, _, t) -> f h c; f h t
   | Prod (_, t, c) -> f h t; f (liftn_handle 1 h) c
   | Lambda (_, t, c) -> f h t; f (liftn_handle 1 h) c
@@ -128,7 +128,7 @@ struct
     (* Despite the type, the sparse list contains no default element *)
     SList.Skip.iter (f l h) args
   | Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-  | Construct _ | Int _ | Float _ | String _ -> ()
+  | Construct _ | Nat _ | Int _ | Float _ | String _ -> ()
   | Cast (c, _, t) -> f l h c; f l h t
   | Prod (_, t, c) -> f l h t; f (g l) (liftn_handle 1 h) c
   | Lambda (_, t, c) -> f l h t; f (g l) (liftn_handle 1 h) c
@@ -209,6 +209,7 @@ let mkCoFix f = of_kind (CoFix f)
 let mkProj (p, r, c) = of_kind (Proj (p, r, c))
 let mkArrow t1 r t2 = of_kind (Prod (make_annot Anonymous r, t1, t2))
 let mkArrowR t1 t2 = mkArrow t1 ERelevance.relevant t2
+let mkNat ind n = of_kind (Nat (ind,n))
 let mkInt i = of_kind (Int i)
 let mkFloat f = of_kind (Float f)
 let mkString s = of_kind (String s)
@@ -244,6 +245,7 @@ let isFix sigma c = match kind sigma c with Fix _ -> true | _ -> false
 let isCoFix sigma c = match kind sigma c with CoFix _ -> true | _ -> false
 let isCase sigma c = match kind sigma c with Case _ -> true | _ -> false
 let isProj sigma c = match kind sigma c with Proj _ -> true | _ -> false
+let isNat sigma c = match kind sigma c with Nat _ -> true | _ -> false
 
 let rec isType sigma c = match kind sigma c with
   | Sort s -> (match ESorts.kind sigma s with
@@ -349,6 +351,13 @@ let destRef sigma c = let open GlobRef in match kind sigma c with
   | Ind (ind,u) -> IndRef ind, u
   | Construct (c,u) -> ConstructRef c, u
   | _ -> raise DestKO
+
+let kind_nonat sigma c =
+  match kind sigma c with
+  | Nat (ind,n) ->
+    if Z.equal n Z.zero then Construct (in_punivs (ind,1))
+    else App (of_kind (Construct (in_punivs (ind,2))), [|of_kind (Nat (ind,Z.pred n))|])
+  | k -> k
 
 let decompose_app sigma c =
   match kind sigma c with
@@ -659,11 +668,17 @@ let contract_case env _sigma (ci, (p,r), iv, c, bl) =
   let bl = of_branches bl in
   (ci, u, pms, p, iv, c, bl)
 
+let unfold_nat ind n = of_constr @@ unfold_nat ind n
+let unfold_if_nat sigma c =
+  match kind sigma c with
+  | Nat (ind,n) -> unfold_nat ind n
+  | _ -> c
+
 let iter_with_full_binders env sigma g f n c =
   let open Context.Rel.Declaration in
   match kind sigma c with
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> ()
+    | Construct _ | Nat _ | Int _ | Float _ | String _) -> ()
   | Cast (c,_,t) -> f n c; f n t
   | Prod (na,t,c) -> f n t; f (g (LocalAssum (na, t)) n) c
   | Lambda (na,t,c) -> f n t; f (g (LocalAssum (na, t)) n) c
@@ -1249,7 +1264,7 @@ let kind_of_type sigma t = match kind sigma t with
   | (Rel _ | Meta _ | Var _ | Evar _ | Const _
   | Proj _ | Case _ | Fix _ | CoFix _ | Ind _)
     -> AtomicType (t,[||])
-  | (Lambda _ | Construct _ | Int _ | Float _ | String _ | Array _) -> failwith "Not a type"
+  | (Lambda _ | Construct _ | Nat _ | Int _ | Float _ | String _ | Array _) -> failwith "Not a type"
 
 module Unsafe =
 struct

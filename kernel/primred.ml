@@ -5,11 +5,12 @@ open Retroknowledge
 open Environ
 open CErrors
 
-type _ action_kind =
-  | IncompatTypes : _ prim_type -> Constant.t action_kind
-  | IncompatInd : _ prim_ind -> inductive action_kind
+type _ action_error =
+  | IncompatTypes : _ prim_type -> Constant.t action_error
+  | IncompatInd : _ prim_ind -> inductive action_error
+  | IncompatNat : inductive action_error
 
-type exn += IncompatibleDeclarations : 'a action_kind * 'a * 'a -> exn
+type exn += IncompatibleDeclarations : 'a action_error * 'a * 'a -> exn
 
 let check_same_types typ c1 c2 =
   if not (Constant.UserOrd.equal c1 c2)

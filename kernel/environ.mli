@@ -502,6 +502,8 @@ val constant_depends_on : env -> Constant.t -> Constant.t -> bool
 
 (** {5 Internals} *)
 
+val is_nat : env -> inductive -> bool
+
 module Internal : sig
   (** Makes the qvars treated as above prop.
       Do not use outside kernel inductive typechecking. *)

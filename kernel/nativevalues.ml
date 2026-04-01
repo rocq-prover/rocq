@@ -229,6 +229,30 @@ let cast_accu v = (Obj.magic v:accumulator)
 let mk_int (x : int) = (Obj.magic x : t)
 [@@ocaml.inline always]
 
+let mk_nat (x:string) = (Obj.magic (Z.of_bits x) : t)
+
+type native_nat =
+  | NatAccu of t
+  | NatZero
+  | NatSucc of t
+[@@warning "-a"]
+
+let mk_succ (x:t) =
+  let x = Obj.repr x in
+  if Obj.is_int x || Obj.tag x = Obj.custom_tag then
+    Obj.magic (Z.succ (Obj.magic x))
+  else Obj.magic (NatSucc (Obj.magic x))
+
+let force_nat (x:t) : t =
+  if Obj.is_int @@ Obj.repr x then
+    let x : int = Obj.magic x in
+    if Int.equal x 0 then Obj.magic NatZero
+    else Obj.magic @@ NatSucc (Obj.magic (pred x))
+  else if Obj.tag (Obj.repr x) = Obj.custom_tag then
+    let x : Z.t = Obj.magic x in
+    Obj.magic @@ NatSucc (Obj.magic @@ Z.pred x)
+  else x
+
 (* Rocq's booleans are reversed... *)
 let mk_bool (b : bool) = (Obj.magic (not b) : t)
 [@@ocaml.inline always]
@@ -252,6 +276,12 @@ let block_tag (b:block) =
 
 type kind = (t, accumulator, t -> t, Name.t * t * t, Empty.t, Empty.t, block) Values.kind
 
+external is_int64 : t -> bool = "rocq_is_int64"
+
+let nat_or_int64 v =
+  if is_int64 v then Vint64 (Obj.magic v)
+  else Vnat (Obj.magic v)
+
 let kind_of_value (v:t) =
   let o = Obj.repr v in
   if Obj.is_int o then Vconst (Obj.magic v)
@@ -264,7 +294,7 @@ let kind_of_value (v:t) =
         if Int.equal tag prod_tag then Obj.magic w
         else Varray (Obj.magic v)
       else Vaccu (Obj.magic v)
-    else if Int.equal tag Obj.custom_tag then Vint64 (Obj.magic v)
+    else if Int.equal tag Obj.custom_tag then nat_or_int64 v
     else if Int.equal tag Obj.double_tag then Vfloat64 (Obj.magic v)
     else if Int.equal tag Obj.string_tag then Vstring (Obj.magic v)
     else if (tag < Obj.lazy_tag) then Vblock (Obj.magic v)

@@ -190,6 +190,7 @@ let rec of_constr sigma t =
   | Prod (_,_,_) -> Prod_cs, None, [t]
   | Proj (p, _, c) -> Proj_cs (Names.Projection.repr p), None, [c]
   | Sort s -> Sort_cs (EConstr.ESorts.quality_or_set sigma s), None, []
+  | Nat (ind,n) -> of_constr sigma (EConstr.unfold_nat ind n)
   | _ -> Const_cs (fst @@ EConstr.destRef sigma t) , None, []
 
 let print = function

@@ -167,9 +167,9 @@ forall_non_null x y z t : nat , x = y /\ z = t
      : nat * (nat * nat)
 {{RR 1, 2}}
      : nat * nat * nat
-@pair nat (prod nat nat) (S (S O)) (@pair nat nat (S O) O)
+@pair nat (prod nat nat) 0x2 (@pair nat nat 0x1 0x0)
      : prod nat (prod nat nat)
-@pair (prod nat nat) nat (@pair nat nat O (S (S O))) (S O)
+@pair (prod nat nat) nat (@pair nat nat 0x0 0x2) 0x1
      : prod (prod nat nat) nat
 {{RLRR 1, 2}}
      : nat * (nat * nat) * (nat * nat * nat) * (nat * (nat * nat)) *

@@ -945,6 +945,11 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
           (* if we cannot eliminate to Type, we cannot discriminate but we
              may still try to project *)
           project env posn allowed_elim_on_sort (applist (hd1,args1)) (applist (hd2,args2))
+      | Nat (ind1,n1), Nat (ind2,n2) ->
+        if Z.equal n1 n2 && Environ.QInd.equal env ind1 ind2 then []
+        else findrec posn s (EConstr.unfold_nat ind1 n1) (EConstr.unfold_nat ind2 n2)
+      | Nat (ind1,n1), _ -> findrec posn s (EConstr.unfold_nat ind1 n1) (applist (hd2,args2))
+      | _, Nat (ind2,n2) -> findrec posn s (applist (hd1,args1)) (EConstr.unfold_nat ind2 n2)
       | Int i1, Int i2 ->
         if Uint63.equal i1 i2 then []
         else raise (DiscrFound (List.rev posn, DInt (i1, i2)))

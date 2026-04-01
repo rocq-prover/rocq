@@ -16,6 +16,8 @@ open Esubst
 
 (**** Call by value reduction ****)
 
+type optimized_def = Add | Mul | Sub | Div2r
+
 (* The type of terms with closure. The meaning of the constructors and
  * the invariants of this datatype are the following:
  *  VAL(k,c) represents the constr c with a delayed shift of k. c must be
@@ -45,6 +47,7 @@ open Esubst
 type cbv_value =
   | VAL of int * constr
   | STACK of int * cbv_value * cbv_stack
+  | OPTIMIZED of optimized_def * cbv_value
   | LAMBDA of int * (Name.t Constr.binder_annot * types) list * constr * cbv_value subs
   | PROD of Name.t Constr.binder_annot * types * types * cbv_value subs
   | LETIN of Name.t Constr.binder_annot * cbv_value * types * constr * cbv_value subs
@@ -52,6 +55,7 @@ type cbv_value =
   | COFIX of cofixpoint * cbv_value subs * cbv_value array
   | CONSTRUCT of constructor UVars.puniverses * cbv_value array
   | PRIMITIVE of CPrimitives.t * pconstant * cbv_value array
+  | NAT of inductive * Z.t
   | ARRAY of UVars.Instance.t * cbv_value Parray.t * cbv_value
   | SYMBOL of { cst: Constant.t UVars.puniverses; unfoldfix: bool; rules: Declarations.machine_rewrite_rule list; stk: cbv_stack }
 
@@ -88,6 +92,7 @@ and cbv_stack =
 let rec shift_value n = function
   | VAL (k,t) -> VAL (k+n,t)
   | STACK(k,v,stk) -> STACK(k+n,v,stk)
+  | OPTIMIZED (o, v) -> OPTIMIZED (o, shift_value n v) (* XXX could rely on optimized values always being closed *)
   | PROD (na,t,u,s) -> PROD(na,t,u,subs_shft(n,s))
   | LETIN (na,b,t,c,s) -> LETIN(na,shift_value n b,t,c,subs_shft(n,s))
   | LAMBDA (nlams,ctxt,b,s) -> LAMBDA (nlams,ctxt,b,subs_shft (n,s))
@@ -99,6 +104,7 @@ let rec shift_value n = function
       CONSTRUCT (c, Array.map (shift_value n) args)
   | PRIMITIVE(op,c,args) ->
       PRIMITIVE(op,c,Array.map (shift_value n) args)
+  | NAT _ as v -> v
   | ARRAY (u,t,ty) ->
       ARRAY(u, Parray.map (shift_value n) t, shift_value n ty)
   | SYMBOL s -> SYMBOL { s with stk = shift_stack n s.stk }
@@ -198,7 +204,7 @@ let strip_appl head stack =
     | COFIX (cofix,env,app) -> (COFIX(cofix,env,[||]), stack_vect_app app stack)
     | CONSTRUCT (c,app) -> (CONSTRUCT(c,[||]), stack_vect_app app stack)
     | PRIMITIVE(op,c,app) -> (PRIMITIVE(op,c,[||]), stack_vect_app app stack)
-    | LETIN _ | VAL _ | STACK _ | PROD _ | LAMBDA _ | ARRAY _ | SYMBOL _ -> (head, stack)
+    | OPTIMIZED _ | LETIN _ | VAL _ | STACK _ | PROD _ | LAMBDA _ | NAT _ | ARRAY _ | SYMBOL _ -> (head, stack)
 
 let destack head stack =
   match head with
@@ -208,7 +214,7 @@ let destack head stack =
   | PRIMITIVE(op,c,app) -> (PRIMITIVE(op,c,[||]), stack_vect_app app stack)
   | STACK (k, v, stk) -> (shift_value k v, stack_concat (shift_stack k stk) stack)
   | SYMBOL ({ stk } as s) -> (SYMBOL { s with stk=TOP }, stack_concat stk stack)
-  | LETIN _ | VAL _ | PROD _ | LAMBDA _ | ARRAY _ -> (head, stack)
+  | OPTIMIZED _ | LETIN _ | VAL _ | PROD _ | LAMBDA _ | NAT _ | ARRAY _ -> (head, stack)
 
 let rec fixp_reducible_symb_stk = function
   | TOP -> true
@@ -224,7 +230,7 @@ let fixp_reducible flgs ((reci,i),_) stk =
         | [] -> false
         | v :: appl ->
           if Int.equal n 0 then match v with
-          | CONSTRUCT _ -> true
+          | CONSTRUCT _ | NAT _ -> true
           | SYMBOL { unfoldfix=true; stk; _ } ->
               fixp_reducible_symb_stk stk
           | _ -> false
@@ -418,6 +424,7 @@ and reify_value = function (* reduction under binders *)
       reify_stack (reify_value v) stk
   | STACK (n,v,stk) ->
       lift n (reify_stack (reify_value v) stk)
+  | OPTIMIZED (_, v) -> reify_value v
   | PROD(na,t,u,env) ->
     apply_env env (mkProd (na,t,u))
   | LETIN(na,b,t,c,env) ->
@@ -436,6 +443,7 @@ and reify_value = function (* reduction under binders *)
       mkApp(mkConstructU c, Array.map reify_value args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c, Array.map reify_value args)
+  | NAT (ind,n) -> mkNat ind n
   | ARRAY (u,t,ty) ->
     let t, def = Parray.to_array t in
       mkArray(u, Array.map reify_value t, reify_value def, reify_value ty)
@@ -495,6 +503,36 @@ let cbv_subst_of_rel_context_instance_list mkclos sign args env =
     | [], [] -> subst
     | _ -> CErrors.anomaly (Pp.str "Instance and signature do not match.")
   in aux env (List.rev sign) args
+
+let is_optimized_constant env cst =
+  List.find_map (fun (s,o) ->
+      if Option.equal (Environ.QGlobRef.equal env)
+          (Some (GlobRef.ConstRef cst))
+          (Rocqlib.lib_ref_opt s)
+      then Some o
+      else None)
+    [
+      "cbv.add", Add;
+      "cbv.mul", Mul;
+      (* tail_mul and mul behave the same on canonical inputs *)
+      "cbv.tail_mul", Mul;
+      "cbv.sub", Sub;
+      "cbv.div2r", Div2r;
+    ]
+
+let sub n m =
+  if Z.leq n m then Z.zero
+  else Z.sub n m
+
+let div2r n = Z.sub n (Z.div n (Z.of_int 2))
+
+let run_optimized_def opt stk =
+  match opt, stk with
+  | Add, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.add n m), stk)
+  | Mul, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,Z.mul n m), stk)
+  | Sub, APP ([NAT (ind,n); NAT (_,m)], stk) -> Some (NAT (ind,sub n m), stk)
+  | Div2r, APP ([NAT (ind,n)], stk) -> Some (NAT (ind, div2r n), stk)
+  | (Add | Mul | Sub | Div2r), _ -> None
 
 (* The main recursive functions
  *
@@ -578,7 +616,13 @@ let rec norm_head info env t stack =
       (LAMBDA(List.length ctxt, List.rev ctxt,b,env), stack)
   | Fix fix -> (FIX(fix,env,[||]), stack)
   | CoFix cofix -> (COFIX(cofix,env,[||]), stack)
-  | Construct c -> (CONSTRUCT(c, [||]), stack)
+  | Construct ((ind,j),_ as c) ->
+    if Environ.is_nat info.env ind then match j, stack with
+      | 1, _ -> NAT (ind,Z.zero), stack
+      | 2, APP ([NAT (ind,n)], stack) -> NAT (ind,Z.succ n), stack
+      | 2, _ -> (CONSTRUCT(c, [||]), stack)
+      | _ -> assert false
+    else (CONSTRUCT(c, [||]), stack)
 
   | Array(u,t,def,ty) ->
     let ty = cbv_stack_term info TOP env ty in
@@ -588,6 +632,8 @@ let rec norm_head info env t stack =
       (fun i -> cbv_stack_term info TOP env t.(i))
       (cbv_stack_term info TOP env def) in
     (ARRAY (u,t,ty), stack)
+
+  | Nat (ind,n) -> (NAT (ind,n), stack)
 
   (* neutral cases *)
   | (Sort _ | Meta _ | Ind _ | Int _ | Float _ | String _) -> (VAL(0, t), stack)
@@ -660,6 +706,26 @@ and cbv_stack_value info env = function
     let (envf,redfix) = contract_cofixp env cofix in
     cbv_stack_term info stk envf redfix
 
+  | OPTIMIZED (opt, v), stk ->
+    begin match run_optimized_def opt stk with
+    | None -> cbv_stack_value info env (v, stk)
+    | Some v -> cbv_stack_value info env v
+    end
+
+  (* constructor in a Case -> IOTA *)
+  | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
+    when red_set info.reds fMATCH ->
+    let cargs = List.skipn ci.ci_npar args in
+    let env =
+      if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
+        List.fold_left (fun accu v -> subs_cons v accu) env cargs
+      else
+        let mkclos env c = cbv_stack_term info TOP env c in
+        let ctx = expand_branch info.env u pms (sp, n) br in
+        cbv_subst_of_rel_context_instance_list mkclos ctx cargs env
+    in
+    cbv_stack_term info stk env (snd br.(n-1))
+
   (* constructor in a Case -> IOTA *)
   | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
     when red_set info.reds fMATCH ->
@@ -687,6 +753,16 @@ and cbv_stack_value info env = function
     in
     cbv_stack_term info stk env (snd br.(n-1))
 
+  (* unlike CONSTRUCT this is the only NAT case (no APP/PROJ at the head of the stack by typing) *)
+  | NAT (ind,n), CASE (_,_,_,br,_,_,env,stk) when red_set info.reds fMATCH ->
+    if Z.equal n Z.zero then
+      let _, br = br.(0) in
+      cbv_stack_term info stk env br
+    else
+      let env = subs_cons (NAT (ind,Z.pred n)) env in
+      let _, br = br.(1) in
+      cbv_stack_term info stk env br
+
   (* constructor in a Projection -> IOTA *)
   | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
     when red_set info.reds fMATCH && Projection.unfolded p ->
@@ -696,6 +772,8 @@ and cbv_stack_value info env = function
   (* may be reduced later by application *)
   | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
   | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
+  | CONSTRUCT (((ind,2),_),[||]), APP([NAT (ind',n)], TOP) when Environ.QInd.equal info.env ind ind' ->
+    NAT (ind,Z.succ n)
   | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
 
   (* primitive apply to arguments *)
@@ -734,23 +812,34 @@ and cbv_value_cache info ref =
     Not_found ->
     let v =
       try
-        let body = match ref with
+        let body, opt = match ref with
           | RelKey n ->
             let open Context.Rel.Declaration in
-            begin match Environ.lookup_rel n info.env with
+            let body =
+              begin match Environ.lookup_rel n info.env with
               | LocalDef (_, c, _) -> lift n c
               | LocalAssum _ -> raise Not_found
-            end
+              end
+            in
+            body, None
           | VarKey id ->
             let open Context.Named.Declaration in
-            begin match Environ.lookup_named id info.env with
+            let body =
+              begin match Environ.lookup_named id info.env with
               | LocalDef (_, c, _) -> c
               | LocalAssum _ -> raise Not_found
-            end
+              end
+            in
+            body, None
           | ConstKey (cst, u) ->
-            EConstr.Unsafe.to_constr @@ EConstr.constant_value_in info.env info.sigma (cst, EConstr.EInstance.make u)
+            let body = EConstr.Unsafe.to_constr @@
+              EConstr.constant_value_in info.env info.sigma (cst, EConstr.EInstance.make u)
+            in
+            let opt = is_optimized_constant info.env cst in
+            body, opt
         in
         let v = cbv_stack_term info TOP (subs_id 0) body in
+        let v = match opt with None -> v | Some opt -> OPTIMIZED (opt, v) in
         Declarations.Def v
       with
       | Environ.NotEvaluableConst (Environ.IsPrimitive (_u,op)) -> Declarations.Primitive op
@@ -957,6 +1046,7 @@ and cbv_norm_value info = function
       apply_stack info (cbv_norm_value info v) stk
   | STACK (n,v,stk) ->
       lift n (apply_stack info (cbv_norm_value info v) stk)
+  | OPTIMIZED (_, v) -> cbv_norm_value info v
   | PROD(na,t,u,env) ->
       mkProd (na,cbv_norm_term info env t,cbv_norm_term info (subs_lift env) u)
   | LETIN (na,b,t,c,env) ->
@@ -987,6 +1077,7 @@ and cbv_norm_value info = function
       mkApp(mkConstructU c, Array.map (cbv_norm_value info) args)
   | PRIMITIVE(op,c,args) ->
       mkApp(mkConstU c,Array.map (cbv_norm_value info) args)
+  | NAT (ind,n) -> mkNat ind n
   | ARRAY (u,t,ty) ->
     let ty = cbv_norm_value info ty in
     let t, def = Parray.to_array t in
