@@ -16,8 +16,8 @@ open Glob_term
 open Notation
 open PrimNotations
 
-module CSet = CSet.Make (Constr)
-module CMap = CMap.Make (Constr)
+module CSet = CSet.Make (Termops.ConstrData)
+module CMap = CMap.Make (Termops.ConstrData)
 
 let mkRef env sigma g =
   let sigma, c = Evd.fresh_global env sigma g in

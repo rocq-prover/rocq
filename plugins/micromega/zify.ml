@@ -120,7 +120,7 @@ module HConstr = struct
   module M = Map.Make (struct
     type t = EConstr.t
 
-    let compare c c' = Constr.compare (unsafe_to_constr c) (unsafe_to_constr c')
+    let compare c c' = Termops.ConstrData.compare (unsafe_to_constr c) (unsafe_to_constr c')
   end)
 
   type 'a t = 'a M.t
@@ -788,7 +788,7 @@ module CstrTable = struct
   module HConstr = Hashtbl.Make (struct
     type t = EConstr.t
 
-    let hash c = Constr.hash (unsafe_to_constr c)
+    let hash c = Termops.ConstrData.hash (unsafe_to_constr c)
     let equal c c' = Constr.equal (unsafe_to_constr c) (unsafe_to_constr c')
   end)
 

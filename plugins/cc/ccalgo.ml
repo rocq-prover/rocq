@@ -238,7 +238,7 @@ struct
     | Sort (Type _u) -> mkSort (type1)
     | _ -> Constr.map drop_univ c
 
-  let mkSymb s = make (Symb (s, Constr.hash (drop_univ s)))
+  let mkSymb s = make (Symb (s, Termops.ConstrData.hash (drop_univ s)))
 
   let mkProduct (s1, s2) = make (Product (s1, s2))
 
@@ -341,7 +341,7 @@ type node =
 module Constrhash = Hashtbl.Make
   (struct type t = constr
           let equal = eq_constr_nounivs
-          let hash = Constr.hash
+          let hash = Termops.ConstrData.hash (* XXX no guarantee that hash is compatible with equal *)
    end)
 module Typehash = Constrhash
 

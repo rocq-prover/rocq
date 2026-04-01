@@ -49,7 +49,7 @@ end
 
 module Env = struct
 
-  module ConstrHashtbl = Hashtbl.Make (Constr)
+  module ConstrHashtbl = Hashtbl.Make (Termops.ConstrData)
 
   type t = (int ConstrHashtbl.t * int ref)
 

@@ -114,7 +114,7 @@ let repr i = i
 
 let compare (i1, c1) (i2, c2) =
   let c = Int.compare i1 i2 in
-  if c = 0 then Constr.compare (EConstr.Unsafe.to_constr c1) (EConstr.Unsafe.to_constr c2) else c
+  if c = 0 then Termops.ConstrData.compare (EConstr.Unsafe.to_constr c1) (EConstr.Unsafe.to_constr c2) else c
 
 let is_ground (m, _) = Int.equal m 0
 

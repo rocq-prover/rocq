@@ -426,9 +426,6 @@ val leq_constr_univs : UGraph.t -> constr -> constr -> bool
    application grouping and ignoring universe instances. *)
 val eq_constr_nounivs : constr -> constr -> bool
 
-(** Total ordering compatible with [equal] *)
-val compare : constr -> constr -> int
-
 (** {6 Extension of Context with declarations on constr} *)
 
 type rel_declaration = (constr, types, Sorts.relevance) Context.Rel.Declaration.pt
@@ -620,8 +617,6 @@ val eq_invert : ('a -> 'a -> bool)
   -> 'a pcase_invert -> 'a pcase_invert -> bool
 
 (** {6 Hashconsing} *)
-
-val hash : constr -> int
 
 (*********************************************************************)
 

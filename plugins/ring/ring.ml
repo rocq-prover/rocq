@@ -330,7 +330,7 @@ let _ = add_map "ring"
 (****************************************************************************)
 (* Ring database *)
 
-module Cmap = Map.Make(Constr)
+module Cmap = Map.Make(Termops.ConstrData)
 
 let from_carrier = Summary.ref Cmap.empty ~name:"ring-tac-carrier-table"
 
