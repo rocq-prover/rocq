@@ -1666,7 +1666,7 @@ and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
       let ntys_brs = Environ.expand_branch_contexts specif u pms brs in
       let prets, pbrss, elims, states = extract_or_kill4 (function [@ocaml.warning "-4"]
       | PECase (pind, pret, pbrs) :: es, subst ->
-        if not @@ Ind.CanOrd.equal pind ci.ci_ind then None else
+        if not @@ QInd.equal (info_env info) pind ci.ci_ind then None else
           Some (pret, pbrs, es, subst)
       | _ -> None)
           elims states
@@ -1683,7 +1683,7 @@ and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
       let head = {mark; term=FProj(Projection.make proj' true, r, head)} in
       let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
       | PEProj proj :: es, subst ->
-        if not @@ Projection.Repr.CanOrd.equal proj proj' then None else
+        if not @@ QProjection.Repr.equal (info_env info) proj proj' then None else
         Some (es, subst)
       | _ -> None) elims states
       in
@@ -1719,7 +1719,7 @@ and match_head red info tab ~pat_state next context states patterns t stk =
   | FInd (ind', u) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
     | (PHInd (ind, pu), elims), psubst ->
-      if not @@ Ind.CanOrd.equal ind ind' then None else
+      if not @@ QInd.equal (info_env info) ind ind' then None else
       let subst = UVars.Instance.pattern_match pu u psubst.subst in
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
@@ -1729,7 +1729,7 @@ and match_head red info tab ~pat_state next context states patterns t stk =
   | FConstruct ((constr', u), args) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
     | (PHConstr (constr, pu), elims), psubst ->
-      if not @@ Construct.CanOrd.equal constr constr' then None else
+      if not @@ QConstruct.equal (info_env info) constr constr' then None else
       let subst = UVars.Instance.pattern_match pu u psubst.subst in
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
@@ -1755,7 +1755,7 @@ and match_head red info tab ~pat_state next context states patterns t stk =
   | FFlex (ConstKey (c', u)) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
     | (PHSymbol (c, pu), elims), psubst ->
-      if not @@ Constant.CanOrd.equal c c' then None else
+      if not @@ QConstant.equal (info_env info) c c' then None else
       let subst = UVars.Instance.pattern_match pu u psubst.subst in
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
