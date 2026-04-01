@@ -28,6 +28,10 @@ val eq : ('raw1, 'glb1) tag -> ('raw2, 'glb2) tag -> ('raw1 * 'glb1, 'raw2 * 'gl
 
 val repr : _ tag -> string
 
+type any_tag = Any : _ tag -> any_tag
+
+val name : string -> any_tag option
+
 type raw = Raw : ('raw, _) tag * 'raw -> raw
 
 type glb = Glb : (_, 'glb) tag * 'glb -> glb

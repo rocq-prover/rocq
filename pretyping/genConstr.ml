@@ -18,6 +18,12 @@ let eq t1 t2 = D.eq t1 t2
 
 let repr tag = D.repr tag
 
+type any_tag = Any : _ tag -> any_tag
+
+let name s =
+  (* magic: all tags are at tuple types *)
+  D.name s |> Option.map @@ fun (D.Any t) -> Any (Obj.magic t)
+
 type raw = Raw : ('raw, _) tag * 'raw -> raw
 
 type glb = Glb : (_, 'glb) tag * 'glb -> glb
