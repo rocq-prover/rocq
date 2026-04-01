@@ -202,6 +202,7 @@ Rewriting with Leibniz and setoid equality
       .. rocqtop:: out
 
          Lemma example x y : x + y = y + x.
+         Proof.
 
       .. rocqtop:: all fail
 
@@ -467,6 +468,7 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
    .. rocqtop:: all
 
       Goal 3 + 4 = 7.
+      Proof.
       Show Proof.
       Show Existentials.
       cbv.
@@ -782,6 +784,7 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
       .. rocqtop:: all
 
          Goal ~0=0.
+         Proof.
          unfold not.
 
       This :tacn:`fold` doesn't undo the preceeding :tacn:`unfold` (it makes no change):
@@ -813,6 +816,7 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
       .. rocqtop:: all abort
 
          Goal forall x xs, fold_right and True (x::xs).
+         Proof.
          red.
          fold (fold_right and True).
 
@@ -1130,6 +1134,7 @@ unfolding.  Rocq has multiple notions of opaque:
 
          Opaque id.
          Goal id 10 = 10.
+         Proof.
          Fail unfold id.
          with_strategy transparent [id] unfold id.
 
@@ -1174,6 +1179,7 @@ unfolding.  Rocq has multiple notions of opaque:
       .. rocqtop:: all abort
 
          Goal True.
+         Proof.
          Time assert (id (fact 8) = fact 8) by reflexivity.
          Time assert (id (fact 9) = fact 9) by reflexivity.
 
@@ -1187,6 +1193,7 @@ unfolding.  Rocq has multiple notions of opaque:
       .. rocqtop:: all
 
          Goal True.
+         Proof.
          Fail Timeout 1 assert (id (fact 100) = fact 100) by reflexivity.
          Time assert (id (fact 100) = fact 100) by with_strategy -1 [id] reflexivity.
 
@@ -1204,6 +1211,7 @@ unfolding.  Rocq has multiple notions of opaque:
       .. rocqtop:: all
 
          Goal True.
+         Proof.
          Time assert (id (fact 100) = fact 100) by with_strategy -1 [id] abstract reflexivity.
          exact I.
          Time Defined.

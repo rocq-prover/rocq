@@ -4,6 +4,7 @@ From Ltac2 Require Import Message.
 Ltac2 msg s := print (of_string s).
 
 Goal True.
+Proof.
   (* should be the exact error *)
   Fail multi_match! 'True with
     | True => msg "1"

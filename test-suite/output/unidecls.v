@@ -76,7 +76,10 @@ Module Fn(A : Arg).
   Definition foo : Type@{v} := nat.
   Definition bar : Type@{Arg.u} := nat.
 
-  Definition foo'(A : Type@{v}) : Type@{Arg.u}. Fail exact A. Abort.
+  Definition foo'(A : Type@{v}) : Type@{Arg.u}.
+  Proof.
+    Fail exact A.
+  Abort.
 End Fn.
 
 Module ArgImpl : Arg.

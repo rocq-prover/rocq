@@ -873,6 +873,7 @@ class RocqtopBlocksTransform(Transform):
 
         if options['restart']:
             repl.sendone('Restart.')
+            repl.sendone('Proof.')
         if options['reset']:
             repl.sendone('Reset Initial.')
             repl.send_initial_options()

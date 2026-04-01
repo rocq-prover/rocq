@@ -282,6 +282,7 @@ Constructing records
       .. rocqtop:: in
 
          Theorem one_two_irred : forall x y z:nat, x * y = 1 /\ x * z = 2 -> x = 1.
+         Proof.
          Admitted.
 
          (* Record form: top and bottom can be inferred from other fields *)

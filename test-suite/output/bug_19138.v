@@ -2,6 +2,7 @@ From Ltac2 Require Import Ltac2 Constr.
 Import Constr.Unsafe.
 
 Goal True.
+Proof.
   let t := open_constr:(_ :> False) in
   match kind t with
   | Evar e _ => Control.new_goal e > [refine 'I|]
@@ -11,6 +12,7 @@ Goal True.
 Abort.
 
 Goal True.
+Proof.
   let t := unshelve open_constr:(_ :> False) in
   Control.extend [Control.shelve] (fun () => ()) [];
   match kind t with

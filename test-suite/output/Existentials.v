@@ -6,6 +6,7 @@ Variable p:nat.
 Let q := S p.
 
 Goal forall n m:nat, n = m.
+Proof.
 intros.
 eapply eq_trans.
 clearbody q.

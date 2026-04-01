@@ -405,6 +405,7 @@ Examples
     .. rocqtop:: all
 
        Definition y : bool.
+       Proof.
        exact true.
 
     .. rocqtop:: in
@@ -452,6 +453,7 @@ module can be accessed using the dot notation:
       Definition T := nat.
       Definition x := 0.
       Definition y : bool.
+      Proof.
       exact true.
       Defined.
       End M.

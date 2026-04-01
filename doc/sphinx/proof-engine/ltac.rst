@@ -300,6 +300,7 @@ as a :token:`tactic_arg`.  Local symbols are also substituted into tactics:
    .. rocqtop:: reset none
 
       Goal True.
+      Proof.
 
    .. rocqtop:: all
 
@@ -475,6 +476,7 @@ Selectors can also be used nested within a tactic expression with the
    .. rocqtop:: reset in
 
       Goal 1=0 /\ 2=0 /\ 3=0.
+      Proof.
 
    .. rocqtop:: all
 
@@ -496,6 +498,7 @@ separately.  They succeed only if there is a success for each goal.  For example
    .. rocqtop:: reset none fail
 
       Goal True /\ False.
+      Proof.
 
    .. rocqtop:: out
 
@@ -702,6 +705,7 @@ We can branch with backtracking with the following structure:
       .. rocqtop:: reset none
 
          Goal True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -788,6 +792,7 @@ In some cases backtracking may be too expensive.
       .. rocqtop:: reset none
 
          Goal True.
+         Proof.
 
       The :tacn:`fail` doesn't trigger the second :tacn:`idtac`:
 
@@ -812,6 +817,7 @@ In some cases backtracking may be too expensive.
 
        Tactic Notation "myfirst" "[" tactic_list_sep(tacl,"|") "]" := first tacl.
        Goal True.
+       Proof.
        myfirst [ auto | apply I ].
 
 Solving
@@ -899,6 +905,7 @@ Rocq defines an |Ltac| tactic in `Init.Tactics` to check that a tactic *fails*:
       .. rocqtop:: reset none
 
          Goal True.
+         Proof.
 
       .. rocqtop:: all fail
 
@@ -1210,6 +1217,7 @@ Pattern matching on terms: match
       .. rocqtop:: reset none
 
          Goal True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -1258,6 +1266,7 @@ Pattern matching on terms: match
       .. rocqtop:: in reset
 
          Goal True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -1279,6 +1288,7 @@ Pattern matching on terms: match
                     | _ => idtac
                     end.
          Goal True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -1390,6 +1400,7 @@ Examples:
       .. rocqtop:: reset all
 
          Goal forall A B : Prop, A -> B -> (A->B).
+         Proof.
          intros.
          match goal with
          | H : _ |- _ => idtac "apply " H; apply H
@@ -1404,6 +1415,7 @@ Examples:
       .. rocqtop:: reset all
 
          Goal forall A B : Prop, A -> B -> (A->B).
+         Proof.
          intros.
          match reverse goal with
          | H : _ |- _ => idtac "apply " H; apply H
@@ -1421,6 +1433,7 @@ Examples:
       .. rocqtop:: reset all
 
          Goal forall A B : Prop, A -> B -> (A->B).
+         Proof.
          intros A B H.
          match goal with
          | H1 : _, H2 : _ |- _ => idtac "match " H1 H2; fail
@@ -1458,6 +1471,7 @@ produce subgoals but generates a term to be used in tactic expressions:
       .. rocqtop:: reset all
 
          Goal True /\ True.
+         Proof.
          match goal with
          | |- context G [True] => let x := context G [False] in idtac x
          end.
@@ -1492,6 +1506,7 @@ expression returns an identifier:
       .. rocqtop:: reset none
 
          Goal True -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -1567,6 +1582,7 @@ Counting goals: numgoals
          Ltac pr_numgoals := let n := numgoals in idtac "There are" n "goals".
 
          Goal True /\ True /\ True.
+         Proof.
          split;[|split].
 
       .. rocqtop:: all abort
@@ -1601,6 +1617,7 @@ Testing boolean expressions: guard
       .. rocqtop:: in
 
          Goal True /\ True /\ True.
+         Proof.
          split;[|split].
 
       .. rocqtop:: all
@@ -1710,6 +1727,7 @@ succeeds, and results in an error otherwise.
       .. rocqtop:: reset in
 
          Goal True.
+         Proof.
          is_fix (fix f (n : nat) := match n with S n => f n | O => O end).
 
 .. tacn:: is_cofix @one_term
@@ -1727,6 +1745,7 @@ succeeds, and results in an error otherwise.
 
          CoInductive Stream (A : Type) : Type :=  Cons : A -> Stream A -> Stream A.
          Goal True.
+         Proof.
          let c := constr:(cofix f : Stream unit := Cons _ tt f) in
            is_cofix c.
 
@@ -1763,6 +1782,7 @@ succeeds, and results in an error otherwise.
          Record Box {T : Type} := box { unbox : T }.
          Arguments box {_} _.
          Goal True.
+         Proof.
          is_proj (unbox (box 0)).
 
 Timing
@@ -1849,6 +1869,7 @@ different :token:`string` parameters to :tacn:`restart_timer` and
         ret.
 
       Goal True.
+      Proof.
         let v := time_constr
              ltac:(fun _ =>
                      let x := time_constr1 ltac:(fun _ => constr:(10 * 10)) in
@@ -2088,6 +2109,7 @@ Proving that a list is a permutation of a second list
    .. rocqtop:: out
 
       Goal perm nat (1 :: 2 :: 3 :: nil) (3 :: 2 :: 1 :: nil).
+      Proof.
 
    .. rocqtop:: all abort
 
@@ -2098,6 +2120,7 @@ Proving that a list is a permutation of a second list
       Goal perm nat
              (0 :: 1 :: 2 :: 3 :: 4 :: 5 :: 6 :: 7 :: 8 :: 9 :: nil)
              (0 :: 2 :: 4 :: 6 :: 8 :: 9 :: 7 :: 5 :: 3 :: 1 :: nil).
+      Proof.
 
    .. rocqtop:: all abort
 
@@ -2378,6 +2401,7 @@ Tracing execution
 
          Ltac t x := exists x; reflexivity.
          Goal exists n, n=0.
+         Proof.
 
       .. rocqtop:: all
 

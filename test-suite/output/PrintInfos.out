@@ -84,7 +84,7 @@ Arguments bar {x}
 Module Corelib.Init.Peano
 Notation sym_eq := eq_sym
 Expands to: Notation Corelib.Init.Logic.sym_eq
-Declared in library Corelib.Init.Logic, line 764, characters 0-45
+Declared in library Corelib.Init.Logic, line 767, characters 0-45
 
 eq_sym : forall [A : Type] [x y : A], x = y -> y = x
 
@@ -140,7 +140,7 @@ fst is a projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutProj.fst
-Declared in library PrintInfos, line 57, characters 21-24
+Declared in library PrintInfos, line 59, characters 21-24
 fst : forall A B : Type, prod A B -> A
 
 fst is not universe polymorphic
@@ -148,4 +148,4 @@ fst is a primitive projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutPrimProj.fst
-Declared in library PrintInfos, line 63, characters 21-24
+Declared in library PrintInfos, line 65, characters 21-24

@@ -1,4 +1,5 @@
 Goal 0 = 1.
+Proof.
 match goal with
 | |- context [?v] =>
   idtac v ; fail

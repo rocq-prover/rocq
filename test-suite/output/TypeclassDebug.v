@@ -9,6 +9,7 @@ Create HintDb foo.
 #[global]
 Hint Resolve H : foo.
 Goal foo.
+Proof.
 Typeclasses eauto := debug.
 Fail typeclasses eauto 5 with foo.
 Abort.

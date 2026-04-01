@@ -209,6 +209,7 @@ Tactics
          Functional Scheme minus_ind := Induction for minus Sort Prop.
          Check minus_ind.
          Lemma le_minus (n m:nat) : n - m <= n.
+         Proof.
          functional induction (minus n m) using minus_ind; simpl; auto.
          Qed.
 
@@ -328,6 +329,7 @@ Generation of induction principles with ``Functional`` ``Scheme``
   .. rocqtop:: all extra-stdlib
 
     Lemma div2_le' : forall n:nat, div2 n <= n.
+    Proof.
     intro n.
     pattern n, (div2 n).
     apply div2_ind; intros.
@@ -344,6 +346,7 @@ Generation of induction principles with ``Functional`` ``Scheme``
     Reset div2_le'.
 
     Lemma div2_le : forall n:nat, div2 n <= n.
+    Proof.
     intro n.
     functional induction (div2 n).
     auto with arith.

@@ -1,4 +1,5 @@
 Theorem x : forall n m:nat, n = 1 /\ forall n : nat, n = m.
+Proof.
 Admitted.
 Create HintDb foo.
 Hint Resolve x : foo.

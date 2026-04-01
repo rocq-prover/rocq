@@ -20,6 +20,7 @@ Check foo _ S.
 Fail Check ! S.
 
 Goal True.
+Proof.
   (* sort unification variable matches Type (and is printed as Type in the [forall] annotation) *)
   (* NB don't use Check here as it collapses before printing (maybe this will change someday?) *)
   assert (forall A, A -> foo _ A). 2:trivial.
@@ -36,6 +37,7 @@ Check ! nat.
 Check foo _ S.
 
 Goal True.
+Proof.
   (* sort unif variable doesn't match Type *)
   assert (forall A, A -> foo _ A). 2:trivial.
   Show.

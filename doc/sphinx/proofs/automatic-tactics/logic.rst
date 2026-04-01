@@ -20,6 +20,7 @@ Solvers for logic and equality
       .. rocqtop:: reset all
 
          Goal forall (x:nat) (P:nat -> Prop), x = 0 \/ P x -> x <> 0 -> P x.
+         Proof.
          intros.
          tauto.
 
@@ -32,6 +33,7 @@ Solvers for logic and equality
       .. rocqtop:: reset all
 
          Goal forall (A:Prop) (P:nat -> Prop), A \/ (forall x:nat, ~ A -> P x) -> forall x:nat, ~ A -> P x.
+         Proof.
          tauto.
 
    .. note::
@@ -198,12 +200,18 @@ Solvers for logic and equality
 
       .. rocqtop:: reset all
 
-         Theorem T (A:Type) (f:A -> A) (g: A -> A -> A) a b: a=(f a) -> (g b (f a))=(f (f a)) -> (g a b)=(f (g b a)) -> (g a b)=a.
+         Theorem T (A:Type) (f:A -> A) (g: A -> A -> A) a b :
+           a = (f a) -> (g b (f a)) = (f (f a)) -> (g a b) = (f (g b a)) ->
+           (g a b) = a.
+         Proof.
          intros.
          congruence.
          Qed.
 
-         Theorem inj (A:Type) (f:A -> A * A) (a c d: A) : f = pair a -> Some (f c) = Some (f d) -> c=d.
+         Theorem inj (A:Type) (f:A -> A * A) (a c d: A) :
+           f = pair a -> Some (f c) = Some (f d) ->
+           c = d.
+         Proof.
          intros.
          congruence.
          Qed.

@@ -8,6 +8,7 @@ Ltac mydo tac := tac ().
 Ltac rec x := rec.
 
 Goal True.
+Proof.
   Fail foo.
   Fail bar.
   Fail bar True.

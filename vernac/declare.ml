@@ -1783,9 +1783,13 @@ module Proof = struct
 type nonrec closed_proof_output = closed_proof_output
 type proof_object = Proof_object.t
 
+type late_init = Explicit | Implicit | NotRequired
+
 type t =
   { endline_tactic : Gentactic.glob_generic_tactic option
   ; using : Id.Set.t option
+  ; has_late_init : late_init option
+  (** Explicit if Proof was used, Implicit if we started modifying the proof before Proof was used *)
   ; proof : Proof.t
   ; initial_euctx : UState.t
   (** The initial universe context (for the statement) *)
@@ -1818,6 +1822,10 @@ let compact pf = map ~f:Proof.compact pf
 let set_endline_tactic tac ps =
   { ps with endline_tactic = Some tac }
 
+let finish_late_init ps explicit = { ps with has_late_init = Some explicit }
+
+let has_late_init ps = ps.has_late_init
+
 let initialize_named_context_for_proof () =
   let sign = Global.named_context () in
   List.fold_right
@@ -1838,6 +1846,7 @@ let start_proof_core ~name ~pinfo ?using sigma goals =
   let proof = Proof.start ~name ~poly ?typing_flags sigma goals in
   let initial_euctx = Evd.ustate Proof.((data proof).sigma) in
   { proof
+  ; has_late_init = None
   ; endline_tactic = None
   ; using
   ; initial_euctx
@@ -1863,6 +1872,7 @@ let start_dependent ~info ~cinfo ~name ~proof_ending goals =
   let initial_euctx = Evd.ustate Proof.((data proof).sigma) in
   let pinfo = Proof_info.make ~info ~cinfo ~proof_ending () in
   { proof
+  ; has_late_init = None
   ; endline_tactic = None
   ; using = None
   ; initial_euctx
@@ -2587,6 +2597,7 @@ let solve_obligation ?check_final prg num tac =
   let poly = Internal.get_poly prg in
   let info = Info.make ~kind ~poly () in
   let lemma = Proof.start_core ~cinfo ~info ~proof_ending ?using evd  in
+  let lemma = Proof.finish_late_init lemma NotRequired in
   let lemma = fst @@ Proof.by (Global.env ()) !default_tactic lemma in
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
