@@ -35,7 +35,7 @@ let eq_reloc_info r1 r2 = match r1, r2 with
 | Reloc_annot _, _ -> false
 | Reloc_const c1, Reloc_const c2 -> eq_structured_constant c1 c2
 | Reloc_const _, _ -> false
-| Reloc_getglobal c1, Reloc_getglobal c2 -> Constant.CanOrd.equal c1 c2
+| Reloc_getglobal c1, Reloc_getglobal c2 -> Constant.UserOrd.equal c1 c2
 | Reloc_getglobal _, _ -> false
 | Reloc_caml_prim p1, Reloc_caml_prim p2 -> CPrimitives.equal (caml_prim_to_prim p1) (caml_prim_to_prim p2)
 | Reloc_caml_prim _, _ -> false
@@ -45,7 +45,7 @@ let hash_reloc_info r =
   match r with
   | Reloc_annot sw -> combinesmall 1 (hash_annot_switch sw)
   | Reloc_const c -> combinesmall 2 (hash_structured_constant c)
-  | Reloc_getglobal c -> combinesmall 3 (Constant.CanOrd.hash c)
+  | Reloc_getglobal c -> combinesmall 3 (Constant.UserOrd.hash c)
   | Reloc_caml_prim p -> combinesmall 4 (CPrimitives.hash (caml_prim_to_prim p))
 
 module RelocTable = Hashtbl.Make(struct
