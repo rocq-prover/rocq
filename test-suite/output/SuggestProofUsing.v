@@ -8,7 +8,7 @@ Lemma nosec : nat. Proof. exact 0. Qed.
 Lemma nosec_exactproof : bool. Proof false.
 
 Program Definition nosec_program : nat := _.
-Next Obligation. exact 1. Qed.
+Next Obligation. Proof. exact 1. Qed.
 
 Lemma nosec_abstract : nat.
 Proof. abstract exact 3. Defined.
@@ -43,7 +43,7 @@ Section Sec.
 
   (* No suggest, is this OK? There's nowhere to put it anyway. *)
   Program Definition program : nat := _.
-  Next Obligation. exact 1. Qed.
+  Next Obligation. Proof. exact 1. Qed.
 
   (* Must not suggest *)
   Lemma sec_abstract : nat.

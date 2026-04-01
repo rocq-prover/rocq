@@ -21,12 +21,14 @@ SearchPattern (Exc _).
 Definition newdef := fun x:nat => x.
 
 Goal forall n:nat, n <> newdef n -> False.
+Proof.
   intros n h.
   SearchPattern ( _ <> newdef _).          (* search hypothesis *)
   SearchPattern ( n <> newdef _).          (* search hypothesis *)
 Abort.
 
 Goal forall n (P:nat -> Prop), P n -> ~P n -> False.
+Proof.
   intros n P h h'.
   SearchPattern (P _).      (* search hypothesis also for patterns *)
   Search (~P n).          (* search hypothesis also for patterns *)

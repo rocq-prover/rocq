@@ -268,6 +268,11 @@ module Proof : sig
   (** Sets the tactic to be used when a tactic line is closed with [...] *)
   val set_endline_tactic : Gentactic.glob_generic_tactic -> t -> t
 
+  type late_init = Explicit | Implicit
+
+  val finish_late_init : t -> late_init -> t
+  val has_late_init : t -> late_init option
+
   val definition_scope : t -> Locality.definition_scope
 
   (** Sets the section variables assumed by the proof, returns its closure

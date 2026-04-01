@@ -7,6 +7,7 @@ Print Ltac foo.
 Print Ltac bar.
 
 Goal True -> 2 = 3.
+Proof.
   (* yet foo is not equivalent to bar ( "||" runs the second tactic if the first doesn't make progress) *)
   Succeed foo.
   Fail bar.

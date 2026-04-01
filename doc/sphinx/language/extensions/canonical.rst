@@ -425,6 +425,7 @@ structure.
 .. rocqtop:: all
 
      Lemma lele_eq (e : type) (x y : obj e) : x <= y -> y <= x -> x == y.
+     Proof.
 
      now intros; apply (compat _ _ (extra _ (class_of e)) x y); split.
 
@@ -465,14 +466,14 @@ following proofs are omitted for brevity.
 .. rocqtop:: all
 
   Lemma nat_LEQ_compat (n m : nat) : n <= m /\ m <= n <-> n == m.
-
+  Proof.
   Admitted.
 
   Definition nat_LEQmx := LEQ.Mixin nat_LEQ_compat.
 
   Lemma pair_LEQ_compat (l1 l2 : LEQ.type) (n m : LEQ.obj l1 * LEQ.obj l2) :
      n <= m /\ m <= n <-> n == m.
-
+  Proof.
   Admitted.
 
   Definition pair_LEQmx l1 l2 := LEQ.Mixin (pair_LEQ_compat l1 l2).
@@ -498,13 +499,13 @@ subsection we show how to make them more compact.
            (pair_LEQmx l1 l2)).
 
      Example test_algebraic (n m : nat) : n <= m -> m <= n -> n == m.
-
+     Proof.
      now apply (lele_eq n m).
 
      Qed.
 
      Example test_algebraic2 (n m : nat * nat) : n <= m -> m <= n -> n == m.
-
+     Proof.
      now apply (lele_eq n m). Qed.
 
   End Add_instance_attempt.

@@ -11,7 +11,7 @@ cannot be applied to the term
  "Type" : "Type"
 This term has type "Type@{u+1}" which should be a subtype of 
 "Type@{u1}".
-File "./output/CantApplyBadType.v", line 27, characters 2-108:
+File "./output/CantApplyBadType.v", line 28, characters 2-108:
 The command has indeed failed with message:
 Illegal application: 
 The term "idu1" of type "Type -> Type"

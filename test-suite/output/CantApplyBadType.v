@@ -24,6 +24,7 @@ This term has type "Type@{u+1}" which should be coercible to
 
 (* typing.ml error *)
 Goal True.
+Proof.
   Fail let c := constr:(ltac:(refine (idu1 _); exact_no_check Type@{u})) in
   let _ := type of c in
   idtac.

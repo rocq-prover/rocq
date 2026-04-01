@@ -36,7 +36,7 @@ Arguments myrefl {C}%_type_scope x _
   (where some original arguments have been renamed)
 myrefl uses section variable A.
 Expands to: Constructor Arguments_renaming.Test1.myrefl
-Declared in library Arguments_renaming, line 25, characters 40-46
+Declared in library Arguments_renaming, line 26, characters 40-46
 myplus =
 fix myplus (T : Type) (t : T) (n m : nat) {struct n} : nat :=
   match n with
@@ -56,7 +56,7 @@ The reduction tactics unfold myplus when the 2nd and
   3rd arguments evaluate to a constructor
 myplus is transparent
 Expands to: Constant Arguments_renaming.Test1.myplus
-Declared in library Arguments_renaming, line 31, characters 9-15
+Declared in library Arguments_renaming, line 32, characters 9-15
 @myplus
      : forall Z : Type, Z -> nat -> nat -> nat
 Inductive myEq (A B : Type) (x : A) : A -> Prop :=
@@ -71,7 +71,7 @@ myrefl is template universe polymorphic
 Arguments myrefl A%_type_scope {C}%_type_scope x _
   (where some original arguments have been renamed)
 Expands to: Constructor Arguments_renaming.myrefl
-Declared in library Arguments_renaming, line 25, characters 40-46
+Declared in library Arguments_renaming, line 26, characters 40-46
 myrefl
      : forall (A C : Type) (x : A), C -> myEq A C x x
 myplus =
@@ -93,29 +93,29 @@ The reduction tactics unfold myplus when the 2nd and
   3rd arguments evaluate to a constructor
 myplus is transparent
 Expands to: Constant Arguments_renaming.myplus
-Declared in library Arguments_renaming, line 31, characters 9-15
+Declared in library Arguments_renaming, line 32, characters 9-15
 @myplus
      : forall Z : Type, Z -> nat -> nat -> nat
-File "./output/Arguments_renaming.v", line 49, characters 0-36:
+File "./output/Arguments_renaming.v", line 50, characters 0-36:
 The command has indeed failed with message:
 Argument lists should agree on the names they provide.
-File "./output/Arguments_renaming.v", line 50, characters 0-41:
+File "./output/Arguments_renaming.v", line 51, characters 0-41:
 The command has indeed failed with message:
 Sequences of implicit arguments must be of different lengths.
-File "./output/Arguments_renaming.v", line 51, characters 0-37:
+File "./output/Arguments_renaming.v", line 52, characters 0-37:
 The command has indeed failed with message:
 Argument number 3 is a trailing implicit, so it can't be declared non
 maximal. Please use { } instead of [ ].
-File "./output/Arguments_renaming.v", line 52, characters 0-37:
+File "./output/Arguments_renaming.v", line 53, characters 0-37:
 The command has indeed failed with message:
 Argument z is a trailing implicit, so it can't be declared non maximal.
 Please use { } instead of [ ].
-File "./output/Arguments_renaming.v", line 53, characters 0-28:
+File "./output/Arguments_renaming.v", line 54, characters 0-28:
 The command has indeed failed with message:
 Extra arguments: y.
-File "./output/Arguments_renaming.v", line 54, characters 0-26:
+File "./output/Arguments_renaming.v", line 55, characters 0-26:
 The command has indeed failed with message:
 Flag "rename" expected to rename A into R.
-File "./output/Arguments_renaming.v", line 58, characters 2-36:
+File "./output/Arguments_renaming.v", line 59, characters 2-36:
 The command has indeed failed with message:
 Arguments of section variables such as allTrue may not be renamed.

@@ -16,18 +16,21 @@ End A.
 (* Choice of evar names *)
 
 Goal (forall x, S (S (S x)) = x) -> exists x, S x = 0.
+Proof.
 eexists.
 rewrite H.
 Show.
 Abort.
 
 Goal (forall x, S (S (S x)) = x) -> exists x, S x = 0.
+Proof.
 eexists ?[x].
 rewrite H.
 Show.
 Abort.
 
 Goal (forall x, S (S (S x)) = x) -> exists x, S x = 0.
+Proof.
 eexists ?[y].
 rewrite H.
 Show.
@@ -37,6 +40,7 @@ Qed.
 (* Preserve the name if there is one *)
 
 Goal (forall x, S x = x) -> exists x, S x = 0.
+Proof.
 eexists ?[y].
 rewrite H.
 Show.

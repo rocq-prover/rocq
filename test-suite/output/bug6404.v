@@ -4,5 +4,6 @@ Ltac b _ := a ().
 Ltac abs _ := transparent_abstract b ().
 Ltac c _ := abs ().
 Goal True.
+Proof.
   Fail c ().
 Abort.

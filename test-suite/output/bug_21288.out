@@ -1,5 +1,5 @@
 Ltac foo := (intuition idtac) || fail "boom"
 Ltac bar := intuition idtac || fail "baam"
-File "./output/bug_21288.v", line 12, characters 7-10:
+File "./output/bug_21288.v", line 13, characters 7-10:
 The command has indeed failed with message:
 Tactic failure: baam.

@@ -6,6 +6,7 @@ SearchRewrite (0+_). 			(* right *)
 Definition newdef := fun x:nat => x.
 
 Goal forall n:nat, n = newdef n -> False.
+Proof.
   intros n h.
   SearchRewrite (newdef _).
   SearchRewrite n.                (* use hypothesis for patterns *)

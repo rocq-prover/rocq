@@ -75,6 +75,7 @@ remaining fields, e.g.:
 .. rocqtop:: all
 
    Next Obligation.
+   Proof.
      destruct x ; destruct y ; (discriminate || reflexivity).
    Defined.
 

@@ -26,11 +26,11 @@ module Proof : sig
 
   type (_,_) t =
     | Ignore : (unit, unit) t
-    | Modify : (state, state) t
+    | Modify : { check_late_init : bool } -> (state, state) t
     | Read : (state, unit) t
     | ReadOpt : (state option, unit) t
     | Reject : (unit, unit) t
-    | Close : (state, unit) t
+    | Close : { check_late_init : bool } -> (state, unit) t
     | Open : (unit, state) t
 end
 
@@ -77,15 +77,15 @@ val typed_vernac
 
 type full_state = (Prog.stack, Vernacstate.LemmaStack.t option, unit) state_gen
 
-val run : 'r typed_vernac_gen -> full_state -> full_state * 'r
+val run : ?loc:Loc.t -> 'r typed_vernac_gen -> full_state -> full_state * 'r
 
 (** Some convenient typed_vernac constructors. Used by coqpp. *)
 
 val vtdefault : (unit -> unit) -> typed_vernac
 val vtnoproof : (unit -> unit) -> typed_vernac
-val vtcloseproof : (lemma:Declare.Proof.t -> pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
+val vtcloseproof : ?check_late_init:bool -> (lemma:Declare.Proof.t -> pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
 val vtopenproof : (unit -> Declare.Proof.t) -> typed_vernac
-val vtmodifyproof : (pstate:Declare.Proof.t -> Declare.Proof.t) -> typed_vernac
+val vtmodifyproof : ?check_late_init:bool -> (pstate:Declare.Proof.t -> Declare.Proof.t) -> typed_vernac
 val vtreadproofopt : (pstate:Declare.Proof.t option -> unit) -> typed_vernac
 val vtreadproof : (pstate:Declare.Proof.t -> unit) -> typed_vernac
 val vtreadprogram : (pm:Declare.OblState.t -> unit) -> typed_vernac

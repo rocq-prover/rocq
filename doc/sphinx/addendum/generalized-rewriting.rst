@@ -1235,12 +1235,14 @@ subterm selection choices.
       Set Printing Parentheses.
       Local Open Scope bool_scope.
       Goal forall a b c : bool, a && b && c = true.
+      Proof.
       rewrite_strat innermost andbC.
 
    .. rocqtop:: none
 
       Abort.
       Goal forall a b c : bool, a && b && c = true.
+      Proof.
 
    Using :n:`outermost` instead gives this result:
 

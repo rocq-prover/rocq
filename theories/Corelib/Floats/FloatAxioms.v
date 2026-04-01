@@ -29,11 +29,18 @@ Axiom SF2Prim_Prim2SF : forall x, SF2Prim (Prim2SF x) = x.
 Axiom Prim2SF_SF2Prim : forall x, valid_binary x = true -> Prim2SF (SF2Prim x) = x.
 
 Theorem Prim2SF_inj : forall x y, Prim2SF x = Prim2SF y -> x = y.
+Proof.
   intros. rewrite <- SF2Prim_Prim2SF. symmetry. rewrite <- SF2Prim_Prim2SF. now rewrite H.
 Qed.
 
 Theorem SF2Prim_inj : forall x y, SF2Prim x = SF2Prim y -> valid_binary x = true -> valid_binary y = true -> x = y.
-  intros. rewrite <- Prim2SF_SF2Prim by assumption. symmetry. rewrite <- Prim2SF_SF2Prim by assumption. rewrite H. reflexivity.
+Proof.
+  intros.
+  rewrite <- Prim2SF_SF2Prim by assumption.
+  symmetry.
+  rewrite <- Prim2SF_SF2Prim by assumption.
+  rewrite H.
+  reflexivity.
 Qed.
 
 Axiom opp_spec : forall x, Prim2SF (-x)%float = SFopp (Prim2SF x).

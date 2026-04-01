@@ -10,6 +10,7 @@ Search (@eq _ _ _) true -false "prop" -"intro".  (* andb_prop *)
 Definition newdef := fun x:nat => x.
 
 Goal forall n:nat, n <> newdef n -> newdef n <> n -> False.
+Proof.
   cut False.
   intros _ n h h'.
   Search n.                             (* search hypothesis *)
@@ -26,6 +27,7 @@ Goal forall n:nat, n <> newdef n -> newdef n <> n -> False.
 Abort.
 
 Goal forall n (P:nat -> Prop), P n -> ~P n -> False.
+Proof.
   intros n P h h'.
   Search P.                 (* search hypothesis also for patterns *)
   Search (P _).             (* search hypothesis also for patterns *)

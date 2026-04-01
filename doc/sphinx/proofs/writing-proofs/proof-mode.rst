@@ -69,6 +69,7 @@ local context:
 .. rocqtop:: out
 
    Goal forall n m: nat, n > m -> P 1 /\ P 2.
+   Proof.
 
 After applying the :tacn:`intros` :term:`tactic`, we see hypotheses above the line.
 The names of variables (`n` and `m`) and hypotheses (`H`) appear before a colon, followed by
@@ -270,12 +271,25 @@ When the proof is completed, you can exit proof mode with commands such as
 
 .. cmd:: Proof
 
-   Is a no-op which is useful to delimit the sequence of tactic commands
-   which start a proof, after a :cmd:`Theorem` command. It is a good practice to
+   Outside sections it is a no-op which is useful to delimit the sequence of tactic commands
+   which start a proof, e.g. after a :cmd:`Theorem` command. It is a good practice to
    use :cmd:`Proof` as an opening parenthesis, closed in the script with a
-   closing :cmd:`Qed`.
+   closing :cmd:`Qed` or :cmd:`Defined`.
+
+   In sections this command is necessary to make :opt:`Default Proof Using` work.
+
+   Some IDEs may also need the presence of this command to enable
+   asynchronous execution for an interactive proof.
 
    .. seealso:: :cmd:`Proof with`
+
+   .. warn:: This interactive proof is not started by the "Proof" command
+      :name: missing-proof-command
+
+      Some features (for instance :opt:`Default Proof Using`) may not
+      work properly when interactive proofs are not delimited by
+      :cmd:`Proof` (or :cmd:`Proof using`). This warning helps find
+      such interactive proofs.
 
 .. cmd:: Proof using @section_var_expr {? with @generic_tactic }
 
@@ -364,6 +378,7 @@ When the proof is completed, you can exit proof mode with commands such as
 
          #[using="Hn"]
          Lemma example : 0 < n.
+         Proof.
 
       .. rocqtop:: in
 
@@ -403,6 +418,7 @@ When the proof is completed, you can exit proof mode with commands such as
          Print foo.      (* Doesn't change after the End *)
          Print foo'.     (* "End" added type radix (used by radixNotZero) and radixNotZero *)
          Goal 0 = 0.
+         Proof.
 
       .. rocqtop:: in
 
@@ -638,6 +654,7 @@ Curly braces
       .. rocqtop:: all reset
 
          Goal exists n : nat, n = n.
+         Proof.
          eexists ?[x].
          reflexivity.
          [x]: exact 0.
@@ -780,6 +797,7 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
 
          Set Generate Goal Names.
          Goal forall n, n + 0 = n.
+         Proof.
 
       .. rocqtop:: all
 
@@ -808,6 +826,7 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
       .. rocqtop:: in
 
          Goal forall n : nat, even n \/ odd n.
+         Proof.
 
       .. rocqtop:: all abort
 
@@ -825,6 +844,7 @@ but a name can be given by using :n:`refine ?[@ident]`, or generated using the
          Set Generate Goal Names.
 
          Goal forall n m : nat, n + m = m + n.
+         Proof.
          intros. induction m; simpl.
          [O]: {
            induction n.
@@ -891,6 +911,7 @@ tactic that unshelves goals by name.
       .. rocqtop:: all abort
 
          Goal exists n, n=0.
+         Proof.
          refine (ex_intro _ _ _).
          all: shelve_unifiable.
          reflexivity.
@@ -936,6 +957,7 @@ Reordering goals
       .. rocqtop:: in abort
 
          Goal P 1 /\ P 2 /\ P 3 /\ P 4 /\ P 5.
+         Proof.
          repeat split.    (*  P 1, P 2, P 3, P 4, P 5 *)
          all: cycle 2.    (*  P 3, P 4, P 5, P 1, P 2 *)
          all: cycle -3.   (* P 5, P 1, P 2, P 3, P 4 *)
@@ -954,6 +976,7 @@ Reordering goals
       .. rocqtop:: in abort
 
          Goal P 1 /\ P 2 /\ P 3 /\ P 4 /\ P 5.
+         Proof.
          repeat split.    (*   P 1, P 2, P 3, P 4, P 5 *)
          all: swap 1 3.   (*  P 3, P 2, P 1, P 4, P 5 *)
          all: swap 1 -1.  (* P 5, P 2, P 1, P 4, P 3 *)
@@ -969,6 +992,7 @@ Reordering goals
       .. rocqtop:: in abort
 
          Goal P 1 /\ P 2 /\ P 3 /\ P 4 /\ P 5.
+         Proof.
          repeat split.    (*  P 1, P 2, P 3, P 4, P 5 *)
          all: revgoals.   (* P 5, P 4, P 3, P 2, P 1 *)
 
@@ -1064,6 +1088,7 @@ Requesting information
         .. rocqtop:: all abort
 
            Goal exists n, n = 0.
+           Proof.
            eexists ?[n].
            Show n.
 

@@ -459,6 +459,7 @@ For example, the tactic :tacn:`pose (ssreflect)` supports parameters:
    .. rocqtop:: all
 
       Lemma test : True.
+      Proof.
       pose f x y := x + y.
 
 The |SSR| :tacn:`pose (ssreflect)` tactic also supports (co)fixpoints, by providing
@@ -575,6 +576,7 @@ where:
    .. rocqtop:: all
 
       Lemma test x :  f x + f x = f x.
+      Proof.
       set t := f _.
 
    .. rocqtop:: all restart
@@ -622,6 +624,7 @@ conditions.
    .. rocqtop:: all
 
       Lemma test (x y z : nat) :  x + y = z.
+      Proof.
       set t := _ x.
 
 + In the special case where :token:`term` is of the form
@@ -643,6 +646,7 @@ conditions.
      .. rocqtop:: all
 
         Lemma test : (let f x y z := x + y + z in f 1) 2 3 = 6.
+        Proof.
         set t := (let g y z := S y + z in g) 2.
 
   The notation ``unkeyed`` defined in ``ssreflect.v`` is a shorthand for
@@ -664,6 +668,7 @@ Moreover:
      .. rocqtop:: all
 
         Lemma test x y z : x + y = z.
+        Proof.
         set t := _ + _.
 
 + The type of the subterm matched should fit the type (possibly casted
@@ -684,6 +689,7 @@ Moreover:
      .. rocqtop:: all
 
         Lemma test : forall x : nat, x + 1 = 0.
+        Proof.
         Fail set t := _ + 1.
 
 + Typeclass inference should fill in any residual hole, but matching
@@ -718,6 +724,7 @@ An *occurrence switch* can be:
      .. rocqtop:: all
 
         Lemma test : f 2 + f 8 = f 2 + f 2.
+        Proof.
         set x := {+1 3}(f 2).
 
   Notice that some occurrences of a given term may be
@@ -740,6 +747,7 @@ An *occurrence switch* can be:
 
         Notation "a < b":= (le (S a) b).
         Lemma test x y : x < y -> S x < S y.
+        Proof.
         set t := S x.
 
 + A list of natural numbers ``{n1 … nm}``.
@@ -761,6 +769,7 @@ An *occurrence switch* can be:
      .. rocqtop:: all
 
         Lemma test : f 2 + f 8 = f 2 + f 2.
+        Proof.
         set x := {-2}(f 2).
 
 
@@ -791,6 +800,7 @@ selection.
      .. rocqtop:: all
 
         Lemma test x y z : x + y = x + y + z.
+        Proof.
         set a := {2}(_ + _).
 
 Hence, in the following goal, the same tactic fails since there is
@@ -808,6 +818,7 @@ only one occurrence of the selected term.
      .. rocqtop:: all
 
         Lemma test x y z : (x + y) + (z + z) = z + z.
+        Proof.
         Fail set a := {2}(_ + _).
 
 
@@ -836,6 +847,7 @@ context of a goal thanks to the ``in`` tactical.
      .. rocqtop:: all
 
         Lemma test x t (Hx : x = 3) : x + t = 4.
+        Proof.
         set z := 3 in Hx.
 
 .. tacv:: set @ident := @term in {+ @ident} *
@@ -852,6 +864,7 @@ context of a goal thanks to the ``in`` tactical.
      .. rocqtop:: all
 
         Lemma test x t (Hx : x = 3) : x + t = 4.
+        Proof.
         set z := 3 in Hx * .
 
      Indeed, remember that 4 is just a notation for (S 3).
@@ -971,6 +984,7 @@ constants to the goal.
    .. rocqtop:: all
 
       Lemma subnK : forall m n, n <= m -> m - n + n = m.
+      Proof.
 
    might start with
 
@@ -1032,6 +1046,7 @@ The ``:`` tactical is used to operate on an element in the context.
   .. rocqtop:: all
 
      Lemma subnK : forall m n, n <= m -> m - n + n = m.
+     Proof.
      move=> m n le_n_m.
      elim: n m le_n_m => [|n IHn] m => [_ | lt_n_m].
 
@@ -1121,6 +1136,7 @@ The move tactic.
 
          From Corelib Require Import ssreflect_rw.
          Goal not False.
+         Proof.
          move.
 
    More precisely, the :tacn:`move <move (ssreflect)>` tactic inspects the goal and does nothing
@@ -1197,6 +1213,7 @@ The elim tactic
       .. rocqtop:: all
 
          Lemma test m : forall n : nat, m <= n.
+         Proof.
          elim.
 
 
@@ -1238,6 +1255,7 @@ existential metavariables of sort :g:`Prop`.
    .. rocqtop:: all
 
       Lemma test : forall y, 1 < y -> y < 2 -> exists x : { n | n < 3 }, 0 < proj1_sig x.
+      Proof.
       move=> y y_gt1 y_lt2; apply: (ex_intro _ (exist _ y _)).
         by apply: lt_trans y_lt2 _.
       by move=> y_lt3; apply: lt_trans y_gt1.
@@ -1419,6 +1437,7 @@ context to interpret wildcards; in particular, it can accommodate the
    .. rocqtop:: all
 
       Lemma test (Hfg : forall x, f x = g x) a b : f a = g b.
+      Proof.
       apply: trans_equal (Hfg _) _.
 
 This tactic is equivalent (see Section
@@ -1711,6 +1730,7 @@ Clears are deferred until the end of the intro pattern.
       From Corelib Require Import ssrbool.
 
       Lemma test x y : Nat.leb 0 x = true -> (Nat.leb 0 x) && (Nat.leb y 2) = true.
+      Proof.
       move=> {x} ->.
 
 If the cleared names are reused in the same intro pattern, a renaming
@@ -1825,6 +1845,7 @@ deal with the possible parameters of the constants introduced.
    .. rocqtop:: all
 
       Lemma test (a b :nat) : a <> b.
+      Proof.
       case E : a => [|n].
 
 If the user does not provide a branching :token:`i_item` as first
@@ -1844,6 +1865,7 @@ under fresh |SSR| names.
    .. rocqtop:: all
 
       Lemma test (a b :nat) : a <> b.
+      Proof.
       case E : a => H.
       Show 2.
 
@@ -1929,6 +1951,7 @@ be substituted.
          | LastAdd s x : last_spec (add_last x s).
 
          Theorem lastP : forall l : list A, last_spec l.
+         Proof.
          Admitted.
 
       We are now ready to use ``lastP`` in conjunction with ``case``.
@@ -1936,6 +1959,7 @@ be substituted.
       .. rocqtop:: all
 
          Lemma test l : (length l) * 2 = length (l ++ l).
+         Proof.
          case: (lastP l).
 
       Applied to the same goal, the tactic ``case: l / (lastP l)``
@@ -1965,6 +1989,7 @@ be substituted.
       .. rocqtop:: all
 
          Lemma test l : (length l) * 2 = length (l ++ l).
+         Proof.
          case E: {1 3}l / (lastP l) => [|s x].
          Show 2.
 
@@ -2218,6 +2243,7 @@ to the others.
       | C4 n of n = 4 : test n.
 
       Lemma example n (t : test n) : True.
+      Proof.
       case: t; last 2 [move=> k| move=> l]; idtac.
 
 
@@ -2333,6 +2359,7 @@ between standard Ltac ``in`` and the |SSR| tactical in.
      Ltac mytac H := rw H.
 
      Lemma test x y (H1 : x = y) (H2 : y = 3) : x + y = 6.
+     Proof.
      do [mytac H2] in H1 *.
 
   the last tactic rewrites the hypothesis ``H2 : y = 3`` both in
@@ -2406,6 +2433,7 @@ the holes are abstracted in term.
   .. rocqtop:: all
 
      Lemma test : True.
+     Proof.
      have: _ * 0 = 0.
 
   The invocation of ``have`` is equivalent to:
@@ -2417,6 +2445,7 @@ the holes are abstracted in term.
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
      Lemma test : True.
+     Proof.
 
   .. rocqtop:: all
 
@@ -2435,6 +2464,7 @@ tactic:
      Unset Strict Implicit.
      Unset Printing Implicit Defensive.
      Lemma test : True.
+     Proof.
 
   .. rocqtop:: all
 
@@ -2491,6 +2521,7 @@ the further use of the intermediate step. For instance,
   .. rocqtop:: all
 
      Lemma test a : 3 * a - 1 = a.
+     Proof.
      have -> : forall x, x * a = a.
 
   Note how the second goal was rewritten using the stated equality.
@@ -2519,6 +2550,7 @@ destruction of existential assumptions like in the tactic:
   .. rocqtop:: all
 
      Lemma test : True.
+     Proof.
      have [x Px]: exists x : nat, x > 0; last first.
 
 An alternative use of the ``have`` tactic is to provide the explicit proof
@@ -2546,6 +2578,7 @@ term for the intermediate lemma, using tactics of the form:
   .. rocqtop:: all
 
      Lemma test : True.
+     Proof.
      have H := forall x, (x, x) = (x, x).
 
   adds to the context ``H : Type -> Prop.`` This is a schematic example, but
@@ -2571,6 +2604,7 @@ The following example requires the mathcomp and mczify libraries.
      From mathcomp Require Import ssrfun ssrbool ssrnat zify.
 
      Lemma test : True.
+     Proof.
      have H x (y : nat) : 2 * x + y = x + x + y by lia.
 
 A proof term provided after ``:=`` can mention these bound variables
@@ -2624,6 +2658,7 @@ context entry name.
      Arguments Sub {_} _ _.
 
      Lemma test n m (H : m + 1 < n) : True.
+     Proof.
      have @i : 'I_n by apply: (Sub m); lia.
 
 Note that the subterm produced by :tacn:`lia` is in general huge and
@@ -2636,6 +2671,7 @@ For this purpose the ``[: name]`` intro pattern and the tactic
   .. rocqtop:: all abort extra-mathcomp
 
      Lemma test n m (H : m + 1 < n) : True.
+     Proof.
      have [:pm] @i : 'I_n by apply: (Sub m); abstract: pm; lia.
 
   The type of ``pm`` can be cleaned up by its annotation ``(*1*)`` by just
@@ -2649,6 +2685,7 @@ with`` have`` and an explicit term, they must be used as follows:
   .. rocqtop:: all abort extra-mathcomp
 
      Lemma test n m (H : m + 1 < n) : True.
+     Proof.
      have [:pm] @i : 'I_n := Sub m pm.
        by lia.
 
@@ -2668,6 +2705,7 @@ makes use of it).
   .. rocqtop:: all abort extra-mathcomp
 
      Lemma test n m (H : m + 1 < n) : True.
+     Proof.
      have [:pm] @i k : 'I_(n+k) by apply: (Sub m); abstract: pm k; lia.
 
 Last, notice that the use of intro patterns for abstract constants is
@@ -2688,6 +2726,7 @@ typeclass inference.
      Axiom t : ty.
 
      Goal True.
+     Proof.
 
   .. rocqtop:: all
 
@@ -2767,6 +2806,7 @@ The ``have`` modifier can follow the ``suff`` tactic.
   .. rocqtop:: all abort
 
      Lemma test : G.
+     Proof.
      suff have H : P.
 
   Note that, in contrast with ``have suff``, the name H has been introduced
@@ -2842,6 +2882,7 @@ The following example requires the mathcomp library.
 
      Lemma quo_rem_unicity d q1 q2 r1 r2 :
        q1*d + r1 = q2*d + r2 -> r1 < d -> r2 < d -> (q1, r1) = (q2, r2).
+     Proof.
      wlog: q1 q2 r1 r2 / q1 <= q2.
        by case: (leqP q1 q2); last symmetry; eauto.
 
@@ -2876,6 +2917,7 @@ pattern will be used to process its instance.
   .. rocqtop:: all
 
      Lemma simple n (ngt0 : 0 < n ) : P n.
+     Proof.
      gen have ltnV, /andP[nge0 neq0] : n ngt0 / (0 <= n) && (n != 0); last first.
 
 
@@ -2922,6 +2964,7 @@ illustrated in the following example.
      Variable x : nat.
      Definition addx z := z + x.
      Lemma test : x <= addx x.
+     Proof.
      wlog H : (y := x) (@twoy := addx x) / twoy = 2 * y.
 
   To avoid unfolding the term captured by the pattern ``add x``, one can use
@@ -2939,6 +2982,7 @@ illustrated in the following example.
      Variable x : nat.
      Definition addx z := z + x.
      Lemma test : x <= addx x.
+     Proof.
 
   .. rocqtop:: all
 
@@ -3073,6 +3117,7 @@ A :token:`r_item` can be one of the following.
         Definition double x := x + x.
         Definition ddouble x := double (double x).
         Lemma test x : ddouble x = 4 * x.
+        Proof.
         rw [ddouble _]/double.
 
   .. warning::
@@ -3084,6 +3129,7 @@ A :token:`r_item` can be one of the following.
 
         Definition f := fun x y => x + y.
         Lemma test x y : x + y = f y x.
+        Proof.
 
      .. rocqtop:: all fail
 
@@ -3194,10 +3240,12 @@ proof of basic results on natural numbers arithmetic.
      Axiom addSnnS : forall m n, S m + n = m + S n.
 
      Lemma addnCA m n p : m + (n + p) = n + (m + p).
+     Proof.
      by elim: m p => [ | m Hrec] p; rw ?addSnnS -?addnS.
      Qed.
 
      Lemma addnC n m : m + n = n + m.
+     Proof.
      by rw -{1}[n]addn0 addnCA addn0.
      Qed.
 
@@ -3226,6 +3274,7 @@ side of the equality the user wants to rewrite.
   .. rocqtop:: all
 
      Lemma test (H : forall t u, t + u = u + t) x y : x + y = y + x.
+     Proof.
      rw [y + _]H.
 
 Note that if this first pattern matching is not compatible with the
@@ -3246,6 +3295,7 @@ the equality.
   .. rocqtop:: all
 
      Lemma test (H : forall t u, t + u * 0 = t) x y : x + y * 4 + 2 * 0 = x + 2 * 0.
+     Proof.
      Fail rw [x + _]H.
 
   Indeed, the left-hand side of ``H`` does not match
@@ -3269,6 +3319,7 @@ Occurrence switches and redex switches
   .. rocqtop:: all
 
      Lemma test x y : x + y + 0 = x + y + y + 0 + 0 + (x + y + 0).
+     Proof.
      rw {2}[_ + y + 0](_: forall z, z + 0 = z).
 
 The second subgoal is generated by the use of an anonymous lemma in
@@ -3298,6 +3349,7 @@ repetition.
   .. rocqtop:: all
 
      Lemma test x y (z : nat) : x + 1 = x + y + 1.
+     Proof.
      rw 2!(_ : _ + 1 = z).
 
 This last tactic generates *three* subgoals because
@@ -3334,6 +3386,7 @@ rewrite operations prescribed by the rules on the current goal.
      Hypothesis eqac : a = c.
 
      Lemma test : a = a.
+     Proof.
      rw (eqab, eqac).
 
   Indeed, rule ``eqab`` is the first to apply among the ones
@@ -3364,6 +3417,7 @@ literal matches have priority.
       Definition multi2 := (eqab, eqd0).
 
       Lemma test : d = b.
+      Proof.
       rw multi2.
 
    Indeed, rule ``eqd0`` applies without unfolding the
@@ -3382,6 +3436,7 @@ repeated anew.
      Definition multi3 := (eq_adda_b, eq_adda_c, eqb0).
 
      Lemma test : 1 + a = 12 + a.
+     Proof.
      rw 2!multi3.
 
   It uses ``eq_adda_b`` then ``eqb0`` on the left-hand
@@ -3464,6 +3519,7 @@ Anyway this tactic is *not* equivalent to
   .. rocqtop:: all
 
      Lemma test y z : y * 0 + y * (z * 0) = 0.
+     Proof.
      rw (_ : _ * 0 = 0).
 
   while the other tactic results in
@@ -3518,6 +3574,7 @@ cases.
        Axiom H : forall x, g x = 0.
 
        Lemma test : f 3 + f 3 = f 6.
+       Proof.
        (* we call the standard rewrite tactic here *)
        rewrite H.
 
@@ -3583,6 +3640,7 @@ corresponding new goals will be generated.
      Axiom insubT : forall n x Px, insub n x = Some (Sub x Px).
 
      Lemma test (x : 'I_2) y : Some x = insub 2 y.
+     Proof.
      rw insubT.
 
   Since the argument corresponding to ``Px`` is not supplied by the user, the
@@ -3595,6 +3653,7 @@ corresponding new goals will be generated.
   .. rocqtop:: all abort
 
      Lemma test (x : 'I_2) y (H : y < 2) : Some x = insub 2 y.
+     Proof.
      rw insubT.
 
 
@@ -3638,6 +3697,7 @@ complete terms, as shown by the simple example below.
    .. rocqtop:: all
 
       Lemma example_map l : sumlist (map (fun m => m - m) l) = 0.
+      Proof.
 
    In this context, one cannot directly use ``eq_map``:
 
@@ -3661,6 +3721,7 @@ complete terms, as shown by the simple example below.
    .. rocqtop:: all abort
 
       Lemma example_map l : sumlist (map (fun m => m - m) l) = 0.
+      Proof.
       under eq_map => m do rw subnn.
 
 
@@ -3698,6 +3759,7 @@ Let us redo the running example in interactive mode.
    .. rocqtop:: all abort
 
       Lemma example_map l : sumlist (map (fun m => m - m) l) = 0.
+      Proof.
       under eq_map => m.
         rw subnn.
         over.
@@ -3874,6 +3936,7 @@ Notes:
       Lemma test_big_nested (m n : nat) :
         \sum_(0 <= a < m | prime a) \sum_(0 <= j < n | odd (j * 1)) (a + j) =
         \sum_(0 <= i < m | prime i) \sum_(0 <= j < n | odd j) (j + i).
+      Proof.
       under eq_bigr => i prime_i do
         under eq_big => [ j | j odd_j ] do
           [ rw (muln1 j) | rw (addnC i j) ].
@@ -3934,6 +3997,7 @@ selective rewriting, blocking on the fly the reduction in the term ``t``.
        if l is cons x l then p x || (has p l) else false.
 
      Lemma test p x y l (H : p x = true) : has p ( x :: y :: l) = true.
+     Proof.
      rw {2}[cons]lock /= -lock.
 
 It is sometimes desirable to globally prevent a definition from being
@@ -3955,6 +4019,7 @@ definition.
       Definition lid := locked (fun x : nat => x).
 
       Lemma test : lid 3 = 3.
+      Proof.
       rw /=.
       unlock lid.
 
@@ -4065,10 +4130,12 @@ which the function is supplied:
       .. rocqtop:: all
 
          Lemma test (x y z : nat) (H : x = y) : x = z.
+         Proof.
          congr (_ = _) : H.
          Abort.
 
          Lemma test (x y z : nat) : x = y -> x = z.
+         Proof.
          congr (_ = _).
 
    The optional :token:`natural` forces the number of arguments for which the
@@ -4096,6 +4163,7 @@ which the function is supplied:
          Definition g (n m : nat) := plus.
 
          Lemma test x y : f 0 x y = g 1 1 x y.
+         Proof.
          congr plus.
 
       This script shows that the ``congr`` tactic matches ``plus``
@@ -4114,6 +4182,7 @@ which the function is supplied:
       .. rocqtop:: all
 
          Lemma test n m (Hnm : m <= n) : S m + (S n - S m) = S n.
+         Proof.
          congr S; rw -/plus.
 
       The tactic ``rw -/plus`` folds back the expansion of ``plus``,
@@ -4134,6 +4203,7 @@ which the function is supplied:
       .. rocqtop:: all
 
          Lemma test x y : x + (y * (y + x - x)) = x * 1 + (y + 0) * y.
+         Proof.
          congr ( _ + (_ * _)).
 
 .. _contextual_patterns_ssr:
@@ -4313,6 +4383,7 @@ parentheses are required around more complex patterns.
   .. rocqtop:: all
 
      Lemma test a b : a + b + 1 = b + (a + 1).
+     Proof.
      set t := (X in _ = X).
      rw {}/t.
      set t := (a + _ in X in _ = X).
@@ -4358,6 +4429,7 @@ Contextual patterns in rewrite
      Axiom addnC : forall m n, m + n = n + m.
 
      Lemma test x y z f : (x.+1 + y) + f (x.+1 + y) (z + (x + y).+1) = 0.
+     Proof.
      rw [in f _ _]addSn.
 
   Note: the simplification rule ``addSn`` is applied only under the ``f``
@@ -4535,6 +4607,7 @@ generation (see Section :ref:`generation_of_equations_ssr`).
   .. rocqtop:: all
 
      Lemma test (x : d) (l : list d): l = l.
+     Proof.
      elim/last_ind_list E : l=> [| u v]; last first.
 
 
@@ -4594,6 +4667,7 @@ Here is an example of a regular, but nontrivial, eliminator.
                                      | 0 => True
                                      | S _ => False
                                      end -> P _x m) -> forall n : nat, P n (plus m n).
+     Proof.
      Admitted.
 
   .. rocqtop:: all
@@ -4606,6 +4680,7 @@ Here is an example of a regular, but nontrivial, eliminator.
      About plus_ind.
 
      Lemma test x y z : plus (plus x y) z = plus x (plus y z).
+     Proof.
 
   The following tactics are all valid and perform the same elimination
   on this goal.
@@ -4637,6 +4712,7 @@ Here is an example of a regular, but nontrivial, eliminator.
                                      end -> P _x m) -> forall n : nat, P n (plus m n).
 
      Lemma test x y z : plus (plus x y) z = plus x (plus y z).
+     Proof.
 
   .. rocqtop:: all
 
@@ -4669,6 +4745,7 @@ Here is an example of a regular, but nontrivial, eliminator.
                                      end -> P _x m) -> forall n : nat, P n (plus m n).
 
      Lemma test x y z : plus (plus x y) z = plus x (plus y z).
+     Proof.
 
   .. rocqtop:: all
 
@@ -4762,6 +4839,7 @@ disjunction.
      Hypothesis P2Q : forall a b, P (a || b) -> Q a.
 
      Lemma test a : P (a || a) -> True.
+     Proof.
      move=> HPa; move: {HPa}(P2Q HPa) => HQa.
 
   which transforms the hypothesis ``HPa : P a``, which has been introduced
@@ -4781,6 +4859,7 @@ disjunction.
      Hypothesis P2Q : forall a b, P (a || b) -> Q a.
 
      Lemma test a : P (a || a) -> True.
+     Proof.
 
   .. rocqtop:: all
 
@@ -4818,6 +4897,7 @@ equation-name generation mechanism (see Section :ref:`generation_of_equations_ss
      Hypothesis Q2P : forall a b, Q (a || b) -> P a \/ P b.
 
      Lemma test a b : Q (a || b) -> True.
+     Proof.
      case/Q2P=> [HPa | HPb].
 
   This view tactic performs:
@@ -4851,6 +4931,7 @@ relevant for the current goal.
      Hypothesis PQequiv : forall a b, P (a || b) <-> Q a.
 
      Lemma test a b : P (a || b) -> True.
+     Proof.
      move/PQequiv=> HQab.
 
   has the same behavior as the first example above.
@@ -4891,6 +4972,7 @@ assumption to some given arguments.
   .. rocqtop:: all
 
      Lemma test z : (forall x y, x + y = z -> z = x) -> z = 0.
+     Proof.
      move/(_ 0 z).
 
 
@@ -4925,6 +5007,7 @@ bookkeeping steps.
      Hypothesis PQequiv : forall a b, P (a || b) <-> Q a.
 
      Lemma test a : P ((~~ a) || a).
+     Proof.
      apply/PQequiv.
 
   thus in this case, the tactic ``apply/PQequiv`` is equivalent to
@@ -4996,6 +5079,7 @@ analysis
      From Corelib Require Import ssrbool.
 
      Lemma test b : b || ~~ b = true.
+     Proof.
      by case: b.
 
   Once ``b`` is replaced by ``true`` in the first goal and by ``false`` in the
@@ -5087,16 +5171,13 @@ Let us compare the respective behaviors of ``andE`` and ``andP``.
   .. rocqtop:: all
 
      Lemma test (b1 b2 : bool) : if (b1 && b2) then b1 else ~~(b1||b2).
+     Proof.
 
   .. rocqtop:: all
 
      case: (@andE b1 b2).
 
-  .. rocqtop:: none
-
-     Restart.
-
-  .. rocqtop:: all
+  .. rocqtop:: all restart
 
      case: (@andP b1 b2).
 
@@ -5128,6 +5209,7 @@ The view mechanism is compatible with reflect predicates.
      From Corelib Require Import ssrbool.
 
      Lemma test (a b : bool) (Ha : a) (Hb : b) : a /\ b.
+     Proof.
      apply/andP.
 
   Conversely
@@ -5135,6 +5217,7 @@ The view mechanism is compatible with reflect predicates.
   .. rocqtop:: all
 
      Lemma test (a b : bool) : a /\ b -> a.
+     Proof.
      move/andP.
 
 The same tactics can also be used to perform the converse operation,
@@ -5251,6 +5334,7 @@ but they also allow complex transformation, involving negations.
   .. rocqtop:: all
 
      Lemma test (a b : bool) (Ha : a) (Hb : b) : ~~ (a && b).
+     Proof.
      apply/andP.
 
   In fact, this last script does not
@@ -5281,6 +5365,7 @@ actually uses its propositional interpretation.
      From Corelib Require Import ssrbool.
 
      Lemma test (a b : bool) (pab : b && a) : b.
+     Proof.
      have /andP [pa ->] : (a && b) by rw andbC.
 
 Interpreting goals
@@ -5345,6 +5430,7 @@ In this context, the identity view can be used when no view has to be applied:
      From Corelib Require Import ssrbool.
 
      Lemma test (b1 b2 b3 : bool) : ~~ (b1 || b2) = b3.
+     Proof.
      apply/idP/idP.
 
   The same goal can be decomposed in several ways, and the user may
@@ -5362,6 +5448,7 @@ In this context, the identity view can be used when no view has to be applied:
      From Corelib Require Import ssrbool.
 
      Lemma test (b1 b2 b3 : bool) : ~~ (b1 || b2) = b3.
+     Proof.
      apply/norP/idP.
 
 
@@ -5444,6 +5531,7 @@ pass a given hypothesis to a lemma.
      Variable Q2R : Q -> R.
 
      Lemma test (p : P) : True.
+     Proof.
      move/P2Q/Q2R in p.
 
 If the list of views is of length two, ``Hint Views`` for interpreting

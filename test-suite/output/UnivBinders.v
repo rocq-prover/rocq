@@ -243,6 +243,7 @@ Module Collision.
   Definition x := Type.
 
   Goal True.
+  Proof.
     Fail
       let a := eval cbv in x.a in
       let b := eval cbv in x in

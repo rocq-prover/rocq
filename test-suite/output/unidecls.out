@@ -46,14 +46,14 @@ The command has indeed failed with message:
 Undeclared universe A.u.
 Type@{Arg.u}
      : Type@{Arg.u+1}
-File "./output/unidecls.v", line 79, characters 59-60:
+File "./output/unidecls.v", line 81, characters 15-16:
 The command has indeed failed with message:
 In environment
 A : Type@{v}
 The term "A" has type "Type@{v}" while it is expected to have type
  "Type@{Arg.u}"
 (universe inconsistency: Cannot enforce v <= Arg.u because Arg.u < v).
-File "./output/unidecls.v", line 93, characters 17-24:
+File "./output/unidecls.v", line 96, characters 17-24:
 The command has indeed failed with message:
 Undeclared universe FnApp.v.
 Type@{Fn.v}
@@ -62,14 +62,14 @@ FnApp.foo
      : Type@{Fn.v}
 FnApp.bar
      : Type@{Arg.u}
-File "./output/unidecls.v", line 99, characters 17-26:
+File "./output/unidecls.v", line 102, characters 17-26:
 The command has indeed failed with message:
 Undeclared universe ArgImpl.u.
 FnApp2.foo
      : Type@{Fn.v}
 FnApp2.bar
      : Type@{Arg.u}
-File "./output/unidecls.v", line 113, characters 17-21:
+File "./output/unidecls.v", line 116, characters 17-21:
 The command has indeed failed with message:
 Undeclared universe: poly.
 Set < nat_rect.u0
