@@ -375,13 +375,13 @@ let print_registered () =
 
 let print_registered_schemes () =
   let schemes = DeclareScheme.all_schemes() in
-  let pr_one_scheme ind (kind, c) =
-    pr_global c ++ str " registered as " ++ str kind ++ str " for " ++ pr_global (IndRef ind)
+  let pr_one_scheme key (kind, c) =
+    pr_global c ++ str " registered as " ++ str kind ++ str " for " ++ pr_global key
   in
-  let pr_schemes_of_ind (ind, schemes) =
-    prlist_with_sep fnl (pr_one_scheme ind) (CString.Map.bindings schemes)
+  let pr_schemes_of_ref (key, schemes) =
+    prlist_with_sep fnl (pr_one_scheme key) (CString.Map.bindings schemes)
   in
-  hov 0 (prlist_with_sep fnl pr_schemes_of_ind (Indmap_env.bindings schemes))
+  hov 0 (prlist_with_sep fnl pr_schemes_of_ref (GlobRef.Map_env.bindings schemes))
 
 let dump_universes output g =
   let open Univ in
@@ -2380,7 +2380,7 @@ let vernac_register ~atts qid r =
     else
       let local = Attributes.parse hint_locality_default_superglobal atts in
       Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
-  | RegisterScheme { inductive; scheme_kind } ->
+  | RegisterScheme { ref; scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
     let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
     (* Specific test for the All and AllForall keys, as there are an infinite number of them *)
@@ -2395,9 +2395,9 @@ let vernac_register ~atts qid r =
           || test_all "All_" scheme_kind_s || test_all "AllForall_" scheme_kind_s) then
       warn_unknown_scheme_kind ?loc:scheme_kind.loc scheme_kind
     in
-    let ind = Smartlocate.global_inductive_with_alias inductive in
-    Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
-    DeclareScheme.declare_scheme local scheme_kind_s (ind, gr)
+    let key = Smartlocate.global_with_alias ref in
+    Dumpglob.add_glob ?loc:ref.loc key;
+    DeclareScheme.declare_scheme local scheme_kind_s (key, gr)
 
 let vernac_library_attributes atts =
   if Global.is_curmod_library () && not (Lib.sections_are_opened ()) then

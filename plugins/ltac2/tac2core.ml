@@ -1367,10 +1367,7 @@ let () =
 
 let () =
   define "scheme_lookup" (scheme_kind @-> reference @-> ret (option reference))
-  @@ fun kind ref ->
-  match ref with
-  | GlobRef.IndRef ind -> DeclareScheme.lookup_scheme_opt kind ind
-  | _ -> None
+  @@ DeclareScheme.lookup_scheme_opt
 
 let define_scheme_kind name =
   define ("scheme_kind_" ^ name) (ret scheme_kind) name

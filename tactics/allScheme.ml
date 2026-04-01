@@ -293,22 +293,22 @@ let warn_lookup_not_found =
     Raise a warning if none is found. *)
 let lookup_all ind ind_nested args_are_nested =
     let (_, (pred, _)) = partial_suffix args_are_nested in
-    match DeclareScheme.lookup_scheme_opt  pred ind_nested with
+    match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
     | Some ref_pred ->
         Some (true, ref_pred)
     | None ->
         let (_, (pred, _)) = default_suffix in
-        match DeclareScheme.lookup_scheme_opt  pred ind_nested with
+        match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
         | Some ref_pred -> Some (false, ref_pred)
         | None -> warn_lookup_not_found (pred, ind, ind_nested); None
 
 (** Lookup the [all] predicate, and its theorem *)
 let lookup_all_theorem_aux ind ind_nested =
   let (_, (pred, thm)) = default_suffix in
-  match DeclareScheme.lookup_scheme_opt pred ind_nested with
+  match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
   | None -> warn_lookup_not_found (pred, ind, ind_nested); None
   | Some ref_pred ->
-      match DeclareScheme.lookup_scheme_opt thm ind_nested with
+      match DeclareScheme.lookup_scheme_opt thm (GlobRef.IndRef ind_nested) with
       | None -> warn_lookup_not_found (thm, ind, ind_nested); None
       | Some ref_thm -> Some (false, ref_pred, ref_thm)
 
@@ -318,10 +318,10 @@ let lookup_all_theorem_aux ind ind_nested =
     Raise a warning if none is found. *)
 let lookup_all_theorem ind ind_nested args_are_nested =
   let (_, (pred, thm)) = partial_suffix args_are_nested in
-  match DeclareScheme.lookup_scheme_opt pred ind_nested with
+  match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
   | None -> lookup_all_theorem_aux ind ind_nested
   | Some ref_pred ->
-      match DeclareScheme.lookup_scheme_opt  thm ind_nested with
+      match DeclareScheme.lookup_scheme_opt thm (GlobRef.IndRef ind_nested) with
       | Some ref_thm ->
           Some (true, ref_pred, ref_thm)
       | None ->
