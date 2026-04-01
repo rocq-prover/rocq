@@ -384,6 +384,11 @@ are now available through the dot notation.
          Print Namespace Top.A.
          Print Namespace Top.A.B.
 
+.. cmd:: Print Debug Delta {? @qualid }
+
+   Prints debug information about name aliasing (delta-resolvers) of the given
+   module or module type, or of the current structure if no argument is passed.
+
 .. _module_examples:
 
 Examples

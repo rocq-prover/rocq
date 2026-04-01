@@ -767,6 +767,7 @@ command: [
 | "Print" "ML" "Path"
 | "Print" "ML" "Modules"
 | "Print" "Debug" "GC"
+| "Print" "Debug" "Delta" OPT qualid
 | "Print" "Graph"
 | "Print" "Classes"
 | "Print" "Typeclasses"

@@ -1423,6 +1423,7 @@ printable: [
 | "ML" "Path"
 | "ML" "Modules"
 | "Debug" "GC"
+| "Debug" "Delta" OPT qualid
 | "Graph"
 | "Classes"
 | "Typeclasses"
