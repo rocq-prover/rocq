@@ -525,7 +525,10 @@ let expand_case env (ci, _, _, _, _, _, _ as case) =
 
 let contract_case env (ci, (p,rp), iv, c, br) =
   let (mib, mip) = lookup_mind_specif env ci.ci_ind in
-  let (arity, p) = Term.decompose_lambda_n_decls (mip.mind_nrealdecls + 1) p in
+  let (arity, p) = match Term.decompose_lambda_n_decls_opt (mip.mind_nrealdecls + 1) p with
+    | Some v -> v
+    | None -> CErrors.anomaly Pp.(str "contract_case: not enough abstractions in return predicate.")
+  in
   let (u, pms) = match arity with
   | LocalAssum (_, ty) :: _ ->
     (** Last binder is the self binder for the term being eliminated *)
@@ -544,7 +547,11 @@ let contract_case env (ci, (p,rp), iv, c, br) =
     ((nas, p),rp)
   in
   let map i br =
-    let (ctx, br) = Term.decompose_lambda_n_decls mip.mind_consnrealdecls.(i) br in
+    let (ctx, br) = match Term.decompose_lambda_n_decls_opt mip.mind_consnrealdecls.(i) br with
+      | Some v -> v
+      | None ->
+        CErrors.anomaly Pp.(fmt "contract_case: not enough abstractions in branch %d." i)
+    in
     let nas = Array.of_list (List.rev_map get_annot ctx) in
     (nas, br)
   in
