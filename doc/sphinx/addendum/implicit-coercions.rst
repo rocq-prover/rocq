@@ -167,14 +167,6 @@ Coercion Classes
      :term:`reversible coercion`. By default coercions are not reversible except for
      :cmd:`Record` fields specified using :g:`:>`.
 
-  .. attr:: nonuniform
-
-     Silence the non uniform inheritance warning.
-
-     .. deprecated:: 8.18
-
-        Use the :attr:`warnings` attribute instead with "-uniform-inheritance".
-
   .. exn:: @qualid not declared.
 
      :token:`qualid` is not defined globally.

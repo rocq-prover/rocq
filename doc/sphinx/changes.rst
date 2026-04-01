@@ -4114,7 +4114,7 @@ Commands and options
   (`#17333 <https://github.com/rocq-prover/rocq/pull/17333>`_,
   by Gaëtan Gilbert).
 - **Deprecated:**
-  the :attr:`nonuniform` attribute,
+  the ``nonuniform`` attribute,
   now subsumed by :attr:`warnings` with "-uniform-inheritance"
   (`#17716 <https://github.com/rocq-prover/rocq/pull/17716>`_,
   by Pierre Roux).
@@ -5659,7 +5659,7 @@ Commands and options
   by Pierre Roux, reviewed by Gaëtan Gilbert, Ali Caglayan,
   Jason Gross, Jim Fehrle and Théo Zimmermann).
 - **Added:**
-  the :attr:`nonuniform` boolean attribute that silences the
+  the ``nonuniform`` boolean attribute that silences the
   non-uniform-inheritance warning when user needs to declare such a
   coercion on purpose
   (`#15853 <https://github.com/rocq-prover/rocq/pull/15853>`_,

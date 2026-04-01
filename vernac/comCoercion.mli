@@ -54,8 +54,4 @@ val subclass_hook : poly:PolyFlags.t -> reversible:bool -> Declare.Hook.t
 
 val class_of_global : GlobRef.t -> cl_typ
 
-(** Attribute to silence warning for coercions that don't satisfy
-   the uniform inheritance condition. (deprecated in 8.18) *)
-val nonuniform : bool option Attributes.attribute
-
 val change_reverse : GlobRef.t -> reversible:bool -> unit
