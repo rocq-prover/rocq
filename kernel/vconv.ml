@@ -51,6 +51,13 @@ let rec compare_stack stk1 stk2 =
       else false
   | _, _ -> false
 
+let equiv_id_key env (k1 : id_key) (k2 : id_key) = match k1, k2 with
+| ConstKey c1, ConstKey c2 -> QConstant.equal env c1 c2
+| VarKey id1, VarKey id2 -> Names.Id.equal id1 id2
+| RelKey n1, RelKey n2 -> Int.equal n1 n2
+| EvarKey evk1, EvarKey evk2 -> Evar.equal evk1 evk2
+| (ConstKey _ | VarKey _ | RelKey _ | EvarKey _), _ -> false
+
 (* Conversion *)
 let conv_vect fconv vect1 vect2 cu =
   let n = Array.length vect1 in
@@ -120,7 +127,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
 (*  Pp.(msg_debug (str "conv_atom(" ++ pr_atom a1 ++ str ", " ++ pr_atom a2 ++ str ")")) ; *)
   match a1, a2 with
   | Aind ((mi,_i) as ind1) , Aind ind2 ->
-    if Names.Ind.CanOrd.equal ind1 ind2 && compare_stack stk1 stk2 then
+    if QInd.equal env ind1 ind2 && compare_stack stk1 stk2 then
       let mib = Environ.lookup_mind mi env in
       if UVars.AbstractContext.is_constant (Declareops.inductive_polymorphic_context mib) then
         conv_stack env k stk1 stk2 cu
@@ -144,7 +151,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
       end
     else raise NotConvertible
   | Aid ik1, Aid ik2 ->
-    if Vmvalues.eq_id_key ik1 ik2 && compare_stack stk1 stk2 then
+    if equiv_id_key env ik1 ik2 && compare_stack stk1 stk2 then
       if UVars.AbstractContext.is_constant (table_key_instance env ik1) then
         conv_stack env k stk1 stk2 cu
       else
