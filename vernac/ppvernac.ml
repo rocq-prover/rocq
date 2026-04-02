@@ -637,6 +637,12 @@ let pr_printable = function
     keyword "Print ML Modules"
   | PrintDebugGC ->
     keyword "Print ML GC"
+  | PrintDebugDelta qid ->
+    let qid = match qid with
+    | None -> mt ()
+    | Some qid -> spc () ++ pr_qualid qid
+    in
+    keyword "Print Debug Delta" ++ qid
   | PrintGraph ->
     keyword "Print Graph"
   | PrintClasses ->

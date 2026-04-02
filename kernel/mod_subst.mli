@@ -111,7 +111,7 @@ val subst_dom_codom_delta_resolver :
 val debug_string_of_subst : substitution -> string
 val debug_pr_subst : substitution -> Pp.t
 val debug_string_of_delta : delta_resolver -> string
-val debug_pr_delta : delta_resolver -> Pp.t
+val debug_pr_delta : (Constr.constr UVars.univ_abstracted -> Pp.t) -> delta_resolver -> Pp.t
 (**/**)
 
 (** [subst_mp sub mp] guarantees that whenever the result of the

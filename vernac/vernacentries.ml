@@ -2223,6 +2223,30 @@ let prglob_without_notations env sigma c =
   let flags = { flags with notations = false } in
   pr_glob_constr_env ~flags env sigma c
 
+let vernac_print_debug_delta qid =
+  let env = Global.env () in
+  let delta = match qid with
+  | None ->
+    let senv = Global.safe_env () in
+    Safe_typing.delta_of_senv senv
+  | Some qid ->
+    match Nametab.locate_modtype qid with
+    | mp ->
+      let mb = Global.lookup_modtype mp in
+      Mod_declarations.mod_delta mb
+    | exception Not_found ->
+      match Nametab.locate_module qid with
+      | mp ->
+        let mb = Global.lookup_module mp in
+        Mod_declarations.mod_delta mb
+      | exception Not_found ->
+        CErrors.user_err Pp.(str "Unknown module or module type " ++ pr_qualid qid)
+  in
+  let prc c =
+    Printer.pr_lconstr_env env (Evd.from_env env) c.UVars.univ_abstracted_value
+  in
+  Mod_subst.debug_pr_delta prc delta
+
 let vernac_print =
   let no_state f =
     Vernactypes.(typed_vernac_gen ignore_state (fun _ -> no_state, f ()))
@@ -2266,6 +2290,7 @@ let vernac_print =
     v 0 (prlist_with_sep cut str paths )
   | PrintMLModules -> no_state Mltop.print_ml_modules
   | PrintDebugGC -> no_state Mltop.print_gc
+  | PrintDebugDelta qid -> no_state @@ fun () -> vernac_print_debug_delta qid
   | PrintName (qid,udecl) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
     Prettyp.print_name opaque_access env sigma qid udecl
   | PrintGraph -> no_state Prettyp.print_graph

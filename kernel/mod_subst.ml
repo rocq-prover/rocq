@@ -160,20 +160,23 @@ let is_empty_subst = Umap.is_empty
 
 (* <debug> *)
 
-let string_of_hint = function
-  | Inline (_,Some _) -> "inline(Some _)"
-  | Inline _ -> "inline()"
-  | Equiv kn -> KerName.to_string kn
+let string_of_hint pr = function
+  | Inline (_, Some c) -> str "inline(" ++ pr c ++ str ")"
+  | Inline (lvl, None) -> str "inline[" ++ int lvl ++ str "]"
+  | Equiv kn -> str "equiv(" ++ KerName.print kn ++ str ")"
 
-let debug_string_of_delta resolve =
+let debug_pr_delta pr resolve =
   let kn_to_string kn hint l =
-    (KerName.to_string kn ^ "=>" ^ string_of_hint hint) :: l
+    hov 2 (KerName.print kn ++ str " =>" ++ spc() ++ string_of_hint pr hint) :: l
   in
   let mp_to_string mp mp' l =
-    (ModPath.to_string mp ^ "=>" ^ ModPath.to_string mp') :: l
+    hov 2 (ModPath.print mp ++ str " =>" ++ spc() ++ ModPath.print mp') :: l
   in
   let l = Deltamap.fold mp_to_string kn_to_string resolve [] in
-  String.concat ", " (List.rev l)
+  v 0 @@ prlist_with_sep pr_comma (fun p -> p) (List.rev l)
+
+let debug_string_of_delta resolve =
+  string_of_ppcmds @@ debug_pr_delta (fun _ -> str "_") resolve
 
 let list_contents subst =
   let one_pair reso = (ModPath.to_string (Deltamap.root reso), debug_string_of_delta reso) in
@@ -185,9 +188,6 @@ let debug_string_of_subst subst =
     (list_contents subst)
   in
   "{" ^ String.concat "; " l ^ "}"
-
-let debug_pr_delta resolve =
-  strbrk (debug_string_of_delta resolve)
 
 let debug_pr_subst subst =
   let l = list_contents subst in
