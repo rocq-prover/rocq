@@ -329,6 +329,7 @@ and nf_atom_type env sigma atom =
       let params,realargs = Array.chop nparams allargs in
       let pctx =
         let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        (* NB expand_arity doesn't look at the relevances in nas *)
         let nas = List.rev_map get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in

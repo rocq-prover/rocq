@@ -288,6 +288,7 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       let params,realargs = Util.Array.chop nparams allargs in
       let pctx =
         let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        (* NB expand_arity doesn't look at the relevances in nas *)
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
