@@ -37,6 +37,8 @@ val case_dep : individual scheme_kind
 val case_nodep : individual scheme_kind
 val casep_dep : individual scheme_kind
 val casep_nodep : individual scheme_kind
+val scase_dep : individual scheme_kind
+val scase_nodep : individual scheme_kind
 
 (** Recursor names utilities *)
 
