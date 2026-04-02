@@ -337,7 +337,7 @@ let add_glob_tactic_notation ?deprecation tacobj ids tac =
   in
   Lib.add_leaf (inTacticGrammar (tacobj, body))
 
-let add_glob_tactic_notation_syntax local ~level ?deprecation prods forml =
+let add_glob_tactic_notation_syntax local ~level prods forml =
   let parule = {
     tacgram_level = level;
     tacgram_prods = prods;
@@ -356,9 +356,9 @@ let add_tactic_notation ?deprecation tacobj e =
   let tac = Tacintern.glob_tactic_env ids (Global.env()) UnivNames.empty_binders e in
   add_glob_tactic_notation ?deprecation tacobj ids tac
 
-let add_tactic_notation_syntax local n ?deprecation prods =
+let add_tactic_notation_syntax local n prods =
   let prods = List.map interp_prod_item prods in
-  add_glob_tactic_notation_syntax local ~level:n ?deprecation prods false
+  add_glob_tactic_notation_syntax local ~level:n prods false
 
 (**********************************************************************)
 (* ML Tactic entries                                                  *)
@@ -412,7 +412,7 @@ let synterp_add_ml_tactic_notation name ~level ?deprecation prods =
     let entry = { mltac_name = name; mltac_index = len - i - 1 } in
     let map id = Reference (Locus.ArgVar (CAst.make id)) in
     let tac = CAst.make (TacML (entry, List.map map ids)) in
-    let tacobj = add_glob_tactic_notation_syntax false ~level ?deprecation prods true in
+    let tacobj = add_glob_tactic_notation_syntax false ~level prods true in
     tacobj, { Tacenv.alias_args = ids; alias_body = tac; alias_deprecation = deprecation;
               alias_is_ml = Some entry;
             }

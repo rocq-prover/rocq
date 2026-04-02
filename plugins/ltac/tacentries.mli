@@ -43,7 +43,7 @@ val add_tactic_notation :
     productions [prods] and returning the body [expr] *)
 
 val add_tactic_notation_syntax :
-  locality_flag -> int -> ?deprecation:Deprecation.t -> raw_argument
+  locality_flag -> int -> raw_argument
   grammar_tactic_prod_item_expr list ->
   tactic_grammar_obj
 

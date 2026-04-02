@@ -423,7 +423,7 @@ VERNAC COMMAND EXTEND VernacTacticNotation
   { VtSideff ([], VtNow) } SYNTERP AS tacobj {
     let n = Option.default 0 n in
     let local = Locality.make_module_locality locality in
-    Tacentries.add_tactic_notation_syntax local n ?deprecation r
+    Tacentries.add_tactic_notation_syntax local n r
   } ->
   {
     Tacentries.add_tactic_notation ?deprecation tacobj e
