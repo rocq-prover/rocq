@@ -605,7 +605,12 @@ and intern_tactic_seq onlytac ist tac =
   (* For extensions *)
   | TacAlias (s,l) ->
       let alias = Tacenv.interp_alias s in
-      Option.iter (fun o -> warn_deprecated_alias ?loc (s,o)) @@ alias.Tacenv.alias_deprecation;
+      let () = alias.Tacenv.alias_deprecation |> Option.iter @@ fun o ->
+        warn_deprecated_alias ?loc (s,o)
+      in
+      let () = alias.Tacenv.alias_is_ml |> Option.iter @@ fun ml ->
+        Tacenv.intern_check_ml_tac_alias ?loc ml
+      in
       let l = List.map (intern_tacarg false ist) l in
       ist.ltacvars, CAst.make ?loc (TacAlias (s,l))
   | TacML (opn,l) ->

@@ -43,6 +43,7 @@ type alias_tactic =
   { alias_args: Id.t list;
     alias_body: glob_tactic_expr;
     alias_deprecation: Deprecation.t option;
+    alias_is_ml : ml_tactic_entry option;
   }
 
 let alias_map = Summary.ref ~name:"tactic-alias"
@@ -85,7 +86,7 @@ let pr_tacname t =
 
 let tac_tab = ref MLTacMap.empty
 
-let register_ml_tactic ?(overwrite = false) s (t : ml_tactic array) =
+let register_ml_tactic ?(overwrite = false) ?warn s (t : ml_tactic array) =
   let () =
     if MLTacMap.mem s !tac_tab then
       if overwrite then
@@ -93,11 +94,19 @@ let register_ml_tactic ?(overwrite = false) s (t : ml_tactic array) =
       else
         CErrors.anomaly (str "Cannot redeclare tactic " ++ pr_tacname s ++ str ".")
   in
-  tac_tab := MLTacMap.add s t !tac_tab
+  tac_tab := MLTacMap.add s (warn,t) !tac_tab
+
+let intern_check_ml_tac_alias ?loc { mltac_name = s; mltac_index = i } =
+  try
+    let warn, _tacs = MLTacMap.find s !tac_tab in
+    Option.iter (fun w -> w ?loc ()) warn
+  with Not_found ->
+    CErrors.user_err ?loc
+      (str "The tactic " ++ pr_tacname s ++ str " is not installed.")
 
 let interp_ml_tactic { mltac_name = s; mltac_index = i } =
   try
-    let tacs = MLTacMap.find s !tac_tab in
+    let _warn, tacs = MLTacMap.find s !tac_tab in
     let () = if Array.length tacs <= i then raise Not_found in
     tacs.(i)
   with Not_found ->

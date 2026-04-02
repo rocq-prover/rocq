@@ -33,6 +33,7 @@ type alias_tactic =
   { alias_args: Id.t list;
     alias_body: glob_tactic_expr;
     alias_deprecation: Deprecation.t option;
+    alias_is_ml : ml_tactic_entry option;
   }
 (** Contents of a tactic notation *)
 
@@ -95,8 +96,11 @@ type ml_tactic =
   Val.t list -> interp_sign -> unit Proofview.tactic
 (** Type of external tactics, used by [TacML]. *)
 
-val register_ml_tactic : ?overwrite:bool -> ml_tactic_name -> ml_tactic array -> unit
+val register_ml_tactic : ?overwrite:bool -> ?warn:(?loc:Loc.t -> unit -> unit) ->
+  ml_tactic_name -> ml_tactic array -> unit
 (** Register an external tactic. *)
+
+val intern_check_ml_tac_alias : ?loc:Loc.t -> ml_tactic_entry -> unit
 
 val interp_ml_tactic : ml_tactic_entry -> ml_tactic
 (** Get the named tactic. Raises a user error if it does not exist. *)

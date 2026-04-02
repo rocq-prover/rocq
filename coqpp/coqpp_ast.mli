@@ -94,10 +94,14 @@ type grammar_ext = {
   gramext_entries : grammar_entry list;
 }
 
+type tacext_depr =
+  | Depr of code
+  | Warn of code
+
 type tactic_ext = {
   tacext_name : string;
   tacext_level : int option;
-  tacext_deprecated : code option;
+  tacext_deprecated : tacext_depr option;
   tacext_rules : tactic_rule list;
 }
 
