@@ -9,6 +9,6 @@ overlay ext_lib https://github.com/SkySkimmer/coq-ext-lib warn-missing-proof 218
 
 overlay fcsl_pcm https://github.com/SkySkimmer/fcsl-pcm warn-missing-proof 21865
 
-overlay menhir https://gitlab.inria.fr/ggilbert/menhir badproof 21865
+overlay menhirlib https://gitlab.inria.fr/ggilbert/menhir badproof 21865
 
 overlay coquelicot https://gitlab.inria.fr/ggilbert/coquelicot badproof 21865
