@@ -194,6 +194,16 @@ Otherwise return `nil'."
      2 (3 . 4) (5 . 6)))
   (add-to-list 'compilation-error-regexp-alist 'coq-backtrace))
 
+;; regexp parser for rocqtop errors in the refman
+(with-eval-after-load 'compile
+  (push
+   '(rocq-refman
+     "\\(sphinx.errors.ExtensionError: .*/_build/default/\\(.*\\):\\(.*\\):\\) Error while sending the following to rocqtop:"
+     2 3 nil nil 1)
+   compilation-error-regexp-alist-alist)
+
+  (push 'rocq-refman compilation-error-regexp-alist))
+
 (defvar bug-reference-bug-regexp)
 (defvar bug-reference-url-format)
 (defun coqdev-setup-bug-reference-mode ()
