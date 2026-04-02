@@ -130,6 +130,7 @@ let build_branches_type env sigma (mind,_ as _ind) mib mip u params (pctx, p) =
     in
     let decl_with_letin = List.firstn mip.mind_consnrealdecls.(i) (fst cty) in
     let nas = get_case_annot decl_with_letin in
+    let nas = Array.map (Context.map_annot_relevance (UVars.subst_instance_relevance u)) nas in
     let rec get_lift decls = match decls with
     | [] -> Esubst.el_id
     | LocalDef _ :: decls -> Esubst.el_shft 1 (get_lift decls)
