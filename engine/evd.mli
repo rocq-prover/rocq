@@ -662,7 +662,7 @@ val nf_univ_variables : evar_map -> evar_map
 
 val collapse_sort_variables : ?except:Sorts.QVar.Set.t -> ?to_type:bool -> evar_map -> evar_map
 
-val fix_undefined_variables : evar_map -> evar_map
+val fix_undefined_variables : ?vars:Univ.Level.Set.t -> evar_map -> evar_map
 
 (** New rigid universes unsolved flexible universes are not allowed in the resulting evar_map.
   In or constraints between them and
