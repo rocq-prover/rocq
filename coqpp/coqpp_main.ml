@@ -547,7 +547,8 @@ let print_ast fmt ext =
   let deprecation fmt =
     function
     | None -> ()
-    | Some { code } -> fprintf fmt "~deprecation:(%s) " code
+    | Some (Depr { code }) -> fprintf fmt "~deprecation:(%s) " code
+    | Some (Warn { code }) -> fprintf fmt "~warn:(%s) " code
   in
   let pr fmt () =
     let level = match ext.tacext_level with None -> 0 | Some i -> i in

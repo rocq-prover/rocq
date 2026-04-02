@@ -102,6 +102,7 @@ type _ ty_sig =
 type ty_ml = TyML : 'r ty_sig * 'r -> ty_ml
 
 val tactic_extend : string -> string -> level:Int.t ->
+  ?warn:(?loc:Loc.t -> unit -> unit) ->
   ?deprecation:Deprecation.t -> ty_ml list -> unit
 
 val eval_of_ty_ml :
