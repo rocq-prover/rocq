@@ -167,13 +167,13 @@ let string_of_hint pr = function
 
 let debug_pr_delta pr resolve =
   let kn_to_string kn hint l =
-    (KerName.print kn ++ str " => " ++ string_of_hint pr hint) :: l
+    hov 2 (KerName.print kn ++ str " =>" ++ spc() ++ string_of_hint pr hint) :: l
   in
   let mp_to_string mp mp' l =
-    (ModPath.print mp ++ str " => " ++ ModPath.print mp') :: l
+    hov 2 (ModPath.print mp ++ str " =>" ++ spc() ++ ModPath.print mp') :: l
   in
   let l = Deltamap.fold mp_to_string kn_to_string resolve [] in
-  prlist_with_sep (fun () -> str ", ") (fun p -> p) (List.rev l)
+  v 0 @@ prlist_with_sep pr_comma (fun p -> p) (List.rev l)
 
 let debug_string_of_delta resolve =
   string_of_ppcmds @@ debug_pr_delta (fun _ -> str "_") resolve
