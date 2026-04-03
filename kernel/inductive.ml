@@ -1084,7 +1084,12 @@ let push_var_renv renv n (x,ty) =
 (* Fetch recursive information about a variable p *)
 let subterm_var p renv =
   try Lazy.force (List.nth renv.genv (p-1))
-  with Failure _ | Invalid_argument _ -> (* outside context of the fixpoint *) Subterm.not_subterm
+  with Failure _ | Invalid_argument _ ->
+    (* Check still that the variable is well scoped *)
+    if 1 <= p && p <= Environ.nb_rel renv.env then
+      Subterm.not_subterm
+    else
+      anomaly ~label:"fixpoint" Pp.(str "Index not found in current environment.")
 
 let push_ctxt_renv renv ctxt =
   let n = Context.Rel.length ctxt in
@@ -1259,40 +1264,41 @@ let rec subterm_specif ?evars renv stack t =
         (match oind with
         | None -> Subterm.not_subterm (* happens if fix is polymorphic *)
         | Some (ind, _) ->
+        let stack = push_stack_closures renv l stack in
         let nbfix = Array.length typarray in
         let recargs = WfPaths.lookup_subterms renv.env ind in
                    (* pushing the fixpoints *)
-        let renv' = push_fix_renv renv recdef in
-        let renv' =
+        let renv = push_fix_renv renv recdef in
+        let renv =
                      (* Why Strict here ? To be general, it could also be
                         Large... *)
-          assign_var_spec renv'
+          assign_var_spec renv
           (nbfix-i, lazy (Subterm.strict_subterm recargs)) in
         let decrArg = recindxs.(i) in
         let theBody = bodies.(i)   in
         let nbOfAbst = decrArg+1 in
-        let sign,strippedBody = whd_decompose_lambda_n_assum ?evars renv'.env nbOfAbst theBody in
+        let sign,strippedBody = whd_decompose_lambda_n_assum ?evars renv.env nbOfAbst theBody in
                    (* pushing the fix parameters *)
-        let stack' = push_stack_closures renv l stack in
-        let renv'' = push_ctxt_renv renv' sign in
-        let renv'' =
-          if List.length stack' < nbOfAbst then renv''
+        let renv = push_ctxt_renv renv sign in
+        let renv =
+          if List.length stack < nbOfAbst then renv
           else
-            let decrArg = List.nth stack' decrArg in
+            let decrArg = List.nth stack decrArg in
             let arg_spec = stack_element_specif ?evars decrArg in
-              assign_var_spec renv'' (1, arg_spec) in
-          subterm_specif ?evars renv'' [] strippedBody)
+            assign_var_spec renv (1, arg_spec)
+        in
+        subterm_specif ?evars renv [] strippedBody)
 
     | Lambda (x,a,b) ->
       let () = assert (List.is_empty l) in
       let spec,stack' = extract_stack ?evars stack in
         subterm_specif ?evars (push_var renv (x,a,spec)) stack' b
 
-      (* Metas and evars are considered OK *)
-    | (Meta _|Evar _) -> Subterm.dead_code
+      (* Evars are considered OK *)
+    | Evar _ -> Subterm.dead_code
 
     | Proj (p, _, c) ->
-      let subt = subterm_specif ?evars renv stack c in
+      let subt = subterm_specif ?evars renv [] c in
       Subterm.on_projection subt (Projection.arg p)
 
     | Const c ->
@@ -1303,6 +1309,8 @@ let rec subterm_specif ?evars renv stack t =
           primitive_specif ?evars renv op l
         | NotEvaluableConst _ -> Subterm.not_subterm
       end
+
+    | Meta _ -> assert false
 
     | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Ind _
       | Construct _ | CoFix _ | Int _ | Float _ | String _
@@ -1679,9 +1687,10 @@ let check_one_fix ?evars renv recpos trees def =
             let rs = check_inert_subterm_rec_call renv rs ty in
             rs
 
-        (* l is not checked because it is considered as the meta's context *)
-        | (Evar _ | Meta _) ->
-            rs
+        (* stack is not checked because it will depend on evar definition *)
+        | Evar _ -> rs (* TODO: check if evar has a definition in ?evars *)
+
+        | Meta _ -> assert false
 
   and check_nested_fix_body illformed renv decr stack rs body =
     if Int.equal decr 0 then
@@ -1752,33 +1761,34 @@ let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as r
   then anomaly (Pp.str "Ill-formed fix term.");
   let fixenv = push_rec_types recdef env in
   let raise_err = raise_fix_guard_err_fn env recdef names in
-  (* Check the i-th definition with recarg k *)
-  let find_ind i k def =
-    (* check fi does not appear in the k+1 first abstractions,
-       gives the type of the k+1-eme abstraction (must be an inductive)  *)
-    let rec check_occur env n def =
-      match kind (whd_all ?evars env def) with
-        | Lambda (x,a,b) ->
-            if noccur_with_meta n nbfix a then
-              let env' = push_rel (LocalAssum (x,a)) env in
-              if Int.equal n (k + 1) then
-                (* get the inductive type of the fixpoint *)
-                let (mind, _) =
-                  try find_inductive ?evars env a
-                  with Not_found ->
-                    raise_err env i (RecursionNotOnInductiveType a) in
-                let mib,_ = lookup_mind_specif env (out_punivs mind) in
-                if mib.mind_finite != Finite then
-                  raise_err env i (RecursionNotOnInductiveType a);
-                (mind, (env', b))
-              else check_occur env' (n+1) b
-            else anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
-        | _ -> raise_err env i (NotEnoughAbstractionInFixBody k)
-    in
-    check_occur fixenv 1 def
+  (* Check the i-th definition with recarg, under k binders *)
+  let rec find_ind env i recarg k def =
+    match kind (whd_all ?evars env def) with
+    | Lambda (na, ty, body) ->
+      (* check no recursive call appear in the recarg+1 first abstractions,
+         gives the type of the recarg+1-th abstraction (must be an inductive) *)
+      let () = if not (noccur_with_meta k nbfix ty) then
+        anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
+      in
+      let env = push_rel (LocalAssum (na, ty)) env in
+      if Int.equal k (recarg + 1) then
+        (* get the inductive type of the fixpoint *)
+        let (mind, _) =
+          try find_inductive ?evars env ty
+          with Not_found ->
+            raise_err env i (RecursionNotOnInductiveType ty)
+        in
+        let mib, _ = lookup_mind_specif env (out_punivs mind)in
+        let () = if mib.mind_finite != Finite then
+          raise_err env i (RecursionNotOnInductiveType ty)
+        in
+        (mind, (env, body))
+      else
+        find_ind env i recarg (k+1) body
+    | _ -> raise_err env i (NotEnoughAbstractionInFixBody recarg)
   in
   (* Do it on every fixpoint *)
-  let rv = Array.map2_i find_ind nvect bodies in
+  let rv = Array.map2_i (fun i recarg def -> find_ind fixenv i recarg 1 def) nvect bodies in
   (Array.map fst rv, Array.map snd rv)
 
 (* Returns the pairs of (inductive sort * output sort) or
@@ -1923,7 +1933,7 @@ let check_one_cofix ?evars env nbfix def deftype =
                  raise (CoFixGuardError (env,RecCallInCasePred c))
            end
 
-        | Meta _ -> ()
+        | Meta _ -> assert false
         | Evar _ ->
             List.iter (check_rec_call env alreadygrd n tree) args
         | Rel _ | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Const _
