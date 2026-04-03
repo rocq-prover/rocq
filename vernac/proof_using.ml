@@ -223,7 +223,7 @@ let using_from_string us = Procq.Entry.parse entry
 let proof_using_opt_name = ["Default";"Proof";"Using"]
 let () =
   Goptions.(declare_stringopt_option
-    { optstage = Summary.Stage.Interp;
+    { optstage = Summary.Stage.Synterp;
       optdepr  = None;
       optkey   = proof_using_opt_name;
       optread  = (fun () -> Option.map using_to_string !value);
