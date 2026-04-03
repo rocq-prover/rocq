@@ -376,7 +376,8 @@ End universal_quantification.
     as it expresses that [x] and [y] are equal iff every property on
     [A] which is true of [x] is also true of [y] *)
 
-Inductive eq (A:Type) (x:A) : A -> Prop :=
+#[universes(polymorphic,cumulative)]
+Inductive eq@{s;i} (A:Type@{s;i}) (x:A) : A -> Prop :=
     eq_refl : x = x :>A
 
 where "x = y :> A" := (@eq A x y) : type_scope.
@@ -407,6 +408,23 @@ Register eq_rect as core.eq.rect.
 Register eq_rec as core.eq.rec.
 
 Scheme Rewriting for eq.
+
+Definition eq_sym_involutive : forall [A : Type] [x y : A] (H : x = y), eq_sym (eq_sym H) = H :=
+fun (A : Type) (x y : A) (H : x = y) =>
+match H as H0 in _ = y0 return eq_sym (eq_sym H0) = H0 with
+| eq_refl => eq_refl
+end.
+
+Definition eq_rew_r_dep : forall [A : Type] [x y : A] (P : forall y0 : A, y0 = y -> Type),
+       P y eq_refl -> forall H : x = y, P x H :=
+fun (A : Type) (x y : A) (P : forall y0 : A, y0 = y -> Type)
+  (HC : P y eq_refl) (H : x = y) =>
+match eq_sym_involutive H in _ = H0 return P x H0 with
+| eq_refl =>
+        match eq_sym H as H0 in _ = y0 return P y0 (eq_sym H0) with
+    | eq_refl => HC
+    end
+end.
 
 Register eq_rew_dep as core.eq.rect_dep.
 Register eq_rew_dep as core.eq.ind_dep.

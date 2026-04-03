@@ -644,7 +644,7 @@ let mkEtaApp c n imin =
 
 let mkRefl env sigma t c =
   let (sigma, refl) = EConstr.fresh_global env sigma Rocqlib.(lib_ref "core.eq.refl") in
-  sigma, EConstr.mkApp (refl, [|t; c|])
+  Typing.checked_appvect env sigma refl [|t; c|]
 
 let discharge_hyp (id', (id, mode)) =
   let open EConstr in

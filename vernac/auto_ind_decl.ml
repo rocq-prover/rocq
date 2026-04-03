@@ -46,23 +46,29 @@ let name_context env ctxt =
           let d' = name_assumption env d in (Environ.push_rel d' env, d' :: hyps))
        (env,[]) (List.rev ctxt))
 
+
+let instance_of_qualities ?(us=[]) qs =
+  UVars.Instance.of_array (Array.of_list qs, Array.of_list us)
+
+let polymorphic_instance ?loc env gr ?us qs =
+  let names = instance_of_qualities ?us qs in
+  let c, ctx = UnivGen.fresh_global_instance ?loc ~names env gr in
+  assert (UnivGen.is_empty_sort_context ctx);
+  c
+
 (* Some pre declaration of constant we are going to use *)
-let andb_prop = fun _ -> UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.andb_prop")
-
-let andb_true_intro = fun _ ->
-  UnivGen.constr_of_monomorphic_global (Global.env ())
-    (Rocqlib.lib_ref "core.bool.andb_true_intro")
-
 (* We avoid to use lazy as the binding of constants can change *)
-let bb () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.type")
-let tt () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.true")
-let ff () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.false")
-let eq () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.eq.type")
-let int63_eqb () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "num.int63.eqb")
-let float64_eqb () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "num.float.leibniz.eqb")
+let bb () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.type") []
+let tt () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.true") []
+let ff () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.false") []
+let eq s u = polymorphic_instance (Global.env ()) ~us:[u] (Rocqlib.lib_ref "core.eq.type") [s]
+let int63_eqb () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "num.int63.eqb") []
+let float64_eqb () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "num.float.leibniz.eqb") []
 
-let sumbool () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.sumbool.type")
-let andb = fun _ -> UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.andb")
+let sumbool () = polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.sum.type") []
+let andb = fun _ -> polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.andb") []
+let andb_prop = fun _ -> polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.andb_prop") []
+let andb_true_intro = fun _ -> polymorphic_instance (Global.env ()) (Rocqlib.lib_ref "core.bool.andb_true_intro") []
 
 let induct_on  c = Induction.induction false None c None None
 let destruct_on c = Induction.destruct false None c None None
@@ -1077,21 +1083,34 @@ let eqI handle (ind,u) list_id =
 
 open Namegen
 
-let compute_bl_goal env handle (ind,u) lnamesparrec nparrec =
+let sort_and_univ env sigma (ind, u) =
+  let ty = Inductiveops.type_of_inductive env (ind,EConstr.EInstance.make u) in
+  let ctx, sort = EConstr.destArity sigma ty in
+  let sort = EConstr.ESorts.kind sigma sort in
+  Sorts.quality sort, Sorts.univ_of_sort sort
+
+let compute_bl_goal env uctx handle (ind,u) lnamesparrec nparrec =
   let list_id = list_id lnamesparrec in
   let eqI = eqI handle (ind,u) list_id in
   let avoid = avoid_of_list_id list_id in
   let x = next_ident_away (Id.of_string "x") avoid in
   let y = next_ident_away (Id.of_string "y") (Id.Set.add x avoid) in
+  let sigma = Evd.from_ustate uctx in
+  let qind, uind = sort_and_univ env sigma (ind, u) in
+  let uctx , fresh_level = UState.new_univ_level_variable UState.univ_flexible None uctx in
+  let uctx = UState.add_constraints uctx @@
+             UnivProblem.Set.singleton (UnivProblem.ULe (Sorts.sort_of_univ uind, (Sorts.sort_of_univ (Univ.Universe.make fresh_level)))) in
+  let indeq = eq qind fresh_level in
+  let booleq = eq Sorts.Quality.qtype Univ.Level.set in
   let open Term in
   let create_input c =
       let bl_typ = List.map (fun (s,seq,_,_) ->
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkVar s) (
             mkNamedProd (Context.make_annot y Sorts.Relevant) (mkVar s) (
               mkArrow
-               ( mkApp(eq (),[|bb (); mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt () |]))
+               ( mkApp(booleq,[|bb (); mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt () |]))
                Sorts.Relevant
-               ( mkApp(eq (),[|mkVar s;mkVar x;mkVar y|]))
+               ( mkApp(indeq,[|mkVar s;mkVar x;mkVar y|]))
           ))
         ) list_id in
       let bl_input = List.fold_left2 ( fun a (s,_,sbl,_) b ->
@@ -1110,13 +1129,13 @@ let compute_bl_goal env handle (ind,u) lnamesparrec nparrec =
         in
         mkNamedProd x (RelDecl.get_type decl) a) eq_input lnamesparrec
     in
-     create_input (
+     uctx, create_input (
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec)) (
           mkNamedProd (Context.make_annot y Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec+1)) (
             mkArrow
-              (mkApp(eq (),[|bb ();mkApp(eqI,[|mkVar x;mkVar y|]);tt ()|]))
+              (mkApp(booleq,[|bb ();mkApp(eqI,[|mkVar x;mkVar y|]);tt ()|]))
               Sorts.Relevant
-              (mkApp(eq (),[|mkFullInd env (ind,u) (2*nparrec+3);mkVar x;mkVar y|]))
+              (mkApp(indeq,[|mkFullInd env (ind,u) (2*nparrec+3);mkVar x;mkVar y|]))
         )))
 
 let compute_bl_tact handle ind lnamesparrec nparrec =
@@ -1198,7 +1217,7 @@ let make_bl_scheme env handle mind =
   let nparrec = mib.mind_nparams_rec in
   let lnonparrec,lnamesparrec =
     Inductive.inductive_nonrec_rec_paramdecls (mib,u) in
-  let bl_goal = compute_bl_goal env handle (ind,u) lnamesparrec nparrec in
+  let uctx , bl_goal = compute_bl_goal env uctx handle (ind,u) lnamesparrec nparrec in
   let bl_goal = EConstr.of_constr bl_goal in
   let univ_poly = Declareops.inductive_is_polymorphic mib in
   let poly = PolyFlags.of_univ_poly univ_poly in (* FIXME cumulativity not handled *)
@@ -1223,22 +1242,29 @@ let _ = bl_scheme_kind_aux := fun () -> bl_scheme_kind
 (**********************************************************************)
 (* Leibniz->Boolean *)
 
-let compute_lb_goal env handle (ind,u) lnamesparrec nparrec =
+let compute_lb_goal env uctx handle (ind,u) lnamesparrec nparrec =
   let list_id = list_id lnamesparrec in
-  let eq = eq () and tt = tt () and bb = bb () in
+  let tt = tt () and bb = bb () in
   let avoid = avoid_of_list_id list_id in
   let eqI = eqI handle (ind,u) list_id in
   let x = next_ident_away (Id.of_string "x") avoid in
   let y = next_ident_away (Id.of_string "y") (Id.Set.add x avoid) in
+  let sigma = Evd.from_ustate uctx in
+  let qind, uind = sort_and_univ env sigma (ind, u) in
+  let uctx , fresh_level = UState.new_univ_level_variable UState.univ_flexible None uctx in
+  let uctx = UState.add_constraints uctx @@
+             UnivProblem.Set.singleton (UnivProblem.ULe (Sorts.sort_of_univ uind, (Sorts.sort_of_univ (Univ.Universe.make fresh_level)))) in
+  let indeq = eq qind fresh_level in
+  let booleq = eq Sorts.Quality.qtype Univ.Level.set in
   let open Term in
     let create_input c =
       let lb_typ = List.map (fun (s,seq,_,_) ->
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkVar s) (
             mkNamedProd (Context.make_annot y Sorts.Relevant) (mkVar s) (
               mkArrow
-                ( mkApp(eq,[|mkVar s;mkVar x;mkVar y|]))
+                ( mkApp(indeq,[|mkVar s;mkVar x;mkVar y|]))
                 Sorts.Relevant
-                ( mkApp(eq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
+                ( mkApp(booleq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
           ))
         ) list_id in
       let lb_input = List.fold_left2 ( fun a (s,_,_,slb) b ->
@@ -1258,13 +1284,13 @@ let compute_lb_goal env handle (ind,u) lnamesparrec nparrec =
           in
           mkNamedProd x (RelDecl.get_type decl)  a) eq_input lnamesparrec
     in
-      create_input (
+      uctx, create_input (
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec)) (
           mkNamedProd (Context.make_annot y Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec+1)) (
             mkArrow
-              (mkApp(eq,[|mkFullInd env (ind,u) (2*nparrec+2);mkVar x;mkVar y|]))
+              (mkApp(indeq,[|mkFullInd env (ind,u) (2*nparrec+2);mkVar x;mkVar y|]))
               Sorts.Relevant
-              (mkApp(eq,[|bb;mkApp(eqI,[|mkVar x;mkVar y|]);tt|]))
+              (mkApp(booleq,[|bb;mkApp(eqI,[|mkVar x;mkVar y|]);tt|]))
         )))
 
 let compute_lb_tact handle ind lnamesparrec nparrec =
@@ -1332,7 +1358,7 @@ let make_lb_scheme env handle mind =
   let nparrec = mib.mind_nparams_rec in
   let lnonparrec,lnamesparrec =
     Inductive.inductive_nonrec_rec_paramdecls (mib,u) in
-  let lb_goal = compute_lb_goal env handle (ind,u) lnamesparrec nparrec in
+  let uctx, lb_goal = compute_lb_goal env uctx handle (ind,u) lnamesparrec nparrec in
   let lb_goal = EConstr.of_constr lb_goal in
   let poly = Declareops.inductive_is_polymorphic mib in
   let uctx = if poly then Evd.ustate (fst (Typing.sort_of env (Evd.from_ustate uctx) lb_goal)) else uctx in
@@ -1362,31 +1388,38 @@ let check_not_is_defined () =
   then raise (UndefinedCst "not")
 
 (* {n=m}+{n<>m}  part  *)
-let compute_dec_goal env ind lnamesparrec nparrec =
+let compute_dec_goal env uctx (ind,u) lnamesparrec nparrec =
   check_not_is_defined ();
-  let eq = eq () and tt = tt () and bb = bb () in
+  let tt = tt () and bb = bb () in
   let list_id = list_id lnamesparrec in
   let avoid = avoid_of_list_id list_id in
   let x = next_ident_away (Id.of_string "x") avoid in
   let y = next_ident_away (Id.of_string "y") (Id.Set.add x avoid) in
+  let sigma = Evd.from_ustate uctx in
+  let qind, uind = sort_and_univ env sigma (ind, u) in
+  let uctx , fresh_level = UState.new_univ_level_variable UState.univ_flexible None uctx in
+  let uctx = UState.add_constraints uctx @@
+             UnivProblem.Set.singleton (UnivProblem.ULe (Sorts.sort_of_univ uind, (Sorts.sort_of_univ (Univ.Universe.make fresh_level)))) in
+  let indeq = eq qind fresh_level in
+  let booleq = eq Sorts.Quality.qtype Univ.Level.set in
   let open Term in
     let create_input c =
       let lb_typ = List.map (fun (s,seq,_,_) ->
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkVar s) (
             mkNamedProd (Context.make_annot y Sorts.Relevant) (mkVar s) (
               mkArrow
-                ( mkApp(eq,[|mkVar s;mkVar x;mkVar y|]))
+                ( mkApp(indeq,[|mkVar s;mkVar x;mkVar y|]))
                 Sorts.Relevant
-                ( mkApp(eq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
+                ( mkApp(booleq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
           ))
         ) list_id in
       let bl_typ = List.map (fun (s,seq,_,_) ->
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkVar s) (
             mkNamedProd (Context.make_annot y Sorts.Relevant) (mkVar s) (
               mkArrow
-                ( mkApp(eq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
+                ( mkApp(booleq,[|bb;mkApp(mkVar seq,[|mkVar x;mkVar y|]);tt|]))
                 Sorts.Relevant
-                ( mkApp(eq,[|mkVar s;mkVar x;mkVar y|]))
+                ( mkApp(indeq,[|mkVar s;mkVar x;mkVar y|]))
           ))
         ) list_id in
 
@@ -1411,23 +1444,23 @@ let compute_dec_goal env ind lnamesparrec nparrec =
           in
           mkNamedProd x (RelDecl.get_type decl) a) eq_input lnamesparrec
     in
-        let eqnm = mkApp(eq,[|mkFullInd env ind (3*nparrec+2);mkVar x;mkVar y|]) in
-        create_input (
-          mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env ind (3*nparrec)) (
-            mkNamedProd (Context.make_annot y Sorts.Relevant) (mkFullInd env ind (3*nparrec+1)) (
+        let eqnm = mkApp(indeq,[|mkFullInd env (ind,u) (3*nparrec+2);mkVar x;mkVar y|]) in
+        uctx, create_input (
+          mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env (ind,u) (3*nparrec)) (
+            mkNamedProd (Context.make_annot y Sorts.Relevant) (mkFullInd env (ind,u) (3*nparrec+1)) (
               mkApp(sumbool(),[|eqnm;mkApp (UnivGen.constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.not.type",[|eqnm|])|])
           )
         )
       )
 
 let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
-  let eq = eq () and tt = tt ()
-      and ff = ff () and bb = bb () in
+  let tt = tt () and ff = ff () and bb = bb () in
+  let booleq = eq Sorts.Quality.qtype Univ.Level.set in
   let list_id = list_id lnamesparrec in
   let _ = get_scheme handle beq_scheme_kind ind in (* This is just an assertion? *)
   let _non_fresh_eqI = eqI handle (ind,u) list_id in
-  let eqtrue x = mkApp(eq,[|bb;x;tt|]) in
-  let eqfalse x = mkApp(eq,[|bb;x;ff|]) in
+  let eqtrue x = mkApp(booleq,[|bb;x;tt|]) in
+  let eqfalse x = mkApp(booleq,[|bb;x;ff|]) in
   let first_intros =
     ( List.map (fun (s,_,_,_) -> s ) list_id )
     @ ( List.map (fun (_,seq,_,_) -> seq) list_id )
@@ -1491,7 +1524,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
                           intro;
                           Equality.subst_all ();
                           assert_by (Name freshH3)
-                            (EConstr.of_constr (mkApp(eq,[|bb;mkApp(eqI,[|mkVar freshm;mkVar freshm|]);tt|])))
+                            (EConstr.of_constr (mkApp(booleq,[|bb;mkApp(eqI,[|mkVar freshm;mkVar freshm|]);tt|])))
                             (Tacticals.tclTHENLIST [
                                  apply (EConstr.mkApp(lbI,Array.map EConstr.mkVar xargs));
                                  Auto.default_auto
@@ -1527,7 +1560,8 @@ let make_eq_decidability env handle mind =
 
   let lnonparrec,lnamesparrec =
     Inductive.inductive_nonrec_rec_paramdecls (mib,u) in
-  let dec_goal = EConstr.of_constr (compute_dec_goal env (ind,u) lnamesparrec nparrec) in
+  let uctx, dec_goal = compute_dec_goal env uctx (ind,u) lnamesparrec nparrec in
+  let dec_goal = EConstr.of_constr dec_goal in
   let univ_poly = Declareops.inductive_is_polymorphic mib in
   (* FIXME: cumulativity not handled *)
   let poly = PolyFlags.of_univ_poly univ_poly in
