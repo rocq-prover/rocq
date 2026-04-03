@@ -1304,13 +1304,6 @@ let add_modtype l params_mte inl senv =
   let senv = add_field (l,SFBmodtype mtb) (MT mp) senv in
   mp, senv
 
-(** full_add_module adds module with universes and constraints *)
-
-let full_add_module mp mb senv =
-  let dp = ModPath.dp mp in
-  let linkinfo = Nativecode.link_info_of_dirpath dp in
-  { senv with env = Modops.add_linked_module mp mb linkinfo senv.env }
-
 (** Insertion of modules *)
 
 let add_module l me inl senv =
@@ -1403,11 +1396,17 @@ let rec module_is_modtype senv =
 let functorize params init =
   List.fold_left (fun e (mbid,mt) -> MoreFunctor(mbid,mt,e)) init params
 
-let propagate_loads senv =
-  List.fold_left
-    (fun env (mp, mb) -> full_add_module mp mb env)
-    senv
-    (List.rev senv.loads)
+let propagate_load senv (mp, mb as load) =
+  let dp = ModPath.dp mp in
+  let linkinfo = Nativecode.link_info_of_dirpath dp in
+  { senv with
+    paramresolver = ParamResolver.add_delta_resolver mp (mod_delta mb) senv.paramresolver;
+    loads = load :: senv.loads;
+    env = Modops.add_linked_module mp mb linkinfo senv.env;
+  }
+
+let propagate_loads loads senv =
+  List.fold_left propagate_load senv (List.rev loads)
 
 (** Build the module body of the current module, taking in account
     a possible return type (_:T) *)
@@ -1437,7 +1436,8 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
   if not !allow_delayed_constants && not (HandleMap.is_empty senv.future_cst) then
     CErrors.anomaly ~label:"safe_typing"
       Pp.(str "True Future.t were created for opaque constants even if -async-proofs is off");
-  { oldsenv with
+  propagate_loads senv.loads {
+    oldsenv with
     env = newenv;
     modresolver = newresolver;
     revstruct = newdef::oldsenv.revstruct;
@@ -1446,7 +1446,7 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
     qualities = senv.qualities ;
     future_cst = senv.future_cst;
     required = senv.required;
-    loads = senv.loads@oldsenv.loads;
+    loads = oldsenv.loads;
     local_retroknowledge =
       senv.local_retroknowledge@oldsenv.local_retroknowledge;
     opaquetab = senv.opaquetab;
@@ -1464,7 +1464,7 @@ let end_module l restype senv =
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
   let newenv = Modops.add_retroknowledge senv.local_retroknowledge newenv in
-  let senv' = propagate_loads { senv with env = newenv } in
+  let senv' = { senv with env = newenv } in
   let newenv = Modops.add_module mp mb senv'.env in
   let newresolver = match mod_global_delta mb with
   | None -> oldsenv.modresolver
@@ -1485,7 +1485,7 @@ let end_modtype l senv =
   let newenv = Environ.set_universes (Environ.universes senv.env) oldsenv.env in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
-  let senv' = propagate_loads {senv with env=newenv} in
+  let senv' = {senv with env=newenv} in
   let auto_tb = functorize params (NoFunctor (List.rev senv.revstruct)) in
   let mtb = build_mtb auto_tb senv.modresolver in
   let newenv = Environ.add_modtype mp mtb senv'.env in
