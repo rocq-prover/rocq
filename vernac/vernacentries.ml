@@ -2547,7 +2547,7 @@ let vernac_validate_proof ~pstate =
           Some
             Pp.(str "Evar " ++ Printer.pr_evar sigma (e, evi)
                 ++ spc() ++ str "was inferred by unification to be" ++ spc()
-                ++ pr_econstr_env (Evd.evar_env env evi') sigma' body)
+                ++ pr_econstr_env (Evd.evar_env env evi) sigma' body)
         | None, Some _ -> (* ignore new evar *)
           assert (not (Evd.is_defined sigma e));
           None

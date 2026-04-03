@@ -29,7 +29,6 @@ open Structures
 open Notationextern
 
 module ExternFlags = PrintingFlags.Extern
-module NamedDecl = Context.Named.Declaration
 (*i*)
 
 (* Translation from glob_constr to front constr *)
@@ -1400,9 +1399,8 @@ let rec glob_of_pat
   | PEvar (evk,l) ->
       let filter (id, pat) = match pat with PVar id' -> Id.equal id id' | _ -> true in
       let EvarInfo evi = Evd.find sigma evk in
-      let hyps = Evd.evar_filtered_context evi in
-      let map decl pat = NamedDecl.get_id decl, pat in
-      let l = List.filter filter @@ List.map2 map hyps l in
+      let ids = Evd.evar_filtered_hyp_names evi in
+      let l = List.filter filter @@ List.combine ids l in
       let id = match Evd.evar_ident evk sigma with
       | None -> "__"
       | Some id -> Libnames.string_of_path id
