@@ -150,7 +150,7 @@ let with_timeout ~timeout:n f =
 exception AllocLimit
 
 let () = CErrors.register_handler @@ function
-  | AllocLimit -> Some Pp.(str "Alloc limit!")
+  | AllocLimit -> Some Pp.(str "Allocation limit exceeded.")
   | _ -> None
 
 let with_alloc_limit ~limit ~allocated f =
@@ -170,10 +170,13 @@ let with_alloc_limit ~limit ~allocated f =
 
 let fmt_allocated { Control.kilowords = allocated } =
   let open Pp in
-  (* XXX print a few more digits for low Mw allocated *)
-  if allocated >= 1000L then
-    str "Allocated " ++ int64 (Int64.div allocated 1000L) ++ str "Mw."
-  else str "Allocated " ++ int64 allocated ++ str "kw."
+  (* XXX print a few more digits for low Mw allocated? *)
+  let alloc = if allocated >= 1000L then
+    int64 (Int64.div allocated 1000L) ++ str "Mw."
+  else int64 allocated ++ str "kw."
+  in
+  fmt "Succeeded without reaching the allocation limit@ (estimated %t allocated)."
+    (fun () -> alloc)
 
 let real_error_loc ~cmdloc ~eloc =
   if Loc.finer eloc cmdloc then eloc
