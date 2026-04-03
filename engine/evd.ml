@@ -1376,7 +1376,7 @@ let new_pure_evar ?(src=default_source) ?(filter = Filter.identity) ~relevance
   ?(abstract_arguments = Abstraction.identity) ?candidates
   ?name ?parent ?(typeclass_candidate = false) ?(rrpat = false) sign evd typ =
   let evi = {
-    evar_hyp_names = List.map NamedDecl.get_id sign.env_named_ctx;
+    evar_hyp_names = sign.env_named_names;
     evar_hyps = Undefined sign;
     evar_concl = Undefined typ;
     evar_body = Evar_empty;

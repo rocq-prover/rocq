@@ -77,6 +77,7 @@ end
 type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = {
+  env_named_names : Id.t list;
   env_named_ctx : Constr.named_context;
   env_named_map : Constr.named_declaration Id.Map.t;
   env_named_idx : Constr.named_declaration Range.t;
@@ -115,6 +116,7 @@ type rewrule_not_allowed = Symb | Rule
 exception RewriteRulesNotAllowed of rewrule_not_allowed
 
 let empty_named_context_val = {
+  env_named_names = [];
   env_named_ctx = [];
   env_named_map = Id.Map.empty;
   env_named_idx = Range.empty;
@@ -191,6 +193,7 @@ let set_rel_context_val v env =
 let push_named_context_val d ctxt =
 (*   assert (not (Id.Map.mem (NamedDecl.get_id d) ctxt.env_named_map)); *)
   {
+    env_named_names = NamedDecl.get_id d :: ctxt.env_named_names;
     env_named_ctx = Context.Named.add d ctxt.env_named_ctx;
     env_named_map = Id.Map.add (NamedDecl.get_id d) d ctxt.env_named_map;
     env_named_idx = Range.cons d ctxt.env_named_idx;
@@ -200,7 +203,13 @@ let match_named_context_val c = match c.env_named_ctx with
 | [] -> None
 | decl :: ctx ->
   let map = Id.Map.remove (NamedDecl.get_id decl) c.env_named_map in
-  let cval = { env_named_ctx = ctx; env_named_map = map; env_named_idx = Range.tl c.env_named_idx } in
+  let cval = {
+    env_named_names = List.tl c.env_named_names;
+    env_named_ctx = ctx;
+    env_named_map = map;
+    env_named_idx = Range.tl c.env_named_idx;
+  }
+  in
   Some (decl, cval)
 
 let map_named_val f ctxt =
@@ -217,7 +226,8 @@ let map_named_val f ctxt =
   if map == ctxt.env_named_map then ctxt
   else
     let idx = List.fold_right Range.cons ctx Range.empty in
-    { env_named_ctx = ctx; env_named_map = map; env_named_idx = idx }
+    let names = List.map NamedDecl.get_id ctx in
+    { env_named_names = names; env_named_ctx = ctx; env_named_map = map; env_named_idx = idx }
 
 let push_named d env =
   {env with env_named_context = push_named_context_val d env.env_named_context}

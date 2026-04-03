@@ -38,6 +38,7 @@ type link_info =
 type key = int CEphemeron.key option ref
 
 type named_context_val = private {
+  env_named_names : Id.t list;
   env_named_ctx : Constr.named_context;
   env_named_map : Constr.named_declaration Id.Map.t;
   (** Identifier-indexed version of [env_named_ctx] *)
