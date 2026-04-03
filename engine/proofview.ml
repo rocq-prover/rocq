@@ -955,25 +955,17 @@ module Progress = struct
     | Evar_defined _, Evar_defined _ -> true
     | _ -> false
 
-  let fast_eq_named_context_val ctx1 ctx2 =
-    let r_eq _ _ = true (* ignore relevances *) in
-    let c1 = EConstr.named_context_of_val ctx1 in
-    let c2 = EConstr.named_context_of_val ctx2 in
-    let eq_named_declaration d1 d2 = match d1, d2 with
-    | LocalAssum (i1, _), LocalAssum (i2, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | LocalDef (i1, _, _), LocalDef (i2, _, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | _ -> false
-    in
-    List.for_all2eq eq_named_declaration c1 c2
+  let fast_eq_hyp_names ctx1 ctx2 =
+    List.for_all2eq Names.Id.equal ctx1 ctx2
 
   let fast_eq_evar_info ei1 ei2 =
     fast_eq_evar_body ei1 ei2 &&
-    fast_eq_named_context_val (Evd.evar_hyps ei1) (Evd.evar_hyps ei2)
+    fast_eq_hyp_names (Evd.evar_hyp_names ei1) (Evd.evar_hyp_names ei2)
 
   (** Equality function on goals *)
   let goal_equal ~evd ~extended_evd evar extended_evar =
-    let EvarInfo evi = Evd.find evd evar in
-    let EvarInfo extended_evi = Evd.find extended_evd extended_evar in
+    let evi = Evd.find_undefined evd evar in
+    let extended_evi = Evd.find_undefined extended_evd extended_evar in
     if fast_eq_evar_info evi extended_evi then
       eq_evar_info evd extended_evd evi extended_evi
     else false
@@ -1213,9 +1205,8 @@ module Goal = struct
           tclEVARMAP >>= fun sigma ->
           let state = get_state goal in
           let goal = drop_state goal in
-          let EvarInfo info = Evd.find sigma goal in
           let goal = {
-            env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+            env = Environ.reset_with_named_context (Evd.evar_filtered_hyps oinfo) env ;
             sigma = sigma ;
             concl = Evd.evar_concl oinfo;
             state = state;

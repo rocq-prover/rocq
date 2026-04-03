@@ -140,11 +140,14 @@ match evar_ident evk sigma with
 | Some id ->
   str "?" ++ Libnames.pr_path id
 
+let pr_filtered_id (id,ok) =
+  if ok then Id.print id else str "{" ++ Id.print id ++ str "}"
+
 let pr_decl env sigma (decl,ok) =
   let open NamedDecl in
   let print_constr = Internal.print_kconstr in
   match decl with
-  | LocalAssum ({binder_name=id},_) -> if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
+  | LocalAssum ({binder_name=id},_) -> pr_filtered_id (id,ok)
   | LocalDef ({binder_name=id},c,_) -> str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
                            print_constr env sigma c ++ str (if ok then ")" else "}")
 
@@ -186,13 +189,27 @@ let pr_evar_info (type a) env sigma (evi : a Evd.evar_info) =
   let open Evd in
   let print_constr = Internal.print_kconstr in
   let phyps =
-    try
-      let decls = match Filter.repr (evar_filter evi) with
-      | None -> List.map (fun c -> (c, true)) (evar_context evi)
-      | Some filter -> List.combine (evar_context evi) filter
-      in
-      prlist_with_sep spc (pr_decl env sigma) (List.rev decls)
-    with Invalid_argument _ -> str "Ill-formed filtered context" in
+    match Evd.evar_body evi with
+    | Evar_empty -> begin
+        try
+          let decls = match Filter.repr (evar_filter evi) with
+            | None -> List.map (fun c -> (c, true)) (evar_context evi)
+            | Some filter -> List.combine (evar_context evi) filter
+          in
+          prlist_with_sep spc (pr_decl env sigma) (List.rev decls)
+        with Invalid_argument _ -> str "Ill-formed filtered context"
+      end
+    | _ -> begin
+        try
+          let decls = match Filter.repr (evar_filter evi) with
+            | None -> List.map (fun c -> (c, true)) (evar_hyp_names evi)
+            | Some filter -> List.combine (evar_hyp_names evi) filter
+          in
+          prlist_with_sep spc pr_filtered_id (List.rev decls)
+        with Invalid_argument _ -> str "Ill-formed filtered context"
+      end
+
+  in
   let pb =
     match Evd.evar_body evi with
       | Evar_empty -> print_constr env sigma (Evd.evar_concl evi)

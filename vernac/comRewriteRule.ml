@@ -306,7 +306,7 @@ and safe_head_pattern_of_constr ~loc env evd usubst depth state t = Constr.kind 
 
 and safe_arg_pattern_of_constr ~loc env evd usubst depth (st, stateq, stateu as state) t = Constr.kind t |> function
   | Evar (evk, inst) ->
-    let EvarInfo evi = Evd.find evd evk in
+    let evi = Evd.find_undefined evd evk in
     if Evd.is_rewrite_rule_evar evd evk then
       let holei, st = update_invtbl ~loc env evd evk st in
       if not @@ is_rel_inst 1 inst then
@@ -471,7 +471,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
   end;
 
   let update_invtbl evd evk n =
-    let Evd.EvarInfo evi = Evd.find evd evk in
+    let evi = Evd.find_undefined evd evk in
     let vars = Evd.evar_hyps evi |> Environ.named_context_of_val |> Context.Named.instance EConstr.mkVar in
     (n, vars)
   in
