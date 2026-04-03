@@ -167,6 +167,7 @@ LICENSE                     @rocq-prover/contributing-process-maintainers
 /theories/Corelib/ssrmatching/  @rocq-prover/ssreflect-maintainers
 
 /plugins/ssr/                   @rocq-prover/ssreflect-maintainers
+/plugins/ssrrewrite/            @rocq-prover/ssreflect-maintainers
 /theories/Corelib/ssr/          @rocq-prover/ssreflect-maintainers
 
 /test-suite/ssr/                @rocq-prover/ssreflect-maintainers
