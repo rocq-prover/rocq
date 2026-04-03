@@ -110,7 +110,7 @@ and conv_atom env pb lvl a1 a2 cu =
     | Arel i1, Arel i2 ->
         if Int.equal i1 i2 then cu else raise NotConvertible
     | Aind (ind1,u1), Aind (ind2,u2) ->
-      if Ind.CanOrd.equal ind1 ind2 then
+      if QInd.equal env ind1 ind2 then
         (* Aind is an accumulator but not a neutral, so we always
            convert at a common type (after applying arguments).
 
@@ -120,14 +120,14 @@ and conv_atom env pb lvl a1 a2 cu =
         convert_inductives env pb (fst ind1) u1 u2 cu
        else raise NotConvertible
     | Aconstant (c1,u1), Aconstant (c2,u2) ->
-       if Constant.CanOrd.equal c1 c2 then convert_instances ~flex:true u1 u2 cu
+       if QConstant.equal env c1 c2 then convert_instances ~flex:true u1 u2 cu
        else raise NotConvertible
     | Asort s1, Asort s2 ->
       sort_cmp_universes pb s1 s2 cu
     | Avar id1, Avar id2 ->
         if Id.equal id1 id2 then cu else raise NotConvertible
     | Acase(a1,ac1,p1,bs1), Acase(a2,ac2,p2,bs2) ->
-        if not (Ind.CanOrd.equal a1.asw_ind a2.asw_ind) then raise NotConvertible;
+        if not (QInd.equal env a1.asw_ind a2.asw_ind) then raise NotConvertible;
         let cu = conv_accu env CONV lvl ac1 ac2 cu in
         let tbl = a1.asw_reloc in
         let len = Array.length tbl in
@@ -157,7 +157,7 @@ and conv_atom env pb lvl a1 a2 cu =
         else
           Array.fold_left2 (fun cu v1 v2 -> conv_val env CONV lvl v1 v2 cu) (conv_fix env lvl t1 f1 t2 f2 cu) args1 args2
     | Aproj((ind1, i1), ac1), Aproj((ind2, i2), ac2) ->
-       if not (Ind.CanOrd.equal ind1 ind2 && Int.equal i1 i2) then raise NotConvertible
+       if not (QInd.equal env ind1 ind2 && Int.equal i1 i2) then raise NotConvertible
        else conv_accu env CONV lvl ac1 ac2 cu
     | Arel _, _ | Aind _, _ | Aconstant _, _ | Asort _, _ | Avar _, _
     | Acase _, _ | Afix _, _ | Acofix _, _
