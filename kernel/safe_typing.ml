@@ -1430,7 +1430,7 @@ let build_module_body params restype senv =
 
 let allow_delayed_constants = ref false
 
-let propagate_senv newdef newenv newresolver senv oldsenv =
+let propagate_senv newdef senv oldsenv =
   (* This asserts that after Paral-ITP, standard vo compilation is behaving
    * exctly as before: the same universe constraints are added to modules *)
   if not !allow_delayed_constants && not (HandleMap.is_empty senv.future_cst) then
@@ -1438,8 +1438,8 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
       Pp.(str "True Future.t were created for opaque constants even if -async-proofs is off");
   propagate_loads senv.loads {
     oldsenv with
-    env = newenv;
-    modresolver = newresolver;
+    env = senv.env;
+    modresolver = senv.modresolver;
     revstruct = newdef::oldsenv.revstruct;
     modlabels = Id.Set.add (fst newdef) oldsenv.modlabels;
     univ = senv.univ;
@@ -1464,15 +1464,14 @@ let end_module l restype senv =
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
   let newenv = Modops.add_retroknowledge senv.local_retroknowledge newenv in
-  let senv' = { senv with env = newenv } in
-  let newenv = Modops.add_module mp mb senv'.env in
+  let newenv = Modops.add_module mp mb newenv in
   let newresolver = match mod_global_delta mb with
   | None -> oldsenv.modresolver
   | Some delta -> Mod_subst.add_delta_resolver delta oldsenv.modresolver
   in
   let () = assert (List.is_empty params || List.is_empty senv.local_retroknowledge) in
   (mp, mbids, mod_delta mb),
-  propagate_senv (l,SFBmodule mb) newenv newresolver senv' oldsenv
+  propagate_senv (l,SFBmodule mb) { senv with env = newenv; modresolver = newresolver } oldsenv
 
 let build_mtb = Mod_declarations.make_module_type
 
@@ -1485,14 +1484,13 @@ let end_modtype l senv =
   let newenv = Environ.set_universes (Environ.universes senv.env) oldsenv.env in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
-  let senv' = {senv with env=newenv} in
   let auto_tb = functorize params (NoFunctor (List.rev senv.revstruct)) in
   let mtb = build_mtb auto_tb senv.modresolver in
-  let newenv = Environ.add_modtype mp mtb senv'.env in
+  let newenv = Environ.add_modtype mp mtb newenv in
   let newresolver = oldsenv.modresolver in
   let () = assert (List.is_empty senv.local_retroknowledge) in
   (mp,mbids),
-  propagate_senv (l,SFBmodtype mtb) newenv newresolver senv' oldsenv
+  propagate_senv (l,SFBmodtype mtb) { senv with env = newenv; modresolver = newresolver } oldsenv
 
 (** {6 Inclusion of module or module type } *)
 
