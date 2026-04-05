@@ -73,6 +73,14 @@ Ltac2 @ external casep_nodep : kind
 := "rocq-runtime.plugins.ltac2" "scheme_kind_casep_nodep".
 (** Non-dependent case analysis scheme for Prop. *)
 
+Ltac2 @ external scase_dep : kind
+:= "rocq-runtime.plugins.ltac2" "scheme_kind_scase_dep".
+(** Dependent case analysis scheme for SProp. *)
+
+Ltac2 @ external scase_nodep : kind
+:= "rocq-runtime.plugins.ltac2" "scheme_kind_scase_nodep".
+(** Non-dependent case analysis scheme for SProp. *)
+
 (** {2 Equality schemes} *)
 
 Ltac2 @ external sym : kind

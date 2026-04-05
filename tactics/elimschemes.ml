@@ -211,3 +211,11 @@ let casep_dep =
 let casep_nodep =
   declare_individual_scheme_object "casep_nodep"
     (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.prop x)
+
+let scase_dep =
+  declare_individual_scheme_object "scase_dep"
+    (fun env _ x -> build_case_analysis_scheme_in_type env true QualityOrSet.sprop x)
+
+let scase_nodep =
+  declare_individual_scheme_object "scase_nodep"
+    (fun env _ x -> build_case_analysis_scheme_in_type env false QualityOrSet.sprop x)
