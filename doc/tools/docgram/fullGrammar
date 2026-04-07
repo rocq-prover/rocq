@@ -1831,6 +1831,11 @@ simple_tactic: [
 | "is_constructor" constr
 | "is_proj" constr
 | "is_const" constr
+| "is_float" constr
+| "is_uint63" constr
+| "is_string" constr
+| "is_array" constr
+| "is_sort" constr
 | "shelve"
 | "shelve_unifiable"
 | "unshelve" tactic1

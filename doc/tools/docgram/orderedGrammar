@@ -1503,6 +1503,11 @@ simple_tactic: [
 | "is_constructor" one_term
 | "is_proj" one_term
 | "is_const" one_term
+| "is_float" one_term
+| "is_uint63" one_term
+| "is_string" one_term
+| "is_array" one_term
+| "is_sort" one_term
 | "shelve"
 | "shelve_unifiable"
 | "unshelve" ltac_expr1

@@ -529,6 +529,26 @@ TACTIC EXTEND is_const
 | [ "is_const" constr(x) ] -> { Internals.is_const x }
 END
 
+TACTIC EXTEND is_float
+| [ "is_float" constr(x) ] -> { Internals.is_float x }
+END
+
+TACTIC EXTEND is_uint63
+| [ "is_uint63" constr(x) ] -> { Internals.is_uint63 x }
+END
+
+TACTIC EXTEND is_string
+| [ "is_string" constr(x) ] -> { Internals.is_string x }
+END
+
+TACTIC EXTEND is_array
+| [ "is_array" constr(x) ] -> { Internals.is_array x }
+END
+
+TACTIC EXTEND is_sort
+| [ "is_sort" constr(x) ] -> { Internals.is_sort x }
+END
+
 (* Shelves all the goals under focus. *)
 TACTIC EXTEND shelve
 | [ "shelve" ] -> { Proofview.shelve }

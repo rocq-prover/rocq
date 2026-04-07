@@ -1689,6 +1689,13 @@ succeeds, and results in an error otherwise.
    .. exn:: Not a variable or hypothesis.
       :undocumented:
 
+.. tacn:: is_sort @one_term
+
+   Succeeds if :n:`@one_term` is a sort and fails otherwise.
+
+   .. exn:: Not a sort.
+      :undocumented:
+
 .. tacn:: is_const @one_term
 
    Succeeds if :n:`@one_term` is a global constant that is neither a (co)inductive
@@ -1764,6 +1771,34 @@ succeeds, and results in an error otherwise.
          Arguments box {_} _.
          Goal True.
          is_proj (unbox (box 0)).
+
+.. tacn:: is_float @one_term
+
+   Succeeds if :n:`@one_term` is a primitive float and fails otherwise.
+
+   .. exn:: not a primitive float.
+      :undocumented:
+
+.. tacn:: is_uint63 @one_term
+
+   Succeeds if :n:`@one_term` is a primitive uint63 and fails otherwise.
+
+   .. exn:: not a primitive int.
+      :undocumented:
+
+.. tacn:: is_string @one_term
+
+   Succeeds if :n:`@one_term` is a primitive string and fails otherwise.
+
+   .. exn:: not a primitive string.
+      :undocumented:
+
+.. tacn:: is_array @one_term
+
+   Succeeds if :n:`@one_term` is a primitive array and fails otherwise.
+
+   .. exn:: not a primitive array.
+      :undocumented:
 
 Timing
 ------

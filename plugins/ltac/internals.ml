@@ -162,6 +162,36 @@ let is_const x =
     | Const _ -> Proofview.tclUNIT ()
     | _ -> Tacticals.tclFAIL (Pp.str "not a constant")
 
+let is_float x =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  match EConstr.kind sigma x with
+    | Float _ -> Proofview.tclUNIT ()
+    | _ -> Tacticals.tclFAIL (Pp.str "not a primitive float")
+
+let is_uint63 x =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  match EConstr.kind sigma x with
+    | Int _ -> Proofview.tclUNIT ()
+    | _ -> Tacticals.tclFAIL (Pp.str "not a primitive int")
+
+let is_string x =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  match EConstr.kind sigma x with
+    | String _ -> Proofview.tclUNIT ()
+    | _ -> Tacticals.tclFAIL (Pp.str "not a primitive string")
+
+let is_array x =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  match EConstr.kind sigma x with
+    | Array _ -> Proofview.tclUNIT ()
+    | _ -> Tacticals.tclFAIL (Pp.str "not a primitive array")
+
+let is_sort x =
+  Proofview.tclEVARMAP >>= fun sigma ->
+  match EConstr.kind sigma x with
+    | Sort _ -> Proofview.tclUNIT ()
+    | _ -> Tacticals.tclFAIL (Pp.str "not a sort")
+
 let unshelve ist t =
   Proofview.with_shelf (Tacinterp.tactic_of_value ist t) >>= fun (gls, ()) ->
   let gls = List.map Proofview.with_empty_state gls in
