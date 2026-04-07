@@ -837,9 +837,8 @@ module Search = struct
       if path_matches_epsilon derivs then aux e tl
       else
         let i = !idx in
-        let () = ppdebug 0 (fun () ->
-            let i = i + 1 in
-            pr_depth (i :: info.search_depth) ++ str": applying " ++ Lazy.force pp
+        let () = if hint_extern then ppdebug 0 (fun () ->
+            pr_depth (i :: info.search_depth) ++ str": running " ++ Lazy.force pp
             ++ str" on" ++ spc () ++ pr_ev sigma (Proofview.Goal.goal gl))
         in
         ortac
