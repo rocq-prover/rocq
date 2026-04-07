@@ -13,11 +13,20 @@ open Names
 
 (** Generic tactic expressions. *)
 
-type raw_generic_tactic
-
-type glob_generic_tactic
-
 type ('raw, 'glob) tag
+
+val equal : ('raw1, 'glob1) tag -> ('raw2, 'glob2) tag ->
+  ('raw1 * 'glob1, 'raw2 * 'glob2) Util.eq option
+
+val repr : _ tag -> string
+
+type any_tag = Any : _ tag -> any_tag
+
+val name : string -> any_tag option
+
+type raw_generic_tactic = Raw : ('raw, _) tag * 'raw -> raw_generic_tactic
+
+type glob_generic_tactic = Glb : (_, 'glb) tag * 'glb -> glob_generic_tactic
 
 val make : string -> ('raw, 'glb) tag
 (** Each declared tag must be registered using all the following [register] functions
@@ -49,3 +58,12 @@ val register_interp : (_, 'glb) tag -> (Geninterp.Val.t Id.Map.t -> 'glb -> unit
 val interp : ?lfun:Geninterp.Val.t Id.Map.t -> glob_generic_tactic -> unit Proofview.tactic
 
 val wit_generic_tactic : raw_generic_tactic Genarg.vernac_genarg_type
+
+module Map(A:sig type (_,_) t end) : sig
+  type t
+
+  val empty : t
+  val add : ('raw,'glb) tag -> ('raw,'glb) A.t -> t -> t
+  val find : ('raw,'glb) tag -> t -> ('raw,'glb) A.t
+  val mem : _ tag -> t -> bool
+end

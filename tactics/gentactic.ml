@@ -12,11 +12,36 @@ open Names
 
 module TDyn = Dyn.Make()
 
+module Map(A:sig type (_,_) t end) = struct
+  module V = struct type _ t = V : ('raw,'glb) A.t -> ('raw * 'glb) t end
+  module Self = TDyn.Map(V)
+
+  type t = Self.t
+
+  let empty = Self.empty
+
+  let add tag x m = Self.add tag (V x) m
+
+  let mem tag m = Self.mem tag m
+
+  let find tag m = let V x = Self.find tag m in x
+end
+
 type ('raw, 'glb) tag = ('raw * 'glb) TDyn.tag
 
 type raw_generic_tactic = Raw : ('raw, _) tag * 'raw -> raw_generic_tactic
 
 type glob_generic_tactic = Glb : (_, 'glb) tag * 'glb -> glob_generic_tactic
+
+let repr = TDyn.repr
+
+type any_tag = Any : _ tag -> any_tag
+
+let equal = TDyn.eq
+
+let name s =
+  (* magic: all tags are at tuple types *)
+  TDyn.name s |> Option.map @@ fun (TDyn.Any t) -> Any (Obj.magic t)
 
 let make name : _ tag = TDyn.create name
 
@@ -26,13 +51,13 @@ let of_raw (type a) (tag:(a, _) tag) (x:a) : raw_generic_tactic =
   Raw (tag, x)
 
 module Print = struct
-  type _ t = Print : {
+  type ('raw,'glb) t = Print of {
       raw_print : 'raw Genprint.printer;
       glb_print : 'glb Genprint.printer;
-    } -> ('raw * 'glb) t
+    }
 end
 
-module PrintMap = TDyn.Map(Print)
+module PrintMap = Map(Print)
 
 let printers = ref PrintMap.empty
 
