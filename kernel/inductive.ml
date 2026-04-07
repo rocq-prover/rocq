@@ -658,7 +658,7 @@ val dest_subterms : t -> t array array
 val is_norec : t -> bool
 val is_inductive : env -> inductive -> t -> bool
 val is_primitive_positive_container : env -> Constant.t -> t -> bool
-val equal : t -> t -> bool
+val incl : t -> t -> bool
 
 end =
 struct
@@ -720,6 +720,11 @@ let is_primitive_positive_container env cst t = match dest_recarg t with
 
 let equal t1 t2 =
   Atm.equal eq_recarg t1 t2
+
+let incl t1 t2 =
+  equal t1 t2 ||
+  let t12 = inter t1 t2 in
+  equal t1 t12
 
 end
 
@@ -868,7 +873,7 @@ let check t tree =
   | DeadCode -> NeedReduce Int.Set.empty
   | Vars l ->   NeedReduce l
   | Subterm (Strict, tree', l) ->
-    if WfPaths.equal tree tree' then
+    if WfPaths.incl tree tree' then
       NeedReduce l
     else
       InvalidSubterm
