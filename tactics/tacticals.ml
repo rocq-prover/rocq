@@ -109,27 +109,28 @@ let compute_induction_names check_and branchletsigns = function
       let names = fix_empty_or_and_pattern (Array.length branchletsigns) names in
       get_and_check_or_and_pattern_gen check_and ?loc names branchletsigns
 
-let is_recursive_argument env self recarg = match Declareops.dest_recarg recarg with
+let is_recursive_argument env self ra st = match Rtree.Automaton.data ra st with
 | Norec | Mrec (RecArgPrim _)  -> false
 | Mrec (RecArgInd ind) -> Environ.QInd.equal env self ind
 
 (* Compute the let-in signature of case analysis or standard induction scheme *)
 let compute_constructor_signatures env ~rec_flag ((_,k as ity),u) =
+  let (mib, mip) = Inductive.lookup_mind_specif env ity in
+  let ra = mip.mind_automaton in
   let rec analrec c recargs =
     match c, recargs with
     | RelDecl.LocalAssum _ :: c, recarg::rest ->
       let rest = analrec c rest in
-      if rec_flag && is_recursive_argument env ity recarg then true :: true :: rest
+      if rec_flag && is_recursive_argument env ity ra recarg then true :: true :: rest
       else true :: rest
     | RelDecl.LocalDef _ :: c, rest -> false :: analrec c rest
     | [], [] -> []
     | _ -> anomaly (Pp.str "compute_constructor_signatures.")
   in
-  let (mib,mip) = Inductive.lookup_mind_specif env ity in
   let map (ctx, _) = List.skipn (Context.Rel.length mib.mind_params_ctxt) (List.rev ctx) in
   let lc = Array.map map mip.mind_nf_lc in
-  let lrecargs = Declareops.dest_subterms mip.mind_recargs in
-  Array.map2 analrec lc lrecargs
+  let lrecargs = Rtree.Automaton.transitions ra (Rtree.Automaton.initial ra) in
+  Array.map2 (fun c args -> analrec c (Array.to_list args)) lc lrecargs
 
 let tclIDTAC = tclUNIT ()
 
