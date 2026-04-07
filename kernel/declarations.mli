@@ -248,9 +248,7 @@ type one_inductive_body = {
     mind_consnrealdecls : int array;
  (** Length of the signature of the constructors (with let, w/o params) *)
 
-    mind_recargs : wf_paths; (** Signature of recursive arguments in the constructors *)
-
-    mind_automaton : recarg Rtree.Automaton.t; (** Minimal automaton generated from the above *)
+    mind_automaton : recarg Rtree.Automaton.t; (** Minimal automaton generated from the inductive tree *)
 
     mind_relevance : Sorts.relevance;
     (* XXX this is redundant with mind_sort, is it actually worth keeping? *)

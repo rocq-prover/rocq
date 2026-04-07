@@ -218,12 +218,6 @@ let dest_subterms p =
   assert (match ra with Norec -> false | _ -> true);
   Array.map Array.to_list cstrs
 
-let recarg_length p j =
-  let (_,cstrs) = Rtree.dest_node p in
-  Array.length cstrs.(j-1)
-
-let subst_wf_paths subst p = Rtree.Smart.map (subst_recarg subst) p
-
 let subst_automaton subst a =
   Rtree.Automaton.map (fun r -> subst_recarg subst r) a
 
@@ -251,7 +245,6 @@ let subst_mind_packet subst mbp =
     mind_nrealargs = mbp.mind_nrealargs;
     mind_nrealdecls = mbp.mind_nrealdecls;
     mind_squashed = mbp.mind_squashed;
-    mind_recargs = subst_wf_paths subst mbp.mind_recargs (*wf_paths*);
     mind_automaton = subst_automaton subst mbp.mind_automaton;
     mind_relevance = mbp.mind_relevance;
     mind_relies_on_indices_not_mattering = mbp.mind_relies_on_indices_not_mattering;
