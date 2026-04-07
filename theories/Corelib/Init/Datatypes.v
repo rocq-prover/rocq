@@ -19,12 +19,14 @@ Require Import Logic.
 
 (** [Empty_set] is a datatype with no inhabitant *)
 
+#[universes(polymorphic=no)]
 Inductive Empty_set : Set :=.
 
 Register Empty_set as core.Empty_set.type.
 
 (** [unit] is a singleton datatype with sole inhabitant [tt] *)
 
+#[universes(polymorphic=no)]
 Inductive unit : Set :=
     tt : unit.
 
@@ -36,6 +38,7 @@ Register tt as core.unit.tt.
 
 (** [bool] is the datatype of the boolean values [true] and [false] *)
 
+#[universes(polymorphic=no)]
 Inductive bool : Set :=
   | true : bool
   | false : bool.
@@ -56,6 +59,7 @@ Register false as core.bool.false.
     as popularized by the Ssreflect library.    *)
 (************************************************)
 
+#[universes(polymorphic=no)]
 Inductive reflect (P : Prop) : bool -> Set :=
   | ReflectT : P -> reflect P true
   | ReflectF : ~ P -> reflect P false.
@@ -118,7 +122,7 @@ Hint Resolve andb_true_intro: bool.
 Register andb_true_intro as core.bool.andb_true_intro.
 
 (** Interpretation of booleans as propositions *)
-
+#[universes(polymorphic=no)]
 Inductive eq_true : bool -> Prop := is_eq_true : eq_true true.
 
 #[global]
@@ -166,6 +170,7 @@ Defined.
     See also [Bool.reflect] when [Q = ~P].
 *)
 
+#[universes(polymorphic=no)]
 Inductive BoolSpec (P Q : Prop) : bool -> Prop :=
   | BoolSpecT : P -> BoolSpec P Q true
   | BoolSpecF : Q -> BoolSpec P Q false.
@@ -183,7 +188,7 @@ Register BoolSpecF as core.BoolSpec.BoolSpecF.
     note that the constructor name is the letter O.
     Numbers in [nat] can be denoted using a decimal notation;
     e.g. [3%nat] abbreviates [S (S (S O))] *)
-
+#[universes(polymorphic=no)]
 Inductive nat : Set :=
   | O : nat
   | S : nat -> nat.
@@ -366,6 +371,7 @@ Infix "++" := app (right associativity, at level 60) : list_scope.
 (********************************************************************)
 (** * The comparison datatype *)
 
+#[universes(polymorphic=no)]
 Inductive comparison : Set :=
   | Eq : comparison
   | Lt : comparison
@@ -407,7 +413,7 @@ Qed.
    propositions, one for each possible case. Typically, it can be used to
    specify a comparison function via some equality and order predicates.
    Interest: [CompareSpec] behave nicely with [case] and [destruct]. *)
-
+#[universes(polymorphic=no)]
 Inductive CompareSpec (Peq Plt Pgt : Prop) : comparison -> Prop :=
  | CompEq : Peq -> CompareSpec Peq Plt Pgt Eq
  | CompLt : Plt -> CompareSpec Peq Plt Pgt Lt
@@ -424,6 +430,7 @@ Register CompGt as core.CompareSpec.CompGt.
     in Prop. For some situations, it is nonetheless useful to have a
     version in Type. Interestingly, these two versions are equivalent. *)
 
+#[universes(polymorphic=no)]
 Inductive CompareSpecT (Peq Plt Pgt : Prop) : comparison -> Type :=
  | CompEqT : Peq -> CompareSpecT Peq Plt Pgt Eq
  | CompLtT : Plt -> CompareSpecT Peq Plt Pgt Lt
