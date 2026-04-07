@@ -626,7 +626,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
       (* [ccl'] is defined in context [params;x:rp;x:rp] *)
       if primitive then
         let p = Projection.Repr.make indsp
-            ~proj_npars:mib.mind_nparams ~proj_arg:i fid in
+            ~proj_npars:mib.mind_nparams ~proj_arg:i in
         mkProj (Projection.make p false, rci, mkRel 1), Some (p,rci)
       else
         let ccl' = liftn 1 2 ccl in

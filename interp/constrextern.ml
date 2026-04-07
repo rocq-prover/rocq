@@ -1424,7 +1424,7 @@ let rec glob_of_pat
   | PMeta None -> GHole (GInternalHole)
   | PMeta (Some n) -> GPatVar (Evar_kinds.FirstOrderPatVar n)
   | PExtra g -> of_extra g
-  | PProj (p,c) -> GApp (DAst.make @@ GRef (GlobRef.ConstRef (Projection.constant p),None),
+  | PProj (p,c) -> GApp (DAst.make @@ GRef (GlobRef.ConstRef (Environ.projection_repr_constant (Global.env ()) (Projection.repr p)),None),
                          [glob_of_pat of_extra avoid env sigma c])
   | PApp (f,args) ->
       GApp (glob_of_pat of_extra avoid env sigma f,Array.map_to_list (glob_of_pat of_extra avoid env sigma) args)

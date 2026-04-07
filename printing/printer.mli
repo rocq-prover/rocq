@@ -173,7 +173,7 @@ val pr_existential_key     : env -> evar_map -> Evar.t -> Pp.t
 val pr_existential : ?flags:PrintingFlags.t -> env -> evar_map -> existential -> Pp.t
 val pr_constructor         : env -> constructor -> Pp.t
 val pr_inductive           : env -> inductive -> Pp.t
-val pr_evaluable_reference : Evaluable.t -> Pp.t
+val pr_evaluable_reference : env -> Evaluable.t -> Pp.t
 
 val pr_pconstant : env -> evar_map -> pconstant -> Pp.t
 val pr_pinductive : env -> evar_map -> pinductive -> Pp.t

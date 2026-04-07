@@ -1787,7 +1787,7 @@ let path_convertible env sigma cl p q =
         | CL_SECVAR v -> mkGRef (GlobRef.VarRef v)
         | CL_CONST c -> mkGRef (GlobRef.ConstRef c)
         | CL_IND i -> mkGRef (GlobRef.IndRef i)
-        | CL_PROJ p -> mkGRef (GlobRef.ConstRef (Projection.Repr.constant p))
+        | CL_PROJ p -> mkGRef (GlobRef.ConstRef (Environ.projection_repr_constant env p))
       in
       let names =
         List.init params (fun n -> Id.of_string ("x" ^ string_of_int n))

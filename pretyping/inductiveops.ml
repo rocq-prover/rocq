@@ -673,9 +673,9 @@ let compute_projections env (kn, i as ind) =
         (proj_arg, j+1, pbs, subst)
     | LocalAssum (na,t) ->
       match na.binder_name with
-      | Name lab ->
+      | Name _lab ->
         let proj_relevant = na.binder_relevance in
-        let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg lab in
+        let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg in
         (* from [params, field1,..,fieldj |- t(params,field1,..,fieldj)]
            to [params, x:I, field1,..,fieldj |- t(params,field1,..,fieldj] *)
         let t = liftn 1 j t in

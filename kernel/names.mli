@@ -562,18 +562,14 @@ module Projection : sig
   module Repr : sig
     type t
 
-    val make : inductive -> proj_npars:int -> proj_arg:int -> Id.t -> t
+    val make : inductive -> proj_npars:int -> proj_arg:int -> t
 
     include QNameS with type t := t
-
-    val constant : t -> Constant.t
-    (** Don't use this if you don't have to. *)
 
     val inductive : t -> inductive
     val mind : t -> MutInd.t
     val npars : t -> int
     val arg : t -> int
-    val label : t -> Id.t
 
     val map : (MutInd.t -> MutInd.t) -> t -> t
     val map_npars : (int -> int) -> t -> t
@@ -592,12 +588,10 @@ module Projection : sig
 
   include QNameS with type t := t
 
-  val constant : t -> Constant.t
   val mind : t -> MutInd.t
   val inductive : t -> inductive
   val npars : t -> int
   val arg : t -> int
-  val label : t -> Id.t
   val unfolded : t -> bool
   val unfold : t -> t
 

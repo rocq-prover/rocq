@@ -211,7 +211,7 @@ struct
     | Proj (p,_,c) ->
       (* UnsafeMonomorphic is fine because the term will only be used
          by pat_of_constr which ignores universes *)
-      pat_of_constr (mkApp (UnsafeMonomorphic.mkConst (Projection.constant p), [|c|]))
+      pat_of_constr (mkApp (UnsafeMonomorphic.mkConst (Environ.projection_repr_constant env (Projection.repr p)), [|c|]))
     | Int i -> Some (DInt i, [])
     | Float f -> Some (DFloat f, [])
     | String s -> Some (DString s, [])

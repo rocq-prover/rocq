@@ -780,7 +780,7 @@ let unfold_projection_under_eta env ts n c =
   let rec go c lams =
     match Constr.kind c with
     | Lambda (b, t, c) -> go c ((b,t)::lams)
-    | Proj (p, r, c) when QConstant.equal env n (Projection.constant p) ->
+    | Proj (p, r, c) when QConstant.equal env n (Environ.projection_repr_constant env (Projection.repr p)) ->
       let c = unfold_projection env ts p r c in
       begin
         match c with
@@ -918,10 +918,10 @@ let oracle_order env cf1 cf2 =
       | Some k2 ->
         match k1, k2 with
         | IsProj (p, _, _), IsKey (ConstKey (p',_))
-          when Environ.QConstant.equal env (Projection.constant p) p' ->
+          when Environ.QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p)) p' ->
           Some (not (Projection.unfolded p))
         | IsKey (ConstKey (p,_)), IsProj (p', _, _)
-          when Environ.QConstant.equal env p (Projection.constant p') ->
+          when Environ.QConstant.equal env p (Environ.projection_repr_constant env (Projection.repr p')) ->
           Some (Projection.unfolded p')
         | _ ->
           Some (Conv_oracle.oracle_order
@@ -1062,7 +1062,7 @@ let eta_constructor_app env sigma f l1 term =
         let pars, l1' = Array.chop npars l1 in
         let arg = Array.append pars [|term|] in
         let l2 = Array.map (fun (p,_) ->
-            mkApp (mkConstU (Projection.Repr.constant p,u), arg)) projs in
+            mkApp (mkConstU (Environ.projection_repr_constant env p, u), arg)) projs in
         l1', l2
       | _ -> assert false)
   | _ -> assert false
@@ -1080,7 +1080,7 @@ let expand_projection_with_metas ~metas env sigma pr c args =
     try Inductiveops.find_mrectype env sigma ty
     with Not_found -> error_not_allowed_sprop env sigma (* dummy, caught immediately *)
   in
-    mkApp (mkConstU (Projection.constant pr,u),
+    mkApp (mkConstU (Environ.projection_repr_constant env (Projection.repr pr), u),
            Array.of_list (ind_args @ (c :: args)))
 
 (* If the terms are irrelevant, check that they have the same type. *)
@@ -1215,7 +1215,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
 
         (* Fast path for projections. *)
         | Proj (p1,_,c1), Proj (p2,_,c2) when Environ.QConstant.equal env
-            (Projection.constant p1) (Projection.constant p2) ->
+            (Environ.projection_repr_constant env (Projection.repr p1)) (Environ.projection_repr_constant env (Projection.repr p2)) ->
           (try unify_same_proj curenvnb CONV {opt with at_top = true}
                substn c1 c2
            with ex when precatchable_exception ex ->
@@ -1369,7 +1369,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
         match EConstr.kind sigma c' with
         | Meta _ -> true
         | Evar _ -> true
-        | Const (c, u) -> Environ.QConstant.equal env c (Projection.constant p)
+        | Const (c, u) -> Environ.QConstant.equal env c (Environ.projection_repr_constant env (Projection.repr p))
         | _ -> false
       in
       let expand_proj c c' l =

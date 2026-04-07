@@ -51,7 +51,7 @@ val soft_evaluable_of_global_reference :
 [@@deprecated "(9.3) Use evaluable_of_global_reference."]
 
 val global_of_evaluable_reference :
-  Evaluable.t -> GlobRef.t
+  env -> Evaluable.t -> GlobRef.t
 
 (** Red (returns None if nothing reducible) *)
 val red_product : env -> evar_map -> constr -> constr option

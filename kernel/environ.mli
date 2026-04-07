@@ -248,6 +248,9 @@ val get_projection : env -> inductive -> proj_arg:int -> Names.Projection.Repr.t
 
 val get_projections : env -> inductive -> (Names.Projection.Repr.t * Sorts.relevance) array option
 
+val projection_repr_label : env -> Projection.Repr.t -> Id.t
+val projection_repr_constant : env -> Projection.Repr.t -> Constant.t
+
 (** {5 Inductive types } *)
 val lookup_mind_key : MutInd.t -> env -> link_info ref
 val add_mind_key : MutInd.t -> mutual_inductive_body -> link_info -> env -> env

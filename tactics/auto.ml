@@ -289,7 +289,7 @@ let rec trivial_fail_db dbg db_list local_db =
       let sigma = Proofview.Goal.sigma gl in
       let concl = Proofview.Goal.concl gl in
       let secvars = compute_secvars gl in
-      let hdc = try Some (decompose_app_bound sigma concl) with Bound -> None in
+      let hdc = try Some (decompose_app_bound env sigma concl) with Bound -> None in
       let hintmap = hintmap_of env sigma secvars hdc concl in
       let hinttac = tac_of_hint dbg db_list local_db concl in
       (local_db::db_list)
@@ -398,7 +398,7 @@ let search d n db_list lems =
         let hyps = Proofview.Goal.hyps gl in
         let d' = incr_dbg d in
         let secvars = compute_secvars gl in
-        let hdc = try Some (decompose_app_bound sigma concl) with Bound -> None in
+        let hdc = try Some (decompose_app_bound env sigma concl) with Bound -> None in
         let hintmap = hintmap_of env sigma secvars hdc concl in
         let hinttac = tac_of_hint d db_list local_db concl in
         (local_db::db_list)

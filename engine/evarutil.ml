@@ -285,7 +285,7 @@ let update_var src tgt subst =
       { subst with csubst_var; csubst_rev }
 
 let push_rel_decl_to_named_context
-  sigma decl (ext : ext_named_context) =
+  env sigma decl (ext : ext_named_context) =
   let open EConstr in
   let open Vars in
   let map_decl f d =
@@ -312,7 +312,7 @@ let push_rel_decl_to_named_context
   let id =
     (* id_of_name_using_hdchar only depends on the rel context which is empty
         here *)
-    next_ident_away (id_of_name_using_hdchar empty_env sigma (RelDecl.get_type decl) na) ext.ext_avoid
+    next_ident_away (id_of_name_using_hdchar (reset_context env) sigma (RelDecl.get_type decl) na) ext.ext_avoid
   in
   match extract_if_neq id na with
   | Some id0 ->
@@ -373,7 +373,7 @@ let push_rel_context_to_named_context env sigma typ =
     (* We do keep the instances corresponding to local definition (see above) *)
     let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = ctx } in
     let ext =
-      Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context sigma d acc)
+      Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context env sigma d acc)
         (rel_context env) ~init in
     let inst = default_ext_instance ext in
     (ext.ext_ctx, csubst_subst sigma ext.ext_subst typ, inst, ext.ext_subst)
@@ -381,7 +381,7 @@ let push_rel_context_to_named_context env sigma typ =
 let ext_named_context_of_env env sigma =
   let avoid = Environ.ids_of_named_context_val (Environ.named_context_val env) in
   let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = named_context_val env } in
-  Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context sigma d acc)
+  Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context env sigma d acc)
     (EConstr.rel_context env) ~init
 
 (*------------------------------------*

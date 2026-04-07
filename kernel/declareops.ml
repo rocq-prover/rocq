@@ -285,7 +285,6 @@ let inductive_make_projection ind mib ~proj_arg =
     let p = Names.Projection.Repr.make ind
       ~proj_npars:mib.mind_nparams
       ~proj_arg
-      projections.(proj_arg)
     in
     p, relevances.(proj_arg)
 
@@ -293,8 +292,8 @@ let inductive_make_projections ind mib =
   match mib.mind_packets.(snd ind).mind_record with
   | NotRecord | FakeRecord -> None
   | PrimRecord { projections; relevances; _ } ->
-    let projs = Array.map2_i (fun proj_arg lab r ->
-        Names.Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg lab, r)
+    let projs = Array.map2_i (fun proj_arg _lab r ->
+        Names.Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg, r)
         projections relevances
     in
     Some projs

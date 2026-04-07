@@ -37,17 +37,17 @@ type debug = Debug | Info | Off
 
 exception Bound
 
-let rec head_bound sigma t = match EConstr.kind sigma t with
-| Prod (_, _, b)  -> head_bound sigma b
-| LetIn (_, _, _, b) -> head_bound sigma b
-| App (c, _) -> head_bound sigma c
-| Case (_, _, _, _, _, c, _) -> head_bound sigma c
+let rec head_bound env sigma t = match EConstr.kind sigma t with
+| Prod (_, _, b)  -> head_bound env sigma b
+| LetIn (_, _, _, b) -> head_bound env sigma b
+| App (c, _) -> head_bound env sigma c
+| Case (_, _, _, _, _, c, _) -> head_bound env sigma c
 | Ind (ind, _) -> GlobRef.IndRef ind
 | Const (c, _) -> GlobRef.ConstRef c
 | Construct (c, _) -> GlobRef.ConstructRef c
 | Var id -> GlobRef.VarRef id
-| Proj (p, _, _) -> GlobRef.ConstRef (Projection.constant p)
-| Cast (c, _, _) -> head_bound sigma c
+| Proj (p, _, _) -> GlobRef.ConstRef (Environ.projection_repr_constant env (Projection.repr p))
+| Cast (c, _, _) -> head_bound env sigma c
 | Evar _ | Rel _ | Meta _ | Sort _ | Fix _ | Lambda _
 | CoFix _ | Int _ | Float _ | String _ | Array _ -> raise Bound
 
@@ -56,7 +56,7 @@ let head_constr sigma c =
   with Bound -> user_err (Pp.str "Head identifier must be a constant, section variable, \
                                   (co)inductive type, (co)inductive type constructor, or projection.")
 
-let decompose_app_bound sigma t =
+let decompose_app_bound env sigma t =
   let t = strip_outer_cast sigma t in
   let _,ccl = decompose_prod_decls sigma t in
   let hd,args = decompose_app sigma ccl in
@@ -66,7 +66,7 @@ let decompose_app_bound sigma t =
     | Ind (i,u) -> IndRef i, args
     | Construct (c,u) -> ConstructRef c, args
     | Var id -> VarRef id, args
-    | Proj (p, _, c) -> ConstRef (Projection.constant p), Array.cons c args
+    | Proj (p, _, c) -> ConstRef (Environ.projection_repr_constant env (Projection.repr p)), Array.cons c args
     | _ -> raise Bound
 
 (** Compute the set of section variables that remain in the named context.
@@ -921,7 +921,7 @@ let make_exact_entry env sigma info gr =
     | Prod _ -> failwith "make_exact_entry"
     | _ ->
         let hd =
-          try head_bound sigma cty
+          try head_bound env sigma cty
           with Bound -> failwith "make_exact_entry"
         in
         let pri = match info.hint_priority with None -> 0 | Some p -> p in
@@ -945,7 +945,7 @@ let make_apply_entry env sigma hnf info gr =
     let ce = Clenv.mk_clenv_from env sigma' (mkRef c, cty) in
     let c' = Clenv.clenv_type (* ~reduce:false *) ce in
     let hd =
-      try head_bound (Clenv.clenv_evd ce) c'
+      try head_bound env (Clenv.clenv_evd ce) c'
       with Bound -> failwith "make_apply_entry" in
     let miss, hyps = Clenv.clenv_missing ce in
     let nmiss = List.length miss in
@@ -1003,14 +1003,14 @@ let make_resolve_hyp env sigma hname =
 
 (* REM : in most cases hintname = id *)
 
-let make_unfold eref =
-  let g = global_of_evaluable_reference eref in
+let make_unfold env eref =
+  let g = global_of_evaluable_reference env eref in
   (Some g,
    { pri = 4;
      pat = None;
      name = Some g;
      db = ();
-     secvars = secvars_of_global (Global.env ()) g;
+     secvars = secvars_of_global env g;
      code = with_uid (Unfold_nth eref) })
 
 let make_extern pri pat tacast =
@@ -1046,7 +1046,7 @@ let make_trivial env sigma r =
   let c, cty, ctx = fresh_global_hint env sigma r in
   let sigma = merge_context_set_opt sigma ctx in
   let t = hnf_constr env sigma cty in
-  let hd = head_constr sigma t in
+  let hd = head_constr env sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
    { pri=1;
@@ -1228,7 +1228,7 @@ let subst_autohint (subst, obj) =
     match t with
     | None -> gr'
     | Some t ->
-      (try head_bound Evd.empty (EConstr.of_constr t.UVars.univ_abstracted_value)
+      (try head_bound (Global.env ()) Evd.empty (EConstr.of_constr t.UVars.univ_abstracted_value)
        with Bound -> gr')
   in
   let subst_mps subst c = EConstr.of_constr (subst_mps subst (EConstr.Unsafe.to_constr c)) in
@@ -1428,10 +1428,10 @@ let add_resolves env sigma clist ~locality dbnames =
       Lib.add_leaf (inAutoHint hint))
     dbnames
 
-let add_unfolds l ~locality dbnames =
+let add_unfolds env l ~locality dbnames =
   List.iter
     (fun dbname ->
-      let hint = make_hint ~locality dbname (AddHints (List.map make_unfold l)) in
+      let hint = make_hint ~locality dbname (AddHints (List.map (fun u -> make_unfold env u) l)) in
       Lib.add_leaf (inAutoHint hint))
     dbnames
 
@@ -1505,7 +1505,7 @@ let add_hints ~locality dbnames h =
   | HintsTransparencyEntry ((HintsVariables | HintsConstants | HintsProjections), _) -> ()
   | HintsTransparencyEntry (HintsReferences grs, _) ->
     let iter gr =
-      let gr = global_of_evaluable_reference gr in
+      let gr = global_of_evaluable_reference (Global.env ()) gr in
       if is_notlocal locality && isVarRef gr && Global.is_in_section gr then warn_non_local_section_hint ()
     in
     List.iter iter grs
@@ -1524,7 +1524,7 @@ let add_hints ~locality dbnames h =
   | HintsImmediateEntry lhints -> add_trivials env sigma lhints ~locality dbnames
   | HintsCutEntry lhints -> add_cuts lhints ~locality dbnames
   | HintsModeEntry (l,m) -> add_mode l m ~locality dbnames
-  | HintsUnfoldEntry lhints -> add_unfolds lhints ~locality dbnames
+  | HintsUnfoldEntry lhints -> add_unfolds env lhints ~locality dbnames
   | HintsTransparencyEntry (lhints, b) ->
       add_transparency lhints b ~locality dbnames
   | HintsExternEntry (info, tacexp) ->
@@ -1600,7 +1600,7 @@ let pr_hint env sigma h = match h.obj with
   | Res_pf_THEN_trivial_fail c ->
       (str"simple apply " ++ pr_hint_elt env sigma c ++ str" ; trivial")
   | Unfold_nth c ->
-    str"unfold " ++  pr_evaluable_reference c
+    str"unfold " ++  pr_evaluable_reference env c
   | Extern (_, tac) ->
     str "(*external*) " ++ Gentactic.print_glob env sigma ~level:(LevelLe 0) tac
 
@@ -1655,7 +1655,7 @@ let pr_hint_term env sigma cl =
     let dbs = current_db () in
     let valid_dbs =
       let fn = try
-          let hdc = decompose_app_bound sigma cl in
+          let hdc = decompose_app_bound env sigma cl in
             if occur_existential sigma cl then
               (fun db -> match Hint_db.map_eauto env sigma ~secvars:Id.Pred.full hdc cl db with
               | ModeMatch (_, l) -> l

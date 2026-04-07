@@ -125,7 +125,7 @@ let rec is_class_type env evd c =
     match EConstr.kind evd c with
     | Prod (_, _, t) -> is_class_type env evd t
     | Cast (t, _, _) -> is_class_type env evd t
-    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef (Projection.constant p)) !classes
+    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef ((Environ.projection_repr_constant env (Projection.repr p)))) !classes
     | _ -> is_class_constr env evd c
 
 let is_class_evar env evd evi =
@@ -137,7 +137,7 @@ let rec is_maybe_class_type env evd c =
     | Prod (_, _, t) -> is_maybe_class_type env evd t
     | Cast (t, _, _) -> is_maybe_class_type env evd t
     | Evar _ -> true
-    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef (Projection.constant p)) !classes
+    | Proj (p, _, c) -> GlobRefMap.mem env (GlobRef.ConstRef ((Environ.projection_repr_constant env (Projection.repr p)))) !classes
     | _ -> is_class_constr env evd c
 
 let load_class env cl =

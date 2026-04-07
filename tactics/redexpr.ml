@@ -202,7 +202,7 @@ let pr_glob_user_red_expr env sigma usr =
   let decl = User.get tag in
   decl.User.ured_gprint env sigma v
 
-let make_flag_constant = function
+let make_flag_constant env = function
   | Evaluable.EvalVarRef id -> [fVAR id]
   | Evaluable.EvalConstRef sp ->
       begin
@@ -210,7 +210,7 @@ let make_flag_constant = function
         | None -> [fCONST sp]
         | Some p -> [fCONST sp; fPROJ p]
       end
-  | Evaluable.EvalProjectionRef p -> [fPROJ p; fCONST (Projection.Repr.constant p)]
+  | Evaluable.EvalProjectionRef p -> [fPROJ p; fCONST (Environ.projection_repr_constant env p)]
 
 let make_flag env f =
   let red = no_red in
@@ -225,12 +225,12 @@ let make_flag env f =
         let red = red_add_transparent red
                     (Conv_oracle.get_transp_state (Environ.oracle env)) in
         List.fold_right
-          (fun v red -> red_sub_list red (make_flag_constant v))
+          (fun v red -> red_sub_list red (make_flag_constant env v))
           f.rConst red
     else (* Only rConst *)
         let red = red_add red fDELTA in
         List.fold_right
-          (fun v red -> red_add_list red (make_flag_constant v))
+          (fun v red -> red_add_list red (make_flag_constant env v))
           f.rConst red
   in
   f.rStrength, red
@@ -288,11 +288,12 @@ let e_red f env evm c = evm, f env evm c
 
 let contextualize f = function
   | Some (occs,c) ->
-      let l = check_occurrences occs in
+    let l = check_occurrences occs in
+    fun env sigma r ->
       let b,c = match c with
-        | Inl r -> true,PRef (global_of_evaluable_reference r)
+        | Inl r -> true,PRef (global_of_evaluable_reference env r)
         | Inr c -> false,c in
-      e_red (contextually b (l,c) (fun _ -> f))
+      sigma, contextually b (l,c) (fun _ -> f) env sigma r
   | None -> e_red f
 
 let warn_simpl_unfolding_modifiers =

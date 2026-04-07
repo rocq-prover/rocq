@@ -815,7 +815,7 @@ and detype_r d flags avoid env sigma t =
     | Proj (p,_,c) ->
       if Projection.unfolded p && flags.flg.unfolded_primproj_as_match then
         let c = detype d flags avoid env sigma c in
-        let id = Projection.label p in
+        let id = Environ.projection_repr_label (snd env) (Projection.repr p) in
         let nargs, parg =
           try
             let _, mip = Global.lookup_inductive (Projection.inductive p) in
@@ -840,7 +840,7 @@ and detype_r d flags avoid env sigma t =
           let pars = Projection.npars p in
           let hole = DAst.make @@ GHole (GInternalHole) in
           let args = List.make pars hole in
-          GApp (DAst.make @@ GRef (GlobRef.ConstRef (Projection.constant p), None),
+          GApp (DAst.make @@ GRef (GlobRef.ConstRef (Environ.projection_repr_constant (snd env) (Projection.repr p)), None),
                 (args @ [detype d flags avoid env sigma c]))
         in
         if !Flags.in_debugger || !Flags.in_ml_toplevel
