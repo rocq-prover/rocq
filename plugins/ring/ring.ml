@@ -242,18 +242,15 @@ let exec_tactic env sigma n f args =
   let sigma = Evd.minimize_universes sigma in
   Array.map (EConstr.to_constr sigma) res, Evd.universe_context_set sigma
 
-let gen_constant n = (); fun () -> (EConstr.of_constr (UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n)))
 let gen_reference n = (); fun () -> (Rocqlib.lib_ref n)
 
-let rocq_mk_Setoid = gen_constant "plugins.ring.Build_Setoid_Theory"
+let rocq_mk_Setoid = gen_reference "plugins.ring.Build_Setoid_Theory"
 let rocq_None = gen_reference "core.option.None"
 let rocq_Some = gen_reference "core.option.Some"
 let rocq_eq = gen_reference "core.eq.type"
 
 let rocq_cons = gen_reference "core.list.cons"
 let rocq_nil = gen_reference "core.list.nil"
-
-let lapp f args = mkApp (f (), args)
 
 let plapp sigma f args =
   let sigma, fc = Evd.fresh_global (Global.env ()) sigma (f ()) in
@@ -283,15 +280,15 @@ let rocq_eq_smorph = gen_reference "plugins.ring.Eq_s_ext"
 
 (* ring -> almost_ring utilities *)
 let rocq_ring_theory = gen_reference "plugins.ring.ring_theory"
-let rocq_mk_reqe = gen_constant "plugins.ring.mk_reqe"
+let rocq_mk_reqe = gen_reference "plugins.ring.mk_reqe"
 
 (* semi_ring -> almost_ring utilities *)
 let rocq_semi_ring_theory = gen_reference "plugins.ring.semi_ring_theory"
-let rocq_mk_seqe = gen_constant "plugins.ring.mk_seqe"
+let rocq_mk_seqe = gen_reference "plugins.ring.mk_seqe"
 
-let rocq_abstract = gen_constant "plugins.ring.Abstract"
-let rocq_comp = gen_constant "plugins.ring.Computational"
-let rocq_morph = gen_constant "plugins.ring.Morphism"
+let rocq_abstract = gen_reference "plugins.ring.Abstract"
+let rocq_comp = gen_reference "plugins.ring.Computational"
+let rocq_morph = gen_reference "plugins.ring.Morphism"
 
 (* power function *)
 let ltac_inv_morph_nothing = zltac"inv_morph_nothing"
@@ -424,15 +421,15 @@ let setoid_of_relation env sigma a r =
     let sigma, refl = Rewrite.get_reflexive_proof env sigma a r in
     let sigma, sym = Rewrite.get_symmetric_proof env sigma a r in
     let sigma, trans = Rewrite.get_transitive_proof env sigma a r in
-    sigma, lapp rocq_mk_Setoid [|a ; r ; refl; sym; trans |]
+    plapp sigma rocq_mk_Setoid [|a ; r ; refl; sym; trans |]
   with Not_found ->
     CErrors.user_err (str "Cannot find a setoid structure for relation " ++ pr_econstr_env env sigma r ++ str ".")
 
-let op_morph r add mul opp req m1 m2 m3 =
-  lapp rocq_mk_reqe [| r; add; mul; opp; req; m1; m2; m3 |]
+let op_morph sigma r add mul opp req m1 m2 m3 =
+  plapp sigma rocq_mk_reqe [| r; add; mul; opp; req; m1; m2; m3 |]
 
-let op_smorph r add mul req m1 m2 =
-  lapp rocq_mk_seqe [| r; add; mul; req; m1; m2 |]
+let op_smorph sigma r add mul req m1 m2 =
+  plapp sigma rocq_mk_seqe [| r; add; mul; req; m1; m2 |]
 
 let ring_equality env sigma (r,add,mul,opp,req) =
   match EConstr.kind sigma req with
@@ -463,8 +460,8 @@ let ring_equality env sigma (r,add,mul,opp,req) =
            try Rewrite.Internal.default_morphism env sigma ([Some(r,Some req)],Some(r,Some req)) opp
            with Not_found ->
              CErrors.user_err (str "Ring opposite " ++ pr_econstr_env env sigma opp ++ str " should be declared as a morphism.") in
-         let op_morph =
-           op_morph r add mul opp req add_m_lem mul_m_lem opp_m_lem in
+         let sigma, op_morph =
+           op_morph sigma r add mul opp req add_m_lem mul_m_lem opp_m_lem in
          Flags.if_verbose
            Feedback.msg_info
            (str"Using setoid \""++ pr_econstr_env env sigma req++str"\""++spc()++
@@ -480,7 +477,7 @@ let ring_equality env sigma (r,add,mul,opp,req) =
             str"and morphisms \""++pr_econstr_env env sigma add_m ++
             str"\""++spc()++str"and \""++
             pr_econstr_env env sigma mul_m++str"\"");
-         sigma, op_smorph r add mul req add_m_lem mul_m_lem) in
+         op_smorph sigma r add mul req add_m_lem mul_m_lem) in
     (sigma,setoid,op_morph)
 
 let build_setoid_params env sigma r add mul opp req eqth =
@@ -503,12 +500,12 @@ let dest_ring env sigma th_spec =
     | _ -> error "bad ring structure"
 
 
-let reflect_coeff rkind =
+let reflect_coeff sigma rkind =
   (* We build an ill-typed terms on purpose... *)
   match rkind with
-      Abstract -> rocq_abstract ()
-    | Computational c -> lapp rocq_comp [|c|]
-    | Morphism m -> lapp rocq_morph [|m|]
+      Abstract -> plapp sigma rocq_abstract [||]
+    | Computational c -> plapp sigma rocq_comp [|c|]
+    | Morphism m -> plapp sigma rocq_morph [|m|]
 
 let interp_cst_tac env sigma rk kind (zero,one,add,mul,opp) cst_tac =
   match cst_tac with
@@ -578,7 +575,7 @@ let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign di
   let sigma, (pow_tac, pspec) = interp_power env sigma power in
   let sigma, sspec = interp_sign env sigma sign in
   let sigma, dspec = interp_div env sigma div in
-  let rk = reflect_coeff morphth in
+  let sigma, rk = reflect_coeff sigma morphth in
   let params,ctx =
     exec_tactic env sigma 5 (zltac "ring_lemmas")
       [sth;ext;rth;pspec;sspec;dspec;rk] in
@@ -877,7 +874,7 @@ let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) pow
   let sigma, sspec = interp_sign env sigma sign in
   let sigma, dspec = interp_div env sigma odiv in
   let sigma, inv_m = field_equality env sigma r inv req in
-  let rk = reflect_coeff morphth in
+  let sigma, rk = reflect_coeff sigma morphth in
   let params,ctx =
     exec_tactic env sigma 9 (field_ltac"field_lemmas")
       [sth;ext;inv_m;fth;pspec;sspec;dspec;rk] in
