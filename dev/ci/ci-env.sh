@@ -5,7 +5,7 @@ if which cygpath >/dev/null 2>&1; then OCAMLFINDSEP=\;; else OCAMLFINDSEP=:; fi
 if [ "${BASH_SOURCE[0]}" ]; then
   root="$(dirname "${BASH_SOURCE[0]}")/../.."
   # make path absolute if relative
-  root=$(cd "$root" && echo "$PWD")
+  root=$(cd "$root" > /dev/null && echo "$PWD")
 elif [ -e "$PWD/dev/ci/ci-env.sh" ]; then
   root=$PWD
 else
@@ -14,7 +14,7 @@ else
   exit 1
 fi
 
-
+echo "Root is" $root
 # We can remove setting ROCQLIB and ROCQRUNTIMELIB from here, but better to
 # wait until we have merged the coq.boot patch so we can do this in a
 # more controlled way.
