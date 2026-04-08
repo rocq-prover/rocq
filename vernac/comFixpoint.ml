@@ -228,8 +228,8 @@ let encapsulate_Fix_sub env sigma recname ctx body ccl (extradecl, rel, relargty
   let body_ctx = RelDecl.LocalDef (make_annot (Name recname) ERelevance.relevant, curryfier_body, curryfier_ty) :: fix_sub_F_sub_ctx in
   let intern_body_lam = it_mkLambda_or_LetIn body body_ctx in
   (* Instantiate the argument Fix_sub_F of Fix_sub with the body of the fixpoint *)
-  let sigma, fix_sub = Typing.solve_evars env sigma fix_sub in
-  sigma, tupled_ctx, tuple_value, mkApp (fix_sub, [|intern_body_lam|])
+  let sigma, fix_sub = Typing.solve_evars env sigma (mkApp (fix_sub, [|intern_body_lam|])) in
+  sigma, tupled_ctx, tuple_value, fix_sub
 
 let build_wellfounded env sigma ~poly udecl {CAst.v=recname; loc} ctx body ccl impls rel_measure =
   let len = Context.Rel.length ctx in
