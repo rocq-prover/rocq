@@ -231,8 +231,7 @@ let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
         let new_after = subst_structure id_subst mp after in
         before @ (lab, SFBmodule new_mb) :: new_after, subreso, cst
       | Algebraic (MENoFunctor (MEident mp0)) ->
-        let mpnew = rebuild_mp mp0 idl in
-        check_modpath_equiv env' mpnew mp;
+        let () = check_modpath_equiv env' new_mp (rebuild_mp mp0 idl) in
         before@(lab,spec)::after, reso, cst
       | _ -> error_generative_module_expected lab
       end
