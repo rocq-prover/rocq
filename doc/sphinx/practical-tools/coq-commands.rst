@@ -475,10 +475,17 @@ and ``rocq repl``, unless stated otherwise:
 :-type-in-type: Collapse the universe hierarchy of Rocq.
 
   .. warning:: This makes the logic inconsistent.
-:-mangle-names *ident*: *Experimental.* Do not depend on this option. Replace
+:-mangle-names-prfx *ident*: *Experimental.* Do not depend on this option. Replace
   Rocq's auto-generated name scheme with names of the form *ident0*, *ident1*,
   etc. Within Rocq, the :flag:`Mangle Names` flag turns this behavior on,
   and the :opt:`Mangle Names Prefix` option sets the prefix to use. This feature
+  is intended to be used as a linter for developments that want to be robust to
+  changes in the auto-generated name scheme. The options are provided to
+  facilitate tracking down problems.
+:-mangle-names-sffx *ident*: *Experimental.* Do not depend on this option. Replace
+  Rocq's auto-generated name scheme with names of the form *ident0*, *ident1*,
+  etc. Within Rocq, the :flag:`Mangle Names` flag turns this behavior on,
+  and the :opt:`Mangle Names Suffix` option sets the suffix to use. This feature
   is intended to be used as a linter for developments that want to be robust to
   changes in the auto-generated name scheme. The options are provided to
   facilitate tracking down problems.
