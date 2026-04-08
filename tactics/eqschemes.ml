@@ -81,8 +81,8 @@ let fresh env id avoid =
 let with_context_set ctx (b, ctx') =
   (b, UnivGen.sort_context_union ctx ctx')
 
-let of_context_set env ctx =
-  UState.merge_sort_context_set ~sideff:false ~src:UState.Internal UnivRigid (UState.from_env env) ctx
+let of_context_set env ?(rigid=UState.UnivRigid) ctx =
+  UState.merge_sort_context_set ~sideff:false ~src:UState.Internal rigid (UState.from_env env) ctx
 
 let build_dependent_inductive ind (mib,mip) =
   let realargs,_ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
@@ -137,7 +137,19 @@ let univ_of_eq env eq =
 
 let error msg = user_err Pp.(str msg)
 
-let get_sym_eq_data env (ind,u) =
+let get_params env ind mib =
+  if Option.is_empty mib.Declarations.mind_template then
+    UnivGen.empty_sort_context, mib.mind_params_ctxt
+  else
+    let sigma, univs = Typing.get_template_parameters env (Evd.from_env env) ind ~refresh_all:true [||] in
+    let sigma = Evd.collapse_sort_variables ~to_type:true sigma in
+    let uctx = Evd.ustate sigma in
+    let (vars, cstrs) = UState.sort_context_set uctx in
+    let cstrs', paramctx, subst =
+      Inductive.instantiate_template_universes mib univs
+    in (vars, PConstraints.union cstrs cstrs'), paramctx
+
+let get_sym_eq_data env ctx (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
@@ -154,13 +166,15 @@ let get_sym_eq_data env (ind,u) =
   if mip.mind_nrealargs > mib.mind_nparams then
     error "Constructors arguments must repeat the parameters.";
   let _,params2 = List.chop (mib.mind_nparams-mip.mind_nrealargs) params in
-  let paramsctxt = Vars.subst_instance_context u mib.mind_params_ctxt in
+  let pctx, paramsctxt = get_params env ind mib in
+  let paramsctxt = Vars.subst_instance_context u paramsctxt in
   let paramsctxt1,_ =
     List.chop (mib.mind_nparams-mip.mind_nrealargs) paramsctxt in
   if not (List.equal Constr.equal params2 constrargs) then
     error "Constructors arguments must repeat the parameters.";
   (* nrealargs_ctxt and nrealargs are the same here *)
-  (specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1)
+  (* let () = Univ.ContextSet.pr Univ.Level.raw_pr pcstrs in *)
+  (UnivGen.sort_context_union ctx pctx,specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1)
 
 (**********************************************************************)
 (* Check if an inductive type [ind] has the form                      *)
@@ -172,7 +186,7 @@ let get_sym_eq_data env (ind,u) =
 (* such that symmetry is a priori definable                           *)
 (**********************************************************************)
 
-let get_non_sym_eq_data env (ind,u) =
+let get_non_sym_eq_data env ctx (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
@@ -187,8 +201,9 @@ let get_non_sym_eq_data env (ind,u) =
     error "Constructor must have no arguments";
   let _,constrargs = List.chop mib.mind_nparams constrargs in
   let constrargs = List.map (Vars.subst_instance_constr u) constrargs in
-  let paramsctxt = Vars.subst_instance_context u mib.mind_params_ctxt in
-  (specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs)
+  let pctx, paramsctxt = get_params env ind mib in
+  let paramsctxt = Vars.subst_instance_context u paramsctxt in
+  (UnivGen.sort_context_union ctx pctx,specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs)
 
 (**********************************************************************)
 (* Build the symmetry lemma associated to an inductive type           *)
@@ -206,8 +221,8 @@ let get_non_sym_eq_data env (ind,u) =
 
 let build_sym_scheme env _handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
-    get_sym_eq_data env indu in
+  let ctx,(mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+    get_sym_eq_data env ctx indu in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -259,14 +274,19 @@ let sym_scheme_kind =
 (*                                                                    *)
 (**********************************************************************)
 
+let typecheck env ctx c =
+   let uctx = of_context_set ~rigid:UState.univ_flexible env ctx in
+  let sigma, _ty = Typing.type_of env (Evd.from_ustate uctx) (EConstr.of_constr c) in
+  (c, Evd.ustate sigma)
+
 let const_of_scheme kind env handle ind ctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
   with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme)
 
 let build_sym_involutive_scheme env handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
-    get_sym_eq_data env indu in
+  let ctx, (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+    get_sym_eq_data env ctx indu in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
   let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
   let cstr n = mkApp (mkConstructUi (indu,1),Context.Rel.instance mkRel n paramsctxt) in
@@ -307,7 +327,8 @@ let build_sym_involutive_scheme env handle ind =
                NoInvert,
                mkRel 1 (* varH *),
                [|mkApp(eqrefl,[|applied_ind_C;cstr (nrealargs+1)|])|])))))
-  in (c, of_context_set env ctx)
+  in
+  typecheck env ctx c
 
 let sym_involutive_scheme_kind =
   declare_individual_scheme_object "sym_involutive"
@@ -376,8 +397,8 @@ let sym_involutive_scheme_kind =
 
 let build_l2r_rew_scheme dep env handle ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
-    get_sym_eq_data env indu in
+  let ctx,(mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+    get_sym_eq_data env ctx indu in
   let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
   let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind ctx in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
@@ -466,7 +487,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
        [|main_body|]))
    else
      main_body))))))
-  in (c, of_context_set env ctx)
+  in typecheck env ctx c
 
 (**********************************************************************)
 (* Build the left-to-right rewriting lemma for hypotheses associated  *)
@@ -496,8 +517,8 @@ let build_l2r_rew_scheme dep env handle ind kind =
 
 let build_l2r_forward_rew_scheme dep env ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
-    get_sym_eq_data env indu in
+  let ctx,(mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+    get_sym_eq_data env ctx indu in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
       Array.concat [Context.Rel.instance mkRel n paramsctxt1;
@@ -558,7 +579,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
           (if dep then realsign_ind_P 1 applied_ind_P' else realsign_P 2) s)
       (mkNamedLambda (make_annot varHC sr) applied_PC'
         (mkVar varHC))|]))))))
-  in c, of_context_set env ctx
+  in  c, of_context_set env ctx
 
 (**********************************************************************)
 (* Build the right-to-left rewriting lemma for hypotheses associated  *)
@@ -592,8 +613,8 @@ let build_l2r_forward_rew_scheme dep env ind kind =
 
 let build_r2l_forward_rew_scheme dep env ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let ((mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs) =
-    get_non_sym_eq_data env indu in
+  let ctx, (mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs =
+    get_non_sym_eq_data env ctx indu in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let constrargs_cstr = constrargs@[cstr 0] in
