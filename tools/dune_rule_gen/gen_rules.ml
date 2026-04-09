@@ -101,12 +101,14 @@ let main () =
   let cctx = Coq_rules.Context.make ~root_lvl ~theory ~user_flags ~rule ~boot ~dir_info ~async ~split in
   let vo_rules = Coq_rules.vo_rules ~dir_info ~cctx in
   let install_rules = Coq_rules.install_rules ~dir_info ~cctx in
+  let package_install_rules = Coq_rules.package_install_rules ~dir_info ~cctx in
 
   (* Rule printing *)
   let fmt = Format.std_formatter in
 
   List.iter (Dune_file.Subdir.pp ppr fmt) vo_rules;
   List.iter (Dune_file.Subdir.pp ppi fmt) install_rules;
+  List.iter (Dune_file.Subdir.pp ppi fmt) package_install_rules;
 
   (* Rules for coqnative (not always setup for now, need to think about this) *)
   begin
