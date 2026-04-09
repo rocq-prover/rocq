@@ -75,15 +75,6 @@ let is_evaluable env sigma = function
   | Evaluable.EvalVarRef id -> is_evaluable_var env id
   | Evaluable.EvalProjectionRef p -> is_evaluable_projection env p
 
-let value_of_evaluable_ref env sigma evref u =
-  match evref with
-  | Evaluable.EvalConstRef con ->
-    constant_value_in env sigma (con, u)
-  | Evaluable.EvalVarRef id ->
-    env |> lookup_named id |> NamedDecl.get_value |> Option.get
-  | Evaluable.EvalProjectionRef _ ->
-    assert false (* TODO *)
-
 let evaluable_of_global_reference ?loc = function
   | GlobRef.ConstRef cst ->
     begin
@@ -1248,24 +1239,26 @@ let contextually byhead occs f env sigma t =
  * n is the number of the next occurrence of name.
  * ol is the occurrence list to find. *)
 
-let match_constr_evaluable_ref env sigma c evref =
+let match_value_constr_evaluable_ref env sigma c evref =
   match EConstr.kind sigma c, evref with
-  | Const (c,u), Evaluable.EvalConstRef c' when QConstant.equal env c c' -> Some u
-  | Proj (p,_,_), Evaluable.EvalProjectionRef p' when QProjection.Repr.equal env (Projection.repr p) p' -> Some EInstance.empty
-  | Var id, Evaluable.EvalVarRef id' when Id.equal id id' -> Some EInstance.empty
+  | Const (c,u), Evaluable.EvalConstRef c' when QConstant.equal env c c' ->
+    Some (lazy (constant_value_in env sigma (c, u)))
+  | Proj (p, r, c), Evaluable.EvalProjectionRef p' when QProjection.Repr.equal env (Projection.repr p) p' ->
+    Some (lazy (mkProj (Projection.unfold p, r, c)))
+  | Var id, Evaluable.EvalVarRef id' when Id.equal id id' ->
+    Some (lazy (env |> lookup_named id |> NamedDecl.get_value |> Option.get))
   | _, _ -> None
 
 let substlin env sigma evalref occs c =
   let count = ref (Locusops.initialize_occurrence_counter occs) in
-  let value u = value_of_evaluable_ref env sigma evalref u in
   let rec substrec () c =
     if Locusops.occurrences_done !count then c
     else
-      match match_constr_evaluable_ref env sigma c evalref with
-      | Some u ->
+      match match_value_constr_evaluable_ref env sigma c evalref with
+      | Some v ->
         let ok, count' = Locusops.update_occurrence_counter !count in
         count := count';
-        if ok then value u else c
+        if ok then Lazy.force v else c
       | None ->
         map_constr_with_binders_left_to_right env sigma
           (fun _ () -> ())
