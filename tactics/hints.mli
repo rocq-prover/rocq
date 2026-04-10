@@ -71,6 +71,7 @@ end
 
 type hint_mode =
   | ModeInput (* No evars *)
+  | ModeFrozen (* evars are allowed but will never be instantiated by hints *)
   | ModeNoHeadEvar (* No evar at the head *)
   | ModeOutput (* Anything *)
 
@@ -103,7 +104,7 @@ val glob_hints_path : pre_hints_path -> hints_path
 
 type mode_match =
   | NoMode
-  | WithMode of hint_mode array
+  | WithMode of Evarsolve.AllowedEvars.t
 
 type 'a with_mode =
   | ModeMatch of mode_match * 'a
