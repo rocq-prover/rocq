@@ -37,15 +37,15 @@ type unify_fun = unify_flags ->
 let default_transparent_state env = TransparentState.full
 (* Conv_oracle.get_transp_state (Environ.oracle env) *)
 
-let default_flags_of ?(subterm_ts=TransparentState.empty) ts =
+let default_flags_of evd ?(subterm_ts=TransparentState.empty) ts =
   { modulo_betaiota = true;
     open_ts = ts; closed_ts = ts; subterm_ts;
-    allowed_evars = AllowedEvars.all; with_cs = true;
+    allowed_evars = allow_all_but_rrpat_evars evd; with_cs = true;
   }
 
-let default_flags env =
+let default_flags env evd =
   let ts = default_transparent_state env in
-  default_flags_of ts
+  default_flags_of evd ts
 
 let debug_unification = CDebug.create ~name:"unification" ()
 
@@ -644,7 +644,7 @@ let compare_heads pbty env evd ~nargs term term' =
 
 let conv_fun f flags on_types =
   let typefn env evd pbty term1 term2 =
-    let flags = { (default_flags env) with
+    let flags = { (default_flags env evd) with
       with_cs = flags.with_cs;
       allowed_evars = flags.allowed_evars }
     in f flags env evd pbty term1 term2
@@ -1075,7 +1075,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
               Success (solve_refl (fun flags p env i pbty a1 a2 ->
                 let flags =
                   match p with
-                  | TypeUnification -> default_flags env
+                  | TypeUnification -> default_flags env evd
                   | TermUnification -> flags
                 in
                 is_success (evar_conv_x flags env i pbty a1 a2)) flags
@@ -1585,7 +1585,7 @@ type occurrences_selection =
 let default_occurrence_selection = Unspecified Abstraction.Imitate
 
 let default_occurrence_test ~allowed_evars ts env sigma c pat =
-  let flags = { (default_flags_of ~subterm_ts:ts ts) with allowed_evars } in
+  let flags = { (default_flags_of sigma ~subterm_ts:ts ts) with allowed_evars } in
   match evar_conv_x flags env sigma CONV c pat with
   | Success sigma -> true, sigma
   | UnifFailure _ -> false, sigma
@@ -1915,7 +1915,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
           let evd, _ = !solve_evars evenv evd rhs' in
           debug_ho_unification (fun () ->
             Pp.(str"abstracted type: " ++ prc evenv evd (nf_evar evd rhs')));
-          let flags = default_flags_of TransparentState.full in
+          let flags = default_flags_of evd TransparentState.full in
             Evarsolve.instantiate_evar evar_unify flags env_rhs evd evk rhs'
          with IllTypedInstance _ -> raise (TypingFailed evd)
   in
@@ -2076,14 +2076,14 @@ let solve_unconstrained_impossible_cases env evd =
   Evar.Set.fold (fun evk evd' ->
       let evd', j = coq_unit_judge env evd' in
       let ty = j_type j in
-      let flags = default_flags env in
+      let flags = default_flags env evd' in
       instantiate_evar evar_unify flags env evd' evk ty (* should we protect from raising IllTypedInstance? *)
     )
     (Evd.get_impossible_case_evars evd)
     evd
 
-let solve_unif_constraints_with_heuristics env
-    ?(flags=default_flags env) ?(with_ho=false) evd =
+let solve_unif_constraints_with_heuristics ?flags env ?(with_ho=false) evd =
+  let flags = Option.default (default_flags env evd) flags in
   let evd = solve_unconstrained_evars_with_candidates flags env evd in
   let rec aux evd pbs progress stuck =
     match pbs with
@@ -2130,7 +2130,7 @@ let evar_conv_x flags env evd pb x1 x2 : unification_result =
 let unify_delay ?flags env evd t1 t2 =
   let flags =
     match flags with
-    | None -> default_flags_of (default_transparent_state env)
+    | None -> default_flags env evd
     | Some flags -> flags
   in
   match evar_conv_x flags env evd CONV t1 t2 with
@@ -2140,7 +2140,7 @@ let unify_delay ?flags env evd t1 t2 =
 let unify_leq_delay ?flags env evd t1 t2 =
   let flags =
     match flags with
-    | None -> default_flags_of (default_transparent_state env)
+    | None -> default_flags env evd
     | Some flags -> flags
   in
   match evar_conv_x flags env evd CUMUL t1 t2 with
@@ -2150,7 +2150,7 @@ let unify_leq_delay ?flags env evd t1 t2 =
 let unify ?flags ?(with_ho=true) env evd cv_pb ty1 ty2 =
   let flags =
     match flags with
-    | None -> default_flags_of (default_transparent_state env)
+    | None -> default_flags env evd
     | Some flags -> flags
   in
   let res = evar_conv_x flags env evd cv_pb ty1 ty2 in
