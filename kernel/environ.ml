@@ -556,17 +556,43 @@ let merge_elim_constraints ~rigid qcsts env =
   in
   map_qualities merge env
 
+let restrict_subgraph levels univ_csts =
+  let g = UGraph.initial_universes in
+  let mentioned_univs =
+    Univ.UnivConstraints.fold (fun (u,_,v) acc ->
+        Univ.Level.Set.(add u (add v acc)))
+      univ_csts
+      (* do not forget Set: if we have preexisting univ u and new univ v with v < u,
+         this implies Set < u.
+         (in other words we have implicit Set <= v constraints for every new v) *)
+      (Univ.Level.Set.singleton Univ.Level.set)
+  in
+  let g = Univ.Level.Set.fold (fun v g ->
+      if Univ.Level.is_set v then g else UGraph.add_universe ~strict:false v g)
+      mentioned_univs g
+  in
+  (* having to merge_constraints twice (here and in add_subgraph) is
+     not great but better than having to crawl the full env's graph to
+     check the subgraph property *)
+  let g = UGraph.merge_constraints univ_csts g in
+  let kept = Univ.Level.Set.diff mentioned_univs levels in
+  UGraph.constraints_for ~kept g
+
 let push_subgraph (levels, univ_csts) env =
   let add_subgraph g =
     let newg = Univ.Level.Set.fold (fun v g -> UGraph.add_universe ~strict:false v g) levels g in
     let newg = UGraph.merge_constraints univ_csts newg in
-    (if not (Univ.UnivConstraints.is_empty univ_csts) then
-       let restricted = UGraph.constraints_for ~kept:(UGraph.domain g) newg in
-       (if not (UGraph.check_constraints restricted g) then
-          CErrors.anomaly Pp.(str "Local constraints imply new transitive constraints.")));
+    let () =
+      if not (Univ.UnivConstraints.is_empty univ_csts) then
+        let restricted = restrict_subgraph levels univ_csts in
+        (if not (UGraph.check_constraints restricted g) then
+           CErrors.anomaly Pp.(str "Local constraints imply new transitive constraints."))
+    in
     newg
   in
   map_universes add_subgraph env
+
+let push_subgraph us env = NewProfile.profile "push_subgraph" (fun () -> push_subgraph us env) ()
 
 (* It's convenient to use [{flags with foo = bar}] so we're smart wrt to it. *)
 let same_flags {
