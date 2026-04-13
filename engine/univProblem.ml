@@ -21,9 +21,9 @@ type t =
   | UWeak of Level.t * Level.t
 
 let is_trivial = function
-  | QLeq (a,b) -> Inductive.raw_eliminates_to a b
+  | QLeq (QConstant QProp, QConstant QType) -> true
+  | QLeq (a, b) | QEq (a, b) -> Quality.equal a b
   | QElimTo (a, b) -> Inductive.raw_eliminates_to a b
-  | QEq (a, b) -> Quality.equal a b
   | ULe (u, v) | UEq (u, v) -> Sorts.equal u v
   | ULub (u, v) | UWeak (u, v) -> Level.equal u v
 
