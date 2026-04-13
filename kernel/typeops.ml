@@ -90,9 +90,10 @@ let check_assumption env x t ty =
   else
     error_bad_binder_relevance env r' (RelDecl.LocalAssum (x, t))
 
-let check_binding_relevance env na1 na2 =
-  (* Since we know statically the relevance here, we are stricter *)
-  assert (check_relevance env (binder_relevance na1) (binder_relevance na2))
+let check_binding_relevance env na1 na2 t =
+  let r1 = binder_relevance na1 in
+  if not (check_relevance env r1 (binder_relevance na2)) then
+    error_bad_binder_relevance env r1 (LocalAssum (na2, t))
 
 let esubst u s c =
   Vars.esubst Vars.lift_substituend s (subst_instance_constr u c)
@@ -111,7 +112,7 @@ let instantiate_context env u subst nas ctx =
     let subst = Esubst.subs_liftn i subst in
     let na = instantiate_relevance na in
     let ty = esubst u subst ty in
-    let () = check_binding_relevance env na nas.(i) in
+    let () = check_binding_relevance env na nas.(i) ty in
     LocalAssum (nas.(i), ty) :: ctx
   | LocalDef (na, ty, bdy) :: ctx ->
     let ctx = instantiate (pred i) ctx in
@@ -119,7 +120,7 @@ let instantiate_context env u subst nas ctx =
     let na = instantiate_relevance na in
     let ty = esubst u subst ty in
     let bdy = esubst u subst bdy in
-    let () = check_binding_relevance env na nas.(i) in
+    let () = check_binding_relevance env na nas.(i) ty in
     LocalDef (nas.(i), ty, bdy) :: ctx
   in
   instantiate (Array.length nas - 1) ctx
