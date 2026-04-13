@@ -28,6 +28,7 @@ CI_PLATFORM_FULL= \
     ci-mathcomp \
     ci-mathcomp_word \
     ci-mczify \
+    ci-micromega \
     ci-algebra_tactics \
     ci-finmap \
     ci-bigenough \
@@ -244,6 +245,8 @@ ci-smtcoq: ci-stdlib
 ci-smtcoq_trakt: ci-stdlib ci-trakt
 
 ci-stalmarck: ci-stdlib
+
+ci-stdlib: ci-micromega
 
 ci-stdlib_test: ci-stdlib
 ci-stdlib_doc: ci-stdlib
