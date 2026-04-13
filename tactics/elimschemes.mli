@@ -29,6 +29,8 @@ val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body 
 val default_case_analysis_dependence : env -> inductive -> bool
 
 (** Induction/recursion schemes *)
+val poly_dep : individual scheme_kind
+
 val elim_scheme : dep:bool -> to_kind:UnivGen.QualityOrSet.t -> individual scheme_kind
 
 (** Case analysis schemes *)
