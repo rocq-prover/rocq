@@ -390,11 +390,12 @@ let check_inductive_alias env mind mib =
 let check_rewrite_rules (cst, ustate) trace env l rrb subst2 =
   let rrb = Declareops.subst_rewrite_rules subst2 rrb in
   let error why = error_signature_mismatch trace l why in
-  let check_conv_rr cst (_, rrb) =
-    let ctx, t1, t2 = rrb.test in
-    let () = Environ.check_ucontext (UVars.AbstractContext.repr rrb.auctx) env in
-    let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr rrb.auctx) env in
-    let env = Environ.push_named_context (List.map (fun d -> Environ.ProofVar, d) ctx) env in
+  let check_conv_rr cst rule =
+    let t1 = (* Rewrite_rule_ops.pattern_to_term *) (fun _ _ -> assert false) rule.rr_patvar_table rule.pattern in
+    let t2 = Vars.substl (Array.map_to_list (fun v -> mkVar v) rule.rr_patvar_table) rule.machine.rhs in
+    let () = Environ.check_ucontext (UVars.AbstractContext.repr rule.rr_auctx) env in
+    let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr rule.rr_auctx) env in
+    let env = Environ.push_named_context (List.map (fun d -> Environ.ProofVar, d) rule.rr_context) env in
     check_conv_error error (NotConvertibleRewriteRule (env, t1, t2)) (cst, ustate) true CONV env t1 t2
   in
   List.fold_left check_conv_rr cst rrb.rewrules_rules

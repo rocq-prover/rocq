@@ -198,7 +198,7 @@ val mind_of_kn : ?lax:bool -> env -> KerName.t -> MutInd.t
 
 val mem_constant : Constant.t -> env -> bool
 
-val add_rewrite_rules : (Constant.t * machine_rewrite_rule) list -> env -> env
+val add_rewrite_rules : rewrite_rules_body -> env -> env
 val lookup_rewrite_rules : Constant.t -> env -> machine_rewrite_rule list
 
 (** New-style polymorphism *)

@@ -322,14 +322,17 @@ let lookup_constant_canonical kn env = match Cmap.find_opt kn env.env_constants 
 
 let mem_constant kn env = Cmap.mem kn env.env_constants
 
-let add_rewrite_rules l env =
+let add_rewrite_rules rrb env =
   if not env.rewrite_rules_allowed then raise (RewriteRulesNotAllowed Rule);
   let add c r = function
     | None -> anomaly Pp.(str "Trying to add a rule to non-symbol " ++ Constant.print c ++ str".")
     | Some rs -> Some (r::rs)
   in
+  let add_rule m rule =
+    Cmap.update rule.head_symbol (add rule.head_symbol rule.machine) m
+  in
   { env with
-    symb_pats = List.fold_left (fun symb_pats (c, r) -> Cmap.update c (add c r) symb_pats) env.symb_pats l
+    symb_pats = List.fold_left add_rule env.symb_pats rrb.rewrules_rules;
   }
 
 let lookup_rewrite_rules cst env =
@@ -1387,7 +1390,7 @@ module Internal = struct
         add_mind mind mib env
       | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
       | SFBmodtype mtb -> add_modtype (MPdot (mp, l)) mtb env
-      | SFBrules r -> add_rewrite_rules r.rewrules_rules env
+      | SFBrules rrb -> add_rewrite_rules rrb env
     in
     List.fold_left add_field env sign
 
