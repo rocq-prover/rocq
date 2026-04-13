@@ -303,7 +303,7 @@ let read_project =
   new preference ~name:["read_project"] ~init:Append_args ~repr
 
 let project_file_name =
-  new preference ~name:["project_file_name"] ~init:"_CoqProject" ~repr:Repr.(string)
+  new preference ~name:["project_file_name"] ~init:"_RocqProject" ~repr:Repr.(string)
 
 let project_path =
   new preference ~name:["project_path"] ~init:None ~repr:Repr.(option string)

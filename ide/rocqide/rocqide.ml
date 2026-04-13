@@ -1799,7 +1799,7 @@ let rocqide_specific_usage = Boot.Usage.{
   extra_args = "";
   extra_options = "\n\
 RocqIDE specific options:\
-\n  -f _CoqProjectFile         set _CoqProject file to _CoqProjectFile\
+\n  -f PROJECT_FILE            set Rocq project file to PROJECT_FILE\
 \n  -unicode-bindings f1 .. f2 load files f1..f2 with extra unicode bindings\
 \n  -coqtop dir                look for rocqidetop in dir\
 \n  -coqtop-flags              extra flags for the rocqtop subprocess\
