@@ -138,7 +138,7 @@ let univ_of_eq env eq =
 let error msg = user_err Pp.(str msg)
 
 let get_params env ind mib =
-  if Option.is_empty mib.Declarations.mind_template then
+  if Option.is_empty (Declareops.inductive_template mib) then
     UnivGen.empty_sort_context, mib.mind_params_ctxt
   else
     let sigma, univs = Typing.get_template_parameters env (Evd.from_env env) ind ~refresh_all:true [||] in

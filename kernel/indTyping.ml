@@ -612,10 +612,10 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let usubst, univs =
       match mie.mind_entry_universes with
       | Monomorphic_ind_entry ->
-        UVars.empty_sort_subst, Monomorphic
+        UVars.empty_sort_subst, Polymorphic Declareops.empty_universes
       | Template_ind_entry _ ->
         let usubst = Option.get template_usubst in
-        usubst, Monomorphic
+        usubst, Template (Option.get template)
       | Polymorphic_ind_entry (uctx, variance) ->
         let variance = match variance with
         | None -> None
@@ -661,4 +661,4 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     Environ.push_rel_context ctx env
   in
 
-  env_ar_par, univs, template, record, not_prim_reason_or_has_eta, params, Array.of_list data
+  env_ar_par, univs, record, not_prim_reason_or_has_eta, params, Array.of_list data

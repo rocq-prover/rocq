@@ -41,7 +41,7 @@ type 'a hint_ast =
 
 type hint
 
-val hint_as_term : hint -> UnivGen.sort_context_set option * constr
+val hint_as_term : hint -> UnivGen.sort_context_set * constr
 
 type 'a hints_path_atom_gen =
   | PathHints of 'a list

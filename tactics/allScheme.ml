@@ -623,7 +623,7 @@ let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts_ql =
   let u = EInstance.kind sigma u in
   let ind_sort = UVars.subst_instance_sort u ind.mind_sort in
   let ind_sort =
-    match sub_temp, mib.mind_template with
+    match sub_temp, Declareops.inductive_template mib with
     | Some sub_temp, Some temp -> Template.template_subst_sort sub_temp temp.template_concl
     | _, _ -> ind_sort
   in

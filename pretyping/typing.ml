@@ -27,7 +27,7 @@ open Context.Rel.Declaration
 module GR = Names.GlobRef
 
 let fresh_template_context env0 sigma ind (mib, _ as spec) ?(refresh_all=false) args =
-  let templ = match mib.Declarations.mind_template with
+  let templ = match Declareops.inductive_template mib with
   | None -> assert false
   | Some t -> Array.of_list t.template_param_arguments
   in
