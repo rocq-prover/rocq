@@ -232,7 +232,7 @@ The command has indeed failed with message:
 The constructor cons (in type list) is expected to be applied to 2 arguments
 while it is actually applied to 1 argument.
 fun x : J' ?T ?p => match x with
-                    | @D' _ _ _ _ _ _ _ _ => 0
+                    | D' _ _ _ => 0
                     end
      : J' ?T ?p -> nat
 where
@@ -246,7 +246,7 @@ The constructor D' (in type J') is expected to be applied to 2 arguments (or
 actually applied to 5 arguments.
 fun x : J' bool (true, true) =>
 match x with
-| @D' _ _ _ _ _ m _ e => existT (fun x0 : nat => x0 = x0) m e
+| D' m _ e => existT (fun x0 : nat => x0 = x0) m e
 end
      : J' bool (true, true) -> {x : nat & x = x}
 fun x : J' bool (true, true) =>

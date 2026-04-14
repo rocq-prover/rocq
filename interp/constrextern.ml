@@ -307,18 +307,23 @@ let rec extern_cases_pattern_in_scope ~flags ((custom,(lev_after:int option)),sc
             | Some l -> CPatRecord l
             | None ->
                   let c = extern_reference vars (GlobRef.ConstructRef cstrsp) in
-                  if Constrintern.get_asymmetric_patterns () then
-                    if pattern_printable_in_both_syntax ~flags cstrsp
-                    then CPatCstr (c, None, args)
-                    else CPatCstr (c, Some (add_patt_for_params (fst cstrsp) args), [])
-                  else
-                    let full_args = add_patt_for_params (fst cstrsp) args in
+                  let full_args = add_patt_for_params (fst cstrsp) args in
+                  let drop n =
                     let tags = try Inductiveops.constructor_alltags (Global.env()) cstrsp
                       with _ when !Flags.in_debugger -> []
                     in
-                    match drop_implicits_in_patt ~flags (GlobRef.ConstructRef cstrsp) 0 ~tags full_args with
+                    let tags = List.skipn_at_best n tags in
+                    let args = List.skipn_at_best n full_args in
+                    match drop_implicits_in_patt ~flags (GlobRef.ConstructRef cstrsp) n ~tags args with
                       | Some true_args -> CPatCstr (c, None, true_args)
-                      | None           -> CPatCstr (c, Some full_args, [])
+                      | None           -> CPatCstr (c, Some full_args, []) in
+                  if Constrintern.get_asymmetric_patterns () then
+                    if pattern_printable_in_both_syntax ~flags cstrsp
+                    then CPatCstr (c, None, args)
+                    else if Constrintern.get_asymmetric_patterns_no_implicits ()
+                    then CPatCstr (c, Some full_args, [])
+                    else drop (Inductiveops.inductive_nparamdecls (Global.env()) (fst cstrsp))
+                  else drop 0
           in
           insert_pat_alias ?loc (CAst.make ?loc p) na
       in
