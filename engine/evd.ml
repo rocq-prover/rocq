@@ -941,6 +941,8 @@ let is_aliased_evar evd evk =
   with Not_found -> None
 
 let downcast evk ccl evd =
+  if is_rewrite_rule_evar evd evk then
+    CErrors.anomaly Pp.(str "Tried to define or restrict a rewrite rule evar.");
   let evar_info = EvMap.find evk evd.undf_evars in
   let evar_info' = { evar_info with evar_concl = Undefined ccl } in
   { evd with undf_evars = EvMap.add evk evar_info' evd.undf_evars }
