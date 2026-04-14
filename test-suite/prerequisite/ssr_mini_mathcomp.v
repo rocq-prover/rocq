@@ -35,7 +35,7 @@ Structure type := Pack {sort; _ : class_of sort; _ : Type}.
 Local Coercion sort : type >-> Sortclass.
 Variables (T : Type) (cT : type).
 
-Definition class := let: Pack _ c _ := cT return class_of cT in c.
+Definition class := let: Pack c _ := cT return class_of cT in c.
 
 Definition pack c := @Pack T c T.
 Definition clone := fun c & cT -> T & phant_id (pack c) cT => pack c.
@@ -694,9 +694,9 @@ Local Coercion base : class_of >->  Equality.class_of.
 Structure type := Pack {sort; _ : class_of sort; _ : Type}.
 Local Coercion sort : type >-> Sortclass.
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
+Definition class := let: Pack c _ as cT' := cT return class_of cT' in c.
 Definition clone c & phant_id class c := @Pack T c T.
-Let xT := let: Pack T _ _ := cT in T.
+Let xT := let: @Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 
 Definition pack m :=
@@ -797,9 +797,9 @@ Local Coercion base : class_of >-> Choice.class_of.
 Structure type : Type := Pack {sort : Type; _ : class_of sort; _ : Type}.
 Local Coercion sort : type >-> Sortclass.
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
+Definition class := let: Pack c _ as cT' := cT return class_of cT' in c.
 Definition clone c & phant_id class c := @Pack T c T.
-Let xT := let: Pack T _ _ := cT in T.
+Let xT := let: @Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 
 Definition pack m :=
@@ -881,7 +881,7 @@ Structure subCountType : Type :=
   SubCountType {subCount_sort :> subType P; _ : mixin_of subCount_sort}.
 
 Coercion sub_countType (sT : subCountType) :=
-  Eval hnf in pack (let: SubCountType _ m := sT return mixin_of sT in m) id.
+  Eval hnf in pack (let: SubCountType m := sT return mixin_of sT in m) id.
 Canonical sub_countType.
 
 Definition pack_subCountType U :=
@@ -925,7 +925,7 @@ Section Mixins.
 Variable T : countType.
 
 Definition EnumMixin :=
-  let: Countable.Pack _ (Countable.Class _ m) _ as cT := T
+  let: Countable.Pack (Countable.Class _ m) _ as cT := T
     return forall e : seq cT, axiom e -> mixin_of cT in
   @Mixin (EqType _ _) m.
 
@@ -947,9 +947,9 @@ Local Coercion base : class_of >-> Choice.class_of.
 Structure type : Type := Pack {sort; _ : class_of sort; _ : Type}.
 Local Coercion sort : type >-> Sortclass.
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
+Definition class := let: Pack c _ as cT' := cT return class_of cT' in c.
 Definition clone c & phant_id class c := @Pack T c T.
-Let xT := let: Pack T _ _ := cT in T.
+Let xT := let: @Pack T _ _ := cT in T.
 Notation xclass := (class : class_of xT).
 
 Definition pack b0 (m0 : mixin_of (EqType T b0)) :=
@@ -1016,7 +1016,7 @@ Definition pack_subFinType U :=
 Implicit Type sT : subFinType.
 
 Definition subFin_mixin sT :=
-  let: SubFinType _ m := sT return mixin_of (sub_eqType sT) in m.
+  let: SubFinType m := sT return mixin_of (sub_eqType sT) in m.
 
 Coercion subFinType_subCountType sT := @SubCountType _ _ sT (subFin_mixin sT).
 Canonical subFinType_subCountType.
@@ -1047,7 +1047,7 @@ Variable n : nat.
 
 Inductive ordinal : predArgType := Ordinal m of m < n.
 
-Coercion nat_of_ord i := let: Ordinal m _ := i in m.
+Coercion nat_of_ord i := let: @Ordinal m _ := i in m.
 
 Canonical ordinal_subType := [subType for nat_of_ord].
 Definition ordinal_eqMixin := Eval hnf in [eqMixin of ordinal by <:].

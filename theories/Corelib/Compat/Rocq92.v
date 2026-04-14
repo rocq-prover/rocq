@@ -16,3 +16,5 @@
 #[export] Set Warnings "-deprecated-since-9.3".
 
 #[export] Set Inline Abstract Subproof.
+
+#[export] Set Asymmetric Patterns No Implicits.

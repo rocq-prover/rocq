@@ -53,7 +53,7 @@ Module MathComp.
    Local Coercion sort : type >-> Sortclass.
    Variables (T : Type) (cT : type).
 
-   Definition class := let: Pack _ c := cT return class_of cT in c.
+   Definition class := let: Pack c := cT return class_of cT in c.
 
    End ClassDef.
    Coercion sort : type >-> Sortclass.
