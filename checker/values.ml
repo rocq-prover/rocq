@@ -558,6 +558,7 @@ let v_rewrule = v_tuple "rewrite_rule"
     v_array v_name; (* rr_evars *)
     v_map v_evar v_int; (* esubst *)
     v_pattern;    (* pattern *)
+    v_constr;     (* pat_term *)
     v_constr|]    (* replacement *)
 
 let v_puniv = v_opt v_int

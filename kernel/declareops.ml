@@ -468,15 +468,17 @@ let subst_machine_pattern subst p =
 let subst_rewrite_rules subst ({ rewrules_rules; rewrules_machine } as rules) =
   let body' = List.Smart.map (fun rule ->
       let pattern' = subst_pattern subst rule.pattern in
+      let pat_term' = subst_mps subst rule.pat_term in
       let replacement' = subst_mps subst rule.replacement in
       if
         pattern' == rule.pattern &&
+        pat_term' == rule.pat_term &&
         replacement' == rule.replacement
       then
         rule
       else
         { rr_uctx = rule.rr_uctx; rr_evars = rule.rr_evars; esubst = rule.esubst;
-          pattern=pattern'; replacement=replacement'
+          pattern=pattern'; pat_term=pat_term'; replacement=replacement'
         })
       rewrules_rules
   in

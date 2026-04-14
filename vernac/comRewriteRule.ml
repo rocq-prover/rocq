@@ -171,9 +171,10 @@ let interp_rule (pattern, rhs) =
           ++ fnl() ++ Himsg.explain_pretype_error env evd err)
   in
 
+  let pat_term = Vars.subst_univs_level_constr usubst (Environ.j_val j_pat) in
   let replacement = EConstr.to_constr ~abort_on_undefined_evars:false evd (EConstr.Vars.subst_univs_level_constr usubst rhs) in
 
-  let rule = { rr_evars = names.evar_names; rr_uctx = { quals = names.sort_names; univs = names.level_names }; esubst; pattern; replacement } in
+  let rule = { rr_evars = names.evar_names; rr_uctx = { quals = names.sort_names; univs = names.level_names }; esubst; pattern; pat_term; replacement } in
 
   let machine =
     match Rewrite_rules_ops.translate_rewrite_rule env evd rule with

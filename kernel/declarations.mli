@@ -348,6 +348,7 @@ type rewrite_rule = {
   rr_evars: Name.t array;
   esubst: int Evar.Map.t;
   pattern: pattern;
+  pat_term: constr;
   replacement: constr;
 }
 
