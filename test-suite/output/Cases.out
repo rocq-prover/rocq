@@ -231,15 +231,18 @@ File "./output/Cases.v", line 279, characters 33-39:
 The command has indeed failed with message:
 The constructor cons (in type list) is expected to be applied to 2 arguments
 while it is actually applied to 1 argument.
-File "./output/Cases.v", line 281, characters 33-39:
-The command has indeed failed with message:
-The constructor D' (in type J') is expected to be applied to 3 arguments (or
-4 arguments when including variables for local definitions) while it is
-actually applied to 2 arguments.
+fun x : J' ?T ?p => match x with
+                    | @D' _ _ _ _ _ _ _ _ => 0
+                    end
+     : J' ?T ?p -> nat
+where
+?T : [x : J' ?T ?p |- Type] (x cannot be used)
+?T0 : [x : J' ?T ?p |- Type] (x cannot be used)
+?p : [x : J' ?T ?p |- (?T * ?T0)%type] (x cannot be used)
 File "./output/Cases.v", line 282, characters 33-45:
 The command has indeed failed with message:
-The constructor D' (in type J') is expected to be applied to 3 arguments (or
-4 arguments when including variables for local definitions) while it is
+The constructor D' (in type J') is expected to be applied to 2 arguments (or
+3 arguments when including variables for local definitions) while it is
 actually applied to 5 arguments.
 fun x : J' bool (true, true) =>
 match x with

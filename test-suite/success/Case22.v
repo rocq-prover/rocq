@@ -100,5 +100,5 @@ Check fun x : {True}+{False} => match x with left _ => 0 | right _ => 1 end.
 Inductive expr {A} : A -> Type := intro : forall {n:nat} (a:A), n=n -> expr a.
 Check fun (x:expr true) => match x in expr n return n=n with intro _ _ => eq_refl end.
 Set Asymmetric Patterns.
-Check fun (x:expr true) => match x in expr n return n=n with intro _ a _ => eq_refl a end.
+Check fun (x:expr true) => match x in expr n return n=n with intro a _ => eq_refl a end.
 Unset Asymmetric Patterns.

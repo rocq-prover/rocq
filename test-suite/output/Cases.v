@@ -278,10 +278,10 @@ Fail Check fun x => match x with (y,z) w => y+z+w end.
 Fail Check fun x => match x with cons y z w => 0 | nil => 0 end.
 Fail Check fun x => match x with cons y => 0 | nil => 0 end.
 
-Fail Check fun x => match x with D' n _ => 0 end.
+Check fun x => match x with D' n _ => 0 end.
 Fail Check fun x => match x with D' n m p e _ => 0 end.
-Check fun x : J' bool (true,true) => match x with D' n m e => existT (fun x => eq x x) m e end.
-Check fun x : J' bool (true,true) => match x with D' n m p e => (n,p) end.
+Check fun x : J' bool (true,true) => match x with D' n e => existT (fun x => eq x x) _ e end.
+Check fun x : J' bool (true,true) => match x with D' n p e => (n,p) end.
 
 End ConstructorArgumentsNumber.
 
