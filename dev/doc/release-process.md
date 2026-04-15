@@ -10,7 +10,9 @@
 
 - [ ] Create both the upcoming final release (`X.X.0`) and the following major release (`Y.Y+rc1`) milestones if they do not already exist.
 - [ ] Send an announcement of the upcoming branching date on the Rocq development category on Discourse (rocq+rocq-development@discoursemail.com) and ask people to remove from the `X.X+rc1` milestone any feature and clean up PRs that they already know won't be ready on time.
-- [ ] Prepare a PR on `master` (not yet to be merged) changing the version name to the next major version and both magic numbers in [`tools/configure/configure.ml`](../../tools/configure/configure.ml). For example, for `8.5`, the version name will be `8.5+alpha` while the magic numbers will end with `80490`.
+- [ ] Prepare a PR on `master` (not yet to be merged) changing the version to the next minor version in [`tools/configure/configure.ml`](../../tools/configure/configure.ml).
+  For example, for `9.3`, `minor` will be `3`.
+  On master the `patch` value is always `Alpha`, so `rocq -version` will print `9.3+alpha` and the magic number will be `90299` (the release magic will be `90300` so we take the first number before that).
   This PR should be opened before the branching date to have time to deal with CI issues, but should not be merged until branching.
 
 ## On the branching date ##
@@ -48,7 +50,7 @@ Be sure the PR is not draft for better visibility and ask everyone in the dev te
 - [ ] When doing so, add the new milestone to the coqbot command in the description of still-open previous milestones. For instance, when creating a milestone `8.20.1`, if there is an open milestone `8.19.3`, something tagged with the milestone `8.19.3` means: to be backported to the `v8.19` *and* the `v8.20` branches. The coqbot syntax is `@coqbot: backport to v8.19 (move rejected PRs to: <url of current milestone for 8.20>); backport to v8.20 (move rejected PRs to: <URL of current milestone for 8.21>); ...`.
 - [ ] Ensure the release changelog has been merged (for release candidates the release summary can be left empty, it is required only for the final release).
 - [ ] In a PR against `vX.X` (for testing):
-  - Update the version number in [`tools/configure/configure.ml`](../../tools/configure/configure.ml).
+  - Update the `patch` version number in [`tools/configure/configure.ml`](../../tools/configure/configure.ml).
   - Only update the magic numbers for the final release.
   - Set `is_a_released_version` to `true`.
 - [ ] Set the tag `VX.X...` using `git tag -s`.
