@@ -1099,7 +1099,7 @@ struct
              before typing the argument, so we replace it by an
              existential variable *)
           let sigma, c_hole = new_evar env sigma ~src:(loc,Evar_kinds.InternalHole) tycon in
-          sigma, c_hole, (c_hole, tycon, arg, trace) :: bidiargs
+          sigma, c_hole, (c_hole, tycon, arg, na, trace) :: bidiargs
         else
           let sigma, j = pretype (Some tycon) env sigma arg in
           sigma, j_val j, bidiargs
@@ -1183,18 +1183,19 @@ struct
       apply_rec env sigma arg_state body (subst,typ) args
     in
     let sigma, resj, otrace = inh_conv_coerce_to_tycon ?loc ~flags env sigma resj tycon in
-    let refine_arg (sigma,t) (newarg,ty,origarg,trace) =
+    let refine_arg (sigma,t) (newarg,ty,origarg,na,trace) =
       (* Refine an argument (originally `origarg`) represented by an evar
          (`newarg`) to use typing information from the context *)
       (* Type the argument using the expected type *)
       let sigma, j = pretype (Some ty) env sigma origarg in
+      let sigma, c = adjust_evar_source sigma na (j_val j) in
       (* Unify the (possibly refined) existential variable with the
          (typechecked) original value *)
-      let sigma = try Evarconv.unify_delay !!env sigma newarg (j_val j)
+      let sigma = try Evarconv.unify_delay !!env sigma newarg c
         with Evarconv.UnableToUnify (sigma,e) ->
-          raise (PretypeError (!!env,sigma,CannotUnify (newarg,j_val j,Some e)))
+          raise (PretypeError (!!env,sigma,CannotUnify (newarg,c,Some e)))
       in
-      sigma, Coercion.push_arg (Coercion.reapply_coercions_body sigma trace t) (j_val j)
+      sigma, Coercion.push_arg (Coercion.reapply_coercions_body sigma trace t) c
     in
     (* We now refine any arguments whose typing was delayed for
        bidirectionality *)

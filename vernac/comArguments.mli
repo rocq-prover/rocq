@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+val register_bidi_hints : Names.GlobRef.t -> int option -> unit
+
 val vernac_arguments
   : section_local:bool
   -> Libnames.qualid Constrexpr.or_by_notation
