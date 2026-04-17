@@ -40,10 +40,10 @@ let dirpath_of_string s =
   | [] -> CheckLibrary.default_root_prefix
   | dir -> DirPath.make (List.map Id.of_string dir)
 let path_of_string s =
-  if Filename.check_suffix s ".vo" then CheckLibrary.PhysicalFile s
+  if Filename.check_suffix s ".vo" then Ok (CheckLibrary.PhysicalFile s)
   else match parse_dir s with
-    | [] -> invalid_arg "path_of_string"
-    | l::dir -> CheckLibrary.LogicalFile {dirpath=dir; basename=l}
+    | [] -> Error ()
+    | l::dir -> Ok (CheckLibrary.LogicalFile {dirpath=dir; basename=l})
 
 let get_version env () =
   match env with
@@ -165,17 +165,21 @@ let make_senv () =
   let senv = Safe_typing.set_allow_sprop true senv in (* be smarter later *)
   Safe_typing.set_native_compiler false senv
 
+let try_add_path s l = match path_of_string s with
+| Ok path -> path :: l
+| Error () -> CErrors.user_err (str "Invalid path " ++ qstring s)
+
 let admit_list = ref ([] : CheckLibrary.object_file list)
 let add_admit s =
-  admit_list := path_of_string s :: !admit_list
+  admit_list := try_add_path s !admit_list
 
 let norec_list = ref ([] : CheckLibrary.object_file list)
 let add_norec s =
-  norec_list := path_of_string s :: !norec_list
+  norec_list := try_add_path s !norec_list
 
 let compile_list = ref ([] : CheckLibrary.object_file list)
 let add_compile s =
-  compile_list := path_of_string s :: !compile_list
+  compile_list := try_add_path s !compile_list
 
 (*s Parsing of the command line.
     We no longer use [Arg.parse], in order to use share [Usage.print_usage]
