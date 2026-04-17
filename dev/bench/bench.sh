@@ -339,7 +339,8 @@ git clone -q --depth 1 -b "$old_coq_opam_archive_git_branch" "$old_coq_opam_arch
 new_coq_opam_archive_dir="$working_dir/new_coq_opam_archive"
 git clone -q --depth 1 -b "$new_coq_opam_archive_git_branch" "$new_coq_opam_archive_git_uri" "$new_coq_opam_archive_dir"
 
-initial_opam_packages="num zarith ocamlfind dune yojson camlzip"
+initial_opam_packages_old="num zarith ocamlfind dune yojson camlzip"
+initial_opam_packages_new="num zarith ocamlfind dune yojson camlzip"
 
 # Create an opam root and install Rocq
 # $1 = root_name {ex: NEW / OLD}
@@ -404,7 +405,12 @@ create_opam() {
       exit 1
     fi
 
-    opam install -qy -j "$number_of_processors" $initial_opam_packages
+    if [ "$RUNNER" = "NEW" ]; then
+      opam install -qy -j "$number_of_processors" $initial_opam_packages_new
+    else
+      opam install -qy -j "$number_of_processors" $initial_opam_packages_old
+    fi
+
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
     cd "$coq_dir"
