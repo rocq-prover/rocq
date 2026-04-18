@@ -88,10 +88,347 @@ Module Plus.
   Defined.
 End Plus.
 
+Module Frozen.
+  Record bi := {
+      car :> Type;
+      emp : car;
+      foo : car;
+      of_bool : bool -> car;
+      to_prop : car -> Prop;
+      to_prop_true : to_prop (of_bool true);
+    }.
+  Arguments emp {_}.
+  Arguments foo {_}.
+  Arguments of_bool {_}.
+  Arguments to_prop {_}.
+
+  Class Special {PROP:bi} (P : PROP) : Prop := {}.
+
+  Instance emp_Special {PROP:bi} : Special PROP.(emp) | 1 := {}.
+  Instance of_bool_false_Special {PROP:bi} : Special (PROP.(of_bool) false) | 1 := {}.
+ (* [True] is a placeholder for some condition that is not part of the TC
+  hierarchy, which is why [of_bool_true_Special] is not an instance. *)
+  Definition of_bool_true_Special {PROP:bi} : True -> Special (PROP.(of_bool) true) := fun _ => Build_Special _ _.
+
+
+  Inductive is_of_bool_false {PROP:bi} : forall (P:PROP), Prop :=
+  | Exactly : is_of_bool_false (of_bool false).
+
+  (* [some_bi] is interesting because it has [to_prop (of_bool false)] *)
+  Axiom some_bi : bi.
+  Axiom some_bi_to_prop_false : some_bi.(to_prop) (of_bool false).
+
+  (* [special_bi] is interesting because all its members are [Special] *)
+  Axiom special_bi : bi.
+  Instance special_bi_Special : forall P: special_bi, Special P | 0 := {}.
+
+  Section ModeOO.
+    Hint Mode Special - - : typeclass_instances.
+
+    Goal exists PROP, Special (PROP.(emp)).
+    Proof.
+      eexists ?[PROP].
+      apply _.                    (* not desireable because it picked a fixed bi *)
+      Fail [PROP]: exact some_bi.
+    Abort.
+
+    Goal forall {PROP:bi}, exists P : PROP,
+        Special P /\ to_prop P.
+    Proof.
+      intros. eexists ?[P].
+      split.
+      - apply _.  (* not desired because it picks a value for [P] arbitrarily *)
+      -           (* stuck because we should have picked [of_bool true] *)
+    Abort.
+
+    Goal forall {PROP:bi}, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      intros. eexists ?[P].
+      split.
+      - apply _.  (* not desired because it picks a value for [b] arbitrarily *)
+      - Fail apply to_prop_true. (* stuck because we should have picked [true] *)
+    Abort.
+
+    Goal exists PROP:bi, exists P:PROP, Special P /\ is_of_bool_false P /\ to_prop P.
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - apply _.             (* not desired because it picked an arbitrary value for [PROP] *)
+      - constructor.
+      - Fail apply some_bi_to_prop_false. (* stuck *)
+    Abort.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b) /\ not (is_true b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - apply _.             (* not desired because it picked arbitrary values for [PROP] and [b] *)
+      - apply to_prop_true.  (* stuck because we should have picked [true] *)
+    Abort.
+
+    Goal exists PROP:bi, Special (PROP.(of_bool) false) /\ PROP.(to_prop) (of_bool false).
+    Proof.
+      eexists ?[PROP].
+      split.
+      - apply _.                (* picked the wrong bi *)
+      -                         (* stuck *)
+    Abort.
+  End ModeOO.
+
+  Section ModeOI.
+    Hint Mode Special - + : typeclass_instances.
+
+    Goal exists PROP, Special (PROP.(emp)).
+    Proof.
+      eexists.
+      Fail apply _.             (* would be fine but does not work with [+] *)
+    Abort.
+
+    Goal forall {PROP:bi}, exists P : PROP,
+        Special P /\ to_prop P.
+    Proof.
+      intros. eexists.
+      split.
+      - Fail apply _.                  (* Correctly fails *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal forall {PROP:bi}, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      intros. eexists.
+      split.
+      - Fail apply _.           (* Correctly fails. *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal exists PROP:bi, exists P:PROP, Special P /\ is_of_bool_false P /\ to_prop P.
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.           (* fails correctly *)
+        apply (@of_bool_false_Special some_bi).
+      - constructor.
+      - apply some_bi_to_prop_false.
+    Qed.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split.
+      - Fail apply _.           (* fails correctly *)
+        apply (@of_bool_true_Special some_bi). constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b) /\ not (is_true b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.           (* fails correctly *)
+        apply (@of_bool_false_Special some_bi).
+      - apply some_bi_to_prop_false.
+      - intro H. discriminate H.
+    Qed.
+
+    Goal exists PROP:bi, Special (PROP.(of_bool) false) /\ PROP.(to_prop) (of_bool false).
+    Proof.
+      eexists ?[PROP].
+      split.
+      - Fail apply _.           (* fails but could be OK *)
+    Abort.
+  End ModeOI.
+
+  Section ModeOH.
+    Hint Mode Special - ! : typeclass_instances.
+
+    Goal exists PROP, Special (PROP.(emp)).
+    Proof.
+      eexists.
+      apply _.                    (* not desireable because it picked a fixed bi *)
+      Fail [PROP]: exact some_bi.
+    Abort.
+
+    Goal forall {PROP:bi}, exists P : PROP,
+        Special P /\ to_prop P.
+    Proof.
+      intros. eexists ?[P].
+      split.
+      - Fail apply _.      (* Correctly fails but only because [P] is exactly an evar *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal forall {PROP:bi}, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      intros. eexists.
+      split.
+      - apply _.  (* undesirable because it picks a value for [b] arbitrarily *)
+      - Fail apply to_prop_true. (* stuck because we should have picked [true] *)
+    Abort.
+
+    Goal exists PROP:bi, exists P:PROP, Special P /\ is_of_bool_false P /\ to_prop P.
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.           (* fails correctly but only because [P] is exactly an evar *)
+        apply (@of_bool_false_Special some_bi).
+      - constructor.
+      - apply some_bi_to_prop_false.
+    Qed.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b) /\ not (is_true b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - apply _.                (* not desired because it picked arbitrary values for [PROP] and [b] *)
+      - apply to_prop_true.     (* stuck because we should have picked [true] *)
+    Abort.
+
+    Goal exists PROP:bi, Special (PROP.(of_bool) false) /\ PROP.(to_prop) (of_bool false).
+    Proof.
+      eexists ?[PROP].
+      split.
+      - apply _.                (* picked the wrong bi *)
+      -                         (* stuck *)
+    Abort.
+  End ModeOH.
+
+  Section ModeOF.
+    Hint Mode Special - = : typeclass_instances.
+
+    Goal exists PROP, Special (PROP.(emp)).
+    Proof.
+      eexists ?[PROP].
+      apply _.                    (* works and does not pick a bi *)
+      [PROP]: exact some_bi.
+    Qed.
+
+    Goal forall {PROP:bi}, exists P : PROP,
+        Special P /\ to_prop P.
+    Proof.
+      intros. eexists ?[P].
+      split.
+      - Fail apply _.      (* Correctly fails but only because [P] is exactly an evar *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal forall {PROP:bi}, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      intros. eexists.
+      split.
+      - Fail apply _.           (* fails correctly *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal exists PROP:bi, exists P:PROP, Special P /\ is_of_bool_false P /\ to_prop P.
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - apply _.                (* undesired it because it picked [PROP:=special_bi] *)
+      - constructor.
+      - Fail apply some_bi_to_prop_false. (* stuck *)
+    Abort.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b) /\ not (is_true b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.        (* fails correctly even when [?b] is deeper in the term. *)
+        apply (@of_bool_false_Special some_bi).
+      - apply some_bi_to_prop_false.
+      - intro H. discriminate H.
+    Qed.
+
+    Goal exists PROP:bi, Special (PROP.(of_bool) false) /\ PROP.(to_prop) (of_bool false).
+    Proof.
+      eexists ?[PROP].
+      split.
+      - apply _.                (* works and does not pick a bi *)
+      - apply some_bi_to_prop_false.
+    Qed.
+  End ModeOF.
+
+
+  Section ModeFF.
+    Hint Mode Special = = : typeclass_instances.
+
+    Goal exists PROP, Special (PROP.(emp)).
+    Proof.
+      eexists ?[PROP].
+      apply _.                    (* works and does not pick a bi *)
+      [PROP]: exact some_bi.
+    Qed.
+
+    Goal forall {PROP:bi}, exists P : PROP,
+        Special P /\ to_prop P.
+    Proof.
+      intros. eexists ?[P].
+      split.
+      - Fail apply _.      (* Correctly fails but only because [P] is exactly an evar *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    Goal forall {PROP:bi}, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b).
+    Proof.
+      intros. eexists.
+      split.
+      - Fail apply _.           (* fails correctly *)
+        apply of_bool_true_Special. constructor.
+      - apply to_prop_true.
+    Qed.
+
+    (* This case is the only difference between [ModeOF] and [ModeFF] *)
+    Goal exists PROP:bi, exists P:PROP, Special P /\ is_of_bool_false P /\ to_prop P.
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.                (* correctly fails to apply *)
+        apply of_bool_false_Special.
+      - constructor.
+      - apply some_bi_to_prop_false.
+    Qed.
+
+    Goal exists PROP:bi, exists b:bool,
+        Special (PROP.(of_bool) b) /\ PROP.(to_prop) (of_bool b) /\ not (is_true b).
+    Proof.
+      eexists ?[PROP], ?[P].
+      split; [|split].
+      - Fail apply _.        (* fails correctly even when [?b] is deeper in the term. *)
+        apply (@of_bool_false_Special some_bi).
+      - apply some_bi_to_prop_false.
+      - intro H. discriminate H.
+    Qed.
+
+    Goal exists PROP:bi, Special (PROP.(of_bool) false) /\ PROP.(to_prop) (of_bool false).
+    Proof.
+      eexists ?[PROP].
+      split.
+      - apply _.                (* works and does not pick a bi *)
+      - apply some_bi_to_prop_false.
+    Qed.
+  End ModeFF.
+End Frozen.
+
 Module ModeAttr.
   Fail #[mode="+"] Inductive foo (A : Type) : Set :=.
 
   Fail #[mode=""] Class Foo (A : Type) := {}.
-  #[mode="+"] Class Foo (A : Type) := {}.
+  Succeed #[mode="+"] Class Foo (A : Type) := {}.
+  Succeed #[mode="="] Class Foo (A : Type) := {}.
   Fail #[mode="+ +"] Class Foo' (A : Type) := {}.
 End ModeAttr.

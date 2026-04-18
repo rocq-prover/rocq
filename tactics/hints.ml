@@ -172,6 +172,7 @@ type hint_entry = GlobRef.t option *
 
 type hint_mode =
   | ModeInput (* No evars *)
+  | ModeFrozen (* evars are allowed but will never be instantiated by hints *)
   | ModeNoHeadEvar (* No evar at the head *)
   | ModeOutput (* Anything *)
 
@@ -401,9 +402,10 @@ let instantiate_hint env sigma p =
 
 let hint_mode_eq m1 m2 = match m1, m2 with
   | ModeInput, ModeInput -> true
+  | ModeFrozen, ModeFrozen -> true
   | ModeNoHeadEvar, ModeNoHeadEvar -> true
   | ModeOutput, ModeOutput -> true
-  | (ModeInput | ModeNoHeadEvar | ModeOutput), _ -> false
+  | (ModeInput | ModeFrozen | ModeNoHeadEvar | ModeOutput), _ -> false
 
 let hints_path_atom_eq env h1 h2 = match h1, h2 with
 | PathHints l1, PathHints l2 -> List.equal (fun gr1 gr2 -> QGlobRef.equal env gr1 gr2) l1 l2
@@ -580,7 +582,7 @@ let rec subst_hints_path subst hp =
 
 type mode_match =
   | NoMode
-  | WithMode of hint_mode array
+  | WithMode of Evarsolve.AllowedEvars.t
 
 type 'a with_mode =
   | ModeMatch of mode_match * 'a
@@ -666,10 +668,30 @@ struct
     | ModeInput -> not (occur_existential sigma arg)
     | ModeNoHeadEvar -> has_no_head_evar sigma arg
     | ModeOutput -> true
+    | _ -> assert false
 
   let matches_mode sigma args mode =
-    if Array.length mode == Array.length args &&
-        Array.for_all2 (match_mode sigma) mode args then Some mode
+    if Array.length mode == Array.length args then
+      (* we don't need to compute evar sets if there's no ModeInput *)
+      if Array.exists (fun m -> m = ModeFrozen) mode then
+        let exception Mismatch in
+        begin try
+          (* forbid all evars appearing in arguments with [ModeFrozen],
+             unconditionally, even when they appear in other arguments. *)
+          let f forbid m arg =
+            match m with
+            | ModeNoHeadEvar when not (has_no_head_evar sigma arg) -> raise Mismatch
+            | ModeInput when occur_existential sigma arg -> raise Mismatch
+            | ModeFrozen -> Evar.Set.union forbid (Evd.evars_of_term sigma arg)
+            | ModeNoHeadEvar | ModeInput | ModeOutput -> forbid
+          in
+          let forbid = Array.fold_left2 f Evar.Set.empty mode args in
+          Some (Evarsolve.AllowedEvars.except forbid)
+        with Mismatch -> None
+        end
+      else if Array.for_all2 (match_mode sigma) mode args
+      then Some Evarsolve.AllowedEvars.all
+      else None
     else None
 
   let matches_modes sigma args modes =
@@ -1646,6 +1668,7 @@ let pr_applicable_hint pf =
 let parse_mode s =
   match s with
   | "+" -> ModeInput
+  | "=" -> ModeFrozen
   | "-" -> ModeOutput
   | "!" -> ModeNoHeadEvar
   | _ -> CErrors.user_err Pp.(str"Unrecognized hint mode " ++ str s)
@@ -1656,6 +1679,7 @@ let parse_modes s =
 
 let string_of_mode = function
   | ModeInput -> "+"
+  | ModeFrozen -> "="
   | ModeOutput -> "-"
   | ModeNoHeadEvar -> "!"
 
