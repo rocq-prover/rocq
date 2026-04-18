@@ -163,7 +163,18 @@ Automatic resolution of existential variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Existential variables that are used in other goals are generally resolved
-automatically as a side effect of other tactics.
+automatically as a side effect of other tactics using unification. The general
+form of such unification problems is
+
+:n:`?y@{x_1:=a_1, ..., x_n:=a_n} a_(n+1) ... a_m == t`
+
+When the :n:`a_i` are distinct variables, then :n:`?y` is instantiated with
+:n:`fun x_(n+1) ... x_m => t`, replacing every occurrence of :n:`a_i` in :n:`t` by :n:`x_i`.
+The instantiation may fail when :n:`?y` occurs in :n:`t`, or when some variable which is not one
+of the `x_i` occurs in `t`. When such a variable occurs under a beta-redex or as an argument of
+another existential variable, the instantiation may still succeed by reducing the beta-redex or making
+the existential variable ignore its argument.
+The case where the :n:`a_i` are not distinct variables is undefined behavior.
 
 .. _automatic-evar-resolution:
 
