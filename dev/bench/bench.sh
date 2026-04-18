@@ -54,7 +54,7 @@ check_variable () {
 
 # example: coq-hott.dev git+https://github.com/some-user/coq-hott#some-branch
 # (make sure to include the version for the opam package, note that just https won't work)
-: "${new_opam_override_urls:=}"
+: "${new_opam_override_urls:=rocq-elpi.dev git+https://github.com/LPCIC/coq-elpi#elpi-3.7 rocq-hierarchy-builder.dev git+https://github.com/math-comp/hierarchy-builder#hierarchy-builder.elpi-3.7}"
 : "${old_opam_override_urls:=}"
 
 if [ "$CI" ]; then
@@ -339,7 +339,8 @@ git clone -q --depth 1 -b "$old_coq_opam_archive_git_branch" "$old_coq_opam_arch
 new_coq_opam_archive_dir="$working_dir/new_coq_opam_archive"
 git clone -q --depth 1 -b "$new_coq_opam_archive_git_branch" "$new_coq_opam_archive_git_uri" "$new_coq_opam_archive_dir"
 
-initial_opam_packages="num zarith ocamlfind dune yojson camlzip"
+initial_opam_packages_old="num zarith ocamlfind dune yojson camlzip elpi=3.6.2"
+initial_opam_packages_new="num zarith ocamlfind dune yojson camlzip elpi=3.7.0"
 
 # Create an opam root and install Rocq
 # $1 = root_name {ex: NEW / OLD}
@@ -404,7 +405,12 @@ create_opam() {
       exit 1
     fi
 
-    opam install -qy -j "$number_of_processors" $initial_opam_packages
+    if [ "$RUNNER" = "NEW" ]; then
+      opam install -qy -j "$number_of_processors" $initial_opam_packages_new
+    else
+      opam install -qy -j "$number_of_processors" $initial_opam_packages_old
+    fi
+
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
     cd "$coq_dir"
