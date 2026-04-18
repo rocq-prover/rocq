@@ -561,7 +561,6 @@ let build_inductive env ~sec_univs names prv univs template variance
         mind_consnrealargs = consnrealargs;
         mind_user_lc = lc;
         mind_nf_lc = nf_lc;
-        mind_recargs = recarg;
         mind_automaton = automaton;
         mind_relevance;
         mind_relies_on_indices_not_mattering = relies_on_indices_not_mattering;

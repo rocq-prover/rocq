@@ -63,8 +63,12 @@ val mkAppliedInd : inductive_type -> EConstr.constr
 val dest_recarg : recarg Rtree.Kind.t -> recarg
 val dest_subterms : recarg Rtree.Kind.t -> recarg Rtree.Kind.t array array
 
-(** Check if a [one_inductive_body] is recursive, possibly nestedly  *)
+(** Check if a [one_inductive_body] is recursive. An inductive is recursive
+    either if it has a constructor that mentions it in its normal form type, or
+    if it nested. Note that the latter case means that an inductive is
+    considered recursive even if the nesting type does not mention its argument. *)
 val mis_is_recursive : one_inductive_body -> bool
+
 val mis_is_nested : MutInd.t -> mutual_inductive_body -> bool
 val mis_nf_constructor_type :
   constructor puniverses -> mutual_inductive_body * one_inductive_body -> constr
@@ -123,7 +127,6 @@ val inductive_alltags : env -> inductive -> bool list
 val constructor_alltags : env -> constructor -> bool list
 
 (** Is there local defs in params or args ? *)
-val constructor_has_local_defs : env -> constructor -> bool
 val inductive_has_local_defs : env -> inductive -> bool
 
 val constant_sorts_below : UnivGen.QualityOrSet.t -> UnivGen.QualityOrSet.t list

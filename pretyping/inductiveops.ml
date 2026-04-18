@@ -15,7 +15,6 @@ open EConstr
 open Vars
 open Context
 open Declarations
-open Declareops
 open Environ
 open Reductionops
 open Context.Rel.Declaration
@@ -116,24 +115,22 @@ let dest_subterms p = match Rtree.Kind.kind p with
 | Rtree.Kind.Var _ -> assert false
 
 let mis_is_recursive mip =
-  let one_is_rec rvec =
-    Array.exists (fun ra ->
-      match dest_recarg ra with
-        | Mrec (RecArgInd ind) -> true
-        | Mrec (RecArgPrim _) | Norec -> false
-    ) rvec
-    in
-  Array.exists one_is_rec (dest_subterms @@ Rtree.Kind.make mip.mind_recargs)
+  let ra = mip.mind_automaton in
+  let trans = Rtree.Automaton.transitions ra (Rtree.Automaton.initial ra) in
+  let check tr = match Rtree.Automaton.data ra tr with Mrec _ -> true | Norec -> false in
+  Array.exists (fun v -> Array.exists check v) trans
 
 let mis_is_nested kn mib =
   Array.exists (fun mip ->
+    let ra = mip.mind_automaton in
+    let trans = Rtree.Automaton.transitions ra (Rtree.Automaton.initial ra) in
     Array.exists (fun rvec ->
-      Array.exists (fun ra ->
-        match dest_recarg ra with
+      Array.exists (fun tr ->
+        match Rtree.Automaton.data ra tr with
         | Mrec (RecArgInd (kni, _)) -> not @@ MutInd.CanOrd.equal kn kni
         | Mrec (RecArgPrim _) | Norec -> false
       ) rvec
-    ) (dest_subterms @@ Rtree.Kind.make mip.mind_recargs)
+    ) trans
   ) mib.mind_packets
 
 let mis_nf_constructor_type ((_,j),u) (mib,mip) =
@@ -238,12 +235,6 @@ let inductive_alltags env ind =
 let constructor_alltags env (ind,j) =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
   Context.Rel.to_tags (fst mip.mind_nf_lc.(j-1))
-
-let constructor_has_local_defs env (indsp,j) =
-  let (mib,mip) = Inductive.lookup_mind_specif env indsp in
-  let l1 = mip.mind_consnrealdecls.(j-1) + Context.Rel.length (mib.mind_params_ctxt) in
-  let l2 = recarg_length mip.mind_recargs j + mib.mind_nparams in
-  not (Int.equal l1 l2)
 
 let inductive_has_local_defs env ind =
   let (mib,mip) = Inductive.lookup_mind_specif env ind in
