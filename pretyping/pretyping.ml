@@ -371,10 +371,7 @@ let apply_inference_hook (hook : inference_hook) env sigma frozen = match frozen
 
 let apply_heuristics env sigma =
   (* Resolve eagerly, potentially making wrong choices *)
-  let flags = {
-    (default_flags_of (Conv_oracle.get_transp_state (Environ.oracle env)))
-    with allowed_evars = Evarsolve.allow_all_but_rrpat_evars sigma
-  } in
+  let flags = default_flags_of sigma (Conv_oracle.get_transp_state (Environ.oracle env)) in
   try solve_unif_constraints_with_heuristics ~flags env sigma
   with e when CErrors.noncritical e -> sigma
 
@@ -680,10 +677,7 @@ let pretype_instance self ~flags env sigma loc hyps evk update =
     let id = NamedDecl.get_id decl in
     let b = Option.map (replace_vars sigma subst) (NamedDecl.get_value decl) in
     let t = replace_vars sigma subst (NamedDecl.get_type decl) in
-    let uflags = {
-      (default_flags_of TransparentState.full)
-      with allowed_evars = Evarsolve.allow_all_but_rrpat_evars sigma
-    } in
+    let uflags = default_flags_of sigma TransparentState.full in
     let check_body sigma id c =
       match b, c with
       | Some b, Some c -> begin
@@ -1304,7 +1298,7 @@ struct
       | None ->
         sigma, empty_tycon in
     let sigma, j = pretype tycon1 env sigma c1 in
-    let sigma, t = Evarsolve.refresh_universes ~allowed_evars:(Evarsolve.allow_all_but_rrpat_evars sigma)
+    let sigma, t = Evarsolve.refresh_universes
       ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env sigma j.uj_type in
     let r = Retyping.relevance_of_term !!env sigma j.uj_val in
     let var = LocalDef (make_annot name r, j.uj_val, t) in

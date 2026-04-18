@@ -3191,7 +3191,7 @@ let evarconv_unify ?(state=TransparentState.full) ?(with_ho=true) x y =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   try
-    let flags = Evarconv.default_flags_of state in
+    let flags = Evarconv.default_flags_of sigma state in
     let sigma = Evarconv.unify ~flags ~with_ho env sigma Conversion.CONV x y in
     Proofview.Unsafe.tclEVARS sigma
   with e when noncritical e ->

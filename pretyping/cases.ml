@@ -1768,7 +1768,7 @@ let abstract_tycon ?loc env sigma subst tycon extenv t =
               1 (rel_context !!env) in
         let sigma, ev' = Evarutil.new_evar ~src ~typeclass_candidate:false !!env sigma ty in
         begin
-          let flags = (default_flags_of TransparentState.full) in
+          let flags = (default_flags_of sigma TransparentState.full) in
           match solve_simple_eqn evar_unify flags !!env sigma (None,ev,substl inst ev') with
           | Success evd -> evdref := evd
           | UnifFailure _ -> evdref := add_conv_pb (Conversion.CONV,!!env,substl inst ev',t) sigma
@@ -2030,7 +2030,7 @@ let inh_conv_coerce_to_tycon ?loc ~program_mode env sigma j tycon =
     | Some p ->
       let (evd,v,_trace) =
         Coercion.inh_conv_coerce_to ?loc ~program_mode ~resolve_tc:true env sigma
-          ~flags:(default_flags_of TransparentState.full) j p
+          ~flags:(default_flags_of sigma TransparentState.full) j p
       in
       (evd,v)
     | None -> sigma, j
