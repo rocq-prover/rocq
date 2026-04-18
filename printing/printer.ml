@@ -552,11 +552,10 @@ let pr_transparent_state ts =
         str"PROJECTIONS: " ++ pr_prpred ts.TransparentState.tr_prj ++ fnl ())
 
 let goal_repr sigma g =
-  let EvarInfo evi = Evd.find sigma g in
+  let evi = Evd.find_undefined sigma g in
   let env = Evd.evar_filtered_env (Global.env ()) evi in
   let concl = match Evd.evar_body evi with
   | Evd.Evar_empty -> Evd.evar_concl evi
-  | Evd.Evar_defined b -> Retyping.get_type_of env sigma b
   in
   env, concl
 
@@ -798,15 +797,12 @@ let queue_term q is_dependent c =
   queue_set q is_dependent (evar_nodes_of_term c)
 
 let process_dependent_evar q acc evm is_dependent e =
-  let EvarInfo evi = Evd.find evm e in
+  let evi = Evd.find_undefined evm e in
   (* Queues evars appearing in the types of the goal (conclusion, then
      hypotheses), they are all dependent. *)
   let () = match Evd.evar_body evi with
   | Evar_empty ->
     queue_term q true (Evd.evar_concl evi)
-  | Evar_defined b ->
-    let env = Evd.evar_filtered_env (Global.env ()) evi in
-    queue_term q true (Retyping.get_type_of env evm b)
   in
   List.iter begin fun decl ->
     let open NamedDecl in
@@ -818,14 +814,6 @@ let process_dependent_evar q acc evm is_dependent e =
   match Evd.evar_body evi with
   | Evar_empty ->
       if is_dependent then Evar.Map.add e None acc else acc
-  | Evar_defined b ->
-      let subevars = evar_nodes_of_term b in
-      (* evars appearing in the definition of an evar [e] are marked
-         as dependent when [e] is dependent itself: if [e] is a
-         non-dependent goal, then, unless they are reach from another
-         path, these evars are just other non-dependent goals. *)
-      queue_set q is_dependent subevars;
-      if is_dependent then Evar.Map.add e (Some subevars) acc else acc
 
 (** [gather_dependent_evars evm seeds] classifies the evars in [evm]
     as dependent_evars and goals (these may overlap). A goal is an evar

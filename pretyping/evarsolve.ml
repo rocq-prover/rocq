@@ -618,7 +618,7 @@ let distinct_actual_deps env evd aliases l t =
 
 open Context.Named.Declaration
 let remove_instance_local_defs evd evk args =
-  let EvarInfo evi = Evd.find evd evk in
+  let evi = Evd.find_undefined evd evk in
   let rec aux sign args = match sign, args with
   | [], [] -> []
   | LocalAssum _ :: sign, c :: args -> c :: aux sign args
@@ -1615,7 +1615,7 @@ exception MetaOccurInBodyInternal
 
 let rec invert_definition unify flags choose imitate_defs
                           env evd pbty (evk,argsv as ev) rhs =
-  let EvarInfo evi = Evd.find evd evk in
+  let evi = Evd.find_undefined evd evk in
   let sign = evar_filtered_context evi in
   let rhs = whd_beta env evd rhs (* heuristic *) in
   let fast =

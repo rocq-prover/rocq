@@ -229,20 +229,20 @@ let csubst_subst sigma { csubst_len = k; csubst_var = v; csubst_rel = s } c =
     begin try Id.Map.find id v with Not_found -> c end
   | Evar (evk, args) ->
     let EvarInfo evi = Evd.find sigma evk in
-    let args' = subst_instance n (evar_filtered_context evi) args in
+    let args' = subst_instance n (evar_filtered_hyp_names evi) args in
     if args' == args then c else Constr.mkEvar (evk, args') (* FIXME: preserve sharing *)
   | _ -> Constr.map_with_binders succ subst n c
 
-  and subst_instance n ctx args = match ctx, SList.view args with
+  and subst_instance n ids args = match ids, SList.view args with
   | [], None -> SList.empty
-  | decl :: ctx, Some (c, args) ->
+  | id :: ids, Some (c, args) ->
     let c' = match c with
-    | None -> begin try Some (Id.Map.find (NamedDecl.get_id decl) v) with Not_found -> c end
+    | None -> begin try Some (Id.Map.find id v) with Not_found -> c end
     | Some c ->
       let c' = subst n c in
-      if isVarId (NamedDecl.get_id decl) c' then None else Some c'
+      if isVarId id c' then None else Some c'
     in
-    SList.cons_opt c' (subst_instance n ctx args)
+    SList.cons_opt c' (subst_instance n ids args)
   | _ :: _, None | [], Some _ -> assert false
   in
   let c = if k = 0 && Id.Map.is_empty v then c else subst 0 c in
@@ -730,12 +730,12 @@ let filtered_undefined_evars_of_evar_info (type a) ?cache sigma (evi : a evar_in
     let fold decl accu = cached_evar_of_hyp cache sigma (EConstr.of_named_decl decl) accu in
     Context.Named.fold_outside fold nc ~init:accu
   in
-  let accu = match Evd.evar_body evi with
-  | Evar_empty -> undefined_evars_of_term sigma (Evd.evar_concl evi)
+  match Evd.evar_body evi with
+  | Evar_empty ->
+    let accu = undefined_evars_of_term sigma (Evd.evar_concl evi) in
+    let ctxt = EConstr.Unsafe.to_named_context (evar_filtered_context evi) in
+    evars_of_named_context cache accu ctxt
   | Evar_defined b -> evars_of_term sigma b
-  in
-  let ctxt = EConstr.Unsafe.to_named_context (evar_filtered_context evi) in
-  evars_of_named_context cache accu ctxt
 
 (* spiwack: this is a more complete version of
    {!Termops.occur_evar}. The latter does not look recursively into an

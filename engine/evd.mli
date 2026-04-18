@@ -116,11 +116,13 @@ type any_evar_info = EvarInfo : 'a evar_info -> any_evar_info
 val evar_concl : undefined evar_info -> econstr
 (** Type of the evar. *)
 
-val evar_context : 'a evar_info -> (econstr, etypes, erelevance) Context.Named.pt
+val evar_context : undefined evar_info -> (econstr, etypes, erelevance) Context.Named.pt
 (** Context of the evar. *)
 
-val evar_hyps : 'a evar_info -> named_context_val
+val evar_hyps : undefined evar_info -> named_context_val
 (** Context of the evar. *)
+
+val evar_hyp_names : _ evar_info -> Id.t list
 
 val evar_body : 'a evar_info -> 'a evar_body
 (** Optional content of the evar. *)
@@ -145,10 +147,11 @@ val evar_relevance : 'a evar_info -> erelevance
 
 (** {6 Derived projections} *)
 
-val evar_filtered_context : 'a evar_info -> (econstr, etypes, erelevance) Context.Named.pt
-val evar_filtered_hyps : 'a evar_info -> named_context_val
-val evar_env : env -> 'a evar_info -> env
-val evar_filtered_env : env -> 'a evar_info -> env
+val evar_filtered_context : undefined evar_info -> (econstr, etypes, erelevance) Context.Named.pt
+val evar_filtered_hyps : undefined evar_info -> named_context_val
+val evar_filtered_hyp_names : _ evar_info -> Id.t list
+val evar_env : env -> undefined evar_info -> env
+val evar_filtered_env : env -> undefined evar_info -> env
 val evar_identity_subst : 'a evar_info -> econstr SList.t
 
 val map_evar_body : (econstr -> econstr) -> 'a evar_body -> 'a evar_body

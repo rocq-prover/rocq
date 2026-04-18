@@ -769,7 +769,7 @@ struct
             else
               error_evar_not_found ?loc:locid !!env sigma id
       in
-      let EvarInfo evi = Evd.find sigma evk in
+      let evi = Evd.find_undefined sigma evk in
       let hyps = evar_filtered_context evi in
       let sigma, args = pretype_instance self ~flags env sigma loc hyps evk inst in
       let c = mkLEvar sigma (evk, args) in

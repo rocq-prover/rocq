@@ -1880,13 +1880,9 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
               user_err (Pp.str "Cannot find an instance.")
          else
            ((debug_ho_unification (fun () ->
-               let EvarInfo evi = Evd.find evd evk in
-               let env = Evd.evar_env env_rhs evi in
                Pp.(str"evar is defined: " ++
-                 int (Evar.repr evk) ++ spc () ++
-                 prc env evd (match evar_body evi with Evar_defined c -> c
-                   | Evar_empty -> assert false)));
-            evd))
+                 int (Evar.repr evk))));
+            evd)
        in force_instantiation evd evs
      | [] -> abstract_free_holes evd l
      in force_instantiation evd !evsref
@@ -1896,10 +1892,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
            instantiate evk itself. *)
        (debug_ho_unification (fun () ->
           begin
-            let EvarInfo evi = Evd.find evd evk in
-            let evenv = evar_env env_rhs evi in
-            let body = match evar_body evi with Evar_empty -> assert false | Evar_defined c -> c in
-            Pp.(str"evar was defined already as: " ++ prc evenv evd body)
+            Pp.(str"evar was defined already")
           end);
         evd)
      else

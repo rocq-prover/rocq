@@ -1268,10 +1268,10 @@ let cleanup_XinE env sigma0 (h_k, _) x rp sigma =
     try ignore(Context.Named.lookup x ctx); (name, fun k ->
         if !name = None then
           let EvarInfo evi = Evd.find sigma k in
-          let nctx = Evd.evar_context evi in
-          let nlen = Context.Named.length nctx in
+          let nctx = Evd.evar_hyp_names evi in
+          let nlen = List.length nctx in
           if nlen > len then begin
-            name := Some (Context.Named.Declaration.get_id (List.nth nctx (nlen - len - 1)))
+            name := Some (List.nth nctx (nlen - len - 1))
           end)
     with Not_found -> ref (Some x), fun _ -> () in
   let new_evars =

@@ -16,8 +16,6 @@ open Names
 open Constr
 open Context
 
-module NamedDecl = Context.Named.Declaration
-
 module ERelevance = struct
   include Evd.MiniEConstr.ERelevance
 
@@ -538,24 +536,24 @@ let map_return_predicate f p =
   of_return (Constr.map_return_predicate f (unsafe_to_return p))
 
 let map_instance sigma f evk args =
-  let rec map ctx args = match ctx, SList.view args with
+  let rec map ids args = match ids, SList.view args with
   | [], None -> SList.empty
-  | decl :: ctx, Some (Some c, rem) ->
+  | id :: ids, Some (Some c, rem) ->
     let c' = f c in
-    let rem' = map ctx rem in
+    let rem' = map ids rem in
     if c' == c && rem' == rem then args
-    else if Constr.isVarId (NamedDecl.get_id decl) c' then SList.default rem'
+    else if Constr.isVarId id c' then SList.default rem'
     else SList.cons c' rem'
-  | decl :: ctx, Some (None, rem) ->
-    let c = Constr.mkVar (NamedDecl.get_id decl) in
+  | id :: ids, Some (None, rem) ->
+    let c = Constr.mkVar id in
     let c' = f c in
-    let rem' = map ctx rem in
+    let rem' = map ids rem in
     if c' == c && rem' == rem then args
     else SList.cons c' rem'
   | [], Some _ | _ :: _, None -> assert false
   in
   let EvarInfo evi = Evd.find sigma evk in
-  let ctx = Evd.evar_filtered_context evi in
+  let ctx = Evd.evar_filtered_hyp_names evi in
   map ctx args
 
 let map sigma f c =
