@@ -45,4 +45,5 @@ Require Ltac2.FMap.
 Require Ltac2.TransparentState.
 Require Ltac2.Unification.
 
+Require Export Ltac2.BaseNotations.
 Require Export Ltac2.Notations.

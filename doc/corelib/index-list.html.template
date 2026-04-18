@@ -124,6 +124,7 @@ through the <tt>Require Import</tt> command.</p>
   </dt>
   <dd>
     theories/Ltac2/Ltac2.v
+    theories/Ltac2/BaseNotations.v
     theories/Ltac2/Array.v
     theories/Ltac2/Bool.v
     theories/Ltac2/Char.v
