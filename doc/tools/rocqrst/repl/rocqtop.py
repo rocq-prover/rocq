@@ -103,7 +103,7 @@ class RocqTop:
     def send_initial_options(self):
         """Options to send when starting the toplevel and after a Reset Initial."""
         self.sendone('Set Rocqtop Exit On Error.')
-        self.sendone('Set Warnings "+default".')
+        self.sendone('Set Warnings "+default,-vm-compute-disabled".')
 
 def sendmany(*sentences):
     """A small demo: send each sentence in sentences and print the output"""
