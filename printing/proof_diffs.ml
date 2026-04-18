@@ -346,7 +346,7 @@ let diff_goal ?(short=false) ?og_s ~flags ng =
 
 module GoalMap = Evar.Map
 
-let goal_to_evar g sigma = Names.Id.to_string (Termops.evar_suggested_name (Global.env ()) sigma g)
+let goal_to_evar g sigma = Termops.evar_string (Global.env ()) sigma g
 
 open Evar.Set
 
