@@ -32,7 +32,7 @@ Record Functor (C D : PreCategory) :=
 Arguments object_of {C%_category D%_category} f%_functor c%_object : rename, simpl
 nomatch.
 Arguments morphism_of [C%_category] [D%_category] f%_functor [s%_object d%_object]
-m%morphism : rename, simpl nomatch.
+m%_morphism : rename, simpl nomatch.
 Section path_functor.
   Variable C : PreCategory.
   Variable D : PreCategory.
