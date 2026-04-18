@@ -50,6 +50,11 @@ val is_ind : EConstr.t -> unit tactic
 val is_constructor : EConstr.t -> unit tactic
 val is_proj : EConstr.t -> unit tactic
 val is_const : EConstr.t -> unit tactic
+val is_float : EConstr.t -> unit tactic
+val is_uint63 : EConstr.t -> unit tactic
+val is_string : EConstr.t -> unit tactic
+val is_array : EConstr.t -> unit tactic
+val is_sort : EConstr.t -> unit tactic
 
 val unshelve : Tacinterp.interp_sign -> Tacarg.tacvalue -> unit tactic
 
