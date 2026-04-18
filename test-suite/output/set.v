@@ -1,4 +1,5 @@
 Goal let x:=O+O in x=x.
+Proof.
 intro.
 set (y1:=O) in (type of x).
 Show.

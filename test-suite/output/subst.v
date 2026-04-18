@@ -7,6 +7,7 @@ Abbreviation goal :=
 Ltac do_intros := intros * Hx Hy Hz H1 HA H2 H3 HB H4.
 
 Goal goal.
+Proof.
 do_intros.
 (* From now on, the order after subst is consistently H1, HA, H2, H3, HB, H4 *)
 subst x.
@@ -15,6 +16,7 @@ Show.
 Abort.
 
 Goal goal.
+Proof.
 do_intros.
 subst y.
 (* In 8.4 or 8.5 without regular subst tactic mode, the order was H1, HA, H2, HB, H4, H3 *)
@@ -22,6 +24,7 @@ Show.
 Abort.
 
 Goal goal.
+Proof.
 do_intros.
 subst z.
 (* In 8.4 or 8.5 without regular subst tactic mode, the order was H1, HA, H2, H3, HB, H4 *)
@@ -29,6 +32,7 @@ Show.
 Abort.
 
 Goal goal.
+Proof.
 do_intros.
 subst.
 (* In 8.4 or 8.5 without regular subst tactic mode, the order was HA, HB, H4, H3, H1, H2 *)

@@ -14,7 +14,7 @@ EDIT_AT here
 ADD here2 { Proof. }
 ADD here3 { Qed. }
 WAIT
-EDIT_AT here2
+EDIT_AT here
 # Fixing the proof
 ADD { Proof. }
 ADD { trivial. }

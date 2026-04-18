@@ -206,6 +206,7 @@ For example, `Message.print` defined in `Message.v` is used to print messages:
 .. rocqtop:: none
 
    Goal True.
+   Proof.
 
 .. rocqtop:: all abort
 
@@ -976,6 +977,7 @@ one from Ltac1, except that it requires the goal to be focused.
    .. rocqtop:: none
 
       Goal True.
+      Proof.
 
    In :tacn:`lazy_match!`, if :token:`ltac2_expr` fails, the :tacn:`lazy_match!` fails;
    it doesn't look for further matches.  In :tacn:`match!`, if :token:`ltac2_expr` fails
@@ -1161,6 +1163,7 @@ Match over goals
    .. rocqtop:: all abort
 
       Goal forall A B : Prop, A -> B -> (A->B).
+      Proof.
       intros.
       match! goal with
       | [ h : _ |- _ ] => let h := Control.hyp h in print (of_constr h); apply $h
@@ -1177,6 +1180,7 @@ Match over goals
    .. rocqtop:: all abort
 
       Goal forall A B : Prop, A -> B -> (A->B).
+      Proof.
       intros.
       match! reverse goal with
       | [ h : _ |- _ ] => let h := Control.hyp h in print (of_constr h); apply $h
@@ -1196,6 +1200,7 @@ Match over goals
    .. rocqtop:: all abort
 
       Goal forall A B : Prop, A -> B -> (A->B).
+      Proof.
       intros A B H.
       match! goal with
       | [ h1 : _, h2 : _ |- _ ] =>
@@ -1316,6 +1321,7 @@ Notations
       .. rocqtop:: none
 
          Goal True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -2028,6 +2034,7 @@ It has the same typing rules as `ltac2:()` except the expression must have type 
      f x.
 
    Goal True.
+   Proof.
      let z := constr:(0) in
      let v := add1 z in
      idtac v.

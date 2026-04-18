@@ -22,6 +22,7 @@ Print boz.
 Inductive sFalse : SProp := .
 
 Goal True.
+Proof.
   Unset Printing Notations. (* arrow notation has no binder so relevance isn't printed *)
   pose (f:=fun A (a:A) => A).
   Show.

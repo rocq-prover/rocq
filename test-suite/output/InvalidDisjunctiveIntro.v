@@ -1,4 +1,5 @@
 Theorem test (A:Prop) : A \/ A -> A.
+Proof.
   Fail intros H; destruct H as H.
   (* Cannot coerce to a disjunctive/conjunctive pattern. *)
   Fail intro H; destruct H as H.

@@ -5,6 +5,7 @@ Axiom veeryyyyyyyyyyyyloooooooooooooonggidentifier : nat.
 Goal True /\ True /\ True \/
              veeryyyyyyyyyyyyloooooooooooooonggidentifier =
              veeryyyyyyyyyyyyloooooooooooooonggidentifier.
+Proof.
   refine (nat_rect _ _ _ _).
   Show.
 Admitted.
@@ -13,6 +14,7 @@ Set Printing Existential Instances.
 Goal forall n m : nat, True /\ True /\ True \/
                         veeryyyyyyyyyyyyloooooooooooooonggidentifier =
                         veeryyyyyyyyyyyyloooooooooooooonggidentifier.
+Proof.
   intros.
   refine (nat_rect _ _ _ _).
   Show.
@@ -34,6 +36,7 @@ Set Universe Polymorphism.
 Section S.
 Polymorphic Universes i j.
 Goal Type@{i} -> (Type@{j} : Type@{i}).
+Proof.
 Fail congruence.
 Abort.
 End S.

@@ -233,6 +233,7 @@ Examples
 
          Print Nat.add.
          Goal 1 + 1 = 2.
+         Proof.
          cbv delta.
          cbv fix.
          cbv beta.
@@ -243,6 +244,7 @@ Examples
       .. rocqtop:: all abort
 
          Goal 1 + 1 = 2.
+         Proof.
          cbv.
 
 .. _proof-irrelevance:

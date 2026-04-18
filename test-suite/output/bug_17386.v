@@ -1,4 +1,5 @@
 Goal True.
+Proof.
 evar (x:nat).
 pose (y:=1).
 let _ := constr:(eq_refl : x = 1) in idtac.

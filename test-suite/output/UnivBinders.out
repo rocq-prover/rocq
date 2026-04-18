@@ -276,21 +276,21 @@ Declared in library UnivBinders, line 227, characters 10-14
 File "./output/UnivBinders.v", line 242, characters 2-38:
 The command has indeed failed with message:
 Universe u0 already exists.
-File "./output/UnivBinders.v", line 249, characters 6-26:
+File "./output/UnivBinders.v", line 250, characters 6-26:
 The command has indeed failed with message:
 Tactic failure: Not equal (due to universes).
 eq_rect
      : forall (A : Type@{eq_rect.u1}) (x : A) (P : A -> Type@{eq_rect.u0}),
        P x -> forall y : A, x = y -> P y
-File "./output/UnivBinders.v", line 267, characters 18-19:
+File "./output/UnivBinders.v", line 268, characters 18-19:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 267, characters 33-34:
+File "./output/UnivBinders.v", line 268, characters 33-34:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 273, characters 16-17:
+File "./output/UnivBinders.v", line 274, characters 16-17:
 Warning: Separating sorts from universes with "|" is deprecated.
 Use ";" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]

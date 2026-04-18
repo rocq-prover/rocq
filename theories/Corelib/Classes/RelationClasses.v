@@ -441,12 +441,15 @@ Program Instance predicate_equivalence_equivalence {l} :
   Equivalence (@predicate_equivalence l).
 
   Next Obligation.
+  Proof.
     intro l; induction l ; firstorder.
   Qed.
   Next Obligation.
+  Proof.
     intro l; induction l ; firstorder.
   Qed.
   Next Obligation.
+  Proof.
     intro l.
     fold pointwise_lifting.
     induction l as [|T l IHl].
@@ -459,9 +462,11 @@ Program Instance predicate_equivalence_equivalence {l} :
 Program Instance predicate_implication_preorder {l} :
   PreOrder (@predicate_implication l).
   Next Obligation.
+  Proof.
     intro l; induction l ; firstorder.
   Qed.
   Next Obligation.
+  Proof.
     intro l.
     induction l as [|T l IHl].
     - firstorder.

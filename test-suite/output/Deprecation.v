@@ -4,18 +4,21 @@
 Fail #[deprecated(since="today", why="I said so")] Definition foo := 1.
 
 Goal True.
+Proof.
 foo.
 Abort.
 
 Set Warnings "-deprecated-since-X.Y".
 
 Goal True.
+Proof.
 foo.
 Abort.
 
 Set Warnings "+deprecated-since-X.Y".
 
 Goal True.
+Proof.
 Fail foo.
 Abort.
 
@@ -23,6 +26,7 @@ Abort.
  Ltac bar := idtac.
 
 Goal True.
+Proof.
 bar.
 Abort.
 

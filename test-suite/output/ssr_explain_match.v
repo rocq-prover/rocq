@@ -14,6 +14,7 @@ Require Import ssreflect ssrbool TestSuite.ssr_mini_mathcomp.
 Definition addnAC := (addnA, addnC).
 
 Lemma test x y z : x + y + z =  x + y.
+Proof.
 
 ssrinstancesoftpat (_ + _).
 ssrinstancesofruleL2R addnC.

@@ -27,18 +27,21 @@ Abort.
 (* Test that assert_succeeds only runs a tactic once *)
 Ltac should_not_loop := idtac + should_not_loop.
 Goal True.
+Proof.
   assert_succeeds should_not_loop.
   assert_succeeds (idtac "a" + idtac "b"). (* should only output "a" *)
 Abort.
 
 (* assert_succeeds preserves the error *)
 Goal True.
+Proof.
   Fail assert_succeeds exact False.
 Abort.
 
 Module IntroWildcard.
 
 Theorem foo : { p:nat*nat & p = (0,0) } -> True.
+Proof.
 Fail intros ((n,_),H).
 Abort.
 

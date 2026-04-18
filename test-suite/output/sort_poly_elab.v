@@ -489,6 +489,7 @@ Module Inductives.
   (* Using Program *)
   Program Definition bool_to_Prop' (b : bool) : Prop := _.
   Next Obligation.
+  Proof.
     intro b; destruct b.
     - exact True.
     - exact False.
@@ -529,6 +530,7 @@ Module Inductives.
   About FooNat.
 
   Definition Foo (n : FooNat) : FooNat.
+  Proof.
     destruct n.
     - exact FO.
     - exact FO.
@@ -766,12 +768,14 @@ Module Classes.
 
   Program Instance C1ProgramI1 : C1 unit.
   Next Obligation.
+  Proof.
     exact tt.
   Defined.
   About C1ProgramI1.
 
   #[refine]
   Instance C1RefineI1 : C1 unit := { C1f1 := _ }.
+  Proof.
   exact tt.
   Defined.
   About C1RefineI1.

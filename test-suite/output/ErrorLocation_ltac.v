@@ -2,6 +2,7 @@ Ltac f := fail.
 Ltac inj := injection.
 
 Goal False.
+Proof.
 Fail idtac; easy.
 Fail idtac; f.
 Fail idtac; inj.

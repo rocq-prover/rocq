@@ -1,6 +1,7 @@
 Class Foo.
 
 Fixpoint test (H : Foo) (n : nat) {A : Type} {struct n} : A.
+Proof.
 Admitted.
 
 About test.

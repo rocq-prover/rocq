@@ -1,1 +1,7 @@
+File "./output/bug_11608.v", line 10, characters 4-40:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/bug_11608.v", line 10, characters 4-4 with Proof.
+
 creating x without [Proof.]

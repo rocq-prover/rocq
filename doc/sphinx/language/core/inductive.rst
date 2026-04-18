@@ -560,6 +560,7 @@ constructions.
       .. rocqtop:: all
 
          Goal forall n:nat, plus n 0 = plus 0 n.
+         Proof.
          intros; simpl.  (* plus 0 n not reducible *)
 
       .. rocqtop:: none
@@ -569,6 +570,7 @@ constructions.
       .. rocqtop:: all
 
          Goal forall n:nat, n + 0 = 0 + n.
+         Proof.
          intros; simpl.  (* n + 0 not reducible *)
 
       .. rocqtop:: none

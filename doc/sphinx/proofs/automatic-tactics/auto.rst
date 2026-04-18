@@ -118,6 +118,7 @@ Tactics
             Hint Resolve eq_refl : db.
 
             Goal forall n, n=1 -> exists x y : nat, x = y /\ x = 0.
+            Proof.
             intros.
             do 2 eexists; subst.      (* Fix 2: replace with "do 2 (eexists; subst)." *)
 
@@ -171,6 +172,7 @@ Tactics
 
          Hint Resolve ex_intro : core.
          Goal forall P:nat -> Prop, P 0 -> exists n, P n.
+         Proof.
          eauto.
 
       `ex_intro` is declared as a hint so the proof succeeds.
@@ -273,9 +275,7 @@ the optional tactic of the ``Hint Rewrite`` command.
    .. rocqtop:: all
 
       Lemma ResAck0 : Ack 3 2 = 29.
-
-   .. rocqtop:: all
-
+      Proof.
       autorewrite with base0 using try reflexivity.
 
 .. example:: MacCarthy function
@@ -304,6 +304,7 @@ the optional tactic of the ``Hint Rewrite`` command.
    .. rocqtop:: in extra-stdlib
 
       Lemma Resg0 : g 1 110 = 100.
+      Proof.
 
    .. rocqtop:: out extra-stdlib
 
@@ -656,7 +657,8 @@ Creating Hints
          .. rocqtop:: in reset
 
             Definition one := 1.
-            Theorem thm : one = 1. reflexivity. Qed.
+            Theorem thm : one = 1.
+            Proof. reflexivity. Qed.
 
             Create HintDb db1.
             Hint Opaque one : db1.
@@ -664,6 +666,7 @@ Creating Hints
             Create HintDb db2.
 
             Goal 1 = 1.
+            Proof.
             (* "one" is not unfolded because it's opaque in db1, where bar is *)
             Fail typeclasses eauto with db1 db2 nocore.  (* fails with tc eauto *)
             Succeed eauto with db1 db2 nocore.           (* ignores the distinction *)
@@ -684,7 +687,7 @@ Creating Hints
             Definition one := 1.
             Opaque one.  (* not relevant to hint selection *)
 
-            Theorem bar: 1=1.  reflexivity.  Qed.
+            Theorem bar: 1=1. Proof. reflexivity. Qed.
 
             Create HintDb db.       (* constants, etc. transparent by default *)
             Hint Opaque one : db.   (* except for "one" *)
@@ -692,6 +695,7 @@ Creating Hints
             Set Typeclasses Debug Verbosity 1.
 
             Goal one = 1.
+            Proof.
             Fail typeclasses eauto with db nocore.  (* fail: no match for (one = 1) *)
 
             Hint Transparent one : db.
@@ -718,6 +722,7 @@ Creating Hints
             Hint Resolve I : db.
             Print HintDb db. (*  For XXX -> indicates XXX is the head constant *)
             Goal Tru.
+            Proof.
 
          .. rocqtop:: all
 
@@ -787,6 +792,7 @@ Creating Hints
             Hint Extern 5 ({?X1 = ?X2} + {?X1 <> ?X2}) =>
               generalize  X1, X2; decide equality : eqdec.
             Goal forall a b:list (nat * nat), {a = b} + {a <> b}.
+            Proof.
             info_auto with eqdec.
 
    .. cmd:: Hint Cut [ @hints_regexp ] {? : {+ @ident } }
