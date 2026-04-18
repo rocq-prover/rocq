@@ -226,6 +226,8 @@ module type StagedModS = sig
   val load_keep : int -> full_path -> ModPath.t -> keep_objects -> unit
   val load_escape : int -> full_path -> ModPath.t -> escape_objects -> unit
   val load_module : int -> full_path -> ModPath.t -> substitutive_objects -> unit
+  val load_mod_abbrev : int -> full_path -> ModPath.t -> unit
+  val open_mod_abbrev  : open_filter -> int -> full_path -> ModPath.t -> unit
   val import_modules : export:Lib.export_flag -> (open_filter * ModPath.t) list -> unit
 
   val add_leaf : Libobject.t -> unit
@@ -529,6 +531,15 @@ and load_module i obj_path obj_mp sobjs =
     load_objects exp_substituted_view (i+1) prefix objs
   end
 
+let load_mod_abbrev i sp mp =
+  Actions.enter_module mp sp i;
+  let sobjs = ModSubstObjs.get mp in
+  if sobjs_no_functor sobjs then begin
+    let objs = expand_sobjs sobjs in
+    let objs = List.map substituted_object_view objs in
+    load_objects exp_substituted_view (i+1) { obj_path=sp; obj_mp=mp } objs
+  end
+
 (** {6 Implementation of Import and Export commands} *)
 
 let mark_object f obj (exports,acc) =
@@ -638,6 +649,10 @@ and open_escape f i ((sp,kn),kobjs) =
   let obj_mp = mp_of_kn kn in
   let prefix = { obj_path=sp; obj_mp; } in
   open_objects escape_view f (i+1) prefix kobjs.escape_objects
+
+let open_mod_abbrev f i sp mp =
+  let sobjs = ModSubstObjs.get mp in
+  open_module f i sp mp sobjs
 
 let cache_include (prefix, aobjs) =
   let o = expand_aobjs aobjs in
@@ -1725,3 +1740,54 @@ let process_module_binding mbid me =
   InterpVisitor.load_module 1 sp mp sobjs
 
 let () = append_end_library_hook Profile_tactic.do_print_results_at_close
+
+let load_syn_mod_abbrev i ((sp,_),(_,mp)) =
+  SynterpVisitor.load_mod_abbrev i sp mp
+let open_syn_mod_abbrev f i ((sp,_),(_,mp)) =
+  SynterpVisitor.open_mod_abbrev f i sp mp
+
+let cache_syn_mod_abbrev o =
+  load_syn_mod_abbrev 1 o;
+  open_syn_mod_abbrev unfiltered 1 o
+
+let synModAbbrev =
+  declare_named_object {
+    (default_object ~stage:Synterp "SynModAbbrev") with
+    cache_function = cache_syn_mod_abbrev;
+    load_function = load_syn_mod_abbrev;
+    open_function = open_syn_mod_abbrev;
+    subst_function = (fun (subst,(local,mp)) -> local, Mod_subst.subst_mp subst mp);
+    classify_function = (fun (local,o) -> if local then Dispose else Substitute);
+    discharge_function = (fun ((local,_) as o) -> if local then None else Some o);
+  }
+
+let load_in_mod_abbrev i ((sp,_),(_,mp)) =
+  InterpVisitor.load_mod_abbrev i sp mp
+let open_in_mod_abbrev f i ((sp,_),(_,mp)) =
+  InterpVisitor.open_mod_abbrev f i sp mp
+
+let cache_in_mod_abbrev o =
+  load_in_mod_abbrev 1 o;
+  open_in_mod_abbrev unfiltered 1 o
+
+let inModAbbrev =
+  declare_named_object {
+    (default_object ~stage:Interp "InModAbbrev") with
+    cache_function = cache_in_mod_abbrev;
+    load_function = load_in_mod_abbrev;
+    open_function = open_in_mod_abbrev;
+    subst_function = (fun (subst,(local,mp)) -> local, Mod_subst.subst_mp subst mp);
+    classify_function = (fun (local,o) -> if local then Dispose else Substitute);
+    discharge_function = (fun ((local,_) as o) -> if local then None else Some o);
+  }
+
+let syn_mod_abbrev ~local id qid =
+  let mp =
+    try Nametab.locate_module qid
+    with Not_found -> user_err ?loc:qid.loc Pp.(str"Unknown Module " ++ pr_qualid qid ++ str".")
+  in
+  Lib.add_leaf (synModAbbrev id (local,mp));
+  mp
+
+let in_mod_abbrev ~local id mp =
+  Lib.add_leaf (inModAbbrev id (local,mp))

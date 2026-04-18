@@ -186,3 +186,7 @@ val debug_print_modtab : unit -> Pp.t
 
 val process_module_binding :
   MBId.t -> (Constr.t * UVars.AbstractContext.t option) Declarations.module_alg_expr -> unit
+
+val syn_mod_abbrev : local:bool -> Id.t -> Libnames.qualid -> ModPath.t
+
+val in_mod_abbrev : local:bool -> Id.t -> ModPath.t -> unit
