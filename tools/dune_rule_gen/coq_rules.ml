@@ -288,3 +288,18 @@ let install_rule ~(cctx : Context.t) coq_module =
   Dune_file.Install.{ section = "lib_root"; package = "rocq-core"; files }
 
 let install_rules ~dir_info ~cctx = gen_rules ~dir_info ~cctx ~f:install_rule
+
+let package_install_rule ~(cctx : Context.t) coq_module =
+  let tname, rule = cctx.theory.dirname, cctx.rule in
+  let dst_base = match tname with
+    | ["Corelib"] -> "rocq.d"
+    | ["Ltac2"] -> Filename.concat "ltac2" "rocq.d"
+    | _ -> invalid_arg "Unsupported theory name (not Corelib or Ltac2)."
+  in
+  let files =
+    Coq_module.install_files ~tname ~rule coq_module
+    |> List.map (fun (src,dst) -> src, Filename.concat dst_base dst) in
+  (* May need to woraround invalid empty `(install )` stanza if that happens *)
+  Dune_file.Install.{ section = "lib"; package = "rocq-core"; files }
+
+let package_install_rules ~dir_info ~cctx = gen_rules ~dir_info ~cctx ~f:package_install_rule
