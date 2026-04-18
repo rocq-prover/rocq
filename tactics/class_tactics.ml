@@ -777,7 +777,7 @@ module Search = struct
         let gls = CList.map Proofview.drop_state gls in
         let j = List.length gls in
         let () = ppdebug 0 (fun () ->
-            pr_depth (i :: info.search_depth) ++ str": " ++ Lazy.force pp
+            pr_depth (i :: info.search_depth) ++ str": applied " ++ Lazy.force pp
             ++ str" on" ++ spc () ++ pr_ev sigma (Proofview.Goal.goal gl)
             ++ str", " ++ int j ++ str" subgoal(s)" ++
             (Option.cata (fun k -> str " in addition to the first " ++ int k)
@@ -836,9 +836,14 @@ module Search = struct
       in
       if path_matches_epsilon derivs then aux e tl
       else
+        let i = !idx in
+        let () = if hint_extern then ppdebug 0 (fun () ->
+            pr_depth (i :: info.search_depth) ++ str": running " ++ Lazy.force pp
+            ++ str" on" ++ spc () ++ pr_ev sigma (Proofview.Goal.goal gl))
+        in
         ortac
              (with_shelf tac >>= fun s ->
-              let i = !idx in incr idx; result s i None)
+              incr idx; result s i None)
              (fun e' ->
                 (pr_error e'; aux (merge_exceptions e e') tl))
     and aux e = function
