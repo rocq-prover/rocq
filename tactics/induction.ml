@@ -200,8 +200,8 @@ type eliminator =
 
 let is_nonrec env mind = (Environ.lookup_mind (fst mind) env).mind_finite == Declarations.BiFinite
 
-let find_ind_eliminator env sigma ind s =
-  let c = Elimschemes.lookup_eliminator env ind s in
+let find_ind_eliminator env sigma ind dep s =
+  let c = Elimschemes.lookup_eliminator env ind ~dep s in
   let sigma, c = EConstr.fresh_global env sigma c in
   sigma, destConst sigma c
 
@@ -1110,7 +1110,14 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
       let tac = destruct_tac with_evars id dep in
       sigma, false, tac, indsign
     | ElimOver (id, (mind, u)) ->
-       let sigma, ind = find_ind_eliminator env sigma mind s in
+       let dep_in_tmpcl = occur_var env sigma id tmpcl in
+       let dep =
+          (* true *)
+          (* dep_in_hyps ||*)
+          dep_in_tmpcl
+          (* || default_case_analysis_dependence env mind *)
+       in
+       let sigma, ind = find_ind_eliminator env sigma mind (Some dep) s in
        let elimt = Retyping.get_type_of env sigma (mkConstU ind) in
        let scheme = compute_elim_sig sigma elimt in
        let indsign = compute_scheme_signature sigma scheme id (mkIndU (mind, u)) in

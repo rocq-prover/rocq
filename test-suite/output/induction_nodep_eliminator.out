@@ -1,0 +1,19 @@
+(fun n : nat =>
+ nat_rec (fun _ : nat => bool) true (fun (_ : nat) (_ : bool) => true) n)
+(fun n : nat =>
+ nat_ind (fun _ : nat => True) I (fun (_ : nat) (_ : True) => I) n)
+(fun n : nat =>
+ nat_ind (fun n0 : nat => n0 + 0 = n0) ?Goal
+   (fun (n0 : nat) (IHn : n0 + 0 = n0) => ?Goal0@{n:=n0}) n)
+(fun n : nat => nat_rec_nodep bool true (fun (_ : nat) (_ : bool) => true) n)
+(fun n : nat => nat_ind_nodep True I (fun (_ : nat) (_ : True) => I) n)
+(fun n : nat =>
+ nat_ind (fun n0 : nat => n0 + 0 = n0) ?Goal
+   (fun (n0 : nat) (IHn : n0 + 0 = n0) => ?Goal0@{n:=n0}) n)
+(fun (A : Type) (P : A -> Type) (l : list A) (p : for_all P l) =>
+ list_ind A (fun l0 : list A => for_all P l0 -> list {x : A & P x})
+   (fun p0 : for_all P nil => ?Goal@{p:=p0})
+   (fun (x : A) (l0 : list A) (IHl : for_all P l0 -> list {x0 : A & P x0})
+      (p0 : for_all P (cons x l0)) =>
+    ?Goal0@{l:=l0; p:=p0})
+   l p)
