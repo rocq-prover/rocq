@@ -344,6 +344,14 @@ let is_declared q g = match G.check_declared g.graph (Quality.Set.singleton q) w
 | Result.Ok _ -> true
 | Result.Error _ -> false
 
+let constraints_for ~kept g =
+  let add (q1,k,q2) accu = match k with
+    | AcyclicGraph.Eq ->
+      ElimConstraints.add (q1,ElimTo,q2) (ElimConstraints.add (q2,ElimTo,q1) accu)
+    | Le | Lt -> ElimConstraints.add (q1,ElimTo,q2) accu
+  in
+  G.constraints_for ~kept g.graph add ElimConstraints.empty
+
 let pr_qualities prq g = pr_pmap Pp.mt (pr_arc prq) (repr g)
 
 let explain_quality_inconsistency prv r =

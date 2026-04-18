@@ -103,6 +103,8 @@ val qvar_domain : t -> QVar.Set.t
 
 val is_empty : t -> bool
 
+val constraints_for : kept:Quality.Set.t -> t -> ElimConstraints.t
+
 val pr_qualities : Quality.printer -> t -> Pp.t
 
 val explain_quality_inconsistency : Quality.printer -> explanation option -> Pp.t

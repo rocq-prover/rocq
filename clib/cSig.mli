@@ -72,6 +72,7 @@ module type SetS = sig
     val to_rev_seq : t -> elt Seq.t
     val add_seq : elt Seq.t -> t -> t
     val of_seq : elt Seq.t -> t
+    val map : (elt -> elt) -> t -> t
 end
 (** OCaml set operations which require the order structure to be efficient. *)
 

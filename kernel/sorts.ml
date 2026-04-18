@@ -358,7 +358,7 @@ module ElimConstraint = struct
   let hcons = Hashcons.simple_hcons Hasher.generate Hasher.hcons ()
 end
 
-module ElimConstraints = struct include Stdlib.Set.Make(ElimConstraint)
+module ElimConstraints = struct include CSet.Make(ElimConstraint)
   let pr prq c =
     let open Pp in
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
