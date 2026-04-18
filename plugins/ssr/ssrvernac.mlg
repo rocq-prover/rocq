@@ -43,15 +43,15 @@ IGNORE KEYWORDS
 
 (* global syntactic changes and vernacular commands *)
 
-(** Alternative notations for "match" and anonymous arguments. *)(* ************)
+(** Alternative notations for anonymous arguments. *)(* ************)
 
 (* Syntax:                                                        *)
 (*  let: <pattern> := <term> in ...                               *)
 (*  let: <pattern> [in ...] := <term> return ... in ...           *)
 (* The scope of a top-level 'as' in the pattern extends over the  *)
-(* 'return' type (dependent if/let).                              *)
+(* 'return' type (dependent let).                              *)
 (* Note that the optional "in ..." appears next to the <pattern>  *)
-(* rather than the <term> in then "let:" syntax. The alternative  *)
+(* rather than the <term> in the "let:" syntax. The alternative   *)
 (* would lead to ambiguities in, e.g.,                            *)
 (* let: p1 := (*v---INNER LET:---v *)                             *)
 (*   let: p2 := let: p3 := e3 in k return t in k2 in k1 return t' *)
@@ -62,9 +62,6 @@ IGNORE KEYWORDS
 (* display style -- why aren't these strings?); also, the v8.1    *)
 (* pretty-printer only allows extension hooks for printing        *)
 (* integer or string literals.                                    *)
-(*   Also note that in the v8 grammar "is" needs to be a keyword; *)
-(* as this can't be done from an ML extension file, the new       *)
-(* syntax will only work when ssreflect.v is imported.            *)
 
 let no_ct = None, None and no_rt = None
 let aliasvar = function
