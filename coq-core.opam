@@ -25,7 +25,7 @@ homepage: "https://rocq-prover.org/"
 doc: "https://rocq-prover.org/docs/"
 bug-reports: "https://github.com/rocq-prover/rocq/issues"
 depends: [
-  "dune" {>= "3.8"}
+  "dune" {>= "3.21"}
   "rocq-runtime" {= version}
   "odoc" {with-doc}
 ]
@@ -44,6 +44,7 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/rocq-prover/rocq.git"
+x-maintenance-intent: ["(any)"]
 post-messages: [
   "Coq has been renamed to The Rocq Prover, see https://rocq-prover.org/refman/changes.html#porting-to-the-rocq-prover for details. 
    This package provides compatibility binaries to ease the transition to the new rocq binary."

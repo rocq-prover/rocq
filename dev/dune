@@ -58,11 +58,4 @@
 (install
  (section lib)
  (package rocq-runtime)
- (files
-  (ml_toplevel/include as dev/ml_toplevel/include)
-  (ml_toplevel/include_directories as dev/ml_toplevel/include_directories)
-  (ml_toplevel/include_printers as dev/ml_toplevel/include_printers)
-  (ml_toplevel/include_utilities as dev/ml_toplevel/include_utilities)))
-; TODO: the above can be written as follow:
-;         (files (glob_files (ml_toplevel/** with_prefix dev)))
-;       , but this is only possible with dune language 3.11 or later
+ (files (glob_files (ml_toplevel/** with_prefix dev))))

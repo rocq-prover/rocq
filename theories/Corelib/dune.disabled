@@ -1,5 +1,5 @@
 ; For now we use coq_dune to generate the rules here
-(coq.theory
+(rocq.theory
  (name Corelib)
  (package rocq-core)
  (synopsis "Rocq's Core Library")

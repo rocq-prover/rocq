@@ -16,7 +16,7 @@ language used (by the configuration file---which can be different from
 the one used in the Rocq repository), e.g.:
 
 ```
-(lang dune 2.0)
+(lang dune 3.21)
 ```
 
 - You will get faster rebuilds if you enable Dune caching. This is
