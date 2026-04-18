@@ -946,12 +946,12 @@ Arguments sexists A%_type_scope B%_function_scope
 Expands to: Inductive sort_poly_elab.Records.sexists
 Declared in library sort_poly_elab, line 611, characters 12-19
 sexists_ind@{Type ;
-sort_poly_elab.396}
-     : forall (A : Type@{sort_poly_elab.396}) (B : forall _ : A, Prop)
+sort_poly_elab.395}
+     : forall (A : Type@{sort_poly_elab.395}) (B : forall _ : A, Prop)
          (P : Prop) (_ : forall (a : A) (_ : B a), P)
-         (_ : sexists@{Type ; sort_poly_elab.396} A B),
+         (_ : sexists@{Type ; sort_poly_elab.395} A B),
        P
-(* {sort_poly_elab.396} |=  *)
+(* {sort_poly_elab.395} |=  *)
 R8@{α α0 ; u} : Type@{α ; u+1}
 (* α α0 ; u |=  *)
 

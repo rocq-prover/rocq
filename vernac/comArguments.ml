@@ -47,6 +47,8 @@ let inBidiHints =
                    discharge_function = discharge_bidi_hints;
                  }
 
+let register_bidi_hints gr n =
+  Lib.add_leaf (inBidiHints (gr, n))
 
 let warn_arguments_assert =
   CWarnings.create ~name:"arguments-assert" ~category:CWarnings.CoreCategories.vernacular
@@ -313,14 +315,14 @@ let vernac_arguments ~section_local reference args more_implicits flags =
     if section_local then
       Pretyping.add_bidirectionality_hint env sr n
     else
-      Lib.add_leaf (inBidiHints (sr, Some n))
+      register_bidi_hints sr (Some n)
   end;
 
   if clear_bidi_hint then begin
     if section_local then
       Pretyping.clear_bidirectionality_hint env sr
     else
-      Lib.add_leaf (inBidiHints (sr, None))
+      register_bidi_hints sr None
   end;
 
   if not (renaming_specified ||

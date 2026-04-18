@@ -919,6 +919,16 @@ let declare_structure (decl:Record_decl.t) ~schemes =
       ~default_dep_elim
       ~schemes
   in
+  let nparams = Context.Rel.nhyps decl.entry.mie.mind_entry_params in
+  let () =
+    List.iteri (fun i ind_entry ->
+      let ind = kn, i in
+      List.iteri (fun j ctor_entry ->
+        let gr = GlobRef.ConstructRef (ind, succ j) in
+        ComArguments.register_bidi_hints gr (Some nparams))
+        ind_entry.mind_entry_lc)
+      decl.entry.mie.mind_entry_inds
+  in
   let map i ({ RecordEntry.inhabitant_id; implfs; fieldlocs }, { Data.is_coercion; proj_flags; }) =
     let rsp = (kn, i) in (* This is ind path of idstruc *)
     let cstr = (rsp, 1) in
