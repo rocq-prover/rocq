@@ -68,9 +68,11 @@ to accessible objects.  (see Section :ref:`invocation-of-tactics`).
 :cmd:`Eval` and :cmd:`Compute` are also :token:`query_command`\s, which are
 described elsewhere
 
-.. cmd:: About @reference {? @univ_name_list }
+.. cmd:: About {? Type } {+, @reference {? @univ_name_list } }
 
-   Displays information about the :n:`@reference` object, which may be the
+   Displays information about one or more definitions. When multiple
+   comma-separated :n:`@reference`\s are given, their information is printed
+   in order with a blank line between each. Each :n:`@reference` may be the
    name of any accessible defined symbol, such as a theorem, constructor,
    fixpoint or module.  If a proof is open, :n:`@reference` may refer to a
    hypothesis of the selected goal.  The information includes:
@@ -80,6 +82,9 @@ described elsewhere
    argument scopes (as set in the definition of :token:`reference` or
    subsequently with the :cmd:`Arguments` command). It does not print the
    body of definitions or proofs.
+
+   If the :n:`Type` flag is given, only the type of each :n:`@reference` is
+   displayed, omitting the additional information.
 
    See :cmd:`Strategy` for details on opacity.
 

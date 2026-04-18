@@ -97,6 +97,68 @@ Inductive eq (A : Type) (x : A) : A -> Prop :=  eq_refl : x = x.
 
 Arguments eq {A}%_type_scope x _
 Arguments eq_refl {A}%_type_scope {x}, {_} _
+nat_rect :
+forall P : nat -> Type,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+nat_rect is not universe polymorphic
+Arguments nat_rect P%_function_scope O S%_function_scope n%_nat_scope
+nat_rect is transparent
+Expands to: Constant Corelib.Init.Datatypes.nat_rect
+Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+
+nat_ind :
+forall P : nat -> Prop,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+nat_ind is not universe polymorphic
+Arguments nat_ind P%_function_scope O S%_function_scope n%_nat_scope
+nat_ind is transparent
+Expands to: Constant Corelib.Init.Datatypes.nat_ind
+Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+
+nat_sind :
+forall P : nat -> SProp,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+nat_sind is not universe polymorphic
+Arguments nat_sind P%_function_scope O S%_function_scope n%_nat_scope
+nat_sind is transparent
+Expands to: Constant Corelib.Init.Datatypes.nat_sind
+Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+nat_rect :
+forall P : nat -> Type,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+
+nat_ind :
+forall P : nat -> Prop,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+
+nat_sind :
+forall P : nat -> SProp,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+n:nat
+
+Hypothesis of the goal context.
+n:nat
+
+Hypothesis of the goal context.
+nat_ind :
+forall P : nat -> Prop,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+nat_ind is not universe polymorphic
+Arguments nat_ind P%_function_scope O S%_function_scope n%_nat_scope
+nat_ind is transparent
+Expands to: Constant Corelib.Init.Datatypes.nat_ind
+Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+nat_ind :
+forall P : nat -> Prop,
+P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
 n:nat
 
 Hypothesis of the goal context.
@@ -140,7 +202,7 @@ fst is a projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutProj.fst
-Declared in library PrintInfos, line 57, characters 21-24
+Declared in library PrintInfos, line 69, characters 21-24
 fst : forall A B : Type, prod A B -> A
 
 fst is not universe polymorphic
@@ -148,4 +210,4 @@ fst is a primitive projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutPrimProj.fst
-Declared in library PrintInfos, line 63, characters 21-24
+Declared in library PrintInfos, line 75, characters 21-24

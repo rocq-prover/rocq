@@ -701,9 +701,14 @@ let pr_printable = function
     keyword "Print Scope" ++ spc() ++ str s
   | PrintVisibility s ->
     keyword "Print Visibility" ++ pr_opt str s
-  | PrintAbout (qid,l,gopt) ->
+  | PrintAbout (type_only, items, gopt) ->
     pr_opt (fun g -> Goal_select.pr_goal_selector g ++ str ":"++ spc()) gopt
-    ++ keyword "About" ++ spc()  ++ pr_smart_global qid ++ pr_full_univ_name_list l
+    ++ keyword "About"
+    ++ (if type_only then spc () ++ keyword "Type" else mt ())
+    ++ spc()
+    ++ prlist_with_sep (fun () -> str "," ++ spc())
+         (fun (qid,l) -> pr_smart_global qid ++ pr_full_univ_name_list l)
+         items
   | PrintImplicit qid ->
     keyword "Print Implicit" ++ spc()  ++ pr_smart_global qid
   (* spiwack: command printing all the axioms and section variables used in a

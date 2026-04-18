@@ -50,7 +50,7 @@ val print_notation : env -> Evd.evar_map
 
 val print_abbreviation : Global.indirect_accessor -> env -> Evd.evar_map -> KerName.t -> Pp.t
 
-val print_about : env -> Evd.evar_map -> qualid Constrexpr.or_by_notation ->
+val print_about : env -> Evd.evar_map -> type_only:bool -> qualid Constrexpr.or_by_notation ->
   UnivNames.univ_name_list option -> Pp.t
 val print_impargs : env -> GlobRef.t -> Pp.t
 
