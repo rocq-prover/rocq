@@ -3,7 +3,8 @@
  (synopsis "Rocq's Loadable Libraries (vo) Support")
  (public_name rocq-runtime.library)
  (wrapped false)
- (libraries kernel))
+ (libraries kernel)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.library)

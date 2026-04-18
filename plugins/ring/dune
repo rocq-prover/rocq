@@ -2,7 +2,8 @@
  (name ring_plugin)
  (public_name rocq-runtime.plugins.ring)
  (synopsis "Rocq's ring plugin")
- (libraries rocq-runtime.plugins.ltac))
+ (libraries rocq-runtime.plugins.ltac)
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.ring)

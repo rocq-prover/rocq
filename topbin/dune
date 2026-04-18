@@ -12,7 +12,8 @@
  (modules rocq)
  (modes exe byte)
  ; we statically link the "small" subcommands instead of having separate binaries
- (libraries rocqshim coqdeplib coqpp coqdoclib rocqwc rocqworkmgr rocqtex rocqmakefile))
+ (libraries rocqshim coqdeplib coqpp coqdoclib rocqwc rocqworkmgr rocqtex rocqmakefile)
+ (flags :standard -open Rocqutils))
 
 (install
  (section bin)
@@ -45,7 +46,8 @@
  (modules rocqnative)
  (libraries rocq-runtime.kernel)
  (modes exe byte) ; NB byte not installed, just exists for debugger
- (link_flags -linkall))
+ (link_flags -linkall)
+ (flags :standard -open Rocqutils))
 
 (executable
  (name coqnative)
@@ -67,7 +69,8 @@
  (name rocqworker_with_drop)
  (modules rocqworker_with_drop)
  (modes byte)
- (libraries compiler-libs.toplevel rocq-runtime.config.byte rocq-runtime.toplevel rocq-runtime.dev findlib.top))
+ (libraries compiler-libs.toplevel rocq-runtime.config.byte rocq-runtime.toplevel rocq-runtime.dev findlib.top)
+ (flags :standard -open Rocqutils))
 
 (install
  (section libexec)

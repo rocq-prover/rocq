@@ -7,5 +7,5 @@
 (executable
  (name gen_rules)
  (modules gen_rules)
- (flags :standard -w +a-40-42)
+ (flags :standard -w +a-40-42 -open Rocqutils)
  (libraries coq_dune))
