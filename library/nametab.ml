@@ -104,7 +104,7 @@ let corelib_id = Id.of_string "Corelib"
 
 let warn_deprecated_dirpath_Coq =
   CWarnings.create ~name:"deprecated-dirpath-Coq"
-    ~category:Deprecation.Version.v9_0
+    ~category:Deprecation.Version.v9_0 ~default:AsError
     ~quickfix:(fun ~loc (old_id, new_id) -> [Quickfix.make ~loc new_id])
     (fun (old_id, new_id) ->
       Pp.(old_id ++ spc () ++ str "has been replaced by" ++ spc () ++ new_id ++ str "."))

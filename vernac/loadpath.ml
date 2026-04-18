@@ -265,7 +265,7 @@ let locate_qualified_library ?root qid :
 
 let warn_deprecated_missing_stdlib =
   CWarnings.create ~name:"deprecated-missing-stdlib"
-    ~category:Deprecation.Version.v9_0
+    ~category:Deprecation.Version.v9_0 ~default:AsError
     (fun qid ->
       Pp.(str "Loading Stdlib without prefix is deprecated." ++ spc ()
           ++ str "Use \"From Stdlib Require " ++ Libnames.pr_qualid qid

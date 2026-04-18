@@ -1,4 +1,4 @@
-Require Import Coq.Setoids.Setoid.
+From Corelib Require Import Setoid.
 Definition silly (n : nat) := True.
 Ltac silly :=
   lazymatch goal with
