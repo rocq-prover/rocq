@@ -69,7 +69,7 @@ module type S = sig
     type 'a parser_fun = { parser_fun : keyword_state -> (keyword_state,te) LStream.t -> 'a parser_v }
     val of_parser : string -> 'a parser_fun -> 'a t mod_estate
     val parse_token_stream : 'a t -> (keyword_state,te) LStream.t -> 'a parser_v with_gstate
-    val print : Format.formatter -> 'a t -> unit with_kwstate with_estate
+    val print : flatten:bool -> Format.formatter -> 'a t -> unit with_kwstate with_estate
     val is_empty : 'a t -> bool with_estate
     type any_t = Any : 'a t -> any_t
     val accumulate_in : any_t list -> any_t list CString.Map.t with_estate
@@ -771,15 +771,23 @@ let levels_of_rules entry edata st =
     let levs = List.fold_left fold [] rules in
     levs1 @ List.rev levs @ levs2
 
-type 's ex_symbols =
-| ExS : ('s, 'tr, 'p) ty_symbols -> 's ex_symbols
+(* used for printing and iteration *)
+type ex_symbols =
+  | ExNil
+  | ExCns : _ ty_symbol * ex_symbols list -> ex_symbols
 
-let rec flatten_tree : type s tr a. (s, tr, a) ty_tree -> s ex_symbols list =
-  function
+let exCns ~flatten n s =
+  if flatten then
+    List.map (fun s -> ExCns (n, [s])) s
+  else [ExCns (n, s)]
+
+let rec ex_tree : type s tr a. flatten:bool -> (s, tr, a) ty_tree -> ex_symbols list =
+  fun ~flatten -> function
     DeadEnd -> []
-  | LocAct _ -> [ExS TNil]
+  | LocAct _ -> [ExNil]
   | Node (_, {node = n; brother = b; son = s}) ->
-      List.map (fun (ExS l) -> ExS (TCns (MayRec2, n, l))) (flatten_tree s) @ flatten_tree b
+    let s = ex_tree ~flatten s in
+    exCns ~flatten n s @ ex_tree ~flatten b
 
 let utf8_string_escaped s =
   let b = Buffer.create (String.length s) in
@@ -819,65 +827,73 @@ let print_tokens kwstate ppf = function
     (fun ppf -> List.iter (function TPattern p -> fprintf ppf ";@ "; print_token kwstate true ppf p))
     pl
 
-let rec print_symbol : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
-  fun kwstate ppf ->
-  function
-  | Slist0 s -> fprintf ppf "LIST0 %a" (print_symbol1 kwstate) s
-  | Slist0sep (s, t) ->
+let print_level ~flatten =
+  let rec print_symbol : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
+    fun kwstate ppf ->
+    function
+    | Slist0 s -> fprintf ppf "LIST0 %a" (print_symbol1 kwstate) s
+    | Slist0sep (s, t) ->
       fprintf ppf "LIST0 %a SEP %a" (print_symbol1 kwstate) s (print_symbol1 kwstate) t
-  | Slist1 s -> fprintf ppf "LIST1 %a" (print_symbol1 kwstate) s
-  | Slist1sep (s, t) ->
+    | Slist1 s -> fprintf ppf "LIST1 %a" (print_symbol1 kwstate) s
+    | Slist1sep (s, t) ->
       fprintf ppf "LIST1 %a SEP %a" (print_symbol1 kwstate) s (print_symbol1 kwstate) t
-  | Sopt s -> fprintf ppf "OPT %a" (print_symbol1 kwstate) s
-  | Stoken p -> print_token kwstate true ppf p
-  | Stokens [TPattern p] -> print_token kwstate true ppf p
-  | Stokens pl -> print_tokens kwstate ppf pl
-  | Snterml (e, l) ->
+    | Sopt s -> fprintf ppf "OPT %a" (print_symbol1 kwstate) s
+    | Stoken p -> print_token kwstate true ppf p
+    | Stokens [TPattern p] -> print_token kwstate true ppf p
+    | Stokens pl -> print_tokens kwstate ppf pl
+    | Snterml (e, l) ->
       fprintf ppf "%s%s@ LEVEL@ %a" e.ename ""
         print_str l
-  | s -> (print_symbol1 kwstate) ppf s
-and print_symbol1 : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
-  fun kwstate ppf ->
-  function
-  | Snterm e -> fprintf ppf "%s%s" e.ename ""
-  | Sself -> pp_print_string ppf "SELF"
-  | Snext -> pp_print_string ppf "NEXT"
-  | Stoken p -> print_token kwstate false ppf p
-  | Stokens [TPattern p] -> print_token kwstate false ppf p
-  | Stokens pl -> print_tokens kwstate ppf pl
-  | Stree t -> print_level kwstate ppf pp_print_space (flatten_tree t)
-  | s ->
+    | s -> (print_symbol1 kwstate) ppf s
+  and print_symbol1 : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
+    fun kwstate ppf ->
+    function
+    | Snterm e -> fprintf ppf "%s%s" e.ename ""
+    | Sself -> pp_print_string ppf "SELF"
+    | Snext -> pp_print_string ppf "NEXT"
+    | Stoken p -> print_token kwstate false ppf p
+    | Stokens [TPattern p] -> print_token kwstate false ppf p
+    | Stokens pl -> print_tokens kwstate ppf pl
+    | Stree t -> print_level kwstate ppf pp_print_space (ex_tree ~flatten t)
+    | s ->
       fprintf ppf "(%a)" (print_symbol kwstate) s
-and print_rule : type s tr p. _ -> formatter -> (s, tr, p) ty_symbols -> unit =
-  fun kwstate ppf symbols ->
-  fprintf ppf "@[<hov 0>";
-  let rec fold : type s tr p. _ -> (s, tr, p) ty_symbols -> unit =
-    fun sep symbols ->
-    match symbols with
-    | TNil -> ()
-    | TCns (_, symbol, symbols) ->
-      fprintf ppf "%t%a" sep (print_symbol kwstate) symbol;
-      fold (fun ppf -> fprintf ppf ";@ ") symbols
+  and print_rule : _ -> formatter -> ex_symbols -> unit =
+    fun kwstate ppf symbols ->
+    fprintf ppf "@[<hov 0>";
+    let rec fold : _ -> ex_symbols -> unit =
+      fun sep symbols ->
+      match symbols with
+      | ExNil -> ()
+      | ExCns (symbol, symbols) ->
+        fprintf ppf "%t%a" sep (print_symbol kwstate) symbol;
+        match symbols with
+        | [symbols] ->
+          fold (fun ppf -> fprintf ppf ";@ ") symbols
+        | _ -> fprintf ppf ";@ "; print_level kwstate ppf pp_force_newline symbols
+    in
+    let () = fold (fun ppf -> ()) symbols in
+    fprintf ppf "@]"
+  and print_level : _ -> _ -> _ -> ex_symbols list -> _ =
+    fun kwstate ppf pp_print_space rules ->
+    fprintf ppf "@[<hov 0>[ ";
+    let () =
+      Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "%a| " pp_print_space ())
+        (fun ppf rule -> print_rule kwstate ppf rule)
+        ppf rules
+    in
+    fprintf ppf " ]@]"
   in
-  let () = fold (fun ppf -> ()) symbols in
-  fprintf ppf "@]"
-and print_level : type s. _ -> _ -> _ -> s ex_symbols list -> _ =
-  fun kwstate ppf pp_print_space rules ->
-  fprintf ppf "@[<hov 0>[ ";
-  let () =
-    Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "%a| " pp_print_space ())
-      (fun ppf (ExS rule) -> print_rule kwstate ppf rule)
-      ppf rules
-  in
-  fprintf ppf " ]@]"
+  print_level
 
-let print_levels kwstate ppf elev =
+let ex_level ~flatten lev =
+  let suff = ex_tree ~flatten lev.lsuffix in
+  let lrec = if List.is_empty suff then [] else exCns ~flatten Sself suff in
+  lrec @ ex_tree ~flatten lev.lprefix
+
+let print_levels ~flatten kwstate ppf elev =
   Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "@,| ")
     (fun ppf (Level lev) ->
-       let rules =
-         List.map (fun (ExS t) -> ExS (TCns (MayRec2, Sself, t))) (flatten_tree lev.lsuffix) @
-         flatten_tree lev.lprefix
-       in
+       let rules = ex_level ~flatten lev in
        fprintf ppf "@[<hov 2>";
        begin match lev.lname with
            Some n -> fprintf ppf "%a@;<1 2>" print_str n
@@ -890,13 +906,13 @@ let print_levels kwstate ppf elev =
          | NonA -> fprintf ppf "NONA"
        end;
        fprintf ppf "@]@;<1 2>";
-       print_level kwstate ppf pp_force_newline rules)
+       print_level ~flatten kwstate ppf pp_force_newline rules)
     ppf elev
 
-let print_entry estate kwstate ppf e =
+let print_entry ~flatten estate kwstate ppf e =
   fprintf ppf "@[<v 0>[ ";
   begin match (get_entry estate e).edesc with
-    Dlevels elev -> print_levels kwstate ppf elev
+    Dlevels elev -> print_levels ~flatten kwstate ppf elev
   | Dparser _ -> fprintf ppf "<parser>"
   end;
   fprintf ppf " ]@]"
@@ -1639,7 +1655,7 @@ module Entry = struct
     let estate = add_entry otag estate e (of_parser_val e p) in
     estate, e
 
-  let print ppf e estate kwstate = fprintf ppf "%a@." (print_entry estate kwstate) e
+  let print ~flatten ppf e estate kwstate = fprintf ppf "%a@." (print_entry ~flatten estate kwstate) e
 
   let is_empty e estate = match (get_entry estate e).edesc with
   | Dparser _ -> failwith "Arbitrary parser entry"
@@ -1647,12 +1663,12 @@ module Entry = struct
 
   type any_t = Any : 'a t -> any_t
 
-  let rec iter_in_symbols : type s tr p. _ -> (s, tr, p) ty_symbols -> unit = fun f symbols ->
+  let rec iter_in_symbols : _ -> ex_symbols -> unit = fun f symbols ->
     match symbols with
-    | TNil -> ()
-    | TCns (_, symbol, symbols) ->
+    | ExNil -> ()
+    | ExCns (symbol, symbols) ->
       iter_in_symbol f symbol;
-      iter_in_symbols f symbols
+      List.iter (iter_in_symbols f) symbols
 
   and iter_in_symbol : type s tr r. _ -> (s, tr, r) ty_symbol -> unit = fun f ->
     function
@@ -1664,17 +1680,14 @@ module Entry = struct
     | Sopt s -> iter_in_symbol f s
     | Stoken _ | Stokens _ -> ()
     | Sself | Snext -> ()
-    | Stree t -> List.iter (fun (ExS rule) -> iter_in_symbols f rule) (flatten_tree t)
+    | Stree t -> List.iter (fun rule -> iter_in_symbols f rule) (ex_tree ~flatten:false t)
 
   let iter_in estate f e = match (get_entry estate e).edesc with
     | Dparser _ -> ()
     | Dlevels elev ->
       List.iter (fun (Level lev) ->
-          let rules =
-            List.map (fun (ExS t) -> ExS (TCns (MayRec2, Sself, t))) (flatten_tree lev.lsuffix) @
-            flatten_tree lev.lprefix
-          in
-          List.iter (fun (ExS rule) -> iter_in_symbols f rule) rules)
+          let rules = ex_level ~flatten:false lev in
+          List.iter (fun rule -> iter_in_symbols f rule) rules)
         elev
 
   let same_entry (Any e) (Any e') = Option.has_some (eq_entry e e')

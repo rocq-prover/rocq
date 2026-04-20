@@ -68,8 +68,8 @@ val add_abbreviation : local:Libobject.locality -> Globnames.extended_global_ref
 
 (** Print the Camlp5 state of a grammar *)
 
-val pr_grammar : string list -> Pp.t
-val pr_custom_grammar : Libnames.qualid -> Pp.t
+val pr_grammar : flatten:bool -> string list -> Pp.t
+val pr_custom_grammar : flatten:bool -> Libnames.qualid -> Pp.t
 val pr_keywords : unit -> Pp.t
 
 (** Register a handler for Print Custom Grammar. The handler should
