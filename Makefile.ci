@@ -36,6 +36,7 @@ CI_PLATFORM_FULL= \
     ci-menhir \
     ci-mtac2 \
     ci-paramcoq \
+    ci-proofgeneral \
     ci-quickchick \
     ci-reduction_effects \
     ci-relation_algebra \
@@ -230,6 +231,8 @@ ci-vst: ci-compcert
 ci-compcert: ci-menhir ci-flocq
 
 ci-paramcoq: ci-stdlib
+
+ci-proofgeneral: ci-stdlib
 
 ci-perennial: ci-stdlib
 
