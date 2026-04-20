@@ -129,6 +129,17 @@ Section :ref:`typing-rules`.
    .. exn:: The term @term has type @type while it is expected to have type @type'.
       :undocumented:
 
+.. attr:: refine
+
+   This :term:`attribute` can be used to leave holes or not provide
+   all fields in a definition and open the tactic mode to fill them.
+   It works exactly as if no :term:`body` had been given and the
+   :tacn:`refine` tactic has been used first.
+
+   Note that if you finish the proof with :cmd:`Qed` the entire
+   definition will be opaque, including the initial term.
+
+
 .. _Assertions:
 
 Assertions and proofs
