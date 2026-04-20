@@ -226,6 +226,7 @@ open Evd
 val pr_global_env : env -> GlobRef.t -> Pp.t
 
 val pr_existential_key : env -> evar_map -> Evar.t -> Pp.t
+val evar_string : env -> evar_map -> Evar.t -> string
 
 val evar_suggested_name : env -> evar_map -> Evar.t -> Id.t
 

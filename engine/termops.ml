@@ -132,6 +132,11 @@ let evar_suggested_name env sigma evk =
   let (_, n) = Evar.Map.fold fold names (false, 0) in
   if n = 0 then id else Nameops.add_suffix id (string_of_int (pred n))
 
+let evar_string env sigma evk =
+  match Evd.evar_ident evk sigma with
+  | Some id -> Libnames.string_of_path id
+  | None -> Id.to_string (evar_suggested_name env sigma evk)
+
 let pr_existential_key env sigma evk =
 let open Evd in
 match evar_ident evk sigma with
