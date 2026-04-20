@@ -29,12 +29,12 @@ Entry term is
   | "let";
     [ "fix"; fix_decl; "in"; term LEVEL "200"
     | "cofix"; cofix_body; "in"; term LEVEL "200"
-    | "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":="; term
-      LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
-    | name; binders; let_type_cstr; ":="; term LEVEL "200"; "in"; term LEVEL
-      "200"
-    | [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":="; term
-      LEVEL "200"; "in"; term LEVEL "200" ]
+    | "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
+      term LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
+    | name; binders; let_type_cstr; ":="; term LEVEL "200"; "in";
+      term LEVEL "200"
+    | [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
+      term LEVEL "200"; "in"; term LEVEL "200" ]
   | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
     term LEVEL "200"
   | "fix"; fix_decls
@@ -52,8 +52,8 @@ Entry term is
     | "%_"; IDENT ] ]
 | "0" LEFTA
   [ "["; term LEVEL "10";
-    [ "+"; "+"; "*"; LIST1 (term LEVEL "10") SEP ["+"; "+"; "*"]; "|"; term
-      LEVEL "200"; "]"
+    [ "+"; "+"; "*"; LIST1 (term LEVEL "10") SEP ["+"; "+"; "*"]; "|";
+      term LEVEL "200"; "]"
     | "|"; term LEVEL "200"; "]" ]
   | "("; term LEVEL "200"; ")"
   | "{|"; record_declaration; '|}'

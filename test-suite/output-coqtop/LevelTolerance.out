@@ -598,8 +598,8 @@ Rocq < Rocq < Entry ltac_expr is
 | "1" RIGHTA
   [ "atom1"
   | "fun"; LIST1 input_fun; "=>"; ltac_expr LEVEL "5"
-  | "let"; [ IDENT "rec" |  ]; LIST1 let_clause SEP "with"; "in"; ltac_expr
-    LEVEL "5"
+  | "let"; [ IDENT "rec" |  ]; LIST1 let_clause SEP "with"; "in";
+    ltac_expr LEVEL "5"
   | IDENT "first"; "["; LIST0 ltac_expr SEP "|"; "]"
   | IDENT "solve"; "["; LIST0 ltac_expr SEP "|"; "]"
   | IDENT "idtac"; LIST0 message_token

@@ -842,8 +842,7 @@ let print_level ~flatten =
     | Stokens [TPattern p] -> print_token kwstate true ppf p
     | Stokens pl -> print_tokens kwstate ppf pl
     | Snterml (e, l) ->
-      fprintf ppf "%s%s@ LEVEL@ %a" e.ename ""
-        print_str l
+      fprintf ppf "%s LEVEL %a" e.ename print_str l
     | s -> (print_symbol1 kwstate) ppf s
   and print_symbol1 : type s tr r. _ -> formatter -> (s, tr, r) ty_symbol -> unit =
     fun kwstate ppf ->

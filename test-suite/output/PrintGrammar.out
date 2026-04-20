@@ -59,12 +59,12 @@ Entry term is
   [ SELF; "^"; term LEVEL "30" ]
 | "10" LEFTA
   [ SELF; LIST1 arg
-  | "exists2"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; ","; term LEVEL
-    "200"; "&"; term LEVEL "200"
-  | "exists2"; "'"; pattern LEVEL "0"; ","; term LEVEL "200"; "&"; term LEVEL
-    "200"
-  | "exists2"; name; ":"; term LEVEL "200"; ","; term LEVEL "200"; "&"; term
-    LEVEL "200"
+  | "exists2"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; ",";
+    term LEVEL "200"; "&"; term LEVEL "200"
+  | "exists2"; "'"; pattern LEVEL "0"; ","; term LEVEL "200"; "&";
+    term LEVEL "200"
+  | "exists2"; name; ":"; term LEVEL "200"; ","; term LEVEL "200"; "&";
+    term LEVEL "200"
   | "exists2"; name; ","; term LEVEL "200"; "&"; term LEVEL "200"
   | "exists"; "!"; open_binders; ","; term LEVEL "200"
   | "exists"; open_binders; ","; term LEVEL "200"
@@ -76,8 +76,8 @@ Entry term is
   | "let"; "cofix"; cofix_body; "in"; term LEVEL "200"
   | "let"; "'"; pattern LEVEL "200"; OPT [ "in"; pattern LEVEL "200" ]; ":=";
     term LEVEL "200"; OPT case_type; "in"; term LEVEL "200"
-  | "let"; name; binders; let_type_cstr; ":="; term LEVEL "200"; "in"; term
-    LEVEL "200"
+  | "let"; name; binders; let_type_cstr; ":="; term LEVEL "200"; "in";
+    term LEVEL "200"
   | "let"; [ "("; LIST0 name SEP ","; ")" | "()" ]; as_return_type; ":=";
     term LEVEL "200"; "in"; term LEVEL "200"
   | "if"; term LEVEL "200"; as_return_type; "then"; term LEVEL "200"; "else";
@@ -96,19 +96,19 @@ Entry term is
   | SELF; "%"; IDENT
   | SELF; "%_"; IDENT ]
 | "0" LEFTA
-  [ "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "&"; term LEVEL
-    "200"; "}"
+  [ "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "&";
+    term LEVEL "200"; "}"
   | "{"; "'"; pattern LEVEL "0"; "&"; term LEVEL "200"; "}"
-  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "&"; term LEVEL
-    "200"; "&"; term LEVEL "200"; "}"
-  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "&"; term LEVEL
-    "200"; "}"
-  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "|"; term LEVEL
-    "200"; "&"; term LEVEL "200"; "}"
-  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "|"; term LEVEL
-    "200"; "}"
-  | "{"; "'"; pattern LEVEL "0"; "|"; term LEVEL "200"; "&"; term LEVEL
-    "200"; "}"
+  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "&";
+    term LEVEL "200"; "&"; term LEVEL "200"; "}"
+  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "&";
+    term LEVEL "200"; "}"
+  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "|";
+    term LEVEL "200"; "&"; term LEVEL "200"; "}"
+  | "{"; "'"; pattern LEVEL "0"; ":"; term LEVEL "200"; "|";
+    term LEVEL "200"; "}"
+  | "{"; "'"; pattern LEVEL "0"; "|"; term LEVEL "200"; "&";
+    term LEVEL "200"; "}"
   | "{"; "'"; pattern LEVEL "0"; "|"; term LEVEL "200"; "}"
   | "{"; term LEVEL "99"; "&"; term LEVEL "200"; "&"; term LEVEL "200"; "}"
   | "{"; term LEVEL "99"; "&"; term LEVEL "200"; "}"
@@ -122,8 +122,8 @@ Entry term is
   | "{"; term LEVEL "99"; "|"; term LEVEL "200"; "}"
   | "{"; term LEVEL "99"; "}"
   | IDENT "ltac"; ":"; "("; ltac_expr; ")"
-  | "("; term LEVEL "200"; ","; term LEVEL "200"; ","; LIST1 (term LEVEL
-    "200") SEP ","; ")"
+  | "("; term LEVEL "200"; ","; term LEVEL "200"; ",";
+    LIST1 (term LEVEL "200") SEP ","; ")"
   | "("; term LEVEL "200"; ","; term LEVEL "200"; ")"
   | "("; term LEVEL "200"; ")"
   | "{|"; record_declaration; '|}'
