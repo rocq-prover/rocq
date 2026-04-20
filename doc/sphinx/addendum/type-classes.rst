@@ -59,9 +59,6 @@ proof mode with no open goals is started.
    #[refine] Instance unit_EqDec' : EqDec unit := { eqb x y := true }.
    Proof. intros [] [];reflexivity. Defined.
 
-Note that if you finish the proof with :cmd:`Qed` the entire instance
-will be opaque, including the fields given in the initial term.
-
 Alternatively, in :flag:`Program Mode` if one does not give all the
 members in the Instance declaration, Rocq generates obligations for the
 remaining fields, e.g.:
@@ -369,16 +366,7 @@ Command summary
    Like :cmd:`Definition`, it also supports the :attr:`program`
    attribute to switch the type checking to `Program` (chapter
    :ref:`programs`) and to use the obligation mechanism to manage missing
-   fields.
-
-   Finally, it supports the lighter :attr:`refine` attribute:
-
-   .. attr:: refine
-
-      This :term:`attribute` can be used to leave holes or not provide all
-      fields in the definition of an instance and open the tactic mode
-      to fill them.  It works exactly as if no :term:`body` had been given and
-      the :tacn:`refine` tactic has been used first.
+   fields, and it also supports the lighter :attr:`refine` attribute:
 
    .. cmd:: Declare Instance @ident_decl {* @binder } : @term {? @hint_info }
 
