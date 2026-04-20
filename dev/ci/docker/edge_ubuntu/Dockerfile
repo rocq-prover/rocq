@@ -32,6 +32,8 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         ca-certificates \
         # Required for fiat-crypto and Coqtail
         python-is-python3 \
+        # for PG
+        emacs \
       && rm -rf /var/lib/apt/lists /usr/share/doc
 
 # More dependencies of the sphinx doc
