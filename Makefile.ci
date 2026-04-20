@@ -61,7 +61,7 @@ CI_TARGETS= \
     ci-coqtail \
     ci-coqutil \
     ci-cross_crypto \
-    ci-coq_lsp \
+    ci-rocq_lsp \
     ci-coq_performance_tests \
     ci-coq_tools \
     ci-deriving \
@@ -236,7 +236,7 @@ ci-perennial: ci-stdlib
 ci-aac_tactics: ci-stdlib
 ci-relation_algebra: ci-aac_tactics ci-mathcomp
 
-ci-coq_lsp: ci-stdlib
+ci-rocq_lsp: ci-stdlib
 
 ci-sf: ci-stdlib
 
