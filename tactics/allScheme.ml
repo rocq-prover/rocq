@@ -19,7 +19,7 @@ open Reduction
 open Context.Rel.Declaration
 
 (** Generalize parameters for template and univ poly, and split uniform and non-uniform parameters *)
-let split_uparans_nuparams mib params =
+let split_uparams_nuparams mib params =
   let (uparams, nuparams) = Context.Rel.chop_nhyps mib.mind_nparams_rec (List.rev params) in
   (List.rev uparams, List.rev nuparams)
 
@@ -183,7 +183,8 @@ and compute_params_rec_strpos_aux cache env kn uparams nuparams nparams_rec npar
   dbg_strpos Pp.(fun () -> MutInd.print kn ++ str ": Final Result = " ++ pp_strpos res);
   res
 
-and compute_params_rec_strpos cache env kn mib = match Mindmap_env.find_opt kn cache.Cache.uniform with
+and compute_params_rec_strpos cache env kn mib =
+  match Mindmap_env.find_opt kn cache.Cache.uniform with
 | None ->
   (* reset the context *)
   let env = set_rel_context_val empty_rel_context_val env in
@@ -244,7 +245,7 @@ let rec compute_user_strpos_aux user_names allowed_uparams strpos =
 
 let compute_user_strpos mib user_id default_strpos =
   let user_names = List.map (fun i -> Name i) user_id in
-  let uparams = fst @@ split_uparans_nuparams mib mib.mind_params_ctxt in
+  let uparams = fst @@ split_uparams_nuparams mib mib.mind_params_ctxt in
   let uparams_decl = List.filter is_local_assum uparams in
   let uparams_decl_name = List.map get_name uparams_decl in
   let allowed_uparams = List.map (fun (name, i) -> if i then name else Anonymous)
@@ -273,17 +274,17 @@ let compute_positive_uparams_and_suffix env kn mib user_id =
 (** Warning for looking up the [all] predicate and its theorem  *)
 let warn_lookup_not_found =
   CWarnings.create ~name:"register-all" ~category:CWarnings.CoreCategories.automation
-  Pp.(fun (key, ind, ind_nested) ->
+  Pp.(fun (key, ind, nested_container) ->
          Nametab.XRefs.pr (TrueGlobal (IndRef ind))
       ++ strbrk " is nested using "
-      ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested))
+      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
       ++ strbrk ". "
       ++ strbrk "No scheme for "
-      ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested))
+      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
       ++ strbrk " is registered as "
       ++ strbrk key ++  strbrk ". "
       ++ strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
-      ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested))
+      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
       ++ str ".\"."
     )
 
@@ -291,42 +292,42 @@ let warn_lookup_not_found =
     If they are not found, lookup the general [all] predicate.
     Returns if the partial [all] was found, and the global references.
     Raise a warning if none is found. *)
-let lookup_all ind ind_nested args_are_nested =
+let lookup_all ind nested args_are_nested =
     let (_, (pred, _)) = partial_suffix args_are_nested in
-    match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
+    match DeclareScheme.lookup_scheme_opt pred nested with
     | Some ref_pred ->
         Some (true, ref_pred)
     | None ->
         let (_, (pred, _)) = default_suffix in
-        match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
+        match DeclareScheme.lookup_scheme_opt pred nested with
         | Some ref_pred -> Some (false, ref_pred)
-        | None -> warn_lookup_not_found (pred, ind, ind_nested); None
+        | None -> warn_lookup_not_found (pred, ind, nested); None
 
 (** Lookup the [all] predicate, and its theorem *)
-let lookup_all_theorem_aux ind ind_nested =
+let lookup_all_theorem_aux ind nested_container =
   let (_, (pred, thm)) = default_suffix in
-  match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
-  | None -> warn_lookup_not_found (pred, ind, ind_nested); None
+  match DeclareScheme.lookup_scheme_opt pred nested_container with
+  | None -> warn_lookup_not_found (pred, ind, nested_container); None
   | Some ref_pred ->
-      match DeclareScheme.lookup_scheme_opt thm (GlobRef.IndRef ind_nested) with
-      | None -> warn_lookup_not_found (thm, ind, ind_nested); None
+      match DeclareScheme.lookup_scheme_opt thm nested_container with
+      | None -> warn_lookup_not_found (thm, ind, nested_container); None
       | Some ref_thm -> Some (false, ref_pred, ref_thm)
 
 (** Lookup the partial [all] predicate and its theorem for [ind_nested] for [args_are_nested].
     If they are not found, lookup the general [all] predicate and its theorem.
     Returns if the partial [all] was found, and the global references.
     Raise a warning if none is found. *)
-let lookup_all_theorem ind ind_nested args_are_nested =
+let lookup_all_theorem ind nested_container args_are_nested =
   let (_, (pred, thm)) = partial_suffix args_are_nested in
-  match DeclareScheme.lookup_scheme_opt pred (GlobRef.IndRef ind_nested) with
-  | None -> lookup_all_theorem_aux ind ind_nested
+  match DeclareScheme.lookup_scheme_opt pred nested_container with
+  | None -> lookup_all_theorem_aux ind nested_container
   | Some ref_pred ->
-      match DeclareScheme.lookup_scheme_opt thm (GlobRef.IndRef ind_nested) with
+      match DeclareScheme.lookup_scheme_opt thm nested_container with
       | Some ref_thm ->
           Some (true, ref_pred, ref_thm)
       | None ->
-          warn_lookup_not_found (thm, ind,ind_nested);
-          lookup_all_theorem_aux ind ind_nested
+          warn_lookup_not_found (thm, ind,nested_container);
+          lookup_all_theorem_aux ind nested_container
 
 
   (** {6 Instantiate the All Predicate and its Theorem } *)
@@ -432,8 +433,8 @@ type head_argument =
   (** constant context, position of the uniform parameter, args *)
   | ArgIsInd of int * constr array * constr array
   (** constant context, position of the one_inductive body, inst_nuparams inst_indices *)
-  | ArgIsNested of MutInd.t * int * mutual_inductive_body * bool list
-                    * one_inductive_body * constr array * constr array
+  | ArgIsNested of GlobRef.t * bool list
+                    * rel_context * constr array * constr array
   (** constant context, ind_nested, mutual and one body, strictly positivity of its uniform parameters,
       instantiation uniform paramerters, and of both non_uniform parameters and indices *)
   | ArgIsCst
@@ -461,7 +462,7 @@ let view_argument kn mib key_uparams strpos t =
           else
             return @@ (cxt, ArgIsCst)
     end
-  | Ind ((kn_ind, pos_ind), _) ->
+  | Ind ((kn_ind, pos_ind as ind), _) ->
     (* If it is the inductive *)
     if kn = kn_ind then
       let (_, local_nuparams_indices) = Array.chop mib.mind_nparams_rec iargs in
@@ -473,13 +474,15 @@ let view_argument kn mib key_uparams strpos t =
     else
       (* If it may be nested *)
       let* env = get_env in
-      let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
+      let (mib_nested, ind_nested) = lookup_mind_specif env ind in
       let mib_nested_strpos = compute_params_rec_strpos env kn_ind mib_nested in
       (* Check if at least one parameter can be nested upon *)
       if List.exists (fun a -> a) mib_nested_strpos then
+        let uparams_nested = of_rel_context @@ fst @@
+              split_uparams_nuparams mib_nested mib_nested.mind_params_ctxt in
         let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
-        return @@ (cxt, ArgIsNested (kn_ind, pos_ind, mib_nested, mib_nested_strpos,
-                          ind_nested, inst_uparams, inst_nuparams_indices))
+        return @@ (cxt, ArgIsNested (GlobRef.IndRef ind, mib_nested_strpos,
+                          uparams_nested, inst_uparams, inst_nuparams_indices))
       else
         return @@ (cxt, ArgIsCst)
   | _ -> return @@ (cxt, ArgIsCst)
@@ -497,7 +500,7 @@ let view_argument kn mib key_uparams strpos t =
 
 let get_params_sep sigma mib u =
   let (sigma, params, sub_temp) = Inductiveops.paramdecls_fresh_template sigma (mib, u) in
-  let (uparams, nuparams) = split_uparans_nuparams mib params in
+  let (uparams, nuparams) = split_uparams_nuparams mib params in
   (sigma, uparams, nuparams, sub_temp)
 
 (** Closure of non-uniform parameters if [b], forgetting letins  *)
@@ -540,9 +543,7 @@ let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
   let* (locs, hd) = view_argument kn mib key_uparams strpos arg in
   let@ _ = add_context Old naming_id locs in
   match hd with
-  | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
-      let uparams_nested = of_rel_context @@ fst @@
-            split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
+  | ArgIsNested (_, _, uparams_nested, inst_uparams, _) ->
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       let is_nested_arg_nested arg =
         let* (loc, hd) = decompose_lambda_decls arg in
@@ -558,9 +559,7 @@ let is_nested_arg kn mib key_uparams strpos arg =
   let* (locs, hd) = view_argument kn mib key_uparams strpos arg in
   let@ _ = add_context Old naming_id locs in
   match hd with
-  | ArgIsNested (kn_nested, _, mib_nested, _, _, inst_uparams, _) ->
-      let uparams_nested = of_rel_context @@ fst @@
-            split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
+  | ArgIsNested (_, _, uparams_nested, inst_uparams, _) ->
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       let is_nested_arg_nested arg =
         let* (loc, hd) = decompose_lambda_decls arg in
@@ -814,27 +813,25 @@ let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_
       | IndIsKn (kn_all, u_all) ->
           return @@ Some (mkApp (mkIndU ((kn_all, pos_ind), u_all), ind_args))
     end
-  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
-                  inst_uparams, inst_nuparams_indices) ->
+  | ArgIsNested (nested_container, nested_strpos,
+                  uparams_nested, inst_uparams, inst_nuparams_indices) ->
       (* eta expand arguments *)
-      let uparams_nested = of_rel_context @@ fst @@
-            split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates *)
       let compute_pred i x b = compute_pred_eta b
             (make_rec_call_hyp kn pos_ind mib rep_inds key_up strpos ualg) i x in
-      let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
       let args_are_nested = Array.map Option.has_some rec_preds in
       if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_all (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        match lookup_all (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
         | None ->
             return None
         | Some (partial_nesting, ref_pred) ->
             (* Create: all A0 PA0 ... An PAn B0 ... Bm i0 ... il (arg a0 ... an) *)
-            let* rec_hyp = make_all_predicate ~partial_nesting ref_pred mib_nested_strpos
+            let* rec_hyp = make_all_predicate ~partial_nesting ref_pred nested_strpos
                             inst_uparams rec_preds inst_nuparams_indices inst_arg in
             (* Add constrains with return sort *)
             match ualg with
@@ -1023,27 +1020,25 @@ let rec make_rec_call_proof kn knu pos_ind mib ((key_uparams, _, _) as key_up) k
       (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
       let* fix = geti_term key_fixs pos_ind_block in
       return @@ Some (mkApp (fix, Array.concat [inst_nuparams; inst_indices; [|inst_arg|]]))
-  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
-                  inst_uparams, inst_nuparams_indices) ->
+  | ArgIsNested (nested_container, nested_strpos,
+                  uparams_nested, inst_uparams, inst_nuparams_indices) ->
       (* eta expand arguments *)
-      let uparams_nested = of_rel_context @@ fst @@
-        split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates, and their proofs *)
       let compute_pred_preds i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib (IndIsKn knu) key_up strpos None) i x in
-      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list nested_strpos) in
       let compute_pred_holds i x b = compute_pred_eta b (make_rec_call_proof kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
-      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the local fundamental theorem *)
       let args_are_nested = Array.map Option.has_some rec_preds_hold in
       if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_all_theorem (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        match lookup_all_theorem (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
         | None ->
             return None
         | Some (partial_nesting, _, ref_thm) ->
-            let* rec_hyp_proof = make_all_theorem ~partial_nesting ref_thm mib_nested_strpos inst_uparams
+            let* rec_hyp_proof = make_all_theorem ~partial_nesting ref_thm nested_strpos inst_uparams
                             rec_preds rec_preds_hold inst_nuparams_indices inst_arg in
             return @@ Some rec_hyp_proof
       end

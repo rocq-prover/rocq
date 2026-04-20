@@ -173,24 +173,22 @@ let rec make_rec_call_hyp kn pos_ind mib ind_bodies key_preds key_arg arg_type =
           let* rec_hyp = make_pred true key_preds pred_pos pred_dep inst_nuparams inst_indices inst_arg in
           return (Some (rec_hyp))
     end
-  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
-                  inst_uparams, inst_nuparams_indices) ->
+  | ArgIsNested (nested_container, nested_strpos,
+                  uparams_nested, inst_uparams, inst_nuparams_indices) ->
       (* eta expand arguments *)
-      let uparams_nested = of_rel_context @@ fst @@
-                split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates *)
       let compute_pred i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib ind_bodies key_preds) i x in
-      let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
       let args_are_nested = Array.map Option.has_some rec_preds in
       if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_all_theorem (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        match lookup_all_theorem (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
         | None -> return None
         | Some (partial_nesting, ref_pred, _) ->
-          let* rec_hyp = make_all_predicate ~partial_nesting ref_pred mib_nested_strpos
+          let* rec_hyp = make_all_predicate ~partial_nesting ref_pred nested_strpos
                           inst_uparams rec_preds inst_nuparams_indices inst_arg in
           (* return *)
           return (Some (rec_hyp))
@@ -327,26 +325,24 @@ let rec make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs key_arg
         let* fix = geti_term key_fixs pred_pos in
         return @@ Some (mkApp (fix, Array.concat [inst_nuparams; inst_indices; [|inst_arg|]]))
     end
-  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
-                  inst_uparams, inst_nuparams_indices) ->
+  | ArgIsNested (nested_container, nested_strpos,
+                  uparams_nested, inst_uparams, inst_nuparams_indices) ->
       (* eta expand arguments *)
-      let uparams_nested = of_rel_context @@ fst @@
-              split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates, and their proofs *)
       let compute_pred_preds i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib ind_bodies key_preds) i x in
-      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list nested_strpos) in
       let compute_pred_holds i x b = compute_pred_eta b (make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs) i x in
-      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
+      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the local fundamental theorem *)
       let args_are_nested = Array.map Option.has_some rec_preds_hold in
       if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_all_theorem (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        match lookup_all_theorem (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
         | None -> return None
         | Some (partial_nesting, _, ref_thm) ->
-          let* rec_hyp = make_all_theorem ~partial_nesting ref_thm mib_nested_strpos inst_uparams
+          let* rec_hyp = make_all_theorem ~partial_nesting ref_thm nested_strpos inst_uparams
                           rec_preds rec_preds_hold inst_nuparams_indices inst_arg in
           return @@ Some rec_hyp
       end
