@@ -42,8 +42,8 @@ type printable =
   | PrintFullContext
   | PrintSectionContext of qualid
   | PrintInspect of int
-  | PrintGrammar of string list
-  | PrintCustomGrammar of qualid
+  | PrintGrammar of { flatten : bool; ent : string list }
+  | PrintCustomGrammar of { flatten : bool; ent : qualid }
   | PrintKeywords
   | PrintLoadPath of DirPath.t option
   | PrintLibraries

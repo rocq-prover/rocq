@@ -620,11 +620,12 @@ let pr_printable = function
     keyword "Print All"
   | PrintSectionContext s ->
     keyword "Print Section" ++ spc() ++ Libnames.pr_qualid s
-  | PrintGrammar ent ->
-    keyword "Print Grammar" ++ spc() ++
+  | PrintGrammar {flatten; ent} ->
+    keyword "Print Grammar" ++ (if not flatten then str " Tree" else mt()) ++ spc() ++
     prlist_with_sep spc str ent
-  | PrintCustomGrammar ent ->
-    keyword "Print Custom Grammar" ++ spc() ++ pr_qualid ent
+  | PrintCustomGrammar {flatten; ent} ->
+    keyword "Print Custom Grammar" ++ (if not flatten then str " Tree" else mt()) ++ spc() ++
+    pr_qualid ent
   | PrintKeywords ->
     keyword "Print Keywords"
   | PrintLoadPath dir ->

@@ -1169,12 +1169,12 @@ GRAMMAR EXTEND Gram
     [ [ IDENT "Term"; qid = smart_global; l = OPT univ_name_list -> { PrintName (qid,l) }
       | IDENT "All" -> { PrintFullContext }
       | IDENT "Section"; s = global -> { PrintSectionContext s }
-      | IDENT "Grammar"; ents = LIST0 IDENT ->
+      | IDENT "Grammar"; tree = OPT [ IDENT "Tree" -> { () } ]; ent = LIST0 IDENT ->
           (* This should be in "syntax" section but is here for factorization*)
-          { PrintGrammar ents }
-      | IDENT "Custom"; IDENT "Grammar"; ent = qualid ->
+          { let flatten = Option.is_empty tree in PrintGrammar {flatten; ent} }
+      | IDENT "Custom"; IDENT "Grammar"; tree = OPT [ IDENT "Tree" -> { () } ]; ent = qualid ->
           (* Should also be in "syntax" section *)
-          { PrintCustomGrammar ent }
+          { let flatten = Option.is_empty tree in PrintCustomGrammar {flatten; ent} }
       | IDENT "Keywords" ->
           { PrintKeywords }
       | IDENT "LoadPath"; dir = OPT dirpath -> { PrintLoadPath dir }
