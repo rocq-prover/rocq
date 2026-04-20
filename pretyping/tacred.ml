@@ -1295,14 +1295,11 @@ let unfold_red kn =
   in
   mkflags flags
 
-let error_opaque_evaluable env ref =
-  user_err Pp.(str (string_of_evaluable_ref env ref ^ " is opaque."))
-
 let unfold env sigma name c =
   if is_evaluable env sigma name then
     clos_norm_flags (unfold_red name) env sigma c
   else
-    error_opaque_evaluable env name
+    user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))
 
 (** [unfoldoccs : (readable_constraints -> (int list * full_path) -> constr -> constr)]
     unfolds the constant name in a term c following a list of occurrences occl.
@@ -1314,7 +1311,6 @@ let unfoldoccs env sigma (occs,name) c =
   | NoOccurrences -> c
   | AllOccurrences -> unfold env sigma name c
   | OnlyOccurrences _ | AllOccurrencesBut _ | AtLeastOneOccurrence ->
-    let () = if not (is_evaluable env sigma name) then error_opaque_evaluable env name in
     let (occ,uc) = substlin env sigma name occs c in
     if Int.equal occ 0 then
       user_err Pp.(str ((string_of_evaluable_ref env name)^" does not occur."));
