@@ -379,6 +379,7 @@ let gen_elim_term print_constr rec_hyp kn u mib uparams nuparams ind_bodies focu
   let is_rec =
     let (_, ind, _, _) = List.hd ind_bodies in
     List.length ind_bodies > 1 || (rec_hyp && Inductiveops.mis_is_recursive ind) in
+  (* dbg Pp.(fun () -> str "isrec:=" ++ bool is_rec); *)
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec

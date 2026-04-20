@@ -58,13 +58,13 @@ val make_all_theorem : partial_nesting:bool -> GlobRef.t ->  bool list -> constr
 
 type head_argument =
   | ArgIsSPUparam of int * constr array
-  (** constant context, position of the uniform parameter, args *)
+  (** position of the uniform parameter, args *)
   | ArgIsInd of int * constr array * constr array
-  (** constant context, position of the one_inductive body, inst_nuparams inst_indices *)
+  (** position of the one_inductive body, inst_nuparams, inst_indices *)
   | ArgIsNested of GlobRef.t * bool list
                     * rel_context * constr array * constr array
-  (** constant context, ind_nested, mutual and one body, strictly positivity of its uniform parameters,
-      instantiation uniform paramerters, and of both non_uniform parameters and indices *)
+  (** nested_container, strict positivity of its uniform parameters,
+      uniform parameters, their instantiation, and instantiation of both non_uniform parameters and indices *)
   | ArgIsCst
 
 (** View to decompose arguments as [forall locs, X] where [X] is further decomposed

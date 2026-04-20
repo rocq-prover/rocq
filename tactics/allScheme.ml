@@ -92,7 +92,7 @@ let rec compute_params_rec_strpos_arg cache env kn uparams nparams_rec nparams i
   let (env, strpos_local) = check_strpos_context env uparams init_value local_vars in
   (* check the head *)
   let (hd, inst_args) = decompose_app hd in
-  let srpos_hd =
+  let strpos_hd =
     match kind hd with
     | Rel k ->
         (* Check if it is the inductive *)
@@ -115,7 +115,8 @@ let rec compute_params_rec_strpos_arg cache env kn uparams nparams_rec nparams i
         else begin
           let mib_nested = lookup_mind kn_nested env in
           let mib_nested_strpos = compute_params_rec_strpos cache env kn_nested mib_nested in
-          let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec inst_args in
+          let (inst_uparams, inst_nuparams_indices) =
+            Array.chop mib_nested.mind_nparams_rec inst_args in
           let uparams_nested = List.rev @@ fst @@
                 Context.Rel.chop_nhyps mib_nested.mind_nparams_rec @@
                 List.rev mib_nested.mind_params_ctxt in
@@ -132,9 +133,14 @@ let rec compute_params_rec_strpos_arg cache env kn uparams nparams_rec nparams i
           let strpos_inst_nuparams_indices = andl_array (check_strpos env uparams) init_value inst_nuparams_indices in
           List.map2 (&&) strpos_inst_uparams strpos_inst_nuparams_indices
         end
+    | Const (c, _) ->
+      if is_array_type env c then
+        andl_array (compute_params_rec_strpos_arg cache env kn uparams nparams_rec nparams init_value) init_value inst_args
+      else
+        check_strpos env uparams hd
     | _ -> check_strpos env uparams hd
   in
-  List.map2 (&&) strpos_local srpos_hd
+  List.map2 (&&) strpos_local strpos_hd
 
 (** Computes which uniform parameters are strictly positive in a constructor *)
 and compute_params_rec_strpos_ctor cache env kn uparams nparams_rec nparams init_value (args, hd) =
@@ -275,6 +281,7 @@ let compute_positive_uparams_and_suffix env kn mib user_id =
 let warn_lookup_not_found =
   CWarnings.create ~name:"register-all" ~category:CWarnings.CoreCategories.automation
   Pp.(fun (key, ind, nested_container) ->
+      let generic_message =
          Nametab.XRefs.pr (TrueGlobal (IndRef ind))
       ++ strbrk " is nested using "
       ++ Nametab.XRefs.pr (TrueGlobal nested_container)
@@ -282,26 +289,30 @@ let warn_lookup_not_found =
       ++ strbrk "No scheme for "
       ++ Nametab.XRefs.pr (TrueGlobal nested_container)
       ++ strbrk " is registered as "
-      ++ strbrk key ++  strbrk ". "
-      ++ strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
+      ++ strbrk key ++  strbrk ". " in
+      let inductive_message =
+      strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
       ++ Nametab.XRefs.pr (TrueGlobal nested_container)
-      ++ str ".\"."
+      ++ str ".\"." in
+      match nested_container with
+      | GlobRef.IndRef _ -> generic_message ++ inductive_message
+      | _ -> generic_message
     )
 
-(** Lookup the partial [all] predicate for [ind_nested] for [args_are_nested].
+(** Lookup the partial [all] predicate for [nested_container] for [args_are_nested].
     If they are not found, lookup the general [all] predicate.
     Returns if the partial [all] was found, and the global references.
     Raise a warning if none is found. *)
-let lookup_all ind nested args_are_nested =
+let lookup_all ind nested_container args_are_nested =
     let (_, (pred, _)) = partial_suffix args_are_nested in
-    match DeclareScheme.lookup_scheme_opt pred nested with
+    match DeclareScheme.lookup_scheme_opt pred nested_container with
     | Some ref_pred ->
         Some (true, ref_pred)
     | None ->
         let (_, (pred, _)) = default_suffix in
-        match DeclareScheme.lookup_scheme_opt pred nested with
+        match DeclareScheme.lookup_scheme_opt pred nested_container with
         | Some ref_pred -> Some (false, ref_pred)
-        | None -> warn_lookup_not_found (pred, ind, nested); None
+        | None -> warn_lookup_not_found (pred, ind, nested_container); None
 
 (** Lookup the [all] predicate, and its theorem *)
 let lookup_all_theorem_aux ind nested_container =
@@ -313,7 +324,7 @@ let lookup_all_theorem_aux ind nested_container =
       | None -> warn_lookup_not_found (thm, ind, nested_container); None
       | Some ref_thm -> Some (false, ref_pred, ref_thm)
 
-(** Lookup the partial [all] predicate and its theorem for [ind_nested] for [args_are_nested].
+(** Lookup the partial [all] predicate and its theorem for [nested_container] for [args_are_nested].
     If they are not found, lookup the general [all] predicate and its theorem.
     Returns if the partial [all] was found, and the global references.
     Raise a warning if none is found. *)
@@ -430,13 +441,13 @@ let make_all_theorem ~partial_nesting ref_all_thm strpos inst_uparams inst_preds
 
 type head_argument =
   | ArgIsSPUparam of int * constr array
-  (** constant context, position of the uniform parameter, args *)
+  (** position of the uniform parameter, args *)
   | ArgIsInd of int * constr array * constr array
-  (** constant context, position of the one_inductive body, inst_nuparams inst_indices *)
+  (** position of the one_inductive body, inst_nuparams, inst_indices *)
   | ArgIsNested of GlobRef.t * bool list
                     * rel_context * constr array * constr array
-  (** constant context, ind_nested, mutual and one body, strictly positivity of its uniform parameters,
-      instantiation uniform paramerters, and of both non_uniform parameters and indices *)
+  (** nested_container, strict positivity of its uniform parameters,
+      uniform parameters, their instantiation, and that of both non_uniform parameters and indices *)
   | ArgIsCst
 
 (** View to decompose arguments as [forall locs, X] where [X] is further decomposed
@@ -485,6 +496,15 @@ let view_argument kn mib key_uparams strpos t =
                           uparams_nested, inst_uparams, inst_nuparams_indices))
       else
         return @@ (cxt, ArgIsCst)
+  | Const (c, _) ->
+      let* env = get_env in
+      if is_array_type env c then
+        let uparam_annot = Context.make_annot (Name (Id.of_string "A")) ERelevance.relevant in
+        let uparam_type =  mkType (Univ.Universe.make (Univ.Level.var 0)) in
+        assert (Array.length iargs = 1);
+        return @@ (cxt, ArgIsNested (GlobRef.ConstRef c, [true],
+                          [LocalAssum (uparam_annot, uparam_type)], iargs, [||]))
+      else return @@ (cxt, ArgIsCst)
   | _ -> return @@ (cxt, ArgIsCst)
 
 
