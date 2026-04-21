@@ -22,13 +22,16 @@ type root = filename * dirpath
 module Filename :
 sig
   type t
+  val make : filename -> t
   val repr : t -> filename
+  val dirname : t -> dirname
+  (** Guaranteed to be absolute, as if obtained through {!absolute_dir} *)
 end
 
 module FileSet : Set.S with type elt = Filename.t
 
 type fileset = private {
-  point : filename;
+  point : Filename.t;
   files : FileSet.t; (* guaranteed to contain [point] *)
 }
 
