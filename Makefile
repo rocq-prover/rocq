@@ -175,11 +175,20 @@ check:
 test-suite: dunestrap
 	dune runtest --no-buffer $(DUNEOPT)
 
-refman-html: dunestrap
-	dune build --no-buffer @refman-html
+.PHONY: doc/unreleased.rst
+doc/unreleased.rst:
+	cat doc/changelog/00-title.rst doc/changelog/*/*.rst > $@
 
-refman-pdf: dunestrap
-	dune build --no-buffer @refman-pdf
+WITHPYPATH:=PYTHONPATH=_build/default/config:doc/tools:$$PYTHONPATH
+
+refman-html: world doc/unreleased.rst
+	rm -rf doc/refman-html
+	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b html doc/sphinx doc/refman-html
+
+refman-pdf: world doc/unreleased.rst
+	rm -rf doc/refman-pdf
+	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b latex doc/sphinx doc/refman-pdf
+	$(MAKE) -C doc/refman-pdf LATEXMKOPTS=-silent
 
 corelib-html: dunestrap
 	dune build @corelib-html

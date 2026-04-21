@@ -449,7 +449,7 @@ doc:refman:
   artifacts:
     paths:
       - _build/log
-      - _build/default/doc/refman-html
+      - doc/refman-html
 
 doc:refman-pdf:
   extends: .doc-template
@@ -458,7 +458,7 @@ doc:refman-pdf:
   artifacts:
     paths:
       - _build/log
-      - _build/default/doc/refman-pdf
+      - doc/refman-pdf
 
 doc:init:
   extends: .doc-template
@@ -492,7 +492,7 @@ doc:refman:deploy:
     - if [ $CI_COMMIT_REF_NAME = "master" ] ; then rm -rf _deploy/$CI_COMMIT_REF_NAME/stdlib ; fi
     - mkdir -p _deploy/$CI_COMMIT_REF_NAME
     - cp -rv _build/default/_doc/_html _deploy/$CI_COMMIT_REF_NAME/api
-    - cp -rv _build/default/doc/refman-html _deploy/$CI_COMMIT_REF_NAME/refman
+    - cp -rv _build_ci/refman/refman-html _deploy/$CI_COMMIT_REF_NAME/refman
     - cp -rv _build/default/doc/corelib/html _deploy/$CI_COMMIT_REF_NAME/corelib
     - if [ $CI_COMMIT_REF_NAME = "master" ] ; then cp -rv saved_build_ci/stdlib/_build/default/doc/refman-html _deploy/$CI_COMMIT_REF_NAME/refman-stdlib ; fi
     - if [ $CI_COMMIT_REF_NAME = "master" ] ; then cp -rv saved_build_ci/stdlib/_build/default/doc/stdlib/html _deploy/$CI_COMMIT_REF_NAME/stdlib ; fi
@@ -1340,9 +1340,8 @@ doc:ci-refman:
   stage: build-3+
   artifacts:
     paths:
-      - _build/log
-      - _build/default/doc/refman-html
-      - _build/default/doc/refman-pdf
+      - _build_ci/refman/refman-html
+      - _build_ci/refman/refman-pdf
 
 pipeline-stats:
   image: $EDGE_IMAGE
