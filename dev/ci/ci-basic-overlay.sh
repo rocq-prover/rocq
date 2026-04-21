@@ -274,7 +274,7 @@ project coq_lsp "https://github.com/ejgallego/coq-lsp" "main"
 ########################################################################
 # Equations
 ########################################################################
-project equations "https://github.com/mattam82/Coq-Equations" "main"
+project equations "https://github.com/rocq-prover/equations" "main"
 # Contact @mattam82 on github
 
 ########################################################################
