@@ -2277,8 +2277,8 @@ let vernac_print =
     Prettyp.print_sec_context_typ env sigma qid
   | PrintInspect n -> with_proof_env @@ fun env sigma ->
     Prettyp.inspect env sigma n
-  | PrintGrammar ent -> no_state @@ fun () -> Metasyntax.pr_grammar ent
-  | PrintCustomGrammar ent -> no_state @@ fun () -> Metasyntax.pr_custom_grammar ent
+  | PrintGrammar {flatten; ent} -> no_state @@ fun () -> Metasyntax.pr_grammar ~flatten ent
+  | PrintCustomGrammar {flatten; ent} -> no_state @@ fun () -> Metasyntax.pr_custom_grammar ~flatten ent
   | PrintKeywords -> no_state Metasyntax.pr_keywords
   | PrintLoadPath dir -> (* For compatibility ? *) no_state @@ fun () -> print_loadpath dir
   | PrintLibraries -> no_state print_libraries

@@ -79,22 +79,22 @@ let intern_notation_entry = function
 
 let entry_buf = Buffer.create 64
 
-let pr_entry e =
+let pr_entry ~flatten e =
   let () = Buffer.clear entry_buf in
   let ft = Format.formatter_of_buffer entry_buf in
-  let () = Procq.Entry.print ft e in
+  let () = Procq.Entry.print ~flatten ft e in
   str (Buffer.contents entry_buf)
 
 let error_unknown_entry ?loc name =
   user_err ?loc Pp.(str "Unknown or unprintable grammar entry " ++ str name ++ str".")
 
-let pr_grammar_subset grammar =
+let pr_grammar_subset ~flatten grammar =
   let pp = String.Map.mapi (fun name l -> match l with
       | []  -> assert false
       | entries ->
         str "Entry " ++ str name ++ str " is" ++ fnl() ++
         prlist_with_sep (fun () -> str "or" ++ fnl())
-          (fun (Procq.Entry.Any e) -> pr_entry e)
+          (fun (Procq.Entry.Any e) -> pr_entry ~flatten e)
           entries)
       grammar
   in
@@ -134,13 +134,13 @@ let full_grammar () =
 
 let same_entry (Procq.Entry.Any e) (Procq.Entry.Any e') = (Obj.magic e) == (Obj.magic e')
 
-let pr_grammar = function
+let pr_grammar ~flatten = function
   | [] ->
     let grammar = full_grammar () in
-    pr_grammar_subset grammar
+    pr_grammar_subset ~flatten grammar
   | ["Full"] ->
     let grammar = Procq.Entry.all_in () in
-    pr_grammar_subset grammar
+    pr_grammar_subset ~flatten grammar
   | names ->
     let known, other = List.fold_left (fun (known,other) name ->
         match is_known name with
@@ -166,7 +166,7 @@ let pr_grammar = function
           grammar)
         grammar known
     in
-    pr_grammar_subset grammar
+    pr_grammar_subset ~flatten grammar
 
 let custom_grammars = ref []
 
@@ -186,7 +186,7 @@ let get_custom_grammars name =
   | [] -> raise (UnknownCustomEntry name)
   | _ :: _ -> List.flatten entries
 
-let pr_custom_grammar name =
+let pr_custom_grammar ~flatten name =
   let entries = get_custom_grammars name in
   let add_entry map (Procq.Entry.Any e as any) =
     String.Map.update (Procq.Entry.name e)
@@ -194,7 +194,7 @@ let pr_custom_grammar name =
       map
   in
   let map = List.fold_left add_entry String.Map.empty entries in
-  pr_grammar_subset map
+  pr_grammar_subset ~flatten map
 
 let pr_keywords () =
   Pp.prlist_with_sep Pp.fnl Pp.str (CString.Set.elements (CLexer.keywords (Procq.get_keyword_state())))

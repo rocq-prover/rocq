@@ -759,8 +759,8 @@ command: [
 | "Type" term
 | "Print" "All"
 | "Print" "Section" qualid
-| "Print" "Grammar" LIST0 ident
-| "Print" "Custom" "Grammar" qualid
+| "Print" "Grammar" OPT "Tree" LIST0 ident
+| "Print" "Custom" "Grammar" OPT "Tree" qualid
 | "Print" "Keywords"
 | "Print" "LoadPath" OPT dirpath
 | "Print" "Libraries"

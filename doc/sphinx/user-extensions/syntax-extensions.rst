@@ -719,7 +719,7 @@ Displaying information about notations
    Prints the current reserved :ref:`keywords <keywords>` and parser tokens, one
    per line. Keywords cannot be used as identifiers.
 
-.. cmd:: Print Grammar {* @ident }
+.. cmd:: Print Grammar {? Tree } {* @ident }
 
    When no :token:`ident` is provided, shows the whole grammar
    (to be specific, the grammar reachable from :term:`sentence` parsing
@@ -738,6 +738,23 @@ Displaying information about notations
    - `ltac2` - for Ltac2 notations (corresponding to :token:`ltac2_expr`)
 
    This command can display any nonterminal in the grammar reachable from `vernac_control`.
+
+   With `Tree`, the factorization structure used by the parsing engine
+   is displayed. Without it, factorized rules are separated.
+
+   .. example:: Printing factorized grammar
+
+      .. rocqtop:: all
+
+         Declare Custom Entry test.
+
+         Reserved Notation "'!' x '!' y" (in custom test at level 1).
+         Reserved Notation "'!' x '?' y" (in custom test).
+
+         Print Custom Grammar test.
+         Print Custom Grammar Tree test.
+
+      With `Tree` we can see that the common prefix `"!" SELF` was factorized.
 
    Most of the grammar in the documentation was updated in 8.12 to make it accurate and
    readable.  This was done using a new developer tool that extracts the grammar from the
@@ -1415,7 +1432,7 @@ Similarly, to indicate that a custom entry should parse global references
 
    Notation "x" := x (in custom expr at level 0, x global).
 
-.. cmd:: Print Custom Grammar @qualid
+.. cmd:: Print Custom Grammar {? Tree } @qualid
 
    This displays the state of the grammar for terms associated with
    the custom entry :token:`ident`.
