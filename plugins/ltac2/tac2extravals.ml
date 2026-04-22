@@ -57,7 +57,7 @@ let intern_constr_tacexpr ist c =
 let interp_constr flags ist c =
   let open Pretyping in
   let ist = to_lvar ist in
-  Tac2core_copy.pf_apply ~catch_exceptions:true begin fun env sigma ->
+  Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
     let (sigma, c) = understand_ltac flags env sigma ist WithoutTypeConstraint c in
     let c = Tac2ffi.of_constr c in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
@@ -66,7 +66,7 @@ let interp_constr flags ist c =
 
 let () =
   let intern = intern_constr_tacexpr in
-  let interp ist c = interp_constr Tac2core_copy.constr_flags ist c in
+  let interp ist c = interp_constr Tac2core.constr_flags ist c in
   let print env sigma c = str "constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
   let raw_print env sigma c =
     str "constr:(" ++ Ppconstr.(pr_lconstr_expr ~flags:(current_flags())) env sigma c ++ str ")"
@@ -83,7 +83,7 @@ let () =
 
 let () =
   let intern = intern_constr_tacexpr in
-  let interp ist c = interp_constr Tac2core_copy.open_constr_no_classes_flags ist c in
+  let interp ist c = interp_constr Tac2core.open_constr_no_classes_flags ist c in
   let print env sigma c = str "open_constr:(" ++ Printer.pr_lglob_constr_env env sigma c ++ str ")" in
   let raw_print env sigma c =
     str "open_constr:(" ++ Ppconstr.(pr_lconstr_expr ~flags:(current_flags())) env sigma c ++ str ")"
@@ -133,7 +133,7 @@ let () =
   in
   let interp env c =
     let ist = to_lvar env in
-    Tac2core_copy.pf_apply ~catch_exceptions:true begin fun env sigma ->
+    Tac2core.pf_apply ~catch_exceptions:true begin fun env sigma ->
       let c = Patternops.interp_pattern env sigma ist c in
       return (Tac2ffi.of_pattern c)
     end
@@ -302,7 +302,7 @@ let interp_preterm_var_as_constr ?loc env sigma tycon id =
     ltac_genargs = closure.genargs;
   }
   in
-  let flags = Tac2core_copy.preterm_flags in
+  let flags = Tac2core.preterm_flags in
   let tycon = let open Pretyping in match tycon with
     | Some ty -> OfType ty
     | None -> WithoutTypeConstraint
