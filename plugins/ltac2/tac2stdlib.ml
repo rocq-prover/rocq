@@ -838,7 +838,7 @@ let to_conv_pb v = match Tac2ffi.to_int v with
 
 let () =
   define "infer_conv" (to_conv_pb @--> transparent_state @-> constr @-> constr @-> tac bool) @@ fun pb ts c1 c2 ->
-  Tac2core.pf_apply @@ fun env sigma ->
+  Tac2api.pf_apply @@ fun env sigma ->
   match Reductionops.infer_conv ~pb ~ts env sigma c1 c2 with
   | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
   | None -> return false
