@@ -266,10 +266,10 @@ project coinduction "https://github.com/damien-pous/coinduction" "master"
 # Contact @damien-pous on github
 
 ########################################################################
-# coq-lsp
+# rocq-lsp
 ########################################################################
-project coq_lsp "https://github.com/ejgallego/coq-lsp" "main"
-# Contact @ejgallego on github
+project rocq_lsp "https://github.com/rocq-community/rocq-lsp" "main"
+# Contact @SkySkimmer on github
 
 ########################################################################
 # Equations

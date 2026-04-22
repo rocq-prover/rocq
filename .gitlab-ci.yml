@@ -1297,13 +1297,11 @@ library:ci-rupicola:
   - library:ci-bedrock2
   stage: build-3+
 
-# Disabled until a new maintainer is available
-#
-# plugin:ci-coq_lsp:
-#   extends: .ci-template-flambda
-#   needs:
-#   - build:edge+flambda
-#   - library:ci-stdlib+flambda
+plugin:ci-rocq_lsp:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
 
 plugin:ci-vsrocq:
   extends: .ci-template-flambda

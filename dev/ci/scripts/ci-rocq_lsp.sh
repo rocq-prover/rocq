@@ -5,7 +5,7 @@ set -e
 ci_dir="$(dirname "$0")"
 . "${ci_dir}/ci-common.sh"
 
-git_download coq_lsp
+git_download rocq_lsp
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
@@ -14,7 +14,7 @@ if [ -n "${GITLAB_CI}" ]; then
   export ROCQRUNTIMELIB="$PWD/_install_ci/lib/rocq-runtime"
 fi
 
-( cd "${CI_BUILD_DIR}/coq_lsp"
+( cd "${CI_BUILD_DIR}/rocq_lsp"
   dune build --root . --only-packages=coq-lsp @install
   # Tests
   _build/install/default/bin/coq-lsp --version
