@@ -12,7 +12,7 @@ Proof.
    Type@{Top.368} = Type@{Top.370}
 (dependent evars:) *)
   Fail change Type@{i} with (Obj set_cat@{i}). (* check that it fails *)
-  try change Type@{i} with (Obj set_cat@{i}). (* check that it's not an anomaly *)
+  Fail try change Type@{i} with (Obj set_cat@{i}). (* check that it's not an anomaly *)
 (* Anomaly: Uncaught exception Invalid_argument("Array.iter2", _).
 Please report. *)
 Abort.
