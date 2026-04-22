@@ -390,6 +390,12 @@ project http "https://github.com/liyishuai/coq-http" "master"
 # Contact @liyishuai on github
 
 ########################################################################
+# micromega-plugin
+########################################################################
+project micromega "https://github.com/rocq-community/micromega-plugin" "master"
+# Contact @fajb, @proux01 on github
+
+########################################################################
 # paramcoq
 ########################################################################
 project paramcoq "https://github.com/coq-community/paramcoq" "master"
