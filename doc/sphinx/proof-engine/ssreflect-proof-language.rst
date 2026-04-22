@@ -2565,10 +2565,12 @@ The following example requires the mathcomp and mczify libraries.
      Unset Printing Implicit Defensive.
      Set Warnings "-notation-overridden".
 
-  .. rocqtop:: all extra-mathcomp extra-mczify
+  .. rocqtop:: in extra-mathcomp extra-mczify
 
      From Corelib Require Import ssreflect_rw.
      From mathcomp Require Import ssrfun ssrbool ssrnat zify.
+
+  .. rocqtop:: all extra-mathcomp extra-mczify
 
      Lemma test : True.
      have H x (y : nat) : 2 * x + y = x + x + y by lia.
