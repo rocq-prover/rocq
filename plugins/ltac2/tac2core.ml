@@ -8,30 +8,13 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Util
-open Pp
-open Names
-open Tac2val
 open Tac2ffi
 open Tac2extffi
-open Tac2expr
-open Proofview.Notations
+open Tac2api
+open Tac2externals
+open Tac2helpers
 
-let ltac2_plugin = "rocq-runtime.plugins.ltac2"
-
-let constr_flags =
-  let open Pretyping in
-  {
-    use_coercions = true;
-    use_typeclasses = Pretyping.UseTC;
-    solve_unification_constraints = true;
-    fail_evar = true;
-    expand_evars = true;
-    program_mode = false;
-    poly = PolyFlags.default;
-    undeclared_evars_rr = false;
-    unconstrained_sorts = false;
-  }
+let constr_flags = Ltac2.Constr.Pretype.Flags.constr_flags
 
 let open_constr_no_classes_flags =
   let open Pretyping in
@@ -61,1758 +44,666 @@ let preterm_flags =
   unconstrained_sorts = false;
   }
 
-(** Standard values *)
-
-open Tac2quote.Refs
-
-let v_blk = Valexpr.make_block
-
-let of_relevance = function
-  | Sorts.Relevant -> ValInt 0
-  | Sorts.Irrelevant -> ValInt 1
-  | Sorts.RelevanceVar q -> ValBlk (0, [|of_qvar q|])
-
-let to_relevance = function
-  | ValInt 0 -> Sorts.Relevant
-  | ValInt 1 -> Sorts.Irrelevant
-  | ValBlk (0, [|qvar|]) ->
-    let qvar = to_qvar qvar in
-    Sorts.RelevanceVar qvar
-  | _ -> assert false
-
-(* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
-   ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
-let relevance = make_repr of_relevance to_relevance
-
-let of_rec_declaration (nas, ts, cs) =
-  let binders = Array.map2 (fun na t -> (na, t)) nas ts in
-  (Tac2ffi.of_array of_binder binders,
-  Tac2ffi.of_array Tac2ffi.of_constr cs)
-
-let to_rec_declaration (nas, cs) =
-  let nas = Tac2ffi.to_array to_binder nas in
-  (Array.map fst nas,
-  Array.map snd nas,
-  Tac2ffi.to_array Tac2ffi.to_constr cs)
-
-let of_case_invert = let open Constr in function
-  | NoInvert -> ValInt 0
-  | CaseInvert {indices} ->
-    v_blk 0 [|of_array of_constr indices|]
-
-let to_case_invert = let open Constr in function
-  | ValInt 0 -> NoInvert
-  | ValBlk (0, [|indices|]) ->
-    let indices = to_array to_constr indices in
-    CaseInvert {indices}
-  | _ -> CErrors.anomaly Pp.(str "unexpected value shape")
-
-let of_result f = function
-| Inl c -> v_blk 0 [|f c|]
-| Inr e -> v_blk 1 [|Tac2ffi.of_exn e|]
-
 (** Helper functions *)
 
-let thaw f : _ Proofview.tactic = f ()
-
-let fatal_flag : unit Exninfo.t = Exninfo.make "fatal_flag"
-
-let has_fatal_flag info = match Exninfo.get info fatal_flag with
-  | None -> false
-  | Some () -> true
-
-let set_bt info =
-  if !Tac2bt.print_ltac2_backtrace then
-    Tac2bt.get_backtrace >>= fun bt ->
-    Proofview.tclUNIT (Exninfo.add info Tac2bt.backtrace bt)
-  else Proofview.tclUNIT info
-
-let throw ?(info = Exninfo.null) e =
-  set_bt info >>= fun info ->
-  let info = Exninfo.add info fatal_flag () in
-  Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
-
-let fail ?(info = Exninfo.null) e =
-  set_bt info >>= fun info ->
-  Proofview.tclZERO ~info e
-
-let return x = Proofview.tclUNIT x
-let pname ?(plugin=ltac2_plugin) s = { mltac_plugin = plugin; mltac_tactic = s }
-
-let catchable_exception = function
-  | Logic_monad.Exception _ -> false
-  | e -> CErrors.noncritical e
-
-(* Adds ltac2 backtrace
-   With [passthrough:false], acts like [Proofview.wrap_exceptions] + Ltac2 backtrace handling
-*)
-let wrap_exceptions ?(passthrough=false) f =
-  try f ()
-  with e ->
-    let e, info = Exninfo.capture e in
-    set_bt info >>= fun info ->
-    if not passthrough && catchable_exception e
-    then begin if has_fatal_flag info
-      then Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
-      else Proofview.tclZERO ~info e
-    end
-    else Exninfo.iraise (e, info)
-
-let assert_focussed =
-  Proofview.Goal.goals >>= fun gls ->
-  match gls with
-  | [_] -> Proofview.tclUNIT ()
-  | [] | _ :: _ :: _ -> throw Tac2ffi.err_notfocussed
-
-let pf_apply ?(catch_exceptions=false) f =
-  let f env sigma = wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f env sigma) in
-  Proofview.Goal.goals >>= function
-  | [] ->
-    Proofview.tclENV >>= fun env ->
-    Proofview.tclEVARMAP >>= fun sigma ->
-    f env sigma
-  | [gl] ->
-    gl >>= fun gl ->
-    f (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
-  | _ :: _ :: _ ->
-    throw Tac2ffi.err_notfocussed
-
-open Tac2externals
-
-let define ?plugin s = define (pname ?plugin s)
+let throw = Tac2helpers.throw
+let pf_apply = Tac2helpers.pf_apply
+let wrap_exceptions = Tac2helpers.wrap_exceptions
 
 (** Printing *)
 
-let () = define "print" (pp @-> ret unit) Feedback.msg_notice
+let () = define "print" (pp @-> ret unit) Ltac2.Message.print
 
-let () = define "message_empty" (ret pp) (Pp.mt ())
+let () = define "message_empty" (ret pp) Ltac2.Message.empty
 
-let () = define "message_of_int" (int @-> ret pp) Pp.int
+let () = define "message_of_int" (int @-> ret pp) Ltac2.Message.of_int
 
-let () = define "message_of_string" (string @-> ret pp) Pp.str
+let () = define "message_of_string" (string @-> ret pp) Ltac2.Message.of_string
 
-let () = define "message_to_string" (pp @-> ret string) Pp.string_of_ppcmds
+let () = define "message_to_string" (pp @-> ret string) Ltac2.Message.to_string
 
-let () =
-  define "message_of_constr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
+let () = define "message_of_constr" (constr @-> tac pp) Ltac2.Message.of_constr
 
-let () =
-  define "message_of_lconstr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
+let () = define "message_of_lconstr" (constr @-> tac pp) Ltac2.Message.of_lconstr
 
-let () =
-  define "message_of_preterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_glob_env env sigma c)
+let () = define "message_of_preterm" (preterm @-> tac pp) Ltac2.Message.of_preterm
 
-let () =
-  define "message_of_lpreterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
+let () = define "message_of_lpreterm" (preterm @-> tac pp) Ltac2.Message.of_lpreterm
 
-let () = define "message_of_ident" (ident @-> ret pp) Id.print
+let () = define "message_of_ident" (ident @-> ret pp) Ltac2.Message.of_ident
 
-let () = define "constant_print" (constant @-> ret pp) @@ fun c ->
-  Nametab.pr_global_env Id.Set.empty (ConstRef c)
+let () = define "constant_print" (constant @-> ret pp) Ltac2.Constant.print
 
-let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
-  Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
+let () = define "projection_print" (projection @-> ret pp) Ltac2.Proj.print
 
-let () = define "ind_print" (inductive @-> ret pp) @@ fun ind ->
-  Nametab.pr_global_env Id.Set.empty (IndRef ind)
+let () = define "ind_print" (inductive @-> ret pp) Ltac2.Ind.print
 
-let () = define "constructor_print" (constructor @-> ret pp) @@ fun ctor ->
-  Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)
+let () = define "constructor_print" (constructor @-> ret pp) Ltac2.Constructor.print
 
-let () =
-  define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
-  Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
+let () = define "message_of_exn" (valexpr @-> eret pp) Ltac2.Message.of_exn
 
-let () = define "message_concat" (pp @-> pp @-> ret pp) Pp.app
+let () = define "message_concat" (pp @-> pp @-> ret pp) Ltac2.Message.concat
 
-let () = define "message_force_new_line" (ret pp) (Pp.fnl ())
+let () = define "message_force_new_line" (ret pp) Ltac2.Message.force_new_line
 
-let () = define "message_break" (int @-> int @-> ret pp) (fun i j -> Pp.brk (i,j))
+let () = define "message_break" (int @-> int @-> ret pp) Ltac2.Message.break
 
-let () = define "message_space" (ret pp) (Pp.spc())
+let () = define "message_space" (ret pp) Ltac2.Message.space
 
-let () = define "message_hbox" (pp @-> ret pp) Pp.h
+let () = define "message_hbox" (pp @-> ret pp) Ltac2.Message.hbox
 
-let () = define "message_vbox" (int @-> pp @-> ret pp) Pp.v
+let () = define "message_vbox" (int @-> pp @-> ret pp) Ltac2.Message.vbox
 
-let () = define "message_hvbox" (int @-> pp @-> ret pp) Pp.hv
+let () = define "message_hvbox" (int @-> pp @-> ret pp) Ltac2.Message.hvbox
 
-let () = define "message_hovbox" (int @-> pp @-> ret pp) Pp.hov
+let () = define "message_hovbox" (int @-> pp @-> ret pp) Ltac2.Message.hovbox
 
-let () = define "format_stop" (ret format) []
+let () = define "format_stop" (ret format) Ltac2.Message.Format.stop
 
-let () =
-  define "format_string" (format @-> ret format) @@ fun s ->
-  FmtString :: s
+let () = define "format_string" (format @-> ret format) Ltac2.Message.Format.string
 
-let () =
-  define "format_int" (format @-> ret format) @@ fun s ->
-  FmtInt :: s
+let () = define "format_int" (format @-> ret format) Ltac2.Message.Format.int
 
-let () =
-  define "format_constr" (format @-> ret format) @@ fun s ->
-  FmtConstr :: s
+let () = define "format_constr" (format @-> ret format) Ltac2.Message.Format.constr
 
-let () =
-  define "format_ident" (format @-> ret format) @@ fun s ->
-  FmtIdent :: s
+let () = define "format_ident" (format @-> ret format) Ltac2.Message.Format.ident
 
-let () =
-  define "format_literal" (string @-> format @-> ret format) @@ fun lit s ->
-  FmtLiteral lit :: s
+let () = define "format_literal" (string @-> format @-> ret format) Ltac2.Message.Format.literal
 
-let () =
-  define "format_alpha" (format @-> ret format) @@ fun s ->
-  FmtAlpha :: s
+let () = define "format_alpha" (format @-> ret format) Ltac2.Message.Format.alpha
 
-let () =
-  define "format_alpha0" (format @-> ret format) @@ fun s ->
-  FmtAlpha0 :: s
+let () = define "format_alpha0" (format @-> ret format) Ltac2.Message.Format.alpha0
 
-let () =
-  define "format_message" (format @-> ret format) @@ fun s ->
-  FmtMessage :: s
+let () = define "format_message" (format @-> ret format) Ltac2.Message.Format.message
 
-let arity_of_format fmt =
-  let open Tac2types in
-  let fold accu = function
-    | FmtLiteral _ -> accu
-    | FmtString | FmtInt | FmtConstr | FmtIdent | FmtMessage -> 1 + accu
-    | FmtAlpha | FmtAlpha0 -> 2 + accu
-  in
-  List.fold_left fold 0 fmt
+let () = define "format_kfprintf" (closure @-> format @-> tac valexpr) Ltac2.Message.Format.kfprintf
 
-let () =
-  define "format_kfprintf" (closure @-> format @-> tac valexpr) @@ fun k fmt ->
-  let open Tac2types in
-  let pop1 l = match l with [] -> assert false | x :: l -> (x, l) in
-  let pop2 l = match l with [] | [_] -> assert false | x :: y :: l -> (x, y, l) in
-  let arity = arity_of_format fmt in
-  let rec eval accu args fmt = match fmt with
-  | [] -> apply k [of_pp accu]
-  | tag :: fmt ->
-    match tag with
-    | FmtLiteral s ->
-      eval (Pp.app accu (Pp.str s)) args fmt
-    | FmtString ->
-      let (s, args) = pop1 args in
-      let pp = Pp.str (to_string s) in
-      eval (Pp.app accu pp) args fmt
-    | FmtInt ->
-      let (i, args) = pop1 args in
-      let pp = Pp.int (to_int i) in
-      eval (Pp.app accu pp) args fmt
-    | FmtConstr ->
-      let (c, args) = pop1 args in
-      let c = to_constr c in
-      pf_apply begin fun env sigma ->
-        let pp = Printer.pr_econstr_env env sigma c in
-        eval (Pp.app accu pp) args fmt
-      end
-    | FmtIdent ->
-      let (i, args) = pop1 args in
-      let pp = Id.print (to_ident i) in
-      eval (Pp.app accu pp) args fmt
-    | FmtMessage ->
-      let (m, args) = pop1 args in
-      let m = to_pp m in
-      eval (Pp.app accu m) args fmt
-    | FmtAlpha ->
-      let (f, x, args) = pop2 args in
-      Tac2val.apply_val f [of_unit (); x] >>= fun pp ->
-      eval (Pp.app accu (to_pp pp)) args fmt
-    | FmtAlpha0 ->
-      let (f, x, args) = pop2 args in
-      Tac2val.apply_val f [x] >>= fun pp ->
-      eval (Pp.app accu (to_pp pp)) args fmt
-  in
-  let eval v = eval (Pp.mt ()) v fmt in
-  if Int.equal arity 0 then eval []
-  else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
-
-let () =
-  define "format_ikfprintf" (closure @-> valexpr @-> format @-> tac valexpr) @@ fun k v fmt ->
-  let arity = arity_of_format fmt in
-  let eval _args = apply k [v] in
-  if Int.equal arity 0 then eval []
-  else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
+let () = define "format_ikfprintf" (closure @-> valexpr @-> format @-> tac valexpr) @@ Ltac2.Message.Format.ikfprintf
 
 (** Array *)
 
-let () = define "array_empty" (ret valexpr) (v_blk 0 [||])
+let () = define "array_empty" (ret valexpr) Ltac2.Array.empty
 
 let () =
-  define "array_make" (int @-> valexpr @-> tac valexpr) @@ fun n x ->
-  try return (v_blk 0 (Array.make n x)) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+  define "array_make" (int @-> valexpr @-> tac valexpr) Ltac2.Array.make
 
 let () =
-  define "array_length" (block @-> ret int) @@ fun (_, v) -> Array.length v
+  define "array_length" (block @-> ret int) Ltac2.Array.length
 
 let () =
-  define "array_set" (block @-> int @-> valexpr @-> tac unit) @@ fun (_, v) n x ->
-  try Array.set v n x; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+  define "array_set" (block @-> int @-> valexpr @-> tac unit) Ltac2.Array.set
 
 let () =
-  define "array_get" (block @-> int @-> tac valexpr) @@ fun (_, v) n ->
-  try return (Array.get v n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+  define "array_get" (block @-> int @-> tac valexpr) Ltac2.Array.get
 
 let () =
-  define "array_blit"
-    (block @-> int @-> block @-> int @-> int @-> tac unit)
-    @@ fun (_, v0) s0 (_, v1) s1 l ->
-  try Array.blit v0 s0 v1 s1 l; return () with Invalid_argument _ ->
-  throw Tac2ffi.err_outofbounds
+  define "array_blit" (block @-> int @-> block @-> int @-> int @-> tac unit) Ltac2.Array.lowlevel_blit
 
 let () =
-  define "array_fill" (block @-> int @-> int @-> valexpr @-> tac unit) @@ fun (_, d) s l v ->
-  try Array.fill d s l v; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+  define "array_fill" (block @-> int @-> int @-> valexpr @-> tac unit) Ltac2.Array.lowlevel_fill
 
 let () =
-  define "array_concat" (list block @-> ret valexpr) @@ fun l ->
-  v_blk 0 (Array.concat (List.map snd l))
+  define "array_concat" (list block @-> ret valexpr) Ltac2.Array.concat
 
 (** Ident *)
 
-let () = define "ident_equal" (ident @-> ident @-> ret bool) Id.equal
+let () = define "ident_equal" (ident @-> ident @-> ret bool) Ltac2.Ident.equal
 
-let () = define "ident_to_string" (ident @-> ret string) Id.to_string
+let () = define "ident_to_string" (ident @-> ret string) Ltac2.Ident.to_string
 
-let () =
-  define "ident_of_string" (string @-> ret (option ident)) @@ fun s ->
-  try Some (Id.of_string s) with e when CErrors.noncritical e -> None
+let () = define "ident_of_string" (string @-> ret (option ident)) Ltac2.Ident.of_string
 
 (** Int *)
 
-let () = define "int_equal" (int @-> int @-> ret bool) (==)
+let () = define "int_equal" (int @-> int @-> ret bool) Ltac2.Int.equal
 
-let () = define "int_neg" (int @-> ret int) (~-)
-let () = define "int_abs" (int @-> ret int) abs
+let () = define "int_neg" (int @-> ret int) Ltac2.Int.neg
+let () = define "int_abs" (int @-> ret int) Ltac2.Int.abs
 
-let () = define "int_compare" (int @-> int @-> ret int) Int.compare
-let () = define "int_add" (int @-> int @-> ret int) (+)
-let () = define "int_sub" (int @-> int @-> ret int) (-)
-let () = define "int_mul" (int @-> int @-> ret int) ( * )
+let () = define "int_compare" (int @-> int @-> ret int) Ltac2.Int.compare
+let () = define "int_add" (int @-> int @-> ret int) Ltac2.Int.add
+let () = define "int_sub" (int @-> int @-> ret int) Ltac2.Int.sub
+let () = define "int_mul" (int @-> int @-> ret int) Ltac2.Int.mul
 
-let () = define "int_div" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m / n)
-let () = define "int_mod" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m mod n)
+let () = define "int_div" (int @-> int @-> tac int) Ltac2.Int.div
+let () = define "int_mod" (int @-> int @-> tac int) Ltac2.Int.(mod)
 
-let () = define "int_asr" (int @-> int @-> ret int) (asr)
-let () = define "int_lsl" (int @-> int @-> ret int) (lsl)
-let () = define "int_lsr" (int @-> int @-> ret int) (lsr)
-let () = define "int_land" (int @-> int @-> ret int) (land)
-let () = define "int_lor" (int @-> int @-> ret int) (lor)
-let () = define "int_lxor" (int @-> int @-> ret int) (lxor)
-let () = define "int_lnot" (int @-> ret int) lnot
+let () = define "int_asr" (int @-> int @-> ret int)  Ltac2.Int.(asr)
+let () = define "int_lsl" (int @-> int @-> ret int)  Ltac2.Int.(lsl)
+let () = define "int_lsr" (int @-> int @-> ret int)  Ltac2.Int.(lsr)
+let () = define "int_land" (int @-> int @-> ret int) Ltac2.Int.(land)
+let () = define "int_lor" (int @-> int @-> ret int)  Ltac2.Int.(lor)
+let () = define "int_lxor" (int @-> int @-> ret int) Ltac2.Int.(lxor)
+let () = define "int_lnot" (int @-> ret int) Ltac2.Int.(lnot)
 
 (** Char *)
 
-let () = define "char_of_int" (int @-> tac char) @@ fun i ->
-  try return (Char.chr i)
-  with Invalid_argument _ as e ->
-    let e, info = Exninfo.capture e in
-    throw ~info e
+let () = define "char_of_int" (int @-> tac char) Ltac2.Char.of_int
 
-let () = define "char_to_int" (char @-> ret int) Char.code
+let () = define "char_to_int" (char @-> ret int) Ltac2.Char.to_int
 
 (** String *)
 
-let () =
-  define "string_make" (int @-> char @-> tac bytes) @@ fun n c ->
-  try return (Bytes.make n c) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+let () = define "string_make" (int @-> char @-> tac bytes) Ltac2.String.make
 
-let () = define "string_length" (bytes @-> ret int) Bytes.length
+let () = define "string_length" (bytes @-> ret int) Ltac2.String.length
 
-let () =
-  define "string_set" (bytes @-> int @-> char @-> tac unit) @@ fun s n c ->
-  try Bytes.set s n c; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+let () = define "string_set" (bytes @-> int @-> char @-> tac unit) Ltac2.String.set
 
-let () =
-  define "string_get" (bytes @-> int @-> tac char) @@ fun s n ->
-  try return (Bytes.get s n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+let () = define "string_get" (bytes @-> int @-> tac char) Ltac2.String.get
 
-let () = define "string_concat" (bytes @-> list bytes @-> ret bytes) Bytes.concat
+let () = define "string_concat" (bytes @-> list bytes @-> ret bytes) Ltac2.String.concat
 
-let () =
-  define "string_app" (bytes @-> bytes @-> ret bytes) @@ fun a b ->
-  Bytes.concat Bytes.empty [a; b]
+let () = define "string_app" (bytes @-> bytes @-> ret bytes) Ltac2.String.app
 
-let () =
-  define "string_sub" (bytes @-> int @-> int @-> tac bytes) @@ fun s off len ->
-  try return (Bytes.sub s off len) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+let () = define "string_sub" (bytes @-> int @-> int @-> tac bytes) Ltac2.String.sub
 
-let () = define "string_equal" (bytes @-> bytes @-> ret bool) Bytes.equal
+let () = define "string_equal" (bytes @-> bytes @-> ret bool) Ltac2.String.equal
 
-let () = define "string_compare" (bytes @-> bytes @-> ret int) Bytes.compare
+let () = define "string_compare" (bytes @-> bytes @-> ret int) Ltac2.String.compare
 
 (** Pstring *)
 
-let () =
-  define "pstring_max_length" (ret uint63) Pstring.max_length;
-  define "pstring_to_string" (pstring @-> ret string) Pstring.to_string;
-  define "pstring_of_string" (string @-> ret (option pstring)) Pstring.of_string;
-  define "pstring_make" (uint63 @-> uint63 @-> ret pstring) Pstring.make;
-  define "pstring_length" (pstring @-> ret uint63) Pstring.length;
-  define "pstring_get" (pstring @-> uint63 @-> ret uint63) Pstring.get;
-  define "pstring_sub" (pstring @-> uint63 @-> uint63 @-> ret pstring) Pstring.sub;
-  define "pstring_cat" (pstring @-> pstring @-> ret pstring) Pstring.cat;
-  define "pstring_equal" (pstring @-> pstring @-> ret bool) Pstring.equal;
-  define "pstring_compare" (pstring @-> pstring @-> ret int) Pstring.compare
+let () = define "pstring_max_length" (ret uint63) Ltac2.Pstring.max_length
+let () = define "pstring_to_string" (pstring @-> ret string) Ltac2.Pstring.to_string
+let () = define "pstring_of_string" (string @-> ret (option pstring)) Ltac2.Pstring.of_string
+let () = define "pstring_make" (uint63 @-> uint63 @-> ret pstring) Ltac2.Pstring.make
+let () = define "pstring_length" (pstring @-> ret uint63) Ltac2.Pstring.length
+let () = define "pstring_get" (pstring @-> uint63 @-> ret uint63) Ltac2.Pstring.get
+let () = define "pstring_sub" (pstring @-> uint63 @-> uint63 @-> ret pstring) Ltac2.Pstring.sub
+let () = define "pstring_cat" (pstring @-> pstring @-> ret pstring) Ltac2.Pstring.cat
+let () = define "pstring_equal" (pstring @-> pstring @-> ret bool) Ltac2.Pstring.equal
+let () = define "pstring_compare" (pstring @-> pstring @-> ret int) Ltac2.Pstring.compare
 
 (** Terms *)
 
 (** constr -> constr *)
 let () =
-  define "constr_type" (constr @-> tac valexpr) @@ fun c ->
-  let get_type env sigma =
-    let (sigma, t) = Typing.type_of env sigma c in
-    let t = Tac2ffi.of_constr t in
-    Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
-  in
-  pf_apply ~catch_exceptions:true get_type
+  define "constr_type" (constr @-> tac valexpr) Ltac2.Constr.type_
 
 (** constr -> constr *)
 let () =
-  define "constr_equal" (constr @-> constr @-> tac bool) @@ fun c1 c2 ->
-  Proofview.tclEVARMAP >>= fun sigma -> return (EConstr.eq_constr sigma c1 c2)
+  define "constr_equal" (constr @-> constr @-> tac bool) Ltac2.Constr.equal
 
 let () =
-  define "constr_kind" (constr @-> eret valexpr) @@ fun c env sigma ->
-  let open Constr in
-  match EConstr.kind sigma c with
-  | Rel n ->
-    v_blk 0 [|Tac2ffi.of_int n|]
-  | Var id ->
-    v_blk 1 [|Tac2ffi.of_ident id|]
-  | Meta n ->
-    v_blk 2 [|Tac2ffi.of_int n|]
-  | Evar (evk, args) ->
-    let args = Evd.expand_existential sigma (evk, args) in
-    v_blk 3 [|
-      Tac2ffi.of_evar evk;
-      Tac2ffi.of_array Tac2ffi.of_constr (Array.of_list args);
-    |]
-  | Sort s ->
-    v_blk 4 [|Tac2ffi.of_sort s|]
-  | Cast (c, k, t) ->
-    v_blk 5 [|
-      Tac2ffi.of_constr c;
-      Tac2ffi.of_cast k;
-      Tac2ffi.of_constr t;
-    |]
-  | Prod (na, t, u) ->
-    v_blk 6 [|
-      of_binder (na, t);
-      Tac2ffi.of_constr u;
-    |]
-  | Lambda (na, t, c) ->
-    v_blk 7 [|
-      of_binder (na, t);
-      Tac2ffi.of_constr c;
-    |]
-  | LetIn (na, b, t, c) ->
-    v_blk 8 [|
-      of_binder (na, t);
-      Tac2ffi.of_constr b;
-      Tac2ffi.of_constr c;
-    |]
-  | App (c, cl) ->
-    v_blk 9 [|
-      Tac2ffi.of_constr c;
-      Tac2ffi.of_array Tac2ffi.of_constr cl;
-    |]
-  | Const (cst, u) ->
-    v_blk 10 [|
-      Tac2ffi.of_constant cst;
-      Tac2ffi.of_instance u;
-    |]
-  | Ind (ind, u) ->
-    v_blk 11 [|
-      Tac2ffi.of_inductive ind;
-      Tac2ffi.of_instance u;
-    |]
-  | Construct (cstr, u) ->
-    v_blk 12 [|
-      Tac2ffi.of_constructor cstr;
-      Tac2ffi.of_instance u;
-    |]
-  | Case (ci, u, pms, c, iv, t, bl) ->
-    (* FIXME: also change representation Ltac2-side? *)
-    let (ci, c, iv, t, bl) = EConstr.expand_case env sigma (ci, u, pms, c, iv, t, bl) in
-    let c = on_snd (EConstr.ERelevance.kind sigma) c in
-    v_blk 13 [|
-      Tac2ffi.of_case ci;
-      Tac2ffi.(of_pair of_constr of_relevance c);
-      of_case_invert iv;
-      Tac2ffi.of_constr t;
-      Tac2ffi.of_array Tac2ffi.of_constr bl;
-    |]
-  | Fix ((recs, i), def) ->
-    let (nas, cs) = of_rec_declaration def in
-    v_blk 14 [|
-      Tac2ffi.of_array Tac2ffi.of_int recs;
-      Tac2ffi.of_int i;
-      nas;
-      cs;
-    |]
-  | CoFix (i, def) ->
-    let (nas, cs) = of_rec_declaration def in
-    v_blk 15 [|
-      Tac2ffi.of_int i;
-      nas;
-      cs;
-    |]
-  | Proj (p, r, c) ->
-    v_blk 16 [|
-      Tac2ffi.of_projection p;
-      of_relevance (EConstr.ERelevance.kind sigma r);
-      Tac2ffi.of_constr c;
-    |]
-  | Int n ->
-    v_blk 17 [|Tac2ffi.of_uint63 n|]
-  | Float f ->
-    v_blk 18 [|Tac2ffi.of_float f|]
-  | String s ->
-    v_blk 19 [|Tac2ffi.of_pstring s|]
-  | Array(u,t,def,ty) ->
-    v_blk 20 [|
-      of_instance u;
-      Tac2ffi.of_array Tac2ffi.of_constr t;
-      Tac2ffi.of_constr def;
-      Tac2ffi.of_constr ty;
-    |]
+  define "constr_kind" (constr @-> eret valexpr) Ltac2.Constr.Unsafe.kind
 
 let () =
-  define "constr_make" (valexpr @-> eret constr) @@ fun knd env sigma ->
-  match Tac2ffi.to_block knd with
-  | (0, [|n|]) ->
-    let n = Tac2ffi.to_int n in
-    EConstr.mkRel n
-  | (1, [|id|]) ->
-    let id = Tac2ffi.to_ident id in
-    EConstr.mkVar id
-  | (2, [|n|]) ->
-    let n = Tac2ffi.to_int n in
-    EConstr.mkMeta n
-  | (3, [|evk; args|]) ->
-    let evk = to_evar evk in
-    let args = Tac2ffi.to_array Tac2ffi.to_constr args in
-    EConstr.mkLEvar sigma (evk, Array.to_list args)
-  | (4, [|s|]) ->
-    let s = Tac2ffi.to_sort s in
-    EConstr.mkSort s
-  | (5, [|c; k; t|]) ->
-    let c = Tac2ffi.to_constr c in
-    let k = Tac2ffi.to_cast k in
-    let t = Tac2ffi.to_constr t in
-    EConstr.mkCast (c, k, t)
-  | (6, [|na; u|]) ->
-    let (na, t) = to_binder na in
-    let u = Tac2ffi.to_constr u in
-    EConstr.mkProd (na, t, u)
-  | (7, [|na; c|]) ->
-    let (na, t) = to_binder na in
-    let u = Tac2ffi.to_constr c in
-    EConstr.mkLambda (na, t, u)
-  | (8, [|na; b; c|]) ->
-    let (na, t) = to_binder na in
-    let b = Tac2ffi.to_constr b in
-    let c = Tac2ffi.to_constr c in
-    EConstr.mkLetIn (na, b, t, c)
-  | (9, [|c; cl|]) ->
-    let c = Tac2ffi.to_constr c in
-    let cl = Tac2ffi.to_array Tac2ffi.to_constr cl in
-    EConstr.mkApp (c, cl)
-  | (10, [|cst; u|]) ->
-    let cst = Tac2ffi.to_constant cst in
-    let u = to_instance u in
-    EConstr.mkConstU (cst, u)
-  | (11, [|ind; u|]) ->
-    let ind = Tac2ffi.to_inductive ind in
-    let u = to_instance u in
-    EConstr.mkIndU (ind, u)
-  | (12, [|cstr; u|]) ->
-    let cstr = Tac2ffi.to_constructor cstr in
-    let u = to_instance u in
-    EConstr.mkConstructU (cstr, u)
-  | (13, [|ci; c; iv; t; bl|]) ->
-    let ci = Tac2ffi.to_case ci in
-    let c = Tac2ffi.(to_pair to_constr to_relevance c) in
-    let c = on_snd EConstr.ERelevance.make c in
-    let iv = to_case_invert iv in
-    let t = Tac2ffi.to_constr t in
-    let bl = Tac2ffi.to_array Tac2ffi.to_constr bl in
-    EConstr.mkCase (EConstr.contract_case env sigma (ci, c, iv, t, bl))
-  | (14, [|recs; i; nas; cs|]) ->
-    let recs = Tac2ffi.to_array Tac2ffi.to_int recs in
-    let i = Tac2ffi.to_int i in
-    let def = to_rec_declaration (nas, cs) in
-    EConstr.mkFix ((recs, i), def)
-  | (15, [|i; nas; cs|]) ->
-    let i = Tac2ffi.to_int i in
-    let def = to_rec_declaration (nas, cs) in
-    EConstr.mkCoFix (i, def)
-  | (16, [|p; r; c|]) ->
-    let p = Tac2ffi.to_projection p in
-    let r = to_relevance r in
-    let c = Tac2ffi.to_constr c in
-    EConstr.mkProj (p, EConstr.ERelevance.make r, c)
-  | (17, [|n|]) ->
-    let n = Tac2ffi.to_uint63 n in
-    EConstr.mkInt n
-  | (18, [|f|]) ->
-    let f = Tac2ffi.to_float f in
-    EConstr.mkFloat f
-  | (19, [|s|]) ->
-    let s = Tac2ffi.to_pstring s in
-    EConstr.mkString s
-  | (20, [|u;t;def;ty|]) ->
-    let t = Tac2ffi.to_array Tac2ffi.to_constr t in
-    let def = Tac2ffi.to_constr def in
-    let ty = Tac2ffi.to_constr ty in
-    let u = to_instance u in
-    EConstr.mkArray(u,t,def,ty)
-  | _ -> assert false
+  define "constr_make" (valexpr @-> eret constr) Ltac2.Constr.Unsafe.make
 
 let () =
-  define "constr_check" (constr @-> tac valexpr) @@ fun c ->
-  pf_apply @@ fun env sigma ->
-  try
-    let (sigma, _) = Typing.type_of env sigma c in
-    Proofview.Unsafe.tclEVARS sigma >>= fun () ->
-    return (of_result Tac2ffi.of_constr (Inl c))
-  with e when CErrors.noncritical e ->
-    let e = Exninfo.capture e in
-    return (of_result Tac2ffi.of_constr (Inr e))
+  define "constr_check" (constr @-> tac valexpr) Ltac2.Constr.Unsafe.check
 
 let () =
-  define "constr_liftn" (int @-> int @-> constr @-> ret constr)
-    EConstr.Vars.liftn
+  define "constr_liftn" (int @-> int @-> constr @-> ret constr) Ltac2.Constr.Unsafe.liftn
 
 let () =
-  define "constr_substnl" (list constr @-> int @-> constr @-> ret constr)
-    EConstr.Vars.substnl
+  define "constr_substnl" (list constr @-> int @-> constr @-> ret constr) Ltac2.Constr.Unsafe.substnl
 
 let () =
-  define "constr_closenl" (list ident @-> int @-> constr @-> tac constr)
-    @@ fun ids k c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  return (EConstr.Vars.substn_vars sigma k ids c)
+  define "constr_closenl" (list ident @-> int @-> constr @-> tac constr) Ltac2.Constr.Unsafe.closenl
 
 let () =
-  define "constr_closedn" (int @-> constr @-> tac bool) @@ fun n c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  return (EConstr.Vars.closedn sigma n c)
+  define "constr_closedn" (int @-> constr @-> tac bool) Ltac2.Constr.Unsafe.closednl
 
 let () =
-  define "constr_noccur_between" (int @-> int @-> constr @-> tac bool) @@ fun n m c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  return (EConstr.Vars.noccur_between sigma n m c)
+  define "constr_noccur_between" (int @-> int @-> constr @-> tac bool) Ltac2.Constr.Unsafe.noccur_between
 
 let () =
-  define "constr_case" (inductive @-> tac valexpr) @@ fun ind ->
-  Proofview.tclENV >>= fun env ->
-  try
-    let ans = Inductiveops.make_case_info env ind Constr.MatchStyle in
-    return (Tac2ffi.of_case ans)
-  with e when CErrors.noncritical e ->
-    throw Tac2ffi.err_notfound
+  define "constr_case" (inductive @-> tac valexpr) Ltac2.Constr.Unsafe.case
 
 let () =
-  define "case_to_inductive" (case @-> ret inductive) @@ fun case ->
-  case.ci_ind
+  define "case_to_inductive" (case @-> ret inductive) Ltac2.Constr.Unsafe.Case.inductive
 
-let () = define "constr_cast_default" (ret valexpr) (of_cast DEFAULTcast)
-let () = define "constr_cast_vm" (ret valexpr) (of_cast VMcast)
-let () = define "constr_cast_native" (ret valexpr) (of_cast NATIVEcast)
+let () = define "constr_cast_default" (ret valexpr) Ltac2.Constr.Cast.default
+let () = define "constr_cast_vm" (ret valexpr) Ltac2.Constr.Cast.vm
+let () = define "constr_cast_native" (ret valexpr) Ltac2.Constr.Cast.native
 
 let () =
-  define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) @@ fun id t c ->
-  Proofview.Goal.goals >>= function
-  | [gl] ->
-    gl >>= fun gl ->
-    let env = Proofview.Goal.env gl in
-    let sigma = Proofview.Goal.sigma gl in
-    let has_var =
-      try
-        let _ = Environ.lookup_named id env in
-        true
-      with Not_found -> false
-    in
-    if has_var then
-      Tacticals.tclZEROMSG (str "Variable already exists")
-    else
-      let open Context.Named.Declaration in
-      let sigma, t_rel =
-        let t_ty = Retyping.get_type_of env sigma t in
-        (* If the user passed eg ['_] for the type we force it to indeed be a type *)
-        let sigma, j = Typing.type_judgment env sigma {uj_val=t; uj_type=t_ty} in
-        sigma, EConstr.ESorts.relevance_of_sort j.utj_type
-      in
-      let nenv = EConstr.push_named (LocalAssum (Context.make_annot id t_rel, t)) env in
-      let (sigma, (evt, s)) = Evarutil.new_type_evar nenv sigma Evd.univ_flexible in
-      let relevance = EConstr.ESorts.relevance_of_sort s in
-      let (sigma, evk) = Evarutil.new_pure_evar (Environ.named_context_val nenv) sigma ~relevance evt in
-      Proofview.Unsafe.tclEVARS sigma >>= fun () ->
-      Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state evk] >>= fun () ->
-      thaw c >>= fun _ ->
-      Proofview.Unsafe.tclSETGOALS [Proofview.goal_with_state (Proofview.Goal.goal gl) (Proofview.Goal.state gl)] >>= fun () ->
-      let args = EConstr.identity_subst_val (Environ.named_context_val env) in
-      let args = SList.cons (EConstr.mkRel 1) args in
-      let ans = EConstr.mkEvar (evk, args) in
-      return (EConstr.mkLambda (Context.make_annot (Name id) t_rel, t, ans))
-  | _ ->
-    throw Tac2ffi.err_notfocussed
+  define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2.Constr.in_context
 
 (** preterm -> constr *)
-
-let () = define "constr_flags" (ret pretype_flags) constr_flags
+let () = define "constr_flags" (ret pretype_flags) Ltac2.Constr.Pretype.Flags.constr_flags
 
 let () =
   define "pretype_flags_set_use_coercions"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with use_coercions = b }
+    (bool @-> pretype_flags @-> ret pretype_flags)
+    Ltac2.Constr.Pretype.Flags.set_use_coercion
 
 let () =
   define "pretype_flags_set_use_typeclasses"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with use_typeclasses = if b then UseTC else NoUseTC }
+    (bool @-> pretype_flags @-> ret pretype_flags)
+    Ltac2.Constr.Pretype.Flags.set_use_typeclasses
 
 let () =
   define "pretype_flags_set_allow_evars"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with fail_evar = not b }
+    (bool @-> pretype_flags @-> ret pretype_flags)
+    Ltac2.Constr.Pretype.Flags.set_allow_evars
 
 let () =
   define "pretype_flags_set_nf_evars"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with expand_evars = b }
+    (bool @-> pretype_flags @-> ret pretype_flags)
+    Ltac2.Constr.Pretype.Flags.set_nf_evars
 
-let () = define "expected_istype" (ret expected_type) IsType
+let () = define "expected_istype" (ret expected_type) Ltac2.Constr.Pretype.expected_istype
 
-let () = define "expected_oftype" (constr @-> ret expected_type) @@ fun c ->
-  OfType c
+let () = define "expected_oftype" (constr @-> ret expected_type) Ltac2.Constr.Pretype.expected_oftype
 
 let () = define "expected_without_type_constraint" (ret expected_type)
-    WithoutTypeConstraint
+           Ltac2.Constr.Pretype.expected_without_type_constraint
 
 let () =
-  define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) @@ fun flags expected_type c ->
-  let pretype env sigma =
-    let sigma, t = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
-    Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
-  in
-  pf_apply ~catch_exceptions:true pretype
+  define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) Ltac2.Constr.Pretype.pretype
 
 let () =
-  define "constr_binder_make" (option ident @-> constr @-> tac binder) @@ fun na ty ->
-  pf_apply @@ fun env sigma ->
-  match Retyping.relevance_of_type env sigma ty with
-  | rel ->
-    let na = match na with None -> Anonymous | Some id -> Name id in
-    return (Context.make_annot na rel, ty)
-  | exception (Retyping.RetypeError _ as e) ->
-    let e, info = Exninfo.capture e in
-    fail ~info (CErrors.UserError Pp.(str "Not a type."))
+  define "constr_binder_make" (option ident @-> constr @-> tac binder) Ltac2.Constr.Binder.make
 
 let () =
-  define "constr_binder_unsafe_make"
-    (option ident @-> relevance @-> constr @-> ret binder)
-    @@ fun na rel ty ->
-  let na = match na with None -> Anonymous | Some id -> Name id in
-  Context.make_annot na (EConstr.ERelevance.make rel), ty
+  define "constr_binder_unsafe_make" (option ident @-> relevance @-> constr @-> ret binder) Ltac2.Constr.Binder.unsafe_make
 
 let () =
-  define "constr_binder_name" (binder @-> ret (option ident)) @@ fun (bnd, _) ->
-  match bnd.Context.binder_name with Anonymous -> None | Name id -> Some id
+  define "constr_binder_name" (binder @-> ret (option ident)) Ltac2.Constr.Binder.name
 
 let () =
-  define "constr_binder_type" (binder @-> ret constr) @@ fun (_, ty) -> ty
+  define "constr_binder_type" (binder @-> ret constr) Ltac2.Constr.Binder.type_
 
 let () =
-  define "constr_binder_relevance" (binder @-> ret relevance) @@ fun (na, _) ->
-  EConstr.Unsafe.to_relevance na.binder_relevance
+  define "constr_binder_relevance" (binder @-> ret relevance) Ltac2.Constr.Binder.relevance
 
 let () =
-  define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) @@ fun r1 r2 _ sigma ->
-  EConstr.ERelevance.(equal sigma (make r1) (make r2))
+  define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) Ltac2.Constr.Relevance.equal
 
-let () = define "constr_relevance_relevant" (ret relevance) Sorts.Relevant
+let () = define "constr_relevance_relevant" (ret relevance) Ltac2.Constr.Relevance.relevant
 
-let () = define "constr_relevance_irrelevant" (ret relevance) Sorts.Irrelevant
+let () = define "constr_relevance_irrelevant" (ret relevance) Ltac2.Constr.Relevance.irrelevant
 
 let () =
-  define "constr_has_evar" (constr @-> tac bool) @@ fun c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  return (Evarutil.has_undefined_evars sigma c)
+  define "constr_has_evar" (constr @-> tac bool) Ltac2.Constr.has_evar
 
 (** Uint63 *)
 
-let () = define "uint63_compare" (uint63 @-> uint63 @-> ret int) Uint63.compare
+let () = define "uint63_compare" (uint63 @-> uint63 @-> ret int) Ltac2.Uint63.compare
 
-let () = define "uint63_of_int" (int @-> ret uint63) Uint63.of_int
+let () = define "uint63_of_int" (int @-> ret uint63) Ltac2.Uint63.of_int
 
-let () = define "uint63_print" (uint63 @-> ret pp) @@ fun i ->
-  Pp.str (Uint63.to_string i)
+let () = define "uint63_print" (uint63 @-> ret pp) Ltac2.Uint63.print
 
 (** Extra equalities *)
 
-let () = define "evar_equal" (evar @-> evar @-> ret bool) Evar.equal
-let () = define "float_equal" (float @-> float @-> ret bool) Float64.equal
-let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
-let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal
-let () = define "constr_cast_equal" (cast @-> cast @-> ret bool) Glob_ops.cast_kind_eq
+let () = define "evar_equal" (evar @-> evar @-> ret bool) Ltac2.Evar.equal
+let () = define "float_equal" (float @-> float @-> ret bool) Ltac2.Float.equal
+let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Ltac2.Uint63.equal
+let () = define "meta_equal" (int @-> int @-> ret bool) Ltac2.Meta.equal
+let () = define "constr_cast_equal" (cast @-> cast @-> ret bool) Ltac2.Constr.Cast.equal
 
 let () =
-  define "constant_equal"
-    (constant @-> constant @-> ret bool)
-    Constant.UserOrd.equal
+  define "constant_equal" (constant @-> constant @-> ret bool) Ltac2.Constant.equal
 let () =
-  define "constr_case_equal" (case @-> case @-> ret bool) @@ fun x y ->
-  Ind.UserOrd.equal x.ci_ind y.ci_ind
+  define "constr_case_equal" (case @-> case @-> ret bool) Ltac2.Constr.Unsafe.Case.equal
 let () =
-  define "constructor_equal" (constructor @-> constructor @-> ret bool) Construct.UserOrd.equal
+  define "constructor_equal" (constructor @-> constructor @-> ret bool) Ltac2.Constructor.equal
 let () =
-  define "projection_equal" (projection @-> projection @-> ret bool) Projection.UserOrd.equal
+  define "projection_equal" (projection @-> projection @-> ret bool) Ltac2.Proj.equal
+
 
 (** Patterns *)
 
 let () =
   define "pattern_empty_context" (ret matching_context)
-    Constr_matching.empty_context
+    Ltac2.Pattern.empty_context
 
 let () =
-  define "pattern_matches" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
-  let ans =
-    try Some (Constr_matching.matches env sigma pat c)
-    with Constr_matching.PatternMatchingFailure -> None
-  in
-  begin match ans with
-  | None -> fail Tac2ffi.err_matchfailure
-  | Some ans ->
-    let ans = Id.Map.bindings ans in
-    let of_pair (id, c) = Tac2ffi.of_tuple [| Tac2ffi.of_ident id; Tac2ffi.of_constr c |] in
-    return (Tac2ffi.of_list of_pair ans)
-  end
+  define "pattern_matches" (pattern @-> constr @-> tac valexpr)
+    Ltac2.Pattern.matches
 
 let () =
-  define "pattern_matches_subterm" (pattern @-> constr @-> tac (pair matching_context (list (pair ident constr)))) @@ fun pat c ->
-  let open Constr_matching in
-  let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail Tac2ffi.err_matchfailure
-  | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
-    let ans = Id.Map.bindings sub in
-    Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
-  in
-  pf_apply @@ fun env sigma ->
-  let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
-  of_ans ans
+  define "pattern_matches_subterm" (pattern @-> constr @-> tac (pair matching_context (list (pair ident constr))))
+    Ltac2.Pattern.matches_subterm
 
 let () =
-  define "pattern_matches_vect" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
-  let ans =
-    try Some (Constr_matching.matches env sigma pat c)
-    with Constr_matching.PatternMatchingFailure -> None
-  in
-  match ans with
-  | None -> fail Tac2ffi.err_matchfailure
-  | Some ans ->
-    let ans = Id.Map.bindings ans in
-    let ans = Array.map_of_list snd ans in
-    return (Tac2ffi.of_array Tac2ffi.of_constr ans)
+  define "pattern_matches_vect" (pattern @-> constr @-> tac valexpr)
+    Ltac2.Pattern.matches_vect
 
 let () =
-  define "pattern_matches_subterm_vect" (pattern @-> constr @-> tac (pair matching_context (array constr))) @@ fun pat c ->
-  let open Constr_matching in
-  let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail Tac2ffi.err_matchfailure
-  | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
-    let ans = Id.Map.bindings sub in
-    let ans = Array.map_of_list snd ans in
-    Proofview.tclOR (return (m_ctx,ans)) (fun _ -> of_ans s)
-  in
-  pf_apply @@ fun env sigma ->
-  let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
-  of_ans ans
+  define "pattern_matches_subterm_vect" (pattern @-> constr @-> tac (pair matching_context (array constr)))
+    Ltac2.Pattern.matches_subterm_vect
 
-let match_pattern = map_repr
-    (fun (b,pat) -> if b then Tac2match.MatchPattern pat else Tac2match.MatchContext pat)
-    (function Tac2match.MatchPattern pat -> (true, pat) | MatchContext pat -> (false, pat))
-    (pair bool pattern)
+
+let match_pattern = Tac2ffi.map_repr
+                      (fun (b,pat) -> if b then Tac2match.MatchPattern pat else Tac2match.MatchContext pat)
+                      (function Tac2match.MatchPattern pat -> (true, pat) | MatchContext pat -> (false, pat))
+                      (pair bool pattern)
 
 let () =
   define "pattern_matches_goal"
     (bool @-> list (pair (option match_pattern) match_pattern) @-> match_pattern @-> tac valexpr)
-    @@ fun rev hp cp ->
-  assert_focussed >>= fun () ->
-  Proofview.Goal.enter_one @@ fun gl ->
-  let env = Proofview.Goal.env gl in
-  let sigma = Proofview.Goal.sigma gl in
-  let concl = Proofview.Goal.concl gl in
-  Tac2match.match_goal env sigma concl ~rev (hp, cp) >>= fun (hyps, ctx, subst) ->
-  let empty_context = Constr_matching.empty_context in
-  let of_ctxopt ctx = Tac2ffi.of_matching_context (Option.default empty_context ctx) in
-  let hids = Tac2ffi.of_array Tac2ffi.of_ident (Array.map_of_list pi1 hyps) in
-  let hbctx = Tac2ffi.of_array of_ctxopt
-      (Array.of_list (CList.filter_map (fun (_,bctx,_) -> bctx) hyps))
-  in
-  let hctx = Tac2ffi.of_array of_ctxopt (Array.map_of_list pi3 hyps) in
-  let subs = Tac2ffi.of_array Tac2ffi.of_constr (Array.map_of_list snd (Id.Map.bindings subst)) in
-  let cctx = of_ctxopt ctx in
-  let ans = Tac2ffi.of_tuple [| hids; hbctx; hctx; subs; cctx |] in
-  Proofview.tclUNIT ans
+    Ltac2.Pattern.matches_goal
 
 let () =
   define "pattern_instantiate"
     (matching_context @-> constr @-> ret constr)
-    Constr_matching.instantiate_context
+    Ltac2.Pattern.instantiate
 
 (** Error *)
 
 let () =
-  define "throw" (exn @-> tac valexpr) @@ fun (e, info) -> throw ~info e
+  define "throw" (exn @-> tac valexpr) Ltac2.Control.throw
 
 let () =
-  define "throw_bt" (exn @-> exninfo @-> tac valexpr) @@ fun (e,_) info ->
-    Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
+  define "throw_bt" (exn @-> exninfo @-> tac valexpr) Ltac2.Control.throw_bt
 
 let () =
-  define "clear_err_info" (err @-> ret err) @@ fun (e,_) -> (e, Exninfo.null)
+  define "clear_err_info" (err @-> ret err) Ltac2.Control.clear_err_info
 
-let () = define "current_exninfo" (unit @-> tac exninfo) @@ fun () ->
-  return () >>= fun () ->
-  set_bt (Exninfo.reify())
+let () = define "current_exninfo" (unit @-> tac exninfo) Ltac2.Control.current_exninfo
 
-let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
+let () = define "message_of_exninfo" (exninfo @-> ret pp) Ltac2.Message.of_exninfo
 
-let () = define "print_err" (err @-> ret pp) @@ fun (e,_) -> CErrors.print e
+let () = define "print_err" (err @-> ret pp) Ltac2.Control.print_err
 
 (** Control *)
 
 (** exn -> 'a *)
 let () =
-  define "zero" (exn @-> tac valexpr) @@ fun (e, info) -> fail ~info e
+  define "zero" (exn @-> tac valexpr) Ltac2.Control.zero
 
 let () =
-  define "zero_bt" (exn @-> exninfo @-> tac valexpr) @@ fun (e,_) info ->
-    Proofview.tclZERO ~info e
+  define "zero_bt" (exn @-> exninfo @-> tac valexpr)
+    Ltac2.Control.zero_bt
 
 (** (unit -> 'a) -> (exn -> 'a) -> 'a *)
 let () =
-  define "plus" (thunk valexpr @-> fun1 exn valexpr @-> tac valexpr) @@ fun x k ->
-  Proofview.tclOR (thaw x) k
+  define "plus" (thunk valexpr @-> fun1 exn valexpr @-> tac valexpr)
+    Ltac2.Control.plus
 
 let () =
-  define "plus_bt" (thunk valexpr @-> fun2 exn exninfo valexpr @-> tac valexpr) @@ fun run handle ->
-    Proofview.tclOR (thaw run) (fun e -> handle e (snd e))
+  define "plus_bt" (thunk valexpr @-> fun2 exn exninfo valexpr @-> tac valexpr)
+    Ltac2.Control.plus_bt
 
 (** (unit -> 'a) -> 'a *)
 let () =
-  define "once" (thunk valexpr @-> tac valexpr) @@ fun f ->
-  Proofview.tclONCE (thaw f)
+  define "once" (thunk valexpr @-> tac valexpr)
+    Ltac2.Control.once
 
 (** (unit -> 'a) -> ('a * ('exn -> 'a)) result *)
 let () =
-  define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr)))) @@ fun f ->
-  Proofview.tclCASE (thaw f) >>= begin function
-  | Proofview.Next (x, k) ->
-    let k (e,info) = set_bt info >>= fun info -> k (e,info) in
-    return (Ok (x, k))
-  | Proofview.Fail e -> return (Error e)
-  end
+  define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr))))
+    Ltac2.Control.case
 
 let () =
-  define "numgoals" (unit @-> tac int) @@ fun () ->
-  Proofview.numgoals
+  define "numgoals" (unit @-> tac int)
+    Ltac2.Control.numgoals
 
 (** (unit -> unit) list -> unit *)
-let () =
-  define "dispatch" (list (thunk unit) @-> tac unit) @@ fun l ->
-  let l = List.map (fun f -> thaw f) l in
-  Proofview.tclDISPATCH l
+let () = define "dispatch" (list (thunk unit) @-> tac unit) Ltac2.Control.dispatch
 
 (** (unit -> unit) list -> (unit -> unit) -> (unit -> unit) list -> unit *)
-let () =
-  define "extend" (list (thunk unit) @-> thunk unit @-> list (thunk unit) @-> tac unit) @@ fun lft tac rgt ->
-  let lft = List.map (fun f -> thaw f) lft in
-  let tac = thaw tac in
-  let rgt = List.map (fun f -> thaw f) rgt in
-  Proofview.tclEXTEND lft tac rgt
+let () = define "extend" (list (thunk unit) @-> thunk unit @-> list (thunk unit) @-> tac unit) Ltac2.Control.extend
 
 (** (unit -> unit) -> unit *)
-let () =
-  define "enter" (thunk unit @-> tac unit) @@ fun f ->
-  let f = Proofview.tclIGNORE (thaw f) in
-  Proofview.tclINDEPENDENT f
+let () = define "enter" (thunk unit @-> tac unit) Ltac2.Control.enter
 
 (** int -> int -> (unit -> 'a) -> 'a *)
-let () =
-  define "focus" (int @-> int @-> thunk valexpr @-> tac valexpr) @@ fun i j tac ->
-  Proofview.tclFOCUS i j (thaw tac)
+let () = define "focus" (int @-> int @-> thunk valexpr @-> tac valexpr) Ltac2.Control.focus
 
 (** int -> unit **)
-let () =
-  define "cycle" (int @-> tac unit) @@ fun i ->
-  Proofview.cycle i
+let () = define "cycle" (int @-> tac unit) Ltac2.Control.cycle
 
 (** unit -> unit *)
-let () = define "shelve" (unit @-> tac unit) @@ fun _ -> Proofview.shelve
+let () = define "shelve" (unit @-> tac unit) Ltac2.Control.shelve
 
 (** unit -> unit *)
 let () =
-  define "shelve_unifiable" (unit @-> tac unit) @@ fun _ ->
-  Proofview.shelve_unifiable
+  define "shelve_unifiable" (unit @-> tac unit)
+    Ltac2.Control.shelve_unifiable
 
 let () =
-  define "new_goal" (evar @-> tac unit) @@ fun ev ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  if Evd.mem sigma ev then
-    let sigma = Evd.remove_future_goal sigma ev in
-    let sigma = Evd.unshelve sigma [ev] in
-    Proofview.Unsafe.tclEVARS sigma <*>
-    Proofview.Unsafe.tclNEWGOALS [Proofview.with_empty_state ev] <*>
-    Proofview.tclUNIT ()
-  else throw Tac2ffi.err_notfound
-
-let is_permutation len l =
-  if not (Int.equal len (Array.length l)) then false else
-  let items = Array.make len false in
-  (* returns true iff [l] (seen as a 1-indexed list) maps ints in [1; len] to [1; len] injectively.
-     Thanks to pigeonhole theorem this means [l] is a permutation of [1; len]. *)
-  Array.for_all (fun x ->
-      if 1 <= x && x <= len && not items.(x-1) then
-        let () = items.(x-1) <- true in
-        true
-      else false)
-    l
+  define "new_goal" (evar @-> tac unit)
+    Ltac2.Control.new_goal
 
 let () =
-  define "reorder_goals" (list int @-> tac unit) @@ fun l ->
-  Proofview.Unsafe.tclGETGOALS >>= fun gls ->
-  let len = List.length gls in
-  let l = Array.of_list l in
-  if not (is_permutation len l) then
-    throw (err_invalid_arg (Pp.str "reorder_goals"))
-  else
-    let gls = Array.of_list gls in
-    let gls = List.init len (fun i -> gls.(l.(i) - 1)) in
-    Proofview.Unsafe.tclSETGOALS gls
+  define "reorder_goals" (list int @-> tac unit)
+    Ltac2.Control.reorder_goals
 
-let () =
-  define "unshelve" (thunk valexpr @-> tac valexpr) @@ fun t ->
-  Proofview.with_shelf (thaw t) >>= fun (gls,v) ->
-  let gls = List.map Proofview.with_empty_state gls in
-  Proofview.Unsafe.tclGETGOALS >>= fun ogls ->
-  Proofview.Unsafe.tclSETGOALS (gls @ ogls) >>= fun () ->
-  return v
+let () = define "unshelve" (thunk valexpr @-> tac valexpr) Ltac2.Control.unshelve
 
 (** unit -> constr *)
-let () =
-  define "goal" (unit @-> tac constr) @@ fun _ ->
-  assert_focussed >>= fun () ->
-  Proofview.Goal.enter_one @@ fun gl ->
-  let sigma = Proofview.Goal.sigma gl in
-  let concl = Proofview.Goal.concl gl in
-  return (Reductionops.nf_evar sigma concl)
+let () = define "goal" (unit @-> tac constr) Ltac2.Control.goal
 
 (** ident -> constr *)
-let () =
-  define "hyp" (ident @-> tac constr) @@ fun id ->
-  pf_apply @@ fun env _ ->
-  let mem = try ignore (Environ.lookup_named id env); true with Not_found -> false in
-  if mem then return (EConstr.mkVar id)
-  else Tacticals.tclZEROMSG
-    (str "Hypothesis " ++ quote (Id.print id) ++ str " not found") (* FIXME: Do something more sensible *)
+let () = define "hyp" (ident @-> tac constr) Ltac2.Control.hyp
 
-let () =
-  define "hyp_value" (ident @-> tac (option constr)) @@ fun id ->
-  pf_apply @@ fun env _ ->
-  match EConstr.lookup_named id env with
-  | d -> return (Context.Named.Declaration.get_value d)
-  | exception Not_found ->
-    Tacticals.tclZEROMSG
-    (str "Hypothesis " ++ quote (Id.print id) ++ str " not found") (* FIXME: Do something more sensible *)
+let () = define "hyp_value" (ident @-> tac (option constr)) Ltac2.Control.hyp_value
 
-let () =
-  define "hyps" (unit @-> tac valexpr) @@ fun _ ->
-  pf_apply @@ fun env _ ->
-  let open Context in
-  let open Named.Declaration in
-  let hyps = List.rev (Environ.named_context env) in
-  let map = function
-  | LocalAssum (id, t) ->
-    let t = EConstr.of_constr t in
-    Tac2ffi.of_tuple [|
-      Tac2ffi.of_ident id.binder_name;
-      Tac2ffi.of_option Tac2ffi.of_constr None;
-      Tac2ffi.of_constr t;
-    |]
-  | LocalDef (id, c, t) ->
-    let c = EConstr.of_constr c in
-    let t = EConstr.of_constr t in
-    Tac2ffi.of_tuple [|
-      Tac2ffi.of_ident id.binder_name;
-      Tac2ffi.of_option Tac2ffi.of_constr (Some c);
-      Tac2ffi.of_constr t;
-    |]
-  in
-  return (Tac2ffi.of_list map hyps)
+let () = define "hyps" (unit @-> tac valexpr) Ltac2.Control.hyps
 
 (** (unit -> constr) -> unit *)
-let () =
-  define "refine" (thunk constr @-> tac unit) @@ fun c ->
-  let c = thaw c >>= fun c -> Proofview.tclUNIT ((), c, None) in
-  Proofview.Goal.enter @@ fun gl ->
-  Refine.generic_refine ~typecheck:true c gl
+let () = define "refine" (thunk constr @-> tac unit) Ltac2.Control.refine
 
-let () = define "solve_constraints" (unit @-> tac unit) @@ fun () -> Refine.solve_constraints
+let () = define "solve_constraints" (unit @-> tac unit) Ltac2.Control.solve_constraints
 
-let () =
-  define "with_holes" (thunk valexpr @-> fun1 valexpr valexpr @-> tac valexpr) @@ fun x f ->
-  Tacticals.tclRUNWITHHOLES false (thaw x) f
+let () = define "with_holes" (thunk valexpr @-> fun1 valexpr valexpr @-> tac valexpr) Ltac2.Control.with_holes
 
-let () =
-  define "progress" (thunk valexpr @-> tac valexpr) @@ fun f ->
-  Proofview.tclPROGRESS (thaw f)
+let () = define "progress" (thunk valexpr @-> tac valexpr) Ltac2.Control.progress
 
-let () =
-  define "abstract" (option ident @-> thunk unit @-> tac unit) @@ fun id f ->
-  Abstract.tclABSTRACT id (thaw f)
+let () = define "abstract" (option ident @-> thunk unit @-> tac unit) Ltac2.Control.abstract
 
-let () =
-  define "time" (option string @-> thunk valexpr @-> tac valexpr) @@ fun s f ->
-  Proofview.tclTIME s (thaw f)
+let () = define "time" (option string @-> thunk valexpr @-> tac valexpr) Ltac2.Control.time
 
-let () =
-  define "timeout" (int @-> thunk valexpr @-> tac valexpr) @@ fun i f ->
-    Proofview.tclTIMEOUT i (thaw f)
+let () = define "timeout" (int @-> thunk valexpr @-> tac valexpr) Ltac2.Control.timeout
 
-let () =
-  define "timeoutf" (float @-> thunk valexpr @-> tac valexpr) @@ fun f64 f ->
-    Proofview.tclTIMEOUTF (Float64.to_float f64) (thaw f)
+let () = define "timeoutf" (float @-> thunk valexpr @-> tac valexpr) Ltac2.Control.timeoutf
 
-let () =
-  define "check_interrupt" (unit @-> tac unit) @@ fun _ ->
-  Proofview.tclCHECKINTERRUPT
+let () = define "check_interrupt" (unit @-> tac unit) Ltac2.Control.check_interrupt
 
 (** Fresh *)
 
-let () = define "fresh_free_empty" (ret free) Nameops.Fresh.empty
+let () = define "fresh_free_empty" (ret free) Ltac2.Fresh.Free.empty
 
-let () = define "fresh_free_add" (ident @-> free @-> ret free) Nameops.Fresh.add
+let () = define "fresh_free_add" (ident @-> free @-> ret free) Ltac2.Fresh.Free.add
 
-let () =
-  define "fresh_free_union" (free @-> free @-> ret free) Nameops.Fresh.union
+let () = define "fresh_free_union" (free @-> free @-> ret free) Ltac2.Fresh.Free.union
 
-let () =
-  define "fresh_free_of_ids" (list ident @-> ret free) @@ fun ids ->
-  List.fold_right Nameops.Fresh.add ids Nameops.Fresh.empty
+let () = define "fresh_free_of_ids" (list ident @-> ret free) Ltac2.Fresh.Free.of_ids
 
-let () =
-  define "fresh_free_of_constr" (constr @-> tac free) @@ fun c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let rec fold accu c =
-    match EConstr.kind sigma c with
-    | Constr.Var id -> Nameops.Fresh.add id accu
-    | _ -> EConstr.fold sigma fold accu c
-  in
-  return (fold Nameops.Fresh.empty c)
+let () = define "fresh_free_of_constr" (constr @-> tac free) Ltac2.Fresh.Free.of_constr
 
-(* for backwards compat reasons the ocaml and ltac2 APIs
-   exchange the meaning of "fresh" and "next" *)
-let () =
-  define "fresh_next" (free @-> ident @-> ret (pair ident free)) @@ fun avoid id ->
-  let id = Namegen.mangle_id id in
-  Nameops.Fresh.fresh id avoid
+let () = define "fresh_next" (free @-> ident @-> ret (pair ident free)) Ltac2.Fresh.next
 
-let () =
-  define "fresh_fresh" (free @-> ident @-> ret ident) @@ fun avoid id ->
-  let id = Namegen.mangle_id id in
-  Nameops.Fresh.next id avoid
+let () = define "fresh_fresh" (free @-> ident @-> ret ident) Ltac2.Fresh.fresh
 
 (** Env *)
 
-let () =
-  define "env_get" (list ident @-> ret (option reference)) @@ fun ids ->
-  match ids with
-  | [] -> None
-  | _ :: _ as ids ->
-    let (id, path) = List.sep_last ids in
-    let path = DirPath.make (List.rev path) in
-    let fp = Libnames.make_path path id in
-    try Some (Nametab.global_of_path fp) with Not_found -> None
+let () = define "env_get" (list ident @-> ret (option reference)) Ltac2.Env.get
 
-let () =
-  define "env_expand" (list ident @-> ret (list reference)) @@ fun ids ->
-  match ids with
-  | [] -> []
-  | _ :: _ as ids ->
-    let (id, path) = List.sep_last ids in
-    let path = DirPath.make (List.rev path) in
-    let qid = Libnames.make_qualid path id in
-    Nametab.locate_all qid
+let () = define "env_expand" (list ident @-> ret (list reference)) Ltac2.Env.expand
 
-let () =
-  define "env_path" (reference @-> tac (list ident)) @@ fun r ->
-  match Nametab.path_of_global r with
-  | fp ->
-    let (path, id) = Libnames.repr_path fp in
-    let path = DirPath.repr path in
-    return (List.rev_append path [id])
-  | exception Not_found ->
-    throw Tac2ffi.err_notfound
+let () = define "env_path" (reference @-> tac (list ident)) Ltac2.Env.path
 
-let () =
-  define "env_instantiate" (reference @-> tac constr) @@ fun r ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let (sigma, c) = Evd.fresh_global env sigma r in
-  Proofview.Unsafe.tclEVARS sigma >>= fun () ->
-  return c
+let () = define "env_instantiate" (reference @-> tac constr) Ltac2.Env.instantiate
 
 (** Ind *)
 
-let () =
-  define "ind_equal" (inductive @-> inductive @-> ret bool) Ind.UserOrd.equal
+let () = define "ind_equal" (inductive @-> inductive @-> ret bool) Ltac2.Ind.equal
 
-let () =
-  define "ind_data"
-    (inductive @-> tac ind_data)
-    @@ fun ind ->
-  Proofview.tclENV >>= fun env ->
-  if Environ.mem_mind (fst ind) env then
-    return (ind, Environ.lookup_mind (fst ind) env)
-  else
-    throw Tac2ffi.err_notfound
+let () = define "ind_data" (inductive @-> tac ind_data) Ltac2.Ind.data
 
-let () = define "ind_repr" (ind_data @-> ret inductive) fst
-let () = define "ind_index" (inductive @-> ret int) snd
+let () = define "ind_repr" (ind_data @-> ret inductive) Ltac2.Ind.repr
+let () = define "ind_index" (inductive @-> ret int) Ltac2.Ind.index
 
-let () =
-  define "ind_nblocks" (ind_data @-> ret int) @@ fun (_, mib) ->
-  Array.length mib.Declarations.mind_packets
+let () = define "ind_nblocks" (ind_data @-> ret int) Ltac2.Ind.nblocks
 
-let () =
-  define "ind_nconstructors" (ind_data @-> ret int) @@ fun ((_, n), mib) ->
-  Array.length Declarations.(mib.mind_packets.(n).mind_consnames)
+let () = define "ind_nconstructors" (ind_data @-> ret int) Ltac2.Ind.nconstructors
 
-let () =
-  define "ind_get_block"
-    (ind_data @-> int @-> tac ind_data)
-    @@ fun (ind, mib) n ->
-  if 0 <= n && n < Array.length mib.Declarations.mind_packets then
-    return ((fst ind, n), mib)
-  else throw Tac2ffi.err_notfound
+let () = define "ind_get_block" (ind_data @-> int @-> tac ind_data) Ltac2.Ind.get_block
 
-let () =
-  define "ind_get_constructor"
-    (ind_data @-> int @-> tac constructor)
-    @@ fun ((mind, n), mib) i ->
-  let open Declarations in
-  let ncons = Array.length mib.mind_packets.(n).mind_consnames in
-  if 0 <= i && i < ncons then
-    (* WARNING: In the ML API constructors are indexed from 1 for historical
-       reasons, but Ltac2 uses 0-indexing instead. *)
-    return ((mind, n), i + 1)
-  else throw Tac2ffi.err_notfound
+let () = define "ind_get_constructor" (ind_data @-> int @-> tac constructor) Ltac2.Ind.get_constructor
 
-let () =
-  define "ind_get_nparams"
-    (ind_data @-> ret int) @@ fun (_, mib) ->
-  mib.Declarations.mind_nparams
+let () = define "ind_get_nparams" (ind_data @-> ret int) Ltac2.Ind.nparams
 
-let () =
-  define "ind_get_nparams_rec"
-    (ind_data @-> ret int) @@ fun (_, mib) ->
-  mib.Declarations.mind_nparams_rec
+let () = define "ind_get_nparams_rec" (ind_data @-> ret int) Ltac2.Ind.nparams_uniform
 
-let () =
-  define "constructor_inductive"
-    (constructor @-> ret inductive)
-  @@ fun (ind, _) -> ind
+let () = define "constructor_inductive" (constructor @-> ret inductive) Ltac2.Constructor.inductive
 
-let () =
-  define "constructor_index"
-    (constructor @-> ret int)
-  @@ fun (_, i) ->
-  (* WARNING: ML constructors are 1-indexed but Ltac2 constructors are 0-indexed *)
-  i-1
+let () = define "constructor_index" (constructor @-> ret int) Ltac2.Constructor.index
 
-let () =
-  define "constructor_nargs"
-    (ind_data @-> ret (array int)) @@ fun ((_,i),mib) ->
-  let open Declarations in
-  mib.mind_packets.(i).mind_consnrealargs
+let () = define "constructor_nargs" (ind_data @-> ret (array int)) Ltac2.Ind.constructor_nargs
 
-let () =
-  define "constructor_ndecls"
-    (ind_data @-> ret (array int)) @@ fun ((_,i),mib) ->
-  let open Declarations in
-  mib.mind_packets.(i).mind_consnrealdecls
+let () = define "constructor_ndecls" (ind_data @-> ret (array int)) Ltac2.Ind.constructor_ndecls
 
-let () =
-  define "ind_get_projections" (ind_data @-> ret (option (array projection)))
-  @@ fun (ind,mib) ->
-  Declareops.inductive_make_projections ind mib
-  |> Option.map (Array.map (fun (p,_) -> Projection.make p false))
+let () = define "ind_get_projections" (ind_data @-> ret (option (array projection))) Ltac2.Ind.get_projections
 
 (** Schemes *)
 
-let () =
-  define "scheme_lookup" (scheme_kind @-> reference @-> ret (option reference))
-  @@ DeclareScheme.lookup_scheme_opt
+let () = define "scheme_lookup" (scheme_kind @-> reference @-> ret (option reference)) Ltac2.Scheme.lookup
 
-let define_scheme_kind name =
-  define ("scheme_kind_" ^ name) (ret scheme_kind) name
-
-let () = define_scheme_kind "rect_dep"
-let () = define_scheme_kind "rec_dep"
-let () = define_scheme_kind "ind_dep"
-let () = define_scheme_kind "sind_dep"
-let () = define_scheme_kind "rect_nodep"
-let () = define_scheme_kind "rec_nodep"
-let () = define_scheme_kind "ind_nodep"
-let () = define_scheme_kind "sind_nodep"
-let () = define_scheme_kind "case_dep"
-let () = define_scheme_kind "case_nodep"
-let () = define_scheme_kind "casep_dep"
-let () = define_scheme_kind "casep_nodep"
-let () = define_scheme_kind "scase_dep"
-let () = define_scheme_kind "scase_nodep"
-let () = define_scheme_kind "sym"
-let () = define_scheme_kind "sym_involutive"
-let () = define_scheme_kind "rew"
-let () = define_scheme_kind "rew_dep"
-let () = define_scheme_kind "rew_fwd_dep"
-let () = define_scheme_kind "rew_r"
-let () = define_scheme_kind "rew_r_dep"
-let () = define_scheme_kind "rew_fwd_r_dep"
-let () = define_scheme_kind "congr"
-let () = define_scheme_kind "beq"
-let () = define_scheme_kind "dec_bl"
-let () = define_scheme_kind "dec_lb"
-let () = define_scheme_kind "eq_dec"
+let () = define "scheme_kind_rect_dep" (ret scheme_kind) Ltac2.Scheme.rect_dep
+let () = define "scheme_kind_rec_dep" (ret scheme_kind) Ltac2.Scheme.rec_dep
+let () = define "scheme_kind_ind_dep" (ret scheme_kind) Ltac2.Scheme.ind_dep
+let () = define "scheme_kind_sind_dep" (ret scheme_kind) Ltac2.Scheme.sind_dep
+let () = define "scheme_kind_rect_nodep" (ret scheme_kind) Ltac2.Scheme.rect_nodep
+let () = define "scheme_kind_rec_nodep" (ret scheme_kind) Ltac2.Scheme.rec_nodep
+let () = define "scheme_kind_ind_nodep" (ret scheme_kind) Ltac2.Scheme.ind_nodep
+let () = define "scheme_kind_sind_nodep" (ret scheme_kind) Ltac2.Scheme.sind_nodep
+let () = define "scheme_kind_case_dep" (ret scheme_kind) Ltac2.Scheme.case_dep
+let () = define "scheme_kind_case_nodep" (ret scheme_kind) Ltac2.Scheme.case_nodep
+let () = define "scheme_kind_casep_dep" (ret scheme_kind) Ltac2.Scheme.casep_dep
+let () = define "scheme_kind_casep_nodep" (ret scheme_kind) Ltac2.Scheme.casep_nodep
+let () = define "scheme_kind_scase_dep" (ret scheme_kind) Ltac2.Scheme.scase_dep
+let () = define "scheme_kind_scase_nodep" (ret scheme_kind) Ltac2.Scheme.scase_nodep
+let () = define "scheme_kind_sym" (ret scheme_kind) Ltac2.Scheme.sym
+let () = define "scheme_kind_sym_involutive" (ret scheme_kind) Ltac2.Scheme.sym_involutive
+let () = define "scheme_kind_rew" (ret scheme_kind) Ltac2.Scheme.rew
+let () = define "scheme_kind_rew_dep" (ret scheme_kind) Ltac2.Scheme.rew_dep
+let () = define "scheme_kind_rew_fwd_dep" (ret scheme_kind) Ltac2.Scheme.rew_fwd_dep
+let () = define "scheme_kind_rew_r" (ret scheme_kind) Ltac2.Scheme.rew_r
+let () = define "scheme_kind_rew_r_dep" (ret scheme_kind) Ltac2.Scheme.rew_r_dep
+let () = define "scheme_kind_rew_fwd_r_dep" (ret scheme_kind) Ltac2.Scheme.rew_fwd_r_dep
+let () = define "scheme_kind_congr" (ret scheme_kind) Ltac2.Scheme.congr
+let () = define "scheme_kind_beq" (ret scheme_kind) Ltac2.Scheme.beq
+let () = define "scheme_kind_dec_bl" (ret scheme_kind) Ltac2.Scheme.dec_bl
+let () = define "scheme_kind_dec_lb" (ret scheme_kind) Ltac2.Scheme.dec_lb
+let () = define "scheme_kind_eq_dec" (ret scheme_kind) Ltac2.Scheme.eq_dec
 
 (** Proj *)
 
-let () =
-  define "projection_ind" (projection @-> ret inductive) Projection.inductive
+let () = define "projection_ind" (projection @-> ret inductive) Ltac2.Proj.ind
 
-let () =
-  define "projection_index" (projection @-> ret int) Projection.arg
+let () = define "projection_index" (projection @-> ret int) Ltac2.Proj.index
 
-let () =
-  define "projection_unfolded" (projection @-> ret bool) Projection.unfolded
+let () = define "projection_unfolded" (projection @-> ret bool) Ltac2.Proj.unfolded
 
-let () =
-  define "projection_set_unfolded" (projection @-> bool @-> ret projection) @@ fun p b ->
-  Projection.make (Projection.repr p) b
+let () = define "projection_set_unfolded" (projection @-> bool @-> ret projection) Ltac2.Proj.set_unfolded
 
-let () =
-  define "projection_of_constant" (constant @-> ret (option projection)) @@ fun c ->
-  Structures.PrimitiveProjections.find_opt c |> Option.map (fun p -> Projection.make p false)
+let () = define "projection_of_constant" (constant @-> ret (option projection)) Ltac2.Proj.of_constant
 
-let () =
-  define "projection_to_constant" (projection @-> ret (option constant)) @@ fun p ->
-  Some (Projection.constant p)
+let () = define "projection_to_constant" (projection @-> ret (option constant)) Ltac2.Proj.to_constant
 
-let () = define "module_equal" (modpath @-> modpath @-> ret bool) @@ fun a b ->
-  ModPath.equal a b
+let () = define "module_equal" (modpath @-> modpath @-> ret bool)
+           Ltac2.Module.equal
 
-let () = define "module_to_message" (modpath @-> ret pp) @@ fun m ->
-  (* XXX use ModPath.print instead? (nametab is ambiguous since there's no single nametab)
-     or expose ModPath.print as a separate external? *)
-  try Nametab.Modules.pr m
-  with Not_found ->
-  try Nametab.ModTypes.pr m
-  with Not_found ->
-  try Nametab.OpenMods.pr (DirOpenModule m)
-  with Not_found ->
-  try Nametab.OpenMods.pr (DirOpenModtype m)
-  with Not_found ->
-    CErrors.anomaly Pp.(str "Unknown module or modtype " ++ ModPath.print m)
+let () = define "module_to_message" (modpath @-> ret pp)
+           Ltac2.Module.to_message
 
-let is_openmod m =
-  ModPath.subpath m (Global.current_modpath())
+let () = define "module_is_modtype" (modpath @-> eret bool)
+           Ltac2.Module.is_modtype
 
-(* Find info about open module [m] in [senv_l] describing the open
-   modules of some safe env with current module [senv_m].
-   Returns [None] if [m] is the library, [Some v] if [m] is some inner open module. *)
-let rec find_openmod m senv_m senv_l =
-  let open ModPath in
-  match senv_m, senv_l with
-  | MPbound _, _ -> assert false
-  | MPfile _, [] -> assert (ModPath.equal m senv_m); None
-  | MPfile _, _ :: _ -> assert false
-  | MPdot (m0, _), is_modtype :: rest ->
-    if ModPath.equal m senv_m then Some is_modtype
-    else find_openmod m m0 rest
-  | MPdot _, [] -> assert false
+let () = define "module_is_functor" (modpath @-> eret bool)
+           Ltac2.Module.is_functor
 
-(* Assuming [m] is currently open, tell whether it is modtype. *)
-let open_module_is_modtype m =
-  let senv = Global.safe_env() in
-  match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_is_modtype senv) with
-  | None -> false
-  | Some b -> b
+let () = define "module_is_bound_module" (modpath @-> ret bool)
+           Ltac2.Module.is_bound_module
 
-let open_module_is_functor m =
-  let senv = Global.safe_env() in
-  match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_num_parameters senv) with
-  | None -> false
-  | Some nparams -> not (Int.equal nparams 0)
+let () = define "module_is_library" (modpath @-> ret bool)
+           Ltac2.Module.is_library
 
-let () = define "module_is_modtype" (modpath @-> eret bool) @@ fun m env _ ->
-  if is_openmod m then open_module_is_modtype m
-  else
-    try ignore (Environ.lookup_modtype m env); true
-    with Not_found -> false
+let () = define "module_is_open" (modpath @-> ret bool) Ltac2.Module.is_open
 
-let () = define "module_is_functor" (modpath @-> eret bool) @@ fun m env _ ->
-  if is_openmod m then open_module_is_functor m
-  else
-  let modbody_is_functor m = match Mod_declarations.mod_type m with
-    | NoFunctor _ -> false
-    | MoreFunctor _ -> true
-  in
-  match Environ.lookup_module m env with
-  | m -> modbody_is_functor m
-  | exception Not_found -> match Environ.lookup_modtype m env with
-    | m -> modbody_is_functor m
-    | exception Not_found -> assert false
+let () = define "module_parent_module" (modpath @-> ret (option modpath))
+           Ltac2.Module.parent_module
 
-let () = define "module_is_bound_module" (modpath @-> ret bool) @@ function
-  | MPbound _ -> true
-  | MPfile _ | MPdot _ -> false
+let () = define "module_of_reference" (reference @-> tac modpath)
+           Ltac2.Module.module_of_reference
 
-let () = define "module_is_library" (modpath @-> ret bool) @@ function
-  | MPfile _ -> true
-  | MPbound _ | MPdot _ -> false
+let () = define "current_module" (unit @-> ret modpath)
+           Ltac2.Module.current_module
 
-let () = define "module_is_open" (modpath @-> ret bool) is_openmod
-
-let () = define "module_parent_module" (modpath @-> ret (option modpath)) @@ function
-  | MPdot (m, _) -> Some m
-  | MPbound _ | MPfile _ -> None
-
-let () = define "module_of_reference" (reference @-> tac modpath) @@ function
-  | VarRef _ -> throw (Invalid_argument "module_of_reference")
-  | ConstRef c -> return (Constant.modpath c)
-  | IndRef (mind,_) | ConstructRef ((mind,_),_) -> return (MutInd.modpath mind)
-
-let () = define "current_module" (unit @-> ret modpath) @@ fun () ->
-  Global.current_modpath()
-
-let () = define "module_loaded_libraries" (unit @-> ret (list modpath)) @@ fun () ->
-  List.map (fun dp -> MPfile dp) (Library.loaded_libraries())
+let () = define "module_loaded_libraries" (unit @-> ret (list modpath))
+           Ltac2.Module.loaded_libraries
 
 let module_field_handler = triple (fun1 modpath valexpr) (fun1 reference valexpr) (fun1 unit valexpr)
 
-let () = define "module_field_handle" (module_field @-> module_field_handler @-> tac valexpr) @@ fun f handler ->
-  let (handle_submodule, handle_reference, handle_rewrule) = handler in
-  match f with
-  | Ref x -> handle_reference x
-  | Submodule x -> handle_submodule x
-  | Rewrule -> handle_rewrule ()
+let () = define "module_field_handle" (module_field @-> module_field_handler @-> tac valexpr) Ltac2.Module.Field.handle
 
-let openmod_revstruct m senv =
-  let rec close senv modtype =
-    let curm = Safe_typing.current_modpath senv in
-    if ModPath.equal m curm then senv
-    else
-      let l = match curm with
-        | MPdot (_, l) -> l
-        | _ -> assert false
-      in
-      match modtype with
-      | [] -> assert false
-      | false :: modtype ->
-        (* None: type constraint of submodule doesn't matter since we
-           will anyway only return "Submodule M" and not look at its
-           contents *)
-        close (snd @@ Safe_typing.end_module l None senv) modtype
-      | true :: modtype -> close (snd @@ Safe_typing.end_modtype l senv) modtype
-  in
-  let modtype = Safe_typing.module_is_modtype senv in
-  let senv = close senv modtype in
-  Safe_typing.structure_body_of_safe_env senv
+let () = define "module_contents" (modpath @-> ret (option (list module_field))) Ltac2.Module.contents
 
-let () = define "module_contents" (modpath @-> ret (option (list module_field))) @@ fun m ->
-  let body =
-    if is_openmod m then
-      (* XXX not sure what this does with side effects *)
-      Some (List.rev (openmod_revstruct m (Global.safe_env())))
-    else
-      match Environ.lookup_module m (Global.env()) with
-      | exception Not_found -> (* modtype *) None
-      | body -> match Mod_declarations.mod_type body with
-        | MoreFunctor _ -> (* functor *) None
-        | NoFunctor body -> Some body
-  in
-  let to_field (lab, f) : ModField.t = match (f:_ Declarations.structure_field_body) with
-    | SFBconst _ ->
-      let kn = KerName.make m lab in
-      Ref (ConstRef (Global.constant_of_delta_kn kn))
-    | SFBmind _ ->
-      let kn = KerName.make m lab in
-      Ref (IndRef ((Global.mind_of_delta_kn kn, 0)))
-    | SFBrules _ -> Rewrule
-    | SFBmodule _ -> Submodule (MPdot (m, lab))
-    | SFBmodtype _ -> Submodule (MPdot (m, lab))
-  in
-  Option.map (List.map to_field) body
-
-module MapTagDyn = Dyn.Make()
-
-type ('a,'set,'map) map_tag = ('a * 'set * 'map) MapTagDyn.tag
-
-type any_map_tag = Any : _ map_tag -> any_map_tag
-type tagged_set = TaggedSet : (_,'set,_) map_tag * 'set -> tagged_set
-type tagged_map = TaggedMap : (_,_,'map) map_tag * 'map -> tagged_map
-
-let map_tag_ext : any_map_tag Tac2dyn.Val.tag = Tac2dyn.Val.create "fmap_tag"
-let map_tag_repr = Tac2ffi.repr_ext map_tag_ext
-
-let set_ext : tagged_set Tac2dyn.Val.tag = Tac2dyn.Val.create "fset"
-let set_repr = Tac2ffi.repr_ext set_ext
-let tag_set tag s = Tac2ffi.repr_of set_repr (TaggedSet (tag,s))
-
-let map_ext : tagged_map Tac2dyn.Val.tag = Tac2dyn.Val.create "fmap"
-let map_repr = Tac2ffi.repr_ext map_ext
-let tag_map tag m = Tac2ffi.repr_of map_repr (TaggedMap (tag,m))
-
-module type MapType = sig
-  (* to have less boilerplate we use S.elt rather than declaring a toplevel type t *)
-  module S : CSig.USetS
-  module M : CMap.UExtS with type key = S.elt and module Set := S
-  type valmap
-  val valmap_eq : (valmap, valexpr M.t) Util.eq
-  val repr : S.elt Tac2ffi.repr
-end
-
-module MapTypeV = struct
-  type _ t = Map : (module MapType with type S.elt = 't and type S.t = 'set and type valmap = 'map)
-    -> ('t * 'set * 'map) t
-end
-
-module MapMap = MapTagDyn.Map(MapTypeV)
-
-let maps = ref MapMap.empty
-
-let register_map ?(plugin=ltac2_plugin) ~tag_name x =
-  let tag = MapTagDyn.create (plugin^":"^tag_name) in
-  let () = maps := MapMap.add tag (Map x) !maps in
-  let () = define ~plugin tag_name (ret map_tag_repr) (Any tag) in
-  tag
-
-let get_map (type t s m) (tag:(t,s,m) map_tag)
-  : (module MapType with type S.elt = t and type S.t = s and type valmap = m) =
-  let Map v = MapMap.find tag !maps in
-  v
-
-let map_tag_eq (type a b c a' b' c') (t1:(a,b,c) map_tag) (t2:(a',b',c') map_tag)
-  : (a*b*c,a'*b'*c') Util.eq option
-  = MapTagDyn.eq t1 t2
-
-let assert_map_tag_eq t1 t2 = match map_tag_eq t1 t2 with
-  | Some v -> v
-  | None -> assert false
-
-let ident_map_tag : _ map_tag = register_map ~tag_name:"fmap_ident_tag" (module struct
-    module S = Id.Set
-    module M = Id.Map
-    let repr = Tac2ffi.ident
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
-
-let int_map_tag : _ map_tag = register_map ~tag_name:"fmap_int_tag" (module struct
-    module S = Int.Set
-    module M = Int.Map
-    let repr = Tac2ffi.int
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
-
-let string_map_tag : _ map_tag = register_map ~tag_name:"fmap_string_tag" (module struct
-    module S = String.Set
-    module M = String.Map
-    let repr = Tac2ffi.string
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
-
-let inductive_map_tag : _ map_tag = register_map ~tag_name:"fmap_inductive_tag" (module struct
-    module S = Indset_env
-    module M = Indmap_env
-    let repr = inductive
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
-
-let constructor_map_tag : _ map_tag = register_map ~tag_name:"fmap_constructor_tag" (module struct
-    module S = Constrset_env
-    module M = Constrmap_env
-    let repr = Tac2ffi.constructor
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
-
-let constant_map_tag : _ map_tag = register_map ~tag_name:"fmap_constant_tag" (module struct
-    module S = Cset_env
-    module M = Cmap_env
-    let repr = Tac2ffi.constant
-    type valmap = valexpr M.t
-    let valmap_eq = Refl
-  end)
+(** FMap/FSet *)
 
 let () =
-  define "fset_empty" (map_tag_repr @-> ret valexpr) @@ fun (Any tag) ->
-  let (module V) = get_map tag in
-  tag_set tag V.S.empty
+  define "fset_empty" (map_tag_repr @-> ret valexpr) Ltac2.FSet.empty
 
 let () =
-  define "fset_is_empty" (set_repr @-> ret bool) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.is_empty s
+  define "fset_is_empty" (set_repr @-> ret bool) Ltac2.FSet.is_empty
 
 let () =
-  define "fset_mem" (valexpr @-> set_repr @-> ret bool) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.mem (repr_to V.repr x) s
+  define "fset_mem" (valexpr @-> set_repr @-> ret bool) Ltac2.FSet.mem
 
 let () =
-  define "fset_add" (valexpr @-> set_repr @-> ret valexpr) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  tag_set tag (V.S.add (repr_to V.repr x) s)
+  define "fset_add" (valexpr @-> set_repr @-> ret valexpr) Ltac2.FSet.add
 
 let () =
-  define "fset_remove" (valexpr @-> set_repr @-> ret valexpr) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  tag_set tag (V.S.remove (repr_to V.repr x) s)
+  define "fset_remove" (valexpr @-> set_repr @-> ret valexpr) Ltac2.FSet.remove
 
 let () =
-  define "fset_union" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.union s1 s2)
+  define "fset_union" (set_repr @-> set_repr @-> ret valexpr) Ltac2.FSet.union
 
 let () =
-  define "fset_inter" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.inter s1 s2)
+  define "fset_inter" (set_repr @-> set_repr @-> ret valexpr) Ltac2.FSet.inter
 
 let () =
-  define "fset_diff" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.diff s1 s2)
+  define "fset_diff" (set_repr @-> set_repr @-> ret valexpr) Ltac2.FSet.diff
 
 let () =
-  define "fset_equal" (set_repr @-> set_repr @-> ret bool)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  V.S.equal s1 s2
+  define "fset_equal" (set_repr @-> set_repr @-> ret bool) Ltac2.FSet.equal
 
 let () =
-  define "fset_subset" (set_repr @-> set_repr @-> ret bool)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  V.S.subset s1 s2
+  define "fset_subset" (set_repr @-> set_repr @-> ret bool) Ltac2.FSet.subset
 
 let () =
-  define "fset_cardinal" (set_repr @-> ret int) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.cardinal s
+  define "fset_cardinal" (set_repr @-> ret int) Ltac2.FSet.cardinal
 
 let () =
-  define "fset_elements" (set_repr @-> ret valexpr) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  Tac2ffi.of_list (repr_of V.repr) (V.S.elements s)
+  define "fset_elements" (set_repr @-> ret valexpr) Ltac2.FSet.elements
 
 let () =
-  define "fmap_empty" (map_tag_repr @-> ret valexpr) @@ fun (Any (tag)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag V.M.empty
+  define "fmap_empty" (map_tag_repr @-> ret valexpr) Ltac2.FMap.empty
 
 let () =
-  define "fmap_is_empty" (map_repr @-> ret bool) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.is_empty m
+  define "fmap_is_empty" (map_repr @-> ret bool) Ltac2.FMap.is_empty
 
 let () =
-  define "fmap_mem" (valexpr @-> map_repr @-> ret bool) @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.mem (repr_to V.repr x) m
+  define "fmap_mem" (valexpr @-> map_repr @-> ret bool) Ltac2.FMap.mem
 
 let () =
-  define "fmap_add" (valexpr @-> valexpr @-> map_repr @-> ret valexpr)
-    @@ fun x v (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag (V.M.add (repr_to V.repr x) v m)
+  define "fmap_add" (valexpr @-> valexpr @-> map_repr @-> ret valexpr) Ltac2.FMap.add
 
 let () =
-  define "fmap_remove" (valexpr @-> map_repr @-> ret valexpr)
-    @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag (V.M.remove (repr_to V.repr x) m)
+  define "fmap_remove" (valexpr @-> map_repr @-> ret valexpr) Ltac2.FMap.remove
 
 let () =
-  define "fmap_find_opt" (valexpr @-> map_repr @-> ret (option valexpr))
-    @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.find_opt (repr_to V.repr x) m
+  define "fmap_find_opt" (valexpr @-> map_repr @-> ret (option valexpr)) Ltac2.FMap.find_opt
 
 let () =
-  define "fmap_mapi" (closure @-> map_repr @-> tac valexpr)
-    @@ fun f (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  let module Monadic = V.M.Monad(Proofview.Monad) in
-  Monadic.mapi (fun k v -> apply f [repr_of V.repr k;v]) m >>= fun m ->
-  return (tag_map tag m)
+  define "fmap_mapi" (closure @-> map_repr @-> tac valexpr) Ltac2.FMap.mapi
 
 let () =
-  define "fmap_fold" (closure @-> map_repr @-> valexpr @-> tac valexpr)
-    @@ fun f (TaggedMap (tag,m)) acc ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  let module Monadic = V.M.Monad(Proofview.Monad) in
-  Monadic.fold (fun k v acc -> apply f [repr_of V.repr k;v;acc]) m acc
+  define "fmap_fold" (closure @-> map_repr @-> valexpr @-> tac valexpr) Ltac2.FMap.fold
 
 let () =
-  define "fmap_cardinal" (map_repr @-> ret int) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.cardinal m
+  define "fmap_cardinal" (map_repr @-> ret int) Ltac2.FMap.cardinal
 
 let () =
-  define "fmap_bindings" (map_repr @-> ret valexpr) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  Tac2ffi.(of_list (of_pair (repr_of V.repr) identity) (V.M.bindings m))
+  define "fmap_bindings" (map_repr @-> ret valexpr) Ltac2.FMap.bindings
 
 let () =
-  define "fmap_domain" (map_repr @-> ret valexpr) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_set tag (V.M.domain m)
+  define "fmap_domain" (map_repr @-> ret valexpr) Ltac2.FMap.domain

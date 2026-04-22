@@ -11,6 +11,8 @@
 open Tac2ffi
 open Tac2types
 
+val make_to_repr : (Tac2val.valexpr -> 'a) -> 'a Tac2ffi.repr
+
 val qhyp : quantified_hypothesis repr
 
 val bindings : bindings repr
@@ -18,3 +20,5 @@ val bindings : bindings repr
 val constr_with_bindings : constr_with_bindings repr
 
 val format : format list repr
+
+val rewrite_result : Rewrite.rewrite_result repr

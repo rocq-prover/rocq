@@ -470,6 +470,25 @@ let of_binder c = of_ext val_binder c
 let to_binder c = to_ext val_binder c
 let binder = repr_ext val_binder
 
+type relevance = Sorts.relevance
+
+let of_relevance = function
+  | Sorts.Relevant -> ValInt 0
+  | Sorts.Irrelevant -> ValInt 1
+  | Sorts.RelevanceVar q -> ValBlk (0, [|of_qvar q|])
+
+let to_relevance = function
+  | ValInt 0 -> Sorts.Relevant
+  | ValInt 1 -> Sorts.Irrelevant
+  | ValBlk (0, [|qvar|]) ->
+    let qvar = to_qvar qvar in
+    Sorts.RelevanceVar qvar
+  | _ -> assert false
+
+(* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
+   ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
+let relevance = make_repr of_relevance to_relevance
+
 let of_instance c = of_ext val_instance c
 let to_instance c = to_ext val_instance c
 let instance = repr_ext val_instance
@@ -485,7 +504,6 @@ let scheme_kind = repr_ext val_scheme_kind
 let of_module_field c = of_ext val_module_field c
 let to_module_field c = to_ext val_module_field c
 let module_field = repr_ext val_module_field
-
 
 let of_reference = let open Names.GlobRef in function
 | VarRef id -> ValBlk (0, [| of_ident id |])

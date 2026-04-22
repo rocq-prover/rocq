@@ -45,3 +45,18 @@ let constr_with_bindings = make_to_repr to_constr_with_bindings
 let val_format = Tac2dyn.Val.create "format"
 
 let format = repr_ext val_format
+
+let to_rewrite_success v : Rewrite.rewrite_result_info = match Value.to_tuple v with
+| [| rel; rhs; prf |] ->
+   { rew_rel = Value.to_constr rel;
+     rew_to = Value.to_constr rhs;
+     rew_prf = Value.to_constr prf }
+| _ -> assert false
+
+let to_rewrite_result v : Rewrite.rewrite_result = match v with
+| ValBlk (0, [| s |]) ->  Success (to_rewrite_success s)
+| ValInt 0 -> Identity
+| ValInt 1 -> Fail
+| _ -> assert false
+
+let rewrite_result = make_to_repr to_rewrite_result

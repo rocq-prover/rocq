@@ -214,6 +214,12 @@ val of_binder : binder -> valexpr
 val to_binder : valexpr -> binder
 val binder : binder repr
 
+type relevance = Sorts.relevance
+
+val of_relevance : relevance -> Tac2val.valexpr
+val to_relevance : Tac2val.valexpr -> relevance
+val relevance : relevance repr
+
 val of_instance : EConstr.EInstance.t -> valexpr
 val to_instance : valexpr -> EConstr.EInstance.t
 val instance : EConstr.EInstance.t repr
