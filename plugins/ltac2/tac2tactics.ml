@@ -261,7 +261,7 @@ let reduce_in red cl =
   Tactics.reduce red cl
 
 let reduce_constr red c =
-  Tac2core.pf_apply begin fun env sigma ->
+  Tac2core_copy.pf_apply begin fun env sigma ->
     let (redfun, _) = Redexpr.reduction_of_red_expr env red in
     let (sigma, ans) = redfun env sigma c in
     Proofview.Unsafe.tclEVARS sigma >>= fun () ->
