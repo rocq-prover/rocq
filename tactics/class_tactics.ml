@@ -280,24 +280,24 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
   let tac_of_hint (flags,h) =
     let name = FullHint.name h in
     let tac = function
-      | Res_pf h ->
+      | Apply h ->
         let tac =
           with_prods nprods h (unify_resolve ~with_evars:false flags h) in
         Proofview.tclBIND (Proofview.with_shelf tac)
           (fun (gls, ()) -> shelve_dependencies gls)
-      | ERes_pf h ->
+      | EApply h ->
         let tac =
           with_prods nprods h (unify_resolve ~with_evars:true flags h) in
         Proofview.tclBIND (Proofview.with_shelf tac)
           (fun (gls, ()) -> shelve_dependencies gls)
-      | Give_exact h ->
+      | Exact h ->
         e_give_exact flags h
-      | Res_pf_THEN_trivial_fail h ->
+      | Immediate h ->
         let fst = with_prods nprods h (unify_resolve ~with_evars:true flags h) in
         let snd = if complete then Tacticals.tclIDTAC
           else e_trivial_fail_db db_list local_db secvars in
         Tacticals.tclTHEN fst snd
-      | Unfold_nth c ->
+      | Unfold c ->
         Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
       | Extern (p, tacast) -> conclPattern concl0 p tacast
     in
