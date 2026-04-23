@@ -42,16 +42,22 @@ let pp_collect ~need_comma which c =
       (if need_comma then ", " else "") c which
       (if c = 1 then "collection" else "collections")
 
+let pp_heap ~need_comma = function
+  | None -> need_comma, ""
+  | Some heap ->
+    true, Printf.sprintf "%s%s heap size change" (if need_comma then ", " else "") heap
+
 let pp_memory ch = function
   | None -> ()
-  | Some {major_words; minor_words; major_collect; minor_collect} ->
+  | Some {major_words; minor_words; major_collect; minor_collect; heap_words} ->
     (* need_comma <-> prefix is nontrivial *)
     let need_comma, minor_words = pp_words ~need_comma:false "minor" minor_words in
     let need_comma, major_words = pp_words ~need_comma "major" major_words in
     let need_comma, minor_collect = pp_collect ~need_comma "minor" minor_collect in
     let need_comma, major_collect = pp_collect ~need_comma "major" major_collect in
+    let need_comma, heap = pp_heap ~need_comma heap_words in
     if need_comma then
-      Printf.fprintf ch " (%s%s%s%s)" minor_words major_words minor_collect major_collect
+      Printf.fprintf ch " (%s%s%s%s%s)" minor_words major_words minor_collect major_collect heap
 
 let pp_instr ch = function
   | None -> ()

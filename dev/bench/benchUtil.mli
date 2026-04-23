@@ -29,9 +29,14 @@ type memory = {
   minor_words : string;
   major_collect : int;
   minor_collect : int;
+  heap_words : string option;
 }
 
-type data = { time : measure; memory : memory option; instructions : int option }
+type data = {
+  time : measure;
+  memory : memory option;
+  instructions : int option;
+}
 
 val dummy_data : data
 
