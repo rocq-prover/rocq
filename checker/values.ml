@@ -430,14 +430,6 @@ let v_recarg_type = v_sum "recarg_type" 0
 let v_recarg = v_sum "recarg" 1 (* Norec *)
   [|[|v_recarg_type|] (* Mrec *)|]
 
-let v_wfp =
-  fix (fun v_wfp ->
-  v_sum_c ("wf_paths",0,
-    [|[|v_int;v_int|]; (* Rtree.Param *)
-      [|v_recarg;v_array (v_array v_wfp)|]; (* Rtree.Node *)
-      [|v_int;v_array v_wfp|] (* Rtree.Rec *)
-    |]))
-
 let v_automaton =
   v_tuple "automaton"
     [|v_int; v_array (v_pair v_recarg (v_array (v_array v_int)))|]
@@ -463,7 +455,6 @@ let v_one_ind = v_tuple "one_inductive_body"
     v_array (v_pair v_rctxt v_constr);
     v_array v_int;
     v_array v_int;
-    v_wfp;
     v_automaton;
     v_relevance;
     v_bool;

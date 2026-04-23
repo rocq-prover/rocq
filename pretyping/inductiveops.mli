@@ -123,7 +123,6 @@ val inductive_alltags : env -> inductive -> bool list
 val constructor_alltags : env -> constructor -> bool list
 
 (** Is there local defs in params or args ? *)
-val constructor_has_local_defs : env -> constructor -> bool
 val inductive_has_local_defs : env -> inductive -> bool
 
 val constant_sorts_below : UnivGen.QualityOrSet.t -> UnivGen.QualityOrSet.t list

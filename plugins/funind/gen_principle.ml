@@ -1109,8 +1109,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
             in
             if
               infos.is_general
-              || Rtree.is_infinite Declareops.eq_recarg
-                   graph_def.Declarations.mind_recargs
+              || Inductiveops.mis_is_recursive graph_def
             then
               let eq_lemma = match infos.equation_lemma with
               | None -> CErrors.anomaly (Pp.str "Cannot find equation lemma.")
