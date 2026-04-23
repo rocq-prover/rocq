@@ -2114,21 +2114,7 @@ let check_may_eval env sigma redexp rc =
   Evarconv.check_problems_are_solved env sigma;
   let sigma = Evd.minimize_universes sigma in
   let (qs, us), csts as uctx = Evd.sort_context_set sigma in
-  let { Environ.uj_val=c; uj_type=ty; } =
-    if Evarutil.has_undefined_evars sigma c
-    || List.exists (Context.Named.Declaration.exists (Evarutil.has_undefined_evars sigma))
-         (EConstr.named_context env)
-    then
-      Evarutil.j_nf_evar sigma (Retyping.get_judgment_of env sigma c)
-    else
-      let env = Evarutil.nf_env_evar sigma env in
-      let env = Environ.set_qualities (Evd.elim_graph sigma) env in
-      let env = Environ.set_universes (Evd.universes sigma) env in
-      let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
-      let c = EConstr.to_constr sigma c in
-      (* OK to call kernel which does not support evars *)
-      Environ.on_judgment EConstr.of_constr (Arguments_renaming.rename_typing env c)
-  in
+  let { Environ.uj_val=c; uj_type=ty; } = Retyping.get_judgment_of env sigma c in
   let sigma, c = match redexp with
     | None -> sigma, c
     | Some r ->
