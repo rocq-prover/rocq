@@ -172,7 +172,6 @@ val set_unfold_dep_heuristic : bool -> safe_transformer0
 val set_check_guarded : bool -> safe_transformer0
 val set_check_positive : bool -> safe_transformer0
 val set_check_universes : bool -> safe_transformer0
-val set_check_eliminations : bool -> safe_transformer0
 val set_VM : bool -> safe_transformer0
 val set_native_compiler : bool -> safe_transformer0
 val set_allow_sprop : bool -> safe_transformer0

@@ -2043,14 +2043,6 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
-      optkey   = ["Elimination"; "Checking"];
-      optread  = (fun () -> (Global.typing_flags ()).Declarations.check_eliminations);
-      optwrite = (fun b -> Global.set_check_eliminations b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
       optkey   = ["Indices"; "Matter"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.indices_matter);
       optwrite = (fun b -> Global.set_indices_matter b) }
