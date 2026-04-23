@@ -59,7 +59,7 @@ check_variable () {
 
 if [ "$CI" ]; then
   : "${new_coq_commit:=$(git rev-parse HEAD^2)}"
-  : "${old_coq_commit:=$(git merge-base HEAD^1 $new_coq_commit)}"
+  old_coq_commit=d6a4a113c2d80dd24b42d370ca9eed38d04cafd3
 else
   echo New coq commit:
   read -r new_coq_commit
