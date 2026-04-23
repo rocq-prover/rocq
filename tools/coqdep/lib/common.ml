@@ -158,6 +158,16 @@ let with_in_channel ~fname f =
   in
   Util.try_finally f chan close_in chan
 
+let with_in_descr ~fname f =
+  let descr =
+    try Unix.openfile fname [O_RDONLY] 0o000
+    with Unix.Unix_error (_, _, msg) -> Error.cannot_open fname msg
+  in
+  Util.try_finally f descr Unix.close descr
+
+let lexbuf_from_descr ?with_positions ic =
+  Lexing.from_function ?with_positions (fun buf n -> Unix.read ic buf 0 n)
+
 module State = struct
   type t = {
     loadpath : Loadpath.State.t;
@@ -191,13 +201,13 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
 
   (* Reading file contents *)
   let f = basename ^ ".v" in
-  with_in_channel ~fname:f @@ fun chan ->
+  with_in_descr ~fname:f @@ fun chan ->
   (* For lexing efficiency purposes, we ignore the positions in this function.
      This will force us to reparse the file in case of error to get a proper
      location, but in practice such errors should be exceedingly rare with
      rocqdep. This lexer is indeed basically able to handle random nonsense
      thrown at it. *)
-  let buf = Lexing.from_channel ~with_positions:false chan in
+  let buf = lexbuf_from_descr ~with_positions:false chan in
   let open Lexer in
   let rec loop () =
     match coq_action buf with
