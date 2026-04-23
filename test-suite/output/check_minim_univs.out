@@ -1,0 +1,6 @@
+abc@{α4 ;
+check_minim_univs.24}
+     : Type@{check_minim_univs.24+1}
+(* {α4}; {check_minim_univs.24} |= 
+Normalized constraints:
+ {check_minim_univs.24} |=  *)

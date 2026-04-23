@@ -42,8 +42,14 @@ Expands to: Constant DeclareSort.foo
 Declared in library DeclareSort, line 19, characters 8-11
 foo@{SProp ; } : Type@{S1 ; Set} -> SProp
      : Type@{S1 ; Set} -> SProp
+(* {DeclareSort.25} |= Set < DeclareSort.25
+Normalized constraints:
+  *)
 foo@{Type ; } : Type@{S1 ; Set} -> Set
      : Type@{S1 ; Set} -> Set
+(* {DeclareSort.26} |= Set < DeclareSort.26
+Normalized constraints:
+  *)
 File "./output/DeclareSort.v", line 30, characters 11-14:
 The command has indeed failed with message:
 The term "foo@{α6 ; }" has type "Type@{S1 ; Set} -> Type@{α6 ; Set}"
