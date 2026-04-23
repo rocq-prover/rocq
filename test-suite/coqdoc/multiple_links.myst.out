@@ -1,0 +1,5 @@
+```{coq}
+Inductive t := X | T : t -> t.
+Check X.
+Check t.
+Check t_ind. ```

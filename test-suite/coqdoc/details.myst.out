@@ -1,0 +1,23 @@
+```{coq}
+```
+:::{dropdown}
+```{coq}
+Definition foo : nat := 3.
+```
+
+:::
+```{coq}
+
+```
+:::{dropdown} Foo bar 
+```{coq}
+Fixpoint idnat (x : nat) : nat :=
+  match x with
+  | S x => S (idnat x)
+  | 0 => 0
+  end.
+```
+
+:::
+```{coq}
+```

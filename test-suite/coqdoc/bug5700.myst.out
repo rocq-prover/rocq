@@ -1,0 +1,11 @@
+```{coq}
+```
+` foo (* {bar_bar} *) ` 
+```{coq}
+Definition const1 := 1.
+
+```
+` more (* nested (* comments *) within verbatim *) ` 
+```{coq}
+Definition const2 := 2.
+```
