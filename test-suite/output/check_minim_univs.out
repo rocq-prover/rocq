@@ -1,5 +1,4 @@
-abc@{α4 ;
-check_minim_univs.24}
+abc@{α4 ; check_minim_univs.24}
      : Type@{check_minim_univs.24+1}
 (* UNIVERSES:
     {check_minim_univs.24} |= 

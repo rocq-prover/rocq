@@ -902,8 +902,7 @@ match true@{Test ; } return testind'@{Test ; } with
 | true => testctor'@{Test ; }
 | false => testctor'@{Test ; }
 end
-     : testind'@{Test ;
-}
+     : testind'@{Test ; }
 (* UNIVERSES:
     {sort_poly_elab.354} |= Set <= sort_poly_elab.354
    ALGEBRAIC UNIVERSES:
@@ -962,8 +961,7 @@ Arguments Foo n
 Foo is transparent
 Expands to: Constant sort_poly_elab.Inductives.Foo
 Declared in library sort_poly_elab, line 531, characters 13-16
-Foo@{Type Prop ;
-}
+Foo@{Type Prop ; }
      : forall _ : FooNat@{Type ; }, FooNat@{Prop ; }
 (* UNIVERSES:
     {} |= Type -> Prop
@@ -1193,8 +1191,7 @@ sexists@{α ; u} may only be eliminated to produce values whose type is SProp or
 Arguments sexists A%_type_scope B%_function_scope
 Expands to: Inductive sort_poly_elab.Records.sexists
 Declared in library sort_poly_elab, line 611, characters 12-19
-sexists_ind@{α410 ;
-sort_poly_elab.396}
+sexists_ind@{α410 ; sort_poly_elab.396}
      : forall (A : Type@{α410 ; sort_poly_elab.396}) 
          (B : forall _ : A, Prop) (P : Prop)
          (_ : forall (a : A) (_ : B a), P)
