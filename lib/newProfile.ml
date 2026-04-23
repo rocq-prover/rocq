@@ -106,6 +106,7 @@ module Counters = struct
     minor_words : float;
     major_collections : int;
     minor_collections : int;
+    heap_words : int;
     instr : System.instruction_count;
   }
 
@@ -114,6 +115,7 @@ module Counters = struct
     minor_words = 0.;
     major_collections = 0;
     minor_collections = 0;
+    heap_words = 0;
     instr = Ok 0L;
   }
 
@@ -124,6 +126,7 @@ module Counters = struct
       minor_words = gc.minor_words;
       major_collections = gc.major_collections;
       minor_collections = gc.minor_collections;
+      heap_words = gc.heap_words;
       instr = Instr.read_counter();
     }
 
@@ -134,6 +137,7 @@ module Counters = struct
     minor_words = a.minor_words +. b.minor_words;
     major_collections = a.major_collections + b.major_collections;
     minor_collections = a.minor_collections + b.minor_collections;
+    heap_words = max a.heap_words b.heap_words;
     instr = System.instruction_count_add a.instr b.instr;
   }
 
@@ -142,6 +146,7 @@ module Counters = struct
     minor_words = b.minor_words -. a.minor_words;
     major_collections = b.major_collections - a.major_collections;
     minor_collections = b.minor_collections - a.minor_collections;
+    heap_words = b.heap_words;
     instr = System.instructions_between ~c_start:a.instr ~c_end:b.instr;
   }
 
@@ -154,6 +159,7 @@ module Counters = struct
        (str "minor words:" ++ spc() ++ ppw x.minor_words) ::
        (str "major collections:" ++ spc() ++ int x.major_collections) ::
        (str "minor collections:" ++ spc() ++ int x.minor_collections) ::
+       (str "max heap size:" ++ spc() ++ ppw (float_of_int x.heap_words)) ::
        match x.instr with
        | Ok count -> [str "instructions:" ++ spc() ++ str (Int64.to_string count)]
        | Error _ -> [])
@@ -169,6 +175,7 @@ module Counters = struct
     ("minor_words", ppw x.minor_words) ::
     ("major_collect", ppi x.major_collections) ::
     ("minor_collect", ppi x.minor_collections) ::
+    ("heap_words", ppi x.heap_words) ::
     instr
 
   let make_diffs ~start ~stop = format (stop - start)

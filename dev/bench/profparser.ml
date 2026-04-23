@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+let () = Exninfo.record_backtrace true
+
 let die fmt = Printf.kfprintf (fun _ -> exit 1) stderr (fmt^^"\n%!")
 
 module YB = Yojson.Basic
@@ -116,6 +118,9 @@ let mk_memory (lnum, l) =
       minor_words = YBU.(to_string @@ member "minor_words" args);
       major_collect = YBU.(to_int @@ member "major_collect" args);
       minor_collect = YBU.(to_int @@ member "minor_collect" args);
+      heap_words =
+        (try Some YBU.(to_int @@ member "heap_words" args)
+         with YBU.Type_error _ -> None);
     }
   with YBU.Type_error (msg,_) -> die "line %d: %s" lnum msg
 
@@ -139,7 +144,8 @@ let mk_time start stop =
 
 let get_instr (lnum, l) =
   let args = assoc "args" l in
-  YBU.(to_int @@ member "instr" args)
+  try Some YBU.(to_int @@ member "instr" args)
+  with YBU.Type_error _ -> None
 
 let rec process_cmds acc = function
   | [] -> acc
@@ -150,7 +156,7 @@ let rec process_cmds acc = function
     let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
     let time = mk_time start_ts end_ts in
     let memory = mk_memory end_event in
-    let instructions = Some (get_instr end_event) in
+    let instructions = get_instr end_event in
     process_cmds ((src_chars, { time; memory; instructions; }) :: acc) rest
   | [_] -> die "ill parenthesized events"
 
