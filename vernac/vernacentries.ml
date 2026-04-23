@@ -184,12 +184,15 @@ let show_top_evars ~proof =
   let given_up = Evar.Set.elements @@ Evd.given_up sigma in
   pr_evars_int sigma ~shelf ~given_up 1 (Evd.undefined_map sigma)
 
-let show_universes ~proof =
-  let Proof.{ goals; sigma; poly } = Proof.data proof in
+let show_universes_aux ~poly sigma =
   let ctx = Evd.sort_context_set (Evd.minimize_universes ~poly sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
        UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx)
+
+let show_universes ~proof =
+  let Proof.{ sigma; poly } = Proof.data proof in
+  show_universes_aux ~poly sigma
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -2109,11 +2112,10 @@ let query_command_selector ?loc = function
 
 let check_may_eval env sigma redexp rc =
   let gc = Constrintern.intern_unknown_if_term_or_type env sigma rc in
+  let flags = Pretyping.all_no_fail_flags in
   let sigma, c = Pretyping.understand_tcc env sigma gc in
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   Evarconv.check_problems_are_solved env sigma;
-  let sigma = Evd.minimize_universes sigma in
-  let (qs, us), csts as uctx = Evd.sort_context_set sigma in
   let { Environ.uj_val=c; uj_type=ty; } = Retyping.get_judgment_of env sigma c in
   let sigma, c = match redexp with
     | None -> sigma, c
@@ -2131,7 +2133,15 @@ let check_may_eval env sigma redexp rc =
     pr_ne_evar_set (fnl () ++ str "where" ++ fnl ()) (mt ()) sigma l
   in
   let hdr = if Option.has_some redexp then str "     = " else mt() in
-  hdr ++ pp ++ Printer.pr_sort_context_set sigma uctx
+  let ppunivs =
+    if !PrintingFlags.print_universes &&
+       not (UnivGen.is_empty_sort_context @@ Evd.sort_context_set sigma) then
+      fnl() ++
+      (Printer.pr_in_comment @@
+       show_universes_aux ~poly:flags.poly sigma)
+    else mt()
+  in
+  hdr ++ pp ++ ppunivs
 
 let vernac_check_may_eval ~pstate redexp glopt rc =
   let glopt = query_command_selector glopt in

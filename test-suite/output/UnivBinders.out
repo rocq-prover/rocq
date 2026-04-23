@@ -50,10 +50,40 @@ Type@{u} -> Type@{v} -> Type@{uu}
 (* uu u v |=  *)
 Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |=  *)
+(* UNIVERSES:
+    {j i} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+     |= Prop -> SProp
+        Type -> Prop
+             -> SProp
+        
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {j i} |=  *)
      = Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |=  *)
+(* UNIVERSES:
+    {j i} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+     |= Prop -> SProp
+        Type -> Prop
+             -> SProp
+        
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {j i} |=  *)
 mono = Type@{mono.uu}
      : Type@{mono.uu+1}
 mono
@@ -213,7 +243,22 @@ foo@{i} = Type@{M.i} -> Type@{i}
 (* i |=  *)
 Type@{u0} -> Type@{UnivBinders.86}
      : Type@{max(u0+1,UnivBinders.86+1)}
-(* {UnivBinders.86} |=  *)
+(* UNIVERSES:
+    {UnivBinders.86} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+     |= Prop -> SProp
+        Type -> Prop
+             -> SProp
+        
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {UnivBinders.86} |=  *)
 bind_univs.mono = Type@{bind_univs.mono.u}
      : Type@{bind_univs.mono.u+1}
 bind_univs.poly@{u} = Type@{u}

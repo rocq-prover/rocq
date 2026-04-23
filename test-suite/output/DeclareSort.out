@@ -42,8 +42,55 @@ Expands to: Constant DeclareSort.foo
 Declared in library DeclareSort, line 19, characters 8-11
 foo@{SProp ; } : Type@{S1 ; Set} -> SProp
      : Type@{S1 ; Set} -> SProp
+(* UNIVERSES:
+    {DeclareSort.25} |= Set < DeclareSort.25
+   ALGEBRAIC UNIVERSES:
+    {DeclareSort.25}
+   FLEXIBLE UNIVERSES:
+    DeclareSort.25
+   SORTS:
+    α1 := Type
+    α2 := SProp |=
+      α1 <-> Type
+      α2 <-> SProp
+      Prop -> SProp
+      Type -> α2
+           -> Prop
+           -> SProp
+           -> S1
+           -> s
+           -> s'
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 foo@{Type ; } : Type@{S1 ; Set} -> Set
      : Type@{S1 ; Set} -> Set
+(* UNIVERSES:
+    {DeclareSort.26} |= Set < DeclareSort.26
+   ALGEBRAIC UNIVERSES:
+    {DeclareSort.26}
+   FLEXIBLE UNIVERSES:
+    DeclareSort.26
+   SORTS:
+    α3 := Type
+    α4 := Type |=
+      α3 <-> Type
+      α4 <-> Type
+      Prop -> SProp
+      Type -> Prop
+           -> SProp
+           -> S1
+           -> s
+           -> s'
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 File "./output/DeclareSort.v", line 30, characters 11-14:
 The command has indeed failed with message:
 The term "foo@{α6 ; }" has type "Type@{S1 ; Set} -> Type@{α6 ; Set}"

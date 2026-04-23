@@ -21,6 +21,8 @@ open Notation_term
 
 val print_goal_tag_opt_name : string list
 
+val pr_in_comment : Pp.t -> Pp.t
+
 (** Terms *)
 
 (** Printers for terms.

@@ -2,8 +2,49 @@
      : array nat
 [| 1; 2; 3 | 0 : nat |]
      : array nat
-[| | 0 : nat |]@{Set}
-     : array@{Set} nat
+[| | 0 : nat |]@{prim_array.26}
+     : array@{prim_array.26} nat
+(* UNIVERSES:
+    {prim_array.26 prim_array.25} |=
+      Set <= prim_array.25
+      Set <= prim_array.26
+   ALGEBRAIC UNIVERSES:
+    {prim_array.25}
+   FLEXIBLE UNIVERSES:
+    prim_array.26
+    prim_array.25
+   SORTS:
+    α3 := Type |= α3 <-> Type
+                  Prop -> SProp
+                  Type -> Prop
+                       -> SProp
+                  
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 [| bool; list nat | nat : Set |]@{prim_array.29}
      : array@{prim_array.29} Set
-(* {prim_array.29} |= Set < prim_array.29 *)
+(* UNIVERSES:
+    {prim_array.29 prim_array.28 prim_array.27} |=
+      Set < prim_array.27
+      Set < prim_array.29
+      Set <= prim_array.28
+   ALGEBRAIC UNIVERSES:
+    {prim_array.28 prim_array.27}
+   FLEXIBLE UNIVERSES:
+    prim_array.29
+    prim_array.28
+    prim_array.27
+   SORTS:
+    α4 := Type |= α4 <-> Type
+                  Prop -> SProp
+                  Type -> Prop
+                       -> SProp
+                  
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {prim_array.29} |= Set < prim_array.29 *)
