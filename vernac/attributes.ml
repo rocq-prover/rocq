@@ -451,10 +451,6 @@ let process_typing_att ?loc ~typing_flags att disable =
     { typing_flags with
       Declarations.check_positive = enable
     }
-  | "eliminations" ->
-    { typing_flags with
-      Declarations.check_eliminations = enable
-    }
   | att ->
     CErrors.user_err ?loc Pp.(str "Unknown “typing” attribute: " ++ str att)
 
