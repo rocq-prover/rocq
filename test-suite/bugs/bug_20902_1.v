@@ -28,9 +28,9 @@ Delimit Scope trunc_scope with trunc.
 Global Open Scope trunc_scope.
 Global Open Scope type_scope.
 
-Declare ML Module "ltac_plugin:coq-core.plugins.ltac".
+Declare ML Module "rocq-runtime.plugins.ltac".
 
-Declare ML Module "number_string_notation_plugin:coq-core.plugins.number_string_notation".
+Declare ML Module "rocq-runtime.plugins.number_string_notation".
 
 Global Set Default Proof Mode "Classic".
 
