@@ -74,7 +74,7 @@ let totals = Array.fold_left (fun acc (_,data) ->
     all_data
 in
 
-let maxq =
+let maxtime =
   Array.fold_left (fun max (_,data) ->
       Array.fold_left (fun max d ->
           let dq = d.time.q in
@@ -83,6 +83,18 @@ let maxq =
         max
         data)
     Q.zero all_data
+in
+
+let maxheap =
+  Array.fold_left (fun max (_,data) ->
+      Array.fold_left (fun max d ->
+          Option.fold_left (fun max mem ->
+              Option.fold_left (fun max heap -> Stdlib.max max heap)
+                max mem.heap_words)
+            max d.memory)
+        max
+        data)
+    0 all_data
 in
 
 let () =
@@ -97,14 +109,16 @@ in
 let () = data_files |> Array.iteri (fun i _ ->
     let color = colors.(i) in
     out
-{|.time%d {
+{|.measure%d {
   background-color: %s;
   height: %d%%;
   top: %d%%;
   z-index: -1;
   position: absolute;
-  opacity: 50%%;
+  opacity: 0%%;
 }
+#time:checked ~ pre .time { opacity: 50%%; }
+#memory:checked ~ pre .memory { opacity: 50%%; }
 |} (i+1) color (100 / ndata) (100 / ndata * i))
 in
 
@@ -145,6 +159,17 @@ in
 
 let () = out "</ol>\n" in
 
+let () =
+  out {|<input type="radio" name="mode" id="time" checked><label for="time">Time</label>
+|}
+in
+
+let () =
+  if maxheap > 0 then
+    out {|<input type="radio" name="mode" id="memory"><label for="memory">Memory</label>
+|}
+in
+
 let () = out "<pre>" in
 
 let last_seen_line = ref 0 in
@@ -168,9 +193,14 @@ Line: %d
     let () = out {|">|} in
 
     let () = data |> Array.iteri (fun k d ->
-        out {|<div class="time%d" style="width: %f%%"></div>|}
+        out {|<div class="measure%d time" style="width: %f%%"></div>|}
           (k+1)
-          (percentage d.time.q ~max:maxq))
+          (percentage d.time.q ~max:maxtime);
+        let heap = Option.bind d.memory (fun m -> m.heap_words) in
+        heap |> Option.iter (fun heap ->
+            out {|<div class="measure%d memory" style="width: %f%%"></div>|}
+              (k+1)
+              (percentage (Q.of_int heap) ~max:(Q.of_int maxheap))))
     in
 
     let text = loc.text in
