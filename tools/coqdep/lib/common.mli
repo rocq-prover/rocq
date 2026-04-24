@@ -21,4 +21,4 @@ val treat_file_command_line : State.t -> string -> State.t
 
 val sort : State.t -> unit
 
-val compute_deps : State.t -> Dep_info.t list
+val compute_deps : State.t -> Dep_info.t Seq.t
