@@ -104,6 +104,9 @@ result
 
 # documentation
 
+doc/unreleased.rst
+doc/refman-html
+doc/refman-pdf
 doc/common/version.tex
 doc/faq/html/
 doc/faq/axioms.eps
