@@ -527,6 +527,10 @@ approve-coqdoc: coqdoc
 	  cp "Coqdoc.$${f%.out}" "$$f"; \
 	  echo "Updated $$f!"; \
 	fi; done; \
+	for f in *.myst.out; do if [ -f "$$f" ]; then \
+	  cp "Coqdoc.$${f%.out}" "$$f"; \
+	  echo "Updated $$f!"; \
+	fi; done; \
 	for f in *.tex.out; do if [ -f "$$f" ]; then \
 	  cat "Coqdoc.$${f%.out}" | grep -v "^%%" > "$$f"; \
 	  echo "Updated $$f!"; \
