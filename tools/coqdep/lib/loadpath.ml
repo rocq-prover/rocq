@@ -140,16 +140,18 @@ struct
 type t = {
   user : filename;
   dir : string; (* absolute path, normalized through absolute_dir *)
-  absolute : filename;
+  basename : string;
 }
 
 let make s =
   let dir = absolute_dir (Filename.dirname s) in
   (* See the proviso in {!absolute_file_name} *)
-  let absolute = Filename.concat dir (Filename.basename s) in
-  { user = s; dir; absolute }
+  let basename = Filename.basename s in
+  { user = s; dir; basename }
 
-let compare f1 f2 = String.compare f1.absolute f2.absolute
+let compare f1 f2 =
+  let c = String.compare f1.basename f2.basename in
+  if c <> 0 then c else String.compare f1.dir f2.dir
 
 let repr f = f.user
 
