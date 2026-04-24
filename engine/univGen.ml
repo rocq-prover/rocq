@@ -134,16 +134,13 @@ let new_univ_global () =
 let fresh_level () =
   Univ.Level.make (new_univ_global ())
 
-let new_sort_id =
+let new_unif_sort_id =
   let cnt = ref 0 in
   fun () -> incr cnt; !cnt
 
-let new_sort_global id =
-  Sorts.QGlobal.make (Global.current_dirpath ()) id
-
 let fresh_sort_quality () =
   let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
-  Sorts.QVar.make_unif s (new_sort_id ())
+  Sorts.QVar.make_unif s (new_unif_sort_id ())
 
 let fresh_instance auctx : _ in_sort_context_set =
   let qlen, ulen = AbstractContext.size auctx in
