@@ -787,7 +787,7 @@ define globvorule=
 	$$(HIDE)rm -f $(1).vos $(1).vok && touch $(1).vos $(1).vok # make empty vos and vok files
 	$$(HIDE)$$(PROFILE_ZIP)
 ifeq ($(COQDONATIVE), "yes")
-	$$(SHOW)COQNATIVE $(1).vo
+	$$(SHOW)ROCQ native-precompile $(1).vo
 	$$(HIDE)$$(call TIMER,$(1).vo.native) $$(COQNATIVE) $$(COQLIBS) $(1).vo
 endif
 
@@ -800,7 +800,7 @@ $(VOFILES): %.vo: %.v | $(VDFILE)
 	$(HIDE)rm -f $@s $@k && touch $@s $@k # make empty vos and vok files
 	$(HIDE)$(PROFILE_ZIP)
 ifeq ($(COQDONATIVE), "yes")
-	$(SHOW)COQNATIVE $@
+	$(SHOW)ROCQ native-precompile $@
 	$(HIDE)$(call TIMER,$@.native) $(COQNATIVE) $(COQLIBS) $@
 endif
 
