@@ -1,0 +1,125 @@
+\documentclass[12pt]{report}
+\usepackage[utf8x]{inputenc}
+
+%Warning: tipa declares many non-standard macros used by utf8x to
+%interpret utf8 characters but extra packages might have to be added
+%such as "textgreek" for Greek letters not already in tipa
+%or "stmaryrd" for mathematical symbols.
+%Utf8 codes missing a LaTeX interpretation can be defined by using
+%\DeclareUnicodeCharacter{code}{interpretation}.
+%Use coqdoc's option -p to add new packages or declarations.
+\usepackage{tipa}
+
+\usepackage[T1]{fontenc}
+\usepackage{fullpage}
+\usepackage{coqdoc}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\begin{document}
+\coqlibrary{Coqdoc.reference}{Library }{Coqdoc.reference}
+
+\begin{coqdoccode}
+\end{coqdoccode}
+This is a reference file that tests most of rocq doc's features. 
+
+\section{Here's a heading}
+
+
+
+
+    The number of asterisks in front of the heading determine the level of the
+    heading. For example: 
+
+\subsection{Here's a subheading}
+
+\subsubsection{Here's a subsubheading}
+
+\paragraph{Here's the lowest possible heading}
+
+
+
+ Rocq doc comments are placed between \texttt{(** } and \texttt{*) }. Contrary to regular
+    comments, the comment starts with two asterisks instead of one.
+
+
+    Above, we have used angle brackets to present verbatim material. Verbatim material
+    can also take multiple lines:
+\begin{verbatim}
+    let rec fact n =
+      if n <= 1 then 1 else n * fact (n - 1)
+\end{verbatim}
+
+
+ Rocq material can be quoted inline using square brackets, as follows: \coqdockw{\ensuremath{\forall}} \coqdocvar{n} : \coqdocvar{nat}, \coqdocvar{fact} \coqdocvar{n} \ensuremath{\ge} \coqdocvar{n}.
+    For vernacular material, we double the square brackets, and place them on separate lines, like so:
+    \coqdoceol
+\coqdocemptyline
+\coqdocindent{2.00em}
+\coqdockw{From} \coqdocvar{Stdlib} \coqdockw{Require} \coqdockw{Import} \coqdocvar{Lia}.\coqdoceol
+\coqdocindent{2.00em}
+
+
+\coqdocemptyline
+
+
+ Let's implement the \coqdocvar{fact} OCaml function in Rocq! 
+\begin{coqdoccode}
+\coqdocemptyline
+\coqdocnoindent
+\coqdockw{Fixpoint} \coqdef{Coqdoc.reference.fact}{fact}{\coqdocdefinition{fact}} (\coqdef{Coqdoc.reference.n:1}{n}{\coqdocbinder{n}} : \coqexternalref{nat}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{nat}}) : \coqexternalref{nat}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{nat}} :=\coqdoceol
+\coqdocindent{1.00em}
+\coqdockw{match} \coqref{Coqdoc.reference.n:1}{\coqdocvariable{n}} \coqdockw{with}\coqdoceol
+\coqdocindent{1.00em}
+\ensuremath{|} 0 \ensuremath{\Rightarrow} 1\coqdoceol
+\coqdocindent{1.00em}
+\ensuremath{|} \coqexternalref{S}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocconstructor{S}} \coqdocvar{n'} \ensuremath{\Rightarrow}\coqdoceol
+\coqdocindent{3.00em}
+\coqdoceol
+\coqdocindent{3.00em}
+\coqref{Coqdoc.reference.n:1}{\coqdocvariable{n}} \coqexternalref{::nat scope:x '*' x}{http://coq.inria.fr/stdlib/Corelib.Init.Peano}{\coqdocnotation{\ensuremath{\times}}} \coqref{Coqdoc.reference.fact:2}{\coqdocdefinition{fact}} \coqdocvar{n'}\coqdoceol
+\coqdocindent{1.00em}
+\coqdockw{end}.\coqdoceol
+\coqdocemptyline
+\end{coqdoccode}
+Here's the rest of the formatting rules:
+
+\begin{itemize}
+\item  To emphasize text, place it between underscores, \textit{like so}.
+
+\item  To insert LaTeX math:
+
+\begin{itemize}
+\item  Use dollar signs for LaTeX in math mode: $e = mc^2$
+
+\item  Use percent signs for other LaTeX materials: \usepackage{coqdoc}
+
+\end{itemize}
+
+\end{itemize}
+
+
+    To create (nested) lists, use bullets, as we have done above! 
+
+\par
+\noindent\hrulefill\par
+\noindent{} 
+
+ Finally, some parts of the code can be hidden from the output, or placed in a dropdown. 
+\begin{coqdoccode}
+\coqdocemptyline
+\coqdocemptyline
+\end{coqdoccode}
+\begin{coqdoccode}
+\coqdocnoindent
+\coqdockw{Definition} \coqdef{Coqdoc.reference.this definition is in a dropdown}{this\_definition\_is\_in\_a\_dropdown}{\coqdocdefinition{this\_definition\_is\_in\_a\_dropdown}} : \coqexternalref{unit}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{unit}} := \coqexternalref{tt}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocconstructor{tt}}.\coqdoceol
+\end{coqdoccode}
+\begin{coqdoccode}
+\coqdocemptyline
+\end{coqdoccode}
+\begin{coqdoccode}
+\coqdocnoindent
+\coqdockw{Definition} \coqdef{Coqdoc.reference.this definition is in a dropdown with a summary}{this\_definition\_is\_in\_a\_dropdown\_with\_a\_summary}{\coqdocdefinition{this\_definition\_is\_in\_a\_dropdown\_with\_a\_summary}} : \coqexternalref{unit}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocinductive{unit}} := \coqexternalref{tt}{http://coq.inria.fr/stdlib/Corelib.Init.Datatypes}{\coqdocconstructor{tt}}.\coqdoceol
+\end{coqdoccode}
+\begin{coqdoccode}
+\end{coqdoccode}
+\end{document}

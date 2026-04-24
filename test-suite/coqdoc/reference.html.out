@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<title>Coqdoc.reference</title>
+</head>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+</div>
+
+<div id="main">
+
+<h1 class="libtitle">Library Coqdoc.reference</h1>
+
+<div class="code">
+</div>
+
+<div class="doc">
+This is a reference file that tests most of rocq doc's features. 
+<div class="paragraph"> </div>
+
+<a id="lab1"></a><h1 class="section">Here's a heading</h1>
+
+
+<div class="paragraph"> </div>
+
+    The number of asterisks in front of the heading determine the level of the
+    heading. For example: 
+<div class="paragraph"> </div>
+
+<a id="lab2"></a><h2 class="section">Here's a subheading</h2>
+<a id="lab3"></a><h3 class="section">Here's a subsubheading</h3>
+<a id="lab4"></a><h4 class="section">Here's the lowest possible heading</h4>
+
+<div class="paragraph"> </div>
+
+ Rocq doc comments are placed between <code>(** </code> and <code>*) </code>. Contrary to regular
+    comments, the comment starts with two asterisks instead of one.
+
+<div class="paragraph"> </div>
+
+    Above, we have used angle brackets to present verbatim material. Verbatim material
+    can also take multiple lines:
+<pre>
+    let rec fact n =
+      if n &lt;= 1 then 1 else n * fact (n - 1)
+</pre>
+
+<div class="paragraph"> </div>
+
+ Rocq material can be quoted inline using square brackets, as follows: <span class="inlinecode"><span class="id" title="keyword">∀</span></span> <span class="inlinecode"><span class="id" title="var">n</span></span> <span class="inlinecode">:</span> <span class="inlinecode"><span class="id" title="var">nat</span>,</span> <span class="inlinecode"><span class="id" title="var">fact</span></span> <span class="inlinecode"><span class="id" title="var">n</span></span> <span class="inlinecode">≥</span> <span class="inlinecode"><span class="id" title="var">n</span></span>.
+    For vernacular material, we double the square brackets, and place them on separate lines, like so:
+    <br/>
+<span class="inlinecode">&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">From</span> <span class="id" title="var">Stdlib</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Lia</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<div class="paragraph"> </div>
+
+</span>
+<div class="paragraph"> </div>
+
+ Let's implement the <span class="inlinecode"><span class="id" title="var">fact</span></span> OCaml function in Rocq! 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Fixpoint</span> <a id="fact" class="idref" href="#fact"><span class="id" title="definition">fact</span></a> (<a id="n:1" class="idref" href="#n:1"><span class="id" title="binder">n</span></a> : <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#nat"><span class="id" title="inductive">nat</span></a>) : <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#nat"><span class="id" title="inductive">nat</span></a> :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">match</span> <a class="idref" href="Coqdoc.reference.html#n:1"><span class="id" title="variable">n</span></a> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| 0 ⇒ 1<br/>
+&nbsp;&nbsp;| <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#S"><span class="id" title="constructor">S</span></a> <span class="id" title="var">n'</span> ⇒<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="Coqdoc.reference.html#n:1"><span class="id" title="variable">n</span></a> <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Peano.html#ea2ff3d561159081cea6fb2e8113cc54"><span class="id" title="notation">×</span></a> <a class="idref" href="Coqdoc.reference.html#fact:2"><span class="id" title="definition">fact</span></a> <span class="id" title="var">n'</span><br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Here's the rest of the formatting rules:
+<ul class="doclist">
+<li> To emphasize text, place it between underscores, <i>like so</i>.
+
+</li>
+<li> To insert LaTeX math:
+<ul class="doclist">
+<li> Use dollar signs for LaTeX in math mode: 
+
+</li>
+<li> Use percent signs for other LaTeX materials: 
+
+</li>
+</ul>
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+    To create (nested) lists, use bullets, as we have done above! 
+<div class="paragraph"> </div>
+
+<hr/>
+ 
+<div class="paragraph"> </div>
+
+ Finally, some parts of the code can be hidden from the output, or placed in a dropdown. 
+</div>
+<div class="code">
+
+<br/>
+
+<br/>
+</div>
+<details><div class="code">
+<span class="id" title="keyword">Definition</span> <a id="this_definition_is_in_a_dropdown" class="idref" href="#this_definition_is_in_a_dropdown"><span class="id" title="definition">this_definition_is_in_a_dropdown</span></a> : <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#unit"><span class="id" title="inductive">unit</span></a> := <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#tt"><span class="id" title="constructor">tt</span></a>.<br/>
+</div>
+</details><div class="code">
+
+<br/>
+</div>
+<details><summary>Some summary </summary><div class="code">
+<span class="id" title="keyword">Definition</span> <a id="this_definition_is_in_a_dropdown_with_a_summary" class="idref" href="#this_definition_is_in_a_dropdown_with_a_summary"><span class="id" title="definition">this_definition_is_in_a_dropdown_with_a_summary</span></a> : <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#unit"><span class="id" title="inductive">unit</span></a> := <a class="idref" href="http://coq.inria.fr/stdlib/Corelib.Init.Datatypes.html#tt"><span class="id" title="constructor">tt</span></a>.<br/>
+</div>
+</details><div class="code">
+</div>
+</div>
+
+<div id="footer">
+<hr/><a href="index.html">Index</a><hr/>This page has been generated by <a href="http://rocq-prover.org/">coqdoc</a>
+</div>
+
+</div>
+
+</body>
+</html>
