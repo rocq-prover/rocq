@@ -640,3 +640,11 @@ Ltac2 Notation "now" t(thunk(tactic(6))) := now0 t.
 Ltac2 start_profiling () := ltac1:(start ltac profiling).
 Ltac2 stop_profiling () := ltac1:(stop ltac profiling).
 Ltac2 show_profile () := ltac1:(show ltac profile).
+
+(** General programming notations *)
+
+(* [f @@ g @@ h @@ x] is equivalent to [f (g (h x))] up to evaluation order of subterms. *)
+Ltac2 Notation f(self) "@@" x(self) : 2 := f x. (* right associative *)
+
+(* [x |> h |> g |> f] is equivalent to [f (g (h x))] up to evaluation order of subterms. *)
+Ltac2 Notation x(self) "|>" f(self) : 3 := f x. (* left associative *)
