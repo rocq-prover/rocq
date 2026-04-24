@@ -5,10 +5,6 @@
  (modules (:standard \ g_ground))
  (libraries rocq-runtime.tactics))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.firstorder_core)
- (new_public_name rocq-runtime.plugins.firstorder_core))
-
 (library
  (name firstorder_plugin)
  (public_name rocq-runtime.plugins.firstorder)
@@ -16,10 +12,6 @@
  (flags :standard -open Firstorder_core_plugin)
  (modules g_ground)
  (libraries rocq-runtime.plugins.firstorder_core rocq-runtime.plugins.ltac))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.firstorder)
- (new_public_name rocq-runtime.plugins.firstorder))
 
 (rule
  (targets g_ground.ml)

@@ -4,10 +4,6 @@
  (synopsis "Rocq's btauto plugin")
  (libraries rocq-runtime.plugins.ltac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.btauto)
- (new_public_name rocq-runtime.plugins.btauto))
-
 (rule
  (targets g_btauto.ml)
  (deps (:mlg g_btauto.mlg))

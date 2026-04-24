@@ -5,7 +5,3 @@
  (wrapped false)
  (modules_without_implementation locus pattern glob_term ltac_pretype)
  (libraries engine))
-
-(deprecated_library_name
- (old_public_name coq-core.pretyping)
- (new_public_name rocq-runtime.pretyping))

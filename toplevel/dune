@@ -10,10 +10,6 @@
    (memtrace -> memtrace_init.memtrace.ml)
    (!memtrace -> memtrace_init.default.ml))))
 
-(deprecated_library_name
- (old_public_name coq-core.toplevel)
- (new_public_name rocq-runtime.toplevel))
-
 ; Interp provides the `zarith` library to plugins, we could also use
 ; -linkall in the plugins file, to be discussed.
 

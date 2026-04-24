@@ -8,10 +8,6 @@
  ; (private_modules comProgramFixpoint egramcoq)
  (libraries tactics parsing findlib.dynload))
 
-(deprecated_library_name
- (old_public_name coq-core.vernac)
- (new_public_name rocq-runtime.vernac))
-
 (rule
  (targets g_proofs.ml)
  (deps (:mlg g_proofs.mlg))

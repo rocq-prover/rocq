@@ -5,10 +5,6 @@
  (modules (:standard \ g_nsatz))
  (libraries rocq-runtime.tactics))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.nsatz_core)
- (new_public_name rocq-runtime.plugins.nsatz_core))
-
 (library
  (name nsatz_plugin)
  (public_name rocq-runtime.plugins.nsatz)
@@ -16,10 +12,6 @@
  (modules g_nsatz)
  (flags :standard -open Nsatz_core_plugin)
  (libraries rocq-runtime.plugins.nsatz_core rocq-runtime.plugins.ltac))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.nsatz)
- (new_public_name rocq-runtime.plugins.nsatz))
 
 (rule
  (targets g_nsatz.ml)
