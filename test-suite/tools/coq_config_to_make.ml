@@ -25,7 +25,7 @@ let write_makefile coqprefix coqlibinstall best_compiler ocamlfind caml_flags co
   pr "OCAMLFIND=%S\n" ocamlfind;
   pr "# Caml flags\n";
   pr "CAMLFLAGS=%s %s\n" caml_flags coq_caml_flags;
-  pr "# coqc was said to be '%s'\n" Sys.argv.(1);
+  pr "# rocq was said to be '%s'\n" Sys.argv.(1);
   pr "ARCH=%s\n" Coq_config.arch;
   ()
 
@@ -57,14 +57,14 @@ let find_in_PATH f =
 
 let main () =
   if Array.length Sys.argv < 2 then die "usage: %s ROCQ_EXE [OUT_FILE]" Sys.argv.(0);
-  let coqc = Sys.argv.(1) in
+  let rocq = Sys.argv.(1) in
 
-  let coqc = match find_in_PATH coqc with
+  let rocq = match find_in_PATH rocq with
     | Some f -> f
-    | None -> die "Could not find %s in PATH." coqc
+    | None -> die "Could not find %s in PATH." rocq
   in
 
-  let coqbin = canonical_path_name (Filename.dirname coqc) in
+  let coqbin = canonical_path_name (Filename.dirname rocq) in
   let coqroot = Filename.dirname coqbin in
 
   let relocate = function
