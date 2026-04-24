@@ -1322,7 +1322,7 @@ When generating eliminators for a predicate `P`, if an argument is nested
 with :n:`@reference`, the `All` predicate and its theorem will be looked up with the key
 :n:`All` and :n:`AllForall`, and used to enforce `P` holds on the nested argument.
 
-   .. warn:: @reference is nested using @reference. No Lemma for @reference is registered for @ident. It can be generated using command "Scheme All" e.g. "Scheme All for @ident.".
+   .. warn:: @reference is nested using @reference. No Lemma for @reference is registered for @ident.
       :name: register-all
 
       The `All` and `AllForall` predicate need to be defined and registered before the
@@ -1330,6 +1330,8 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
       They are not generated on the fly if they are not found.
       If they are not registered, no induction hypothesis is created for the
       nested argument.
+
+      When the nesting is done using an inductive, it is possible to generate them using :cmd:`Scheme All`.
 
 .. cmd:: Scheme All for @reference {? over {+, @ident } }
    :name: Scheme All
@@ -1433,6 +1435,43 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
 
       Scheme LeftTree_ind_partial := Induction for LeftTree Sort Prop.
       About LeftTree_ind_partial.
+
+.. example:: Nesting With array
+
+   The primitive type `array` has a single parameter `A : Type`
+   which behaves like the uniform-parameter of an inductive type.
+   The All and AllForall predicates must be generated manually.
+
+   .. rocqtop:: all
+
+      Set Universe Polymorphism.
+      From Corelib Require Import PrimInt63 PrimArray ArrayAxioms.
+
+      Definition array_all@{s; +} (A : Type) (P : A -> Type@{s; _}) :
+         array A -> Type@{s; _} :=
+         fun a => forall i, P a.[i].
+
+      Definition array_all_forall@{s; +} A (P : A -> Type@{s; _}) :
+         (forall a, P a) -> forall a, array_all A P a :=
+         fun H a i => H _.
+
+   They must also be registered manually afterwards.
+
+   .. rocqtop:: all
+
+      Register Scheme array_all as All for array.
+      Register Scheme array_all_forall as AllForall for array.
+
+   Then the proper eliminators and All predicate can be generated for indutcive types nesting with array.
+
+   .. rocqtop:: all
+
+      Inductive trie A := TLeaf : trie A | TNode : A -> array (trie A) -> (trie A).
+
+      Print trie_rect.
+
+      Scheme All for trie.
+      Print trie_all.
 
 Scheme Equality, and Rewriting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

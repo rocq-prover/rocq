@@ -17,6 +17,9 @@ Inductive unit : Set :=
 Register unit as core.unit.type.
 Register tt as core.unit.tt.
 
+From Corelib Require Import PrimInt63 PrimArray ArrayAxioms.
+
+
 Set Printing Universes.
 
 Module Template.
@@ -362,6 +365,41 @@ Module UnivPoly.
   About ArrowTree3_ind.
   Print ArrowTree3_all.
   About ArrowTree3_all_forall.
+
+  (* Nesting with array *)
+  Module Array.
+
+    Definition array_all@{s; +} (A : Type) (P : A -> Type@{s; _}) :
+        array A -> Type@{s; _} :=
+      fun a => forall i, P a.[i].
+
+    Definition array_all_forall@{s; +} A (P : A -> Type@{s; _}) :
+        (forall a, P a) -> forall a, array_all A P a :=
+      fun H a i => H _.
+
+    Register Scheme array_all as All for array.
+    Register Scheme array_all_forall as AllForall for array.
+
+    Inductive trie A := TLeaf : trie A | TNode : A -> array (trie A) -> (trie A).
+
+    Print trie_rect.
+    Print trie_all.
+
+    Inductive ArrowTrie A :=
+    | ATLeaf : ArrowTrie A
+    | ATNode : A -> (bool -> list (array (ArrowTrie A))) -> ArrowTrie A.
+
+    Print ArrowTrie_rect.
+    Print ArrowTrie_all.
+
+    Inductive ArrayTrie A :=
+    | AyTLeaf : ArrayTrie A
+    | AyTNode : A -> (array (array (ArrayTrie A))) -> ArrayTrie A.
+
+    Print ArrayTrie_rect.
+    Print ArrayTrie_all.
+
+  End Array.
 
 End UnivPoly.
 
