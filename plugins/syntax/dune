@@ -5,10 +5,6 @@
  (modules g_number_string number_string)
  (libraries rocq-runtime.vernac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.number_string_notation)
- (new_public_name rocq-runtime.plugins.number_string_notation))
-
 (rule
  (targets g_number_string.ml)
  (deps (:mlg g_number_string.mlg))

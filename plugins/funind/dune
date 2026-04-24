@@ -4,10 +4,6 @@
  (synopsis "Rocq's functional induction plugin")
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.extraction))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.funind)
- (new_public_name rocq-runtime.plugins.funind))
-
 (rule
  (targets g_indfun.ml)
  (deps (:mlg g_indfun.mlg))

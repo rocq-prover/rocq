@@ -4,7 +4,3 @@
  (public_name rocq-runtime.library)
  (wrapped false)
  (libraries kernel))
-
-(deprecated_library_name
- (old_public_name coq-core.library)
- (new_public_name rocq-runtime.library))

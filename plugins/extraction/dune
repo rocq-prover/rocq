@@ -4,10 +4,6 @@
  (synopsis "Rocq's extraction plugin")
  (libraries rocq-runtime.vernac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.extraction)
- (new_public_name rocq-runtime.plugins.extraction))
-
 (rule
  (targets g_extraction.ml)
  (deps (:mlg g_extraction.mlg))

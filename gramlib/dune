@@ -3,7 +3,3 @@
  (public_name rocq-runtime.gramlib)
  (modules_without_implementation plexing)
  (libraries rocq-runtime.lib))
-
-(deprecated_library_name
- (old_public_name coq-core.gramlib)
- (new_public_name rocq-runtime.gramlib))

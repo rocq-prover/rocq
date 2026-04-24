@@ -6,7 +6,3 @@
  ; until ocaml/dune#4892 fixed
  ; (private_modules univSubst)
  (libraries library))
-
-(deprecated_library_name
- (old_public_name coq-core.engine)
- (new_public_name rocq-runtime.engine))

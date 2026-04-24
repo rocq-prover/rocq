@@ -5,10 +5,6 @@
  (modules (:standard \ g_congruence))
  (libraries rocq-runtime.tactics))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.cc_core)
- (new_public_name rocq-runtime.plugins.cc_core))
-
 (library
  (name cc_plugin)
  (public_name rocq-runtime.plugins.cc)
@@ -16,10 +12,6 @@
  (modules g_congruence)
  (flags :standard -open Cc_core_plugin)
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.cc_core))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.cc)
- (new_public_name rocq-runtime.plugins.cc))
 
 (rule
  (targets g_congruence.ml)

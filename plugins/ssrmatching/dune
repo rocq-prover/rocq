@@ -4,10 +4,6 @@
  (synopsis "Rocq ssrmatching plugin")
  (libraries rocq-runtime.plugins.ltac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.ssrmatching)
- (new_public_name rocq-runtime.plugins.ssrmatching))
-
 (rule
  (targets g_ssrmatching.ml)
  (deps (:mlg g_ssrmatching.mlg))
