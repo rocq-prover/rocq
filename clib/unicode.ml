@@ -148,31 +148,66 @@ let utf8_of_unicode n =
    then [next_utf8 s i] returns [(j,n)] where:
    - [j] indicates the position of the next UTF-8 character
    - [n] represents the UTF-8 character at index [i] *)
+
+type size =
+| Sz1
+| Sz2
+| Sz3
+| Sz4
+
+let size_to_int = function
+| Sz1 -> 1
+| Sz2 -> 2
+| Sz3 -> 3
+| Sz4 -> 4
+
+let unsafe_char_code s i = Char.code @@ String.unsafe_get s i
+[@@ocaml.inline always]
+
 let next_utf8 s i =
   let err () = invalid_arg "utf8" in
   let l = String.length s - i in
   if l = 0 then raise End_of_input
-  else let a = Char.code s.[i] in if a <= 0x7F then
-    1, a
+  else let a = unsafe_char_code s i in if a <= 0x7F then
+    Sz1
   else if a land 0x40 = 0 || l = 1 then err ()
-  else let b = Char.code s.[i+1] in if b land 0xC0 <> 0x80 then err ()
+  else let b = unsafe_char_code s (i + 1) in if b land 0xC0 <> 0x80 then err ()
   else if a land 0x20 = 0 then
-    2, (a land 0x1F) lsl 6 + (b land 0x3F)
+    Sz2
   else if l = 2 then err ()
-  else let c = Char.code s.[i+2] in if c land 0xC0 <> 0x80 then err ()
+  else let c = unsafe_char_code s (i + 2) in if c land 0xC0 <> 0x80 then err ()
   else if a land 0x10 = 0 then
-    3, (a land 0x0F) lsl 12 + (b land 0x3F) lsl 6 + (c land 0x3F)
+    Sz3
   else if l = 3 then err ()
-  else let d = Char.code s.[i+3] in if d land 0xC0 <> 0x80 then err ()
+  else let d = unsafe_char_code s (i + 3) in if d land 0xC0 <> 0x80 then err ()
   else if a land 0x08 = 0 then
-    4, (a land 0x07) lsl 18 + (b land 0x3F) lsl 12 +
-       (c land 0x3F) lsl 6 + (d land 0x3F)
+    Sz4
   else err ()
+
+let get_next_utf8 s i k = match k with
+| Sz1 ->
+  let a = unsafe_char_code s i in
+  a
+| Sz2 ->
+  let a = unsafe_char_code s i in
+  let b = unsafe_char_code s (i + 1) in
+  (a land 0x1F) lsl 6 + (b land 0x3F)
+| Sz3 ->
+  let a = unsafe_char_code s i in
+  let b = unsafe_char_code s (i + 1) in
+  let c = unsafe_char_code s (i + 2) in
+  (a land 0x0F) lsl 12 + (b land 0x3F) lsl 6 + (c land 0x3F)
+| Sz4 ->
+  let a = unsafe_char_code s i in
+  let b = unsafe_char_code s (i + 1) in
+  let c = unsafe_char_code s (i + 2) in
+  let d = unsafe_char_code s (i + 3) in
+  (a land 0x07) lsl 18 + (b land 0x3F) lsl 12 + (c land 0x3F) lsl 6 + (d land 0x3F)
 
 let is_utf8 s =
   let rec check i =
-    let (off, _) = next_utf8 s i in
-    check (i + off)
+    let off = next_utf8 s i in
+    check (i + size_to_int off)
   in
   try check 0 with End_of_input -> true | Invalid_argument _ -> false
 
@@ -218,7 +253,7 @@ let is_valid_ident_initial = function
 let initial_refutation j n s =
   if is_valid_ident_initial (classify n) then None
   else
-      let c = String.sub s 0 j in
+      let c = String.sub s 0 (size_to_int j) in
       Some (false,
             "Invalid character '"^c^"' at beginning of identifier \""^s^"\".")
 
@@ -229,7 +264,7 @@ let is_valid_ident_trailing = function
 let trailing_refutation i j n s =
   if is_valid_ident_trailing (classify n) then None
   else
-      let c = String.sub s i j in
+      let c = String.sub s i (size_to_int j) in
       Some (false,
             "Invalid character '"^c^"' in identifier \""^s^"\".")
 
@@ -251,16 +286,18 @@ let is_letter = function
 
 let ident_refutation s =
   if s = ".." then None else try
-    let j, n = next_utf8 s 0 in
+    let j = next_utf8 s 0 in
+    let n = get_next_utf8 s 0 j in
       match initial_refutation j n s with
         |None ->
            begin try
              let rec aux i =
-               let j, n = next_utf8 s i in
+               let j = next_utf8 s i in
+               let n = get_next_utf8 s i j in
                  match trailing_refutation i j n s with
-                   |None -> aux (i + j)
+                   |None -> aux (i + size_to_int j)
                    |x -> x
-             in aux j
+             in aux (size_to_int j)
            with End_of_input -> None
            end
         |x -> x
@@ -279,20 +316,23 @@ let lowercase_unicode =
 
 let lowercase_first_char s =
   assert (s <> "");
-  let j, n = next_utf8 s 0 in
+  let j = next_utf8 s 0 in
+  let n = get_next_utf8 s 0 j in
   utf8_of_unicode (lowercase_unicode n)
 
 let split_at_first_letter s =
-  let n, v = next_utf8 s 0 in
-  if ((* optim *) n = 1 && s.[0] != '_') || not (is_ident_sep (classify v)) then None
+  let n = next_utf8 s 0 in
+  let v = get_next_utf8 s 0 n in
+  if ((* optim *) size_to_int n = 1 && s.[0] != '_') || not (is_ident_sep (classify v)) then None
   else begin
-    let n = ref n in
+    let n = ref (size_to_int n) in
     let p = ref 0 in
     while !n < String.length s &&
-          let n', v = next_utf8 s !n in
-          p := n';
+          let n' = next_utf8 s !n in
+          let v = get_next_utf8 s !n n' in
+          p := size_to_int n';
           (* Test if not letter *)
-          ((* optim *) n' = 1 && (s.[!n] = '_' || s.[!n] = '\''))
+          ((* optim *) size_to_int n' = 1 && (s.[!n] = '_' || s.[!n] = '\''))
           || let st = classify v in
              is_ident_sep st || is_ident_part st
     do n := !n + !p
@@ -322,9 +362,10 @@ let ascii_of_ident s =
     let out = Buffer.create (2*len) in
     Buffer.add_substring out s 0 !i;
     while !i < len do
-      let j, n = next_utf8 s !i in
+      let j = next_utf8 s !i in
+      let n = get_next_utf8 s !i j in
       if n >= 128 then
-        (Printf.bprintf out "_UU%04x_" n; i := !i + j)
+        (Printf.bprintf out "_UU%04x_" n; i := !i + size_to_int j)
       else if has_UU !i then
         (Buffer.add_string out "_UUU"; i := !i + 3)
       else
