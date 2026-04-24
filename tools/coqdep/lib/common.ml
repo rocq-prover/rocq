@@ -32,8 +32,10 @@ let filename_concat ~separator_hack dir name =
    hack and we should remove it, and instead require users to follow
    the same naming convention *)
 let canonize ~separator_hack vAccu f =
+  let dir = Loadpath.Filename.dirname f in
+  let f = Loadpath.Filename.repr f in
   let f' = filename_concat ~separator_hack
-      (Loadpath.absolute_dir (Filename.dirname f))
+      dir
       (Filename.basename f)
   in
   match CString.Map.find_opt f' vAccu.map with
@@ -90,19 +92,23 @@ let safe_assoc ?(warn_clashes=true) st ?(what=Library) from file k =
   match search ?from k with
   | None -> None
   | Some (Loadpath.ExactMatches fs) ->
-    let f = fs.Loadpath.point in
+    let f = Loadpath.Filename.repr fs.Loadpath.point in
     let l = Loadpath.FileSet.elements fs.files in
     let l = List.map Loadpath.Filename.repr l in
     let l = List.filter (fun f' -> not (String.equal f f')) l in
     if warn_clashes then warn_if_clash ~what true file k f l;
-    Some [f]
+    Some [fs.Loadpath.point]
   | Some (Loadpath.PartialMatchesInSameRoot (root, l)) ->
     let l = Loadpath.FileSet.elements l.files in
-    let l = List.map Loadpath.Filename.repr l in
-    (match List.sort String.compare l with [] -> assert false | f :: l as all ->
+    let sort f1 f2 = String.compare (Loadpath.Filename.repr f1) (Loadpath.Filename.repr f2) in
+    (match List.sort sort l with [] -> assert false | f :: l as all ->
     (* If several files match, it will fail at Require;
        To be "fair", in rocq dep, we add dependencies on all matching files *)
-    if warn_clashes then warn_if_clash ~what false file k f l;
+    let () = if warn_clashes then
+      let f = Loadpath.Filename.repr f in
+      let l = List.map Loadpath.Filename.repr l in
+      warn_if_clash ~what false file k f l
+    in
     Some all)
 
 let file_name ~separator_hack s = function
@@ -244,12 +250,14 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
               if should_visit_v_and_mark None [str] then safe_assoc loadpath None f [str]
               else None
             else
-              Some [canonize ~separator_hack vAccu str]
+              let ans = canonize ~separator_hack vAccu (Loadpath.Filename.make str) in
+              Some [Loadpath.Filename.make ans]
         in
         (match canon with
          | None -> ()
          | Some l ->
            let decl canon =
+             let canon = Loadpath.Filename.repr canon in
              add_dep_other (Format.sprintf "%s.v" canon);
              let deps = find_dependencies st canon in
              List.iter add_dep deps
@@ -358,7 +366,7 @@ let sort {State.vAccu; separator_hack; loadpath} =
         Format.printf "%s.v " file
     end
   in
-  List.iter (fun (name, _) -> loop name) vAccu.acc
+  List.iter (fun (name, _) -> loop (Loadpath.Filename.make name)) vAccu.acc
 
 let add_include st (rc, r, ln) =
   if rc then

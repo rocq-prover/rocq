@@ -139,24 +139,28 @@ struct
 
 type t = {
   user : filename;
+  dir : string; (* absolute path, normalized through absolute_dir *)
   absolute : filename;
 }
 
-let make s = {
-  user = s;
-  absolute = absolute_file_name ~filename_concat:Filename.concat (Filename.basename s) (Some (Filename.dirname s));
-}
+let make s =
+  let dir = absolute_dir (Filename.dirname s) in
+  (* See the proviso in {!absolute_file_name} *)
+  let absolute = Filename.concat dir (Filename.basename s) in
+  { user = s; dir; absolute }
 
 let compare f1 f2 = String.compare f1.absolute f2.absolute
 
 let repr f = f.user
+
+let dirname f = f.dir
 
 end
 
 module FileSet = Set.Make(Filename)
 
 type fileset = {
-  point : filename;
+  point : Filename.t;
   files : FileSet.t; (* guaranteed to contain [point] *)
 }
 
@@ -194,8 +198,12 @@ let get_worker_path st =
     st.worker <- Some w;
     w
 
-let singleton f = { point = f; files = FileSet.singleton (Filename.make f) }
-let add_set f l = { point = f; files = FileSet.add (Filename.make f) l.files }
+let singleton f =
+  let f = Filename.make f in
+  { point = f; files = FileSet.singleton f }
+let add_set f l =
+  let f = Filename.make f in
+  { point = f; files = FileSet.add f l.files }
 
 let insert_key root (full,f) m =
   (* An exact match takes precedence over non-exact matches *)
