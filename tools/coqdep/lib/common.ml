@@ -117,7 +117,10 @@ let file_name ~separator_hack s = function
 
 module VData = struct
   type t = string list option * string list
-  let compare = compare
+  let cmp_list l1 l2 = List.compare String.compare l1 l2
+  let compare (from1, str1) (from2, str2) =
+    let c = Option.compare cmp_list from1 from2 in
+    if Int.equal c 0 then cmp_list str1 str2 else c
 end
 
 module VCache = Set.Make(VData)
