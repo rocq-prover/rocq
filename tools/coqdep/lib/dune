@@ -3,4 +3,8 @@
  (public_name rocq-runtime.coqdeplib)
  (libraries rocq-runtime.boot rocq-runtime.lib findlib.internal))
 
-(ocamllex lexer)
+(rule
+ (target lexer.ml)
+ (deps   lexer.mll)
+ (action (chdir %{workspace_root}
+          (run %{bin:ocamllex} -ml -q -o %{target} %{deps}))))
