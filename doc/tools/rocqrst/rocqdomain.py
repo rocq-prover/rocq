@@ -24,6 +24,7 @@ import os
 import re
 import shlex
 from itertools import chain
+from dataclasses import dataclass
 from collections import defaultdict
 
 from docutils import nodes, utils
@@ -83,6 +84,13 @@ LaTeXTranslator.visit_desc_signature = visit_desc_signature
 PARSE_ERROR = """{}:{} Parse error in notation!
 Offending notation: {}
 Error message: {}"""
+
+@dataclass
+class SubdomainItemData:
+    """Data stored for each object in a subdomain"""
+    docname: str
+    objtype: str
+    targetid: str
 
 def notation_to_sphinx(notation, source, line, rawtext=None):
     """Parse notation and wrap it in an inline node"""
@@ -179,7 +187,7 @@ class RocqObject(ObjectDescription):
         'noindex': directives.flag
     }
 
-    def subdomain_data(self):
+    def subdomain_data(self) -> dict[str, SubdomainItemData]:
         if self.subdomain is None:
             raise ValueError()
         return self.env.domaindata['rocq']['objects'][self.subdomain]
@@ -207,11 +215,11 @@ class RocqObject(ObjectDescription):
             names = [name] if name else None
         return names
 
-    def _warn_if_duplicate_name(self, objects, name, signode):
+    def _warn_if_duplicate_name(self, objects: dict[str, SubdomainItemData], name: str, signode):
         """Check that two objects in the same domain don't have the same name."""
         if name in objects:
             MSG = 'Duplicate name {} (other is in {}) attached to {}'
-            msg = MSG.format(name, self.env.doc2path(objects[name][0]), signode)
+            msg = MSG.format(name, self.env.doc2path(objects[name].docname), signode)
             self.state_machine.reporter.warning(msg, line=self.lineno)
 
     def _record_name(self, name, target_id, signode):
@@ -222,7 +230,7 @@ class RocqObject(ObjectDescription):
         """
         names_in_subdomain = self.subdomain_data()
         self._warn_if_duplicate_name(names_in_subdomain, name, signode)
-        names_in_subdomain[name] = (self.env.docname, self.objtype, target_id)
+        names_in_subdomain[name] = SubdomainItemData(self.env.docname, self.objtype, target_id)
 
     def _target_id(self, name):
         return make_target(self.objtype, make_id(name))
@@ -975,12 +983,12 @@ class RocqSubdomainsIndex(Index):
         items = chain(*(self.domain.data['objects'][subdomain].items()
                         for subdomain in self.subdomains))
 
-        for itemname, (docname, _, anchor) in sorted(items, key=lambda x: x[0].lower()):
-            if docnames and docname not in docnames:
+        for itemname, data in sorted(items, key=lambda x: x[0].lower()):
+            if docnames and data.docname not in docnames:
                 continue
 
             entries = content[itemname[0].lower()]
-            entries.append([itemname, 0, docname, anchor, '', '', ''])
+            entries.append([itemname, 0, data.docname, data.targetid, '', '', ''])
 
         collapse = False
         content = sorted(content.items())
@@ -1158,7 +1166,7 @@ class RocqDomain(Domain):
     initial_data = {
         # Collect everything under a key that we control, since Sphinx adds
         # others, such as “version”
-        'objects' : { # subdomain → name → docname, objtype, targetid
+        'objects' : { # subdomain → name → SubdomainItemData
             'cmd': {},
             'tacn': {},
             'opt': {},
@@ -1182,8 +1190,8 @@ class RocqDomain(Domain):
     def get_objects(self):
         # Used for searching and object inventories (intersphinx)
         for _, objects in self.data['objects'].items():
-            for name, (docname, objtype, targetid) in objects.items():
-                yield (name, name, objtype, docname, targetid, self.object_types[objtype].attrs['searchprio'])
+            for name, data in objects.items():
+                yield (name, name, data.objtype, data.docname, data.targetid, self.object_types[data.objtype].attrs['searchprio'])
         for index in self.indices:
             yield (index.name, index.localname, 'index', "rocq-" + index.name, '', -1)
 
@@ -1191,11 +1199,11 @@ class RocqDomain(Domain):
         DUP = "Duplicate declaration: '{}' also defined in '{}'.\n"
         for subdomain, their_objects in otherdata['objects'].items():
             our_objects = self.data['objects'][subdomain]
-            for name, (docname, objtype, targetid) in their_objects.items():
-                if docname in docnames:
+            for name, data in their_objects.items():
+                if data.docname in docnames:
                     if name in our_objects:
-                        self.env.warn(docname, DUP.format(name, our_objects[name][0]))
-                    our_objects[name] = (docname, objtype, targetid)
+                        self.env.warn(data.docname, DUP.format(name, our_objects[name].docname))
+                    our_objects[name] = data
 
     def resolve_xref(self, env, fromdocname, builder, role, targetname, node, contnode):
         # ‘target’ is the name that was written in the document
@@ -1207,14 +1215,13 @@ class RocqDomain(Domain):
         else:
             resolved = self.data['objects'][role].get(targetname)
             if resolved:
-                (todocname, _, targetid) = resolved
-                return make_refnode(builder, fromdocname, todocname, targetid, contnode, targetname)
+                return make_refnode(builder, fromdocname, resolved.docname, resolved.targetid, contnode, targetname)
         return None
 
     def clear_doc(self, docname_to_clear):
         for subdomain_objects in self.data['objects'].values():
-            for name, (docname, _, _) in list(subdomain_objects.items()):
-                if docname == docname_to_clear:
+            for name, data in list(subdomain_objects.items()):
+                if data.docname == docname_to_clear:
                     del subdomain_objects[name]
 
 def is_rocqtop_or_rocqdoc_block(node):
