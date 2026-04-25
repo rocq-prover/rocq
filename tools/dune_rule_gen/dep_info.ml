@@ -10,7 +10,7 @@ type t = CD.Dep_info.Dep.t list Dep_map.t
 
 (* What a pita OCaml's stdlib missing basic stuff ... *)
 let from_list l =
-  List.fold_left (fun map { CD.Dep_info.name; deps } ->
+  Seq.fold_left (fun map { CD.Dep_info.name; deps } ->
       let name = Path.make name in
       let path = Path.add_extension ~ext:".v" name in
       Dep_map.add path deps map) Dep_map.empty l

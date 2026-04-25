@@ -50,7 +50,7 @@ let coqdep args =
   if args.Args.sort then
     sort st
   else
-    compute_deps st |> List.iter (Makefile.print_dep Format.std_formatter)
+    compute_deps st |> Seq.iter (Makefile.print_dep Format.std_formatter)
 
 let main args =
   try

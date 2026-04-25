@@ -300,7 +300,7 @@ let find_dependencies st basename =
 
 let compute_deps st =
   let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
-  st.vAccu.acc |> CList.rev_map mk_dep
+  List.rev st.vAccu.acc |> List.to_seq |> Seq.map mk_dep
 
 let rec treat_file ~separator_hack vAccu old_dirname old_name =
   let name = Filename.basename old_name
