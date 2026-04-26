@@ -195,10 +195,8 @@ let get_worker_path st =
     w
 
 let singleton f =
-  let f = Filename.make f in
   { point = f; files = FileSet.singleton f }
 let add_set f l =
-  let f = Filename.make f in
   { point = f; files = FileSet.add f l.files }
 
 let insert_key root (full,f) m =
@@ -245,6 +243,7 @@ let add_paths recur root table phys_dir log_dir basename =
   let name = log_dir@[basename] in
   let file = System.(phys_dir // basename) in
   let paths = cuts recur name in
+  let file = Filename.make file in
   let iter n = safe_add table root (n, file) in
   List.iter iter paths
 
