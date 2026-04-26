@@ -107,6 +107,7 @@ result
 doc/unreleased.rst
 doc/refman-html
 doc/refman-pdf
+doc/refman-indices
 doc/common/version.tex
 doc/faq/html/
 doc/faq/axioms.eps

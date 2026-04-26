@@ -11,7 +11,7 @@
 # Dune Makefile for Rocq
 
 .PHONY: help help-install states world rocqide watch check    # Main developer targets
-.PHONY: refman-html refman-pdf corelib-html apidoc     # Documentation targets
+.PHONY: refman-html refman-pdf refman-indices corelib-html apidoc     # Documentation targets
 .PHONY: test-suite dev-targets
 .PHONY: fmt ocheck obuild ireport clean               # Maintenance targets
 .PHONY: dunestrap release install                 # Miscellaneous
@@ -63,6 +63,7 @@ help:
 	@echo ""
 	@echo "  - refman-html: build Rocq's reference manual [HTML version]"
 	@echo "  - refman-pdf:  build Rocq's reference manual [PDF version]"
+	@echo "  - refman-indices: build Rocq's JSON indices"
 	@echo "  - corelib-html: build Rocq's Corelib documentation [HTML version]"
 	@echo "  - apidoc:      build ML API documentation"
 	@echo ""
@@ -191,6 +192,10 @@ refman-pdf: world doc/unreleased.rst
 	rm -rf doc/refman-pdf
 	+$(WITHPYPATH) $(WITHJOBS) dune exec -- sphinx-build -q -W -b latex doc/sphinx doc/refman-pdf
 	$(MAKE) -C doc/refman-pdf LATEXMKOPTS=-silent
+
+refman-indices: world doc/unreleased.rst
+	rm -rf doc/refman-indices
+	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b dummy doc/sphinx doc/refman-indices
 
 corelib-html: dunestrap
 	dune build @corelib-html

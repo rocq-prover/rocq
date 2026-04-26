@@ -13,18 +13,18 @@ class NotationObject:
 class Literal(NotationObject):
     value: str
     subscript: str | None
-    type = "literal"
+    type: str = "literal"
 
 @dataclass
 class Reference(NotationObject):
     value: str
     subscript: str | None
-    type = "reference"
+    type: str = "reference"
 
 @dataclass
 class Alternative(NotationObject):
     children: list[NotationObject]
-    type = "alternative"
+    type: str = "alternative"
 
 @dataclass
 class Repeat(NotationObject):
@@ -32,7 +32,7 @@ class Repeat(NotationObject):
     max: int | None
     separator: str | None
     children: list[NotationObject]
-    type = "repeat"
+    type: str = "repeat"
 
 class TacticNotationsToObjectVisitor(TacticNotationsVisitor):
     def defaultResult(self):
