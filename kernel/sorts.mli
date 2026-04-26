@@ -157,7 +157,7 @@ module ElimConstraint : sig
   val raw_pr : t -> Pp.t
 end
 
-module ElimConstraints : sig include Stdlib.Set.S with type elt = ElimConstraint.t
+module ElimConstraints : sig include CSet.ExtS with type elt = ElimConstraint.t
   val pr : Quality.printer -> t -> Pp.t
 
   val hcons : t Hashcons.f

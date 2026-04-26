@@ -2555,11 +2555,64 @@ let vernac_validate_proof ~pstate =
       (Evd.undefined_map sigma)
       (Evd.undefined_map sigma')
   in
+  let missing_qcsts, missing_ucsts =
+    let ustate = Evd.ustate sigma in
+    let ugraph = UState.ugraph ustate in
+    let qgraph = UState.elim_graph ustate in
+    let (qs, us), (qcsts, ucsts) = UState.sort_context_set ustate in
+    let ustate' = Evd.ustate sigma' in
+    let (qs', us'), (qcsts', ucsts') = UState.sort_context_set ustate' in
+
+    (* is it actually possible to have new univs or qualities? *)
+    let _, ucsts' = UState.restrict_universe_context (us',ucsts') us in
+    let missing_ucsts =
+      Univ.UnivConstraints.filter (fun cst -> not @@ UGraph.check_constraint ugraph cst) ucsts'
+    in
+    let missing_ucsts =
+      let nf u = match Univ.Universe.level (UState.nf_universe ustate (Univ.Universe.make u)) with
+        | None -> u
+        | Some u -> u
+      in
+      Univ.UnivConstraints.map (fun (u1,k,u2) -> nf u1, k, nf u2) missing_ucsts
+    in
+
+    let qcsts' = QGraph.constraints_for ~kept:(QGraph.domain qgraph) (UState.elim_graph ustate') in
+    let missing_qcsts =
+      Sorts.ElimConstraints.filter (fun cst -> not @@ QGraph.check_constraint qgraph cst) qcsts'
+    in
+    let missing_qcsts = Sorts.ElimConstraints.map (fun (q1,k,q2) ->
+        UState.nf_quality ustate q1, k, UState.nf_quality ustate q2)
+        missing_qcsts
+    in
+
+    missing_qcsts, missing_ucsts
+  in
   (* TODO check ustate *)
 
-  if Evar.Map.is_empty evar_issues then
-    str "No issues found."
-  else prlist_with_sep fnl snd (Evar.Map.bindings evar_issues)
+  if Evar.Map.is_empty evar_issues &&
+     Univ.UnivConstraints.is_empty missing_ucsts &&
+     Sorts.ElimConstraints.is_empty missing_qcsts then
+    Feedback.msg_notice @@ str "No issues found."
+  else
+    let pp_us =
+      if Univ.UnivConstraints.is_empty missing_ucsts then mt()
+      else
+        hov 2
+          (str "Missing universe constraints:" ++ spc() ++
+           Univ.UnivConstraints.pr (Termops.pr_evd_level sigma) missing_ucsts)
+    in
+    let pp_qs =
+      if Sorts.ElimConstraints.is_empty missing_qcsts then mt()
+      else
+        hov 2
+          (str "Missing elimination constraints:" ++ spc() ++
+           Sorts.ElimConstraints.pr (Evd.quality_printer sigma) missing_qcsts)
+    in
+    let msg =
+      prlist_with_sep fnl snd (Evar.Map.bindings evar_issues) ++ fnl() ++
+      pp_us ++ fnl() ++ pp_qs
+    in
+    CErrors.user_err msg
 
 let vernac_proof pstate tac using =
   let is_let = match Declare.Proof.definition_scope pstate with
@@ -2953,7 +3006,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacValidateProof ->
     vtreadproof(fun ~pstate ->
         unsupported_attributes atts;
-        Feedback.msg_notice @@ vernac_validate_proof ~pstate)
+        vernac_validate_proof ~pstate)
   | VernacProof (tac, using) ->
     vtmodifyproof(fun ~pstate ->
     unsupported_attributes atts;
