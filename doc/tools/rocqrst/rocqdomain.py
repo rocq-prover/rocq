@@ -48,6 +48,7 @@ from .repl import ansicolors
 from .repl.rocqtop import RocqTop, RocqTopError
 from .notations.parsing import ParseError
 from .notations.sphinx import sphinxify
+from .notations import object as object_notations
 from .notations.plain import stringify_with_ellipses
 
 # FIXME: Patch this in Sphinx
@@ -91,6 +92,7 @@ class SubdomainItemData:
     docname: str
     objtype: str
     targetid: str
+    syntax: list[object_notations.NotationObject]
 
 def notation_to_sphinx(notation, source, line, rawtext=None):
     """Parse notation and wrap it in an inline node"""
@@ -178,6 +180,14 @@ class RocqObject(ObjectDescription):
         """Render a signature, placing resulting nodes into signode."""
         raise NotImplementedError(self)
 
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.NotationObject]:
+        """Convert a signature into a syntax tree, used in generated plain JSON indices.
+
+        By default, returns the signature as a literal string.
+
+        """
+        return [object_notations.Literal(value=signature, subscript=None)]
+
     option_spec = {
         # Explicit object naming
         'name': directives.unchanged,
@@ -222,7 +232,7 @@ class RocqObject(ObjectDescription):
             msg = MSG.format(name, self.env.doc2path(objects[name].docname), signode)
             self.state_machine.reporter.warning(msg, line=self.lineno)
 
-    def _record_name(self, name, target_id, signode):
+    def _record_name(self, name, target_id, signature: str, signode):
         """Record a `name` in the current subdomain, mapping it to `target_id`.
 
         Warns if another object of the same name already exists; `signode` is
@@ -230,19 +240,19 @@ class RocqObject(ObjectDescription):
         """
         names_in_subdomain = self.subdomain_data()
         self._warn_if_duplicate_name(names_in_subdomain, name, signode)
-        names_in_subdomain[name] = SubdomainItemData(self.env.docname, self.objtype, target_id)
+        names_in_subdomain[name] = SubdomainItemData(self.env.docname, self.objtype, target_id, self._signature_to_syntax(signature))
 
     def _target_id(self, name):
         return make_target(self.objtype, make_id(name))
 
-    def _add_target(self, signode, name):
+    def _add_target(self, signature: str, signode, name):
         """Register a link target ‘name’, pointing to signode."""
         targetid = self._target_id(name)
         if targetid not in self.state.document.ids:
             signode['ids'].append(targetid)
             signode['names'].append(name)
             signode['first'] = (not self.names)
-            self._record_name(name, targetid, signode)
+            self._record_name(name, targetid, signature, signode)
         else:
             # We don't warn for duplicates in the SSReflect chapter, because
             # it's the style of this chapter to repeat all the defined
@@ -261,14 +271,14 @@ class RocqObject(ObjectDescription):
             index_text += " " + self.index_suffix
         self.indexnode['entries'].append(('single', index_text, target, '', None))
 
-    def add_target_and_index(self, names, _, signode):
+    def add_target_and_index(self, names, signature: str, signode):
         """Attach a link target to `signode` and index entries for `names`.
         This is only called (from ``ObjectDescription.run``) if ``:noindex:`` isn't specified."""
         if names:
             for name in names:
                 if isinstance(name, str) and name.startswith('_'):
                     continue
-                target = self._add_target(signode, name)
+                target = self._add_target(signature, signode, name)
                 self._add_index_entry(name, target)
             self.state.document.note_explicit_target(signode)
 
@@ -328,6 +338,9 @@ class NotationObject(DocumentableObject):
     Objects that inherit from this class can use the notation grammar (“{+ …}”,
     “@…”, etc.) in their signature.
     """
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.NotationObject]:
+        return object_notations.objectify(signature)
+
     def _render_signature(self, signature, signode):
         position = self.state_machine.get_source_and_line(self.lineno)
         tacn_node = notation_to_sphinx(signature, *position)
@@ -465,7 +478,7 @@ class ProductionObject(RocqObject):
     def _target_id(self, name):
         return make_id('grammar-token-{}'.format(name[1]))
 
-    def _record_name(self, name, targetid, signode):
+    def _record_name(self, name, targetid, signature, signode):
         env = self.state.document.settings.env
         objects = env.domaindata['std']['objects']
         self._warn_if_duplicate_name(objects, name, signode)
