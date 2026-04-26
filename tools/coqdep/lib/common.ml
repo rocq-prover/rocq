@@ -12,12 +12,11 @@
     - first string is the full filename, with only its extension removed
     - second string is the absolute version of the previous (via getcwd)
 *)
-type vAccu = { acc : (string * string) list; map : string list CString.Map.t }
+type vAccu = { acc : string list; map : string CString.Map.t }
 
 let add_vAccu (f, f') vAccu =
-  let acc = (f, f') :: vAccu.acc in
-  let old = try CString.Map.find f' vAccu.map with Not_found -> [] in
-  let map = CString.Map.add f' (f :: old) vAccu.map in
+  let acc = f :: vAccu.acc in
+  let map = CString.Map.add f' f vAccu.map in
   { acc; map }
 
 let empty_vAccu = { acc = []; map = CString.Map.empty }
@@ -39,8 +38,8 @@ let canonize ~separator_hack vAccu f =
       (Filename.basename f)
   in
   match CString.Map.find_opt f' vAccu.map with
-  | None | Some [] -> f
-  | Some (f :: _) -> f
+  | None -> f
+  | Some f -> f
 
 type what = Library | External
 let str_of_what = function Library -> "library" | External -> "external file"
@@ -299,7 +298,7 @@ let find_dependencies st basename =
     Error.cannot_parse f (i, j)
 
 let compute_deps st =
-  let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
+  let mk_dep name = Dep_info.make ~name ~deps:(find_dependencies st name) in
   List.rev st.vAccu.acc |> List.to_seq |> Seq.map mk_dep
 
 let rec treat_file ~separator_hack vAccu old_dirname old_name =
@@ -369,7 +368,7 @@ let sort {State.vAccu; separator_hack; loadpath} =
         Format.printf "%s.v " file
     end
   in
-  List.iter (fun (name, _) -> loop (Loadpath.Filename.make name)) vAccu.acc
+  List.iter (fun name -> loop (Loadpath.Filename.make name)) vAccu.acc
 
 let add_include st (rc, r, ln) =
   if rc then
