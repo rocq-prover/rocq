@@ -34,6 +34,7 @@ from docutils.parsers.rst.roles import code_role #, set_classes
 from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 
 from sphinx import addnodes, version_info as sphinx_version
+from sphinx.application import Sphinx
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType, Index
 from sphinx.errors import ExtensionError
@@ -1258,6 +1259,38 @@ def simplify_source_code_blocks_for_latex(app, doctree, fromdocname): # pylint: 
         else:
             node.replace_self(nodes.literal_block(node.rawsource, node.rawsource, language="Coq"))
 
+def export_indices_to_json(app: Sphinx, exception):
+    """Write out JSON files containing the contents of our indices. This computer-readable format is
+    useful for tool developers, for instance to power autocompletion in editors.
+    """
+    import json
+
+    if app.builder.name != 'dummy':
+        return
+
+    if exception:
+        return
+
+    domain = app.env.get_domain('rocq')
+
+    def write_json(index: RocqSubdomainsIndex):
+        items = chain(*(domain.data['objects'][subdomain].items()
+                        for subdomain in index.subdomains))
+
+        output_data = {}
+        for name, data in items:
+            output_data[name] = {
+                "documentation_path": data.docname,
+                "documentation_anchor": data.targetid,
+                "syntax": [x.asdict() for x in data.syntax],
+            }
+
+        with open(app.outdir + f"/{index.name}.json", "w") as f:
+            json.dump(output_data, f, indent=2)
+
+    for index in RocqDomain.indices:
+        write_json(index)
+
 ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
                              RocqdocDirective,
                              ExampleDirective,
@@ -1291,6 +1324,7 @@ def setup(app):
     app.add_transform(RocqtopBlocksTransform)
     app.connect('doctree-resolved', simplify_source_code_blocks_for_latex)
     app.connect('doctree-resolved', RocqtopBlocksTransform.merge_consecutive_rocqtop_blocks)
+    app.connect('build-finished', export_indices_to_json)
 
     # Add extra styles
     app.add_css_file("ansi.css")
