@@ -55,8 +55,12 @@ let warning_module_notfound =
   CWarnings.create ~name:"module-not-found"
     ~category:CWarnings.CoreCategories.filesystem warn
 
-let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in function
+let warn_if_clash ?(what=Library) exact file dir f1 = function
   | f2::fl ->
+      let open Format in
+      let f1 = Loadpath.Filename.repr f1 in
+      let f2 = Loadpath.Filename.repr f2 in
+      let fl = List.map Loadpath.Filename.repr fl in
       let f =
         match what with
         | Library -> Filename.basename f1 ^ ".v"
@@ -91,24 +95,20 @@ let safe_assoc ?(warn_clashes=true) st ?(what=Library) from file k =
   match search ?from k with
   | None -> None
   | Some (Loadpath.ExactMatches fs) ->
-    let f = Loadpath.Filename.repr fs.Loadpath.point in
-    let l = Loadpath.FileSet.elements fs.files in
-    let l = List.map Loadpath.Filename.repr l in
-    let l = List.filter (fun f' -> not (String.equal f f')) l in
+    let f = fs.Loadpath.point in
+    let l = Loadpath.FileSet.remove f fs.files in
+    let l = Loadpath.FileSet.elements l in
     if warn_clashes then warn_if_clash ~what true file k f l;
-    Some [fs.Loadpath.point]
+    Some [f]
   | Some (Loadpath.PartialMatchesInSameRoot (root, l)) ->
     let l = Loadpath.FileSet.elements l.files in
     let sort f1 f2 = String.compare (Loadpath.Filename.repr f1) (Loadpath.Filename.repr f2) in
-    (match List.sort sort l with [] -> assert false | f :: l as all ->
+    let all = List.sort sort l in
+    let f, l = match all with [] -> assert false | f :: l -> f, l in
     (* If several files match, it will fail at Require;
        To be "fair", in rocq dep, we add dependencies on all matching files *)
-    let () = if warn_clashes then
-      let f = Loadpath.Filename.repr f in
-      let l = List.map Loadpath.Filename.repr l in
-      warn_if_clash ~what false file k f l
-    in
-    Some all)
+    let () = if warn_clashes then warn_if_clash ~what false file k f l in
+    Some all
 
 let file_name ~separator_hack s = function
   | None     -> s
