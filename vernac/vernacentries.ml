@@ -1646,12 +1646,8 @@ let vernac_include l = Declaremods.Interp.declare_include l
 
 (* Sections *)
 
-let vernac_begin_section ~poly {v=id} =
-  Lib.Interp.open_section id;
-  (* If there was no polymorphism attribute this just sets the option
-     to its current value ie noop. *)
-  set_bool_option_value_gen ~locality:OptLocal ["Universe"; "Polymorphism"] poly
-
+let vernac_begin_section {v=id} =
+  Lib.Interp.open_section id
 let vernac_end_section {CAst.loc; v} =
   Declaremods.Interp.close_section ()
 
@@ -2741,7 +2737,7 @@ let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
   (* Gallina extensions *)
   | EVernacBeginSection lid ->
     vernac_begin_segment ~interactive:true (fun () ->
-        vernac_begin_section ~poly:(only_polymorphism atts) lid)
+        vernac_begin_section lid)
 
   | EVernacEndSegment lid ->
     unsupported_attributes atts;
