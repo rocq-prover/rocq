@@ -373,6 +373,8 @@ let assert_reduced_constructor s =
   if not @@ CList.is_empty s then
     CErrors.anomaly Pp.(str "conversion was given unreduced term (FConstruct).")
 
+exception NotConvertibleEvar
+
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
 let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
   let fast = fast_test lft1 term1 lft2 term2 in
@@ -417,7 +419,9 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           convert_list l2r infos el1 el2
             (List.map (mk_clos env1) args1)
             (List.map (mk_clos env2) args2) cuniv
-        else raise NotConvertible
+        else raise NotConvertibleEvar
+
+    | (FEvar _, _) | (_, FEvar _) -> raise NotConvertibleEvar
 
     (* 2 index known to be bound to no constant *)
     | (FRel n, FRel m) ->
@@ -812,7 +816,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
        | (FLOCKED,_) | (_,FLOCKED) ) -> assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
-       | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
+       | FProd _ | FInt _ | FFloat _ | FString _
        | FArray _ | FIrrelevant), _ -> raise NotConvertible
 
 and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
@@ -952,6 +956,10 @@ and convert_list l2r infos lft1 lft2 v1 v2 cuniv = match v1, v2 with
   let cuniv = ccnv CONV l2r infos lft1 lft2 c1 c2 cuniv in
   convert_list l2r infos lft1 lft2 v1 v2 cuniv
 | _, _ -> raise NotConvertible
+
+let ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+ try ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv with
+   | NotConvertibleEvar -> raise NotConvertible
 
 let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 =
   NewProfile.profile "Conversion" begin fun () ->
