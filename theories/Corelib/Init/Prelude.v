@@ -35,28 +35,10 @@ Declare ML Module "rocq-runtime.plugins.firstorder".
 
 Global Set Firstorder Solver auto with core.
 
-(* Parsing / printing of hexadecimal numbers *)
-Arguments Nat.of_hex_uint d%_hex_uint_scope.
-Arguments Nat.of_hex_int d%_hex_int_scope.
-Number Notation Number.uint Number.uint_of_uint Number.uint_of_uint
-  : hex_uint_scope.
-Number Notation Number.int Number.int_of_int Number.int_of_int
-  : hex_int_scope.
-
-(* Parsing / printing of decimal numbers *)
-Arguments Nat.of_uint d%_dec_uint_scope.
-Arguments Nat.of_int d%_dec_int_scope.
-Number Notation Number.uint Number.uint_of_uint Number.uint_of_uint
-  : dec_uint_scope.
-Number Notation Number.int Number.int_of_int Number.int_of_int
-  : dec_int_scope.
-
-(* Parsing / printing of [nat] numbers *)
-Number Notation nat Nat.of_num_uint Nat.to_num_hex_uint (abstract after 5000) : hex_nat_scope.
-Number Notation nat Nat.of_num_uint Nat.to_num_uint (abstract after 5000) : nat_scope.
-
-(* Printing/Parsing of bytes *)
-Export Byte.ByteSyntaxNotations.
+Export
+  Number.NumberNotations
+  Nat.NumberNotations
+  Byte.ByteSyntaxNotations.
 
 (* Default substrings not considered by queries like Search *)
 Add Search Blacklist "_subproof" "_subterm" "Private_".

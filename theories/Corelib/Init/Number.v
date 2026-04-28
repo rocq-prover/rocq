@@ -36,3 +36,15 @@ Register number as num.number.type.
 
 Definition uint_of_uint (i:uint) := i.
 Definition int_of_int (i:int) := i.
+
+Module NumberNotations.
+  Number Notation Number.uint Number.uint_of_uint Number.uint_of_uint
+    : hex_uint_scope.
+  Number Notation Number.int Number.int_of_int Number.int_of_int
+    : hex_int_scope.
+
+  Number Notation Number.uint Number.uint_of_uint Number.uint_of_uint
+    : dec_uint_scope.
+  Number Notation Number.int Number.int_of_int Number.int_of_int
+    : dec_int_scope.
+End NumberNotations.
