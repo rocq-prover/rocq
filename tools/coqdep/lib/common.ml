@@ -12,12 +12,11 @@
     - first string is the full filename, with only its extension removed
     - second string is the absolute version of the previous (via getcwd)
 *)
-type vAccu = { acc : (string * string) list; map : string list CString.Map.t }
+type vAccu = { acc : string list; map : string CString.Map.t }
 
 let add_vAccu (f, f') vAccu =
-  let acc = (f, f') :: vAccu.acc in
-  let old = try CString.Map.find f' vAccu.map with Not_found -> [] in
-  let map = CString.Map.add f' (f :: old) vAccu.map in
+  let acc = f :: vAccu.acc in
+  let map = CString.Map.add f' f vAccu.map in
   { acc; map }
 
 let empty_vAccu = { acc = []; map = CString.Map.empty }
@@ -39,8 +38,8 @@ let canonize ~separator_hack vAccu f =
       (Filename.basename f)
   in
   match CString.Map.find_opt f' vAccu.map with
-  | None | Some [] -> f
-  | Some (f :: _) -> f
+  | None -> f
+  | Some f -> f
 
 type what = Library | External
 let str_of_what = function Library -> "library" | External -> "external file"
@@ -56,8 +55,12 @@ let warning_module_notfound =
   CWarnings.create ~name:"module-not-found"
     ~category:CWarnings.CoreCategories.filesystem warn
 
-let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in function
+let warn_if_clash ?(what=Library) exact file dir f1 = function
   | f2::fl ->
+      let open Format in
+      let f1 = Loadpath.Filename.repr f1 in
+      let f2 = Loadpath.Filename.repr f2 in
+      let fl = List.map Loadpath.Filename.repr fl in
       let f =
         match what with
         | Library -> Filename.basename f1 ^ ".v"
@@ -92,24 +95,20 @@ let safe_assoc ?(warn_clashes=true) st ?(what=Library) from file k =
   match search ?from k with
   | None -> None
   | Some (Loadpath.ExactMatches fs) ->
-    let f = Loadpath.Filename.repr fs.Loadpath.point in
-    let l = Loadpath.FileSet.elements fs.files in
-    let l = List.map Loadpath.Filename.repr l in
-    let l = List.filter (fun f' -> not (String.equal f f')) l in
+    let f = fs.Loadpath.point in
+    let l = Loadpath.FileSet.remove f fs.files in
+    let l = Loadpath.FileSet.elements l in
     if warn_clashes then warn_if_clash ~what true file k f l;
-    Some [fs.Loadpath.point]
+    Some [f]
   | Some (Loadpath.PartialMatchesInSameRoot (root, l)) ->
     let l = Loadpath.FileSet.elements l.files in
     let sort f1 f2 = String.compare (Loadpath.Filename.repr f1) (Loadpath.Filename.repr f2) in
-    (match List.sort sort l with [] -> assert false | f :: l as all ->
+    let all = List.sort sort l in
+    let f, l = match all with [] -> assert false | f :: l -> f, l in
     (* If several files match, it will fail at Require;
        To be "fair", in rocq dep, we add dependencies on all matching files *)
-    let () = if warn_clashes then
-      let f = Loadpath.Filename.repr f in
-      let l = List.map Loadpath.Filename.repr l in
-      warn_if_clash ~what false file k f l
-    in
-    Some all)
+    let () = if warn_clashes then warn_if_clash ~what false file k f l in
+    Some all
 
 let file_name ~separator_hack s = function
   | None     -> s
@@ -299,7 +298,7 @@ let find_dependencies st basename =
     Error.cannot_parse f (i, j)
 
 let compute_deps st =
-  let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
+  let mk_dep name = Dep_info.make ~name ~deps:(find_dependencies st name) in
   List.rev st.vAccu.acc |> List.to_seq |> Seq.map mk_dep
 
 let rec treat_file ~separator_hack vAccu old_dirname old_name =
@@ -369,7 +368,7 @@ let sort {State.vAccu; separator_hack; loadpath} =
         Format.printf "%s.v " file
     end
   in
-  List.iter (fun (name, _) -> loop (Loadpath.Filename.make name)) vAccu.acc
+  List.iter (fun name -> loop (Loadpath.Filename.make name)) vAccu.acc
 
 let add_include st (rc, r, ln) =
   if rc then

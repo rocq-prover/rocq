@@ -77,34 +77,28 @@ let register_dir_logpath, find_dir_logpath =
 
 let add_directory recur add_file phys_dir log_dir =
   let root = (phys_dir, log_dir) in
-  let stack = ref [] in
-  let curdirfiles = ref [] in
-  let subdirfiles = ref [] in
   let rec aux phys_dir log_dir =
     if System.exists_dir phys_dir then
-      begin
-        register_dir_logpath phys_dir log_dir;
-        let f = function
-          | System.FileDir (phys_f,f) ->
-              if recur then begin
-                stack := (!curdirfiles, !subdirfiles) :: !stack;
-                curdirfiles := []; subdirfiles := [];
-                aux phys_f (log_dir @ [f]);
-                let curdirfiles', subdirfiles' = List.hd !stack in
-                subdirfiles := subdirfiles' @ !subdirfiles @ !curdirfiles;
-                curdirfiles := curdirfiles'; stack := List.tl !stack
-              end
-          | System.FileRegular f ->
-              curdirfiles := (phys_dir, log_dir, f) :: !curdirfiles
-        in
-        System.process_directory f phys_dir
-      end
+      let () = register_dir_logpath phys_dir log_dir in
+      let curdirfiles = ref [] in
+      let subdirfiles = ref [] in
+      let f = function
+      | System.FileDir (phys_f,f) ->
+        if recur then
+          let (ncurdirfiles, nsubdirfiles) = aux phys_f (log_dir @ [f]) in
+          subdirfiles := !subdirfiles @ nsubdirfiles @ ncurdirfiles
+      | System.FileRegular f ->
+        curdirfiles := (phys_dir, log_dir, f) :: !curdirfiles
+      in
+      let () = System.process_directory f phys_dir in
+      (!curdirfiles, !subdirfiles)
     else
-      System.warn_cannot_open_dir phys_dir
+      let () = System.warn_cannot_open_dir phys_dir in
+      ([], [])
   in
-  aux phys_dir log_dir;
-  List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) !subdirfiles;
-  List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) !curdirfiles
+  let (curdirfiles, subdirfiles) = aux phys_dir log_dir in
+  List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) subdirfiles;
+  List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) curdirfiles
 
 (** [get_extension f l] checks whether [f] has one of the extensions
     listed in [l]. It returns [f] without its extension, alongside with
