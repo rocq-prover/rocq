@@ -127,11 +127,10 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     else (nas', tys', bds')
   in
   let aux_ctx ((nas, c) as p) =
-    let nas' = Array.Smart.map (Context.map_annot_relevance frel) nas in
     let k' = iterate next (Array.length nas) k in
     let c' = aux k' c in
-    if nas' == nas && c' == c then p
-    else (nas', c')
+    if c' == c then p
+    else (nas, c')
   in
   match kind c with
   | Const pu ->

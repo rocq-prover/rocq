@@ -312,7 +312,7 @@ let instantiate_context u subst nas ctx =
   let open Context.Rel.Declaration in
   let get_binder i na =
     Context.
-    { binder_name = nas.(i).binder_name;
+    { binder_name = nas.(i);
       binder_relevance = UVars.subst_instance_relevance u na.binder_relevance }
   in
   let rec instantiate i ctx = match ctx with

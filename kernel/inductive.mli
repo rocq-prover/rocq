@@ -145,14 +145,14 @@ val inductive_params : mind_specif -> int
     array is only used to set the names of the context variables, we use the
     less general type to make it easy to use this function on Case nodes. *)
 val expand_arity : mind_specif -> pinductive -> constr array ->
-  Name.t binder_annot array -> rel_context
+  Name.t array -> rel_context
 
 (** Given an inductive type and its parameters, builds the context of the return
     clause, including the inductive being eliminated. The additional binder
     array is only used to set the names of the context variables, we use the
     less general type to make it easy to use this function on Case nodes. *)
 val expand_branch_contexts : mind_specif -> UVars.Instance.t -> constr array ->
-  (Name.t binder_annot array * 'a) array -> rel_context array
+  (Name.t array * 'a) array -> rel_context array
 
 type ('constr,'types,'r) pexpanded_case =
   (case_info * ('constr * 'r) * 'constr pcase_invert * 'constr * 'constr array)
@@ -173,7 +173,7 @@ val contract_case : env -> expanded_case -> case
 (** [instantiate_context u subst nas ctx] applies both [u] and [subst]
     to [ctx] while replacing names using [nas] (order reversed). In particular,
     assumes that [ctx] and [nas] have the same length. *)
-val instantiate_context : Instance.t -> Vars.substl -> Name.t binder_annot array ->
+val instantiate_context : Instance.t -> Vars.substl -> Name.t array ->
   rel_context -> rel_context
 
 val build_branches_type :

@@ -896,8 +896,9 @@ and convert_vect l2r infos lft1 lft2 v1 v2 cuniv =
     fold 0 cuniv
   else raise NotConvertible
 
-and convert_under_context l2r infos e1 e2 lft1 lft2 ctx (nas1, c1) (nas2, c2) cu =
-  let n = Array.length nas1 in
+and convert_under_context l2r infos e1 e2 lft1 lft2 ctx rs (nas1, c1) (nas2, c2) cu =
+  let n = Array.length rs in
+  let () = assert (Int.equal n (Array.length nas1)) in
   let () = assert (Int.equal n (Array.length nas2)) in
   let n, e1, e2 = match ctx with
   | None -> (* nolet *)
@@ -912,14 +913,19 @@ and convert_under_context l2r infos e1 e2 lft1 lft2 ctx (nas1, c1) (nas2, c2) cu
   in
   let lft1 = el_liftn n lft1 in
   let lft2 = el_liftn n lft2 in
-  let infos = push_relevances infos (Array.map (usubst_binder e1) nas1) in
+  let infos = push_relevances infos (Array.map (usubst_binder e1) rs) in
   ccnv CONV l2r infos lft1 lft2 (mk_clos e1 c1) (mk_clos e2 c2) cu
 
 and convert_return_clause mib mip l2r infos e1 e2 l1 l2 u1 u2 pms1 pms2 p1 p2 cu =
+  let ctx, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+  let rs = Array.map_of_list (fun d ->
+      Context.map_annot_relevance (UVars.subst_instance_relevance u1)
+        (Context.Rel.Declaration.get_annot d))
+      (LocalAssum (Context.make_annot Anonymous mip.mind_relevance, mkProp (* dummy *)) :: ctx)
+  in
   let ctx =
     if Int.equal mip.mind_nrealargs mip.mind_nrealdecls then None
     else
-      let ctx, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
       let pms1 = inductive_subst mib u1 pms1 in
       let pms2 = inductive_subst mib u2 pms2 in
       let open Context.Rel.Declaration in
@@ -927,14 +933,19 @@ and convert_return_clause mib mip l2r infos e1 e2 l1 l2 u1 u2 pms1 pms2 p1 p2 cu
       let ctx = None :: List.map get_value ctx in
       Some (ctx, pms1, pms2)
   in
-  convert_under_context l2r infos e1 e2 l1 l2 ctx (fst p1) (fst p2) cu
+  convert_under_context l2r infos e1 e2 l1 l2 ctx rs (fst p1) (fst p2) cu
 
 and convert_branches mib mip l2r infos e1 e2 lft1 lft2 u1 u2 pms1 pms2 br1 br2 cuniv =
   let fold i (ctx, _) cuniv =
+    let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
+    let rs = Array.map_of_list (fun d ->
+        Context.map_annot_relevance (UVars.subst_instance_relevance u1)
+          (Context.Rel.Declaration.get_annot d))
+        ctx
+    in
     let ctx =
       if Int.equal mip.mind_consnrealdecls.(i) mip.mind_consnrealargs.(i) then None
       else
-        let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
         let ctx = List.map Context.Rel.Declaration.get_value ctx in
         let pms1 = inductive_subst mib u1 pms1 in
         let pms2 = inductive_subst mib u2 pms2 in
@@ -942,7 +953,7 @@ and convert_branches mib mip l2r infos e1 e2 lft1 lft2 u1 u2 pms1 pms2 br1 br2 c
     in
     let c1 = br1.(i) in
     let c2 = br2.(i) in
-    convert_under_context l2r infos e1 e2 lft1 lft2 ctx c1 c2 cuniv
+    convert_under_context l2r infos e1 e2 lft1 lft2 ctx rs c1 c2 cuniv
   in
   Array.fold_right_i fold mip.mind_nf_lc cuniv
 

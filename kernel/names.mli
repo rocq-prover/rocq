@@ -106,6 +106,9 @@ sig
   val hcons : t Hashcons.f
   (** Hashconsing over names. *)
 
+  val to_string : t -> string
+  (** "_" for Anonymous *)
+
   val print : t -> Pp.t
   (** Pretty-printer (print "_" for [Anonymous]. *)
 

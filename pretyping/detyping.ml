@@ -54,30 +54,11 @@ open Declarations
 open UVars
 open Constr
 
-let instantiate_context u subst nas ctx =
-  let rec instantiate i ctx = match ctx with
-  | [] -> []
-  | LocalAssum (_, ty) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    LocalAssum (nas.(i), ty) :: ctx
-  | LocalDef (_, ty, bdy) :: ctx ->
-    let ctx = instantiate (pred i) ctx in
-    let ty = substnl subst i (subst_instance_constr u ty) in
-    let bdy = substnl subst i (subst_instance_constr u bdy) in
-    LocalDef (nas.(i), ty, bdy) :: ctx
-  in
-  let () = if not (Int.equal (Array.length nas) (List.length ctx)) then raise_notrace Exit in
-  instantiate (Array.length nas - 1) ctx
-
 let return_clause env sigma ind u params ((nas, p),_) =
-  let nas : Name.t EConstr.binder_annot array = nas in
+  let nas : Name.t array = nas in
   try
     let u = EConstr.Unsafe.to_instance u in
     let params = EConstr.Unsafe.to_constr_array params in
-    let nas : Name.t Constr.binder_annot array =
-      match EConstr.Unsafe.relevance_eq with Refl -> nas
-    in
     let () = if not @@ Environ.mem_mind (fst ind) env then raise_notrace Exit in
     let mib = Environ.lookup_mind (fst ind) env in
     let mip = mib.mind_packets.(snd ind) in
@@ -91,20 +72,16 @@ let return_clause env sigma ind u params ((nas, p),_) =
     in
     let na = Context.make_annot Anonymous mip.mind_relevance in
     let realdecls = LocalAssum (na, self) :: realdecls in
-    let realdecls = instantiate_context u paramsubst nas realdecls in
+    let realdecls = Environ.instantiate_context u paramsubst nas realdecls in
     List.map EConstr.of_rel_decl realdecls, p
   with e when CErrors.noncritical e ->
-    let dummy na = LocalAssum (na, EConstr.mkProp) in
+    let dummy na = LocalAssum (Context.make_annot na ERelevance.relevant, EConstr.mkProp) in
     List.rev (Array.map_to_list dummy nas), p
 
 let branch env sigma (ind, i) u params (nas, br) =
-  let nas : Name.t EConstr.binder_annot array = nas in
   try
     let u = EConstr.Unsafe.to_instance u in
     let params = EConstr.Unsafe.to_constr_array params in
-    let nas : Name.t Constr.binder_annot array =
-      match EConstr.Unsafe.relevance_eq with Refl -> nas
-    in
     let () = if not @@ Environ.mem_mind (fst ind) env then raise_notrace Exit in
     let mib = Environ.lookup_mind (fst ind) env in
     let mip = mib.mind_packets.(snd ind) in
@@ -112,10 +89,10 @@ let branch env sigma (ind, i) u params (nas, br) =
     let paramsubst = subst_of_rel_context_instance paramdecl params in
     let (ctx, _) = mip.mind_nf_lc.(i - 1) in
     let ctx, _ = List.chop mip.mind_consnrealdecls.(i - 1) ctx in
-    let ctx = instantiate_context u paramsubst nas ctx in
+    let ctx = Environ.instantiate_context u paramsubst nas ctx in
     List.map EConstr.of_rel_decl ctx, br
   with e when CErrors.noncritical e ->
-    let dummy na = LocalAssum (na, EConstr.mkProp) in
+    let dummy na = LocalAssum (Context.make_annot na ERelevance.relevant, EConstr.mkProp) in
     List.rev (Array.map_to_list dummy nas), br
 
 end

@@ -299,9 +299,9 @@ let fake_match_projection env p =
         let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg:arg lab in
         fold (arg+1) (j+1) (mkProj (Projection.make kn false, na.binder_relevance, mkRel 1)::subst) rem
       else
-        let p = ([|x|], liftn 1 2 ty) in
+        let p = ([|x.binder_name|], liftn 1 2 ty) in
         let branch =
-          let nas = Array.of_list (List.rev_map Context.Rel.Declaration.get_annot ctx) in
+          let nas = Array.of_list (List.rev_map Context.Rel.Declaration.get_name ctx) in
           (nas, mkRel (List.length ctx - (j - 1)))
         in
         let params = Context.Rel.instance mkRel 1 paramslet in

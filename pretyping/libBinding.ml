@@ -139,7 +139,7 @@ struct
 
     let get_Xs keys =
       fun s sigma ->
-      return (Array.of_list @@ List.map (fun key -> snd @@ get_X key s sigma) keys) s sigma in
+      return (Array.map_of_list (fun key -> snd @@ get_X key s sigma) keys) s sigma in
 
     (get_X, geti_X, getij_X, get_Xs)
 
@@ -515,6 +515,7 @@ let make_case_or_projections naming_vars mib ind indb u key_uparams key_nuparams
     let@ key_var_match = add_decl Fresh naming_vars (LocalAssum (name_var_match, ty_var)) in
     (* return type *)
     let* fresh_annot = get_anames (key_both @ [key_var_match]) in
+    let fresh_annot = Array.map Context.binder_name fresh_annot in
     let* return_type = mk_case_pred key_fresh_indices key_var_match in
     return @@ ((fresh_annot, return_type), case_relevance)
   in
@@ -525,6 +526,7 @@ let make_case_or_projections naming_vars mib ind indb u key_uparams key_nuparams
     let@ key_args, key_letin, key_both = add_context_sep Old naming_vars args in
     let* branches_body = tc (key_args, key_letin, key_both, pos_ctor) in
     let* names_args = get_anames key_both in
+    let names_args = Array.map Context.binder_name names_args in
     return (names_args, branches_body)
   in
 

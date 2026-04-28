@@ -867,7 +867,7 @@ let treat_case env sigma ci lbrty accu ~parent =
   let open EConstr in
   let fold (sigma, accu) (name, ctx, ty) =
     let open Context.Rel.Declaration in
-    let brctx = Array.of_list (List.rev_map get_annot ctx) in
+    let brctx = Array.of_list (List.rev_map get_name ctx) in
     let args = Context.Rel.instance mkRel 0 ctx in
     (* TODO: tweak this to prevent dummy β-cuts *)
     let ty = nf_betaiota env sigma (it_mkProd_or_LetIn ty ctx) in
@@ -985,7 +985,7 @@ let build_case_analysis env sigma (ind, u) params pred indices indarg dep knd =
       if dep then deparsign
       else LocalAssum (make_annot Anonymous r, depind) :: List.tl deparsign
     in
-    let pnas = Array.of_list (List.rev_map get_annot pctx) in
+    let pnas = Array.of_list (List.rev_map get_name pctx) in
     pnas, deparsign
   in
 

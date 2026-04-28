@@ -1,4 +1,13 @@
-File "./output/check_case_relevance.v", line 10, characters 0-92:
+File "./output/check_case_relevance.v", line 17, characters 13-20:
 The command has indeed failed with message:
-Binder (_ : "nat") has relevance mark set to irrelevant but was expected to
-be relevant (maybe a bugged tactic).
+In environment
+p : nat * nat
+The term "eq_refl" has type "badfst p = badfst p"
+while it is expected to have type "badfst p = badsnd p"
+(cannot unify "badfst p" and "badsnd p").
+File "./output/check_case_relevance.v", line 19, characters 2-15:
+The command has indeed failed with message:
+The term "fun p : nat * nat => eq_refl" has type
+ "forall p : nat * nat, badfst p = badfst p"
+while it is expected to have type
+ "forall p : nat * nat, badfst p = badsnd p".

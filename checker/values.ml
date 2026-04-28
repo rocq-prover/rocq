@@ -254,8 +254,8 @@ in
 let v_fix = v_tuple_c ("pfixpoint", [|v_tuple_c ("fix2",[|v_array v_int;v_int|]);v_prec|]) in
 let v_cofix = v_tuple_c ("pcofixpoint",[|v_int;v_prec|]) in
 let v_case_invert = v_sum_c ("case_inversion", 1, [|[|v_array v_constr|]|]) in
-let v_case_branch = v_tuple_c ("case_branch", [|v_array (v_binder_annot v_name); v_constr|]) in
-let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_array (v_binder_annot v_name); v_constr|]); v_relevance|]) in
+let v_case_branch = v_tuple_c ("case_branch", [|v_array v_name; v_constr|]) in
+let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_array v_name; v_constr|]); v_relevance|]) in
   v_sum_c ("constr",0,[|
     [|v_int|]; (* Rel *)
     [|v_id|]; (* Var *)

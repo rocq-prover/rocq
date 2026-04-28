@@ -543,7 +543,7 @@ let contract_case env (ci, (p,rp), iv, c, br) =
   | _ -> assert false
   in
   let p =
-    let nas = Array.of_list (List.rev_map get_annot arity) in
+    let nas = Array.of_list (List.rev_map get_name arity) in
     ((nas, p),rp)
   in
   let map i br =
@@ -552,7 +552,7 @@ let contract_case env (ci, (p,rp), iv, c, br) =
       | None ->
         CErrors.anomaly Pp.(fmt "contract_case: not enough abstractions in branch %d." i)
     in
-    let nas = Array.of_list (List.rev_map get_annot ctx) in
+    let nas = Array.of_list (List.rev_map get_name ctx) in
     (nas, br)
   in
   (ci, u, pms, p, iv, c, Array.mapi map br)

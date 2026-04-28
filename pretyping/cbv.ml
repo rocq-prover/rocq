@@ -929,7 +929,7 @@ let rec apply_stack info t = function
         subs_shft (1, subs_cons b e)
       in
       let env = List.fold_right fold nas env in
-      let nas = Array.of_list (List.rev_map get_annot nas) in
+      let nas = Array.of_list (List.rev_map get_name nas) in
       (nas, aux env c)
     in
       apply_stack info
