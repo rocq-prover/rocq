@@ -285,16 +285,6 @@ let eta_expand_constructor env ((ind,ctor),u as pctor) =
   let c = Term.it_mkLambda_or_LetIn c ctx in
   inject c
 
-let esubst_of_context ctx args e =
-  let rec aux lft e args ctx = match ctx with
-  | [] -> lft, e
-  | None :: ctx -> aux (lft + 1) (usubs_lift e) (usubs_lift args) ctx
-  | Some c :: ctx ->
-    let c = mk_clos args c in
-    aux lft (usubs_cons c e) (usubs_cons c args) ctx
-  in
-  aux 0 e args (List.rev ctx)
-
 let irr_flex infos = function
   | ConstKey (con,u) -> is_irrelevant infos @@ UVars.subst_instance_relevance u @@ Environ.constant_relevance con (info_env infos)
   | VarKey x -> is_irrelevant infos @@ Context.Named.Declaration.get_relevance (Environ.lookup_named x (info_env infos))
