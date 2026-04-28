@@ -873,16 +873,14 @@ let check_native_args op stk =
   nargs <= rargs
 
 
-let try_drop_parameters n m = match[@warning "-4"] m.term with
-  | FConstruct (_, args) ->
-    let q = Array.length args in
-    if n > q then raise Not_found
-    else if q = 0 then [||]
-    else Array.sub args n (q - n)
-  | _ -> assert false
+let try_drop_parameters n args =
+  let q = Array.length args in
+  if n > q then raise Not_found
+  else if q = 0 then [||]
+  else Array.sub args n (q - n)
 
-let drop_parameters n m =
-  try try_drop_parameters n m
+let drop_parameters n args =
+  try try_drop_parameters n args
   with Not_found ->
   (* we know that n < stack_args_size(argstk) (if well-typed term) *)
   anomaly (Pp.str "ill-typed term: found a match on a partially applied constructor.")
@@ -899,14 +897,24 @@ let inductive_subst mib u pms =
   in
   mk_pms (Array.length pms - 1) mib.mind_params_ctxt, u
 
-(* Iota-reduction: feed the arguments of the constructor to the branch *)
-let get_branch infos ci pms cterm br e =
-  let ((ind, c), u) = match[@warning "-4"] cterm.term with
-    | FConstruct (c, _) -> c
-    | _ -> assert false
+let args_subst ind_subst ctx args e =
+  let rec aux args_subst ind_subst i = function
+    | [] ->
+      assert (Int.equal (Array.length args) i);
+      args_subst
+    | RelDecl.LocalAssum _ :: ctx ->
+      let c = args.(i) in
+      aux (usubs_cons c args_subst) (usubs_cons c ind_subst) (succ i) ctx
+    | RelDecl.LocalDef (_, b, _) :: ctx ->
+      let c = mk_clos ind_subst b in
+      aux (usubs_cons c args_subst) (usubs_cons c ind_subst) i ctx
   in
+  aux e ind_subst 0 (List.rev ctx)
+
+(* Iota-reduction: feed the arguments of the constructor to the branch *)
+let get_branch infos ci pms ((ind, c), u) args br e =
   let i = c - 1 in
-  let args = drop_parameters ci.ci_npar cterm in
+  let args = drop_parameters ci.ci_npar args in
   let (_nas, br) = br.(i) in
   if Int.equal ci.ci_cstr_ndecls.(i) ci.ci_cstr_nargs.(i) then
     (* No let-bindings in the constructor, we don't have to fetch the
@@ -922,46 +930,34 @@ let get_branch infos ci pms cterm br e =
     let (ctx, _) = mip.mind_nf_lc.(i) in
     let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
     let ind_subst = inductive_subst mib u (Array.map (mk_clos e) pms) in
-    let rec push i e = function
-    | [] -> []
-    | RelDecl.LocalAssum _ :: ctx ->
-      let ans = push (pred i) e ctx in
-      args.(i) :: ans
-    | RelDecl.LocalDef (_, b, _) :: ctx ->
-      let ans = push i e ctx in
-      let s = Array.rev_of_list ans in
-      let e = usubs_consv s ind_subst in
-      let v = mk_clos e b in
-      v :: ans
-    in
-    let ext = push (Array.length args - 1) [] ctx in
-    (br, usubs_consv (Array.rev_of_list ext) e)
+    let e = args_subst ind_subst ctx args e in
+    (br, e)
 
-(** [eta_expand_ind_stack env ind c s t] computes stacks corresponding
+(** [eta_expand_ind_stack env ind args t] computes stacks corresponding
     to the conversion of the eta expansion of t, considered as an inhabitant
-    of ind, and the Constructor c of this inductive type applied to arguments
-    s.
-    @assumes [t] is an irreducible term, and not a constructor. [ind] is the inductive
-    of the constructor term [c]
+    of ind, and the constructor of this inductive type applied to arguments args.
+    @assumes [t] is a rigid term, and not a constructor;
+    that [args] are valid arguments for the constructor of inductive [ind].
     @raise Not_found if the inductive is not a primitive record, or if the
     constructor is partially applied.
  *)
-let eta_expand_ind_stack env (ind,u) m (f, s') =
+let eta_expand_ind_stack env (ind,u) args m' =
   let open Declarations in
   let mib = lookup_mind (fst ind) env in
+  let specif = mib, mib.mind_packets.(snd ind) in
   (* disallow eta-exp for non-primitive records, also check postponed eta *)
-  let () = if not (Declareops.is_record_with_eta (mib,mib.mind_packets.(snd ind)) u) then
-      raise Not_found
+  let () = if not (Declareops.is_record_with_eta specif u) then
+    raise Not_found
   in
   match Declareops.inductive_make_projections ind mib with
   | None -> assert false
   | Some projs ->
-    (* (Construct, pars1 .. parsm :: arg1...argn :: []) ~= (f, s') ->
-           arg1..argn ~= (proj1 t...projn t) where t = zip (f,s') *)
+    (* (Construct, pars1 .. parsm :: arg1...argn :: []) ~= m' ->
+           arg1..argn ~= (proj1 t...projn t) where t = zip m' *)
     let pars = mib.Declarations.mind_nparams in
-    let right = fapp_stack (f, s') in
+    let right = fapp_stack m' in
     (** Try to drop the params, might fail on partially applied constructors. *)
-    let argss = try_drop_parameters pars m in
+    let argss = try_drop_parameters pars args in
     let () = if not @@ Int.equal (Array.length projs) (Array.length argss)
       then raise Not_found (* partially applied constructor (missing non-param arguments) *)
     in
@@ -1891,34 +1887,29 @@ let rec knr info tab ~pat_state m stk =
         | Symbol (u, b, r) ->
           RedPattern.match_symbol knred info tab ~pat_state fl (u, b, r) stk
         | Undef _ | OpaqueDef _ -> (set_ntrl m; knr_ret info tab ~pat_state (m,stk)))
-  | FConstruct (c,_) ->
-     let use_match = red_set info.i_flags fMATCH in
-     let use_fix = red_set info.i_flags fFIX in
-     if use_match || use_fix then
-      (match [@ocaml.warning "-4"] m,  stk with
-        | (_, Zapp _ :: _) -> assert false (* knh *)
-        | (c, ZcaseT(ci,_,pms,_,br,e)::s) when use_match ->
-            assert (ci.ci_npar>=0);
-            (* instance on the case and instance on the constructor are compatible by typing *)
-            let (br, e) = get_branch info ci pms c br e in
-            knit info tab ~pat_state e br s
-        | (rarg, Zfix(fx,par)::s) when use_fix ->
-            let stk' = par @ append_stack [|rarg|] s in
-            let (fxe,fxbd) = contract_fix_vect fx.term in
-            knit info tab ~pat_state fxe fxbd stk'
-        | (m, Zproj (p,_)::s) when use_match ->
-            let rargs = drop_parameters (Projection.Repr.npars p) m in
-            let rarg = rargs.(Projection.Repr.arg p) in
-            kni info tab ~pat_state rarg s
-        | (m, s) ->
-          if is_irrelevant_constructor info c then
-            knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
-          else
-            knr_ret info tab ~pat_state (m,s))
-     else if is_irrelevant_constructor info c then
-      knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
-     else
-      knr_ret info tab ~pat_state (m, stk)
+  | FConstruct (c, args) ->
+    let use_match = red_set info.i_flags fMATCH in
+    let use_fix = red_set info.i_flags fFIX in
+    begin match [@ocaml.warning "-4"] stk with
+    | Zapp _ :: _ -> assert false (* knh *)
+    | ZcaseT (ci, _, pms, _, br, e) :: s when use_match ->
+      (* instance on the case and instance on the constructor are compatible by typing *)
+      let (br, e) = get_branch info ci pms c args br e in
+      knit info tab ~pat_state e br s
+    | Zfix (fx, par) :: s when use_fix ->
+      let stk' = par @ append_stack [|m|] s in
+      let (fxe, fxbd) = contract_fix_vect fx.term in
+      knit info tab ~pat_state fxe fxbd stk'
+    | Zproj (p, _) :: s when use_match ->
+      let rargs = drop_parameters (Projection.Repr.npars p) args in
+      let rarg = rargs.(Projection.Repr.arg p) in
+      kni info tab ~pat_state rarg s
+    | _ ->
+      if is_irrelevant_constructor info c then
+        knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
+      else
+        knr_ret info tab ~pat_state (m, stk)
+    end
   | FCoFix ((i, (lna, _, _)), e) ->
     if is_irrelevant info (usubst_relevance e (lna.(i)).binder_relevance) then
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)

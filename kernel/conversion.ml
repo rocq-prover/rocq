@@ -610,11 +610,11 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
             eqwhnf cv_pb l2r infos (lft1, r1) appr2 cuniv
         | None ->
           (match c2 with
-           | FConstruct (((ind2,1),u2),_) ->
+           | FConstruct (((ind2, 1), u2), args2) ->
              let () = assert_reduced_constructor v2 in
              (try
                 let v2, v1 =
-                  eta_expand_ind_stack (info_env infos.cnv_inf) (ind2,u2) hd2 (snd appr1)
+                  eta_expand_ind_stack (info_env infos.cnv_inf) (ind2,u2) args2 (snd appr1)
                 in convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
               with Not_found -> raise NotConvertible)
            | _ -> raise NotConvertible)
@@ -629,10 +629,10 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
           eqwhnf cv_pb l2r infos appr1 (lft2, r2) cuniv
         | None ->
           match c1 with
-          | FConstruct (((ind1,1),u1),_) ->
+          | FConstruct (((ind1, 1), u1), args1) ->
             let () = assert_reduced_constructor v1 in
             (try let v1, v2 =
-                   eta_expand_ind_stack (info_env infos.cnv_inf) (ind1,u1) hd1 (snd appr2)
+                   eta_expand_ind_stack (info_env infos.cnv_inf) (ind1,u1) args1 (snd appr2)
                in convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
              with Not_found -> raise NotConvertible)
           | _ -> raise NotConvertible
@@ -679,23 +679,23 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       else raise NotConvertible
 
     (* Eta expansion of records *)
-    | (FConstruct (((ind1,j1),u1), _),_) ->
+    | (FConstruct (((ind1, j1), u1), args1), _) ->
       let () = assert_reduced_constructor v1 in
       (* records only have 1 constructor *)
       let () = if not @@ Int.equal j1 1 then raise NotConvertible in
       (try
          let v1, v2 =
-            eta_expand_ind_stack (info_env infos.cnv_inf) (ind1,u1) hd1 (snd appr2)
+            eta_expand_ind_stack (info_env infos.cnv_inf) (ind1,u1) args1 (snd appr2)
          in convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
        with Not_found -> raise NotConvertible)
 
-    | (_, FConstruct (((ind2,j2),u2),_)) ->
+    | (_, FConstruct (((ind2, j2), u2), args2)) ->
       let () = assert_reduced_constructor v2 in
       (* records only have 1 constructor *)
       let () = if not @@ Int.equal j2 1 then raise NotConvertible in
       (try
          let v2, v1 =
-            eta_expand_ind_stack (info_env infos.cnv_inf) (ind2,u2) hd2 (snd appr1)
+            eta_expand_ind_stack (info_env infos.cnv_inf) (ind2,u2) args2 (snd appr1)
          in convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
        with Not_found -> raise NotConvertible)
 
