@@ -1395,8 +1395,8 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
     let e = Exninfo.capture e in
     report_anomaly e
 
-let infer_conv = infer_conv_gen { genconv = fun pb ~l2r sigma ->
-      Conversion.generic_conv pb ~l2r ~evars:(Evd.evar_handler sigma) }
+let infer_conv ?(on_evars=Conversion.ConsiderOpaque) = infer_conv_gen { genconv = fun pb ~l2r  sigma ->
+      Conversion.generic_conv pb ~l2r ~on_evars ~evars:(Evd.evar_handler sigma) }
 
 let evars_of_evar_map sigma =
   { Genlambda.evars_val = Evd.evar_handler sigma }

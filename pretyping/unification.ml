@@ -1088,14 +1088,15 @@ let expand_projection_with_metas ~metas env sigma pr c args =
 
 (* If the terms are irrelevant, check that they have the same type. *)
 let careful_infer_conv ~pb ~ts env sigma m n =
+  let on_evars = Conversion.AbortImmediately in
   if Retyping.is_term_irrelevant env sigma m &&
      Retyping.is_term_irrelevant env sigma n
   then
     let tm = Retyping.get_type_of env sigma m in
     let tn = Retyping.get_type_of env sigma n in
-    Option.bind (infer_conv ~pb:CONV ~ts env sigma tm tn)
-      (fun sigma -> infer_conv ~pb ~ts env sigma m n)
-  else infer_conv ~pb ~ts env sigma m n
+    Option.bind (infer_conv ~on_evars ~pb:CONV ~ts env sigma tm tn)
+      (fun sigma -> infer_conv ~on_evars ~pb ~ts env sigma m n)
+  else infer_conv ~on_evars ~pb ~ts env sigma m n
 
 type maybe_ground = Ground | NotGround | Unknown
 
@@ -1482,7 +1483,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
               (* Renounce, maybe metas/evars prevents typing *) ()
           else ()
         in
-        match infer_conv ~pb ~ts:convflags curenv sigma m1 n1 with
+        match infer_conv ~on_evars:Conversion.AbortImmediately ~pb ~ts:convflags curenv sigma m1 n1 with
         | Some sigma -> Some (push_sigma sigma substn)
         | None ->
           if is_ground_term sigma m1 && is_ground_term sigma n1 then
