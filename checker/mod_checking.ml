@@ -8,8 +8,10 @@ open Environ
 
 (** {6 Checking constants } *)
 
-type opaques = Names.Cset.t Names.Cmap.t
+type cset = { cset : KerName.Set.t }
+type opaques = Cset.t Names.Cmap.t
 
+let empty_cset = { cset = KerName.Set.empty }
 let empty_opaques = Cmap.empty
 
 let constants_of_opaques env opac =
@@ -247,12 +249,12 @@ let mk_mtb sign delta = Mod_declarations.make_module_type sign delta
 let rec collect_constants_without_body sign mp accu =
   let collect_field s lab = function
   | SFBconst cb ->
-     let c = Constant.make2 mp lab in
-     if Declareops.constant_has_body cb then s else Cset.add c s
+     let c = KerName.make mp lab in
+     if Declareops.constant_has_body cb then s else { cset = KerName.Set.add c s.cset }
   | SFBmodule msb -> collect_constants_without_body (mod_type msb) (MPdot(mp,lab)) s
   | SFBmind _ | SFBrules _ | SFBmodtype _ -> s in
   match sign with
-  | MoreFunctor _ -> Cset.empty  (* currently ignored *)
+  | MoreFunctor _ -> empty_cset (* currently ignored *)
   | NoFunctor struc ->
      List.fold_left (fun s (lab,mb) -> collect_field s lab mb) accu struc
 
@@ -315,14 +317,14 @@ let rec check_module env opac mp mb opacify =
 and check_module_type env mp mty =
   Flags.if_verbose Feedback.msg_notice (str "  checking module type: " ++ str (ModPath.to_string @@ mp));
   let _ : check_state =
-    check_signature env empty_state (mod_type mty) mp (mod_delta mty) Cset.empty in
+    check_signature env empty_state (mod_type mty) mp (mod_delta mty) empty_cset in
   ()
 
 and check_structure_field env opac mp lab res opacify = function
   | SFBconst cb ->
       let kn = KerName.make mp lab in
       let kn = Mod_subst.constant_of_delta_kn res kn in
-      check_constant_declaration env opac kn cb (Cset.mem kn opacify)
+      check_constant_declaration env opac kn cb (KerName.Set.mem (Constant.canonical kn) opacify.cset)
   | SFBmind mib ->
       let kn = KerName.make mp lab in
       let kn = Mod_subst.mind_of_delta_kn res kn in
@@ -351,7 +353,7 @@ and check_signature env opac sign mp_mse res opacify = match sign with
   | MoreFunctor (arg_id, mtb, body) ->
       let () = check_module_type env (MPbound arg_id) mtb in
       let env' = Modops.add_module_parameter arg_id mtb env in
-      let opac = check_signature env' opac body mp_mse res Cset.empty in
+      let opac = check_signature env' opac body mp_mse res empty_cset in
       opac
   | NoFunctor struc ->
       let (_:env), opac = List.fold_left (fun (env, opac) (lab,mb) ->
@@ -393,7 +395,7 @@ let get_retroknowlege env retro =
 let check_module env opac retro mp mb =
   let retro = get_retroknowlege env retro in
   let st = { st_opaques = opac; st_retro = retro } in
-  let { st_opaques = opac; st_retro = (imap, cmap) } = check_module env st mp mb Cset.empty in
+  let { st_opaques = opac; st_retro = (imap, cmap) } = check_module env st mp mb empty_cset in
   let () = match Mindmap_env.choose_opt imap, Cmap_env.choose_opt cmap with
   | None, None -> ()
   | Some (ind, _), (None | Some _) ->
