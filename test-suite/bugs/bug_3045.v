@@ -19,14 +19,14 @@ Inductive ReifiedMorphism : forall objC (C : SpecializedCategory objC), C -> C -
 
 Fixpoint ReifiedMorphismDenote objC C s d (m : @ReifiedMorphism objC C s d) : Morphism C s d :=
   match m in @ReifiedMorphism objC C s d return Morphism C s d with
-    | ReifiedComposedMorphism _ _ _ _ _ m1 m2 => Compose (@ReifiedMorphismDenote _ _ _ _ m1)
+    | ReifiedComposedMorphism m1 m2 => Compose (@ReifiedMorphismDenote _ _ _ _ m1)
                                                          (@ReifiedMorphismDenote _ _ _ _ m2)
   end.
 
 Fixpoint ReifiedMorphismSimplifyWithProof objC C s d (m : @ReifiedMorphism objC C s d)
 : { m' : ReifiedMorphism C s d | ReifiedMorphismDenote m = ReifiedMorphismDenote m' }.
 refine match m with
-         | ReifiedComposedMorphism _ _ s0 d0 d0' m1 m2 => _
+         | ReifiedComposedMorphism m1 m2 => _
        end; clear m.
 (* This fails with an error rather than an anomaly, but morally
    it should work, if destruct were able to do the good generalization

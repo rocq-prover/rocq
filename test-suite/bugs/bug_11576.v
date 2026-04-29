@@ -25,12 +25,11 @@ Existing Class rep.
 Fixpoint translate_func' (pv:=_) {t} (e : @expr ltype t)
   : for_each_lhs_of_arrow ltype t -> @cmd pv :=
   match e with
-  | Abs base d f =>
-    fun (args : _ * for_each_lhs_of_arrow _ d) =>
+  | Abs f =>
+    fun (args : _ * for_each_lhs_of_arrow _ _) =>
       translate_func' (f (fst args)) (snd args)
-  | Var base v =>
+  | Var v =>
     fun _ => translate_cmd (Var v)
-  | _ => fun _ => admit
   end.
 (* Used to be: File "./bug_01.v", line 30, characters 30-31:
 Error: Cannot infer this placeholder of type "parameters" (no type class

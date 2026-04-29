@@ -14,5 +14,5 @@ Inductive t : list A -> Type :=
 Definition car (x:A) (lx : list A) (s: t (x::lx)) : typ x :=
   match s in t l'  with
   | snil => False
-  | scons _ e _ _ => e
+  | scons e _ => e
   end.

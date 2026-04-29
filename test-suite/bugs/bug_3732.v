@@ -34,8 +34,8 @@ Section machine.
 
   Fixpoint subst G (p : propX G) : (last G -> PropX) -> propX (eatLast G) :=
     match p with
-      | Inj _ P => fun _ => Inj P
-      | ExistsX G A p1 => fun p' =>
+      | Inj P => fun _ => Inj P
+      | @ExistsX G A p1 => fun p' =>
                             match G return propX (A :: G) -> propX (eatLast (A :: G)) -> propX (eatLast G) with
                               | nil => fun p1 _ => ExistsX p1
                               | cons _ _ => fun _ rc => ExistsX rc

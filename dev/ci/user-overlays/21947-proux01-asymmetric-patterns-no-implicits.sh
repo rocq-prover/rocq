@@ -1,0 +1,15 @@
+overlay aac_tactics https://github.com/rocq-community/aac-tactics rocq21947 21947
+overlay atbr https://github.com/rocq-community/atbr rocq21947 21947
+overlay ext_lib https://github.com/coq-community/coq-ext-lib rocq21947 21947
+overlay equations https://github.com/proux01/Coq-Equations rocq21947 21947
+overlay fiat_crypto https://github.com/proux01/fiat-crypto rocq21947 21947
+overlay fiat_crypto_legacy https://github.com/proux01/fiat-crypto rocq21947-legacy 21947
+overlay fiat_parsers https://github.com/proux01/fiat rocq21947 21947
+overlay hott https://github.com/proux01/HoTT rocq21947 21947
+overlay kami https://github.com/proux01/kami rocq21947 21947
+overlay mathcomp https://github.com/proux01/math-comp rocq21947 21947
+overlay metarocq https://github.com/proux01/metarocq rocq21947 21947
+overlay relation_algebra https://github.com/proux01/relation-algebra rocq21947 21947
+overlay rewriter https://github.com/proux01/rewriter rocq21947 21947
+overlay stdlib https://github.com/proux01/stdlib rocq21947 21947
+overlay vst https://github.com/proux01/vst rocq21947 21947
