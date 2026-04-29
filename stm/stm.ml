@@ -985,12 +985,10 @@ end = struct (* {{{ *)
     let st = freeze () in
     try
       let res = f x in
-      Vernacstate.Interp.invalidate_cache ();
       unfreeze st;
       res
     with e ->
       let e = Exninfo.capture e in
-      Vernacstate.Interp.invalidate_cache ();
       unfreeze st;
       Exninfo.iraise e
 
