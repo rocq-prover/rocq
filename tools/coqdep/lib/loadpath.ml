@@ -75,18 +75,29 @@ let register_dir_logpath, find_dir_logpath =
     (see discussion at PR #14718)
 *)
 
+type 'a subdir =
+| SubEmpty
+| SubNode of 'a subdir * 'a subdir * 'a
+
+let rec iter_subdir f = function
+| SubEmpty -> ()
+| SubNode (hd, tl, cur) ->
+  let () = iter_subdir f hd in
+  let () = iter_subdir f tl in
+  List.iter f cur
+
 let add_directory recur add_file phys_dir log_dir =
   let root = (phys_dir, log_dir) in
   let rec aux phys_dir log_dir =
     if System.exists_dir phys_dir then
       let () = register_dir_logpath phys_dir log_dir in
       let curdirfiles = ref [] in
-      let subdirfiles = ref [] in
+      let subdirfiles = ref SubEmpty in
       let f = function
       | System.FileDir (phys_f,f) ->
         if recur then
           let (ncurdirfiles, nsubdirfiles) = aux phys_f (log_dir @ [f]) in
-          subdirfiles := !subdirfiles @ nsubdirfiles @ ncurdirfiles
+          subdirfiles := SubNode (!subdirfiles, nsubdirfiles, ncurdirfiles)
       | System.FileRegular f ->
         curdirfiles := (phys_dir, log_dir, f) :: !curdirfiles
       in
@@ -94,10 +105,10 @@ let add_directory recur add_file phys_dir log_dir =
       (!curdirfiles, !subdirfiles)
     else
       let () = System.warn_cannot_open_dir phys_dir in
-      ([], [])
+      ([], SubEmpty)
   in
   let (curdirfiles, subdirfiles) = aux phys_dir log_dir in
-  List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) subdirfiles;
+  iter_subdir (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) subdirfiles;
   List.iter (fun (phys_dir, log_dir, f) -> add_file root phys_dir log_dir f) curdirfiles
 
 (** [get_extension f l] checks whether [f] has one of the extensions
@@ -195,10 +206,8 @@ let get_worker_path st =
     w
 
 let singleton f =
-  let f = Filename.make f in
   { point = f; files = FileSet.singleton f }
 let add_set f l =
-  let f = Filename.make f in
   { point = f; files = FileSet.add f l.files }
 
 let insert_key root (full,f) m =
@@ -245,6 +254,7 @@ let add_paths recur root table phys_dir log_dir basename =
   let name = log_dir@[basename] in
   let file = System.(phys_dir // basename) in
   let paths = cuts recur name in
+  let file = Filename.make file in
   let iter n = safe_add table root (n, file) in
   List.iter iter paths
 

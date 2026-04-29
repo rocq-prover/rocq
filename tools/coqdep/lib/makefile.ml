@@ -52,25 +52,36 @@ let set_dyndep = function
   | "var" -> option_dynlink := Variable
   | o -> CErrors.user_err Pp.(str "Incorrect -dyndep option: " ++ str o)
 
+type pp = { pp : formatter -> unit }
+
+let pp_of_string s = { pp = fun fmt -> pp_print_string fmt s }
+
 let mldep_to_make base =
   match !option_dynlink with
   | No -> []
-  | Byte -> [sprintf "%s.cma" base]
-  | Opt -> [sprintf "%s.cmxs" base]
+  | Byte -> [pp_of_string @@ sprintf "%s.cma" base]
+  | Opt -> [pp_of_string @@ sprintf "%s.cmxs" base]
   | Both ->
-    [sprintf "%s.cma" base; sprintf "%s.cmxs" base]
+    [pp_of_string @@ sprintf "%s.cma" base; pp_of_string @@ sprintf "%s.cmxs" base]
   | Variable ->
-    [sprintf "%s%s" base "$(DYNLIB)"]
+    [pp_of_string @@ sprintf "%s%s" base "$(DYNLIB)"]
 
 let string_of_dep ~suffix = let open Dep_info.Dep in
   function
-  | Require basename -> [escape basename ^ suffix]
-  | Ml base -> mldep_to_make (escape base)
-  | Other s -> [escape s]
+  | Require basename -> List.to_seq [{ pp = fun fmt -> fprintf fmt "%s%s" (escape basename) suffix }]
+  | Ml base -> List.to_seq @@ mldep_to_make (escape base)
+  | Other s -> List.to_seq @@ [pp_of_string @@ escape s]
 
-let string_of_dependency_list ~suffix deps =
-  List.map (string_of_dep ~suffix) deps
-  |> List.concat |> String.concat " "
+let pp_concat pp fmt s = match Seq.uncons s with
+| None -> ()
+| Some (hd, s) ->
+  let () = pp fmt hd in
+  Seq.iter (fun data -> fprintf fmt " %a" pp data) s
+
+let pp_dependency_list ~suffix fmt deps =
+  let deps = List.to_seq deps in
+  let deps = Seq.concat_map (fun dep -> string_of_dep ~suffix dep) deps in
+  pp_concat (fun fmt s -> s.pp fmt) fmt deps
 
 let option_noglob = ref false
 let option_write_vos = ref false
@@ -80,9 +91,9 @@ let set_write_vos vos = option_write_vos := vos
 let print_dep fmt { Dep_info.name; deps } =
   let ename = escape name in
     let glob = if !option_noglob then "" else ename^".glob " in
-  fprintf fmt "%s.vo %s%s.v.beautified %s.required_vo: %s.v %s\n" ename glob ename ename ename
-    (string_of_dependency_list ~suffix:".vo" deps);
+  fprintf fmt "%s.vo %s%s.v.beautified %s.required_vo: %s.v %a\n" ename glob ename ename ename
+    (pp_dependency_list ~suffix:".vo") deps;
   if !option_write_vos then
-    fprintf fmt "%s.vos %s.vok %s.required_vos: %s.v %s\n" ename ename ename ename
-      (string_of_dependency_list ~suffix:".vos" deps);
+    fprintf fmt "%s.vos %s.vok %s.required_vos: %s.v %a\n" ename ename ename ename
+      (pp_dependency_list ~suffix:".vos") deps;
   fprintf fmt "%!"

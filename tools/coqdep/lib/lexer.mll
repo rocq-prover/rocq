@@ -51,6 +51,28 @@
     let s = Lexing.lexeme lexbuf in
     check_valid lexbuf (String.sub s 1 (String.length s - 1))
 
+  let fast_skip_to_dot lexbuf =
+    let open Lexing in
+    (* partial backtrack, we need to consider the character discarded by '_' *)
+    let () = lexbuf.lex_curr_pos <- lexbuf.lex_last_pos in
+    let rec ignore_to_dot curr len buf =
+      if len <= curr then curr
+      else match Bytes.unsafe_get buf curr with
+      | '.' -> curr
+      | '(' ->
+        if curr + 1 < len && Bytes.unsafe_get buf (curr + 1) != '*' then
+          ignore_to_dot (curr + 1) len buf
+        else
+          curr
+      | _ -> ignore_to_dot (curr + 1) len buf
+    in
+    let () = lexbuf.Lexing.lex_start_pos <- lexbuf.lex_curr_pos in
+    let pos = ignore_to_dot lexbuf.lex_curr_pos lexbuf.lex_buffer_len lexbuf.lex_buffer in
+    if pos > lexbuf.lex_curr_pos then
+      let () = lexbuf.lex_curr_pos <- pos in
+      let () = lexbuf.lex_last_pos <- pos - 1 in
+      ()
+
 }
 
 let space = [' ' '\t' '\n' '\r']
@@ -212,6 +234,12 @@ and require_file from = parse
       { syntax_error lexbuf }
 
 and skip_to_dot = parse
+  | eof
+      { syntax_error lexbuf }
+  | _
+      { fast_skip_to_dot lexbuf; slow_skip_to_dot lexbuf }
+
+and slow_skip_to_dot = parse
   | "(*"
       { comment lexbuf; skip_to_dot lexbuf }
   | dot { () }
