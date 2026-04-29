@@ -21,6 +21,7 @@ Refer to doc/sphinx/README.rst for the documentation of the coqrst domain.
 # pylint: disable=import-outside-toplevel, abstract-method, too-many-lines
 
 import os
+import json
 import re
 import shlex
 from itertools import chain
@@ -43,6 +44,7 @@ from sphinx.util.docutils import ReferenceRole
 from sphinx.util.logging import getLogger, get_node_location
 from sphinx.util.nodes import set_source_info, set_role_source_info, make_refnode
 from sphinx.writers.latex import LaTeXTranslator
+from sphinx.builders.text import TextBuilder
 
 from . import rocqdoc
 from .repl import ansicolors
@@ -1259,37 +1261,62 @@ def simplify_source_code_blocks_for_latex(app, doctree, fromdocname): # pylint: 
         else:
             node.replace_self(nodes.literal_block(node.rawsource, node.rawsource, language="Coq"))
 
-def export_indices_to_json(app: Sphinx, exception):
-    """Write out JSON files containing the contents of our indices. This computer-readable format is
-    useful for tool developers, for instance to power autocompletion in editors.
-    """
-    import json
 
-    if app.builder.name != 'dummy':
-        return
+class IndicesBuilder(TextBuilder):
+    """Custom sphinx builder to generate JSON files containing the content of our indices.
 
-    if exception:
-        return
+    It is based on the TextBuilder to be able to generate the content of the documentation for each object."""
+    name = 'indices'
+    format = 'json'
+    allow_parallel = True
 
-    domain = app.env.get_domain('rocq')
+    def init(self):
+        super().init()
+        self.rendered: dict[str, str] = {}
 
-    def write_json(index: RocqSubdomainsIndex):
-        items = chain(*(domain.data['objects'][subdomain].items()
-                        for subdomain in index.subdomains))
+    def write_doc(self, docname: str, doctree: nodes.document) -> None:
+        domain = self.env.get_domain('rocq')
+        # find all nodes that are handled by our rocq domain
+        for node in doctree.findall(lambda n: isinstance(n, nodes.Element) and n.get('objtype') in domain.object_types):
+            # all IDs will be associated to this content
+            all_target_ids = []
+            for sig in node.traverse(addnodes.desc_signature):
+                all_target_ids.extend(sig.get('ids', []))
 
-        output_data = {}
-        for name, data in items:
-            output_data[name] = {
-                "documentation_path": data.docname,
-                "documentation_anchor": data.targetid,
-                "syntax": [x.asdict() for x in data.syntax],
-            }
+            # the content is the next node
+            content_node = node.next_node(addnodes.desc_content)
 
-        with open(app.outdir + f"/{index.name}.json", "w") as f:
-            json.dump(output_data, f, indent=2)
+            if all_target_ids and content_node:
+                # translate sphinx nodes to text and associate it to all IDs
+                translator = self.create_translator(doctree, self)
+                translator.visit_document(content_node)
+                content_node.walkabout(translator)
+                translator.depart_document(content_node)
+                text = translator.body.strip()
+                for tid in all_target_ids:
+                    self.rendered[tid] = text
 
-    for index in RocqDomain.indices:
-        write_json(index)
+    def finish(self):
+        domain = self.env.get_domain('rocq')
+
+        def write_json(index: RocqSubdomainsIndex):
+            items = chain(*(domain.data['objects'][subdomain].items()
+                            for subdomain in index.subdomains))
+
+            output_data = {}
+            for name, data in items:
+                output_data[name] = {
+                    "documentation_path": data.docname,
+                    "documentation_anchor": data.targetid,
+                    "syntax": [x.asdict() for x in data.syntax],
+                    "documentation": self.rendered.get(data.targetid, "")
+                }
+
+            with open(self.outdir / f"{index.name}.json", "w") as f:
+                json.dump(output_data, f, indent=2)
+
+        for index in RocqDomain.indices:
+            write_json(index)
 
 ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
                              RocqdocDirective,
@@ -1313,6 +1340,7 @@ def setup(app):
 
     # Add domain, directives, and roles
     app.add_domain(RocqDomain)
+    app.add_builder(IndicesBuilder)
     app.add_index_to_domain('std', StdGlossaryIndex)
 
     for role in ROCQ_ADDITIONAL_ROLES:
@@ -1324,7 +1352,6 @@ def setup(app):
     app.add_transform(RocqtopBlocksTransform)
     app.connect('doctree-resolved', simplify_source_code_blocks_for_latex)
     app.connect('doctree-resolved', RocqtopBlocksTransform.merge_consecutive_rocqtop_blocks)
-    app.connect('build-finished', export_indices_to_json)
 
     # Add extra styles
     app.add_css_file("ansi.css")

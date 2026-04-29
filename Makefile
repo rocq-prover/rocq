@@ -195,7 +195,7 @@ refman-pdf: world doc/unreleased.rst
 
 refman-indices: world doc/unreleased.rst
 	rm -rf doc/refman-indices
-	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b dummy doc/sphinx doc/refman-indices
+	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b indices doc/sphinx doc/refman-indices
 
 corelib-html: dunestrap
 	dune build @corelib-html
