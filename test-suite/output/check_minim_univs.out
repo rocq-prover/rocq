@@ -1,0 +1,19 @@
+abc@{α4 ; check_minim_univs.24}
+     : Type@{check_minim_univs.24+1}
+(* UNIVERSES:
+    {check_minim_univs.24} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    check_minim_univs.24
+   SORTS:
+    α4 |= Prop -> SProp
+          Type -> α4
+               -> Prop
+               -> SProp
+          
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {check_minim_univs.24} |=  *)

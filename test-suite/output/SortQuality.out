@@ -6,9 +6,41 @@ A
      : Type@{s ; _}
 A
      : Type@{s ; u}
-(* {s}; {u} |=  *)
+(* UNIVERSES:
+    {u} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+    α2 (rigid) (named s) |= Prop -> SProp
+                            Type -> s
+                                 -> Prop
+                                 -> SProp
+                            
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {s}; {u} |=  *)
 A
      : Type@{s ; u}
-(* {s}; {u} |=  *)
+(* UNIVERSES:
+    {u} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+    α2 (rigid) (named s) |= Prop -> SProp
+                            Type -> s
+                                 -> Prop
+                                 -> SProp
+                            
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {s}; {u} |=  *)
 A
      : Type@{s ; _}

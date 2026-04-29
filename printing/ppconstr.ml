@@ -232,7 +232,7 @@ let pr_quality_univ (q, l) = match q with
   | None -> pr_univ l
   | Some q ->  pr_quality_expr q ++ spc() ++ str ";" ++ spc () ++ pr_univ l
 
-let pr_univ_annot pr x = str "@{" ++ pr x ++ str "}"
+let pr_univ_annot pr x = hov 2 (str "@{" ++ pr x ++ str "}")
 
 let pr_sort_expr : sort_expr -> Pp.t = function
   | None, UNamed [CSProp, 0] -> tag_type (str "SProp")
@@ -269,7 +269,7 @@ let pr_reference qid =
   else pr_qualid qid
 
 let pr_cref ref us =
-  pr_reference ref ++ pr_universe_instance us
+  hov 0 (pr_reference ref ++ pr_universe_instance us)
 
 let pr_expl_args pr lev_after (a,expl) =
   match expl with

@@ -16,17 +16,77 @@ Declared in library sort_poly_elab, line 14, characters 13-19
 :
 @eq Type@{sort_poly_elab.26} q1 tU@{Type ; }
      : @eq Type@{sort_poly_elab.26} q1 tU@{Type ; }
-(* {sort_poly_elab.26} |= U < sort_poly_elab.26 *)
+(* UNIVERSES:
+    {sort_poly_elab.27 sort_poly_elab.26 sort_poly_elab.25} |=
+      U < sort_poly_elab.26
+      sort_poly_elab.26 < sort_poly_elab.25
+      sort_poly_elab.26 < sort_poly_elab.27
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.27 sort_poly_elab.25}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.27
+    sort_poly_elab.25
+   SORTS:
+    α5 := Type |= α5 <-> Type
+                  Prop -> SProp
+                  Type -> Prop
+                       -> SProp
+                  
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.26} |= U < sort_poly_elab.26 *)
 @eq_refl Type@{sort_poly_elab.29} q2
 :
 @eq Type@{sort_poly_elab.29} q2 tU@{Type ; }
      : @eq Type@{sort_poly_elab.29} q2 tU@{Type ; }
-(* {sort_poly_elab.29} |= U < sort_poly_elab.29 *)
+(* UNIVERSES:
+    {sort_poly_elab.30 sort_poly_elab.29 sort_poly_elab.28} |=
+      U < sort_poly_elab.29
+      sort_poly_elab.29 < sort_poly_elab.28
+      sort_poly_elab.29 < sort_poly_elab.30
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.30 sort_poly_elab.28}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.30
+    sort_poly_elab.28
+   SORTS:
+    α6 := Type |= α6 <-> Type
+                  Prop -> SProp
+                  Type -> Prop
+                       -> SProp
+                  
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.29} |= U < sort_poly_elab.29 *)
 @eq_refl Type@{sort_poly_elab.32} q3
 :
 @eq Type@{sort_poly_elab.32} q3 tU@{Type ; }
      : @eq Type@{sort_poly_elab.32} q3 tU@{Type ; }
-(* {sort_poly_elab.32} |= U < sort_poly_elab.32 *)
+(* UNIVERSES:
+    {sort_poly_elab.33 sort_poly_elab.32 sort_poly_elab.31} |=
+      U < sort_poly_elab.32
+      sort_poly_elab.32 < sort_poly_elab.31
+      sort_poly_elab.32 < sort_poly_elab.33
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.33 sort_poly_elab.31}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.33
+    sort_poly_elab.31
+   SORTS:
+    α7 := Type |= α7 <-> Type
+                  Prop -> SProp
+                  Type -> Prop
+                       -> SProp
+                  
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.32} |= U < sort_poly_elab.32 *)
 exfalso@{α ; u} : forall (A : Type@{α ; u}) (_ : False), A
 (* α ; u |=  *)
 
@@ -130,7 +190,36 @@ fun A : SProp =>
        @eq (forall (_ : A) (_ : A), Box@{SProp Type ; sort_poly_elab.62} A)
          (t1@{SProp Type ; sort_poly_elab.62} A)
          (t2@{SProp Type ; sort_poly_elab.62} A)
-(* {sort_poly_elab.62} |=  *)
+(* UNIVERSES:
+    {sort_poly_elab.64 sort_poly_elab.63 sort_poly_elab.62 sort_poly_elab.61} |=
+      sort_poly_elab.62 <= sort_poly_elab.61
+      sort_poly_elab.62 <= sort_poly_elab.64
+      sort_poly_elab.63 = sort_poly_elab.62
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.64 sort_poly_elab.61}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.64
+    sort_poly_elab.63 := sort_poly_elab.62
+    sort_poly_elab.62
+    sort_poly_elab.61
+   SORTS:
+    α33 := SProp
+    α34 := Type
+    α35 := SProp
+    α36 := Type |=
+      α33 <-> SProp
+      α34 <-> Type
+      α35 <-> SProp
+      α36 <-> Type
+      Prop -> SProp
+      Type -> Prop
+           -> SProp
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.62} |=  *)
 fun A : SProp =>
 @eq_refl (Box@{SProp Type ; sort_poly_elab.66} (forall (_ : A) (_ : A), A))
   (box@{SProp Type ; sort_poly_elab.66} (forall (_ : A) (_ : A), A)
@@ -147,7 +236,43 @@ fun A : SProp =>
             (t1'@{SProp ; sort_poly_elab.67} A))
          (box@{SProp Type ; sort_poly_elab.66} (forall (_ : A) (_ : A), A)
             (t2'@{SProp ; sort_poly_elab.69} A))
-(* {sort_poly_elab.69 sort_poly_elab.67 sort_poly_elab.66} |=  *)
+(* UNIVERSES:
+    {sort_poly_elab.70 sort_poly_elab.69 sort_poly_elab.68 sort_poly_elab.67
+     sort_poly_elab.66 sort_poly_elab.65} |=
+      sort_poly_elab.66 <= sort_poly_elab.65
+      sort_poly_elab.66 <= sort_poly_elab.70
+      sort_poly_elab.68 = sort_poly_elab.66
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.70 sort_poly_elab.65}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.70
+    sort_poly_elab.69
+    sort_poly_elab.68 := sort_poly_elab.66
+    sort_poly_elab.67
+    sort_poly_elab.66
+    sort_poly_elab.65
+   SORTS:
+    α37 := SProp
+    α38 := Type
+    α39 := SProp
+    α40 := SProp
+    α41 := Type
+    α42 := SProp |=
+      α37 <-> SProp
+      α38 <-> Type
+      α39 <-> SProp
+      α40 <-> SProp
+      α41 <-> Type
+      α42 <-> SProp
+      Prop -> SProp
+      Type -> Prop
+           -> SProp
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.69 sort_poly_elab.67 sort_poly_elab.66} |=  *)
 ignore@{α ; u} : forall {A : Type@{α ; u}} (_ : A), unit
 (* α ; u |=  *)
 
@@ -194,14 +319,50 @@ x : P (v@{Type ; sort_poly_elab.84} nat true)
 The term "x" has type "P (v@{Type ; sort_poly_elab.84} nat true)"
 while it is expected to have type
  "P (v@{Type ; sort_poly_elab.86} nat false)".
-fun (A : SProp) (P : forall _ : A, Type@{sort_poly_elab.91})
+fun (A : SProp) (P : forall _ : A, Type@{α63 ; sort_poly_elab.91})
   (x : P (v@{SProp ; sort_poly_elab.90} A true)) =>
 x : P (v@{SProp ; sort_poly_elab.92} A false)
-     : forall (A : SProp) (P : forall _ : A, Type@{sort_poly_elab.91})
+     : forall (A : SProp) (P : forall _ : A, Type@{α63 ; sort_poly_elab.91})
          (_ : P (v@{SProp ; sort_poly_elab.90} A true)),
        P (v@{SProp ; sort_poly_elab.92} A false)
-(* {sort_poly_elab.92 sort_poly_elab.91 sort_poly_elab.90 sort_poly_elab.88} |=
-      *)
+(* UNIVERSES:
+    {sort_poly_elab.92 sort_poly_elab.91 sort_poly_elab.90 sort_poly_elab.89
+     sort_poly_elab.88 sort_poly_elab.87} |=
+      sort_poly_elab.91 < sort_poly_elab.89
+      sort_poly_elab.88 <= sort_poly_elab.87
+      sort_poly_elab.89 <= sort_poly_elab.87
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.89 sort_poly_elab.88 sort_poly_elab.87}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.92
+    sort_poly_elab.90
+    sort_poly_elab.89
+    sort_poly_elab.88
+    sort_poly_elab.87
+   SORTS:
+    α59 := Type
+    α60 := SProp
+    α61 := α59
+    α62 := SProp
+    α63
+    α64 := SProp |=
+      α59
+      -> α63
+      -> α64
+      -> Prop
+      -> SProp
+      α60 <-> SProp
+      α61 <-> α59
+      α62 <-> SProp
+      α64 <-> SProp
+      Prop -> SProp
+      Type <-> α59
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.92 sort_poly_elab.91 sort_poly_elab.90 sort_poly_elab.88} |=  *)
 zog@{α ; u} : forall _ : Type@{α ; u}, Type@{α ; u}
 (* α ; u |=  *)
 
@@ -742,6 +903,33 @@ match true@{Test ; } return testind'@{Test ; } with
 | false => testctor'@{Test ; }
 end
      : testind'@{Test ; }
+(* UNIVERSES:
+    {sort_poly_elab.354} |= Set <= sort_poly_elab.354
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.354
+   SORTS:
+    α352 := Test
+    α353 := Test
+    α354 := Test |=
+      α352 <-> Test
+      α353 <-> Test
+      α354 <-> Test
+      Prop -> SProp
+      Type -> α352
+           -> α353
+           -> α354
+           -> Prop
+           -> SProp
+           -> Test
+           -> Test2
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 unit@{α ; u} : Type@{α ; u}
 (* α ; u |=  *)
 
@@ -775,6 +963,24 @@ Expands to: Constant sort_poly_elab.Inductives.Foo
 Declared in library sort_poly_elab, line 531, characters 13-16
 Foo@{Type Prop ; }
      : forall _ : FooNat@{Type ; }, FooNat@{Prop ; }
+(* UNIVERSES:
+    {} |= Type -> Prop
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    
+   SORTS:
+     |= Prop -> SProp
+        Type -> Prop
+             -> SProp
+             -> Test
+             -> Test2
+        
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 File "./output/sort_poly_elab.v", line 539, characters 2-30:
 The command has indeed failed with message:
 The quality constraints are inconsistent: cannot enforce Prop -> Type
@@ -840,7 +1046,47 @@ fun (A : SProp) (x y : R6@{SProp ; } A) =>
        @eq (Conversion.Box@{SProp Type ; sort_poly_elab.365} A)
          (Conversion.box@{SProp Type ; sort_poly_elab.365} A (R6f1 _ x))
          (Conversion.box@{SProp Type ; sort_poly_elab.365} A (R6f1 _ y))
-(* {sort_poly_elab.365} |=  *)
+(* UNIVERSES:
+    {sort_poly_elab.367 sort_poly_elab.366 sort_poly_elab.365
+     sort_poly_elab.364} |=
+      sort_poly_elab.365 <= sort_poly_elab.364
+      sort_poly_elab.365 <= sort_poly_elab.367
+      sort_poly_elab.366 = sort_poly_elab.365
+   ALGEBRAIC UNIVERSES:
+    {sort_poly_elab.367 sort_poly_elab.364}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.367
+    sort_poly_elab.366 := sort_poly_elab.365
+    sort_poly_elab.365
+    sort_poly_elab.364
+   SORTS:
+    α370 := SProp
+    α371 := SProp
+    α372 := SProp
+    α373 := Type
+    α374 := SProp
+    α375 := SProp
+    α376 := Type
+    α377 := SProp |=
+      α370 <-> SProp
+      α371 <-> SProp
+      α372 <-> SProp
+      α373 <-> Type
+      α374 <-> SProp
+      α375 <-> SProp
+      α376 <-> Type
+      α377 <-> SProp
+      Prop -> SProp
+      Type -> Prop
+           -> SProp
+           -> Inductives.Test
+           -> Inductives.Test2
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.365} |=  *)
 File "./output/sort_poly_elab.v", line 576, characters 10-17:
 The command has indeed failed with message:
 In environment
@@ -945,13 +1191,32 @@ sexists@{α ; u} may only be eliminated to produce values whose type is SProp or
 Arguments sexists A%_type_scope B%_function_scope
 Expands to: Inductive sort_poly_elab.Records.sexists
 Declared in library sort_poly_elab, line 611, characters 12-19
-sexists_ind@{Type ;
-sort_poly_elab.396}
-     : forall (A : Type@{sort_poly_elab.396}) (B : forall _ : A, Prop)
-         (P : Prop) (_ : forall (a : A) (_ : B a), P)
-         (_ : sexists@{Type ; sort_poly_elab.396} A B),
+sexists_ind@{α410 ; sort_poly_elab.396}
+     : forall (A : Type@{α410 ; sort_poly_elab.396}) 
+         (B : forall _ : A, Prop) (P : Prop)
+         (_ : forall (a : A) (_ : B a), P)
+         (_ : sexists@{α410 ; sort_poly_elab.396} A B),
        P
-(* {sort_poly_elab.396} |=  *)
+(* UNIVERSES:
+    {sort_poly_elab.396} |= 
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    sort_poly_elab.396
+   SORTS:
+    α410 |=
+      Prop -> SProp
+      Type -> α410
+           -> Prop
+           -> SProp
+           -> Inductives.Test
+           -> Inductives.Test2
+      
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+ {sort_poly_elab.396} |=  *)
 R8@{α α0 ; u} : Type@{α ; u+1}
 (* α α0 ; u |=  *)
 

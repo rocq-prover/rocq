@@ -29,14 +29,14 @@ Inductive
 list_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
 (PPA : forall a : A, PA a -> Type@{α0 ; u1})
   : forall l : list A, list_all@{α ; u u0} A PA l -> Type@{max(Set,u,u0,u1)} :=
-    nil_all_all : list_all_all@{α α0 ; u u0 u1} A PA PPA 
-                    (nil A) (nil_all@{α ; u u0} A PA)
+    nil_all_all : list_all_all@{α α0 ; u u0 u1} A 
+                    PA PPA (nil A) (nil_all@{α ; u u0} A PA)
   | cons_all_all : forall (a : A) (p : PA a),
                    PPA a p ->
                    forall (l : list A) (l0 : list_all@{α ; u u0} A PA l),
                    list_all_all@{α α0 ; u u0 u1} A PA PPA l l0 ->
-                   list_all_all@{α α0 ; u u0 u1} A PA PPA 
-                     (cons A a l) (cons_all@{α ; u u0} A PA a p l l0).
+                   list_all_all@{α α0 ; u u0 u1} A 
+                     PA PPA (cons A a l) (cons_all@{α ; u u0} A PA a p l l0).
 (* α α0 ; *u *u0 *u1 |=  *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
@@ -85,7 +85,8 @@ RoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                  PA a -> RoseTree_all@{α ; u u0 u1 u2} A PA (RTleaf A a)
   | RTnode_all : forall l : list (RoseTree A),
                  list_all@{Type ; u2 u1} (RoseTree A)
-                   (RoseTree_all@{α ; u u0 u1 u2} A PA) l ->
+                   (RoseTree_all@{α ; u u0 u1 u2} A PA) 
+                   l ->
                  RoseTree_all@{α ; u u0 u1 u2} A PA (RTnode A l).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -152,21 +153,23 @@ RoseTreeMut_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
     RoseTreeMut_all@{α ; u} A PA r -> Type@{max(Set,RoseTreeMut.u0,u,u0)} :=
     node_mut_all_all : forall (f : forest A) (f0 : forest_all@{α ; u} A PA f),
                        forest_all_all@{α α0 ; u u0} A PA PPA f f0 ->
-                       RoseTreeMut_all_all@{α α0 ; u u0} A PA PPA
-                         (node_mut A f) (node_mut_all@{α ; u} A PA f f0)
+                       RoseTreeMut_all_all@{α α0 ; u u0} 
+                         A PA PPA (node_mut A f)
+                         (node_mut_all@{α ; u} A PA f f0)
   with forest_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
        (PA : A -> Type@{α ; u}) (PPA : forall a : A, PA a -> Type@{α0 ; u0})
          : forall f : forest A,
            forest_all@{α ; u} A PA f -> Type@{max(Set,RoseTreeMut.u0,u,u0)} :=
-    forest_nil_all_all : forest_all_all@{α α0 ; u u0} A PA PPA 
-                           (forest_nil A) (forest_nil_all@{α ; u} A PA)
+    forest_nil_all_all : forest_all_all@{α α0 ; u u0} 
+                           A PA PPA (forest_nil A)
+                           (forest_nil_all@{α ; u} A PA)
   | forest_cons_all_all : forall (a : A) (p : PA a),
                           PPA a p ->
                           forall (r : RoseTreeMut A)
                             (r0 : RoseTreeMut_all@{α ; u} A PA r),
                           RoseTreeMut_all_all@{α α0 ; u u0} A PA PPA r r0 ->
-                          forest_all_all@{α α0 ; u u0} A PA PPA
-                            (forest_cons A a r)
+                          forest_all_all@{α α0 ; u u0} 
+                            A PA PPA (forest_cons A a r)
                             (forest_cons_all@{α ; u} A PA a p r r0).
 (* α α0 ; *u *u0 |=  *)
 
@@ -230,21 +233,23 @@ RoseTreeMut_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
     RoseTreeMut_all@{α ; u} A PA r -> Type@{max(Set,RoseTreeMut.u0,u,u0)} :=
     node_mut_all_all : forall (f : forest A) (f0 : forest_all@{α ; u} A PA f),
                        forest_all_all@{α α0 ; u u0} A PA PPA f f0 ->
-                       RoseTreeMut_all_all@{α α0 ; u u0} A PA PPA
-                         (node_mut A f) (node_mut_all@{α ; u} A PA f f0)
+                       RoseTreeMut_all_all@{α α0 ; u u0} 
+                         A PA PPA (node_mut A f)
+                         (node_mut_all@{α ; u} A PA f f0)
   with forest_all_all@{α α0 ; u u0} (A : Type@{RoseTreeMut.u0})
        (PA : A -> Type@{α ; u}) (PPA : forall a : A, PA a -> Type@{α0 ; u0})
          : forall f : forest A,
            forest_all@{α ; u} A PA f -> Type@{max(Set,RoseTreeMut.u0,u,u0)} :=
-    forest_nil_all_all : forest_all_all@{α α0 ; u u0} A PA PPA 
-                           (forest_nil A) (forest_nil_all@{α ; u} A PA)
+    forest_nil_all_all : forest_all_all@{α α0 ; u u0} 
+                           A PA PPA (forest_nil A)
+                           (forest_nil_all@{α ; u} A PA)
   | forest_cons_all_all : forall (a : A) (p : PA a),
                           PPA a p ->
                           forall (r : RoseTreeMut A)
                             (r0 : RoseTreeMut_all@{α ; u} A PA r),
                           RoseTreeMut_all_all@{α α0 ; u u0} A PA PPA r r0 ->
-                          forest_all_all@{α α0 ; u u0} A PA PPA
-                            (forest_cons A a r)
+                          forest_all_all@{α α0 ; u u0} 
+                            A PA PPA (forest_cons A a r)
                             (forest_cons_all@{α ; u} A PA a p r r0).
 (* α α0 ; *u *u0 |=  *)
 
@@ -274,7 +279,8 @@ forall (A : Type@{RoseRoseTree_ind.u0}) (P : RoseRoseTree A -> Prop),
 (forall p : list (list (RoseRoseTree A)),
  list_all@{Type ; RoseRoseTree_ind.u1 RoseRoseTree_ind.u1}
    (list (RoseRoseTree A))
-   (list_all@{Prop ; RoseRoseTree_ind.u1 Set} (RoseRoseTree A) P) p ->
+   (list_all@{Prop ; RoseRoseTree_ind.u1 Set} (RoseRoseTree A) P) 
+   p ->
  P (Nnode A p)) ->
 forall r : RoseRoseTree A, P r
 
@@ -372,7 +378,8 @@ forall (A : Type@{ArrowTree2_ind.u0}) (P : ArrowTree2 A -> Prop),
 (forall a : A, P (ATleaf2 A a)) ->
 (forall l : list (nat -> ArrowTree2 A),
  list_all@{Prop ; ArrowTree2_ind.u1 Set} (nat -> ArrowTree2 A)
-   (fun H : nat -> ArrowTree2 A => forall H0 : nat, P (H H0)) l ->
+   (fun H : nat -> ArrowTree2 A => forall H0 : nat, P (H H0)) 
+   l ->
  P (ATnode2 A l)) ->
 forall a : ArrowTree2 A, P a
 
@@ -509,8 +516,8 @@ prod_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4} (A : Type@{u})
                    PPA a p ->
                    forall (b : B) (p0 : PB b),
                    PPB b p0 ->
-                   prod_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4} A PA PPA B PB
-                     PPB (pair A B a b)
+                   prod_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4} 
+                     A PA PPA B PB PPB (pair A B a b)
                      (pair_all@{α α0 ; u u0 u1 u2} A PA B PB a p b p0).
 (* α α0 α1 α2 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
 
@@ -558,7 +565,8 @@ PairTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
   | Pnode_all : forall p : prod (PairTree A) (PairTree A),
                 prod_all@{Type Type ; u2 u2 u1 u1} 
                   (PairTree A) (PairTree_all@{α ; u u0 u1 u2} A PA)
-                  (PairTree A) (PairTree_all@{α ; u u0 u1 u2} A PA) p ->
+                  (PairTree A) (PairTree_all@{α ; u u0 u1 u2} A PA) 
+                  p ->
                 PairTree_all@{α ; u u0 u1 u2} A PA (Pnode A p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -606,8 +614,8 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 PA a -> LeftTree_all@{α ; u u0 u1 u2} A PA (Lleaf A a)
   | Lnode_all : forall p : prod (LeftTree A) nat,
                 prod_all@{Type Type ; u2 Set u1 Set} 
-                  (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) nat
-                  (fun _ : nat => unit) p ->
+                  (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) 
+                  nat (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -655,8 +663,8 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 PA a -> LeftTree_all@{α ; u u0 u1 u2} A PA (Lleaf A a)
   | Lnode_all : forall p : prod (LeftTree A) nat,
                 prod_all@{Type Type ; u2 Set u1 Set} 
-                  (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) nat
-                  (fun _ : nat => unit) p ->
+                  (LeftTree A) (LeftTree_all@{α ; u u0 u1 u2} A PA) 
+                  nat (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -714,8 +722,9 @@ prod_all_10_all@{α α0 ; u u0 u1 u2} (A : Type@{u})
     pair_all_10_all : forall (a : A) (p : PA a),
                       PPA a p ->
                       forall b : B,
-                      prod_all_10_all@{α α0 ; u u0 u1 u2} A PA PPA B
-                        (pair a b) (pair_all_10@{α ; u u0 u1} A PA B a p b).
+                      prod_all_10_all@{α α0 ; u u0 u1 u2} 
+                        A PA PPA B (pair a b)
+                        (pair_all_10@{α ; u u0 u1} A PA B a p b).
 (* α α0 ; *u *u0 *u1 *u2 |=  *)
 
 Arguments prod_all_10_all A%_type_scope (PA PPA)%_function_scope
@@ -758,7 +767,8 @@ LeftTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                 PA a -> LeftTree_all@{α ; u u0 u1 u2} A PA (Lleaf A a)
   | Lnode_all : forall p : prod (LeftTree A) nat,
                 prod_all_10@{Type ; u2 Set u1} (LeftTree A)
-                  (LeftTree_all@{α ; u u0 u1 u2} A PA) nat p ->
+                  (LeftTree_all@{α ; u u0 u1 u2} A PA) 
+                  nat p ->
                 LeftTree_all@{α ; u u0 u1 u2} A PA (Lnode A p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -789,8 +799,8 @@ RightTree_ind :
 forall (A : Type@{RightTree_ind.u0}) (P : RightTree A -> Prop),
 (forall a : A, P (Rleaf A a)) ->
 (forall p : prod nat (RightTree A),
- prod_all@{Type Prop ; Set RightTree_ind.u1 Set Set} nat
-   (fun _ : nat => unit) (RightTree A) P p ->
+ prod_all@{Type Prop ; Set RightTree_ind.u1 Set Set} 
+   nat (fun _ : nat => unit) (RightTree A) P p ->
  P (Rnode A p)) ->
 forall r : RightTree A, P r
 
@@ -805,9 +815,10 @@ RightTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
     Rleaf_all : forall a : A,
                 PA a -> RightTree_all@{α ; u u0 u1 u2} A PA (Rleaf A a)
   | Rnode_all : forall p : prod nat (RightTree A),
-                prod_all@{Type Type ; Set u2 Set u1} nat
-                  (fun _ : nat => unit) (RightTree A)
-                  (RightTree_all@{α ; u u0 u1 u2} A PA) p ->
+                prod_all@{Type Type ; Set u2 Set u1} 
+                  nat (fun _ : nat => unit) (RightTree A)
+                  (RightTree_all@{α ; u u0 u1 u2} A PA) 
+                  p ->
                 RightTree_all@{α ; u u0 u1 u2} A PA (Rnode A p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -863,15 +874,15 @@ vec_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
 (PPA : forall a : A, PA a -> Type@{α0 ; u1})
   : forall (n : nat) (v : vec A n),
     vec_all@{α ; u u0} A PA n v -> Type@{max(Set,u,u0,u1)} :=
-    vnil_all_all : vec_all_all@{α α0 ; u u0 u1} A PA PPA zero 
-                     (vnil A) (vnil_all@{α ; u u0} A PA)
+    vnil_all_all : vec_all_all@{α α0 ; u u0 u1} A 
+                     PA PPA zero (vnil A) (vnil_all@{α ; u u0} A PA)
   | vcons_all_all : forall (a : A) (p : PA a),
                     PPA a p ->
                     forall (n : nat) (v : vec A n)
                       (v0 : vec_all@{α ; u u0} A PA n v),
                     vec_all_all@{α α0 ; u u0 u1} A PA PPA n v v0 ->
-                    vec_all_all@{α α0 ; u u0 u1} A PA PPA 
-                      (S n) (vcons A a n v)
+                    vec_all_all@{α α0 ; u u0 u1} A 
+                      PA PPA (S n) (vcons A a n v)
                       (vcons_all@{α ; u u0} A PA a p n v v0).
 (* α α0 ; *u *u0 *u1 |=  *)
 
@@ -911,7 +922,8 @@ VecTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u0})
                  PA a -> VecTree_all@{α ; u u0 u1 u2} A PA (VNleaf A a)
   | VNnode_all : forall (n : nat) (p : vec (VecTree A) n),
                  vec_all@{Type ; u2 u1} (VecTree A)
-                   (VecTree_all@{α ; u u0 u1 u2} A PA) n p ->
+                   (VecTree_all@{α ; u u0 u1 u2} A PA) 
+                   n p ->
                  VecTree_all@{α ; u u0 u1 u2} A PA (VNnode A n p).
 (* α ; *u *u0 *u1 *u2 |= Set <= u1
                          Set <= u2
@@ -944,15 +956,15 @@ All2i_all@{α ; u u0 u1 u2} (A : Type@{u}) (B : Type@{u0})
 (n : nat)
   : forall (l : list A) (l0 : list B),
     All2i A B R n l l0 -> Type@{max(Set,u,u0,u1,u2)} :=
-    All2i_nil_all : All2i_all@{α ; u u0 u1 u2} A B R PR n nil nil
-                      (All2i_nil A B R n)
+    All2i_nil_all : All2i_all@{α ; u u0 u1 u2} A B 
+                      R PR n nil nil (All2i_nil A B R n)
   | All2i_cons_all : forall (a : A) (b : B) (lA : list A) 
                        (lB : list B) (r : R n a b),
                      PR n a b r ->
                      forall a0 : All2i A B R (S n) lA lB,
                      All2i_all@{α ; u u0 u1 u2} A B R PR (S n) lA lB a0 ->
-                     All2i_all@{α ; u u0 u1 u2} A B R PR n 
-                       (cons a lA) (cons b lB)
+                     All2i_all@{α ; u u0 u1 u2} A 
+                       B R PR n (cons a lA) (cons b lB)
                        (All2i_cons A B R n a b lA lB r a0).
 (* α ; *u *u0 *u1 *u2 |=  *)
 
@@ -984,23 +996,26 @@ All2i_all_all@{α α0 ; u u0 u1 u2 u3} (A : Type@{u})
   : forall (l : list A) (l0 : list B) (a : All2i A B R n l l0),
     All2i_all@{α ; u u0 u1 u2} A B R PR n l l0 a ->
     Type@{max(Set,u,u0,u1,u2,u3)} :=
-    All2i_nil_all_all : All2i_all_all@{α α0 ; u u0 u1 u2 u3} A B R PR PPR n
-                          nil nil (All2i_nil A B R n)
+    All2i_nil_all_all : All2i_all_all@{α α0 ; u u0 u1 u2 u3} 
+                          A B R PR PPR n nil nil (All2i_nil A B R n)
                           (All2i_nil_all@{α ; u u0 u1 u2} A B R PR n)
   | All2i_cons_all_all : forall (a : A) (b : B) (lA : list A) 
                            (lB : list B) (r : R n a b) 
                            (p : PR n a b r),
                          PPR n a b r p ->
                          forall (a0 : All2i A B R (S n) lA lB)
-                           (a1 : All2i_all@{α ; u u0 u1 u2} A B R PR 
-                                   (S n) lA lB a0),
-                         All2i_all_all@{α α0 ; u u0 u1 u2 u3} A B R PR PPR
-                           (S n) lA lB a0 a1 ->
-                         All2i_all_all@{α α0 ; u u0 u1 u2 u3} A B R PR PPR n
-                           (cons a lA) (cons b lB)
-                           (All2i_cons A B R n a b lA lB r a0)
-                           (All2i_cons_all@{α ; u u0 u1 u2} A B R PR n a b lA
-                              lB r p a0 a1).
+                           (a1 : All2i_all@{α ; u u0 u1 u2} 
+                                   A B R PR (S n) 
+                                   lA lB a0),
+                         All2i_all_all@{α α0 ; u u0 u1 u2 u3} 
+                           A B R PR PPR (S n) lA lB 
+                           a0 a1 ->
+                         All2i_all_all@{α α0 ; u u0 u1 u2 u3} 
+                           A B R PR PPR n (cons a lA) 
+                           (cons b lB) (All2i_cons A B R n a b lA lB r a0)
+                           (All2i_cons_all@{α ; u u0 u1 u2} 
+                              A B R PR n a b lA lB 
+                              r p a0 a1).
 (* α α0 ; *u *u0 *u1 *u2 *u3 |=  *)
 
 Arguments All2i_all_all (A B)%_type_scope (R PR PPR)%_function_scope 
@@ -1036,8 +1051,9 @@ forall (A : Type@{typing_ind.u0}) (B : Type@{typing_ind.u1})
 (forall (n : nat) (a : A) (b : B), P n a b (typ_nil A B n a b)) ->
 (forall (n : nat) (a : A) (b : B) (lA : list A) (lB : list B)
    (a0 : All2i A B (fun n0 : nat => typing A B n0) n lA lB),
- All2i_all@{Prop ; typing_ind.u0 typing_ind.u1 typing_ind.u2 Set} A B
-   (fun (n0 : nat) (H : A) (H0 : B) => typing A B n0 H H0) P n lA lB a0 ->
+ All2i_all@{Prop ; typing_ind.u0 typing_ind.u1 typing_ind.u2 Set} 
+   A B (fun (n0 : nat) (H : A) (H0 : B) => typing A B n0 H H0) 
+   P n lA lB a0 ->
  P n a b (typ_cons A B n a b lA lB a0)) ->
 forall (n : nat) (a : A) (b : B) (t : typing A B n a b), P n a b t
 
@@ -1057,16 +1073,19 @@ All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} (A : Type@{u})
     All2i_bis A B C R n l l0 -> Type@{max(Set,u,u0,u1,u2,u3,u4)} :=
     All2i_bis_nil_all : forall c : C,
                         PC c ->
-                        All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} A B C PC R PR
-                          n nil nil (All2i_bis_nil A B C R n c)
+                        All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} 
+                          A B C PC R PR n nil nil 
+                          (All2i_bis_nil A B C R n c)
   | All2i_bis_cons_all : forall (a : A) (b : B) (lA : list A) 
                            (lB : list B) (r : R n a b),
                          PR n a b r ->
                          forall a0 : All2i_bis A B C R (S n) lA lB,
-                         All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} A B C PC R
-                           PR (S n) lA lB a0 ->
-                         All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} A B C PC R
-                           PR n (cons a lA) (cons b lB)
+                         All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} 
+                           A B C PC R PR (S n) lA 
+                           lB a0 ->
+                         All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} 
+                           A B C PC R PR n (cons a lA) 
+                           (cons b lB)
                            (All2i_bis_cons A B C R n a b lA lB r a0).
 (* α α0 ; *u *u0 *u1 *u2 *u3 *u4 |=  *)
 
@@ -1106,27 +1125,34 @@ All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6}
     All2i_bis_nil_all_all : forall (c : C) (p : PC c),
                             PPC c p ->
                             All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                              u5 u6} A B C PC PPC R PR PPR n nil nil
-                              (All2i_bis_nil A B C R n c)
-                              (All2i_bis_nil_all@{α α0 ; u u0 u1 u2 u3 u4} A
-                                 B C PC R PR n c p)
+                                               u5 u6}
+                              A B C PC PPC R PR PPR 
+                              n nil nil (All2i_bis_nil A B C R n c)
+                              (All2i_bis_nil_all@{α α0 ; u u0 u1 u2 u3 u4} 
+                                 A B C PC R PR n c 
+                                 p)
   | All2i_bis_cons_all_all : forall (a : A) (b : B) 
                                (lA : list A) (lB : list B) 
                                (r : R n a b) (p : PR n a b r),
                              PPR n a b r p ->
                              forall (a0 : All2i_bis A B C R (S n) lA lB)
                                (a1 : All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4}
-                                       A B C PC R PR 
-                                       (S n) lA lB a0),
+                                       A B C PC R 
+                                       PR (S n) lA 
+                                       lB a0),
                              All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                               u5 u6} A B C PC PPC R PR PPR 
+                                                u5 u6}
+                               A B C PC PPC R PR PPR 
                                (S n) lA lB a0 a1 ->
                              All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                               u5 u6} A B C PC PPC R PR PPR n 
-                               (cons a lA) (cons b lB)
+                                                u5 u6}
+                               A B C PC PPC R PR PPR 
+                               n (cons a lA) (cons b lB)
                                (All2i_bis_cons A B C R n a b lA lB r a0)
                                (All2i_bis_cons_all@{α α0 ; u u0 u1 u2 u3 u4}
-                                  A B C PC R PR n a b lA lB r p a0 a1).
+                                  A B C PC R PR n 
+                                  a b lA lB r p a0 
+                                  a1).
 (* α α0 α1 α2 ; *u *u0 *u1 *u2 *u3 *u4 *u5 *u6 |= 
     *)
 
@@ -1149,8 +1175,8 @@ forall (R : nat -> A -> B -> Type@{u2})
  PPR n a b r p) ->
 forall (n : nat) (l : list A) (l0 : list B) (a : All2i_bis A B C R n l l0)
   (a0 : All2i_bis_all@{α α0 ; u u0 u1 u2 u3 u4} A B C PC R PR n l l0 a),
-All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6} A B C PC PPC R PR PPR
-  n l l0 a a0
+All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6} 
+  A B C PC PPC R PR PPR n l l0 a a0
 (* α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6 |=  *)
 
 All2i_bis_all_all_forall is universe polymorphic
@@ -1165,9 +1191,10 @@ forall P : triv_All2_bis -> Prop,
 (forall
    a : All2i_bis bool bool triv_All2_bis (fun (_ : nat) (_ _ : bool) => nat)
          zero nil nil,
- All2i_bis_all@{Prop Type ; Set Set Set Set Set Set} bool bool triv_All2_bis
-   P (fun (_ : nat) (_ _ : bool) => nat)
-   (fun (_ : nat) (_ _ : bool) (_ : nat) => unit) zero nil nil a ->
+ All2i_bis_all@{Prop Type ; Set Set Set Set Set Set} 
+   bool bool triv_All2_bis P (fun (_ : nat) (_ _ : bool) => nat)
+   (fun (_ : nat) (_ _ : bool) (_ : nat) => unit) 
+   zero nil nil a ->
  P (ctriv_All2_bis a)) ->
 forall t : triv_All2_bis, P t
 
@@ -1377,14 +1404,15 @@ list_all_all@{α α0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{α ; u0})
 (PPA : forall a : A, PA a -> Type@{α0 ; u1})
   : forall l : list@{u} A,
     list_all@{α ; u u0} A PA l -> Type@{max(Set,u,u0,u1)} :=
-    nil_all_all : list_all_all@{α α0 ; u u0 u1} A PA PPA 
-                    (nil@{u} A) (nil_all@{α ; u u0} A PA)
+    nil_all_all : list_all_all@{α α0 ; u u0 u1} A 
+                    PA PPA (nil@{u} A) (nil_all@{α ; u u0} A PA)
   | cons_all_all : forall (a : A) (p : PA a),
                    PPA a p ->
                    forall (l : list@{u} A) (l0 : list_all@{α ; u u0} A PA l),
                    list_all_all@{α α0 ; u u0 u1} A PA PPA l l0 ->
-                   list_all_all@{α α0 ; u u0 u1} A PA PPA 
-                     (cons@{u} A a l) (cons_all@{α ; u u0} A PA a p l l0).
+                   list_all_all@{α α0 ; u u0 u1} A 
+                     PA PPA (cons@{u} A a l)
+                     (cons_all@{α ; u u0} A PA a p l l0).
 (* α α0 ; =u *u0 *u1 |=  *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
@@ -1436,7 +1464,8 @@ RoseTree_all@{α ; u u0 u1 u2} (A : Type@{u}) (PA : A -> Type@{α ; u1})
                  RoseTree_all@{α ; u u0 u1 u2} A PA (RTleaf@{u u0} A a)
   | RTnode_all : forall l : list@{u0} (RoseTree@{u u0} A),
                  list_all@{Type ; u0 u2} (RoseTree@{u u0} A)
-                   (RoseTree_all@{α ; u u0 u1 u2} A PA) l ->
+                   (RoseTree_all@{α ; u u0 u1 u2} A PA) 
+                   l ->
                  RoseTree_all@{α ; u u0 u1 u2} A PA (RTnode@{u u0} A l).
 (* α ; =u =u0 *u1 *u2 |= u <= u0
                          u0 <= u2
@@ -1463,7 +1492,8 @@ forall (A : Type@{u}) (P : RoseRoseTree@{u u0} A -> Prop),
 (forall a : A, P (Nleaf@{u u0} A a)) ->
 (forall p : list@{u0} (list@{u0} (RoseRoseTree@{u u0} A)),
  list_all@{Type ; u0 u1} (list@{u0} (RoseRoseTree@{u u0} A))
-   (list_all@{Prop ; u0 Set} (RoseRoseTree@{u u0} A) P) p ->
+   (list_all@{Prop ; u0 Set} (RoseRoseTree@{u u0} A) P) 
+   p ->
  P (Nnode@{u u0} A p)) ->
 forall r : RoseRoseTree@{u u0} A, P r
 (* u u0 u1 |= Set <= u1
@@ -1745,15 +1775,16 @@ list_all_all@{α α0 α1 ; u u0 u1 u2} (A : Type@{α ; u})
 (PA : A -> Type@{α0 ; u1}) (PPA : forall a : A, PA a -> Type@{α1 ; u2})
   : forall l : list@{α ; u u0} A,
     list_all@{α α0 ; u u0 u1} A PA l -> Type@{α ; max(u0,u1,u2)} :=
-    nil_all_all : list_all_all@{α α0 α1 ; u u0 u1 u2} A PA PPA
-                    (nil@{α ; u u0} A) (nil_all@{α α0 ; u u0 u1} A PA)
+    nil_all_all : list_all_all@{α α0 α1 ; u u0 u1 u2} 
+                    A PA PPA (nil@{α ; u u0} A)
+                    (nil_all@{α α0 ; u u0 u1} A PA)
   | cons_all_all : forall (a : A) (p : PA a),
                    PPA a p ->
                    forall (l : list@{α ; u u0} A)
                      (l0 : list_all@{α α0 ; u u0 u1} A PA l),
                    list_all_all@{α α0 α1 ; u u0 u1 u2} A PA PPA l l0 ->
-                   list_all_all@{α α0 α1 ; u u0 u1 u2} A PA PPA
-                     (cons@{α ; u u0} A a l)
+                   list_all_all@{α α0 α1 ; u u0 u1 u2} 
+                     A PA PPA (cons@{α ; u u0} A a l)
                      (cons_all@{α α0 ; u u0 u1} A PA a p l l0).
 (* α α0 α1 ; =u =u0 *u1 *u2 |= u <= u0 *)
 

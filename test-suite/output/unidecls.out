@@ -88,7 +88,23 @@ a < decls.a
 secfoo2 < a
 Arg.u < Fn.v
 
-id@{Set} nat
+id@{unidecls.17} nat
      : nat -> nat
+(* UNIVERSES:
+    {unidecls.17} |= Set <= unidecls.17
+   ALGEBRAIC UNIVERSES:
+    {}
+   FLEXIBLE UNIVERSES:
+    unidecls.17
+   SORTS:
+     |= Prop -> SProp
+        Type -> Prop
+             -> SProp
+        
+   WEAK CONSTRAINTS:
+    
+   
+Normalized constraints:
+  *)
 id@{Set}
      : forall A : Set, A -> A
