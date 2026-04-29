@@ -88,7 +88,9 @@ Each JSON index has the following shape:
     // the anchor on that page that leads to the documentation entry
     "documentation_anchor": string,
     // the grammar description
-    "syntax": Syntax
+    "syntax": Syntax,
+    // a simpler, plain text documentation
+    "documentation": string,
   }
 }
 ```
