@@ -10,6 +10,18 @@ open Environ
 
 type opaques = Names.Cset.t Names.Cmap.t
 
+let empty_opaques = Cmap.empty
+
+let constants_of_opaques env opac =
+  let add c cb acc =
+    if Declareops.constant_has_body cb then acc
+    else match Cmap.find_opt c opac with
+    | None -> Cset.add c acc
+    | Some s -> Cset.union s acc
+  in
+  let csts = fold_constants add env Cset.empty in
+  Cset.fold (fun c acc -> c :: acc) csts []
+
 type check_state = {
   st_opaques : opaques;
   st_retro : (int * CPrimitives.prim_ind_ex) Mindmap_env.t * CPrimitives.prim_type_ex Cmap_env.t;

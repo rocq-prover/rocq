@@ -8,10 +8,13 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-type opaques = Names.Cset.t Names.Cmap.t
+type opaques
 
 val set_indirect_accessor : (Opaqueproof.opaque -> Opaqueproof.opaque_proofterm) -> unit
 
 val check_module : Environ.env -> opaques -> Retroknowledge.action list -> Names.ModPath.t -> Mod_declarations.module_body -> opaques
 
 exception BadConstant of Names.Constant.t * Pp.t
+
+val constants_of_opaques : Environ.env -> opaques -> Names.Constant.t list
+val empty_opaques : opaques

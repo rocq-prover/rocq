@@ -146,6 +146,8 @@ let indices_matter = ref false
 
 let enable_vm = ref false
 
+let output_context = ref false
+
 let warn_no_bytecode =
   CWarnings.create ~name:"bytecode-compiler-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
     Pp.(fun () ->
@@ -410,7 +412,7 @@ let parse_args argv =
     | ("-v"|"--version") :: _ -> version ()
     | ("-m" | "--memory") :: rem -> Check_stat.memory_stat := true; parse rem
     | ("-o" | "--output-context") :: rem ->
-        Check_stat.output_context := true; parse rem
+        output_context := true; parse rem
 
     | "-admit" :: s :: rem -> add_admit s; parse rem
     | "-admit" :: [] -> usage 1
@@ -475,5 +477,11 @@ let run senv =
 let main () =
   let senv = init() in
   let senv, opac = run senv in
+  let opac =
+    if !output_context then
+      let env = Safe_typing.env_of_safe_env senv in
+      Some (Mod_checking.constants_of_opaques env opac)
+    else None
+  in
   Check_stat.stats (Safe_typing.env_of_safe_env senv) opac;
   exit 0
