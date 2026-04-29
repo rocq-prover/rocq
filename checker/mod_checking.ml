@@ -14,13 +14,14 @@ type opaques = Cset.t Names.Cmap.t
 let empty_cset = { cset = KerName.Set.empty }
 let empty_opaques = Cmap.empty
 
+let add_opaque_cb kn cb opac accu =
+  if Declareops.constant_has_body cb then accu
+  else match Cmap.find_opt kn opac with
+  | None -> Cset.add kn accu
+  | Some s -> Cset.union s accu
+
 let constants_of_opaques env opac =
-  let add c cb acc =
-    if Declareops.constant_has_body cb then acc
-    else match Cmap.find_opt c opac with
-    | None -> Cset.add c acc
-    | Some s -> Cset.union s acc
-  in
+  let add c cb acc = add_opaque_cb c cb opac acc in
   let csts = fold_constants add env Cset.empty in
   Cset.fold (fun c acc -> c :: acc) csts []
 
@@ -30,7 +31,7 @@ type check_state = {
 }
 
 let empty_state = {
-  st_opaques = Cmap.empty;
+  st_opaques = empty_opaques;
   st_retro = (Mindmap_env.empty, Cmap_env.empty);
 }
 
@@ -46,16 +47,8 @@ let register_opacified_constant env chkst kn cb =
     | Constr.Const (c, _) -> Cset.add c s
     | _ -> Constr.fold gather_consts s c
   in
-  let wo_body =
-    Cset.fold
-      (fun kn s ->
-        if Declareops.constant_has_body (lookup_constant kn env) then s else
-          match Cmap.find_opt kn opac with
-          | None -> Cset.add kn s
-          | Some s' -> Cset.union s' s)
-      (gather_consts Cset.empty cb)
-      Cset.empty
-  in
+  let fold c accu = add_opaque_cb c (lookup_constant c env) opac accu in
+  let wo_body = Cset.fold fold (gather_consts Cset.empty cb) Cset.empty in
   { chkst with st_opaques = Cmap.add kn wo_body opac }
 
 exception BadConstant of Constant.t * Pp.t
