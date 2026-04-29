@@ -396,6 +396,12 @@ project paramcoq "https://github.com/coq-community/paramcoq" "master"
 # Contact @ppedrot on github
 
 ########################################################################
+# Proof General
+########################################################################
+project proofgeneral "https://github.com/ProofGeneral/PG" "master"
+# Contact @Matafou, @hendriktews on github
+
+########################################################################
 # relation_algebra
 ########################################################################
 project relation_algebra "https://github.com/damien-pous/relation-algebra" "master"
