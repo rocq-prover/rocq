@@ -929,7 +929,6 @@ let get_branch infos ci pms cterm br e =
       args.(i) :: ans
     | RelDecl.LocalDef (_, b, _) :: ctx ->
       let ans = push i e ctx in
-      let b = subst_instance_constr u b in
       let s = Array.rev_of_list ans in
       let e = usubs_consv s ind_subst in
       let v = mk_clos e b in

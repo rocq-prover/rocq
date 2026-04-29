@@ -53,6 +53,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Incorrect discharge of sort polymorphic inductive squashing with section polymorphic sort](#incorrect-discharge-of-sort-polymorphic-inductive-squashing-with-section-polymorphic-sort)
       - [Missing universe substitution in primitive array instance in lazy](#missing-universe-substitution-in-primitive-array-instance-in-lazy)
       - [Double universe substitution in letins from indices in match return clause](#double-universe-substitution-in-letins-from-indices-in-match-return-clause)
+      - [Double universe substitution in letins from constructor arguments in match branches](#double-universe-substitution-in-letins-from-constructor-arguments-in-match-branches)
     - [Primitive projections](#primitive-projections)
       - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
@@ -612,6 +613,19 @@ fix.
 - risk: low (needs to use universe substitution in letin from the
   inductive indices to incorrectly convert match return clauses and
   somehow derive inconsistency from there)
+
+#### Double universe substitution in letins from constructor arguments in match branches
+
+- component: conversion
+- introduced: V8.17 ([2db83c8a7e](https://github.com/rocq-prover/rocq/commit/2db83c8a7e5b823d2c8d25ef07dac40b38408d3c))
+- impacted released versions: V8.17 to V9.2.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3 [rocq-prover/rocq#21972](https://github.com/rocq-prover/rocq/pull/21972)
+- found by: Yann Leray
+- exploit: no full exploit known, anomaly in bug_21970.v
+- risk: unknown (needs to use universe substitution in letin from the
+  constructor arguments to incorrectly convert branches
+  and derive inconsistency from there)
 
 ### Primitive projections
 
