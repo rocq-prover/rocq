@@ -1155,8 +1155,9 @@ GRAMMAR EXTEND Gram
       | IDENT "Check"; c = lconstr; "." ->
          { fun g -> VernacCheckMayEval (None, g, c) }
       (* Searching the environment *)
-      | IDENT "About"; qid = smart_global; l = OPT univ_name_list; "." ->
-         { fun g -> VernacPrint (PrintAbout (qid,l,g)) }
+      | IDENT "About"; type_only = OPT [ IDENT "Type" -> { () } ];
+        items = LIST1 [ qid = smart_global; l = OPT univ_name_list -> { (qid,l) } ] SEP ","; "." ->
+         { fun g -> VernacPrint (PrintAbout (type_only <> None, items, g)) }
       | IDENT "SearchPattern"; c = constr_pattern; l = in_or_out_modules; "." ->
           { fun g -> VernacSearch (SearchPattern c,g, l) }
       | IDENT "SearchRewrite"; c = constr_pattern; l = in_or_out_modules; "." ->
