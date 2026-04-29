@@ -157,7 +157,9 @@ val push_context_set :
 
 (** Adding global sort qualities *)
 
-val push_qualities : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t -> safe_transformer0
+val new_global_sort : Sorts.QGlobal.t safe_transformer
+
+val merge_elim_constraints : Sorts.ElimConstraints.t -> safe_transformer0
 
 (* (\** Generator of universes *\) *)
 (* val next_universe : int safe_transformer *)

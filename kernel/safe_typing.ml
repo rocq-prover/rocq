@@ -609,24 +609,36 @@ let push_context_set ~strict cst senv =
       univ = Univ.ContextSet.union cst senv.univ;
       sections }
 
-let push_qualities (qs,qcsts) senv =
-  if Sorts.QGlobal.Set.is_empty qs && Sorts.ElimConstraints.is_empty qcsts then
+let current_modpath senv = senv.modpath
+let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
+
+let new_global_sort senv =
+  if is_modtype senv then
+    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")
+  else if Option.has_some senv.sections then
+    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections.")
+  else
+  let module QG = Sorts.QGlobal in
+  let uid = QG.Set.cardinal senv.qualities in
+  let s = QG.make (current_dirpath senv) uid in
+  let qualities = QG.Set.add s senv.qualities in
+  let env = Environ.push_qualities (Sorts.Quality.Set.singleton (QGlobal s)) senv.env in
+  s, { senv with
+       env;
+       qualities;
+     }
+
+let merge_elim_constraints qcsts senv =
+  if Sorts.ElimConstraints.is_empty qcsts then
     senv
   else if is_modtype senv then
     CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")
   else if Option.has_some senv.sections then
     CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections.")
   else
-    let qs' =
-      Sorts.QGlobal.Set.fold (fun q acc -> Sorts.Quality.Set.add (QGlobal q) acc)
-        qs
-        Sorts.Quality.Set.empty
-    in
-    let env = Environ.push_qualities qs' senv.env in
-    let env = Environ.merge_elim_constraints ~rigid:true qcsts env in
+    let env = Environ.merge_elim_constraints ~rigid:true qcsts senv.env in
     { senv with
       env;
-      qualities = Sorts.QGlobal.Set.union qs senv.qualities;
       elims = Sorts.ElimConstraints.union qcsts senv.elims;
     }
 
@@ -1597,10 +1609,6 @@ let module_of_library lib = lib.comp_mod
 let univs_of_library lib = lib.comp_sorts, lib.comp_univs
 
 let retroknowledge_of_library lib = lib.comp_retro
-
-(** FIXME: MS: remove?*)
-let current_modpath senv = senv.modpath
-let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
 
 let start_library dir senv =
   (* When starting a library, the current environment should be initial

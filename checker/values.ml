@@ -185,7 +185,7 @@ let v_level = v_tuple "level" [|v_int;v_raw_level|]
 let v_expr = v_tuple "levelexpr" [|v_level;v_int|]
 let v_univ = v_list v_expr
 
-let v_qglobal = v_pair v_dp v_id
+let v_qglobal = v_tuple "qglobal" [|v_dp; v_int|]
 
 (* perhaps the "Unif" constructor should be forbidden in vo files *)
 let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_int|];[|v_string;v_int|]|]

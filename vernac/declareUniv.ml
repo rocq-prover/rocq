@@ -216,16 +216,12 @@ let do_universe ~poly l =
 
 let do_sort_mono l =
   let l = List.map (fun {CAst.v=id} ->
-      let q = UnivGen.new_sort_global id in
+      let q = Global.new_global_sort () in
       q, (id, Sorts.Quality.QGlobal q))
       l
   in
   let src = UnqualifiedQuality in
-  let () = input_sort_names (src, List.map snd l) in
-  let qs = List.fold_left  (fun qs (qv, _) -> Sorts.QGlobal.(Set.add qv qs))
-      Sorts.QGlobal.Set.empty l
-  in
-  Global.push_qualities (qs, Sorts.ElimConstraints.empty)
+  input_sort_names (src, List.map snd l)
 
 let do_sort_poly l =
   let in_section = Lib.sections_are_opened () in
@@ -275,7 +271,7 @@ let do_constraint ~poly l =
   match poly with
   | false ->
     let qcst, ucst = constraints in
-    let () = Global.push_qualities (Sorts.QGlobal.Set.empty, qcst) in
+    let () = Global.merge_elim_constraints qcst in
     Global.push_context_set (Univ.Level.Set.empty, ucst)
   | true ->
     let uctx = UVars.UContext.make

@@ -15,40 +15,40 @@ module QGlobal = struct
 
   type t = {
     library : DirPath.t;
-    id : Id.t
+    (* uid is unique for the library *)
+    uid : int;
   }
 
-  let make library id = { library ; id }
+  let make library uid = { library; uid }
 
-  let repr x = (x.library, x.id)
+  let repr x = (x.library, x.uid)
 
   let equal u1 u2 =
-    Id.equal u1.id u2.id &&
+    Int.equal u1.uid u2.uid &&
     DirPath.equal u1.library u2.library
 
-  let hash u = Hashset.Combine.combine (Id.hash u.id) (DirPath.hash u.library)
+  let hash u = Hashset.Combine.combine (Int.hash u.uid) (DirPath.hash u.library)
 
   let compare u1 u2 =
-    let c = Id.compare u1.id u2.id in
+    let c = Int.compare u1.uid u2.uid in
     if c <> 0 then c
     else
       DirPath.compare u1.library u2.library
 
-  let to_string { library = d ; id } =
-    DirPath.to_string d ^ "." ^ Id.to_string id
+  let to_string { library = d; uid } =
+    Printf.sprintf "%s.%d" (DirPath.to_string d) uid
 
   let raw_pr id = Pp.str @@ Printf.sprintf "γ%s" (to_string id)
 
   module Hstruct = struct
     type nonrec t = t
 
-    let hashcons ({ library; id } as v) =
+    let hashcons ({ library; uid } as v) =
       let hl, l' = DirPath.hcons library in
-      let hid, id' =  Id.hcons id in
-      let v = if l' == library && id' == id then v else { library = l'; id = id' } in
-      Hashset.Combine.combine hl hid, v
+      let v = if l' == library then v else { library = l'; uid } in
+      Hashset.Combine.combine hl uid, v
 
-    let eq a b = a.library == b.library && a.id == b.id
+    let eq a b = a.library == b.library && a.uid == b.uid
   end
 
   module Hasher = Hashcons.Make(Hstruct)

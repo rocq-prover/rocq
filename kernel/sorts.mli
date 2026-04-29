@@ -15,8 +15,8 @@ sig
 
   type t
 
-  val make : Names.DirPath.t -> Names.Id.t -> t
-  val repr : t -> Names.DirPath.t * Names.Id.t
+  val make : Names.DirPath.t -> int -> t
+  val repr : t -> Names.DirPath.t * int
   val equal : t -> t -> bool
   val hash : t -> int
   val compare : t -> t -> int
