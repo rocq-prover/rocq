@@ -18,5 +18,6 @@ Ltac2 g () := print_stack ().
 Ltac2 h () := g ().
 
 Goal True.
+Proof.
   h ().
 Abort.

@@ -4,6 +4,7 @@ Show Universes.
 Abort.
 
 Goal True.
+Proof.
   pose (fun x => let y := Type in x y :y).
   Show Universes.
 Abort.

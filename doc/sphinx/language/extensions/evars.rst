@@ -113,6 +113,7 @@ it will create new existential variable(s) when :tacn:`apply` would fail.
       .. rocqtop:: none reset
 
          Goal forall i j : nat, i = j.
+         Proof.
          intros.
 
       .. rocqtop:: all
@@ -178,6 +179,7 @@ automatically as a side effect of other tactics.
       Set Printing Goal Names.
 
       Goal forall p n m : nat, n = p -> p = m -> n = m.
+      Proof.
 
    .. rocqtop:: all
 
@@ -197,6 +199,7 @@ automatically as a side effect of other tactics.
       Set Printing Goal Names.
 
       Goal forall p n m : nat, n = p -> p = m -> n = m.
+      Proof.
       intros x y z H1 H2.
       eapply eq_trans. (* creates ?y : nat as a shelved goal *)
 

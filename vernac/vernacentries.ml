@@ -2626,12 +2626,23 @@ let vernac_proof pstate tac using =
       in
       None
   in
+  let () = match Declare.Proof.has_late_init pstate with
+    | None | Some NotRequired -> ()
+    (* currently Next Obligation is accepted both with and without following Proof
+       not sure we want to keep it that way
+       also not sure how well Proof using works with obligations *)
+    | Some Explicit ->
+      CErrors.user_err Pp.(str "Multiple \"Proof\" commands not supported.")
+    | Some Implicit ->
+      CErrors.user_err Pp.(str "\"Proof\" must be the first command in an interactive proof.")
+  in
   let tacs = if Option.is_empty tac then "tac:no" else "tac:yes" in
   let usings = if Option.is_empty using then "using:no" else "using:yes" in
   Aux_file.record_in_aux_at "VernacProof" (tacs^" "^usings);
   let pstate = Option.fold_left vernac_set_end_tac pstate tac in
   let set_proof_using ps using = Declare.Proof.set_proof_using ps using |> snd in
   let pstate = Option.fold_left set_proof_using pstate using in
+  let pstate = Declare.Proof.finish_late_init pstate Explicit in
   pstate
 
 let translate_vernac_synterp ?loc ~atts v = let open Vernactypes in match v with
@@ -2740,7 +2751,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacStartTheoremProof (k,l) ->
     vtopenproof(fun () -> with_def_attributes ~atts vernac_start_proof k l)
   | VernacExactProof c ->
-    vtcloseproof (fun ~lemma ->
+    vtcloseproof ~check_late_init:false (fun ~lemma ->
         unsupported_attributes atts;
         vernac_exact_proof ~lemma c)
 
@@ -3008,7 +3019,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         unsupported_attributes atts;
         vernac_validate_proof ~pstate)
   | VernacProof (tac, using) ->
-    vtmodifyproof(fun ~pstate ->
+    vtmodifyproof ~check_late_init:false (fun ~pstate ->
     unsupported_attributes atts;
     vernac_proof pstate tac using)
 
@@ -3018,7 +3029,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacAbort ->
     unsupported_attributes atts;
-    vtcloseproof vernac_abort
+    vtcloseproof ~check_late_init:false vernac_abort
 
 let translate_vernac ?loc ~atts v =
   match v with

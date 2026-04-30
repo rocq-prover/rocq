@@ -36,7 +36,8 @@ Section Well_founded.
  Register Acc as core.wf.acc.
 
  Lemma Acc_inv : forall x:A, Acc x -> forall y:A, R y x -> Acc y.
-  destruct 1; trivial.
+ Proof.
+   destruct 1; trivial.
  Defined.
 
  Global Arguments Acc_inv [x] _ [y] _, [x] _ y _.

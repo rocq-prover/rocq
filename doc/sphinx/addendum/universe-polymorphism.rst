@@ -838,6 +838,7 @@ witness these temporary variables.
 .. rocqtop:: in
 
    Goal True.
+   Proof.
    Set Printing Universes.
 
 .. rocqtop:: all abort

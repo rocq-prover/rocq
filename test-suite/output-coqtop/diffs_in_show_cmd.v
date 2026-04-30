@@ -1,5 +1,6 @@
 (* -*- coq-prog-args: ("-color" "on"); -*- *)
 Goal forall n m:nat, n = m.
+Proof.
 refine ?[foo].
 intros.
 

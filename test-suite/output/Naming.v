@@ -7,6 +7,7 @@ Section A.
 Variable x3:nat.
 Goal forall x x1 x2 x3:nat,
   (forall x x3:nat, x+x1 = x2+x3) -> x+x1 = x2+x3.
+Proof.
 Show.
 intros.
 Show.
@@ -39,6 +40,7 @@ Abort.
 Goal forall x x1 x2 x3:nat,
   (forall x x3:nat, x+x1 = x2+x3 -> foo (S x + x1)) ->
    x+x1 = x2+x3 -> foo (S x).
+Proof.
 Show.
 unfold foo.
 Show.
@@ -84,6 +86,7 @@ Abort.
 (* Check naming in hypotheses *)
 
 Goal forall a, (a = 0 -> forall a, a = 0) -> a = 0.
+Proof.
 intros.
 Show.
 apply H with (a:=a). (* test compliance with printing *)

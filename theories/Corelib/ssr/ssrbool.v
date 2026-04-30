@@ -733,7 +733,8 @@ Proof. by case; [apply: introT | apply: introF]. Qed.
 
 Lemma decPcases : if b then P else ~ P. Proof. by case Pb. Qed.
 
-Definition decP : decidable P. by case: b decPcases; [left | right]. Defined.
+Definition decP : decidable P.
+Proof. by case: b decPcases; [left | right]. Defined.
 
 Lemma rwP : P <-> b. Proof. by split; [apply: introT | apply: elimT]. Qed.
 

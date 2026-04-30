@@ -16,6 +16,7 @@ Fail End M.
 
 Ltac f x := apply x.
 Goal True.
+Proof.
 Fail simpl; apply 0.
 Fail simpl; f 0.
 Abort.
@@ -23,6 +24,7 @@ Abort.
 (* Test instantiate error messages *)
 
 Goal forall T1 (P1 : T1 -> Type), sigT P1 -> sigT P1.
+Proof.
 intros T1 P1 H1.
 eexists ?[x].
 destruct H1 as [x1 H1].
@@ -41,10 +43,12 @@ End M.
 Module Change.
 
 Goal 0 = 0.
+Proof.
 Fail change 0 with true.
 Abort.
 
 Goal nat = nat.
+Proof.
   pose (nat : Type) as n.
   Fail change nat with n. (* Error: Replacement would lead to an ill-typed term. *)
 Abort.

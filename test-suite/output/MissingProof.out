@@ -1,0 +1,30 @@
+File "./output/MissingProof.v", line 2, characters 2-8:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/MissingProof.v", line 2, characters 2-2 with Proof.
+
+File "./output/MissingProof.v", line 7, characters 2-3:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/MissingProof.v", line 7, characters 2-2 with Proof.
+
+File "./output/MissingProof.v", line 11, characters 0-9:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/MissingProof.v", line 11, characters 0-0 with Proof.
+
+File "./output/MissingProof.v", line 20, characters 2-13:
+The command has indeed failed with message:
+Multiple "Proof" commands not supported.
+File "./output/MissingProof.v", line 24, characters 2-8:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/MissingProof.v", line 24, characters 2-2 with Proof.
+
+File "./output/MissingProof.v", line 25, characters 2-13:
+The command has indeed failed with message:
+"Proof" must be the first command in an interactive proof.

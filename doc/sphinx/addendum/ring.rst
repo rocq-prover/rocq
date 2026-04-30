@@ -166,10 +166,12 @@ Concrete usage
     Goal forall a b c:Z, 
         (a + b + c) ^ 2 = 
          a * a + b ^ 2 + c * c + 2 * a * b + 2 * a * c + 2 * b * c.
+    Proof.
     intros; ring.
     Abort.
     Goal forall a b:Z, 
          2 * a * b = 30 -> (a + b) ^ 2 = a ^ 2 + b ^ 2 + 30.
+    Proof.
     intros a b H; ring [H].
     Abort.
 
@@ -572,10 +574,12 @@ Dealing with fields
     Open Scope R_scope.
     Goal forall x,
            x <> 0 -> (1 - 1 / x) * x - x + 1 = 0.
+    Proof.
     intros; field; auto.
     Abort.
     Goal forall x y, 
            y <> 0 -> y = x -> x / y = 1.
+    Proof.
     intros x y H H1; field [H1]; auto.
     Abort.
 
@@ -589,6 +593,7 @@ Dealing with fields
       (x * y > 0)%R ->
       (x * (1 / x + x / (x + y)))%R =
       ((- 1 / y) * y * (- x * (x / (x + y)) - 1))%R.
+      Proof.
 
       intros; field.
 
@@ -723,6 +728,7 @@ for Coq’s type checker. Let us see why:
   Open Scope Z_scope.
   Goal forall x y z : Z, 
          x + 3 + y + y * z = x + 3 + y + z * y.
+  Proof.
   intros; rewrite (Zmult_comm y z); reflexivity.
   Save foo.
   Print foo.

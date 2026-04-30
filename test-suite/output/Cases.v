@@ -128,6 +128,7 @@ Fail Check fun x : J => let '{{n, m, _}} p := x in n + m + p.
 (* Test use of idents bound to ltac names in a "match" *)
 
 Lemma lem1 : forall k, k=k :>nat * nat.
+Proof.
 let x := fresh "aa" in
 let y := fresh "bb" in
 let z := fresh "cc" in
@@ -137,6 +138,7 @@ Qed.
 Print lem1.
 
 Lemma lem2 : forall k, k=k :> bool.
+Proof.
 let x := fresh "aa" in
 let y := fresh "bb" in
 let z := fresh "cc" in
@@ -146,6 +148,7 @@ Qed.
 Print lem2.
 
 Lemma lem3 : forall k, k=k :>nat * nat.
+Proof.
 let x := fresh "aa" in
 let y := fresh "bb" in
 let z := fresh "cc" in
@@ -155,6 +158,7 @@ Qed.
 Print lem3.
 
 Lemma lem4 x : x+0=0.
+Proof.
 match goal with |- ?y = _ => pose (match y with 0 => 0 | S n => 0 end) end.
 match goal with |- ?y = _ => pose (match y as y with 0 => 0 | S n => 0 end) end.
 match goal with |- ?y = _ => pose (match y as y return y=y with 0 => eq_refl | S n => eq_refl end) end.
@@ -167,6 +171,7 @@ Show.
 Abort.
 
 Lemma lem5 (p:nat) : eq_refl p = eq_refl p.
+Proof.
 let y := fresh "n" in (* Checking that y is hidden *)
   let z := fresh "e" in (* Checking that z is hidden *)
   match goal with

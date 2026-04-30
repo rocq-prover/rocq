@@ -2,6 +2,7 @@ Set Ltac Backtrace.
 
 (* This used to refer to b instead of z sometimes between 8.4 and 8.5beta3 *)
 Goal True.
+Proof.
 Fail let T := constr:((fun a b : nat => a+b) 1 1) in
   lazymatch T with
   | (fun x z => ?y) 1 1
@@ -11,6 +12,7 @@ Abort.
 
 (* This should not raise a warning (see #4317) *)
 Goal True.
+Proof.
 assert (H:= eq_refl ((fun x => x) 1)).
 let HT := type of H in
 lazymatch goal with
@@ -35,6 +37,7 @@ Tactic Notation "g2" constr(x) := g1 x.
 Tactic Notation "f1" constr(x) := refine x.
 Ltac f2 x := f1 x.
 Goal False.
+Proof.
 Fail g1 I.
 Fail f1 I.
 Fail g2 I.
@@ -43,6 +46,7 @@ Abort.
 
 Ltac h x := injection x.
 Goal True -> False.
+Proof.
 Fail h I.
 intro H.
 Fail h H.
@@ -51,12 +55,15 @@ Abort.
 (* Check printing of the "var" argument "Hx" *)
 Ltac m H := idtac H; exact H.
 Goal True.
+Proof.
 let a:=constr:(let Hx := 0 in ltac:(m Hx)) in idtac.
 Abort.
 
 (* Check consistency of interpretation scopes (#4398) *)
 
-Goal nat*(0*0=0) -> nat*(0*0=0). intro.
+Goal nat*(0*0=0) -> nat*(0*0=0).
+Proof.
+intro.
 match goal with H: ?x*?y |- _ => idtac x end.
 match goal with |- ?x*?y => idtac x end.
 match goal with H: context [?x*?y] |- _ => idtac x end.
@@ -77,6 +84,7 @@ Print Ltac foo.
 (* Ltac renaming was not applied to "fix" and "cofix" *)
 
 Goal forall a, a = 0.
+Proof.
 match goal with
 |- (forall x, x = _) => assert (forall n, (fix x n := match n with O => O | S n => x n end) n = n)
 end.

@@ -1,4 +1,5 @@
 Definition a : { x | 0 < x }.
+Proof.
   exists 3. eauto.
 Defined.
 

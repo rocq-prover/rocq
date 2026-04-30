@@ -19,6 +19,7 @@ Hint Extern 1 => idtac "fifth, different hintDb"; fail : plus2.
 Print HintDb plus.
 
 Goal False.
+Proof.
 (* auto tries hintdbs in order, ignoring cost.
 the others apply cost across hintdbs *)
 info_auto with plus plus2 nocore.

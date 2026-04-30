@@ -10,6 +10,7 @@ Print eq_refl.
 About eq_refl.
 
 Goal 3 = 3.
+Proof.
 Succeed apply @eq_refl with (B := nat).
 
 Succeed apply @eq_refl with (y := 3).

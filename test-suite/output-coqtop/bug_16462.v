@@ -9,4 +9,5 @@ Ltac baz x := let H := fresh in
                 f F () () ].
 Set Ltac Backtrace.
 Goal True.
+Proof.
   baz I.

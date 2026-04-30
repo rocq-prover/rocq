@@ -6,7 +6,7 @@
     The additional return data ['d] is useful when combining runners.
     We don't need an additional input data as it can just go in the closure.
 *)
-type ('a,'b,'x) runner = { run : 'd. 'x -> ('a -> 'b * 'd) -> 'x * 'd }
+type ('a,'b,'x) runner = { run : 'd. ?loc:Loc.t -> 'x -> ('a -> 'b * 'd) -> 'x * 'd }
 
 
 module Prog = struct
@@ -22,7 +22,7 @@ module Prog = struct
     | Pop : (state, unit) t
 
   let runner (type a b) (ty:(a,b) t) : (a,b,stack) runner =
-    { run = fun pm f ->
+    { run = fun ?loc pm f ->
       match ty with
       | Ignore -> let (), v = f () in pm, v
       | Modify ->
@@ -52,23 +52,40 @@ module Proof = struct
 
   type (_,_) t =
     | Ignore : (unit, unit) t
-    | Modify : (state, state) t
+    | Modify : { check_late_init : bool } -> (state, state) t
     | Read : (state, unit) t
     | ReadOpt : (state option, unit) t
     | Reject : (unit, unit) t
-    | Close : (state, unit) t
+    | Close : { check_late_init : bool } -> (state, unit) t
     | Open : (unit, state) t
 
   let use = function
     | None -> CErrors.user_err (Pp.str "Command not supported (No proof-editing in progress).")
     | Some stack -> LStack.pop stack
 
+  let quickfix_missing_proof ~loc () =
+    (* quickfix is purely additive so the loc is 0 characters long, at the beginning of the command. *)
+    let loc = { loc with Loc.ep = loc.Loc.bp } in
+    [Quickfix.make ~loc Pp.(str "Proof." ++ fnl())]
+
+  let warn_missing_proof = CWarnings.create ~name:"missing-proof-command" ~category:CWarnings.CoreCategories.fragile
+      ~quickfix:quickfix_missing_proof
+      Pp.(fun () -> str "This interactive proof is not started by the \"Proof\" command.")
+
+  let check_late_init ?loc p =
+    if Option.has_some @@ Declare.Proof.has_late_init p then p
+    else begin
+      warn_missing_proof ?loc ();
+      Declare.Proof.finish_late_init p Implicit
+    end
+
   let runner (type a b) (ty:(a,b) t) : (a,b,stack) runner =
-    { run = fun stack f ->
+    { run = fun ?loc stack f ->
       match ty with
       | Ignore -> let (), v = f () in stack, v
-      | Modify ->
+      | Modify o ->
         let p, rest = use stack in
+        let p = if o.check_late_init then check_late_init ?loc p else p in
         let p, v = f p in
         Some (LStack.push rest p), v
       | Read ->
@@ -85,8 +102,9 @@ module Proof = struct
         in
         let (), v = f () in
         stack, v
-      | Close ->
+      | Close o ->
         let p, rest = use stack in
+        let p = if o.check_late_init then check_late_init ?loc p else p in
         let (), v = f p in
         rest, v
       | Open ->
@@ -109,7 +127,7 @@ module OpaqueAccess = struct
   let access = Library.indirect_accessor[@@warning "-3"]
 
   let runner (type a) (ty:a t) : (a,unit,unit) runner =
-    { run = fun () f ->
+    { run = fun ?loc () f ->
       match ty with
       | Ignore -> let (), v = f () in (), v
       | Access -> let (), v = f access in (), v
@@ -120,9 +138,9 @@ end
 (* lots of messing with tuples in there, can we do better? *)
 let combine_runners (type a b x c d y) (r1:(a,b,x) runner) (r2:(c,d,y) runner)
   : (a*c, b*d, x*y) runner
-  = { run = fun (x,y) f ->
-      match r1.run x @@ fun x ->
-        match r2.run y @@ fun y ->
+  = { run = fun ?loc (x,y) f ->
+      match r1.run ?loc x @@ fun x ->
+        match r2.run ?loc y @@ fun y ->
           match f (x,y)
           with ((b, d), o) -> (d, (b, o))
         with (y, (b, o)) -> (b, (y, o))
@@ -157,10 +175,10 @@ type typed_vernac = unit typed_vernac_gen
 
 type full_state = (Prog.stack,Vernacstate.LemmaStack.t option,unit) state_gen
 
-let run (TypedVernac { spec = { prog; proof; opaque_access }; run }) (st:full_state) : full_state * _ =
+let run ?loc (TypedVernac { spec = { prog; proof; opaque_access }; run }) (st:full_state) : full_state * _ =
   let ( * ) = combine_runners in
   let runner = Prog.runner prog * Proof.runner proof * OpaqueAccess.runner opaque_access in
-  let st, v = runner.run (tuple st) @@ fun st ->
+  let st, v = runner.run ?loc (tuple st) @@ fun st ->
     let st, v= run @@ untuple st in tuple st, v
   in
   untuple st, v
@@ -175,13 +193,15 @@ let vtdefault f = typed_vernac ignore_state
 let vtnoproof f = typed_vernac { ignore_state with proof = Reject }
     (fun (_:no_state) -> let () = f () in no_state)
 
-let vtcloseproof f = typed_vernac { ignore_state with prog = Modify; proof = Close }
+let vtcloseproof ?(check_late_init=true) f =
+  typed_vernac { ignore_state with prog = Modify; proof = Close { check_late_init } }
     (fun {prog; proof} -> let prog = f ~lemma:proof ~pm:prog in { no_state with prog })
 
 let vtopenproof f = typed_vernac { ignore_state with proof = Open }
     (fun (_:no_state) -> let proof = f () in { no_state with proof })
 
-let vtmodifyproof f = typed_vernac { ignore_state with proof = Modify }
+let vtmodifyproof ?(check_late_init=true) f =
+  typed_vernac { ignore_state with proof = Modify { check_late_init } }
     (fun {proof} -> let proof = f ~pstate:proof in { no_state with proof })
 
 let vtreadproofopt f = typed_vernac { ignore_state with proof = ReadOpt }

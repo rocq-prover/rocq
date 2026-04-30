@@ -87,7 +87,8 @@ The tactics presented here specialize :tacn:`apply` and
    .. rocqtop:: reset all
 
       Print or.  (* or, represented by \/, has two constructors, or_introl and or_intror *)
-      Goal  forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Goal forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Proof.
       constructor 1.  (* equivalent to "left" *)
       apply H.  (* success *)
 
@@ -95,7 +96,8 @@ The tactics presented here specialize :tacn:`apply` and
 
    .. rocqtop:: reset none
 
-      Goal  forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Goal forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Proof.
 
    .. rocqtop:: all
 
@@ -105,7 +107,8 @@ The tactics presented here specialize :tacn:`apply` and
 
    .. rocqtop:: reset none
 
-      Goal  forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Goal forall P1 P2 : Prop, P1 -> P1 \/ P2.
+      Proof.
 
    .. rocqtop:: all
 
@@ -210,6 +213,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       .. rocqtop:: reset none
 
          Goal forall m n: nat, n = n -> m + n = n + m.
+         Proof.
 
       .. rocqtop:: out
 
@@ -232,6 +236,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       .. rocqtop:: reset none
 
          Goal forall m n: nat, n = n -> m + n = n + m.
+         Proof.
 
       .. rocqtop:: out
 
@@ -249,6 +254,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       .. rocqtop:: reset none
 
          Goal forall A B: Prop, A /\ B -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -269,6 +275,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       .. rocqtop:: all
 
          Goal (A -> B \/ C) -> D.
+         Proof.
          intros until 1.
          destruct H.
          Show 2.
@@ -328,6 +335,7 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       .. rocqtop:: reset all
 
          Goal forall A B C:Prop, A /\ B /\ C \/ B /\ C \/ C /\ A -> C.
+         Proof.
            intros A B C H; decompose [and or] H.
            all: assumption.
          Qed.
@@ -418,6 +426,7 @@ Induction
          Axiom P : N -> Prop.
 
          Goal forall n:nat, P n.
+         Proof.
          intros.
          Fail induction n using strong.
          change N in n.
@@ -433,6 +442,7 @@ Induction
       .. rocqtop:: reset all
 
          Lemma induction_test : forall n:nat, n = n -> n <= n.
+         Proof.
          intros n H.
          induction n.
          exact (le_n 0).
@@ -444,6 +454,7 @@ Induction
       .. rocqtop:: reset all
 
          Lemma induction_test2 : forall n m:nat, n = m -> n <= m.
+         Proof.
          intros n m H.
          induction n in m, H |- *.
          Show 2.
@@ -512,6 +523,7 @@ Induction
       .. rocqtop:: reset all
 
          Lemma lt_1_r : forall n:nat, n < 1 -> n = 0.
+         Proof.
          intros n H ; induction H.
 
       Here we did not get any information on the indexes to help fulfill
@@ -524,6 +536,7 @@ Induction
 
          Require Import Stdlib.Program.Equality.
          Lemma lt_1_r : forall n:nat, n < 1 -> n = 0.
+         Proof.
          intros n H ; dependent induction H.
 
       The subgoal is cleaned up as the tactic tries to automatically
@@ -669,6 +682,7 @@ This section describes some special purpose tactics to work with
       .. rocqtop:: reset in
 
          Goal 1 <> 2.
+         Proof.
          discriminate.
          Qed.
 
@@ -684,6 +698,7 @@ This section describes some special purpose tactics to work with
       .. rocqtop:: in
 
          Goal 1 <> 2.
+         Proof.
 
       .. rocqtop:: all
 
@@ -701,6 +716,7 @@ This section describes some special purpose tactics to work with
       .. rocqtop:: reset in
 
          Goal forall n:nat, n <> S n.
+         Proof.
          intro n.
          induction n.
 
@@ -776,6 +792,7 @@ This section describes some special purpose tactics to work with
          | cons : nat -> list -> list.
          Parameter P : list -> Prop.
          Goal forall l n, P nil -> cons n l = cons 0 nil -> P l.
+         Proof.
 
       .. rocqtop:: all
 
@@ -932,6 +949,7 @@ This section describes some special purpose tactics to work with
       .. rocqtop:: in
 
          Goal forall l:list nat, contains0 (1 :: l) -> contains0 l.
+         Proof.
 
       .. rocqtop:: all
 
@@ -1008,6 +1026,7 @@ This section describes some special purpose tactics to work with
       Variable P : nat -> nat -> Prop.
       Variable Q : forall n m:nat, Le n m -> Prop.
       Goal forall n m, Le (S n) m -> P n m.
+      Proof.
 
    .. rocqtop:: out
 
@@ -1047,6 +1066,7 @@ This section describes some special purpose tactics to work with
 
       Abort.
       Goal forall n m (H:Le (S n) m), Q (S n) m H.
+      Proof.
 
    .. rocqtop:: out
 
@@ -1130,6 +1150,7 @@ Helper tactics
 
          Goal forall (P Q : Prop) (Hp : {P} + {~P}) (Hq : {Q} + {~Q}),
              P -> ~Q -> (if Hp then true else false) = (if Hq then false else true).
+         Proof.
 
       .. rocqtop:: all extra-stdlib
 
@@ -1663,6 +1684,7 @@ Generation of inversion principles with ``Derive`` ``Inversion``
   .. rocqtop:: none
 
     Goal forall (n m : nat) (H : Le (S n) m), P n m.
+    Proof.
     intros.
 
   .. rocqtop:: all
@@ -1704,6 +1726,7 @@ example, revisiting the first example of the inversion documentation:
    Parameter P : nat -> nat -> Prop.
 
    Goal forall n m:nat, Le (S n) m -> P n m.
+   Proof.
 
    intros n m H.
 
@@ -1739,6 +1762,7 @@ as well in this case, e.g.:
 
    Parameter Q : forall (n m : nat), Le n m -> Prop.
    Goal forall n m (p : Le (S n) m), Q (S n) m p.
+   Proof.
 
 .. rocqtop:: all extra-stdlib
 
@@ -1772,6 +1796,7 @@ redo what we've done manually with dependent destruction:
 .. rocqtop:: in extra-stdlib
 
    Lemma ex : forall n m:nat, Le (S n) m -> P n m.
+   Proof.
 
 .. rocqtop:: in extra-stdlib
 
@@ -1804,6 +1829,7 @@ the following example on vectors:
 
    Goal forall n, forall v : vector (S n),
             exists v' : vector n, exists a : A, v = vcons a v'.
+   Proof.
 
 .. rocqtop:: in extra-stdlib
 

@@ -285,6 +285,7 @@ Examples:
       .. rocqtop:: reset none
 
          Goal forall (A: Prop) (B: Prop), (A /\ B) -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -301,6 +302,7 @@ Examples:
       .. rocqtop:: reset none
 
          Goal forall (A: Prop) (B: Prop), (A \/ B) -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -317,6 +319,7 @@ Examples:
       .. rocqtop:: reset none
 
          Goal forall (x:nat) (y:nat) (z:nat), (x = y) -> (y = z) -> (x = z).
+         Proof.
 
       .. rocqtop:: out
 
@@ -338,6 +341,7 @@ Examples:
       .. rocqtop:: reset none
 
          Goal forall (n m:nat),  (S n) = (S m) -> (S O)=(S (S O)) -> False.
+         Proof.
 
       .. rocqtop:: out
 
@@ -362,6 +366,7 @@ Examples:
       .. rocqtop:: out
 
          Goal A /\ (exists x:nat, B x /\ C) -> True.
+         Proof.
 
       .. rocqtop:: all
 
@@ -374,6 +379,7 @@ Examples:
       .. rocqtop:: reset out
 
          Goal forall (A: Prop) (B: Prop), A -> B.
+         Proof.
 
       .. rocqtop:: all
 
@@ -386,6 +392,7 @@ Examples:
       .. rocqtop:: reset out
 
          Goal forall (A: Prop) (B: Prop), A -> B.
+         Proof.
 
       .. rocqtop:: all
 
@@ -396,6 +403,7 @@ Examples:
       .. rocqtop:: reset out
 
          Goal forall A B C:Prop, A \/ B /\ C -> (A -> C) -> C.
+         Proof.
 
       .. rocqtop:: all
 
@@ -417,7 +425,8 @@ Examples:
       .. rocqtop:: out
 
          Example ThreeIntroPatternsCombined :
-         S (length ys) = 1 -> xs ++ ys = xs.
+           S (length ys) = 1 -> xs ++ ys = xs.
+         Proof.
 
       .. rocqtop:: all
 
@@ -624,6 +633,7 @@ Applying theorems
          | Ok : bool -> Option.
 
          Definition get : forall x:Option, x <> Fail -> bool.
+         Proof.
            refine
              (fun x:Option =>
                match x return x <> Fail -> bool with
@@ -787,6 +797,7 @@ Applying theorems
       .. rocqtop:: reset none
 
          Goal forall A B C: Prop, (A -> B -> C) -> C.
+         Proof.
 
       .. rocqtop:: out
 
@@ -802,6 +813,7 @@ Applying theorems
       .. rocqtop:: reset none
 
          Goal forall A B C: Prop, (A -> B -> C) -> (B -> C).
+         Proof.
 
       .. rocqtop:: out
 
@@ -817,6 +829,7 @@ Applying theorems
       .. rocqtop:: reset none
 
          Goal forall A B C: Prop, B -> (A -> B -> C) -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -840,6 +853,7 @@ Applying theorems
          Axiom le_trans : forall n m p, n <= m -> m <= p -> n <= p.
 
          Goal forall (x y : nat), x <= y -> x * x <= y * y.
+         Proof.
 
       .. rocqtop:: out
 
@@ -870,6 +884,7 @@ Applying theorems
          Axiom le_trans : forall n m p, n <= m -> m <= p -> n <= p.
 
          Goal forall (x y : nat), x * x <= y * y -> x <= y.
+         Proof.
 
       .. rocqtop:: out
 
@@ -896,6 +911,7 @@ Applying theorems
       .. rocqtop:: reset none
 
          Goal forall (A B: Prop) (H1: A <-> B) (H: A), A.
+         Proof.
 
       .. rocqtop:: out
 
@@ -917,6 +933,7 @@ Applying theorems
       .. rocqtop:: reset none
 
          Goal forall x y, x + y = y + x.
+         Proof.
 
       .. rocqtop:: out
 
@@ -973,6 +990,7 @@ Applying theorems
             Definition id (x : nat) := x.
             Parameter H : forall x y, id x = y.
             Goal O = O.
+            Proof.
             Fail simple apply H.
 
       Because it reasons modulo a limited amount of conversion, :tacn:`simple apply` fails
@@ -1009,6 +1027,7 @@ Applying theorems
    .. rocqtop:: in
 
       Goal R n p.
+      Proof.
 
    The direct application of ``Rtrans`` with ``apply`` fails because no value
    for ``y`` in ``Rtrans`` is found by ``apply``:
@@ -1135,6 +1154,7 @@ Managing the local context
       .. rocqtop:: reset out
 
          Goal forall m n, m < n -> (let x := 0 in True).
+         Proof.
 
       .. rocqtop:: all
 
@@ -1148,6 +1168,7 @@ Managing the local context
       .. rocqtop:: reset out
 
          Goal forall m n, m < n -> (let x := 0 in True).
+         Proof.
 
       .. rocqtop:: all
 
@@ -1182,6 +1203,7 @@ Managing the local context
          .. rocqtop:: reset out
 
             Goal forall x y : nat, x = y -> y = x.
+            Proof.
 
          .. rocqtop:: all
 
@@ -1192,6 +1214,7 @@ Managing the local context
          .. rocqtop:: reset out
 
             Goal forall x y : nat, x = y -> y = x.
+            Proof.
 
          .. rocqtop:: all
 
@@ -1309,6 +1332,7 @@ Managing the local context
       .. rocqtop:: reset none
 
          Goal forall x :nat, x = 0 -> forall y z:nat, y=y-> 0=x.
+         Proof.
 
       .. rocqtop:: out
 
@@ -1373,6 +1397,7 @@ Managing the local context
       .. rocqtop:: reset none
 
          Goal forall n, n = 0.
+         Proof.
 
       .. rocqtop:: out
 
@@ -1576,6 +1601,7 @@ Controlling the proof flow
       .. rocqtop:: reset none
 
          Goal (forall n m: nat, n + m = m + n) -> True.
+         Proof.
 
       .. rocqtop:: out
 
@@ -1770,14 +1796,17 @@ Controlling the proof flow
       Inductive F :=. (* Another empty inductive type *)
 
       Goal F -> False.
+      Proof.
       contradiction.
       Qed.
 
       Goal forall (A : Prop), A -> ~A -> False.
+      Proof.
       contradiction.
       Qed.
 
       Goal forall (A : Type) (x : A), ~(x = x) -> False.
+      Proof.
       contradiction.
       Qed.
 
@@ -1790,6 +1819,7 @@ Controlling the proof flow
    .. rocqtop:: in
 
       Goal forall (A : Prop), 0 < 0 -> A.
+      Proof.
 
    .. rocqtop:: all
 
@@ -1852,6 +1882,7 @@ Performance-oriented tactic variants
       .. rocqtop:: all abort
 
          Goal False.
+         Proof.
            exact_no_check I.
          Fail Qed.
 
@@ -1866,6 +1897,7 @@ Performance-oriented tactic variants
         .. rocqtop:: all abort
 
             Goal False.
+            Proof.
               vm_cast_no_check I.
             Fail Qed.
 
@@ -1880,5 +1912,6 @@ Performance-oriented tactic variants
         .. rocqtop:: all abort
 
             Goal False.
+            Proof.
               native_cast_no_check I.
             Fail Qed.

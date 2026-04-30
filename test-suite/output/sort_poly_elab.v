@@ -529,6 +529,7 @@ Module Inductives.
   About FooNat.
 
   Definition Foo (n : FooNat) : FooNat.
+  Proof.
     destruct n.
     - exact FO.
     - exact FO.
@@ -772,6 +773,7 @@ Module Classes.
 
   #[refine]
   Instance C1RefineI1 : C1 unit := { C1f1 := _ }.
+  Proof.
   exact tt.
   Defined.
   About C1RefineI1.
