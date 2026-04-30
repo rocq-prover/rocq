@@ -128,7 +128,7 @@ module Hint_db :
     val map_none : secvars:Id.Pred.t -> t -> FullHint.t list
 
     (** All hints associated to the reference *)
-    val map_all : secvars:Id.Pred.t -> GlobRef.t -> t -> FullHint.t list
+    val map_all : env -> secvars:Id.Pred.t -> GlobRef.t -> t -> FullHint.t list
 
     (** All hints associated to the reference, respecting modes if evars appear in the
         arguments and using the discrimination net.
