@@ -371,7 +371,6 @@ sig
 
     val map_constr : ('c -> 'c) -> ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt
     val of_named_decl : ('c, 't, 'r) Named.Declaration.pt -> ('c, 't, 'r) pt
-    val to_named_context : ('c, 't, 'r) pt -> ('c, 't, 'r) Named.pt
   end
 
   type ('constr, 'types, 'r) pt = ('constr, 'types, 'r) Declaration.pt list
