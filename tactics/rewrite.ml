@@ -838,7 +838,7 @@ let resolve_morphism env m args args' (b,cstr) evars =
     let _, dosub = app_poly_sort b env evars dosub [||] in
     let _, appsub = app_poly_nocheck env evars appsub [||] in
     let dosub_id = Id.of_string "do_subrelation" in
-    let env' = EConstr.push_named (LocalDef (make_annot dosub_id ERelevance.relevant, dosub, appsub)) env in
+    let env' = EConstr.push_named (LocalDef (ProofVar, make_annot dosub_id ERelevance.relevant, dosub, appsub)) env in
     let evars, morph = new_cstr_evar evars env' app in
     (* Replace the free [dosub_id] in the evar by the global reference *)
     let morph = Vars.replace_vars (fst evars) [dosub_id , dosub] morph in
@@ -1715,7 +1715,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
             tclTHENFIRST (assert_replacing id newt tac) (beta_hyp id)
         | Some id, None ->
             Proofview.Unsafe.tclEVARS undef <*>
-            convert_hyp ~check:false ~reorder:false (LocalAssum (make_annot id ERelevance.relevant, newt)) <*>
+            convert_hyp ~check:false ~reorder:false (LocalAssum (ProofVar, make_annot id ERelevance.relevant, newt)) <*>
             beta_hyp id
         | None, Some p ->
             Proofview.Unsafe.tclEVARS undef <*>

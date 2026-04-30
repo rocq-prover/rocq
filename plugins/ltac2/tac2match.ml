@@ -190,11 +190,11 @@ module PatternMatching (E:StaticEnvironment) = struct
 
   let hyp_match_body_and_type bodypat typepat hyps =
     pick hyps >>= function
-      | LocalDef (id,body,hyp) ->
+      | LocalDef (_,id,body,hyp) ->
           pattern_match_term bodypat body >>= fun ctx_body ->
           pattern_match_term typepat hyp >>= fun ctx_typ ->
           return (id.binder_name, Some ctx_body, ctx_typ)
-      | LocalAssum (id,hyp) -> fail
+      | LocalAssum (_,id,hyp) -> fail
 
   let hyp_match pat hyps =
     match pat with

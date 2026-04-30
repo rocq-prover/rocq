@@ -1654,7 +1654,7 @@ let filter_possible_projections evd i0 c ty ctxt args =
     let a = Array.unsafe_get args i in
     (match decl with
      | NamedDecl.LocalAssum _ -> false
-     | NamedDecl.LocalDef (_,c,_) -> not (isRel evd c || isVar evd c)) ||
+     | NamedDecl.LocalDef (_,_,c,_) -> not (isRel evd c || isVar evd c)) ||
     Int.equal i0 i (* check whether [c] is [args.(i)] *) ||
     (* Here we make an approximation, for instance, we could also be *)
     (* interested in finding a term u convertible to c such that a occurs *)
@@ -1818,7 +1818,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
      debug_ho_unification (fun () ->
        Pp.(str"abstracted: " ++ prc env_rhs evd rhs'));
      let () = check_selected_occs env_rhs evd c !occ occs in
-     let env_rhs' = push_named (NamedDecl.LocalAssum (id,idty)) env_rhs in
+     let env_rhs' = push_named (NamedDecl.LocalAssum (ProofVar,id,idty)) env_rhs in
      set_holes env_rhs' evd fixed rhs' subst
   | [] -> evd, fixed, rhs in
 

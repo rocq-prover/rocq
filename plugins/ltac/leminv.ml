@@ -118,11 +118,11 @@ let rec add_prods_sign env sigma t =
     | Prod (na,c1,b) ->
         let id = id_of_name_using_hdchar env sigma t na.binder_name in
         let b'= subst1 (mkVar id) b in
-        add_prods_sign (push_named (LocalAssum ({na with binder_name=id},c1)) env) sigma b'
+        add_prods_sign (push_named (LocalAssum (ProofVar,{na with binder_name=id},c1)) env) sigma b'
     | LetIn (na,c1,t1,b) ->
         let id = id_of_name_using_hdchar env sigma t na.binder_name in
         let b'= subst1 (mkVar id) b in
-        add_prods_sign (push_named (LocalDef ({na with binder_name=id},c1,t1)) env) sigma b'
+        add_prods_sign (push_named (LocalDef (ProofVar,{na with binder_name=id},c1,t1)) env) sigma b'
     | _ -> (env,t)
 
 (* [dep_option] indicates whether the inversion lemma is dependent or not.
@@ -170,7 +170,7 @@ let compute_first_inversion_scheme env sigma ind sort dep_option =
       (pty,goal)
   in
   let npty = nf_all env sigma pty in
-  let extenv = push_named (LocalAssum (make_annot p ERelevance.relevant,npty)) env in
+  let extenv = push_named (LocalAssum (ProofVar,make_annot p ERelevance.relevant,npty)) env in
   extenv, goal
 
 (* [inversion_scheme sign I]
@@ -219,7 +219,7 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
         let h = next_ident_away (Id.of_string "H") !avoid in
         let ty,inst = Evarutil.generalize_evar_over_rels sigma (e,args) in
         avoid := Id.Set.add h !avoid;
-        ownSign := Context.Named.add (LocalAssum (make_annot h ERelevance.relevant,ty)) !ownSign;
+        ownSign := Context.Named.add (LocalAssum (ProofVar,make_annot h ERelevance.relevant,ty)) !ownSign;
         applist (mkVar h, inst)
     | _ -> EConstr.map sigma fill_holes c
   in

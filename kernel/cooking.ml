@@ -275,15 +275,15 @@ let abstract_named_context expand_info abstr_ausubst hyps =
   let fold decl abstr_ctx =
     let cache = RefTable.create 13 in
     let decl = match decl with
-    | NamedDecl.LocalDef (id, b, t) ->
+    | NamedDecl.LocalDef (s, id, b, t) ->
       let id = Context.map_annot_relevance (UVars.subst_sort_level_relevance (make_instance_subst abstr_ausubst)) id in
       let b = expand_subst0 cache expand_info abstr_ctx abstr_ausubst b in
       let t = expand_subst0 cache expand_info abstr_ctx abstr_ausubst t in
-      NamedDecl.LocalDef (id, b, t)
-    | NamedDecl.LocalAssum (id, t) ->
+      NamedDecl.LocalDef (s, id, b, t)
+    | NamedDecl.LocalAssum (s, id, t) ->
       let id = Context.map_annot_relevance (UVars.subst_sort_level_relevance (make_instance_subst abstr_ausubst)) id in
       let t = expand_subst0 cache expand_info abstr_ctx abstr_ausubst t in
-      NamedDecl.LocalAssum (id, t)
+      NamedDecl.LocalAssum (s, id, t)
     in
     decl :: abstr_ctx
   in

@@ -842,7 +842,7 @@ let rec whd_state_gen flags ?metas env sigma =
       | _ -> fold ())
     | Var id when RedFlags.red_set flags (RedFlags.fVAR id) ->
       (match lookup_named id env with
-      | LocalDef (_,body,_) ->
+      | LocalDef (_,_,body,_) ->
         whrec (body, stack)
       | _ -> fold ())
     | Evar ev -> fold ()

@@ -2158,7 +2158,7 @@ and compile_rel cenv env sigma univ auxdefs n =
 and compile_named cenv env sigma univ auxdefs id =
   let open Context.Named.Declaration in
   match lookup_named id env with
-  | LocalDef (_,t,_) ->
+  | LocalDef (_,_,t,_) ->
       let code = lambda_of_constr env sigma t in
       let auxdefs,code = compile_with_fv cenv env sigma univ auxdefs None code in
       Glet(Gnamed id, code)::auxdefs
@@ -2339,7 +2339,7 @@ let compile_deps cenv env sigma prefix init t =
   | Var id ->
     let open Context.Named.Declaration in
     begin match lookup_named id env with
-      | LocalDef (_,t,_) ->
+      | LocalDef (_,_,t,_) ->
         aux env lvl init t
       | _ -> init
     end

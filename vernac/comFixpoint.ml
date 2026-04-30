@@ -452,7 +452,7 @@ let interp_mutual_definition env ~program_mode ~poly ~function_mode rec_order fi
     List.fold_left4
       (fun (sigma, rec_sign) id r t (_,extradecl) ->
          let sigma, r, t = if program_mode && List.is_empty extradecl then encapsulate env sigma r t else sigma, r, t in
-         sigma, LocalAssum (Context.make_annot id r, t) :: rec_sign)
+         sigma, LocalAssum (ProofVar,Context.make_annot id r, t) :: rec_sign)
       (sigma, []) fixnames fixrs fixtypes fixextras
   in
   let fixrecimps = List.map3 (fun ctximps wfimps cclimps -> ctximps @ wfimps @ cclimps) fixctximps fixwfimps fixcclimps in

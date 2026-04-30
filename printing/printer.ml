@@ -813,7 +813,7 @@ let process_dependent_evar q acc evm is_dependent e =
     queue_term q true (NamedDecl.get_type decl);
     match decl with
     | LocalAssum _ -> ()
-    | LocalDef (_,b,_) -> queue_term q true b
+    | LocalDef (_,_,b,_) -> queue_term q true b
   end (EConstr.named_context_of_val (Evd.evar_hyps evi));
   match Evd.evar_body evi with
   | Evar_empty ->

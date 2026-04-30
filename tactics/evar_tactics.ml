@@ -101,13 +101,13 @@ let instantiate_tac n c ido =
             match hloc with
                 InHyp ->
                   (match decl with
-                    | LocalAssum (_,typ) -> evar_list sigma (EConstr.of_constr typ)
+                    | LocalAssum (_,_,typ) -> evar_list sigma (EConstr.of_constr typ)
                     | _ -> user_err Pp.(str "Please be more specific: in type or value?"))
               | InHypTypeOnly ->
                   evar_list sigma (EConstr.of_constr (NamedDecl.get_type decl))
               | InHypValueOnly ->
                   (match decl with
-                    | LocalDef (_,body,_) -> evar_list sigma (EConstr.of_constr body)
+                    | LocalDef (_,_,body,_) -> evar_list sigma (EConstr.of_constr body)
                     | _ -> user_err Pp.(str "Not a defined hypothesis.")) in
   if List.length evl < n then
     user_err Pp.(str "Not enough uninstantiated existential variables.");

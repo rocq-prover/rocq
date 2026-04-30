@@ -382,8 +382,8 @@ end = struct
 
   let assoc_defined d =
     match d with
-    | NamedDecl.LocalDef (_, c, _) -> inject c
-    | NamedDecl.LocalAssum (_, _) -> raise Not_found
+    | NamedDecl.LocalDef (_, _, c, _) -> inject c
+    | NamedDecl.LocalAssum _ -> raise Not_found
 
   let constant_value_in u = function
     | Def b -> injectu b u

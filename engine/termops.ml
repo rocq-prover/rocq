@@ -37,7 +37,7 @@ module Internal = struct
     let open NamedDecl in
     let pbody = match decl with
       | LocalAssum _ ->  mt ()
-      | LocalDef (_,c,_) ->
+      | LocalDef (_,_,c,_) ->
         (* Force evaluation *)
         let c = EConstr.of_constr c in
         let pb = print_constr_env env sigma c in
@@ -149,9 +149,11 @@ let pr_decl env sigma (decl,ok) =
   let open NamedDecl in
   let print_constr = Internal.print_kconstr in
   match decl with
-  | LocalAssum ({binder_name=id},_) -> if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
-  | LocalDef ({binder_name=id},c,_) -> str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
-                           print_constr env sigma c ++ str (if ok then ")" else "}")
+  | LocalAssum (_,{binder_name=id},_) ->
+    if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
+  | LocalDef (_,{binder_name=id},c,_) ->
+    str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
+    print_constr env sigma c ++ str (if ok then ")" else "}")
 
 let pr_evar_source env sigma = function
   | Evar_kinds.NamedHole id -> Id.print id
@@ -877,10 +879,7 @@ let dependent sigma c t = dependent_main false sigma c t
 let dependent_no_evar sigma c t = dependent_main true sigma c t
 
 let dependent_in_decl sigma a decl =
-  let open NamedDecl in
-  match decl with
-    | LocalAssum (_,t) -> dependent sigma a t
-    | LocalDef (_, body, t) -> dependent sigma a body || dependent sigma a t
+  NamedDecl.exists (dependent sigma a) decl
 
 let count_occurrences sigma m t =
   let open EConstr in
@@ -1008,6 +1007,7 @@ let ids_of_context env =
 let names_of_rel_context env =
   List.map RelDecl.get_name (rel_context env)
 
+(* XXX use var status (NOT IN THIS ENV) *)
 let is_section_variable env id =
   try let _ = Environ.lookup_named id env in true
   with Not_found -> false
@@ -1182,21 +1182,21 @@ let mem_named_context_val id ctxt =
 let compact_named_context sigma sign =
   let compact l decl =
     match decl, l with
-    | NamedDecl.LocalAssum (i,t), [] ->
+    | NamedDecl.LocalAssum (_,i,t), [] ->
        [CompactedDecl.LocalAssum ([i],t)]
-    | NamedDecl.LocalDef (i,c,t), [] ->
+    | NamedDecl.LocalDef (_,i,c,t), [] ->
        [CompactedDecl.LocalDef ([i],c,t)]
-    | NamedDecl.LocalAssum (i1,t1), CompactedDecl.LocalAssum (li,t2) :: q ->
+    | NamedDecl.LocalAssum (_,i1,t1), CompactedDecl.LocalAssum (li,t2) :: q ->
        if EConstr.eq_constr sigma t1 t2
        then CompactedDecl.LocalAssum (i1::li, t2) :: q
        else CompactedDecl.LocalAssum ([i1],t1) :: CompactedDecl.LocalAssum (li,t2) :: q
-    | NamedDecl.LocalDef (i1,c1,t1), CompactedDecl.LocalDef (li,c2,t2) :: q ->
+    | NamedDecl.LocalDef (_,i1,c1,t1), CompactedDecl.LocalDef (li,c2,t2) :: q ->
        if EConstr.eq_constr sigma c1 c2 && EConstr.eq_constr sigma t1 t2
        then CompactedDecl.LocalDef (i1::li, c2, t2) :: q
        else CompactedDecl.LocalDef ([i1],c1,t1) :: CompactedDecl.LocalDef (li,c2,t2) :: q
-    | NamedDecl.LocalAssum (i,t), q ->
+    | NamedDecl.LocalAssum (_,i,t), q ->
        CompactedDecl.LocalAssum ([i],t) :: q
-    | NamedDecl.LocalDef (i,c,t), q ->
+    | NamedDecl.LocalDef (_,i,c,t), q ->
        CompactedDecl.LocalDef ([i],c,t) :: q
   in
   sign |> Context.Named.fold_inside compact ~init:[] |> List.rev
@@ -1204,7 +1204,7 @@ let compact_named_context sigma sign =
 let clear_named_body id env =
   let open NamedDecl in
   let aux _ = function
-  | LocalDef (id',c,t) when Id.equal id id'.binder_name -> push_named (LocalAssum (id',t))
+  | LocalDef (s,id',c,t) when Id.equal id id'.binder_name -> push_named (LocalAssum (s,id',t))
   | d -> push_named d in
   fold_named_context aux env ~init:(reset_context env)
 
@@ -1217,8 +1217,8 @@ let global_vars_set env sigma constr =
   filtrec Id.Set.empty constr
 
 let global_vars_set_of_decl env sigma = function
-  | NamedDecl.LocalAssum (_,t) -> global_vars_set env sigma t
-  | NamedDecl.LocalDef (_,c,t) ->
+  | NamedDecl.LocalAssum (_,_,t) -> global_vars_set env sigma t
+  | NamedDecl.LocalDef (_,_,c,t) ->
       Id.Set.union (global_vars_set env sigma t)
         (global_vars_set env sigma c)
 

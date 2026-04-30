@@ -195,7 +195,7 @@ let interp_context_gen ~program_mode ~poly ~kind ~autoimp_enable ~coercions env 
   in
   (* reorder, evar-normalize and add implicit status *)
   let ctx = List.map2 (fun loc d ->
-      let {binder_name=id}, b, t = NamedDecl.to_tuple d in
+      let _, {binder_name=id}, b, t = NamedDecl.to_tuple d in
       let impl = find_binding_kind id impls in
       let kind = Decls.(if b = None then IsAssumption kind else IsDefinition (match kind with Context -> LetContext | _ -> Let)) in
       let is_coe = if Id.Set.mem id coercions then Vernacexpr.AddCoercion else Vernacexpr.NoCoercion in

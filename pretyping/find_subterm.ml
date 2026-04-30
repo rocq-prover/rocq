@@ -41,18 +41,18 @@ let map_named_declaration_with_hyploc f hyploc acc decl =
     acc, typ
   in
   match decl,hyploc with
-  | LocalAssum (id,_), InHypValueOnly ->
+  | LocalAssum (_,id,_), InHypValueOnly ->
       user_err (explain_incorrect_in_value_occurrence id.Context.binder_name)
-  | LocalAssum (id,typ), _ ->
-      let acc,typ = f acc typ in acc, LocalAssum (id,typ)
-  | LocalDef (id,body,typ), InHypTypeOnly ->
-      let acc,typ = f acc typ in acc, LocalDef (id,body,typ)
-  | LocalDef (id,body,typ), InHypValueOnly ->
-      let acc,body = f acc body in acc, LocalDef (id,body,typ)
-  | LocalDef (id,body,typ), InHyp ->
+  | LocalAssum (s,id,typ), _ ->
+      let acc,typ = f acc typ in acc, LocalAssum (s,id,typ)
+  | LocalDef (s,id,body,typ), InHypTypeOnly ->
+      let acc,typ = f acc typ in acc, LocalDef (s,id,body,typ)
+  | LocalDef (s,id,body,typ), InHypValueOnly ->
+      let acc,body = f acc body in acc, LocalDef (s,id,body,typ)
+  | LocalDef (s,id,body,typ), InHyp ->
       let acc,body = f acc body in
       let acc,typ = f acc typ in
-      acc, LocalDef (id,body,typ)
+      acc, LocalDef (s,id,body,typ)
 
 (** Finding a subterm up to some testing function *)
 

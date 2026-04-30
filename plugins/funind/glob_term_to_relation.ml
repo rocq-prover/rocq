@@ -310,8 +310,8 @@ let raw_push_named (na, raw_value, raw_typ) env =
     let na = make_annot id ERelevance.relevant in
     (* TODO relevance *)
     match raw_value with
-    | None -> EConstr.push_named (NamedDecl.LocalAssum (na, typ)) env
-    | Some value -> EConstr.push_named (NamedDecl.LocalDef (na, value, typ)) env
+    | None -> EConstr.push_named (NamedDecl.LocalAssum (ProofVar, na, typ)) env
+    | Some value -> EConstr.push_named (NamedDecl.LocalDef (ProofVar, na, value, typ)) env
     )
 
 let add_pat_variables sigma pat typ env : Environ.env =
@@ -362,7 +362,7 @@ let add_pat_variables sigma pat typ env : Environ.env =
                ++ Printer.pr_lconstr_env env sigma new_t
                ++ fnl () );
              let open Context.Named.Declaration in
-             (Environ.push_named (LocalAssum (na, new_t)) env, mkVar id :: ctxt)
+             (Environ.push_named (LocalAssum (ProofVar, na, new_t)) env, mkVar id :: ctxt)
            | LocalDef (({binder_name = Name id} as na), v, t) ->
              let na = {na with binder_name = id} in
              let new_t = substl ctxt t in
@@ -379,7 +379,7 @@ let add_pat_variables sigma pat typ env : Environ.env =
                ++ Printer.pr_lconstr_env env sigma new_v
                ++ fnl () );
              let open Context.Named.Declaration in
-             ( Environ.push_named (LocalDef (na, new_v, new_t)) env
+             ( Environ.push_named (LocalDef (ProofVar, na, new_v, new_t)) env
              , mkVar id :: ctxt ))
          (Environ.rel_context new_env)
          ~init:(env, []))
@@ -644,7 +644,7 @@ let rec build_entry_lc env sigma funnames avoid rt :
       | Anonymous -> env
       | Name id ->
         EConstr.push_named
-          (NamedDecl.LocalDef (make_annot id v_r, v_as_constr, v_type))
+          (NamedDecl.LocalDef (ProofVar, make_annot id v_r, v_as_constr, v_type))
           env
     in
     let b_res = build_entry_lc new_env sigma funnames avoid b in
@@ -1318,7 +1318,7 @@ let do_build_inductive evd (funconstants : pconstant list)
         let u = EConstr.EInstance.make u in
         let evd, t = Typing.type_of env evd (EConstr.mkConstU (c, u)) in
         ( evd
-        , EConstr.push_named (LocalAssum (make_annot id ERelevance.relevant, t)) env
+        , EConstr.push_named (LocalAssum (ProofVar, make_annot id ERelevance.relevant, t)) env
         ))
       funnames
       (Array.of_list funconstants)
@@ -1379,7 +1379,7 @@ let do_build_inductive evd (funconstants : pconstant list)
         in
         let r = ERelevance.relevant in
         (* TODO relevance *)
-        EConstr.push_named (LocalAssum (make_annot rel_name r, rex)) env)
+        EConstr.push_named (LocalAssum (ProofVar, make_annot rel_name r, rex)) env)
       env relnames rel_arities
   in
   (* and of the real constructors*)

@@ -446,7 +446,7 @@ let pr_econstr_pat env sigma c0 =
   let dummy_decl =
     let dummy_prod = mkProd (make_annot Anonymous Sorts.Relevant,mkProp,mkProp) in
     let na = make_annot (EConstr.destVar sigma ehole_var) Sorts.Relevant in
-    Context.Named.Declaration.(LocalAssum (na, dummy_prod)) in
+    Context.Named.Declaration.(LocalAssum (ProofVar, na, dummy_prod)) in
   let env = Environ.push_named dummy_decl env in
   pr_econstr_env env sigma (wipe_evar c0)
 
@@ -462,9 +462,9 @@ let evars_for_FO ~hack ~rigid env (ise0:evar_map) c0 =
     let evi = Evd.find_undefined !sigma k in
     let dc = List.firstn (max 0 (SList.length a - nenv)) (evar_filtered_context evi) in
     let abs_dc (d, c) = function
-    | Context.Named.Declaration.LocalDef (x, b, t) ->
+    | Context.Named.Declaration.LocalDef (_, x, b, t) ->
         d, mkNamedLetIn !sigma x (put b) (put t) c
-    | Context.Named.Declaration.LocalAssum (x, t) ->
+    | Context.Named.Declaration.LocalAssum (_, x, t) ->
         mkVar x.binder_name :: d, mkNamedProd !sigma x (put t) c in
     let a, t =
       Context.Named.fold_inside abs_dc ~init:([], put (Evd.evar_concl evi)) dc

@@ -738,7 +738,7 @@ and cbv_value_cache info ref =
           | VarKey id ->
             let open Context.Named.Declaration in
             begin match Environ.lookup_named id info.env with
-              | LocalDef (_, c, _) -> c
+              | LocalDef (_, _, c, _) -> c
               | LocalAssum _ -> raise Not_found
             end
           | ConstKey (cst, u) ->

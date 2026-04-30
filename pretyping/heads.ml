@@ -38,8 +38,8 @@ let rec compute_head_const env sigma cst =
   | Some c -> kind_of_head env sigma (EConstr.of_constr c)
 
 and compute_head_var env sigma id = match lookup_named id env with
-| LocalDef (_,c,_) -> kind_of_head env sigma c
-| _ -> RigidHead RigidOther
+| LocalDef (_,_,c,_) -> kind_of_head env sigma c
+| LocalAssum _ -> RigidHead RigidOther
 
 and kind_of_head env sigma t =
   let rec aux k l t b = match EConstr.kind sigma (Reductionops.clos_whd_flags RedFlags.betaiotazeta env sigma t) with
@@ -50,7 +50,7 @@ and kind_of_head env sigma t =
        with Not_found ->
         (* a goal variable *)
         match lookup_named id env with
-        | LocalDef (_,c,_) -> aux k l c b
+        | LocalDef (_,_,c,_) -> aux k l c b
         | LocalAssum _ -> NotImmediatelyComputableHead)
   | Const (cst,_) ->
       (try on_subterm k l b (compute_head_const env sigma cst)

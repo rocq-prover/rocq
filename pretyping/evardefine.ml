@@ -86,7 +86,7 @@ let define_pure_evar_as_product env evd na evk =
   in
   let rdom = ESorts.relevance_of_sort u1 in
   let evd2,rng =
-    let newenv = push_named (LocalAssum (make_annot id rdom, dom)) evenv in
+    let newenv = push_named (LocalAssum (ProofVar, make_annot id rdom, dom)) evenv in
     let src = subterm_source evk ~where:Codomain evksrc in
     let filter = Filter.extend 1 (evar_filter evi) in
       if Environ.is_impredicative_sort env (ESorts.kind evd1 s) then
@@ -139,7 +139,7 @@ let define_pure_evar_as_lambda env evd name evk =
     map_annot (fun na -> next_name_away_with_default_using_types evenv evd "x" na avoid
       (Reductionops.whd_evar evd dom)) na
   in
-  let newenv = push_named (LocalAssum (id, dom)) evenv in
+  let newenv = push_named (LocalAssum (ProofVar, id, dom)) evenv in
   let filter = Filter.extend 1 (evar_filter evi) in
   let src = subterm_source evk ~where:Body (evar_source evi) in
   let abstract_arguments = Abstraction.abstract_last (Evd.evar_abstract_arguments evi) in

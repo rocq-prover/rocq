@@ -493,9 +493,9 @@ let abstract_generalize ?(generalize_vars=true) ?(force_dep=false) id =
   let (f, args, def, id, oldid) =
     let oldid = Tacmach.pf_get_new_id id gl in
       match Tacmach.pf_get_hyp id gl with
-      | LocalAssum (_,t) -> let f, args = decompose_app sigma t in
+      | LocalAssum (_,_,t) -> let f, args = decompose_app sigma t in
                 (f, args, false, id, oldid)
-      | LocalDef (_,t,_) ->
+      | LocalDef (_,_,t,_) ->
           let f, args = decompose_app sigma t in
           (f, args, true, id, oldid)
   in

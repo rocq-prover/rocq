@@ -415,7 +415,7 @@ let compute_var_aliases sign sigma =
   List.fold_right (fun decl aliases ->
     let id = get_id decl in
     match decl with
-    | LocalDef (_,t,_) ->
+    | LocalDef (_,_,t,_) ->
       let aliases_of_id =
         match EConstr.kind sigma t with
         | Var id' ->
@@ -728,7 +728,7 @@ let make_constructor_subst sigma sign args =
   let rec fold decls args accu = match decls, SList.view args with
   | _ :: _, None | [], Some _ -> assert false
   | [], None -> accu
-  | LocalAssum ({ binder_name = id }, _) :: decls, Some (Some a, args) ->
+  | LocalAssum (_, { binder_name = id }, _) :: decls, Some (Some a, args) ->
     let accu = fold decls args accu in
     let a', args = decompose_app sigma a in
     begin match EConstr.kind sigma a' with
@@ -755,7 +755,7 @@ let make_projectable_subst aliases sigma sign args =
     let revmap = Id.Map.add id i revmap in
     let oldbindings = match decl with
     | LocalAssum _ -> None
-    | LocalDef (_, c, _) ->
+    | LocalDef (_, _, c, _) ->
       match EConstr.kind sigma c with
       | Var id' ->
         let idc = normalize_alias_var evar_aliases id' in
@@ -867,11 +867,11 @@ let materialize_evar define_fun env evd k (evk1,args1) ty_in_env =
         define_evar_from_virtual_equation define_fun env evd src t_in_env
           ty_t_in_sign sign filter inst_in_env in
       let evd,d' = match d with
-      | LocalAssum _ -> evd, Context.Named.Declaration.LocalAssum (id,t_in_sign)
+      | LocalAssum _ -> evd, Context.Named.Declaration.LocalAssum (ProofVar,id,t_in_sign)
       | LocalDef (_,b,_) ->
           let evd,b = define_evar_from_virtual_equation define_fun env evd src b
             t_in_sign sign filter inst_in_env in
-          evd, Context.Named.Declaration.LocalDef (id,b,t_in_sign) in
+          evd, Context.Named.Declaration.LocalDef (ProofVar,id,b,t_in_sign) in
       (push_named_context_val d' sign, Filter.extend 1 filter,
        SList.cons (mkRel 1) (SList.Skip.map (lift 1) inst_in_env),
        SList.cons (mkRel 1) (SList.Skip.map (lift 1) inst_in_sign),
@@ -1187,7 +1187,7 @@ let closure_of_filter ~can_drop evd evk = function
                     match decl with
                     | LocalAssum _ ->
                        false
-                    | LocalDef (_,c,_) ->
+                    | LocalDef (_,_,c,_) ->
                        not (can_drop || isRel evd c || isVar evd c)
   in
   let newfilter = Filter.map_along test filter (evar_context evi) in
@@ -1698,7 +1698,7 @@ let rec invert_definition unify flags choose imitate_defs
     | Var id ->
         (match Environ.lookup_named id env' with
         | LocalAssum _ -> project_variable (VarAlias id)
-        | LocalDef (_,b,_) ->
+        | LocalDef (_,_,b,_) ->
           try project_variable (VarAlias id)
           with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
             imitate envk (EConstr.of_constr b))

@@ -2209,7 +2209,7 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
     let decl = Context.Named.lookup id hyps in
     let natureofid = match decl with
                      | LocalAssum _ -> "Hypothesis"
-                     | LocalDef (_,bdy,_) ->"Constant (let in)" in
+                     | LocalDef (_,_,bdy,_) ->"Constant (let in)" in
     let sigma, env = Declare.Proof.get_current_context pstate in
     v 0 (Id.print id ++ str":" ++ pr_econstr_env env sigma (NamedDecl.get_type decl) ++ fnl() ++ fnl()
          ++ str natureofid ++ str " of the goal context.")

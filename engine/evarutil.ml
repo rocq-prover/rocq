@@ -115,7 +115,8 @@ let is_ground_env evd env =
     | RelDecl.LocalDef (_,b,_) -> is_ground_term evd (EConstr.of_constr b)
     | _ -> true in
   let is_ground_named_decl = function
-    | NamedDecl.LocalDef (_,b,_) -> is_ground_term evd (EConstr.of_constr b)
+    (* skip if SecVar? *)
+    | NamedDecl.LocalDef (_,_,b,_) -> is_ground_term evd (EConstr.of_constr b)
     | _ -> true in
   List.for_all is_ground_rel_decl (rel_context env) &&
   List.for_all is_ground_named_decl (named_context env)
@@ -707,7 +708,7 @@ let cached_evar_of_hyp cache sigma decl accu = match cache with
     try Id.Map.find id.binder_name cache.cache
     with Not_found ->
       (* Dummy value *)
-      let r = ref (NamedDecl.LocalAssum (id, EConstr.mkProp), Evar.Set.empty) in
+      let r = ref (NamedDecl.LocalAssum (ProofVar, id, EConstr.mkProp), Evar.Set.empty) in
       let () = cache.cache <- Id.Map.add id.binder_name r cache.cache in
       r
   in

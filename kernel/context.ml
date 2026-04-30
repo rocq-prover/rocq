@@ -339,13 +339,24 @@ struct
   (** Representation of {e local declarations}. *)
   module Declaration =
   struct
+    (* XXX SecVar of Id to keep track of renamings? *)
+    type status = SecVar | ProofVar
+
+    let eq_status a b =
+      match a, b with
+      | SecVar, SecVar -> true
+      | ProofVar, ProofVar -> true
+      | (SecVar | ProofVar), _ -> false
+
     (** local declaration *)
     type ('constr, 'types, 'r) pt =
-      | LocalAssum of (Id.t,'r) pbinder_annot * 'types             (** identifier, type *)
-      | LocalDef of (Id.t,'r) pbinder_annot * 'constr * 'types    (** identifier, value, type *)
+      | LocalAssum of status * (Id.t,'r) pbinder_annot * 'types             (** identifier, type *)
+      | LocalDef of status * (Id.t,'r) pbinder_annot * 'constr * 'types    (** identifier, value, type *)
+
+    let get_status (LocalAssum (s,_,_) | LocalDef (s,_,_,_)) = s
 
     let get_annot = function
-      | LocalAssum (na,_) | LocalDef (na,_,_) -> na
+      | LocalAssum (_,na,_) | LocalDef (_,na,_,_) -> na
 
     (** Return the identifier bound by a given declaration. *)
     let get_id x = (get_annot x).binder_name
@@ -353,12 +364,12 @@ struct
     (** Return [Some value] for local-declarations and [None] for local-assumptions. *)
     let get_value = function
       | LocalAssum _ -> None
-      | LocalDef (_,v,_) -> Some v
+      | LocalDef (_,_,v,_) -> Some v
 
     (** Return the type of the name bound by a given declaration. *)
     let get_type = function
-      | LocalAssum (_,ty)
-      | LocalDef (_,_,ty) -> ty
+      | LocalAssum (_,_,ty)
+      | LocalDef (_,_,_,ty) -> ty
 
     let get_relevance x = (get_annot x).binder_relevance
 
@@ -366,8 +377,8 @@ struct
     let set_id id =
       let set x = {x with binder_name = id} in
       function
-      | LocalAssum (x,ty) -> LocalAssum (set x, ty)
-      | LocalDef (x, v, ty) -> LocalDef (set x, v, ty)
+      | LocalAssum (s, x, ty) -> LocalAssum (s, set x, ty)
+      | LocalDef (s, x, v, ty) -> LocalDef (s, set x, v, ty)
 
     (** Return [true] iff a given declaration is a local assumption. *)
     let is_local_assum = function
@@ -381,21 +392,21 @@ struct
 
     (** Check whether any term in a given declaration satisfies a given predicate. *)
     let exists f = function
-      | LocalAssum (_, ty) -> f ty
-      | LocalDef (_, v, ty) -> f v || f ty
+      | LocalAssum (_, _, ty) -> f ty
+      | LocalDef (_, _, v, ty) -> f v || f ty
 
     (** Check whether all terms in a given declaration satisfy a given predicate. *)
     let for_all f = function
-      | LocalAssum (_, ty) -> f ty
-      | LocalDef (_, v, ty) -> f v && f ty
+      | LocalAssum (_, _, ty) -> f ty
+      | LocalDef (_, _, v, ty) -> f v && f ty
 
     (** Check whether the two given declarations are equal. *)
     let equal eqr eq decl1 decl2 =
       match decl1, decl2 with
-      | LocalAssum (id1, ty1), LocalAssum (id2, ty2) ->
-          eq_annot Id.equal eqr id1 id2 && eq ty1 ty2
-      | LocalDef (id1, v1, ty1), LocalDef (id2, v2, ty2) ->
-          eq_annot Id.equal eqr id1 id2 && eq v1 v2 && eq ty1 ty2
+      | LocalAssum (s1, id1, ty1), LocalAssum (s2, id2, ty2) ->
+          eq_status s1 s2 && eq_annot Id.equal eqr id1 id2 && eq ty1 ty2
+      | LocalDef (s1, id1, v1, ty1), LocalDef (s2, id2, v2, ty2) ->
+          eq_status s1 s2 && eq_annot Id.equal eqr id1 id2 && eq v1 v2 && eq ty1 ty2
       | _ ->
           false
 
@@ -407,70 +418,70 @@ struct
 
     (** Map all terms in a given declaration. *)
     let map_constr f = function
-      | LocalAssum (id, ty) as decl ->
+      | LocalAssum (s, id, ty) as decl ->
           let ty' = f ty in
-          if ty == ty' then decl else LocalAssum (id, ty')
-      | LocalDef (id, v, ty) as decl ->
+          if ty == ty' then decl else LocalAssum (s, id, ty')
+      | LocalDef (s, id, v, ty) as decl ->
           let v' = f v in
           let ty' = f ty in
-          if v == v' && ty == ty' then decl else LocalDef (id, v', ty')
+          if v == v' && ty == ty' then decl else LocalDef (s, id, v', ty')
 
     (** Map all terms in a given declaration. *)
     let map_constr_with_relevance g f = function
-      | LocalAssum (id, ty) as decl ->
+      | LocalAssum (s, id, ty) as decl ->
           let id' = map_annot_relevance g id in
           let ty' = f ty in
-          if id == id' && ty == ty' then decl else LocalAssum (id', ty')
-      | LocalDef (id, v, ty) as decl ->
+          if id == id' && ty == ty' then decl else LocalAssum (s, id', ty')
+      | LocalDef (s, id, v, ty) as decl ->
           let id' = map_annot_relevance g id in
           let v' = f v in
           let ty' = f ty in
-          if id == id' && v == v' && ty == ty' then decl else LocalDef (id', v', ty')
+          if id == id' && v == v' && ty == ty' then decl else LocalDef (s, id', v', ty')
 
     let map_constr_het fr f = function
-      | LocalAssum (id, ty) ->
+      | LocalAssum (s, id, ty) ->
           let ty' = f ty in
-          LocalAssum (map_annot_relevance_het fr id, ty')
-      | LocalDef (id, v, ty) ->
+          LocalAssum (s, map_annot_relevance_het fr id, ty')
+      | LocalDef (s, id, v, ty) ->
           let v' = f v in
           let ty' = f ty in
-          LocalDef (map_annot_relevance_het fr id, v', ty')
+          LocalDef (s, map_annot_relevance_het fr id, v', ty')
 
     (** Perform a given action on all terms in a given declaration. *)
     let iter_constr f = function
-      | LocalAssum (_, ty) -> f ty
-      | LocalDef (_, v, ty) -> f v; f ty
+      | LocalAssum (_, _, ty) -> f ty
+      | LocalDef (_, _, v, ty) -> f v; f ty
 
     (** Reduce all terms in a given declaration to a single value. *)
     let fold_constr f decl a =
       match decl with
-      | LocalAssum (_, ty) -> f ty a
-      | LocalDef (_, v, ty) -> a |> f v |> f ty
+      | LocalAssum (_, _, ty) -> f ty a
+      | LocalDef (_, _, v, ty) -> a |> f v |> f ty
 
     let to_tuple = function
-      | LocalAssum (id, ty) -> id, None, ty
-      | LocalDef (id, v, ty) -> id, Some v, ty
+      | LocalAssum (s, id, ty) -> s, id, None, ty
+      | LocalDef (s, id, v, ty) -> s, id, Some v, ty
 
     let of_tuple = function
-      | id, None, ty -> LocalAssum (id, ty)
-      | id, Some v, ty -> LocalDef (id, v, ty)
+      | s, id, None, ty -> LocalAssum (s, id, ty)
+      | s, id, Some v, ty -> LocalDef (s, id, v, ty)
 
     let drop_body = function
       | LocalAssum _ as d -> d
-      | LocalDef (id, _v, ty) -> LocalAssum (id, ty)
+      | LocalDef (s, id, _v, ty) -> LocalAssum (s, id, ty)
 
     let of_rel_decl f = function
       | Rel.Declaration.LocalAssum (na,t) ->
-        LocalAssum (map_annot f na, t)
+        LocalAssum (ProofVar, map_annot f na, t)
       | Rel.Declaration.LocalDef (na,v,t) ->
-        LocalDef (map_annot f na, v, t)
+        LocalDef (ProofVar, map_annot f na, v, t)
 
     let to_rel_decl =
       let name x = {binder_name=Name x.binder_name;binder_relevance=x.binder_relevance} in
       function
-      | LocalAssum (id,t) ->
+      | LocalAssum (_,id,t) ->
           Rel.Declaration.LocalAssum (name id, t)
-      | LocalDef (id,v,t) ->
+      | LocalDef (_,id,v,t) ->
           Rel.Declaration.LocalDef (name id,v,t)
   end
 
@@ -528,7 +539,7 @@ struct
       gives [Var id1, Var id3]. All [idj] are supposed distinct. *)
   let to_instance mk l =
     let filter = function
-      | Declaration.LocalAssum (id, _) -> Some (mk id.binder_name)
+      | Declaration.LocalAssum (_, id, _) -> Some (mk id.binder_name)
       | _ -> None
     in
     List.map_filter filter l
@@ -539,7 +550,7 @@ struct
       gives [Var id1, Var id3]. All [idj] are supposed distinct. *)
   let instance_list mk l =
     let filter = function
-      | Declaration.LocalAssum (id, _) -> Some (mk id.binder_name)
+      | Declaration.LocalAssum (_, id, _) -> Some (mk id.binder_name)
       | _ -> None
     in
     List.rev (List.map_filter filter l)
@@ -566,9 +577,9 @@ module Compacted =
              if c == c' && ty == ty' then decl else LocalDef (ids,c',ty')
 
         let of_named_decl = function
-          | Named.Declaration.LocalAssum (id,t) ->
+          | Named.Declaration.LocalAssum (_,id,t) ->
               LocalAssum ([id],t)
-          | Named.Declaration.LocalDef (id,v,t) ->
+          | Named.Declaration.LocalDef (_,id,v,t) ->
               LocalDef ([id],v,t)
       end
 

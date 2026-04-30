@@ -950,7 +950,7 @@ let really_needed env needed =
         let globc =
           match decl with
             | LocalAssum _ -> Id.Set.empty
-            | LocalDef (_,c,_) -> global_vars_set env c in
+            | LocalDef (_,_,c,_) -> global_vars_set env c in
         Id.Set.union
           (global_vars_set env (get_type decl))
           (Id.Set.union globc need)

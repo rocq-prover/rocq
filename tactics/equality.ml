@@ -1186,7 +1186,7 @@ let discr_positions env sigma { eq_data = (_, _ , s, (t, _, _)) as eq_data; eq_t
   let false_ty = Retyping.get_type_of env sigma false_0 in
   let false_kind = Retyping.get_sort_of env sigma false_0 in
   let e = next_ident_away eq_baseid (vars_of_env env) in
-  let e_env = push_named (Context.Named.Declaration.LocalAssum (make_annot e ERelevance.relevant,t)) env in
+  let e_env = push_named (LocalAssum (ProofVar,make_annot e ERelevance.relevant,t)) env in
 
   let discriminator =
     try
@@ -1415,7 +1415,7 @@ let simplify_args env sigma t =
 let inject_at_positions env sigma l2r eq posns tac =
   let { eq_data = (eq, congr, s, (t,t1,t2)); eq_term = v; eq_evar = evs } = eq in
   let e = next_ident_away eq_baseid (vars_of_env env) in
-  let e_env = push_named (LocalAssum (make_annot e ERelevance.relevant,t)) env in
+  let e_env = push_named (LocalAssum (ProofVar,make_annot e ERelevance.relevant,t)) env in
   let evdref = ref sigma in
   let filter (cpath, t1', t2') =
     try

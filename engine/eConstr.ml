@@ -1121,20 +1121,20 @@ let mkNamedLetIn sigma id c1 t c2 = mkLetIn (map_annot Name.mk_name id, c1, t, V
 let mkNamedProd_or_LetIn sigma decl c =
   let open Context.Named.Declaration in
   match decl with
-  | LocalAssum (id,t) -> mkNamedProd sigma id t c
-  | LocalDef (id,b,t) -> mkNamedLetIn sigma id b t c
+  | LocalAssum (_,id,t) -> mkNamedProd sigma id t c
+  | LocalDef (_,id,b,t) -> mkNamedLetIn sigma id b t c
 
 let mkNamedLambda_or_LetIn sigma decl c =
   let open Context.Named.Declaration in
   match decl with
-  | LocalAssum (id,t) -> mkNamedLambda sigma id t c
-  | LocalDef (id,b,t) -> mkNamedLetIn sigma id b t c
+  | LocalAssum (_,id,t) -> mkNamedLambda sigma id t c
+  | LocalDef (_,id,b,t) -> mkNamedLetIn sigma id b t c
 
 let mkNamedProd_wo_LetIn sigma decl c =
   let open Context.Named.Declaration in
   match decl with
-  | LocalAssum (id,t) -> mkNamedProd sigma id t c
-  | LocalDef (id,b,t) -> Vars.subst1 b c
+  | LocalAssum (_,id,t) -> mkNamedProd sigma id t c
+  | LocalDef (_,id,b,t) -> Vars.subst1 b c
 
 let it_mkProd init = List.fold_left (fun c (n,t)  -> mkProd (n, t, c)) init
 let it_mkLambda init = List.fold_left (fun c (n,t)  -> mkLambda (n, t, c)) init
