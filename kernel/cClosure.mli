@@ -26,7 +26,8 @@ type finvert
 
 type evar_repack
 
-type usubs = fconstr subs UVars.puniverses
+type subs_content
+type usubs = subs_content subs UVars.puniverses
 
 type table_key = Constant.t UVars.puniverses tableKey
 
@@ -191,6 +192,8 @@ val eta_expand_stack : clos_infos -> Name.t binder_annot -> stack -> stack
  *)
 val eta_expand_ind_stack : env -> pinductive -> fconstr ->
    (fconstr * stack) -> stack * stack
+
+val esubst_of_context : constr option list -> usubs -> usubs -> int * usubs
 
 (** Conversion auxiliary functions to do step by step normalisation *)
 
