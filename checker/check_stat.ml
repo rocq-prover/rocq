@@ -22,8 +22,6 @@ let print_memory_stat () =
     Format.print_flush()
   end
 
-let output_context = ref false
-
 let pr_impredicative_set env =
   if is_impredicative_set env then str "Theory: Set is impredicative"
   else str "Theory: Set is predicative"
@@ -39,13 +37,7 @@ let pr_assumptions ass axs =
     hv 2 (str ass ++ str ":" ++ fnl() ++ prlist_with_sep fnl str axs)
 
 let pr_axioms env opac =
-  let add c cb acc =
-    if Declareops.constant_has_body cb then acc else
-      match Cmap.find_opt c opac with
-      | None -> Cset.add c acc
-      | Some s -> Cset.union s acc in
-  let csts = fold_constants add env Cset.empty in
-  let csts = Cset.fold (fun c acc -> Constant.to_string c :: acc) csts [] in
+  let csts = List.map Constant.to_string opac in
   pr_assumptions "Axioms" csts
 
 let pr_type_in_type env =
@@ -70,21 +62,21 @@ let pr_indices_matter env =
     else acc) env [] in
   pr_assumptions "Inductives relying on indices not mattering" inds
 
-let print_context env opac =
-  if !output_context then begin
-    Feedback.msg_notice
-      (hov 0
-      (fnl() ++ str"CONTEXT SUMMARY" ++ fnl() ++
-      str"===============" ++ fnl() ++ fnl() ++
-      str "* " ++ hov 0 (pr_impredicative_set env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_rewrite_rules env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_axioms env opac ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_type_in_type env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_unguarded env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_nonpositive env ++ fnl()) ++ fnl() ++
-      str "* " ++ hov 0 (pr_indices_matter env ++ fnl()))
-      )
-  end
+let print_context env opac = match opac with
+| None -> ()
+| Some opac ->
+  Feedback.msg_notice
+    (hov 0
+    (fnl() ++ str"CONTEXT SUMMARY" ++ fnl() ++
+    str"===============" ++ fnl() ++ fnl() ++
+    str "* " ++ hov 0 (pr_impredicative_set env ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_rewrite_rules env ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_axioms env opac ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_type_in_type env ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_unguarded env ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_nonpositive env ++ fnl()) ++ fnl() ++
+    str "* " ++ hov 0 (pr_indices_matter env ++ fnl()))
+    )
 
 let stats env opac =
   print_context env opac;

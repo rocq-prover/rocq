@@ -14,10 +14,10 @@ open Safe_typing
 
 val import
   : safe_environment
-  -> Names.Cset.t Names.Cmap.t
+  -> Mod_checking.opaques
   -> compiled_library
   -> Vmlibrary.on_disk
-  -> vodigest -> safe_environment * Names.Cset.t Names.Cmap.t
+  -> vodigest -> safe_environment * Mod_checking.opaques
 
 val unsafe_import
   : safe_environment

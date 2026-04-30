@@ -8,6 +8,5 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 val memory_stat : bool ref
-val output_context : bool ref
 
-val stats : Environ.env -> Names.Cset.t Names.Cmap.t -> unit
+val stats : Environ.env -> Names.Constant.t list option -> unit
