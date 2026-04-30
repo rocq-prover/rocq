@@ -43,6 +43,7 @@ type named_context_val = private {
   (** Identifier-indexed version of [env_named_ctx] *)
   env_named_idx : Constr.named_declaration Range.t;
   (** Same as env_named_ctx but with a fast-access list. *)
+  env_named_secvars : Id.Set.t;
 }
 
 type rel_context_val = private {
@@ -110,24 +111,32 @@ val fold_rel_context :
 
 (** {5 Context of variables (section variables and goal assumptions) } *)
 
+type var_status = SecVar | ProofVar
+
+val var_status_ctxt : ?check:bool -> Id.t -> named_context_val -> var_status
+val var_status : ?check:bool -> Id.t -> env -> var_status
+
 val named_context_of_val : named_context_val -> Constr.named_context
-val val_of_named_context : Constr.named_context -> named_context_val
+val val_of_named_context : (var_status * Constr.named_declaration) list -> named_context_val
 val empty_named_context_val : named_context_val
 val ids_of_named_context_val : named_context_val -> Id.Set.t
+val named_context_of_val_with_status : named_context_val -> (var_status * named_declaration) list
 
 
 (** [map_named_val f ctxt] apply [f] to the body and the type of
    each declarations.
-   *** /!\ ***   [f t] should be convertible with t, and preserve the name *)
+   *** /!\ ***   [f t] must preserve the name *)
 val map_named_val :
-   (named_declaration -> named_declaration) -> named_context_val -> named_context_val
+  (var_status -> named_declaration -> var_status * named_declaration) ->
+  named_context_val -> named_context_val
 
-val push_named : Constr.named_declaration -> env -> env
-val push_named_context : Constr.named_context -> env -> env
+val push_named : var_status -> Constr.named_declaration -> env -> env
+val push_named_context : (var_status * Constr.named_declaration) list -> env -> env
 val push_named_context_val  :
-    Constr.named_declaration -> named_context_val -> named_context_val
+  var_status -> Constr.named_declaration -> named_context_val -> named_context_val
 
 
+val mem_named_ctxt : variable -> named_context_val -> bool
 val mem_named : variable -> env -> bool
 
 (** Looks up in the context of local vars referred by names ([named_context])
@@ -142,9 +151,9 @@ val named_body : variable -> env -> constr option
 (** {6 Recurrence on [named_context]: older declarations processed first } *)
 
 val fold_named_context :
-  (env -> Constr.named_declaration -> 'a -> 'a) -> env -> init:'a -> 'a
+  (env -> var_status -> Constr.named_declaration -> 'a -> 'a) -> env -> init:'a -> 'a
 
-val match_named_context_val : named_context_val -> (named_declaration * named_context_val) option
+val match_named_context_val : named_context_val -> (var_status * named_declaration * named_context_val) option
 
 (** Recurrence on [named_context] starting from younger decl *)
 val fold_named_context_reverse :
@@ -470,10 +479,10 @@ exception Hyp_not_found
    return [tail::(f head (id,_,_) (rev tail))::head].
    the value associated to id should not change *)
 val apply_to_hyp : named_context_val -> variable ->
-  (Constr.named_context -> Constr.named_declaration -> Constr.named_context -> Constr.named_declaration) ->
+  (Constr.named_context -> var_status -> Constr.named_declaration -> Constr.named_context -> var_status * Constr.named_declaration) ->
     named_context_val
 
-val remove_hyps : Id.Set.t -> (Constr.named_declaration -> Constr.named_declaration) -> named_context_val -> named_context_val
+val remove_hyps : Id.Set.t -> (var_status -> Constr.named_declaration -> var_status * Constr.named_declaration) -> named_context_val -> named_context_val
 
 val is_polymorphic : env -> Names.GlobRef.t -> bool
 val is_template_polymorphic : env -> GlobRef.t -> bool

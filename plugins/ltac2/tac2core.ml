@@ -754,7 +754,7 @@ let () =
         let sigma, j = Typing.type_judgment env sigma {uj_val=t; uj_type=t_ty} in
         sigma, EConstr.ESorts.relevance_of_sort j.utj_type
       in
-      let nenv = EConstr.push_named (LocalAssum (Context.make_annot id t_rel, t)) env in
+      let nenv = EConstr.push_named ProofVar (LocalAssum (Context.make_annot id t_rel, t)) env in
       let (sigma, (evt, s)) = Evarutil.new_type_evar nenv sigma Evd.univ_flexible in
       let relevance = EConstr.ESorts.relevance_of_sort s in
       let (sigma, evk) = Evarutil.new_pure_evar (Environ.named_context_val nenv) sigma ~relevance evt in

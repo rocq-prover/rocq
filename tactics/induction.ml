@@ -216,10 +216,10 @@ let insert_before decls lasthyp env =
   | None -> push_named_context decls env
   | Some id ->
   Environ.fold_named_context
-    (fun _ d env ->
+    (fun _ status d env ->
       let d = EConstr.of_named_decl d in
       let env = if Id.equal id (NamedDecl.get_id d) then push_named_context decls env else env in
-      push_named d env)
+      push_named status d env)
     ~init:(reset_context env) env
 
 let mk_eq_name env id {CAst.loc;v=ido} =
@@ -237,8 +237,8 @@ let mkletin_goal env sigma with_eq dep (id,lastlhyp,ccl,c) ty =
   let open Context.Named.Declaration in
   let t = match ty with Some t -> t | _ -> typ_of env sigma c in
   let r = Retyping.relevance_of_type env sigma t in
-  let decl = if dep then LocalDef (make_annot id r,c,t)
-             else LocalAssum (make_annot id r,t)
+  let decl = if dep then LocalDef (make_annot id r, c, t)
+    else LocalAssum (make_annot id r, t)
   in
   match with_eq with
   | Some (lr,heq) ->
@@ -251,13 +251,13 @@ let mkletin_goal env sigma with_eq dep (id,lastlhyp,ccl,c) ty =
       let sigma, eq = Typing.checked_applist env sigma eq [t] in
       let eq = applist (eq,args) in
       let refl = applist (refl, [t;mkVar id]) in
-      let newenv = insert_before [LocalAssum (make_annot heq ERelevance.relevant,eq); decl] lastlhyp env in
+      let newenv = insert_before [ProofVar, LocalAssum (make_annot heq ERelevance.relevant,eq); ProofVar, decl] lastlhyp env in
       let (sigma, x) = new_evar newenv sigma ccl in
       (sigma, mkNamedLetIn sigma (make_annot id r) c t
          (mkNamedLetIn sigma (make_annot heq ERelevance.relevant) refl eq x),
       Some (fst @@ destEvar sigma x))
   | None ->
-      let newenv = insert_before [decl] lastlhyp env in
+      let newenv = insert_before [ProofVar, decl] lastlhyp env in
       let (sigma, x) = new_evar newenv sigma ccl in
       (sigma, mkNamedLetIn sigma (make_annot id r) c t x, Some (fst @@ destEvar sigma x))
 
@@ -589,8 +589,7 @@ let cook_sign hyp0_opt inhyps indvars env sigma =
   let lstatus = ref [] in
   let before = ref true in
   let maindep = ref false in
-  let seek_deps env decl rhyp =
-    let decl = EConstr.of_named_decl decl in
+  let seek_deps env _ decl rhyp =
     let hyp = NamedDecl.get_id decl in
     if (match hyp0_opt with Some hyp0 -> Id.equal hyp hyp0 | _ -> false)
     then begin

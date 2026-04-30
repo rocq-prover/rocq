@@ -2154,6 +2154,7 @@ let get_rigid_evars sigma c =
   | _ -> EConstr.fold sigma aux vars c in
   aux Id.Set.empty c
 
+(* XXX should we lose section variable status in the push newdecl cases? *)
 let make_abstraction_core name (test,out) env sigma c ty occs check_occs concl =
   let id =
     let t = match ty with Some t -> t | None -> get_type_of env sigma c in
@@ -2168,13 +2169,12 @@ let make_abstraction_core name (test,out) env sigma c ty occs check_occs concl =
   in
   let likefirst = clause_with_generic_occurrences occs in
   let mkvarid () = EConstr.mkVar id in
-  let compute_dependency _ d (remvars,sign,depdecls) =
-    let d = EConstr.of_named_decl d in
+  let compute_dependency _ status d (remvars,sign,depdecls) =
     let hyp = NamedDecl.get_id d in
     if Id.Set.is_empty remvars then
     match occurrences_of_hyp hyp occs with
     | NoOccurrences, InHyp ->
-        (remvars,push_named_context_val d sign,depdecls)
+        (remvars,push_named_context_val status d sign,depdecls)
     | (AllOccurrences | AtLeastOneOccurrence), InHyp as occ ->
         let occ = if likefirst then LikeFirst else AtOccs occ in
         let newdecl = replace_term_occ_decl_modulo env sigma occ test mkvarid d in
@@ -2183,17 +2183,17 @@ let make_abstraction_core name (test,out) env sigma c ty occs check_occs concl =
         then
           if check_occs && not (in_every_hyp occs)
           then raise (PretypeError (env,sigma,NoOccurrenceFound (c,Some hyp)))
-          else (remvars,push_named_context_val d sign, depdecls)
+          else (remvars,push_named_context_val status d sign, depdecls)
         else
-          (remvars,push_named_context_val newdecl sign, newdecl :: depdecls)
+          (remvars,push_named_context_val status newdecl sign, newdecl :: depdecls)
     | occ ->
         (* There are specific occurrences, hence not like first *)
         let newdecl = replace_term_occ_decl_modulo env sigma (AtOccs occ) test mkvarid d in
-        (remvars,push_named_context_val newdecl sign, newdecl :: depdecls)
+        (remvars,push_named_context_val status newdecl sign, newdecl :: depdecls)
     else
       (* Skip declarations if all rigid variables have not been introduced *)
       let remvars = Id.Set.remove hyp remvars in
-      (remvars,push_named_context_val d sign,depdecls)
+      (remvars,push_named_context_val status d sign,depdecls)
   in
   let vars = get_rigid_evars sigma c in
   try

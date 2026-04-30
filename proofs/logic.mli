@@ -61,5 +61,5 @@ val move_hyp_in_named_context : Environ.env -> Evd.evar_map -> Id.t -> Id.t move
   Environ.named_context_val -> Environ.named_context_val
 
 val insert_decl_in_named_context : Environ.env -> Evd.evar_map ->
-  EConstr.named_declaration -> Id.t move_location ->
+  Environ.var_status * EConstr.named_declaration -> Id.t move_location ->
   Environ.named_context_val -> Environ.named_context_val

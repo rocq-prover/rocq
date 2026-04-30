@@ -237,6 +237,8 @@ let retrieve_obligations env name evm fs ?deps ?status t ty =
     List.fold_right
       (fun (id, (n, nstr), ev) evs ->
         let hyps = Evd.evar_filtered_context ev in
+        (* XXX ignore vars based on secvar status + names of recursive functions
+           instead of length of global context + number of recursive functions *)
         let hyps = trunc_named_context nc_len hyps in
         let evtyp, deps, transp = etype_of_evar evm evs hyps (Evd.evar_concl ev) in
         let evtyp, hyps, chop =

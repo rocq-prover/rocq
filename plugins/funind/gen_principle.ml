@@ -54,7 +54,7 @@ let build_newrecursive lnameargsardef =
         let open Context.Named.Declaration in
         let r = ERelevance.relevant in
         (* TODO relevance *)
-        ( EConstr.push_named
+        ( EConstr.push_named ProofVar
             (LocalAssum (Context.make_annot recname r, arity))
             env
         , Id.Map.add recname impl impls ))

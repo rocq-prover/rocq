@@ -73,7 +73,7 @@ let compute_new_princ_type_from_rel env rel_to_fun sorts princ_type =
     List.map_i change_predicate_sort 0 princ_type_info.predicates
   in
   let env_with_params_and_predicates =
-    List.fold_right Environ.push_named new_predicates env_with_params
+    List.fold_right (Environ.push_named ProofVar) new_predicates env_with_params
   in
   let rel_as_kn =
     fst

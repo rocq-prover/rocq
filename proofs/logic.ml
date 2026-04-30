@@ -82,28 +82,30 @@ let reorder_context env sigma sign ord =
     user_err Pp.(str "Order list has duplicates");
   let rec step ord expected ctxt_head moved_hyps ctxt_tail =
     match ord with
-      | [] -> List.fold_left (fun accu decl -> EConstr.push_named_context_val decl accu) ctxt_head ctxt_tail
-      | top::ord' when mem_q top moved_hyps ->
-          let ((d,h),mh) = find_q top moved_hyps in
-          if occur_vars_in_decl env sigma h d then
-            user_err
-              (str "Cannot move declaration " ++ Id.print top ++ spc() ++
-              str "before " ++
-              pr_sequence Id.print
-                (Id.Set.elements (Id.Set.inter h
-                  (global_vars_set_of_decl env sigma d))) ++ str ".");
-          step ord' expected ctxt_head mh (d::ctxt_tail)
-      | _ ->
-          (match EConstr.match_named_context_val ctxt_head with
-            | None -> error_no_such_hypothesis env sigma (List.hd ord)
-            | Some (d, ctxt) ->
-                let x = NamedDecl.get_id d in
-                if Id.Set.mem x expected then
-                  step ord (Id.Set.remove x expected)
-                    ctxt (push_item x d moved_hyps) ctxt_tail
-                else
-                  step ord expected
-                    ctxt (push_val x moved_hyps) (d::ctxt_tail)) in
+    | [] ->
+      List.fold_left (fun accu (status,decl) -> EConstr.push_named_context_val status decl accu)
+        ctxt_head ctxt_tail
+    | top::ord' when mem_q top moved_hyps ->
+      let (((status,d),h),mh) = find_q top moved_hyps in
+      if occur_vars_in_decl env sigma h d then
+        user_err
+          (str "Cannot move declaration " ++ Id.print top ++ spc() ++
+           str "before " ++
+           pr_sequence Id.print
+             (Id.Set.elements (Id.Set.inter h (global_vars_set_of_decl env sigma d))) ++
+           str ".");
+      step ord' expected ctxt_head mh ((status,d)::ctxt_tail)
+    | _ ->
+      (match EConstr.match_named_context_val ctxt_head with
+       | None -> error_no_such_hypothesis env sigma (List.hd ord)
+       | Some (status, d, ctxt) ->
+         let x = NamedDecl.get_id d in
+         if Id.Set.mem x expected then
+           step ord (Id.Set.remove x expected)
+             ctxt (push_item x (status, d) moved_hyps) ctxt_tail
+         else
+           step ord expected
+             ctxt (push_val x moved_hyps) ((status,d)::ctxt_tail)) in
   step ord ords sign mt_q []
 
 let reorder_val_context env sigma sign ord =
@@ -156,10 +158,10 @@ let split_sign env sigma hfrom l =
   let () = if not (mem_id_context hfrom l) then error_no_such_hypothesis env sigma hfrom in
   let rec splitrec left sign = match EConstr.match_named_context_val sign with
   | None -> assert false
-  | Some (d, right) ->
+  | Some (status, d, right) ->
     let hyp = NamedDecl.get_id d in
-    if Id.equal hyp hfrom then (left, right, d)
-    else splitrec (d :: left) right
+    if Id.equal hyp hfrom then (left, right, (status, d))
+    else splitrec ((status, d) :: left) right
   in
   splitrec [] l
 
@@ -177,21 +179,26 @@ let () = CErrors.register_handler (function
 
 let move_hyp env sigma toleft (left,declfrom,right) hto =
   let open EConstr in
-  let push prefix sign = List.fold_right push_named_context_val prefix sign in
-  let push_rev prefix sign = List.fold_left (fun accu d -> push_named_context_val d accu) sign prefix in
+  let idfrom = NamedDecl.get_id (snd declfrom) in
+  let push prefix sign =
+    List.fold_right (fun (status,d) sign -> push_named_context_val status d sign) prefix sign
+  in
+  let push_rev prefix sign =
+    List.fold_left (fun accu (status,d) -> push_named_context_val status d accu) sign prefix
+  in
   let rec moverec_toleft ans first middle midvars = function
     | [] -> push middle @@ push first ans
-    | d :: _ as right when move_location_eq hto (MoveBefore (NamedDecl.get_id d)) ->
+    | (_, d) :: _ as right when move_location_eq hto (MoveBefore (NamedDecl.get_id d)) ->
       push_rev right @@ push middle @@ push first ans
-    | d :: right ->
+    | (status, d) :: right ->
         let hyp = NamedDecl.get_id d in
         let (first', middle', midvars') =
           if occur_vars_in_decl env sigma midvars d then
             if not (move_location_eq hto (MoveAfter hyp)) then
-              (first, d :: middle, Id.Set.add hyp midvars)
-            else raise (CannotMoveHyp {from = NamedDecl.get_id declfrom; hto; hyp})
+              (first, (status, d) :: middle, Id.Set.add hyp midvars)
+            else raise (CannotMoveHyp {from = idfrom; hto; hyp})
           else
-            (d::first, middle, midvars)
+            ((status,d)::first, middle, midvars)
         in
         if move_location_eq hto (MoveAfter hyp) then
           push_rev right @@ push middle' @@ push first' ans
@@ -200,19 +207,19 @@ let move_hyp env sigma toleft (left,declfrom,right) hto =
   in
   let rec moverec_toright first middle depvars right = match EConstr.match_named_context_val right with
     | None -> push_rev first @@ push_rev middle right
-    | Some (d, _) when move_location_eq hto (MoveBefore (NamedDecl.get_id d)) ->
+    | Some (status, d, _) when move_location_eq hto (MoveBefore (NamedDecl.get_id d)) ->
         push_rev first @@ push_rev middle @@ right
-    | Some (d, right) ->
+    | Some (status, d, right) ->
         let hyp = NamedDecl.get_id d in
         let (first', middle', depvars') =
           if Id.Set.mem hyp depvars then
             if not (move_location_eq hto (MoveAfter hyp)) then
               let vars = global_vars_set_of_decl env sigma d in
               let depvars = Id.Set.union vars depvars in
-              (first, d::middle, depvars)
-            else raise (CannotMoveHyp {from = NamedDecl.get_id declfrom; hto; hyp})
+              (first, (status, d)::middle, depvars)
+            else raise (CannotMoveHyp {from = idfrom; hto; hyp})
           else
-            (d::first, middle, depvars)
+            ((status,d)::first, middle, depvars)
         in
         if move_location_eq hto (MoveAfter hyp) then
           push_rev first' @@ push_rev middle' @@ right
@@ -220,10 +227,9 @@ let move_hyp env sigma toleft (left,declfrom,right) hto =
           moverec_toright first' middle' depvars' right
   in
   if toleft then
-    let id = NamedDecl.get_id declfrom in
-    moverec_toleft right [] [declfrom] (Id.Set.singleton id) left
+    moverec_toleft right [] [declfrom] (Id.Set.singleton idfrom) left
   else
-    let depvars = global_vars_set_of_decl env sigma declfrom in
+    let depvars = global_vars_set_of_decl env sigma (snd declfrom) in
     let right = moverec_toright [] [declfrom] depvars right in
     push_rev left @@ right
 
@@ -258,6 +264,6 @@ let convert_hyp ~check ~reorder env sigma d =
     if check && not (Option.equal (is_conv env sigma) b c) then
       user_err
         (str "Incorrect change of the body of "++ Id.print id ++ str ".");
-    let sign' = apply_to_hyp sign id (fun _ _ _ -> EConstr.Unsafe.to_named_decl d) in
+    let sign' = apply_to_hyp sign id (fun _ status _ _ -> status, EConstr.Unsafe.to_named_decl d) in
     if reorder then reorder_val_context env sigma sign' (check_decl_position env sigma sign d)
     else sign'

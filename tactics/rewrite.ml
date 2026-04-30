@@ -838,7 +838,7 @@ let resolve_morphism env m args args' (b,cstr) evars =
     let _, dosub = app_poly_sort b env evars dosub [||] in
     let _, appsub = app_poly_nocheck env evars appsub [||] in
     let dosub_id = Id.of_string "do_subrelation" in
-    let env' = EConstr.push_named (LocalDef (make_annot dosub_id ERelevance.relevant, dosub, appsub)) env in
+    let env' = EConstr.push_named ProofVar (LocalDef (make_annot dosub_id ERelevance.relevant, dosub, appsub)) env in
     let evars, morph = new_cstr_evar evars env' app in
     (* Replace the free [dosub_id] in the evar by the global reference *)
     let morph = Vars.replace_vars (fst evars) [dosub_id , dosub] morph in
@@ -1745,8 +1745,8 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
     | None -> env
     | Some id ->
       (* Only consider variables not depending on [id] *)
-      let ctx = named_context env in
-      let filter decl = not (occur_var_in_decl env sigma id decl) in
+      let ctx = named_context_of_val_with_status @@ named_context_val env in
+      let filter (_, decl) = not (occur_var_in_decl env sigma id decl) in
       let nctx = List.filter filter ctx in
       Environ.reset_with_named_context (val_of_named_context nctx) env
     in

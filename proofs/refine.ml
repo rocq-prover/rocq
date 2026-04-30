@@ -17,30 +17,38 @@ module NamedDecl = Context.Named.Declaration
 let extract_prefix env info =
   let ctx1 = List.rev (EConstr.named_context env) in
   let ctx2 = List.rev (Evd.evar_context info) in
-  let rec share l1 l2 accu = match l1, l2 with
+  let rec share l1 l2 = match l1, l2 with
   | d1 :: l1, d2 :: l2 ->
-    if d1 == d2 then share l1 l2 (d1 :: accu)
-    else (accu, d2 :: l2)
-  | _ -> (accu, l2)
+    if d1 == d2 then share l1 l2
+    else 1 + List.length l2
+  | _ -> List.length l2
   in
-  share ctx1 ctx2 []
+  share ctx1 ctx2
+
+let rec recheck_hyps n env sigma sign =
+  if n = 0 then sigma
+  else match EConstr.match_named_context_val sign with
+    | None -> assert false
+    | Some (_, decl, sign') ->
+      let sigma = recheck_hyps (n-1) env sigma sign' in
+      let env = Environ.reset_with_named_context sign' env in
+      let t = NamedDecl.get_type decl in
+      let sigma, _ = Typing.sort_of env sigma t in
+      let sigma = match decl with
+        | LocalAssum _ -> sigma
+        | LocalDef (_,body,_) -> Typing.check env sigma body t
+      in
+      sigma
 
 let typecheck_evar ev env sigma =
   let info = Evd.find_undefined sigma ev in
+  (* optim: avoid checking unchanged hyps *)
+  let changed = extract_prefix env info in
   (* Typecheck the hypotheses. *)
-  let type_hyp (sigma, env) decl =
-    let t = NamedDecl.get_type decl in
-    let sigma, _ = Typing.sort_of env sigma t in
-    let sigma = match decl with
-    | LocalAssum _ -> sigma
-    | LocalDef (_,body,_) -> Typing.check env sigma body t
-    in
-    (sigma, EConstr.push_named decl env)
-  in
-  let (common, changed) = extract_prefix env info in
-  let env = Environ.reset_with_named_context (EConstr.val_of_named_context common) env in
-  let (sigma, env) = List.fold_left type_hyp (sigma, env) changed in
+  let sign = Evd.evar_hyps info in
+  let sigma = recheck_hyps changed env sigma sign in
   (* Typecheck the conclusion *)
+  let env = Environ.reset_with_named_context sign env in
   let sigma, _ = Typing.sort_of env sigma (Evd.evar_concl info) in
   sigma
 

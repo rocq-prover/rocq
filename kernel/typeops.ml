@@ -172,6 +172,7 @@ let type_of_variable env id =
 (* Checks if a context of variables can be instantiated by the
    variables of the current env.
    Order does not have to be checked assuming that all names are distinct *)
+(* TODO use var status instead *)
 let check_hyps_inclusion env ?evars c sign =
   let conv env a b = conv env ?evars a b in
   Context.Named.fold_outside

@@ -41,7 +41,7 @@ let proofview p =
 let compact el ({ solution } as pv) =
   let nf c = Evarutil.nf_evar solution c in
   let nf0 c = EConstr.(to_constr ~abort_on_undefined_evars:false solution (of_constr c)) in
-  let nf_hyps hyps = Environ.map_named_val (fun d -> map_constr nf0 d) hyps in
+  let nf_hyps hyps = Environ.map_named_val (fun status d -> status, map_constr nf0 d) hyps in
   let size = Evd.fold (fun _ _ i -> i+1) solution 0 in
   let new_el = List.map (fun (hyps,t,ty) -> nf_hyps hyps, nf t, nf ty) el in
   let pruned_solution = Evd.drop_all_defined solution in
@@ -916,15 +916,19 @@ module Progress = struct
   let eq_named_context_val sigma1 sigma2 ctx1 ctx2 =
     let r_eq _ _ = true (* ignore relevances *) in
     let c1 = EConstr.named_context_of_val ctx1 and c2 = EConstr.named_context_of_val ctx2 in
+    (* should we check variable status? if x is secvar,
+       [rename x into x'; rename x' into x] loses the secvar status
+       so maybe should progress?
+       NB Don't forget to also change the fast path if we change this *)
     let eq_named_declaration d1 d2 =
       match d1, d2 with
       | LocalAssum (i1,t1), LocalAssum (i2,t2) ->
-         Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 t1 t2
+        Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 t1 t2
       | LocalDef (i1,c1,t1), LocalDef (i2,c2,t2) ->
-         Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 c1 c2
-         && eq_constr sigma1 sigma2 t1 t2
+        Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 c1 c2 &&
+        eq_constr sigma1 sigma2 t1 t2
       | _ ->
-         false
+        false
     in
     (* NB: can't use List.equal because it shortcuts on physical equality *)
     List.for_all2eq eq_named_declaration c1 c2
@@ -960,9 +964,11 @@ module Progress = struct
     let c1 = EConstr.named_context_of_val ctx1 in
     let c2 = EConstr.named_context_of_val ctx2 in
     let eq_named_declaration d1 d2 = match d1, d2 with
-    | LocalAssum (i1, _), LocalAssum (i2, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | LocalDef (i1, _, _), LocalDef (i2, _, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | _ -> false
+      | LocalAssum (i1, _), LocalAssum (i2, _) ->
+        Context.eq_annot Names.Id.equal r_eq i1 i2
+      | LocalDef (i1, _, _), LocalDef (i2, _, _) ->
+        Context.eq_annot Names.Id.equal r_eq i1 i2
+      | _ -> false
     in
     List.for_all2eq eq_named_declaration c1 c2
 

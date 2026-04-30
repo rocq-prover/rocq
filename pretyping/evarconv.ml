@@ -1818,7 +1818,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
      debug_ho_unification (fun () ->
        Pp.(str"abstracted: " ++ prc env_rhs evd rhs'));
      let () = check_selected_occs env_rhs evd c !occ occs in
-     let env_rhs' = push_named (NamedDecl.LocalAssum (id,idty)) env_rhs in
+     let env_rhs' = push_named ProofVar (NamedDecl.LocalAssum (id,idty)) env_rhs in
      set_holes env_rhs' evd fixed rhs' subst
   | [] -> evd, fixed, rhs in
 

@@ -447,7 +447,7 @@ let pr_econstr_pat env sigma c0 =
     let dummy_prod = mkProd (make_annot Anonymous Sorts.Relevant,mkProp,mkProp) in
     let na = make_annot (EConstr.destVar sigma ehole_var) Sorts.Relevant in
     Context.Named.Declaration.(LocalAssum (na, dummy_prod)) in
-  let env = Environ.push_named dummy_decl env in
+  let env = Environ.push_named ProofVar dummy_decl env in
   pr_econstr_env env sigma (wipe_evar c0)
 
 (* Turn (new) evars into metas *)

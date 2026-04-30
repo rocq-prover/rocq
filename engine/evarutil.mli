@@ -128,7 +128,6 @@ val jv_nf_evar :
 val tj_nf_evar :
    evar_map -> unsafe_type_judgment -> unsafe_type_judgment
 
-val nf_named_context_evar : evar_map -> Constr.named_context -> Constr.named_context
 val nf_rel_context_evar : evar_map -> rel_context -> rel_context
 val nf_env_evar : evar_map -> env -> env
 

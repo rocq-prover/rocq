@@ -452,7 +452,7 @@ let interp_mutual_definition env ~program_mode ~poly ~function_mode rec_order fi
     List.fold_left4
       (fun (sigma, rec_sign) id r t (_,extradecl) ->
          let sigma, r, t = if program_mode && List.is_empty extradecl then encapsulate env sigma r t else sigma, r, t in
-         sigma, LocalAssum (Context.make_annot id r, t) :: rec_sign)
+         sigma, (Environ.ProofVar, LocalAssum (Context.make_annot id r, t)) :: rec_sign)
       (sigma, []) fixnames fixrs fixtypes fixextras
   in
   let fixrecimps = List.map3 (fun ctximps wfimps cclimps -> ctximps @ wfimps @ cclimps) fixctximps fixwfimps fixcclimps in
@@ -470,7 +470,7 @@ let interp_mutual_definition env ~program_mode ~poly ~function_mode rec_order fi
         (fun sigma fixctximpenv (after,extradecl) ctx body ccl ->
            let impls = Id.Map.fold Id.Map.add fixctximpenv impls in
            let env', ctx =
-             if after then env, List.map NamedDecl.to_rel_decl rec_sign @ ctx
+             if after then env, List.map (fun (_,d) -> NamedDecl.to_rel_decl d) rec_sign @ ctx
              else push_named_context rec_sign env, extradecl@ctx in
            interp_fix_body ~program_mode env' ctx sigma impls body (Vars.lift (Context.Rel.length extradecl) ccl))
         sigma fixctximpenvs fixextras fixctxs fixl fixccls)

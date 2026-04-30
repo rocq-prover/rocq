@@ -15,7 +15,6 @@ open Reductionops
 open Typing
 open Tacred
 open Logic
-open Context.Named.Declaration
 
 module NamedDecl = Context.Named.Declaration
 
@@ -63,10 +62,8 @@ let pf_get_hyp_typ id gl =
 
 let pf_hyps_types gl =
   let env = Proofview.Goal.env gl in
-  let sign = Environ.named_context env in
-  List.map (function LocalAssum (id,x)
-                    | LocalDef (id,_,x) -> id.Context.binder_name, EConstr.of_constr x)
-            sign
+  let sign = EConstr.named_context env in
+  List.map (fun d -> NamedDecl.get_id d, NamedDecl.get_type d) sign
 
 let pf_last_hyp gl =
   let hyps = Proofview.Goal.hyps gl in

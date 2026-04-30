@@ -39,7 +39,7 @@ let rec compute_head_const env sigma cst =
 
 and compute_head_var env sigma id = match lookup_named id env with
 | LocalDef (_,c,_) -> kind_of_head env sigma c
-| _ -> RigidHead RigidOther
+| LocalAssum _ -> RigidHead RigidOther
 
 and kind_of_head env sigma t =
   let rec aux k l t b = match EConstr.kind sigma (Reductionops.clos_whd_flags RedFlags.betaiotazeta env sigma t) with

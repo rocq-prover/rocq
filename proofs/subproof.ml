@@ -139,7 +139,7 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string "temporary_proof" in
-  let sign = Environ.(val_of_named_context (named_context env)) in
+  let sign = Environ.named_context_val env in
   let sigma = Evd.from_ustate uctx in
   (* status doesn't matter: any given up evars can't be in the body/typ
      (we would get OpenProof exception) and we drop the evar part of the evar map *)

@@ -301,7 +301,7 @@ let hints () =
     | [] -> None
     | g :: _ ->
       let env = Evd.evar_filtered_env (Global.env ()) (Evd.find_undefined sigma g) in
-      let get_hint_hyp env d accu = hyp_next_tac sigma env d :: accu in
+      let get_hint_hyp env _ d accu = hyp_next_tac sigma env d :: accu in
       let hint_hyps = List.rev (Environ.fold_named_context get_hint_hyp env ~init: []) in
       Some (hint_hyps, concl_next_tac)
   with Vernacstate.Declare.NoCurrentProof -> None

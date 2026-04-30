@@ -418,7 +418,7 @@ let pr_erel_decl ?flags env sigma (decl:EConstr.rel_declaration) =
 
 (* Prints a signature, all declarations on the same line if possible *)
 let pr_named_context_of ?flags env sigma =
-  let make_decl_list env d pps = pr_named_decl ?flags env sigma d :: pps in
+  let make_decl_list env _status d pps = pr_named_decl ?flags env sigma d :: pps in
   let psl = List.rev (fold_named_context make_decl_list env ~init:[]) in
   hv 0 (prlist_with_sep (fun _ -> ws 2) (fun x -> x) psl)
 

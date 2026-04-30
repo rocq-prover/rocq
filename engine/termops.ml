@@ -62,7 +62,7 @@ module Internal = struct
 
   let print_named_context env sigma =
     hv 0 (fold_named_context
-            (fun env d pps ->
+            (fun env _status d pps ->
                pps ++ ws 2 ++ pr_var_decl env sigma d)
             env ~init:(mt ()))
 
@@ -74,7 +74,7 @@ module Internal = struct
   let print_env env sigma =
     let sign_env =
       fold_named_context
-        (fun env d pps ->
+        (fun env _status d pps ->
            let pidt =  pr_var_decl env sigma d in
            (pps ++ fnl () ++ pidt))
         env ~init:(mt ())
@@ -149,9 +149,11 @@ let pr_decl env sigma (decl,ok) =
   let open NamedDecl in
   let print_constr = Internal.print_kconstr in
   match decl with
-  | LocalAssum ({binder_name=id},_) -> if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
-  | LocalDef ({binder_name=id},c,_) -> str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
-                           print_constr env sigma c ++ str (if ok then ")" else "}")
+  | LocalAssum ({binder_name=id},_) ->
+    if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
+  | LocalDef ({binder_name=id},c,_) ->
+    str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
+    print_constr env sigma c ++ str (if ok then ")" else "}")
 
 let pr_evar_source env sigma = function
   | Evar_kinds.NamedHole id -> Id.print id
@@ -877,10 +879,7 @@ let dependent sigma c t = dependent_main false sigma c t
 let dependent_no_evar sigma c t = dependent_main true sigma c t
 
 let dependent_in_decl sigma a decl =
-  let open NamedDecl in
-  match decl with
-    | LocalAssum (_,t) -> dependent sigma a t
-    | LocalDef (_, body, t) -> dependent sigma a body || dependent sigma a t
+  NamedDecl.exists (dependent sigma a) decl
 
 let count_occurrences sigma m t =
   let open EConstr in
@@ -1008,6 +1007,7 @@ let ids_of_context env =
 let names_of_rel_context env =
   List.map RelDecl.get_name (rel_context env)
 
+(* XXX use var status (NOT IN THIS ENV) *)
 let is_section_variable env id =
   try let _ = Environ.lookup_named id env in true
   with Not_found -> false
@@ -1203,9 +1203,9 @@ let compact_named_context sigma sign =
 
 let clear_named_body id env =
   let open NamedDecl in
-  let aux _ = function
-  | LocalDef (id',c,t) when Id.equal id id'.binder_name -> push_named (LocalAssum (id',t))
-  | d -> push_named d in
+  let aux _ status = function
+  | LocalDef (id',c,t) when Id.equal id id'.binder_name -> push_named status (LocalAssum (id',t))
+  | d -> push_named status d in
   fold_named_context aux env ~init:(reset_context env)
 
 let global_vars_set env sigma constr =

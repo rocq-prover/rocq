@@ -31,10 +31,10 @@ let rec fill_assumptions env sigma = function
         ~typeclass_candidate:false t
     in
     let decl = LocalDef (na,ev,t) in
-    let sigma, env, ctx = fill_assumptions (EConstr.push_named decl env) sigma ctx in
+    let sigma, env, ctx = fill_assumptions (EConstr.push_named ProofVar decl env) sigma ctx in
     sigma, env, decl :: ctx
   | LocalDef _ as decl :: ctx ->
-    let sigma, env, ctx = fill_assumptions (EConstr.push_named decl env) sigma ctx in
+    let sigma, env, ctx = fill_assumptions (EConstr.push_named ProofVar decl env) sigma ctx in
     sigma, env, decl :: ctx
 
 (** [start_deriving f suchthat lemma] starts a proof of [suchthat]
@@ -70,7 +70,7 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
       | LocalDef (id, c, t) as d :: ctx ->
         TCons ( env , sigma , t , (fun sigma ef' ->
             let sigma = Evd.define (fst (EConstr.destEvar sigma ef')) c sigma in
-            aux (EConstr.push_named d env) sigma ctx)) in
+            aux (EConstr.push_named ProofVar d env) sigma ctx)) in
     aux env sigma ctx' in
   let kind = Decls.(IsDefinition Definition) in
   let info = Declare.Info.make ~poly ~kind () in
