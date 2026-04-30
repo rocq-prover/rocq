@@ -199,6 +199,8 @@ type unification_pb = conv_pb * env * constr * constr
     Put it at the end of the list if [tail] is true, by default it is false. *)
 val add_unification_pb : ?tail:bool -> unification_pb -> evar_map -> evar_map
 
+val vars_of_global : env -> evar_map -> GlobRef.t -> Id.Set.t
+
 (** {6 Removing hyps in evars'context}
 raise OccurHypInSimpleClause if the removal breaks dependencies *)
 

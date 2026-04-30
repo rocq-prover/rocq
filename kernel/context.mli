@@ -248,7 +248,7 @@ sig
 
     val get_relevance : ('c, 't, 'r) pt -> 'r
 
-    (** Set the identifier that is bound by a given declaration. *)
+    (** Set the identifier that is bound by a given declaration. status becomes [ProofVar]. *)
     val set_id : Id.t -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
     (** Return [true] iff a given declaration is a local assumption. *)
@@ -267,7 +267,8 @@ sig
     val equal : ('r -> 'r -> bool) -> ('c -> 'c -> bool) ->
       ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt -> bool
 
-    (** Map the identifier bound by a given declaration. *)
+    (** Map the identifier bound by a given declaration.
+        Status becomes [ProofVar] if the id changes (physical equality). *)
     val map_id : (Id.t -> Id.t) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
     (** Map all terms in a given declaration. *)

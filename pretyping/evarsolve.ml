@@ -571,7 +571,8 @@ let free_vars_and_rels_up_alias_expansion env sigma aliases c =
         | Some (RelAlias n) -> if n >= depth+1 then fv_rels := Int.Set.add (n-depth) !fv_rels
         | None -> frec (aliases,depth) c end
     | Const _ | Ind _ | Construct _ ->
-        fv_ids := Id.Set.union (vars_of_global env (fst @@ EConstr.destRef sigma c)) !fv_ids
+        (* XXX should be Evarutil.vars_of_global to handle abstracted constants? *)
+        fv_ids := Id.Set.union (Environ.vars_of_global env (fst @@ EConstr.destRef sigma c)) !fv_ids
     | _ ->
         iter_with_full_binders env sigma
           (fun d (aliases,depth) -> (extend_alias sigma d aliases,depth+1))

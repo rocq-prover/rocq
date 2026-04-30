@@ -377,8 +377,8 @@ struct
     let set_id id =
       let set x = {x with binder_name = id} in
       function
-      | LocalAssum (s, x, ty) -> LocalAssum (s, set x, ty)
-      | LocalDef (s, x, v, ty) -> LocalDef (s, set x, v, ty)
+      | LocalAssum (_, x, ty) -> LocalAssum (ProofVar, set x, ty)
+      | LocalDef (_, x, v, ty) -> LocalDef (ProofVar, set x, v, ty)
 
     (** Return [true] iff a given declaration is a local assumption. *)
     let is_local_assum = function
@@ -414,6 +414,7 @@ struct
     let map_id f x =
       let id = get_id x in
       let id' = f id in
+      (* XXX use Id.equal? *)
       if id == id' then x else set_id id' x
 
     (** Map all terms in a given declaration. *)

@@ -217,6 +217,74 @@ let move_hyp id dest =
     end
   end
 
+let error_renaming_implicit_dependency ?loc env where ids gr =
+  CErrors.user_err ?loc @@
+  fmt "Cannot rename section variable %t@ because it is used implicitly through %t@ in %t."
+    (fun () -> Id.print (Id.Set.choose ids))
+    (fun () -> pr_global_env env gr)
+    (fun () -> match where with
+       | None -> str "the conclusion"
+       | Some h -> fmt "hypothesis %t" (fun () -> Id.print h))
+
+let check_renaming ~src ~dst env sigma concl =
+  let sign = named_context_val env in
+  (* Check that we do not mess variables *)
+  let vars = ids_of_named_context_val sign in
+  let () =
+    if not (Id.Set.subset src vars) then
+      let hyp = Id.Set.choose (Id.Set.diff src vars) in
+      raise (RefinerError (env, sigma, NoSuchHyp hyp))
+  in
+  let mods = Id.Set.diff vars src in
+  let () =
+    try
+      let elt = Id.Set.choose (Id.Set.inter dst mods) in
+      TacticErrors.already_used elt
+    with Not_found -> ()
+  in
+  let secvars =
+    Id.Set.filter (fun id ->
+        match NamedDecl.get_status (lookup_named id env) with
+        | SecVar -> true
+        | ProofVar -> false)
+      src
+  in
+  let checked = ref GlobRef.Set_env.empty in
+  let check_constr where c =
+    let rec aux c =
+      match EConstr.destRef sigma c with
+      | VarRef _, _ ->
+        (* we only refuse implicit dependencies, because they can't be substituted *)
+        ()
+      | gr, _ ->
+        if GlobRef.Set_env.mem gr !checked then ()
+        else begin
+          let deps = Evarutil.vars_of_global env sigma gr in
+          let bad = Id.Set.inter deps secvars in
+          let () =
+            if not @@ Id.Set.is_empty bad then
+              error_renaming_implicit_dependency env where bad gr
+          in
+          checked := GlobRef.Set_env.add gr !checked
+        end
+      | exception DestKO -> EConstr.iter sigma aux c
+    in
+    aux c
+  in
+  let () =
+    if Id.Set.is_empty secvars then
+      (* not renaming any secvars -> no problem *)
+      ()
+    else
+      let () = check_constr None concl in
+      let () =
+        List.iter (fun d -> NamedDecl.iter_constr (check_constr (Some (NamedDecl.get_id d))) d)
+          (named_context env)
+      in
+      ()
+  in
+  ()
+
 let rename_hyp repl =
   let fold accu (src, dst) = match accu with
   | None -> None
@@ -238,30 +306,16 @@ let rename_hyp repl =
     Proofview.Goal.enter begin fun gl ->
       let concl = Proofview.Goal.concl gl in
       let env = Proofview.Goal.env gl in
-      let sign = named_context_val env in
       let sigma = Proofview.Goal.sigma gl in
       let relevance = Proofview.Goal.relevance gl in
-      (* Check that we do not mess variables *)
-      let vars = ids_of_named_context_val sign in
-      let () =
-        if not (Id.Set.subset src vars) then
-          let hyp = Id.Set.choose (Id.Set.diff src vars) in
-          raise (RefinerError (env, sigma, NoSuchHyp hyp))
-      in
-      let mods = Id.Set.diff vars src in
-      let () =
-        try
-          let elt = Id.Set.choose (Id.Set.inter dst mods) in
-          TacticErrors.already_used elt
-        with Not_found -> ()
-      in
+      let () = check_renaming ~src ~dst env sigma concl in
       (* All is well *)
       let make_subst (src, dst) = (src, mkVar dst) in
       let subst = List.map make_subst repl in
       let subst c = Vars.replace_vars sigma subst c in
       let replace id = try List.assoc_f Id.equal id repl with Not_found -> id in
       let map decl = decl |> NamedDecl.map_id replace |> NamedDecl.map_constr subst in
-      let ohyps = named_context_of_val sign in
+      let ohyps = EConstr.named_context env in
       let nhyps = List.map map ohyps in
       let nconcl = subst concl in
       let nctx = val_of_named_context nhyps in
