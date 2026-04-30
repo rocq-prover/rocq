@@ -439,19 +439,6 @@ let push_rels_assum assums =
   let open RelDecl in
   push_rel_context (List.map (fun (x,t) -> LocalAssum (x,t)) assums)
 
-let push_named_rec_types (lna,typarray,_) env =
-  let open NamedDecl in
-  let ctxt =
-    Array.map2_i
-      (fun i na t ->
-         let id = map_annot (function
-             | Name id -> id
-             | Anonymous -> anomaly (Pp.str "Fix declarations must be named.")) na
-         in  LocalAssum (id, lift i t))
-      lna typarray in
-  Array.fold_left
-    (fun e assum -> push_named assum e) env ctxt
-
 let lookup_rel_id id sign =
   let open RelDecl in
   let rec lookrec n = function

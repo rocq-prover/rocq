@@ -19,7 +19,6 @@ open EConstr
 (** about contexts *)
 val push_rel_assum : Name.t EConstr.binder_annot * types -> env -> env
 val push_rels_assum : (Name.t Constr.binder_annot * Constr.types) list -> env -> env
-val push_named_rec_types : Name.t Constr.binder_annot array * Constr.types array * 'a -> env -> env
 
 val lookup_rel_id : Id.t -> ('c, 't, 'r) Context.Rel.pt -> int * 'c option * 't
 (** Associates the contents of an identifier in a [rel_context]. Raise
