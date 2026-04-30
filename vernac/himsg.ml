@@ -1319,8 +1319,14 @@ let explain_not_match_error = function
        fnl() ++ str "(incompatible constraints)")
   | IncompatibleVariance ->
     str "incompatible variance information"
-  | NoRewriteRulesSubtyping ->
-    strbrk "subtyping for rewrite rule blocks is not supported"
+  | NotConvertibleRewriteRule (env, rrb) ->
+    let evd = Evd.from_auctx env (UVars.AbstractContext.make rrb.rr_uctx PConstraints.empty) in
+    (* XXX: Use evar names *)
+    let t1, t2 = pr_explicit env evd (EConstr.of_constr rrb.pat_term) (EConstr.of_constr rrb.replacement) in
+    str "rewrite rule not satisfied: " ++
+      t1 ++ spc () ++
+      str "is not convertible to " ++ spc () ++
+      t2
 
 let rec get_submodules acc = function
   | [] -> acc, []

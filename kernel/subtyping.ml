@@ -277,8 +277,8 @@ let check_constant (cst, ustate) trace env l info1 cb2 subst1 subst2 =
            anything of the right type can implement it, even if bodies differ.
       *)
       (match cb2.const_body with
-       | Undef _ | OpaqueDef _ -> cst
-       | Primitive _ | Symbol _ -> error (NotConvertibleBodyField None)
+       | Undef _ | OpaqueDef _ | Symbol _ -> cst
+       | Primitive _ -> error (NotConvertibleBodyField None)
        | Def c2 ->
          (match cb1.const_body with
           | Primitive _ | Undef _ | OpaqueDef _ | Symbol _ -> error (NotConvertibleBodyField None)
@@ -286,6 +286,28 @@ let check_constant (cst, ustate) trace env l info1 cb2 subst1 subst2 =
             (* NB: cb1 might have been strengthened and appear as transparent.
                Anyway [check_conv] will handle that afterwards. *)
             check_conv (NotConvertibleBodyField (Some (env, c1, c2))) cst poly CONV env c1 c2))
+
+let check_rewrite_rules (cst, ustate) trace env l rrb subst2 =
+  let rrb = Declareops.subst_rewrite_rules subst2 rrb in
+  let evar_handler =
+    let evar_expand (ev, inst) =
+      CClosure.EvarUndefined (ev, inst |> SList.to_list |> List.map Option.get)
+    in
+    let evar_repack (ev, args) = mkEvar (ev, SList.of_full_list args) in
+    let evar_irrelevant _ = false in
+    { (CClosure.default_evar_handler env) with evar_expand; evar_repack; evar_irrelevant }
+  in
+  let error why = error_signature_mismatch trace l why in
+  let check_conv_rr cst rrb =
+    let t1 = rrb.pat_term and t2 = rrb.replacement in
+    match Conversion.generic_conv CONV ~l2r:false ~evars:evar_handler TransparentState.full env (cst, ustate) t1 t2 with
+    | Ok cst -> cst
+    | Error None -> error (NotConvertibleRewriteRule (env, rrb))
+    | Error (Some (Univ err)) -> error (IncompatibleUniverses { env; err; t1; t2 })
+    | Error (Some (Qual err)) -> error (IncompatibleQualities { env; err; t1; t2 })
+  in
+  List.fold_left check_conv_rr cst rrb.rewrules_rules
+
 
 let rec check_modules state trace env mp1 msb1 mp2 msb2 subst1 subst2 =
   let mty1 = module_type_of_module msb1 in
@@ -302,8 +324,8 @@ and check_signatures (cst, ustate) trace env mp1 sig1 mp2 sig2 subst1 subst2 res
         | SFBmind mib2 ->
             check_inductive (cst, ustate) trace env mp1 l (get_obj mp1 map1 l)
               mp2 mib2 subst1 subst2 reso1 reso2
-        | SFBrules _ ->
-            error_signature_mismatch trace l NoRewriteRulesSubtyping
+        | SFBrules rrb ->
+            check_rewrite_rules (cst, ustate) trace env l rrb subst2
         | SFBmodule msb2 ->
             let mp1' = MPdot (mp1, l) in
             let mp2' = MPdot (mp2, l) in
