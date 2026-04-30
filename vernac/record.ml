@@ -1000,10 +1000,10 @@ let set_class_mode ref mode ctx =
       let def = typeclasses_default_mode () in
       let mode = match def with
       | Hints.ModeOutput -> None
-      | Hints.ModeInput ->
-        Some (List.init ctxl (fun _ -> Hints.ModeInput))
+      | Hints.ModeFrozen
+      | Hints.ModeInput
       | Hints.ModeNoHeadEvar ->
-        Some (List.init ctxl (fun _ -> Hints.ModeNoHeadEvar))
+        Some (List.init ctxl (fun _ -> def))
       in
       let wm = List.init ctxl (fun _ -> def) in
       Classes.warn_default_mode (ref, wm);

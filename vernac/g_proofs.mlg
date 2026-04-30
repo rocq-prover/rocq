@@ -139,6 +139,7 @@ GRAMMAR EXTEND Gram
     ;
   mode:
     [ [ l = LIST1 [ "+" -> { ModeInput }
+                  | "=" -> { ModeFrozen }
                   | "!" -> { ModeNoHeadEvar }
                   | "-" -> { ModeOutput } ] -> { l } ] ]
   ;

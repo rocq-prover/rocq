@@ -318,6 +318,7 @@ let pr_reference_or_constr pr_c = function
 
 let pr_hint_mode = let open Hints in function
   | ModeInput -> str"+"
+  | ModeFrozen -> str"="
   | ModeNoHeadEvar -> str"!"
   | ModeOutput -> str"-"
 
