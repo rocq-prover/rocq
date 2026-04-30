@@ -256,13 +256,13 @@ let rec collect_constants_without_body sign mp accu =
   | NoFunctor struc ->
      List.fold_left (fun s (lab,mb) -> collect_field s lab mb) accu struc
 
-let rec check_mexpr env opac mse mp_mse res = match mse with
+let rec check_mexpr env mse mp_mse res = match mse with
   | MEident mp ->
     let mb = lookup_module mp env in
     let mb = Modops.strengthen_and_subst_module_body mp mb mp_mse false in
     mod_type mb, mod_delta mb
   | MEapply (f,mp) ->
-    let sign, delta = check_mexpr env opac f mp_mse res in
+    let sign, delta = check_mexpr env f mp_mse res in
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
     let state = (Environ.universes env, Conversion.checked_universes) in
     let _ : UGraph.t = Subtyping.check_subtypes state env mp (MPbound farg_id) farg_b in
@@ -276,13 +276,13 @@ let rec check_mexpr env opac mse mp_mse res = match mse with
     Modops.subst_signature subst mp_mse fbody_b, Mod_subst.subst_codom_delta_resolver subst delta
   | MEwith _ -> CErrors.user_err Pp.(str "Unsupported 'with' constraint in module implementation")
 
-let rec check_mexpression env opac sign mbtyp mp_mse res = match sign with
+let rec check_mexpression env sign mbtyp mp_mse res = match sign with
   | MEMoreFunctor body ->
     let arg_id, mtb, mbtyp = Modops.destr_functor mbtyp in
     let env' = Modops.add_module_parameter arg_id mtb env in
-    let body, delta = check_mexpression env' opac body mbtyp mp_mse res in
+    let body, delta = check_mexpression env' body mbtyp mp_mse res in
     MoreFunctor(arg_id,mtb,body), delta
-  | MENoFunctor me -> check_mexpr env opac me mp_mse res
+  | MENoFunctor me -> check_mexpr env me mp_mse res
 
 let rec check_module env opac mp mb opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking module: " ++ str (ModPath.to_string mp));
@@ -297,7 +297,7 @@ let rec check_module env opac mp mb opacify =
       let sign_struct = Modops.annotate_struct_body sign_struct (mod_type mb) in
       let opac = check_signature env opac sign_struct mp reso opacify in
       Some (sign_struct, reso), opac
-    | Algebraic me -> Some (check_mexpression env opac me (mod_type mb) mp delta_mb), opac
+    | Algebraic me -> Some (check_mexpression env me (mod_type mb) mp delta_mb), opac
     | Abstract|FullStruct -> None, opac
   in
   let () = match optsign with
