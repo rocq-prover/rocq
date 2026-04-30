@@ -504,11 +504,10 @@ let remove_current_pattern eqn =
     | [] -> anomaly (Pp.str "Empty list of patterns.")
 
 let push_current_pattern ~program_mode sigma (cur,ty) eqn =
-  let hypnaming = VarSet.variables (Global.env ()) in
   match eqn.patterns with
     | pat::pats ->
         let r = ERelevance.relevant in (* TODO relevance *)
-        let _,rhs_env = push_rel ~hypnaming sigma (LocalDef (make_annot (alias_of_pat pat) r,cur,ty)) eqn.rhs.rhs_env in
+        let _,rhs_env = push_rel sigma (LocalDef (make_annot (alias_of_pat pat) r,cur,ty)) eqn.rhs.rhs_env in
         { eqn with
             rhs = { eqn.rhs with rhs_env = rhs_env };
             patterns = pats }
@@ -860,9 +859,9 @@ let recover_and_adjust_alias_names (_,avoid) names sign =
   in
   List.split (aux (names,sign))
 
-let push_rels_eqn ~hypnaming sigma sign eqn =
+let push_rels_eqn sigma sign eqn =
   {eqn with
-     rhs = {eqn.rhs with rhs_env = snd (push_rel_context ~hypnaming sigma sign eqn.rhs.rhs_env) } }
+     rhs = {eqn.rhs with rhs_env = snd (push_rel_context sigma sign eqn.rhs.rhs_env) } }
 
 let push_rels_eqn_with_names sigma sign eqn =
   let subpats = List.rev (List.firstn (List.length sign) eqn.patterns) in
@@ -870,12 +869,12 @@ let push_rels_eqn_with_names sigma sign eqn =
   let sign = recover_initial_subpattern_names subpatnames sign in
   push_rels_eqn sigma sign eqn
 
-let push_generalized_decl_eqn ~hypnaming env sigma n decl eqn =
+let push_generalized_decl_eqn env sigma n decl eqn =
   match RelDecl.get_name decl with
   | Anonymous ->
-      push_rels_eqn ~hypnaming sigma [decl] eqn
+      push_rels_eqn sigma [decl] eqn
   | Name _ ->
-      push_rels_eqn ~hypnaming sigma [RelDecl.set_name (RelDecl.get_name (Environ.lookup_rel n !!(eqn.rhs.rhs_env))) decl] eqn
+      push_rels_eqn sigma [RelDecl.set_name (RelDecl.get_name (Environ.lookup_rel n !!(eqn.rhs.rhs_env))) decl] eqn
 
 let drop_alias_eqn eqn =
   { eqn with alias_stack = List.tl eqn.alias_stack }
@@ -1356,8 +1355,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
   let typs' =
     List.map_i (fun i d -> (mkRel i, map_constr (lift i) d)) 1 typs in
 
-  let hypnaming = VarSet.variables (Global.env ()) in
-  let typs,extenv = push_rel_context ~hypnaming sigma typs pb.env in
+  let typs,extenv = push_rel_context sigma typs pb.env in
 
   let typs' =
     List.map (fun (c,d) ->
@@ -1436,7 +1434,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
       tomatch = tomatch;
       pred = pred;
       history = history;
-      mat = List.map (push_rels_eqn_with_names ~hypnaming sigma typs) submat }
+      mat = List.map (push_rels_eqn_with_names sigma typs) submat }
 
 (**********************************************************************
  INVARIANT:
@@ -1452,7 +1450,6 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
 (**********************************************************************)
 (* Main compiling descent *)
 let compile ~program_mode sigma pb =
-  let hypnaming = VarSet.variables (Global.env ()) in
   let rec compile sigma pb =
     match pb.tomatch with
       | Pushed cur :: rest -> match_current sigma { pb with tomatch = rest } cur
@@ -1519,7 +1516,7 @@ let compile ~program_mode sigma pb =
     let env = Name.fold_left (fun env id -> hide_variable env id) pb.env na in
     let pb =
       { pb with
-         env = snd (push_rel ~hypnaming sigma (LocalDef (annotR na,current,ty)) env);
+         env = snd (push_rel sigma (LocalDef (annotR na,current,ty)) env);
          tomatch = tomatch;
          pred = lift_predicate 1 pred tomatch;
          history = pop_history pb.history;
@@ -1556,9 +1553,9 @@ let compile ~program_mode sigma pb =
   and compile_generalization sigma pb i d rest =
     let pb =
       { pb with
-         env = snd (push_rel ~hypnaming sigma d pb.env);
+         env = snd (push_rel sigma d pb.env);
          tomatch = rest;
-         mat = List.map (push_generalized_decl_eqn ~hypnaming pb.env sigma i d) pb.mat } in
+         mat = List.map (push_generalized_decl_eqn pb.env sigma i d) pb.mat } in
     let used, sigma, j = compile sigma pb in
     used, sigma, { uj_val = mkLambda_or_LetIn d j.uj_val;
       uj_type = mkProd_wo_LetIn d j.uj_type }
@@ -1572,11 +1569,11 @@ let compile ~program_mode sigma pb =
       let alias = LocalDef (make_annot na r,c,t) in
       let pb =
         { pb with
-           env = snd (push_rel ~hypnaming sigma alias pb.env);
+           env = snd (push_rel sigma alias pb.env);
            tomatch = lift_tomatch_stack 1 rest;
            pred = lift_predicate 1 pb.pred pb.tomatch;
            history = pop_history_pattern pb.history;
-           mat = List.map (push_alias_eqn ~hypnaming sigma alias) pb.mat } in
+           mat = List.map (push_alias_eqn sigma alias) pb.mat } in
       let used, sigma, j = compile sigma pb in
       used, sigma, { uj_val =
           if isRel sigma c || isVar sigma c || count_occurrences sigma (mkRel 1) j.uj_val <= 1 then
@@ -1718,8 +1715,7 @@ let adjust_to_extended_env_and_remove_deps env extenv sigma subst t =
   (subst0, t0)
 
 let push_binder sigma d (k,env,subst) =
-  let hypnaming = VarSet.variables (Global.env ()) in
-  (k+1,snd (push_rel ~hypnaming sigma d env),List.map (fun (na,u,d) -> (na,lift 1 u,d)) subst)
+  (k+1,snd (push_rel sigma d env),List.map (fun (na,u,d) -> (na,lift 1 u,d)) subst)
 
 let rec list_assoc_in_triple x = function
     [] -> raise Not_found
@@ -1842,7 +1838,6 @@ let build_tycon ?loc env tycon_env s subst tycon extenv sigma t =
  *)
 
 let build_inversion_problem ~program_mode loc env sigma tms t =
-  let hypnaming = VarSet.variables (Global.env ()) in
   let make_patvar t (subst,avoid) =
     let id = next_name_away (named_hd !!env sigma t Anonymous) avoid in
     DAst.make @@ PatVar (Name id), ((id,t)::subst, Id.Set.add id avoid) in
@@ -1867,14 +1862,14 @@ let build_inversion_problem ~program_mode loc env sigma tms t =
         let patl = pat :: List.rev patl in
         let patl,sign = recover_and_adjust_alias_names acc patl sign in
         let p = List.length patl in
-        let _,env' = push_rel_context ~hypnaming sigma sign env in
+        let _,env' = push_rel_context sigma sign env in
         let patl',acc_sign,acc = aux (n+p) env' (sign@acc_sign) tms acc in
         List.rev_append patl patl',acc_sign,acc
     | (t, NotInd (bo,typ)) :: tms ->
       let pat,acc = make_patvar t acc in
       let typ = lift n typ in
       let d = LocalAssum (annotR (alias_of_pat pat),typ) in
-      let patl,acc_sign,acc = aux (n+1) (snd (push_rel ~hypnaming sigma d env)) (d::acc_sign) tms acc in
+      let patl,acc_sign,acc = aux (n+1) (snd (push_rel sigma d env)) (d::acc_sign) tms acc in
       pat::patl,acc_sign,acc in
   let avoid0 = GlobEnv.vars_of_env env in
   (* [patl] is a list of patterns revealing the substructure of
@@ -1892,7 +1887,7 @@ let build_inversion_problem ~program_mode loc env sigma tms t =
   let decls =
     List.map_i (fun i d -> (mkRel i, map_constr (lift i) d)) 1 sign in
 
-  let _,pb_env = push_rel_context ~hypnaming sigma sign env in
+  let _,pb_env = push_rel_context sigma sign env in
   let decls =
     List.map (fun (c,d) -> (c,extract_inductive_data !!(pb_env) sigma d,d)) decls in
 
@@ -2102,8 +2097,7 @@ let prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs ars
   in
   assert (len == 0);
   let p = predicate 0 c in
-  let hypnaming = VarSet.variables (Global.env ()) in
-  let arsign,env' = List.fold_right_map (push_rel_context ~hypnaming sigma) arsign env in
+  let arsign,env' = List.fold_right_map (push_rel_context sigma) arsign env in
   try let sigma' = fst (Typing.type_of !!env' sigma p) in
         Some (sigma', p, arsign)
   with e when precatchable_exception e -> None
@@ -2165,8 +2159,7 @@ let prepare_predicate ?loc ~program_mode typing_fun env sigma tomatchs arsign ty
     (* Some type annotation *)
     | Some rtntyp ->
       (* We extract the signature of the arity *)
-      let hypnaming = VarSet.variables (Global.env ()) in
-      let building_arsign,envar = List.fold_right_map (push_rel_context ~hypnaming sigma) arsign env in
+      let building_arsign,envar = List.fold_right_map (push_rel_context sigma) arsign env in
       let sigma, rtnsort = Evd.new_sort_variable univ_flexible sigma in
       let sigma, predcclj = typing_fun (Some (mkSort rtnsort)) envar sigma rtntyp in
       let check_elim_sort sigma squash =
@@ -2420,7 +2413,6 @@ let build_ineqs env sigma prevpatterns curpats curpat_sign_len =
 
 let constrs_of_pats typing_fun env sigma eqns tomatchs sign neqs arity =
   let i = ref 0 in
-  let hypnaming = VarSet.variables (Global.env ()) in
   let (sigma, x, y, z) =
     List.fold_left
       (fun (sigma, branches, eqns, prevpatterns) eqn ->
@@ -2483,7 +2475,7 @@ let constrs_of_pats typing_fun env sigma eqns tomatchs sign neqs arity =
            let eqs_rels, arity = decompose_prod_n_decls sigma neqs arity in
              eqs_rels @ neqs_rels @ rhs_rels', arity
          in
-         let _,rhs_env = push_rel_context ~hypnaming sigma rhs_rels' env in
+         let _,rhs_env = push_rel_context sigma rhs_rels' env in
          let sigma, j = typing_fun (mk_tycon tycon) rhs_env sigma eqn.rhs.it in
          let bbody = it_mkLambda_or_LetIn j.uj_val rhs_rels'
          and btype = it_mkProd_or_LetIn j.uj_type rhs_rels' in
@@ -2697,7 +2689,6 @@ let context_of_arsign l =
 
 let compile_program_cases ?loc style (typing_function, sigma) tycon env
     (predopt, tomatchl, eqns) =
-  let hypnaming = VarSet.variables (Global.env ()) in
   let typing_fun tycon env sigma = function
     | Some t ->	typing_function tycon env sigma t
     | None -> coq_unit_judge !!env sigma in
@@ -2710,7 +2701,7 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
   let env, sigma, tomatchs = coerce_to_indtype ~program_mode:true typing_function env sigma matx tomatchl in
   let tycon = valcon_of_tycon tycon in
   let tomatchs, tomatchs_lets, tycon' = abstract_tomatch env sigma tomatchs tycon in
-  let _,env = push_rel_context ~hypnaming sigma tomatchs_lets env in
+  let _,env = push_rel_context sigma tomatchs_lets env in
   let len = List.length eqns in
   let sigma, sign, signlen, eqs, args =
     (* The arity signature *)
@@ -2746,7 +2737,7 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
   in
   let matx = List.rev matx in
   let _ = assert (Int.equal len (List.length lets)) in
-  let _,env = push_rel_context ~hypnaming sigma lets env in
+  let _,env = push_rel_context sigma lets env in
   let matx = List.map (fun eqn -> { eqn with rhs = { eqn.rhs with rhs_env = env } }) matx in
   let tomatchs = List.map (fun (x, y) -> lift len x, lift_tomatch_type len y) tomatchs in
   let args = List.rev_map (lift len) args in

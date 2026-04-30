@@ -589,8 +589,7 @@ let resolve_and_replace_implicits exptyp env sigma rt =
       undeclared_evars_rr = false;
       unconstrained_sorts = false;
     } in
-    let hypnaming = Evarutil.VarSet.variables (Global.env ()) in
-    let genv = GlobEnv.make ~hypnaming env sigma Glob_ops.empty_lvar in
+    let genv = GlobEnv.make env sigma Glob_ops.empty_lvar in
     let pretyper = { default_pretyper with pretype_hole; pretype_type } in
     let sigma', _ = eval_pretyper pretyper ~flags:pretype_flags (Some exptyp) genv sigma rt in
     solve_remaining_evars flags env ~initial:sigma sigma'

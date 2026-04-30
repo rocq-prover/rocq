@@ -355,6 +355,10 @@ struct
 
     let get_status (LocalAssum (s,_,_) | LocalDef (s,_,_,_)) = s
 
+    let is_secvar d = match get_status d with
+      | SecVar -> true
+      | ProofVar -> false
+
     let get_annot = function
       | LocalAssum (_,na,_) | LocalDef (_,na,_,_) -> na
 

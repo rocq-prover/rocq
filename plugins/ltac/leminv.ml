@@ -201,12 +201,11 @@ let inversion_scheme ~name ~poly env sigma t sort dep_option inv_op =
   let pf = Proof.start ~name ~poly (Evd.from_ustate (ustate sigma)) [invEnv,invGoal] in
   let pf, _, () = Proof.run_tactic env (tclTHEN intro (onLastHypId inv_op)) pf in
   let pfterm = List.hd (Proof.partial_proof pf) in
-  let global_named_context = Global.named_context_val () in
   let ownSign = ref begin
     fold_named_context
       (fun env d sign ->
         let d = EConstr.of_named_decl d in
-         if mem_named_context_val (NamedDecl.get_id d) global_named_context then sign
+         if NamedDecl.is_secvar d then sign
          else Context.Named.add d sign)
       invEnv ~init:Context.Named.empty
   end in

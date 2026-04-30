@@ -23,7 +23,7 @@ val decompose_app_bound : evar_map -> constr -> GlobRef.t * constr array
 
 type debug = Debug | Info | Off
 
-val secvars_of_hyps : ('c, 't,'r) Context.Named.pt -> Id.Pred.t
+val secvars_of_hyps : Environ.named_context_val -> Id.Pred.t
 
 val empty_hint_info : 'a Typeclasses.hint_info_gen
 

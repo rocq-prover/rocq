@@ -25,8 +25,8 @@ open Hints
 (**************************************************************************)
 
 let compute_secvars gl =
-  let hyps = Proofview.Goal.hyps gl in
-  secvars_of_hyps hyps
+  let env = Proofview.Goal.env gl in
+  secvars_of_hyps (Environ.named_context_val env)
 
 (* Tell auto not to reuse already instantiated metas in unification (for
    compatibility, since otherwise, apply succeeds more often). *)

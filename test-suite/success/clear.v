@@ -15,19 +15,34 @@ Qed.
 
 Class A.
 
+Class B := BB : A.
+
 Section Foo.
 
   Variable a : A.
 
   Goal A.
     solve [typeclasses eauto].
-    Undo 1.
+  Qed.
+
+  Goal A.
     clear a.
-    try typeclasses eauto.
+    Fail solve [ typeclasses eauto ].
     assert(a:=Build_A).
     solve [ typeclasses eauto ].
-    Undo 2.
+  Qed.
+
+  Goal A.
+    clear a.
     assert(b:=Build_A).
     solve [ typeclasses eauto ].
   Qed.
+
+  Instance myb : B := a.
+
+  Goal B.
+    clear a.
+    assert(a:=Build_A).
+    Fail solve [typeclasses eauto].
+  Abort.
 End Foo.

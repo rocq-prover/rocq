@@ -802,27 +802,26 @@ struct
     let open Context.Rel.Declaration in
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
     let pretype_type tycon env sigma c = eval_type_pretyper self ~flags tycon env sigma c in
-    let hypnaming = VarSet.variables (Global.env ()) in
     let rec type_bl env sigma ctxt = function
       | [] -> sigma, ctxt
       | (na,_,bk,None,ty)::bl ->
         let sigma, ty' = pretype_type empty_valcon env sigma ty in
         let rty' = ESorts.relevance_of_sort ty'.utj_type in
         let dcl = LocalAssum (make_annot na rty', ty'.utj_val) in
-        let dcl', env = push_rel ~hypnaming sigma dcl env in
+        let dcl', env = push_rel sigma dcl env in
         type_bl env sigma (Context.Rel.add dcl' ctxt) bl
       | (na,_,bk,Some bd,ty)::bl ->
         let sigma, ty' = pretype_type empty_valcon env sigma ty in
         let rty' = ESorts.relevance_of_sort ty'.utj_type in
         let sigma, bd' = pretype (mk_tycon ty'.utj_val) env sigma bd in
         let dcl = LocalDef (make_annot na rty', bd'.uj_val, ty'.utj_val) in
-        let dcl', env = push_rel ~hypnaming sigma dcl env in
+        let dcl', env = push_rel sigma dcl env in
         type_bl env sigma (Context.Rel.add dcl' ctxt) bl in
     let sigma, ctxtv = Array.fold_left_map (fun sigma -> type_bl env sigma Context.Rel.empty) sigma bl in
     let sigma, larj =
       Array.fold_left2_map
         (fun sigma e ar ->
-          pretype_type empty_valcon (snd (push_rel_context ~hypnaming sigma e env)) sigma ar)
+          pretype_type empty_valcon (snd (push_rel_context sigma e env)) sigma ar)
         sigma ctxtv lar in
     let lara = Array.map (fun a -> a.utj_val) larj in
     let ftys = Array.map2 (fun e a -> it_mkProd_or_LetIn a e) ctxtv lara in
@@ -846,7 +845,7 @@ struct
         names ftys
     in
       (* Note: bodies are not used by push_rec_types, so [||] is safe *)
-    let names,newenv = push_rec_types ~hypnaming sigma (names,ftys) env in
+    let names,newenv = push_rec_types sigma (names,ftys) env in
     let sigma, vdefj =
       Array.fold_left2_map_i
         (fun i sigma ctxt def ->
@@ -855,7 +854,7 @@ struct
            let (ctxt,ty) =
              decompose_prod_n_decls sigma (Context.Rel.length ctxt)
                (lift nbfix ftys.(i)) in
-           let ctxt,nenv = push_rel_context ~hypnaming sigma ctxt newenv in
+           let ctxt,nenv = push_rel_context sigma ctxt newenv in
            let sigma, j = pretype (mk_tycon ty) nenv sigma def in
            sigma, { uj_val = it_mkLambda_or_LetIn j.uj_val ctxt;
                     uj_type = it_mkProd_or_LetIn j.uj_type ctxt })
@@ -1258,8 +1257,7 @@ struct
     let sigma, j = eval_type_pretyper self ~flags dom_valcon env sigma c1 in
     let name = {binder_name=name; binder_relevance=ESorts.relevance_of_sort j.utj_type} in
     let var = LocalAssum (name, j.utj_val) in
-    let hypnaming = VarSet.variables (Global.env ()) in
-    let var',env' = push_rel ~hypnaming sigma var env in
+    let var',env' = push_rel sigma var env in
     let sigma, j' = eval_pretyper self ~flags rng env' sigma c2 in
     let name = get_name var' in
     let resj = judge_of_abstraction !!env sigma (orelse_name name name') j j' in
@@ -1270,7 +1268,6 @@ struct
     let open Context.Rel.Declaration in
     let pretype_type tycon env sigma c = eval_type_pretyper self ~flags tycon env sigma c in
     let sigma, j = pretype_type empty_valcon env sigma c1 in
-    let hypnaming = VarSet.variables (Global.env ()) in
     let sigma, name, j' = match name with
       | Anonymous ->
         let sigma, j = pretype_type empty_valcon env sigma c2 in
@@ -1278,7 +1275,7 @@ struct
       | Name _ ->
         let r = ESorts.relevance_of_sort j.utj_type in
         let var = LocalAssum (make_annot name r, j.utj_val) in
-        let var, env' = push_rel ~hypnaming sigma var env in
+        let var, env' = push_rel sigma var env in
         let sigma, c2_j = pretype_type empty_valcon env' sigma c2 in
         sigma, get_name var, c2_j
     in
@@ -1309,8 +1306,7 @@ struct
     let r = Retyping.relevance_of_term !!env sigma j.uj_val in
     let var = LocalDef (make_annot name r, j.uj_val, t) in
     let tycon = lift_tycon 1 tycon in
-    let hypnaming = VarSet.variables (Global.env ()) in
-    let var, env = push_rel ~hypnaming sigma var env in
+    let var, env = push_rel sigma var env in
     let sigma, j' = pretype tycon env sigma c2 in
     let name = get_name var in
     sigma, { uj_val = mkLetIn (make_annot name r, j.uj_val, t, j'.uj_val) ;
@@ -1355,8 +1351,7 @@ struct
           | _ -> assert false
         in aux 1 1 (List.rev nal) cs.cs_args, true in
     let fsign = Context.Rel.map (whd_betaiota !!env sigma) fsign in
-    let hypnaming = VarSet.variables (Global.env ()) in
-    let fsign,env_f = push_rel_context ~hypnaming sigma fsign env in
+    let fsign,env_f = push_rel_context sigma fsign env in
     let obj sigma indt rci p v f =
       if not record then
         let f = it_mkLambda_or_LetIn f fsign in
@@ -1373,7 +1368,7 @@ struct
       let psign = LocalAssum (make_annot na indr, indt) :: arsgn in (* For locating names in [po] *)
       let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
       let nar = List.length arsgn in
-      let psign',env_p = push_rel_context ~hypnaming ~force_names:true sigma psign predenv in
+      let psign',env_p = push_rel_context ~force_names:true sigma psign predenv in
           (match po with
           | Some p ->
             let sigma, pj = pretype_type empty_valcon env_p sigma p in
@@ -1438,8 +1433,7 @@ struct
     let indt = build_dependent_inductive !!env indf in
     let psign = LocalAssum (make_annot na indr, indt) :: arsgn in (* For locating names in [po] *)
     let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
-    let hypnaming = VarSet.variables (Global.env ()) in
-    let psign,env_p = push_rel_context ~hypnaming sigma psign predenv in
+    let psign,env_p = push_rel_context sigma psign predenv in
     let sigma, pred, p = match po with
       | Some p ->
         let sigma, pj = eval_type_pretyper self ~flags empty_valcon env_p sigma p in
@@ -1464,7 +1458,7 @@ struct
       let csgn =
         List.map (set_name Anonymous) cs_args
       in
-      let _,env_c = push_rel_context ~hypnaming sigma csgn env in
+      let _,env_c = push_rel_context sigma csgn env in
       let sigma, bj = pretype (mk_tycon pi) env_c sigma b in
       sigma, it_mkLambda_or_LetIn bj.uj_val cs_args in
     let sigma, b1 = f sigma cstrs.(0) b1 in
@@ -1682,8 +1676,7 @@ let ise_pretype_gen (flags : inference_flags) env sigma lvar kind c =
       | NoUseTC -> false
       | UseTC | UseTCForConv -> true
   } in
-  let hypnaming = VarSet.variables (Global.env ()) in
-  let env = GlobEnv.make ~hypnaming env sigma lvar in
+  let env = GlobEnv.make env sigma lvar in
   let sigma', c', c'_ty = match kind with
     | WithoutTypeConstraint ->
       let sigma, j = pretype ~flags:pretype_flags empty_tycon env sigma c in

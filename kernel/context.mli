@@ -235,6 +235,8 @@ sig
 
     val get_status : _ pt -> status
 
+    val is_secvar : _ pt -> bool
+
     val get_annot : (_,_,'r) pt -> (Id.t,'r) pbinder_annot
 
     (** Return the identifier bound by a given declaration. *)

@@ -1398,7 +1398,7 @@ let induction_gen ~clear_flag ~isrec ~with_evars elim
   let cls = Option.default allHypsAndConcl cls in
   let t = typ_of env evd c in
   let is_arg_pure_hyp =
-    isVar evd c && not (mem_named_context_val (destVar evd c) (Global.named_context_val ()))
+    isVar evd c && not (is_section_variable' env (destVar evd c))
     && lbind == NoBindings && not with_evars && Option.is_empty eqname
     && clear_flag == None
     && has_generic_occurrences_but_goal cls (destVar evd c) env evd ccl in
@@ -1446,28 +1446,27 @@ let induction_gen_l isrec with_evars elim names lc =
     match l with
       | [] -> Proofview.tclUNIT ()
       | c::l' ->
-          Proofview.tclEVARMAP >>= fun sigma ->
+        Proofview.Goal.enter begin fun gl ->
+          let env = Proofview.Goal.env gl in
+          let sigma = Proofview.Goal.sigma gl in
           match EConstr.kind sigma c with
-            | Var id when not (mem_named_context_val id (Global.named_context_val ()))
-                && not with_evars ->
-                let () = newlc:= id::!newlc in
-                atomize_list l'
+          | Var id when not (is_section_variable' env id)
+                     && not with_evars ->
+            let () = newlc:= id::!newlc in
+            atomize_list l'
 
-            | _ ->
-                Proofview.Goal.enter begin fun gl ->
-                let env = Proofview.Goal.env gl in
-                let sigma = Proofview.Goal.sigma gl in
-                let sigma, t = Typing.type_of env sigma c in
-                let x = id_of_name_using_hdchar env sigma t Anonymous in
-                let id = new_fresh_id Id.Set.empty x gl in
-                let newl' = List.map (fun r -> replace_term sigma c (mkVar id) r) l' in
-                let () = newlc:=id::!newlc in
-                Tacticals.tclTHENLIST [
-                  tclEVARS sigma;
-                  Tactics.letin_tac None (Name id) c None allHypsAndConcl;
-                  atomize_list newl';
-                ]
-                end in
+          | _ ->
+            let sigma, t = Typing.type_of env sigma c in
+            let x = id_of_name_using_hdchar env sigma t Anonymous in
+            let id = new_fresh_id Id.Set.empty x gl in
+            let newl' = List.map (fun r -> replace_term sigma c (mkVar id) r) l' in
+            let () = newlc:=id::!newlc in
+            Tacticals.tclTHENLIST [
+              tclEVARS sigma;
+              Tactics.letin_tac None (Name id) c None allHypsAndConcl;
+              atomize_list newl';
+            ]
+        end in
   Tacticals.tclTHENLIST
     [
       (atomize_list lc);

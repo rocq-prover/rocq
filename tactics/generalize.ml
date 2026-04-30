@@ -152,7 +152,8 @@ let generalize_dep ?(with_let=false) c =
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let sign = named_context_val env in
-  let init_ids = ids_of_named_context (Global.named_context()) in
+  (* XXX avoid section variables still in env instead of all section variables? *)
+  let init_ids = Environ.ids_of_named_context_val (Global.named_context_val()) in
   let seek (d:named_declaration) (toquant:named_context) =
     if List.exists (fun d' -> occur_var_in_decl env sigma (NamedDecl.get_id d') d) toquant
       || dependent_in_decl sigma c d then
@@ -161,10 +162,10 @@ let generalize_dep ?(with_let=false) c =
       toquant in
   let to_quantify = Context.Named.fold_outside seek (named_context_of_val sign) ~init:[] in
   let qhyps = List.map NamedDecl.get_id to_quantify in
-  let tothin = List.filter (fun id -> not (Id.List.mem id init_ids)) qhyps in
+  let tothin = List.filter (fun id -> not (Id.Set.mem id init_ids)) qhyps in
   let tothin' =
     match EConstr.kind sigma c with
-      | Var id when mem_named_context_val id sign && not (Id.List.mem id init_ids)
+      | Var id when mem_named_context_val id sign && not (Id.Set.mem id init_ids)
           -> tothin@[id]
       | _ -> tothin
   in
@@ -172,7 +173,7 @@ let generalize_dep ?(with_let=false) c =
   let is_var, body = match EConstr.kind sigma c with
   | Var id ->
     let body = NamedDecl.get_value (Tacmach.pf_get_hyp id gl) in
-    let is_var = Option.is_empty body && not (List.mem id init_ids) in
+    let is_var = Option.is_empty body && not (Id.Set.mem id init_ids) in
     if with_let then is_var, body else is_var, None
   | _ -> false, None
   in

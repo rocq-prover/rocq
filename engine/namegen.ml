@@ -99,10 +99,6 @@ let is_constructor id =
   with Not_found ->
     false
 
-let is_section_variable env id =
-  try let _ = Environ.lookup_named id env in true
-  with Not_found -> false
-
 (**********************************************************************)
 (* Generating "intuitive" names from its type *)
 
@@ -401,7 +397,7 @@ let next_name_away_in_cases_pattern gen sigma env_t na avoid =
 
 let next_ident_away_in_goal env id avoid =
   let id = if Id.Set.mem id avoid then restart_subscript id else id in
-  let bad id = Id.Set.mem id avoid || (is_global id && not (is_section_variable env id)) in
+  let bad id = Id.Set.mem id avoid || (is_global id && not (Environ.mem_named id env)) in
   next_ident_away_from id bad
 
 let next_name_away_in_goal (type a) (gen : a Generator.t) env na (avoid : a) =
@@ -409,7 +405,7 @@ let next_name_away_in_goal (type a) (gen : a Generator.t) env na (avoid : a) =
     | Name id -> id
     | Anonymous -> default_non_dependent_ident in
   let id = if Generator.is_fresh gen id avoid then id else restart_subscript id in
-  let bad id = is_global id && not (is_section_variable env id) in
+  let bad id = is_global id && not (Environ.mem_named id env) in
   Generator.gen_ident ~filter:bad gen id avoid
 
 (* 3- Looks for next fresh name outside a list that is moreover valid
