@@ -369,11 +369,6 @@ struct
       | LocalAssum (x,ty) -> LocalAssum (set x, ty)
       | LocalDef (x, v, ty) -> LocalDef (set x, v, ty)
 
-    (** Set the type of the bound variable in a given declaration. *)
-    let set_type ty = function
-      | LocalAssum (id,_) -> LocalAssum (id, ty)
-      | LocalDef (id,v,_) -> LocalDef (id, v, ty)
-
     (** Return [true] iff a given declaration is a local assumption. *)
     let is_local_assum = function
       | LocalAssum _ -> true
@@ -409,23 +404,6 @@ struct
       let id = get_id x in
       let id' = f id in
       if id == id' then x else set_id id' x
-
-    (** For local assumptions, this function returns the original local assumptions.
-        For local definitions, this function maps the value in the local definition. *)
-    let map_value f = function
-      | LocalAssum _ as decl -> decl
-      | LocalDef (na, v, t) as decl ->
-          let v' = f v in
-          if v == v' then decl else LocalDef (na, v', t)
-
-    (** Map the type of the name bound by a given declaration. *)
-    let map_type f = function
-      | LocalAssum (id, ty) as decl ->
-          let ty' = f ty in
-          if ty == ty' then decl else LocalAssum (id, ty')
-      | LocalDef (id, v, ty) as decl ->
-          let ty' = f ty in
-          if ty == ty' then decl else LocalDef (id, v, ty')
 
     (** Map all terms in a given declaration. *)
     let map_constr f = function

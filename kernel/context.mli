@@ -245,9 +245,6 @@ sig
     (** Set the identifier that is bound by a given declaration. *)
     val set_id : Id.t -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
-    (** Set the type of the bound variable in a given declaration. *)
-    val set_type : 't -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
     (** Return [true] iff a given declaration is a local assumption. *)
     val is_local_assum : ('c, 't, 'r) pt -> bool
 
@@ -266,13 +263,6 @@ sig
 
     (** Map the identifier bound by a given declaration. *)
     val map_id : (Id.t -> Id.t) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
-    (** For local assumptions, this function returns the original local assumptions.
-        For local definitions, this function maps the value in the local definition. *)
-    val map_value : ('c -> 'c) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
-    (** Map the type of the name bound by a given declaration. *)
-    val map_type : ('t -> 't) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
     (** Map all terms in a given declaration. *)
     val map_constr : ('c -> 'c) -> ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt
