@@ -448,6 +448,7 @@ let make_hints env sigma (modes,st) only_classes =
     (fun _ status hyp hints ->
       let consider =
         not only_classes ||
+        not (status = SecVar) ||
         try let t = hyp |> NamedDecl.get_id |> Global.lookup_named |> NamedDecl.get_type in
             (* Section variable, reindex only if the type changed *)
             not (EConstr.eq_constr sigma (EConstr.of_constr t) (NamedDecl.get_type hyp))

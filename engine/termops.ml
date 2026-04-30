@@ -1007,10 +1007,13 @@ let ids_of_context env =
 let names_of_rel_context env =
   List.map RelDecl.get_name (rel_context env)
 
-(* XXX use var status (NOT IN THIS ENV) *)
-let is_section_variable env id =
-  try let _ = Environ.lookup_named id env in true
-  with Not_found -> false
+let is_section_variable_sign ?check sign id =
+  match Environ.var_status_ctxt ?check id sign with
+  | SecVar -> true
+  | ProofVar -> false
+
+let is_section_variable' ?check env id =
+  is_section_variable_sign ?check (Environ.named_context_val env) id
 
 let is_template_polymorphic_ref env sigma f =
   match EConstr.kind sigma f with
@@ -1424,3 +1427,8 @@ and hash_branches bl =
   Array.fold_left (fun acc t -> combine acc (hash_under_context t)) 0 bl
 
 end
+
+(* deprecated *)
+let is_section_variable env id =
+  try let _ = Environ.lookup_named id env in true
+  with Not_found -> false

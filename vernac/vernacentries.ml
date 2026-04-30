@@ -823,7 +823,7 @@ let vernac_enable_notation ~module_local on rule interp flags scope =
 
 let check_name_freshness locality {CAst.loc;v=id} : unit =
   (* We check existence here: it's a bit late at Qed time *)
-  if Termops.is_section_variable (Global.env ()) id ||
+  if Environ.mem_named id (Global.env ()) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path id) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path_except_section id)
   then
