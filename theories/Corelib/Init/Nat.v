@@ -425,3 +425,13 @@ Definition land a b := bitwise andb a a b.
 Definition lor a b := bitwise orb (max a b) a b.
 Definition ldiff a b := bitwise (fun b b' => andb b (negb b')) a a b.
 Definition lxor a b := bitwise xorb (max a b) a b.
+
+Arguments of_hex_uint d%_hex_uint_scope.
+Arguments of_hex_int d%_hex_int_scope.
+Arguments of_uint d%_dec_uint_scope.
+Arguments of_int d%_dec_int_scope.
+
+Module Export NumberNotations.
+  Number Notation nat of_num_uint to_num_hex_uint (abstract after 5000) : hex_nat_scope.
+  Number Notation nat of_num_uint to_num_uint (abstract after 5000) : nat_scope.
+End NumberNotations.
