@@ -120,14 +120,14 @@ let mis_is_recursive mip =
   let check tr = match Rtree.Automaton.data ra tr with Mrec _ -> true | Norec -> false in
   Array.exists (fun v -> Array.exists check v) trans
 
-let mis_is_nested kn mib =
+let mis_is_nested env kn mib =
   Array.exists (fun mip ->
     let ra = mip.mind_automaton in
     let trans = Rtree.Automaton.transitions ra (Rtree.Automaton.initial ra) in
     Array.exists (fun rvec ->
       Array.exists (fun tr ->
         match Rtree.Automaton.data ra tr with
-        | Mrec (RecArgInd (kni, _)) -> not @@ MutInd.CanOrd.equal kn kni
+        | Mrec (RecArgInd (kni, _)) -> not @@ QMutInd.equal env kn kni
         | Mrec (RecArgPrim _) | Norec -> false
       ) rvec
     ) trans
