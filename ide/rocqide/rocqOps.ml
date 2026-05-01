@@ -489,13 +489,14 @@ object(self)
         let bg = flatten (List.rev bg) in
         return (Wg_ProofView.FocusGoals { fg; bg; })
       | Some { fg_goals = []; bg_goals = bg } ->
-        let flags = { gf_mode = "short"; gf_fg = false; gf_bg = false; gf_shelved = true; gf_given_up = true } in
+        (* gf_bg: get background goals if we didn't already do so *)
+        let flags = { gf_mode = "short"; gf_fg = false; gf_bg = not gf_bg; gf_shelved = true; gf_given_up = true } in
         RocqDriver.subgoals flags >>= fun rem ->
-        let bg = flatten (List.rev bg) in
-        let shelved, given_up = match rem with
-        | None -> [], []
-        | Some goals -> goals.shelved_goals, goals.given_up_goals
+        let shelved, given_up, bg = match rem with
+        | None -> [], [], bg
+        | Some goals -> goals.shelved_goals, goals.given_up_goals, if gf_bg then bg else goals.bg_goals
         in
+        let bg = flatten (List.rev bg) in
         return (Wg_ProofView.NoFocusGoals { bg; shelved; given_up })
       end
     in
