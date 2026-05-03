@@ -16,7 +16,6 @@ open Pp
 open Printer
 
 module NamedDecl = Context.Named.Declaration
-module CompactedDecl = Context.Compacted.Declaration
 
 (** Idetop : an implementation of [Interface], i.e. mainly an interp
     function and a rewind function. *)
@@ -199,24 +198,20 @@ let concl_next_tac =
 let process_goal short sigma g =
   let evi = Evd.find_undefined sigma g in
   let env = Evd.evar_filtered_env (Global.env ()) evi in
-  let min_env = Environ.reset_context env in
   let name = if Printer.print_goal_name sigma g then Some (Termops.evar_string env sigma g) else None in
   let ccl =
     pr_letype_env ~goal_concl_style:true env sigma (Evd.evar_concl evi)
   in
-  let process_hyp d (env,l) =
-    let d' = CompactedDecl.to_named_context d in
-      (List.fold_right EConstr.push_named d' env,
-       (pr_ecompacted_decl env sigma d) :: l) in
+  let process_hyp d = pr_ecompacted_decl env sigma d in
   let hyps =
     if short then [] else
-      let (_env, hyps) =
-        Context.Compacted.fold process_hyp
-        (Termops.compact_named_context sigma (EConstr.named_context env)) ~init:(min_env,[])
+      let hyps =
+        List.rev_map process_hyp
+        (Termops.compact_named_context sigma (EConstr.named_context env))
       in
       hyps
   in
-  { Interface.goal_hyp = List.rev hyps; Interface.goal_ccl = ccl; Interface.goal_id = Proof.goal_uid g; Interface.goal_name = name }
+  { Interface.goal_hyp = hyps; Interface.goal_ccl = ccl; Interface.goal_id = Proof.goal_uid g; Interface.goal_name = name }
 
 let process_goal_diffs ~short diff_goal_map oldp nsigma ng =
   let env = Global.env () in

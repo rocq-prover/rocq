@@ -592,12 +592,6 @@ module Compacted =
               LocalAssum ([id],t)
           | Named.Declaration.LocalDef (id,v,t) ->
               LocalDef ([id],v,t)
-
-        let to_named_context = function
-          | LocalAssum (ids, t) ->
-             List.map (fun id -> Named.Declaration.LocalAssum (id,t)) ids
-          | LocalDef (ids, v, t) ->
-             List.map (fun id -> Named.Declaration.LocalDef (id,v,t)) ids
       end
 
     type ('constr, 'types, 'r) pt = ('constr, 'types, 'r) Declaration.pt list
