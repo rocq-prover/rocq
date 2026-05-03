@@ -148,6 +148,7 @@ development of interactive proofs."))
 
 (package
  (name rocq-test-suite)
+ (allow_empty)
  (depends
   (rocq-core (= :version))
   coqide-server
