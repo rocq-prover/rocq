@@ -77,47 +77,36 @@ Ltac2 @ external instantiate : context -> constr -> constr :=
 
 (** Implementation of Ltac matching over terms and goals *)
 
-Ltac2 Type 'a constr_matching := (match_kind * t * (context -> constr array -> 'a)) list.
+Ltac2 Type 'a one_constr_matching := match_kind * t * (context -> constr array -> 'a).
+Ltac2 Type 'a constr_matching := 'a one_constr_matching list.
 
-Ltac2 lazy_match0 t (pats:'a constr_matching) :=
+(** Returns a thunk so that we can differentiate between an error from
+    pattern matching and an error from the branch [f]. *)
+Ltac2 one_constr_match t (p:'a one_constr_matching) : unit -> 'a :=
+  let (knd, pat, f) := p in
+  match knd with
+  | MatchPattern =>
+      let context := empty_context in
+      let bind := matches_vect pat t in
+      fun () => f context bind
+  | MatchContext =>
+      let (context, bind) := matches_subterm_vect pat t in
+      fun () => f context bind
+  end.
+
+Ltac2 lazy_match0 t (pats:'a constr_matching) : 'a :=
   let rec interp m := match m with
   | [] => Control.zero Match_failure
   | p :: m =>
-    let next _ := interp m in
-    let (knd, pat, f) := p in
-    let p := match knd with
-    | MatchPattern =>
-      (fun _ =>
-        let context := empty_context in
-        let bind := matches_vect pat t in
-        fun _ => f context bind)
-    | MatchContext =>
-      (fun _ =>
-        let (context, bind) := matches_subterm_vect pat t in
-        fun _ => f context bind)
-    end in
-    Control.plus p next
+    Control.plus (fun () => one_constr_match t p) (fun _ => interp m)
   end in
   Control.once (fun () => interp pats) ().
 
-Ltac2 multi_match0 t (pats:'a constr_matching) :=
+Ltac2 multi_match0 t (pats:'a constr_matching) : 'a :=
   let rec interp e m := match m with
   | [] => Control.zero e
   | p :: m =>
-    let next e := interp e m in
-    let (knd, pat, f) := p in
-    let p := match knd with
-    | MatchPattern =>
-      (fun _ =>
-        let context := empty_context in
-        let bind := matches_vect pat t in
-        f context bind)
-    | MatchContext =>
-      (fun _ =>
-        let (context, bind) := matches_subterm_vect pat t in
-        f context bind)
-    end in
-    Control.plus p next
+    Control.plus (fun () => one_constr_match t p ()) (fun e => interp e m)
   end in
   interp Match_failure pats.
 
