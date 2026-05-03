@@ -10,7 +10,7 @@ cd _test || exit 1
 
 # check cmd line arg is included in coqdep
 # preserves order of args (cmd line args last)
-actual=$(rocq makefile -sources-of -f _CoqProject -o CoqMakefile b.v)
+actual=$(rocq makefile -sources-of .v -f _CoqProject -o CoqMakefile b.v)
 expected="x/a.v b.v"
 if [ "$actual" != "$expected" ]; then
   echo actual: $actual

@@ -8,11 +8,18 @@ find . -maxdepth 1 -not -name . -not -name _test -exec cp -r '{}' -t _test ';'
 
 cd _test || exit 1
 
-# includes 6 file extensions, ignores others such as .c, .vo
 # recursive expansion
 # explicit non-existent file included
-actual=`rocq makefile -sources-of -o CoqMakefile . nonexistent.v`
-expected="a/b/g.v a/g.mlg a/g.mllib a/g.mlpack g.ml g.mli nonexistent.v"
+actual=`rocq makefile -sources-of .v -o CoqMakefile . nonexistent.v`
+expected="a/b/g.v nonexistent.v"
+if [ "$actual" != "$expected" ]; then
+  echo actual: $actual
+  echo expected: $expected
+  exit 1
+fi
+
+actual=`rocq makefile -sources-of .mli -o CoqMakefile . nonexistent.v`
+expected="a/g.mli g.mli"
 if [ "$actual" != "$expected" ]; then
   echo actual: $actual
   echo expected: $expected
@@ -20,8 +27,8 @@ if [ "$actual" != "$expected" ]; then
 fi
 
 # expands specific directory, not ., gets the right subset
-actual=`rocq makefile -sources-of -o CoqMakefile a`
-expected="a/b/g.v a/g.mlg a/g.mllib a/g.mlpack"
+actual=`rocq makefile -sources-of .mli -o CoqMakefile a`
+expected="a/g.mli"
 if [ "$actual" != "$expected" ]; then
   echo actual: $actual
   echo expected: $expected

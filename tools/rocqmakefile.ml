@@ -245,21 +245,19 @@ let write_coqbin oc =
     endif\n\
     COQMKFILE ?= \"$(COQBIN)rocq\" makefile"
 
-let generate_conf_files oc p
-=
-  let module S = String in
-  let fout varname suffix =
-    fprintf oc "COQMF_%s := $(filter %%%s, $(COQMF_SOURCES))\n" varname suffix;
-  in
+let generate_conf_files oc p =
   section oc "Project files.";
 
   let cmdline_vfiles = p.cmd_line_files in
-  fprintf oc "COQMF_CMDLINE_VFILES := %s\n" (S.concat " " (map_sourced_list quote cmdline_vfiles));
+  fprintf oc "COQMF_CMDLINE_VFILES := %s\n" (String.concat " " (map_sourced_list quote cmdline_vfiles));
   let proj_arg = match p.project_file with
     | Some pfile -> Printf.sprintf "-f %s" pfile
     | None -> ""
   in
-  fprintf oc "COQMF_SOURCES := $(shell $(COQMKFILE) -sources-of %s $(COQMF_CMDLINE_VFILES))\n" proj_arg;
+  let fout varname suffix =
+    fprintf oc "COQMF_%s := $(shell $(COQMKFILE) -sources-of %s %s $(COQMF_CMDLINE_VFILES))\n"
+      varname suffix proj_arg;
+  in
   fout "VFILES" ".v";
   fout "MLIFILES" ".mli";
   fout "MLFILES" ".ml";
@@ -378,19 +376,19 @@ let chop_prefix p f =
 
 type extra_opts = {
   only_destination : string option;
-  only_sources : bool;
+  only_sources : string option;
   coqlib : string option;
 }
 
 let empty_extra = {
   only_destination = None;
-  only_sources = false;
+  only_sources = None;
   coqlib = None;
 }
 
 let parse_extra f r opts = match f, r with
   | "-destination-of", tgt :: r -> Some (r, { opts with only_destination = Some tgt })
-  | "-sources-of", r -> Some (r, { opts with only_sources = true })
+  | "-sources-of", suf :: r -> Some (r, { opts with only_sources = Some suf })
   | "-coqlib", v :: r -> Some (r, { opts with coqlib = Some v })
   | ("-h"|"--help"), _ -> usage_coq_makefile ~ok:true
   | ("-v"|"--version"), _ -> Boot.Usage.version (); exit 0
@@ -471,12 +469,17 @@ let main ~prog args =
     with Parsing_error s -> prerr_endline s; usage_coq_makefile ~ok:false in
 
   match only_destination, only_sources with
-  | None, false -> normal_mode ~coqlib project prog args
-  | Some dest, false ->
+  | None, None -> normal_mode ~coqlib project prog args
+  | Some dest, None ->
     destination_of project dest
-  | None, true ->
-    let paths = String.concat " " (List.map (fun i -> i.thing) project.files) in
+  | None, Some suf ->
+    let filter i =
+      let i = i.thing in
+      if String.equal (Filename.extension i) suf then Some i
+      else None
+    in
+    let paths = String.concat " " (List.filter_map filter project.files) in
     Printf.printf "%s" paths
-  | Some _, true ->
+  | Some _, Some _ ->
     prerr_endline "Cannot combine -destination-of and -sources-of";
     usage_coq_makefile ~ok:false
