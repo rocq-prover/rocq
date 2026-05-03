@@ -90,17 +90,13 @@ let check_assumption env x t ty =
   else
     error_bad_binder_relevance env r' (RelDecl.LocalAssum (x, t))
 
-let check_binding_relevance env na1 na2 t =
-  let r1 = binder_relevance na1 in
-  if not (check_relevance env r1 (binder_relevance na2)) then
-    error_bad_binder_relevance env r1 (LocalAssum (na2, t))
-
 let esubst u s c =
   Vars.esubst Vars.lift_substituend s (subst_instance_constr u c)
 
 exception ArgumentsMismatch
 
-let instantiate_context env u subst nas ctx =
+(* not quite the same as Environ.instantiate_context because we have subst:esubst here *)
+let instantiate_context u subst nas ctx =
   let open Context.Rel.Declaration in
   let instantiate_relevance na =
     { na with binder_relevance = UVars.subst_instance_relevance u na.binder_relevance }
@@ -112,16 +108,14 @@ let instantiate_context env u subst nas ctx =
     let subst = Esubst.subs_liftn i subst in
     let na = instantiate_relevance na in
     let ty = esubst u subst ty in
-    let () = check_binding_relevance env na nas.(i) ty in
-    LocalAssum (nas.(i), ty) :: ctx
+    LocalAssum ({ na with binder_name = nas.(i) }, ty) :: ctx
   | LocalDef (na, ty, bdy) :: ctx ->
     let ctx = instantiate (pred i) ctx in
     let subst = Esubst.subs_liftn i subst in
     let na = instantiate_relevance na in
     let ty = esubst u subst ty in
     let bdy = esubst u subst bdy in
-    let () = check_binding_relevance env na nas.(i) ty in
-    LocalDef (nas.(i), ty, bdy) :: ctx
+    LocalDef ({ na with binder_name = nas.(i) }, ty, bdy) :: ctx
   in
   instantiate (Array.length nas - 1) ctx
 
@@ -775,7 +769,7 @@ and execute_aux tbl env cstr =
           in
           let realdecls = LocalAssum (Context.make_annot Anonymous mip.mind_relevance, self) :: realdecls in
           let realdecls =
-            try instantiate_context env u paramsubst nas realdecls
+            try instantiate_context u paramsubst nas realdecls
             with ArgumentsMismatch -> error_elim_arity env (ci.ci_ind, u) (HConstr.self c) None
           in
           let p_env = Environ.push_rel_context realdecls env in
@@ -791,7 +785,7 @@ and execute_aux tbl env cstr =
           let (ctx, cty) = mip.mind_nf_lc.(i) in
           let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
           let ctx =
-            try instantiate_context env u paramsubst nas ctx
+            try instantiate_context u paramsubst nas ctx
             with ArgumentsMismatch ->
               (* Despite the name, the toplevel message is reasonable *)
               error_elim_arity env (ci.ci_ind, u) (self c) None

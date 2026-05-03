@@ -625,7 +625,6 @@ and to_constr_case lfts ci u pms (p,r) iv c ve env =
     mkCase (ci, usubst_instance subs u, pms, (p,r), iv, to_constr lfts c, ve)
   else
     let f_ctx (nas, c) =
-      let nas = Array.map (usubst_binder subs) nas in
       let c = subst_constr (usubs_liftn (Array.length nas) subs) c in
       (nas, c)
     in
@@ -2141,7 +2140,6 @@ and zip_term info tab m stk = match stk with
     zip_term info tab (mkApp(m, Array.map (kl info tab) args)) s
 | ZcaseT(ci, u, pms, (p,r), br, e) :: s ->
   let zip_ctx (nas, c) =
-      let nas = Array.map (usubst_binder e) nas in
       let e = usubs_liftn (Array.length nas) e in
       (nas, klt info tab e c)
     in

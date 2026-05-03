@@ -161,7 +161,7 @@ type types = t
 type constr = t
 type existential = t pexistential
 type case_return = (t, ERelevance.t) pcase_return
-type case_branch = (t, ERelevance.t) pcase_branch
+type case_branch = t pcase_branch
 type case_invert = t pcase_invert
 type case = (t, t, EInstance.t, ERelevance.t) pcase
 type rec_declaration = (t, t, ERelevance.t) prec_declaration
@@ -630,13 +630,6 @@ let expand_branch env _sigma u pms (ind, i) (nas, _br) =
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl pms in
   let (ctx, _) = mip.mind_nf_lc.(i - 1) in
   let (ctx, _) = List.chop mip.mind_consnrealdecls.(i - 1) ctx in
-  let nas =
-    let gen : type a b. (a,b) eq -> (_,a) Context.pbinder_annot array ->
-      (_,b) Context.pbinder_annot array =
-      fun Refl x -> x
-    in
-    gen unsafe_relevance_eq nas
-  in
   let ans = Inductive.instantiate_context u paramsubst nas ctx in
   let ans : rel_context =
     match Evd.MiniEConstr.(unsafe_eq, unsafe_relevance_eq) with

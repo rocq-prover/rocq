@@ -522,7 +522,7 @@ let print_pure_constr csr =
       print_string ")"
   | Case (ci,u,pms,(p,_),iv,c,bl) ->
       let pr_ctx (nas, c) =
-        Array.iter (fun na -> print_cut (); name_display na) nas;
+        Array.iter (fun na -> print_cut (); print_string (Name.to_string na)) nas;
         print_string " |- ";
         box_display c
       in

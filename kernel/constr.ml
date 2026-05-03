@@ -82,11 +82,11 @@ type 'constr pcase_invert =
   | NoInvert
   | CaseInvert of { indices : 'constr array }
 
-type ('constr,'r) pcase_branch = (Name.t,'r) Context.pbinder_annot array * 'constr
-type ('types,'r) pcase_return = ((Name.t,'r) Context.pbinder_annot array * 'types) * 'r
+type 'constr pcase_branch = Name.t array * 'constr
+type ('types,'r) pcase_return = (Name.t array * 'types) * 'r
 
 type ('constr, 'types, 'univs, 'r) pcase =
-  case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr, 'r) pcase_branch array
+  case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * 'constr pcase_branch array
 
 (* [Var] is used for named variables and [Rel] for variables as
    de Bruijn indices. *)
@@ -104,7 +104,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Const     of (Constant.t * 'univs)
   | Ind       of (inductive * 'univs)
   | Construct of (constructor * 'univs)
-  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr,'r) pcase_branch array
+  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * 'constr pcase_branch array
   | Fix       of ('constr, 'types, 'r) pfixpoint
   | CoFix     of ('constr, 'types, 'r) pcofixpoint
   | Proj      of Projection.t * 'r * 'constr
@@ -122,7 +122,7 @@ type existential = existential_key * constr SList.t
 
 type case_invert = constr pcase_invert
 type case_return = (types,Sorts.relevance) pcase_return
-type case_branch = (constr,Sorts.relevance) pcase_branch
+type case_branch = constr pcase_branch
 type case = (constr, types, Instance.t, Sorts.relevance) pcase
 type rec_declaration = (constr, types, Sorts.relevance) prec_declaration
 type fixpoint = (constr, types, Sorts.relevance) pfixpoint
@@ -1261,7 +1261,7 @@ let rec hash_term (t : t) : int * (constr,constr,_,_,_) kind_of_term =
   | Case (ci,u,pms,(p,r),iv,c,bl) ->
     (** FIXME: use a dedicated hashconsing structure *)
     let hcons_ctx (lna, c) =
-      let hna, lna = hashcons_array2 hcons_annot lna lna in
+      let hna, lna = hashcons_array2 Name.hcons lna lna in
       let hc, c = sh_rec c in
       combine hna hc, (lna, c)
     in
@@ -1443,7 +1443,7 @@ let rec debug_print c =
     str"Proj(" ++ Projection.debug_print p ++ str"," ++ debug_print c ++ str")"
   | Case (_ci,_u,pms,(p,_),iv,c,bl) ->
     let pr_ctx (nas, c) =
-      hov 2 (hov 0 (prvect (fun na -> Name.print na.binder_name ++ spc ()) nas ++ str "|-") ++ spc () ++
+      hov 2 (hov 0 (prvect (fun na -> Name.print na ++ spc ()) nas ++ str "|-") ++ spc () ++
         debug_print c)
     in
     v 0 (hv 0 (str"Case" ++ brk (1,1) ++

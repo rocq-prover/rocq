@@ -196,7 +196,7 @@ let pattern_of_constr ~broken env sigma t =
           let ctx, c = Term.decompose_lambda_n_decls (Array.length nas) c in
           let env = push_rel_context ctx env in
           let c = pattern_of_constr env c in
-          (Array.map Context.binder_name nas, c)
+          (nas, c)
         in
         let p = pattern_of_ctx p (fst p0) in
         let cip =

@@ -134,7 +134,7 @@ let construct_of_constr_const env sigma tag typ =
 let construct_of_constr_block = construct_of_constr false
 
 let get_case_annot decls =
-  Array.map_of_list (fun decl -> get_annot decl) (List.rev decls)
+  Array.map_of_list (fun decl -> get_name decl) (List.rev decls)
 
 let build_branches_type env sigma mib mip (ind,u) params (pctx, p) =
   let rtbl = mip.mind_reloc_tbl in
@@ -161,10 +161,6 @@ let build_branches_type env sigma mib mip (ind,u) params (pctx, p) =
     in
     let decl_with_letin = List.firstn mip.mind_consnrealdecls.(i) ctx in
     let nas = get_case_annot decl_with_letin in
-    let nas =
-      let u = EConstr.Unsafe.to_instance u in
-      Array.map (Context.map_annot_relevance (UVars.subst_instance_relevance u)) nas
-    in
     let rec get_lift decls = match decls with
     | [] -> Esubst.el_id
     | LocalDef _ :: decls -> Esubst.el_shft 1 (get_lift decls)
@@ -329,8 +325,7 @@ and nf_atom_type env sigma atom =
       let params,realargs = Array.chop nparams allargs in
       let pctx =
         let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
-        (* NB expand_arity doesn't look at the relevances in nas *)
-        let nas = List.rev_map get_annot realdecls @ [nameR (Id.of_string "c")] in
+        let nas = List.rev_map get_name realdecls @ [Name (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
       let p, relevance = nf_predicate env sigma ind mip params p pctx in

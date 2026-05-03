@@ -266,7 +266,7 @@ let hash_kind = let open Hashset.Combine in function
   | Construct (c,u) -> combinesmall 11 (combine (Construct.UserOrd.hash c) (UVars.Instance.hash u))
   | Case (_,u,pms,(p,_),_,c,bl) ->
     let hash_ctx (bnd,c) =
-      Array.fold_left (fun hash na -> combine (hash_annot na) hash) c.hash bnd
+      Array.fold_left (fun hash na -> combine (Name.hash na) hash) c.hash bnd
     in
     let hpms = hash_array hash pms in
     let hbl = hash_array hash_ctx bl in
@@ -420,7 +420,7 @@ and of_constr_aux henv c =
       pctx, blctx
     in
     let of_ctx (bnd, c) bnd' =
-      let _, bnd = Hashcons.hashcons_array hcons_annot bnd in
+      let _, bnd = Hashcons.hashcons_array Name.hcons bnd in
       let henv = push_rel_context henv bnd' in
       let c = of_constr henv c in
       bnd, c

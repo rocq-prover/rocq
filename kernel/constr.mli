@@ -158,10 +158,10 @@ end
     [ac]{^ ith} element is ith constructor case presented as
     {e construct_args |- case_term } *)
 
-type ('constr,'r) pcase_branch = (Name.t,'r) Context.pbinder_annot array * 'constr
+type 'constr pcase_branch = Name.t array * 'constr
 (** Names bound by matching the constructor for this branch. *)
 
-type ('types,'r) pcase_return = ((Name.t,'r) Context.pbinder_annot array * 'types) * 'r
+type ('types,'r) pcase_return = (Name.t array * 'types) * 'r
 (** Names of the indices + name of self *)
 
 type 'constr pcase_invert =
@@ -173,11 +173,11 @@ type 'constr pcase_invert =
       No constructors or reduce when the indices match those of the unique constructor. *)
 
 type ('constr, 'types, 'univs, 'r) pcase =
-  case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr,'r) pcase_branch array
+  case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * 'constr pcase_branch array
 
 type case_invert = constr pcase_invert
 type case_return = (types, Sorts.relevance) pcase_return
-type case_branch = (constr, Sorts.relevance) pcase_branch
+type case_branch = constr pcase_branch
 type case = (constr, types, UVars.Instance.t, Sorts.relevance) pcase
 
 val mkCase : case -> constr
@@ -270,7 +270,7 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | Construct of (constructor * 'univs)
   (** A constructor of an inductive type defined by [Variant],
      [Inductive] or [Record] Vernacular-commands. *)
-  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr,'r) pcase_branch array
+  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * 'constr pcase_branch array
   (** [Case (ci,u,params,p,iv,c,brs)] is a [match c return p with brs]
      expression. [c] lives in inductive [ci.ci_ind] at universe
      instance [u] and parameters [params]. If this match has case
