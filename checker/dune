@@ -8,7 +8,8 @@
  (synopsis "Rocq's Standalone Proof Checker")
  (modules :standard \ rocqchk coqchk votour)
  (wrapped true)
- (libraries rocq-runtime.boot rocq-runtime.kernel))
+ (libraries rocq-runtime.boot rocq-runtime.kernel)
+ (flags :standard -open Rocqutils))
 
 (deprecated_library_name
  (old_public_name coq-core.checklib)

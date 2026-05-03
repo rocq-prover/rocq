@@ -4,7 +4,8 @@
  (public_name rocq-runtime.proofs)
  (wrapped false)
  (modules_without_implementation tactypes)
- (libraries pretyping))
+ (libraries rocqpretyping)
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.proofs)

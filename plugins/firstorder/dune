@@ -3,7 +3,8 @@
  (public_name rocq-runtime.plugins.firstorder_core)
  (synopsis "Rocq's first order logic solver plugin")
  (modules (:standard \ g_ground))
- (libraries rocq-runtime.tactics))
+ (libraries rocq-runtime.tactics)
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.plugins.firstorder_core)
@@ -13,7 +14,7 @@
  (name firstorder_plugin)
  (public_name rocq-runtime.plugins.firstorder)
  (synopsis "Rocq's first order logic solver plugin (Ltac1 syntax)")
- (flags :standard -open Firstorder_core_plugin)
+ (flags :standard -open Firstorder_core_plugin -open Rocqutils -open Rocqpretyping)
  (modules g_ground)
  (libraries rocq-runtime.plugins.firstorder_core rocq-runtime.plugins.ltac))
 

@@ -3,7 +3,8 @@
  (public_name rocq-runtime.parsing)
  (wrapped false)
  (modules_without_implementation notation_gram)
- (libraries rocq-runtime.gramlib interp))
+ (libraries rocq-runtime.gramlib interp)
+ (flags :standard -open Rocqutils -open Rocqpretyping))
 
 (deprecated_library_name
  (old_public_name coq-core.parsing)
