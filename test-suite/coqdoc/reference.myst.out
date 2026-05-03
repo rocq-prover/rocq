@@ -1,0 +1,84 @@
+```{coq}
+```
+This is a reference file that tests most of rocq doc's features. 
+
+# Here's a heading
+
+
+
+    The number of asterisks in front of the heading determine the level of the
+    heading. For example: 
+
+## Here's a subheading
+### Here's a subsubheading
+#### Here's the lowest possible heading
+
+
+ Rocq doc comments are placed between `(** ` and `*) `. Contrary to regular
+    comments, the comment starts with two asterisks instead of one.
+
+
+    Above, we have used angle brackets to present verbatim material. Verbatim material
+    can also take multiple lines:
+```
+    let rec fact n =
+      if n <= 1 then 1 else n * fact (n - 1)
+```
+
+
+ Rocq material can be quoted inline using square brackets, as follows: `forall` `n` `:` `nat,` `fact` `n` `>=` `n`.
+    For vernacular material, we double the square brackets, and place them on separate lines, like so:
+    
+```coq
+    From Stdlib Require Import Lia.
+    
+
+```
+
+ Let's implement the `fact` OCaml function in Rocq! 
+```{coq}
+
+Fixpoint fact (n : nat) : nat :=
+  match n with
+  | 0 => 1
+  | S n' =>
+      
+      n * fact n'
+  end.
+
+```
+Here's the rest of the formatting rules:
+- To emphasize text, place it between underscores, _like so_.
+- To insert LaTeX math:
+  * Use dollar signs for LaTeX in math mode: {math}`e = mc^2`
+  * Use percent signs for other LaTeX materials: \usepackage{coqdoc}
+
+
+    To create (nested) lists, use bullets, as we have done above! 
+
+
+---
+ 
+
+ Finally, some parts of the code can be hidden from the output, or placed in a dropdown. 
+```{coq}
+
+
+```
+:::{dropdown}
+```{coq}
+Definition this_definition_is_in_a_dropdown : unit := tt.
+```
+
+:::
+```{coq}
+
+```
+:::{dropdown} Some summary 
+```{coq}
+Definition this_definition_is_in_a_dropdown_with_a_summary : unit := tt.
+```
+
+:::
+```{coq}
+```

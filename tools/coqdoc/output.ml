@@ -1119,6 +1119,122 @@ module TeXmacs = struct
 
 end
 
+(*s Alectryon Markdown output *)
+
+module AlectryonMarkdown = struct
+
+  let header () = ()
+
+  let trailer () = ()
+
+  let nbsp () = output_char ' '
+
+  let char = output_char
+
+  let latex_char = output_char
+  let latex_string = output_string
+
+  let html_char _ = ()
+  let html_string _ = ()
+
+  let raw_ident s =
+    for i = 0 to String.length s - 1 do char s.[i] done
+
+  let start_module () = ()
+
+  let start_latex_math () = output_string "{math}`"
+  let stop_latex_math () = output_string "`"
+
+  let start_verbatim inline =
+    if inline then output_char '`' else output_string "```\n"
+  let stop_verbatim inline =
+    if inline then output_char '`' else output_string "```\n"
+
+
+  let url addr name =
+    match name with
+    | Some n -> printf "[%s](%s)" n addr
+    | None -> printf "%s" addr
+
+  let start_quote () = printf "\""
+  let stop_quote () = printf "\""
+
+  let indentation n =
+      for _i = 1 to n do printf " " done
+
+  let keyword s loc = raw_ident s
+  let ident s loc = raw_ident s
+
+  let sublexer c l = char c
+  let sublexer_in_doc c = char c
+
+  let initialize () =
+    Tokens.token_tree := ref Tokens.empty_ttree;
+    Tokens.outfun := (fun _ _ _ _ -> failwith "Useless")
+
+  let proofbox () = Html.proofbox ()
+
+  let item n =
+    indentation ((n - 1) * 2);
+    if (n mod 2) = 1 then printf "-" else printf "*"
+  let stop_item () = ()
+  let reach_item_level _ = ()
+
+  let start_doc () = ()
+  let end_doc () = ()
+
+  let start_emph () = printf "_"
+  let stop_emph () = printf "_"
+
+  let start_details summary =
+    match summary with
+    | Some summary -> printf ":::{dropdown} %s\n" summary
+    | None -> output_string ":::{dropdown}\n"
+
+  let stop_details () = output_string "\n:::\n"
+
+  let start_comment () = printf "(*"
+  let end_comment () = printf "*)"
+
+  let start_coq () =
+    output_string "```{coq}\n"
+  let end_coq () =
+    output_string "```\n"
+
+  let section_kind =
+    function
+      | 1 -> "# "
+      | 2 -> "## "
+      | 3 -> "### "
+      | 4 -> "#### "
+      | _ -> assert false
+
+  let section lev f =
+    output_string (section_kind lev);
+    f ();
+    output_string "\n"
+
+  let rule () = printf "\n---\n"
+
+  let paragraph () = printf "\n\n"
+
+  let line_break () = printf "\n"
+
+  let empty_line_of_code () = printf "\n"
+
+  let start_inline_coq () = printf "`"
+  let end_inline_coq () = printf "`"
+
+  let start_inline_coq_block () =
+    (* Note: ```coq is different from ```{coq}
+       The former does not send its code to Alectryon. *)
+    line_break (); printf "```coq\n"
+  let end_inline_coq_block () = printf "```"
+
+  let make_multi_index () = ()
+  let make_index () = output_string "```{show-index}\n```"
+  let make_toc () = output_string ":::{toc}\n:context: page\n:::\n"
+end
 
 (*s Raw output *)
 
@@ -1227,96 +1343,100 @@ end
 
 (*s Generic output *)
 
-let select f1 f2 f3 f4 x =
-  match !prefs.targetlang with LaTeX -> f1 x | HTML -> f2 x | TeXmacs -> f3 x | Raw -> f4 x
+let select f1 f2 f3 f4 f5 x =
+  match !prefs.targetlang with
+  | LaTeX -> f1 x
+  | HTML -> f2 x
+  | TeXmacs -> f3 x
+  | AlectryonMarkdown -> f4 x
+  | Raw -> f5 x
 
 let push_in_preamble = Latex.push_in_preamble
 
-let header = select Latex.header Html.header TeXmacs.header Raw.header
-let trailer = select Latex.trailer Html.trailer TeXmacs.trailer Raw.trailer
+let header = select Latex.header Html.header TeXmacs.header AlectryonMarkdown.header Raw.header
+let trailer = select Latex.trailer Html.trailer TeXmacs.trailer AlectryonMarkdown.trailer Raw.trailer
 
 let start_module =
-  select Latex.start_module Html.start_module TeXmacs.start_module Raw.start_module
+  select Latex.start_module Html.start_module TeXmacs.start_module AlectryonMarkdown.start_module Raw.start_module
 
-let start_doc = select Latex.start_doc Html.start_doc TeXmacs.start_doc Raw.start_doc
-let end_doc = select Latex.end_doc Html.end_doc TeXmacs.end_doc Raw.end_doc
+let start_doc = select Latex.start_doc Html.start_doc TeXmacs.start_doc AlectryonMarkdown.start_doc Raw.start_doc
+let end_doc = select Latex.end_doc Html.end_doc TeXmacs.end_doc AlectryonMarkdown.end_doc Raw.end_doc
 
-let start_comment = select Latex.start_comment Html.start_comment TeXmacs.start_comment Raw.start_comment
-let end_comment = select Latex.end_comment Html.end_comment TeXmacs.end_comment Raw.end_comment
+let start_comment = select Latex.start_comment Html.start_comment TeXmacs.start_comment AlectryonMarkdown.start_comment Raw.start_comment
+let end_comment = select Latex.end_comment Html.end_comment TeXmacs.end_comment AlectryonMarkdown.end_comment Raw.end_comment
 
-let start_coq = select Latex.start_coq Html.start_coq TeXmacs.start_coq Raw.start_coq
-let end_coq = select Latex.end_coq Html.end_coq TeXmacs.end_coq Raw.end_coq
+let start_coq = select Latex.start_coq Html.start_coq TeXmacs.start_coq AlectryonMarkdown.start_coq Raw.start_coq
+let end_coq = select Latex.end_coq Html.end_coq TeXmacs.end_coq AlectryonMarkdown.end_coq Raw.end_coq
 
 let start_inline_coq =
-  select Latex.start_inline_coq Html.start_inline_coq TeXmacs.start_inline_coq Raw.start_inline_coq
+  select Latex.start_inline_coq Html.start_inline_coq TeXmacs.start_inline_coq AlectryonMarkdown.start_inline_coq Raw.start_inline_coq
 let end_inline_coq =
-  select Latex.end_inline_coq Html.end_inline_coq TeXmacs.end_inline_coq Raw.end_inline_coq
+  select Latex.end_inline_coq Html.end_inline_coq TeXmacs.end_inline_coq AlectryonMarkdown.end_inline_coq Raw.end_inline_coq
 
 let start_inline_coq_block =
   select Latex.start_inline_coq_block Html.start_inline_coq_block
-    TeXmacs.start_inline_coq_block Raw.start_inline_coq_block
+    TeXmacs.start_inline_coq_block AlectryonMarkdown.start_inline_coq_block Raw.start_inline_coq_block
 let end_inline_coq_block =
-  select Latex.end_inline_coq_block Html.end_inline_coq_block TeXmacs.end_inline_coq_block Raw.end_inline_coq_block
+  select Latex.end_inline_coq_block Html.end_inline_coq_block TeXmacs.end_inline_coq_block AlectryonMarkdown.end_inline_coq_block Raw.end_inline_coq_block
 
-let indentation = select Latex.indentation Html.indentation TeXmacs.indentation Raw.indentation
-let paragraph = select Latex.paragraph Html.paragraph TeXmacs.paragraph Raw.paragraph
-let line_break = select Latex.line_break Html.line_break TeXmacs.line_break Raw.line_break
+let indentation = select Latex.indentation Html.indentation TeXmacs.indentation AlectryonMarkdown.indentation Raw.indentation
+let paragraph = select Latex.paragraph Html.paragraph TeXmacs.paragraph AlectryonMarkdown.paragraph Raw.paragraph
+let line_break = select Latex.line_break Html.line_break TeXmacs.line_break AlectryonMarkdown.line_break Raw.line_break
 let empty_line_of_code = select
-  Latex.empty_line_of_code Html.empty_line_of_code TeXmacs.empty_line_of_code Raw.empty_line_of_code
+  Latex.empty_line_of_code Html.empty_line_of_code TeXmacs.empty_line_of_code AlectryonMarkdown.empty_line_of_code Raw.empty_line_of_code
 
-let section = select Latex.section Html.section TeXmacs.section Raw.section
-let item = select Latex.item Html.item TeXmacs.item Raw.item
-let stop_item = select Latex.stop_item Html.stop_item TeXmacs.stop_item Raw.stop_item
-let reach_item_level = select Latex.reach_item_level Html.reach_item_level TeXmacs.reach_item_level Raw.reach_item_level
-let rule = select Latex.rule Html.rule TeXmacs.rule Raw.rule
+let section = select Latex.section Html.section TeXmacs.section AlectryonMarkdown.section Raw.section
+let item = select Latex.item Html.item TeXmacs.item AlectryonMarkdown.item Raw.item
+let stop_item = select Latex.stop_item Html.stop_item TeXmacs.stop_item AlectryonMarkdown.stop_item Raw.stop_item
+let reach_item_level = select Latex.reach_item_level Html.reach_item_level TeXmacs.reach_item_level AlectryonMarkdown.reach_item_level Raw.reach_item_level
+let rule = select Latex.rule Html.rule TeXmacs.rule AlectryonMarkdown.rule Raw.rule
 
-let nbsp = select Latex.nbsp Html.nbsp TeXmacs.nbsp Raw.nbsp
-let char = select Latex.char Html.char TeXmacs.char Raw.char
-let keyword = select Latex.keyword Html.keyword TeXmacs.keyword Raw.keyword
-let ident = select Latex.ident Html.ident TeXmacs.ident Raw.ident
-let sublexer = select Latex.sublexer Html.sublexer TeXmacs.sublexer Raw.sublexer
-let sublexer_in_doc = select Latex.sublexer_in_doc Html.sublexer_in_doc TeXmacs.sublexer_in_doc Raw.sublexer_in_doc
-let initialize = select Latex.initialize Html.initialize TeXmacs.initialize Raw.initialize
+let nbsp = select Latex.nbsp Html.nbsp TeXmacs.nbsp AlectryonMarkdown.nbsp Raw.nbsp
+let char = select Latex.char Html.char TeXmacs.char AlectryonMarkdown.char Raw.char
+let keyword = select Latex.keyword Html.keyword TeXmacs.keyword AlectryonMarkdown.keyword Raw.keyword
+let ident = select Latex.ident Html.ident TeXmacs.ident AlectryonMarkdown.ident Raw.ident
+let sublexer = select Latex.sublexer Html.sublexer TeXmacs.sublexer AlectryonMarkdown.sublexer Raw.sublexer
+let sublexer_in_doc = select Latex.sublexer_in_doc Html.sublexer_in_doc TeXmacs.sublexer_in_doc AlectryonMarkdown.sublexer_in_doc Raw.sublexer_in_doc
+let initialize = select Latex.initialize Html.initialize TeXmacs.initialize AlectryonMarkdown.initialize Raw.initialize
 
-let proofbox = select Latex.proofbox Html.proofbox TeXmacs.proofbox Raw.proofbox
+let proofbox = select Latex.proofbox Html.proofbox TeXmacs.proofbox AlectryonMarkdown.proofbox Raw.proofbox
 
-let latex_char = select Latex.latex_char Html.latex_char TeXmacs.latex_char Raw.latex_char
+let latex_char = select Latex.latex_char Html.latex_char TeXmacs.latex_char AlectryonMarkdown.latex_char Raw.latex_char
 let latex_string =
-  select Latex.latex_string Html.latex_string TeXmacs.latex_string Raw.latex_string
-let html_char = select Latex.html_char Html.html_char TeXmacs.html_char Raw.html_char
-let html_string =
-  select Latex.html_string Html.html_string TeXmacs.html_string Raw.html_string
+  select Latex.latex_string Html.latex_string TeXmacs.latex_string AlectryonMarkdown.latex_string Raw.latex_string
+let html_char = select Latex.html_char Html.html_char TeXmacs.html_char AlectryonMarkdown.html_char Raw.html_char
+let html_string = select Latex.html_string Html.html_string TeXmacs.html_string AlectryonMarkdown.html_string Raw.html_string
 
 let start_emph =
-  select Latex.start_emph Html.start_emph TeXmacs.start_emph Raw.start_emph
+  select Latex.start_emph Html.start_emph TeXmacs.start_emph AlectryonMarkdown.start_emph Raw.start_emph
 let stop_emph =
-  select Latex.stop_emph Html.stop_emph TeXmacs.stop_emph Raw.stop_emph
+  select Latex.stop_emph Html.stop_emph TeXmacs.stop_emph AlectryonMarkdown.stop_emph Raw.stop_emph
 
 let start_details =
-  select Latex.start_details Html.start_details TeXmacs.start_details Raw.start_details
+  select Latex.start_details Html.start_details TeXmacs.start_details AlectryonMarkdown.start_details Raw.start_details
 let stop_details =
-  select Latex.stop_details Html.stop_details TeXmacs.stop_details Raw.stop_details
+  select Latex.stop_details Html.stop_details TeXmacs.stop_details AlectryonMarkdown.stop_details Raw.stop_details
 
 let start_latex_math =
-  select Latex.start_latex_math Html.start_latex_math TeXmacs.start_latex_math Raw.start_latex_math
+  select Latex.start_latex_math Html.start_latex_math TeXmacs.start_latex_math AlectryonMarkdown.start_latex_math Raw.start_latex_math
 let stop_latex_math =
-  select Latex.stop_latex_math Html.stop_latex_math TeXmacs.stop_latex_math Raw.stop_latex_math
+  select Latex.stop_latex_math Html.stop_latex_math TeXmacs.stop_latex_math AlectryonMarkdown.stop_latex_math Raw.stop_latex_math
 
 let start_verbatim =
-  select Latex.start_verbatim Html.start_verbatim TeXmacs.start_verbatim Raw.start_verbatim
+  select Latex.start_verbatim Html.start_verbatim TeXmacs.start_verbatim AlectryonMarkdown.start_verbatim Raw.start_verbatim
 let stop_verbatim =
-  select Latex.stop_verbatim Html.stop_verbatim TeXmacs.stop_verbatim Raw.stop_verbatim
+  select Latex.stop_verbatim Html.stop_verbatim TeXmacs.stop_verbatim AlectryonMarkdown.stop_verbatim Raw.stop_verbatim
 let verbatim_char inline =
-  select (if inline then Latex.char else output_char) Html.char TeXmacs.char Raw.char
+  select (if inline then Latex.char else output_char) Html.char TeXmacs.char AlectryonMarkdown.char Raw.char
 let hard_verbatim_char = output_char
 
 let url =
-  select Latex.url Html.url TeXmacs.url Raw.url
+  select Latex.url Html.url TeXmacs.url AlectryonMarkdown.url Raw.url
 
 let start_quote =
-  select Latex.start_quote Html.start_quote TeXmacs.start_quote Raw.start_quote
+  select Latex.start_quote Html.start_quote TeXmacs.start_quote AlectryonMarkdown.start_quote Raw.start_quote
 let stop_quote =
-  select Latex.stop_quote Html.stop_quote TeXmacs.stop_quote Raw.stop_quote
+  select Latex.stop_quote Html.stop_quote TeXmacs.stop_quote AlectryonMarkdown.stop_quote Raw.stop_quote
 
 let inf_rule_dumb assumptions (midsp,midln,midnm) conclusions =
   start_verbatim false;
@@ -1331,8 +1451,8 @@ let inf_rule_dumb assumptions (midsp,midln,midnm) conclusions =
      List.iter dumb_line conclusions);
   stop_verbatim false
 
-let inf_rule = select inf_rule_dumb Html.inf_rule inf_rule_dumb inf_rule_dumb
+let inf_rule = select inf_rule_dumb Html.inf_rule inf_rule_dumb inf_rule_dumb inf_rule_dumb
 
-let make_multi_index = select Latex.make_multi_index Html.make_multi_index TeXmacs.make_multi_index Raw.make_multi_index
-let make_index = select Latex.make_index Html.make_index TeXmacs.make_index Raw.make_index
-let make_toc = select Latex.make_toc Html.make_toc TeXmacs.make_toc Raw.make_toc
+let make_multi_index = select Latex.make_multi_index Html.make_multi_index TeXmacs.make_multi_index AlectryonMarkdown.make_multi_index Raw.make_multi_index
+let make_index = select Latex.make_index Html.make_index TeXmacs.make_index AlectryonMarkdown.make_index Raw.make_index
+let make_toc = select Latex.make_toc Html.make_toc TeXmacs.make_toc AlectryonMarkdown.make_toc Raw.make_toc

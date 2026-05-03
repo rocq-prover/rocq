@@ -23,8 +23,9 @@ let banner () =
 let target_full_name f =
   match !prefs.targetlang with
     | HTML -> f ^ ".html"
+    | AlectryonMarkdown -> f ^ ".myst"
     | Raw -> f ^ ".txt"
-    | _ -> f ^ ".tex"
+    | LaTeX | TeXmacs -> f ^ ".tex"
 
 (*s The following function produces the output. The default output is
     the \LaTeX\ document: in that case, we just call [Web.produce_document].

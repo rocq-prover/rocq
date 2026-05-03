@@ -1,0 +1,7 @@
+```{coq}
+```
+Link binders 
+```{coq}
+
+Definition foo alpha beta := alpha + beta.
+```

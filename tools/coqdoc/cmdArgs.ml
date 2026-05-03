@@ -97,6 +97,8 @@ let args_options = Arg.align [
   " Produce a LaTeX document";
   "--texmacs",arg_set (fun p -> { p with targetlang = TeXmacs }),
   " Produce a TeXmacs document";
+  "--alectryon", arg_set (fun p -> { p with targetlang = AlectryonMarkdown }),
+  " Produce a Markdown document for Alectryon";
   "--raw", arg_set (fun p -> { p with targetlang = Raw }),
   " Produce a text document";
   "--dvi", arg_set (fun p -> { { p with targetlang = LaTeX }

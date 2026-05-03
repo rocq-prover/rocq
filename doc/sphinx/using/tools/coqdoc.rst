@@ -302,6 +302,9 @@ suffixes ``.v`` and ``.g`` and |Latex| files by the suffix ``.tex``.
   files given on the command line are copied ‘as is’ in the final
   document . DVI and PostScript can be produced directly with the
   options ``-dvi`` and ``-ps`` respectively.
+:Alectryon output: This option creates a single Markdown file on standard output
+                   that can be understood by Alectryon. Use the option ``-o`` to
+                   redirect the output to a file.
 :TEXmacs output: To translate the input files to TEXmacs format,
   to be used by the TEXmacs Rocq interface.
 
@@ -318,6 +321,7 @@ Command line options
   :--|Latex|: Select a |Latex| output.
   :--dvi: Select a DVI output.
   :--ps: Select a PostScript output.
+  :--alectryon: Select a Markdown output for Alectryon.
   :--texmacs: Select a TEXmacs output.
   :--stdout: Write output to stdout.
   :-o file, --output file: Redirect the output into the file ‘file’
