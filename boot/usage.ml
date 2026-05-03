@@ -85,7 +85,8 @@ let print_usage_common co command =
 \n  -allow-rewrite-rules   allows declaring symbols and rewrite rules\
 \n  -indices-matter        levels of indices (and nonuniform parameters) contribute to the level of inductives\
 \n  -type-in-type          disable universe consistency checking\
-\n  -mangle-names x        mangle auto-generated names using prefix x\
+\n  -mangle-names-prfx x   mangle auto-generated names using prefix x\
+\n  -mangle-names-sffx x   mangle auto-generated names using suffix x\
 \n  -set \"Foo Bar\"         enable Foo Bar (as Set Foo Bar. in a file)\
 \n  -set \"Foo Bar=value\"   set Foo Bar to value (value is interpreted according to Foo Bar's type)\
 \n  -unset \"Foo Bar\"       disable Foo Bar (as Unset Foo Bar. in a file)\

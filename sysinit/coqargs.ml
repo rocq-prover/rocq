@@ -304,9 +304,13 @@ let parse_args ~init arglist : t * string list =
     |"-load-vernac-source"|"-l" ->
       add_load_vernacular oval (next ())
 
-    |"-mangle-names" ->
+    |"-mangle-names-prfx" ->
       let oval = add_set_option oval ["Mangle"; "Names"] (OptionSet None) in
       add_set_option oval ["Mangle"; "Names"; "Prefix"] (OptionSet(Some(next ())))
+
+    |"-mangle-names-sffx" ->
+      let oval = add_set_option oval ["Mangle"; "Names"] (OptionSet None) in
+      add_set_option oval ["Mangle"; "Names"; "Suffix"] (OptionSet(Some(next ())))
 
     |"-profile-ltac-cutoff" ->
       let oval = add_set_option oval ["Ltac"; "Profiling"] (OptionSet None) in
