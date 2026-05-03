@@ -94,24 +94,26 @@ let rec find_option pred l =
   | e :: l -> ( match pred e with Some r -> r | None -> find_option pred l )
 
 module ConstrMap = struct
-  open Names.GlobRef
 
-  type 'a t = 'a list Map.t
+  open Environ
 
-  let add gr e m =
-    Map.update gr (function None -> Some [e] | Some l -> Some (e :: l)) m
+  type 'a t = 'a list QGlobRef.Map.t
 
-  let empty = Map.empty
+  let add env gr e m = match QGlobRef.Map.find_opt env gr m with
+  | None -> QGlobRef.Map.add env gr [e] m
+  | Some l -> QGlobRef.Map.add env gr (e :: l) m
 
-  let find evd h m =
-    match Map.find (fst (EConstr.destRef evd h)) m with
+  let empty = QGlobRef.Map.empty
+
+  let find env evd h m =
+    match QGlobRef.Map.find env (fst (EConstr.destRef evd h)) m with
     | e :: _ -> e
     | [] -> assert false
 
-  let find_all evd h m = Map.find (fst (EConstr.destRef evd h)) m
+  let find_all env evd h m = QGlobRef.Map.find env (fst (EConstr.destRef evd h)) m
 
   let fold f m acc =
-    Map.fold
+    QGlobRef.Map.fold
       (fun k l acc -> List.fold_left (fun acc e -> f k e acc) acc l)
       m acc
 end
@@ -645,14 +647,14 @@ module MakeTable (E : Elt) : S = struct
     with DestKO -> CErrors.user_err Pp.(str "Add Zify "++str E.name ++ str ": the term "++
                                           gl_pr_constr c ++ str " should be a global reference")
 
-  let register_hint evd t elt =
+  let register_hint env evd t elt =
     match EConstr.kind evd t with
     | App (c, _) ->
        let gr = safe_ref evd c in
-       E.table := ConstrMap.add gr (Application t, E.cast elt) !E.table
+       E.table := ConstrMap.add env gr (Application t, E.cast elt) !E.table
     | _ ->
        let gr = safe_ref evd t in
-       E.table := ConstrMap.add gr (OtherTerm t, E.cast elt) !E.table
+       E.table := ConstrMap.add env gr (OtherTerm t, E.cast elt) !E.table
 
   let register_constr env evd c =
     let c = EConstr.of_constr c in
@@ -661,7 +663,7 @@ module MakeTable (E : Elt) : S = struct
     | App (intyp, args) when EConstr.isRefX env evd (Lazy.force E.gref) intyp ->
       let styp = args.(E.get_key) in
       let elt = {decl = c; deriv = make_elt (evd, c)} in
-      register_hint evd styp elt
+      register_hint env evd styp elt
     | _ ->
       let env = Global.env () in
       raise
@@ -1161,7 +1163,7 @@ let rec trans_expr env evd e =
       let k, t =
         find_option
           (match_operator env evd c a (Some inj))
-          (ConstrMap.find_all evd c !table_cache)
+          (ConstrMap.find_all env evd c !table_cache)
       in
       let n = Array.length a in
       match k with
@@ -1305,7 +1307,7 @@ let rec trans_prop env evd e =
       let k, t =
         find_option
           (match_operator env evd c a None)
-          (ConstrMap.find_all evd c !table_cache)
+          (ConstrMap.find_all env evd c !table_cache)
       in
       let n = Array.length a in
       match k with
@@ -1421,7 +1423,7 @@ let do_let tac (h : Constr.named_declaration) =
              find_option
                (match_operator env evd eq
                   [|EConstr.of_constr ty; EConstr.mkVar x; EConstr.of_constr t|] None)
-               (ConstrMap.find_all evd eq !table_cache));
+               (ConstrMap.find_all env evd eq !table_cache));
           tac x (EConstr.of_constr t) (EConstr.of_constr ty)
         with Not_found -> Tacticals.tclIDTAC)
 
@@ -1517,7 +1519,7 @@ let rec spec_of_term env evd (senv : spec_env) t =
     try (EConstr.mkVar (HConstr.find t' senv'.map), senv')
     with Not_found -> (
       try
-        match snd (ConstrMap.find evd c !specs_cache) with
+        match snd (ConstrMap.find env evd c !specs_cache) with
         | UnOpSpec s | BinOpSpec s ->
           let thm = EConstr.mkApp (s.deriv.ESpecT.spec, a') in
           register_constr senv' t' thm
@@ -1608,7 +1610,7 @@ let get_all_sat env evd c =
   List.fold_left
     (fun acc e -> match e with _, Saturate s -> s :: acc | _ -> acc)
     []
-    ( try ConstrMap.find_all evd c !saturate_cache
+    ( try ConstrMap.find_all env evd c !saturate_cache
       with DestKO | Not_found -> [] )
 
 let saturate =
