@@ -12,7 +12,3 @@
    (= %{system} "linux_eabihf")
    (= %{system} "linux_elf")
    (= %{system} "elf"))))
-
-(deprecated_library_name
- (old_public_name coq-core.perf)
- (new_public_name rocq-runtime.perf))

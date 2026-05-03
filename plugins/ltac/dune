@@ -6,20 +6,12 @@
  (modules_without_implementation tacexpr)
  (libraries rocq-runtime.vernac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.ltac)
- (new_public_name rocq-runtime.plugins.ltac))
-
 (library
  (name tauto_plugin)
  (public_name rocq-runtime.plugins.tauto)
  (synopsis "Rocq's tauto tactic")
  (modules tauto)
  (libraries rocq-runtime.plugins.ltac))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.tauto)
- (new_public_name rocq-runtime.plugins.tauto))
 
 (rule
  (targets extratactics.ml)

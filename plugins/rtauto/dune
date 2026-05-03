@@ -4,10 +4,6 @@
  (synopsis "Rocq's rtauto plugin")
  (libraries rocq-runtime.plugins.ltac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.rtauto)
- (new_public_name rocq-runtime.plugins.rtauto))
-
 (rule
  (targets g_rtauto.ml)
  (deps (:mlg g_rtauto.mlg))
