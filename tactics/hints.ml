@@ -96,12 +96,12 @@ let empty_hint_info =
 (************************************************************************)
 
 type 'a hint_ast =
-  | Res_pf     of 'a (* Hint Apply *)
-  | ERes_pf    of 'a (* Hint EApply *)
-  | Give_exact of 'a
-  | Res_pf_THEN_trivial_fail of 'a (* Hint Immediate *)
-  | Unfold_nth of Evaluable.t (* Hint Unfold *)
-  | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
+  | Apply of 'a
+  | EApply of 'a
+  | Exact of 'a
+  | Immediate of 'a
+  | Unfold of Evaluable.t
+  | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic
 
 
 type 'a hints_path_atom_gen =
@@ -212,10 +212,10 @@ let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
     else d
 
 let get_default_pattern (h : hint hint_ast) = match h with
-| Give_exact h -> h.hint_type
-| Res_pf h | ERes_pf h | Res_pf_THEN_trivial_fail h ->
+| Exact h -> h.hint_type
+| Apply h | EApply h | Immediate h ->
   Clenv.clenv_type h.hint_clnv
-| Unfold_nth _ | Extern _ ->
+| Unfold _ | Extern _ ->
   (* These hints cannot contain DefaultPattern *)
   assert false
 
@@ -391,12 +391,12 @@ let instantiate_hint env sigma p =
     { hint_term = c; hint_type = cty; hint_uctx = ctx; hint_clnv = cl; hint_arty = ar }
   in
   let code = match p.code.obj with
-    | Res_pf c -> Res_pf (mk_clenv c)
-    | ERes_pf c -> ERes_pf (mk_clenv c)
-    | Res_pf_THEN_trivial_fail c ->
-      Res_pf_THEN_trivial_fail (mk_clenv c)
-    | Give_exact c -> Give_exact (mk_clenv c)
-    | (Unfold_nth _ | Extern _) as h -> h
+    | Apply c -> Apply (mk_clenv c)
+    | EApply c -> EApply (mk_clenv c)
+    | Immediate c ->
+      Immediate (mk_clenv c)
+    | Exact c -> Exact (mk_clenv c)
+    | (Unfold _ | Extern _) as h -> h
   in
   { p with code = { p.code with obj = code } }
 
@@ -731,7 +731,7 @@ struct
       | None -> ModeMismatch
 
   let is_exact = function
-    | Give_exact _ -> true
+    | Exact _ -> true
     | _ -> false
 
   let addkv gr id v db =
@@ -761,7 +761,7 @@ struct
   let add_one env sigma (k, v) db =
     let v = instantiate_hint env sigma v in
     let db = match v.code.obj with
-    | Unfold_nth egr ->
+    | Unfold egr ->
       let open TransparentState in
       let ts = db.hintdb_state in
       let (ids, csts, prjs) = db.hintdb_unfolds in
@@ -915,7 +915,7 @@ let make_exact_entry env sigma info gr =
         (Some hd,
          { pri; pat = Some pat; name = Some gr;
            db = (); secvars;
-           code = with_uid (Give_exact h); })
+           code = with_uid (Exact h); })
 
 let make_apply_entry env sigma hnf info gr =
   let (c, cty, ctx) = fresh_global_hint env sigma gr in
@@ -943,12 +943,12 @@ let make_apply_entry env sigma hnf info gr =
        { pri; pat = Some pat; name = Some gr;
          db = ();
          secvars;
-         code = with_uid (Res_pf h); })
+         code = with_uid (Apply h); })
     else
       (Some hd,
        { pri; pat = Some pat; name = Some gr;
          db = (); secvars;
-         code = with_uid (ERes_pf h); })
+         code = with_uid (EApply h); })
   | _ -> failwith "make_apply_entry"
 
 (* flags is (e,h,v) with e=true if eapply and h=true if hnf and v=true if verbose
@@ -960,7 +960,7 @@ let make_resolves env sigma (eapply, hnf) info ~check cr =
     try
       let (_, hint) as ans = f cr in
       match hint.code.obj with
-      | ERes_pf _ -> if not eapply then None else Some ans
+      | EApply _ -> if not eapply then None else Some ans
       | _ -> Some ans
     with Failure _ -> None
   in
@@ -993,7 +993,7 @@ let make_unfold eref =
      name = Some g;
      db = ();
      secvars = secvars_of_global (Global.env ()) g;
-     code = with_uid (Unfold_nth eref) })
+     code = with_uid (Unfold eref) })
 
 let make_extern pri pat tacast =
   let hdconstr = match pat with
@@ -1036,7 +1036,7 @@ let make_trivial env sigma r =
      name = Some r;
      db = ();
      secvars = secvars_of_global env r;
-     code= with_uid (Res_pf_THEN_trivial_fail h) })
+     code= with_uid (Immediate h) })
 
 
 
@@ -1234,21 +1234,21 @@ let subst_autohint (subst, obj) =
     in
     let pat' = Option.Smart.map subst_hint_pattern data.pat in
     let code' = match data.code.obj with
-      | Res_pf h ->
+      | Apply h ->
         let h' = subst_aux h in
-        if h == h' then data.code.obj else Res_pf h'
-      | ERes_pf h ->
+        if h == h' then data.code.obj else Apply h'
+      | EApply h ->
         let h' = subst_aux h in
-        if h == h' then data.code.obj else ERes_pf h'
-      | Give_exact h ->
+        if h == h' then data.code.obj else EApply h'
+      | Exact h ->
         let h' = subst_aux h in
-        if h == h' then data.code.obj else Give_exact h'
-      | Res_pf_THEN_trivial_fail h ->
+        if h == h' then data.code.obj else Exact h'
+      | Immediate h ->
         let h' = subst_aux h in
-        if h == h' then data.code.obj else Res_pf_THEN_trivial_fail h'
-      | Unfold_nth ref ->
+        if h == h' then data.code.obj else Immediate h'
+      | Unfold ref ->
           let ref' = subst_evaluable_reference subst ref in
-          if ref==ref' then data.code.obj else Unfold_nth ref'
+          if ref==ref' then data.code.obj else Unfold ref'
       | Extern (pat, tac) ->
           let pat' = Option.Smart.map (subst_pattern env sigma subst) pat in
           let tac' = Gentactic.subst subst tac in
@@ -1388,7 +1388,7 @@ let add_resolves env sigma clist ~locality dbnames =
           make_resolves env sigma (true, hnf) pri ~check:true gr) clist)
       in
       let check (_, hint) = match hint.code.obj with
-      | ERes_pf { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
+      | EApply { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
         let sigma' = merge_context_set_opt sigma ctx in
         let ce = Clenv.mk_clenv_from env sigma' (mkRef c, cty) in
         let miss, _ = Clenv.clenv_missing ce in
@@ -1576,23 +1576,23 @@ let push_resolve_hyp env sigma decl db =
 let pr_hint_elt env sigma h = pr_global (fst h.hint_term)
 
 let pr_hint env sigma h = match h.obj with
-  | Res_pf c -> (str"simple apply " ++ pr_hint_elt env sigma c)
-  | ERes_pf c -> (str"simple eapply " ++ pr_hint_elt env sigma c)
-  | Give_exact c -> (str"exact " ++ pr_hint_elt env sigma c)
-  | Res_pf_THEN_trivial_fail c ->
+  | Apply c -> (str"simple apply " ++ pr_hint_elt env sigma c)
+  | EApply c -> (str"simple eapply " ++ pr_hint_elt env sigma c)
+  | Exact c -> (str"exact " ++ pr_hint_elt env sigma c)
+  | Immediate c ->
       (str"simple apply " ++ pr_hint_elt env sigma c ++ str" ; trivial")
-  | Unfold_nth c ->
+  | Unfold c ->
     str"unfold " ++  pr_evaluable_reference c
   | Extern (_, tac) ->
     str "(*external*) " ++ Gentactic.print_glob env sigma ~level:(LevelLe 0) tac
 
 let pr_default_pattern env sigma = function
-| Give_exact h ->
+| Exact h ->
   pr_leconstr_env env sigma h.hint_type
-| Res_pf h | ERes_pf h | Res_pf_THEN_trivial_fail h ->
+| Apply h | EApply h | Immediate h ->
   let sigma, f = Clenv.replace_clenv_metas env sigma h.hint_clnv in
   pr_leconstr_env env sigma (f (Clenv.clenv_type h.hint_clnv))
-| Unfold_nth _ | Extern _ ->
+| Unfold _ | Extern _ ->
   (* These hints cannot contain DefaultPattern *)
   assert false
 
@@ -1759,8 +1759,8 @@ struct
   let name (h : t) = h.name
 
   let subgoals (h : t) = match h.code.obj with
-  | Res_pf h | ERes_pf h | Give_exact h | Res_pf_THEN_trivial_fail h -> Some h.hint_arty
-  | Unfold_nth _ -> Some 1
+  | Apply h | EApply h | Exact h | Immediate h -> Some h.hint_arty
+  | Unfold _ -> Some 1
   | Extern _ -> None
 
   let repr (h : t) = h.code.obj

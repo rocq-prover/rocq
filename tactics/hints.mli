@@ -32,12 +32,12 @@ val hint_cat : Libobject.category
 (** Pre-created hint databases *)
 
 type 'a hint_ast =
-  | Res_pf     of 'a (* Hint Apply *)
-  | ERes_pf    of 'a (* Hint EApply *)
-  | Give_exact of 'a
-  | Res_pf_THEN_trivial_fail of 'a (* Hint Immediate *)
-  | Unfold_nth of Evaluable.t (* Hint Unfold *)
-  | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
+  | Apply of 'a
+  | EApply of 'a
+  | Exact of 'a
+  | Immediate of 'a
+  | Unfold of Evaluable.t
+  | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic
 
 type hint
 
