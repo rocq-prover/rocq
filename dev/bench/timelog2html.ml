@@ -74,7 +74,7 @@ let file_data data_file =
     data_file, CArray.of_list data
   else
     let data = Timelogparser.parse ~file:data_file in
-    data_file, data |> CArray.map_of_list (fun (loc, time) -> loc, { BenchUtil.time; memory = None; instructions = None })
+    data_file, data |> CArray.map_of_list (fun (loc, time) -> loc, { BenchUtil.dummy_data with time; })
 
 let main args =
   let opts, (vfile, data_files) = parse_args defaults args in

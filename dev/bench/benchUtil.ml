@@ -32,9 +32,14 @@ type memory = {
   minor_words : string;
   major_collect : int;
   minor_collect : int;
+  heap_words : int option;
 }
 
-type data = { time : measure; memory : memory option; instructions : int option }
+type data = {
+  time : measure;
+  memory : memory option;
+  instructions : int option;
+}
 
 let dummy_data = { time = dummy_measure; memory = None; instructions = None }
 
