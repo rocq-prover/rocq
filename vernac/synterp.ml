@@ -68,7 +68,8 @@ type synterp_entry =
       Declaremods.module_params_expr *
       ((export_flag * Libobject.open_filter) * Names.ModPath.t) list *
       module_entry Declaremods.module_signature *
-      module_entry list
+                           module_entry list
+  | EVernacAbbrevModule of bool (* local *) * lident * Names.ModPath.t
   | EVernacDeclareModuleType of lident *
       Declaremods.module_params_expr *
       ((export_flag * Libobject.open_filter) * Names.ModPath.t) list *
@@ -157,6 +158,24 @@ let synterp_define_module export {loc;v=id} (binders_ast : module_binder list) m
        Option.iter (fun (export,cats) ->
         ignore (synterp_import_mod (export,cats) (qualid_of_ident id) ImportAll)) export;
        export, args, [], expr, sign
+
+let synterp_abbrev_module ~local export lid bl mtys mexprl =
+  let () = if Option.has_some export then
+      CErrors.user_err Pp.(str "Import/Export not supported for abbreviations.")
+  in
+  let () = if not @@ CList.is_empty bl then
+      CErrors.user_err Pp.(str "Arguments not supported for abbreviations.")
+  in
+  let () = match mtys with
+    | Declaremods.Check [] -> ()
+    | _ -> CErrors.user_err Pp.(str "Type annotation not supported for abbreviations.")
+  in
+  let qid = match mexprl with
+    | [] -> CErrors.user_err Pp.(str "Module abbreviation needs a body.")
+    | [{CAst.v=Constrexpr.CMident qid}, Declaremods.DefaultInline] -> qid
+    | _ -> CErrors.user_err Pp.(str "This expression is not supported for abbreviations.")
+  in
+  Declaremods.syn_mod_abbrev ~local lid.CAst.v qid
 
 let synterp_declare_module_type_syntax {loc;v=id} binders_ast mty_sign mty_ast_l =
   if Lib.sections_are_opened () then
@@ -375,6 +394,12 @@ let with_synterp_state =
   in
   { VernacControl.with_local_state }
 
+let abbrev_attr =
+  let open Attributes.Notations in
+  Attributes.key_value_attribute ~key:"abbreviation" ~empty:() ~values:[] >>= function
+  | None -> return false
+  | Some () -> return true
+
 let rec synterp ~intern ?loc ~atts v =
   match v with
   | VernacSynterp v0 ->
@@ -390,8 +415,15 @@ let rec synterp ~intern ?loc ~atts v =
       with_module_locality ~atts synterp_custom_entry s;
       EVernacNoop
     | VernacDefineModule (export,lid,bl,mtys,mexprl) ->
-      let export, args, argsexport, expr, sign = synterp_define_module export lid bl mtys mexprl in
-      EVernacDefineModule (export,lid,args,argsexport,sign,expr)
+      let atts, abbrev = Attributes.parse_with_extra abbrev_attr atts in
+      if abbrev then
+        let local = Attributes.parse Attributes.locality atts in
+        let local = Locality.enforce_section_locality local in
+        let mp = synterp_abbrev_module ~local export lid bl mtys mexprl in
+        EVernacAbbrevModule (local,lid,mp)
+      else
+        let export, args, argsexport, expr, sign = synterp_define_module export lid bl mtys mexprl in
+        EVernacDefineModule (export,lid,args,argsexport,sign,expr)
     | VernacDeclareModuleType (lid,bl,mtys,mtyo) ->
       let args, argsexport, expr, sign = synterp_declare_module_type_syntax lid bl mtys mtyo in
       EVernacDeclareModuleType (lid,args,argsexport,sign,expr)
