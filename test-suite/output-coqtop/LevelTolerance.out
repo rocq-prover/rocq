@@ -681,6 +681,7 @@ Entry simple_tactic is
   | IDENT "exact"; uconstr
   | IDENT "with_strategy"; strategy_level_or_var; "["; LIST1 smart_global;
     "]"; ltac_expr LEVEL "3"
+  | IDENT "alloc_limit"; natural; memory_unit; tactic
   | IDENT "guard"; test
   | IDENT "swap"; int_or_var; int_or_var
   | IDENT "cycle"; int_or_var
@@ -902,6 +903,7 @@ Entry simple_tactic is
 Entry tactic_value is
 [ LEFTA
   [ IDENT "firstorder_using"; ":"; "("; firstorder_using; ")"
+  | IDENT "memory_unit"; ":"; "("; memory_unit; ")"
   | IDENT "test"; ":"; "("; test; ")"
   | IDENT "comparison"; ":"; "("; comparison; ")"
   | IDENT "opthints"; ":"; "("; opthints; ")"
