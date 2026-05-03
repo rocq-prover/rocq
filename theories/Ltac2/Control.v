@@ -41,6 +41,15 @@ Ltac2 @ external case : (unit -> 'a) -> ('a * (exn -> 'a)) result := "rocq-runti
   (i.e., they do not appear in the type system).
 *)
 
+(** If the first tactic has any successes then use it, otherwise use the other tactic. *)
+Ltac2 orelse t f :=
+  match case t with
+  | Err e => f e
+  | Val ans =>
+      let (x, k) := ans in
+      plus (fun _ => x) k
+  end.
+
 Ltac2 once_plus (run : unit -> 'a) (handle : exn -> 'a) : 'a :=
   once (fun () => plus run handle).
 (** [once_plus run handle] is [once] applied to [plus run handle]. *)

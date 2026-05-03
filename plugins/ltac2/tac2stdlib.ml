@@ -418,9 +418,9 @@ let () =
 (** Rewritings *)
 
 let () =
-  define "tac_change"
-    (option pattern @-> fun1 (array constr) constr @-> clause @-> tac unit)
-    Tac2tactics.change
+  define "tac_change_gen"
+    (bool @-> option pattern @-> fun1 (array constr) constr @-> clause @-> tac unit) @@
+    fun check pat c cl -> Tac2tactics.change ~check pat c cl
 
 let () =
   define "tac_rewrite"
