@@ -1836,7 +1836,6 @@ let read_rocqide_args argv =
       set_debug ();
       filter_rocqtop rocqtop project_files bindings_files out args
     |"-xml-debug"::args ->
-      set_debug ();
       (* xml_debug ref only exists in coqidetop *)
       filter_rocqtop rocqtop project_files bindings_files ("-xml-debug"::out) args
     |"-coqtop-flags" :: flags :: args->
