@@ -1,18 +1,48 @@
 Debug: 1: looking for foo without backtracking
-Debug: 1.1: simple apply H on foo, 1 subgoal(s)
+Debug: 1.1: applied simple apply H on foo, 1 subgoal(s)
 Debug: 1.1-1 : foo
 Debug: 1.1-1: looking for foo without backtracking
-Debug: 1.1-1.1: simple apply H on foo, 1 subgoal(s)
+Debug: 1.1-1.1: applied simple apply H on foo, 1 subgoal(s)
 Debug: 1.1-1.1-1 : foo
 Debug: 1.1-1.1-1: looking for foo without backtracking
-Debug: 1.1-1.1-1.1: simple apply H on foo, 1 subgoal(s)
+Debug: 1.1-1.1-1.1: applied simple apply H on foo, 1 subgoal(s)
 Debug: 1.1-1.1-1.1-1 : foo
 Debug: 1.1-1.1-1.1-1: looking for foo without backtracking
-Debug: 1.1-1.1-1.1-1.1: simple apply H on foo, 1 subgoal(s)
+Debug: 1.1-1.1-1.1-1.1: applied simple apply H on foo, 1 subgoal(s)
 Debug: 1.1-1.1-1.1-1.1-1 : foo
 Debug: 1.1-1.1-1.1-1.1-1: looking for foo without backtracking
-Debug: 1.1-1.1-1.1-1.1-1.1: simple apply H on foo, 1 subgoal(s)
+Debug: 1.1-1.1-1.1-1.1-1.1: applied simple apply H on foo, 1 subgoal(s)
 Debug: 1.1-1.1-1.1-1.1-1.1-1 : foo
 File "./output/TypeclassDebug.v", line 14, characters 5-33:
 The command has indeed failed with message:
 Tactic failure: Proof search reached its limit.
+Debug: 1: looking for bar without backtracking
+Debug: 1.1: applied simple apply hint on bar, 1 subgoal(s)
+Debug: 1.1-1 : cls
+Debug: 1.1-1: looking for cls without backtracking
+Debug: 1.1-1.1: applied exact c on cls, 0 subgoal(s)
+Debug: 1: looking for bar without backtracking
+Debug: 1.1: running (*external*) (apply hint) on bar
+Debug: 1.1: applied (*external*) (apply hint) on bar, 1 subgoal(s)
+Debug: 1.1-1 : cls
+Debug: 1.1-1: looking for cls without backtracking
+Debug: 1.1-1.1: applied exact c on cls, 0 subgoal(s)
+Debug: 1: looking for bar without backtracking
+Debug:
+1.1: running (*external*) (let c :=
+                                 constr:((ltac:(typeclasses eauto with foo)
+                                          :>
+                                          cls))
+                             in
+                           exact (hint c)) on
+  bar
+Debug: 1: looking for cls without backtracking
+Debug: 1.1: applied exact c on cls, 0 subgoal(s)
+Debug:
+1.1: applied (*external*) (let c :=
+                                 constr:((ltac:(typeclasses eauto with foo)
+                                          :>
+                                          cls))
+                             in
+                           exact (hint c)) on
+  bar, 0 subgoal(s)
