@@ -33,6 +33,9 @@ HIDE := $(if $(VERBOSE),,@)
 # use DUNEOPT=--display=short for a more verbose build
 # DUNEOPT=--display=short
 
+# unset to disable jobserver integration (-j argument of make will be ignored)
+WITHJOBS:=dev/tools/with-jobs.sh
+
 help:
 	@echo ""
 	@echo "Welcome to Rocq's Dune-based build system. If you are final user type"
@@ -161,7 +164,7 @@ MAIN_TARGETS:=rocq-runtime.install coq-core.install rocq-core.install \
   coqide-server.install rocq-devtools.install
 
 world: dunestrap
-	dune build $(DUNEOPT) $(MAIN_TARGETS)
+	+$(WITHJOBS) dune build $(DUNEOPT) $(MAIN_TARGETS)
 
 rocqide:
 	dune build $(DUNEOPT) rocqide.install
@@ -183,11 +186,10 @@ WITHPYPATH:=PYTHONPATH=_build/default/config:doc/tools:$$PYTHONPATH
 
 refman-html: world doc/unreleased.rst
 	rm -rf doc/refman-html
-	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b html doc/sphinx doc/refman-html
-
+	+$(WITHPYPATH) $(WITHJOBS) dune exec -- sphinx-build -q -W -b html doc/sphinx doc/refman-html
 refman-pdf: world doc/unreleased.rst
 	rm -rf doc/refman-pdf
-	$(WITHPYPATH) dune exec -- sphinx-build -q -W -b latex doc/sphinx doc/refman-pdf
+	+$(WITHPYPATH) $(WITHJOBS) dune exec -- sphinx-build -q -W -b latex doc/sphinx doc/refman-pdf
 	$(MAKE) -C doc/refman-pdf LATEXMKOPTS=-silent
 
 corelib-html: dunestrap
