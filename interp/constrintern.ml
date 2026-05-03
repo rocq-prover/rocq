@@ -1147,8 +1147,25 @@ let string_of_ty = function
 let gvar (loc, id) us = match us with
   | None | Some ([],[]) -> DAst.make ?loc @@ GVar id
   | Some _ ->
-    user_err ?loc  (str "Variable " ++ Id.print id ++
-      str " cannot have a universe instance")
+    user_err ?loc
+      (str "Variable " ++ Id.print id ++
+       str " cannot have a universe instance.")
+
+let gref ?loc gr us =
+  let () =
+    let open GlobRef in
+    match gr, us with
+    | _, None -> ()
+    | VarRef _, Some ([],[]) -> ()
+    | VarRef id, _ ->
+      user_err ?loc
+        (str "Variable " ++ Id.print id ++
+         str " cannot have a universe instance.")
+    | (ConstRef _ | IndRef _ | ConstructRef _), Some (qs,us) ->
+      let auctx = Environ.universes_of_global (Global.env()) gr in
+      UnivGen.check_instance_length ?loc gr auctx (List.length qs, List.length us)
+  in
+  DAst.make ?loc @@ GRef (gr, us)
 
 let intern_var env (ltacvars,ntnvars) namedctx loc id us =
   (* Is [id] a notation variable *)
@@ -1364,7 +1381,7 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
   | TrueGlobal (GlobRef.VarRef _) when no_secvar ->
       (* Rule out section vars since these should have been found by intern_var *)
       raise Not_found
-  | TrueGlobal ref -> (DAst.make ?loc @@ GRef (ref, us)), Some ref, args
+  | TrueGlobal ref -> (gref ?loc ref us), Some ref, args
   | Abbrev sp ->
       let (ids,c) = Abbreviation.find_interp sp in
       let nids = List.length ids in
@@ -1382,12 +1399,12 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       in
       let c = match us, DAst.get c with
       | None, _ -> c
-      | Some _, GRef (ref, None) -> DAst.make ?loc @@ GRef (ref, us)
+      | Some _, GRef (ref, None) -> gref ?loc ref us
       | Some _, GApp (r, arg) ->
         let loc' = r.CAst.loc in
         begin match DAst.get r with
         | GRef (ref, None) ->
-          DAst.make ?loc @@ GApp (DAst.make ?loc:loc' @@ GRef (ref, us), arg)
+          DAst.make ?loc @@ GApp (gref ?loc:loc' ref us, arg)
         | _ -> err ()
         end
       | Some ([],[s]), GSort gs when Glob_ops.(glob_sort_eq glob_Type_sort gs) ->

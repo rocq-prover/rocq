@@ -156,14 +156,14 @@ let fresh_instance auctx : _ in_sort_context_set =
   let inst = Instance.of_array (qinst,uinst) in
   inst, ((qctx,uctx), AbstractContext.instantiate inst auctx)
 
+let check_instance_length ?loc gref auctx actual =
+  let expect = AbstractContext.size auctx in
+  if not (UVars.eq_sizes actual expect) then
+    Loc.raise ?loc (UniverseLengthMismatch { gref; actual; expect })
+  else ()
+
 let existing_instance ?loc ~gref auctx inst =
-  let () =
-    let actual = Instance.length inst
-    and expect = AbstractContext.size auctx in
-      if not (UVars.eq_sizes actual expect) then
-        Loc.raise ?loc (UniverseLengthMismatch { gref; actual; expect })
-      else ()
-  in
+  let () = check_instance_length ?loc gref auctx (Instance.length inst) in
   inst, ((Sorts.QVar.Set.empty,Level.Set.empty), AbstractContext.instantiate inst auctx)
 
 let fresh_instance_from ?loc ctx = function
