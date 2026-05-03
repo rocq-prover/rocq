@@ -823,7 +823,7 @@ let vernac_enable_notation ~module_local on rule interp flags scope =
 
 let check_name_freshness locality {CAst.loc;v=id} : unit =
   (* We check existence here: it's a bit late at Qed time *)
-  if Termops.is_section_variable (Global.env ()) id ||
+  if Environ.mem_named id (Global.env ()) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path id) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path_except_section id)
   then
@@ -2209,7 +2209,7 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
     let decl = Context.Named.lookup id hyps in
     let natureofid = match decl with
                      | LocalAssum _ -> "Hypothesis"
-                     | LocalDef (_,bdy,_) ->"Constant (let in)" in
+                     | LocalDef (_,_,bdy,_) ->"Constant (let in)" in
     let sigma, env = Declare.Proof.get_current_context pstate in
     v 0 (Id.print id ++ str":" ++ pr_econstr_env env sigma (NamedDecl.get_type decl) ++ fnl() ++ fnl()
          ++ str natureofid ++ str " of the goal context.")

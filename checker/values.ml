@@ -285,9 +285,11 @@ let v_rdecl = v_sum "rel_declaration" 0
        [|v_binder_annot v_name; v_constr; v_constr|] |]   (* LocalDef *)
 let v_rctxt = v_list v_rdecl
 
+let v_named_status = v_bool
+
 let v_ndecl = v_sum "named_declaration" 0
-    [| [|v_binder_annot v_id; v_constr|];               (* LocalAssum *)
-       [|v_binder_annot v_id; v_constr; v_constr|] |]   (* LocalDef *)
+    [| [|v_named_status; v_binder_annot v_id; v_constr|];               (* LocalAssum *)
+       [|v_named_status; v_binder_annot v_id; v_constr; v_constr|] |]   (* LocalDef *)
 let v_nctxt = v_list v_ndecl
 
 let v_section_ctxt = v_enum "emptylist" 1

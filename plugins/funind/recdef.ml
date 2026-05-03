@@ -1631,8 +1631,7 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   (* TODO relevance *)
   let env =
     EConstr.push_named
-      (Context.Named.Declaration.LocalAssum
-         (make_annot function_name function_r, function_type))
+      (LocalAssum (ProofVar, make_annot function_name function_r, function_type))
       env
   in
   (* Pp.msgnl (str "function type := " ++ Printer.pr_lconstr function_type);  *)

@@ -47,7 +47,7 @@ let hyp_id (SsrHyp (_, id)) = id
 let hyp_err ?loc msg id =
   CErrors.user_err ?loc Pp.(str msg ++ Id.print id)
 
-let not_section_id id = not (Termops.is_section_variable (Global.env ()) id)
+let not_section_id id = not (Termops.is_section_variable (Global.env ()) id) [@@warning "-3"]
 
 let hyps_ids = List.map hyp_id
 
@@ -411,8 +411,8 @@ let abs_evars env sigma0 ?(rigid = []) (sigma, c0) =
     let concl = Evd.evar_concl evi in
     let dc = CList.firstn n (evar_filtered_context evi) in
     let abs_dc c = function
-    | NamedDecl.LocalDef (x,b,t) -> mkNamedLetIn sigma x b t (mkArrow t x.binder_relevance c)
-    | NamedDecl.LocalAssum (x,t) -> mkNamedProd sigma x t c in
+    | NamedDecl.LocalDef (_,x,b,t) -> mkNamedLetIn sigma x b t (mkArrow t x.binder_relevance c)
+    | NamedDecl.LocalAssum (_,x,t) -> mkNamedProd sigma x t c in
     let t = Context.Named.fold_inside abs_dc ~init:concl dc in
     Evarutil.nf_evar sigma t in
   let rec put evlist c = match EConstr.kind sigma c with
@@ -478,8 +478,8 @@ let abs_evars_pirrel env sigma0 (sigma, c0) =
     let concl = Evd.evar_concl evi in
     let dc = CList.firstn n (evar_filtered_context evi) in
     let abs_dc c = function
-    | NamedDecl.LocalDef (x,b,t) -> mkNamedLetIn sigma x b t (mkArrow t x.binder_relevance c)
-    | NamedDecl.LocalAssum (x,t) -> mkNamedProd sigma x t c in
+    | NamedDecl.LocalDef (_,x,b,t) -> mkNamedLetIn sigma x b t (mkArrow t x.binder_relevance c)
+    | NamedDecl.LocalAssum (_,x,t) -> mkNamedProd sigma x t c in
     let t = Context.Named.fold_inside abs_dc ~init:concl dc in
     Evarutil.nf_evar sigma t
   in
@@ -658,7 +658,7 @@ let discharge_hyp (id', (id, mode)) =
     let id' = {(NamedDecl.get_annot decl) with binder_name = Name id'} in
     Tactics.apply_type ~typecheck:true
                                (mkProd (id', NamedDecl.get_type decl, cl')) [mkVar id]
-  | NamedDecl.LocalDef (_, v, t), _ ->
+  | NamedDecl.LocalDef (_, _, v, t), _ ->
     let id' = {(NamedDecl.get_annot decl) with binder_name = Name id'} in
     convert_concl ~check:true (mkLetIn (id', v, t, cl'))
   end
@@ -1063,7 +1063,7 @@ let pf_interp_gen_aux env sigma ~concl to_ind ((oclr, occ), t) =
         errorstrm (str "@ can be used with variables only")
       else match get_hyp env sigma (EConstr.destVar sigma c) with
       | NamedDecl.LocalAssum _ -> errorstrm (str "@ can be used with let-ins only")
-      | NamedDecl.LocalDef (name, b, ty) -> true, pat, EConstr.mkLetIn (map_annot Name.mk_name name,b,ty,cl),c,clr, sigma
+      | NamedDecl.LocalDef (_, name, b, ty) -> true, pat, EConstr.mkLetIn (map_annot Name.mk_name name,b,ty,cl),c,clr, sigma
     else let sigma, ccl =  pf_mkprod env sigma c cl in false, pat, ccl, c, clr, sigma
   else if to_ind && occ = None then
     let p, evs, ucst' = abs_evars env sigma (pat.pat_sigma, c) in
@@ -1212,8 +1212,10 @@ let unsafe_intro env decl ~relevance b =
   end
 
 let set_decl_id id = let open Context in function
-  | Rel.Declaration.LocalAssum(name,ty) -> Named.Declaration.LocalAssum({name with binder_name=id},ty)
-  | Rel.Declaration.LocalDef(name,ty,t) -> Named.Declaration.LocalDef({name with binder_name=id},ty,t)
+  | Rel.Declaration.LocalAssum(name,ty) ->
+    Named.Declaration.LocalAssum(ProofVar, {name with binder_name=id},ty)
+  | Rel.Declaration.LocalDef(name,ty,t) ->
+    Named.Declaration.LocalDef(ProofVar, {name with binder_name=id},ty,t)
 
 let rec decompose_assum env sigma orig_goal =
   let open Context in

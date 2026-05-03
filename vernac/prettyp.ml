@@ -519,9 +519,9 @@ let print_named_decl env sigma with_implicit id =
   let impargs = if with_implicit then select_stronger_impargs (implicits_of_global (VarRef id)) else [] in
   let impargs = List.map binding_kind_of_status impargs in
   match lookup_named id env with
-  | LocalAssum (id, typ) ->
+  | LocalAssum (_, id, typ) ->
      print_named_assum env sigma ~impargs (Id.to_string id.Context.binder_name) typ
-  | LocalDef (id, body, typ) ->
+  | LocalDef (_, id, body, typ) ->
      print_named_def env sigma ~impargs (Id.to_string id.Context.binder_name) body typ
 
 let assumptions_for_print lna =

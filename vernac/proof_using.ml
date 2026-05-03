@@ -26,7 +26,7 @@ let rec close_fwd env sigma s =
     List.fold_left (fun s decl ->
       let vb = match decl with
                | LocalAssum _ -> Id.Set.empty
-               | LocalDef (_,b,_) -> Termops.global_vars_set env sigma b
+               | LocalDef (_,_,b,_) -> Termops.global_vars_set env sigma b
       in
       let vty = Termops.global_vars_set env sigma (NamedDecl.get_type decl) in
       let vbty = Id.Set.union vb vty in
@@ -109,7 +109,8 @@ let definition_using env evd ~fixnames ~using ~terms =
 let name_set id expr =
   if Id.equal id all_collection_id then err_redefine_all_collection ();
   if is_known_name id then warn_redefine_collection id;
-  if Termops.is_section_variable (Global.env ()) id then warn_variable_shadowing id;
+  (* but we won't warn if id gets declared as a section variable later *)
+  if Environ.mem_named id (Global.env ()) then warn_variable_shadowing id;
   known_names := (id,expr) :: !known_names
 
 let minimize_hyps env ids =
@@ -205,7 +206,7 @@ let suggest_variable env id =
   if !suggest_proof_using
   then begin
     match lookup_named id env with
-    | LocalDef (_,body,typ) ->
+    | LocalDef (_,_,body,typ) ->
       let ids_typ = global_vars_set env typ in
       let ids_body = global_vars_set env body in
       let used = Id.Set.union ids_body ids_typ in

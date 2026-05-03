@@ -170,34 +170,17 @@ let type_of_variable env id =
 (* Management of context of variables. *)
 
 (* Checks if a context of variables can be instantiated by the
-   variables of the current env.
-   Order does not have to be checked assuming that all names are distinct *)
-let check_hyps_inclusion env ?evars c sign =
-  let conv env a b = conv env ?evars a b in
-  Context.Named.fold_outside
-    (fun d1 () ->
-      let open Context.Named.Declaration in
-      let id = NamedDecl.get_id d1 in
-      try
-        let d2 = lookup_named id env in
-        let () = match conv env (get_type d2) (get_type d1) with
-        | Result.Ok () -> ()
-        | Result.Error () -> raise NotConvertible
-        in
-        (match d2,d1 with
-        | LocalAssum _, LocalAssum _ -> ()
-        | LocalAssum _, LocalDef _ ->
-            (* This is wrong, because we don't know if the body is
-               needed or not for typechecking: *) ()
-        | LocalDef _, LocalAssum _ -> raise NotConvertible
-        | LocalDef (_,b2,_), LocalDef (_,b1,_) ->
-          match conv env b2 b1 with
-          | Result.Ok () -> ()
-          | Result.Error () -> raise NotConvertible);
-      with Not_found | NotConvertible | Option.Heterogeneous ->
-        error_reference_variables env id c)
-    sign
-    ~init:()
+   variables of the current env. *)
+let check_hyps_inclusion env c sign =
+  sign |> List.iter @@ fun d ->
+  let id = NamedDecl.get_id d in
+  let ok = match lookup_named id env with
+    | exception Not_found -> false
+    | d' -> match NamedDecl.get_status d' with
+      | SecVar -> true
+      | ProofVar -> false
+  in
+  if not ok then error_reference_variables env id c
 
 (* Instantiation of terms on real arguments. *)
 

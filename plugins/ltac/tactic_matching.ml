@@ -301,14 +301,14 @@ module PatternMatching (E:StaticEnvironment) = struct
       success returns the name of the matched hypothesis. *)
   let hyp_match_body_and_type except hypname bodypat typepat hyps =
     pick hyps >>= function
-      | LocalDef (id,body,hyp) ->
+      | LocalDef (_,id,body,hyp) ->
         if Id.Set.mem id.binder_name except then fail
         else
           pattern_match_term bodypat body () <*>
           pattern_match_term typepat hyp () <*>
           put_terms (id_map_try_add_name hypname (EConstr.mkVar id.binder_name) empty_term_subst) <*>
           return id.binder_name
-      | LocalAssum (id,hyp) -> fail
+      | LocalAssum (_,id,hyp) -> fail
 
   (** [hyp_match pat hyps] dispatches to
       {!hyp_match_type} or {!hyp_match_body_and_type} depending on whether

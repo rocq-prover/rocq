@@ -40,8 +40,8 @@ let mkProd_or_LetIn decl c =
 let mkNamedProd_or_LetIn decl c =
   let open Context.Named.Declaration in
   match decl with
-    | LocalAssum (id,t) -> mkNamedProd id t c
-    | LocalDef (id,b,t) -> mkNamedLetIn id b t c
+    | LocalAssum (_,id,t) -> mkNamedProd id t c
+    | LocalDef (_,id,b,t) -> mkNamedLetIn id b t c
 
 (* Constructs either [(x:t)c] or [c] where [x] is replaced by [b] *)
 let mkProd_wo_LetIn decl c =
@@ -53,8 +53,8 @@ let mkProd_wo_LetIn decl c =
 let mkNamedProd_wo_LetIn decl c =
   let open Context.Named.Declaration in
   match decl with
-    | LocalAssum (id,t) -> mkNamedProd id t c
-    | LocalDef (id,b,_) -> subst1 b (subst_var id.binder_name c)
+    | LocalAssum (_,id,t) -> mkNamedProd id t c
+    | LocalDef (_,id,b,_) -> subst1 b (subst_var id.binder_name c)
 
 (* non-dependent product t1 -> t2 *)
 let mkArrow t1 r t2 = mkProd (make_annot Anonymous r, t1, t2)
@@ -70,8 +70,8 @@ let mkLambda_or_LetIn decl c =
 let mkNamedLambda_or_LetIn decl c =
   let open Context.Named.Declaration in
   match decl with
-    | LocalAssum (id,t) -> mkNamedLambda id t c
-    | LocalDef (id,b,t) -> mkNamedLetIn id b t c
+    | LocalAssum (_,id,t) -> mkNamedLambda id t c
+    | LocalDef (_,id,b,t) -> mkNamedLetIn id b t c
 
 (* prodn n [xn:Tn;..;x1:T1;Gamma] b = (x1:T1)..(xn:Tn)b *)
 let prodn n env b =

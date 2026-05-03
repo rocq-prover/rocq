@@ -918,13 +918,15 @@ module Progress = struct
     let c1 = EConstr.named_context_of_val ctx1 and c2 = EConstr.named_context_of_val ctx2 in
     let eq_named_declaration d1 d2 =
       match d1, d2 with
-      | LocalAssum (i1,t1), LocalAssum (i2,t2) ->
-         Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 t1 t2
-      | LocalDef (i1,c1,t1), LocalDef (i2,c2,t2) ->
-         Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 c1 c2
-         && eq_constr sigma1 sigma2 t1 t2
+      | LocalAssum (s1,i1,t1), LocalAssum (s2,i2,t2) ->
+        eq_status s1 s2 &&
+        Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 t1 t2
+      | LocalDef (s1,i1,c1,t1), LocalDef (s2,i2,c2,t2) ->
+        eq_status s1 s2 &&
+        Context.eq_annot Names.Id.equal r_eq i1 i2 && eq_constr sigma1 sigma2 c1 c2 &&
+        eq_constr sigma1 sigma2 t1 t2
       | _ ->
-         false
+        false
     in
     (* NB: can't use List.equal because it shortcuts on physical equality *)
     List.for_all2eq eq_named_declaration c1 c2
@@ -960,9 +962,13 @@ module Progress = struct
     let c1 = EConstr.named_context_of_val ctx1 in
     let c2 = EConstr.named_context_of_val ctx2 in
     let eq_named_declaration d1 d2 = match d1, d2 with
-    | LocalAssum (i1, _), LocalAssum (i2, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | LocalDef (i1, _, _), LocalDef (i2, _, _) -> Context.eq_annot Names.Id.equal r_eq i1 i2
-    | _ -> false
+      | LocalAssum (s1,i1, _), LocalAssum (s2,i2, _) ->
+        eq_status s1 s2 &&
+        Context.eq_annot Names.Id.equal r_eq i1 i2
+      | LocalDef (s1,i1, _, _), LocalDef (s2,i2, _, _) ->
+        eq_status s1 s2 &&
+        Context.eq_annot Names.Id.equal r_eq i1 i2
+      | _ -> false
     in
     List.for_all2eq eq_named_declaration c1 c2
 

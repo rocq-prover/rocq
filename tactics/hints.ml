@@ -77,14 +77,16 @@ let secvars_of_hyps hyps =
   let open Context.Named.Declaration in
   let pred, all =
     List.fold_left (fun (pred,all) decl ->
-        try let _ = Context.Named.lookup (get_id decl) hyps in
-          (* Approximation, it might be an hypothesis reintroduced with same name and unconvertible types,
-             we must allow it currently, as comparing the declarations for syntactic equality is too
-             strong a check (e.g. an unfold in a section variable would make it unusable). *)
-          (Id.Pred.add (get_id decl) pred, all)
-        with Not_found -> (pred, false))
+        match Environ.lookup_named_ctxt (get_id decl) hyps with
+        | exception Not_found -> (pred, false)
+        | d ->
+          if is_secvar d then
+            (Id.Pred.add (get_id decl) pred, all)
+          else (pred, false))
       (Id.Pred.empty,true) secctx
   in
+  (* NB: this is not just [forall is_secvar hyps] because we need to
+     know if secvars have been cleaned *)
   if all then Id.Pred.full (* If the whole section context is available *)
   else pred
 
@@ -878,14 +880,16 @@ let error_no_such_hint_database x =
 
 let with_uid c = { obj = c; uid = fresh_key () }
 
-let secvars_of_idset s =
+(* if [x] is a local variable sharing a name with a cleared section
+   variable, [secvars_of_global _ (VarRef x)] should return the empty set *)
+let secvars_of_idset env s =
   Id.Set.fold (fun id p ->
-      if is_section_variable (Global.env ()) id then
+      if is_section_variable' env id then
         Id.Pred.add id p
       else p) s Id.Pred.empty
 
 let secvars_of_global env gr =
-  secvars_of_idset (vars_of_global env gr)
+  secvars_of_idset env (vars_of_global env gr)
 
 let fresh_global_hint env sigma gr =
   let (c, ctx) = UnivGen.fresh_global_instance env gr in

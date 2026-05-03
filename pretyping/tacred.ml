@@ -682,7 +682,7 @@ let whd_nothing_for_iota env sigma s =
       | Var id ->
           let open Context.Named.Declaration in
           (match lookup_named id env with
-             | LocalDef (_,body,_) -> whrec (body, stack)
+             | LocalDef (_,_,body,_) -> whrec (body, stack)
              | _ -> s)
       | Evar _ | Meta _ -> s
       | Const (const, u) ->

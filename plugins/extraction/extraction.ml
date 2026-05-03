@@ -402,9 +402,9 @@ let rec extract_type (table : Common.State.t) env sg db j c args =
        (* For Show Extraction *)
        let open Context.Named.Declaration in
        (match EConstr.lookup_named v env with
-        | LocalDef (_,body,_) ->
+        | LocalDef (_,_,body,_) ->
            extract_type table env sg db j (EConstr.applist (body,args)) []
-        | LocalAssum (_,ty) ->
+        | LocalAssum (_,_,ty) ->
            let r = { glob = GlobRef.VarRef v; inst = InfvInst.empty } in
            (match flag_of_type env sg ty with
             | (Logic,_) -> assert false (* Cf. logical cases above *)
@@ -748,11 +748,7 @@ let rec extract_term table env sg mle mlt c args =
     | Evar _ | Meta _ -> MLaxiom "evar"
     | Var v ->
        (* Only during Show Extraction *)
-       let open Context.Named.Declaration in
-       let ty = match EConstr.lookup_named v env with
-         | LocalAssum (_,ty) -> ty
-         | LocalDef (_,_,ty) -> ty
-       in
+       let ty = Context.Named.Declaration.get_type @@ EConstr.lookup_named v env in
        let vty = extract_type table env sg [] 0 ty [] in
        let r = { glob = GlobRef.VarRef v; inst = InfvInst.empty } in
        let extract_var mlt = put_magic (mlt,vty) (MLglob r) in

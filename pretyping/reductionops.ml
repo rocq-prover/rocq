@@ -842,7 +842,7 @@ let rec whd_state_gen flags ?metas env sigma =
       | _ -> fold ())
     | Var id when RedFlags.red_set flags (RedFlags.fVAR id) ->
       (match lookup_named id env with
-      | LocalDef (_,body,_) ->
+      | LocalDef (_,_,body,_) ->
         whrec (body, stack)
       | _ -> fold ())
     | Evar ev -> fold ()
@@ -1412,11 +1412,6 @@ let native_conv_generic pb sigma t =
 let native_infer_conv ?(pb=Conversion.CUMUL) env sigma t1 t2 =
   infer_conv_gen { genconv = fun pb ~l2r sigma ts -> native_conv_generic pb sigma }
     ~catch_incon:true ~pb env sigma t1 t2
-
-let check_hyps_inclusion env sigma x hyps =
-  let env = Environ.set_universes (Evd.universes sigma) env in
-  let evars = Evd.evar_handler sigma in
-  Typeops.check_hyps_inclusion env ~evars x hyps
 
 (********************************************************************)
 (*             Special-Purpose Reduction                            *)

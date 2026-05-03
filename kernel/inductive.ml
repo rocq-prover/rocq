@@ -1661,7 +1661,7 @@ let check_one_fix ?evars renv recpos trees def =
               let open! Context.Named.Declaration in
               match lookup_named id renv.env with
               | LocalAssum _ -> None
-              | LocalDef (_,c,_) -> Some (c, []))
+              | LocalDef (_,_,c,_) -> Some (c, []))
 
         | LetIn (x,c,t,b) ->
             let needreduce_c, rs = check_rec_call renv rs c in

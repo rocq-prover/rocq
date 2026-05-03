@@ -136,14 +136,14 @@ let etype_of_evar evm evs hyps concl =
       let s' = Int.Set.union s s' in
       let trans' = Id.Set.union trans trans' in
       match decl with
-      | LocalDef (id, c, _) ->
+      | LocalDef (s,id, c, _) ->
         let c', s'', trans'' = subst_evar_constr evm evs n EConstr.mkVar c in
         let c' = subst_vars acc 0 c' in
-        ( Term.mkNamedProd_or_LetIn (LocalDef (EConstr.Unsafe.to_binder_annot id, c', t'')) rest
+        ( Term.mkNamedProd_or_LetIn (LocalDef (s,EConstr.Unsafe.to_binder_annot id, c', t'')) rest
         , Int.Set.union s'' s'
         , Id.Set.union trans'' trans' )
-      | LocalAssum (id, _) ->
-        (Term.mkNamedProd_or_LetIn (LocalAssum (EConstr.Unsafe.to_binder_annot id, t'')) rest, s', trans') )
+      | LocalAssum (s,id, _) ->
+        (Term.mkNamedProd_or_LetIn (LocalAssum (s,EConstr.Unsafe.to_binder_annot id, t'')) rest, s', trans') )
     | [] ->
       let t', s, trans = subst_evar_constr evm evs n EConstr.mkVar concl in
       (subst_vars acc 0 t', s, trans)
@@ -237,6 +237,8 @@ let retrieve_obligations env name evm fs ?deps ?status t ty =
     List.fold_right
       (fun (id, (n, nstr), ev) evs ->
         let hyps = Evd.evar_filtered_context ev in
+        (* XXX ignore vars based on secvar status + names of recursive functions
+           instead of length of global context + number of recursive functions *)
         let hyps = trunc_named_context nc_len hyps in
         let evtyp, deps, transp = etype_of_evar evm evs hyps (Evd.evar_concl ev) in
         let evtyp, hyps, chop =

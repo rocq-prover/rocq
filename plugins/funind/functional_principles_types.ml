@@ -67,7 +67,7 @@ let compute_new_princ_type_from_rel env rel_to_fun sorts princ_type =
     in
     let na = map_annot Nameops.Name.get_id (Context.Rel.Declaration.get_annot decl) in
     let na = EConstr.Unsafe.to_binder_annot na in
-    Context.Named.Declaration.LocalAssum (na, Term.it_mkProd_or_LetIn (mkSort new_sort) real_args)
+    Context.Named.Declaration.LocalAssum (ProofVar, na, Term.it_mkProd_or_LetIn (mkSort new_sort) real_args)
   in
   let new_predicates =
     List.map_i change_predicate_sort 0 princ_type_info.predicates
@@ -252,10 +252,10 @@ let compute_new_princ_type_from_rel env rel_to_fun sorts princ_type =
     (it_mkProd_or_LetIn pre_res
        (List.map
           (function
-            | Context.Named.Declaration.LocalAssum (id, b) ->
+            | Context.Named.Declaration.LocalAssum (_, id, b) ->
               LocalAssum
                 (map_annot (fun id -> Name.mk_name (Hashtbl.find tbl id)) id, b)
-            | Context.Named.Declaration.LocalDef (id, t, b) ->
+            | Context.Named.Declaration.LocalDef (_, id, t, b) ->
               LocalDef
                 ( map_annot (fun id -> Name.mk_name (Hashtbl.find tbl id)) id
                 , t

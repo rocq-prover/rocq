@@ -225,9 +225,17 @@ sig
   (** Representation of {e local declarations}. *)
   module Declaration :
   sig
+    type status = SecVar | ProofVar
+
+    val eq_status : status -> status -> bool
+
     type ('constr, 'types, 'r) pt =
-      | LocalAssum of (Id.t,'r) pbinder_annot * 'types             (** identifier, type *)
-      | LocalDef of (Id.t,'r) pbinder_annot * 'constr * 'types    (** identifier, value, type *)
+      | LocalAssum of status * (Id.t,'r) pbinder_annot * 'types             (** identifier, type *)
+      | LocalDef of status * (Id.t,'r) pbinder_annot * 'constr * 'types    (** identifier, value, type *)
+
+    val get_status : _ pt -> status
+
+    val is_secvar : _ pt -> bool
 
     val get_annot : (_,_,'r) pt -> (Id.t,'r) pbinder_annot
 
@@ -242,11 +250,8 @@ sig
 
     val get_relevance : ('c, 't, 'r) pt -> 'r
 
-    (** Set the identifier that is bound by a given declaration. *)
+    (** Set the identifier that is bound by a given declaration. status becomes [ProofVar]. *)
     val set_id : Id.t -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
-    (** Set the type of the bound variable in a given declaration. *)
-    val set_type : 't -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
     (** Return [true] iff a given declaration is a local assumption. *)
     val is_local_assum : ('c, 't, 'r) pt -> bool
@@ -264,15 +269,9 @@ sig
     val equal : ('r -> 'r -> bool) -> ('c -> 'c -> bool) ->
       ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt -> bool
 
-    (** Map the identifier bound by a given declaration. *)
+    (** Map the identifier bound by a given declaration.
+        Status becomes [ProofVar] if the id changes (physical equality). *)
     val map_id : (Id.t -> Id.t) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
-    (** For local assumptions, this function returns the original local assumptions.
-        For local definitions, this function maps the value in the local definition. *)
-    val map_value : ('c -> 'c) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
-
-    (** Map the type of the name bound by a given declaration. *)
-    val map_type : ('t -> 't) -> ('c, 't, 'r) pt -> ('c, 't, 'r) pt
 
     (** Map all terms in a given declaration. *)
     val map_constr : ('c -> 'c) -> ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt
@@ -289,8 +288,8 @@ sig
     (** Reduce all terms in a given declaration to a single value. *)
     val fold_constr : ('c -> 'a -> 'a) -> ('c, 'c, 'r) pt -> 'a -> 'a
 
-    val to_tuple : ('c, 't, 'r) pt -> (Id.t,'r) pbinder_annot * 'c option * 't
-    val of_tuple : (Id.t,'r) pbinder_annot * 'c option * 't -> ('c, 't, 'r) pt
+    val to_tuple : ('c, 't, 'r) pt -> status * (Id.t,'r) pbinder_annot * 'c option * 't
+    val of_tuple : status * (Id.t,'r) pbinder_annot * 'c option * 't -> ('c, 't, 'r) pt
 
     (** Turn [LocalDef] into [LocalAssum], identity otherwise. *)
     val drop_body : ('c, 't, 'r) pt -> ('c, 't, 'r) pt
@@ -381,7 +380,6 @@ sig
 
     val map_constr : ('c -> 'c) -> ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt
     val of_named_decl : ('c, 't, 'r) Named.Declaration.pt -> ('c, 't, 'r) pt
-    val to_named_context : ('c, 't, 'r) pt -> ('c, 't, 'r) Named.pt
   end
 
   type ('constr, 'types, 'r) pt = ('constr, 'types, 'r) Declaration.pt list

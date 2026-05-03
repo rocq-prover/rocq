@@ -291,7 +291,7 @@ let intro_clear ids =
     let env = Proofview.Goal.env gl in
     let fold (used_ids, clear_ids, ren) id =
       let new_id = Ssrcommon.mk_anon_id (Id.to_string id) used_ids in
-      let used_ids = Environ.push_named_context_val (LocalAssum (annotR new_id, mkProp)) used_ids in
+      let used_ids = Environ.push_named_context_val (LocalAssum (ProofVar, annotR new_id, mkProp)) used_ids in
       (used_ids, new_id :: clear_ids, (id, new_id) :: ren)
     in
     let _, clear_ids, ren = List.fold_left fold (Environ.named_context_val env, [], []) ids in
@@ -748,9 +748,9 @@ let tclLAST_GEN ~to_ind ((oclr, occ), t) conclusion = tclINDEPENDENTL begin
       if not (EConstr.isVar sigma c) then
         Ssrcommon.errorstrm Pp.(str "@ can be used with variables only")
       else match Context.Named.lookup (EConstr.destVar sigma c) hyps with
-      | Context.Named.Declaration.LocalAssum _ ->
+      | LocalAssum _ ->
           Ssrcommon.errorstrm Pp.(str "@ can be used with let-ins only")
-      | Context.Named.Declaration.LocalDef (name, b, ty) ->
+      | LocalDef (_, name, b, ty) ->
           Unsafe.tclEVARS sigma <*>
           tclUNIT (true, EConstr.mkLetIn (map_annot Name.mk_name name,b,ty,cl), c, clr)
     else

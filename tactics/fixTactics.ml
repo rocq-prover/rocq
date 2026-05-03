@@ -55,7 +55,7 @@ let mutual_fix f n others = Proofview.Goal.enter begin fun gl ->
     let ()  = check_mutind env sigma n ar in
     if mem_named_context_val f sign then
       TacticErrors.intro_already_declared f;
-    mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
+    mk_sign (push_named_context_val (LocalAssum (ProofVar,make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
   Refine.refine ~typecheck:false begin fun sigma ->
@@ -98,7 +98,7 @@ let mutual_cofix f others = Proofview.Goal.enter begin fun gl ->
     let open Context.Named.Declaration in
     if mem_named_context_val f sign then
       TacticErrors.already_used f;
-    mk_sign (push_named_context_val (LocalAssum (make_annot f r, ar)) sign) oth
+    mk_sign (push_named_context_val (LocalAssum (ProofVar,make_annot f r, ar)) sign) oth
   in
   let nenv = reset_with_named_context (mk_sign (named_context_val env) all) env in
   Refine.refine ~typecheck:false begin fun sigma ->

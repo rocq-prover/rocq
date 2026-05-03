@@ -206,8 +206,13 @@ val global_app_of_constr : Evd.evar_map -> constr -> (GlobRef.t * EInstance.t) *
    containing a given set *)
 val dependency_closure : env -> Evd.evar_map -> named_context -> Id.Set.t -> Id.t list
 
-(** Test if an identifier is the basename of a global reference *)
+(** This tests if the ident is known in the given env, indented to be used with the global env. *)
 val is_section_variable : env -> Id.t -> bool
+[@@deprecated "Use is_section_variable' on the local env instead of is_section_variable on the global env."]
+
+(** Check if the ident has [SecVar] status in this enviroment. [false] if it is not bound. *)
+val is_section_variable_sign : Environ.named_context_val -> Id.t -> bool
+val is_section_variable' : env -> Id.t -> bool
 
 val is_template_polymorphic_ref : env -> Evd.evar_map -> constr -> bool
 val is_template_polymorphic_ind : env -> Evd.evar_map -> constr -> bool

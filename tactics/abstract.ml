@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Util
-open Termops
 open EConstr
 
 module NamedDecl = Context.Named.Declaration
@@ -17,23 +16,6 @@ module NamedDecl = Context.Named.Declaration
 (* tactical to save as name a subproof such that the generalisation of
    the current goal, abstracted with respect to the local signature,
    is solved by tac *)
-
-(** d1 is the section variable in the global context, d2 in the goal context *)
-let interpretable_as_section_decl env sigma d1 d2 =
-  let open Context.Named.Declaration in
-  let e_eq_constr_univs sigma c1 c2 = match eq_constr_universes env sigma c1 c2 with
-    | None -> false
-    | Some cstr ->
-      try
-        let _sigma = Evd.add_constraints sigma cstr in
-        true
-      with UGraph.UniverseInconsistency _ | UState.UniversesDiffer -> false
-  in
-  match d2, d1 with
-  | LocalDef _, LocalAssum _ -> false
-  | LocalDef (_,b1,t1), LocalDef (_,b2,t2) ->
-    e_eq_constr_univs sigma b1 b2 && e_eq_constr_univs sigma t1 t2
-  | LocalAssum (_,t1), d2 -> e_eq_constr_univs sigma t1 (NamedDecl.get_type d2)
 
 let name_op_to_name ~name_op ~name suffix =
   match name_op with
@@ -56,11 +38,9 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     let sign,secsign =
       List.fold_right
         (fun d (s1,s2) ->
-           let id = NamedDecl.get_id d in
-           if mem_named_context_val id section_sign &&
-              interpretable_as_section_decl env sigma (lookup_named_val id section_sign) d
-           then (s1,push_named_context_val d s2)
-           else (Context.Named.add d s1,s2))
+           match NamedDecl.get_status d with
+           | SecVar -> (s1,push_named_context_val d s2)
+           | ProofVar -> (Context.Named.add d s1,s2))
         goal_sign (Context.Named.empty, Environ.empty_named_context_val)
     in
     let bad id = match lookup_named_val id section_sign with

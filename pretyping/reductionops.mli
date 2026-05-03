@@ -283,9 +283,6 @@ val infer_conv_gen : genconv ->
   ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t -> env ->
   evar_map -> constr -> constr -> evar_map option
 
-val check_hyps_inclusion : env -> evar_map -> GlobRef.t -> Constr.named_context -> unit
-(** [Typeops.check_hyps_inclusion] but handles evars in the environment. *)
-
 (** {6 Heuristic for Conversion with Evar } *)
 
 type state = constr * Stack.t

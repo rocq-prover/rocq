@@ -1918,7 +1918,7 @@ let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
     let env = Global.env () in
     let sign =
       List.fold_left2 (fun sign CInfo.{name;typ} r ->
-          let decl = Context.Named.Declaration.LocalAssum (Context.make_annot name r, typ) in
+          let decl = Context.Named.Declaration.LocalAssum (ProofVar, Context.make_annot name r, typ) in
           EConstr.push_named_context_val decl sign) (initialize_named_context_for_proof ()) cinfo' fixrs in
     let using = Option.map (interp_proof_using_cinfo env sigma cinfo') using in
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
@@ -1929,7 +1929,9 @@ let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
       (* Temporary declaration of notations for the time of the proofs *)
       let ntn_env =
         (* We simulate the goal context in which the fixpoint bodies have to be proved (exact relevance does not matter) *)
-        let make_decl CInfo.{name; typ} = Context.Named.Declaration.LocalAssum (Context.annotR name, typ) in
+        let make_decl CInfo.{name; typ} =
+          Context.Named.Declaration.LocalAssum (ProofVar, Context.annotR name, typ)
+        in
         Environ.push_named_context (List.map make_decl cinfo) (Global.env()) in
       List.iter (Metasyntax.add_notation_interpretation ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
     lemma
@@ -1954,7 +1956,7 @@ let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using 
     let env = Global.env () in
     let sign =
       List.fold_left2 (fun sign CInfo.{name;typ} r ->
-          let decl = Context.Named.Declaration.LocalAssum (Context.make_annot name r, typ) in
+          let decl = Context.Named.Declaration.LocalAssum (ProofVar, Context.make_annot name r, typ) in
           EConstr.push_named_context_val decl sign) (initialize_named_context_for_proof ()) cinfo fixrs in
     let using = Option.map (interp_proof_using_cinfo env sigma cinfo) using in
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
@@ -1970,7 +1972,9 @@ let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using 
       (* Temporary declaration of notations for the time of the proofs *)
       let ntn_env =
         (* We simulate the goal context in which the fixpoint bodies have to be proved (exact relevance does not matter) *)
-        let make_decl CInfo.{name; typ} = Context.Named.Declaration.LocalAssum (Context.annotR name, EConstr.Unsafe.to_constr typ) in
+        let make_decl CInfo.{name; typ} =
+          Context.Named.Declaration.LocalAssum (ProofVar, Context.annotR name, EConstr.Unsafe.to_constr typ)
+        in
         Environ.push_named_context (List.map make_decl cinfo) (Global.env()) in
       List.iter (Metasyntax.add_notation_interpretation ~local:(info.scope=Locality.Discharge) ntn_env) info.ntns in
     lemma
@@ -1988,10 +1992,10 @@ let set_used_variables ps ~using =
   let vars_of = Environ.global_vars_set in
   let aux env entry (ctx, all_safe as orig) =
     match entry with
-    | LocalAssum ({Context.binder_name=x},_) ->
+    | LocalAssum (_, {Context.binder_name=x},_) ->
        if Id.Set.mem x all_safe then orig
        else (ctx, all_safe)
-    | LocalDef ({Context.binder_name=x},bo, ty) as decl ->
+    | LocalDef (_, {Context.binder_name=x},bo, ty) as decl ->
        if Id.Set.mem x all_safe then orig else
        let vars = Id.Set.union (vars_of env bo) (vars_of env ty) in
        if Id.Set.subset vars all_safe

@@ -26,16 +26,6 @@ val new_meta : unit -> metavariable
 
 val next_evar_name : intro_pattern_naming_expr -> (Id.t * bool) option
 
-module VarSet :
-sig
-  type t
-  val empty : t
-  val full : t
-  val variables : Environ.env -> t
-end
-
-type naming_mode = VarSet.t
-
 val new_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   ?relevance:ERelevance.t ->
@@ -44,7 +34,6 @@ val new_evar :
   ?parent:Evar.t ->
   ?typeclass_candidate:bool ->
   ?rrpat:bool ->
-  ?hypnaming:naming_mode ->
   env -> evar_map -> types -> evar_map * EConstr.t
 
 (** Alias of {!Evd.new_pure_evar} *)
@@ -63,7 +52,6 @@ val new_pure_evar :
 val new_type_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   ?naming:intro_pattern_naming_expr ->
-  ?hypnaming:naming_mode ->
   env -> evar_map -> rigid ->
   evar_map * (constr * ESorts.t)
 
@@ -199,6 +187,8 @@ type unification_pb = conv_pb * env * constr * constr
     Put it at the end of the list if [tail] is true, by default it is false. *)
 val add_unification_pb : ?tail:bool -> unification_pb -> evar_map -> evar_map
 
+val vars_of_global : env -> evar_map -> GlobRef.t -> Id.Set.t
+
 (** {6 Removing hyps in evars'context}
 raise OccurHypInSimpleClause if the removal breaks dependencies *)
 
@@ -238,7 +228,7 @@ val csubst_subst : Evd.evar_map -> csubst -> constr -> constr
 
 type ext_named_context
 
-val ext_named_context_of_env : hypnaming:naming_mode -> env -> evar_map -> ext_named_context
+val ext_named_context_of_env : env -> evar_map -> ext_named_context
 
 val ext_named_context_val : ext_named_context -> named_context_val
 val ext_csubst : ext_named_context -> csubst
@@ -247,10 +237,10 @@ val default_ext_instance : ext_named_context -> constr SList.t
 
 val ext_rev_subst : ext_named_context -> Id.t -> constr
 
-val push_rel_decl_to_named_context : hypnaming:naming_mode ->
+val push_rel_decl_to_named_context :
   evar_map -> rel_declaration -> ext_named_context -> ext_named_context
 
-val push_rel_context_to_named_context : hypnaming:naming_mode ->
+val push_rel_context_to_named_context :
   Environ.env -> evar_map -> types ->
   named_context_val * types * constr SList.t * csubst
 
