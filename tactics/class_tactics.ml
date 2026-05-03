@@ -1296,7 +1296,7 @@ let classes_transparent_state db () =
 let resolve_typeclass_evars depth unique env evd filter fail =
   let evd =
     try Evarconv.solve_unif_constraints_with_heuristics
-      ~flags:(Evarconv.default_flags_of (classes_transparent_state None ())) env evd
+      ~flags:(Evarconv.default_flags_of evd (classes_transparent_state None ())) env evd
     with e when CErrors.noncritical e -> evd
   in
     resolve_all_evars depth unique env

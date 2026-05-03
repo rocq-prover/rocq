@@ -19,7 +19,7 @@ open Locus
 type unify_flags = Evarsolve.unify_flags
 
 (** The default subterm transparent state is no unfoldings *)
-val default_flags_of : ?subterm_ts:TransparentState.t -> TransparentState.t -> unify_flags
+val default_flags_of : evar_map -> ?subterm_ts:TransparentState.t -> TransparentState.t -> unify_flags
 
 type unify_fun = unify_flags ->
   env -> evar_map -> conv_pb -> constr -> constr -> Evarsolve.unification_result
@@ -67,7 +67,7 @@ val unify : ?flags:unify_flags -> ?with_ho:bool ->
     @raises a PretypeError if it fails to resolve some problem *)
 
 val solve_unif_constraints_with_heuristics :
-  env -> ?flags:unify_flags -> ?with_ho:bool -> evar_map -> evar_map
+  ?flags:unify_flags -> env -> ?with_ho:bool -> evar_map -> evar_map
 
 (** Check all pending unification problems relative to a set of evars
     are solved and raise a PretypeError otherwise *)

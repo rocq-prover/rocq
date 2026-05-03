@@ -114,8 +114,9 @@ let get_polymorphic_positions env sigma f =
       | Some templ -> templ.template_param_arguments)
   | _ -> assert false
 
-let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(onlyalg=false) ?(refreshset=false)
+let refresh_universes ?allowed_evars ?(status=univ_rigid) ?(onlyalg=false) ?(refreshset=false)
                       pbty env evd t =
+  let allowed_evars = Option.default (allow_all_but_rrpat_evars evd) allowed_evars in
   let evdref = ref evd in
   (* direction: true for fresh universes lower than the existing ones *)
   let refresh_sort status ~direction s =

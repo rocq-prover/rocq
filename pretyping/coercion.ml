@@ -565,8 +565,8 @@ let activate_hook ~name =
 let apply_hooks env sigma ~flags body ~inferred ~expected =
   List.find_map (fun name -> CString.Map.get name !all_hooks env sigma ~flags body ~inferred ~expected) !active_hooks
 
-let default_flags_of env =
-  default_flags_of TransparentState.full
+let default_flags env evd =
+  default_flags_of evd TransparentState.full
 
 (* Try to coerce to a funclass; raise NoCoercion if not possible *)
 let inh_app_fun_core ~program_mode ?(use_coercions=true) env sigma body typ =
@@ -592,7 +592,7 @@ let inh_app_fun_core ~program_mode ?(use_coercions=true) env sigma body typ =
       else Exninfo.iraise (NoCoercion,info)
 
 (* Try to coerce to a funclass; returns [j] if no coercion is applicable *)
-let inh_app_fun ~program_mode ~resolve_tc ?use_coercions env sigma ?(flags=default_flags_of env) body typ =
+let inh_app_fun ~program_mode ~resolve_tc ?use_coercions env sigma ?(flags=default_flags env sigma) body typ =
   try
     try inh_app_fun_core ~program_mode ?use_coercions env sigma body typ
     with
@@ -609,7 +609,7 @@ let type_judgment env sigma j =
     | Sort s -> {utj_val = j.uj_val; utj_type = s }
     | _ -> error_not_a_type env sigma j
 
-let inh_tosort_force ?loc env sigma ?(flags=default_flags_of env) ({ uj_val; uj_type } as j) =
+let inh_tosort_force ?loc env sigma ?(flags=default_flags env sigma) ({ uj_val; uj_type } as j) =
   try
     let p = lookup_path_to_sort_from env sigma uj_type in
     let sigma, uj_val, uj_type,_trace = apply_coercion env sigma p uj_val uj_type in
@@ -719,7 +719,7 @@ let inh_coerce_to_fail ?(use_coercions=true) flags env sigma rigidonly v v_ty ta
       | Some (sigma, r, _) -> (sigma, r, ReplaceCoe r)
       | None -> Exninfo.iraise (NoCoercion,info)
 
-let rec inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ?(flags=default_flags_of env) rigidonly v t c1 =
+let rec inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ?(flags=default_flags env sigma) rigidonly v t c1 =
   try (unify_leq_delay ~flags env sigma t c1, v, IdCoe)
   with UnableToUnify (best_failed_sigma,e) as exn ->
     let _, info = Exninfo.capture exn in
@@ -752,11 +752,8 @@ let rec inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ?(flags=default_fl
       | _ ->
         Exninfo.iraise (NoCoercionNoUnifier (best_failed_sigma,e), info)
 
-let default_flags_of env sigma =
-  { (default_flags_of env) with allowed_evars = Evarsolve.allow_all_but_rrpat_evars sigma }
-
 (* Look for cj' obtained from cj by inserting coercions, s.t. cj'.typ = t *)
-let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags_of env sigma) cj t =
+let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags env sigma) cj t =
   let (sigma, val', otrace) =
     try
       let (sigma, val', trace) = inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ~flags rigidonly cj.uj_val cj.uj_type t in

@@ -439,7 +439,7 @@ let abstract_list_all_with_dependencies env evd typ c l =
     if occur_meta evd c then evd, false
     else
     Evarconv.second_order_matching
-      (Evarconv.default_flags_of TransparentState.empty)
+      (Evarconv.default_flags_of evd TransparentState.empty)
       env evd ev' (occurrence_test, argoccs) c in
   if b then
     let p = nf_evar evd ev in
@@ -1842,7 +1842,7 @@ let solve_simple_evar_eqn flags env evd ev rhs =
    is true, unification of types of metas is required *)
 
 let w_merge env with_types flags (substn : subst0) =
-  let eflags = Evarconv.default_flags_of flags.modulo_delta_types in
+  let eflags = Evarconv.default_flags_of substn.subst_sigma flags.modulo_delta_types in
   let rec w_merge_rec metas0 evd metas evars eqns =
 
     (* Process evars *)
