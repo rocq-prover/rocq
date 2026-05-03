@@ -65,30 +65,28 @@ module KeyOrdered = struct
 end
 
 module Keymap = HMap.Make(KeyOrdered)
-module Keyset = Keymap.Set
 
 (* Mapping structure for references to be considered equivalent *)
 
 let keys = Summary.ref Keymap.empty ~name:"Keys_decl"
 
-let add_kv k v m =
-  try Keymap.modify k (fun k' vs -> Keyset.add v vs) m
-  with Not_found -> Keymap.add k (Keyset.singleton v) m
+let add_kv k ki v vi m =
+  Keymap.update k (Option.cata (fun m -> Some (Keymap.add v (ki, vi) m)) (Some (Keymap.singleton v (ki, vi)))) m
 
-let add_keys k v =
-  keys := add_kv k v (add_kv v k !keys)
+let add_keys k ki v vi =
+  keys := add_kv k ki v vi (add_kv v vi k ki !keys)
 
 let equiv_keys k k' =
-  k == k' || KeyOrdered.equal k k' ||
-    try Keyset.mem k' (Keymap.find k !keys)
-    with Not_found -> false
+  if k == k' || KeyOrdered.equal k k' then Some ((0, 0)) else
+  try Some (Keymap.find k' (Keymap.find k !keys))
+  with Not_found -> None
 
 let mkKGlob env gr = KGlob (Environ.QGlobRef.canonize env gr)
 
 (** Registration of keys as an object *)
 
-let load_keys _ (ref,ref') =
-  add_keys ref ref'
+let load_keys _ (ref, refi, ref', ref'i) =
+  add_keys ref refi ref' ref'i
 
 let cache_keys o =
   load_keys 1 o
@@ -98,19 +96,19 @@ let subst_key subst k =
   | KGlob gr -> mkKGlob (Global.env ()) (subst_global_reference subst gr)
   | _ -> k
 
-let subst_keys (subst,(k,k')) =
-  (subst_key subst k, subst_key subst k')
+let subst_keys (subst,(k, ki , k', k'i)) =
+  (subst_key subst k, ki, subst_key subst k', k'i)
 
 let discharge_key = function
   | KGlob (GlobRef.VarRef _ as g) when Global.is_in_section g -> None
   | x -> Some x
 
-let discharge_keys (k,k') =
+let discharge_keys (k, ki, k', k'i) =
   match discharge_key k, discharge_key k' with
-  | Some x, Some y -> Some (x, y)
+  | Some x, Some y -> Some (x, ki, y, k'i)
   | _ -> None
 
-type key_obj = key * key
+type key_obj = key * int * key * int
 
 let inKeys : key_obj -> obj =
   declare_object @@ superglobal_object "KEYS"
@@ -118,8 +116,8 @@ let inKeys : key_obj -> obj =
     ~subst:(Some subst_keys)
     ~discharge:discharge_keys
 
-let declare_equiv_keys ref ref' =
-  Lib.add_leaf (inKeys (ref,ref'))
+let declare_equiv_keys ref refi ref' ref'i =
+  Lib.add_leaf (inKeys (ref, refi, ref', ref'i))
 
 let constr_key env kind c =
   try
@@ -151,7 +149,9 @@ let constr_key env kind c =
 
 open Pp
 
-let pr_key pr_global = function
+let pr_key pr_global k =
+  let open Pp in
+  match k with
   | KGlob gr -> pr_global gr
   | KLam -> str"Lambda"
   | KLet -> str"Let"
@@ -167,7 +167,7 @@ let pr_key pr_global = function
   | KArray -> str"Array"
 
 let pr_keyset pr_global v =
-  prlist_with_sep spc (pr_key pr_global) (Keyset.elements v)
+  prlist_with_sep spc (fun (k, (i, i')) -> pr_key pr_global k ++ str "(" ++ int i ++ str ", " ++ int i' ++ str ")") (Keymap.bindings v)
 
 let pr_mapping pr_global k v =
   pr_key pr_global k ++ str" <-> " ++ pr_keyset pr_global v
