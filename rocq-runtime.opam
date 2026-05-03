@@ -29,7 +29,7 @@ homepage: "https://rocq-prover.org/"
 doc: "https://rocq-prover.org/docs/"
 bug-reports: "https://github.com/rocq-prover/rocq/issues"
 depends: [
-  "dune" {>= "3.8"}
+  "dune" {>= "3.21"}
   "ocaml" {>= "4.14.0"}
   "ocamlfind" {>= "1.9.1" & (>= "1.9.8" | os-family != "windows")}
   "zarith" {>= "1.11"}
@@ -42,6 +42,7 @@ conflicts: [
   "coq-core" {< "8.21"}
 ]
 dev-repo: "git+https://github.com/rocq-prover/rocq.git"
+x-maintenance-intent: ["(any)"]
 build: [
   ["dune" "subst"] {dev}
   [ "./configure"
