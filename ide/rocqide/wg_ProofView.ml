@@ -33,12 +33,10 @@ class type proof_view =
     method set_debug_goal : Pp.t -> unit
   end
 
-(* tag is the tag to be hooked, item is the item covered by this tag, make_menu
- *  * is the template for building menu if needed, sel_cb is the callback if
- *  there
- *   * is a selection o said menu, hover_cb is the callback when there is only
- *    * hovering *)
-let hook_tag_cb tag menu_content sel_cb hover_cb =
+(* tag is the tag to be hooked, item is the item covered by this tag,
+   make_menu is the template for building menu if needed, hover_cb is
+   the callback when there is only hovering *)
+let hook_tag_cb tag menu_content hover_cb =
   ignore (tag#connect#event ~callback:
             (fun ~origin evt it ->
                let iter = new GText.iter it in
@@ -51,7 +49,7 @@ let hook_tag_cb tag menu_content sel_cb hover_cb =
                        let ctxt_menu = GMenu.menu () in
                        let factory = new GMenu.factory ctxt_menu in
                        List.iter
-                         (fun (text,cmd) -> ignore (factory#add_item text ~callback:(sel_cb cmd)))
+                         (fun (text,cmd) -> ignore (factory#add_item text))
                          menu_content;
                        ctxt_menu#popup ~button:3 ~time:(GdkEvent.Button.time ev);
                        true
@@ -60,7 +58,7 @@ let hook_tag_cb tag menu_content sel_cb hover_cb =
                      hover_cb start stop; false
                  | _ -> false))
 
-let mode_tactic sel_cb (proof : #GText.view_skel) goals ~unfoc_goals hints = match goals with
+let mode_tactic (proof : #GText.view_skel) goals ~unfoc_goals hints = match goals with
   | [] -> assert false
   | { Interface.goal_hyp = hyps; Interface.goal_ccl = cur_goal; Interface.goal_name = cur_name } :: rem_goals ->
       let on_hover sel_start sel_stop =
@@ -98,7 +96,7 @@ let mode_tactic sel_cb (proof : #GText.view_skel) goals ~unfoc_goals hints = mat
         | [] -> [], []
         | hint :: hints ->
           let tag = proof#buffer#create_tag [] in
-          let () = hook_tag_cb tag hint sel_cb on_hover in
+          let () = hook_tag_cb tag hint on_hover in
           [tag], hints
         in
         let () = insert_xml ~tags proof#buffer (Richpp.richpp_of_pp ~width hyp) in
@@ -110,7 +108,7 @@ let mode_tactic sel_cb (proof : #GText.view_skel) goals ~unfoc_goals hints = mat
       let () =
         let _ = if goal_hints <> [] then
           let tag = proof#buffer#create_tag [] in
-          let () = hook_tag_cb tag goal_hints sel_cb on_hover in
+          let () = hook_tag_cb tag goal_hints on_hover in
           [tag]
           else []
         in
@@ -141,14 +139,14 @@ let mode_tactic sel_cb (proof : #GText.view_skel) goals ~unfoc_goals hints = mat
                          (Some Tags.Proof.goal)));
       ignore(proof#scroll_to_mark `INSERT)
 
-let display mode (view : #GText.view_skel) goals hints =
+let display (view : #GText.view_skel) goals hints =
   let () = view#buffer#set_text "" in
   let width = Ideutils.textview_width view in
   match goals with
   | NoGoals -> ()
     (* No proof in progress *)
   | FocusGoals { fg; bg } ->
-    mode view fg ~unfoc_goals:bg hints
+    mode_tactic view fg ~unfoc_goals:bg hints
   | NoFocusGoals { bg; shelved; given_up } ->
     begin match (bg, shelved, given_up) with
     | [], [], [] ->
@@ -250,9 +248,7 @@ let proof_view () =
       if needed then begin
         last_width <- width;
         match debug_goal with
-        | None ->
-          let dummy _ () = () in
-          display (mode_tactic dummy) view goals None
+        | None -> display view goals None
         | Some msg -> self#set_debug_goal msg
       end
   end
