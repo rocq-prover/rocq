@@ -178,9 +178,9 @@ type hint_mode =
 
 module Modes =
 struct
-  type t = hint_mode array list GlobRef.Map.t
-  let empty = GlobRef.Map.empty
-  let union m1 m2 = GlobRef.Map.union (fun _ m1 m2 -> Some (m1@m2)) m1 m2
+  type t = { modes : hint_mode array list GlobRef.Map_env.t }
+  let empty = { modes = GlobRef.Map_env.empty }
+  let union m1 m2 = { modes = GlobRef.Map_env.union (fun _ m1 m2 -> Some (m1@m2)) m1.modes m2.modes }
 end
 
 type 'a hints_transparency_target =
@@ -593,7 +593,7 @@ sig
 type t
 val empty : ?name:hint_db_name -> TransparentState.t -> bool -> t
 val map_none : secvars:Id.Pred.t -> t -> full_hint list
-val map_all : secvars:Id.Pred.t -> GlobRef.t -> t -> full_hint list
+val map_all : Environ.env -> secvars:Id.Pred.t -> GlobRef.t -> t -> full_hint list
 val map_eauto : Environ.env -> evar_map -> secvars:Id.Pred.t ->
                 (GlobRef.t * constr array) -> constr -> t -> full_hint list with_mode
 val map_auto : Environ.env -> evar_map -> secvars:Id.Pred.t ->
@@ -606,11 +606,11 @@ val use_dn : t -> bool
 val transparent_state : t -> TransparentState.t
 val set_transparent_state : t -> TransparentState.t -> t
 val add_cut : Environ.env -> hints_path -> t -> t
-val add_mode : GlobRef.t -> hint_mode array -> t -> t
+val add_mode : Environ.env -> GlobRef.t -> hint_mode array -> t -> t
 val cut : t -> hints_path
 val unfolds : t -> Id.Set.t * Cset.t * PRset.t
-val add_modes : hint_mode array list GlobRef.Map.t -> t -> t
-val modes : t -> hint_mode array list GlobRef.Map.t
+val add_modes : Modes.t -> t -> t
+val modes : t -> Modes.t
 val find_mode : env -> GlobRef.t -> t -> hint_mode array list
 val fold : (GlobRef.t option -> hint_mode array list -> full_hint list -> 'a -> 'a) ->
   t -> 'a -> 'a
@@ -623,7 +623,7 @@ struct
     hintdb_unfolds : Id.Set.t * Cset.t * PRset.t;
     hintdb_max_id : int;
     use_dn : bool;
-    hintdb_map : search_entry GlobRef.Map.t;
+    hintdb_map : search_entry GlobRef.Map_env.t;
     (* A list of unindexed entries with no associated pattern. *)
     hintdb_nopat : stored_data list;
     hintdb_name : string option;
@@ -638,15 +638,20 @@ struct
                           hintdb_unfolds = (Id.Set.empty, Cset.empty, PRset.empty);
                           hintdb_max_id = 0;
                           use_dn = use_dn;
-                          hintdb_map = GlobRef.Map.empty;
+                          hintdb_map = GlobRef.Map_env.empty;
                           hintdb_nopat = [];
                           hintdb_name = name; }
 
   let dn_ts db = if db.use_dn then (Some db.hintdb_state) else None
 
-  let find key db =
-    try GlobRef.Map.find key db.hintdb_map
+  let find0 key db =
+    (* We assume here that key is canonical at this point. *)
+    try GlobRef.Map_env.find key db.hintdb_map
     with Not_found -> empty_se (dn_ts db)
+
+  let find env key db =
+    let key = QGlobRef.canonize env key in
+    find0 key db
 
   let realize_tac secvars (id,tac) =
     if Id.Pred.subset tac.secvars secvars then Some tac
@@ -708,8 +713,8 @@ struct
   let map_none ~secvars db =
     merge_entry secvars db [] []
 
-  let map_all ~secvars k db =
-    let se = find k db in
+  let map_all env ~secvars k db =
+    let se = find env k db in
     let h = List.sort pri_order_int db.hintdb_nopat in
     let h = merge_set (StoredData.elements se.sentry_nopat) h in
     let h = merge_set (StoredData.elements se.sentry_pat) h in
@@ -717,13 +722,13 @@ struct
 
   (* Precondition: concl has no existentials *)
   let map_auto env sigma ~secvars (k,args) concl db =
-    let se = find k db in
+    let se = find env k db in
     let pat = lookup_tacs env sigma concl se in
     merge_entry secvars db [] pat
 
   (* [c] contains an existential *)
   let map_eauto env sigma ~secvars (k,args) concl db =
-    let se = find k db in
+    let se = find env k db in
       match matches_modes sigma args se.sentry_mode with
       | Some m ->
         let pat = lookup_tacs env sigma concl se in
@@ -734,6 +739,7 @@ struct
     | Give_exact _ -> true
     | _ -> false
 
+  (* gr must be canonical *)
   let addkv gr id v db =
     let idv = id, { v with db = db.hintdb_name } in
       match gr with
@@ -748,12 +754,12 @@ struct
           if not db.use_dn && is_exact v.code.obj then None
           else v.pat
         in
-          let oval = find gr db in
-            { db with hintdb_map = GlobRef.Map.add gr (add_tac pat idv oval) db.hintdb_map }
+          let oval = find0 gr db in
+            { db with hintdb_map = GlobRef.Map_env.add gr (add_tac pat idv oval) db.hintdb_map }
 
   let rebuild_db st' db =
     let db' =
-      { db with hintdb_map = GlobRef.Map.map (rebuild_dn (Some st')) db.hintdb_map;
+      { db with hintdb_map = GlobRef.Map_env.map (rebuild_dn (Some st')) db.hintdb_map;
         hintdb_state = st'; hintdb_nopat = [] }
     in
       List.fold_left (fun db (id, v) -> addkv None id v db) db' db.hintdb_nopat
@@ -778,6 +784,7 @@ struct
     | _ -> db
     in
     let db, id = next_hint_id db in
+    let k = Option.map (fun gr -> QGlobRef.canonize env gr) k in
     addkv k id v db
 
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
@@ -795,7 +802,7 @@ struct
     let grs = List.fold_left fold GlobRef.Set_env.empty grs in
     let filter (_, h) =
       match h.name with Some gr -> not (GlobRef.Set_env.mem gr grs) | None -> true in
-    let hintmap = GlobRef.Map.map (fun e -> remove env (dn_ts db) grs e) db.hintdb_map in
+    let hintmap = GlobRef.Map_env.map (fun e -> remove env (dn_ts db) grs e) db.hintdb_map in
     let hintnopat = List.filter filter db.hintdb_nopat in
       { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
 
@@ -808,11 +815,11 @@ struct
   let iter f db =
     let iter_se k se = f (Some k) se.sentry_mode (get_entry se) in
     f None [] (List.map snd db.hintdb_nopat);
-    GlobRef.Map.iter iter_se db.hintdb_map
+    GlobRef.Map_env.iter iter_se db.hintdb_map
 
   let fold f db accu =
     let accu = f None [] (List.map snd db.hintdb_nopat) accu in
-    GlobRef.Map.fold (fun k se -> f (Some k) se.sentry_mode (get_entry se)) db.hintdb_map accu
+    GlobRef.Map_env.fold (fun k se -> f (Some k) se.sentry_mode (get_entry se)) db.hintdb_map accu
 
   let transparent_state db = db.hintdb_state
 
@@ -823,10 +830,10 @@ struct
   let add_cut env path db =
     { db with hintdb_cut = normalize_path env (PathOr (db.hintdb_cut, path)) }
 
-  let add_mode gr m db =
-    let se = find gr db in
+  let add_mode env gr m db =
+    let se = find env gr db in
     let se = { se with sentry_mode = m :: List.remove (Array.equal hint_mode_eq) m se.sentry_mode } in
-    { db with hintdb_map = GlobRef.Map.add gr se db.hintdb_map }
+    { db with hintdb_map = GlobRef.Map_env.add gr se db.hintdb_map }
 
   let cut db = db.hintdb_cut
 
@@ -836,12 +843,12 @@ struct
     let f gr e me =
       Some { e with sentry_mode = me.sentry_mode @ e.sentry_mode }
     in
-    let mode_entries = GlobRef.Map.map (fun m -> { (empty_se (dn_ts db)) with sentry_mode = m }) modes in
-    { db with hintdb_map = GlobRef.Map.union f db.hintdb_map mode_entries }
+    let mode_entries = GlobRef.Map_env.map (fun m -> { (empty_se (dn_ts db)) with sentry_mode = m }) modes.Modes.modes in
+    { db with hintdb_map = GlobRef.Map_env.union f db.hintdb_map mode_entries }
 
-  let modes db = GlobRef.Map.map (fun se -> se.sentry_mode) db.hintdb_map
+  let modes db = { Modes.modes = GlobRef.Map_env.map (fun se -> se.sentry_mode) db.hintdb_map }
 
-  let find_mode _env gr db = (GlobRef.Map.find gr db.hintdb_map).sentry_mode
+  let find_mode _env gr db = (GlobRef.Map_env.find gr db.hintdb_map).sentry_mode
 
   let use_dn db = db.use_dn
 
@@ -1089,9 +1096,9 @@ let add_cut dbname path =
   let db' = Hint_db.add_cut env path db in
   searchtable_add (dbname, db')
 
-let add_mode dbname l m =
+let add_mode env dbname l m =
   let db = get_db dbname in
-  let db' = Hint_db.add_mode l m db in
+  let db' = Hint_db.add_mode env l m db in
   searchtable_add (dbname, db')
 
 type db_obj = {
@@ -1185,7 +1192,7 @@ let load_autohint _ h =
   | AddCut paths ->
     if superglobal then add_cut name paths
   | AddMode { gref; mode } ->
-    if superglobal then add_mode name gref mode
+    if superglobal then add_mode (Global.env ()) name gref mode
 
 let open_autohint h =
   let superglobal = superglobal h in
@@ -1199,7 +1206,7 @@ let open_autohint h =
   | RemoveHints hints ->
     if not superglobal then remove_hint h.hint_name hints
   | AddMode { gref; mode } ->
-    if not superglobal then add_mode h.hint_name gref mode
+    if not superglobal then add_mode (Global.env ()) h.hint_name gref mode
 
 let cache_autohint o =
   load_autohint 1 o; open_autohint o
@@ -1617,7 +1624,7 @@ let pr_hints_db env sigma (name,db,hintlist) =
 let pr_hint_list_for_head env sigma c =
   let dbs = current_db () in
   let validate (name, db) =
-    let hints = List.map (fun v -> 0, v) (Hint_db.map_all ~secvars:Id.Pred.full c db) in
+    let hints = List.map (fun v -> 0, v) (Hint_db.map_all env ~secvars:Id.Pred.full c db) in
     (name, db, hints)
   in
   let valid_dbs = List.map validate dbs in
