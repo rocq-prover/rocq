@@ -65,7 +65,7 @@ val dest_subterms : recarg Rtree.Kind.t -> recarg Rtree.Kind.t array array
 
 (** Check if a [one_inductive_body] is recursive, possibly nestedly  *)
 val mis_is_recursive : one_inductive_body -> bool
-val mis_is_nested : MutInd.t -> mutual_inductive_body -> bool
+val mis_is_nested : env -> MutInd.t -> mutual_inductive_body -> bool
 val mis_nf_constructor_type :
   constructor puniverses -> mutual_inductive_body * one_inductive_body -> constr
 

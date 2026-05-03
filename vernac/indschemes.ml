@@ -619,8 +619,9 @@ let { Goptions.get = default_all_depth } =
   Goptions.declare_int_option_and_ref ~key:["Depth";"Scheme";"All"] ~value:0 ()
 
 let default_all_depth kn mib =
-  let mib = Global.lookup_mind kn in
-  if Inductiveops.mis_is_nested kn mib
+  let env = Global.env () in
+  let mib = Environ.lookup_mind kn env in
+  if Inductiveops.mis_is_nested env kn mib
   then default_all_depth () -1
   else default_all_depth ()
 
