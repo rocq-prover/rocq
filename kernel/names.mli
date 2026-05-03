@@ -648,6 +648,9 @@ module GlobRef : sig
 
   module Map : Map.UExtS
     with type key = t and module Set := Set [@@ocaml.warning "-3"]
+  [@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
+  the future. In the meantime either use the _env variant or the Q-variant from \
+  Environ, depending on the desired semantics."]
 
   val print : t -> Pp.t
   (** Print internal representation (not to be used for user-facing messages). *)
