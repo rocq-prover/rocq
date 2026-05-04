@@ -151,17 +151,6 @@ let hcons_const_body ?hbody cb =
 
 (** {6 Inductive types } *)
 
-let eq_recarg_type t1 t2 = match t1, t2 with
-| RecArgInd ind1, RecArgInd ind2 -> Names.Ind.CanOrd.equal ind1 ind2
-| RecArgPrim c1, RecArgPrim c2 -> Names.Constant.CanOrd.equal c1 c2
-| (RecArgInd _ | RecArgPrim _), _ -> false
-
-let eq_recarg r1 r2 = match r1, r2 with
-| Norec, Norec -> true
-| Norec, _ -> false
-| Mrec t1, Mrec t2 -> eq_recarg_type t1 t2
-| Mrec _, _ -> false
-
 let compare_recarg_type t1 t2 = match t1, t2 with
 | RecArgInd ind1, RecArgInd ind2 -> Names.Ind.CanOrd.compare ind1 ind2
 | RecArgInd _, RecArgPrim _ -> -1
@@ -173,6 +162,8 @@ let compare_recarg r1 r2 = match r1, r2 with
 | Norec, Mrec _ -> -1
 | Mrec t1, Mrec t2 -> compare_recarg_type t1 t2
 | Mrec _, Norec -> 1
+
+let eq_recarg r1 r2 = Int.equal (compare_recarg r1 r2) 0
 
 let pr_recarg_type = let open Pp in function
   | RecArgInd (mind,i) ->
