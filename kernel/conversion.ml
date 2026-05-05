@@ -820,7 +820,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
   let rec cmp_rec pstk1 pstk2 cuniv =
     match (pstk1,pstk2) with
       | (z1::s1, z2::s2) ->
-          let cu1 = cuniv in
+          let cu1 = if infos.cnv_typ then cuniv else cmp_rec s1 s2 cuniv in
           let cuniv = match (z1,z2) with
             | (Zlapp a1,Zlapp a2) ->
               Array.fold_right2 f a1 a2 cu1
@@ -862,7 +862,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                 List.fold_right2 fk kargs1 kargs2 cu2
             | ((Zlapp _ | Zlproj _ | Zlfix _| Zlcase _| Zlprimitive _), _) -> assert false
           in
-          cmp_rec s1 s2 cuniv
+          if infos.cnv_typ then cmp_rec s1 s2 cuniv else cuniv
       | _ -> cuniv in
   if compare_stack_shape stk1 stk2 then
     let stk1 = pure_stack lft1 stk1 in
@@ -871,6 +871,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
       cmp_rec stk1 stk2 cuniv
     else match stk1, stk2 with
     | Zlapp a1 :: stk1, Zlapp a2 :: stk2 ->
+      let cuniv = if infos.cnv_typ then cuniv else cmp_rec stk1 stk2 cuniv in
       (* Stacks have the same shape with grouped applications *)
       let rec fold i cu =
         if i < 0 then cu
@@ -881,7 +882,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
           fold (i - 1) cu
       in
       let cuniv = fold (Array.length a1 - 1) cuniv in
-      cmp_rec stk1 stk2 cuniv
+      if infos.cnv_typ then cmp_rec stk1 stk2 cuniv else cuniv
     | _ ->
       cmp_rec stk1 stk2 cuniv
   else raise NotConvertible
