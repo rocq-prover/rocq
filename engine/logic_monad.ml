@@ -270,15 +270,15 @@ struct
   let reflect (m : ('a * 'o, 'e) reified) =
     { iolist = fun s0 nil cons -> reflect0 m nil cons }
 
-  let split m : (_ list_view, _, _, _) t =
+  let split m : (_ result, _, _, _) t =
     let rnil e = Nil e in
     let rcons p s l = Cons ((p, s), (fun e -> {r=l e})) in
     { iolist = fun s nil cons ->
       begin match m.iolist s rnil rcons with
-      | Nil e -> cons (Nil e) s nil
+      | Nil e -> cons (Error e) s nil
       | Cons ((x, s), l) ->
         let l e = reflect (l e) in
-        cons (Cons (x, l)) s nil
+        cons (Ok (x, l)) s nil
       end }
 
   let run m s =

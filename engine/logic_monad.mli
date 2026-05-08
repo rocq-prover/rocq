@@ -140,7 +140,7 @@ module BackState : sig
   val plus : ('a, 'i, 'o, 'e) t -> ('e -> ('a, 'i, 'o, 'e) t) -> ('a, 'i, 'o, 'e) t
 
   val split : ('a, 's, 's, 'e) t ->
-    (('a, ('a, 'i, 's, 'e) t, 'e) list_view, 's, 's, 'e) t
+    (('a * ('e -> ('a, 'i, 's, 'e) t), 'e) result, 's, 's, 'e) t
 
   val once : ('a, 'i, 'o, 'e) t -> ('a, 'i, 'o, 'e) t
   val break : ('e -> 'e option) -> ('a, 'i, 'o, 'e) t -> ('a, 'i, 'o, 'e) t
@@ -195,7 +195,7 @@ module Logical (P:Param) : sig
 
   val zero : Exninfo.iexn -> 'a t
   val plus : 'a t -> (Exninfo.iexn -> 'a t) -> 'a t
-  val split : 'a t -> ('a, 'a t, Exninfo.iexn) list_view t
+  val split : 'a t -> ('a * (Exninfo.iexn -> 'a t), Exninfo.iexn) result t
   val once : 'a t -> 'a t
   val break : (Exninfo.iexn -> Exninfo.iexn option) -> 'a t -> 'a t
 
