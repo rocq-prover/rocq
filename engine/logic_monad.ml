@@ -37,7 +37,7 @@ exception Tac_Timeout
     interrupts). *)
 exception TacticFailure of exn
 
-let _ = CErrors.register_handler begin function
+let () = CErrors.register_handler begin function
   | Exception e -> Some (CErrors.print e)
   | TacticFailure e -> Some (CErrors.print e)
   | _ -> None
@@ -143,11 +143,9 @@ end
 
 (** A view type for the logical monad, which is a form of list, hence
     we can decompose it with as a list. *)
-type ('a, 'b, 'e) list_view_ =
-  | Nil of 'e
-  | Cons of 'a * 'b
-
-type ('a, 'b, 'e) list_view = ('a, 'e -> 'b, 'e) list_view_
+type ('a, 'e) list_view =
+| Nil of 'e
+| Cons of 'a * ('e -> ('a, 'e) list_view)
 
 module BackState =
 struct
@@ -257,22 +255,20 @@ struct
       m.iolist s nil (fun x s next -> cons x s (fun e -> match f e with None -> next e | Some e -> nil e))
     }
 
-  (** For [reflect] and [split] see the "Backtracking, Interleaving,
-      and Terminating Monad Transformers" paper.  *)
-  type ('a, 'e) reified = { r : ('a, ('a, 'e) reified, 'e) list_view } [@@unboxed]
-
+  (** For [reflect] and [split] see the
+      "Backtracking, Interleaving, and Terminating Monad Transformers" paper.  *)
   let rec reflect0 : type r. _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
     fun m nil cons ->
-      match m.r with
+      match m with
       | Nil e -> nil e
       | Cons ((x, s), l) -> cons x s (fun e -> reflect0 (l e) nil cons)
 
-  let reflect (m : ('a * 'o, 'e) reified) =
+  let reflect (m : ('a * 'o, 'e) list_view) =
     { iolist = fun s0 nil cons -> reflect0 m nil cons }
 
   let split m : (_ result, _, _, _) t =
     let rnil e = Nil e in
-    let rcons p s l = Cons ((p, s), (fun e -> {r=l e})) in
+    let rcons p s l = Cons ((p, s), l) in
     { iolist = fun s nil cons ->
       begin match m.iolist s rnil rcons with
       | Nil e -> cons (Error e) s nil
@@ -282,14 +278,9 @@ struct
       end }
 
   let run m s =
-    let rnil e = {r=Nil e} in
-    let rcons x s l =
-      let p = (x, s) in
-      {r=Cons (p, l)}
-    in
+    let rnil e = Nil e in
+    let rcons x s l = Cons ((x, s), l) in
     m.iolist s rnil rcons
-
-  let repr x = x.r
 end
 
 module type Param = sig
@@ -340,7 +331,7 @@ struct
 
   type iexn = Exninfo.iexn
 
-  type 'a reified = ('a, iexn) BackState.reified
+  type 'a reified = ('a, iexn) list_view
 
   (** Inherited from Backstate *)
 
@@ -361,7 +352,6 @@ struct
   let once = BackState.once
   let break = BackState.break
   let split = BackState.split
-  let repr = BackState.repr
 
   (** State related. We specialize them here to ensure soundness (for reader and
       writer) and efficiency. *)
@@ -393,10 +383,10 @@ struct
 
   let run m r s =
     let s = { wstate = P.wunit; ustate = P.uunit; rstate = r; sstate = s } in
-    let rnil e = {r=Nil e} in
+    let rnil e = Nil e in
     let rcons x s l =
       let p = (x, s.sstate, s.wstate, s.ustate) in
-      {r=Cons (p, l)}
+      Cons (p, l)
     in
     m.iolist s rnil rcons
 
