@@ -341,15 +341,8 @@ let tclEXACTLY_ONCE e t =
 
 
 (** [tclCASE t] wraps the {!Proofview_monad.Logical.split} primitive. *)
-type 'a case =
-| Fail of Exninfo.iexn
-| Next of 'a * (Exninfo.iexn -> 'a tactic)
-let tclCASE t =
-  let map = function
-  | Error e -> Fail e
-  | Ok (x, t) -> Next (x, t)
-  in
-  Proof.map map (Proof.split t)
+type 'a case = ('a * (Exninfo.iexn -> 'a tactic), Exninfo.iexn) result
+let tclCASE = Proof.split
 
 let tclBREAK = Proof.break
 

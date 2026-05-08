@@ -379,8 +379,8 @@ let rec tclWRAPFINALLY before tac finally =
   let open Proofview in
   let open Proofview.Notations in
   before >>= fun v -> tclCASE tac >>= function
-  | Fail (e, info) -> finally v >>= fun () -> tclZERO ~info e
-  | Next (ret, tac') -> tclOR
+  | Error (e, info) -> finally v >>= fun () -> tclZERO ~info e
+  | Ok (ret, tac') -> tclOR
                           (finally v >>= fun () -> tclUNIT ret)
                           (fun e -> tclWRAPFINALLY before (tac' e) finally)
 

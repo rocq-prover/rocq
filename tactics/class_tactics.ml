@@ -637,7 +637,7 @@ module Search = struct
             str " of status " ++ pr_goal_status status)
         in
         let rec kont = function
-          | Fail ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
+          | Error ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++
                 str" is stuck or failed without being stuck, trying other tactics.")
@@ -649,13 +649,13 @@ module Search = struct
               | _ -> assert false
             in
             fixpoint generation tacs ((glid, ev, status, tac, generation) :: stuck) fk (* Launches the search on the rest of the goals *)
-          | Fail ie ->
+          | Error ie ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++ str" has no more solutions, returning exception: "
                 ++ pr_internal_exception ie)
             in
             fk ie
-          | Next (res, fk') ->
+          | Ok (res, fk') ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++ str" has a success, continuing resolution")
             in
@@ -671,13 +671,13 @@ module Search = struct
                  Keep higher-priority failures from the continuation, e.g.
                  [ReachedLimit], so iterative deepening can continue. *)
               tclCASE (fk' e) >>= function
-              | Fail ie as fail ->
+              | Error ie as fail ->
                 begin match fst e with
                 | NoProgress ->
                   let ie = merge_exceptions e ie in
                   begin match fst ie with
                   | NoProgress -> fk ie
-                  | _ -> kont (Fail ie)
+                  | _ -> kont (Error ie)
                   end
                 | _ -> kont fail
                 end
