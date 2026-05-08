@@ -246,7 +246,7 @@ type +'a tactic = 'a Proof.t
 let apply ~name ~poly env t sp =
   let open Logic_monad in
   NewProfile.profile "Proofview.apply" begin fun () ->
-  match Proof.repr (Proof.run t P.{trace=false; name; poly} (sp,env)) with
+  match Proof.run t P.{trace=false; name; poly} (sp,env) with
   | Nil (e, info) -> Exninfo.iraise (TacticFailure e, info)
   | Cons ((r, (state, env), status, info), _) ->
     r, state, env, status, Trace.to_tree info
@@ -1018,7 +1018,7 @@ let tclTIMEOUTF n t =
   Proof.current >>= fun envvar ->
   Proof.lift begin
     let open Logic_monad.NonLogical in
-    timeout n (make (fun () -> Proof.repr (Proof.run t envvar initial))) >>= fun r ->
+    timeout n (make (fun () -> Proof.run t envvar initial)) >>= fun r ->
     match r with
     | Error info -> return (Util.Inr (Logic_monad.Tac_Timeout, info))
     | Ok (Logic_monad.Nil e) -> return (Util.Inr e)
@@ -1045,7 +1045,7 @@ let tclALLOCLIMIT n t =
   let t = Proof.lift (Logic_monad.NonLogical.return ()) >> t in
   Proof.get >>= fun initial ->
   Proof.current >>= fun envvar ->
-  let r = Control.alloc_limit n (fun () -> Proof.repr (Proof.run t envvar initial)) () in
+  let r = Control.alloc_limit n (fun () -> Proof.run t envvar initial) () in
   let () = match r with
     | Error _ -> ()
     | Ok (_, {kilowords=n}) ->
