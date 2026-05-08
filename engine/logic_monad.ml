@@ -266,21 +266,18 @@ struct
   let reflect (m : ('a * 'o, 'e) list_view) =
     { iolist = fun s0 nil cons -> reflect0 m nil cons }
 
-  let split m : (_ result, _, _, _) t =
-    let rnil e = Nil e in
-    let rcons p s l = Cons ((p, s), l) in
-    { iolist = fun s nil cons ->
-      begin match m.iolist s rnil rcons with
-      | Nil e -> cons (Error e) s nil
-      | Cons ((x, s), l) ->
-        let l e = reflect (l e) in
-        cons (Ok (x, l)) s nil
-      end }
-
   let run m s =
     let rnil e = Nil e in
     let rcons x s l = Cons ((x, s), l) in
     m.iolist s rnil rcons
+
+  let split m : (_ result, _, _, _) t =
+    get >>= fun s -> match run m s with
+    | Nil e -> return (Error e)
+    | Cons ((x, s), l) ->
+      let l e = reflect (l e) in
+      set s >> return (Ok (x, l))
+
 end
 
 module type Param = sig
