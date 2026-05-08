@@ -295,21 +295,19 @@ let tclOR = Proof.plus
     [try/with] handler of exception in that it is not a backtracking
     point. *)
 let tclORELSE t1 t2 =
-  let open Logic_monad in
   let open Proof in
   split t1 >>= function
-    | Nil e -> t2 e
-    | Cons (a,t1') -> plus (return a) t1'
+    | Error e -> t2 e
+    | Ok (a,t1') -> plus (return a) t1'
 
 (** [tclIFCATCH a s f] is a generalisation of {!tclORELSE}: if [a]
     succeeds at least once then it behaves as [tclBIND a s] otherwise,
     if [a] fails with [e], then it behaves as [f e]. *)
 let tclIFCATCH a s f =
-  let open Logic_monad in
   let open Proof in
   split a >>= function
-    | Nil e -> f e
-    | Cons (x,a') -> plus (s x) (fun e -> (a' e) >>= fun x' -> (s x'))
+    | Error e -> f e
+    | Ok (x,a') -> plus (s x) (fun e -> a' e >>= fun x' -> s x')
 
 (** [tclONCE t] behave like [t] except it has at most one success:
     [tclONCE t] stops after the first success of [t]. If [t] fails
@@ -317,7 +315,7 @@ let tclIFCATCH a s f =
 let tclONCE = Proof.once
 
 exception MoreThanOneSuccess
-let _ = CErrors.register_handler begin function
+let () = CErrors.register_handler begin function
   | MoreThanOneSuccess ->
     Some (Pp.str "This tactic has more than one success.")
   | _ -> None
@@ -332,14 +330,13 @@ end
     [t]. Notice that the choice of [e] is relevant, as the presence of
     further successes may depend on [e] (see {!tclOR}). *)
 let tclEXACTLY_ONCE e t =
-  let open Logic_monad in
   let open Proof in
   split t >>= function
-    | Nil (e, info) -> tclZERO ~info e
-    | Cons (x,k) ->
+    | Error (e, info) -> tclZERO ~info e
+    | Ok (x,k) ->
       let info = Exninfo.null in
       Proof.split (k (e, Exninfo.null)) >>= function
-      | Nil _ -> tclUNIT x
+      | Error _ -> tclUNIT x
       | _ -> tclZERO ~info MoreThanOneSuccess
 
 
@@ -348,10 +345,9 @@ type 'a case =
 | Fail of Exninfo.iexn
 | Next of 'a * (Exninfo.iexn -> 'a tactic)
 let tclCASE t =
-  let open Logic_monad in
   let map = function
-  | Nil e -> Fail e
-  | Cons (x, t) -> Next (x, t)
+  | Error e -> Fail e
+  | Ok (x, t) -> Next (x, t)
   in
   Proof.map map (Proof.split t)
 
@@ -1082,14 +1078,14 @@ let tclTIME s t =
     let open Proof in
     tclUNIT () >>= fun () ->
     let tstart = System.get_time() in
-    Proof.split t >>= let open Logic_monad in function
-    | Nil (e, info) ->
+    Proof.split t >>= function
+    | Error (e, info) ->
       begin
         let tend = System.get_time() in
         pr_time tstart tend n "failure";
         tclZERO ~info e
       end
-    | Cons (x,k) ->
+    | Ok (x,k) ->
         let tend = System.get_time() in
         pr_time tstart tend n "success";
         tclOR (tclUNIT x) (fun e -> aux (n+1) (k e))
