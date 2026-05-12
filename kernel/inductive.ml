@@ -1290,12 +1290,11 @@ let find_uniform_parameters recindx nargs bodies =
   (* Ensure that the structural argument is not uniform,
      so that it stays in [non_absorbed_stack] *)
   let min_indx = Array.fold_left min nargs recindx in
-  (* We work only on the i-th body but are in the context of n bodies *)
-  let rec aux i k nuniformparams c =
+  let rec aux k nuniformparams c =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
-      let fold accu c = fold_constr_with_binders succ (aux i) k accu c in
+      let fold accu c = fold_constr_with_binders succ aux k accu c in
       let nuniformparams = List.fold_left fold nuniformparams l in
       (* A recursive reference to any one of the mutual fixpoints *)
       if n > k && n <= k + nbodies then
@@ -1311,9 +1310,9 @@ let find_uniform_parameters recindx nargs bodies =
           ) 0 l
       else
         nuniformparams
-    | _ -> fold_constr_with_binders succ (aux i) k nuniformparams c
+    | _ -> fold_constr_with_binders succ aux k nuniformparams c
   in
-  Array.fold_left_i (fun i -> aux i 0) min_indx bodies
+  Array.fold_left (aux 0) min_indx bodies
 
 (** Given a fixpoint [fix f x y z n {struct n} := phi(f x y u t, ..., f x y u' t')]
     with [z] not uniform we build in context [x:A, y:B(x), z:C(x,y)] a term
@@ -1323,19 +1322,19 @@ let find_uniform_parameters recindx nargs bodies =
 
 let drop_uniform_parameters nuniformparams bodies =
   let nbodies = Array.length bodies in
-  let rec aux i k c =
+  let rec aux k c =
     let f, l = decompose_app_list c in
     match kind f with
     | Rel n ->
-      let l = List.map (fun c -> aux i k c) l in
-      (* A recursive reference to the i-th body *)
-      if Int.equal n (nbodies + k - i) then
+      let l = List.map (fun c -> aux k c) l in
+      (* A recursive reference to any one of the mutual fixpoints *)
+      if n > k && n <= k + nbodies then
         let new_args = List.skipn nuniformparams l in
         Term.applist (f, new_args)
       else Term.applist (f, l)
-    | _ -> map_with_binders succ (aux i) k c
+    | _ -> map_with_binders succ aux k c
   in
-  Array.mapi (fun i -> aux i 0) bodies
+  Array.map (aux 0) bodies
 
 let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
   let rec aux i nuniformparams stack =
