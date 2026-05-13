@@ -1227,10 +1227,16 @@ let norm_cbn flags env sigma t =
                else Array.sub a i (j - i + 1) in
       norm_zip env (mkApp (f, Array.map (strongrec env) a')) s
     | Stack.Case ((ci,u,pms,p,iv,brs),cst_l) :: s ->
-      let case = norm_case env ci u pms p iv f brs in
-      let raw = (CbnClos.inject case, s) in
+      let raw_case =
+        mkCase (ci, u, Array.map (CbnClos.force sigma) pms,
+          CbnClos.force_return sigma p, CbnClos.force_invert sigma iv,
+          f, Array.map (CbnClos.force_branch sigma) brs)
+      in
+      let raw = (CbnClos.inject raw_case, s) in
       let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded == raw then norm_zip env case s
+      if refolded == raw then
+        let case = norm_case env ci u pms p iv f brs in
+        norm_zip env case s
       else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
     | Stack.Proj (p,r,cst_l) :: s ->
       let proj = mkProj (p,r,f) in
@@ -1239,17 +1245,29 @@ let norm_cbn flags env sigma t =
       if refolded == raw then norm_zip env proj s
       else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
     | Stack.Fix (fix,st,cst_l) :: s ->
-      let fix = mkFix (norm_fix env fix) in
       let stack = st @ Stack.append_app [|CbnClos.inject f|] s in
-      let raw = (CbnClos.inject fix, stack) in
+      let raw = (CbnClos.inject (mkFix (CbnClos.force_fix sigma fix)), stack) in
       let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded == raw then norm_zip env fix stack
+      if refolded == raw then
+        let fix = mkFix (norm_fix env fix) in
+        norm_zip env fix stack
       else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
     | Stack.Primitive (_p,c,args,_kargs,_) :: s ->
       norm_zip env (mkConstU c) (args @ Stack.append_app [|CbnClos.inject f|] s)
-    | Stack.Cst {const;params} :: s ->
+    | Stack.Cst {const;params;cst_l} :: s ->
       let stack = params @ Stack.append_app [|CbnClos.inject f|] s in
-      begin match const with
+      let raw = match const with
+        | Stack.Cst_const (c,u) ->
+          (CbnClos.inject (mkConstU (c, EInstance.make u)), stack)
+        | Stack.Cst_proj (p,r) ->
+          match Stack.decomp stack with
+          | Some (arg, stack) ->
+            (CbnClos.inject (mkProj (p, r, CbnClos.force sigma arg)), stack)
+          | None -> assert false
+      in
+      let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
+      if refolded != raw then norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      else begin match const with
       | Stack.Cst_const (c,u) -> norm_zip env (mkConstU (c, EInstance.make u)) stack
       | Stack.Cst_proj (p,r) ->
         match Stack.decomp stack with
