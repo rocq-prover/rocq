@@ -433,6 +433,7 @@ let check_prim_op = function
   | Run -> opRUN
   | Block -> opBLOCK
   | Unblock -> opUNBLOCK
+  | Blocked_ind -> opBLOCKEDIND
 
 let check_caml_prim_op = function
 | CAML_Arraymake -> opCHECKCAMLCALL2_1

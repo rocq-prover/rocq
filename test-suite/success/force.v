@@ -361,14 +361,16 @@ Proof. repeat intro. eauto. Qed.
 #[global] Instance unblock_Proper {T} {R:Equiv T} : Proper (@equiv (Blocked T) _ ==> @equiv T _) (@unblock T).
 Proof. lazy. repeat intro. exact H. Qed.
 
-(* Definition blocked_ind {T} : *)
-(*   forall {P : Blocked T -> Prop}, *)
-(*     (forall t:T, P (block t)) -> *)
-(*     forall b, P b. *)
-(* Admitted. *)
+Lemma Blocked_ind_beta {T} (P : Blocked T -> Type) (IH : forall t : T, P (block t)) (t : T) :
+  @Blocked_ind T P IH (block t) = IH t.
+Proof. reflexivity. Qed.
 
-(* Lemma Blocked_eta {T} (t: Blocked T) : block (unblock t) = t. *)
-(* Proof. *)
-(* Admitted. *)
+Eval compute in @Blocked_ind nat (fun _ => nat) (fun n => S n) (block 0).
+
+Lemma Blocked_eta {T} (t: Blocked T) : block (unblock t) = t.
+Proof.
+  refine (@Blocked_ind T (fun t => block (unblock t) = t) _ t).
+  intro x; reflexivity.
+Qed.
 
 End Proper.

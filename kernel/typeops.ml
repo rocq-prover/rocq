@@ -953,6 +953,37 @@ let type_of_prim_const env _u c =
   | CPrimitives.Stringmaxlength ->
     int_ty ()
 
+let make_force_constant name =
+  let force_modpath =
+    let open Names in
+    let mp = List.rev_map Id.of_string ["Force"; "Force"] in
+    ModPath.MPfile (DirPath.make mp)
+  in
+  let kn = KerName.make force_modpath (Id.of_string name) in
+  snd (hcons_con (Constant.make1 kn))
+
+let type_of_blocked_ind env u =
+  match UVars.Instance.to_array u with
+  | [|s; sp|], [|ul; upl|] ->
+    let blocked_u = UVars.Instance.of_array ([|s|], [|ul|]) in
+    let blocked = type_of_blocked env blocked_u in
+    let block = mkConstU (make_force_constant "block", blocked_u) in
+    let t_sort = mkSort (Sorts.make s (Universe.make ul)) in
+    let p_sort = mkSort (Sorts.make sp (Universe.make upl)) in
+    let blocked_t t = mkApp (blocked, [|t|]) in
+    let p_type = mkProd (Context.anonR, blocked_t (mkRel 1), p_sort) in
+    let ih_type =
+      let block_t = mkApp (block, [|mkRel 3; mkRel 1|]) in
+      mkProd (Context.nameR (Id.of_string "t"), mkRel 2, mkApp (mkRel 2, [|block_t|]))
+    in
+    let b_type = blocked_t (mkRel 3) in
+    let ret = mkApp (mkRel 3, [|mkRel 1|]) in
+    mkProd (Context.nameR (Id.of_string "T"), t_sort,
+      mkProd (Context.nameR (Id.of_string "P"), p_type,
+        mkProd (Context.nameR (Id.of_string "IH"), ih_type,
+          mkProd (Context.nameR (Id.of_string "b"), b_type, ret))))
+  | _ -> anomaly Pp.(str"universe instance for blocked_ind should have length 2 and quality length 2")
+
 let type_of_prim env u t =
   let module UM = UnsafeMonomorphic in
   let int_ty () = type_of_int env in
@@ -991,6 +1022,9 @@ let type_of_prim env u t =
     | None -> CErrors.user_err Pp.(str"The type carry must be registered before this primitive.")
   in
   let open CPrimitives in
+  match t with
+  | Blocked_ind -> type_of_blocked_ind env u
+  | _ ->
   let tr_prim_type (tr_type : ind_or_type -> constr) (type a) (ty : a prim_type) (t : a) = match ty with
     | PT_int63 -> int_ty t
     | PT_float64 -> float_ty t

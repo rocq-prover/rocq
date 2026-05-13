@@ -519,6 +519,15 @@ struct
         | Some t -> Result t
         | None -> Progress (false, E.set args 1 t)
       end
+    | Blocked_ind ->
+      let ih = E.get args 2 in
+      let b = E.get args 3 in
+      let b = E.eval_full_lazy lazy_info b in
+      begin
+        match E.get_blocked env evd b with
+        | Some t -> Result (E.mkApp ih [|t|])
+        | None -> Progress (false, E.set args 3 b)
+      end
 
   let red_prim env evd lazy_info p u args =
     try red_prim_aux env evd lazy_info p u args with NativeDestKO -> Error

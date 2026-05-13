@@ -73,6 +73,7 @@ type t =
   | Run
   | Block
   | Unblock
+  | Blocked_ind
 
 (** Can raise [Not_found].
     Beware that this is not exactly the reverse of [to_string] below. *)

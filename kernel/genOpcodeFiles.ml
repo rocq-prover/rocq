@@ -162,6 +162,7 @@ let opcodes =
     "RUN", 2;
     "BLOCK", 1;
     "UNBLOCK", 1;
+    "BLOCKEDIND", 1;
     "STOP", 0
   |]
 

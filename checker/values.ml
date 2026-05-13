@@ -349,7 +349,7 @@ let v_template_universes =
   |]
 
 let v_primitive =
-  v_enum "primitive" 63 (* Number of constructors of the CPrimitives.t type *)
+  v_enum "primitive" 65 (* Number of constructors of the CPrimitives.t type *)
 
 let v_cst_def =
   v_sum "constant_def" 0

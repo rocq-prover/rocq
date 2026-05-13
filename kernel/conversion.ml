@@ -67,8 +67,10 @@ let compare_stack_shape stk1 stk2 =
         f1 == f2 && compare_rec 0 s1 s2
     | Zrun (_,_,_,_,_,f1) :: s1, Zrun (_,_,_,_,_,f2) :: s2 ->
         f1 == f2 && compare_rec 0 s1 s2
+    | Zblockedind (_,_,_,_,_,f1) :: s1, Zblockedind (_,_,_,_,_,f2) :: s2 ->
+        f1 == f2 && compare_rec 0 s1 s2
     | [], _ :: _
-    | (Zproj _ | ZcaseT _ | Zfix _ | Zprimitive _ | Zunblock _ | Zrun _) :: _, _ -> false
+    | (Zproj _ | ZcaseT _ | Zfix _ | Zprimitive _ | Zunblock _ | Zrun _ | Zblockedind _) :: _, _ -> false
   in
   compare_rec 0 stk1 stk2
 
@@ -83,6 +85,7 @@ type lft_constr_stack_elt =
      CPrimitives.t * pconstant * lft_fconstr list * lft_fconstr next_native_args
   | Zlunblock of lift * constr * constr * usubs
   | Zlrun of lift * constr * constr * constr * constr * usubs
+  | Zlblockedind of lift * constr * constr * constr * constr * usubs
 and lft_constr_stack = lft_constr_stack_elt list
 
 let rec zlapp v = function
@@ -124,6 +127,8 @@ let pure_stack lfts stk =
                 (l,(Zlunblock(l,h,ty,e)::pstk))
             | (Zrun(h,ty1,ty2,k,e,_),(l,pstk)) ->
                 (l,(Zlrun(l,h,ty1,ty2,k,e)::pstk))
+            | (Zblockedind(h,ty,p,ih,e,_),(l,pstk)) ->
+                (l,(Zlblockedind(l,h,ty,p,ih,e)::pstk))
           )
   in
   snd (pure_rec lfts stk)
@@ -856,7 +861,8 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
      | ( (FLetIn _, _) | (FCaseT _,_) | (FApp _,_) | (FCLOS _,_) | (FLIFT _,_)
        | (_, FLetIn _) | (_,FCaseT _) | (_,FApp _) | (_,FCLOS _) | (_,FLIFT _)
        | (FLOCKED,_) | (_,FLOCKED) | (FLAZY _, _) | (_, FLAZY _)
-       | (FUnblock _,_) | (_,FUnblock _) | (FRun _, _) | (_, FRun _)) -> assert false
+       | (FUnblock _,_) | (_,FUnblock _) | (FRun _, _) | (_, FRun _)
+       | (FBlockedInd _, _) | (_, FBlockedInd _)) -> assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
        | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
@@ -871,7 +877,7 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
           (* Stacks are known to have the same argument size *)
           let rnargs = match z1 with
           | Zlapp a -> if nargs < 0 then -1 else nargs + Array.length a
-          | Zlproj _ | Zlfix _ | Zlcase _ | Zlprimitive _ | Zlunblock _ | Zlrun _ -> -1
+          | Zlproj _ | Zlfix _ | Zlcase _ | Zlprimitive _ | Zlunblock _ | Zlrun _ | Zlblockedind _ -> -1
           in
           let cu1 = cmp_rec rnargs s1 s2 cuniv in
           (match (z1,z2) with
@@ -936,8 +942,15 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
               let cu = f (l1, mk_clos e1 ty11) (l2, mk_clos e2 ty21) cu in
               let cu = f (l1, mk_clos e1 ty12) (l2, mk_clos e2 ty22) cu in
               f (l1, mk_clos e1 k1) (l2, mk_clos e2 k2) cu
+            | (Zlblockedind(l1,h1,ty1,p1,ih1,e1), Zlblockedind(l2,h2,ty2,p2,ih2,e2)) ->
+              let u1 = CClosure.usubst_instance e1 (snd (destConst h1)) in
+              let u2 = CClosure.usubst_instance e2 (snd (destConst h2)) in
+              let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
+              let cu = f (l1, mk_clos e1 ty1) (l2, mk_clos e2 ty2) cu in
+              let cu = f (l1, mk_clos e1 p1) (l2, mk_clos e2 p2) cu in
+              f (l1, mk_clos e1 ih1) (l2, mk_clos e2 ih2) cu
 
-            | ((Zlapp _ | Zlproj _ | Zlfix _| Zlcase _| Zlprimitive _ | Zlunblock _ | Zlrun _), _) ->
+            | ((Zlapp _ | Zlproj _ | Zlfix _| Zlcase _| Zlprimitive _ | Zlunblock _ | Zlrun _ | Zlblockedind _), _) ->
               assert false)
       | _ -> cuniv in
   if compare_stack_shape stk1 stk2 then

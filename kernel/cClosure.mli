@@ -64,6 +64,8 @@ type fterm =
   (* [{term=Funblock(op, ty, m, e);mode=mode}] is a representation of [Zunblock(op,ty,e,mode)] zipped with [m] *)
   | FRun of constr * constr * constr * fconstr * constr * usubs
   (* [{term=FRun(op, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(op,ty1,ty2,cnt,e,mode)] zipped with [m] *)
+  | FBlockedInd of constr * constr * constr * constr * fconstr * usubs
+  (* [{term=FBlockedInd(op, ty, p, ih, m, e);mode=mode}] is a representation of [Zblockedind(op,ty,p,ih,e,mode)] zipped with [m] *)
   | FEta of int * constr * constr array * int * usubs
   (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
   | FLAZY of fconstr Lazy.t
@@ -103,6 +105,8 @@ type stack_member =
   (* unblock as a constr, its type argument, the substitution for both constrs, saved reduction flags *)
   | Zrun of constr * constr * constr * constr * usubs * mode
   (* run as a constr, its type argument, its continuation, the substitution for all constrs, saved reduction flags *)
+  | Zblockedind of constr * constr * constr * constr * usubs * mode
+  (* blocked_ind as a constr, its type argument, predicate, induction hypothesis, substitution, saved reduction flags *)
 
 and stack = stack_member list
 

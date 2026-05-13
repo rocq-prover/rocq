@@ -79,6 +79,7 @@ type t =
   | Run
   | Block
   | Unblock
+  | Blocked_ind
 
 let parse = function
   | "int63_head0" -> Int63head0
@@ -145,6 +146,7 @@ let parse = function
   | "run" -> Run
   | "block" -> Block
   | "unblock" -> Unblock
+  | "blocked_ind" -> Blocked_ind
   | _ -> raise Not_found
 
 let equal (p1 : t) (p2 : t) =
@@ -215,6 +217,7 @@ let hash = function
   | Run -> 62
   | Block -> 63
   | Unblock -> 64
+  | Blocked_ind -> 65
 
 (* Should match names in nativevalues.ml *)
 let to_string = function
@@ -282,6 +285,7 @@ let to_string = function
   | Run -> "run"
   | Block -> "block"
   | Unblock -> "unblock"
+  | Blocked_ind -> "blocked_ind"
 
 type const =
   | Arraymaxlength
@@ -330,12 +334,21 @@ let one_sort_univ =
     { quals = Names.[|Name (Id.of_string "s")|]; univs = Names.[|Name (Id.of_string "u")|] }
     PConstraints.empty
 
-let two_sort_univs =
+let two_sort_univ_names =
   let s1 = Names.(Name (Id.of_string "s1")) in
   let s2 = Names.(Name (Id.of_string "s2")) in
   let u1 = Names.(Name (Id.of_string "u1")) in
   let u2 = Names.(Name (Id.of_string "u2")) in
-  AbstractContext.make { quals = [|s1; s2|]; univs = [|u1; u2|] } PConstraints.empty
+  { quals = [|s1; s2|]; univs = [|u1; u2|] }
+
+let two_sort_univs =
+  AbstractContext.make two_sort_univ_names PConstraints.empty
+
+let blocked_ind_univs =
+  let csts =
+    PConstraints.enforce_elim_to (Sorts.Quality.var 0) (Sorts.Quality.var 1) PConstraints.empty
+  in
+  AbstractContext.make two_sort_univ_names csts
 
 let typ_univs (type a) (t : a prim_type) = match t with
   | PT_int63 -> AbstractContext.empty
@@ -437,6 +450,10 @@ let types =
       [anon (PITT_param (1, []))], blocked_ty 1
   | Unblock ->
       [anon (blocked_ty 1)], PITT_param (1, [])
+  | Blocked_ind ->
+      [anon (PITT_prod (Context.anonR, PITT_param (2, []), PITT_param (1, [1])));
+       anon (blocked_ty 2)],
+      PITT_param (1, [1])
 
 let type_sort q u = Constr.mkSort (Sorts.make q (Universe.make u))
 
@@ -525,6 +542,7 @@ let params = function
   | Run -> two_sort_params
   | Block
   | Unblock -> one_sort_param
+  | Blocked_ind -> two_sort_params
 
 let nparams x = List.length (params x)
 
@@ -593,6 +611,7 @@ let univs = function
   | Arraylength -> one_univ
 
   | Run -> two_sort_univs
+  | Blocked_ind -> blocked_ind_univs
 
   | Block
   | Unblock -> one_sort_univ

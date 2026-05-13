@@ -2044,6 +2044,11 @@ value rocq_interprete
         caml_failwith("Coq VM: UNBLOCK not implemented");
       }
 
+      Instruct(BLOCKEDIND) {
+        print_instr("BLOCKEDIND");
+        caml_failwith("Coq VM: BLOCKEDIND not implemented");
+      }
+
 /* Debugging and machine control */
 
       Instruct(STOP){
