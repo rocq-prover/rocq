@@ -1637,6 +1637,12 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     debug_tactic_unification (fun () -> str "Leaving unification with failure");
     Exninfo.iraise e
 
+let ground_unification env sigma pb flags m n =
+  let flags = flags.core_unify_flags in
+  match flags.modulo_conv_on_closed_terms with
+  | Some convflags -> careful_infer_conv ~pb ~ts:convflags env sigma m n
+  | _ -> constr_cmp pb env sigma flags m n
+
 let unify_0 ~metas env sigma pb flags c1 c2 =
   unify_0_with_initial_metas { subst_sigma = sigma; subst_metas = []; subst_evars = []; subst_metam = metas } true env pb flags (c1, Unknown) (c2, Unknown)
 

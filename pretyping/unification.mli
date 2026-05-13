@@ -152,3 +152,6 @@ val pose_all_metas_as_evars : metas:Meta.t -> env -> evar_map -> constr -> evar_
    (exported for inv.ml) *)
 val abstract_list_all :
   env -> evar_map -> constr -> constr -> constr list -> evar_map * (constr * types)
+
+val ground_unification : env -> evar_map -> conv_pb -> unify_flags ->
+  constr -> constr -> evar_map option

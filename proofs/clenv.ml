@@ -451,10 +451,18 @@ let clenv_unify_meta_types ?(flags=default_unify_flags ()) clenv =
     Exninfo.iraise (ClenvCannotUnify (env, sigma, clenv, t1, t2, reason), info)
 
 let clenv_unique_resolver ?(flags=default_unify_flags ()) clenv concl =
-  let metas = meta_handler clenv.metam in
-  let (hd, _) = decompose_app clenv.evd (whd_nored ~metas clenv.env clenv.evd (fst clenv.templtyp)) in
-  let clenv = if isMeta clenv.evd hd then clenv_unify_meta_types ~flags clenv else clenv in
-  clenv_unify CUMUL ~flags (clenv_type clenv) concl clenv
+  if Metaset.is_empty (snd clenv.templtyp) && not (has_undefined_evars clenv.evd (clenv_type clenv)) && not (has_undefined_evars clenv.evd concl) then
+    let typ = clenv_type clenv in
+    match Unification.ground_unification clenv.env clenv.evd CUMUL flags typ concl with
+    | None ->
+      raise (ClenvCannotUnify (clenv.env, clenv.evd, clenv, typ, concl, None))
+    | Some sigma ->
+      update_clenv_evd clenv sigma clenv.metam
+  else
+    let metas = meta_handler clenv.metam in
+    let (hd, _) = decompose_app clenv.evd (whd_nored ~metas clenv.env clenv.evd (fst clenv.templtyp)) in
+    let clenv = if isMeta clenv.evd hd then clenv_unify_meta_types ~flags clenv else clenv in
+    clenv_unify CUMUL ~flags (clenv_type clenv) concl clenv
 
 let adjust_meta_source ~metas evd mv = function
   | loc,Evar_kinds.VarInstance id ->
