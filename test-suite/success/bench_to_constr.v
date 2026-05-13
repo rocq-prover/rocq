@@ -1,4 +1,4 @@
-From Coq Require Import Nat.
+From Corelib Require Import Init.Nat.
 Fixpoint fac (n : nat) : nat :=
   match n return nat with
   | O | S O => n

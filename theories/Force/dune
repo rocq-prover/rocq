@@ -1,0 +1,12 @@
+(rule
+ (targets Force.timing Force.glob Force.vo)
+ (deps ../Corelib/Init/Prelude.vo
+       %{workspace_root}/_build/install/default/lib/rocq-runtime/rocqworker)
+ (action (chdir ../.. (run rocq c -boot -R theories/Corelib Corelib -Q theories/Force Force -w +default -q -w -deprecated-native-compiler-option -native-compiler off -time-file theories/Force/Force.timing %{dep:Force.v}))))
+
+(install
+ (section lib_root)
+ (package rocq-core)
+ (files (Force.v as coq/user-contrib/Force/Force.v)
+        (Force.glob as coq/user-contrib/Force/Force.glob)
+        (Force.vo as coq/user-contrib/Force/Force.vo)))

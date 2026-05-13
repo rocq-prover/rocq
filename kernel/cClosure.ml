@@ -126,7 +126,7 @@ type evar_repack = Evar.t * constr list -> constr
 let make_force_constant name =
   let force_modpath =
     let open Names in
-    let mp = List.rev_map Id.of_string ["Coq"; "Force"; "Force"] in
+    let mp = List.rev_map Id.of_string ["Force"; "Force"] in
     ModPath.MPfile (DirPath.make mp)
   in
   let kn = KerName.make force_modpath (Id.of_string name) in
@@ -521,7 +521,13 @@ let usubst_sort (_,u) s =
 
 let usubst_relevance (_,u) r =
   if UVars.Instance.is_empty u then r
-  else UVars.subst_instance_relevance u r
+  else match r with
+  | Sorts.RelevanceVar qv ->
+    begin match Sorts.QVar.var_index qv with
+    | Some n when n >= Array.length (fst (UVars.Instance.to_array u)) -> r
+    | Some _ | None -> UVars.subst_instance_relevance u r
+    end
+  | Sorts.Relevant | Sorts.Irrelevant -> r
 
 let usubst_binder e x =
   let r = x.binder_relevance in
@@ -855,7 +861,8 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
         Term.compose_lam (List.rev tys) f
     | FProd (n, t, c, e) ->
       if Esubst.is_subs_id (fst e) && Esubst.is_lift_id lfts then
-        mkProd (n, to_constr ulfts t, subst_instance_constr (usubst_instance ulfts (snd e)) c)
+        let u = usubst_instance ulfts (snd e) in
+        mkProd (usubst_binder (Esubst.subs_id 0, u) n, to_constr ulfts t, subst_instance_constr u c)
       else
         let subs' = comp_subs ulfts e in
         mkProd (usubst_binder subs' n,
@@ -957,7 +964,7 @@ and comp_subs ~(info:clos_infos) ~(tab:clos_tab) (el,u) (s,u') =
   Esubst.lift_subst (fun el c ->
       let t = lazy (to_constr ~info ~tab (el,u) c) in
       (RedState.mode c.mark,t)
-    ) el s, u'
+    ) el s, usubst_instance (el,u) u'
 
 (* This function defines the correspondence between constr and
    fconstr. When we find a closure whose substitution is the identity,
@@ -1292,13 +1299,20 @@ let get_branch ~mode infos ci pms ((ind, c), u) args br e =
     @raise Not_found if the inductive is not a primitive record, or if the
     constructor is partially applied.
  *)
-let eta_expand_ind_stack env (ind,u) args m' =
+let eta_expand_ind_stack info (ind,u) args m' =
   let open Declarations in
+  let env = info_env info in
   let mib = lookup_mind (fst ind) env in
   match get_projections env ind with
   | Some projs ->
     (* disallow eta-exp for non-primitive records *)
     if not (mib.mind_finite == BiFinite && Int.equal (Array.length projs) (Array.length args - mib.mind_nparams)) then raise Not_found;
+    let ind_relevance = UVars.subst_instance_relevance u (ind_relevance ind env) in
+    let compatible_field (_, r) =
+      let r = UVars.subst_instance_relevance u r in
+      Sorts.relevance_equal ind_relevance r
+    in
+    if not (Array.exists compatible_field projs) then raise Not_found;
     let pars = mib.Declarations.mind_nparams in
     let argss = try_drop_parameters pars args in
     let right = fapp_stack m' in
@@ -1391,7 +1405,11 @@ module FNativeEntries =
       | FArray (_u,t,_ty) -> t
       | _ -> assert false
 
-    let get_blocked _ _ _ = assert false
+    let get_blocked _ _ e =
+      match [@ocaml.warning "-4"] e.term with
+      | FBlock (_, _, t, env) -> Some (mk_clos ~mode:normal_whnf env t)
+      | FPrimitive (CPrimitives.Block, _, _, [|_; t|]) -> Some t
+      | _ -> None
 
 
     let dummy = {mark = RedState.mk ntrl normal_whnf; term = FRel 0}
@@ -1677,14 +1695,14 @@ module FNativeEntries =
 
     let mkArray env u t ty =
       check_array env;
-      { mark = RedState.mk cstr (assert false); term = FArray (u,t,ty) }
+      { mark = RedState.mk cstr normal_whnf; term = FArray (u,t,ty) }
 
-    let eval_full_lazy _ _ = assert false
+    let eval_full_lazy (info, tab) e = !eval_lazy_ref ~mode:full info tab e
 
-    let eval_id_lazy _ _ = assert false
+    let eval_id_lazy (info, tab) e = !eval_lazy_ref ~mode:identity info tab e
 
     let mkApp t args =
-      { mark = RedState.mk red (assert false); term = FApp(t, args) }
+      { mark = RedState.mk red normal_whnf; term = FApp(t, args) }
 
   end
 
@@ -2447,11 +2465,9 @@ and knit_nonlexical_app ~mode info tab ~pat_state (e : usubs) h args stk =
 
 and case_inversion ~mode info tab ci u params indices v =
   let open Declarations in
-  let v = match v with
-  | [| [||], v |] -> v
-  | [||] -> raise Not_found
-  | _ -> assert false
-  in
+  match v with
+  | [||] -> None
+  | [| [||], v |] ->
   if Array.is_empty indices then Some v
   else
     let env = info_env info in
@@ -2472,6 +2488,7 @@ and case_inversion ~mode info tab ci u params indices v =
       !conv info tab expected index
     in
     if Array.for_all_i check_index 0 indices then Some v else None
+  | _ -> assert false
 
 and knred : 'a. ('a, 'a RedPattern.depth) reduction = {
   red_kni = kni;
