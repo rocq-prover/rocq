@@ -9,6 +9,12 @@ Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
 Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := @block.
 Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := @unblock.
 
+(**** SORTS ****)
+
+#[universes(polymorphic)] Definition type_of@{s;u} {T : Type@{s;u}} (t : T) := T.
+Definition unblock_prop_type (b : Blocked@{Prop;_} (tt = tt)) : Type := type_of (unblock@{Prop;_} b).
+Definition blocked_prop_type : Blocked@{Type;_} Type := @block@{Type;_} Type (tt = tt).
+
 (**** EVALUATION ****)
 
 Ltac syn_refl := lazymatch goal with |- ?t = ?t => exact eq_refl end.
@@ -374,3 +380,175 @@ Proof.
 Qed.
 
 End Proper.
+
+
+(* Port of stdpp telescopes *)
+Module Telescopes.
+#[local] Set Universe Polymorphism.
+#[local] Set Polymorphic Inductive Cumulativity.
+Set Printing Universes.
+
+Inductive tele@{u u1} : Type@{u1} :=
+  | TeleO : tele
+  | TeleS {X : Blocked@{Type;u1} Type@{u}} (binder : unblock X -> tele) : tele.
+
+#[global] Arguments TeleS {_} _.
+
+Fixpoint tele_fun (TT : tele) (T : Type) : Type :=
+  match TT with
+  | TeleO => T
+  | TeleS b => forall x, tele_fun (b x) T
+  end.
+
+Notation "TT -t> A" :=
+  (tele_fun TT A) (at level 99, A at level 200, right associativity).
+
+Definition tele_fold {X Y} {TT : tele} (step : forall {A : Type}, (A -> Y) -> Y) (base : X -> Y)
+  : (TT -t> X) -> Y :=
+  (fix rec {TT} : (TT -t> X) -> Y :=
+     match TT as TT return (TT -t> X) -> Y with
+     | TeleO => fun x : X => base x
+     | TeleS b => fun f => step (fun x => rec (f x))
+     end) TT.
+Global Arguments tele_fold {_ _ !_} _ _ _ /.
+
+Record tele_arg_cons {X : Type} (f : X -> Type) : Type := TeleArgCons
+  { tele_arg_head : X;
+    tele_arg_tail : f tele_arg_head }.
+Global Arguments TeleArgCons {_ _} _ _.
+
+Fixpoint tele_arg@{u u1} (t : tele@{u u1}) : Type@{u} :=
+  match t with
+  | TeleO => unit
+  | TeleS f => tele_arg_cons (fun x => tele_arg (f x))
+  end.
+Global Arguments tele_arg _ : simpl never.
+
+
+Notation TargO := (tt : tele_arg TeleO) (only parsing).
+Notation TargS a b :=
+  ((@TeleArgCons _ (fun x => tele_arg (_ x)) a b) : (tele_arg (TeleS _))) (only parsing).
+Coercion tele_arg : tele >-> Sortclass.
+
+Lemma tele_arg_ind (P : forall TT, tele_arg TT -> Prop) :
+  P TeleO TargO ->
+  (forall T (b : unblock T -> tele) x xs, P (b x) xs -> P (TeleS b) (TargS x xs)) ->
+  forall TT (xs : tele_arg TT), P TT xs.
+Proof.
+  intros H0 HS TT. induction TT as [|T b IH]; simpl.
+  - intros []. exact H0.
+  - intros [x xs]. apply HS. now auto.
+Qed.
+
+Fixpoint tele_app {TT : tele} {U} : (TT -t> U) -> TT -> U :=
+  match TT as TT return (TT -t> U) -> TT -> U with
+  | TeleO => fun F _ => F
+  | TeleS r => fun (F : TeleS r -t> U) '(TeleArgCons x b) =>
+      tele_app (F x) b
+  end.
+Global Arguments tele_app {!_ _} & _ !_ /.
+
+Local Coercion tele_app : tele_fun >-> Funclass.
+
+Lemma tele_arg_inv {TT : tele} (a : tele_arg TT) :
+  match TT as TT return tele_arg TT -> Prop with
+  | TeleO => fun a => a = TargO
+  | TeleS f => fun a => exists x a', a = TargS x a'
+  end a.
+Proof. destruct TT; destruct a; eauto. Qed.
+Lemma tele_arg_O_inv (a : TeleO) : a = TargO.
+Proof. exact (tele_arg_inv a). Qed.
+Lemma tele_arg_S_inv {X} {f : unblock X -> tele} (a : TeleS f) :
+  exists x a', a = TargS x a'.
+Proof. exact (tele_arg_inv a). Qed.
+
+Fixpoint tele_map {T U} {TT : tele} : (T -> U) -> (TT -t> T) -> TT -t> U :=
+  match TT as TT return (T -> U) -> (TT -t> T) -> TT -t> U with
+  | TeleO => fun F : T -> U => F
+  | @TeleS X b => fun (F : T -> U) (f : TeleS b -t> T) (x : unblock X) =>
+                  tele_map F (f x)
+  end.
+Global Arguments tele_map {_ _ !_} _ _ /.
+
+Lemma tele_map_app {T U} {TT : tele} (F : T -> U) (t : TT -t> T) (x : TT) :
+  (tele_map F t) x = F (t x).
+Proof.
+  induction TT as [|X f IH]; simpl in x.
+  - rewrite (tele_arg_O_inv x). now auto.
+  - destruct (tele_arg_S_inv x) as [x' [a' ->]]. simpl.
+    rewrite <-IH. now auto.
+Qed.
+
+Fixpoint tele_bind {U} {TT : tele} : (TT -> U) -> TT -t> U :=
+  match TT as TT return (TT -> U) -> TT -t> U with
+  | TeleO => fun F => F tt
+  | @TeleS X b => fun (F : TeleS b -> U) (x : unblock X) =>
+      tele_bind (fun a => F (TargS x a))
+  end.
+Global Arguments tele_bind {_ !_} _ /.
+
+Lemma tele_app_bind {U} {TT : tele} (f : TT -> U) x :
+  (tele_bind f) x = f x.
+Proof.
+  induction TT as [|X b IH]; simpl in x.
+  - rewrite (tele_arg_O_inv x). now auto.
+  - destruct (tele_arg_S_inv x) as [x' [a' ->]]. simpl.
+    rewrite IH. now auto.
+Qed.
+
+Definition tele_fun_id {TT : tele} : TT -t> TT := tele_bind (fun x => x).
+
+Lemma tele_fun_id_eq {TT : tele} (x : TT) :
+  tele_fun_id x = x.
+Proof. unfold tele_fun_id. rewrite tele_app_bind. now auto. Qed.
+
+Definition tforall {TT : tele} (Ψ : TT -> Prop) : Prop :=
+  tele_fold (fun (T : Type) (b : T -> Prop) => forall x : T, b x) (fun x => x) (tele_bind Ψ).
+Global Arguments tforall {!_} _ /.
+Definition texist {TT : tele} (Ψ : TT -> Prop) : Prop :=
+  tele_fold ex (fun x => x) (tele_bind Ψ).
+Global Arguments texist {!_} _ /.
+
+Notation "'forall..' x .. y , P" := (tforall (fun x => .. (tforall (fun y => P)) .. ))
+  (at level 200, x binder, y binder, right associativity,
+  format "forall.. x .. y , P") : stdpp_scope.
+Notation "'∃..' x .. y , P" := (texist (fun x => .. (texist (fun y => P)) .. ))
+  (at level 200, x binder, y binder, right associativity,
+  format "∃.. x .. y , P") : stdpp_scope.
+
+Lemma tforall_forall {TT : tele} (Ψ : TT -> Prop) :
+  tforall Ψ <-> (forall x, Ψ x).
+Proof.
+  symmetry. unfold tforall. induction TT as [|X ft IH].
+  - simpl. split.
+    + now auto.
+    + intros ? p. rewrite (tele_arg_O_inv p). now auto.
+  - simpl. split; intros Hx a.
+    + rewrite <-IH. now auto.
+    + destruct (tele_arg_S_inv a) as [x [pf ->]].
+      revert pf. setoid_rewrite IH. now auto.
+Qed.
+
+Lemma texist_exist {TT : tele} (Ψ : TT -> Prop) :
+  texist Ψ <-> ex Ψ.
+Proof.
+  symmetry. induction TT as [|X ft IH].
+  - simpl. split.
+    + intros [p Hp]. rewrite (tele_arg_O_inv p) in Hp. now auto.
+    + intros. now exists TargO.
+  - simpl. split; intros [p Hp]; revert Hp.
+    + destruct (tele_arg_S_inv p) as [x [pf ->]]. intros ?.
+      exists x. rewrite <-(IH x (fun a => Ψ (TargS x a))). eauto.
+    + rewrite <-(IH p (fun a => Ψ (TargS p a))).
+      intros [??]. eauto.
+Qed.
+
+Set Printing Implicit.
+
+Monomorphic Universes u u1.
+(* Unfortunately reduction happens in the type of the binder. *)
+Goal LAZY (TeleS@{u u1} (X:=@block@{Type;_} Type@{u} (1 + 1 = 2)) (fun x : 1 + 1 = 2 => TeleO@{u u1}))
+         = TeleS@{u u1} (X:=@block@{Type;_} Type@{u} (1 + 1 = 2)) (fun x :     2 = 2 => TeleO@{u u1}).
+Proof. syn_refl. Qed.
+
+End Telescopes.
