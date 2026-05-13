@@ -302,3 +302,57 @@ Module Ind.
     lazymatch goal with |- context [P (S n)] => idtac end.
   Abort.
 End Ind.
+
+Module Proper.
+
+Require Import Corelib.Classes.RelationClasses.
+Require Import Corelib.Classes.Morphisms.
+Require Import Corelib.Setoids.Setoid.
+
+(* #[universes(polymorphic=yes,cumulative)] Record Blocked {T:Type} := block { unblock : T }. *)
+(* #[global] Arguments Blocked : clear implicits. *)
+(* #[global] Arguments block {_}. *)
+(* #[global] Arguments unblock {_}. *)
+(* Add Printing Constructor Blocked. *)
+(* #[universes(polymorphic=yes)] Definition run : forall (T K : Type), Blocked T -> (T -> K) -> K := fun _ _ b f => f (unblock b). *)
+(* #[global] Arguments run {_ _} _ _. *)
+
+Require Export Force.Force.
+
+
+#[local] Set Universe Polymorphism.
+#[local] Unset Universe Minimization ToSet.
+
+Class Equiv (T : Type) := equiv :  T -> T -> Prop.
+Arguments equiv {_ _}.
+
+
+#[global] Instance Blocked_equiv {T} : Equiv T -> Equiv (Blocked T) :=
+  fun equiv a b => equiv (unblock a) (unblock b).
+
+#[global] Instance Blocked_equivalance {T} {R:Equiv T} : Equivalence R -> Equivalence (@equiv (Blocked T) _).
+Proof.
+  intros H.
+  split.
+  - destruct H as [H _ _]. repeat intro. apply H.
+  - destruct H as [_ H _]. repeat intro. apply H. apply H0.
+  - destruct H as [_ _ H]. repeat intro. refine (H _ _ _ _ _); eauto.
+Qed.
+
+#[global] Instance block_Proper {T} {R:Equiv T} : Proper (equiv ==> equiv) (@block T).
+Proof. repeat intro. eauto. Qed.
+
+#[global] Instance unblock_Proper {T} {R:Equiv T} : Proper (@equiv (Blocked T) _ ==> @equiv T _) (@unblock T).
+Proof. lazy. repeat intro. exact H. Qed.
+
+(* Definition blocked_ind {T} : *)
+(*   forall {P : Blocked T -> Prop}, *)
+(*     (forall t:T, P (block t)) -> *)
+(*     forall b, P b. *)
+(* Admitted. *)
+
+(* Lemma Blocked_eta {T} (t: Blocked T) : block (unblock t) = t. *)
+(* Proof. *)
+(* Admitted. *)
+
+End Proper.

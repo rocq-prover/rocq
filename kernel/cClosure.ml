@@ -779,7 +779,7 @@ let mk_eta_args args n =
   Array.init
     (nargs + n)
     (fun i ->
-       if i < nargs then args.(i)
+       if i < nargs then lift n args.(i)
        else mkRel (n-(i-nargs)))
 
 let eta_reduce m =
