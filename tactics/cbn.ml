@@ -151,6 +151,20 @@ module CbnClos = struct
     | NoInvert -> NoInvert
     | CaseInvert { indices } -> CaseInvert { indices = mk_clos_vect subst indices }
 
+  (* If [c] is syntactically a substituted de Bruijn variable, return the
+     substituted value without weak-head reducing that value.  This is used to
+     recognize wrappers such as [fun x => x] without speculatively reducing
+     their arguments. *)
+  let rec subst_value sigma c =
+    match EConstr.kind sigma c.term with
+    | Rel n ->
+      begin match Esubst.expand_rel n c.subst with
+      | Inl (k, v) -> Some (lift k v)
+      | Inr _ -> None
+      end
+    | Cast (b, _, _) -> subst_value sigma (mk_clos c.subst b)
+    | _ -> None
+
   let rec kind sigma c : view =
     match EConstr.kind sigma c.term with
     | Rel n ->
@@ -897,32 +911,47 @@ let rec whd_state_gen ?csts flags env sigma =
               | UnfoldWhenNoMatch { recargs; nargs } -> (* maybe unfolds *)
                   let app_sk,sk = Stack.strip_app stack in
                   let volatile = Option.has_some nargs in
-                  let (tm',sk'),cst_l' =
-                    match recargs with
-                    | [] ->
-                      whrec (Cst_stack.add_cst ~volatile (mkConstU const) cst_l) (CbnClos.inject body, app_sk)
-                    | curr :: remains -> match Stack.strip_n_app curr app_sk with
-                      | None -> (x,app_sk), cst_l
-                      | Some (bef,arg,app_sk') ->
-                        let cst_l = Stack.Cst
-                            { const = Stack.Cst_const (fst const, u');
-                              volatile;
-                              curr; remains; params=bef; cst_l;
-                            }
-                        in
-                        whrec Cst_stack.empty (arg,cst_l :: app_sk')
-                  in
                   let rec is_case x = match CbnClos.kind sigma x with
                     | Lambda (_,_, x) | LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
                     | Cast (x, _,_) -> is_case x
                     | App (hd, _) -> is_case hd
                     | Case _ -> true
                     | _ -> false in
-                  if equal_stacks env sigma (x, app_sk) (tm', sk')
-                  || Stack.will_expose_iota sk'
-                  || is_case tm'
-                  then fold ()
-                  else whrec cst_l' (tm', sk' @ sk)
+                  let unfolds_to_subst_value = match recargs with
+                    | _ :: _ -> None
+                    | [] ->
+                      let cst_l' = Cst_stack.add_cst ~volatile (mkConstU const) cst_l in
+                      let cst_l', (tm', sk') =
+                        apply_subst sigma cst_l' (CbnClos.inject body) app_sk in
+                      match CbnClos.subst_value sigma tm' with
+                      | Some tm' when not (Stack.will_expose_iota sk' || is_case tm') ->
+                        Some ((tm', sk'), cst_l')
+                      | Some _ | None -> None
+                  in
+                  begin match unfolds_to_subst_value with
+                  | Some ((tm', sk'), cst_l') -> whrec cst_l' (tm', sk' @ sk)
+                  | None ->
+                    let (tm',sk'),cst_l' =
+                      match recargs with
+                      | [] ->
+                        whrec (Cst_stack.add_cst ~volatile (mkConstU const) cst_l) (CbnClos.inject body, app_sk)
+                      | curr :: remains -> match Stack.strip_n_app curr app_sk with
+                        | None -> (x,app_sk), cst_l
+                        | Some (bef,arg,app_sk') ->
+                          let cst_l = Stack.Cst
+                              { const = Stack.Cst_const (fst const, u');
+                                volatile;
+                                curr; remains; params=bef; cst_l;
+                              }
+                          in
+                          whrec Cst_stack.empty (arg,cst_l :: app_sk')
+                    in
+                    if equal_stacks env sigma (x, app_sk) (tm', sk')
+                    || Stack.will_expose_iota sk'
+                    || is_case tm'
+                    then fold ()
+                    else whrec cst_l' (tm', sk' @ sk)
+                  end
               | UnfoldWhen { recargs; nargs } -> (* maybe unfolds *)
                 begin match recargs with
                   | [] -> (* if nargs has been specified *)
