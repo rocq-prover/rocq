@@ -605,13 +605,18 @@ let contract_cofix env sigma ?reference ?current_refold (bodynum,(names,types,bo
   CbnClos.mk_clos subst bodies.(bodynum).CbnClos.term
 
 (** Similar to the "fix" case below *)
+let singleton_best_cst = function
+  | [_] as cst_l -> Cst_stack.best_cst cst_l
+  | [] | _ :: _ :: _ -> None
+
 let reduce_and_refold_cofix recfun env sigma cst_l cofix sk =
+  let current_refold = singleton_best_cst cst_l in
   let raw_answer =
     contract_cofix env sigma
       ?reference:(Cst_stack.reference sigma (CbnClos.force sigma) cst_l)
-      ?current_refold:(Cst_stack.best_cst cst_l) cofix in
+      ?current_refold cofix in
   let (x, (t, sk')) = apply_subst sigma Cst_stack.empty raw_answer sk in
-  let t = match cst_l, Cst_stack.best_cst cst_l with
+  let t = match cst_l, current_refold with
     | [], _ | _, Some _ -> t
     | _ :: _, None ->
       let d = mkCoFix (CbnClos.force_cofix sigma cofix) in
@@ -645,12 +650,13 @@ let contract_fix env sigma ?reference ?current_refold ((recindices,bodynum),(nam
     Other rels are directly substituted by constants "magically found from the
     context" in contract_fix *)
 let reduce_and_refold_fix recfun env sigma cst_l fix sk =
+  let current_refold = singleton_best_cst cst_l in
   let raw_answer =
     contract_fix env sigma
       ?reference:(Cst_stack.reference sigma (CbnClos.force sigma) cst_l)
-      ?current_refold:(Cst_stack.best_cst cst_l) fix in
+      ?current_refold fix in
   let (x, (t, sk')) = apply_subst sigma Cst_stack.empty raw_answer sk in
-  let t = match cst_l, Cst_stack.best_cst cst_l with
+  let t = match cst_l, current_refold with
     | [], _ | _, Some _ -> t
     | _ :: _, None ->
       let d = mkFix (CbnClos.force_fix sigma fix) in
