@@ -105,11 +105,8 @@ Definition decide_rel {A B : Type} (R : A -> B -> Prop) (RelDecision : RelDecisi
   RelDecision.
 
 Goal (if if bool_decide (decide_rel _ type_eq_dec (Tarch Tvoid Tvoid) (Tarch Tvoid Tvoid)) then true else false then True else False).
-  Succeed time "lazy " lazy.       (* Tactic call lazy  ran for 0. secs (0.u,0.s) (success) *)
-  Succeed time "cbv  " cbv.        (* Tactic call cbv   ran for 0. secs (0.u,0.s) (success) *)
-  Succeed time "vm   " vm_compute. (* Tactic call vm    ran for 0. secs (0.u,0.s) (success) *)
-  Succeed time "simpl" simpl.      (* Tactic call simpl ran for 0.062 secs (0.061u,0.s) (su *)
-  Fail Timeout 1 time "cbn  " cbn.        (* Tactic call cbn   ran for 0.707 secs (0.706u,0.s) (su *)
+  Succeed Instructions cbn.
+  Timeout 1 time "cbn  " cbn.        (* Tactic call cbn   ran for 0.707 secs (0.706u,0.s) (su *)
 Abort.
 
 (* issue #18619 *)
@@ -121,9 +118,8 @@ Fixpoint test (n : nat) (b : bool) :=
 Arguments test : simpl nomatch.
 Goal forall b, test 5000 b = b.
 Proof. intros.
-  assert_succeeds ((time simpl); lazymatch goal with |- test 0 b = b => idtac end). (* 0.016s - 0.022s *)
-  Fail Timeout 1 assert_succeeds ((time cbn);   lazymatch goal with |- test 0 b = b => idtac end). (* 3s *)
-  assert_succeeds ((time lazy);   lazymatch goal with |- (if b then true else false) = b => idtac end). (* 0.002 *)
+  Succeed Instructions cbn.
+  Timeout 1 assert_succeeds ((time cbn);   lazymatch goal with |- test 0 b = b => idtac end). (* 3s *)
 Abort.
 
 (* issue #15720 *)
@@ -235,7 +231,8 @@ Module Prim.
     | S m => tele_bind (fun x => 1 + tele_app (add m n p) x)
     end.
 
-  Fail Timeout 2 Eval cbn     in @add 8    10 (build_fn 10). (* 2.400s *)
+  Succeed Instructions Eval cbn in @add 8    10 (build_fn 10).
+  Timeout 2 Eval cbn     in @add 8    10 (build_fn 10). (* 2.400s *)
   (* Time Eval cbn     in @add 10   10 (build_fn 10). (* 11s    *) *)
   (* [m=20] runs out of memory after a while. *)
 End Prim.
@@ -260,5 +257,7 @@ Module NonPrim.
   (* Time Eval cbn     in @add 10   10 (build_fn 10). (* 0.008s *) *)
   (* Time Eval cbn     in @add 20   10 (build_fn 10). (* 0.016s *) *)
   (* Time Eval cbn     in @add 200  10 (build_fn 10). (* 0.17s  *) *)
-  Fail Timeout 1 Eval cbn     in @add 2000 10 (build_fn 10). (* 3.5s   *)
+
+  Succeed Instructions Eval cbn in @add 2000 10 (build_fn 10).
+  Timeout 1 Eval cbn     in @add 2000 10 (build_fn 10). (* 3.5s   *)
 End NonPrim.
