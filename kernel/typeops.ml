@@ -317,10 +317,10 @@ let type_of_prim_type _env u (type a) (prim : a CPrimitives.prim_type) = match p
     end
   | CPrimitives.PT_blocked ->
     begin match UVars.Instance.to_array u with
-    | [||], [|u|] ->
-      let ty = Constr.mkType (Univ.Universe.make u) in
+    | [|q|], [|u|] ->
+      let ty = Constr.mkSort (Sorts.make q (Univ.Universe.make u)) in
       Constr.mkProd(Context.anonR, ty , ty)
-    | _ -> anomaly Pp.(str"universe instance for blocked type should have length 1")
+    | _ -> anomaly Pp.(str"universe instance for blocked type should have length 1 and quality length 1")
     end
 
 let type_of_int env =
@@ -345,7 +345,7 @@ let type_of_array env u =
   | None -> CErrors.user_err Pp.(str"The type array must be registered before this construction can be typechecked.")
 
 let type_of_blocked env u =
-  assert (UVars.Instance.length u = (0,1));
+  assert (UVars.Instance.length u = (1,1));
   match (Environ.retroknowledge env).Retroknowledge.retro_blocked with
   | Some c -> mkConstU (c,u)
   | None -> CErrors.user_err Pp.(str"The type blocked terms must be registered before this construction can be typechecked.")

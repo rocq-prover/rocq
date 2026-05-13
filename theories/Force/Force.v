@@ -1,9 +1,9 @@
-Primitive Blocked := #blocked_type.
+Primitive Blocked@{s;u} : Type@{s;u} -> Type@{s;u} := #blocked_type.
 
-Primitive block : forall (T : Type), T -> Blocked T := #block.
-Primitive unblock : forall (T : Type), Blocked T -> T := #unblock.
+Primitive block@{s;u} : forall (T : Type@{s;u}), T -> Blocked@{s;u} T := #block.
+Primitive unblock@{s;u} : forall (T : Type@{s;u}), Blocked@{s;u} T -> T := #unblock.
 
-Primitive run : forall (T K : Type), Blocked T -> (T -> K) -> K := #run.
+Primitive run@{s sk;u uk} : forall (T : Type@{s;u}) (K : Type@{sk;uk}), Blocked@{s;u} T -> (T -> K) -> K := #run.
 
 Arguments block {_} _.
 Arguments unblock {_} _.

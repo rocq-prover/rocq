@@ -6,8 +6,8 @@ Require Import Force.Force.
 
 Definition check_run@{u1 u2} : forall (T : Type@{u1}) (K : Type@{u2}), Blocked T -> (T -> K) -> K := @run.
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
-Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{u} T := @block.
-Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{u} T -> T := @unblock.
+Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := @block.
+Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := @unblock.
 
 (**** EVALUATION ****)
 

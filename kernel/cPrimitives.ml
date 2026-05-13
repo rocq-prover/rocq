@@ -325,17 +325,24 @@ and ind_or_type =
 let one_univ =
   AbstractContext.make { quals = [||]; univs = Names.[|Name (Id.of_string "u")|]} PConstraints.empty
 
-let two_univs =
+let one_sort_univ =
+  AbstractContext.make
+    { quals = Names.[|Name (Id.of_string "s")|]; univs = Names.[|Name (Id.of_string "u")|] }
+    PConstraints.empty
+
+let two_sort_univs =
+  let s1 = Names.(Name (Id.of_string "s1")) in
+  let s2 = Names.(Name (Id.of_string "s2")) in
   let u1 = Names.(Name (Id.of_string "u1")) in
   let u2 = Names.(Name (Id.of_string "u2")) in
-  AbstractContext.make { quals = [||]; univs = [|u1; u2|] } PConstraints.empty
+  AbstractContext.make { quals = [|s1; s2|]; univs = [|u1; u2|] } PConstraints.empty
 
 let typ_univs (type a) (t : a prim_type) = match t with
   | PT_int63 -> AbstractContext.empty
   | PT_float64 -> AbstractContext.empty
   | PT_string -> AbstractContext.empty
   | PT_array -> one_univ
-  | PT_blocked -> one_univ
+  | PT_blocked -> one_sort_univ
 
 type prim_type_ex = PTE : 'a prim_type -> prim_type_ex
 
@@ -356,7 +363,7 @@ let types =
   let blocked_ty p =
     PITT_type
       (PT_blocked,
-       (Instance.of_array ([||], [|Level.var 0|]),
+       (Instance.of_array ([|Sorts.Quality.var 0|], [|Level.var 0|]),
         PITT_param (p, [])))
   in
   function
@@ -431,18 +438,24 @@ let types =
   | Unblock ->
       [anon (blocked_ty 1)], PITT_param (1, [])
 
+let type_sort q u = Constr.mkSort (Sorts.make q (Universe.make u))
+
 let one_param =
   (* currently if there's a parameter it's always this *)
   let a_annot = Context.nameR (Names.Id.of_string "A") in
   let ty = Constr.mkType (Universe.make (Level.var 0)) in
   Context.Rel.Declaration.[LocalAssum (a_annot, ty)]
 
-let two_params =
-  (* currently if there's two parameter it's always this *)
+let one_sort_param =
+  let a_annot = Context.nameR (Names.Id.of_string "A") in
+  let ty = type_sort (Sorts.Quality.var 0) (Level.var 0) in
+  Context.Rel.Declaration.[LocalAssum (a_annot, ty)]
+
+let two_sort_params =
   let t = Context.nameR (Names.Id.of_string "T") in
-  let t_ty = Constr.mkType (Universe.make (Level.var 0)) in
+  let t_ty = type_sort (Sorts.Quality.var 0) (Level.var 0) in
   let k = Context.nameR (Names.Id.of_string "K") in
-  let k_ty = Constr.mkType (Universe.make (Level.var 1)) in
+  let k_ty = type_sort (Sorts.Quality.var 1) (Level.var 1) in
   Context.Rel.Declaration.[LocalAssum (k, k_ty); LocalAssum (t, t_ty)]
 
 let params = function
@@ -509,9 +522,9 @@ let params = function
   | Arraycopy
   | Arraylength -> one_param
 
-  | Run -> two_params
+  | Run -> two_sort_params
   | Block
-  | Unblock -> one_param
+  | Unblock -> one_sort_param
 
 let nparams x = List.length (params x)
 
@@ -579,10 +592,10 @@ let univs = function
   | Arraycopy
   | Arraylength -> one_univ
 
-  | Run -> two_univs
+  | Run -> two_sort_univs
 
   | Block
-  | Unblock -> one_univ
+  | Unblock -> one_sort_univ
 
 type arg_kind =
   | Kparam (* not needed for the evaluation of the primitive when it reduces *)
