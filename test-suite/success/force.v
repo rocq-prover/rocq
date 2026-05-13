@@ -330,6 +330,22 @@ Arguments equiv {_ _}.
 #[global] Instance Blocked_equiv {T} : Equiv T -> Equiv (Blocked T) :=
   fun equiv a b => equiv (unblock a) (unblock b).
 
+(* Regression tests for conversion of stacks containing [unblock] and [run].
+   The primitive operator universe instance is stored under the local closure
+   substitution; conversion must apply that substitution before comparing it. *)
+Definition unblock_stack_substitution {T} {R : Equiv T} :
+  Proper (@equiv (Blocked T) (Blocked_equiv R) ==> @equiv T R) (@unblock T) :=
+  fun x y H => H.
+
+Definition Run_equiv {T K} (R : Equiv K) (k : T -> K) : Equiv (Blocked T) :=
+  fun a b => @equiv K R (@run T K a k) (@run T K b k).
+
+Definition run_stack_substitution {T K} {R : Equiv K} (k : T -> K) :
+  forall x y : Blocked T,
+    @equiv (Blocked T) (Run_equiv R k) x y ->
+    @equiv K R (@run T K x k) (@run T K y k) :=
+  fun x y H => H.
+
 #[global] Instance Blocked_equivalance {T} {R:Equiv T} : Equivalence R -> Equivalence (@equiv (Blocked T) _).
 Proof.
   intros H.

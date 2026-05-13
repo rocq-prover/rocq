@@ -925,13 +925,13 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                 let fk (_,a1) (_,a2) cu = f a1 a2 cu in
                 List.fold_right2 fk kargs1 kargs2 cu2
             | (Zlunblock(l1,h1,ty1,e1), Zlunblock(l2,h2,ty2,e2)) ->
-              let u1 = snd (destConst h1) in
-              let u2 = snd (destConst h2) in
+              let u1 = CClosure.usubst_instance e1 (snd (destConst h1)) in
+              let u2 = CClosure.usubst_instance e2 (snd (destConst h2)) in
               let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
               f (l1, mk_clos e1 ty1) (l2, mk_clos e2 ty2) cu
             | (Zlrun(l1,h1,ty11,ty12,k1,e1), Zlrun(l2,h2,ty21,ty22,k2,e2)) ->
-              let u1 = snd (destConst h1) in
-              let u2 = snd (destConst h2) in
+              let u1 = CClosure.usubst_instance e1 (snd (destConst h1)) in
+              let u2 = CClosure.usubst_instance e2 (snd (destConst h2)) in
               let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
               let cu = f (l1, mk_clos e1 ty11) (l2, mk_clos e2 ty21) cu in
               let cu = f (l1, mk_clos e1 ty12) (l2, mk_clos e2 ty22) cu in
