@@ -1805,73 +1805,59 @@ and knht_app ~mode ~lexical info e h args stk =
     (red_set mode info fDELTA) &&
     (TransparentState.is_transparent_constant (red_transparent mode info) c)
   in
+  let force_arg_mode () =
+    if lexical then full else normal_whnf
+  in
   match [@ocaml.warning "-4"] Constr.kind h with
   | Const (c, _u) ->
     let nargs = Array.length args in
+    let default () =
+      let stk = append_stack (mk_clos_vect ~mode e args) stk in
+      (mk_clos ~mode e h, stk)
+    in
     if Constant.UserOrd.equal c block_constant then
       match[@ocaml.warning "-4"] args with
       | [|ty; t|] ->
-        let mode =
-          if check_enabled c then
-            if lexical then identity else normal_whnf
-          else
-            mode
-        in
+        let mode = if lexical then identity else normal_whnf in
         knh info { mark = RedState.mk cstr mode; term = FBlock (h, ty, t, e) } stk
       | _ ->
         ({ mark = RedState.mk cstr mode; term = FEta((2-nargs), h, args, 0, e) }, stk)
-    else if Constant.UserOrd.equal c unblock_constant then
+    else if Constant.UserOrd.equal c unblock_constant && check_enabled c then
       if nargs >= 2 then
         let ty = args.(0) in
         let t = args.(1) in
         let args = Array.sub args 2 (nargs - 2) in
-        let mode_full =
-          if check_enabled c then
-            if lexical then full else normal_whnf
-          else
-            mode
-        in
+        let mode_full = force_arg_mode () in
         let stk = (append_stack (mk_clos_vect ~mode e args) stk) in
         knht ~mode:mode_full info e t (Zunblock (h, ty, e, mode) :: stk)
       else
         ({ mark = RedState.mk cstr mode; term = FEta((2-nargs), h, args, 0, e) }, stk)
-    else if Constant.UserOrd.equal c run_constant then
+    else if Constant.UserOrd.equal c run_constant && check_enabled c then
       if nargs >= 4 then
         let ty1 = args.(0) in
         let ty2 = args.(1) in
         let t = args.(2) in
         let k = args.(3) in
         let args = Array.sub args 4 (nargs - 4) in
-        let mode_full =
-          if check_enabled c then
-            if lexical then full else normal_whnf
-          else
-            mode
-        in
+        let mode_full = force_arg_mode () in
         let stk = (append_stack (mk_clos_vect ~mode e args) stk) in
         knht ~mode:mode_full info e t (Zrun (h, ty1, ty2, k, e, mode) :: stk)
       else
         ({ mark = RedState.mk cstr mode; term = FEta((4-nargs), h, args, 0, e) }, stk)
-    else if Constant.UserOrd.equal c blocked_ind_constant then
+    else if Constant.UserOrd.equal c blocked_ind_constant && check_enabled c then
       if nargs >= 4 then
         let ty = args.(0) in
         let p = args.(1) in
         let ih = args.(2) in
         let t = args.(3) in
         let args = Array.sub args 4 (nargs - 4) in
-        let mode_full =
-          if check_enabled c then
-            if lexical then full else normal_whnf
-          else
-            mode
-        in
+        let mode_full = force_arg_mode () in
         let stk = (append_stack (mk_clos_vect ~mode e args) stk) in
         knht ~mode:mode_full info e t (Zblockedind (h, ty, p, ih, e, mode) :: stk)
       else
         ({ mark = RedState.mk cstr mode; term = FEta((4-nargs), h, args, 0, e) }, stk)
     else
-      let stk = append_stack (mk_clos_vect ~mode e args) stk in
-      (mk_clos ~mode e h, stk)
+      default ()
   | _ ->
     let stk = append_stack (mk_clos_vect ~mode e args) stk in
     knht ~mode info e h stk

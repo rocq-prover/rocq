@@ -25,6 +25,91 @@ Ltac syn_refl := lazymatch goal with |- ?t = ?t => exact eq_refl end.
 Notation LAZY t := (ltac:(let x := eval lazy in t in exact x)) (only parsing).
 Notation WHNF t := (ltac:(let x := eval lazy head in t in exact x)) (only parsing).
 
+Goal True.
+Proof.
+  let x := eval lazy -[block] in (unblock (block 1)) in
+  lazymatch x with
+  | 1 => exact I
+  | _ => fail "lazy treated block transparency as semantically relevant"
+  end.
+Qed.
+
+Goal True.
+Proof.
+  let x := eval cbn -[block] in (unblock (block 1)) in
+  lazymatch x with
+  | 1 => exact I
+  | _ => fail "cbn treated block transparency as semantically relevant"
+  end.
+Qed.
+
+Opaque block.
+Goal True.
+Proof.
+  let x := eval lazy in (unblock (block 1)) in
+  lazymatch x with
+  | 1 => exact I
+  | _ => fail "lazy treated block opacity as semantically relevant"
+  end.
+Qed.
+Transparent block.
+
+Goal True.
+Proof.
+  let x := eval lazy -[unblock] in (unblock (block 1)) in
+  lazymatch x with
+  | unblock (block 1) => exact I
+  | _ => fail "lazy reduced an opaque unblock redex"
+  end.
+Qed.
+
+Goal True.
+Proof.
+  let x := eval cbn -[unblock] in (unblock (block 1)) in
+  lazymatch x with
+  | unblock (block 1) => exact I
+  | _ => fail "cbn reduced an opaque unblock redex"
+  end.
+Qed.
+
+Goal True.
+Proof.
+  let x := eval lazy -[block] in (run (block 1) (fun x => x)) in
+  lazymatch x with
+  | 1 => exact I
+  | _ => fail "lazy treated block transparency as semantically relevant for run"
+  end.
+Qed.
+
+Goal True.
+Proof.
+  let x := eval lazy -[run] in (run (block 1) (fun x => x)) in
+  lazymatch x with
+  | run (block 1) _ => exact I
+  | _ => fail "lazy reduced an opaque run redex"
+  end.
+Qed.
+
+Opaque Blocked_ind.
+Goal True.
+Proof.
+  let x := eval lazy in (@Blocked_ind nat (fun _ => nat) (fun x => x) (block 1)) in
+  lazymatch x with
+  | @Blocked_ind nat (fun _ => nat) (fun x => x) (block 1) => exact I
+  | _ => fail "lazy reduced an opaque Blocked_ind redex"
+  end.
+Qed.
+Transparent Blocked_ind.
+
+Goal True.
+Proof.
+  let x := eval lazy -[Blocked_ind] in (@Blocked_ind nat (fun _ => nat) (fun x => x) (block 1)) in
+  lazymatch x with
+  | @Blocked_ind nat (fun _ => nat) (fun x => x) (block 1) => exact I
+  | _ => fail "lazy reduced an opaque Blocked_ind redex"
+  end.
+Qed.
+
 Goal LAZY (@block) = @block.
 Proof. syn_refl. Qed.
 
