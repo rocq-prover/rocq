@@ -28,6 +28,7 @@
  (depends
   (ocaml (>= 4.14.0))
   (ocamlfind (and (>= 1.9.1) (or (>= 1.9.8) (<> :os-family "windows"))))
+  (dune :build)
   (zarith (>= 1.11))
   (conf-linux-libc-dev (= :os "linux")))
  (conflicts
@@ -57,6 +58,7 @@ prelude, now living in the rocq-core package."))
  (name rocq-devtools)
  (depends
   (rocq-runtime (= :version))
+  (dune :build)
   (yojson (>= 2.0))
   camlzip)
  (synopsis "Development tools for Rocq")
@@ -77,6 +79,7 @@ This package includes tools to help when developing Rocq projects
 (package
  (name coq-core)
  (depends
+  (dune :build)
   (rocq-runtime (= :version)))
  (synopsis "Compatibility binaries for Coq after the Rocq renaming")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
@@ -96,6 +99,7 @@ through previous Coq commands like coqc coqtop,..."))
 (package
  (name rocq-core)
  (depends
+  (dune :build)
   (rocq-runtime (= :version)))
  (synopsis "The Rocq Prover with its prelude")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
@@ -116,6 +120,7 @@ Corelib.* and Ltac2.* namespaces."))
 (package
  (name coqide-server)
  (depends
+  (dune :build)
   (rocq-runtime (= :version)))
  (synopsis "The Rocq Prover, XML protocol server")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
@@ -131,6 +136,7 @@ structured way."))
 (package
  (name rocqide)
  (depends
+  (dune :build)
   (ocamlfind :build)
   (conf-findutils :build)
   conf-adwaita-icon-theme

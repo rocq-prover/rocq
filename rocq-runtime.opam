@@ -29,9 +29,9 @@ homepage: "https://rocq-prover.org/"
 doc: "https://rocq-prover.org/docs/"
 bug-reports: "https://github.com/rocq-prover/rocq/issues"
 depends: [
-  "dune" {>= "3.8"}
   "ocaml" {>= "4.14.0"}
   "ocamlfind" {>= "1.9.1" & (>= "1.9.8" | os-family != "windows")}
+  "dune" {>= "3.8" & build}
   "zarith" {>= "1.11"}
   "conf-linux-libc-dev" {os = "linux"}
   "odoc" {with-doc}
