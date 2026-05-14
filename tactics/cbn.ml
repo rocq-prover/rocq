@@ -223,7 +223,7 @@ end
 module Stack :
 sig
   open EConstr
-  type 'a app_node = int * 'a array * int
+  type 'a app_node
 
   type cst_member =
     | Cst_const of pconstant
@@ -257,6 +257,7 @@ sig
   val strip_n_app : int -> 'a t -> ('a t * 'a * 'a t) option
   val will_expose_iota : 'a t -> bool
   val list_of_app_stack : 'a t -> 'a list option
+  val app_stack_for_all : ('a -> bool) -> 'a t -> bool
   val args_size : 'a t -> int
   val tail : int -> 'a t -> 'a t
   val nth : 'a t -> int -> 'a
@@ -277,10 +278,9 @@ struct
   (* first releavnt position, arguments, last relevant position *)
 
   (*
-     Invariant that this module must ensure :
-     (behare of direct access to app_node by the rest of Reductionops)
+     Invariant that this module must ensure:
      - in app_node (i,_,j) i <= j
-     - There is no array realocation (outside of debug printing)
+     - There is no array reallocation (outside of debug printing)
    *)
 
   let pr_app_node pr (i,a,j) =
@@ -442,6 +442,15 @@ struct
     let init = match s' with [] -> true | _ -> false in
     Option.init init out
 
+  let app_stack_for_all p s =
+    let rec aux = function
+      | App (i,a,j) :: s ->
+        let rec loop k = k > j || (p a.(k) && loop (succ k)) in
+        loop i && aux s
+      | [] -> true
+      | _ :: _ -> false
+    in aux s
+
   let tail n0 s0 =
     let rec aux n s =
       if Int.equal n 0 then s else
@@ -557,14 +566,7 @@ let stack_zip ?refold sigma =
     ~equal:(CbnClos.equal sigma)
 
 let clos_of_app_stack sigma x args =
-  let rec app_stack_is_id = function
-    | Stack.App (i,a,j) :: s ->
-      let rec loop k = k > j || (CbnClos.is_id_subst a.(k) && loop (succ k)) in
-      loop i && app_stack_is_id s
-    | [] -> true
-    | _ :: _ -> false
-  in
-  if CbnClos.is_id_subst x && app_stack_is_id args then
+  if CbnClos.is_id_subst x && Stack.app_stack_for_all CbnClos.is_id_subst args then
     CbnClos.inject (stack_zip sigma (x,args))
   else match Stack.list_of_app_stack args with
   | Some args -> CbnClos.mk_app x args
