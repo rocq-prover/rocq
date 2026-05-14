@@ -1007,14 +1007,14 @@ let rec whd_state_gen flags ?metas env sigma =
       else fold ()
 
     | PUnblock (_u,_ty,b) ->
-      let b', _ = whrec (b, Stack.empty) in
+      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec (t, stack)
       | _ -> fold ()
       end
 
     | PRun (_u,_ty,_k,b,cont) ->
-      let b', _ = whrec (b, Stack.empty) in
+      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
       | _ -> fold ()
@@ -1109,14 +1109,14 @@ let local_whd_state_gen flags ?metas env sigma =
       else s
 
     | PUnblock (_u,_ty,b) ->
-      let b', _ = whrec (b, Stack.empty) in
+      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec (t, stack)
       | _ -> s
       end
 
     | PRun (_u,_ty,_k,b,cont) ->
-      let b', _ = whrec (b, Stack.empty) in
+      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
       | _ -> s

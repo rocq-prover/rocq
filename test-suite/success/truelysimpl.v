@@ -1,4 +1,4 @@
-(* This file showcases the use of the [run], [block] and [unblock] primitives,
+(* This file showcases the use of the [__run], [__block] and [__unblock] primitives,
    in the context of proof by reflection.
 
    Proof by reflection is a common, and generally very efficient technique for
@@ -75,9 +75,9 @@ Inductive prop :=
    taken from the [Force.Force] module declaring the primitives, to explicitly
    mark the term as "blocked" for (kernel) reduction.
 
-   To build a term of type [Block Prop], one must rely on primitive [block].
+   To build a term of type [Blocked Prop], one must rely on primitive [__block].
 
-     block : forall {T : Type}, T -> Blocked T
+     __block : forall T : Type, T -> Blocked T
 
    We rely on it to define our Ltac2 reification function below. Note that the
    reification process is otherwise straight-forward, and usual. *)
@@ -90,7 +90,7 @@ Ltac2 rec reify (p : constr) : constr :=
   | ?p1 /\ ?p2 => let p1 := reify p1 in let p2 := reify p2 in '(conj $p1 $p2)
   | True       => '(true)
   | False      => '(false)
-  | ?p         => '(inj (block $p))
+  | ?p         => '(inj (__block Prop $p))
   end.
 
 (* We now turn to the reflection function, whose role is to interpret a [prop]
@@ -98,9 +98,9 @@ Ltac2 rec reify (p : constr) : constr :=
 
 Fixpoint reflect (p : prop) : Blocked Prop :=
   match p with
-  | conj p1 p2 => block ((unblock (reflect p1)) /\ (unblock (reflect p2)))
-  | true       => block True
-  | false      => block False
+  | conj p1 p2 => __block Prop ((__unblock Prop (reflect p1)) /\ (__unblock Prop (reflect p2)))
+  | true       => __block Prop True
+  | false      => __block Prop False
   | inj P      => P
   end.
 
@@ -111,19 +111,19 @@ Fixpoint reflect (p : prop) : Blocked Prop :=
    problem in embedded logics like Iris.
 
    The implementation of [reflect] is straight-forward following the types:
-   - In the [true]/[false] cases, a [block] must be used to protect [True] and
+   - In the [true]/[false] cases, a [__block] must be used to protect [True] and
      [False], since they have type [Prop], and we expect a [Blocked Prop].
    - In the [inj P] case, [P] is already blocked so we just take it.
-   - In the [conj p1 p2] case, we use [block] around [_ /\ _], but need to use
-     the [unblock] function to turn the recursive calls into propositions.
+   - In the [conj p1 p2] case, we use [__block] around [_ /\ _], but need to use
+     the [__unblock] function to turn the recursive calls into propositions.
 
-   The [unblock] primitive is basically a destructor for the [Blocked _] type,
-   similarly to how [block _] can be seen as a constructor.
+   The [__unblock] primitive is basically a destructor for the [Blocked _] type,
+   similarly to how [__block _] can be seen as a constructor.
 
-     unblock : forall {T : Type}, Blocked T -> T
+     __unblock : forall T : Type, Blocked T -> T
 
-   In terms of reduction, the combination of [block] and [unblock] is slightly
-   more subtle. In particular, an [unblock] withing a [block] will trigger the
+   In terms of reduction, the combination of [__block] and [__unblock] is slightly
+   more subtle. In particular, an [__unblock] within a [__block] will trigger the
    reduction of its argument, even if the whole term is "blocked". This has to
    do with the fact that the semantics of the new primitives rely on full lazy
    reduction, not just weak-head normalization.
@@ -147,25 +147,31 @@ Fixpoint simplify (p : prop) : prop :=
   end.
 
 (* The simplification function is usual as it operates on [prop]. However, its
-   correctness lemma involves [unblock] since the return value of [reflect] is
+   correctness lemma involves [__unblock] since the return value of [reflect] is
    a blocked proposition. Nonetheless, the proof remains fairly usual since we
-   can use [lazy] to evaluate [unblock (block p)] into [p]. *)
+   can use [lazy] to evaluate [__unblock T (__block T p)] into [p]. *)
 
 Lemma simplify_ok (p : prop) :
-  unblock (reflect (simplify p)) <-> unblock (reflect p).
+  __unblock Prop (reflect (simplify p)) <-> __unblock Prop (reflect p).
 Proof.
   induction p; lazy -[iff]; fold simplify reflect.
   - rewrite <-IHp1; clear IHp1.
     rewrite <-IHp2; clear IHp2.
-    destruct (simplify p1); lazy -[iff]; fold simplify reflect.
-    + destruct (simplify p2); lazy -[iff]; fold simplify reflect.
+    destruct (simplify p1) eqn:Hs1;
+      lazy -[iff]; fold simplify reflect; try rewrite Hs1;
+      lazy -[iff]; fold simplify reflect.
+    + destruct (simplify p2) eqn:Hs2;
+        lazy -[iff]; fold simplify reflect; try rewrite Hs2;
+        lazy -[iff]; fold simplify reflect.
       * apply Logic.iff_trivial.
       * rewrite Logic.and_true. apply Logic.iff_trivial.
       * rewrite Logic.and_false. apply Logic.iff_trivial.
       * apply Logic.iff_trivial.
     + rewrite Logic.true_and. apply Logic.iff_trivial.
     + rewrite Logic.false_and. apply Logic.iff_trivial.
-    + destruct (simplify p2); lazy -[iff]; fold simplify reflect.
+    + destruct (simplify p2) eqn:Hs2;
+        lazy -[iff]; fold simplify reflect; try rewrite Hs2;
+        lazy -[iff]; fold simplify reflect.
       * apply Logic.iff_trivial.
       * rewrite Logic.and_true. apply Logic.iff_trivial.
       * rewrite Logic.and_false. apply Logic.iff_trivial.
@@ -180,26 +186,26 @@ Qed.
 
    Now that we have all the necessary pieces, we need to setup our tactic. The
    first step is to turn our correctness lemma into a proof term that actually
-   triggers the forcing of reduction, using the [run] primitive.
+   triggers the forcing of reduction, using the [__run] primitive.
 
-     run : forall {T K : Type}, Blocked T -> (T -> K) -> K
+     __run : forall T K : Type, Blocked T -> (T -> K) -> K
    
-   The [run] primitive forces the full evaluation of the blocked term it takes
+   The [__run] primitive forces the full evaluation of the blocked term it takes
    as first (non-implicit) argument, respecting the blocked terms it contains,
    and it then feeds the result to its second (non-implicit) argument. *)
 
 Lemma simplify_ok_run (p : prop) :
-  run (block (unblock (reflect (simplify p)) -> unblock (reflect p))) id.
-Proof. lazy; fold reflect simplify. apply simplify_ok. Qed.
+  __run Prop Prop (__block Prop (__unblock Prop (reflect (simplify p)) -> __unblock Prop (reflect p))) id.
+Proof. lazy; fold reflect simplify. apply (proj1 (simplify_ok p)). Qed.
 
 (* The proof of [simplify_ok_run] trivially follows from [simplify_ok].
 
-   Note that we again need a few [block] and [unblock] to make the types work.
+   Note that we again need a few [__block] and [__unblock] to make the types work.
    Said otherwise, we need to "protect" [_ -> _] similarly to what we did with
    [_ /\ _] in [reflect] earlier.
 
    Note also that it is essential that the type of [simplify_ok_run] is of the
-   form [run _ _]. Indeed, we need [run] to get in the way of the type-checker
+   form [__run _ _ _ _]. Indeed, we need [__run] to get in the way of the type-checker
    when [simplify_of_run] is applied to a reified proposition, and its type is
    reduced to a (non-dependent) product.
 
