@@ -25,6 +25,20 @@ Ltac syn_refl := lazymatch goal with |- ?t = ?t => exact eq_refl end.
 Notation LAZY t := (ltac:(let x := eval lazy in t in exact x)) (only parsing).
 Notation WHNF t := (ltac:(let x := eval lazy head in t in exact x)) (only parsing).
 
+Definition force_test_idT (A : Type) := A.
+
+(* Regression: stuck [run] reification must not preserve argument 1 as if
+   [run] had the same principal argument as [block]/[unblock].  The hidden
+   return type argument should be normalized here. *)
+Goal True.
+Proof.
+  let x := eval lazy in (@run nat (force_test_idT nat)) in
+  lazymatch x with
+  | @run nat nat => exact I
+  | _ => fail "lazy preserved the wrong run argument"
+  end.
+Qed.
+
 Goal True.
 Proof.
   let x := eval lazy -[block] in (unblock (block 1)) in

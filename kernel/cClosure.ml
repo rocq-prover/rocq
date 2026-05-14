@@ -2666,9 +2666,12 @@ and norm_head info tab m =
       | FConstruct (c,args) ->
         let c = mkConstructU c in
         if Array.is_empty args then c else mkApp (c, Array.map (kl info tab) args)
-      | FPrimitive ((CPrimitives.Unblock | CPrimitives.Block | CPrimitives.Run), c, _, args) ->
+      | FPrimitive ((CPrimitives.Unblock | CPrimitives.Block), c, _, args) ->
         mkApp (mkConstU c,
                Array.mapi (fun i m -> if i <> 1 then kl info tab m else term_of_fconstr ~info ~tab m) args)
+      | FPrimitive (CPrimitives.Run, c, _, args) ->
+        mkApp (mkConstU c,
+               Array.mapi (fun i m -> if i = 2 then term_of_fconstr ~info ~tab m else kl info tab m) args)
       | FPrimitive (CPrimitives.Blocked_ind, c, _, args) ->
         mkApp (mkConstU c,
                Array.mapi (fun i m -> if i = 3 then term_of_fconstr ~info ~tab m else kl info tab m) args)
