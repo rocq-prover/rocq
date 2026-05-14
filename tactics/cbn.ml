@@ -260,8 +260,6 @@ sig
   val args_size : 'a t -> int
   val tail : int -> 'a t -> 'a t
   val nth : 'a t -> int -> 'a
-  val best_state_opt : inject:(constr -> 'a) -> equal:('a -> 'a -> bool) ->
-    'a t -> 'a Cst_stack.t -> ('a * 'a t) option
   val best_state : inject:(constr -> 'a) -> equal:('a -> 'a -> bool) -> 'a * 'a t -> 'a Cst_stack.t -> 'a * 'a t
   val zip : ?refold:bool -> Evd.evar_map ->
     force:('a -> constr) ->
@@ -1246,152 +1244,11 @@ let norm_cbn flags env sigma t =
       | d -> d in
     push_rel d env
   in
-  let push_rel_context_check ctx env = List.fold_right push_rel_check_zeta ctx env in
-  let push_assum na ty env = push_rel (LocalAssum (na, ty)) env in
-  let push_rec_types names types env =
-    let decls = Array.map2_i
-        (fun i na ty -> LocalAssum (na, CbnClos.force sigma (CbnClos.lift i ty)))
-        names types
-    in
-    Array.fold_left (fun env decl -> push_rel decl env) env decls
-  in
+  (* Refold the weak-head state before descending recursively.  If we map over
+     the delayed stack directly, application arguments are normalized before
+     enclosing case/fix/constant frames can refold or discard them. *)
   let rec strongrec env t =
-    let state = whd_state_gen flags env sigma (t, Stack.empty) in
-    norm_state env state
-  and norm_state env (x, stack) =
-    norm_zip env (norm_head env x) stack
-  and norm_head env x =
-    match CbnClos.kind sigma x with
-    | Rel _ | Var _ | Meta _ | Sort _ | Const _ | Ind _ | Construct _
-    | Int _ | Float _ | String _ -> CbnClos.force sigma x
-    | Evar (ev, args) -> mkEvar (ev, map_evar_instance env ev args)
-    | Cast (c,k,t) -> mkCast (strongrec env c, k, strongrec env t)
-    | Prod (na,t,c) ->
-      let t' = strongrec env t in
-      let env' = push_assum na (CbnClos.force sigma t) env in
-      let c' = strongrec env' (CbnClos.liftn 1 c) in
-      mkProd (na,t',c')
-    | Lambda (na,t,c) ->
-      let t' = strongrec env t in
-      let env' = push_assum na (CbnClos.force sigma t) env in
-      let c' = strongrec env' (CbnClos.liftn 1 c) in
-      mkLambda (na,t',c')
-    | LetIn (na,b,t,c) ->
-      let b' = strongrec env b in
-      let t' = strongrec env t in
-      let env' =
-        if RedFlags.red_set flags RedFlags.fZETA then
-          push_rel (LocalDef (na, CbnClos.force sigma b, CbnClos.force sigma t)) env
-        else push_assum na (CbnClos.force sigma t) env
-      in
-      let c' = strongrec env' (CbnClos.liftn 1 c) in
-      mkLetIn (na,b',t',c')
-    | App (f,args) -> mkApp (strongrec env f, Array.map (strongrec env) args)
-    | Case (ci,u,pms,p,iv,d,brs) ->
-      norm_case env ci u pms p iv (strongrec env d) brs
-    | Fix fix -> mkFix (norm_fix env fix)
-    | CoFix cofix -> mkCoFix (norm_cofix env cofix)
-    | Proj (p,r,c) -> mkProj (p,r,strongrec env c)
-    | Array (u,t,def,ty) ->
-      mkArray (u, Array.map (strongrec env) t, strongrec env def, strongrec env ty)
-  and norm_zip env f = function
-    | [] -> f
-    | Stack.App (i,a,j) :: s ->
-      let a' = if Int.equal i 0 && Int.equal j (Array.length a - 1)
-               then a
-               else Array.sub a i (j - i + 1) in
-      norm_zip env (mkApp (f, Array.map (strongrec env) a')) s
-    | Stack.Case ((ci,u,pms,p,iv,brs),cst_l) :: s ->
-      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) s cst_l with
-      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-      | None ->
-        let case = norm_case env ci u pms p iv f brs in
-        norm_zip env case s
-      end
-    | Stack.Proj (p,r,cst_l) :: s ->
-      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) s cst_l with
-      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-      | None -> norm_zip env (mkProj (p,r,f)) s
-      end
-    | Stack.Fix (fix,st,cst_l) :: s ->
-      let stack = st @ Stack.append_app [|CbnClos.inject f|] s in
-      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
-      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-      | None ->
-        let fix = mkFix (norm_fix env fix) in
-        norm_zip env fix stack
-      end
-    | Stack.Primitive (_p,c,args,_kargs,_) :: s ->
-      norm_zip env (mkConstU c) (args @ Stack.append_app [|CbnClos.inject f|] s)
-    | Stack.Cst {const;params;cst_l} :: s ->
-      let stack = params @ Stack.append_app [|CbnClos.inject f|] s in
-      begin match const with
-      | Stack.Cst_const (c,u) ->
-        begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
-        | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-        | None -> norm_zip env (mkConstU (c, EInstance.make u)) stack
-        end
-      | Stack.Cst_proj (p,r) ->
-        match Stack.decomp stack with
-        | None -> assert false
-        | Some (arg, stack) ->
-          begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
-          | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-          | None -> norm_zip env (mkProj (p,r,strongrec env arg)) stack
-          end
-      end
-  and map_evar_instance env ev args =
-    let rec map ctx args = match ctx, SList.view args with
-    | [], None -> SList.empty
-    | decl :: ctx, Some (Some c, rem) ->
-      let c' = strongrec env c in
-      let rem' = map ctx rem in
-      let id = Context.Named.Declaration.get_id decl in
-      if isVarId sigma id c' then SList.default rem'
-      else SList.cons c' rem'
-    | decl :: ctx, Some (None, rem) ->
-      let id = Context.Named.Declaration.get_id decl in
-      let c' = strongrec env (CbnClos.inject (mkVar id)) in
-      let rem' = map ctx rem in
-      if isVarId sigma id c' then SList.default rem'
-      else SList.cons c' rem'
-    | [], Some _ | _ :: _, None -> assert false
-    in
-    let EvarInfo evi = Evd.find sigma ev in
-    let ctx = Evd.evar_filtered_context evi in
-    map ctx args
-  and norm_invert env = function
-    | NoInvert -> NoInvert
-    | CaseInvert { indices } -> CaseInvert { indices = Array.map (strongrec env) indices }
-  and norm_case env ci u pms ((nas_ret,pbody),r) iv d brs =
-    let pms' = Array.map (strongrec env) pms in
-    let pms_for_ctx = Array.map (CbnClos.force sigma) pms in
-    let p_for_ctx = CbnClos.force_return sigma ((nas_ret,pbody),r) in
-    let iv_for_ctx = CbnClos.force_invert sigma iv in
-    let brs_for_ctx = CbnClos.force_branches sigma brs in
-    let (_, _, _, ((ctx_ret, _), _), _, _, brs_ctx) =
-      EConstr.annotate_case env sigma (ci, u, pms_for_ctx, p_for_ctx, iv_for_ctx, d, brs_for_ctx) in
-    let p_env = push_rel_context_check ctx_ret env in
-    let p' = ((nas_ret, strongrec p_env (CbnClos.liftn (List.length ctx_ret) pbody)), r) in
-    let iv' = norm_invert env iv in
-    let brs' = Array.map2
-        (fun (nas,b) (ctx,_) ->
-           let env' = push_rel_context_check ctx env in
-           (nas, strongrec env' (CbnClos.liftn (List.length ctx) b)))
-        brs brs_ctx
-    in
-    mkCase (ci,u,pms',p',iv',d,brs')
-  and norm_fix env ((ri,n),(names,types,bodies)) =
-    let nbodies = Array.length bodies in
-    let types' = Array.map (strongrec env) types in
-    let env_body = push_rec_types names types env in
-    let bodies' = Array.map (fun b -> strongrec env_body (CbnClos.liftn nbodies b)) bodies in
-    ((ri,n),(names,types',bodies'))
-  and norm_cofix env (n,(names,types,bodies)) =
-    let nbodies = Array.length bodies in
-    let types' = Array.map (strongrec env) types in
-    let env_body = push_rec_types names types env in
-    let bodies' = Array.map (fun b -> strongrec env_body (CbnClos.liftn nbodies b)) bodies in
-    (n,(names,types',bodies'))
+    Termops.map_constr_with_full_binders env sigma
+      push_rel_check_zeta strongrec env (whd_cbn flags env sigma t)
   in
-  strongrec env (CbnClos.inject t)
+  strongrec env t
