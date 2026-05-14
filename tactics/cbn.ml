@@ -99,24 +99,43 @@ end
 module CbnClos = struct
   open EConstr
 
-  type t = { term : constr; subst : t Esubst.subs }
+  (* [force] is deliberately cached for non-identity substitutions: several
+     refolding/progress checks compare the same delayed closure repeatedly. *)
+  type t = { term : constr; subst : t Esubst.subs; mutable forced : constr option }
 
   type view = (t, t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
 
   let id_subst = Esubst.subs_id 0
-  let inject term = { term; subst = id_subst }
+  let inject term = { term; subst = id_subst; forced = None }
   let mk_clos subst term =
-    if Esubst.is_subs_id subst then inject term else { term; subst }
+    if Esubst.is_subs_id subst then inject term else { term; subst; forced = None }
   let mk_clos_vect subst v = Array.map (mk_clos subst) v
   let lift n c =
-    if Int.equal n 0 then c else { c with subst = Esubst.subs_shft (n, c.subst) }
+    if Int.equal n 0 then c else { term = c.term; subst = Esubst.subs_shft (n, c.subst); forced = None }
   let liftn n c =
-    if Int.equal n 0 then c else { c with subst = Esubst.subs_liftn n c.subst }
+    if Int.equal n 0 then c else { term = c.term; subst = Esubst.subs_liftn n c.subst; forced = None }
+  let is_id_subst c = Esubst.is_subs_id c.subst
   let subst_cons v c = mk_clos (Esubst.subs_cons v c.subst) c.term
+
+  (* Closure-level application used by internal continuations that need to keep
+     constructor/constant spines without forcing all arguments. *)
+  let mk_app f args =
+    match args with
+    | [] -> f
+    | _ :: _ ->
+      let nargs = List.length args in
+      let term = mkApp (mkRel 1, Array.init nargs (fun i -> mkRel (i + 2))) in
+      let subst = List.fold_right Esubst.subs_cons (f :: args) id_subst in
+      mk_clos subst term
 
   let rec force sigma c =
     if Esubst.is_subs_id c.subst then c.term
-    else EConstr.Vars.esubst (fun k v -> force sigma (lift k v)) c.subst c.term
+    else match c.forced with
+    | Some t -> t
+    | None ->
+      let t = EConstr.Vars.esubst (fun k v -> force sigma (lift k v)) c.subst c.term in
+      c.forced <- Some t;
+      t
 
   let force_vect sigma v = Array.map (force sigma) v
   let force_under sigma n c = force sigma (liftn n c)
@@ -241,6 +260,8 @@ sig
   val args_size : 'a t -> int
   val tail : int -> 'a t -> 'a t
   val nth : 'a t -> int -> 'a
+  val best_state_opt : inject:(constr -> 'a) -> equal:('a -> 'a -> bool) ->
+    'a t -> 'a Cst_stack.t -> ('a * 'a t) option
   val best_state : inject:(constr -> 'a) -> equal:('a -> 'a -> bool) -> 'a * 'a t -> 'a Cst_stack.t -> 'a * 'a t
   val zip : ?refold:bool -> Evd.evar_map ->
     force:('a -> constr) ->
@@ -443,17 +464,22 @@ struct
     | None -> raise Not_found
 
   (** This function breaks the abstraction of Cst_stack ! *)
-  let best_state ~inject ~equal (_,sk as s) l =
+  let best_state_opt ~inject ~equal sk l =
     let rec aux sk def = function
       |(_,_,_,{volatile=true}) -> def
-      |(cst, params, [], _) -> (inject cst, append_app_list (List.rev params) sk)
+      |(cst, params, [], _) -> Some (inject cst, append_app_list (List.rev params) sk)
       |(cst, params, (i,t)::q, vol) -> match decomp sk with
         | Some (el,sk') when equal el t.(i) ->
           if i = pred (Array.length t)
           then aux sk' def (cst, params, q, vol)
           else aux sk' def (cst, params, (succ i,t)::q, vol)
         | _ -> def
-    in List.fold_left (aux sk) s l
+    in List.fold_left (aux sk) None l
+
+  let best_state ~inject ~equal (_,sk as s) l =
+    match best_state_opt ~inject ~equal sk l with
+    | Some s -> s
+    | None -> s
 
   let constr_of_cst_member force inject f sk =
     match f with
@@ -532,6 +558,20 @@ let stack_zip ?refold sigma =
     ~inject:CbnClos.inject
     ~equal:(CbnClos.equal sigma)
 
+let clos_of_app_stack sigma x args =
+  let rec app_stack_is_id = function
+    | Stack.App (i,a,j) :: s ->
+      let rec loop k = k > j || (CbnClos.is_id_subst a.(k) && loop (succ k)) in
+      loop i && app_stack_is_id s
+    | [] -> true
+    | _ :: _ -> false
+  in
+  if CbnClos.is_id_subst x && app_stack_is_id args then
+    CbnClos.inject (stack_zip sigma (x,args))
+  else match Stack.list_of_app_stack args with
+  | Some args -> CbnClos.mk_app x args
+  | None -> assert false
+
 let apply_subst sigma cst_l t stack =
   let rec aux cst_l t stack =
     match (Stack.decomp stack, CbnClos.kind sigma t) with
@@ -604,7 +644,7 @@ let contract_cofix env sigma ?reference ?current_refold (bodynum,(names,types,bo
   let raw_typedbodies = raw_rec_declaration typedbodies in
   let base_subst = bodies.(bodynum).CbnClos.subst in
   let current_refold = Option.map
-      (fun (cst, params) -> CbnClos.inject (applist (cst, List.rev_map (CbnClos.force sigma) params)))
+      (fun (cst, params) -> CbnClos.mk_app (CbnClos.inject cst) (List.rev params))
       current_refold in
   let make_Fi j =
     let ind = nbodies-j-1 in
@@ -623,12 +663,14 @@ let singleton_best_cst = function
   | [_] as cst_l -> Cst_stack.best_cst cst_l
   | [] | _ :: _ :: _ -> None
 
-let reduce_and_refold_cofix recfun env sigma cst_l cofix sk =
+let reduce_and_refold_cofix recfun env sigma cst_l ((_,(_,_,bodies)) as cofix) sk =
   let current_refold = singleton_best_cst cst_l in
+  let reference =
+    if Array.length bodies > 1 then Cst_stack.reference sigma (CbnClos.force sigma) cst_l
+    else None
+  in
   let raw_answer =
-    contract_cofix env sigma
-      ?reference:(Cst_stack.reference sigma (CbnClos.force sigma) cst_l)
-      ?current_refold cofix in
+    contract_cofix env sigma ?reference ?current_refold cofix in
   let (x, (t, sk')) = apply_subst sigma Cst_stack.empty raw_answer sk in
   let t = match cst_l, current_refold with
     | [], _ | _, Some _ -> t
@@ -646,7 +688,7 @@ let contract_fix env sigma ?reference ?current_refold ((recindices,bodynum),(nam
     let raw_typedbodies = raw_rec_declaration typedbodies in
     let base_subst = bodies.(bodynum).CbnClos.subst in
     let current_refold = Option.map
-        (fun (cst, params) -> CbnClos.inject (applist (cst, List.rev_map (CbnClos.force sigma) params)))
+        (fun (cst, params) -> CbnClos.mk_app (CbnClos.inject cst) (List.rev params))
         current_refold in
     let make_Fi j =
       let ind = nbodies-j-1 in
@@ -663,12 +705,14 @@ let contract_fix env sigma ?reference ?current_refold ((recindices,bodynum),(nam
     replace the fixpoint by the best constant from [cst_l]
     Other rels are directly substituted by constants "magically found from the
     context" in contract_fix *)
-let reduce_and_refold_fix recfun env sigma cst_l fix sk =
+let reduce_and_refold_fix recfun env sigma cst_l (((_,_),(_,_,bodies)) as fix) sk =
   let current_refold = singleton_best_cst cst_l in
+  let reference =
+    if Array.length bodies > 1 then Cst_stack.reference sigma (CbnClos.force sigma) cst_l
+    else None
+  in
   let raw_answer =
-    contract_fix env sigma
-      ?reference:(Cst_stack.reference sigma (CbnClos.force sigma) cst_l)
-      ?current_refold fix in
+    contract_fix env sigma ?reference ?current_refold fix in
   let (x, (t, sk')) = apply_subst sigma Cst_stack.empty raw_answer sk in
   let t = match cst_l, current_refold with
     | [], _ | _, Some _ -> t
@@ -752,13 +796,14 @@ let match_sort ps s psubst =
 
 let rec match_arg_pattern whrec env sigma ctx psubst p t =
   let open Declarations in
-  let t = CbnClos.force sigma t in
-  let t' = EConstr.it_mkLambda_or_LetIn t ctx in
   match p with
-  | EHole i -> Partial_subst.add_term i t' psubst
+  | EHole i ->
+      let t = CbnClos.force sigma t in
+      let t' = EConstr.it_mkLambda_or_LetIn t ctx in
+      Partial_subst.add_term i t' psubst
   | EHoleIgnored -> psubst
   | ERigid (ph, es) ->
-      let t, stk = whrec ctx (CbnClos.inject t, Stack.empty) in
+      let t, stk = whrec ctx (t, Stack.empty) in
       let psubst = match_rigid_arg_pattern whrec env sigma ctx psubst ph t in
       let psubst, stk = apply_rule whrec env sigma ctx psubst es stk in
       match stk with
@@ -882,7 +927,7 @@ let rec whd_state_gen ?csts flags env sigma =
     match c0 with
     | Rel n when RedFlags.red_set flags RedFlags.fDELTA ->
       (match lookup_rel n env with
-      | LocalDef (_,body,_) -> whrec Cst_stack.empty (CbnClos.inject (lift n body), stack)
+      | LocalDef (_,body,_) -> whrec Cst_stack.empty (CbnClos.lift n (CbnClos.inject body), stack)
       | _ -> fold ())
     | Var id when RedFlags.red_set flags (RedFlags.fVAR id) ->
       (match lookup_named id env with
@@ -988,7 +1033,7 @@ let rec whd_state_gen ?csts flags env sigma =
             if not b then fold () else
             match Stack.strip_app stack with
             | args, (Stack.Fix (f,s',cst_l)::s'') when RedFlags.red_set flags RedFlags.fFIX ->
-                let x' = CbnClos.inject (stack_zip sigma (x, args)) in
+                let x' = clos_of_app_stack sigma x args in
                 let out_sk = s' @ (Stack.append_app [|x'|] s'') in
                 reduce_and_refold_fix whrec env sigma cst_l f out_sk
             | _ -> fold ()
@@ -1075,11 +1120,11 @@ let rec whd_state_gen ?csts flags env sigma =
         |args, (Stack.Proj (p,_,_)::s') when use_match ->
           whrec Cst_stack.empty (Stack.nth args (Projection.npars p + Projection.arg p), s')
         |args, (Stack.Fix (f,s',cst_l)::s'') when use_fix ->
-          let x' = CbnClos.inject (stack_zip sigma (x, args)) in
+          let x' = clos_of_app_stack sigma x args in
           let out_sk = s' @ (Stack.append_app [|x'|] s'') in
           reduce_and_refold_fix whrec env sigma cst_l f out_sk
         |args, (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
-          let x' = CbnClos.inject (stack_zip sigma (x, args)) in
+          let x' = clos_of_app_stack sigma x args in
           begin match remains with
           | [] ->
             (match const with
@@ -1147,7 +1192,7 @@ let rec whd_state_gen ?csts flags env sigma =
                | None -> ((CbnClos.inject (mkApp (mkConstU kn, args)), s), cst_l)
              end
         |args, (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
-          let x' = CbnClos.inject (stack_zip sigma (x, args)) in
+          let x' = clos_of_app_stack sigma x args in
           begin match remains with
           | [] ->
             (match const with
@@ -1257,52 +1302,43 @@ let norm_cbn flags env sigma t =
                else Array.sub a i (j - i + 1) in
       norm_zip env (mkApp (f, Array.map (strongrec env) a')) s
     | Stack.Case ((ci,u,pms,p,iv,brs),cst_l) :: s ->
-      let raw_case =
-        mkCase (ci, u, Array.map (CbnClos.force sigma) pms,
-          CbnClos.force_return sigma p, CbnClos.force_invert sigma iv,
-          f, Array.map (CbnClos.force_branch sigma) brs)
-      in
-      let raw = (CbnClos.inject raw_case, s) in
-      let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded == raw then
+      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) s cst_l with
+      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      | None ->
         let case = norm_case env ci u pms p iv f brs in
         norm_zip env case s
-      else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      end
     | Stack.Proj (p,r,cst_l) :: s ->
-      let proj = mkProj (p,r,f) in
-      let raw = (CbnClos.inject proj, s) in
-      let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded == raw then norm_zip env proj s
-      else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) s cst_l with
+      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      | None -> norm_zip env (mkProj (p,r,f)) s
+      end
     | Stack.Fix (fix,st,cst_l) :: s ->
       let stack = st @ Stack.append_app [|CbnClos.inject f|] s in
-      let raw = (CbnClos.inject (mkFix (CbnClos.force_fix sigma fix)), stack) in
-      let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded == raw then
+      begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
+      | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      | None ->
         let fix = mkFix (norm_fix env fix) in
         norm_zip env fix stack
-      else norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+      end
     | Stack.Primitive (_p,c,args,_kargs,_) :: s ->
       norm_zip env (mkConstU c) (args @ Stack.append_app [|CbnClos.inject f|] s)
     | Stack.Cst {const;params;cst_l} :: s ->
       let stack = params @ Stack.append_app [|CbnClos.inject f|] s in
-      let raw = match const with
-        | Stack.Cst_const (c,u) ->
-          (CbnClos.inject (mkConstU (c, EInstance.make u)), stack)
-        | Stack.Cst_proj (p,r) ->
-          match Stack.decomp stack with
-          | Some (arg, stack) ->
-            (CbnClos.inject (mkProj (p, r, CbnClos.force sigma arg)), stack)
-          | None -> assert false
-      in
-      let refolded = Stack.best_state ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) raw cst_l in
-      if refolded != raw then norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
-      else begin match const with
-      | Stack.Cst_const (c,u) -> norm_zip env (mkConstU (c, EInstance.make u)) stack
+      begin match const with
+      | Stack.Cst_const (c,u) ->
+        begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
+        | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+        | None -> norm_zip env (mkConstU (c, EInstance.make u)) stack
+        end
       | Stack.Cst_proj (p,r) ->
         match Stack.decomp stack with
-        | Some (arg, stack) -> norm_zip env (mkProj (p,r,strongrec env arg)) stack
         | None -> assert false
+        | Some (arg, stack) ->
+          begin match Stack.best_state_opt ~inject:CbnClos.inject ~equal:(CbnClos.equal sigma) stack cst_l with
+          | Some refolded -> norm_zip env (CbnClos.force sigma (fst refolded)) (snd refolded)
+          | None -> norm_zip env (mkProj (p,r,strongrec env arg)) stack
+          end
       end
   and map_evar_instance env ev args =
     let rec map ctx args = match ctx, SList.view args with
