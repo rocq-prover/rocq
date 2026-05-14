@@ -341,10 +341,7 @@ let two_sort_univ_names =
   let u2 = Names.(Name (Id.of_string "u2")) in
   { quals = [|s1; s2|]; univs = [|u1; u2|] }
 
-let two_sort_univs =
-  AbstractContext.make two_sort_univ_names PConstraints.empty
-
-let blocked_ind_univs =
+let two_sort_elim_univs =
   let csts =
     PConstraints.enforce_elim_to (Sorts.Quality.var 0) (Sorts.Quality.var 1) PConstraints.empty
   in
@@ -610,8 +607,8 @@ let univs = function
   | Arraycopy
   | Arraylength -> one_univ
 
-  | Run -> two_sort_univs
-  | Blocked_ind -> blocked_ind_univs
+  | Run
+  | Blocked_ind -> two_sort_elim_univs
 
   | Block
   | Unblock -> one_sort_univ

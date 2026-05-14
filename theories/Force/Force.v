@@ -6,7 +6,7 @@ Primitive block@{s;u} : forall (T : Type@{s;u}), T -> Blocked@{s;u} T := #block.
 Primitive unblock@{s;u} : forall (T : Type@{s;u}), Blocked@{s;u} T -> T := #unblock.
 #[global] Arguments unblock {_} _.
 
-Primitive run@{s sk;u uk} : forall (T : Type@{s;u}) (K : Type@{sk;uk}), Blocked@{s;u} T -> (T -> K) -> K := #run.
+Primitive run@{s sk;u uk | s -> sk} : forall (T : Type@{s;u}) (K : Type@{sk;uk}), Blocked@{s;u} T -> (T -> K) -> K := #run.
 #[global] Arguments run {_ _} _ _.
 
 Primitive Blocked_ind@{s sp;u up | s -> sp} :
