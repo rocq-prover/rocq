@@ -1202,14 +1202,13 @@ let norm_cbn flags env sigma t =
     push_rel d env
   in
   let push_rel_context_check ctx env = List.fold_right push_rel_check_zeta ctx env in
-  let dummy_type = mkProp in
-  let push_assum na env = push_rel (LocalAssum (na, dummy_type)) env in
-  let push_assums nas env = Array.fold_right push_assum nas env in
-  let push_n_assums n env =
-    let na = EConstr.anonR in
-    let rec aux n env =
-      if Int.equal n 0 then env else aux (pred n) (push_assum na env)
-    in aux n env
+  let push_assum na ty env = push_rel (LocalAssum (na, ty)) env in
+  let push_rec_types names types env =
+    let decls = Array.map2_i
+        (fun i na ty -> LocalAssum (na, CbnClos.force sigma (CbnClos.lift i ty)))
+        names types
+    in
+    Array.fold_left (fun env decl -> push_rel decl env) env decls
   in
   let rec strongrec env t =
     let state = whd_state_gen flags env sigma (t, Stack.empty) in
@@ -1220,15 +1219,17 @@ let norm_cbn flags env sigma t =
     match CbnClos.kind sigma x with
     | Rel _ | Var _ | Meta _ | Sort _ | Const _ | Ind _ | Construct _
     | Int _ | Float _ | String _ -> CbnClos.force sigma x
-    | Evar (ev, args) -> mkEvar (ev, SList.Skip.map (strongrec env) args)
+    | Evar (ev, args) -> mkEvar (ev, map_evar_instance env ev args)
     | Cast (c,k,t) -> mkCast (strongrec env c, k, strongrec env t)
     | Prod (na,t,c) ->
       let t' = strongrec env t in
-      let c' = strongrec (push_assum na env) (CbnClos.liftn 1 c) in
+      let env' = push_assum na (CbnClos.force sigma t) env in
+      let c' = strongrec env' (CbnClos.liftn 1 c) in
       mkProd (na,t',c')
     | Lambda (na,t,c) ->
       let t' = strongrec env t in
-      let c' = strongrec (push_assum na env) (CbnClos.liftn 1 c) in
+      let env' = push_assum na (CbnClos.force sigma t) env in
+      let c' = strongrec env' (CbnClos.liftn 1 c) in
       mkLambda (na,t',c')
     | LetIn (na,b,t,c) ->
       let b' = strongrec env b in
@@ -1236,7 +1237,7 @@ let norm_cbn flags env sigma t =
       let env' =
         if RedFlags.red_set flags RedFlags.fZETA then
           push_rel (LocalDef (na, CbnClos.force sigma b, CbnClos.force sigma t)) env
-        else push_assum na env
+        else push_assum na (CbnClos.force sigma t) env
       in
       let c' = strongrec env' (CbnClos.liftn 1 c) in
       mkLetIn (na,b',t',c')
@@ -1303,51 +1304,57 @@ let norm_cbn flags env sigma t =
         | Some (arg, stack) -> norm_zip env (mkProj (p,r,strongrec env arg)) stack
         | None -> assert false
       end
+  and map_evar_instance env ev args =
+    let rec map ctx args = match ctx, SList.view args with
+    | [], None -> SList.empty
+    | decl :: ctx, Some (Some c, rem) ->
+      let c' = strongrec env c in
+      let rem' = map ctx rem in
+      let id = Context.Named.Declaration.get_id decl in
+      if isVarId sigma id c' then SList.default rem'
+      else SList.cons c' rem'
+    | decl :: ctx, Some (None, rem) ->
+      let id = Context.Named.Declaration.get_id decl in
+      let c' = strongrec env (CbnClos.inject (mkVar id)) in
+      let rem' = map ctx rem in
+      if isVarId sigma id c' then SList.default rem'
+      else SList.cons c' rem'
+    | [], Some _ | _ :: _, None -> assert false
+    in
+    let EvarInfo evi = Evd.find sigma ev in
+    let ctx = Evd.evar_filtered_context evi in
+    map ctx args
   and norm_invert env = function
     | NoInvert -> NoInvert
     | CaseInvert { indices } -> CaseInvert { indices = Array.map (strongrec env) indices }
   and norm_case env ci u pms ((nas_ret,pbody),r) iv d brs =
     let pms' = Array.map (strongrec env) pms in
-    let p_env = push_assums nas_ret env in
-    let p' = ((nas_ret, strongrec p_env (CbnClos.liftn (Array.length nas_ret) pbody)), r) in
+    let pms_for_ctx = Array.map (CbnClos.force sigma) pms in
+    let p_for_ctx = CbnClos.force_return sigma ((nas_ret,pbody),r) in
+    let iv_for_ctx = CbnClos.force_invert sigma iv in
+    let brs_for_ctx = CbnClos.force_branches sigma brs in
+    let (_, _, _, ((ctx_ret, _), _), _, _, brs_ctx) =
+      EConstr.annotate_case env sigma (ci, u, pms_for_ctx, p_for_ctx, iv_for_ctx, d, brs_for_ctx) in
+    let p_env = push_rel_context_check ctx_ret env in
+    let p' = ((nas_ret, strongrec p_env (CbnClos.liftn (List.length ctx_ret) pbody)), r) in
     let iv' = norm_invert env iv in
-    let has_branch_lets =
-      let rec loop i =
-        i < Array.length ci.ci_cstr_nargs &&
-        (not (Int.equal ci.ci_cstr_nargs.(i) ci.ci_cstr_ndecls.(i)) || loop (succ i))
-      in loop 0
-    in
-    let brs' =
-      if has_branch_lets then
-        let pms_for_ctx = Array.map (CbnClos.force sigma) pms in
-        let p_for_ctx = CbnClos.force_return sigma ((nas_ret,pbody),r) in
-        let iv_for_ctx = CbnClos.force_invert sigma iv in
-        let brs_for_ctx = CbnClos.force_branches sigma brs in
-        let (_, _, _, _, _, _, brs_ctx) =
-          EConstr.annotate_case env sigma (ci, u, pms_for_ctx, p_for_ctx, iv_for_ctx, d, brs_for_ctx) in
-        Array.map2
-          (fun (nas,b) (ctx,_) ->
-             let env' = push_rel_context_check ctx env in
-             (nas, strongrec env' (CbnClos.liftn (List.length ctx) b)))
-          brs brs_ctx
-      else
-        Array.map
-          (fun (nas,b) ->
-             let env' = push_assums nas env in
-             (nas, strongrec env' (CbnClos.liftn (Array.length nas) b)))
-          brs
+    let brs' = Array.map2
+        (fun (nas,b) (ctx,_) ->
+           let env' = push_rel_context_check ctx env in
+           (nas, strongrec env' (CbnClos.liftn (List.length ctx) b)))
+        brs brs_ctx
     in
     mkCase (ci,u,pms',p',iv',d,brs')
   and norm_fix env ((ri,n),(names,types,bodies)) =
     let nbodies = Array.length bodies in
     let types' = Array.map (strongrec env) types in
-    let env_body = push_n_assums nbodies env in
+    let env_body = push_rec_types names types env in
     let bodies' = Array.map (fun b -> strongrec env_body (CbnClos.liftn nbodies b)) bodies in
     ((ri,n),(names,types',bodies'))
   and norm_cofix env (n,(names,types,bodies)) =
     let nbodies = Array.length bodies in
     let types' = Array.map (strongrec env) types in
-    let env_body = push_n_assums nbodies env in
+    let env_body = push_rec_types names types env in
     let bodies' = Array.map (fun b -> strongrec env_body (CbnClos.liftn nbodies b)) bodies in
     (n,(names,types',bodies'))
   in
