@@ -278,13 +278,6 @@ let rec infer_fterm cv_pb infos variances hd stk =
     let variances = infer_fterm CONV infos variances m [] in
     let variances = infer_fterm CONV infos variances (mk_clos e k) [] in
     infer_stack infos variances stk
-  | FBlockedInd (_, ty, p, ih, m, e) ->
-    let variances = infer_fterm CONV infos variances (mk_clos e ty) [] in
-    let variances = infer_fterm CONV infos variances (mk_clos e p) [] in
-    let variances = infer_fterm CONV infos variances (mk_clos e ih) [] in
-    let variances = infer_fterm CONV infos variances m [] in
-    infer_stack infos variances stk
-
   | FLAZY _ -> infer_stack infos variances stk
   | FApp (h, args) -> infer_fterm cv_pb infos variances h (append_stack args stk)
   | FLetIn (_, v, _, bd, e) ->
@@ -336,10 +329,6 @@ and infer_stack infos variances (stk:CClosure.stack) =
         let variances = infer_fterm CONV infos variances (mk_clos e ty1) [] in
         let variances = infer_fterm CONV infos variances (mk_clos e ty2) [] in
         infer_fterm CONV infos variances (mk_clos e k) []
-      | Zblockedind (_, ty, p, ih, e, _) ->
-        let variances = infer_fterm CONV infos variances (mk_clos e ty) [] in
-        let variances = infer_fterm CONV infos variances (mk_clos e p) [] in
-        infer_fterm CONV infos variances (mk_clos e ih) []
     in
     infer_stack infos variances stk
 

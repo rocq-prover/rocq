@@ -341,37 +341,6 @@ let mkSProp = T (Sort Sorts.sprop)
 let mkProp  = T (Sort Sorts.prop)
 let mkSet   = T (Sort Sorts.set)
 
-let make_force_constant name =
-  let mp = List.rev_map Id.of_string ["Force"; "Force"] in
-  let force_modpath = ModPath.MPfile (DirPath.make mp) in
-  let kn = KerName.make force_modpath (Id.of_string name) in
-  snd (hcons_con (Constant.make1 kn))
-
-let block_constant = make_force_constant "block"
-let unblock_constant = make_force_constant "unblock"
-let run_constant = make_force_constant "run"
-
-let is_force_constant c c' = Constant.UserOrd.equal c c'
-
-let instance_has_var u =
-  let qs, us = UVars.Instance.to_array u in
-  Array.exists (function Sorts.Quality.QVar _ -> true | _ -> false) qs ||
-  Array.exists (fun u -> Option.has_some (Univ.Level.var_index u)) us
-
-let force_app f args =
-  let nargs = Array.length args in
-  match kind f with
-  | Const (c, u) when is_force_constant c block_constant && not (instance_has_var u) && nargs >= 2 ->
-    let p = T (PBlock (u, args.(0), args.(1))) in
-    if Int.equal nargs 2 then p else T (App (p, Array.sub args 2 (nargs - 2)))
-  | Const (c, u) when is_force_constant c unblock_constant && not (instance_has_var u) && nargs >= 2 ->
-    let p = T (PUnblock (u, args.(0), args.(1))) in
-    if Int.equal nargs 2 then p else T (App (p, Array.sub args 2 (nargs - 2)))
-  | Const (c, u) when is_force_constant c run_constant && not (instance_has_var u) && nargs >= 4 ->
-    let p = T (PRun (u, args.(0), args.(1), args.(2), args.(3))) in
-    if Int.equal nargs 4 then p else T (App (p, Array.sub args 4 (nargs - 4)))
-  | _ -> T (App (f, args))
-
 (* Enforces:
    - applicative terms have at least one argument and the
      function is not itself an applicative term
@@ -383,8 +352,8 @@ let of_kind = function
 | Rel n when 0 <= n && n < Array.length rels -> rels.(n)
 | App (f, [||]) -> f
 | App (f, a) -> begin match kind f with
-    | App (g, cl) -> force_app g (Array.append cl a)
-    | _ -> force_app f a
+    | App (g, cl) -> T (App (g, Array.append cl a))
+    | _ -> T (App (f, a))
   end
 | Cast (c, knd, t) as k -> begin match kind c with
     | Cast (c, knd', _) when (knd == VMcast || knd == NATIVEcast) && knd == knd' ->

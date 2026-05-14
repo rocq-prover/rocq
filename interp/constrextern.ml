@@ -91,18 +91,6 @@ let default_extern_reference ?loc vars r =
   | ConstRef c when ModPath.equal (Lib.current_mp()) (Constant.modpath c) ->
     (* assume this is a side effect not yet in the nametab *)
     Libnames.qualid_of_ident ?loc (Constant.label c)
-  | ConstRef c ->
-    let force_mp = ModPath.MPfile (DirPath.make (List.rev_map Id.of_string ["Force"; "Force"])) in
-    if ModPath.equal force_mp (Constant.modpath c) then
-      let id = Constant.label c in
-      let id =
-        if Id.equal id (Id.of_string "block") then Id.of_string "__block"
-        else if Id.equal id (Id.of_string "unblock") then Id.of_string "__unblock"
-        else if Id.equal id (Id.of_string "run") then Id.of_string "__run"
-        else id
-      in
-      Libnames.qualid_of_ident ?loc id
-    else raise Not_found
   | _ -> raise Not_found
 
 let my_extern_reference = ref default_extern_reference

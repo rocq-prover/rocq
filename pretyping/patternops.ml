@@ -136,16 +136,6 @@ let rec head_pattern_bound (t:constr_pattern) =
 let mkPRef env gr =
   PRef (Environ.QGlobRef.canonize env gr)
 
-let make_force_constant name =
-  let mp = List.rev_map Id.of_string ["Force"; "Force"] in
-  let force_modpath = ModPath.MPfile (DirPath.make mp) in
-  let kn = KerName.make force_modpath (Id.of_string name) in
-  snd (hcons_con (Constant.make1 kn))
-
-let block_constant = make_force_constant "block"
-let unblock_constant = make_force_constant "unblock"
-let run_constant = make_force_constant "run"
-
 let pattern_of_constr ~broken env sigma t =
   let t = EConstr.Unsafe.to_constr t in
   let kind = if broken then Constr.kind else fun c -> EConstr.kind_upto sigma c in
@@ -236,11 +226,11 @@ let pattern_of_constr ~broken env sigma t =
     | Array (_u, t, def, ty) ->
       PArray (Array.map (pattern_of_constr env) t, pattern_of_constr env def, pattern_of_constr env ty)
     | PBlock (_u, ty, t) ->
-      PApp (mkPRef env (GlobRef.ConstRef block_constant), [|pattern_of_constr env ty; pattern_of_constr env t|])
+      PApp (PVar (Id.of_string "__block"), [|pattern_of_constr env ty; pattern_of_constr env t|])
     | PUnblock (_u, ty, t) ->
-      PApp (mkPRef env (GlobRef.ConstRef unblock_constant), [|pattern_of_constr env ty; pattern_of_constr env t|])
+      PApp (PVar (Id.of_string "__unblock"), [|pattern_of_constr env ty; pattern_of_constr env t|])
     | PRun (_u, ty, k, b, cont) ->
-      PApp (mkPRef env (GlobRef.ConstRef run_constant),
+      PApp (PVar (Id.of_string "__run"),
             [|pattern_of_constr env ty; pattern_of_constr env k; pattern_of_constr env b; pattern_of_constr env cont|])
     in
   pattern_of_constr env t

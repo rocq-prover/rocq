@@ -58,14 +58,12 @@ type fterm =
   | FLOCKED
   | FPrimitive of CPrimitives.t * pconstant * fconstr * fconstr array
     (* operator, constr def, primitive as an fconstr, full array of suitably evaluated arguments *)
-  | FBlock of constr * constr * constr * usubs
-    (* @block as a constr, its type as a constr, the contents of the block *)
-  | FUnblock of constr * constr * fconstr * usubs
-  (* [{term=Funblock(op, ty, m, e);mode=mode}] is a representation of [Zunblock(op,ty,e,mode)] zipped with [m] *)
-  | FRun of constr * constr * constr * fconstr * constr * usubs
-  (* [{term=FRun(op, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(op,ty1,ty2,cnt,e,mode)] zipped with [m] *)
-  | FBlockedInd of constr * constr * constr * constr * fconstr * usubs
-  (* [{term=FBlockedInd(op, ty, p, ih, m, e);mode=mode}] is a representation of [Zblockedind(op,ty,p,ih,e,mode)] zipped with [m] *)
+  | FBlock of UVars.Instance.t * constr * constr * usubs
+    (* its universe instance, its type as a constr, the contents of the block *)
+  | FUnblock of UVars.Instance.t * constr * fconstr * usubs
+  (* [{term=Funblock(u, ty, m, e);mode=mode}] is a representation of [Zunblock(u,ty,e,mode)] zipped with [m] *)
+  | FRun of UVars.Instance.t * constr * constr * fconstr * constr * usubs
+  (* [{term=FRun(u, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(u,ty1,ty2,cnt,e,mode)] zipped with [m] *)
   | FEta of int * constr * constr array * int * usubs
   (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
   | FLAZY of fconstr Lazy.t
@@ -101,12 +99,10 @@ type stack_member =
        (* operator, constr def, primitive as an fconstr, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
-  | Zunblock of constr * constr * usubs * mode
-  (* unblock as a constr, its type argument, the substitution for both constrs, saved reduction flags *)
-  | Zrun of constr * constr * constr * constr * usubs * mode
-  (* run as a constr, its type argument, its continuation, the substitution for all constrs, saved reduction flags *)
-  | Zblockedind of constr * constr * constr * constr * usubs * mode
-  (* blocked_ind as a constr, its type argument, predicate, induction hypothesis, substitution, saved reduction flags *)
+  | Zunblock of UVars.Instance.t * constr * usubs * mode
+  (* unblock universe instance, its type argument, the substitution for both constrs, saved reduction flags *)
+  | Zrun of UVars.Instance.t * constr * constr * constr * usubs * mode
+  (* run universe instance, its type arguments, its continuation, the substitution for all constrs, saved reduction flags *)
 
 and stack = stack_member list
 
