@@ -927,6 +927,7 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
             subst_constr subs ty
         in
         let t = !klt_ref ~mode:identity info tab e t in
+        let op = subst_instance_constr (snd e) op in
         Constr.mkApp (op, [|ty; t|])
 
     | FUnblock (op, ty, m, e) ->

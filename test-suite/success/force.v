@@ -10,6 +10,8 @@ Fail Check (@run@{SProp Type; Set Set} sunit nat (block sitt) (fun _ => 0)).
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
 Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := @block.
 Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := @unblock.
+Polymorphic Definition check_block_lazy_univs@{s;u} (A : Type@{s;u}) (x : A) := block x.
+Definition check_block_lazy_univs_inst := Eval lazy in (check_block_lazy_univs nat 0).
 
 (**** SORTS ****)
 
