@@ -1,23 +1,27 @@
-(* To run: [dune build theories/Force && dune exec -- dev/shim/coqc test.v] *)
+(* Force primitive regression tests. *)
 
 Require Import Force.Force.
 
+Fail Check (block 0).
+Fail Check (unblock 0).
+Fail Check (run 0 (fun x => x)).
+
 (**** UNIVERSES ****)
 
-Definition check_run@{u1 u2} : forall (T : Type@{u1}) (K : Type@{u2}), Blocked T -> (T -> K) -> K := @run.
+Definition check_run@{u1 u2} : forall (T : Type@{u1}) (K : Type@{u2}), Blocked T -> (T -> K) -> K := fun T K b k => __run@{Type Type;u1 u2} T K b k.
 Inductive sunit : SProp := sitt.
-Fail Check (@run@{SProp Type; Set Set} sunit nat (block sitt) (fun _ => 0)).
+Fail Check (__run@{SProp Type;Set Set} sunit nat (__block@{SProp;Set} sunit sitt) (fun _ => 0)).
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
-Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := @block.
-Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := @unblock.
-Polymorphic Definition check_block_lazy_univs@{s;u} (A : Type@{s;u}) (x : A) := block x.
-Definition check_block_lazy_univs_inst := Eval lazy in (check_block_lazy_univs nat 0).
+Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := fun T x => __block@{Type;u} T x.
+Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := fun T x => __unblock@{Type;u} T x.
+Polymorphic Definition check_block_lazy_univs@{u} (A : Type@{u}) (x : A) := __block@{Type;u} A x.
+Definition check_block_lazy_univs_inst : Blocked nat := __block nat 0.
 
 (**** SORTS ****)
 
 #[universes(polymorphic)] Definition type_of@{s;u} {T : Type@{s;u}} (t : T) := T.
-Definition unblock_prop_type (b : Blocked@{Prop;_} (tt = tt)) : Type := type_of (unblock@{Prop;_} b).
-Definition blocked_prop_type : Blocked@{Type;_} Type := @block@{Type;_} Type (tt = tt).
+Definition unblock_prop_type (b : Blocked@{Prop;_} (tt = tt)) : Type := type_of (__unblock _ b).
+Definition blocked_prop_type@{u v} : Blocked@{Type;v} Type@{u} := __block@{Type;v} Type@{u} ((tt = tt) : Type@{u}).
 
 (**** EVALUATION ****)
 
@@ -26,155 +30,56 @@ Notation LAZY t := (ltac:(let x := eval lazy in t in exact x)) (only parsing).
 Notation WHNF t := (ltac:(let x := eval lazy head in t in exact x)) (only parsing).
 
 Definition force_test_idT (A : Type) := A.
+Axiom stuck_blocked_nat : Blocked nat.
 
-(* Regression: stuck [run] reification must not preserve argument 1 as if
-   [run] had the same principal argument as [block]/[unblock].  The hidden
-   return type argument should be normalized here. *)
-Goal True.
-Proof.
-  let x := eval lazy in (@run nat (force_test_idT nat)) in
-  lazymatch x with
-  | @run nat nat => exact I
-  | _ => fail "lazy preserved the wrong run argument"
-  end.
-Qed.
-
-Goal True.
-Proof.
-  let x := eval lazy -[block] in (unblock (block 1)) in
-  lazymatch x with
-  | 1 => exact I
-  | _ => fail "lazy treated block transparency as semantically relevant"
-  end.
-Qed.
-
-Goal True.
-Proof.
-  let x := eval cbn -[block] in (unblock (block 1)) in
-  lazymatch x with
-  | 1 => exact I
-  | _ => fail "cbn treated block transparency as semantically relevant"
-  end.
-Qed.
-
-Opaque block.
-Goal True.
-Proof.
-  let x := eval lazy in (unblock (block 1)) in
-  lazymatch x with
-  | 1 => exact I
-  | _ => fail "lazy treated block opacity as semantically relevant"
-  end.
-Qed.
-Transparent block.
-
-Goal True.
-Proof.
-  let x := eval lazy -[unblock] in (unblock (block 1)) in
-  lazymatch x with
-  | unblock (block 1) => exact I
-  | _ => fail "lazy reduced an opaque unblock redex"
-  end.
-Qed.
-
-Goal True.
-Proof.
-  let x := eval cbn -[unblock] in (unblock (block 1)) in
-  lazymatch x with
-  | unblock (block 1) => exact I
-  | _ => fail "cbn reduced an opaque unblock redex"
-  end.
-Qed.
-
-Goal True.
-Proof.
-  let x := eval lazy -[block] in (run (block 1) (fun x => x)) in
-  lazymatch x with
-  | 1 => exact I
-  | _ => fail "lazy treated block transparency as semantically relevant for run"
-  end.
-Qed.
-
-Goal True.
-Proof.
-  let x := eval lazy -[run] in (run (block 1) (fun x => x)) in
-  lazymatch x with
-  | run (block 1) _ => exact I
-  | _ => fail "lazy reduced an opaque run redex"
-  end.
-Qed.
+(* Regression: stuck [__run] reification must keep the return type associated
+   with the continuation. *)
+Goal LAZY (__run nat nat stuck_blocked_nat (fun x : nat => (x : force_test_idT nat)))
+   = __run nat nat stuck_blocked_nat (fun x : nat => x).
+Proof. syn_refl. Qed.
 
 Opaque Blocked_ind.
 Goal True.
 Proof.
-  let x := eval lazy in (@Blocked_ind nat (fun _ => nat) (fun x => x) (block 1)) in
-  lazymatch x with
-  | @Blocked_ind nat (fun _ => nat) (fun x => x) (block 1) => exact I
-  | _ => fail "lazy reduced an opaque Blocked_ind redex"
-  end.
+  let r := eval lazy in (@Blocked_ind nat (fun _ => nat) (fun x => x) (__block nat 1)) in
+  assert (r = @Blocked_ind nat (fun _ => nat) (fun x => x) (__block nat 1)) by reflexivity; exact I.
 Qed.
 Transparent Blocked_ind.
 
 Goal True.
 Proof.
-  let x := eval lazy -[Blocked_ind] in (@Blocked_ind nat (fun _ => nat) (fun x => x) (block 1)) in
-  lazymatch x with
-  | @Blocked_ind nat (fun _ => nat) (fun x => x) (block 1) => exact I
-  | _ => fail "lazy reduced an opaque Blocked_ind redex"
-  end.
+  let r := eval lazy -[Blocked_ind] in (@Blocked_ind nat (fun _ => nat) (fun x => x) (__block nat 1)) in
+  assert (r = @Blocked_ind nat (fun _ => nat) (fun x => x) (__block nat 1)) by reflexivity; exact I.
 Qed.
 
-Goal LAZY (@block) = @block.
+
+Goal WHNF (__block _ 0) = __block _ 0.
 Proof. syn_refl. Qed.
 
-Goal WHNF (@block) = @block.
+Goal LAZY (__block _ 0) = __block _ 0.
 Proof. syn_refl. Qed.
 
-Goal LAZY (@block nat) = @block nat.
+Goal WHNF (__block _ (0 + 0)) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (@block nat) = @block nat.
+Goal LAZY (__block _ (0 + 0)) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (@block (id nat)) = @block (id nat).
+Goal WHNF (id (__block _ (0 + 0))) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal LAZY (@block (id nat)) = @block nat.
+Goal LAZY (id (__block _ (0 + 0))) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block 0) = block 0.
-Proof. syn_refl. Qed.
-
-Goal LAZY (block 0) = block 0.
-Proof. syn_refl. Qed.
-
-Goal WHNF (block (0 + 0)) = block (0 + 0).
-Proof. syn_refl. Qed.
-
-Goal LAZY (block (0 + 0)) = block (0 + 0).
-Proof. syn_refl. Qed.
-
-Goal WHNF (id (block (0 + 0))) = block (0 + 0).
-Proof. syn_refl. Qed.
-
-Goal LAZY (id (block (0 + 0))) = block (0 + 0).
-Proof. syn_refl. Qed.
-
-Goal WHNF (block (unblock (let x := 0 + 0 in block x))) = block 0.
+Goal WHNF (__block _ (__unblock _ (let x := 0 + 0 in __block _ x))) = __block _ 0.
 Proof. syn_refl. Qed.
 
 (* ... *)
 
-Goal LAZY ((fun f => f (1 + 1)) block) = block 2.
+Goal LAZY ((fun f => f (1 + 1)) (fun x => __block _ x)) = __block _ 2.
 Proof. syn_refl. Qed.
 
-Goal LAZY ((fun f => f (1 + 1)) (fun x => block x)) = block 2.
-Proof. syn_refl. Qed.
-
-Goal WHNF ((fun f => f (1 + 1)) block) = block (1+1).
-Proof. syn_refl. Qed.
-
-Goal WHNF ((fun f => f (1 + 1)) (fun x => block x)) = block (1 + 1).
+Goal WHNF ((fun f => f (1 + 1)) (fun x => __block _ x)) = __block _ (1 + 1).
 Proof. syn_refl. Qed.
 
 Inductive True := I.
@@ -185,52 +90,52 @@ Definition h := fun x:True => x.
 Axiom and : True -> True -> True.
 Axiom Pr : True -> Prop.
 
-(* Non-lexical unblock is just a "projection" *)
-Goal WHNF ((fun f => f (block (id I = id I))) unblock) = (id I = id I).
+(* Non-lexical __unblock _ is just a "projection" *)
+Goal WHNF ((fun f => f (__block _ (id I = id I))) (fun x => __unblock _ x)) = (id I = id I).
 Proof. syn_refl. Qed.
 
-(* Non-lexical run is just a "projection" *)
-Goal WHNF ((fun f => f (block (id I = id I)) (fun x => x)) run) = (id I = id I).
+(* Non-lexical __run _ _ is just a "projection" *)
+Goal WHNF ((fun f => f (__block _ (id I = id I)) (fun x => x)) (fun b k => __run _ _ b k)) = (id I = id I).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock (let x := (and (g I) (h I)) in block x))) = (block (and I I)).
+Goal WHNF (__block _ (__unblock _ (let x := (and (g I) (h I)) in __block _ x))) = (__block _ (and I I)).
 Proof. syn_refl. Qed.
 
-Goal WHNF (unblock (let x := (fun x : id I = I => True) in block x)) = (fun x : I = I => True).
+Goal WHNF (__unblock _ (let x := (fun x : id I = I => True) in __block _ x)) = (fun x : I = I => True).
 Proof. syn_refl. Qed.
 
-Goal WHNF (unblock (let x := forall x : id I = I, True in block x)) = (forall x : I = I, True).
+Goal WHNF (__unblock _ (let x := forall x : id I = I, True in __block _ x)) = (forall x : I = I, True).
 Proof. syn_refl. Qed.
 
-Goal WHNF (unblock (let x := id I in block (forall u:unit, x = x))) = (forall (u:unit), I = I).
+Goal WHNF (__unblock _ (let x := id I in __block _ (forall u:unit, x = x))) = (forall (u:unit), I = I).
 Proof. syn_refl. Qed.
 
-Goal WHNF (unblock (let x := 1 + 1 in block x)) = 2.
+Goal WHNF (__unblock _ (let x := 1 + 1 in __block _ x)) = 2.
 Proof. syn_refl. Qed.
 
-Goal WHNF (run (block (1+1)) (fun x => x)) = WHNF (match 1 + 1 with S x => S x | 0 => 0 end).
+Goal WHNF (__run _ _ (__block _ (1+1)) (fun x => x)) = WHNF (match 1 + 1 with S x => S x | 0 => 0 end).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (run (let n := I in block n) (fun x : True => x)))
-        = (block (run (let n := I in block n) (fun x : True => x))).
+Goal WHNF (__block _ (__run _ _ (let n := I in __block _ n) (fun x : True => x)))
+        = (__block _ (__run _ _ (let n := I in __block _ n) (fun x : True => x))).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (run (let x := (fun x => x) tt in block x) (fun x => x)))
-        = (block (run (let x := (fun x => x) tt in block x) (fun x => x))).
+Goal WHNF (__block _ (__run _ _ (let x := (fun x => x) tt in __block _ x) (fun x => x)))
+        = (__block _ (__run _ _ (let x := (fun x => x) tt in __block _ x) (fun x => x))).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock (let x := (fun x => x) tt in block x))) = block tt.
+Goal WHNF (__block _ (__unblock _ (let x := (fun x => x) tt in __block _ x))) = __block _ tt.
 Proof. syn_refl. Qed.
 
 (*
-block (unblock (let x := (fun x => x) tt in block x)) @ ε | ∅ --{whnf}-->
-block @ (unblock (let x := (fun x => x) tt in block x)) . ε | ∅ --{whnf}-->
+__block _ (__unblock _ (let x := (fun x => x) tt in __block _ x)) @ ε | ∅ --{whnf}-->
+__block _ @ (__unblock _ (let x := (fun x => x) tt in __block _ x)) . ε | ∅ --{whnf}-->
 
-  unblock (let x := (fun x => x) tt in block x) @ ε | ∅ --{id}-->
-  unblock @ (let x := (fun x => x) tt in block x) . ε | ∅ --{id}-->
+  __unblock _ (let x := (fun x => x) tt in __block _ x) @ ε | ∅ --{id}-->
+  __unblock _ @ (let x := (fun x => x) tt in __block _ x) . ε | ∅ --{id}-->
 
-    let x := (fun x => x) tt in block x @ ε | ∅ --{full}-->
-    block x @ ε | ∅[x{full} := <(fun x => x) tt, ∅>] --{full}-->
+    let x := (fun x => x) tt in __block _ x @ ε | ∅ --{full}-->
+    __block _ x @ ε | ∅[x{full} := <(fun x => x) tt, ∅>] --{full}-->
 
       x @ ε | ∅[x{full} := <(fun x => x) tt, ∅>] --{id}-->
 
@@ -244,22 +149,22 @@ block @ (unblock (let x := (fun x => x) tt in block x)) . ε | ∅ --{whnf}-->
 
       tt @ ε | ∅[x{full} := <tt, ∅>] --{id}--> (value, updated closure)
 
-    block tt @ ε | ∅[x{full} := <tt, ∅>] --{full}-->
+    __block _ tt @ ε | ∅[x{full} := <tt, ∅>] --{full}-->
 
-  unblock @ block tt . ε | ∅ --{id}-->
+  __unblock _ @ __block _ tt . ε | ∅ --{id}-->
   tt @ ε | ∅ --{id}-->
 
-block @ tt . ε | ∅ --{whnf}--> (done)
+__block _ @ tt . ε | ∅ --{whnf}--> (done)
 *)
 
-Goal WHNF (block (run (let n := 2 + 2 in block n) (fun x : nat => 2 * 1)))
-        = (block (run (let n := 2 + 2 in block n) (fun x : nat => 2 * 1))).
-        (* = (block ((fun _ : nat => 2 * 1) 4)). *)
+Goal WHNF (__block _ (__run _ _ (let n := 2 + 2 in __block _ n) (fun x : nat => 2 * 1)))
+        = (__block _ (__run _ _ (let n := 2 + 2 in __block _ n) (fun x : nat => 2 * 1))).
+        (* = (__block _ ((fun _ : nat => 2 * 1) 4)). *)
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (run ((fun n => block n) (2 + 2)) (fun x : nat => 2 * 1)))
-        = (block (run ((fun n => block n) (2 + 2)) (fun x : nat => 2 * 1))).
-        (* = (block ((fun _ : nat => 2 * 1) 4)). *)
+Goal WHNF (__block _ (__run _ _ ((fun n => __block _ n) (2 + 2)) (fun x : nat => 2 * 1)))
+        = (__block _ (__run _ _ ((fun n => __block _ n) (2 + 2)) (fun x : nat => 2 * 1))).
+        (* = (__block _ ((fun _ : nat => 2 * 1) 4)). *)
 Proof. syn_refl. Qed.
 
 Inductive n := N | O.
@@ -268,63 +173,63 @@ Definition a (x y : n) :=
   | N => y
   | O => O
   end.
-Goal WHNF (block (unblock ((fun x => block (a x O)) (a N N)))) = block (a N O).
+Goal WHNF (__block _ (__unblock _ ((fun x => __block _ (a x O)) (a N N)))) = __block _ (a N O).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock ((fun x => block x) (a N N)))) = block (N).
+Goal WHNF (__block _ (__unblock _ ((fun x => __block _ x) (a N N)))) = __block _ (N).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (run ((fun n => block (n + 1)) (2 + 2)) (fun x : nat => 2 * 1)))
-        = (block (run ((fun n => block (n + 1)) (2 + 2)) (fun x : nat => 2 * 1))).
-        (* = (block ((fun _ : nat => 2 * 1) (4 + 1))). *)
+Goal WHNF (__block _ (__run _ _ ((fun n => __block _ (n + 1)) (2 + 2)) (fun x : nat => 2 * 1)))
+        = (__block _ (__run _ _ ((fun n => __block _ (n + 1)) (2 + 2)) (fun x : nat => 2 * 1))).
+        (* = (__block _ ((fun _ : nat => 2 * 1) (4 + 1))). *)
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock (let n := 0 + 0 in block (n + n))))
-        = block (0 + 0).
+Goal WHNF (__block _ (__unblock _ (let n := 0 + 0 in __block _ (n + n))))
+        = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock (let n := 0 + 0 in block (1 + unblock (let m := 0 + 0 in block (1 + m))))))
-        = block (1 + (1 + 0)).
+Goal WHNF (__block _ (__unblock _ (let n := 0 + 0 in __block _ (1 + __unblock _ (let m := 0 + 0 in __block _ (1 + m))))))
+        = __block _ (1 + (1 + 0)).
 Proof. syn_refl. Qed.
 
-Goal WHNF (block (unblock (
+Goal WHNF (__block _ (__unblock _ (
                       let n := 0 + 0 in
-                      block (1 + n + unblock (
+                      __block _ (1 + n + __unblock _ (
                                      let m := 2 + 2 in
-                                     block (1 + m + unblock (
+                                     __block _ (1 + m + __unblock _ (
                                                         let k := 3 + 3 in
-                                                        block (1 + n + m + k))))))))
-        = block (1 + 0 + (1 + 4 + (1 + 0 + 4 + 6))).
+                                                        __block _ (1 + n + m + k))))))))
+        = __block _ (1 + 0 + (1 + 4 + (1 + 0 + 4 + 6))).
 Proof. syn_refl. Qed.
 
-Goal LAZY (run (block (1 + 1)) (fun x => x + x)) = 4.
+Goal LAZY (__run _ _ (__block _ (1 + 1)) (fun x => x + x)) = 4.
 Proof. syn_refl. Qed.
 
-Goal LAZY (run (block (1 + 1)) (fun x => x + x)) = 4.
+Goal LAZY (__run _ _ (__block _ (1 + 1)) (fun x => x + x)) = 4.
 Proof. syn_refl. Qed.
 
-Goal LAZY (run (block (1 + 1)) (fun x => x + x)) = 4.
+Goal LAZY (__run _ _ (__block _ (1 + 1)) (fun x => x + x)) = 4.
 Proof. syn_refl. Qed.
 
-Goal LAZY (block (2 + 2)) = block (2 + 2).
+Goal LAZY (__block _ (2 + 2)) = __block _ (2 + 2).
 Proof. syn_refl. Qed.
 
-Goal LAZY (unblock (block 42)) = 42.
+Goal LAZY (__unblock _ (__block _ 42)) = 42.
 Proof. syn_refl. Qed.
 
-Goal LAZY (unblock (block (2 + 2))) = 4.
+Goal LAZY (__unblock _ (__block _ (2 + 2))) = 4.
 Proof. syn_refl. Qed.
 
-Goal LAZY (unblock ((fun _ => block (2 + 2)) tt)) = 4.
+Goal LAZY (__unblock _ ((fun _ => __block _ (2 + 2)) tt)) = 4.
 Proof. syn_refl. Qed.
 
-Goal LAZY (block (fun x => (2 + 2) + x)) = block (fun x => (2 + 2) + x).
+Goal LAZY (__block _ (fun x => (2 + 2) + x)) = __block _ (fun x => (2 + 2) + x).
 Proof. syn_refl. Qed.
 
-Goal LAZY (unblock (block (fun x => (2 + 2) + x))) = fun x => S (S (S (S x))).
+Goal LAZY (__unblock _ (__block _ (fun x => (2 + 2) + x))) = fun x => S (S (S (S x))).
 Proof. syn_refl. Qed.
 
-Goal WHNF (run (let x := 1 + 1 in block (x + 1)) (fun x => forall y, y = x))
+Goal WHNF (__run _ _ (let x := 1 + 1 in __block _ (x + 1)) (fun x => forall y, y = x))
         = forall y, y = 2 + 1.
 Proof. syn_refl. Qed.
 
@@ -332,33 +237,34 @@ Set Printing Width 1000.
 Section AllArgs.
   Context (b : Blocked (nat -> nat)).
 
-  Goal LAZY (unblock b 0) = unblock b 0.
+  Goal LAZY (__unblock _ b 0) = __unblock _ b 0.
   Proof. syn_refl. Qed.
 
-  Goal WHNF (unblock b 0) = unblock b 0.
+  Goal WHNF (__unblock _ b 0) = __unblock _ b 0.
   Proof. syn_refl. Qed.
 
-  Goal LAZY (run b (fun x n => n) 0) = run b (fun x n => n) 0.
+  Goal LAZY (__run _ _ b (fun x n => n) 0) = __run _ _ b (fun x n => n) 0.
   Proof. syn_refl. Qed.
 
-  Goal WHNF (run b (fun x n => n) 0) = run b (fun x n => n) 0.
+  Goal WHNF (__run _ _ b (fun x n => n) 0) = __run _ _ b (fun x n => n) 0.
   Proof. syn_refl. Qed.
 End AllArgs.
 
-Goal LAZY (unblock (block (fun x => block x)) (0 + 0)) = block (0).
+Goal LAZY (__unblock _ (__block _ (fun x => __block _ x)) (0 + 0)) = __block _ (0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (unblock (block (fun x => block x)) (0 + 0)) = block (0 + 0).
+Goal WHNF (__unblock _ (__block _ (fun x => __block _ x)) (0 + 0)) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Goal LAZY (run (block (fun x => block x)) (fun f x => f x) (0 + 0)) = block (0).
+Goal LAZY (__run _ _ (__block _ (fun x => __block _ x)) (fun f x => f x) (0 + 0)) = __block _ (0).
 Proof. syn_refl. Qed.
 
-Goal WHNF (run (block (fun x => block x)) (fun f x => f x) (0 + 0)) = block (0 + 0).
+Goal WHNF (__run _ _ (__block _ (fun x => __block _ x)) (fun f x => f x) (0 + 0)) = __block _ (0 + 0).
 Proof. syn_refl. Qed.
 
-Axiom F : run (let x := id I in block (id x)) (fun x => forall y, y = x).
+Axiom F : __run _ _ (let x := id I in __block _ (id x)) (fun x => forall y, y = x).
 Goal I=I.
+Proof.
   Succeed refine (F I).
   Succeed apply (F I).
   Succeed eapply (F I).
@@ -372,7 +278,7 @@ Module FunctionTypes.
   Inductive D := | d.
   Inductive R := | r (b: D).
   Definition id (x:Set) := x.
-  Eval lazy head in @unblock R (let f := (fun x : id (id R) => block x) in @block R (@unblock R (f (r d)))).
+  Eval lazy head in __unblock _ (let f := (fun x : id (id R) => __block _ x) in __block _ (__unblock _ (f (r d)))).
 End FunctionTypes.
 
 Module Conversion.
@@ -380,7 +286,8 @@ Module Conversion.
   Axiom TODO: forall {A:Prop}, A.
 
   Lemma test p :
-    (forall _ : True, @unblock Prop (block (not p))).
+    (forall _ : True, __unblock _ (__block _ (not p))).
+  Proof.
     exact (@TODO (forall _ : True, not p)).
   Qed.
 End Conversion.
@@ -389,7 +296,7 @@ Module Bla.
   Inductive prop :=.
   Axiom TODO: forall {A}, A.
   Definition reflect (p:prop) : Blocked Prop := match p with end.
-  Lemma simplify_ok (p : prop) : False <-> unblock (reflect p).
+  Lemma simplify_ok (p : prop) : False <-> __unblock _ (reflect p).
   Proof.
     lazy.                       (* Used to fail *)
     destruct p.
@@ -402,9 +309,9 @@ Module Ind.
   Axiom x : nat.
   Axiom nat_ind_2 : forall P : nat -> Prop, (forall n : nat, True -> P (S n)) -> forall n : nat, P n.
 
-  Goal forall n, (run (P n) (fun p => p)).
+  Goal forall n, (__run _ _ (P n) (fun p => p)).
   Proof.
-    refine (@nat_ind_2 (fun n => run (P n) (fun p => p)) _).
+    refine (@nat_ind_2 (fun n => __run _ _ (P n) (fun p => p)) _).
     intros n IHn.
     (* [Zrun]'s substitution was re-applied to the head in [zip_term] leading to wrong [REL]s. *)
     Fail lazymatch goal with |- context [P (S IHn)] => idtac end.
@@ -418,13 +325,13 @@ Require Import Corelib.Classes.RelationClasses.
 Require Import Corelib.Classes.Morphisms.
 Require Import Corelib.Setoids.Setoid.
 
-(* #[universes(polymorphic=yes,cumulative)] Record Blocked {T:Type} := block { unblock : T }. *)
+(* #[universes(polymorphic=yes,cumulative)] Record Blocked {T:Type} := __block _ { __unblock _ : T }. *)
 (* #[global] Arguments Blocked : clear implicits. *)
-(* #[global] Arguments block {_}. *)
-(* #[global] Arguments unblock {_}. *)
+(* #[global] Arguments __block _ {_}. *)
+(* #[global] Arguments __unblock _ {_}. *)
 (* Add Printing Constructor Blocked. *)
-(* #[universes(polymorphic=yes)] Definition run : forall (T K : Type), Blocked T -> (T -> K) -> K := fun _ _ b f => f (unblock b). *)
-(* #[global] Arguments run {_ _} _ _. *)
+(* #[universes(polymorphic=yes)] Definition __run _ _ : forall (T K : Type), Blocked T -> (T -> K) -> K := fun _ _ b f => f (__unblock _ b). *)
+(* #[global] Arguments __run _ _ {_ _} _ _. *)
 
 Require Export Force.Force.
 
@@ -437,22 +344,22 @@ Arguments equiv {_ _}.
 
 
 #[global] Instance Blocked_equiv {T} : Equiv T -> Equiv (Blocked T) :=
-  fun equiv a b => equiv (unblock a) (unblock b).
+  fun equiv a b => equiv (__unblock _ a) (__unblock _ b).
 
-(* Regression tests for conversion of stacks containing [unblock] and [run].
+(* Regression tests for conversion of stacks containing [__unblock _] and [__run _ _].
    The primitive operator universe instance is stored under the local closure
    substitution; conversion must apply that substitution before comparing it. *)
 Definition unblock_stack_substitution {T} {R : Equiv T} :
-  Proper (@equiv (Blocked T) (Blocked_equiv R) ==> @equiv T R) (@unblock T) :=
+  Proper (@equiv (Blocked T) (Blocked_equiv R) ==> @equiv T R) (fun x : Blocked T => __unblock _ x) :=
   fun x y H => H.
 
 Definition Run_equiv {T K} (R : Equiv K) (k : T -> K) : Equiv (Blocked T) :=
-  fun a b => @equiv K R (@run T K a k) (@run T K b k).
+  fun a b => @equiv K R (__run _ _ a k) (__run _ _ b k).
 
 Definition run_stack_substitution {T K} {R : Equiv K} (k : T -> K) :
   forall x y : Blocked T,
     @equiv (Blocked T) (Run_equiv R k) x y ->
-    @equiv K R (@run T K x k) (@run T K y k) :=
+    @equiv K R (__run _ _ x k) (__run _ _ y k) :=
   fun x y H => H.
 
 #[global] Instance Blocked_equivalance {T} {R:Equiv T} : Equivalence R -> Equivalence (@equiv (Blocked T) _).
@@ -464,21 +371,17 @@ Proof.
   - destruct H as [_ _ H]. repeat intro. refine (H _ _ _ _ _); eauto.
 Qed.
 
-#[global] Instance block_Proper {T} {R:Equiv T} : Proper (equiv ==> equiv) (@block T).
+#[global] Instance block_Proper {T} {R:Equiv T} : Proper (equiv ==> equiv) (fun x : T => __block _ x).
 Proof. repeat intro. eauto. Qed.
 
-#[global] Instance unblock_Proper {T} {R:Equiv T} : Proper (@equiv (Blocked T) _ ==> @equiv T _) (@unblock T).
+#[global] Instance unblock_Proper {T} {R:Equiv T} : Proper (@equiv (Blocked T) _ ==> @equiv T _) (fun x : Blocked T => __unblock _ x).
 Proof. lazy. repeat intro. exact H. Qed.
 
-Lemma Blocked_ind_beta {T} (P : Blocked T -> Type) (IH : forall t : T, P (block t)) (t : T) :
-  @Blocked_ind T P IH (block t) = IH t.
-Proof. reflexivity. Qed.
+Eval compute in @Blocked_ind nat (fun _ => nat) (fun n => S n) (__block _ 0).
 
-Eval compute in @Blocked_ind nat (fun _ => nat) (fun n => S n) (block 0).
-
-Lemma Blocked_eta {T} (t: Blocked T) : block (unblock t) = t.
+Lemma Blocked_eta {T} (t: Blocked T) : __block _ (__unblock _ t) = t.
 Proof.
-  refine (@Blocked_ind T (fun t => block (unblock t) = t) _ t).
+  refine (@Blocked_ind T (fun t => __block _ (__unblock _ t) = t) _ t).
   intro x; reflexivity.
 Qed.
 
@@ -493,7 +396,7 @@ Set Printing Universes.
 
 Inductive tele@{u u1} : Type@{u1} :=
   | TeleO : tele
-  | TeleS {X : Blocked@{Type;u1} Type@{u}} (binder : unblock X -> tele) : tele.
+  | TeleS {X : Blocked@{Type;u1} Type@{u}} (binder : __unblock _ X -> tele) : tele.
 
 #[global] Arguments TeleS {_} _.
 
@@ -535,7 +438,7 @@ Coercion tele_arg : tele >-> Sortclass.
 
 Lemma tele_arg_ind (P : forall TT, tele_arg TT -> Prop) :
   P TeleO TargO ->
-  (forall T (b : unblock T -> tele) x xs, P (b x) xs -> P (TeleS b) (TargS x xs)) ->
+  (forall (T : Blocked Type) (b : __unblock _ T -> tele) x xs, P (b x) xs -> P (TeleS b) (TargS x xs)) ->
   forall TT (xs : tele_arg TT), P TT xs.
 Proof.
   intros H0 HS TT. induction TT as [|T b IH]; simpl.
@@ -561,14 +464,14 @@ Lemma tele_arg_inv {TT : tele} (a : tele_arg TT) :
 Proof. destruct TT; destruct a; eauto. Qed.
 Lemma tele_arg_O_inv (a : TeleO) : a = TargO.
 Proof. exact (tele_arg_inv a). Qed.
-Lemma tele_arg_S_inv {X} {f : unblock X -> tele} (a : TeleS f) :
+Lemma tele_arg_S_inv {X : Blocked Type} {f : __unblock _ X -> tele} (a : TeleS f) :
   exists x a', a = TargS x a'.
 Proof. exact (tele_arg_inv a). Qed.
 
 Fixpoint tele_map {T U} {TT : tele} : (T -> U) -> (TT -t> T) -> TT -t> U :=
   match TT as TT return (T -> U) -> (TT -t> T) -> TT -t> U with
   | TeleO => fun F : T -> U => F
-  | @TeleS X b => fun (F : T -> U) (f : TeleS b -t> T) (x : unblock X) =>
+  | @TeleS X b => fun (F : T -> U) (f : TeleS b -t> T) (x : __unblock _ X) =>
                   tele_map F (f x)
   end.
 Global Arguments tele_map {_ _ !_} _ _ /.
@@ -585,7 +488,7 @@ Qed.
 Fixpoint tele_bind {U} {TT : tele} : (TT -> U) -> TT -t> U :=
   match TT as TT return (TT -> U) -> TT -t> U with
   | TeleO => fun F => F tt
-  | @TeleS X b => fun (F : TeleS b -> U) (x : unblock X) =>
+  | @TeleS X b => fun (F : TeleS b -> U) (x : __unblock _ X) =>
       tele_bind (fun a => F (TargS x a))
   end.
 Global Arguments tele_bind {_ !_} _ /.
@@ -650,8 +553,8 @@ Set Printing Implicit.
 
 Monomorphic Universes u u1.
 (* Unfortunately reduction happens in the type of the binder. *)
-Goal LAZY (TeleS@{u u1} (X:=@block@{Type;_} Type@{u} (1 + 1 = 2)) (fun x : 1 + 1 = 2 => TeleO@{u u1}))
-         = TeleS@{u u1} (X:=@block@{Type;_} Type@{u} (1 + 1 = 2)) (fun x :     2 = 2 => TeleO@{u u1}).
+Goal LAZY (TeleS@{u u1} (X:=__block@{Type;u1} Type@{u} (1 + 1 = 2)) (fun x : 1 + 1 = 2 => TeleO@{u u1}))
+         = TeleS@{u u1} (X:=__block@{Type;u1} Type@{u} (1 + 1 = 2)) (fun x :     2 = 2 => TeleO@{u u1}).
 Proof. syn_refl. Qed.
 
 End Telescopes.

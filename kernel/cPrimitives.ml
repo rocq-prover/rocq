@@ -76,9 +76,6 @@ type t =
   | Stringsub
   | Stringcat
   | Stringcompare
-  | Run
-  | Block
-  | Unblock
   | Blocked_ind
 
 let parse = function
@@ -143,9 +140,6 @@ let parse = function
   | "string_sub" -> Stringsub
   | "string_cat" -> Stringcat
   | "string_compare" -> Stringcompare
-  | "run" -> Run
-  | "block" -> Block
-  | "unblock" -> Unblock
   | "blocked_ind" -> Blocked_ind
   | _ -> raise Not_found
 
@@ -214,10 +208,7 @@ let hash = function
   | Stringsub -> 59
   | Stringcat -> 60
   | Stringcompare -> 61
-  | Run -> 62
-  | Block -> 63
-  | Unblock -> 64
-  | Blocked_ind -> 65
+  | Blocked_ind -> 62
 
 (* Should match names in nativevalues.ml *)
 let to_string = function
@@ -282,9 +273,6 @@ let to_string = function
   | Stringsub -> "string_sub"
   | Stringcat -> "string_cat"
   | Stringcompare -> "string_compare"
-  | Run -> "run"
-  | Block -> "block"
-  | Unblock -> "unblock"
   | Blocked_ind -> "blocked_ind"
 
 type const =
@@ -440,13 +428,6 @@ let types =
       [anon string_ty; anon string_ty], string_ty
   | Stringcompare ->
       [anon string_ty; anon string_ty], PITT_ind (PIT_cmp, ())
-  | Run ->
-      [anon (blocked_ty 2); anon (PITT_prod (Context.anonR, PITT_param (2, []), PITT_param (2, [])))],
-      PITT_param (1, [])
-  | Block ->
-      [anon (PITT_param (1, []))], blocked_ty 1
-  | Unblock ->
-      [anon (blocked_ty 1)], PITT_param (1, [])
   | Blocked_ind ->
       [anon (PITT_prod (Context.anonR, PITT_param (2, []), PITT_param (1, [1])));
        anon (blocked_ty 2)],
@@ -458,11 +439,6 @@ let one_param =
   (* currently if there's a parameter it's always this *)
   let a_annot = Context.nameR (Names.Id.of_string "A") in
   let ty = Constr.mkType (Universe.make (Level.var 0)) in
-  Context.Rel.Declaration.[LocalAssum (a_annot, ty)]
-
-let one_sort_param =
-  let a_annot = Context.nameR (Names.Id.of_string "A") in
-  let ty = type_sort (Sorts.Quality.var 0) (Level.var 0) in
   Context.Rel.Declaration.[LocalAssum (a_annot, ty)]
 
 let two_sort_params =
@@ -536,9 +512,6 @@ let params = function
   | Arraycopy
   | Arraylength -> one_param
 
-  | Run -> two_sort_params
-  | Block
-  | Unblock -> one_sort_param
   | Blocked_ind -> two_sort_params
 
 let nparams x = List.length (params x)
@@ -607,11 +580,7 @@ let univs = function
   | Arraycopy
   | Arraylength -> one_univ
 
-  | Run
   | Blocked_ind -> two_sort_elim_univs
-
-  | Block
-  | Unblock -> one_sort_univ
 
 type arg_kind =
   | Kparam (* not needed for the evaluation of the primitive when it reduces *)

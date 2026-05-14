@@ -291,8 +291,11 @@ module VNativeEntries =
 
     let get_blocked _env () e =
       match e with
-      | PRIMITIVE (CPrimitives.Block, _, [_ty; t]) -> Some t
-      | STACK (0, PRIMITIVE (CPrimitives.Block, _, [_ty; t]), TOP) -> Some t
+      | VAL (_, t) ->
+        begin match kind t with
+        | PBlock (_, _, t) -> Some (VAL (0, t))
+        | _ -> None
+        end
       | _ -> None
 
     let mkInt env i = VAL(0, mkInt i)
@@ -611,6 +614,9 @@ let rec norm_head info env t stack =
       (fun i -> cbv_stack_term info TOP env t.(i))
       (cbv_stack_term info TOP env def) in
     (ARRAY (u,t,ty), stack)
+
+  | PBlock _ | PUnblock _ | PRun _ ->
+    (VAL (0, apply_env env t), stack)
 
   (* neutral cases *)
   | (Sort _ | Meta _ | Ind _ | Int _ | Float _ | String _) -> (VAL(0, t), stack)

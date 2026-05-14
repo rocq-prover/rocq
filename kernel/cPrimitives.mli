@@ -70,9 +70,6 @@ type t =
   | Stringsub
   | Stringcat
   | Stringcompare
-  | Run
-  | Block
-  | Unblock
   | Blocked_ind
 
 (** Can raise [Not_found].

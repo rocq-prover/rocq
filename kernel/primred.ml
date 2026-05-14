@@ -487,38 +487,6 @@ struct
         | 0 -> E.mkEq env
         | _ -> E.mkGt env
       end)
-    (* The primitives below receive special, out-of-band handling in CClosure.
-       They are also handled here for the benefit of all other reduction algorithms. *)
-    | Run ->
-      (* Extract the two relevant arguments. *)
-      let e = E.get args 2 in
-      let k = E.get args 3 in
-      (* Run full lazy reduction (with all flags) on [e]. *)
-      let e = E.eval_full_lazy lazy_info e in
-      (* Have we reached a [block _]? *)
-      begin
-        match E.get_blocked env evd e with
-        | Some t -> Result (E.mkApp k [|t|])
-        | None -> Progress (false, E.set args 2 e)
-      end
-    | Block ->
-      (* Extract the relevant argument. *)
-      let t = E.get args 1 in
-      (* Run full lazy reduction (with NO flags) on [t]. *)
-      let t = E.eval_id_lazy lazy_info t in
-      (* Report that we have a normal form. *)
-      Progress (true, E.set args 1 t)
-    | Unblock ->
-      (* Extract the relevant argument. *)
-      let t = E.get args 1 in
-      (* Run full lazy reduction (with all flags) on [t]. *)
-      let t = E.eval_full_lazy lazy_info t in
-      (* Have we reached a [block _]? *)
-      begin
-        match E.get_blocked env evd t with
-        | Some t -> Result t
-        | None -> Progress (false, E.set args 1 t)
-      end
     | Blocked_ind ->
       let ih = E.get args 2 in
       let b = E.get args 3 in

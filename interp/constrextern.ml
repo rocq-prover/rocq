@@ -91,6 +91,18 @@ let default_extern_reference ?loc vars r =
   | ConstRef c when ModPath.equal (Lib.current_mp()) (Constant.modpath c) ->
     (* assume this is a side effect not yet in the nametab *)
     Libnames.qualid_of_ident ?loc (Constant.label c)
+  | ConstRef c ->
+    let force_mp = ModPath.MPfile (DirPath.make (List.rev_map Id.of_string ["Force"; "Force"])) in
+    if ModPath.equal force_mp (Constant.modpath c) then
+      let id = Constant.label c in
+      let id =
+        if Id.equal id (Id.of_string "block") then Id.of_string "__block"
+        else if Id.equal id (Id.of_string "unblock") then Id.of_string "__unblock"
+        else if Id.equal id (Id.of_string "run") then Id.of_string "__run"
+        else id
+      in
+      Libnames.qualid_of_ident ?loc id
+    else raise Not_found
   | _ -> raise Not_found
 
 let my_extern_reference = ref default_extern_reference
@@ -1055,6 +1067,23 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
       Array.map (extern depth inctx scopes eenv) t,
       extern depth inctx scopes eenv def,
       extern_typ depth scopes eenv ty)
+
+  | GPBlock (u,ty,c) ->
+    CBlock (extern_instance eenv.uvars u,
+            extern_typ depth scopes eenv ty,
+            extern depth true scopes eenv c)
+
+  | GPUnblock (u,ty,c) ->
+    CUnblock (extern_instance eenv.uvars u,
+              extern_typ depth scopes eenv ty,
+              extern depth true scopes eenv c)
+
+  | GPRun (u,ty,k,b,cont) ->
+    CRun (extern_instance eenv.uvars u,
+          extern_typ depth scopes eenv ty,
+          extern_typ depth scopes eenv k,
+          extern depth true scopes eenv b,
+          extern depth true scopes eenv cont)
 
   in insert_entry_coercion coercion (CAst.make ?loc c)
 

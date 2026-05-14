@@ -320,6 +320,12 @@ let check_actual_type env sigma cj t =
   try Evarconv.unify_leq_delay env sigma cj.uj_type t
   with Evarconv.UnableToUnify (sigma,e) -> error_actual_type env sigma cj t e
 
+let check_leq_sort sigma s1 s2 =
+  let sigma = Evd.set_leq_sort sigma s1 s2 in
+  let q1 = Sorts.quality (ESorts.kind sigma s1) in
+  let q2 = Sorts.quality (ESorts.kind sigma s2) in
+  Evd.add_constraints sigma (UnivProblem.Set.singleton (UnivProblem.QLeq (q1, q2)))
+
 let judge_of_cast env sigma cj k tj =
   let expected_type = tj.utj_val in
   let sigma = check_actual_type env sigma cj expected_type in
@@ -656,6 +662,58 @@ let rec execute env sigma cstr =
       let sigma, tj = execute_array env sigma t in
       judge_of_array env sigma (EInstance.kind sigma u) tj defj tyj
 
+    | PBlock (u,ty,t) ->
+      let u = EInstance.kind sigma u in
+      let q, ulev = match UVars.Instance.to_array u with
+        | [|q|], [|u|] -> q, u
+        | _ -> assert false
+      in
+      let sigma, tyj = execute env sigma ty in
+      let sigma, tyj = type_judgment env sigma tyj in
+      let expected_sort = ESorts.make (Sorts.make q (Univ.Universe.make ulev)) in
+      let sigma = check_leq_sort sigma tyj.utj_type expected_sort in
+      let sigma, tj = execute env sigma t in
+      let sigma = check_actual_type env sigma tj ty in
+      let blocked = EConstr.of_constr (Typeops.type_of_blocked env u) in
+      sigma, make_judge (mkPBlock (EInstance.make u, ty, t)) (mkApp (blocked, [|ty|]))
+
+    | PUnblock (u,ty,b) ->
+      let u = EInstance.kind sigma u in
+      let q, ulev = match UVars.Instance.to_array u with
+        | [|q|], [|u|] -> q, u
+        | _ -> assert false
+      in
+      let sigma, tyj = execute env sigma ty in
+      let sigma, tyj = type_judgment env sigma tyj in
+      let expected_sort = ESorts.make (Sorts.make q (Univ.Universe.make ulev)) in
+      let sigma = check_leq_sort sigma tyj.utj_type expected_sort in
+      let sigma, bj = execute env sigma b in
+      let blocked = EConstr.of_constr (Typeops.type_of_blocked env u) in
+      let sigma = check_actual_type env sigma bj (mkApp (blocked, [|ty|])) in
+      sigma, make_judge (mkPUnblock (EInstance.make u, ty, b)) ty
+
+    | PRun (u,ty,k,b,cont) ->
+      let u = EInstance.kind sigma u in
+      let q, qk, ulev, uk = match UVars.Instance.to_array u with
+        | [|q; qk|], [|u; uk|] -> q, qk, u, uk
+        | _ -> assert false
+      in
+      let blocked_u = UVars.Instance.of_array ([|q|], [|ulev|]) in
+      let sigma, tyj = execute env sigma ty in
+      let sigma, tyj = type_judgment env sigma tyj in
+      let expected_ty_sort = ESorts.make (Sorts.make q (Univ.Universe.make ulev)) in
+      let sigma = check_leq_sort sigma tyj.utj_type expected_ty_sort in
+      let sigma, kj = execute env sigma k in
+      let sigma, kj = type_judgment env sigma kj in
+      let expected_k_sort = ESorts.make (Sorts.make qk (Univ.Universe.make uk)) in
+      let sigma = check_leq_sort sigma kj.utj_type expected_k_sort in
+      let sigma, bj = execute env sigma b in
+      let blocked = EConstr.of_constr (Typeops.type_of_blocked env blocked_u) in
+      let sigma = check_actual_type env sigma bj (mkApp (blocked, [|ty|])) in
+      let sigma, contj = execute env sigma cont in
+      let sigma = check_actual_type env sigma contj (mkProd (anonR, ty, EConstr.Vars.lift 1 k)) in
+      sigma, make_judge (mkPRun (EInstance.make u, ty, k, b, cont)) k
+
 and execute_recdef env sigma (names,lar,vdef) =
   let sigma, larj = execute_array env sigma lar in
   let sigma, lara = Array.fold_left_map (assumption_of_judgment env) sigma larj in
@@ -928,7 +986,7 @@ let rec recheck_against env sigma good c =
         let sigma, tj = type_judgment env sigma tj in
         maybe_changed (judge_of_cast env sigma cj k tj)
 
-    | _, (Case _ | App _ | Lambda _ | Prod _ | Cast _ | Proj _) -> default ()
+    | _, (Case _ | App _ | Lambda _ | Prod _ | Cast _ | Proj _ | PBlock _ | PUnblock _ | PRun _) -> default ()
 
 let recheck_against env sigma a b =
   let sigma, _, j = recheck_against env sigma a b in

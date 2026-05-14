@@ -927,6 +927,20 @@ and detype_r d flags avoid env sigma t =
       let ty = detype d flags avoid env sigma ty in
       let u = detype_instance ~flags sigma u in
       GArray(u, t, def, ty)
+    | PBlock (u,ty,t) ->
+      let ty = detype d flags avoid env sigma ty in
+      let t = detype d flags avoid env sigma t in
+      GPBlock (detype_instance ~flags sigma u, ty, t)
+    | PUnblock (u,ty,t) ->
+      let ty = detype d flags avoid env sigma ty in
+      let t = detype d flags avoid env sigma t in
+      GPUnblock (detype_instance ~flags sigma u, ty, t)
+    | PRun (u,ty,k,b,cont) ->
+      let ty = detype d flags avoid env sigma ty in
+      let k = detype d flags avoid env sigma k in
+      let b = detype d flags avoid env sigma b in
+      let cont = detype d flags avoid env sigma cont in
+      GPRun (detype_instance ~flags sigma u, ty, k, b, cont)
 
 and detype_eqns d flags avoid env sigma computable constructs bl =
   try
@@ -1226,5 +1240,22 @@ let rec subst_glob_constr env subst = DAst.map (function
       in
         if def' == def && t' == t && ty' == ty then raw else
           GArray(u,t',def',ty')
+
+  | GPBlock (u,ty,c) as raw ->
+      let ty' = subst_glob_constr env subst ty in
+      let c' = subst_glob_constr env subst c in
+      if ty' == ty && c' == c then raw else GPBlock (u,ty',c')
+
+  | GPUnblock (u,ty,c) as raw ->
+      let ty' = subst_glob_constr env subst ty in
+      let c' = subst_glob_constr env subst c in
+      if ty' == ty && c' == c then raw else GPUnblock (u,ty',c')
+
+  | GPRun (u,ty,k,b,cont) as raw ->
+      let ty' = subst_glob_constr env subst ty in
+      let k' = subst_glob_constr env subst k in
+      let b' = subst_glob_constr env subst b in
+      let cont' = subst_glob_constr env subst cont in
+      if ty' == ty && k' == k && b' == b && cont' == cont then raw else GPRun (u,ty',k',b',cont')
 
   )

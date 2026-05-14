@@ -571,7 +571,8 @@ let mk_clos ~mode (e:usubs) t =
     | Int i -> {mark = RedState.mk cstr mode; term = FInt i}
     | Float f -> {mark = RedState.mk cstr mode; term = FFloat f}
     | String s -> {mark = RedState.mk cstr mode; term = FString s}
-    | (CoFix _|Lambda _|Fix _|Prod _|Evar _|App _|Case _|Cast _|LetIn _|Proj _|Array _) ->
+    | (CoFix _|Lambda _|Fix _|Prod _|Evar _|App _|Case _|Cast _|LetIn _|Proj _|Array _
+      |PBlock _|PUnblock _|PRun _) ->
         {mark = RedState.mk red mode; term = FCLOS(t,e)}
 
 let injectu ~mode c u =
@@ -928,14 +929,16 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
         in
         let t = !klt_ref ~mode:identity info tab e t in
         let op = subst_instance_constr (snd e) op in
-        Constr.mkApp (op, [|ty; t|])
+        let u = match [@ocaml.warning "-4"] Constr.kind op with Const (_,u) -> u | _ -> assert false in
+        Constr.mkPBlock (u, ty, t)
 
     | FUnblock (op, ty, m, e) ->
       let m = to_constr ulfts m in
       let subs = comp_subs ulfts e in
       let ty = subst_constr subs ty in
       let op = subst_instance_constr (snd e) op in
-      Constr.mkApp (op, [|ty; m|])
+      let u = match [@ocaml.warning "-4"] Constr.kind op with Const (_,u) -> u | _ -> assert false in
+      Constr.mkPUnblock (u, ty, m)
 
     | FRun (op, ty1, ty2, m, k, e) ->
       let m = to_constr ulfts m in
@@ -944,7 +947,8 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
       let ty2 = subst_constr subs ty2 in
       let k = subst_constr subs k in
       let op = subst_instance_constr (snd e) op in
-      Constr.mkApp (op, [|ty1; ty2; m; k|])
+      let u = match [@ocaml.warning "-4"] Constr.kind op with Const (_,u) -> u | _ -> assert false in
+      Constr.mkPRun (u, ty1, ty2, m, k)
 
     | FBlockedInd (op, ty, p, ih, m, e) ->
       let m = to_constr ulfts m in
@@ -1428,7 +1432,6 @@ module FNativeEntries =
     let get_blocked _ _ e =
       match [@ocaml.warning "-4"] e.term with
       | FBlock (_, _, t, env) -> Some (mk_clos ~mode:normal_whnf env t)
-      | FPrimitive (CPrimitives.Block, _, _, [|_; t|]) -> Some t
       | _ -> None
 
 
@@ -1805,6 +1808,9 @@ and knht_app ~mode ~lexical info e h args stk =
     (red_set mode info fDELTA) &&
     (TransparentState.is_transparent_constant (red_transparent mode info) c)
   in
+  let [@ocaml.inline always]transparent c =
+    TransparentState.is_transparent_constant (red_transparent mode info) c
+  in
   let force_arg_mode () =
     if lexical then full else normal_whnf
   in
@@ -1844,7 +1850,7 @@ and knht_app ~mode ~lexical info e h args stk =
         knht ~mode:mode_full info e t (Zrun (h, ty1, ty2, k, e, mode) :: stk)
       else
         ({ mark = RedState.mk cstr mode; term = FEta((4-nargs), h, args, 0, e) }, stk)
-    else if Constant.UserOrd.equal c blocked_ind_constant && check_enabled c then
+    else if Constant.UserOrd.equal c blocked_ind_constant && transparent c then
       if nargs >= 4 then
         let ty = args.(0) in
         let p = args.(1) in
@@ -1891,6 +1897,19 @@ and knht ~mode info (e : usubs) t stk : fconstr * stack =
         (mk_irrelevant, skip_irrelevant_stack info stk)
       else
         knh info { mark = RedState.mk red mode; term = FProj (p, r, mk_clos ~mode e c) } stk
+    | PBlock (u,ty,t) ->
+      let op = mkConstU (block_constant, u) in
+      let mode = if mode == identity then identity else normal_whnf in
+      knh info { mark = RedState.mk cstr mode; term = FBlock (op, ty, t, e) } stk
+    | PUnblock (u,ty,t) ->
+      let op = (unblock_constant, u) in
+      knht ~mode:full info e t (Zunblock (mkConstU op, ty, e, mode) :: stk)
+    | PRun (u,ty1,ty2,t,k) ->
+      let op = (run_constant, u) in
+      if mode != identity then
+        knht ~mode:full info e t (Zrun (mkConstU op, ty1, ty2, k, e, mode) :: stk)
+      else
+        ({ mark = RedState.mk ntrl mode; term = FCLOS (mkPRun (u,ty1,ty2,t,k), e) }, stk)
     | (Ind _|Const _|Construct _|Var _|Meta _ | Sort _ | Int _|Float _|String _) -> (mk_clos ~mode e t, stk)
     | CoFix cfx -> ({ mark = RedState.mk cstr mode; term = FCoFix (cfx,e) }, stk)
     | Lambda _ -> ({ mark = RedState.mk cstr mode; term = mk_lambda e t }, stk)
@@ -2410,26 +2429,8 @@ let rec knr info tab ~pat_state m stk =
      | FredNative.Result m -> kni info tab ~pat_state m stk
      | FredNative.Error -> assert false
      | FredNative.Progress (_, args) ->
-       match[@ocaml.warning "-4"] (op, args) with
-       | (CPrimitives.Block, [|_; t|])  ->
-           m.mark <- RedState.set_cstr m.mark;
-           (match [@ocaml.warning "-4"] strip_update_shift_app m stk with
-            | (_, _, rargs, Zunblock (_,_,_,mode) :: stk) ->
-                ignore mode;
-                let s = List.rev_append rargs stk in
-                kni info tab ~pat_state t s
-            | (_, _, rargs, Zblockedind (_,_,_,ih,eih,mode) :: stk) ->
-                let stk = List.rev_append rargs stk in
-                let ih = mk_clos ~mode eih ih in
-                let term = FApp(ih,[|t|]) in
-                kni info tab ~pat_state {mark=RedState.mk red mode; term} stk
-            | (_, _, rargs, stk) ->
-                let stk = List.rev_append rargs stk in
-                let m = { mark= RedState.mk cstr (RedState.mode m.mark); term=FPrimitive (op, pc, fc, args) } in
-                knr info tab ~pat_state m stk)
-       | _ ->
-           let m = { mark= RedState.mk cstr mode; term=FPrimitive (op, pc, fc, args) } in
-           knr info tab ~pat_state m stk)
+       let m = { mark= RedState.mk cstr mode; term=FPrimitive (op, pc, fc, args) } in
+       knr info tab ~pat_state m stk)
   | FInt _ | FFloat _ | FString _ | FArray _ | FPrimitive _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app_head m stk with
      | (_, (_, _, Zprimitive(op,c,opm,rargs,nargs)::s)) ->
@@ -2474,9 +2475,9 @@ let rec knr info tab ~pat_state m stk =
   | FProd _ | FAtom _ | FInd _
   | FCaseInvert _ | FProj _ | FFix _ | FEvar _
   | FLambda _ | FFlex _ | FRel _
-  | FLetIn _ ->
+  | FLetIn _ | FCLOS _ ->
     knr_ret info tab ~pat_state (m, stk)
-  | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ | FUnblock _ | FRun _ | FBlockedInd _
+  | FLOCKED | FApp _ | FCaseT _ | FLIFT _ | FUnblock _ | FRun _ | FBlockedInd _
   | FLAZY _ ->
     assert false
 
@@ -2584,7 +2585,7 @@ and klt ~mode info tab (e : usubs) t =
     else mkApp (hd', args')
   | Var _ | Const _ | CoFix _ | Lambda _ | Fix _ | Prod _ | Evar _ | Case _
   | Cast _ | LetIn _ | Proj _ | Array _ | Rel _ | Meta _ | Sort _ | Int _
-  | Float _ | String _ ->
+  | Float _ | String _ | PBlock _ | PUnblock _ | PRun _ ->
     let share = info.i_cache.i_share in
     let (nm,s) = knit ~mode info tab ~pat_state:(RedPattern.Nil No) e t [] in
     let () = if share then ignore (fapp_stack (nm, s)) in (* to unlock Zupdates! *)
@@ -2604,7 +2605,8 @@ and klt ~mode info tab (e : usubs) t =
   if na' == na && u' == u && v' == v then t
   else mkProd (na', u', v')
 | Cast (t, _, _) -> klt ~mode info tab e t
-| Var _ | Const _ | CoFix _ | Fix _ | Evar _ | Case _ | LetIn _ | Proj _ | Array _ ->
+| Var _ | Const _ | CoFix _ | Fix _ | Evar _ | Case _ | LetIn _ | Proj _ | Array _
+| PBlock _ | PUnblock _ | PRun _ ->
   let share = info.i_cache.i_share in
   let (nm,s) = knit ~mode info tab ~pat_state:(RedPattern.Nil No) e t [] in
   let () = if share then ignore (fapp_stack (nm, s)) in (* to unlock Zupdates! *)
@@ -2666,12 +2668,6 @@ and norm_head info tab m =
       | FConstruct (c,args) ->
         let c = mkConstructU c in
         if Array.is_empty args then c else mkApp (c, Array.map (kl info tab) args)
-      | FPrimitive ((CPrimitives.Unblock | CPrimitives.Block), c, _, args) ->
-        mkApp (mkConstU c,
-               Array.mapi (fun i m -> if i <> 1 then kl info tab m else term_of_fconstr ~info ~tab m) args)
-      | FPrimitive (CPrimitives.Run, c, _, args) ->
-        mkApp (mkConstU c,
-               Array.mapi (fun i m -> if i = 2 then term_of_fconstr ~info ~tab m else kl info tab m) args)
       | FPrimitive (CPrimitives.Blocked_ind, c, _, args) ->
         mkApp (mkConstU c,
                Array.mapi (fun i m -> if i = 3 then term_of_fconstr ~info ~tab m else kl info tab m) args)
@@ -2850,19 +2846,6 @@ let unfold_ref_with_args infos tab fl v =
     begin
       let c = match [@ocaml.warning "-4"] fl with ConstKey c -> c | _ -> assert false in
       match[@ocaml.warning "-4"] op with
-      | CPrimitives.Unblock | CPrimitives.Run | CPrimitives.Block ->
-        let (rargs, v) = match get_native_args ~mode:normal_whnf op c v with
-          | ((rargs, nargs), v) ->
-            assert (nargs = []);
-            (rargs, v)
-        in
-        let mode = if op == CPrimitives.Block then identity else full in
-        let rargs = List.map (set_mode ~mode) rargs in
-        let args = mk_eta_args [||] (List.length rargs) in
-        let h = mkConstU c in
-        let e = usubs_consv (Array.rev_of_list rargs) (Esubst.subs_id 0, UVars.Instance.empty) in
-        let (m,stk) = knht_app ~mode ~lexical:true infos e h args v in
-        Some (knr infos tab m stk)
       | _ ->
         let m = {mark = RedState.mk cstr normal_whnf; term = FFlex fl } in
         match get_native_args ~mode:normal_whnf op c v with

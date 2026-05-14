@@ -374,9 +374,16 @@ let rec compare_under e1 c1 e2 c2 =
     Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) t1 t2
     && compare_under e1 def1 e2 def2
     && compare_under e1 ty1 e2 ty2
+  | PBlock (_u1,ty1,t1), PBlock (_u2,ty2,t2)
+  | PUnblock (_u1,ty1,t1), PUnblock (_u2,ty2,t2) ->
+    compare_under e1 ty1 e2 ty2 && compare_under e1 t1 e2 t2
+  | PRun (_u1,ty1,k1,b1,cont1), PRun (_u2,ty2,k2,b2,cont2) ->
+    compare_under e1 ty1 e2 ty2 && compare_under e1 k1 e2 k2 &&
+    compare_under e1 b1 e2 b2 && compare_under e1 cont1 e2 cont2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PUnblock _
+    | PRun _), _ -> false
 
 
 let rec fast_test lft1 term1 lft2 term2 = match fterm_of term1, fterm_of term2 with

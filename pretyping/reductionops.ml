@@ -580,19 +580,9 @@ struct
     | Array(_u,t,def,_ty) -> Parray.of_array t def
     | _ -> raise Primred.NativeDestKO
 
-  let get_blocked env evd e =
-    let is_block h =
-      let is_block c =
-        match Environ.get_primitive env c with
-        | Some CPrimitives.Block -> true
-        | _ -> false
-      in
-      match EConstr.kind evd h with
-      | Const (c, _) -> is_block c
-      | _ -> false
-    in
+  let get_blocked _env evd e =
     match EConstr.kind evd e with
-    | App(h, [|_; t|]) when is_block h -> Some t
+    | PBlock (_, _, t) -> Some t
     | _ -> None
 
   let mkInt env i =
@@ -1016,7 +1006,21 @@ let rec whd_state_gen flags ?metas env sigma =
         |_ -> fold ()
       else fold ()
 
-    | Int _ | Float _ | String _ | Array _ ->
+    | PUnblock (_u,_ty,b) ->
+      let b', _ = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b' with
+      | PBlock (_, _, t) -> whrec (t, stack)
+      | _ -> fold ()
+      end
+
+    | PRun (_u,_ty,_k,b,cont) ->
+      let b', _ = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b' with
+      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      | _ -> fold ()
+      end
+
+    | Int _ | Float _ | String _ | Array _ | PBlock _ ->
       begin match Stack.strip_app stack with
        | (_, Stack.Primitive(p,(_, u as kn),rargs,kargs)::s) ->
          let more_to_reduce = List.exists (fun k -> CPrimitives.Kwhnf = k) kargs in
@@ -1104,8 +1108,22 @@ let local_whd_state_gen flags ?metas env sigma =
         |_ -> s
       else s
 
+    | PUnblock (_u,_ty,b) ->
+      let b', _ = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b' with
+      | PBlock (_, _, t) -> whrec (t, stack)
+      | _ -> s
+      end
+
+    | PRun (_u,_ty,_k,b,cont) ->
+      let b', _ = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b' with
+      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      | _ -> s
+      end
+
     | Rel _ | Var _ | Sort _ | Prod _ | LetIn _ | Const _  | Ind _ | Proj _
-      | Int _ | Float _ | String _ | Array _ -> s
+      | Int _ | Float _ | String _ | Array _ | PBlock _ -> s
 
   in
   whrec
@@ -1118,7 +1136,7 @@ let red_of_state_red ?metas ~delta f env sigma x =
   let rec is_whnf c = match Constr.kind c with
     | Const _ | Var _ -> not delta
     | Construct _ | Ind _ | Int _ | Float _ | String _
-    | Sort _ | Prod _ -> true
+    | Sort _ | Prod _ | PBlock _ -> true
     | App (h,_) -> is_whnf h
     | _ -> false
   in
@@ -1199,7 +1217,8 @@ let shrink_eta sigma c =
         | _ -> x
       else x
     | Meta _ | App _ | Case _ | Fix _ | Construct _ | CoFix _ | Evar _ | Rel _ | Var _ | Sort _ | Prod _
-    | LetIn _ | Const _  | Ind _ | Proj _ | Int _ | Float _ | String _ | Array _ -> x
+    | LetIn _ | Const _  | Ind _ | Proj _ | Int _ | Float _ | String _ | Array _
+    | PBlock _ | PUnblock _ | PRun _ -> x
   in
   whrec c
 

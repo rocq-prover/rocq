@@ -852,6 +852,48 @@ and execute_aux tbl env cstr =
       in
       mkApp(ta, [|ty|])
 
+    | PBlock (u,ty,t) ->
+      let q, ulev = match UVars.Instance.to_array u with
+        | [|q|], [|u|] -> q, u
+        | _ -> assert false
+      in
+      let tyty = execute tbl env ty in
+      let ty = self ty in
+      check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
+      let tt = execute tbl env t in
+      check_cast env (self t) tt DEFAULTcast ty;
+      mkApp (type_of_blocked env u, [|ty|])
+
+    | PUnblock (u,ty,b) ->
+      let q, ulev = match UVars.Instance.to_array u with
+        | [|q|], [|u|] -> q, u
+        | _ -> assert false
+      in
+      let tyty = execute tbl env ty in
+      let ty = self ty in
+      check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
+      let bt = execute tbl env b in
+      check_cast env (self b) bt DEFAULTcast (mkApp (type_of_blocked env u, [|ty|]));
+      ty
+
+    | PRun (u,ty,k,b,cont) ->
+      let q, qk, ulev, uk = match UVars.Instance.to_array u with
+        | [|q; qk|], [|u; uk|] -> q, qk, u, uk
+        | _ -> assert false
+      in
+      let blocked_u = UVars.Instance.of_array ([|q|], [|ulev|]) in
+      let tyty = execute tbl env ty in
+      let ty = self ty in
+      check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
+      let kt = execute tbl env k in
+      let k = self k in
+      check_cast env k kt DEFAULTcast (mkSort (Sorts.make qk (Universe.make uk)));
+      let bt = execute tbl env b in
+      check_cast env (self b) bt DEFAULTcast (mkApp (type_of_blocked env blocked_u, [|ty|]));
+      let contt = execute tbl env cont in
+      check_cast env (self cont) contt DEFAULTcast (mkProd (Context.anonR, ty, Vars.lift 1 k));
+      k
+
     (* Partial proofs: unsupported by the kernel *)
     | Meta _ ->
         anomaly (Pp.str "the kernel does not support metavariables.")
@@ -953,27 +995,17 @@ let type_of_prim_const env _u c =
   | CPrimitives.Stringmaxlength ->
     int_ty ()
 
-let make_force_constant name =
-  let force_modpath =
-    let open Names in
-    let mp = List.rev_map Id.of_string ["Force"; "Force"] in
-    ModPath.MPfile (DirPath.make mp)
-  in
-  let kn = KerName.make force_modpath (Id.of_string name) in
-  snd (hcons_con (Constant.make1 kn))
-
 let type_of_blocked_ind env u =
   match UVars.Instance.to_array u with
   | [|s; sp|], [|ul; upl|] ->
     let blocked_u = UVars.Instance.of_array ([|s|], [|ul|]) in
     let blocked = type_of_blocked env blocked_u in
-    let block = mkConstU (make_force_constant "block", blocked_u) in
     let t_sort = mkSort (Sorts.make s (Universe.make ul)) in
     let p_sort = mkSort (Sorts.make sp (Universe.make upl)) in
     let blocked_t t = mkApp (blocked, [|t|]) in
     let p_type = mkProd (Context.anonR, blocked_t (mkRel 1), p_sort) in
     let ih_type =
-      let block_t = mkApp (block, [|mkRel 3; mkRel 1|]) in
+      let block_t = mkPBlock (blocked_u, mkRel 3, mkRel 1) in
       mkProd (Context.nameR (Id.of_string "t"), mkRel 2, mkApp (mkRel 2, [|block_t|]))
     in
     let b_type = blocked_t (mkRel 3) in
