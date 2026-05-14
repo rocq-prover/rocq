@@ -1767,5 +1767,7 @@ Proof.
     rewrite ap_trijoin_V.
     rewrite trijoin_rec_beta_join123.
     set (f' := f).
-    destruct f as [f1 f2 f3 f12 f13 f23 f123]; timeout 2 cbn.
+    destruct f as [f1 f2 f3 f12 f13 f23 f123].
+    Instructions cbn.
+    Timeout 1 cbn.
 Abort.
