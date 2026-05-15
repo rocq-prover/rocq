@@ -702,16 +702,29 @@ let rec execute env sigma cstr =
       let sigma, tyj = execute env sigma ty in
       let sigma, tyj = type_judgment env sigma tyj in
       let expected_ty_sort = ESorts.make (Sorts.make q (Univ.Universe.make ulev)) in
-      let sigma = check_leq_sort sigma tyj.utj_type expected_ty_sort in
+      let ty_sort = tyj.utj_type in
+      let sigma = check_leq_sort sigma ty_sort expected_ty_sort in
       let sigma, kj = execute env sigma k in
       let sigma, kj = type_judgment env sigma kj in
       let expected_k_sort = ESorts.make (Sorts.make qk (Univ.Universe.make uk)) in
-      let sigma = check_leq_sort sigma kj.utj_type expected_k_sort in
+      let k_sort = kj.utj_type in
+      let sigma = check_leq_sort sigma k_sort expected_k_sort in
       let sigma, bj = execute env sigma b in
       let blocked = EConstr.of_constr (Typeops.type_of_blocked env blocked_u) in
       let sigma = check_actual_type env sigma bj (mkApp (blocked, [|ty|])) in
       let sigma, contj = execute env sigma cont in
       let sigma = check_actual_type env sigma contj (mkProd (anonR, ty, EConstr.Vars.lift 1 k)) in
+      let sigma =
+        let qsty = Sorts.quality (ESorts.kind sigma ty_sort) in
+        let qsk = Sorts.quality (ESorts.kind sigma k_sort) in
+        if Sorts.Quality.equal qsty Sorts.Quality.qtype ||
+           Sorts.Quality.equal qsty Sorts.Quality.qprop
+        then sigma
+        else
+          try Evd.set_elim_to sigma qsty qsk
+          with QGraph.EliminationError _ | UGraph.UniverseInconsistency _ ->
+            user_err Pp.(str "This run eliminates into an invalid sort.")
+      in
       sigma, make_judge (mkPRun (EInstance.make u, ty, k, b, cont)) k
 
 and execute_recdef env sigma (names,lar,vdef) =

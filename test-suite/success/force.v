@@ -1,6 +1,7 @@
 (* Force primitive regression tests. *)
 
-Require Import Force.Force.
+Require Import Force.Force Ltac2.Ltac2.
+Set Default Proof Mode "Classic".
 
 Fail Check (block 0).
 Fail Check (unblock 0).
@@ -11,6 +12,27 @@ Fail Check (run 0 (fun x => x)).
 Definition check_run@{u1 u2} : forall (T : Type@{u1}) (K : Type@{u2}), Blocked T -> (T -> K) -> K := fun T K b k => __run@{Type Type;u1 u2} T K b k.
 Inductive sunit : SProp := sitt.
 Fail Check (__run@{SProp Type;Set Set} sunit nat (__block@{SProp;Set} sunit sitt) (fun _ => 0)).
+Polymorphic Definition bad_run_instance_source@{s1 s2;u1 u2}
+  (A : Type@{s1;u1}) (B : Type@{s2;u2}) := A.
+Ltac2 bad_run_instance () :=
+  match Constr.Unsafe.kind '(@bad_run_instance_source@{SProp Type;Set Set}) with
+  | Constr.Unsafe.Constant _ u => u
+  | _ => Control.throw Assertion_failure
+  end.
+Goal True.
+Proof.
+  ltac2:(
+    let u := bad_run_instance () in
+    let c := Constr.Unsafe.make
+      (Constr.Unsafe.PRun u 'sunit 'nat
+        '(__block@{SProp;Set} sunit sitt)
+        '(fun _ : sunit => 0)) in
+    match Constr.Unsafe.check c with
+    | Val _ => fail
+    | Err _ => ()
+    end).
+  exact I.
+Qed.
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
 Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := fun T x => __block@{Type;u} T x.
 Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := fun T x => __unblock@{Type;u} T x.

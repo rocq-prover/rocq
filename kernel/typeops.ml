@@ -884,15 +884,22 @@ and execute_aux tbl env cstr =
       let blocked_u = UVars.Instance.of_array ([|q|], [|ulev|]) in
       let tyty = execute tbl env ty in
       let ty = self ty in
+      let ty_sort = check_type env ty tyty in
       check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
       let kt = execute tbl env k in
       let k = self k in
+      let k_sort = check_type env k kt in
       check_cast env k kt DEFAULTcast (mkSort (Sorts.make qk (Universe.make uk)));
       let bt = execute tbl env b in
       check_cast env (self b) bt DEFAULTcast (mkApp (type_of_blocked env blocked_u, [|ty|]));
       let contt = execute tbl env cont in
       check_cast env (self cont) contt DEFAULTcast (mkProd (Context.anonR, ty, Vars.lift 1 k));
-      k
+      let qsty = Sorts.quality ty_sort in
+      let qsk = Sorts.quality k_sort in
+      if Quality.equal qsty Quality.qtype || Quality.equal qsty Quality.qprop ||
+         Inductive.eliminates_to (Environ.qualities env) qsty qsk
+      then k
+      else CErrors.user_err Pp.(str "This run eliminates into an invalid sort.")
 
     (* Partial proofs: unsupported by the kernel *)
     | Meta _ ->
