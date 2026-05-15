@@ -71,3 +71,42 @@ match goal with [ |- (n, scons n (mut_stream2 x (n + x))) = (n, scons n (mut_str
 Abort.
 
 End MutualFixCoFixInSection.
+
+Module RefoldProjectionAlias.
+
+Module AsClass.
+  Class Difference A := difference : A -> A -> A.
+  Definition set := { t : nat | True }.
+  Definition set_difference : Difference set := fun X Y =>
+    let (t1, _) := X in let (t2, _) := Y in exist _ t1 I.
+
+  Goal forall y : set, True.
+  Proof.
+    intro y.
+    let v := eval cbn in (@difference set set_difference (exist _ 0 I) y) in
+    lazymatch v with
+    | difference (exist _ 0 I) y => exact I
+    | _ => fail "difference was not refolded"
+    end.
+  Qed.
+End AsClass.
+
+Module AsDef.
+  Definition Difference A := A -> A -> A.
+  Definition difference {A} {D : Difference A} : A -> A -> A := D.
+  Definition set := { t : nat | True }.
+  Definition set_difference : Difference set := fun X Y =>
+    let (t1, _) := X in let (t2, _) := Y in exist _ t1 I.
+
+  Goal forall y : set, True.
+  Proof.
+    intro y.
+    let v := eval cbn in (@difference set set_difference (exist _ 0 I) y) in
+    lazymatch v with
+    | difference (exist _ 0 I) y => exact I
+    | _ => fail "difference was not refolded"
+    end.
+  Qed.
+End AsDef.
+
+End RefoldProjectionAlias.
