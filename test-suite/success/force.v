@@ -36,6 +36,17 @@ Qed.
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
 Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := fun T x => __block@{Type;u} T x.
 Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := fun T x => __unblock@{Type;u} T x.
+Module RunUniverseConversion.
+  Universe u v.
+  Constraint u < v.
+  Axiom b : Blocked@{Type;Set} nat.
+  Goal __run@{Type Type;Set u} nat nat b (fun x => x) =
+       __run@{Type Type;Set v} nat nat b (fun x => x).
+  Proof. reflexivity. Qed.
+  Goal (let z := __run@{Type Type;Set u} nat nat b (fun x => x) in z) =
+       __run@{Type Type;Set v} nat nat b (fun x => x).
+  Proof. reflexivity. Qed.
+End RunUniverseConversion.
 Polymorphic Definition check_block_lazy_univs@{u} (A : Type@{u}) (x : A) := __block@{Type;u} A x.
 Definition check_block_lazy_univs_inst : Blocked nat := __block nat 0.
 
