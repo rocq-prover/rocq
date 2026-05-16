@@ -95,7 +95,7 @@ class SubdomainItemData:
     docname: str
     objtype: str
     targetid: str
-    syntax: list[object_notations.NotationObject]
+    syntax: list[object_notations.TaggedNotationObject]
 
 def notation_to_sphinx(notation, source, line, rawtext=None):
     """Parse notation and wrap it in an inline node"""
@@ -183,13 +183,13 @@ class RocqObject(ObjectDescription):
         """Render a signature, placing resulting nodes into signode."""
         raise NotImplementedError(self)
 
-    def _signature_to_syntax(self, signature: str) -> list[object_notations.NotationObject]:
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.TaggedNotationObject]:
         """Convert a signature into a syntax tree, used in generated plain JSON indices.
 
         By default, returns the signature as a literal string.
 
         """
-        return [object_notations.Literal(value=signature, subscript=None)]
+        return [object_notations.Literal.new(object_notations.Literal(value=signature, subscript=None))]
 
     option_spec = {
         # Explicit object naming
@@ -341,7 +341,7 @@ class NotationObject(DocumentableObject):
     Objects that inherit from this class can use the notation grammar (“{+ …}”,
     “@…”, etc.) in their signature.
     """
-    def _signature_to_syntax(self, signature: str) -> list[object_notations.NotationObject]:
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.TaggedNotationObject]:
         return object_notations.objectify(signature)
 
     def _render_signature(self, signature, signode):
@@ -1300,7 +1300,7 @@ class IndicesBuilder(TextBuilder):
         domain = self.env.get_domain('rocq')
 
         def write_json(index: RocqSubdomainsIndex):
-            items = chain(*(domain.data['objects'][subdomain].items()
+            items: list[tuple[str, SubdomainItemData]] = chain(*(domain.data['objects'][subdomain].items()
                             for subdomain in index.subdomains))
 
             output_data = {}
@@ -1308,7 +1308,7 @@ class IndicesBuilder(TextBuilder):
                 output_data[name] = {
                     "documentation_path": data.docname,
                     "documentation_anchor": data.targetid,
-                    "syntax": [x.asdict() for x in data.syntax],
+                    "syntax": [[x[0], x[1].asdict()] for x in data.syntax],
                     "documentation": self.rendered.get(data.targetid, "")
                 }
 
