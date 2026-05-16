@@ -100,14 +100,13 @@ user a code snippet. It is of the following shape:
 
 ```ts
 type Syntax =
-  | Literal
-  | Reference
-  | Alternative
-  | Repeat
+  | ["Literal", Literal]
+  | ["Reference", Reference]
+  | ["Alternative", Alternative]
+  | ["Repeat", Repeat]
 
 // the literal string
 type Literal = {
-  type: "literal"
   value: string
   // an optional subscript, for example "1" which should be rendered as "₁"
   subscript: string | null
@@ -115,7 +114,6 @@ type Literal = {
 
 // a reference to a different entry in the documentation
 type Reference = {
-  type: "reference"
   value: string
   // an optional subscript, for example "1" which should be rendered as "₁"
   subscript: string | null
@@ -123,13 +121,11 @@ type Reference = {
 
 // an alternative between a list of options
 type Alternative = {
-  type: "alternative"
   children: Syntax[]
 }
 
 // repetition of a list of syntax nodes
 type Repeat = {
-  type: "repeat"
   // nodes have to repeat at least this many times
   min: number
   // nodes can repeat up to and including this many times
