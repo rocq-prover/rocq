@@ -313,9 +313,51 @@ let irr_flex infos = function
   | VarKey x -> is_irrelevant infos @@ Context.Named.Declaration.get_relevance (Environ.lookup_named x (info_env infos))
   | RelKey x -> is_irrelevant infos @@ Context.Rel.Declaration.get_relevance (Environ.lookup_rel x (info_env infos))
 
-let eq_universes (_,e1) (_,e2) u1 u2 =
-  let subst e u = if UVars.Instance.is_empty e then u else UVars.subst_instance_instance e u in
-  UVars.Instance.equal (subst e1 u1) (subst e2 u2)
+let subst_instance (_, e) u =
+  if UVars.Instance.is_empty e then u else UVars.subst_instance_instance e u
+
+let eq_universes e1 e2 u1 u2 =
+  UVars.Instance.equal (subst_instance e1 u1) (subst_instance e2 u2)
+
+(* Primitive force nodes store sort annotations in their universe instances.
+   Check their arity explicitly; for [run], compare only the source sort.
+   The result sort annotation is redundant with the result type [k]. *)
+let one_sort_instance u =
+  match UVars.Instance.to_array u with
+  | [|q|], [|u|] -> Some (q, u)
+  | _ -> None
+
+let two_sort_instance u =
+  match UVars.Instance.to_array u with
+  | [|q1; q2|], [|u1; u2|] -> Some (q1, u1, q2, u2)
+  | _ -> None
+
+let mk_sort_instance q u = UVars.Instance.of_array ([|q|], [|u|])
+
+let same_one_sort_arity u1 u2 =
+  match one_sort_instance u1, one_sort_instance u2 with
+  | Some _, Some _ -> true
+  | _ -> false
+
+let eq_run_instances e1 e2 u1 u2 =
+  match two_sort_instance (subst_instance e1 u1), two_sort_instance (subst_instance e2 u2) with
+  | Some (q1, u1, _qk1, _uk1), Some (q2, u2, _qk2, _uk2) ->
+    UVars.Instance.equal (mk_sort_instance q1 u1) (mk_sort_instance q2 u2)
+  | _ -> false
+
+let convert_one_sort_instances infos u1 u2 cu =
+  match one_sort_instance u1, one_sort_instance u2 with
+  | Some (q1, u1), Some (q2, u2) ->
+    fail_check infos @@ convert_instances ~flex:false
+      (mk_sort_instance q1 u1) (mk_sort_instance q2 u2) cu
+  | _ -> raise NotConvertible
+
+let convert_run_instances infos u1 u2 cu =
+  match two_sort_instance u1, two_sort_instance u2 with
+  | Some (q1, u1, _qk1, _uk1), Some (q2, u2, _qk2, _uk2) ->
+    fail_check infos @@ convert_instances ~flex:false
+      (mk_sort_instance q1 u1) (mk_sort_instance q2 u2) cu
+  | _ -> raise NotConvertible
 
 let rec compare_under e1 c1 e2 c2 =
   match Constr.kind c1, Constr.kind c2 with
@@ -369,10 +411,12 @@ let rec compare_under e1 c1 e2 c2 =
     Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) t1 t2
     && compare_under e1 def1 e2 def2
     && compare_under e1 ty1 e2 ty2
-  | PBlock (_u1,ty1,t1), PBlock (_u2,ty2,t2)
-  | PUnblock (_u1,ty1,t1), PUnblock (_u2,ty2,t2) ->
+  | PBlock (u1,ty1,t1), PBlock (u2,ty2,t2)
+  | PUnblock (u1,ty1,t1), PUnblock (u2,ty2,t2) ->
+    same_one_sort_arity (subst_instance e1 u1) (subst_instance e2 u2) &&
     compare_under e1 ty1 e2 ty2 && compare_under e1 t1 e2 t2
-  | PRun (_u1,ty1,k1,b1,cont1), PRun (_u2,ty2,k2,b2,cont2) ->
+  | PRun (u1,ty1,k1,b1,cont1), PRun (u2,ty2,k2,b2,cont2) ->
+    eq_run_instances e1 e2 u1 u2 &&
     compare_under e1 ty1 e2 ty2 && compare_under e1 k1 e2 k2 &&
     compare_under e1 b1 e2 b2 && compare_under e1 cont1 e2 cont2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
@@ -934,12 +978,12 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
             | (Zlunblock(l1,u1,ty1,e1), Zlunblock(l2,u2,ty2,e2)) ->
               let u1 = CClosure.usubst_instance e1 u1 in
               let u2 = CClosure.usubst_instance e2 u2 in
-              let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
+              let cu = convert_one_sort_instances infos u1 u2 cu1 in
               f (l1, mk_clos e1 ty1) (l2, mk_clos e2 ty2) cu
             | (Zlrun(l1,u1,ty11,ty12,k1,e1), Zlrun(l2,u2,ty21,ty22,k2,e2)) ->
               let u1 = CClosure.usubst_instance e1 u1 in
               let u2 = CClosure.usubst_instance e2 u2 in
-              let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
+              let cu = convert_run_instances infos u1 u2 cu1 in
               let cu = f (l1, mk_clos e1 ty11) (l2, mk_clos e2 ty21) cu in
               let cu = f (l1, mk_clos e1 ty12) (l2, mk_clos e2 ty22) cu in
               f (l1, mk_clos e1 k1) (l2, mk_clos e2 k2) cu
