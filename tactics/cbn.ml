@@ -962,6 +962,40 @@ let rec whd_state_gen ?csts flags env sigma =
                     | App (hd, _) -> is_case hd
                     | Case _ -> true
                     | _ -> false in
+                  let local_rel_is_unfoldable n =
+                    RedFlags.red_set flags RedFlags.fDELTA &&
+                    match lookup_rel n env with
+                    | LocalDef _ -> true
+                    | LocalAssum _ -> false
+                    | exception Not_found -> false
+                  in
+                  let local_var_is_unfoldable id =
+                    RedFlags.red_set flags (RedFlags.fVAR id) &&
+                    match lookup_named id env with
+                    | LocalDef _ -> true
+                    | LocalAssum _ -> false
+                    | exception Not_found -> false
+                  in
+                  (* Fast-path substitutions that are already stuck.  If the
+                     substituted value can still make head progress (local
+                     definitions, transparent constants, lets, beta-redexes,
+                     fixpoints, projections, ...), fall back to the ordinary
+                     weak-head pass below.  That pass is what notices that a
+                     [simpl nomatch] wrapper would expose a stuck case after
+                     zeta/delta/beta reduction and therefore refolds it. *)
+                  let rec is_obviously_stuck tm sk =
+                    not (Stack.will_expose_iota sk) &&
+                    match CbnClos.kind sigma tm with
+                    | Cast (tm, _, _) -> is_obviously_stuck tm sk
+                    | App (hd, args) -> is_obviously_stuck hd (Stack.append_app args sk)
+                    | Rel n -> not (local_rel_is_unfoldable n)
+                    | Var id -> not (local_var_is_unfoldable id)
+                    | Const (c, _) -> not (RedFlags.red_set flags (RedFlags.fCONST c))
+                    | Lambda _ -> Option.is_empty (Stack.decomp sk)
+                    | Construct _ | Ind _ | Evar _ | Meta _ | Sort _ | Prod _
+                    | Int _ | Float _ | String _ | Array _ -> true
+                    | LetIn _ | Case _ | Fix _ | CoFix _ | Proj _ -> false
+                  in
                   let unfolds_to_subst_value = match recargs with
                     | _ :: _ -> None
                     | [] ->
@@ -969,7 +1003,7 @@ let rec whd_state_gen ?csts flags env sigma =
                       let cst_l', (tm', sk') =
                         apply_subst sigma cst_l' (CbnClos.inject body) app_sk in
                       match CbnClos.subst_value sigma tm' with
-                      | Some tm' when not (Stack.will_expose_iota sk' || is_case tm') ->
+                      | Some tm' when is_obviously_stuck tm' sk' ->
                         Some ((tm', sk'), cst_l')
                       | Some _ | None -> None
                   in
@@ -1114,9 +1148,33 @@ let rec whd_state_gen ?csts flags env sigma =
       let use_fix = RedFlags.red_set flags RedFlags.fFIX in
       if use_match || use_fix then
         match Stack.strip_app stack with
-        |args, (Stack.Case(case,_)::s') when use_match ->
+        |args, (Stack.Case(case,case_cst_l)::s') when use_match ->
           let r = apply_branch env sigma cstr args case in
-          whrec Cst_stack.empty (r, s')
+          let rec is_case x = match CbnClos.kind sigma x with
+            | Lambda (_,_, x) | LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
+            | Cast (x, _,_) -> is_case x
+            | App (hd, _) -> is_case hd
+            | Case _ -> true
+            | _ -> false
+          in
+          let reduce_with_elim_csts cst_l p =
+            match cst_l, case_cst_l with
+            | [], _ :: _ when is_case r ->
+              (* The scrutinee was already a constructor.  Carry the enclosing
+                 refolding candidates through selected branches that expose
+                 another eliminator, so a stuck eliminator can still refold the
+                 original head.  If no eliminator captures them, rerun without
+                 those candidates: the iota step made real progress and
+                 ordinary branch-local refolding (for example of a selected
+                 constant branch) should win instead. *)
+              let (_, cst_l') as res = whrec case_cst_l p in
+              begin match cst_l' with
+              | [] -> res
+              | _ :: _ -> whrec Cst_stack.empty p
+              end
+            | [], [] | [], _ :: _ | _ :: _, _ -> whrec Cst_stack.empty p
+          in
+          reduce_with_elim_csts cst_l (r, s')
         |args, (Stack.Proj (p,_,_)::s') when use_match ->
           whrec Cst_stack.empty (Stack.nth args (Projection.npars p + Projection.arg p), s')
         |args, (Stack.Fix (f,s',cst_l)::s'') when use_fix ->
