@@ -27,7 +27,7 @@ open Context.Rel.Declaration
 (** Machinery to custom the behavior of the reduction *)
 module ReductionBehaviour = Reductionops.ReductionBehaviour
 
-type volatile = { volatile : bool } [@@unboxed]
+type cst_info = { volatile : bool; alias : bool }
 
 (** Machinery about stack of unfolded constants *)
 module Cst_stack = struct
@@ -38,10 +38,16 @@ module Cst_stack = struct
 - constant applied to params = term in head applied to args
 - there is at most one arguments with an empty list of args, it must be the first.
 - in args, the int represents the indice of the first arg to consider *)
-  type 'a t = (constr * 'a list * (int * 'a array) list * volatile)  list
+  type 'a t = (constr * 'a list * (int * 'a array) list * cst_info)  list
 
   let empty = []
-  let all_volatile l = CList.for_all (fun (_,_,_,{volatile}) -> volatile) l
+  let all_volatile l = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
+  let is_alias = function
+    | (_,_,_,{alias=true; _}) :: _ -> true
+    | [] | (_,_,_,{alias=false; _}) :: _ -> false
+  let mark_alias = function
+    | (c, params, args, info) :: l -> (c, params, args, { info with alias = true }) :: l
+    | [] -> []
 
   let drop_useless = function
     | _ :: ((_,_,[],_)::_ as q) -> q
@@ -62,7 +68,7 @@ module Cst_stack = struct
 
   let add_cst ?(volatile=false) cst = function
     | (_,_,[],_) :: q as l -> l
-    | l -> (cst,[],[],{volatile})::l
+    | l -> (cst,[],[],{volatile; alias=false})::l
 
   let best_cst = function
     | (cst,params,[],_)::_ -> Some(cst,params)
@@ -89,11 +95,12 @@ module Cst_stack = struct
     let open Pp in
     let p_c c = Termops.Internal.print_constr_env env sigma c in
     prlist_with_sep pr_semicolon
-      (fun (c,params,args,{volatile}) ->
+      (fun (c,params,args,{volatile; alias}) ->
         hov 1 (str"(" ++ p_c c ++ str ")" ++ spc () ++ pr_sequence pr_a params ++ spc () ++ str "(args:" ++
                  pr_sequence (fun (i,el) -> prvect_with_sep spc pr_a (Array.sub el i (Array.length el - i))) args ++
                str ")" ++
-              (if volatile then str " (volatile)" else mt()))) l
+              (if volatile then str " (volatile)" else mt()) ++
+              (if alias then str " (alias)" else mt()))) l
 end
 
 module CbnClos = struct
@@ -473,7 +480,7 @@ struct
   (** This function breaks the abstraction of Cst_stack ! *)
   let best_state_opt ~inject ~equal sk l =
     let rec aux sk def = function
-      |(_,_,_,{volatile=true}) -> def
+      |(_,_,_,{volatile=true; _}) -> def
       |(cst, params, [], _) -> Some (inject cst, append_app_list (List.rev params) sk)
       |(cst, params, (i,t)::q, vol) -> match decomp sk with
         | Some (el,sk') when equal el t.(i) ->
@@ -578,7 +585,12 @@ let apply_subst sigma cst_l t stack =
     | Some (h,stacktl), Lambda (_,_,c) ->
        let cst_l' = Cst_stack.add_param h cst_l in
        aux cst_l' (CbnClos.subst_cons h c) stacktl
-    | _ -> (cst_l, (t, stack))
+    | _ ->
+      let cst_l = match CbnClos.subst_value sigma t with
+        | Some _ -> Cst_stack.mark_alias cst_l
+        | None -> cst_l
+      in
+      (cst_l, (t, stack))
   in
   aux cst_l t stack
 
@@ -1159,7 +1171,7 @@ let rec whd_state_gen ?csts flags env sigma =
           in
           let reduce_with_elim_csts cst_l p =
             match cst_l, case_cst_l with
-            | [], _ :: _ when is_case r ->
+            | [], _ :: _ when Cst_stack.is_alias case_cst_l && is_case r ->
               (* The scrutinee was already a constructor.  Carry the enclosing
                  refolding candidates through selected branches that expose
                  another eliminator, so a stuck eliminator can still refold the
