@@ -55,7 +55,7 @@ End Logic.
    Here, we follow exactly these steps, starting with defining the type [prop]
    of reified propositions. *)
 
-Require Import Force.Force.
+Require Import Corelib.Force.
 
 Inductive prop :=
   | conj  : prop -> prop -> prop
@@ -72,7 +72,7 @@ Inductive prop :=
 
    In a usual setting, without the new primitives, the type of the argument of
    [inj _] would be [Prop]. Here however, we rely on the new type [Blocked _],
-   taken from the [Force.Force] module declaring the primitives, to explicitly
+   taken from the [Corelib.Force] module declaring the primitives, to explicitly
    mark the term as "blocked" for (kernel) reduction.
 
    To build a term of type [Blocked Prop], one must rely on primitive [__block].

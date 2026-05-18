@@ -1,7 +1,7 @@
 (* Conversion must not accept malformed primitive universe instances once
    [__run] / [__unblock] have been pushed to lazy-conversion stack frames. *)
 
-Require Import Force.Force Ltac2.Ltac2 Ltac2.Unification.
+Require Import Corelib.Force Ltac2.Ltac2 Ltac2.Unification.
 Set Default Proof Mode "Classic".
 
 Polymorphic Definition one_univ_source@{u} (A : Type@{u}) := A.

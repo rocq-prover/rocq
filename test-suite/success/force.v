@@ -1,6 +1,6 @@
 (* Force primitive regression tests. *)
 
-Require Import Force.Force Ltac2.Ltac2.
+Require Import Corelib.Force Ltac2.Ltac2.
 Set Default Proof Mode "Classic".
 
 Fail Check (block 0).
@@ -366,7 +366,7 @@ Require Import Corelib.Setoids.Setoid.
 (* #[universes(polymorphic=yes)] Definition __run _ _ : forall (T K : Type), Blocked T -> (T -> K) -> K := fun _ _ b f => f (__unblock _ b). *)
 (* #[global] Arguments __run _ _ {_ _} _ _. *)
 
-Require Export Force.Force.
+Require Export Corelib.Force.
 
 
 #[local] Set Universe Polymorphism.
