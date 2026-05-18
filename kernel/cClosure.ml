@@ -2290,13 +2290,11 @@ let rec knr info tab ~pat_state m stk =
     else knr_ret info tab ~pat_state (m, stk)
   | FLetIn (_,v,_,bd,e) when red_set mode info fZETA ->
       knit ~mode:mode info tab ~pat_state (on_fst (Esubst.subs_cons v) e) bd stk
-  | FPrimitive (op, ((_,u) as pc), fc, args) when RedState.is_red m.mark ->
+  | FPrimitive (op, ((_,u)), _, args) when RedState.is_red m.mark ->
     (match FredNative.red_prim (info_env info) () op u args with
-     | FredNative.Result m -> kni info tab ~pat_state m stk
-     | FredNative.Error -> assert false
-     | FredNative.Progress (_, args) ->
-       let m = { mark= RedState.mk cstr mode; term=FPrimitive (op, pc, fc, args) } in
-       knr info tab ~pat_state m stk)
+     | Some m -> kni info tab ~pat_state m stk
+     | None -> assert false
+    )
   | FInt _ | FFloat _ | FString _ | FArray _ | FPrimitive _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app_head m stk with
      | (_, (_, _, Zprimitive(op,c,opm,rargs,nargs)::s)) ->
@@ -2704,10 +2702,8 @@ let unfold_ref_with_args infos tab fl v =
             let args = Array.of_list (List.rev rargs) in
             let (_,u) = c in
             match FredNative.red_prim (info_env infos) () op u args with
-            | FredNative.Result m -> Some (m, v)
-            | FredNative.Error -> assert false
-            | FredNative.Progress (_, args) ->
-              Some ({mark = RedState.mk red normal_whnf; term = FPrimitive(op,c,m,args) }, v)
+            | Some m -> Some (m, v)
+            | None -> assert false
     end
   | Symbol (u, b, r) ->
     RedPattern.match_symbol knred (infos_with_reds infos RedFlags.all) tab ~pat_state:(RedPattern.Nil Yes) fl (u, b, r) v

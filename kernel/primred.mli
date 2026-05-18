@@ -75,12 +75,7 @@ module type RedNative =
    type evd
    type uinstance
 
-   type result =
-     | Result of elem
-     | Progress of bool * args (* true = normal form, false = stuck *)
-     | Error
-
-   val red_prim : env -> evd -> CPrimitives.t -> uinstance -> args -> result
+   val red_prim : env -> evd -> CPrimitives.t -> uinstance -> args -> elem option
  end
 
 module RedNative :

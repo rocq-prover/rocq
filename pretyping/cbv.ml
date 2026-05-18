@@ -725,10 +725,10 @@ and cbv_stack_value info env = function
     | (args, appl) ->
       let stk = if List.is_empty appl then stk else stack_app appl stk in
       begin match VredNative.red_prim info.env () op u (Array.of_list args) with
-      | VredNative.Result (CONSTRUCT (c, args)) ->
+      | Some (CONSTRUCT (c, args)) ->
         (* args must be moved to the stack to allow future reductions *)
         cbv_stack_value info env (CONSTRUCT(c, []), stack_app args stk)
-      | VredNative.Result v ->  cbv_stack_value info env (v,stk)
+      | Some v ->  cbv_stack_value info env (v,stk)
       | _ -> mkSTACK(PRIMITIVE(op,c, args), stk)
       end
     | exception Failure _ ->

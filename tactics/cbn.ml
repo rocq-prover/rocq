@@ -812,7 +812,7 @@ let rec whd_state_gen ?csts flags env sigma =
               let args = Option.get (Stack.list_of_app_stack args) in
               let args = Array.of_list args in
               match CredNative.red_prim env sigma  p (snd const) args with
-              | CredNative.Result t -> whrec cst_l (t, stack)
+              | Some t -> whrec cst_l (t, stack)
               | _ -> ((mkApp (mkConstU const, args), stack), cst_l)
           end
        | exception NotEvaluableConst (HasRules (u', b, r)) ->
@@ -996,7 +996,7 @@ let rec whd_state_gen ?csts flags env sigma =
            let s = extra_args @ s in
            let args = Array.of_list (Option.get (Stack.list_of_app_stack (rargs @ Stack.append_app [|x|] args))) in
              begin match CredNative.red_prim env sigma p u args with
-               | CredNative.Result t -> whrec cst_l' (t,s)
+               | Some t -> whrec cst_l' (t,s)
                | _ -> ((mkApp (mkConstU kn, args), s), cst_l)
              end
         |args, (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
