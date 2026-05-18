@@ -727,7 +727,7 @@ let rec subst_constr ~mode info tab (subst,usubst as e) c =
     Constr.map_with_binders usubs_lift subst_constr e c
   | Rel i ->
     begin match Esubst.expand_rel i subst with
-    | Inl (k, (_, lazy v)) -> Vars.lift k v
+    | Inl (k, (_, lazy v)) -> Vars.lift_substituend k v
     | Inr (m, _) -> mkRel m
     end
   | Const _ | Ind _ | Construct _ | Sort _ -> subst_instance_constr usubst c
@@ -926,7 +926,7 @@ and to_constr_case ~(info:clos_infos) ~(tab:clos_tab) ~mode (lfts,_ as ulfts) ci
 
 and comp_subs ~(info:clos_infos) ~(tab:clos_tab) (el,u) (s,u') =
   Esubst.lift_subst (fun el c ->
-      let t = lazy (to_constr ~info ~tab (el,u) c) in
+      let t = lazy (Vars.make_substituend @@ to_constr ~info ~tab (el,u) c) in
       (RedState.mode c.mark,t)
     ) el s, usubst_instance (el,u) u'
 
