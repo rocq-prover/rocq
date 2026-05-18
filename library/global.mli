@@ -176,6 +176,7 @@ val is_joined_environment : unit -> bool
 val is_curmod_library : unit -> bool
 
 val is_polymorphic : GlobRef.t -> bool
+val is_cumulative : GlobRef.t -> bool
 val is_template_polymorphic : GlobRef.t -> bool
 val is_type_in_type : GlobRef.t -> bool
 
@@ -196,6 +197,9 @@ val set_unfold_dep_heuristic : bool -> unit
 
 val set_VM : bool -> unit
 val set_native_compiler : bool -> unit
+
+(** {6 Cumulativity inference settings } *)
+val set_cumulativity_zeta : bool -> unit
 
 (* Modifies the global state, registering new universes *)
 
