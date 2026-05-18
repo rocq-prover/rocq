@@ -604,15 +604,25 @@ module Search = struct
        and backtracking can reorder the proofview. Refocus by evar, not by
        the current goal position. *)
     let focus_goal ev tac =
+      let rec find_goal ev i = function
+      | [] -> None
+      | gl :: gls ->
+        if Evar.equal ev (Proofview.drop_state gl) then Some i
+        else find_goal ev (succ i) gls
+      in
       tclEVARMAP >>= fun sigma ->
       match Evarutil.advance sigma ev with
       | None -> tclUNIT ()
       | Some ev ->
         Unsafe.tclGETGOALS >>= fun gls ->
-        let gls = CList.map Proofview.drop_state gls in
-        match CList.index_opt Evar.equal ev gls with
-        | None -> tclUNIT ()
-        | Some i -> tclFOCUS ~nosuchgoal:(tclUNIT ()) i i tac
+        match find_goal ev 1 gls with
+        | None ->
+          let () = ppdebug 1 (fun () ->
+              str "Goal evar " ++ Evar.print ev ++
+              str " is no longer focused but remains undefined")
+          in
+          tclZERO StuckGoal
+        | Some i -> tclFOCUS ~nosuchgoal:(tclZERO StuckGoal) i i tac
     in
     (* Count successful goal resolutions. A postponed goal is retried only
        after a later success, not merely because progress happened before it
@@ -654,11 +664,18 @@ module Search = struct
               (* Try the next solution of the current tactic. If there is no
                  such solution after a no-progress failure, preserve that
                  failure instead of treating the current goal as newly stuck;
-                 otherwise tactics already known to be stuck get run again. *)
+                 otherwise tactics already known to be stuck get run again.
+                 Keep higher-priority failures from the continuation, e.g.
+                 [ReachedLimit], so iterative deepening can continue. *)
               tclCASE (fk' e) >>= function
-              | Fail _ as fail ->
+              | Fail ie as fail ->
                 begin match fst e with
-                | NoProgress -> tclZERO ~info:(snd e) NoProgress
+                | NoProgress ->
+                  let ie = merge_exceptions e ie in
+                  begin match fst ie with
+                  | NoProgress -> tclZERO ~info:(snd ie) NoProgress
+                  | _ -> kont (Fail ie)
+                  end
                 | _ -> kont fail
                 end
               | next -> kont next)
