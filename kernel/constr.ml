@@ -351,9 +351,9 @@ let mkSet   = T (Sort Sorts.set)
 let of_kind = function
 | Rel n when 0 <= n && n < Array.length rels -> rels.(n)
 | App (f, [||]) -> f
-| App (f, a) -> begin match kind f with
+| App (f, a) as k -> begin match kind f with
     | App (g, cl) -> T (App (g, Array.append cl a))
-    | _ -> T (App (f, a))
+    | _ -> T k
   end
 | Cast (c, knd, t) as k -> begin match kind c with
     | Cast (c, knd', _) when (knd == VMcast || knd == NATIVEcast) && knd == knd' ->
