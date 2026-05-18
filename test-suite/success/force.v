@@ -36,6 +36,7 @@ Qed.
 Definition check_Blocked@{u} : Type@{u} -> Type@{u} := Blocked.
 Definition check_block@{u} : forall (T : Type@{u}), T -> Blocked@{Type;u} T := fun T x => __block@{Type;u} T x.
 Definition check_unblock@{u} : forall (T : Type@{u}), Blocked@{Type;u} T -> T := fun T x => __unblock@{Type;u} T x.
+
 Module RunUniverseConversion.
   Universe u v.
   Constraint u < v.
@@ -47,6 +48,7 @@ Module RunUniverseConversion.
        __run@{Type Type;Set v} nat nat b (fun x => x).
   Proof. reflexivity. Qed.
 End RunUniverseConversion.
+
 Module EConstrUniverseComparison.
   Universe u v.
   Constraint u < v.
@@ -57,25 +59,26 @@ Module EConstrUniverseComparison.
      with its continuation type. *)
   Goal True.
   Proof.
-    constr_eq (__block@{Type;u} nat 0) (__block@{Type;v} nat 0).
+    Fail constr_eq (__block@{Type;u} nat 0) (__block@{Type;v} nat 0).
     exact I.
   Qed.
 
   Goal True.
   Proof.
-    constr_eq (__unblock@{Type;u} nat (__block@{Type;u} nat 0))
-              (__unblock@{Type;v} nat (__block@{Type;v} nat 0)).
+    Fail constr_eq (__unblock@{Type;u} nat (__block@{Type;u} nat 0))
+                   (__unblock@{Type;v} nat (__block@{Type;v} nat 0)).
     exact I.
   Qed.
 
   Axiom b : Blocked@{Type;Set} nat.
   Goal True.
   Proof.
-    constr_eq (__run@{Type Type;Set u} nat nat b (fun x => x))
-              (__run@{Type Type;Set v} nat nat b (fun x => x)).
+    Fail constr_eq (__run@{Type Type;Set u} nat nat b (fun x => x))
+                   (__run@{Type Type;Set v} nat nat b (fun x => x)).
     exact I.
   Qed.
 End EConstrUniverseComparison.
+
 Polymorphic Definition check_block_lazy_univs@{u} (A : Type@{u}) (x : A) := __block@{Type;u} A x.
 Definition check_block_lazy_univs_inst : Blocked nat := __block nat 0.
 
