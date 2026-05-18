@@ -142,7 +142,7 @@ let get_params env ind mib =
     UnivGen.empty_sort_context, mib.mind_params_ctxt
   else
     let sigma, univs = Typing.get_template_parameters env (Evd.from_env env) ind ~refresh_all:true [||] in
-    let sigma = Evd.collapse_sort_variables ~to_type:true sigma in
+    let sigma = Evd.collapse_sort_variables ~only_above_prop:false sigma in
     let uctx = Evd.ustate sigma in
     let (vars, cstrs) = UState.sort_context_set uctx in
     let cstrs', paramctx, subst =
