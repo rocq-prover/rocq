@@ -336,6 +336,29 @@ Module IterativeDeepening2.
 
 End IterativeDeepening2.
 
+Module BacktrackAfterNoProgress.
+
+  Class A (x : unit) := a : nat.
+  Class B (x : unit) := b : nat.
+  Class C (x : unit) := c : nat.
+
+  Local Hint Mode B ! : typeclass_instances.
+
+  Local Instance A_any {x} : A x := 0.
+  Local Instance C_any {x} : C x | 0 := 0.
+  Local Instance C_tt : C tt | 10 := 1.
+  Local Instance B_tt : B tt := 0.
+
+  (* The first [C x] solution leaves [x] undefined, so [B x] is
+     postponed by its mode. After solving [A x], search retries [B x]
+     and must still backtrack to the second [C x] solution. *)
+  Goal { x : unit & C x * B x * A x }.
+  Proof.
+    eexists; repeat split; typeclasses eauto.
+  Qed.
+
+End BacktrackAfterNoProgress.
+
 
 Module AxiomsAreNotInstances.
 
