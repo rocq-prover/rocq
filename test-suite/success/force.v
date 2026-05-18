@@ -47,6 +47,35 @@ Module RunUniverseConversion.
        __run@{Type Type;Set v} nat nat b (fun x => x).
   Proof. reflexivity. Qed.
 End RunUniverseConversion.
+Module EConstrUniverseComparison.
+  Universe u v.
+  Constraint u < v.
+
+  (* Regression tests for the [EConstr.eq_constr_universes] fast path: the
+     primitive universe arguments for [__block]/[__unblock] are redundant with
+     their type argument, and the result sort argument of [__run] is redundant
+     with its continuation type. *)
+  Goal True.
+  Proof.
+    constr_eq (__block@{Type;u} nat 0) (__block@{Type;v} nat 0).
+    exact I.
+  Qed.
+
+  Goal True.
+  Proof.
+    constr_eq (__unblock@{Type;u} nat (__block@{Type;u} nat 0))
+              (__unblock@{Type;v} nat (__block@{Type;v} nat 0)).
+    exact I.
+  Qed.
+
+  Axiom b : Blocked@{Type;Set} nat.
+  Goal True.
+  Proof.
+    constr_eq (__run@{Type Type;Set u} nat nat b (fun x => x))
+              (__run@{Type Type;Set v} nat nat b (fun x => x)).
+    exact I.
+  Qed.
+End EConstrUniverseComparison.
 Polymorphic Definition check_block_lazy_univs@{u} (A : Type@{u}) (x : A) := __block@{Type;u} A x.
 Definition check_block_lazy_univs_inst : Blocked nat := __block nat 0.
 
