@@ -48,7 +48,11 @@ if ! [ "$mode" ]; then
   elif [ "$jobs" = 1 ]; then
     exec "$@" -j 1
   elif [ "$jobs" = infinite ]; then
-    exec "$@" -j "$(nproc)"
+    if command -v nproc; then
+      exec "$@" -j "$(nproc)"
+    else
+      exec "$@"
+    fi
   else
     >&2 echo "Cannot run -j $jobs without jobserver"
     exit 1
