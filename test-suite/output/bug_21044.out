@@ -1,0 +1,13 @@
+Debug:
+Calling typeclass resolution with flags: depth = ∞,unique = false,fail = false
+Debug: 1: looking for (A ?P ?Q) with backtracking
+Debug: 1.1: simple apply a on (A ?P ?Q), 0 subgoal(s)
+Debug: 2: looking for (B ?P ?Q) with backtracking
+File "./output/bug_21044.v", line 13, characters 6-15:
+Error: Illegal application (Non-functional construction): 
+The expression "foo ?a ?b" of type "True"
+cannot be applied to the term
+ "?y" : "?T"
+
+
+coqc exited with code 1
