@@ -833,58 +833,16 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
          true)
     in
     let eq_existential eq e1 e2 = eq_existential sigma (eq 0) e1 e2 in
-    (* Keep the EConstr structural fast path in sync with kernel conversion for
-       force primitives: validate block/unblock arity, and compare only the run
-       source sort instance (the result sort is checked through [k]). *)
-    let one_sort_instance u =
-      match UVars.Instance.to_array (EInstance.kind sigma u) with
-      | [|_|], [|_|] -> Some ()
-      | _ -> None
-    in
-    let two_sort_instance u =
-      match UVars.Instance.to_array (EInstance.kind sigma u) with
-      | [|q1; q2|], [|u1; u2|] -> Some (q1, u1, q2, u2)
-      | _ -> None
-    in
-    let mk_sort_instance q u = EInstance.make (UVars.Instance.of_array ([|q|], [|u|])) in
-    let eq_run_source_instance u1 u2 =
-      match two_sort_instance u1, two_sort_instance u2 with
-      | Some (q1, u1, _qk1, _uk1), Some (q2, u2, _qk2, _uk2) ->
-        eq_universes None (mk_sort_instance q1 u1) (mk_sort_instance q2 u2)
-      | _ -> false
-    in
-    let same_one_sort_arity u1 u2 =
-      Option.has_some (one_sort_instance u1) && Option.has_some (one_sort_instance u2)
-    in
-    let compare_primitives eq nargs m n =
-      match Constr.kind_nocast_gen kind m, Constr.kind_nocast_gen kind n with
-      | PBlock (u1, ty1, t1), PBlock (u2, ty2, t2)
-      | PUnblock (u1, ty1, t1), PUnblock (u2, ty2, t2) ->
-        same_one_sort_arity u1 u2 && eq 0 ty1 ty2 && eq 0 t1 t2
-      | PRun (u1, ty1, k1, b1, cont1), PRun (u2, ty2, k2, b2, cont2) ->
-        eq_run_source_instance u1 u2 && eq 0 ty1 ty2 && eq 0 k1 k2 &&
-        eq 0 b1 b2 && eq 0 cont1 cont2
-      | _ -> Constr.compare_head_gen_with kind kind eq_universes eq_sorts
-          (eq_existential eq) eq nargs m n
-    in
-    let rec eq_constr' nargs m n = m == n || compare_primitives eq_constr' nargs m n in
+    let rec eq_constr' nargs m n = compare_gen kind eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n in
     let res =
       if leq then
         let rec compare_leq nargs m n =
-          match Constr.kind_nocast_gen kind m, Constr.kind_nocast_gen kind n with
-          | PBlock (u1, ty1, t1), PBlock (u2, ty2, t2)
-          | PUnblock (u1, ty1, t1), PUnblock (u2, ty2, t2) ->
-            same_one_sort_arity u1 u2 && eq_constr' 0 ty1 ty2 && eq_constr' 0 t1 t2
-          | PRun (u1, ty1, k1, b1, cont1), PRun (u2, ty2, k2, b2, cont2) ->
-            eq_run_source_instance u1 u2 && eq_constr' 0 ty1 ty2 && eq_constr' 0 k1 k2 &&
-            eq_constr' 0 b1 b2 && eq_constr' 0 cont1 cont2
-          | _ ->
-            Constr.compare_head_gen_leq_with kind kind leq_universes leq_sorts (eq_existential eq_constr')
-              eq_constr' leq_constr' nargs m n
+          Constr.compare_head_gen_leq_with kind kind leq_universes leq_sorts (eq_existential eq_constr')
+            eq_constr' leq_constr' nargs m n
         and leq_constr' nargs m n = m == n || compare_leq nargs m n in
         compare_leq nargs m n
       else
-        eq_constr' nargs m n
+        Constr.compare_head_gen_with kind kind eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n
     in
     if res then Some !cstrs else None
 
