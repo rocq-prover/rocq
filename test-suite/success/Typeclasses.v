@@ -311,6 +311,32 @@ Module IterativeDeepening.
 
 End IterativeDeepening.
 
+Module IterativeDeepening2.
+
+  Set Typeclasses Iterative Deepening.
+
+  Inductive T := t.
+  Class A (x : T) := a : nat.
+  Class B (x : T) := b : nat.
+  Class C := c : nat.
+  Class D := d : nat.
+
+  #[export] Hint Mode B ! : typeclass_instances.
+
+  #[export] Instance A_bad {x} : A x := 0.
+  #[export] Instance A_good : C -> A t := fun _ => 1.
+  #[export] Instance C_from_D : D -> C := fun _ => 2.
+  #[export] Instance D_inst : D := 3.
+  #[export] Instance B_t : B t := 4.
+
+  Goal {x : T & A x * B x}.
+  Proof.
+    eexists; split; typeclasses eauto 4.
+  Qed.
+
+End IterativeDeepening2.
+
+
 Module AxiomsAreNotInstances.
 
   Class TestClass2 := {}.
