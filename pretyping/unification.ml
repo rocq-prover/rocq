@@ -828,7 +828,7 @@ let expand_table_key ~metas ts env sigma args = function
               in
               Array.map2 red args args_red
             in
-            begin match CredNative.red_prim env sigma (env, sigma, flags) op (EInstance.make u) args with
+            begin match CredNative.red_prim env sigma op (EInstance.make u) args with
               | CredNative.Result v -> Some (v, appl)
               | CredNative.Progress _ | CredNative.Error -> None
               end

@@ -127,7 +127,7 @@ let eval_flexible_term ts env evd c sk =
               in
               List.map2 red args args_red
             in
-            begin match CredNative.red_prim env evd (env, evd, flags) op u (Array.of_list args) with
+            begin match CredNative.red_prim env evd op u (Array.of_list args) with
               | CredNative.Result v -> Some (v, rest_sk)
               | CredNative.Progress _ | CredNative.Error -> None
               end

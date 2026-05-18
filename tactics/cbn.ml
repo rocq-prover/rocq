@@ -811,7 +811,7 @@ let rec whd_state_gen ?csts flags env sigma =
               in
               let args = Option.get (Stack.list_of_app_stack args) in
               let args = Array.of_list args in
-              match CredNative.red_prim env sigma (env, sigma, flags) p (snd const) args with
+              match CredNative.red_prim env sigma  p (snd const) args with
               | CredNative.Result t -> whrec cst_l (t, stack)
               | _ -> ((mkApp (mkConstU const, args), stack), cst_l)
           end
@@ -995,7 +995,7 @@ let rec whd_state_gen ?csts flags env sigma =
            in
            let s = extra_args @ s in
            let args = Array.of_list (Option.get (Stack.list_of_app_stack (rargs @ Stack.append_app [|x|] args))) in
-             begin match CredNative.red_prim env sigma (env, sigma, flags) p u args with
+             begin match CredNative.red_prim env sigma p u args with
                | CredNative.Result t -> whrec cst_l' (t,s)
                | _ -> ((mkApp (mkConstU kn, args), s), cst_l)
              end

@@ -252,7 +252,6 @@ module VNativeEntries =
     type elem = cbv_value
     type args = cbv_value array
     type evd = unit
-    type lazy_info = cbv_infos
     type uinstance = UVars.Instance.t
 
     let get = Array.get
@@ -293,10 +292,10 @@ module VNativeEntries =
       match e with
       | VAL (_, t) ->
         begin match kind t with
-        | PBlock (_, _, t) -> Some (VAL (0, t))
-        | _ -> None
+        | PBlock (_, _, t) -> (VAL (0, t))
+        | _ -> raise Primred.NativeDestKO
         end
-      | _ -> None
+      | _ -> raise Primred.NativeDestKO
 
     let mkInt env i = VAL(0, mkInt i)
 
@@ -404,14 +403,6 @@ module VNativeEntries =
       ARRAY (u,t,ty)
 
     let current_info = ref None
-
-    let eval_full_lazy lazy_info t =
-      current_info := Some lazy_info;
-      t
-
-    let eval_id_lazy lazy_info t =
-      current_info := Some lazy_info;
-      t
 
     let mkApp t args =
       match !current_info with
@@ -733,7 +724,7 @@ and cbv_stack_value info env = function
     begin match List.chop nargs appl with
     | (args, appl) ->
       let stk = if List.is_empty appl then stk else stack_app appl stk in
-      begin match VredNative.red_prim info.env () info op u (Array.of_list args) with
+      begin match VredNative.red_prim info.env () op u (Array.of_list args) with
       | VredNative.Result (CONSTRUCT (c, args)) ->
         (* args must be moved to the stack to allow future reductions *)
         cbv_stack_value info env (CONSTRUCT(c, []), stack_app args stk)

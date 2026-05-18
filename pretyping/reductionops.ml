@@ -552,7 +552,6 @@ struct
   type elem = EConstr.t
   type args = EConstr.t array
   type evd = evar_map
-  type lazy_info = Environ.env * Evd.evar_map * RedFlags.reds
   type uinstance = EConstr.EInstance.t
 
   let get = Array.get
@@ -582,8 +581,8 @@ struct
 
   let get_blocked _env evd e =
     match EConstr.kind evd e with
-    | PBlock (_, _, t) -> Some t
-    | _ -> None
+    | PBlock (_, _, t) -> t
+    | _ -> raise Primred.NativeDestKO
 
   let mkInt env i =
     mkInt i
@@ -690,26 +689,6 @@ struct
   let mkArray env u t ty =
     let (t,def) = Parray.to_array t in
     mkArray(u,t,def,ty)
-
-  (* The [flgs] are forwarded form the calling tactic, which might not be what
-     we want. This means that [Eval hnf let_lazy _ _ (1 + 1) (fun n => n + n)]
-     is reduced to [S (0 + 1 + (1 + 1))] and not [S (1 + 2)] or [4] as one may
-     expect. *)
-  let eval_full_lazy (env, sigma, flgs) t = (* FIXME make it full. *)
-    let ci = Evarutil.create_clos_infos env sigma flgs in
-    let ct = CClosure.create_tab () in
-    let s = (Esubst.subs_id 0, UVars.Instance.empty) in
-    let t = EConstr.Unsafe.to_constr t in
-    let v = CClosure.norm_term ~mode:CClosure.RedState.normal_full ci ct s t in
-    EConstr.of_constr v
-
-  let eval_id_lazy (env, sigma, flgs) t = (* FIXME make it id. *)
-    let ci = Evarutil.create_clos_infos env sigma flgs in
-    let ct = CClosure.create_tab () in
-    let s = (Esubst.subs_id 0, UVars.Instance.empty) in
-    let t = EConstr.Unsafe.to_constr t in
-    let v = CClosure.norm_term ~mode:CClosure.RedState.identity ci ct s t in
-    EConstr.of_constr v
 
   let mkApp t args =
     mkApp(t, args)
@@ -932,7 +911,7 @@ let rec whd_state_gen flags ?metas env sigma =
               in
               let args = Option.get (Stack.list_of_app_stack args) in
               let args = Array.of_list args in
-              match CredNative.red_prim env sigma (env, sigma, flags) p (snd const) args with
+              match CredNative.red_prim env sigma p (snd const) args with
               | CredNative.Result t -> whrec (t, stack)
               | _ -> (mkApp (mkConstU const, args), stack)
           end
@@ -1007,16 +986,16 @@ let rec whd_state_gen flags ?metas env sigma =
       else fold ()
 
     | PUnblock (_u,_ty,b) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (t, stack)
+      let (b', stack') = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b', stack' with
+      | PBlock (_, _, t), [] -> whrec (t, stack)
       | _ -> fold ()
       end
 
     | PRun (_u,_ty,_k,b,cont) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      let (b', stack') = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b', stack' with
+      | PBlock (_, _, t), [] -> whrec (mkApp (cont, [|t|]), stack)
       | _ -> fold ()
       end
 
@@ -1038,7 +1017,7 @@ let rec whd_state_gen flags ?metas env sigma =
            in
            let args = Array.of_list (Option.get (Stack.list_of_app_stack (rargs @ Stack.append_app [|x|] args))) in
            let s = extra_args @ s in
-           begin match CredNative.red_prim env sigma (env, sigma, flags) p u args with
+           begin match CredNative.red_prim env sigma p u args with
              | CredNative.Result t -> whrec (t,s)
              | _ -> ((mkApp (mkConstU kn, args), s))
            end
@@ -1109,16 +1088,16 @@ let local_whd_state_gen flags ?metas env sigma =
       else s
 
     | PUnblock (_u,_ty,b) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (t, stack)
+      let (b', stack') = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b', stack' with
+      | PBlock (_, _, t), [] -> whrec (t, stack)
       | _ -> s
       end
 
     | PRun (_u,_ty,_k,b,cont) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      let (b', stack') = whrec (b, Stack.empty) in
+      begin match EConstr.kind sigma b', stack' with
+      | PBlock (_, _, t), [] -> whrec (mkApp (cont, [|t|]), stack)
       | _ -> s
       end
 
