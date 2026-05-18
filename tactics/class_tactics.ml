@@ -512,6 +512,9 @@ module Search = struct
   exception ReachedLimit
   exception NoApplicableHint
   exception StuckGoal
+  (* Internal marker used when all remaining goals are postponed and none
+     can make progress. It is reported as [NoApplicableHint] at the boundary. *)
+  exception NoProgress
 
   (** ReachedLimit has priority over NoApplicableHint to handle
       iterative deepening: it should fail when no hints are applicable,
@@ -559,7 +562,7 @@ module Search = struct
   let pr_internal_exception ie =
     match fst ie with
     | ReachedLimit -> str "Proof-search reached its limit."
-    | NoApplicableHint -> str "Proof-search failed."
+    | NoApplicableHint | NoProgress -> str "Proof-search failed."
     | StuckGoal | NonStuckFailure -> str "Proof-search got stuck."
     | e -> CErrors.iprint ie
 
@@ -587,18 +590,45 @@ module Search = struct
     | IsNonStuckFailure -> str "stuck failure"
 
 
-  let pr_search_goal sigma (glid, ev, status, _) =
+  let pr_search_goal sigma (glid, ev, status, _, _) =
     str"Goal " ++ int glid ++ str" evar: " ++ Evar.print ev ++ str " status: " ++ pr_goal_status status
 
   let pr_search_goals sigma =
     prlist_with_sep fnl (pr_search_goal sigma)
 
+  let focus_goal ev tac =
+    let open Pp in
+    let open Proofview in
+    let open Proofview.Notations in
+    let rec find_goal ev i = function
+    | [] -> None
+    | gl :: gls ->
+      if Evar.equal ev (Proofview.drop_state gl) then Some i
+      else find_goal ev (succ i) gls
+    in
+    tclEVARMAP >>= fun sigma ->
+    match Evarutil.advance sigma ev with
+    | None -> tclUNIT ()
+    | Some ev ->
+      Unsafe.tclGETGOALS >>= fun gls ->
+      match find_goal ev 1 gls with
+      | None ->
+        let () = ppdebug 1 (fun () ->
+            str "Goal evar " ++ Evar.print ev ++
+            str " is no longer focused but remains undefined")
+        in
+        tclZERO StuckGoal
+      | Some i -> tclFOCUS ~nosuchgoal:(tclZERO StuckGoal) i i tac
+
   let search_fixpoint ~best_effort ~allow_out_of_order tacs =
     let open Pp in
     let open Proofview in
     let open Proofview.Notations in
-    let rec fixpoint progress tacs stuck fk =
-      let next (glid, ev, status, tac) tacs stuck =
+    (* Count successful goal resolutions. A postponed goal is retried only
+       after a later success, not merely because progress happened before it
+       got stuck. *)
+    let rec fixpoint generation tacs stuck fk =
+      let next (glid, ev, status, tac, _) tacs stuck =
         let () = ppdebug 1 (fun () ->
             str "considering goal " ++ int glid ++
             str " of status " ++ pr_goal_status status)
@@ -615,8 +645,7 @@ module Search = struct
               | StuckGoal -> IsStuckGoal
               | _ -> assert false
             in
-            cycle 1 (* Puts the first goal last *) <*>
-            fixpoint progress tacs ((glid, ev, status, tac) :: stuck) fk (* Launches the search on the rest of the goals *)
+            fixpoint generation tacs ((glid, ev, status, tac, generation) :: stuck) fk (* Launches the search on the rest of the goals *)
           | Fail ie ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++ str" has no more solutions, returning exception: "
@@ -631,12 +660,31 @@ module Search = struct
                 we backtrack to the next result of tac, etc.... Ultimately if none of the solutions
                 for tac work, we will come back to the failure continuation fk in one of
                 the above cases *)
-            fixpoint true tacs stuck (fun e -> tclCASE (fk' e) >>= kont)
+            fixpoint (succ generation) tacs stuck (fun e ->
+              (* Try the next solution of the current tactic. If there is no
+                 such solution after a no-progress failure, preserve that
+                 failure instead of treating the current goal as newly stuck;
+                 otherwise tactics already known to be stuck get run again.
+                 Keep higher-priority failures from the continuation, e.g.
+                 [ReachedLimit], so iterative deepening can continue. *)
+              tclCASE (fk' e) >>= function
+              | Fail ie as fail ->
+                begin match fst e with
+                | NoProgress ->
+                  let ie = merge_exceptions e ie in
+                  begin match fst ie with
+                  | NoProgress -> fk ie
+                  | _ -> kont (Fail ie)
+                  end
+                | _ -> kont fail
+                end
+              | next -> kont next)
         in tclCASE tac >>= kont
       in
       tclEVARMAP >>= fun sigma ->
       let () = ppdebug 1 (fun () ->
-          let stuck, failed = List.partition (fun (_, _, status, _) -> status = IsStuckGoal) stuck in
+          let stuck, failed = List.partition (fun (_, _, status, _, _) -> status = IsStuckGoal) stuck in
+          let progress = List.exists (fun (_, _, _, _, stuck_at) -> stuck_at < generation) stuck in
           str"Calling fixpoint on : " ++
           int (List.length tacs) ++ str" initial goals" ++
           str", " ++ int (List.length stuck) ++ str" stuck goals" ++
@@ -657,17 +705,19 @@ module Search = struct
                we might have other solutions available through fk. *)
             tclOR (tclUNIT ()) fk
         | stuck ->
-          if progress then fixpoint false stuck [] fk
+          let retry, stuck = List.partition (fun (_, _, _, _, stuck_at) -> stuck_at < generation) stuck in
+          if not (List.is_empty retry) then fixpoint generation retry stuck fk
           else (* No progress can be made on the stuck goals arising from this resolution,
             try a different solution on the non-stuck goals, if any. *)
           begin
-            tclORELSE (fk (NoApplicableHint, Exninfo.null))
+            tclORELSE (fk (NoProgress, Exninfo.null))
               (fun (e, info) ->
                  let () = ppdebug 1 (fun () -> int (List.length stuck) ++ str " remaining goals left, no progress, calling continuation failed")
                  in
+                 let e = match e with NoProgress -> NoApplicableHint | e -> e in
                  (* We keep the stuck goals to display to the user *)
                  if best_effort then
-                   let stuckgls, failedgls = List.partition (fun (_, _, status, _) ->
+                   let stuckgls, failedgls = List.partition (fun (_, _, status, _, _) ->
                        match status with
                        | IsStuckGoal -> true
                        | IsNonStuckFailure -> false
@@ -679,7 +729,7 @@ module Search = struct
                    (* We shelve the stuck goals but we keep the non-stuck failures in the goal list.
                       This is for compat with Coq 8.12 but might not be the wisest choice in the long run.
                    *)
-                   let to_shelve = List.map (fun (glid, ev, _, _) -> ev) stuckgls in
+                   let to_shelve = List.map (fun (glid, ev, _, _, _) -> ev) stuckgls in
                    let () = ppdebug 1 (fun () ->
                        str "Shelving subgoals: " ++
                        prlist_with_sep spc Evar.print to_shelve)
@@ -694,10 +744,12 @@ module Search = struct
       It might happen that an initial goal is solved during the resolution of another goal,
       hence the `tclUNIT` in case there is no goal for the tactic to apply anymore. *)
     let tacs = List.map2_i
-      (fun i gls tac -> (succ i, Proofview.drop_state gls, IsInitial, tclFOCUS ~nosuchgoal:(tclUNIT ()) 1 1 tac))
+      (fun i gls tac ->
+         let ev = Proofview.drop_state gls in
+         (succ i, ev, IsInitial, focus_goal ev tac, 0))
       0 gls tacs
     in
-    fixpoint false tacs [] (fun (e, info) -> tclZERO ~info e) <*>
+    fixpoint 0 tacs [] (fun (e, info) -> tclZERO ~info e) <*>
     pr_goals (str "Result goals after fixpoint: ")
 
 
@@ -739,7 +791,7 @@ module Search = struct
       let derivs = path_derivate env info.search_cut name in
       let pr_error ie =
         ppdebug 1 (fun () ->
-            let idx = if fst ie == NoApplicableHint then pred !idx else !idx in
+            let idx = match fst ie with NoApplicableHint | NoProgress -> pred !idx | _ -> !idx in
             let header =
               pr_depth (idx :: info.search_depth) ++ str": " ++
               Lazy.force pp ++
@@ -981,7 +1033,7 @@ module Search = struct
       match e with
       | ReachedLimit ->
         Tacticals.tclFAIL ~info (str"Proof search reached its limit")
-      | NoApplicableHint ->
+      | NoApplicableHint | NoProgress ->
         Tacticals.tclFAIL ~info (str"Proof search failed" ++
                                     (if Option.is_empty depth then mt()
                                      else str" without reaching its limit"))
