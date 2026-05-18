@@ -673,7 +673,7 @@ module Search = struct
                 | NoProgress ->
                   let ie = merge_exceptions e ie in
                   begin match fst ie with
-                  | NoProgress -> tclZERO ~info:(snd ie) NoProgress
+                  | NoProgress -> fk ie
                   | _ -> kont (Fail ie)
                   end
                 | _ -> kont fail
