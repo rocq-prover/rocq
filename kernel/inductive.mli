@@ -212,3 +212,5 @@ module Template : sig
   (** Qualities must be above_prop  *)
   val max_template_quality : Sorts.Quality.t -> Sorts.Quality.t -> Sorts.Quality.t
 end
+
+val do_tests : bool ref
