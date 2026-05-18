@@ -110,3 +110,59 @@ Module AsDef.
 End AsDef.
 
 End RefoldProjectionAlias.
+
+Module RefoldAfterPositiveIota.
+
+Inductive tree (A : Type) :=
+| Leaf : tree A
+| Node : tree A -> A -> tree A -> tree A.
+Arguments Leaf {A}.
+Arguments Node {A} _ _ _.
+
+Definition bal {A} (l : tree A) (x : A) (r : tree A) := Node l x r.
+
+Fixpoint remove_min {A} (l : tree A) (x : A) (r : tree A) : tree A * A :=
+  match l with
+  | Leaf => (r, x)
+  | Node ll lx lr =>
+    let (l', m) := remove_min ll lx lr in
+    (bal l' x r, m)
+  end.
+
+Definition merge {A} (s1 s2 : tree A) :=
+  match s1, s2 with
+  | Leaf, _ => s2
+  | _, Leaf => s1
+  | _, Node l2 x2 r2 =>
+    match remove_min l2 x2 r2 with
+    | (s2', x) => bal s1 x s2'
+    end
+  end.
+
+#[local] Ltac caseq :=
+match goal with [ |- context [match ?t with _ => _ end] ] =>
+  let cmp := fresh in
+  let H := fresh in
+  remember t as cmp eqn:H; symmetry in H; destruct cmp
+end.
+
+(* The [Node] branch of [merge] exposes a stuck match on the second tree.
+   [cbn] must not refold [merge] after making the positive iota step on the
+   first tree; otherwise this induction principle is left with open goals. *)
+Lemma merge_ind {A : Type} {P : tree A -> tree A -> tree A -> Prop} :
+  (forall s1 s2 : tree A, s1 = Leaf -> P Leaf s2 s2) ->
+  (forall (s1 s2 l1 : tree A) (x1 : A) (r1 : tree A),
+   s1 = Node l1 x1 r1 -> s2 = Leaf -> P (Node l1 x1 r1) Leaf s1) ->
+  (forall (s1 s2 l1 : tree A) (x1 : A) (r1 : tree A),
+   s1 = Node l1 x1 r1 ->
+   forall (l2 : tree A) (x2 : A) (r2 : tree A),
+   s2 = Node l2 x2 r2 ->
+   forall (s2' : tree A) (x : A),
+   remove_min l2 x2 r2 = (s2', x) ->
+   P (Node l1 x1 r1) (Node l2 x2 r2) (bal s1 x s2')) ->
+  forall s1 s2 : tree A, P s1 s2 (merge s1 s2).
+Proof.
+intros; induction s1; cbn; repeat caseq; eauto.
+Qed.
+
+End RefoldAfterPositiveIota.
