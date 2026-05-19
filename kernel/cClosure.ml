@@ -152,8 +152,6 @@ and fterm =
   | FCLOS of constr * usubs
   | FIrrelevant
   | FLOCKED
-  | FPrimitive of CPrimitives.t * pconstant * fconstr * fconstr array
-    (* operator, constr def, primitive as an fconstr, full array of suitably evaluated arguments *)
   | FBlock of UVars.Instance.t * constr * constr * usubs
     (* its universe instance, its type as a constr, the contents of the block *)
   | FUnblock of UVars.Instance.t * constr * fconstr * usubs
@@ -302,8 +300,8 @@ type stack_member =
   | ZcaseT of case_info * UVars.Instance.t * constr array * case_return * case_branch array * usubs * mode
   | Zproj of Projection.Repr.t * Sorts.relevance * mode
   | Zfix of fconstr * stack
-  | Zprimitive of CPrimitives.t * pconstant * fconstr * fconstr list * fconstr next_native_args
-       (* operator, constr def, primitive as an fconstr, arguments already seen (in rev order), next arguments *)
+  | Zprimitive of CPrimitives.t * pconstant * fconstr list * fconstr next_native_args
+       (* operator, constr def, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
   | Zunblock of UVars.Instance.t * constr * usubs * mode
@@ -353,7 +351,7 @@ let rec lft_fconstr n ft =
     | FConstruct (c,args) -> {mark=RedState.set_cstr ft.mark; term=FConstruct(c,Array.Fun1.map lft_fconstr n args)}
     | FLOCKED -> assert false
     | FFlex (RelKey _) | FAtom _ | FApp _ | FProj _ | FCaseT _ | FCaseInvert _ | FProd _
-    | FLetIn _ | FEvar _ | FCLOS _ | FEta _ | FArray _ | FPrimitive _ | FBlock _
+    | FLetIn _ | FEvar _ | FCLOS _ | FEta _ | FArray _ | FBlock _
     | FUnblock _ | FRun _ | FLAZY _ -> {ft with term=FLIFT(n,ft)}
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
@@ -406,8 +404,6 @@ let clos_rel ~mode ((e, _) : usubs) i =
 (*     {m with term=FArray(Univ.subst_instance_instance (snd e )u, Parray.map subs_fconstr ar, subs_fconstr ty)} *)
 (*   | FLIFT (i, t) -> {m with term=FLIFT(i,subs_fconstr t)} *)
 (*   | FCLOS (t, e2) -> {m with term=FCLOS(t,subs_subs Esubst.el_id e e2)} *)
-(*   | FPrimitive (a, b, c, d) -> *)
-(*     {m with term=FPrimitive(a, (fst b, Univ.subst_instance_instance (snd e) (snd b)), subs_fconstr c, Array.map subs_fconstr d)} *)
 (*   | FBlock (a, b, c, e2) -> {m with term=FBlock(a, b, c, subs_subs Esubst.el_id e e2)} *)
 (*   | FEta (a, b, c, d, e2) -> {m with term=FEta(a, b, c, d, subs_subs Esubst.el_id e e2)} *)
 (*   | FLAZY t -> {m with term=FLAZY(lazy (subs_fconstr (Lazy.force t)))} *)
@@ -455,8 +451,6 @@ and el_fconstr (e : Esubst.lift * UVars.Instance.t) m =
     {m with term=FArray(UVars.subst_instance_instance (snd e )u, Parray.map el_fconstr ar, el_fconstr ty)}
   | FLIFT (i, t) -> {m with term=FLIFT(i,el_fconstr t)}
   | FCLOS (t, e2) -> {m with term=FCLOS(t,subs_subs e e2)}
-  | FPrimitive (a, b, c, d) ->
-    {m with term=FPrimitive(a, (fst b, UVars.subst_instance_instance (snd e) (snd b)), el_fconstr c, Array.map el_fconstr d)}
   | FBlock (a, b, c, e2) -> {m with term=FBlock(a, b, c, subs_subs e e2)}
   | FEta (a, b, c, d, e2) -> {m with term=FEta(a, b, c, d, subs_subs e e2)}
   | FLAZY t -> {m with term=FLAZY(lazy (el_fconstr (Lazy.force t)))}
@@ -875,9 +869,6 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
         let subs = comp_subs ulfts env in
         subst_constr subs t
 
-    | FPrimitive (_, _, h, args) ->
-        mkApp (to_constr ulfts h, Array.map (to_constr ulfts) args)
-
     | FBlock (u,ty,t,e) ->
         let subs = comp_subs ulfts e in
         let ty = subst_constr subs ty in
@@ -1009,7 +1000,7 @@ let zip m stk =
       (** The stack contains [Zupdate] marks only if in sharing mode *)
         let () = update rf m.mark m.term in
         zip rf s
-    | Zprimitive(_op,c,_,rargs,kargs)::s ->
+    | Zprimitive(_op,c,rargs,kargs)::s ->
       let mode = RedState.mode m.mark in
       let args = List.rev_append rargs (m::List.map snd kargs) in
       let f = {mark = RedState.mk red mode; term = FFlex (ConstKey c)} in
@@ -1732,7 +1723,7 @@ let rec knh info m stk =
 (* cases where knh stops *)
     | (FFlex _|FLetIn _|FEvar _|FCaseInvert _|FIrrelevant|
        FCoFix _|FLambda _|FEta _|FRel _|FAtom _|FInd _|FProd _|FInt _|FFloat _|
-       FString _|FArray _|FPrimitive _ |FBlock _) -> (m, stk)
+       FString _|FArray _|FBlock _) -> (m, stk)
 
 
 (* The same for pure terms *)
@@ -2243,10 +2234,14 @@ let rec knr info tab ~pat_state m stk =
             match get_native_args ~mode:mode op c stk with
             | ((rargs, (kd,a) :: nargs), stk) ->
               assert (kd = CPrimitives.Kwhnf);
-              kni info tab ~pat_state a (Zprimitive(op,c,m,rargs,nargs)::stk)
+              kni info tab ~pat_state a (Zprimitive(op,c,rargs,nargs)::stk)
             | ((rargs, []), stk) ->
+              let (_,u) = c in
               let args = Array.of_list (List.rev rargs) in
-              knr info tab ~pat_state {mark=m.mark; term=FPrimitive(op,c,{ mark = m.mark; term = FFlex fl },args)} stk
+              begin match FredNative.red_prim (info_env info) () op u args with
+                | Some m -> kni info tab ~pat_state m stk
+                | None -> assert false
+              end
           else
             (* Similarly to fix, partially applied primitives are not ntrl! *)
             knr_ret info tab ~pat_state (m, stk)
@@ -2290,22 +2285,20 @@ let rec knr info tab ~pat_state m stk =
     else knr_ret info tab ~pat_state (m, stk)
   | FLetIn (_,v,_,bd,e) when red_set mode info fZETA ->
       knit ~mode:mode info tab ~pat_state (on_fst (Esubst.subs_cons v) e) bd stk
-  | FPrimitive (op, ((_,u)), _, args) when RedState.is_red m.mark ->
-    (match FredNative.red_prim (info_env info) () op u args with
-     | Some m -> kni info tab ~pat_state m stk
-     | None -> assert false
-    )
-  | FInt _ | FFloat _ | FString _ | FArray _ | FPrimitive _ ->
+  | FInt _ | FFloat _ | FString _ | FArray _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app_head m stk with
-     | (_, (_, _, Zprimitive(op,c,opm,rargs,nargs)::s)) ->
+     | (_, (_, _, Zprimitive(op,(_,u as c),rargs,nargs)::s)) ->
        let (rargs, nargs) = skip_native_args (m::rargs) nargs in
        begin match nargs with
        | [] ->
            let args = Array.of_list (List.rev rargs) in
-           knr info tab ~pat_state {mark=RedState.mk red mode; term=FPrimitive(op,c,opm,args) } s
+           begin match FredNative.red_prim (info_env info) () op u args with
+            | Some m -> kni info tab ~pat_state m s
+            | None -> assert false
+           end
        | (kd,a)::nargs ->
            assert (kd = CPrimitives.Kwhnf);
-           kni info tab ~pat_state a (Zprimitive(op,c,opm,rargs,nargs)::s)
+           kni info tab ~pat_state a (Zprimitive(op,c,rargs,nargs)::s)
        end
      | (head, (_, _, s)) -> knr_ret info tab ~pat_state (head, s))
   | FBlock (_, _, t, e) ->
@@ -2404,7 +2397,7 @@ let is_val v = match v.term with
 | FAtom _ | FRel _ | FInd _ | FConstruct (_,[||]) | FInt _ | FFloat _ | FString _ | FBlock _ -> true
 | FFlex _ -> RedState.is_ntrl v.mark
 | FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _ | FEta _
-| FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _ | FPrimitive _
+| FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _
 | FUnblock _ | FRun _ | FLAZY _ -> false
 | FIrrelevant | FLOCKED -> assert false
 
@@ -2522,15 +2515,11 @@ and norm_head info tab m =
       | FConstruct (c,args) ->
         let c = mkConstructU c in
         if Array.is_empty args then c else mkApp (c, Array.map (kl info tab) args)
-      | FPrimitive (CPrimitives.Blocked_ind, c, _, args) ->
-        mkApp (mkConstU c,
-               Array.mapi (fun i m -> if i = 3 then term_of_fconstr ~info ~tab m else kl info tab m) args)
       | FLOCKED | FRel _ | FAtom _ | FFlex _ | FInd _
       | FApp _ | FCaseT _ | FCaseInvert _ | FLIFT _ | FCLOS _ | FInt _
       | FFloat _ | FString _ | FBlock _ -> term_of_fconstr ~info ~tab m
       | FLAZY _ -> assert false
       | FIrrelevant -> assert false (* only introduced when converting *)
-      | FPrimitive (_, _, _, _) -> assert false (* All other primitives should be fully reduced *)
       | FUnblock _ | FRun _ -> assert false
 
 and zip_term info tab m stk =
@@ -2559,7 +2548,7 @@ and zip_term info tab m stk =
     zip_term info tab (lift n m) s
 | Zupdate(_rf)::s ->
     zip_term info tab m s
-| Zprimitive(_,c,_,rargs, kargs)::s ->
+| Zprimitive(_,c,rargs, kargs)::s ->
     let kargs = List.map (fun (_,a) -> kl info tab a) kargs in
     let args =
       List.fold_left (fun args a -> kl info tab a ::args) (m::kargs) rargs in
@@ -2633,8 +2622,6 @@ let rec set_mode ~mode (m : fconstr) =
     make (FLIFT(i, set_mode m))
   | FLAZY m ->
     make (FLAZY (lazy (set_mode (Lazy.force m))))
-  | FPrimitive (_, _, _, _) ->
-    assert false
   | FUnblock _ | FRun _ -> assert false
 
 
@@ -2693,11 +2680,10 @@ let unfold_ref_with_args infos tab fl v =
       let c = match [@ocaml.warning "-4"] fl with ConstKey c -> c | _ -> assert false in
       match[@ocaml.warning "-4"] op with
       | _ ->
-        let m = {mark = RedState.mk cstr normal_whnf; term = FFlex fl } in
         match get_native_args ~mode:normal_whnf op c v with
         | ((rargs, (kd,a):: nargs), v) ->
             assert (kd = CPrimitives.Kwhnf);
-            Some (a, (Zupdate a::(Zprimitive(op,c,m,rargs,nargs)::v)))
+            Some (a, (Zupdate a::(Zprimitive(op,c,rargs,nargs)::v)))
         | ((rargs, []), v) ->
             let args = Array.of_list (List.rev rargs) in
             let (_,u) = c in

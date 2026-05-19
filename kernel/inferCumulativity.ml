@@ -260,10 +260,6 @@ let rec infer_fterm cv_pb infos variances hd stk =
     let variances = infer p variances in
     Array.fold_right infer br variances
 
-  | FPrimitive (_, _, h, args) ->
-    let variances = infer_fterm CONV infos variances h [] in
-    let variances = infer_vect infos variances args in
-    infer_stack infos variances stk
   | FBlock (_, ty, t, e) ->
     let variances = infer_fterm CONV infos variances (mk_clos e ty) [] in
     let variances = infer_fterm CONV infos variances (mk_clos e t) [] in
@@ -319,7 +315,7 @@ and infer_stack infos variances (stk:CClosure.stack) =
         infer_vect infos variances (Array.map (mk_clos e) br)
       | Zshift _ -> variances
       | Zupdate _ -> variances
-      | Zprimitive (_,_,_,rargs,kargs) ->
+      | Zprimitive (_,_,rargs,kargs) ->
         let variances = List.fold_left (fun variances c -> infer_fterm CONV infos variances c []) variances rargs in
         let variances = List.fold_left (fun variances (_,c) -> infer_fterm CONV infos variances c []) variances kargs in
         variances

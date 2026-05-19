@@ -60,7 +60,7 @@ let compare_stack_shape stk1 stk2 =
         Int.equal bal 0 (* && c1.ci_ind  = c2.ci_ind *) && compare_rec 0 s1 s2
     | (Zfix(_,a1)::s1, Zfix(_,a2)::s2) ->
         Int.equal bal 0 && compare_rec 0 a1 a2 && compare_rec 0 s1 s2
-    | Zprimitive(op1,_,_,rargs1, _kargs1)::s1, Zprimitive(op2,_,_,rargs2, _kargs2)::s2 ->
+    | Zprimitive(op1,_,rargs1, _kargs1)::s1, Zprimitive(op2,_,rargs2, _kargs2)::s2 ->
         bal=0 && op1=op2 && List.length rargs1=List.length rargs2 &&
         compare_rec 0 s1 s2
     | Zunblock (_,_,_,f1) :: s1, Zunblock (_,_,_,f2) :: s2 ->
@@ -117,7 +117,7 @@ let pure_stack lfts stk =
                 (l, Zlfix((lfx,fx),pa)::pstk)
             | (ZcaseT(ci,u,pms,p,br,e,_),(l,pstk)) ->
                 (l,Zlcase(ci,l,u,pms,p,br,e)::pstk)
-            | (Zprimitive(op,c,_,rargs,kargs),(l,pstk)) ->
+            | (Zprimitive(op,c,rargs,kargs),(l,pstk)) ->
                 (l,Zlprimitive(op,c,List.map (fun t -> (l,t)) rargs,
                             List.map (fun (k,t) -> (k,(l,t))) kargs)::pstk)
             | (Zunblock(u,ty,e,_),(l,pstk)) ->
@@ -873,11 +873,6 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       let cuniv = Parray.fold_left2 (fun u v1 v2 -> ccnv CONV l2r infos el1 el2 v1 v2 u) cuniv t1 t2 in
       convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
 
-    | FPrimitive (op1, (_, u1), _, args1), FPrimitive (op2, (_, u2), _, args2) ->
-      if op1 <> op2 then raise NotConvertible;
-      let cuniv = fail_check infos @@ convert_instances ~flex:false u1 u2 cuniv in
-      convert_stacks l2r infos lft1 lft2 (Zapp args1 :: v1) (Zapp args2 :: v2) cuniv
-
     | FBlock (_,_,t1,e1), FBlock (_,_,t2,e2) ->
       let m1 = mk_clos e1 t1 in
       let m2 = mk_clos e2 t2 in
@@ -912,7 +907,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
        | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
        | FArray _ | FIrrelevant
-       | FPrimitive _ | FBlock _ | FEta _), _ -> raise NotConvertible
+       | FBlock _ | FEta _), _ -> raise NotConvertible
 
 and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
   let f (l1, t1) (l2, t2) cuniv = ccnv CONV l2r infos l1 l2 t1 t2 cuniv in

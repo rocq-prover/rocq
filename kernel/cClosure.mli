@@ -56,8 +56,6 @@ type fterm =
   | FCLOS of constr * usubs
   | FIrrelevant
   | FLOCKED
-  | FPrimitive of CPrimitives.t * pconstant * fconstr * fconstr array
-    (* operator, constr def, primitive as an fconstr, full array of suitably evaluated arguments *)
   | FBlock of UVars.Instance.t * constr * constr * usubs
     (* its universe instance, its type as a constr, the contents of the block *)
   | FUnblock of UVars.Instance.t * constr * fconstr * usubs
@@ -95,8 +93,8 @@ type stack_member =
   | ZcaseT of case_info * UVars.Instance.t * constr array * case_return * case_branch array * usubs * mode
   | Zproj of Projection.Repr.t * Sorts.relevance * mode
   | Zfix of fconstr * stack
-  | Zprimitive of CPrimitives.t * pconstant * fconstr * fconstr list * fconstr next_native_args
-       (* operator, constr def, primitive as an fconstr, arguments already seen (in rev order), next arguments *)
+  | Zprimitive of CPrimitives.t * pconstant * fconstr list * fconstr next_native_args
+       (* operator, constr def, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
   | Zunblock of UVars.Instance.t * constr * usubs * mode
