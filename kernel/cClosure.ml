@@ -688,14 +688,13 @@ let create_tab = Table.create
 (** Hand-unrolling of the map function to bypass the call to the generic array
     allocation *)
 let mk_clos_vect ~mode env v =
-  let mk_clos = mk_clos ~mode in
   match v with
 | [||] -> [||]
-| [|v0|] -> [|mk_clos env v0|]
-| [|v0; v1|] -> [|mk_clos env v0; mk_clos env v1|]
-| [|v0; v1; v2|] -> [|mk_clos env v0; mk_clos env v1; mk_clos env v2|]
-| [|v0; v1; v2; v3|] -> [|mk_clos env v0; mk_clos env v1; mk_clos env v2; mk_clos env v3|]
-| v -> Array.Fun1.map mk_clos env v
+| [|v0|] -> [|mk_clos ~mode env v0|]
+| [|v0; v1|] -> [|mk_clos ~mode env v0; mk_clos ~mode env v1|]
+| [|v0; v1; v2|] -> [|mk_clos ~mode env v0; mk_clos ~mode env v1; mk_clos ~mode env v2|]
+| [|v0; v1; v2; v3|] -> [|mk_clos ~mode env v0; mk_clos ~mode env v1; mk_clos ~mode env v2; mk_clos ~mode env v3|]
+| v -> Array.Fun1.map (mk_clos ~mode) env v
 
 let klt_ref = ref (fun ~mode:_ _ _ _ _ -> assert false)
 let kl_ref = ref (fun _ _ _ -> assert false)
