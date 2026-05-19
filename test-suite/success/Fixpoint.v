@@ -644,3 +644,87 @@ Fixpoint test_size (t : test) : nat :=
   let 'Test ts := t in S (Pmap_fold (fun t' => plus (test_size t')) 0%nat ts).
 
 End TestIntersection.
+
+
+Module NestedUniform.
+
+(* Uniform arguments are passed as-is to nested fixpoints' bodies *)
+
+Fixpoint Valid1 (n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S k =>
+    (fix f (a : nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => Valid1 a  (* a=k, subterm of n *)
+       | S m' => g a m'
+       end
+     with g (a : nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => 0
+       | S m' => h a m'
+       end
+     with h (a : nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => 0
+       | S m' => f a m'
+       end
+     for f) k k
+  end.
+
+(* Uniform arguments are checked in context of the nested fixpoints' bodies,
+   not in an of themselves *)
+
+Fixpoint Valid2 (n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S k =>
+    (fix f (h : nat -> nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => h k  (* h = Valid2, k is a subterm *)
+       | S m' => f h m' + g h m'
+       end
+     with g (h : nat -> nat) (p : nat) {struct p} : nat :=
+       match p with
+       | 0 => h k
+       | S p' => f h p' + g h p'
+       end
+     for f) Valid2 k
+  end.
+
+
+Fail Fixpoint Bad1 (n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S k =>
+    (fix f (a : nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => Bad1 (S a) (* [S a] not a subterm *)
+       | S m' => g a m'
+       end
+     with g (b : nat) (p : nat) {struct p} : nat :=
+       match p with
+       | 0 => 0
+       | S p' => f b p'
+       end
+     for f) k k
+  end.
+
+Fail Fixpoint Bad2 (n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S k =>
+    (fix f (h : nat) (m : nat) {struct m} : nat :=
+       match m with
+       | 0 => Bad2 h
+       | S m' => g (h + 0) m' (* First argument is not uniform *)
+       end
+     with g (h : nat) (p : nat) {struct p} : nat :=
+       match p with
+       | 0 => 0
+       | S p' => f h p'
+       end
+     for f) k k
+  end.
+
+End NestedUniform.
