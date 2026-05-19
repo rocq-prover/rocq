@@ -209,6 +209,8 @@ let convert_inductives_gen cmp_instances cmp_cumul cv_pb (mind,ind) nargs u1 u2 
 
 type 'e conv_tab = {
   cnv_inf : clos_infos;
+  cnv_inf_biz : clos_infos;
+  cnv_inf_all : clos_infos;
   cnv_typ : bool; (* true if the input terms were well-typed *)
   lft_tab : clos_tab;
   rgt_tab : clos_tab;
@@ -448,7 +450,7 @@ let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
 and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
   Control.check_for_interrupt ();
   (* First head reduce both terms *)
-  let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
+  let ninfos = infos.cnv_inf_biz in
   let appr1 = whd_stack ninfos infos.lft_tab (fst st1) (snd st1) in
   let appr2 = whd_stack ninfos infos.rgt_tab (fst st2) (snd st2) in
   eqwhnf cv_pb l2r infos (lft1, appr1) (lft2, appr2) cuniv
@@ -526,7 +528,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
             | VarKey id -> Some (Conv_oracle.EvalVarRef id)
             | RelKey _ -> None
           in
-          let ninfos = infos_with_reds infos.cnv_inf RedFlags.betaiotazeta in
+          let ninfos = infos.cnv_inf_biz in
           let () = Control.check_for_interrupt () in
           (* Determine which constant to unfold first *)
           let unfold_left =
@@ -553,12 +555,10 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
             let appr2 = whd_stack ninfos infos.rgt_tab t2 v2 in
             eqwhnf cv_pb l2r infos appr1 (lft2, appr2) cuniv
         | Some (t1, v1), None ->
-          let all = RedFlags.(red_add_transparent all (red_transparent (info_flags infos.cnv_inf))) in
-          let t1 = whd_stack (infos_with_reds infos.cnv_inf all) infos.lft_tab t1 v1 in
+          let t1 = whd_stack infos.cnv_inf_all infos.lft_tab t1 v1 in
           eqwhnf cv_pb l2r infos (lft1, t1) appr2 cuniv
         | None, Some (t2, v2) ->
-          let all = RedFlags.(red_add_transparent all (red_transparent (info_flags infos.cnv_inf))) in
-          let t2 = whd_stack (infos_with_reds infos.cnv_inf all) infos.rgt_tab t2 v2 in
+          let t2 = whd_stack infos.cnv_inf_all infos.rgt_tab t2 v2 in
           eqwhnf cv_pb l2r infos appr1 (lft2, t2) cuniv
         )
 
@@ -1069,6 +1069,10 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
       let box e = Error.Error e in
       let infos = {
         cnv_inf = infos;
+        cnv_inf_biz = infos_with_reds infos RedFlags.betaiotazeta;
+        cnv_inf_all =
+          (let all = RedFlags.(red_add_transparent all (red_transparent (info_flags infos))) in
+           infos_with_reds infos all);
         cnv_typ = typed;
         lft_tab = create_tab ();
         rgt_tab = create_tab ();
@@ -1121,7 +1125,12 @@ let () =
       let box = Empty.abort in
       let state = info_univs infos in
       let qual_equal q1 q2 = CClosure.eq_quality infos q1 q2 in
-      let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box; } in
+      let cnv_inf_biz = infos_with_reds infos RedFlags.betaiotazeta in
+      let cnv_inf_all =
+        let all = RedFlags.(red_add_transparent all (red_transparent (info_flags infos))) in
+        infos_with_reds infos all
+      in
+      let infos = { cnv_inf = infos; cnv_inf_biz; cnv_inf_all; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box; } in
       let state', _ = ccnv CONV false infos el_id el_id a b (state, checked_universes_gen qual_equal) in
       assert (state==state');
       true
