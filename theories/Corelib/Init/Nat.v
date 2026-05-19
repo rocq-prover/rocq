@@ -20,7 +20,7 @@ Local Open Scope nat_scope.
     without importing it, leading to qualified definitions
     (e.g. Nat.pred) *)
 
-Definition t := nat.
+Monomorphic Definition t := nat.
 
 (** ** Constants *)
 

@@ -15,9 +15,11 @@ open UVars
 (** Operations concerning types in [Declarations] :
     [constant_body], [mutual_inductive_body], [module_body] ... *)
 
-val universes_context : universes -> AbstractContext.t
+val empty_universes : universes
+val is_empty_universes : universes -> bool
 
-val abstract_universes : Entries.universes_entry -> UVars.sort_level_subst * universes
+val universes_context : universes -> AbstractContext.t
+val universes_variances : universes -> UVars.variances option
 
 (** {6 Constants} *)
 
@@ -29,8 +31,8 @@ val constant_has_body : ('a, 'b) pconstant_body -> bool
 
 val constant_polymorphic_context : ('a, 'b) pconstant_body -> AbstractContext.t
 
-(** Is the constant polymorphic? *)
-val constant_is_polymorphic : ('a, 'b) pconstant_body -> bool
+(** Is the constant cumulative? *)
+val constant_is_cumulative : ('a, 'b) pconstant_body -> bool
 
 (** Return the universe context, in case the definition is polymorphic, otherwise
     the context is empty. *)
@@ -58,10 +60,18 @@ val subst_rewrite_rules : substitution -> rewrite_rules_body -> rewrite_rules_bo
 
 val mind_ntypes : mutual_inductive_body -> int
 
+val inductive_universes : mutual_inductive_body -> universes
+
 val inductive_polymorphic_context : mutual_inductive_body -> AbstractContext.t
+
+val inductive_variances : mutual_inductive_body -> UVars.Variances.t option
+
+val inductive_template : mutual_inductive_body -> template_universes option
 
 (** Is the inductive polymorphic? *)
 val inductive_is_polymorphic : mutual_inductive_body -> bool
+(** Is the inductive template polymorphic? *)
+val inductive_is_template : mutual_inductive_body -> bool
 (** Is the inductive cumulative? *)
 val inductive_is_cumulative : mutual_inductive_body -> bool
 

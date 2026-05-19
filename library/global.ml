@@ -193,10 +193,7 @@ let body_of_constant_body access cb =
   | Undef _ | Primitive _ | Symbol _ ->
      None
   | Def c ->
-    let u = match cb.const_universes with
-    | Monomorphic -> Opaqueproof.PrivateMonomorphic ()
-    | Polymorphic auctx -> Opaqueproof.PrivatePolymorphic Univ.ContextSet.empty
-    in
+    let u = Opaqueproof.PrivatePolymorphic Univ.ContextSet.empty in
     Some (c, u, Declareops.constant_polymorphic_context cb)
   | OpaqueDef o ->
     let c, u = force_proof access o in
@@ -225,8 +222,12 @@ let import c t d = globalize (Safe_typing.import c t d)
 let env_of_context hyps =
   Environ.reset_with_named_context hyps (env())
 
-let is_polymorphic r =
-  Environ.is_polymorphic (env()) r
+let universes_of_global r =
+  Environ.universes_of_global (env()) r
+
+let is_polymorphic r = Environ.is_polymorphic (env()) r
+let is_cumulative r =
+  Environ.is_cumulative (env()) r
 
 let is_template_polymorphic r =
   Environ.is_template_polymorphic (env ()) r
@@ -251,6 +252,9 @@ let set_share_reduction b =
 
 let set_unfold_dep_heuristic b =
   globalize0 (Safe_typing.set_unfold_dep_heuristic b)
+
+let set_cumulativity_zeta b =
+  globalize0 (Safe_typing.set_cumulativity_zeta b)
 
 let set_VM b = globalize0 (Safe_typing.set_VM b)
 let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)
