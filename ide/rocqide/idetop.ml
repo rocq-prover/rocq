@@ -207,7 +207,7 @@ let process_goal short sigma g =
     if short then [] else
       let hyps =
         List.rev_map process_hyp
-          (Ppconstr.compact_named_context sigma (EConstr.named_context env))
+          (Ppconstr.compact_named_context sigma (Environ.named_context_val env))
       in
       hyps
   in

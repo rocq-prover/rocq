@@ -113,6 +113,8 @@ val fold_rel_context :
 
 type var_status = SecVar | ProofVar
 
+val var_status_eq : var_status -> var_status -> bool
+
 val var_status_ctxt : ?check:bool -> Id.t -> named_context_val -> var_status
 val var_status : ?check:bool -> Id.t -> env -> var_status
 
@@ -150,8 +152,13 @@ val named_body : variable -> env -> constr option
 
 (** {6 Recurrence on [named_context]: older declarations processed first } *)
 
+val fold_named_context_val :
+  (named_context_val -> var_status -> Constr.named_declaration -> 'a -> 'a) ->
+  named_context_val -> init:'a -> 'a
+
 val fold_named_context :
-  (env -> var_status -> Constr.named_declaration -> 'a -> 'a) -> env -> init:'a -> 'a
+  (env -> var_status -> Constr.named_declaration -> 'a -> 'a) ->
+  env -> init:'a -> 'a
 
 val match_named_context_val : named_context_val -> (var_status * named_declaration * named_context_val) option
 

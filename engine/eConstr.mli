@@ -433,8 +433,13 @@ val val_of_named_context : (var_status * named_declaration) list -> named_contex
 val named_context_of_val : named_context_val -> named_context
 val named_context_of_val_with_status : named_context_val -> (var_status * named_declaration) list
 
+val fold_named_context_val :
+  (named_context_val -> var_status -> named_declaration -> 'a -> 'a) ->
+  named_context_val -> init:'a -> 'a
+
 val fold_named_context :
-  (env -> var_status -> named_declaration -> 'a -> 'a) -> env -> init:'a -> 'a
+  (env -> var_status -> named_declaration -> 'a -> 'a) ->
+  env -> init:'a -> 'a
 
 val lookup_rel : int -> env -> rel_declaration
 val lookup_named : variable -> env -> named_declaration

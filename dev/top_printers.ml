@@ -318,7 +318,7 @@ let ppelim_constraints cstrs = pp (Sorts.ElimConstraints.pr qprinter cstrs)
 let ppnamedcontextval e =
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  pp (pr_named_context env sigma (named_context_of_val e))
+  pp (pr_named_context_of (Environ.reset_with_named_context e env) sigma)
 
 let ppaucontext auctx =
   let {quals = qnas; univs = unas} = AbstractContext.names auctx in

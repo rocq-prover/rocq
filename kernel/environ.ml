@@ -191,6 +191,11 @@ let set_rel_context_val v env =
 (* Named context *)
 type var_status = SecVar | ProofVar
 
+let var_status_eq a b = match a, b with
+  | SecVar, SecVar -> true
+  | ProofVar, ProofVar -> true
+  | (SecVar | ProofVar), _ -> false
+
 let push_named_context_val status d ctxt =
   let id = NamedDecl.get_id d in
   (*   assert (not (Id.Map.mem id ctxt.env_named_map)); *)
@@ -519,15 +524,18 @@ let pop_rel_context n env =
     env_rel_context = skip n ctxt;
     env_nb_rel = env.env_nb_rel - n }
 
-let fold_named_context f env ~init =
-  let rec fold_right env =
-    match match_named_context_val env.env_named_context with
+let fold_named_context_val f sign ~init =
+  let rec fold_right sign =
+    match match_named_context_val sign with
     | None -> init
     | Some (status, d, rem) ->
-        let env =
-          reset_with_named_context rem env in
-        f env status d (fold_right env)
-  in fold_right env
+      f rem status d (fold_right rem)
+  in fold_right sign
+
+let fold_named_context f env ~init =
+  fold_named_context_val (fun sign status d acc ->
+      f (reset_with_named_context sign env) status d acc)
+    (named_context_val env) ~init
 
 let fold_named_context_reverse f ~init env =
   Context.Named.fold_inside f ~init:init (named_context env)

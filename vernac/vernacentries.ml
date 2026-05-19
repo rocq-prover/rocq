@@ -1944,14 +1944,6 @@ let () =
       optwrite = Global.set_unfold_dep_heuristic }
 
 let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Compact";"Contexts"];
-      optread  = (fun () -> Printer.get_compact_context());
-      optwrite = (fun b -> Printer.set_compact_context b) }
-
-let () =
   declare_int_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;

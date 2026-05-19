@@ -1259,8 +1259,15 @@ let match_named_context_val :
   match unsafe_eq, unsafe_relevance_eq with
   | Refl, Refl -> match_named_context_val
 
+let fold_named_context_val :
+  (named_context_val -> var_status -> named_declaration -> 'a -> 'a) ->
+  named_context_val -> init:'a -> 'a =
+  let Refl, Refl = unsafe_eq, unsafe_relevance_eq in
+  Environ.fold_named_context_val
+
 let fold_named_context :
-  (env -> var_status -> named_declaration -> 'a -> 'a) -> env -> init:'a -> 'a =
+  (env -> var_status -> named_declaration -> 'a -> 'a) ->
+  env -> init:'a -> 'a =
   let Refl, Refl = unsafe_eq, unsafe_relevance_eq in
   Environ.fold_named_context
 
