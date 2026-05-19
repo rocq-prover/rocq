@@ -521,9 +521,9 @@ let { Goptions.get = print_hyps_limit } =
     ~value:None
     ()
 
-let pr_context_of ?flags env sigma = match print_hyps_limit () with
-  | None -> hv 0 (pr_context_limit_compact ?flags env sigma)
-  | Some n -> hv 0 (pr_context_limit_compact ~n ?flags env sigma)
+let pr_context_of ?flags env sigma =
+  let n = print_hyps_limit () in
+  hv 0 (pr_context_limit_compact ?n ?flags env sigma)
 
 (* display goal parts (Proof mode) *)
 
