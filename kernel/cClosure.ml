@@ -2253,10 +2253,17 @@ let rec knr info tab ~pat_state m stk =
        | Symbol (u, b, r) ->
           RedPattern.match_symbol knred info tab ~pat_state fl (u, b, r) stk
        | Undef _ | OpaqueDef _ -> (set_ntrl m; knr_ret info tab ~pat_state (m,stk)))
-  | FConstruct _ ->
-    let m, stk = strip_update_shift_absorb_app m stk in
-    begin match [@ocaml.warning "-4"] m.term with
-    | FConstruct (c, args) ->
+  | FConstruct (c0, args0) ->
+    let m, c, args, stk =
+      match [@ocaml.warning "-4"] stk with
+      | (Zshift _ | Zapp _ | Zupdate _) :: _ ->
+        let m, stk = strip_update_shift_absorb_app m stk in
+        begin match [@ocaml.warning "-4"] m.term with
+        | FConstruct (c, args) -> m, c, args, stk
+        | _ -> assert false
+        end
+      | _ -> m, c0, args0, stk
+    in
       begin match [@ocaml.warning "-4"] stk with
       | ZcaseT (ci, _, pms, _, br, e, mode) :: s when red_set mode info fMATCH ->
         let (br, e) = get_branch ~mode info ci pms c args br e in
@@ -2275,8 +2282,6 @@ let rec knr info tab ~pat_state m stk =
         else
           knr_ret info tab ~pat_state (m, stk)
       end
-    | _ -> knr info tab ~pat_state m stk
-    end
   | FCoFix ((i, (lna, _, _)), e) ->
     if is_irrelevant info (usubst_relevance e (lna.(i)).binder_relevance) then
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
@@ -2296,7 +2301,14 @@ let rec knr info tab ~pat_state m stk =
        let (rargs, nargs) = skip_native_args (m::rargs) nargs in
        begin match nargs with
        | [] ->
-           let args = Array.of_list (List.rev rargs) in
+           let args = match rargs with
+           | [] -> [||]
+           | [a] -> [|a|]
+           | [a; b] -> [|b; a|]
+           | [a; b; c] -> [|c; b; a|]
+           | [a; b; c; d] -> [|d; c; b; a|]
+           | _ -> Array.rev_of_list rargs
+           in
            begin match FredNative.red_prim (info_env info) () (info, tab) op u args with
             | Some m -> kni info tab ~pat_state m s
             | _ -> assert false
