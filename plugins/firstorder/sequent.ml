@@ -196,8 +196,8 @@ open Hints
 let extend_with_auto_hints ~flags env sigma l seq =
   let f (seq,sigma) p_a_t =
     match FullHint.repr p_a_t with
-    | Res_pf c | Give_exact c
-    | Res_pf_THEN_trivial_fail c ->
+    | Apply c | Exact c
+    | Immediate c ->
       let c = snd @@ hint_as_term c in
       (match  EConstr.destRef sigma c with
        | exception Constr.DestKO -> seq, sigma

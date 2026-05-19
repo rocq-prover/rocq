@@ -131,17 +131,17 @@ and e_my_find_search env sigma db_list local_db secvars concl =
   let tac_of_hint =
     fun (st, h) ->
       let priority = match FullHint.repr h with
-      | Unfold_nth _ -> 1
+      | Unfold _ -> 1
       | _ -> FullHint.priority h
       in
       let tac = function
-      | Res_pf h -> unify_resolve st h
-      | ERes_pf h -> unify_e_resolve st h
-      | Give_exact h -> e_exact st h
-      | Res_pf_THEN_trivial_fail h ->
+      | Apply h -> unify_resolve st h
+      | EApply h -> unify_e_resolve st h
+      | Exact h -> e_exact st h
+      | Immediate h ->
         Tacticals.tclTHEN (unify_e_resolve st h)
           (e_trivial_fail_db db_list local_db)
-      | Unfold_nth c -> reduce (Unfold [AllOccurrences,c]) onConcl
+      | Unfold c -> reduce (Unfold [AllOccurrences,c]) onConcl
       | Extern (pat, tacast) -> conclPattern concl pat tacast
       in
       (* We cannot determine statically the cost of subgoals of an Extern hint,
