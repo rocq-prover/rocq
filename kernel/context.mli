@@ -370,20 +370,3 @@ sig
   (** [instance_list] is like [instance] but returning a list. *)
   val instance_list : (Id.t -> 'v) -> ('c, 't, 'r) pt -> 'v list
 end
-
-module Compacted :
-sig
-  module Declaration :
-  sig
-    type ('constr, 'types, 'r) pt =
-      | LocalAssum of (Id.t,'r) pbinder_annot list * 'types
-      | LocalDef of (Id.t,'r) pbinder_annot list * 'constr * 'types
-
-    val map_constr : ('c -> 'c) -> ('c, 'c, 'r) pt -> ('c, 'c, 'r) pt
-    val of_named_decl : ('c, 't, 'r) Named.Declaration.pt -> ('c, 't, 'r) pt
-  end
-
-  type ('constr, 'types, 'r) pt = ('constr, 'types, 'r) Declaration.pt list
-
-  val fold : (('c, 't, 'r) Declaration.pt -> 'a -> 'a) -> ('c, 't, 'r) pt -> init:'a -> 'a
-end

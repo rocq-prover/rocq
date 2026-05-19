@@ -171,9 +171,7 @@ type unsafe_judgment = (constr, types) Environ.punsafe_judgment
 type unsafe_type_judgment = (types, ESorts.t) Environ.punsafe_type_judgment
 type named_declaration = (constr, types, ERelevance.t) Context.Named.Declaration.pt
 type rel_declaration = (constr, types, ERelevance.t) Context.Rel.Declaration.pt
-type compacted_declaration = (constr, types, ERelevance.t) Context.Compacted.Declaration.pt
 type named_context = (constr, types, ERelevance.t) Context.Named.pt
-type compacted_context = compacted_declaration list
 type rel_context = (constr, types, ERelevance.t) Context.Rel.pt
 type 'a binder_annot = ('a, ERelevance.t) Context.pbinder_annot
 

@@ -22,7 +22,6 @@ open Environ
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
-module CompactedDecl = Context.Compacted.Declaration
 
 module Internal = struct
 
@@ -1181,28 +1180,6 @@ let fold_named_context_both_sides f l ~init = List.fold_right_and_left f l init
 
 let mem_named_context_val id ctxt =
   try ignore(Environ.lookup_named_ctxt id ctxt); true with Not_found -> false
-
-let compact_named_context sigma sign =
-  let compact l decl =
-    match decl, l with
-    | NamedDecl.LocalAssum (i,t), [] ->
-       [CompactedDecl.LocalAssum ([i],t)]
-    | NamedDecl.LocalDef (i,c,t), [] ->
-       [CompactedDecl.LocalDef ([i],c,t)]
-    | NamedDecl.LocalAssum (i1,t1), CompactedDecl.LocalAssum (li,t2) :: q ->
-       if EConstr.eq_constr sigma t1 t2
-       then CompactedDecl.LocalAssum (i1::li, t2) :: q
-       else CompactedDecl.LocalAssum ([i1],t1) :: CompactedDecl.LocalAssum (li,t2) :: q
-    | NamedDecl.LocalDef (i1,c1,t1), CompactedDecl.LocalDef (li,c2,t2) :: q ->
-       if EConstr.eq_constr sigma c1 c2 && EConstr.eq_constr sigma t1 t2
-       then CompactedDecl.LocalDef (i1::li, c2, t2) :: q
-       else CompactedDecl.LocalDef ([i1],c1,t1) :: CompactedDecl.LocalDef (li,c2,t2) :: q
-    | NamedDecl.LocalAssum (i,t), q ->
-       CompactedDecl.LocalAssum ([i],t) :: q
-    | NamedDecl.LocalDef (i,c,t), q ->
-       CompactedDecl.LocalDef ([i],c,t) :: q
-  in
-  sign |> Context.Named.fold_inside compact ~init:[] |> List.rev
 
 let clear_named_body id env =
   let open NamedDecl in

@@ -192,15 +192,13 @@ val pr_ne_context_of : Pp.t -> ?flags:PrintingFlags.t -> env -> evar_map -> Pp.t
 
 val pr_named_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> Constr.named_declaration -> Pp.t
-val pr_compacted_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> Constr.compacted_declaration -> Pp.t
 val pr_rel_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> Constr.rel_declaration -> Pp.t
 
 val pr_enamed_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> EConstr.named_declaration -> Pp.t
 val pr_ecompacted_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> EConstr.compacted_declaration -> Pp.t
+  env -> evar_map -> Ppconstr.CompactedDecl.t -> Pp.t
 val pr_erel_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> EConstr.rel_declaration -> Pp.t
 

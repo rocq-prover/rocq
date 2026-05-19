@@ -194,7 +194,6 @@ val fold_named_context_both_sides :
   ('a -> Constr.named_declaration -> Constr.named_declaration list -> 'a) ->
     Constr.named_context -> init:'a -> 'a
 val mem_named_context_val : Id.t -> named_context_val -> bool
-val compact_named_context : Evd.evar_map -> EConstr.named_context -> EConstr.compacted_context
 
 val clear_named_body : Id.t -> env -> env
 
