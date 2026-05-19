@@ -56,7 +56,7 @@ let mkflags = List.fold_left red_add no_red
 
 let mkfullflags = List.fold_left red_add { no_red with ts = TransparentState.full }
 
-let red_set red = function
+let[@inline always] red_set red = function
   | FLAG f -> red.flags land f != 0
   | CONST kn -> TransparentState.is_transparent_constant red.ts kn
   | PROJ p -> TransparentState.is_transparent_projection red.ts p
