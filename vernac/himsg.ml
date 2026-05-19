@@ -230,9 +230,11 @@ let explain_bad_assumption env sigma j =
   brk(1,1) ++ pc ++ spc () ++ str "of type" ++ spc () ++ pt ++ spc () ++
   str "because this term is not a type."
 
-let explain_reference_variables sigma id c =
-  pr_global c ++ strbrk " depends on the variable " ++ Id.print id ++
-  strbrk " which is not declared in the context."
+let explain_reference_variables env sigma id c =
+  pr_global c ++ strbrk " depends on the section variable " ++ Id.print id ++
+  if Environ.mem_named id env then
+    strbrk " but " ++ Id.print id ++ strbrk " in the current context does not refer to the section variable of the same name."
+  else strbrk " which is not declared in the current context."
 
 let explain_elim_arity env sigma ind c okinds =
   let open EConstr in
@@ -1008,7 +1010,7 @@ let explain_type_error env sigma err =
   | BadAssumption c ->
       explain_bad_assumption env sigma c
   | ReferenceVariables (id,c) ->
-      explain_reference_variables sigma id c
+      explain_reference_variables env sigma id c
   | ElimArity (ind, c, okinds) ->
       explain_elim_arity env sigma ind (Some c) okinds
   | CaseNotInductive cj ->
