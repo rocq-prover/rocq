@@ -1326,6 +1326,7 @@ module FNativeEntries =
     type elem = fconstr
     type args = fconstr array
     type evd = unit
+    type lazy_info = clos_infos * Table.t
     type uinstance = UVars.Instance.t
 
     let mk_construct c =
@@ -1361,8 +1362,8 @@ module FNativeEntries =
 
     let get_blocked _ _ e =
       match [@ocaml.warning "-4"] e.term with
-      | FBlock (_, _, t, env) -> mk_clos ~mode:normal_whnf env t
-      | _ -> assert false
+      | FBlock (_, _, t, env) -> Some (mk_clos ~mode:normal_whnf env t)
+      | _ -> None
 
 
     let dummy = {mark = RedState.mk ntrl normal_whnf; term = FRel 0}
@@ -1649,6 +1650,10 @@ module FNativeEntries =
     let mkArray env u t ty =
       check_array env;
       { mark = RedState.mk cstr normal_whnf; term = FArray (u,t,ty) }
+
+    let eval_full_lazy (info, tab) e = !eval_lazy_ref ~mode:full info tab e
+
+    let eval_id_lazy (info, tab) e = !eval_lazy_ref ~mode:identity info tab e
 
     let mkApp t args =
       { mark = RedState.mk red normal_whnf; term = FApp(t, args) }
@@ -2238,9 +2243,9 @@ let rec knr info tab ~pat_state m stk =
             | ((rargs, []), stk) ->
               let (_,u) = c in
               let args = Array.of_list (List.rev rargs) in
-              begin match FredNative.red_prim (info_env info) () op u args with
+              begin match FredNative.red_prim (info_env info) () (info, tab) op u args with
                 | Some m -> kni info tab ~pat_state m stk
-                | None -> assert false
+                | _ -> assert false
               end
           else
             (* Similarly to fix, partially applied primitives are not ntrl! *)
@@ -2292,9 +2297,9 @@ let rec knr info tab ~pat_state m stk =
        begin match nargs with
        | [] ->
            let args = Array.of_list (List.rev rargs) in
-           begin match FredNative.red_prim (info_env info) () op u args with
+           begin match FredNative.red_prim (info_env info) () (info, tab) op u args with
             | Some m -> kni info tab ~pat_state m s
-            | None -> assert false
+            | _ -> assert false
            end
        | (kd,a)::nargs ->
            assert (kd = CPrimitives.Kwhnf);
@@ -2687,7 +2692,7 @@ let unfold_ref_with_args infos tab fl v =
         | ((rargs, []), v) ->
             let args = Array.of_list (List.rev rargs) in
             let (_,u) = c in
-            match FredNative.red_prim (info_env infos) () op u args with
+            match FredNative.red_prim (info_env infos) () (infos, tab) op u args with
             | Some m -> Some (m, v)
             | None -> assert false
     end
