@@ -592,10 +592,7 @@ type args_red = arg_kind list
 (* Invariant only argument of type int63, float or an inductive can
    have kind Kwhnf *)
 
-let arity t =
-  nparams t + List.length (fst (types t))
-
-let kind t =
+let uncached_kind t =
   let rec params n = if n <= 0 then [] else Kparam :: params (n - 1) in
   let args (_, ty) =
     match ty with
@@ -603,6 +600,27 @@ let kind t =
     | PITT_type _ | PITT_ind _ -> Kwhnf
   in
   params (nparams t) @ List.map args (fst (types t))
+
+let kind_cache : args_red option array = Array.make 128 None
+let arity_cache : int array = Array.make 128 (-1)
+
+let kind t =
+  let h = hash t in
+  match kind_cache.(h) with
+  | Some k -> k
+  | None ->
+    let k = uncached_kind t in
+    kind_cache.(h) <- Some k;
+    arity_cache.(h) <- List.length k;
+    k
+
+let arity t =
+  let h = hash t in
+  let a = arity_cache.(h) in
+  if a >= 0 then a
+  else
+    let k = kind t in
+    List.length k
 
 let types t =
   let args_ty, ret_ty = types t in
