@@ -1,5 +1,8 @@
 (* Conversion must not accept malformed primitive universe instances once
-   [__run] / [__unblock] have been pushed to lazy-conversion stack frames. *)
+   [__run] / [__unblock] have been pushed to lazy-conversion stack frames.
+
+   This is currently expected to fail: the [Zlrun] / [Zlunblock] stack-node
+   comparison ignores the primitive universe instance entirely. *)
 
 Require Import Corelib.Force Ltac2.Ltac2 Ltac2.Unification.
 Set Default Proof Mode "Classic".
