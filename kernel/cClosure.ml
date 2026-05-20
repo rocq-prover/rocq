@@ -489,17 +489,32 @@ end = struct
     let hash = hash_table_key (fun (c, _) -> Constant.UserOrd.hash c)
   end)
 
-  type tab = table_val Table.t
-  type t = tab * tab * tab
+  type entry = {
+    entry_normal : table_val option;
+    entry_identity : table_val option;
+    entry_full : table_val option;
+  }
 
-  let tab_of mode (tab_def, tab_full, tab_id) =
+  let entry_empty : entry =
+    { entry_normal = None; entry_identity = None; entry_full = None }
+
+  let entry_of mode {entry_normal; entry_identity; entry_full} : table_val option =
     match mode with
-    | _ when is_normal mode -> tab_def
-    | _ when mode == identity -> tab_id
-    | _ -> assert (mode == full); tab_full
+    | _ when is_normal mode -> entry_normal
+    | _ when mode == identity -> entry_identity
+    | _ -> assert (mode == full); entry_full
 
-  let create () =
-    (Table.create 17, Table.create 17, Table.create 17)
+  let entry_with mode (e : entry) (v : table_val) : entry =
+    match mode with
+    | _ when is_normal mode -> {e with entry_normal = Some v}
+    | _ when mode == identity -> {e with entry_identity = Some v}
+    | _ -> assert (mode == full); { e with entry_full = Some v}
+
+
+  type tab = entry Table.t
+  type t = tab
+
+  let create () = Table.create 17
 
   exception Irrelevant
 
@@ -574,11 +589,24 @@ end = struct
     | Not_found (* List.assoc *)
     | NotEvaluableConst _ (* Const *) -> Undef None
 
+
+  exception ModeNotFound of entry
+
   let lookup ~mode info tab ref =
-    let tab = tab_of mode tab in
-    try Table.find tab ref with Not_found ->
-    let v = value_of ~mode info ref in
-    Table.add tab ref v; v
+    try
+      let e = Table.find tab ref in
+      match entry_of mode e with
+      | Some v -> v
+      | None -> raise (ModeNotFound e)
+    with
+    | Not_found ->
+      let v = value_of ~mode info ref in
+      let e = entry_with mode entry_empty v in
+      Table.add tab ref e; v
+    | ModeNotFound e ->
+      let v = value_of ~mode info ref in
+      let e = entry_with mode e v in
+      Table.add tab ref e; v
 end
 
 type clos_tab = Table.t
