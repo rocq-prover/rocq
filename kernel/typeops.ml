@@ -492,7 +492,7 @@ let check_branch_types env (_mib, mip) ci u pms c _ct lft (pctx, p) =
     error_ill_formed_branch env c ((ci.ci_ind, i + 1), u) brt expbrt
 
 let should_invert_case env r ci =
-  check_relevance env r Sorts.Relevant &&
+  not (check_relevance env r Sorts.Irrelevant) &&
   let mib,mip = lookup_mind_specif env ci.ci_ind in
   (* mind_relevance cannot be a pseudo sort poly variable so don't use check_relevance *)
   Sorts.relevance_equal mip.mind_relevance Sorts.Irrelevant &&
