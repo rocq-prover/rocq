@@ -254,6 +254,6 @@ val kl : clos_infos -> clos_tab -> fconstr -> constr
 
 val term_of_process : info:clos_infos -> tab:clos_tab -> fconstr -> stack -> constr
 
-val to_constr : info:clos_infos -> tab:clos_tab -> lift UVars.puniverses -> fconstr -> constr
+val to_constr : info:clos_infos -> tab:clos_tab -> lift -> fconstr -> constr
 
 (** End of cbn debug section i*)

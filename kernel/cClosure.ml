@@ -720,7 +720,7 @@ let rec subst_constr ~mode info tab (subst,usubst as e) c =
     Constr.map_with_binders usubs_lift subst_constr e c
   | Rel i ->
     begin match Esubst.expand_rel i subst with
-    | Inl (k, (_, lazy v)) -> Vars.lift_substituend k v
+    | Inl (k, lazy v) -> Vars.lift_substituend k v
     | Inr (m, _) -> mkRel m
     end
   | Const _ | Ind _ | Construct _ | Sort _ -> subst_instance_constr usubst c
@@ -754,11 +754,10 @@ let eta_reduce m =
 (** The inverse of mk_clos: move back to constr
     Assuming [Γ ⊢ lfts : Δ] and [Δ ⊢ v],
     we get [Γ ⊢ to_constr lfts v]. *)
-let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v =
+let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) lfts v =
   let to_constr = to_constr ~info ~tab in
   let subst_constr = subst_constr ~mode:(RedState.mode v.mark) info tab in
   let comp_subs = comp_subs ~info ~tab in
-  let subst_us c = subst_instance_constr usubst c in
   match v.term with
     | _ when RedState.is_full v.mark ->
       (* Terms with mode=full come from a forcing context and might occur
@@ -769,51 +768,51 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
     | FRel i -> mkRel (Esubst.reloc_rel i lfts)
     | FFlex (RelKey p) -> mkRel (Esubst.reloc_rel p lfts)
     | FFlex (VarKey x) -> mkVar x
-    | FAtom c -> subst_us (exliftn lfts c)
-    | FFlex (ConstKey op) -> subst_us (mkConstU op)
-    | FInd op -> subst_us (mkIndU op)
+    | FAtom c -> exliftn lfts c
+    | FFlex (ConstKey op) -> mkConstU op
+    | FInd op -> mkIndU op
     | FConstruct (op,args) ->
-      let c = subst_us (mkConstructU op) in
+      let c = mkConstructU op in
       if Array.is_empty args then c
-      else mkApp (c, Array.Fun1.map to_constr ulfts args)
+      else mkApp (c, Array.Fun1.map to_constr lfts args)
     | FCaseT (ci, u, pms, p, c, ve, env) ->
-      to_constr_case ~info ~tab ~mode:(RedState.mode v.mark) ulfts ci u pms p NoInvert c ve env
+      to_constr_case ~info ~tab ~mode:(RedState.mode v.mark) lfts ci u pms p NoInvert c ve env
     | FCaseInvert (ci, u, pms, p, indices, c, ve, env) ->
-      let iv = CaseInvert {indices=Array.Fun1.map to_constr ulfts indices} in
-      to_constr_case ~info ~tab ~mode:(RedState.mode v.mark) ulfts ci u pms p iv c ve env
+      let iv = CaseInvert {indices=Array.Fun1.map to_constr lfts indices} in
+      to_constr_case ~info ~tab ~mode:(RedState.mode v.mark) lfts ci u pms p iv c ve env
     | FFix ((op,(lna,tys,bds)) as fx, e) ->
       if Esubst.is_subs_id (fst e) && Esubst.is_lift_id lfts then
-        subst_instance_constr (usubst_instance ulfts (snd e)) (mkFix fx)
+        subst_instance_constr (snd e) (mkFix fx)
       else
         let n = Array.length bds in
-        let subs_ty = comp_subs ulfts e in
-        let subs_bd = comp_subs (on_fst (el_liftn n) ulfts) (on_fst (subs_liftn n) e) in
+        let subs_ty = comp_subs lfts e in
+        let subs_bd = comp_subs (el_liftn n lfts) (on_fst (subs_liftn n) e) in
         let lna = Array.Fun1.map usubst_binder subs_ty lna in
         let tys = Array.Fun1.map subst_constr subs_ty tys in
         let bds = Array.Fun1.map subst_constr subs_bd bds in
         mkFix (op, (lna, tys, bds))
     | FCoFix ((op,(lna,tys,bds)) as cfx, e) ->
       if Esubst.is_subs_id (fst e) && Esubst.is_lift_id lfts then
-        subst_instance_constr (usubst_instance ulfts (snd e)) (mkCoFix cfx)
+        subst_instance_constr (snd e) (mkCoFix cfx)
       else
         let n = Array.length bds in
-        let subs_ty = comp_subs ulfts e in
-        let subs_bd = comp_subs (on_fst (el_liftn n) ulfts) (on_fst (subs_liftn n) e) in
+        let subs_ty = comp_subs lfts e in
+        let subs_bd = comp_subs (el_liftn n lfts) (on_fst (subs_liftn n) e) in
         let lna = Array.Fun1.map usubst_binder subs_ty lna in
         let tys = Array.Fun1.map subst_constr subs_ty tys in
         let bds = Array.Fun1.map subst_constr subs_bd bds in
         mkCoFix (op, (lna, tys, bds))
     | FApp (f,ve) ->
-        mkApp (to_constr ulfts f,
-               Array.Fun1.map to_constr ulfts ve)
+        mkApp (to_constr lfts f,
+               Array.Fun1.map to_constr lfts ve)
     | FProj (p,r,c) ->
-        mkProj (p,usubst_relevance ulfts r,to_constr ulfts c)
+        mkProj (p, r,to_constr lfts c)
 
     | FLambda (len, tys, f, e) ->
       if Esubst.is_subs_id (fst e) && Esubst.is_lift_id lfts then
-        subst_instance_constr (usubst_instance ulfts (snd e)) (Term.compose_lam (List.rev tys) f)
+        subst_instance_constr (snd e) (Term.compose_lam (List.rev tys) f)
       else
-        let subs = comp_subs ulfts e in
+        let subs = comp_subs lfts e in
         let tys = List.mapi (fun i (na, c) ->
             usubst_binder subs na, subst_constr (usubs_liftn i subs) c)
             tys
@@ -822,84 +821,82 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) ((lfts, usubst) as ulfts) v
         Term.compose_lam (List.rev tys) f
     | FProd (n, t, c, e) ->
       if Esubst.is_subs_id (fst e) && Esubst.is_lift_id lfts then
-        let u = usubst_instance ulfts (snd e) in
-        mkProd (usubst_binder (Esubst.subs_id 0, u) n, to_constr ulfts t, subst_instance_constr u c)
+        mkProd (n, to_constr lfts t, subst_instance_constr (snd e) c)
       else
-        let subs' = comp_subs ulfts e in
+        let subs' = comp_subs lfts e in
         mkProd (usubst_binder subs' n,
-                to_constr ulfts t,
+                to_constr lfts t,
                 subst_constr (usubs_lift subs') c)
     | FLetIn (n,b,t,f,e) ->
-      let subs = comp_subs (on_fst el_lift ulfts) (usubs_lift e) in
+      let subs = comp_subs (el_lift lfts) (usubs_lift e) in
       mkLetIn (usubst_binder subs n,
-               to_constr ulfts b,
-               to_constr ulfts t,
+               to_constr lfts b,
+               to_constr lfts t,
                subst_constr subs f)
     | FEvar (ev, args, env, repack) ->
-      let subs = comp_subs ulfts env in
+      let subs = comp_subs lfts env in
       repack (ev, List.map (fun a -> subst_constr subs a) args)
-    | FLIFT (k,a) -> to_constr (Esubst.el_shft k lfts, usubst) a
+    | FLIFT (k,a) -> to_constr (Esubst.el_shft k lfts) a
 
     | FInt i -> Constr.mkInt i
     | FFloat f -> Constr.mkFloat f
     | FString s -> Constr.mkString s
 
     | FArray (u,t,ty) ->
-      let u = usubst_instance ((),usubst) u in
-      let def = to_constr ulfts (Parray.default t) in
+      let def = to_constr lfts (Parray.default t) in
       let t = Array.init (Parray.length_int t) (fun i ->
-          to_constr ulfts (Parray.get t (Uint63.of_int i)))
+          to_constr lfts (Parray.get t (Uint63.of_int i)))
       in
-      let ty = to_constr ulfts ty in
+      let ty = to_constr lfts ty in
       mkArray(u, t, def,ty)
 
     | FCLOS (t,env) ->
       if Esubst.is_subs_id (fst env) && Esubst.is_lift_id lfts then
-        subst_instance_constr (usubst_instance ulfts (snd env)) t
+        subst_instance_constr (snd env) t
       else
-        let subs = comp_subs ulfts env in
+        let subs = comp_subs lfts env in
         subst_constr subs t
     | FEta (_,h,args,m,env) ->
       let args = mk_eta_args args m in
       let t = mkApp (h, args) in
       if Esubst.is_subs_id (fst env) && Esubst.is_lift_id lfts then
-        subst_instance_constr (usubst_instance ulfts (snd env)) t
+        subst_instance_constr (snd env) t
       else
-        let subs = comp_subs ulfts env in
+        let subs = comp_subs lfts env in
         subst_constr subs t
 
     | FBlock (u,ty,t,e) ->
-        let subs = comp_subs ulfts e in
+        let subs = comp_subs lfts e in
         let ty = subst_constr subs ty in
         let t = !klt_ref ~mode:identity info tab e t in
         let u = usubst_instance subs u in
         Constr.mkPBlock (u, ty, t)
 
     | FUnblock (u, ty, m, e) ->
-      let m = to_constr ulfts m in
-      let subs = comp_subs ulfts e in
+      let m = to_constr lfts m in
+      let subs = comp_subs lfts e in
       let ty = subst_constr subs ty in
       let u = usubst_instance subs u in
       Constr.mkPUnblock (u, ty, m)
 
     | FRun (u, ty1, ty2, m, k, e) ->
-      let m = to_constr ulfts m in
-      let subs = comp_subs ulfts e in
+      let m = to_constr lfts m in
+      let subs = comp_subs lfts e in
       let ty1 = subst_constr subs ty1 in
       let ty2 = subst_constr subs ty2 in
       let k = subst_constr subs k in
       let u = usubst_instance subs u in
       Constr.mkPRun (u, ty1, ty2, m, k)
 
-    | FLAZY (lazy m) -> to_constr ulfts m
+    | FLAZY (lazy m) -> to_constr lfts m
 
     | FIrrelevant -> assert (!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
     | FLOCKED -> assert (!Flags.in_debugger); mkVar(Id.of_string"_LOCKED_")
 
-and to_constr_case ~(info:clos_infos) ~(tab:clos_tab) ~mode (lfts,_ as ulfts) ci u pms (p,r) iv c ve env =
-  let subs = comp_subs ~info ~tab ulfts env in
+and to_constr_case ~(info:clos_infos) ~(tab:clos_tab) ~mode lfts ci u pms (p,r) iv c ve env =
+  let subs = comp_subs ~info ~tab lfts env in
   if Esubst.is_subs_id (fst env) && Esubst.is_lift_id lfts then
-    mkCase (ci, usubst_instance subs u, pms, (p,r), iv, to_constr ~info ~tab ulfts c, ve)
+    mkCase (ci, usubst_instance subs u, pms, (p,r), iv, to_constr ~info ~tab lfts c, ve)
   else
     let f_ctx (nas, c) =
       let nas = Array.map (usubst_binder subs) nas in
@@ -911,27 +908,24 @@ and to_constr_case ~(info:clos_infos) ~(tab:clos_tab) ~mode (lfts,_ as ulfts) ci
             Array.map (fun c -> subst_constr ~mode info tab subs c) pms,
             (f_ctx p,r),
             iv,
-            to_constr ~info ~tab ulfts c,
+            to_constr ~info ~tab lfts c,
             Array.map f_ctx ve)
 
-and comp_subs ~(info:clos_infos) ~(tab:clos_tab) (el,u) (s,u') =
-  Esubst.lift_subst (fun el c ->
-      let t = lazy (Vars.make_substituend @@ to_constr ~info ~tab (el,u) c) in
-      (RedState.mode c.mark,t)
-    ) el s, usubst_instance (el,u) u'
+and comp_subs ~(info:clos_infos) ~(tab:clos_tab) el (s,u') =
+  Esubst.lift_subst (fun el c -> lazy (Vars.make_substituend @@ to_constr ~info ~tab el c)) el s, u'
 
 (* This function defines the correspondence between constr and
    fconstr. When we find a closure whose substitution is the identity,
    then we directly return the constr to avoid possibly huge
    reallocation. *)
 let term_of_fconstr ~info ~tab c =
-  to_constr ~info ~tab (el_id, UVars.Instance.empty) c
+  to_constr ~info ~tab el_id c
 
 let subst_context info tab env ctx =
   if Esubst.is_subs_id (fst env) then
     subst_instance_context (snd env) ctx
   else
-    let subs = comp_subs ~info ~tab (el_id, UVars.Instance.empty) env in
+    let subs = comp_subs ~info ~tab el_id env in
     let subst_constr = subst_constr ~mode:normal_whnf info tab in
     let open Context.Rel.Declaration in
     let rec subst_context ctx = match ctx with
