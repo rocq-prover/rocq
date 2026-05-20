@@ -533,26 +533,32 @@ let check_binder_relevance env sigma s decl =
 
 (* cstr must be in n.f. w.r.t. evars and execute returns a judgement
    where both the term and type are in n.f. *)
-let rec execute env sigma cstr =
+let rec execute ?(check_evar_ctx=true) env sigma cstr =
   let cstr = whd_evar sigma cstr in
   match EConstr.kind sigma cstr with
     | Meta n -> assert false (* Typing should always be performed on meta-free terms *)
 
     | Evar (n, args as ev) ->
-        let evinfo = Evd.find_undefined sigma n in
-        let sigma, tys = SList.Skip.fold_left_map (fun sigma x -> execute env sigma x) sigma args in
-        let atys = Evd.evar_filtered_context evinfo in
-        let sigma = List.fold_left2 (fun sigma aty ty ->
-          match ty with | None -> sigma | Some ty ->
-          let aty = Context.Named.Declaration.get_type aty in
-          let aty = Evd.instantiate_evar_array sigma evinfo aty args in
-          try Evarconv.unify_leq_delay env sigma ty.uj_type aty
-          with Evarconv.UnableToUnify (sigma,error) ->
-            (* FIXME: Find a suitable error msg. *)
-            error_cannot_unify env sigma ~reason:error (ty.uj_type, aty)
-          ) sigma atys (SList.to_list tys) in
-        let ty = EConstr.existential_type sigma ev in
-        sigma, { uj_val = cstr; uj_type = ty }
+        if check_evar_ctx then
+          let evinfo = Evd.find_undefined sigma n in
+          let sigma, tys = SList.Skip.fold_left_map (execute ~check_evar_ctx env) sigma args in
+          let atys = Evd.evar_filtered_context evinfo in
+          let sigma = List.fold_left2 (fun sigma aty ty ->
+            match ty with | None -> sigma | Some ty ->
+            let aty = Context.Named.Declaration.get_type aty in
+            let aty = Evd.instantiate_evar_array sigma evinfo aty args in
+            try Evarconv.unify_leq_delay env sigma ty.uj_type aty
+            with Evarconv.UnableToUnify (sigma,error) ->
+              (* FIXME: Find a suitable error msg. *)
+              error_cannot_unify env sigma ~reason:error (ty.uj_type, aty)
+            ) sigma atys (SList.to_list tys) in
+          let ty = EConstr.existential_type sigma ev in
+          sigma, { uj_val = cstr; uj_type = ty }
+        else
+          let ty = EConstr.existential_type sigma ev in
+          let sigma, jty = execute ~check_evar_ctx env sigma ty in
+          let sigma, jty = assumption_of_judgment env sigma jty in
+          sigma, { uj_val = cstr; uj_type = jty }
 
     | Rel n ->
         sigma, judge_of_relative env n
@@ -575,15 +581,15 @@ let rec execute env sigma cstr =
     | Case (ci, u, pms, p, iv, c, lf) ->
         let case = (ci, u, pms, p, iv, c, lf) in
         let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
-        let sigma, cj = execute env sigma c in
-        let sigma, pj = execute env sigma p in
-        let sigma, lfj = execute_array env sigma lf in
+        let sigma, cj = execute ~check_evar_ctx env sigma c in
+        let sigma, pj = execute ~check_evar_ctx env sigma p in
+        let sigma, lfj = execute_array ~check_evar_ctx env sigma lf in
         let sigma = match iv with
           | NoInvert -> sigma
           | CaseInvert {indices} ->
             let args = Array.append pms indices in
             let t = mkApp (mkIndU (ci.ci_ind,u), args) in
-            let sigma, tj = execute env sigma t in
+            let sigma, tj = execute ~check_evar_ctx env sigma t in
             let sigma, tj = type_judgment env sigma tj in
             let sigma = check_actual_type env sigma cj tj.utj_val in
             sigma
@@ -591,13 +597,13 @@ let rec execute env sigma cstr =
         judge_of_case env sigma case ci (pj,rp) iv cj lfj
 
     | Fix ((vn,i as vni),recdef) ->
-        let sigma, (_,tys,_ as recdef') = execute_recdef env sigma recdef in
+        let sigma, (_,tys,_ as recdef') = execute_recdef ~check_evar_ctx env sigma recdef in
         let fix = (vni,recdef') in
         let sigma = check_fix env sigma fix in
         sigma, make_judge (mkFix fix) tys.(i)
 
     | CoFix (i,recdef) ->
-        let sigma, (_,tys,_ as recdef') = execute_recdef env sigma recdef in
+        let sigma, (_,tys,_ as recdef') = execute_recdef ~check_evar_ctx env sigma recdef in
         let cofix = (i,recdef') in
         check_cofix env sigma cofix;
         sigma, make_judge (mkCoFix cofix) tys.(i)
@@ -609,44 +615,44 @@ let rec execute env sigma cstr =
       else sigma, judge_of_sort s
 
     | Proj (p, _, c) ->
-      let sigma, cj = execute env sigma c in
+      let sigma, cj = execute ~check_evar_ctx env sigma c in
       sigma, judge_of_projection env sigma p cj
 
     | App (f,args) ->
-        let sigma, fj = execute env sigma f in
-        let sigma, jl = execute_array env sigma args in
+        let sigma, fj = execute ~check_evar_ctx env sigma f in
+        let sigma, jl = execute_array ~check_evar_ctx env sigma args in
         judge_of_apply env sigma fj jl
 
     | Lambda (name,c1,c2) ->
-        let sigma, j = execute env sigma c1 in
+        let sigma, j = execute ~check_evar_ctx env sigma c1 in
         let sigma, var = type_judgment env sigma j in
         let sigma, decl = check_binder_relevance env sigma var.utj_type (LocalAssum (name, var.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j' = execute env1 sigma c2 in
+        let sigma, j' = execute ~check_evar_ctx env1 sigma c2 in
         sigma, judge_of_abstraction env1 sigma name.binder_name var j'
 
     | Prod (name,c1,c2) ->
-        let sigma, j = execute env sigma c1 in
+        let sigma, j = execute ~check_evar_ctx env sigma c1 in
         let sigma, varj = type_judgment env sigma j in
         let sigma, decl = check_binder_relevance env sigma varj.utj_type (LocalAssum (name, varj.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j' = execute env1 sigma c2 in
+        let sigma, j' = execute ~check_evar_ctx env1 sigma c2 in
         let sigma, varj' = type_judgment env1 sigma j' in
         sigma, judge_of_product env sigma name.binder_name varj varj'
 
      | LetIn (name,c1,c2,c3) ->
-        let sigma, j1 = execute env sigma c1 in
-        let sigma, j2 = execute env sigma c2 in
+        let sigma, j1 = execute ~check_evar_ctx env sigma c1 in
+        let sigma, j2 = execute ~check_evar_ctx env sigma c2 in
         let sigma, j2 = type_judgment env sigma j2 in
         let sigma, _ =  judge_of_cast env sigma j1 DEFAULTcast j2 in
         let sigma, decl = check_binder_relevance env sigma j2.utj_type (LocalDef (name, j1.uj_val, j2.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j3 = execute env1 sigma c3 in
+        let sigma, j3 = execute ~check_evar_ctx env1 sigma c3 in
         sigma, judge_of_letin env sigma name.binder_name j1 j2 j3
 
     | Cast (c,k,t) ->
-        let sigma, cj = execute env sigma c in
-        let sigma, tj = execute env sigma t in
+        let sigma, cj = execute ~check_evar_ctx env sigma c in
+        let sigma, tj = execute ~check_evar_ctx env sigma t in
         let sigma, tj = type_judgment env sigma tj in
         judge_of_cast env sigma cj k tj
 
@@ -660,22 +666,22 @@ let rec execute env sigma cstr =
         sigma, judge_of_string env s
 
     | Array(u,t,def,ty) ->
-      let sigma, tyj = execute env sigma ty in
+      let sigma, tyj = execute ~check_evar_ctx env sigma ty in
       let sigma, tyj = type_judgment env sigma tyj in
-      let sigma, defj = execute env sigma def in
-      let sigma, tj = execute_array env sigma t in
+      let sigma, defj = execute ~check_evar_ctx env sigma def in
+      let sigma, tj = execute_array ~check_evar_ctx env sigma t in
       judge_of_array env sigma (EInstance.kind sigma u) tj defj tyj
 
-and execute_recdef env sigma (names,lar,vdef) =
-  let sigma, larj = execute_array env sigma lar in
+and execute_recdef ?(check_evar_ctx=true) env sigma (names,lar,vdef) =
+  let sigma, larj = execute_array ~check_evar_ctx env sigma lar in
   let sigma, lara = Array.fold_left_map (assumption_of_judgment env) sigma larj in
   let env1 = push_rec_types (names,lara,vdef) env in
-  let sigma, vdefj = execute_array env1 sigma vdef in
+  let sigma, vdefj = execute_array ~check_evar_ctx env1 sigma vdef in
   let vdefv = Array.map j_val vdefj in
   let sigma = check_type_fixpoint env1 sigma names lara vdefj in
   sigma, (names,lara,vdefv)
 
-and execute_array env = Array.fold_left_map (execute env)
+and execute_array ?(check_evar_ctx=true) env = Array.fold_left_map (execute ~check_evar_ctx env)
 
 let check env sigma c t =
   let sigma, j = execute env sigma c in
@@ -690,8 +696,8 @@ let sort_of env sigma c =
 
 (* Try to solve the existential variables by typing *)
 
-let type_of ?(refresh=false) env sigma c =
-  let sigma, j = execute env sigma c in
+let type_of ?(refresh=false) ?(check_evar_ctx=true) env sigma c =
+  let sigma, j = execute ~check_evar_ctx env sigma c in
   (* side-effect on evdref *)
     if refresh then
       Evarsolve.refresh_universes ~onlyalg:true (Some false) env sigma j.uj_type

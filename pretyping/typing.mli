@@ -18,7 +18,7 @@ open Evd
 
 (** Typecheck a term and return its type + updated evars, optionally refreshing
     universes *)
-val type_of : ?refresh:bool -> env -> evar_map -> constr -> evar_map * types
+val type_of : ?refresh:bool -> ?check_evar_ctx:bool -> env -> evar_map -> constr -> evar_map * types
 
 (** Typecheck a type and return its sort *)
 val sort_of : env -> evar_map -> types -> evar_map * ESorts.t
