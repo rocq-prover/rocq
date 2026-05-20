@@ -1182,13 +1182,20 @@ let closure_of_filter ~can_drop evd evk = function
   | None -> None
   | Some filter ->
   let evi = Evd.find_undefined evd evk in
-  let vars = collect_vars evd (evar_concl evi) in
-  let test b decl = b || Id.Set.mem (get_id decl) vars ||
+  let vars = ref (collect_vars evd (evar_concl evi)) in
+  let test b decl =
+    let keep = b || Id.Set.mem (get_id decl) !vars ||
                     match decl with
                     | LocalAssum _ ->
                        false
                     | LocalDef (_,c,_) ->
                        not (can_drop || isRel evd c || isVar evd c)
+    in
+    if keep then
+      iter_constr
+        (fun c -> vars := Id.Set.union (collect_vars evd c) !vars)
+        decl;
+    keep
   in
   let newfilter = Filter.map_along test filter (evar_context evi) in
   (* Now ensure that restriction is at least what is was originally *)
