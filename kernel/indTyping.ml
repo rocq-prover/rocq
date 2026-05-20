@@ -542,6 +542,19 @@ let abstract_packets env usubst ((arity,lc),(indices,splayed_lc),univ_info,relie
 
   (arity,lc), (indices,splayed_lc), squashed, relies_on_indices_not_mattering
 
+let fold_inductive_blocks f acc inds =
+  List.fold_left (fun acc ((arity,lc),_,_,_) ->
+      f (Array.fold_left f acc lc) arity)
+    acc inds
+
+let used_section_variables env inds =
+  let fold l c = Id.Set.union (Environ.global_vars_set env c) l in
+  let ids = fold_inductive_blocks fold Id.Set.empty inds in
+  keep_hyps env ids
+
+let sec_univs_instance secunivs =
+  List.fold_right (fun uctx acc -> LevelInstance.append acc (UContext.instance uctx)) secunivs LevelInstance.empty
+
 let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let () = match mie.mind_entry_inds with
   | [] -> CErrors.anomaly Pp.(str "empty inductive types declaration.")
@@ -609,46 +622,41 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
         data, Some None, Some reason (* back to FakeRecord with a reason why *)
   in
 
-  let usubst, univs =
-      match mie.mind_entry_universes with
-      | Monomorphic_ind_entry ->
-        UVars.empty_sort_subst, Polymorphic Declareops.empty_universes
-      | Template_ind_entry _ ->
-        let usubst = Option.get template_usubst in
-        usubst, Template (Option.get template)
-      | Polymorphic_ind_entry (uctx, variance) ->
-        let variance = match variance with
-        | None -> None
-        | Some variances ->
-          (* no variance for qualities *)
-          let _qualities, univs = LevelInstance.to_array @@ UContext.instance uctx in
-          let univs =
-            match variances with
-            | Infer_variances -> Array.map (fun a -> a, None) univs
-            | Check_variances variances -> Array.map2 (fun a b -> a,Some b) univs (UVars.Variances.repr variances)
-          in
-          let univs = match sec_univs with
-            | None -> univs
-            | Some sec_univs ->
-              (* no variance for qualities *)
-              let _, sec_univs = UVars.LevelInstance.to_array sec_univs in
-              let sec_univs = Array.map (fun u -> u, None) sec_univs in
-              Array.append sec_univs univs
-          in
-          let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
-              ~evars:(CClosure.default_evar_handler env)
-              ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
-              ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
-              univs
-          in
-          Some variances
-        in
-        (* Abstract universes *)
-        let (inst, auctx) = UVars.abstract_universes uctx in
-        let inst = UVars.make_instance_subst inst in
-        let variance = Option.map (UVars.subst_sort_level_variances inst) variance in
-        (inst, Polymorphic (auctx, variance))
+  let hyps = used_section_variables env data in
 
+  let usubst, univs, sec_variance =
+    match mie.mind_entry_universes with
+    | Monomorphic_ind_entry ->
+      UVars.empty_sort_subst, Polymorphic Declareops.empty_universes, None
+    | Template_ind_entry _ ->
+      let usubst = Option.get template_usubst in
+      usubst, Template (Option.get template), None
+    | Polymorphic_ind_entry (uctx, variance) ->
+      let variance, sec_variance = match variance with
+      | None -> None, None
+      | Some variances ->
+        (* no variance for qualities *)
+        let _qualities, univs = LevelInstance.to_array @@ UContext.instance uctx in
+        let univs =
+          match variances with
+          | Infer_variances -> Array.map (fun a -> a, None) univs
+          | Check_variances variances -> Array.map2 (fun a b -> a,Some b) univs (UVars.Variances.repr variances)
+        in
+        let variance, sec_variance = InferCumulativity.infer_inductive ~env:env_univs ~env_ar_par
+            ~evars:(CClosure.default_evar_handler env)
+            ~in_ctx:hyps
+            ~sec_univs:(Option.map sec_univs_instance sec_univs)
+            ~params
+            ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
+            ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
+            univs
+        in Some variance, sec_variance
+      in
+      (* Abstract universes *)
+      let (inst, auctx) = UVars.abstract_universes uctx in
+      let inst = UVars.make_instance_subst inst in
+      let variance = Option.map (UVars.subst_sort_level_variances inst) variance in
+      (inst, Polymorphic (auctx, variance), sec_variance)
   in
 
   let params = Vars.subst_univs_level_context usubst params in
@@ -660,5 +668,5 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     let env = Environ.pop_rel_context (Environ.nb_rel env_ar_par) env_ar_par in
     Environ.push_rel_context ctx env
   in
-
-  env_ar_par, univs, record, not_prim_reason_or_has_eta, params, Array.of_list data
+  let sec_univs = match sec_univs with None -> [] | Some l -> l in
+  env_ar_par, hyps, sec_univs, univs, sec_variance, record, not_prim_reason_or_has_eta, params, Array.of_list data
