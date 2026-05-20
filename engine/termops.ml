@@ -612,6 +612,21 @@ let map_constr_with_binders_left_to_right env sigma g f l c =
       let ty' = f l ty in
       if def' == def && t' == t && ty' == ty then c
       else mkArray(u,t',def',ty')
+  | PBlock (u,ty,t) ->
+      let ty' = f l ty in
+      let t' = f l t in
+      if ty' == ty && t' == t then c else mkPBlock (u,ty',t')
+  | PUnblock (u,ty,t) ->
+      let ty' = f l ty in
+      let t' = f l t in
+      if ty' == ty && t' == t then c else mkPUnblock (u,ty',t')
+  | PRun (u,ty,k,b,cont) ->
+      let ty' = f l ty in
+      let k' = f l k in
+      let b' = f l b in
+      let cont' = f l cont in
+      if ty' == ty && k' == k && b' == b && cont' == cont then c
+      else mkPRun (u,ty',k',b',cont')
 
 (* strong *)
 let map_constr_with_full_binders env sigma g f l cstr =
@@ -678,6 +693,21 @@ let map_constr_with_full_binders env sigma g f l cstr =
       let def' = f l def in
       let ty' = f l ty in
       if def==def' && t == t' && ty==ty' then cstr else mkArray (u,t', def',ty')
+  | PBlock (u,ty,t) ->
+      let ty' = f l ty in
+      let t' = f l t in
+      if ty' == ty && t' == t then cstr else mkPBlock (u,ty',t')
+  | PUnblock (u,ty,t) ->
+      let ty' = f l ty in
+      let t' = f l t in
+      if ty' == ty && t' == t then cstr else mkPUnblock (u,ty',t')
+  | PRun (u,ty,k,b,cont) ->
+      let ty' = f l ty in
+      let k' = f l k in
+      let b' = f l b in
+      let cont' = f l cont in
+      if ty' == ty && k' == k && b' == b && cont' == cont then cstr
+      else mkPRun (u,ty',k',b',cont')
 
 (* [fold_constr_with_binders g f n acc c] folds [f n] on the immediate
    subterms of [c] starting from [acc] and proceeding from left to
@@ -713,6 +743,8 @@ let fold_constr_with_full_binders env sigma g f n acc c =
       let fd = Array.map2 (fun t b -> (t,b)) tl bl in
       Array.fold_left (fun acc (t,b) -> f n' (f n acc t) b) acc fd
   | Array(_u,t,def,ty) -> f n (f n (Array.fold_left (f n) acc t) def) ty
+  | PBlock (_u,ty,t) | PUnblock (_u,ty,t) -> f n (f n acc ty) t
+  | PRun (_u,ty,k,b,cont) -> f n (f n (f n (f n acc ty) k) b) cont
 
 (***************************)
 (* occurs check functions  *)
@@ -1354,7 +1386,14 @@ let constr_ord_int f t1 t2 =
     | String _, _ -> -1 | _, String _ -> 1
     | Array(_u1,t1,def1,ty1), Array(_u2,t2,def2,ty2) ->
       compare [(Array.compare f, t1, t2); (f, def1, def2); (f, ty1, ty2)]
-    (*| Array _, _ -> -1 | _, Array _ -> 1*)
+    | Array _, _ -> -1 | _, Array _ -> 1
+    | PBlock (_u1,ty1,t1), PBlock (_u2,ty2,t2)
+    | PUnblock (_u1,ty1,t1), PUnblock (_u2,ty2,t2) ->
+      compare [(f, ty1, ty2); (f, t1, t2)]
+    | PBlock _, _ -> -1 | _, PBlock _ -> 1
+    | PUnblock _, _ -> -1 | _, PUnblock _ -> 1
+    | PRun (_u1,ty1,k1,b1,cont1), PRun (_u2,ty2,k2,b2,cont2) ->
+      compare [(f, ty1, ty2); (f, k1, k2); (f, b1, b2); (f, cont1, cont2)]
 
 let rec compare m n =
   constr_ord_int compare m n
@@ -1406,6 +1445,12 @@ let rec hash t =
     | String s -> combinesmall 20 (Pstring.hash s)
     | Array(u,t,def,ty) ->
       combinesmall 21 (combine4 (Instance.hash u) (hash_term_array t) (hash def) (hash ty))
+    | PBlock (u,ty,t) ->
+      combinesmall 22 (combine3 (Instance.hash u) (hash ty) (hash t))
+    | PUnblock (u,ty,t) ->
+      combinesmall 23 (combine3 (Instance.hash u) (hash ty) (hash t))
+    | PRun (u,ty,k,b,cont) ->
+      combinesmall 24 (combine5 (Instance.hash u) (hash ty) (hash k) (hash b) (hash cont))
 
 and hash_invert = function
   | NoInvert -> 0

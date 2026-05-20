@@ -123,6 +123,9 @@ let head_name sigma c = (* Find the head constant of a constr if any *)
         Some (Nametab.basename_of_global (global_of_constr c))
     | Fix ((_,i),(lna,_,_)) | CoFix (i,(lna,_,_)) ->
         Some (match lna.(i).binder_name with Name id -> id | _ -> assert false)
+    | PBlock _ -> Some (Id.of_string "__block")
+    | PUnblock _ -> Some (Id.of_string "__unblock")
+    | PRun _ -> Some (Id.of_string "__run")
     | Sort _ | Rel _ | Meta _ | Evar _ | Case _
     | Int _ | Float _ | String _ | Array _ -> None
   in
@@ -174,6 +177,9 @@ let hdchar env sigma c =
     | Float _ -> "f"
     | String _ -> "s"
     | Array _ -> "a"
+    | PBlock _ -> "b"
+    | PUnblock _ -> "u"
+    | PRun _ -> "r"
   in
   hdrec 0 c
 

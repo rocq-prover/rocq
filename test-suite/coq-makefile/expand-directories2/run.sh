@@ -20,7 +20,7 @@ fi
 
 # correct compile steps reflecting dependency on cmd line arg
 rocq makefile -f _CoqProject -o CoqMakefile b.v
-make -f CoqMakefile > makeout
+env MAKEFLAGS= make -f CoqMakefile > makeout
 cat >expected <<EOT
 ROCQ DEP VFILES
 ROCQ compile b.v
@@ -34,8 +34,8 @@ diff -u actual expected
 cat >x/c.v <<EOT
 Require Import T.x.a.
 EOT
-make -f CoqMakefile clean
-make -f CoqMakefile > makeout
+env MAKEFLAGS= make -f CoqMakefile clean
+env MAKEFLAGS= make -f CoqMakefile > makeout
 cat >expected <<EOT
 ROCQ DEP VFILES
 ROCQ compile b.v

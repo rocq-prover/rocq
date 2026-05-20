@@ -120,6 +120,8 @@ struct
     Array.Fun1.iter f (liftn_handle (Array.length tl) h) bl
   | Array(_u, t, def, ty) ->
     Array.iter (f h) t; f h def; f h ty
+  | PBlock (_u, ty, t) | PUnblock (_u, ty, t) -> f h ty; f h t
+  | PRun (_u, ty, k, b, cont) -> f h ty; f h k; f h b; f h cont
 
   let iter_with_binders sigma g f l h knd = match knd with
   | Evar (evk, args) ->
@@ -149,6 +151,8 @@ struct
     Array.iter (f (iterate g (Array.length tl) l) (liftn_handle (Array.length tl) h)) bl
   | Array(_u, t, def, ty) ->
     Array.iter (fun c -> f l h c) t; f l h def; f l h ty
+  | PBlock (_u, ty, t) | PUnblock (_u, ty, t) -> f l h ty; f l h t
+  | PRun (_u, ty, k, b, cont) -> f l h ty; f l h k; f l h b; f l h cont
 
 end
 
@@ -213,6 +217,9 @@ let mkInt i = of_kind (Int i)
 let mkFloat f = of_kind (Float f)
 let mkString s = of_kind (String s)
 let mkArray (u,t,def,ty) = of_kind (Array (u,t,def,ty))
+let mkPBlock (u,ty,t) = of_kind (PBlock (u,ty,t))
+let mkPUnblock (u,ty,t) = of_kind (PUnblock (u,ty,t))
+let mkPRun (u,ty,k,b,cont) = of_kind (PRun (u,ty,k,b,cont))
 
 let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstRef c -> mkConstU (c,u)
@@ -686,6 +693,8 @@ let iter_with_full_binders env sigma g f n c =
     let n' = Array.fold_left2_i (fun i n na t -> g (LocalAssum (na,lift i t)) n) n lna tl in
     Array.iter (f n') bl
   | Array (_u,t,def,ty) -> Array.Fun1.iter f n t; f n def; f n ty
+  | PBlock (_u,ty,t) | PUnblock (_u,ty,t) -> f n ty; f n t
+  | PRun (_u,ty,k,b,cont) -> f n ty; f n k; f n b; f n cont
 
 let iter_with_binders sigma g f n c =
   let f l c = f l (of_constr c) in
@@ -1247,7 +1256,7 @@ let kind_of_type sigma t = match kind sigma t with
   | LetIn (na,b,t,c) -> LetInType (na, b, t, c)
   | App (c,l) -> AtomicType (c, l)
   | (Rel _ | Meta _ | Var _ | Evar _ | Const _
-  | Proj _ | Case _ | Fix _ | CoFix _ | Ind _)
+  | Proj _ | Case _ | Fix _ | CoFix _ | Ind _ | PBlock _ | PUnblock _ | PRun _)
     -> AtomicType (t,[||])
   | (Lambda _ | Construct _ | Int _ | Float _ | String _ | Array _) -> failwith "Not a type"
 
