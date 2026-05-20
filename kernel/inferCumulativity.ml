@@ -274,18 +274,11 @@ let rec infer_fterm cv_pb infos variances hd stk =
     let variances = infer_fterm CONV infos variances m [] in
     let variances = infer_fterm CONV infos variances (mk_clos e k) [] in
     infer_stack infos variances stk
-  | FLAZY _ -> infer_stack infos variances stk
   | FApp (h, args) -> infer_fterm cv_pb infos variances h (append_stack args stk)
   | FLetIn (_, v, _, bd, e) ->
     infer_fterm cv_pb infos variances (mk_clos (Esubst.subs_cons v (fst e), snd e) bd) stk
   | FLIFT (k, m) -> infer_fterm cv_pb infos variances (lift_fconstr k m) stk
   | FCLOS (t, e) -> infer_fterm cv_pb infos variances (mk_clos e t) stk
-  | FEta (_, h, args, k, e) ->
-    let nargs = Array.length args in
-    let args = Array.init (nargs + k) (fun i ->
-        if i < nargs then args.(i) else mkRel (k - (i - nargs)))
-    in
-    infer_fterm cv_pb infos variances (mk_clos e h) (append_stack (mk_clos_vect e args) stk)
 
   (* Removed by whnf *)
   | FLOCKED | FCaseT _ -> assert false

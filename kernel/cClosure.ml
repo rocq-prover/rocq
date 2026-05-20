@@ -158,9 +158,6 @@ and fterm =
   (* [{term=Funblock(u, ty, m, e);mode=mode}] is a representation of [Zunblock(u,ty,e,mode)] zipped with [m] *)
   | FRun of UVars.Instance.t * constr * constr * fconstr * constr * usubs
   (* [{term=FRun(u, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(u,ty1,ty2,cnt,e,mode)] zipped with [m] *)
-  | FEta of int * constr * constr array * int * usubs
-  (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
-  | FLAZY of fconstr Lazy.t
 
 and usubs = fconstr subs UVars.puniverses
 
@@ -170,8 +167,6 @@ let get_invert fiv = fiv
 
 let fterm_of v = v.term
 let set_ntrl v = v.mark <- RedState.set_ntrl v.mark
-
-let mk_red f = {mark=RedState.mk red normal_whnf;term=f}
 
 (* Could issue a warning if no is still red, pointing out that we loose
    sharing. *)
@@ -351,8 +346,8 @@ let rec lft_fconstr n ft =
     | FConstruct (c,args) -> {mark=RedState.set_cstr ft.mark; term=FConstruct(c,Array.Fun1.map lft_fconstr n args)}
     | FLOCKED -> assert false
     | FFlex (RelKey _) | FAtom _ | FApp _ | FProj _ | FCaseT _ | FCaseInvert _ | FProd _
-    | FLetIn _ | FEvar _ | FCLOS _ | FEta _ | FArray _ | FBlock _
-    | FUnblock _ | FRun _ | FLAZY _ -> {ft with term=FLIFT(n,ft)}
+    | FLetIn _ | FEvar _ | FCLOS _ | FArray _ | FBlock _
+    | FUnblock _ | FRun _ -> {ft with term=FLIFT(n,ft)}
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
 let lift_fconstr_vect k v =
@@ -367,99 +362,6 @@ let clos_rel ~mode ((e, _) : usubs) i =
       {mark=RedState.mk ntrl mode; term= FRel k}
     | Inr(k,Some p) ->
         lift_fconstr (k-p) {mark=RedState.mk red mode;term=FFlex(RelKey p)}
-
-(* Substitute in fconstr *)
-(* let rec subs_subs l ((e_new,u_new) : usubs) ((e_old,u_old) : usubs) = *)
-(*   let f _l m = *)
-(*     subs_fconstr m (e_new, u_new) *)
-(*   in *)
-(*   let e = Esubst.lift_subst f l e_old in *)
-(*   (e,Univ.subst_instance_instance u_new u_old) *)
-
-(* and subs_fconstr m (e : usubs) = *)
-(*   let subs_fconstr m = subs_fconstr m e in *)
-(*   match m.term with *)
-(*   | FRel i -> clos_rel ~mode:m.mode e i *)
-(*   | FAtom t -> {m with term=FAtom (subst_instance_constr (snd e) t)} *)
-(*   | FFlex _ -> m *)
-(*   | FInd (ind,u) -> {m with term=FInd(ind, Univ.subst_instance_instance (snd e) u)} *)
-(*   | FConstruct (cstr,u) -> {m with term=FConstruct(cstr, Univ.subst_instance_instance (snd e) u)} *)
-(*   | FApp (h, args) -> {m with term=FApp(subs_fconstr h, Array.map subs_fconstr args)} *)
-(*   | FProj (p, c) -> {m with term=FProj(p, subs_fconstr c)} *)
-(*   | FFix (f, e2) -> {m with term=FFix(f,subs_subs Esubst.el_id e e2)} *)
-(*   | FCoFix (f, e2) -> {m with term=FCoFix(f,subs_subs Esubst.el_id e e2)} *)
-(*   | FCaseT (a, b, c, d, f, g, e2) -> *)
-(*     {m with term=FCaseT(a,b,c,d,subs_fconstr f, g, subs_subs Esubst.el_id e e2)} *)
-(*   | FCaseInvert (a, b, c, d, f, g, h, e2) -> *)
-(*     {m with term=FCaseInvert (a, b, c, d, Array.map subs_fconstr f, subs_fconstr g, h, subs_subs Esubst.el_id e e2)} *)
-(*   | FLambda (n, tys, b, e2) -> *)
-(*     {m with term=FLambda(n, tys, b, subs_subs Esubst.el_id e e2)} *)
-(*   | FProd (na, ty, b, e2) -> *)
-(*     {m with term=FProd(na, subs_fconstr ty, b, subs_subs Esubst.el_id e e2)} *)
-(*   | FLetIn (na, ty, x, c, e2) -> *)
-(*     {m with term=FLetIn(na, subs_fconstr ty, subs_fconstr x, c, subs_subs Esubst.el_id e e2)} *)
-(*   | FEvar (v, i, e2, repack) -> *)
-(*     {m with term=FEvar(v, i, subs_subs Esubst.el_id e e2, repack)} *)
-(*   | FArray (u, ar, ty) -> *)
-(*     {m with term=FArray(Univ.subst_instance_instance (snd e )u, Parray.map subs_fconstr ar, subs_fconstr ty)} *)
-(*   | FLIFT (i, t) -> {m with term=FLIFT(i,subs_fconstr t)} *)
-(*   | FCLOS (t, e2) -> {m with term=FCLOS(t,subs_subs Esubst.el_id e e2)} *)
-(*   | FBlock (a, b, c, e2) -> {m with term=FBlock(a, b, c, subs_subs Esubst.el_id e e2)} *)
-(*   | FEta (a, b, c, d, e2) -> {m with term=FEta(a, b, c, d, subs_subs Esubst.el_id e e2)} *)
-(*   | FLAZY t -> {m with term=FLAZY(lazy (subs_fconstr (Lazy.force t)))} *)
-(*   | FInt _ -> m *)
-(*   | FFloat _ -> m *)
-(*   | FIrrelevant -> m *)
-(*   | FLOCKED -> m *)
-
-
-let rec subs_subs (l,u) ((e_old,u_old) : usubs) =
-  let f l m =
-    mk_red (FLAZY (lazy (el_fconstr (l, u) m)))
-  in
-  let e = Esubst.lift_subst f l e_old in
-  (e,UVars.subst_instance_instance u u_old)
-
-and el_fconstr (e : Esubst.lift * UVars.Instance.t) m =
-  let el_fconstr = el_fconstr e in
-  match m.term with
-  | FRel i -> {m with term=FRel(Esubst.reloc_rel i (fst e))}
-  | FAtom t -> {m with term=FAtom (subst_instance_constr (snd e) t)}
-  | FFlex _ -> m
-  | FInd (ind,u) -> {m with term=FInd(ind, UVars.subst_instance_instance (snd e) u)}
-  | FConstruct (cstr,args) ->
-    let inst = snd e in
-    let cstr = if UVars.Instance.is_empty inst then cstr else fst cstr, UVars.subst_instance_instance inst (snd cstr) in
-    {m with term=FConstruct(cstr, Array.map el_fconstr args)}
-  | FApp (h, args) -> {m with term=FApp(el_fconstr h, Array.map el_fconstr args)}
-  | FProj (p, r, c) -> {m with term=FProj(p, r, el_fconstr c)}
-  | FFix (f, e2) -> {m with term=FFix(f,subs_subs e e2)}
-  | FCoFix (f, e2) -> {m with term=FCoFix(f,subs_subs e e2)}
-  | FCaseT (a, b, c, d, f, g, e2) ->
-    {m with term=FCaseT(a,b,c,d,el_fconstr f, g, subs_subs e e2)}
-  | FCaseInvert (a, b, c, d, f, g, h, e2) ->
-    {m with term=FCaseInvert (a, b, c, d, Array.map el_fconstr f, el_fconstr g, h, subs_subs e e2)}
-  | FLambda (n, tys, b, e2) ->
-    {m with term=FLambda(n, tys, b, subs_subs e e2)}
-  | FProd (na, ty, b, e2) ->
-    {m with term=FProd(na, el_fconstr ty, b, subs_subs e e2)}
-  | FLetIn (na, ty, x, c, e2) ->
-    {m with term=FLetIn(na, el_fconstr ty, el_fconstr x, c, subs_subs e e2)}
-  | FEvar (v, i, e2, repack) ->
-    {m with term=FEvar(v, i, subs_subs e e2, repack)}
-  | FArray (u, ar, ty) ->
-    {m with term=FArray(UVars.subst_instance_instance (snd e )u, Parray.map el_fconstr ar, el_fconstr ty)}
-  | FLIFT (i, t) -> {m with term=FLIFT(i,el_fconstr t)}
-  | FCLOS (t, e2) -> {m with term=FCLOS(t,subs_subs e e2)}
-  | FBlock (a, b, c, e2) -> {m with term=FBlock(a, b, c, subs_subs e e2)}
-  | FEta (a, b, c, d, e2) -> {m with term=FEta(a, b, c, d, subs_subs e e2)}
-  | FLAZY t -> {m with term=FLAZY(lazy (el_fconstr (Lazy.force t)))}
-  | FInt _ -> m
-  | FFloat _ -> m
-  | FString _ -> m
-  | FIrrelevant -> m
-  | FLOCKED -> m
-  | FUnblock _ | FRun _ -> assert false
 
 
 (* since the head may be reducible, we might introduce lifts of 0 *)
@@ -699,19 +601,6 @@ let mk_clos_vect ~mode env v =
 let klt_ref = ref (fun ~mode:_ _ _ _ _ -> assert false)
 let kl_ref = ref (fun _ _ _ -> assert false)
 
-let _ =
-  ignore(subs_subs);
-  ignore(el_fconstr)
-
-(* let to_usubs ~mode : Constr.t lazy_t Esubst.subs * Univ.Instance.t -> usubs = fun (e, u) -> *)
-(*   let f l cl = *)
-(*     let e = (Esubst.subs_of_lift l, Univ.Instance.empty) in *)
-(*     let m = lazy (mk_clos ~mode e ((Lazy.force cl))) in *)
-(*     {mark = red; term = FLAZY m; mode} *)
-(*   in *)
-(*   let e = Esubst.lift_subst f Esubst.el_id e in *)
-(*   (e, u) *)
-
 let rec subst_constr ~mode info tab (subst,usubst as e) c =
   let c = Vars.map_constr_relevance (usubst_relevance e) c in
   let subst_constr = subst_constr ~mode info tab in
@@ -734,22 +623,6 @@ let rec subst_constr ~mode info tab (subst,usubst as e) c =
     Constr.map_with_binders usubs_lift subst_constr e c
   | _ ->
     Constr.map_with_binders usubs_lift subst_constr e c
-
-let mk_eta_args args n =
-  let nargs = Array.length args in
-  Array.init
-    (nargs + n)
-    (fun i ->
-       if i < nargs then lift n args.(i)
-       else mkRel (n-(i-nargs)))
-
-let eta_reduce m =
-  match[@ocaml.warning "-4"] m.term with
-  | FEta(n,h,args,k,e) when n=1 ->
-    {m with term=FCLOS(mkApp(h,mk_eta_args args k),e)}
-  | FEta(n,h,args,k,e) when n>1 ->
-    {m with term=FEta(n-1,h,args,k,e)}
-  | _ -> assert false
 
 (** The inverse of mk_clos: move back to constr
     Assuming [Γ ⊢ lfts : Δ] and [Δ ⊢ v],
@@ -856,14 +729,6 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) lfts v =
       else
         let subs = comp_subs lfts env in
         subst_constr subs t
-    | FEta (_,h,args,m,env) ->
-      let args = mk_eta_args args m in
-      let t = mkApp (h, args) in
-      if Esubst.is_subs_id (fst env) && Esubst.is_lift_id lfts then
-        subst_instance_constr (snd env) t
-      else
-        let subs = comp_subs lfts env in
-        subst_constr subs t
 
     | FBlock (u,ty,t,e) ->
         let subs = comp_subs lfts e in
@@ -887,8 +752,6 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) lfts v =
       let k = subst_constr subs k in
       let u = usubst_instance subs u in
       Constr.mkPRun (u, ty1, ty2, m, k)
-
-    | FLAZY (lazy m) -> to_constr lfts m
 
     | FIrrelevant -> assert (!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
     | FLOCKED -> assert (!Flags.in_debugger); mkVar(Id.of_string"_LOCKED_")
@@ -1115,25 +978,6 @@ let rec get_args mode n tys f e = function
           get_args mode (n-na) etys f (usubs_consn l 0 na e) s
     | ((ZcaseT _ | Zproj _ | Zfix _ | Zprimitive _ | Zunblock _ | Zrun _) :: _ | []) as stk ->
       (Inr {mark=RedState.mk cstr mode; term=FLambda(n,tys,f,e)}, stk)
-
-let rec get_eta_args mode n h args m e s =
-  match s with
-  | Zupdate r :: s ->
-      update r (RedState.mk cstr mode) (FEta(n,h,args,m,e));
-      get_eta_args mode n h args m e s
-  | Zshift k :: s ->
-      get_eta_args mode n h args m (usubs_shft (k,e)) s
-  | Zapp l :: s ->
-      let na = Array.length l in
-      if n == na then (Inl (usubs_consn l 0 na e), s)
-      else if n < na then
-        let eargs = Array.sub l n (na-n) in
-        (Inl (usubs_consn l 0 n e), Zapp eargs :: s)
-      else
-        get_eta_args mode (n-na) h args (m + na) (usubs_consn l 0 na e) s
-  | (ZcaseT _ | Zproj _ | Zfix _ | Zprimitive _ | Zunblock _ | Zrun _) :: _
-  | [] ->
-      (Inr {mark=RedState.mk cstr mode; term=FEta(n,h,args,m,e)}, s)
 
 (* Eta expansion: add a reference to implicit surrounding lambda at end of stack *)
 let rec eta_expand_stack info na = function
@@ -1686,9 +1530,6 @@ let rec knh info m stk =
     | FLIFT(k,a) -> knh info a (zshift k stk)
     | FCLOS(t,e) -> knht ~mode:(RedState.mode m.mark) info e t (zupdate info m stk)
     | FLOCKED -> assert false
-    | FLAZY (l) ->
-      let (lazy m1) = l in
-      knh info m1 (zupdate info m stk)
     | FApp(a,b) -> knh info a (append_stack b (zupdate info m stk))
     | FCaseT(ci,u,pms,(_,r as p),t,br,e) ->
       let r' = usubst_relevance e r in
@@ -1720,7 +1561,7 @@ let rec knh info m stk =
 
 (* cases where knh stops *)
     | (FFlex _|FLetIn _|FEvar _|FCaseInvert _|FIrrelevant|
-       FCoFix _|FLambda _|FEta _|FRel _|FAtom _|FInd _|FProd _|FInt _|FFloat _|
+       FCoFix _|FLambda _|FRel _|FAtom _|FInd _|FProd _|FInt _|FFloat _|
        FString _|FArray _|FBlock _) -> (m, stk)
 
 
@@ -2212,13 +2053,6 @@ type 'a depth = 'a RedPattern.depth
 let rec knr info tab ~pat_state m stk =
   let mode = RedState.mode m.mark in
   match m.term with
-  | FEta(n,h,args,k,e) ->
-    (match get_eta_args mode n h args k e stk with
-     | Inl e', s ->
-         let args = mk_eta_args args (n + k) in
-         let s = append_stack (mk_clos_vect ~mode e' args) s in
-         knit ~mode info tab ~pat_state e' h s
-     | Inr eta, s -> knr_ret info tab ~pat_state (eta,s))
   | FLambda(n,tys,f,e) when red_set mode info fBETA ->
       (match get_args mode n tys f e stk with
        | Inl e', s -> knit ~mode:mode info tab ~pat_state e' f s
@@ -2338,8 +2172,7 @@ let rec knr info tab ~pat_state m stk =
   | FLambda _ | FFlex _ | FRel _
   | FLetIn _ | FCLOS _ ->
     knr_ret info tab ~pat_state (m, stk)
-  | FLOCKED | FApp _ | FCaseT _ | FLIFT _ | FUnblock _ | FRun _
-  | FLAZY _ ->
+  | FLOCKED | FApp _ | FCaseT _ | FLIFT _ | FUnblock _ | FRun _ ->
     assert false
 
 and knr_ret : type a. _ -> _ -> pat_state: a depth -> ?failed: _ -> _ -> a =
@@ -2406,9 +2239,9 @@ let kh info tab v stk = fapp_stack(kni info tab v stk)
 let is_val v = match v.term with
 | FAtom _ | FRel _ | FInd _ | FConstruct (_,[||]) | FInt _ | FFloat _ | FString _ | FBlock _ -> true
 | FFlex _ -> RedState.is_ntrl v.mark
-| FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _ | FEta _
+| FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _
 | FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _
-| FUnblock _ | FRun _ | FLAZY _ -> false
+| FUnblock _ | FRun _ -> false
 | FIrrelevant | FLOCKED -> assert false
 
 let rec kl info tab m =
@@ -2477,9 +2310,6 @@ and norm_head info tab m =
   if is_val m then term_of_fconstr ~info ~tab m else
     let mode = RedState.mode m.mark in
     match [@ocaml.warning "-4"] m.term with
-      | FEta(_,h,args,k,e) ->
-        let args = mk_eta_args args k in
-        mkApp(h, Array.map (klt ~mode:(RedState.mode m.mark) info tab e) args)
       | FLambda(_n,tys,f,e) ->
         let fold (e, info, ctxt) (na, ty) =
           let na = usubst_binder e na in
@@ -2528,7 +2358,6 @@ and norm_head info tab m =
       | FLOCKED | FRel _ | FAtom _ | FFlex _ | FInd _
       | FApp _ | FCaseT _ | FCaseInvert _ | FLIFT _ | FCLOS _ | FInt _
       | FFloat _ | FString _ | FBlock _ -> term_of_fconstr ~info ~tab m
-      | FLAZY _ -> assert false
       | FIrrelevant -> assert false (* only introduced when converting *)
       | FUnblock _ | FRun _ -> assert false
 
@@ -2610,8 +2439,7 @@ let rec set_mode ~mode (m : fconstr) =
   | FCLOS (_, _)
   | FIrrelevant
   | FLOCKED
-  | FBlock (_, _, _, _)
-  | FEta (_, _, _, _, _) -> { m with mark=RedState.mk (RedState.red_state m.mark) mode }
+  | FBlock (_, _, _, _) -> { m with mark=RedState.mk (RedState.red_state m.mark) mode }
 
   | FApp (h, args) ->
     make (FApp(set_mode h, set_arr args))
@@ -2630,8 +2458,6 @@ let rec set_mode ~mode (m : fconstr) =
     make (FArray(u, Parray.map set_mode a, set_mode b))
   | FLIFT (i, m) ->
     make (FLIFT(i, set_mode m))
-  | FLAZY m ->
-    make (FLAZY (lazy (set_mode (Lazy.force m))))
   | FUnblock _ | FRun _ -> assert false
 
 

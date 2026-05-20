@@ -595,28 +595,6 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
         let x1 = usubst_binder e x1 in
         ccnv cv_pb l2r (push_relevance infos x1) (el_lift el1) (el_lift el2) (mk_clos (usubs_lift e) c2) (mk_clos (usubs_lift e') c'2) cuniv
 
-
-    | (FEta (_n1,h1,args1,k1,e1), FEta (_n2,h2,args2,k2,e2)) ->
-        if not (is_empty_stack v1 && is_empty_stack v2) then
-          anomaly (Pp.str "conversion was given ill-typed terms (FEta).");
-        let t1 = mk_clos e1 (mkApp(h1,mk_eta_args args1 k1)) in
-        let t2 = mk_clos e2 (mkApp(h2,mk_eta_args args2 k2)) in
-        ccnv CONV l2r infos lft1 lft2 t1 t2 cuniv
-
-    | (FEta _, FLambda _) ->
-        if not (is_empty_stack v1 && is_empty_stack v2) then
-          anomaly (Pp.str "conversion was given ill-typed terms (FEta,FLambda).");
-        let t1 = eta_reduce hd1 in
-        let (_,_,t2) = destFLambda mk_clos hd2 in
-        ccnv CONV l2r infos lft1 (el_lift lft2) t1 t2 cuniv
-
-    | (FLambda _, FEta _) ->
-        if not (is_empty_stack v1 && is_empty_stack v2) then
-          anomaly (Pp.str "conversion was given ill-typed terms (FEta,FLambda).");
-        let (_,_,t1) = destFLambda mk_clos hd1 in
-        let t2 = eta_reduce hd2 in
-        ccnv CONV l2r infos (el_lift lft1) lft2 t1 t2 cuniv
-
     (* Eta-expansion on the fly *)
     | (FLambda _, _) ->
         let () = match v1 with
@@ -857,13 +835,13 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
      (* Should not happen because both (hd1,v1) and (hd2,v2) are in whnf *)
      | ( (FLetIn _, _) | (FCaseT _,_) | (FApp _,_) | (FCLOS _,_) | (FLIFT _,_)
        | (_, FLetIn _) | (_,FCaseT _) | (_,FApp _) | (_,FCLOS _) | (_,FLIFT _)
-       | (FLOCKED,_) | (_,FLOCKED) | (FLAZY _, _) | (_, FLAZY _)
+       | (FLOCKED,_) | (_,FLOCKED)
        | (FUnblock _,_) | (_,FUnblock _) | (FRun _, _) | (_, FRun _)) -> assert false
 
      | (FRel _ | FAtom _ | FInd _ | FFix _ | FCoFix _ | FCaseInvert _
        | FProd _ | FEvar _ | FInt _ | FFloat _ | FString _
        | FArray _ | FIrrelevant
-       | FBlock _ | FEta _), _ -> raise NotConvertible
+       | FBlock _), _ -> raise NotConvertible
 
 and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
   let f (l1, t1) (l2, t2) cuniv = ccnv CONV l2r infos l1 l2 t1 t2 cuniv in

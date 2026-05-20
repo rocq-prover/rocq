@@ -62,9 +62,6 @@ type fterm =
   (* [{term=Funblock(u, ty, m, e);mode=mode}] is a representation of [Zunblock(u,ty,e,mode)] zipped with [m] *)
   | FRun of UVars.Instance.t * constr * constr * fconstr * constr * usubs
   (* [{term=FRun(u, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(u,ty1,ty2,cnt,e,mode)] zipped with [m] *)
-  | FEta of int * constr * constr array * int * usubs
-  (* [FEta (n, h, args, m, e)], represents [FCLOS (mkApp (h, Array.append args [|#1 ... #m|]), e)]. *)
-  | FLAZY of fconstr Lazy.t
 
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by
@@ -208,9 +205,6 @@ val whd_stack :
 val skip_irrelevant_stack : clos_infos -> stack -> stack
 
 val eta_expand_stack : clos_infos -> Name.t binder_annot -> stack -> stack
-
-val mk_eta_args : constr array -> int -> constr array
-val eta_reduce : fconstr -> fconstr
 
 (** [eta_expand_ind_stack info ind args t] computes stacks corresponding
     to the conversion of the eta expansion of t, considered as an inhabitant
