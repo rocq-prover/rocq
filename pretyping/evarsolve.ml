@@ -1183,14 +1183,16 @@ let closure_of_filter ~can_drop evd evk = function
   | Some filter ->
   let evi = Evd.find_undefined evd evk in
   let ctxt = evar_context evi in
-  let vars_of_decl decl =
+  let vars_of_kept_def = function
+  | LocalAssum _ -> Id.Set.empty
+  | LocalDef _ as decl ->
     fold_constr
       (fun c vars -> Id.Set.union (collect_vars evd c) vars)
       decl Id.Set.empty
   in
   (* Named contexts are ordered from innermost to outermost.  When keeping a
-     declaration, also keep the outer declarations mentioned by its body/type,
-     so the filtered context remains well-formed. *)
+     local definition, also keep the outer declarations mentioned by its
+     body/type, so the filtered context remains well-formed. *)
   let rec close needed filter ctxt = match filter, ctxt with
   | [], [] -> []
   | b :: filter, decl :: ctxt ->
@@ -1202,7 +1204,7 @@ let closure_of_filter ~can_drop evd evk = function
                   not (can_drop || isRel evd c || isVar evd c)
     in
     let needed =
-      if keep then Id.Set.union needed (vars_of_decl decl)
+      if keep then Id.Set.union needed (vars_of_kept_def decl)
       else needed
     in
     keep :: close needed filter ctxt
