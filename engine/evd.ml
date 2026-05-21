@@ -963,10 +963,10 @@ let has_evar evars (pbty,_,t1,t2) =
   | Some evars -> mem_head_evar t1 evars || mem_head_evar t2 evars
 
 (* extracts conversion problems that satisfy predicate p *)
-(* Note: conv_pbs not satisying p are stored back in reverse order *)
+(* Note: conv_pbs satisying p are returned in reverse order *)
 let extract_conv_pbs evd p =
   let (pbs,pbs1) = List.partition p evd.conv_pbs in
-  {evd with conv_pbs = pbs1; last_mods = Evar.Set.empty},
+  {evd with conv_pbs = List.rev pbs1; last_mods = Evar.Set.empty},
   pbs
 
 let extract_changed_conv_pbs evd =
