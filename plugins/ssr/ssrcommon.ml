@@ -310,7 +310,7 @@ let max_suffix m (t, j0 as tj0) id  =
 
 (** creates a fresh (w.r.t. `gl_ids` and internal names) inaccessible name of the form _tXX_ *)
 let mk_anon_id t gl_ids =
-  let gl_ids = List.map NamedDecl.get_id (EConstr.named_context_of_val gl_ids) in
+  let gl_ids = List.map NamedDecl.get_id (Environ.named_context_of_val gl_ids) in
   let m, si0, id0 =
     let s = ref (Printf.sprintf  "‗%s‗" t) in
     if is_internal_name !s then s := "‗" ^ !s;
@@ -889,7 +889,7 @@ let applyn ?(beta=false) ~with_evars ?(first_goes_last=false) n t =
     ]
   else
     let sigma = Evd.push_future_goals sigma in
-    let hyps = Environ.named_context_val env in
+    let hyps = EConstr.named_context_val env in
     let inst = EConstr.identity_subst_val hyps in
     let t, args, sigma =
       let rec loop sigma bo args = function (* saturate with metas *)
@@ -1202,8 +1202,8 @@ let tacTYPEOF c = Goal.enter_one ~__LOC__ (fun g ->
 let unsafe_intro env decl ~relevance b =
   let open Context.Named.Declaration in
   Refine.refine_with_principal ~typecheck:false begin fun sigma ->
-    let ctx = Environ.named_context_val env in
-    let nctx = EConstr.push_named_context_val ProofVar decl ctx in
+    let ctx = EConstr.named_context_val env in
+    let nctx = Environ.push_named_context_val ProofVar decl ctx in
     let inst = EConstr.identity_subst_val (Environ.named_context_val env) in
     let ninst = SList.cons (EConstr.mkRel 1) inst in
     let nb = EConstr.Vars.subst1 (EConstr.mkVar (get_id decl)) b in

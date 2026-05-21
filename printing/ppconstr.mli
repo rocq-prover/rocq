@@ -110,4 +110,4 @@ module CompactedDecl : sig
     EConstr.types
 end
 
-val compact_named_context : Evd.evar_map -> Environ.named_context_val -> CompactedDecl.t list
+val compact_named_context : Evd.evar_map -> EConstr.named_context_val -> CompactedDecl.t list

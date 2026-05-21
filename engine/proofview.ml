@@ -915,7 +915,7 @@ module Progress = struct
   (** equality function on hypothesis contexts *)
   let eq_named_context_val sigma1 sigma2 ctx1 ctx2 =
     let r_eq _ _ = true (* ignore relevances *) in
-    let c1 = EConstr.named_context_of_val ctx1 and c2 = EConstr.named_context_of_val ctx2 in
+    let c1 = Environ.named_context_of_val ctx1 and c2 = Environ.named_context_of_val ctx2 in
     (* should we check variable status? if x is secvar,
        [rename x into x'; rename x' into x] loses the secvar status
        so maybe should progress?
@@ -961,8 +961,8 @@ module Progress = struct
 
   let fast_eq_named_context_val ctx1 ctx2 =
     let r_eq _ _ = true (* ignore relevances *) in
-    let c1 = EConstr.named_context_of_val ctx1 in
-    let c2 = EConstr.named_context_of_val ctx2 in
+    let c1 = Environ.named_context_of_val ctx1 in
+    let c2 = Environ.named_context_of_val ctx2 in
     let eq_named_declaration d1 d2 = match d1, d2 with
       | LocalAssum (i1, _), LocalAssum (i2, _) ->
         Context.eq_annot Names.Id.equal r_eq i1 i2
@@ -1198,7 +1198,7 @@ module Goal = struct
     Evd.evar_relevance (Evd.find_undefined sigma self)
 
   let gmake_with info env sigma goal state =
-    { env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+    { env = EConstr.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
       sigma = sigma ;
       concl = Evd.evar_concl info;
       state = state ;
@@ -1252,7 +1252,7 @@ module Goal = struct
           let goal = drop_state goal in
           let EvarInfo info = Evd.find sigma goal in
           let goal = {
-            env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+            env = EConstr.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
             sigma = sigma ;
             concl = Evd.evar_concl oinfo;
             state = state;

@@ -11,8 +11,8 @@
 open Util
 open Names
 open Constr
-open EConstr
 open Environ
+open EConstr
 open Evd
 
 (** {5 Meta machinery}

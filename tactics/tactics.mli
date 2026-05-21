@@ -715,7 +715,7 @@ val explicit_intro_names : 'a intro_pattern_expr CAst.t list -> Id.Set.t
 val check_name_unicity : env -> Id.t list -> Id.t list -> 'a intro_pattern_expr CAst.t list -> unit
 
 val clear_gen : (env -> evar_map -> Id.t -> Evarutil.clear_dependency_error ->
-  GlobRef.t option -> evar_map * named_context_val * types) ->
+  GlobRef.t option -> evar_map * EConstr.named_context_val * types) ->
   Id.t list -> unit Proofview.tactic
 
 val clear_wildcards : lident list -> unit Proofview.tactic

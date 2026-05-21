@@ -1827,7 +1827,7 @@ let finish_late_init ps explicit = { ps with has_late_init = Some explicit }
 let has_late_init ps = ps.has_late_init
 
 let initialize_named_context_for_proof () =
-  let sign = Global.named_context () in
+  let sign = EConstr.of_named_context @@ Global.named_context () in
   List.fold_right
     (fun d signv ->
       let id = NamedDecl.get_id d in
@@ -1842,7 +1842,7 @@ let start_proof_core ~name ~pinfo ?using sigma goals =
   let { Proof_info.info = { Info.poly; typing_flags; _ }; _ } = pinfo in
   let goals = List.map (fun (sign, typ) ->
       let sign = match sign with None -> initialize_named_context_for_proof () | Some sign -> sign in
-      (Global.env_of_context sign, typ)) goals in
+      (EConstr.reset_with_named_context sign (Global.env ()), typ)) goals in
   let proof = Proof.start ~name ~poly ?typing_flags sigma goals in
   let initial_euctx = Evd.ustate Proof.((data proof).sigma) in
   { proof
@@ -1919,7 +1919,7 @@ let start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma =
     let sign =
       List.fold_left2 (fun sign CInfo.{name;typ} r ->
           let decl = Context.Named.Declaration.LocalAssum (Context.make_annot name r, typ) in
-          EConstr.push_named_context_val ProofVar decl sign) (initialize_named_context_for_proof ()) cinfo' fixrs in
+          Environ.push_named_context_val ProofVar decl sign) (initialize_named_context_for_proof ()) cinfo' fixrs in
     let using = Option.map (interp_proof_using_cinfo env sigma cinfo') using in
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
     let lemma = start_proof_core ~name ~pinfo ?using sigma goals in
@@ -1957,7 +1957,7 @@ let start_mutual_definitions_refine ~info ~cinfo ~bodies ~possible_guard ?using 
     let sign =
       List.fold_left2 (fun sign CInfo.{name;typ} r ->
           let decl = Context.Named.Declaration.LocalAssum (Context.make_annot name r, typ) in
-          EConstr.push_named_context_val ProofVar decl sign) (initialize_named_context_for_proof ()) cinfo fixrs in
+          Environ.push_named_context_val ProofVar decl sign) (initialize_named_context_for_proof ()) cinfo fixrs in
     let using = Option.map (interp_proof_using_cinfo env sigma cinfo) using in
     let goals = List.map (function CInfo.{typ} -> (Some sign, typ)) thms in
     let lemma = start_proof_core ~name ~pinfo ?using sigma goals in

@@ -37,7 +37,9 @@ type link_info =
 
 type key = int CEphemeron.key option ref
 
-type named_context_val
+type ('c,'t,'r) pnamed_context_val
+
+type named_context_val = (constr, types, Sorts.relevance) pnamed_context_val
 
 type rel_context_val
 
@@ -50,6 +52,8 @@ exception RewriteRulesNotAllowed of rewrule_not_allowed
 val oracle : env -> Conv_oracle.oracle
 val set_oracle : env -> Conv_oracle.oracle -> env
 
+val eq_pnamed_context_val : ('c,'t,'r) Context.Named.Declaration.pt Util.eq_fn ->
+  ('c,'t,'r) pnamed_context_val Util.eq_fn
 val eq_named_context_val : named_context_val -> named_context_val -> bool
 
 val empty_env : env
@@ -106,39 +110,42 @@ type var_status = SecVar | ProofVar
 
 val var_status_eq : var_status -> var_status -> bool
 
-val var_status_ctxt : ?check:bool -> Id.t -> named_context_val -> var_status
+val var_status_ctxt : ?check:bool -> Id.t -> _ pnamed_context_val -> var_status
 val var_status : ?check:bool -> Id.t -> env -> var_status
 
-val named_context_of_val : named_context_val -> Constr.named_context
-val val_of_named_context : (var_status * Constr.named_declaration) list -> named_context_val
-val empty_named_context_val : named_context_val
-val ids_of_named_context_val : named_context_val -> Id.Set.t
-val named_context_of_val_with_status : named_context_val -> (var_status * named_declaration) list
+val named_context_of_val : ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) Context.Named.pt
+val val_of_named_context : (var_status * ('c,'t,'r) Context.Named.Declaration.pt) list ->
+  ('c,'t,'r) pnamed_context_val
+val empty_named_context_val : _ pnamed_context_val
+val ids_of_named_context_val : _ pnamed_context_val -> Id.Set.t
+val named_context_of_val_with_status : ('c,'t,'r) pnamed_context_val ->
+  (var_status * ('c,'t,'r) Context.Named.Declaration.pt) list
 
 
 (** [map_named_val f ctxt] apply [f] to the body and the type of
    each declarations.
    *** /!\ ***   [f t] must preserve the name *)
 val map_named_val :
-  (var_status -> named_declaration -> var_status * named_declaration) ->
-  named_context_val -> named_context_val
+  (var_status -> ('c,'t,'r) Context.Named.Declaration.pt ->
+   var_status * ('c,'t,'r) Context.Named.Declaration.pt) ->
+  ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) pnamed_context_val
 
 val push_named : var_status -> Constr.named_declaration -> env -> env
 val push_named_context : (var_status * Constr.named_declaration) list -> env -> env
 val push_named_context_val  :
-  var_status -> Constr.named_declaration -> named_context_val -> named_context_val
+  var_status -> ('c,'t,'r) Context.Named.Declaration.pt -> ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) pnamed_context_val
 
 
-val mem_named_ctxt : variable -> named_context_val -> bool
+val mem_named_ctxt : variable -> _ pnamed_context_val -> bool
 val mem_named : variable -> env -> bool
 
 (** Looks up in the context of local vars referred by names ([named_context])
    raises [Not_found] if the Id.t is not found *)
 
 val lookup_named     : variable -> env -> Constr.named_declaration
-val lookup_named_ctxt : variable -> named_context_val -> Constr.named_declaration
-val lookup_named_ctxt_pos : int -> named_context_val -> Constr.named_declaration
-val nb_named : named_context_val -> int
+val lookup_named_ctxt : variable -> ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) Context.Named.Declaration.pt
+val lookup_named_ctxt_pos : int -> ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) Context.Named.Declaration.pt
+val nb_named : _ pnamed_context_val -> int
 val evaluable_named  : variable -> env -> bool
 val named_type : variable -> env -> types
 val named_body : variable -> env -> constr option
@@ -146,14 +153,15 @@ val named_body : variable -> env -> constr option
 (** {6 Recurrence on [named_context]: older declarations processed first } *)
 
 val fold_named_context_val :
-  (named_context_val -> var_status -> Constr.named_declaration -> 'a -> 'a) ->
-  named_context_val -> init:'a -> 'a
+  (('c,'t,'r) pnamed_context_val -> var_status -> ('c,'t,'r) Context.Named.Declaration.pt -> 'a -> 'a) ->
+  ('c,'t,'r) pnamed_context_val -> init:'a -> 'a
 
 val fold_named_context :
   (env -> var_status -> Constr.named_declaration -> 'a -> 'a) ->
   env -> init:'a -> 'a
 
-val match_named_context_val : named_context_val -> (var_status * named_declaration * named_context_val) option
+val match_named_context_val : ('c,'t,'r) pnamed_context_val ->
+  (var_status * ('c,'t,'r) Context.Named.Declaration.pt * ('c,'t,'r) pnamed_context_val) option
 
 (** Recurrence on [named_context] starting from younger decl *)
 val fold_named_context_reverse :
@@ -478,11 +486,16 @@ exception Hyp_not_found
 (** [apply_to_hyp sign id f] split [sign] into [tail::(id,_,_)::head] and
    return [tail::(f head (id,_,_) (rev tail))::head].
    the value associated to id should not change *)
-val apply_to_hyp : named_context_val -> variable ->
-  (Constr.named_context -> var_status -> Constr.named_declaration -> Constr.named_context -> var_status * Constr.named_declaration) ->
-    named_context_val
+val apply_to_hyp : ('c,'t,'r) pnamed_context_val -> variable ->
+  (('c,'t,'r) Context.Named.pt -> var_status -> ('c,'t,'r) Context.Named.Declaration.pt ->
+   ('c,'t,'r) Context.Named.pt ->
+   var_status * ('c,'t,'r) Context.Named.Declaration.pt) ->
+  ('c,'t,'r) pnamed_context_val
 
-val remove_hyps : Id.Set.t -> (var_status -> Constr.named_declaration -> var_status * Constr.named_declaration) -> named_context_val -> named_context_val
+val remove_hyps : Id.Set.t ->
+  (var_status -> ('c,'t,'r) Context.Named.Declaration.pt ->
+   var_status * ('c,'t,'r) Context.Named.Declaration.pt) ->
+  ('c,'t,'r) pnamed_context_val -> ('c,'t,'r) pnamed_context_val
 
 val is_polymorphic : env -> Names.GlobRef.t -> bool
 val is_template_polymorphic : env -> GlobRef.t -> bool

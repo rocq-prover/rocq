@@ -1167,8 +1167,8 @@ let thin id sigma goal =
   let relevance = Evd.evar_relevance evi in
   let ans =
     (* Why can this get called with an unknown id? *)
-    if not @@ Environ.mem_named id env then Some (sigma, Environ.named_context_val env, cl) else
-    try Some (Evarutil.clear_hyps_in_evi env sigma (Environ.named_context_val env) cl ids)
+    if not @@ Environ.mem_named id env then Some (sigma, EConstr.named_context_val env, cl) else
+    try Some (Evarutil.clear_hyps_in_evi env sigma (EConstr.named_context_val env) cl ids)
     with Evarutil.ClearDependencyError _ -> None
   in
   match ans with

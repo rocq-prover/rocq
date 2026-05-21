@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+type 'a eq_fn = 'a -> 'a -> bool
+
 (* Mapping under pairs *)
 
 let on_fst f (a,b) = (f a,b)

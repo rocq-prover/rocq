@@ -27,11 +27,11 @@ let extract_prefix env info =
 
 let rec recheck_hyps n env sigma sign =
   if n = 0 then sigma
-  else match EConstr.match_named_context_val sign with
+  else match Environ.match_named_context_val sign with
     | None -> assert false
     | Some (_, decl, sign') ->
       let sigma = recheck_hyps (n-1) env sigma sign' in
-      let env = Environ.reset_with_named_context sign' env in
+      let env = EConstr.reset_with_named_context sign' env in
       let t = NamedDecl.get_type decl in
       let sigma, _ = Typing.sort_of env sigma t in
       let sigma = match decl with
@@ -48,7 +48,7 @@ let typecheck_evar ev env sigma =
   let sign = Evd.evar_hyps info in
   let sigma = recheck_hyps changed env sigma sign in
   (* Typecheck the conclusion *)
-  let env = Environ.reset_with_named_context sign env in
+  let env = EConstr.reset_with_named_context sign env in
   let sigma, _ = Typing.sort_of env sigma (Evd.evar_concl info) in
   sigma
 

@@ -1082,7 +1082,7 @@ let explain_cannot_unify_occurrences env sigma nested ((cl2,pos2),t2) ((cl1,pos1
 let pr_constraints printenv msg env sigma evars cstrs =
   let (ev, evi) = Evar.Map.choose evars in
     if Evar.Map.for_all (fun ev' evi' ->
-      eq_named_context_val (Evd.evar_hyps evi) (Evd.evar_hyps evi')) evars
+      EConstr.eq_named_context_val sigma (Evd.evar_hyps evi) (Evd.evar_hyps evi')) evars
     then
       let l = Evar.Map.bindings evars in
       let env' = Evd.evar_env env evi in

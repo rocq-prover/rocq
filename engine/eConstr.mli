@@ -94,6 +94,7 @@ type unsafe_type_judgment = (types, Evd.esorts) Environ.punsafe_type_judgment
 type named_declaration = (constr, types, ERelevance.t) Context.Named.Declaration.pt
 type rel_declaration = (constr, types, ERelevance.t) Context.Rel.Declaration.pt
 type named_context = (constr, types, ERelevance.t) Context.Named.pt
+type named_context_val = (constr, types, ERelevance.t) Environ.pnamed_context_val
 type rel_context = (constr, types, ERelevance.t) Context.Rel.pt
 type 'a binder_annot = ('a,ERelevance.t) Context.pbinder_annot
 
@@ -424,18 +425,9 @@ val push_rec_types : rec_declaration -> env -> env
 
 val push_named : var_status -> named_declaration -> env -> env
 val push_named_context : (var_status * named_declaration) list -> env -> env
-val push_named_context_val  : var_status -> named_declaration -> named_context_val -> named_context_val
 
 val rel_context : env -> rel_context
 val named_context : env -> named_context
-
-val val_of_named_context : (var_status * named_declaration) list -> named_context_val
-val named_context_of_val : named_context_val -> named_context
-val named_context_of_val_with_status : named_context_val -> (var_status * named_declaration) list
-
-val fold_named_context_val :
-  (named_context_val -> var_status -> named_declaration -> 'a -> 'a) ->
-  named_context_val -> init:'a -> 'a
 
 val fold_named_context :
   (env -> var_status -> named_declaration -> 'a -> 'a) ->
@@ -443,7 +435,6 @@ val fold_named_context :
 
 val lookup_rel : int -> env -> rel_declaration
 val lookup_named : variable -> env -> named_declaration
-val lookup_named_val : variable -> named_context_val -> named_declaration
 
 val lookup_constant : env -> Evd.evar_map -> Constant.t -> Declarations.constant_body
 val constant_value_in : env -> Evd.evar_map -> Constant.t * EInstance.t -> constr
@@ -451,17 +442,12 @@ val constant_value_in : env -> Evd.evar_map -> Constant.t * EInstance.t -> const
 val map_rel_context_in_env :
   (env -> constr -> constr) -> env -> rel_context -> rel_context
 
-val match_named_context_val :
-  named_context_val -> (var_status * named_declaration * named_context_val) option
+val identity_subst_val : _ pnamed_context_val -> t SList.t
 
-(** [map_named_val f ctxt] apply [f] to the body and the type of
-   each declarations.
-   *** /!\ ***   [f t] must preserve the name *)
-val map_named_val :
-  (var_status -> named_declaration -> var_status * named_declaration) ->
-  named_context_val -> named_context_val
+val named_context_val : env -> named_context_val
+val reset_with_named_context : named_context_val -> env -> env
 
-val identity_subst_val : named_context_val -> t SList.t
+val eq_named_context_val : Evd.evar_map -> named_context_val -> named_context_val -> bool
 
 (* XXX Missing Sigma proxy *)
 val fresh_global :
@@ -495,6 +481,8 @@ val to_named_decl : Evd.evar_map -> named_declaration -> Constr.named_declaratio
 val of_named_context : Constr.named_context -> named_context
 val of_rel_context : Constr.rel_context -> rel_context
 
+val of_named_context_val : Environ.named_context_val -> named_context_val
+
 val to_named_context : Evd.evar_map -> named_context -> Constr.named_context
 val to_rel_context : Evd.evar_map -> rel_context -> Constr.rel_context
 
@@ -518,17 +506,17 @@ sig
 
   val to_binder_annot : 'a binder_annot -> 'a Constr.binder_annot
 
-  val to_rel_decl : (t, types, ERelevance.t) Context.Rel.Declaration.pt ->
-    (Constr.t, Constr.types, Sorts.relevance) Context.Rel.Declaration.pt
+  val to_rel_decl : rel_declaration -> Constr.rel_declaration
   (** Physical identity. Does not care for defined evars. *)
 
-  val to_named_decl : (t, types, ERelevance.t) Context.Named.Declaration.pt ->
-    (Constr.t, Constr.types, Sorts.relevance) Context.Named.Declaration.pt
+  val to_named_decl : named_declaration -> Constr.named_declaration
   (** Physical identity. Does not care for defined evars. *)
 
-  val to_named_context : (t, types, ERelevance.t) Context.Named.pt -> Constr.named_context
+  val to_named_context : named_context -> Constr.named_context
 
-  val to_rel_context : (t, types, ERelevance.t) Context.Rel.pt -> Constr.rel_context
+  val to_named_context_val : named_context_val -> Environ.named_context_val
+
+  val to_rel_context : rel_context -> Constr.rel_context
 
   val to_relevance : ERelevance.t -> Sorts.relevance
 

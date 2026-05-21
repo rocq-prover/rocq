@@ -449,7 +449,7 @@ let pr_context_unlimited ?flags env sigma =
       (fun d pps ->
          let pidt =  pr_ecompacted_decl ?flags env sigma d in
          (pps ++ fnl () ++ pidt))
-      (compact_named_context sigma (Environ.named_context_val env)) (mt ())
+      (compact_named_context sigma (EConstr.named_context_val env)) (mt ())
   in
   let db_env =
     fold_rel_context
@@ -499,7 +499,7 @@ and bld_sign_env_id ?flags env sigma ctxt pps is_start =
 (* compact printing an env (variables and de Bruijn). Separator: three
    spaces between simple hyps, and newline otherwise *)
 let pr_context_limit_compact ?n ?flags env sigma =
-  let ctxt = Environ.named_context_val env in
+  let ctxt = EConstr.named_context_val env in
   let ctxt = compact_named_context sigma ctxt in
   let lgth = List.length ctxt in
   let n_capped =
@@ -818,7 +818,7 @@ let process_dependent_evar q acc evm is_dependent e =
     match decl with
     | LocalAssum _ -> ()
     | LocalDef (_,b,_) -> queue_term q true b
-  end (EConstr.named_context_of_val (Evd.evar_hyps evi));
+  end (named_context_of_val (Evd.evar_hyps evi));
   match Evd.evar_body evi with
   | Evar_empty ->
       if is_dependent then Evar.Map.add e None acc else acc

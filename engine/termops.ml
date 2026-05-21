@@ -117,7 +117,7 @@ let evar_suggested_name env sigma evk =
   | _,Evar_kinds.QuestionMark {Evar_kinds.qm_name = Name id} -> id
   | _,Evar_kinds.GoalEvar -> Id.of_string "Goal"
   | _ ->
-      let env = reset_with_named_context (Evd.evar_hyps evi) env in
+      let env = EConstr.reset_with_named_context (Evd.evar_hyps evi) env in
       Namegen.id_of_name_using_hdchar env sigma (Evd.evar_concl evi) Anonymous
   in
   let names = Evar.Map.mapi base_id (undefined_map sigma) in

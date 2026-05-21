@@ -822,7 +822,7 @@ let rec mk_refgoals ~metas env sigma goalacc ?parent conclty trm = match trm wit
   | Some conclty -> conclty
   in
   let conclty = nf_betaiota env sigma conclty in
-  let hyps = Environ.named_context_val env in
+  let hyps = named_context_val env in
   (* Add a name to the goal if the metavariable itself has a name *)
   let name = match Meta.meta_name metas mv with
   | Name name -> Some name
@@ -871,7 +871,7 @@ let treat_case env sigma ci lbrty accu ~parent =
     let args = Context.Rel.instance mkRel 0 ctx in
     (* TODO: tweak this to prevent dummy β-cuts *)
     let ty = nf_betaiota env sigma (it_mkProd_or_LetIn ty ctx) in
-    let hyps = Environ.named_context_val env in
+    let hyps = named_context_val env in
     let (gl, ev, sigma) = mk_goal env sigma ~name ~parent hyps ty in
     let br' = mkApp (ev, args) in
     (sigma, gl :: accu), (brctx, br')

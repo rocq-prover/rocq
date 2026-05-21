@@ -44,7 +44,7 @@ val declare_abstract :
   name:Names.Id.t ->
   poly:PolyFlags.t ->
   sign:EConstr.named_context ->
-  secsign:Environ.named_context_val ->
+  secsign:EConstr.named_context_val ->
   opaque:bool ->
   solve_tac:unit Proofview.tactic ->
   Environ.env ->
