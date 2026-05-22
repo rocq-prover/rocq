@@ -46,10 +46,8 @@ module Cst_stack = struct
     | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
     | [] | (_,_,_,{alias=false; _}) :: _
     | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
-  let mark_alias ?(refold_after_iota=false) = function
-    | (c, params, args, info) :: l ->
-      (c, params, args,
-       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
+  let mark_alias = function
+    | (c, params, args, info) :: l -> (c, params, args, { info with alias = true }) :: l
     | [] -> []
 
   let drop_useless = function
@@ -594,9 +592,7 @@ let apply_subst sigma cst_l t stack =
        aux cst_l' (CbnClos.subst_cons h c) stacktl
     | _ ->
       let cst_l = match CbnClos.subst_value sigma t with
-        | Some _ ->
-          let refold_after_iota = match stack with [] -> false | _ :: _ -> true in
-          Cst_stack.mark_alias ~refold_after_iota cst_l
+        | Some _ -> Cst_stack.mark_alias cst_l
         | None -> cst_l
       in
       (cst_l, (t, stack))
@@ -1189,12 +1185,12 @@ let rec whd_state_gen ?csts flags env sigma =
           let reduce_with_elim_csts cst_l p =
             match cst_l, case_cst_l with
             | [], _ :: _ when Cst_stack.may_refold_alias_after_iota case_cst_l && is_case r ->
-              (* [simpl nomatch] wrappers and head aliases with pending
-                 eliminations (for example class-projection wrappers) must stay
-                 folded when reducing under them exposes a stuck eliminator.
-                 Do not do this for ordinary transparent aliases returning a
-                 fully applied data argument: after a real iota step master
-                 keeps the progress and reduces aliases such as [fst_nat] away. *)
+              (* [simpl nomatch] wrappers, including projection wrappers using
+                 [UnfoldWhenNoMatch], must stay folded when reducing under them
+                 exposes a stuck eliminator.  Do not do this for ordinary
+                 transparent aliases, even when the alias result has pending
+                 eliminations: after a real iota step master keeps the progress
+                 and reduces aliases such as [fst_nat] and [id_fun] away. *)
               let (_, cst_l') as res = whrec case_cst_l p in
               begin match cst_l' with
               | [] -> res

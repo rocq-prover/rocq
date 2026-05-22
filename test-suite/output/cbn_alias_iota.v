@@ -15,6 +15,8 @@ Definition pick3 (a b c d : nat) := c.
 Definition fst4 (a b c d : nat) := a.
 Definition pick4 (a b c d : nat) := d.
 Definition wrap2 (x y : nat) := y.
+Definition id_fun (f : nat -> nat) := f.
+Definition const_fun (x : nat) (f : nat -> nat) := f.
 
 Eval cbn in
   (fun y : nat =>
@@ -110,3 +112,21 @@ Eval cbn in
         | true => match y with O => S O | S _ => O end
         | false => O
         end)).
+
+Eval cbn in
+  (fun y : nat =>
+     (id_fun
+        (match true with
+         | true => fun _ : nat => match y with O => S O | S _ => O end
+         | false => fun _ : nat => O
+         end))
+       O).
+
+Eval cbn in
+  (fun y : nat =>
+     (const_fun O
+        (match true with
+         | true => fun _ : nat => match y with O => S O | S _ => O end
+         | false => fun _ : nat => O
+         end))
+       O).
