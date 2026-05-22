@@ -233,7 +233,7 @@ let fCOFIX = 0b010000
 let fZETA  = 0b100000
 let fALL   = 0b111111
 
-let of_red_flags : RedFlags.reds -> flags = fun reds ->
+let[@inline always] of_red_flags : RedFlags.reds -> flags = fun reds ->
   let fs = 0 in
   let fs = if RedFlags.(red_set reds fBETA ) then fBETA  lor fs else fs in
   let fs = if RedFlags.(red_set reds fDELTA) then fDELTA lor fs else fs in
