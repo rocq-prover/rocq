@@ -221,55 +221,23 @@ type infos_cache = {
   i_share : bool;
   i_univs : UGraph.t;
   i_mode : conv_or_red;
-  i_redflags : RedFlags.reds;
 }
 
-type flags = int
-let fBETA  = 0b000001
-let fDELTA = 0b000010
-let fMATCH = 0b000100
-let fFIX   = 0b001000
-let fCOFIX = 0b010000
-let fZETA  = 0b100000
-let fALL   = 0b111111
-
-let[@inline always] of_red_flags : RedFlags.reds -> flags = fun reds ->
-  let fs = 0 in
-  let fs = if RedFlags.(red_set reds fBETA ) then fBETA  lor fs else fs in
-  let fs = if RedFlags.(red_set reds fDELTA) then fDELTA lor fs else fs in
-  let fs = if RedFlags.(red_set reds fMATCH) then fMATCH lor fs else fs in
-  let fs = if RedFlags.(red_set reds fFIX  ) then fFIX   lor fs else fs in
-  let fs = if RedFlags.(red_set reds fCOFIX) then fCOFIX lor fs else fs in
-  let fs = if RedFlags.(red_set reds fZETA ) then fZETA  lor fs else fs in
-  fs
-
 type clos_infos = {
-  i_flags : flags;
-  i_ts : TransparentState.t;
+  i_flags : RedFlags.reds;
   i_relevances : Sorts.relevance Range.t;
   i_cache : infos_cache;
 }
 
-let id_ts =
-  let tr_var = Names.Id.Pred.empty in
-  let tr_cst = Names.Cpred.empty in
-  let tr_prj = Names.PRpred.empty in
-  TransparentState.{tr_var; tr_cst; tr_prj}
-
-let [@ocaml.inline always] red_transparent mode info =
-  if is_normal mode then info.i_ts
-  else if mode == identity then id_ts
-  else TransparentState.full
-
 let [@ocaml.inline always] red_set mode info f =
   if is_normal mode then
-    info.i_flags land f != 0
+    RedFlags.red_set info.i_flags f
   else if mode == identity then
-    f == fDELTA
+    f == RedFlags.fDELTA
   else
     true
 
-let info_flags info = info.i_cache.i_redflags
+let info_flags info = info.i_flags
 let info_env info = info.i_cache.i_env
 let info_univs info = info.i_cache.i_univs
 
@@ -555,8 +523,7 @@ end = struct
         let def = Environ.lookup_named id env in
         shortcut_irrelevant info
           (binder_relevance (NamedDecl.get_annot def));
-        let ts = red_transparent mode info in
-        if TransparentState.is_transparent_variable ts id then
+        if red_set mode info (RedFlags.fVAR id) then
           Def (assoc_defined ~mode def, [||])
         else
           raise Not_found
@@ -566,8 +533,7 @@ end = struct
         | None -> info.i_cache.i_sigma.abstr_const cst
         in
         shortcut_irrelevant info (UVars.subst_instance_relevance u cb.const_relevance);
-        let ts = red_transparent mode info in
-        if TransparentState.is_transparent_constant ts cst then match cb.const_body with
+        if red_set mode info (RedFlags.fCONST cst) then match cb.const_body with
         | Undef _ | Def _ | OpaqueDef _ | Primitive _ ->
           let mask = match cb.const_body_code with
           | (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant | BCuncompiled) -> [||]
@@ -1175,7 +1141,7 @@ let contract_fix_vect ~mode fix =
   (on_fst (fun env -> mk_subs env 0) env, thisbody)
 
 let unfold_projection ~mode info p r =
-  if RedFlags.red_projection info.i_cache.i_redflags p then
+  if RedFlags.red_projection info.i_flags p then
     Some (Zproj (Projection.repr p, r, mode))
   else None
 
@@ -2055,7 +2021,7 @@ and match_head red info tab ~pat_state next context states patterns t stk =
     match_main red info tab ~pat_state states next
 
 let match_symbol red info tab ~pat_state fl (u, b, r) stk =
-  let unfold_fix = b && red_set normal_whnf info fFIX in
+  let unfold_fix = b && red_set normal_whnf info RedFlags.fFIX in
   let states, elims = Array.split @@ Array.map
     (fun r ->
       let pu, es = r.lhs_pat in
@@ -2081,11 +2047,11 @@ type 'a depth = 'a RedPattern.depth
 let rec knr info tab ~pat_state m stk =
   let mode = RedState.mode m.mark in
   match m.term with
-  | FLambda(n,tys,f,e) when red_set mode info fBETA ->
+  | FLambda(n,tys,f,e) when red_set mode info RedFlags.fBETA ->
       (match get_args mode n tys f e stk with
        | Inl e', s -> knit ~mode:mode info tab ~pat_state e' f s
        | Inr lam, s -> knr_ret info tab ~pat_state (lam,s))
-  | FFlex fl when red_set mode info fDELTA ->
+  | FFlex fl when red_set mode info RedFlags.fDELTA ->
       (match Table.lookup ~mode:mode info tab fl with
        | Def (v, _) -> kni info tab ~pat_state v stk
        | Primitive op ->
@@ -2120,14 +2086,14 @@ let rec knr info tab ~pat_state m stk =
       | _ -> m, c0, args0, stk
     in
       begin match [@ocaml.warning "-4"] stk with
-      | ZcaseT (ci, _, pms, _, br, e, mode) :: s when red_set mode info fMATCH ->
+      | ZcaseT (ci, _, pms, _, br, e, mode) :: s when red_set mode info RedFlags.fMATCH ->
         let (br, e) = get_branch ~mode info ci pms c args br e in
         knit ~mode info tab ~pat_state e br s
-      | Zfix (fx, par) :: s when red_set (RedState.mode fx.mark) info fFIX ->
+      | Zfix (fx, par) :: s when red_set (RedState.mode fx.mark) info RedFlags.fFIX ->
         let stk' = par @ append_stack [|m|] s in
         let (fxe, fxbd) = contract_fix_vect ~mode:(RedState.mode fx.mark) fx.term in
         knit ~mode:(RedState.mode fx.mark) info tab ~pat_state fxe fxbd stk'
-      | Zproj (p, _, mode) :: s when red_set mode info fMATCH ->
+      | Zproj (p, _, mode) :: s when red_set mode info RedFlags.fMATCH ->
         let rargs = drop_parameters (Projection.Repr.npars p) args in
         let rarg = rargs.(Projection.Repr.arg p) in
         kni info tab ~pat_state rarg s
@@ -2140,7 +2106,7 @@ let rec knr info tab ~pat_state m stk =
   | FCoFix ((i, (lna, _, _)), e) ->
     if is_irrelevant info (usubst_relevance e (lna.(i)).binder_relevance) then
       knr_ret info tab ~pat_state (mk_irrelevant, skip_irrelevant_stack info stk)
-    else if red_set mode info fCOFIX then
+    else if red_set mode info RedFlags.fCOFIX then
       (match strip_update_shift_app m stk with
        | (_, _, args, (((ZcaseT _|Zproj _)::_) as stk')) ->
            let (fxe,fxbd) = contract_fix_vect ~mode:mode m.term in
@@ -2148,7 +2114,7 @@ let rec knr info tab ~pat_state m stk =
        | (_,_,args, ((Zapp _ | Zfix _ | Zshift _ | Zupdate _ | Zprimitive _ | Zunblock _ | Zrun _) :: _ | [] as s)) ->
            knr_ret info tab ~pat_state (m,args@s))
     else knr_ret info tab ~pat_state (m, stk)
-  | FLetIn (_,v,_,bd,e) when red_set mode info fZETA ->
+  | FLetIn (_,v,_,bd,e) when red_set mode info RedFlags.fZETA ->
       knit ~mode:mode info tab ~pat_state (on_fst (Esubst.subs_cons v) e) bd stk
   | FInt _ | FFloat _ | FString _ | FArray _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app_head m stk with
@@ -2185,7 +2151,7 @@ let rec knr info tab ~pat_state m stk =
          let term = FApp(k,[|t|]) in
          kni info tab ~pat_state {mark=RedState.mk red mode; term} stk
      | (_, _, rargs, stk) -> knr_ret info tab ~pat_state (m, List.rev_append rargs stk))
-  | FCaseInvert (ci, u, pms, _p,iv,_c,v,env) when red_set mode info fMATCH ->
+  | FCaseInvert (ci, u, pms, _p,iv,_c,v,env) when red_set mode info RedFlags.fMATCH ->
     let pms = mk_clos_vect ~mode:mode env pms in
     let u = usubst_instance env u in
     begin match case_inversion ~mode:mode info tab ci u pms iv v with
@@ -2236,8 +2202,8 @@ and case_inversion ~mode info tab ci u params indices v =
     let _ind, expect_args = destApp expect in
     let tab = if info.i_cache.i_mode == Conversion then tab else Table.create () in
     let info =
-      let i_cache = {info.i_cache with i_mode = Conversion; i_redflags = RedFlags.all} in
-      {info with i_cache; i_ts = TransparentState.full; i_flags = fALL}
+      let i_cache = {info.i_cache with i_mode = Conversion } in
+      {info with i_cache; i_flags = RedFlags.all}
     in
     let check_index i index =
       let expected = expect_args.(ci.ci_npar + i) in
@@ -2516,25 +2482,19 @@ let whd_stack infos tab m stk =
   in
   k
 
-let create_infos i_mode ?univs ?evars i_redflags i_env =
+let create_infos i_mode ?univs ?evars i_flags i_env =
   let evars = Option.default (default_evar_handler i_env) evars in
   let i_univs = Option.default (Environ.universes i_env) univs in
   let i_share = (Environ.typing_flags i_env).Declarations.share_reduction in
-  let i_cache = {i_env; i_sigma = evars; i_share; i_univs; i_mode; i_redflags} in
-  let i_ts = RedFlags.red_transparent i_redflags in
-  let i_flags = of_red_flags i_redflags in
-  {i_flags; i_ts; i_relevances = Range.empty; i_cache}
+  let i_cache = {i_env; i_sigma = evars; i_share; i_univs; i_mode} in
+  {i_flags; i_relevances = Range.empty; i_cache}
 
 let create_conv_infos = create_infos Conversion
 let create_clos_infos = create_infos Reduction
 
 let oracle_of_infos infos = Environ.oracle infos.i_cache.i_env
 
-let infos_with_reds infos reds =
-  let i_cache = {infos.i_cache with i_redflags = reds} in
-  let i_ts = RedFlags.red_transparent reds in
-  let i_flags = of_red_flags reds in
-  {infos with i_cache; i_ts; i_flags}
+let infos_with_reds infos i_flags = {infos with i_flags}
 
 let unfold_ref_with_args infos tab fl v =
   match Table.lookup ~mode:normal_whnf infos tab fl with
