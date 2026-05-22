@@ -27,7 +27,7 @@ open Context.Rel.Declaration
 (** Machinery to custom the behavior of the reduction *)
 module ReductionBehaviour = Reductionops.ReductionBehaviour
 
-type cst_info = { volatile : bool; alias : bool }
+type cst_info = { volatile : bool; alias : bool; refold_after_iota : bool }
 
 (** Machinery about stack of unfolded constants *)
 module Cst_stack = struct
@@ -42,11 +42,14 @@ module Cst_stack = struct
 
   let empty = []
   let all_volatile l = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
-  let is_alias = function
-    | (_,_,_,{alias=true; _}) :: _ -> true
-    | [] | (_,_,_,{alias=false; _}) :: _ -> false
-  let mark_alias = function
-    | (c, params, args, info) :: l -> (c, params, args, { info with alias = true }) :: l
+  let may_refold_alias_after_iota = function
+    | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
+    | [] | (_,_,_,{alias=false; _}) :: _
+    | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
+  let mark_alias ?(refold_after_iota=false) = function
+    | (c, params, args, info) :: l ->
+      (c, params, args,
+       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
     | [] -> []
 
   let drop_useless = function
@@ -66,9 +69,9 @@ module Cst_stack = struct
   let add_args cl =
     List.map (fun (a,b,args,vol) -> (a,b,(0,cl)::args,vol))
 
-  let add_cst ?(volatile=false) cst = function
+  let add_cst ?(volatile=false) ?(refold_after_iota=false) cst = function
     | (_,_,[],_) :: q as l -> l
-    | l -> (cst,[],[],{volatile; alias=false})::l
+    | l -> (cst,[],[],{volatile; alias=false; refold_after_iota})::l
 
   let best_cst = function
     | (cst,params,[],_)::_ -> Some(cst,params)
@@ -95,12 +98,13 @@ module Cst_stack = struct
     let open Pp in
     let p_c c = Termops.Internal.print_constr_env env sigma c in
     prlist_with_sep pr_semicolon
-      (fun (c,params,args,{volatile; alias}) ->
+      (fun (c,params,args,{volatile; alias; refold_after_iota}) ->
         hov 1 (str"(" ++ p_c c ++ str ")" ++ spc () ++ pr_sequence pr_a params ++ spc () ++ str "(args:" ++
                  pr_sequence (fun (i,el) -> prvect_with_sep spc pr_a (Array.sub el i (Array.length el - i))) args ++
                str ")" ++
               (if volatile then str " (volatile)" else mt()) ++
-              (if alias then str " (alias)" else mt()))) l
+              (if alias then str " (alias)" else mt()) ++
+              (if refold_after_iota then str " (refold-after-iota)" else mt()))) l
 end
 
 module CbnClos = struct
@@ -249,6 +253,7 @@ sig
              remains : int list;
              params : 'a t;
              volatile : bool;
+             refold_after_iota : bool;
              cst_l : 'a Cst_stack.t;
            }
 
@@ -313,6 +318,7 @@ struct
              remains : int list;
              params : 'a t;
              volatile : bool;
+             refold_after_iota : bool;
              cst_l : 'a Cst_stack.t;
            }
 
@@ -336,11 +342,12 @@ struct
     | Primitive (p,c,args,kargs,cst_l) ->
       str "ZPrimitive(" ++ str (CPrimitives.to_string p)
       ++ pr_comma () ++ pr pr_c args ++ str ")"
-    | Cst {const=mem;curr;remains;params;cst_l} ->
+    | Cst {const=mem;curr;remains;params;cst_l;refold_after_iota} ->
       str "ZCst(" ++ pr_cst_member pr_c mem ++ pr_comma () ++ int curr
       ++ pr_comma () ++
         prlist_with_sep pr_semicolon int remains ++
-        pr_comma () ++ pr pr_c params ++ str ")"
+        pr_comma () ++ pr pr_c params ++
+        (if refold_after_iota then str ", refold-after-iota" else mt()) ++ str ")"
   and pr pr_c l =
     let open Pp in
     prlist_with_sep pr_semicolon (fun x -> hov 1 (pr_member pr_c x)) l
@@ -587,7 +594,9 @@ let apply_subst sigma cst_l t stack =
        aux cst_l' (CbnClos.subst_cons h c) stacktl
     | _ ->
       let cst_l = match CbnClos.subst_value sigma t with
-        | Some _ -> Cst_stack.mark_alias cst_l
+        | Some _ ->
+          let refold_after_iota = match stack with [] -> false | _ :: _ -> true in
+          Cst_stack.mark_alias ~refold_after_iota cst_l
         | None -> cst_l
       in
       (cst_l, (t, stack))
@@ -1011,7 +1020,7 @@ let rec whd_state_gen ?csts flags env sigma =
                   let unfolds_to_subst_value = match recargs with
                     | _ :: _ -> None
                     | [] ->
-                      let cst_l' = Cst_stack.add_cst ~volatile (mkConstU const) cst_l in
+                      let cst_l' = Cst_stack.add_cst ~volatile ~refold_after_iota:true (mkConstU const) cst_l in
                       let cst_l', (tm', sk') =
                         apply_subst sigma cst_l' (CbnClos.inject body) app_sk in
                       match CbnClos.subst_value sigma tm' with
@@ -1025,13 +1034,16 @@ let rec whd_state_gen ?csts flags env sigma =
                     let (tm',sk'),cst_l' =
                       match recargs with
                       | [] ->
-                        whrec (Cst_stack.add_cst ~volatile (mkConstU const) cst_l) (CbnClos.inject body, app_sk)
+                        let cst_l = Cst_stack.add_cst ~volatile ~refold_after_iota:true
+                            (mkConstU const) cst_l in
+                        whrec cst_l (CbnClos.inject body, app_sk)
                       | curr :: remains -> match Stack.strip_n_app curr app_sk with
                         | None -> (x,app_sk), cst_l
                         | Some (bef,arg,app_sk') ->
                           let cst_l = Stack.Cst
                               { const = Stack.Cst_const (fst const, u');
                                 volatile;
+                                refold_after_iota = true;
                                 curr; remains; params=bef; cst_l;
                               }
                           in
@@ -1054,6 +1066,7 @@ let rec whd_state_gen ?csts flags env sigma =
                       let cst_l = Stack.Cst
                           { const = Stack.Cst_const (fst const, u');
                             volatile = Option.has_some nargs;
+                            refold_after_iota = false;
                             curr; remains; params=bef; cst_l;
                           }
                       in
@@ -1125,6 +1138,10 @@ let rec whd_state_gen ?csts flags env sigma =
                          curr;
                          remains;
                          volatile;
+                         refold_after_iota =
+                           (match behavior with
+                            | UnfoldWhenNoMatch _ -> true
+                            | UnfoldWhen _ | NeverUnfold -> false);
                          params=bef;
                          cst_l;
                        }
@@ -1171,14 +1188,13 @@ let rec whd_state_gen ?csts flags env sigma =
           in
           let reduce_with_elim_csts cst_l p =
             match cst_l, case_cst_l with
-            | [], _ :: _ when Cst_stack.is_alias case_cst_l && is_case r ->
-              (* The scrutinee was already a constructor.  Carry the enclosing
-                 refolding candidates through selected branches that expose
-                 another eliminator, so a stuck eliminator can still refold the
-                 original head.  If no eliminator captures them, rerun without
-                 those candidates: the iota step made real progress and
-                 ordinary branch-local refolding (for example of a selected
-                 constant branch) should win instead. *)
+            | [], _ :: _ when Cst_stack.may_refold_alias_after_iota case_cst_l && is_case r ->
+              (* [simpl nomatch] wrappers and head aliases with pending
+                 eliminations (for example class-projection wrappers) must stay
+                 folded when reducing under them exposes a stuck eliminator.
+                 Do not do this for ordinary transparent aliases returning a
+                 fully applied data argument: after a real iota step master
+                 keeps the progress and reduces aliases such as [fst_nat] away. *)
               let (_, cst_l') as res = whrec case_cst_l p in
               begin match cst_l' with
               | [] -> res
@@ -1193,7 +1209,7 @@ let rec whd_state_gen ?csts flags env sigma =
           let x' = clos_of_app_stack sigma x args in
           let out_sk = s' @ (Stack.append_app [|x'|] s'') in
           reduce_and_refold_fix whrec env sigma cst_l f out_sk
-        |args, (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
+        |args, (Stack.Cst {const;curr;remains;volatile;refold_after_iota;params=s';cst_l} :: s'') ->
           let x' = clos_of_app_stack sigma x args in
           begin match remains with
           | [] ->
@@ -1204,7 +1220,7 @@ let rec whd_state_gen ?csts flags env sigma =
               | Some body ->
                 let const = (fst const, EInstance.make (snd const)) in
                 let body = EConstr.of_constr body in
-                let cst_l = Cst_stack.add_cst ~volatile (mkConstU const) cst_l in
+                let cst_l = Cst_stack.add_cst ~volatile ~refold_after_iota (mkConstU const) cst_l in
                 whrec cst_l (CbnClos.inject body, s' @ (Stack.append_app [|x'|] s'')))
             | Stack.Cst_proj (p,r) ->
               let stack = s' @ (Stack.append_app [|x'|] s'') in
@@ -1219,6 +1235,7 @@ let rec whd_state_gen ?csts flags env sigma =
                   { const;
                     curr=next;
                     volatile;
+                    refold_after_iota;
                     remains=remains';
                     params=s' @ (Stack.append_app [|x'|] bef);
                     cst_l;
@@ -1261,7 +1278,7 @@ let rec whd_state_gen ?csts flags env sigma =
                | Some t -> whrec cst_l' (CbnClos.inject t,s)
                | None -> ((CbnClos.inject (mkApp (mkConstU kn, args)), s), cst_l)
              end
-        |args, (Stack.Cst {const;curr;remains;volatile;params=s';cst_l} :: s'') ->
+        |args, (Stack.Cst {const;curr;remains;volatile;refold_after_iota;params=s';cst_l} :: s'') ->
           let x' = clos_of_app_stack sigma x args in
           begin match remains with
           | [] ->
@@ -1272,7 +1289,7 @@ let rec whd_state_gen ?csts flags env sigma =
               | Some body ->
                 let const = (fst const, EInstance.make (snd const)) in
                 let body = EConstr.of_constr body in
-                let cst_l = Cst_stack.add_cst ~volatile (mkConstU const) cst_l in
+                let cst_l = Cst_stack.add_cst ~volatile ~refold_after_iota (mkConstU const) cst_l in
                 whrec cst_l (CbnClos.inject body, s' @ (Stack.append_app [|x'|] s'')))
             | Stack.Cst_proj (p,r) ->
               let stack = s' @ (Stack.append_app [|x'|] s'') in
@@ -1287,6 +1304,7 @@ let rec whd_state_gen ?csts flags env sigma =
                   { const;
                     curr=next;
                     volatile;
+                    refold_after_iota;
                     remains=remains';
                     params=s' @ (Stack.append_app [|x'|] bef);
                     cst_l;
