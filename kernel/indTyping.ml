@@ -555,6 +555,25 @@ let used_section_variables env inds =
 let sec_univs_instance secunivs =
   List.fold_right (fun uctx acc -> LevelInstance.append acc (UContext.instance uctx)) secunivs LevelInstance.empty
 
+let compute_section_universes ctx inds =
+  let fold l c = Vars.universes_of_constr ~init:l c in
+  let used = fold_inductive_blocks fold Level.Set.empty inds in
+  let used = Vars.universes_of_named_context ~init:used ctx in
+  used
+
+let used_section_universes sec_univs univs ctx inds =
+  match sec_univs with
+  | None -> []
+  | Some sec_univs -> (* sec_univs represents all universes quantified in enclosing sections *)
+    match univs with
+    | Entries.Monomorphic_ind_entry -> []
+    | Entries.Template_ind_entry _ -> []
+    | Entries.Polymorphic_ind_entry (uctx, _) ->
+      let used = compute_section_universes ctx inds in
+      let _qcstrs, ucstrs = UContext.constraints uctx in
+      let used = Univ.UnivConstraints.levels ~init:used ucstrs in
+      UVars.restrict_contexts sec_univs used
+
 let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let () = match mie.mind_entry_inds with
   | [] -> CErrors.anomaly Pp.(str "empty inductive types declaration.")
@@ -623,14 +642,14 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   in
 
   let hyps = used_section_variables env data in
-
-  let usubst, univs, sec_variance =
+  let sec_univs = used_section_universes sec_univs mie.mind_entry_universes hyps data in
+  let usubst, sec_univs, univs, sec_variance =
     match mie.mind_entry_universes with
     | Monomorphic_ind_entry ->
-      UVars.empty_sort_subst, Polymorphic Declareops.empty_universes, None
+      UVars.empty_sort_subst, sec_univs, Polymorphic Declareops.empty_universes, None
     | Template_ind_entry _ ->
       let usubst = Option.get template_usubst in
-      usubst, Template (Option.get template), None
+      usubst, sec_univs, Template (Option.get template), None
     | Polymorphic_ind_entry (uctx, variance) ->
       let variance, sec_variance = match variance with
       | None -> None, None
@@ -645,7 +664,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
         let variance, sec_variance = InferCumulativity.infer_inductive ~env:env_univs ~env_ar_par
             ~evars:(CClosure.default_evar_handler env)
             ~in_ctx:hyps
-            ~sec_univs:(Option.map sec_univs_instance sec_univs)
+            ~sec_univs:(Some (sec_univs_instance sec_univs))
             ~params
             ~arities:(List.map (fun e -> e.mind_entry_arity) mie.mind_entry_inds)
             ~ctors:(List.map (fun e -> e.mind_entry_lc) mie.mind_entry_inds)
@@ -656,7 +675,7 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
       let (inst, auctx) = UVars.abstract_universes uctx in
       let inst = UVars.make_instance_subst inst in
       let variance = Option.map (UVars.subst_sort_level_variances inst) variance in
-      (inst, Polymorphic (auctx, variance), sec_variance)
+      (inst, sec_univs, Polymorphic (auctx, variance), sec_variance)
   in
 
   let params = Vars.subst_univs_level_context usubst params in
@@ -668,5 +687,5 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     let env = Environ.pop_rel_context (Environ.nb_rel env_ar_par) env_ar_par in
     Environ.push_rel_context ctx env
   in
-  let sec_univs = match sec_univs with None -> [] | Some l -> l in
+
   env_ar_par, hyps, sec_univs, univs, sec_variance, record, not_prim_reason_or_has_eta, params, Array.of_list data
