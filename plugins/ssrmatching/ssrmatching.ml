@@ -371,8 +371,9 @@ let iter_constr_LR sigma f c = match EConstr.kind sigma c with
     for i = 0 to Array.length t - 1 do f t.(i); f b.(i) done
   | Proj(_,_,a) -> f a
   | Array(_u,t,def,ty) -> Array.iter f t; f def; f ty
-  | PBlock (_,ty,t) | PUnblock (_,ty,t) -> f ty; f t
-  | PRun (_,ty,k,b,cont) -> f ty; f k; f b; f cont
+  | PBlock (_,ty,t) -> f ty; f t
+  | PUnblock (ty,t) -> f ty; f t
+  | PRun (ty,k,b,cont) -> f ty; f k; f b; f cont
   | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _ | Construct _
      | Int _ | Float _ | String _) -> ()
 

@@ -257,10 +257,13 @@ let check_not_nested env sigma forbidden e =
       Array.iter check_not_nested t;
       check_not_nested def;
       check_not_nested ty
-    | PBlock (_, ty, c) | PUnblock (_, ty, c) ->
+    | PBlock (_, ty, c) ->
       check_not_nested ty;
       check_not_nested c
-    | PRun (_, ty, k, b, cont) ->
+    | PUnblock (ty, c) ->
+      check_not_nested ty;
+      check_not_nested c
+    | PRun (ty, k, b, cont) ->
       check_not_nested ty;
       check_not_nested k;
       check_not_nested b;

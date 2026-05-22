@@ -12,19 +12,11 @@ Fail Check (run 0 (fun x => x)).
 Definition check_run@{u1 u2} : forall (T : Type@{u1}) (K : Type@{u2}), Blocked T -> (T -> K) -> K := fun T K b k => __run@{Type Type;u1 u2} T K b k.
 Inductive sunit : SProp := sitt.
 Fail Check (__run@{SProp Type;Set Set} sunit nat (__block@{SProp;Set} sunit sitt) (fun _ => 0)).
-Polymorphic Definition bad_run_instance_source@{s1 s2;u1 u2}
-  (A : Type@{s1;u1}) (B : Type@{s2;u2}) := A.
-Ltac2 bad_run_instance () :=
-  match Constr.Unsafe.kind '(@bad_run_instance_source@{SProp Type;Set Set}) with
-  | Constr.Unsafe.Constant _ u => u
-  | _ => Control.throw Assertion_failure
-  end.
 Goal True.
 Proof.
   ltac2:(
-    let u := bad_run_instance () in
     let c := Constr.Unsafe.make
-      (Constr.Unsafe.PRun u 'sunit 'nat
+      (Constr.Unsafe.PRun 'sunit 'nat
         '(__block@{SProp;Set} sunit sitt)
         '(fun _ : sunit => 0)) in
     match Constr.Unsafe.check c with
@@ -46,38 +38,33 @@ Module RunUniverseConversion.
   Proof. reflexivity. Qed.
   Goal (let z := __run@{Type Type;Set u} nat nat b (fun x => x) in z) =
        __run@{Type Type;Set v} nat nat b (fun x => x).
-  Proof.
-    Fail reflexivity.           (* TODO *)
-  Fail Qed.
-  Abort.
+  Proof. reflexivity. Qed.
 End RunUniverseConversion.
 
 Module EConstrUniverseComparison.
   Universe u v.
   Constraint u < v.
 
-  (* Regression tests for the [EConstr.eq_constr_universes] fast path: the
-     primitive universe arguments for [__block]/[__unblock] are redundant with
-     their type argument, and the result sort argument of [__run] is redundant
-     with its continuation type. *)
+  (* Regression tests for the [EConstr.eq_constr_universes] fast path. *)
   Goal True.
   Proof.
     Fail constr_eq (__block@{Type;u} nat 0) (__block@{Type;v} nat 0).
     exact I.
   Qed.
 
+  Axiom bu : Blocked@{Type;u} nat.
   Goal True.
   Proof.
-    Fail constr_eq (__unblock@{Type;u} nat (__block@{Type;u} nat 0))
-                   (__unblock@{Type;v} nat (__block@{Type;v} nat 0)).
+    constr_eq (__unblock@{Type;u} nat bu)
+               (__unblock nat bu).
     exact I.
   Qed.
 
   Axiom b : Blocked@{Type;Set} nat.
   Goal True.
   Proof.
-    Fail constr_eq (__run@{Type Type;Set u} nat nat b (fun x => x))
-                   (__run@{Type Type;Set v} nat nat b (fun x => x)).
+    constr_eq (__run@{Type Type;Set u} nat nat b (fun x => x))
+              (__run@{Type Type;Set v} nat nat b (fun x => x)).
     exact I.
   Qed.
 End EConstrUniverseComparison.

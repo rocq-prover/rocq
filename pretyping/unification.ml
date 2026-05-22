@@ -2380,11 +2380,15 @@ let rec make sigma c0 = match EConstr.kind sigma c0 with
   let ty = make sigma ty in
   let data = max td (max def.data ty.data) in
   { proj = c0; self = AOther (Array.append [|def;ty|] t); data }
-| PBlock (_u,ty,t) | PUnblock (_u,ty,t) ->
+| PBlock (_u,ty,t) ->
   let ty = make sigma ty in
   let t = make sigma t in
   { proj = c0; self = AOther [|ty; t|]; data = max ty.data t.data }
-| PRun (_u,ty,k,b,cont) ->
+| PUnblock (ty,t) ->
+  let ty = make sigma ty in
+  let t = make sigma t in
+  { proj = c0; self = AOther [|ty; t|]; data = max ty.data t.data }
+| PRun (ty,k,b,cont) ->
   let ty = make sigma ty in
   let k = make sigma k in
   let b = make sigma b in
@@ -2571,10 +2575,13 @@ let w_unify_to_subterm_all ~metas env evd ?(flags=default_unify_flags ()) (op,cl
             | Array(_u,t,def,ty) ->
               bind (bind (bind_iter matchrec t) (matchrec def)) (matchrec ty)
 
-            | PBlock (_u,ty,t) | PUnblock (_u,ty,t) ->
+            | PBlock (_u,ty,t) ->
               bind (matchrec ty) (matchrec t)
 
-            | PRun (_u,ty,k,b,cont) ->
+            | PUnblock (ty,t) ->
+              bind (matchrec ty) (matchrec t)
+
+            | PRun (ty,k,b,cont) ->
               bind (bind (bind (matchrec ty) (matchrec k)) (matchrec b)) (matchrec cont)
 
           | Cast (_, _, _)  -> fail "Match_subterm" (* Is this expected? *)

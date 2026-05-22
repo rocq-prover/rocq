@@ -58,10 +58,10 @@ type fterm =
   | FLOCKED
   | FBlock of UVars.Instance.t * constr * constr * usubs
     (* its universe instance, its type as a constr, the contents of the block *)
-  | FUnblock of UVars.Instance.t * constr * fconstr * usubs
-  (* [{term=Funblock(u, ty, m, e);mode=mode}] is a representation of [Zunblock(u,ty,e,mode)] zipped with [m] *)
-  | FRun of UVars.Instance.t * constr * constr * fconstr * constr * usubs
-  (* [{term=FRun(u, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(u,ty1,ty2,cnt,e,mode)] zipped with [m] *)
+  | FUnblock of constr * fconstr * usubs
+  (* [{term=Funblock(ty, m, e);mode=mode}] is a representation of [Zunblock(ty,e,mode)] zipped with [m] *)
+  | FRun of constr * constr * fconstr * constr * usubs
+  (* [{term=FRun(ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(ty1,ty2,cnt,e,mode)] zipped with [m] *)
 
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by
@@ -94,10 +94,10 @@ type stack_member =
        (* operator, constr def, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
-  | Zunblock of UVars.Instance.t * constr * usubs * mode
-  (* unblock universe instance, its type argument, the substitution for both constrs, saved reduction flags *)
-  | Zrun of UVars.Instance.t * constr * constr * constr * usubs * mode
-  (* run universe instance, its type arguments, its continuation, the substitution for all constrs, saved reduction flags *)
+  | Zunblock of constr * usubs * mode
+  (* unblock type argument, the substitution for both constrs, saved reduction flags *)
+  | Zrun of constr * constr * constr * usubs * mode
+  (* run type arguments, its continuation, the substitution for all constrs, saved reduction flags *)
 
 and stack = stack_member list
 

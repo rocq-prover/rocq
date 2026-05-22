@@ -592,15 +592,13 @@ let () =
       Tac2ffi.of_constr ty;
       Tac2ffi.of_constr t;
     |]
-  | PUnblock (u, ty, t) ->
+  | PUnblock (ty, t) ->
     v_blk 22 [|
-      of_instance u;
       Tac2ffi.of_constr ty;
       Tac2ffi.of_constr t;
     |]
-  | PRun (u, ty, k, b, cont) ->
+  | PRun (ty, k, b, cont) ->
     v_blk 23 [|
-      of_instance u;
       Tac2ffi.of_constr ty;
       Tac2ffi.of_constr k;
       Tac2ffi.of_constr b;
@@ -702,18 +700,16 @@ let () =
     let ty = Tac2ffi.to_constr ty in
     let t = Tac2ffi.to_constr t in
     EConstr.mkPBlock(u,ty,t)
-  | (22, [|u;ty;t|]) ->
-    let u = to_instance u in
+  | (22, [|ty;t|]) ->
     let ty = Tac2ffi.to_constr ty in
     let t = Tac2ffi.to_constr t in
-    EConstr.mkPUnblock(u,ty,t)
-  | (23, [|u;ty;k;b;cont|]) ->
-    let u = to_instance u in
+    EConstr.mkPUnblock(ty,t)
+  | (23, [|ty;k;b;cont|]) ->
     let ty = Tac2ffi.to_constr ty in
     let k = Tac2ffi.to_constr k in
     let b = Tac2ffi.to_constr b in
     let cont = Tac2ffi.to_constr cont in
-    EConstr.mkPRun(u,ty,k,b,cont)
+    EConstr.mkPRun(ty,k,b,cont)
   | _ -> assert false
 
 let () =

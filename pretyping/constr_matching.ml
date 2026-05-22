@@ -620,15 +620,15 @@ let sub_match ?(closed=true) env sigma pat c =
     | _ -> assert false
     in
     try_aux [(env,ty); (env,t)] next_mk_ctx next
-  | PUnblock (u,ty,t) ->
+  | PUnblock (ty,t) ->
     let next_mk_ctx = function
-    | [ty; t] -> mk_ctx (mkPUnblock (u, ty, t))
+    | [ty; t] -> mk_ctx (mkPUnblock (ty, t))
     | _ -> assert false
     in
     try_aux [(env,ty); (env,t)] next_mk_ctx next
-  | PRun (u,ty,k,b,cont) ->
+  | PRun (ty,k,b,cont) ->
     let next_mk_ctx = function
-    | [ty; k; b; cont] -> mk_ctx (mkPRun (u, ty, k, b, cont))
+    | [ty; k; b; cont] -> mk_ctx (mkPRun (ty, k, b, cont))
     | _ -> assert false
     in
     try_aux [(env,ty); (env,k); (env,b); (env,cont)] next_mk_ctx next

@@ -1743,7 +1743,7 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
   let pretype_unblock self (u,ty,b) =
     fun ?loc ~flags tycon env sigma ->
     let sigma, bj = eval_pretyper self ~flags empty_tycon env sigma b in
-    let u0, bty = dest_blocked_type ?loc env sigma bj.uj_type in
+    let _u0, bty = dest_blocked_type ?loc env sigma bj.uj_type in
     let sigma, tyj =
       if is_type_hole ty then eval_type_pretyper self ~flags (mk_valcon bty) env sigma ty
       else eval_type_pretyper self ~flags empty_valcon env sigma ty
@@ -1753,17 +1753,16 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
       with Evarconv.UnableToUnify (sigma,e) -> error_actual_type ?loc !!env sigma bj tyj.utj_val e
     in
     let ty = nf_evar sigma tyj.utj_val in
-    let sigma, u = match u with
-      | None -> sigma, u0
+    let sigma = match u with
+      | None -> sigma
       | Some _ ->
         let s = force_sort_of !!env sigma ty in
         let sigma, u = force_instance ?loc env sigma [|s|] u in
         let blocked = EConstr.of_constr (Typeops.type_of_blocked !!env u) in
-        let sigma = check_actual_type !!env sigma bj (EConstr.mkApp(blocked,[|ty|])) in
-        sigma, u
+        check_actual_type !!env sigma bj (EConstr.mkApp(blocked,[|ty|]))
     in
     let j = {
-      uj_val = EConstr.mkPUnblock(EInstance.make u, ty, bj.uj_val);
+      uj_val = EConstr.mkPUnblock(ty, bj.uj_val);
       uj_type = ty
     } in
     discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma j tycon
@@ -1771,7 +1770,7 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
   let pretype_run self (u,ty,kty,b,k) =
     fun ?loc ~flags tycon env sigma ->
     let sigma, bj = eval_pretyper self ~flags empty_tycon env sigma b in
-    let u0, bty = dest_blocked_type ?loc env sigma bj.uj_type in
+    let _u0, bty = dest_blocked_type ?loc env sigma bj.uj_type in
     let sigma, tyj =
       if is_type_hole ty then eval_type_pretyper self ~flags (mk_valcon bty) env sigma ty
       else eval_type_pretyper self ~flags empty_valcon env sigma ty
@@ -1781,7 +1780,7 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
       with Evarconv.UnableToUnify (sigma,e) -> error_actual_type ?loc !!env sigma bj tyj.utj_val e
     in
     let ty = nf_evar sigma tyj.utj_val in
-    let unblocked = EConstr.mkPUnblock(EInstance.make u0, bty, bj.uj_val) in
+    let unblocked = EConstr.mkPUnblock(bty, bj.uj_val) in
     let sigma, kty, kj =
       if is_type_hole kty then
         let r = ESorts.relevance_of_sort (force_sort_of !!env sigma ty) in
@@ -1809,23 +1808,18 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
         with QGraph.EliminationError _ | UGraph.UniverseInconsistency _ ->
           user_err ?loc Pp.(str "This run eliminates into an invalid sort.")
     in
-    let sigma, u = match u with
-      | None ->
-        let qs0, us0 = UVars.Instance.to_array u0 in
-        let sigma, uk = implicit_force_instance ?loc env sigma [|sk|] in
-        let qsk, usk = UVars.Instance.to_array uk in
-        sigma, UVars.Instance.of_array (Array.append qs0 qsk, Array.append us0 usk)
+    let sigma = match u with
+      | None -> sigma
       | Some _ ->
         let sigma, u = force_instance ?loc env sigma [|sty; sk|] u in
         let qsu, usu = UVars.Instance.to_array u in
         let uty = UVars.Instance.of_array ([|qsu.(0)|], [|usu.(0)|]) in
         let blocked = EConstr.of_constr (Typeops.type_of_blocked !!env uty) in
-        let sigma = check_actual_type !!env sigma bj (EConstr.mkApp(blocked,[|ty|])) in
-        sigma, u
+        check_actual_type !!env sigma bj (EConstr.mkApp(blocked,[|ty|]))
     in
     let sigma = check_actual_type !!env sigma kj (EConstr.mkProd (EConstr.anonR, ty, EConstr.Vars.lift 1 kty)) in
     let j = {
-      uj_val = EConstr.mkPRun(EInstance.make u, ty, kty, bj.uj_val, kj.uj_val);
+      uj_val = EConstr.mkPRun(ty, kty, bj.uj_val, kj.uj_val);
       uj_type = kty
     } in
     discard_trace @@ inh_conv_coerce_to_tycon ?loc ~flags env sigma j tycon

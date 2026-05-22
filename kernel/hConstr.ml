@@ -286,8 +286,8 @@ let hash_kind = let open Hashset.Combine in function
   | String s -> combinesmall 20 (Pstring.hash s)
   | Array (u,t,def,ty) -> combinesmall 21 (combine4 (UVars.Instance.hash u) (hash_array hash t) def.hash ty.hash)
   | PBlock (u,ty,t) -> combinesmall 22 (combine3 (UVars.Instance.hash u) ty.hash t.hash)
-  | PUnblock (u,ty,t) -> combinesmall 23 (combine3 (UVars.Instance.hash u) ty.hash t.hash)
-  | PRun (u,ty,k,b,cont) -> combinesmall 24 (combine5 (UVars.Instance.hash u) ty.hash k.hash b.hash cont.hash)
+  | PUnblock (ty,t) -> combinesmall 23 (combine ty.hash t.hash)
+  | PRun (ty,k,b,cont) -> combinesmall 24 (combine4 ty.hash k.hash b.hash cont.hash)
 
 let kind_to_constr = function
   | Rel n -> mkRel n
@@ -319,8 +319,8 @@ let kind_to_constr = function
   | String s -> mkString s
   | Array (u,t,def,ty) -> mkArray (u,Array.map self t,def.self,ty.self)
   | PBlock (u,ty,t) -> mkPBlock (u,ty.self,t.self)
-  | PUnblock (u,ty,t) -> mkPUnblock (u,ty.self,t.self)
-  | PRun (u,ty,k,b,cont) -> mkPRun (u,ty.self,k.self,b.self,cont.self)
+  | PUnblock (ty,t) -> mkPUnblock (ty.self,t.self)
+  | PRun (ty,k,b,cont) -> mkPRun (ty.self,k.self,b.self,cont.self)
 
 let of_kind_nohashcons = function
   | App (c, [||]) -> c
@@ -472,18 +472,16 @@ and of_constr_aux henv c =
     let ty = of_constr henv ty in
     let t = of_constr henv t in
     PBlock (u,ty,t)
-  | PUnblock (u,ty,t) ->
-    let _, u = UVars.Instance.hcons u in
+  | PUnblock (ty,t) ->
     let ty = of_constr henv ty in
     let t = of_constr henv t in
-    PUnblock (u,ty,t)
-  | PRun (u,ty,k,b,cont) ->
-    let _, u = UVars.Instance.hcons u in
+    PUnblock (ty,t)
+  | PRun (ty,k,b,cont) ->
     let ty = of_constr henv ty in
     let k = of_constr henv k in
     let b = of_constr henv b in
     let cont = of_constr henv cont in
-    PRun (u,ty,k,b,cont)
+    PRun (ty,k,b,cont)
 
 and push_rel_context henv ctx =
   List.fold_right (fun d henv ->

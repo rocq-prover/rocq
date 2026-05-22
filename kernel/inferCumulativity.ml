@@ -264,11 +264,11 @@ let rec infer_fterm cv_pb infos variances hd stk =
     let variances = infer_fterm CONV infos variances (mk_clos e ty) [] in
     let variances = infer_fterm CONV infos variances (mk_clos e t) [] in
     infer_stack infos variances stk
-  | FUnblock (_, ty, m, e) ->
+  | FUnblock (ty, m, e) ->
     let variances = infer_fterm CONV infos variances (mk_clos e ty) [] in
     let variances = infer_fterm CONV infos variances m [] in
     infer_stack infos variances stk
-  | FRun (_, ty1, ty2, m, k, e) ->
+  | FRun (ty1, ty2, m, k, e) ->
     let variances = infer_fterm CONV infos variances (mk_clos e ty1) [] in
     let variances = infer_fterm CONV infos variances (mk_clos e ty2) [] in
     let variances = infer_fterm CONV infos variances m [] in
@@ -312,9 +312,9 @@ and infer_stack infos variances (stk:CClosure.stack) =
         let variances = List.fold_left (fun variances c -> infer_fterm CONV infos variances c []) variances rargs in
         let variances = List.fold_left (fun variances (_,c) -> infer_fterm CONV infos variances c []) variances kargs in
         variances
-      | Zunblock (_, ty, e, _) ->
+      | Zunblock (ty, e, _) ->
         infer_fterm CONV infos variances (mk_clos e ty) []
-      | Zrun (_, ty1, ty2, k, e, _) ->
+      | Zrun (ty1, ty2, k, e, _) ->
         let variances = infer_fterm CONV infos variances (mk_clos e ty1) [] in
         let variances = infer_fterm CONV infos variances (mk_clos e ty2) [] in
         infer_fterm CONV infos variances (mk_clos e k) []

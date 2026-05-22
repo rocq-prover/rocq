@@ -350,6 +350,19 @@ let type_of_blocked env u =
   | Some c -> mkConstU (c,u)
   | None -> CErrors.user_err Pp.(str"The type blocked terms must be registered before this construction can be typechecked.")
 
+let dest_type_of_blocked env ty =
+  let blocked_kn = match (Environ.retroknowledge env).Retroknowledge.retro_blocked with
+  | Some c -> c
+  | None -> CErrors.user_err Pp.(str"The type blocked terms must be registered before this construction can be typechecked.")
+  in
+  match kind (Reduction.whd_all env ty) with
+  | App (hd, [|arg|]) ->
+    begin match kind hd with
+    | Const (c,u) when Constant.UserOrd.equal c blocked_kn -> u, arg
+    | _ -> CErrors.user_err Pp.(str "Expected a blocked term.")
+    end
+  | _ -> CErrors.user_err Pp.(str "Expected a blocked term.")
+
 (* Type of product *)
 
 let sort_of_product env domsort rangsort =
@@ -864,33 +877,24 @@ and execute_aux tbl env cstr =
       check_cast env (self t) tt DEFAULTcast ty;
       mkApp (type_of_blocked env u, [|ty|])
 
-    | PUnblock (u,ty,b) ->
-      let q, ulev = match UVars.Instance.to_array u with
-        | [|q|], [|u|] -> q, u
-        | _ -> assert false
-      in
+    | PUnblock (ty,b) ->
       let tyty = execute tbl env ty in
       let ty = self ty in
-      check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
+      ignore (check_type env ty tyty);
       let bt = execute tbl env b in
+      let u, _ = dest_type_of_blocked env bt in
       check_cast env (self b) bt DEFAULTcast (mkApp (type_of_blocked env u, [|ty|]));
       ty
 
-    | PRun (u,ty,k,b,cont) ->
-      let q, qk, ulev, uk = match UVars.Instance.to_array u with
-        | [|q; qk|], [|u; uk|] -> q, qk, u, uk
-        | _ -> assert false
-      in
-      let blocked_u = UVars.Instance.of_array ([|q|], [|ulev|]) in
+    | PRun (ty,k,b,cont) ->
       let tyty = execute tbl env ty in
       let ty = self ty in
       let ty_sort = check_type env ty tyty in
-      check_cast env ty tyty DEFAULTcast (mkSort (Sorts.make q (Universe.make ulev)));
       let kt = execute tbl env k in
       let k = self k in
       let k_sort = check_type env k kt in
-      check_cast env k kt DEFAULTcast (mkSort (Sorts.make qk (Universe.make uk)));
       let bt = execute tbl env b in
+      let blocked_u, _ = dest_type_of_blocked env bt in
       check_cast env (self b) bt DEFAULTcast (mkApp (type_of_blocked env blocked_u, [|ty|]));
       let contt = execute tbl env cont in
       check_cast env (self cont) contt DEFAULTcast (mkProd (Context.anonR, ty, Vars.lift 1 k));

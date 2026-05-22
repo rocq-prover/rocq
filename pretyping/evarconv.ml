@@ -1333,13 +1333,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
             else UnifFailure (evd,NotSameHead)
 
         | PBlock (_,ty1,t1), PBlock (_,ty2,t2)
-        | PUnblock (_,ty1,t1), PUnblock (_,ty2,t2) ->
+        | PUnblock (ty1,t1), PUnblock (ty2,t2) ->
           ise_and evd
             [(fun i -> evar_conv_x flags env i CONV ty1 ty2);
              (fun i -> evar_conv_x flags env i CONV t1 t2);
              (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
 
-        | PRun (_,ty1,k1,b1,cont1), PRun (_,ty2,k2,b2,cont2) ->
+        | PRun (ty1,k1,b1,cont1), PRun (ty2,k2,b2,cont2) ->
           ise_and evd
             [(fun i -> evar_conv_x flags env i CONV ty1 ty2);
              (fun i -> evar_conv_x flags env i CONV k1 k2);

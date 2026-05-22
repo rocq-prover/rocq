@@ -412,20 +412,18 @@ let subst_univs_level_constr subst c =
         let b' = aux b in
         if u == u' && ty == ty' && b == b' then t
         else (changed := true; mkPBlock (u',ty',b'))
-      | PUnblock (u,ty,b) ->
-        let u' = f u in
+      | PUnblock (ty,b) ->
         let ty' = aux ty in
         let b' = aux b in
-        if u == u' && ty == ty' && b == b' then t
-        else (changed := true; mkPUnblock (u',ty',b'))
-      | PRun (u,ty,k,b,cont) ->
-        let u' = f u in
+        if ty == ty' && b == b' then t
+        else (changed := true; mkPUnblock (ty',b'))
+      | PRun (ty,k,b,cont) ->
         let ty' = aux ty in
         let k' = aux k in
         let b' = aux b in
         let cont' = aux cont in
-        if u == u' && ty == ty' && k == k' && b == b' && cont == cont' then t
-        else (changed := true; mkPRun (u',ty',k',b',cont'))
+        if ty == ty' && k == k' && b == b' && cont == cont' then t
+        else (changed := true; mkPRun (ty',k',b',cont'))
 
       | _ -> Constr.map aux t
     in
@@ -488,20 +486,18 @@ let subst_instance_constr subst c =
         let b' = aux b in
         if u == u' && ty == ty' && b == b' then t
         else mkPBlock (u',ty',b')
-      | PUnblock (u,ty,b) ->
-        let u' = f u in
+      | PUnblock (ty,b) ->
         let ty' = aux ty in
         let b' = aux b in
-        if u == u' && ty == ty' && b == b' then t
-        else mkPUnblock (u',ty',b')
-      | PRun (u,ty,k,b,cont) ->
-        let u' = f u in
+        if ty == ty' && b == b' then t
+        else mkPUnblock (ty',b')
+      | PRun (ty,k,b,cont) ->
         let ty' = aux ty in
         let k' = aux k in
         let b' = aux b in
         let cont' = aux cont in
-        if u == u' && ty == ty' && k == k' && b == b' && cont == cont' then t
-        else mkPRun (u',ty',k',b',cont')
+        if ty == ty' && k == k' && b == b' && cont == cont' then t
+        else mkPRun (ty',k',b',cont')
 
       | _ -> Constr.map aux t
     in
@@ -567,7 +563,7 @@ let visit_kind_univs visit acc c =
   | Array (u,_,_,_) ->
     let acc = visit.visit_instance acc u in
     acc
-  | PBlock (u,_,_) | PUnblock (u,_,_) | PRun (u,_,_,_,_) ->
+  | PBlock (u,_,_) ->
     let acc = visit.visit_instance acc u in
     acc
   | Case (_, u, _, _, _,_ ,_) ->

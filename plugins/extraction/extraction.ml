@@ -411,10 +411,12 @@ let rec extract_type (table : Common.State.t) env sg db j c args =
             | (Info, TypeScheme) ->
               extract_type_app table env sg db (r, type_sign env sg ty) args
             | (Info, Default) -> Tunknown))
-    | PBlock (_, _, t) | PUnblock (_, _, t) ->
+    | PBlock (_, _, t) ->
         extract_type table env sg db j t args
-    | PRun (u, ty, _, b, cont) ->
-        let arg = EConstr.mkPUnblock (u, ty, b) in
+    | PUnblock (_, t) ->
+        extract_type table env sg db j t args
+    | PRun (ty, _, b, cont) ->
+        let arg = EConstr.mkPUnblock (ty, b) in
         extract_type table env sg db j (EConstr.mkApp (cont, [|arg|])) args
     | Cast _ | LetIn _ | Construct _ | Int _ | Float _ | String _ | Array _ -> assert false
 
@@ -772,9 +774,9 @@ let rec extract_term table env sg mle mlt c args =
       let def = extract_term table env sg mle a def [] in
       MLparray(ml_arr, def)
     | PBlock (_, _, t) -> extract_term table env sg mle mlt t args
-    | PUnblock (_, _, b) -> extract_term table env sg mle mlt b args
-    | PRun (u, ty, _, b, cont) ->
-      let arg = EConstr.mkPUnblock (u, ty, b) in
+    | PUnblock (_, b) -> extract_term table env sg mle mlt b args
+    | PRun (ty, _, b, cont) ->
+      let arg = EConstr.mkPUnblock (ty, b) in
       extract_term table env sg mle mlt (EConstr.mkApp (cont, [|arg|])) args
     | Ind _ | Prod _ | Sort _ -> assert false
 

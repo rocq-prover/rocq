@@ -169,20 +169,18 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     let t' = aux k t in
     if u == u' && ty == ty' && t == t' then c
     else mkPBlock (u',ty',t')
-  | PUnblock (u,ty,t) ->
-    let u' = Instance.subst_fn flevel u in
+  | PUnblock (ty,t) ->
     let ty' = aux k ty in
     let t' = aux k t in
-    if u == u' && ty == ty' && t == t' then c
-    else mkPUnblock (u',ty',t')
-  | PRun (u,ty,kty,b,cont) ->
-    let u' = Instance.subst_fn flevel u in
+    if ty == ty' && t == t' then c
+    else mkPUnblock (ty',t')
+  | PRun (ty,kty,b,cont) ->
     let ty' = aux k ty in
     let kty' = aux k kty in
     let b' = aux k b in
     let cont' = aux k cont in
-    if u == u' && ty == ty' && kty == kty' && b == b' && cont == cont' then c
-    else mkPRun (u',ty',kty',b',cont')
+    if ty == ty' && kty == kty' && b == b' && cont == cont' then c
+    else mkPRun (ty',kty',b',cont')
   | Prod (na, t, u) ->
     let na' = Context.map_annot_relevance frel na in
     let t' = aux k t in

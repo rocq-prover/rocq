@@ -1692,12 +1692,17 @@ let check_one_fix ?evars renv recpos trees def =
             let rs = check_inert_subterm_rec_call renv rs ty in
             rs
 
-        | PBlock (_u,ty,t) | PUnblock (_u,ty,t) ->
+        | PBlock (_u,ty,t) ->
             let rs = check_inert_subterm_rec_call renv rs ty in
             let rs = check_inert_subterm_rec_call renv rs t in
             rs
 
-        | PRun (_u,ty,k,b,cont) ->
+        | PUnblock (ty,t) ->
+            let rs = check_inert_subterm_rec_call renv rs ty in
+            let rs = check_inert_subterm_rec_call renv rs t in
+            rs
+
+        | PRun (ty,k,b,cont) ->
             let rs = check_inert_subterm_rec_call renv rs ty in
             let rs = check_inert_subterm_rec_call renv rs k in
             let rs = check_inert_subterm_rec_call renv rs b in

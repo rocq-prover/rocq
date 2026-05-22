@@ -227,9 +227,9 @@ let pattern_of_constr ~broken env sigma t =
       PArray (Array.map (pattern_of_constr env) t, pattern_of_constr env def, pattern_of_constr env ty)
     | PBlock (_u, ty, t) ->
       PApp (PVar (Id.of_string "__block"), [|pattern_of_constr env ty; pattern_of_constr env t|])
-    | PUnblock (_u, ty, t) ->
+    | PUnblock (ty, t) ->
       PApp (PVar (Id.of_string "__unblock"), [|pattern_of_constr env ty; pattern_of_constr env t|])
-    | PRun (_u, ty, k, b, cont) ->
+    | PRun (ty, k, b, cont) ->
       PApp (PVar (Id.of_string "__run"),
             [|pattern_of_constr env ty; pattern_of_constr env k; pattern_of_constr env b; pattern_of_constr env cont|])
     in

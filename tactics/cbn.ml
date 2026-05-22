@@ -963,14 +963,14 @@ let rec whd_state_gen ?csts flags env sigma =
         |_ -> fold ()
       else fold ()
 
-    | PUnblock (_u,_ty,b) ->
+    | PUnblock (_ty,b) ->
       let ((b', _), _) = whrec Cst_stack.empty (b, Stack.empty) in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec cst_l (t, stack)
       | _ -> fold ()
       end
 
-    | PRun (_u,_ty,_k,b,cont) ->
+    | PRun (_ty,_k,b,cont) ->
       let ((b', _), _) = whrec Cst_stack.empty (b, Stack.empty) in
       begin match EConstr.kind sigma b' with
       | PBlock (_, _, t) -> whrec cst_l (mkApp (cont, [|t|]), stack)

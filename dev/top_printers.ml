@@ -418,8 +418,8 @@ let constr_display csr =
       Printf.sprintf "String(%S)" (Pstring.to_string s)
   | Array (u,t,def,ty) -> "Array("^(array_display t)^","^(term_display def)^","^(term_display ty)^")@{" ^universes_display u^"\n"
   | PBlock (u,ty,t) -> "__block@{"^universes_display u^"}("^(term_display ty)^","^(term_display t)^")"
-  | PUnblock (u,ty,t) -> "__unblock@{"^universes_display u^"}("^(term_display ty)^","^(term_display t)^")"
-  | PRun (u,ty,k,b,cont) -> "__run@{"^universes_display u^"}("^(term_display ty)^","^(term_display k)^","^(term_display b)^","^(term_display cont)^")"
+  | PUnblock (ty,t) -> "__unblock("^(term_display ty)^","^(term_display t)^")"
+  | PRun (ty,k,b,cont) -> "__run("^(term_display ty)^","^(term_display k)^","^(term_display b)^","^(term_display cont)^")"
 
   and array_display v =
     "[|"^
@@ -594,11 +594,11 @@ let print_pure_constr csr =
   | PBlock (u,ty,t) ->
       print_string "__block@{"; universes_display u; print_string "}(";
       box_display ty; print_string ","; box_display t; print_string ")"
-  | PUnblock (u,ty,t) ->
-      print_string "__unblock@{"; universes_display u; print_string "}(";
+  | PUnblock (ty,t) ->
+      print_string "__unblock(";
       box_display ty; print_string ","; box_display t; print_string ")"
-  | PRun (u,ty,k,b,cont) ->
-      print_string "__run@{"; universes_display u; print_string "}(";
+  | PRun (ty,k,b,cont) ->
+      print_string "__run(";
       box_display ty; print_string ","; box_display k; print_string ",";
       box_display b; print_string ","; box_display cont; print_string ")"
 

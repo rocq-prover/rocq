@@ -63,9 +63,9 @@ let compare_stack_shape stk1 stk2 =
     | Zprimitive(op1,_,rargs1, _kargs1)::s1, Zprimitive(op2,_,rargs2, _kargs2)::s2 ->
         bal=0 && op1=op2 && List.length rargs1=List.length rargs2 &&
         compare_rec 0 s1 s2
-    | Zunblock (_,_,_,f1) :: s1, Zunblock (_,_,_,f2) :: s2 ->
+    | Zunblock (_,_,f1) :: s1, Zunblock (_,_,f2) :: s2 ->
         f1 == f2 && compare_rec 0 s1 s2
-    | Zrun (_,_,_,_,_,f1) :: s1, Zrun (_,_,_,_,_,f2) :: s2 ->
+    | Zrun (_,_,_,_,f1) :: s1, Zrun (_,_,_,_,f2) :: s2 ->
         f1 == f2 && compare_rec 0 s1 s2
     | [], _ :: _
     | (Zproj _ | ZcaseT _ | Zfix _ | Zprimitive _ | Zunblock _ | Zrun _) :: _, _ -> false
@@ -81,8 +81,8 @@ type lft_constr_stack_elt =
   | Zlcase of case_info * lift * UVars.Instance.t * constr array * case_return * case_branch array * usubs
   | Zlprimitive of
      CPrimitives.t * pconstant * lft_fconstr list * lft_fconstr next_native_args
-  | Zlunblock of lift * UVars.Instance.t * constr * usubs
-  | Zlrun of lift * UVars.Instance.t * constr * constr * constr * usubs
+  | Zlunblock of lift * constr * usubs
+  | Zlrun of lift * constr * constr * constr * usubs
 and lft_constr_stack = lft_constr_stack_elt list
 
 let rec zlapp v = function
@@ -120,10 +120,10 @@ let pure_stack lfts stk =
             | (Zprimitive(op,c,rargs,kargs),(l,pstk)) ->
                 (l,Zlprimitive(op,c,List.map (fun t -> (l,t)) rargs,
                             List.map (fun (k,t) -> (k,(l,t))) kargs)::pstk)
-            | (Zunblock(u,ty,e,_),(l,pstk)) ->
-                (l,(Zlunblock(l,u,ty,e)::pstk))
-            | (Zrun(u,ty1,ty2,k,e,_),(l,pstk)) ->
-                (l,(Zlrun(l,u,ty1,ty2,k,e)::pstk))
+            | (Zunblock(ty,e,_),(l,pstk)) ->
+                (l,(Zlunblock(l,ty,e)::pstk))
+            | (Zrun(ty1,ty2,k,e,_),(l,pstk)) ->
+                (l,(Zlrun(l,ty1,ty2,k,e)::pstk))
           )
   in
   snd (pure_rec lfts stk)
@@ -371,10 +371,11 @@ let rec compare_under e1 c1 e2 c2 =
     Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) t1 t2
     && compare_under e1 def1 e2 def2
     && compare_under e1 ty1 e2 ty2
-  | PBlock (_u1,ty1,t1), PBlock (_u2,ty2,t2)
-  | PUnblock (_u1,ty1,t1), PUnblock (_u2,ty2,t2) ->
+  | PBlock (_u1,ty1,t1), PBlock (_u2,ty2,t2) ->
     compare_under e1 ty1 e2 ty2 && compare_under e1 t1 e2 t2
-  | PRun (_u1,ty1,k1,b1,cont1), PRun (_u2,ty2,k2,b2,cont2) ->
+  | PUnblock (ty1,t1), PUnblock (ty2,t2) ->
+    compare_under e1 ty1 e2 ty2 && compare_under e1 t1 e2 t2
+  | PRun (ty1,k1,b1,cont1), PRun (ty2,k2,b2,cont2) ->
     compare_under e1 ty1 e2 ty2 && compare_under e1 k1 e2 k2 &&
     compare_under e1 b1 e2 b2 && compare_under e1 cont1 e2 cont2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
@@ -447,8 +448,11 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
         let el2 = el_stack lft2 v2 in
         let n = reloc_rel n el1 in
         let m = reloc_rel m el2 in
-        let rn = Range.get (info_relevances infos.cnv_inf) (n - 1) in
-        let rm = Range.get (info_relevances infos.cnv_inf) (m - 1) in
+        let relevances = info_relevances infos.cnv_inf in
+        if n <= 0 || m <= 0 || n > Range.length relevances || m > Range.length relevances then
+          raise NotConvertible;
+        let rn = Range.get relevances (n - 1) in
+        let rm = Range.get relevances (m - 1) in
         if is_irrelevant infos.cnv_inf rn && is_irrelevant infos.cnv_inf rm then
           let v1 = CClosure.skip_irrelevant_stack infos.cnv_inf v1 in
           let v2 = CClosure.skip_irrelevant_stack infos.cnv_inf v2 in
@@ -904,16 +908,10 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                 let cu2 = List.fold_right2 f rargs1 rargs2 cu1 in
                 let fk (_,a1) (_,a2) cu = f a1 a2 cu in
                 List.fold_right2 fk kargs1 kargs2 cu2
-            | (Zlunblock(l1,u1,ty1,e1), Zlunblock(l2,u2,ty2,e2)) ->
-              let u1 = CClosure.usubst_instance e1 u1 in
-              let u2 = CClosure.usubst_instance e2 u2 in
-              let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
-              f (l1, mk_clos e1 ty1) (l2, mk_clos e2 ty2) cu
-            | (Zlrun(l1,u1,ty11,ty12,k1,e1), Zlrun(l2,u2,ty21,ty22,k2,e2)) ->
-              let u1 = CClosure.usubst_instance e1 u1 in
-              let u2 = CClosure.usubst_instance e2 u2 in
-              let cu = fail_check infos @@ convert_instances ~flex:false u1 u2 cu1 in
-              let cu = f (l1, mk_clos e1 ty11) (l2, mk_clos e2 ty21) cu in
+            | (Zlunblock(l1,ty1,e1), Zlunblock(l2,ty2,e2)) ->
+              f (l1, mk_clos e1 ty1) (l2, mk_clos e2 ty2) cu1
+            | (Zlrun(l1,ty11,ty12,k1,e1), Zlrun(l2,ty21,ty22,k2,e2)) ->
+              let cu = f (l1, mk_clos e1 ty11) (l2, mk_clos e2 ty21) cu1 in
               let cu = f (l1, mk_clos e1 ty12) (l2, mk_clos e2 ty22) cu in
               f (l1, mk_clos e1 k1) (l2, mk_clos e2 k2) cu
 

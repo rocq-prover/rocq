@@ -557,7 +557,7 @@ $coq_opam_package (dependency install failed in $RUNNER)"
         for iteration in $(seq $num_of_iterations); do
             export COQ_ITERATION=$iteration
             _RES=0
-            timeout "$timeout" opam install -y -v -b -j 1 $coq_opam_package \
+            timeout "$timeout" opam install -y -v -b -j 32 $coq_opam_package \
                  3>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stdout.log 1>&3 \
                  4>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stderr.log 2>&4 || \
                 _RES=$?

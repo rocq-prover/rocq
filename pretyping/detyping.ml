@@ -931,16 +931,16 @@ and detype_r d flags avoid env sigma t =
       let ty = detype d flags avoid env sigma ty in
       let t = detype d flags avoid env sigma t in
       GPBlock (detype_instance ~flags sigma u, ty, t)
-    | PUnblock (u,ty,t) ->
+    | PUnblock (ty,t) ->
       let ty = detype d flags avoid env sigma ty in
       let t = detype d flags avoid env sigma t in
-      GPUnblock (detype_instance ~flags sigma u, ty, t)
-    | PRun (u,ty,k,b,cont) ->
+      GPUnblock (None, ty, t)
+    | PRun (ty,k,b,cont) ->
       let ty = detype d flags avoid env sigma ty in
       let k = detype d flags avoid env sigma k in
       let b = detype d flags avoid env sigma b in
       let cont = detype d flags avoid env sigma cont in
-      GPRun (detype_instance ~flags sigma u, ty, k, b, cont)
+      GPRun (None, ty, k, b, cont)
 
 and detype_eqns d flags avoid env sigma computable constructs bl =
   try

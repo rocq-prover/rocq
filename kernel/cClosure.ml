@@ -154,10 +154,10 @@ and fterm =
   | FLOCKED
   | FBlock of UVars.Instance.t * constr * constr * usubs
     (* its universe instance, its type as a constr, the contents of the block *)
-  | FUnblock of UVars.Instance.t * constr * fconstr * usubs
-  (* [{term=Funblock(u, ty, m, e);mode=mode}] is a representation of [Zunblock(u,ty,e,mode)] zipped with [m] *)
-  | FRun of UVars.Instance.t * constr * constr * fconstr * constr * usubs
-  (* [{term=FRun(u, ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(u,ty1,ty2,cnt,e,mode)] zipped with [m] *)
+  | FUnblock of constr * fconstr * usubs
+  (* [{term=Funblock(ty, m, e);mode=mode}] is a representation of [Zunblock(ty,e,mode)] zipped with [m] *)
+  | FRun of constr * constr * fconstr * constr * usubs
+  (* [{term=FRun(ty1, ty2, m, cnt, e);mode=mode}] is a representation of [Zrun(ty1,ty2,cnt,e,mode)] zipped with [m] *)
 
 and usubs = fconstr subs UVars.puniverses
 
@@ -267,10 +267,10 @@ type stack_member =
        (* operator, constr def, arguments already seen (in rev order), next arguments *)
   | Zshift of int
   | Zupdate of fconstr
-  | Zunblock of UVars.Instance.t * constr * usubs * mode
-  (* unblock universe instance, its type argument, the substitution for both constrs, saved reduction flags *)
-  | Zrun of UVars.Instance.t * constr * constr * constr * usubs * mode
-  (* run universe instance, its type arguments, its continuation, the substitution for all constrs, saved reduction flags *)
+  | Zunblock of constr * usubs * mode
+  (* unblock type argument, the substitution for both constrs, saved reduction flags *)
+  | Zrun of constr * constr * constr * usubs * mode
+  (* run type arguments, its continuation, the substitution for all constrs, saved reduction flags *)
 
 and stack = stack_member list
 
@@ -731,21 +731,19 @@ let rec to_constr ~(info:clos_infos) ~(tab:clos_tab) lfts v =
         let u = usubst_instance subs u in
         Constr.mkPBlock (u, ty, t)
 
-    | FUnblock (u, ty, m, e) ->
+    | FUnblock (ty, m, e) ->
       let m = to_constr lfts m in
       let subs = comp_subs lfts e in
       let ty = subst_constr subs ty in
-      let u = usubst_instance subs u in
-      Constr.mkPUnblock (u, ty, m)
+      Constr.mkPUnblock (ty, m)
 
-    | FRun (u, ty1, ty2, m, k, e) ->
+    | FRun (ty1, ty2, m, k, e) ->
       let m = to_constr lfts m in
       let subs = comp_subs lfts e in
       let ty1 = subst_constr subs ty1 in
       let ty2 = subst_constr subs ty2 in
       let k = subst_constr subs k in
-      let u = usubst_instance subs u in
-      Constr.mkPRun (u, ty1, ty2, m, k)
+      Constr.mkPRun (ty1, ty2, m, k)
 
     | FIrrelevant -> assert (!Flags.in_debugger); mkVar(Id.of_string"_IRRELEVANT_")
     | FLOCKED -> assert (!Flags.in_debugger); mkVar(Id.of_string"_LOCKED_")
@@ -855,10 +853,10 @@ let zip m stk =
       let args = List.rev_append rargs (m::List.map snd kargs) in
       let f = {mark = RedState.mk red mode; term = FFlex (ConstKey c)} in
       zip {mark=RedState.neutr m.mark; term = FApp (f, Array.of_list args)} s
-    | Zunblock (op,ty,e,mode) :: s ->
-      zip {mark=RedState.mk ntrl mode; term=FUnblock (op, ty, m, e)} s
-    | Zrun (op,ty1,ty2,k,e,mode) :: s ->
-      zip {mark=RedState.mk ntrl mode; term=FRun (op, ty1, ty2, m, k, e)} s
+    | Zunblock (ty,e,mode) :: s ->
+      zip {mark=RedState.mk ntrl mode; term=FUnblock (ty, m, e)} s
+    | Zrun (ty1,ty2,k,e,mode) :: s ->
+      zip {mark=RedState.mk ntrl mode; term=FRun (ty1, ty2, m, k, e)} s
   in
   zip m stk
 
@@ -1547,11 +1545,11 @@ let rec knh info m stk =
        | Some s -> knh info c (s :: zupdate info m stk))
     | FConstruct _ -> strip_update_shift_absorb_app m stk
 
-    | FUnblock (op, ty, m1, e) ->
-      knh info m1 (Zunblock(op, ty, e, RedState.mode m.mark) :: stk)
+    | FUnblock (ty, m1, e) ->
+      knh info m1 (Zunblock(ty, e, RedState.mode m.mark) :: stk)
 
-    | FRun (op, ty1, ty2, m1, k, e) ->
-      knh info m1 (Zrun(op, ty1, ty2, k, e, RedState.mode m.mark) :: stk)
+    | FRun (ty1, ty2, m1, k, e) ->
+      knh info m1 (Zrun(ty1, ty2, k, e, RedState.mode m.mark) :: stk)
 
 (* cases where knh stops *)
     | (FFlex _|FLetIn _|FEvar _|FCaseInvert _|FIrrelevant|
@@ -1592,13 +1590,13 @@ and knht ~mode info (e : usubs) t stk : fconstr * stack =
     | PBlock (u,ty,t) ->
       let mode = if mode == identity then identity else normal_whnf in
       knh info { mark = RedState.mk cstr mode; term = FBlock (u, ty, t, e) } stk
-    | PUnblock (u,ty,t) ->
-      knht ~mode:full info e t (Zunblock (u, ty, e, mode) :: stk)
-    | PRun (u,ty1,ty2,t,k) ->
+    | PUnblock (ty,t) ->
+      knht ~mode:full info e t (Zunblock (ty, e, mode) :: stk)
+    | PRun (ty1,ty2,t,k) ->
       if mode != identity then
-        knht ~mode:full info e t (Zrun (u, ty1, ty2, k, e, mode) :: stk)
+        knht ~mode:full info e t (Zrun (ty1, ty2, k, e, mode) :: stk)
       else
-        ({ mark = RedState.mk ntrl mode; term = FCLOS (mkPRun (u,ty1,ty2,t,k), e) }, stk)
+        ({ mark = RedState.mk ntrl mode; term = FCLOS (mkPRun (ty1,ty2,t,k), e) }, stk)
     | (Ind _|Const _|Construct _|Var _|Meta _ | Sort _ | Int _|Float _|String _) -> (mk_clos ~mode e t, stk)
     | CoFix cfx -> ({ mark = RedState.mk cstr mode; term = FCoFix (cfx,e) }, stk)
     | Lambda _ -> ({ mark = RedState.mk cstr mode; term = mk_lambda e t }, stk)
@@ -2141,10 +2139,10 @@ let rec knr info tab ~pat_state m stk =
      | (head, (_, _, s)) -> knr_ret info tab ~pat_state (head, s))
   | FBlock (_, _, t, e) ->
     (match [@ocaml.warning "-4"] strip_update_shift_app m stk with
-     | (_, _, rargs, Zunblock (_,_,_,mode) :: stk) ->
+     | (_, _, rargs, Zunblock (_,_,mode) :: stk) ->
          let stk = List.rev_append rargs stk in
          knit ~mode info tab ~pat_state e t stk
-     | (_, _, rargs, Zrun (_,_,_,k,ek,mode) :: stk) ->
+     | (_, _, rargs, Zrun (_,_,k,ek,mode) :: stk) ->
          let stk = List.rev_append rargs stk in
          let k = mk_clos ~mode ek k in
          let t = mk_clos ~mode e t in
@@ -2387,18 +2385,16 @@ and zip_term info tab m stk =
       List.fold_left (fun args a -> kl info tab a ::args) (m::kargs) rargs in
     let h = mkApp (mkConstU c, Array.of_list args) in
     zip_term info tab h s
-| Zunblock (u, ty, e, mode)::s ->
+| Zunblock (ty, e, mode)::s ->
     let ty = klt ~mode info tab e ty in
-    let u = usubst_instance e u in
-    let h = Constr.mkPUnblock (u, ty, m) in
+    let h = Constr.mkPUnblock (ty, m) in
     zip_term info tab h s
-| Zrun (u, ty1, ty2, k, e, mode)::s ->
+| Zrun (ty1, ty2, k, e, mode)::s ->
     let ty1 = klt ~mode info tab e ty1 in
     let ty2 = klt ~mode info tab e ty2 in
     let k = klt ~mode info tab e k in
     let m = term_of_fconstr ~info ~tab (inject ~mode:normal_whnf m) in (* TODO mode? see [Zunblock] above *)
-    let u = usubst_instance e u in
-    let h = Constr.mkPRun (u, ty1, ty2, m, k) in
+    let h = Constr.mkPRun (ty1, ty2, m, k) in
     zip_term info tab h s
 
 (* Initialization and then normalization *)

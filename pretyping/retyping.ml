@@ -282,8 +282,8 @@ let retype ?metas ?(polyprop=true) sigma =
     | PBlock (u, ty, _) ->
       let blocked = EConstr.of_constr @@ Typeops.type_of_blocked env (EInstance.kind sigma u) in
       mkApp (blocked, [|ty|])
-    | PUnblock (_u, ty, _) -> ty
-    | PRun (_u, _ty, k, _b, _cont) -> k
+    | PUnblock (ty, _) -> ty
+    | PRun (_ty, k, _b, _cont) -> k
 
   and sort_of env t : ESorts.t =
     match EConstr.kind sigma t with
