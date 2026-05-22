@@ -1046,7 +1046,7 @@ let has_constant_parameters env nvars k ((mind, _), _) args =
   let mib = Environ.lookup_mind mind env in
   let auxnpar = mib.mind_nparams_rec in
   let (lpar, _) = List.chop auxnpar args in
-  List.for_all (fun c -> noccur_with_meta (1 + k) (nvars + k) c) lpar
+  List.for_all (fun c -> noccur_with_meta (1 + k) nvars c) lpar
 
 (* [restrict_spec env spec p] restricts the size information in spec to what is
    allowed to flow out of a match with predicate p in environment env. *)
