@@ -1,0 +1,15 @@
+     = fun y : nat => match y with
+                      | 0 => 1
+                      | S _ => 0
+                      end
+     : nat -> nat
+     = fun y : nat => match y with
+                      | 0 => 1
+                      | S _ => 0
+                      end
+     : nat -> nat
+     = fun y : nat => match y with
+                      | 0 => 1
+                      | S _ => 0
+                      end
+     : nat -> nat
