@@ -543,11 +543,14 @@ let rec execute ?(check_evar_ctx=true) env sigma cstr =
           let evinfo = Evd.find_undefined sigma n in
           let sigma, tys = SList.Skip.fold_left_map (execute ~check_evar_ctx env) sigma args in
           let atys = Evd.evar_filtered_context evinfo in
+          (* `atys` may contain some `Var`, whereas the type of the `args` contain only `Rel`, so we build a correspondance between the two. *)
+          (* N.B. the section variables do not need to be replaced, but I do not know which variables are section variables. *)
+          let rels = List.rev (snd (List.fold_left (fun (n, l) var -> (n + 1, match Context.Rel.Declaration.get_name var with | Name var -> (var, mkRel n) :: l | _ -> l)) (1, []) (Environ.rel_context env))) in
           let sigma = List.fold_left2 (fun sigma aty ty ->
             match ty with | None -> sigma | Some ty ->
             let aty = Context.Named.Declaration.get_type aty in
             let aty = Evd.instantiate_evar_array sigma evinfo aty args in
-            try Evarconv.unify_leq_delay env sigma ty.uj_type aty
+            try Evarconv.unify_leq_delay env sigma (EConstr.Vars.replace_vars sigma rels ty.uj_type) (EConstr.Vars.replace_vars sigma rels aty)
             with Evarconv.UnableToUnify (sigma,error) ->
               (* FIXME: Find a suitable error msg. *)
               error_cannot_unify env sigma ~reason:error (ty.uj_type, aty)
