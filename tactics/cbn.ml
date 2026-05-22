@@ -137,6 +137,35 @@ module CbnClos = struct
       let subst = List.fold_right Esubst.subs_cons (f :: args) id_subst in
       mk_clos subst term
 
+  let mk_array u elems def ty =
+    let n = Array.length elems in
+    let term = mkArray (u, Array.init n (fun i -> mkRel (i + 1)), mkRel (n + 1), mkRel (n + 2)) in
+    let subst = List.fold_right Esubst.subs_cons (Array.to_list elems @ [def; ty]) id_subst in
+    mk_clos subst term
+
+  type array_view = {
+    array_length : int;
+    array_get : int -> t;
+    array_default : t;
+  }
+
+  let rec array_view sigma c =
+    match EConstr.kind sigma c.term with
+    | Rel n ->
+      begin match Esubst.expand_rel n c.subst with
+      | Inl (k, v) -> array_view sigma (lift k v)
+      | Inr _ -> None
+      end
+    | Cast (b, _, _) -> array_view sigma (mk_clos c.subst b)
+    | Array (u, elems, def, ty) ->
+      let subst = c.subst in
+      Some {
+        array_length = Array.length elems;
+        array_get = (fun i -> mk_clos subst elems.(i));
+        array_default = mk_clos subst def;
+      }
+    | _ -> None
+
   let rec force sigma c =
     if Esubst.is_subs_id c.subst then c.term
     else match c.forced with
@@ -613,6 +642,67 @@ let clos_of_app_stack sigma x args =
   | Some args -> CbnClos.mk_app x args
   | None -> assert false
 
+let reduce_array_primitive sigma u p args =
+  let get i = Array.get args i in
+  let get_int i = match CbnClos.kind sigma (get i) with
+    | Int i -> Some i
+    | _ -> None
+  in
+  let get_array i = CbnClos.array_view sigma (get i) in
+  let bounded_index len i =
+    if Uint63.le Uint63.zero i && Uint63.lt i (Uint63.of_int len)
+    then Some (snd (Uint63.to_int2 i))
+    else None
+  in
+  let elems_of_array a = Array.init a.CbnClos.array_length a.CbnClos.array_get in
+  let mk_array elems def ty = CbnClos.mk_array u elems def ty in
+  try match p with
+  | CPrimitives.Arraymake ->
+    begin match get_int 1 with
+    | Some len ->
+      let a = Parray.make len (get 2) in
+      let elems, def = Parray.to_array a in
+      Some (mk_array elems def (get 0))
+    | None -> None
+    end
+  | CPrimitives.Arrayget ->
+    begin match get_array 1, get_int 2 with
+    | Some a, Some i ->
+      let elt = match bounded_index a.CbnClos.array_length i with
+        | Some i -> a.CbnClos.array_get i
+        | None -> a.CbnClos.array_default
+      in
+      Some elt
+    | _, _ -> None
+    end
+  | CPrimitives.Arraydefault ->
+    begin match get_array 1 with
+    | Some a -> Some a.CbnClos.array_default
+    | None -> None
+    end
+  | CPrimitives.Arrayset ->
+    begin match get_array 1, get_int 2 with
+    | Some a, Some i ->
+      let elems = match bounded_index a.CbnClos.array_length i with
+        | Some i -> Array.init a.CbnClos.array_length (fun j -> if Int.equal i j then get 3 else a.CbnClos.array_get j)
+        | None -> elems_of_array a
+      in
+      Some (mk_array elems a.CbnClos.array_default (get 0))
+    | _, _ -> None
+    end
+  | CPrimitives.Arraycopy ->
+    begin match get_array 1 with
+    | Some a -> Some (mk_array (elems_of_array a) a.CbnClos.array_default (get 0))
+    | None -> None
+    end
+  | CPrimitives.Arraylength ->
+    begin match get_array 1 with
+    | Some a -> Some (CbnClos.inject (mkInt (Uint63.of_int a.CbnClos.array_length)))
+    | None -> None
+    end
+  | _ -> None
+  with Invalid_argument _ -> None
+
 let apply_subst sigma cst_l t stack =
   let rec aux cst_l t stack =
     match (Stack.decomp stack, CbnClos.kind sigma t) with
@@ -964,12 +1054,53 @@ let rec whd_state_gen ?csts flags env sigma =
                    str "|" ++ cut () ++ Stack.pr pr stack ++
                    str ">>")))
     in
-    let c0 = CbnClos.kind sigma x in
+    let reduce_primitive_value () =
+      match Stack.strip_app stack with
+      | (_, Stack.Primitive(p,(_,u as kn),rargs,kargs,cst_l')::s) ->
+        let more_to_reduce = List.exists (fun k -> CPrimitives.Kwhnf = k) kargs in
+        if more_to_reduce then
+          let (kargs,o) = Stack.get_next_primitive_args kargs s in
+          (* Should not fail because Primitive is put on the stack only if fully applied *)
+          let (before,a,after) = Option.get o in
+          Some (whrec Cst_stack.empty (a,Stack.Primitive(p,kn,rargs @ Stack.append_app [|x|] before,kargs,cst_l')::after))
+        else
+          let n = List.length kargs in
+          let (args,s) = Stack.strip_app s in
+          let (args,extra_args) =
+            try List.chop n args
+            with List.IndexOutOfRange -> (args,[]) (* FIXME probably useless *)
+          in
+          let s = extra_args @ s in
+          let args = Option.get (Stack.list_of_app_stack (rargs @ Stack.append_app [|x|] args)) in
+          let args = Array.of_list args in
+          Some
+            (match reduce_array_primitive sigma u p args with
+             | Some t -> whrec cst_l' (t,s)
+             | None ->
+               let args = Array.map (CbnClos.force sigma) args in
+               match CredNative.red_prim env sigma p u args with
+               | Some t -> whrec cst_l' (CbnClos.inject t,s)
+               | None -> ((CbnClos.inject (mkApp (mkConstU kn, args)), s), cst_l))
+      | _ -> None
+    in
     let fold () =
       let () = debug_RAKAM (fun () ->
           Pp.(str "<><><><><>")) in
       ((x, stack),cst_l)
     in
+    (* Resuming a primitive on an array value does not need the full
+       [CbnClos.kind] view of the array; building that view allocates a closure
+       for every element even when [array_get]/[array_length] will discard most
+       of them. *)
+    let early_array_primitive = match Stack.strip_app stack with
+      | _, Stack.Primitive _ :: _ when Option.has_some (CbnClos.array_view sigma x) ->
+        reduce_primitive_value ()
+      | _ -> None
+    in
+    match early_array_primitive with
+    | Some res -> res
+    | None ->
+    let c0 = CbnClos.kind sigma x in
     match c0 with
     | Rel n when RedFlags.red_set flags RedFlags.fDELTA ->
       (match lookup_rel n env with
@@ -1281,28 +1412,10 @@ let rec whd_state_gen ?csts flags env sigma =
       else fold ()
 
     | Int _ | Float _ | String _ | Array _ ->
+      begin match reduce_primitive_value () with
+      | Some res -> res
+      | None ->
       begin match Stack.strip_app stack with
-       | (_, Stack.Primitive(p,(_,u as kn),rargs,kargs,cst_l')::s) ->
-         let more_to_reduce = List.exists (fun k -> CPrimitives.Kwhnf = k) kargs in
-         if more_to_reduce then
-           let (kargs,o) = Stack.get_next_primitive_args kargs s in
-           (* Should not fail because Primitive is put on the stack only if fully applied *)
-           let (before,a,after) = Option.get o in
-           whrec Cst_stack.empty (a,Stack.Primitive(p,kn,rargs @ Stack.append_app [|x|] before,kargs,cst_l')::after)
-         else
-           let n = List.length kargs in
-           let (args,s) = Stack.strip_app s in
-           let (args,extra_args) =
-             try List.chop n args
-             with List.IndexOutOfRange -> (args,[]) (* FIXME probably useless *)
-           in
-           let s = extra_args @ s in
-           let args = Option.get (Stack.list_of_app_stack (rargs @ Stack.append_app [|x|] args)) in
-           let args = Array.of_list (List.map (CbnClos.force sigma) args) in
-             begin match CredNative.red_prim env sigma p u args with
-               | Some t -> whrec cst_l' (CbnClos.inject t,s)
-               | None -> ((CbnClos.inject (mkApp (mkConstU kn, args)), s), cst_l)
-             end
         |args, (Stack.Cst {const;curr;remains;volatile;refold_after_iota;params=s';cst_l} :: s'') ->
           let x' = clos_of_app_stack sigma x args in
           begin match remains with
@@ -1338,6 +1451,7 @@ let rec whd_state_gen ?csts flags env sigma =
               whrec Cst_stack.empty (arg, cst_l :: s''')
           end
        | _ -> fold ()
+      end
       end
 
     | Rel _ | Var _ | LetIn _ | Proj _ -> fold ()
