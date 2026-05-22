@@ -509,7 +509,10 @@ struct
       | None -> assert false
 
   let zip ?(refold=false) sigma ~force ~force_return ~force_invert ~force_branch ~force_fix ~inject ~equal s =
-  let best_state = best_state ~inject ~equal in
+  (* [best_state_opt] only inspects the residual stack.  Try it before
+     materializing eliminated terms: on success the reconstructed case/fix/proj
+     would be discarded immediately. *)
+  let best_refold = best_state_opt ~inject ~equal in
   let rec zip = function
     | f, [] -> force f
     | f, (App (i,a,j) :: s) ->
@@ -518,20 +521,46 @@ struct
                 else Array.sub a i (j - i + 1) in
        zip (inject (mkApp (force f, Array.map force a')), s)
     | f, (Case ((ci,u,pms,rt,iv,br),cst_l)::s) when refold ->
-      let case = mkCase (ci,u,Array.map force pms,force_return rt,force_invert iv,force f,Array.map force_branch br) in
-      zip (best_state (inject case, s) cst_l)
+      begin match best_refold s cst_l with
+      | Some state -> zip state
+      | None ->
+        let case = mkCase (ci,u,Array.map force pms,force_return rt,force_invert iv,force f,Array.map force_branch br) in
+        zip (inject case, s)
+      end
     | f, (Case ((ci,u,pms,rt,iv,br),_)::s) ->
       zip (inject (mkCase (ci,u,Array.map force pms,force_return rt,force_invert iv,force f,Array.map force_branch br)), s)
     | f, (Fix (fix,st,cst_l)::s) when refold ->
-      zip (best_state (inject (mkFix (force_fix fix)), st @ (append_app [|f|] s)) cst_l)
+      let sk = st @ append_app [|f|] s in
+      begin match best_refold sk cst_l with
+      | Some state -> zip state
+      | None -> zip (inject (mkFix (force_fix fix)), sk)
+      end
   | f, (Fix (fix,st,_)::s) -> zip
     (inject (mkFix (force_fix fix)), st @ (append_app [|f|] s))
   | f, (Cst {const;params;cst_l}::s) when refold ->
-    zip (best_state (constr_of_cst_member force inject const (params @ (append_app [|f|] s))) cst_l)
+    let sk = params @ append_app [|f|] s in
+    begin match const with
+    | Cst_const (c, u) ->
+      begin match best_refold sk cst_l with
+      | Some state -> zip state
+      | None -> zip (inject (mkConstU (c, EInstance.make u)), sk)
+      end
+    | Cst_proj (p, r) ->
+      match decomp sk with
+      | Some (hd, sk) ->
+        begin match best_refold sk cst_l with
+        | Some state -> zip state
+        | None -> zip (inject (mkProj (p, r, force hd)), sk)
+        end
+      | None -> assert false
+    end
   | f, (Cst {const;params}::s) ->
     zip (constr_of_cst_member force inject const (params @ (append_app [|f|] s)))
   | f, (Proj (p,r,cst_l)::s) when refold ->
-    zip (best_state (inject (mkProj (p,r,force f)),s) cst_l)
+    begin match best_refold s cst_l with
+    | Some state -> zip state
+    | None -> zip (inject (mkProj (p,r,force f)),s)
+    end
   | f, (Proj (p,r,_)::s) -> zip (inject (mkProj (p,r,force f)),s)
   | f, (Primitive (p,c,args,kargs,cst_l)::s) ->
       zip (inject (mkConstU c), args @ append_app [|f|] s)
