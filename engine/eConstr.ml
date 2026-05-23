@@ -644,12 +644,13 @@ let expand_branch env _sigma u pms (ind, i) (nas, _br) =
   in
   ans
 
-let contract_case env _sigma (ci, (p,r), iv, c, bl) =
-  let p = unsafe_to_constr p in
+let contract_case env sigma (ci, (p,r), iv, c, bl) =
+  let nf c = to_constr ~abort_on_undefined_evars:false sigma c in
+  let p = nf p in
   let r = ERelevance.unsafe_to_relevance r in
   let iv = unsafe_to_case_invert iv in
   let c = unsafe_to_constr c in
-  let bl = unsafe_to_constr_array bl in
+  let bl = Array.map nf bl in
   let (ci, u, pms, p, iv, c, bl) = Inductive.contract_case env (ci, (p,r), iv, c, bl) in
   let u = EInstance.make u in
   let pms = of_constr_array pms in
