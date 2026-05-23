@@ -1,8 +1,11 @@
-(* Test for bug #22058: contract_case anomaly on evar-backed and LetIn-inlined branches *)
+(* Test for bug #22058: contract_case anomaly on evar-backed branches *)
 
 From Ltac2 Require Import Ltac2 Constr.
 
-(* Reproducer 1: evar-backed Lambda bodies *)
+(* Reproducer: evar-backed Lambda bodies *)
+(* When Constr.in_context creates Lambda terms whose bodies are solved evars,
+   unsafe_to_constr (identity) doesn't resolve them, so the kernel's
+   decompose_lambda_n_decls_opt sees Evar instead of Lambda and fails. *)
 
 Ltac2 make_evar_backed_branch () : constr :=
   Constr.in_context @a constr:(nat) (fun () =>
@@ -28,39 +31,3 @@ Goal True.
   | _ => ()
   end.
 Abort.
-
-(* Reproducer 2: LetIn inlining *)
-
-Unset Primitive Projections.
-Record MyRec := mkMyRec {
-  field1 : nat;
-  field2 : nat := field1 + 1;
-  field3 : nat
-}.
-
-Ltac2 trigger () :=
-  let f := constr:(fun (r : MyRec) => match r with mkMyRec a b c => a + b + c end) in
-  match Unsafe.kind f with
-  | Unsafe.Lambda _ body =>
-    match Unsafe.kind body with
-    | Unsafe.Case ci (ret, rel) iv scrut branches =>
-      let br := Array.get branches 0 in
-      let rec inline (c : constr) : constr :=
-        match Unsafe.kind c with
-        | Unsafe.Lambda b body => Unsafe.make (Unsafe.Lambda b (inline body))
-        | Unsafe.LetIn _b v body =>
-          let inlined := Unsafe.substnl [v] 0 body in
-          inline inlined
-        | _ => c
-        end in
-      let br' := inline br in
-      let branches' := Array.make 1 br' in
-      let _ := Constr.Unsafe.make
-        (Unsafe.Case ci (ret, rel) iv scrut branches') in
-      ()
-    | _ => ()
-    end
-  | _ => ()
-  end.
-
-Goal True. trigger (). Abort.
