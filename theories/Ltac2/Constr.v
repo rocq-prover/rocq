@@ -9,7 +9,7 @@
 (************************************************************************)
 
 Require Import Ltac2.Init.
-Require Ltac2.Ind Ltac2.Array.
+Require Ltac2.Ind Ltac2.Array Ltac2.Control Ltac2.Message Ltac2.Fresh Ltac2.List.
 
 Ltac2 @ external type : constr -> constr := "rocq-runtime.plugins.ltac2" "constr_type".
 (** Return the type of a term *)
@@ -437,6 +437,97 @@ Ltac2 @ external in_context : ident -> constr -> constr option -> (unit -> unit)
     a pair [(binder, t)] where [binder] is the binder and [t] is the proof
     built by the tactic. *)
 
+(** [map_with_full_binders f c] maps [f] on the immediate subterms of [c];
+    it uses [in_context] at each binder traversal;
+    it is not recursive and the order with which subterms are processed
+    is not specified. *)
+Ltac2 map_with_full_binders (f : constr -> constr) (c : constr) : constr :=
+  let default_name := @x in
+  let name_of (b : binder) : ident :=
+    match Binder.name b with
+    | Some id => id
+    | None => default_name
+    end
+  in
+  let fresh_name (b : binder) : ident :=
+    Fresh.in_goal (name_of b)
+  in
+  let map_under_lambda (b : binder) (body : constr) : constr :=
+    let bty' := f (Binder.type b) in
+    let id := fresh_name b in
+    let (b', body') := in_context id bty' None (fun () =>
+      let h := Control.hyp id in
+      Control.refine (fun () => f (substnl [h] 0 body))) in
+    make (Lambda b' body')
+  in
+  let map_under_prod (b : binder) (body : constr) : constr :=
+    let bty' := f (Binder.type b) in
+    let id := fresh_name b in
+    let (b', body') := in_context id bty' None (fun () =>
+      let h := Control.hyp id in
+      Control.refine (fun () => f (substnl [h] 0 body))) in
+    make (Prod b' body')
+  in
+  let map_under_letin (b : binder) (value : constr) (body : constr) : constr :=
+    let (bty', v') := (f (Binder.type b), f value) in
+    let id := fresh_name b in
+    let (b', body') := in_context id bty' (Some v') (fun () =>
+      let h := Control.hyp id in
+      Control.refine (fun () => f (substnl [h] 0 body))) in
+    make (LetIn b' v' body')
+  in
+  let map_under_fix_body (binders : binder array) (body : constr) : constr :=
+    let nbinders := Array.length binders in
+    let rec open_binders (i : int) (ids : ident list) : constr :=
+      if Int.ge i nbinders then
+        let hyps := List.map Control.hyp ids in
+        f (substnl hyps 0 body)
+      else
+        let b := Array.get binders i in
+        let id := fresh_name b in
+        let (_, result) := in_context id (Binder.type b) None (fun () =>
+          Control.refine (fun () =>
+            open_binders (Int.add i 1) (id :: ids))) in
+        result
+    in
+    open_binders 0 []
+  in
+  match kind c with
+  | Rel _ | Meta _ | Var _ | Sort _
+  | Constant _ _ | Ind _ _ | Constructor _ _
+  | Uint63 _ | Float _ | String _ => c
+  | Evar _ _ => c
+  | Cast v k ty =>
+      let (v', ty') := (f v, f ty) in
+      make (Cast v' k ty')
+  | Lambda b body => map_under_lambda b body
+  | Prod b body => map_under_prod b body
+  | LetIn b value body => map_under_letin b value body
+  | App head args =>
+      let (head', args') := (f head, Array.map f args) in
+      make (App head' args')
+  | Case ci (ret, rel) iv scrut branches =>
+      let (ret', scrut', branches') := (f ret, f scrut, Array.map f branches) in
+      make (Case ci (ret', rel) iv scrut' branches')
+  | Fix structs which types bodies =>
+      let types' := Array.map (fun b =>
+        Binder.make (Binder.name b) (f (Binder.type b))) types in
+      let bodies' := Array.init (Array.length bodies) (fun i =>
+        map_under_fix_body types' (Array.get bodies i)) in
+      make (Fix structs which types' bodies')
+  | CoFix which types bodies =>
+      let types' := Array.map (fun b =>
+        Binder.make (Binder.name b) (f (Binder.type b))) types in
+      let bodies' := Array.init (Array.length bodies) (fun i =>
+        map_under_fix_body types' (Array.get bodies i)) in
+      make (CoFix which types' bodies')
+  | Proj p r v =>
+      make (Proj p r (f v))
+  | Array u arr def ty =>
+      let (arr', def', ty') := (Array.map f arr, f def, f ty) in
+      make (Array u arr' def' ty')
+  end.
+
 End Unsafe.
 
 Module Cast.
@@ -471,6 +562,17 @@ Ltac2 in_context_letin (id : ident) (ty : constr) (defn : constr) (f : unit -> u
     [let id : ty := defn in t] where [t] is the proof built by the tactic.
     [id] is the bound variable name, [ty] is its type, and [defn] is its
     definition. *)
+
+(** [map_with_full_binders f c] maps [f] on the immediate subterms of [c];
+    it uses [in_context] at each binder traversal;
+    it is not recursive and the order with which subterms are processed
+    is not specified.
+    Checks the result with [Unsafe.check] and raises on failure. *)
+Ltac2 map_with_full_binders (f : constr -> constr) (c : constr) : constr :=
+  match Unsafe.check (Unsafe.map_with_full_binders f c) with
+  | Val c => c
+  | Err e => Control.zero e
+  end.
 
 Module Pretype.
   Module Flags.
