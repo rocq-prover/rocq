@@ -199,11 +199,6 @@ module CbnClos = struct
     let nb = Array.length bodies in
     (n, (names, force_vect sigma types, force_under_vect sigma nb bodies))
 
-  let equal sigma a b =
-    a == b || EConstr.eq_constr sigma (force sigma a) (force sigma b)
-
-  let equal_under sigma n a b = equal sigma (liftn n a) (liftn n b)
-
   let map_invert subst = function
     | NoInvert -> NoInvert
     | CaseInvert { indices } -> CaseInvert { indices = mk_clos_vect subst indices }
@@ -221,6 +216,16 @@ module CbnClos = struct
       end
     | Cast (b, _, _) -> subst_value sigma (mk_clos c.subst b)
     | _ -> None
+
+  let equal sigma a b =
+    a == b || (a.term == b.term && a.subst == b.subst) ||
+    (* TODO: add fast path that returns false on non-Rel terms whose head is not of the same shape.
+       Alternatively, fuse the equality check and the substitution *)
+    let a = force sigma a in
+    let b = force sigma b in
+    a == b || EConstr.eq_constr sigma a b
+
+  let equal_under sigma n a b = equal sigma (liftn n a) (liftn n b)
 
   let rec kind sigma c : view =
     match EConstr.kind sigma c.term with
@@ -1205,7 +1210,20 @@ let rec whd_state_gen ?csts flags env sigma =
                           in
                           whrec Cst_stack.empty (arg,cst_l :: app_sk')
                     in
-                    if equal_stacks env sigma (x, app_sk) (tm', sk')
+                    (* If the selected recursive argument definitely changed,
+                       the unfolded state cannot be equal to the original one;
+                       avoid a full stack comparison, which may force unrelated
+                       arguments only to discard the equality result. *)
+                    let recarg_changed = match recargs with
+                      | [] -> false
+                      | curr :: _ ->
+                        not (CbnClos.equal sigma x tm') ||
+                        match Stack.strip_n_app curr app_sk, Stack.strip_n_app curr sk' with
+                        | Some (_, arg, _), Some (_, arg', _) ->
+                          not (CbnClos.equal sigma arg arg')
+                        | _ -> false
+                    in
+                    if (not recarg_changed && equal_stacks env sigma (x, app_sk) (tm', sk'))
                     || Stack.will_expose_iota sk'
                     || is_case tm'
                     then fold ()
