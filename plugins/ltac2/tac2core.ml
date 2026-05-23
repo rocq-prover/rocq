@@ -769,6 +769,51 @@ let () =
   | _ ->
     throw Tac2ffi.err_notfocussed
 
+let () =
+  define "constr_unsafe_in_context" (ident @-> constr @-> option constr @-> thunk unit @-> tac (pair binder constr)) @@ fun id t body_opt c ->
+  Proofview.Goal.goals >>= function
+  | [gl] ->
+    gl >>= fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let has_var =
+      try
+        let _ = Environ.lookup_named id env in
+        true
+      with Not_found -> false
+    in
+    if has_var then
+      Tacticals.tclZEROMSG (str "Variable already exists")
+    else
+      let open Context.Named.Declaration in
+      let sigma, t_rel =
+        let t_ty = Retyping.get_type_of env sigma t in
+        (* If the user passed eg ['_] for the type we force it to indeed be a type *)
+        let sigma, j = Typing.type_judgment env sigma {uj_val=t; uj_type=t_ty} in
+        sigma, EConstr.ESorts.relevance_of_sort j.utj_type
+      in
+      let annot = Context.make_annot id t_rel in
+      let sigma, nenv = match body_opt with
+        | None -> sigma, EConstr.push_named (LocalAssum (annot, t)) env
+        | Some body ->
+          let sigma = Typing.check env sigma body t in
+          sigma, EConstr.push_named (LocalDef (annot, body, t)) env
+      in
+      let (sigma, (evt, s)) = Evarutil.new_type_evar nenv sigma Evd.univ_flexible in
+      let relevance = EConstr.ESorts.relevance_of_sort s in
+      let (sigma, evk) = Evarutil.new_pure_evar (Environ.named_context_val nenv) sigma ~relevance evt in
+      Proofview.Unsafe.tclEVARS sigma >>= fun () ->
+      Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state evk] >>= fun () ->
+      thaw c >>= fun _ ->
+      Proofview.Unsafe.tclSETGOALS [Proofview.goal_with_state (Proofview.Goal.goal gl) (Proofview.Goal.state gl)] >>= fun () ->
+      let args = EConstr.identity_subst_val (Environ.named_context_val env) in
+      let args = SList.cons (EConstr.mkRel 1) args in
+      let ans = EConstr.mkEvar (evk, args) in
+      let binder_annot = Context.make_annot (Name id) t_rel in
+      return ((binder_annot, t), ans)
+  | _ ->
+    throw Tac2ffi.err_notfocussed
+
 (** preterm -> constr *)
 
 let () = define "constr_flags" (ret pretype_flags) constr_flags
