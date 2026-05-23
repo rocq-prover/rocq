@@ -46,8 +46,10 @@ module Cst_stack = struct
     | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
     | [] | (_,_,_,{alias=false; _}) :: _
     | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
-  let mark_alias = function
-    | (c, params, args, info) :: l -> (c, params, args, { info with alias = true }) :: l
+  let mark_alias ?(refold_after_iota=false) = function
+    | (c, params, args, info) :: l ->
+      (c, params, args,
+       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
     | [] -> []
 
   let drop_useless = function
@@ -716,7 +718,12 @@ let apply_subst sigma cst_l t stack =
        aux cst_l' (CbnClos.subst_cons h c) stacktl
     | _ ->
       let cst_l = match CbnClos.subst_value sigma t with
-        | Some _ -> Cst_stack.mark_alias cst_l
+        | Some tm ->
+          let refold_after_iota = match stack, CbnClos.kind sigma tm with
+            | _ :: _, (Const _ | Var _ | Rel _) -> true
+            | [], _ | _ :: _, _ -> false
+          in
+          Cst_stack.mark_alias ~refold_after_iota cst_l
         | None -> cst_l
       in
       (cst_l, (t, stack))
