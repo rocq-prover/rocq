@@ -108,13 +108,16 @@ open Core
 let v_blk = Valexpr.make_block
 
 let of_relevance = function
-  | Sorts.Relevant -> ValInt 0
-  | Sorts.Irrelevant -> ValInt 1
-  | Sorts.RelevanceVar q -> ValBlk (0, [|of_qvar q|])
+  | Sorts.Relevant -> of_int 0
+  | Sorts.Irrelevant -> of_int 1
+  | Sorts.RelevanceVar q -> of_fat @@ ValBlk (0, [|of_qvar q|])
 
-let to_relevance = function
-  | ValInt 0 -> Sorts.Relevant
-  | ValInt 1 -> Sorts.Irrelevant
+let to_relevance v =
+  if is_int v then match unsafe_to_int v with
+  | 0 -> Sorts.Relevant
+  | 1 -> Sorts.Irrelevant
+  | _ -> assert false
+  else match unsafe_to_fat v with
   | ValBlk (0, [|qvar|]) ->
     let qvar = to_qvar qvar in
     Sorts.RelevanceVar qvar
@@ -136,12 +139,15 @@ let to_rec_declaration (nas, cs) =
   Tac2ffi.to_array Tac2ffi.to_constr cs)
 
 let of_case_invert = let open Constr in function
-  | NoInvert -> ValInt 0
+  | NoInvert -> of_int 0
   | CaseInvert {indices} ->
     v_blk 0 [|of_array of_constr indices|]
 
-let to_case_invert = let open Constr in function
-  | ValInt 0 -> NoInvert
+let to_case_invert v = let open Constr in
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    NoInvert
+  else match unsafe_to_fat v with
   | ValBlk (0, [|indices|]) ->
     let indices = to_array to_constr indices in
     CaseInvert {indices}

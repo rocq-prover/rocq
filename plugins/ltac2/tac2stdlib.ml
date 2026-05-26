@@ -32,12 +32,15 @@ let to_name c = match Value.to_option Value.to_ident c with
 
 let name = make_to_repr to_name
 
-let to_occurrences = function
-| ValInt 0 -> AllOccurrences
-| ValBlk (0, [| vl |]) -> AllOccurrencesBut (Value.to_list Value.to_int vl)
-| ValInt 1 -> NoOccurrences
-| ValBlk (1, [| vl |]) -> OnlyOccurrences (Value.to_list Value.to_int vl)
-| _ -> assert false
+let to_occurrences v =
+  if is_int v then match unsafe_to_int v with
+    | 0 -> AllOccurrences
+    | 1 -> NoOccurrences
+    | _ -> assert false
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| vl |]) -> AllOccurrencesBut (Value.to_list Value.to_int vl)
+    | ValBlk (1, [| vl |]) -> OnlyOccurrences (Value.to_list Value.to_int vl)
+    | _ -> assert false
 
 let occurrences = make_to_repr to_occurrences
 
@@ -60,9 +63,10 @@ let to_clause v = match Value.to_tuple v with
 
 let clause = make_to_repr to_clause
 
-let to_red_strength = function
-  | ValInt 0 -> Norm
-  | ValInt 1 -> Head
+let to_red_strength v =
+  match force_to_int v with
+  | 0 -> Norm
+  | 1 -> Head
   | _ -> assert false
 
 let to_red_flag v : Tac2types.red_flag = match Value.to_tuple v with
@@ -95,23 +99,29 @@ let rec to_intro_pattern v = match Value.to_block v with
 | (2, [| act |]) -> IntroAction (to_intro_pattern_action act)
 | _ -> assert false
 
-and to_intro_pattern_naming = function
-| ValBlk (0, [| id |]) -> IntroIdentifier (Value.to_ident id)
-| ValBlk (1, [| id |]) -> IntroFresh (Value.to_ident id)
-| ValInt 0 -> IntroAnonymous
-| _ -> assert false
+and to_intro_pattern_naming v =
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    IntroAnonymous
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| id |]) -> IntroIdentifier (Value.to_ident id)
+    | ValBlk (1, [| id |]) -> IntroFresh (Value.to_ident id)
+    | _ -> assert false
 
-and to_intro_pattern_action = function
-| ValInt 0 -> IntroWildcard
-| ValBlk (0, [| op |]) -> IntroOrAndPattern (to_or_and_intro_pattern op)
-| ValBlk (1, [| inj |]) ->
-  let map ipat = to_intro_pattern ipat in
-  IntroInjection (Value.to_list map inj)
-| ValBlk (2, [| c; ipat |]) ->
-  let c = Value.to_fun1 Value.of_unit Value.to_constr c in
-  IntroApplyOn (c, to_intro_pattern ipat)
-| ValBlk (3, [| b |]) -> IntroRewrite (Value.to_bool b)
-| _ -> assert false
+and to_intro_pattern_action v =
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    IntroWildcard
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| op |]) -> IntroOrAndPattern (to_or_and_intro_pattern op)
+    | ValBlk (1, [| inj |]) ->
+      let map ipat = to_intro_pattern ipat in
+      IntroInjection (Value.to_list map inj)
+    | ValBlk (2, [| c; ipat |]) ->
+      let c = Value.to_fun1 Value.of_unit Value.to_constr c in
+      IntroApplyOn (c, to_intro_pattern ipat)
+    | ValBlk (3, [| b |]) -> IntroRewrite (Value.to_bool b)
+    | _ -> assert false
 
 and to_or_and_intro_pattern v = match Value.to_block v with
 | (0, [| ill |]) ->
@@ -187,12 +197,15 @@ let to_assertion v = match Value.to_block v with
 
 let assertion = make_to_repr to_assertion
 
-let to_multi = function
-| ValBlk (0, [| n |]) -> Precisely (Value.to_int n)
-| ValBlk (1, [| n |]) -> UpTo (Value.to_int n)
-| ValInt 0 -> RepeatStar
-| ValInt 1 -> RepeatPlus
-| _ -> assert false
+let to_multi v =
+  if is_int v then match unsafe_to_int v with
+    | 0 -> RepeatStar
+    | 1 -> RepeatPlus
+    | _ -> assert false
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| n |]) -> Precisely (Value.to_int n)
+    | ValBlk (1, [| n |]) -> UpTo (Value.to_int n)
+    | _ -> assert false
 
 let to_rewriting v = match Value.to_tuple v with
 | [| orient; repeat; c |] ->
@@ -227,12 +240,16 @@ let to_inversion_kind v = match Value.to_int v with
 
 let inversion_kind = make_to_repr to_inversion_kind
 
-let to_move_location = function
-| ValInt 0 -> Logic.MoveFirst
-| ValInt 1 -> Logic.MoveLast
-| ValBlk (0, [|id|]) -> Logic.MoveAfter (Value.to_ident id)
-| ValBlk (1, [|id|]) -> Logic.MoveBefore (Value.to_ident id)
-| _ -> assert false
+
+let to_move_location v =
+  if is_int v then match unsafe_to_int v with
+    | 0 -> Logic.MoveFirst
+    | 1 -> Logic.MoveLast
+    | _ -> assert false
+  else match unsafe_to_fat v with
+    | ValBlk (0, [|id|]) -> Logic.MoveAfter (Value.to_ident id)
+    | ValBlk (1, [|id|]) -> Logic.MoveBefore (Value.to_ident id)
+    | _ -> assert false
 
 let move_location = make_to_repr to_move_location
 

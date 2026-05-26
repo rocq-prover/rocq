@@ -53,27 +53,37 @@ let return = Proofview.tclUNIT
 exception NoMatch
 
 let match_ctor_against ctor v =
-  match ctor, v with
-  | { cindx = Open ctor }, ValOpn (ctor', vs) ->
+  match ctor with
+  | { cindx = Open ctor } ->
+    begin match force_to_fat v with
+    | ValOpn (ctor', vs) ->
     if KerName.equal ctor ctor' then vs
     else raise NoMatch
-  | { cindx = Open _ }, _ -> assert false
-  | { cnargs = 0; cindx = Closed i }, ValInt i' ->
-    if Int.equal i i' then [| |]
+    | _ -> assert false
+    end
+  | { cnargs = 0; cindx = Closed i } ->
+    if is_int v then
+      let i' = unsafe_to_int v in
+      if Int.equal i i' then [| |]
+      else raise NoMatch
     else raise NoMatch
-  | { cnargs = 0; cindx = Closed _ }, ValBlk _ -> raise NoMatch
-  | _, ValInt _ -> raise NoMatch
-  | { cindx = Closed i }, ValBlk (i', vs) ->
-    if Int.equal i i' then vs
-    else raise NoMatch
-  | { cindx = Closed _ }, ValOpn _ -> assert false
-  | _, (ValStr _ | ValCls _ | ValExt _) -> assert false
+  | { cindx = Closed i } ->
+    if is_int v then raise NoMatch
+    else begin match unsafe_to_fat v with
+      | ValBlk (i', vs) ->
+        if Int.equal i i' then vs
+        else raise NoMatch
+      | _ -> assert false
+    end
 
 let check_atom_against atm v =
-  match atm, v with
-  | AtmInt n, ValInt n' -> if not (Int.equal n n') then raise NoMatch
-  | AtmStr s, ValStr s' -> if not (String.equal s (Bytes.unsafe_to_string s')) then raise NoMatch
-  | (AtmInt _ | AtmStr _), _ -> assert false
+  match atm with
+  | AtmInt n ->
+    let n' = force_to_int v in
+    if not (Int.equal n n') then raise NoMatch
+  | AtmStr s ->
+    let s' = Tac2ffi.to_bytes v in
+    if not (String.equal s (Bytes.unsafe_to_string s')) then raise NoMatch
 
 let rec match_pattern_against ist pat v =
   match pat with
@@ -176,7 +186,7 @@ and interp_closure f =
 
 and interp_case ist e cse0 cse1 =
   if Valexpr.is_int e then
-    interp ist cse0.(Tac2ffi.to_int e)
+    interp ist cse0.(unsafe_to_int e)
   else
     let (n, args) = Tac2ffi.to_block e in
     let (ids, e) = cse1.(n) in

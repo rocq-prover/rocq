@@ -78,32 +78,28 @@ let valexpr = {
   r_to = (fun obj -> obj);
 }
 
-let of_unit () = ValInt 0
+let of_unit () = of_int 0
 
-let to_unit = function
-| ValInt 0 -> ()
-| _ -> assert false
+let to_unit v = assert (force_to_int v = 0)
 
 let unit = {
   r_of = of_unit;
   r_to = to_unit;
 }
 
-let of_int n = ValInt n
-let to_int = function
-| ValInt n -> n
-| _ -> assert false
+let of_int = of_int
+let to_int = force_to_int
 
 let int = {
   r_of = of_int;
   r_to = to_int;
 }
 
-let of_bool b = if b then ValInt 0 else ValInt 1
+let of_bool b = if b then of_int 0 else of_int 1
 
-let to_bool = function
-| ValInt 0 -> true
-| ValInt 1 -> false
+let to_bool v = match force_to_int v with
+| 0 -> true
+| 1 -> false
 | _ -> assert false
 
 let bool = {
@@ -111,18 +107,16 @@ let bool = {
   r_to = to_bool;
 }
 
-let of_char n = ValInt (Char.code n)
-let to_char = function
-| ValInt n -> Char.chr n
-| _ -> assert false
+let of_char n = of_int (Char.code n)
+let to_char v = Char.chr @@ force_to_int v
 
 let char = {
   r_of = of_char;
   r_to = to_char;
 }
 
-let of_bytes s = ValStr s
-let to_bytes = function
+let of_bytes s = of_fat @@ ValStr s
+let to_bytes v = match force_to_fat v with
 | ValStr s -> s
 | _ -> assert false
 
@@ -139,20 +133,23 @@ let string = {
 }
 
 let rec of_list f = function
-| [] -> ValInt 0
-| x :: l -> ValBlk (0, [| f x; of_list f l |])
+| [] -> of_int 0
+| x :: l -> of_fat @@ ValBlk (0, [| f x; of_list f l |])
 
-let rec to_list f = function
-| ValInt 0 -> []
-| ValBlk (0, [|v; vl|]) -> f v :: to_list f vl
-| _ -> assert false
+let rec to_list f v =
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    []
+  else match unsafe_to_fat v with
+    | ValBlk (0, [|v; vl|]) -> f v :: to_list f vl
+    | _ -> assert false
 
 let list r = {
   r_of = (fun l -> of_list r.r_of l);
   r_to = (fun l -> to_list r.r_to l);
 }
 
-let of_closure cls = ValCls cls
+let of_closure cls = of_fat @@ ValCls cls
 
 let to_closure = Tac2val.to_closure
 
@@ -196,9 +193,9 @@ let fun2 arg1 arg2 res = {
 }
 
 let of_ext tag c =
-  ValExt (tag, c)
+  of_fat @@ ValExt (tag, c)
 
-let to_ext tag = function
+let to_ext tag v = match force_to_fat v with
 | ValExt (tag', e) -> extract_val tag tag' e
 | _ -> assert false
 
@@ -247,6 +244,8 @@ let of_rewstrategy ev = of_ext val_rewstrategy ev
 let to_rewstrategy ev = to_ext val_rewstrategy ev
 let rewstrategy = repr_ext val_rewstrategy
 
+let rocq_core n = Names.(KerName.make Tac2env.rocq_prefix (Label.of_id @@ Id.of_string_soft n))
+
 let internal_err =
   let open Names in
   let rocq_prefix =
@@ -269,10 +268,10 @@ let err = repr_ext val_exn
 
 (** FIXME: handle backtrace in Ltac2 exceptions *)
 let of_exn c = match fst c with
-| LtacError (kn, c) -> ValOpn (kn, c)
-| _ -> ValOpn (internal_err, [|of_err c|])
+| LtacError (kn, c) -> of_fat @@ ValOpn (kn, c)
+| _ -> of_fat @@ ValOpn (internal_err, [|of_err c|])
 
-let to_exn c = match c with
+let to_exn c = match force_to_fat c with
 | ValOpn (kn, c) ->
   if Names.KerName.equal kn internal_err then
     to_err c.(0)
@@ -286,10 +285,10 @@ let exn = {
 }
 
 let of_result of_ok = function
-  | Ok v -> ValBlk (0, [|of_ok v|])
-  | Error e -> ValBlk (1, [|of_exn e|])
+  | Ok v -> of_fat @@ ValBlk (0, [|of_ok v|])
+  | Error e -> of_fat @@ ValBlk (1, [|of_exn e|])
 
-let to_result to_ok = function
+let to_result to_ok v = match force_to_fat v with
   | ValBlk (0, [|v|]) -> Ok (to_ok v)
   | ValBlk (1, [|e|]) -> Error (to_exn e)
   | _ -> assert false
@@ -300,13 +299,16 @@ let result ok = {
 }
 
 let of_option f = function
-| None -> ValInt 0
-| Some c -> ValBlk (0, [|f c|])
+| None -> of_int 0
+| Some c -> of_fat @@ ValBlk (0, [|f c|])
 
-let to_option f = function
-| ValInt 0 -> None
-| ValBlk (0, [|c|]) -> Some (f c)
-| _ -> assert false
+let to_option f v =
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    None
+  else match unsafe_to_fat v with
+    | ValBlk (0, [|c|]) -> Some (f c)
+    | _ -> assert false
 
 let option r = {
   r_of = (fun l -> of_option r.r_of l);
@@ -317,13 +319,13 @@ let of_pp c = of_ext val_pp c
 let to_pp c = to_ext val_pp c
 let pp = repr_ext val_pp
 
-let of_tuple cl = ValBlk (0, cl)
-let to_tuple = function
+let of_tuple cl = of_fat @@ ValBlk (0, cl)
+let to_tuple v = match force_to_fat v with
 | ValBlk (0, cl) -> cl
 | _ -> assert false
 
-let of_pair f g (x, y) = ValBlk (0, [|f x; g y|])
-let to_pair f g = function
+let of_pair f g (x, y) = of_fat @@ ValBlk (0, [|f x; g y|])
+let to_pair f g v = match force_to_fat v with
 | ValBlk (0, [|x; y|]) -> (f x, g y)
 | _ -> assert false
 let pair r0 r1 = {
@@ -331,8 +333,8 @@ let pair r0 r1 = {
   r_to = (fun p -> to_pair r0.r_to r1.r_to p);
 }
 
-let of_triple f g h (x, y, z) = ValBlk (0, [|f x; g y; h z|])
-let to_triple f g h = function
+let of_triple f g h (x, y, z) = of_fat @@ ValBlk (0, [|f x; g y; h z|])
+let to_triple f g h v = match force_to_fat v with
 | ValBlk (0, [|x; y; z|]) -> (f x, g y, h z)
 | _ -> assert false
 let triple r0 r1 r2 = {
@@ -340,8 +342,8 @@ let triple r0 r1 r2 = {
   r_to = (fun p -> to_triple r0.r_to r1.r_to r2.r_to p);
 }
 
-let of_array f vl = ValBlk (0, Array.map f vl)
-let to_array f = function
+let of_array f vl = of_fat @@ ValBlk (0, Array.map f vl)
+let to_array f v = match force_to_fat v with
 | ValBlk (0, vl) -> Array.map f vl
 | _ -> assert false
 let array r = {
@@ -349,8 +351,8 @@ let array r = {
   r_to = (fun l -> to_array r.r_to l);
 }
 
-let of_block (n, args) = ValBlk (n, args)
-let to_block = function
+let of_block (n, args) = of_fat @@ ValBlk (n, args)
+let to_block v = match force_to_fat v with
 | ValBlk (n, args) -> (n, args)
 | _ -> assert false
 
@@ -359,9 +361,9 @@ let block = {
   r_to = to_block;
 }
 
-let of_open (kn, args) = ValOpn (kn, args)
+let of_open (kn, args) = of_fat @@ ValOpn (kn, args)
 
-let to_open = function
+let to_open v = match force_to_fat v with
 | ValOpn (kn, args) -> (kn, args)
 | _ -> assert false
 
@@ -451,12 +453,12 @@ let to_instance c = to_ext val_instance c
 let instance = repr_ext val_instance
 
 let of_reference = let open Names.GlobRef in function
-| VarRef id -> ValBlk (0, [| of_ident id |])
-| ConstRef cst -> ValBlk (1, [| of_constant cst |])
-| IndRef ind -> ValBlk (2, [| of_inductive ind |])
-| ConstructRef cstr -> ValBlk (3, [| of_constructor cstr |])
+| VarRef id -> of_fat @@ ValBlk (0, [| of_ident id |])
+| ConstRef cst -> of_fat @@ ValBlk (1, [| of_constant cst |])
+| IndRef ind -> of_fat @@ ValBlk (2, [| of_inductive ind |])
+| ConstructRef cstr -> of_fat @@ ValBlk (3, [| of_constructor cstr |])
 
-let to_reference = let open Names.GlobRef in function
+let to_reference v = let open Names.GlobRef in match force_to_fat v with
 | ValBlk (0, [| id |]) -> VarRef (to_ident id)
 | ValBlk (1, [| cst |]) -> ConstRef (to_constant cst)
 | ValBlk (2, [| ind |]) -> IndRef (to_inductive ind)
@@ -467,3 +469,41 @@ let reference = {
   r_of = of_reference;
   r_to = to_reference;
 }
+
+let of_strategy_level = let open Conv_oracle in function
+| Expand -> of_int 0
+| Opaque -> of_int 1
+| Level n -> of_fat @@ ValBlk (0, [| of_int n |])
+
+let to_strategy_level v = let open Conv_oracle in
+  if is_int v then
+    match unsafe_to_int v with
+    | 0 -> Expand
+    | 1 -> Opaque
+    | _ -> assert false
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| n |]) -> Level (to_int n)
+    | _ -> assert false
+
+let strategy_level = {
+  r_of = of_strategy_level;
+  r_to = to_strategy_level;
+}
+
+let err_notfocussed =
+  LtacError (rocq_core "Not_focussed", [||])
+
+let err_outofbounds =
+  LtacError (rocq_core "Out_of_bounds", [||])
+
+let err_notfound =
+  LtacError (rocq_core "Not_found", [||])
+
+let err_matchfailure =
+  LtacError (rocq_core "Match_failure", [||])
+
+let err_division_by_zero =
+  LtacError (rocq_core "Division_by_zero", [||])
+
+let err_invalid_arg msg =
+  LtacError (rocq_core "Invalid_argument", [|of_option of_pp (Some msg)|])

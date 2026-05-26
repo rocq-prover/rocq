@@ -26,13 +26,16 @@ let to_qhyp v = match Value.to_block v with
 
 let qhyp = make_to_repr to_qhyp
 
-let to_bindings = function
-| ValInt 0 -> NoBindings
-| ValBlk (0, [| vl |]) ->
-  ImplicitBindings (Value.to_list Value.to_constr vl)
-| ValBlk (1, [| vl |]) ->
-  ExplicitBindings ((Value.to_list (fun p -> to_pair to_qhyp Value.to_constr p) vl))
-| _ -> assert false
+let to_bindings v =
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    NoBindings
+  else match unsafe_to_fat v with
+    | ValBlk (0, [| vl |]) ->
+      ImplicitBindings (Value.to_list Value.to_constr vl)
+    | ValBlk (1, [| vl |]) ->
+      ExplicitBindings ((Value.to_list (fun p -> to_pair to_qhyp Value.to_constr p) vl))
+    | _ -> assert false
 
 let bindings = make_to_repr to_bindings
 
