@@ -545,7 +545,7 @@ let interp_power env sigma pow =
         | CstTac t -> Tacintern.glob_tactic t
         | Closed lc ->
             closed_term_ast (List.map Smartlocate.global_with_alias lc) in
-      let spec = ic_unsafe env sigma spec in
+      let sigma, spec = ic env sigma spec in
       let sigma, spec = make_hyp env sigma spec in
       let sigma, pow = plapp sigma rocq_Some [|carrier; spec|] in
       sigma, (tac, pow)
