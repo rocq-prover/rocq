@@ -128,8 +128,8 @@ module MLMap = Map.Make(ML)
 let primitive_map = ref MLMap.empty
 
 let define_primitive name f =
-  let f = match f with
-    | ValCls f -> ValCls (annotate_closure (FrPrim name) f)
+  let f = if is_int f then f else match force_to_fat f with
+    | ValCls f -> of_fat @@ ValCls (annotate_closure (FrPrim name) f)
     | _ -> f
   in
   primitive_map := MLMap.add name f !primitive_map

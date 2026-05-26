@@ -96,12 +96,15 @@ let of_custom = function
    This needs to look at the low-level valexpr data.
    If an external is declared with an incorrect Ltac2 type it may be passed
    invalid values, in which case we assert false. *)
-let to_custom = let open Tac2val in function
-  | ValInt 0 -> A
-  | ValBlk (0, [|c|]) ->
-    (* [to_constr] is [Tac2ffi.to_constr] *)
-    B (to_constr c)
-  | _ -> assert false
+let to_custom v = let open Tac2val in
+  if is_int v then
+    let () = assert (unsafe_to_int v = 0) in
+    A
+  else match unsafe_to_fat v with
+    | ValBlk (0, [|c|]) ->
+      (* [to_constr] is [Tac2ffi.to_constr] *)
+      B (to_constr c)
+    | _ -> assert false
 
 
 (* Now we package both translation functions into a Tac2ffi.repr

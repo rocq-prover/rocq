@@ -24,9 +24,10 @@ type tag = int
 
 type closure
 
-type valexpr =
-| ValInt of int
-  (** Immediate integers *)
+(** Immediate integers are unboxed, other values are [valfat]. *)
+type valexpr
+
+type valfat =
 | ValBlk of tag * valexpr array
   (** Structured blocks *)
 | ValStr of Bytes.t
@@ -35,8 +36,18 @@ type valexpr =
   (** Closures *)
 | ValOpn of KerName.t * valexpr array
   (** Open constructors *)
-| ValExt : 'a Tac2dyn.Val.tag * 'a -> valexpr
+| ValExt : 'a Tac2dyn.Val.tag * 'a -> valfat
   (** Arbitrary data *)
+
+(** Exposed as externals in case it helps the compiler *)
+external of_int : int -> valexpr = "%identity"
+external of_fat : valfat -> valexpr = "%identity"
+external unsafe_to_int : valexpr -> int = "%identity"
+external unsafe_to_fat : valexpr -> valfat = "%identity"
+external is_int : valexpr -> bool = "%obj_is_int"
+
+val force_to_int : valexpr -> int
+val force_to_fat : valexpr -> valfat
 
 module Valexpr :
 sig
