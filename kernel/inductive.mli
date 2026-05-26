@@ -216,3 +216,5 @@ module Template : sig
 end
 
 val do_tests : bool ref
+
+val nb_fix : int array

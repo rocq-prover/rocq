@@ -646,6 +646,7 @@ type guard_flags = {
   reduce_betas : bool;
   beta_iota : bool;
   extrude_uniform_args : bool;
+  check_evars : bool;
 }
 
 
@@ -1493,12 +1494,18 @@ let pop_argument flags ?evars needreduce renv elt stack rs x a b =
   | _, SClosure (_, _, n, c) when flags.reduce_betas ->
     (* Either function or args have rec call on internally bound variables *)
     renv, rs, stack, subst1 (lift n c) b
-  | _, SClosure (r, _, _, _) ->
-    let spec = stack_element_specif flags ?evars elt in
-    push_var renv (x,a,spec), r :: rs, lift1_stack stack, b
-  | _, SArg spec ->
+  | _, SArg spec when flags.reduce_betas ->
     (* Going down a case branch *)
     push_var renv (x,a,spec), rs, lift1_stack stack, b
+  | _, SClosure (r, _, _, _) ->
+    let rs =
+      let r' = List.hd rs in
+      (r ||| r') :: List.tl rs
+    in
+    push_var renv (x,a, lazy Subterm.not_subterm), rs, lift1_stack stack, b
+  | _, SArg _ ->
+    (* Going down a case branch *)
+    push_var renv (x,a, lazy Subterm.not_subterm), rs, lift1_stack stack, b
 
 let judgment_of_fixpoint (_, types, bodies) =
   Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
@@ -1701,12 +1708,19 @@ let check_one_fix flags ?evars renv recpos trees def =
             let needreduce_t, rs = check_rec_call renv rs t in
             begin
               match needreduce_of_stack stack ||| needreduce_c ||| needreduce_t with
-              | NoNeedReduce ->
+              | NoNeedReduce when flags.reduce_betas ->
                   (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
                   let spec = lazy_subterm_specif flags ?evars renv [] c in
                   let stack = lift1_stack stack in
                   check_rec_call_stack (push_let renv (x,c,t,spec)) stack rs b
-              | NeedReduce _ -> check_rec_call_stack renv stack rs (subst1 c b)
+              | NeedReduce _ when flags.reduce_betas -> check_rec_call_stack renv stack rs (subst1 c b)
+              | r ->
+                  let spec = lazy_subterm_specif flags ?evars renv [] c in
+                  let rs =
+                    let r' = List.hd rs in
+                    (r ||| r') :: List.tl rs
+                  in
+                  check_rec_call_stack (push_var renv (x,t,spec)) (lift1_stack stack) rs b
             end
 
         | Cast (c,_,t) ->
@@ -1726,7 +1740,14 @@ let check_one_fix flags ?evars renv recpos trees def =
             rs
 
         (* stack is not checked because it will depend on evar definition *)
-        | Evar _ -> rs (* TODO: check if evar has a definition in ?evars *)
+        | Evar (_, l) ->
+          if flags.check_evars then
+            let rs =
+              List.fold_left (Option.fold_left (fun rs c -> check_inert_subterm_rec_call renv rs c)) rs (SList.to_list l)
+            in
+            check_rec_call_state renv NoNeedReduce stack rs (fun () -> None)
+          else
+          rs (* TODO: check if evar has a definition in ?evars *)
 
         | Meta _ -> assert false
 
@@ -1816,7 +1837,7 @@ let iter_with_full_binders env g f n c =
    given [recpos], the decreasing arguments of each mutually defined
    fixpoint. *)
 
-let check_one_fix_minimal renv recpos def =
+let check_one_fix_minimal ~strict renv recpos def =
   let nfi = Array.length recpos in
   let push decl (env, renv, depth) = (push_rel decl env, None :: renv, 1+depth) in
   let to_subterm = let open Subterm in function None -> not_subterm | Some (Large, tree) -> structural tree | Some (Strict, tree) -> strict_subterm tree in
@@ -1896,7 +1917,7 @@ let check_one_fix_minimal renv recpos def =
 
 
     (* Nonminimal parts *)
-    | Const cst when not (Array.is_empty args) && Array.exists (fun t -> not (noccur_with_meta (depth+1) nfi t)) args ->
+    | Const cst when not strict && not (Array.is_empty args) && Array.exists (fun t -> not (noccur_with_meta (depth+1) nfi t)) args ->
       (* Hardcodes functional returning fixpoints to be nested *)
       let n = Option.get @@ CArray.findi (fun _ t -> not (noccur_with_meta (depth+1) nfi t)) args in
       begin match constant_opt_value_in env cst with
@@ -1908,7 +1929,7 @@ let check_one_fix_minimal renv recpos def =
         let t = Reduction.beta_appvect def args in
         check_rec_call acc t
       end
-    | Lambda (_, t, b) when not (Array.is_empty args) ->
+    | Lambda (_, t, b) when not strict && not (Array.is_empty args) ->
       (* Necessary for deep fixpoints substitutions *)
       check_rec_call acc t;
       let b = substl [Array.get args 0] b in
@@ -1917,7 +1938,7 @@ let check_one_fix_minimal renv recpos def =
     (* Global separator for things that need arguments and things that don't *)
     | _ when not (Array.is_empty args) -> iter_with_full_binders env push check_rec_call acc t
 
-    | LetIn (na, def, t, b) ->
+    | LetIn (na, def, t, b) when not strict ->
       (* Necessary for primitive projections eliminator *)
       check_rec_call acc def;
       check_rec_call acc t;
@@ -2028,7 +2049,49 @@ let sorts_of_mutfix env minds names =
         (ind_sort, out_sort) :: sorts
       ) [] minds)
 
-let current_flags = { non_rel_subterms=true; strict_rtree_inter=false; with_needreduce=true; reduce_betas=true; beta_iota=true; extrude_uniform_args=true }
+let current_flags = { non_rel_subterms=true; strict_rtree_inter=false; with_needreduce=true; reduce_betas=true; beta_iota=true; extrude_uniform_args=true; check_evars = false }
+
+let nb_fix = [|0; 0; 0; 0; 0; 0; 0; 0; 0; 0|]
+let incr i = nb_fix.(i) <- nb_fix.(i) + 1
+
+let check_one_fix ?evars renv renv_minimal nvect trees body =
+  let () = check_one_fix current_flags ?evars renv nvect trees body in
+  incr 0;
+  try
+    check_one_fix_minimal ~strict:true renv_minimal nvect body;
+    incr 1
+  with FixGuardError _ ->
+  let flags = ref current_flags in
+  let change = ref false in
+  begin match check_one_fix { !flags with extrude_uniform_args = false } ?evars renv nvect trees body with
+  | () -> flags := { !flags with extrude_uniform_args = false }
+  | exception FixGuardError _ -> change := true; incr 2
+  end;
+  begin match check_one_fix { !flags with with_needreduce = false } ?evars renv nvect trees body with
+  | () -> flags := { !flags with with_needreduce = false }
+  | exception FixGuardError _ -> change := true; incr 3
+  end;
+  begin match check_one_fix { !flags with strict_rtree_inter = true } ?evars renv nvect trees body with
+  | () -> flags := { !flags with strict_rtree_inter = true }
+  | exception FixGuardError _ -> change := true; incr 4
+  end;
+  begin match check_one_fix { !flags with beta_iota = false } ?evars renv nvect trees body with
+  | () -> flags := { !flags with beta_iota = false }
+  | exception FixGuardError _ -> change := true; incr 5
+  end;
+  begin match check_one_fix { !flags with non_rel_subterms = false } ?evars renv nvect trees body with
+  | () -> flags := { !flags with non_rel_subterms = false }
+  | exception FixGuardError _ -> change := true; incr 6
+  end;
+  begin match check_one_fix { !flags with reduce_betas = false } ?evars renv nvect trees body with
+  | () -> flags := { !flags with reduce_betas = false }
+  | exception FixGuardError _ -> change := true; incr 7
+  end;
+  begin match check_one_fix { !flags with check_evars = true } ?evars renv nvect trees body with
+  | () -> flags := { !flags with check_evars = true }
+  | exception FixGuardError _ -> change := true; incr 8
+  end;
+  if not !change then incr 9
 
 let do_tests = ref true
 
@@ -2048,12 +2111,12 @@ let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as 
       for i = 0 to Array.length bodies - 1 do
         let (fenv, body) = rdef.(i) in
         let renv = make_renv fenv nvect.(i) trees.(i) in
+        let renv_minimal = (fenv, Some (Subterm.Large, trees.(i)) :: List.make nvect.(i) None, nvect.(i)+1) in
         try
           if !do_tests then
-            check_one_fix current_flags ?evars renv nvect trees body
+            check_one_fix ?evars renv renv_minimal nvect trees body
           else
-            let renv = (fenv, Some (Subterm.Large, trees.(i)) :: List.make nvect.(i) None, nvect.(i)+1) in
-            check_one_fix_minimal renv nvect body
+            check_one_fix_minimal ~strict:false renv_minimal nvect body
         with FixGuardError (err_env, err) -> raise_err err_env i err
       done
   in
