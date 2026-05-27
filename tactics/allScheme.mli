@@ -22,11 +22,25 @@ val compute_params_rec_strpos : env -> MutInd.t -> mutual_inductive_body -> bool
 val compute_positive_uparams_and_suffix : env -> MutInd.t -> mutual_inductive_body ->
   Id.t list option -> bool list * (string * string) * (string * string)
 
+module Warning_scheme_all : sig
+  type cache
+  type t
+
+  val empty_cache : unit -> cache
+
+  (** Warning for looking up the [all] predicate and its theorem.
+      If this warning is alredy in the cache do nothing, oterwise warn and add it to the cache *)
+  val warn : t -> cache -> unit
+
+end
+
+
 (** Lookup the partial [all] predicate and its theorem for [ind_nested] for [args_are_nested].
     If they are not found, lookup the general [all] predicate and its theorem.
     Returns if the partial [all] was found, and the global references.
-    Raise a warning if none is found. *)
-val lookup_all_theorem : inductive -> GlobRef.t -> bool list -> (bool * GlobRef.t * GlobRef.t) option
+    Return [ind_nested] if none is found. *)
+val lookup_all_theorem : inductive -> GlobRef.t -> bool list ->
+  (bool * GlobRef.t * GlobRef.t,Warning_scheme_all.t) result
 
   (** {6 Instantiate the All Predicate and its Theorem } *)
 

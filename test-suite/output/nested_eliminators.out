@@ -1797,7 +1797,43 @@ Arguments SRT_sind (P SRTnode)%_function_scope s
 SRT_sind is transparent
 Expands to: Constant nested_eliminators.SortPoly.SRT_sind
 Declared in library nested_eliminators, line 429, characters 2-57
-File "./output/nested_eliminators.v", line 446, characters 2-60:
+File "./output/nested_eliminators.v", line 440, characters 2-59:
+Warning: M1RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 440, characters 2-59:
+Warning: M1RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 440, characters 2-59:
+Warning: M1RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 440, characters 2-59:
+Warning: M1RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 443, characters 2-72:
+Warning: M2RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 443, characters 2-72:
+Warning: M2RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 443, characters 2-72:
+Warning: M2RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 443, characters 2-72:
+Warning: M2RT is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 451, characters 2-103:
+Warning: MRT2 is nested using list. No scheme for list is registered as All.
+It can be generated using command "Scheme All" e.g. "Scheme All for list.".
+[register-all,automation,default]
+File "./output/nested_eliminators.v", line 461, characters 2-60:
 The command has indeed failed with message:
 MRT is nested using list. No scheme for list is registered as All. It can be
 generated using command "Scheme All" e.g. "Scheme All for list.".
@@ -1810,7 +1846,7 @@ MRT_ind is not universe polymorphic
 Arguments MRT_ind (P MRTnode)%_function_scope m
 MRT_ind is transparent
 Expands to: Constant nested_eliminators.TestWarning.MRT_ind
-Declared in library nested_eliminators, line 451, characters 2-55
+Declared in library nested_eliminators, line 466, characters 2-55
 Nester_all@{α ; u} :
 forall X : unit -> P unit,
 (forall u u0 : unit, X u u0 -> Type@{α ; u}) ->
@@ -1820,4 +1856,4 @@ Nester X -> Type@{max(P.u1,u)}
 Nester_all is universe polymorphic
 Arguments Nester_all (X PX)%_function_scope n
 Expands to: Inductive nested_eliminators.DeepArities.Nester_all
-Declared in library nested_eliminators, line 465, characters 2-24
+Declared in library nested_eliminators, line 480, characters 2-24

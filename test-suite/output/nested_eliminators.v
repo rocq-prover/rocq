@@ -437,6 +437,21 @@ End SortPoly.
 
 Module TestWarning.
 
+  Inductive M1RT : Set :=
+  | M1RTnode : list M1RT -> M1RT.
+
+  Inductive M2RT : Set :=
+  | M2RTnode : list M2RT -> list M2RT -> M2RT.
+
+  Inductive MRT2 :=
+  | mcons : list NRT -> MRT2
+  with NRT :=
+  | ncons : list MRT2 -> NRT.
+
+  Scheme MRT_NRT_rec := Induction for MRT2 Sort Set
+    with NRT_MRT_rec := Induction for NRT Sort Set.
+
+
   Set Warnings "+register-all".
 
   Inductive list (A : Type) : Type :=

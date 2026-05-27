@@ -283,68 +283,84 @@ let compute_positive_uparams_and_suffix env kn mib user_id =
       let partial_suffix = partial_suffix user_strpos in
       (user_strpos, fst partial_suffix, snd partial_suffix)
 
+module Warning_scheme_all = struct
+  type cache = GlobRef.Set_env.t ref
+  type t = string * inductive * GlobRef.t
+
+  let empty_cache () = ref GlobRef.Set_env.empty
+
 (** Warning for looking up the [all] predicate and its theorem  *)
-let warn_lookup_not_found =
-  CWarnings.create ~name:"register-all" ~category:CWarnings.CoreCategories.automation
-  Pp.(fun (key, ind, nested_container) ->
-      let generic_message =
-         Nametab.XRefs.pr (TrueGlobal (IndRef ind))
-      ++ strbrk " is nested using "
-      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
-      ++ strbrk ". "
-      ++ strbrk "No scheme for "
-      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
-      ++ strbrk " is registered as "
-      ++ strbrk key ++  strbrk ". " in
-      let inductive_message =
-      strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
-      ++ Nametab.XRefs.pr (TrueGlobal nested_container)
-      ++ str ".\"." in
-      match nested_container with
-      | GlobRef.IndRef _ -> generic_message ++ inductive_message
-      | _ -> generic_message
-    )
+  let warn_lookup_not_found =
+    CWarnings.create ~name:"register-all" ~category:CWarnings.CoreCategories.automation
+    Pp.(fun (key, ind, nested_container) ->
+        let generic_message =
+          Nametab.XRefs.pr (TrueGlobal (IndRef ind))
+        ++ strbrk " is nested using "
+        ++ Nametab.XRefs.pr (TrueGlobal nested_container)
+        ++ strbrk ". "
+        ++ strbrk "No scheme for "
+        ++ Nametab.XRefs.pr (TrueGlobal nested_container)
+        ++ strbrk " is registered as "
+        ++ strbrk key ++  strbrk ". " in
+        let inductive_message =
+        strbrk "It can be generated using command \"Scheme All\" e.g. \"Scheme All for "
+        ++ Nametab.XRefs.pr (TrueGlobal nested_container)
+        ++ str ".\"." in
+        match nested_container with
+        | GlobRef.IndRef _ -> generic_message ++ inductive_message
+        | _ -> generic_message
+      )
+
+  (** Warning for looking up the [all] predicate and its theorem
+      If this warning is alredy in the cache do nothing, oterwise
+      warn and add it to the cache *)
+  let warn warn cache =
+    let (_,_,container) = warn in
+    let () = if not (GlobRef.Set_env.mem container !cache) then
+      let () = warn_lookup_not_found warn in
+      cache := GlobRef.Set_env.add container !cache
+    in ()
+
+end
 
 (** Lookup the partial [all] predicate for [nested_container] for [args_are_nested].
     If they are not found, lookup the general [all] predicate.
     Returns if the partial [all] was found, and the global references.
-    Raise a warning if none is found. *)
+    Return [Error] if none is found. *)
 let lookup_all ind nested_container args_are_nested =
     let (_, (pred, _)) = partial_suffix args_are_nested in
     match DeclareScheme.lookup_scheme_opt pred nested_container with
     | Some ref_pred ->
-        Some (true, ref_pred)
+        Ok (true, ref_pred)
     | None ->
         let (_, (pred, _)) = default_suffix in
         match DeclareScheme.lookup_scheme_opt pred nested_container with
-        | Some ref_pred -> Some (false, ref_pred)
-        | None -> warn_lookup_not_found (pred, ind, nested_container); None
+        | Some ref_pred -> Ok (false, ref_pred)
+        | None -> Error (pred, ind, nested_container)
 
 (** Lookup the [all] predicate, and its theorem *)
 let lookup_all_theorem_aux ind nested_container =
   let (_, (pred, thm)) = default_suffix in
   match DeclareScheme.lookup_scheme_opt pred nested_container with
-  | None -> warn_lookup_not_found (pred, ind, nested_container); None
+  | None -> Error (pred, ind, nested_container)
   | Some ref_pred ->
       match DeclareScheme.lookup_scheme_opt thm nested_container with
-      | None -> warn_lookup_not_found (thm, ind, nested_container); None
-      | Some ref_thm -> Some (false, ref_pred, ref_thm)
+      | None -> Error (thm, ind, nested_container)
+      | Some ref_thm -> Ok (false, ref_pred, ref_thm)
 
 (** Lookup the partial [all] predicate and its theorem for [nested_container] for [args_are_nested].
     If they are not found, lookup the general [all] predicate and its theorem.
     Returns if the partial [all] was found, and the global references.
-    Raise a warning if none is found. *)
-let lookup_all_theorem ind nested_container args_are_nested =
+    Return [nested_container] if none is found. *)
+let lookup_all_theorem  ind nested_container args_are_nested =
   let (_, (pred, thm)) = partial_suffix args_are_nested in
   match DeclareScheme.lookup_scheme_opt pred nested_container with
   | None -> lookup_all_theorem_aux ind nested_container
   | Some ref_pred ->
       match DeclareScheme.lookup_scheme_opt thm nested_container with
       | Some ref_thm ->
-          Some (true, ref_pred, ref_thm)
-      | None ->
-          warn_lookup_not_found (thm, ind,nested_container);
-          lookup_all_theorem_aux ind nested_container
+          Ok (true, ref_pred, ref_thm)
+      | None -> lookup_all_theorem_aux ind nested_container
 
 
   (** {6 Instantiate the All Predicate and its Theorem } *)
@@ -814,7 +830,7 @@ let compute_pred_eta to_compute f i x =
 type ('a, 'b) vars_or_kn = IndIsVars of 'a | IndIsKn of 'b
 
 (** Compute the new argument *)
-let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg key_arg arg_type =
+let rec make_rec_call_hyp cache kn pos_ind mib rep_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg key_arg arg_type =
   (* Decompose the argument, rebind local variables and compute the argument *)
   let* (locs, head) = view_argument kn mib key_uparams strpos arg_type in
   let@ key_locals = closure_context fopt Prod Fresh naming_id locs in
@@ -845,7 +861,7 @@ let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates *)
       let compute_pred i x b = compute_pred_eta b
-            (make_rec_call_hyp kn pos_ind mib rep_inds key_up strpos ualg) i x in
+            (make_rec_call_hyp cache kn pos_ind mib rep_inds key_up strpos ualg) i x in
       let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
       let args_are_nested = Array.map Option.has_some rec_preds in
@@ -853,9 +869,10 @@ let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_
         return None
       else begin
         match lookup_all (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
-        | None ->
+        | Error warn ->
+            let () = Warning_scheme_all.warn warn cache in
             return None
-        | Some (partial_nesting, ref_pred) ->
+        | Ok (partial_nesting, ref_pred) ->
             (* Create: all A0 PA0 ... An PAn B0 ... Bm i0 ... il (arg a0 ... an) *)
             let* rec_hyp = make_all_predicate ~partial_nesting ref_pred nested_strpos
                             inst_uparams rec_preds inst_nuparams_indices inst_arg in
@@ -871,9 +888,9 @@ let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_
   | _ -> return None
 
 (** Create and bind the recursive call *)
-let make_rec_call_cc kn pos_ind mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg _ key_arg cc =
+let make_rec_call_cc cache kn pos_ind mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg _ key_arg cc =
   let* arg_type = State.get_type key_arg in
-  let* rec_call = make_rec_call_hyp kn pos_ind mib (IndIsVars key_inds) key_up strpos ualg key_arg arg_type in
+  let* rec_call = make_rec_call_hyp cache kn pos_ind mib (IndIsVars key_inds) key_up strpos ualg key_arg arg_type in
   match rec_call with
   | None ->
       cc [key_arg]
@@ -886,18 +903,18 @@ let make_rec_call_cc kn pos_ind mib key_inds ((key_uparams, key_preds, key_upara
       cc [key_arg]
 
 (** Closure of the args, and of the rec call if [rec_hyp], and if any *)
-let closure_args_and_rec_call kn pos_ind mib key_inds key_up strpos ualg args =
+let closure_args_and_rec_call cache kn pos_ind mib key_inds key_up strpos ualg args =
   read_by_decl args
     (build_binder fid Prod Old naming_hd)
     (fun _ _ cc -> cc [])
-    (make_rec_call_cc kn pos_ind mib key_inds key_up strpos ualg)
+    (make_rec_call_cc cache kn pos_ind mib key_inds key_up strpos ualg)
 
 (** Generate the type of the constructors of the [all] predicate supposing
     parameters have already been quantified:
     [ ∀ [args + rec], Indε (UP+PRED) NUP IND (cst up nup args) ] *)
-let gen_all_type_ctor kn pos_ind u mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos key_nuparams ualg pos_ctor ctor =
+let gen_all_type_ctor cache kn pos_ind u mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos key_nuparams ualg pos_ctor ctor =
   let* (args, indices) = get_args mib u ctor in
-  let@ key_args = closure_args_and_rec_call kn pos_ind mib key_inds key_up strpos ualg args in
+  let@ key_args = closure_args_and_rec_call cache kn pos_ind mib key_inds key_up strpos ualg args in
   (* Build the new inductive *)
   let* ind = geti_term key_inds pos_ind in
   let* inst_uparams_preds = get_terms key_uparams_preds in
@@ -916,12 +933,12 @@ let gen_all_type_ctor kn pos_ind u mib key_inds ((key_uparams, key_preds, key_up
 open Entries
 
 (** Generate the [one_inductive_entry] of the [all] predicate *)
-let gen_all_one_ind suffix kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams : one_inductive_entry t =
+let gen_all_one_ind cache suffix kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams : one_inductive_entry t =
   let ulag, return_sort = return_sorts.(pos_ind) in
   let ind_id = add_suffix ind.mind_typename suffix in
   let* ind_type = gen_all_type_param kn pos_ind u mib ((fun (a,_,_) -> a) key_up) key_nuparams return_sort in
   let ctors_id = Array.map (fun x -> add_suffix x suffix) ind.mind_consnames in
-  let* ctors_type = array_mapi (gen_all_type_ctor kn pos_ind u mib key_inds key_up strpos key_nuparams ulag) ind.mind_nf_lc in
+  let* ctors_type = array_mapi (gen_all_type_ctor cache kn pos_ind u mib key_inds key_up strpos key_nuparams ulag) ind.mind_nf_lc in
   let* sigma = get_sigma in
   return {
     mind_entry_typename = ind_id ;
@@ -930,7 +947,7 @@ let gen_all_one_ind suffix kn pos_ind ind u mib return_sorts key_inds key_up str
     mind_entry_lc = Array.to_list @@ Array.map (to_constr sigma) ctors_type;
   }
 
-let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
+let generate_all_aux cache suffix kn u sub_temp mib uparams strpos nuparams =
   (* create fresh sorts, and return types *)
   let* fresh_sorts_ql = create_fresh_sorts_ql strpos in
   let* return_sorts = compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts_ql in
@@ -943,7 +960,7 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   let ctxt_params = fst @@ List.chop (List.length current_context - Array.length mib.mind_packets) current_context in
   (* create the inductive body *)
   let* ind_bodies = array_mapi (fun pos_ind ind ->
-        gen_all_one_ind suffix kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams
+        gen_all_one_ind cache suffix kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams
       )  mib.mind_packets
   in
   (* universes *)
@@ -998,9 +1015,10 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams =
   return (uctx, mie)
 
 let generate_all_predicate env sigma kn u mib strpos suffix =
+  let cache = Warning_scheme_all.empty_cache () in
   let (sigma, uparams, nuparams, sub_temp) = get_params_sep sigma mib u in
   dbg Pp.(fun () -> str "strpos = " ++ prlist_with_sep (fun () -> str ", ") bool strpos);
-  let (sigma, (uctx, mie)) = run env sigma @@ generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams in
+  let (sigma, (uctx, mie)) = run env sigma @@ generate_all_aux cache suffix kn u sub_temp mib uparams strpos nuparams in
   (uctx, mie)
 
 
@@ -1028,7 +1046,7 @@ let return_type kn kn_nested pos_ind u u_all mib key_uparams key_uparams_preds n
   (* Return the sort of the inductive *)
   make_ccl kn_nested pos_ind u_all key_uparams_preds key_nuparams key_indices key_VarMatch
 
-let rec make_rec_call_proof kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_preds_hold key_fixs strpos key_arg arg_type =
+let rec make_rec_call_proof cache kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_preds_hold key_fixs strpos key_arg arg_type =
   (* Decompose the argument, rebind local variables and compute the argument *)
   let* (locs, head) = view_argument kn mib key_uparams strpos arg_type in
   let@ key_locals = closure_context fopt Lambda Fresh naming_id locs in
@@ -1051,9 +1069,9 @@ let rec make_rec_call_proof kn knu pos_ind mib ((key_uparams, _, _) as key_up) k
       (* eta expand arguments *)
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates, and their proofs *)
-      let compute_pred_preds i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib (IndIsKn knu) key_up strpos None) i x in
+      let compute_pred_preds i x b = compute_pred_eta b (make_rec_call_hyp cache kn pos_ind mib (IndIsKn knu) key_up strpos None) i x in
       let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list nested_strpos) in
-      let compute_pred_holds i x b = compute_pred_eta b (make_rec_call_proof kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
+      let compute_pred_holds i x b = compute_pred_eta b (make_rec_call_proof cache kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
       let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list nested_strpos) in
       (* If at least one argument is nested, lookup the local fundamental theorem *)
       let args_are_nested = Array.map Option.has_some rec_preds_hold in
@@ -1061,21 +1079,22 @@ let rec make_rec_call_proof kn knu pos_ind mib ((key_uparams, _, _) as key_up) k
         return None
       else begin
         match lookup_all_theorem (kn, pos_ind) nested_container (Array.to_list args_are_nested) with
-        | None ->
+        | Error warn ->
+            let () = Warning_scheme_all.warn warn cache in
             return None
-        | Some (partial_nesting, _, ref_thm) ->
+        | Ok (partial_nesting, _, ref_thm) ->
             let* rec_hyp_proof = make_all_theorem ~partial_nesting ref_thm nested_strpos inst_uparams
                             rec_preds rec_preds_hold inst_nuparams_indices inst_arg in
             return @@ Some rec_hyp_proof
       end
   | _ -> return None
 
-let compute_args_fix kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_args =
+let compute_args_fix cache kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_args =
   CList.fold_right_i (fun pos_arg key_arg acc ->
     let* acc = acc in
     let* arg_term = get_term key_arg in
       let* arg_type = State.get_type key_arg in
-      let* rec_call_proof = make_rec_call_proof kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_arg arg_type in
+      let* rec_call_proof = make_rec_call_proof cache kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_arg arg_type in
       match rec_call_proof with
         | Some rec_call_proof -> return @@ arg_term :: rec_call_proof :: acc
         | None -> return @@ arg_term :: acc
@@ -1086,7 +1105,7 @@ let make_cst_typing ((kn, pos_ind), u) pos_ctor key_uparams key_nuparams args =
   let* params = get_terms (key_uparams @ key_nuparams) in
   typing_checked_appvect tCst (Array.concat [params; args])
 
-let generate_all_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : constr t =
+let generate_all_theorem_aux cache kn kn_nested focus u mib uparams strpos nuparams : constr t =
   (* 1. Create fresh sorts + new unfiform parameters *)
   let* fresh_sorts = create_fresh_sorts strpos in
   let@ ((key_uparams, key_preds, key_uparams_preds) as key_up, key_preds_hold) =
@@ -1124,13 +1143,14 @@ let generate_all_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : 
     make_case_or_projections naming_hd_fresh mib (kn, pos_ind) ind u key_uparams key_nuparams inst_params
       inst_indices case_pred case_rev var_match in
   (* 5 Body of the branch *)
-  let* args = compute_args_fix kn (kn_nested, u_all.(pos_ind)) pos_ind mib key_up key_preds_hold key_fixs strpos key_args in
+  let* args = compute_args_fix cache kn (kn_nested, u_all.(pos_ind)) pos_ind mib key_up key_preds_hold key_fixs strpos key_args in
   make_cst_typing ((kn_nested, pos_ind), u_all.(pos_ind)) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
 
 let generate_all_theorem env sigma kn kn_nested focus u mib strpos =
+  let cache = Warning_scheme_all.empty_cache () in
   let (sigma, uparams, nuparams, _) = get_params_sep sigma mib u in
   dbg Pp.(fun () -> str "strpos = " ++ prlist_with_sep (fun () -> str ", ") bool strpos);
-  let (sigma, tm) = run env sigma @@ generate_all_theorem_aux kn kn_nested focus u mib uparams strpos nuparams in
+  let (sigma, tm) = run env sigma @@ generate_all_theorem_aux cache kn kn_nested focus u mib uparams strpos nuparams in
   dbg Pp.(fun () -> str "All Theorem = " ++ Termops.Internal.print_constr_env env sigma tm ++ fnl ());
   dbg Pp.(fun () -> str "UState = " ++ UState.pr (Evd.ustate sigma) ++ fnl ());
   (sigma, tm)
