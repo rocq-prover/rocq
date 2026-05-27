@@ -505,6 +505,10 @@ TACTIC EXTEND is_hyp
 | [ "is_var" constr(x) ] -> { Internals.is_var x }
 END
 
+TACTIC EXTEND is_secvar
+| [ "is_section_var" constr(x) ] -> { Internals.is_section_var x }
+END
+
 TACTIC EXTEND is_fix
 | [ "is_fix" constr(x) ] -> { Internals.is_fix x }
 END

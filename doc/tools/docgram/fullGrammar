@@ -1826,6 +1826,7 @@ simple_tactic: [
 | "is_evar" constr
 | "has_evar" constr
 | "is_var" constr
+| "is_section_var" constr
 | "is_fix" constr
 | "is_cofix" constr
 | "is_ind" constr

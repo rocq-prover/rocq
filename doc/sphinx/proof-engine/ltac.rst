@@ -1706,6 +1706,14 @@ succeeds, and results in an error otherwise.
    .. exn:: Not a variable or hypothesis.
       :undocumented:
 
+.. tacn:: is_section_var @one_term
+
+   Succeeds if :n:`@one_term` is a section variable in
+   the current local context and fails otherwise.
+
+   .. exn:: Not a section variable.
+      :undocumented:
+
 .. tacn:: is_const @one_term
 
    Succeeds if :n:`@one_term` is a global constant that is neither a (co)inductive
