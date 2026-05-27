@@ -107,7 +107,7 @@ Ltac2 @external message_of_env : env -> message
 
 Module UnsafeEnv.
 (** Functions in this module may be unsafe in two ways:
-    - The function expectes invariants on the arguments to be true but does not check them.
+    - The function expects invariants on the arguments to be true but does not check them.
       Typically [termj] does not check that its arguments are related.
     - Calling the function is safe, but combining it with safe functions is not.
       Typically [term_of_termj] is safe, but calling [Std.eval_cbv] on the result is not safe.
