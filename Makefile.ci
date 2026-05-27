@@ -55,6 +55,7 @@ CI_TARGETS= \
     ci-bedrock2_examples \
     ci-category_theory \
     ci-ceres \
+    ci-certirocq \
     ci-coinduction \
     ci-color \
     ci-compcert \
@@ -222,6 +223,8 @@ ci-flocq: ci-stdlib
 ci-menhir: ci-stdlib
 
 ci-metarocq: ci-equations ci-ext_lib
+
+ci-certirocq: ci-metarocq
 
 ci-neural_net_interp: ci-stdlib
 

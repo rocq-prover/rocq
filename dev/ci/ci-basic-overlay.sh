@@ -454,6 +454,12 @@ project metarocq "https://github.com/MetaRocq/metarocq" "main"
 # Contact @mattam82, @yforster on github
 
 ########################################################################
+# certirocq
+########################################################################
+project certirocq "https://github.com/CertiRocq/certirocq" "master"
+# Contact @mattam82, @yforster or @zoep on github
+
+########################################################################
 # SF suite
 ########################################################################
 project sf "https://github.com/DeepSpec/sf" "master"
