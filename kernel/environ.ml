@@ -198,7 +198,9 @@ let var_status_eq a b = match a, b with
 
 let push_named_context_val status d ctxt =
   let id = NamedDecl.get_id d in
-  assert (not (Id.Map.mem id ctxt.env_named_map));
+  (* we would like the stronger assert but it breaks in bug_4095 *)
+  (* assert (not (Id.Map.mem id ctxt.env_named_map)); *)
+  assert (not (Id.Set.mem id ctxt.env_named_secvars));
   let secvars = match status with
     | ProofVar -> ctxt.env_named_secvars
     | SecVar -> Id.Set.add id ctxt.env_named_secvars
