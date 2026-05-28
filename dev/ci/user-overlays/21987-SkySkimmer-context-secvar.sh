@@ -2,9 +2,9 @@ overlay equations https://github.com/SkySkimmer/equations context-secvar 21987
 
 overlay elpi https://github.com/SkySkimmer/coq-elpi context-secvar 21987
 
-overlay mathcomp https://github.com/SkySkimmer/math-comp context-secvar 21987
+#overlay mathcomp https://github.com/SkySkimmer/math-comp context-secvar 21987
 
-overlay tlc https://github.com/SkySkimmer/tlc context-secvar 21987
+#overlay tlc https://github.com/SkySkimmer/tlc context-secvar 21987
 
 overlay kami https://github.com/SkySkimmer/kami context-secvar 21987
 # Make PRs against https://github.com/mit-plv/kami base branch rv32i
@@ -19,7 +19,7 @@ overlay coqutil https://github.com/SkySkimmer/coqutil context-secvar 21987
 
 overlay fiat_crypto https://github.com/SkySkimmer/fiat-crypto context-secvar 21987
 
-overlay ceres https://github.com/SkySkimmer/coq-ceres context-secvar 21987
+#overlay ceres https://github.com/SkySkimmer/coq-ceres context-secvar 21987
 
 overlay unicoq https://github.com/SkySkimmer/unicoq context-secvar 21987
 
