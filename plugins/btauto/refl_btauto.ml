@@ -10,12 +10,13 @@
 
 open Constr
 
-let bt_lib_constr n = lazy (UnivGen.constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref n)
+let bt_lib_constr n () = UnivGen.constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref n
+let bt_force f = f ()
 
 let decomp_term sigma (c : Constr.t) =
   Constr.kind (EConstr.Unsafe.to_constr (Termops.strip_outer_cast sigma (EConstr.of_constr c)))
 
-let lapp c v  = Constr.mkApp (Lazy.force c, v)
+let lapp c v  = Constr.mkApp (c(), v)
 
 let (===) = Constr.equal
 
@@ -39,7 +40,7 @@ module RocqPositive = struct
 
   (* A Rocq nat from an int *)
   let rec of_int n =
-    if n <= 1 then Lazy.force _xH
+    if n <= 1 then _xH()
     else
       let ans = of_int (n / 2) in
       if n mod 2 = 0 then lapp _xO [|ans|]
@@ -75,7 +76,7 @@ end
 
 module Bool = struct
 
-  let ind    = lazy (Globnames.destIndRef (Rocqlib.lib_ref "core.bool.type"))
+  let ind () = Globnames.destIndRef (Rocqlib.lib_ref "core.bool.type")
   let typ    = bt_lib_constr "core.bool.type"
   let trueb  = bt_lib_constr "core.bool.true"
   let falseb = bt_lib_constr "core.bool.false"
@@ -94,12 +95,12 @@ module Bool = struct
   | Ifb of t * t * t
 
   let quote (env : Env.t) genv sigma (c : Constr.t) : t =
-    let trueb = Lazy.force trueb in
-    let falseb = Lazy.force falseb in
-    let andb = Lazy.force andb in
-    let orb = Lazy.force orb in
-    let xorb = Lazy.force xorb in
-    let negb = Lazy.force negb in
+    let trueb = bt_force trueb in
+    let falseb = bt_force falseb in
+    let andb = bt_force andb in
+    let orb = bt_force orb in
+    let xorb = bt_force xorb in
+    let negb = bt_force negb in
 
     let rec aux c = match decomp_term sigma c with
     | App (head, args) ->
@@ -115,7 +116,7 @@ module Bool = struct
     | Case (info, _, _, _, _, arg, pats) ->
       let is_bool =
         let i = info.ci_ind in
-        Environ.QInd.equal genv i (Lazy.force ind)
+        Environ.QInd.equal genv i (bt_force ind)
       in
       if is_bool then
         Ifb ((aux arg), (aux (snd pats.(0))), (aux (snd pats.(1))))
@@ -151,8 +152,8 @@ module Btauto = struct
 
   let rec convert = function
   | Bool.Var n -> lapp f_var [|RocqPositive.of_int n|]
-  | Bool.Const true -> Lazy.force f_top
-  | Bool.Const false -> Lazy.force f_btm
+  | Bool.Const true -> bt_force f_top
+  | Bool.Const false -> bt_force f_btm
   | Bool.Andb (b1, b2) -> lapp f_cnj [|convert b1; convert b2|]
   | Bool.Orb (b1, b2) -> lapp f_dsj [|convert b1; convert b2|]
   | Bool.Negb b -> lapp f_neg [|convert b|]
@@ -160,7 +161,7 @@ module Btauto = struct
   | Bool.Ifb (b1, b2, b3) -> lapp f_ifb [|convert b1; convert b2; convert b3|]
 
   let convert_env env : Constr.t =
-    RocqList.of_list (Lazy.force Bool.typ) env
+    RocqList.of_list (bt_force Bool.typ) env
 
   let reify env t = lapp eval [|convert_env env; convert t|]
 
@@ -173,11 +174,11 @@ module Btauto = struct
     let var = EConstr.Unsafe.to_constr var in
     let rec to_list l = match decomp_term sigma l with
       | App (c, _)
-        when c === (Lazy.force RocqList._nil) -> []
+        when c === (bt_force RocqList._nil) -> []
       | App (c, [|_; h; t|])
-        when c === (Lazy.force RocqList._cons) ->
-        if h === (Lazy.force Bool.trueb) then (true :: to_list t)
-        else if h === (Lazy.force Bool.falseb) then (false :: to_list t)
+        when c === (bt_force RocqList._cons) ->
+        if h === (bt_force Bool.trueb) then (true :: to_list t)
+        else if h === (bt_force Bool.falseb) then (false :: to_list t)
         else invalid_arg "to_list"
       | _ -> invalid_arg "to_list"
     in
@@ -214,7 +215,7 @@ module Btauto = struct
   let try_unification env =
     Proofview.Goal.enter begin fun gl ->
       let concl = Proofview.Goal.concl gl in
-      let eq = Lazy.force eq in
+      let eq = bt_force eq in
       let concl = EConstr.Unsafe.to_constr concl in
       let t = decomp_term (Proofview.Goal.sigma gl) concl in
       match t with
@@ -233,8 +234,8 @@ module Btauto = struct
       let concl = EConstr.Unsafe.to_constr concl in
       let genv = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
-      let eq = Lazy.force eq in
-      let bool = Lazy.force Bool.typ in
+      let eq = bt_force eq in
+      let bool = bt_force Bool.typ in
       let t = decomp_term sigma concl in
       match t with
       | App (c, [|typ; tl; tr|])
@@ -249,7 +250,7 @@ module Btauto = struct
           let changed_gl = EConstr.of_constr changed_gl in
           Tacticals.tclTHENLIST [
             Tactics.change_concl changed_gl;
-            Tactics.apply (EConstr.of_constr (Lazy.force soundness));
+            Tactics.apply (EConstr.of_constr (bt_force soundness));
             Tactics.normalise_vm_in_concl;
             try_unification env
           ]

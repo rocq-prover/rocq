@@ -39,17 +39,14 @@ let { Goptions.get = do_rewrite_output_constraints } =
 
 (** Constants used by the tactic. *)
 
-let bind_global_ref lib s =
-  let gr = lazy (Rocqlib.lib_ref (lib ^ "." ^ s)) in
-  fun () -> Lazy.force gr
+let bind_global_ref lib s =  fun () -> Rocqlib.lib_ref (lib ^ "." ^ s)
 
 type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
-let bind_global lib s =
-  let gr = lazy (Rocqlib.lib_ref (lib ^ "." ^ s)) in
-    fun env (evd,cstrs) ->
-      let (evd, c) = Evd.fresh_global env evd (Lazy.force gr) in
-        (evd, cstrs), c
+let bind_global lib s env (evd,cstrs) =
+  let gr = Rocqlib.lib_ref (lib ^ "." ^ s) in
+  let (evd, c) = Evd.fresh_global env evd gr in
+  (evd, cstrs), c
 
 (** Utility for dealing with polymorphic applications *)
 
@@ -242,13 +239,13 @@ end) = struct
 
   let rewrite_relation_class = bind_rewrite "RewriteRelation"
 
-  let proper_class =
-    let r = lazy (bind_rewrite_ref "Proper" ()) in
-    fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
+  let proper_class () =
+    let r = bind_rewrite_ref "Proper" () in
+    Option.get (TC.class_info (Global.env ()) r)
 
-  let proper_proxy_class =
-    let r = lazy (bind_rewrite_ref "ProperProxy" ()) in
-    fun () -> Option.get (TC.class_info (Global.env ()) (Lazy.force r))
+  let proper_proxy_class () =
+    let r = bind_rewrite_ref "ProperProxy" () in
+    Option.get (TC.class_info (Global.env ()) r)
 
   let proper_proj () = bind_rewrite_ref "proper_prf" ()
 
