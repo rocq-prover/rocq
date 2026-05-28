@@ -7,10 +7,6 @@
  ; don't depend on rocq-runtime.lib -> impossible to imperatively set random flags
  (libraries rocq-runtime.config rocq-runtime.boot rocq-runtime.clib))
 
-(deprecated_library_name
- (old_public_name coq-core.coqargs)
- (new_public_name rocq-runtime.coqargs))
-
 (library
  (name sysinit)
  (public_name rocq-runtime.sysinit)
@@ -18,7 +14,3 @@
  (wrapped false)
  (modules :standard \ coqargs)
  (libraries rocq-runtime.boot rocq-runtime.vernac coqargs findlib))
-
-(deprecated_library_name
- (old_public_name coq-core.sysinit)
- (new_public_name rocq-runtime.sysinit))

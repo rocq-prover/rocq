@@ -4,10 +4,6 @@
  (synopsis "Rocq's ring plugin")
  (libraries rocq-runtime.plugins.ltac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.ring)
- (new_public_name rocq-runtime.plugins.ring))
-
 (rule
  (targets g_ring.ml)
  (deps (:mlg g_ring.mlg))

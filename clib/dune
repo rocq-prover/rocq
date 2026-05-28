@@ -11,10 +11,6 @@
    (memprof-limits -> memprof_coq.memprof.ml))
    str unix threads))
 
-(deprecated_library_name
- (old_public_name coq-core.clib)
- (new_public_name rocq-runtime.clib))
-
 (executable
  (name unicodetable_gen)
  (modules unicodetable_gen))

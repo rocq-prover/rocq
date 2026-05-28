@@ -5,10 +5,6 @@
  (modules_without_implementation notation_gram)
  (libraries rocq-runtime.gramlib interp))
 
-(deprecated_library_name
- (old_public_name coq-core.parsing)
- (new_public_name rocq-runtime.parsing))
-
 (rule
  (targets g_prim.ml)
  (deps (:mlg g_prim.mlg))

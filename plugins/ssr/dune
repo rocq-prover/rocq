@@ -6,10 +6,6 @@
  (flags :standard -open Gramlib)
  (libraries rocq-runtime.plugins.ssrmatching))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.ssreflect)
- (new_public_name rocq-runtime.plugins.ssreflect))
-
 (rule
  (targets ssrvernac.ml)
  (deps (:mlg ssrvernac.mlg))

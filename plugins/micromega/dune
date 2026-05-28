@@ -5,10 +5,6 @@
  (synopsis "Rocq's micromega core plugin")
  (libraries zarith rocq-runtime.clib))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.micromega_core)
- (new_public_name rocq-runtime.plugins.micromega_core))
-
 (library
  (name micromega_plugin)
  (public_name rocq-runtime.plugins.micromega)
@@ -17,10 +13,6 @@
  (flags :standard -open Micromega_core_plugin)
  (synopsis "Rocq's micromega plugin")
  (libraries rocq-runtime.plugins.ltac rocq-runtime.plugins.micromega_core))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.micromega)
- (new_public_name rocq-runtime.plugins.micromega))
 
 (executable
  (name csdpcert)
@@ -36,10 +28,6 @@
  (modules g_zify zify)
  (synopsis "Rocq's zify plugin")
  (libraries rocq-runtime.plugins.ltac))
-
-(deprecated_library_name
- (old_public_name coq-core.plugins.zify)
- (new_public_name rocq-runtime.plugins.zify))
 
 (rule
  (targets g_micromega.ml)

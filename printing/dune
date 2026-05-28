@@ -4,7 +4,3 @@
  (public_name rocq-runtime.printing)
  (wrapped false)
  (libraries parsing proofs))
-
-(deprecated_library_name
- (old_public_name coq-core.printing)
- (new_public_name rocq-runtime.printing))

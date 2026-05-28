@@ -4,10 +4,6 @@
  (synopsis "Rocq's derive plugin")
  (libraries rocq-runtime.vernac))
 
-(deprecated_library_name
- (old_public_name coq-core.plugins.derive)
- (new_public_name rocq-runtime.plugins.derive))
-
 (rule
  (targets g_derive.ml)
  (deps (:mlg g_derive.mlg))

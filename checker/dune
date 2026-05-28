@@ -10,10 +10,6 @@
  (wrapped true)
  (libraries rocq-runtime.boot rocq-runtime.kernel))
 
-(deprecated_library_name
- (old_public_name coq-core.checklib)
- (new_public_name rocq-runtime.checklib))
-
 (executable
  (name rocqchk)
  (public_name rocqchk)
