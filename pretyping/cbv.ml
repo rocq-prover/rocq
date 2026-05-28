@@ -541,7 +541,7 @@ let rec norm_head info env t stack =
 
   | Const sp ->
     Reductionops.reduction_effect_hook info.env info.sigma
-      (fst sp) (lazy (reify_stack t (strip_app stack)));
+      (fst sp) (lazy (EConstr.of_constr @@ reify_stack t (strip_app stack)));
     norm_head_ref 0 info env stack (ConstKey sp) t
 
   | LetIn (na, b, u, c) ->

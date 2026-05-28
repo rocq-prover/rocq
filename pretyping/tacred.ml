@@ -603,7 +603,7 @@ let match_eval_ref env sigma constr stack =
   match EConstr.kind sigma constr with
   | Const (sp, u) ->
     let () = reduction_effect_hook env sigma sp
-        (lazy (EConstr.to_constr sigma (applist (constr,stack)))) in
+        (lazy (applist (constr,stack))) in
     let cb = lookup_constant env sigma sp in
     begin match cb.const_body with
     | Def _ -> if is_transparent env (Evaluable.EvalConstRef sp) then EvEval (EvalConst sp, u) else EvNone
@@ -620,7 +620,7 @@ let match_eval_ref_value env sigma constr stack =
   match EConstr.kind sigma constr with
   | Const (sp, u) ->
      reduction_effect_hook env sigma sp
-        (lazy (EConstr.to_constr sigma (applist (constr,stack))));
+        (lazy (applist (constr,stack)));
     if is_evaluable env sigma (EvalConstRef sp) then
       Some (constant_value_in env sigma (sp, u))
     else

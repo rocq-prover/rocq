@@ -709,7 +709,7 @@ let rec whd_state_gen ?csts flags env sigma =
     | Evar _ | Meta _ -> fold ()
     | Const (c,u as const) ->
       Reductionops.reduction_effect_hook env sigma c
-         (lazy (EConstr.to_constr sigma (Stack.zip sigma (x,fst (Stack.strip_app stack)))));
+         (lazy (Stack.zip sigma (x,fst (Stack.strip_app stack))));
       if RedFlags.red_set flags (RedFlags.fCONST c) then
        let u' = EInstance.kind sigma u in
        match constant_value_in env sigma (c, u) with
