@@ -42,72 +42,7 @@ CI_PLATFORM_FULL= \
     ci-stdlib \
     ci-unicoq
 
-CI_TARGETS= \
-    $(CI_PLATFORM_FULL) \
-    ci-argosy \
-    ci-async_test \
-    ci-atbr \
-    ci-autosubst \
-    ci-autosubst_ocaml \
-    ci-bbv \
-    ci-bedrock2 \
-    ci-bedrock2_examples \
-    ci-category_theory \
-    ci-ceres \
-    ci-coinduction \
-    ci-color \
-    ci-compcert \
-    ci-coqtail \
-    ci-coqutil \
-    ci-cross_crypto \
-    ci-rocq_lsp \
-    ci-coq_performance_tests \
-    ci-coq_tools \
-    ci-deriving \
-    ci-elpi_test \
-    ci-hb_test \
-    ci-engine_bench \
-    ci-equations_test \
-    ci-fcsl_pcm \
-    ci-fiat_crypto \
-    ci-fiat_crypto_legacy \
-    ci-fiat_crypto_ocaml \
-    ci-fiat_parsers \
-    ci-fourcolor \
-    ci-http \
-    ci-itree \
-    ci-itree_io \
-    ci-jasmin \
-    ci-json \
-    ci-kami \
-    ci-lean_importer \
-    ci-ltac2_compiler \
-    ci-mathcomp_test \
-    ci-metarocq \
-    ci-neural_net_interp \
-    ci-oddorder \
-    ci-paco \
-    ci-parsec \
-    ci-perennial \
-    ci-quickchick_test \
-    ci-refman \
-    ci-rewriter \
-    ci-riscv_coq \
-    ci-rupicola \
-    ci-sf \
-    ci-smtcoq \
-    ci-smtcoq_trakt \
-    ci-stalmarck \
-    ci-stdlib_doc \
-    ci-stdlib_test \
-    ci-tactician \
-    ci-tlc \
-    ci-trakt \
-    ci-unimath \
-    ci-verdi_raft \
-    ci-vsrocq \
-    ci-vst \
-    ci-waterproof
+CI_TARGETS:=$(filter-out ci-common,$(patsubst dev/ci/scripts/%.sh,%,$(wildcard dev/ci/scripts/ci-*.sh)))
 
 CI_VIRTUAL_TARGETS= \
     ci-elpi_hb \
