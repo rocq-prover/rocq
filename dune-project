@@ -33,7 +33,7 @@
  (conflicts
   (coq (< 8.17))
   (coq-core (< 8.21)))
- (depopts rocq-native memprof-limits memtrace)
+ (depopts rocq-native (memprof-limits (>= 0.3.0)) memtrace)
  (synopsis "The Rocq Prover -- Core Binaries and Tools")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
 a formal language to write mathematical definitions, executable
