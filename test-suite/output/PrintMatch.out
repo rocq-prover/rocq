@@ -41,7 +41,7 @@ Arguments eq_sym [A]%_type_scope [x y] H
 eq_sym =
 fun (A : Type) (x y : A) (H : x = y) =>
 match H in _ = y0 return y0 = x with
-| @eq_refl _ _ => @eq_refl A x
+| eq_refl => @eq_refl A x
 end
      : forall [A : Type] [x y : A], x = y -> y = x
 

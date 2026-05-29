@@ -664,6 +664,15 @@ When we use parameters in patterns there is an error message:
      end).
    Unset Asymmetric Patterns.
 
+.. flag:: Asymmetric Patterns No Implicits
+
+   This compatibility :term:`flag` (off by default) disactivates
+   implicit arguments in patterns when :flag:`Asymmetric Patterns` is
+   on, thus recovering the behavior of :flag:`Asymmetric Patterns`
+   before Rocq 9.3.
+
+   .. deprecated:: 9.3
+
 Implicit arguments in patterns
 ------------------------------
 

@@ -21,7 +21,7 @@ Section hlist.
                                  | l :: _ => F l
                                end with
       | Hnil => tt
-      | Hcons _ _ x _ => x
+      | Hcons x _ => x
     end.
 
   Definition hlist_tl {a b} (hl : hlist (a :: b)) : hlist b :=
@@ -30,7 +30,7 @@ Section hlist.
                                  | _ :: ls => hlist ls
                                end with
       | Hnil => tt
-      | Hcons _ _ _ x => x
+      | Hcons _ x => x
     end.
 
   Lemma hlist_eta : forall ls (h : hlist ls),

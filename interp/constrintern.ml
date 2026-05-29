@@ -1776,6 +1776,13 @@ let { Goptions.get = get_asymmetric_patterns } =
     ~value:false
     ()
 
+let { Goptions.get = get_asymmetric_patterns_no_implicits } =
+  Goptions.declare_bool_option_and_ref
+    ~depr:(Deprecation.make ~since:"9.3" ())
+    ~key:["Asymmetric";"Patterns";"No";"Implicits"]
+    ~value:false
+    ()
+
 type global_reference_test = {
   for_ind : bool;
   test_kind : ?loc:Loc.t -> GlobRef.t -> unit
@@ -1853,7 +1860,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
     let loc = pt.loc in
     (* The two policies implied by asymmetric pattern mode *)
     let add_par_if_no_ntn_with_par = get_asymmetric_patterns () && not for_ind in
-    let no_impl = get_asymmetric_patterns () && not for_ind in
+    let no_impl = get_asymmetric_patterns_no_implicits () && get_asymmetric_patterns () && not for_ind in
     match pt.v with
     | CPatAlias (p, id) -> DAst.make ?loc @@ RCPatAlias (in_pat test_kind scopes p, id)
     | CPatRecord l ->

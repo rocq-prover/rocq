@@ -251,6 +251,8 @@ val parsing_explicit : bool ref
 (** Placeholder for global option, should be moved to a parameter *)
 val get_asymmetric_patterns : unit -> bool
 
+val get_asymmetric_patterns_no_implicits : unit -> bool
+
 val check_duplicate : ?loc:Loc.t -> (qualid * constr_expr) list -> unit
 (** Check that a list of record field definitions doesn't contain
     duplicates. *)
