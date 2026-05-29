@@ -1552,20 +1552,20 @@ let check_one_fix ?evars renv recpos trees def =
 
         | Case (ci, u, pms, ret, iv, c_0, br) -> (* iv ignored: it's just a cache *)
             let (ci, (p,_), _iv, c_0, brs) = expand_case renv.env (ci, u, pms, ret, iv, c_0, br) in
-            let needreduce_c_0, rs = check_in_redex renv rs c_0 in
+            let rs = push_redex rs in
+            let rs = check_term renv rs c_0 in
             let rs = check_term renv rs p in
             (* compute the recarg info for the arguments of each branch *)
-            let rs' = push_redex rs in
-            let nr = redex_level rs' in
+            let nr = redex_level rs in
             let c_spec = Subterm.make_internal nr (lazy_subterm_specif ?evars renv [] c_0) in
             let case_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
             let stack' = filter_stack_domain stack_element_specif (Lazy.from_val (Subterm.internal nr)) ?evars renv.env p stack in
-            let rs' =
-              Array.fold_left_i (fun k rs' br' ->
+            let rs =
+              Array.fold_left_i (fun k rs br' ->
                   let stack_br = push_stack_args (case_spec k) stack' in
-                  check_in_stack renv stack_br rs' br') rs' brs in
-            let needreduce_br, rs = pop_redex rs' in
-            check_needreduce renv (needreduce_br ||| needreduce_c_0) stack rs (fun () ->
+                  check_in_stack renv stack_br rs br') rs brs in
+            let needreduce, rs = pop_redex rs in
+            check_needreduce renv needreduce stack rs (fun () ->
               (* we try hard to reduce the match away by looking for a
                  constructor in c_0 (we unfold definitions too) *)
               let hd, args = reduce_and_contract_cofix ?evars renv.env c_0 in
@@ -1591,8 +1591,8 @@ let check_one_fix ?evars renv recpos trees def =
         | Fix ((recindxs,i),(_,typarray,bodies as recdef) as fix) ->
             let decrArg = recindxs.(i) in
             let nbodies = Array.length bodies in
-            let rs' = push_redex rs in
-            let rs' = Array.fold_left (check_term renv) rs' typarray in
+            let rs = push_redex rs in
+            let rs = Array.fold_left (check_term renv) rs typarray in
             let renv' = push_fix_renv renv recdef in
             let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
@@ -1605,10 +1605,10 @@ let check_one_fix ?evars renv recpos trees def =
               error_ill_formed_rec_body renv.env (Type_errors.FixGuardError (NotEnoughAbstractionInFixBody recindxs.(i)))
                 (pi1 recdef) i (push_rec_types recdef renv.env)
                 (judgment_of_fixpoint recdef) in
-            let rs' = Array.fold_left2_i (fun j rs' recindx body ->
+            let rs = Array.fold_left2_i (fun j rs recindx body ->
                 let fix_stack = if Int.equal i j then stack_this else stack_others in
-                check_nested_fix_body illformed renv' (recindx+1) fix_stack rs' body) rs' recindxs bodies in
-            let needreduce, rs = pop_redex rs' in
+                check_nested_fix_body illformed renv' (recindx+1) fix_stack rs body) rs recindxs bodies in
+            let needreduce, rs = pop_redex rs in
             let absorbed_stack, non_absorbed_stack = List.chop nuniformparams stack in
             check_needreduce renv needreduce non_absorbed_stack rs (fun () ->
               (* we try hard to reduce the fix away by looking for a
@@ -1696,9 +1696,9 @@ let check_one_fix ?evars renv recpos trees def =
             end
 
         | Cast (c,_,t) ->
-            let rs = check_term renv rs t in
-            let rs = check_in_stack renv stack rs c in
-            rs
+            let _, rs = check_in_redex renv rs t in
+            (* The type annotation is erased by cast erasure *)
+            check_in_stack renv stack rs c
 
         | Sort _ | Int _ | Float _ | String _ ->
             (* See [Prod]: we cannot ensure that the stack is empty *)
