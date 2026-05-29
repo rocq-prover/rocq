@@ -767,6 +767,13 @@ module Subterm : sig
 
 type size = Large | Strict
 
+type var
+(* Levels to the redex stack *)
+
+val of_int : int -> var
+
+type vars
+
 (**
   Possible specifications for a term, from most to least acceptable:
   - DeadCode: the term has been built by elimination over an empty type;
@@ -776,12 +783,12 @@ type size = Large | Strict
     the argument itself is a large subterm, becomes strict after a [match];
     the wf_paths argument specifies which constructor arguments are recursive,
     it can never be empty or this downgrades the specification to [NotSubterm];
-    the [int set] is the same as in [Vars l];
+    the [vars] is the same as in [Vars l];
   - NotSubterm: the term is not a subterm in any kind **)
 type t = private
   | DeadCode
-  | Vars of Int.Set.t
-  | Subterm of size * WfPaths.t * Int.Set.t
+  | Vars of vars
+  | Subterm of size * WfPaths.t * vars
   | NotSubterm
 
 val structural : WfPaths.t -> t
@@ -790,8 +797,8 @@ val strict_subterm : WfPaths.t -> t
 val dead_code : t
 val not_subterm : t
 
-val internal : int -> t
-val make_internal : int -> t lazy_t -> t lazy_t
+val internal : var -> t
+val make_internal : var -> t lazy_t -> t lazy_t
 
 type check_result =
   | InvalidSubterm
@@ -812,6 +819,13 @@ val prune_path : ?evars:CClosure.evar_handler ->
 end = struct
 
 type size = Large | Strict
+
+type var = int
+(* Levels to the redex stack *)
+
+let of_int n = n
+
+type vars = Int.Set.t
 
 (* merging information *)
 let inter_size s1 s2 =
@@ -1130,8 +1144,6 @@ let rec needreduce_of_stack = function
   | SArg _ :: l -> needreduce_of_stack l
   | SClosure (needreduce,_,_,_) :: l -> needreduce ||| needreduce_of_stack l
 
-let redex_level rs = List.length rs
-
 let push_stack_closure renv needreduce c stack =
   (SClosure (needreduce, renv, 0, c)) :: stack
 
@@ -1378,7 +1390,12 @@ let set_need_reduce env l err rs =
   Int.Set.fold (fun n -> set_need_reduce_one env n err) l rs
 
 let set_need_reduce_top env err rs =
-  set_need_reduce_one env (List.length rs) err rs
+  NeedReduce (env, err) :: List.tl rs
+
+let push_redex rs = NoNeedReduce :: rs
+let pop_redex rs = List.sep_first rs
+
+let redex_level rs = Subterm.of_int (List.length rs)
 
 type check_subterm_result = Subterm.check_result =
   | InvalidSubterm
@@ -1534,7 +1551,7 @@ let check_one_fix ?evars renv recpos trees def =
             let needreduce_c_0, rs = check_in_redex renv rs c_0 in
             let rs = check_term renv rs p in
             (* compute the recarg info for the arguments of each branch *)
-            let rs' = NoNeedReduce::rs in
+            let rs' = push_redex rs in
             let nr = redex_level rs' in
             let c_spec = Subterm.make_internal nr (lazy_subterm_specif ?evars renv [] c_0) in
             let case_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
@@ -1543,7 +1560,7 @@ let check_one_fix ?evars renv recpos trees def =
               Array.fold_left_i (fun k rs' br' ->
                   let stack_br = push_stack_args (case_spec k) stack' in
                   check_in_stack renv stack_br rs' br') rs' brs in
-            let needreduce_br, rs = List.sep_first rs' in
+            let needreduce_br, rs = pop_redex rs' in
             check_needreduce renv (needreduce_br ||| needreduce_c_0) stack rs (fun () ->
               (* we try hard to reduce the match away by looking for a
                  constructor in c_0 (we unfold definitions too) *)
@@ -1570,7 +1587,8 @@ let check_one_fix ?evars renv recpos trees def =
         | Fix ((recindxs,i),(_,typarray,bodies as recdef) as fix) ->
             let decrArg = recindxs.(i) in
             let nbodies = Array.length bodies in
-            let rs' = Array.fold_left (check_term renv) (NoNeedReduce::rs) typarray in
+            let rs' = push_redex rs in
+            let rs' = Array.fold_left (check_term renv) rs' typarray in
             let renv' = push_fix_renv renv recdef in
             let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
@@ -1586,9 +1604,9 @@ let check_one_fix ?evars renv recpos trees def =
             let rs' = Array.fold_left2_i (fun j rs' recindx body ->
                 let fix_stack = if Int.equal i j then stack_this else stack_others in
                 check_nested_fix_body illformed renv' (recindx+1) fix_stack rs' body) rs' recindxs bodies in
-            let needreduce_fix, rs = List.sep_first rs' in
+            let needreduce, rs = pop_redex rs' in
             let absorbed_stack, non_absorbed_stack = List.chop nuniformparams stack in
-            check_needreduce renv needreduce_fix non_absorbed_stack rs (fun () ->
+            check_needreduce renv needreduce non_absorbed_stack rs (fun () ->
               (* we try hard to reduce the fix away by looking for a
                  constructor in [decrArg] (we unfold definitions too) *)
               if List.length stack <= decrArg then None else
@@ -1627,15 +1645,13 @@ let check_one_fix ?evars renv recpos trees def =
                arbitrary types (see #17073) *)
             let rs = check_term renv rs a in
             (* Note: can recursive calls on [x] be else than inert "dead code"? *)
-            check_in_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs u
+            check_term (push_var_renv renv (redex_level rs) (x,a)) rs u
 
         | CoFix (_i,(_,typarray,bodies as recdef)) ->
             let rs = Array.fold_left (check_term renv) rs typarray in
             let renv' = push_fix_renv renv recdef in
-            Array.fold_left (fun rs body ->
-                let needreduce', rs = check_in_redex renv' rs body in
-                check_needreduce renv needreduce' stack rs (fun _ -> None))
-              rs bodies
+            let rs = Array.fold_left (check_term renv') rs bodies in
+            check_needreduce renv NoNeedReduce stack rs (fun () -> None)
 
         | Ind _ | Construct _ ->
             check_needreduce renv NoNeedReduce stack rs (fun () -> None)
@@ -1729,8 +1745,7 @@ let check_one_fix ?evars renv recpos trees def =
   (** Check rec calls of a term which cannot change at the current
       level of the redex stack (but possibly at a higher level still). *)
   and check_term renv rs c =
-    let need_reduce, rs = check_in_redex renv rs c in
-    check_needreduce renv need_reduce [] rs (fun () -> None)
+    check_in_stack renv [] rs c
 
   (** Check rec calls of a term which may change after reduction
       at the current level of the redex stack.
@@ -1741,7 +1756,9 @@ let check_one_fix ?evars renv recpos trees def =
       In practice, we push a redex level, do the regular check
       then pop it back for immediate examination. *)
   and check_in_redex renv rs c =
-    List.sep_first (check_in_stack renv [] (NoNeedReduce::rs) c)
+    let rs = push_redex rs in
+    let rs = check_in_stack renv [] rs c in
+    pop_redex rs
 
   in
   let need_reduce, rs = check_in_redex renv [] def in
