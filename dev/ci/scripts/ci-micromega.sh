@@ -10,6 +10,6 @@ git_download micromega
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/micromega"
-  dune build --root . --only-packages=micromega-plugin @install
-  dune install --root . micromega-plugin --prefix=$CI_INSTALL_DIR
+  dune build --root . --only-packages=rocq-micromega-plugin @install
+  dune install --root . rocq-micromega-plugin --prefix=$CI_INSTALL_DIR
 )
