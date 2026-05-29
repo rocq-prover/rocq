@@ -114,7 +114,17 @@ module CbnClos = struct
      refolding/progress checks compare the same delayed closure repeatedly. *)
   type t = { term : constr; subst : t Esubst.subs; mutable forced : constr option }
 
-  type view = (t, t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
+  type array_view = {
+    array_length : int;
+    array_get : int -> t;
+    array_default : t;
+  }
+
+  type view =
+    | NotArray of (t, t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
+    | Array of array_view
+
+  let notarray x = NotArray x
 
   let id_subst = Esubst.subs_id 0
   let inject term = { term; subst = id_subst; forced = None }
@@ -144,29 +154,6 @@ module CbnClos = struct
     let term = mkArray (u, Array.init n (fun i -> mkRel (i + 1)), mkRel (n + 1), mkRel (n + 2)) in
     let subst = List.fold_right Esubst.subs_cons (Array.to_list elems @ [def; ty]) id_subst in
     mk_clos subst term
-
-  type array_view = {
-    array_length : int;
-    array_get : int -> t;
-    array_default : t;
-  }
-
-  let rec array_view sigma c =
-    match EConstr.kind sigma c.term with
-    | Rel n ->
-      begin match Esubst.expand_rel n c.subst with
-      | Inl (k, v) -> array_view sigma (lift k v)
-      | Inr _ -> None
-      end
-    | Cast (b, _, _) -> array_view sigma (mk_clos c.subst b)
-    | Array (u, elems, def, ty) ->
-      let subst = c.subst in
-      Some {
-        array_length = Array.length elems;
-        array_get = (fun i -> mk_clos subst elems.(i));
-        array_default = mk_clos subst def;
-      }
-    | _ -> None
 
   let rec force sigma c =
     if Esubst.is_subs_id c.subst then c.term
@@ -234,33 +221,43 @@ module CbnClos = struct
     | Rel n ->
       begin match Esubst.expand_rel n c.subst with
       | Inl (k, v) -> kind sigma (lift k v)
-      | Inr (k, _) -> Rel k
+      | Inr (k, _) -> notarray @@ Rel k
       end
-    | Var id -> Var id
-    | Meta mv -> Meta mv
-    | Evar (ev, args) -> Evar (ev, SList.Skip.map (mk_clos c.subst) args)
-    | Sort s -> Sort s
-    | Cast (b, k, t) -> Cast (mk_clos c.subst b, k, mk_clos c.subst t)
-    | Prod (na, t, b) -> Prod (na, mk_clos c.subst t, mk_clos c.subst b)
-    | Lambda (na, t, b) -> Lambda (na, mk_clos c.subst t, mk_clos c.subst b)
-    | LetIn (na, b, t, c') -> LetIn (na, mk_clos c.subst b, mk_clos c.subst t, mk_clos c.subst c')
-    | App (f, args) -> App (mk_clos c.subst f, mk_clos_vect c.subst args)
-    | Const cst -> Const cst
-    | Ind ind -> Ind ind
-    | Construct cstr -> Construct cstr
+    | Var id -> notarray @@ Var id
+    | Meta mv -> notarray @@ Meta mv
+    | Evar (ev, args) -> notarray @@ Evar (ev, SList.Skip.map (mk_clos c.subst) args)
+    | Sort s -> notarray @@ Sort s
+    | Cast (b, k, t) -> notarray @@ Cast (mk_clos c.subst b, k, mk_clos c.subst t)
+    | Prod (na, t, b) -> notarray @@ Prod (na, mk_clos c.subst t, mk_clos c.subst b)
+    | Lambda (na, t, b) -> notarray @@ Lambda (na, mk_clos c.subst t, mk_clos c.subst b)
+    | LetIn (na, b, t, c') -> notarray @@ LetIn (na, mk_clos c.subst b, mk_clos c.subst t, mk_clos c.subst c')
+    | App (f, args) -> notarray @@ App (mk_clos c.subst f, mk_clos_vect c.subst args)
+    | Const cst -> notarray @@ Const cst
+    | Ind ind -> notarray @@ Ind ind
+    | Construct cstr -> notarray @@ Construct cstr
     | Case (ci, u, pms, ((nas, p), r), iv, d, brs) ->
       let p = ((nas, mk_clos c.subst p), r) in
       let brs = Array.map (fun (nas, b) -> (nas, mk_clos c.subst b)) brs in
-      Case (ci, u, mk_clos_vect c.subst pms, p, map_invert c.subst iv, mk_clos c.subst d, brs)
+      notarray @@ Case (ci, u, mk_clos_vect c.subst pms, p, map_invert c.subst iv, mk_clos c.subst d, brs)
     | Fix ((ri, n), (names, types, bodies)) ->
-      Fix ((ri, n), (names, mk_clos_vect c.subst types, mk_clos_vect c.subst bodies))
+      notarray @@ Fix ((ri, n), (names, mk_clos_vect c.subst types, mk_clos_vect c.subst bodies))
     | CoFix (n, (names, types, bodies)) ->
-      CoFix (n, (names, mk_clos_vect c.subst types, mk_clos_vect c.subst bodies))
-    | Proj (p, r, c') -> Proj (p, r, mk_clos c.subst c')
-    | Int i -> Int i
-    | Float f -> Float f
-    | String s -> String s
-    | Array (u, t, def, ty) -> Array (u, mk_clos_vect c.subst t, mk_clos c.subst def, mk_clos c.subst ty)
+      notarray @@ CoFix (n, (names, mk_clos_vect c.subst types, mk_clos_vect c.subst bodies))
+    | Proj (p, r, c') -> notarray @@ Proj (p, r, mk_clos c.subst c')
+    | Int _ | Float _ | String _ as k -> notarray k
+    | Array (u, elems, def, ty) ->
+      let subst = c.subst in
+      Array {
+        array_length = Array.length elems;
+        array_get = (fun i -> mk_clos subst elems.(i));
+        array_default = mk_clos subst def;
+      }
+
+  let array_view sigma c =
+    match kind sigma c with
+    | Array v -> Some v
+    | NotArray _ -> None
+
 end
 
 
@@ -652,7 +649,7 @@ let clos_of_app_stack sigma x args =
 let reduce_array_primitive sigma u p args =
   let get i = Array.get args i in
   let get_int i = match CbnClos.kind sigma (get i) with
-    | Int i -> Some i
+    | NotArray Int i -> Some i
     | _ -> None
   in
   let get_array i = CbnClos.array_view sigma (get i) in
@@ -713,14 +710,14 @@ let reduce_array_primitive sigma u p args =
 let apply_subst sigma cst_l t stack =
   let rec aux cst_l t stack =
     match (Stack.decomp stack, CbnClos.kind sigma t) with
-    | Some (h,stacktl), Lambda (_,_,c) ->
+    | Some (h,stacktl), NotArray Lambda (_,_,c) ->
        let cst_l' = Cst_stack.add_param h cst_l in
        aux cst_l' (CbnClos.subst_cons h c) stacktl
     | _ ->
       let cst_l = match CbnClos.subst_value sigma t with
         | Some tm ->
           let refold_after_iota = match stack, CbnClos.kind sigma tm with
-            | _ :: _, (Const _ | Var _ | Rel _) -> true
+            | _ :: _, NotArray (Const _ | Var _ | Rel _) -> true
             | [], _ | _ :: _, _ -> false
           in
           Cst_stack.mark_alias ~refold_after_iota cst_l
@@ -960,19 +957,19 @@ let rec match_arg_pattern whrec env sigma ctx psubst p t =
 
 and match_rigid_arg_pattern whrec env sigma ctx psubst p t =
   match [@ocaml.warning "-4"] p, CbnClos.kind sigma t with
-  | PHInd (ind, pu), Ind (ind', u) ->
+  | PHInd (ind, pu), NotArray Ind (ind', u) ->
     if QInd.equal env ind ind' then match_einstance sigma pu u psubst else raise PatternFailure
-  | PHConstr (constr, pu), Construct (constr', u) ->
+  | PHConstr (constr, pu), NotArray Construct (constr', u) ->
     if QConstruct.equal env constr constr' then match_einstance sigma pu u psubst else raise PatternFailure
-  | PHRel i, Rel n when i = n -> psubst
-  | PHSort ps, Sort s -> match_sort ps (ESorts.kind sigma s) psubst
-  | PHSymbol (c, pu), Const (c', u) ->
+  | PHRel i, NotArray Rel n when i = n -> psubst
+  | PHSort ps, NotArray Sort s -> match_sort ps (ESorts.kind sigma s) psubst
+  | PHSymbol (c, pu), NotArray Const (c', u) ->
     if QConstant.equal env c c' then match_einstance sigma pu u psubst else raise PatternFailure
-  | PHInt i, Int i' ->
+  | PHInt i, NotArray Int i' ->
     if Uint63.equal i i' then psubst else raise PatternFailure
-  | PHFloat f, Float f' ->
+  | PHFloat f, NotArray Float f' ->
     if Float64.equal f f' then psubst else raise PatternFailure
-  | PHString s, String s' ->
+  | PHString s, NotArray String s' ->
     if Pstring.equal s s' then psubst else raise PatternFailure
   | PHLambda (ptys, pbod), _ ->
     let t = CbnClos.force sigma t in
@@ -1100,31 +1097,19 @@ let rec whd_state_gen ?csts flags env sigma =
           Pp.(str "<><><><><>")) in
       ((x, stack),cst_l)
     in
-    (* Resuming a primitive on an array value does not need the full
-       [CbnClos.kind] view of the array; building that view allocates a closure
-       for every element even when [array_get]/[array_length] will discard most
-       of them. *)
-    let early_array_primitive = match Stack.strip_app stack with
-      | _, Stack.Primitive _ :: _ when Option.has_some (CbnClos.array_view sigma x) ->
-        reduce_primitive_value ()
-      | _ -> None
-    in
-    match early_array_primitive with
-    | Some res -> res
-    | None ->
     let c0 = CbnClos.kind sigma x in
     match c0 with
-    | Rel n when RedFlags.red_set flags RedFlags.fDELTA ->
+    | NotArray Rel n when RedFlags.red_set flags RedFlags.fDELTA ->
       (match lookup_rel n env with
       | LocalDef (_,body,_) -> whrec Cst_stack.empty (CbnClos.lift n (CbnClos.inject body), stack)
       | _ -> fold ())
-    | Var id when RedFlags.red_set flags (RedFlags.fVAR id) ->
+    | NotArray Var id when RedFlags.red_set flags (RedFlags.fVAR id) ->
       (match lookup_named id env with
       | LocalDef (_,body,_) ->
         whrec (Cst_stack.add_cst (mkVar id) cst_l) (CbnClos.inject body, stack)
       | _ -> fold ())
-    | Evar _ | Meta _ -> fold ()
-    | Const (c,u as const) ->
+    | NotArray Evar _ | NotArray Meta _ -> fold ()
+    | NotArray Const (c,u as const) ->
       Reductionops.reduction_effect_hook env sigma c
          (lazy (EConstr.to_constr sigma (stack_zip sigma (x,fst (Stack.strip_app stack)))));
       if RedFlags.red_set flags (RedFlags.fCONST c) then
@@ -1146,10 +1131,10 @@ let rec whd_state_gen ?csts flags env sigma =
                   let app_sk,sk = Stack.strip_app stack in
                   let volatile = Option.has_some nargs in
                   let rec is_case x = match CbnClos.kind sigma x with
-                    | Lambda (_,_, x) | LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
-                    | Cast (x, _,_) -> is_case x
-                    | App (hd, _) -> is_case hd
-                    | Case _ -> true
+                    | NotArray Lambda (_,_, x) | NotArray LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
+                    | NotArray Cast (x, _,_) -> is_case x
+                    | NotArray App (hd, _) -> is_case hd
+                    | NotArray Case _ -> true
                     | _ -> false in
                   let local_rel_is_unfoldable n =
                     RedFlags.red_set flags RedFlags.fDELTA &&
@@ -1175,15 +1160,16 @@ let rec whd_state_gen ?csts flags env sigma =
                   let rec is_obviously_stuck tm sk =
                     not (Stack.will_expose_iota sk) &&
                     match CbnClos.kind sigma tm with
-                    | Cast (tm, _, _) -> is_obviously_stuck tm sk
-                    | App (hd, args) -> is_obviously_stuck hd (Stack.append_app args sk)
-                    | Rel n -> not (local_rel_is_unfoldable n)
-                    | Var id -> not (local_var_is_unfoldable id)
-                    | Const (c, _) -> not (RedFlags.red_set flags (RedFlags.fCONST c))
-                    | Lambda _ -> Option.is_empty (Stack.decomp sk)
-                    | Construct _ | Ind _ | Evar _ | Meta _ | Sort _ | Prod _
-                    | Int _ | Float _ | String _ | Array _ -> true
-                    | LetIn _ | Case _ | Fix _ | CoFix _ | Proj _ -> false
+                    | NotArray Cast (tm, _, _) -> is_obviously_stuck tm sk
+                    | NotArray App (hd, args) -> is_obviously_stuck hd (Stack.append_app args sk)
+                    | NotArray Rel n -> not (local_rel_is_unfoldable n)
+                    | NotArray Var id -> not (local_var_is_unfoldable id)
+                    | NotArray Const (c, _) -> not (RedFlags.red_set flags (RedFlags.fCONST c))
+                    | NotArray Lambda _ -> Option.is_empty (Stack.decomp sk)
+                    | NotArray Construct _ | NotArray Ind _ | NotArray Evar _ | NotArray Meta _ | NotArray Sort _ | NotArray Prod _
+                    | NotArray Int _ | NotArray Float _ | NotArray String _ | Array _ -> true
+                    | NotArray LetIn _ | NotArray Case _ | NotArray Fix _ | NotArray CoFix _ | NotArray Proj _ -> false
+                    | NotArray Array _ -> assert false
                   in
                   let unfolds_to_subst_value = match recargs with
                     | _ :: _ -> None
@@ -1280,7 +1266,7 @@ let rec whd_state_gen ?csts flags env sigma =
           end
        | exception NotEvaluableConst _ -> fold ()
       else fold ()
-    | Proj (p, r, c) when RedFlags.red_projection flags p ->
+    | NotArray Proj (p, r, c) when RedFlags.red_projection flags p ->
       (let npars = Projection.npars p in
        match ReductionBehaviour.get (Projection.constant p) with
          | None ->
@@ -1330,30 +1316,30 @@ let rec whd_state_gen ?csts flags env sigma =
                    whrec Cst_stack.empty (arg,cst_l::s')
            end)
 
-    | LetIn (_,b,_,c) when RedFlags.red_set flags RedFlags.fZETA ->
+    | NotArray LetIn (_,b,_,c) when RedFlags.red_set flags RedFlags.fZETA ->
       whrec cst_l (CbnClos.subst_cons b c, stack)
-    | Cast (c,_,_) -> whrec cst_l (c, stack)
-    | App (f,cl)  ->
+    | NotArray Cast (c,_,_) -> whrec cst_l (c, stack)
+    | NotArray App (f,cl)  ->
       whrec
         (Cst_stack.add_args cl cst_l)
         (f, Stack.append_app cl stack)
-    | Lambda (na,t,c) ->
+    | NotArray Lambda (na,t,c) ->
       (match Stack.decomp stack with
       | Some _ when RedFlags.red_set flags RedFlags.fBETA ->
         let (cst_l, p) = apply_subst sigma cst_l x stack in
         whrec cst_l p
       | _ -> fold ())
 
-    | Case (ci,u,pms,p,iv,d,lf) ->
+    | NotArray Case (ci,u,pms,p,iv,d,lf) ->
       whrec Cst_stack.empty (d, Stack.Case ((ci,u,pms,p,iv,lf),cst_l) :: stack)
 
-    | Fix ((ri,n),_ as f) ->
+    | NotArray Fix ((ri,n),_ as f) ->
       (match Stack.strip_n_app ri.(n) stack with
       |None -> fold ()
       |Some (bef,arg,s') ->
         whrec Cst_stack.empty (arg, Stack.Fix(f,bef,cst_l)::s'))
 
-    | Construct (cstr ,u) ->
+    | NotArray Construct (cstr ,u) ->
       let use_match = RedFlags.red_set flags RedFlags.fMATCH in
       let use_fix = RedFlags.red_set flags RedFlags.fFIX in
       if use_match || use_fix then
@@ -1361,10 +1347,10 @@ let rec whd_state_gen ?csts flags env sigma =
         |args, (Stack.Case(case,case_cst_l)::s') when use_match ->
           let r = apply_branch env sigma cstr args case in
           let rec is_case x = match CbnClos.kind sigma x with
-            | Lambda (_,_, x) | LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
-            | Cast (x, _,_) -> is_case x
-            | App (hd, _) -> is_case hd
-            | Case _ -> true
+            | NotArray Lambda (_,_, x) | NotArray LetIn (_,_,_, x) -> is_case (CbnClos.liftn 1 x)
+            | NotArray Cast (x, _,_) -> is_case x
+            | NotArray App (hd, _) -> is_case hd
+            | NotArray Case _ -> true
             | _ -> false
           in
           let reduce_with_elim_csts cst_l p =
@@ -1428,7 +1414,7 @@ let rec whd_state_gen ?csts flags env sigma =
         |_, _ -> fold ()
       else fold ()
 
-    | CoFix cofix ->
+    | NotArray CoFix cofix ->
       if RedFlags.red_set flags RedFlags.fCOFIX then
         match Stack.strip_app stack with
         |args, ((Stack.Case _ |Stack.Proj _)::s') ->
@@ -1436,7 +1422,7 @@ let rec whd_state_gen ?csts flags env sigma =
         |_ -> fold ()
       else fold ()
 
-    | Int _ | Float _ | String _ | Array _ ->
+    | NotArray Int _ | NotArray Float _ | NotArray String _ | Array _ ->
       begin match reduce_primitive_value () with
       | Some res -> res
       | None ->
@@ -1479,8 +1465,9 @@ let rec whd_state_gen ?csts flags env sigma =
       end
       end
 
-    | Rel _ | Var _ | LetIn _ | Proj _ -> fold ()
-    | Sort _ | Ind _ | Prod _ -> fold ()
+    | NotArray Rel _ | NotArray Var _ | NotArray LetIn _ | NotArray Proj _ -> fold ()
+    | NotArray Sort _ | NotArray Ind _ | NotArray Prod _ -> fold ()
+    | NotArray Array _ -> assert false
   in
   fun xs ->
   let (s,cst_l) = whrec (Option.default Cst_stack.empty csts) xs in
