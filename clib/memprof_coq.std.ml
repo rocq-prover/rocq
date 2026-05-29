@@ -4,8 +4,6 @@ let is_interrupted _ = false [@@inline]
 
 let limit_allocations ~limit:_ f = Ok (f(), 0L)
 
-let start_memprof_limits () = ()
-
 module Resource_bind = struct
   let ( let& ) f scope = f ~scope
 end

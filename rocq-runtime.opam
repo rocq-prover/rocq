@@ -36,7 +36,11 @@ depends: [
   "conf-linux-libc-dev" {os = "linux"}
   "odoc" {with-doc}
 ]
-depopts: ["rocq-native" "memprof-limits" "memtrace"]
+depopts: [
+  "rocq-native"
+  "memprof-limits" {>= "0.3.0"}
+  "memtrace"
+]
 conflicts: [
   "coq" {< "8.17"}
   "coq-core" {< "8.21"}
