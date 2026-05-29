@@ -1482,20 +1482,24 @@ let filter_fix_stack_domain ?evars nr decrarg stack nuniformparams =
       a :: aux (i+1) nuniformparams stack
   in aux 0 nuniformparams stack
 
-let pop_argument ?evars needreduce renv elt stack x a b =
-  match needreduce, elt with
-  | NoNeedReduce, SClosure (NoNeedReduce, _, n, c) ->
+(** Returns the new renv, stack, body and whether the lambda is properly erased *)
+let pop_argument ?evars renv rs stack na ty b =
+  match stack with
+  | SClosure (NoNeedReduce, _, n, c) as elt :: stack ->
     (* Neither function nor args have rec calls on internally bound variables *)
     let spec = stack_element_specif ?evars elt in
     (* Thus, args do not a priori require to be rechecked, so we push a let *)
     (* maybe the body of the let will have to be locally expanded though, see Rel case *)
-    push_let renv (x,lift n c,a,spec), lift1_stack stack, b
-  | _, SClosure (_, _, n, c) ->
+    push_let renv (na, lift n c, ty, spec), lift1_stack stack, b, true
+  | SClosure (_, _, n, c) :: stack ->
     (* Either function or args have rec call on internally bound variables *)
-    renv, stack, subst1 (lift n c) b
-  | _, SArg spec ->
+    renv, stack, subst1 (lift n c) b, true
+  | SArg spec :: stack ->
     (* Going down a case branch *)
-    push_var renv (x,a,spec), lift1_stack stack, b
+    push_var renv (na,ty,spec), lift1_stack stack, b, false
+  | [] ->
+    (* No argument against lambda *)
+    push_var_renv renv rs (na, ty), [], b, false
 
 let judgment_of_fixpoint (_, types, bodies) =
   Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
@@ -1638,16 +1642,16 @@ let check_one_fix ?evars renv recpos trees def =
                 if evaluable_constant kn renv.env then Some (constant_value_in renv.env cu, [])
                 else None)
 
-        | Lambda (x,a,b) ->
-            begin
-              let needreduce, rs = check_in_redex renv rs a in
-              match stack with
-              | elt :: stack ->
-                let renv, stack, b = pop_argument ?evars needreduce renv elt stack x a b in
-                check_in_stack renv stack rs b
-              | [] ->
-                check_in_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs b
-            end
+      | Lambda (na, ty, b) ->
+        let renv', stack, b, erase_ty = pop_argument ?evars renv (redex_level rs) stack na ty b in
+        let rs =
+          if erase_ty then
+            snd (check_in_redex renv rs ty)
+            (* Erase the type annotation *)
+          else
+            check_term renv rs ty
+        in
+        check_in_stack renv' stack rs b
 
         | Prod (x,a,u) ->
             (* Note: we cannot ensure that the stack is empty because
@@ -1727,18 +1731,12 @@ let check_one_fix ?evars renv recpos trees def =
       check_term renv rs body
     else
       match kind (whd_all ?evars renv.env body) with
-        | Lambda (x,a,body) ->
-          begin
-            let rs = check_term renv rs a in
-            match stack with
-            | elt :: stack ->
-              let renv', stack', body' = pop_argument NoNeedReduce renv elt stack x a body in
-              check_nested_fix_body illformed renv' (decr-1) stack' rs body'
-            | [] ->
-              let renv' = push_var_renv renv (redex_level rs) (x,a) in
-              check_nested_fix_body illformed renv' (decr-1) [] rs body
-          end
-        | _ -> illformed ()
+      | Lambda (na, ty, body) ->
+        let renv', stack, body, _ = pop_argument ?evars renv (redex_level rs) stack na ty body in
+        (* These lambda types are never erased in the substitution *)
+        let rs = check_term renv rs ty in
+        check_nested_fix_body illformed renv' (decr-1) stack rs body
+      | _ -> illformed ()
 
   (** Test if either the head or the stack
       needs the term to be reduced before continuing checking *)
