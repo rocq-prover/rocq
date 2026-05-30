@@ -11,6 +11,16 @@ ci_dir="$(dirname "$0")"
 git_reset()
 {
   local project=$1
+
+  # Special handling of iris reverse deps, see ci-iris.sh
+  if [ "$project" = "iris" ]; then
+    iris_CI_REF=$(grep -F '"rocq-iris-heap-lang"' < "${CI_BUILD_DIR}"/iris_examples/*-iris-examples.opam | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
+  [ -n "$iris_CI_REF" ] || { echo "Could not find Iris dependency version" && exit 1; }
+  elif [ "$project" = "stdpp" ]; then
+    stdpp_CI_REF=$(grep -F '"rocq-stdpp"' < "${CI_BUILD_DIR}/iris/rocq-iris.opam" | sed 's/.*"dev\.[0-9][0-9.-]*\.\([0-9a-z][0-9a-z]*\)".*/\1/')
+    [ -n "$stdpp_CI_REF" ] || { echo "Could not find stdpp dependency version" && exit 1; }
+  fi
+
   local dest="${CI_BUILD_DIR}/$project"
   local ref_var="${project}_CI_REF"
   local ref="${!ref_var}"
