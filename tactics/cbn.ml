@@ -209,7 +209,8 @@ module CbnClos = struct
   let equal sigma a b =
     a == b || (a.term == b.term && a.subst == b.subst) ||
     (* TODO: add fast path that returns false on non-Rel terms whose head is not of the same shape.
-       Alternatively, fuse the equality check and the substitution *)
+       Alternatively, fuse the equality check and the substitution
+       (but attempt at 9a772ab008 produced bad results, cf https://gitlab.inria.fr/coq/coq/-/jobs/7383036) *)
     let a = force sigma a in
     let b = force sigma b in
     a == b || EConstr.eq_constr sigma a b
