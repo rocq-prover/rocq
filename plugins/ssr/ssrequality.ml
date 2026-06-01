@@ -287,7 +287,7 @@ let unfoldintac occ rdx t (kt,_) =
       try find_T env c h ~k:(fun env c _ _ -> body env t c)
       with NoMatch when easy -> c
       | NoMatch | NoProgress -> errorstrm Pp.(str"No occurrence of "
-        ++ pr_econstr_pat env sigma0 t ++ spc() ++ str "in " ++ Printer.pr_econstr_env env sigma c)),
+        ++ pr_econstr_pat env sigma t ++ spc() ++ str "in " ++ Printer.pr_econstr_env env sigma0 c)),
     (fun () -> try ignore @@ end_T () with
       | NoMatch when easy -> ()
       | NoMatch -> anomaly "unfoldintac")
@@ -296,14 +296,14 @@ let unfoldintac occ rdx t (kt,_) =
       if const then
         let rec aux c =
           match EConstr.kind sigma0 c with
-          | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env t t
-          | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env f f,a)
+          | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c
+          | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a)
           | Proj _ when same_proj env sigma0 c t -> body env t c
           | _ ->
             let c = Reductionops.whd_betaiotazeta env sigma0 c in
             match EConstr.kind sigma0 c with
-            | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env t t
-            | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env f f,a)
+            | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c
+            | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a)
             | Proj _ when same_proj env sigma0 c t -> body env t c
             | Const f -> aux (body env c c)
             | App (f, a) -> aux (EConstr.mkApp (body env f f, a))
@@ -760,14 +760,16 @@ let ssrrewritetac ?under ?map_redex ist rwargs =
 (** The "unlock" tactic *)
 
 let unfoldtac occ ko t kt =
+  let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let concl = Evarutil.nf_evar sigma concl in
-  let cl, c = fill_occ_term env sigma concl occ (fst (strip_unfold_term env t kt)) in
+  let cl, sigma, c = fill_occ_term env sigma concl occ (fst (strip_unfold_term env t kt)) in
   let cl' = EConstr.Vars.subst1 (Tacred.unfoldn [OnlyOccurrences [1], get_evalref env sigma c] env sigma c) cl in
   let f = if ko = None then RedFlags.betaiotazeta else RedFlags.betaiota in
+  Proofview.Unsafe.tclEVARS sigma <*>
   convert_concl ~check:true (Reductionops.clos_norm_flags f env sigma cl')
   end
 

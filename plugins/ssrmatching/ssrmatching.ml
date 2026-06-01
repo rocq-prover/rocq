@@ -1483,12 +1483,12 @@ let fill_occ_term env sigma0 cl occ (sigma, t) =
   try
     let changed, sigma', uc, t', cl, _= pf_fill_occ env cl occ sigma0 t (sigma, t) 1 in
     if changed then CErrors.user_err Pp.(str "matching impacts evars")
-    else cl, t'
+    else cl, Evd.set_ustate sigma' uc, t'
   with NoMatch -> try
       let changed, sigma', uc, t' =
         unif_end env sigma0 (create_evar_defs sigma) t (fun _ -> true) in
       if changed then raise NoMatch
-      else cl, t'
+      else cl, Evd.set_ustate sigma' uc, t'
     with e when CErrors.noncritical e ->
       errorstrm (str "partial term " ++ pr_econstr_pat env sigma t
                  ++ str " does not match any subterm of the goal")
