@@ -29,84 +29,6 @@ module ReductionBehaviour = Reductionops.ReductionBehaviour
 
 type cst_info = { volatile : bool; alias : bool; refold_after_iota : bool }
 
-(** Machinery about stack of unfolded constants *)
-module Cst_stack = struct
-  open EConstr
-
-(** constant * params * args
-
-- constant applied to params = term in head applied to args
-- there is at most one arguments with an empty list of args, it must be the first.
-- in args, the int represents the indice of the first arg to consider *)
-  type 'a t = (constr * 'a list * (int * 'a array) list * cst_info)  list
-
-  let empty = []
-  let all_volatile l = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
-  let may_refold_alias_after_iota = function
-    | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
-    | [] | (_,_,_,{alias=false; _}) :: _
-    | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
-  let mark_alias ?(refold_after_iota=false) = function
-    | (c, params, args, info) :: l ->
-      (c, params, args,
-       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
-    | [] -> []
-
-  let drop_useless = function
-    | _ :: ((_,_,[],_)::_ as q) -> q
-    | l -> l
-
-  let add_param h cst_l =
-    let append2cst = function
-      | (c,params,[],vol) -> (c, h::params, [], vol)
-      | (c,params,((i,t)::q),vol) when i = pred (Array.length t) ->
-        (c, params, q, vol)
-      | (c,params,(i,t)::q, vol) ->
-        (c, params, (succ i,t)::q, vol)
-    in
-      drop_useless (List.map append2cst cst_l)
-
-  let add_args cl =
-    List.map (fun (a,b,args,vol) -> (a,b,(0,cl)::args,vol))
-
-  let add_cst ?(volatile=false) ?(refold_after_iota=false) cst = function
-    | (_,_,[],_) :: q as l -> l
-    | l -> (cst,[],[],{volatile; alias=false; refold_after_iota})::l
-
-  let best_cst = function
-    | (cst,params,[],_)::_ -> Some(cst,params)
-    | _ -> None
-
-  let reference sigma force t = match best_cst t with
-    | Some (c, params) when isConst sigma c -> Some (fst (destConst sigma c), List.map force params)
-    | _ -> None
-
-  (** [best_replace d cst_l c] makes the best replacement for [d]
-      by [cst_l] in [c] *)
-  let best_replace sigma force d cst_l c =
-    let reconstruct_head = List.fold_left
-      (fun t (i,args) ->
-         let args = Array.map force (Array.sub args i (Array.length args - i)) in
-         mkApp (t,args)) in
-    List.fold_right
-      (fun (cst,params,args,_) t -> Termops.replace_term sigma
-        (reconstruct_head d args)
-        (applist (cst, List.rev_map force params))
-        t) cst_l c
-
-  let pr env sigma pr_a l =
-    let open Pp in
-    let p_c c = Termops.Internal.print_constr_env env sigma c in
-    prlist_with_sep pr_semicolon
-      (fun (c,params,args,{volatile; alias; refold_after_iota}) ->
-        hov 1 (str"(" ++ p_c c ++ str ")" ++ spc () ++ pr_sequence pr_a params ++ spc () ++ str "(args:" ++
-                 pr_sequence (fun (i,el) -> prvect_with_sep spc pr_a (Array.sub el i (Array.length el - i))) args ++
-               str ")" ++
-              (if volatile then str " (volatile)" else mt()) ++
-              (if alias then str " (alias)" else mt()) ++
-              (if refold_after_iota then str " (refold-after-iota)" else mt()))) l
-end
-
 module CbnClos = struct
   open EConstr
 
@@ -261,64 +183,144 @@ module CbnClos = struct
 
 end
 
+(** Machinery about stack of unfolded constants *)
+module Cst_stack = struct
+  open EConstr
+
+(** constant * params * args
+
+- constant applied to params = term in head applied to args
+- there is at most one arguments with an empty list of args, it must be the first.
+- in args, the int represents the indice of the first arg to consider *)
+  type t = (constr * CbnClos.t list * (int * CbnClos.t array) list * cst_info) list
+
+  let empty : t = []
+  let all_volatile (l : t) = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
+  let may_refold_alias_after_iota (l : t) = match l with
+    | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
+    | [] | (_,_,_,{alias=false; _}) :: _
+    | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
+  let mark_alias ?(refold_after_iota=false) (l : t) : t = match l with
+    | (c, params, args, info) :: l ->
+      (c, params, args,
+       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
+    | [] -> []
+
+  let drop_useless (l : t) : t = match l with
+    | _ :: ((_,_,[],_)::_ as q) -> q
+    | l -> l
+
+  let add_param (h : CbnClos.t) (cst_l : t) : t =
+    let append2cst = function
+      | (c,params,[],vol) -> (c, h::params, [], vol)
+      | (c,params,((i,t)::q),vol) when i = pred (Array.length t) ->
+        (c, params, q, vol)
+      | (c,params,(i,t)::q, vol) ->
+        (c, params, (succ i,t)::q, vol)
+    in
+      drop_useless (List.map append2cst cst_l)
+
+  let add_args (cl : CbnClos.t array) (l : t) : t =
+    List.map (fun (a,b,args,vol) -> (a,b,(0,cl)::args,vol)) l
+
+  let add_cst ?(volatile=false) ?(refold_after_iota=false) (cst : constr) (l : t) : t = match l with
+    | (_,_,[],_) :: q as l -> l
+    | l -> (cst,[],[],{volatile; alias=false; refold_after_iota})::l
+
+  let best_cst (l : t) : (constr * CbnClos.t list) option = match l with
+    | (cst,params,[],_)::_ -> Some(cst,params)
+    | _ -> None
+
+  let reference sigma force (t : t) = match best_cst t with
+    | Some (c, params) when isConst sigma c -> Some (fst (destConst sigma c), List.map force params)
+    | _ -> None
+
+  (** [best_replace d cst_l c] makes the best replacement for [d]
+      by [cst_l] in [c] *)
+  let best_replace sigma force d (cst_l : t) c =
+    let reconstruct_head = List.fold_left
+      (fun t (i,args) ->
+         let args = Array.map force (Array.sub args i (Array.length args - i)) in
+         mkApp (t,args)) in
+    List.fold_right
+      (fun (cst,params,args,_) t -> Termops.replace_term sigma
+        (reconstruct_head d args)
+        (applist (cst, List.rev_map force params))
+        t) cst_l c
+
+  let pr env sigma pr_a (l : t) =
+    let open Pp in
+    let p_c c = Termops.Internal.print_constr_env env sigma c in
+    prlist_with_sep pr_semicolon
+      (fun (c,params,args,{volatile; alias; refold_after_iota}) ->
+        hov 1 (str"(" ++ p_c c ++ str ")" ++ spc () ++ pr_sequence pr_a params ++ spc () ++ str "(args:" ++
+                 pr_sequence (fun (i,el) -> prvect_with_sep spc pr_a (Array.sub el i (Array.length el - i))) args ++
+               str ")" ++
+              (if volatile then str " (volatile)" else mt()) ++
+              (if alias then str " (alias)" else mt()) ++
+              (if refold_after_iota then str " (refold-after-iota)" else mt()))) l
+end
+
+
+
 
 (** The type of (machine) stacks (= lambda-bar-calculus' contexts) *)
 module Stack :
 sig
   open EConstr
-  type 'a app_node
+  type app_node
 
   type cst_member =
     | Cst_const of pconstant
     | Cst_proj of Projection.t * ERelevance.t
 
-  type 'a case_stk =
-    case_info * EInstance.t * 'a array * ('a,ERelevance.t) pcase_return * 'a pcase_invert * ('a,ERelevance.t) pcase_branch array
-  type 'a member =
-  | App of 'a app_node
-  | Case of 'a case_stk * 'a Cst_stack.t
-  | Proj of Projection.t * ERelevance.t * 'a Cst_stack.t
-  | Fix of ('a, 'a, ERelevance.t) pfixpoint * 'a t * 'a Cst_stack.t
-  | Primitive of CPrimitives.t * (Constant.t * EInstance.t) * 'a t * CPrimitives.args_red * 'a Cst_stack.t
+  type case_stk =
+    case_info * EInstance.t * CbnClos.t array * (CbnClos.t,ERelevance.t) pcase_return * CbnClos.t pcase_invert * (CbnClos.t,ERelevance.t) pcase_branch array
+  type member =
+  | App of app_node
+  | Case of case_stk * Cst_stack.t
+  | Proj of Projection.t * ERelevance.t * Cst_stack.t
+  | Fix of (CbnClos.t, CbnClos.t, ERelevance.t) pfixpoint * t * Cst_stack.t
+  | Primitive of CPrimitives.t * (Constant.t * EInstance.t) * t * CPrimitives.args_red * Cst_stack.t
   | Cst of { const : cst_member;
              curr : int;
              remains : int list;
-             params : 'a t;
+             params : t;
              volatile : bool;
              refold_after_iota : bool;
-             cst_l : 'a Cst_stack.t;
+             cst_l : Cst_stack.t;
            }
 
-  and 'a t = 'a member list
+  and t = member list
 
-  val pr : ('a -> Pp.t) -> 'a t -> Pp.t
-  val empty : 'a t
-  val append_app : 'a array -> 'a t -> 'a t
-  val decomp : 'a t -> ('a * 'a t) option
-  val equal : env -> ('a -> 'a -> bool) -> (('a, 'a, ERelevance.t) pfixpoint -> ('a, 'a, ERelevance.t) pfixpoint -> bool)
-    -> ('a case_stk -> 'a case_stk -> bool) -> 'a t -> 'a t -> bool
-  val strip_app : 'a t -> 'a t * 'a t
-  val strip_n_app : int -> 'a t -> ('a t * 'a * 'a t) option
-  val will_expose_iota : 'a t -> bool
-  val list_of_app_stack : 'a t -> 'a list option
-  val app_stack_for_all : ('a -> bool) -> 'a t -> bool
-  val args_size : 'a t -> int
-  val tail : int -> 'a t -> 'a t
-  val nth : 'a t -> int -> 'a
-  val best_state : inject:(constr -> 'a) -> equal:('a -> 'a -> bool) -> 'a * 'a t -> 'a Cst_stack.t -> 'a * 'a t
+  val pr : (CbnClos.t -> Pp.t) -> t -> Pp.t
+  val empty : t
+  val append_app : CbnClos.t array -> t -> t
+  val decomp : t -> (CbnClos.t * t) option
+  val equal : env -> (CbnClos.t -> CbnClos.t -> bool) -> ((CbnClos.t, CbnClos.t, ERelevance.t) pfixpoint -> (CbnClos.t, CbnClos.t, ERelevance.t) pfixpoint -> bool)
+    -> (case_stk -> case_stk -> bool) -> t -> t -> bool
+  val strip_app : t -> t * t
+  val strip_n_app : int -> t -> (t * CbnClos.t * t) option
+  val will_expose_iota : t -> bool
+  val list_of_app_stack : t -> CbnClos.t list option
+  val app_stack_for_all : (CbnClos.t -> bool) -> t -> bool
+  val args_size : t -> int
+  val tail : int -> t -> t
+  val nth : t -> int -> CbnClos.t
+  val best_state : inject:(constr -> CbnClos.t) -> equal:(CbnClos.t -> CbnClos.t -> bool) -> CbnClos.t * t -> Cst_stack.t -> CbnClos.t * t
   val zip : ?refold:bool -> Evd.evar_map ->
-    force:('a -> constr) ->
-    force_return:(('a,ERelevance.t) pcase_return -> (constr,ERelevance.t) pcase_return) ->
-    force_invert:('a pcase_invert -> constr pcase_invert) ->
-    force_branch:(('a,ERelevance.t) pcase_branch -> (constr,ERelevance.t) pcase_branch) ->
-    force_fix:(('a, 'a, ERelevance.t) pfixpoint -> (constr, constr, ERelevance.t) pfixpoint) ->
-    inject:(constr -> 'a) -> equal:('a -> 'a -> bool) -> 'a * 'a t -> constr
-  val check_native_args : CPrimitives.t -> 'a t -> bool
-  val get_next_primitive_args : CPrimitives.args_red -> 'a t -> CPrimitives.args_red * ('a t * 'a * 'a t) option
+    force:(CbnClos.t -> constr) ->
+    force_return:((CbnClos.t,ERelevance.t) pcase_return -> (constr,ERelevance.t) pcase_return) ->
+    force_invert:(CbnClos.t pcase_invert -> constr pcase_invert) ->
+    force_branch:((CbnClos.t,ERelevance.t) pcase_branch -> (constr,ERelevance.t) pcase_branch) ->
+    force_fix:((CbnClos.t, CbnClos.t, ERelevance.t) pfixpoint -> (constr, constr, ERelevance.t) pfixpoint) ->
+    inject:(constr -> CbnClos.t) -> equal:(CbnClos.t -> CbnClos.t -> bool) -> CbnClos.t * t -> constr
+  val check_native_args : CPrimitives.t -> t -> bool
+  val get_next_primitive_args : CPrimitives.args_red -> t -> CPrimitives.args_red * (t * CbnClos.t * t) option
 end =
 struct
   open EConstr
-  type 'a app_node = int * 'a array * int
+  type app_node = int * CbnClos.t array * int
   (* first releavnt position, arguments, last relevant position *)
 
   (*
@@ -337,24 +339,24 @@ struct
     | Cst_const of pconstant
     | Cst_proj of Projection.t * ERelevance.t
 
-  type 'a case_stk =
-    case_info * EInstance.t * 'a array * ('a,ERelevance.t) pcase_return * 'a pcase_invert * ('a,ERelevance.t) pcase_branch array
-  type 'a member =
-  | App of 'a app_node
-  | Case of 'a case_stk * 'a Cst_stack.t
-  | Proj of Projection.t * ERelevance.t * 'a Cst_stack.t
-  | Fix of ('a, 'a, ERelevance.t) pfixpoint * 'a t * 'a Cst_stack.t
-  | Primitive of CPrimitives.t * (Constant.t * EInstance.t) * 'a t * CPrimitives.args_red * 'a Cst_stack.t
+  type case_stk =
+    case_info * EInstance.t * CbnClos.t array * (CbnClos.t,ERelevance.t) pcase_return * CbnClos.t pcase_invert * (CbnClos.t,ERelevance.t) pcase_branch array
+  type member =
+  | App of app_node
+  | Case of case_stk * Cst_stack.t
+  | Proj of Projection.t * ERelevance.t * Cst_stack.t
+  | Fix of (CbnClos.t, CbnClos.t, ERelevance.t) pfixpoint * t * Cst_stack.t
+  | Primitive of CPrimitives.t * (Constant.t * EInstance.t) * t * CPrimitives.args_red * Cst_stack.t
   | Cst of { const : cst_member;
              curr : int;
              remains : int list;
-             params : 'a t;
+             params : t;
              volatile : bool;
              refold_after_iota : bool;
-             cst_l : 'a Cst_stack.t;
+             cst_l : Cst_stack.t;
            }
 
-  and 'a t = 'a member list
+  and t = member list
 
   (* Debugging printer *)
   let rec pr_member pr_c member =
