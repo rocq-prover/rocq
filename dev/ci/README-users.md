@@ -81,9 +81,8 @@ as "plugins"] do have some special requirements:
 ### Add your project by submitting a pull request
 
 Add a new `ci-mydev.sh` script to [`dev/ci/scripts`](scripts); set the corresponding
-variables in [`ci-basic-overlay.sh`](ci-basic-overlay.sh); add the
-corresponding target to [`Makefile.ci`](../../Makefile.ci) and a new job to
-[`.gitlab-ci.yml`](../../.gitlab-ci.yml) so that this new target is run.
+variables in [`ci-basic-overlay.sh`](ci-basic-overlay.sh); add dependency information (if nontrivial) to [`Makefile.ci`](../../Makefile.ci) and a new job to
+[`.gitlab-ci.yml`](../../.gitlab-ci.yml) so that this new script is run.
 Have a look at [#17241](https://github.com/rocq-prover/rocq/pull/17241/files) for an
 example. **Do not hesitate to submit an incomplete pull request if you need
 help to finish it.**
@@ -94,8 +93,8 @@ Some important points:
   [`ci-basic-overlay.sh`](ci-basic-overlay.sh).
 
 - Let `$job` be the name of the new job as used for the name of
-  the added script file `dev/ci/scripts/ci-$job.sh`. Then the added target
-  in `Makefile.ci` must be named `ci-$job` and the added job in
+  the added script file `dev/ci/scripts/ci-$job.sh`. This implicitly adds a target
+  in `Makefile.ci` named `ci-$job` and the added job in
   `.gitlab-ci.yml` must be named `library:$job` or
   `plugin:$job`. `$job` must be a valid shell variable name,
   typically this means replacing dashs (`-`) with underscores (`_`).
