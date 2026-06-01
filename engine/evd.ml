@@ -965,16 +965,7 @@ let has_evar evars (pbty,_,t1,t2) =
 (* extracts conversion problems that satisfy predicate p *)
 (* Note: conv_pbs not satisying p are stored back in reverse order *)
 let extract_conv_pbs evd p =
-  let (pbs,pbs1) =
-    List.fold_left
-      (fun (pbs,pbs1) pb ->
-         if p pb then
-           (pb::pbs,pbs1)
-         else
-           (pbs,pb::pbs1))
-      ([],[])
-      evd.conv_pbs
-  in
+  let (pbs,pbs1) = List.partition p evd.conv_pbs in
   {evd with conv_pbs = pbs1; last_mods = Evar.Set.empty},
   pbs
 

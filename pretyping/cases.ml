@@ -2104,7 +2104,7 @@ let prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs ars
   let p = predicate 0 c in
   let hypnaming = VarSet.variables (Global.env ()) in
   let arsign,env' = List.fold_right_map (push_rel_context ~hypnaming sigma) arsign env in
-  try let sigma' = fst (Typing.type_of !!env' sigma p) in
+  try let sigma' = fst (Typing.type_of ~check_evar_ctx:false !!env' sigma p) in
         Some (sigma', p, arsign)
   with e when precatchable_exception e -> None
 
