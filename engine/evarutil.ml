@@ -571,7 +571,7 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
                 try
                   let nids = Id.Map.domain rids in
                   let env = evar_filtered_env env evi in
-                  let global = Id.Set.exists (is_section_variable' env) nids in
+                  let global = Id.Set.exists (is_section_variable_env env) nids in
                   let concl = evar_concl evi in
                   check_and_clear_in_constr env evdref (EvarTypingBreak ev) nids ~global concl
                 with ClearDependencyError (rid,err,where) ->
@@ -592,7 +592,7 @@ let clear_hyps_in_evi_main env sigma hyps terms ids =
      hypothesis does not depend on a element of ids, and erases ids in
      the contexts of the evars occurring in evi *)
   let evdref = ref sigma in
-  let global = Id.Set.exists (is_section_variable' env) ids in
+  let global = Id.Set.exists (is_section_variable_env env) ids in
   let terms =
     List.map (check_and_clear_in_constr env evdref (OccurHypInSimpleClause None) ids ~global) terms in
   let nhyps =
@@ -607,7 +607,7 @@ let clear_hyps_in_evi_main env sigma hyps terms ids =
 
 let check_and_clear_in_constr env evd err ids c =
   let evdref = ref evd in
-  let global = Id.Set.exists (is_section_variable' env) ids in
+  let global = Id.Set.exists (is_section_variable_env env) ids in
   let _ : EConstr.constr = check_and_clear_in_constr
       ~global
       env evdref err ids c

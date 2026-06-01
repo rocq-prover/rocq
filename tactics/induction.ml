@@ -1397,7 +1397,7 @@ let induction_gen ~clear_flag ~isrec ~with_evars elim
   let cls = Option.default allHypsAndConcl cls in
   let t = typ_of env evd c in
   let is_arg_pure_hyp =
-    isVar evd c && not (is_section_variable' env (destVar evd c))
+    isVar evd c && not (is_section_variable_env env (destVar evd c))
     && lbind == NoBindings && not with_evars && Option.is_empty eqname
     && clear_flag == None
     && has_generic_occurrences_but_goal cls (destVar evd c) env evd ccl in
@@ -1449,7 +1449,7 @@ let induction_gen_l isrec with_evars elim names lc =
           let env = Proofview.Goal.env gl in
           let sigma = Proofview.Goal.sigma gl in
           match EConstr.kind sigma c with
-          | Var id when not (is_section_variable' env id)
+          | Var id when not (is_section_variable_env env id)
                      && not with_evars ->
             let () = newlc:= id::!newlc in
             atomize_list l'

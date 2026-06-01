@@ -135,7 +135,7 @@ let is_section_var x =
     | Var id ->
       (* check:false because we don't want to anomaly here if the user
          sneaks in some unbound variable *)
-      if Termops.is_section_variable' ~check:false env id then Proofview.tclUNIT ()
+      if Termops.is_section_variable_env ~check:false env id then Proofview.tclUNIT ()
       else Tacticals.tclFAIL (Pp.str "Not a section variable.")
     | _ -> Tacticals.tclFAIL (Pp.str "Not a variable or hypothesis.")
   end

@@ -1011,7 +1011,7 @@ let is_section_variable_sign ?check sign id =
   | SecVar -> true
   | ProofVar -> false
 
-let is_section_variable' ?check env id =
+let is_section_variable_env ?check env id =
   is_section_variable_sign ?check (Environ.named_context_val env) id
 
 let is_template_polymorphic_ref env sigma f =

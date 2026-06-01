@@ -898,7 +898,7 @@ let with_uid c = { obj = c; uid = fresh_key () }
    variable, [secvars_of_global _ (VarRef x)] should return the empty set *)
 let secvars_of_idset env s =
   Id.Set.fold (fun id p ->
-      if is_section_variable' env id then
+      if is_section_variable_env env id then
         Id.Pred.add id p
       else p) s Id.Pred.empty
 
