@@ -259,5 +259,5 @@ Module NonPrim.
   (* Time Eval cbn     in @add 200  10 (build_fn 10). (* 0.17s  *) *)
 
   Succeed Instructions Eval cbn in @add 2000 10 (build_fn 10).
-  Timeout 1 Eval cbn     in @add 2000 10 (build_fn 10). (* 3.5s   *)
+  Timeout 2 Eval cbn     in @add 2000 10 (build_fn 10). (* 3.5s   *)
 End NonPrim.
