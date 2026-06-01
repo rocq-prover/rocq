@@ -442,12 +442,13 @@ let make_resolve_hyp env sigma st only_classes decl db =
       push_resolves env sigma id db
     else db
 
-let make_hints env sigma (modes,st) only_classes sign =
+let make_hints env sigma (modes,st) only_classes =
   let db = Hint_db.add_modes modes @@ Hint_db.empty st true in
-  List.fold_right
-    (fun hyp hints ->
+  EConstr.fold_named_context
+    (fun _ status hyp hints ->
       let consider =
         not only_classes ||
+        not (status = SecVar) ||
         try let t = hyp |> NamedDecl.get_id |> Global.lookup_named |> NamedDecl.get_type in
             (* Section variable, reindex only if the type changed *)
             not (EConstr.eq_constr sigma (EConstr.of_constr t) (NamedDecl.get_type hyp))
@@ -456,7 +457,7 @@ let make_hints env sigma (modes,st) only_classes sign =
       if consider then
         make_resolve_hyp env sigma st only_classes hyp hints
       else hints)
-    sign db
+    env ~init:db
 
 module Intpart = Unionfind.Make(Evar.Set)(Evar.Map)
 
@@ -498,7 +499,7 @@ module Search = struct
                cached_modes == modes
     then cached_hints
     else
-      let hints = make_hints env sigma mst only_classes sign in
+      let hints = make_hints env sigma mst only_classes in
       autogoal_cache := (cwd, only_classes, sign, modes, hints, qvars); hints
 
   let make_autogoal env sigma mst only_classes dep cut best_effort i =

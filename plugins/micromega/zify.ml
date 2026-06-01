@@ -1335,7 +1335,7 @@ let trans_check_prop env evd t =
 
 let get_hyp_typ = function
   | NamedDecl.LocalDef (h, _, ty) | NamedDecl.LocalAssum (h, ty) ->
-    (h.Context.binder_name, EConstr.of_constr ty)
+    (h.Context.binder_name, ty)
 
 let trans_hyps env evd l =
   List.fold_left
@@ -1449,7 +1449,7 @@ let zify_tac =
       init_cache ();
       let evd = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
-      let sign = Environ.named_context env in
+      let sign = EConstr.named_context env in
       let concl = Proofview.Goal.concl gl in
       let evd, concl = trans_check_prop env evd concl in
       let evd, hyps = trans_hyps env evd sign in

@@ -81,8 +81,8 @@ let () =
 let unsafe_intro env decl ~relevance b =
   Refine.refine_with_principal ~typecheck:false begin fun sigma ->
     let ctx = named_context_val env in
-    let nctx = push_named_context_val decl ctx in
-    let inst = EConstr.identity_subst_val (named_context_val env) in
+    let nctx = push_named_context_val ProofVar decl ctx in
+    let inst = EConstr.identity_subst_val ctx in
     let ninst = SList.cons (mkRel 1) inst in
     let nb = subst1 (mkVar (NamedDecl.get_id decl)) b in
     let (sigma, ev) = new_pure_evar nctx sigma ~relevance nb in
@@ -156,15 +156,25 @@ end
 let convert x y = convert_gen Conversion.CONV x y
 let convert_leq x y = convert_gen Conversion.CUMUL x y
 
+(* this should be an error but random code relies on it, eg
+   "match goal with H : _ |- _ => destruct H; clear H end" *)
+let warn_clear_nohyp = CWarnings.create ~name:"clear-no-such-hyp" ~category:CWarnings.CoreCategories.tactics
+    Pp.(fun id -> fmt "No such hypothesis: %t." (fun () -> Id.print id))
+
 let clear_gen fail = function
 | [] -> Proofview.tclUNIT ()
 | ids ->
   Proofview.Goal.enter begin fun gl ->
-    let ids = List.fold_right Id.Set.add ids Id.Set.empty in
-    (* clear_hyps_in_evi does not require nf terms *)
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
+    let add id acc =
+      if Environ.mem_named id env then Id.Set.add id acc
+      else
+        let () = warn_clear_nohyp id in
+        acc
+    in
+    let ids = List.fold_right add ids Id.Set.empty in
     let (sigma, hyps, concl) =
       try clear_hyps_in_evi env sigma (named_context_val env) concl ids
       with Evarutil.ClearDependencyError (id,err,inglobal) -> fail env sigma id err inglobal
@@ -217,6 +227,74 @@ let move_hyp id dest =
     end
   end
 
+let error_renaming_implicit_dependency ?loc env where ids gr =
+  CErrors.user_err ?loc @@
+  fmt "Cannot rename section variable %t@ because it is used implicitly through %t@ in %t."
+    (fun () -> Id.print (Id.Set.choose ids))
+    (fun () -> pr_global_env env gr)
+    (fun () -> match where with
+       | None -> str "the conclusion"
+       | Some h -> fmt "hypothesis %t" (fun () -> Id.print h))
+
+let check_renaming ~src ~dst env sigma concl =
+  let sign = named_context_val env in
+  (* Check that we do not mess variables *)
+  let vars = ids_of_named_context_val sign in
+  let () =
+    if not (Id.Set.subset src vars) then
+      let hyp = Id.Set.choose (Id.Set.diff src vars) in
+      raise (RefinerError (env, sigma, NoSuchHyp hyp))
+  in
+  let mods = Id.Set.diff vars src in
+  let () =
+    try
+      let elt = Id.Set.choose (Id.Set.inter dst mods) in
+      TacticErrors.already_used elt
+    with Not_found -> ()
+  in
+  let secvars =
+    Id.Set.filter (fun id ->
+        match var_status id env with
+        | SecVar -> true
+        | ProofVar -> false)
+      src
+  in
+  let checked = ref GlobRef.Set_env.empty in
+  let check_constr where c =
+    let rec aux c =
+      match EConstr.destRef sigma c with
+      | VarRef _, _ ->
+        (* we only refuse implicit dependencies, because they can't be substituted *)
+        ()
+      | gr, _ ->
+        if GlobRef.Set_env.mem gr !checked then ()
+        else begin
+          let deps = Evarutil.vars_of_global env sigma gr in
+          let bad = Id.Set.inter deps secvars in
+          let () =
+            if not @@ Id.Set.is_empty bad then
+              error_renaming_implicit_dependency env where bad gr
+          in
+          checked := GlobRef.Set_env.add gr !checked
+        end
+      | exception DestKO -> EConstr.iter sigma aux c
+    in
+    aux c
+  in
+  let () =
+    if Id.Set.is_empty secvars then
+      (* not renaming any secvars -> no problem *)
+      ()
+    else
+      let () = check_constr None concl in
+      let () =
+        List.iter (fun d -> NamedDecl.iter_constr (check_constr (Some (NamedDecl.get_id d))) d)
+          (named_context env)
+      in
+      ()
+  in
+  ()
+
 let rename_hyp repl =
   let fold accu (src, dst) = match accu with
   | None -> None
@@ -238,34 +316,24 @@ let rename_hyp repl =
     Proofview.Goal.enter begin fun gl ->
       let concl = Proofview.Goal.concl gl in
       let env = Proofview.Goal.env gl in
-      let sign = named_context_val env in
       let sigma = Proofview.Goal.sigma gl in
       let relevance = Proofview.Goal.relevance gl in
-      (* Check that we do not mess variables *)
-      let vars = ids_of_named_context_val sign in
-      let () =
-        if not (Id.Set.subset src vars) then
-          let hyp = Id.Set.choose (Id.Set.diff src vars) in
-          raise (RefinerError (env, sigma, NoSuchHyp hyp))
-      in
-      let mods = Id.Set.diff vars src in
-      let () =
-        try
-          let elt = Id.Set.choose (Id.Set.inter dst mods) in
-          TacticErrors.already_used elt
-        with Not_found -> ()
-      in
+      let () = check_renaming ~src ~dst env sigma concl in
       (* All is well *)
       let make_subst (src, dst) = (src, mkVar dst) in
       let subst = List.map make_subst repl in
       let subst c = Vars.replace_vars sigma subst c in
-      let replace id = try List.assoc_f Id.equal id repl with Not_found -> id in
-      let map decl = decl |> NamedDecl.map_id replace |> NamedDecl.map_constr subst in
-      let ohyps = named_context_of_val sign in
+      let map (status, decl) =
+        let decl = NamedDecl.map_constr subst decl in
+        match List.assoc_f_opt Id.equal (NamedDecl.get_id decl) repl with
+        | None -> status, decl
+        | Some id -> ProofVar, NamedDecl.set_id id decl
+      in
+      let ohyps = EConstr.named_context_of_val_with_status @@ Environ.named_context_val env in
       let nhyps = List.map map ohyps in
       let nconcl = subst concl in
       let nctx = val_of_named_context nhyps in
-      let fold odecl ndecl accu =
+      let fold (_,odecl) (_,ndecl) accu =
         if Id.equal (NamedDecl.get_id odecl) (NamedDecl.get_id ndecl) then
           SList.default accu
         else
@@ -379,12 +447,12 @@ let internal_cut ?(check=true) replace id t =
       if replace then
         let nexthyp = get_next_hyp_position env sigma id (named_context_of_val sign) in
         let sigma,sign',t,concl = clear_hyps2 env sigma (Id.Set.singleton id) sign t concl in
-        let sign' = insert_decl_in_named_context env sigma (LocalAssum (make_annot id r,t)) nexthyp sign' in
+        let sign' = insert_decl_in_named_context env sigma (ProofVar,LocalAssum (make_annot id r,t)) nexthyp sign' in
         Environ.reset_with_named_context sign' env,t,concl,sigma
       else
         (if check && mem_named_context_val id sign then
           TacticErrors.intro_already_declared id;
-         push_named (LocalAssum (make_annot id r,t)) env,t,concl,sigma) in
+         push_named ProofVar (LocalAssum (make_annot id r,t)) env,t,concl,sigma) in
     let nf_t = nf_betaiota env sigma t in
     Proofview.tclTHEN
       (Proofview.Unsafe.tclEVARS sigma)
@@ -443,6 +511,7 @@ let[@ocaml.inline] (let*) m f = match m with
 | NoChange -> NoChange
 | Changed v -> f v
 
+(* should secvar status change when Changed? *)
 let e_pf_change_decl (redfun : bool -> Tacred.change_function) where env sigma decl =
   let open Context.Named.Declaration in
   match decl with
@@ -531,7 +600,7 @@ let e_change_in_hyps ~check ~reorder f args = match args with
       in
       let reds = List.fold_left fold Id.Map.empty args in
       let evdref = ref sigma in
-      let map d =
+      let map status d =
         let id = NamedDecl.get_id d in
         match Id.Map.find id reds with
         | reds ->
@@ -542,8 +611,8 @@ let e_change_in_hyps ~check ~reorder f args = match args with
           in
           let (sigma, d) = List.fold_right fold reds (sigma, d) in
           let () = evdref := sigma in
-          EConstr.Unsafe.to_named_decl d
-        | exception Not_found -> d
+          status, EConstr.Unsafe.to_named_decl d
+        | exception Not_found -> status, d
       in
       let sign = Environ.map_named_val map (Environ.named_context_val env) in
       let env = reset_with_named_context sign env in
@@ -947,7 +1016,7 @@ let intro_forthcoming_last_then_gen avoid dep_flag bound n tac =
     if List.is_empty ids then tac []
     else Refine.refine_with_principal ~typecheck:false begin fun sigma ->
       let ctx = named_context_val env in
-      let nctx = List.fold_right push_named_context_val ndecls ctx in
+      let nctx = List.fold_right (fun d ctx -> push_named_context_val ProofVar d ctx) ndecls ctx in
       let inst = SList.defaultn (List.length @@ Environ.named_context env) SList.empty in
       let rels = List.init (List.length decls) (fun i -> mkRel (i + 1)) in
       let ninst = List.fold_right (fun c accu -> SList.cons c accu) rels inst in
@@ -1916,7 +1985,7 @@ let clear_body idl =
     let env = Proofview.Goal.env gl in
     let concl = Proofview.Goal.concl gl in
     let sigma = Proofview.Goal.sigma gl in
-    let ctx = named_context env in
+    let ctx = named_context_of_val_with_status (named_context_val env) in
     let ids = Id.Set.of_list idl in
     let () =
       match Id.Set.find_first_opt (fun v -> not (mem_named v env)) ids with
@@ -1932,7 +2001,7 @@ let clear_body idl =
       else
         match ctx with
         | [] -> assert false
-        | decl :: ctx ->
+        | (status, decl) :: ctx ->
           let decl, ids, found =
             match decl with
             | LocalAssum (id,t) ->
@@ -1950,9 +2019,9 @@ let clear_body idl =
           if Id.Set.exists (fun id -> occur_var_in_decl env sigma id decl) ids then
             let sigma = check_decl env sigma idl ids decl in (* can sigma really change? *)
             let ids = Id.Set.add (get_id decl) ids in
-            push_named decl env, sigma, Id.Set.add (get_id decl) ids
+            push_named status decl env, sigma, Id.Set.add (get_id decl) ids
           else
-            push_named decl env, sigma, if found then Id.Set.add (get_id decl) ids else ids
+            push_named status decl env, sigma, if found then Id.Set.add (get_id decl) ids else ids
     in
     try
       let env, sigma, ids = fold ids ctx in
@@ -2534,7 +2603,7 @@ let pose_tac na c =
     Proofview.Unsafe.tclEVARS sigma <*>
     Refine.refine ~typecheck:false begin fun sigma ->
       let id = make_annot id rel in
-      let nhyps = EConstr.push_named_context_val (NamedDecl.LocalDef (id, c, t)) hyps in
+      let nhyps = EConstr.push_named_context_val ProofVar (NamedDecl.LocalDef (id, c, t)) hyps in
       let (sigma, ev) = Evarutil.new_pure_evar nhyps sigma ~relevance concl in
       let inst = EConstr.identity_subst_val hyps in
       let body = mkEvar (ev, SList.cons (mkRel 1) inst) in

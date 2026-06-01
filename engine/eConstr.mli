@@ -93,9 +93,7 @@ type unsafe_judgment = (constr, types) Environ.punsafe_judgment
 type unsafe_type_judgment = (types, Evd.esorts) Environ.punsafe_type_judgment
 type named_declaration = (constr, types, ERelevance.t) Context.Named.Declaration.pt
 type rel_declaration = (constr, types, ERelevance.t) Context.Rel.Declaration.pt
-type compacted_declaration = (constr, types, ERelevance.t) Context.Compacted.Declaration.pt
 type named_context = (constr, types, ERelevance.t) Context.Named.pt
-type compacted_context = compacted_declaration list
 type rel_context = (constr, types, ERelevance.t) Context.Rel.pt
 type 'a binder_annot = ('a,ERelevance.t) Context.pbinder_annot
 
@@ -424,15 +422,24 @@ val push_rel : rel_declaration -> env -> env
 val push_rel_context : rel_context -> env -> env
 val push_rec_types : rec_declaration -> env -> env
 
-val push_named : named_declaration -> env -> env
-val push_named_context : named_context -> env -> env
-val push_named_context_val  : named_declaration -> named_context_val -> named_context_val
+val push_named : var_status -> named_declaration -> env -> env
+val push_named_context : (var_status * named_declaration) list -> env -> env
+val push_named_context_val  : var_status -> named_declaration -> named_context_val -> named_context_val
 
 val rel_context : env -> rel_context
 val named_context : env -> named_context
 
-val val_of_named_context : named_context -> named_context_val
+val val_of_named_context : (var_status * named_declaration) list -> named_context_val
 val named_context_of_val : named_context_val -> named_context
+val named_context_of_val_with_status : named_context_val -> (var_status * named_declaration) list
+
+val fold_named_context_val :
+  (named_context_val -> var_status -> named_declaration -> 'a -> 'a) ->
+  named_context_val -> init:'a -> 'a
+
+val fold_named_context :
+  (env -> var_status -> named_declaration -> 'a -> 'a) ->
+  env -> init:'a -> 'a
 
 val lookup_rel : int -> env -> rel_declaration
 val lookup_named : variable -> env -> named_declaration
@@ -445,7 +452,14 @@ val map_rel_context_in_env :
   (env -> constr -> constr) -> env -> rel_context -> rel_context
 
 val match_named_context_val :
-  named_context_val -> (named_declaration * named_context_val) option
+  named_context_val -> (var_status * named_declaration * named_context_val) option
+
+(** [map_named_val f ctxt] apply [f] to the body and the type of
+   each declarations.
+   *** /!\ ***   [f t] must preserve the name *)
+val map_named_val :
+  (var_status -> named_declaration -> var_status * named_declaration) ->
+  named_context_val -> named_context_val
 
 val identity_subst_val : named_context_val -> t SList.t
 

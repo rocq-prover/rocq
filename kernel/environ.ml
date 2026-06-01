@@ -80,6 +80,7 @@ type named_context_val = {
   env_named_ctx : Constr.named_context;
   env_named_map : Constr.named_declaration Id.Map.t;
   env_named_idx : Constr.named_declaration Range.t;
+  env_named_secvars : Id.Set.t;
 }
 
 type rel_context_val = {
@@ -118,6 +119,7 @@ let empty_named_context_val = {
   env_named_ctx = [];
   env_named_map = Id.Map.empty;
   env_named_idx = Range.empty;
+  env_named_secvars = Id.Set.empty;
 }
 
 let empty_rel_context_val = {
@@ -187,43 +189,85 @@ let set_rel_context_val v env =
     env_nb_rel = Range.length v.env_rel_map; }
 
 (* Named context *)
+type var_status = SecVar | ProofVar
 
-let push_named_context_val d ctxt =
-(*   assert (not (Id.Map.mem (NamedDecl.get_id d) ctxt.env_named_map)); *)
+let var_status_eq a b = match a, b with
+  | SecVar, SecVar -> true
+  | ProofVar, ProofVar -> true
+  | (SecVar | ProofVar), _ -> false
+
+let push_named_context_val status d ctxt =
+  let id = NamedDecl.get_id d in
+  (* we would like the stronger assert but it breaks in bug_4095 *)
+  (* assert (not (Id.Map.mem id ctxt.env_named_map)); *)
+  assert (not (Id.Set.mem id ctxt.env_named_secvars));
+  let secvars = match status with
+    | ProofVar -> ctxt.env_named_secvars
+    | SecVar -> Id.Set.add id ctxt.env_named_secvars
+  in
   {
     env_named_ctx = Context.Named.add d ctxt.env_named_ctx;
-    env_named_map = Id.Map.add (NamedDecl.get_id d) d ctxt.env_named_map;
+    env_named_map = Id.Map.add id d ctxt.env_named_map;
     env_named_idx = Range.cons d ctxt.env_named_idx;
+    env_named_secvars = secvars;
   }
+
+let var_status_ctxt ?(check=true) id ctxt =
+  if Id.Set.mem id ctxt.env_named_secvars then SecVar
+  else
+    let () = assert (not check || Id.Map.mem id ctxt.env_named_map) in
+    ProofVar
+
+let var_status ?check id env = var_status_ctxt ?check id env.env_named_context
 
 let match_named_context_val c = match c.env_named_ctx with
 | [] -> None
 | decl :: ctx ->
-  let map = Id.Map.remove (NamedDecl.get_id decl) c.env_named_map in
-  let cval = { env_named_ctx = ctx; env_named_map = map; env_named_idx = Range.tl c.env_named_idx } in
-  Some (decl, cval)
+  let id = NamedDecl.get_id decl in
+  let map = Id.Map.remove id c.env_named_map in
+  let secvars = Id.Set.remove id c.env_named_secvars in
+  let status = if secvars == c.env_named_secvars then ProofVar else SecVar in
+  let cval = {
+    env_named_ctx = ctx;
+    env_named_map = map;
+    env_named_idx = Range.tl c.env_named_idx;
+    env_named_secvars = secvars;
+  }
+  in
+  Some (status, decl, cval)
 
 let map_named_val f ctxt =
   let open Context.Named.Declaration in
-  let fold accu d =
-    let d' = f d in
-    let accu =
-      if d == d' then accu
-      else Id.Map.set (get_id d) d' accu
+  let fold (map,secvars) d =
+    let id = get_id d in
+    let status = var_status_ctxt ~check:false id ctxt in
+    let status', d' = f status d in
+    let () = assert (Id.equal id (get_id d')) in
+    let map =
+      if d == d' then map
+      else Id.Map.set id d' map
     in
-    (accu, d')
+    let secvars =
+      if status == status' then secvars else
+        match status' with
+        | SecVar -> Id.Set.add id secvars
+        | ProofVar -> Id.Set.remove id secvars
+    in
+    ((map,secvars), d')
   in
-  let map, ctx = List.Smart.fold_left_map fold ctxt.env_named_map ctxt.env_named_ctx in
-  if map == ctxt.env_named_map then ctxt
+  let (map,secvars), ctx = List.Smart.fold_left_map fold (ctxt.env_named_map,ctxt.env_named_secvars) ctxt.env_named_ctx in
+  if map == ctxt.env_named_map && secvars == ctxt.env_named_secvars then ctxt
   else
     let idx = List.fold_right Range.cons ctx Range.empty in
-    { env_named_ctx = ctx; env_named_map = map; env_named_idx = idx }
+    { env_named_ctx = ctx; env_named_map = map; env_named_idx = idx; env_named_secvars = secvars }
 
-let push_named d env =
-  {env with env_named_context = push_named_context_val d env.env_named_context}
+let push_named status d env =
+  {env with env_named_context = push_named_context_val status d env.env_named_context}
 
-let mem_named id env =
-  Id.Map.mem id env.env_named_context.env_named_map
+let mem_named_ctxt id ctxt =
+  Id.Map.mem id ctxt.env_named_map
+
+let mem_named id env = mem_named_ctxt id  env.env_named_context
 
 let lookup_named id env =
   Id.Map.find id env.env_named_context.env_named_map
@@ -430,14 +474,18 @@ let fold_rel_context f env ~init =
 
 let named_context_of_val c = c.env_named_ctx
 
+let named_context_of_val_with_status c =
+  List.map (fun d -> var_status_ctxt ~check:false (NamedDecl.get_id d) c, d) c.env_named_ctx
+
 let ids_of_named_context_val c = Id.Map.domain c.env_named_map
 
 let empty_named_context = Context.Named.empty
 
-let push_named_context = List.fold_right push_named
+let push_named_context = List.fold_right (fun (status,d) env -> push_named status d env)
 
 let val_of_named_context ctxt =
-  List.fold_right push_named_context_val ctxt empty_named_context_val
+  List.fold_right (fun (status,d) ctxt -> push_named_context_val status d ctxt)
+    ctxt empty_named_context_val
 
 
 let eq_named_context_val c1 c2 =
@@ -478,15 +526,18 @@ let pop_rel_context n env =
     env_rel_context = skip n ctxt;
     env_nb_rel = env.env_nb_rel - n }
 
-let fold_named_context f env ~init =
-  let rec fold_right env =
-    match match_named_context_val env.env_named_context with
+let fold_named_context_val f sign ~init =
+  let rec fold_right sign =
+    match match_named_context_val sign with
     | None -> init
-    | Some (d, rem) ->
-        let env =
-          reset_with_named_context rem env in
-        f env d (fold_right env)
-  in fold_right env
+    | Some (status, d, rem) ->
+      f rem status d (fold_right rem)
+  in fold_right sign
+
+let fold_named_context f env ~init =
+  fold_named_context_val (fun sign status d acc ->
+      f (reset_with_named_context sign env) status d acc)
+    (named_context_val env) ~init
 
 let fold_named_context_reverse f ~init env =
   Context.Named.fold_inside f ~init:init (named_context env)
@@ -1017,12 +1068,13 @@ let apply_to_hyp ctxt id f =
   let open Context.Named.Declaration in
   let rec aux rtail ctxt =
     match match_named_context_val ctxt with
-    | Some (d, ctxt) ->
-        if Id.equal (get_id d) id then
-          push_named_context_val (f ctxt.env_named_ctx d rtail) ctxt
-        else
-          let ctxt' = aux (d::rtail) ctxt in
-          push_named_context_val d ctxt'
+    | Some (status, d, ctxt) ->
+      if Id.equal (get_id d) id then
+        let status, d' = f ctxt.env_named_ctx status d rtail in
+        push_named_context_val status d' ctxt
+      else
+        let ctxt' = aux (d::rtail) ctxt in
+        push_named_context_val status d ctxt'
     | None -> raise Hyp_not_found
   in aux [] ctxt
 
@@ -1032,7 +1084,7 @@ let remove_hyps ids check_context ctxt =
     if Id.Set.is_empty ids then ctxt, false
     else match match_named_context_val ctxt with
     | None -> empty_named_context_val, false
-    | Some (d, rctxt) ->
+    | Some (status, d, rctxt) ->
       let id0 = Context.Named.Declaration.get_id d in
       let removed = Id.Set.mem id0 ids in
       let ids = if removed then Id.Set.remove id0 ids else ids in
@@ -1041,10 +1093,10 @@ let remove_hyps ids check_context ctxt =
       else if not seen then ctxt, false
       else
         let rctxt' = ans in
-        let d' = check_context d in
-        if d == d' && rctxt == rctxt' then
+        let status', d' = check_context status d in
+        if status == status' && d == d' && rctxt == rctxt' then
           ctxt, true
-        else push_named_context_val d' rctxt', true
+        else push_named_context_val status' d' rctxt', true
   in
   fst (remove_hyps ids ctxt)
 

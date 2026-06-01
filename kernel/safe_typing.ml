@@ -735,7 +735,7 @@ let safe_push_named d env =
       let _ = Environ.lookup_named id env in
       CErrors.user_err Pp.(pr_sequence str ["Identifier"; Id.to_string id; "already defined."])
     with Not_found -> () in
-  Environ.push_named d env
+  Environ.push_named SecVar d env
 
 let push_named_def (id,de) senv =
   let sections = get_section senv.sections in

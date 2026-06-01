@@ -569,32 +569,3 @@ struct
   let instance mk l =
     Array.of_list (instance_list mk l)
 end
-
-module Compacted =
-  struct
-    module Declaration =
-      struct
-        type ('constr, 'types, 'r) pt =
-          | LocalAssum of (Id.t,'r) pbinder_annot list * 'types
-          | LocalDef of (Id.t,'r) pbinder_annot list * 'constr * 'types
-
-        let map_constr f = function
-          | LocalAssum (ids, ty) as decl ->
-             let ty' = f ty in
-             if ty == ty' then decl else LocalAssum (ids, ty')
-          | LocalDef (ids, c, ty) as decl ->
-             let ty' = f ty in
-             let c' = f c in
-             if c == c' && ty == ty' then decl else LocalDef (ids,c',ty')
-
-        let of_named_decl = function
-          | Named.Declaration.LocalAssum (id,t) ->
-              LocalAssum ([id],t)
-          | Named.Declaration.LocalDef (id,v,t) ->
-              LocalDef ([id],v,t)
-      end
-
-    type ('constr, 'types, 'r) pt = ('constr, 'types, 'r) Declaration.pt list
-
-    let fold f l ~init = List.fold_right f l init
-  end

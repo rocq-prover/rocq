@@ -1,0 +1,18 @@
+1 goal
+  
+  a (* section variable *), b (* section variable *) : nat
+  H (* section variable *) : a = b
+  ============================
+  True
+1 goal
+  
+  a (* section variable *), b (* section variable *) : nat
+  H (* hypothesis *) : b = a
+  ============================
+  True
+1 goal
+  
+  a (* section variable *), y (* hypothesis *) : nat
+  H (* hypothesis *) : y = a
+  ============================
+  True

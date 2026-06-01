@@ -823,7 +823,7 @@ let vernac_enable_notation ~module_local on rule interp flags scope =
 
 let check_name_freshness locality {CAst.loc;v=id} : unit =
   (* We check existence here: it's a bit late at Qed time *)
-  if Termops.is_section_variable (Global.env ()) id ||
+  if Environ.mem_named id (Global.env ()) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path id) ||
      locality <> Discharge && Nametab.exists_cci (Lib.make_path_except_section id)
   then
@@ -1942,14 +1942,6 @@ let () =
       optkey   = ["Kernel"; "Conversion"; "Dep"; "Heuristic"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.unfold_dep_heuristic);
       optwrite = Global.set_unfold_dep_heuristic }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Compact";"Contexts"];
-      optread  = (fun () -> Printer.get_compact_context());
-      optwrite = (fun b -> Printer.set_compact_context b) }
 
 let () =
   declare_int_option

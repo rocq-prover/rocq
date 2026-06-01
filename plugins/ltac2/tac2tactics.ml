@@ -447,7 +447,7 @@ let wrap_tactic_call f =
   let open Proofview.Notations in
   let wrapf ~env ~carrier ~lhs ~rel =
     Proofview.tclEVARMAP >>= fun sigma ->
-      let ectx = ext_named_context_of_env ~hypnaming:Evarutil.VarSet.empty env sigma in
+      let ectx = ext_named_context_of_env env sigma in
       let subst = ext_csubst ectx in
       let carriern = Evarutil.csubst_subst sigma subst carrier in
       let lhsn = Evarutil.csubst_subst sigma subst lhs in

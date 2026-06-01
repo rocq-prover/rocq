@@ -183,24 +183,18 @@ val pr_notation_interpretation_env : env -> evar_map -> glob_constr -> Pp.t
 
 (** Contexts *)
 
-(** Display compact contexts of goals (simple hyps on the same line) *)
-val set_compact_context : bool -> unit
-val get_compact_context : unit -> bool
-
 val pr_context_unlimited : ?flags:PrintingFlags.t -> env -> evar_map -> Pp.t
 val pr_ne_context_of : Pp.t -> ?flags:PrintingFlags.t -> env -> evar_map -> Pp.t
 
 val pr_named_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> Constr.named_declaration -> Pp.t
-val pr_compacted_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> Constr.compacted_declaration -> Pp.t
+  env -> evar_map -> var_status option -> Constr.named_declaration -> Pp.t
 val pr_rel_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> Constr.rel_declaration -> Pp.t
 
 val pr_enamed_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> EConstr.named_declaration -> Pp.t
+  env -> evar_map -> var_status option -> EConstr.named_declaration -> Pp.t
 val pr_ecompacted_decl : ?flags:PrintingFlags.t ->
-  env -> evar_map -> EConstr.compacted_declaration -> Pp.t
+  env -> evar_map -> Ppconstr.CompactedDecl.t -> Pp.t
 val pr_erel_decl : ?flags:PrintingFlags.t ->
   env -> evar_map -> EConstr.rel_declaration -> Pp.t
 

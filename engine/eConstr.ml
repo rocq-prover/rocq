@@ -171,9 +171,7 @@ type unsafe_judgment = (constr, types) Environ.punsafe_judgment
 type unsafe_type_judgment = (types, ESorts.t) Environ.punsafe_type_judgment
 type named_declaration = (constr, types, ERelevance.t) Context.Named.Declaration.pt
 type rel_declaration = (constr, types, ERelevance.t) Context.Rel.Declaration.pt
-type compacted_declaration = (constr, types, ERelevance.t) Context.Compacted.Declaration.pt
 type named_context = (constr, types, ERelevance.t) Context.Named.pt
-type compacted_context = compacted_declaration list
 type rel_context = (constr, types, ERelevance.t) Context.Rel.pt
 type 'a binder_annot = ('a, ERelevance.t) Context.pbinder_annot
 
@@ -1220,15 +1218,24 @@ let destArity sigma =
 let push_rel d e = push_rel (cast_rel_decl unsafe_eq unsafe_relevance_eq d) e
 let push_rel_context d e = push_rel_context (cast_rel_context unsafe_eq unsafe_relevance_eq d) e
 let push_rec_types d e = push_rec_types (cast_rec_decl unsafe_eq unsafe_relevance_eq d) e
-let push_named d e = push_named (cast_named_decl unsafe_eq unsafe_relevance_eq d) e
-let push_named_context d e = push_named_context (cast_named_context unsafe_eq unsafe_relevance_eq d) e
-let push_named_context_val d e = push_named_context_val (cast_named_decl unsafe_eq unsafe_relevance_eq d) e
+let push_named status d e = push_named status (cast_named_decl unsafe_eq unsafe_relevance_eq d) e
+let push_named_context d e =
+  List.fold_right (fun (status, d) env -> push_named status d env) d e
+let push_named_context_val status d e = push_named_context_val status (cast_named_decl unsafe_eq unsafe_relevance_eq d) e
 
 let rel_context e = cast_rel_context (sym unsafe_eq) (sym unsafe_relevance_eq) (rel_context e)
 let named_context e = cast_named_context (sym unsafe_eq) (sym unsafe_relevance_eq) (named_context e)
 
-let val_of_named_context e = val_of_named_context (cast_named_context unsafe_eq unsafe_relevance_eq e)
+let val_of_named_context ctxt =
+  List.fold_right (fun (status,d) ctxt -> push_named_context_val status d ctxt)
+    ctxt Environ.empty_named_context_val
+
 let named_context_of_val e = cast_named_context (sym unsafe_eq) (sym unsafe_relevance_eq) (named_context_of_val e)
+
+let named_context_of_val_with_status
+  : named_context_val -> (var_status * named_declaration) list =
+  let Refl, Refl = unsafe_eq, unsafe_relevance_eq in
+  named_context_of_val_with_status
 
 let of_existential : Constr.existential -> existential =
   let gen : type a b. (a,b) eq -> 'c * b SList.t -> 'c * a SList.t = fun Refl x -> x in
@@ -1248,9 +1255,27 @@ let map_rel_context_in_env f env sign =
   aux env [] (List.rev sign)
 
 let match_named_context_val :
-  named_context_val -> (named_declaration * named_context_val) option =
+  named_context_val -> (var_status * named_declaration * named_context_val) option =
   match unsafe_eq, unsafe_relevance_eq with
   | Refl, Refl -> match_named_context_val
+
+let fold_named_context_val :
+  (named_context_val -> var_status -> named_declaration -> 'a -> 'a) ->
+  named_context_val -> init:'a -> 'a =
+  let Refl, Refl = unsafe_eq, unsafe_relevance_eq in
+  Environ.fold_named_context_val
+
+let fold_named_context :
+  (env -> var_status -> named_declaration -> 'a -> 'a) ->
+  env -> init:'a -> 'a =
+  let Refl, Refl = unsafe_eq, unsafe_relevance_eq in
+  Environ.fold_named_context
+
+let map_named_val :
+  (var_status -> named_declaration -> var_status * named_declaration) ->
+  named_context_val -> named_context_val =
+  match unsafe_eq, unsafe_relevance_eq with
+  | Refl, Refl -> map_named_val
 
 let identity_subst_val : named_context_val -> t SList.t = fun ctx ->
   SList.defaultn (List.length ctx.Environ.env_named_ctx) SList.empty

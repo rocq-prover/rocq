@@ -96,3 +96,18 @@ val modular_constr_pr :
   flags:flags ->
   ((unit->Pp.t) -> int option -> entry_relative_level -> constr_expr -> Pp.t) ->
   (unit->Pp.t) -> int option -> entry_relative_level -> constr_expr -> Pp.t
+
+module CompactedDecl : sig
+  type t =
+    | LocalAssum of (Environ.var_status option * Id.t EConstr.binder_annot) list * EConstr.types
+    | LocalDef of (Environ.var_status option * Id.t EConstr.binder_annot) list * EConstr.constr * EConstr.types
+
+  val of_named_decl : Environ.var_status option -> EConstr.named_declaration -> t
+
+  val to_tuple : t ->
+    Id.t EConstr.binder_annot list *
+    EConstr.constr option *
+    EConstr.types
+end
+
+val compact_named_context : Evd.evar_map -> Environ.named_context_val -> CompactedDecl.t list

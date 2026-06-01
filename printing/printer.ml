@@ -22,7 +22,7 @@ open Declarations
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
-module CompactedDecl = Context.Compacted.Declaration
+module CompactedDecl = Ppconstr.CompactedDecl
 
 (* This is set on by proofgeneral proof-tree mode. But may be used for
    other purposes *)
@@ -359,37 +359,42 @@ let pr_pattern t = pr_pattern_env (Global.env()) empty_names_context t*)
 
 (* Flag for compact display of goals *)
 
-let get_compact_context,set_compact_context =
-  let compact_context = ref false in
-  (fun () -> !compact_context),(fun b  -> compact_context := b)
+let { Goptions.get = get_compact_context } =
+  Goptions.declare_bool_option_and_ref ~key:["Printing";"Compact";"Contexts"] ~value:false ()
 
-let pr_compacted_decl ?flags env sigma decl =
+let { Goptions.get = print_var_status } =
+  Goptions.declare_bool_option_and_ref ~key:["Printing";"Variables";"Status"] ~value:false ()
+
+let pr_ecompacted_decl ?flags env sigma decl =
   let ids, pbody, typ = match decl with
     | CompactedDecl.LocalAssum (ids, typ) ->
-       ids, None, typ
-    | CompactedDecl.LocalDef (ids,c,typ) ->
-       (* Force evaluation *)
-       let pb = pr_lconstr_env ?flags ~inctx:true env sigma c in
-       let pb = if isCast c then surround pb else pb in
-       ids, Some pb, typ in
+      ids, None, typ
+    | CompactedDecl.LocalDef (ids, c, typ) ->
+      (* Force evaluation *)
+      let pb = pr_leconstr_env ?flags ~inctx:true env sigma c in
+      let pb = if EConstr.isCast sigma c then surround pb else pb in
+      ids, Some pb, typ in
+  let pp_status status =
+    if print_var_status() then
+      match status with
+      | None -> mt()
+      | Some SecVar -> spc() ++ pr_in_comment (str "section variable")
+      | Some ProofVar -> spc() ++ pr_in_comment (str "hypothesis")
+    else mt()
+  in
   let pids =
-    hov 0 (prlist_with_sep pr_comma (fun id -> pr_id id.binder_name) ids) in
-  let pt = pr_ltype_env ?flags env sigma typ in
+    hov 0 (prlist_with_sep pr_comma (fun (status, id) -> pr_id id.binder_name ++ pp_status status) ids) in
+  let pt = pr_letype_env ?flags env sigma typ in
   match pbody with
   | None -> hov 2 (pids ++ str" :" ++ spc () ++ pt)
   | Some pbody ->
-     hov 2 (pids ++ str" :=" ++ spc () ++ pbody ++ spc () ++ str": " ++ pt)
+    hov 2 (pids ++ str" :=" ++ spc () ++ pbody ++ spc () ++ str": " ++ pt)
 
-let pr_ecompacted_decl ?flags env sigma (decl:EConstr.compacted_declaration) =
-  let Refl = EConstr.Unsafe.eq in
-  pr_compacted_decl ?flags env sigma decl
+let pr_enamed_decl ?flags env sigma status decl =
+  decl |> CompactedDecl.of_named_decl status |> pr_ecompacted_decl ?flags env sigma
 
-let pr_named_decl ?flags env sigma decl =
-  decl |> CompactedDecl.of_named_decl |> pr_compacted_decl ?flags env sigma
-
-let pr_enamed_decl ?flags env sigma (decl:EConstr.named_declaration) =
-  let Refl = EConstr.Unsafe.eq in
-  pr_named_decl ?flags env sigma decl
+let pr_named_decl ?flags env sigma status (decl:Constr.named_declaration) =
+  pr_enamed_decl ?flags env sigma status (EConstr.of_named_decl decl)
 
 let pr_rel_decl ?flags env sigma decl =
   let na = RelDecl.get_name decl in
@@ -417,18 +422,17 @@ let pr_erel_decl ?flags env sigma (decl:EConstr.rel_declaration) =
  * It's printed out from outermost to innermost, so it's readable. *)
 
 (* Prints a signature, all declarations on the same line if possible *)
+
+let pr_named_context ?flags env sigma ctx =
+  hv 0 (prlist_with_sep (fun () -> ws 2) (fun d -> pr_named_decl ?flags env sigma None d) ctx)
+
 let pr_named_context_of ?flags env sigma =
-  let make_decl_list env d pps = pr_named_decl ?flags env sigma d :: pps in
+  let make_decl_list env status d pps = pr_named_decl ?flags env sigma (Some status) d :: pps in
   let psl = List.rev (fold_named_context make_decl_list env ~init:[]) in
   hv 0 (prlist_with_sep (fun _ -> ws 2) (fun x -> x) psl)
 
 let pr_var_list_decl ?flags env sigma decl =
   hov 0 (pr_ecompacted_decl ?flags env sigma decl)
-
-let pr_named_context ?flags env sigma ne_context =
-  hv 0 (Context.Named.fold_outside
-          (fun d pps -> pps ++ ws 2 ++ pr_named_decl ?flags env sigma d)
-          ne_context ~init:(mt ()))
 
 let pr_rel_context ?(flags=current_combined()) env sigma rel_context =
   let ppflags = Ppconstr.of_printing_flags flags in
@@ -441,11 +445,11 @@ let pr_rel_context_of ?flags env sigma =
 (* Prints an env (variables and de Bruijn). Separator: newline *)
 let pr_context_unlimited ?flags env sigma =
   let sign_env =
-    Context.Compacted.fold
+    List.fold_right
       (fun d pps ->
          let pidt =  pr_ecompacted_decl ?flags env sigma d in
          (pps ++ fnl () ++ pidt))
-      (Termops.compact_named_context sigma (EConstr.named_context env)) ~init:(mt ())
+      (compact_named_context sigma (Environ.named_context_val env)) (mt ())
   in
   let db_env =
     fold_rel_context
@@ -474,7 +478,7 @@ let should_compact env sigma typ =
 let rec bld_sign_env ?flags env sigma ctxt pps =
   match ctxt with
   | [] -> pps
-  | CompactedDecl.LocalAssum (ids,typ)::ctxt' when should_compact env sigma typ ->
+  | CompactedDecl.LocalAssum (_,typ)::ctxt' when should_compact env sigma typ ->
     let pps',ctxt' = bld_sign_env_id ?flags env sigma ctxt (mt ()) true in
     (* putting simple hyps in a more horizontal flavor *)
     bld_sign_env ?flags env sigma ctxt' (pps ++ brk (0,0) ++ hov 0 pps')
@@ -485,7 +489,7 @@ let rec bld_sign_env ?flags env sigma ctxt pps =
 and bld_sign_env_id ?flags env sigma ctxt pps is_start =
   match ctxt with
   | [] -> pps,ctxt
- | CompactedDecl.LocalAssum(ids,typ) as d :: ctxt' when should_compact env sigma typ ->
+ | CompactedDecl.LocalAssum(_,typ) as d :: ctxt' when should_compact env sigma typ ->
     let pidt = pr_var_list_decl ?flags env sigma d in
     let pps' = pps ++ (if not is_start then brk (3,0) else (mt ())) ++ pidt in
     bld_sign_env_id ?flags env sigma ctxt' pps' false
@@ -495,8 +499,8 @@ and bld_sign_env_id ?flags env sigma ctxt pps is_start =
 (* compact printing an env (variables and de Bruijn). Separator: three
    spaces between simple hyps, and newline otherwise *)
 let pr_context_limit_compact ?n ?flags env sigma =
-  let ctxt = EConstr.named_context env in
-  let ctxt = Termops.compact_named_context sigma ctxt in
+  let ctxt = Environ.named_context_val env in
+  let ctxt = compact_named_context sigma ctxt in
   let lgth = List.length ctxt in
   let n_capped =
     match n with
@@ -521,9 +525,9 @@ let { Goptions.get = print_hyps_limit } =
     ~value:None
     ()
 
-let pr_context_of ?flags env sigma = match print_hyps_limit () with
-  | None -> hv 0 (pr_context_limit_compact ?flags env sigma)
-  | Some n -> hv 0 (pr_context_limit_compact ~n ?flags env sigma)
+let pr_context_of ?flags env sigma =
+  let n = print_hyps_limit () in
+  hv 0 (pr_context_limit_compact ?n ?flags env sigma)
 
 (* display goal parts (Proof mode) *)
 

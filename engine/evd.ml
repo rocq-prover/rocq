@@ -257,15 +257,15 @@ let evar_hyps evi = evi.evar_hyps
 let evar_filtered_hyps evi = match Filter.repr (evar_filter evi) with
 | None -> evar_hyps evi
 | Some filter ->
-  let rec make_hyps filter ctxt = match filter, ctxt with
-  | [], [] -> empty_named_context_val
-  | false :: filter, _ :: ctxt -> make_hyps filter ctxt
-  | true :: filter, decl :: ctxt ->
+  let rec make_hyps filter ctxt = match filter, match_named_context_val ctxt with
+  | [], None -> empty_named_context_val
+  | false :: filter, Some (_, _,  ctxt) -> make_hyps filter ctxt
+  | true :: filter, Some (status, decl, ctxt) ->
     let hyps = make_hyps filter ctxt in
-    push_named_context_val decl hyps
+    push_named_context_val status decl hyps
   | _ -> instance_mismatch ()
   in
-  make_hyps filter (evar_context evi)
+  make_hyps filter (evar_hyps evi)
 
 let evar_env env evi =
   Environ.reset_with_named_context evi.evar_hyps env
@@ -290,7 +290,7 @@ let map_when_undefined (type a b) f : (a, b) when_undefined -> (a, b) when_undef
 let map_evar_info f evi =
   {evi with
     evar_body = map_evar_body f evi.evar_body;
-    evar_hyps = map_named_val (fun d -> NamedDecl.map_constr f d) evi.evar_hyps;
+    evar_hyps = map_named_val (fun status d -> status, NamedDecl.map_constr f d) evi.evar_hyps;
     evar_concl = map_when_undefined f evi.evar_concl;
     evar_candidates = map_when_undefined (fun c -> Option.map (List.map f) c) evi.evar_candidates }
 

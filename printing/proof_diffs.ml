@@ -233,13 +233,6 @@ type goal = { ty: EConstr.t; env : Environ.env; sigma : Evd.evar_map; }
 
 (* XXX: Port to proofview, one day. *)
 (* open Proofview *)
-module CDC = Context.Compacted.Declaration
-
-let to_tuple : EConstr.compacted_declaration -> (Names.Id.t EConstr.binder_annot list * 'pc option * 'pc) =
-  let open CDC in function
-    | LocalAssum(idl, tm)   -> (idl, None, tm)
-    | LocalDef(idl,tdef,tm) -> (idl, Some tdef, tm)
-
 let make_goal env sigma g =
   let evi = Evd.find_undefined sigma g in
   let env = Evd.evar_filtered_env env evi in
@@ -297,7 +290,7 @@ let goal_info ~flags goal =
   let map = ref CString.Map.empty in
   let line_idents = ref [] in
   let build_hyp_info env sigma hyp =
-    let (names, body, ty) = to_tuple hyp in
+    let (names, body, ty) = Ppconstr.CompactedDecl.to_tuple hyp in
     let open Pp in
     let idents = List.map (fun x -> Names.Id.to_string x.Context.binder_name) names in
 
@@ -318,7 +311,7 @@ let goal_info ~flags goal =
   try
     let { ty=ty; env=env; sigma } = goal in
     (* compaction is usually desired [eg for better display] *)
-    let hyps = Termops.compact_named_context sigma (EConstr.named_context env) in
+    let hyps = Ppconstr.compact_named_context sigma (Environ.named_context_val env) in
     let () = List.iter (build_hyp_info env sigma) (List.rev hyps) in
     let concl_pp = pp_of_type ~flags env sigma ty in
     ( List.rev !line_idents, !map, concl_pp )

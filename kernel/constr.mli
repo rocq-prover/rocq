@@ -430,10 +430,8 @@ val eq_constr_nounivs : constr -> constr -> bool
 
 type rel_declaration = (constr, types, Sorts.relevance) Context.Rel.Declaration.pt
 type named_declaration = (constr, types, Sorts.relevance) Context.Named.Declaration.pt
-type compacted_declaration = (constr, types, Sorts.relevance) Context.Compacted.Declaration.pt
 type rel_context = rel_declaration list
 type named_context = named_declaration list
-type compacted_context = compacted_declaration list
 
 (** {6 Relocation and substitution } *)
 

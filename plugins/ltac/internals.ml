@@ -126,6 +126,20 @@ let is_var x =
     | Var _ ->  Proofview.tclUNIT ()
     | _ -> Tacticals.tclFAIL (Pp.str "Not a variable or hypothesis")
 
+let is_section_var x =
+  (* we can enter_one because a constr argument is focusing *)
+  Proofview.Goal.enter_one ~__LOC__ begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    match EConstr.kind sigma x with
+    | Var id ->
+      (* check:false because we don't want to anomaly here if the user
+         sneaks in some unbound variable *)
+      if Termops.is_section_variable_env ~check:false env id then Proofview.tclUNIT ()
+      else Tacticals.tclFAIL (Pp.str "Not a section variable.")
+    | _ -> Tacticals.tclFAIL (Pp.str "Not a variable or hypothesis.")
+  end
+
 let is_fix x =
   Proofview.tclEVARMAP >>= fun sigma ->
   match EConstr.kind sigma x with

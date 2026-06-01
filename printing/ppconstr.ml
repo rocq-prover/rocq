@@ -855,3 +855,46 @@ let pr_lconstr_pattern_expr ~flags env sigma c : Pp.t = !term_pr.pr_lconstr_patt
 let pr_cases_pattern_expr ~flags c : Pp.t = pr_patt ~flags (pr ~flags no_after ltop) no_after ltop c
 
 let pr_binders ~flags env sigma l : Pp.t = pr_undelimited_binders ~flags spc true (pr_expr ~flags env sigma no_after ltop) l
+
+module CompactedDecl = struct
+  type t =
+    | LocalAssum of (Environ.var_status option * Id.t EConstr.binder_annot) list * EConstr.types
+    | LocalDef of (Environ.var_status option * Id.t EConstr.binder_annot) list * EConstr.constr * EConstr.types
+
+  let of_named_decl status = function
+    | Context.Named.Declaration.LocalAssum (id,t) ->
+      LocalAssum ([status,id], t)
+    | Context.Named.Declaration.LocalDef (id,v,t) ->
+      LocalDef ([status,id], v, t)
+
+  let to_tuple = function
+    | LocalAssum (ids, t) -> List.map snd ids, None, t
+    | LocalDef (ids, b, t) -> List.map snd ids, Some b, t
+end
+
+let compact_named_context sigma sign =
+  let module NamedDecl = Context.Named.Declaration in
+  let compact l status decl =
+    match decl, l with
+    | NamedDecl.LocalAssum (i,t), [] ->
+      [CompactedDecl.LocalAssum ([Some status,i],t)]
+    | NamedDecl.LocalDef (i,c,t), [] ->
+      [CompactedDecl.LocalDef ([Some status,i],c,t)]
+    | NamedDecl.LocalAssum (i1,t1), CompactedDecl.LocalAssum (li,t2) :: q ->
+      if EConstr.eq_constr sigma t1 t2
+      then CompactedDecl.LocalAssum ((Some status, i1)::li, t2) :: q
+      else CompactedDecl.LocalAssum ([Some status, i1],t1) :: CompactedDecl.LocalAssum (li,t2) :: q
+    | NamedDecl.LocalDef (i1,c1,t1), CompactedDecl.LocalDef (li,c2,t2) :: q ->
+      if EConstr.eq_constr sigma c1 c2 && EConstr.eq_constr sigma t1 t2
+      then CompactedDecl.LocalDef ((Some status, i1)::li, c2, t2) :: q
+      else CompactedDecl.LocalDef ([Some status, i1],c1,t1) :: CompactedDecl.LocalDef (li,c2,t2) :: q
+    | NamedDecl.LocalAssum (i,t), q ->
+      CompactedDecl.LocalAssum ([Some status,i],t) :: q
+    | NamedDecl.LocalDef (i,c,t), q ->
+      CompactedDecl.LocalDef ([Some status,i],c,t) :: q
+  in
+  let ctx = EConstr.fold_named_context_val (fun _ status d acc -> compact acc status d) sign ~init:[] in
+  List.map (function
+      | CompactedDecl.LocalAssum (ids, t) -> CompactedDecl.LocalAssum (List.rev ids, t)
+      | CompactedDecl.LocalDef (ids, a, b) -> CompactedDecl.LocalDef (List.rev ids, a, b))
+    ctx

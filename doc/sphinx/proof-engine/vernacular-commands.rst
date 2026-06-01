@@ -1089,6 +1089,12 @@ Controlling display
    after each tactic.  The information is used by the Prooftree tool in Proof
    General. (https://askra.de/software/prooftree)
 
+.. flag:: Printing Variables Status
+
+   This debug :term:`flag` prints whether each variable in the context
+   is a section variable or an hypothesis local to the current proof.
+   It is off by default.
+
 .. extracted from Gallina extensions chapter
 
 .. _printing_constructions_full:

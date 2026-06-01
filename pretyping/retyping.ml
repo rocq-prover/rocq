@@ -136,7 +136,7 @@ let betazetaevar_applist sigma n c l =
 
 let type_of_constant env sigma (c,u) =
   let cb = lookup_constant env sigma c in
-  let () = check_hyps_inclusion env sigma (GlobRef.ConstRef c) cb.const_hyps in
+  let () = Typeops.check_hyps_inclusion env (GlobRef.ConstRef c) cb.const_hyps in
   let ty = CVars.subst_instance_constr (EConstr.Unsafe.to_instance u) cb.const_type in
   EConstr.of_constr (rename_type env ty (GlobRef.ConstRef c))
 

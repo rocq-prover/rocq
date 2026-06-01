@@ -47,7 +47,7 @@ let hyp_id (SsrHyp (_, id)) = id
 let hyp_err ?loc msg id =
   CErrors.user_err ?loc Pp.(str msg ++ Id.print id)
 
-let not_section_id id = not (Termops.is_section_variable (Global.env ()) id)
+let not_section_id id = not (Termops.is_section_variable (Global.env ()) id) [@@warning "-3"]
 
 let hyps_ids = List.map hyp_id
 
@@ -1203,7 +1203,7 @@ let unsafe_intro env decl ~relevance b =
   let open Context.Named.Declaration in
   Refine.refine_with_principal ~typecheck:false begin fun sigma ->
     let ctx = Environ.named_context_val env in
-    let nctx = EConstr.push_named_context_val decl ctx in
+    let nctx = EConstr.push_named_context_val ProofVar decl ctx in
     let inst = EConstr.identity_subst_val (Environ.named_context_val env) in
     let ninst = SList.cons (EConstr.mkRel 1) inst in
     let nb = EConstr.Vars.subst1 (EConstr.mkVar (get_id decl)) b in
@@ -1212,8 +1212,10 @@ let unsafe_intro env decl ~relevance b =
   end
 
 let set_decl_id id = let open Context in function
-  | Rel.Declaration.LocalAssum(name,ty) -> Named.Declaration.LocalAssum({name with binder_name=id},ty)
-  | Rel.Declaration.LocalDef(name,ty,t) -> Named.Declaration.LocalDef({name with binder_name=id},ty,t)
+  | Rel.Declaration.LocalAssum(name,ty) ->
+    Named.Declaration.LocalAssum({name with binder_name=id},ty)
+  | Rel.Declaration.LocalDef(name,ty,t) ->
+    Named.Declaration.LocalDef({name with binder_name=id},ty,t)
 
 let rec decompose_assum env sigma orig_goal =
   let open Context in

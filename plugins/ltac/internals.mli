@@ -44,6 +44,7 @@ val refine_tac : Tacinterp.interp_sign -> simple:bool -> with_classes:bool ->
 val has_evar : EConstr.t -> unit tactic
 val is_evar : EConstr.t -> unit tactic
 val is_var : EConstr.t -> unit tactic
+val is_section_var : EConstr.t -> unit tactic
 val is_fix : EConstr.t -> unit tactic
 val is_cofix : EConstr.t -> unit tactic
 val is_ind : EConstr.t -> unit tactic

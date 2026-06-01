@@ -207,7 +207,7 @@ let process_goal short sigma g =
     if short then [] else
       let hyps =
         List.rev_map process_hyp
-        (Termops.compact_named_context sigma (EConstr.named_context env))
+          (Ppconstr.compact_named_context sigma (Environ.named_context_val env))
       in
       hyps
   in
@@ -301,7 +301,7 @@ let hints () =
     | [] -> None
     | g :: _ ->
       let env = Evd.evar_filtered_env (Global.env ()) (Evd.find_undefined sigma g) in
-      let get_hint_hyp env d accu = hyp_next_tac sigma env d :: accu in
+      let get_hint_hyp env _ d accu = hyp_next_tac sigma env d :: accu in
       let hint_hyps = List.rev (Environ.fold_named_context get_hint_hyp env ~init: []) in
       Some (hint_hyps, concl_next_tac)
   with Vernacstate.Declare.NoCurrentProof -> None
