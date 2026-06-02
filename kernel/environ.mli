@@ -37,19 +37,9 @@ type link_info =
 
 type key = int CEphemeron.key option ref
 
-type named_context_val = private {
-  env_named_ctx : Constr.named_context;
-  env_named_map : Constr.named_declaration Id.Map.t;
-  (** Identifier-indexed version of [env_named_ctx] *)
-  env_named_idx : Constr.named_declaration Range.t;
-  (** Same as env_named_ctx but with a fast-access list. *)
-  env_named_secvars : Id.Set.t;
-}
+type named_context_val
 
-type rel_context_val = private {
-  env_rel_ctx : Constr.rel_context;
-  env_rel_map : Constr.rel_declaration Range.t;
-}
+type rel_context_val
 
 type env
 (** Type of global environments. *)
@@ -101,6 +91,7 @@ val empty_rel_context_val : rel_context_val
 (** Looks up in the context of local vars referred by indice ([rel_context])
    raises [Not_found] if the index points out of the context *)
 val lookup_rel    : int -> env -> Constr.rel_declaration
+val lookup_rel_ctxt : int -> rel_context_val -> Constr.rel_declaration
 val evaluable_rel : int -> env -> bool
 val env_of_rel     : int -> env -> env
 
@@ -146,6 +137,8 @@ val mem_named : variable -> env -> bool
 
 val lookup_named     : variable -> env -> Constr.named_declaration
 val lookup_named_ctxt : variable -> named_context_val -> Constr.named_declaration
+val lookup_named_ctxt_pos : int -> named_context_val -> Constr.named_declaration
+val nb_named : named_context_val -> int
 val evaluable_named  : variable -> env -> bool
 val named_type : variable -> env -> types
 val named_body : variable -> env -> constr option
@@ -534,8 +527,8 @@ module Internal : sig
       env_inductives : mutual_inductive_body Mindmap_env.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
-      env_named_context : named_context_val;
-      env_rel_context   : rel_context_val;
+      env_named_context : named_context;
+      env_rel_context   : rel_context;
       env_universes : UGraph.t;
       env_qualities : Sorts.Quality.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;

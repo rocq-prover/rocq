@@ -398,11 +398,7 @@ end = struct
       let env = info.i_cache.i_env in
       match ref with
       | RelKey n ->
-        let i = n - 1 in
-        let d =
-          try Range.get (Environ.rel_context_val env).env_rel_map i
-          with Invalid_argument _ -> raise Not_found
-        in
+        let d = Environ.lookup_rel n env in
         shortcut_irrelevant info (RelDecl.get_relevance d);
         let body =
           match d with

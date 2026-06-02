@@ -1369,7 +1369,7 @@ let project_evar_on_evar force unify flags env evd aliases k2 pbty (evk1,argsv1 
   if Option.is_empty pbty && SList.is_default argsv2 &&
     (* This ensures that the named context of [evk2] is a permutation of the one
        from [env]. In particular its filter must be trivial. *)
-    Int.equal (SList.length argsv2) (Range.length (Environ.named_context_val env).env_named_idx) &&
+    Int.equal (SList.length argsv2) (Environ.(nb_named @@ named_context_val env)) &&
     SList.Skip.for_all (fun arg -> noccur_evar env evd evk2 arg && closed0 evd arg) argsv1 &&
     let evi2 = Evd.find_undefined evd evk2 in Option.is_empty (Evd.evar_candidates evi2)
   then

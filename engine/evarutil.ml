@@ -316,7 +316,7 @@ let push_rel_decl_to_named_context
   in
   match extract_if_neq id na with
   | Some id0 ->
-    if Id.Map.mem id0 ext.ext_ctx.env_named_map && is_section_variable_sign ext.ext_ctx id0 then
+    if Environ.mem_named_ctxt id0 ext.ext_ctx && is_section_variable_sign ext.ext_ctx id0 then
       (* spiwack: if [id0] is a section variable renaming it is
           incorrect. We revert to a less robust behaviour where
           the new binder has name [id]. Which amounts to the same
