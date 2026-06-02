@@ -71,9 +71,6 @@ val type_of_global_in_context : env -> GlobRef.t -> types * UVars.AbstractContex
 
 (** {6 Miscellaneous. } *)
 
-(** Check that hyps are included in env and fails with error otherwise *)
-val check_hyps_inclusion : env -> GlobRef.t -> Constr.named_context -> unit
-
 (** Types for primitives *)
 
 val type_of_int : env -> types
