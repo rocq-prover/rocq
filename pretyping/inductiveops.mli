@@ -237,6 +237,8 @@ val control_only_guard : env -> Evd.evar_map -> EConstr.types -> unit
 val paramdecls_fresh_template : evar_map -> mutual_inductive_body * einstance ->
   evar_map * rel_context * Inductive.template_subst option
 
+val get_template_instance : mutual_inductive_body -> einstance -> einstance
+
 module Internal : sig
   (* FIXME hack for the [QVar]s, see the implementation for more information. *)
   val nf_relevance : Evd.evar_map -> Sorts.relevance -> Sorts.relevance

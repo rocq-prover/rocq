@@ -352,6 +352,13 @@ let ind_relevance kn env = match Indmap_env.find_opt kn env.irr_inds with
     [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
     while replacing names using [nas] (order reversed)
 *)
+
+let get_template_instance mib u = match mib.mind_template with
+| None -> u
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty u) in
+  templ.template_defaults
+
 let instantiate_context u subst nas ctx =
   let open Context.Rel.Declaration in
   let get_binder i na =
@@ -377,11 +384,15 @@ let instantiate_context u subst nas ctx =
 
 let expand_arity (mib, mip) (ind, u) params nas =
   let open Context.Rel.Declaration in
+  let u = get_template_instance mib u in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let params = Vars.subst_of_rel_context_instance paramdecl params in
   let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
   let self =
-    let u = UVars.Instance.abstract_instance (UVars.Instance.length u) in
+    let u =
+      if Option.has_some mib.mind_template then UVars.Instance.empty
+      else UVars.Instance.abstract_instance (UVars.Instance.length u)
+    in
     let args = Context.Rel.instance mkRel 0 mip.mind_arity_ctxt in
     mkApp (mkIndU (ind, u), args)
   in
@@ -390,6 +401,7 @@ let expand_arity (mib, mip) (ind, u) params nas =
   instantiate_context u params nas realdecls
 
 let expand_branch_contexts (mib, mip) u params br =
+  let u = get_template_instance mib u in
   let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
   let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
   let build_one_branch i (nas, _) (ctx, _) =

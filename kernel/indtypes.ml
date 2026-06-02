@@ -516,7 +516,18 @@ let build_inductive env ~sec_univs names prv univs template variance
     let consnrealargs =
       Array.map (fun (d,_) -> Context.Rel.nhyps d)
         splayed_lc in
-    let mind_relevance = Sorts.relevance_of_sort arity.IndTyping.sort in
+    let mind_relevance = match template with
+    | None -> Sorts.relevance_of_sort arity.IndTyping.sort
+    | Some templ ->
+      match templ.template_concl with
+      | Sorts.Prop | Sorts.Set | Sorts.Type _ -> Sorts.Relevant
+      | Sorts.SProp -> Sorts.Irrelevant
+      | Sorts.VSort _ ->
+        (* Template inductive types are currently either constant or always
+          relevant, otherwise we'd need the template parameters to compute the relevance *)
+        Sorts.Relevant
+      | Sorts.GSort _ -> assert false
+    in
     let mind_record = match isrecord with
       | Some (Some rid) ->
         (** The elimination criterion ensures that all projections can be defined. *)

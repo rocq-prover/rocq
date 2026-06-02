@@ -266,11 +266,17 @@ let push_relevances infos nas =
 let identity_of_ctx (ctx:Constr.rel_context) =
   Context.Rel.instance mkRel 0 ctx
 
+let get_template_instance mib u = match mib.mind_template with
+| None -> u
+| Some templ ->
+  let () = assert (UVars.Instance.is_empty u) in
+  templ.template_defaults
+
 (* ind -> fun args => ind args *)
 let eta_expand_ind env (ind,u as pind) =
   let mib = Environ.lookup_mind (fst ind) env in
   let mip = mib.mind_packets.(snd ind) in
-  let ctx = Vars.subst_instance_context u mip.mind_arity_ctxt in
+  let ctx = Vars.subst_instance_context (get_template_instance mib u) mip.mind_arity_ctxt in
   let args = identity_of_ctx ctx in
   let c = mkApp (mkIndU pind, args) in
   let c = Term.it_mkLambda_or_LetIn c ctx in
@@ -279,7 +285,7 @@ let eta_expand_ind env (ind,u as pind) =
 let eta_expand_constructor env ((ind,ctor),u as pctor) =
   let mib = Environ.lookup_mind (fst ind) env in
   let mip = mib.mind_packets.(snd ind) in
-  let ctx = Vars.subst_instance_context u (fst mip.mind_nf_lc.(ctor-1)) in
+  let ctx = Vars.subst_instance_context (get_template_instance mib u) (fst mip.mind_nf_lc.(ctor-1)) in
   let args = identity_of_ctx ctx in
   let c = mkApp (mkConstructU pctor, args) in
   let c = Term.it_mkLambda_or_LetIn c ctx in
