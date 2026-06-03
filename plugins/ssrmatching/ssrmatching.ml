@@ -160,12 +160,18 @@ exception NoProgress
 
 let unif_EQ env sigma p c =
   let env = Environ.set_universes (Evd.universes sigma) env in
-  Reductionops.is_conv env sigma p c
+  Reductionops.infer_conv env sigma p c
+
+let unif_EQ_ref env ise p c =
+  match unif_EQ env !ise p c with
+  | None -> false
+  | Some ise' -> ise := ise'; true
 
 let unif_EQ_args env sigma pa a =
   let n = Array.length pa in
-  let rec loop i = (i = n) || unif_EQ env sigma pa.(i) a.(i) && loop (i + 1) in
-  loop 0
+  let ise = ref sigma in
+  let rec loop i = (i = n) || unif_EQ_ref env ise pa.(i) a.(i) && loop (i + 1) in
+  if loop 0 then Some !ise else None
 
 let unif_HO env ise p c =
   try Evarconv.unify_delay env ise p c
@@ -696,7 +702,9 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
         begin if !i0 < np then i0 := np; true end in
       if skip then () else try
         let ise' = match u.up_k with
-        | KpatFixed | KpatConst -> ise
+        | KpatFixed -> ise
+        | KpatConst -> (* Ensure universe instances are unified *)
+          unif_HO env ise u.up_f f
         | KpatEvar _ ->
           let open EConstr in
           let pka = Evd.expand_existential ise @@ destEvar ise u.up_f in
@@ -804,6 +812,13 @@ let subst_occ { nocc; max_occ; occ_set; use_occ; skip_occ } =
   if !nocc = max_occ then skip_occ := use_occ;
   if !nocc <= max_occ then occ_set.(!nocc - 1) else not use_occ
 
+let match_constr_universes env sigma x y =
+  match EConstr.eq_constr_universes env sigma x y with
+  | None -> None
+  | Some pbs ->
+      try Some (Evd.add_constraints sigma pbs)
+      with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
+
 let match_EQ env sigma (ise, u) =
   let open EConstr in
   match u.up_k with
@@ -812,14 +827,17 @@ let match_EQ env sigma (ise, u) =
     let env' =
       EConstr.push_rel (Context.Rel.Declaration.LocalAssum(x, t)) env in
     let match_let f = match EConstr.kind ise f with
-    | LetIn (_, v, _, b) -> unif_EQ env sigma pv v && unif_EQ env' sigma pb b
-    | _ -> false in match_let
-  | KpatFixed -> fun c -> EConstr.eq_constr_nounivs sigma u.up_f c
-  | KpatConst -> fun c -> EConstr.eq_constr_nounivs sigma u.up_f c
+    | LetIn (_, v, _, b) ->
+      begin match unif_EQ env sigma pv v with
+      | Some sigma' -> unif_EQ env' sigma' pb b
+      | None -> None end
+    | _ -> None in match_let
+  | KpatFixed -> fun c -> match_constr_universes env sigma u.up_f c
+  | KpatConst -> fun c -> match_constr_universes env sigma u.up_f c
   | KpatLam -> fun c ->
       (match EConstr.kind sigma c with
       | Lambda _ -> unif_EQ env sigma u.up_f c
-      | _ -> false)
+      | _ -> None)
   | _ -> unif_EQ env sigma u.up_f
 
 let p2t p = EConstr.mkApp(p.up_f,p.up_a)
@@ -899,18 +917,26 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
     | NoProgress when (not raise_NoMatch) ->
       ssrfail env ise upats_origin upats SsrProgressFail
     | NoProgress -> raise NoMatch);
-  let _, sigma, _, ({up_f = pf; up_a = pa} as u) = match instances with
+  let expl, sigma, uc, ({up_f = pf; up_a = pa} as u) = match instances with
   | Some _ -> assert_done_multires upat_that_matched
   | None -> List.hd (pi3(assert_done upat_that_matched))
   in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
   if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c) else
-  let match_EQ = match_EQ env sigma (ise, u) in
+  let evd = ref (Evd.set_ustate sigma uc) in
+  let match_EQ f = match_EQ env !evd (ise, u) f in
   let pn = Array.length pa in
   let rec subst_loop (env,h as acc) c' =
     if !(occ_state.skip_occ) then c' else
     let f, a = splay_app sigma c' in
-    if Array.length a >= pn && match_EQ f && unif_EQ_args env sigma pa a then
+    let test () = match match_EQ f with
+      | Some sigma ->
+        (match unif_EQ_args env sigma pa a with
+         | Some sigma -> evd := sigma; true
+         | None -> false)
+      | None -> false
+    in
+    if Array.length a >= pn && test () then
       let open EConstr in
       let a1, a2 = Array.chop (Array.length pa) a in
       let fa1 = mkApp (f, a1) in
@@ -929,7 +955,12 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
       let self acc c = subst_loop acc c in
       let f' = map_constr_with_binders_left_to_right env sigma inc_h self acc f in
       mkApp (f', Array.map_left (subst_loop acc) a) in
-      subst_loop (env,h) c
+  let c' = subst_loop (env,h) c in
+  let () = (* Fixup !upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
+    match !upat_that_matched with
+    | Some (x, y, _) -> upat_that_matched := Some (x, y, [(expl, sigma, Evd.ustate !evd, u)])
+    | None -> assert false
+  in c'
 
 let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats { max_occ; nocc } : conclude = fun () ->
   let env, (c, sigma, uc, ({up_f = pf; up_a = pa} as u)) =
