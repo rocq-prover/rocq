@@ -152,7 +152,7 @@ let move_location_eq m1 m2 = match m1, m2 with
 | MoveFirst, MoveFirst -> true
 | _ -> false
 
-let mem_id_context id ctx = Id.Map.mem id ctx.Environ.env_named_map
+let mem_id_context id ctx = Environ.mem_named_ctxt id ctx
 
 let split_sign env sigma hfrom l =
   let () = if not (mem_id_context hfrom l) then error_no_such_hypothesis env sigma hfrom in

@@ -1481,10 +1481,10 @@ let register_constr {map; spec_name; term_name; fresh; proofs} c thm =
     ; proofs = Set (tname, c) :: Pose (sname, thm) :: proofs } )
 
 let fresh_subscript env =
-  let ctx = (Environ.named_context_val env).Environ.env_named_map in
+  let ctx = Environ.ids_of_named_context_val (Environ.named_context_val env) in
   Nameops.Subscript.succ
-    (Names.Id.Map.fold
-       (fun id _ s ->
+    (Names.Id.Set.fold
+       (fun id s ->
          let _, s' = Nameops.get_subscript id in
          let cmp = Nameops.Subscript.compare s s' in
          if cmp = 0 then s else if cmp < 0 then s' else s)

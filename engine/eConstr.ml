@@ -1278,7 +1278,7 @@ let map_named_val :
   | Refl, Refl -> map_named_val
 
 let identity_subst_val : named_context_val -> t SList.t = fun ctx ->
-  SList.defaultn (List.length ctx.Environ.env_named_ctx) SList.empty
+  SList.defaultn (Environ.nb_named ctx) SList.empty
 
 let fresh_global ?loc ?rigid ?names env sigma reference =
   let (evd,t) = Evd.fresh_global ?loc ?rigid ?names env sigma reference in

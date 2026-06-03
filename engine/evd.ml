@@ -308,7 +308,7 @@ let evar_instance_array empty push info args =
     else match args with
     | SList.Nil -> assert false
     | SList.Cons (c, args) ->
-      let d = Range.get info.evar_hyps.env_named_idx pos in
+      let d = Environ.lookup_named_ctxt_pos pos info.evar_hyps in
       let id = NamedDecl.get_id d in
       push id c (instpush (pos + 1) (n - 1) filter args)
     | SList.Default (m, args) ->
@@ -320,7 +320,7 @@ let evar_instance_array empty push info args =
     let rec instance pos args = match args with
     | SList.Nil -> empty
     | SList.Cons (c, args) ->
-      let d = Range.get info.evar_hyps.env_named_idx pos in
+      let d = Environ.lookup_named_ctxt_pos pos info.evar_hyps in
       let id = NamedDecl.get_id d in
       push id c (instance (pos + 1) args)
     | SList.Default (n, args) -> instance (pos + n) args
@@ -1436,7 +1436,7 @@ let define_with_evar evk body evd =
 let restrict evk filter ?candidates ?src evd =
   let evk' = new_untyped_evar () in
   let evar_info = EvMap.find evk evd.undf_evars in
-  let len = Range.length evar_info.evar_hyps.env_named_idx in
+  let len = Environ.nb_named evar_info.evar_hyps in
   let id_inst = Filter.filter_slist filter (SList.defaultn len SList.empty) in
   let evar_info' =
     { evar_info with evar_filter = filter;

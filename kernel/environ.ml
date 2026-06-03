@@ -172,6 +172,10 @@ let lookup_rel n env =
   try Range.get env.env_rel_context.env_rel_map (n - 1)
   with Invalid_argument _ -> raise Not_found
 
+let lookup_rel_ctxt n ctx =
+  try Range.get ctx.env_rel_map (n - 1)
+  with Invalid_argument _ -> raise Not_found
+
 let rel_skipn n ctx = {
   env_rel_ctx = Util.List.skipn n ctx.env_rel_ctx;
   env_rel_map = Range.skipn n ctx.env_rel_map;
@@ -274,6 +278,11 @@ let lookup_named id env =
 
 let lookup_named_ctxt id ctxt =
   Id.Map.find id ctxt.env_named_map
+
+let lookup_named_ctxt_pos n ctxt =
+  try Range.get ctxt.env_named_idx n with Invalid_argument _ -> raise Not_found
+
+let nb_named ctx = Range.length ctx.env_named_idx
 
 let record_global_hyps add kn hyps acc =
   if CList.is_empty hyps then acc
@@ -1289,8 +1298,8 @@ module Internal = struct
       env_inductives : mutual_inductive_body Mindmap_env.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
-      env_named_context : named_context_val;
-      env_rel_context   : rel_context_val;
+      env_named_context : named_context;
+      env_rel_context   : rel_context;
       env_universes : UGraph.t;
       env_qualities : Sorts.Quality.Set.t;
       env_symb_pats : machine_rewrite_rule list Cmap_env.t;
@@ -1302,8 +1311,8 @@ module Internal = struct
       env_inductives = Mindmap_env.map (fun (mib, _, _) -> mib) env.env_inductives;
       env_modtypes = env.env_modtypes;
       env_modules = env.env_modules;
-      env_named_context = env.env_named_context;
-      env_rel_context = env.env_rel_context;
+      env_named_context = env.env_named_context.env_named_ctx;
+      env_rel_context = env.env_rel_context.env_rel_ctx;
       env_universes = env.env_universes;
       env_qualities = QGraph.domain env.env_qualities;
       env_symb_pats = env.symb_pats;

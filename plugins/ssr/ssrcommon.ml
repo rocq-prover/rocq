@@ -1272,7 +1272,7 @@ let tclINTRO ~id ~conclusion:k = Goal.enter begin fun gl ->
        let ids = Environ.named_context_val env in
        mk_anon_id ssr_anon_hyp ids
   in
-  if Id.Map.mem id already_used.Environ.env_named_map then
+  if Environ.mem_named_ctxt id already_used then
     errorstrm Pp.(Id.print id ++ str" already used");
   unsafe_intro env (set_decl_id id decl) ~relevance t <*>
   (if no_red then tclUNIT () else tclFULL_BETAIOTA) <*>
