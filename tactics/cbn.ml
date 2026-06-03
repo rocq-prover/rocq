@@ -34,15 +34,18 @@ module CbnClos = struct
 
   (* [force] is deliberately cached for non-identity substitutions: several
      refolding/progress checks compare the same delayed closure repeatedly. *)
-  type t = { term : constr; subst : subs; mutable forced : constr option }
+  type t = { term : constr; subst : subs; is_expanded_rel : bool; mutable forced : constr option }
   and subs = t Esubst.subs
 
   type view = subs * (EConstr.t, EConstr.t, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
 
   let id_subst = Esubst.subs_id 0
-  let inject term = { term; subst = id_subst; forced = None }
+  let inject term = { term; subst = id_subst; is_expanded_rel = false; forced = None }
   let lift n c =
-    if Int.equal n 0 then c else { term = c.term; subst = Esubst.subs_shft (n, c.subst); forced = None }
+    if Int.equal n 0 then c else
+      { term = c.term; subst = Esubst.subs_shft (n, c.subst);
+        is_expanded_rel = c.is_expanded_rel;
+        forced = None }
 
   (* important optim: expand rel eagerly
      (might also work to cache kind like we cache force?) *)
@@ -50,11 +53,11 @@ module CbnClos = struct
     if Esubst.is_subs_id subst then inject term else
       match Constr.kind (EConstr.Unsafe.to_constr term) with
       | Rel n -> begin match Esubst.expand_rel n subst with
-          | Inl (k, v) -> lift k v
+          | Inl (k, v) -> { (lift k v) with is_expanded_rel = true }
           | Inr (k, _) -> inject (mkRel k)
         end
       | _ ->
-      { term; subst; forced = None }
+      { term; subst; is_expanded_rel = false; forced = None }
 
   let mk_clos_vect subst v = Array.map (mk_clos subst) v
   let is_id_subst c = Esubst.is_subs_id c.subst
@@ -126,7 +129,8 @@ module CbnClos = struct
      recognize wrappers such as [fun x => x] without speculatively reducing
      their arguments. *)
   let rec subst_value sigma c =
-    match EConstr.kind sigma c.term with
+    if c.is_expanded_rel then Some c
+    else match EConstr.kind sigma c.term with
     | Rel n ->
       begin match Esubst.expand_rel n c.subst with
       | Inl (k, v) -> Some (lift k v)

@@ -85,8 +85,8 @@ Module AsClass.
     intro y.
     let v := eval cbn in (@difference set set_difference (exist _ 0 I) y) in
     lazymatch v with
-    | (let (t2, _) := y in exist (fun _ : nat => True) 0 I) => exact I
-    | _ => idtac "got" v; fail "bad result"
+    | difference (exist _ 0 I) y => exact I
+    | _ => fail "difference was not refolded"
     end.
   Qed.
 End AsClass.
@@ -103,8 +103,8 @@ Module AsDef.
     intro y.
     let v := eval cbn in (@difference set set_difference (exist _ 0 I) y) in
     lazymatch v with
-    | (let (t2, _) := y in exist (fun _ : nat => True) 0 I) => exact I
-    | _ => idtac "got" v; fail "bad result"
+    | difference (exist _ 0 I) y => exact I
+    | _ => fail "difference was not refolded"
     end.
   Qed.
 End AsDef.
