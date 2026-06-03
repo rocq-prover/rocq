@@ -853,7 +853,7 @@ let rec whd_state_gen flags ?metas env sigma =
       | None -> fold ())
     | Const (c,u as const) ->
       reduction_effect_hook env sigma c
-         (lazy (EConstr.to_constr sigma (Stack.zip sigma (x,fst (Stack.strip_app stack)))));
+         (lazy (Stack.zip sigma (x,fst (Stack.strip_app stack))));
       if RedFlags.red_set flags (RedFlags.fCONST c) then
        match constant_value_in env sigma (c, u) with
        | body ->

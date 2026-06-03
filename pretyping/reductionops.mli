@@ -54,14 +54,14 @@ type effect_name = string
 (* [declare_reduction_effect name f] declares [f] under key [name];
    [name] must be a unique in "world". *)
 val declare_reduction_effect : effect_name ->
-  (Environ.env -> Evd.evar_map -> Constr.constr -> unit) -> unit
+  (Environ.env -> Evd.evar_map -> EConstr.constr -> unit) -> unit
 
 (* [set_reduction_effect local cst name] declares effect [name] to be called when [cst] is found *)
 val set_reduction_effect : Libobject.locality -> Constant.t -> effect_name -> unit
 
 (* [effect_hook env sigma key term] apply effect associated to [key] on [term] *)
 val reduction_effect_hook : Environ.env -> Evd.evar_map -> Constant.t ->
-  Constr.constr Lazy.t -> unit
+  EConstr.constr Lazy.t -> unit
 
 module Stack : sig
   type app_node
