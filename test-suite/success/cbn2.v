@@ -232,9 +232,9 @@ Module Prim.
     end.
 
   Succeed Instructions Eval cbn in @add 8    10 (build_fn 10).
-  Timeout 2 Eval cbn     in @add 8    10 (build_fn 10). (* 2.400s *)
-  (* Time Eval cbn     in @add 10   10 (build_fn 10). (* 11s    *) *)
-  (* [m=20] runs out of memory after a while. *)
+  Timeout 1 Eval cbn     in @add 8    10 (build_fn 10). (* 0s *)
+  Timeout 1 Eval cbn     in @add 10   10 (build_fn 10). (* 0s    *)
+  Timeout 1 Eval cbn     in @add 20   20 (build_fn 20). (* 0s    *)
 End Prim.
 
 Module NonPrim.
@@ -251,13 +251,15 @@ Module NonPrim.
     | S m => tele_bind (fun x => 1 + tele_app (add m n p) x)
     end.
 
-  (* Time Eval cbn     in @add 2    10 (build_fn 10). (* 0.001s *) *)
-  (* Time Eval cbn     in @add 4    10 (build_fn 10). (* 0.003s *) *)
-  (* Time Eval cbn     in @add 8    10 (build_fn 10). (* 0.006s *) *)
-  (* Time Eval cbn     in @add 10   10 (build_fn 10). (* 0.008s *) *)
-  (* Time Eval cbn     in @add 20   10 (build_fn 10). (* 0.016s *) *)
-  (* Time Eval cbn     in @add 200  10 (build_fn 10). (* 0.17s  *) *)
+  Time Eval cbn     in @add 2    10 (build_fn 10). (* 0.001s *)
+  Time Eval cbn     in @add 4    10 (build_fn 10). (* 0.003s *)
+  Time Eval cbn     in @add 8    10 (build_fn 10). (* 0.006s *)
+  Time Eval cbn     in @add 10   10 (build_fn 10). (* 0.008s *)
+  Time Eval cbn     in @add 20   10 (build_fn 10). (* 0.016s *)
+  Time Eval cbn     in @add 200  10 (build_fn 10). (* 0.17s  *)
 
   Succeed Instructions Eval cbn in @add 2000 10 (build_fn 10).
-  Timeout 2 Eval cbn     in @add 2000 10 (build_fn 10). (* 3.5s   *)
+  Timeout 1 Time Eval cbn     in @add 2000 10 (build_fn 10). (* 0.1s   *)
+  Timeout 1 Time Eval cbn     in @add 2000 20 (build_fn 20). (* 0.2s   *)
+  Timeout 2 Time Eval cbn     in @add 4000 20 (build_fn 20). (* 0.4s   *)
 End NonPrim.
