@@ -37,3 +37,4 @@ val skipn : int -> 'a t -> 'a t
 (** {5 Indexing operations} *)
 
 val get : 'a t -> int -> 'a
+val set : 'a t -> int -> 'a -> 'a t

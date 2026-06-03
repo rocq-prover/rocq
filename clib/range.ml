@@ -42,6 +42,20 @@ let rec get l i = match l with
 | Cons (h, t, rem) ->
   if i < h then tree_get h t i else get rem (i - h)
 
+let rec tree_set h t i v = match t with
+| Leaf x ->
+  if i = 0 then Leaf v else oob ()
+| Node (x, t1, t2) ->
+  if i = 0 then Node (v, t1, t2)
+  else
+    let h = h / 2 in
+    if i <= h then Node (x, tree_set h t1 (i - 1) v, t2) else Node (x, t1, tree_set h t2 (i - h - 1) v)
+
+let rec set l i v = match l with
+| Nil -> oob ()
+| Cons (h, t, rem) ->
+  if i < h then Cons (h, tree_set h t i v, rem) else Cons (h, t, set rem (i - h) v)
+
 let length l =
   let rec length accu = function
   | Nil -> accu
