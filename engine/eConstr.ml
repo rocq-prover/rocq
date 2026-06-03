@@ -1299,6 +1299,18 @@ let constant_value_in env sigma (kn, u) =
     let r = Environ.lookup_rewrite_rules kn env in
     raise (NotEvaluableConst (HasRules (u, b, r)))
 
+(* Checks if a context of variables can be instantiated by the
+   variables of the current env. *)
+let check_hyps_inclusion env c sign =
+  sign |> List.iter @@ fun d ->
+  let id = NamedDecl.get_id d in
+  let ok =
+    match var_status ~check:false id env with
+    | SecVar -> true
+    | ProofVar -> false
+  in
+  if not ok then Type_errors.error_reference_variables env id c
+
 (** Kind of type *)
 
 type kind_of_type =

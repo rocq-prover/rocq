@@ -24,7 +24,6 @@ open Inductive
 open Type_errors
 
 module RelDecl = Context.Rel.Declaration
-module NamedDecl = Context.Named.Declaration
 
 exception NotConvertible
 exception NotConvertibleVect of int
@@ -167,20 +166,6 @@ let type_of_variable env id =
   with Not_found ->
     error_unbound_var env id
 
-(* Management of context of variables. *)
-
-(* Checks if a context of variables can be instantiated by the
-   variables of the current env. *)
-let check_hyps_inclusion env c sign =
-  sign |> List.iter @@ fun d ->
-  let id = NamedDecl.get_id d in
-  let ok =
-    match var_status ~check:false id env with
-    | SecVar -> true
-    | ProofVar -> false
-  in
-  if not ok then error_reference_variables env id c
-
 (* Instantiation of terms on real arguments. *)
 
 (* Make a type polymorphic if an arity *)
@@ -189,16 +174,12 @@ let check_hyps_inclusion env c sign =
 
 let type_of_constant env (kn,_u as cst) =
   let () = check_constant env kn in
-  let cb = lookup_constant kn env in
-  let () = check_hyps_inclusion env (GlobRef.ConstRef kn) cb.const_hyps in
   let ty, cu = constant_type env cst in
   let () = check_poly_constraints cu env in
     ty
 
 let type_of_constant_in env (kn,_u as cst) =
   let () = check_constant env kn in
-  let cb = lookup_constant kn env in
-  let () = check_hyps_inclusion env (GlobRef.ConstRef kn) cb.const_hyps in
   constant_type_in env cst
 
 (* Type of a lambda-abstraction. *)
@@ -400,7 +381,6 @@ let type_of_inductive_knowing_parameters env (ind,u as indu) args argst =
   let () = check_mind env (fst ind) in
   let (mib,_mip) as spec = lookup_mind_specif env ind in
   let () = assert (Option.has_some mib.mind_template) in
-  let () = check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps in
   let param_univs = make_param_univs env indu spec args argst in
   let t, cst = Inductive.type_of_inductive_knowing_parameters (spec,u) param_univs in
   let () = check_poly_constraints cst env in
@@ -409,7 +389,6 @@ let type_of_inductive_knowing_parameters env (ind,u as indu) args argst =
 let type_of_inductive env (ind,u) =
   let () = check_mind env (fst ind) in
   let (mib,mip) = lookup_mind_specif env ind in
-  check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps;
   let t,cst = Inductive.constrained_type_of_inductive ((mib,mip),u) in
   check_poly_constraints cst env;
   t
@@ -421,7 +400,6 @@ let type_of_constructor_knowing_parameters env (c, u as cu) args argst =
   let () = check_mind env (fst ind) in
   let (mib, _ as spec) = lookup_mind_specif env ind in
   let () = assert (Option.has_some mib.mind_template) in
-  let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
   let param_univs = make_param_univs env (ind, u) spec args argst in
   let t, cst = Inductive.type_of_constructor_knowing_parameters cu spec param_univs in
   let () = check_poly_constraints cst env in
@@ -430,8 +408,7 @@ let type_of_constructor_knowing_parameters env (c, u as cu) args argst =
 let type_of_constructor env (c,_u as cu) =
   let ind = inductive_of_constructor c in
   let () = check_mind env (fst ind) in
-  let (mib, _ as specif) = lookup_mind_specif env ind in
-  let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
+  let specif = lookup_mind_specif env ind in
   let t,cst = constrained_type_of_constructor cu specif in
   let () = check_poly_constraints cst env in
   t

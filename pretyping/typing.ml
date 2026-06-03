@@ -137,7 +137,7 @@ let judge_of_applied ~check env sigma funj argjv =
 (* XXX check_hyps_inclusion should now be cheap enough to always do *)
 let judge_of_applied_inductive_knowing_parameters ~check env sigma (ind, u) argjv =
   let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
-  let () = if check then Typeops.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
+  let () = if check then EConstr.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
   let sigma, paramstyp = fresh_template_context env sigma ind specif argjv in
   let u0 = EInstance.kind sigma u in
   let ty, csts = Inductive.type_of_inductive_knowing_parameters (specif, u0) paramstyp in
@@ -147,7 +147,7 @@ let judge_of_applied_inductive_knowing_parameters ~check env sigma (ind, u) argj
 
 let judge_of_applied_constructor_knowing_parameters ~check env sigma ((ind, _ as cstr), u) argjv =
   let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
-  let () = if check then Typeops.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
+  let () = if check then EConstr.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
   let sigma, paramstyp = fresh_template_context env sigma ind specif argjv in
   let u0 = EInstance.kind sigma u in
   let ty, csts = Inductive.type_of_constructor_knowing_parameters (cstr, u0) specif paramstyp in
@@ -413,7 +413,7 @@ let judge_of_letin env sigma name defj typj j =
 let type_of_constant env sigma (c,u) =
   let open Declarations in
   let cb = EConstr.lookup_constant env sigma c in
-  let () = Typeops.check_hyps_inclusion env (GR.ConstRef c) cb.const_hyps in
+  let () = EConstr.check_hyps_inclusion env (GR.ConstRef c) cb.const_hyps in
   let u = EInstance.kind sigma u in
   let uctx = Declareops.constant_polymorphic_context cb in
   let csts = UVars.AbstractContext.instantiate u uctx in
@@ -424,7 +424,7 @@ let type_of_constant env sigma (c,u) =
 let type_of_inductive env sigma (ind,u) =
   let open Declarations in
   let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
-  let () = Typeops.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
+  let () = EConstr.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_inductive (specif,u) in
   let sigma = Evd.add_poly_constraints ~src:UState.Internal sigma csts in
@@ -433,7 +433,7 @@ let type_of_inductive env sigma (ind,u) =
 let type_of_constructor env sigma ((ind,_ as ctor),u) =
   let open Declarations in
   let (mib,_ as specif) = Inductive.lookup_mind_specif env ind in
-  let () = Typeops.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
+  let () = EConstr.check_hyps_inclusion env (GR.IndRef ind) mib.mind_hyps in
   let u = EInstance.kind sigma u in
   let ty, csts = Inductive.constrained_type_of_constructor (ctor,u) specif in
   let sigma = Evd.add_poly_constraints ~src:UState.Internal sigma csts in
