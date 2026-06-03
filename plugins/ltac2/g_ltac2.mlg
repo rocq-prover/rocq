@@ -200,8 +200,6 @@ GRAMMAR EXTEND Gram
           lc = LIST1 let_clause SEP "with"; "in";
           e = ltac2_expr LEVEL "6" ->
         { CAst.make ~loc @@ CTacLet (isrec, lc, e) }
-      | "match"; e = ltac2_expr LEVEL "5"; "with"; bl = branches; "end" ->
-        { CAst.make ~loc @@ CTacCse (e, bl) }
       | "if"; e = ltac2_expr LEVEL "5"; "then"; e1 = ltac2_expr LEVEL "5"; "else"; e2 = ltac2_expr LEVEL "5" ->
         { CAst.make ~loc @@ CTacIft (e, e1, e2) }
       ]
@@ -234,6 +232,8 @@ GRAMMAR EXTEND Gram
         { CAst.make ~loc @@ CTacRec (Some e, a) }
       | "{"; a = tac2rec_fieldexprs; "}" ->
         { CAst.make ~loc @@ CTacRec (None, a) }
+      | "match"; e = ltac2_expr LEVEL "5"; "with"; bl = branches; "end" ->
+        { CAst.make ~loc @@ CTacCse (e, bl) }
       | a = ltac2_atom -> { a } ]
     ]
   ;
