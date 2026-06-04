@@ -76,6 +76,7 @@ Module RefoldProjectionAlias.
 
 Module AsClass.
   Class Difference A := difference : A -> A -> A.
+  Arguments difference : simpl nomatch.
   Definition set := { t : nat | True }.
   Definition set_difference : Difference set := fun X Y =>
     let (t1, _) := X in let (t2, _) := Y in exist _ t1 I.
@@ -94,6 +95,7 @@ End AsClass.
 Module AsDef.
   Definition Difference A := A -> A -> A.
   Definition difference {A} {D : Difference A} : A -> A -> A := D.
+  Arguments difference : simpl nomatch.
   Definition set := { t : nat | True }.
   Definition set_difference : Difference set := fun X Y =>
     let (t1, _) := X in let (t2, _) := Y in exist _ t1 I.
