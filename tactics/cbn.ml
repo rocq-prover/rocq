@@ -190,6 +190,7 @@ module Cst_stack = struct
   type t = (constr * CbnClos.t list * (int * CbnClos.t array) list * cst_info) list
 
   let empty : t = []
+  let is_empty = function [] -> true | _ :: _ -> false
   let all_volatile (l : t) = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
   let may_refold_alias_after_iota (l : t) = match l with
     | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
@@ -450,6 +451,24 @@ struct
     let (out,s') = aux s in
     let init = match s' with [] -> true | _ -> false in
     Option.init init out
+
+  let rec has_refold_cst_in_computing_frame = function
+    | [] -> false
+    | App _ :: s -> has_refold_cst_in_computing_frame s
+    | Case _ :: s | Proj _ :: s ->
+      (* Keeping an alias around a direct stuck eliminator is the intended
+         [simpl nomatch] behavior; computing frames below may still refold an
+         outer alias after additional progress and must be treated as escapes. *)
+      has_refold_cst_in_computing_frame s
+    | Fix (_,_,st,cst_l) :: s
+    | Primitive (_,_,st,_,cst_l) :: s ->
+      not (Cst_stack.is_empty cst_l)
+      || has_refold_cst_in_computing_frame st
+      || has_refold_cst_in_computing_frame s
+    | Cst { params; cst_l; _ } :: s ->
+      not (Cst_stack.is_empty cst_l)
+      || has_refold_cst_in_computing_frame params
+      || has_refold_cst_in_computing_frame s
 
   let app_stack_for_all p s =
     let rec aux = function
@@ -1296,11 +1315,11 @@ let rec whd_state_gen ?csts flags env sigma =
                  transparent aliases, even when the alias result has pending
                  eliminations: after a real iota step master keeps the progress
                  and reduces aliases such as [fst_nat] and [id_fun] away. *)
-              let (_, cst_l') as res = whrec case_cst_l p in
-              begin match cst_l' with
-              | [] -> res
-              | _ :: _ -> whrec Cst_stack.empty p
-              end
+              let ((_, sk'), cst_l') as res = whrec case_cst_l p in
+              if Cst_stack.is_empty cst_l'
+                 && not (Stack.has_refold_cst_in_computing_frame sk')
+              then res
+              else whrec Cst_stack.empty p
             | [], [] | [], _ :: _ | _ :: _, _ -> whrec Cst_stack.empty p
           in
           reduce_with_elim_csts cst_l (r, s')
