@@ -2039,9 +2039,11 @@ let pp_mllam_mlf fmt l =
   let rec pp_mllam fmt l =
     match l with
     | MLint i -> pp_int fmt i
-    | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
-    (* | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
-    | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s) *)
+    | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile_mlf i)
+    | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile_mlf f)
+    | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
+    | MLsequence(l1,l2) ->
+        Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
     | _ -> ()
     (* | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
@@ -2074,8 +2076,6 @@ let pp_mllam_mlf fmt l =
           (string_of_construct prefix ~constant:false ind tag) pp_cargs args
     | MLsetref (s, body) ->
         Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
-    | MLsequence(l1,l2) ->
-        Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
     | MLarray arr ->
       (* We need to ensure that the array does not use the flat representation
           if ever the first argument is a float *)
