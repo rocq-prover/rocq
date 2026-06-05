@@ -41,6 +41,10 @@ let of_string = float_of_string
 let compile f =
   Printf.sprintf "Float64.of_float (%s)" (to_hex_string f)
 
+(* Compiles a float to malfunction code *)
+let compile_mlf f =
+  Printf.sprintf "(apply (global $Float6 $of_float) (%s))" (to_hex_string f)
+
 let of_float f = f
 
 let to_float f = if is_nan f then nan else f
