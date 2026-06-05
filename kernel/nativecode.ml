@@ -2044,7 +2044,7 @@ let pp_mllam_mlf fmt l =
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
-    | _ -> ()
+    | _ -> Format.fprintf fmt "0"
     (* | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
     | MLprimitive (p, args) ->
@@ -2309,31 +2309,26 @@ let pp_global fmt g =
 let pp_global_mlf fmt g =
   match g with
   | Glet (gn, c) ->
-      let _ = c in
-      Format.fprintf fmt "@[($%a 0)@]@\n@." pp_gname gn
-      (* Format.fprintf fmt "@[let %a%s = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname gn
-        (type_of_global gn c)
-        pp_mllam c *)
-  (* | Gopen s ->
-      Format.fprintf fmt "@[open %s@]@." s
-  | Gtype (ind, lar) ->
+      Format.fprintf fmt "@[( $%a  %a )@]@\n@." pp_gname gn pp_mllam_mlf c
+  | Gtype (ind, lar) -> (* types are not needed in malfunction, we will leave them as comments *)
     let rec aux s arity =
       if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
     let pp_const_sig fmt (tag,arity) =
       if arity > 0 then
         let sig_str = aux "of Nativevalues.t" (arity-1) in
         let cstr = string_of_construct "" ~constant:false ind tag in
-        Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+        Format.fprintf fmt ";  | %s %s@\n" cstr sig_str
       else
-        let sig_str = if arity > 0 then aux "of Nativevalues.t" (arity-1) else "" in
         let cstr = string_of_construct "" ~constant:true ind tag in
-        Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+        Format.fprintf fmt ";  | %s@\n" cstr
     in
     let pp_const_sigs fmt lar =
-      Format.fprintf fmt "  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
+      Format.fprintf fmt ";  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
       Array.iter (pp_const_sig fmt) lar
     in
-    Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
+    Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
+  (* | Gopen s ->
+      Format.fprintf fmt "@[open %s@]@." s
   | Gtblfixtype (g, params, t) ->
       Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
         pp_ldecls params pp_array t

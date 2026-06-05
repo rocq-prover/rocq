@@ -115,9 +115,9 @@ let write_mlf_code fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
-  Format.fprintf fmt "@[(module]@\n";
+  Format.fprintf fmt "@[(module@]@\n";
   List.iter (pp_global_mlf fmt) (header@code);
-  Format.fprintf fmt "@[(export))]@.";
+  Format.fprintf fmt "@[(_ 0) (export))@]@.";
   close_out ch_out
 
 let error_native_compiler_failed e =
