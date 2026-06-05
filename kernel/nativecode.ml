@@ -2042,6 +2042,9 @@ let pp_mllam_mlf fmt l =
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile_mlf i)
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile_mlf f)
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
+    | MLlam(ids,body) ->
+        Format.fprintf fmt "@[(lambda (%a) @ %a)@]"
+          pp_ldecls_mlf ids pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
     | _ -> Format.fprintf fmt "0"
@@ -2049,9 +2052,6 @@ let pp_mllam_mlf fmt l =
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>%a@ %a@]" pp_primitive p (pp_args true) args
-    | MLlam(ids,body) ->
-        Format.fprintf fmt "@[(fun%a ->@ %a)@]"
-          pp_ldecls ids pp_mllam body
     | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
           pp_mllam body
@@ -2228,6 +2228,11 @@ let pp_mllam_mlf fmt l =
     | Get_proj -> Format.fprintf fmt "get_proj"
     | Get_symbols -> Format.fprintf fmt "get_symbols"
     | Lazy -> Format.fprintf fmt "lazy" *)
+  and pp_ldecls_mlf fmt ids =
+    let len = Array.length ids in
+    for i = 0 to len - 1 do
+      Format.fprintf fmt " $%a" pp_lname ids.(i)
+    done
   in
   Format.fprintf fmt "@[%a@]" pp_mllam l
 
