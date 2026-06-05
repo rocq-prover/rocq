@@ -98,11 +98,26 @@ let get_ml_filename () =
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
 
+let get_mlf_filename () =
+  let temp_dir = force_temp_dir() in
+  let filename = Filename.temp_file ~temp_dir "Coq_native" (source_ext^"mlf") in
+  let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
+  filename, prefix
+
 let write_ml_code fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
   List.iter (pp_global fmt) (header@code);
+  close_out ch_out
+
+let write_mlf_code fn ?(header=[]) code =
+  let header = open_header@header in
+  let ch_out = open_out fn in
+  let fmt = Format.formatter_of_out_channel ch_out in
+  Format.fprintf fmt "@[(module]@\n";
+  List.iter (pp_global_mlf fmt) (header@code);
+  Format.fprintf fmt "@[(export))]@.";
   close_out ch_out
 
 let error_native_compiler_failed e =
@@ -173,6 +188,17 @@ let compile fn code ~profile:profile =
      cf #15263 *)
   delay_cleanup_file fn;
   r
+
+  
+let compile_mlf fn code ~profile:_ =
+  write_mlf_code fn code;
+  (* let r = call_compiler ~profile fn in
+  (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
+     cf #15263 *)
+  delay_cleanup_file fn;
+  r *)
+  ""
+
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 

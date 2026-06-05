@@ -45,6 +45,9 @@ let to_string i = Int64.to_string i
 (* Compiles an unsigned int to OCaml code *)
 let compile i = Printf.sprintf "Uint63.of_int64 (%LiL)" i
 
+(* Compiles an unsigned int to malfunction code *)
+let compile_mlf i = Printf.sprintf "(apply (global &Uint63 &of_int64) (%LiL)" i
+
     (* comparison *)
 let lt x y =
   Int64.compare x y < 0

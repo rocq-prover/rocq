@@ -30,6 +30,8 @@ val keep_debug_files : unit -> bool
 
 val pp_global : Format.formatter -> global -> unit
 
+val pp_global_mlf : Format.formatter -> global -> unit
+
 val mk_open : string -> global
 
 val get_value : symbols -> int -> Nativevalues.t
