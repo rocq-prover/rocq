@@ -2036,7 +2036,7 @@ let pp_mllam fmt l =
 
 let pp_mllam_mlf fmt l =
 
-  let rec pp_mllam fmt l =
+  let rec pp_mllam_mlf fmt l =
     match l with
     | MLint i -> pp_int fmt i
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile_mlf i)
@@ -2044,14 +2044,14 @@ let pp_mllam_mlf fmt l =
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
     | MLlam(ids,body) ->
         Format.fprintf fmt "@[(lambda (%a) @ %a)@]"
-          pp_ldecls_mlf ids pp_mllam body
+          pp_ldecls_mlf ids pp_mllam_mlf body
     | MLsequence(l1,l2) ->
-        Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
+        Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
+    | MLprimitive (p, args) ->
+      Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
     | _ -> Format.fprintf fmt "0"
     (* | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
-    | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>%a@ %a@]" pp_primitive p (pp_args true) args
     | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
           pp_mllam body
@@ -2112,24 +2112,6 @@ let pp_mllam_mlf fmt l =
       pp_one_rec defs.(i)
     done;
 
-  and pp_blam fmt l =
-    match l with
-    | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | MLconstruct(_,_,_,args) when Array.length args > 0 ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | _ -> pp_mllam fmt l
-
-  and pp_args sep fmt args =
-    let sep = if sep then "" else "," in
-    let len = Array.length args in
-    if len > 0 then begin
-      Format.fprintf fmt "%a" pp_blam args.(0);
-      for i = 1 to len - 1 do
-        Format.fprintf fmt "%s@ %a" sep pp_blam args.(i)
-      done
-    end
-
   and pp_cargs fmt args =
     let len = Array.length args in
     match len with
@@ -2174,13 +2156,30 @@ let pp_mllam_mlf fmt l =
     in
     Array.iter pp_branch bs
 
-  and pp_primitive fmt = function
-    | Mk_prod -> Format.fprintf fmt "mk_prod"
-    | Mk_sort -> Format.fprintf fmt "mk_sort_accu"
-    | Mk_ind -> Format.fprintf fmt "mk_ind_accu"
-    | Mk_const -> Format.fprintf fmt "mk_constant_accu"
-    | Mk_sw -> Format.fprintf fmt "mk_sw_accu"
-    | Mk_fix(rec_pos,start) ->
+  *)
+  and pp_blam_mlf fmt l =
+    match l with
+    | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
+        Format.fprintf fmt "(%a)" pp_mllam l
+    | MLconstruct(_,_,_,args) when Array.length args > 0 ->
+        Format.fprintf fmt "(%a)" pp_mllam l
+    | _ -> pp_mllam fmt l
+  and pp_args_mlf sep fmt args =
+    let sep = if sep then "" else "," in
+    let len = Array.length args in
+    if len > 0 then begin
+      Format.fprintf fmt "%a" pp_blam_mlf args.(0);
+      for i = 1 to len - 1 do
+        Format.fprintf fmt "%s@ %a" sep pp_blam_mlf args.(i)
+      done
+    end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
+  and pp_primitive_mlf fmt = function
+    | Mk_prod -> Format.fprintf fmt "(Global $Stdlib $mk_prod)"
+    | Mk_sort -> Format.fprintf fmt "(Global $Stdlib $mk_sort_accu)"
+    | Mk_ind -> Format.fprintf fmt "(Global $Stdlib $mk_ind_accu)"
+    | Mk_const -> Format.fprintf fmt "(Global $Stdlib $mk_constant_accu)"
+    | Mk_sw -> Format.fprintf fmt "(Global $Stdlib $mk_sw_accu)"
+    | Mk_fix(rec_pos,start) -> (* TODO: what is that ??? *)
         let pp_rec_pos fmt rec_pos =
           Format.fprintf fmt "@[[| %i" rec_pos.(0);
           for i = 1 to Array.length rec_pos - 1 do
@@ -2189,52 +2188,52 @@ let pp_mllam_mlf fmt l =
           Format.fprintf fmt " |]@]" in
         Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
     | Mk_cofix(start) -> Format.fprintf fmt "mk_cofix_accu %i" start
-    | Mk_rel i -> Format.fprintf fmt "mk_rel_accu %i" i
+    | Mk_rel i -> Format.fprintf fmt "(apply (global $Nativevalues $mk_rel_accu) %i)" i
     | Mk_var id ->
         Format.fprintf fmt "mk_var_accu (Names.Id.of_string \"%s\")" (string_of_id id)
-    | Mk_proj -> Format.fprintf fmt "mk_proj_accu"
-    | Mk_empty_instance -> Format.fprintf fmt "UVars.Instance.empty"
-    | Is_int -> Format.fprintf fmt "is_int"
-    | Is_float -> Format.fprintf fmt "is_float"
-    | Is_string -> Format.fprintf fmt "is_string"
-    | Is_parray -> Format.fprintf fmt "is_parray"
-    | Cast_accu -> Format.fprintf fmt "cast_accu"
-    | Array_get -> Format.fprintf fmt "Array.get"
-    | Force_cofix -> Format.fprintf fmt "force_cofix"
-    | Mk_uint -> Format.fprintf fmt "mk_uint"
-    | Mk_float -> Format.fprintf fmt "mk_float"
-    | Mk_string -> Format.fprintf fmt "mk_string"
-    | Mk_int -> Format.fprintf fmt "mk_int"
-    | Val_to_int -> Format.fprintf fmt "val_to_int"
-    | Mk_evar -> Format.fprintf fmt "mk_evar_accu"
+    | Mk_proj -> Format.fprintf fmt "(global $Nativevalues $mk_proj_accu)"
+    | Mk_empty_instance -> Format.fprintf fmt "(global $UVars $Instance $empty)"
+    | Is_int -> Format.fprintf fmt "(global $Nativevalues $is_int)"
+    | Is_float -> Format.fprintf fmt "(global $Nativevalues $is_float)"
+    | Is_string -> Format.fprintf fmt "(global $Nativevalues $is_string)"
+    | Is_parray -> Format.fprintf fmt "(global $Nativevalues $is_parray)"
+    | Cast_accu -> Format.fprintf fmt "(global $Nativevalues $cast_accu)"
+    | Array_get -> Format.fprintf fmt "(global $Stdlib $Array $get)"
+    | Force_cofix -> Format.fprintf fmt "(global $Nativevalues $force_cofix)"
+    | Mk_uint -> Format.fprintf fmt "(global $Nativevalues $mk_uint)"
+    | Mk_float -> Format.fprintf fmt "(global $Nativevalues $mk_float)"
+    | Mk_string -> Format.fprintf fmt "(global $Nativevalues $mk_string)"
+    | Mk_int -> Format.fprintf fmt "(global $Nativevalues $mk_int)"
+    | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
+    | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
     | MLand -> Format.fprintf fmt "(&&)"
-    | MLnot -> Format.fprintf fmt "not"
-    | MLland -> Format.fprintf fmt "(land)"
+    | MLnot -> Format.fprintf fmt "(global $not)"
+    | MLland -> Format.fprintf fmt "(global $land)"
     | MLmagic -> Format.fprintf fmt "Obj.magic"
-    | MLsubst_instance_instance -> Format.fprintf fmt "UVars.subst_instance_instance"
-    | MLsubst_instance_sort -> Format.fprintf fmt "UVars.subst_instance_sort"
-    | MLparray_of_array -> Format.fprintf fmt "parray_of_array"
+    | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
+    | MLsubst_instance_sort -> Format.fprintf fmt "(global $UVars $subst_instance_sort)"
+    | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
     | Coq_primitive (op, false) ->
-       Format.fprintf fmt "no_check_%s" (CPrimitives.to_string op)
-    | Coq_primitive (op, true) -> Format.fprintf fmt "%s" (CPrimitives.to_string op)
-    | Get_value -> Format.fprintf fmt "get_value"
-    | Get_sort -> Format.fprintf fmt "get_sort"
-    | Get_name -> Format.fprintf fmt "get_name"
-    | Get_const -> Format.fprintf fmt "get_const"
-    | Get_match -> Format.fprintf fmt "get_match"
-    | Get_ind -> Format.fprintf fmt "get_ind"
-    | Get_evar -> Format.fprintf fmt "get_evar"
-    | Get_instance -> Format.fprintf fmt "get_instance"
-    | Get_proj -> Format.fprintf fmt "get_proj"
-    | Get_symbols -> Format.fprintf fmt "get_symbols"
-    | Lazy -> Format.fprintf fmt "lazy" *)
+       Format.fprintf fmt "(global $Nativelib $no_check_%s)" (CPrimitives.to_string op)
+    | Coq_primitive (op, true) -> Format.fprintf fmt "(Global $Nativelib $%s)" (CPrimitives.to_string op)
+    | Get_value -> Format.fprintf fmt "(global $Nativecode $get_value)"
+    | Get_sort -> Format.fprintf fmt "(global $Nativecode $get_sort)"
+    | Get_name -> Format.fprintf fmt "(global $Nativecode $get_name)"
+    | Get_const -> Format.fprintf fmt "(global $Nativecode $get_const)"
+    | Get_match -> Format.fprintf fmt "(global $Nativecode $get_match)"
+    | Get_ind -> Format.fprintf fmt "(global $Nativecode $get_ind)"
+    | Get_evar -> Format.fprintf fmt "(global $Nativecode $get_evar)"
+    | Get_instance -> Format.fprintf fmt "(global $Nativecode $get_instance)"
+    | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
+    | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
+    | Lazy -> Format.fprintf fmt "(global $lazy)" (* TODO: verify this *)
   and pp_ldecls_mlf fmt ids =
     let len = Array.length ids in
     for i = 0 to len - 1 do
       Format.fprintf fmt " $%a" pp_lname ids.(i)
     done
   in
-  Format.fprintf fmt "@[%a@]" pp_mllam l
+  Format.fprintf fmt "@[%a@]" pp_mllam_mlf l
 
 
 let pp_array fmt t =
