@@ -27,7 +27,7 @@ open Context.Rel.Declaration
 (** Machinery to custom the behavior of the reduction *)
 module ReductionBehaviour = Reductionops.ReductionBehaviour
 
-type cst_info = { volatile : bool; alias : bool; refold_after_iota : bool }
+type cst_info = { volatile : bool; refold_after_iota : bool }
 
 module CbnClos = struct
   open EConstr
@@ -121,20 +121,6 @@ module CbnClos = struct
     let nb = Array.length bodies in
     (n, (names, force_vect sigma (mk_clos_vect subs types), force_vect sigma (mk_clos_vect (Esubst.subs_liftn nb subs) bodies)))
 
-  (* If [c] is syntactically a substituted de Bruijn variable, return the
-     substituted value without weak-head reducing that value.  This is used to
-     recognize wrappers such as [fun x => x] without speculatively reducing
-     their arguments. *)
-  let rec subst_value sigma c =
-    match EConstr.kind sigma c.term with
-    | Rel n ->
-      begin match Esubst.expand_rel n c.subst with
-      | Inl (k, v) -> Some (lift k v)
-      | Inr _ -> None
-      end
-    | Cast (b, _, _) -> subst_value sigma (mk_clos c.subst b)
-    | _ -> None
-
   let equal sigma a b =
     a == b || (a.term == b.term && a.subst == b.subst) ||
     (* TODO: add fast path that returns false on non-Rel terms whose head is not of the same shape.
@@ -186,17 +172,7 @@ module Cst_stack = struct
   type t = (constr * CbnClos.t list * (int * CbnClos.t array) list * cst_info) list
 
   let empty : t = []
-  let is_empty = function [] -> true | _ :: _ -> false
   let all_volatile (l : t) = CList.for_all (fun (_,_,_,{volatile; _}) -> volatile) l
-  let may_refold_alias_after_iota (l : t) = match l with
-    | (_,_,_,{alias=true; refold_after_iota=true; _}) :: _ -> true
-    | [] | (_,_,_,{alias=false; _}) :: _
-    | (_,_,_,{alias=true; refold_after_iota=false; _}) :: _ -> false
-  let mark_alias ?(refold_after_iota=false) (l : t) : t = match l with
-    | (c, params, args, info) :: l ->
-      (c, params, args,
-       { info with alias = true; refold_after_iota = info.refold_after_iota || refold_after_iota }) :: l
-    | [] -> []
 
   let drop_useless (l : t) : t = match l with
     | _ :: ((_,_,[],_)::_ as q) -> q
@@ -217,7 +193,7 @@ module Cst_stack = struct
 
   let add_cst ?(volatile=false) ?(refold_after_iota=false) (cst : constr) (l : t) : t = match l with
     | (_,_,[],_) :: q as l -> l
-    | l -> (cst,[],[],{volatile; alias=false; refold_after_iota})::l
+    | l -> (cst,[],[],{volatile; refold_after_iota})::l
 
   let best_cst (l : t) : (constr * CbnClos.t list) option = match l with
     | (cst,params,[],_)::_ -> Some(cst,params)
@@ -244,12 +220,11 @@ module Cst_stack = struct
     let open Pp in
     let p_c c = Termops.Internal.print_constr_env env sigma c in
     prlist_with_sep pr_semicolon
-      (fun (c,params,args,{volatile; alias; refold_after_iota}) ->
+      (fun (c,params,args,{volatile; refold_after_iota}) ->
         hov 1 (str"(" ++ p_c c ++ str ")" ++ spc () ++ pr_sequence pr_a params ++ spc () ++ str "(args:" ++
                  pr_sequence (fun (i,el) -> prvect_with_sep spc pr_a (Array.sub el i (Array.length el - i))) args ++
                str ")" ++
               (if volatile then str " (volatile)" else mt()) ++
-              (if alias then str " (alias)" else mt()) ++
               (if refold_after_iota then str " (refold-after-iota)" else mt()))) l
 end
 
@@ -447,24 +422,6 @@ struct
     let (out,s') = aux s in
     let init = match s' with [] -> true | _ -> false in
     Option.init init out
-
-  let rec has_refold_cst_in_computing_frame = function
-    | [] -> false
-    | App _ :: s -> has_refold_cst_in_computing_frame s
-    | Case _ :: s | Proj _ :: s ->
-      (* Keeping an alias around a direct stuck eliminator is the intended
-         [simpl nomatch] behavior; computing frames below may still refold an
-         outer alias after additional progress and must be treated as escapes. *)
-      has_refold_cst_in_computing_frame s
-    | Fix (_,_,st,cst_l) :: s
-    | Primitive (_,_,st,_,cst_l) :: s ->
-      not (Cst_stack.is_empty cst_l)
-      || has_refold_cst_in_computing_frame st
-      || has_refold_cst_in_computing_frame s
-    | Cst { params; cst_l; _ } :: s ->
-      not (Cst_stack.is_empty cst_l)
-      || has_refold_cst_in_computing_frame params
-      || has_refold_cst_in_computing_frame s
 
   let app_stack_for_all p s =
     let rec aux = function
@@ -687,15 +644,6 @@ let apply_subst sigma cst_l t stack =
        let cst_l' = Cst_stack.add_param h cst_l in
        aux cst_l' (mk_clos (Esubst.subs_cons h subs) c) stacktl
     | _ ->
-      let cst_l = match CbnClos.subst_value sigma t with
-        | Some tm ->
-          let refold_after_iota = match stack, CbnClos.kind sigma tm with
-            | _ :: _, (subs, (Const _ | Var _ | Rel _)) -> true
-            | [], _ | _ :: _, _ -> false
-          in
-          Cst_stack.mark_alias ~refold_after_iota cst_l
-        | None -> cst_l
-      in
       (cst_l, (t, stack))
   in
   aux cst_l t stack
@@ -1089,186 +1037,136 @@ let rec whd_state_gen ?csts flags env sigma =
               | UnfoldWhenNoMatch { recargs; nargs } -> (* maybe unfolds *)
                   let app_sk,sk = Stack.strip_app stack in
                   let volatile = Option.has_some nargs in
-                  let local_rel_is_unfoldable n =
-                    RedFlags.red_set flags RedFlags.fDELTA &&
-                    match lookup_rel n env with
-                    | LocalDef _ -> true
-                    | LocalAssum _ -> false
-                    | exception Not_found -> false
-                  in
-                  let local_var_is_unfoldable id =
-                    RedFlags.red_set flags (RedFlags.fVAR id) &&
-                    match lookup_named id env with
-                    | LocalDef _ -> true
-                    | LocalAssum _ -> false
-                    | exception Not_found -> false
-                  in
-                  (* Fast-path substitutions that are already stuck.  If the
-                     substituted value can still make head progress (local
-                     definitions, transparent constants, lets, beta-redexes,
-                     fixpoints, projections, ...), fall back to the ordinary
-                     weak-head pass below.  That pass is what notices that a
-                     [simpl nomatch] wrapper would expose a stuck case after
-                     zeta/delta/beta reduction and therefore refolds it. *)
-                  let rec is_obviously_stuck tm sk =
-                    not (Stack.will_expose_iota sk) &&
-                    match CbnClos.kind sigma tm with
-                    | subs, Cast (tm, _, _) -> is_obviously_stuck (mk_clos subs tm) sk
-                    | subs, App (hd, args) ->
-                      is_obviously_stuck (mk_clos subs hd) (Stack.append_app (mk_clos_vect subs args) sk)
-                    | subs, Rel n -> not (local_rel_is_unfoldable n)
-                    | subs, Var id -> not (local_var_is_unfoldable id)
-                    | subs, Const (c, _) -> not (RedFlags.red_set flags (RedFlags.fCONST c))
-                    | subs, Lambda _ -> Option.is_empty (Stack.decomp sk)
-                    | subs, (Construct _ | Ind _ | Evar _ | Meta _ | Sort _ | Prod _
-                            | Int _ | Float _ | String _ | Array _) -> true
-                    | subs, (LetIn _ | Case _ | Fix _ | CoFix _ | Proj _) -> false
-                  in
-                  let unfolds_to_subst_value = match recargs with
-                    | _ :: _ -> None
+                  let (tm',sk'),cst_l' =
+                    match recargs with
                     | [] ->
-                      let cst_l' = Cst_stack.add_cst ~volatile ~refold_after_iota:true (mkConstU const) cst_l in
-                      let cst_l', (tm', sk') =
-                        apply_subst sigma cst_l' (CbnClos.inject body) app_sk in
-                      match CbnClos.subst_value sigma tm' with
-                      | Some tm' when is_obviously_stuck tm' sk' ->
-                        Some ((tm', sk'), cst_l')
-                      | Some _ | None -> None
+                      let cst_l = Cst_stack.add_cst ~volatile ~refold_after_iota:true
+                          (mkConstU const) cst_l in
+                      whrec cst_l (CbnClos.inject body, app_sk)
+                    | curr :: remains -> match Stack.strip_n_app curr app_sk with
+                      | None -> (x,app_sk), cst_l
+                      | Some (bef,arg,app_sk') ->
+                        let cst_l = Stack.Cst
+                            { const = Stack.Cst_const (fst const, u');
+                              volatile;
+                              refold_after_iota = true;
+                              curr; remains; params=bef; cst_l;
+                            }
+                        in
+                        whrec Cst_stack.empty (arg,cst_l :: app_sk')
                   in
-                  begin match unfolds_to_subst_value with
-                  | Some ((tm', sk'), cst_l') -> whrec cst_l' (tm', sk' @ sk)
-                  | None ->
-                    let (tm',sk'),cst_l' =
-                      match recargs with
-                      | [] ->
-                        let cst_l = Cst_stack.add_cst ~volatile ~refold_after_iota:true
-                            (mkConstU const) cst_l in
-                        whrec cst_l (CbnClos.inject body, app_sk)
-                      | curr :: remains -> match Stack.strip_n_app curr app_sk with
-                        | None -> (x,app_sk), cst_l
-                        | Some (bef,arg,app_sk') ->
-                          let cst_l = Stack.Cst
-                              { const = Stack.Cst_const (fst const, u');
-                                volatile;
-                                refold_after_iota = true;
-                                curr; remains; params=bef; cst_l;
-                              }
-                          in
-                          whrec Cst_stack.empty (arg,cst_l :: app_sk')
-                    in
-                    (* If the selected recursive argument definitely changed,
-                       the unfolded state cannot be equal to the original one;
-                       avoid a full stack comparison, which may force unrelated
-                       arguments only to discard the equality result. *)
-                    let recarg_changed = match recargs with
-                      | [] -> false
-                      | curr :: _ ->
-                        not (CbnClos.equal sigma x tm') ||
-                        match Stack.strip_n_app curr app_sk, Stack.strip_n_app curr sk' with
-                        | Some (_, arg, _), Some (_, arg', _) ->
-                          not (CbnClos.equal sigma arg arg')
-                        | _ -> false
-                    in
-                    if (not recarg_changed && equal_stacks env sigma (x, app_sk) (tm', sk'))
-                    || Stack.will_expose_iota sk'
-                    || is_case sigma tm'
-                    then fold ()
-                    else whrec cst_l' (tm', sk' @ sk)
-                  end
+                  (* If the selected recursive argument definitely changed,
+                     the unfolded state cannot be equal to the original one;
+                     avoid a full stack comparison, which may force unrelated
+                     arguments only to discard the equality result. *)
+                  let recarg_changed = match recargs with
+                    | [] -> false
+                    | curr :: _ ->
+                      not (CbnClos.equal sigma x tm') ||
+                      match Stack.strip_n_app curr app_sk, Stack.strip_n_app curr sk' with
+                      | Some (_, arg, _), Some (_, arg', _) ->
+                        not (CbnClos.equal sigma arg arg')
+                      | _ -> false
+                  in
+                  if (not recarg_changed && equal_stacks env sigma (x, app_sk) (tm', sk'))
+                  || Stack.will_expose_iota sk'
+                  || is_case sigma tm'
+                  then fold ()
+                  else whrec cst_l' (tm', sk' @ sk)
               | UnfoldWhen { recargs; nargs } -> (* maybe unfolds *)
                 begin match recargs with
-                  | [] -> (* if nargs has been specified *)
-                    (* CAUTION : the constant is NEVER refolded (even when it hides a (co)fix) *)
-                    whrec cst_l (CbnClos.inject body, stack)
-                  | curr :: remains -> match Stack.strip_n_app curr stack with
-                    | None -> fold ()
-                    | Some (bef,arg,s') ->
-                      let cst_l = Stack.Cst
-                          { const = Stack.Cst_const (fst const, u');
-                            volatile = Option.has_some nargs;
-                            refold_after_iota = false;
-                            curr; remains; params=bef; cst_l;
-                          }
-                      in
-                      whrec Cst_stack.empty (arg,cst_l::s')
+                | [] -> (* if nargs has been specified *)
+                  (* CAUTION : the constant is NEVER refolded (even when it hides a (co)fix) *)
+                  whrec cst_l (CbnClos.inject body, stack)
+                | curr :: remains -> match Stack.strip_n_app curr stack with
+                  | None -> fold ()
+                  | Some (bef,arg,s') ->
+                    let cst_l = Stack.Cst
+                        { const = Stack.Cst_const (fst const, u');
+                          volatile = Option.has_some nargs;
+                          refold_after_iota = false;
+                          curr; remains; params=bef; cst_l;
+                        }
+                    in
+                    whrec Cst_stack.empty (arg,cst_l::s')
                 end
               end
-        end
-       | exception NotEvaluableConst (IsPrimitive (u,p)) when Stack.check_native_args p stack ->
-          let kargs = CPrimitives.kind p in
-          let (kargs,o) = Stack.get_next_primitive_args kargs stack in
-          (* Should not fail thanks to [check_native_args] *)
-          let (before,a,after) = Option.get o in
-          whrec Cst_stack.empty (a,Stack.Primitive(p,const,before,kargs,cst_l)::after)
-       | exception NotEvaluableConst (HasRules (u', b, r)) ->
-          begin try
-            let red_fun ctx =
-              let env = push_rel_context ctx env in
-              whd_state_gen flags env sigma
-            in
-            let rhs_stack = apply_rules red_fun env sigma u r stack in
-            whrec Cst_stack.empty rhs_stack
-          with PatternFailure ->
-            if not b then fold () else
-            match Stack.strip_app stack with
-            | args, (Stack.Fix (subs,f,s',cst_l)::s'') when RedFlags.red_set flags RedFlags.fFIX ->
-                let x' = clos_of_app_stack sigma x args in
-                let out_sk = s' @ (Stack.append_app [|x'|] s'') in
-                reduce_and_refold_fix whrec env sigma cst_l subs f out_sk
-            | _ -> fold ()
           end
+       | exception NotEvaluableConst (IsPrimitive (u,p)) when Stack.check_native_args p stack ->
+         let kargs = CPrimitives.kind p in
+         let (kargs,o) = Stack.get_next_primitive_args kargs stack in
+         (* Should not fail thanks to [check_native_args] *)
+         let (before,a,after) = Option.get o in
+         whrec Cst_stack.empty (a,Stack.Primitive(p,const,before,kargs,cst_l)::after)
+       | exception NotEvaluableConst (HasRules (u', b, r)) ->
+         begin try
+           let red_fun ctx =
+             let env = push_rel_context ctx env in
+             whd_state_gen flags env sigma
+           in
+           let rhs_stack = apply_rules red_fun env sigma u r stack in
+           whrec Cst_stack.empty rhs_stack
+         with PatternFailure ->
+           if not b then fold () else
+             match Stack.strip_app stack with
+             | args, (Stack.Fix (subs,f,s',cst_l)::s'') when RedFlags.red_set flags RedFlags.fFIX ->
+               let x' = clos_of_app_stack sigma x args in
+               let out_sk = s' @ (Stack.append_app [|x'|] s'') in
+               reduce_and_refold_fix whrec env sigma cst_l subs f out_sk
+             | _ -> fold ()
+         end
        | exception NotEvaluableConst _ -> fold ()
       else fold ()
     | subs, Proj (p, r, c) when RedFlags.red_projection flags p ->
       (let npars = Projection.npars p in
        let c = mk_clos subs c in
        match ReductionBehaviour.get (Projection.constant p) with
-         | None ->
-           let stack' = (c, Stack.Proj (p, r, cst_l) :: stack) in
-           let stack'', csts = whrec Cst_stack.empty stack' in
-           if equal_stacks env sigma stack' stack'' then fold ()
-           else stack'', csts
-         | Some behavior ->
-           begin match behavior with
-             | NeverUnfold -> fold ()
-             | (UnfoldWhen { nargs = Some n }
-               | UnfoldWhenNoMatch { nargs = Some n })
-               when Stack.args_size stack < n - (npars + 1) -> fold ()
-             | UnfoldWhen { recargs }
-             | UnfoldWhenNoMatch { recargs }-> (* maybe unfolds *)
-               let recargs = List.map_filter (fun x ->
-                   let idx = x - npars in
-                   if idx < 0 then None else Some idx) recargs
+       | None ->
+         let stack' = (c, Stack.Proj (p, r, cst_l) :: stack) in
+         let stack'', csts = whrec Cst_stack.empty stack' in
+         if equal_stacks env sigma stack' stack'' then fold ()
+         else stack'', csts
+       | Some behavior ->
+         begin match behavior with
+         | NeverUnfold -> fold ()
+         | (UnfoldWhen { nargs = Some n }
+           | UnfoldWhenNoMatch { nargs = Some n })
+           when Stack.args_size stack < n - (npars + 1) -> fold ()
+         | UnfoldWhen { recargs }
+         | UnfoldWhenNoMatch { recargs }-> (* maybe unfolds *)
+           let recargs = List.map_filter (fun x ->
+               let idx = x - npars in
+               if idx < 0 then None else Some idx) recargs
+           in
+           let volatile = match behavior with
+             | UnfoldWhen {nargs} -> Option.has_some nargs
+             | UnfoldWhenNoMatch _ | NeverUnfold -> false
+           in
+           match recargs with
+           | [] -> (* if nargs has been specified *)
+             (* CAUTION : the constant is NEVER refold
+                              (even when it hides a (co)fix) *)
+             let stack' = (c, Stack.Proj (p, r, cst_l) :: stack) in
+             whrec Cst_stack.empty(* cst_l *) stack'
+           | curr :: remains ->
+             match Stack.strip_n_app curr (Stack.append_app [|c|] stack) with
+             | None -> fold ()
+             | Some (bef,arg,s') ->
+               let cst_l = Stack.Cst
+                   { const=Stack.Cst_proj (p,r);
+                     curr;
+                     remains;
+                     volatile;
+                     refold_after_iota =
+                       (match behavior with
+                        | UnfoldWhenNoMatch _ -> true
+                        | UnfoldWhen _ | NeverUnfold -> false);
+                     params=bef;
+                     cst_l;
+                   }
                in
-               let volatile = match behavior with
-                 | UnfoldWhen {nargs} -> Option.has_some nargs
-                 | UnfoldWhenNoMatch _ | NeverUnfold -> false
-               in
-               match recargs with
-               | [] -> (* if nargs has been specified *)
-                 (* CAUTION : the constant is NEVER refold
-                                  (even when it hides a (co)fix) *)
-                 let stack' = (c, Stack.Proj (p, r, cst_l) :: stack) in
-                 whrec Cst_stack.empty(* cst_l *) stack'
-               | curr :: remains ->
-                 match Stack.strip_n_app curr (Stack.append_app [|c|] stack) with
-                 | None -> fold ()
-                 | Some (bef,arg,s') ->
-                   let cst_l = Stack.Cst
-                       { const=Stack.Cst_proj (p,r);
-                         curr;
-                         remains;
-                         volatile;
-                         refold_after_iota =
-                           (match behavior with
-                            | UnfoldWhenNoMatch _ -> true
-                            | UnfoldWhen _ | NeverUnfold -> false);
-                         params=bef;
-                         cst_l;
-                       }
-                   in
-                   whrec Cst_stack.empty (arg,cst_l::s')
-           end)
+               whrec Cst_stack.empty (arg,cst_l::s')
+         end)
 
     | subs, LetIn (_,b,_,c) when RedFlags.red_set flags RedFlags.fZETA ->
       whrec cst_l (mk_clos (Esubst.subs_cons (mk_clos subs b) subs) c, stack)
@@ -1302,23 +1200,7 @@ let rec whd_state_gen ?csts flags env sigma =
         match Stack.strip_app stack with
         |args, (Stack.Case(subs,case,case_cst_l)::s') when use_match ->
           let r = apply_branch env sigma cstr args subs case in
-          let reduce_with_elim_csts cst_l p =
-            match cst_l, case_cst_l with
-            | [], _ :: _ when Cst_stack.may_refold_alias_after_iota case_cst_l && is_case sigma r ->
-              (* [simpl nomatch] wrappers, including projection wrappers using
-                 [UnfoldWhenNoMatch], must stay folded when reducing under them
-                 exposes a stuck eliminator.  Do not do this for ordinary
-                 transparent aliases, even when the alias result has pending
-                 eliminations: after a real iota step master keeps the progress
-                 and reduces aliases such as [fst_nat] and [id_fun] away. *)
-              let ((_, sk'), cst_l') as res = whrec case_cst_l p in
-              if Cst_stack.is_empty cst_l'
-                 && not (Stack.has_refold_cst_in_computing_frame sk')
-              then res
-              else whrec Cst_stack.empty p
-            | [], [] | [], _ :: _ | _ :: _, _ -> whrec Cst_stack.empty p
-          in
-          reduce_with_elim_csts cst_l (r, s')
+          whrec Cst_stack.empty (r, s')
         |args, (Stack.Proj (p,_,_)::s') when use_match ->
           whrec Cst_stack.empty (Stack.nth args (Projection.npars p + Projection.arg p), s')
         |args, (Stack.Fix (subs,f,s',cst_l)::s'') when use_fix ->
