@@ -187,7 +187,7 @@ let encapsulate_Fix_sub env sigma recname ctx body ccl (extradecl, rel, relargty
     let sigma = Evd.set_obligation_evar sigma (fst (destEvar sigma wf_proof)) in
     let ccl_pred = mkLambda (make_annot (Name argname) ERelevance.relevant, tuple_type, tupled_ccl) in
     let def = mkApp (fix_sub_term, [| tuple_type ; rel_measure ; wf_proof ; ccl_pred |]) in
-    Typing.solve_evars env sigma def in
+    sigma, def in
   let arg = RelDecl.LocalAssum (make_annot (Name argname) ERelevance.relevant, tuple_type) in
   let argid' = Id.of_string (Id.to_string argname ^ "'") in
   let sigma, wfa =
